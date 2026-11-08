@@ -159,6 +159,7 @@ void ATrialChest::Interact(APawn *Pawn)
 		return;
 	}
 	const FText ItemName = TrialLoot::GetItemName(Item);
+	TrialRun->RecordChestReward(); // B-073 (D-094): chests add more to the run's tally
 	TrialRun->RecordFound(GetFeatureId(), FText::Format(LOCTEXT("ChestFound", "Chest: {0}"), ItemName));
 	ShowMessage(FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
 	RefreshHint();

@@ -31,6 +31,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
 | [B-367](B-367.md) | `feature/B-367-interrupt-points` (in `dev`) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending |
+| [B-073](B-073.md) | `feature/B-073-run-rewards-cloud` (UNBUILT) | A win pays run Prisms now; hub Gold and essences are tallied and paid at the run's end, win or lose; save v23 | Pending |
+| [B-187](B-187.md) | `feature/B-187-rest-spot-cloud` (UNBUILT, on B-073) | A rest spot heals, revives and becomes the last rest spot; leaving there pays half; placeholder rest menu | Pending |
 | [B-347b](B-347b.md) | `feature/B-347b-run-armoury` (in `dev`) | During a run a member sees and equips only what the run brought or found; left-home gear and loadouts come back intact; the chest waits until the run ends | Pending |
 | [B-366c](B-366c.md) | `feature/B-366c-shop-place-currency` (in `dev`) | Shops charge the hub currency (Gold) at home and the run currency (Prisms) in a run; cost lines, totals and Confirm follow it | Pending |
 | [B-366b](B-366b.md) | `fix/B-366b-convert-place-currency` (in `dev`) | Converting a duplicate pays the hub currency (Gold) at home and the run currency (Prisms) in a run; the texts name it | Pending |
