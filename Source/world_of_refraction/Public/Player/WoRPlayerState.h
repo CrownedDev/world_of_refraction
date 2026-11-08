@@ -17,6 +17,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Character/Forms/CharacterFormData.h"
 #include "Save/CoopCheckpoint.h"
+#include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
@@ -97,7 +98,21 @@ public:
 	 *  player's pawn, if it stands in the feature's trigger. */
 	UFUNCTION(Server, Reliable)
 	void ServerInteractFeature(class ATrialMapFeature *Feature);
+
+	/** B-235d: the host's run unlocked Memory and it qualifies for this player: their own journal records it and only
+	 *  they see the notice (D-103: hidden unlocks are private). */
+	UFUNCTION(Client, Reliable)
+	void Client_UnlockMemory(class UMemoryData *Memory, EMemorySource Source);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
+	/** B-235d (Q-235d, Crown): the characters this player plays: the claimed characters and the characters of the
+	 *  claimed party members (the host's party knows them). A memory's conditions are read against these for them. */
+	TArray<UCharacterData *> GetOwnCharacters() const;
+	/** B-235d (server): a memory goes to this player once (MemoryUnlock::UnlockFor);
+	 *  seamless travel carries the record. */
+	bool WasMemorySent(FName MemoryId) const { return SentMemoryIds.Contains(MemoryId); }
+	void MarkMemorySent(FName MemoryId) { SentMemoryIds.Add(MemoryId); }
+	/** B-235d debug (`wor.Memory.Sent`): this player's own characters and the memories sent to them. */
+	FString GetSharedMemoriesString() const;
 
 	/** B-234 (host): sends this remote player the host's compressed save as checkpoint CheckpointId, in chunks. */
 	void SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize);
@@ -165,4 +180,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Economy")
 	TObjectPtr<UCurrencyComponent> Wallet;
+
+	/** B-235d (server only): the memory ids already sent to this player. */
+	TSet<FName> SentMemoryIds;
 };

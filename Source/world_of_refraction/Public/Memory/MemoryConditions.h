@@ -14,6 +14,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 
 class AActor;
+class AWoRPlayerState;
 class UCharacterData;
 class UEquipmentDataBase;
 class UEvolutionItemData;
@@ -70,6 +71,13 @@ struct FMemoryEvent
 	TArray<UMemoryData *> Named;
 };
 
+/** B-235d (Q-235d, Crown): who a memory a conditions event unlocked goes to. */
+struct FMemoryReceivers
+{
+	bool bHost = true;
+	TArray<AWoRPlayerState *> Friends;
+};
+
 namespace MemoryConditions
 {
 	/** An event from what's true out of a fight: the party's characters (no worn gear: loadouts live
@@ -104,8 +112,23 @@ namespace MemoryConditions
 	 *  every memory asset per event; cache it once authored memories make that slow. */
 	WORLD_OF_REFRACTION_API TArray<UMemoryData *> GatherConditional();
 
+	/** B-235d: Event with its party kept to (bKeep) or rid of (!bKeep) Characters' members; a level-up by someone
+	 *  left out drops its upgraded item. What one player met is read on their part of the event. */
+	WORLD_OF_REFRACTION_API FMemoryEvent FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep);
+
+	/** B-235d (Q-235d, Crown, after Shangri-La Frontier's unique scenarios): Memory goes to each player whose own
+	 *  characters met its conditions and who plays a character it is for; to everyone when it lists no character;
+	 *  to the host when no friend gets it (MemoryUnlock::ShouldFriendReceive / ShouldHostReceive). */
+	WORLD_OF_REFRACTION_API FMemoryReceivers PickReceivers(const UGameInstance *GameInstance, const UMemoryData &Memory,
+														   const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);
+
+	/** B-235d: PickReceivers, then MemoryUnlock::UnlockFor. */
+	WORLD_OF_REFRACTION_API bool UnlockForFinders(UGameInstance *GameInstance, UMemoryData *Memory, const FMemoryEvent &Event,
+												  const UMemoryJournalSubsystem *Journal);
+
 	/** Unlock every memory among Conditional and Event.Named whose conditions hold, repeating so
-	 *  one earned now can unlock the next. Returns how many were new. */
+	 *  one earned now can unlock the next. Returns how many were new. B-235d: in co-op a
+	 *  memory the host already has is checked again for friends who have not had it. */
 	WORLD_OF_REFRACTION_API int32 CheckEvent(UGameInstance *GameInstance, const FMemoryEvent &Event,
 											 const TArray<UMemoryData *> &Conditional);
 
