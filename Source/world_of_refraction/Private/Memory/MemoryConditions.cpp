@@ -20,6 +20,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
+#include "Player/WoRPlayerState.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -152,14 +153,6 @@ FMemoryEvent MemoryConditions::MakeEvent(const UGameInstance *GameInstance, EMem
 			{
 				Event.Party.Add({Member.CharacterData, {}});
 			}
-		}
-	}
-	// B-235d (Q-235d confirmed): a friend's own characters count too, so a memory for one of them can unlock.
-	for (const UCharacterData *Character : MemoryUnlock::GetRemotePlayersCharacters(GameInstance))
-	{
-		if (!Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; }))
-		{
-			Event.Party.Add({Character, {}});
 		}
 	}
 	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
@@ -335,6 +328,58 @@ TArray<UMemoryData *> MemoryConditions::GatherConditional()
 	return Conditional;
 }
 
+FMemoryEvent MemoryConditions::FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep)
+{
+	FMemoryEvent Filtered = Event;
+	Filtered.Party.RemoveAll([&Characters, bKeep](const FMemoryEventMember &Member)
+	{
+		return Characters.Contains(Member.Character) != bKeep;
+	});
+	if (Filtered.UpgradedBy && Characters.Contains(Filtered.UpgradedBy) != bKeep)
+	{
+		Filtered.UpgradedItem = nullptr; // someone else's level-up is not this player's find
+		Filtered.UpgradedEvolution = nullptr;
+	}
+	return Filtered;
+}
+
+FMemoryReceivers MemoryConditions::PickReceivers(const UGameInstance *GameInstance, const UMemoryData &Memory, const FMemoryEvent &Event,
+												 const UMemoryJournalSubsystem *Journal)
+{
+	FMemoryReceivers Receivers;
+	TArray<UCharacterData *> FriendsCharacters;
+	for (AWoRPlayerState *Friend : MemoryUnlock::GetRemotePlayers(GameInstance))
+	{
+		const TArray<UCharacterData *> Own = Friend->GetOwnCharacters();
+		FriendsCharacters.Append(Own);
+		// TODO(B-235d): PriorMemory conditions read the host's journal, not the friend's (the host has no copy of it).
+		if (MemoryUnlock::ShouldFriendReceive(&Memory, Own, AreMet(Memory, FilterParty(Event, Own, /*bKeep=*/true), Journal)))
+		{
+			Receivers.Friends.Add(Friend);
+		}
+	}
+	// The host's own characters: the event's party less every friend's.
+	const FMemoryEvent HostsEvent = FilterParty(Event, FriendsCharacters, /*bKeep=*/false);
+	TArray<UCharacterData *> HostCharacters;
+	for (const FMemoryEventMember &Member : HostsEvent.Party)
+	{
+		HostCharacters.AddUnique(const_cast<UCharacterData *>(Member.Character));
+	}
+	Receivers.bHost = MemoryUnlock::ShouldHostReceive(&Memory, HostCharacters, AreMet(Memory, HostsEvent, Journal), !Receivers.Friends.IsEmpty());
+	return Receivers;
+}
+
+bool MemoryConditions::UnlockForFinders(UGameInstance *GameInstance, UMemoryData *Memory, const FMemoryEvent &Event,
+										const UMemoryJournalSubsystem *Journal)
+{
+	if (!Memory)
+	{
+		return false;
+	}
+	const FMemoryReceivers Receivers = PickReceivers(GameInstance, *Memory, Event, Journal);
+	return MemoryUnlock::UnlockFor(GameInstance, Memory, Event.Source, Receivers.bHost, Receivers.Friends);
+}
+
 int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEvent &Event, const TArray<UMemoryData *> &Conditional)
 {
 	const UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
@@ -355,7 +400,7 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 		for (UMemoryData *Memory : Candidates)
 		{
 			if (Memory && !Journal->HasMemory(Memory) && AreMet(*Memory, Event, Journal) &&
-				MemoryUnlock::Unlock(GameInstance, Memory, Event.Source))
+				UnlockForFinders(GameInstance, Memory, Event, Journal))
 			{
 				++Unlocked;
 				bEarned = true;

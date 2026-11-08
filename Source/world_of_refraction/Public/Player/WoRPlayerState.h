@@ -86,10 +86,10 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_UnlockMemory(class UMemoryData *Memory, EMemorySource Source);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
-	/** B-235d (Q-235d confirmed): the characters this player plays: the claimed characters and the characters of the
-	 *  claimed party members (the host's party knows them). What a memory "is for" is checked against these. */
+	/** B-235d (Q-235d, Crown): the characters this player plays: the claimed characters and the characters of the
+	 *  claimed party members (the host's party knows them). A memory's conditions are read against these for them. */
 	TArray<UCharacterData *> GetOwnCharacters() const;
-	/** B-235d (server): a memory goes to this player once (MemoryUnlock::ShareWithPlayers / ShareRunMemoriesWith);
+	/** B-235d (server): a memory goes to this player once (MemoryUnlock::UnlockFor);
 	 *  seamless travel carries the record. */
 	bool WasMemorySent(FName MemoryId) const { return SentMemoryIds.Contains(MemoryId); }
 	void MarkMemorySent(FName MemoryId) { SentMemoryIds.Add(MemoryId); }
