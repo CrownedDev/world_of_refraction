@@ -22,6 +22,10 @@ public:
 	/** Add a fresh one to PC's viewport (UI-only input, cursor on). Null when PC is null. */
 	static URestSpotWidget *Open(APlayerController *PC);
 
+	/** B-187e: on a client, what the host said about this spot's mini-boss (the run lives on the host): Revive shows
+	 *  when bCanRevive, labelled with RevivalNumber of MAX_REVIVALS. */
+	void SetHostRevive(bool bCanRevive, int32 RevivalNumber);
+
 	/** Debug: what the menu shows. */
 	FString GetRestSpotWidgetString() const;
 
@@ -52,6 +56,10 @@ private:
 
 	/** The leave button asks first; the second press (Confirm) leaves. */
 	bool bConfirmingLeave = false;
+
+	/** B-187e: the host's answer for a client's menu (SetHostRevive). */
+	bool bHostCanRevive = false;
+	int32 HostRevivalNumber = 0;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> PayoutText;
