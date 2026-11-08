@@ -8,6 +8,9 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/FCrystalAttachment.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Loadout/LoadoutComponent.h"
@@ -18,6 +21,8 @@ namespace
 	constexpr int32 APPAREL_TEST_HP = 5;
 	constexpr int32 APPAREL_TEST_DEFENSE = 3;
 	constexpr int32 APPAREL_TEST_LUCK = 4;
+	const FCrystalId APPAREL_TEST_FIRE_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
+	constexpr int32 APPAREL_TEST_DURABILITY = 5;
 
 	UApparelData *ApparelTestPiece()
 	{
@@ -98,6 +103,35 @@ void FApparelSpec::Define()
 		FApparelEntry WithEvolution = FApparelEntry::CreateFromApparel(ApparelTestPiece());
 		WithEvolution.AttachedItem = Evolution;
 		TestFalse(TEXT("a piece holding an evolution is not worn"), ApparelRules::AddApparel(Loadout, WithEvolution));
+	});
+
+	It("adds resistance to its crystal's element, and its effects count (D-164, Crown)", [this]()
+	{
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.AttachedItem.Kind = EAttachedItemKind::Crystal;
+		Piece.AttachedItem.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		TestEqual(TEXT("keyed to Fire"), Piece.GetElement(), ESpellElement::Fire);
+		TestEqual(TEXT("Fire resistance"), Piece.GetResistance().Fire, ApparelRules::CRYSTAL_ELEMENT_RESISTANCE);
+		TestEqual(TEXT("not Water"), Piece.GetResistance().Water, 0.0f);
+
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		UEffectDefinition *Bundle = NewObject<UEffectDefinition>(GetTransientPackage());
+		FSkillEffect Effect;
+		FSkillEffectPayload Payload;
+		Payload.EffectType = ESkillEffectType::DefenseBuff;
+		Effect.Payloads.Add(Payload);
+		Bundle->Effects.Add(Effect);
+		Piece.Apparel->ReferencedEffects.Add(Bundle);
+		const int32 EffectsBefore = Loadout->GetActiveEffects(Loadout->GetOwner()).Num();
+		const float FireBefore = Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire;
+		TestTrue(TEXT("worn"), ApparelRules::AddApparel(ActiveOf(Loadout), Piece));
+		TestEqual(TEXT("its effect counts"), Loadout->GetActiveEffects(Loadout->GetOwner()).Num(), EffectsBefore + 1);
+		TestEqual(TEXT("its Fire resistance counts"), Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire - FireBefore,
+				  ApparelRules::CRYSTAL_ELEMENT_RESISTANCE);
 	});
 }
 
