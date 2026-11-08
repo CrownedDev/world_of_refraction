@@ -1093,7 +1093,7 @@ void UTurnManager::DebugPrintBelt()
 namespace
 {
 	static FAutoConsoleCommandWithWorld GPrintBeltCmd(
-		TEXT("wor.PrintBelt"),
+		TEXT("wor.Turns.PrintBelt"),
 		TEXT("Log the turn belt in DebugPrintTurnOrder's slot format (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -1106,7 +1106,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] wor.PrintBelt: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] wor.Turns.PrintBelt: no subsystem (no PIE world?)."));
 				}
 			}));
 
