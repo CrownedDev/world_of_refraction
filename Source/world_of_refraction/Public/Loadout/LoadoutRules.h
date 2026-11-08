@@ -168,7 +168,7 @@ namespace LoadoutClassTable
 struct WORLD_OF_REFRACTION_API FLoadoutRules
 {
 	/** D-110: one cost for every class. Weapon: bare 1 / with a crystal, stone or fusion 2 / with an evolution 3.
-	 *  Adapter: 1 / with an evolution 2 (InventoryConstants). The evolution seat is EVOLUTION_PRIMARY_SLOT_COST. */
+	 *  Adapter: 1 / with an evolution 3 (InventoryConstants; B-357: one evolution cost, EVOLUTION_SLOT_COST). The evolution seat is EVOLUTION_PRIMARY_SLOT_COST. */
 	static int32 SlotCost(const FLoadoutSlot &Slot);
 
 	/** What the class's weapons and evolution seat cost (everything but adapters), over the slots the fight reads.
