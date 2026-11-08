@@ -307,7 +307,8 @@ bool MemoryConditions::FitsRequirements(const FMemoryCondition &Condition, const
 	return false;
 }
 
-bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
+bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal,
+							  const TSet<FName> *KnownMemoryIds)
 {
 	// Q-209c: any one route opens it; none authored: only the source's naming it counts.
 	// B-337 (D-130): through the one condition evaluator; the authored conditions convert on read.
@@ -316,7 +317,9 @@ bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Eve
 	{
 		Routes.Add(WoRConditions::FromMemory(Set));
 	}
-	return WoRConditions::IsAnyMet(Routes, WoRConditions::MakeContext(Event, Journal));
+	FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
+	Context.KnownMemoryIds = KnownMemoryIds;
+	return WoRConditions::IsAnyMet(Routes, Context);
 }
 
 TArray<UMemoryData *> MemoryConditions::GatherConditional()
@@ -363,8 +366,9 @@ FMemoryReceivers MemoryConditions::PickReceivers(const UGameInstance *GameInstan
 	{
 		const TArray<UCharacterData *> Own = Friend->GetOwnCharacters();
 		FriendsCharacters.Append(Own);
-		// TODO(B-235d): PriorMemory conditions read the host's journal, not the friend's (the host has no copy of it).
-		if (MemoryUnlock::ShouldFriendReceive(&Memory, Own, AreMet(Memory, FilterParty(Event, Own, /*bKeep=*/true), Journal)))
+		// B-235e: a PriorMemory condition reads the memories the friend reported and was sent.
+		const bool bMet = AreMet(Memory, FilterParty(Event, Own, /*bKeep=*/true), Journal, &Friend->GetKnownMemoryIds());
+		if (MemoryUnlock::ShouldFriendReceive(&Memory, Own, bMet)) // one who has it already still counts as its finder
 		{
 			Receivers.Friends.Add(Friend);
 		}
