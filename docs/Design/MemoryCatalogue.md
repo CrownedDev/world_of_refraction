@@ -28,7 +28,9 @@ Builds on: `HiddenQuests.md` (D-100, the Shangri-La Frontier model), `RunStructu
 | **Every character** | everyone who meets the shared conditions | `CharacterDepth` empty | *(Crown)* |
 | **Pair** (co-op or party) | only when two named characters are both present | a "party has" condition, to add | *(Crown)* |
 
-Depth decides what the memory gives that character: **Deep** opens its scenes, conversations and rewards; **Minor** is a journal entry and maybe a line. *Default:* a Minor depth gives the journal entry only (Hades' Codex entries vs. its relationship scenes).
+Depth decides what the memory gives that character: **Deep** opens its scenes, conversations and rewards; **Minor** is a journal entry only (**Crown, 2026-11-08**; Hades' Codex entries vs. its relationship scenes).
+
+**Any memory can start a quest** (Crown, 2026-11-08), at either depth: the memory names a hidden quest (3.6), which starts for each player who got the memory. Set per depth: a memory can start one quest for the character it is Deep for and none, or another, for a Minor one.
 
 ## 3. The kinds
 
@@ -67,7 +69,7 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 - **Example:** *(Crown)*
 
 ### 3.6 Hidden quest (unique scenario)
-- **What:** a multi-step quest found like a hidden memory: a **start** (a fragment, a hidden memory or a reaction), **steps** (each one a condition set, done in order), and an **end** (a memory and a reward). This is SLF's Unique Scenario.
+- **What:** a multi-step quest found like a hidden memory: a **start** (any memory of any kind and depth, §2, or a reaction), **steps** (each one a condition set, done in order), and an **end** (a memory and a reward). This is SLF's Unique Scenario.
 - **Progress:** each step done is saved per player and kept across runs. Only the step in progress resets at run end. This keeps the "never missed for good" rule in a 30 to 45 minute run game. *Default, backed by Monster Hunter's multi-hunt research quests and Hades' prophecies, both kept across runs.*
 - **The player is told** a quest started and when a step is done, privately, with **no** text about what the next step is (the no-hints rule).
 - **Co-op:** the player who started it owns it. Others join the progress only if they started it too (§1.7).
