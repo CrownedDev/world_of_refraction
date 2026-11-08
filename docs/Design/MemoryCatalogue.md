@@ -99,6 +99,12 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 - **Open (lore, Crown's):** how one phase unlocks the next.
 - **Example:** *(Crown)*
 
+### 3.11 Gear and evolution quest (D-165, later)
+- **What:** a weapon, adapter, apparel piece (D-164) or evolution carries a conditional hidden quest (3.6), which starts when its conditions are met while the player has or wears it: found, worn, upgraded, used in a certain way (NieR: Automata's weapon stories open as a weapon levels).
+- **Rules:** as every kind (§1). Bound gear (3.4) is one case: its quest may need its owner wearing it.
+- **Built:** after the hidden-quest job.
+- **Example:** *(Crown)*
+
 ## 4. What an unlock can give
 
 | Reward | Notes |
@@ -119,7 +125,7 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 | Field | Fill in |
 |---|---|
 | Id / title | |
-| Kind | 3.1 to 3.10 |
+| Kind | 3.1 to 3.11 |
 | Scope and depth per character | §2 |
 | Condition sets (any one opens it; all conditions in a set must hold) | |
 | Earlier memories needed | |
