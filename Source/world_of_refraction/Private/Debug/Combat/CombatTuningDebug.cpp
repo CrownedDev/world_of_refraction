@@ -10,7 +10,7 @@ namespace
 {
 	constexpr float TUNING_DEBUG_SCREEN_SECONDS = 8.0f;
 
-	// B-349 (D-139): the one print; the old wor.Tuning.Print duplicate is gone.
+	// B-349 (D-139): the one print; the old wor.PrintCombatTuning duplicate is gone.
 	FAutoConsoleCommand GTuningPrintCmd(
 		TEXT("wor.Tuning.Print"),
 		TEXT("DEBUG: print the live combat tuning values and the combat numbers baseline (B-224)."),
