@@ -49,8 +49,9 @@ public:
 	 *  player's own characters only (a co-op friend's gear starts theirs: B-377b). Returns how many started. */
 	int32 StartGearQuests(const FMemoryEvent &Event);
 
-	/** B-377b (client): the host saw this player's part of an event meet QuestId's current step (CheckFriendsQuests). */
-	void ApplyStepMetFromHost(FName QuestId);
+	/** B-377b (client): the host saw this player's part of an event meet QuestId's step StepIndex (CheckFriendsQuests);
+	 *  counted only while that is still the current step. */
+	void ApplyStepMetFromHost(FName QuestId, int32 StepIndex);
 
 	/** Run end: the step in progress starts its count again next run; steps done stay. */
 	void EndRun();

@@ -174,6 +174,20 @@ void FHiddenQuestSpec::Define()
 		TestTrue(TEXT("the V line"), Journal->HasHeardVLine(TEXT("VLine_HiddenQuestSpec")));
 		TestFalse(TEXT("restoring announces nothing: the quest is not started again"), Quests->IsStarted(Quest->GetQuestId()));
 	});
+
+	It("counts the host's step-met message only for the step it was checked on (B-377b)", [this]()
+	{
+		const FName Id = Quest->GetQuestId();
+		Quests->StartQuest(Quest);
+		Quests->ApplyStepMetFromHost(Id, 0);
+		TestEqual(TEXT("step 1 done by the host's message"), Quests->GetStepsDone(Id), 1);
+		Quests->ApplyStepMetFromHost(Id, 0);
+		TestEqual(TEXT("a late message for step 1 does not count on step 2"), Quests->GetStepsDone(Id), 1);
+		TestEqual(TEXT("nor its count"), Quests->GetRunCount(Id), 0);
+		Quests->ApplyStepMetFromHost(Id, 1);
+		TestEqual(TEXT("step 2 met once (needs two this run)"), Quests->GetRunCount(Id), 1);
+		Quests->ApplyStepMetFromHost(TEXT("NotAQuest_HiddenQuestSpec"), 0); // ignored
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

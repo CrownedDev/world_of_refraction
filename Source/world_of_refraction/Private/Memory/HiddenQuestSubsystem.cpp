@@ -134,7 +134,7 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<
 		FriendsKnown.Add(&Friend->GetKnownMemoryIds());
 	}
 	const FMemoryEvent OwnPart = FriendsCharacters.IsEmpty() ? Event : MemoryConditions::FilterParty(Event, FriendsCharacters, /*bKeep=*/false);
-	const TSet<FName> Team = MemoryConditions::GetTeamMemoryIds(Journal, FriendsKnown);
+	const TSet<FName> Team = FriendsKnown.IsEmpty() ? TSet<FName>() : MemoryConditions::GetTeamMemoryIds(Journal, FriendsKnown);
 	FWoRConditionContext Context = WoRConditions::MakeContext(OwnPart, Journal);
 	Context.KnownMemoryIds = FriendsKnown.IsEmpty() ? nullptr : &Team;
 	int32 StepsDoneNow = 0;
@@ -208,14 +208,20 @@ void UHiddenQuestSubsystem::CheckFriendsQuests(const FMemoryEvent &Event, const 
 			const UHiddenQuestData *Quest = Found ? *Found : nullptr;
 			if (Quest && Quest->Steps.IsValidIndex(Reported.Value) && WoRConditions::IsMet(Quest->Steps[Reported.Value].Conditions, Context))
 			{
-				Friend->Client_QuestStepMet(Reported.Key); // their machine counts it and reports back
+				Friend->Client_QuestStepMet(Reported.Key, Reported.Value); // their machine counts it (for that step) and reports back
 			}
 		}
 	}
 }
 
-void UHiddenQuestSubsystem::ApplyStepMetFromHost(FName QuestId)
+void UHiddenQuestSubsystem::ApplyStepMetFromHost(FName QuestId, int32 StepIndex)
 {
+	// Review: the host checked the step it last heard of; a late message for a step already done is not counted on the next.
+	const FHiddenQuestProgress *Entry = Progress.Find(QuestId);
+	if (!Entry || Entry->StepsDone != StepIndex)
+	{
+		return;
+	}
 	for (const UHiddenQuestData *Quest : GetAllQuests())
 	{
 		if (Quest && Quest->GetQuestId() == QuestId)
@@ -246,7 +252,9 @@ void UHiddenQuestSubsystem::ReportToHost() const
 int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event)
 {
 	StartGearQuests(Event); // started now: their steps wait for the next event (Q-377)
-	return Progress.IsEmpty() ? 0 : CheckEvent(Event, GetAllQuests());
+	// Review: a friend's quests move even when this player has none started.
+	const bool bNothingToCheck = Progress.IsEmpty() && MemoryUnlock::GetRemotePlayers(GetGameInstance()).IsEmpty();
+	return bNothingToCheck ? 0 : CheckEvent(Event, GetAllQuests());
 }
 
 int32 UHiddenQuestSubsystem::StartGearQuests(const FMemoryEvent &Event)
