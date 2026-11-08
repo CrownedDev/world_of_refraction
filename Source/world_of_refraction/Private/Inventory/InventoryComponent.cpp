@@ -1027,8 +1027,12 @@ namespace InventoryGearSync
     void CopyOwned(TEntry &Slot, const TEntry &Owned)
     {
         TArray<USpellData *> Picks = MoveTemp(Slot.AssignedSpells);
-        // B-351d (D-145): an edited copy's spell-list picks lead until WriteLoadoutToOwned, like its skill picks.
-        const bool bKeepSpellPicks = Slot.bSpellSlotsActive;
+        // B-351d (D-145): an edited copy's spell-list picks lead until WriteLoadoutToOwned, like its skill picks; only
+        // while the owned item still holds the same crystal (review: the list goes with the crystal).
+        const bool bSameSpellSource = Slot.AttachedItem.Kind == Owned.AttachedItem.Kind &&
+                                      (!Slot.AttachedItem.IsCrystal() || Slot.AttachedItem.Crystal.Id == Owned.AttachedItem.Crystal.Id) &&
+                                      (!Slot.AttachedItem.IsEvolution() || Slot.AttachedItem.Evolution.Item == Owned.AttachedItem.Evolution.Item);
+        const bool bKeepSpellPicks = Slot.bSpellSlotsActive && bSameSpellSource;
         TArray<USpellData *> SpellPicks = MoveTemp(Slot.SpellPicks);
         if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
         {
@@ -2947,6 +2951,17 @@ FString UInventoryComponent::GetInventoryInstanceString() const
         return TEXT("unknown");
     };
 
+    // B-351d review: a crystal's one spell list ('-' = the built-in).
+    const auto DescribeSpellPicks = [](const TArray<USpellData *> &SpellPicks, bool bActive)
+    {
+        FString Text = bActive ? TEXT("one list ") : TEXT("old merge ");
+        for (const USpellData *Pick : SpellPicks)
+        {
+            Text += Pick ? Pick->GetName() + TEXT(" ") : FString(TEXT("- "));
+        }
+        return Text;
+    };
+
     FString Out = TEXT("[Inventory]");
 
     // ---------- Weapons ----------
@@ -2959,7 +2974,7 @@ FString UInventoryComponent::GetInventoryInstanceString() const
         {
             Picks += Pick ? Pick->GetName() + TEXT(" ") : FString(TEXT("- "));
         }
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s  skills=%s%s"),
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s  skills=%s%s  spells=%s"),
                                W.Weapon ? *W.Weapon->Name : TEXT("(null)"),
                                *ShortGuid(W.PersistentID),
                                *TierHelpers::GetTierName(W.Tier),
@@ -2967,20 +2982,21 @@ FString UInventoryComponent::GetInventoryInstanceString() const
                                *DescribeAttachment(W.AttachedItem),
                                *DescribeAttachment(W.StoneSocket),
                                W.bSkillSlotsActive ? TEXT("one list ") : TEXT("old lists "),
-                               *Picks);
+                               *Picks, *DescribeSpellPicks(W.SpellPicks, W.bSpellSlotsActive));
     }
 
     // ---------- Rings ----------
     Out += FString::Printf(TEXT("\n  Rings (%d):"), Rings.Num());
     for (const FRingInventoryEntry &R : Rings)
     {
-        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s"),
+        Out += FString::Printf(TEXT("\n    %s  PID=%s Tier=%s Q=%s  crystal=%s  stone=%s  spells=%s"),
                                R.Ring ? *R.Ring->Name : TEXT("(null)"),
                                *ShortGuid(R.PersistentID),
                                *TierHelpers::GetTierName(R.Tier),
                                QualityName(R.Quality),
                                *DescribeAttachment(R.AttachedItem),
-                               *DescribeAttachment(R.StoneSocket));
+                               *DescribeAttachment(R.StoneSocket),
+                               *DescribeSpellPicks(R.SpellPicks, R.bSpellSlotsActive));
     }
 
     // ---------- Spells ----------
