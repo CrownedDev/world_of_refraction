@@ -246,7 +246,10 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	if (!Sequence)
 	{
 		// No cinematic for this action (an attack, an item, cinematics off): the turn view stays.
-		if (bNewActor)
+		// Review fix: a second action in one turn (a ritual fire, an extra action) ends an earlier skill's shots.
+		const bool bShotsWerePlaying = IsShotPlaying();
+		StopShotPattern();
+		if (bNewActor || bShotsWerePlaying)
 		{
 			ShowTurnView();
 		}
