@@ -66,8 +66,8 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	bool bApplyDefense = false;
 	/** GetDefenderDefenseForHit: a reduction fraction (scoped to this hit, B-383). */
 	float DefenderDefense = 0.0f;
-	/** B-385: this hit's scoped Defense minus the unscoped one (UDamageCalculator::GetDefenderDefenseForHit); only the GAS
-	 *  execution reads it, added to the synced Defense attribute it puts in DefenderDefense's place. */
+	/** B-385: this hit's scoped Defense minus the unscoped one (UDamageCalculator::GetDefenderDefenseForHit); the GAS
+	 *  execution adds it to the synced Defense attribute it puts in DefenderDefense's place (GetInputsString prints it). */
 	float DefenseScopeDelta = 0.0f;
 	/** Grid defense modifier; applied when above 0. */
 	float GridDefenseModifier = 0.0f;
