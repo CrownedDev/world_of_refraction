@@ -17,6 +17,8 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Equipment/Apparel/ApparelData.h"
+#include "Pool/PoolSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Character/CharacterDataComponent.h"
 #include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
@@ -220,7 +222,16 @@ namespace
 					return;
 				}
 				FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-				if (!ApparelRules::AddApparel(Active, FApparelEntry::CreateFromApparel(Piece)))
+				FApparelEntry Entry = FApparelEntry::CreateFromApparel(Piece);
+				// B-380b: owned first (the pool mints its id), so it is saved with the store.
+				if (UPoolSubsystem *Pool = World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
+				{
+					if (Active.Apparel.Num() < ApparelRules::MAX_APPAREL_SLOTS)
+					{
+						Entry.PersistentID = Pool->AddApparelToPool(Entry);
+					}
+				}
+				if (!ApparelRules::AddApparel(Active, Entry))
 				{
 					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] no free apparel slot (%d)"), ApparelRules::MAX_APPAREL_SLOTS);
 					return;

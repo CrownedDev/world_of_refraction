@@ -31,6 +31,7 @@
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemoryData.h"
+#include "Equipment/Apparel/ApparelData.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
@@ -743,6 +744,16 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	{
 		Saved.Gear.Add_GetRef(SaveItem(E.Ring, E, E.PersistentID)).Gear = SaveGearDetail(E);
 	}
+	// B-380b (D-164): owned apparel in the one gear list (the kind follows from the asset), with its socket; an
+	// evolution there is kept as a ref, as SaveGearDetail does.
+	for (const FApparelEntry &E : Pool.GetOwnedApparel())
+	{
+		FSavedOwnedItem &Item = Saved.Gear.Add_GetRef(SaveItem(E.Apparel.Get(), E, E.PersistentID));
+		Item.Gear.Attached = E.AttachedItem;
+		Item.Gear.EvolutionItem = FSavedAssetRef::Make(E.AttachedItem.Evolution.Item);
+		Item.Gear.Attached.Evolution.Item = nullptr;
+		Item.Gear.StatBonus = E.StatBonus;
+	}
 	for (const FEvolutionInventoryEntry &E : Pool.GetOwnedEvolutions())
 	{
 		FSavedOwnedItem &Item = Saved.Evolutions.Add_GetRef(SaveItem(E.Item, E, E.InstanceID));
@@ -1007,6 +1018,25 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 			Entry.Quality = In.Quality;
 			RestoreGearDetail(In.Gear, Entry);
 			Pool.AddRingToPool(Entry);
+			++Restored;
+		}
+		else if (UApparelData *Apparel = Cast<UApparelData>(Asset)) // B-380b
+		{
+			FApparelEntry Entry = FApparelEntry::CreateFromApparel(Apparel);
+			Entry.PersistentID = In.InstanceID;
+			Entry.Tier = In.Tier;
+			Entry.Quality = In.Quality;
+			Entry.AttachedItem = In.Gear.Attached;
+			Entry.AttachedItem.Evolution.Item = In.Gear.EvolutionItem.ResolveAs<UEvolutionItemData>();
+			// Review: a socket apparel cannot hold (a corrupt or retired attachment) loads empty.
+			if (!Entry.AttachedItem.IsEmpty() && (!ApparelRules::CanSocket(Entry.AttachedItem) ||
+												  (Entry.AttachedItem.IsEvolution() && !Entry.AttachedItem.Evolution.Item)))
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[Save] apparel %s: its socket could not be restored - left empty"), *Apparel->GetName());
+				Entry.AttachedItem = FRuntimeAttachedItem();
+			}
+			Entry.StatBonus = In.Gear.StatBonus;
+			Pool.AddApparelToPool(Entry);
 			++Restored;
 		}
 	}
