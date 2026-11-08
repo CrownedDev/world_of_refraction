@@ -594,11 +594,12 @@ void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: no revivable mini-boss at the last rest spot"), *GetPlayerName());
 		return;
 	}
-	// Review: never mid-fight (a menu left open while the host walked into one), and only from beside the rest stand.
-	const UTurnManager *Turns = WoRFight::Get<UTurnManager>(this);
-	if (Turns && Turns->IsCombatActive())
+	// Review: never from a player in a fight (Q-187e: a vote can't start mid-fight for the starter), and only from beside
+	// the rest stand. Another player's fight doesn't refuse it: a passed vote waits for that fight to end (Q-187e2).
+	const AWoRGameState *VoteState = World ? World->GetGameState<AWoRGameState>() : nullptr;
+	if (VoteState && VoteState->IsPlayerInBattle(this))
 	{
-		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: a fight is on"), *GetPlayerName());
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: in a fight"), *GetPlayerName());
 		return;
 	}
 	const UGameInstance *GI = GetGameInstance();
