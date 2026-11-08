@@ -29,6 +29,12 @@ namespace
 		return Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; });
 	}
 
+	/** B-376: Character is in the event's whole team (Present), or its party when Present was never filled. */
+	bool IsPresent(const UCharacterData *Character, const FMemoryEvent &Event)
+	{
+		return Event.Present.IsEmpty() ? IsMemberInParty(Character, Event) : Event.Present.Contains(Character);
+	}
+
 	/** Some party member (Condition.Character when set) satisfies Holds. */
 	template <class TPredicate>
 	bool AnyMember(const FWoRCondition &Condition, const FMemoryEvent &Event, TPredicate Holds)
@@ -215,6 +221,8 @@ namespace
 		{
 		case EWoRConditionSubject::CharacterInParty:
 			return Condition.Character && IsMemberInParty(Condition.Character, Event);
+		case EWoRConditionSubject::CharacterPresent:
+			return Condition.Character && IsPresent(Condition.Character, Event);
 		case EWoRConditionSubject::GearEquipped:
 			return IsGearMet(Condition, Event);
 		case EWoRConditionSubject::AtLocation:
@@ -262,6 +270,7 @@ namespace
 		case EMemoryConditionKind::SkillUsed:         return EWoRConditionSubject::SkillUsed;
 		case EMemoryConditionKind::BreakthroughUsed:  return EWoRConditionSubject::BreakthroughUsed;
 		case EMemoryConditionKind::FinishingBlow:     return EWoRConditionSubject::FinishingBlow;
+		case EMemoryConditionKind::PartyHas:          return EWoRConditionSubject::CharacterPresent;
 		}
 		return EWoRConditionSubject::Hidden; // an unknown kind never holds, as before
 	}

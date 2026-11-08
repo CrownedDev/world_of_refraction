@@ -262,6 +262,9 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 	case EMemoryConditionKind::FinishingBlow:
 		return Condition.Item &&
 			   AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.FinishingWeapons.Contains(Condition.Item.Get()); });
+	case EMemoryConditionKind::PartyHas:
+		// B-376: the parity reference reads as the new subject does (FMemoryEvent::Present, else the party).
+		return Condition.Character && (Event.Present.IsEmpty() ? IsInParty(Condition.Character, Event) : Event.Present.Contains(Condition.Character.Get()));
 	}
 	return false;
 }
@@ -345,6 +348,13 @@ TArray<UMemoryData *> MemoryConditions::GatherConditional()
 FMemoryEvent MemoryConditions::FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep)
 {
 	FMemoryEvent Filtered = Event;
+	if (Filtered.Present.IsEmpty())
+	{
+		for (const FMemoryEventMember &Member : Event.Party)
+		{
+			Filtered.Present.AddUnique(Member.Character); // B-376: the whole team stays present for "party has"
+		}
+	}
 	Filtered.Party.RemoveAll([&Characters, bKeep](const FMemoryEventMember &Member)
 	{
 		return Characters.Contains(Member.Character) != bKeep;

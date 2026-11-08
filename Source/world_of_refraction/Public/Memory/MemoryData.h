@@ -80,7 +80,10 @@ enum class EMemoryConditionKind : uint8
 	/** Q-209d: a Breakthrough spell was cast from Evolution in the fight just won. */
 	BreakthroughUsed,
 	/** Q-209d: whoever held the weapon Item made a kill in the fight just won. */
-	FinishingBlow
+	FinishingBlow,
+	/** B-376 (MemoryCatalogue §3.7, pair memories): Character is present: in the party solo, or played by any player
+	 *  in co-op (it counts for every player, unlike Character, which reads each player's own characters). */
+	PartyHas
 };
 
 /** OBSOLETE (B-337): EWoRRequirementFit. Kept: assets store it.
@@ -107,7 +110,8 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	EMemoryConditionKind Kind = EMemoryConditionKind::Character;
 
-	/** Character: who must be in the party. Gear and skill kinds: whose it must be (empty: anyone). */
+	/** Character: who must be in the party. PartyHas (B-376): who must be present on any player's side. Gear and
+	 *  skill kinds: whose it must be (empty: anyone). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TObjectPtr<UCharacterData> Character = nullptr;
 
