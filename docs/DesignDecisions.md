@@ -4085,7 +4085,10 @@ Moved here once applied. Newest first.
 - **Its own crystal socket:** a crystal on apparel is separate from the weapon / adapter crystals; it keys the apparel (its element) and powers no skill (the deckbuilder's rule).
 - **Stats:** HP and Defence lines (the deckbuilder's `HP · Amp · Def` without Amp: this game has no Amp stat yet).
 - **Separate from cosmetics:** the outfit pieces (D-111) stay the look; apparel is stats only (Monster Hunter's armour vs. layered armour).
-**Still open (non-lore, take the reference-backed default when the job is written):** how many apparel slots (the deckbuilder caps apparel at 2); what an apparel crystal or evolution gives beyond its element (e.g. that element's Defence line); whether an evolution can sit on apparel.
+- **Two apparel slots** (Crown, 2026-11-08; the deckbuilder's `MaxApparelSeated` 2).
+- **An apparel crystal gives extra resistance** to its element (Crown, 2026-11-08), on top of the apparel's own lines (the deckbuilder's resistance apparel: an elemental Defence line).
+- **Apparel carries effects** like the deckbuilder's vessels (Crown, 2026-11-08): passive effect rows with a trigger and conditions, and bonuses (`wor-deckbuilder docs/reference/04-effects.md`, `06-bonuses.md`), through this game's skill-effect rows (`FSkillEffect`, the nested condition shape of Q-337e).
+**Still open (non-lore, reference-backed default when written):** whether an evolution can sit on apparel, and what it would give.
 **Look into later (Crown):** an **Amp** stat (the deckbuilder's `+2 Amp` / `+1 Fire Amp`: a flat boost to skills, all or one element); not decided.
 **Notes for Claude:** new item type in the owned-items store (D-111); stats compose through the stat sources (GAS `UWoRGE_StatSources`); quests can hang off it (D-165).
 
