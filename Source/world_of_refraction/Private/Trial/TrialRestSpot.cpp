@@ -44,7 +44,12 @@ bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
 	{
 		return false;
 	}
-	// TODO: B-187c: place the party back at this spot after the reload (it starts at the level's start for now).
+	// B-187c: the reload puts the party back where it stood to rest (ATrialGameMode::RestartPlayer).
+	FTransform Stand;
+	if (Run->GetRestStand(Stand))
+	{
+		Run->SetPendingReturnStand(Stand);
+	}
 	Run->ReloadTrialLevel();
 	return true;
 }
@@ -71,6 +76,10 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId()) == INDEX_NONE)
 	{
 		return;
+	}
+	if (UTrialRunSubsystem *Run = Pawn ? GetTrialRun() : nullptr)
+	{
+		Run->NoteRestStand(Pawn->GetActorTransform()); // B-187c: a revive brings the party back here
 	}
 	ShowMessage(LOCTEXT("Rested", "You rest. The party is restored."));
 	APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
