@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "CosmeticsData.generated.h"
 
 #if WITH_EDITOR
@@ -64,6 +65,29 @@ public:
 	/** Sound at the impact of a Perfect Guard (B-202). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
 	TSoftObjectPtr<USoundBase> PerfectGuardSound{FSoftObjectPath(CosmeticsPlaceholders::PERFECT_GUARD_SOUND)};
+
+	// ==================== IMPACT VISUALS (B-369, Q-369) ====================
+	// What plays on an impact by outcome (ImpactVisuals.h). TODO: art; empty plays nothing.
+
+	/** Hit visual per element, used when the skill has no Impact-role VFX entry. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Impact Visuals")
+	TMap<ESpellElement, TSoftObjectPtr<UNiagaraSystem>> ElementHitVFX;
+
+	/** Hit visual when neither the skill nor the element has one. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Impact Visuals")
+	TSoftObjectPtr<UNiagaraSystem> GenericHitVFX;
+
+	/** A crit plays the hit visual this much larger. TODO: tune. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Impact Visuals", meta = (ClampMin = "1.0"))
+	float CritImpactVFXScale = 1.5f;
+
+	/** A normal Guard's steel spark (a Perfect Guard plays PerfectGuardFlashVFX instead). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Impact Visuals")
+	TSoftObjectPtr<UNiagaraSystem> GuardSparkVFX;
+
+	/** A successful Dodge's small whiff; empty plays nothing. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Impact Visuals")
+	TSoftObjectPtr<UNiagaraSystem> DodgeWhiffVFX;
 
 	// ==================== COSMETICS ====================
 
