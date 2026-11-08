@@ -242,6 +242,7 @@ uint32 UWoREffectMirrorComponent::GetSyncFingerprint() const
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.SourceKey));
 		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.EffectType)));
 		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.Element)));
+		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.DamageScope))); // B-385: Matches compares it
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.GetStackedValue()));
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.RemainingTurns));
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.HolderTurns.TurnsLeft));

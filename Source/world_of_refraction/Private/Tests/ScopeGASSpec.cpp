@@ -1,7 +1,7 @@
 // ScopeGASSpec.cpp
 // B-385: the damage scope (B-383, D-166) survives the GAS side: the effect identity serializes and copies it, the
-// mirror tells two scopes apart, and Defense's scope ratio is 1 with no scoped effect and below 1 when a Fire-only
-// DefenseBuff meets a Water hit.
+// mirror tells two scopes apart, and Defense's scope correction is 0 with no scoped effect, negative when a Fire-only
+// DefenseBuff meets a Water hit, and keeps a Water hit's Defense when a Fire-only debuff floors every layer.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -23,6 +23,8 @@ namespace
 	constexpr float SCOPE_GAS_TEST_PERCENT = 50.0f;
 	constexpr int32 SCOPE_GAS_TEST_TURNS = 2;
 	constexpr int32 SCOPE_GAS_TEST_DEFENSE_POINTS = 50;
+	/** A debuff of 100% or more floors the Defense layers at x0. */
+	constexpr float SCOPE_GAS_TEST_FLOORING_PERCENT = 150.0f;
 }
 
 BEGIN_DEFINE_SPEC(FScopeGASSpec, "WoR.Damage.ScopeGAS", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -63,7 +65,7 @@ void FScopeGASSpec::Define()
 		TestFalse(TEXT("another scope doesn't"), A.Matches(B));
 	});
 
-	Describe("Defense's scope ratio", [this]()
+	Describe("Defense's scope correction", [this]()
 	{
 		BeforeEach([this]()
 		{
@@ -73,7 +75,7 @@ void FScopeGASSpec::Define()
 
 		AfterEach([this]() { TestWorld.Reset(); });
 
-		It("is 1 with an All-scope buff and below 1 for a Fire-only buff on a Water hit", [this]()
+		It("is 0 with an All-scope buff, takes Defense away for a Fire-only buff on a Water hit, and survives a floor", [this]()
 		{
 			UDamageCalculator *Calculator = TestWorld->GetSubsystem<UDamageCalculator>();
 			USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
@@ -81,24 +83,33 @@ void FScopeGASSpec::Define()
 			{
 				return;
 			}
-			auto SpawnWithDefenseBuff = [this, Effects](EDamageScope Scope, ESpellElement Element)
+			auto SpawnWithDefenseBuff = [this, Effects](ESkillEffectType Type, EDamageScope Scope, ESpellElement Element, float Percent)
 			{
 				UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 				Data->Defense = SCOPE_GAS_TEST_DEFENSE_POINTS;
 				AActor *Defender = TestWorld->SpawnCombatant(Data);
-				FActiveSkillEffect Buff = FActiveSkillEffect::CreateBuff(TEXT("Guard Up"), SCOPE_GAS_TEST_EFFECT_ID, ESkillEffectType::DefenseBuff,
-																		 SCOPE_GAS_TEST_PERCENT, SCOPE_GAS_TEST_TURNS);
+				FActiveSkillEffect Buff = FActiveSkillEffect::CreateBuff(TEXT("Guard change"), SCOPE_GAS_TEST_EFFECT_ID, Type, Percent, SCOPE_GAS_TEST_TURNS);
 				Buff.DamageScope = Scope;
 				Buff.Element = Element;
 				Effects->ApplyEffect(Defender, Buff);
 				return Defender;
 			};
-			AActor *AllScope = SpawnWithDefenseBuff(EDamageScope::All, ESpellElement::None);
-			TestEqual(TEXT("All scope: 1"), Calculator->GetDefenseScopeRatio(AllScope, ESpellElement::Water, true), 1.0f, KINDA_SMALL_NUMBER);
-			AActor *FireOnly = SpawnWithDefenseBuff(EDamageScope::Element, ESpellElement::Fire);
-			TestTrue(TEXT("Fire-only on a Water hit: below 1"), Calculator->GetDefenseScopeRatio(FireOnly, ESpellElement::Water, true) < 1.0f);
-			TestEqual(TEXT("Fire-only on a Fire hit: 1"), Calculator->GetDefenseScopeRatio(FireOnly, ESpellElement::Fire, true), 1.0f,
-					  KINDA_SMALL_NUMBER);
+			auto DeltaFor = [Calculator](AActor *Defender, ESpellElement HitElement)
+			{
+				float Delta = -1.0f;
+				Calculator->GetDefenderDefenseForHit(Defender, HitElement, true, &Delta);
+				return Delta;
+			};
+			AActor *AllScope = SpawnWithDefenseBuff(ESkillEffectType::DefenseBuff, EDamageScope::All, ESpellElement::None, SCOPE_GAS_TEST_PERCENT);
+			TestEqual(TEXT("All scope: no correction"), DeltaFor(AllScope, ESpellElement::Water), 0.0f, KINDA_SMALL_NUMBER);
+			AActor *FireOnly = SpawnWithDefenseBuff(ESkillEffectType::DefenseBuff, EDamageScope::Element, ESpellElement::Fire, SCOPE_GAS_TEST_PERCENT);
+			TestTrue(TEXT("Fire-only buff on a Water hit: takes Defense away"), DeltaFor(FireOnly, ESpellElement::Water) < 0.0f);
+			TestEqual(TEXT("Fire-only buff on a Fire hit: none"), DeltaFor(FireOnly, ESpellElement::Fire), 0.0f, KINDA_SMALL_NUMBER);
+			// Review: a Fire-only debuff that floors every Defense layer to 0 must still leave a Water hit its Defense.
+			AActor *Floored = SpawnWithDefenseBuff(ESkillEffectType::DefenseDebuff, EDamageScope::Element, ESpellElement::Fire, SCOPE_GAS_TEST_FLOORING_PERCENT);
+			TestTrue(TEXT("floored for Fire: the Water hit keeps its Defense"),
+					 Calculator->GetDefenderDefenseForHit(Floored, ESpellElement::Water, true) > 0.0f &&
+						 DeltaFor(Floored, ESpellElement::Water) > 0.0f);
 		});
 	});
 }
