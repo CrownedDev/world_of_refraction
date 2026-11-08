@@ -1898,6 +1898,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it. The head-starts are saved (B-348b); the transformation is not.
 **Notes for Claude:** B-348b saves the head-starts only.
 **Answer (Crown, 2026-11-08):** **B, and beyond the run.** Broken Darkness is persistent in and out of the run: a mid-fight transformation stays on the character across fights, across runs and in the save, until reverted (`UBrokenDarknessManager::RevertTransformation`, the un-transform path, gap 4.5). Built in B-348c (gap 4.4). The design line "strain accumulates across the whole run until it gives" is built with it: the run's strain carries fight to fight and clears at the run's end.
+**As built (B-348c review, flag for Crown):** a transformation or revert writes the member's record at once. A **born** Broken Darkness character (`bBrokenDarknessInnate`) still starts every fight in Broken Darkness: its nature, so a revert lasts until the next spawn. If a born one should stay reverted too, the record needs a "reverted" mark; say so and it gets one.
 
 ### D-139 — One console naming rule (audit §24)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
