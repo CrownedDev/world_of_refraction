@@ -748,7 +748,8 @@ bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, cons
     }
 
     FCombatGridPosition CurrentPos;
-    if (!GetActorPosition(Actor, CurrentPos))
+    // B-230b: only an actor this grid holds moves (GetActorPosition also answers from a replicated slot).
+    if (!ActorPositions.Contains(Actor) || !GetActorPosition(Actor, CurrentPos))
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] MoveActorToRow: %s not on grid"), *Actor->GetName());
         return false;
@@ -882,7 +883,8 @@ bool UCombatGridSubsystem::SwapActorPositions(AActor *ActorA, AActor *ActorB, co
     }
 
     FCombatGridPosition PosA, PosB;
-    if (!GetActorPosition(ActorA, PosA) || !GetActorPosition(ActorB, PosB))
+    // B-230b: only actors this grid holds swap (GetActorPosition also answers from a replicated slot).
+    if (!ActorPositions.Contains(ActorA) || !ActorPositions.Contains(ActorB) || !GetActorPosition(ActorA, PosA) || !GetActorPosition(ActorB, PosB))
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] SwapActorPositions: One or both actors not on grid"));
         return false;
