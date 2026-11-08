@@ -871,6 +871,16 @@ FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
     return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten && !bLeavingEarly, Multiplier);
 }
 
+static FAutoConsoleCommandWithWorld GTrialPrintRevivalsCommand(
+    TEXT("wor.Trial.PrintRevivals"),
+    TEXT("B-187b: the beaten mini-bosses (each a rest spot), their revivals and whether they can be revived."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        UE_LOG(LogWoR, Display, TEXT("%s"), Run ? *Run->GetRevivalsString() : TEXT("[TrialRun] no run subsystem"));
+    }));
+
 static FAutoConsoleCommandWithWorld GTrialPrintRewardsCommand(
     TEXT("wor.Trial.PrintRewards"),
     TEXT("B-073: the run's tally, what its end would pay now, and the payout multiplier."),
