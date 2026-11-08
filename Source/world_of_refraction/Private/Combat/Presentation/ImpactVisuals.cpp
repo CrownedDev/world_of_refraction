@@ -6,6 +6,7 @@
 #include "Character/CosmeticsData.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Character.h"
 #include "HAL/IConsoleManager.h"
 #include "Loadout/LoadoutComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -56,8 +57,8 @@ namespace
 			return TEXT("dodge whiff");
 		case EImpactVisualSource::PerfectGuardFlash:
 			return TEXT("Perfect Guard flash (DefenseSystem)");
-		case EImpactVisualSource::SpellArrival:
-			return TEXT("spell arrival (projectile / AOE draws it)");
+		case EImpactVisualSource::ProjectileArrival:
+			return TEXT("projectile arrival (the projectile draws it)");
 		}
 		return TEXT("?");
 	}
@@ -95,7 +96,7 @@ namespace ImpactVisuals
 	}
 
 	FImpactVisualChoice Choose(EImpactOutcome Outcome, const USkillDataBase *Skill, ESpellElement Element,
-							   const UCosmeticsData *Cosmetics, bool bIsSpellArrival)
+							   const UCosmeticsData *Cosmetics, bool bIsProjectileArrival)
 	{
 		switch (Outcome)
 		{
@@ -110,9 +111,9 @@ namespace ImpactVisuals
 			break;
 		}
 
-		if (bIsSpellArrival)
+		if (bIsProjectileArrival)
 		{
-			return Make(TSoftObjectPtr<UNiagaraSystem>(), EImpactVisualSource::SpellArrival);
+			return Make(TSoftObjectPtr<UNiagaraSystem>(), EImpactVisualSource::ProjectileArrival);
 		}
 		const float Scale = (Outcome == EImpactOutcome::Crit && Cosmetics) ? Cosmetics->CritImpactVFXScale : 1.0f;
 		if (Skill)
@@ -145,20 +146,23 @@ namespace ImpactVisuals
 		{
 			return FVector::ZeroVector;
 		}
-		if (const USkeletalMeshComponent *Mesh = Target->FindComponentByClass<USkeletalMeshComponent>(); Mesh && Mesh->DoesSocketExist(HIT_POINT_SOCKET))
+		// The character's body mesh, not a weapon mesh that FindComponentByClass may find first (review).
+		const ACharacter *Character = Cast<ACharacter>(Target);
+		const USkeletalMeshComponent *Mesh = Character ? Character->GetMesh() : Target->FindComponentByClass<USkeletalMeshComponent>();
+		if (Mesh && Mesh->DoesSocketExist(HIT_POINT_SOCKET))
 		{
 			return Mesh->GetSocketLocation(HIT_POINT_SOCKET);
 		}
 		return Target->GetActorLocation();
 	}
 
-	void SpawnForImpact(AActor *Target, EImpactOutcome Outcome, const USkillDataBase *Skill, ESpellElement Element, bool bIsSpellArrival)
+	void SpawnForImpact(AActor *Target, EImpactOutcome Outcome, const USkillDataBase *Skill, ESpellElement Element, bool bIsProjectileArrival)
 	{
 		if (!Target)
 		{
 			return;
 		}
-		const FImpactVisualChoice Choice = Choose(Outcome, Skill, Element, GetCosmetics(Target), bIsSpellArrival);
+		const FImpactVisualChoice Choice = Choose(Outcome, Skill, Element, GetCosmetics(Target), bIsProjectileArrival);
 		if (CVarImpactVFXLog.GetValueOnGameThread())
 		{
 			UE_LOG(LogWoR, Display, TEXT("[ImpactVFX] %s on %s"), *GetChoiceString(Outcome, Choice), *GetNameSafe(Target));

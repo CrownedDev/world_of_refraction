@@ -99,7 +99,7 @@ void FImpactVisualsSpec::Define()
 		TestFalse(TEXT("no whiff set: nothing"), Choose(EImpactOutcome::Dodge, nullptr, ESpellElement::Fire, Cosmetics, false).ShouldSpawn());
 	});
 
-	It("adds nothing to a spell arrival's hit, but still shows its guard", [this]()
+	It("adds nothing to a projectile arrival's hit, but still shows its guard", [this]()
 	{
 		UCosmeticsData *Cosmetics = TestCosmetics();
 		TestFalse(TEXT("a hit: the projectile draws it"), Choose(EImpactOutcome::Hit, SkillWithImpactEntry(), ESpellElement::Fire, Cosmetics, true).ShouldSpawn());
