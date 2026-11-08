@@ -145,6 +145,35 @@ int32 BossTriggers::ApplyTo(AActor *Boss, const UBossData &Data, const TArray<AA
 	return Fired;
 }
 
+bool BossTriggers::FireMomentRule(AActor *Boss, const FBossRule &Rule, const TArray<AActor *> &Party, FBossFightState &State, bool &bOutSteps)
+{
+	bOutSteps = false;
+	if (!Boss)
+	{
+		return false;
+	}
+	// The same context as the fight-start rules (ApplyTo), read now: the party, the boss's phase state, the boss as Self.
+	FMemoryEvent Now;
+	for (const AActor *Member : Party)
+	{
+		Now.Party.Add(MemoryConditions::MakeMember(Member));
+	}
+	const UBossPhaseComponent *Phases = Boss->FindComponentByClass<UBossPhaseComponent>();
+	const FWoRBossState BossState = Phases ? Phases->MakeBossState() : FWoRBossState();
+	FWoRConditionContext Context = WoRConditions::MakeContext(Now, nullptr);
+	Context.Boss = Phases ? &BossState : nullptr;
+	const UCharacterDataComponent *BossData = Boss->FindComponentByClass<UCharacterDataComponent>();
+	const FWoRFighterState BossSelf{BossData ? BossData->CurrentHP : 0, BossData ? BossData->MaxHP : 0};
+	Context.Self = BossData ? &BossSelf : nullptr;
+	if (!BossRules::Fires(Rule, Context))
+	{
+		UE_LOG(LogWoR, Verbose, TEXT("[BossTriggers] %s: moment came, conditions not met"), *Rule.RuleId.ToString());
+		return false;
+	}
+	bOutSteps = BossRules::ApplyResults(Boss, Rule, State);
+	return true;
+}
+
 int32 BossTriggers::Apply(const TArray<AActor *> &Party, const TArray<AActor *> &Opposing)
 {
 	int32 Fired = 0;

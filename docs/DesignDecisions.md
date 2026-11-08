@@ -3878,6 +3878,13 @@ Moved here once applied. Newest first.
 **Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
 **Notes for Claude:** built in B-337e. After the sweep the group becomes the edited field (EditAnywhere) and the rebuild-on-edit goes.
 **Answer (Crown, 2026-11-08):** follow the deckbuilder's shape (`wor-deckbuilder` `docs/reference/05-triggers-conditions.md`, "Nested conditions"): **one trigger on top, the All of checks nested under it**, shown as an indented tree; that is the default authoring and display (the Details panel, `wor.Conditions.Tree` and the skill debug prints show trigger → indented checks). **Any of stays, hidden** (collapsed, `AdvancedDisplay`), only so migrated old OR rows keep their result; new skills author All of only. The content sweep lists every skill using Any of (`wor.Conditions.ListAnyOf`); if each can be rewritten without "or", Any of is deleted so we match the deckbuilder. **Difference from the deckbuilder:** it has no OR at all; ours keeps Any of until that sweep.
+### Q-355b — A boss's moment rule: when are its conditions read?
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-355b, cloud) · **Blocks:** —
+**Question:** an old boss trigger checked its party conditions once at fight start and then waited for its moment. A rule from the one list (D-144) may test the boss's own state too (HP, phases reached, status breaks). Are its conditions read at fight start, or when its moment comes? And if they don't hold then?
+**Options / as built (A):** read **when the moment comes**; if they don't hold, the rule keeps waiting for the moment to come again (still at most once per fight). Party-only conditions give the same answer as before (the party doesn't change mid-fight). **B** at fight start only, as the old triggers did (a rule on the boss's state could then never fire as written).
+**Recommendation:** A. Boss scripts in Final Fantasy XIV and Elden Ring check their conditions at the trigger point ("at 50% HP, if the add is alive"), which is what makes them read as reactions; the deckbuilder's triggers also check on the event.
+**Notes for Claude:** built in B-355b (`BossTriggers::FireMomentRule`, `UFightTriggers::Fire`).
+**Confirmed by Crown, 2026-11-08:** kept as built.
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
