@@ -54,7 +54,9 @@ namespace NotifyValidation
 	WORLD_OF_REFRACTION_API TArray<FString> CheckMarks(const TArray<FNotifyMark> &Marks, const FSkillArrays &Arrays);
 
 	/** The first defendable moment: the earliest Impact or Cast mark minus its telegraph lead (never below 0).
-	 *  False when the marks hold neither. */
+	 *  False when the marks hold neither.
+	 *  TODO: one timeline at BaseAnimSpeed - the runner also multiplies spell speed and action mods, and a deferred
+	 *  ritual plays as its own arm turn at 1.0, so the seconds are approximate for ritual spells (index checks exact). */
 	WORLD_OF_REFRACTION_API bool FirstDefendableSeconds(const TArray<FNotifyMark> &Marks, float &OutSeconds);
 
 	/** The fairness rule (§4): a window ending at WindowEndSeconds leaves the defender MIN_DEFENSE_READ_SECONDS. */
