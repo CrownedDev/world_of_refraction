@@ -222,7 +222,13 @@ void UHiddenQuestSubsystem::ApplyStepMetFromHost(FName QuestId, int32 StepIndex)
 	{
 		return;
 	}
-	for (const UHiddenQuestData *Quest : GetAllQuests())
+	// Merge fix: the same quest list a start reads (QuestsForStarts when set, else the catalogue).
+	TArray<UHiddenQuestData *> Quests(QuestsForStarts);
+	if (Quests.IsEmpty())
+	{
+		Quests = GetAllQuests();
+	}
+	for (const UHiddenQuestData *Quest : Quests)
 	{
 		if (Quest && Quest->GetQuestId() == QuestId)
 		{
