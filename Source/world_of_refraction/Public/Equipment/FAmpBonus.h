@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Inventory/ItemTier.h"
 #include "FAmpBonus.generated.h"
 
 // Authored range per line: -5..+5, the deckbuilder's small numbers (UHT meta clamps take literals). TODO: tune in PIE.
@@ -131,3 +132,33 @@ struct WORLD_OF_REFRACTION_API FAmpBonus
 		return Out.IsEmpty() ? TEXT("no Amp") : Out;
 	}
 };
+
+namespace AmpRules
+{
+	/** B-387 (Q-387, the deckbuilder's TierLadders): the Amp a socketed crystal (or a seated evolution) grants to its own
+	 *  element, by its tier: F 0, E 0, D 1, C 1, B 2, A 2, S 3. */
+	inline int32 GetCrystalTierAmp(EItemTier Tier)
+	{
+		constexpr int32 LADDER[] = {0, 0, 1, 1, 2, 2, 3};
+		const int32 Index = static_cast<int32>(Tier);
+		return Index >= 0 && Index < UE_ARRAY_COUNT(LADDER) ? LADDER[Index] : 0;
+	}
+
+	/** Adds Value to Amp's line for Element (nothing for None / Generic, which have no line). */
+	inline void AddElementLine(FAmpBonus &Amp, ESpellElement Element, int32 Value)
+	{
+		switch (Element)
+		{
+		case ESpellElement::Fire: Amp.Fire += Value; break;
+		case ESpellElement::Water: Amp.Water += Value; break;
+		case ESpellElement::Earth: Amp.Earth += Value; break;
+		case ESpellElement::Wind: Amp.Wind += Value; break;
+		case ESpellElement::Light: Amp.Light += Value; break;
+		case ESpellElement::Darkness: Amp.Darkness += Value; break;
+		case ESpellElement::Lightning: Amp.Lightning += Value; break;
+		case ESpellElement::Void: Amp.Void += Value; break;
+		case ESpellElement::Reality: Amp.Reality += Value; break;
+		default: break;
+		}
+	}
+}
