@@ -22,6 +22,7 @@
 #include "Party/Party.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Character/OverCapRules.h"
 #include "Engine/GameInstance.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
@@ -319,6 +320,13 @@ void UCharacterDataComponent::SeedWorldStats()
     LiveWorldBody   = FMath::Clamp(BaseBody   + HeadStartBody   + RunBody,   0, WorldStatConstants::LIVE_MAX);
     LiveWorldSpirit = FMath::Clamp(BaseSpirit + HeadStartSpirit + RunSpirit, 0, WorldStatConstants::LIVE_MAX);
     WorldStatPurchaseCount = Run ? Run->GetRunLevelPurchases(RunKey) : WorldStatPurchaseCount;
+}
+
+int32 UCharacterDataComponent::GetOverCapPoints(EWorldPillar Pillar) const
+{
+    FName RunKey;
+    const UTrialRunSubsystem *Run = FindRunLevelStore(RunKey);
+    return Run ? Run->GetRunOverCap(RunKey, Pillar) : 0;
 }
 
 void UCharacterDataComponent::ResetRunWorldStats()
@@ -823,11 +831,13 @@ float UCharacterDataComponent::GetEvolutionModifiedMind() const
     }
     // §7 C2: world base from the LIVE level (asset + head-start + earned), not the asset's authored level.
     float OnGAS = 0.0f;
+    // B-364: the run's over-cap points scale the composed pillar (both paths).
+    const float OverCapScale = OverCapRules::ScaleFor(GetOverCapPoints(EWorldPillar::Mind));
     if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetMindAttribute(), OnGAS))
     {
-        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+        return OnGAS * OverCapScale; // B-042yb: GAS's value at UseGAS 1
     }
-    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveMindForLevel(GetWorldMind()), ECrystalPillar::Mind);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveMindForLevel(GetWorldMind()), ECrystalPillar::Mind) * OverCapScale;
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedBody() const
@@ -837,11 +847,13 @@ float UCharacterDataComponent::GetEvolutionModifiedBody() const
         return 0.0f;
     }
     float OnGAS = 0.0f;
+    // B-364: the run's over-cap points scale the composed pillar (both paths).
+    const float OverCapScale = OverCapRules::ScaleFor(GetOverCapPoints(EWorldPillar::Body));
     if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetBodyAttribute(), OnGAS))
     {
-        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+        return OnGAS * OverCapScale; // B-042yb: GAS's value at UseGAS 1
     }
-    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveBodyForLevel(GetWorldBody()), ECrystalPillar::Body);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveBodyForLevel(GetWorldBody()), ECrystalPillar::Body) * OverCapScale;
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedSpirit() const
@@ -851,11 +863,13 @@ float UCharacterDataComponent::GetEvolutionModifiedSpirit() const
         return 0.0f;
     }
     float OnGAS = 0.0f;
+    // B-364: the run's over-cap points scale the composed pillar (both paths).
+    const float OverCapScale = OverCapRules::ScaleFor(GetOverCapPoints(EWorldPillar::Spirit));
     if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetSpiritAttribute(), OnGAS))
     {
-        return OnGAS; // B-042yb: GAS's value at UseGAS 1
+        return OnGAS * OverCapScale; // B-042yb: GAS's value at UseGAS 1
     }
-    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveSpiritForLevel(GetWorldSpirit()), ECrystalPillar::Spirit);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveSpiritForLevel(GetWorldSpirit()), ECrystalPillar::Spirit) * OverCapScale;
 }
 
 bool UCharacterDataComponent::GetPillarLayers(EWorldPillar Pillar, FWoRStatLayers &OutLayers) const
