@@ -1,6 +1,6 @@
 // StoneRowDebug.h
 // Inspection for the stone row table (B-021): every stat stone's attached sub-stat, consumable
-// item effect, buff/debuff pair and F..S base percent. Console: wor.PrintStoneRows.
+// item effect, buff/debuff pair and F..S base percent. Console: wor.Stones.Print.
 
 #pragma once
 

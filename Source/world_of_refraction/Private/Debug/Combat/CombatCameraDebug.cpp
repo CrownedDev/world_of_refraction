@@ -15,7 +15,7 @@ namespace
 	constexpr float COMBAT_CAMERA_SCREEN_SECONDS = 8.0f;
 
 	FAutoConsoleCommandWithWorld GPrintCombatCameraCmd(
-		TEXT("wor.Camera"),
+		TEXT("wor.Camera.Print"),
 		TEXT("DEBUG: print the combat camera's mode, viewed character, settings, playing sequence and the last cinematic window (B-370)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)

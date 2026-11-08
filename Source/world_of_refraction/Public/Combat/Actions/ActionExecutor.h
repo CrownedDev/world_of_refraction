@@ -496,7 +496,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void DebugAsyncState();
 
-	// Console trigger is wor.ForceReset (in the .cpp) — a subsystem
+	// Console trigger is wor.Combat.ForceReset (in the .cpp) — a subsystem
 	// is not on the engine's Exec dispatch chain.
 	void DebugForceResetAsync();
 
@@ -805,7 +805,9 @@ private:
 	 *         this impact's reduced slice (ResolveImpactDefense) — apply it directly. false
 	 *         (non-melee close-time tail, default): ResolvedFinalDamage is the full reduced
 	 *         total — slice it by ResolvedDamageSplit[ImpactIndex] here (legacy lumped path). */
-	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false);
+	/** B-369: bProjectileArrival: the projectile already played the skill's Impact entry (ImpactVisuals). */
+	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false,
+						bool bProjectileArrival = false);
 
 	/** One spell arrival (an AOE or Instant cast moment, or a projectile landing) on Target's count-based
 	 *  window: resolve its defense per-impact, apply it, run the choke tally, and close after the last
@@ -813,7 +815,7 @@ private:
 	 *  path). Interrupts use InterruptCaster / InterruptSkill, or the window's attacker and the running
 	 *  skill when null (B-032). */
 	bool ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, AActor *InterruptCaster,
-							 USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel);
+							 USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel, bool bProjectileArrival = false);
 
 	/** Handle multi-hit abilities. OBSOLETE (B-167): its only caller was the no-DefenseSystem
 	 *  fallback; remove after Crown's PIE pass of B-167 / B-032. */
@@ -933,12 +935,12 @@ private:
 	 *  to the one defender's outcome. Read between the melee resolve and close loops (contexts still present). */
 	bool AllInterruptSucceeded() const;
 
-	/** B2 spell tally — record a target's choke outcome (parried/dodged) for the current interruptable cast
+	/** B2 spell tally — record a target's choke outcome (Perfect Guarded, B-367b) for the current interruptable cast
 	 *  entry; returns true once EVERY target has resolved AND all parried/dodged (→ caller aborts). Survives
 	 *  the per-defender close that removes contexts (vs AllInterruptSucceeded's live-context iteration). */
 	bool RecordChokeAndShouldAbort(AActor *Target, bool bDefended);
 
-	/** B2 interrupt — abort the rest of the action after an interruptable hit was parried/dodged by all
+	/** B2 interrupt — abort the rest of the action after an interruptable hit was Perfect Guarded by all
 	 *  targets: stop pending spawns/timers, clear+close the pending defense windows (no tail apply), mark the
 	 *  result interrupted, then play the ReturnMontage (warp back to origin) if authored, else hard-stop the
 	 *  montage and finalize. Skill is the chain skill (UWeaponAttackData / spell — both USkillDataBase). */

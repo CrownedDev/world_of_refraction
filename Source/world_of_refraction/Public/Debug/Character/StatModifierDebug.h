@@ -4,7 +4,7 @@
 // - GetStatsSnapshotString: one line per composed stat getter (the values a refactor must keep).
 // - CompareStats: snapshots every combatant in the world and lists what changed since the last
 //   call, even across a rebuild (snapshots are saved under Saved/StatSnapshots/).
-//   Console: wor.CompareStats (run once, change something, run again), wor.PrintStatModifiers.
+//   Console: wor.Stats.Compare (run once, change something, run again), wor.Stats.Print.
 
 #pragma once
 
