@@ -112,6 +112,16 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
 
+	/** B-348b (save v21): the head-start pillar allocation (FPartyMember::HeadStart*). */
+	UPROPERTY()
+	int32 HeadStartMind = 0;
+
+	UPROPERTY()
+	int32 HeadStartBody = 0;
+
+	UPROPERTY()
+	int32 HeadStartSpirit = 0;
+
 	/** B-076: a character found in the trial; written only with a saved run. */
 	UPROPERTY()
 	bool bRunOnly = false;
