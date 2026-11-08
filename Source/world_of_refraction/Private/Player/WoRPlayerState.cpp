@@ -20,6 +20,7 @@
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "Memory/MemoryData.h"
+#include "Memory/MemoryUnlock.h"
 #include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
@@ -122,6 +123,7 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (Next)
 	{
 		Next->SetForm(WornForm, BaseForm);
+		Next->SentMemoryIds = SentMemoryIds; // B-235d: before the claims below, so nothing is sent again
 		// B-232: the player keeps commanding its characters in the next level.
 		for (UCharacterData *Character : ClaimedCharacters)
 		{
@@ -170,6 +172,26 @@ void AWoRPlayerState::ClaimMember(const FGuid &MemberId)
 	}
 	ClaimedMembers.Add(MemberId);
 	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims member %s (B-360b)"), *GetPlayerName(), *MemberId.ToString(EGuidFormats::Short));
+	MemoryUnlock::ShareRunMemoriesWith(GetGameInstance(), *this); // B-235d: memories the run already has, now theirs too
+}
+
+TArray<UCharacterData *> AWoRPlayerState::GetOwnCharacters() const
+{
+	TArray<UCharacterData *> Own(ClaimedCharacters);
+	const UGameInstance *GI = GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+	{
+		for (const FPartyMember &Member : Party->Members)
+		{
+			if (Member.CharacterData && ClaimedMembers.Contains(Member.MemberId))
+			{
+				Own.AddUnique(Member.CharacterData);
+			}
+		}
+	}
+	Own.Remove(nullptr);
+	return Own;
 }
 
 void AWoRPlayerState::ReleaseMember(const FGuid &MemberId)
@@ -208,6 +230,7 @@ void AWoRPlayerState::ClaimCharacter(UCharacterData *Character)
 	}
 	ClaimedCharacters.Add(Character);
 	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims %s (B-232)"), *GetPlayerName(), *GetNameSafe(Character));
+	MemoryUnlock::ShareRunMemoriesWith(GetGameInstance(), *this); // B-235d
 }
 
 void AWoRPlayerState::ReleaseCharacter(UCharacterData *Character)
