@@ -28,6 +28,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-349](B-349.md) | `chore/B-349-console-names-cloud` (in `dev`) | Every console command is `wor.<System>.<Verb>`; old names gone (table in the sheet) | Pending |
 | [B-355b](B-355b.md) | `feature/B-355b-boss-moment-rules-cloud` (in `dev`) | A boss's "at moment" rules fire from its one rule list, conditions read at the moment | Pending |
 | [B-230](B-230.md) | `feature/B-230-replicated-status-bars-cloud` (in `dev`) | 2-player PIE: the client's status bars follow the host's | Pending |
+| [B-231](B-231.md) | `feature/B-231-actions-server-multicast-cloud` (UNBUILT, on B-230) | 2-player PIE: the client sees the host's swings, guards and hits (montages and hits by multicast) | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |

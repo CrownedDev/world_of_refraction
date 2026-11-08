@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/CombatPresentationComponent.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoRCombatEvents.h"
@@ -3235,6 +3236,10 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		// OnDamageDealt fires per-hit, so floating-number widgets,
 		// hit-flash VFX, and any other listener see one event per hit landed.
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
+		if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Input.Target))
+		{
+			Presentation->SendHit(Result.DamageDealt, Result.bWasCritical); // B-231: every machine's damage numbers
+		}
 		OnElementDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical, Input.Element);
 
 		// DoubleHit — re-run ApplyHit once more at 50% damage when the attacker
@@ -5034,6 +5039,11 @@ void UActionExecutor::PlayActionMontageOnActor(AActor *Actor, UAnimMontage *Mont
 		// Fallback: Direct character montage
 		Character->PlayAnimMontage(Montage, PlayRate);
 		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Playing montage %s via fallback"), *Montage->GetName());
+	}
+	// B-231: the clients' copies play it too (the executor runs on the server only).
+	if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Actor))
+	{
+		Presentation->SendMontage(Montage, PlayRate);
 	}
 
 	// Telegraph scan (purely cosmetic — opens no window, gates no input, touches no difficulty).
