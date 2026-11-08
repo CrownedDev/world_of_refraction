@@ -49,7 +49,7 @@ public:
 	 *  only ones this player's curses weaken (a friend's curses are theirs, B-377b). */
 	bool IsCursedHere(const class UCharacterData *Character) const;
 
-	/** Curse assets to read; empty: every curse asset (tests set a list). */
+	/** The curse assets to read (tests set a list); unset, every curse asset is gathered once the registry has loaded. */
 	void SetCurseAssets(const TArray<class UCurseData *> &Curses);
 
 private:
@@ -64,6 +64,12 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<class UCurseData>> CurseAssets;
 	bool bGatheredCurses = false;
+
+	/** Review: the held curses' summed penalties, rebuilt when what is held or the asset list changes. */
+	void RebuildPenalty() const;
+	mutable FEquipmentStatBonus CachedStatPenalty;
+	mutable FResistanceBonus CachedResistancePenalty;
+	mutable bool bPenaltyDirty = true;
 	/** Curses lifted before; never given again. */
 	TSet<FName> LiftedCurses;
 };

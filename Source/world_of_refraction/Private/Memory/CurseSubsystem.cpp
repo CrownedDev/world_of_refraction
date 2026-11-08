@@ -7,6 +7,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Memory/MemoryData.h"
 #include "Memory/CurseData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Memory/MemoryUnlock.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -37,6 +38,7 @@ bool UCurseSubsystem::AddCurse(FName CurseId)
 		return false;
 	}
 	HeldCurses.Add(CurseId);
+	bPenaltyDirty = true;
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s now held (%d)"), *CurseId.ToString(), HeldCurses.Num());
 	return true;
 }
@@ -48,6 +50,7 @@ bool UCurseSubsystem::RemoveCurse(FName CurseId)
 		return false;
 	}
 	LiftedCurses.Add(CurseId);
+	bPenaltyDirty = true;
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s lifted (%d left)"), *CurseId.ToString(), HeldCurses.Num());
 	return true;
 }
@@ -90,6 +93,7 @@ FSavedCurses UCurseSubsystem::Capture() const
 void UCurseSubsystem::Restore(const FSavedCurses &Saved)
 {
 	HeldCurses.Reset();
+	bPenaltyDirty = true;
 	LiftedCurses.Reset();
 	LiftedCurses.Append(Saved.Lifted);
 	for (const FName &CurseId : Saved.Held)
@@ -124,14 +128,19 @@ void UCurseSubsystem::SetCurseAssets(const TArray<UCurseData *> &Curses)
 		CurseAssets.Add(Curse);
 	}
 	bGatheredCurses = true;
+	bPenaltyDirty = true;
 }
 
 TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
 {
 	if (!bGatheredCurses)
 	{
-		UCurseSubsystem *Self = const_cast<UCurseSubsystem *>(this); // gathered once, on first read
-		Self->SetCurseAssets(UCurseData::GatherAll());
+		// Review: not while the registry is still scanning (it would keep a partial list for good).
+		const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		if (!Registry.IsLoadingAssets())
+		{
+			const_cast<UCurseSubsystem *>(this)->SetCurseAssets(UCurseData::GatherAll()); // once
+		}
 	}
 	TArray<const UCurseData *> Held;
 	for (const UCurseData *Curse : CurseAssets)
@@ -144,30 +153,42 @@ TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
 	return Held;
 }
 
+void UCurseSubsystem::RebuildPenalty() const
+{
+	CachedStatPenalty = FEquipmentStatBonus();
+	CachedResistancePenalty = FResistanceBonus();
+	for (const UCurseData *Curse : GetHeldCurseAssets())
+	{
+		CachedStatPenalty.Accumulate(Curse->StatPenalty);
+		CachedResistancePenalty.Accumulate(Curse->ResistancePenalty);
+	}
+	bPenaltyDirty = !bGatheredCurses; // try again once the registry has loaded
+}
+
 FEquipmentStatBonus UCurseSubsystem::GetStatPenalty() const
 {
-	FEquipmentStatBonus Penalty;
-	if (!HeldCurses.IsEmpty())
+	if (HeldCurses.IsEmpty())
 	{
-		for (const UCurseData *Curse : GetHeldCurseAssets())
-		{
-			Penalty.Accumulate(Curse->StatPenalty);
-		}
+		return FEquipmentStatBonus();
 	}
-	return Penalty;
+	if (bPenaltyDirty)
+	{
+		RebuildPenalty();
+	}
+	return CachedStatPenalty;
 }
 
 FResistanceBonus UCurseSubsystem::GetResistancePenalty() const
 {
-	FResistanceBonus Penalty;
-	if (!HeldCurses.IsEmpty())
+	if (HeldCurses.IsEmpty())
 	{
-		for (const UCurseData *Curse : GetHeldCurseAssets())
-		{
-			Penalty.Accumulate(Curse->ResistancePenalty);
-		}
+		return FResistanceBonus();
 	}
-	return Penalty;
+	if (bPenaltyDirty)
+	{
+		RebuildPenalty();
+	}
+	return CachedResistancePenalty;
 }
 
 bool UCurseSubsystem::IsCursedHere(const UCharacterData *Character) const
