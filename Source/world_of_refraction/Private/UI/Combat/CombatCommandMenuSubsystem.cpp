@@ -373,6 +373,11 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         // Close first: the AI takes this same turn as soon as the switch lands (D-026).
         AActor *Member = CurrentActor.Get();
         ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+        if (SendFreeCommandToServer(ECombatFreeCommand::HandToAI))
+        {
+            Close(); // B-232c: the server hands the member over
+            break;
+        }
         Close();
         if (Orchestrator)
         {
@@ -1118,8 +1123,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
 
 void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
 {
-    if (!CurrentActor.IsValid())
-        return;
+    if (!CurrentActor.IsValid() || SendFreeCommandToServer(ECombatFreeCommand::SwitchWeapon))
+        return; // B-232c: a client's switch runs on the server; HandleFreeCommandApplied redraws
 
     ULoadoutComponent *LC = GetLoadoutComponent();
     if (!LC)
@@ -1139,6 +1144,10 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
 
 void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
 {
+    if (SendFreeCommandToServer(bForward ? ECombatFreeCommand::MoveRowForward : ECombatFreeCommand::MoveRowBack))
+    {
+        return; // B-232c
+    }
     ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
     FText RefusedReason;
     if (!Orchestrator || !Orchestrator->TryMoveRow(CurrentActor.Get(), bForward, RefusedReason))
@@ -1153,8 +1162,8 @@ void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
 
 void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
 {
-    if (!CurrentActor.IsValid())
-        return;
+    if (!CurrentActor.IsValid() || SendFreeCommandToServer(ECombatFreeCommand::SwitchAdapter))
+        return; // B-232c
 
     ULoadoutComponent *LC = GetLoadoutComponent();
     if (!LC)
@@ -1170,6 +1179,32 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
     // Rebuild capabilities with new active ring
     RebuildCapabilities();
 
+    OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+}
+
+bool UCombatCommandMenuSubsystem::SendFreeCommandToServer(ECombatFreeCommand Command)
+{
+    const UWorld *World = GetWorld();
+    ACombatPlayerController *PC = World && World->GetNetMode() == NM_Client ? ACombatPlayerController::FindLocal(this) : nullptr;
+    if (!PC || !CurrentActor.IsValid())
+    {
+        return false; // the host and solo run the step here, as before
+    }
+    PC->RequestFreeCommand(CurrentActor.Get(), Command);
+    return true;
+}
+
+void UCombatCommandMenuSubsystem::HandleFreeCommandApplied(AActor *Actor, ECombatFreeCommand Command)
+{
+    if (!bIsOpen || Actor != CurrentActor.Get())
+    {
+        return; // the menu moved on (or closed for the hand-off)
+    }
+    if (Command == ECombatFreeCommand::SwitchWeapon || Command == ECombatFreeCommand::SwitchAdapter)
+    {
+        RebuildCapabilities();
+    }
+    // TODO: B-232d: the row lives on the server's orchestrator; the client's greyed row step can lag until then.
     OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
 }
 
