@@ -119,7 +119,7 @@ public:
 
 	/** B-377b: the host saw this player's own part of an event meet QuestId's current step. */
 	UFUNCTION(Client, Reliable)
-	void Client_QuestStepMet(FName QuestId);
+	void Client_QuestStepMet(FName QuestId, int32 StepIndex);
 
 	/** B-377b: this player's worn gear started Quest at an event the host ran. */
 	UFUNCTION(Client, Reliable)

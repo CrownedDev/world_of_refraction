@@ -497,16 +497,20 @@ void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuest
 		if (!Quest.QuestId.IsNone() && !Quest.bFinished)
 		{
 			ReportedQuests.Add(Quest.QuestId, Quest.StepsDone);
+			OfferedQuests.Remove(Quest.QuestId); // reported: started on their side
 		}
-		OfferedQuests.Remove(Quest.QuestId); // reported: started on their side
+		else if (Quest.bFinished)
+		{
+			OfferedQuests.Add(Quest.QuestId); // finished: never offered again
+		}
 	}
 }
 
-void AWoRPlayerState::Client_QuestStepMet_Implementation(FName QuestId)
+void AWoRPlayerState::Client_QuestStepMet_Implementation(FName QuestId, int32 StepIndex)
 {
 	if (UHiddenQuestSubsystem *Quests = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>() : nullptr)
 	{
-		Quests->ApplyStepMetFromHost(QuestId);
+		Quests->ApplyStepMetFromHost(QuestId, StepIndex);
 	}
 }
 
