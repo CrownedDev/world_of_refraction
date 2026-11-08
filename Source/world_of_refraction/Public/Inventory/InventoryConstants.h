@@ -62,14 +62,14 @@ namespace InventoryConstants
     /** Slot cost for weapon with crystal attached */
     constexpr int32 WEAPON_CRYSTAL_SLOT_COST = 2;
 
-    /** Slot cost for weapon with evolution crystal */
-    constexpr int32 WEAPON_EVOLUTION_SLOT_COST = 3;
+    /** Slot cost for weapon with evolution crystal: the weapon plus the one evolution cost (B-357, D-147). */
+    constexpr int32 WEAPON_EVOLUTION_SLOT_COST = WEAPON_BASE_SLOT_COST + LoadoutConstants::EVOLUTION_SLOT_COST;
 
     /** Slot cost for base ring (crystal attached) */
     constexpr int32 RING_BASE_SLOT_COST = 1;
 
-    /** Slot cost for evolved ring */
-    constexpr int32 RING_EVOLUTION_SLOT_COST = 2;
+    /** Slot cost for evolved ring: the adapter plus the one evolution cost (B-357, D-147: was 2, now 3, Q-357). */
+    constexpr int32 RING_EVOLUTION_SLOT_COST = RING_BASE_SLOT_COST + LoadoutConstants::EVOLUTION_SLOT_COST;
 
     // ==================== EQUIPMENT SPELL/ABILITY SLOTS ====================
     // Reference LoadoutConstants for these - single source of truth

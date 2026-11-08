@@ -30,8 +30,12 @@ namespace LoadoutConstants
     // Unified loadout budget — primary slot cost + ring slot costs must not exceed this.
     constexpr int32 LOADOUT_TOTAL_BUDGET = 5;
 
-    // Cost of an Evolution primary (the evolution crystal itself; no weapon platform).
-    constexpr int32 EVOLUTION_PRIMARY_SLOT_COST = 2;
+    // B-357 (D-147, Q-357): the one cost of an evolution, wherever it attaches: the character's own slot, a weapon or
+    // an adapter (the gear's own base cost comes on top). The separate cost rows retire.
+    constexpr int32 EVOLUTION_SLOT_COST = 2;
+
+    // OBSOLETE (B-357): the evolution on the character's own slot; = EVOLUTION_SLOT_COST. Remove with the sweep.
+    constexpr int32 EVOLUTION_PRIMARY_SLOT_COST = EVOLUTION_SLOT_COST;
 
     // Evolution
     constexpr int32 MAX_EVOLUTION_SPELLS = 6;
