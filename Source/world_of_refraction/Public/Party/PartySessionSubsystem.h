@@ -112,6 +112,10 @@ public:
 	 *  local party already exists or Members is empty. */
 	UParty *RestoreLocalParty(const FText &DisplayName, bool bLetAIFinish, const TArray<FPartyMember> &Members);
 
+	/** B-234b: drops the local party (a new host takes the old host's party from its checkpoint copy, then
+	 *  RestoreLocalParty builds it). Broadcasts OnPartyChanged with null. */
+	void ForgetLocalParty();
+
 	/** Append a member. Fails when the party is full, the class is null, or the
 	 *  class's CDO carries no CharacterData. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
