@@ -105,6 +105,8 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 
 ### 3.11 Gear and evolution quest (D-165, later)
 - **What:** a weapon, adapter, apparel piece (D-164) or evolution carries a conditional hidden quest (3.6), which starts when its conditions are met while the player has or wears it: found, worn, upgraded, used in a certain way (NieR: Automata's weapon stories open as a weapon levels).
+- **Activations** (Crown, 2026-11-08): the start can need the item in a certain state, not only worn: a crystal of a given element in its socket (e.g. an apparel piece with a Fire crystal), an evolution attached, an augment stone, an upgrade level or tier. Same condition shape as every other (Q-337e).
+- **As built (Q-381, Crown kept 2026-11-08):** set on the item beside its bound memories; worn gear counts now, owned-only later; the quest is the wearer's player's.
 - **Rules:** as every kind (§1). Bound gear (3.4) is one case: its quest may need its owner wearing it.
 - **Built:** after the hidden-quest job.
 - **Example:** *(Crown)*
