@@ -20,6 +20,7 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Player/TurnStateComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
@@ -351,6 +352,114 @@ ECombatInputVerdict ACombatPlayerController::HandleMenuPick(const FCombatPickReq
 	return Verdict;
 }
 
+void ACombatPlayerController::RequestFreeCommand(AActor *Actor, ECombatFreeCommand Command)
+{
+	if (WoRAuthority::HasAuthority(this))
+	{
+		HandleFreeCommand(Actor, Command);
+		return;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[CombatInput] sending %s for %s to the server"), *UEnum::GetValueAsString(Command), *GetNameSafe(Actor));
+	Server_SubmitFreeCommand(Actor, Command);
+}
+
+ECombatInputVerdict ACombatPlayerController::HandleFreeCommand(AActor *Actor, ECombatFreeCommand Command, bool bFromClient)
+{
+	ECombatInputVerdict Verdict = ECombatInputVerdict::Accepted;
+	ACombatOrchestrator *Orchestrator = nullptr;
+	if (!Actor)
+	{
+		Verdict = ECombatInputVerdict::NoActor;
+	}
+	else if (!ControlsActor(this, Actor, bFromClient))
+	{
+		Verdict = ECombatInputVerdict::NotControlled;
+	}
+	else
+	{
+		Orchestrator = FindActiveOrchestrator();
+		if (!Orchestrator)
+		{
+			Verdict = ECombatInputVerdict::NoCombat;
+		}
+		else if (!Orchestrator->IsActorsTurn(Actor))
+		{
+			Verdict = ECombatInputVerdict::NotTheirTurn;
+		}
+		else if (Orchestrator->IsWaitingForAsyncAction())
+		{
+			Verdict = ECombatInputVerdict::Busy;
+		}
+		else if (!ApplyFreeCommand(Orchestrator, Actor, Command))
+		{
+			Verdict = ECombatInputVerdict::NotOffered;
+		}
+	}
+	RecordInput(FString::Printf(TEXT("%s for %s"), *UEnum::GetValueAsString(Command), *GetNameSafe(Actor)), Verdict, bFromClient);
+	return Verdict;
+}
+
+bool ACombatPlayerController::ApplyFreeCommand(ACombatOrchestrator *Orchestrator, AActor *Actor, ECombatFreeCommand Command)
+{
+	FText Refusal;
+	ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	switch (Command)
+	{
+	case ECombatFreeCommand::SwitchWeapon:
+		return Loadout && Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Refusal);
+	case ECombatFreeCommand::SwitchAdapter:
+		return Loadout && Loadout->TrySwitchActiveSlot(EGearKind::Adapter, Refusal);
+	case ECombatFreeCommand::MoveRowForward:
+	case ECombatFreeCommand::MoveRowBack:
+		return Orchestrator && Orchestrator->TryMoveRow(Actor, Command == ECombatFreeCommand::MoveRowForward, Refusal);
+	case ECombatFreeCommand::HandToAI:
+		return Orchestrator && Orchestrator->SwitchMemberControl(Actor);
+	default:
+		return false;
+	}
+}
+
+bool ACombatPlayerController::Server_SubmitFreeCommand_Validate(AActor *Actor, ECombatFreeCommand Command)
+{
+	return Command < ECombatFreeCommand::MAX;
+}
+
+void ACombatPlayerController::Server_SubmitFreeCommand_Implementation(AActor *Actor, ECombatFreeCommand Command)
+{
+	const ECombatInputVerdict Verdict = HandleFreeCommand(Actor, Command, true);
+	if (Verdict == ECombatInputVerdict::Accepted)
+	{
+		Client_FreeCommandApplied(Actor, Command); // a refused step changes nothing; the client's menu stays as it is
+	}
+	else if (Command == ECombatFreeCommand::HandToAI)
+	{
+		Client_MenuPickRefused(Verdict); // review fix: the client closed its menu for the hand-off; it reopens
+	}
+}
+
+void ACombatPlayerController::Client_FreeCommandApplied_Implementation(AActor *Actor, ECombatFreeCommand Command)
+{
+	// The loadout's active slot is not replicated: the client's copy takes the same step, then the menu redraws.
+	// The row and the AI hand-off live on the server (the orchestrator); the menu reads them from the turn state.
+	if (Command == ECombatFreeCommand::SwitchWeapon || Command == ECombatFreeCommand::SwitchAdapter)
+	{
+		// Review fix: the server approved it, so the client's copy takes it even if its own turn flag lags.
+		if (ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr)
+		{
+			Loadout->ResetTurnSwitch();
+		}
+		if (!ApplyFreeCommand(nullptr, Actor, Command))
+		{
+			UE_LOG(LogWoRCombat, Warning, TEXT("[Net] Client copy refused a switch the server applied for %s: the loadouts differ"),
+				   *GetNameSafe(Actor));
+		}
+	}
+	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
+	{
+		Menu->HandleFreeCommandApplied(Actor, Command);
+	}
+}
+
 bool ACombatPlayerController::Server_SubmitMenuPick_Validate(const FCombatPickRequest &Pick)
 {
 	return Pick.HasValidEnums();
@@ -358,7 +467,21 @@ bool ACombatPlayerController::Server_SubmitMenuPick_Validate(const FCombatPickRe
 
 void ACombatPlayerController::Server_SubmitMenuPick_Implementation(const FCombatPickRequest &Pick)
 {
-	HandleMenuPick(Pick, true);
+	const ECombatInputVerdict Verdict = HandleMenuPick(Pick, true);
+	if (Verdict != ECombatInputVerdict::Accepted)
+	{
+		Client_MenuPickRefused(Verdict); // B-232b: the client's menu closed on sending; it reopens for this turn
+	}
+}
+
+void ACombatPlayerController::Client_MenuPickRefused_Implementation(ECombatInputVerdict Verdict)
+{
+	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] The server refused the menu pick (%s); reopening the menu"),
+		   *UEnum::GetValueAsString(Verdict));
+	if (UTurnStateComponent *TurnState = UTurnStateComponent::Find(this))
+	{
+		TurnState->ReopenClientCommandMenu();
+	}
 }
 
 bool ACombatPlayerController::ControlsActor(const AController *Sender, const AActor *Actor, bool bFromClient)
