@@ -602,6 +602,10 @@ private:
 	bool IsSkillGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, AActor *Owner, AActor *Target,
 						 AActor *Defender = nullptr, const TArray<ESkillTrigger> &Fired = {}) const;
 
+	/** B-337e: the same on an authored group (FSkillEffect::ConditionGroup); the old-group form reads across to it. */
+	bool IsSkillGroupMet(const FSkillConditionGroup &Group, ESkillCheck Check, AActor *Owner, AActor *Target,
+						 AActor *Defender = nullptr, const TArray<ESkillTrigger> &Fired = {}) const;
+
 	/** Evaluate a single (Trigger, Threshold) pair against Actor's state.
 	 *  OBSOLETE (B-337d): no caller since the checks go through IsSkillGroupMet; SkillConditionParitySpec keeps a
 	 *  copy as its parity reference. Remove after Crown's PIE of B-337d. */
