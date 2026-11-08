@@ -21,7 +21,7 @@ namespace
 	constexpr float EFFECT_DEBUG_TOLERANCE = 0.001f;
 
 	FAutoConsoleCommandWithWorld GCompareEffectsCmd(
-		TEXT("wor.CompareEffects"),
+		TEXT("wor.Effects.Compare"),
 		TEXT("DEBUG: check every combatant's mirrored GameplayEffects read the same as its stored effects (B-042c)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UWoREffectDebug::CompareEffects(World); }));
 
@@ -122,7 +122,7 @@ int32 UWoREffectDebug::CompareEffects(const UObject *WorldContextObject)
 		UE_LOG(LogWoREffects, Warning, TEXT("[EffectDebug] %s: effects DIFFER\n%s\nMirror:\n%s"), *It->GetName(), *Mismatches,
 			   *Mirror->GetDebugString());
 	}
-	const FString Summary = FString::Printf(TEXT("wor.CompareEffects: %d of %d combatant(s) differ (UseGAS %d)"), Differing,
+	const FString Summary = FString::Printf(TEXT("wor.Effects.Compare: %d of %d combatant(s) differ (UseGAS %d)"), Differing,
 											Checked, UWoREffectMirrorComponent::ReadsFromGAS() ? 1 : 0);
 	UE_LOG(LogWoREffects, Display, TEXT("[EffectDebug] %s"), *Summary);
 	if (GEngine)

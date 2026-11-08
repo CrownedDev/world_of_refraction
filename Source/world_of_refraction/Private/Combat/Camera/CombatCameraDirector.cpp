@@ -248,7 +248,10 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	if (!Sequence)
 	{
 		// No cinematic for this action (an attack, an item, cinematics off): the turn view stays.
-		if (bNewActor)
+		// Review fix: a second action in one turn (a ritual fire, an extra action) ends an earlier skill's shots.
+		const bool bShotsWerePlaying = IsShotPlaying();
+		StopShotPattern();
+		if (bNewActor || bShotsWerePlaying)
 		{
 			ShowTurnView();
 		}
@@ -535,6 +538,8 @@ void UCombatCameraDirector::ShowDefenceView()
 	APlayerController *Viewer = GetViewer();
 	if (!Viewer || !Camera || !Attacker)
 	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] Defence view skipped: viewer %s, defender camera %s, attacker %s"),
+			   Viewer ? TEXT("ok") : TEXT("none"), Camera ? TEXT("ok") : TEXT("none"), *GetNameSafe(Attacker));
 		return;
 	}
 	CurrentMode = ECombatCameraMode::Defence;

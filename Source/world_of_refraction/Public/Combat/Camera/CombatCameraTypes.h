@@ -172,6 +172,13 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  TODO: tune in PIE (first guess 0.75 s). */
 	static constexpr float MinDefenseReadSeconds = 0.75f;
 
+	/** The montage runner's own play-rate clamp (UActionExecutor::PlayActionMontageOnActor). Shared with
+	 *  NotifyValidation (B-368) so both read montage time the same way. */
+	static constexpr float MinPlayRate = 0.1f;
+
+	/** The runner plays the return leg unscaled (UActionExecutor::PlayReturnStep). */
+	static constexpr float ReturnLegRate = 1.0f;
+
 	/** Mode the viewer sees while ActingActor's turn runs. */
 	static ECombatCameraMode SelectMode(bool bActorIsViewers, bool bSequencePlaying, bool bMovementOff);
 
