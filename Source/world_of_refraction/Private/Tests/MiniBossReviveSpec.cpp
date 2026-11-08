@@ -64,6 +64,17 @@ void FMiniBossReviveSpec::Define()
 		TestTrue(TEXT("debug lists it"), Run->GetRevivalsString().Contains(REVIVE_TEST_MINI_BOSS.ToString()));
 	});
 
+	It("a won fight marks only the mini-boss teams it caught (review)", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		Run->SetPendingEncounterSources({REVIVE_TEST_MINI_BOSS, REVIVE_TEST_ELITE});
+		Run->SetPendingMiniBossSources({REVIVE_TEST_MINI_BOSS});
+		Run->MarkPendingEncounterBeaten();
+		TestTrue(TEXT("both beaten"), Run->IsEncounterBeaten(REVIVE_TEST_MINI_BOSS) && Run->IsEncounterBeaten(REVIVE_TEST_ELITE));
+		TestTrue(TEXT("the mini-boss leaves a rest spot"), Run->IsBeatenMiniBoss(REVIVE_TEST_MINI_BOSS));
+		TestFalse(TEXT("the elite caught with it doesn't"), Run->IsBeatenMiniBoss(REVIVE_TEST_ELITE));
+	});
+
 	It("the rest menu offers it only at that mini-boss's rest spot", [this]()
 	{
 		if (!TestNotNull(TEXT("Run"), Run)) return;
@@ -84,6 +95,9 @@ void FMiniBossReviveSpec::Define()
 		TestEqual(TEXT("pending steps"), Run->GetPendingTierSteps(), 2);
 		Run->SetPendingTierSteps(-1);
 		TestEqual(TEXT("never negative"), Run->GetPendingTierSteps(), 0);
+		Run->SetPendingEnemyTierSteps({0, 2, 1});
+		TestEqual(TEXT("the most of the members' steps"), Run->GetPendingTierSteps(), 2);
+		TestEqual(TEXT("no opposing party pending: none per member"), Run->GetPendingEnemyTierSteps(1), 0);
 	});
 
 	It("a new run forgets the mini-bosses and revivals", [this]()
