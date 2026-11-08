@@ -4,7 +4,7 @@
 // single values are fields whose defaults are today's C++ constants, so a new asset changes no
 // number. The game reads the one asset at COMBAT_TUNING_ASSET_PATH through WoRTuning (CombatTuning.h
 // for ladders, WoRTuning::Get() for single values); with no asset it reads this class's defaults.
-// Debug: the Details-panel buttons; UCombatTuningDebug (wor.PrintCombatTuning, wor.CompareCombatTuning).
+// Debug: the Details-panel buttons; UCombatTuningDebug (wor.Tuning.Print, wor.Tuning.Compare).
 
 #pragma once
 

@@ -25,6 +25,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-362b](B-362b.md) | `feature/B-362b-wipe-drops-prisms` (in `dev`) | A wipe drops the run's Prisms at the fight instead of taking pillar points; beating that team gets them back; a second wipe loses the first drop | Pending |
 | [B-362c](B-362c.md) | `feature/B-362c-prism-pickup` (in `dev`) | The Prism drop lies as a pickup where the party stood when the fight started; walking into it gives it back; a win no longer does | Pending |
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
+| [B-349](B-349.md) | `chore/B-349-console-names-cloud` (in `dev`) | Every console command is `wor.<System>.<Verb>`; old names gone (table in the sheet) | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
@@ -115,15 +116,15 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-046](B-046.md) | `docs/B-046-rules-reference` (in `dev`) | Game rules reference in `docs/Rules/` (254 rules) + 23 new questions D-034..D-056. Read on the phone | Not tested |
 | [B-047](B-047.md) | `docs/B-047-best-practice-audit` (in `dev`) | Best-practice audit vs Epic/Lyra; 25 jobs B-118..B-142, questions D-057..D-068. Read on the phone | Not tested |
 | [B-010](B-010.md) | `feature/B-010-battle-random-stream` (in `dev`) | One random seed per battle, logged; `wor.Battle.Seed` replays a fight | Not tested |
-| [B-020](B-020.md) | `refactor/B-020-stat-modifier-table` (in `dev`) | Stat buffs/debuffs read from one table (same numbers); `wor.CompareStats`, `wor.PrintStatModifiers` | Not tested |
-| [B-021](B-021.md) | `refactor/B-021-stone-row-table` (in `dev`) | Stat stones read from one row table (same effects); `wor.PrintStoneRows` | Not tested |
+| [B-020](B-020.md) | `refactor/B-020-stat-modifier-table` (in `dev`) | Stat buffs/debuffs read from one table (same numbers); `wor.Stats.Compare`, `wor.Stats.Print` | Not tested |
+| [B-021](B-021.md) | `refactor/B-021-stone-row-table` (in `dev`) | Stat stones read from one row table (same effects); `wor.Stones.Print` | Not tested |
 | [B-022](B-022.md) | `refactor/B-022-loadout-getters` (in `dev`) | Loadout read without copying; class from CharacterData; no gameplay change | Not tested |
 | [B-023](B-023.md) | `fix/B-023-ai-live-enums` (in `dev`) | AI sees Stun (not Wind's delay) and finds Cleanse Self spells | Not tested |
 | [B-024](B-024.md) | `refactor/B-024-fold-weapon-ring-managers` (in `dev`) | Ring/weapon managers folded into the loadout; ring auto-switch on break; no gameplay change | Not tested |
 | [B-025](B-025.md) | `refactor/B-025-economy-preamble` (in `dev`) | Economy actions share one owner/authority/component check; no gameplay change | Not tested |
 | [B-030](B-030.md) | `fix/B-030-reset-for-combat` (in `dev`) | Nothing from one fight carries into the next (defense, charge, status bars, turn order, menu) | Not tested |
 | [B-003](B-003.md) | `chore/B-003-bp-cpp-cutover` (in `dev`) | Combat HUD, panel effects list and turn slots run on C++ (BP overrides deleted); hub unchanged (D-076) | Not tested |
-| [B-156](B-156.md) | `feature/B-156-combat-camera` (in `dev`) | Combat camera: turn view behind the acting character, pan-out on enemy turns, `wor.Camera` style / movement-off commands (no cinematics until B-157) | Not tested |
+| [B-156](B-156.md) | `feature/B-156-combat-camera` (in `dev`) | Combat camera: turn view behind the acting character, pan-out on enemy turns, `wor.Camera.Print` style / movement-off commands (no cinematics until B-157) | Not tested |
 | [B-028](B-028.md) | `refactor/B-028-one-loadout-validator` (in `dev`) | One loadout rule set for the editor and the fight (D-073); `wor.Loadout.CompareRules` shows the difference | Not tested |
 | [B-031](B-031.md) | `refactor/B-031-async-only` (in `dev`) | Rituals fire through the async path; old sync router obsolete | Not tested |
 | [B-155](B-155.md) | `feature/B-155-utility-crystal-caps` (in `dev`) | Utility crystal tier caps reported in loadout checks | Not tested |
@@ -134,10 +135,10 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-004](B-004.md) | `chore/B-004-enable-plugins` (in `dev`) | GameplayAbilities plugin enabled (CommonUI already on) | Not tested |
 | [B-181](B-181.md) | `fix/B-181-ai-skips-greyed-spells` (in `dev`) | The AI skips spells greyed by a broken source | Not tested |
 | [B-182](B-182.md) | `fix/B-182-perfect-guard-parry-anim` (in `dev`) | A Perfect Guard plays the parry animation | Not tested |
-| [B-040](B-040.md) | `feature/B-040-gas-tags` (in `dev`) | Gameplay tags for elements, classes and statuses (`wor.CompareTags`) | Not tested |
+| [B-040](B-040.md) | `feature/B-040-gas-tags` (in `dev`) | Gameplay tags for elements, classes and statuses (`wor.Tags.Compare`) | Not tested |
 | [B-060](B-060.md) | `fix/B-060-item-use-success` (in `dev`) | A failed item use keeps its charge | Not tested |
 | [B-110](B-110.md) | `fix/B-110-menu-close-after-refusal` (in `dev`) | A refused pick keeps the command menu open | Not tested |
-| [B-041](B-041.md) | `feature/B-041-gas-attributes` (in `dev`) | GAS attributes mirror the stats (`wor.CompareAttributes`) | Not tested |
+| [B-041](B-041.md) | `feature/B-041-gas-attributes` (in `dev`) | GAS attributes mirror the stats (`wor.Attributes.Compare`) | Not tested |
 | [B-062](B-062.md) | `feature/B-062-effect-identity` (in `dev`) | An effect belongs to its source: same source refreshes, another adds | Not tested |
 | [B-063](B-063.md) | `feature/B-063-status-breaks` (in `dev`) | Every full bar lasts one holder turn; Water slows, Wind delays, BD drains | Not tested |
 | [B-112](B-112.md) | `fix/B-112-light-break` (in `dev`) | A full Light bar stops crits for one turn | Not tested |
@@ -210,7 +211,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-042t](B-042t.md) | `feature/B-042t-gas-last-stats` (in `dev`) | GAS stage 3, part 5j: Mind, Body and Spirit built on GAS from their world base and layers | Not tested |
 | [B-042s](B-042s.md) | `feature/B-042s-gas-derived-stats` (in `dev`) | GAS stage 3, part 5i: crit chance and Efficiency derived on GAS from Luck and the cost reduction | Not tested |
 | [B-042r](B-042r.md) | `feature/B-042r-gas-luck-reflex` (in `dev`) | GAS stage 3, part 5h: Luck and the Reflex window factor composed on GAS | Not tested |
-| [B-042q](B-042q.md) | `feature/B-042q-gas-stat-sources-rest` (in `dev`) | GAS stage 3, part 5g: status multiplier, Defense and crit damage composed on GAS; `wor.CompareAttributes` checks the composed bases | Not tested |
+| [B-042q](B-042q.md) | `feature/B-042q-gas-stat-sources-rest` (in `dev`) | GAS stage 3, part 5g: status multiplier, Defense and crit damage composed on GAS; `wor.Attributes.Compare` checks the composed bases | Not tested |
 | [B-042p](B-042p.md) | `feature/B-042p-gas-stat-sources` (in `dev`) | GAS stage 3, part 5f: spell / raw damage and action / spell speed composed on GAS from their gear, stone and buff layers | Not tested |
 | [B-042m](B-042m.md) | `feature/B-042m-ignore-defense-amount` (in `dev`) | Ignore Defense is an amount per skill (D-086); IgnoreDefense effects ignore their value | Not tested |
 | [B-042l](B-042l.md) | `feature/B-042l-gas-buildup-execution` (in `dev`) | GAS stage 3, part 5b: status buildup maths as one core; buildup execution on GAS (not used in play yet) | Not tested |

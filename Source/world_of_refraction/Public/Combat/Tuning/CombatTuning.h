@@ -4,7 +4,7 @@
 // Ladders are curve-table rows read through FScalableFloat on UCombatTuningData; single values are
 // that asset's fields (UCombatTuningData.h, WoRTuning::Get()). With no asset, or no curve on a
 // ladder, every call returns the C++ value passed in, so a missing asset can't change the game.
-// Debug: UCombatTuningDebug (wor.PrintCombatTuning, wor.CompareCombatTuning).
+// Debug: UCombatTuningDebug (wor.Tuning.Print, wor.Tuning.Compare).
 
 #pragma once
 
