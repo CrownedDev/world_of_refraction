@@ -1,6 +1,6 @@
 // CombatCameraTypes.h
 // Combat camera rules (Design/CombatCamera.md, D-074): which mode the viewer sees, which
-// template sequence a skill falls back to, and where a mode puts the camera. Pure functions so
+// template sequence a skill falls back to, where a mode puts the camera, and (B-371) the code-built shot patterns. Pure functions so
 // the rules are testable without a world.
 
 #pragma once
@@ -54,6 +54,87 @@ enum class ESkillCinematics : uint8
 	FollowCameraMovement,
 	On,
 	Off
+};
+
+/** B-371 (Q-371): a code-built shot's framing. Default reads the skill: a spell or ranged skill holds wide, a
+ *  melee skill stays close. */
+UENUM(BlueprintType)
+enum class ECameraShotStyle : uint8
+{
+	Default UMETA(DisplayName = "Default (by skill type)"),
+	Close UMETA(DisplayName = "Close"),
+	Wide UMETA(DisplayName = "Wide")
+};
+
+/** B-371: which side of the caster the wind-up camera stands on. */
+UENUM(BlueprintType)
+enum class ECameraShotSide : uint8
+{
+	Right UMETA(DisplayName = "Right shoulder"),
+	Left UMETA(DisplayName = "Left shoulder")
+};
+
+/** B-371 (SkillPresentationPipeline.md §5): the moments a code-built shot follows. */
+UENUM(BlueprintType)
+enum class ECameraShotMoment : uint8
+{
+	/** Over the caster's shoulder, slow push in. */
+	WindUp,
+	/** Hold on the caster, or follow the projectile. */
+	Cast,
+	/** Frame the target; a small shake and FOV punch (larger on a crit). */
+	Impact,
+	/** Several targets: pull out until all are in frame. */
+	Spread
+};
+
+/** B-371 (Q-371): per-skill tuning of the code-built shots, without Sequencer. A skill with its own CameraSequence
+ *  plays that instead (signature moves). */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FSkillCameraTuning
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
+	ECameraShotStyle Style = ECameraShotStyle::Default;
+
+	/** Scales every shot's distance (1 = the pattern's own). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera", meta = (ClampMin = "0.25", ClampMax = "4.0"))
+	float DistanceScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
+	ECameraShotSide Side = ECameraShotSide::Right;
+
+	/** Scales the impact shake and FOV punch (0 = none). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera", meta = (ClampMin = "0.0", ClampMax = "3.0"))
+	float ShakeScale = 1.0f;
+
+	/** The Cast shot follows the projectile (off: it holds on the caster). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
+	bool bFollowProjectile = true;
+};
+
+/** B-371: what a code-built shot needs to know about the action. */
+struct WORLD_OF_REFRACTION_API FCameraShotContext
+{
+	FVector Caster = FVector::ZeroVector;
+	TArray<FVector> Targets;
+	/** Where the projectile is now (Cast with bFollowProjectile); unset: hold on the caster. */
+	TOptional<FVector> Projectile;
+	/** A spell or ranged skill (the Default style frames it wide). */
+	bool bRanged = false;
+	bool bCritical = false;
+};
+
+/** B-371: one code-built shot: the camera moves from Start to End over BlendSeconds (a push-in when they differ). */
+struct WORLD_OF_REFRACTION_API FCameraShot
+{
+	FTransform Start = FTransform::Identity;
+	FTransform End = FTransform::Identity;
+	float BlendSeconds = 0.0f;
+	float FieldOfView = 90.0f;
+	/** The shake to play with it (0 = none). */
+	float ShakeScale = 0.0f;
 };
 
 /** Where the fight is, from the camera's point of view. */
@@ -121,4 +202,22 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** B-370: behind and beside the defenders' centre, facing the attacker; pulled back further the wider the
 	 *  defenders stand, so several targeted characters are all in frame (Q-370 (3)). */
 	static FTransform ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker);
+
+	/** The field of view every view but an impact punch uses. */
+	static constexpr float DefaultFieldOfView = 90.0f;
+
+	/** B-371 (Q-371): a skill plays the code-built shots unless it has its own CameraSequence (a signature move). */
+	static bool UsesShotPatterns(const USkillDataBase *Skill);
+
+	/** B-371: the moment an impact plays: Spread for several targets, else Impact. */
+	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);
+
+	/** B-371 (SkillPresentationPipeline.md §5): the code-built shot for Moment. Wind-up: over the caster's shoulder
+	 *  (Tuning.Side), pushing in. Cast: holds on the caster, or looks at the projectile. Impact: frames the first
+	 *  target with a FOV punch and a shake, larger on a crit. Spread: pulls back until every target is in frame.
+	 *  Distances scale by Tuning.DistanceScale, Close / Wide by Tuning.Style; the shake by Tuning.ShakeScale. */
+	static FCameraShot ComputeShot(ECameraShotMoment Moment, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
+
+	/** B-371: the camera at Alpha (0 to 1, clamped) along Shot, eased in and out. */
+	static FTransform BlendShot(const FCameraShot &Shot, float Alpha);
 };
