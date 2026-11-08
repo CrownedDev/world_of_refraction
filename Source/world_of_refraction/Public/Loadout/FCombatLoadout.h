@@ -25,6 +25,7 @@
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Loadout/Entries/FItemLoadoutSlot.h"
 #include "Loadout/FLoadoutSlot.h"
+#include "Loadout/Entries/FApparelEntry.h"
 #include "FCombatLoadout.generated.h"
 
 class USpellData;
@@ -204,6 +205,13 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** Active ring index for Resonator */
     UPROPERTY(BlueprintReadWrite, Category = "Runtime")
     int32 ActiveRingIndex = 0;
+
+    // ==================== APPAREL (B-380, D-164) ====================
+
+    /** Apparel worn with this loadout: outside the budget, up to ApparelRules::MAX_APPAREL_SLOTS (add through
+     *  ApparelRules::AddApparel). Not in the Slots mirror (the budget walks Slots). Not saved yet (B-380b). */
+    UPROPERTY(BlueprintReadWrite, Category = "Apparel")
+    TArray<FApparelEntry> Apparel;
 
     // ==================== UNIFIED SLOTS (D-110, mirror) ====================
     // B-302: the weapons and adapters above as one slot list (active loadout only), rebuilt by RebuildSlotsFromLegacy
