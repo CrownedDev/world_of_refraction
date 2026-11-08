@@ -14,6 +14,8 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveTypes.h"
+#include "Save/WoRSaveGame.h"
+#include "Kismet/GameplayStatics.h"
 
 namespace
 {
@@ -109,7 +111,16 @@ void FMiniBossReviveSpec::Define()
 		Run->MarkEncounterBeaten(REVIVE_TEST_MINI_BOSS, EEncounterRank::MiniBoss);
 		Run->ReviveEncounter(REVIVE_TEST_MINI_BOSS);
 		Run->MarkEncounterBeaten(REVIVE_TEST_MINI_BOSS, EEncounterRank::MiniBoss); // beaten again after one revival
-		const FSavedRun Saved = USaveSubsystem::CaptureRun(*Run, 0);
+		// Review: through the save's bytes and back, as a real save is written.
+		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
+		Save->HandlePreSave();
+		Save->Data.Run = USaveSubsystem::CaptureRun(*Run, 0);
+		TArray<uint8> Bytes;
+		if (!TestTrue(TEXT("written"), UGameplayStatics::SaveGameToMemory(Save, Bytes))) return;
+		const UWoRSaveGame *Loaded = Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromMemory(Bytes));
+		if (!TestNotNull(TEXT("read back"), Loaded)) return;
+		const FSavedRun Saved = Loaded->Data.Run;
+		TestEqual(TEXT("the revivals were written"), Saved.EncounterRevivals.FindRef(REVIVE_TEST_MINI_BOSS), 1);
 		FWoRTestWorld After;
 		if (!TestTrue(TEXT("second world"), After.Create())) return;
 		UTrialRunSubsystem *Resumed = After.GetSubsystem<UTrialRunSubsystem>();

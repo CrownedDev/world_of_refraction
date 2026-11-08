@@ -846,6 +846,10 @@ FString UTrialRunSubsystem::GetRevivalsString() const
             Out += FString::Printf(TEXT("\n  %s: revived %d time(s), waiting on the map"), *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value);
         }
     }
+    // B-187c review: where the party rested, and where the next load puts it.
+    Out += bHasRestStand ? FString::Printf(TEXT("\n  rest stand %s"), *RestStand.GetLocation().ToCompactString()) : FString(TEXT("\n  no rest stand yet"));
+    Out += bHasPendingReturnStand ? FString::Printf(TEXT("; pending return %s"), *PendingReturnStand.GetLocation().ToCompactString())
+                                  : FString(TEXT("; no pending return"));
     return Out;
 }
 
