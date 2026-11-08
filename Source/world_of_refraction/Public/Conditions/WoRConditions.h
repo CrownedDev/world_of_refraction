@@ -44,6 +44,8 @@ struct FWoRFighterState
 /** What is true when conditions are checked. Memories fill Event (party, worn gear, slotted and used
  *  skills, locations, enemies beaten, level-ups) and Journal; a boss rule adds Boss; a reaction (B-337b)
  *  fills Event with its wearer alone, Opposing with the faced character, Self and Target. */
+struct FWornItemState; // B-381 (Memory/MemoryConditions.h)
+
 struct FWoRConditionContext
 {
 	EWoRConditionTrigger Trigger = EWoRConditionTrigger::Any;
@@ -71,6 +73,8 @@ struct FWoRConditionContext
 	TArray<EWoRConditionTrigger> AlsoFiring;
 	/** B-365: set when the event is Self's Flawless Parry (UDefenseSystem::OnFlawlessParry; Target = the attacker). */
 	bool bFlawlessParry = false;
+	/** B-381 activations: the worn item whose bound quest is being checked (WornItemState; null: it fails). */
+	const FWornItemState *BoundItem = nullptr;
 };
 
 namespace WoRConditions
