@@ -225,6 +225,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
 	float GetDefenderFlatDefense(AActor *Defender) const;
 
+	/** B-383 (D-166): GetDefenderFlatDefense for one hit: DefenseBuff / DefenseDebuff count only where their scope
+	 *  matches HitElement and the hit's kind (spell or not). Equal to GetDefenderFlatDefense with no scoped effects. */
+	float GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const;
+
+	/** B-383: 1 + (Raw or Spell DamageBuff - Debuff) / 100 for one hit, each effect counted by its scope; the one value
+	 *  both the status factor and the stat-cap correction read (GetTransientRaw/SpellDamageFactor with no scoped effects). */
+	float GetScopedTransientDamageFactor(AActor *Attacker, bool bIsSpell, ESpellElement HitElement) const;
+
 	/** Ignore Defense for one hit as a fraction, 0-1 (D-086): Input's amount (bIgnoreDefense = 100%)
 	 *  plus each of the attacker's IgnoreDefense effects (one without an amount, or valued 1, = 100%), capped at 1. */
 	float GetIgnoreDefenseFraction(AActor *Attacker, const FDamageCalculationInput &Input) const;

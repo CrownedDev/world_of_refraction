@@ -413,6 +413,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	float GetTotalStatModifierForElement(AActor *Actor, ESkillEffectType ModifierType, ESpellElement BuildupElement) const;
 
+	/** B-383 (D-166): the summed magnitude of ModifierType's effects on Actor whose DamageScope counts for a hit of
+	 *  HitElement, from a spell (bHitIsSpell) or not (WoRDamageScope::Matches). All-scope effects always count, so
+	 *  with no scoped effects this equals GetTotalStatModifier. Each effect counts once. */
+	float GetTotalStatModifierForHit(AActor *Actor, ESkillEffectType ModifierType, ESpellElement HitElement, bool bHitIsSpell) const;
+
 	/** A sub-stat's net transient modifier in percent: Modify + Buff - Debuff over the
 	 *  channels StatModifierTable lists for it (B-020). 0 when nothing is active. */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")

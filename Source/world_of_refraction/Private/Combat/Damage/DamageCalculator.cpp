@@ -63,7 +63,9 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		Inputs.bHasAttackerStats = true;
 		Inputs.EquipmentTerm = Inputs.bIsSpell ? AttackerComp->GetEquipmentSpellDamageTerm() : AttackerComp->GetEquipmentRawDamageTerm();
 		Inputs.StoneFactor = Inputs.bIsSpell ? AttackerComp->GetStoneSpellDamageFactor() : AttackerComp->GetStoneRawDamageFactor();
-		Inputs.TransientFactor = Inputs.bIsSpell ? AttackerComp->GetTransientSpellDamageFactor() : AttackerComp->GetTransientRawDamageFactor();
+		// B-383 review: the same scoped Raw / Spell net the status factor applies, so the stat-cap correction (which
+		// divides by it) still cancels it below the caps and caps the same value at them.
+		Inputs.TransientFactor = GetScopedTransientDamageFactor(Attacker, Inputs.bIsSpell, Input.Element);
 		Inputs.EvolutionModifiedStat = Inputs.bIsSpell ? AttackerComp->GetEvolutionModifiedSpellDamage() : AttackerComp->GetEvolutionModifiedRawDamage();
 		// The gear term joins the attacker multiplier only with a loadout (as before B-219).
 		if (Attacker->FindComponentByClass<ULoadoutComponent>())
@@ -95,8 +97,11 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	Inputs.GuardFactor = Input.GuardFactor;
 	if (const USkillEffectManager *StatusManager = Defender ? GetSkillEffectManager() : nullptr)
 	{
-		Inputs.DamageTakenFactor = GetDamageTakenFactor(StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken),
-														StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken));
+		// B-383: the same scoped read as GetStatusEffectDamageModifier's defender side, for this hit.
+		const bool bHitIsSpell = Input.ActionType == EActionType::Spell;
+		Inputs.DamageTakenFactor = GetDamageTakenFactor(
+			StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::ReduceDamageTaken, Input.Element, bHitIsSpell),
+			StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::IncreaseDamageTaken, Input.Element, bHitIsSpell));
 	}
 
 	// Crit. The one battle-random roll; skipped when the crit is forced, as before.
@@ -131,7 +136,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	if (!bSkipDefense && Defender)
 	{
 		Inputs.bApplyDefense = true;
-		Inputs.DefenderDefense = GetDefenderFlatDefense(Defender);
+		Inputs.DefenderDefense = GetDefenderDefenseForHit(Defender, Input.Element, Input.ActionType == EActionType::Spell);
 	}
 	if (Grid && Defender)
 	{
@@ -306,6 +311,41 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	return Layers.Compose();
 }
 
+float UDamageCalculator::GetScopedTransientDamageFactor(AActor *Attacker, bool bIsSpell, ESpellElement HitElement) const
+{
+	const USkillEffectManager *StatusManager = GetSkillEffectManager();
+	if (!Attacker || !StatusManager)
+	{
+		return 1.0f;
+	}
+	const ESkillEffectType Buff = bIsSpell ? ESkillEffectType::SpellDamageBuff : ESkillEffectType::RawDamageBuff;
+	const ESkillEffectType Debuff = bIsSpell ? ESkillEffectType::SpellDamageDebuff : ESkillEffectType::RawDamageDebuff;
+	return 1.0f + (StatusManager->GetTotalStatModifierForHit(Attacker, Buff, HitElement, bIsSpell) -
+				   StatusManager->GetTotalStatModifierForHit(Attacker, Debuff, HitElement, bIsSpell)) /
+					  CombatConstants::STAT_PERCENT_DIVISOR;
+}
+
+float UDamageCalculator::GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const
+{
+	UCharacterDataComponent *DefenderComp = Defender ? Defender->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const USkillEffectManager *StatusManager = GetSkillEffectManager();
+	float OnGAS = 0.0f;
+	if (!DefenderComp || !DefenderComp->CharacterData || !StatusManager ||
+		UWoRAttributeSyncComponent::ReadComposedOnGAS(Defender, UWoRAttributeSet_Stats::GetDefenseAttribute(), OnGAS))
+	{
+		// TODO: B-383: at UseGAS 1 the composed Defense attribute counts every DefenseBuff whatever its scope.
+		return GetDefenderFlatDefense(Defender);
+	}
+	// B-383 (D-166): GetDefenderFlatDefense's layers, with the transient factor (DefenseBuff - DefenseDebuff, floored
+	// at x0) read through each effect's scope for this hit. With no scoped effects it is the same number.
+	FWoRStatLayers Layers;
+	DefenderComp->GetStatLayers(ESubStat::Defense, Layers);
+	const float Net = StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::DefenseBuff, HitElement, bHitIsSpell) -
+					  StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::DefenseDebuff, HitElement, bHitIsSpell);
+	Layers.TransientFactor = FMath::Max(0.0f, 1.0f + Net / CombatConstants::STAT_PERCENT_DIVISOR);
+	return Layers.Compose();
+}
+
 float UDamageCalculator::GetCritChanceTransientFactor(AActor *Attacker) const
 {
 	// Multiplicative compounding: GetTotalStatModifier already sums within each category, so each
@@ -464,30 +504,24 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	{
 		return Modifier;
 	}
+	// B-383 (D-166): every damage / defence boost below is read through its scope for this hit.
+	const bool bHitIsSpell = ActionType == EActionType::Spell;
+	auto ForHit = [StatusManager, HitElement, bHitIsSpell](AActor *Actor, ESkillEffectType Type)
+	{
+		return StatusManager->GetTotalStatModifierForHit(Actor, Type, HitElement, bHitIsSpell);
+	};
 
 	// Attacker damage buffs/debuffs
 	if (Attacker)
 	{
-		// B-382 (Q-164b): the unkeyed (None) layer counts for every hit; an element-keyed layer only for a hit of
-		// that element. Two exact-element reads, as status buildup does, so a layer is never counted twice. Skill
-		// payloads key DamageBuff by their own authored element only (None by default, BuildRuntimeFromPayload), so unkeyed authored buffs are unchanged.
-		auto KeyedTotal = [StatusManager, Attacker, HitElement](ESkillEffectType Type)
-		{
-			// Generic ("inherit") is never a hit's element; an effect stamped with it counts as unkeyed, as before.
-			float Total = StatusManager->GetTotalStatModifierForElement(Attacker, Type, ESpellElement::None) +
-						  StatusManager->GetTotalStatModifierForElement(Attacker, Type, ESpellElement::Generic);
-			if (HitElement != ESpellElement::None && HitElement != ESpellElement::Generic)
-			{
-				Total += StatusManager->GetTotalStatModifierForElement(Attacker, Type, HitElement);
-			}
-			return Total;
-		};
-		float DamageBuff = KeyedTotal(ESkillEffectType::DamageBuff);
-		float DamageDebuff = KeyedTotal(ESkillEffectType::DamageDebuff);
+		// B-382 / B-383 (D-166): each damage boost counts by its DamageScope (All, Physical, Spell or one element)
+		// against this hit; All-scope effects (all authored data before B-383) count for every hit as before.
+		float DamageBuff = ForHit(Attacker, ESkillEffectType::DamageBuff);
+		float DamageDebuff = ForHit(Attacker, ESkillEffectType::DamageDebuff);
 		Modifier *= (1.0f + (DamageBuff - DamageDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 
 		// Passive-layer ModifyDamageDealt: percent boost to outgoing damage.
-		float ModifyDealt = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyDamageDealt);
+		float ModifyDealt = ForHit(Attacker, ESkillEffectType::ModifyDamageDealt);
 		Modifier *= (1.0f + ModifyDealt / CombatConstants::STAT_PERCENT_DIVISOR);
 
 		// RawDamageBuff/Debuff: whole-number-percent boost to PHYSICAL outgoing damage only
@@ -495,12 +529,11 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// the IDENTICAL (1 + (RawDamageBuff − RawDamageDebuff)/100) via the same SEM reads on the
 		// same actor. Same multiplicative op, same spot/order (symmetric with the spell arm
 		// below). The Amethyst gamble is the only live producer; spell actions are unaffected.
+		// B-383: the same net as GetTransientRawDamageFactor (Buff - Debuff, StatModifierTable's RawDamage row), read
+		// through each effect's scope for this hit (GetScopedTransientDamageFactor, shared with the cap correction).
 		if (ActionType != EActionType::Spell)
 		{
-			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-			{
-				Modifier *= AttackerComp->GetTransientRawDamageFactor();
-			}
+			Modifier *= GetScopedTransientDamageFactor(Attacker, false, HitElement);
 		}
 
 		// SpellDamageBuff/Debuff: the magical mirror — whole-number-percent boost to
@@ -511,12 +544,10 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// bundled here in the SAME order with the other Step-2 terms (generic DamageBuff /
 		// ModifyDamageDealt before, defender-side after). This is the read-site that gives
 		// the SpellDamageStone CONSUMABLE its teeth and the Amethyst gamble's spell arm.
+		// B-383: the same net as GetTransientSpellDamageFactor, read through each effect's scope for this hit.
 		if (ActionType == EActionType::Spell)
 		{
-			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-			{
-				Modifier *= AttackerComp->GetTransientSpellDamageFactor();
-			}
+			Modifier *= GetScopedTransientDamageFactor(Attacker, true, HitElement);
 		}
 	}
 
@@ -530,8 +561,8 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// ModifyDamageTaken magnitude redirects to ReduceDamageTaken by name but
 		// keeps the old sign — a negative reduction reads as zero/negative here.
 		// Re-author those magnitudes as positive percent values.
-		const float Reduction = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken);
-		const float Increase = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken);
+		const float Reduction = ForHit(Defender, ESkillEffectType::ReduceDamageTaken); // B-383: scoped to this hit
+		const float Increase = ForHit(Defender, ESkillEffectType::IncreaseDamageTaken);
 		Modifier *= GetDamageTakenFactor(Reduction, Increase);
 	}
 

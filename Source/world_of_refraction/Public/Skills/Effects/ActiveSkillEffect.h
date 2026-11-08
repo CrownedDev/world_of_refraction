@@ -6,6 +6,7 @@
 #include "Skills/Effects/ESkillEffectTiming.h"
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Skills/Effects/EDamageScope.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Skills/Effects/FSkillEffect.h"
@@ -165,6 +166,10 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	/** Element for elemental DOTs and resistance calculations; None = non-elemental */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	ESpellElement Element = ESpellElement::None;
+
+	/** B-383 (D-166): which hits a damage or defence boost counts for (WoRDamageScope::Matches). All = every hit. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	EDamageScope DamageScope = EDamageScope::All;
 
 	/** Physical-damage type this effect keys on (for physical-type status
 	 *  resistance). None = effect keys on Element instead. A resistance effect
@@ -330,13 +335,24 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		// Charges: SEPARATE governor from duration. 0 (default) = no charge system, untouched.
 		Effect.Charges = P.Charges;
 		// B-042j3: a reflect's element is its scope (the payload's own, authored one); the cast element never scopes it.
-		// B-382 (Q-164b): a DamageBuff / DamageDebuff is keyed the same way, by the payload's own element only
-		// (None = every hit), so a spell's cast element never narrows an authored damage buff.
-		const bool bKeysByPayloadOnly = SkillEffectClassification::IsReflect(Effect.EffectType) ||
-										Effect.EffectType == ESkillEffectType::DamageBuff ||
-										Effect.EffectType == ESkillEffectType::DamageDebuff;
+		// B-383 (D-166): a damage or defence boost counts by its authored DamageScope; with the Element scope it keys
+		// to the payload's own element, else to the caller's (a spell's cast element). Any other scope ignores Element,
+		// and every other effect type ignores the scope (its element is resolved as before).
+		const bool bScopedType = WoRDamageScope::IsScopedType(Effect.EffectType);
+		Effect.DamageScope = bScopedType ? P.DamageScope : EDamageScope::All;
+		const bool bElementScoped = bScopedType && P.DamageScope == EDamageScope::Element;
+		if (bElementScoped && (KeyElement == ESpellElement::None || KeyElement == ESpellElement::Generic))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FActiveSkillEffect] '%s' is scoped to one element but has none (payload and caller both "
+										  "None / Generic): it counts for no hit. Set the payload's Element."),
+				   *Effect.EffectName);
+		}
 		Effect.Element = Effect.EffectType == ESkillEffectType::ApplyDOTOnHit ? KeyElement
-						 : bKeysByPayloadOnly ? (bPayloadKeysElement ? P.Element : ESpellElement::None)
+						 : SkillEffectClassification::IsReflect(Effect.EffectType) ? (bPayloadKeysElement ? P.Element : ESpellElement::None)
+						 : bElementScoped ? KeyElement
+						 // B-383 review: an unkeyed damage buff / debuff stores no element (as B-382 did), so element
+						 // readers and debug output don't see the cast element on it.
+						 : (Effect.EffectType == ESkillEffectType::DamageBuff || Effect.EffectType == ESkillEffectType::DamageDebuff) ? ESpellElement::None
 						 : Element;
 
 		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()

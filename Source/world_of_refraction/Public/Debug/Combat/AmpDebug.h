@@ -11,7 +11,7 @@ class UWorld;
 
 namespace WoRAmpDebug
 {
-	/** "Name: +2 Amp, +1 Fire | Fire action +3, physical +2" — Actor's worn gear Amp and two sample totals. */
+	/** "Name: +2 Amp, +1 Fire | Fire spell +3, Fire ability +3, unelemental attack +2": worn gear Amp and sample totals. */
 	WORLD_OF_REFRACTION_API FString GetAmpString(AActor *Actor, ESpellElement SampleElement = ESpellElement::Fire);
 
 	/** Logs GetAmpString for every actor in World with a loadout. */

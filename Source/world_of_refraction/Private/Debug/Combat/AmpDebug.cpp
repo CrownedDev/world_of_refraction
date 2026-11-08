@@ -17,9 +17,10 @@ FString WoRAmpDebug::GetAmpString(AActor *Actor, ESpellElement SampleElement)
 		return FString::Printf(TEXT("%s: no loadout (no Amp)"), *GetNameSafe(Actor));
 	}
 	const FAmpBonus Amp = Loadout->GetActiveStatBonus(Actor).Amp;
-	return FString::Printf(TEXT("%s: %s | %s action %+d, physical %+d"), *GetNameSafe(Actor), *Amp.ToString(),
-						   *UEnum::GetDisplayValueAsText(SampleElement).ToString(), Amp.GetTotalFor(SampleElement),
-						   Amp.GetTotalFor(ESpellElement::None));
+	return FString::Printf(TEXT("%s: %s | %s spell %+d, %s ability %+d, unelemental attack %+d"), *GetNameSafe(Actor),
+						   *Amp.ToString(), *UEnum::GetDisplayValueAsText(SampleElement).ToString(),
+						   Amp.GetTotalFor(SampleElement, true), *UEnum::GetDisplayValueAsText(SampleElement).ToString(),
+						   Amp.GetTotalFor(SampleElement, false), Amp.GetTotalFor(ESpellElement::None, false));
 }
 
 void WoRAmpDebug::PrintAmpState(UWorld *World)
