@@ -20,6 +20,15 @@
 
 #define LOCTEXT_NAMESPACE "HiddenQuest"
 
+/** The quest notices, all in one place. They are private: no hint of which quest or what comes next (D-100). */
+namespace HiddenQuestNotice
+{
+	// TODO: Crown's text (placeholders, Crown writes lore-flavoured lines later; Q-377).
+	static FText Started() { return LOCTEXT("QuestStarted", "Something has begun."); }
+	// TODO: Crown's text (placeholder; Q-377).
+	static FText StepDone() { return LOCTEXT("StepDone", "Something has moved forward."); }
+}
+
 void UHiddenQuestSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
@@ -109,7 +118,7 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 	}
 	Progress.Add(Quest->GetQuestId());
 	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
-	ATrialMapFeature::ShowMessage(LOCTEXT("QuestStarted", "Something has begun.")); // private; no hint of what (D-100)
+	ATrialMapFeature::ShowMessage(HiddenQuestNotice::Started());
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s started (%d step(s))"), *Quest->GetQuestId().ToString(), Quest->Steps.Num());
 	if (Quest->Steps.IsEmpty())
 	{
@@ -150,7 +159,7 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<
 		}
 		else
 		{
-			ATrialMapFeature::ShowMessage(LOCTEXT("StepDone", "Something has moved forward.")); // no next-step text (D-100)
+			ATrialMapFeature::ShowMessage(HiddenQuestNotice::StepDone());
 		}
 	}
 	return StepsDoneNow;
