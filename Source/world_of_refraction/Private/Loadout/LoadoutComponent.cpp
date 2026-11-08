@@ -44,7 +44,7 @@
 namespace
 {
     /** B-357b: fight-start reads see every evolution as not infused (charge level 0). */
-    constexpr int32 FIGHT_START_CHARGE_LEVEL = 0;
+    constexpr int32 LOADOUT_FIGHT_START_CHARGE_LEVEL = 0;
 }
 
 namespace
@@ -4448,7 +4448,7 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
 
     // B-357b (D-147): the attached evolutions whose passives act at fight start (charge 0): the character's own
     // slot. Gear evolutions give theirs only to an action charged at L2 (B-357c), so none here, as before.
-    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), FIGHT_START_CHARGE_LEVEL))
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
         Result.Append(Evolution.Attachment.Item->GetStartingEffects());
     }
@@ -4477,7 +4477,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     });
 
     // B-357b: the one resolve path, at fight start (charge 0).
-    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), FIGHT_START_CHARGE_LEVEL))
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
         Result.Append(Evolution.Attachment.Item->GetStartingEffectsGathered());
     }
@@ -4506,7 +4506,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     });
 
     // B-357b: the one resolve path, armed at fight start (charge 0).
-    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), FIGHT_START_CHARGE_LEVEL))
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
         Result.Append(Evolution.Attachment.Item->GetConditionalEffectsGathered());
     }
@@ -4544,7 +4544,7 @@ FString ULoadoutComponent::GetAttachedEvolutionsString() const
     {
         Out += FString::Printf(TEXT("\n  %s on the %s: passives at charge 0 %s, at charge %d %s"), *GetNameSafe(Evolution.Attachment.Item),
                                WoREvolutionPlacement::GetPlaceName(Evolution.Place),
-                               WoREvolutionPlacement::GivesPassives(Evolution.Place, FIGHT_START_CHARGE_LEVEL) ? TEXT("yes") : TEXT("no"),
+                               WoREvolutionPlacement::GivesPassives(Evolution.Place, LOADOUT_FIGHT_START_CHARGE_LEVEL) ? TEXT("yes") : TEXT("no"),
                                WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL,
                                WoREvolutionPlacement::GivesPassives(Evolution.Place, WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL) ? TEXT("yes") : TEXT("no"));
     }
@@ -4560,7 +4560,7 @@ static FAutoConsoleCommandWithWorld GLoadoutPrintEvolutionsCommand(
         {
             if (!It->IsTemplate() && It->GetWorld() == World)
             {
-                UE_LOG(LogTemp, Display, TEXT("%s"), *It->GetAttachedEvolutionsString());
+                UE_LOG(LogWoR, Display, TEXT("%s"), *It->GetAttachedEvolutionsString());
             }
         }
     }));
