@@ -124,6 +124,30 @@ namespace WoRDefeat
 		return Player->GetUniqueId().IsValid() ? Player->GetUniqueId().ToString() : FString::FromInt(Player->GetPlayerId());
 	}
 
+	int32 GetPresentDroppedPrisms(const UWorld *World)
+	{
+		const UTrialRunSubsystem *Run = DefeatRun(World);
+		if (!Run)
+		{
+			return 0;
+		}
+		int32 Total = Run->GetDroppedPrisms(); // the local (host / solo) player's
+		const AGameStateBase *GameState = World->GetGameState();
+		if (!GameState)
+		{
+			return Total;
+		}
+		for (const APlayerState *Player : GameState->PlayerArray)
+		{
+			const APlayerController *PC = Player ? Cast<APlayerController>(Player->GetOwner()) : nullptr;
+			if (PC && !PC->IsLocalController())
+			{
+				Total += Run->GetDroppedPrismsForPlayer(PlayerDropKey(Player));
+			}
+		}
+		return Total;
+	}
+
 	int32 PickUpDropFor(UWorld *World, const APawn *Pawn)
 	{
 		const AController *Controller = Pawn ? Pawn->GetController() : nullptr;
