@@ -45,6 +45,13 @@ public:
 
 	int32 GetFoundSessionCount() const;
 
+	/** B-234b: the found session OwnerId hosts (its owning user id, as FUniqueNetIdRepl::ToString spells it), or
+	 *  INDEX_NONE. */
+	int32 FindSessionIndexByOwner(const FString &OwnerId) const;
+
+	/** B-234b: a search finished (found or not); GetFoundSessionCount / FindSessionIndexByOwner read it. */
+	FSimpleMulticastDelegate OnSessionsFound;
+
 	FString GetSessionString() const;
 
 private:
