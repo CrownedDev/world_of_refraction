@@ -42,7 +42,7 @@ namespace
 	}
 
 	FAutoConsoleCommandWithWorld GDumpAttributesCmd(
-		TEXT("wor.DumpAttributes"),
+		TEXT("wor.Attributes.Print"),
 		TEXT("DEBUG: print every combatant's GAS attributes (B-041)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
@@ -56,7 +56,7 @@ namespace
 		}));
 
 	FAutoConsoleCommandWithWorld GCompareAttributesCmd(
-		TEXT("wor.CompareAttributes"),
+		TEXT("wor.Attributes.Compare"),
 		TEXT("DEBUG: check every combatant's GAS attributes equal the stat getters they mirror (B-041)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UWoRAttributeDebug::CompareAttributes(World); }));
 }
@@ -253,7 +253,7 @@ int32 UWoRAttributeDebug::CompareAttributes(const UObject *WorldContextObject)
 		++Differing;
 		UE_LOG(LogWoR, Warning, TEXT("[AttributeDebug] %s: attributes DIFFER\n%s"), *It->GetName(), *Mismatches);
 	}
-	const FString Summary = FString::Printf(TEXT("wor.CompareAttributes: %d of %d combatant(s) differ"), Differing, Checked);
+	const FString Summary = FString::Printf(TEXT("wor.Attributes.Compare: %d of %d combatant(s) differ"), Differing, Checked);
 	UE_LOG(LogWoR, Display, TEXT("[AttributeDebug] %s"), *Summary);
 	if (GEngine)
 	{

@@ -17,8 +17,14 @@
 #include "Net/UnrealNetwork.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Party/PartyInteractionComponent.h"
 #include "Player/RunStateComponent.h"
+#include "Player/WoRGameState.h"
+#include "Online/HostSuccession.h"
 #include "Save/SaveSubsystem.h"
+#include "Save/CoopCheckpoint.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/LocalPlayer.h"
 #include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
@@ -381,6 +387,113 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 	return PC && PC->IsLocalController();
 }
 
+void AWoRPlayerState::ServerRecruit_Implementation(AActor *RecruitOwner)
+{
+	// B-232e: the recruit must still be there and within reach of this player's pawn (the client's trigger said so).
+	UPartyInteractionComponent *Recruit = RecruitOwner ? RecruitOwner->FindComponentByClass<UPartyInteractionComponent>() : nullptr;
+	const APawn *Pawn = GetPawn();
+	if (!Recruit)
+	{
+		// Review: a recruit actor that does not replicate arrives here as null.
+		UE_LOG(LogWoR, Warning, TEXT("[PartyInteraction] %s's recruit refused: the recruit did not reach the server (%s)"),
+			   *GetPlayerName(), RecruitOwner ? TEXT("no party interaction") : TEXT("not replicated?"));
+		return;
+	}
+	if (!Pawn || !Recruit->IsWithinReach(Pawn))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[PartyInteraction] %s's recruit of %s refused: out of reach"), *GetPlayerName(), *GetNameSafe(RecruitOwner));
+		return;
+	}
+	Recruit->InviteForClient();
+}
+void AWoRPlayerState::SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	const TArray<TArray<uint8>> Chunks = WoRCheckpoint::Split(Compressed);
+	for (int32 Index = 0; Index < Chunks.Num(); ++Index)
+	{
+		Client_ReceiveCheckpointChunk(CheckpointId, Index, Chunks.Num(), UncompressedSize, Chunks[Index]);
+	}
+}
+
+void AWoRPlayerState::Client_ReceiveCheckpointChunk_Implementation(int32 CheckpointId, int32 ChunkIndex, int32 ChunkCount, int32 UncompressedSize,
+																	const TArray<uint8> &Chunk)
+{
+	if (!CheckpointAssembler.Add(CheckpointId, ChunkIndex, ChunkCount, Chunk))
+	{
+		return;
+	}
+	TArray<uint8> Bytes;
+	if (UncompressedSize <= 0 || !WoRCheckpoint::Decompress(CheckpointAssembler.GetBytes(), UncompressedSize, Bytes))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Copy %d did not decompress (%d bytes, expected %d); not kept"), CheckpointId,
+			   CheckpointAssembler.GetBytes().Num(), UncompressedSize);
+		return;
+	}
+	// Review fix: only a copy that loads as a save replaces the kept one.
+	if (!UGameplayStatics::LoadGameFromMemory(Bytes))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Copy %d is not a save (%d bytes); not kept"), CheckpointId, Bytes.Num());
+		return;
+	}
+	const APlayerController *PC = Cast<APlayerController>(GetOwner());
+	const ULocalPlayer *Local = PC ? PC->GetLocalPlayer() : nullptr;
+	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+	if (!UGameplayStatics::SaveDataToSlot(Bytes, WoRCheckpoint::SLOT_NAME, UserIndex))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Could not keep copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+		return;
+	}
+	KeptCheckpointId = CheckpointId;
+	KeptCheckpointBytes = Bytes.Num();
+	KeptCheckpointTime = FDateTime::Now();
+	UE_LOG(LogWoR, Log, TEXT("[Checkpoint] Kept the host's copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+}
+
+void AWoRPlayerState::OnSetUniqueId()
+{
+	Super::OnSetUniqueId();
+	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->UpdateHostOrder(this, /*bJoined=*/true); // server only (UpdateHostOrder checks)
+	}
+}
+
+void AWoRPlayerState::Client_BeginPlannedHandOver_Implementation()
+{
+	UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr)
+	{
+		HandOver->HandlePlannedHandOver(GetWorld());
+	}
+}
+
+FString AWoRPlayerState::GetCheckpointString() const
+{
+	if (KeptCheckpointId == INDEX_NONE)
+	{
+		return FString::Printf(TEXT("%s: no checkpoint copy kept this session (receiving %d / %d of copy %d)"), *GetPlayerName(),
+							   CheckpointAssembler.GetReceivedCount(), CheckpointAssembler.GetChunkCount(), CheckpointAssembler.GetCheckpointId());
+	}
+	return FString::Printf(TEXT("%s: copy %d kept (%d bytes) at %s in '%s'"), *GetPlayerName(), KeptCheckpointId, KeptCheckpointBytes,
+						   *KeptCheckpointTime.ToString(TEXT("%H:%M:%S")), WoRCheckpoint::SLOT_NAME);
+}
+
+static FAutoConsoleCommandWithWorld GCoopPrintCheckpointCommand(
+	TEXT("wor.Coop.PrintCheckpoint"),
+	TEXT("B-234: the host's last checkpoint copy this machine kept (a client), and whether one is on disk."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+		const AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+		const ULocalPlayer *Local = PC ? PC->GetLocalPlayer() : nullptr;
+		const bool bOnDisk = UGameplayStatics::DoesSaveGameExist(WoRCheckpoint::SLOT_NAME, Local ? Local->GetPlatformUserIndex() : 0);
+		UE_LOG(LogWoR, Display, TEXT("[Checkpoint] %s; on disk: %s"), Player ? *Player->GetCheckpointString() : TEXT("no player state"),
+			   bOnDisk ? TEXT("yes") : TEXT("no"));
+	}));
 void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Message)
 {
 	ATrialMapFeature::ShowMessage(Message); // B-235b

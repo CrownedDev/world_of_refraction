@@ -39,6 +39,10 @@ public:
 	 *  the trial level's reloads). */
 	FName GetFeatureId() const;
 
+	/** B-232d (client): the run's progress arrived (URunStateComponent): a feature already found takes its found
+	 *  state (spent, removed, opened hint). Default: redraw the hint. */
+	virtual void RefreshFromRun() { RefreshHint(); }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

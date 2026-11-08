@@ -9,6 +9,7 @@
 #include "WoRTestWorld.h"
 #include "Combat/TurnManager.h"
 #include "Player/TurnStateComponent.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
 
 namespace
 {
@@ -91,6 +92,24 @@ void FTurnStateSpec::Define()
 		TestFalse(TEXT("combat off"), TurnState->IsCombatActive());
 		TestNull(TEXT("no current actor"), TurnState->GetCurrentActor());
 		TestEqual(TEXT("no teams"), TurnState->GetActorTeam(Hero), static_cast<int32>(INDEX_NONE));
+	});
+
+	It("builds a client's combat HUD once when combat turns on and tears it down once at the end (B-228b)", [this]()
+	{
+		TestTrue(TEXT("client, combat on, nothing built: build"), ClientCombatHUD::Next(true, true, false) == EClientHUDStep::Build);
+		TestTrue(TEXT("client, combat on, built: nothing"), ClientCombatHUD::Next(true, true, true) == EClientHUDStep::None);
+		TestTrue(TEXT("client, combat off, built: tear down"), ClientCombatHUD::Next(true, false, true) == EClientHUDStep::Teardown);
+		TestTrue(TEXT("client, combat off, nothing built: nothing"), ClientCombatHUD::Next(true, false, false) == EClientHUDStep::None);
+		TestTrue(TEXT("the server builds its own elsewhere"), ClientCombatHUD::Next(false, true, false) == EClientHUDStep::None);
+	});
+
+	It("opens the command menu only where the member's player is (B-232b)", [this]()
+	{
+		TestTrue(TEXT("solo / no run state: opens"), CommandMenuRules::OpensHere(false, false, false));
+		TestTrue(TEXT("commanded here: opens"), CommandMenuRules::OpensHere(false, true, true));
+		TestFalse(TEXT("another player's member: not here"), CommandMenuRules::OpensHere(false, true, false));
+		TestFalse(TEXT("an AI seat: never"), CommandMenuRules::OpensHere(true, true, true));
+		TestFalse(TEXT("an AI seat solo: never"), CommandMenuRules::OpensHere(true, false, false));
 	});
 }
 
