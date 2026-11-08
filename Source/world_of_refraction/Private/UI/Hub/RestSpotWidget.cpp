@@ -150,7 +150,7 @@ void URestSpotWidget::Refresh()
 	{
 		ReviveButton->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
-	const int32 RevivalNumber = bOnClient ? HostRevivalNumber : (Run ? Run->GetEncounterRevivals(Run->GetLastRestSpot()) + 1 : 0);
+	const int32 RevivalNumber = bOnClient ? HostRevivalNumber : WoRRestSpot::GetNextRevivalNumber(GetWorld());
 	if (ReviveLabel && bCanRevive)
 	{
 		ReviveLabel->SetText(FText::Format(LOCTEXT("ReviveCount", "Revive the mini-boss: one tier stronger, better drops ({0} of {1})"),
@@ -184,8 +184,8 @@ void URestSpotWidget::HandleReviveClicked()
 
 FString URestSpotWidget::GetRestSpotWidgetString() const
 {
-	return FString::Printf(TEXT("[RestSpotMenu] %s | %s"), PayoutText ? *PayoutText->GetText().ToString() : TEXT("-"),
-						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"));
+	return FString::Printf(TEXT("[RestSpotMenu] %s | %s | host revive: %s (%d)"), PayoutText ? *PayoutText->GetText().ToString() : TEXT("-"),
+						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"), bHostCanRevive ? TEXT("yes") : TEXT("no"), HostRevivalNumber);
 }
 
 void URestSpotWidget::HandleInventoryClicked()
