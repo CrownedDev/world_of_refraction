@@ -12,22 +12,7 @@
 namespace
 {
 	constexpr float MIN_PLAY_RATE = 0.1f; // the runner's own clamp (UActionExecutor::PlayActionMontageOnActor)
-
-	const TCHAR *FamilyName(ECombatNotifyFamily Family)
-	{
-		switch (Family)
-		{
-		case ECombatNotifyFamily::Impact:
-			return TEXT("Impact");
-		case ECombatNotifyFamily::Cast:
-			return TEXT("Cast");
-		case ECombatNotifyFamily::VFX:
-			return TEXT("VFX");
-		case ECombatNotifyFamily::SFX:
-			return TEXT("SFX");
-		}
-		return TEXT("?");
-	}
+	constexpr float RETURN_LEG_RATE = 1.0f; // the runner plays the return leg unscaled (UActionExecutor::PlayReturnStep)
 }
 
 namespace NotifyValidation
@@ -63,15 +48,21 @@ namespace NotifyValidation
 		const float Rate = FMath::Max(MIN_PLAY_RATE, Skill.BaseAnimSpeed);
 		TArray<FNotifyMark> Marks;
 		float Offset = 0.0f;
-		const UAnimMontage *Legs[] = {Skill.RitualCastMontage, Skill.SkillMontage, Skill.ReturnMontage};
-		for (const UAnimMontage *Leg : Legs)
+		// The ritual and skill legs play at the skill's rate, the return leg at 1.0 (as the runner plays them).
+		struct FLeg
 		{
-			if (!Leg)
+			const UAnimMontage *Montage;
+			float Rate;
+		};
+		const FLeg Legs[] = {{Skill.RitualCastMontage, Rate}, {Skill.SkillMontage, Rate}, {Skill.ReturnMontage, RETURN_LEG_RATE}};
+		for (const FLeg &Leg : Legs)
+		{
+			if (!Leg.Montage)
 			{
 				continue;
 			}
-			Marks.Append(ReadMarks(Leg, Rate, Offset));
-			Offset += Leg->GetPlayLength() / Rate;
+			Marks.Append(ReadMarks(Leg.Montage, Leg.Rate, Offset));
+			Offset += Leg.Montage->GetPlayLength() / Leg.Rate;
 		}
 		return Marks;
 	}
