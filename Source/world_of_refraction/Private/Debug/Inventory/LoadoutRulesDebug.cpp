@@ -223,6 +223,12 @@ namespace
 					return;
 				}
 				FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+				if (Active.bLore)
+				{
+					// Review: a lore loadout is not saved (custom loadouts are), so apparel worn there would be lost on reload.
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] the active loadout is a lore loadout (not saved): switch to a custom loadout first (B-380d saves lore apparel)"));
+					return;
+				}
 				FApparelEntry Entry = FApparelEntry::CreateFromApparel(Piece);
 				// B-380b: owned first (the pool mints its id), so it is saved with the store.
 				if (UPoolSubsystem *Pool = World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)

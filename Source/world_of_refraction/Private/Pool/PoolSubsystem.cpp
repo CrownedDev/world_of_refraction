@@ -169,6 +169,8 @@ bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAt
     {
         return false;
     }
+    // TODO(B-380d): give the old socket item back to the store, and refuse an evolution not owned or already attached
+    // elsewhere (the placeholder command only sets refined crystals).
     Owned->AttachedItem = Attachment;
     UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s socket: %s"), *GetNameSafe(Owned->Apparel.Get()),
            *UEnum::GetDisplayValueAsText(Owned->GetElement()).ToString());

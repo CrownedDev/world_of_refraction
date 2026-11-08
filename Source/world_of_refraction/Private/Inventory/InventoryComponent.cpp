@@ -2136,6 +2136,7 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
             {
                 Loadout->NotifyApparelChanged();
             }
+            BroadcastInventoryChanged(EInventoryChangeType::Equipped); // review: inventory listeners refresh too
         }
         return; // apparel is not in the weapon / adapter / evolution views below
     }
