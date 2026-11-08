@@ -5,7 +5,7 @@
 //   a composed stat (B-042q), also its base vs the capped stat and its one stat-sources effect; for a
 //   derived stat (B-042s), its one derived-stat effect.
 // - CompareAttributes: runs GetAttributeMismatchString on every combatant in the world.
-//   Console: wor.DumpAttributes, wor.CompareAttributes.
+//   Console: wor.Attributes.Print, wor.Attributes.Compare.
 
 #pragma once
 

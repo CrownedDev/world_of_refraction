@@ -228,13 +228,13 @@ public:
 	/** Log the absorption breakdown (BaseRate, raw Efficiency multiplier, EfficiencyFactor,
 	 *  AbsorptionRate, EnergyAbsorbed) for a hypothetical AttackEnergyCost across parry + block — so the
 	 *  Efficiency-scaled curve is inspectable without triggering an exact parry/block. Driven by the
-	 *  WoR.AbsorptionSnapshot console command. */
+	 *  wor.BrokenDarkness.Print console command. */
 	void DebugLogAbsorption(float AttackEnergyCost) const;
 
 	/** Log current AccruedStrain / GetBreakThreshold() + a projected casts-to-break table (per
 	 *  representative deficit, using this character's live stats via ComputeStrainForDeficit).
 	 *  The strain bar is hidden by design, so this is the only inspection path. Driven by the
-	 *  WoR.StrainSnapshot console command. */
+	 *  wor.BrokenDarkness.ShowStrain console command. */
 	void DebugLogStrain() const;
 
 	// ==================== OVERLOAD STATE ====================

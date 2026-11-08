@@ -1,6 +1,6 @@
 // CombatCameraSpec.cpp
 // Combat camera rules (B-156, Design/CombatCamera.md): the mode the viewer sees, the template a
-// skill falls back to, and where each mode puts the camera.
+// skill falls back to, and where each mode puts the camera. B-370: the cinematic window and the Defence view.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,6 +12,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/Camera/CombatCameraComponent.h"
+#include "LevelSequence.h"
 
 namespace
 {
@@ -135,6 +136,176 @@ void FCombatCameraSpec::Define()
 			Frame.Focus = FVector(0.0f, 400.0f, 0.0f);
 			const FVector Second = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::Tactical, Frame).GetLocation();
 			TestTrue(TEXT("same place"), First.Equals(Second));
+		});
+	});
+
+	Describe("the cinematic window (B-370, D-162, Q-370)", [this]()
+	{
+		const float Read = FCombatCameraRules::MinDefenseReadSeconds;
+
+		It("cuts a placed window short so it ends the read time before the first defendable moment", [this, Read]()
+		{
+			FCinematicWindowTiming Timing;
+			Timing.bHasAuthoredWindow = true;
+			Timing.AuthoredStart = 0.0f;
+			Timing.AuthoredEnd = 3.0f;
+			Timing.bHasDefendable = true;
+			Timing.FirstDefendable = 2.0f;
+			float End = 0.0f;
+			TestTrue(TEXT("a window"), FCombatCameraRules::ResolveWindowEnd(Timing, End));
+			TestEqual(TEXT("clamped"), End, 2.0f - Read, KINDA_SMALL_NUMBER);
+			Timing.AuthoredEnd = 0.5f;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("an early placed end stays"), End, 0.5f, KINDA_SMALL_NUMBER);
+			Timing.FirstDefendable = Read * 0.5f;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("a hit too soon: no cinematic"), End, 0.0f, KINDA_SMALL_NUMBER);
+		});
+
+		It("runs to the wind-up end when no range is placed, still clamped", [this, Read]()
+		{
+			FCinematicWindowTiming Timing;
+			Timing.bHasWindUpEnd = true;
+			Timing.WindUpEnd = 1.0f;
+			Timing.bHasDefendable = true;
+			Timing.FirstDefendable = 3.0f;
+			float End = 0.0f;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("the wind-up end"), End, 1.0f, KINDA_SMALL_NUMBER);
+			Timing.bHasWindUpEnd = false;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("no wind-up leg: the read time alone"), End, 3.0f - Read, KINDA_SMALL_NUMBER);
+			TestFalse(TEXT("nothing placed, nothing to defend: no hand-off"), FCombatCameraRules::ResolveWindowEnd(FCinematicWindowTiming(), End));
+		});
+
+		It("hands the defending viewer to Defence and everyone else to the watch view", [this]()
+		{
+			TestEqual(TEXT("defending"), FCombatCameraRules::SelectHandOffMode(true, true, false), ECombatCameraMode::Defence);
+			TestEqual(TEXT("defending, no sequence"), FCombatCameraRules::SelectHandOffMode(true, false, false), ECombatCameraMode::Defence);
+			TestEqual(TEXT("not defending keeps the cinematic"), FCombatCameraRules::SelectHandOffMode(false, true, false), ECombatCameraMode::Action);
+			TestEqual(TEXT("not defending, no sequence: watch"), FCombatCameraRules::SelectHandOffMode(false, false, false), ECombatCameraMode::NotYourTurn);
+			TestEqual(TEXT("movement off: static (D-078)"), FCombatCameraRules::SelectHandOffMode(true, true, true), ECombatCameraMode::Static);
+		});
+
+		It("puts the Defence view behind the defender, facing the attacker; further back for several", [this]()
+		{
+			const FVector Attacker(1000.0f, 0.0f, 0.0f);
+			const FTransform One = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Attacker);
+			TestTrue(TEXT("behind the defender"), One.GetLocation().X < 0.0f);
+			TestTrue(TEXT("above it"), One.GetLocation().Z > 0.0f);
+			TestTrue(TEXT("facing the attacker"), One.GetRotation().GetForwardVector().X > 0.0f);
+			const FTransform Two = FCombatCameraRules::ComputeDefenceView({FVector(0.0f, -300.0f, 0.0f), FVector(0.0f, 300.0f, 0.0f)}, Attacker);
+			TestTrue(TEXT("two spread out: further back"), Two.GetLocation().X < One.GetLocation().X);
+		});
+
+		It("reads nothing from a skill without a montage", [this]()
+		{
+			const FCinematicWindowTiming Timing = FCombatCameraRules::ReadWindowTiming(NewObject<UAbilityData>(GetTransientPackage()), 1.0f, false);
+			TestFalse(TEXT("no window"), Timing.bHasAuthoredWindow);
+			TestFalse(TEXT("nothing to defend"), Timing.bHasDefendable);
+		});
+	});
+
+	Describe("shot patterns (B-371, Q-371)", [this]()
+	{
+		// Caster at the origin, one target 1000 cm ahead on +X (Right is +Y).
+		const auto Context = [](TArray<FVector> Targets = {FVector(1000.0f, 0.0f, 0.0f)})
+		{
+			FCameraShotContext Out;
+			Out.Targets = MoveTemp(Targets);
+			return Out;
+		};
+
+		It("winds up over the caster's shoulder and pushes in", [this, Context]()
+		{
+			const FCameraShot Shot = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning());
+			TestTrue(TEXT("behind the caster"), Shot.End.GetLocation().X < 0.0f);
+			TestTrue(TEXT("pushes in"), Shot.Start.GetLocation().X < Shot.End.GetLocation().X);
+			TestTrue(TEXT("right shoulder"), Shot.End.GetLocation().Y > 0.0f);
+			TestTrue(TEXT("over time"), Shot.BlendSeconds > 0.0f);
+			FSkillCameraTuning Left;
+			Left.Side = ECameraShotSide::Left;
+			TestTrue(TEXT("left shoulder when tuned"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Left).End.GetLocation().Y < 0.0f);
+		});
+
+		It("frames the target on impact with a FOV punch and a shake, larger on a crit", [this, Context]()
+		{
+			const FCameraShot Hit = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Context(), FSkillCameraTuning());
+			const FVector ToTarget = (FVector(1000.0f, 0.0f, 0.0f) - Hit.End.GetLocation()).GetSafeNormal();
+			TestTrue(TEXT("looks at the target"), FVector::DotProduct(Hit.End.GetRotation().GetForwardVector(), ToTarget) > 0.99f);
+			TestTrue(TEXT("FOV punch"), Hit.FieldOfView < FCombatCameraRules::DefaultFieldOfView);
+			TestTrue(TEXT("a shake"), Hit.ShakeScale > 0.0f);
+			FCameraShotContext CritContext = Context();
+			CritContext.bCritical = true;
+			const FCameraShot Crit = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, CritContext, FSkillCameraTuning());
+			TestTrue(TEXT("crit: a bigger punch"), Crit.FieldOfView < Hit.FieldOfView);
+			TestTrue(TEXT("crit: a bigger shake"), Crit.ShakeScale > Hit.ShakeScale);
+			FSkillCameraTuning Calm;
+			Calm.ShakeScale = 0.0f;
+			const FCameraShot Still = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, CritContext, Calm);
+			TestEqual(TEXT("no shake when tuned off"), Still.ShakeScale, 0.0f);
+			TestEqual(TEXT("no punch when tuned off"), Still.FieldOfView, FCombatCameraRules::DefaultFieldOfView);
+		});
+
+		It("pulls out for several targets, further the wider they stand", [this, Context]()
+		{
+			TestEqual(TEXT("one target: Impact"), FCombatCameraRules::ImpactMomentFor(1), ECameraShotMoment::Impact);
+			TestEqual(TEXT("two: Spread"), FCombatCameraRules::ImpactMomentFor(2), ECameraShotMoment::Spread);
+			const FCameraShot Close = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread,
+				Context({FVector(1000.0f, -100.0f, 0.0f), FVector(1000.0f, 100.0f, 0.0f)}), FSkillCameraTuning());
+			const FCameraShot Far = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread,
+				Context({FVector(1000.0f, -600.0f, 0.0f), FVector(1000.0f, 600.0f, 0.0f)}), FSkillCameraTuning());
+			TestTrue(TEXT("wider spread: further back"), Far.End.GetLocation().X < Close.End.GetLocation().X);
+		});
+
+		It("follows the projectile on the Cast shot, or holds on the target", [this, Context]()
+		{
+			FCameraShotContext Flying = Context();
+			Flying.Projectile = FVector(400.0f, 0.0f, 600.0f);
+			const FCameraShot Follow = FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, Flying, FSkillCameraTuning());
+			const FVector ToProjectile = (Flying.Projectile.GetValue() - Follow.End.GetLocation()).GetSafeNormal();
+			TestTrue(TEXT("looks at the projectile"), FVector::DotProduct(Follow.End.GetRotation().GetForwardVector(), ToProjectile) > 0.99f);
+			FSkillCameraTuning Hold;
+			Hold.bFollowProjectile = false;
+			const FCameraShot Held = FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, Flying, Hold);
+			const FVector ToTarget = (FVector(1000.0f, 0.0f, 0.0f) - Held.End.GetLocation()).GetSafeNormal();
+			TestTrue(TEXT("tuned off: looks at the target"), FVector::DotProduct(Held.End.GetRotation().GetForwardVector(), ToTarget) > 0.99f);
+		});
+
+		It("changes with the tuning: distance and style", [this, Context]()
+		{
+			const float Base = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning()).End.GetLocation().X;
+			FSkillCameraTuning Twice;
+			Twice.DistanceScale = 2.0f;
+			TestEqual(TEXT("twice as far back"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Twice).End.GetLocation().X, Base * 2.0, 0.01);
+			FSkillCameraTuning Close, Wide;
+			Close.Style = ECameraShotStyle::Close;
+			Wide.Style = ECameraShotStyle::Wide;
+			TestTrue(TEXT("Wide sits further back than Close"),
+					 FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Wide).End.GetLocation().X
+						 < FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Close).End.GetLocation().X);
+			FCameraShotContext Ranged = Context();
+			Ranged.bRanged = true;
+			TestTrue(TEXT("Default frames a ranged skill wide"),
+					 FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Ranged, FSkillCameraTuning()).End.GetLocation().X < Base);
+		});
+
+		It("blends from start to end and holds at the end", [this, Context]()
+		{
+			const FCameraShot Shot = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning());
+			TestTrue(TEXT("at the start"), FCombatCameraRules::BlendShot(Shot, 0.0f).GetLocation().Equals(Shot.Start.GetLocation(), 0.1f));
+			TestTrue(TEXT("at the end"), FCombatCameraRules::BlendShot(Shot, 1.0f).GetLocation().Equals(Shot.End.GetLocation(), 0.1f));
+			TestTrue(TEXT("held past the end"), FCombatCameraRules::BlendShot(Shot, 2.0f).GetLocation().Equals(Shot.End.GetLocation(), 0.1f));
+		});
+
+		It("plays a skill's own CameraSequence instead (a signature move)", [this]()
+		{
+			UAbilityData *Plain = NewObject<UAbilityData>(GetTransientPackage());
+			TestTrue(TEXT("no sequence: the patterns"), FCombatCameraRules::UsesShotPatterns(Plain));
+			UAbilityData *Signature = NewObject<UAbilityData>(GetTransientPackage());
+			Signature->CameraSequence = TSoftObjectPtr<ULevelSequence>(FSoftObjectPath(TEXT("/Game/Test/LS_SignatureTest.LS_SignatureTest")));
+			TestFalse(TEXT("its own sequence wins"), FCombatCameraRules::UsesShotPatterns(Signature));
+			TestFalse(TEXT("no skill: nothing"), FCombatCameraRules::UsesShotPatterns(nullptr));
 		});
 	});
 }

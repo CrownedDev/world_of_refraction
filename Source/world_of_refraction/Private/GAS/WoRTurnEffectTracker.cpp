@@ -29,7 +29,7 @@ namespace
 	}
 
 	FAutoConsoleCommandWithWorld GDumpTurnEffectsCmd(
-		TEXT("wor.DumpTurnEffects"),
+		TEXT("wor.Effects.PrintTurns"),
 		TEXT("DEBUG: print every combatant's turn-counted GameplayEffects (B-042)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
