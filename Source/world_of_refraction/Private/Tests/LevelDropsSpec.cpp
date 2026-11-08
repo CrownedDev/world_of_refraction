@@ -209,6 +209,7 @@ void FLevelDropsSpec::Define()
 		}
 		Comp->AddEarnedWorldStat(EWorldPillar::Body, WorldStatConstants::LIVE_MAX);
 		const float BodyAtCap = Comp->GetEvolutionModifiedBody();
+		const float RawDamageAtCap = Comp->GetEvolutionModifiedRawDamage(); // a Body sub-stat (review)
 		const float MindBefore = Comp->GetEvolutionModifiedMind();
 		const EItemTier TierBefore = WoRCombatTier::GetCombatTier(Comp->GetOwner());
 		Run->AddUnspentLevels(KeyOf(Member), OverCapRules::MAX_PER_PILLAR + 1);
@@ -218,6 +219,9 @@ void FLevelDropsSpec::Define()
 		TestEqual(TEXT("one over-cap point"), Comp->GetOverCapPoints(EWorldPillar::Body), 1);
 		TestEqual(TEXT("helper reads it"), WoRLevelDrops::GetOverCap(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body), 1);
 		TestEqual(TEXT("body +5 %"), Comp->GetEvolutionModifiedBody(), BodyAtCap * OverCapRules::ScaleFor(1), KINDA_SMALL_NUMBER);
+		// Raw damage is 1 + Body x its points x a step, so its part above 1 scales with Body.
+		TestEqual(TEXT("a Body sub-stat rises 5 % with it"), Comp->GetEvolutionModifiedRawDamage() - 1.0f,
+				  (RawDamageAtCap - 1.0f) * OverCapRules::ScaleFor(1), KINDA_SMALL_NUMBER);
 		TestEqual(TEXT("mind untouched"), Comp->GetEvolutionModifiedMind(), MindBefore, KINDA_SMALL_NUMBER);
 		TestEqual(TEXT("Combat Tier unchanged"), WoRCombatTier::GetCombatTier(Comp->GetOwner()), TierBefore);
 

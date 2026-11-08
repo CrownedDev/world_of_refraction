@@ -170,6 +170,10 @@ FText WoRLevelDrops::TryPlaceLevel(UWorld *World, const FPartyMember &Member, EW
 								 FText::AsNumber(OverCapRules::MAX_PER_PILLAR));
 		}
 		Run->TakeUnspentLevel(MemberKey);
+		if (UCharacterDataComponent *Comp = FindSpawnedMember(World, Member))
+		{
+			Comp->RecomputeMaxPools(); // review: a Body or Spirit over-cap point lifts MaxHP / MaxEP now, not at the next spawn
+		}
 		UE_LOG(LogTemp, Log, TEXT("[LevelDrops] %s +1 over-cap %s (now %d; %d left to place)"), *MemberKey.ToString(),
 			   *GetPillarName(Pillar).ToString(), GetOverCap(World, Member, Pillar), Run->GetUnspentLevels(MemberKey));
 		return FText::GetEmpty();
