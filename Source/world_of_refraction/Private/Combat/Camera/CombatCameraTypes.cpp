@@ -275,7 +275,8 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 	{
 	case ECameraShotMoment::WindUp:
 	{
-		const FVector Shoulder = Right * WindUpSide * SideSign * Scale + FVector::UpVector * WindUpHeight;
+		// B-372 review: the height scales with the distance, so a Close wind-up still frames the caster.
+		const FVector Shoulder = Right * WindUpSide * SideSign * Scale + FVector::UpVector * WindUpHeight * Scale;
 		Shot.Start = LookFrom(Context.Caster - Forward * WindUpStartBack * Scale + Shoulder, TargetCentre);
 		Shot.End = LookFrom(Context.Caster - Forward * WindUpEndBack * Scale + Shoulder, TargetCentre);
 		Shot.BlendSeconds = WindUpSeconds;
