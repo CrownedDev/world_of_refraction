@@ -23,6 +23,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemoryUnlock.h"
 #include "Memory/HiddenCounterSubsystem.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Trial/TrialMapFeature.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "HAL/IConsoleManager.h"
@@ -121,6 +122,10 @@ void AWoRPlayerState::ClientInitialize(AController *Controller)
 			}
 		}
 		ServerReportJournal(MemoryIds);
+		if (const UHiddenQuestSubsystem *Quests = GI->GetSubsystem<UHiddenQuestSubsystem>())
+		{
+			ServerReportQuests(Quests->Capture().Quests); // B-377b
+		}
 	}
 }
 
@@ -164,6 +169,8 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	{
 		Next->SetForm(WornForm, BaseForm);
 		Next->KnownMemoryIds = KnownMemoryIds; // B-235d: before the claims below, so nothing is sent again
+		Next->ReportedQuests = ReportedQuests; // B-377b
+		Next->OfferedQuests = OfferedQuests;
 		// B-232: the player keeps commanding its characters in the next level.
 		for (UCharacterData *Character : ClaimedCharacters)
 		{
@@ -480,6 +487,35 @@ void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &Me
 {
 	KnownMemoryIds.Append(MemoryIds);
 	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reported %d memory(ies) in their journal (B-235e)"), *GetPlayerName(), MemoryIds.Num());
+}
+
+void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuestProgress> &Quests)
+{
+	ReportedQuests.Reset();
+	for (const FSavedQuestProgress &Quest : Quests)
+	{
+		if (!Quest.QuestId.IsNone() && !Quest.bFinished)
+		{
+			ReportedQuests.Add(Quest.QuestId, Quest.StepsDone);
+		}
+		OfferedQuests.Remove(Quest.QuestId); // reported: started on their side
+	}
+}
+
+void AWoRPlayerState::Client_QuestStepMet_Implementation(FName QuestId)
+{
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>() : nullptr)
+	{
+		Quests->ApplyStepMetFromHost(QuestId);
+	}
+}
+
+void AWoRPlayerState::Client_StartQuest_Implementation(UHiddenQuestData *Quest)
+{
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>() : nullptr)
+	{
+		Quests->StartQuest(Quest);
+	}
 }
 
 void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
