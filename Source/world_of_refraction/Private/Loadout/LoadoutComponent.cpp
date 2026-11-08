@@ -4363,6 +4363,9 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         Combined.BonusMindModifierPercent   += Src.BonusMindModifierPercent;
         Combined.BonusBodyModifierPercent   += Src.BonusBodyModifierPercent;
         Combined.BonusSpiritModifierPercent += Src.BonusSpiritModifierPercent;
+        // B-382 (Q-164b): Amp lines are flat adds to an action's base, which the skill's own tier power
+        // scales; scaling them by the item's tier too would double it, so they sum raw.
+        Combined.Amp.Accumulate(Src.Amp);
     };
 
     auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Tier : EItemTier::F_Tier; }; // instance Tier (was E.Weapon->Tier)

@@ -90,7 +90,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	{
 		Inputs.GridDamageModifier = Grid->GetDamageModifier(Attacker);
 	}
-	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
+	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType, Input.Element);
 	// B-293d: the defender's Damage Taken share and Guard's, so the damage floor measures from the unreduced hit.
 	Inputs.GuardFactor = Input.GuardFactor;
 	if (const USkillEffectManager *StatusManager = Defender ? GetSkillEffectManager() : nullptr)
@@ -455,7 +455,7 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 	return Layers.Compose();
 }
 
-float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const
+float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType, ESpellElement HitElement) const
 {
 	float Modifier = 1.0f;
 
@@ -468,8 +468,22 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	// Attacker damage buffs/debuffs
 	if (Attacker)
 	{
-		float DamageBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageBuff);
-		float DamageDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageDebuff);
+		// B-382 (Q-164b): the unkeyed (None) layer counts for every hit; an element-keyed layer only for a hit of
+		// that element. Two exact-element reads, as status buildup does, so a layer is never counted twice. Skill
+		// payloads key DamageBuff by their own authored element only (None by default, BuildRuntimeFromPayload), so unkeyed authored buffs are unchanged.
+		auto KeyedTotal = [StatusManager, Attacker, HitElement](ESkillEffectType Type)
+		{
+			// Generic ("inherit") is never a hit's element; an effect stamped with it counts as unkeyed, as before.
+			float Total = StatusManager->GetTotalStatModifierForElement(Attacker, Type, ESpellElement::None) +
+						  StatusManager->GetTotalStatModifierForElement(Attacker, Type, ESpellElement::Generic);
+			if (HitElement != ESpellElement::None && HitElement != ESpellElement::Generic)
+			{
+				Total += StatusManager->GetTotalStatModifierForElement(Attacker, Type, HitElement);
+			}
+			return Total;
+		};
+		float DamageBuff = KeyedTotal(ESkillEffectType::DamageBuff);
+		float DamageDebuff = KeyedTotal(ESkillEffectType::DamageDebuff);
 		Modifier *= (1.0f + (DamageBuff - DamageDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 
 		// Passive-layer ModifyDamageDealt: percent boost to outgoing damage.
