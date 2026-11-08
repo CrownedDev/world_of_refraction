@@ -7,13 +7,16 @@
 //   server's executor listens to them);
 // - each hit the server resolves fires OnHitShown on every machine (damage numbers bind it; on the server too;
 //   reliable, so no screen misses one).
-// Projectiles, spell VFX and telegraphs on clients are B-231b.
+// - B-231b: each projectile the server launches from the owner flies as a cosmetic copy on the clients
+//   (ASkillProjectile::InitializeCosmetic: same path and VFX, no gameplay). Telegraphs and the B-369 impact
+//   visuals on clients are B-231c.
 // Debug: GetDebugString (the last montage and hit sent or received), wor.Net.PrintPresentation.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Combat/Projectile/SkillProjectile.h"
 #include "CombatPresentationComponent.generated.h"
 
 class UAnimMontage;
@@ -44,6 +47,10 @@ public:
 	/** Server: a hit on the owner resolved. Fires OnHitShown here and, in a networked game, on every client. */
 	void SendHit(int32 Damage, bool bCritical);
 
+	/** B-231b (server): the owner just launched Projectile; the clients fly a cosmetic copy. No-op unless
+	 *  SendsFromHere. */
+	void SendProjectile(const ASkillProjectile &Projectile);
+
 	/** Fired on every machine for each hit the server resolves on the owner (damage numbers, hit flashes). */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Presentation")
 	FOnCombatHitShown OnHitShown;
@@ -61,6 +68,9 @@ private:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_ShowHit(int32 Damage, bool bCritical);
 
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_LaunchProjectile(const FCosmeticProjectileLaunch &Launch);
+
 	/** Plays Montage on the owner's combat anim instance (else the character), as the executor does. */
 	void PlayLocally(UAnimMontage *Montage, float PlayRate);
 
@@ -70,4 +80,6 @@ private:
 	int32 MontagesSent = 0;
 	int32 MontagesReceived = 0;
 	int32 HitsShown = 0;
+	int32 ProjectilesSent = 0;
+	int32 ProjectilesFlown = 0;
 };
