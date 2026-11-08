@@ -1,9 +1,12 @@
 // LoadoutRulesDebug.cpp
 
 #include "Debug/Inventory/LoadoutRulesDebug.h"
+#include "Debug/Inventory/InventoryDebug.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
+#include "UObject/UObjectIterator.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Engine/Engine.h"
@@ -191,9 +194,10 @@ namespace
 							   *FString::Join(Adapters, TEXT(", ")), *ApparelRules::GetApparelString(Active), Gear.BonusMaxHP, Gear.BonusDefense);
 	}
 
-	FAutoConsoleCommandWithWorld GPrintLoadoutCmd(
-		TEXT("wor.Loadout.Print"),
-		TEXT("DEBUG: wor.Loadout.Print - every combatant's active loadout: weapons, adapters, apparel and gear HP / Defence (B-380)."),
+	// Merge B-351c + B-380: wor.Loadout.Print is B-351c's (the player's loadout); this one prints every combatant.
+	FAutoConsoleCommandWithWorld GPrintAllLoadoutsCmd(
+		TEXT("wor.Loadout.PrintAll"),
+		TEXT("DEBUG: wor.Loadout.PrintAll - every combatant's active loadout: weapons, adapters, apparel and gear HP / Defence (B-380)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
@@ -297,6 +301,23 @@ namespace
 				}
 			}));
 
+	FAutoConsoleCommandWithWorldAndArgs GPrintLoadoutCmd(
+		TEXT("wor.Loadout.Print"),
+		TEXT("DEBUG: wor.Loadout.Print - the player's active loadout: gear, both sockets, the one skill-slot list, spells, items (B-351c)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &, UWorld *World)
+			{
+				// Review fix: the same character the *Skill commands edit (the pawn, else the first with an inventory).
+				const UInventoryComponent *Inventory = PlayerInventory(World);
+				ULoadoutComponent *Loadout = Inventory && Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+				if (!Loadout)
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[LoadoutDebug] Print: no character with a loadout"));
+					return;
+				}
+				UInventoryDebug::LogActiveLoadout(Loadout);
+			}));
+
 	FAutoConsoleCommandWithWorldAndArgs GReplaceSkillCmd(
 		TEXT("wor.Loadout.ReplaceSkill"),
 		TEXT("DEBUG: wor.Loadout.ReplaceSkill <slot> <ability name> - put a learned ability (or one of the weapon's built-ins) in that slot of the player's primary weapon; the list goes live (B-351, D-145)."),
@@ -358,6 +379,106 @@ namespace
 				}
 				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
 				ShowSkillSlots(*Weapon);
+			}));
+
+	// ==================== B-351d (D-145): the primary weapon crystal's one spell list ====================
+
+	void ShowSpellSlots(const FWeaponLoadoutEntry &Weapon)
+	{
+		const FString Line = Weapon.GetSpellSlotString();
+		UE_LOG(LogWoRLoadout, Display, TEXT("[SpellSlots] %s"), *Line);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
+		}
+	}
+
+	/** A loaded spell asset by its display name or asset name. TODO: the gear screen offers the learned spells only. */
+	USpellData *FindSpellByName(const FString &Name)
+	{
+		for (TObjectIterator<USpellData> It; It; ++It)
+		{
+			if (!It->IsTemplate() && (It->Name == Name || It->GetName() == Name))
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs GPrintSpellSlotsCmd(
+		TEXT("wor.Loadout.PrintSpellSlots"),
+		TEXT("DEBUG: wor.Loadout.PrintSpellSlots - the player's primary weapon crystal's one spell list (B-351d, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &, UWorld *World)
+			{
+				if (const FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(PlayerInventory(World), TEXT("PrintSpellSlots")))
+				{
+					ShowSpellSlots(*Weapon);
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GReplaceSpellCmd(
+		TEXT("wor.Loadout.ReplaceSpell"),
+		TEXT("DEBUG: wor.Loadout.ReplaceSpell <slot> <spell name> - put a spell in that slot of the player's primary weapon crystal; the list goes live (B-351d, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				if (Args.Num() < 2 || !Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSpell] usage: wor.Loadout.ReplaceSpell <slot> <spell name>"));
+					return;
+				}
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(Inventory, TEXT("ReplaceSpell"));
+				if (!Weapon)
+				{
+					return;
+				}
+				const int32 Slot = FCString::Atoi(*Args[0]);
+				TArray<FString> NameParts(Args);
+				NameParts.RemoveAt(0);
+				const FString Name = FString::Join(NameParts, TEXT(" "));
+				USpellData *Spell = FindSpellByName(Name);
+				if (!Spell)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSpell] no loaded spell named '%s'"), *Name);
+					return;
+				}
+				if (!Weapon->ReplaceSpell(Slot, Spell))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSpell] slot %d is not one of this crystal's %d (or it gives no spells)"), Slot, Weapon->GetSpellSlotCap());
+					return;
+				}
+				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
+				ShowSpellSlots(*Weapon);
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GRestoreSpellCmd(
+		TEXT("wor.Loadout.RestoreSpell"),
+		TEXT("DEBUG: wor.Loadout.RestoreSpell <slot> - bring back what that slot of the player's primary weapon crystal held before the pick (B-351d, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				if (Args.Num() < 1 || !Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[RestoreSpell] usage: wor.Loadout.RestoreSpell <slot>"));
+					return;
+				}
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(Inventory, TEXT("RestoreSpell"));
+				if (!Weapon)
+				{
+					return;
+				}
+				const int32 Slot = FCString::Atoi(*Args[0]);
+				if (!Weapon->RestoreSpell(Slot))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[RestoreSpell] slot %d holds no pick"), Slot);
+					return;
+				}
+				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
+				ShowSpellSlots(*Weapon);
 			}));
 
 	FString JoinOrNone(const TArray<FString> &Lines)

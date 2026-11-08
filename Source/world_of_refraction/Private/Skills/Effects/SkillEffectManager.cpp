@@ -540,7 +540,7 @@ namespace
 namespace
 {
 	static FAutoConsoleCommandWithWorld GStartingEffectsCmd(
-		TEXT("wor.StartingEffects"),
+		TEXT("wor.Effects.PrintStarting"),
 		TEXT("Inspect the active combatant's starting effects per gear source (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -553,12 +553,12 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.StartingEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.PrintStarting: no subsystem (no PIE world?)."));
 				}
 			}));
 
 	static FAutoConsoleCommandWithWorld GPrintAllEffectsCmd(
-		TEXT("wor.PrintAllEffects"),
+		TEXT("wor.Effects.PrintAll"),
 		TEXT("Print active effects for every tracked actor (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -571,12 +571,12 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintAllEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.PrintAll: no subsystem (no PIE world?)."));
 				}
 			}));
 
 	static FAutoConsoleCommandWithWorld GPrintEffectsCmd(
-		TEXT("wor.PrintEffects"),
+		TEXT("wor.Effects.Print"),
 		TEXT("Print active effects for the active combatant (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -585,14 +585,14 @@ namespace
 				USkillEffectManager *Mgr = WoRFight::Get<USkillEffectManager>(GI);
 				if (!Mgr)
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.Print: no subsystem (no PIE world?)."));
 					return;
 				}
 				UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
 				AActor *Actor = TurnMgr ? TurnMgr->GetCurrentActor() : nullptr;
 				if (!Actor)
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no active combatant (combat not active?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.Print: no active combatant (combat not active?)."));
 					return;
 				}
 				Mgr->DebugPrintEffects(Actor);
@@ -2286,7 +2286,7 @@ void USkillEffectManager::OnFlawlessParryHandler(AActor *Defender, AActor *Attac
 	{
 		return;
 	}
-	// Every hit was a Perfect Guard or Perfect Dodge; the last one's outcome already fired on its own.
+	// Every hit was a Perfect Guard (B-367b); the last one's outcome already fired on its own.
 	FireDefenseTriggerEffects(Defender, Attacker, {ESkillTrigger::OnFlawlessParry}, EDefenseType::None, /*bPerfect=*/true,
 							  /*AttackEnergyCost=*/0.0f);
 }
@@ -2329,15 +2329,16 @@ void USkillEffectManager::FireDefenseTriggerEffects(AActor *Defender, AActor *At
 			// DEFENSE-TRIGGER GUARD (Decision A): only impact-driven effects fire here. A
 			// pure-threshold conditional (no defense-outcome trigger in its group) is skipped
 			// entirely, so it never leaks into the impact path.
-			if (!E.Conditions.ContainsByPredicate(
-					[](const FSkillCondition &C) { return SkillTriggerUtils::IsDefenseOutcomeTrigger(C.Trigger); }))
+			// B-337e: the authored group (GroupOf), in the one vocabulary.
+			const FSkillConditionGroup Group = SkillConditions::GroupOf(E);
+			if (!Group.ContainsByPredicate([](const FWoRCondition &C) { return SkillConditions::IsDefenseOutcome(C.Trigger); }))
 			{
 				continue;
 			}
 
 			// B-337d: a defense trigger holds when its outcome fired and its side includes the Defender, so the
 			// outcome resolves per owner; the rest read the fighters' state.
-			const bool bFires = IsSkillGroupMet(E.Conditions, ESkillCheck::Defense, Owner, Target, Defender, OutcomeTriggers);
+			const bool bFires = IsSkillGroupMet(Group, ESkillCheck::Defense, Owner, Target, Defender, OutcomeTriggers);
 
 			if (bFires && AE)
 			{
@@ -2560,6 +2561,12 @@ bool USkillEffectManager::IsConditionHeld(const FSkillCondition &Condition, AAct
 bool USkillEffectManager::IsSkillGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, AActor *Owner, AActor *Target,
 										  AActor *Defender, const TArray<ESkillTrigger> &Fired) const
 {
+	return IsSkillGroupMet(SkillConditions::ToAuthored(Conditions), Check, Owner, Target, Defender, Fired); // B-337e
+}
+
+bool USkillEffectManager::IsSkillGroupMet(const FSkillConditionGroup &Group, ESkillCheck Check, AActor *Owner, AActor *Target,
+										  AActor *Defender, const TArray<ESkillTrigger> &Fired) const
+{
 	const auto ReadFighter = [this, Defender](AActor *Actor, FWoRFighterState &Out)
 	{
 		const UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
@@ -2574,9 +2581,9 @@ bool USkillEffectManager::IsSkillGroupMet(const TArray<FSkillCondition> &Conditi
 		Out.bDefender = Actor == Defender;
 		return true;
 	};
-	const auto ReadTeam = [&](ECondSubject Team, TArray<FWoRFighterState> &Out)
+	const auto ReadTeam = [&](ECondSubject Team, EWoRConditionWho TeamWho, TArray<FWoRFighterState> &Out)
 	{
-		if (!Conditions.ContainsByPredicate([Team](const FSkillCondition &C) { return C.Subject == Team; }))
+		if (!Group.ContainsByPredicate([TeamWho](const FWoRCondition &C) { return C.Who == TeamWho; }))
 		{
 			return; // only a team condition reads the team
 		}
@@ -2596,9 +2603,9 @@ bool USkillEffectManager::IsSkillGroupMet(const TArray<FSkillCondition> &Conditi
 	SkillConditions::PrepareContext(Context, Check, Fired);
 	Context.Self = Owner && ReadFighter(Owner, SelfState) ? &SelfState : nullptr;
 	Context.Target = Target && ReadFighter(Target, TargetState) ? &TargetState : nullptr;
-	ReadTeam(ECondSubject::SelfTeam, Context.SelfTeam);
-	ReadTeam(ECondSubject::TargetTeam, Context.TargetTeam);
-	return SkillConditions::IsGroupMet(Conditions, Check, Context, Target != nullptr);
+	ReadTeam(ECondSubject::SelfTeam, EWoRConditionWho::SelfTeam, Context.SelfTeam);
+	ReadTeam(ECondSubject::TargetTeam, EWoRConditionWho::TargetTeam, Context.TargetTeam);
+	return SkillConditions::IsGroupMet(Group, Check, Context, Target != nullptr);
 }
 
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
@@ -3277,6 +3284,12 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// ApplyEffect's timing rule then times a payout break (Burn, EP drain) as Q-063 says.
 	Effect.StartHolderTurnSpan(CombatConstants::STATUS_CAP_TURNS);
 	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
+	// B-382 review (Q-164b, existing sources unchanged): a DamageBuff / DamageDebuff is keyed by element only when
+	// authored so; a status break's (RandomDebuff can resolve to DamageDebuff) counts for every hit, as before.
+	if (Effect.EffectType == ESkillEffectType::DamageBuff || Effect.EffectType == ESkillEffectType::DamageDebuff)
+	{
+		Effect.Element = ESpellElement::None;
+	}
 	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	const EEffectApplicationResult Result = ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 

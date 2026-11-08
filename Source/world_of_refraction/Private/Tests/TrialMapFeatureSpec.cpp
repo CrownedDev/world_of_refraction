@@ -117,6 +117,18 @@ void FTrialMapFeatureSpec::Define()
 		TestEqual(TEXT("Opening it again finds nothing new"), TrialRun->GetFoundCount(), 1);
 	});
 
+	It("keys a chest to the host's (or solo) player as before (B-235c)", [this]()
+	{
+		ATrialChest *Chest = TestWorld->GetWorld()->SpawnActor<ATrialChest>(FVector::ZeroVector, FRotator::ZeroRotator);
+		if (!TestNotNull(TEXT("chest"), Chest))
+		{
+			return;
+		}
+		TestEqual(TEXT("no pawn: the feature id"), Chest->GetFeatureIdFor(nullptr), Chest->GetFeatureId());
+		TestEqual(TEXT("an uncontrolled pawn (solo / host side): the feature id"), Chest->GetFeatureIdFor(TestWorld->GetWorld()->SpawnActor<APawn>()),
+				  Chest->GetFeatureId());
+	});
+
 	It("records lore once, however often it is read", [this]()
 	{
 		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();

@@ -17,6 +17,7 @@
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/CombatOrchestrator.h"
 #include "CoreMinimal.h"
+#include "Combat/Defense/EDefenseType.h"
 #include "GameFramework/GameModeBase.h"
 #include "Memory/MemoryConditions.h"
 #include "BattleGameMode.generated.h"
@@ -116,7 +117,15 @@ private:
     UFUNCTION()
     void HandleTargetKilled(AActor *Killer, AActor *Victim);
 
-    /** Bind / unbind the two handlers above on the action executor. */
+    /** B-379: a party member's Perfect Guard (a parry, D-084) adds to their player's hidden Parries counter. */
+    UFUNCTION()
+    void HandleDefenseResolved(AActor *Defender, AActor *Attacker, EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex,
+                               float AttackEnergyCost);
+
+    /** B-379: Counter +1 for Member's character, on the player who plays it (a co-op friend's machine, else here). */
+    void AddHiddenCount(const AActor *Member, const TCHAR *Counter);
+
+    /** Bind / unbind the handlers above on the action executor and (B-379) the defense system. */
     void WatchFightUsage(bool bWatch);
 
     /** The executor outlives the level: unbind if the battle ends without a result. */

@@ -8,7 +8,7 @@
 
 namespace
 {
-	// TODO: cook rule for this path (Asset Manager primary asset type) before the first packaged build.
+	// B-278: cooked by the Asset Manager's ResistanceProfileData rule (DefaultGame.ini, AlwaysCook).
 	const TCHAR *RESISTANCE_PROFILE_ASSET_PATH = TEXT("/Game/Data/Combat/DA_ResistanceProfile_Class.DA_ResistanceProfile_Class");
 
 	/** Every ESpellElement a Caster row exists for in the C++ table. */

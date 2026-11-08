@@ -350,6 +350,9 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		Effect.Element = Effect.EffectType == ESkillEffectType::ApplyDOTOnHit ? KeyElement
 						 : SkillEffectClassification::IsReflect(Effect.EffectType) ? (bPayloadKeysElement ? P.Element : ESpellElement::None)
 						 : bElementScoped ? KeyElement
+						 // B-383 review: an unkeyed damage buff / debuff stores no element (as B-382 did), so element
+						 // readers and debug output don't see the cast element on it.
+						 : (Effect.EffectType == ESkillEffectType::DamageBuff || Effect.EffectType == ESkillEffectType::DamageDebuff) ? ESpellElement::None
 						 : Element;
 
 		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
