@@ -412,6 +412,21 @@ void FSkillConditionParitySpec::Define()
 			TestTrue(TEXT("no conditions: always"), Always.ConditionGroup.IsEmpty() && !Always.bConditionGroupMigratedOnLoad);
 		});
 
+		It("shows a group as the deckbuilder does: the trigger, then the indented checks (Q-337e)", [this]()
+		{
+			FSkillConditionGroup Group;
+			FWoRCondition Kill;
+			Kill.Trigger = EWoRConditionTrigger::Kill;
+			Group.AllOf.Conditions.Add(Kill);
+			const FString Tree = SkillConditions::GetConditionTreeString(Group);
+			TestTrue(TEXT("the trigger on top"), Tree.StartsWith(TEXT("When: ")) && !Tree.StartsWith(TEXT("When: always")));
+			TestTrue(TEXT("the check indented under it"), Tree.Contains(TEXT("\n    ")));
+			TestFalse(TEXT("no Any of shown when empty"), Tree.Contains(TEXT("any of")));
+			TestTrue(TEXT("no conditions: always"), SkillConditions::GetConditionTreeString(FSkillConditionGroup()).StartsWith(TEXT("When: always")));
+			Group.AnyOf.Conditions.Add(Kill);
+			TestTrue(TEXT("a migrated OR row is marked"), SkillConditions::GetConditionTreeString(Group).Contains(TEXT("any of (migrated OR rows")));
+		});
+
 		It("reads the old field across for an effect built in code", [this]()
 		{
 			FSkillEffect Built;
