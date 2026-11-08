@@ -28,11 +28,7 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
-	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here
-	if (UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>())
-	{
-		Forms->SetAtRestSpot(true); // review: the skin switch's older rest-spot flag follows the run's
-	}
+	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here; the skin switch reads it too
 	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
 	{
 		Save->SaveNow(World, true); // desktop review: a rest is a checkpoint (the heal and the rest spot survive a quit)
@@ -57,6 +53,7 @@ bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
 		return false;
 	}
 	// TODO: B-187c: place the party back at this spot after the reload (it starts at the level's start for now).
+	StepAway(World); // desktop review: the party leaves the spot with the reload
 	Run->ReloadTrialLevel();
 	return true;
 }
