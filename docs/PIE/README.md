@@ -41,6 +41,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-234](B-234.md) | `feature/B-234-checkpoint-copies-cloud` (UNBUILT, on B-233) | 2-player: each save the host makes is copied to the client's checkpoint slot (`wor.Coop.PrintCheckpoint`) | Pending |
 | [B-234b](B-234b.md) | `feature/B-234b-host-hand-over-cloud` (UNBUILT, on B-234) | The next player hosts from its copy when the host drops; the others rejoin | Pending |
 | [B-348b](B-348b.md) | `feature/B-348b-save-head-starts-cloud` (UNBUILT) | A member's head-start pillars survive save / load (save v21) | Pending |
+| [B-351b](B-351b.md) | `feature/B-351b-stone-socket-carry-cloud` (UNBUILT) | Removing crystals takes the stone off too; no second stone over an authored one; the stone socket carries through a run and its save (v22) | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |

@@ -56,6 +56,10 @@ struct WORLD_OF_REFRACTION_API FSavedCarriedAttachment
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 
+	/** B-351b (save v22): the item's stone socket as the fight left it. */
+	UPROPERTY()
+	FRuntimeAttachedItem StoneSocket;
+
 	UPROPERTY()
 	FSavedAssetRef EvolutionItem;
 };

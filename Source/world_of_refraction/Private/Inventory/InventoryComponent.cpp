@@ -294,6 +294,14 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s stone socket already occupied"), Op, GearLabel<TEntry>());
         return false;
     }
+    // B-351b: a stone authored before B-351 sits in the element socket and still counts as the item's stone
+    // (GetStoneAttachment): a second one is refused rather than stacking two.
+    if (bIsStone && Gear[Index].AttachedItem.IsAugmentStone())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s already carries a stone in its element socket (remove it first)"), Op,
+               GearLabel<TEntry>());
+        return false;
+    }
 
     // DEBIT BEFORE WRITE via the SILENT atomic core (the component dispatches gem/stone internally).
     // Silent so the socket fires exactly ONE signal — the Equipped below — not Removed + Equipped.
@@ -436,15 +444,18 @@ bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Inde
         return false;
     }
 
-    const bool bHadAttachment = !Gear[Index].AttachedItem.IsEmpty();
+    // B-351b (D-141): both sockets clear (a socketed stone was lost for good before: nothing could remove it).
+    const bool bHadAttachment = !Gear[Index].AttachedItem.IsEmpty() || !Gear[Index].StoneSocket.IsEmpty();
     // Speed-relevance gate, read BEFORE the detach: a TurnSpeed-contributing stone
     // (plain TurnSpeedStone or a fusion with a TurnSpeed half/bonus — same
     // GetAttachedStonePercent read CalculateSpeedRatios uses) feeds the stone factor,
     // so its removal must recalc turn order. Non-speed stones skip the notify.
     const bool bWasSpeedStone =
-        CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
+        CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f ||
+        CrystalEffectTable::GetAttachedStonePercent(Gear[Index].StoneSocket, ESubStat::TurnSpeed) > 0.0f;
 
     Gear[Index].RemoveCrystal();
+    Gear[Index].StoneSocket = FRuntimeAttachedItem();
     if (bHadAttachment)
     {
         HandleGearSocketChanged(Gear[Index].PersistentID);
