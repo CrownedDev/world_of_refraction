@@ -112,7 +112,9 @@ bool UCombatGridSubsystem::GetActorPosition(AActor *Actor, FCombatGridPosition &
     }
 
     // B-230b: a client's grid holds nobody (the fight runs on the server): read the actor's replicated slot.
-    const UCombatGridSlotComponent *GridSlot = UCombatGridSlotComponent::Find(Actor);
+    // Only there (review): the server's grid is the truth, so a slot the grid doesn't hold is never read on it.
+    const UWorld *World = GetWorld();
+    const UCombatGridSlotComponent *GridSlot = World && ReadsReplicatedSlots(World->GetNetMode()) ? UCombatGridSlotComponent::Find(Actor) : nullptr;
     return GridSlot && GridSlot->GetSlot(OutPosition);
 }
 
@@ -143,11 +145,13 @@ AActor *UCombatGridSubsystem::GetActorAtPosition(const FCombatGridPosition &Posi
 void UCombatGridSubsystem::ClearAllPositions()
 {
     int32 Count = ActorPositions.Num();
-    for (const TPair<AActor *, FCombatGridPosition> &Pair : ActorPositions)
+    TArray<AActor *> Cleared;
+    ActorPositions.GetKeys(Cleared);
+    ActorPositions.Empty(); // review: empty first, so a slot listener that reads the grid sees it cleared
+    for (AActor *Actor : Cleared)
     {
-        PublishGridSlot(Pair.Key, nullptr); // B-230b
+        PublishGridSlot(Actor, nullptr); // B-230b
     }
-    ActorPositions.Empty();
 
     if (Count > 0)
     {

@@ -71,17 +71,18 @@ void FGridSlotSpec::Define()
 		TestFalse(TEXT("removed: off the grid"), GridSlot->GetSlot(Out));
 	});
 
-	It("reads an actor it doesn't hold from its replicated slot (a client's grid)", [this]()
+	It("reads replicated slots only on a client; the server's grid stays the truth (review)", [this]()
 	{
+		TestTrue(TEXT("a client reads the slots"), UCombatGridSubsystem::ReadsReplicatedSlots(NM_Client));
+		TestFalse(TEXT("a listen server doesn't"), UCombatGridSubsystem::ReadsReplicatedSlots(NM_ListenServer));
+		TestFalse(TEXT("standalone doesn't"), UCombatGridSubsystem::ReadsReplicatedSlots(NM_Standalone));
 		if (!TestTrue(TEXT("setup"), GridSlot && Grid))
 		{
 			return;
 		}
-		GridSlot->SetSlot(FCombatGridPosition(1, ECombatRow::Front, 2)); // what a client receives
+		GridSlot->SetSlot(FCombatGridPosition(1, ECombatRow::Front, 2)); // a slot the grid doesn't hold
 		FCombatGridPosition Out;
-		TestTrue(TEXT("found through the slot"), Grid->GetActorPosition(Fighter, Out));
-		TestTrue(TEXT("its row"), Grid->GetActorRow(Fighter) == ECombatRow::Front);
-		TestEqual(TEXT("its side"), Out.TeamIndex, 1);
+		TestFalse(TEXT("standalone: not on this grid"), Grid->GetActorPosition(Fighter, Out));
 	});
 }
 

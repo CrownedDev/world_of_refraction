@@ -68,6 +68,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
     bool GetActorPosition(AActor *Actor, FCombatGridPosition &OutPosition) const;
 
+    /** B-230b: whether position reads fall back to an actor's replicated slot: only on a client, whose grid is
+     *  empty (the fight runs on the server). */
+    static bool ReadsReplicatedSlots(ENetMode NetMode) { return NetMode == NM_Client; }
+
     /**
      * Check if a grid position is occupied
      * @param Position The position to check
