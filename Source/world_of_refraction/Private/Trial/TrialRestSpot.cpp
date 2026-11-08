@@ -18,7 +18,7 @@
 
 #define LOCTEXT_NAMESPACE "TrialRestSpot"
 
-int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
+int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId, bool bLocalPlayerRests)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
@@ -31,7 +31,10 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
-	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here; the skin switch reads it too
+	if (bLocalPlayerRests)
+	{
+		Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here; the skin switch reads it too
+	}
 	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
 	{
 		Save->SaveNow(World, true); // desktop review: a rest is a checkpoint (the heal and the rest spot survive a quit)
@@ -104,7 +107,11 @@ FText WoRRestSpot::GetLeaveConfirmText()
 
 void ATrialRestSpot::Interact(APawn *Pawn)
 {
-	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId()) == INDEX_NONE)
+	// Merge B-187e + B-363 (trial 5e77a3d2): a client's press runs here on the host; the host's own rest-spot flag
+	// stays as it is, since only the client's menu would close it.
+	const APlayerController *RestingPC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	const bool bLocalPlayerRests = !RestingPC || RestingPC->IsLocalController();
+	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId(), bLocalPlayerRests) == INDEX_NONE)
 	{
 		return;
 	}

@@ -18,8 +18,9 @@ class UWorld;
 namespace WoRRestSpot
 {
 	/** Rests the party at RestSpotId: revive the fallen, every member to full, the run's last rest spot. Returns how
-	 *  many members were revived; INDEX_NONE outside a run. */
-	WORLD_OF_REFRACTION_API int32 Rest(UWorld *World, FName RestSpotId);
+	 *  many members were revived; INDEX_NONE outside a run. bLocalPlayerRests false (a client's rest, run on the host):
+	 *  the host's own at-rest-spot flag stays as it is (merge B-187e + B-363: the client's Close never clears it). */
+	WORLD_OF_REFRACTION_API int32 Rest(UWorld *World, FName RestSpotId, bool bLocalPlayerRests = true);
 
 	/** Leaves the run here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False
 	 *  outside a run. */
