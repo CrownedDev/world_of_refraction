@@ -1,6 +1,7 @@
 // WoRDamageExecution.cpp
 
 #include "GAS/WoRDamageExecution.h"
+#include "Combat/CombatConstants.h"
 #include "AbilitySystemComponent.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "GAS/WoRAttributeSets.h"
@@ -35,9 +36,11 @@ FDamageMathInputs UWoRDamageExecution::ReadAttributes(const FWoRDamageRequest &R
 	}
 	if (Inputs.bApplyDefense)
 	{
-		// TODO: B-383: the synced Defense attribute counts every DefenseBuff whatever its scope (GetDefenderDefenseForHit
-		// is the scoped read on the enum path).
-		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Stats::GetDefenseAttribute(), Inputs.DefenderDefense);
+		// B-385: the synced Defense attribute counts every DefenseBuff; the gather's scope correction keeps this hit's scopes.
+		if (UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Stats::GetDefenseAttribute(), Inputs.DefenderDefense))
+		{
+			Inputs.DefenderDefense = FMath::Clamp(Inputs.DefenderDefense + Inputs.DefenseScopeDelta, 0.0f, CombatConstants::DEFENSE_REDUCTION_CEILING);
+		}
 	}
 
 	if (!Request.bIgnoreResistance)

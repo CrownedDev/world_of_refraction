@@ -146,7 +146,9 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	if (!bSkipDefense && Defender)
 	{
 		Inputs.bApplyDefense = true;
-		Inputs.DefenderDefense = GetDefenderDefenseForHit(Defender, Input.Element, Input.ActionType == EActionType::Spell);
+		// B-385: the GAS execution replaces DefenderDefense with the synced attribute; DefenseScopeDelta keeps its scope.
+		Inputs.DefenderDefense =
+			GetDefenderDefenseForHit(Defender, Input.Element, Input.ActionType == EActionType::Spell, &Inputs.DefenseScopeDelta);
 	}
 	if (Grid && Defender)
 	{
@@ -335,25 +337,53 @@ float UDamageCalculator::GetScopedTransientDamageFactor(AActor *Attacker, bool b
 					  CombatConstants::STAT_PERCENT_DIVISOR;
 }
 
-float UDamageCalculator::GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const
+bool UDamageCalculator::GetDefenseLayersForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell, float &OutAll,
+												 float &OutForHit) const
 {
 	UCharacterDataComponent *DefenderComp = Defender ? Defender->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const USkillEffectManager *StatusManager = GetSkillEffectManager();
-	float OnGAS = 0.0f;
-	if (!DefenderComp || !DefenderComp->CharacterData || !StatusManager ||
-		UWoRAttributeSyncComponent::ReadComposedOnGAS(Defender, UWoRAttributeSet_Stats::GetDefenseAttribute(), OnGAS))
+	if (!DefenderComp || !DefenderComp->CharacterData || !StatusManager)
 	{
-		// TODO: B-383: at UseGAS 1 the composed Defense attribute counts every DefenseBuff whatever its scope.
-		return GetDefenderFlatDefense(Defender);
+		return false;
 	}
-	// B-383 (D-166): GetDefenderFlatDefense's layers, with the transient factor (DefenseBuff - DefenseDebuff, floored
-	// at x0) read through each effect's scope for this hit. With no scoped effects it is the same number.
+	// B-383 (D-166): GetDefenderFlatDefense's layers composed twice: as they are (every DefenseBuff), and with the
+	// transient factor (DefenseBuff - DefenseDebuff, floored at x0) read through each effect's scope for this hit.
 	FWoRStatLayers Layers;
 	DefenderComp->GetStatLayers(ESubStat::Defense, Layers);
+	OutAll = Layers.Compose();
 	const float Net = StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::DefenseBuff, HitElement, bHitIsSpell) -
 					  StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::DefenseDebuff, HitElement, bHitIsSpell);
 	Layers.TransientFactor = FMath::Max(0.0f, 1.0f + Net / CombatConstants::STAT_PERCENT_DIVISOR);
-	return Layers.Compose();
+	OutForHit = Layers.Compose();
+	return true;
+}
+
+float UDamageCalculator::GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell, float *OutScopeDelta) const
+{
+	if (OutScopeDelta)
+	{
+		*OutScopeDelta = 0.0f;
+	}
+	float All = 0.0f;
+	float ForHit = 0.0f;
+	if (!GetDefenseLayersForHit(Defender, HitElement, bHitIsSpell, All, ForHit))
+	{
+		return GetDefenderFlatDefense(Defender);
+	}
+	// B-385 review: an additive correction (this hit's layers minus all of them), so it still holds when every
+	// DefenseBuff floors the unscoped layers to 0. 0 with no scoped effects.
+	const float ScopeDelta = ForHit - All;
+	if (OutScopeDelta)
+	{
+		*OutScopeDelta = ScopeDelta;
+	}
+	float OnGAS = 0.0f;
+	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Defender, UWoRAttributeSet_Stats::GetDefenseAttribute(), OnGAS))
+	{
+		// B-385: at UseGAS 1 the composed attribute is the base and the correction takes out the unmatched scopes.
+		return FMath::Clamp(OnGAS + ScopeDelta, 0.0f, CombatConstants::DEFENSE_REDUCTION_CEILING);
+	}
+	return ForHit;
 }
 
 float UDamageCalculator::GetCritChanceTransientFactor(AActor *Attacker) const
