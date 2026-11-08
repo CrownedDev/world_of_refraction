@@ -2,6 +2,7 @@
 // B-369: see ImpactVisuals.h.
 
 #include "Combat/Presentation/ImpactVisuals.h"
+#include "Combat/CombatPresentationComponent.h"
 #include "Character/CharacterData.h"
 #include "Character/CosmeticsData.h"
 #include "Combat/Defense/GuardRules.h"
@@ -174,7 +175,17 @@ namespace ImpactVisuals
 		// Small assets, loaded on first use (as the Perfect Guard flash). TODO: preload with the fight's cosmetics if it hitches.
 		if (UNiagaraSystem *System = Choice.VFX.LoadSynchronous())
 		{
-			UNiagaraFunctionLibrary::SpawnSystemAtLocation(Target, System, GetSpawnLocation(Target), FRotator::ZeroRotator, FVector(Choice.Scale));
+			const FVector Location = GetSpawnLocation(Target);
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(Target, System, Location, FRotator::ZeroRotator, FVector(Choice.Scale));
+			// B-231c: the same burst on the clients (the impact resolves on the server only).
+			if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Target))
+			{
+				FCosmeticVFX ForClients;
+				ForClients.System = System;
+				ForClients.Location = Location;
+				ForClients.Scale = Choice.Scale;
+				Presentation->SendVFX(ForClients);
+			}
 		}
 	}
 
