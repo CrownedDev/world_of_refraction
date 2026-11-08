@@ -155,6 +155,17 @@ FMemoryEvent MemoryConditions::MakeEvent(const UGameInstance *GameInstance, EMem
 			}
 		}
 	}
+	// B-235d: a friend's own characters (claimed ones the host's party may not hold) count on their part of the event.
+	for (const AWoRPlayerState *Friend : MemoryUnlock::GetRemotePlayers(GameInstance))
+	{
+		for (const UCharacterData *Character : Friend->GetOwnCharacters())
+		{
+			if (!Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; }))
+			{
+				Event.Party.Add({Character, {}});
+			}
+		}
+	}
 	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	if (const UTrialData *Trial = TrialRun ? TrialRun->GetActiveTrial() : nullptr)
 	{
@@ -393,13 +404,15 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 		Candidates.AddUnique(Memory);
 	}
 	int32 Unlocked = 0;
+	// B-235d: in co-op a memory the host has can still be a friend's new find (UnlockFor is true only for someone new).
+	const bool bCoop = !MemoryUnlock::GetRemotePlayers(GameInstance).IsEmpty();
 	// Each pass can earn a memory another one needs (PriorMemory); stop once a pass earns nothing.
 	for (bool bEarned = true; bEarned;)
 	{
 		bEarned = false;
 		for (UMemoryData *Memory : Candidates)
 		{
-			if (Memory && !Journal->HasMemory(Memory) && AreMet(*Memory, Event, Journal) &&
+			if (Memory && (bCoop || !Journal->HasMemory(Memory)) && AreMet(*Memory, Event, Journal) &&
 				UnlockForFinders(GameInstance, Memory, Event, Journal))
 			{
 				++Unlocked;
