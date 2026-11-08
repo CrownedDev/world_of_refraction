@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "Trial/RunRewards.h"
 #include "Trial/TrialData.h"
+#include "Trial/TrialGameMode.h"
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRTestWorld.h"
@@ -34,6 +35,17 @@ void FRestSpotSpec::Define()
 	{
 		Run = nullptr;
 		TestWorld.Reset();
+	});
+
+	It("brings every player back beside the rest stand, alternating sides (B-187d)", [this]()
+	{
+		const FTransform Stand(FRotator::ZeroRotator, FVector(100.f, 0.f, 0.f)); // facing +X: right is +Y
+		const float Spacing = TrialReturn::RETURN_SPACING_CM;
+		TestTrue(TEXT("first: the stand"), TrialReturn::GetReturnStand(Stand, 0).GetLocation().Equals(Stand.GetLocation()));
+		TestTrue(TEXT("second: right"), TrialReturn::GetReturnStand(Stand, 1).GetLocation().Equals(FVector(100.f, Spacing, 0.f)));
+		TestTrue(TEXT("third: left"), TrialReturn::GetReturnStand(Stand, 2).GetLocation().Equals(FVector(100.f, -Spacing, 0.f)));
+		TestTrue(TEXT("fourth: further right"), TrialReturn::GetReturnStand(Stand, 3).GetLocation().Equals(FVector(100.f, 2.f * Spacing, 0.f)));
+		TestTrue(TEXT("same facing"), TrialReturn::GetReturnStand(Stand, 3).GetRotation().Equals(Stand.GetRotation()));
 	});
 
 	It("rests only in a run, and becomes the run's last rest spot", [this]()
