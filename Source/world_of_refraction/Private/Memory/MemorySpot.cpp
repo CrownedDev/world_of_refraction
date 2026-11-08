@@ -2,6 +2,7 @@
 
 #include "Memory/MemorySpot.h"
 
+#include "Player/RunStateComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/GameInstance.h"
@@ -27,8 +28,8 @@ void AMemorySpot::BeginPlay()
 	InteractionTrigger->OnComponentBeginOverlap.AddDynamic(this, &AMemorySpot::OnSpotBeginOverlap);
 	// The trial level reloads after each fight; a spot reached earlier this run stays spent, and
 	// one whose memory is already collected is spent for good (B-210).
-	const UTrialRunSubsystem *TrialRun = GetTrialRun();
-	if ((TrialRun && TrialRun->HasFound(GetFeatureId())) || MemoryUnlock::IsCollected(GetGameInstance(), Memory))
+	// B-232d: the run state's copy (a client's run subsystem holds no run).
+	if (URunStateComponent::HasFoundFeature(this, GetFeatureId()) || MemoryUnlock::IsCollected(GetGameInstance(), Memory))
 	{
 		Spend();
 	}
@@ -84,6 +85,14 @@ void AMemorySpot::OnSpotBeginOverlap(UPrimitiveComponent * /*OverlappedComponent
 	if (Pawn && Pawn->IsPlayerControlled() && Pawn->IsLocallyControlled())
 	{
 		Reach();
+	}
+}
+
+void AMemorySpot::RefreshFromRun()
+{
+	if (URunStateComponent::HasFoundFeature(this, GetFeatureId()) || MemoryUnlock::IsCollected(GetGameInstance(), Memory))
+	{
+		Spend();
 	}
 }
 

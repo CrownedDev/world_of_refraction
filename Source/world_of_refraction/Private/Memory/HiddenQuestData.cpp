@@ -36,6 +36,11 @@ TArray<UHiddenQuestData *> UHiddenQuestData::GatherAll()
 	return Quests;
 }
 
+bool UHiddenQuestData::IsCatalogueReady()
+{
+	return !FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().IsLoadingAssets();
+}
+
 FString UHiddenQuestData::GetQuestString() const
 {
 	TArray<FString> StartText;

@@ -2,6 +2,7 @@
 // Combat grid position management implementation
 
 #include "Combat/Grid/CombatGridSubsystem.h"
+#include "Combat/Grid/CombatGridSlotComponent.h"
 #include "Combat/Grid/CombatGridConstants.h"
 #include "DrawDebugHelpers.h"
 #include "Character/CharacterDataComponent.h"
@@ -22,6 +23,27 @@ void UCombatGridSubsystem::Deinitialize()
 }
 
 // ==================== POSITION MANAGEMENT ====================
+
+namespace
+{
+    /** B-230b: mirrors a grid change onto the actor's replicated slot (null Position: off the grid). */
+    void PublishGridSlot(AActor *Actor, const FCombatGridPosition *Position)
+    {
+        UCombatGridSlotComponent *GridSlot = IsValid(Actor) ? UCombatGridSlotComponent::Find(Actor) : nullptr;
+        if (!GridSlot)
+        {
+            return;
+        }
+        if (Position)
+        {
+            GridSlot->SetSlot(*Position);
+        }
+        else
+        {
+            GridSlot->ClearSlot();
+        }
+    }
+}
 
 bool UCombatGridSubsystem::AssignPosition(AActor *Actor, const FCombatGridPosition &Position)
 {
@@ -54,6 +76,7 @@ bool UCombatGridSubsystem::AssignPosition(AActor *Actor, const FCombatGridPositi
 
     // Assign new position
     ActorPositions.Add(Actor, Position);
+    PublishGridSlot(Actor, &Position); // B-230b
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s assigned to %s (Dmg: %.0f%%, Def: %.0f%%)"),
            *Actor->GetName(),
@@ -69,6 +92,7 @@ void UCombatGridSubsystem::RemoveFromGrid(AActor *Actor)
     if (Actor && ActorPositions.Contains(Actor))
     {
         ActorPositions.Remove(Actor);
+        PublishGridSlot(Actor, nullptr); // B-230b
         UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s removed from grid"), *Actor->GetName());
     }
 }
@@ -87,7 +111,11 @@ bool UCombatGridSubsystem::GetActorPosition(AActor *Actor, FCombatGridPosition &
         return true;
     }
 
-    return false;
+    // B-230b: a client's grid holds nobody (the fight runs on the server): read the actor's replicated slot.
+    // Only there (review): the server's grid is the truth, so a slot the grid doesn't hold is never read on it.
+    const UWorld *World = GetWorld();
+    const UCombatGridSlotComponent *GridSlot = World && ReadsReplicatedSlots(World->GetNetMode()) ? UCombatGridSlotComponent::Find(Actor) : nullptr;
+    return GridSlot && GridSlot->GetSlot(OutPosition);
 }
 
 bool UCombatGridSubsystem::IsPositionOccupied(const FCombatGridPosition &Position) const
@@ -117,7 +145,13 @@ AActor *UCombatGridSubsystem::GetActorAtPosition(const FCombatGridPosition &Posi
 void UCombatGridSubsystem::ClearAllPositions()
 {
     int32 Count = ActorPositions.Num();
-    ActorPositions.Empty();
+    TArray<AActor *> Cleared;
+    ActorPositions.GetKeys(Cleared);
+    ActorPositions.Empty(); // review: empty first, so a slot listener that reads the grid sees it cleared
+    for (AActor *Actor : Cleared)
+    {
+        PublishGridSlot(Actor, nullptr); // B-230b
+    }
 
     if (Count > 0)
     {
@@ -409,7 +443,7 @@ namespace
     }
 
     static FAutoConsoleCommandWithWorld GGridPositionsCmd(
-        TEXT("wor.GridPositions"),
+        TEXT("wor.Grid.Print"),
         TEXT("Log all current combat-grid actor positions (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -420,12 +454,12 @@ namespace
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.GridPositions: no subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.Grid.Print: no subsystem (no PIE world?)."));
                 }
             }));
 
     static FAutoConsoleCommandWithWorld GGridModifiersCmd(
-        TEXT("wor.GridModifiers"),
+        TEXT("wor.Grid.PrintModifiers"),
         TEXT("Log positional modifiers for all combat-grid actors (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -436,7 +470,7 @@ namespace
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.GridModifiers: no subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.Grid.PrintModifiers: no subsystem (no PIE world?)."));
                 }
             }));
 }
@@ -718,7 +752,8 @@ bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, cons
     }
 
     FCombatGridPosition CurrentPos;
-    if (!GetActorPosition(Actor, CurrentPos))
+    // B-230b: only an actor this grid holds moves (GetActorPosition also answers from a replicated slot).
+    if (!ActorPositions.Contains(Actor) || !GetActorPosition(Actor, CurrentPos))
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] MoveActorToRow: %s not on grid"), *Actor->GetName());
         return false;
@@ -744,6 +779,7 @@ bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, cons
 
     // Update position in map
     ActorPositions[Actor] = NewPos;
+    PublishGridSlot(Actor, &NewPos); // B-230b
 
     // Update world position
     FVector WorldPos = CalculateWorldPosition(NewPos, ArenaCenter);
@@ -851,7 +887,8 @@ bool UCombatGridSubsystem::SwapActorPositions(AActor *ActorA, AActor *ActorB, co
     }
 
     FCombatGridPosition PosA, PosB;
-    if (!GetActorPosition(ActorA, PosA) || !GetActorPosition(ActorB, PosB))
+    // B-230b: only actors this grid holds swap (GetActorPosition also answers from a replicated slot).
+    if (!ActorPositions.Contains(ActorA) || !ActorPositions.Contains(ActorB) || !GetActorPosition(ActorA, PosA) || !GetActorPosition(ActorB, PosB))
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] SwapActorPositions: One or both actors not on grid"));
         return false;
@@ -867,6 +904,8 @@ bool UCombatGridSubsystem::SwapActorPositions(AActor *ActorA, AActor *ActorB, co
     // Swap positions in map
     ActorPositions[ActorA] = PosB;
     ActorPositions[ActorB] = PosA;
+    PublishGridSlot(ActorA, &PosB); // B-230b
+    PublishGridSlot(ActorB, &PosA);
 
     // Update world positions
     FVector WorldPosA = CalculateWorldPosition(PosB, ArenaCenter);
