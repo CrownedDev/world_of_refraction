@@ -136,6 +136,14 @@ private:
 	 *  once per turn, and closes it when the turn moves on (the host opens its own in UCombatCommandMenuSubsystem). */
 	void UpdateClientCommandMenu();
 
+	/** B-232b: closes the client's menu and forgets its turn (a fight ended, the component goes). */
+	void CloseClientCommandMenu();
+
+public:
+	/** B-232b (review): a client's pick was refused: open the menu again for the current turn. */
+	void ReopenClientCommandMenu();
+
+private:
 	/** B-232b: the turn the client last opened its menu for (TurnNumber), INDEX_NONE for none. */
 	int32 ClientMenuTurn = INDEX_NONE;
 

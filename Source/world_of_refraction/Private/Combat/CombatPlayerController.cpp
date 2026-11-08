@@ -358,7 +358,21 @@ bool ACombatPlayerController::Server_SubmitMenuPick_Validate(const FCombatPickRe
 
 void ACombatPlayerController::Server_SubmitMenuPick_Implementation(const FCombatPickRequest &Pick)
 {
-	HandleMenuPick(Pick, true);
+	const ECombatInputVerdict Verdict = HandleMenuPick(Pick, true);
+	if (Verdict != ECombatInputVerdict::Accepted)
+	{
+		Client_MenuPickRefused(Verdict); // B-232b: the client's menu closed on sending; it reopens for this turn
+	}
+}
+
+void ACombatPlayerController::Client_MenuPickRefused_Implementation(ECombatInputVerdict Verdict)
+{
+	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] The server refused the menu pick (%s); reopening the menu"),
+		   *UEnum::GetValueAsString(Verdict));
+	if (UTurnStateComponent *TurnState = UTurnStateComponent::Find(this))
+	{
+		TurnState->ReopenClientCommandMenu();
+	}
 }
 
 bool ACombatPlayerController::ControlsActor(const AController *Sender, const AActor *Actor, bool bFromClient)
