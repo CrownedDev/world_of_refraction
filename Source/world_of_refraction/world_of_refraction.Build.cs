@@ -26,7 +26,8 @@ public class world_of_refraction : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 		
 		// B-233: online sessions (host, find, join). The Null subsystem (LAN) until EOS is configured (Q-233).
-		PrivateDependencyModuleNames.AddRange(new string[] { "OnlineSubsystem", "OnlineSubsystemUtils" });
+		// B-234b: CoreOnline for FUniqueNetIdWrapper (the host order's player ids).
+		PrivateDependencyModuleNames.AddRange(new string[] { "OnlineSubsystem", "OnlineSubsystemUtils", "CoreOnline" });
 
 		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
 	}

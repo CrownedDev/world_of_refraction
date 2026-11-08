@@ -32,6 +32,10 @@ protected:
 private:
 	void Refresh();
 
+	/** B-363: the level screen (place and buy pillar points). */
+	UFUNCTION()
+	void HandleLevelUpClicked();
+
 	UFUNCTION()
 	void HandleInventoryClicked();
 
@@ -44,6 +48,9 @@ private:
 	UFUNCTION()
 	void HandleCloseClicked();
 
+	/** B-187b (Q-187b): revive the mini-boss whose rest spot this is (shown only when it can be). */
+	UFUNCTION()
+	void HandleReviveClicked();
 	/** B-234c: the host hands the run over to the next player (shown only to a host with another player). */
 	UFUNCTION()
 	void HandleHandOverClicked();
@@ -62,6 +69,12 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> ConfirmButton;
 
+	/** B-187b: Revive, with its label (which revival, how many left). */
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> ReviveButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ReviveLabel;
 	/** B-234c: Hand over host. */
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> HandOverButton;

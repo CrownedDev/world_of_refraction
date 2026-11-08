@@ -116,6 +116,29 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
 
+	/** B-348b (Q-348): the member's head-start pillar allocation (the §8 floor raised by perks), its persistent home;
+	 *  the pawn's UCharacterDataComponent seeds from it and writes it back (SetHeadStartAllocation). Saved
+	 *  (FSavedPartyMember, v21). Total within WorldStatConstants::HEAD_START_BUDGET. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 HeadStartMind = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 HeadStartBody = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 HeadStartSpirit = 0;
+
+	/** B-348c (Q-348b, Crown 2026-11-08): the member is in Broken Darkness. Persistent in and out of the run: a
+	 *  mid-fight transformation stays across fights, runs and the save until reverted
+	 *  (UBrokenDarknessManager::RevertTransformation). Banked at each fight's end; the pawn seeds from it. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bBrokenDarkness = false;
+
+	/** B-348c: the strain this member has built up this run (UBrokenDarknessManager::AccruedStrain); it carries from
+	 *  fight to fight until the break, and the run's end clears it. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	float RunStrain = 0.0f;
+
 	/** B-076 (D-026): found during a trial. Joins for that run only and leaves when it ends. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bRunOnly = false;

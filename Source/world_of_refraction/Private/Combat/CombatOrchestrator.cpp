@@ -824,6 +824,19 @@ namespace
 	}
 }
 
+FText ACombatOrchestrator::GetRowEdgeRefusal(ECombatRow Row, bool bForward)
+{
+	if (bForward && Row == ECombatRow::Front)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowAtFront", "Already in the front row.");
+	}
+	if (!bForward && Row == ECombatRow::Back)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
+	}
+	return FText::GetEmpty();
+}
+
 FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward) const
 {
 	if (CombatState != ECombatState::InProgress)
@@ -848,13 +861,9 @@ FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward)
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowNoGrid", "Not on the battle grid.");
 	}
-	if (bForward && Position.Row == ECombatRow::Front)
+	if (const FText Edge = GetRowEdgeRefusal(Position.Row, bForward); !Edge.IsEmpty())
 	{
-		return NSLOCTEXT("CombatOrchestrator", "RowAtFront", "Already in the front row.");
-	}
-	if (!bForward && Position.Row == ECombatRow::Back)
-	{
-		return NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
+		return Edge;
 	}
 	// B-342 (D-134): three rows, no columns. A row holds the whole side, so an ally there never blocks the
 	// step; only a full row would (it can't be, at MAX_TEAM_SIZE). Replaces Q-180's empty-cell rule.
@@ -1208,7 +1217,10 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		Rank = *OwnRank;
 	}
-	PendingLevelDropSources.Emplace(WoRCombatTier::GetCombatTier(Victim), Rank); // B-325: its Combat Tier at death (usually the one its HP used at spawn; a loadout change mid-fight can move it)
+	// B-187b (Q-187b): a revived mini-boss's team drops as its stepped-up tier (set at spawn, review: not read from
+	// the game-instance run, D-064).
+	const int32 *TierSteps = EnemyTierSteps.Find(Victim);
+	PendingLevelDropSources.Emplace(TrialGate::StepTier(WoRCombatTier::GetCombatTier(Victim), TierSteps ? *TierSteps : 0), Rank); // B-325: its Combat Tier at death (usually the one its HP used at spawn; a loadout change mid-fight can move it)
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);

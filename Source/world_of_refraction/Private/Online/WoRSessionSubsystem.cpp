@@ -3,6 +3,7 @@
 #include "Online/WoRSessionSubsystem.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
+#include "Online/OnlineSessionNames.h" // SEARCH_LOBBIES
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"

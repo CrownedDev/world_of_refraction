@@ -1,6 +1,7 @@
 // TrialMapFeature.cpp
 
 #include "Trial/TrialMapFeature.h"
+#include "Player/RunStateComponent.h"
 #include "Player/WoRInteract.h"
 
 #include "Character/CharacterData.h"
@@ -167,8 +168,8 @@ void ATrialChest::Interact(APawn *Pawn)
 
 FString ATrialChest::GetHintText() const
 {
-	const UTrialRunSubsystem *TrialRun = GetTrialRun();
-	const bool bOpened = TrialRun && TrialRun->HasFound(GetFeatureId());
+	// B-232d: the run state's copy, so a client's hint follows the host's chest.
+	const bool bOpened = URunStateComponent::HasFoundFeature(this, GetFeatureId());
 	return (bOpened ? LOCTEXT("ChestOpenedHint", "Opened chest") : LOCTEXT("ChestHint", "Press E to open the chest"))
 		.ToString();
 }

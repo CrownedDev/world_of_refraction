@@ -123,6 +123,11 @@ namespace
 		{
 			Gear.AssignedSpells.Add(FSavedAssetRef::Make(Spell));
 		}
+		for (const USpellData *Pick : Entry.SpellPicks) // B-351d (D-145), one ref per slot
+		{
+			Gear.SpellPicks.Add(FSavedAssetRef::Make(Pick));
+		}
+		Gear.bSpellSlotsActive = Entry.bSpellSlotsActive;
 		Gear.StatBonus = Entry.StatBonus;
 		Gear.ResistanceBonus = Entry.ResistanceBonus;
 		Gear.StatPool = Entry.StatPool;
@@ -154,6 +159,12 @@ namespace
 			}
 			Entry.bSkillSlotsActive = Gear.bSkillSlotsActive;
 		}
+		Entry.SpellPicks.Reset();
+		for (const FSavedAssetRef &Ref : Gear.SpellPicks) // B-351d (D-145); a gone spell leaves its slot to the built-in
+		{
+			Entry.SpellPicks.Add(Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr);
+		}
+		Entry.bSpellSlotsActive = Gear.bSpellSlotsActive;
 		Entry.AssignedSpells.Reset();
 		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
 		{
@@ -347,7 +358,7 @@ void USaveSubsystem::Deinitialize()
 
 void USaveSubsystem::HandleLocalPlayerAdded(ULocalPlayer *LocalPlayer)
 {
-	if (!IsBoundToPlayer())
+	if (!IsBoundToPlayer() && !bPlayingHostCopy) // B-234b review: a handed-over run keeps the host's copy
 	{
 		LoadForPlayer(LocalPlayer);
 	}
@@ -423,7 +434,10 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 							 : nullptr;
 	if (Copy)
 	{
-		Copy->HandlePostLoad(); // review: the version check and migrations (D-060), as a loaded slot gets
+		// The version check and migrations (D-060), as a loaded slot gets. InitializeSaveGame, not HandlePostLoad alone:
+		// only it reads the saved version, and it binds the copy to this player, so a local player joining later
+		// doesn't swap this player's own save in, and the shutdown save writes the copy (desktop review).
+		Copy->InitializeSaveGame(Local, SlotName, /*bWasLoaded=*/true);
 	}
 	if (!GI || !Copy || !Copy->Data.Run.bHasRun)
 	{
@@ -437,11 +451,17 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 		Copy->Data.Forms = SaveGame->Data.Forms;
 	}
 	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+	UPoolSubsystem *Pool = GI->GetSubsystem<UPoolSubsystem>();
+	if (!PartySession || !Pool)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: no party or pool subsystem; the copy isn't adopted"));
+		return false;
+	}
 	PartySession->ForgetLocalParty();
 	const bool bParty = Copy->Data.Party.bHasParty && RestoreParty(Copy->Data.Party, *PartySession);
 	// The old host's gear joins the pool for this session (party gear points into it); never written to this
 	// player's own slot. TODO: B-234c: a pool reset so the hub after the run shows only this player's own armoury.
-	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *GI->GetSubsystem<UPoolSubsystem>());
+	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *Pool);
 	SaveGame = Copy;
 	bPlayingHostCopy = true;
 	AdoptedSlotName = SlotName;
@@ -657,6 +677,10 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.PreferredColumn = Member.PreferredColumn;
 		Out.bPlayerControlled = Member.bPlayerControlled;
 		Out.AISeatDifficulty = Member.AISeatDifficulty;
+		Out.HeadStartMind = Member.HeadStartMind; // B-348b
+		Out.HeadStartBody = Member.HeadStartBody;
+		Out.HeadStartSpirit = Member.HeadStartSpirit;
+		Out.bBrokenDarkness = Member.bBrokenDarkness; // B-348c: beyond the run
 		Out.bRunOnly = Member.bRunOnly;
 		Out.RunWeapon = Member.RunWeapon;
 		Out.RunRing = Member.RunRing;
@@ -668,6 +692,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 			Out.CurrentEP = Member.CurrentEP;
 			Out.CarriedGear = FSavedCarriedGear::Make(Member.CarriedGear);
 			Out.CarriedAbsorption = Member.CarriedAbsorption;
+			Out.RunStrain = Member.RunStrain; // B-348c: the run's strain goes with the run
 		}
 	}
 	return Saved;
@@ -817,6 +842,9 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 	Saved.TallyHubGold = TrialRun.GetRunTally().HubGold; // B-073
 	Saved.TallyGearEssence = TrialRun.GetRunTally().GearEssence;
 	Saved.TallySkillEssence = TrialRun.GetRunTally().SkillEssence;
+	Saved.bTallyBossBeaten = TrialRun.IsRunBossBeaten();
+	Saved.BeatenMiniBosses = TrialRun.GetBeatenMiniBosses(); // B-187c
+	Saved.EncounterRevivals = TrialRun.GetEncounterRevivalCounts();
 	// B-314b (Q-314): the open run layer, so a resumed run keeps its found gear run-only and its home gear's home state.
 	const UGameInstance *GI = TrialRun.GetGameInstance();
 	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -874,6 +902,11 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 	Tally.GearEssence = Saved.TallyGearEssence;
 	Tally.SkillEssence = Saved.TallySkillEssence;
 	TrialRun.RestoreRunTally(Tally);
+	if (Saved.bTallyBossBeaten)
+	{
+		TrialRun.MarkRunBossBeaten();
+	}
+	TrialRun.RestoreMiniBossRevivals(Saved.BeatenMiniBosses, Saved.EncounterRevivals); // B-187c: after RestoreRun cleared them
 	// B-314b: the saved layer replaces the fresh one RestoreRun opened (the store was loaded from this same save).
 	UGameInstance *GI = TrialRun.GetGameInstance();
 	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -911,6 +944,11 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.PreferredColumn = In.PreferredColumn;
 		Member.bPlayerControlled = In.bPlayerControlled;
 		Member.AISeatDifficulty = In.AISeatDifficulty;
+		Member.HeadStartMind = In.HeadStartMind; // B-348b
+		Member.HeadStartBody = In.HeadStartBody;
+		Member.HeadStartSpirit = In.HeadStartSpirit;
+		Member.bBrokenDarkness = In.bBrokenDarkness; // B-348c
+		Member.RunStrain = In.RunStrain;
 		Member.bRunOnly = In.bRunOnly;
 		Member.RunWeapon = In.RunWeapon;
 		Member.RunRing = In.RunRing;

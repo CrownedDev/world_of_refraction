@@ -53,6 +53,10 @@ void UWoRHostHandOverSubsystem::Deinitialize()
 	}
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
 	FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle);
+	if (UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
+	{
+		World->GetTimerManager().ClearTimer(RetryTimer);
+	}
 	if (UWoRSessionSubsystem *Sessions = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWoRSessionSubsystem>() : nullptr)
 	{
 		Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
@@ -114,9 +118,17 @@ void UWoRHostHandOverSubsystem::HandleNetworkFailure(UWorld *World, UNetDriver *
 void UWoRHostHandOverSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
 {
 	UWorld *World = Params.World;
-	if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance() || World->GetNetMode() == NM_Client)
+	if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance())
 	{
-		return; // still connected somewhere, or not this game's world
+		return;
+	}
+	if (World->GetNetMode() == NM_Client)
+	{
+		if (Step == EHostHandOverStep::Rejoining)
+		{
+			FinishRejoin(); // the new host's world is up
+		}
+		return; // else still connected somewhere
 	}
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
 	WorldInitHandle.Reset();
@@ -259,13 +271,11 @@ void UWoRHostHandOverSubsystem::HandleSessionJoined(bool bSucceeded)
 	SessionJoinedHandle.Reset();
 	if (bSucceeded)
 	{
-		if (Sessions)
-		{
-			Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
-		}
-		SessionsFoundHandle.Reset();
-		Step = EHostHandOverStep::None; // travelling to the new host
-		UE_LOG(LogWoR, Display, TEXT("[HandOver] Rejoined %s"), *NextHost);
+		// Desktop review: still Rejoining until the new host's world is up. A travel that fails (the new host not
+		// listening yet) lands back on the default map, which leaves the session and searches again (tries still count).
+		FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
+		WorldInitHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &UWoRHostHandOverSubsystem::HandleWorldActorsInitialized);
+		UE_LOG(LogWoR, Display, TEXT("[HandOver] Joined %s's session; travelling"), *NextHost);
 		return;
 	}
 	UE_LOG(LogWoR, Warning, TEXT("[HandOver] Joining %s failed; searching again"), *NextHost);
@@ -341,6 +351,19 @@ void UWoRHostHandOverSubsystem::HandlePlannedHandOver(UWorld *World)
 	}
 	// Not inside the RPC: leave on the next tick, as a lost connection would.
 	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [World]() { GEngine->Exec(World, TEXT("disconnect")); }));
+}
+
+void UWoRHostHandOverSubsystem::FinishRejoin()
+{
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
+	WorldInitHandle.Reset();
+	if (UWoRSessionSubsystem *Sessions = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWoRSessionSubsystem>() : nullptr)
+	{
+		Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
+	}
+	SessionsFoundHandle.Reset();
+	Step = EHostHandOverStep::None; // done: a later lost host starts a new hand-over
+	UE_LOG(LogWoR, Display, TEXT("[HandOver] Rejoined %s"), *NextHost);
 }
 
 FString UWoRHostHandOverSubsystem::GetSuccessionString() const

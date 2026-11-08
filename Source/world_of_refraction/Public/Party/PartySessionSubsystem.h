@@ -15,6 +15,7 @@
 #include "Combat/Grid/ECombatRow.h"
 #include "AI/EAIDifficulty.h"
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h" // ENetMode (B-232e)
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "PartySessionSubsystem.generated.h"
 
@@ -31,6 +32,13 @@ struct FCarriedAbsorptionState;
  *  dismiss success. Consumers should re-read UParty state on fire — the delegate
  *  carries the party pointer for convenience. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPartyChanged, UParty *, Party);
+
+namespace PartySeats
+{
+	/** B-232e (D-150 #3): a recruit found in a run joins as an AI seat in a networked session (listen / dedicated
+	 *  server: every slot is a player's character or an AI seat); solo (standalone) you command it, as before. */
+	WORLD_OF_REFRACTION_API bool RecruitIsAISeat(ENetMode NetMode);
+}
 
 UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API UPartySessionSubsystem : public UGameInstanceSubsystem
@@ -190,6 +198,14 @@ public:
 	/** The AI seat's difficulty (default Medium). Refused while a fight runs or for an invalid slot. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool SetMemberAISeatDifficulty(int32 SlotIndex, EAIDifficulty Difficulty);
+
+	/** B-348b: stores a member's head-start allocation (UCharacterDataComponent::SetHeadStartAllocation validates the
+	 *  budget and writes through). False for an invalid slot. */
+	bool SetMemberHeadStart(int32 SlotIndex, int32 Mind, int32 Body, int32 Spirit);
+
+	/** B-348c: banks a member's Broken Darkness state and the run's strain (at a fight's end). False for an invalid
+	 *  slot. */
+	bool SetMemberBrokenDarkness(int32 SlotIndex, bool bBrokenDarkness, float RunStrain);
 
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")

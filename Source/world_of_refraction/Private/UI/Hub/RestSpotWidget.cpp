@@ -16,6 +16,7 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "Online/HostSuccession.h"
 #include "UI/Hub/InventoryWidget.h"
+#include "UI/Hub/LevelDropWidget.h"
 
 #define LOCTEXT_NAMESPACE "RestSpotWidget"
 
@@ -92,8 +93,13 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 
 		RestSpotStyle::AddText(WidgetTree, Box)->SetText(LOCTEXT("Rested", "Rest spot: the party is restored."));
 		PayoutText = RestSpotStyle::AddText(WidgetTree, Box);
+		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("LevelUp", "Level up"))
+			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Inventory", "Inventory"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInventoryClicked);
+		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
+		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
+		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
 		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host (the next player hosts; you rejoin)"));
 		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"))
@@ -139,6 +145,25 @@ void URestSpotWidget::Refresh()
 		const bool bCanHandOver = HandOver && World && WoRHostSuccession::CanHandOverFrom(World->GetNetMode(), HandOver->GetKnownOrder().Num());
 		HandOverButton->SetVisibility(bCanHandOver ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
+	// B-187b: only at a mini-boss's rest spot that can still be revived.
+	const bool bCanRevive = WoRRestSpot::CanReviveHere(GetWorld());
+	if (ReviveButton)
+	{
+		ReviveButton->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (ReviveLabel && bCanRevive && Run)
+	{
+		const int32 Done = Run->GetEncounterRevivals(Run->GetLastRestSpot());
+		ReviveLabel->SetText(FText::Format(LOCTEXT("ReviveCount", "Revive the mini-boss: one tier stronger, better drops ({0} of {1})"),
+										   FText::AsNumber(Done + 1), FText::AsNumber(MiniBossRevival::MAX_REVIVALS)));
+	}
+}
+
+void URestSpotWidget::HandleReviveClicked()
+{
+	UWorld *World = GetWorld();
+	CloseMenu();
+	WoRRestSpot::ReviveMiniBoss(World);
 }
 
 FString URestSpotWidget::GetRestSpotWidgetString() const
@@ -147,9 +172,17 @@ FString URestSpotWidget::GetRestSpotWidgetString() const
 						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"));
 }
 
+void URestSpotWidget::HandleLevelUpClicked()
+{
+	APlayerController *PC = GetOwningPlayer();
+	CloseMenu();
+	ULevelDropWidget::Open(PC); // B-363 (D-156): place and buy pillar points here
+}
+
 void URestSpotWidget::HandleInventoryClicked()
 {
 	APlayerController *PC = GetOwningPlayer();
+	WoRRestSpot::StepAway(GetWorld()); // review: the rest spot's levelling ends with its menu
 	CloseMenu();
 	UInventoryWidget::Open(PC);
 }
@@ -181,6 +214,7 @@ void URestSpotWidget::HandleHandOverClicked()
 
 void URestSpotWidget::HandleCloseClicked()
 {
+	WoRRestSpot::StepAway(GetWorld()); // review: closing the menu walks away from the rest spot
 	CloseMenu();
 }
 
