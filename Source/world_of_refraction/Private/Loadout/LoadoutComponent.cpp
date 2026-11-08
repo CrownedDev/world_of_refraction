@@ -4283,8 +4283,11 @@ namespace
 	{
 		const UGameInstance *GI = Loadout.GetOwner() ? Loadout.GetOwner()->GetGameInstance() : nullptr;
 		const UCurseSubsystem *Curses = GI ? GI->GetSubsystem<UCurseSubsystem>() : nullptr;
-		const UCharacterDataComponent *Data = Loadout.GetOwner() ? Loadout.GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-		return Curses && Data && Curses->IsCursedHere(Data->CharacterData) ? Curses : nullptr;
+		if (!Curses || Curses->GetHeldCurses().IsEmpty())
+		{
+			return nullptr; // the usual case: no lookups past this
+		}
+		return Curses->IsCursedHere(Loadout.GetOwnerCharacterData()) ? Curses : nullptr; // cached component
 	}
 }
 
@@ -4373,12 +4376,6 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
     }
 
-    // B-378b (MemoryCatalogue §3.8): the player's held curses weaken their own party characters (not tier-scaled).
-    if (const UCurseSubsystem *Curses = CursesFor(*this))
-    {
-        AddScaled(Curses->GetStatPenalty(), EItemTier::F_Tier);
-    }
-
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
     // field — store directly). Pools + pillar percents were accumulated raw inside AddScaled.
     Combined.BonusRawDamage        = FMath::RoundToInt(AccRawDamage);
@@ -4393,6 +4390,13 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     Combined.BonusResistance       = FMath::RoundToInt(AccResistance);
     Combined.BonusTurnSpeed        = FMath::RoundToInt(AccTurnSpeed);
     Combined.BonusLuck             = FMath::RoundToInt(AccLuck);
+
+    // B-378b (MemoryCatalogue §3.8, review): the player's held curses weaken their own party characters, flat (added
+    // after the tier-scaled sum, so a retuned tier ladder never scales them).
+    if (const UCurseSubsystem *Curses = CursesFor(*this))
+    {
+        Combined.Accumulate(Curses->GetStatPenalty());
+    }
 
     return Combined;
 }
