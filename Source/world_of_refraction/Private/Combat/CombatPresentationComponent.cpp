@@ -3,6 +3,8 @@
 #include "Combat/CombatPresentationComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Combat/CombatAnimInstance.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "Character/CombatCharacter.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
@@ -95,6 +97,56 @@ void UCombatPresentationComponent::Multicast_LaunchProjectile_Implementation(con
 	++ProjectilesFlown;
 }
 
+void UCombatPresentationComponent::SendVFX(const FCosmeticVFX &VFX)
+{
+	const UWorld *World = GetWorld();
+	if (!VFX.System || !World || !GetOwner() || !GetOwner()->HasAuthority() || !CombatPresentation::SendsFromHere(World->GetNetMode()))
+	{
+		return;
+	}
+	++VFXSent;
+	Multicast_SpawnVFX(VFX);
+}
+
+void UCombatPresentationComponent::Multicast_SpawnVFX_Implementation(const FCosmeticVFX &VFX)
+{
+	if (!GetOwner() || GetOwner()->HasAuthority())
+	{
+		return; // the server's runner already spawned it
+	}
+	if (SpawnLocally(VFX))
+	{
+		++VFXSpawned;
+	}
+}
+
+UNiagaraComponent *UCombatPresentationComponent::SpawnLocally(const FCosmeticVFX &VFX) const
+{
+	UWorld *World = GetWorld();
+	if (!VFX.System || !World)
+	{
+		return nullptr;
+	}
+	UNiagaraComponent *Spawned = nullptr;
+	const ACharacter *Character = Cast<ACharacter>(GetOwner());
+	if (VFX.bAttached && Character && Character->GetMesh() && Character->GetMesh()->DoesSocketExist(VFX.Socket))
+	{
+		Spawned = UNiagaraFunctionLibrary::SpawnSystemAttached(VFX.System, Character->GetMesh(), VFX.Socket, FVector::ZeroVector,
+															   FRotator::ZeroRotator, FVector(VFX.Scale), EAttachLocation::SnapToTarget, true,
+															   ENCPoolMethod::None);
+	}
+	if (!Spawned)
+	{
+		Spawned = UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, VFX.System, VFX.Location, FRotator::ZeroRotator, FVector(VFX.Scale), true, true);
+	}
+	if (Spawned && VFX.bTinted)
+	{
+		Spawned->SetColorParameter(FName("CoreColor"), VFX.CoreColor);
+		Spawned->SetColorParameter(FName("EdgeColor"), VFX.EdgeColor);
+	}
+	return Spawned;
+}
+
 void UCombatPresentationComponent::Multicast_PlayMontage_Implementation(UAnimMontage *Montage, float PlayRate)
 {
 	if (!CombatPresentation::PlaysReceivedMontage(GetOwner() && GetOwner()->HasAuthority()))
@@ -131,9 +183,10 @@ void UCombatPresentationComponent::PlayLocally(UAnimMontage *Montage, float Play
 
 FString UCombatPresentationComponent::GetDebugString() const
 {
-	return FString::Printf(TEXT("%s: last montage %s (%d sent, %d received), %d hit(s) shown, last %d%s; projectiles %d sent, %d flown"),
+	return FString::Printf(TEXT("%s: last montage %s (%d sent, %d received), %d hit(s) shown, last %d%s; projectiles %d sent, %d flown; VFX %d sent, %d spawned"),
 						   *GetNameSafe(GetOwner()), LastMontage.IsEmpty() ? TEXT("none") : *LastMontage, MontagesSent, MontagesReceived,
-						   HitsShown, LastHitDamage, bLastHitCritical ? TEXT(" (crit)") : TEXT(""), ProjectilesSent, ProjectilesFlown);
+						   HitsShown, LastHitDamage, bLastHitCritical ? TEXT(" (crit)") : TEXT(""), ProjectilesSent, ProjectilesFlown,
+						   VFXSent, VFXSpawned);
 }
 
 static FAutoConsoleCommandWithWorld GNetPrintPresentationCommand(

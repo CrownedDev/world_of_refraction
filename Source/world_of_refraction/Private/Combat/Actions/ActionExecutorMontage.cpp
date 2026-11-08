@@ -3,6 +3,7 @@
 // VFX array entries), moved out of ActionExecutor.cpp unchanged.
 
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/CombatPresentationComponent.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
 #include "WoRLog.h"
@@ -563,6 +564,9 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 	}
 
 	UNiagaraComponent *Spawned = nullptr;
+	FCosmeticVFX ForClients; // B-231c: the same VFX on the clients
+	ForClients.System = System;
+	ForClients.Scale = Entry.Scale;
 
 	// CasterSocket attaches (follows the hand through the montage) — spike-proven.
 	if (Entry.Attach == EVFXAttach::CasterSocket)
@@ -570,6 +574,9 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 		ACharacter *Character = Cast<ACharacter>(Caster);
 		if (Character && Character->GetMesh() && Character->GetMesh()->DoesSocketExist(Entry.SocketName))
 		{
+			ForClients.bAttached = true;
+			ForClients.Socket = Entry.SocketName;
+			ForClients.Location = Caster->GetActorLocation(); // review: a client missing the socket spawns here, not at the origin
 			Spawned = UNiagaraFunctionLibrary::SpawnSystemAttached(
 				System, Character->GetMesh(), Entry.SocketName,
 				FVector::ZeroVector, FRotator::ZeroRotator, FVector(Entry.Scale),
@@ -584,6 +591,7 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 		{
 			return; // warned inside
 		}
+		ForClients.Location = SpawnLoc;
 		Spawned = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			GetWorld(), System, SpawnLoc, FRotator::ZeroRotator, FVector(Entry.Scale),
 			true, true);
@@ -598,6 +606,16 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 		const FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Element, bIsBD);
 		Spawned->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
 		Spawned->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);
+		ForClients.bTinted = true;
+		ForClients.CoreColor = Colors.PrimaryColor;
+		ForClients.EdgeColor = Colors.BlendedColor;
+	}
+	if (Spawned)
+	{
+		if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Caster))
+		{
+			Presentation->SendVFX(ForClients);
+		}
 	}
 
 	UE_LOG(LogTemp, Verbose, TEXT("[Runner] VFX[%d] '%s' spawned (attach=%d, scale=%.2f)"),
