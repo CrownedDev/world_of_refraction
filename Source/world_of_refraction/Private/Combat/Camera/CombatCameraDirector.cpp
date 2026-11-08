@@ -501,6 +501,8 @@ void UCombatCameraDirector::ShowDefenceView()
 	APlayerController *Viewer = GetViewer();
 	if (!Viewer || !Camera || !Attacker)
 	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] Defence view skipped: viewer %s, defender camera %s, attacker %s"),
+			   Viewer ? TEXT("ok") : TEXT("none"), Camera ? TEXT("ok") : TEXT("none"), *GetNameSafe(Attacker));
 		return;
 	}
 	CurrentMode = ECombatCameraMode::Defence;
