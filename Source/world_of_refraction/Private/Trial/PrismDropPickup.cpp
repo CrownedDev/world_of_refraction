@@ -40,26 +40,31 @@ void APrismDropPickup::BeginPlay()
 	InteractionTrigger->OnComponentEndOverlap.AddDynamic(this, &APrismDropPickup::OnPickupEndOverlap);
 }
 
-void APrismDropPickup::Interact(APawn * /*Pawn*/)
+void APrismDropPickup::Interact(APawn *Pawn)
 {
-	PickUp();
+	PickUp(Pawn);
 }
 
-bool APrismDropPickup::PickUp()
+bool APrismDropPickup::PickUp(APawn *Pawn)
 {
 	if (!HasAuthority() || IsActorBeingDestroyed())
 	{
 		return false; // the server's pickup gives it back; a second overlap of the same pawn finds it gone
 	}
-	const int32 Taken = WoRDefeat::PickUpDrop(GetWorld());
+	// B-235 (D-160 co-op): the pawn's player takes their own drop (no pawn: the local player, as before).
+	const int32 Taken = Pawn ? WoRDefeat::PickUpDropFor(GetWorld(), Pawn) : WoRDefeat::PickUpDrop(GetWorld());
 	if (Taken <= 0)
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[PrismDrop] %s: nothing taken (no run drop or no local wallet)"), *GetName());
+		UE_LOG(LogWoR, Warning, TEXT("[PrismDrop] %s: nothing taken (no drop of this player's, or no wallet)"), *GetName());
 		return false;
 	}
 	ShowMessage(FText::Format(LOCTEXT("PickedUp", "You pick up your {0} {1}."), FText::AsNumber(Taken),
 							  WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
-	Destroy();
+	const UTrialRunSubsystem *Run = GetTrialRun();
+	if (!Run || Run->GetTotalDroppedPrisms() <= 0)
+	{
+		Destroy(); // B-235: it stays while another player's drop still lies here
+	}
 	return true;
 }
 
@@ -74,7 +79,7 @@ APrismDropPickup *APrismDropPickup::PlaceForRun(UWorld *World, UTrialRunSubsyste
 	{
 		It->Destroy();
 	}
-	if (Run.GetDroppedPrisms() <= 0)
+	if (Run.GetTotalDroppedPrisms() <= 0) // B-235: anyone's drop
 	{
 		return nullptr;
 	}
@@ -89,7 +94,7 @@ APrismDropPickup *APrismDropPickup::PlaceForRun(UWorld *World, UTrialRunSubsyste
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	APrismDropPickup *Pickup = World->SpawnActor<APrismDropPickup>(Spot, FRotator::ZeroRotator, Params);
-	UE_LOG(LogWoR, Log, TEXT("[PrismDrop] %d Prism(s) lie at %s"), Run.GetDroppedPrisms(), *Spot.ToCompactString());
+	UE_LOG(LogWoR, Log, TEXT("[PrismDrop] %d Prism(s) lie at %s"), Run.GetTotalDroppedPrisms(), *Spot.ToCompactString());
 	return Pickup;
 }
 
@@ -133,7 +138,7 @@ void APrismDropPickup::OnPickupBeginOverlap(UPrimitiveComponent * /*OverlappedCo
 		ArrivedInside.Add(Pawn);
 		return;
 	}
-	PickUp();
+	PickUp(Pawn);
 }
 
 void APrismDropPickup::OnPickupEndOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
