@@ -70,7 +70,20 @@ private:
 	UFUNCTION()
 	void HandleMemoryRecorded(UMemoryData *Memory, EMemorySource Source);
 
+	/** Every hidden quest asset, gathered once (UHiddenQuestData::GatherAll). */
+	TArray<UHiddenQuestData *> GetAllQuests();
+
+	/** The last step is done: finished, and its end memory into this player's run and journal only. */
+	void Finish(const UHiddenQuestData &Quest);
+
 	TMap<FName, FHiddenQuestProgress> Progress;
+
+	/** Q-377: started since the last CheckEvent; those wait for the next event. */
+	TSet<FName> JustStarted;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UHiddenQuestData>> AllQuests;
+	bool bGatheredQuests = false;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UHiddenQuestData>> QuestsForStarts;
