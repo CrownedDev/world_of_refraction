@@ -3677,6 +3677,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options:** **A** code-built patterns plus per-skill tuning; sequences for signature moves only. **B** template Level Sequences, as B-157 planned.
 **Recommendation:** A. It keeps D-074's split (shared patterns, hand-made signatures) as Persona 5, Octopath Traveler and Honkai: Star Rail use it, but needs no editor work per pattern, fits any animation length, and can be checked by specs. It unblocks B-157.
 **Answer:** **A**, by the reference-backed default (2026-11-05). Crown approves the look of the patterns in PIE (B-157).
+**Note (Crown, 2026-11-08):** cinematic sequences are optional: the Defence view on every enemy attack (B-370) plus these shot patterns cover normal skills; a hand-made `CameraSequence` is only for big moments (ultimates, boss finishers). Reference fight for the look: Expedition 33, Maelle vs Painted Maelle (camera behaviour only).
 
 ### Q-373 — Notify placement tool
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-373) · **Blocks:** —
