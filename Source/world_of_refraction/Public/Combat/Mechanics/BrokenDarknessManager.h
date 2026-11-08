@@ -81,6 +81,10 @@ public:
 	 *  base Darkness) and after the EP carry; overload EP is added back above MaxEP. */
 	void ApplyCarriedAbsorption(const FCarriedAbsorptionState &Carried);
 
+	/** B-348c (Q-348b): the strain this character built up earlier in the run (FPartyMember::RunStrain), so it keeps
+	 *  building fight to fight until it gives. Ignored once in Broken Darkness (strain is the Darkness → BD path). */
+	void ApplyCarriedStrain(float Strain);
+
 	// ==================== TRANSFORMATION STATE ====================
 
 	/** Is this character currently Broken Darkness (the manager's mirror of

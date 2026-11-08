@@ -110,7 +110,7 @@ void UBrokenDarknessManager::BeginPlay()
 	CurrentAlignmentElement = ESpellElement::Generic;
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
-	AccruedStrain = 0.0f; // per-combat reset (interim until persistence)
+	AccruedStrain = 0.0f; // the fight starts clean; a party member's run strain is applied after (B-348c, ApplyCarriedStrain)
 
 	if (AActor *Owner = GetOwner())
 	{
@@ -128,6 +128,16 @@ void UBrokenDarknessManager::BeginPlay()
 			CharComp->OnEPChanged.AddDynamic(this, &UBrokenDarknessManager::HandleOwnerEnergyChanged);
 		}
 	}
+}
+
+void UBrokenDarknessManager::ApplyCarriedStrain(float Strain)
+{
+	if (bIsFlipped)
+	{
+		return;
+	}
+	AccruedStrain = FMath::Max(0.0f, Strain);
+	UE_LOG(LogTemp, Verbose, TEXT("[BrokenDarkness] %s: carried strain %.1f"), *GetNameSafe(GetOwner()), AccruedStrain);
 }
 
 void UBrokenDarknessManager::InitializeBornBrokenDarkness()
