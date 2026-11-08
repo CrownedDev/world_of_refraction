@@ -29,9 +29,9 @@ struct FFiredReaction;
 
 namespace MemoryUnlock
 {
-	/** Into the run and the journal. False when Memory is null or already collected. B-235d (Q-235d, Crown): the host
-	 *  found it (a source with no player attribution yet), so in co-op only a memory for every character (it lists no
-	 *  character) also goes to each friend. */
+	/** Into the run and the journal. False when Memory is null or already collected. B-235d (Q-235d, Crown): this
+	 *  machine's player found it, so in co-op only a memory for every character (it lists no character) also goes to
+	 *  each friend. B-235e: a client's own find (its map spot or fragment runs on its side) is reported to the host. */
 	WORLD_OF_REFRACTION_API bool Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
 
 	/** B-235d (Q-235d, Crown): into the run, into the host's journal when bHostReceives, and to each of Friends (once
@@ -39,6 +39,14 @@ namespace MemoryUnlock
 	 *  recorded it, or a friend was sent it for the first time); a second finder later in the run still gets it. */
 	WORLD_OF_REFRACTION_API bool UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source, bool bHostReceives,
 										   const TArray<AWoRPlayerState *> &Friends);
+
+	/** B-235e (Q-235d rule 1): Memory found by FinderCharacter (a worn item's or a reaction's memory at a fight): the
+	 *  player who plays it gets it, and everyone when it lists no character; the host's find when no friend plays it. */
+	WORLD_OF_REFRACTION_API bool UnlockFoundBy(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source,
+											   const UCharacterData *FinderCharacter);
+
+	/** B-235e: the remote player who plays Character (AWoRPlayerState::GetOwnCharacters); null when none does. */
+	WORLD_OF_REFRACTION_API AWoRPlayerState *FindRemotePlayerOf(const UGameInstance *GameInstance, const UCharacterData *Character);
 
 	/** B-235d: a memory is for one of Characters (UMemoryData::CharacterDepth above None), or for every character
 	 *  when it lists no character. */
