@@ -56,6 +56,10 @@ struct WORLD_OF_REFRACTION_API FSavedCarriedAttachment
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 
+	/** B-351b (save v22): the item's stone socket as the fight left it. */
+	UPROPERTY()
+	FRuntimeAttachedItem StoneSocket;
+
 	UPROPERTY()
 	FSavedAssetRef EvolutionItem;
 };
@@ -111,6 +115,24 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	/** B-346 / B-348: the AI seat's difficulty (restored only when the member is an AI seat). */
 	UPROPERTY()
 	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
+
+	/** B-348b (save v21): the head-start pillar allocation (FPartyMember::HeadStart*). */
+	UPROPERTY()
+	int32 HeadStartMind = 0;
+
+	UPROPERTY()
+	int32 HeadStartBody = 0;
+
+	UPROPERTY()
+	int32 HeadStartSpirit = 0;
+
+	/** B-348c (save v21, shared with B-348b: both landed in dev together, before any v21 save existed): the member is in Broken Darkness (persistent until reverted, Q-348b), and the
+	 *  run's strain (written only with a saved run, like the carried vitals). */
+	UPROPERTY()
+	bool bBrokenDarkness = false;
+
+	UPROPERTY()
+	float RunStrain = 0.0f;
 
 	/** B-076: a character found in the trial; written only with a saved run. */
 	UPROPERTY()
@@ -233,6 +255,28 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	FVector DropSpot = FVector::ZeroVector;
 
+	/** B-073 (save v23; 21 / 22 are B-348b / B-351b: renumber if dev moved): the run's reward tally, paid at its end. */
+	UPROPERTY()
+	int32 TallyHubGold = 0;
+
+	UPROPERTY()
+	int32 TallyGearEssence = 0;
+
+	UPROPERTY()
+	int32 TallySkillEssence = 0;
+
+	/** B-073 (save v23, desktop review): the run's boss was beaten, so a resumed run's end still gets the boss bonus. */
+	UPROPERTY()
+	bool bTallyBossBeaten = false;
+
+	/** B-187c (save v24, on B-073's v23: renumber if dev moved): the beaten mini-bosses (each a rest spot) and the
+	 *  revivals per mini-boss encounter (Q-187b). */
+	UPROPERTY()
+	TArray<FName> BeatenMiniBosses;
+
+	UPROPERTY()
+	TMap<FName, int32> EncounterRevivals;
+
 	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
 	 *  puts home gear back as it left home. */
 	UPROPERTY()
@@ -317,6 +361,14 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 
 	UPROPERTY()
 	TArray<FSavedAssetRef> AssignedSpells;
+
+	/** B-351d (D-145): the crystal's one spell list, one ref per slot (unset = the built-in), and whether it is active.
+	 *  New tagged fields: an older save reads them as empty / false (the old merge), so no version bump. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> SpellPicks;
+
+	UPROPERTY()
+	bool bSpellSlotsActive = false;
 
 	UPROPERTY()
 	FEquipmentStatBonus StatBonus;
@@ -476,6 +528,13 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	TArray<FSavedCustomBDPool> BDSpellPools;
+
+	/** B-380c (D-164, save v29): apparel worn with this loadout, and each piece's owned instance. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Apparel;
+
+	UPROPERTY()
+	TArray<FGuid> ApparelInstances;
 };
 
 /** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */
@@ -613,6 +672,111 @@ struct WORLD_OF_REFRACTION_API FSavedForms
 	TArray<FSoftObjectPath> CurrentOutfit;
 };
 
+/** B-377: one hidden quest's progress (MemoryCatalogue §3.6): steps done are kept across runs. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedQuestProgress
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName QuestId;
+
+	UPROPERTY()
+	int32 StepsDone = 0;
+
+	UPROPERTY()
+	bool bFinished = false;
+};
+
+/** B-377: this player's hidden quests (save v25). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedHiddenQuests
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedQuestProgress> Quests;
+};
+
+/** B-378: the curses this player holds (save v26); they last across runs until removed. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCurses
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FName> Held;
+
+	/** Lifted before: never given again. */
+	UPROPERTY()
+	TArray<FName> Lifted;
+};
+
+/** B-379: one hidden counter's count for a character (None: all characters). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCounter
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Counter;
+
+	UPROPERTY()
+	FName Character;
+
+	UPROPERTY()
+	int32 Count = 0;
+};
+
+/** B-379: this player's hidden counters (save v27); they keep counting across runs. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCounters
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedCounter> Counts;
+};
+
+/** B-377b: a lore entry the journal kept. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedLore
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName LoreId;
+
+	UPROPERTY()
+	FText Title;
+
+	UPROPERTY()
+	FText Body;
+};
+
+/** B-377b: this player's memory journal (save v28; it was transient before): memories in order with where each came
+ *  from (EMemorySource as a byte), lore, V lines heard, conversations played. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedJournal
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Memories;
+
+	UPROPERTY()
+	TArray<uint8> Sources;
+
+	UPROPERTY()
+	TArray<FSavedLore> Lore;
+
+	UPROPERTY()
+	TArray<FName> HeardVLines;
+
+	UPROPERTY()
+	TArray<FName> PlayedConversations;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -633,4 +797,16 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedForms Forms;
+
+	UPROPERTY()
+	FSavedHiddenQuests HiddenQuests; // B-377
+
+	UPROPERTY()
+	FSavedCurses Curses; // B-378
+
+	UPROPERTY()
+	FSavedCounters Counters; // B-379
+
+	UPROPERTY()
+	FSavedJournal Journal; // B-377b
 };

@@ -2,6 +2,9 @@
 
 #include "Memory/MemoryUnlock.h"
 
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/GameStateBase.h"
+#include "Player/WoRPlayerState.h"
 #include "Character/CharacterDataComponent.h"
 #include "Conditions/WoRConditions.h"
 #include "Memory/MemoryConditions.h"
@@ -30,28 +33,190 @@ namespace
 	}
 }
 
+namespace
+{
+	/** B-235e: on a client, its own new find goes to the host (noted there; one for every character is shared). */
+	void ReportFindToHost(const UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source, bool bRecordedHere)
+	{
+		const UWorld *World = GameInstance ? GameInstance->GetWorld() : nullptr;
+		if (!bRecordedHere || !World || World->GetNetMode() != NM_Client)
+		{
+			return;
+		}
+		const APlayerController *PC = World->GetFirstPlayerController();
+		if (AWoRPlayerState *Self = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
+		{
+			Self->ServerReportFoundMemory(Memory, Source);
+		}
+	}
+}
+
 bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source)
+{
+	// This machine's player found it: friends get it only when it is for every character (they met nothing themselves).
+	TArray<AWoRPlayerState *> Friends;
+	for (AWoRPlayerState *Friend : GetRemotePlayers(GameInstance))
+	{
+		if (ShouldFriendReceive(Memory, Friend->GetOwnCharacters(), /*bMetThemselves=*/false))
+		{
+			Friends.Add(Friend);
+		}
+	}
+	return UnlockFor(GameInstance, Memory, Source, /*bHostReceives=*/true, Friends);
+}
+
+bool MemoryUnlock::UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source, bool bHostReceives,
+							 const TArray<AWoRPlayerState *> &Friends)
 {
 	UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
-	if (!Memory || !TrialRun || !Journal || Journal->HasMemory(Memory))
+	if (!Memory || !TrialRun || !Journal)
 	{
 		return false;
 	}
-	TrialRun->CollectMemory(Memory);
-	if (!Journal->RecordMemory(Memory, Source))
+	// B-235e (review): on a client, a memory for someone else's character is not this player's find (Q-235d rule 1).
+	// TODO: the client's own characters may not have replicated yet; until they have, it takes the find as before.
+	const UWorld *World = GameInstance->GetWorld();
+	const APlayerController *LocalPC = World && World->GetNetMode() == NM_Client ? World->GetFirstPlayerController() : nullptr;
+	const AWoRPlayerState *Self = LocalPC ? LocalPC->GetPlayerState<AWoRPlayerState>() : nullptr;
+	const TArray<UCharacterData *> OwnHere = Self ? Self->GetOwnCharacters() : TArray<UCharacterData *>();
+	if (!OwnHere.IsEmpty() && !QualifiesFor(Memory, OwnHere))
 	{
 		return false;
 	}
-	// Q-209c: rewards come once, with the unlock. TODO: grant each kind once it can be: the item
-	// into the party's inventory (out-of-fight gear, B-085), the skill once rewards teach skills,
-	// titles and curses once they are systems.
+	// Someone new must receive it: the host (not in its journal yet) or a friend who does not have it. A memory the
+	// host had from an earlier run, with no friend new to it, stays out of this run as before; a friend new to it gets
+	// it (their own spots and fragments run on their side, B-235e).
+	const bool bHostNew = bHostReceives && !Journal->HasMemory(Memory);
+	TArray<AWoRPlayerState *> NewFriends;
+	for (AWoRPlayerState *Friend : Friends)
+	{
+		if (Friend && !Friend->HasMemoryId(Memory->GetMemoryId()))
+		{
+			NewFriends.AddUnique(Friend);
+		}
+	}
+	if (!bHostNew && NewFriends.IsEmpty())
+	{
+		return false;
+	}
+	TrialRun->CollectMemory(Memory); // no-op when the run already has it (a second finder)
+	if (bHostNew && !Journal->RecordMemory(Memory, Source))
+	{
+		return false;
+	}
+	for (AWoRPlayerState *Friend : NewFriends)
+	{
+		Friend->AddMemoryId(Memory->GetMemoryId());
+		Friend->Client_UnlockMemory(Memory, Source);
+	}
+	ReportFindToHost(GameInstance, Memory, Source, bHostNew);
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s: host %s, %d friend(s) (Q-235d)"), *Memory->GetMemoryId().ToString(),
+		   bHostNew ? TEXT("records it") : TEXT("does not (a friend found it, or already had it)"), NewFriends.Num());
+	// Q-209c: rewards come once, with the unlock. Curses are granted by UCurseSubsystem when a journal records the
+	// memory (B-378). TODO: grant each other kind once it can be: the item into the party's inventory (out-of-fight
+	// gear, B-085), the skill once rewards teach skills, titles once they are a system; in co-op, to whoever received it.
 	for (const FMemoryReward &Reward : Memory->Rewards)
 	{
-		UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reward: %s (logged, not granted yet)"), *Memory->GetMemoryId().ToString(),
-			   *UMemoryData::GetRewardString(Reward));
+		if (Reward.Kind != EMemoryRewardKind::Curse && Reward.Kind != EMemoryRewardKind::RemoveCurse)
+		{
+			UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reward: %s (logged, not granted yet)"), *Memory->GetMemoryId().ToString(),
+				   *UMemoryData::GetRewardString(Reward));
+		}
 	}
 	return true;
+}
+
+AWoRPlayerState *MemoryUnlock::FindRemotePlayerOf(const UGameInstance *GameInstance, const UCharacterData *Character)
+{
+	if (!Character)
+	{
+		return nullptr;
+	}
+	for (AWoRPlayerState *Friend : GetRemotePlayers(GameInstance))
+	{
+		if (Friend->GetOwnCharacters().Contains(Character))
+		{
+			return Friend;
+		}
+	}
+	return nullptr;
+}
+
+bool MemoryUnlock::UnlockFoundBy(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source,
+								 const UCharacterData *FinderCharacter)
+{
+	AWoRPlayerState *FinderFriend = FindRemotePlayerOf(GameInstance, FinderCharacter);
+	if (!Memory || !FinderFriend)
+	{
+		return Unlock(GameInstance, Memory, Source); // the host's character (or no one known): the host's find
+	}
+	const bool bForEveryone = Memory->CharacterDepth.IsEmpty();
+	TArray<AWoRPlayerState *> Friends = {FinderFriend};
+	if (bForEveryone)
+	{
+		for (AWoRPlayerState *Friend : GetRemotePlayers(GameInstance))
+		{
+			Friends.AddUnique(Friend);
+		}
+	}
+	return UnlockFor(GameInstance, Memory, Source, /*bHostReceives=*/bForEveryone, Friends);
+}
+
+bool MemoryUnlock::QualifiesFor(const UMemoryData *Memory, const TArray<UCharacterData *> &PlayerCharacters)
+{
+	if (!Memory)
+	{
+		return false;
+	}
+	if (Memory->CharacterDepth.IsEmpty())
+	{
+		return true; // a memory about no one in particular: the whole party's
+	}
+	return PlayerCharacters.ContainsByPredicate([Memory](const UCharacterData *Character)
+	{
+		return Character && Memory->CharacterDepth.FindRef(Character) != EMemoryDepth::None;
+	});
+}
+
+bool MemoryUnlock::ShouldFriendReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &FriendCharacters, bool bMetThemselves)
+{
+	if (!Memory)
+	{
+		return false;
+	}
+	return Memory->CharacterDepth.IsEmpty() || (bMetThemselves && QualifiesFor(Memory, FriendCharacters));
+}
+
+bool MemoryUnlock::ShouldHostReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &HostCharacters, bool bHostMet,
+									 bool bAnyFriendReceives)
+{
+	if (!Memory)
+	{
+		return false;
+	}
+	return Memory->CharacterDepth.IsEmpty() || (bHostMet && QualifiesFor(Memory, HostCharacters)) || !bAnyFriendReceives;
+}
+
+TArray<AWoRPlayerState *> MemoryUnlock::GetRemotePlayers(const UGameInstance *GameInstance)
+{
+	TArray<AWoRPlayerState *> Remote;
+	const UWorld *World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	if (!GameState || World->GetNetMode() != NM_ListenServer)
+	{
+		return Remote; // solo: the host's journal is the only one
+	}
+	for (APlayerState *Player : GameState->PlayerArray)
+	{
+		AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+		const APlayerController *PC = WoRPlayer ? Cast<APlayerController>(WoRPlayer->GetOwner()) : nullptr;
+		if (PC && !PC->IsLocalController())
+		{
+			Remote.Add(WoRPlayer);
+		}
+	}
+	return Remote;
 }
 
 bool MemoryUnlock::IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory)
@@ -205,7 +370,7 @@ int32 MemoryUnlock::UnlockAtFightStart(UGameInstance *GameInstance, const TArray
 	int32 Unlocked = 0;
 	for (const FFiredReaction &Reaction : Fired)
 	{
-		if (Reaction.Trigger && Unlock(GameInstance, Reaction.Trigger->UnlockMemory, EMemorySource::Reaction))
+		if (Reaction.Trigger && UnlockFoundBy(GameInstance, Reaction.Trigger->UnlockMemory, EMemorySource::Reaction, CharacterOf(Reaction.Wearer)))
 		{
 			++Unlocked;
 		}
@@ -230,7 +395,8 @@ int32 MemoryUnlock::UnlockAtFightStart(UGameInstance *GameInstance, const TArray
 		{
 			for (const FBoundMemory &Bound : Worn.Key->BoundMemories)
 			{
-				if (IsBoundMet(Bound, *Worn.Key, Context) && Unlock(GameInstance, Bound.Memory, EMemorySource::BoundGear))
+				if (IsBoundMet(Bound, *Worn.Key, Context) &&
+					UnlockFoundBy(GameInstance, Bound.Memory, EMemorySource::BoundGear, Member.Character)) // B-235e: the wearer's player
 				{
 					++Unlocked;
 				}

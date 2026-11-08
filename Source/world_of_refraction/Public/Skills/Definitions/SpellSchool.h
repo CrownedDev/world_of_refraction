@@ -5,30 +5,37 @@
 #include "CoreMinimal.h"
 #include "SpellSchool.generated.h"
 
-/** D-146 (corrected by Crown, 2026-11-04): exactly three schools, Conjuration (damage), Enhancement and
- *  Restoration, player-facing labels on spells (WoRGameNames::GetSpellSchoolName). Append only (saved in
- *  spell assets): a retired school stays and maps onto one of the three (SpellSchools::ToCurrent, Q-356).
- *  The AI never reads the school; it reads a spell's effects. */
+/** D-163 (Crown, 2026-11-05; changes D-146): six schools, each a spell's main identity, shown on spells
+ *  (WoRGameNames::GetSpellSchoolName): Destruction (damage), Conjuration (creation: a conjured thing, which may
+ *  deal damage), Enhancement (buffs), Restoration (heals, cleanses), Impairment (weakening: stat debuffs) and
+ *  Manipulation (control: taunt, forcing a target, loss of control). Append only (saved in spell assets).
+ *  Status can come from any school. The AI never reads the school; it reads a spell's effects. The 6-per-school
+ *  innate cap stays (SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL). */
 UENUM(BlueprintType)
 enum class ESpellSchool : uint8
 {
-    /** OBSOLETE (B-356c): retired by D-146 as corrected; reads as Conjuration (Q-356). Re-tag assets in the editor. */
-    Destruction UMETA(DisplayName = "Destruction (retired: Conjuration)"),
+    /** The damage school (D-163: brought back; B-356c had retired it onto Conjuration). */
+    Destruction UMETA(DisplayName = "Destruction"),
     Enhancement UMETA(DisplayName = "Enhancement"),
     Restoration UMETA(DisplayName = "Restoration"),
-    /** The damage school (D-146 corrected; B-356c). */
-    Conjuration UMETA(DisplayName = "Conjuration")
+    /** Creation: the conjured thing is the identity, even when it deals damage (D-163). */
+    Conjuration UMETA(DisplayName = "Conjuration"),
+    /** Crowd and conceptual control: taunt, forcing a target onto someone else, loss of control (D-163, B-374). */
+    Manipulation UMETA(DisplayName = "Manipulation"),
+    /** Debuff control: weakening the target, stat debuffs (D-163, B-374). */
+    Impairment UMETA(DisplayName = "Impairment")
 };
 
 namespace SpellSchools
 {
-    /** The school a spell shows and plays as: a retired school's mapped one (Q-356), else itself. */
+    /** The school a spell shows and plays as. No school is retired since D-163 (B-374): every school is itself.
+     *  Kept as the one place a future retirement would map (append-only enum). */
     inline ESpellSchool ToCurrent(ESpellSchool School)
     {
-        return School == ESpellSchool::Destruction ? ESpellSchool::Conjuration : School;
+        return School;
     }
 
-    /** True for a school D-146 retired (it still loads; re-tag the asset). */
+    /** True for a retired school (it still loads; re-tag the asset). None since D-163. */
     inline bool IsRetired(ESpellSchool School)
     {
         return ToCurrent(School) != School;

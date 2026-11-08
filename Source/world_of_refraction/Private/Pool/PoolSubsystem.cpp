@@ -2,6 +2,8 @@
 // Phase 1c (all owned types, INERT) implementation. See PoolSubsystem.h.
 
 #include "Pool/PoolSubsystem.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "WoRLog.h"
 #include "Equipment/Rings/RingData.h"
 
 #include "Pool/PoolAccessors.h"             // the filter/translation layer
@@ -30,7 +32,7 @@
 #include "Character/CharacterDataComponent.h"   // UCharacterDataComponent::CharacterData
 #include "Party/Party.h"                        // FPartyMember (B-360b: the member's key)
 #include "Party/PartySessionSubsystem.h"        // the pawn's member (B-360b)
-#include "Inventory/InventoryComponent.h"       // wor.DrawFromPool target (step 2)
+#include "Inventory/InventoryComponent.h"       // wor.Pool.Draw target (step 2)
 
 namespace
 {
@@ -141,6 +143,41 @@ const FRingInventoryEntry *UPoolSubsystem::FindRingInPool(const FGuid &Persisten
     return const_cast<UPoolSubsystem *>(this)->FindRingInPool(PersistentID);
 }
 
+FGuid UPoolSubsystem::AddApparelToPool(const FApparelEntry &Entry)
+{
+    FApparelEntry &Owned = OwnedApparel.Add_GetRef(Entry);
+    if (!Owned.PersistentID.IsValid())
+    {
+        Owned.PersistentID = FGuid::NewGuid(); // B-380b: owned from here
+    }
+    UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s banked (%d owned)"), *GetNameSafe(Owned.Apparel.Get()), OwnedApparel.Num());
+    return Owned.PersistentID;
+}
+
+const FApparelEntry *UPoolSubsystem::FindApparelInPool(const FGuid &PersistentID) const
+{
+    return PersistentID.IsValid() ? OwnedApparel.FindByPredicate([&PersistentID](const FApparelEntry &E) { return E.PersistentID == PersistentID; })
+                                  : nullptr;
+}
+
+bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAttachedItem &Attachment)
+{
+    FApparelEntry *Owned = PersistentID.IsValid()
+                               ? OwnedApparel.FindByPredicate([&PersistentID](const FApparelEntry &E) { return E.PersistentID == PersistentID; })
+                               : nullptr;
+    if (!Owned || (!Attachment.IsEmpty() && !ApparelRules::CanSocket(Attachment)))
+    {
+        return false;
+    }
+    // TODO(B-380d): give the old socket item back to the store, and refuse an evolution not owned or already attached
+    // elsewhere (the placeholder command only sets refined crystals).
+    Owned->AttachedItem = Attachment;
+    UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s socket: %s"), *GetNameSafe(Owned->Apparel.Get()),
+           *UEnum::GetDisplayValueAsText(Owned->GetElement()).ToString());
+    OnPoolGearChanged.Broadcast(PersistentID); // B-380c: worn copies follow (UInventoryComponent::HandlePoolGearChanged)
+    return true;
+}
+
 void UPoolSubsystem::AddEvolutionToPool(const FEvolutionInventoryEntry &Entry)
 {
     OwnedEvolutions.Add(Entry);
@@ -196,8 +233,8 @@ FString UPoolSubsystem::GetStoreString() const
     {
         Owners.Add(Owned.Value);
     }
-    FString Out = FString::Printf(TEXT("[Pool] Store (B-312): %d weapon(s), %d adapter(s), %d evolution(s), %d owner(s)"), OwnedWeapons.Num(),
-                                  OwnedRings.Num(), OwnedEvolutions.Num(), Owners.Num());
+    FString Out = FString::Printf(TEXT("[Pool] Store (B-312): %d weapon(s), %d adapter(s), %d evolution(s), %d apparel (B-380b), %d owner(s)"),
+                                  OwnedWeapons.Num(), OwnedRings.Num(), OwnedEvolutions.Num(), OwnedApparel.Num(), Owners.Num());
     for (const FName Owner : Owners)
     {
         const FPoolGearView View = GetOwnedGearOf(Owner);
@@ -353,8 +390,9 @@ void UPoolSubsystem::RemoveGear(const FGuid &GearID)
     const auto MatchesWeapon = [&GearID](const FWeaponInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesRing = [&GearID](const FRingInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };
+    const auto MatchesApparel = [&GearID](const FApparelEntry &E) { return E.PersistentID == GearID; }; // B-380b
     const int32 Removed = OwnedWeapons.RemoveAll(MatchesWeapon) + OwnedRings.RemoveAll(MatchesRing) +
-                          OwnedEvolutions.RemoveAll(MatchesEvolution);
+                          OwnedEvolutions.RemoveAll(MatchesEvolution) + OwnedApparel.RemoveAll(MatchesApparel);
     MarkGearIndexDirty();
     Wearers.Remove(GearID);
     GearOwners.Remove(GearID);
@@ -1085,7 +1123,7 @@ namespace
     }
 
     static FAutoConsoleCommandWithWorld GPopulatePoolCmd(
-        TEXT("wor.PopulatePool"),
+        TEXT("wor.Pool.Populate"),
         TEXT("Populate the account pool from the played character's authored inventory, then print it (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1093,7 +1131,7 @@ namespace
                 UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
                 if (!Pool)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.PopulatePool: no pool subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.Pool.Populate: no pool subsystem (no PIE world?)."));
                     return;
                 }
 
@@ -1108,7 +1146,7 @@ namespace
                 if (!Inventory)
                 {
                     UE_LOG(LogTemp, Warning,
-                           TEXT("[Pool] wor.PopulatePool: could not resolve a played character's Inventory asset (pawn / CharacterData / Inventory missing)."));
+                           TEXT("[Pool] wor.Pool.Populate: could not resolve a played character's Inventory asset (pawn / CharacterData / Inventory missing)."));
                     return;
                 }
 
@@ -1141,7 +1179,7 @@ namespace
             }));
 
     static FAutoConsoleCommandWithWorld GPrintPoolCmd(
-        TEXT("wor.PrintPool"),
+        TEXT("wor.Pool.Print"),
         TEXT("Dump the account pool (per-category counts, crystal stacks, wallet) to log + screen (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1149,7 +1187,7 @@ namespace
                 UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
                 if (!Pool)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.PrintPool: no pool subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.Pool.Print: no pool subsystem (no PIE world?)."));
                     return;
                 }
                 Pool->PrintPoolState();
@@ -1157,9 +1195,9 @@ namespace
 
     // Step 2 — the first NON-INERT flip: DRAW the run inventory from the pool. Uncalled-first
     // (not wired into InitializeFromCharacterData), so this debug command is the ONLY way to
-    // trigger a pool draw. PIE stays byte-identical until you type wor.DrawFromPool manually.
+    // trigger a pool draw. PIE stays byte-identical until you type wor.Pool.Draw manually.
     static FAutoConsoleCommandWithWorld GDrawFromPoolCmd(
-        TEXT("wor.DrawFromPool"),
+        TEXT("wor.Pool.Draw"),
         TEXT("Draw the played character's RUN inventory FROM the account pool (whole-entry, preserves instance identity), then print the pool (PIE debug). Owned inventory only — SavedLoadouts stay authored."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1167,7 +1205,7 @@ namespace
                 UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
                 if (!Pool)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.DrawFromPool: no pool subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.Pool.Draw: no pool subsystem (no PIE world?)."));
                     return;
                 }
 
@@ -1177,7 +1215,7 @@ namespace
                 if (!Inv)
                 {
                     UE_LOG(LogTemp, Warning,
-                           TEXT("[Pool] wor.DrawFromPool: could not resolve a played character's InventoryComponent (pawn / component missing)."));
+                           TEXT("[Pool] wor.Pool.Draw: could not resolve a played character's InventoryComponent (pawn / component missing)."));
                     return;
                 }
 
@@ -1186,10 +1224,10 @@ namespace
             }));
 
     // The DIFF tool: dump the played character's RUN inventory per-INSTANCE (tiers / quality /
-    // attached crystals). Run after wor.PopulatePool + wor.DrawFromPool and compare against
-    // wor.PrintPool — matching tiers/crystals prove the whole-entry draw was lossless.
+    // attached crystals). Run after wor.Pool.Populate + wor.Pool.Draw and compare against
+    // wor.Pool.Print — matching tiers/crystals prove the whole-entry draw was lossless.
     static FAutoConsoleCommandWithWorld GPrintInventoryCmd(
-        TEXT("wor.PrintInventory"),
+        TEXT("wor.Inventory.Print"),
         TEXT("Dump the played character's run inventory per-instance (PersistentID/InstanceID, tier, quality, attached crystal) to log + screen (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1200,7 +1238,7 @@ namespace
                 if (!Inv)
                 {
                     UE_LOG(LogTemp, Warning,
-                           TEXT("[Pool] wor.PrintInventory: could not resolve a played character's InventoryComponent (pawn / component missing)."));
+                           TEXT("[Pool] wor.Inventory.Print: could not resolve a played character's InventoryComponent (pawn / component missing)."));
                     return;
                 }
 

@@ -13,16 +13,18 @@ class AActor;
 
 /**
  * Spell schools for the Schools sub-menu
- * Three shown since D-146 (Conjuration, Enhancement, Restoration); the enum is append-only
+ * Six since D-163 (B-374), mirroring ESpellSchool; only schools the character has spells in get a button
+ * (UCombatCommandMenuSubsystem::BuildSchoolButtons). Append only.
  */
 UENUM(BlueprintType)
 enum class EPieMenuSpellSchool : uint8
 {
-	/** OBSOLETE (B-356c): no spell groups here since D-146 as corrected (Destruction reads as Conjuration). */
 	Destruction UMETA(DisplayName = "Destruction"),
 	Conjuration UMETA(DisplayName = "Conjuration"),
 	Enhancement UMETA(DisplayName = "Enhancement"),
-	Restoration UMETA(DisplayName = "Restoration")
+	Restoration UMETA(DisplayName = "Restoration"),
+	Manipulation UMETA(DisplayName = "Manipulation"),
+	Impairment UMETA(DisplayName = "Impairment")
 };
 
 /**
@@ -175,10 +177,13 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 
 		switch (InSchool)
 		{
-		case EPieMenuSpellSchool::Destruction: // OBSOLETE (B-356c): retired, builds the Conjuration button
+		case EPieMenuSpellSchool::Destruction:
+			Button.ButtonID = TEXT("School_Destruction");
+			Button.ButtonTint = FLinearColor(1.0f, 0.3f, 0.1f, 1.0f); // Orange-red: the damage school (D-163)
+			break;
 		case EPieMenuSpellSchool::Conjuration:
 			Button.ButtonID = TEXT("School_Conjuration");
-			Button.ButtonTint = FLinearColor(1.0f, 0.3f, 0.1f, 1.0f); // Orange-red: the damage school (B-356c)
+			Button.ButtonTint = FLinearColor(0.3f, 0.6f, 1.0f, 1.0f); // Blue: creation (D-163). TODO: tune with the UI pass
 			break;
 		case EPieMenuSpellSchool::Enhancement:
 			Button.ButtonID = TEXT("School_Enhancement");
@@ -187,6 +192,14 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 		case EPieMenuSpellSchool::Restoration:
 			Button.ButtonID = TEXT("School_Restoration");
 			Button.ButtonTint = FLinearColor(0.9f, 0.9f, 0.5f, 1.0f); // Yellow
+			break;
+		case EPieMenuSpellSchool::Manipulation:
+			Button.ButtonID = TEXT("School_Manipulation");
+			Button.ButtonTint = FLinearColor(0.7f, 0.3f, 0.9f, 1.0f); // Violet: control (B-374). TODO: tune with the UI pass
+			break;
+		case EPieMenuSpellSchool::Impairment:
+			Button.ButtonID = TEXT("School_Impairment");
+			Button.ButtonTint = FLinearColor(0.5f, 0.5f, 0.5f, 1.0f); // Grey: weakening (B-374). TODO: tune with the UI pass
 			break;
 		}
 
