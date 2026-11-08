@@ -83,6 +83,10 @@ namespace ApparelRules
 	 *  not already worn. */
 	WORLD_OF_REFRACTION_API bool AddApparel(FCombatLoadout &Loadout, const FApparelEntry &Entry);
 
+	/** B-380c: every worn copy of Owned (by its id) across Loadouts takes the store's state (a crystal attached in play).
+	 *  Returns how many copies changed. */
+	WORLD_OF_REFRACTION_API int32 RefreshFromStore(TArray<FCombatLoadout> &Loadouts, const FApparelEntry &Owned);
+
 	/** Debug: one line per apparel piece in Loadout (asset, element, HP, Defence). */
 	WORLD_OF_REFRACTION_API FString GetApparelString(const FCombatLoadout &Loadout);
 }
