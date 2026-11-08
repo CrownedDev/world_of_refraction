@@ -6,6 +6,7 @@
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Damage/DamageCalculator.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
@@ -90,6 +91,13 @@ FString UResistanceQueryDebug::GetResistanceTypesString(AActor *Actor)
 		Out += FString::Printf(TEXT("  %-10s %+6.1f%%\n"), *ResistDebugName(DamageType),
 							   WoRResistance::GetTypeResistance(Actor, DamageType) * RESIST_DEBUG_PERCENT);
 	}
+	// B-389 (D-168): the damage lines by scope: All (Defence, its own step and 75% cap), Physical and Spell (summed with
+	// the element above under the ±50% cap).
+	const UDamageCalculator *Calculator = ResistDebugSubsystem<UDamageCalculator>(Actor);
+	Out += FString::Printf(TEXT("  Damage lines: All (Defence) %.1f%%   Physical %+.1f%%   Spell %+.1f%%\n"),
+						   Calculator ? Calculator->GetDefenderFlatDefense(Actor) * RESIST_DEBUG_PERCENT : 0.0f,
+						   WoRResistance::GetScopeLineResistance(Actor, /*bHitIsSpell=*/false) * RESIST_DEBUG_PERCENT,
+						   WoRResistance::GetScopeLineResistance(Actor, /*bHitIsSpell=*/true) * RESIST_DEBUG_PERCENT);
 	Out += FString::Printf(TEXT("  StatusResistance  %.1f%%   StatusResistBonus %+.1f%%"),
 						   WoRResistance::GetGeneralStatusResistance(Actor) * RESIST_DEBUG_PERCENT,
 						   WoRResistance::GetStatusResistBonus(Actor) * RESIST_DEBUG_PERCENT);
