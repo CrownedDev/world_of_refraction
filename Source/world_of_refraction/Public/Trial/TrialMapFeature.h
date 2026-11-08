@@ -31,6 +31,10 @@ public:
 	/** The nearest feature whose trigger Pawn stands in, or null. */
 	static ATrialMapFeature *FindNearestInRange(APawn *Pawn);
 
+	/** A line on screen for a few seconds (what a feature gave or why it refused). Public (B-235b): a player's own
+	 *  message arrives through AWoRPlayerState::Client_ShowFeatureMessage. */
+	static void ShowMessage(const FText &Message);
+
 	/** The key the run records it under: the placed actor's path, PIE prefix removed (stable across
 	 *  the trial level's reloads). */
 	FName GetFeatureId() const;
@@ -51,8 +55,6 @@ protected:
 
 	UTrialRunSubsystem *GetTrialRun() const;
 
-	/** A line on screen for a few seconds (what a feature gave or why it refused). */
-	static void ShowMessage(const FText &Message);
 
 	UPROPERTY(VisibleAnywhere, Category = "Feature")
 	TObjectPtr<UStaticMeshComponent> FeatureMesh;

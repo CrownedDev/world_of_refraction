@@ -130,6 +130,10 @@ namespace WoRDefeat
 	/** B-235: a player's key for their own drop: their unique net id, else their player id. */
 	WORLD_OF_REFRACTION_API FString PlayerDropKey(const APlayerState *Player);
 
+	/** B-235b: the drops of the players here now: the local player's plus each other present player's. A player who
+	 *  left keeps their drop recorded for the run (it waits if they come back) but no longer keeps the pickup up. */
+	WORLD_OF_REFRACTION_API int32 GetPresentDroppedPrisms(const UWorld *World);
+
 	/** Debug: the run's wipe and main-boss-loss counts against their limits, the dropped Prisms and their spot, and
 	 *  the last rest spot. */
 	WORLD_OF_REFRACTION_API FString GetDefeatString(const UWorld *World);
