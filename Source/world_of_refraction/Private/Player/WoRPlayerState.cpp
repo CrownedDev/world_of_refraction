@@ -19,6 +19,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
+#include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -378,4 +379,20 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 {
 	const APlayerController *PC = Cast<APlayerController>(GetOwner());
 	return PC && PC->IsLocalController();
+}
+
+void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Message)
+{
+	ATrialMapFeature::ShowMessage(Message); // B-235b
+}
+
+void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Feature)
+{
+	APawn *Pawn = GetPawn();
+	if (!Feature || !Pawn || !Feature->IsWithinReach(Pawn))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[TrialMapFeature] %s's use of %s refused: out of reach"), *GetPlayerName(), *GetNameSafe(Feature));
+		return;
+	}
+	Feature->Interact(Pawn); // B-235c: the host runs it; per-player features key it to this player
 }

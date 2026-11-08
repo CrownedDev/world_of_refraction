@@ -70,6 +70,15 @@ public:
 	/** D-150 (B-360): ask the host for a seat in its run with Character (your own, picked before joining). On the
 	 *  server it goes straight to the run state; a client sends ServerRequestJoin. Console: `wor.Party.RequestJoin`. */
 	void RequestJoin(UCharacterData *Character);
+
+	/** B-235b: a map feature's message for this player alone (a Prism pickup), shown on their own screen. */
+	UFUNCTION(Client, Reliable)
+	void Client_ShowFeatureMessage(const FText &Message);
+
+	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
+	 *  player's pawn, if it stands in the feature's trigger. */
+	UFUNCTION(Server, Reliable)
+	void ServerInteractFeature(class ATrialMapFeature *Feature);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 private:
