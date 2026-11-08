@@ -23,6 +23,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Combat/Tuning/CombatTuningData.h"
 
 namespace BrokenDarknessConstants
@@ -104,13 +105,10 @@ void UBrokenDarknessManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Initialize state
-	bIsFlipped = false;
-	bIsOverloaded = false;
-	CurrentAlignmentElement = ESpellElement::Generic;
-	CurrentAbsorptionStacks = 0;
-	ConsecutiveAbsorptions = 0;
-	AccruedStrain = 0.0f; // per-combat reset (interim until persistence)
+	// B-348c review: no state reset here. The fields start at their defaults on a fresh pawn, and the character's
+	// UCharacterDataComponent, created first, runs its BeginPlay first: its init cascade has already flipped a
+	// Broken Darkness member (InitializeBornBrokenDarkness) and applied the carried absorption and run strain, which a
+	// reset here would undo.
 
 	if (AActor *Owner = GetOwner())
 	{
@@ -128,6 +126,16 @@ void UBrokenDarknessManager::BeginPlay()
 			CharComp->OnEPChanged.AddDynamic(this, &UBrokenDarknessManager::HandleOwnerEnergyChanged);
 		}
 	}
+}
+
+void UBrokenDarknessManager::ApplyCarriedStrain(float Strain)
+{
+	if (bIsFlipped)
+	{
+		return;
+	}
+	AccruedStrain = FMath::Max(0.0f, Strain);
+	UE_LOG(LogTemp, Verbose, TEXT("[BrokenDarkness] %s: carried strain %.1f"), *GetNameSafe(GetOwner()), AccruedStrain);
 }
 
 void UBrokenDarknessManager::InitializeBornBrokenDarkness()
@@ -167,7 +175,8 @@ FCarriedAbsorptionState UBrokenDarknessManager::SnapshotCarriedAbsorption() cons
 {
 	FCarriedAbsorptionState Carried;
 	const UCharacterDataComponent *CharComp = GetCharComp();
-	if (!bIsFlipped || !CharComp || !CharComp->CharacterData || !CharComp->CharacterData->bBrokenDarknessInnate)
+	// B-348c review: any Broken Darkness character carries its pool, born or broken in a fight (Q-348b).
+	if (!bIsFlipped || !CharComp || !CharComp->CharacterData)
 	{
 		return Carried;
 	}
@@ -419,6 +428,23 @@ bool UBrokenDarknessManager::IsInBDForm(const AActor *Actor)
 	return Manager && Manager->IsTransformed();
 }
 
+namespace
+{
+	/** B-348c review: a party member's record follows a transformation or a revert at once (not only at the fight's
+	 *  end), so a revert anywhere reaches the save. Only a pawn stamped with its member id writes. */
+	void WriteBrokenDarknessRecord(const UCharacterDataComponent *CharComp, bool bBrokenDarkness)
+	{
+		const UWorld *World = CharComp ? CharComp->GetWorld() : nullptr;
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		const int32 Slot = PartySession ? PartySession->GetMemberSlotOf(CharComp) : INDEX_NONE;
+		if (Slot != INDEX_NONE)
+		{
+			PartySession->SetMemberBrokenDarkness(Slot, bBrokenDarkness, 0.0f);
+		}
+	}
+}
+
 void UBrokenDarknessManager::TriggerTransformation()
 {
 	if (bIsFlipped)
@@ -448,6 +474,7 @@ void UBrokenDarknessManager::TriggerTransformation()
 		if (UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>())
 		{
 			CharComp->ServerSetBrokenDarkness(true);
+			WriteBrokenDarknessRecord(CharComp, true); // B-348c review: the record follows at once
 		}
 	}
 
@@ -484,6 +511,7 @@ void UBrokenDarknessManager::RevertTransformation()
 	if (UCharacterDataComponent *CharComp = GetCharComp())
 	{
 		CharComp->ServerSetBrokenDarkness(false);
+		WriteBrokenDarknessRecord(CharComp, false); // B-348c review
 	}
 
 	UE_LOG(LogWoRCombat, Log, TEXT("BrokenDarkness: %s has REVERTED to Darkness."),

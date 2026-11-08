@@ -1891,12 +1891,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 
 
 ### Q-348b — Does a mid-fight Broken Darkness transformation outlast the fight or the session?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-348b, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-08; changed from the reference-backed default) · **Raised:** 2026-11-07 (B-348b, cloud) · **Blocks:** —
 **Question:** B-348b asks whether a runtime Broken Darkness transformation (a Darkness caster's strain reaching 100% mid-fight, `UBrokenDarknessManager::TriggerTransformation`) should be saved. Today it lives on the fight's pawn (`UCharacterDataComponent::bIsBrokenDarkness`) and ends with it; a born Broken Darkness character comes from its asset and needs nothing saved.
 **Options:** **A** the transformation lasts the fight only: nothing saved; the next fight starts the caster as Darkness with strain reset. **B** it stays until reverted, carried on the party member and saved.
 **Recommendation:** A. A battle-only transformation is the well-liked pattern for a power state earned mid-fight: Final Fantasy VI's Trance and Final Fantasy IX's Trance end with the battle, as do Xenoblade's Talent Arts states; it keeps each fight's risk and reward inside the fight. The deckbuilder has no Broken Darkness transformation to compare.
 **Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it. The head-starts are saved (B-348b); the transformation is not.
 **Notes for Claude:** B-348b saves the head-starts only.
+**Answer (Crown, 2026-11-08):** **B, and beyond the run.** Broken Darkness is persistent in and out of the run: a mid-fight transformation stays on the character across fights, across runs and in the save, until reverted (`UBrokenDarknessManager::RevertTransformation`, the un-transform path, gap 4.5). Built in B-348c (gap 4.4). The design line "strain accumulates across the whole run until it gives" is built with it: the run's strain carries fight to fight and clears at the run's end.
+**As built (B-348c review, flag for Crown):** a transformation or revert writes the member's record at once. A **born** Broken Darkness character (`bBrokenDarknessInnate`) still starts every fight in Broken Darkness: its nature, so a revert lasts until the next spawn. If a born one should stay reverted too, the record needs a "reverted" mark; say so and it gets one.
+
 ### D-139 — One console naming rule (audit §24)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
 **Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
