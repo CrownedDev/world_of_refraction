@@ -474,11 +474,13 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 				   Index, Skill->VFXArray.Num());
 			return;
 		}
-		if (Skill->VFXArray[Index].Role == EVFXRole::Impact)
+		const EVFXRole Role = Skill->VFXArray[Index].Role;
+		if (Role == EVFXRole::Impact || Role == EVFXRole::CritImpact)
 		{
-			// B-369 (Q-369b): the Impact entry plays from the hit's outcome now; this notify shows it a second time.
-			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX notify %d on %s plays the Impact-role entry: remove the notify (B-369)"),
-				   Index, *GetNameSafe(Skill));
+			// B-369 (Q-369b): the Impact and CritImpact entries play from the hit's outcome now; this notify shows one a
+			// second time (a CritImpact one on every swing, crit or not).
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX notify %d on %s plays the %s entry: remove the notify (B-369)"),
+				   Index, *GetNameSafe(Skill), Role == EVFXRole::CritImpact ? TEXT("CritImpact") : TEXT("Impact"));
 		}
 		SpawnVFXArrayEntry(Skill->VFXArray[Index], Index);
 		return;
