@@ -25,6 +25,7 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
+	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here
 	UE_LOG(LogWoR, Log, TEXT("[RestSpot] Rested at %s: every member full, %d revived"), *RestSpotId.ToString(), Revived);
 	return Revived;
 }

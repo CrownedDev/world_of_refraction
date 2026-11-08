@@ -100,6 +100,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
+    bAtRestSpot = false; // B-363
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -203,6 +204,7 @@ void UTrialRunSubsystem::ExitTrial()
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
+    bAtRestSpot = false; // B-363
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -249,6 +251,7 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
                                         const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty,
                                         EEncounterRank Rank)
 {
+    bAtRestSpot = false; // B-363: a fight leaves the rest spot
     if (!Trial || Trial->EncounterLevel.IsNull())
     {
         UE_LOG(LogTemp, Warning, TEXT("[TrialRun] EnterEncounter: %s — ignored."),
