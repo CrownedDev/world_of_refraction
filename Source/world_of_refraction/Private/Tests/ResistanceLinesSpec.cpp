@@ -1,0 +1,127 @@
+// ResistanceLinesSpec.cpp
+// B-389 (D-168, Crown 2026-11-08): defence is resistance by damage type. Defence stays the All line (its own step); a
+// Physical line cuts only hits that are not spells, a Spell line only spells; the matching scope line and the element
+// line are one resistance under the ±50% cap; old data (no scope lines) gives the same numbers as before.
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Misc/AutomationTest.h"
+#include "WoRTestWorld.h"
+#include "Character/CharacterData.h"
+#include "Combat/Damage/DamageCalculator.h"
+#include "Combat/Damage/DamageMath.h"
+#include "Combat/Resistance/ResistanceQuery.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "Inventory/InventoryComponent.h"
+#include "Loadout/Entries/FApparelEntry.h"
+#include "Loadout/LoadoutComponent.h"
+
+namespace
+{
+	constexpr int32 RESIST_LINES_TEST_BASE = 100;
+	/** A gear line, percent (the struct's unit), and the same as a fraction. */
+	constexpr float RESIST_LINES_TEST_PERCENT = 10.0f;
+	constexpr float RESIST_LINES_TEST_FRACTION = 0.1f;
+	constexpr float RESIST_LINES_TEST_ELEMENT = 0.45f;
+	constexpr float RESIST_LINES_TEST_LINE = 0.2f;
+
+	FDamageMathInputs PlainInputs()
+	{
+		FDamageMathInputs Inputs;
+		Inputs.BaseDamage = RESIST_LINES_TEST_BASE;
+		Inputs.AttackerStatMultiplier = 1.0f;
+		Inputs.bCanCrit = false;
+		return Inputs;
+	}
+}
+
+BEGIN_DEFINE_SPEC(FResistanceLinesSpec, "WoR.Resistance.Lines", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	TUniquePtr<FWoRTestWorld> TestWorld;
+
+	static FCombatLoadout &ActiveOf(ULoadoutComponent *Loadout)
+	{
+		UInventoryComponent *Inventory = Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>();
+		return Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+	}
+
+	/** One hit's final damage on Defender: a spell (Fire) or an ability (no element), no crit. */
+	int32 Hit(AActor *Defender, bool bSpell)
+	{
+		UDamageCalculator *Calculator = TestWorld->GetSubsystem<UDamageCalculator>();
+		AActor *Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!Calculator || !Attacker)
+		{
+			AddError(TEXT("no calculator or attacker"));
+			return INDEX_NONE;
+		}
+		FDamageCalculationInput Input;
+		Input.BaseDamage = RESIST_LINES_TEST_BASE;
+		Input.ActionType = bSpell ? EActionType::Spell : EActionType::Ability;
+		Input.Element = bSpell ? ESpellElement::Fire : ESpellElement::None;
+		Input.OverrideCritChance = 0.0f;
+		return Calculator->CalculateDamage(Attacker, Defender, Input).FinalDamage;
+	}
+END_DEFINE_SPEC(FResistanceLinesSpec)
+
+void FResistanceLinesSpec::Define()
+{
+	Describe("the damage step", [this]()
+	{
+		It("adds the scope line to the element line under the one ±50% cap; none gives today's number", [this]()
+		{
+			const FDamageCalculationResult Plain = WoRDamageMath::Compute(PlainInputs());
+			FDamageMathInputs Line = PlainInputs();
+			Line.ResistanceScopeLine = RESIST_LINES_TEST_LINE;
+			TestEqual(TEXT("a scope line cuts"), WoRDamageMath::Compute(Line).ElementMultiplier, 1.0f - RESIST_LINES_TEST_LINE, KINDA_SMALL_NUMBER);
+			FDamageMathInputs Both = Line;
+			Both.ElementResistance = RESIST_LINES_TEST_ELEMENT;
+			TestEqual(TEXT("summed with the element, capped at 50%"), WoRDamageMath::Compute(Both).ElementMultiplier,
+					  1.0f - WoRDamageMath::ELEMENT_DAMAGE_RESIST_CAP, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("no scope line: unchanged"), Plain.FinalDamage, WoRDamageMath::Compute(PlainInputs()).FinalDamage);
+			TestTrue(TEXT("the breakdown names the lines"), WoRDamageMath::GetInputsString(Both).Contains(TEXT("Resistance All (Defence)")));
+		});
+	});
+
+	Describe("through gear", [this]()
+	{
+		BeforeEach([this]()
+		{
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			TestTrue(TEXT("Test world created"), TestWorld->Create());
+		});
+
+		AfterEach([this]() { TestWorld.Reset(); });
+
+		It("a Physical line cuts an ability hit and leaves a spell alone; a Spell line the other way round", [this]()
+		{
+			ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+			if (!TestNotNull(TEXT("Loadout"), Loadout))
+			{
+				return;
+			}
+			AActor *Defender = Loadout->GetOwner();
+			TestEqual(TEXT("old data: no Physical line"), WoRResistance::GetScopeLineResistance(Defender, false), 0.0f, KINDA_SMALL_NUMBER);
+			const int32 AbilityBefore = Hit(Defender, /*bSpell=*/false);
+			const int32 SpellBefore = Hit(Defender, /*bSpell=*/true);
+
+			UApparelData *Coat = NewObject<UApparelData>(GetTransientPackage());
+			Coat->Tier = EItemTier::F_Tier;
+			Coat->BaseResistance.PhysicalDamage = RESIST_LINES_TEST_PERCENT;
+			TestTrue(TEXT("worn"), ApparelRules::AddApparel(ActiveOf(Loadout), FApparelEntry::CreateFromApparel(Coat)));
+			TestEqual(TEXT("the Physical line, as a fraction"), WoRResistance::GetScopeLineResistance(Defender, false),
+					  RESIST_LINES_TEST_FRACTION, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("no Spell line"), WoRResistance::GetScopeLineResistance(Defender, true), 0.0f, KINDA_SMALL_NUMBER);
+			TestTrue(TEXT("an ability hit is cut"), Hit(Defender, false) < AbilityBefore);
+			TestEqual(TEXT("a spell is not"), Hit(Defender, true), SpellBefore);
+
+			ActiveOf(Loadout).Apparel.Reset();
+			Coat->BaseResistance.PhysicalDamage = 0.0f;
+			Coat->BaseResistance.SpellDamage = RESIST_LINES_TEST_PERCENT;
+			ApparelRules::AddApparel(ActiveOf(Loadout), FApparelEntry::CreateFromApparel(Coat));
+			TestTrue(TEXT("a Spell line cuts a spell"), Hit(Defender, true) < SpellBefore);
+			TestEqual(TEXT("and not an ability hit"), Hit(Defender, false), AbilityBefore);
+		});
+	});
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS
