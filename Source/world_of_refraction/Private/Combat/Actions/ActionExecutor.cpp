@@ -3668,6 +3668,11 @@ void UActionExecutor::SpawnProjectileActor(
 
 		// 4. Launch (activates VFX and starts movement)
 		Projectile->Launch();
+		// B-231b: the clients fly a cosmetic copy (the executor runs on the server only).
+		if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Caster))
+		{
+			Presentation->SendProjectile(*Projectile);
+		}
 
 		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
 			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Skill->DeliveryType),
