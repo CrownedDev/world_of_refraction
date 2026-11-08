@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Memory/CurseSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Algo/Count.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -4275,6 +4276,18 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
     return CachedInventory.Get();
 }
 
+namespace
+{
+	/** B-378b: the curse subsystem when this loadout's character is one its player's curses weaken; else null. */
+	const UCurseSubsystem *CursesFor(const ULoadoutComponent &Loadout)
+	{
+		const UGameInstance *GI = Loadout.GetOwner() ? Loadout.GetOwner()->GetGameInstance() : nullptr;
+		const UCurseSubsystem *Curses = GI ? GI->GetSubsystem<UCurseSubsystem>() : nullptr;
+		const UCharacterDataComponent *Data = Loadout.GetOwner() ? Loadout.GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		return Curses && Data && Curses->IsCursedHere(Data->CharacterData) ? Curses : nullptr;
+	}
+}
+
 // ==================== EQUIPMENT STAT QUERIES ====================
 
 FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
@@ -4360,6 +4373,12 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
     }
 
+    // B-378b (MemoryCatalogue §3.8): the player's held curses weaken their own party characters (not tier-scaled).
+    if (const UCurseSubsystem *Curses = CursesFor(*this))
+    {
+        AddScaled(Curses->GetStatPenalty(), EItemTier::F_Tier);
+    }
+
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
     // field — store directly). Pools + pillar percents were accumulated raw inside AddScaled.
     Combined.BonusRawDamage        = FMath::RoundToInt(AccRawDamage);
@@ -4412,6 +4431,11 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
         FResistanceBonus EvoResist = Loadout.PrimaryEvolution.Item->BaseResistance;
         EvoResist.Accumulate(Loadout.PrimaryEvolution.GeneratedResistance);
         Combined.Accumulate(EvoResist);
+    }
+
+    if (const UCurseSubsystem *Curses = CursesFor(*this)) // B-378b
+    {
+        Combined.Accumulate(Curses->GetResistancePenalty());
     }
 
     return Combined;

@@ -6,6 +6,10 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Memory/MemoryData.h"
+#include "Memory/CurseData.h"
+#include "Memory/MemoryUnlock.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "WoRLog.h"
 
 void UCurseSubsystem::Initialize(FSubsystemCollectionBase &Collection)
@@ -112,6 +116,71 @@ FString UCurseSubsystem::GetCursesString() const
 	return FString::Printf(TEXT("curses held: %s"), *FString::Join(Names, TEXT(", ")));
 }
 
+void UCurseSubsystem::SetCurseAssets(const TArray<UCurseData *> &Curses)
+{
+	CurseAssets.Reset();
+	for (UCurseData *Curse : Curses)
+	{
+		CurseAssets.Add(Curse);
+	}
+	bGatheredCurses = true;
+}
+
+TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
+{
+	if (!bGatheredCurses)
+	{
+		UCurseSubsystem *Self = const_cast<UCurseSubsystem *>(this); // gathered once, on first read
+		Self->SetCurseAssets(UCurseData::GatherAll());
+	}
+	TArray<const UCurseData *> Held;
+	for (const UCurseData *Curse : CurseAssets)
+	{
+		if (Curse && HeldCurses.Contains(Curse->CurseId))
+		{
+			Held.Add(Curse);
+		}
+	}
+	return Held;
+}
+
+FEquipmentStatBonus UCurseSubsystem::GetStatPenalty() const
+{
+	FEquipmentStatBonus Penalty;
+	if (!HeldCurses.IsEmpty())
+	{
+		for (const UCurseData *Curse : GetHeldCurseAssets())
+		{
+			Penalty.Accumulate(Curse->StatPenalty);
+		}
+	}
+	return Penalty;
+}
+
+FResistanceBonus UCurseSubsystem::GetResistancePenalty() const
+{
+	FResistanceBonus Penalty;
+	if (!HeldCurses.IsEmpty())
+	{
+		for (const UCurseData *Curse : GetHeldCurseAssets())
+		{
+			Penalty.Accumulate(Curse->ResistancePenalty);
+		}
+	}
+	return Penalty;
+}
+
+bool UCurseSubsystem::IsCursedHere(const UCharacterData *Character) const
+{
+	if (!Character || HeldCurses.IsEmpty() || MemoryUnlock::FindRemotePlayerOf(GetGameInstance(), Character))
+	{
+		return false;
+	}
+	const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	return Party && Party->Members.ContainsByPredicate([Character](const FPartyMember &Member) { return Member.CharacterData == Character; });
+}
+
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GCursePrintCommand(
 	TEXT("wor.Curse.Print"),
@@ -121,5 +190,10 @@ static FAutoConsoleCommandWithWorld GCursePrintCommand(
 		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
 		const UCurseSubsystem *Curses = GameInstance ? GameInstance->GetSubsystem<UCurseSubsystem>() : nullptr;
 		UE_LOG(LogWoR, Display, TEXT("[Curse] %s"), Curses ? *Curses->GetCursesString() : TEXT("no curse subsystem"));
+		if (Curses)
+		{
+			const FEquipmentStatBonus P = Curses->GetStatPenalty();
+			UE_LOG(LogWoR, Display, TEXT("[Curse] penalty on your characters: HP %+d, Defence %+d"), P.BonusMaxHP, P.BonusDefense);
+		}
 	}));
 #endif
