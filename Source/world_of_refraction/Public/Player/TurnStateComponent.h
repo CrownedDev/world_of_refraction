@@ -3,6 +3,7 @@
 // command menu read the same thing. The server copies it from UTurnManager (a per-instance subsystem that
 // clients don't share) on every turn start, speed change and combat end (a new round is followed by a turn start); clients get it by replication and broadcast
 // OnTurnStateChanged. With no GameState (headless specs), readers fall back to UTurnManager (FindTurnState).
+// B-228b: a client builds its combat HUD the first time the replicated state shows combat on (UpdateClientCombatHUD).
 // Debug: GetDebugString, `wor.Turn.PrintState`.
 
 #pragma once
@@ -40,6 +41,32 @@ struct WORLD_OF_REFRACTION_API FTurnStateTeam
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnTurnStateChanged);
+
+/** B-228b: what a machine does with its combat HUD when the replicated turn state changes. */
+enum class EClientHUDStep : uint8
+{
+	None,
+	Build,
+	Teardown,
+};
+
+namespace ClientCombatHUD
+{
+	/** Only a client acts (the server builds its own HUD in OnCombatStartedUI): build once when combat turns on,
+	 *  tear down once when it turns off. */
+	inline EClientHUDStep Next(bool bIsClient, bool bCombatActive, bool bBuilt)
+	{
+		if (!bIsClient)
+		{
+			return EClientHUDStep::None;
+		}
+		if (bCombatActive && !bBuilt)
+		{
+			return EClientHUDStep::Build;
+		}
+		return !bCombatActive && bBuilt ? EClientHUDStep::Teardown : EClientHUDStep::None;
+	}
+}
 
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UTurnStateComponent : public UActorComponent
@@ -98,6 +125,12 @@ private:
 
 	UFUNCTION()
 	void OnRep_TurnState();
+
+	/** B-228b: a client builds (or tears down) its combat HUD from the replicated state (ClientCombatHUD::Next). */
+	void UpdateClientCombatHUD();
+
+	/** B-228b: this client built its combat HUD for the fight now running. */
+	bool bClientHUDBuilt = false;
 
 	UTurnManager *GetTurnManager() const;
 

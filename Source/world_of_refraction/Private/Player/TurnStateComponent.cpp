@@ -2,6 +2,8 @@
 // B-228. See TurnStateComponent.h.
 
 #include "Player/TurnStateComponent.h"
+#include "Combat/CombatOrchestrator.h"
+#include "EngineUtils.h"
 #include "Player/WoRGameState.h"
 #include "Combat/TurnManager.h"
 #include "Engine/GameInstance.h"
@@ -176,7 +178,40 @@ void UTurnStateComponent::HandleCombatEnded(int32 FinalTurnCount)
 
 void UTurnStateComponent::OnRep_TurnState()
 {
+	UpdateClientCombatHUD();
 	OnTurnStateChanged.Broadcast();
+}
+
+void UTurnStateComponent::UpdateClientCombatHUD()
+{
+	const UWorld *World = GetWorld();
+	const bool bIsClient = World && World->GetNetMode() == NM_Client;
+	const EClientHUDStep Step = ClientCombatHUD::Next(bIsClient, bCombatActive, bClientHUDBuilt);
+	if (Step == EClientHUDStep::None)
+	{
+		return;
+	}
+	// The level's orchestrator exists on every machine; only the server runs the fight on it.
+	ACombatOrchestrator *Orchestrator = nullptr;
+	for (TActorIterator<ACombatOrchestrator> It(World); It && !Orchestrator; ++It)
+	{
+		Orchestrator = *It;
+	}
+	if (!Orchestrator)
+	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnState] Client: no combat orchestrator in the level - no combat HUD"));
+		return;
+	}
+	if (Step == EClientHUDStep::Build)
+	{
+		// The client's side is team 0, as on the server (co-op players share the party side).
+		bClientHUDBuilt = Orchestrator->BuildClientCombatHUD(GetTeamMembers(0), GetTeamMembers(1));
+	}
+	else
+	{
+		Orchestrator->TeardownCombatHUD();
+		bClientHUDBuilt = false;
+	}
 }
 
 FString UTurnStateComponent::GetDebugString() const

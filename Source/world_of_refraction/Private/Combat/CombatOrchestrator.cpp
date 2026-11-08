@@ -181,6 +181,14 @@ void ACombatOrchestrator::OnCombatStartedUI_Implementation(const TArray<AActor *
 	CombatHUD->Build(PC, LocalParty, OpposingParty);
 }
 
+bool ACombatOrchestrator::BuildClientCombatHUD(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
+{
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Client: building the combat HUD from the replicated turn state (%d / %d)"),
+		   LocalParty.Num(), OpposingParty.Num());
+	OnCombatStartedUI(LocalParty, OpposingParty);
+	return true;
+}
+
 void ACombatOrchestrator::TeardownCombatHUD()
 {
 	if (CombatHUD)
