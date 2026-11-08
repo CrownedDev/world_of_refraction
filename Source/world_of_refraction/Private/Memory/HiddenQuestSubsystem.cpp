@@ -170,7 +170,9 @@ TArray<UHiddenQuestData *> UHiddenQuestSubsystem::GetAllQuests()
 		{
 			AllQuests.Add(Quest);
 		}
-		bGatheredQuests = true; // once per game instance: the registry load is not repeated per event
+		// Once per game instance: the registry load is not repeated per event. B-377 review: but not while the
+		// registry is still scanning (an early memory would otherwise leave the list empty for the whole session).
+		bGatheredQuests = UHiddenQuestData::IsCatalogueReady();
 	}
 	TArray<UHiddenQuestData *> Quests;
 	for (UHiddenQuestData *Quest : AllQuests)

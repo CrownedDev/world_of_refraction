@@ -72,6 +72,9 @@ public:
 	/** Every hidden quest asset (the asset registry, sorted by path so checks run in a fixed order). */
 	static TArray<UHiddenQuestData *> GatherAll();
 
+	/** B-377 review: false while the asset registry is still scanning (GatherAll may miss quests then). */
+	static bool IsCatalogueReady();
+
 	/** Debug: id, starts, each step's conditions and times, the end memory. */
 	FString GetQuestString() const;
 
