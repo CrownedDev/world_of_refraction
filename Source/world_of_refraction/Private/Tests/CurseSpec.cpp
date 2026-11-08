@@ -17,6 +17,7 @@
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "UI/Hub/CurseClearWidget.h"
 
 namespace
 {
@@ -191,6 +192,21 @@ void FCurseSpec::Define()
 		TestFalse(TEXT("a character outside the party is not weakened (an enemy)"), Curses->IsCursedHere(FWoRTestWorld::NewCharacterData()));
 		Curses->RemoveCurse(CURSE_TEST_ID);
 		TestEqual(TEXT("lifted: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
+	});
+
+	It("Q-378: clearing a curse stops its penalty, regaining it brings it back; the hub service refuses during a run", [this]()
+	{
+		UCurseData *Curse = NewObject<UCurseData>(GetTransientPackage());
+		Curse->CurseId = CURSE_TEST_ID;
+		Curse->StatPenalty.BonusMaxHP = -4;
+		Curses->SetCurseAssets({Curse});
+		Curses->AddCurse(CURSE_TEST_ID);
+		TestTrue(TEXT("the player clears it"), Curses->ClearCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("cleared: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
+		TestFalse(TEXT("cleared twice: no"), Curses->ClearCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("regained: the penalty is back"), Curses->RegainFrom({CurseReward()}), 1);
+		TestEqual(TEXT("regained: HP"), Curses->GetStatPenalty().BonusMaxHP, -4);
+		TestTrue(TEXT("the hub (no run): the service clears"), UCurseClearWidget::CanClearHere(TestWorld->GetWorld()));
 	});
 }
 
