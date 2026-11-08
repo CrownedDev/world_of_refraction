@@ -43,7 +43,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-348b](B-348b.md) | `feature/B-348b-save-head-starts-cloud` (in `dev`) | A member's head-start pillars survive save / load (save v21) | Pending |
 | [B-351b](B-351b.md) | `feature/B-351b-stone-socket-carry-cloud` (in `dev`) | Removing crystals takes the stone off too; no second stone over an authored one; the stone socket carries through a run and its save (v22) | Pending |
 | [B-351c](B-351c.md) | `feature/B-351c-one-list-readers-cloud` (UNBUILT, on B-351b) | `wor.Loadout.Print` shows both sockets and the one skill list; a stone slot's pick reaches the fight | |
-| [B-357](B-357.md) | `feature/B-357-evolution-one-cost-cloud` (UNBUILT) | An evolution costs 2 wherever it goes: an evolved adapter now costs 3 | Pending |
+| [B-357](B-357.md) | `feature/B-357-evolution-one-cost-cloud` (in `dev`) | An evolution costs 2 wherever it goes: an evolved adapter now costs 3 | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
