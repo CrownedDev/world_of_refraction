@@ -282,13 +282,21 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event)
 int32 UHiddenQuestSubsystem::StartGearQuests(const FMemoryEvent &Event)
 {
 	const UMemoryJournalSubsystem *Journal = GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>();
-	const FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
+	FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
 	int32 Started = 0;
-	auto TryStart = [&](const TArray<FBoundQuest> &BoundQuests)
+	// B-381 activations: each item's quests are checked with that item as BoundItem (a WornItemState condition reads it).
+	auto MetFor = [&Context](const FBoundQuest &Bound, const FWornItemState *Item)
+	{
+		Context.BoundItem = Item;
+		const bool bMet = WoRConditions::IsMet(Bound.Conditions, Context);
+		Context.BoundItem = nullptr;
+		return bMet;
+	};
+	auto TryStart = [&](const TArray<FBoundQuest> &BoundQuests, const FWornItemState *Item)
 	{
 		for (const FBoundQuest &Bound : BoundQuests)
 		{
-			if (Bound.Quest && !IsStarted(Bound.Quest->GetQuestId()) && WoRConditions::IsMet(Bound.Conditions, Context) && StartQuest(Bound.Quest))
+			if (Bound.Quest && !IsStarted(Bound.Quest->GetQuestId()) && MetFor(Bound, Item) && StartQuest(Bound.Quest))
 			{
 				++Started;
 			}
@@ -296,44 +304,50 @@ int32 UHiddenQuestSubsystem::StartGearQuests(const FMemoryEvent &Event)
 	};
 	for (const FMemoryEventMember &Member : Event.Party)
 	{
+		// Every worn item with its state; an event built without states (tests, older callers) reads Worn's tiers only.
+		TArray<FWornItemState> Items = Member.WornStates;
+		for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : Member.Worn)
+		{
+			if (Worn.Key && !Items.ContainsByPredicate([&Worn](const FWornItemState &Item) { return Item.Item == Worn.Key; }))
+			{
+				FWornItemState &Item = Items.AddDefaulted_GetRef();
+				Item.Item = Worn.Key;
+				Item.Tier = Worn.Value;
+				Item.UpgradeSteps = MemoryUnlock::GetUpgradeSteps(*Worn.Key, Worn.Value);
+			}
+		}
 		if (AWoRPlayerState *Friend = MemoryUnlock::FindRemotePlayerOf(GetGameInstance(), Member.Character))
 		{
 			// B-377b (Q-235d): a friend's worn gear starts the quest on their machine.
-			auto TellFriend = [&](const TArray<FBoundQuest> &BoundQuests)
+			auto TellFriend = [&](const TArray<FBoundQuest> &BoundQuests, const FWornItemState *Item)
 			{
 				for (const FBoundQuest &Bound : BoundQuests)
 				{
 					if (Bound.Quest && !Friend->GetReportedQuests().Contains(Bound.Quest->GetQuestId()) &&
-						!Friend->WasQuestOffered(Bound.Quest->GetQuestId()) && WoRConditions::IsMet(Bound.Conditions, Context))
+						!Friend->WasQuestOffered(Bound.Quest->GetQuestId()) && MetFor(Bound, Item))
 					{
 						Friend->MarkQuestOffered(Bound.Quest->GetQuestId());
 						Friend->Client_StartQuest(Bound.Quest);
 					}
 				}
 			};
-			for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : Member.Worn)
+			for (const FWornItemState &Item : Items)
 			{
-				if (Worn.Key)
-				{
-					TellFriend(Worn.Key->BoundQuests);
-				}
+				TellFriend(Item.Item->BoundQuests, &Item);
 			}
 			if (Member.Evolution)
 			{
-				TellFriend(Member.Evolution->BoundQuests);
+				TellFriend(Member.Evolution->BoundQuests, nullptr);
 			}
 			continue;
 		}
-		for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : Member.Worn)
+		for (const FWornItemState &Item : Items)
 		{
-			if (Worn.Key)
-			{
-				TryStart(Worn.Key->BoundQuests);
-			}
+			TryStart(Item.Item->BoundQuests, &Item);
 		}
 		if (Member.Evolution)
 		{
-			TryStart(Member.Evolution->BoundQuests);
+			TryStart(Member.Evolution->BoundQuests, nullptr); // its own state is EvolutionEquipped's (not a bound item)
 		}
 	}
 	return Started;
