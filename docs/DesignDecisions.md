@@ -4077,3 +4077,12 @@ Moved here once applied. Newest first.
 **Reference check:** *deckbuilder*: schools are labels and cost filters only (`02-enums.md` ESpellSchool). *Games*: Divinity: Original Sin 2's shared Memory pool and Baldur's Gate 3's shared spell slots keep schools as categories, not limits.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
+
+### Q-073 — Run rewards: which materials, how "how far you got" counts, and first numbers
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-073, cloud) · **Blocks:** —
+**Question:** D-006 / D-094 pay hub currency and upgrade materials at run end, scaled by progress and difficulty; D-094 lists Gear, Skill and "Unknown" essence, but D-125 retired the typed essences. Which materials does a run pay, what counts as "further", and what are the first numbers?
+**Options / as built (A):** **A** the tally is hub Gold (code `ECurrencyType::Prisms`, D-159) + **Gear and Skill Essence**, added per win by rank (mini-boss and boss more) and per chest; "further" = the tally grows with every fight won, plus a **+25 % bonus when the run's boss is beaten**; difficulty scales it (Easy ×0.75, Medium ×1, Hard ×1.5); a win also pays run Prisms (code `ECurrencyType::Gold`) at once (Normal 20, Elite 35, Mini-boss 60, Boss 120 × difficulty). All numbers `TODO: tune`. **B** also Elemental / Pillar Essence in the tally. **C** a per-zone progress table instead of the boss bonus.
+**Recommendation:** A. Elden Ring Nightreign and Hades pay a run's meta currency for every encounter cleared plus a clear bonus, which players read as fair ("you always get something, more for finishing"); Gear and Skill Essence are the two upgrade materials D-094 names that still exist (Elemental and Pillar come from dismantling and stones). The numbers follow the D-110 price ladder's scale and are first guesses.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
+**Notes for Claude:** built in B-073 (`Trial/RunRewards.h`, `UTrialRunSubsystem::RecordFightReward` / `ExitTrial`). Every player is paid in full in co-op (D-103), which covers B-235d's payout part.
+
