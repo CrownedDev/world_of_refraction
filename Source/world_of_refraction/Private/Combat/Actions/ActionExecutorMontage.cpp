@@ -474,6 +474,12 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 				   Index, Skill->VFXArray.Num());
 			return;
 		}
+		if (Skill->VFXArray[Index].Role == EVFXRole::Impact)
+		{
+			// B-369 (Q-369b): the Impact entry plays from the hit's outcome now; this notify shows it a second time.
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX notify %d on %s plays the Impact-role entry: remove the notify (B-369)"),
+				   Index, *GetNameSafe(Skill));
+		}
 		SpawnVFXArrayEntry(Skill->VFXArray[Index], Index);
 		return;
 	}
