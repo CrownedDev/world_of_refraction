@@ -420,14 +420,13 @@ FString SkillConditions::GetUnmigratedEffectsString()
 
 FString SkillConditions::GetConditionTreeString(const FSkillConditionGroup &Group)
 {
-	// The trigger on top: the first event among the checks (an event condition is the event), else always.
-	const FWoRCondition *Event = Group.AllOf.Conditions.FindByPredicate([](const FWoRCondition &C) { return C.Trigger != EWoRConditionTrigger::Any; });
-	if (!Event)
-	{
-		Event = Group.AnyOf.Conditions.FindByPredicate([](const FWoRCondition &C) { return C.Trigger != EWoRConditionTrigger::Any; });
-	}
+	// The trigger on top: the first event among the All of checks (an event condition is the event). Review: events
+	// only in Any of are OR'd, so the header says so instead of naming one of them.
+	const auto IsEvent = [](const FWoRCondition &C) { return C.Trigger != EWoRConditionTrigger::Any; };
+	const FWoRCondition *Event = Group.AllOf.Conditions.FindByPredicate(IsEvent);
+	const bool bAnyOfEvents = !Event && Group.AnyOf.Conditions.ContainsByPredicate(IsEvent);
 	FString Out = FString::Printf(TEXT("When: %s"), Event ? *StaticEnum<EWoRConditionTrigger>()->GetDisplayNameTextByValue(static_cast<int64>(Event->Trigger)).ToString()
-															: TEXT("always"));
+													: bAnyOfEvents ? TEXT("any of the events below") : TEXT("always"));
 	for (const FWoRCondition &Condition : Group.AllOf.Conditions)
 	{
 		Out += FString::Printf(TEXT("\n    %s"), *WoRConditions::GetConditionString(Condition));
