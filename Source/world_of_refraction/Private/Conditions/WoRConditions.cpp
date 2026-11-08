@@ -11,6 +11,7 @@
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/CurseSubsystem.h"
+#include "Memory/HiddenCounterSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Memory/MemoryUnlock.h"
 #include "Skills/Definitions/SkillDataBase.h"
@@ -227,6 +228,9 @@ namespace
 			return Condition.Character && IsPresent(Condition.Character, Event);
 		case EWoRConditionSubject::CurseHeld:
 			return !Condition.CurseId.IsNone() && Context.HeldCurses && Context.HeldCurses->Contains(Condition.CurseId);
+		case EWoRConditionSubject::CounterReached:
+			return !Condition.CounterId.IsNone() &&
+				   Compare(Context.Counters ? Context.Counters->Get(Condition.CounterId, Condition.Character) : 0, Condition.Operator, Condition.Value);
 		case EWoRConditionSubject::GearEquipped:
 			return IsGearMet(Condition, Event);
 		case EWoRConditionSubject::AtLocation:
@@ -276,6 +280,7 @@ namespace
 		case EMemoryConditionKind::FinishingBlow:     return EWoRConditionSubject::FinishingBlow;
 		case EMemoryConditionKind::PartyHas:          return EWoRConditionSubject::CharacterPresent;
 		case EMemoryConditionKind::CurseHeld:         return EWoRConditionSubject::CurseHeld;
+		case EMemoryConditionKind::CounterReached:    return EWoRConditionSubject::CounterReached;
 		}
 		return EWoRConditionSubject::Hidden; // an unknown kind never holds, as before
 	}
@@ -421,6 +426,7 @@ FWoRConditionContext WoRConditions::MakeContext(const FMemoryEvent &Event, const
 	const UGameInstance *GameInstance = Journal ? Journal->GetGameInstance() : nullptr;
 	const UCurseSubsystem *Curses = GameInstance ? GameInstance->GetSubsystem<UCurseSubsystem>() : nullptr;
 	Context.HeldCurses = Curses ? &Curses->GetHeldCurses() : nullptr;
+	Context.Counters = GameInstance ? GameInstance->GetSubsystem<UHiddenCounterSubsystem>() : nullptr; // B-379
 	return Context;
 }
 
@@ -439,6 +445,11 @@ FWoRCondition WoRConditions::FromMemory(const FMemoryCondition &Condition)
 	Out.CurseId = Condition.CurseId; // B-378
 	Out.Operator = EWoRConditionOperator::AtLeast;
 	Out.Value = Condition.UpgradeLevel;
+	if (Condition.Kind == EMemoryConditionKind::CounterReached)
+	{
+		Out.CounterId = Condition.CounterId; // B-379
+		Out.Value = Condition.CounterTarget;
+	}
 	Out.RequirementFit = FitFor(Condition.RequirementFit);
 	Out.RequirementMargin = Condition.RequirementMargin;
 	return Out;
@@ -476,6 +487,10 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	if (!Condition.CurseId.IsNone())
 	{
 		Out += TEXT(" ") + Condition.CurseId.ToString(); // B-378
+	}
+	if (!Condition.CounterId.IsNone())
+	{
+		Out += FString::Printf(TEXT(" %s %s %d"), *Condition.CounterId.ToString(), *ConditionEnumName(Condition.Operator), Condition.Value); // B-379
 	}
 	if (IsFighterSubject(Condition.Subject))
 	{

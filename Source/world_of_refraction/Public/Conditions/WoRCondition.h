@@ -125,6 +125,9 @@ enum class EWoRConditionSubject : uint8
 	CharacterPresent = 27,
 	/** B-378 (MemoryCatalogue §3.8): this player holds the curse CurseId (FWoRConditionContext::HeldCurses). */
 	CurseHeld = 28,
+	/** B-379 (MemoryCatalogue §3.9): the player's hidden counter CounterId (for Character when set, else all
+	 *  characters) compares to Value by Operator (FWoRConditionContext::Counters). */
+	CounterReached = 29,
 };
 
 /** Whose state a fight subject reads (the deckbuilder's Who). Append only. */
@@ -205,6 +208,10 @@ struct WORLD_OF_REFRACTION_API FWoRCondition
 	/** B-378: CurseHeld's curse id. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	FName CurseId;
+
+	/** B-379: CounterReached's counter (HiddenCounters). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	FName CounterId;
 
 	/** Hp / HpPercent / EpPercent / Defender: whose. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
