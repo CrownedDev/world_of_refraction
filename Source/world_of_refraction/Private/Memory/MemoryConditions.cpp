@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
 #include "Player/WoRPlayerState.h"
@@ -479,6 +480,11 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 	{
 		UE_LOG(LogWoR, Log, TEXT("[MemoryConditions] %s: %d memory(ies) unlocked"),
 			   *UEnum::GetDisplayValueAsText(Event.Source).ToString(), Unlocked);
+	}
+	// B-377: the same event moves this player's hidden quests on (after its memories, which can start one).
+	if (UHiddenQuestSubsystem *Quests = GameInstance->GetSubsystem<UHiddenQuestSubsystem>())
+	{
+		Quests->CheckEvent(Event);
 	}
 	return Unlocked;
 }

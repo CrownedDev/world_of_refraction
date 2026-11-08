@@ -1,6 +1,7 @@
 // TrialRunSubsystem.cpp
 
 #include "Trial/TrialRunSubsystem.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "Trial/DefeatRules.h"
 #include "WoRLog.h"
@@ -163,6 +164,11 @@ void UTrialRunSubsystem::ExitTrial()
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
         Pool->EndRunLayer();
+    }
+    // B-377: a hidden quest's step in progress starts its count again next run; steps done stay (MemoryCatalogue §3.6).
+    if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())
+    {
+        Quests->EndRun();
     }
 
     // Hub return is the factory reset: drop every slot back to the sentinel so
