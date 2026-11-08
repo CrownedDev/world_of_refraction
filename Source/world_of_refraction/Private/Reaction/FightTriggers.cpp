@@ -290,6 +290,11 @@ void UFightTriggers::Fire(FWaitingTrigger &Entry)
 		if (!BossTriggers::FireMomentRule(Boss, Entry.BossRule, Party, State, bSteps))
 		{
 			Entry.bFired = false; // its conditions don't hold now: it waits for the moment to come again
+			// Review fix: an HP line is crossed once, so it re-arms: the next HP check past the line asks again.
+			for (TPair<TWeakObjectPtr<AActor>, bool> &Past : Entry.WasPastLine)
+			{
+				Past.Value = false;
+			}
 			return;
 		}
 		if (bSteps)
