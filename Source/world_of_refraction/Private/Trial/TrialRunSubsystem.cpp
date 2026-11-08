@@ -695,6 +695,10 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    // B-073 desktop review: nothing of an earlier run's payout lingers (the save restores the tally and the boss mark).
+    bRunBossBeaten = false;
+    RunTally = FRunPayout();
+    PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     // B-314: a resumed run opens a fresh layer; B-314b: USaveSubsystem::RestoreRun then replaces it with the save's own
     // layer when the save has one (the run-only marks and home states as saved).
     UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;

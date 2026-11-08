@@ -265,6 +265,10 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	int32 TallySkillEssence = 0;
 
+	/** B-073 (save v23, desktop review): the run's boss was beaten, so a resumed run's end still gets the boss bonus. */
+	UPROPERTY()
+	bool bTallyBossBeaten = false;
+
 	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
 	 *  puts home gear back as it left home. */
 	UPROPERTY()

@@ -842,6 +842,7 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 	Saved.TallyHubGold = TrialRun.GetRunTally().HubGold; // B-073
 	Saved.TallyGearEssence = TrialRun.GetRunTally().GearEssence;
 	Saved.TallySkillEssence = TrialRun.GetRunTally().SkillEssence;
+	Saved.bTallyBossBeaten = TrialRun.IsRunBossBeaten();
 	// B-314b (Q-314): the open run layer, so a resumed run keeps its found gear run-only and its home gear's home state.
 	const UGameInstance *GI = TrialRun.GetGameInstance();
 	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -899,6 +900,10 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 	Tally.GearEssence = Saved.TallyGearEssence;
 	Tally.SkillEssence = Saved.TallySkillEssence;
 	TrialRun.RestoreRunTally(Tally);
+	if (Saved.bTallyBossBeaten)
+	{
+		TrialRun.MarkRunBossBeaten();
+	}
 	// B-314b: the saved layer replaces the fresh one RestoreRun opened (the store was loaded from this same save).
 	UGameInstance *GI = TrialRun.GetGameInstance();
 	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
