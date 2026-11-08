@@ -410,12 +410,21 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 
 bool USaveSubsystem::AdoptCheckpoint()
 {
+	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME);
+}
+
+bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
+{
 	UGameInstance *GI = GetGameInstance();
 	const ULocalPlayer *Local = GI ? GI->GetFirstGamePlayer() : nullptr;
 	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
-	UWoRSaveGame *Copy = UGameplayStatics::DoesSaveGameExist(WoRCheckpoint::SLOT_NAME, UserIndex)
-							 ? Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromSlot(WoRCheckpoint::SLOT_NAME, UserIndex))
+	UWoRSaveGame *Copy = UGameplayStatics::DoesSaveGameExist(SlotName, UserIndex)
+							 ? Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex))
 							 : nullptr;
+	if (Copy)
+	{
+		Copy->HandlePostLoad(); // review: the version check and migrations (D-060), as a loaded slot gets
+	}
 	if (!GI || !Copy || !Copy->Data.Run.bHasRun)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: %s"), Copy ? TEXT("the copy holds no run") : TEXT("no checkpoint copy to host from"));
@@ -435,6 +444,7 @@ bool USaveSubsystem::AdoptCheckpoint()
 	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *GI->GetSubsystem<UPoolSubsystem>());
 	SaveGame = Copy;
 	bPlayingHostCopy = true;
+	AdoptedSlotName = SlotName;
 	PendingRun = Copy->Data.Run;
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
 	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
@@ -553,8 +563,8 @@ bool USaveSubsystem::WriteSlot(bool bAsync)
 		// B-234b: a handed-over run saves into the copy's slot; this player's own save is never overwritten.
 		const ULocalPlayer *Local = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
 		const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
-		const bool bCopyWritten = UGameplayStatics::SaveGameToSlot(SaveGame, WoRCheckpoint::SLOT_NAME, UserIndex);
-		UE_LOG(LogWoR, Log, TEXT("[Save] Handed-over run saved to '%s': %s"), WoRCheckpoint::SLOT_NAME, bCopyWritten ? TEXT("yes") : TEXT("no"));
+		const bool bCopyWritten = UGameplayStatics::SaveGameToSlot(SaveGame, AdoptedSlotName, UserIndex);
+		UE_LOG(LogWoR, Log, TEXT("[Save] Handed-over run saved to '%s': %s"), *AdoptedSlotName, bCopyWritten ? TEXT("yes") : TEXT("no"));
 		return bCopyWritten;
 	}
 	if (!IsBoundToPlayer() || bWritesStopped)

@@ -56,6 +56,9 @@ public:
 	 *  comes back to its own save. False without a copy holding a run. */
 	bool AdoptCheckpoint();
 
+	/** AdoptCheckpoint from SlotName (specs use their own slot, never the real copy). Its saves then go to SlotName. */
+	bool AdoptCheckpointFrom(const FString &SlotName);
+
 	/** B-234b: playing a run handed over from the old host's copy (AdoptCheckpoint). */
 	bool IsPlayingHostCopy() const { return bPlayingHostCopy; }
 
@@ -130,6 +133,11 @@ private:
 	/** Set by DeleteSave: automatic saves stop for the rest of the session. */
 	bool bWritesStopped = false;
 
-	/** B-234b: set by AdoptCheckpoint; WriteSlot writes the copy's slot instead of this player's own. */
+	/** B-234b: set by AdoptCheckpoint; WriteSlot writes the copy's slot instead of this player's own. Stays set for the
+	 *  session on purpose (Q-234b (2)): the game in memory holds the old host's party and armoury from then on, so its
+	 *  own slot is never written again until a restart reloads it. */
 	bool bPlayingHostCopy = false;
+
+	/** B-234b: the slot the adopted copy came from and is saved back to. */
+	FString AdoptedSlotName;
 };
