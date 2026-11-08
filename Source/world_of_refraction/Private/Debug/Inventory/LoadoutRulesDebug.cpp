@@ -18,6 +18,10 @@
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Equipment/Apparel/ApparelData.h"
 #include "Pool/PoolSubsystem.h"
+#include "Equipment/Crystals/CrystalType.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/FCrystalAttachment.h"
+#include "Equipment/Durability/DurabilityConstants.h"
 #include "Engine/GameInstance.h"
 #include "Character/CharacterDataComponent.h"
 #include "UObject/UObjectIterator.h"
@@ -223,6 +227,12 @@ namespace
 					return;
 				}
 				FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+				if (Active.bLore)
+				{
+					// Review: a lore loadout is not saved (custom loadouts are), so apparel worn there would be lost on reload.
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] the active loadout is a lore loadout (not saved): switch to a custom loadout first (B-380d saves lore apparel)"));
+					return;
+				}
 				FApparelEntry Entry = FApparelEntry::CreateFromApparel(Piece);
 				// B-380b: owned first (the pool mints its id), so it is saved with the store.
 				if (UPoolSubsystem *Pool = World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
@@ -237,16 +247,42 @@ namespace
 					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] no free apparel slot (%d)"), ApparelRules::MAX_APPAREL_SLOTS);
 					return;
 				}
-				// The max pools read gear HP; recompute so the new HP shows now.
-				if (UCharacterDataComponent *Data = Inventory->GetOwner()->FindComponentByClass<UCharacterDataComponent>())
-				{
-					Data->RecomputeMaxPools();
-				}
 				if (ULoadoutComponent *Loadout = Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>())
 				{
-					// Review: announce the change so the GAS stats and any loadout UI re-read it (OnLoadoutChanged).
-					Loadout->NotifyActiveWeaponChanged(); // rebuilds the slot mirror
-					Loadout->OnLoadoutChanged.Broadcast(Inventory->ActiveLoadoutIndex);
+					Loadout->NotifyApparelChanged(); // B-380c: pools and stat readers re-read it
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(*Loadout));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GSocketApparelCmd(
+		TEXT("wor.Loadout.SocketApparel"),
+		TEXT("DEBUG: wor.Loadout.SocketApparel <slot 0|1> <ECrystalType name, e.g. Garnet> - set an F-tier refined crystal in the player's worn apparel piece (through the store; B-380c placeholder until the gear screen)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				UPoolSubsystem *Pool = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
+				const UEnum *Types = StaticEnum<ECrystalType>();
+				const int64 Type = Types && Args.Num() > 1 ? Types->GetValueByNameString(Args[1]) : INDEX_NONE;
+				const int32 Slot = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : INDEX_NONE;
+				const FCombatLoadout *Active = Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)
+												   ? &Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex]
+												   : nullptr;
+				if (!Pool || !Active || !Active->Apparel.IsValidIndex(Slot) || Type == INDEX_NONE)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] usage: wor.Loadout.SocketApparel <worn apparel slot> <ECrystalType name>"));
+					return;
+				}
+				FRuntimeAttachedItem Gem;
+				Gem.Kind = EAttachedItemKind::Crystal;
+				Gem.Crystal = FCrystalAttachment(FCrystalId(static_cast<ECrystalType>(Type), EItemTier::F_Tier), DurabilityConstants::MAX_DURABILITY_F_TIER);
+				if (!Pool->AttachToApparel(Active->Apparel[Slot].PersistentID, Gem))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] that piece is not owned (wear it with wor.Loadout.WearApparel first)"));
+					return;
+				}
+				if (const ULoadoutComponent *Loadout = Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>())
+				{
 					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(*Loadout));
 				}
 			}));

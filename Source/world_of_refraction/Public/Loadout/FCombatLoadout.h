@@ -209,7 +209,7 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     // ==================== APPAREL (B-380, D-164) ====================
 
     /** Apparel worn with this loadout: outside the budget, up to ApparelRules::MAX_APPAREL_SLOTS (add through
-     *  ApparelRules::AddApparel). Not in the Slots mirror (the budget walks Slots). Not saved yet (B-380b). */
+     *  ApparelRules::AddApparel). Not in the Slots mirror (the budget walks Slots). Saved by pool id in custom loadouts (B-380c, save v29); lore loadouts not yet (B-380d). */
     UPROPERTY(BlueprintReadWrite, Category = "Apparel")
     TArray<FApparelEntry> Apparel;
 

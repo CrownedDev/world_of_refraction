@@ -528,6 +528,13 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	TArray<FSavedCustomBDPool> BDSpellPools;
+
+	/** B-380c (D-164, save v29): apparel worn with this loadout, and each piece's owned instance. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Apparel;
+
+	UPROPERTY()
+	TArray<FGuid> ApparelInstances;
 };
 
 /** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */

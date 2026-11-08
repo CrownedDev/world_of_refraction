@@ -67,6 +67,27 @@ bool ApparelRules::AddApparel(FCombatLoadout &Loadout, const FApparelEntry &Entr
 	return true;
 }
 
+int32 ApparelRules::RefreshFromStore(TArray<FCombatLoadout> &Loadouts, const FApparelEntry &Owned)
+{
+	if (!Owned.PersistentID.IsValid())
+	{
+		return 0;
+	}
+	int32 Changed = 0;
+	for (FCombatLoadout &Loadout : Loadouts)
+	{
+		for (FApparelEntry &Worn : Loadout.Apparel)
+		{
+			if (Worn.PersistentID == Owned.PersistentID)
+			{
+				Worn = Owned;
+				++Changed;
+			}
+		}
+	}
+	return Changed;
+}
+
 FString ApparelRules::GetApparelString(const FCombatLoadout &Loadout)
 {
 	if (Loadout.Apparel.IsEmpty())
