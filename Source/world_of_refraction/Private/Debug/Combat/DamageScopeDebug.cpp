@@ -2,8 +2,11 @@
 
 #include "Debug/Combat/DamageScopeDebug.h"
 
+#include "Combat/Actions/EActionType.h"
+#include "Combat/Damage/DamageCalculator.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "EngineUtils.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
@@ -36,6 +39,20 @@ FString WoRDamageScopeDebug::GetScopesString(AActor *Actor)
 						   Lines.Num() > 0 ? *FString::Join(Lines, TEXT("; ")) : TEXT("no damage / defence boosts"));
 }
 
+FString WoRDamageScopeDebug::GetAllDamageString(AActor *Actor, ESpellElement SampleElement)
+{
+	const UGameInstance *GI = Actor ? Actor->GetGameInstance() : nullptr;
+	const UDamageCalculator *Calculator = GI ? GI->GetSubsystem<UDamageCalculator>() : nullptr; // a game-instance subsystem
+	if (!Calculator)
+	{
+		return FString::Printf(TEXT("%s: no damage calculator"), *GetNameSafe(Actor));
+	}
+	return FString::Printf(TEXT("%s: All-damage %+.0f%% (%s spell), %+.0f%% (physical)"), *GetNameSafe(Actor),
+						   Calculator->GetAllDamagePercent(Actor, EActionType::Spell, SampleElement),
+						   *UEnum::GetDisplayValueAsText(SampleElement).ToString(),
+						   Calculator->GetAllDamagePercent(Actor, EActionType::Ability, ESpellElement::None));
+}
+
 void WoRDamageScopeDebug::PrintScopes(UWorld *World)
 {
 	const USkillEffectManager *Effects = World ? WoRFight::Get<USkillEffectManager>(World) : nullptr;
@@ -49,11 +66,12 @@ void WoRDamageScopeDebug::PrintScopes(UWorld *World)
 		if (Effects->GetActiveEffects(*It).Num() > 0)
 		{
 			UE_LOG(LogWoR, Display, TEXT("[DamageScope] %s"), *GetScopesString(*It));
+			UE_LOG(LogWoR, Display, TEXT("[DamageScope] %s"), *GetAllDamageString(*It));
 		}
 	}
 }
 
 static FAutoConsoleCommandWithWorld GDamagePrintScopesCommand(
 	TEXT("wor.Damage.Scopes"),
-	TEXT("B-383: every damage / defence boost on each actor, with its scope (All, Physical, Spell or one element)."),
+	TEXT("B-383 / B-384: every damage / defence boost on each actor with its scope, and its one All-damage percent."),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&WoRDamageScopeDebug::PrintScopes));
