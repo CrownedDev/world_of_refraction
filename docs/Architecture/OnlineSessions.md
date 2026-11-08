@@ -20,3 +20,4 @@ B-233 (D-103, Q-233): co-op players host, find and join a session through Unreal
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-08 | Created. B-233 part 1: `UWoRSessionSubsystem` on the Null subsystem, `wor.Session.*`, the plugins and config. Unbuilt (cloud pre-write). | feature/B-233-sessions-null-cloud |
+| 2026-11-08 | B-234 part 1: checkpoint copies. `USaveSubsystem::SaveNow` on a listen server sends the whole save after its own write (`SaveGameToMemory`, zlib, 2 KB chunks, at most 128, `WoRCheckpoint::SendToClients`) by Client RPC on each remote `AWoRPlayerState`; the client reassembles it (`FCoopCheckpointAssembler`) and keeps it in slot `WoRCoopCheckpoint`. `wor.Coop.PrintCheckpoint`; spec `WoR.Coop.Checkpoint`. Hand-over: B-234b. | `feature/B-234-checkpoint-copies-cloud` (UNBUILT) |

@@ -38,6 +38,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-232d](B-232d.md) | `feature/B-232d-run-readers-cloud` (UNBUILT, on B-232c) | 2-player: the client sees opened chests, spent memory spots and its waiting pillar levels | Pending |
 | [B-232e](B-232e.md) | `feature/B-232e-recruit-ai-seat-cloud` (UNBUILT, on B-232d) | 2-player: a client's recruit joins through the host as an AI seat | Pending |
 | [B-233](B-233.md) | `feature/B-233-sessions-null-cloud` (in `dev`) | Two instances: host, find and join a LAN session with `wor.Session.*` | Pending |
+| [B-234](B-234.md) | `feature/B-234-checkpoint-copies-cloud` (UNBUILT, on B-233) | 2-player: each save the host makes is copied to the client's checkpoint slot (`wor.Coop.PrintCheckpoint`) | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
