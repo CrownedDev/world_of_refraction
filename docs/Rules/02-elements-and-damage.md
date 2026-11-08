@@ -91,6 +91,7 @@ Steps run in this order. All are multipliers, so order only matters for rounding
 | ED-39 | A Broken Darkness character uses its own resistance row: −5 to every element and −15 to Reality, no physical columns. | In game | `ClassInnateResistanceTable.h` (`ResolveRow`, the Broken Darkness row) |
 | ED-40 | Broken Darkness gains EP by guarding elemental hits: a Guard at the block rate (5% base), a Perfect Guard at the parry rate (10%), scaled by Efficiency, and x2 on a Perfect (so a Perfect Guard is 20% base; Q-168); it can overfill EP by 30% (overload). It cannot absorb None, Generic or Reality hits. | In game | `Combat/Mechanics/BrokenDarknessManager.cpp` (`OnDefenseResolved`, `CalculateAbsorptionEnergy`) |
 | ED-41 | Light and Void are forbidden to Broken Darkness: casting one costs the caster 25% of the spell's base damage × its Spell Damage as HP, plus 25% of base as self-buildup in that element. Waived when the caster's world levels exactly match the spell's requirements. | In game | `BrokenDarknessManager.cpp` (`IsForbiddenElement`, `CalculateForbiddenCastDamage`, `ProcessForbiddenCast`); `BrokenDarknessManager.h` (`ForbiddenCastSelfDamagePercent`, `ForbiddenCastSelfBuildupPercent`); `ActionExecutor.cpp` (`ExecuteSpellAsync`: the exact-match waiver; `ProcessForbiddenElementCast`) |
+| ED-50 | **Amp (open, Q-164b):** no Amp stat yet. Proposed (not decided): a flat boost added to a skill's base damage before the multipliers, all skills or one element's, per action (the deckbuilder's `+2 Amp` / `+1 Fire Amp`). | Open | `Q-164b` |
 
 ## Impact visuals
 
