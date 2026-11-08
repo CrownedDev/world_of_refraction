@@ -4093,3 +4093,11 @@ Moved here once applied. Newest first.
 **Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
 **Answer (Crown):** a weapon, adapter, apparel piece or evolution can carry **conditional quests**: a hidden quest (`Design/MemoryCatalogue.md` §3.6) that starts when its conditions are met while the player has or wears that item (found, worn, upgraded, used in a certain way). The same no-hints, never-missed and who-receives rules apply (D-100, Q-235d). Probably built later, after the hidden-quest job.
 **Notes for Claude:** `Design/MemoryCatalogue.md` §3.11.
+
+### Q-380 — Apparel: slots, what its crystal gives, evolutions on it
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
+**Question:** D-164 leaves three points open: (1) how many apparel slots; (2) what an apparel crystal gives beyond its element; (3) whether an evolution (or an augment stone) can sit in an apparel socket. Also (4) does apparel's Defence scale with its tier like other gear?
+**Options / as built:** (1) **A** 2, the deckbuilder's cap / B 1 / C a slot per body part. (2) **A** its element only (it keys the piece; no extra line) / B that element's Defence line. (3) **A** a refined crystal only / B evolutions too. (4) **A** yes, as every gear line (HP raw, as gear HP is) / B flat.
+**Recommendation:** all A. The deckbuilder is this game's simplest level and caps apparel at 2 with a crystal that keys it and powers nothing (`wor-deckbuilder docs/reference/01-card-model.md`, per D-164); Monster Hunter's armour is likewise a separate stats layer from layered looks. Keeping the crystal to a key leaves room for B (an elemental Defence line) once resistances are tuned, and keeps evolutions on the gear that casts.
+**Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any.
+
