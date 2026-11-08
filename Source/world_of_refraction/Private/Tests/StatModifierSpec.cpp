@@ -2,7 +2,7 @@
 // Transient buff/debuff reads of every sub-stat (B-020): a buff and its debuff move each
 // stat getter by exactly (buff - debuff) percent, so the stat-modifier table can replace the
 // hand-written pairs with the same numbers. Written against the hand-written pairs first;
-// the table rows and the wor.CompareStats snapshot are checked at the end.
+// the table rows and the wor.Stats.Compare snapshot are checked at the end.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -241,7 +241,7 @@ void FStatModifierSpec::Define()
 		});
 	});
 
-	Describe("wor.CompareStats snapshot", [this]()
+	Describe("wor.Stats.Compare snapshot", [this]()
 	{
 		It("is identical when nothing changed and differs once a buff lands", [this]()
 		{

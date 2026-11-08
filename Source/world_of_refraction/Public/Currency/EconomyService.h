@@ -379,7 +379,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy|Debug")
     FString GetEconomyString(AActor *Owner) const;
 
-    /** Log + on-screen GetEconomyString(Owner). Console trigger: wor.PrintEconomy (in the .cpp;
+    /** Log + on-screen GetEconomyString(Owner). Console trigger: wor.Economy.Print (in the .cpp;
      *  resolves the played character). No Exec / CallInEditor — a UGameInstanceSubsystem is not
      *  on the engine's Exec chain and has no Details panel for a button. */
     UFUNCTION(BlueprintCallable, Category = "Economy|Debug")
