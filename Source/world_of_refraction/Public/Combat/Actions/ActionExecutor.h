@@ -805,7 +805,9 @@ private:
 	 *         this impact's reduced slice (ResolveImpactDefense) — apply it directly. false
 	 *         (non-melee close-time tail, default): ResolvedFinalDamage is the full reduced
 	 *         total — slice it by ResolvedDamageSplit[ImpactIndex] here (legacy lumped path). */
-	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false);
+	/** B-369: bProjectileArrival: the projectile already played the skill's Impact entry (ImpactVisuals). */
+	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false,
+						bool bProjectileArrival = false);
 
 	/** One spell arrival (an AOE or Instant cast moment, or a projectile landing) on Target's count-based
 	 *  window: resolve its defense per-impact, apply it, run the choke tally, and close after the last
@@ -813,7 +815,7 @@ private:
 	 *  path). Interrupts use InterruptCaster / InterruptSkill, or the window's attacker and the running
 	 *  skill when null (B-032). */
 	bool ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, AActor *InterruptCaster,
-							 USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel);
+							 USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel, bool bProjectileArrival = false);
 
 	/** Handle multi-hit abilities. OBSOLETE (B-167): its only caller was the no-DefenseSystem
 	 *  fallback; remove after Crown's PIE pass of B-167 / B-032. */
