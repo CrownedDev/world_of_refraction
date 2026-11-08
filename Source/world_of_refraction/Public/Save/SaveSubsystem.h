@@ -49,6 +49,16 @@ public:
 	 *  False when no local player owns the slot yet (headless tests, before the first player). */
 	bool SaveNow(UWorld *World, bool bAsync);
 
+	/** B-234b (Q-234b (2)): this player takes over as host. Loads the host's checkpoint copy (WoRCheckpoint::SLOT_NAME)
+	 *  and plays from it: the old host's party replaces the local one, its armoury joins the pool for this session,
+	 *  and its run waits for the next hub world to resume (the last checkpoint). This player's own wallet and forms
+	 *  stay. From now on saves go to the copy's slot (and to the others), never this player's own slot: a restart
+	 *  comes back to its own save. False without a copy holding a run. */
+	bool AdoptCheckpoint();
+
+	/** B-234b: playing a run handed over from the old host's copy (AdoptCheckpoint). */
+	bool IsPlayingHostCopy() const { return bPlayingHostCopy; }
+
 	/** Remove the slot from disk and start an empty one in memory. Nothing is written again this
 	 *  session (so the next start is fresh) until wor.Save.Now. */
 	void DeleteSave();
@@ -119,4 +129,7 @@ private:
 
 	/** Set by DeleteSave: automatic saves stop for the rest of the session. */
 	bool bWritesStopped = false;
+
+	/** B-234b: set by AdoptCheckpoint; WriteSlot writes the copy's slot instead of this player's own. */
+	bool bPlayingHostCopy = false;
 };
