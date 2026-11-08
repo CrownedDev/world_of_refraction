@@ -11,8 +11,8 @@
 
 namespace
 {
-	constexpr float MIN_PLAY_RATE = 0.1f; // the runner's own clamp (UActionExecutor::PlayActionMontageOnActor)
-	constexpr float RETURN_LEG_RATE = 1.0f; // the runner plays the return leg unscaled (UActionExecutor::PlayReturnStep)
+	constexpr float MIN_PLAY_RATE = FCombatCameraRules::MinPlayRate; // one source with B-370's camera window
+	constexpr float RETURN_LEG_RATE = FCombatCameraRules::ReturnLegRate;
 }
 
 namespace NotifyValidation

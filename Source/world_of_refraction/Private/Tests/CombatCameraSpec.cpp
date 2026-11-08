@@ -1,6 +1,6 @@
 // CombatCameraSpec.cpp
 // Combat camera rules (B-156, Design/CombatCamera.md): the mode the viewer sees, the template a
-// skill falls back to, and where each mode puts the camera.
+// skill falls back to, and where each mode puts the camera. B-370: the cinematic window and the Defence view.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -135,6 +135,73 @@ void FCombatCameraSpec::Define()
 			Frame.Focus = FVector(0.0f, 400.0f, 0.0f);
 			const FVector Second = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::Tactical, Frame).GetLocation();
 			TestTrue(TEXT("same place"), First.Equals(Second));
+		});
+	});
+
+	Describe("the cinematic window (B-370, D-162, Q-370)", [this]()
+	{
+		const float Read = FCombatCameraRules::MinDefenseReadSeconds;
+
+		It("cuts a placed window short so it ends the read time before the first defendable moment", [this, Read]()
+		{
+			FCinematicWindowTiming Timing;
+			Timing.bHasAuthoredWindow = true;
+			Timing.AuthoredStart = 0.0f;
+			Timing.AuthoredEnd = 3.0f;
+			Timing.bHasDefendable = true;
+			Timing.FirstDefendable = 2.0f;
+			float End = 0.0f;
+			TestTrue(TEXT("a window"), FCombatCameraRules::ResolveWindowEnd(Timing, End));
+			TestEqual(TEXT("clamped"), End, 2.0f - Read, KINDA_SMALL_NUMBER);
+			Timing.AuthoredEnd = 0.5f;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("an early placed end stays"), End, 0.5f, KINDA_SMALL_NUMBER);
+			Timing.FirstDefendable = Read * 0.5f;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("a hit too soon: no cinematic"), End, 0.0f, KINDA_SMALL_NUMBER);
+		});
+
+		It("runs to the wind-up end when no range is placed, still clamped", [this, Read]()
+		{
+			FCinematicWindowTiming Timing;
+			Timing.bHasWindUpEnd = true;
+			Timing.WindUpEnd = 1.0f;
+			Timing.bHasDefendable = true;
+			Timing.FirstDefendable = 3.0f;
+			float End = 0.0f;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("the wind-up end"), End, 1.0f, KINDA_SMALL_NUMBER);
+			Timing.bHasWindUpEnd = false;
+			FCombatCameraRules::ResolveWindowEnd(Timing, End);
+			TestEqual(TEXT("no wind-up leg: the read time alone"), End, 3.0f - Read, KINDA_SMALL_NUMBER);
+			TestFalse(TEXT("nothing placed, nothing to defend: no hand-off"), FCombatCameraRules::ResolveWindowEnd(FCinematicWindowTiming(), End));
+		});
+
+		It("hands the defending viewer to Defence and everyone else to the watch view", [this]()
+		{
+			TestEqual(TEXT("defending"), FCombatCameraRules::SelectHandOffMode(true, true, false), ECombatCameraMode::Defence);
+			TestEqual(TEXT("defending, no sequence"), FCombatCameraRules::SelectHandOffMode(true, false, false), ECombatCameraMode::Defence);
+			TestEqual(TEXT("not defending keeps the cinematic"), FCombatCameraRules::SelectHandOffMode(false, true, false), ECombatCameraMode::Action);
+			TestEqual(TEXT("not defending, no sequence: watch"), FCombatCameraRules::SelectHandOffMode(false, false, false), ECombatCameraMode::NotYourTurn);
+			TestEqual(TEXT("movement off: static (D-078)"), FCombatCameraRules::SelectHandOffMode(true, true, true), ECombatCameraMode::Static);
+		});
+
+		It("puts the Defence view behind the defender, facing the attacker; further back for several", [this]()
+		{
+			const FVector Attacker(1000.0f, 0.0f, 0.0f);
+			const FTransform One = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Attacker);
+			TestTrue(TEXT("behind the defender"), One.GetLocation().X < 0.0f);
+			TestTrue(TEXT("above it"), One.GetLocation().Z > 0.0f);
+			TestTrue(TEXT("facing the attacker"), One.GetRotation().GetForwardVector().X > 0.0f);
+			const FTransform Two = FCombatCameraRules::ComputeDefenceView({FVector(0.0f, -300.0f, 0.0f), FVector(0.0f, 300.0f, 0.0f)}, Attacker);
+			TestTrue(TEXT("two spread out: further back"), Two.GetLocation().X < One.GetLocation().X);
+		});
+
+		It("reads nothing from a skill without a montage", [this]()
+		{
+			const FCinematicWindowTiming Timing = FCombatCameraRules::ReadWindowTiming(NewObject<UAbilityData>(GetTransientPackage()), 1.0f, false);
+			TestFalse(TEXT("no window"), Timing.bHasAuthoredWindow);
+			TestFalse(TEXT("nothing to defend"), Timing.bHasDefendable);
 		});
 	});
 }

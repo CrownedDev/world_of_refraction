@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/TimerHandle.h"
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "CombatCameraDirector.generated.h"
 
@@ -44,6 +45,10 @@ public:
 	AActor *GetViewedActor() const { return ViewedActor.Get(); }
 	const ULevelSequence *GetPlayingSequence() const { return PlayingSequence; }
 	int32 GetCameraCount() const { return Cameras.Num(); }
+
+	/** B-370 (wor.Camera): the last action's cinematic window and hand-off, e.g. "window ends 1.25 s (first
+	 *  defendable 2.00 s) -> Defence, pending". */
+	FString GetCinematicWindowString() const;
 
 	/** Turn-view style (D-074 (2)). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
@@ -86,6 +91,14 @@ private:
 	UFUNCTION()
 	void HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
 
+	/** B-370 (D-162): sets the window-end timer when one of the viewer's characters is targeted by someone else.
+	 *  True when the window ends at once and the Defence view is already showing (no cinematic then). */
+	bool ScheduleDefenceHandOff(AActor *Executor, const FAction &Action);
+	void HandleCinematicWindowEnd();
+	void ClearDefenceHandOff();
+	/** Behind the viewer's targeted characters, the attacker in front. */
+	void ShowDefenceView();
+
 	/** After a settings change: cuts a playing cinematic the settings now skip. */
 	void StopCinematicIfNowSkipped();
 
@@ -124,4 +137,13 @@ private:
 	TWeakObjectPtr<AActor> ViewTargetBeforeCombat;
 	ECombatCameraMode CurrentMode = ECombatCameraMode::None;
 	bool bInCombat = false;
+
+	// B-370: the pending Defence hand-off of the current action.
+	FTimerHandle DefenceHandOffTimer;
+	TArray<TWeakObjectPtr<AActor>> HandOffDefenders;
+	TWeakObjectPtr<AActor> HandOffAttacker;
+	bool bHasLastWindow = false;
+	float LastWindowEnd = 0.0f;
+	FCinematicWindowTiming LastWindowTiming;
+	ECombatCameraMode LastHandOffMode = ECombatCameraMode::None;
 };
