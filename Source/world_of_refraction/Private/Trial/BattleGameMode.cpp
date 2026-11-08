@@ -27,6 +27,7 @@
 #include "Memory/MemoryUnlock.h"
 #include "Memory/HiddenCounterSubsystem.h"
 #include "Combat/Defense/DefenseSystem.h"
+#include "Combat/Defense/GuardRules.h"
 #include "Reaction/FightTriggers.h"
 #include "Reaction/ReactionTrigger.h"
 #include "Pool/PoolSubsystem.h"
@@ -626,7 +627,7 @@ void ABattleGameMode::HandleDefenseResolved(AActor *Defender, AActor * /*Attacke
                                             int32 /*ImpactIndex*/, float /*AttackEnergyCost*/)
 {
     // D-084: a Guard on Perfect timing is a parry. The party's own only.
-    if (PartyStartHP.Contains(Defender) && DefenseType == EDefenseType::Block && bPerfect)
+    if (PartyStartHP.Contains(Defender) && GuardRules::IsPerfectGuard(DefenseType, bPerfect))
     {
         AddHiddenCount(Defender, HiddenCounters::PARRIES);
     }

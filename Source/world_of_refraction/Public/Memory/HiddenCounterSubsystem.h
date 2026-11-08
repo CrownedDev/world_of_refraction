@@ -18,9 +18,9 @@ class UCharacterData;
 namespace HiddenCounters
 {
 	/** A Perfect Guard (a parry, D-084) by the character. */
-	inline const TCHAR *PARRIES = TEXT("Parries"); // TCHAR, not FName: no FName at static init
+	inline constexpr const TCHAR *PARRIES = TEXT("Parries"); // TCHAR, not FName: no FName at static init
 	/** A finishing blow by the character. */
-	inline const TCHAR *KILLS = TEXT("Kills");
+	inline constexpr const TCHAR *KILLS = TEXT("Kills");
 }
 
 UCLASS()

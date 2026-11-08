@@ -230,7 +230,7 @@ namespace
 			return !Condition.CurseId.IsNone() && Context.HeldCurses && Context.HeldCurses->Contains(Condition.CurseId);
 		case EWoRConditionSubject::CounterReached:
 			return !Condition.CounterId.IsNone() &&
-				   Compare(Context.Counters ? Context.Counters->Get(Condition.CounterId, Condition.Character) : 0, Condition.Operator, Condition.Value);
+				   WoRConditions::Compare(Context.Counters ? Context.Counters->Get(Condition.CounterId, Condition.Character) : 0, Condition.Operator, Condition.Value);
 		case EWoRConditionSubject::GearEquipped:
 			return IsGearMet(Condition, Event);
 		case EWoRConditionSubject::AtLocation:
