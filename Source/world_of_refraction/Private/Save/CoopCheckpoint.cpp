@@ -54,6 +54,11 @@ bool WoRCheckpoint::Compress(const TArray<uint8> &Bytes, TArray<uint8> &OutCompr
 
 bool WoRCheckpoint::Decompress(const TArray<uint8> &Compressed, int32 UncompressedSize, TArray<uint8> &OutBytes)
 {
+	if (UncompressedSize > MAX_UNCOMPRESSED_BYTES) // review fix: never allocate what a bad size asks for
+	{
+		OutBytes.Reset();
+		return false;
+	}
 	OutBytes.SetNumUninitialized(FMath::Max(UncompressedSize, 0));
 	if (UncompressedSize <= 0
 		|| !FCompression::UncompressMemory(NAME_Zlib, OutBytes.GetData(), UncompressedSize, Compressed.GetData(), Compressed.Num()))

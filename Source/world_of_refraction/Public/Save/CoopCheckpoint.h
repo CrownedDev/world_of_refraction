@@ -10,6 +10,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/BitArray.h"
 
 class UWorld;
 class USaveGame;
@@ -22,9 +23,13 @@ namespace WoRCheckpoint
 	/** Bytes per RPC chunk: under the engine's array limit for one replicated parameter (net.MaxRepArraySize 2048). */
 	constexpr int32 CHUNK_BYTES = 2000;
 
-	/** The most chunks one copy may take (about 250 KB compressed): more reliable RPCs in one frame could overflow the
-	 *  connection's reliable buffer. TODO: spread a bigger copy over several ticks if saves ever grow that large. */
-	constexpr int32 MAX_CHUNKS = 128;
+	/** The most chunks one copy may take (about 80 KB compressed): each 2000-byte RPC splits into 2-3 partial bunches,
+	 *  and the connection's reliable buffer holds 256, so more in one frame could overflow it and drop the client
+	 *  (desktop review: was 128). TODO: spread a bigger copy over several ticks if saves ever grow that large. */
+	constexpr int32 MAX_CHUNKS = 40;
+
+	/** The largest save a copy may unpack to: a bad or hostile size is refused before any allocation. */
+	constexpr int32 MAX_UNCOMPRESSED_BYTES = 16 * 1024 * 1024;
 
 	/** Chunks Bytes needs (at least one). */
 	WORLD_OF_REFRACTION_API int32 ChunkCountFor(int32 ByteCount, int32 ChunkBytes = CHUNK_BYTES);

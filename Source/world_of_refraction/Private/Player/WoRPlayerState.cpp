@@ -424,10 +424,16 @@ void AWoRPlayerState::Client_ReceiveCheckpointChunk_Implementation(int32 Checkpo
 		return;
 	}
 	TArray<uint8> Bytes;
-	if (!WoRCheckpoint::Decompress(CheckpointAssembler.GetBytes(), UncompressedSize, Bytes))
+	if (UncompressedSize <= 0 || !WoRCheckpoint::Decompress(CheckpointAssembler.GetBytes(), UncompressedSize, Bytes))
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Copy %d did not decompress (%d bytes, expected %d); not kept"), CheckpointId,
 			   CheckpointAssembler.GetBytes().Num(), UncompressedSize);
+		return;
+	}
+	// Review fix: only a copy that loads as a save replaces the kept one.
+	if (!UGameplayStatics::LoadGameFromMemory(Bytes))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Copy %d is not a save (%d bytes); not kept"), CheckpointId, Bytes.Num());
 		return;
 	}
 	const APlayerController *PC = Cast<APlayerController>(GetOwner());
