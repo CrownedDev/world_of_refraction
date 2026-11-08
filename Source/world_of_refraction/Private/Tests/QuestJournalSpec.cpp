@@ -12,6 +12,7 @@
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "UI/Hub/MemoryJournalWidget.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -27,7 +28,8 @@ namespace
 	/** A two-step quest of Kind, each step at the test spot, with goals "<Name> goal 1" / "<Name> goal 2". */
 	UHiddenQuestData *NewQuest(const FString &Name, EQuestKind Kind)
 	{
-		UHiddenQuestData *Quest = NewObject<UHiddenQuestData>(GetTransientPackage(), FName(*Name));
+		UHiddenQuestData *Quest = NewObject<UHiddenQuestData>(GetTransientPackage()); // review: a fresh object each run
+		Quest->QuestId = FName(*Name);
 		Quest->Kind = Kind;
 		Quest->Title = FText::FromString(Name);
 		FWoRCondition There;
@@ -119,6 +121,7 @@ void FQuestJournalSpec::Define()
 		Widget->ShowQuestsPage();
 		TestTrue(TEXT("the page shows the main quest's goal"), Widget->GetBody().ToString().Contains(TEXT("MainSecondSpec goal 1")));
 		TestTrue(TEXT("and the side quest"), Widget->GetBody().ToString().Contains(TEXT("SideFirstSpec")));
+		TestTrue(TEXT("with the kind's shared name"), Widget->GetBody().ToString().Contains(WoRGameNames::GetQuestKindName(EQuestKind::Main).ToString()));
 	});
 
 	It("gives a quest by id only when one has that id", [this]()

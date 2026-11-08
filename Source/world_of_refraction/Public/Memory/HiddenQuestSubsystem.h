@@ -19,7 +19,6 @@
 #include "HiddenQuestSubsystem.generated.h"
 
 class UCurseSubsystem;
-class UHiddenQuestData;
 struct FHiddenQuestStep;
 struct FMemoryEvent;
 struct FWoRConditionContext;

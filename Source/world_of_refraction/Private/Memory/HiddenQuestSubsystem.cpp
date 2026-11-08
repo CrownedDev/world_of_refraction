@@ -38,7 +38,9 @@ namespace HiddenQuestNotice
 	}
 	static FText VisibleStepDone(const UHiddenQuestData &Quest, int32 StepsDone)
 	{
-		return FText::Format(LOCTEXT("VisibleStepDone", "{0}: {1}"), Quest.GetDisplayTitle(), Quest.GetGoalAfter(StepsDone));
+		const FText Goal = Quest.GetGoalAfter(StepsDone);
+		return Goal.IsEmpty() ? FText::Format(LOCTEXT("VisibleStepDoneNoGoal", "{0}: next step"), Quest.GetDisplayTitle()) // goal not authored yet
+							  : FText::Format(LOCTEXT("VisibleStepDone", "{0}: {1}"), Quest.GetDisplayTitle(), Goal);
 	}
 	static FText VisibleFinished(const UHiddenQuestData &Quest)
 	{
