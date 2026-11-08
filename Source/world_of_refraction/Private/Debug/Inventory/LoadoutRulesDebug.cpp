@@ -1,6 +1,7 @@
 // LoadoutRulesDebug.cpp
 
 #include "Debug/Inventory/LoadoutRulesDebug.h"
+#include "Debug/Inventory/InventoryDebug.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -172,6 +173,23 @@ namespace
 				{
 					ShowSkillSlots(*Weapon);
 				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GPrintLoadoutCmd(
+		TEXT("wor.Loadout.Print"),
+		TEXT("DEBUG: wor.Loadout.Print - the player's active loadout: gear, both sockets, the one skill-slot list, spells, items (B-351c)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &, UWorld *World)
+			{
+				// Review fix: the same character the *Skill commands edit (the pawn, else the first with an inventory).
+				const UInventoryComponent *Inventory = PlayerInventory(World);
+				ULoadoutComponent *Loadout = Inventory && Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+				if (!Loadout)
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[LoadoutDebug] Print: no character with a loadout"));
+					return;
+				}
+				UInventoryDebug::LogActiveLoadout(Loadout);
 			}));
 
 	FAutoConsoleCommandWithWorldAndArgs GReplaceSkillCmd(

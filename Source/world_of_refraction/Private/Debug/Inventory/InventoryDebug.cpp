@@ -234,8 +234,9 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Weapon: %s"),
                    *Active.PrimaryWeapon.WeaponEntry.Weapon->Name);
+            // B-351c (D-145): the one skill-slot list (the old merge only until the list is edited), as combat reads it.
             UE_LOG(LogTemp, Display, TEXT("  Abilities: %d"),
-                   Active.PrimaryWeapon.GetAllAbilities().Num());
+                   Active.PrimaryWeapon.GetSkillSlotAbilities().Num());
             UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
                    Active.PrimaryWeapon.GetAllSpells().Num());
             // Slot capacity by container tier (ability cap = weapon tier; spell cap =
@@ -244,15 +245,21 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             {
                 // Display the INSTANCE (leveled) tier from the entry, not the base asset (W->Tier).
                 const EItemTier WTier = Active.PrimaryWeapon.WeaponEntry.Tier;
-                const int32 AbilityCap = CrystalEffectTable::SlotsForContainerTier(WTier);
+                const int32 AbilityCap = Active.PrimaryWeapon.GetSkillSlotCount(); // B-351c: the tier plus an Ability Stone's slots
                 const int32 SpellCap = CrystalEffectTable::ResolveSpellSlotCap(
                     Active.PrimaryWeapon.WeaponEntry.GetAttachedItem(),
                     CrystalEffectTable::SlotsForContainerTier(WTier));
                 UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: abilities %d/%d, spells %d/%d"),
                        *TierHelpers::GetTierDisplayString(WTier),
-                       Active.PrimaryWeapon.GetAllAbilities().Num(), AbilityCap,
+                       Active.PrimaryWeapon.GetSkillSlotAbilities().Num(), AbilityCap,
                        Active.PrimaryWeapon.GetAllSpells().Num(), SpellCap);
             }
+            // B-351c (D-141): both sockets and the list slot by slot (picks and the built-ins they hide).
+            const FWeaponInventoryEntry &Entry = Active.PrimaryWeapon.WeaponEntry;
+            UE_LOG(LogTemp, Display, TEXT("  Element socket: %s | Stone socket: %s"),
+                   Entry.AttachedItem.IsEmpty() ? TEXT("empty") : *UEnum::GetValueAsString(Entry.AttachedItem.Kind),
+                   Entry.StoneSocket.IsEmpty() ? TEXT("empty") : *UEnum::GetValueAsString(Entry.StoneSocket.Kind));
+            UE_LOG(LogTemp, Display, TEXT("  %s"), *Active.PrimaryWeapon.GetSkillSlotString());
         }
         else
         {
