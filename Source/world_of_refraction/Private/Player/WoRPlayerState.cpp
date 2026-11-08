@@ -20,6 +20,7 @@
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "Trial/TrialMapFeature.h"
+#include "UI/Hub/RestSpotWidget.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -384,6 +385,15 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Message)
 {
 	ATrialMapFeature::ShowMessage(Message); // B-235b
+}
+
+void AWoRPlayerState::Client_OpenRestMenu_Implementation()
+{
+	APlayerController *PC = Cast<APlayerController>(GetOwner());
+	if (PC && PC->IsLocalController())
+	{
+		URestSpotWidget::Open(PC);
+	}
 }
 
 void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Feature)
