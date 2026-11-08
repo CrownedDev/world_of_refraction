@@ -4392,6 +4392,16 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
     }
 
+    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines (nothing else), tier-scaled like gear;
+    // outside the budget, so it sits beside whatever ForEachContributingGear visits.
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            AddScaled(Piece.GetStatLines(), Piece.Tier);
+        }
+    }
+
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
     // field — store directly). Pools + pillar percents were accumulated raw inside AddScaled.
     Combined.BonusRawDamage        = FMath::RoundToInt(AccRawDamage);
@@ -4448,6 +4458,15 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
         Combined.Accumulate(Curses->GetResistancePenalty());
     }
 
+    // B-380 (D-164): every apparel piece's resistance, with its crystal's element added (Crown).
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Combined.Accumulate(Piece.GetResistance());
+        }
+    }
+
     return Combined;
 }
 
@@ -4478,6 +4497,18 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     {
         Result.Append(Evolution.Attachment.Item->GetStartingEffects());
     }
+    // B-380 (D-164, Crown): apparel carries effects like the deckbuilder's vessels.
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffects());
+        }
+        if (const UEvolutionItemData *Evolution = Piece.GetEvolution()) // Crown, D-164: its passives
+        {
+            Result.Append(Evolution->GetStartingEffects());
+        }
+    }
 
     return Result;
 }
@@ -4507,6 +4538,17 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     {
         Result.Append(Evolution.Attachment.Item->GetStartingEffectsGathered());
     }
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffectsGathered(Wearer, WornSkin));
+        }
+        if (const UEvolutionItemData *Evolution = Piece.GetEvolution())
+        {
+            Result.Append(Evolution->GetStartingEffectsGathered());
+        }
+    }
 
     return Result;
 }
@@ -4535,6 +4577,17 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
         Result.Append(Evolution.Attachment.Item->GetConditionalEffectsGathered());
+    }
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164): its trigger-gated rows
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetConditionalEffectsGathered(Wearer, WornSkin));
+        }
+        if (const UEvolutionItemData *Evolution = Piece.GetEvolution())
+        {
+            Result.Append(Evolution->GetConditionalEffectsGathered());
+        }
     }
 
     return Result;

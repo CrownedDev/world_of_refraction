@@ -390,6 +390,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
 | [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
 | [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (UNBUILT, on B-381, save v28) | The journal saved; a friend's quests move on the host's events | Pending |
+| [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 
 Move rows to **Done** when every check passes.
 
