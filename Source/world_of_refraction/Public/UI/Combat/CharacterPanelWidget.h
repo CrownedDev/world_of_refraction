@@ -242,6 +242,9 @@ private:
 	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
 	TWeakObjectPtr<class UWoREffectMirrorComponent> BoundEffectMirror;
 
+	/** B-230: on a client the bar follows the replicated state (the manager's events don't fire there). */
+	TWeakObjectPtr<class UStatusBarStateComponent> BoundStatusBarState;
+
 	bool bBound = false;
 
 	/** Upper bound on visible effect rows; overflow collapses into a "+N more" last row. */

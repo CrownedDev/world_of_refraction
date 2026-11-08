@@ -56,6 +56,10 @@ struct WORLD_OF_REFRACTION_API FSavedCarriedAttachment
 	UPROPERTY()
 	FRuntimeAttachedItem Attached;
 
+	/** B-351b (save v22): the item's stone socket as the fight left it. */
+	UPROPERTY()
+	FRuntimeAttachedItem StoneSocket;
+
 	UPROPERTY()
 	FSavedAssetRef EvolutionItem;
 };
@@ -111,6 +115,24 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	/** B-346 / B-348: the AI seat's difficulty (restored only when the member is an AI seat). */
 	UPROPERTY()
 	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
+
+	/** B-348b (save v21): the head-start pillar allocation (FPartyMember::HeadStart*). */
+	UPROPERTY()
+	int32 HeadStartMind = 0;
+
+	UPROPERTY()
+	int32 HeadStartBody = 0;
+
+	UPROPERTY()
+	int32 HeadStartSpirit = 0;
+
+	/** B-348c (save v21, shared with B-348b: both landed in dev together, before any v21 save existed): the member is in Broken Darkness (persistent until reverted, Q-348b), and the
+	 *  run's strain (written only with a saved run, like the carried vitals). */
+	UPROPERTY()
+	bool bBrokenDarkness = false;
+
+	UPROPERTY()
+	float RunStrain = 0.0f;
 
 	/** B-076: a character found in the trial; written only with a saved run. */
 	UPROPERTY()
@@ -317,6 +339,14 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 
 	UPROPERTY()
 	TArray<FSavedAssetRef> AssignedSpells;
+
+	/** B-351d (D-145): the crystal's one spell list, one ref per slot (unset = the built-in), and whether it is active.
+	 *  New tagged fields: an older save reads them as empty / false (the old merge), so no version bump. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> SpellPicks;
+
+	UPROPERTY()
+	bool bSpellSlotsActive = false;
 
 	UPROPERTY()
 	FEquipmentStatBonus StatBonus;

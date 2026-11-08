@@ -85,6 +85,16 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
 
+    /** B-351d (D-145): the player's pick per spell slot of the crystal's one list (null = the built-in there; the
+     *  built-ins are the crystal's spells on this item (AssignedSpells)). SkillSlotList.h. Lost with the crystal, like AssignedSpells. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    TArray<USpellData *> SpellPicks;
+
+    /** B-351d (D-145): true once the player has edited this crystal's one spell list; until then the loadout reads the
+     *  pre-D-145 position merge (AssignedSpells, OBSOLETE once PIE-verified). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    bool bSpellSlotsActive = false;
+
     /** B-351 (D-145): the player's pick per skill slot (null = the built-in there). SkillSlotList.h. The replaced
      *  built-ins stay on the weapon asset (PresetAbilities), so a cleared pick restores them. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
@@ -197,6 +207,8 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     {
         AttachedItem = FRuntimeAttachedItem();
         AssignedSpells.Empty();
+        SpellPicks.Empty(); // B-351d: the one list goes with the crystal
+        bSpellSlotsActive = false;
     }
 
     /** Get direct access to the attached item for spell customization */

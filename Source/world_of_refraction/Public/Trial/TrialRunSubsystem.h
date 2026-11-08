@@ -161,6 +161,9 @@ public:
     /** B-223b (Q-223 changed by Crown, 2026-11-03): each character's own dropped levels, not yet given to one of its
      *  pillars (wor.UI.LevelDrop). A character's levels go only to its own pillars. */
     int32 GetUnspentLevels(FName CharacterKey) const;
+
+    /** B-232d: every character's waiting levels (the GameState's run state copies them). */
+    const TMap<FName, int32> &GetAllUnspentLevels() const { return UnspentLevels; }
     int32 GetTotalUnspentLevels() const;
     void AddUnspentLevels(FName CharacterKey, int32 Count);
     /** Takes one of the character's unspent levels; false when it has none. */
@@ -307,6 +310,9 @@ public:
     FString GetTrialRunString() const;
 
 private:
+    /** B-232d: the GameState's run state copies the run's progress again (found features, memories, waiting levels). */
+    void NotifyRunProgressChanged() const;
+
     /** B-227: every level change. A listen server travels seamlessly and takes its clients along
      *  (World->ServerTravel; the game modes set bUseSeamlessTravel); standalone keeps OpenLevel. A client
      *  doesn't travel on its own (it follows the server; its inputs reach the server with B-229). */

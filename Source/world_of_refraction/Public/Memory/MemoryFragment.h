@@ -26,6 +26,10 @@ public:
 	/** Picked up this run, or its memory is already in the journal (B-210: gone for good). */
 	bool IsTaken() const;
 
+public:
+	/** B-232d: on a client, the run's progress arrived: spent / taken here too. */
+	virtual void RefreshFromRun() override;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual FString GetHintText() const override;
