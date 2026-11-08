@@ -434,7 +434,14 @@ namespace
 	 *  end), so a revert anywhere reaches the save. Only a pawn stamped with its member id writes. */
 	void WriteBrokenDarknessRecord(const UCharacterDataComponent *CharComp, bool bBrokenDarkness)
 	{
-		const UWorld *World = CharComp ? CharComp->GetWorld() : nullptr;
+		// Desktop review: only a pawn stamped with its member id writes (an enemy sharing a member's asset must not), and
+		// only on the server (TODO: co-op seats' records, D-103).
+		const AActor *Owner = CharComp ? CharComp->GetOwner() : nullptr;
+		if (!Owner || !Owner->HasAuthority() || !CharComp->PartyMemberId.IsValid())
+		{
+			return;
+		}
+		const UWorld *World = CharComp->GetWorld();
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 		const int32 Slot = PartySession ? PartySession->GetMemberSlotOf(CharComp) : INDEX_NONE;

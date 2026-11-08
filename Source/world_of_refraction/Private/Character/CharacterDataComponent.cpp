@@ -152,7 +152,7 @@ void UCharacterDataComponent::BeginPlay()
         // treating a born-BD as BD.
         // B-348c (Q-348b, Crown 2026-11-08): a party member that broke earlier stays in Broken Darkness (its record,
         // saved) until reverted; it seeds exactly as a born-BD does.
-        const FPartyMember *CarriedMember = FindCarriedPartyMember();
+        const FPartyMember *CarriedMember = FindCarriedPartyMember(); // the same by-data fallback as the carried vitals; only a stamped pawn writes
         if (HasServerAuthority() && CharacterData &&
             (CharacterData->bBrokenDarknessInnate || (CarriedMember && CarriedMember->bBrokenDarkness)))
         {

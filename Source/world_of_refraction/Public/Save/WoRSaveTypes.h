@@ -122,7 +122,7 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	int32 HeadStartSpirit = 0;
 
-	/** B-348c (save v21 with B-348b): the member is in Broken Darkness (persistent until reverted, Q-348b), and the
+	/** B-348c (save v21, shared with B-348b: both landed in dev together, before any v21 save existed): the member is in Broken Darkness (persistent until reverted, Q-348b), and the
 	 *  run's strain (written only with a saved run, like the carried vitals). */
 	UPROPERTY()
 	bool bBrokenDarkness = false;
