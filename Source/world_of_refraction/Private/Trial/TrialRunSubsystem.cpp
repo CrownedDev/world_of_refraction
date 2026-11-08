@@ -1,6 +1,7 @@
 // TrialRunSubsystem.cpp
 
 #include "Trial/TrialRunSubsystem.h"
+#include "Trial/TrialMapLook.h"
 #include "Player/RunStateComponent.h"
 #include "Memory/MemoryData.h"
 #include "Trial/DefeatRules.h"
@@ -498,8 +499,18 @@ void UTrialRunSubsystem::Deinitialize()
 void UTrialRunSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
 {
     UWorld *World = Params.World;
+    if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance())
+    {
+        return;
+    }
+    // B-189: the trial's element tailors its map's look (sky, fog, sun). Cosmetic, so on every machine that knows
+    // the trial (a client's run copy is B-234).
+    if (IsRunActive() && ActiveTrial && IsActiveTrialWorld(World))
+    {
+        TrialMapLook::ApplyTo(World, ActiveTrial->Element);
+    }
     // The server places it (a client's map follows the server's; co-op per-player pickups are B-235).
-    if (!World || !World->IsGameWorld() || World->GetGameInstance() != GetGameInstance() || World->GetNetMode() == NM_Client)
+    if (World->GetNetMode() == NM_Client)
     {
         return;
     }

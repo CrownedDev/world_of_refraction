@@ -448,7 +448,11 @@ void ACombatPlayerController::Client_FreeCommandApplied_Implementation(AActor *A
 		{
 			Loadout->ResetTurnSwitch();
 		}
-		ApplyFreeCommand(nullptr, Actor, Command);
+		if (!ApplyFreeCommand(nullptr, Actor, Command))
+		{
+			UE_LOG(LogWoRCombat, Warning, TEXT("[Net] Client copy refused a switch the server applied for %s: the loadouts differ"),
+				   *GetNameSafe(Actor));
+		}
 	}
 	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
 	{
