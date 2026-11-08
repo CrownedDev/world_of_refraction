@@ -345,6 +345,13 @@ TArray<UMemoryData *> MemoryConditions::GatherConditional()
 FMemoryEvent MemoryConditions::FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep)
 {
 	FMemoryEvent Filtered = Event;
+	if (Filtered.Present.IsEmpty())
+	{
+		for (const FMemoryEventMember &Member : Event.Party)
+		{
+			Filtered.Present.AddUnique(Member.Character); // B-376: the whole team stays present for "party has"
+		}
+	}
 	Filtered.Party.RemoveAll([&Characters, bKeep](const FMemoryEventMember &Member)
 	{
 		return Characters.Contains(Member.Character) != bKeep;
