@@ -2223,6 +2223,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A / A**, by the reference-backed default (2026-11-04). Crown may change either.
 **Notes for Claude:** built in B-351 (`SkillSlotList::SlotCount`, `FWeaponLoadoutEntry::ReplaceSkill`). The PIE sheet says so.
 
+### Q-351c — B-351b in two parts
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-351b, cloud) · **Blocks:** —
+**Question:** B-351b lists about ten pieces: the crystals' spell slot lists, switching every item to the one list and deleting the old lists (after PIE), stone removal, the authored-stone refusal, the carried stone socket, authored stones moved into the stone socket (an editor step), the readers still on the old slot or lists, the HUD and debug readers, and the gear screen replacing the `wor.Loadout.*Skill` commands (UI). One job or parts?
+**Options / as built (A):** two parts by the 3-files rule and the editor / UI split, as Q-351 sliced B-351: **part 1** (this branch) the sockets' behaviour (removal, refusal, carry and run save); **B-351c** the rest (the spell slot lists, the old-slot readers `GetEquippedCrystals` / `FSavedLoadout::GetAllAbilities` / `UInventoryData`, HUD and debug, the gear screen, and the editor move of authored stones), the old-list deletion after Crown's PIE. **B** one job.
+**Recommendation:** A, the same slicing Q-351 approved; each part is checkable on its own.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
+**Notes for Claude:** part 1 built in B-351b; B-351c added to the backlog under it.
+
 ### Q-353 — One stat stone: do the Max HP / Max EP stones fold in, and how is it shown?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-353, D-142) · **Blocks:** —
 **Question:** the sub-stat field is an `ESubStat`, and Max HP / Max EP are pools with no `ESubStat` (D-123 keeps pools separate). Fold them in anyway, and what does a StatStone show as?
