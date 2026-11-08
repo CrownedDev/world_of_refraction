@@ -7,6 +7,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Memory/CurseSubsystem.h"
 #include "Memory/HiddenQuestData.h"
 #include "Equipment/EquipmentDataBase.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -21,6 +22,15 @@
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "HiddenQuest"
+
+/** The quest notices, all in one place. They are private: no hint of which quest or what comes next (D-100). */
+namespace HiddenQuestNotice
+{
+	// TODO: Crown's text (placeholders, Crown writes lore-flavoured lines later; Q-377).
+	static FText Started() { return LOCTEXT("QuestStarted", "Something has begun."); }
+	// TODO: Crown's text (placeholder; Q-377).
+	static FText StepDone() { return LOCTEXT("StepDone", "Something has moved forward."); }
+}
 
 void UHiddenQuestSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -112,7 +122,7 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 	Progress.Add(Quest->GetQuestId());
 	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
 	ReportToHost(); // B-377b: a client's host checks its steps
-	ATrialMapFeature::ShowMessage(LOCTEXT("QuestStarted", "Something has begun.")); // private; no hint of what (D-100)
+	ATrialMapFeature::ShowMessage(HiddenQuestNotice::Started());
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s started (%d step(s))"), *Quest->GetQuestId().ToString(), Quest->Steps.Num());
 	if (Quest->Steps.IsEmpty())
 	{
@@ -141,6 +151,11 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<
 	// Quests started by this event (or since the last one) wait for the next event; one this loop starts waits too.
 	const TSet<FName> StartedJustNow = MoveTemp(JustStarted);
 	JustStarted.Reset();
+	UCurseSubsystem *Curses = GetGameInstance()->GetSubsystem<UCurseSubsystem>();
+	if (Curses)
+	{
+		RegainCurses(*Curses, Context, Quests); // before this event moves any step on (a step done now gives it anyway)
+	}
 	for (const UHiddenQuestData *Quest : Quests)
 	{
 		const FHiddenQuestProgress *Entry = Quest ? Progress.Find(Quest->GetQuestId()) : nullptr;
@@ -172,6 +187,7 @@ bool UHiddenQuestSubsystem::CountStepMet(const UHiddenQuestData &Quest)
 	}
 	++Entry->StepsDone;
 	Entry->RunCount = 0;
+	GiveStepRewards(Quest, Step, GetGameInstance()->GetSubsystem<UCurseSubsystem>()); // Q-378: on this player's own machine
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s: step %d of %d done"), *Quest.GetQuestId().ToString(), Entry->StepsDone, Quest.Steps.Num());
 	if (Entry->StepsDone >= Quest.Steps.Num())
 	{
@@ -179,7 +195,7 @@ bool UHiddenQuestSubsystem::CountStepMet(const UHiddenQuestData &Quest)
 	}
 	else
 	{
-		ATrialMapFeature::ShowMessage(LOCTEXT("StepDone", "Something has moved forward.")); // no next-step text (D-100)
+		ATrialMapFeature::ShowMessage(HiddenQuestNotice::StepDone());
 	}
 	ReportToHost();
 	return true;
@@ -342,6 +358,52 @@ TArray<UHiddenQuestData *> UHiddenQuestSubsystem::GetAllQuests()
 		Quests.Add(Quest);
 	}
 	return Quests;
+}
+
+void UHiddenQuestSubsystem::GiveStepRewards(const UHiddenQuestData &Quest, const FHiddenQuestStep &Step, UCurseSubsystem *Curses)
+{
+	for (const FMemoryReward &Reward : Step.Rewards)
+	{
+		if (Reward.Kind != EMemoryRewardKind::Curse && Reward.Kind != EMemoryRewardKind::RemoveCurse)
+		{
+			UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s step reward: %s (logged, not granted yet)"), *Quest.GetQuestId().ToString(),
+				   *UMemoryData::GetRewardString(Reward));
+		}
+	}
+	if (Curses)
+	{
+		Curses->ApplyRewards(Step.Rewards); // Q-378: a quest step gives (or lifts) a curse
+	}
+}
+
+int32 UHiddenQuestSubsystem::RegainCurses(UCurseSubsystem &Curses, const FWoRConditionContext &Context, const TArray<UHiddenQuestData *> &Quests)
+{
+	// Q-378 (Crown, 2026-11-08): a curse a done step (or a finished quest's end memory) gave, cleared since, comes back
+	// when that step's conditions are met again. One meeting is enough (TimesInOneRun is the first time's count).
+	int32 Regained = 0;
+	for (const UHiddenQuestData *Quest : Quests)
+	{
+		const FHiddenQuestProgress *Entry = Quest ? Progress.Find(Quest->GetQuestId()) : nullptr;
+		if (!Entry)
+		{
+			continue;
+		}
+		const int32 Done = FMath::Min(Entry->StepsDone, Quest->Steps.Num());
+		for (int32 Index = 0; Index < Done; ++Index)
+		{
+			const FHiddenQuestStep &Step = Quest->Steps[Index];
+			const bool bGivesEndCurse = Entry->bFinished && Index == Quest->Steps.Num() - 1 && Quest->EndMemory &&
+										Curses.CouldRegain(Quest->EndMemory->Rewards);
+			if ((!Curses.CouldRegain(Step.Rewards) && !bGivesEndCurse) || !WoRConditions::IsMet(Step.Conditions, Context))
+			{
+				continue;
+			}
+			const int32 Back = Curses.RegainFrom(Step.Rewards) + (bGivesEndCurse ? Curses.RegainFrom(Quest->EndMemory->Rewards) : 0);
+			Regained += Back;
+			UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s step %d met again: %d curse(s) back"), *Quest->GetQuestId().ToString(), Index + 1, Back);
+		}
+	}
+	return Regained;
 }
 
 void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
