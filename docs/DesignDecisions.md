@@ -3648,6 +3648,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it. B-373's analysed wind-up end replaces (1) when it lands.
 **Notes for Claude:** built in B-370 (`FCombatCameraRules::ReadWindowTiming`, `UCombatCameraDirector::ScheduleDefenceHandOff`).
 
+### Q-372 — What a shot must show, and how much edge to keep free
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-372, cloud) · **Blocks:** —
+**Question:** B-372 checks that each code-built shot frames the action. Which points must each moment show, and how close to the screen's edge may they sit?
+**Options / as built (A):** wind-up and cast: the caster and every target; impact: its (first) target, which the shot is about; spread: every target. A 5 % margin of the half-width / half-height stays free (TV-safe framing, the broadcast "action safe" area that games keep HUD and focus inside). **B** every moment shows the caster and every target.
+**Recommendation:** A. Expedition 33's impact shots frame the struck enemy close, with the attacker out of frame, and its spread shots pull back to the whole group; checking the caster on an impact would refuse the look B-371 is built for. The action-safe margin is standard practice for anything that must read on a TV.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it; the margin is a named constant (`CameraFraming::SCREEN_MARGIN`).
+**Notes for Claude:** built in B-372 (`CameraFraming::GetRequiredPoints`, `IsOnScreen`). Review fix: the wind-up's height scales with the style (a Close wind-up framed the caster below the screen).
+
 ### Q-371 — Skill cameras: code-built shots instead of template sequences
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-371) · **Blocks:** —
 **Question:** D-074 chose template sequences by skill type. Build those templates as code-built shot patterns timed by the notifies (no Level Sequence asset), keeping hand-made sequences for signature moves?
