@@ -362,12 +362,14 @@ FMemoryReceivers MemoryConditions::PickReceivers(const UGameInstance *GameInstan
 {
 	FMemoryReceivers Receivers;
 	TArray<UCharacterData *> FriendsCharacters;
+	bool bAnyFriendMet = false;
 	for (AWoRPlayerState *Friend : MemoryUnlock::GetRemotePlayers(GameInstance))
 	{
 		const TArray<UCharacterData *> Own = Friend->GetOwnCharacters();
 		FriendsCharacters.Append(Own);
 		// B-235e: a PriorMemory condition reads the memories the friend reported and was sent.
 		const bool bMet = AreMet(Memory, FilterParty(Event, Own, /*bKeep=*/true), Journal, &Friend->GetKnownMemoryIds());
+		bAnyFriendMet |= bMet;
 		if (MemoryUnlock::ShouldFriendReceive(&Memory, Own, bMet)) // one who has it already still counts as its finder
 		{
 			Receivers.Friends.Add(Friend);
@@ -380,7 +382,16 @@ FMemoryReceivers MemoryConditions::PickReceivers(const UGameInstance *GameInstan
 	{
 		HostCharacters.AddUnique(const_cast<UCharacterData *>(Member.Character));
 	}
-	Receivers.bHost = MemoryUnlock::ShouldHostReceive(&Memory, HostCharacters, AreMet(Memory, HostsEvent, Journal), !Receivers.Friends.IsEmpty());
+	const bool bHostMet = AreMet(Memory, HostsEvent, Journal);
+	// B-235e (review): nobody met it (not the whole party on the host's journal, not one player alone): nobody gets it.
+	// CheckEvent no longer gates co-op on the whole party, so a friend's own PriorMemory can open it.
+	if (!bHostMet && !bAnyFriendMet && !AreMet(Memory, Event, Journal))
+	{
+		Receivers.bHost = false;
+		Receivers.Friends.Reset();
+		return Receivers;
+	}
+	Receivers.bHost = MemoryUnlock::ShouldHostReceive(&Memory, HostCharacters, bHostMet, !Receivers.Friends.IsEmpty());
 	return Receivers;
 }
 
@@ -416,7 +427,8 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 		bEarned = false;
 		for (UMemoryData *Memory : Candidates)
 		{
-			if (Memory && (bCoop || !Journal->HasMemory(Memory)) && AreMet(*Memory, Event, Journal) &&
+			// B-235e (review): in co-op PickReceivers decides who met it (a friend's own PriorMemory included).
+			if (Memory && (bCoop || (!Journal->HasMemory(Memory) && AreMet(*Memory, Event, Journal))) &&
 				UnlockForFinders(GameInstance, Memory, Event, Journal))
 			{
 				++Unlocked;

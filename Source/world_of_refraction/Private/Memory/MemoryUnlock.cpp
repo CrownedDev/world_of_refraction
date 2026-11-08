@@ -74,6 +74,16 @@ bool MemoryUnlock::UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, E
 	{
 		return false;
 	}
+	// B-235e (review): on a client, a memory for someone else's character is not this player's find (Q-235d rule 1).
+	// TODO: the client's own characters may not have replicated yet; until they have, it takes the find as before.
+	const UWorld *World = GameInstance->GetWorld();
+	const APlayerController *LocalPC = World && World->GetNetMode() == NM_Client ? World->GetFirstPlayerController() : nullptr;
+	const AWoRPlayerState *Self = LocalPC ? LocalPC->GetPlayerState<AWoRPlayerState>() : nullptr;
+	const TArray<UCharacterData *> OwnHere = Self ? Self->GetOwnCharacters() : TArray<UCharacterData *>();
+	if (!OwnHere.IsEmpty() && !QualifiesFor(Memory, OwnHere))
+	{
+		return false;
+	}
 	// Someone new must receive it: the host (not in its journal yet) or a friend who does not have it. A memory the
 	// host had from an earlier run, with no friend new to it, stays out of this run as before; a friend new to it gets
 	// it (their own spots and fragments run on their side, B-235e).
