@@ -27,3 +27,4 @@ The fight's turn state, kept on the GameState so every player in a co-op game re
 |---|---|---|
 | 2026-11-03 | B-228: created. Unbuilt (cloud). | feature/B-228-turn-state-gamestate |
 | 2026-11-07 | B-228b: `ClientCombatHUD::Next` (build once on, tear down once off, never on the server); `UTurnStateComponent::OnRep_TurnState` → `UpdateClientCombatHUD`; the component owns the client's `UCombatHUD` (review fix: the orchestrator is not on clients); spec in `WoR.TurnState`. Unbuilt (cloud pre-write). | feature/B-228b-client-combat-hud-cloud |
+| 2026-11-08 | B-232b part 1: `CommandMenuRules::OpensHere`; the host's menu opens only for members it commands; a client opens its own member's menu from `OnRep_TurnState` (`UpdateClientCommandMenu`, once per turn, closed when the turn moves on). The rest of B-232b is B-232c. Unbuilt (cloud pre-write), on B-228b. | feature/B-232b-menu-on-commander-cloud |
