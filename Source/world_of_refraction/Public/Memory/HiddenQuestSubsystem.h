@@ -12,6 +12,8 @@
 
 #include "CoreMinimal.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "Memory/HiddenQuestData.h" // EQuestKind (B-388)
+#include "Memory/MemoryData.h" // EMemoryDepth (a non-unity compile of this file found it missing)
 #include "Save/WoRSaveTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "HiddenQuestSubsystem.generated.h"
@@ -29,6 +31,17 @@ struct FHiddenQuestProgress
 	bool bFinished = false;
 	/** Times the step in progress was met this run; reset at run end. */
 	int32 RunCount = 0;
+};
+
+/** B-388: a main or side quest as the journal shows it. */
+struct FVisibleQuest
+{
+	FName QuestId;
+	EQuestKind Kind = EQuestKind::Main;
+	FText Title;
+	/** The step in progress's goal; empty once finished. */
+	FText Goal;
+	bool bFinished = false;
 };
 
 UCLASS()
@@ -68,8 +81,15 @@ public:
 	FSavedHiddenQuests Capture() const;
 	void Restore(const FSavedHiddenQuests &Saved);
 
-	/** Debug: one line per started quest. */
+	/** Debug: one line per started quest (a main or side quest with its title and goal, B-388). */
 	FString GetQuestsString() const;
+
+	/** B-388: this player's started main and side quests: main first, then side; unfinished before finished; by id. */
+	TArray<FVisibleQuest> GetVisibleQuests() const;
+
+	/** B-388: gives the quest QuestId (a main or side quest from the story, V, a conversation or an NPC; any quest asset).
+	 *  False when no asset has that id, or it was started already. */
+	bool StartQuestById(FName QuestId);
 
 	/** Q-377: the depth Memory has for this player's characters (the local player's own, else the local party's); None
 	 *  for a memory for every character. */
@@ -116,4 +136,12 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UHiddenQuestData>> QuestsForStarts;
+
+	/** B-388: every quest asset seen (started here, or gathered), by id, so the journal can show a started quest's title
+	 *  and goal; a quest restored from the save is found through GetAllQuests. */
+	UPROPERTY(Transient)
+	TMap<FName, TObjectPtr<UHiddenQuestData>> KnownQuests;
+
+	/** The asset for QuestId among KnownQuests (null when not seen). */
+	const UHiddenQuestData *FindKnownQuest(FName QuestId) const;
 };

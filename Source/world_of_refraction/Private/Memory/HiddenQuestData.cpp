@@ -11,6 +11,16 @@ FName UHiddenQuestData::GetQuestId() const
 	return QuestId.IsNone() ? GetFName() : QuestId;
 }
 
+FText UHiddenQuestData::GetDisplayTitle() const
+{
+	return Title.IsEmpty() ? FText::FromName(GetQuestId()) : Title;
+}
+
+FText UHiddenQuestData::GetGoalAfter(int32 StepsDone) const
+{
+	return Steps.IsValidIndex(StepsDone) ? Steps[StepsDone].Goal : FText::GetEmpty();
+}
+
 bool UHiddenQuestData::StartsFrom(const UMemoryData *Memory, EMemoryDepth Depth) const
 {
 	return Memory && Starts.ContainsByPredicate([Memory, Depth](const FHiddenQuestStart &Start)
@@ -53,9 +63,13 @@ FString UHiddenQuestData::GetQuestString() const
 									 {
 										 return WoRConditions::GetConditionString(Condition);
 									 }),
-									 Step.TimesInOneRun));
+									 Step.TimesInOneRun) +
+					 (Step.Goal.IsEmpty() ? FString() : FString::Printf(TEXT(" (goal: %s)"), *Step.Goal.ToString())));
 	}
-	return FString::Printf(TEXT("%s: starts [%s]; steps [%s]; ends %s"), *GetQuestId().ToString(), *FString::Join(StartText, TEXT(", ")),
+	const FString KindText = IsVisible() ? FString::Printf(TEXT(" [%s \"%s\"]"), *UEnum::GetDisplayValueAsText(Kind).ToString(),
+														   *GetDisplayTitle().ToString())
+										 : FString();
+	return FString::Printf(TEXT("%s%s: starts [%s]; steps [%s]; ends %s"), *GetQuestId().ToString(), *KindText, *FString::Join(StartText, TEXT(", ")),
 						   *FString::Join(StepText, TEXT("; ")), EndMemory ? *EndMemory->GetMemoryId().ToString() : TEXT("<none>"));
 }
 
