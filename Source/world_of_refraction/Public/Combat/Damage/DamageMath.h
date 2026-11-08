@@ -66,6 +66,9 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	bool bApplyDefense = false;
 	/** GetDefenderFlatDefense: a reduction fraction. */
 	float DefenderDefense = 0.0f;
+	/** B-385: the share of DefenderDefense this hit's scopes keep (UDamageCalculator::GetDefenseScopeRatio); only the GAS
+	 *  execution reads it, on the synced Defense attribute it puts in DefenderDefense's place. */
+	float DefenseScopeRatio = 1.0f;
 	/** Grid defense modifier; applied when above 0. */
 	float GridDefenseModifier = 0.0f;
 	/** B-293d: the defender's Damage Taken factor (UDamageCalculator::GetDamageTakenFactor), already inside

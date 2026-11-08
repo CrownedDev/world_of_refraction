@@ -229,6 +229,14 @@ public:
 	 *  matches HitElement and the hit's kind (spell or not). Equal to GetDefenderFlatDefense with no scoped effects. */
 	float GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const;
 
+	/** B-385: this hit's Defense layers over the unscoped ones (DefenseBuffs whose scope doesn't match taken out); 1 with
+	 *  no scoped effects. The GAS execution multiplies its synced Defense attribute by it. */
+	float GetDefenseScopeRatio(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const;
+
+	/** Defender's Defense layers composed as they are (OutAll) and for this hit's scopes (OutForHit); false without a
+	 *  character component or effect manager. */
+	bool GetDefenseLayersForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell, float &OutAll, float &OutForHit) const;
+
 	/** B-383: 1 + (Raw or Spell DamageBuff - Debuff) / 100 for one hit, each effect counted by its scope; the one value
 	 *  both the status factor and the stat-cap correction read (GetTransientRaw/SpellDamageFactor with no scoped effects). */
 	float GetScopedTransientDamageFactor(AActor *Attacker, bool bIsSpell, ESpellElement HitElement) const;
