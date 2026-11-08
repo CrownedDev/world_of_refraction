@@ -35,12 +35,12 @@ namespace
 	}
 
 	FAutoConsoleCommandWithWorld GCompareStatsCmd(
-		TEXT("wor.CompareStats"),
+		TEXT("wor.Stats.Compare"),
 		TEXT("DEBUG: snapshot every combatant's composed stats and list what changed since the last call."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UStatModifierDebug::CompareStats(World); }));
 
 	FAutoConsoleCommandWithWorld GPrintStatModifiersCmd(
-		TEXT("wor.PrintStatModifiers"),
+		TEXT("wor.Stats.Print"),
 		TEXT("DEBUG: print each combatant's net buff/debuff per sub-stat."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UStatModifierDebug::PrintStatModifiers(World); }));
 
