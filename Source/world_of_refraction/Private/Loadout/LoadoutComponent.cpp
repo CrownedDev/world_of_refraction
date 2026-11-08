@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
 #include "Memory/CurseSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Algo/Count.h"
@@ -4459,6 +4460,7 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
     }
 
     // B-380 (D-164): every apparel piece's resistance, with its crystal's element added (Crown).
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
     for (const FApparelEntry &Piece : Loadout.Apparel)
     {
         if (Piece.Apparel)
@@ -4498,6 +4500,7 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
         Result.Append(Evolution.Attachment.Item->GetStartingEffects());
     }
     // B-380 (D-164, Crown): apparel carries effects like the deckbuilder's vessels.
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
     for (const FApparelEntry &Piece : Loadout.Apparel)
     {
         if (Piece.Apparel)
@@ -4538,6 +4541,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     {
         Result.Append(Evolution.Attachment.Item->GetStartingEffectsGathered());
     }
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
     for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164)
     {
         if (Piece.Apparel)
@@ -4578,6 +4582,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     {
         Result.Append(Evolution.Attachment.Item->GetConditionalEffectsGathered());
     }
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
     for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164): its trigger-gated rows
     {
         if (Piece.Apparel)
