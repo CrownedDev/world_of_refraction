@@ -1,6 +1,7 @@
 // ClassLimitsSpec.cpp
 // B-303 (D-110 unified loadout, step 3): one cost for every class and one class table. Refractor 3 / one item;
-// Generic 5 (Crown 2026-11-08, was 6) / two weapons + one adapter; Resonator 5 / one weapon / any adapters. Checks
+// Refractor 3 / 1 item, Generic 5 (Crown 2026-11-08, was 6) / two weapons + one adapter, Resonator 5 / one weapon /
+// any adapters; an evolution alone costs 3, on gear +2 (Q-357 final). Checks
 // Crown's worked examples: a Refractor's evolved weapon fits; a Generic's evolved weapon fits with an evolved adapter
 // (3 + 2) or a crystal weapon (3 + 2) but two evolved weapons (3 + 3) don't; a Resonator over 5 is refused.
 
@@ -118,6 +119,40 @@ void FClassLimitsSpec::Define()
 				  FLoadoutRules::CollectClassLimitFindings(WithEvolvedAdapter, ECharacterClass::Generic).Num(), 0);
 	});
 
+	It("Crown's final examples fit or are refused (Q-357, 2026-11-08)", [this]()
+	{
+		FCombatLoadout EvolutionAlone;
+		EvolutionAlone.PrimarySlotType = EPrimarySlotType::Evolution; // 3
+		TestEqual(TEXT("Refractor: an evolution alone (3) fits"), FLoadoutRules::CollectClassLimitFindings(EvolutionAlone, ECharacterClass::Caster).Num(), 0);
+
+		FCombatLoadout EvolvedWeapon;
+		EvolvedWeapon.PrimarySlotType = EPrimarySlotType::Weapon;
+		EvolvedWeapon.PrimaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution()); // 3
+		TestEqual(TEXT("Refractor: an evolved weapon (3) fits"), FLoadoutRules::CollectClassLimitFindings(EvolvedWeapon, ECharacterClass::Caster).Num(), 0);
+
+		FCombatLoadout FiveCrystalAdapters;
+		for (int32 Index = 0; Index < LoadoutConstants::LOADOUT_TOTAL_BUDGET; ++Index)
+		{
+			FiveCrystalAdapters.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestGem())); // 1 each
+		}
+		TestFalse(TEXT("Resonator: 5 crystal adapters fit"),
+				  ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(FiveCrystalAdapters, ECharacterClass::Resonator)));
+
+		FCombatLoadout WeaponAndTwoEvolved;
+		WeaponAndTwoEvolved.PrimarySlotType = EPrimarySlotType::Weapon;
+		WeaponAndTwoEvolved.PrimaryWeapon = ClassLimitsTestWeapon(); // 1
+		WeaponAndTwoEvolved.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2
+		WeaponAndTwoEvolved.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 5
+		TestFalse(TEXT("Resonator: a weapon + 2 evolved adapters fit"),
+				  ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(WeaponAndTwoEvolved, ECharacterClass::Resonator)));
+
+		FCombatLoadout EvolutionAndEvolvedAdapter;
+		EvolutionAndEvolvedAdapter.PrimarySlotType = EPrimarySlotType::Evolution; // 3
+		EvolutionAndEvolvedAdapter.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 5
+		TestFalse(TEXT("Resonator: an evolution alone + an evolved adapter (no one-evolution rule)"),
+				  ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(EvolutionAndEvolvedAdapter, ECharacterClass::Resonator)));
+	});
+
 	It("costs by frame + attachment (Q-357, Crown 2026-11-08)", [this]()
 	{
 		TestEqual(TEXT("bare weapon"), InventoryConstants::WEAPON_BASE_SLOT_COST, 1);
@@ -125,7 +160,7 @@ void FClassLimitsSpec::Define()
 		TestEqual(TEXT("weapon + evolution"), InventoryConstants::WEAPON_EVOLUTION_SLOT_COST, 3);
 		TestEqual(TEXT("adapter + crystal"), InventoryConstants::RING_BASE_SLOT_COST, 1);
 		TestEqual(TEXT("adapter + evolution"), InventoryConstants::RING_EVOLUTION_SLOT_COST, 2);
-		TestEqual(TEXT("evolution alone"), LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST, 2);
+		TestEqual(TEXT("evolution alone (Crown 2026-11-08, final)"), LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST, 3);
 	});
 
 	It("refuses a Resonator over 5 with the clearable adapter-budget finding", [this]()
@@ -171,9 +206,9 @@ void FClassLimitsSpec::Define()
 	It("words a Resonator's budget finding as the old check did", [this]()
 	{
 		FCombatLoadout Resonator;
-		Resonator.PrimarySlotType = EPrimarySlotType::Evolution; // seat 2
+		Resonator.PrimarySlotType = EPrimarySlotType::Evolution; // seat 3
 		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2
-		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 6
+		Resonator.RingLoadout.Add(ClassLimitsTestAdapter(ClassLimitsTestEvolution())); // 2: 7
 		const FString Expected = FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"),
 												 LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST, 2 * InventoryConstants::RING_EVOLUTION_SLOT_COST,
 												 LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST + 2 * InventoryConstants::RING_EVOLUTION_SLOT_COST,
