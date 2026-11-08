@@ -105,11 +105,12 @@ private:
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
 
-	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). */
-	void StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill);
+	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
+	 *  could not (no camera or no viewer): nothing is left playing. */
+	bool StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill);
 	/** B-371: shows Shot on Camera: the move runs on a short timer from where that camera is now, when the viewer
 	 *  already looks through it, else the view blends to it. */
-	void PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot);
+	bool PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot);
 	void StepShot();
 	void StopShotPattern();
 	bool IsShotPlaying() const { return ShotCaster.IsValid(); }
@@ -179,6 +180,8 @@ private:
 	FSkillCameraTuning ShotTuning;
 	bool bShotRanged = false;
 	bool bShotImpactShown = false;
+	bool bShotCastShown = false;
+	uint64 ShotStartFrame = 0;
 	ECameraShotMoment ShotMoment = ECameraShotMoment::WindUp;
 	FCameraShot ActiveShot;
 	float ShotElapsed = 0.0f;

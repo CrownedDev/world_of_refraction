@@ -235,7 +235,11 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	const bool bSkillAction = Action.ActionType == EActionType::Spell || Action.ActionType == EActionType::Ability;
 	if (bPlayCinematic && bSkillAction && FCombatCameraRules::UsesShotPatterns(Skill))
 	{
-		StartShotPattern(Executor, Action, Skill); // B-371 (Q-371): code-built shots unless the skill has its own sequence
+		// B-371 (Q-371): code-built shots unless the skill has its own sequence.
+		if (!StartShotPattern(Executor, Action, Skill) && bNewActor)
+		{
+			ShowTurnView(); // review fix: nothing to show the shots on, so at least frame the new actor
+		}
 		return;
 	}
 	ULevelSequence *Sequence = bPlayCinematic ? ResolveSequence(Action) : nullptr;
@@ -269,7 +273,9 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 	if (IsShotPlaying() && Attacker == ShotCaster.Get() && !bShotImpactShown)
 	{
 		bShotImpactShown = true;
-		if (bSkipCinematicAfterHit)
+		ShotProjectile.Reset(); // review fix: the impact shot doesn't follow the projectile
+		// A hit on the frame the pattern started would cut it unseen; let that one show (as the sequence path does).
+		if (bSkipCinematicAfterHit && GFrameCounter != ShotStartFrame)
 		{
 			ShowTurnView(); // stops the pattern
 			return;
@@ -327,6 +333,7 @@ ULevelSequence *UCombatCameraDirector::ResolveSequence(const FAction &Action) co
 void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caster, const TArray<AActor *> &Targets)
 {
 	StopSequence();
+	StopShotPattern(); // B-371 (review): a held pattern must not take the view back from a signature sequence
 	FMovieSceneSequencePlaybackSettings Settings;
 	ALevelSequenceActor *NewActor = nullptr;
 	ULevelSequencePlayer *Player = ULevelSequencePlayer::CreateLevelSequencePlayer(this, Sequence, Settings, NewActor);
@@ -551,14 +558,14 @@ FString UCombatCameraDirector::GetCinematicWindowString() const
 						   DefenceHandOffTimer.IsValid() ? TEXT(", pending") : TEXT(""));
 }
 
-void UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill)
+bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill)
 {
 	StopSequence();
 	StopShotPattern();
 	UCombatCameraComponent *Camera = Caster ? Caster->FindComponentByClass<UCombatCameraComponent>() : nullptr;
 	if (!Camera || !Skill)
 	{
-		return;
+		return false;
 	}
 	ShotCaster = Caster;
 	for (AActor *Target : Action.Targets)
@@ -571,28 +578,35 @@ void UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	ShotCamera = Camera;
 	ShotTuning = Skill->CameraTuning;
 	bShotRanged = Action.ActionType == EActionType::Spell || Skill->ExecutionType == EAbilityExecutionType::Ranged;
+	ShotStartFrame = GFrameCounter;
+	if (!PlayShot(Camera, ECameraShotMoment::WindUp, FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, BuildShotContext(false), ShotTuning)))
+	{
+		StopShotPattern(); // review fix: no viewer or camera, nothing left half-playing
+		return false;
+	}
 	CurrentMode = ECombatCameraMode::Action;
-	PlayShot(Camera, ECameraShotMoment::WindUp, FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, BuildShotContext(false), ShotTuning));
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Shot pattern for %s's %s (%d target(s))"), *GetNameSafe(Caster), *GetNameSafe(Skill), ShotTargets.Num());
+	return true;
 }
 
 void UCombatCameraDirector::HandleProjectileLaunched(AActor *Caster, AActor *Projectile)
 {
 	// B-371: the Cast shot, looking at the first projectile of the pattern's caster while it flies.
-	if (!IsShotPlaying() || Caster != ShotCaster.Get() || bShotImpactShown || ShotProjectile.IsValid())
+	if (!IsShotPlaying() || Caster != ShotCaster.Get() || bShotImpactShown || bShotCastShown)
 	{
 		return;
 	}
+	bShotCastShown = true; // review fix: once per pattern, followed or not
 	ShotProjectile = ShotTuning.bFollowProjectile ? Projectile : nullptr;
 	PlayShot(ShotCamera.Get(), ECameraShotMoment::Cast, FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, BuildShotContext(false), ShotTuning));
 }
 
-void UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot)
+bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot)
 {
 	APlayerController *Viewer = GetViewer();
 	if (!Viewer || !Camera)
 	{
-		return;
+		return false;
 	}
 	UWorld *World = GetWorld();
 	if (World)
@@ -612,7 +626,7 @@ void UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::Action, ActiveShot.Start);
 	if (!CameraActor)
 	{
-		return;
+		return false;
 	}
 	CameraActor->GetCameraComponent()->SetFieldOfView(ActiveShot.FieldOfView);
 	const bool bMoves = !ActiveShot.Start.Equals(ActiveShot.End) || ShotProjectile.IsValid();
@@ -628,6 +642,7 @@ void UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	{
 		World->GetTimerManager().SetTimer(ShotTimer, this, &UCombatCameraDirector::StepShot, CombatCameraTiming::ShotStepSeconds, true);
 	}
+	return true;
 }
 
 void UCombatCameraDirector::StepShot()
@@ -665,6 +680,7 @@ void UCombatCameraDirector::StopShotPattern()
 	ShotProjectile.Reset();
 	ShotCamera.Reset();
 	bShotImpactShown = false;
+	bShotCastShown = false;
 	ShotElapsed = 0.0f;
 }
 
