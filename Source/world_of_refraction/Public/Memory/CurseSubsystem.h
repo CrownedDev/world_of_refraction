@@ -14,9 +14,12 @@
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
+#include "Memory/MemoryData.h" // FMemoryReward, UMemoryData::Rewards (review: the inline ApplyRewards reads them)
 #include "Save/WoRSaveTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "CurseSubsystem.generated.h"
+
+struct FMemoryEvent;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UCurseSubsystem : public UGameInstanceSubsystem
@@ -43,7 +46,7 @@ public:
 	int32 ApplyRewards(const UMemoryData &Memory) { return ApplyRewards(Memory.Rewards); }
 
 	/** Q-378 (Crown): their giver's conditions were met again: every Curse in Rewards not held now comes back (the curse
-	 *  only; the memory is not unlocked again). Returns how many came back. */
+	 *  only; the memory is not unlocked again), except one lifted during this event. Returns how many came back. */
 	int32 RegainFrom(const TArray<FMemoryReward> &Rewards);
 	/** Whether Rewards give a curse this player doesn't hold now. */
 	bool CouldRegain(const TArray<FMemoryReward> &Rewards) const;
@@ -52,6 +55,10 @@ public:
 	 *  and whose conditions Event meets for this player: its curses come back. Returns how many came back.
 	 *  TODO(co-op): a friend's own curses come back on their machine; the host checks only its own (as B-378's key). */
 	int32 CheckRegain(const FMemoryEvent &Event, const TArray<UMemoryData *> &Candidates);
+
+	/** Review: a new memory event starts; a curse lifted during it is not regained by the same event (a cure found where
+	 *  the curse was given would otherwise undo itself). MemoryConditions::CheckEvent calls it first. */
+	void BeginEvent() { LiftedThisEvent.Reset(); }
 
 	/** Save (D-059). */
 	FSavedCurses Capture() const;
@@ -90,4 +97,6 @@ private:
 	mutable bool bPenaltyDirty = true;
 	/** Curses lifted or cleared before (Q-378: they can be regained). */
 	TSet<FName> LiftedCurses;
+	/** Lifted since BeginEvent: not regained by the same event. */
+	TSet<FName> LiftedThisEvent;
 };

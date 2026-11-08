@@ -7,6 +7,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Engine/GameInstance.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Memory/CurseData.h"
@@ -119,10 +120,9 @@ void FCurseSpec::Define()
 		TestTrue(TEXT("the player clears it"), Curses->ClearCurse(CURSE_TEST_ID));
 		TestEqual(TEXT("cleared: it doesn't"), Quests->CheckEvent(FMemoryEvent(), {Quest}), 0);
 		TestEqual(TEXT("cleared: still two steps done"), Quests->GetStepsDone(Id), 2);
-		Quests->CheckEvent(AtCurseLocation(), {Quest}); // its giving step met again
+		Quests->CheckEvent(AtCurseLocation(), {Quest}); // its giving step met again: regained first, then the steps move
 		TestTrue(TEXT("regained"), Curses->HasCurse(CURSE_TEST_ID));
-		Quests->CheckEvent(FMemoryEvent(), {Quest});
-		TestTrue(TEXT("regained: it moves again (finished)"), Quests->IsFinished(Id));
+		TestTrue(TEXT("regained: it moves again on the same event (finished)"), Quests->IsFinished(Id));
 	});
 
 	It("Q-378: a memory the player has gives back its cleared curse when its conditions are met again", [this]()
@@ -141,6 +141,26 @@ void FCurseSpec::Define()
 		TestTrue(TEXT("held again"), Curses->HasCurse(CURSE_TEST_ID));
 		TestEqual(TEXT("held: nothing to regain"), Curses->CheckRegain(AtCurseLocation(), {Giver}), 0);
 		TestTrue(TEXT("the memory itself wasn't unlocked twice"), Journal->HasMemory(Giver));
+	});
+
+	It("Q-378 review: a cure found where the curse was given isn't undone by the same event, but a later one regains it", [this]()
+	{
+		FMemoryCondition There;
+		There.Kind = EMemoryConditionKind::Location;
+		There.LocationId = CURSE_TEST_LOCATION;
+		UMemoryData *Giver = NewObject<UMemoryData>(GetTransientPackage());
+		Giver->UnlockConditions = {There};
+		Giver->Rewards.Add(CurseReward());
+		UMemoryData *Cure = NewMemoryWithReward(EMemoryRewardKind::RemoveCurse);
+		Cure->UnlockConditions = {There};
+		Journal->RecordMemory(Giver, EMemorySource::Fragment);
+		UGameInstance *GameInstance = TestWorld->GetWorld()->GetGameInstance();
+
+		MemoryConditions::CheckEvent(GameInstance, AtCurseLocation(), {Giver, Cure});
+		TestTrue(TEXT("the cure unlocked"), Journal->HasMemory(Cure));
+		TestFalse(TEXT("lifted, and not regained by the same event"), Curses->HasCurse(CURSE_TEST_ID));
+		MemoryConditions::CheckEvent(GameInstance, AtCurseLocation(), {Giver, Cure});
+		TestTrue(TEXT("a later event at the giver regains it"), Curses->HasCurse(CURSE_TEST_ID));
 	});
 
 	It("lasts across runs through its save struct (D-059)", [this]()
