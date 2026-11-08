@@ -8,6 +8,11 @@ bool WoREvolutionPlacement::GivesPassives(EEvolutionPlace Place, int32 ChargeLev
 	return Place == EEvolutionPlace::Character || ChargeLevel >= GEAR_PASSIVES_CHARGE_LEVEL;
 }
 
+bool WoREvolutionPlacement::GivesStats(EEvolutionPlace Place)
+{
+	return Place == EEvolutionPlace::Character;
+}
+
 bool WoREvolutionPlacement::AppendFrom(const FRuntimeAttachedItem &Item, EEvolutionPlace Place, TArray<FAttachedEvolution> &Out)
 {
 	if (!Item.IsEvolution() || !Item.Evolution.Item)

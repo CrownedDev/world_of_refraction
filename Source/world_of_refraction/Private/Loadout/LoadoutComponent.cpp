@@ -4400,34 +4400,24 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
 
     FResistanceBonus Combined;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
-
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
     ForEachContributingGear([&Combined](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
         Combined.Accumulate(Weapon ? Weapon->WeaponEntry.ResistanceBonus : Adapter->RingEntry.ResistanceBonus);
     });
 
-    // Evolution resistance — a PERMANENT equipped bonus (always-on while slotted):
-    // authored Base from the ASSET + rolled Generated from the slotted ATTACHMENT
-    // (the per-instance roll; the asset's GeneratedResistance is preview-only as
-    // of U3c). Two mutually-exclusive cases mirroring the pillar read:
-    //   A: evolution attached to the active weapon (PrimarySlotType==Weapon)
-    //   B: evolution as the standalone primary slot (PrimarySlotType==Evolution) —
-    //      where the U1c instance bridge lands the roll. (B was previously not
-    //      aggregated at all — coverage aligned with the pillar read here.)
-    const FEvolutionAttachment WeaponEvo = GetActivePrimaryEvolutionAttachment(Actor);
-    if (WeaponEvo.Item)
+    // Evolution resistance, a permanent equipped bonus while slotted: the asset's authored Base plus the slotted
+    // attachment's per-instance roll (the asset's GeneratedResistance is preview-only since U3c).
+    // B-357c (D-147): through the one resolve path; only the character's own slot's evolution gives resistance
+    // (asset Base + the slotted attachment's per-instance roll). A weapon's or adapter's gives only its passives.
+    for (const FAttachedEvolution &Evolution : GatherAttachedEvolutions())
     {
-        FResistanceBonus EvoResist = WeaponEvo.Item->BaseResistance;
-        EvoResist.Accumulate(WeaponEvo.GeneratedResistance);
-        Combined.Accumulate(EvoResist);
-    }
-    else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
-    {
-        FResistanceBonus EvoResist = Loadout.PrimaryEvolution.Item->BaseResistance;
-        EvoResist.Accumulate(Loadout.PrimaryEvolution.GeneratedResistance);
-        Combined.Accumulate(EvoResist);
+        if (WoREvolutionPlacement::GivesStats(Evolution.Place))
+        {
+            FResistanceBonus EvoResist = Evolution.Attachment.Item->BaseResistance;
+            EvoResist.Accumulate(Evolution.Attachment.GeneratedResistance);
+            Combined.Accumulate(EvoResist);
+        }
     }
 
     return Combined;
