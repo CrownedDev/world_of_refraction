@@ -70,11 +70,26 @@ private:
 	UFUNCTION()
 	void OnRep_ReviveVote();
 
-	/** Server, once a second while a vote is open: voters who entered a fight leave the list; then the timeout. */
+	/** Server, once a second while a vote is open: voters who entered a fight leave the list; then the timeout. While a
+	 *  passed vote waits for a fight, it revives once the fight is over. */
 	void TickReviveVote();
 
-	/** Server: acts on a result (Passed revives; Failed tells everyone) and replicates the state. */
-	void ApplyReviveVoteResult(EReviveVoteResult Result);
+	/** Server, after an answer or a tick: tells the menus when the vote changed, and closes it once when this step closed it. */
+	void FinishReviveVoteStep(const FReviveVote &Before, EReviveVoteResult Result);
+
+	/** Server, once per vote: Failed tells everyone; Passed revives, or waits while a fight runs (Q-187e2). */
+	void CloseReviveVote(EReviveVoteResult Result);
+
+	/** Server: the revive itself, re-checked; the message says what really happened. */
+	void ReviveAfterVote();
+
+	void TellEveryone(const FText &Message);
+
+	/** Whether the level has a fight running (a revive reloads the level, so it never happens during one). */
+	bool IsAnyFightActive() const;
+
+	/** A passed vote waiting for the running fight to end (Q-187e2); no new vote starts meanwhile. */
+	bool bReviveWaitsForFight = false;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ReviveVote)
 	FReviveVote ReviveVoteState;

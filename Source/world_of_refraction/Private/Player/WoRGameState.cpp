@@ -116,8 +116,13 @@ FString AWoRGameState::GetDebugString() const
 
 namespace
 {
-	/** Tick period while a vote is open. */
+	/** Tick period while a vote is open, or a passed vote waits for a fight to end. */
 	constexpr float REVIVE_VOTE_TICK_SECONDS = 1.0f;
+
+	bool IsSameVote(const FReviveVote &A, const FReviveVote &B)
+	{
+		return A.bOpen == B.bOpen && A.LastResult == B.LastResult && A.VoterIds == B.VoterIds && A.YesIds == B.YesIds;
+	}
 }
 
 bool AWoRGameState::IsPlayerInBattle(const APlayerState *Player) const
@@ -128,8 +133,9 @@ bool AWoRGameState::IsPlayerInBattle(const APlayerState *Player) const
 	{
 		return false;
 	}
-	constexpr int32 TEAM_COUNT = 2; // the players' side and the enemies'; ControlsActor never says yes to an enemy
-	for (int32 Team = 0; Team < TEAM_COUNT; ++Team)
+	// TODO: ControlsActor asks whether the player may command a fighter, not whether it is in the fight: under the
+	// seat rotation (B-232) an unclaimed member can count. Right while players share one fight; revisit with per-player fights.
+	for (const int32 Team : {TurnManagerTeams::LOCAL_TEAM_INDEX, TurnManagerTeams::OPPOSING_TEAM_INDEX})
 	{
 		for (const AActor *Fighter : Turns->GetTeamMembers(Team))
 		{
@@ -142,9 +148,15 @@ bool AWoRGameState::IsPlayerInBattle(const APlayerState *Player) const
 	return false;
 }
 
+bool AWoRGameState::IsAnyFightActive() const
+{
+	const UTurnManager *Turns = WoRFight::Get<UTurnManager>(this);
+	return Turns && Turns->IsCombatActive();
+}
+
 EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 {
-	if (!HasAuthority() || !Starter || !WoRRestSpot::CanReviveHere(GetWorld()))
+	if (!HasAuthority() || !Starter || bReviveWaitsForFight || !WoRRestSpot::CanReviveHere(GetWorld()))
 	{
 		return EReviveVoteResult::Failed;
 	}
@@ -158,12 +170,12 @@ EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 	}
 	const TArray<int32> Voters = ReviveVote::SelectVoters(PlayerIds, [this](int32 Id)
 	{
-		const APlayerState *const *Found = PlayerArray.FindByPredicate([Id](const APlayerState *P) { return P && P->GetPlayerId() == Id; });
+		const TObjectPtr<APlayerState> *Found = PlayerArray.FindByPredicate([Id](const APlayerState *P) { return P && P->GetPlayerId() == Id; });
 		return Found && IsPlayerInBattle(*Found);
 	});
 	const EReviveVoteResult Result = ReviveVote::Start(ReviveVoteState, Starter->GetPlayerId(), Voters, GetServerWorldTimeSeconds());
 	UE_LOG(LogWoR, Log, TEXT("[ReviveVote] %s starts a vote: %d voter(s) -> %s"), *Starter->GetPlayerName(), Voters.Num(),
-		   *UEnum::GetValueAsString(Result));
+		   ReviveVote::ResultName(Result));
 	if (Result == EReviveVoteResult::Failed)
 	{
 		// Refused before it opened (the starter is in battle, or a vote is running): only the starter hears it.
@@ -186,22 +198,45 @@ EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 			}
 		}
 	}
-	ApplyReviveVoteResult(Result);
+	OnReviveVoteChanged.Broadcast(); // the host's own menu (clients hear it in OnRep_ReviveVote)
+	if (Result != EReviveVoteResult::Pending)
+	{
+		CloseReviveVote(Result); // solo: the starter is the only voter
+	}
 	return Result;
 }
 
 void AWoRGameState::CastReviveVote(const AWoRPlayerState *Voter, bool bYes)
 {
-	if (!HasAuthority() || !Voter)
+	// Review: a late or repeated answer (a double click, an RPC in flight, the console) never acts on a closed vote again.
+	if (!HasAuthority() || !Voter || !ReviveVoteState.bOpen)
 	{
 		return;
 	}
-	ApplyReviveVoteResult(ReviveVote::Cast(ReviveVoteState, Voter->GetPlayerId(), bYes));
+	const FReviveVote Before = ReviveVoteState;
+	const EReviveVoteResult Result = ReviveVote::Answer(ReviveVoteState, Voter->GetPlayerId(), bYes);
+	FinishReviveVoteStep(Before, Result);
 }
 
 void AWoRGameState::TickReviveVote()
 {
-	EReviveVoteResult Result = ReviveVoteState.bOpen ? EReviveVoteResult::Pending : ReviveVoteState.LastResult;
+	if (bReviveWaitsForFight)
+	{
+		if (!IsAnyFightActive())
+		{
+			bReviveWaitsForFight = false;
+			GetWorldTimerManager().ClearTimer(ReviveVoteTimer);
+			ReviveAfterVote();
+		}
+		return;
+	}
+	if (!ReviveVoteState.bOpen)
+	{
+		GetWorldTimerManager().ClearTimer(ReviveVoteTimer);
+		return;
+	}
+	const FReviveVote Before = ReviveVoteState;
+	EReviveVoteResult Result = EReviveVoteResult::Pending;
 	for (const APlayerState *Player : PlayerArray)
 	{
 		const int32 Id = Player ? Player->GetPlayerId() : INDEX_NONE;
@@ -222,30 +257,62 @@ void AWoRGameState::TickReviveVote()
 	{
 		Result = ReviveVote::CheckTimeout(ReviveVoteState, GetServerWorldTimeSeconds());
 	}
-	ApplyReviveVoteResult(Result);
+	FinishReviveVoteStep(Before, Result);
 }
 
-void AWoRGameState::ApplyReviveVoteResult(EReviveVoteResult Result)
+void AWoRGameState::FinishReviveVoteStep(const FReviveVote &Before, EReviveVoteResult Result)
 {
-	if (Result == EReviveVoteResult::Passed || Result == EReviveVoteResult::Failed)
+	if (!IsSameVote(Before, ReviveVoteState))
 	{
-		GetWorldTimerManager().ClearTimer(ReviveVoteTimer);
-		const FText Message = Result == EReviveVoteResult::Passed
-								  ? NSLOCTEXT("WoRGameState", "ReviveVotePassed", "Everyone agreed: the mini-boss returns.")
-								  : NSLOCTEXT("WoRGameState", "ReviveVoteFailed", "The mini-boss is not revived (not everyone agreed).");
-		for (APlayerState *Player : PlayerArray)
-		{
-			if (AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player))
-			{
-				WoRPlayer->Client_ShowFeatureMessage(Message);
-			}
-		}
-		UE_LOG(LogWoR, Log, TEXT("[ReviveVote] %s"), *UEnum::GetValueAsString(Result));
+		OnReviveVoteChanged.Broadcast(); // review: only on a change, not every tick
 	}
-	OnReviveVoteChanged.Broadcast(); // the host's own menu (clients hear it in OnRep_ReviveVote)
-	if (Result == EReviveVoteResult::Passed)
+	if (Before.bOpen && !ReviveVoteState.bOpen)
 	{
-		WoRRestSpot::ReviveMiniBoss(GetWorld()); // the host revives as before (the level reloads)
+		CloseReviveVote(Result); // this step closed it: act once
+	}
+}
+
+void AWoRGameState::CloseReviveVote(EReviveVoteResult Result)
+{
+	GetWorldTimerManager().ClearTimer(ReviveVoteTimer);
+	UE_LOG(LogWoR, Log, TEXT("[ReviveVote] closed: %s"), ReviveVote::ResultName(Result));
+	if (Result != EReviveVoteResult::Passed)
+	{
+		TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVoteFailed", "The mini-boss is not revived (not everyone agreed)."));
+		return;
+	}
+	if (IsAnyFightActive())
+	{
+		// Q-187e2 (review): a revive reloads the level, so it waits until no fight is running.
+		bReviveWaitsForFight = true;
+		GetWorldTimerManager().SetTimer(ReviveVoteTimer, this, &AWoRGameState::TickReviveVote, REVIVE_VOTE_TICK_SECONDS, true);
+		TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVoteWaits", "Everyone agreed: the mini-boss returns when the fight ends."));
+		return;
+	}
+	ReviveAfterVote();
+}
+
+void AWoRGameState::ReviveAfterVote()
+{
+	// Review: checked again when it happens (revivals may be used up by now); everyone hears only what really happened.
+	if (WoRRestSpot::CanReviveHere(GetWorld()) && WoRRestSpot::ReviveMiniBoss(GetWorld())) // the level reloads after this
+	{
+		TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVotePassed", "Everyone agreed: the mini-boss returns."));
+		return;
+	}
+	UE_LOG(LogWoR, Warning, TEXT("[ReviveVote] passed, but the revive was refused"));
+	TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVoteRefusedLate", "Everyone agreed, but the mini-boss can't be revived now."));
+}
+
+void AWoRGameState::TellEveryone(const FText &Message)
+{
+	// TODO: a client may miss this when the level reload follows at once; check in PIE.
+	for (APlayerState *Player : PlayerArray)
+	{
+		if (AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player))
+		{
+			WoRPlayer->Client_ShowFeatureMessage(Message);
+		}
 	}
 }
 
