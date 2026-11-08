@@ -1,3 +1,45 @@
+# Cloud writer handover (2026-11-08, ninth part: Q-187e vote, Q-377 confirmed, Q-378 changed, B-388) — STOPPED
+
+**The brain's four messages (21:42–21:45 UTC) are all done.** Every branch below is pushed, reviewed by wor-reviewer, and has its review findings fixed. Nothing was built.
+
+**Q-187e (1) changed by Crown: reviving the mini-boss is a vote.** On `feature/B-187e-client-rest-menu-cloud`:
+- New: `Trial/ReviveVote` (rules), a replicated `FReviveVote` on `AWoRGameState`, `ServerCastReviveVote`, the vote buttons in the rest menu, `wor.Trial.Vote` / `wor.Trial.ReviveVote`, and ReviveVoteSpec.
+- The review BLOCKed it, and every finding is fixed:
+  - a compile error (`TObjectPtr` from `FindByPredicate`);
+  - a late answer could revive twice: the vote now acts once;
+  - a pass could reload the level mid-fight: **Q-187e2** (reference-backed default) makes a passed vote wait for the fight to end;
+  - `Cast` is renamed `Answer`;
+  - refusals now say why.
+- Q-187e (2) was confirmed by Crown: Leave stays personal.
+
+**Q-377 confirmed by Crown (all A).** On `feature/B-377-hidden-quests-cloud`: the two notices are in one place (`HiddenQuestNotice`, `// TODO: Crown's text`). Merged forward into B-378, B-378b, B-377b and B-381.
+
+**Q-378 changed by Crown (curses).** What was built:
+- On `feature/B-378-curses-cloud`:
+  - a quest step gives a curse (`FHiddenQuestStep::Rewards`);
+  - CurseHeld already works on quest steps;
+  - the player clears one (`ClearCurse`, `wor.Curse.Clear`);
+  - a cleared or lifted curse comes back when its giver is met again (`CheckRegain`, `RegainCurses`);
+  - specs: cursed, the step moves; cleared, it doesn't; regained, it moves again; a memory met again regains it.
+  - The review BLOCKed it. Fixed: `CurseSubsystem.h` didn't compile; a cure found where its curse was given was undone by that same event (`BeginEvent`).
+- On `feature/B-378b-curse-penalty-cloud`: the placeholder hub service `UCurseClearWidget` (`wor.UI.ClearCurse`, refused during a run), a spec case and PIE checks 5–8.
+- **Flag for Crown** (in Q-378's notes): as built, a curse lifted by its cure can come back too. Should a cure be permanent?
+
+**New row B-388: main and side quests, part 1.** On `feature/B-388-main-side-quests-cloud` (UNBUILT, cut from B-377):
+- `EQuestKind` (Hidden / Main / Side), a `Title`, and a `Goal` per step;
+- `GetVisibleQuests` and `StartQuestById` (`wor.Quest.Give`);
+- notices for visible quests;
+- the journal's Quests page, and `WoRGameNames::GetQuestKindName`;
+- QuestJournalSpec;
+- Q-388 (reference-backed default: Skyrim's one quest record), ER-12l and PIE B-388.
+- Content is Crown's; it is placeholder text for now.
+
+**Trial branch:** all of the above is cherry-picked. One slip happened and was fixed in its own commit: `HiddenQuestSubsystem.h` got emptied while a conflict was being resolved, and it has been rebuilt.
+
+**Merge plan:** the 23:00 update lists the dev re-merges in order (B-377 → B-378 → B-378b → B-377b / B-381 → B-388), plus the B-187e re-merge. New row 68 is B-388.
+
+**Writable jobs left:** none. What's left needs a compiler, Crown's text, or Crown's answer on the cure question.
+
 # Cloud writer handover (2026-11-08, eighth part: Q-187d changed by Crown) — STOPPED
 
 **The brain (21:36 UTC):** Crown changed Q-187d (1): only the character(s) that use the rest spot rest (the presser's own; solo: the whole party). Points (2) and (3) stay A.
