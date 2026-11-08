@@ -107,9 +107,8 @@ void FScopeGASSpec::Define()
 			TestEqual(TEXT("Fire-only buff on a Fire hit: none"), DeltaFor(FireOnly, ESpellElement::Fire), 0.0f, KINDA_SMALL_NUMBER);
 			// Review: a Fire-only debuff that floors every Defense layer to 0 must still leave a Water hit its Defense.
 			AActor *Floored = SpawnWithDefenseBuff(ESkillEffectType::DefenseDebuff, EDamageScope::Element, ESpellElement::Fire, SCOPE_GAS_TEST_FLOORING_PERCENT);
-			TestTrue(TEXT("floored for Fire: the Water hit keeps its Defense"),
-					 Calculator->GetDefenderDefenseForHit(Floored, ESpellElement::Water, true) > 0.0f &&
-						 DeltaFor(Floored, ESpellElement::Water) > 0.0f);
+			TestTrue(TEXT("floored for Fire: the Water hit keeps its Defense"), Calculator->GetDefenderDefenseForHit(Floored, ESpellElement::Water, true) > 0.0f);
+			TestTrue(TEXT("floored for Fire: the correction gives it back"), DeltaFor(Floored, ESpellElement::Water) > 0.0f);
 		});
 	});
 }
