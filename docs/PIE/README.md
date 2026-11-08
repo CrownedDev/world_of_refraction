@@ -370,6 +370,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-351d](B-351d.md) | `feature/B-351d-crystal-spell-lists-cloud` (UNBUILT, on B-351c) | A crystal's one spell list: replace / restore, saved on the item | Pending |
 | [B-357b](B-357b.md) | `feature/B-357b-evolution-resolve-path-cloud` (UNBUILT, on B-357) | One list of attached evolutions (character, weapon, adapter); no change in play | Pending |
 | [B-357c](B-357c.md) | `feature/B-357c-gear-evolutions-passives-only-cloud` (UNBUILT, on B-357b) | An evolution on gear gives no stats or resistance (D-147 play change) | Pending |
+| [B-187b](B-187b.md) | `feature/B-187b-mini-boss-rest-spots-cloud` (UNBUILT, on B-187) | A rest spot where a mini-boss fell; revive it one tier stronger (3 times) | Pending |
 
 Move rows to **Done** when every check passes.
 
