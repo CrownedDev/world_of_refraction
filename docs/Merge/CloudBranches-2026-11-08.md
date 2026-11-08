@@ -26,6 +26,33 @@ Crown also changed Q-187e (1) on 2026-11-08: **reviving the mini-boss is a vote*
 - Changed files: `AWoRGameState` (replicated `ReviveVoteState`), `AWoRPlayerState::ServerCastReviveVote`, and the rest menu's vote buttons.
 - Merge the branch into dev again after B-187d.
 - The trial branch has these commits cherry-picked too.
+- After review the branch got four more commits:
+  - the vote acts once;
+  - a passed vote waits for any running fight to end (Q-187e2);
+  - `ReviveVote::Cast` is renamed `Answer`;
+  - a refused vote says why.
+  All are cherry-picked onto the trial branch.
+
+## Update, 23:00 UTC: Q-377 confirmed, Q-378 changed, and a new row B-388
+
+These branches are all in `dev` already, so **merge them into dev again**, in this order:
+1. **B-377** (Q-377 confirmed by Crown): one commit. The two notices now come from `HiddenQuestNotice` at the top of `HiddenQuestSubsystem.cpp`.
+   - Expect a conflict where `dev`'s B-377b code calls `ReportToHost()` in `StartQuest`: keep that call and use `HiddenQuestNotice::Started()`.
+   - The same goes for `CountStepMet`'s StepDone notice.
+2. **B-378** (Q-378 changed by Crown). What changed:
+   - curses come from quest steps too (`FHiddenQuestStep::Rewards`);
+   - the player can clear one (`ClearCurse`, `wor.Curse.Clear`);
+   - a cleared or lifted curse comes back (`CheckRegain`, `RegainCurses`);
+   - a cure found where the curse was given isn't undone by that same event (`BeginEvent`).
+   - In `dev`, B-377b moved the step counting into `CountStepMet`. Put `GiveStepRewards(Quest, Step, …UCurseSubsystem)` there, right after `Entry->RunCount = 0`. The B-377b branch shows the resolution.
+3. **B-378b**: the placeholder hub service `UCurseClearWidget` (`wor.UI.ClearCurse`) and a spec case.
+   - In `CurseSubsystem.h/.cpp`, keep both B-378b's penalty cache and the new code. The pattern is `bPenaltyDirty = true;` followed by `LiftedThisEvent.Add`.
+4. **B-377b** and **B-381**: each only has merge commits for the above (B-378b merged forward; the resolutions are on the branches). B-377b also drops a doubled ER-12h row.
+5. **B-388** (new, UNBUILT, cut from B-377): main and side quests, part 1.
+   - What it adds: `EQuestKind` with `Title` and a step `Goal`; `GetVisibleQuests`; `StartQuestById` (`wor.Quest.Give`); the journal's Quests page; `WoRGameNames::GetQuestKindName`; QuestJournalSpec.
+   - Merge it after B-377b. The same `CountStepMet` note applies: its visible StepDone notice goes there.
+   - No save change.
+- The trial branch has all of these cherry-picked. Its `HiddenQuestSubsystem.h/.cpp` show the combined result.
 
 ## How to use the table
 
@@ -118,6 +145,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 65 | `feature/B-380d-apparel-lore-socket-cloud` | B-380c (row 59) | 29 | Code: PoolSubsystem, InventoryComponent, LoadoutRulesDebug, ApparelSpec. Docs: Q-380d / Q-380c (a union can copy them twice: keep one each), Backlog (B-380d REVIEW, new B-380e TODO), Rules CL-50b. |
 | 66 | `feature/B-386-apparel-amp-cloud` | B-380d **and** B-385 (it merges B-385 in) | 31 | Small code (ApparelData, FApparelEntry). Docs: Q-386, CL-50c; Backlog doubled rows again (keep REVIEW). |
 | 67 | `feature/B-387-crystal-amp-cloud` | B-386 | 31 | Code: FAmpBonus.h (AmpRules), LoadoutComponent `GetActiveStatBonus`, AmpSpec. Docs: Q-387, ED-50d. **Balance note:** worn crystals from D tier up add flat Amp to their element. |
+| 68 | `feature/B-388-main-side-quests-cloud` | B-377 (merge after B-377b, see the 23:00 update) | – | Code: HiddenQuestData (EQuestKind, Title, step Goal), HiddenQuestSubsystem (GetVisibleQuests, StartQuestById, visible notices; put them in `dev`'s `CountStepMet`), MemoryJournalWidget (Quests page), WoRGameNames (GetQuestKindName), QuestJournalSpec. Docs: Backlog B-388, Q-388, ER-12l, PIE B-388 and its Pending row, HiddenQuestSystem changelog, session entry. | Backlog / Rules / PIE README: add the rows next to dev's (B-377b, ER-12k, the B-38x Pending rows). |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
