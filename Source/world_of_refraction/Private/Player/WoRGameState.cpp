@@ -170,6 +170,18 @@ EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 	if (Result == EReviveVoteResult::Pending)
 	{
 		GetWorldTimerManager().SetTimer(ReviveVoteTimer, this, &AWoRGameState::TickReviveVote, REVIVE_VOTE_TICK_SECONDS, true);
+		// Placeholder until the real screen (D-024): every other voter is told how to answer.
+		const FText Ask = FText::Format(NSLOCTEXT("WoRGameState", "ReviveVoteAsk",
+												  "{0} wants to revive the mini-boss: vote in the rest menu, or type wor.Trial.Vote yes / no."),
+										FText::FromString(Starter->GetPlayerName()));
+		for (APlayerState *Player : PlayerArray)
+		{
+			AWoRPlayerState *Voter = Cast<AWoRPlayerState>(Player);
+			if (Voter && ReviveVote::IsWaitingFor(ReviveVoteState, Voter->GetPlayerId()))
+			{
+				Voter->Client_ShowFeatureMessage(Ask);
+			}
+		}
 	}
 	ApplyReviveVoteResult(Result);
 	return Result;

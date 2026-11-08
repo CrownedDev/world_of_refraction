@@ -611,8 +611,20 @@ void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: not at the rest spot"), *GetPlayerName());
 		return;
 	}
-	UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s revives the mini-boss (B-187e)"), *GetPlayerName());
-	WoRRestSpot::ReviveMiniBoss(World);
+	// Q-187e (Crown, 2026-11-08): a vote of every player outside battle; solo it revives at once.
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s asks to revive the mini-boss (B-187e vote)"), *GetPlayerName());
+	if (AWoRGameState *GameState = World ? World->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->StartReviveVote(this);
+	}
+}
+
+void AWoRPlayerState::ServerCastReviveVote_Implementation(bool bYes)
+{
+	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->CastReviveVote(this, bYes);
+	}
 }
 
 void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Feature)
