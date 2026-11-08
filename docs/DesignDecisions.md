@@ -4300,7 +4300,7 @@ Moved here once applied. Newest first.
 **Notes for Claude:** B-380: `ApparelRules::MAX_APPAREL_SLOTS`, `CRYSTAL_ELEMENT_RESISTANCE` (5, TODO tune), `CanSocket`, `FApparelEntry::GetEvolution`; the effects through the loadout's effect gatherers. At merge with B-357b, gate the apparel evolution's passives as gear evolutions are (charge level 2).
 ### Q-164b — An Amp stat? (D-164 "look into later")
 ### Q-164b — An Amp stat? (D-164 "look into later"; reshaped by Crown 2026-11-08: compare first)
-**Status:** OPEN (Crown decides; nothing built) · **Raised:** 2026-11-08 (cloud writer, from D-164) · **Blocks:** —
+**Status:** Answered (Crown, 2026-11-08): **A, as an addition** (existing damage sources unchanged; folding ModifyDamageDealt into DamageBuff is not part of it). Defaults taken: small numbers, flat into the base per action, no status buildup, crystal Amp by tier later. Built in **B-382** · **Raised:** 2026-11-08 (cloud writer, from D-164) · **Blocks:** —
 **Question:** The deckbuilder's cards carry **Amp** (`+2 Amp` for every skill, `+1 Fire Amp` for one element's) and **Def** (`+1 Def`, `+2 Fire Def`). They are flat lines on any card, all added into one total. Does this game need Amp, or does an existing source already cover it? Judge it by "granular and composable".
 **The comparison:** `docs/analysis/DamageAndDefenceSources_2026-11-08.md` (every damage and defence source, with code lines, scope and stacking).
 - **Defence: already covered.** Element resistance is the deckbuilder's element Def: keyed to one element and summed from every source (gear, apparel, evolution, class profile, effects). Defence is its plain Def.
@@ -4334,7 +4334,7 @@ Moved here once applied. Newest first.
   - Amp does not raise status buildup (StatusMultiplier has its own line);
   - crystals granting Amp of their element by tier (the deckbuilder's F0 E0 D1 C1 B2 A2 S3 ladder) is a later, separate question.
 - **A separate tidy-up (not part of this question):** fold ModifyDamageDealt into DamageBuff, since both are "all damage %".
-**Notes for Claude:** don't build until Crown answers. If A:
+**Notes for Claude (as built in B-382):**
 - `FEquipmentStatBonus` gets `BonusAmp` plus a per-element Amp (a nine-entry map or nine lines). It is summed in `GetActiveStatBonus` and read in `PreviewActionDamage` for the action's resolved element, before the infusion and tier multipliers.
 - An element-keyed DamageBuff effect reads through `GetTotalStatModifierForElement`.
 - The `wor.Damage` breakdown shows the Amp line.
