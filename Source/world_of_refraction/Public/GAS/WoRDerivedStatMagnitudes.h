@@ -3,7 +3,7 @@
 // live (Target, not snapshot) and clamps the captured value with the source's compose clamp
 // (FWoRStatLayers::ForStat) before scaling it: a capture reads the source's aggregator, which the
 // attribute set's PreAttributeChange clamp never reaches, while the getters read the clamped value.
-// Debug: wor.CompareAttributes (the derived attributes against their getters).
+// Debug: wor.Attributes.Compare (the derived attributes against their getters).
 
 #pragma once
 

@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Save/SaveSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "WoRLog.h"
@@ -18,13 +19,18 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	if (!Run || !Run->IsRunActive() || !PartySession)
+	// Desktop review: the host rests the party (a client has no run; its press reaches the host in B-187b, D-103).
+	if (!Run || !Run->IsRunActive() || !PartySession || World->GetNetMode() == NM_Client)
 	{
 		return INDEX_NONE;
 	}
 	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
+	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
+	{
+		Save->SaveNow(World, true); // desktop review: a rest is a checkpoint (the heal and the rest spot survive a quit)
+	}
 	UE_LOG(LogWoR, Log, TEXT("[RestSpot] Rested at %s: every member full, %d revived"), *RestSpotId.ToString(), Revived);
 	return Revived;
 }
@@ -53,7 +59,7 @@ bool WoRRestSpot::LeaveRun(UWorld *World)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	if (!Run || !Run->IsRunActive())
+	if (!Run || !Run->IsRunActive() || World->GetNetMode() == NM_Client)
 	{
 		return false;
 	}

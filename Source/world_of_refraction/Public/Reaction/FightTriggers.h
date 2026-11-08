@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Boss/BossTriggers.h"
+#include "Combat/Boss/BossRules.h"
 #include "Reaction/ReactionTrigger.h"
 #include "UObject/Object.h"
 #include "FightTriggers.generated.h"
@@ -65,10 +66,11 @@ private:
 		TArray<TWeakObjectPtr<AActor>> Theirs;
 		/** HP lines: each subject's side of the line last seen (fires when it becomes met). */
 		TMap<TWeakObjectPtr<AActor>, bool> WasPastLine;
-		/** A reaction (Trigger set), or a boss trigger (BossTrigger set). */
+		/** A reaction (Trigger set), or a boss's AtMoment rule (bBossRule; B-355b: from the one list, BossRules::GetRules). */
 		FFiredReaction Reaction;
 		TWeakObjectPtr<AActor> Boss;
-		const FBossTrigger *BossTrigger = nullptr;
+		FBossRule BossRule;
+		bool bBossRule = false;
 		FName TriggerId;
 		bool bFired = false;
 	};
@@ -81,10 +83,6 @@ private:
 
 	UPROPERTY()
 	TArray<FReactionTrigger> Reactions;
-
-	/** Keeps the boss data the waiting triggers point into. */
-	UPROPERTY()
-	TArray<TObjectPtr<const UBossData>> BossDatas;
 
 	TArray<FWaitingTrigger> Waiting;
 	TMap<TWeakObjectPtr<AActor>, FBossFightState> BossStates;

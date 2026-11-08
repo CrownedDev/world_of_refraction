@@ -18,11 +18,12 @@
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Definitions/EScalingTier.h" // GetScalingFraction (Efficiency scaling)
-#include "Combat/CombatOrchestrator.h"        // WoR.AbsorptionSnapshot resolves the combat's BD actor
+#include "Combat/CombatOrchestrator.h"        // wor.BrokenDarkness.Print resolves the combat's BD actor
 #include "Kismet/GameplayStatics.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Combat/Tuning/CombatTuningData.h"
 
 namespace BrokenDarknessConstants
@@ -104,13 +105,10 @@ void UBrokenDarknessManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Initialize state
-	bIsFlipped = false;
-	bIsOverloaded = false;
-	CurrentAlignmentElement = ESpellElement::Generic;
-	CurrentAbsorptionStacks = 0;
-	ConsecutiveAbsorptions = 0;
-	AccruedStrain = 0.0f; // per-combat reset (interim until persistence)
+	// B-348c review: no state reset here. The fields start at their defaults on a fresh pawn, and the character's
+	// UCharacterDataComponent, created first, runs its BeginPlay first: its init cascade has already flipped a
+	// Broken Darkness member (InitializeBornBrokenDarkness) and applied the carried absorption and run strain, which a
+	// reset here would undo.
 
 	if (AActor *Owner = GetOwner())
 	{
@@ -128,6 +126,16 @@ void UBrokenDarknessManager::BeginPlay()
 			CharComp->OnEPChanged.AddDynamic(this, &UBrokenDarknessManager::HandleOwnerEnergyChanged);
 		}
 	}
+}
+
+void UBrokenDarknessManager::ApplyCarriedStrain(float Strain)
+{
+	if (bIsFlipped)
+	{
+		return;
+	}
+	AccruedStrain = FMath::Max(0.0f, Strain);
+	UE_LOG(LogTemp, Verbose, TEXT("[BrokenDarkness] %s: carried strain %.1f"), *GetNameSafe(GetOwner()), AccruedStrain);
 }
 
 void UBrokenDarknessManager::InitializeBornBrokenDarkness()
@@ -167,7 +175,8 @@ FCarriedAbsorptionState UBrokenDarknessManager::SnapshotCarriedAbsorption() cons
 {
 	FCarriedAbsorptionState Carried;
 	const UCharacterDataComponent *CharComp = GetCharComp();
-	if (!bIsFlipped || !CharComp || !CharComp->CharacterData || !CharComp->CharacterData->bBrokenDarknessInnate)
+	// B-348c review: any Broken Darkness character carries its pool, born or broken in a fight (Q-348b).
+	if (!bIsFlipped || !CharComp || !CharComp->CharacterData)
 	{
 		return Carried;
 	}
@@ -273,7 +282,7 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 float UBrokenDarknessManager::ComputeStrainForDeficit(int32 Deficit) const
 {
 	// SINGLE source of the per-cast strain math — both AddStrain (live accrual) and
-	// DebugLogStrain (WoR.StrainSnapshot projection) call this, so they can never drift.
+	// DebugLogStrain (wor.BrokenDarkness.ShowStrain projection) call this, so they can never drift.
 	// Returns FLAT strain points for a cast of this Deficit at the character's CURRENT stats:
 	// deficit × STRAIN_PER_DEFICIT_POINT × capped power × capped control. NO ÷MaxEP — MaxEP
 	// scales the break threshold (GetBreakThreshold), not the per-cast amount. Excludes the
@@ -332,7 +341,7 @@ void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReas
 	AActor *Owner = GetOwner();
 
 	// CharComp is needed for the luck-skip roll below; the per-cast strain math is factored
-	// into ComputeStrainForDeficit so live accrual and the WoR.StrainSnapshot projection
+	// into ComputeStrainForDeficit so live accrual and the wor.BrokenDarkness.ShowStrain projection
 	// share one formula and can't drift.
 	UCharacterDataComponent *CharComp = GetCharComp();
 	if (!CharComp)
@@ -419,6 +428,30 @@ bool UBrokenDarknessManager::IsInBDForm(const AActor *Actor)
 	return Manager && Manager->IsTransformed();
 }
 
+namespace
+{
+	/** B-348c review: a party member's record follows a transformation or a revert at once (not only at the fight's
+	 *  end), so a revert anywhere reaches the save. Only a pawn stamped with its member id writes. */
+	void WriteBrokenDarknessRecord(const UCharacterDataComponent *CharComp, bool bBrokenDarkness)
+	{
+		// Desktop review: only a pawn stamped with its member id writes (an enemy sharing a member's asset must not), and
+		// only on the server (TODO: co-op seats' records, D-103).
+		const AActor *Owner = CharComp ? CharComp->GetOwner() : nullptr;
+		if (!Owner || !Owner->HasAuthority() || !CharComp->PartyMemberId.IsValid())
+		{
+			return;
+		}
+		const UWorld *World = CharComp->GetWorld();
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		const int32 Slot = PartySession ? PartySession->GetMemberSlotOf(CharComp) : INDEX_NONE;
+		if (Slot != INDEX_NONE)
+		{
+			PartySession->SetMemberBrokenDarkness(Slot, bBrokenDarkness, 0.0f);
+		}
+	}
+}
+
 void UBrokenDarknessManager::TriggerTransformation()
 {
 	if (bIsFlipped)
@@ -448,6 +481,7 @@ void UBrokenDarknessManager::TriggerTransformation()
 		if (UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>())
 		{
 			CharComp->ServerSetBrokenDarkness(true);
+			WriteBrokenDarknessRecord(CharComp, true); // B-348c review: the record follows at once
 		}
 	}
 
@@ -484,6 +518,7 @@ void UBrokenDarknessManager::RevertTransformation()
 	if (UCharacterDataComponent *CharComp = GetCharComp())
 	{
 		CharComp->ServerSetBrokenDarkness(false);
+		WriteBrokenDarknessRecord(CharComp, false); // B-348c review
 	}
 
 	UE_LOG(LogWoRCombat, Log, TEXT("BrokenDarkness: %s has REVERTED to Darkness."),
@@ -1255,7 +1290,7 @@ namespace
 	// No exact parry needed; run mid-PIE-combat.
 	void RunAbsorptionSnapshotCommand(UWorld *World)
 	{
-		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("WoR.AbsorptionSnapshot"), /*bTransformedOnly=*/false, TEXT("no BrokenDarknessManager among combatants"));
+		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("wor.BrokenDarkness.Print"), /*bTransformedOnly=*/false, TEXT("no BrokenDarknessManager among combatants"));
 		if (!BDManager)
 		{
 			return;
@@ -1274,13 +1309,13 @@ namespace
 	// Retained as BD debug tooling per CLAUDE.md (every system ships debug utilities).
 	void RunBDRevertCommand(UWorld *World)
 	{
-		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("WoR.TestBDRevert"), /*bTransformedOnly=*/true, TEXT("no transformed Broken Darkness actor among combatants"));
+		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("wor.BrokenDarkness.Revert"), /*bTransformedOnly=*/true, TEXT("no transformed Broken Darkness actor among combatants"));
 		if (!BDManager)
 		{
 			return;
 		}
 
-		UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: reverting %s..."),
+		UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] wor.BrokenDarkness.Revert: reverting %s..."),
 			   BDManager->GetOwner() ? *BDManager->GetOwner()->GetName() : TEXT("?"));
 		BDManager->RevertTransformation();
 	}
@@ -1290,7 +1325,7 @@ namespace
 	// design, so this is the only way to inspect strain. Run mid-PIE-combat.
 	void RunStrainSnapshotCommand(UWorld *World)
 	{
-		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("WoR.StrainSnapshot"), /*bTransformedOnly=*/false, TEXT("no BrokenDarknessManager among combatants"));
+		UBrokenDarknessManager *BDManager = FindCombatBDManager(World, TEXT("wor.BrokenDarkness.ShowStrain"), /*bTransformedOnly=*/false, TEXT("no BrokenDarknessManager among combatants"));
 		if (!BDManager)
 		{
 			return;
@@ -1301,20 +1336,20 @@ namespace
 }
 
 static FAutoConsoleCommandWithWorld GAbsorptionSnapshotCommand(
-	TEXT("WoR.AbsorptionSnapshot"),
+	TEXT("wor.BrokenDarkness.Print"),
 	TEXT("Log a Broken Darkness actor's absorption breakdown (base rate, Efficiency factor, rate, energy) ")
 	TEXT("for sample attack energy costs across parry + block — inspect the Efficiency-scaled curve without ")
 	TEXT("triggering an exact parry. Resolves the first BD among the active combat's combatants."),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&RunAbsorptionSnapshotCommand));
 
 static FAutoConsoleCommandWithWorld GTestBDRevertCommand(
-	TEXT("WoR.TestBDRevert"),
+	TEXT("wor.BrokenDarkness.Revert"),
 	TEXT("Forcibly revert the active combat's first transformed Broken Darkness actor back to Darkness ")
 	TEXT("(RevertTransformation). Arc-2 debug hook — confirms EP reset to MaxEP, bar relabel, OnReverted fire."),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&RunBDRevertCommand));
 
 static FAutoConsoleCommandWithWorld GStrainSnapshotCommand(
-	TEXT("WoR.StrainSnapshot"),
+	TEXT("wor.BrokenDarkness.ShowStrain"),
 	TEXT("Print current BD strain % + projected casts-to-break"),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&RunStrainSnapshotCommand));
 #endif // !UE_BUILD_SHIPPING
