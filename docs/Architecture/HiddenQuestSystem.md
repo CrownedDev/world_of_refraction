@@ -29,4 +29,4 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 |---|---|---|
 | 2026-11-08 | Created (B-377): data asset, subsystem, save v25, `wor.Quest.Print`, HiddenQuestSpec. | `feature/B-377-hidden-quests-cloud` (in dev) |
 | 2026-11-08 | Review: the end memory is its player's alone and always lands (`Finish`); a quest started this event waits for the next; empty steps finish at once; quests gathered once. | `feature/B-377-hidden-quests-cloud` (in dev) |
-| 2026-11-08 | B-381 (D-165): gear and evolutions carry hidden quests (`FBoundQuest`), started while worn (`StartGearQuests`). | `feature/B-381-gear-quests-cloud` (UNBUILT) |
+| 2026-11-08 | B-381 (D-165): gear and evolutions carry hidden quests (`FBoundQuest`), started while worn (`StartGearQuests`). | `feature/B-381-gear-quests-cloud` (in dev) |
