@@ -509,6 +509,8 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
     {
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
+            // B-073 (D-006): a win pays run Prisms now and adds to the run's tally (by the fight's rank).
+            TrialRun->RecordFightReward(GetWorld(), TrialRun->GetPendingRank());
             TrialRun->MarkPendingEncounterBeaten();
             // B-362c (D-160 changed): a win no longer recovers the dropped Prisms; the pickup on the map does
             // (APrismDropPickup). WoRDefeat::RecoverPrisms is OBSOLETE.
