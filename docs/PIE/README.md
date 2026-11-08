@@ -346,3 +346,4 @@ Move rows to **Done** when every check passes.
 | [B-026](B-026.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-027](B-027.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-029](B-029.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
+| [B-351d](B-351d.md) | `feature/B-351d-crystal-spell-lists-cloud` (UNBUILT, on B-351c) | A crystal's one spell list: replace / restore, saved on the item | Pending |
