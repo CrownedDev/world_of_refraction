@@ -11,6 +11,9 @@
 
 namespace
 {
+	/** Each sun's intensity as the map authored it, so applying a look twice (wor.Trial.Look) doesn't stack. */
+	TMap<TWeakObjectPtr<UDirectionalLightComponent>, float> GAuthoredSunIntensity;
+
 	struct FElementLookRow
 	{
 		ESpellElement Element;
@@ -21,7 +24,7 @@ namespace
 		float SunIntensityScale;
 	};
 
-	// TODO: tune with Crown (placeholder values, B-189). Sky tint scales the default Rayleigh scattering colour.
+	// TODO: tune with Crown (placeholder values, B-189). Sky tint replaces the sky atmosphere's Rayleigh scattering.
 	const FElementLookRow TRIAL_MAP_LOOKS[] = {
 		{ESpellElement::Fire,      FLinearColor(0.30f, 0.12f, 0.06f), FLinearColor(0.85f, 0.40f, 0.20f), 0.035f, FLinearColor(1.00f, 0.70f, 0.50f), 1.10f},
 		{ESpellElement::Water,     FLinearColor(0.10f, 0.22f, 0.45f), FLinearColor(0.35f, 0.55f, 0.80f), 0.045f, FLinearColor(0.80f, 0.90f, 1.00f), 0.85f},
@@ -62,13 +65,25 @@ FTrialMapLookResult TrialMapLook::ApplyTo(UWorld *World, ESpellElement Element)
 	{
 		return Result;
 	}
+	for (auto It = GAuthoredSunIntensity.CreateIterator(); It; ++It)
+	{
+		if (!It.Key().IsValid())
+		{
+			It.RemoveCurrent(); // a map that unloaded
+		}
+	}
 	for (TActorIterator<AActor> It(World); It; ++It)
 	{
 		TInlineComponentArray<UDirectionalLightComponent *> Suns(*It);
 		for (UDirectionalLightComponent *Sun : Suns)
 		{
+			if (Sun->Mobility == EComponentMobility::Static)
+			{
+				continue; // a baked sun keeps its light
+			}
+			const float Authored = GAuthoredSunIntensity.FindOrAdd(Sun, Sun->Intensity);
 			Sun->SetLightColor(Look.SunColour);
-			Sun->SetIntensity(Sun->Intensity * Look.SunIntensityScale);
+			Sun->SetIntensity(Authored * Look.SunIntensityScale);
 			++Result.Suns;
 		}
 		TInlineComponentArray<UExponentialHeightFogComponent *> Fogs(*It);
