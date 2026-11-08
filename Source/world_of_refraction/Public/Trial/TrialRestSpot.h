@@ -39,6 +39,12 @@ namespace WoRRestSpot
 
 	/** Whether the last used rest spot is a mini-boss's that can be revived (the menu shows Revive). */
 	WORLD_OF_REFRACTION_API bool CanReviveHere(const UWorld *World);
+
+	/** B-187e: which revival the next Revive would be at the last used rest spot (1 for the first). */
+	WORLD_OF_REFRACTION_API int32 GetNextRevivalNumber(const UWorld *World);
+
+	/** B-187e (review): how near the rest stand a client must be for the host to take its Revive (cm). */
+	constexpr float CLIENT_REVIVE_REACH_CM = 600.f;
 }
 
 UCLASS()

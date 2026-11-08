@@ -83,9 +83,15 @@ public:
 	void Client_ShowFeatureMessage(const FText &Message);
 
 	/** B-187d: this player's rest press reached the host (ServerInteractFeature), which rested the party; their own
-	 *  rest menu opens on their screen. Host-only menu actions (revive, leave) are not routed yet (B-187e). */
+	 *  rest menu opens on their screen. B-187e: with what the host knows of the spot's mini-boss (Revive shows when
+	 *  bCanRevive, labelled RevivalNumber). */
 	UFUNCTION(Client, Reliable)
-	void Client_OpenRestMenu();
+	void Client_OpenRestMenu(bool bCanRevive, int32 RevivalNumber);
+
+	/** B-187e: a client pressed Revive in its rest menu: the host revives the mini-boss of the run's last rest spot, if it
+	 *  can (WoRRestSpot::CanReviveHere), for everyone. */
+	UFUNCTION(Server, Reliable)
+	void ServerReviveMiniBoss();
 
 	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
 	 *  player's pawn, if it stands in the feature's trigger. */

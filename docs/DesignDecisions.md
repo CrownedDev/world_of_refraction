@@ -4249,3 +4249,10 @@ Moved here once applied. Newest first.
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-08). Crown may change any.
 **Notes for Claude:** B-187d (`WoRRestSpot::Rest` on the host, `ATrialChest::Interact` / `IsOpenedByAnyone`, `TrialReturn::GetReturnStand`). (1) restores the host's party, which holds every seat (B-360b); a friend's character outside it is not restored (TODO with B-187e).
 
+### Q-187e — Co-op rest menu: what a client's Revive and Leave do
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187e, cloud) · **Blocks:** —
+**Question:** The run lives on the host. From a client's rest menu: (1) what does Revive the mini-boss do? (2) what does Leave do?
+**Options / as built:** (1) **A** asks the host, which revives it for everyone (the party fights it again) / B host only, hidden on clients. (2) **A** the client leaves the session only, back to their own hub; the run and its rewards stay with the others / B asks the host to end the run for everyone / C hidden on clients.
+**Recommendation:** all A. Monster Hunter lets any hunter abandon a quest alone (they leave, the others carry on, and the leaver gets no reward); Deep Rock Galactic likewise lets a player leave a mission without ending it. A shared revive is the party's choice like resting is (Q-187d).
+**Answer:** **A, A**, by the reference-backed default (2026-11-08). Crown may change either.
+

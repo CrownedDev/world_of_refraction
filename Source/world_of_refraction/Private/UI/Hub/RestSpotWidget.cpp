@@ -2,6 +2,8 @@
 
 #include "UI/Hub/RestSpotWidget.h"
 
+#include "Player/WoRPlayerState.h"
+
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
@@ -17,6 +19,7 @@
 #include "Online/HostSuccession.h"
 #include "UI/Hub/InventoryWidget.h"
 #include "UI/Hub/LevelDropWidget.h"
+#include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "RestSpotWidget"
 
@@ -122,11 +125,11 @@ void URestSpotWidget::Refresh()
 {
 	const UGameInstance *GI = GetGameInstance();
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	// B-187d: on a client the run lives on the host: no earnings or Leave here until B-187e routes them.
+	// B-187d / B-187e: on a client the run lives on the host: no earnings here; Leave leaves the session (Q-187e).
 	const bool bOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
-	if (LeaveButton)
+	if (UTextBlock *LeaveLabel = LeaveButton ? Cast<UTextBlock>(LeaveButton->GetChildAt(0)) : nullptr)
 	{
-		LeaveButton->SetVisibility(bOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		LeaveLabel->SetText(bOnClient ? LOCTEXT("LeaveSession", "Leave the session") : LOCTEXT("Leave", "Leave the trial"));
 	}
 	if (PayoutText)
 	{
@@ -138,7 +141,9 @@ void URestSpotWidget::Refresh()
 	}
 	if (ConfirmText)
 	{
-		ConfirmText->SetText(bConfirmingLeave ? WoRRestSpot::GetLeaveConfirmText() : FText::GetEmpty());
+		const FText Confirm = bOnClient ? LOCTEXT("LeaveSessionConfirm", "Leave your friends' run? You go back to your hub; this run's rewards stay with them.")
+										: WoRRestSpot::GetLeaveConfirmText();
+		ConfirmText->SetText(bConfirmingLeave ? Confirm : FText::GetEmpty());
 	}
 	if (ConfirmButton)
 	{
@@ -153,30 +158,48 @@ void URestSpotWidget::Refresh()
 		HandOverButton->SetVisibility(bCanHandOver ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	// B-187b: only at a mini-boss's rest spot that can still be revived.
-	const bool bCanRevive = WoRRestSpot::CanReviveHere(GetWorld());
+	// B-187e: a client shows what the host said (SetHostRevive).
+	const bool bCanRevive = bOnClient ? bHostCanRevive : WoRRestSpot::CanReviveHere(GetWorld());
 	if (ReviveButton)
 	{
 		ReviveButton->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
-	if (ReviveLabel && bCanRevive && Run)
+	const int32 RevivalNumber = bOnClient ? HostRevivalNumber : WoRRestSpot::GetNextRevivalNumber(GetWorld());
+	if (ReviveLabel && bCanRevive)
 	{
-		const int32 Done = Run->GetEncounterRevivals(Run->GetLastRestSpot());
 		ReviveLabel->SetText(FText::Format(LOCTEXT("ReviveCount", "Revive the mini-boss: one tier stronger, better drops ({0} of {1})"),
-										   FText::AsNumber(Done + 1), FText::AsNumber(MiniBossRevival::MAX_REVIVALS)));
+										   FText::AsNumber(RevivalNumber), FText::AsNumber(MiniBossRevival::MAX_REVIVALS)));
 	}
+}
+
+void URestSpotWidget::SetHostRevive(bool bCanRevive, int32 RevivalNumber)
+{
+	bHostCanRevive = bCanRevive;
+	HostRevivalNumber = RevivalNumber;
+	Refresh();
 }
 
 void URestSpotWidget::HandleReviveClicked()
 {
 	UWorld *World = GetWorld();
+	APlayerController *PC = GetOwningPlayer();
 	CloseMenu();
+	// B-187e: a client asks the host, whose run revives it.
+	if (World && World->GetNetMode() == NM_Client)
+	{
+		if (AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
+		{
+			Player->ServerReviveMiniBoss();
+		}
+		return;
+	}
 	WoRRestSpot::ReviveMiniBoss(World);
 }
 
 FString URestSpotWidget::GetRestSpotWidgetString() const
 {
-	return FString::Printf(TEXT("[RestSpotMenu] %s | %s"), PayoutText ? *PayoutText->GetText().ToString() : TEXT("-"),
-						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"));
+	return FString::Printf(TEXT("[RestSpotMenu] %s | %s | host revive: %s (%d)"), PayoutText ? *PayoutText->GetText().ToString() : TEXT("-"),
+						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"), bHostCanRevive ? TEXT("yes") : TEXT("no"), HostRevivalNumber);
 }
 
 void URestSpotWidget::HandleLevelUpClicked()
@@ -203,7 +226,15 @@ void URestSpotWidget::HandleLeaveClicked()
 void URestSpotWidget::HandleConfirmLeaveClicked()
 {
 	UWorld *World = GetWorld();
+	APlayerController *PC = GetOwningPlayer();
 	CloseMenu();
+	// B-187e (Q-187e): a client leaves the session, not the host's run (Monster Hunter: one hunter abandons alone).
+	if (World && World->GetNetMode() == NM_Client && PC)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] A client leaves the session from the rest menu"));
+		PC->ConsoleCommand(TEXT("disconnect"));
+		return;
+	}
 	WoRRestSpot::LeaveRun(World);
 }
 
