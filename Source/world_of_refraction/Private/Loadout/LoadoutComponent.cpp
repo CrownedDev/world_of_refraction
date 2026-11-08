@@ -4507,7 +4507,10 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
         {
             Result.Append(Piece.Apparel->GetStartingEffects());
         }
-        if (const UEvolutionItemData *Evolution = Piece.GetEvolution()) // Crown, D-164: its passives
+        // Crown, D-164: its passives. Merge B-357b + B-380 (Q-380): apparel is gear, so as a gear evolution's (D-147):
+        // only on an action charged to GEAR_PASSIVES_CHARGE_LEVEL, never at fight start (the L2 read is B-357d).
+        const UEvolutionItemData *Evolution = Piece.GetEvolution();
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
         {
             Result.Append(Evolution->GetStartingEffects());
         }
@@ -4548,7 +4551,8 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
         {
             Result.Append(Piece.Apparel->GetStartingEffectsGathered(Wearer, WornSkin));
         }
-        if (const UEvolutionItemData *Evolution = Piece.GetEvolution())
+        const UEvolutionItemData *Evolution = Piece.GetEvolution(); // gated as GetActiveEffects' (D-147)
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
         {
             Result.Append(Evolution->GetStartingEffectsGathered());
         }
@@ -4589,7 +4593,8 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
         {
             Result.Append(Piece.Apparel->GetConditionalEffectsGathered(Wearer, WornSkin));
         }
-        if (const UEvolutionItemData *Evolution = Piece.GetEvolution())
+        const UEvolutionItemData *Evolution = Piece.GetEvolution(); // gated as GetActiveEffects' (D-147)
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
         {
             Result.Append(Evolution->GetConditionalEffectsGathered());
         }
