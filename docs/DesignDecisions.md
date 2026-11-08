@@ -1328,7 +1328,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
 **Answer (Crown):** (2026-10-26, detail by detail)
 - **Perfect Guard takes 0%** (B, like Expedition 33's parry); normal Guard stays 50%. Change `PerfectGuardReduction` to 1.0.
-- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built). **Changed by D-161 (Crown, 2026-11-04):** a Perfect Guard or a **Perfect** Dodge only; built in B-367.
+- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built). **Changed by D-161 (Crown, 2026-11-04):** a Perfect Guard or a **Perfect** Dodge only; built in B-367. **Corrected by Crown (2026-11-05):** a **Perfect Guard only**; a Dodge of any timing does not stop one; built in B-367b.
 - **Approved by the reference-backed default (Crown, 2026-10-26: 'just go with them'):** Broken Darkness absorbs 5% on Guard / 20% on Perfect Guard (Expedition 33: +1 AP per parry); reflect effects send back their % of damage actually taken, as pure damage, as a timed buff (FF/Persona style); **Perfect Guard plays the parry animation**, normal Guard the block animation (Expedition 33 / Sekiro; small follow-up); the old Parry key works as Guard until removed in the editor.
 
 **Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero: `PerfectGuardReduction` 1.0. The parry animation on a Perfect Guard is B-182 (the animation plays at the press, before Perfect is known). The rest was as built. An "On Perfect Guard: reflect" is a timed buff, so it pays out on later hits that land.
@@ -1894,6 +1894,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
 **Notes for Claude:** job B-349, split by system (≤3 files per commit).
 
+
+### Q-349 — Console names: what "one Print per system" allows, and the system names
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-349, cloud) · **Blocks:** —
+**Question:** D-139 wants `wor.<System>.<Verb>` and one `Print` per system. (1) Are verbs like `PrintState` / `PrintTiers` (already in the form, e.g. `wor.Combat.PrintState`) allowed beside a `Print`? (2) Which system names do the forty old flat names (`wor.PrintPool`, `wor.CompareStats`, `WoR.StrainSnapshot`…) go under?
+**Options / as built (A):** (1) yes: one plain `Print` per system, other reads get their own verb (`PrintAll`, `PrintStarting`, `ShowStrain`, `Compare`); a true duplicate is removed (`wor.PrintCombatTuning`, the same print as `wor.Tuning.Print`). (2) the owning system's existing name where one exists (`Tuning`, `WorldStat`, `Elements`, `Pool`, `Inventory`, `Economy`, `Camera`, `Effects`, `Combat`, `UI`), else the class's subject (`BrokenDarkness`, `Scaling`, `Crystal`, `Attributes`, `Resistance`, `Stats`, `Tags`, `StatusBars`, `Grid`, `Turn`, `Stones`, `Weather`). Table in `docs/PIE/B-349.md`. **B** fold every `PrintX` into the system's one `Print` with arguments.
+**Recommendation:** A. Unreal's own console groups by system with several verbs per group (`r.`, `stat`, `ShowDebug` sub-commands, `ai.debug.*`), and Lyra keeps `Lyra.<System>.<Verb>` with more than one read per system; merging reads behind arguments would change behaviour, which B-349 must not.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change any name.
+**Notes for Claude:** built in B-349.
+**Confirmed by Crown, 2026-11-08:** kept as built.
+
 ### D-140 — Legacy test actors go now; test-run hygiene (audit §25; changes D-067)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §25) · **Blocks:** —
 **Answer (Crown):** remove `CombatOrchestratorTestActor`, `TurnManagerTestActor`, `SkillEffectManagerTestActor`, `HUDTestActor` and `SkillProjectileTestActor` now, with no PIE gate. Where an actor covers something no spec covers, the spec comes first in the same job. Any actor placed in a map or referenced by a Blueprint is listed for an editor step instead of deleted blind. The GAS parity specs are deleted with the enum path (D-121, B-042g). `test.sh` prints the 10 slowest tests. The quick balance sim runs in the nightly preset only. CLAUDE.md's Tests rule changes (Crown to approve that edit).
@@ -2160,6 +2170,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A / A. D-161 says a *Perfect* Dodge, which a lucky miss is not; Sekiro's deflects and Expedition 33's parries reward timing only. One report per attack keeps D-158's "a condition, reported once".
 **Answer:** **A / A**, by the reference-backed default (2026-11-04). Crown may change either.
 **Notes for Claude:** built in B-367 (`FPendingDefenseContext::bResolvedLuckDodge`; `FlawlessParry::FTally::bReported`).
+**Superseded in part (B-367b, D-161 / D-158 corrected by Crown 2026-11-05):** (1) is moot now that no Dodge stops an interrupt point or counts for a Flawless Parry; `bResolvedLuckDodge` stays as a guard. (2) is unchanged.
 
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
@@ -3860,6 +3871,22 @@ Moved here once applied. Newest first.
 **Answer:** **A / A / A**, by the reference-backed default (2026-11-04). Crown may change any of them.
 **Notes for Claude:** built in B-337d. As built: `SkillConditions` (Skills/Effects) reads a group across (event trigger = condition Trigger, thresholds = `HpPercent` / `EpPercent` with Below / Above, the side = `Who` incl. the new `SelfTeam` / `TargetTeam`, AND / OR = sets any one of which holds); `ESkillCheck` State / Defense / ActionResult says which events count. An actor with no character data is no fighter: an HP / EP check on it fails, as before; a target-side or team **event** condition (e.g. On Hit, Target Team) no longer needs the side to have character data (every fighter has it, so nothing changes in play). `Defender` (25) = the side defended the event; `Disabled` (26) = a condition authored None, never holds. `IsSingleTriggerMet` is OBSOLETE (no caller). B-337e: the authored field, re-authoring, then `FSkillCondition` / `EvaluateConditionGroup` retire.
 
+### Q-337e — The migrated skill condition field: one set, or All of / Any of
+**Status:** ANSWERED (Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-337e, cloud) · **Blocks:** —
+**Question:** B-337e's row asks for "an authored `FWoRConditionSet` field" on `FSkillEffect`. One set is an AND of conditions; the old skill groups mix AND and OR rows ("hit, and either HP below 50% or EP above 70%"). Which shape keeps every authored group's result?
+**Options / as built (A):** two sets, `FSkillConditionGroup` **All of** and **Any of** (`AllOf` must all hold, and one of `AnyOf` when it has any): the old rows condition for condition, so the result is exact (the parity spec covers every check). Until the sweep the group is shown read-only and rebuilt from the old rows on each edit, so the two never drift. **B** one `FWoRConditionSet` as the row says, which loses the OR rows. **C** a list of sets (any one holds), harder to author by hand.
+**Recommendation:** A. It is the same "all of / any of" shape as the shared condition lists (`WoRConditions::IsAnyMet` over sets) and the familiar authoring form in Unreal's own Gameplay Tag queries (All / Any) and Path of Exile's item filters; B would change some authored effects' results.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
+**Notes for Claude:** built in B-337e. After the sweep the group becomes the edited field (EditAnywhere) and the rebuild-on-edit goes.
+**Answer (Crown, 2026-11-08):** follow the deckbuilder's shape (`wor-deckbuilder` `docs/reference/05-triggers-conditions.md`, "Nested conditions"): **one trigger on top, the All of checks nested under it**, shown as an indented tree; that is the default authoring and display (the Details panel, `wor.Conditions.Tree` and the skill debug prints show trigger → indented checks). **Any of stays, hidden** (collapsed, `AdvancedDisplay`), only so migrated old OR rows keep their result; new skills author All of only. The content sweep lists every skill using Any of (`wor.Conditions.ListAnyOf`); if each can be rewritten without "or", Any of is deleted so we match the deckbuilder. **Difference from the deckbuilder:** it has no OR at all; ours keeps Any of until that sweep.
+### Q-355b — A boss's moment rule: when are its conditions read?
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-355b, cloud) · **Blocks:** —
+**Question:** an old boss trigger checked its party conditions once at fight start and then waited for its moment. A rule from the one list (D-144) may test the boss's own state too (HP, phases reached, status breaks). Are its conditions read at fight start, or when its moment comes? And if they don't hold then?
+**Options / as built (A):** read **when the moment comes**; if they don't hold, the rule keeps waiting for the moment to come again (still at most once per fight). Party-only conditions give the same answer as before (the party doesn't change mid-fight). **B** at fight start only, as the old triggers did (a rule on the boss's state could then never fire as written).
+**Recommendation:** A. Boss scripts in Final Fantasy XIV and Elden Ring check their conditions at the trigger point ("at 50% HP, if the add is alive"), which is what makes them read as reactions; the deckbuilder's triggers also check on the event.
+**Notes for Claude:** built in B-355b (`BossTriggers::FireMomentRule`, `UFightTriggers::Fire`).
+**Confirmed by Crown, 2026-11-08:** kept as built.
+
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
 **Question:** B-313 makes each member's pouch its only carried-items list (D-111 "per-loadout item lists retire", D-117). Three things the rulings don't say: (1) switch every reader of the per-member mirror and the per-preset item slots in one unbuilt job, or the combat side first? (2) D-072 caps how many utility crystals of each tier band a character has "equipped" in its item slots (S 1, A/B 2, C/D 3, E/F 4); with no item slots, what does the cap count? (3) a trial recruit (run-only, D-026) brings no pouch of its own; its authored preset's items were a free supply in the preset's slots. Where do they go?
@@ -4078,6 +4105,24 @@ Moved here once applied. Newest first.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
 
+### D-164 — Apparel: a gear piece outside the budget, with its own crystal socket
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** add an **apparel** gear piece, working like the deckbuilder's (`wor-deckbuilder docs/reference/01-card-model.md`: Apparel, a vessel with HP and Defence lines and a crystal socket):
+- **Outside the loadout budget:** apparel never takes budget or an item limit from weapons, adapters or evolutions (D-110 budgets unchanged).
+- **Its own crystal socket:** a crystal on apparel is separate from the weapon / adapter crystals; it keys the apparel (its element) and powers no skill (the deckbuilder's rule).
+- **Stats:** HP and Defence lines (the deckbuilder's `HP · Amp · Def` without Amp: this game has no Amp stat yet).
+- **Separate from cosmetics:** the outfit pieces (D-111) stay the look; apparel is stats only (Monster Hunter's armour vs. layered armour).
+- **Two apparel slots** (Crown, 2026-11-08; the deckbuilder's `MaxApparelSeated` 2).
+- **An apparel crystal gives extra resistance** to its element (Crown, 2026-11-08), on top of the apparel's own lines (the deckbuilder's resistance apparel: an elemental Defence line).
+- **Apparel carries effects** like the deckbuilder's vessels (Crown, 2026-11-08): passive effect rows with a trigger and conditions, and bonuses (`wor-deckbuilder docs/reference/04-effects.md`, `06-bonuses.md`), through this game's skill-effect rows (`FSkillEffect`, the nested condition shape of Q-337e).
+- **An evolution can go on apparel** (Crown, 2026-11-08). As on other gear it gives its passive abilities (D-147, B-357c), keys the apparel to its element and adds that element's resistance like a crystal; it powers no skill (the deckbuilder's rule).
+**Look into later (Crown):** an **Amp** stat (the deckbuilder's `+2 Amp` / `+1 Fire Amp`: a flat boost to skills, all or one element); not decided.
+**Notes for Claude:** new item type in the owned-items store (D-111); stats compose through the stat sources (GAS `UWoRGE_StatSources`); quests can hang off it (D-165).
+
+### D-165 — Gear and evolutions can carry conditional quests
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** a weapon, adapter, apparel piece or evolution can carry **conditional quests**: a hidden quest (`Design/MemoryCatalogue.md` §3.6) that starts when its conditions are met while the player has or wears that item (found, worn, upgraded, used in a certain way). The same no-hints, never-missed and who-receives rules apply (D-100, Q-235d). Probably built later, after the hidden-quest job.
+**Notes for Claude:** `Design/MemoryCatalogue.md` §3.11.
 ### Q-374 — Proposing a school from a spell's main effect: which effect wins
 **Status:** ANSWERED (Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-374, cloud) · **Blocks:** —
 **Question:** D-163 asks for a validator that proposes each spell's school from its main effect. Spells often carry several effects (a damage spell that stuns, a heal with a drawback). Which effect is "main", where do stun / silence go, and how is Conjuration judged?
