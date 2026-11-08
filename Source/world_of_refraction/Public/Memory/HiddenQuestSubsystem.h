@@ -17,7 +17,6 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "HiddenQuestSubsystem.generated.h"
 
-class UHiddenQuestData;
 struct FMemoryEvent;
 
 /** Where one quest stands for this player. */
