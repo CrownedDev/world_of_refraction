@@ -112,8 +112,9 @@ private:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_LaunchProjectile(const FCosmeticProjectileLaunch &Launch);
 
-	/** Unreliable: a missed sparkle costs nothing (VFX are many per action). */
-	UFUNCTION(NetMulticast, Unreliable)
+	/** Reliable (desktop review): the same path carries the telegraph tell, the client's defence cue, so it must not
+	 *  drop; turn-based actions send few. */
+	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_SpawnVFX(const FCosmeticVFX &VFX);
 
 	/** Plays Montage on the owner's combat anim instance (else the character), as the executor does. */
