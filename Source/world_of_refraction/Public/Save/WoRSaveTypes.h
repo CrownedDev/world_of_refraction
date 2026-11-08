@@ -727,6 +727,45 @@ struct WORLD_OF_REFRACTION_API FSavedCounters
 	TArray<FSavedCounter> Counts;
 };
 
+/** B-377b: a lore entry the journal kept. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedLore
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName LoreId;
+
+	UPROPERTY()
+	FText Title;
+
+	UPROPERTY()
+	FText Body;
+};
+
+/** B-377b: this player's memory journal (save v28; it was transient before): memories in order with where each came
+ *  from (EMemorySource as a byte), lore, V lines heard, conversations played. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedJournal
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Memories;
+
+	UPROPERTY()
+	TArray<uint8> Sources;
+
+	UPROPERTY()
+	TArray<FSavedLore> Lore;
+
+	UPROPERTY()
+	TArray<FName> HeardVLines;
+
+	UPROPERTY()
+	TArray<FName> PlayedConversations;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -756,4 +795,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedCounters Counters; // B-379
+
+	UPROPERTY()
+	FSavedJournal Journal; // B-377b
 };

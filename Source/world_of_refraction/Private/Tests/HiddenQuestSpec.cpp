@@ -154,6 +154,40 @@ void FHiddenQuestSpec::Define()
 		TestTrue(TEXT("started"), Quests->IsStarted(Quest->GetQuestId()));
 		TestEqual(TEXT("once"), Quests->StartGearQuests(Worn), 0);
 	});
+
+	It("saves the journal and restores it without starting quests again (B-377b, D-059)", [this]()
+	{
+		Journal->RecordMemory(StartMemory, EMemorySource::MapSpot);
+		Journal->RecordLore(TEXT("Lore_HiddenQuestSpec"), FText::FromString(TEXT("T")), FText::FromString(TEXT("B")));
+		Journal->MarkVLineHeard(TEXT("VLine_HiddenQuestSpec"));
+		const FSavedJournal Saved = Journal->Capture();
+		TestEqual(TEXT("one memory saved"), Saved.Memories.Num(), 1);
+
+		Journal->Restore(FSavedJournal());
+		Quests->Restore(FSavedHiddenQuests());
+		TestFalse(TEXT("cleared"), Journal->HasMemory(StartMemory));
+
+		Journal->Restore(Saved);
+		TestTrue(TEXT("the memory is back"), Journal->HasMemory(StartMemory));
+		TestTrue(TEXT("from where it came"), Journal->GetSource(StartMemory) == EMemorySource::MapSpot);
+		TestEqual(TEXT("its lore"), Journal->GetLore().Num(), 1);
+		TestTrue(TEXT("the V line"), Journal->HasHeardVLine(TEXT("VLine_HiddenQuestSpec")));
+		TestFalse(TEXT("restoring announces nothing: the quest is not started again"), Quests->IsStarted(Quest->GetQuestId()));
+	});
+
+	It("counts the host's step-met message only for the step it was checked on (B-377b)", [this]()
+	{
+		const FName Id = Quest->GetQuestId();
+		Quests->StartQuest(Quest);
+		Quests->ApplyStepMetFromHost(Id, 0);
+		TestEqual(TEXT("step 1 done by the host's message"), Quests->GetStepsDone(Id), 1);
+		Quests->ApplyStepMetFromHost(Id, 0);
+		TestEqual(TEXT("a late message for step 1 does not count on step 2"), Quests->GetStepsDone(Id), 1);
+		TestEqual(TEXT("nor its count"), Quests->GetRunCount(Id), 0);
+		Quests->ApplyStepMetFromHost(Id, 1);
+		TestEqual(TEXT("step 2 met once (needs two this run)"), Quests->GetRunCount(Id), 1);
+		Quests->ApplyStepMetFromHost(TEXT("NotAQuest_HiddenQuestSpec"), 0); // ignored
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
