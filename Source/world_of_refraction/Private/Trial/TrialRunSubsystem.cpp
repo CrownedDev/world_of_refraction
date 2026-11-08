@@ -102,6 +102,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
+    bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -206,6 +207,7 @@ void UTrialRunSubsystem::ExitTrial()
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
+    bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -803,6 +805,24 @@ void UTrialRunSubsystem::RecordChestReward()
     }
 }
 
+void UTrialRunSubsystem::LeaveRunEarly()
+{
+    // Review fix: once only; the share is applied in GetRunEndPayout, so a second press can't cut it again.
+    if (!IsRunActive() || bLeavingEarly)
+    {
+        return;
+    }
+    if (HubLevel.IsNull())
+    {
+        // Desktop review: the run can't end without a hub, so its payout isn't cut either.
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Can't leave the run: no HubLevel (DefaultGame.ini)"));
+        return;
+    }
+    bLeavingEarly = true;
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Leaving the run at a rest spot: the end pays %s"), *RunRewards::GetPayoutString(GetRunEndPayout()));
+    ExitTrialNextTick();
+}
+
 int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
 {
     const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
@@ -812,7 +832,10 @@ int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
 
 FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
 {
-    return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten, PayoutMultiplier);
+    // B-187 (Q-187): leaving at a rest spot pays the leave share, with no boss bonus (full rewards only for beating
+    // the boss or falling in battle).
+    const float Multiplier = bLeavingEarly ? PayoutMultiplier * RunRewards::LEAVE_EARLY_SHARE : PayoutMultiplier;
+    return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten && !bLeavingEarly, Multiplier);
 }
 
 static FAutoConsoleCommandWithWorld GTrialPrintRewardsCommand(
