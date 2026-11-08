@@ -21,6 +21,7 @@
 #include "Save/SaveSubsystem.h"
 #include "Trial/TrialMapFeature.h"
 #include "UI/Hub/RestSpotWidget.h"
+#include "Trial/TrialRestSpot.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -387,13 +388,25 @@ void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Mess
 	ATrialMapFeature::ShowMessage(Message); // B-235b
 }
 
-void AWoRPlayerState::Client_OpenRestMenu_Implementation()
+void AWoRPlayerState::Client_OpenRestMenu_Implementation(bool bCanRevive, int32 RevivalNumber)
 {
 	APlayerController *PC = Cast<APlayerController>(GetOwner());
-	if (PC && PC->IsLocalController())
+	if (URestSpotWidget *Menu = PC && PC->IsLocalController() ? URestSpotWidget::Open(PC) : nullptr)
 	{
-		URestSpotWidget::Open(PC);
+		Menu->SetHostRevive(bCanRevive, RevivalNumber);
 	}
+}
+
+void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
+{
+	UWorld *World = GetWorld();
+	if (!WoRRestSpot::CanReviveHere(World))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: no revivable mini-boss at the last rest spot"), *GetPlayerName());
+		return;
+	}
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s revives the mini-boss (B-187e)"), *GetPlayerName());
+	WoRRestSpot::ReviveMiniBoss(World);
 }
 
 void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Feature)

@@ -91,7 +91,10 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	}
 	else if (AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
 	{
-		Player->Client_OpenRestMenu(); // B-187d: a client's press (ServerInteractFeature) opens its own menu
+		// B-187d: a client's press (ServerInteractFeature) opens its own menu; B-187e: with the host's revive answer.
+		const UTrialRunSubsystem *Run = GetTrialRun();
+		const int32 RevivalNumber = Run ? Run->GetEncounterRevivals(Run->GetLastRestSpot()) + 1 : 0;
+		Player->Client_OpenRestMenu(WoRRestSpot::CanReviveHere(GetWorld()), RevivalNumber);
 	}
 	RefreshHint();
 }
