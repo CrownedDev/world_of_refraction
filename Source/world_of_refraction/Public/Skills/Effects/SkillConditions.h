@@ -15,7 +15,8 @@
 // B-337e: the effect assets carry the group in the one vocabulary (FSkillEffect::ConditionGroup, filled on load from
 // the old field); every check reads it through GroupOf. The old-group functions stay for the runtime copy
 // (FActiveSkillEffect::Conditions) and the parity spec until the sweep.
-// Debug: GetGroupString; wor.Conditions.ListOld (GetUnmigratedEffectsString).
+// Debug: GetGroupString, GetConditionTreeString (Q-337e: trigger, then the indented checks); wor.Conditions.ListOld
+// (GetUnmigratedEffectsString), wor.Conditions.ListAnyOf (GetAnyOfEffectsString, the sweep step), wor.Conditions.Tree.
 
 #pragma once
 
@@ -96,4 +97,15 @@ namespace SkillConditions
 	/** Debug (wor.Conditions.ListOld): every effect asset whose effects this load filled from the old conditions,
 	 *  i.e. not resaved since B-337e. First line: how many assets were scanned. Editor only. */
 	WORLD_OF_REFRACTION_API FString GetUnmigratedEffectsString();
+
+	/** Q-337e (Crown 2026-11-08): the group as the deckbuilder shows it: the trigger on top ("When: on hit", "When:
+	 *  always"), then each All of check on its own indented line; Any of (migrated OR rows) after it, marked. */
+	WORLD_OF_REFRACTION_API FString GetConditionTreeString(const FSkillConditionGroup &Group);
+
+	/** Debug (wor.Conditions.ListAnyOf, the content sweep): every effect asset with an Any of set, with its tree.
+	 *  When each can be rewritten without "or", Any of is deleted. Editor only. */
+	WORLD_OF_REFRACTION_API FString GetAnyOfEffectsString();
+
+	/** Debug (wor.Conditions.Tree): every effect asset's effects with conditions, as trees. Editor only. */
+	WORLD_OF_REFRACTION_API FString GetConditionTreesString();
 }

@@ -417,3 +417,103 @@ FString SkillConditions::GetUnmigratedEffectsString()
 	return Out;
 #endif
 }
+
+FString SkillConditions::GetConditionTreeString(const FSkillConditionGroup &Group)
+{
+	// The trigger on top: the first event among the checks (an event condition is the event), else always.
+	const FWoRCondition *Event = Group.AllOf.Conditions.FindByPredicate([](const FWoRCondition &C) { return C.Trigger != EWoRConditionTrigger::Any; });
+	if (!Event)
+	{
+		Event = Group.AnyOf.Conditions.FindByPredicate([](const FWoRCondition &C) { return C.Trigger != EWoRConditionTrigger::Any; });
+	}
+	FString Out = FString::Printf(TEXT("When: %s"), Event ? *StaticEnum<EWoRConditionTrigger>()->GetDisplayNameTextByValue(static_cast<int64>(Event->Trigger)).ToString()
+															: TEXT("always"));
+	for (const FWoRCondition &Condition : Group.AllOf.Conditions)
+	{
+		Out += FString::Printf(TEXT("\n    %s"), *WoRConditions::GetConditionString(Condition));
+	}
+	if (!Group.AnyOf.Conditions.IsEmpty())
+	{
+		Out += TEXT("\n    any of (migrated OR rows; rewrite without \"or\"):");
+		for (const FWoRCondition &Condition : Group.AnyOf.Conditions)
+		{
+			Out += FString::Printf(TEXT("\n        %s"), *WoRConditions::GetConditionString(Condition));
+		}
+	}
+	return Out;
+}
+
+#if WITH_EDITOR
+namespace
+{
+	/** Every effect of every effect and reaction asset, with its asset path (editor only). */
+	void ForEachAuthoredEffect(TFunctionRef<void(const FString &AssetPath, const FSkillEffect &Effect)> Visit)
+	{
+		IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		Registry.WaitForCompletion();
+		TArray<FAssetData> Assets;
+		Registry.GetAssetsByClass(UEffectDefinition::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
+		for (const FAssetData &Asset : Assets)
+		{
+			if (const UEffectDefinition *Definition = Cast<UEffectDefinition>(Asset.GetAsset()))
+			{
+				for (const FSkillEffect &Effect : Definition->Effects)
+				{
+					Visit(Asset.GetObjectPathString(), Effect);
+				}
+			}
+		}
+		TArray<FAssetData> ReactionAssets;
+		Registry.GetAssetsByClass(UReactionTriggerData::StaticClass()->GetClassPathName(), ReactionAssets, /*bSearchSubClasses=*/true);
+		for (const FAssetData &Asset : ReactionAssets)
+		{
+			if (const UReactionTriggerData *Reactions = Cast<UReactionTriggerData>(Asset.GetAsset()))
+			{
+				for (const FReactionTrigger &Trigger : Reactions->Triggers)
+				{
+					for (const FSkillEffect &Effect : Trigger.Effects)
+					{
+						Visit(Asset.GetObjectPathString(), Effect);
+					}
+				}
+			}
+		}
+	}
+}
+#endif
+
+FString SkillConditions::GetAnyOfEffectsString()
+{
+#if !WITH_EDITOR
+	return TEXT("(editor only)");
+#else
+	FString Out;
+	int32 Count = 0;
+	ForEachAuthoredEffect([&Out, &Count](const FString &AssetPath, const FSkillEffect &Effect)
+	{
+		if (!Effect.ConditionGroup.AnyOf.Conditions.IsEmpty())
+		{
+			++Count;
+			Out += FString::Printf(TEXT("%s:\n  %s\n"), *AssetPath, *GetConditionTreeString(Effect.ConditionGroup));
+		}
+	});
+	return FString::Printf(TEXT("%d effect(s) use Any of (Q-337e: rewrite each without \"or\", then Any of goes)\n"), Count) + Out;
+#endif
+}
+
+FString SkillConditions::GetConditionTreesString()
+{
+#if !WITH_EDITOR
+	return TEXT("(editor only)");
+#else
+	FString Out;
+	ForEachAuthoredEffect([&Out](const FString &AssetPath, const FSkillEffect &Effect)
+	{
+		if (!Effect.ConditionGroup.IsEmpty())
+		{
+			Out += FString::Printf(TEXT("%s:\n  %s\n"), *AssetPath, *GetConditionTreeString(Effect.ConditionGroup));
+		}
+	});
+	return Out.IsEmpty() ? FString(TEXT("no authored conditions")) : Out;
+#endif
+}

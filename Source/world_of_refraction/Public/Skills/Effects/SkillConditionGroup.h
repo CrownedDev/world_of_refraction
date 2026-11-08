@@ -4,6 +4,10 @@
 // condition (SkillConditions::ToAuthored). Stored check-neutral: an event condition is the event, and the impact path
 // reads a defense event as "Who defended" at check time (SkillConditions::ToSets), as the read-across did.
 // Empty (both sets): no condition, the effect always holds.
+// Q-337e (Crown 2026-11-08): the deckbuilder's shape: one trigger on top, the All of checks nested under it (shown as an
+// indented tree, SkillConditions::GetConditionTreeString). Any of stays, collapsed (AdvancedDisplay), only so migrated
+// old OR rows keep their result; new skills author All of only. The deckbuilder has no OR: the content sweep lists
+// every Any of (wor.Conditions.ListAnyOf) and deletes it once each can be rewritten without "or".
 
 #pragma once
 
@@ -16,12 +20,13 @@ struct WORLD_OF_REFRACTION_API FSkillConditionGroup
 {
 	GENERATED_BODY()
 
-	/** Every one of these must hold. */
+	/** The checks under the trigger: every one of these must hold (the default authoring, Q-337e). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	FWoRConditionSet AllOf;
 
-	/** When not empty, at least one of these must hold too. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	/** Kept only for migrated old OR rows (Q-337e): when not empty, at least one of these must hold too. New skills
+	 *  leave it empty. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category = "Condition")
 	FWoRConditionSet AnyOf;
 
 	bool IsEmpty() const { return AllOf.Conditions.IsEmpty() && AnyOf.Conditions.IsEmpty(); }
