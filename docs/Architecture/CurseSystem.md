@@ -20,6 +20,8 @@ Curses (MemoryCatalogue §3.8; Shangri-La Frontier's curses, D-100) are rewards 
 - A lifted curse is never given again (`LiftedCurses`, saved): the journal is not saved yet, so its memory could be recorded again after a restart.
 - CurseHeld reads memory contexts only; fight contexts (bosses, skills, reactions) do not set `HeldCurses` yet (B-378b).
 - Which curses exist is Crown's.
+- The party check matches by character asset: an enemy built from a party member's asset would also be weakened.
+- No spec drives a party member's stats through `ULoadoutComponent` with a curse held (the subsystem sums are tested; PIE B-378b covers the rest).
 
 ## Changelog
 | Date | Change | Branch |
