@@ -5,6 +5,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/Damage/DamageCalculator.h"
+#include "Combat/Resistance/ResistanceQuery.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
@@ -115,7 +116,9 @@ FString UStatModifierDebug::GetStatsSnapshotString(AActor *Actor)
 	Add(TEXT("AbilityWindowFactor"), Char->SpeedWindowGearFactor(EActionType::Ability));
 	if (const UDamageCalculator *Calc = StatDebugSubsystem<UDamageCalculator>(Actor))
 	{
-		Add(TEXT("Defense"), Calc->GetDefenderFlatDefense(Actor));
+		Add(TEXT("Defense"), Calc->GetDefenderFlatDefense(Actor)); // B-389 (D-168): the All resistance line
+		Add(TEXT("ResistPhysicalLine"), WoRResistance::GetScopeLineResistance(Actor, /*bHitIsSpell=*/false));
+		Add(TEXT("ResistSpellLine"), WoRResistance::GetScopeLineResistance(Actor, /*bHitIsSpell=*/true));
 		Add(TEXT("CritChance"), Calc->GetCriticalChance(Actor));
 		Add(TEXT("CritDamage"), Calc->GetCritDamageMultiplier(Actor));
 	}
