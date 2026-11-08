@@ -325,6 +325,19 @@ public:
     int32 TakeDropIfPendingFight();
 
     int32 GetDroppedPrisms() const { return DroppedPrisms; }
+
+    /** B-235 (D-160 co-op): another player's own drop at the same spot, keyed by WoRDefeat::PlayerDropKey. The local
+     *  (host / solo) player's drop stays DropPrisms / TakeDrop, the one the save keeps; these are not saved yet (a
+     *  client's run copy is B-234). Returns that player's earlier drop, now lost for good (the newest drop only). */
+    int32 DropPrismsForPlayer(const FString &PlayerKey, int32 Amount);
+
+    /** B-235: that player's drop, cleared. 0 when there is none. */
+    int32 TakeDropForPlayer(const FString &PlayerKey);
+
+    int32 GetDroppedPrismsForPlayer(const FString &PlayerKey) const;
+
+    /** B-235: every player's drop at the spot (the local one and the others'): the pickup lies while it is above 0. */
+    int32 GetTotalDroppedPrisms() const;
     /** OBSOLETE (B-362c): the drop fight's map teams; logged only. */
     const TArray<FName> &GetDropEncounters() const { return DropEncounters; }
 
@@ -531,6 +544,8 @@ private:
 
     /** B-362b: run state like RunWipes (cleared on trial entry and exit; saved with the run). */
     int32 DroppedPrisms = 0;
+    /** B-235: the other players' drops (see DropPrismsForPlayer). */
+    TMap<FString, int32> OtherPlayerDrops;
     TArray<FName> DropEncounters;
     /** B-362c: the drop's spot, run state like DroppedPrisms (saved with the run). */
     FVector DropSpot = FVector::ZeroVector;

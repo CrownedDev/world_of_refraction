@@ -110,6 +110,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     bAtRestSpot = false; // B-363
     bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
+    OtherPlayerDrops.Reset(); // B-235
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;
@@ -223,6 +224,7 @@ void UTrialRunSubsystem::ExitTrial()
     bAtRestSpot = false; // B-363
     bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
+    OtherPlayerDrops.Reset(); // B-235
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;
@@ -487,13 +489,61 @@ int32 UTrialRunSubsystem::DropPrisms(int32 Amount)
     return LostForGood;
 }
 
+int32 UTrialRunSubsystem::DropPrismsForPlayer(const FString &PlayerKey, int32 Amount)
+{
+    int32 &Drop = OtherPlayerDrops.FindOrAdd(PlayerKey);
+    const int32 LostForGood = Drop;
+    Drop = FMath::Max(Amount, 0);
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Player %s dropped %d Prism(s)%s"), *PlayerKey, Drop,
+           LostForGood > 0 ? *FString::Printf(TEXT("; their earlier drop of %d is lost for good"), LostForGood) : TEXT(""));
+    return LostForGood;
+}
+
+int32 UTrialRunSubsystem::TakeDropForPlayer(const FString &PlayerKey)
+{
+    int32 Taken = 0;
+    OtherPlayerDrops.RemoveAndCopyValue(PlayerKey, Taken);
+    // Review fix: the spot goes with the last drop, whoever's it was (as TakeDrop does).
+    if (GetTotalDroppedPrisms() <= 0)
+    {
+        DropEncounters.Reset();
+        DropSpot = FVector::ZeroVector;
+        bDropHasSpot = false;
+    }
+    if (Taken > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] Player %s picked up their %d dropped Prism(s)"), *PlayerKey, Taken);
+    }
+    return Taken;
+}
+
+int32 UTrialRunSubsystem::GetDroppedPrismsForPlayer(const FString &PlayerKey) const
+{
+    const int32 *Drop = OtherPlayerDrops.Find(PlayerKey);
+    return Drop ? *Drop : 0;
+}
+
+int32 UTrialRunSubsystem::GetTotalDroppedPrisms() const
+{
+    int32 Total = DroppedPrisms;
+    for (const TPair<FString, int32> &Pair : OtherPlayerDrops)
+    {
+        Total += Pair.Value;
+    }
+    return Total;
+}
+
 int32 UTrialRunSubsystem::TakeDrop()
 {
     const int32 Taken = DroppedPrisms;
     DroppedPrisms = 0;
     DropEncounters.Reset();
-    DropSpot = FVector::ZeroVector;
-    bDropHasSpot = false;
+    // B-235: the spot stays while another player's drop still lies there.
+    if (GetTotalDroppedPrisms() <= 0)
+    {
+        DropSpot = FVector::ZeroVector;
+        bDropHasSpot = false;
+    }
     if (Taken > 0)
     {
         UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d dropped Prism(s) picked up"), Taken);
@@ -560,7 +610,7 @@ void UTrialRunSubsystem::HandleWorldActorsInitialized(const FActorsInitializedPa
     {
         return;
     }
-    if (IsRunActive() && DroppedPrisms > 0 && IsActiveTrialWorld(World))
+    if (IsRunActive() && GetTotalDroppedPrisms() > 0 && IsActiveTrialWorld(World)) // B-235: anyone's drop
     {
         APrismDropPickup::PlaceForRun(World, *this);
     }

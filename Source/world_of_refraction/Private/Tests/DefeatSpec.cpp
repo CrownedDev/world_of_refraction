@@ -268,6 +268,28 @@ void FDefeatSpec::Define()
 		FVector Spot;
 		TestTrue(TEXT("its spot back"), RunAfter->GetDropSpot(Spot) && Spot.Equals(DEFEAT_FALL_SPOT, DEFEAT_SPOT_TOLERANCE));
 	});
+
+	It("keeps each player's own drop at the shared spot, the newest only, and the pickup while any is left (B-235)", [this]()
+	{
+		if (!TestNotNull(TEXT("run"), Run)) return;
+		const FString Friend(TEXT("Friend"));
+		Run->SetPendingFightSpot(DEFEAT_FALL_SPOT);
+		Run->DropPrisms(DEFEAT_RUN_PRISMS);
+		TestEqual(TEXT("the friend's first drop: nothing lost"), Run->DropPrismsForPlayer(Friend, DEFEAT_RUN_PRISMS + 1), 0);
+		TestEqual(TEXT("the friend's own drop"), Run->GetDroppedPrismsForPlayer(Friend), DEFEAT_RUN_PRISMS + 1);
+		TestEqual(TEXT("both lie there"), Run->GetTotalDroppedPrisms(), 2 * DEFEAT_RUN_PRISMS + 1);
+		TestEqual(TEXT("the local player's drop is unchanged"), Run->GetDroppedPrisms(), DEFEAT_RUN_PRISMS);
+
+		TestEqual(TEXT("the local player takes only theirs"), Run->TakeDrop(), DEFEAT_RUN_PRISMS);
+		FVector Spot;
+		TestTrue(TEXT("the spot stays for the friend"), Run->GetDropSpot(Spot));
+		TestEqual(TEXT("the friend takes theirs"), Run->TakeDropForPlayer(Friend), DEFEAT_RUN_PRISMS + 1);
+		TestEqual(TEXT("once"), Run->TakeDropForPlayer(Friend), 0);
+		TestEqual(TEXT("nothing left"), Run->GetTotalDroppedPrisms(), 0);
+
+		Run->DropPrismsForPlayer(Friend, DEFEAT_RUN_PRISMS);
+		TestEqual(TEXT("a newer drop loses the earlier one for good"), Run->DropPrismsForPlayer(Friend, 1), DEFEAT_RUN_PRISMS);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
