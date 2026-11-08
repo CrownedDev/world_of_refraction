@@ -503,8 +503,12 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 bool USaveSubsystem::SaveNow(UWorld *World, bool bAsync)
 {
 	CaptureInto(World);
-	WoRCheckpoint::SendToClients(World, SaveGame); // B-234: every other player keeps the host's checkpoint
-	return WriteSlot(bAsync);
+	const bool bWritten = WriteSlot(bAsync);
+	if (bWritten)
+	{
+		WoRCheckpoint::SendToClients(World, SaveGame); // B-234: every other player keeps the host's checkpoint (review: only a written one)
+	}
+	return bWritten;
 }
 
 bool USaveSubsystem::WriteSlot(bool bAsync)

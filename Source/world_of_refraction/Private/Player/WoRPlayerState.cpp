@@ -383,38 +383,45 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 	return PC && PC->IsLocalController();
 }
 
-void AWoRPlayerState::SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Bytes)
+void AWoRPlayerState::SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize)
 {
 	if (!HasAuthority())
 	{
 		return;
 	}
-	const TArray<TArray<uint8>> Chunks = WoRCheckpoint::Split(Bytes);
+	const TArray<TArray<uint8>> Chunks = WoRCheckpoint::Split(Compressed);
 	for (int32 Index = 0; Index < Chunks.Num(); ++Index)
 	{
-		Client_ReceiveCheckpointChunk(CheckpointId, Index, Chunks.Num(), Chunks[Index]);
+		Client_ReceiveCheckpointChunk(CheckpointId, Index, Chunks.Num(), UncompressedSize, Chunks[Index]);
 	}
 }
 
-void AWoRPlayerState::Client_ReceiveCheckpointChunk_Implementation(int32 CheckpointId, int32 ChunkIndex, int32 ChunkCount, const TArray<uint8> &Chunk)
+void AWoRPlayerState::Client_ReceiveCheckpointChunk_Implementation(int32 CheckpointId, int32 ChunkIndex, int32 ChunkCount, int32 UncompressedSize,
+																	const TArray<uint8> &Chunk)
 {
 	if (!CheckpointAssembler.Add(CheckpointId, ChunkIndex, ChunkCount, Chunk))
 	{
 		return;
 	}
+	TArray<uint8> Bytes;
+	if (!WoRCheckpoint::Decompress(CheckpointAssembler.GetBytes(), UncompressedSize, Bytes))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Copy %d did not decompress (%d bytes, expected %d); not kept"), CheckpointId,
+			   CheckpointAssembler.GetBytes().Num(), UncompressedSize);
+		return;
+	}
 	const APlayerController *PC = Cast<APlayerController>(GetOwner());
 	const ULocalPlayer *Local = PC ? PC->GetLocalPlayer() : nullptr;
 	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
-	const TArray<uint8> &Bytes = CheckpointAssembler.GetBytes();
 	if (!UGameplayStatics::SaveDataToSlot(Bytes, WoRCheckpoint::SLOT_NAME, UserIndex))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Checkpoint] Could not keep copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Could not keep copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
 		return;
 	}
 	KeptCheckpointId = CheckpointId;
 	KeptCheckpointBytes = Bytes.Num();
 	KeptCheckpointTime = FDateTime::Now();
-	UE_LOG(LogTemp, Log, TEXT("[Checkpoint] Kept the host's copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+	UE_LOG(LogWoR, Log, TEXT("[Checkpoint] Kept the host's copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
 }
 
 FString AWoRPlayerState::GetCheckpointString() const
@@ -437,6 +444,6 @@ static FAutoConsoleCommandWithWorld GCoopPrintCheckpointCommand(
 		const AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
 		const ULocalPlayer *Local = PC ? PC->GetLocalPlayer() : nullptr;
 		const bool bOnDisk = UGameplayStatics::DoesSaveGameExist(WoRCheckpoint::SLOT_NAME, Local ? Local->GetPlatformUserIndex() : 0);
-		UE_LOG(LogTemp, Display, TEXT("[Checkpoint] %s; on disk: %s"), Player ? *Player->GetCheckpointString() : TEXT("no player state"),
+		UE_LOG(LogWoR, Display, TEXT("[Checkpoint] %s; on disk: %s"), Player ? *Player->GetCheckpointString() : TEXT("no player state"),
 			   bOnDisk ? TEXT("yes") : TEXT("no"));
 	}));
