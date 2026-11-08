@@ -337,6 +337,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-291](B-291.md) | `feature/B-291-headless-seams` (in `dev`) | Balance-sim seams: InstantImpacts / AI think-delay console variables (off by default), round and bar-break events | Not tested |
 | [B-294](B-294.md) | `feature/B-294-element-palette` (in `dev`) | Colour-blind element palette: new element colours in bars, tints and glows | Not tested |
 | [B-292](B-292.md) | `feature/B-292-sim-runner` (in `dev`) | Balance sim runner, recorder, archetypes (tests only; nothing in play changes) | Not tested |
+| [B-351d](B-351d.md) | `feature/B-351d-crystal-spell-lists-cloud` (UNBUILT, on B-351c) | A crystal's one spell list: replace / restore, saved on the item | Pending |
 
 Move rows to **Done** when every check passes.
 
@@ -346,4 +347,3 @@ Move rows to **Done** when every check passes.
 | [B-026](B-026.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-027](B-027.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-029](B-029.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
-| [B-351d](B-351d.md) | `feature/B-351d-crystal-spell-lists-cloud` (UNBUILT, on B-351c) | A crystal's one spell list: replace / restore, saved on the item | Pending |
