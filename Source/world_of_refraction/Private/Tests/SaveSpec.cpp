@@ -27,6 +27,9 @@ namespace
 	constexpr int32 SAVED_HP = 37;
 	constexpr int32 SAVED_EP = 4;
 	constexpr int32 SAVED_COLUMN = 2;
+	constexpr int32 SAVED_HEAD_START_MIND = 2;
+	constexpr int32 SAVED_HEAD_START_SPIRIT = 1;
+	constexpr float SAVED_RUN_STRAIN = 42.0f;
 	constexpr int32 PRISMS = 5;
 	constexpr int32 ELEMENTAL_ESSENCE = 3;
 	constexpr int32 PILLAR_ESSENCE = 4;
@@ -94,6 +97,10 @@ void FSaveSpec::Define()
 		Party->Members[1].bPlayerControlled = false;
 		Party->Members[1].bAISeat = true; // B-346: the saved mirror of bPlayerControlled
 		Party->Members[1].AISeatDifficulty = EAIDifficulty::Hard;
+		Party->Members[1].HeadStartMind = SAVED_HEAD_START_MIND; // B-348b
+		Party->Members[1].HeadStartSpirit = SAVED_HEAD_START_SPIRIT;
+		Party->Members[1].bBrokenDarkness = true; // B-348c
+		Party->Members[1].RunStrain = SAVED_RUN_STRAIN;
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -122,6 +129,13 @@ void FSaveSpec::Define()
 		TestTrue(TEXT("Cell"), Back.PreferredRow == ECombatRow::Back && Back.PreferredColumn == SAVED_COLUMN);
 		TestFalse(TEXT("AI-controlled"), Back.bPlayerControlled);
 		TestTrue(TEXT("AI seat, Hard (B-346 / B-348)"), Back.bAISeat && Back.AISeatDifficulty == EAIDifficulty::Hard);
+		TestTrue(TEXT("Head-start survives save / load (B-348b)"), Back.HeadStartMind == SAVED_HEAD_START_MIND && Back.HeadStartBody == 0 &&
+																		Back.HeadStartSpirit == SAVED_HEAD_START_SPIRIT);
+		TestTrue(TEXT("Broken Darkness survives save / load (B-348c)"), Back.bBrokenDarkness);
+		TestEqual(TEXT("The run's strain goes with a saved run"), Back.RunStrain, SAVED_RUN_STRAIN);
+		TestEqual(TEXT("... and not without one"), USaveSubsystem::CaptureParty(Party, false).Members[1].RunStrain, 0.0f);
+		TestTrue(TEXT("... while Broken Darkness is kept outside the run too"), USaveSubsystem::CaptureParty(Party, false).Members[1].bBrokenDarkness);
+		TestFalse(TEXT("Member 0 never broke"), Loaded->Data.Party.Members.Num() > 0 && Loaded->Data.Party.Members[0].bBrokenDarkness);
 		TestFalse(TEXT("A party that already exists is left alone"),
 				  USaveSubsystem::RestoreParty(Loaded->Data.Party, *PartySession));
 	});

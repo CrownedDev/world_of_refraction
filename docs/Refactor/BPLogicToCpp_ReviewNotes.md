@@ -41,7 +41,7 @@ Opt-in by reparenting:
 | `122f8fc` | `UCombatResultsWidget` (native overlay) |
 | `f6d088c` | BattleGameMode shows results before returning to trial |
 | `1014628` | `AExplorationPlayerController` (hub/trial interact + party ensure) |
-| `270e2ac` | `NativeUIDebug` + `wor.UIState` console command |
+| `270e2ac` | `NativeUIDebug` + `wor.UI.Print` (was `wor.UIState`) console command |
 
 New files:
 - `UI/Combat/CombatHUD.h/.cpp`
@@ -62,7 +62,7 @@ New files:
 - Do the same check for the hub PC's interact graph.
 
 ### 3. Cut over, one at a time, PIE between each
-1. **Combat HUD.** Delete the `BP_CombatOrchestrator` → OnCombatStartedUI override, then PIE a battle and run `wor.UIState`.
+1. **Combat HUD.** Delete the `BP_CombatOrchestrator` → OnCombatStartedUI override, then PIE a battle and run `wor.UI.Print` (was `wor.UIState`).
    - **Expect:** panels bottom-left (yours) and top-right (enemies), turn strip top-centre, command menu bottom-right.
    - **Watch for a double command menu.** The menu header says "called by the owning character actor after AddToViewport", so a character BP may also create one. If so, delete that too.
 2. **Effects list.** Delete the `WBP_CharacterPanel` → RebuildEffectsList override. If the second `/Game/UI/Combat/WBP_CharacterPanel` is the live one, set `CharacterPanelClass` in config (see below).
@@ -70,7 +70,7 @@ New files:
 4. **Hub PC.**
    - Class Settings → Parent Class → `ExplorationPlayerController` on `BP_HubPlayerController`, and on the trial PC.
    - Delete their IA_Interact and `EnsureLocalParty` nodes.
-   - Run `wor.UIState` near a door to see the candidates.
+   - Run `wor.UI.Print` (was `wor.UIState`) near a door to see the candidates.
 
 ### 4. Tune
 - Layout: `CombatHUDLayout` in `CombatHUD.cpp`.

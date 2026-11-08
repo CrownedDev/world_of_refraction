@@ -33,13 +33,25 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Spell Debug")
     static void CompareSpellEffectiveness(USpellData *Spell, UCharacterData *Character1, UCharacterData *Character2);
 
-    /** B-356b: the school a spell shows, flagging a retired authored one: "Conjuration (authored Destruction, retired)". */
+    /** B-356b: the school a spell shows, flagging a retired authored one ("X (authored Y, retired)"; none since D-163). */
     UFUNCTION(BlueprintPure, Category = "Spell Debug")
     static FString GetSchoolString(const USpellData *Spell);
 
-    /** B-356b: every spell asset whose school disagrees with what the AI reads from its effects: a damage-school
-     *  (Conjuration) spell IsOffensiveSpell rejects, or a support-school spell it accepts. First line: how many
-     *  assets were scanned; then one line per disagreement. Loads every USpellData asset: editor / test only. */
+    /** B-374 (D-163, Q-374, Crown 2026-11-08): the school a spell's main effect proposes, read from its effects the
+     *  way the AI reads them (Q-356c): damage at an enemy → Destruction; a heal (not a drain) or a cleanse →
+     *  Restoration; changing what an enemy does (Random Skill / confusion; later taunt, forced target, row swap,
+     *  charm) → Manipulation; stun, apply stun, skip turn, silence, a debuff or status buildup at an enemy →
+     *  Impairment; a buff → Enhancement. Never Conjuration (that school is authored). Only a warning: the school is
+     *  set on the spell. False when the effects propose nothing (an empty spell). */
+    static bool ProposeSchool(const USpellData *Spell, ESpellSchool &OutSchool);
+
+    /** B-374: the spell's shown school differs from the proposed one. Conjuration is never flagged: its identity
+     *  is the conjured thing, which effects can't show (D-163; Q-374). A spell with no proposal is never flagged. */
+    static bool IsSchoolMismatch(const USpellData *Spell);
+
+    /** B-356b / B-374: every spell asset whose school disagrees with the school its effects propose
+     *  (IsSchoolMismatch), plus every Conjuration spell whose effects propose Destruction as "check: conjured, or
+     *  Destruction" (Conjuration was the damage school until D-163). First line: how many assets were scanned. Loads every USpellData asset: editor / test only. Re-tagging is an editor step. */
     UFUNCTION(BlueprintCallable, Category = "Spell Debug")
     static FString GetSchoolEffectMismatchString();
 };

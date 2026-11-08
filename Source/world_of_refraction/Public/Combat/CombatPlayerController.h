@@ -45,6 +45,19 @@ enum class ECombatInputVerdict : uint8
 	NotOffered
 };
 
+/** B-232c: a free command-menu step (no turn spent): the server runs it for the member it is about. */
+UENUM()
+enum class ECombatFreeCommand : uint8
+{
+	SwitchWeapon,
+	SwitchAdapter,
+	MoveRowForward,
+	MoveRowBack,
+	/** D-026: the member goes to the AI for the rest of the fight. */
+	HandToAI,
+	MAX UMETA(Hidden)
+};
+
 /** B-229: one input the server handled, for the debug log. */
 struct FCombatInputRecord
 {
@@ -141,6 +154,16 @@ public:
 	 *  Server_SubmitDefenseInput, stamped with the replicated server clock so the server judges the real press time. */
 	void RequestDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction);
 
+	/** B-232c: the one entry for a free menu step (weapon / adapter switch, a row step, hand to the AI).
+	 *  Authority: HandleFreeCommand here; client: Server_SubmitFreeCommand, and on acceptance the client's own copy
+	 *  of the member follows (Client_FreeCommandApplied) so its menu redraws from the same loadout. */
+	void RequestFreeCommand(AActor *Actor, ECombatFreeCommand Command);
+
+	/** B-232c server side (also the authority path): the same checks as a pick (the sender controls Actor, a fight,
+	 *  Actor's turn, nothing running), then the step itself; NotOffered when the step is refused (no second weapon,
+	 *  the switch used, no row to step to). */
+	ECombatInputVerdict HandleFreeCommand(AActor *Actor, ECombatFreeCommand Command, bool bFromClient = false);
+
 	/** Server side of a pick (also the authority path): the sender must control Pick.Actor and it must have the
 	 *  turn, then the orchestrator runs it. */
 	ECombatInputVerdict HandleMenuPick(const FCombatPickRequest &Pick, bool bFromClient = false);
@@ -182,14 +205,30 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SubmitMenuPick(const FCombatPickRequest &Pick);
 
+	/** B-232b (review): the server refused this client's menu pick; the client reopens its menu for the same turn. */
+	UFUNCTION(Client, Reliable)
+	void Client_MenuPickRefused(ECombatInputVerdict Verdict);
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SubmitDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction, double PressServerTime);
+
+	/** B-232c */
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SubmitFreeCommand(AActor *Actor, ECombatFreeCommand Command);
+
+	/** B-232c: the server ran the step; the client's copy of Actor does the same (its loadout is not replicated) and
+	 *  its menu redraws. */
+	UFUNCTION(Client, Reliable)
+	void Client_FreeCommandApplied(AActor *Actor, ECombatFreeCommand Command);
 
 private:
 	/** The fight in progress in this world, or null. */
 	ACombatOrchestrator *FindActiveOrchestrator() const;
 
 	void RecordInput(const FString &Description, ECombatInputVerdict Verdict, bool bFromClient);
+
+	/** B-232c: runs Command on Actor on this machine (the server's step, or a client following it). */
+	static bool ApplyFreeCommand(ACombatOrchestrator *Orchestrator, AActor *Actor, ECombatFreeCommand Command);
 
 	TArray<FCombatInputRecord> RecentInputs;
 };

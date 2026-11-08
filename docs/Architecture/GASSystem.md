@@ -53,7 +53,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - `GAS/WoRGameplayEffects.h`: native GameplayEffect classes, one per family. So far `UWoRGE_Stun` (Infinite, a `UTargetTagsGameplayEffectComponent` made in the constructor and added to `GEComponents`, grants `Status.Stun`). Nothing applies it in play yet.
 - `GAS/WoRTurnEffectTracker.h`: `UWoRTurnEffectTracker`, a default subobject of `ACombatCharacter`. `ApplyForHolderTurns(Class, Turns, Instigator)` applies an Infinite GE through the owner's ASC and keeps an `FTurnSpan` per handle. `OnHolderTurnStart` removes finished GEs by handle (before payouts), `OnHolderTurnEnd` counts the turn. A GE removed elsewhere leaves the map through `OnAnyGameplayEffectRemovedDelegate`. `USkillEffectManager::ProcessStartOfTurnEffects` / `ProcessEndOfTurnEffects` call the hooks.
-- Debug: `wor.DumpTurnEffects`, `UWoRTurnEffectTracker::GetDebugString` / `PrintState`, `showdebug abilitysystem`. Spec `WoR.GAS.TurnTracker`.
+- Debug: `wor.Effects.PrintTurns`, `UWoRTurnEffectTracker::GetDebugString` / `PrintState`, `showdebug abilitysystem`. Spec `WoR.GAS.TurnTracker`.
 
 ### Effects (stage 3, B-042b part 2)
 
@@ -66,7 +66,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - `GAS/WoREffectMirrorComponent.h` (on `ACombatCharacter`): one untracked, tick-less Infinite GE per stored enum-path effect of a ported type (`FWoREffectSpecBuilder::GetEffectClass`), built with `Build(..., bAlreadyStored = true)`. Resyncs on the effect manager's applied / removed / stacks / duration events for its owner by diffing identity, element, gear and stacked value; the enum path still owns lifetime, stacking and ticks.
 - `wor.Effects.UseGAS` (default 0, Q-042c): at 1, `USkillEffectManager::HasEffectOfType` (and so `IsStunned` / `IsSilenced`), `GetTotalStatModifier` and `GetTotalStatModifierForElement` read the mirror for ported types on actors that carry one (`UWoREffectMirrorComponent::GetGASReadSource`). Tagged types read their tag; `HasActiveDOT` and `GetEffectTags` go through `HasEffectOfType` too (B-042x), so every Stun / Silence / HealBlock / immunity / DOT check reads the tag. The AI's DOT tick-size read stays on the stored copy until B-042yb.
-- Debug: `UWoREffectDebug::GetEffectMismatchString` / `wor.CompareEffects`.
+- Debug: `UWoREffectDebug::GetEffectMismatchString` / `wor.Effects.Compare`.
 - A GAS read resyncs the actor's mirror first (turn order and the HP/EP pool read before or beside the mirror's events). The reads count every WoR GE on the ASC: GEs applied any other way (B-042d) would count twice until B-042h makes GAS the store.
 - At UseGAS 1 a const effect-manager read can apply or remove GEs (the resync), so ASC listeners run inside it, sometimes while the manager walks an actor's effects; an ASC listener must not change the effect manager. Each read costs a full sync (fine for the PIE pass; B-042h drops it).
 
@@ -74,7 +74,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - At UseGAS 1 on an owner with a `UWoRTurnEffectTracker` (`UWoREffectMirrorComponent::OwnsLifetime`), the mirror applies each timed effect's GE through `ApplySpecForSpan` with the stored span; permanent and Immediate effects stay untracked. A refresh in `ApplyEffect` restarts the stored span and the sync pushes it (`SetSpan`); a stack swaps the GE with the copy's span.
 - Turn end: the tracker counts first and the stored copies take its count (`GetTrackedTurnsLeft`). Turn start: the tracker ends finished GEs, then `ReleaseEndedCopies` removes their copies (`RemoveEffectByIdentity`); the enum expiry only finds what GAS doesn't hold. A GE GAS ends early stays off (`EndedByGAS`) until then; a same-source re-apply starts it again (`ForgetEnded`).
-- B-042y: each mirrored GE keeps its tick spec; at UseGAS 1 the effect manager's DOT / HOT payout calls `UWoREffectMirrorComponent::PayTick` (Q-042y), and the tracker's own tick loop stays unused for them. Debug: `UWoREffectMirrorComponent::GetDebugString` (tracked / turns left / pending releases), `wor.DumpTurnEffects`, `wor.CompareEffects`; spec `WoR.GAS.EffectLifetime`.
+- B-042y: each mirrored GE keeps its tick spec; at UseGAS 1 the effect manager's DOT / HOT payout calls `UWoREffectMirrorComponent::PayTick` (Q-042y), and the tracker's own tick loop stays unused for them. Debug: `UWoREffectMirrorComponent::GetDebugString` (tracked / turns left / pending releases), `wor.Effects.PrintTurns`, `wor.Effects.Compare`; spec `WoR.GAS.EffectLifetime`.
 
 ### Combat GameplayEvents (stage 3, B-042d part 4)
 
@@ -100,7 +100,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 ### Status bar on GAS (stage 3, B-042o part 5e)
 
 - At UseGAS 1, for a target whose ASC holds the Buildup attribute (`UStatusBuildupManager::GetBarASC`), the attribute is the bar: hits go through `AddThroughExecution` (the spec's source is the hitter's ASC; a source with none keeps its gathered multiplier), reset / reduce / decay / `ResetForCombat` write it (`SetBar`), the getters read it. `FStatusBarState` keeps a copy and the pending element, physical type, last source and decay count (Q-042o changed by Crown: a Water hit also reads Ice, B-226).
-- The immunity gates read tags (`HasEffectOfType` at UseGAS 1), the cap fires the break through `ApplyEffect` (tracker lifetime, B-042h), decay runs after the tracker's turn start. Debug: `GetBarDebugString`, `wor.DumpStatusBars`.
+- The immunity gates read tags (`HasEffectOfType` at UseGAS 1), the cap fires the break through `ApplyEffect` (tracker lifetime, B-042h), decay runs after the tracker's turn start. Debug: `GetBarDebugString`, `wor.StatusBars.Print`.
 
 ### Tick execution (stage 3, B-042n part 5d)
 
@@ -113,7 +113,7 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 - `Character/StatLayers.h`: `FWoRStatLayers` (StatBase capped alone, Gear, Stone, Transient factors; `Compose()` clamps to `STAT_MODIFIER_MIN/MAX`). `UCharacterDataComponent::GetStatLayers` fills them for SpellDamage, RawDamage, ActionSpeed, SpellSpeed; those four `GetEffective*` getters return `Compose()`.
 - `UWoRGE_StatSources` (+ one subclass per stat): Infinite, `Effect.Family.StatSources`, three MultiplyCompound modifiers reading `SetByCaller.Stat.Gear / Stone / Transient`. `UWoRAttributeSet_Stats::PreAttributeChange` clamps the four.
-- B-042q: StatusMultiplier, Defense and CritDamage join them (seven composed stats, `UWoRAttributeSet_Stats::GetComposedStats`, the one table the clamp and the sync read). Each stat's clamp comes from `FWoRStatLayers::ForStat` (Defense [0, 0.85], crit damage [x1.0, x2.5], the rest [0, 2]). `wor.CompareAttributes` also checks each composed base and its one sources effect. The rest: B-042r, B-042s, B-042t, B-042u, B-042v, B-042w.
+- B-042q: StatusMultiplier, Defense and CritDamage join them (seven composed stats, `UWoRAttributeSet_Stats::GetComposedStats`, the one table the clamp and the sync read). Each stat's clamp comes from `FWoRStatLayers::ForStat` (Defense [0, 0.85], crit damage [x1.0, x2.5], the rest [0, 2]). `wor.Attributes.Compare` also checks each composed base and its one sources effect. The rest: B-042r, B-042s, B-042t, B-042u, B-042v, B-042w.
 - B-042r: Luck (clamp [0, `LUCK_GEAR_CEILING`]) and Reflex (unbounded) join them: nine composed stats. The stats of other shapes are B-042s (Q-042r).
 - B-042s (Q-042s): derived stats. `UWoRGE_DerivedStat` (`Effect.Family.DerivedStat`) adds clamped terms (`UWoRMMC_ClampedStatTerm`: the source captured live, clamped with `ForStat`) so the value follows its source live: crit chance = (`CRIT_CHANCE_BASE` + Luck x `CRIT_CHANCE_LUCK_BONUS`) x its buff layer (SetByCaller, `GetCritChanceTransientFactor`), clamped [0, 1]; Efficiency = 1 - `EfficiencyReduction` (a composed stat). `SyncDerivedStat` sets the bases and applies each once. The pillars, pools, turn speed and resistance are B-042t.
 - B-042t (Q-042t): the pillars. Mind, Body and Spirit use the stat-sources shape over their world base (`GetPillarLayers`, `UWoRGE_StatSources_<Pillar>`: equipment, crystal, pillar buff); the attribute set clamps them to [0, 2] x their base value, as the getter caps the modifier alone. The pools are B-042u; turn speed and resistance are B-042v.
@@ -135,11 +135,11 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 ## Debug
 
 - `UWoRTagDebug`:
-  - `wor.DumpTags`: every enum value and its tag, with a round-trip check.
-  - `wor.CompareTags`: each combatant's tag queries against the enum queries.
+  - `wor.Tags.Print`: every enum value and its tag, with a round-trip check.
+  - `wor.Tags.Compare`: each combatant's tag queries against the enum queries.
 - `UWoRAttributeDebug`:
-  - `wor.DumpAttributes`
-  - `wor.CompareAttributes`: each attribute against the getter it mirrors; it names any that drifted.
+  - `wor.Attributes.Print`
+  - `wor.Attributes.Compare`: each attribute against the getter it mirrors; it names any that drifted.
 - Specs: `WoR.Tags`, `WoR.GAS.Attributes`.
 
 ## Known limitations / TODOs
@@ -147,14 +147,14 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 - B-042y (Q-042y, B-042yd): at UseGAS 1 every Health- or Energy-changing GE execution on a combatant with character data reaches the HP path, so `FWoREffectSpecBuilder::Apply` with a tick spec would pay on top of the effect manager's pass (no play caller yet; B-042i).
 - **Mirror, switching.** At UseGAS 1 the tag read sites (B-042x), the DOT / HOT payouts (B-042y) and the sub-stat and pillar getters (B-042yb, `UWoRAttributeSyncComponent::ReadComposedOnGAS`) and the other getters (B-042yc: resistances, turn speed, Defense, crit, luck, reflex, efficiency, status multiplier) read GAS; the other payouts (B-042yd: energy, drains, self-damage, percent restores; instants too) read GAS; the per-effect reads (B-042ye: the AI's DOT tick and turns, the buff / debuff counts, the character panel's list) read GAS through `USkillEffectManager::GetHeldEffects` / `PreviewDotTickDamage` (mirror: `ReadHeldEffects`, `PreviewDotTick`; Q-042ye).
 - MaxBuildup mirrors the fixed bar cap (`CombatConstants::STATUS_EFFECT_THRESHOLD`).
-- A stat change with no event (e.g. weather, a crystal breaking mid-turn) reaches the attributes at that character's next turn start. `wor.CompareAttributes` shows such drift in between.
+- A stat change with no event (e.g. weather, a crystal breaking mid-turn) reaches the attributes at that character's next turn start. `wor.Attributes.Compare` shows such drift in between.
 - Bare test actors (and anything that isn't an `ACombatCharacter`) have no ASC unless one is added, as `WoR.GAS.Attributes` does.
 - Per-AI Minimal replication mode waits for co-op.
 - B-042yd: a heal paid through GAS (HOT tick, percent HP restore) reports the HP actually gained (it stops at
   MaxHP); the game path's `HealActor` reports the full amplified heal. Near full HP the two `OnHealingDone`
   amounts differ. No spec yet for a HealingReceived buff on a percent restore at UseGAS 1.
 - B-042ye: the AI resyncs the mirror per DOT preview and per `GetDebuffCount` (cheap when nothing changed,
-  but per candidate x target); `wor.CompareEffects` doesn't show the held list beside the stored one yet.
+  but per candidate x target); `wor.Effects.Compare` doesn't show the held list beside the stored one yet.
 
 - B-318: the held-effects snapshot (`UWoREffectMirrorComponent::HeldSnapshot`) is refreshed by the mirror's syncs; a GE that GAS ends without an effect-manager event (outside the holder-turn start, which `ReleaseEndedCopies` covers) shows on guests only from the next sync. Each entry sends the whole `FActiveSkillEffect` (names, conditions); a slim replicated struct can come later if bandwidth asks.
 
@@ -162,18 +162,18 @@ So far GAS **mirrors** the existing systems. The enum effects in `USkillEffectMa
 
 | Date | Change | Branch |
 |---|---|---|
-| 2026-10-26 | B-040: native tags, enum to tag maps, `GetEffectTags`, `wor.DumpTags` / `wor.CompareTags`. | feature/B-040-gas-tags |
-| 2026-10-26 | B-041: attribute sets, ASC + `UWoRAttributeSyncComponent` on `ACombatCharacter`, `wor.DumpAttributes` / `wor.CompareAttributes`; effect clears broadcast after removal. | feature/B-041-gas-attributes |
-| 2026-10-27 | B-042 (stage 3, part 1): native `UWoRGE_Stun`; `UWoRTurnEffectTracker` on `ACombatCharacter`, driven by the effect manager's turn hooks; `wor.DumpTurnEffects`. The rest of stage 3 is B-042b-g. | feature/B-042-gas-turn-tracker |
+| 2026-10-26 | B-040: native tags, enum to tag maps, `GetEffectTags`, `wor.Tags.Print` / `wor.Tags.Compare`. | feature/B-040-gas-tags |
+| 2026-10-26 | B-041: attribute sets, ASC + `UWoRAttributeSyncComponent` on `ACombatCharacter`, `wor.Attributes.Print` / `wor.Attributes.Compare`; effect clears broadcast after removal. | feature/B-041-gas-attributes |
+| 2026-10-27 | B-042 (stage 3, part 1): native `UWoRGE_Stun`; `UWoRTurnEffectTracker` on `ACombatCharacter`, driven by the effect manager's turn hooks; `wor.Effects.PrintTurns`. The rest of stage 3 is B-042b-g. | feature/B-042-gas-turn-tracker |
 | 2026-10-27 | B-042b (stage 3, part 2): `FWoREffectContext` + globals class; family GEs; `FWoREffectSpecBuilder`; tracker tick specs. Not routed in play yet (B-042c). | feature/B-042b-gas-effect-builder |
-| 2026-10-27 | B-042c (stage 3, part 3): `UWoREffectMirrorComponent`; `wor.Effects.UseGAS` facade reads; `wor.CompareEffects`; `Build` takes `bAlreadyStored`. Write side moved to B-042h (Q-042c). | feature/B-042c-gas-effect-mirror |
+| 2026-10-27 | B-042c (stage 3, part 3): `UWoREffectMirrorComponent`; `wor.Effects.UseGAS` facade reads; `wor.Effects.Compare`; `Build` takes `bAlreadyStored`. Write side moved to B-042h (Q-042c). | feature/B-042c-gas-effect-mirror |
 | 2026-10-27 | B-042d (stage 3, part 4, narrowed): `WoRCombatEvents::Send`; `Event.Combat.*` sent from the effect manager. Rest split into B-042i, B-042j, B-042k. | feature/B-042d-gas-combat-events |
 | 2026-10-27 | B-042k (stage 3, part 4b): seven role families; every effect type mirrored. | feature/B-042k-gas-remaining-families |
 | 2026-10-27 | B-042e (stage 3, part 5, narrowed): `UWoRDamageExecution` + `UWoRGE_Damage`; rest split into B-042l, B-042m, B-042n. | feature/B-042e-gas-damage-execution |
 | 2026-10-27 | B-042l (stage 3, part 5b, narrowed): `WoRBuildupMath`, `UWoRBuildupExecution` + `UWoRGE_Buildup`, `ReadSyncedAttribute`; bar / cap / decay split into B-042o. | feature/B-042l-gas-buildup-execution |
 | 2026-10-27 | B-042m (stage 3, part 5c, narrowed): Ignore Defense as an amount in the shared damage core the damage execution runs; sources as GEs split into B-042p. | feature/B-042m-ignore-defense-amount |
 | 2026-10-27 | B-042p (stage 3, part 5f, narrowed): the four Pattern P stats composed on GAS (`UWoRGE_StatSources`, base = capped stat); other stats split into B-042q. | feature/B-042p-gas-stat-sources |
-| 2026-10-27 | B-042q (stage 3, part 5g, narrowed): StatusMultiplier, Defense and crit damage composed on GAS (per-stat clamps); `wor.CompareAttributes` checks composed bases and sources effects; other stats split into B-042r. | feature/B-042q-gas-stat-sources-rest |
+| 2026-10-27 | B-042q (stage 3, part 5g, narrowed): StatusMultiplier, Defense and crit damage composed on GAS (per-stat clamps); `wor.Attributes.Compare` checks composed bases and sources effects; other stats split into B-042r. | feature/B-042q-gas-stat-sources-rest |
 | 2026-10-27 | B-042r (stage 3, part 5h, narrowed): Luck and the Reflex window factor composed on GAS; the stats of other shapes split into B-042s (Q-042r). | feature/B-042r-gas-luck-reflex |
 | 2026-10-27 | B-042s (stage 3, part 5i, narrowed): crit chance and Efficiency derived on GAS (`UWoRGE_DerivedStat`, `EfficiencyReduction`); the pillars, pools, turn speed and resistance split into B-042t (Q-042s). | feature/B-042s-gas-derived-stats |
 | 2026-10-27 | B-042t (stage 3, part 5j, narrowed): the pillars composed on GAS; the pools split into B-042u, turn speed and resistance into B-042v (Q-042t). | feature/B-042t-gas-last-stats |

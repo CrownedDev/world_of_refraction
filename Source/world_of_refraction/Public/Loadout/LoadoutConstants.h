@@ -30,8 +30,21 @@ namespace LoadoutConstants
     // Unified loadout budget — primary slot cost + ring slot costs must not exceed this.
     constexpr int32 LOADOUT_TOTAL_BUDGET = 5;
 
-    // Cost of an Evolution primary (the evolution crystal itself; no weapon platform).
-    constexpr int32 EVOLUTION_PRIMARY_SLOT_COST = 2;
+    // B-357 (D-147, Q-357, Crown 2026-11-08, final): one rule for every gear cost: the frame, plus what sits in it.
+    // A weapon frame costs 1 (it brings abilities); an adapter frame costs 0; a crystal, stone or fusion adds 1; an
+    // evolution attached to gear adds 2; an evolution on its own, straight in the loadout slot, costs 3. So: bare
+    // weapon 1, weapon + crystal 2, weapon + evolution 3, adapter + crystal 1, adapter + evolution 2, evolution
+    // alone 3. No one-evolution-per-loadout rule: the budget is the only limit.
+    constexpr int32 WEAPON_FRAME_COST = 1;
+    constexpr int32 ADAPTER_FRAME_COST = 0;
+    constexpr int32 CRYSTAL_ATTACHMENT_COST = 1;
+    /** An evolution attached to a weapon or an adapter (it gives its passive abilities there, B-357b). */
+    constexpr int32 EVOLUTION_SLOT_COST = 2;
+    /** An evolution on its own in the loadout slot (the character's own slot). */
+    constexpr int32 EVOLUTION_ALONE_SLOT_COST = 3;
+
+    // The evolution on the character's own slot (the name the readers use): EVOLUTION_ALONE_SLOT_COST.
+    constexpr int32 EVOLUTION_PRIMARY_SLOT_COST = EVOLUTION_ALONE_SLOT_COST;
 
     // Evolution
     constexpr int32 MAX_EVOLUTION_SPELLS = 6;
