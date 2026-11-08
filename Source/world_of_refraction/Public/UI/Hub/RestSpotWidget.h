@@ -32,6 +32,10 @@ protected:
 private:
 	void Refresh();
 
+	/** B-363: the level screen (place and buy pillar points). */
+	UFUNCTION()
+	void HandleLevelUpClicked();
+
 	UFUNCTION()
 	void HandleInventoryClicked();
 
