@@ -113,13 +113,16 @@ bool MemoryUnlock::UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, E
 	ReportFindToHost(GameInstance, Memory, Source, bHostNew);
 	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s: host %s, %d friend(s) (Q-235d)"), *Memory->GetMemoryId().ToString(),
 		   bHostNew ? TEXT("records it") : TEXT("does not (a friend found it, or already had it)"), NewFriends.Num());
-	// Q-209c: rewards come once, with the unlock. TODO: grant each kind once it can be: the item
-	// into the party's inventory (out-of-fight gear, B-085), the skill once rewards teach skills,
-	// titles and curses once they are systems; in co-op, to whoever received the memory.
+	// Q-209c: rewards come once, with the unlock. Curses are granted by UCurseSubsystem when a journal records the
+	// memory (B-378). TODO: grant each other kind once it can be: the item into the party's inventory (out-of-fight
+	// gear, B-085), the skill once rewards teach skills, titles once they are a system; in co-op, to whoever received it.
 	for (const FMemoryReward &Reward : Memory->Rewards)
 	{
-		UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reward: %s (logged, not granted yet)"), *Memory->GetMemoryId().ToString(),
-			   *UMemoryData::GetRewardString(Reward));
+		if (Reward.Kind != EMemoryRewardKind::Curse && Reward.Kind != EMemoryRewardKind::RemoveCurse)
+		{
+			UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reward: %s (logged, not granted yet)"), *Memory->GetMemoryId().ToString(),
+				   *UMemoryData::GetRewardString(Reward));
+		}
 	}
 	return true;
 }

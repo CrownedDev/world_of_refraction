@@ -22,7 +22,8 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
-	/** False when CurseId is none or already held. */
+	/** False when CurseId is none, already held, or lifted before (review: the journal is not saved yet, so its memory
+	 *  could be recorded again after a restart; a lifted curse stays lifted). */
 	bool AddCurse(FName CurseId);
 	/** False when it was not held. */
 	bool RemoveCurse(FName CurseId);
@@ -43,4 +44,6 @@ private:
 	void HandleMemoryRecorded(UMemoryData *Memory, EMemorySource Source);
 
 	TSet<FName> HeldCurses;
+	/** Curses lifted before; never given again. */
+	TSet<FName> LiftedCurses;
 };

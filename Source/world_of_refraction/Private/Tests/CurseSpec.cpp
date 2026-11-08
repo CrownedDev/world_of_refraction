@@ -58,9 +58,12 @@ void FCurseSpec::Define()
 		Journal->RecordMemory(NewMemoryWithReward(EMemoryRewardKind::Curse), EMemorySource::Fragment);
 		TestTrue(TEXT("its memory gave it"), Curses->HasCurse(CURSE_TEST_ID));
 		TestTrue(TEXT("the curse opens it"), MemoryConditions::AreMet(*Locked, Event, Journal));
+		TestFalse(TEXT("a friend's part on the host does not read this player's curses"),
+				  MemoryConditions::AreMet(*Locked, Event, Journal, nullptr, /*bReadsThisPlayersState=*/false));
 		Journal->RecordMemory(NewMemoryWithReward(EMemoryRewardKind::RemoveCurse), EMemorySource::Fragment);
 		TestFalse(TEXT("its own memory lifted it"), Curses->HasCurse(CURSE_TEST_ID));
 		TestFalse(TEXT("closed again"), MemoryConditions::AreMet(*Locked, Event, Journal));
+		TestFalse(TEXT("a lifted curse is not given again"), Curses->AddCurse(CURSE_TEST_ID));
 	});
 
 	It("lasts across runs through its save struct (D-059)", [this]()

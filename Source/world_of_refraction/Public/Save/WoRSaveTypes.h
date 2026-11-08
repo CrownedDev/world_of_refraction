@@ -647,6 +647,10 @@ struct WORLD_OF_REFRACTION_API FSavedCurses
 
 	UPROPERTY()
 	TArray<FName> Held;
+
+	/** Lifted before: never given again. */
+	UPROPERTY()
+	TArray<FName> Lifted;
 };
 
 /** B-379: one hidden counter's count for a character (None: all characters). */
