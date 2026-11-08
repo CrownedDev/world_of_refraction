@@ -4078,6 +4078,14 @@ Moved here once applied. Newest first.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
 
+### D-166 — Every damage and defence boost has a scope, like Amp (follows Q-164b)
+**Status:** DECIDED (Crown, 2026-11-08; recorded by the cloud writer from the brain's message) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** each damage-boost effect (DamageBuff / Debuff, ModifyDamageDealt, Raw / SpellDamageBuff / Debuff) and defence-boost effect (DefenseBuff / Debuff, ReduceDamageTaken / IncreaseDamageTaken) gets a **scope**: All, Physical, Spell or one element. **Default All**, so authored data plays exactly as before. The read is per hit, against the action's element and kind. The gear's Physical / Spell damage lines and stones stay as they are; they already are the Physical / Spell scopes.
+**Not part of it:** folding the four "all damage %" channels (DamageBuff, ModifyDamageDealt, Raw / SpellDamageBuff, the difficulty buff) into one. It changes balance; Crown decides, row B-384.
+**As built (B-383):** `EDamageScope` {All, Physical = not a spell (attacks and abilities, infused or not), Spell, Element = the effect's own element}; `FSkillEffectPayload::DamageScope` / `FActiveSkillEffect::DamageScope`; `USkillEffectManager::GetTotalStatModifierForHit` (GAS twin `SumMagnitudeForHit`); every read in `UDamageCalculator` goes through it, Defense through `GetDefenderDefenseForHit`. Amp's lines take the same meanings (Physical = not a spell; a Spell line added). B-382's implicit keying (any element on a DamageBuff narrowed it) is replaced by the explicit Element scope.
+**Reference check:** *deckbuilder*: every Amp / Def line and grant bonus is scoped by damage type, `All` matching everything (`06-bonuses.md`). *Games*: Path of Exile's modifiers name what they scale ("increased Fire Damage", "increased Spell Damage", "increased Physical Damage"); Elden Ring's damage negation is per damage type.
+**Notes for Claude:** at UseGAS 1 the composed Defense attribute still counts every DefenseBuff whatever its scope (TODO in `GetDefenderDefenseForHit`). Displays that read `GetTransientRaw/SpellDamageFactor` or `GetDefenderFlatDefense` show the unscoped total.
+
 ### D-164 — Apparel: a gear piece outside the budget, with its own crystal socket
 **Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
 **Answer (Crown):** add an **apparel** gear piece, working like the deckbuilder's (`wor-deckbuilder docs/reference/01-card-model.md`: Apparel, a vessel with HP and Defence lines and a crystal socket):
