@@ -2,7 +2,7 @@
 // Inspection for the generated descriptions (B-045, Skills/Effects/EffectText.h).
 // - GetEffectTextString: an effect list's tree and short form, with each condition's lighting.
 // - GetActorEffectTextString: an actor's active gear effects, lit against its state now.
-//   Console: wor.DescribeEffects (every combatant in the world).
+//   Console: wor.Effects.Describe (every combatant in the world).
 
 #pragma once
 
