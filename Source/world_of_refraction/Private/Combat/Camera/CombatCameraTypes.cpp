@@ -29,8 +29,8 @@ namespace CombatCameraOffsets
 
 namespace CombatCameraWindow
 {
-	constexpr float MinPlayRate = 0.1f; // the runner's own clamp (UActionExecutor::PlayActionMontageOnActor)
-	constexpr float ReturnLegRate = 1.0f; // the runner plays the return leg unscaled (UActionExecutor::PlayReturnStep)
+	constexpr float MinPlayRate = FCombatCameraRules::MinPlayRate;
+	constexpr float ReturnLegRate = FCombatCameraRules::ReturnLegRate;
 }
 
 namespace
