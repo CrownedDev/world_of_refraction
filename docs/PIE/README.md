@@ -347,3 +347,4 @@ Move rows to **Done** when every check passes.
 | [B-027](B-027.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-029](B-029.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-187b](B-187b.md) | `feature/B-187b-mini-boss-rest-spots-cloud` (UNBUILT, on B-187) | A rest spot where a mini-boss fell; revive it one tier stronger (3 times) | Pending |
+| [B-187c](B-187c.md) | `feature/B-187c-revive-return-and-save-cloud` (UNBUILT, on B-187b) | Back at the rest spot after a revive; revivals saved (save v24) | Pending |
