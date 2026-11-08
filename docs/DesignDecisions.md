@@ -4099,3 +4099,15 @@ Moved here once applied. Newest first.
 **Question:** D-164 left open: (1) how many apparel slots; (2) what an apparel crystal gives beyond its element; (3) whether an evolution can sit in an apparel socket, and what it gives; also (4) whether apparel's lines scale with its tier.
 **Answer (Crown, 2026-11-08):** (1) **two** (the deckbuilder's `MaxApparelSeated` 2). (2) **resistance to its element**, on top of the piece's own lines; apparel also **carries effects** like the deckbuilder's vessels. (3) **yes**: as on other gear it gives its passive effects (D-147 / B-357c), keys the piece to its element and adds that element's resistance like a crystal, and powers no skill; its cost does not matter (outside the budget). No augment stone. (4) **yes**, as every gear line (HP raw), by the reference-backed default; Crown may change it.
 **Notes for Claude:** B-380: `ApparelRules::MAX_APPAREL_SLOTS`, `CRYSTAL_ELEMENT_RESISTANCE` (5, TODO tune), `CanSocket`, `FApparelEntry::GetEvolution`; the effects through the loadout's effect gatherers. At merge with B-357b, gate the apparel evolution's passives as gear evolutions are (charge level 2).
+### Q-380d — Apparel socket: what happens to the crystal taken out?
+**Status:** Answered (approved by the reference-backed default) · **Raised:** 2026-11-08 (cloud writer, B-380d) · **Blocks:** —
+**Question:** When a new crystal goes into an apparel piece's socket, what happens to the old one?
+**Answer (default):** it goes back to storage as one crystal of its type and tier. Its wear isn't kept, because stored crystals carry none. An evolution taken out stays owned. Reference: Monster Hunter World / Rise decorations come out of gear intact and freely, which is widely liked because it makes trying builds cheap. D-097 here says items are never thrown away.
+**Notes for Claude:** built in `UPoolSubsystem::AttachToApparel`. If swapping out a worn crystal becomes a free repair, keep its wear or charge the repair cost: Crown's call.
+
+### Q-380c — Apparel worn on an authored (lore) loadout: owned or stripped?
+**Status:** Answered (approved by the reference-backed default); built in B-380e · **Raised:** 2026-11-08 (B-380c review) · **Blocks:** —
+**Question:** Apparel authored on a character's lore loadout isn't in the store. Strip it like other unowned gear, or keep it?
+**Answer (default):** keep it, as the character's own kit. The first draw banks it into the store, as `BankStartingGear` does for authored weapons, so it is owned and `StripUnownedGear` treats it like any piece. Apparel the player puts on a lore loadout is saved per character (lore loadouts themselves are rebuilt from the asset). Reference: this game's own starting-gear rule (B-321); the deckbuilder's starting deck is owned.
+**Notes for Claude:** B-380e. The lore loadouts are rebuilt from the asset each draw, so banking must match by asset and slot, not by a new id, or each session mints a copy. Needs a build to test.
+
