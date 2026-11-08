@@ -24,6 +24,10 @@ namespace WoRRestSpot
 	 *  outside a run. */
 	WORLD_OF_REFRACTION_API bool LeaveRun(UWorld *World);
 
+	/** B-363 review: the player walks away from the rest spot (its menu or level screen closed): pillar points can't
+	 *  be placed or bought, and skins can't be switched, until the next rest. */
+	WORLD_OF_REFRACTION_API void StepAway(UWorld *World);
+
 	/** The confirm text for leaving (RunStructure §6). */
 	WORLD_OF_REFRACTION_API FText GetLeaveConfirmText();
 }
