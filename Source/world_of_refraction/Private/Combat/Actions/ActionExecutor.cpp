@@ -5841,7 +5841,7 @@ void UActionExecutor::DebugForceResetAsync()
 namespace
 {
 	static FAutoConsoleCommandWithWorld GForceResetCmd(
-		TEXT("wor.ForceReset"),
+		TEXT("wor.Combat.ForceReset"),
 		TEXT("Force-reset a stuck async action execution context on the ActionExecutor (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -5854,7 +5854,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] wor.ForceReset: no subsystem (no PIE world?)."));
+					UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] wor.Combat.ForceReset: no subsystem (no PIE world?)."));
 				}
 			}));
 }

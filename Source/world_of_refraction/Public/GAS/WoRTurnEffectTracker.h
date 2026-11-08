@@ -11,7 +11,7 @@
 // B-042z: it also holds the holder's fires-once uses (D-011) and its armed gear conditionals (C3a); the
 // effect manager writes them here and in its own sets, and reads them here at wor.Effects.UseGAS 1.
 // Per-fight state on the battle actor (D-064).
-// Debug: GetDebugString, PrintState, `wor.DumpTurnEffects` (every combatant, with its GEs).
+// Debug: GetDebugString, PrintState, `wor.Effects.PrintTurns` (every combatant, with its GEs).
 
 #pragma once
 

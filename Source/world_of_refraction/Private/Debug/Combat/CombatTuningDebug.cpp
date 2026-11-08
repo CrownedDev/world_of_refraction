@@ -10,19 +10,14 @@ namespace
 {
 	constexpr float TUNING_DEBUG_SCREEN_SECONDS = 8.0f;
 
-	FAutoConsoleCommand GPrintCombatTuningCmd(
-		TEXT("wor.PrintCombatTuning"),
-		TEXT("DEBUG: print the live combat tuning values (asset or C++ defaults)."),
-		FConsoleCommandDelegate::CreateLambda([]() { UCombatTuningDebug::PrintCombatTuning(); }));
-
-	// B-224: the name the backlog asks for; same print.
+	// B-349 (D-139): the one print; the old wor.Tuning.Print duplicate is gone.
 	FAutoConsoleCommand GTuningPrintCmd(
 		TEXT("wor.Tuning.Print"),
 		TEXT("DEBUG: print the live combat tuning values and the combat numbers baseline (B-224)."),
 		FConsoleCommandDelegate::CreateLambda([]() { UCombatTuningDebug::PrintCombatTuning(); }));
 
 	FAutoConsoleCommand GCompareCombatTuningCmd(
-		TEXT("wor.CompareCombatTuning"),
+		TEXT("wor.Tuning.Compare"),
 		TEXT("DEBUG: list every live combat tuning value that differs from the C++ constants."),
 		FConsoleCommandDelegate::CreateLambda([]() { UCombatTuningDebug::CompareCombatTuning(); }));
 }
