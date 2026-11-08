@@ -19,4 +19,8 @@ class WORLD_OF_REFRACTION_API ATrialGameMode : public AGameModeBase
 public:
     /** Picks AWoRPlayerState: the player's wallet (D-046, B-151). */
     ATrialGameMode();
+
+    /** B-187c: after a mini-boss revive the local player comes back where it stood to rest
+     *  (UTrialRunSubsystem::ConsumePendingReturnStand), else at a player start as usual. */
+    virtual void RestartPlayer(AController *NewPlayer) override;
 };

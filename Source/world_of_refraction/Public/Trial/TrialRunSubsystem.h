@@ -240,6 +240,26 @@ public:
     /** Debug: the beaten mini-bosses and their revivals. */
     FString GetRevivalsString() const;
 
+    /** B-187c: the beaten mini-bosses and their revival counts, for the save. */
+    TArray<FName> GetBeatenMiniBosses() const { return BeatenMiniBosses.Array(); }
+    const TMap<FName, int32> &GetEncounterRevivalCounts() const { return EncounterRevivals; }
+
+    /** B-187c: puts saved marks and revivals back (after RestoreRun, which clears them). Marks for encounters not
+     *  beaten in the restored run are dropped. */
+    void RestoreMiniBossRevivals(const TArray<FName> &MiniBosses, const TMap<FName, int32> &Revivals);
+
+    /** B-187c: where the party stood when it last rested (ATrialRestSpot::Interact). */
+    void NoteRestStand(const FTransform &Stand) { RestStand = Stand; bHasRestStand = true; }
+
+    /** B-187c: the next trial level load puts the local player there (ATrialGameMode::RestartPlayer), once. */
+    void SetPendingReturnStand(const FTransform &Stand) { PendingReturnStand = Stand; bHasPendingReturnStand = true; }
+
+    /** B-187c: the pending return stand, consumed (true once per SetPendingReturnStand). */
+    bool ConsumePendingReturnStand(FTransform &OutStand);
+
+    /** B-187c: the last rest stand, if the party rested this level visit. */
+    bool GetRestStand(FTransform &OutStand) const { OutStand = RestStand; return bHasRestStand; }
+
     /** B-361b (D-154): the trial's boss fell this run, so the run counts as finished: a co-op run that ends after it
      *  pays every player Mentor Tokens (ExitTrial). */
     void MarkRunBossBeaten() { bRunBossBeaten = true; }
@@ -484,6 +504,12 @@ private:
     int32 PendingTierSteps = 0;
     TArray<int32> PendingEnemyTierSteps;
     TArray<FName> PendingMiniBossSources;
+
+    /** B-187c: where the party last rested, and where the next trial load puts it after a revive. */
+    FTransform RestStand;
+    bool bHasRestStand = false;
+    FTransform PendingReturnStand;
+    bool bHasPendingReturnStand = false;
 
     /** B-361b: run state like BeatenEncounters (cleared on trial entry and exit; moves with it for co-op, D-065).
      *  TODO: not in the save yet (a resumed run forgets it, as Q-223's run levels). */
