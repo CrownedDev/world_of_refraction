@@ -72,8 +72,9 @@ public:
 	/** Debug: one line per started quest (a main or side quest with its title and goal, B-388). */
 	FString GetQuestsString() const;
 
-	/** B-388: this player's started main and side quests: main first, then side; unfinished before finished; by id. */
-	TArray<FVisibleQuest> GetVisibleQuests() const;
+	/** B-388: this player's started main and side quests: main first, then side; unfinished before finished; by id.
+	 *  Not const: a quest restored from the save is found by gathering the quest assets. */
+	TArray<FVisibleQuest> GetVisibleQuests();
 
 	/** B-388: gives the quest QuestId (a main or side quest from the story, V, a conversation or an NPC; any quest asset).
 	 *  False when no asset has that id, or it was started already. */
