@@ -4372,3 +4372,11 @@ Moved here once applied. Newest first.
 - An element-keyed DamageBuff effect reads through `GetTotalStatModifierForElement`.
 - The `wor.Damage` breakdown shows the Amp line.
 - Add a DamageCalculatorSpec case.
+
+### D-168 — Defence is resistance by damage type: the general Defence becomes "All" resistance
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** treat defence as the deckbuilder does (`wor-deckbuilder docs/reference/01-card-model.md`: `+1 Def`, `+2 Fire Def`, all lines summed into one total), as **resistance by damage type**: one family of scoped lines (**All**, Physical, Spell, each element), summed per type from every source (gear, apparel, crystals, evolutions, effects, the class table).
+- Today's general **Defence becomes the "All" line** of that family (Crown: "isn't that how it works in most games"; it keeps today's behaviour: a cut against every hit).
+- **The % maths stays** (this game's numbers are tier-scaled up to ×4.8, so the deckbuilder's flat +1 / +2 would fade): the All line keeps Defence's step and its 75% cap (ED-20); the per-type lines keep resistance's step and its ±50% cap (ED-27). No balance change intended.
+- Mirrors Amp (Q-164b) and the scopes of D-166.
+**Notes for Claude:** a naming and data-shape change first (one `Resistance` line type with a scope; `Defense` read as its All line; old fields read across), then the readers. Rules ED-20 / ED-27, the Resistance and DamageCalculator docs.
