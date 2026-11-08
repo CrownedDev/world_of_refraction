@@ -4,7 +4,7 @@
 // - GetLegacyTotalStatusResistance: the buildup resistance composed the pre-B-216 way (the eight
 //   sources gathered per hit), kept as the reference until the new path is proven in PIE.
 // - CompareResistance: every combatant x every (element, physical type) hit, new vs legacy.
-//   Console: wor.CompareResistance, wor.PrintResistanceTypes.
+//   Console: wor.Resistance.Compare, wor.Resistance.Print.
 
 #pragma once
 

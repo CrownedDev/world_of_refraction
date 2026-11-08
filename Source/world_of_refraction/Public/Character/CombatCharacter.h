@@ -114,6 +114,18 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     TObjectPtr<UWoREffectMirrorComponent> EffectMirrorComponent;
 
+    /** B-230: the status bar, replicated for a client's HUD (the buildup manager is server-only). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+    TObjectPtr<class UStatusBarStateComponent> StatusBarState;
+
+    /** B-231: the server's montages and hits, multicast to the clients (the executor runs on the server only). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+    TObjectPtr<class UCombatPresentationComponent> CombatPresentation;
+
+    /** B-230b: the grid row and slot, replicated for a client's readers (the grid subsystem is server-side). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+    TObjectPtr<class UCombatGridSlotComponent> GridSlot;
+
 private:
     /** Default subobjects, so the ASC finds them at InitializeComponent on every machine (the
      *  replicated sets, never a client-made copy). Read through the ASC, not these pointers. */
