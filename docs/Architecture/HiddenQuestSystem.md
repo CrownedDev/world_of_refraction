@@ -28,3 +28,4 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 |---|---|---|
 | 2026-11-08 | Created (B-377): data asset, subsystem, save v25, `wor.Quest.Print`, HiddenQuestSpec. | `feature/B-377-hidden-quests-cloud` (in dev) |
 | 2026-11-08 | Review: the end memory is its player's alone and always lands (`Finish`); a quest started this event waits for the next; empty steps finish at once; quests gathered once. | `feature/B-377-hidden-quests-cloud` (in dev) |
+| 2026-11-08 | B-388 (MemoryCatalogue §3.12 / §3.13): main and side quests are this data with `EQuestKind` Main / Side, a `Title` and a step `Goal`; `GetVisibleQuests`, `StartQuestById` (`wor.Quest.Give`), visible notices; the journal's Quests page. | `feature/B-388-main-side-quests-cloud` (UNBUILT) |
