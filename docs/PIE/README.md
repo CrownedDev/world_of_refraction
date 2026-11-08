@@ -27,6 +27,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
 | [B-349](B-349.md) | `chore/B-349-console-names-cloud` (UNBUILT) | Every console command is `wor.<System>.<Verb>`; old names gone (table in the sheet) | Pending |
 | [B-355b](B-355b.md) | `feature/B-355b-boss-moment-rules-cloud` (UNBUILT) | A boss's "at moment" rules fire from its one rule list, conditions read at the moment | Pending |
+| [B-230](B-230.md) | `feature/B-230-replicated-status-bars-cloud` (UNBUILT) | 2-player PIE: the client's status bars follow the host's | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
