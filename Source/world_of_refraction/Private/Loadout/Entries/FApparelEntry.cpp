@@ -20,6 +20,7 @@ ESpellElement FApparelEntry::GetElement() const
 
 FEquipmentStatBonus FApparelEntry::GetStatLines() const
 {
+	// The asset's Base lines and this instance's roll; the obsolete GeneratedStatBonus layer (B-335) is not read.
 	FEquipmentStatBonus Lines = Apparel ? Apparel->GetStatLines() : FEquipmentStatBonus();
 	Lines.BonusMaxHP += StatBonus.BonusMaxHP;
 	Lines.BonusDefense += StatBonus.BonusDefense;
@@ -33,9 +34,9 @@ bool ApparelRules::CanSocket(const FRuntimeAttachedItem &Attachment)
 
 bool ApparelRules::AddApparel(FCombatLoadout &Loadout, const FApparelEntry &Entry)
 {
-	if (!Entry.Apparel || Loadout.Apparel.Num() >= MAX_APPAREL_SLOTS)
+	if (!Entry.Apparel || Loadout.Apparel.Num() >= MAX_APPAREL_SLOTS || (!Entry.AttachedItem.IsEmpty() && !CanSocket(Entry.AttachedItem)))
 	{
-		return false;
+		return false; // review: a piece with an evolution or stone in its socket is refused (Q-380)
 	}
 	if (Entry.PersistentID.IsValid() &&
 		Loadout.Apparel.ContainsByPredicate([&Entry](const FApparelEntry &Worn) { return Worn.PersistentID == Entry.PersistentID; }))

@@ -227,8 +227,11 @@ namespace
 				{
 					Data->RecomputeMaxPools();
 				}
-				if (const ULoadoutComponent *Loadout = Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>())
+				if (ULoadoutComponent *Loadout = Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>())
 				{
+					// Review: announce the change so the GAS stats and any loadout UI re-read it (OnLoadoutChanged).
+					Loadout->NotifyActiveWeaponChanged(); // rebuilds the slot mirror
+					Loadout->OnLoadoutChanged.Broadcast(Inventory->ActiveLoadoutIndex);
 					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(*Loadout));
 				}
 			}));

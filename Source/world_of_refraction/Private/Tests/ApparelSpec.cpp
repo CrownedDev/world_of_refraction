@@ -94,6 +94,10 @@ void FApparelSpec::Define()
 		TestFalse(TEXT("no evolution (Q-380)"), ApparelRules::CanSocket(Evolution));
 		TestFalse(TEXT("no augment stone"), ApparelRules::CanSocket(Stone));
 		TestEqual(TEXT("no crystal: no element"), FApparelEntry::CreateFromApparel(ApparelTestPiece()).GetElement(), ESpellElement::None);
+		FCombatLoadout Loadout;
+		FApparelEntry WithEvolution = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		WithEvolution.AttachedItem = Evolution;
+		TestFalse(TEXT("a piece holding an evolution is not worn"), ApparelRules::AddApparel(Loadout, WithEvolution));
 	});
 }
 
