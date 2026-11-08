@@ -3,6 +3,12 @@
 #include "Player/WoRGameState.h"
 #include "Player/TurnStateComponent.h"
 #include "Player/RunStateComponent.h"
+#include "Player/WoRPlayerState.h"
+#include "Combat/CombatPlayerController.h"
+#include "Combat/TurnManager.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "Trial/TrialRestSpot.h"
+#include "TimerManager.h"
 #include "Online/HostSuccession.h"
 #include "Engine/GameInstance.h"
 #include "Net/UnrealNetwork.h"
@@ -35,6 +41,7 @@ void AWoRGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLif
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AWoRGameState, HostOrder);
+	DOREPLIFETIME(AWoRGameState, ReviveVoteState); // B-187e
 }
 
 void AWoRGameState::AddPlayerState(APlayerState *PlayerState)
@@ -101,3 +108,148 @@ FString AWoRGameState::GetDebugString() const
 	}
 	return Out;
 }
+
+// ==================== B-187e: the revive vote (Q-187e changed by Crown, 2026-11-08) ====================
+
+namespace
+{
+	/** Tick period while a vote is open. */
+	constexpr float REVIVE_VOTE_TICK_SECONDS = 1.0f;
+}
+
+bool AWoRGameState::IsPlayerInBattle(const APlayerState *Player) const
+{
+	const UTurnManager *Turns = WoRFight::Get<UTurnManager>(this);
+	const AController *Controller = Player ? Cast<AController>(Player->GetOwner()) : nullptr;
+	if (!Turns || !Turns->IsCombatActive() || !Controller)
+	{
+		return false;
+	}
+	constexpr int32 TEAM_COUNT = 2; // the players' side and the enemies'; ControlsActor never says yes to an enemy
+	for (int32 Team = 0; Team < TEAM_COUNT; ++Team)
+	{
+		for (const AActor *Fighter : Turns->GetTeamMembers(Team))
+		{
+			if (ACombatPlayerController::ControlsActor(Controller, Fighter, /*bFromClient=*/true))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
+{
+	if (!HasAuthority() || !Starter || !WoRRestSpot::CanReviveHere(GetWorld()))
+	{
+		return EReviveVoteResult::Failed;
+	}
+	TArray<int32> PlayerIds;
+	for (const APlayerState *Player : PlayerArray)
+	{
+		if (Player && !Player->IsABot())
+		{
+			PlayerIds.Add(Player->GetPlayerId());
+		}
+	}
+	const TArray<int32> Voters = ReviveVote::SelectVoters(PlayerIds, [this](int32 Id)
+	{
+		const APlayerState *const *Found = PlayerArray.FindByPredicate([Id](const APlayerState *P) { return P && P->GetPlayerId() == Id; });
+		return Found && IsPlayerInBattle(*Found);
+	});
+	const EReviveVoteResult Result = ReviveVote::Start(ReviveVoteState, Starter->GetPlayerId(), Voters, GetServerWorldTimeSeconds());
+	UE_LOG(LogWoR, Log, TEXT("[ReviveVote] %s starts a vote: %d voter(s) -> %s"), *Starter->GetPlayerName(), Voters.Num(),
+		   *UEnum::GetValueAsString(Result));
+	if (Result == EReviveVoteResult::Failed)
+	{
+		// Refused before it opened (the starter is in battle, or a vote is running): only the starter hears it.
+		Starter->Client_ShowFeatureMessage(NSLOCTEXT("WoRGameState", "ReviveVoteRefused", "A revive vote can't start right now."));
+		return Result;
+	}
+	if (Result == EReviveVoteResult::Pending)
+	{
+		GetWorldTimerManager().SetTimer(ReviveVoteTimer, this, &AWoRGameState::TickReviveVote, REVIVE_VOTE_TICK_SECONDS, true);
+	}
+	ApplyReviveVoteResult(Result);
+	return Result;
+}
+
+void AWoRGameState::CastReviveVote(const AWoRPlayerState *Voter, bool bYes)
+{
+	if (!HasAuthority() || !Voter)
+	{
+		return;
+	}
+	ApplyReviveVoteResult(ReviveVote::Cast(ReviveVoteState, Voter->GetPlayerId(), bYes));
+}
+
+void AWoRGameState::TickReviveVote()
+{
+	EReviveVoteResult Result = ReviveVoteState.bOpen ? EReviveVoteResult::Pending : ReviveVoteState.LastResult;
+	for (const APlayerState *Player : PlayerArray)
+	{
+		const int32 Id = Player ? Player->GetPlayerId() : INDEX_NONE;
+		if (Result == EReviveVoteResult::Pending && ReviveVoteState.VoterIds.Contains(Id) && IsPlayerInBattle(Player))
+		{
+			Result = ReviveVote::DropVoter(ReviveVoteState, Id); // entered a fight during the vote
+		}
+	}
+	// A voter who left the session leaves the list too.
+	for (const int32 Id : TArray<int32>(ReviveVoteState.VoterIds))
+	{
+		if (Result == EReviveVoteResult::Pending && !PlayerArray.ContainsByPredicate([Id](const APlayerState *P) { return P && P->GetPlayerId() == Id; }))
+		{
+			Result = ReviveVote::DropVoter(ReviveVoteState, Id);
+		}
+	}
+	if (Result == EReviveVoteResult::Pending)
+	{
+		Result = ReviveVote::CheckTimeout(ReviveVoteState, GetServerWorldTimeSeconds());
+	}
+	ApplyReviveVoteResult(Result);
+}
+
+void AWoRGameState::ApplyReviveVoteResult(EReviveVoteResult Result)
+{
+	if (Result == EReviveVoteResult::Passed || Result == EReviveVoteResult::Failed)
+	{
+		GetWorldTimerManager().ClearTimer(ReviveVoteTimer);
+		const FText Message = Result == EReviveVoteResult::Passed
+								  ? NSLOCTEXT("WoRGameState", "ReviveVotePassed", "Everyone agreed: the mini-boss returns.")
+								  : NSLOCTEXT("WoRGameState", "ReviveVoteFailed", "The mini-boss is not revived (not everyone agreed).");
+		for (APlayerState *Player : PlayerArray)
+		{
+			if (AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player))
+			{
+				WoRPlayer->Client_ShowFeatureMessage(Message);
+			}
+		}
+		UE_LOG(LogWoR, Log, TEXT("[ReviveVote] %s"), *UEnum::GetValueAsString(Result));
+	}
+	OnReviveVoteChanged.Broadcast(); // the host's own menu (clients hear it in OnRep_ReviveVote)
+	if (Result == EReviveVoteResult::Passed)
+	{
+		WoRRestSpot::ReviveMiniBoss(GetWorld()); // the host revives as before (the level reloads)
+	}
+}
+
+void AWoRGameState::OnRep_ReviveVote()
+{
+	OnReviveVoteChanged.Broadcast();
+}
+
+FString AWoRGameState::GetReviveVoteString() const
+{
+	return FString::Printf(TEXT("[ReviveVote] %s"), *ReviveVote::GetVoteString(ReviveVoteState, GetServerWorldTimeSeconds()));
+}
+
+static FAutoConsoleCommandWithWorld GTrialReviveVoteCommand(
+	TEXT("wor.Trial.ReviveVote"),
+	TEXT("B-187e: the mini-boss revive vote (open, yes count, time left, or the last result)."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		const AWoRGameState *GameState = World ? World->GetGameState<AWoRGameState>() : nullptr;
+		UE_LOG(LogWoR, Display, TEXT("%s"), GameState ? *GameState->GetReviveVoteString() : TEXT("[ReviveVote] no game state"));
+	}));
+

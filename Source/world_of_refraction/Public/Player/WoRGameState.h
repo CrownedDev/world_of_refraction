@@ -9,10 +9,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
+#include "Trial/ReviveVote.h"
 #include "WoRGameState.generated.h"
 
 class UTurnStateComponent;
 class URunStateComponent;
+class AWoRPlayerState;
+
+/** B-187e (Q-187e changed): the revive vote opened, changed or closed (server and clients; rest menus refresh on it). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnReviveVoteChanged);
 
 UCLASS()
 class WORLD_OF_REFRACTION_API AWoRGameState : public AGameStateBase
@@ -42,7 +47,40 @@ public:
 	 *  AddPlayerState comes before a joining player's id is set, so AWoRPlayerState::OnSetUniqueId calls this too. */
 	void UpdateHostOrder(const APlayerState *PlayerState, bool bJoined);
 
+	/** B-187e (Q-187e changed by Crown, 2026-11-08), server: Starter asks to revive the last rest spot's mini-boss. Every
+	 *  player outside battle votes (Starter's start is its yes); unanimous yes revives (WoRRestSpot::ReviveMiniBoss).
+	 *  Solo it revives at once. Refused (Failed) for a starter in battle, with no revivable mini-boss, or a vote open. */
+	EReviveVoteResult StartReviveVote(AWoRPlayerState *Starter);
+
+	/** Server: Voter's answer (AWoRPlayerState::ServerCastReviveVote, or the host's own menu). */
+	void CastReviveVote(const AWoRPlayerState *Voter, bool bYes);
+
+	/** Server: a player is in battle when the active fight has a combatant it commands (ACombatPlayerController::ControlsActor). */
+	bool IsPlayerInBattle(const APlayerState *Player) const;
+
+	const FReviveVote &GetReviveVote() const { return ReviveVoteState; }
+
+	UPROPERTY(BlueprintAssignable, Category = "Revive Vote")
+	FOnReviveVoteChanged OnReviveVoteChanged;
+
+	/** Debug: the vote's state. Console: wor.Trial.ReviveVote. */
+	FString GetReviveVoteString() const;
+
 private:
+	UFUNCTION()
+	void OnRep_ReviveVote();
+
+	/** Server, once a second while a vote is open: voters who entered a fight leave the list; then the timeout. */
+	void TickReviveVote();
+
+	/** Server: acts on a result (Passed revives; Failed tells everyone) and replicates the state. */
+	void ApplyReviveVoteResult(EReviveVoteResult Result);
+
+	UPROPERTY(ReplicatedUsing = OnRep_ReviveVote)
+	FReviveVote ReviveVoteState;
+
+	FTimerHandle ReviveVoteTimer;
+
 	UFUNCTION()
 	void OnRep_HostOrder();
 
