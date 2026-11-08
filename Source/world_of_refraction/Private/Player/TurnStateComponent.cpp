@@ -3,6 +3,9 @@
 
 #include "Player/TurnStateComponent.h"
 #include "UI/Combat/CombatHUD.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "Player/RunStateComponent.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
 #include "Combat/TurnManager.h"
@@ -184,7 +187,43 @@ void UTurnStateComponent::HandleCombatEnded(int32 FinalTurnCount)
 void UTurnStateComponent::OnRep_TurnState()
 {
 	UpdateClientCombatHUD();
+	UpdateClientCommandMenu();
 	OnTurnStateChanged.Broadcast();
+}
+
+void UTurnStateComponent::UpdateClientCommandMenu()
+{
+	UWorld *World = GetWorld();
+	if (!World || World->GetNetMode() != NM_Client || !bClientHUDBuilt)
+	{
+		return;
+	}
+	UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
+	if (!Menu)
+	{
+		return;
+	}
+	if (!bCombatActive || TurnNumber != ClientMenuTurn)
+	{
+		if (Menu->IsOpen() && ClientMenuTurn != INDEX_NONE)
+		{
+			Menu->Close(); // the turn moved on (or the fight ended)
+		}
+	}
+	if (!bCombatActive || !CurrentActor || TurnNumber == ClientMenuTurn)
+	{
+		return;
+	}
+	const URunStateComponent *Run = URunStateComponent::Find(this);
+	const bool bCommandedHere = Run && Run->IsCommandedBy(CurrentActor, World->GetFirstPlayerController());
+	// An AI seat or an enemy has no commander here (GetCommander says AI_COMMANDER / not on the roster).
+	if (!CommandMenuRules::OpensHere(/*bAIControlled=*/false, Run != nullptr, bCommandedHere) || !Run)
+	{
+		return;
+	}
+	ClientMenuTurn = TurnNumber;
+	Menu->OpenForActor(CurrentActor);
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnState] Client: command menu opened for %s (turn %d)"), *GetNameSafe(CurrentActor), TurnNumber);
 }
 
 void UTurnStateComponent::UpdateClientCombatHUD()
