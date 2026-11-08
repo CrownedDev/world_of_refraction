@@ -1,6 +1,6 @@
 # Memory and Hidden Quest Catalogue
 
-**Status:** draft (brain, 2026-11-08), for Crown to read and change. It covers **structure only**: what kinds of memories and quests exist, who gets each, how it is found and what it can give. **Which** memories exist and what they say is lore, and Crown's alone (`HubAndStory.md` §5). Every "Example" slot is a placeholder for Crown to fill or delete.
+**Status:** structure agreed with Crown (2026-11-08); story content to come (Crown). It covers **structure only**: what kinds of memories and quests exist, who gets each, how it is found and what it can give. **Which** memories exist and what they say is lore, and Crown's alone (`HubAndStory.md` §5). Every "Example" slot is a placeholder for Crown to fill or delete.
 
 Builds on: `HiddenQuests.md` (D-100, the Shangri-La Frontier model), `RunStructure.md` §5, `HubAndStory.md` §4, `docs/Architecture/MemorySystem.md`. Where this page and a ruling differ, the ruling wins: flag it, don't fix it.
 
@@ -71,7 +71,7 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 
 ### 3.6 Hidden quest (unique scenario)
 - **What:** a multi-step quest found like a hidden memory: a **start** (any memory of any kind and depth, §2, or a reaction), **steps** (each one a condition set, done in order), and an **end** (a memory and a reward). This is SLF's Unique Scenario.
-- **Progress:** each step done is saved per player and kept across runs. Only the step in progress resets at run end. This keeps the "never missed for good" rule in a 30 to 45 minute run game. *Default, backed by Monster Hunter's multi-hunt research quests and Hades' prophecies, both kept across runs.*
+- **Progress:** each step done is saved per player and kept across runs. Only the step in progress resets at run end. This keeps the "never missed for good" rule in a 30 to 45 minute run game. **Crown, 2026-11-08** (Monster Hunter's research quests and Hades' prophecies, both kept across runs).
 - **The player is told** a quest started and when a step is done, privately, with **no** text about what the next step is (the no-hints rule).
 - **Co-op:** the player who started it owns it. Others join the progress only if they started it too (§1.7).
 - **Gives:** rewards (§4); can open a new trial variation, an NPC or a boss trigger.
