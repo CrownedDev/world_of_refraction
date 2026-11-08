@@ -16,6 +16,9 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutRules.h"
 #include "Loadout/FSavedLoadout.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
+#include "Character/CombatCharacter.h"
 #include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 
@@ -168,11 +171,24 @@ void FApparelSpec::Define()
 	It("keeps worn apparel through a saved loadout and follows a crystal set in play (B-380c)", [this]()
 	{
 		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
-		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
-		if (!TestNotNull(TEXT("Pool"), Pool) || !TestNotNull(TEXT("Loadout"), Loadout))
+		// Review: a party member drawn from the store (DrawSharedGear binds the store's change event), as CustomLoadoutsSpec.
+		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
+		if (!TestNotNull(TEXT("Pool"), Pool) || !TestNotNull(TEXT("Party"), Party))
 		{
 			return;
 		}
+		Party->Members.Empty();
+		UCharacterData *Member = FWoRTestWorld::NewCharacterData();
+		FPartyMember &PartyMember = Party->Members.AddDefaulted_GetRef();
+		PartyMember.PawnClass = ACombatCharacter::StaticClass();
+		PartyMember.CharacterData = Member;
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Member);
+		if (!TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>()->DrawSharedGear();
 		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
 		Piece.PersistentID = Pool->AddApparelToPool(Piece);
 		FCombatLoadout &Active = ActiveOf(Loadout);
