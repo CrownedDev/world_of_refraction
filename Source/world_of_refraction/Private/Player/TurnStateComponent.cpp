@@ -2,6 +2,8 @@
 // B-228. See TurnStateComponent.h.
 
 #include "Player/TurnStateComponent.h"
+#include "UI/Combat/CombatHUD.h"
+#include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
 #include "Combat/TurnManager.h"
 #include "Engine/GameInstance.h"
@@ -62,6 +64,11 @@ void UTurnStateComponent::BeginPlay()
 
 void UTurnStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (ClientHUD) // B-228b
+	{
+		ClientHUD->Teardown();
+		bClientHUDBuilt = false;
+	}
 	UnbindFromTurnManager();
 	Super::EndPlay(EndPlayReason);
 }
@@ -176,14 +183,56 @@ void UTurnStateComponent::HandleCombatEnded(int32 FinalTurnCount)
 
 void UTurnStateComponent::OnRep_TurnState()
 {
+	UpdateClientCombatHUD();
 	OnTurnStateChanged.Broadcast();
+}
+
+void UTurnStateComponent::UpdateClientCombatHUD()
+{
+	UWorld *World = GetWorld();
+	const bool bIsClient = World && World->GetNetMode() == NM_Client;
+	const EClientHUDStep Step = ClientCombatHUD::Next(bIsClient, bCombatActive, bClientHUDBuilt);
+	if (Step == EClientHUDStep::Teardown)
+	{
+		if (ClientHUD)
+		{
+			ClientHUD->Teardown();
+		}
+		bClientHUDBuilt = false;
+		return;
+	}
+	if (Step != EClientHUDStep::Build)
+	{
+		return;
+	}
+	// The orchestrator is server-only (not replicated), so the client owns its HUD here. Built once both sides have
+	// arrived, every member resolved: a later OnRep retries until then (review fix).
+	const TArray<AActor *> Party = GetTeamMembers(0);
+	const TArray<AActor *> Enemies = GetTeamMembers(1);
+	// Desktop review: GetTeamMembers drops unresolved actors, so check the raw entries. An entry whose actor has not
+	// arrived yet is null here; when it maps, the engine calls OnRep_TurnState again and this retries.
+	const bool bEveryActorArrived = !Teams.ContainsByPredicate([](const FTurnStateTeam &Entry) { return !Entry.Actor; });
+	APlayerController *PC = World->GetFirstPlayerController();
+	if (!bEveryActorArrived || Party.IsEmpty() || Enemies.IsEmpty() || !PC || !PC->GetLocalPlayer())
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnState] Client: combat on, waiting for both sides before building the HUD"));
+		return;
+	}
+	if (!ClientHUD)
+	{
+		ClientHUD = NewObject<UCombatHUD>(this);
+	}
+	ClientHUD->Build(PC, Party, Enemies);
+	bClientHUDBuilt = true;
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnState] Client: combat HUD built from the replicated turn state (%d / %d)"), Party.Num(), Enemies.Num());
 }
 
 FString UTurnStateComponent::GetDebugString() const
 {
-	FString Out = FString::Printf(TEXT("combat %s, turn %d, current %s%s, %d upcoming, %d combatants"),
+	FString Out = FString::Printf(TEXT("combat %s, turn %d, current %s%s, %d upcoming, %d combatants%s"),
 								  bCombatActive ? TEXT("on") : TEXT("off"), TurnNumber, *GetNameSafe(CurrentActor),
-								  bCurrentTurnIsBonus ? TEXT(" (bonus)") : TEXT(""), Upcoming.Num(), Teams.Num());
+								  bCurrentTurnIsBonus ? TEXT(" (bonus)") : TEXT(""), Upcoming.Num(), Teams.Num(),
+								  bClientHUDBuilt ? TEXT(", client HUD built") : TEXT(""));
 	for (int32 Index = 0; Index < Upcoming.Num(); ++Index)
 	{
 		Out += FString::Printf(TEXT("\n  +%d %s%s (team %d)"), Index + 1, *GetNameSafe(Upcoming[Index].Actor),
