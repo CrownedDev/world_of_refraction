@@ -1610,6 +1610,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Class identity:** Generic = weapons, Resonator = adapters, Refractor = innate magic (the only class with an innate element and spell pool; its lever is the innate budget, not more gear).
 - **Attachments live on the item (A):** a crystal, stone, fusion or evolution belongs to the weapon / adapter instance and travels with it (saved loadouts, the shared armoury, other characters); the slot only references the item.
 - **Adapters cost by state, not form (A):** 1, or 2 with an evolution; the form (ring, pistols, trainers) is look and animation only; a pair (dual pistols) is one item.
+- **Note (Crown, 2026-11-08, Q-357):** Generic budget 6 → 5 (at most one evolved weapon); the costs are now stated as frame + attachment (weapon frame 1, adapter frame 0, crystal 1, evolution 2).
 - **No primary / secondary difference (A):** a Generic's two weapon slots are equal (same checks, either may hold an evolved weapon, either may be active); fixes the secondary slot's missing spell checks.
 - **One active weapon at a time (A):** a Generic's two weapons switch freely; only the active one gives its abilities, stats and passives (no stacking of two evolved weapons).
 
@@ -1947,12 +1948,13 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Notes for Claude:** job B-357, after B-351 (sockets) and B-356.
 
 ### Q-357 — An evolution's one cost, and B-357 in parts
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-357, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-08; part (1) changed from the reference-backed default) · **Raised:** 2026-11-07 (B-357, cloud) · **Blocks:** —
 **Question:** D-147 gives an evolution one D-110 cost wherever it attaches. Today it adds 2 on a weapon (1 → 3), 1 on an adapter (1 → 2) and costs 2 on the character's own slot. Which one cost? And B-357 also asks for one resolve path and "only passives, only at infusion level 2" on gear: one job?
 **Options / as built (A):** (1) **2**, the cost it already has on the character and on a weapon: an evolved adapter goes from 2 to 3, the gear's base cost on top as for every attachment. **B** 1 (weapon 2, character 1). (2) parts: **B-357** the one cost (this branch); **B-357b** the one resolve path ("an evolution attached to X") and the gear rule (only its passive skills, only while the item is infused at level 2).
 **Recommendation:** A / A. The deckbuilder charges an Evolution its own cost wherever it attaches (`docs/reference/02-enums.md:65`, "1 Action + its EN"), and 2 already holds in two of the three places; the resolve path touches over two hundred reads and is checkable on its own, as Q-351 sliced B-351.
 **Answer:** **A / A**, by the reference-backed default (2026-11-07). Crown may change either. Note for data: a Resonator loadout with an evolved adapter can now be over budget; data validation lists it. The same constant sets an owned adapter's storage size, so an evolved adapter also takes 3 storage slots (inventory cap, the shop's "no room" check), not 2.
-**Notes for Claude:** B-357 built the cost; B-357b added under it in the backlog.
+**Answer (Crown, 2026-11-08):** part (1) **changed**: one rule, frame + attachment. A **weapon frame costs 1** (it brings abilities); an **adapter frame costs 0**; a **crystal / stone / fusion adds 1**; an **evolution adds 2 wherever it sits**, and costs 2 on its own in the slot. So bare weapon 1, weapon + crystal 2, weapon + evolution 3, adapter + crystal 1, **adapter + evolution 2 (not 3)**, evolution alone 2: today's numbers, now explained by one rule (the 2 → 3 change and its storage-size note are undone). Part (2), B-357b's slicing, kept. Also **Generic budget 6 → 5** (amends D-110): at most one evolved weapon, beside an evolved adapter (3 + 2) or a crystal weapon (3 + 2); two evolved weapons (6) are refused.
+**Notes for Claude:** B-357 built the cost (constants `WEAPON_FRAME_COST`, `ADAPTER_FRAME_COST`, `CRYSTAL_ATTACHMENT_COST`, `EVOLUTION_SLOT_COST`); B-357b added under it in the backlog.
 
 ### Q-357b — "Only while that item is infused at level 2": what that means, and B-357b in parts
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-357b, cloud) · **Blocks:** —
