@@ -844,7 +844,9 @@ float UCharacterDataComponent::GetEvolutionModifiedMind() const
     }
     // §7 C2: world base from the LIVE level (asset + head-start + earned), not the asset's authored level.
     float OnGAS = 0.0f;
-    // B-364: the run's over-cap points scale the composed pillar (both paths).
+    // B-364: the run's over-cap points scale the composed pillar (both paths). TODO: GAS (wor.Effects.UseGAS 1): the scale
+    // isn't a pillar layer (BuildPillarLayers), so GAS-derived sub-stats read the unscaled pillar; make it a layer then
+    // (desktop review; the same for Body and Spirit).
     const float OverCapScale = OverCapRules::ScaleFor(GetOverCapPoints(EWorldPillar::Mind));
     if (UWoRAttributeSyncComponent::ReadComposedOnGAS(GetOwner(), UWoRAttributeSet_Stats::GetMindAttribute(), OnGAS))
     {
