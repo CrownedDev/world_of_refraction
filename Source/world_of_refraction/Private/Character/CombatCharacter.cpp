@@ -19,6 +19,7 @@
 #include "GAS/WoREffectMirrorComponent.h"
 #include "Combat/StatusBarStateComponent.h"
 #include "Combat/CombatPresentationComponent.h"
+#include "Combat/Grid/CombatGridSlotComponent.h"
 #include "GAS/WoRAttributeSets.h"
 
 ACombatCharacter::ACombatCharacter()
@@ -49,6 +50,7 @@ ACombatCharacter::ACombatCharacter()
     EffectMirrorComponent = CreateDefaultSubobject<UWoREffectMirrorComponent>(TEXT("EffectMirrorComponent"));
     StatusBarState = CreateDefaultSubobject<UStatusBarStateComponent>(TEXT("StatusBarState")); // B-230
     CombatPresentation = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentation")); // B-231
+    GridSlot = CreateDefaultSubobject<UCombatGridSlotComponent>(TEXT("GridSlot")); // B-230b
 
     // Every combat character gets an AI controller by default, so engine
     // possession can answer "who is driving this?" truthfully. PC0 takes over the
