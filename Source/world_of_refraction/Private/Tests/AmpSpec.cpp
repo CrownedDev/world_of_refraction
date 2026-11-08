@@ -255,6 +255,12 @@ void FAmpSpec::Define()
 			const FAmpBonus Amp = Loadout->GetActiveStatBonus(Loadout->GetOwner()).Amp;
 			TestEqual(TEXT("Fire"), Amp.GetTotalFor(ESpellElement::Fire, true), AmpRules::GetCrystalTierAmp(EItemTier::D_Tier));
 			TestEqual(TEXT("Water"), Amp.GetTotalFor(ESpellElement::Water, true), 0);
+
+			// Review: a broken crystal gives no Amp (it already loses its element key and spells).
+			ActiveOf(Loadout).PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.CurrentDurability = 0;
+			TestTrue(TEXT("the crystal is broken"), ActiveOf(Loadout).PrimaryWeapon.WeaponEntry.AttachedItem.IsBroken());
+			TestEqual(TEXT("a broken crystal: no Fire Amp"),
+					  Loadout->GetActiveStatBonus(Loadout->GetOwner()).Amp.GetTotalFor(ESpellElement::Fire, true), 0);
 		});
 	});
 }

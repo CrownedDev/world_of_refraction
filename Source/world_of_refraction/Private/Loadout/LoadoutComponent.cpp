@@ -4373,10 +4373,11 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     const FCombatLoadout &Loadout = GetActiveLoadout();
 
     // B-387 (Q-387): a refined crystal in a worn socket grants Amp to its own element by its tier (the deckbuilder's
-    // ladder). An evolution in a gear socket gives passives only (D-147), so only a crystal counts here.
+    // ladder). An evolution in a gear socket gives passives only (D-147), so only a crystal counts here; a broken one
+    // gives none (as it loses its element key and spells, D-083).
     auto AddSocketCrystalAmp = [&Combined](const FRuntimeAttachedItem &Socket)
     {
-        if (Socket.IsCrystal())
+        if (Socket.IsCrystal() && !Socket.IsBroken())
         {
             AmpRules::AddElementLine(Combined.Amp, Socket.GetElement(), AmpRules::GetCrystalTierAmp(Socket.Crystal.Id.Tier));
         }
@@ -4417,8 +4418,11 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
         // B-387 (Q-387): the evolution in the character's own seat grants Amp to its element by its tier (on gear it
         // gives passives only, D-147).
-        AmpRules::AddElementLine(Combined.Amp, Loadout.PrimaryEvolution.Item->GetAssociatedElement(),
-                                 AmpRules::GetCrystalTierAmp(Loadout.PrimaryEvolution.Tier));
+        if (!Loadout.PrimaryEvolution.IsBroken())
+        {
+            AmpRules::AddElementLine(Combined.Amp, Loadout.PrimaryEvolution.Item->GetAssociatedElement(),
+                                     AmpRules::GetCrystalTierAmp(Loadout.PrimaryEvolution.Tier));
+        }
     }
 
     // B-380 (D-164): every apparel piece worn adds its HP and Defence lines, tier-scaled like gear, and its Amp lines
