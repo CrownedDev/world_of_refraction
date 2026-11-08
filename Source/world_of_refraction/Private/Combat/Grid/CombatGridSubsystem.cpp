@@ -443,7 +443,7 @@ namespace
     }
 
     static FAutoConsoleCommandWithWorld GGridPositionsCmd(
-        TEXT("wor.GridPositions"),
+        TEXT("wor.Grid.Print"),
         TEXT("Log all current combat-grid actor positions (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -454,12 +454,12 @@ namespace
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.GridPositions: no subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.Grid.Print: no subsystem (no PIE world?)."));
                 }
             }));
 
     static FAutoConsoleCommandWithWorld GGridModifiersCmd(
-        TEXT("wor.GridModifiers"),
+        TEXT("wor.Grid.PrintModifiers"),
         TEXT("Log positional modifiers for all combat-grid actors (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -470,7 +470,7 @@ namespace
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.GridModifiers: no subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] wor.Grid.PrintModifiers: no subsystem (no PIE world?)."));
                 }
             }));
 }

@@ -43,11 +43,12 @@ namespace GuardRules
 		return bSuccess && IsPerfectGuard(Type, bPerfect);
 	}
 
-	/** What stops an interruptable hit (an interrupt point): a Perfect Guard or a Perfect Dodge (D-161; Q-168 had
-	 *  any Dodge). bPerfect is the player's own timing: a luck dodge never passes it in. */
+	/** What stops an interruptable hit (an interrupt point): a Perfect Guard only (D-161 corrected by Crown,
+	 *  2026-11-05, B-367b; B-367 also let a Perfect Dodge, Q-168 any Dodge). A Dodge of any timing does not.
+	 *  bPerfect is the player's own timing. */
 	inline bool StopsInterruptableHit(EDefenseType Type, bool bSuccess, bool bPerfect)
 	{
-		return bSuccess && bPerfect && (Type == EDefenseType::Dodge || IsGuard(Type));
+		return bSuccess && IsPerfectGuard(Type, bPerfect);
 	}
 
 	/** Share of status buildup that still lands through a Guard (a Dodge lands none). */

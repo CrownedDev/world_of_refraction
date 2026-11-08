@@ -3,7 +3,7 @@
 // - GetEffectMismatchString: for every ported effect type, where the mirrored GEs' "has it" or
 //   total (overall and per element) differs from the stored enum-path effects (empty = equal).
 // - CompareEffects: runs it on every mirrored combatant in the world.
-//   Console: wor.CompareEffects.
+//   Console: wor.Effects.Compare.
 
 #pragma once
 

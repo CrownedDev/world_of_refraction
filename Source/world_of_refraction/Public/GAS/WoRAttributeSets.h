@@ -2,7 +2,7 @@
 // GAS stage 2 (B-041, Design/GASMigration.md): the combatant's stats as GAS attributes.
 // Until stage 3 (effects as GameplayEffects) these MIRROR the composed values the
 // UCharacterDataComponent / UDamageCalculator getters return (Q-041); UWoRAttributeSyncComponent
-// pushes them. Nothing reads them for gameplay yet. Debug: UWoRAttributeDebug (wor.CompareAttributes).
+// pushes them. Nothing reads them for gameplay yet. Debug: UWoRAttributeDebug (wor.Attributes.Compare).
 
 #pragma once
 
