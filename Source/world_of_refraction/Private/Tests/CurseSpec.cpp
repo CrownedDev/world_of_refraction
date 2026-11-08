@@ -1,6 +1,8 @@
 // CurseSpec.cpp
 // B-378 (MemoryCatalogue §3.8): a memory's Curse reward gives the curse when the journal records it; the curse is a
 // key (CurseHeld); a RemoveCurse reward lifts it; held curses round-trip through their save struct.
+// Q-378 (changed by Crown, 2026-11-08): a hidden quest's step gives one too; a step needing it moves while it is held,
+// not once the player clears it, and again once it is regained (its giver's conditions met again).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -9,6 +11,8 @@
 #include "Character/CharacterData.h"
 #include "Memory/CurseData.h"
 #include "Memory/CurseSubsystem.h"
+#include "Memory/HiddenQuestData.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
@@ -16,6 +20,22 @@
 namespace
 {
 	const FName CURSE_TEST_ID(TEXT("Curse_CurseSpec"));
+	const FName CURSE_TEST_LOCATION(TEXT("Spot_CurseSpec"));
+
+	FMemoryEvent AtCurseLocation()
+	{
+		FMemoryEvent Event;
+		Event.Locations.Add(CURSE_TEST_LOCATION);
+		return Event;
+	}
+
+	FMemoryReward CurseReward()
+	{
+		FMemoryReward Reward;
+		Reward.Kind = EMemoryRewardKind::Curse;
+		Reward.RewardId = CURSE_TEST_ID;
+		return Reward;
+	}
 
 	UMemoryData *NewMemoryWithReward(EMemoryRewardKind Kind)
 	{
@@ -65,7 +85,61 @@ void FCurseSpec::Define()
 		Journal->RecordMemory(NewMemoryWithReward(EMemoryRewardKind::RemoveCurse), EMemorySource::Fragment);
 		TestFalse(TEXT("its own memory lifted it"), Curses->HasCurse(CURSE_TEST_ID));
 		TestFalse(TEXT("closed again"), MemoryConditions::AreMet(*Locked, Event, Journal));
-		TestFalse(TEXT("a lifted curse is not given again"), Curses->AddCurse(CURSE_TEST_ID));
+		TestTrue(TEXT("Q-378: a lifted curse can be given again"), Curses->AddCurse(CURSE_TEST_ID));
+	});
+
+	It("Q-378: a quest step gives it; a step needing it moves while held, not once cleared, and again once regained", [this]()
+	{
+		UHiddenQuestSubsystem *Quests = TestWorld->GetSubsystem<UHiddenQuestSubsystem>();
+		if (!TestNotNull(TEXT("quests"), Quests))
+		{
+			return;
+		}
+		FWoRCondition There;
+		There.Subject = EWoRConditionSubject::AtLocation;
+		There.LocationId = CURSE_TEST_LOCATION;
+		FWoRCondition Cursed;
+		Cursed.Subject = EWoRConditionSubject::CurseHeld;
+		Cursed.CurseId = CURSE_TEST_ID;
+		FHiddenQuestStep Gives; // at the spot: the quest curses the player
+		Gives.Conditions.Conditions.Add(There);
+		Gives.Rewards.Add(CurseReward());
+		FHiddenQuestStep Needs; // "parry while this curse is on you", here only the curse
+		Needs.Conditions.Conditions.Add(Cursed);
+		UHiddenQuestData *Quest = NewObject<UHiddenQuestData>(GetTransientPackage());
+		Quest->Steps = {Gives, Needs, Needs};
+		const FName Id = Quest->GetQuestId();
+
+		Quests->StartQuest(Quest);
+		Quests->CheckEvent(FMemoryEvent(), {Quest}); // the start's own event (Q-377)
+		Quests->CheckEvent(AtCurseLocation(), {Quest});
+		TestTrue(TEXT("the step gave the curse"), Curses->HasCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("cursed: the step needing it moves"), Quests->CheckEvent(FMemoryEvent(), {Quest}), 1);
+		TestTrue(TEXT("the player clears it"), Curses->ClearCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("cleared: it doesn't"), Quests->CheckEvent(FMemoryEvent(), {Quest}), 0);
+		TestEqual(TEXT("cleared: still two steps done"), Quests->GetStepsDone(Id), 2);
+		Quests->CheckEvent(AtCurseLocation(), {Quest}); // its giving step met again
+		TestTrue(TEXT("regained"), Curses->HasCurse(CURSE_TEST_ID));
+		Quests->CheckEvent(FMemoryEvent(), {Quest});
+		TestTrue(TEXT("regained: it moves again (finished)"), Quests->IsFinished(Id));
+	});
+
+	It("Q-378: a memory the player has gives back its cleared curse when its conditions are met again", [this]()
+	{
+		FMemoryCondition There;
+		There.Kind = EMemoryConditionKind::Location;
+		There.LocationId = CURSE_TEST_LOCATION;
+		UMemoryData *Giver = NewObject<UMemoryData>(GetTransientPackage());
+		Giver->UnlockConditions = {There};
+		Giver->Rewards.Add(CurseReward());
+		Journal->RecordMemory(Giver, EMemorySource::Fragment);
+		Curses->ClearCurse(CURSE_TEST_ID);
+		TestFalse(TEXT("cleared"), Curses->HasCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("not met: still cleared"), Curses->CheckRegain(FMemoryEvent(), {Giver}), 0);
+		TestEqual(TEXT("met again: it comes back"), Curses->CheckRegain(AtCurseLocation(), {Giver}), 1);
+		TestTrue(TEXT("held again"), Curses->HasCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("held: nothing to regain"), Curses->CheckRegain(AtCurseLocation(), {Giver}), 0);
+		TestTrue(TEXT("the memory itself wasn't unlocked twice"), Journal->HasMemory(Giver));
 	});
 
 	It("lasts across runs through its save struct (D-059)", [this]()

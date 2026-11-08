@@ -16,8 +16,11 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "HiddenQuestSubsystem.generated.h"
 
+class UCurseSubsystem;
 class UHiddenQuestData;
+struct FHiddenQuestStep;
 struct FMemoryEvent;
+struct FWoRConditionContext;
 
 /** Where one quest stands for this player. */
 struct FHiddenQuestProgress
@@ -76,6 +79,13 @@ private:
 
 	/** The last step is done: finished, and its end memory into this player's run and journal only. */
 	void Finish(const UHiddenQuestData &Quest);
+
+	/** Q-378: a step's Rewards (curses through Curses, which may be null; other kinds logged). */
+	void GiveStepRewards(const UHiddenQuestData &Quest, const FHiddenQuestStep &Step, UCurseSubsystem *Curses);
+
+	/** Q-378 (Crown): a done step met again gives back the curses it (or a finished quest's end memory) gave and that were
+	 *  cleared since. Returns how many came back. */
+	int32 RegainCurses(UCurseSubsystem &Curses, const FWoRConditionContext &Context, const TArray<UHiddenQuestData *> &Quests);
 
 	TMap<FName, FHiddenQuestProgress> Progress;
 
