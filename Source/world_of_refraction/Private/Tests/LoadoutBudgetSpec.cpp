@@ -33,7 +33,7 @@ namespace
 	constexpr int32 LOADOUT_BUDGET_RULE_EVOLVED_WEAPON = 3;
 	constexpr int32 LOADOUT_BUDGET_RULE_EVOLUTION_PRIMARY = 2;
 	constexpr int32 LOADOUT_BUDGET_RULE_RING = 1;
-	constexpr int32 LOADOUT_BUDGET_RULE_EVOLVED_RING = 3; // B-357 (D-147): adapter 1 + the one evolution cost 2
+	constexpr int32 LOADOUT_BUDGET_RULE_EVOLVED_RING = 2; // Q-357 (Crown 2026-11-08): adapter frame 0 + evolution 2
 	constexpr int32 LOADOUT_BUDGET_RULE_INNATE = 24;
 	constexpr int32 LOADOUT_BUDGET_RULE_BROKEN_DARKNESS = 48;
 	constexpr int32 LOADOUT_BUDGET_RULE_PER_SCHOOL = 6;
@@ -147,8 +147,8 @@ void FLoadoutBudgetSpec::Define()
 		It("costs an evolution the same wherever it goes (B-357, D-147)", [this]()
 		{
 			const int32 OnCharacter = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
-			const int32 OnWeapon = InventoryConstants::WEAPON_EVOLUTION_SLOT_COST - InventoryConstants::WEAPON_BASE_SLOT_COST;
-			const int32 OnAdapter = InventoryConstants::RING_EVOLUTION_SLOT_COST - InventoryConstants::RING_BASE_SLOT_COST;
+			const int32 OnWeapon = InventoryConstants::WEAPON_EVOLUTION_SLOT_COST - LoadoutConstants::WEAPON_FRAME_COST;
+			const int32 OnAdapter = InventoryConstants::RING_EVOLUTION_SLOT_COST - LoadoutConstants::ADAPTER_FRAME_COST;
 			TestEqual(TEXT("on the character"), OnCharacter, LoadoutConstants::EVOLUTION_SLOT_COST);
 			TestEqual(TEXT("on a weapon"), OnWeapon, LoadoutConstants::EVOLUTION_SLOT_COST);
 			TestEqual(TEXT("on an adapter"), OnAdapter, LoadoutConstants::EVOLUTION_SLOT_COST);
@@ -190,15 +190,14 @@ void FLoadoutBudgetSpec::Define()
 			TestTrue(TEXT("2 + 4 rings: refused"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
 		});
 
-		It("costs an evolved ring 3 (CL-10, B-357)", [this]()
+		It("costs an evolved ring 2 (CL-10, Q-357)", [this]()
 		{
-			// Bare weapon 1 + one evolved ring 3 + one plain ring 1 = 5.
+			// Bare weapon 1 + two evolved rings 4 = 5.
 			FCombatLoadout Loadout = LoadoutBudgetWeaponPrimary(ELoadoutBudgetTestWeapon::Bare);
-			LoadoutBudgetAddRings(Loadout, 1, /*bEvolved=*/true);
+			LoadoutBudgetAddRings(Loadout, 2, /*bEvolved=*/true);
+			TestFalse(TEXT("1 + 2 + 2: passes"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
 			LoadoutBudgetAddRings(Loadout, 1);
-			TestFalse(TEXT("1 + 3 + 1: passes"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
-			LoadoutBudgetAddRings(Loadout, 1);
-			TestTrue(TEXT("1 + 3 + 1 + 1: refused"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
+			TestTrue(TEXT("1 + 2 + 2 + 1: refused"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
 		});
 
 		It("has no ring-count cap: 5 plain rings with no primary fit (CL-11)", [this]()

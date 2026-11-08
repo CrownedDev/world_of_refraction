@@ -152,7 +152,7 @@ TArray<FString> FSavedLoadout::GetValidationErrorsLegacy() const
     {
         // Unified budget: primary slot cost + ring slot costs must fit one budget.
         // Subsumes the old count cap and the separate max-evolved-rings cap —
-        // evolved rings cost 3 each (B-357), so overflow is caught by the cost arithmetic.
+        // evolved rings cost 2 each, so overflow is caught by the cost arithmetic.
         int32 PrimaryCost = 0;
         switch (PrimarySlotType)
         {
