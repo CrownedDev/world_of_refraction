@@ -122,6 +122,10 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
     TObjectPtr<class UCombatPresentationComponent> CombatPresentation;
 
+    /** B-230b: the grid row and slot, replicated for a client's readers (the grid subsystem is server-side). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat")
+    TObjectPtr<class UCombatGridSlotComponent> GridSlot;
+
 private:
     /** Default subobjects, so the ASC finds them at InitializeComponent on every machine (the
      *  replicated sets, never a client-made copy). Read through the ASC, not these pointers. */
