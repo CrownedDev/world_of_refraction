@@ -81,28 +81,25 @@ int32 UFightTriggers::StartBoss(AActor *Boss, const UBossData &Data, const TArra
 {
 	FBossFightState &State = BossStates.FindOrAdd(Boss);
 	const int32 Fired = BossTriggers::ApplyTo(Boss, Data, Party, &State);
-	FMemoryEvent FightStart;
-	for (const AActor *Member : Party)
+	// B-355b (D-144): the one list's AtMoment rules (authored, and old triggers read across) wait for their moment;
+	// their conditions are read when it comes (FireMomentRule), so a rule on the boss's state reads it then (Q-355b).
+	for (const FBossRule &Rule : BossRules::GetRules(Data))
 	{
-		FightStart.Party.Add(MemoryConditions::MakeMember(Member));
-	}
-	for (const FBossTrigger &Trigger : Data.Triggers)
-	{
-		if (Trigger.When.IsAtFightStart() || !BossTriggers::Fires(Trigger, FightStart))
+		if (Rule.When != EBossRuleWhen::AtMoment || Rule.Conditions.Conditions.IsEmpty())
 		{
-			continue;
+			continue; // no conditions: never fires (as before)
 		}
-		BossDatas.AddUnique(&Data);
 		FWaitingTrigger &Entry = Waiting.AddDefaulted_GetRef();
-		Entry.When = Trigger.When;
+		Entry.When = Rule.Moment;
 		for (AActor *Member : Party)
 		{
 			Entry.Ours.Add(Member);
 		}
 		Entry.Theirs.Add(Boss);
 		Entry.Boss = Boss;
-		Entry.BossTrigger = &Trigger;
-		Entry.TriggerId = Trigger.TriggerId;
+		Entry.BossRule = Rule;
+		Entry.bBossRule = true;
+		Entry.TriggerId = Rule.RuleId;
 	}
 	if (!GameInstance.IsValid() && Boss)
 	{
@@ -270,7 +267,6 @@ void UFightTriggers::Fire(FWaitingTrigger &Entry)
 	}
 	// Marked first: what it does can re-enter (an HP change) and must not fire it again.
 	Entry.bFired = true;
-	++FiredMidFight;
 	if (Entry.Reaction.Trigger)
 	{
 		ReactionTriggers::ApplyFired({Entry.Reaction});
@@ -280,14 +276,37 @@ void UFightTriggers::Fire(FWaitingTrigger &Entry)
 		MemoryUnlock::UnlockFoundBy(GameInstance.Get(), Entry.Reaction.Trigger->UnlockMemory, EMemorySource::Reaction,
 									WearerData ? WearerData->CharacterData : nullptr);
 	}
-	else if (AActor *Boss = Entry.Boss.Get(); Boss && Entry.BossTrigger)
+	else if (AActor *Boss = Entry.Boss.Get(); Boss && Entry.bBossRule)
 	{
-		FBossFightState &State = BossStates.FindOrAdd(Boss);
-		if (BossTriggers::ApplyResults(Boss, *Entry.BossTrigger, State))
+		TArray<AActor *> Party;
+		for (const TWeakObjectPtr<AActor> &Member : Entry.Ours)
+		{
+			if (AActor *Actor = Member.Get())
+			{
+				Party.Add(Actor);
+			}
+		}
+		// Review fix: one per-fight state per boss (Q-211), the phase component's when it has one (as BossTriggers::ApplyTo),
+		// so moment and state-change results net out and a skip or an added phase happens once.
+		UBossPhaseComponent *Phases = Boss->FindComponentByClass<UBossPhaseComponent>();
+		FBossFightState &State = Phases ? Phases->GetFightState() : BossStates.FindOrAdd(Boss);
+		bool bSteps = false;
+		if (!BossTriggers::FireMomentRule(Boss, Entry.BossRule, Party, State, bSteps))
+		{
+			Entry.bFired = false; // its conditions don't hold now: it waits for the moment to come again
+			// Review fix: an HP line is crossed once, so it re-arms: the next HP check past the line asks again.
+			for (TPair<TWeakObjectPtr<AActor>, bool> &Past : Entry.WasPastLine)
+			{
+				Past.Value = false;
+			}
+			return;
+		}
+		if (bSteps)
 		{
 			ReactionTriggers::ApplyBossSteps(Boss, State.NetSteps, /*bBeforeFight=*/false);
 		}
 	}
+	++FiredMidFight;
 	UE_LOG(LogWoR, Log, TEXT("[FightTriggers] %s fired mid-fight (%s)"), *Entry.TriggerId.ToString(), *Entry.When.ToString());
 }
 
@@ -301,7 +320,7 @@ FString UFightTriggers::GetFightTriggersString() const
 	FString Out;
 	for (const FWaitingTrigger &Entry : Waiting)
 	{
-		Out += FString::Printf(TEXT("\n  %s %s at %s%s"), Entry.Reaction.Trigger ? TEXT("Reaction") : TEXT("Boss trigger"),
+		Out += FString::Printf(TEXT("\n  %s %s at %s%s"), Entry.Reaction.Trigger ? TEXT("Reaction") : TEXT("Boss rule"),
 							   *Entry.TriggerId.ToString(), *Entry.When.ToString(), Entry.bFired ? TEXT(" [fired]") : TEXT(""));
 	}
 	return Out.IsEmpty() ? FString(TEXT(" none")) : Out;

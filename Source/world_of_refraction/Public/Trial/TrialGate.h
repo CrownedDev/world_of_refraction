@@ -85,8 +85,12 @@ namespace TrialGate
 
 	/** Gives Enemy its rank's and its tier's HP on top of ApplyEnemyStrength (HP only, no damage): a permanent,
 	 *  uncleansable max-HP buff, then a full refill. MaxHP percents add up, so the share is Strength x (rank x tier
-	 *  power - 1), making the total Strength x rank x tier power. No-op when both are x1. False as ApplyEnemyStrength. */
-	bool ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank);
+	 *  power - 1), making the total Strength x rank x tier power. No-op when both are x1. False as ApplyEnemyStrength.
+	 *  B-187b: TierSteps raise the enemy's Combat Tier for this (a revived mini-boss, StepTier). */
+	bool ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank, int32 TierSteps = 0);
+
+	/** B-187b (Q-187b): Tier raised by Steps (a revived mini-boss's team), at most S. */
+	EItemTier StepTier(EItemTier Tier, int32 Steps);
 
 	/** B-223 (D-102): a normal or elite enemy's chance to drop a pillar level: the LevelDropChance ladder at its
 	 *  tier, doubled for an elite, at most 1. 0 for a mini-boss or boss (they always give, GetGuaranteedLevels). */

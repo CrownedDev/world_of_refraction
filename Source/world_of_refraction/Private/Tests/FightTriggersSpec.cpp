@@ -1,7 +1,8 @@
 // FightTriggersSpec.cpp
 // B-212 (Q-212): reactions and boss triggers fire mid-fight at their When, once per fight: an HP
 // line fires when crossed (not at the start, not twice), a hit fires on its side only, a boss
-// trigger at the boss's turn start keeps the boss's share of HP; fight-start ones fire at once.
+// trigger at the boss's turn start keeps the boss's share of HP; fight-start ones fire at once. B-355b: the boss's
+// moments come from its one rule list, conditions read when the moment comes.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -10,6 +11,8 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Boss/BossData.h"
+#include "Combat/Boss/BossRules.h"
+#include "Conditions/WoRCondition.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Reaction/FightTriggers.h"
@@ -267,6 +270,41 @@ void FFightTriggersSpec::Define()
 		TestTrue(TEXT("Still about half its HP"), FMath::Abs(Stats->CurrentHP - FMath::RoundToInt(FIGHT_TRIGGER_TEST_HALF * Stats->MaxHP)) <= 1);
 		Triggers->HandleTurnStarted(Boss, 2);
 		TestEqual(TEXT("Once per fight"), Triggers->GetFiredMidFightCount(), 1);
+	});
+
+	It("fires an authored moment rule from the one list, reading its condition when the moment comes (B-355b)", [this]()
+	{
+		UBossData *Data = NewObject<UBossData>(GetTransientPackage());
+		Data->Boss = BossCharacter;
+		FBossRule Rule;
+		Rule.RuleId = FIGHT_TRIGGER_TEST_ID;
+		Rule.When = EBossRuleWhen::AtMoment;
+		Rule.Moment.Moment = EFightMoment::TurnStart;
+		Rule.Moment.Side = EFightMomentSide::Theirs;
+		FWoRCondition BelowLine; // the boss (Self) below the line
+		BelowLine.Subject = EWoRConditionSubject::HpPercent;
+		BelowLine.Operator = EWoRConditionOperator::Below;
+		BelowLine.Value = FMath::RoundToInt(FIGHT_TRIGGER_TEST_LINE);
+		Rule.Conditions.Conditions.Add(BelowLine);
+		Rule.Results.Add(EBossRuleResult::Weaken);
+		Data->Rules.Add(Rule);
+
+		AActor *Member = TestWorld->SpawnCombatant(Lord);
+		AActor *Boss = TestWorld->SpawnCombatant(BossCharacter, true);
+		const int32 BaseMaxHP = StatsOf(Boss)->MaxHP;
+		TestEqual(TEXT("Nothing at fight start"), Triggers->StartBoss(Boss, *Data, {Member}), 0);
+		TestEqual(TEXT("It waits (no old trigger list involved)"), Triggers->GetWaitingCount(), 1);
+		Triggers->Watch(true);
+
+		Triggers->HandleTurnStarted(Boss, 1);
+		TestEqual(TEXT("Full HP at its moment: condition fails, nothing fires"), Triggers->GetFiredMidFightCount(), 0);
+		TestEqual(TEXT("and it keeps waiting"), Triggers->GetWaitingCount(), 1);
+
+		SetHPShare(Boss, FIGHT_TRIGGER_TEST_BELOW);
+		Triggers->HandleTurnStarted(Boss, 2);
+		TestEqual(TEXT("Below the line at its moment: fires"), Triggers->GetFiredMidFightCount(), 1);
+		TestTrue(TEXT("Weaker"), StatsOf(Boss)->MaxHP < BaseMaxHP);
+		TestEqual(TEXT("Nothing left waiting"), Triggers->GetWaitingCount(), 0);
 	});
 }
 
