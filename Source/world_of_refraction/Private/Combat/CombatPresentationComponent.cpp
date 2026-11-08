@@ -3,6 +3,7 @@
 #include "Combat/CombatPresentationComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Combat/CombatAnimInstance.h"
+#include "Character/CombatCharacter.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -28,6 +29,11 @@ UCombatPresentationComponent::UCombatPresentationComponent()
 
 UCombatPresentationComponent *UCombatPresentationComponent::Find(const AActor *Actor)
 {
+	// Review fix: every hit and montage asks, so a combat character answers from its cached default subobject.
+	if (const ACombatCharacter *Character = Cast<ACombatCharacter>(Actor))
+	{
+		return Character->CombatPresentation;
+	}
 	return Actor ? Actor->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
 }
 

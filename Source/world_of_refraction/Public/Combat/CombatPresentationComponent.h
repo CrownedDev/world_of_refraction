@@ -5,7 +5,8 @@
 // - the montages the server plays (action legs, item use, a defense) play on the clients' copies too, so the
 //   swing, the guard and the hit land identically on both screens (the clients' notifies drive nothing: only the
 //   server's executor listens to them);
-// - each hit the server resolves fires OnHitShown on every machine (damage numbers bind it; on the server too).
+// - each hit the server resolves fires OnHitShown on every machine (damage numbers bind it; on the server too;
+//   reliable, so no screen misses one).
 // Projectiles, spell VFX and telegraphs on clients are B-231b.
 // Debug: GetDebugString (the last montage and hit sent or received), wor.Net.PrintPresentation.
 
@@ -47,7 +48,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Presentation")
 	FOnCombatHitShown OnHitShown;
 
-	/** The owner's component, or null. */
+	/** The owner's component, or null: a combat character's cached one, else a component search. */
 	static UCombatPresentationComponent *Find(const AActor *Actor);
 
 	FString GetDebugString() const;
@@ -56,7 +57,8 @@ private:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_PlayMontage(UAnimMontage *Montage, float PlayRate);
 
-	UFUNCTION(NetMulticast, Unreliable)
+	/** Reliable (review): a dropped hit would leave a damage number missing on one screen; it is low volume. */
+	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_ShowHit(int32 Damage, bool bCritical);
 
 	/** Plays Montage on the owner's combat anim instance (else the character), as the executor does. */
