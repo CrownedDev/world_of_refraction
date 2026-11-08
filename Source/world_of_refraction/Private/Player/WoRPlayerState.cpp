@@ -20,6 +20,8 @@
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "Memory/MemoryData.h"
+#include "Memory/MemoryJournalSubsystem.h"
+#include "Memory/MemoryUnlock.h"
 #include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
@@ -52,7 +54,7 @@ namespace
 
 	FAutoConsoleCommandWithWorld GMemorySentCmd(
 		TEXT("wor.Memory.Sent"),
-		TEXT("B-235d (host): each player's own characters and the memories already sent to them."),
+		TEXT("B-235d (host): each player's own characters and the memories they have (reported, found or sent; B-235e)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
@@ -102,6 +104,22 @@ void AWoRPlayerState::ClientInitialize(AController *Controller)
 	Super::ClientInitialize(Controller);
 	// On a client the owner may arrive after BeginPlay; follow the local form once it does.
 	FollowLocalForm();
+	// B-235e: the host reads this player's own memories (PriorMemory conditions, nothing sent twice).
+	const UWorld *World = GetWorld();
+	const UGameInstance *GI = GetGameInstance();
+	const UMemoryJournalSubsystem *Journal = GI ? GI->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
+	if (Journal && World && World->GetNetMode() == NM_Client)
+	{
+		TArray<FName> MemoryIds;
+		for (const UMemoryData *Memory : Journal->GetMemories())
+		{
+			if (Memory)
+			{
+				MemoryIds.Add(Memory->GetMemoryId());
+			}
+		}
+		ServerReportJournal(MemoryIds);
+	}
 }
 
 void AWoRPlayerState::FollowLocalForm()
@@ -143,7 +161,7 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (Next)
 	{
 		Next->SetForm(WornForm, BaseForm);
-		Next->SentMemoryIds = SentMemoryIds; // B-235d: before the claims below, so nothing is sent again
+		Next->KnownMemoryIds = KnownMemoryIds; // B-235d: before the claims below, so nothing is sent again
 		// B-232: the player keeps commanding its characters in the next level.
 		for (UCharacterData *Character : ClaimedCharacters)
 		{
@@ -221,12 +239,12 @@ FString AWoRPlayerState::GetSharedMemoriesString() const
 		Characters.Add(GetNameSafe(Character));
 	}
 	TArray<FString> Sent;
-	for (const FName &MemoryId : SentMemoryIds)
+	for (const FName &MemoryId : KnownMemoryIds)
 	{
 		Sent.Add(MemoryId.ToString());
 	}
 	Sent.Sort();
-	return FString::Printf(TEXT("%s: characters [%s], memories sent [%s]"), *GetPlayerName(), *FString::Join(Characters, TEXT(", ")),
+	return FString::Printf(TEXT("%s: characters [%s], memories known [%s]"), *GetPlayerName(), *FString::Join(Characters, TEXT(", ")),
 						   *FString::Join(Sent, TEXT(", ")));
 }
 
@@ -454,6 +472,28 @@ void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Fea
 		return;
 	}
 	Feature->Interact(Pawn); // B-235c: the host runs it; per-player features key it to this player
+}
+
+void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &MemoryIds)
+{
+	KnownMemoryIds.Append(MemoryIds);
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reported %d memory(ies) in their journal (B-235e)"), *GetPlayerName(), MemoryIds.Num());
+}
+
+void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
+{
+	if (!Memory)
+	{
+		return;
+	}
+	AddMemoryId(Memory->GetMemoryId());
+	if (!Memory->CharacterDepth.IsEmpty())
+	{
+		return; // their character's own find (Q-235d rule 1)
+	}
+	TArray<AWoRPlayerState *> Others = MemoryUnlock::GetRemotePlayers(GetGameInstance());
+	Others.Remove(this);
+	MemoryUnlock::UnlockFor(GetGameInstance(), Memory, Source, /*bHostReceives=*/true, Others);
 }
 
 #define LOCTEXT_NAMESPACE "WoRPlayerState"

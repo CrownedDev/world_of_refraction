@@ -105,8 +105,10 @@ namespace MemoryConditions
 	WORLD_OF_REFRACTION_API bool FitsRequirements(const FMemoryCondition &Condition, const FWorldStatRequirements *Requirements,
 												  const UCharacterData *Wearer);
 
-	/** Any one of Memory's condition sets holds (none: true), through WoRConditions (B-337). */
-	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal);
+	/** Any one of Memory's condition sets holds (none: true), through WoRConditions (B-337). B-235e: KnownMemoryIds
+	 *  (a friend's memories) stands in for Journal's when set. */
+	WORLD_OF_REFRACTION_API bool AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal,
+										const TSet<FName> *KnownMemoryIds = nullptr);
 
 	/** Every authored memory with unlock conditions (the asset registry, sorted by path). TODO: loads
 	 *  every memory asset per event; cache it once authored memories make that slow. */

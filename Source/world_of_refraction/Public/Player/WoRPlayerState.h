@@ -89,11 +89,23 @@ public:
 	/** B-235d (Q-235d, Crown): the characters this player plays: the claimed characters and the characters of the
 	 *  claimed party members (the host's party knows them). A memory's conditions are read against these for them. */
 	TArray<UCharacterData *> GetOwnCharacters() const;
-	/** B-235d (server): a memory goes to this player once (MemoryUnlock::UnlockFor);
-	 *  seamless travel carries the record. */
-	bool WasMemorySent(FName MemoryId) const { return SentMemoryIds.Contains(MemoryId); }
-	void MarkMemorySent(FName MemoryId) { SentMemoryIds.Add(MemoryId); }
-	/** B-235d debug (`wor.Memory.Sent`): this player's own characters and the memories sent to them. */
+	/** B-235d / B-235e (server): the memories this player has: what their journal reported on joining
+	 *  (ServerReportJournal), what they found themselves (ServerReportFoundMemory) and what the host sent them. Each
+	 *  memory goes to a player once; their PriorMemory conditions read this. Seamless travel carries it. */
+	bool HasMemoryId(FName MemoryId) const { return KnownMemoryIds.Contains(MemoryId); }
+	void AddMemoryId(FName MemoryId) { KnownMemoryIds.Add(MemoryId); }
+	const TSet<FName> &GetKnownMemoryIds() const { return KnownMemoryIds; }
+
+	/** B-235e: a client tells the host which memories its own journal holds (sent once it owns this state). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportJournal(const TArray<FName> &MemoryIds);
+
+	/** B-235e: a client found Memory itself (its own map spot, fragment or event): the host notes it, and shares one for
+	 *  every character (it lists none) with itself and the other friends (Q-235d rule 3). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportFoundMemory(class UMemoryData *Memory, EMemorySource Source);
+
+	/** B-235d debug (`wor.Memory.Sent`): this player's own characters and the memories they have. */
 	FString GetSharedMemoriesString() const;
 
 private:
@@ -143,6 +155,6 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Economy")
 	TObjectPtr<UCurrencyComponent> Wallet;
 
-	/** B-235d (server only): the memory ids already sent to this player. */
-	TSet<FName> SentMemoryIds;
+	/** B-235d / B-235e (server only): the memory ids this player has (see HasMemoryId). */
+	TSet<FName> KnownMemoryIds;
 };
