@@ -29,6 +29,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
 | [B-367](B-367.md) | `feature/B-367-interrupt-points` (in `dev`) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending |
 | [B-370](B-370.md) | `feature/B-370-cinematic-window-cloud` (UNBUILT) | An enemy attack on your character moves the camera behind it (the Defence view) 0.75 s before the first hit; movement off keeps the static view | Pending |
+| [B-371](B-371.md) | `feature/B-371-shot-patterns-cloud` (UNBUILT, on B-370) | Skills without a sequence get code-built cameras: shoulder push-in, projectile follow, impact punch, pull-out for several targets (Crown approves the look, B-157) | |
 | [B-347b](B-347b.md) | `feature/B-347b-run-armoury` (in `dev`) | During a run a member sees and equips only what the run brought or found; left-home gear and loadouts come back intact; the chest waits until the run ends | Pending |
 | [B-366c](B-366c.md) | `feature/B-366c-shop-place-currency` (in `dev`) | Shops charge the hub currency (Gold) at home and the run currency (Prisms) in a run; cost lines, totals and Confirm follow it | Pending |
 | [B-366b](B-366b.md) | `fix/B-366b-convert-place-currency` (in `dev`) | Converting a duplicate pays the hub currency (Gold) at home and the run currency (Prisms) in a run; the texts name it | Pending |
