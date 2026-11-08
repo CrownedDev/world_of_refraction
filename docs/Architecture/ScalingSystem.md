@@ -118,7 +118,7 @@ residue of the old `ScalingType` swap, which had zero source readers.
 
 ## Debug
 
-- **`WoR.ScalingSnapshot`** (console command, `ScalingDebug.cpp`) — snapshots the
+- **`wor.Scaling.Print`** (console command, `ScalingDebug.cpp`) — snapshots the
   attacker-side scaling for the current-turn actor's available abilities vs the first living
   enemy: resolved ActionType, `StatScaling` entry count, `BaseDamage` in, `AttackerMultiplier`,
   and `FinalDamage`.
@@ -144,7 +144,7 @@ residue of the old `ScalingType` swap, which had zero source readers.
 
 | Date | Change | Branch |
 |------|--------|--------|
-| 2026-06-18 | Initial documentation of the unified scaling-tiers arc (stages a..d2c): `EScalingTier` grades + `GetScalingTierCoefficient` (placeholder ladder); `FStatScaling`; the additive tier sum in `DamageCalculator` Step 1 (empty-array no-op); `GetScalingFraction` per-bucket normalization (Model Y, no allowlist); the `USkillDataBase::StatScaling` field; the retired `bOverrideStatScaling` swap + removed per-cast `FSkillCastEntry::Damage` (spells unified onto scaled-base + `DamageSplit`); the `WoR.ScalingSnapshot` / `UScalingDebug` harness. | feature/unified-scaling-tiers |
+| 2026-06-18 | Initial documentation of the unified scaling-tiers arc (stages a..d2c): `EScalingTier` grades + `GetScalingTierCoefficient` (placeholder ladder); `FStatScaling`; the additive tier sum in `DamageCalculator` Step 1 (empty-array no-op); `GetScalingFraction` per-bucket normalization (Model Y, no allowlist); the `USkillDataBase::StatScaling` field; the retired `bOverrideStatScaling` swap + removed per-cast `FSkillCastEntry::Damage` (spells unified onto scaled-base + `DamageSplit`); the `wor.Scaling.Print` / `UScalingDebug` harness. | feature/unified-scaling-tiers |
 | 2026-06-21 | Tier-power arc note — clarified the `equipment stat bonus` term is now **tier-weighted at `GetActiveStatBonus` aggregation** (orthogonal own-tier power axis, separate from `EScalingTier`). No change to the scaling-tier formula itself. | feature/tier-power-scaling |
 | 2026-10-27 | B-220 (D-101): weapons scale too, on pillars, not sub-stats: `FPillarScaling` grades (the same `EScalingTier` ladder) multiply the weapon's Power by 1 + grade x the pillar soft cap `1 - (1 - L/7)^2` (`WoRWeaponPower::GetPillarCurve`; into tuning data with B-224). Skills keep `FStatScaling`. | feature/B-220-weapon-power |
 | 2026-11-02 | B-220: weapon scaling grades per pillar feed the weapon part (`WoRWeaponPower`); spells unchanged. | feature/B-220-weapon-power |
