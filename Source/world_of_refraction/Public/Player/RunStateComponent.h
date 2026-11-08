@@ -115,6 +115,9 @@ public:
 	/** B-232d: a character's pillar levels waiting to be placed. */
 	static int32 GetUnspentLevels(const UObject *WorldContext, FName CharacterKey);
 
+	/** B-232d: the copy itself (specs, debug); the readers above use it only on a client. */
+	const TArray<FName> &GetFoundFeatureIds() const { return FoundFeatureIds; }
+
 	// ---- Seats (Q-21-audit) ----
 
 	/** Server / specs: replace the roster. */
@@ -192,15 +195,19 @@ private:
 	UPROPERTY(Replicated)
 	TArray<FRunRosterEntry> Roster;
 
-	// B-232d: the run's progress that changes mid-level (PullRunProgress).
-	UPROPERTY(Replicated)
+	// B-232d: the run's progress that changes mid-level (PullRunProgress). On a client its arrival refreshes the map
+	// features (OnRep_RunProgress), which may have checked before it came.
+	UPROPERTY(ReplicatedUsing = OnRep_RunProgress)
 	TArray<FName> FoundFeatureIds;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_RunProgress)
 	TArray<TObjectPtr<UMemoryData>> RunMemories;
 
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_RunProgress)
 	TArray<FRunUnspentLevels> UnspentLevels;
+
+	UFUNCTION()
+	void OnRep_RunProgress();
 
 	/** Server only: who is waiting to join (D-150). */
 	UPROPERTY()

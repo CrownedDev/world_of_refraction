@@ -131,7 +131,8 @@ void FRunStateSpec::Define()
 		Run->PullFromSubsystems();
 		TestTrue(TEXT("a restored find, from the GameState"), URunStateComponent::HasFoundFeature(TestWorld->GetWorld(), TEXT("ChestOne")));
 		TrialRun->RecordFound(TEXT("ChestTwo"), FText::FromString(TEXT("another chest")));
-		TestTrue(TEXT("a find mid-level reaches the copy"), URunStateComponent::HasFoundFeature(TestWorld->GetWorld(), TEXT("ChestTwo")));
+		TestTrue(TEXT("a find mid-level"), URunStateComponent::HasFoundFeature(TestWorld->GetWorld(), TEXT("ChestTwo")));
+		TestTrue(TEXT("...reaches the copy a client reads"), Run->GetFoundFeatureIds().Contains(TEXT("ChestTwo")));
 		TestFalse(TEXT("not found"), URunStateComponent::HasFoundFeature(TestWorld->GetWorld(), TEXT("ChestThree")));
 		TrialRun->AddUnspentLevels(TEXT("Hero"), 2);
 		TestEqual(TEXT("waiting levels reach the copy"), URunStateComponent::GetUnspentLevels(TestWorld->GetWorld(), TEXT("Hero")), 2);
