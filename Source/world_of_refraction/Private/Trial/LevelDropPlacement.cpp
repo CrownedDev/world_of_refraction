@@ -12,6 +12,11 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "WoRGameNames.h"
+#include "Player/WoRPlayerState.h"
+#include "GameFramework/PlayerController.h"
+#include "Currency/EconomyYield.h"
+#include "Currency/CurrencyComponent.h"
 
 #define LOCTEXT_NAMESPACE "LevelDrops"
 
@@ -81,12 +86,62 @@ int32 WoRLevelDrops::GetLiveLevel(const UWorld *World, const FPartyMember &Membe
 	return FMath::Min(AssetLevel(*Member.CharacterData, Pillar) + HeadStart + Earned, WorldStatConstants::LIVE_MAX);
 }
 
+int32 WoRLevelDrops::GetPointPrice(const UWorld *World, const FPartyMember &Member)
+{
+	const UTrialRunSubsystem *Run = LevelDropRun(World);
+	const int32 Bought = Run ? Run->GetRunLevelPurchases(UPoolSubsystem::GetCharacterKey(Member)) : 0;
+	return EconomyYield::Constants::WORLDSTAT_BUY_BASE_COST + Bought * EconomyYield::Constants::WORLDSTAT_BUY_COST_STEP;
+}
+
+FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet)
+{
+	UTrialRunSubsystem *Run = LevelDropRun(World);
+	if (!Run || !Run->IsRunActive() || !Member.CharacterData)
+	{
+		return LOCTEXT("BuyNoRun", "No run to buy a point in");
+	}
+	if (!Run->IsAtRestSpot())
+	{
+		return LOCTEXT("BuyNotAtRest", "Points are bought at a rest spot");
+	}
+	const FText Name = FText::FromString(Member.CharacterData->Name);
+	const bool bAllAtCap = GetLiveLevel(World, Member, EWorldPillar::Mind) >= WorldStatConstants::LIVE_MAX
+						   && GetLiveLevel(World, Member, EWorldPillar::Body) >= WorldStatConstants::LIVE_MAX
+						   && GetLiveLevel(World, Member, EWorldPillar::Spirit) >= WorldStatConstants::LIVE_MAX;
+	if (bAllAtCap) // TODO: B-364 lets points go over the cap
+	{
+		return FText::Format(LOCTEXT("BuyAllAtCap", "{0}'s pillars are all at {1}"), Name, FText::AsNumber(WorldStatConstants::LIVE_MAX));
+	}
+	if (!Wallet)
+	{
+		// TODO: co-op (D-103): the buying player's own wallet, not the first local player's.
+		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+		const AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+		Wallet = Player ? Player->GetWallet() : nullptr;
+	}
+	const int32 Price = GetPointPrice(World, Member);
+	if (!Wallet || !Wallet->Spend(ECurrencyType::Gold, Price)) // the run currency (shown as Prisms, D-159)
+	{
+		return FText::Format(LOCTEXT("BuyTooFew", "A point costs {0} {1}"), FText::AsNumber(Price), WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+	}
+	const FName MemberKey = UPoolSubsystem::GetCharacterKey(Member);
+	Run->AddUnspentLevels(MemberKey, 1);
+	Run->AddRunLevelPurchase(MemberKey);
+	UE_LOG(LogTemp, Log, TEXT("[LevelDrops] %s bought a point for %d (next: %d)"), *MemberKey.ToString(), Price, GetPointPrice(World, Member));
+	return FText::GetEmpty();
+}
+
 FText WoRLevelDrops::TryPlaceLevel(UWorld *World, const FPartyMember &Member, EWorldPillar Pillar)
 {
 	UTrialRunSubsystem *Run = LevelDropRun(World);
 	if (!Run || !Run->IsRunActive() || !Member.CharacterData)
 	{
 		return LOCTEXT("NoRun", "No run to place a level in");
+	}
+	// B-363 (D-156): points are placed at a rest spot, not after the fight.
+	if (!Run->IsAtRestSpot())
+	{
+		return LOCTEXT("NotAtRest", "Pillar levels are placed at a rest spot");
 	}
 	const FName MemberKey = UPoolSubsystem::GetCharacterKey(Member);
 	const FText Name = FText::FromString(Member.CharacterData->Name);

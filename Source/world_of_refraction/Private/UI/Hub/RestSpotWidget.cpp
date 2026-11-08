@@ -15,6 +15,7 @@
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/InventoryWidget.h"
+#include "UI/Hub/LevelDropWidget.h"
 
 #define LOCTEXT_NAMESPACE "RestSpotWidget"
 
@@ -91,6 +92,8 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 
 		RestSpotStyle::AddText(WidgetTree, Box)->SetText(LOCTEXT("Rested", "Rest spot: the party is restored."));
 		PayoutText = RestSpotStyle::AddText(WidgetTree, Box);
+		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("LevelUp", "Level up"))
+			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Inventory", "Inventory"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInventoryClicked);
 		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
@@ -158,9 +161,17 @@ FString URestSpotWidget::GetRestSpotWidgetString() const
 						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"));
 }
 
+void URestSpotWidget::HandleLevelUpClicked()
+{
+	APlayerController *PC = GetOwningPlayer();
+	CloseMenu();
+	ULevelDropWidget::Open(PC); // B-363 (D-156): place and buy pillar points here
+}
+
 void URestSpotWidget::HandleInventoryClicked()
 {
 	APlayerController *PC = GetOwningPlayer();
+	WoRRestSpot::StepAway(GetWorld()); // review: the rest spot's levelling ends with its menu
 	CloseMenu();
 	UInventoryWidget::Open(PC);
 }
@@ -180,6 +191,7 @@ void URestSpotWidget::HandleConfirmLeaveClicked()
 
 void URestSpotWidget::HandleCloseClicked()
 {
+	WoRRestSpot::StepAway(GetWorld()); // review: closing the menu walks away from the rest spot
 	CloseMenu();
 }
 

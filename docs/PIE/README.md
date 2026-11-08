@@ -58,6 +58,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-371](B-371.md) | `feature/B-371-shot-patterns-cloud` (UNBUILT, on B-370) | Skills without a sequence get code-built cameras: shoulder push-in, projectile follow, impact punch, pull-out for several targets (Crown approves the look, B-157) | |
 | [B-073](B-073.md) | `feature/B-073-run-rewards-cloud` (UNBUILT) | A win pays run Prisms now; hub Gold and essences are tallied and paid at the run's end, win or lose; save v23 | Pending |
 | [B-187](B-187.md) | `feature/B-187-rest-spot-cloud` (UNBUILT, on B-073) | A rest spot heals, revives and becomes the last rest spot; leaving there pays half; placeholder rest menu | Pending |
+| [B-363](B-363.md) | `feature/B-363-levelling-at-rest-spots-cloud` (UNBUILT, on B-187) | Pillar points are placed and bought (run Prisms) only at rest spots | Pending |
 | [B-347b](B-347b.md) | `feature/B-347b-run-armoury` (in `dev`) | During a run a member sees and equips only what the run brought or found; left-home gear and loadouts come back intact; the chest waits until the run ends | Pending |
 | [B-366c](B-366c.md) | `feature/B-366c-shop-place-currency` (in `dev`) | Shops charge the hub currency (Gold) at home and the run currency (Prisms) in a run; cost lines, totals and Confirm follow it | Pending |
 | [B-366b](B-366b.md) | `fix/B-366b-convert-place-currency` (in `dev`) | Converting a duplicate pays the hub currency (Gold) at home and the run currency (Prisms) in a run; the texts name it | Pending |

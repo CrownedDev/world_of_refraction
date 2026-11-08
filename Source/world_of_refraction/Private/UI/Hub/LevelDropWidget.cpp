@@ -17,8 +17,11 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/LevelDropPlacement.h"
+#include "Trial/TrialRestSpot.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Currency/CurrencyTypes.h"
+#include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "LevelDropWidget"
 
@@ -106,6 +109,9 @@ TSharedRef<SWidget> ULevelDropWidget::RebuildWidget()
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBodyClicked);
 		LevelDropBuild::AddButton(WidgetTree, Box, WoRLevelDrops::GetPillarName(EWorldPillar::Spirit))
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleSpiritClicked);
+		UButton *Buy = LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Buy", "Purchase point"));
+		Buy->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBuyClicked);
+		BuyLabel = Cast<UTextBlock>(Buy->GetChildAt(0));
 		StatusLine = LevelDropBuild::AddText(WidgetTree, Box);
 		LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleCloseClicked);
 	}
@@ -170,6 +176,12 @@ void ULevelDropWidget::Refresh()
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Spirit),
 										  FText::AsNumber(WoRLevelDrops::GetLiveLevel(World, *Member, EWorldPillar::Spirit))));
 	}
+	if (BuyLabel)
+	{
+		BuyLabel->SetText(Member ? FText::Format(LOCTEXT("BuyPrice", "Purchase point ({0} {1})"), FText::AsNumber(WoRLevelDrops::GetPointPrice(GetWorld(), *Member)),
+												 WoRGameNames::GetCurrencyName(ECurrencyType::Gold))
+								 : LOCTEXT("BuyNone", "Purchase point"));
+	}
 	StatusLine->SetText(StatusText);
 }
 
@@ -213,8 +225,21 @@ void ULevelDropWidget::HandleBodyClicked() { Place(EWorldPillar::Body); }
 
 void ULevelDropWidget::HandleSpiritClicked() { Place(EWorldPillar::Spirit); }
 
+void ULevelDropWidget::HandleBuyClicked()
+{
+	const FPartyMember *Member = SelectedMember();
+	if (!Member)
+	{
+		return;
+	}
+	const FText Refusal = WoRLevelDrops::TryBuyPoint(GetWorld(), *Member);
+	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Bought", "{0}: +1 point to place"), FText::FromString(Member->CharacterData->Name)) : Refusal;
+	Refresh();
+}
+
 void ULevelDropWidget::HandleCloseClicked()
 {
+	WoRRestSpot::StepAway(GetWorld()); // B-363 review: placing and buying end with the rest spot's level screen
 	if (APlayerController *PC = GetOwningPlayer())
 	{
 		PC->SetInputMode(FInputModeGameOnly());

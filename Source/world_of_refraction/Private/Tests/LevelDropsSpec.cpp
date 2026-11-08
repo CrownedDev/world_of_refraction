@@ -10,6 +10,8 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Currency/CurrencyComponent.h"
+#include "Player/WoRPlayerState.h"
 #include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -64,6 +66,7 @@ void FLevelDropsSpec::Define()
 		if (Run)
 		{
 			Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), LEVEL_DROPS_TEST_SEED, 0, ETrialDifficulty::Medium, {}, {}, {});
+			Run->SetAtRestSpot(true); // B-363 (D-156): points are placed at a rest spot
 		}
 		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
 		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
@@ -122,6 +125,50 @@ void FLevelDropsSpec::Define()
 		TestEqual(TEXT("none left"), Run->GetUnspentLevels(KeyOf(Member)), 0);
 		Comp->SeedWorldStats();
 		TestEqual(TEXT("re-seed keeps the run's level"), Comp->GetWorldStat(EWorldPillar::Mind), LEVEL_DROPS_TEST_ASSET_MIND + 1);
+	});
+
+	It("places and buys points only at a rest spot; the price climbs per character (B-363, Q-156)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Run && Member))
+		{
+			return;
+		}
+		Run->AddUnspentLevels(KeyOf(Member), 1);
+		Run->SetAtRestSpot(false);
+		TestFalse(TEXT("away from a rest spot: refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body).IsEmpty());
+		TestFalse(TEXT("buying too"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member)).IsEmpty());
+		TestEqual(TEXT("the point still waits"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		Run->SetAtRestSpot(true);
+		const int32 First = WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member));
+		Run->AddRunLevelPurchase(KeyOf(Member));
+		TestTrue(TEXT("the next costs more"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member)) > First);
+		TestEqual(TEXT("another character's price is its own"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Absent)), First);
+		TestFalse(TEXT("no wallet here: buying refused"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member)).IsEmpty());
+	});
+
+	It("a win banks the drop without placing it; buying spends the ladder price (B-363 review)", [this]()
+	{
+		AWoRPlayerState *Player = TestWorld->GetWorld()->SpawnActor<AWoRPlayerState>();
+		UCurrencyComponent *Wallet = Player ? Player->GetWallet() : nullptr;
+		if (!TestTrue(TEXT("setup"), Run && Member && Wallet))
+		{
+			return;
+		}
+		const int32 MindBefore = WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind);
+		Run->AddUnspentLevels(KeyOf(Member), 1); // what a won fight's drop does (CombatOrchestrator::FinishCombat)
+		TestEqual(TEXT("banked"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		TestEqual(TEXT("not placed"), WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind), MindBefore);
+
+		const int32 Price = WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member));
+		Wallet->Add(ECurrencyType::Gold, Price - 1); // the run currency (shown as Prisms, D-159)
+		TestFalse(TEXT("one short: refused"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
+		TestEqual(TEXT("nothing spent"), Wallet->GetBalance(ECurrencyType::Gold), Price - 1);
+		Wallet->Add(ECurrencyType::Gold, 1);
+		TestTrue(TEXT("bought"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
+		TestEqual(TEXT("the price spent"), Wallet->GetBalance(ECurrencyType::Gold), 0);
+		TestEqual(TEXT("one more to place"), Run->GetUnspentLevels(KeyOf(Member)), 2);
+		TestEqual(TEXT("one purchase"), Run->GetRunLevelPurchases(KeyOf(Member)), 1);
+		TestTrue(TEXT("the next costs more"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member)) > Price);
 	});
 
 	It("a member not in the level keeps the level in the run", [this]()
