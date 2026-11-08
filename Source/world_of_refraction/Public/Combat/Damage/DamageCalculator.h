@@ -306,8 +306,10 @@ private:
 	/** Apply status effect modifiers to damage. ActionType gates the
 	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). B-382 (Q-164b): HitElement keys the
 	 *  attacker's DamageBuff / DamageDebuff: unkeyed (None) effects count for every hit, an element-keyed one only
-	 *  for a hit of its element. */
-	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType, ESpellElement HitElement) const;
+	 *  for a hit of its element. B-384 (D-167): bFoldAllDamage adds the four all-damage channels into one percent
+	 *  (false = the OBSOLETE multiplied path, wor.Damage.FoldAllDamage 0). */
+	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType, ESpellElement HitElement,
+									   bool bFoldAllDamage) const;
 
 	/** Attacker's EFFECTIVE (composed, crystal-aware) value for an arbitrary substat, used by the
 	 *  per-skill scaling-tier term. RawDamage/SpellDamage map to the SAME GetEvolutionModified* getters
