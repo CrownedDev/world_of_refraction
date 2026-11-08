@@ -15,6 +15,7 @@
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutRules.h"
+#include "Loadout/FSavedLoadout.h"
 #include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 
@@ -162,6 +163,37 @@ void FApparelSpec::Define()
 		TestTrue(TEXT("same id"), Back.PersistentID == Id);
 		TestEqual(TEXT("its crystal: Fire"), Back.GetElement(), ESpellElement::Fire);
 		TestEqual(TEXT("its roll"), Back.StatBonus.BonusDefense, 1);
+	});
+
+	It("keeps worn apparel through a saved loadout and follows a crystal set in play (B-380c)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("Pool"), Pool) || !TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.PersistentID = Pool->AddApparelToPool(Piece);
+		FCombatLoadout &Active = ActiveOf(Loadout);
+		TestTrue(TEXT("worn"), ApparelRules::AddApparel(Active, Piece));
+
+		// A crystal set in play reaches the worn copy, and its Fire resistance counts.
+		FRuntimeAttachedItem Gem;
+		Gem.Kind = EAttachedItemKind::Crystal;
+		Gem.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		TestTrue(TEXT("attached through the store"), Pool->AttachToApparel(Piece.PersistentID, Gem));
+		TestEqual(TEXT("the worn copy follows"), ActiveOf(Loadout).Apparel[0].GetElement(), ESpellElement::Fire);
+		TestFalse(TEXT("an unowned piece cannot be socketed"), Pool->AttachToApparel(FGuid::NewGuid(), Gem));
+
+		// Through a saved loadout and back: the same owned piece, with its crystal.
+		const UInventoryComponent *Inventory = Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>();
+		const FSavedLoadout Saved = ActiveOf(Loadout).ToSavedLoadout(ECharacterClass::Generic);
+		TestEqual(TEXT("saved with its id"), Saved.ApparelInstances.Num(), 1);
+		const FCombatLoadout Back = FCombatLoadout::CreateFromSavedLoadout(Saved, Inventory, nullptr);
+		TestEqual(TEXT("one piece back"), Back.Apparel.Num(), 1);
+		TestTrue(TEXT("the owned piece"), Back.Apparel.Num() == 1 && Back.Apparel[0].PersistentID == Piece.PersistentID);
+		TestTrue(TEXT("with its crystal"), Back.Apparel.Num() == 1 && Back.Apparel[0].GetElement() == ESpellElement::Fire);
 	});
 }
 
