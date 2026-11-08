@@ -1,4 +1,8 @@
-# Cloud writer handover (2026-11-08, second part, after the brain widened the rules) — IN PROGRESS
+# Cloud writer handover (2026-11-08, second part, after the brain widened the rules) — STOPPED: no cleanly writable job left
+
+**Why it stopped:** every remaining row is blocked or needs the desktop: B-233b (EOS: Crown's EOS product ids, Q-233), B-234b (hand-over: needs B-187's rest spot; B-187 waits on B-073, BLOCKED on D-048), B-235d's payout (B-073), B-351d (crystal spell lists: ~69 reads, needs a compiler), B-357b (left for the desktop), B-127 (editor spot-check first), B-107-109 (Crown's B-102 review), and the editor / VRoid / profiler jobs. Every branch here is UNBUILT: build, run the specs, then PIE.
+
+**Last review (B-235c / B-235d / B-231c / B-231c2), fixed:** B-235c only chests and the Prism pickup go to the host (lore / memory features showed and recorded on the host's side), chests key by player state; B-235d a memory is shared once, when the host's run newly unlocks it (the "even if the host had it" path never ran and FightTriggers re-sent it every fight); B-231c an attached effect falls back to the caster's spot. **Open for the builder:** telegraph tells and the Guard / Perfect Guard / Dodge bursts go by the Unreliable VFX multicast (a dropped one loses a defence cue: consider a reliable variant); check a client's chest item reaches its inventory on its screen; one B-235d docs commit touched 4 files (no history rewrite).
 
 The brain (Crown's coordinating session) widened the rules at 06:37 UTC: stack on my own UNBUILT branches where a job depends on one, pre-write the co-op jobs (headless specs + PIE sheet), write the CC part of CC+UE jobs; still skip B-340 and B-042f. Slicing L / M jobs into part 1 + a new row, as before.
 
