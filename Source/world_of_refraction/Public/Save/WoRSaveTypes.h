@@ -665,6 +665,32 @@ struct WORLD_OF_REFRACTION_API FSavedForms
 	TArray<FSoftObjectPath> CurrentOutfit;
 };
 
+/** B-377: one hidden quest's progress (MemoryCatalogue §3.6): steps done are kept across runs. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedQuestProgress
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName QuestId;
+
+	UPROPERTY()
+	int32 StepsDone = 0;
+
+	UPROPERTY()
+	bool bFinished = false;
+};
+
+/** B-377: this player's hidden quests (save v25). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedHiddenQuests
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedQuestProgress> Quests;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -685,4 +711,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedForms Forms;
+
+	UPROPERTY()
+	FSavedHiddenQuests HiddenQuests; // B-377
 };

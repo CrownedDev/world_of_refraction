@@ -20,6 +20,7 @@ bool UMemoryJournalSubsystem::RecordMemory(UMemoryData *Memory, EMemorySource So
 	Sources.Add(Source);
 	UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] Recorded %s from %s (%d in the journal)"), *Memory->GetMemoryId().ToString(),
 		   *UEnum::GetDisplayValueAsText(Source).ToString(), Memories.Num());
+	OnMemoryRecorded.Broadcast(Memory, Source); // B-377: hidden quests start here
 	return true;
 }
 

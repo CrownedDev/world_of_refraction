@@ -24,8 +24,13 @@ enum class EMemorySource : uint8
 	MapSpot UMETA(DisplayName = "Special spot on the map"),
 	BoundGear UMETA(DisplayName = "Bound gear"),
 	/** B-209 (D-100 part 2): a fight won met a memory's unlock conditions. */
-	FightWon UMETA(DisplayName = "Fight won")
+	FightWon UMETA(DisplayName = "Fight won"),
+	/** B-377: a hidden quest's last step was done (its end memory). */
+	HiddenQuest UMETA(DisplayName = "Hidden quest")
 };
+
+/** B-377: a memory went into this journal (hidden quests start from it). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMemoryRecorded, UMemoryData *, Memory, EMemorySource, Source);
 
 /** A lore object read on a trial map (B-194). */
 USTRUCT(BlueprintType)
@@ -49,6 +54,10 @@ class WORLD_OF_REFRACTION_API UMemoryJournalSubsystem : public UGameInstanceSubs
 	GENERATED_BODY()
 
 public:
+	/** B-377: after RecordMemory adds a memory (once per memory). */
+	UPROPERTY(BlueprintAssignable, Category = "Journal")
+	FOnMemoryRecorded OnMemoryRecorded;
+
 	/** Add Memory to the journal, noting where it came from. False when it is null or already
 	 *  there (the first source stays). */
 	bool RecordMemory(UMemoryData *Memory, EMemorySource Source);
