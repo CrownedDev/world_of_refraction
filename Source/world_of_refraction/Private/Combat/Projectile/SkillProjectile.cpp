@@ -32,6 +32,8 @@ namespace SkillProjectileConstants
 
     /** Time to wait after impact before destroying actor */
     constexpr float POST_IMPACT_LIFETIME = 2.0f;
+    /** B-231b: a client's copy goes after this long whatever happens (a lost target, a bad speed). TODO: tune. */
+    constexpr float COSMETIC_MAX_LIFETIME = 10.0f;
 
     /** Default collision radius (before scaling) */
     constexpr float DEFAULT_COLLISION_RADIUS = 50.f;
@@ -277,46 +279,49 @@ void ASkillProjectile::SetVFXAssets(
 
 FCosmeticProjectileLaunch ASkillProjectile::MakeCosmeticLaunch() const
 {
-    FCosmeticProjectileLaunch Launch;
-    Launch.ProjectileClass = GetClass();
-    Launch.MuzzleFX = MuzzleFX ? MuzzleFX->GetAsset() : nullptr;
-    Launch.TrailFX = ProjectileFX ? ProjectileFX->GetAsset() : nullptr;
-    Launch.ImpactFX = HitFX ? HitFX->GetAsset() : nullptr;
-    Launch.Target = Target;
-    Launch.TargetLocation = TargetLocation;
-    Launch.Speed = Speed;
-    Launch.Element = Element;
-    Launch.VisualScale = VisualScale;
-    return Launch;
+    FCosmeticProjectileLaunch Out;
+    Out.ProjectileClass = GetClass();
+    Out.MuzzleFX = MuzzleFX ? MuzzleFX->GetAsset() : nullptr;
+    Out.TrailFX = ProjectileFX ? ProjectileFX->GetAsset() : nullptr;
+    Out.ImpactFX = HitFX ? HitFX->GetAsset() : nullptr;
+    Out.Target = Target;
+    Out.TargetLocation = TargetLocation;
+    Out.Speed = Speed;
+    Out.Element = Element;
+    Out.VisualScale = VisualScale;
+    return Out;
 }
 
-void ASkillProjectile::InitializeCosmetic(AActor *InCaster, const FCosmeticProjectileLaunch &Launch)
+void ASkillProjectile::InitializeCosmetic(AActor *InCaster, const FCosmeticProjectileLaunch &InLaunch)
 {
     bCosmeticOnly = true;
     DeliveryType = ESpellDeliveryType::Projectile;
     Caster = InCaster;
-    Target = Launch.Target;
-    Speed = Launch.Speed;
-    Element = Launch.Element;
-    VisualScale = Launch.VisualScale;
+    Target = InLaunch.Target; // may be null on a client the target hasn't replicated to: the copy flies to the spot
+    // Review fix: a copy always ends (no target, a zero speed); it never needs more than this.
+    Speed = InLaunch.Speed > 0.0f ? InLaunch.Speed : SkillProjectileConstants::DEFAULT_SPEED;
+    SetLifeSpan(SkillProjectileConstants::COSMETIC_MAX_LIFETIME);
+    Element = InLaunch.Element;
+    VisualScale = InLaunch.VisualScale;
     HitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision); // a copy touches nothing
     if (Caster)
     {
         SetActorLocation(Caster->GetActorLocation());
     }
-    TargetLocation = Launch.TargetLocation; // the server's fixed spot, not the target's position now
+    TargetLocation = InLaunch.TargetLocation; // the server's fixed spot, not the target's position now
     const FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
     if (!Direction.IsNearlyZero())
     {
         SetActorRotation(Direction.Rotation());
     }
-    SetVFXAssets(Launch.MuzzleFX, Launch.TrailFX, Launch.ImpactFX);
+    SetVFXAssets(InLaunch.MuzzleFX, InLaunch.TrailFX, InLaunch.ImpactFX);
 }
 
 void ASkillProjectile::Launch()
 {
     // Validate setup
-    if (!Caster || !Target)
+    // B-231b (review): a cosmetic copy needs no target (it flies to the server's spot).
+    if (!Caster || (!Target && !bCosmeticOnly))
     {
         UE_LOG(LogTemp, Warning, TEXT("[SkillProjectile] Launch called without valid Caster/Target"));
         return;
@@ -346,7 +351,7 @@ void ASkillProjectile::Launch()
     SetActorTickEnabled(true);
 
     UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Launched toward %s (VFX: %s)"),
-           *Target->GetName(),
+           *GetNameSafe(Target),
            (ProjectileFX && ProjectileFX->GetAsset()) ? TEXT("Active") : TEXT("None"));
 }
 
