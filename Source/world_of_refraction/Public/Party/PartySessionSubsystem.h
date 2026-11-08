@@ -187,6 +187,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool SetMemberAISeatDifficulty(int32 SlotIndex, EAIDifficulty Difficulty);
 
+	/** B-348b: stores a member's head-start allocation (UCharacterDataComponent::SetHeadStartAllocation validates the
+	 *  budget and writes through). False for an invalid slot. */
+	bool SetMemberHeadStart(int32 SlotIndex, int32 Mind, int32 Body, int32 Spirit);
+
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberAISeat(int32 SlotIndex) const;

@@ -762,6 +762,21 @@ bool UPartySessionSubsystem::SetMemberAISeatDifficulty(int32 SlotIndex, EAIDiffi
 	return true;
 }
 
+bool UPartySessionSubsystem::SetMemberHeadStart(int32 SlotIndex, int32 Mind, int32 Body, int32 Spirit)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	FPartyMember &Member = Party->Members[SlotIndex];
+	Member.HeadStartMind = Mind;
+	Member.HeadStartBody = Body;
+	Member.HeadStartSpirit = Spirit;
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d head-start %d / %d / %d (B-348b)"), SlotIndex, Mind, Body, Spirit);
+	return true;
+}
+
 bool UPartySessionSubsystem::IsMemberAISeat(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();
