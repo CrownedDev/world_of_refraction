@@ -266,7 +266,7 @@ void URestSpotWidget::HandleReviveClicked()
 	}
 	if (GameState->StartReviveVote(Player) == EReviveVoteResult::Passed)
 	{
-		CloseMenu(); // solo, or nobody else outside battle: the level reloads
+		CloseMenu(); // solo, or nobody else outside battle: the level reloads (after the fight, if one runs: Q-187e2)
 		return;
 	}
 	Refresh();
