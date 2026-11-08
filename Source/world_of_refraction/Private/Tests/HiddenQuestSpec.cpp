@@ -13,7 +13,6 @@
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
-#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -46,7 +45,10 @@ void FHiddenQuestSpec::Define()
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		Journal = TestWorld->GetSubsystem<UMemoryJournalSubsystem>();
 		Quests = TestWorld->GetSubsystem<UHiddenQuestSubsystem>();
-		TestTrue(TEXT("Subsystems"), Journal && Quests);
+		if (!TestTrue(TEXT("Subsystems"), Journal && Quests))
+		{
+			return;
+		}
 
 		StartMemory = NewObject<UMemoryData>(GetTransientPackage());
 		EndMemory = NewObject<UMemoryData>(GetTransientPackage());
@@ -92,6 +94,7 @@ void FHiddenQuestSpec::Define()
 		const FName Id = Quest->GetQuestId();
 		TestEqual(TEXT("not started: nothing moves"), Quests->CheckEvent(AtLocation(), {Quest}), 0);
 		Quests->StartQuest(Quest);
+		TestEqual(TEXT("the event that started it does not count (Q-377)"), Quests->CheckEvent(AtLocation(), {Quest}), 0);
 		TestEqual(TEXT("elsewhere: no step"), Quests->CheckEvent(FMemoryEvent(), {Quest}), 0);
 		TestEqual(TEXT("step 1 done"), Quests->CheckEvent(AtLocation(), {Quest}), 1);
 		TestEqual(TEXT("step 2 needs two this run: once"), Quests->CheckEvent(AtLocation(), {Quest}), 0);
@@ -110,6 +113,7 @@ void FHiddenQuestSpec::Define()
 	It("keeps steps done through its save struct (D-059)", [this]()
 	{
 		Quests->StartQuest(Quest);
+		Quests->CheckEvent(FMemoryEvent(), {Quest}); // the start's own event
 		Quests->CheckEvent(AtLocation(), {Quest});
 		const FSavedHiddenQuests Saved = Quests->Capture();
 		Quests->Restore(FSavedHiddenQuests());

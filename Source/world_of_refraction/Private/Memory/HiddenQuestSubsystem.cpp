@@ -15,6 +15,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
 #include "Trial/TrialMapFeature.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "HiddenQuest"
@@ -80,7 +81,7 @@ void UHiddenQuestSubsystem::HandleMemoryRecorded(UMemoryData *Memory, EMemorySou
 	}
 	if (Quests.IsEmpty())
 	{
-		Quests = UHiddenQuestData::GatherAll();
+		Quests = GetAllQuests();
 	}
 	for (const UHiddenQuestData *Quest : Quests)
 	{
@@ -107,8 +108,14 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 		return false;
 	}
 	Progress.Add(Quest->GetQuestId());
+	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
 	ATrialMapFeature::ShowMessage(LOCTEXT("QuestStarted", "Something has begun.")); // private; no hint of what (D-100)
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s started (%d step(s))"), *Quest->GetQuestId().ToString(), Quest->Steps.Num());
+	if (Quest->Steps.IsEmpty())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s has no steps: finished at once"), *Quest->GetQuestId().ToString());
+		Finish(*Quest);
+	}
 	return true;
 }
 
@@ -117,10 +124,14 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<
 	const UMemoryJournalSubsystem *Journal = GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>();
 	const FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
 	int32 StepsDoneNow = 0;
+	// Quests started by this event (or since the last one) wait for the next event; one this loop starts waits too.
+	const TSet<FName> StartedJustNow = MoveTemp(JustStarted);
+	JustStarted.Reset();
 	for (const UHiddenQuestData *Quest : Quests)
 	{
 		FHiddenQuestProgress *Entry = Quest ? Progress.Find(Quest->GetQuestId()) : nullptr;
-		if (!Entry || Entry->bFinished || !Quest->Steps.IsValidIndex(Entry->StepsDone))
+		if (!Entry || Entry->bFinished || !Quest->Steps.IsValidIndex(Entry->StepsDone) || StartedJustNow.Contains(Quest->GetQuestId()) ||
+			JustStarted.Contains(Quest->GetQuestId()))
 		{
 			continue;
 		}
@@ -135,9 +146,7 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<
 		UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s: step %d of %d done"), *Quest->GetQuestId().ToString(), Entry->StepsDone, Quest->Steps.Num());
 		if (Entry->StepsDone >= Quest->Steps.Num())
 		{
-			Entry->bFinished = true;
-			MemoryUnlock::Unlock(GetGameInstance(), Quest->EndMemory, EMemorySource::HiddenQuest);
-			UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s finished"), *Quest->GetQuestId().ToString());
+			Finish(*Quest); // may start another quest (Progress grows): Entry is not used after this
 		}
 		else
 		{
@@ -149,7 +158,52 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<
 
 int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event)
 {
-	return Progress.IsEmpty() ? 0 : CheckEvent(Event, UHiddenQuestData::GatherAll());
+	return Progress.IsEmpty() ? 0 : CheckEvent(Event, GetAllQuests());
+}
+
+TArray<UHiddenQuestData *> UHiddenQuestSubsystem::GetAllQuests()
+{
+	if (!bGatheredQuests)
+	{
+		AllQuests.Reset();
+		for (UHiddenQuestData *Quest : UHiddenQuestData::GatherAll())
+		{
+			AllQuests.Add(Quest);
+		}
+		bGatheredQuests = true; // once per game instance: the registry load is not repeated per event
+	}
+	TArray<UHiddenQuestData *> Quests;
+	for (UHiddenQuestData *Quest : AllQuests)
+	{
+		Quests.Add(Quest);
+	}
+	return Quests;
+}
+
+void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
+{
+	if (FHiddenQuestProgress *Entry = Progress.Find(Quest.GetQuestId()))
+	{
+		Entry->bFinished = true;
+	}
+	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s finished"), *Quest.GetQuestId().ToString());
+	if (!Quest.EndMemory)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s has no end memory"), *Quest.GetQuestId().ToString());
+		return;
+	}
+	// Review: the end memory is this player's alone (they did the quest, Q-235d), never shared with friends, and not
+	// refused on a client for whose character it is: recorded straight into this player's run and journal.
+	UGameInstance *GI = GetGameInstance();
+	if (UTrialRunSubsystem *TrialRun = GI->GetSubsystem<UTrialRunSubsystem>())
+	{
+		TrialRun->CollectMemory(Quest.EndMemory);
+	}
+	UMemoryJournalSubsystem *Journal = GI->GetSubsystem<UMemoryJournalSubsystem>();
+	if (Journal && Journal->RecordMemory(Quest.EndMemory, EMemorySource::HiddenQuest))
+	{
+		ATrialMapFeature::ShowMessage(FText::Format(LOCTEXT("QuestEnded", "New memory: {0}"), Quest.EndMemory->Title));
+	}
 }
 
 void UHiddenQuestSubsystem::EndRun()
