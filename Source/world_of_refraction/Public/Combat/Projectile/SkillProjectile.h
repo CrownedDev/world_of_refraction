@@ -258,8 +258,9 @@ public:
     FCosmeticProjectileLaunch MakeCosmeticLaunch() const;
 
     /** B-231b (client): set up as a cosmetic copy from the server's launch: same path, speed, element, scale and
-     *  VFX; it bursts on arrival and does nothing else (no dodge check, no impact or dodge event). Then Launch(). */
-    void InitializeCosmetic(AActor *InCaster, const FCosmeticProjectileLaunch &Launch);
+     *  VFX; it bursts on arrival and does nothing else (no dodge check, no impact or dodge event). Then Launch().
+     *  It needs no target (one not replicated yet) and always ends (COSMETIC_MAX_LIFETIME). */
+    void InitializeCosmetic(AActor *InCaster, const FCosmeticProjectileLaunch &InLaunch);
 
     /** B-231b: a client's copy (no gameplay). */
     bool IsCosmeticOnly() const { return bCosmeticOnly; }
