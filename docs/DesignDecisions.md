@@ -2097,7 +2097,8 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Options / as built:** (1) **A** at most 3 per pillar (a pillar reads 7 + 3). **B** no limit. (2) **A** +5 % to every sub-stat point under that pillar per over-cap point (at most +15 %). **B** +10 %. (3) **A** no: they sit on top of the 21 (the cap stays the 21 a normal run can reach).
 **Recommendation:** (1) A: pillar 6 needs a ceiling; Diablo III's Paragon points past the level cap were liked for keeping every kill worth something, and its later caps on most Paragon categories kept the gap from running away. (2) A: small steps keep gear and build (pillar 6) the bigger lever: +15 % at most is less than one tier step of gear. (3) A: the cap of 7 per pillar and 21 in all stays the baseline (`analysis/BaselineNumbers.md`); over-cap is the reward past it.
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-04). Crown may change any of them; the limit and the step are named constants.
-**Notes for Claude:** B-364. A wipe takes over-cap points first (Q-155).
+**Notes for Claude:** B-364. A wipe takes over-cap points first (Q-155); moot since D-160 (a wipe takes no pillar points).
+**As built (B-364, flag for Crown):** the +5 % multiplies the pillar's composed value (`GetEvolutionModified{Mind,Body,Spirit}`), which every reader of that pillar uses: the sub-stats, and also the pillar's other uses (turn speed, `TurnManager.cpp`; the damage multiplier, `DamageCalculator.cpp`; the pillar's part of MaxHP / MaxEP). That is the simplest "one multiplier" (D-157); if only sub-stat points should rise, the multiplier moves into each sub-stat getter instead.
 
 ### D-158 — Flawless Parry: every hit of one enemy attack or spell perfectly defended
 **Status:** DECIDED (Crown, 2026-11-04, via the brain) · **Raised:** 2026-11-04 · **Blocks:** —
