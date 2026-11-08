@@ -181,6 +181,10 @@ namespace
 		}
 		if (Condition.Subject == EWoRConditionSubject::MemoryCollected)
 		{
+			if (Context.KnownMemoryIds)
+			{
+				return Condition.PriorMemory && Context.KnownMemoryIds->Contains(Condition.PriorMemory->GetMemoryId()); // B-235e
+			}
 			return Condition.PriorMemory && Context.Journal && Context.Journal->HasMemory(Condition.PriorMemory);
 		}
 		if (Condition.Subject == EWoRConditionSubject::FlawlessParry)
