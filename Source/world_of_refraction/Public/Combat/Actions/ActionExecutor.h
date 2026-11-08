@@ -496,7 +496,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void DebugAsyncState();
 
-	// Console trigger is wor.ForceReset (in the .cpp) — a subsystem
+	// Console trigger is wor.Combat.ForceReset (in the .cpp) — a subsystem
 	// is not on the engine's Exec dispatch chain.
 	void DebugForceResetAsync();
 

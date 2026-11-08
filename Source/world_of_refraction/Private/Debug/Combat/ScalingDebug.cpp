@@ -118,7 +118,7 @@ namespace
     {
         if (!World)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] WoR.ScalingSnapshot: no world"));
+            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] wor.Scaling.Print: no world"));
             return;
         }
 
@@ -126,14 +126,14 @@ namespace
             Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
         if (!Orchestrator)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] WoR.ScalingSnapshot: no CombatOrchestrator (run during a PIE combat)"));
+            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] wor.Scaling.Print: no CombatOrchestrator (run during a PIE combat)"));
             return;
         }
 
         AActor *Attacker = Orchestrator->GetCurrentActor();
         if (!Attacker)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] WoR.ScalingSnapshot: no current-turn actor"));
+            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] wor.Scaling.Print: no current-turn actor"));
             return;
         }
 
@@ -141,19 +141,19 @@ namespace
         AActor *Defender = Enemies.Num() > 0 ? Enemies[0] : nullptr;
         if (!Defender)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] WoR.ScalingSnapshot: no living enemy for %s"), *Attacker->GetName());
+            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] wor.Scaling.Print: no living enemy for %s"), *Attacker->GetName());
             return;
         }
 
         ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>();
         if (!Loadout)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] WoR.ScalingSnapshot: %s has no LoadoutComponent"), *Attacker->GetName());
+            UE_LOG(LogTemp, Warning, TEXT("[ScalingDebug] wor.Scaling.Print: %s has no LoadoutComponent"), *Attacker->GetName());
             return;
         }
 
         const TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
-        UE_LOG(LogTemp, Display, TEXT("[ScalingDebug] WoR.ScalingSnapshot: %s vs %s — %d abilit%s"),
+        UE_LOG(LogTemp, Display, TEXT("[ScalingDebug] wor.Scaling.Print: %s vs %s — %d abilit%s"),
                *Attacker->GetName(), *Defender->GetName(), Abilities.Num(),
                Abilities.Num() == 1 ? TEXT("y") : TEXT("ies"));
 
@@ -168,7 +168,7 @@ namespace
 }
 
 static FAutoConsoleCommandWithWorld GScalingSnapshotCommand(
-    TEXT("WoR.ScalingSnapshot"),
+    TEXT("wor.Scaling.Print"),
     TEXT("Snapshot the attacker-side scaling (AttackerMultiplier + FinalDamage) for the current-turn actor's ")
     TEXT("available abilities vs the first living enemy. Baseline-capture for the unified-scaling-tiers arc — ")
     TEXT("run before stage b2, re-run after with empty StatScaling to verify byte-identical."),

@@ -5522,7 +5522,7 @@ void UActionExecutor::ApplySkillEffects(
 		// Event gate — once per effect (the condition group gates the whole bundle): the
 		// source-side AND/OR group against the action's events. Empty Conditions[] == Always
 		// (unconditional). Target-side conditions are skipped — they ride the runtime effect.
-		const bool bConditionMet = SkillConditions::IsGroupMet(Effect.Conditions, ESkillCheck::ActionResult, ActionContext,
+		const bool bConditionMet = SkillConditions::IsGroupMet(SkillConditions::GroupOf(Effect), ESkillCheck::ActionResult, ActionContext, // B-337e
 																 /*bHasTarget=*/false); // target-side never takes part here
 
 		if (!bConditionMet)
@@ -5841,7 +5841,7 @@ void UActionExecutor::DebugForceResetAsync()
 namespace
 {
 	static FAutoConsoleCommandWithWorld GForceResetCmd(
-		TEXT("wor.ForceReset"),
+		TEXT("wor.Combat.ForceReset"),
 		TEXT("Force-reset a stuck async action execution context on the ActionExecutor (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -5854,7 +5854,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] wor.ForceReset: no subsystem (no PIE world?)."));
+					UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] wor.Combat.ForceReset: no subsystem (no PIE world?)."));
 				}
 			}));
 }
