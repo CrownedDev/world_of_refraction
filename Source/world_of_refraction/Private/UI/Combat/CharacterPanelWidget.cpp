@@ -130,7 +130,10 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		BoundStatusBarState = BarState;
 		BarState->OnBarChanged.AddDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 		const FReplicatedStatusBar &Bar = BarState->GetBar();
-		HandleStatusBuildupChanged(InActor, Bar.Current, Bar.Max, Bar.PendingElement, Bar.Source); // what already arrived
+		if (Bar.Max > 0.0f) // review fix: nothing arrived yet draws no 0 / 0 bar; OnBarChanged draws the first one
+		{
+			HandleStatusBuildupChanged(InActor, Bar.Current, Bar.Max, Bar.PendingElement, Bar.Source); // what already arrived
+		}
 	}
 	// B-318: on a guest the list follows the server's snapshot (the effect manager's events don't fire there).
 	if (UWoREffectMirrorComponent *Mirror = InActor->FindComponentByClass<UWoREffectMirrorComponent>())

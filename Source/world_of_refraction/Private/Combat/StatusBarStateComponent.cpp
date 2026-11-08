@@ -2,6 +2,9 @@
 
 #include "Combat/StatusBarStateComponent.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "EngineUtils.h"
+#include "HAL/IConsoleManager.h"
+#include "WoRLog.h"
 #include "Net/UnrealNetwork.h"
 
 UStatusBarStateComponent::UStatusBarStateComponent()
@@ -65,3 +68,24 @@ void UStatusBarStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UStatusBarStateComponent, Bar);
 }
+
+static FAutoConsoleCommandWithWorld GStatusBarsCommand(
+	TEXT("wor.Status.Bars"),
+	TEXT("B-230: every combatant's replicated status bar (on a client: what the server sent)."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		if (!World)
+		{
+			return;
+		}
+		int32 Count = 0;
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (const UStatusBarStateComponent *BarState = It->FindComponentByClass<UStatusBarStateComponent>())
+			{
+				UE_LOG(LogWoR, Display, TEXT("[StatusBars] %s"), *BarState->GetDebugString());
+				++Count;
+			}
+		}
+		UE_LOG(LogWoR, Display, TEXT("[StatusBars] %d combatant(s)"), Count);
+	}));
