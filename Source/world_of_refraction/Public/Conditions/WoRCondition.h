@@ -120,6 +120,9 @@ enum class EWoRConditionSubject : uint8
 	Defender = 25,
 	/** B-337d: never holds (a skill condition authored None, "Disabled"). */
 	Disabled = 26,
+	/** B-376 (MemoryCatalogue §3.7): Character is present in the event's whole team (FMemoryEvent::Present: every
+	 *  player's characters in co-op), not only in the part being read. Pair memories use two of these. */
+	CharacterPresent = 27,
 };
 
 /** Whose state a fight subject reads (the deckbuilder's Who). Append only. */
