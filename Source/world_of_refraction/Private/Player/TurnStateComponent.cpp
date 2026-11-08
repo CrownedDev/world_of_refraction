@@ -209,9 +209,11 @@ void UTurnStateComponent::UpdateClientCombatHUD()
 	// arrived, every member resolved: a later OnRep retries until then (review fix).
 	const TArray<AActor *> Party = GetTeamMembers(0);
 	const TArray<AActor *> Enemies = GetTeamMembers(1);
-	const auto AllValid = [](const TArray<AActor *> &Side) { return !Side.IsEmpty() && !Side.Contains(nullptr); };
+	// Desktop review: GetTeamMembers drops unresolved actors, so check the raw entries. An entry whose actor has not
+	// arrived yet is null here; when it maps, the engine calls OnRep_TurnState again and this retries.
+	const bool bEveryActorArrived = !Teams.ContainsByPredicate([](const FTurnStateTeam &Entry) { return !Entry.Actor; });
 	APlayerController *PC = World->GetFirstPlayerController();
-	if (!AllValid(Party) || !AllValid(Enemies) || !PC || !PC->GetLocalPlayer())
+	if (!bEveryActorArrived || Party.IsEmpty() || Enemies.IsEmpty() || !PC || !PC->GetLocalPlayer())
 	{
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnState] Client: combat on, waiting for both sides before building the HUD"));
 		return;
