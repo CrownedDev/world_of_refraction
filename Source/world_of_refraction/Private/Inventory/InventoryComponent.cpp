@@ -1027,6 +1027,9 @@ namespace InventoryGearSync
     void CopyOwned(TEntry &Slot, const TEntry &Owned)
     {
         TArray<USpellData *> Picks = MoveTemp(Slot.AssignedSpells);
+        // B-351d (D-145): an edited copy's spell-list picks lead until WriteLoadoutToOwned, like its skill picks.
+        const bool bKeepSpellPicks = Slot.bSpellSlotsActive;
+        TArray<USpellData *> SpellPicks = MoveTemp(Slot.SpellPicks);
         if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
         {
             // B-351 (D-145): the loadout copy's skill picks lead until WriteLoadoutToOwned, like its spells;
@@ -1038,11 +1041,21 @@ namespace InventoryGearSync
                 Slot.AssignedSpells = MoveTemp(Picks);
                 Slot.SkillPicks = MoveTemp(SkillPicks);
                 Slot.bSkillSlotsActive = true;
+                if (bKeepSpellPicks)
+                {
+                    Slot.SpellPicks = MoveTemp(SpellPicks);
+                    Slot.bSpellSlotsActive = true;
+                }
                 return;
             }
         }
         Slot = Owned;
         Slot.AssignedSpells = MoveTemp(Picks);
+        if (bKeepSpellPicks)
+        {
+            Slot.SpellPicks = MoveTemp(SpellPicks);
+            Slot.bSpellSlotsActive = true;
+        }
     }
 
     void CopyOwnedEvolution(FEvolutionAttachment &Slot, const FEvolutionInventoryEntry &Owned)
@@ -1275,6 +1288,8 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
                             Owned->SkillPicks = Slot.SkillPicks;   // B-351 (D-145): the picks live on the item
                             Owned->bSkillSlotsActive = Slot.bSkillSlotsActive;
+                            Owned->SpellPicks = Slot.SpellPicks;   // B-351d (D-145): so does the crystal's spell list
+                            Owned->bSpellSlotsActive = Slot.bSpellSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     },
@@ -1284,6 +1299,8 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
+                            Owned->SpellPicks = Slot.SpellPicks;   // B-351d (D-145)
+                            Owned->bSpellSlotsActive = Slot.bSpellSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     });
