@@ -4265,7 +4265,7 @@ Moved here once applied. Newest first.
 **Notes for Claude:** (1) as Crown changed it: `WoRRestSpot::RestsMember`, the presser's claimed members (`AWoRPlayerState::ClaimsMember` / `ClaimsCharacter`), plus, for the host, every member no player claims (unclaimed and AI seats); `UPartySessionSubsystem::RestMembersWhere`. Earlier note: B-187d (`WoRRestSpot::Rest` on the host, `ATrialChest::Interact` / `IsOpenedByAnyone`, `TrialReturn::GetReturnStand`). (1) restores the host's party, which holds every seat (B-360b); a friend's character outside it is not restored (TODO with B-187e).
 
 ### Q-187e — Co-op rest menu: what a client's Revive and Leave do
-**Status:** ANSWERED (Crown, 2026-11-08: (1) changed to a vote; (2) A kept) · **Raised:** 2026-11-08 (B-187e, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-08: (1) changed to a vote; (2) A confirmed by Crown: Leave stays personal) · **Raised:** 2026-11-08 (B-187e, cloud) · **Blocks:** —
 **Question:** The run lives on the host. From a client's rest menu: (1) what does Revive the mini-boss do? (2) what does Leave do?
 **Options / as built:** (1) **A** asks the host, which revives it for everyone (the party fights it again) / B host only, hidden on clients. (2) **A** the client leaves the session only, back to their own hub; the run and its rewards stay with the others / B asks the host to end the run for everyone / C hidden on clients.
 **Recommendation:** all A. Monster Hunter lets any hunter abandon a quest alone (they leave, the others carry on, and the leaver gets no reward); Deep Rock Galactic likewise lets a player leave a mission without ending it. A shared revive is the party's choice like resting is (Q-187d).
@@ -4368,3 +4368,10 @@ Moved here once applied. Newest first.
 - An element-keyed DamageBuff effect reads through `GetTotalStatModifierForElement`.
 - The `wor.Damage` breakdown shows the Amp line.
 - Add a DamageCalculatorSpec case.
+### Q-187e2 — A passed revive vote while someone is in a fight
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187e review, cloud) · **Blocks:** —
+**Question:** Q-187e lets players outside battle vote while another player fights. But a revive reloads the whole level, which would end that player's fight. What happens when the vote passes during a fight?
+**Options / as built:** **A** it waits: everyone is told "the mini-boss returns when the fight ends", and the host revives it once no fight is running; no new vote starts meanwhile / B it fails ("a fight is on") / C the fight is ended.
+**Recommendation:** A. Baldur's Gate 3 never lets a party long rest while anyone is in combat; the request has to wait until the fight is over. That way the agreed revive isn't lost and nobody's fight is cut short. B would throw away a vote everyone agreed to, and C would wipe a fight.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
+**Notes for Claude (as built):** `AWoRGameState::CloseReviveVote` sets `bReviveWaitsForFight`; the 1 s vote timer revives once `IsAnyFightActive` is false. `ReviveAfterVote` checks `CanReviveHere` again, and the message says what really happened. The client's `ServerReviveMiniBoss` refuses only a player who is in a fight themselves, like the host's path.
