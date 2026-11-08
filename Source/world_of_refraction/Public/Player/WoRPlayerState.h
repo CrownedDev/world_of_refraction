@@ -81,6 +81,11 @@ public:
 	/** B-235b: a map feature's message for this player alone (a Prism pickup), shown on their own screen. */
 	UFUNCTION(Client, Reliable)
 	void Client_ShowFeatureMessage(const FText &Message);
+
+	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
+	 *  player's pawn, if it stands in the feature's trigger. */
+	UFUNCTION(Server, Reliable)
+	void ServerInteractFeature(class ATrialMapFeature *Feature);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 	/** B-234 (host): sends this remote player the host's compressed save as checkpoint CheckpointId, in chunks. */
