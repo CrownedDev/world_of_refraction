@@ -14,6 +14,7 @@
 #include "Trial/RunRewards.h"
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Online/HostSuccession.h"
 #include "UI/Hub/InventoryWidget.h"
 #include "UI/Hub/LevelDropWidget.h"
 
@@ -99,6 +100,8 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
+		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host (the next player hosts; you rejoin)"));
+		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
@@ -133,6 +136,14 @@ void URestSpotWidget::Refresh()
 	if (ConfirmButton)
 	{
 		ConfirmButton->SetVisibility(bConfirmingLeave ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (HandOverButton)
+	{
+		// B-234c: only a host with another player can hand over.
+		const UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr;
+		const UWorld *World = GetWorld();
+		const bool bCanHandOver = HandOver && World && WoRHostSuccession::CanHandOverFrom(World->GetNetMode(), HandOver->GetKnownOrder().Num());
+		HandOverButton->SetVisibility(bCanHandOver ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	// B-187b: only at a mini-boss's rest spot that can still be revived.
 	const bool bCanRevive = WoRRestSpot::CanReviveHere(GetWorld());
@@ -187,6 +198,18 @@ void URestSpotWidget::HandleConfirmLeaveClicked()
 	UWorld *World = GetWorld();
 	CloseMenu();
 	WoRRestSpot::LeaveRun(World);
+}
+
+void URestSpotWidget::HandleHandOverClicked()
+{
+	UWorld *World = GetWorld();
+	UGameInstance *GI = GetGameInstance();
+	UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr;
+	CloseMenu();
+	if (HandOver)
+	{
+		HandOver->BeginPlannedHandOver(World);
+	}
 }
 
 void URestSpotWidget::HandleCloseClicked()

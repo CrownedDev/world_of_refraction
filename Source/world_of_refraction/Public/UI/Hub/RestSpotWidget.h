@@ -51,6 +51,9 @@ private:
 	/** B-187b (Q-187b): revive the mini-boss whose rest spot this is (shown only when it can be). */
 	UFUNCTION()
 	void HandleReviveClicked();
+	/** B-234c: the host hands the run over to the next player (shown only to a host with another player). */
+	UFUNCTION()
+	void HandleHandOverClicked();
 
 	void CloseMenu();
 
@@ -72,4 +75,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ReviveLabel;
+	/** B-234c: Hand over host. */
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> HandOverButton;
 };
