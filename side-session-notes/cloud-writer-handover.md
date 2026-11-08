@@ -1,3 +1,12 @@
+# Cloud writer handover (2026-11-08, fourth part: the brain sent more) — WORKING
+
+**The brain (10:46 UTC):** (1) B-235d part 3 → written as row **B-235e**; (2) **B-187d** → written, with B-235c merged in; (3) `docs/Design/MemoryCatalogue.md` §6 build rows come once Crown answers its defaults (waiting for the brain's message).
+
+| Job | Branch | State | Q- defaults chosen |
+|---|---|---|---|
+| B-235e | `feature/B-235e-own-memory-finds-cloud` (**on** B-235d) | REVIEW (UNBUILT), reviewed and fixed: a client's own map spot (overlap only on the walker's machine) and fragment are its finds, reported to the host (`ServerReportFoundMemory`; one for everyone shared from the host); worn-item and reaction memories go to the wearer's player (`MemoryUnlock::UnlockFoundBy`, FightTriggers too); the host knows each friend's memories (`KnownMemoryIds`, journal reported from `ClientInitialize`) and a friend's PriorMemory reads them (`FWoRConditionContext::KnownMemoryIds`); co-op CheckEvent lets PickReceivers decide who met it; a client refuses a memory for none of its characters. Spec case; ER-12e, PIE B-235e. Commit 92cfecde does not build alone | none new (Q-235d, Crown) |
+| B-187d | `feature/B-187d-co-op-rest-cloud` (**on** B-187c, B-235c merged in) | REVIEW (UNBUILT, **merge-resolved without a compiler**: chest keeps B-073's tally and B-235c's per-player key (each player's open tallies); both run resets kept): a client's rest press goes to the host (HubInteract) and opens its own menu (`Client_OpenRestMenu`); after a revive every player stands beside the spot (`TrialReturn::GetReturnStand`, 150 cm, alternating sides). RestSpotSpec case; ER-09d, PIE B-187d. New row **B-187e** (a client's host-only menu actions). Commit bc23997b does not build alone. Review running | none |
+
 # Cloud writer handover (2026-11-08, third part: the brain unblocked B-073) — STOPPED: no cleanly writable job left
 
 **Why it stopped:** what is left needs the desktop or a merge: B-187d (co-op rest press: B-187c and B-235c conflict in `TrialMapFeature.cpp` / `TrialRunSubsystem.cpp`), B-234d (a pool reset after a handed-over run: needs the pool's internals with a compiler), B-357d (the L2 action's passives and ~200 old reads: compiler), B-351e (after Crown's PIE and an editor step), B-233b (EOS ids), B-107-109 (Crown's B-102 review), B-127 / B-032b / B-034b / B-066 / B-240 / B-237 / B-215 / B-373 (editor first), B-042g (after B-042f's PIE), B-340, and the VRoid / profiler jobs. Every branch here is UNBUILT: build, run the specs, then PIE.
