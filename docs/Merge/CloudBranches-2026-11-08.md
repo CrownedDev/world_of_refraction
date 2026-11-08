@@ -157,9 +157,27 @@ The values don't change, so `NotifyValidationSpec` and the camera specs expect t
 
 **PIE check (two players):** the host opens a chest. On the client, the same chest still says "Press E to open the chest". After the client opens it, it says "Opened chest".
 
+## Fixes the merges need (from wor-reviewer on the trial branch)
+
+These problems only exist once two branches meet. Apply each one at the row named:
+
+| After row | Fix | Trial commit |
+|---|---|---|
+| 38 (B-363) | **Compile error.** The `TrialRestSpot.cpp` hunk drops `ReviveMiniBoss`'s closing `}`, so `StepAway` starts inside it. Put the brace back. | `9a0d94d3` |
+| 53 (B-378b) | `DefaultGame.ini`: the merge brings back the old `EvolutionItemData` scan (`CookRule=Unknown`) beside B-278's AlwaysCook one. Delete the old line. Check that every asset type appears once on the `+` side. | `9a0d94d3` |
+| 57 (B-380) | **Compile error with no textual conflict.** B-357c removed `const FCombatLoadout &Loadout = GetActiveLoadout();` from `GetActiveResistanceBonus`, `GetActiveEffects`, `GetActiveEffectsGathered` and `GetActiveConditionalEffectsGathered`. B-380's apparel loops in those functions read `Loadout`. Put the line back before each apparel loop. | `9a0d94d3` |
+| 46 (B-187e) | **A client's rest left the host "at a rest spot".** The host could then buy pillar points and switch skin anywhere. `WoRRestSpot::Rest(World, Id, bLocalPlayerRests = true)` now takes a flag, and `ATrialRestSpot::Interact` passes false for a client's press. **Level up** is hidden in a client's menu: it read the client's own empty run. TODO: a server RPC. | `5e77a3d2` |
+
+**Follow-ups:** the reviewer marked these nice-to-have. They are not done on the trial branch; they could become rows.
+
+- **Hand-over save copy (B-234b with B-377 / B-377b / B-378 / B-379).** `CaptureInto` writes this player's journal, quests, curses and counters into the copy's slot only. After a hand-over they don't reach the player's own save. Copy them back as the wallet and forms already are.
+- **Stale PIE command.** `docs/PIE/B-370.md` and `docs/PIE/B-371.md` still say `wor.Camera`; after B-349 it is `wor.Camera.Print`. Fix them when merging B-370 and B-371.
+- **B-371 on clients.** B-371's camera listens to `OnProjectileLaunched`, which fires only on the server (B-231). Clients never see the Cast shot. Broadcasting it from B-231b's client receive path would fix this.
+- **Stale comment.** `RestSpotWidget.h`: the `LeaveButton` comment still says "hidden on a client until B-187e". It is relabelled now.
+
 ## After the last merge
 
 - `Backlog.md` has one row per job (the REVIEW row).
 - Rules 01 has one CL-28b (B-351b) and one CL-28c (B-357b/c). Rules 02 has one ED-37 / 37b / 37c. Rules 05 has one ER-12h and one ER-12i.
 - `DesignDecisions.md` already has two headings each for Q-155, Q-321 and Q-042i in `dev`. They are not from these merges; leave them.
-- The first full build of the combined code is where any compile errors from the merges show up (see the reviewer note in the trial branch's hand-over).
+- The first full build of the combined code is the real check: the reviewer read it but nothing was compiled.
