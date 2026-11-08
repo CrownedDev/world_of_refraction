@@ -340,6 +340,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-294](B-294.md) | `feature/B-294-element-palette` (in `dev`) | Colour-blind element palette: new element colours in bars, tints and glows | Not tested |
 | [B-292](B-292.md) | `feature/B-292-sim-runner` (in `dev`) | Balance sim runner, recorder, archetypes (tests only; nothing in play changes) | Not tested |
 | [B-235e](B-235e.md) | `feature/B-235e-own-memory-finds-cloud` (UNBUILT, on B-235d) | 2-player: the client's own spot, fragment, gear and reaction memories are theirs; a friend's PriorMemory reads their own memories | Pending |
+| [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
 
 Move rows to **Done** when every check passes.
 
