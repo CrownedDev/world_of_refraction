@@ -26,3 +26,4 @@ The fight's turn state, kept on the GameState so every player in a co-op game re
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-03 | B-228: created. Unbuilt (cloud). | feature/B-228-turn-state-gamestate |
+| 2026-11-08 | B-231 part 1 (D-129): actions stay on the server; new `UCombatPresentationComponent` on every `ACombatCharacter` multicasts the montages the server plays (`UActionExecutor::PlayActionMontageOnActor`, the defense montage) and each resolved hit (`OnHitShown` on every machine, for damage numbers). `wor.Net.PrintPresentation`; spec `WoR.Net.Presentation`. Projectiles / VFX: B-231b. | `feature/B-231-actions-server-multicast-cloud` (UNBUILT) |
