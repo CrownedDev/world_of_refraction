@@ -150,8 +150,11 @@ void UCharacterDataComponent::BeginPlay()
         // flag (read via IsBrokenDarkness()) is authoritative. The flag stays
         // true at rest, so the EP gates (ServerGainEnergy/ServerSetEP) keep
         // treating a born-BD as BD.
+        // B-348c (Q-348b, Crown 2026-11-08): a party member that broke earlier stays in Broken Darkness (its record,
+        // saved) until reverted; it seeds exactly as a born-BD does.
+        const FPartyMember *CarriedMember = FindCarriedPartyMember(); // the same by-data fallback as the carried vitals; only a stamped pawn writes
         if (HasServerAuthority() && CharacterData &&
-            CharacterData->bBrokenDarknessInnate)
+            (CharacterData->bBrokenDarknessInnate || (CarriedMember && CarriedMember->bBrokenDarkness)))
         {
             bIsBrokenDarkness = true;
 
@@ -181,6 +184,7 @@ void UCharacterDataComponent::BeginPlay()
                 if (const FPartyMember *Carried = FindCarriedPartyMember())
                 {
                     BDManager->ApplyCarriedAbsorption(Carried->CarriedAbsorption);
+                    BDManager->ApplyCarriedStrain(Carried->RunStrain); // B-348c: strain builds across the run
                 }
             }
 
@@ -308,6 +312,17 @@ void UCharacterDataComponent::SeedWorldStats()
     const int32 BaseBody   = CharacterData ? CharacterData->WorldBodyLevel   : 0;
     const int32 BaseSpirit = CharacterData ? CharacterData->WorldSpiritLevel : 0;
 
+    // B-348b: a rostered member's head-start lives on its party record (saved); the component keeps a copy. Only a
+    // pawn stamped with its member id reads it, as only one writes it (desktop review): an enemy sharing a member's
+    // asset doesn't inherit it, and an unstamped pawn keeps its own allocation.
+    const FPartyMember *Member = PartyMemberId.IsValid() ? FindCarriedPartyMember() : nullptr;
+    if (Member)
+    {
+        HeadStartMind = Member->HeadStartMind;
+        HeadStartBody = Member->HeadStartBody;
+        HeadStartSpirit = Member->HeadStartSpirit;
+    }
+
     // B-223: plus what this party member earned or bought this run (kept by the run across level travel).
     FName RunKey;
     const UTrialRunSubsystem *Run = FindRunLevelStore(RunKey);
@@ -366,6 +381,18 @@ bool UCharacterDataComponent::SetHeadStartAllocation(int32 M, int32 B, int32 S)
     HeadStartMind = M;
     HeadStartBody = B;
     HeadStartSpirit = S;
+    // B-348b: a rostered member keeps it on its party record, which the save writes. Only a pawn stamped with its
+    // member id writes back: an enemy that merely shares a member's character asset must not overwrite the record.
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UPartySessionSubsystem *PartySession = GI && PartyMemberId.IsValid() ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    if (PartySession)
+    {
+        const int32 Slot = PartySession->GetMemberSlotOf(this);
+        if (Slot != INDEX_NONE)
+        {
+            PartySession->SetMemberHeadStart(Slot, M, B, S);
+        }
+    }
     SeedWorldStats(); // new floor → re-seed live (NOTE: wipes earned this run — see header flag)
     return true;
 }
@@ -715,13 +742,8 @@ namespace
             return Layers;
         }
 
-        // Crystal layer — read pillar percent directly from the crystal's
-        // BaseStatBonus (the new canonical authoring surface; old CalculateModified*
-        // helpers were removed in the BaseStatBonus migration).
-        // Case A: evolution attached to the active weapon (PrimarySlotType==Weapon).
-        // Case B: evolution slotted as the primary slot itself (PrimarySlotType==Evolution,
-        // e.g. Broken Darkness). The two cases are mutually exclusive on PrimarySlotType,
-        // so the else-if cannot double-apply.
+        // Crystal layer — read pillar percent directly from the evolution's BaseStatBonus (the canonical authoring
+        // surface) plus its per-instance roll.
         // Compose the MODIFIER (product of the layer factors) separately from BaseValue, so
         // the [STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] cap below applies to the modifier alone —
         // the per-character base (the source of build uniqueness) is never clamped.
@@ -729,34 +751,25 @@ namespace
         // attachment's Generated (the per-instance roll) — rolled pillars are
         // PERMANENT (always-on), inheriting Base pillars' permanence per the
         // locked option-(a) split. All-zero Generated falls back to Base only.
-        const FEvolutionAttachment WeaponEvo = Loadout->GetActivePrimaryEvolutionAttachment(Owner);
-        if (WeaponEvo.Item)
+        // B-357c (D-147): through the one resolve path; only an evolution on the character's own slot gives its pillar
+        // modifiers (a weapon's or adapter's gives only its passive skills, so it adds nothing here).
+        float CrystalPercent = 0.0f;
+        for (const FAttachedEvolution &Evolution : Loadout->GatherAttachedEvolutions())
         {
-            float CrystalPercent = 0.0f;
+            if (!WoREvolutionPlacement::GivesStats(Evolution.Place))
+            {
+                continue;
+            }
+            const FEquipmentStatBonus &Base = Evolution.Attachment.Item->BaseStatBonus;
+            const FEquipmentStatBonus &Rolled = Evolution.Attachment.GeneratedStatBonus;
             switch (Pillar)
             {
-            case ECrystalPillar::Mind:   CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusMindModifierPercent   + WeaponEvo.GeneratedStatBonus.BonusMindModifierPercent;   break;
-            case ECrystalPillar::Body:   CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusBodyModifierPercent   + WeaponEvo.GeneratedStatBonus.BonusBodyModifierPercent;   break;
-            case ECrystalPillar::Spirit: CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusSpiritModifierPercent + WeaponEvo.GeneratedStatBonus.BonusSpiritModifierPercent; break;
-            }
-            Layers.StoneFactor = 1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR;
-        }
-        else
-        {
-            const FCombatLoadout &Active = Loadout->GetActiveLoadout();
-            if (Active.PrimarySlotType == EPrimarySlotType::Evolution && Active.PrimaryEvolution.Item)
-            {
-                UEvolutionItemData *PrimaryEvo = Active.PrimaryEvolution.Item;
-                float CrystalPercent = 0.0f;
-                switch (Pillar)
-                {
-                case ECrystalPillar::Mind:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusMindModifierPercent   + Active.PrimaryEvolution.GeneratedStatBonus.BonusMindModifierPercent;   break;
-                case ECrystalPillar::Body:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusBodyModifierPercent   + Active.PrimaryEvolution.GeneratedStatBonus.BonusBodyModifierPercent;   break;
-                case ECrystalPillar::Spirit: CrystalPercent = PrimaryEvo->BaseStatBonus.BonusSpiritModifierPercent + Active.PrimaryEvolution.GeneratedStatBonus.BonusSpiritModifierPercent; break;
-                }
-                Layers.StoneFactor = 1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR;
+            case ECrystalPillar::Mind:   CrystalPercent += Base.BonusMindModifierPercent   + Rolled.BonusMindModifierPercent;   break;
+            case ECrystalPillar::Body:   CrystalPercent += Base.BonusBodyModifierPercent   + Rolled.BonusBodyModifierPercent;   break;
+            case ECrystalPillar::Spirit: CrystalPercent += Base.BonusSpiritModifierPercent + Rolled.BonusSpiritModifierPercent; break;
             }
         }
+        Layers.StoneFactor = 1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR;
 
         // Equipment layer — multiplicative percent on top of the crystal layer.
         const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);

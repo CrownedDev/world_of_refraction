@@ -1,7 +1,7 @@
 // LoadoutBudgetSpec.cpp
 // B-285: pins the loadout budgets to the rules page (docs/Rules/01-classes-and-loadouts.md).
 // CL-10: a Resonator's primary cost + ring costs must be <= 5; bare weapon 1, weapon with a crystal 2,
-//        weapon with an evolution 3, evolution primary 2, ring 1, evolved ring 2.
+//        weapon with an evolution 3, evolution primary (alone) 3, ring 1, evolved ring 2 (Q-357, Crown 2026-11-08).
 // CL-11: no ring-count cap; the budget is the only limit.
 // CL-12: the budget is a Resonator rule only (Generic and Refractor are never checked).
 // CL-34: innate spell cost = tier (F 1 ... S 7), total <= 24, 6 per school, -1 per pillar at
@@ -31,9 +31,9 @@ namespace
 	constexpr int32 LOADOUT_BUDGET_RULE_BARE_WEAPON = 1;
 	constexpr int32 LOADOUT_BUDGET_RULE_CRYSTAL_WEAPON = 2;
 	constexpr int32 LOADOUT_BUDGET_RULE_EVOLVED_WEAPON = 3;
-	constexpr int32 LOADOUT_BUDGET_RULE_EVOLUTION_PRIMARY = 2;
+	constexpr int32 LOADOUT_BUDGET_RULE_EVOLUTION_PRIMARY = 3; // Q-357 (Crown 2026-11-08, final): an evolution alone
 	constexpr int32 LOADOUT_BUDGET_RULE_RING = 1;
-	constexpr int32 LOADOUT_BUDGET_RULE_EVOLVED_RING = 2;
+	constexpr int32 LOADOUT_BUDGET_RULE_EVOLVED_RING = 2; // Q-357 (Crown 2026-11-08): adapter frame 0 + evolution 2
 	constexpr int32 LOADOUT_BUDGET_RULE_INNATE = 24;
 	constexpr int32 LOADOUT_BUDGET_RULE_BROKEN_DARKNESS = 48;
 	constexpr int32 LOADOUT_BUDGET_RULE_PER_SCHOOL = 6;
@@ -144,6 +144,15 @@ void FLoadoutBudgetSpec::Define()
 			TestEqual(TEXT("RING_EVOLUTION_SLOT_COST"), InventoryConstants::RING_EVOLUTION_SLOT_COST, LOADOUT_BUDGET_RULE_EVOLVED_RING);
 		});
 
+		It("an evolution adds 2 on gear and costs 3 alone (Q-357, Crown 2026-11-08)", [this]()
+		{
+			const int32 OnWeapon = InventoryConstants::WEAPON_EVOLUTION_SLOT_COST - LoadoutConstants::WEAPON_FRAME_COST;
+			const int32 OnAdapter = InventoryConstants::RING_EVOLUTION_SLOT_COST - LoadoutConstants::ADAPTER_FRAME_COST;
+			TestEqual(TEXT("on a weapon"), OnWeapon, LoadoutConstants::EVOLUTION_SLOT_COST);
+			TestEqual(TEXT("on an adapter"), OnAdapter, LoadoutConstants::EVOLUTION_SLOT_COST);
+			TestEqual(TEXT("alone in the slot"), LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST, LoadoutConstants::EVOLUTION_ALONE_SLOT_COST);
+		});
+
 		It("costs each gear state as the rules page says (CL-10)", [this]()
 		{
 			TestEqual(TEXT("bare weapon"), LoadoutBudgetWeaponPrimary(ELoadoutBudgetTestWeapon::Bare).PrimaryWeapon.WeaponEntry.GetSlotCost(),
@@ -170,17 +179,17 @@ void FLoadoutBudgetSpec::Define()
 			TestTrue(TEXT("one over: refused"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
 		});
 
-		It("costs an evolution primary 2 (CL-10)", [this]()
+		It("costs an evolution primary 3 (CL-10, Q-357)", [this]()
 		{
 			FCombatLoadout Loadout;
 			Loadout.PrimarySlotType = EPrimarySlotType::Evolution;
 			LoadoutBudgetAddRings(Loadout, LOADOUT_BUDGET_RULE_TOTAL - LOADOUT_BUDGET_RULE_EVOLUTION_PRIMARY);
-			TestFalse(TEXT("2 + 3 rings: passes"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
+			TestFalse(TEXT("3 + 2 rings: passes"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
 			LoadoutBudgetAddRings(Loadout, 1);
-			TestTrue(TEXT("2 + 4 rings: refused"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
+			TestTrue(TEXT("3 + 3 rings: refused"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
 		});
 
-		It("costs an evolved ring 2 (CL-10)", [this]()
+		It("costs an evolved ring 2 (CL-10, Q-357)", [this]()
 		{
 			// Bare weapon 1 + two evolved rings 4 = 5.
 			FCombatLoadout Loadout = LoadoutBudgetWeaponPrimary(ELoadoutBudgetTestWeapon::Bare);

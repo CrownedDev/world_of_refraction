@@ -78,6 +78,13 @@ struct WORLD_OF_REFRACTION_API FGearInstance
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
 	TArray<TObjectPtr<USpellData>> AssignedSpells;
 
+	/** B-351d (D-145): the crystal's one spell list: the pick per slot and whether the list is active (both kinds). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
+	TArray<TObjectPtr<USpellData>> SpellPicks;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
+	bool bSpellSlotsActive = false;
+
 	UPROPERTY(BlueprintReadWrite, Category = "Rolls")
 	FEquipmentStatBonus StatBonus;
 

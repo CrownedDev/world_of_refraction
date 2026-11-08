@@ -34,7 +34,7 @@
 
 ## 4. Build order (D-074: a basic version soon)
 
-1. **Code (CC):** per-character camera component, the mode selector driven by combat events (turn start, action confirmed, action end), the settings, the skill → sequence field, and the play/bind/cleanup lifecycle. Debug: `wor.Camera` state print.
+1. **Code (CC):** per-character camera component, the mode selector driven by combat events (turn start, action confirmed, action end), the settings, the skill → sequence field, and the play/bind/cleanup lifecycle. Debug: `wor.Camera.Print` state print.
 2. **Content (CC+UE):** three template sequences (melee, ranged, spell) and the camera rig tuning, with screenshots for Crown.
 3. **Later (changed 2026-11-05, D-162, Q-371):** code-built shot patterns replace the template sequences (B-371), the cinematic window and Defence view (B-370), framing checks (B-372); hand-made sequences for signature moves only. Step 2 becomes Crown's approval of the patterns (B-157).
 

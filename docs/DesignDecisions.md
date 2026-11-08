@@ -1328,7 +1328,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
 **Answer (Crown):** (2026-10-26, detail by detail)
 - **Perfect Guard takes 0%** (B, like Expedition 33's parry); normal Guard stays 50%. Change `PerfectGuardReduction` to 1.0.
-- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built). **Changed by D-161 (Crown, 2026-11-04):** a Perfect Guard or a **Perfect** Dodge only; built in B-367.
+- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built). **Changed by D-161 (Crown, 2026-11-04):** a Perfect Guard or a **Perfect** Dodge only; built in B-367. **Corrected by Crown (2026-11-05):** a **Perfect Guard only**; a Dodge of any timing does not stop one; built in B-367b.
 - **Approved by the reference-backed default (Crown, 2026-10-26: 'just go with them'):** Broken Darkness absorbs 5% on Guard / 20% on Perfect Guard (Expedition 33: +1 AP per parry); reflect effects send back their % of damage actually taken, as pure damage, as a timed buff (FF/Persona style); **Perfect Guard plays the parry animation**, normal Guard the block animation (Expedition 33 / Sekiro; small follow-up); the old Parry key works as Guard until removed in the editor.
 
 **Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero: `PerfectGuardReduction` 1.0. The parry animation on a Perfect Guard is B-182 (the animation plays at the press, before Perfect is known). The rest was as built. An "On Perfect Guard: reflect" is a timed buff, so it pays out on later hits that land.
@@ -1610,6 +1610,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - **Class identity:** Generic = weapons, Resonator = adapters, Refractor = innate magic (the only class with an innate element and spell pool; its lever is the innate budget, not more gear).
 - **Attachments live on the item (A):** a crystal, stone, fusion or evolution belongs to the weapon / adapter instance and travels with it (saved loadouts, the shared armoury, other characters); the slot only references the item.
 - **Adapters cost by state, not form (A):** 1, or 2 with an evolution; the form (ring, pistols, trainers) is look and animation only; a pair (dual pistols) is one item.
+- **Note (Crown, 2026-11-08, Q-357 final):** Generic budget 6 → 5 (at most one evolved weapon); the costs are stated as frame + attachment (weapon frame 1, adapter frame 0, crystal +1, evolution on gear +2) and an evolution alone costs 3 (was 2).
 - **No primary / secondary difference (A):** a Generic's two weapon slots are equal (same checks, either may hold an evolved weapon, either may be active); fixes the secondary slot's missing spell checks.
 - **One active weapon at a time (A):** a Generic's two weapons switch freely; only the active one gives its abilities, stats and passives (no stacking of two evolved weapons).
 
@@ -1889,10 +1890,31 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** built on the desktop 2026-11-04 (in dev) as save version 12 (B-333 took 11). Also saved there: B-346's AI seat difficulty (`FSavedPartyMember::AISeatDifficulty`, free inside the unreleased v12). The round-trip spec covers the wallet, pool and party fields; the character, crystal and evolution components had nothing saved to begin with (option A).
 
+
+### Q-348b — Does a mid-fight Broken Darkness transformation outlast the fight or the session?
+**Status:** ANSWERED (Crown, 2026-11-08; changed from the reference-backed default) · **Raised:** 2026-11-07 (B-348b, cloud) · **Blocks:** —
+**Question:** B-348b asks whether a runtime Broken Darkness transformation (a Darkness caster's strain reaching 100% mid-fight, `UBrokenDarknessManager::TriggerTransformation`) should be saved. Today it lives on the fight's pawn (`UCharacterDataComponent::bIsBrokenDarkness`) and ends with it; a born Broken Darkness character comes from its asset and needs nothing saved.
+**Options:** **A** the transformation lasts the fight only: nothing saved; the next fight starts the caster as Darkness with strain reset. **B** it stays until reverted, carried on the party member and saved.
+**Recommendation:** A. A battle-only transformation is the well-liked pattern for a power state earned mid-fight: Final Fantasy VI's Trance and Final Fantasy IX's Trance end with the battle, as do Xenoblade's Talent Arts states; it keeps each fight's risk and reward inside the fight. The deckbuilder has no Broken Darkness transformation to compare.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it. The head-starts are saved (B-348b); the transformation is not.
+**Notes for Claude:** B-348b saves the head-starts only.
+**Answer (Crown, 2026-11-08):** **B, and beyond the run.** Broken Darkness is persistent in and out of the run: a mid-fight transformation stays on the character across fights, across runs and in the save, until reverted (`UBrokenDarknessManager::RevertTransformation`, the un-transform path, gap 4.5). Built in B-348c (gap 4.4). The design line "strain accumulates across the whole run until it gives" is built with it: the run's strain carries fight to fight and clears at the run's end.
+**As built (B-348c review, flag for Crown):** a transformation or revert writes the member's record at once. A **born** Broken Darkness character (`bBrokenDarknessInnate`) still starts every fight in Broken Darkness: its nature, so a revert lasts until the next spawn. If a born one should stay reverted too, the record needs a "reverted" mark; say so and it gets one.
+
 ### D-139 — One console naming rule (audit §24)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
 **Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).
 **Notes for Claude:** job B-349, split by system (≤3 files per commit).
+
+
+### Q-349 — Console names: what "one Print per system" allows, and the system names
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-349, cloud) · **Blocks:** —
+**Question:** D-139 wants `wor.<System>.<Verb>` and one `Print` per system. (1) Are verbs like `PrintState` / `PrintTiers` (already in the form, e.g. `wor.Combat.PrintState`) allowed beside a `Print`? (2) Which system names do the forty old flat names (`wor.PrintPool`, `wor.CompareStats`, `WoR.StrainSnapshot`…) go under?
+**Options / as built (A):** (1) yes: one plain `Print` per system, other reads get their own verb (`PrintAll`, `PrintStarting`, `ShowStrain`, `Compare`); a true duplicate is removed (`wor.PrintCombatTuning`, the same print as `wor.Tuning.Print`). (2) the owning system's existing name where one exists (`Tuning`, `WorldStat`, `Elements`, `Pool`, `Inventory`, `Economy`, `Camera`, `Effects`, `Combat`, `UI`), else the class's subject (`BrokenDarkness`, `Scaling`, `Crystal`, `Attributes`, `Resistance`, `Stats`, `Tags`, `StatusBars`, `Grid`, `Turn`, `Stones`, `Weather`). Table in `docs/PIE/B-349.md`. **B** fold every `PrintX` into the system's one `Print` with arguments.
+**Recommendation:** A. Unreal's own console groups by system with several verbs per group (`r.`, `stat`, `ShowDebug` sub-commands, `ai.debug.*`), and Lyra keeps `Lyra.<System>.<Verb>` with more than one read per system; merging reads behind arguments would change behaviour, which B-349 must not.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change any name.
+**Notes for Claude:** built in B-349.
+**Confirmed by Crown, 2026-11-08:** kept as built.
 
 ### D-140 — Legacy test actors go now; test-run hygiene (audit §25; changes D-067)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §25) · **Blocks:** —
@@ -1945,6 +1967,24 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer (Crown):** an evolution can attach to the **character**, a **weapon** or an **adapter**. It has one D-110 cost wherever it goes (the separate cost rows retire). In code, "standalone" becomes "attached to the character's own slot", so every reader resolves one thing: an evolution attached to X. On a weapon or adapter it gives only its passive skills, and only while that item is infused at **level 2** (corrected by Crown, 2026-11-04; nothing at L0 or L1); on a weapon it sits in the element socket (D-141).
 **The deckbuilder's rule (cited):** `CrownedDev/wor-deckbuilder` `docs/reference/02-enums.md:65` (an Evolution "attaching it to the Character costs 1 Action + its EN"), `:447` (`WhenAttached`: "an Evolution to a vessel or the Character … even on an Evolution on a vessel, whose other triggered rows stay off"), `:63` (an Evolution on the Character licenses spells of its element). The deckbuilder allows all three placements, which the audit missed.
 **Notes for Claude:** job B-357, after B-351 (sockets) and B-356.
+
+### Q-357 — An evolution's one cost, and B-357 in parts
+**Status:** ANSWERED (Crown, 2026-11-08; part (1) changed from the reference-backed default) · **Raised:** 2026-11-07 (B-357, cloud) · **Blocks:** —
+**Question:** D-147 gives an evolution one D-110 cost wherever it attaches. Today it adds 2 on a weapon (1 → 3), 1 on an adapter (1 → 2) and costs 2 on the character's own slot. Which one cost? And B-357 also asks for one resolve path and "only passives, only at infusion level 2" on gear: one job?
+**Options / as built (A):** (1) **2**, the cost it already has on the character and on a weapon: an evolved adapter goes from 2 to 3, the gear's base cost on top as for every attachment. **B** 1 (weapon 2, character 1). (2) parts: **B-357** the one cost (this branch); **B-357b** the one resolve path ("an evolution attached to X") and the gear rule (only its passive skills, only while the item is infused at level 2).
+**Recommendation:** A / A. The deckbuilder charges an Evolution its own cost wherever it attaches (`docs/reference/02-enums.md:65`, "1 Action + its EN"), and 2 already holds in two of the three places; the resolve path touches over two hundred reads and is checkable on its own, as Q-351 sliced B-351.
+**Answer:** **A / A**, by the reference-backed default (2026-11-07). Crown may change either. Note for data: a Resonator loadout with an evolved adapter can now be over budget; data validation lists it. The same constant sets an owned adapter's storage size, so an evolved adapter also takes 3 storage slots (inventory cap, the shop's "no room" check), not 2.
+**Answer (Crown, 2026-11-08):** part (1) **changed**: one rule, frame + attachment. A **weapon frame costs 1** (it brings abilities); an **adapter frame costs 0**; a **crystal / stone / fusion adds 1**; an **evolution adds 2 wherever it sits**, and costs 2 on its own in the slot. So bare weapon 1, weapon + crystal 2, weapon + evolution 3, adapter + crystal 1, **adapter + evolution 2 (not 3)**, evolution alone 2: today's numbers, now explained by one rule (the 2 → 3 change and its storage-size note are undone). Part (2), B-357b's slicing, kept. Also **Generic budget 6 → 5** (amends D-110): at most one evolved weapon, beside an evolved adapter (3 + 2) or a crystal weapon (3 + 2); two evolved weapons (6) are refused.
+**Notes for Claude:** B-357 built the cost (constants `WEAPON_FRAME_COST`, `ADAPTER_FRAME_COST`, `CRYSTAL_ATTACHMENT_COST`, `EVOLUTION_SLOT_COST`); B-357b added under it in the backlog.
+**Answer (Crown, 2026-11-08, final; supersedes the line above where they differ):** weapon frame **1** (it brings abilities); adapter frame **0**; a crystal / stone / fusion attached **+1**; an evolution attached to gear **+2** (evolved weapon 3, evolved adapter 2), where it gives its **passive** abilities (B-357b's gear rule); an evolution **on its own**, straight in the loadout slot, **3** (`EVOLUTION_PRIMARY_SLOT_COST` 2 → 3, the one value that changes from today). Budgets: **Refractor 3** (1 item: an evolution alone, an evolved weapon or an evolved adapter all fit), **Generic 5** (was 6; 2 items), **Resonator 5** (1 weapon, any adapters). **No one-evolution-per-loadout rule**: the budget is the only limit (an evolution alone + an evolved adapter = 5 is allowed).
+
+### Q-357b — "Only while that item is infused at level 2": what that means, and B-357b in parts
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-357b, cloud) · **Blocks:** —
+**Question:** D-147: on a weapon or adapter an evolution gives only its passive skills, "only while that item is infused at level 2". Gear has no infusion level of its own: infusion is a charge on one action (L0 / L1 / L2, D-126). (1) What does "the item is infused at level 2" mean? (2) The one resolve path touches about two hundred reads: one job?
+**Options / as built:** (1) **A** per action: the gear evolution's passive skills act on an action **that item powers at charge level 2** (its crystal is the infusion source, or it is the weapon or adapter the action comes from), and on nothing else; at fight start (charge 0) a gear evolution adds no effects. **B** a lasting item state: the item counts as "infused at L2" for the rest of the fight after its first L2 action. **C** a gear upgrade level (+2) instead of the charge. (2) parts: **B-357b part 1** the resolve path (`ULoadoutComponent::GatherAttachedEvolutions`, `WoREvolutionPlacement`) and the effect readers on it (behaviour unchanged); **B-357c** the L2 action turning the gear evolution's passives on for that action, gear evolutions no longer giving stats or resistance (D-147: "only its passive skills"), and the remaining readers of the old weapon-socket read.
+**Recommendation:** (1) A: it reads D-147 literally with the one infusion system the game has, and a fully charged hit waking extra effects is a well-liked pattern (Elden Ring's charged Ash of War and heavy attacks add effects only when held to full; Monster Hunter's charge blade empowers on full charge). The deckbuilder (`docs/reference/02-enums.md:447`) keeps an Evolution's `WhenAttached` rows on a vessel and its other triggered rows off; Crown's L2 gate (D-147) narrows when those rows act. B adds state to track; C reinterprets "infused". (2) A, as Q-351 sliced B-351.
+**Answer:** **A / A**, by the reference-backed default (2026-11-08). Crown may change either; the level is a named constant (`WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL`).
+**Notes for Claude:** B-357b part 1 built the resolve path; new row B-357c.
 
 ### D-148 — One Physical resistance column (audit round 3 §33)
 **Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §33) · **Blocks:** —
@@ -2160,6 +2200,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A / A. D-161 says a *Perfect* Dodge, which a lucky miss is not; Sekiro's deflects and Expedition 33's parries reward timing only. One report per attack keeps D-158's "a condition, reported once".
 **Answer:** **A / A**, by the reference-backed default (2026-11-04). Crown may change either.
 **Notes for Claude:** built in B-367 (`FPendingDefenseContext::bResolvedLuckDodge`; `FlawlessParry::FTally::bReported`).
+**Superseded in part (B-367b, D-161 / D-158 corrected by Crown 2026-11-05):** (1) is moot now that no Dodge stops an interrupt point or counts for a Flawless Parry; `bResolvedLuckDodge` stays as a guard. (2) is unchanged.
 
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —
@@ -2222,6 +2263,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** (a) A: Diablo II's and Path of Exile's socketed items scale what they add with the item's quality, and the weapon's own count already follows this curve (one rule for both). (b) A: the old lists are OBSOLETE and few weapons carry assignments yet; a seed would copy a slot layout D-145 retires.
 **Answer:** **A / A**, by the reference-backed default (2026-11-04). Crown may change either.
 **Notes for Claude:** built in B-351 (`SkillSlotList::SlotCount`, `FWeaponLoadoutEntry::ReplaceSkill`). The PIE sheet says so.
+
+### Q-351c — B-351b in two parts
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-351b, cloud) · **Blocks:** —
+**Question:** B-351b lists about ten pieces: the crystals' spell slot lists, switching every item to the one list and deleting the old lists (after PIE), stone removal, the authored-stone refusal, the carried stone socket, authored stones moved into the stone socket (an editor step), the readers still on the old slot or lists, the HUD and debug readers, and the gear screen replacing the `wor.Loadout.*Skill` commands (UI). One job or parts?
+**Options / as built (A):** two parts by the 3-files rule and the editor / UI split, as Q-351 sliced B-351: **part 1** (this branch) the sockets' behaviour (removal, refusal, carry and run save); **B-351c** the rest (the spell slot lists, the old-slot readers `GetEquippedCrystals` / `FSavedLoadout::GetAllAbilities` / `UInventoryData`, HUD and debug, the gear screen, and the editor move of authored stones), the old-list deletion after Crown's PIE. **B** one job.
+**Recommendation:** A, the same slicing Q-351 approved; each part is checkable on its own.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
+**Notes for Claude:** part 1 built in B-351b; B-351c added to the backlog under it.
 
 ### Q-353 — One stat stone: do the Max HP / Max EP stones fold in, and how is it shown?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-04 (B-353, D-142) · **Blocks:** —
@@ -3633,6 +3682,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A / A. Lyra's GameplayCues pick an effect per result; Sekiro and Expedition 33 owe much of their feel to a distinct spark or flash per defense result. B needs work on every montage and can't know the outcome in advance.
 **Answer:** **A / A**, by the reference-backed default (2026-11-05). Crown may change either. Fallback: skill's Impact entry → element default → generic; spawned at the target's `HitPoint` socket.
 
+### Q-369b — Impact visuals as built: whose defaults, and a spell's own impact
+**Status:** ANSWERED (Crown, 2026-11-08; changed from the reference-backed default) · **Raised:** 2026-11-07 (B-369, cloud) · **Blocks:** —
+**Question:** Q-369 puts the element and outcome defaults in `CosmeticsData`, but every character has its own. (1) Whose: the attacker's or the target's? (2) A projectile / AOE already draws the skill's Impact-role entry when it lands; does the outcome add a second hit visual? (3) A melee skill whose montage already plays its Impact entry through a VFX notify would now show it twice.
+**Options / as built (A):** (1) the **target's** CosmeticsData, where the Perfect Guard flash already lives (a Guard spark and a Dodge whiff belong to the defender); (2) no: a projectile arrival's Hit / Crit adds nothing (the projectile plays the Impact entry; AOE and Instant arrivals get the chain), its Guard / Dodge visual still shows; (3) flagged in `docs/PIE/B-369.md`: such a VFX notify should be removed (timing only, Q-369 (1)). **B** the attacker's CosmeticsData.
+**Recommendation:** A. Lyra's GameplayCues play hit and block effects on the receiving actor; Sekiro's deflect spark and Expedition 33's parry flash are the defender's. One impact visual per hit keeps it readable.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
+**Notes for Claude:** built in B-369 (`ImpactVisuals::Choose`, `SpawnForImpact`, called from `UActionExecutor::ApplyOneImpact`).
+**Answer (Crown, 2026-11-08), changed:** three layers. (1) The skill's **effect** (cast, projectile, slash) is on the skill. (2) The **impact**, Hit and Crit included, is **on the skill**: every delivery (melee, projectile, AOE, instant) plays the skill's Impact entry (its CritImpact entry on a crit if it has one), with the **element default as the fallback** (`UImpactVisualDefaults`), so a fireball's impact is always fire. (3) The **defence outcome** (Guard, Perfect Guard, Dodge) comes from the **defender's** CosmeticsData and is a **cosmetic slot**: a cosmetic can swap it (Crown's example: a transmutation circle appears when you land a parry); part of the parked skins / cosmetics work. Before: the hit and crit defaults lived on the target's CosmeticsData too.
+
 ### Q-370 — Cinematic window details
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-370) · **Blocks:** —
 **Question:** (1) The least time between the window's end and the first defendable moment. (2) A montage with no range placed. (3) Several of my characters targeted.
@@ -3640,12 +3698,32 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A where offered: a skipped reaction is worse than a shorter cinematic; seeing every one of your threatened characters is what lets you choose who to guard.
 **Answer:** **0.75 s / A / A**, by the reference-backed default (2026-11-05). Crown may change any.
 
+### Q-370b — "Wind-up end" before the bone analysis exists
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-370, cloud) · **Blocks:** —
+**Question:** Q-370 (2) runs a montage with no range from its start to the wind-up end. The wind-up end comes from the bone analysis (`SkillPresentationPipeline.md` §1, B-373), which is not built. What counts until then? And does the Defence view come when no cinematic sequence plays (none exist yet)?
+**Options / as built (A):** (1) the end of the skill's `RitualCastMontage` leg (the authored wind-up) when it has one; with none, the window is bounded by the read rule alone (ends 0.75 s before the first defendable moment). (2) yes: a defending viewer gets the Defence view at the window's end whether or not a sequence played, so solo PIE shows the hand-off today. **B** no window without a placed range or an analysed wind-up; no hand-off without a sequence.
+**Recommendation:** A. Expedition 33 frames the defending character behind its back for every enemy attack, cinematic or not, and its readable parries are praised for it; the ritual leg is already the authored lead-in, so it is the nearest true wind-up.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it. B-373's analysed wind-up end replaces (1) when it lands.
+**Notes for Claude:** built in B-370 (`FCombatCameraRules::ReadWindowTiming`, `UCombatCameraDirector::ScheduleDefenceHandOff`).
+**Confirmed by Crown, 2026-11-08:** kept as built: "every enemy attack on you gets a Defence view, an angle that lets you see the attack properly, like Expedition 33."
+**Reference fight (Crown, 2026-11-08):** Expedition 33, **Maelle vs Painted Maelle**, a mirror match (the same moveset on both sides), so it shows every camera moment: the attack, the enemy attack on you, the parry, the counter. Study what the camera does at each moment and build our own rules: camera behaviour only, never copying its shots, scene or assets.
+**Cinematic sequences are optional (Crown, 2026-11-08):** the Defence view on every enemy attack plus B-371's shot patterns cover normal skills; a hand-made `CameraSequence` is only for big moments (ultimates, boss finishers).
+
+### Q-372 — What a shot must show, and how much edge to keep free
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-372, cloud) · **Blocks:** —
+**Question:** B-372 checks that each code-built shot frames the action. Which points must each moment show, and how close to the screen's edge may they sit?
+**Options / as built (A):** wind-up and cast: the caster and every target; impact: its (first) target, which the shot is about; spread: every target. A 5 % margin of the half-width / half-height stays free (TV-safe framing, the broadcast "action safe" area that games keep HUD and focus inside). **B** every moment shows the caster and every target.
+**Recommendation:** A. Expedition 33's impact shots frame the struck enemy close, with the attacker out of frame, and its spread shots pull back to the whole group; checking the caster on an impact would refuse the look B-371 is built for. The action-safe margin is standard practice for anything that must read on a TV.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it; the margin is a named constant (`CameraFraming::SCREEN_MARGIN`).
+**Notes for Claude:** built in B-372 (`CameraFraming::GetRequiredPoints`, `IsOnScreen`). Review fix: the wind-up's height scales with the style (a Close wind-up framed the caster below the screen).
+
 ### Q-371 — Skill cameras: code-built shots instead of template sequences
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-371) · **Blocks:** —
 **Question:** D-074 chose template sequences by skill type. Build those templates as code-built shot patterns timed by the notifies (no Level Sequence asset), keeping hand-made sequences for signature moves?
 **Options:** **A** code-built patterns plus per-skill tuning; sequences for signature moves only. **B** template Level Sequences, as B-157 planned.
 **Recommendation:** A. It keeps D-074's split (shared patterns, hand-made signatures) as Persona 5, Octopath Traveler and Honkai: Star Rail use it, but needs no editor work per pattern, fits any animation length, and can be checked by specs. It unblocks B-157.
 **Answer:** **A**, by the reference-backed default (2026-11-05). Crown approves the look of the patterns in PIE (B-157).
+**Note (Crown, 2026-11-08):** cinematic sequences are optional: the Defence view on every enemy attack (B-370) plus these shot patterns cover normal skills; a hand-made `CameraSequence` is only for big moments (ultimates, boss finishers). Reference fight for the look: Expedition 33, Maelle vs Painted Maelle (camera behaviour only).
 
 ### Q-373 — Notify placement tool
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-373) · **Blocks:** —
@@ -3859,6 +3937,37 @@ Moved here once applied. Newest first.
 **Recommendation:** A / A / A. (1) The same slicing as B-337 / B-355: each step provable by a parity spec, old data removed after PIE. (2) Games write HP conditions as whole percents (Expedition 33's Pictos "below 50% HP", Dark Souls' Red Tearstone Ring "HP below 20%"). (3) "Below 70%" means strictly below in every such game; a float rounding error should not decide it.
 **Answer:** **A / A / A**, by the reference-backed default (2026-11-04). Crown may change any of them.
 **Notes for Claude:** built in B-337d. As built: `SkillConditions` (Skills/Effects) reads a group across (event trigger = condition Trigger, thresholds = `HpPercent` / `EpPercent` with Below / Above, the side = `Who` incl. the new `SelfTeam` / `TargetTeam`, AND / OR = sets any one of which holds); `ESkillCheck` State / Defense / ActionResult says which events count. An actor with no character data is no fighter: an HP / EP check on it fails, as before; a target-side or team **event** condition (e.g. On Hit, Target Team) no longer needs the side to have character data (every fighter has it, so nothing changes in play). `Defender` (25) = the side defended the event; `Disabled` (26) = a condition authored None, never holds. `IsSingleTriggerMet` is OBSOLETE (no caller). B-337e: the authored field, re-authoring, then `FSkillCondition` / `EvaluateConditionGroup` retire.
+
+### Q-337e — The migrated skill condition field: one set, or All of / Any of
+**Status:** ANSWERED (Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-337e, cloud) · **Blocks:** —
+**Question:** B-337e's row asks for "an authored `FWoRConditionSet` field" on `FSkillEffect`. One set is an AND of conditions; the old skill groups mix AND and OR rows ("hit, and either HP below 50% or EP above 70%"). Which shape keeps every authored group's result?
+**Options / as built (A):** two sets, `FSkillConditionGroup` **All of** and **Any of** (`AllOf` must all hold, and one of `AnyOf` when it has any): the old rows condition for condition, so the result is exact (the parity spec covers every check). Until the sweep the group is shown read-only and rebuilt from the old rows on each edit, so the two never drift. **B** one `FWoRConditionSet` as the row says, which loses the OR rows. **C** a list of sets (any one holds), harder to author by hand.
+**Recommendation:** A. It is the same "all of / any of" shape as the shared condition lists (`WoRConditions::IsAnyMet` over sets) and the familiar authoring form in Unreal's own Gameplay Tag queries (All / Any) and Path of Exile's item filters; B would change some authored effects' results.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
+**Notes for Claude:** built in B-337e. After the sweep the group becomes the edited field (EditAnywhere) and the rebuild-on-edit goes.
+**Answer (Crown, 2026-11-08):** follow the deckbuilder's shape (`wor-deckbuilder` `docs/reference/05-triggers-conditions.md`, "Nested conditions"): **one trigger on top, the All of checks nested under it**, shown as an indented tree; that is the default authoring and display (the Details panel, `wor.Conditions.Tree` and the skill debug prints show trigger → indented checks). **Any of stays, hidden** (collapsed, `AdvancedDisplay`), only so migrated old OR rows keep their result; new skills author All of only. The content sweep lists every skill using Any of (`wor.Conditions.ListAnyOf`); if each can be rewritten without "or", Any of is deleted so we match the deckbuilder. **Difference from the deckbuilder:** it has no OR at all; ours keeps Any of until that sweep.
+### Q-355b — A boss's moment rule: when are its conditions read?
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-355b, cloud) · **Blocks:** —
+**Question:** an old boss trigger checked its party conditions once at fight start and then waited for its moment. A rule from the one list (D-144) may test the boss's own state too (HP, phases reached, status breaks). Are its conditions read at fight start, or when its moment comes? And if they don't hold then?
+**Options / as built (A):** read **when the moment comes**; if they don't hold, the rule keeps waiting for the moment to come again (still at most once per fight). Party-only conditions give the same answer as before (the party doesn't change mid-fight). **B** at fight start only, as the old triggers did (a rule on the boss's state could then never fire as written).
+**Recommendation:** A. Boss scripts in Final Fantasy XIV and Elden Ring check their conditions at the trigger point ("at 50% HP, if the add is alive"), which is what makes them read as reactions; the deckbuilder's triggers also check on the event.
+**Notes for Claude:** built in B-355b (`BossTriggers::FireMomentRule`, `UFightTriggers::Fire`).
+**Confirmed by Crown, 2026-11-08:** kept as built.
+### Q-233 — Sessions before EOS is configured
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-233, cloud) · **Blocks:** —
+**Question:** B-233 wants EOS sessions with Steam friends on top. EOS needs Crown's product, sandbox and deployment ids from the Epic developer portal (and a client id / secret), which the code can't make up. Build nothing until then, or build the session layer now on another subsystem?
+**Options / as built (A):** build `UWoRSessionSubsystem` on the online subsystem's generic session interface now, running on the **Null** subsystem (LAN, works in PIE and between two machines on one network); switching to EOS is the config change in `DefaultEngine.ini` plus the EOS plugin and Crown's ids, with no code change. **B** wait for the EOS ids.
+**Recommendation:** A. Epic's own guidance (the online subsystem's design and the Lyra sample's session flow) is to write against `IOnlineSession` and swap the platform in config; most UE co-op projects prototype on Null / LAN first.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it. **Crown action for B-233b:** create the EOS product in the Epic developer portal and share its ids (never in chat or git: as environment secrets / local config).
+**Notes for Claude:** B-233 part 1 built the subsystem and `wor.Session.*`; B-233b: EOS config, Steam on top, the hub-menu invite (placeholder C++ UI), joining a run at a rest spot, a leaving friend dropping out.
+
+### Q-234b — Who hosts after a host drop, whose save the new host plays, and how long the others look
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-234b, cloud) · **Blocks:** —
+**Question:** (1) Who is "next" when the host drops? (2) The new host plays the old host's run from its checkpoint copy: what happens to the new host's own save? (3) How long do the others look for the new host before they give up?
+**Options / as built:** (1) **A** the next player in **join order** (the host first, then each player as they joined; the host replicates it). **B** the best connection (Halo 3 / Reach host migration measured it). (2) **A** the new host plays from the copy (its party, armoury and run) but keeps its **own wallet and look**; while it does, saves go to the **copy's slot** (and to the others as their copy), **never its own slot**; a restart comes back to its own save. **B** merge the run into its own save. (3) **A** a search every 3 s, 10 tries (30 s), then stay put with a message (`wor.Session.Find` to look again).
+**Recommendation:** A, A, A. (1) Halo 3's host migration was widely praised for keeping a match alive when the host left; a fixed, replicated order makes every machine agree on the successor without a vote (the Backlog row already says "party order"). (2) Borderlands 2 / Diablo III: a guest's character save is its own and the host's world never overwrites it; keeping the copy apart does the same. (3) Long enough for a new listen server to open and advertise on LAN or EOS; short enough that a failed hand-over doesn't hang.
+**Answer:** **A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; the timings are named constants (`WoRHostSuccession`).
+**Notes for Claude:** B-234b part 1 built it. B-234c: the planned hand-over at a rest spot (a rest-menu button, B-187), and a pool reset so the new host's hub after the run shows only its own armoury.
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
@@ -4078,14 +4187,44 @@ Moved here once applied. Newest first.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
 
+### D-164 — Apparel: a gear piece outside the budget, with its own crystal socket
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** add an **apparel** gear piece, working like the deckbuilder's (`wor-deckbuilder docs/reference/01-card-model.md`: Apparel, a vessel with HP and Defence lines and a crystal socket):
+- **Outside the loadout budget:** apparel never takes budget or an item limit from weapons, adapters or evolutions (D-110 budgets unchanged).
+- **Its own crystal socket:** a crystal on apparel is separate from the weapon / adapter crystals; it keys the apparel (its element) and powers no skill (the deckbuilder's rule).
+- **Stats:** HP and Defence lines (the deckbuilder's `HP · Amp · Def` without Amp: this game has no Amp stat yet).
+- **Separate from cosmetics:** the outfit pieces (D-111) stay the look; apparel is stats only (Monster Hunter's armour vs. layered armour).
+- **Two apparel slots** (Crown, 2026-11-08; the deckbuilder's `MaxApparelSeated` 2).
+- **An apparel crystal gives extra resistance** to its element (Crown, 2026-11-08), on top of the apparel's own lines (the deckbuilder's resistance apparel: an elemental Defence line).
+- **Apparel carries effects** like the deckbuilder's vessels (Crown, 2026-11-08): passive effect rows with a trigger and conditions, and bonuses (`wor-deckbuilder docs/reference/04-effects.md`, `06-bonuses.md`), through this game's skill-effect rows (`FSkillEffect`, the nested condition shape of Q-337e).
+- **An evolution can go on apparel** (Crown, 2026-11-08). As on other gear it gives its passive abilities (D-147, B-357c), keys the apparel to its element and adds that element's resistance like a crystal; it powers no skill (the deckbuilder's rule).
+**Look into later (Crown):** an **Amp** stat (the deckbuilder's `+2 Amp` / `+1 Fire Amp`: a flat boost to skills, all or one element); not decided.
+**Notes for Claude:** new item type in the owned-items store (D-111); stats compose through the stat sources (GAS `UWoRGE_StatSources`); quests can hang off it (D-165).
+
+### D-165 — Gear and evolutions can carry conditional quests
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** a weapon, adapter, apparel piece or evolution can carry **conditional quests**: a hidden quest (`Design/MemoryCatalogue.md` §3.6) that starts when its conditions are met while the player has or wears that item (found, worn, upgraded, used in a certain way). The same no-hints, never-missed and who-receives rules apply (D-100, Q-235d). Probably built later, after the hidden-quest job.
+**Notes for Claude:** `Design/MemoryCatalogue.md` §3.11.
+### Q-374 — Proposing a school from a spell's main effect: which effect wins
+**Status:** ANSWERED (Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-374, cloud) · **Blocks:** —
+**Question:** D-163 asks for a validator that proposes each spell's school from its main effect. Spells often carry several effects (a damage spell that stuns, a heal with a drawback). Which effect is "main", where do stun / silence go, and how is Conjuration judged?
+**Options / as built (A):** read in this order, first match wins: (1) damage at an enemy → **Destruction** (a drain too, Q-356c); (2) a heal that is not a drain, or a cleanse → **Restoration**; (3) control at an enemy (Stun, Apply Stun, Skip Turn, Silenced, Random Skill) → **Manipulation**; (4) a debuff or authored status buildup at an enemy, no damage → **Impairment**; (5) a buff → **Enhancement**; nothing → no proposal. **Conjuration is never flagged**: its identity is the conjured thing, which effects can't show (D-163 says it may deal damage). **B** stun / silence under Impairment; Manipulation only for a future taunt / forced-target effect. **C** flag Conjuration damage spells as Destruction.
+**Recommendation:** A. D&D 5e puts Hold Person, Command and Confusion (taking away what a target does) in **Enchantment**, apart from weakening spells (Ray of Enfeeblement, Bane), and Skyrim's Illusion (Fury, Calm, Fear) is its control school; both are long-loved school splits. Skyrim's Conjuration holds summons and bound weapons, which deal damage, so damage alone doesn't make a conjured spell a Destruction spell. Damage first matches how the AI already reads a spell (Q-356c).
+**Answer (Crown, 2026-11-08):** **A, with stun / silence / skip under Impairment.** Pure Stun, Apply Stun, Skip Turn and Silenced, plus debuffs and status buildup → **Impairment**. **Manipulation** is for changing what an enemy does: Random Skill (confusion) now; taunt, forced target, row swap and charm when they exist. **Destruction** = damage. **Conjuration is never flagged:** "we set the school ourselves; a spell that creates something, e.g. shadow tentacles that slow, is Conjuration even if it damages." The checker only warns; the school is authored. (Before: the reference-backed default put the stuns and silences under Manipulation.)
+**Notes for Claude:** built in B-374 (`USpellDataDebug::ProposeSchool`, `IsSchoolMismatch`). The validator is informational; re-tagging is an editor step (`docs/PIE/B-374.md`).
+### Q-351d — B-351c in two parts
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-351c, cloud) · **Blocks:** —
+**Question:** B-351c's readers turned out mostly done: `GetAvailableAbilities` reads the inventory's `FCombatLoadout`, on the one list since B-351, and the stone bonuses read the stone socket. What is left is the crystals' spell slot list (two `AssignedSpells` lists in a position merge, ~69 reads), the old-list deletion after PIE, the editor move of authored stones and the gear screen. One job or parts?
+**Options / as built (A):** two parts by the 3-files rule and the editor / UI split, as Q-351 and Q-351c sliced the earlier parts: **part 1** (this branch) the debug readers (`LogActiveLoadout` on the one list and both sockets, `wor.Loadout.Print`) and a spec that an Ability Stone's slot reaches `FCombatLoadout::GetAllAbilities`; **B-351d** the spell lists, the deletion, the editor move and the gear screen. `GetEquippedCrystals` stays on the element socket: its readers are crystal break / repair / element source, where stones take no part. **B** one job.
+**Recommendation:** A, the same slicing Q-351 / Q-351c approved; the spell list is a refactor best done with a compiler.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
+**Notes for Claude:** part 1 built in B-351c; B-351d added to the backlog under it.
 ### Q-073 — Run rewards: which materials, how "how far you got" counts, and first numbers
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-073, cloud) · **Blocks:** —
 **Question:** D-006 / D-094 pay hub currency and upgrade materials at run end, scaled by progress and difficulty; D-094 lists Gear, Skill and "Unknown" essence, but D-125 retired the typed essences. Which materials does a run pay, what counts as "further", and what are the first numbers?
 **Options / as built (A):** **A** the tally is hub Gold (code `ECurrencyType::Prisms`, D-159) + **Gear and Skill Essence**, added per win by rank (mini-boss and boss more) and per chest; "further" = the tally grows with every fight won, plus a **+25 % bonus when the run's boss is beaten**; difficulty scales it (Easy ×0.75, Medium ×1, Hard ×1.5); a win also pays run Prisms (code `ECurrencyType::Gold`) at once (Normal 20, Elite 35, Mini-boss 60, Boss 120 × difficulty). All numbers `TODO: tune`. **B** also Elemental / Pillar Essence in the tally. **C** a per-zone progress table instead of the boss bonus.
 **Recommendation:** A. Elden Ring Nightreign and Hades pay a run's meta currency for every encounter cleared plus a clear bonus, which players read as fair ("you always get something, more for finishing"); Gear and Skill Essence are the two upgrade materials D-094 names that still exist (Elemental and Pillar come from dismantling and stones). The numbers follow the D-110 price ladder's scale and are first guesses.
-**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
 **Notes for Claude:** built in B-073 (`Trial/RunRewards.h`, `UTrialRunSubsystem::RecordFightReward` / `ExitTrial`). Every player is paid in full in co-op (D-103), which covers B-235d's payout part.
-
 ### Q-187 — Rest spot: how much does leaving early pay, and what does resting do?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187, cloud) · **Blocks:** —
 **Question:** RunStructure §6 says leaving at a rest spot pays a "reduced (*tune*)" payout. How much, and does a rest happen on every use?
@@ -4093,4 +4232,3 @@ Moved here once applied. Newest first.
 **Recommendation:** A. Darkest Dungeon's retreat keeps what you carry but forfeits the completion reward, and Hades' rest rooms restore without a limit; players read both as fair. Half is a round first guess, `TODO: tune`.
 **Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
 **Notes for Claude:** built in B-187 part 1 (`Trial/TrialRestSpot`, `UTrialRunSubsystem::LeaveRunEarly`, `URestSpotWidget`).
-

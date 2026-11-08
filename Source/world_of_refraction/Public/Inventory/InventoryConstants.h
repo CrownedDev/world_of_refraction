@@ -57,19 +57,19 @@ namespace InventoryConstants
     // These determine how much inventory space each item uses
 
     /** Slot cost for base weapon (no crystal) */
-    constexpr int32 WEAPON_BASE_SLOT_COST = 1;
+    constexpr int32 WEAPON_BASE_SLOT_COST = LoadoutConstants::WEAPON_FRAME_COST; // Q-357: the frame
 
     /** Slot cost for weapon with crystal attached */
-    constexpr int32 WEAPON_CRYSTAL_SLOT_COST = 2;
+    constexpr int32 WEAPON_CRYSTAL_SLOT_COST = LoadoutConstants::WEAPON_FRAME_COST + LoadoutConstants::CRYSTAL_ATTACHMENT_COST;
 
-    /** Slot cost for weapon with evolution crystal */
-    constexpr int32 WEAPON_EVOLUTION_SLOT_COST = 3;
+    /** Slot cost for weapon with evolution crystal: the weapon frame plus the evolution (B-357, Q-357). */
+    constexpr int32 WEAPON_EVOLUTION_SLOT_COST = LoadoutConstants::WEAPON_FRAME_COST + LoadoutConstants::EVOLUTION_SLOT_COST;
 
     /** Slot cost for base ring (crystal attached) */
-    constexpr int32 RING_BASE_SLOT_COST = 1;
+    constexpr int32 RING_BASE_SLOT_COST = LoadoutConstants::ADAPTER_FRAME_COST + LoadoutConstants::CRYSTAL_ATTACHMENT_COST;
 
-    /** Slot cost for evolved ring */
-    constexpr int32 RING_EVOLUTION_SLOT_COST = 2;
+    /** Slot cost for evolved ring: the adapter frame (0) plus the evolution (2) (Q-357, Crown 2026-11-08). */
+    constexpr int32 RING_EVOLUTION_SLOT_COST = LoadoutConstants::ADAPTER_FRAME_COST + LoadoutConstants::EVOLUTION_SLOT_COST;
 
     // ==================== EQUIPMENT SPELL/ABILITY SLOTS ====================
     // Reference LoadoutConstants for these - single source of truth

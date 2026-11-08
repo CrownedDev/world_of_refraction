@@ -45,6 +45,7 @@ FSavedCarriedGear FSavedCarriedGear::Make(const FCarriedGearState &Carried)
 		Out.Holder = FSavedAssetRef::Make(Attachment.Holder);
 		Out.GearID = Attachment.GearID;
 		Out.Attached = Attachment.Attached;
+		Out.StoneSocket = Attachment.StoneSocket; // B-351b (a stone holds no asset pointer)
 		Out.EvolutionItem = FSavedAssetRef::Make(Attachment.Attached.Evolution.Item);
 		Out.Attached.Evolution.Item = nullptr;
 	}
@@ -71,6 +72,7 @@ FCarriedGearState FSavedCarriedGear::Restore() const
 		Out.Holder = Holder;
 		Out.GearID = In.GearID;
 		Out.Attached = In.Attached;
+		Out.StoneSocket = In.StoneSocket; // B-351b
 		Out.Attached.Evolution.Item = In.EvolutionItem.IsSet() ? In.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 	}
 	Carried.bHasPrimaryEvolution = bHasPrimaryEvolution;

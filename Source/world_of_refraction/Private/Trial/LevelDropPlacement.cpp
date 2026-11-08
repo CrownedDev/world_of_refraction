@@ -76,7 +76,9 @@ int32 WoRLevelDrops::GetLiveLevel(const UWorld *World, const FPartyMember &Membe
 	}
 	const UTrialRunSubsystem *Run = LevelDropRun(World);
 	const int32 Earned = Run ? Run->GetRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Member), Pillar) : 0;
-	return FMath::Min(AssetLevel(*Member.CharacterData, Pillar) + Earned, WorldStatConstants::LIVE_MAX);
+	// B-348b: the member's saved head-start is part of its live level too (UCharacterDataComponent::SeedWorldStats).
+	const int32 HeadStart = Pillar == EWorldPillar::Mind ? Member.HeadStartMind : Pillar == EWorldPillar::Body ? Member.HeadStartBody : Member.HeadStartSpirit;
+	return FMath::Min(AssetLevel(*Member.CharacterData, Pillar) + HeadStart + Earned, WorldStatConstants::LIVE_MAX);
 }
 
 FText WoRLevelDrops::TryPlaceLevel(UWorld *World, const FPartyMember &Member, EWorldPillar Pillar)
