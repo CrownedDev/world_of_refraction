@@ -6,6 +6,7 @@
 #include "Skills/Effects/SkillEffectManager.h"
 #include "GAS/WoREffectMirrorComponent.h"
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "Combat/StatusBarStateComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Infusion/ClassColors.h"
@@ -122,6 +123,18 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	{
 		BuildupMgr->OnStatusBuildupChanged.AddDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 	}
+	// B-230: on a guest the status bar follows the replicated state (the buildup manager's events don't fire there).
+	const UWorld *World = GetWorld();
+	if (UStatusBarStateComponent *BarState = InActor->FindComponentByClass<UStatusBarStateComponent>(); BarState && World && World->GetNetMode() == NM_Client)
+	{
+		BoundStatusBarState = BarState;
+		BarState->OnBarChanged.AddDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
+		const FReplicatedStatusBar &Bar = BarState->GetBar();
+		if (Bar.Max > 0.0f) // review fix: nothing arrived yet draws no 0 / 0 bar; OnBarChanged draws the first one
+		{
+			HandleStatusBuildupChanged(InActor, Bar.Current, Bar.Max, Bar.PendingElement, Bar.Source); // what already arrived
+		}
+	}
 	// B-318: on a guest the list follows the server's snapshot (the effect manager's events don't fire there).
 	if (UWoREffectMirrorComponent *Mirror = InActor->FindComponentByClass<UWoREffectMirrorComponent>())
 	{
@@ -212,6 +225,11 @@ void UCharacterPanelWidget::TeardownPanel()
 		StatusMgr->OnEffectRemoved.RemoveDynamic(this, &UCharacterPanelWidget::HandleEffectRemoved);
 		StatusMgr->OnEffectDurationChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleEffectDurationChanged);
 	}
+	if (UStatusBarStateComponent *BarState = BoundStatusBarState.Get()) // B-230
+	{
+		BarState->OnBarChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
+	}
+	BoundStatusBarState.Reset();
 	if (UStatusBuildupManager *BuildupMgr = BoundBuildupManager.Get())
 	{
 		BuildupMgr->OnStatusBuildupChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);

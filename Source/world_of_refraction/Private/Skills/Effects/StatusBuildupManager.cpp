@@ -28,7 +28,7 @@
 namespace
 {
 	FAutoConsoleCommandWithWorld GDumpStatusBarsCmd(
-		TEXT("wor.DumpStatusBars"),
+		TEXT("wor.StatusBars.Print"),
 		TEXT("DEBUG: print every combatant's status bar and where it lives (B-042o)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 		{
