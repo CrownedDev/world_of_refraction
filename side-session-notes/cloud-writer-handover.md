@@ -1,3 +1,24 @@
+# Cloud writer handover (2026-11-08, seventh part: the brain's list after B-384) — STOPPED: all five items done; what is left wants a compiler or Crown
+
+**The brain (20:56 UTC), in order:** (1) the GAS follow-ups from B-382/B-383; (2) B-380d if writable; (3) apparel Amp lines; (4) crystal Amp by tier; (5) re-scan the Backlog.
+
+| Job | Branch | State | Decisions |
+|---|---|---|---|
+| B-385 | `feature/B-385-scope-gas-followups-cloud` (on B-384) | REVIEW (UNBUILT). Reviewed, fixed and re-reviewed (pass). At UseGAS 1, Defence keeps its scope: an additive correction (this hit's layers minus all of them), added to the composed attribute and in the GAS damage execution, so it still works when the layers floor to 0. The mirror compares and fingerprints the scope; `wor.Damage.Scopes` reads held effects. ScopeGASSpec; PIE B-385 | — |
+| B-380d | `feature/B-380d-apparel-lore-socket-cloud` (on B-380c) | REVIEW (UNBUILT). Reviewed and fixed. The apparel socket gives the old crystal back to storage; socketing the same crystal again is a no-op; an evolution must be owned, belong to the piece's owner (apparel gets an owner when banked) and not be in another socket; `IsEvolutionInUse` also counts apparel. ApparelSpec; CL-50b; PIE B-380d. **Split:** lore-loadout apparel (banking authored apparel, the save, then stripping unowned apparel) moved to new row **B-380e**, which needs a build | Q-380d (default: the crystal comes back whole; worn or broken is Crown's call); Q-380c (default: banked at first draw like starting weapons, built in B-380e) |
+| B-386 | `feature/B-386-apparel-amp-cloud` (on B-380d, with B-385 merged in) | REVIEW (UNBUILT). Review: pass with notes, notes fixed. Apparel carries Amp lines (the deckbuilder's HP · Amp · Def). ApparelSpec; CL-50c; PIE B-386 | Q-386 (deckbuilder rule) |
+| B-387 | `feature/B-387-crystal-amp-cloud` (on B-386) | REVIEW (UNBUILT). Review: pass with notes, fixed. A worn crystal (weapon, adapter or apparel socket) and the seated evolution grant Amp to their element by tier: F0 E0 D1 C1 B2 A2 S3. Broken ones and gear-socket evolutions (D-147) give none. AmpSpec; ED-50d; PIE B-387 (balance note: it stacks, so rerun the balance report) | Q-387 (deckbuilder ladder) |
+
+**Re-scan (item 5):** nothing else was unblocked by today's decisions:
+- The MemoryCatalogue rows are written (B-375 to B-381).
+- D-164 to D-167 and Q-164b are covered by B-380 to B-387.
+- B-380e needs a build.
+- Still open for later rows: B-377b's notes (a friend's curses and counters read on the host; a client's quest-end memory reaching the host's known set).
+
+**Merge plan:** rows 64-67 added. Save stays 31.
+
+**Trial branch:** all merged. The docs union doubled Q-380c/d and some Backlog rows; fixed on the trial branch.
+
 # Cloud writer handover (2026-11-08, sixth part: Crown's Amp answer, damage scopes, one damage channel) — STOPPED: all three rows written; what is left wants a compiler or Crown
 
 **The brain (19:37 UTC):** Crown answered **Q-164b = A, as an addition**, then sent a follow-up: give every damage and defence boost a scope (D-166).
