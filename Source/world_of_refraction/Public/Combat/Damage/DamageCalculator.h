@@ -233,6 +233,10 @@ public:
 	 *  both the status factor and the stat-cap correction read (GetTransientRaw/SpellDamageFactor with no scoped effects). */
 	float GetScopedTransientDamageFactor(AActor *Attacker, bool bIsSpell, ESpellElement HitElement) const;
 
+	/** B-384 (D-167): the attacker's one All-damage percent for a hit: DamageBuff - DamageDebuff + ModifyDamageDealt
+	 *  + (Spell or Raw) DamageBuff - Debuff, each read through its scope; applied once as x(1 + total / 100). */
+	float GetAllDamagePercent(AActor *Attacker, EActionType ActionType, ESpellElement HitElement) const;
+
 	/** Ignore Defense for one hit as a fraction, 0-1 (D-086): Input's amount (bIgnoreDefense = 100%)
 	 *  plus each of the attacker's IgnoreDefense effects (one without an amount, or valued 1, = 100%), capped at 1. */
 	float GetIgnoreDefenseFraction(AActor *Attacker, const FDamageCalculationInput &Input) const;
