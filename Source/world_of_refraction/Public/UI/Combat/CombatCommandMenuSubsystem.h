@@ -18,6 +18,7 @@
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;
+enum class ECombatFreeCommand : uint8;
 class UCharacterData;
 class USpellData;
 class UAbilityData;
@@ -40,6 +41,18 @@ enum class ECombatMenuDepth : uint8
     TargetCategory,
     TargetSelection
 };
+
+// ==================== WHERE THE MENU OPENS (B-232b) ====================
+
+namespace CommandMenuRules
+{
+	/** The command menu opens on the machine whose player commands the member (Q-232, D-150): never for an AI seat;
+	 *  with no run state (standalone, specs) the one player commands everything, as before. */
+	inline bool OpensHere(bool bAIControlled, bool bHasRunState, bool bCommandedHere)
+	{
+		return !bAIControlled && (!bHasRunState || bCommandedHere);
+	}
+}
 
 // ==================== SUBSYSTEM ====================
 
@@ -127,7 +140,19 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
     void RefreshMenu();
 
+    /** The Schools sub-menu: one button per school the spells hold, in school order, then Back (D-163: up to six
+     *  plus Back, a gamepad radial's eight slots). Public and static for the headless spec (B-374). */
+    static TArray<FPieMenuButtonData> BuildSchoolButtons(const TArray<USpellData *> &Spells);
+
+    /** B-232c (client): the server ran a free step for Actor (ACombatPlayerController::Client_FreeCommandApplied);
+     *  the open menu redraws from the stepped loadout. */
+    void HandleFreeCommandApplied(AActor *Actor, ECombatFreeCommand Command);
+
 private:
+    /** B-232c: on a client, a free step goes to the server (ACombatPlayerController::RequestFreeCommand) instead of
+     *  running here; true when it was sent. */
+    bool SendFreeCommandToServer(ECombatFreeCommand Command);
+
     // ==================== ORCHESTRATOR BINDING ====================
 
     UPROPERTY()
@@ -207,7 +232,6 @@ private:
     TArray<FPieMenuButtonData> BuildSpellSubmenu(EPieMenuCategory Source) const;
     TArray<FPieMenuButtonData> BuildAbilitySubmenu() const;
     TArray<FPieMenuButtonData> BuildAbilityButtonsFrom(const TArray<UAbilityData *> &Abilities) const;
-    TArray<FPieMenuButtonData> BuildSchoolButtons(const TArray<USpellData *> &Spells) const;
     TArray<FPieMenuButtonData> BuildSpellButtons(const TArray<USpellData *> &Spells,
                                                  EPieMenuSpellSchool School) const;
     TArray<FPieMenuButtonData> BuildItemsSubmenu() const;

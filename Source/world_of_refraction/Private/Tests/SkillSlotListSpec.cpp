@@ -8,6 +8,7 @@
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
+#include "Loadout/FCombatLoadout.h"
 #include "Loadout/SkillSlotList.h"
 #include "Skills/Definitions/AbilityData.h"
 
@@ -91,6 +92,18 @@ void FSkillSlotListSpec::Define()
 		TestTrue(TEXT("the stone's slot takes a skill"), Entry.ReplaceSkill(SLOT_TEST_SECOND, Chosen));
 		const TArray<UAbilityData *> Offered = Entry.GetSkillSlotAbilities();
 		TestTrue(TEXT("both offered in one list"), Offered.Contains(BuiltIn) && Offered.Contains(Chosen));
+	});
+
+	It("reaches the loadout's ability list, which combat and the AI read (B-351c)", [this]()
+	{
+		Entry.WeaponEntry.StoneSocket = AbilityStone();
+		TestTrue(TEXT("the stone's slot takes a skill"), Entry.ReplaceSkill(SLOT_TEST_SECOND, Chosen));
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon = Entry;
+		const TArray<UAbilityData *> Abilities = Loadout.GetAllAbilities();
+		TestTrue(TEXT("the built-in"), Abilities.Contains(BuiltIn));
+		TestTrue(TEXT("the pick in the stone's slot"), Abilities.Contains(Chosen));
 	});
 }
 
