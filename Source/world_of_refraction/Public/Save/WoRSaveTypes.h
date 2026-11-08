@@ -705,6 +705,32 @@ struct WORLD_OF_REFRACTION_API FSavedCurses
 	TArray<FName> Lifted;
 };
 
+/** B-379: one hidden counter's count for a character (None: all characters). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCounter
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Counter;
+
+	UPROPERTY()
+	FName Character;
+
+	UPROPERTY()
+	int32 Count = 0;
+};
+
+/** B-379: this player's hidden counters (save v27); they keep counting across runs. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCounters
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedCounter> Counts;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -731,4 +757,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedCurses Curses; // B-378
+
+	UPROPERTY()
+	FSavedCounters Counters; // B-379
 };

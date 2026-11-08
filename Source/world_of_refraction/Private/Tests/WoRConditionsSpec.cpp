@@ -138,6 +138,11 @@ BEGIN_DEFINE_SPEC(FWoRConditionsSpec, "WoR.Conditions",
 		FMemoryCondition Curse = Make(EMemoryConditionKind::CurseHeld);
 		Curse.CurseId = TEXT("Curse.Parity");
 		Add(TEXT("CurseHeld, none held"), Curse);
+		// B-379: the old evaluator has no counters; with none counted both say no (HiddenCounterSpec covers a reached one).
+		FMemoryCondition Counter = Make(EMemoryConditionKind::CounterReached);
+		Counter.CounterId = TEXT("Counter.Parity");
+		Counter.CounterTarget = 1;
+		Add(TEXT("CounterReached, none counted"), Counter);
 
 		for (const EMemoryRequirementFit Fit : {EMemoryRequirementFit::Any, EMemoryRequirementFit::Met, EMemoryRequirementFit::Under})
 		{

@@ -103,6 +103,10 @@ public:
 	 *  they see the notice (D-103: hidden unlocks are private). */
 	UFUNCTION(Client, Reliable)
 	void Client_UnlockMemory(class UMemoryData *Memory, EMemorySource Source);
+
+	/** B-379: one of this player's characters added to a hidden counter in a fight the host ran; their own save counts it. */
+	UFUNCTION(Client, Reliable)
+	void Client_AddCounter(FName Counter, class UCharacterData *Character);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 	/** B-235d (Q-235d, Crown): the characters this player plays: the claimed characters and the characters of the
 	 *  claimed party members (the host's party knows them). A memory's conditions are read against these for them. */
