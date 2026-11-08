@@ -255,6 +255,20 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	FVector DropSpot = FVector::ZeroVector;
 
+	/** B-073 (save v23; 21 / 22 are B-348b / B-351b: renumber if dev moved): the run's reward tally, paid at its end. */
+	UPROPERTY()
+	int32 TallyHubGold = 0;
+
+	UPROPERTY()
+	int32 TallyGearEssence = 0;
+
+	UPROPERTY()
+	int32 TallySkillEssence = 0;
+
+	/** B-073 (save v23, desktop review): the run's boss was beaten, so a resumed run's end still gets the boss bonus. */
+	UPROPERTY()
+	bool bTallyBossBeaten = false;
+
 	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
 	 *  puts home gear back as it left home. */
 	UPROPERTY()

@@ -33,6 +33,7 @@
 #include "Combat/Encounter/EFirstStrike.h"
 #include "Combat/Encounter/EnemyZone.h"
 #include "Trial/TrialGate.h"
+#include "Trial/RunRewards.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TrialRunSubsystem.generated.h"
@@ -185,6 +186,31 @@ public:
      *  pays every player Mentor Tokens (ExitTrial). */
     void MarkRunBossBeaten() { bRunBossBeaten = true; }
     bool IsRunBossBeaten() const { return bRunBossBeaten; }
+
+    // ==================== B-073: REWARDS ====================
+
+    /** B-073 (server): a fight won: run Prisms to every player now, and the rank's share into the run's tally. */
+    void RecordFightReward(UWorld *World, EEncounterRank Rank);
+
+    /** B-073: a chest opened: its share into the run's tally. */
+    void RecordChestReward();
+
+    /** B-073: the tally so far (paid only when the run ends, D-006: nothing banked mid-run). */
+    const FRunPayout &GetRunTally() const { return RunTally; }
+
+    /** B-073: what the run's end would pay now (the tally scaled by difficulty, boss bonus and multiplier). */
+    FRunPayout GetRunEndPayout() const;
+
+    /** B-073: the run's end pays the tally to every player (ExitTrial calls it, win or lose; specs call it). Empties
+     *  the tally so it can't be paid twice. Returns how many players were paid. */
+    int32 PayRunEnd(UWorld *World);
+
+    /** B-073 / B-096: the payout multiplier (passives raise it); BASE 1.0. */
+    float GetRunPayoutMultiplier() const { return PayoutMultiplier; } // not GetPayoutMultiplier: that is the difficulty's
+    void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
+
+    /** B-073: the save puts a resumed run's tally back. */
+    void RestoreRunTally(const FRunPayout &Tally) { RunTally = Tally; }
 
     // ==================== LOSING A FIGHT (B-362, D-155, Q-155) ====================
 
@@ -377,6 +403,10 @@ private:
     /** B-361b: run state like BeatenEncounters (cleared on trial entry and exit; moves with it for co-op, D-065).
      *  TODO: not in the save yet (a resumed run forgets it, as Q-223's run levels). */
     bool bRunBossBeaten = false;
+
+    /** B-073: hub Gold and essences earned this run, paid at its end. */
+    FRunPayout RunTally;
+    float PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
 
     /** B-362: run state like BeatenEncounters (cleared on trial entry and exit; saved with the run in FSavedRun). */
     int32 RunWipes = 0;

@@ -101,6 +101,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     RunMainBossLosses = 0;
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
+    RunTally = FRunPayout(); // B-073
+    PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;
@@ -182,6 +184,9 @@ void UTrialRunSubsystem::ExitTrial()
         Save->ClearRunGold(GetGameInstance()->GetWorld());
     }
 
+    // B-073 (D-006): the run's tally is paid now, win or lose, to every player in full (D-103).
+    PayRunEnd(GetGameInstance()->GetWorld());
+
     // B-361b (D-154, Q-361b): a finished co-op run (its boss beaten) pays every player; leaving early pays nothing.
     if (bRunBossBeaten)
     {
@@ -200,6 +205,8 @@ void UTrialRunSubsystem::ExitTrial()
     RunMainBossLosses = 0;
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
+    RunTally = FRunPayout(); // B-073
+    PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;
@@ -688,6 +695,10 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
+    // B-073 desktop review: nothing of an earlier run's payout lingers (the save restores the tally and the boss mark).
+    bRunBossBeaten = false;
+    RunTally = FRunPayout();
+    PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     // B-314: a resumed run opens a fresh layer; B-314b: USaveSubsystem::RestoreRun then replaces it with the save's own
     // layer when the save has one (the run-only marks and home states as saved).
     UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -772,3 +783,50 @@ void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
     }
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Level);
 }
+
+void UTrialRunSubsystem::RecordFightReward(UWorld *World, EEncounterRank Rank)
+{
+    if (!IsRunActive())
+    {
+        return; // a fight outside a run pays nothing
+    }
+    RunRewards::PayWinToPlayers(World, RunRewards::WinRunPrisms(Rank, TrialDifficulty));
+    RunTally += RunRewards::FightTally(Rank);
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Run tally now %s"), *RunRewards::GetPayoutString(RunTally));
+}
+
+void UTrialRunSubsystem::RecordChestReward()
+{
+    if (IsRunActive())
+    {
+        RunTally += RunRewards::ChestTally();
+    }
+}
+
+int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
+{
+    const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
+    RunTally = FRunPayout();
+    return Paid;
+}
+
+FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
+{
+    return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten, PayoutMultiplier);
+}
+
+static FAutoConsoleCommandWithWorld GTrialPrintRewardsCommand(
+    TEXT("wor.Trial.PrintRewards"),
+    TEXT("B-073: the run's tally, what its end would pay now, and the payout multiplier."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        if (!Run)
+        {
+            return;
+        }
+        UE_LOG(LogWoR, Display, TEXT("[RunRewards] run %s; tally %s; the end would pay %s (x%.2f)"), Run->IsRunActive() ? TEXT("on") : TEXT("off"),
+               *RunRewards::GetPayoutString(Run->GetRunTally()), *RunRewards::GetPayoutString(Run->GetRunEndPayout()),
+               Run->GetRunPayoutMultiplier());
+    }));
