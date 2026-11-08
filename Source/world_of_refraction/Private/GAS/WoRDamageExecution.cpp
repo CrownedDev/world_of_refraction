@@ -35,9 +35,11 @@ FDamageMathInputs UWoRDamageExecution::ReadAttributes(const FWoRDamageRequest &R
 	}
 	if (Inputs.bApplyDefense)
 	{
-		// TODO: B-383: the synced Defense attribute counts every DefenseBuff whatever its scope (GetDefenderDefenseForHit
-		// is the scoped read on the enum path).
-		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Stats::GetDefenseAttribute(), Inputs.DefenderDefense);
+		// B-385: the synced Defense attribute counts every DefenseBuff; the gather's scope ratio keeps this hit's scopes.
+		if (UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Stats::GetDefenseAttribute(), Inputs.DefenderDefense))
+		{
+			Inputs.DefenderDefense *= Inputs.DefenseScopeRatio;
+		}
 	}
 
 	if (!Request.bIgnoreResistance)

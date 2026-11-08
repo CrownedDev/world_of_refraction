@@ -62,7 +62,8 @@ namespace
 bool FWoRMirroredEffect::Matches(const FWoRMirroredEffect &Other) const
 {
 	return Identity.IsSameIdentity(Other.Identity) && Identity.EffectType == Other.Identity.EffectType &&
-		   Identity.Element == Other.Identity.Element && Identity.bFromGear == Other.Identity.bFromGear &&
+		   Identity.Element == Other.Identity.Element && Identity.DamageScope == Other.Identity.DamageScope && // B-385
+		   Identity.bFromGear == Other.Identity.bFromGear &&
 		   FMath::IsNearlyEqual(Magnitude, Other.Magnitude, MIRROR_MAGNITUDE_TOLERANCE);
 }
 
