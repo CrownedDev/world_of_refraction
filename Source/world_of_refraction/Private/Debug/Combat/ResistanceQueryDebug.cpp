@@ -38,12 +38,12 @@ namespace
 		EPhysicalDamageType::None, EPhysicalDamageType::Slash, EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact};
 
 	FAutoConsoleCommandWithWorld GCompareResistanceCmd(
-		TEXT("wor.CompareResistance"),
+		TEXT("wor.Resistance.Compare"),
 		TEXT("DEBUG: buildup resistance per damage type (B-216) vs the old composition, every combatant x every hit."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UResistanceQueryDebug::CompareResistance(World); }));
 
 	FAutoConsoleCommandWithWorld GPrintResistanceTypesCmd(
-		TEXT("wor.PrintResistanceTypes"),
+		TEXT("wor.Resistance.Print"),
 		TEXT("DEBUG: print each combatant's resistance per damage type."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UResistanceQueryDebug::PrintResistanceTypes(World); }));
 

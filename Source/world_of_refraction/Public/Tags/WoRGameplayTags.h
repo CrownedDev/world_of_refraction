@@ -1,7 +1,7 @@
 // WoRGameplayTags.h
 // GAS stage 1 (B-040, Design/GASMigration.md §4): the native tag tree and the enum <-> tag maps.
 // The enums stay the stored form (assets serialize them); tags are the query language from here on.
-// Debug: UWoRTagDebug (wor.DumpTags, wor.CompareTags).
+// Debug: UWoRTagDebug (wor.Tags.Print, wor.Tags.Compare).
 
 #pragma once
 

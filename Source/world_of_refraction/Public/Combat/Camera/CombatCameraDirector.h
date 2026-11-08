@@ -1,12 +1,14 @@
 // CombatCameraDirector.h
 // Picks which combat camera the viewer sees and in which mode (Design/CombatCamera.md §1-3).
 // Lives on the combat orchestrator; driven by turn start and action start. Plays the
-// skill's Level Sequence (or its type's template) bound to the caster and targets.
+// skill's own Level Sequence (a signature move) bound to the caster and targets, else the
+// code-built shot patterns (B-371, Q-371: wind-up, Cast, Impact / Spread; the next turn blends back).
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/TimerHandle.h"
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "CombatCameraDirector.generated.h"
 
@@ -16,6 +18,7 @@ class ULevelSequence;
 class ULevelSequencePlayer;
 class ALevelSequenceActor;
 class APlayerController;
+class UCameraShakeBase;
 struct FAction;
 
 UCLASS(ClassGroup = (Combat))
@@ -45,6 +48,10 @@ public:
 	const ULevelSequence *GetPlayingSequence() const { return PlayingSequence; }
 	int32 GetCameraCount() const { return Cameras.Num(); }
 
+	/** B-370 (wor.Camera): the last action's cinematic window and hand-off, e.g. "window ends 1.25 s (first
+	 *  defendable 2.00 s) -> Defence, pending". */
+	FString GetCinematicWindowString() const;
+
 	/** Turn-view style (D-074 (2)). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
 	ETurnViewStyle TurnViewStyle = ETurnViewStyle::CentredWide;
@@ -66,9 +73,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
 	bool bSkipCinematicAfterHit = false;
 
-	/** Sequence a skill without its own CameraSequence plays, by skill type (B-157 authors them). */
+	/** OBSOLETE (B-371, Q-371: code-built shot patterns replace the templates; delete in the D-124 sweep). No
+	 *  longer read: a skill without its own CameraSequence plays the shot patterns. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Templates")
 	TMap<ECameraTemplateKind, TSoftObjectPtr<ULevelSequence>> TemplateSequences;
+
+	/** B-371: the camera shake an impact shot plays, scaled by the shot (larger on a crit). Empty: no shake, the FOV
+	 *  punch alone. TODO: a shake class (editor step, B-157). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Shots")
+	TSubclassOf<UCameraShakeBase> ImpactShake;
+
+	/** B-371 (wor.Camera): the shot pattern now playing, e.g. "shot: Impact on Goblin (fov 82, shake 0.60)". */
+	FString GetShotString() const;
 
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -85,6 +101,28 @@ private:
 
 	UFUNCTION()
 	void HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
+
+	UFUNCTION()
+	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
+
+	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
+	 *  could not (no camera or no viewer): nothing is left playing. */
+	bool StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill);
+	/** B-371: shows Shot on Camera: the move runs on a short timer from where that camera is now, when the viewer
+	 *  already looks through it, else the view blends to it. */
+	bool PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot);
+	void StepShot();
+	void StopShotPattern();
+	bool IsShotPlaying() const { return ShotCaster.IsValid(); }
+	FCameraShotContext BuildShotContext(bool bCritical) const;
+
+	/** B-370 (D-162): sets the window-end timer when one of the viewer's characters is targeted by someone else.
+	 *  True when the window ends at once and the Defence view is already showing (no cinematic then). */
+	bool ScheduleDefenceHandOff(AActor *Executor, const FAction &Action);
+	void HandleCinematicWindowEnd();
+	void ClearDefenceHandOff();
+	/** Behind the viewer's targeted characters, the attacker in front. */
+	void ShowDefenceView();
 
 	/** After a settings change: cuts a playing cinematic the settings now skip. */
 	void StopCinematicIfNowSkipped();
@@ -124,4 +162,28 @@ private:
 	TWeakObjectPtr<AActor> ViewTargetBeforeCombat;
 	ECombatCameraMode CurrentMode = ECombatCameraMode::None;
 	bool bInCombat = false;
+
+	// B-370: the pending Defence hand-off of the current action.
+	FTimerHandle DefenceHandOffTimer;
+	TArray<TWeakObjectPtr<AActor>> HandOffDefenders;
+	TWeakObjectPtr<AActor> HandOffAttacker;
+	bool bHasLastWindow = false;
+	float LastWindowEnd = 0.0f;
+	FCinematicWindowTiming LastWindowTiming;
+	ECombatCameraMode LastHandOffMode = ECombatCameraMode::None;
+
+	// B-371: the shot pattern of the current action.
+	TWeakObjectPtr<AActor> ShotCaster;
+	TArray<TWeakObjectPtr<AActor>> ShotTargets;
+	TWeakObjectPtr<AActor> ShotProjectile;
+	TWeakObjectPtr<UCombatCameraComponent> ShotCamera;
+	FSkillCameraTuning ShotTuning;
+	bool bShotRanged = false;
+	bool bShotImpactShown = false;
+	bool bShotCastShown = false;
+	uint64 ShotStartFrame = 0;
+	ECameraShotMoment ShotMoment = ECameraShotMoment::WindUp;
+	FCameraShot ActiveShot;
+	float ShotElapsed = 0.0f;
+	FTimerHandle ShotTimer;
 };

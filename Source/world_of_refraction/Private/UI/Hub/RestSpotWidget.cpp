@@ -16,7 +16,9 @@
 #include "Trial/RunRewards.h"
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Online/HostSuccession.h"
 #include "UI/Hub/InventoryWidget.h"
+#include "UI/Hub/LevelDropWidget.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "RestSpotWidget"
@@ -94,11 +96,15 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 
 		RestSpotStyle::AddText(WidgetTree, Box)->SetText(LOCTEXT("Rested", "Rest spot: the party is restored."));
 		PayoutText = RestSpotStyle::AddText(WidgetTree, Box);
+		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("LevelUp", "Level up"))
+			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Inventory", "Inventory"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInventoryClicked);
 		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
+		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host (the next player hosts; you rejoin)"));
+		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
 		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"));
 		LeaveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
@@ -142,6 +148,14 @@ void URestSpotWidget::Refresh()
 	if (ConfirmButton)
 	{
 		ConfirmButton->SetVisibility(bConfirmingLeave ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (HandOverButton)
+	{
+		// B-234c: only a host with another player can hand over.
+		const UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr;
+		const UWorld *World = GetWorld();
+		const bool bCanHandOver = HandOver && World && WoRHostSuccession::CanHandOverFrom(World->GetNetMode(), HandOver->GetKnownOrder().Num());
+		HandOverButton->SetVisibility(bCanHandOver ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	// B-187b: only at a mini-boss's rest spot that can still be revived.
 	// B-187e: a client shows what the host said (SetHostRevive).
@@ -188,9 +202,17 @@ FString URestSpotWidget::GetRestSpotWidgetString() const
 						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"), bHostCanRevive ? TEXT("yes") : TEXT("no"), HostRevivalNumber);
 }
 
+void URestSpotWidget::HandleLevelUpClicked()
+{
+	APlayerController *PC = GetOwningPlayer();
+	CloseMenu();
+	ULevelDropWidget::Open(PC); // B-363 (D-156): place and buy pillar points here
+}
+
 void URestSpotWidget::HandleInventoryClicked()
 {
 	APlayerController *PC = GetOwningPlayer();
+	WoRRestSpot::StepAway(GetWorld()); // review: the rest spot's levelling ends with its menu
 	CloseMenu();
 	UInventoryWidget::Open(PC);
 }
@@ -216,8 +238,21 @@ void URestSpotWidget::HandleConfirmLeaveClicked()
 	WoRRestSpot::LeaveRun(World);
 }
 
+void URestSpotWidget::HandleHandOverClicked()
+{
+	UWorld *World = GetWorld();
+	UGameInstance *GI = GetGameInstance();
+	UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr;
+	CloseMenu();
+	if (HandOver)
+	{
+		HandOver->BeginPlannedHandOver(World);
+	}
+}
+
 void URestSpotWidget::HandleCloseClicked()
 {
+	WoRRestSpot::StepAway(GetWorld()); // review: closing the menu walks away from the rest spot
 	CloseMenu();
 }
 

@@ -120,6 +120,31 @@ void FRunStateSpec::Define()
 		TestEqual(TEXT("no GameState: the subsystem answers"), URunStateComponent::GetRunSeed(Offline.GetWorld()), RUN_STATE_SEED);
 	});
 
+	It("copies the run's progress as it changes: found features, waiting levels (B-232d)", [this]()
+	{
+		if (!TestNotNull(TEXT("Run state"), Run)) return;
+		UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("Trial run"), TrialRun)) return;
+		TMap<FName, FText> Found;
+		Found.Add(TEXT("ChestOne"), FText::FromString(TEXT("a chest")));
+		TrialRun->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), RUN_STATE_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, Found, {});
+		Run->PullFromSubsystems();
+		TestTrue(TEXT("a restored find, from the GameState"), URunStateComponent::HasFoundFeature(TestWorld->GetWorld(), TEXT("ChestOne")));
+		TrialRun->RecordFound(TEXT("ChestTwo"), FText::FromString(TEXT("another chest")));
+		TestTrue(TEXT("a find mid-level"), URunStateComponent::HasFoundFeature(TestWorld->GetWorld(), TEXT("ChestTwo")));
+		TestTrue(TEXT("...reaches the copy a client reads"), Run->GetFoundFeatureIds().Contains(TEXT("ChestTwo")));
+		TestFalse(TEXT("not found"), URunStateComponent::HasFoundFeature(TestWorld->GetWorld(), TEXT("ChestThree")));
+		TrialRun->AddUnspentLevels(TEXT("Hero"), 2);
+		TestEqual(TEXT("waiting levels reach the copy"), URunStateComponent::GetUnspentLevels(TestWorld->GetWorld(), TEXT("Hero")), 2);
+		TrialRun->TakeUnspentLevel(TEXT("Hero"));
+		TestEqual(TEXT("one placed"), URunStateComponent::GetUnspentLevels(TestWorld->GetWorld(), TEXT("Hero")), 1);
+		for (const TCHAR *Name : {TEXT("FoundFeatureIds"), TEXT("RunMemories"), TEXT("UnspentLevels")})
+		{
+			const FProperty *Property = FindFProperty<FProperty>(URunStateComponent::StaticClass(), Name);
+			TestTrue(FString::Printf(TEXT("%s replicates"), Name), Property && Property->HasAnyPropertyFlags(CPF_Net));
+		}
+	});
+
 	It("lets a player command only its own character", [this]()
 	{
 		if (!Run || !FirstPC || !SecondPC) return;

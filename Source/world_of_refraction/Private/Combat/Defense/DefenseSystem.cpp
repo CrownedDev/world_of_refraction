@@ -2,6 +2,7 @@
 // Real-time defense system implementation
 
 #include "Combat/Defense/DefenseSystem.h"
+#include "Combat/CombatPresentationComponent.h"
 #include "Combat/Defense/GuardRules.h"
 #include "GameFramework/Pawn.h"
 #include "Character/CharacterDataComponent.h"
@@ -622,6 +623,11 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 		CombatAnim->PlayActionMontage(MontageToPlay, PlayRate);
 		UE_LOG(LogTemp, Verbose, TEXT("[DefenseSystem] Playing %s for %s (Rate: %.1f)"),
 			   *MontageToPlay->GetName(), *Defender->GetName(), PlayRate);
+	}
+	// B-231: a guard or dodge plays on the clients' copies too (defense resolves on the server).
+	if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Defender))
+	{
+		Presentation->SendMontage(MontageToPlay, PlayRate);
 	}
 }
 

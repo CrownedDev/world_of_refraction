@@ -15,7 +15,7 @@ namespace
 	constexpr int32 INDENT_SPACES_PER_LEVEL = 2;
 
 	FAutoConsoleCommandWithWorld GDescribeEffectsCmd(
-		TEXT("wor.DescribeEffects"),
+		TEXT("wor.Effects.Describe"),
 		TEXT("DEBUG: print every combatant's gear effects as generated text, lit by what holds now (B-045)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UEffectTextDebug::DescribeEffects(World); }));
 
@@ -78,7 +78,7 @@ int32 UEffectTextDebug::DescribeEffects(const UObject *WorldContextObject)
 	UWorld *World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
 	if (!World)
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[EffectTextDebug] wor.DescribeEffects: no world."));
+		UE_LOG(LogWoR, Warning, TEXT("[EffectTextDebug] wor.Effects.Describe: no world."));
 		return 0;
 	}
 	int32 Described = 0;

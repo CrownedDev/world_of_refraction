@@ -20,7 +20,7 @@
 // path until B-042y routes the tick's Health write through the real HP path (Q-042hb).
 // B-042ye: the per-effect reads (the AI's tick and turns, the debuff count, the character panel's list)
 // go through ReadHeldEffects / PreviewDotTick at UseGAS 1.
-// Debug: UWoREffectDebug (wor.CompareEffects).
+// Debug: UWoREffectDebug (wor.Effects.Compare).
 
 #pragma once
 

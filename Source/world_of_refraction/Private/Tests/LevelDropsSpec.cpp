@@ -2,6 +2,7 @@
 // B-223 (D-102, Q-223): defeated enemies drop pillar levels into the run; the player places each on a party
 // member's chosen pillar (WoRLevelDrops::TryPlaceLevel), capped at 7, and a re-seed keeps it.
 // B-360c (Q-360c): a later copy of a character places its own levels, under its own member key.
+// B-364 (D-157, Q-157): a point placed at 7 becomes an over-cap point (3 per pillar, +5 % each to the pillar).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -10,6 +11,10 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Character/OverCapRules.h"
+#include "Combat/Tier/CombatTier.h"
+#include "Currency/CurrencyComponent.h"
+#include "Player/WoRPlayerState.h"
 #include "Combat/Tuning/CombatBaselineConstants.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -64,6 +69,7 @@ void FLevelDropsSpec::Define()
 		if (Run)
 		{
 			Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), LEVEL_DROPS_TEST_SEED, 0, ETrialDifficulty::Medium, {}, {}, {});
+			Run->SetAtRestSpot(true); // B-363 (D-156): points are placed at a rest spot
 		}
 		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
 		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
@@ -124,6 +130,50 @@ void FLevelDropsSpec::Define()
 		TestEqual(TEXT("re-seed keeps the run's level"), Comp->GetWorldStat(EWorldPillar::Mind), LEVEL_DROPS_TEST_ASSET_MIND + 1);
 	});
 
+	It("places and buys points only at a rest spot; the price climbs per character (B-363, Q-156)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Run && Member))
+		{
+			return;
+		}
+		Run->AddUnspentLevels(KeyOf(Member), 1);
+		Run->SetAtRestSpot(false);
+		TestFalse(TEXT("away from a rest spot: refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body).IsEmpty());
+		TestFalse(TEXT("buying too"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member)).IsEmpty());
+		TestEqual(TEXT("the point still waits"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		Run->SetAtRestSpot(true);
+		const int32 First = WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member));
+		Run->AddRunLevelPurchase(KeyOf(Member));
+		TestTrue(TEXT("the next costs more"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member)) > First);
+		TestEqual(TEXT("another character's price is its own"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Absent)), First);
+		TestFalse(TEXT("no wallet here: buying refused"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member)).IsEmpty());
+	});
+
+	It("a win banks the drop without placing it; buying spends the ladder price (B-363 review)", [this]()
+	{
+		AWoRPlayerState *Player = TestWorld->GetWorld()->SpawnActor<AWoRPlayerState>();
+		UCurrencyComponent *Wallet = Player ? Player->GetWallet() : nullptr;
+		if (!TestTrue(TEXT("setup"), Run && Member && Wallet))
+		{
+			return;
+		}
+		const int32 MindBefore = WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind);
+		Run->AddUnspentLevels(KeyOf(Member), 1); // what a won fight's drop does (CombatOrchestrator::FinishCombat)
+		TestEqual(TEXT("banked"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		TestEqual(TEXT("not placed"), WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind), MindBefore);
+
+		const int32 Price = WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member));
+		Wallet->Add(ECurrencyType::Gold, Price - 1); // the run currency (shown as Prisms, D-159)
+		TestFalse(TEXT("one short: refused"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
+		TestEqual(TEXT("nothing spent"), Wallet->GetBalance(ECurrencyType::Gold), Price - 1);
+		Wallet->Add(ECurrencyType::Gold, 1);
+		TestTrue(TEXT("bought"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
+		TestEqual(TEXT("the price spent"), Wallet->GetBalance(ECurrencyType::Gold), 0);
+		TestEqual(TEXT("one more to place"), Run->GetUnspentLevels(KeyOf(Member)), 2);
+		TestEqual(TEXT("one purchase"), Run->GetRunLevelPurchases(KeyOf(Member)), 1);
+		TestTrue(TEXT("the next costs more"), WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member)) > Price);
+	});
+
 	It("a member not in the level keeps the level in the run", [this]()
 	{
 		if (!TestTrue(TEXT("setup"), Run && Absent))
@@ -137,22 +187,85 @@ void FLevelDropsSpec::Define()
 		TestEqual(TEXT("live reads it"), WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), PartyOf(Absent), EWorldPillar::Spirit), 1);
 	});
 
-	It("refuses with nothing waiting or the pillar at the cap", [this]()
+	It("refuses with nothing waiting", [this]()
 	{
 		if (!TestTrue(TEXT("setup"), Run && Member))
 		{
 			return;
 		}
 		TestFalse(TEXT("nothing waiting"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind).IsEmpty());
+	});
+
+	It("B-364: at 7 a point goes over-cap, 3 at most, each lifting the pillar 5 % and not the Combat Tier", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Run && Member))
+		{
+			return;
+		}
 		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), PartyOf(Member));
 		if (!TestNotNull(TEXT("spawned"), Comp))
 		{
 			return;
 		}
-		Comp->AddEarnedWorldStat(EWorldPillar::Mind, WorldStatConstants::LIVE_MAX);
-		Run->AddUnspentLevels(KeyOf(Member), 1);
-		TestFalse(TEXT("at the cap"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind).IsEmpty());
-		TestEqual(TEXT("level still waits"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		Comp->AddEarnedWorldStat(EWorldPillar::Body, WorldStatConstants::LIVE_MAX);
+		const float BodyAtCap = Comp->GetEvolutionModifiedBody();
+		const float RawDamageAtCap = Comp->GetEvolutionModifiedRawDamage(); // a Body sub-stat (review)
+		const float MindBefore = Comp->GetEvolutionModifiedMind();
+		const EItemTier TierBefore = WoRCombatTier::GetCombatTier(Comp->GetOwner());
+		Run->AddUnspentLevels(KeyOf(Member), OverCapRules::MAX_PER_PILLAR + 1);
+
+		TestTrue(TEXT("placed at 7"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body).IsEmpty());
+		TestEqual(TEXT("live stays 7"), Comp->GetWorldStat(EWorldPillar::Body), WorldStatConstants::LIVE_MAX);
+		TestEqual(TEXT("one over-cap point"), Comp->GetOverCapPoints(EWorldPillar::Body), 1);
+		TestEqual(TEXT("helper reads it"), WoRLevelDrops::GetOverCap(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body), 1);
+		TestEqual(TEXT("body +5 %"), Comp->GetEvolutionModifiedBody(), BodyAtCap * OverCapRules::ScaleFor(1), KINDA_SMALL_NUMBER);
+		// Raw damage is 1 + Body x its points x a step, so its part above 1 scales with Body.
+		TestEqual(TEXT("a Body sub-stat rises 5 % with it"), Comp->GetEvolutionModifiedRawDamage() - 1.0f,
+				  (RawDamageAtCap - 1.0f) * OverCapRules::ScaleFor(1), KINDA_SMALL_NUMBER);
+		TestEqual(TEXT("mind untouched"), Comp->GetEvolutionModifiedMind(), MindBefore, KINDA_SMALL_NUMBER);
+		TestEqual(TEXT("Combat Tier unchanged"), WoRCombatTier::GetCombatTier(Comp->GetOwner()), TierBefore);
+
+		for (int32 Index = 1; Index < OverCapRules::MAX_PER_PILLAR; ++Index)
+		{
+			WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body);
+		}
+		TestEqual(TEXT("three over-cap"), Comp->GetOverCapPoints(EWorldPillar::Body), OverCapRules::MAX_PER_PILLAR);
+		TestTrue(TEXT("pillar full"), WoRLevelDrops::IsPillarFull(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body));
+		TestFalse(TEXT("a 4th is refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body).IsEmpty());
+		TestEqual(TEXT("its point still waits"), Run->GetUnspentLevels(KeyOf(Member)), 1);
+		TestEqual(TEXT("body +15 %"), Comp->GetEvolutionModifiedBody(), BodyAtCap * OverCapRules::ScaleFor(OverCapRules::MAX_PER_PILLAR), KINDA_SMALL_NUMBER);
+		TestTrue(TEXT("debug shows it"), WoRLevelDrops::GetLevelDropString(TestWorld->GetWorld()).Contains(TEXT("+3 over")));
+
+		Comp->ResetRunWorldStats();
+		TestEqual(TEXT("the run's end clears them"), Comp->GetOverCapPoints(EWorldPillar::Body), 0);
+	});
+
+	It("B-364: buying stops only when every pillar is full", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), Run && Member))
+		{
+			return;
+		}
+		UCharacterDataComponent *Comp = WoRLevelDrops::FindSpawnedMember(TestWorld->GetWorld(), PartyOf(Member));
+		if (!TestNotNull(TEXT("spawned"), Comp))
+		{
+			return;
+		}
+		for (const EWorldPillar Pillar : {EWorldPillar::Mind, EWorldPillar::Body, EWorldPillar::Spirit})
+		{
+			Comp->AddEarnedWorldStat(Pillar, WorldStatConstants::LIVE_MAX);
+		}
+		TestFalse(TEXT("at 7 everywhere: not full yet"), WoRLevelDrops::IsPillarFull(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Mind));
+		for (const EWorldPillar Pillar : {EWorldPillar::Mind, EWorldPillar::Body, EWorldPillar::Spirit})
+		{
+			for (int32 Index = 0; Index < OverCapRules::MAX_PER_PILLAR; ++Index)
+			{
+				Run->AddRunOverCap(KeyOf(Member), Pillar);
+			}
+		}
+		TestFalse(TEXT("a 4th over-cap point is refused by the run"), Run->AddRunOverCap(KeyOf(Member), EWorldPillar::Mind));
+		const FText Refusal = WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member));
+		TestTrue(TEXT("all full: buying refused for that"), Refusal.ToString().Contains(TEXT("over-cap")));
 	});
 
 	It("outside a run a drop can't be placed and a level isn't kept in the run", [this]()
