@@ -253,6 +253,31 @@ void FMemorySourcesSpec::Define()
 		TestFalse(TEXT("no memory"), MemoryUnlock::QualifiesFor(nullptr, {Mine}));
 		TestEqual(TEXT("standalone: shared with nobody"), MemoryUnlock::ShareWithPlayers(TestWorld->GetWorld()->GetGameInstance(), Shared, EMemorySource::Boss), 0);
 	});
+
+	It("shares the run's memories with a friend who newly qualifies, each once (B-235d, Q-235d confirmed)", [this]()
+	{
+		UMemoryData *Shared = NewObject<UMemoryData>(GetTransientPackage());
+		UMemoryData *Personal = NewObject<UMemoryData>(GetTransientPackage());
+		UMemoryData *HostsOwn = NewObject<UMemoryData>(GetTransientPackage());
+		UCharacterData *Friends = NewObject<UCharacterData>(GetTransientPackage());
+		UCharacterData *Hosts = NewObject<UCharacterData>(GetTransientPackage());
+		Personal->CharacterDepth.Add(Friends, EMemoryDepth::Deep);
+		HostsOwn->CharacterDepth.Add(Hosts, EMemoryDepth::Deep);
+		const TArray<UMemoryData *> RunMemories = {Shared, Personal, HostsOwn, nullptr};
+
+		const TArray<UMemoryData *> FirstClaim = MemoryUnlock::PickToShare(RunMemories, {Friends}, {});
+		TestEqual(TEXT("everyone's and the friend's own"), FirstClaim.Num(), 2);
+		TestTrue(TEXT("the friend's character's memory"), FirstClaim.Contains(Personal));
+		TestFalse(TEXT("not the host's character's"), FirstClaim.Contains(HostsOwn));
+
+		const TSet<FName> Sent = {Shared->GetMemoryId(), Personal->GetMemoryId()};
+		TestEqual(TEXT("sent once: nothing again"), MemoryUnlock::PickToShare(RunMemories, {Friends}, Sent).Num(), 0);
+		TestTrue(TEXT("claiming the host's character later: only that one"),
+				 MemoryUnlock::PickToShare(RunMemories, {Friends, Hosts}, Sent) == TArray<UMemoryData *>{HostsOwn});
+
+		UGameInstance *GameInstance = TestWorld->GetWorld()->GetGameInstance();
+		TestEqual(TEXT("standalone: no friends' characters"), MemoryUnlock::GetRemotePlayersCharacters(GameInstance).Num(), 0);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
