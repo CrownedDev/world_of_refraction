@@ -19,6 +19,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
+#include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
@@ -378,4 +379,9 @@ bool AWoRPlayerState::IsLocalPlayerWallet() const
 {
 	const APlayerController *PC = Cast<APlayerController>(GetOwner());
 	return PC && PC->IsLocalController();
+}
+
+void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Message)
+{
+	ATrialMapFeature::ShowMessage(Message); // B-235b
 }
