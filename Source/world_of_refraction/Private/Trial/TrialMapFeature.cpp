@@ -96,12 +96,14 @@ bool ATrialMapFeature::IsWithinReach(const APawn *Pawn) const
 
 FName ATrialMapFeature::GetFeatureIdFor(const APawn *Pawn) const
 {
-	const APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
-	if (!PC || PC->IsLocalController())
+	// Review fix: keyed from the player state (a pawn whose controller is gone mid-travel still names its player).
+	const APlayerState *Player = Pawn ? Pawn->GetPlayerState() : nullptr;
+	const APlayerController *PC = Player ? Cast<APlayerController>(Player->GetOwner()) : nullptr;
+	if (!Player || (PC && PC->IsLocalController()))
 	{
-		return GetFeatureId(); // the host's or solo player's: unchanged
+		return GetFeatureId(); // the host's or solo player's (or no player at all): unchanged
 	}
-	return FName(*FString::Printf(TEXT("%s@%s"), *GetFeatureId().ToString(), *WoRDefeat::PlayerDropKey(PC->PlayerState)));
+	return FName(*FString::Printf(TEXT("%s@%s"), *GetFeatureId().ToString(), *WoRDefeat::PlayerDropKey(Player)));
 }
 
 void ATrialMapFeature::ShowMessageTo(const APawn *Pawn, const FText &Message)
