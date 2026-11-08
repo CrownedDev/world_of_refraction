@@ -215,8 +215,13 @@ public:
     const TArray<FApparelEntry> &GetOwnedApparel() const { return OwnedApparel; }
     const FApparelEntry *FindApparelInPool(const FGuid &PersistentID) const;
     /** B-380c: sets an owned piece's socket (a refined crystal, an evolution, or empty to clear it; ApparelRules::CanSocket)
-     *  and fires OnPoolGearChanged so every worn copy follows. False when not owned or the attachment does not fit. */
+     *  and fires OnPoolGearChanged so every worn copy follows. False when not owned or the attachment does not fit.
+     *  B-380d: the crystal it replaces goes back to storage; an evolution must be owned, be the piece owner's, and
+     *  not sit in another socket. */
     bool AttachToApparel(const FGuid &PersistentID, const FRuntimeAttachedItem &Attachment);
+
+    /** B-380d: an owned weapon, adapter or another apparel piece (not ExceptApparelID) holds this evolution in its socket. */
+    bool IsEvolutionSocketedElsewhere(const FGuid &EvolutionID, const FGuid &ExceptApparelID) const;
 
     /** Bank an evolution instance (keyed by InstanceID, not PersistentID). */
     UFUNCTION(BlueprintCallable, Category = "Pool|Armoury")

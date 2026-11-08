@@ -160,6 +160,33 @@ const FApparelEntry *UPoolSubsystem::FindApparelInPool(const FGuid &PersistentID
                                   : nullptr;
 }
 
+bool UPoolSubsystem::IsEvolutionSocketedElsewhere(const FGuid &EvolutionID, const FGuid &ExceptApparelID) const
+{
+    const auto Holds = [&EvolutionID](const FRuntimeAttachedItem &Item) { return Item.IsEvolution() && Item.Evolution.InstanceID == EvolutionID; };
+    for (const FWeaponInventoryEntry &Weapon : OwnedWeapons)
+    {
+        if (Holds(Weapon.AttachedItem))
+        {
+            return true;
+        }
+    }
+    for (const FRingInventoryEntry &Ring : OwnedRings)
+    {
+        if (Holds(Ring.AttachedItem))
+        {
+            return true;
+        }
+    }
+    for (const FApparelEntry &Piece : OwnedApparel)
+    {
+        if (Piece.PersistentID != ExceptApparelID && Holds(Piece.AttachedItem))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAttachedItem &Attachment)
 {
     FApparelEntry *Owned = PersistentID.IsValid()
@@ -169,9 +196,39 @@ bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAt
     {
         return false;
     }
-    // TODO(B-380d): give the old socket item back to the store, and refuse an evolution not owned or already attached
-    // elsewhere (the placeholder command only sets refined crystals).
+    // B-380d: an evolution must be owned, belong to the piece's owner when both have one, and not sit in another socket.
+    if (Attachment.IsEvolution())
+    {
+        const FGuid &EvolutionID = Attachment.Evolution.InstanceID;
+        const FName EvolutionOwner = GetGearOwner(EvolutionID);
+        const FName PieceOwner = GetGearOwner(PersistentID);
+        if (!FindEvolutionInPool(EvolutionID))
+        {
+            UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel socket refused: that evolution is not owned"));
+            return false;
+        }
+        if (!EvolutionOwner.IsNone() && !PieceOwner.IsNone() && EvolutionOwner != PieceOwner)
+        {
+            UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel socket refused: the evolution is %s's, the piece %s's"), *EvolutionOwner.ToString(),
+                   *PieceOwner.ToString());
+            return false;
+        }
+        if (IsEvolutionSocketedElsewhere(EvolutionID, PersistentID))
+        {
+            UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel socket refused: the evolution is already attached elsewhere"));
+            return false;
+        }
+    }
+    // B-380d (Q-380d): the crystal that was in the socket goes back to storage as one crystal of its type and tier
+    // (D-097: items are never thrown away). An evolution taken out simply stays owned. TODO: the gear screen takes the
+    // new crystal from the pouch or storage (the placeholder command makes one).
+    const FRuntimeAttachedItem Previous = Owned->AttachedItem;
     Owned->AttachedItem = Attachment;
+    if (Previous.IsCrystal() && Previous != Attachment)
+    {
+        AddCrystalToPool(Previous.Crystal.Id, 1);
+        UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel socket: the old crystal went back to storage"));
+    }
     UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s socket: %s"), *GetNameSafe(Owned->Apparel.Get()),
            *UEnum::GetDisplayValueAsText(Owned->GetElement()).ToString());
     OnPoolGearChanged.Broadcast(PersistentID); // B-380c: worn copies follow (UInventoryComponent::HandlePoolGearChanged)
