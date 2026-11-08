@@ -568,6 +568,7 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 		{
 			ForClients.bAttached = true;
 			ForClients.Socket = Entry.SocketName;
+			ForClients.Location = Caster->GetActorLocation(); // review: a client missing the socket spawns here, not at the origin
 			Spawned = UNiagaraFunctionLibrary::SpawnSystemAttached(
 				System, Character->GetMesh(), Entry.SocketName,
 				FVector::ZeroVector, FRotator::ZeroRotator, FVector(Entry.Scale),
