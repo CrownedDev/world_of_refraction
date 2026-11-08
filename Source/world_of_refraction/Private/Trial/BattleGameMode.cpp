@@ -655,7 +655,8 @@ void ABattleGameMode::AddHiddenCount(const AActor *Member, const TCHAR *Counter)
         Friend->Client_AddCounter(FName(Counter), const_cast<UCharacterData *>(Character));
         return;
     }
-    if (UHiddenCounterSubsystem *Counters = GetGameInstance()->GetSubsystem<UHiddenCounterSubsystem>())
+    const UGameInstance *GI = GetGameInstance(); // B-379 review: a bare test world has none
+    if (UHiddenCounterSubsystem *Counters = GI ? GI->GetSubsystem<UHiddenCounterSubsystem>() : nullptr)
     {
         Counters->Add(FName(Counter), Character);
     }
