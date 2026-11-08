@@ -1,7 +1,8 @@
 // MiniBossReviveSpec.cpp
 // B-187b part 1 (RunStructure §4, Q-187b): a beaten mini-boss's place is a rest spot whose menu can revive it, one
 // tier stronger and with one tier better drops per revival, up to MiniBossRevival::MAX_REVIVALS; other beaten
-// encounters can't be revived.
+// encounters can't be revived. B-187c: the marks and revivals survive a save; a revive brings the party back where it
+// rested (the pending return stand, consumed once).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -11,6 +12,8 @@
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Save/SaveSubsystem.h"
+#include "Save/WoRSaveTypes.h"
 
 namespace
 {
@@ -84,6 +87,35 @@ void FMiniBossReviveSpec::Define()
 		TestEqual(TEXT("pending steps"), Run->GetPendingTierSteps(), 2);
 		Run->SetPendingTierSteps(-1);
 		TestEqual(TEXT("never negative"), Run->GetPendingTierSteps(), 0);
+	});
+
+	It("B-187c: the marks and revivals survive a save", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		Run->MarkEncounterBeaten(REVIVE_TEST_MINI_BOSS, EEncounterRank::MiniBoss);
+		Run->ReviveEncounter(REVIVE_TEST_MINI_BOSS);
+		Run->MarkEncounterBeaten(REVIVE_TEST_MINI_BOSS, EEncounterRank::MiniBoss); // beaten again after one revival
+		const FSavedRun Saved = USaveSubsystem::CaptureRun(*Run, 0);
+		FWoRTestWorld After;
+		if (!TestTrue(TEXT("second world"), After.Create())) return;
+		UTrialRunSubsystem *Resumed = After.GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("resumed run"), Resumed) || !TestTrue(TEXT("restored"), USaveSubsystem::RestoreRun(Saved, *Resumed))) return;
+		TestTrue(TEXT("still a mini-boss rest spot"), Resumed->IsBeatenMiniBoss(REVIVE_TEST_MINI_BOSS));
+		TestEqual(TEXT("its revival count"), Resumed->GetEncounterRevivals(REVIVE_TEST_MINI_BOSS), 1);
+		TestTrue(TEXT("can be revived again"), Resumed->CanReviveEncounter(REVIVE_TEST_MINI_BOSS));
+	});
+
+	It("B-187c: a revive's return stand is used once", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		FTransform Stand;
+		TestFalse(TEXT("none before a rest"), Run->GetRestStand(Stand));
+		const FTransform Rested(FVector(100.0f, 200.0f, 0.0f));
+		Run->NoteRestStand(Rested);
+		TestTrue(TEXT("rested here"), Run->GetRestStand(Stand) && Stand.GetLocation().Equals(Rested.GetLocation()));
+		Run->SetPendingReturnStand(Rested);
+		TestTrue(TEXT("the next load uses it"), Run->ConsumePendingReturnStand(Stand));
+		TestFalse(TEXT("once"), Run->ConsumePendingReturnStand(Stand));
 	});
 
 	It("a new run forgets the mini-bosses and revivals", [this]()
