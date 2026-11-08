@@ -141,8 +141,8 @@ FString WoRDamageMath::GetInputsString(const FDamageMathInputs &Inputs)
 	Out += FString::Printf(TEXT("Element resistance %.4f (x%.4f)  ignore defense %.0f%%\n"), Inputs.ElementResistance,
 						   GetElementMultiplier(Inputs.ElementResistance, Inputs.IgnoreDefense),
 						   Inputs.IgnoreDefense * CombatConstants::STAT_PERCENT_DIVISOR);
-	Out += FString::Printf(TEXT("Defense %s: %.4f  grid defense %.4f\n"), Inputs.bApplyDefense ? TEXT("on") : TEXT("off"),
-						   Inputs.DefenderDefense, Inputs.GridDefenseModifier);
+	Out += FString::Printf(TEXT("Defense %s: %.4f (scope correction %+.4f)  grid defense %.4f\n"), Inputs.bApplyDefense ? TEXT("on") : TEXT("off"),
+						   Inputs.DefenderDefense, Inputs.DefenseScopeDelta, Inputs.GridDefenseModifier);
 	Out += FString::Printf(TEXT("Damage taken x%.4f  guard x%.4f  floor %.0f%% of the unreduced hit\n"),
 						   Inputs.DamageTakenFactor, Inputs.GuardFactor,
 						   DamageConstants::HIT_DAMAGE_FLOOR_SHARE * CombatConstants::STAT_PERCENT_DIVISOR);
