@@ -82,6 +82,11 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_ShowFeatureMessage(const FText &Message);
 
+	/** B-187d: this player's rest press reached the host (ServerInteractFeature), which rested the party; their own
+	 *  rest menu opens on their screen. Host-only menu actions (revive, leave) are not routed yet (B-187e). */
+	UFUNCTION(Client, Reliable)
+	void Client_OpenRestMenu();
+
 	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
 	 *  player's pawn, if it stands in the feature's trigger. */
 	UFUNCTION(Server, Reliable)
