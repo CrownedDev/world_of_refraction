@@ -111,8 +111,8 @@ GAS durations are in seconds. We need "lasts N turns".
 1. Native tag declarations + enum↔tag mapping tables (elements, statuses, effect families, classes) + a debug dump command.
 2. Read sites switch to tags where they *query* (immunity checks, the AI's "is stunned/silenced" checks, UI icons). Writes stay on enums.
 
-- **Done when:** tag queries give the same answers as the enum queries. Verified by a `wor.CompareTags` debug command.
-- **Built (B-040, 2026-10-26):** step 1 in full (`Tags/WoRGameplayTags.h`: Element.*, Class.*, Status.*, Immunity.*; `USkillEffectManager::GetEffectTags`; `UWoRTagDebug`, `wor.DumpTags` / `wor.CompareTags`; spec `WoR.Tags`). Step 2 moves to stage 2 (Q-040): until an ASC holds the tags, a tag query is computed from the same enum effects, so switching read sites now adds work and a second code path for no gain.
+- **Done when:** tag queries give the same answers as the enum queries. Verified by a `wor.Tags.Compare` debug command.
+- **Built (B-040, 2026-10-26):** step 1 in full (`Tags/WoRGameplayTags.h`: Element.*, Class.*, Status.*, Immunity.*; `USkillEffectManager::GetEffectTags`; `UWoRTagDebug`, `wor.Tags.Print` / `wor.Tags.Compare`; spec `WoR.Tags`). Step 2 moves to stage 2 (Q-040): until an ASC holds the tags, a tag query is computed from the same enum effects, so switching read sites now adds work and a second code path for no gain.
 
 ### Stage 2 — Stats (medium)
 
@@ -120,8 +120,8 @@ GAS durations are in seconds. We need "lasts N turns".
 2. `UCharacterDataComponent` getters read from attributes; the composition function stays C++. `CurrentHP`/`CurrentEP` writes go through the ASC.
 3. UI and AI read paths: no change needed, because they still call the same getters.
 
-- **Done when:** a `wor.CompareStats` snapshot is identical before and after on the same loadout.
-- **Built (B-041, 2026-10-26):** step 1 in full (`GAS/WoRAttributeSets.h`, ASC on `ACombatCharacter`). The attributes **mirror** the getters through `UWoRAttributeSyncComponent`; `wor.CompareAttributes` proves them equal and `wor.CompareStats` is unchanged. Steps 2 and the stage 1 read-site switch move to stage 3 (Q-041, Q-040): until GameplayEffects write the attributes, reading them only reads a copy. See `docs/Architecture/GASSystem.md`.
+- **Done when:** a `wor.Stats.Compare` snapshot is identical before and after on the same loadout.
+- **Built (B-041, 2026-10-26):** step 1 in full (`GAS/WoRAttributeSets.h`, ASC on `ACombatCharacter`). The attributes **mirror** the getters through `UWoRAttributeSyncComponent`; `wor.Attributes.Compare` proves them equal and `wor.Stats.Compare` is unchanged. Steps 2 and the stage 1 read-site switch move to stage 3 (Q-041, Q-040): until GameplayEffects write the attributes, reading them only reads a copy. See `docs/Architecture/GASSystem.md`.
 
 ### Stage 3 — Effects (large)
 
@@ -132,7 +132,7 @@ GAS durations are in seconds. We need "lasts N turns".
 5. Stones and item effects through the same builder.
 6. Retire `FActiveSkillEffect` storage once no reader remains.
 
-- **Done when:** the starting-effects, defender-trigger and DOT tests from the 2026-06-20 session doc still pass, plus a `wor.CompareEffects` snapshot.
+- **Done when:** the starting-effects, defender-trigger and DOT tests from the 2026-06-20 session doc still pass, plus a `wor.Effects.Compare` snapshot.
 
 ### Stage 4 — Skills (large)
 
@@ -159,7 +159,7 @@ These Architecture review items are absorbed by the migration and should **not**
 
 ## Debug tools (per CLAUDE.md rule)
 
-- **Per stage:** a `Compare*` snapshot command (`wor.CompareTags`, `wor.CompareStats`, `wor.CompareEffects`) so each stage can be proven equal to the old path in PIE.
+- **Per stage:** a `Compare*` snapshot command (`wor.Tags.Compare`, `wor.Stats.Compare`, `wor.Effects.Compare`) so each stage can be proven equal to the old path in PIE.
 - **Built-in:** GAS's `showdebug abilitysystem` comes for free.
 
 ---

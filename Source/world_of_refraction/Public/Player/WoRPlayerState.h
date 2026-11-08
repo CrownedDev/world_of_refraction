@@ -70,6 +70,11 @@ public:
 	/** D-150 (B-360): ask the host for a seat in its run with Character (your own, picked before joining). On the
 	 *  server it goes straight to the run state; a client sends ServerRequestJoin. Console: `wor.Party.RequestJoin`. */
 	void RequestJoin(UCharacterData *Character);
+
+	/** B-232e: a client asks the host to recruit the character RecruitOwner plays (a found character in a run; the
+	 *  host's UPartyInteractionComponent::InviteForClient runs it, invites only). */
+	UFUNCTION(Server, Reliable)
+	void ServerRecruit(AActor *RecruitOwner);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
 private:

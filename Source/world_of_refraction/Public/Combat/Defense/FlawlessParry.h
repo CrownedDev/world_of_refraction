@@ -1,6 +1,7 @@
 // FlawlessParry.h
-// B-365 (D-158): a Flawless Parry is every hit of one enemy attack or spell perfectly defended by one defender: a
-// Perfect Guard or a Perfect Dodge counts for a hit (D-158 assumption 1). It is a condition only, with no built-in
+// B-365 (D-158): a Flawless Parry is every hit of one enemy attack or spell perfectly defended by one defender: only
+// a Perfect Guard counts for a hit (D-158 corrected by Crown, 2026-11-05, B-367b; a Perfect Dodge does not, so an
+// attack with any hit dodged is never a Flawless Parry). It is a condition only, with no built-in
 // reward (assumption 2): UDefenseSystem::OnFlawlessParry reports it once, when the attack's last hit is judged (or,
 // B-367 / D-161, when a perfect defense ends the attack at an interrupt point with every hit so far perfect), and
 // the shared conditions read it (EWoRConditionTrigger / EWoRConditionSubject FlawlessParry).
@@ -11,13 +12,14 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Defense/EDefenseType.h"
+#include "Combat/Defense/GuardRules.h"
 
 namespace FlawlessParry
 {
-	/** A hit counts when a Guard or a Dodge succeeded on Perfect timing. */
+	/** A hit counts when a Guard succeeded on Perfect timing (a Perfect Guard). A Dodge never counts (B-367b). */
 	inline bool IsPerfectHit(EDefenseType DefenseType, bool bSuccess, bool bPerfect)
 	{
-		return bPerfect && bSuccess && DefenseType != EDefenseType::None;
+		return bSuccess && GuardRules::IsPerfectGuard(DefenseType, bPerfect);
 	}
 
 	/** One defender's hits of one attack. */

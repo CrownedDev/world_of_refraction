@@ -21,4 +21,4 @@
 |---|---|---|---|
 | 1 | Fight until the enemy's ring crystal breaks, then let it take more turns | It may cast the ring's F-tier spell (plain, no infusion); it never tries the higher-tier one; no "[AIDecisionManager]" Warning about a refused action | [ ] |
 | 2 | As the player, with your own ring broken, open your spells | The F-tier ring spell is castable, the others are greyed with the reason (as before) | [ ] |
-| 3 | Give your weapon a spell through a Saved Loadout, break the weapon crystal (`wor.BreakCrystal`) | That spell is greyed with the broken-crystal reason | [ ] |
+| 3 | Give your weapon a spell through a Saved Loadout, break the weapon crystal (`wor.Crystal.Break`) | That spell is greyed with the broken-crystal reason | [ ] |
