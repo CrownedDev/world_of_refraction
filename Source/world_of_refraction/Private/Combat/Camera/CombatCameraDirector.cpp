@@ -2,6 +2,8 @@
 
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/Camera/CombatCameraComponent.h"
+#include "Combat/Camera/CameraFramingChecks.h"
+#include "HAL/IConsoleManager.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionStructs.h"
@@ -601,8 +603,19 @@ void UCombatCameraDirector::HandleProjectileLaunched(AActor *Caster, AActor *Pro
 	PlayShot(ShotCamera.Get(), ECameraShotMoment::Cast, FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, BuildShotContext(false), ShotTuning));
 }
 
+namespace
+{
+	TAutoConsoleVariable<int32> CVarCheckFraming(TEXT("wor.Camera.CheckFraming"), 0,
+												 TEXT("B-372: 1 logs each code-built shot's framing (points on screen, clear sight, camera clear)."));
+}
+
 bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot)
 {
+	if (CVarCheckFraming.GetValueOnGameThread() != 0)
+	{
+		const CameraFraming::FFramingReport Report = CameraFraming::CheckShot(GetWorld(), Moment, Shot, BuildShotContext(false), {});
+		UE_LOG(LogWoR, Display, TEXT("[CameraFraming] %s: %s"), *UEnum::GetValueAsString(Moment), *Report.ToString());
+	}
 	APlayerController *Viewer = GetViewer();
 	if (!Viewer || !Camera)
 	{
