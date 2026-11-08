@@ -1,6 +1,7 @@
 // RunStateComponent.cpp
 
 #include "Player/RunStateComponent.h"
+#include "Memory/MemoryData.h"
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -109,6 +110,9 @@ void URunStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &O
 	DOREPLIFETIME(URunStateComponent, Difficulty);
 	DOREPLIFETIME(URunStateComponent, BeatenEncounters);
 	DOREPLIFETIME(URunStateComponent, Roster);
+	DOREPLIFETIME(URunStateComponent, FoundFeatureIds); // B-232d
+	DOREPLIFETIME(URunStateComponent, RunMemories);
+	DOREPLIFETIME(URunStateComponent, UnspentLevels);
 	DOREPLIFETIME(URunStateComponent, RotationIndex);
 }
 
@@ -214,10 +218,60 @@ void URunStateComponent::PullFromSubsystems()
 		Difficulty = TrialRun->GetTrialDifficulty();
 		BeatenEncounters = TrialRun->GetBeatenEncounters().Array();
 	}
+	PullRunProgress();
 	RefreshRoster();
 	ResetRotation();
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Pulled: run %s (seed %d), %d beaten, %d roster member(s)"), bHasRun ? TEXT("on") : TEXT("off"), RunSeed,
 		   BeatenEncounters.Num(), Roster.Num());
+}
+
+void URunStateComponent::PullRunProgress()
+{
+	const UTrialRunSubsystem *TrialRun = RunStateTrialRunOf(this);
+	if (!TrialRun || !GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	TrialRun->GetFoundFeatures().GetKeys(FoundFeatureIds);
+	RunMemories = TrialRun->GetRunMemories();
+	UnspentLevels.Reset();
+	for (const TPair<FName, int32> &Pair : TrialRun->GetAllUnspentLevels())
+	{
+		FRunUnspentLevels &Entry = UnspentLevels.AddDefaulted_GetRef();
+		Entry.CharacterKey = Pair.Key;
+		Entry.Count = Pair.Value;
+	}
+}
+
+bool URunStateComponent::HasFoundFeature(const UObject *WorldContext, FName FeatureId)
+{
+	if (const URunStateComponent *Run = Find(WorldContext))
+	{
+		return Run->FoundFeatureIds.Contains(FeatureId);
+	}
+	const UTrialRunSubsystem *TrialRun = RunStateTrialRunOf(WorldContext);
+	return TrialRun && TrialRun->HasFound(FeatureId);
+}
+
+TArray<UMemoryData *> URunStateComponent::GetRunMemories(const UObject *WorldContext)
+{
+	if (const URunStateComponent *Run = Find(WorldContext))
+	{
+		return TArray<UMemoryData *>(Run->RunMemories);
+	}
+	const UTrialRunSubsystem *TrialRun = RunStateTrialRunOf(WorldContext);
+	return TrialRun ? TArray<UMemoryData *>(TrialRun->GetRunMemories()) : TArray<UMemoryData *>();
+}
+
+int32 URunStateComponent::GetUnspentLevels(const UObject *WorldContext, FName CharacterKey)
+{
+	if (const URunStateComponent *Run = Find(WorldContext))
+	{
+		const FRunUnspentLevels *Entry = Run->UnspentLevels.FindByPredicate([CharacterKey](const FRunUnspentLevels &Each) { return Each.CharacterKey == CharacterKey; });
+		return Entry ? Entry->Count : 0;
+	}
+	const UTrialRunSubsystem *TrialRun = RunStateTrialRunOf(WorldContext);
+	return TrialRun ? TrialRun->GetUnspentLevels(CharacterKey) : 0;
 }
 
 UTrialData *URunStateComponent::GetActiveTrial(const UObject *WorldContext)

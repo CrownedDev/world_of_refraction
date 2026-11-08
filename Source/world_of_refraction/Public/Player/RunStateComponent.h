@@ -9,6 +9,7 @@
 // The B-232 rotation (RotationIndex, NoteTurnTaken, ResetRotation) is OBSOLETE (B-360): kept until Crown's PIE.
 // Joining mid-run (D-150): a player asks for a seat (RequestJoin); the host picks the AI seat it replaces (AcceptJoin:
 // `wor.Party.AcceptJoin`, or the placeholder `wor.UI.JoinSeat`); that member's gear and pouch go to the host.
+// B-232d: the run's found features, memories and unspent levels join it (PullRunProgress on each change).
 // Debug: GetDebugString, `wor.Run.PrintState`, `wor.Party.PrintJoinRequests`.
 
 #pragma once
@@ -25,6 +26,7 @@ class APlayerState;
 class UCharacterData;
 class UParty;
 class UTrialData;
+class UMemoryData;
 
 /** D-150: a player waiting to join the run with its own character; the host picks the AI seat it takes. */
 USTRUCT(BlueprintType)
@@ -41,6 +43,19 @@ struct WORLD_OF_REFRACTION_API FRunJoinRequest
 	/** Empty: the leader's pawn class. */
 	UPROPERTY(BlueprintReadOnly, Category = "Run State")
 	TSoftClassPtr<ACombatCharacter> PawnClass;
+};
+
+/** B-232d: one character's pillar levels waiting to be placed this run, as replicated. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FRunUnspentLevels
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Run State")
+	FName CharacterKey;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Run State")
+	int32 Count = 0;
 };
 
 /** One member of the side's roster. Who claims it is read from the players' PlayerStates. */
@@ -77,6 +92,10 @@ public:
 	 *  Called from BeginPlay on authority; the rotation starts over. */
 	void PullFromSubsystems();
 
+	/** B-232d (server): copies the run's progress that changes mid-level (found features, memories, unspent
+	 *  levels); UTrialRunSubsystem calls it on each change. */
+	void PullRunProgress();
+
 	/** Server: the roster follows the party (a recruit, an AI-seat change); the rotation is kept. Bound to
 	 *  UPartySessionSubsystem::OnPartyChanged on authority. */
 	void RefreshRoster();
@@ -89,6 +108,12 @@ public:
 	static UTrialData *GetActiveTrial(const UObject *WorldContext);
 	static int32 GetRunSeed(const UObject *WorldContext);
 	static bool IsEncounterBeaten(const UObject *WorldContext, FName EncounterId);
+	/** B-232d: a map feature found this run (a chest opened, a memory spot read). */
+	static bool HasFoundFeature(const UObject *WorldContext, FName FeatureId);
+	/** B-232d: the memories collected this run. */
+	static TArray<UMemoryData *> GetRunMemories(const UObject *WorldContext);
+	/** B-232d: a character's pillar levels waiting to be placed. */
+	static int32 GetUnspentLevels(const UObject *WorldContext, FName CharacterKey);
 
 	// ---- Seats (Q-21-audit) ----
 
@@ -166,6 +191,16 @@ private:
 
 	UPROPERTY(Replicated)
 	TArray<FRunRosterEntry> Roster;
+
+	// B-232d: the run's progress that changes mid-level (PullRunProgress).
+	UPROPERTY(Replicated)
+	TArray<FName> FoundFeatureIds;
+
+	UPROPERTY(Replicated)
+	TArray<TObjectPtr<UMemoryData>> RunMemories;
+
+	UPROPERTY(Replicated)
+	TArray<FRunUnspentLevels> UnspentLevels;
 
 	/** Server only: who is waiting to join (D-150). */
 	UPROPERTY()
