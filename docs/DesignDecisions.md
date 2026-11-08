@@ -3641,12 +3641,15 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **0.75 s / A / A**, by the reference-backed default (2026-11-05). Crown may change any.
 
 ### Q-370b — "Wind-up end" before the bone analysis exists
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-370, cloud) · **Blocks:** —
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-370, cloud) · **Blocks:** —
 **Question:** Q-370 (2) runs a montage with no range from its start to the wind-up end. The wind-up end comes from the bone analysis (`SkillPresentationPipeline.md` §1, B-373), which is not built. What counts until then? And does the Defence view come when no cinematic sequence plays (none exist yet)?
 **Options / as built (A):** (1) the end of the skill's `RitualCastMontage` leg (the authored wind-up) when it has one; with none, the window is bounded by the read rule alone (ends 0.75 s before the first defendable moment). (2) yes: a defending viewer gets the Defence view at the window's end whether or not a sequence played, so solo PIE shows the hand-off today. **B** no window without a placed range or an analysed wind-up; no hand-off without a sequence.
 **Recommendation:** A. Expedition 33 frames the defending character behind its back for every enemy attack, cinematic or not, and its readable parries are praised for it; the ritual leg is already the authored lead-in, so it is the nearest true wind-up.
 **Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it. B-373's analysed wind-up end replaces (1) when it lands.
 **Notes for Claude:** built in B-370 (`FCombatCameraRules::ReadWindowTiming`, `UCombatCameraDirector::ScheduleDefenceHandOff`).
+**Confirmed by Crown, 2026-11-08:** kept as built: "every enemy attack on you gets a Defence view, an angle that lets you see the attack properly, like Expedition 33."
+**Reference fight (Crown, 2026-11-08):** Expedition 33, **Maelle vs Painted Maelle**, a mirror match (the same moveset on both sides), so it shows every camera moment: the attack, the enemy attack on you, the parry, the counter. Study what the camera does at each moment and build our own rules: camera behaviour only, never copying its shots, scene or assets.
+**Cinematic sequences are optional (Crown, 2026-11-08):** the Defence view on every enemy attack plus B-371's shot patterns cover normal skills; a hand-made `CameraSequence` is only for big moments (ultimates, boss finishers).
 
 ### Q-371 — Skill cameras: code-built shots instead of template sequences
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-05 (B-371) · **Blocks:** —

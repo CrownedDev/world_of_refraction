@@ -21,6 +21,8 @@
 | 13 | **Battle menu** | Face-button shortcuts: each button is a category (attack, skills, items); two presses to act. | Expedition 33's button menu | Gamepad first (pillar 9). |
 | 14 | **Telegraphs** | Learnable, and they belong to the **skill, ability or spell**, not to the enemy: no one is unique in what they can use, so every user of a skill, ability or spell winds it up with the same readable animation, sound and cast marks. Players learn the move, and that knowledge carries to every enemy and ally who uses it. A death should teach you something. | Souls games and Expedition 33's readable wind-ups | Never an unreadable or silent wind-up on a defendable hit. |
 
+**Camera reference (Crown, 2026-11-08):** Expedition 33, **Maelle vs Painted Maelle**. A mirror match, so one fight shows every camera moment: the attack, the enemy attack on you (the Defence view: an angle that lets you see the attack properly), the parry, the counter. Study what the camera does at each moment and build our own rules (B-370, B-371, B-157): camera behaviour only, never copying its shots, scene or assets. Hand-made cinematic sequences are optional, kept for big moments (ultimates, boss finishers); normal skills use the code-built shot patterns and the Defence view.
+
 ## How it's used
 
 - **Vertical slice first:** one fight built to this page end to end (entry, turns, hits, defense, victory, return). Crown plays it and gives notes; each note becomes a row or a value here. That fight is the template for the rest.
@@ -32,3 +34,4 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-04 | Created from Crown's feel interview | docs/feel-guide |
+| 2026-11-08 | Camera reference (Maelle vs Painted Maelle) and optional sequences (Crown, via the brain; B-370) |
