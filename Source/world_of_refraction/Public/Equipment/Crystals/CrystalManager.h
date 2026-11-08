@@ -131,7 +131,7 @@ public:
      *  per-instance durability to 1 directly, then routes through the real
      *  ProcessPostCastWear pipeline (in a bounded retry loop, since Luck-skip
      *  is probabilistic) so OnCrystalBroken broadcasts via the production path.
-     *  Console: type "wor.BreakCrystal" in PIE. No-op outside combat,
+     *  Console: type "wor.Crystal.Break" in PIE. No-op outside combat,
      *  on already-broken crystals, or on unrefined / immune crystals.
      *  Trigger is a wor.* console command in the .cpp — a
      *  UGameInstanceSubsystem is not on the engine's Exec dispatch chain. */
@@ -144,7 +144,7 @@ public:
      *  are exercised deterministically. Handles both refined and evolution
      *  attachments and logs WHICH branch was hit, since the Breakability gate
      *  only affects evolution.
-     *  Console: type "wor.WearCrystal 10" in PIE (default Amount=10).
+     *  Console: type "wor.Crystal.Wear 10" in PIE (default Amount=10).
      *  No broadcasts — this is a raw test path, not a production wear event.
      *  Trigger is a wor.* console command in the .cpp — a
      *  UGameInstanceSubsystem is not on the engine's Exec dispatch chain. */

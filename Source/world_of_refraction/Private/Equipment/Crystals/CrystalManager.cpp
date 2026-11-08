@@ -576,7 +576,7 @@ namespace
     }
 
     static FAutoConsoleCommandWithWorld GBreakCrystalCmd(
-        TEXT("wor.BreakCrystal"),
+        TEXT("wor.Crystal.Break"),
         TEXT("Force-break the active character's primary weapon crystal via the production wear pipeline (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -587,20 +587,20 @@ namespace
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[CrystalManager] wor.BreakCrystal: no CrystalManager subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[CrystalManager] wor.Crystal.Break: no CrystalManager subsystem (no PIE world?)."));
                 }
             }));
 
     static FAutoConsoleCommandWithWorldAndArgs GWearCrystalCmd(
-        TEXT("wor.WearCrystal"),
-        TEXT("Apply raw wear to the active character's primary weapon crystal. Usage: wor.WearCrystal <amount> (default 10)."),
+        TEXT("wor.Crystal.Wear"),
+        TEXT("Apply raw wear to the active character's primary weapon crystal. Usage: wor.Crystal.Wear <amount> (default 10)."),
         FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
             [](const TArray<FString> &Args, UWorld *World)
             {
                 UCrystalManager *Mgr = ResolveCrystalManagerFromWorld(World);
                 if (!Mgr)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[CrystalManager] wor.WearCrystal: no CrystalManager subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[CrystalManager] wor.Crystal.Wear: no CrystalManager subsystem (no PIE world?)."));
                     return;
                 }
                 const int32 Amount = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 10;
