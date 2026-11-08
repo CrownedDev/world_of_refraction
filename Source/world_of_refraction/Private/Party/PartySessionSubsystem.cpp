@@ -802,6 +802,23 @@ bool UPartySessionSubsystem::SetMemberHeadStart(int32 SlotIndex, int32 Mind, int
 	return true;
 }
 
+bool UPartySessionSubsystem::SetMemberBrokenDarkness(int32 SlotIndex, bool bBrokenDarkness, float RunStrain)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	FPartyMember &Member = Party->Members[SlotIndex];
+	if (Member.bBrokenDarkness != bBrokenDarkness)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d %s Broken Darkness (B-348c)"), SlotIndex, bBrokenDarkness ? TEXT("is now in") : TEXT("left"));
+	}
+	Member.bBrokenDarkness = bBrokenDarkness;
+	Member.RunStrain = FMath::Max(0.0f, RunStrain);
+	return true;
+}
+
 bool UPartySessionSubsystem::IsMemberAISeat(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();
@@ -986,6 +1003,7 @@ void UPartySessionSubsystem::ClearAllMemberVitals()
 		Member.CurrentEP = PartyConstants::NO_CARRIED_VITALS;
 		Member.CarriedGear = FCarriedGearState();
 		Member.CarriedAbsorption = FCarriedAbsorptionState();
+		Member.RunStrain = 0.0f; // B-348c: strain is the run's; Broken Darkness itself stays (Q-348b)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Carried vitals cleared for %d member(s)"), Party->GetMemberCount());

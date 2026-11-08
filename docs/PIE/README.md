@@ -361,6 +361,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-294](B-294.md) | `feature/B-294-element-palette` (in `dev`) | Colour-blind element palette: new element colours in bars, tints and glows | Not tested |
 | [B-292](B-292.md) | `feature/B-292-sim-runner` (in `dev`) | Balance sim runner, recorder, archetypes (tests only; nothing in play changes) | Not tested |
 | [B-372](B-372.md) | `feature/B-372-camera-framing-checks-cloud` (UNBUILT, on B-371) | Camera framing checks; screenshots per shot pattern for Crown | Pending |
+| [B-348c](B-348c.md) | `feature/B-348c-broken-darkness-persists-cloud` (UNBUILT, on B-348b) | Broken Darkness stays across fights, runs and the save; strain builds across the run | Pending |
 
 Move rows to **Done** when every check passes.
 
