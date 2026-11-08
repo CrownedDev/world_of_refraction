@@ -771,6 +771,17 @@ void UTrialRunSubsystem::RecordChestReward()
     }
 }
 
+void UTrialRunSubsystem::LeaveRunEarly()
+{
+    if (!IsRunActive())
+    {
+        return;
+    }
+    PayoutMultiplier *= RunRewards::LEAVE_EARLY_SHARE;
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Leaving the run at a rest spot: the end pays %s"), *RunRewards::GetPayoutString(GetRunEndPayout()));
+    ExitTrialNextTick();
+}
+
 FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
 {
     return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten, PayoutMultiplier);

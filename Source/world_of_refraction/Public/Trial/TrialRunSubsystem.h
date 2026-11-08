@@ -202,6 +202,10 @@ public:
     float GetPayoutMultiplier() const { return PayoutMultiplier; }
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
 
+    /** B-187 (RunStructure §6): the party leaves the run at a rest spot: the end pays the tally at
+     *  RunRewards::LEAVE_EARLY_SHARE (no boss bonus: the boss isn't beaten), then back to the hub next tick. */
+    void LeaveRunEarly();
+
     /** B-073: the save puts a resumed run's tally back. */
     void RestoreRunTally(const FRunPayout &Tally) { RunTally = Tally; }
 
