@@ -276,7 +276,7 @@ public:
     int32 PayRunEnd(UWorld *World);
 
     /** B-073 / B-096: the payout multiplier (passives raise it); BASE 1.0. */
-    float GetPayoutMultiplier() const { return PayoutMultiplier; }
+    float GetRunPayoutMultiplier() const { return PayoutMultiplier; } // not GetPayoutMultiplier: that is the difficulty's
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
 
     /** B-187 (RunStructure §6): the party leaves the run at a rest spot: the end pays the tally at

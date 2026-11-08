@@ -997,5 +997,5 @@ static FAutoConsoleCommandWithWorld GTrialPrintRewardsCommand(
         }
         UE_LOG(LogWoR, Display, TEXT("[RunRewards] run %s; tally %s; the end would pay %s (x%.2f)"), Run->IsRunActive() ? TEXT("on") : TEXT("off"),
                *RunRewards::GetPayoutString(Run->GetRunTally()), *RunRewards::GetPayoutString(Run->GetRunEndPayout()),
-               Run->GetPayoutMultiplier());
+               Run->GetRunPayoutMultiplier());
     }));
