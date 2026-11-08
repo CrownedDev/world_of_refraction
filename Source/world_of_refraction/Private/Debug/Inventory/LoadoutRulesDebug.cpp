@@ -238,7 +238,9 @@ namespace
 				{
 					if (Active.Apparel.Num() < ApparelRules::MAX_APPAREL_SLOTS)
 					{
-						Entry.PersistentID = Pool->AddApparelToPool(Entry);
+						// B-380d review: the wearer owns the piece (the evolution owner check reads it).
+						const UCharacterDataComponent *Wearer = Inventory->GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+						Entry.PersistentID = Pool->AddApparelToPool(Entry, UPoolSubsystem::GetCharacterKey(Wearer));
 					}
 				}
 				if (!ApparelRules::AddApparel(Active, Entry))

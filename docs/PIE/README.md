@@ -19,6 +19,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-383](B-383.md) | `feature/B-383-damage-scopes-cloud` (unbuilt) | Every damage / defence boost has a scope (All, Physical, Spell, one element; default All); `wor.Damage.Scopes` | Pending |
 | [B-384](B-384.md) | `feature/B-384-one-damage-channel-cloud` (unbuilt) | The four all-damage % channels add into one; **stacked builds hit a little lower** (before / after numbers in the sheet); `wor.Damage.FoldAllDamage` | Pending |
 | [B-385](B-385.md) | `feature/B-385-scope-gas-followups-cloud` (unbuilt) | Damage scopes hold at `wor.Effects.UseGAS 1` (Defense, the mirror, `wor.Damage.Scopes`) | Pending |
+| [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (unbuilt) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-360c](B-360c.md) | `feature/B-360c-copies-by-member` (in `dev`) | A later copy of a character places its own victory levels and is bought for under its own key | Pending |
 | [B-336](B-336.md) | `refactor/B-336-world-subsystems` (in `dev`) | The ten fight systems live on the level's world (one per PIE window and per level); `wor.Fight.Subsystems` lists them | Pending |
 | [B-361c](B-361c.md) | `test/B-361c-recruit-inventory-specs` (in `dev`) | Tests only: a recruit through a mid-run save, the one-pouch give refusal, buying for a recruit, a full or missing host ledger at hand-over | Pending |
