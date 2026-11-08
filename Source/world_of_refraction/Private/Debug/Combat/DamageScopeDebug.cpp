@@ -13,23 +13,7 @@
 
 bool WoRDamageScopeDebug::IsScopedType(ESkillEffectType Type)
 {
-	switch (Type)
-	{
-	case ESkillEffectType::DamageBuff:
-	case ESkillEffectType::DamageDebuff:
-	case ESkillEffectType::ModifyDamageDealt:
-	case ESkillEffectType::RawDamageBuff:
-	case ESkillEffectType::RawDamageDebuff:
-	case ESkillEffectType::SpellDamageBuff:
-	case ESkillEffectType::SpellDamageDebuff:
-	case ESkillEffectType::DefenseBuff:
-	case ESkillEffectType::DefenseDebuff:
-	case ESkillEffectType::ReduceDamageTaken:
-	case ESkillEffectType::IncreaseDamageTaken:
-		return true;
-	default:
-		return false;
-	}
+	return WoRDamageScope::IsScopedType(Type);
 }
 
 FString WoRDamageScopeDebug::GetScopesString(AActor *Actor)
