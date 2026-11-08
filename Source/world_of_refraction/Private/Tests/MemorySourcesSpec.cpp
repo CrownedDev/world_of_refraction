@@ -314,6 +314,28 @@ void FMemorySourcesSpec::Define()
 				 MemoryUnlock::UnlockFoundBy(GameInstance, Memory, EMemorySource::BoundGear, Someone));
 		TestTrue(TEXT("into the run and the host's journal"), InRunAndJournalFrom(EMemorySource::BoundGear));
 	});
+
+	It("in co-op reads the team's memories together for PriorMemory (MemoryCatalogue 3.5, Crown)", [this]()
+	{
+		UMemoryData *Garnet = NewObject<UMemoryData>(GetTransientPackage());
+		UMemoryData *Orthos = NewObject<UMemoryData>(GetTransientPackage());
+		UMemoryData *Both = NewObject<UMemoryData>(GetTransientPackage());
+		FMemoryCondition NeedsGarnet;
+		NeedsGarnet.Kind = EMemoryConditionKind::PriorMemory;
+		NeedsGarnet.PriorMemory = Garnet;
+		FMemoryCondition NeedsOrthos = NeedsGarnet;
+		NeedsOrthos.PriorMemory = Orthos;
+		Both->UnlockConditions = {NeedsGarnet, NeedsOrthos};
+		FMemoryEvent Event;
+
+		Journal->RecordMemory(Garnet, EMemorySource::Fragment); // the host's quest is done
+		const TSet<FName> FriendHasOrthos = {Orthos->GetMemoryId()}; // the friend's is
+		TestFalse(TEXT("the host alone: not both"), MemoryConditions::AreMet(*Both, Event, Journal));
+		TestFalse(TEXT("the friend alone: not both"), MemoryConditions::AreMet(*Both, Event, Journal, &FriendHasOrthos));
+		const TSet<FName> Team = MemoryConditions::GetTeamMemoryIds(Journal, {&FriendHasOrthos});
+		TestTrue(TEXT("the team's together: both"), MemoryConditions::AreMet(*Both, Event, Journal, &Team));
+		TestEqual(TEXT("no journal, no friends: none"), MemoryConditions::GetTeamMemoryIds(nullptr, {}).Num(), 0);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -118,6 +118,10 @@ namespace MemoryConditions
 	 *  left out drops its upgraded item. What one player met is read on their part of the event. */
 	WORLD_OF_REFRACTION_API FMemoryEvent FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep);
 
+	/** B-235e (Crown, MemoryCatalogue §3.5): the team's memories by id: the host's journal and each friend's known
+	 *  memories. In co-op a PriorMemory condition reads this (any present player's memory counts). */
+	WORLD_OF_REFRACTION_API TSet<FName> GetTeamMemoryIds(const UMemoryJournalSubsystem *Journal, const TArray<const TSet<FName> *> &FriendsKnown);
+
 	/** B-235d (Q-235d, Crown, after Shangri-La Frontier's unique scenarios): Memory goes to each player whose own
 	 *  characters met its conditions and who plays a character it is for; to everyone when it lists no character;
 	 *  to the host when no friend gets it (MemoryUnlock::ShouldFriendReceive / ShouldHostReceive). */
