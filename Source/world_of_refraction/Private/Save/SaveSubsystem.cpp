@@ -600,6 +600,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.HeadStartMind = Member.HeadStartMind; // B-348b
 		Out.HeadStartBody = Member.HeadStartBody;
 		Out.HeadStartSpirit = Member.HeadStartSpirit;
+		Out.bBrokenDarkness = Member.bBrokenDarkness; // B-348c: beyond the run
 		Out.bRunOnly = Member.bRunOnly;
 		Out.RunWeapon = Member.RunWeapon;
 		Out.RunRing = Member.RunRing;
@@ -611,6 +612,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 			Out.CurrentEP = Member.CurrentEP;
 			Out.CarriedGear = FSavedCarriedGear::Make(Member.CarriedGear);
 			Out.CarriedAbsorption = Member.CarriedAbsorption;
+			Out.RunStrain = Member.RunStrain; // B-348c: the run's strain goes with the run
 		}
 	}
 	return Saved;
@@ -849,6 +851,8 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.HeadStartMind = In.HeadStartMind; // B-348b
 		Member.HeadStartBody = In.HeadStartBody;
 		Member.HeadStartSpirit = In.HeadStartSpirit;
+		Member.bBrokenDarkness = In.bBrokenDarkness; // B-348c
+		Member.RunStrain = In.RunStrain;
 		Member.bRunOnly = In.bRunOnly;
 		Member.RunWeapon = In.RunWeapon;
 		Member.RunRing = In.RunRing;
