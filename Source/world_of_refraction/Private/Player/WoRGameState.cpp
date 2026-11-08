@@ -70,20 +70,6 @@ void AWoRGameState::UpdateHostOrder(const APlayerState *PlayerState, bool bJoine
 	OnRep_HostOrder(); // the host keeps its own copy too
 }
 
-void AWoRGameState::Multicast_BeginPlannedHandOver_Implementation()
-{
-	if (HasAuthority())
-	{
-		return; // the host runs its own side (BeginPlannedHandOver)
-	}
-	const UWorld *World = GetWorld();
-	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-	if (UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr)
-	{
-		HandOver->HandlePlannedHandOver(GetWorld());
-	}
-}
-
 void AWoRGameState::OnRep_HostOrder()
 {
 	const UWorld *World = GetWorld();

@@ -42,11 +42,6 @@ public:
 	 *  AddPlayerState comes before a joining player's id is set, so AWoRPlayerState::OnSetUniqueId calls this too. */
 	void UpdateHostOrder(const APlayerState *PlayerState, bool bJoined);
 
-	/** B-234c (server → clients): the host is handing the run over at a rest spot; each client starts its hand-over
-	 *  (UWoRHostHandOverSubsystem::HandlePlannedHandOver) and leaves. */
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_BeginPlannedHandOver();
-
 private:
 	UFUNCTION()
 	void OnRep_HostOrder();
