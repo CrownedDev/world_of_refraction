@@ -7,6 +7,7 @@
 #include "Player/RunStateComponent.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Combat/CombatControl.h"
+#include "Loadout/LoadoutComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
@@ -245,6 +246,12 @@ void UTurnStateComponent::UpdateClientCommandMenu()
 		return;
 	}
 	ClientMenuTurn = TurnNumber;
+	// B-232c (review): a new turn gives the free switch back on the client's copy too (the server's orchestrator
+	// does it there), so the menu offers it and the client can follow the server's switch.
+	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	{
+		Loadout->ResetTurnSwitch();
+	}
 	Menu->OpenForActor(CurrentActor);
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnState] Client: command menu opened for %s (turn %d)"), *GetNameSafe(CurrentActor), TurnNumber);
 }
