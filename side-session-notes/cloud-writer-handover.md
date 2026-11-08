@@ -1,3 +1,20 @@
+# Cloud writer handover (2026-11-08, eighth part: Q-187d changed by Crown) — STOPPED
+
+**The brain (21:36 UTC):** Crown changed Q-187d (1): only the character(s) that use the rest spot rest (the presser's own; solo: the whole party). Points (2) and (3) stay A.
+
+**Done on `feature/B-187d-co-op-rest-cloud`:**
+- `UPartySessionSubsystem::RestMembersWhere`.
+- `WoRRestSpot::RestsMember`: the presser's claimed members; for the host, also every member no player claims.
+- `Rest(World, Id, Presser)`.
+- RestSpotSpec case: a client rests only its own; the host rests its own and the unclaimed; solo rests everyone.
+- Q-187d answer (Crown), ER-09b, PIE B-187d (check 1 changed, new 1b).
+
+**Merged forward:** into `feature/B-187e-client-rest-menu-cloud`. One conflict: B-187e's `bLocalPlayerRests` became `bPresserIsHost`.
+
+**Trial branch:** the four commits are cherry-picked; a full merge of the desktop-reviewed B-187e conflicts in 15 files.
+
+**Note for the desktop:** B-187d and B-187e were already in `dev`, so merge them again. `dev` has also moved on a lot (B-386 is in), so the trial branch is behind `dev`.
+
 # Cloud writer handover (2026-11-08, seventh part: the brain's list after B-384) — STOPPED: all five items done; what is left wants a compiler or Crown
 
 **The brain (20:56 UTC), in order:** (1) the GAS follow-ups from B-382/B-383; (2) B-380d if writable; (3) apparel Amp lines; (4) crystal Amp by tier; (5) re-scan the Backlog.
