@@ -25,6 +25,7 @@
 #include "Save/CoopCheckpoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/LocalPlayer.h"
+#include "Memory/MemoryData.h"
 #include "Trial/TrialMapFeature.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "Trial/TrialRestSpot.h"
@@ -59,6 +60,27 @@ namespace
 					return;
 				}
 				Player->RequestJoin(Character);
+			}));
+
+	FAutoConsoleCommandWithWorld GMemorySentCmd(
+		TEXT("wor.Memory.Sent"),
+		TEXT("B-235d (host): each player's own characters and the memories already sent to them."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+				if (!GameState)
+				{
+					UE_LOG(LogWoR, Display, TEXT("[PlayerState] wor.Memory.Sent: no game state"));
+					return;
+				}
+				for (const APlayerState *Player : GameState->PlayerArray)
+				{
+					if (const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player))
+					{
+						UE_LOG(LogWoR, Display, TEXT("[PlayerState] %s"), *WoRPlayer->GetSharedMemoriesString());
+					}
+				}
 			}));
 }
 
@@ -133,6 +155,7 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (Next)
 	{
 		Next->SetForm(WornForm, BaseForm);
+		Next->SentMemoryIds = SentMemoryIds; // B-235d: before the claims below, so nothing is sent again
 		// B-232: the player keeps commanding its characters in the next level.
 		for (UCharacterData *Character : ClaimedCharacters)
 		{
@@ -181,6 +204,42 @@ void AWoRPlayerState::ClaimMember(const FGuid &MemberId)
 	}
 	ClaimedMembers.Add(MemberId);
 	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims member %s (B-360b)"), *GetPlayerName(), *MemberId.ToString(EGuidFormats::Short));
+}
+
+TArray<UCharacterData *> AWoRPlayerState::GetOwnCharacters() const
+{
+	TArray<UCharacterData *> Own(ClaimedCharacters);
+	const UGameInstance *GI = GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+	{
+		for (const FPartyMember &Member : Party->Members)
+		{
+			if (Member.CharacterData && ClaimedMembers.Contains(Member.MemberId))
+			{
+				Own.AddUnique(Member.CharacterData);
+			}
+		}
+	}
+	Own.Remove(nullptr);
+	return Own;
+}
+
+FString AWoRPlayerState::GetSharedMemoriesString() const
+{
+	TArray<FString> Characters;
+	for (const UCharacterData *Character : GetOwnCharacters())
+	{
+		Characters.Add(GetNameSafe(Character));
+	}
+	TArray<FString> Sent;
+	for (const FName &MemoryId : SentMemoryIds)
+	{
+		Sent.Add(MemoryId.ToString());
+	}
+	Sent.Sort();
+	return FString::Printf(TEXT("%s: characters [%s], memories sent [%s]"), *GetPlayerName(), *FString::Join(Characters, TEXT(", ")),
+						   *FString::Join(Sent, TEXT(", ")));
 }
 
 void AWoRPlayerState::ReleaseMember(const FGuid &MemberId)
@@ -558,3 +617,18 @@ void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Fea
 	}
 	Feature->Interact(Pawn); // B-235c: the host runs it; per-player features key it to this player
 }
+
+#define LOCTEXT_NAMESPACE "WoRPlayerState"
+
+void AWoRPlayerState::Client_UnlockMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
+{
+	UMemoryJournalSubsystem *Journal = GetGameInstance() ? GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
+	if (!Memory || !Journal || !Journal->RecordMemory(Memory, Source))
+	{
+		return; // already in this player's journal
+	}
+	ATrialMapFeature::ShowMessage(FText::Format(LOCTEXT("MemoryUnlocked", "New memory: {0}"), Memory->Title)); // private
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s recorded in this player's journal"), *Memory->GetMemoryId().ToString());
+}
+
+#undef LOCTEXT_NAMESPACE

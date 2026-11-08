@@ -47,6 +47,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-235](B-235.md) | `feature/B-235-personal-prism-drops-cloud` (in `dev`) | 2-player PIE: a wipe drops each player's own Prisms; each picks up only theirs | Pending |
 | [B-235b](B-235b.md) | `feature/B-235b-personal-rewards-cloud` (UNBUILT, on B-235) | 2-player: the pickup message on the picker's screen; a player who left doesn't keep the pickup up | Pending |
 | [B-235c](B-235c.md) | `feature/B-235c-instanced-chests-cloud` (UNBUILT, on B-235b) | 2-player: each player opens a chest for their own item; a client's presses run on the host | Pending |
+| [B-235d](B-235d.md) | `feature/B-235d-private-memories-cloud` (UNBUILT, on B-235c) | 2-player: a friend's qualifying memories land in their own journal, privately | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
