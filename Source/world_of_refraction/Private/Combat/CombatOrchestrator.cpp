@@ -1208,7 +1208,10 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		Rank = *OwnRank;
 	}
-	PendingLevelDropSources.Emplace(WoRCombatTier::GetCombatTier(Victim), Rank); // B-325: its Combat Tier at death (usually the one its HP used at spawn; a loadout change mid-fight can move it)
+	// B-187b (Q-187b): a revived mini-boss's team drops as its stepped-up tier.
+	const UTrialRunSubsystem *DropRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const int32 TierSteps = DropRun ? DropRun->GetPendingTierSteps() : 0;
+	PendingLevelDropSources.Emplace(TrialGate::StepTier(WoRCombatTier::GetCombatTier(Victim), TierSteps), Rank); // B-325: its Combat Tier at death (usually the one its HP used at spawn; a loadout change mid-fight can move it)
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
 		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);

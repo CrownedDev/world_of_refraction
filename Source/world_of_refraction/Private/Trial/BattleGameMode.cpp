@@ -302,7 +302,7 @@ void ABattleGameMode::BootstrapCombat()
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
                    *GetNameSafe(Enemy));
         }
-        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyHealth, EnemyRank))
+        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyHealth, EnemyRank, TrialRun->GetPendingTierSteps())) // B-187b: a revived mini-boss
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: rank health (%s) not applied"),
                    *GetNameSafe(Enemy), *UEnum::GetValueAsString(EnemyRank));
