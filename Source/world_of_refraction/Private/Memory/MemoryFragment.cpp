@@ -2,6 +2,7 @@
 
 #include "Memory/MemoryFragment.h"
 
+#include "Player/RunStateComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -36,8 +37,8 @@ void AMemoryFragment::BeginPlay()
 
 bool AMemoryFragment::IsTaken() const
 {
-	const UTrialRunSubsystem *TrialRun = GetTrialRun();
-	return (TrialRun && TrialRun->HasFound(GetFeatureId())) || MemoryUnlock::IsCollected(GetGameInstance(), Memory);
+	// B-232d: the run state's copy (a client's run subsystem holds no run).
+	return URunStateComponent::HasFoundFeature(this, GetFeatureId()) || MemoryUnlock::IsCollected(GetGameInstance(), Memory);
 }
 
 void AMemoryFragment::Interact(APawn * /*Pawn*/)
@@ -74,6 +75,14 @@ FString AMemoryFragment::GetHintText() const
 	return IsTaken()
 			   ? FString()
 			   : LOCTEXT("FragmentHint", "Press E to pick up the memory fragment").ToString();
+}
+
+void AMemoryFragment::RefreshFromRun()
+{
+	if (IsTaken())
+	{
+		RemoveFromMap();
+	}
 }
 
 void AMemoryFragment::RemoveFromMap()

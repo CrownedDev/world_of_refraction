@@ -1,6 +1,6 @@
 // ElementTableDebug.h
 // Debug utilities for the element table (ElementTable, B-271): every row, and a comparison of each
-// row against the old per-element functions. Console: wor.Elements.Print, wor.CompareElements.
+// row against the old per-element functions. Console: wor.Elements.Print, wor.Elements.Compare.
 
 #pragma once
 

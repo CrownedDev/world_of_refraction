@@ -43,8 +43,8 @@ Combat tuning numbers that designers can change without a rebuild (B-218, plan `
 - In a saved asset, a field you never edited keeps following the C++ default. Unreal saves only edited values.
 
 ## Debug
-- `wor.PrintCombatTuning` (alias `wor.Tuning.Print`, B-224): which tuning is live, every value it gives, and the C++ caps.
-- `wor.CompareCombatTuning`: lists every value that differs from the C++ constants.
+- `wor.Tuning.Print` (alias `wor.Tuning.Print`, B-224): which tuning is live, every value it gives, and the C++ caps.
+- `wor.Tuning.Compare`: lists every value that differs from the C++ constants.
 - Details-panel buttons: `PrintTuning`, `CompareWithCode`, `FillLadderTable`.
 
 ## Changelog

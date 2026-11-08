@@ -1,6 +1,7 @@
 // PrismDropPickup.cpp
 
 #include "Trial/PrismDropPickup.h"
+#include "Player/WoRPlayerState.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -40,26 +41,42 @@ void APrismDropPickup::BeginPlay()
 	InteractionTrigger->OnComponentEndOverlap.AddDynamic(this, &APrismDropPickup::OnPickupEndOverlap);
 }
 
-void APrismDropPickup::Interact(APawn * /*Pawn*/)
+void APrismDropPickup::Interact(APawn *Pawn)
 {
-	PickUp();
+	PickUp(Pawn);
 }
 
-bool APrismDropPickup::PickUp()
+bool APrismDropPickup::PickUp(APawn *Pawn)
 {
 	if (!HasAuthority() || IsActorBeingDestroyed())
 	{
 		return false; // the server's pickup gives it back; a second overlap of the same pawn finds it gone
 	}
-	const int32 Taken = WoRDefeat::PickUpDrop(GetWorld());
+	// B-235 (D-160 co-op): the pawn's player takes their own drop (no pawn: the local player, as before).
+	const int32 Taken = Pawn ? WoRDefeat::PickUpDropFor(GetWorld(), Pawn) : WoRDefeat::PickUpDrop(GetWorld());
 	if (Taken <= 0)
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[PrismDrop] %s: nothing taken (no run drop or no local wallet)"), *GetName());
+		// Verbose (review): a player with no drop of their own walks over it every time they pass.
+		UE_LOG(LogWoR, Verbose, TEXT("[PrismDrop] %s: nothing taken (no drop of this player's, or no wallet)"), *GetName());
 		return false;
 	}
-	ShowMessage(FText::Format(LOCTEXT("PickedUp", "You pick up your {0} {1}."), FText::AsNumber(Taken),
-							  WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
-	Destroy();
+	// B-235 / B-235b: the message is for the player who picked up, on their own screen.
+	const FText Message = FText::Format(LOCTEXT("PickedUp", "You pick up your {0} {1}."), FText::AsNumber(Taken),
+										WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+	if (!Pawn || Pawn->IsLocallyControlled())
+	{
+		ShowMessage(Message);
+	}
+	else if (AWoRPlayerState *Player = Pawn->GetPlayerState<AWoRPlayerState>())
+	{
+		Player->Client_ShowFeatureMessage(Message);
+		UE_LOG(LogWoR, Log, TEXT("[PrismDrop] %s picked up their %d Prism(s)"), *Pawn->GetName(), Taken);
+	}
+	// B-235b: it stays while a player here still has a drop; a player who left doesn't keep it up.
+	if (WoRDefeat::GetPresentDroppedPrisms(GetWorld()) <= 0)
+	{
+		Destroy();
+	}
 	return true;
 }
 
@@ -74,7 +91,10 @@ APrismDropPickup *APrismDropPickup::PlaceForRun(UWorld *World, UTrialRunSubsyste
 	{
 		It->Destroy();
 	}
-	if (Run.GetDroppedPrisms() <= 0)
+	// B-235: anyone's drop. Not only the present players' (B-235b's removal rule): at level load the clients may
+	// still be travelling. A drop of a player who left can place an untakeable pickup; forgetting it when they
+	// leave is B-235c.
+	if (Run.GetTotalDroppedPrisms() <= 0)
 	{
 		return nullptr;
 	}
@@ -89,7 +109,7 @@ APrismDropPickup *APrismDropPickup::PlaceForRun(UWorld *World, UTrialRunSubsyste
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	APrismDropPickup *Pickup = World->SpawnActor<APrismDropPickup>(Spot, FRotator::ZeroRotator, Params);
-	UE_LOG(LogWoR, Log, TEXT("[PrismDrop] %d Prism(s) lie at %s"), Run.GetDroppedPrisms(), *Spot.ToCompactString());
+	UE_LOG(LogWoR, Log, TEXT("[PrismDrop] %d Prism(s) lie at %s"), Run.GetTotalDroppedPrisms(), *Spot.ToCompactString());
 	return Pickup;
 }
 
@@ -113,7 +133,14 @@ int32 APrismDropPickup::CountIn(const UWorld *World)
 FString APrismDropPickup::GetHintText() const
 {
 	const UTrialRunSubsystem *Run = GetTrialRun();
+	// B-235 (review): the hint shows this machine's player's own drop. Another player's drop (or a client, whose run
+	// holds no drops) gets the hint without an amount.
 	const int32 Amount = Run ? Run->GetDroppedPrisms() : 0;
+	if (Amount <= 0)
+	{
+		return FText::Format(LOCTEXT("HintNoAmount", "Press E to pick up dropped {0}"),
+							 WoRGameNames::GetCurrencyName(ECurrencyType::Gold)).ToString();
+	}
 	return FText::Format(LOCTEXT("Hint", "Press E to pick up your {0} {1}"), FText::AsNumber(Amount),
 						 WoRGameNames::GetCurrencyName(ECurrencyType::Gold)).ToString();
 }
@@ -133,7 +160,7 @@ void APrismDropPickup::OnPickupBeginOverlap(UPrimitiveComponent * /*OverlappedCo
 		ArrivedInside.Add(Pawn);
 		return;
 	}
-	PickUp();
+	PickUp(Pawn);
 }
 
 void APrismDropPickup::OnPickupEndOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,

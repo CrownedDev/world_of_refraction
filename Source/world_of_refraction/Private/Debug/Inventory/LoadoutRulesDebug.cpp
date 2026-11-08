@@ -1,9 +1,12 @@
 // LoadoutRulesDebug.cpp
 
 #include "Debug/Inventory/LoadoutRulesDebug.h"
+#include "Debug/Inventory/InventoryDebug.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
+#include "UObject/UObjectIterator.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Engine/Engine.h"
@@ -12,6 +15,16 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Loadout/FCombatLoadout.h"
+#include "Loadout/Entries/FApparelEntry.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "Pool/PoolSubsystem.h"
+#include "Equipment/Crystals/CrystalType.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/FCrystalAttachment.h"
+#include "Equipment/Durability/DurabilityConstants.h"
+#include "Engine/GameInstance.h"
+#include "Character/CharacterDataComponent.h"
+#include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
 
@@ -162,6 +175,120 @@ namespace
 		}
 	}
 
+	/** B-380: one combatant's loadout in a line: weapons, adapters, apparel (outside the budget) and gear HP / Defence. */
+	FString GetLoadoutPrintString(const ULoadoutComponent &Loadout)
+	{
+		const FCombatLoadout &Active = Loadout.GetActiveLoadout();
+		TArray<FString> Adapters;
+		if (Active.PrimaryRing.RingEntry.Ring)
+		{
+			Adapters.Add(Active.PrimaryRing.RingEntry.Ring->GetName());
+		}
+		for (const FRingLoadoutEntry &Ring : Active.RingLoadout)
+		{
+			Adapters.Add(GetNameSafe(Ring.RingEntry.Ring));
+		}
+		const FEquipmentStatBonus Gear = Loadout.GetActiveStatBonus(Loadout.GetOwner());
+		return FString::Printf(TEXT("%s: weapons %s / %s; adapters [%s]; %s; gear HP %+d Def %+d"), *GetNameSafe(Loadout.GetOwner()),
+							   *GetNameSafe(Active.PrimaryWeapon.WeaponEntry.Weapon), *GetNameSafe(Active.SecondaryWeapon.WeaponEntry.Weapon),
+							   *FString::Join(Adapters, TEXT(", ")), *ApparelRules::GetApparelString(Active), Gear.BonusMaxHP, Gear.BonusDefense);
+	}
+
+	// Merge B-351c + B-380: wor.Loadout.Print is B-351c's (the player's loadout); this one prints every combatant.
+	FAutoConsoleCommandWithWorld GPrintAllLoadoutsCmd(
+		TEXT("wor.Loadout.PrintAll"),
+		TEXT("DEBUG: wor.Loadout.PrintAll - every combatant's active loadout: weapons, adapters, apparel and gear HP / Defence (B-380)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				int32 Printed = 0;
+				for (TObjectIterator<ULoadoutComponent> It; It; ++It)
+				{
+					if (!It->IsTemplate() && It->GetWorld() == World)
+					{
+						UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(**It));
+						++Printed;
+					}
+				}
+				UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %d loadout(s)"), Printed);
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GWearApparelCmd(
+		TEXT("wor.Loadout.WearApparel"),
+		TEXT("DEBUG: wor.Loadout.WearApparel <ApparelData asset path> - the player wears that apparel piece in its active loadout (outside the budget, up to 2; B-380 placeholder until the gear screen)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				UApparelData *Piece = Args.Num() > 0 ? LoadObject<UApparelData>(nullptr, *Args[0]) : nullptr;
+				if (!Inventory || !Piece || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] usage: wor.Loadout.WearApparel <ApparelData asset path> (in a level with the player)"));
+					return;
+				}
+				FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+				if (Active.bLore)
+				{
+					// Review: a lore loadout is not saved (custom loadouts are), so apparel worn there would be lost on reload.
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] the active loadout is a lore loadout (not saved): switch to a custom loadout first (B-380d saves lore apparel)"));
+					return;
+				}
+				FApparelEntry Entry = FApparelEntry::CreateFromApparel(Piece);
+				// B-380b: owned first (the pool mints its id), so it is saved with the store.
+				if (UPoolSubsystem *Pool = World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
+				{
+					if (Active.Apparel.Num() < ApparelRules::MAX_APPAREL_SLOTS)
+					{
+						// B-380d review: the wearer owns the piece (the evolution owner check reads it).
+						const UCharacterDataComponent *Wearer = Inventory->GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+						Entry.PersistentID = Pool->AddApparelToPool(Entry, UPoolSubsystem::GetCharacterKey(Wearer));
+					}
+				}
+				if (!ApparelRules::AddApparel(Active, Entry))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] no free apparel slot (%d)"), ApparelRules::MAX_APPAREL_SLOTS);
+					return;
+				}
+				if (ULoadoutComponent *Loadout = Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>())
+				{
+					Loadout->NotifyApparelChanged(); // B-380c: pools and stat readers re-read it
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(*Loadout));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GSocketApparelCmd(
+		TEXT("wor.Loadout.SocketApparel"),
+		TEXT("DEBUG: wor.Loadout.SocketApparel <slot 0|1> <ECrystalType name, e.g. Garnet> - set an F-tier refined crystal in the player's worn apparel piece (through the store; B-380c placeholder until the gear screen)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				UPoolSubsystem *Pool = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
+				const UEnum *Types = StaticEnum<ECrystalType>();
+				const int64 Type = Types && Args.Num() > 1 ? Types->GetValueByNameString(Args[1]) : INDEX_NONE;
+				const int32 Slot = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : INDEX_NONE;
+				const FCombatLoadout *Active = Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)
+												   ? &Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex]
+												   : nullptr;
+				if (!Pool || !Active || !Active->Apparel.IsValidIndex(Slot) || Type == INDEX_NONE)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] usage: wor.Loadout.SocketApparel <worn apparel slot> <ECrystalType name>"));
+					return;
+				}
+				FRuntimeAttachedItem Gem;
+				Gem.Kind = EAttachedItemKind::Crystal;
+				Gem.Crystal = FCrystalAttachment(FCrystalId(static_cast<ECrystalType>(Type), EItemTier::F_Tier), DurabilityConstants::MAX_DURABILITY_F_TIER);
+				if (!Pool->AttachToApparel(Active->Apparel[Slot].PersistentID, Gem))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] that piece is not owned (wear it with wor.Loadout.WearApparel first)"));
+					return;
+				}
+				if (const ULoadoutComponent *Loadout = Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(*Loadout));
+				}
+			}));
+
 	FAutoConsoleCommandWithWorldAndArgs GPrintSkillSlotsCmd(
 		TEXT("wor.Loadout.PrintSkillSlots"),
 		TEXT("DEBUG: wor.Loadout.PrintSkillSlots - the player's primary weapon's one skill-slot list (B-351, D-145)."),
@@ -172,6 +299,23 @@ namespace
 				{
 					ShowSkillSlots(*Weapon);
 				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GPrintLoadoutCmd(
+		TEXT("wor.Loadout.Print"),
+		TEXT("DEBUG: wor.Loadout.Print - the player's active loadout: gear, both sockets, the one skill-slot list, spells, items (B-351c)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &, UWorld *World)
+			{
+				// Review fix: the same character the *Skill commands edit (the pawn, else the first with an inventory).
+				const UInventoryComponent *Inventory = PlayerInventory(World);
+				ULoadoutComponent *Loadout = Inventory && Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+				if (!Loadout)
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[LoadoutDebug] Print: no character with a loadout"));
+					return;
+				}
+				UInventoryDebug::LogActiveLoadout(Loadout);
 			}));
 
 	FAutoConsoleCommandWithWorldAndArgs GReplaceSkillCmd(
@@ -235,6 +379,106 @@ namespace
 				}
 				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
 				ShowSkillSlots(*Weapon);
+			}));
+
+	// ==================== B-351d (D-145): the primary weapon crystal's one spell list ====================
+
+	void ShowSpellSlots(const FWeaponLoadoutEntry &Weapon)
+	{
+		const FString Line = Weapon.GetSpellSlotString();
+		UE_LOG(LogWoRLoadout, Display, TEXT("[SpellSlots] %s"), *Line);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
+		}
+	}
+
+	/** A loaded spell asset by its display name or asset name. TODO: the gear screen offers the learned spells only. */
+	USpellData *FindSpellByName(const FString &Name)
+	{
+		for (TObjectIterator<USpellData> It; It; ++It)
+		{
+			if (!It->IsTemplate() && (It->Name == Name || It->GetName() == Name))
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
+	FAutoConsoleCommandWithWorldAndArgs GPrintSpellSlotsCmd(
+		TEXT("wor.Loadout.PrintSpellSlots"),
+		TEXT("DEBUG: wor.Loadout.PrintSpellSlots - the player's primary weapon crystal's one spell list (B-351d, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &, UWorld *World)
+			{
+				if (const FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(PlayerInventory(World), TEXT("PrintSpellSlots")))
+				{
+					ShowSpellSlots(*Weapon);
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GReplaceSpellCmd(
+		TEXT("wor.Loadout.ReplaceSpell"),
+		TEXT("DEBUG: wor.Loadout.ReplaceSpell <slot> <spell name> - put a spell in that slot of the player's primary weapon crystal; the list goes live (B-351d, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				if (Args.Num() < 2 || !Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSpell] usage: wor.Loadout.ReplaceSpell <slot> <spell name>"));
+					return;
+				}
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(Inventory, TEXT("ReplaceSpell"));
+				if (!Weapon)
+				{
+					return;
+				}
+				const int32 Slot = FCString::Atoi(*Args[0]);
+				TArray<FString> NameParts(Args);
+				NameParts.RemoveAt(0);
+				const FString Name = FString::Join(NameParts, TEXT(" "));
+				USpellData *Spell = FindSpellByName(Name);
+				if (!Spell)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSpell] no loaded spell named '%s'"), *Name);
+					return;
+				}
+				if (!Weapon->ReplaceSpell(Slot, Spell))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSpell] slot %d is not one of this crystal's %d (or it gives no spells)"), Slot, Weapon->GetSpellSlotCap());
+					return;
+				}
+				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
+				ShowSpellSlots(*Weapon);
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GRestoreSpellCmd(
+		TEXT("wor.Loadout.RestoreSpell"),
+		TEXT("DEBUG: wor.Loadout.RestoreSpell <slot> - bring back what that slot of the player's primary weapon crystal held before the pick (B-351d, D-145)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				if (Args.Num() < 1 || !Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[RestoreSpell] usage: wor.Loadout.RestoreSpell <slot>"));
+					return;
+				}
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				FWeaponLoadoutEntry *Weapon = ActivePrimaryWeapon(Inventory, TEXT("RestoreSpell"));
+				if (!Weapon)
+				{
+					return;
+				}
+				const int32 Slot = FCString::Atoi(*Args[0]);
+				if (!Weapon->RestoreSpell(Slot))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[RestoreSpell] slot %d holds no pick"), Slot);
+					return;
+				}
+				Inventory->WriteLoadoutToOwned(Inventory->ActiveLoadoutIndex);
+				ShowSpellSlots(*Weapon);
 			}));
 
 	FString JoinOrNone(const TArray<FString> &Lines)

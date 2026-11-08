@@ -18,6 +18,10 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "Pool/PoolSubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
 // ==================== VALIDATION ====================
@@ -389,6 +393,11 @@ FSavedLoadout FCombatLoadout::ToSavedLoadout(ECharacterClass CharacterClass) con
         Slot.RingInstance = Ring.RingEntry.PersistentID;
         Slot.AssignedSpells = Refs(Ring.RingEntry.AssignedSpells);
     }
+    for (const FApparelEntry &Piece : Apparel) // B-380c
+    {
+        Saved.Apparel.Add(Piece.Apparel);
+        Saved.ApparelInstances.Add(Piece.PersistentID);
+    }
     Saved.InnateSpells = Refs(InnateSpells);
     for (const FBDElementSpellPool &Pool : BDSpellPools)
     {
@@ -616,6 +625,29 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     // ==================== COSMETICS & DEFENSE ====================
 
     Result.bShowPrimary = SavedLoadout.bShowPrimary;
+
+    // B-380c (D-164): apparel by owned id from the store (its socket and roll), else built from the asset.
+    const UGameInstance *GI = OwnedInventory && OwnedInventory->GetWorld() ? OwnedInventory->GetWorld()->GetGameInstance() : nullptr;
+    const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+    for (int32 Index = 0; Index < SavedLoadout.Apparel.Num(); ++Index)
+    {
+        UApparelData *Asset = SavedLoadout.Apparel[Index];
+        const FGuid Ref = SavedLoadout.ApparelInstances.IsValidIndex(Index) ? SavedLoadout.ApparelInstances[Index] : FGuid();
+        const FApparelEntry *Owned = Pool ? Pool->FindApparelInPool(Ref) : nullptr;
+        if (Owned && Owned->Apparel == Asset)
+        {
+            ApparelRules::AddApparel(Result, *Owned);
+        }
+        else if (Asset)
+        {
+            if (Ref.IsValid())
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] apparel %s: owned piece %s not found - built from the asset"), *Asset->GetName(),
+                       *Ref.ToString(EGuidFormats::Short));
+            }
+            ApparelRules::AddApparel(Result, FApparelEntry::CreateFromApparel(Asset));
+        }
+    }
 
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from SavedLoadout '%s' (PrimarySlotType: %d)"),
            *SavedLoadout.LoadoutName, static_cast<int32>(SavedLoadout.PrimarySlotType));
