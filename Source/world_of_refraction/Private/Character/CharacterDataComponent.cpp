@@ -312,8 +312,11 @@ void UCharacterDataComponent::SeedWorldStats()
     const int32 BaseBody   = CharacterData ? CharacterData->WorldBodyLevel   : 0;
     const int32 BaseSpirit = CharacterData ? CharacterData->WorldSpiritLevel : 0;
 
-    // B-348b: a rostered member's head-start lives on its party record (saved); the component keeps a copy.
-    if (const FPartyMember *Member = FindCarriedPartyMember())
+    // B-348b: a rostered member's head-start lives on its party record (saved); the component keeps a copy. Only a
+    // pawn stamped with its member id reads it, as only one writes it (desktop review): an enemy sharing a member's
+    // asset doesn't inherit it, and an unstamped pawn keeps its own allocation.
+    const FPartyMember *Member = PartyMemberId.IsValid() ? FindCarriedPartyMember() : nullptr;
+    if (Member)
     {
         HeadStartMind = Member->HeadStartMind;
         HeadStartBody = Member->HeadStartBody;
