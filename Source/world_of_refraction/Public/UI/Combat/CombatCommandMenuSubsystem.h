@@ -18,6 +18,7 @@
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;
+enum class ECombatFreeCommand : uint8;
 class UCharacterData;
 class USpellData;
 class UAbilityData;
@@ -139,7 +140,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
     void RefreshMenu();
 
+    /** B-232c (client): the server ran a free step for Actor (ACombatPlayerController::Client_FreeCommandApplied);
+     *  the open menu redraws from the stepped loadout. */
+    void HandleFreeCommandApplied(AActor *Actor, ECombatFreeCommand Command);
+
 private:
+    /** B-232c: on a client, a free step goes to the server (ACombatPlayerController::RequestFreeCommand) instead of
+     *  running here; true when it was sent. */
+    bool SendFreeCommandToServer(ECombatFreeCommand Command);
+
     // ==================== ORCHESTRATOR BINDING ====================
 
     UPROPERTY()
