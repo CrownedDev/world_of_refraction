@@ -1,8 +1,9 @@
 // FApparelEntry.h
 // B-380 (D-164): one apparel piece in a loadout: the asset, its owned identity and level, its own crystal socket and
 // its instance stat roll. Apparel sits outside the loadout budget (ApparelRules), in at most MAX_APPAREL_SLOTS slots
-// (Crown, D-164: the deckbuilder's 2). Its socket takes a refined crystal only (Q-380: no evolution or augment stone):
-// the crystal keys the piece (GetElement), adds resistance to its element (Crown) and powers no skill. The asset's
+// (Crown, D-164: the deckbuilder's 2). Its socket takes a refined crystal or an evolution (Crown; no augment stone):
+// the crystal keys the piece (GetElement), adds resistance to its element (Crown) and powers no skill; an evolution may sit there too
+// (Crown), giving its passive effects. The asset's
 // effects count (Crown). The owned store and save are B-380b.
 
 #pragma once
@@ -17,6 +18,7 @@
 #include "FApparelEntry.generated.h"
 
 class UApparelData;
+class UEvolutionItemData;
 struct FCombatLoadout;
 
 USTRUCT(BlueprintType)
@@ -37,7 +39,7 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Identity")
 	EItemQuality Quality = EItemQuality::F_Quality;
 
-	/** Its own crystal socket (separate from weapon / adapter crystals): a refined crystal only. */
+	/** Its own socket (separate from weapon / adapter crystals): a refined crystal or an evolution. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Apparel")
 	FRuntimeAttachedItem AttachedItem;
 
@@ -48,8 +50,12 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 	/** A new entry for Apparel at its authored tier. */
 	static FApparelEntry CreateFromApparel(UApparelData *InApparel);
 
-	/** The crystal's element, None with no (or a broken) crystal. */
+	/** The socketed crystal's or evolution's element, None with nothing (or a broken one) in the socket. */
 	ESpellElement GetElement() const;
+
+	/** D-164 (Crown): an evolution in the socket (it gives its passive effects, keys the piece and adds its element's
+	 *  resistance like a crystal; it powers no skill); null otherwise. */
+	const UEvolutionItemData *GetEvolution() const;
 
 	/** The asset's HP and Defence plus the instance roll's (nothing else counts). */
 	FEquipmentStatBonus GetStatLines() const;
@@ -70,7 +76,7 @@ namespace ApparelRules
 	 *  FResistanceBonus). TODO: tune with the resistance pass; a third of the per-column cap for now. */
 	constexpr float CRYSTAL_ELEMENT_RESISTANCE = 5.0f;
 
-	/** Only a refined crystal sits in an apparel socket (Q-380). */
+	/** A refined crystal or (Crown, D-164) an evolution sits in an apparel socket; not an augment stone. */
 	WORLD_OF_REFRACTION_API bool CanSocket(const FRuntimeAttachedItem &Attachment);
 
 	/** Adds Entry to Loadout's apparel when there is a free slot, it has an asset and (when owned) the same piece is

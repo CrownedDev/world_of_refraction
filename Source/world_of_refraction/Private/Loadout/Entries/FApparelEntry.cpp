@@ -3,6 +3,7 @@
 #include "Loadout/Entries/FApparelEntry.h"
 
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "Combat/Resistance/ResistanceColumns.h"
@@ -17,7 +18,12 @@ FApparelEntry FApparelEntry::CreateFromApparel(UApparelData *InApparel)
 
 ESpellElement FApparelEntry::GetElement() const
 {
-	return AttachedItem.IsCrystal() && !AttachedItem.IsBroken() ? AttachedItem.GetElement() : ESpellElement::None;
+	return (AttachedItem.IsCrystal() || AttachedItem.IsEvolution()) && !AttachedItem.IsBroken() ? AttachedItem.GetElement() : ESpellElement::None;
+}
+
+const UEvolutionItemData *FApparelEntry::GetEvolution() const
+{
+	return AttachedItem.IsEvolution() ? AttachedItem.Evolution.Item : nullptr;
 }
 
 FEquipmentStatBonus FApparelEntry::GetStatLines() const
@@ -43,14 +49,14 @@ FResistanceBonus FApparelEntry::GetResistance() const
 
 bool ApparelRules::CanSocket(const FRuntimeAttachedItem &Attachment)
 {
-	return Attachment.IsCrystal();
+	return Attachment.IsCrystal() || Attachment.IsEvolution(); // Crown, D-164: an evolution too
 }
 
 bool ApparelRules::AddApparel(FCombatLoadout &Loadout, const FApparelEntry &Entry)
 {
 	if (!Entry.Apparel || Loadout.Apparel.Num() >= MAX_APPAREL_SLOTS || (!Entry.AttachedItem.IsEmpty() && !CanSocket(Entry.AttachedItem)))
 	{
-		return false; // review: a piece with an evolution or stone in its socket is refused (Q-380)
+		return false; // a piece with an augment stone in its socket is refused
 	}
 	if (Entry.PersistentID.IsValid() &&
 		Loadout.Apparel.ContainsByPredicate([&Entry](const FApparelEntry &Worn) { return Worn.PersistentID == Entry.PersistentID; }))

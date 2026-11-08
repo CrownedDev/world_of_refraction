@@ -4472,6 +4472,10 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
         {
             Result.Append(Piece.Apparel->GetStartingEffects());
         }
+        if (const UEvolutionItemData *Evolution = Piece.GetEvolution()) // Crown, D-164: its passives
+        {
+            Result.Append(Evolution->GetStartingEffects());
+        }
     }
 
     return Result;
@@ -4508,6 +4512,10 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
         {
             Result.Append(Piece.Apparel->GetStartingEffectsGathered(Wearer, WornSkin));
         }
+        if (const UEvolutionItemData *Evolution = Piece.GetEvolution())
+        {
+            Result.Append(Evolution->GetStartingEffectsGathered());
+        }
     }
 
     return Result;
@@ -4543,6 +4551,10 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
         if (Piece.Apparel)
         {
             Result.Append(Piece.Apparel->GetConditionalEffectsGathered(Wearer, WornSkin));
+        }
+        if (const UEvolutionItemData *Evolution = Piece.GetEvolution())
+        {
+            Result.Append(Evolution->GetConditionalEffectsGathered());
         }
     }
 
