@@ -16,6 +16,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/Forms/CharacterFormData.h"
+#include "Save/CoopCheckpoint.h"
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
@@ -72,7 +73,22 @@ public:
 	void RequestJoin(UCharacterData *Character);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
 
+	/** B-234 (host): sends this remote player the host's save as checkpoint CheckpointId, in chunks. */
+	void SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Bytes);
+
+	/** B-234 debug: the last checkpoint copy this client received and kept (wor.Coop.PrintCheckpoint). */
+	FString GetCheckpointString() const;
+
 private:
+	/** B-234: one chunk of the host's save; the last one of a checkpoint writes the copy to WoRCheckpoint::SLOT_NAME. */
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveCheckpointChunk(int32 CheckpointId, int32 ChunkIndex, int32 ChunkCount, const TArray<uint8> &Chunk);
+
+	FCoopCheckpointAssembler CheckpointAssembler;
+	int32 KeptCheckpointId = INDEX_NONE;
+	int32 KeptCheckpointBytes = 0;
+	FDateTime KeptCheckpointTime;
+
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
 	bool IsLocalPlayerWallet() const;
 
