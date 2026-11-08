@@ -46,6 +46,7 @@ bool UCurseSubsystem::RemoveCurse(FName CurseId)
 		return false;
 	}
 	LiftedCurses.Add(CurseId);
+	LiftedThisEvent.Add(CurseId);
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s lifted (%d left)"), *CurseId.ToString(), HeldCurses.Num());
 	return true;
 }
@@ -83,7 +84,7 @@ int32 UCurseSubsystem::RegainFrom(const TArray<FMemoryReward> &Rewards)
 	int32 Regained = 0;
 	for (const FMemoryReward &Reward : Rewards)
 	{
-		if (Reward.Kind == EMemoryRewardKind::Curse && AddCurse(Reward.RewardId))
+		if (Reward.Kind == EMemoryRewardKind::Curse && !LiftedThisEvent.Contains(Reward.RewardId) && AddCurse(Reward.RewardId))
 		{
 			++Regained;
 		}
@@ -95,7 +96,8 @@ bool UCurseSubsystem::CouldRegain(const TArray<FMemoryReward> &Rewards) const
 {
 	return Rewards.ContainsByPredicate([this](const FMemoryReward &Reward)
 	{
-		return Reward.Kind == EMemoryRewardKind::Curse && !Reward.RewardId.IsNone() && !HeldCurses.Contains(Reward.RewardId);
+		return Reward.Kind == EMemoryRewardKind::Curse && !Reward.RewardId.IsNone() && !HeldCurses.Contains(Reward.RewardId) &&
+			   !LiftedThisEvent.Contains(Reward.RewardId);
 	});
 }
 

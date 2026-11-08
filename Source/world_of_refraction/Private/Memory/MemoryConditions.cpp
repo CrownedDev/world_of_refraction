@@ -464,6 +464,11 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 	{
 		return 0;
 	}
+	UCurseSubsystem *Curses = GameInstance->GetSubsystem<UCurseSubsystem>();
+	if (Curses)
+	{
+		Curses->BeginEvent(); // review: a cure unlocked by this event isn't undone by CheckRegain below
+	}
 	TArray<UMemoryData *> Candidates = Event.Named;
 	for (UMemoryData *Memory : Conditional)
 	{
@@ -493,7 +498,7 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 			   *UEnum::GetDisplayValueAsText(Event.Source).ToString(), Unlocked);
 	}
 	// Q-378 (Crown): a memory this player already has gives back a curse they cleared when it is met again.
-	if (UCurseSubsystem *Curses = GameInstance->GetSubsystem<UCurseSubsystem>())
+	if (Curses)
 	{
 		Curses->CheckRegain(Event, Candidates);
 	}
