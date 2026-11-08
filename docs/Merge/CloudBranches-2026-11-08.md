@@ -19,6 +19,14 @@ Crown changed Q-187d (1) on 2026-11-08: **only the presser's characters rest**. 
 - One conflict to expect, in `WoRRestSpot::Rest`: keep the `Presser` signature. The host's at-rest flag is set when `bPresserIsHost` is true; that is what `bLocalPlayerRests` meant.
 - The trial branch has the four commits cherry-picked.
 
+Crown also changed Q-187e (1) on 2026-11-08: **reviving the mini-boss is a vote**.
+- Every player outside battle votes, and it passes only if they all say yes. In solo it just revives.
+- The new commits are on `feature/B-187e-client-rest-menu-cloud`, after the Q-187d merge.
+- New files: `Trial/ReviveVote.h/.cpp` and `Tests/ReviveVoteSpec.cpp`.
+- Changed files: `AWoRGameState` (replicated `ReviveVoteState`), `AWoRPlayerState::ServerCastReviveVote`, and the rest menu's vote buttons.
+- Merge the branch into dev again after B-187d.
+- The trial branch has these commits cherry-picked too.
+
 ## How to use the table
 
 Go top to bottom. Every branch's base comes before it. For each row:
