@@ -401,6 +401,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
 | [B-380c](B-380c.md) | `feature/B-380c-apparel-slots-saved-cloud` (UNBUILT, on B-380b, save v29) | Worn apparel saved; a crystal set in play | Pending |
+| [B-388](B-388.md) | `feature/B-388-main-side-quests-cloud` (UNBUILT, on B-377) | Main and side quests: listed in the journal with their goal | Pending |
 
 Move rows to **Done** when every check passes.
 
