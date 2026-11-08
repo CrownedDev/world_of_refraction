@@ -17,6 +17,7 @@
 class UCharacterDataComponent;
 class URingData;
 enum class ESkillCheck : uint8;
+struct FSkillConditionGroup;
 
 /** One fires-once use (D-011): per holder and per source of the effect, so two wearers
  *  of the same once-per-match gear each get theirs. */
@@ -600,6 +601,10 @@ private:
 	/** B-337d: Conditions through the one evaluator (SkillConditions), Owner / Target and their teams as the
 	 *  fighters (an actor with no character data is none); the impact path passes Defender and its Fired outcomes. */
 	bool IsSkillGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, AActor *Owner, AActor *Target,
+						 AActor *Defender = nullptr, const TArray<ESkillTrigger> &Fired = {}) const;
+
+	/** B-337e: the same on an authored group (FSkillEffect::ConditionGroup); the old-group form reads across to it. */
+	bool IsSkillGroupMet(const FSkillConditionGroup &Group, ESkillCheck Check, AActor *Owner, AActor *Target,
 						 AActor *Defender = nullptr, const TArray<ESkillTrigger> &Fired = {}) const;
 
 	/** Evaluate a single (Trigger, Threshold) pair against Actor's state.
