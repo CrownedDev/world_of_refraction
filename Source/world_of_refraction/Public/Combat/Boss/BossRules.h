@@ -29,7 +29,7 @@ enum class EBossRuleWhen : uint8
 	FightStart = 0,
 	/** Whenever the boss's state changes (HP, a turn starts, a status break): where phases change. */
 	StateChange = 1,
-	/** At Moment (a fight moment, B-212). TODO(B-355b): still fired from the old trigger list by UFightTriggers. */
+	/** At Moment (a fight moment, B-212), fired by UFightTriggers from the one list (B-355b); its conditions are read then. */
 	AtMoment = 2
 };
 

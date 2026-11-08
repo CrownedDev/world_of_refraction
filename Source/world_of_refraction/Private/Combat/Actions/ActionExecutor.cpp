@@ -53,6 +53,7 @@
 #include "Infusion/HybridSpellColors.h"
 #include "Combat/Projectile/SkillProjectile.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Combat/Presentation/ImpactVisuals.h"
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Equipment/Rings/RingData.h"
@@ -2064,7 +2065,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	{
 		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
 	}
-	// B-365 (D-158): every hit of this attack perfectly guarded or dodged is a Flawless Parry, reported at the last hit.
+	// B-365 (D-158): every hit of this attack Perfect Guarded is a Flawless Parry (a dodge never counts, B-367b), reported at the last hit.
 	// A luck dodge is not the player's timing: it never counts, even after a Perfect-timed press that failed.
 	if (Ctx->FlawlessTally.AddHit(!bLuckDodged && FlawlessParry::IsPerfectHit(Result.DefenseType, Result.bSuccess, Match.bPerfect), HitCount))
 	{
@@ -2104,7 +2105,8 @@ bool UActionExecutor::TryLuckDodge(AActor *Defender) const
 	return true;
 }
 
-void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact)
+void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact,
+									 bool bProjectileArrival)
 {
 	if (!CurrentExecutionContext.IsSet() || !Target)
 	{
@@ -2123,6 +2125,7 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// = base → falls through to a normal hit.
 	if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Dodge)
 	{
+		ImpactVisuals::SpawnForImpact(Target, EImpactOutcome::Dodge, GetCurrentSkillData(), Context.Element, bProjectileArrival); // B-369
 		return;
 	}
 
@@ -2184,7 +2187,14 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// Read before the hit: Context may be the PendingDefenses entry, which a death inside ApplyHit can remove.
 	const bool bTakeDamageOutcomePending = Context.bTakeDamageOutcomePending;
 	const float PendingAttackEnergyCost = Context.PendingAttackEnergyCost;
+	const EDefenseType ResolvedDefenseType = Context.ResolvedDefenseType; // B-369
+	const bool bResolvedSuccess = Context.bResolvedSuccess;
+	const bool bResolvedPerfect = Context.bResolvedPerfect;
 	const FCombatHitResult HitResult = ApplyHit(Input);
+
+	// B-369 (Q-369): the impact's visual from its outcome, now that the crit is known (Context read above).
+	ImpactVisuals::SpawnForImpact(Target, ImpactVisuals::OutcomeFor(ResolvedDefenseType, bResolvedSuccess, bResolvedPerfect, HitResult.bWasCritical),
+								  GetCurrentSkillData(), Input.Element, bProjectileArrival);
 
 	// B-042j3 (D-092 rule 8): the unguarded outcome fires once the hit is known: a hit the absorbers stopped
 	// entirely is a hit, not damage, so its On Take Damage conditionals stay quiet. Not on a corpse either (as On Guard).
@@ -2667,7 +2677,7 @@ bool UActionExecutor::AllInterruptSucceeded() const
 			return false; // any defender without a perfect defense → no abort, the attack continues
 		}
 	}
-	return true; // every defender resolved AND perfectly guarded / dodged the interrupt point (D-161)
+	return true; // every defender resolved AND Perfect Guarded the interrupt point (D-161, B-367b)
 }
 
 bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
@@ -2689,7 +2699,7 @@ bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
 			return false; // some target failed to parry/dodge → no abort, the spell continues
 		}
 	}
-	return true; // every target resolved AND parried/dodged the choke point
+	return true; // every target resolved AND Perfect Guarded the choke point (B-367b)
 }
 
 void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Skill)
@@ -3668,6 +3678,7 @@ void UActionExecutor::SpawnProjectileActor(
 
 		// 4. Launch (activates VFX and starts movement)
 		Projectile->Launch();
+		OnProjectileLaunched.Broadcast(Caster, Projectile); // B-371: the camera's Cast shot
 
 		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
 			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Skill->DeliveryType),
@@ -3869,7 +3880,7 @@ void UActionExecutor::DispatchSpellCast(
 
 	// Hybrid B2 cross-target interrupt tally: a fresh all-targets round per interruptable cast entry (choke
 	// point, first-pass-wins). The per-defender resolve records each outcome (surviving the close-removal)
-	// and aborts when ALL targets parry/dodge. Burst (Count>1) is NOT a choke point — the by-target tally
+	// and aborts when ALL targets Perfect Guard. Burst (Count>1) is NOT a choke point — the by-target tally
 	// can't express per-arrival; only single-impact deliveries record (gated at the resolve site).
 	if (CurrentExecutionContext.IsSet() &&
 		CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
@@ -3968,7 +3979,7 @@ void UActionExecutor::SpawnNextBurstProjectile()
 // ========================================
 
 bool UActionExecutor::ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, AActor *InterruptCaster,
-										  USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel)
+										  USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel, bool bProjectileArrival)
 {
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
 	if (!DefenseSys || !CurrentExecutionContext.IsSet())
@@ -4024,7 +4035,7 @@ bool UActionExecutor::ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, 
 		{
 			CurrentExecutionContext->ChokeFlawless.Add(Target);
 		}
-		ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
+		ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true, bProjectileArrival);
 		// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
 		// resolved AND all perfectly defended this choke point (D-161).
 		if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
@@ -4060,7 +4071,7 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	// window count-based with ExpectedImpacts=1, so the projectile's LANDING is the impact moment.
 	// Resolve THIS arrival per-impact (reading the spell cast-entry difficulty) and apply exactly
 	// once — mirroring the melee Impact-notify loop (drain counter, resolve, apply slice, close).
-	if (ResolveSpellArrival(Target, CastEntryIndex, nullptr, nullptr, TEXT("Projectile")))
+	if (ResolveSpellArrival(Target, CastEntryIndex, nullptr, nullptr, TEXT("Projectile"), /*bProjectileArrival=*/true))
 	{
 		return;
 	}
@@ -5532,7 +5543,7 @@ void UActionExecutor::ApplySkillEffects(
 		// Event gate — once per effect (the condition group gates the whole bundle): the
 		// source-side AND/OR group against the action's events. Empty Conditions[] == Always
 		// (unconditional). Target-side conditions are skipped — they ride the runtime effect.
-		const bool bConditionMet = SkillConditions::IsGroupMet(Effect.Conditions, ESkillCheck::ActionResult, ActionContext,
+		const bool bConditionMet = SkillConditions::IsGroupMet(SkillConditions::GroupOf(Effect), ESkillCheck::ActionResult, ActionContext, // B-337e
 																 /*bHasTarget=*/false); // target-side never takes part here
 
 		if (!bConditionMet)
@@ -5851,7 +5862,7 @@ void UActionExecutor::DebugForceResetAsync()
 namespace
 {
 	static FAutoConsoleCommandWithWorld GForceResetCmd(
-		TEXT("wor.ForceReset"),
+		TEXT("wor.Combat.ForceReset"),
 		TEXT("Force-reset a stuck async action execution context on the ActionExecutor (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -5864,7 +5875,7 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] wor.ForceReset: no subsystem (no PIE world?)."));
+					UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] wor.Combat.ForceReset: no subsystem (no PIE world?)."));
 				}
 			}));
 }

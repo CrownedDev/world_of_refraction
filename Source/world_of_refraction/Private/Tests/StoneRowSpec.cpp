@@ -158,7 +158,7 @@ void FStoneRowSpec::Define()
 		}
 	});
 
-	It("prints one wor.PrintStoneRows line per stat stone", [this]()
+	It("prints one wor.Stones.Print line per stat stone", [this]()
 	{
 		TArray<FString> Lines;
 		UStoneRowDebug::GetStoneRowsString().ParseIntoArrayLines(Lines);
