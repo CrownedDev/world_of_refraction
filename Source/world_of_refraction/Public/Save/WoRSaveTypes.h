@@ -322,6 +322,14 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	TArray<FSavedAssetRef> AssignedSpells;
 
+	/** B-351d (D-145): the crystal's one spell list, one ref per slot (unset = the built-in), and whether it is active.
+	 *  New tagged fields: an older save reads them as empty / false (the old merge), so no version bump. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> SpellPicks;
+
+	UPROPERTY()
+	bool bSpellSlotsActive = false;
+
 	UPROPERTY()
 	FEquipmentStatBonus StatBonus;
 

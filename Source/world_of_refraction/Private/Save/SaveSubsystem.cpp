@@ -122,6 +122,11 @@ namespace
 		{
 			Gear.AssignedSpells.Add(FSavedAssetRef::Make(Spell));
 		}
+		for (const USpellData *Pick : Entry.SpellPicks) // B-351d (D-145), one ref per slot
+		{
+			Gear.SpellPicks.Add(FSavedAssetRef::Make(Pick));
+		}
+		Gear.bSpellSlotsActive = Entry.bSpellSlotsActive;
 		Gear.StatBonus = Entry.StatBonus;
 		Gear.ResistanceBonus = Entry.ResistanceBonus;
 		Gear.StatPool = Entry.StatPool;
@@ -153,6 +158,12 @@ namespace
 			}
 			Entry.bSkillSlotsActive = Gear.bSkillSlotsActive;
 		}
+		Entry.SpellPicks.Reset();
+		for (const FSavedAssetRef &Ref : Gear.SpellPicks) // B-351d (D-145); a gone spell leaves its slot to the built-in
+		{
+			Entry.SpellPicks.Add(Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr);
+		}
+		Entry.bSpellSlotsActive = Gear.bSpellSlotsActive;
 		Entry.AssignedSpells.Reset();
 		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
 		{
