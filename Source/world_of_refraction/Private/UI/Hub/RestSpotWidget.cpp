@@ -1,6 +1,9 @@
 // RestSpotWidget.cpp
 
 #include "UI/Hub/RestSpotWidget.h"
+#include "GameFramework/PlayerState.h"
+#include "HAL/IConsoleManager.h"
+#include "Player/WoRGameState.h"
 
 #include "Player/WoRPlayerState.h"
 
@@ -107,6 +110,11 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
+		VoteText = RestSpotStyle::AddText(WidgetTree, Box);
+		VoteYesButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("VoteYes", "Vote yes: revive the mini-boss"));
+		VoteYesButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleVoteYesClicked);
+		VoteNoButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("VoteNo", "Vote no"));
+		VoteNoButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleVoteNoClicked);
 		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host (the next player hosts; you rejoin)"));
 		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
 		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"));
@@ -122,7 +130,35 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 void URestSpotWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->OnReviveVoteChanged.AddUniqueDynamic(this, &URestSpotWidget::HandleReviveVoteChanged);
+	}
 	Refresh();
+}
+
+void URestSpotWidget::NativeDestruct()
+{
+	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->OnReviveVoteChanged.RemoveDynamic(this, &URestSpotWidget::HandleReviveVoteChanged);
+	}
+	Super::NativeDestruct();
+}
+
+void URestSpotWidget::HandleReviveVoteChanged()
+{
+	Refresh();
+}
+
+void URestSpotWidget::HandleVoteYesClicked()
+{
+	URestSpotWidget::CastReviveVoteFor(GetOwningPlayer(), true);
+}
+
+void URestSpotWidget::HandleVoteNoClicked()
+{
+	URestSpotWidget::CastReviveVoteFor(GetOwningPlayer(), false);
 }
 
 void URestSpotWidget::Refresh()
@@ -164,9 +200,31 @@ void URestSpotWidget::Refresh()
 	// B-187b: only at a mini-boss's rest spot that can still be revived.
 	// B-187e: a client shows what the host said (SetHostRevive).
 	const bool bCanRevive = bOnClient ? bHostCanRevive : WoRRestSpot::CanReviveHere(GetWorld());
+	// B-187e (Q-187e changed): while a vote runs, Revive gives way to the vote's line and this player's answers.
+	const AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr;
+	const FReviveVote *Vote = GameState ? &GameState->GetReviveVote() : nullptr;
+	const APlayerState *Me = GetOwningPlayer() ? GetOwningPlayer()->PlayerState.Get() : nullptr;
+	const bool bVoteOpen = Vote && Vote->bOpen;
+	const bool bMyTurn = bVoteOpen && Me && ReviveVote::IsWaitingFor(*Vote, Me->GetPlayerId());
 	if (ReviveButton)
 	{
-		ReviveButton->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		ReviveButton->SetVisibility(bCanRevive && !bVoteOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (VoteText)
+	{
+		VoteText->SetVisibility(bVoteOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (bVoteOpen)
+		{
+			VoteText->SetText(FText::Format(LOCTEXT("VoteLine", "Revive vote: {0} of {1} said yes (everyone outside a fight must agree)"),
+											FText::AsNumber(Vote->YesIds.Num()), FText::AsNumber(Vote->VoterIds.Num())));
+		}
+	}
+	for (UButton *Answer : {VoteYesButton.Get(), VoteNoButton.Get()})
+	{
+		if (Answer)
+		{
+			Answer->SetVisibility(bMyTurn ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		}
 	}
 	const int32 RevivalNumber = bOnClient ? HostRevivalNumber : WoRRestSpot::GetNextRevivalNumber(GetWorld());
 	if (ReviveLabel && bCanRevive)
@@ -185,20 +243,65 @@ void URestSpotWidget::SetHostRevive(bool bCanRevive, int32 RevivalNumber)
 
 void URestSpotWidget::HandleReviveClicked()
 {
+	// B-187e (Q-187e changed by Crown, 2026-11-08): Revive starts a vote of every player outside battle (solo: it
+	// revives at once). A client asks the host (ServerReviveMiniBoss checks reach and fights); the host starts it here.
 	UWorld *World = GetWorld();
 	APlayerController *PC = GetOwningPlayer();
-	CloseMenu();
-	// B-187e: a client asks the host, whose run revives it.
+	AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
 	if (World && World->GetNetMode() == NM_Client)
 	{
-		if (AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
+		if (Player)
 		{
 			Player->ServerReviveMiniBoss();
 		}
+		Refresh();
 		return;
 	}
-	WoRRestSpot::ReviveMiniBoss(World);
+	AWoRGameState *GameState = World ? World->GetGameState<AWoRGameState>() : nullptr;
+	if (!GameState || !Player)
+	{
+		CloseMenu();
+		WoRRestSpot::ReviveMiniBoss(World); // no game state (a test level): as before
+		return;
+	}
+	if (GameState->StartReviveVote(Player) == EReviveVoteResult::Passed)
+	{
+		CloseMenu(); // solo, or nobody else outside battle: the level reloads
+		return;
+	}
+	Refresh();
 }
+
+void URestSpotWidget::CastReviveVoteFor(APlayerController *PC, bool bYes)
+{
+	AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+	UWorld *World = PC ? PC->GetWorld() : nullptr;
+	if (!Player || !World)
+	{
+		return;
+	}
+	if (World->GetNetMode() == NM_Client)
+	{
+		Player->ServerCastReviveVote(bYes);
+	}
+	else if (AWoRGameState *GameState = World->GetGameState<AWoRGameState>())
+	{
+		GameState->CastReviveVote(Player, bYes);
+	}
+}
+
+static FAutoConsoleCommandWithWorldAndArgs GTrialVoteCommand(
+	TEXT("wor.Trial.Vote"),
+	TEXT("B-187e: answer the mini-boss revive vote: wor.Trial.Vote yes | no (placeholder until the real screen)."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+	{
+		if (Args.Num() == 0 || (!Args[0].Equals(TEXT("yes"), ESearchCase::IgnoreCase) && !Args[0].Equals(TEXT("no"), ESearchCase::IgnoreCase)))
+		{
+			UE_LOG(LogWoR, Display, TEXT("[ReviveVote] usage: wor.Trial.Vote yes | no"));
+			return;
+		}
+		URestSpotWidget::CastReviveVoteFor(World ? World->GetFirstPlayerController() : nullptr, Args[0].Equals(TEXT("yes"), ESearchCase::IgnoreCase));
+	}));
 
 FString URestSpotWidget::GetRestSpotWidgetString() const
 {
