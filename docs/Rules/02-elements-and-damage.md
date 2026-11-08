@@ -89,7 +89,7 @@ Steps run in this order. All are multipliers, so order only matters for rounding
 
 | # | Rule | Status | Source |
 |---|---|---|---|
-| ED-44 | **What plays on an impact comes from its outcome (Q-369):** Hit: the skill's Impact-role VFX entry, else the element's default, else a generic hit; Crit: the same, larger; Guard: a steel spark; Perfect Guard: the flash (ED-37); Dodge: a small whiff or nothing. A spell arrival's hit shows only its projectile / AOE impact. Defaults are the **target's** CosmeticsData (Q-369b); they play at its `HitPoint` socket, else its location. Animators place timing only. | REVIEW (B-369, `feature/B-369-impact-vfx-outcome-cloud`, UNBUILT; defaults empty until art) | `Combat/Presentation/ImpactVisuals.h`; `CosmeticsData.h` (Impact Visuals); `ActionExecutor.cpp` (`ApplyOneImpact`); `wor.ImpactVFX.Log` |
+| ED-44 | **What plays on an impact comes from its outcome (Q-369):** Hit: the skill's Impact-role VFX entry, else the element's default, else a generic hit; Crit: the same, larger; Guard: a steel spark; Perfect Guard: the flash (ED-37); Dodge: a small whiff or nothing. A projectile's hit shows only the projectile's own impact (AOE and Instant arrivals get the chain). Defaults are the **target's** CosmeticsData (Q-369b); they play at its `HitPoint` socket, else its location. Animators place timing only. | REVIEW (B-369, `feature/B-369-impact-vfx-outcome-cloud`, UNBUILT; defaults empty until art) | `Combat/Presentation/ImpactVisuals.h`; `CosmeticsData.h` (Impact Visuals); `ActionExecutor.cpp` (`ApplyOneImpact`); `wor.ImpactVFX.Log` |
 
 ## Open questions
 - D-P01 (PARKED): move Broken Darkness onto GAS, only after GAS stage 3 and with a zero-difference compare. No rule change expected.
