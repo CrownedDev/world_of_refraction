@@ -268,6 +268,8 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 		return Condition.Character && (Event.Present.IsEmpty() ? IsInParty(Condition.Character, Event) : Event.Present.Contains(Condition.Character.Get()));
 	case EMemoryConditionKind::CurseHeld:
 		return false; // B-378: the parity reference has no curse state; CurseHeld reads it through WoRConditions
+	case EMemoryConditionKind::CounterReached:
+		return false; // B-379: no counter state here either; CounterReached reads it through WoRConditions
 	}
 	return false;
 }
