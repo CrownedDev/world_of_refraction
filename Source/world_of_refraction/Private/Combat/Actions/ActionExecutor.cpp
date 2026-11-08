@@ -689,7 +689,7 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	if (bLog && Preview.AmpBonus != 0)
 	{
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[Amp] %s: %d + Amp %d (%s)"), *Skill->Name, Preview.BaseDamage, Preview.AmpBonus,
-			   *UEnum::GetValueAsString(Preview.Element));
+			   *UEnum::GetDisplayValueAsText(Preview.Element).ToString());
 	}
 
 	// 6-3-3: per-mode, stat-scaled charge damage (L0 x1.0), resolved from the action's infusion source.
