@@ -171,7 +171,12 @@ float TrialGate::GetEnemyTierHealthMultiplier(const AActor *Enemy)
 	return TierPowerScaling::GetTierPowerMultiplier(WoRCombatTier::GetCombatTier(Enemy));
 }
 
-bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank)
+EItemTier TrialGate::StepTier(EItemTier Tier, int32 Steps)
+{
+	return TierHelpers::GetTierFromValue(static_cast<int32>(Tier) + FMath::Max(0, Steps));
+}
+
+bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EEncounterRank Rank, int32 TierSteps)
 {
 	UCharacterDataComponent *CharComp = Enemy ? Enemy->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UGameInstance *GI = Enemy && Enemy->GetWorld() ? Enemy->GetWorld()->GetGameInstance() : nullptr;
@@ -181,7 +186,8 @@ bool TrialGate::ApplyEnemyRankHealth(AActor *Enemy, float StrengthMultiplier, EE
 		return false;
 	}
 	const float RankMultiplier = GetRankHealthMultiplier(Rank);
-	const float TierMultiplier = GetEnemyTierHealthMultiplier(Enemy);
+	const float TierMultiplier = TierSteps > 0 ? TierPowerScaling::GetTierPowerMultiplier(StepTier(WoRCombatTier::GetCombatTier(Enemy), TierSteps))
+											   : GetEnemyTierHealthMultiplier(Enemy);
 	const float HealthMultiplier = RankMultiplier * TierMultiplier;
 	if (FMath::IsNearlyEqual(HealthMultiplier, CombatBaseline::ENEMY_RANK_HEALTH_NORMAL))
 	{

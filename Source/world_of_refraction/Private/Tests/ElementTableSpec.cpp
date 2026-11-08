@@ -1,5 +1,5 @@
 // ElementTableSpec.cpp
-// B-271: the element table agrees with every old per-element function (wor.CompareElements), so the
+// B-271: the element table agrees with every old per-element function (wor.Elements.Compare), so the
 // old functions can forward to it with no change in behaviour.
 
 #if WITH_DEV_AUTOMATION_TESTS

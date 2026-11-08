@@ -30,6 +30,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Loadout/Entries/FApparelEntry.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
@@ -207,6 +208,15 @@ public:
     const TArray<FRingInventoryEntry> &GetOwnedRings() const { return OwnedRings; }
     FRingInventoryEntry *FindRingInPool(const FGuid &PersistentID);
     const FRingInventoryEntry *FindRingInPool(const FGuid &PersistentID) const;
+
+    /** B-380b (D-164): bank an apparel piece; an invalid PersistentID is minted here (the piece becomes owned).
+     *  Returns its id. */
+    FGuid AddApparelToPool(const FApparelEntry &Entry);
+    const TArray<FApparelEntry> &GetOwnedApparel() const { return OwnedApparel; }
+    const FApparelEntry *FindApparelInPool(const FGuid &PersistentID) const;
+    /** B-380c: sets an owned piece's socket (a refined crystal, an evolution, or empty to clear it; ApparelRules::CanSocket)
+     *  and fires OnPoolGearChanged so every worn copy follows. False when not owned or the attachment does not fit. */
+    bool AttachToApparel(const FGuid &PersistentID, const FRuntimeAttachedItem &Attachment);
 
     /** Bank an evolution instance (keyed by InstanceID, not PersistentID). */
     UFUNCTION(BlueprintCallable, Category = "Pool|Armoury")
@@ -559,6 +569,10 @@ private:
 
     UPROPERTY()
     TArray<FEvolutionInventoryEntry> OwnedEvolutions;
+
+    /** B-380b: owned apparel (a handful at most: found by a scan, no GUID index). */
+    UPROPERTY()
+    TArray<FApparelEntry> OwnedApparel;
 
     // B-312: GUID -> array index for each armoury array. Rebuilt on demand; a stale hit (an entry moved) rebuilds too.
     mutable TMap<FGuid, int32> WeaponIndex;
