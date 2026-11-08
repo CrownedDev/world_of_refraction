@@ -159,7 +159,7 @@ void FApparelSpec::Define()
 		USaveSubsystem::RestorePool(Saved, *Pool); // restored beside the original
 		TestEqual(TEXT("restored as apparel"), Pool->GetOwnedApparel().Num(), OwnedBefore * 2);
 		const FApparelEntry &Back = Pool->GetOwnedApparel().Last();
-		TestEqual(TEXT("same id"), Back.PersistentID, Id);
+		TestTrue(TEXT("same id"), Back.PersistentID == Id);
 		TestEqual(TEXT("its crystal: Fire"), Back.GetElement(), ESpellElement::Fire);
 		TestEqual(TEXT("its roll"), Back.StatBonus.BonusDefense, 1);
 	});
