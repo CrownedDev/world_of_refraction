@@ -4095,9 +4095,7 @@ Moved here once applied. Newest first.
 **Notes for Claude:** `Design/MemoryCatalogue.md` §3.11.
 
 ### Q-380 — Apparel: slots, what its crystal gives, evolutions on it
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
-**Question:** D-164 leaves three points open: (1) how many apparel slots; (2) what an apparel crystal gives beyond its element; (3) whether an evolution (or an augment stone) can sit in an apparel socket. Also (4) does apparel's Defence scale with its tier like other gear?
-**Options / as built:** (1) **A** 2, the deckbuilder's cap / B 1 / C a slot per body part. (2) **A** its element only (it keys the piece; no extra line) / B that element's Defence line. (3) **A** a refined crystal only / B evolutions too. (4) **A** yes, as every gear line (HP raw, as gear HP is) / B flat.
-**Recommendation:** all A. The deckbuilder is this game's simplest level and caps apparel at 2 with a crystal that keys it and powers nothing (`wor-deckbuilder docs/reference/01-card-model.md`, per D-164); Monster Hunter's armour is likewise a separate stats layer from layered looks. Keeping the crystal to a key leaves room for B (an elemental Defence line) once resistances are tuned, and keeps evolutions on the gear that casts.
-**Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any.
-
+**Status:** ANSWERED (Crown, 2026-11-08, for slots, the crystal and effects; the evolution point by the reference-backed default) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
+**Question:** D-164 left open: (1) how many apparel slots; (2) what an apparel crystal gives beyond its element; (3) whether an evolution (or an augment stone) can sit in an apparel socket; also (4) whether apparel's lines scale with its tier.
+**Answer:** (1) **two** (Crown, the deckbuilder's `MaxApparelSeated` 2). (2) **resistance to its element**, on top of the piece's own lines (Crown); apparel also **carries effects** like the deckbuilder's vessels (Crown). (3) **a refined crystal only**, by the reference-backed default: the deckbuilder's apparel holds a crystal that keys it and powers nothing, and evolutions stay on the gear that casts. (4) **yes**, as every gear line (HP raw), by the default. Crown may change (3) or (4).
+**Notes for Claude:** B-380: `ApparelRules::MAX_APPAREL_SLOTS`, `CRYSTAL_ELEMENT_RESISTANCE` (5, TODO tune), `CanSocket`; the effects through the loadout's effect gatherers.
