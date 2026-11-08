@@ -5,9 +5,11 @@
 #include "Player/WoRPlayerState.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -16,7 +18,21 @@
 
 #define LOCTEXT_NAMESPACE "TrialRestSpot"
 
-int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId, bool bLocalPlayerRests)
+bool WoRRestSpot::RestsMember(const FPartyMember &Member, const AWoRPlayerState *Presser, bool bPresserIsHost,
+							  const TArray<const AWoRPlayerState *> &Players)
+{
+	const auto Claims = [&Member](const AWoRPlayerState *Player)
+	{
+		return Player && (Player->ClaimsMember(Member.MemberId) || Player->ClaimsCharacter(Member.CharacterData));
+	};
+	if (Claims(Presser))
+	{
+		return true;
+	}
+	return bPresserIsHost && !Players.ContainsByPredicate(Claims);
+}
+
+int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId, const AWoRPlayerState *Presser)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
@@ -25,10 +41,22 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId, bool bLocalPlayerRests)
 	{
 		return INDEX_NONE;
 	}
-	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
-	PartySession->SetAllMembersFull();
+	// Q-187d (Crown, 2026-11-08): only the presser's characters rest; D-043: its fallen come back here.
+	TArray<const AWoRPlayerState *> Players;
+	if (const AGameStateBase *GameState = World->GetGameState())
+	{
+		for (const APlayerState *Player : GameState->PlayerArray)
+		{
+			Players.Add(Cast<AWoRPlayerState>(Player));
+		}
+	}
+	const APlayerController *PresserPC = Presser ? Cast<APlayerController>(Presser->GetOwner()) : nullptr;
+	const bool bPresserIsHost = !PresserPC || PresserPC->IsLocalController();
+	const int32 Revived = Presser ? PartySession->RestMembersWhere([Presser, bPresserIsHost, &Players](const FPartyMember &Member)
+														   { return RestsMember(Member, Presser, bPresserIsHost, Players); })
+								  : PartySession->RestMembersWhere([](const FPartyMember &) { return true; });
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
-	if (bLocalPlayerRests)
+	if (bPresserIsHost) // the trial's bLocalPlayerRests: the presser is the host
 	{
 		Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here
 		if (UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>())
@@ -36,7 +64,8 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId, bool bLocalPlayerRests)
 			Forms->SetAtRestSpot(true); // review: the skin switch's older rest-spot flag follows the run's
 		}
 	}
-	UE_LOG(LogWoR, Log, TEXT("[RestSpot] Rested at %s: every member full, %d revived"), *RestSpotId.ToString(), Revived);
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] Rested at %s (%s): %d revived"), *RestSpotId.ToString(),
+		   Presser ? *Presser->GetPlayerName() : TEXT("whole party"), Revived);
 	return Revived;
 }
 
@@ -97,9 +126,8 @@ FText WoRRestSpot::GetLeaveConfirmText()
 
 void ATrialRestSpot::Interact(APawn *Pawn)
 {
-	const APlayerController *RestingPC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
-	const bool bLocalPlayerRests = !RestingPC || RestingPC->IsLocalController();
-	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId(), bLocalPlayerRests) == INDEX_NONE)
+	const AWoRPlayerState *Presser = Pawn ? Pawn->GetPlayerState<AWoRPlayerState>() : nullptr;
+	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId(), Presser) == INDEX_NONE)
 	{
 		return;
 	}
@@ -107,7 +135,7 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	{
 		Run->NoteRestStand(Pawn->GetActorTransform()); // B-187c: a revive brings the party back here
 	}
-	ShowMessageTo(Pawn, LOCTEXT("Rested", "You rest. The party is restored."));
+	ShowMessageTo(Pawn, LOCTEXT("Rested", "You rest. Your characters are restored."));
 	APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
 	if (PC && PC->IsLocalController())
 	{
