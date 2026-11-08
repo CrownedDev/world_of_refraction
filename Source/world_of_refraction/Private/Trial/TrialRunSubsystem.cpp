@@ -116,6 +116,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     const int32 ForcedSeed = CVarTrialSeed.GetValueOnGameThread();
     RunSeed = ForcedSeed != 0 ? ForcedSeed : MakeFreshRunSeed();
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Entering trial '%s' -> %s (run seed %d; replay with: wor.Trial.Seed %d)"),
@@ -223,6 +225,8 @@ void UTrialRunSubsystem::ExitTrial()
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     // B-362: a run ended by losses leaves from the battle level, with its fight's stash still set; the hub has no fight.
     PendingBattleParty.Reset();
     PendingOpposingParty.Reset();
@@ -312,6 +316,8 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     PendingFightSpot = FVector::ZeroVector; // B-362c
     bHasPendingFightSpot = false;
     EncounterReturnLevel = nullptr;
@@ -570,7 +576,8 @@ void UTrialRunSubsystem::MarkPendingEncounterBeaten()
 {
     for (const FName EncounterId : PendingEncounterSources)
     {
-        MarkEncounterBeaten(EncounterId, PendingRank);
+        // Review: the team's own rank, not the fight's (an elite caught in a mini-boss fight leaves no rest spot).
+        MarkEncounterBeaten(EncounterId, PendingMiniBossSources.Contains(EncounterId) ? EEncounterRank::MiniBoss : EEncounterRank::Normal);
     }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] %d map encounter(s) beaten; %d beaten this run"),
            PendingEncounterSources.Num(), BeatenEncounters.Num());
@@ -680,6 +687,8 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingFirstStrike = EFirstStrike::None;
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
+    PendingEnemyTierSteps.Reset();
+    PendingMiniBossSources.Reset();
     // B-314: a resumed run opens a fresh layer; B-314b: USaveSubsystem::RestoreRun then replaces it with the save's own
     // layer when the save has one (the run-only marks and home states as saved).
     UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -750,6 +759,16 @@ void UTrialRunSubsystem::MarkEncounterBeaten(FName EncounterId, EEncounterRank R
     if (Rank == EEncounterRank::MiniBoss)
     {
         BeatenMiniBosses.Add(EncounterId); // B-187b: a rest spot where it stood
+    }
+}
+
+void UTrialRunSubsystem::SetPendingEnemyTierSteps(const TArray<int32> &Steps)
+{
+    PendingEnemyTierSteps = Steps;
+    PendingTierSteps = 0;
+    for (const int32 Step : Steps)
+    {
+        PendingTierSteps = FMath::Max(PendingTierSteps, Step);
     }
 }
 
