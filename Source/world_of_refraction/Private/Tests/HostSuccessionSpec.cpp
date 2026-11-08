@@ -59,6 +59,19 @@ void FHostSuccessionSpec::Define()
 		TestFalse(TEXT("a version mismatch"), WoRHostSuccession::IsHostLoss(ENetworkFailure::OutdatedClient));
 	});
 
+	It("B-234c: a planned hand-over needs a listen server and another player", [this]()
+	{
+		TestTrue(TEXT("host with a friend"), WoRHostSuccession::CanHandOverFrom(NM_ListenServer, 2));
+		TestFalse(TEXT("host alone"), WoRHostSuccession::CanHandOverFrom(NM_ListenServer, 1));
+		TestFalse(TEXT("a client"), WoRHostSuccession::CanHandOverFrom(NM_Client, 3));
+		TestFalse(TEXT("solo"), WoRHostSuccession::CanHandOverFrom(NM_Standalone, 2));
+		UWoRHostHandOverSubsystem *HandOver = TestWorld->GetSubsystem<UWoRHostHandOverSubsystem>();
+		if (!TestNotNull(TEXT("hand-over subsystem"), HandOver)) return;
+		HandOver->NoteHostOrder({SUCCESSION_TEST_HOST, SUCCESSION_TEST_SECOND});
+		TestFalse(TEXT("the headless world is no listen server: refused"), HandOver->BeginPlannedHandOver(TestWorld->GetWorld()));
+		TestEqual(TEXT("nothing started"), HandOver->GetStep(), EHostHandOverStep::None);
+	});
+
 	It("a client that isn't next rejoins the next host; with nobody else known nothing starts", [this]()
 	{
 		UWoRHostHandOverSubsystem *HandOver = TestWorld->GetSubsystem<UWoRHostHandOverSubsystem>();
