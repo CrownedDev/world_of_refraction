@@ -26,8 +26,8 @@
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
 #include "Player/WoRPlayerState.h"
-#include "Party/Party.h"
 #include "Reaction/ReactionTrigger.h"
+#include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -190,8 +190,10 @@ namespace
 		State.Item = Item;
 		State.Tier = Tier;
 		State.UpgradeSteps = Item ? MemoryUnlock::GetUpgradeSteps(*Item, Tier) : 0;
-		State.SocketElement = Socket.IsCrystal() || Socket.IsEvolution() ? Socket.GetElement() : ESpellElement::None;
-		State.SocketEvolution = Socket.IsEvolution() ? Socket.Evolution.Item : nullptr;
+		// Review: a broken crystal gives no element, as FApparelEntry::GetElement treats it.
+		const bool bWorking = !Socket.IsBroken();
+		State.SocketElement = bWorking && (Socket.IsCrystal() || Socket.IsEvolution()) ? Socket.GetElement() : ESpellElement::None;
+		State.SocketEvolution = bWorking && Socket.IsEvolution() ? Socket.Evolution.Item : nullptr;
 		State.StoneType = Stone && Stone->IsAugmentStone() ? Stone->Crystal.Id.Type : ECrystalType::None;
 		return State;
 	}
@@ -207,6 +209,8 @@ TArray<FWornItemState> MemoryConditions::GetWornStates(const AActor *Actor)
 	}
 	const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 	const TArray<const UEquipmentDataBase *> InUse = ReactionTriggers::GetWornItems(Actor);
+	// TODO: one state per asset, so two copies of the same weapon with different sockets keep the first; apparel is read
+	// from the loadout copy (check against the owned store, UPoolSubsystem::OwnedApparel, if a socket change skips it).
 	auto AddOnce = [&States, &InUse](const FWornItemState &State, bool bNeedsInUse)
 	{
 		if (State.Item && (!bNeedsInUse || InUse.Contains(State.Item)) &&

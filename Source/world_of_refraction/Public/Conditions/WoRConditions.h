@@ -41,11 +41,11 @@ struct FWoRFighterState
 	bool bDefender = false;
 };
 
+struct FWornItemState; // B-381 (Memory/MemoryConditions.h)
+
 /** What is true when conditions are checked. Memories fill Event (party, worn gear, slotted and used
  *  skills, locations, enemies beaten, level-ups) and Journal; a boss rule adds Boss; a reaction (B-337b)
  *  fills Event with its wearer alone, Opposing with the faced character, Self and Target. */
-struct FWornItemState; // B-381 (Memory/MemoryConditions.h)
-
 struct FWoRConditionContext
 {
 	EWoRConditionTrigger Trigger = EWoRConditionTrigger::Any;
