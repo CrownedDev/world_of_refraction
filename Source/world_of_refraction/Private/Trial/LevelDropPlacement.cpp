@@ -17,6 +17,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Currency/EconomyYield.h"
 #include "Currency/CurrencyComponent.h"
+#include "Character/OverCapRules.h"
 
 #define LOCTEXT_NAMESPACE "LevelDrops"
 
@@ -84,6 +85,17 @@ int32 WoRLevelDrops::GetLiveLevel(const UWorld *World, const FPartyMember &Membe
 	return FMath::Min(AssetLevel(*Member.CharacterData, Pillar) + Earned, WorldStatConstants::LIVE_MAX);
 }
 
+int32 WoRLevelDrops::GetOverCap(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar)
+{
+	const UTrialRunSubsystem *Run = LevelDropRun(World);
+	return Run ? Run->GetRunOverCap(UPoolSubsystem::GetCharacterKey(Member), Pillar) : 0;
+}
+
+bool WoRLevelDrops::IsPillarFull(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar)
+{
+	return GetLiveLevel(World, Member, Pillar) >= WorldStatConstants::LIVE_MAX && GetOverCap(World, Member, Pillar) >= OverCapRules::MAX_PER_PILLAR;
+}
+
 int32 WoRLevelDrops::GetPointPrice(const UWorld *World, const FPartyMember &Member)
 {
 	const UTrialRunSubsystem *Run = LevelDropRun(World);
@@ -103,12 +115,13 @@ FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member)
 		return LOCTEXT("BuyNotAtRest", "Points are bought at a rest spot");
 	}
 	const FText Name = FText::FromString(Member.CharacterData->Name);
-	const bool bAllAtCap = GetLiveLevel(World, Member, EWorldPillar::Mind) >= WorldStatConstants::LIVE_MAX
-						   && GetLiveLevel(World, Member, EWorldPillar::Body) >= WorldStatConstants::LIVE_MAX
-						   && GetLiveLevel(World, Member, EWorldPillar::Spirit) >= WorldStatConstants::LIVE_MAX;
-	if (bAllAtCap) // TODO: B-364 lets points go over the cap
+	// B-364: a point at the cap goes over-cap, so buying stops only when every pillar is at 7 with 3 over-cap points.
+	const bool bAllFull = IsPillarFull(World, Member, EWorldPillar::Mind) && IsPillarFull(World, Member, EWorldPillar::Body)
+						  && IsPillarFull(World, Member, EWorldPillar::Spirit);
+	if (bAllFull)
 	{
-		return FText::Format(LOCTEXT("BuyAllAtCap", "{0}'s pillars are all at {1}"), Name, FText::AsNumber(WorldStatConstants::LIVE_MAX));
+		return FText::Format(LOCTEXT("BuyAllFull", "{0}'s pillars are all at {1} with {2} over-cap points"), Name,
+							 FText::AsNumber(WorldStatConstants::LIVE_MAX), FText::AsNumber(OverCapRules::MAX_PER_PILLAR));
 	}
 	const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
 	const AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
@@ -144,10 +157,18 @@ FText WoRLevelDrops::TryPlaceLevel(UWorld *World, const FPartyMember &Member, EW
 	{
 		return FText::Format(LOCTEXT("NoneWaiting", "{0} has no pillar levels to place"), Name);
 	}
+	// B-364 (D-157): past the cap a point becomes an over-cap point (at most 3 per pillar, each +5 % to its sub-stats).
 	if (GetLiveLevel(World, Member, Pillar) >= WorldStatConstants::LIVE_MAX)
 	{
-		return FText::Format(LOCTEXT("AtCap", "{0}'s {1} is already at {2}"), Name, GetPillarName(Pillar),
-							 FText::AsNumber(WorldStatConstants::LIVE_MAX));
+		if (!Run->AddRunOverCap(MemberKey, Pillar))
+		{
+			return FText::Format(LOCTEXT("OverCapFull", "{0}'s {1} already has {2} over-cap points"), Name, GetPillarName(Pillar),
+								 FText::AsNumber(OverCapRules::MAX_PER_PILLAR));
+		}
+		Run->TakeUnspentLevel(MemberKey);
+		UE_LOG(LogTemp, Log, TEXT("[LevelDrops] %s +1 over-cap %s (now %d; %d left to place)"), *MemberKey.ToString(),
+			   *GetPillarName(Pillar).ToString(), GetOverCap(World, Member, Pillar), Run->GetUnspentLevels(MemberKey));
+		return FText::GetEmpty();
 	}
 	// A spawned member records into the run itself (AddEarnedWorldStat); one not in the level reads it at its next spawn.
 	if (UCharacterDataComponent *Comp = FindSpawnedMember(World, Member))
@@ -179,10 +200,10 @@ FString WoRLevelDrops::GetLevelDropString(const UWorld *World)
 	{
 		if (Member.CharacterData)
 		{
-			Out += FString::Printf(TEXT("\n  live %s: Mind %d, Body %d, Spirit %d%s"), *Member.CharacterData->Name,
-								   GetLiveLevel(World, Member, EWorldPillar::Mind),
-								   GetLiveLevel(World, Member, EWorldPillar::Body),
-								   GetLiveLevel(World, Member, EWorldPillar::Spirit),
+			Out += FString::Printf(TEXT("\n  live %s: Mind %d (+%d over), Body %d (+%d over), Spirit %d (+%d over)%s"), *Member.CharacterData->Name,
+								   GetLiveLevel(World, Member, EWorldPillar::Mind), GetOverCap(World, Member, EWorldPillar::Mind),
+								   GetLiveLevel(World, Member, EWorldPillar::Body), GetOverCap(World, Member, EWorldPillar::Body),
+								   GetLiveLevel(World, Member, EWorldPillar::Spirit), GetOverCap(World, Member, EWorldPillar::Spirit),
 								   FindSpawnedMember(World, Member) ? TEXT("") : TEXT(" (not spawned: no head-start)"));
 		}
 	}
