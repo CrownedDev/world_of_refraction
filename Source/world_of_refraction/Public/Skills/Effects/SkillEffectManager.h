@@ -17,6 +17,7 @@
 class UCharacterDataComponent;
 class URingData;
 enum class ESkillCheck : uint8;
+struct FSkillConditionGroup;
 
 /** One fires-once use (D-011): per holder and per source of the effect, so two wearers
  *  of the same once-per-match gear each get theirs. */
@@ -325,7 +326,7 @@ public:
 	 *  (GetStartingEffects off each source asset), plus a GetActiveEffects total
 	 *  cross-check so coverage drift in this tool is self-reporting. POST: effects
 	 *  currently present in the actor's equipment SourceID window
-	 *  (Actor->GetUniqueID()*100 + i). Console: "wor.StartingEffects" in PIE.
+	 *  (Actor->GetUniqueID()*100 + i). Console: "wor.Effects.PrintStarting" in PIE.
 	 *  Trigger is a wor.* console command in the .cpp — a subsystem
 	 *  is not on the engine's Exec dispatch chain. */
 	void WOR_StartingEffects();
@@ -494,13 +495,13 @@ public:
 	// DEBUG TOOLS
 	// ========================================
 
-	/** Print all active effects for an actor to log. Console trigger: wor.PrintEffects
+	/** Print all active effects for an actor to log. Console trigger: wor.Effects.Print
 	 *  (in the .cpp; targets the active combatant). No CallInEditor — a
 	 *  a subsystem has no Details panel to host a button. */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
 	void DebugPrintEffects(AActor *Actor) const;
 
-	/** Print all effects for all tracked actors. Console trigger: wor.PrintAllEffects
+	/** Print all effects for all tracked actors. Console trigger: wor.Effects.PrintAll
 	 *  (in the .cpp). No CallInEditor — a subsystem has no Details panel
 	 *  to host a button. */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
@@ -600,6 +601,10 @@ private:
 	/** B-337d: Conditions through the one evaluator (SkillConditions), Owner / Target and their teams as the
 	 *  fighters (an actor with no character data is none); the impact path passes Defender and its Fired outcomes. */
 	bool IsSkillGroupMet(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, AActor *Owner, AActor *Target,
+						 AActor *Defender = nullptr, const TArray<ESkillTrigger> &Fired = {}) const;
+
+	/** B-337e: the same on an authored group (FSkillEffect::ConditionGroup); the old-group form reads across to it. */
+	bool IsSkillGroupMet(const FSkillConditionGroup &Group, ESkillCheck Check, AActor *Owner, AActor *Target,
 						 AActor *Defender = nullptr, const TArray<ESkillTrigger> &Fired = {}) const;
 
 	/** Evaluate a single (Trigger, Threshold) pair against Actor's state.
