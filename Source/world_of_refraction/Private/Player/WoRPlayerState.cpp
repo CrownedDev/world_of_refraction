@@ -50,6 +50,27 @@ namespace
 				}
 				Player->RequestJoin(Character);
 			}));
+
+	FAutoConsoleCommandWithWorld GMemorySentCmd(
+		TEXT("wor.Memory.Sent"),
+		TEXT("B-235d (host): each player's own characters and the memories already sent to them."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+				if (!GameState)
+				{
+					UE_LOG(LogWoR, Display, TEXT("[PlayerState] wor.Memory.Sent: no game state"));
+					return;
+				}
+				for (const APlayerState *Player : GameState->PlayerArray)
+				{
+					if (const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player))
+					{
+						UE_LOG(LogWoR, Display, TEXT("[PlayerState] %s"), *WoRPlayer->GetSharedMemoriesString());
+					}
+				}
+			}));
 }
 
 namespace PlayerFormLook
@@ -192,6 +213,23 @@ TArray<UCharacterData *> AWoRPlayerState::GetOwnCharacters() const
 	}
 	Own.Remove(nullptr);
 	return Own;
+}
+
+FString AWoRPlayerState::GetSharedMemoriesString() const
+{
+	TArray<FString> Characters;
+	for (const UCharacterData *Character : GetOwnCharacters())
+	{
+		Characters.Add(GetNameSafe(Character));
+	}
+	TArray<FString> Sent;
+	for (const FName &MemoryId : SentMemoryIds)
+	{
+		Sent.Add(MemoryId.ToString());
+	}
+	Sent.Sort();
+	return FString::Printf(TEXT("%s: characters [%s], memories sent [%s]"), *GetPlayerName(), *FString::Join(Characters, TEXT(", ")),
+						   *FString::Join(Sent, TEXT(", ")));
 }
 
 void AWoRPlayerState::ReleaseMember(const FGuid &MemberId)

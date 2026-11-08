@@ -93,6 +93,8 @@ public:
 	 *  seamless travel carries the record. */
 	bool WasMemorySent(FName MemoryId) const { return SentMemoryIds.Contains(MemoryId); }
 	void MarkMemorySent(FName MemoryId) { SentMemoryIds.Add(MemoryId); }
+	/** B-235d debug (`wor.Memory.Sent`): this player's own characters and the memories sent to them. */
+	FString GetSharedMemoriesString() const;
 
 private:
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */

@@ -43,6 +43,8 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 	}
 	if (Journal->HasMemory(Memory))
 	{
+		// TODO(B-235d): a memory the host collected in an earlier run is not shared with a friend who qualifies (its
+		// sources check IsCollected first and are spent); share from the host's journal once that is wanted.
 		return false;
 	}
 	TrialRun->CollectMemory(Memory);
