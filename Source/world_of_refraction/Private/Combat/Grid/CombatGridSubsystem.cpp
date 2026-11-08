@@ -2,6 +2,7 @@
 // Combat grid position management implementation
 
 #include "Combat/Grid/CombatGridSubsystem.h"
+#include "Combat/Grid/CombatGridSlotComponent.h"
 #include "Combat/Grid/CombatGridConstants.h"
 #include "DrawDebugHelpers.h"
 #include "Character/CharacterDataComponent.h"
@@ -22,6 +23,27 @@ void UCombatGridSubsystem::Deinitialize()
 }
 
 // ==================== POSITION MANAGEMENT ====================
+
+namespace
+{
+    /** B-230b: mirrors a grid change onto the actor's replicated slot (null Position: off the grid). */
+    void PublishGridSlot(AActor *Actor, const FCombatGridPosition *Position)
+    {
+        UCombatGridSlotComponent *GridSlot = IsValid(Actor) ? UCombatGridSlotComponent::Find(Actor) : nullptr;
+        if (!GridSlot)
+        {
+            return;
+        }
+        if (Position)
+        {
+            GridSlot->SetSlot(*Position);
+        }
+        else
+        {
+            GridSlot->ClearSlot();
+        }
+    }
+}
 
 bool UCombatGridSubsystem::AssignPosition(AActor *Actor, const FCombatGridPosition &Position)
 {
@@ -54,6 +76,7 @@ bool UCombatGridSubsystem::AssignPosition(AActor *Actor, const FCombatGridPositi
 
     // Assign new position
     ActorPositions.Add(Actor, Position);
+    PublishGridSlot(Actor, &Position); // B-230b
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s assigned to %s (Dmg: %.0f%%, Def: %.0f%%)"),
            *Actor->GetName(),
@@ -69,6 +92,7 @@ void UCombatGridSubsystem::RemoveFromGrid(AActor *Actor)
     if (Actor && ActorPositions.Contains(Actor))
     {
         ActorPositions.Remove(Actor);
+        PublishGridSlot(Actor, nullptr); // B-230b
         UE_LOG(LogTemp, Verbose, TEXT("[CombatGrid] %s removed from grid"), *Actor->GetName());
     }
 }
@@ -87,7 +111,9 @@ bool UCombatGridSubsystem::GetActorPosition(AActor *Actor, FCombatGridPosition &
         return true;
     }
 
-    return false;
+    // B-230b: a client's grid holds nobody (the fight runs on the server): read the actor's replicated slot.
+    const UCombatGridSlotComponent *GridSlot = UCombatGridSlotComponent::Find(Actor);
+    return GridSlot && GridSlot->GetSlot(OutPosition);
 }
 
 bool UCombatGridSubsystem::IsPositionOccupied(const FCombatGridPosition &Position) const
@@ -117,6 +143,10 @@ AActor *UCombatGridSubsystem::GetActorAtPosition(const FCombatGridPosition &Posi
 void UCombatGridSubsystem::ClearAllPositions()
 {
     int32 Count = ActorPositions.Num();
+    for (const TPair<AActor *, FCombatGridPosition> &Pair : ActorPositions)
+    {
+        PublishGridSlot(Pair.Key, nullptr); // B-230b
+    }
     ActorPositions.Empty();
 
     if (Count > 0)
@@ -744,6 +774,7 @@ bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, cons
 
     // Update position in map
     ActorPositions[Actor] = NewPos;
+    PublishGridSlot(Actor, &NewPos); // B-230b
 
     // Update world position
     FVector WorldPos = CalculateWorldPosition(NewPos, ArenaCenter);
@@ -867,6 +898,8 @@ bool UCombatGridSubsystem::SwapActorPositions(AActor *ActorA, AActor *ActorB, co
     // Swap positions in map
     ActorPositions[ActorA] = PosB;
     ActorPositions[ActorB] = PosA;
+    PublishGridSlot(ActorA, &PosB); // B-230b
+    PublishGridSlot(ActorB, &PosA);
 
     // Update world positions
     FVector WorldPosA = CalculateWorldPosition(PosB, ArenaCenter);

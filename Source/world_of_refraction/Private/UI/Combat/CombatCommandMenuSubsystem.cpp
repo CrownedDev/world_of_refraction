@@ -12,6 +12,7 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Combat/Grid/CombatGridSubsystem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Combat/TurnManager.h"
@@ -840,7 +841,22 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateMoveRowButton(bool bForwar
     Button.bEnabled = true;
 
     const ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
-    const FText Reason = Orchestrator ? Orchestrator->GetRowMoveRefusedReason(CurrentActor.Get(), bForward) : FText::GetEmpty();
+    FText Reason = Orchestrator ? Orchestrator->GetRowMoveRefusedReason(CurrentActor.Get(), bForward) : FText::GetEmpty();
+    // B-230b: a client has no orchestrator; its member's replicated row greys the step it can't take (the server
+    // still checks the rest: the step already used, a stun).
+    FCombatGridPosition Position;
+    const UCombatGridSubsystem *Grid = Orchestrator ? nullptr : WoRFight::Get<UCombatGridSubsystem>(this);
+    if (Grid && Grid->GetActorPosition(CurrentActor.Get(), Position))
+    {
+        if (bForward && Position.Row == ECombatRow::Front)
+        {
+            Reason = NSLOCTEXT("CombatOrchestrator", "RowAtFront", "Already in the front row.");
+        }
+        else if (!bForward && Position.Row == ECombatRow::Back)
+        {
+            Reason = NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
+        }
+    }
     if (!Reason.IsEmpty())
     {
         const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
