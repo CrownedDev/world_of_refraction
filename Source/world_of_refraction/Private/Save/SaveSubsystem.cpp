@@ -408,6 +408,51 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	}
 }
 
+bool USaveSubsystem::AdoptCheckpoint()
+{
+	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME);
+}
+
+bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
+{
+	UGameInstance *GI = GetGameInstance();
+	const ULocalPlayer *Local = GI ? GI->GetFirstGamePlayer() : nullptr;
+	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+	UWoRSaveGame *Copy = UGameplayStatics::DoesSaveGameExist(SlotName, UserIndex)
+							 ? Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex))
+							 : nullptr;
+	if (Copy)
+	{
+		Copy->HandlePostLoad(); // review: the version check and migrations (D-060), as a loaded slot gets
+	}
+	if (!GI || !Copy || !Copy->Data.Run.bHasRun)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: %s"), Copy ? TEXT("the copy holds no run") : TEXT("no checkpoint copy to host from"));
+		return false;
+	}
+	// This player's own wallet and look stay its own (Q-234b (2)).
+	if (SaveGame)
+	{
+		Copy->Data.Wallet = SaveGame->Data.Wallet;
+		Copy->Data.Forms = SaveGame->Data.Forms;
+	}
+	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+	PartySession->ForgetLocalParty();
+	const bool bParty = Copy->Data.Party.bHasParty && RestoreParty(Copy->Data.Party, *PartySession);
+	// The old host's gear joins the pool for this session (party gear points into it); never written to this
+	// player's own slot. TODO: B-234c: a pool reset so the hub after the run shows only this player's own armoury.
+	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *GI->GetSubsystem<UPoolSubsystem>());
+	SaveGame = Copy;
+	bPlayingHostCopy = true;
+	AdoptedSlotName = SlotName;
+	PendingRun = Copy->Data.Run;
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
+	UE_LOG(LogWoR, Display, TEXT("[Save] Hand-over: hosting from the copy (party %s, %d pool entries); the run resumes in the next hub"),
+		   bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries);
+	return true;
+}
+
 void USaveSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
 {
 	if (Params.World && Params.World->IsGameWorld() && Params.World->GetGameInstance() == GetGameInstance())
@@ -513,6 +558,15 @@ bool USaveSubsystem::SaveNow(UWorld *World, bool bAsync)
 
 bool USaveSubsystem::WriteSlot(bool bAsync)
 {
+	if (bPlayingHostCopy && !bWritesStopped)
+	{
+		// B-234b: a handed-over run saves into the copy's slot; this player's own save is never overwritten.
+		const ULocalPlayer *Local = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
+		const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+		const bool bCopyWritten = UGameplayStatics::SaveGameToSlot(SaveGame, AdoptedSlotName, UserIndex);
+		UE_LOG(LogWoR, Log, TEXT("[Save] Handed-over run saved to '%s': %s"), *AdoptedSlotName, bCopyWritten ? TEXT("yes") : TEXT("no"));
+		return bCopyWritten;
+	}
 	if (!IsBoundToPlayer() || bWritesStopped)
 	{
 		return false;

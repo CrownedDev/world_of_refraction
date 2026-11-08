@@ -19,6 +19,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Party/PartyInteractionComponent.h"
 #include "Player/RunStateComponent.h"
+#include "Player/WoRGameState.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/CoopCheckpoint.h"
 #include "Kismet/GameplayStatics.h"
@@ -435,6 +436,15 @@ void AWoRPlayerState::Client_ReceiveCheckpointChunk_Implementation(int32 Checkpo
 	KeptCheckpointBytes = Bytes.Num();
 	KeptCheckpointTime = FDateTime::Now();
 	UE_LOG(LogWoR, Log, TEXT("[Checkpoint] Kept the host's copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+}
+
+void AWoRPlayerState::OnSetUniqueId()
+{
+	Super::OnSetUniqueId();
+	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->UpdateHostOrder(this, /*bJoined=*/true); // server only (UpdateHostOrder checks)
+	}
 }
 
 FString AWoRPlayerState::GetCheckpointString() const

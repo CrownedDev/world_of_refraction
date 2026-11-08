@@ -39,6 +39,8 @@ public:
 	 *  server's copy of a client's included). */
 	virtual void CopyProperties(APlayerState *PlayerState) override;
 	virtual void ClientInitialize(AController *Controller) override;
+	/** B-234b: the server sets a joining player's id after AddPlayerState; the join order (AWoRGameState) takes it here. */
+	virtual void OnSetUniqueId() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
 	UCharacterFormData *GetWornForm() const { return WornForm; }

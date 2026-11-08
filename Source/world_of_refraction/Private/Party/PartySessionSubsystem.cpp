@@ -154,6 +154,17 @@ UParty *UPartySessionSubsystem::GetLocalParty() const
 	return Parties.IsValidIndex(0) ? Parties[0].Get() : nullptr;
 }
 
+void UPartySessionSubsystem::ForgetLocalParty()
+{
+	if (!Parties.IsValidIndex(0))
+	{
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Local party '%s' forgotten (B-234b hand-over)"), *GetNameSafe(Parties[0]));
+	Parties.RemoveAt(0);
+	OnPartyChanged.Broadcast(nullptr);
+}
+
 UParty *UPartySessionSubsystem::CreateSoloParty(APlayerController *Leader, TSoftClassPtr<ACombatCharacter> LeaderPawnClass)
 {
 	// Re-entry (hub reload) rebinds rather than rebuilds — a party assembled
