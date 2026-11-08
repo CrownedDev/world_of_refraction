@@ -4316,6 +4316,18 @@ Moved here once applied. Newest first.
 **Notes for Claude:** B-380: `ApparelRules::MAX_APPAREL_SLOTS`, `CRYSTAL_ELEMENT_RESISTANCE` (5, TODO tune), `CanSocket`, `FApparelEntry::GetEvolution`; the effects through the loadout's effect gatherers. At merge with B-357b, gate the apparel evolution's passives as gear evolutions are (charge level 2).
 
 
+### Q-380d — Apparel socket: what happens to the crystal taken out?
+**Status:** Answered (approved by the reference-backed default) · **Raised:** 2026-11-08 (cloud writer, B-380d) · **Blocks:** —
+**Question:** When a new crystal goes into an apparel piece's socket, what happens to the old one?
+**Answer (default):** it goes back to storage as one crystal of its type and tier. Its wear isn't kept, because stored crystals carry none. An evolution taken out stays owned. Reference: Monster Hunter World / Rise decorations come out of gear intact and freely, which is widely liked because it makes trying builds cheap. D-097 here says items are never thrown away.
+**Notes for Claude:** built in `UPoolSubsystem::AttachToApparel`. If swapping out a worn crystal becomes a free repair, keep its wear or charge the repair cost: Crown's call.
+
+### Q-380c — Apparel worn on an authored (lore) loadout: owned or stripped?
+**Status:** Answered (approved by the reference-backed default); built in B-380e · **Raised:** 2026-11-08 (B-380c review) · **Blocks:** —
+**Question:** Apparel authored on a character's lore loadout isn't in the store. Strip it like other unowned gear, or keep it?
+**Answer (default):** keep it, as the character's own kit. The first draw banks it into the store, as `BankStartingGear` does for authored weapons, so it is owned and `StripUnownedGear` treats it like any piece. Apparel the player puts on a lore loadout is saved per character (lore loadouts themselves are rebuilt from the asset). Reference: this game's own starting-gear rule (B-321); the deckbuilder's starting deck is owned.
+**Notes for Claude:** B-380e. The lore loadouts are rebuilt from the asset each draw, so banking must match by asset and slot, not by a new id, or each session mints a copy. Needs a build to test.
+
 ### Q-164b — An Amp stat? (D-164 "look into later"; reshaped by Crown 2026-11-08: compare first)
 **Status:** Answered (Crown, 2026-11-08): **A, as an addition** (existing damage sources unchanged; folding ModifyDamageDealt into DamageBuff is not part of it). Defaults taken: small numbers, flat into the base per action, no status buildup, crystal Amp by tier later. Built in **B-382** · **Raised:** 2026-11-08 (cloud writer, from D-164) · **Blocks:** —
 **Question:** The deckbuilder's cards carry **Amp** (`+2 Amp` for every skill, `+1 Fire Amp` for one element's) and **Def** (`+1 Def`, `+2 Fire Def`). They are flat lines on any card, all added into one total. Does this game need Amp, or does an existing source already cover it? Judge it by "granular and composable".
