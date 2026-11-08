@@ -29,6 +29,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemoryUnlock.h"
 #include "Memory/HiddenCounterSubsystem.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Trial/TrialMapFeature.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "Trial/TrialRestSpot.h"
@@ -132,6 +133,10 @@ void AWoRPlayerState::ClientInitialize(AController *Controller)
 			}
 		}
 		ServerReportJournal(MemoryIds);
+		if (const UHiddenQuestSubsystem *Quests = GI->GetSubsystem<UHiddenQuestSubsystem>())
+		{
+			ServerReportQuests(Quests->Capture().Quests); // B-377b
+		}
 	}
 }
 
@@ -175,6 +180,8 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	{
 		Next->SetForm(WornForm, BaseForm);
 		Next->KnownMemoryIds = KnownMemoryIds; // B-235d: before the claims below, so nothing is sent again
+		Next->ReportedQuests = ReportedQuests; // B-377b
+		Next->OfferedQuests = OfferedQuests;
 		// B-232: the player keeps commanding its characters in the next level.
 		for (UCharacterData *Character : ClaimedCharacters)
 		{
@@ -648,6 +655,52 @@ void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &Me
 	}
 	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reported %d memory(ies) in their journal (B-235e)%s"), *GetPlayerName(), Taken,
 		   Taken < MemoryIds.Num() ? TEXT(", the rest dropped (over the cap)") : TEXT(""));
+}
+
+void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuestProgress> &Quests)
+{
+	ReportedQuests.Reset();
+	// B-377b review: a bounded report, as ServerReportJournal's.
+	constexpr int32 MaxQuestReport = 1024; // TODO: tune to the authored quest count once the catalogue is in
+	const int32 Taken = FMath::Min(Quests.Num(), MaxQuestReport);
+	if (Taken < Quests.Num())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s reported %d quests; the %d over the cap are dropped"), *GetPlayerName(), Quests.Num(),
+			   Quests.Num() - Taken);
+	}
+	for (int32 Index = 0; Index < Taken; ++Index)
+	{
+		const FSavedQuestProgress &Quest = Quests[Index];
+		if (Quest.QuestId.IsNone())
+		{
+			continue;
+		}
+		if (!Quest.bFinished)
+		{
+			ReportedQuests.Add(Quest.QuestId, Quest.StepsDone);
+			OfferedQuests.Remove(Quest.QuestId); // reported: started on their side
+		}
+		else
+		{
+			OfferedQuests.Add(Quest.QuestId); // finished: never offered again
+		}
+	}
+}
+
+void AWoRPlayerState::Client_QuestStepMet_Implementation(FName QuestId, int32 StepIndex)
+{
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>() : nullptr)
+	{
+		Quests->ApplyStepMetFromHost(QuestId, StepIndex);
+	}
+}
+
+void AWoRPlayerState::Client_StartQuest_Implementation(UHiddenQuestData *Quest)
+{
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance() ? GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>() : nullptr)
+	{
+		Quests->StartQuest(Quest);
+	}
 }
 
 void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
