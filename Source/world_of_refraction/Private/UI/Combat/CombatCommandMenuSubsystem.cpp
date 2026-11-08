@@ -848,14 +848,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateMoveRowButton(bool bForwar
     const UCombatGridSubsystem *Grid = Orchestrator ? nullptr : WoRFight::Get<UCombatGridSubsystem>(this);
     if (Grid && Grid->GetActorPosition(CurrentActor.Get(), Position))
     {
-        if (bForward && Position.Row == ECombatRow::Front)
-        {
-            Reason = NSLOCTEXT("CombatOrchestrator", "RowAtFront", "Already in the front row.");
-        }
-        else if (!bForward && Position.Row == ECombatRow::Back)
-        {
-            Reason = NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
-        }
+        Reason = ACombatOrchestrator::GetRowEdgeRefusal(Position.Row, bForward); // review: one text for both
     }
     if (!Reason.IsEmpty())
     {
