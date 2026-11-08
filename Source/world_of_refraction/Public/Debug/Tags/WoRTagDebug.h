@@ -4,7 +4,7 @@
 // - GetActorTagsString: the Status / Immunity tags an actor's effects give it.
 // - GetTagMismatchString: where a tag query disagrees with the matching enum query (empty = agree).
 // - CompareTags: runs GetTagMismatchString on every combatant in the world.
-//   Console: wor.DumpTags, wor.CompareTags.
+//   Console: wor.Tags.Print, wor.Tags.Compare.
 
 #pragma once
 
