@@ -19,9 +19,12 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 - Co-op: a friend's quests do not move on events the host runs (B-377b).
 - The journal is not saved yet, so a start memory is gone after a reload while the quest's progress stays (Q-377 note).
 - Notices are placeholder text (Crown's words).
+- A load replaces any progress started before it; a mid-run reload loses the step in progress's count (by design: it resets at run end anyway).
+- The quest list is gathered once per game instance: an asset added during a session is seen next session.
 - Quest content is Crown's.
 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-08 | Created (B-377): data asset, subsystem, save v25, `wor.Quest.Print`, HiddenQuestSpec. | `feature/B-377-hidden-quests-cloud` (UNBUILT) |
+| 2026-11-08 | Review: the end memory is its player's alone and always lands (`Finish`); a quest started this event waits for the next; empty steps finish at once; quests gathered once. | `feature/B-377-hidden-quests-cloud` (UNBUILT) |
