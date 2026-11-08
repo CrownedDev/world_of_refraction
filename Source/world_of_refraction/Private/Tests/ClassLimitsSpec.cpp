@@ -1,7 +1,8 @@
 // ClassLimitsSpec.cpp
 // B-303 (D-110 unified loadout, step 3): one cost for every class and one class table. Refractor 3 / one item;
-// Generic 6 / two weapons + one adapter; Resonator 5 / one weapon / any adapters. Checks Crown's worked examples:
-// a Refractor's evolved weapon fits, a Generic's two evolved weapons fit (3 + 3), a Resonator over 5 is refused.
+// Generic 5 (Crown 2026-11-08, was 6) / two weapons + one adapter; Resonator 5 / one weapon / any adapters. Checks
+// Crown's worked examples: a Refractor's evolved weapon fits; a Generic's evolved weapon fits with an evolved adapter
+// (3 + 2) or a crystal weapon (3 + 2) but two evolved weapons (3 + 3) don't; a Resonator over 5 is refused.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -69,7 +70,7 @@ void FClassLimitsSpec::Define()
 		const FLoadoutClassLimits Generic = LoadoutClassTable::Get(ECharacterClass::Generic);
 		const FLoadoutClassLimits Resonator = LoadoutClassTable::Get(ECharacterClass::Resonator);
 		TestTrue(TEXT("Refractor 3 / one item"), Refractor.Budget == 3 && Refractor.MaxItems == 1);
-		TestTrue(TEXT("Generic 6 / two weapons / one adapter"), Generic.Budget == 6 && Generic.MaxWeapons == 2 && Generic.MaxAdapters == 1);
+		TestTrue(TEXT("Generic 5 / two weapons / one adapter"), Generic.Budget == 5 && Generic.MaxWeapons == 2 && Generic.MaxAdapters == 1);
 		TestTrue(TEXT("Resonator 5 / one weapon / any adapters"),
 				 Resonator.Budget == LoadoutConstants::LOADOUT_TOTAL_BUDGET && Resonator.MaxWeapons == 1 &&
 					 Resonator.MaxAdapters == LoadoutClassTable::NO_LIMIT);
@@ -89,17 +90,42 @@ void FClassLimitsSpec::Define()
 		TestEqual(TEXT("empty slot"), FLoadoutRules::SlotCost(FLoadoutSlot()), 0);
 	});
 
-	It("lets a Refractor carry an evolved weapon, and a Generic two (3 + 3)", [this]()
+	It("lets a Refractor carry an evolved weapon; a Generic one evolved weapon, not two (Crown 2026-11-08)", [this]()
 	{
 		FCombatLoadout Refractor;
 		Refractor.PrimarySlotType = EPrimarySlotType::Weapon;
 		Refractor.PrimaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution());
 		TestEqual(TEXT("Refractor: no finding"), FLoadoutRules::CollectClassLimitFindings(Refractor, ECharacterClass::Caster).Num(), 0);
 
-		FCombatLoadout Generic = Refractor;
-		Generic.SecondarySlotType = ESecondarySlotType::Weapon;
-		Generic.SecondaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution());
-		TestEqual(TEXT("Generic: no finding"), FLoadoutRules::CollectClassLimitFindings(Generic, ECharacterClass::Generic).Num(), 0);
+		FCombatLoadout TwoEvolved = Refractor;
+		TwoEvolved.SecondarySlotType = ESecondarySlotType::Weapon;
+		TwoEvolved.SecondaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution());
+		TestTrue(TEXT("Generic: two evolved weapons (3 + 3) over 5"),
+				 ClassLimitsHasBudgetFinding(FLoadoutRules::CollectClassLimitFindings(TwoEvolved, ECharacterClass::Generic)));
+
+		FCombatLoadout WithCrystalWeapon = Refractor;
+		WithCrystalWeapon.SecondarySlotType = ESecondarySlotType::Weapon;
+		WithCrystalWeapon.SecondaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestGem());
+		TestEqual(TEXT("Generic: evolved weapon + crystal weapon (3 + 2) fits"),
+				  FLoadoutRules::CollectClassLimitFindings(WithCrystalWeapon, ECharacterClass::Generic).Num(), 0);
+
+		FCombatLoadout WithEvolvedAdapter;
+		WithEvolvedAdapter.PrimarySlotType = EPrimarySlotType::Ring;
+		WithEvolvedAdapter.PrimaryRing = ClassLimitsTestAdapter(ClassLimitsTestEvolution());
+		WithEvolvedAdapter.SecondarySlotType = ESecondarySlotType::Weapon;
+		WithEvolvedAdapter.SecondaryWeapon = ClassLimitsTestWeapon(ClassLimitsTestEvolution());
+		TestEqual(TEXT("Generic: evolved adapter + evolved weapon (2 + 3) fits"),
+				  FLoadoutRules::CollectClassLimitFindings(WithEvolvedAdapter, ECharacterClass::Generic).Num(), 0);
+	});
+
+	It("costs by frame + attachment (Q-357, Crown 2026-11-08)", [this]()
+	{
+		TestEqual(TEXT("bare weapon"), InventoryConstants::WEAPON_BASE_SLOT_COST, 1);
+		TestEqual(TEXT("weapon + crystal"), InventoryConstants::WEAPON_CRYSTAL_SLOT_COST, 2);
+		TestEqual(TEXT("weapon + evolution"), InventoryConstants::WEAPON_EVOLUTION_SLOT_COST, 3);
+		TestEqual(TEXT("adapter + crystal"), InventoryConstants::RING_BASE_SLOT_COST, 1);
+		TestEqual(TEXT("adapter + evolution"), InventoryConstants::RING_EVOLUTION_SLOT_COST, 2);
+		TestEqual(TEXT("evolution alone"), LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST, 2);
 	});
 
 	It("refuses a Resonator over 5 with the clearable adapter-budget finding", [this]()
