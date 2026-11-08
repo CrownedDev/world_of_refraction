@@ -1,3 +1,20 @@
+# Cloud writer handover (2026-11-08, sixth part: Crown's Amp answer and damage scopes) — STOPPED: both rows written; what is left wants a compiler or Crown
+
+**The brain (19:37 UTC):** Crown answered **Q-164b = A, as an addition**, then sent a follow-up: give every damage and defence boost a scope (D-166).
+
+| Job | Branch | State | Decisions |
+|---|---|---|---|
+| B-382 | `feature/B-382-amp-lines-cloud` (on `docs/damage-defence-sources-cloud`) | REVIEW (UNBUILT, save **v30**), reviewed and fixed. `FAmpBonus` lines (All / Physical / Spell / nine elements, -5..+5) on `FEquipmentStatBonus`; worn gear sums them raw (`GetActiveStatBonus`); they add flat to the skill's base before the multipliers, once per action, damaging actions only (`GetActionAmp`, `PreviewActionDamage`); `wor.Damage.Amp`; AmpSpec; ED-50, PIE B-382. Review fix: the save bump to 30 (D-138) | Q-164b answered (Crown): A, as an addition; defaults taken (small numbers, no status buildup, crystal Amp by tier later) |
+| B-383 | `feature/B-383-damage-scopes-cloud` (**on** B-382) | REVIEW (UNBUILT, save **v31**), reviewed and fixed. `EDamageScope` All / Physical (not a spell) / Spell / Element on the eleven damage / defence boost types (payload and runtime, GAS identity); `GetTotalStatModifierForHit` (GAS `SumMagnitudeForHit`); every read in `UDamageCalculator` goes through it (`GetDefenderDefenseForHit`, `GetScopedTransientDamageFactor`, which is shared with the stat-cap correction: the review's must-fix); effect text names the scope; Amp's Physical = not a spell, plus a Spell line; `wor.Damage.Scopes`; DamageScopeSpec; D-166, ED-50b, PIE B-383. New row **B-384** (one all-damage % channel?) BLOCKED for Crown | D-166 (Crown) |
+
+**Left for a later pass (reviewer's nice-to-haves):**
+- At UseGAS 1 the Defense attribute ignores scope (TODO in `GetDefenderDefenseForHit` and `WoRDamageExecution`).
+- `FWoRMirroredEffect::Matches` does not compare the scope.
+- `wor.Damage.Scopes` reads the enum store, not the held effects.
+- No GAS / serialize spec for the scope.
+
+**Merge plan and trial:** rows 61-62 added (save 30 and 31). `integration/cloud-2026-11-08` merges both. A docs union there brings back Q-164b's old OPEN lines and older TODO Backlog rows; both are fixed on the trial branch and noted in the plan.
+
 # Cloud writer handover (2026-11-08, fifth part: the brain's merge list) — STOPPED: the brain's four items are done; what is left wants a compiler or Crown
 
 **The brain (13:05 UTC), in order:** (1) B-380c; (2) a merge plan; (3) a trial integration branch; (4) Amp, Q-164b. **14:03 UTC:** Crown reshaped (4) into a comparison, `docs/analysis/DamageAndDefenceSources_2026-11-08.md`, which covers damage and defence sources against the deckbuilder's Amp / Def lines, with a recommendation in Q-164b.
