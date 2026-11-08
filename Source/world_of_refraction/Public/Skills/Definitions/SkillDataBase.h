@@ -18,6 +18,7 @@
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Definitions/EScalingTier.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
+#include "Combat/Camera/CombatCameraTypes.h" // B-371: FSkillCameraTuning
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 
 #if WITH_EDITOR
@@ -135,9 +136,13 @@ public:
     TObjectPtr<UTexture2D> Icon = nullptr;
 
     /** Camera cinematic while this skill runs (Design/CombatCamera.md §3). Bound at runtime: tag the
-     *  caster track "Caster" and the target track "Targets". Empty = the skill type's template. */
+     *  caster track "Caster" and the target track "Targets". Empty = the code-built shot patterns (B-371, Q-371). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     TSoftObjectPtr<ULevelSequence> CameraSequence;
+
+    /** B-371 (Q-371): tuning of the code-built shot patterns this skill plays when it has no CameraSequence. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+    FSkillCameraTuning CameraTuning;
 
     // ==================== EXECUTION ====================
 

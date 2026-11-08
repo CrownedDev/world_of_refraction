@@ -218,7 +218,7 @@ Each sub-stat's buff/debuff read comes from one table instead of a hand-written 
   - **Resistance:** Status Resist Up (`ModifyStatusResist`) only. `ResistanceBuff/Debuff` are element-matched and belong to the buildup aggregate.
   - **Turn Speed:** Turn Speed Up + `TurnSpeedBuff` − `TurnSpeedDebuff`.
 - Not in the table (not sub-stats): the pillar buffs (Mind/Body/Spirit), Max HP/EP, generic `DamageBuff/Debuff`, spell cost, and crit chance (its buff/debuff compound multiplicatively).
-- Debug: `wor.CompareStats` snapshots every combatant's composed stats and lists what changed since the last call (saved under `Saved/StatSnapshots/`, so it works across a rebuild); `wor.PrintStatModifiers` lists each net modifier (`UStatModifierDebug`). Tests: `WoR.Stats.Modifiers`.
+- Debug: `wor.Stats.Compare` snapshots every combatant's composed stats and lists what changed since the last call (saved under `Saved/StatSnapshots/`, so it works across a rebuild); `wor.Stats.Print` lists each net modifier (`UStatModifierDebug`). Tests: `WoR.Stats.Modifiers`.
 
 ---
 
@@ -231,7 +231,7 @@ Each sub-stat's buff/debuff read comes from one table instead of a hand-written 
 | 2026-06-16 | Cluster 5g (`5100c0ad`): ActionSpeed + SpellSpeed converted to Pattern P — extracted `GetEffectiveActionSpeed` / `GetEffectiveSpellSpeed` getters (×1.5 stat / ×2.0 gear ceiling), routed the 3 `ActionExecutor` play-rate sites through them, retired the triplicated gear-UNCAPPED inline compose. §4 table speed rows → ×2.0; §5 speed getter note + §3 inverted-twin nuance added. Status → 1–5g. | feature/realtime-defense |
 | 2026-06-16 | Doc-sync: §5 StatusMultiplier live getter corrected — `GetSourceStatusMultiplierFactor` was **retired** in the T3 consolidation; the live composer is `UCharacterDataComponent::GetEffectiveStatusMultiplier` (`CharacterDataComponent.cpp:1203`, clamp `:1240`), which `AddStatusBuildup` / BD overload bake / crystal-wear all read. | feature/realtime-defense |
 | 2026-06-16 | Status migration: **5f-D editor content marked DONE** (editor-side, confirmed complete) — LuckStone `.uasset` authoring shipped. Status line now reads the full arc complete (no "remains" qualifier). | feature/realtime-defense |
-| 2026-10-26 | §9 added: sub-stat buff/debuff reads go through the stat-modifier table and `GetNetStatModifier`; `wor.CompareStats` / `wor.PrintStatModifiers`; `WoR.Stats.Modifiers` spec (B-020) | `refactor/B-020-stat-modifier-table` |
+| 2026-10-26 | §9 added: sub-stat buff/debuff reads go through the stat-modifier table and `GetNetStatModifier`; `wor.Stats.Compare` / `wor.Stats.Print`; `WoR.Stats.Modifiers` spec (B-020) | `refactor/B-020-stat-modifier-table` |
 | 2026-10-27 | B-146 plan (`docs/analysis/StatMathsRedesign.md`, Q-146): this composition as GAS attributes, MMC bases and modifiers with the same numbers; ladders and caps to tuning data (B-218); one damage core shared with the AI (B-219). Nothing here changes until those land. | chore/B-146-stat-maths-plan |
 | 2026-10-27 | B-218: the ladders (tier power, tier gap, requirement gap, scaling grades) now read `UCombatTuningData` through `WoRTuning` with the C++ tables as `Code*` fallbacks; see `CombatTuning.md`. | feature/B-218-combat-tuning-data |
 | 2026-10-27 | B-217 (Q-217): combat requirement reads (requirement gap, weapon factor, BD exact attunement, BD strain deficit) use the live run world levels via `FWorldPillarLevels::FromComponent`; the `UCharacterData` overloads of `FWorldStatRequirements` still read the asset. | fix/B-217-live-world-levels |

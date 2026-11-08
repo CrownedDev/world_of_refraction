@@ -67,7 +67,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
  * ApplyEffect (its lifetime on the tracker, B-042h), and decay runs after the tracker's turn start.
  * A DOT's BuildupPerTick reaches the bar through AddStatusBuildup, so on GAS it runs the execution too.
  * The pending element, physical type, last source and turns since the last hit stay here.
- * Debug: GetBarDebugString, `wor.DumpStatusBars`.
+ * Debug: GetBarDebugString, `wor.StatusBars.Print`.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UStatusBuildupManager : public UWoRFightSubsystem
