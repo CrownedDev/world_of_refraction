@@ -385,3 +385,14 @@ void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Mess
 {
 	ATrialMapFeature::ShowMessage(Message); // B-235b
 }
+
+void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Feature)
+{
+	APawn *Pawn = GetPawn();
+	if (!Feature || !Pawn || !Feature->IsWithinReach(Pawn))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[TrialMapFeature] %s's use of %s refused: out of reach"), *GetPlayerName(), *GetNameSafe(Feature));
+		return;
+	}
+	Feature->Interact(Pawn); // B-235c: the host runs it; per-player features key it to this player
+}
