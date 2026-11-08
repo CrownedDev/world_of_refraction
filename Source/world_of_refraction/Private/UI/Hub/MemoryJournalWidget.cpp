@@ -17,6 +17,7 @@
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Story/StoryLinesData.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "MemoryJournal"
@@ -293,11 +294,11 @@ void UMemoryJournalWidget::ShowQuestsPage()
 	TArray<FText> Lines;
 	for (const FVisibleQuest &Quest : Visible)
 	{
-		const FText Kind = Quest.Kind == EQuestKind::Main ? LOCTEXT("MainQuest", "Main") : LOCTEXT("SideQuest", "Side");
+		const FText Kind = WoRGameNames::GetQuestKindName(Quest.Kind); // D-062: a shared game word
 		Lines.Add(Quest.bFinished ? FText::Format(LOCTEXT("QuestDoneRow", "- [{0}] {1}: done"), Kind, Quest.Title)
 								  : FText::Format(LOCTEXT("QuestRow", "- [{0}] {1}: {2}"), Kind, Quest.Title, Quest.Goal));
 	}
-	SetPage(LOCTEXT("QuestsTitle", "Quests"), FText::Join(FText::FromString(TEXT("\n")), Lines));
+	SetPage(LOCTEXT("QuestsTitle", "Quests"), FText::Join(FText::AsCultureInvariant(TEXT("\n")), Lines));
 }
 
 void UMemoryJournalWidget::HandleVClicked()
