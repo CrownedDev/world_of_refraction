@@ -151,6 +151,14 @@ namespace
             {
                 return true;
             }
+            // B-380d review: an evolution in a worn apparel socket is slotted too.
+            for (const FApparelEntry &Piece : L.Apparel)
+            {
+                if (Piece.AttachedItem.IsEvolution() && Piece.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+                {
+                    return true;
+                }
+            }
         }
         for (const FWeaponInventoryEntry &W : Inv.Weapons)
         {
@@ -2278,6 +2286,11 @@ int32 UInventoryComponent::GetRemainingRingCapacity() const
 bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID)
 {
     return AttachEvolutionToGear(Weapons, WeaponPersistentID, EvoInstanceID, TEXT("AttachEvolutionToWeapon"));
+}
+
+bool UInventoryComponent::IsEvolutionInUse(const FGuid &EvoInstanceID) const
+{
+    return IsEvolutionSlottedAnywhere(*this, EvoInstanceID);
 }
 
 bool UInventoryComponent::AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID)
