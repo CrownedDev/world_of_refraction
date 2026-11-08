@@ -13,7 +13,7 @@
 // RecomputeMaxPools used (a UWoRGE_PoolSources effect over the stat portion, Q-042u). B-042w: the
 // resistances from one UWoRGE_ResistanceSources effect per source over a 0 base, and general status
 // resistance on the stat-sources shape (Q-042w).
-// Debug: UWoRAttributeDebug (wor.CompareAttributes).
+// Debug: UWoRAttributeDebug (wor.Attributes.Compare).
 
 #pragma once
 

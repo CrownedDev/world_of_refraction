@@ -12,6 +12,7 @@
 #include "Misc/AutomationTest.h"
 #include "Conditions/WoRConditions.h"
 #include "Skills/Effects/SkillConditions.h"
+#include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 
 namespace
@@ -137,7 +138,11 @@ namespace
 				Context.TargetTeam = {States[PF_Target], States[PF_Foe]};
 			}
 		}
-		return SkillConditions::IsGroupMet(Conditions, Check, Context, Scene.bHasTarget);
+		// B-337e: the check reads the migrated, authored group (ToAuthored), which must give the same answer.
+		const bool bReadAcross = SkillConditions::IsGroupMet(Conditions, Check, Context, Scene.bHasTarget);
+		const bool bMigrated = SkillConditions::IsGroupMet(SkillConditions::ToAuthored(Conditions), Check, Context, Scene.bHasTarget);
+		// A disagreement between the two is reported by CountMismatches against the old check (bMigrated is returned).
+		return bMigrated;
 	}
 
 	FSkillCondition ParityCondition(ESkillTrigger Trigger, ECondSubject Subject, ECondCombine Combine, float Threshold)
@@ -372,6 +377,69 @@ void FSkillConditionParitySpec::Define()
 			TestEqual(TEXT("operator"), C.Operator, EWoRConditionOperator::Below);
 			TestEqual(TEXT("who"), C.Who, EWoRConditionWho::TargetTeam);
 			TestEqual(TEXT("value"), C.Value, FMath::RoundToInt(PARITY_LOW_THRESHOLD));
+		});
+	});
+
+	Describe("The migrated field (B-337e)", [this]()
+	{
+		It("is filled on load from the old conditions, once, and marks the effect", [this]()
+		{
+			FSkillEffect Effect;
+			Effect.Conditions = {ParityCondition(ESkillTrigger::OnHit, ECondSubject::Self, ECondCombine::And, PARITY_LOW_THRESHOLD),
+								 ParityCondition(ESkillTrigger::OnHPBelowThreshold, ECondSubject::Target, ECondCombine::Or, PARITY_HIGH_THRESHOLD)};
+			Effect.MigrateConditionGroup();
+			TestEqual(TEXT("one AND"), Effect.ConditionGroup.AllOf.Conditions.Num(), 1);
+			TestEqual(TEXT("one OR"), Effect.ConditionGroup.AnyOf.Conditions.Num(), 1);
+			TestTrue(TEXT("marked as not resaved"), Effect.bConditionGroupMigratedOnLoad);
+			TestTrue(TEXT("the OR reads the target's HP"), Effect.ConditionGroup.AnyOf.Conditions[0].Subject == EWoRConditionSubject::HpPercent &&
+															   Effect.ConditionGroup.AnyOf.Conditions[0].Who == EWoRConditionWho::Target);
+		});
+
+		It("never overwrites a stored group, and an effect with no conditions stays empty", [this]()
+		{
+			FSkillEffect Stored;
+			Stored.Conditions = {ParityCondition(ESkillTrigger::OnHit, ECondSubject::Self, ECondCombine::And, PARITY_LOW_THRESHOLD)};
+			FWoRCondition Kill;
+			Kill.Trigger = EWoRConditionTrigger::Kill;
+			Stored.ConditionGroup.AllOf.Conditions.Add(Kill);
+			Stored.MigrateConditionGroup();
+			TestTrue(TEXT("kept"), Stored.ConditionGroup.AllOf.Conditions.Num() == 1 && Stored.ConditionGroup.AllOf.Conditions[0].Trigger == EWoRConditionTrigger::Kill);
+			TestFalse(TEXT("not marked"), Stored.bConditionGroupMigratedOnLoad);
+			TestTrue(TEXT("GroupOf reads the stored group"), SkillConditions::GroupOf(Stored).AllOf.Conditions[0].Trigger == EWoRConditionTrigger::Kill);
+
+			FSkillEffect Always;
+			Always.MigrateConditionGroup();
+			TestTrue(TEXT("no conditions: always"), Always.ConditionGroup.IsEmpty() && !Always.bConditionGroupMigratedOnLoad);
+		});
+
+		It("shows a group as the deckbuilder does: the trigger, then the indented checks (Q-337e)", [this]()
+		{
+			FSkillConditionGroup Group;
+			FWoRCondition Kill;
+			Kill.Trigger = EWoRConditionTrigger::Kill;
+			Group.AllOf.Conditions.Add(Kill);
+			const FString Tree = SkillConditions::GetConditionTreeString(Group);
+			TestTrue(TEXT("the trigger on top"), Tree.StartsWith(TEXT("When: ")) && !Tree.StartsWith(TEXT("When: always")));
+			TestTrue(TEXT("the check indented under it"), Tree.Contains(TEXT("\n    ")));
+			TestFalse(TEXT("no Any of shown when empty"), Tree.Contains(TEXT("any of")));
+			TestTrue(TEXT("no conditions: always"), SkillConditions::GetConditionTreeString(FSkillConditionGroup()).StartsWith(TEXT("When: always")));
+			Group.AnyOf.Conditions.Add(Kill);
+			TestTrue(TEXT("a migrated OR row is marked"), SkillConditions::GetConditionTreeString(Group).Contains(TEXT("any of (migrated OR rows")));
+		});
+
+		It("reads the old field across for an effect built in code", [this]()
+		{
+			FSkillEffect Built;
+			Built.Conditions = {ParityCondition(ESkillTrigger::OnCrit, ECondSubject::Self, ECondCombine::And, PARITY_LOW_THRESHOLD)};
+			TestTrue(TEXT("GroupOf migrates it"), SkillConditions::GroupOf(Built).AllOf.Conditions[0].Trigger == EWoRConditionTrigger::Crit);
+		});
+
+		It("reads a defense event as Who defended only on the impact path", [this]()
+		{
+			const FSkillConditionGroup Group = SkillConditions::ToAuthored({ParityCondition(ESkillTrigger::OnGuard, ECondSubject::Self, ECondCombine::And, PARITY_LOW_THRESHOLD)});
+			TestTrue(TEXT("stored neutral"), Group.AllOf.Conditions[0].Subject == EWoRConditionSubject::None);
+			TestTrue(TEXT("Defense: Defender"), SkillConditions::ToSets(Group, ESkillCheck::Defense, true)[0].Conditions[0].Subject == EWoRConditionSubject::Defender);
+			TestTrue(TEXT("State: the event"), SkillConditions::ToSets(Group, ESkillCheck::State, true)[0].Conditions[0].Subject == EWoRConditionSubject::None);
 		});
 	});
 }

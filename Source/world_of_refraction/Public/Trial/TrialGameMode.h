@@ -11,6 +11,16 @@
 #include "GameFramework/GameModeBase.h"
 #include "TrialGameMode.generated.h"
 
+namespace TrialReturn
+{
+	/** B-187d: how far apart players stand when they come back to a rest spot (cm). */
+	constexpr float RETURN_SPACING_CM = 150.f;
+
+	/** B-187d: where the Index-th returning player stands: the rest stand for the first, then alternately right and
+	 *  left of it, RETURN_SPACING_CM further out each pair. */
+	WORLD_OF_REFRACTION_API FTransform GetReturnStand(const FTransform &Stand, int32 Index);
+}
+
 UCLASS()
 class WORLD_OF_REFRACTION_API ATrialGameMode : public AGameModeBase
 {
@@ -19,4 +29,15 @@ class WORLD_OF_REFRACTION_API ATrialGameMode : public AGameModeBase
 public:
     /** Picks AWoRPlayerState: the player's wallet (D-046, B-151). */
     ATrialGameMode();
+
+    /** B-187c: after a mini-boss revive the party comes back where it stood to rest
+     *  (UTrialRunSubsystem::ConsumePendingReturnStand), else at a player start as usual. B-187d: every player in
+     *  this level comes back there, side by side (TrialReturn::GetReturnStand). */
+    virtual void RestartPlayer(AController *NewPlayer) override;
+
+private:
+    /** B-187d: this level's return stand, taken from the run by the first player restarted. */
+    FTransform ReturnStand;
+    bool bHasReturnStand = false;
+    int32 PlayersReturned = 0;
 };

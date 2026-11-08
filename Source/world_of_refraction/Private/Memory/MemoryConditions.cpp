@@ -18,8 +18,10 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
+#include "Player/WoRPlayerState.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -154,6 +156,17 @@ FMemoryEvent MemoryConditions::MakeEvent(const UGameInstance *GameInstance, EMem
 			}
 		}
 	}
+	// B-235d: a friend's own characters (claimed ones the host's party may not hold) count on their part of the event.
+	for (const AWoRPlayerState *Friend : MemoryUnlock::GetRemotePlayers(GameInstance))
+	{
+		for (const UCharacterData *Character : Friend->GetOwnCharacters())
+		{
+			if (!Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; }))
+			{
+				Event.Party.Add({Character, {}});
+			}
+		}
+	}
 	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	if (const UTrialData *Trial = TrialRun ? TrialRun->GetActiveTrial() : nullptr)
 	{
@@ -250,6 +263,13 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 	case EMemoryConditionKind::FinishingBlow:
 		return Condition.Item &&
 			   AnyMember(Condition, Event, [&](const FMemoryEventMember &Member) { return Member.Used.FinishingWeapons.Contains(Condition.Item.Get()); });
+	case EMemoryConditionKind::PartyHas:
+		// B-376: the parity reference reads as the new subject does (FMemoryEvent::Present, else the party).
+		return Condition.Character && (Event.Present.IsEmpty() ? IsInParty(Condition.Character, Event) : Event.Present.Contains(Condition.Character.Get()));
+	case EMemoryConditionKind::CurseHeld:
+		return false; // B-378: the parity reference has no curse state; CurseHeld reads it through WoRConditions
+	case EMemoryConditionKind::CounterReached:
+		return false; // B-379: no counter state here either; CounterReached reads it through WoRConditions
 	}
 	return false;
 }
@@ -295,7 +315,8 @@ bool MemoryConditions::FitsRequirements(const FMemoryCondition &Condition, const
 	return false;
 }
 
-bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal)
+bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal,
+							  const TSet<FName> *KnownMemoryIds, bool bReadsThisPlayersState)
 {
 	// Q-209c: any one route opens it; none authored: only the source's naming it counts.
 	// B-337 (D-130): through the one condition evaluator; the authored conditions convert on read.
@@ -304,7 +325,14 @@ bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Eve
 	{
 		Routes.Add(WoRConditions::FromMemory(Set));
 	}
-	return WoRConditions::IsAnyMet(Routes, WoRConditions::MakeContext(Event, Journal));
+	FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
+	Context.KnownMemoryIds = KnownMemoryIds;
+	if (!bReadsThisPlayersState)
+	{
+		Context.HeldCurses = nullptr; // TODO(B-377b): a friend's own curses, sent to the host
+		Context.Counters = nullptr; // B-379: likewise their counters (kept on their machine, Client_AddCounter)
+	}
+	return WoRConditions::IsAnyMet(Routes, Context);
 }
 
 TArray<UMemoryData *> MemoryConditions::GatherConditional()
@@ -327,6 +355,109 @@ TArray<UMemoryData *> MemoryConditions::GatherConditional()
 	return Conditional;
 }
 
+FMemoryEvent MemoryConditions::FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep)
+{
+	FMemoryEvent Filtered = Event;
+	if (Filtered.Present.IsEmpty())
+	{
+		for (const FMemoryEventMember &Member : Event.Party)
+		{
+			Filtered.Present.AddUnique(Member.Character); // B-376: the whole team stays present for "party has"
+		}
+	}
+	Filtered.Party.RemoveAll([&Characters, bKeep](const FMemoryEventMember &Member)
+	{
+		return Characters.Contains(Member.Character) != bKeep;
+	});
+	if (Filtered.UpgradedBy && Characters.Contains(Filtered.UpgradedBy) != bKeep)
+	{
+		Filtered.UpgradedItem = nullptr; // someone else's level-up is not this player's find
+		Filtered.UpgradedEvolution = nullptr;
+	}
+	return Filtered;
+}
+
+TSet<FName> MemoryConditions::GetTeamMemoryIds(const UMemoryJournalSubsystem *Journal, const TArray<const TSet<FName> *> &FriendsKnown)
+{
+	TSet<FName> Team;
+	if (Journal)
+	{
+		for (const UMemoryData *Memory : Journal->GetMemories())
+		{
+			if (Memory)
+			{
+				Team.Add(Memory->GetMemoryId());
+			}
+		}
+	}
+	for (const TSet<FName> *Known : FriendsKnown)
+	{
+		if (Known)
+		{
+			Team.Append(*Known);
+		}
+	}
+	return Team;
+}
+
+FMemoryReceivers MemoryConditions::PickReceivers(const UGameInstance *GameInstance, const UMemoryData &Memory, const FMemoryEvent &Event,
+												 const UMemoryJournalSubsystem *Journal)
+{
+	FMemoryReceivers Receivers;
+	TArray<UCharacterData *> FriendsCharacters;
+	bool bAnyFriendMet = false;
+	const TArray<AWoRPlayerState *> Friends = MemoryUnlock::GetRemotePlayers(GameInstance);
+	// B-235e (Crown, MemoryCatalogue §3.5): in co-op a PriorMemory / quest-done condition reads the team's memories
+	// together (any present player's); who receives it still follows Q-235d.
+	TArray<const TSet<FName> *> FriendsKnown;
+	for (const AWoRPlayerState *Friend : Friends)
+	{
+		FriendsKnown.Add(&Friend->GetKnownMemoryIds());
+	}
+	const TSet<FName> TeamKnown = GetTeamMemoryIds(Journal, FriendsKnown);
+	const TSet<FName> *Team = Friends.IsEmpty() ? nullptr : &TeamKnown; // solo: the journal, as before
+	for (AWoRPlayerState *Friend : Friends)
+	{
+		const TArray<UCharacterData *> Own = Friend->GetOwnCharacters();
+		FriendsCharacters.Append(Own);
+		const bool bMet = AreMet(Memory, FilterParty(Event, Own, /*bKeep=*/true), Journal, Team, /*bReadsThisPlayersState=*/false);
+		bAnyFriendMet |= bMet;
+		if (MemoryUnlock::ShouldFriendReceive(&Memory, Own, bMet)) // one who has it already still counts as its finder
+		{
+			Receivers.Friends.Add(Friend);
+		}
+	}
+	// The host's own characters: the event's party less every friend's.
+	const FMemoryEvent HostsEvent = FilterParty(Event, FriendsCharacters, /*bKeep=*/false);
+	TArray<UCharacterData *> HostCharacters;
+	for (const FMemoryEventMember &Member : HostsEvent.Party)
+	{
+		HostCharacters.AddUnique(const_cast<UCharacterData *>(Member.Character));
+	}
+	const bool bHostMet = AreMet(Memory, HostsEvent, Journal, Team);
+	// B-235e (review): nobody met it (not the whole party on the host's journal, not one player alone): nobody gets it.
+	// CheckEvent no longer gates co-op on the whole party, so the team's memories can open it.
+	if (!bHostMet && !bAnyFriendMet && !AreMet(Memory, Event, Journal, Team))
+	{
+		Receivers.bHost = false;
+		Receivers.Friends.Reset();
+		return Receivers;
+	}
+	Receivers.bHost = MemoryUnlock::ShouldHostReceive(&Memory, HostCharacters, bHostMet, !Receivers.Friends.IsEmpty());
+	return Receivers;
+}
+
+bool MemoryConditions::UnlockForFinders(UGameInstance *GameInstance, UMemoryData *Memory, const FMemoryEvent &Event,
+										const UMemoryJournalSubsystem *Journal)
+{
+	if (!Memory)
+	{
+		return false;
+	}
+	const FMemoryReceivers Receivers = PickReceivers(GameInstance, *Memory, Event, Journal);
+	return MemoryUnlock::UnlockFor(GameInstance, Memory, Event.Source, Receivers.bHost, Receivers.Friends);
+}
+
 int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEvent &Event, const TArray<UMemoryData *> &Conditional)
 {
 	const UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
@@ -340,14 +471,17 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 		Candidates.AddUnique(Memory);
 	}
 	int32 Unlocked = 0;
+	// B-235d: in co-op a memory the host has can still be a friend's new find (UnlockFor is true only for someone new).
+	const bool bCoop = !MemoryUnlock::GetRemotePlayers(GameInstance).IsEmpty();
 	// Each pass can earn a memory another one needs (PriorMemory); stop once a pass earns nothing.
 	for (bool bEarned = true; bEarned;)
 	{
 		bEarned = false;
 		for (UMemoryData *Memory : Candidates)
 		{
-			if (Memory && !Journal->HasMemory(Memory) && AreMet(*Memory, Event, Journal) &&
-				MemoryUnlock::Unlock(GameInstance, Memory, Event.Source))
+			// B-235e (review): in co-op PickReceivers decides who met it (a friend's own PriorMemory included).
+			if (Memory && (bCoop || (!Journal->HasMemory(Memory) && AreMet(*Memory, Event, Journal))) &&
+				UnlockForFinders(GameInstance, Memory, Event, Journal))
 			{
 				++Unlocked;
 				bEarned = true;
@@ -358,6 +492,11 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 	{
 		UE_LOG(LogWoR, Log, TEXT("[MemoryConditions] %s: %d memory(ies) unlocked"),
 			   *UEnum::GetDisplayValueAsText(Event.Source).ToString(), Unlocked);
+	}
+	// B-377: the same event moves this player's hidden quests on (after its memories, which can start one).
+	if (UHiddenQuestSubsystem *Quests = GameInstance->GetSubsystem<UHiddenQuestSubsystem>())
+	{
+		Quests->CheckEvent(Event);
 	}
 	return Unlocked;
 }

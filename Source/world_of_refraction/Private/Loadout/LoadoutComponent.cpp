@@ -2,6 +2,8 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
+#include "Memory/CurseSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Algo/Count.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -36,8 +38,16 @@
 #include "Engine/Engine.h"
 
 #include "Skills/Definitions/SkillDataBase.h"
+#include "HAL/IConsoleManager.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "LoadoutComponent"
+
+namespace
+{
+    /** B-357b: fight-start reads see every evolution as not infused (charge level 0). */
+    constexpr int32 LOADOUT_FIGHT_START_CHARGE_LEVEL = 0;
+}
 
 namespace
 {
@@ -2568,6 +2578,16 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 
 // ==================== COMBAT ACCESSORS ====================
 
+void ULoadoutComponent::NotifyApparelChanged()
+{
+    if (UCharacterDataComponent *Data = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        Data->RecomputeMaxPools(); // gear HP
+    }
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    OnLoadoutChanged.Broadcast(Inv ? Inv->ActiveLoadoutIndex : 0); // GAS stats and resistances re-sync on this
+}
+
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
     // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.
@@ -3492,7 +3512,8 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
     {
         // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
         // same crystal, so they grey out with it too.
-        if (!Weapon || !(Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
+        // B-351d review: and the crystal's one-list picks.
+        if (!Weapon || !(Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells) || Lists(Weapon->WeaponEntry.SpellPicks)))
         {
             continue;
         }
@@ -3538,7 +3559,8 @@ bool ULoadoutComponent::IsSpellFromBrokenRing(const USpellData *Spell) const
         }
     }
     // Raw lists, not the capped GetAllSpells(true): the player's capabilities list them all, and each must be greyed.
-    return Lists(Ring->RingEntry.AssignedSpells) || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
+    return Lists(Ring->RingEntry.AssignedSpells) || Lists(Ring->RingEntry.SpellPicks) // B-351d review: a pick greys out too
+           || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
 }
 
 FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holder)
@@ -3756,19 +3778,21 @@ int32 ULoadoutComponent::RepairActivePrimaryEvolution(int32 Amount)
 
 namespace LoadoutCarryInternal
 {
-    /** Every weapon and ring slot of Loadout that can hold an attachment, in a fixed order. */
+    /** Every weapon and ring slot of Loadout that can hold an attachment, in a fixed order: its element socket and
+     *  (B-351b) its stone socket. */
     template <typename TLoadout, typename FFunc>
     void ForEachAttachmentSlot(TLoadout &Loadout, FFunc &&Func)
     {
         Func(static_cast<UObject *>(Loadout.PrimaryWeapon.WeaponEntry.Weapon), Loadout.PrimaryWeapon.WeaponEntry.PersistentID,
-             Loadout.PrimaryWeapon.WeaponEntry.AttachedItem);
+             Loadout.PrimaryWeapon.WeaponEntry.AttachedItem, Loadout.PrimaryWeapon.WeaponEntry.StoneSocket);
         Func(static_cast<UObject *>(Loadout.SecondaryWeapon.WeaponEntry.Weapon), Loadout.SecondaryWeapon.WeaponEntry.PersistentID,
-             Loadout.SecondaryWeapon.WeaponEntry.AttachedItem);
+             Loadout.SecondaryWeapon.WeaponEntry.AttachedItem, Loadout.SecondaryWeapon.WeaponEntry.StoneSocket);
         Func(static_cast<UObject *>(Loadout.PrimaryRing.RingEntry.Ring), Loadout.PrimaryRing.RingEntry.PersistentID,
-             Loadout.PrimaryRing.RingEntry.AttachedItem);
+             Loadout.PrimaryRing.RingEntry.AttachedItem, Loadout.PrimaryRing.RingEntry.StoneSocket);
         for (auto &Entry : Loadout.RingLoadout)
         {
-            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.PersistentID, Entry.RingEntry.AttachedItem);
+            Func(static_cast<UObject *>(Entry.RingEntry.Ring), Entry.RingEntry.PersistentID, Entry.RingEntry.AttachedItem,
+                 Entry.RingEntry.StoneSocket);
         }
     }
 }
@@ -3783,7 +3807,8 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
     }
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FGuid &GearID, const FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried](UObject *Holder, const FGuid &GearID, const FRuntimeAttachedItem &Attached,
+                                                                    const FRuntimeAttachedItem &StoneSocket)
     {
         if (Holder)
         {
@@ -3791,6 +3816,7 @@ FCarriedGearState ULoadoutComponent::SnapshotCarriedGear() const
             Entry.Holder = Holder;
             Entry.GearID = GearID;
             Entry.Attached = Attached;
+            Entry.StoneSocket = StoneSocket; // B-351b
         }
     });
     Carried.bHasPrimaryEvolution = Loadout.PrimarySlotType == EPrimarySlotType::Evolution;
@@ -3817,11 +3843,13 @@ int32 ULoadoutComponent::ApplyCarriedGear(const FCarriedGearState &Carried)
     // carried entry used once.
     TBitArray<> Used(false, Carried.Attachments.Num());
     int32 Restored = 0;
-    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, const FGuid &GearID, FRuntimeAttachedItem &Attached)
+    LoadoutCarryInternal::ForEachAttachmentSlot(Loadout, [&Carried, &Used, &Restored](UObject *Holder, const FGuid &GearID, FRuntimeAttachedItem &Attached,
+                                                                                  FRuntimeAttachedItem &StoneSocket)
     {
         const auto Take = [&](int32 i)
         {
             Attached = Carried.Attachments[i].Attached;
+            StoneSocket = Carried.Attachments[i].StoneSocket; // B-351b
             Used[i] = true;
             ++Restored;
         };
@@ -4275,6 +4303,21 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
     return CachedInventory.Get();
 }
 
+namespace
+{
+	/** B-378b: the curse subsystem when this loadout's character is one its player's curses weaken; else null. */
+	const UCurseSubsystem *CursesFor(const ULoadoutComponent &Loadout)
+	{
+		const UGameInstance *GI = Loadout.GetOwner() ? Loadout.GetOwner()->GetGameInstance() : nullptr;
+		const UCurseSubsystem *Curses = GI ? GI->GetSubsystem<UCurseSubsystem>() : nullptr;
+		if (!Curses || Curses->GetHeldCurses().IsEmpty())
+		{
+			return nullptr; // the usual case: no lookups past this
+		}
+		return Curses->IsCursedHere(Loadout.GetOwnerCharacterData()) ? Curses : nullptr; // cached component
+	}
+}
+
 // ==================== EQUIPMENT STAT QUERIES ====================
 
 FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
@@ -4363,6 +4406,16 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
     }
 
+    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines (nothing else), tier-scaled like gear;
+    // outside the budget, so it sits beside whatever ForEachContributingGear visits.
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            AddScaled(Piece.GetStatLines(), Piece.Tier);
+        }
+    }
+
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
     // field — store directly). Pools + pillar percents were accumulated raw inside AddScaled.
     Combined.BonusRawDamage        = FMath::RoundToInt(AccRawDamage);
@@ -4378,6 +4431,13 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     Combined.BonusTurnSpeed        = FMath::RoundToInt(AccTurnSpeed);
     Combined.BonusLuck             = FMath::RoundToInt(AccLuck);
 
+    // B-378b (MemoryCatalogue §3.8, review): the player's held curses weaken their own party characters, flat (added
+    // after the tier-scaled sum, so a retuned tier ladder never scales them).
+    if (const UCurseSubsystem *Curses = CursesFor(*this))
+    {
+        Combined.Accumulate(Curses->GetStatPenalty());
+    }
+
     return Combined;
 }
 
@@ -4387,34 +4447,39 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
 
     FResistanceBonus Combined;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
-
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
     ForEachContributingGear([&Combined](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
         Combined.Accumulate(Weapon ? Weapon->WeaponEntry.ResistanceBonus : Adapter->RingEntry.ResistanceBonus);
     });
 
-    // Evolution resistance — a PERMANENT equipped bonus (always-on while slotted):
-    // authored Base from the ASSET + rolled Generated from the slotted ATTACHMENT
-    // (the per-instance roll; the asset's GeneratedResistance is preview-only as
-    // of U3c). Two mutually-exclusive cases mirroring the pillar read:
-    //   A: evolution attached to the active weapon (PrimarySlotType==Weapon)
-    //   B: evolution as the standalone primary slot (PrimarySlotType==Evolution) —
-    //      where the U1c instance bridge lands the roll. (B was previously not
-    //      aggregated at all — coverage aligned with the pillar read here.)
-    const FEvolutionAttachment WeaponEvo = GetActivePrimaryEvolutionAttachment(Actor);
-    if (WeaponEvo.Item)
+    // Evolution resistance, a permanent equipped bonus while slotted: the asset's authored Base plus the slotted
+    // attachment's per-instance roll (the asset's GeneratedResistance is preview-only since U3c).
+    // B-357c (D-147): through the one resolve path; only the character's own slot's evolution gives resistance
+    // (asset Base + the slotted attachment's per-instance roll). A weapon's or adapter's gives only its passives.
+    for (const FAttachedEvolution &Evolution : GatherAttachedEvolutions())
     {
-        FResistanceBonus EvoResist = WeaponEvo.Item->BaseResistance;
-        EvoResist.Accumulate(WeaponEvo.GeneratedResistance);
-        Combined.Accumulate(EvoResist);
+        if (WoREvolutionPlacement::GivesStats(Evolution.Place))
+        {
+            FResistanceBonus EvoResist = Evolution.Attachment.Item->BaseResistance;
+            EvoResist.Accumulate(Evolution.Attachment.GeneratedResistance);
+            Combined.Accumulate(EvoResist);
+        }
     }
-    else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+
+    if (const UCurseSubsystem *Curses = CursesFor(*this)) // B-378b
     {
-        FResistanceBonus EvoResist = Loadout.PrimaryEvolution.Item->BaseResistance;
-        EvoResist.Accumulate(Loadout.PrimaryEvolution.GeneratedResistance);
-        Combined.Accumulate(EvoResist);
+        Combined.Accumulate(Curses->GetResistancePenalty());
+    }
+
+    // B-380 (D-164): every apparel piece's resistance, with its crystal's element added (Crown).
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Combined.Accumulate(Piece.GetResistance());
+        }
     }
 
     return Combined;
@@ -4432,7 +4497,6 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     // evolution does (the deliberate exception).
     TArray<FSkillEffect> Result;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
 
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
     ForEachContributingGear([&Result](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
@@ -4442,12 +4506,27 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
         Result.Append(Asset->GetStartingEffects());
     });
 
-    // Innate (primary-slot) evolution starting effects. ATTACHED evolutions are
-    // deliberately excluded — same two-branch exclusivity on PrimarySlotType as
-    // ApplyEvolutionPillarModifier and the stat sum above.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    // B-357b (D-147): the attached evolutions whose passives act at fight start (charge 0): the character's own
+    // slot. Gear evolutions give theirs only to an action charged at L2 (B-357c), so none here, as before.
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
-        Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffects());
+        Result.Append(Evolution.Attachment.Item->GetStartingEffects());
+    }
+    // B-380 (D-164, Crown): apparel carries effects like the deckbuilder's vessels.
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffects());
+        }
+        // Crown, D-164: its passives. Merge B-357b + B-380 (Q-380): apparel is gear, so as a gear evolution's (D-147):
+        // only on an action charged to GEAR_PASSIVES_CHARGE_LEVEL, never at fight start (the L2 read is B-357d).
+        const UEvolutionItemData *Evolution = Piece.GetEvolution();
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
+        {
+            Result.Append(Evolution->GetStartingEffects());
+        }
     }
 
     return Result;
@@ -4461,7 +4540,6 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     // calls the ...Gathered() accessors so each effect carries its def id + bundle index.
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner (B-279b: or in the owner's skin).
     const UCharacterData *Wearer = GetOwnerCharacterData();
     const UCharacterData *WornSkin = LoadoutBoundSkin::GetWornSkinFor(*this, Wearer);
@@ -4474,9 +4552,23 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
         Result.Append(Asset->GetStartingEffectsGathered(Wearer, WornSkin));
     });
 
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    // B-357b: the one resolve path, at fight start (charge 0).
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
-        Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffectsGathered());
+        Result.Append(Evolution.Attachment.Item->GetStartingEffectsGathered());
+    }
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffectsGathered(Wearer, WornSkin));
+        }
+        const UEvolutionItemData *Evolution = Piece.GetEvolution(); // gated as GetActiveEffects' (D-147)
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
+        {
+            Result.Append(Evolution->GetStartingEffectsGathered());
+        }
     }
 
     return Result;
@@ -4490,7 +4582,6 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     // subset (effects gated by a trigger, fired on impact rather than at combat start).
     TArray<FGatheredEffect> Result;
 
-    const FCombatLoadout &Loadout = GetActiveLoadout();
     // B-192: bound gear adds its bonus only on its owner (B-279b: or in the owner's skin).
     const UCharacterData *Wearer = GetOwnerCharacterData();
     const UCharacterData *WornSkin = LoadoutBoundSkin::GetWornSkinFor(*this, Wearer);
@@ -4503,13 +4594,78 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
         Result.Append(Asset->GetConditionalEffectsGathered(Wearer, WornSkin));
     });
 
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    // B-357b: the one resolve path, armed at fight start (charge 0).
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
-        Result.Append(Loadout.PrimaryEvolution.Item->GetConditionalEffectsGathered());
+        Result.Append(Evolution.Attachment.Item->GetConditionalEffectsGathered());
+    }
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164): its trigger-gated rows
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetConditionalEffectsGathered(Wearer, WornSkin));
+        }
+        const UEvolutionItemData *Evolution = Piece.GetEvolution(); // gated as GetActiveEffects' (D-147)
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
+        {
+            Result.Append(Evolution->GetConditionalEffectsGathered());
+        }
     }
 
     return Result;
 }
+
+TArray<FAttachedEvolution> ULoadoutComponent::GatherAttachedEvolutions() const
+{
+    TArray<FAttachedEvolution> Attached;
+    const FCombatLoadout &Loadout = GetActiveLoadout();
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        WoREvolutionPlacement::AppendCharacterSlot(Loadout.PrimaryEvolution, Attached);
+    }
+    ForEachContributingGear([&Attached](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
+    {
+        if (Weapon)
+        {
+            WoREvolutionPlacement::AppendFrom(Weapon->WeaponEntry.AttachedItem, EEvolutionPlace::Weapon, Attached);
+        }
+        else if (Adapter)
+        {
+            WoREvolutionPlacement::AppendFrom(Adapter->RingEntry.AttachedItem, EEvolutionPlace::Adapter, Attached);
+        }
+    });
+    return Attached;
+}
+
+FString ULoadoutComponent::GetAttachedEvolutionsString() const
+{
+    const TArray<FAttachedEvolution> Attached = GatherAttachedEvolutions();
+    FString Out = FString::Printf(TEXT("[Evolutions] %s: %d attached"), *GetNameSafe(GetOwner()), Attached.Num());
+    for (const FAttachedEvolution &Evolution : Attached)
+    {
+        Out += FString::Printf(TEXT("\n  %s on the %s: passives at charge 0 %s, at charge %d %s"), *GetNameSafe(Evolution.Attachment.Item),
+                               WoREvolutionPlacement::GetPlaceName(Evolution.Place),
+                               WoREvolutionPlacement::GivesPassives(Evolution.Place, LOADOUT_FIGHT_START_CHARGE_LEVEL) ? TEXT("yes") : TEXT("no"),
+                               WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL,
+                               WoREvolutionPlacement::GivesPassives(Evolution.Place, WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL) ? TEXT("yes") : TEXT("no"));
+    }
+    return Out;
+}
+
+static FAutoConsoleCommandWithWorld GLoadoutPrintEvolutionsCommand(
+    TEXT("wor.Loadout.PrintEvolutions"),
+    TEXT("B-357b: every combatant's attached evolutions (character slot, weapon, adapter) and when their passives act."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        for (TObjectIterator<ULoadoutComponent> It; It; ++It)
+        {
+            if (!It->IsTemplate() && It->GetWorld() == World)
+            {
+                UE_LOG(LogWoR, Display, TEXT("%s"), *It->GetAttachedEvolutionsString());
+            }
+        }
+    }));
 
 UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) const
 {
