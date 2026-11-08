@@ -78,8 +78,10 @@ void AMemorySpot::OnSpotBeginOverlap(UPrimitiveComponent * /*OverlappedComponent
 									 UPrimitiveComponent * /*OtherComp*/, int32 /*OtherBodyIndex*/, bool /*bFromSweep*/,
 									 const FHitResult & /*SweepResult*/)
 {
+	// B-235e: the overlap fires on every machine; only the machine whose player walked in reaches it, so a client's
+	// spot is its own find (its journal, reported to the host), not the host's.
 	const APawn *Pawn = Cast<APawn>(OtherActor);
-	if (Pawn && Pawn->IsPlayerControlled())
+	if (Pawn && Pawn->IsPlayerControlled() && Pawn->IsLocallyControlled())
 	{
 		Reach();
 	}

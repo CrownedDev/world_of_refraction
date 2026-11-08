@@ -274,7 +274,11 @@ void UFightTriggers::Fire(FWaitingTrigger &Entry)
 	if (Entry.Reaction.Trigger)
 	{
 		ReactionTriggers::ApplyFired({Entry.Reaction});
-		MemoryUnlock::Unlock(GameInstance.Get(), Entry.Reaction.Trigger->UnlockMemory, EMemorySource::Reaction);
+		// B-235e: the reacting character's player finds its memory.
+		const AActor *Wearer = Entry.Reaction.Wearer;
+		const UCharacterDataComponent *WearerData = Wearer ? Wearer->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		MemoryUnlock::UnlockFoundBy(GameInstance.Get(), Entry.Reaction.Trigger->UnlockMemory, EMemorySource::Reaction,
+									WearerData ? WearerData->CharacterData : nullptr);
 	}
 	else if (AActor *Boss = Entry.Boss.Get(); Boss && Entry.BossTrigger)
 	{
