@@ -26,6 +26,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "UObject/UObjectIterator.h"
+#include "Memory/CurseSubsystem.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "TimerManager.h"
@@ -400,6 +401,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	Forms->RestoreWorn(Data.Forms.WornForm, Data.Forms.BaseForm == static_cast<uint8>(EPlayerBaseForm::Quinn) ? EPlayerBaseForm::Quinn : EPlayerBaseForm::Manny);
 	Forms->RestoreOutfit(FOutfitSet::FromSaved(Data.Forms.CurrentOutfit)); // B-279c: after the skin, so its authored outfit does not overwrite it
 	GI->GetSubsystem<UHiddenQuestSubsystem>()->Restore(Data.HiddenQuests); // B-377
+	GI->GetSubsystem<UCurseSubsystem>()->Restore(Data.Curses); // B-378
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -548,6 +550,7 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	Data.Forms.BaseForm = static_cast<uint8>(Forms->GetBaseForm());
 	Data.Forms.CurrentOutfit = Forms->GetCurrentOutfit().ToSaved();
 	Data.HiddenQuests = GI->GetSubsystem<UHiddenQuestSubsystem>()->Capture(); // B-377: steps done, kept across runs
+	Data.Curses = GI->GetSubsystem<UCurseSubsystem>()->Capture(); // B-378: held across runs until removed
 	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
 	{
 		BankWallet(Wallet);

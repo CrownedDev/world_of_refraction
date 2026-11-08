@@ -4272,3 +4272,10 @@ Moved here once applied. Newest first.
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; the notice text is a placeholder (Crown's words). (4, review) the event that starts a quest does not also do its first step (SLF: a scenario's start is its own beat), and its end memory goes to its player alone (they did the quest, Q-235d).
 **Notes for Claude:** B-377 (`UHiddenQuestData`, `UHiddenQuestSubsystem`). The journal itself is not saved yet (transient), so after a reload a quest's start memory is gone from the journal while the quest's progress stays: flag for the save work. Co-op friends' quests: B-377b.
 
+### Q-378 — Curses: how one is named, given, lifted and held
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-378, cloud) · **Blocks:** —
+**Question:** MemoryCatalogue §3.8: a curse is a reward that is a penalty and a key, lasting across runs until its own quest or memory removes it. (1) How is a curse named and given? (2) How is it lifted? (3) Can several be held? (4) In co-op, whose is it?
+**Options / as built:** (1) **A** a memory's Curse reward names it by id (`RewardId`) and gives it when that memory goes into the player's journal / B a curse asset with its own unlock. (2) **A** a RemoveCurse reward on another memory (its own quest's end memory, or a memory) / B a merchant or rest-spot cure. (3) **A** yes, any number, each its own key / B one at a time. (4) **A** the player who got the memory (their own journal and save) / B the whole party.
+**Recommendation:** all A. Shangri-La Frontier's curses (Lycagon's Mark) come from what the player did and stay until a specific scenario lifts them, and they are the key to other scenarios; Dark Souls' curse-style statuses and Elden Ring's Frenzied Flame are likewise lifted by one specific act. Per player follows Q-235d.
+**Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; which curses exist and what they say is Crown's (lore). What a curse weakens in a fight is B-378b.
+

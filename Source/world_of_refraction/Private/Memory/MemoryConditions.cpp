@@ -266,6 +266,8 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 	case EMemoryConditionKind::PartyHas:
 		// B-376: the parity reference reads as the new subject does (FMemoryEvent::Present, else the party).
 		return Condition.Character && (Event.Present.IsEmpty() ? IsInParty(Condition.Character, Event) : Event.Present.Contains(Condition.Character.Get()));
+	case EMemoryConditionKind::CurseHeld:
+		return false; // B-378: the parity reference has no curse state; CurseHeld reads it through WoRConditions
 	}
 	return false;
 }
@@ -312,7 +314,7 @@ bool MemoryConditions::FitsRequirements(const FMemoryCondition &Condition, const
 }
 
 bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Event, const UMemoryJournalSubsystem *Journal,
-							  const TSet<FName> *KnownMemoryIds)
+							  const TSet<FName> *KnownMemoryIds, bool bReadsThisPlayersState)
 {
 	// Q-209c: any one route opens it; none authored: only the source's naming it counts.
 	// B-337 (D-130): through the one condition evaluator; the authored conditions convert on read.
@@ -323,6 +325,10 @@ bool MemoryConditions::AreMet(const UMemoryData &Memory, const FMemoryEvent &Eve
 	}
 	FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
 	Context.KnownMemoryIds = KnownMemoryIds;
+	if (!bReadsThisPlayersState)
+	{
+		Context.HeldCurses = nullptr; // TODO(B-377b): a friend's own curses, sent to the host
+	}
 	return WoRConditions::IsAnyMet(Routes, Context);
 }
 
@@ -411,7 +417,7 @@ FMemoryReceivers MemoryConditions::PickReceivers(const UGameInstance *GameInstan
 	{
 		const TArray<UCharacterData *> Own = Friend->GetOwnCharacters();
 		FriendsCharacters.Append(Own);
-		const bool bMet = AreMet(Memory, FilterParty(Event, Own, /*bKeep=*/true), Journal, Team);
+		const bool bMet = AreMet(Memory, FilterParty(Event, Own, /*bKeep=*/true), Journal, Team, /*bReadsThisPlayersState=*/false);
 		bAnyFriendMet |= bMet;
 		if (MemoryUnlock::ShouldFriendReceive(&Memory, Own, bMet)) // one who has it already still counts as its finder
 		{
