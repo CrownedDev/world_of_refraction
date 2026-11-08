@@ -94,7 +94,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 57 | `feature/B-380-apparel-cloud` | dev | 28 | docs (LoadoutSystem, Backlog, DesignDecisions) |
 | 58 | `feature/B-380b-apparel-store-save-cloud` | B-380 | 28 | none |
 | 59 | `feature/B-380c-apparel-slots-saved-cloud` | B-380b | **29** | **save** |
-| 60 | `docs/Q-164b-amp-cloud` | dev | – | docs (DesignDecisions) |
+| 60 | `docs/damage-defence-sources-cloud` | `docs/Q-164b-amp-cloud` (contains it; merge this one) | – | docs (DesignDecisions, Rules 02 ED-50). The trial branch merged only `docs/Q-164b-amp-cloud`; this branch adds the comparison doc on top. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
