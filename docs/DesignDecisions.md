@@ -4280,9 +4280,9 @@ Moved here once applied. Newest first.
 **Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; which curses exist and what they say is Crown's (lore). What a curse weakens in a fight is B-378b: by the same default, its penalty lines weaken the holder's own party characters only (not enemies, not a friend's), in and out of fights, flat (not tier-scaled), summed when several are held.
 
 ### Q-379 — Hidden counters: what is counted, whose, and when a milestone opens
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-379, cloud) · **Blocks:** —
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08: kept as built, all A) · **Raised:** 2026-11-08 (B-379, cloud) · **Blocks:** —
 **Question:** MemoryCatalogue §3.9: a hidden running total on the save ("parried 50 times as Sapphire") that keeps counting across runs. (1) What is counted first? (2) Per character or per player? (3) In co-op, whose save counts a friend's character? (4) When does a milestone memory open?
 **Options / as built:** (1) **A** Parries (a Perfect Guard, D-084) and Kills (finishing blows) / B a long list now. (2) **A** both: each counter per character and for all characters together; a memory names the character or not / B per player only. (3) **A** the player who plays it (their machine counts it) / B the host's. (4) **A** at the next memory event after it is reached (a fight won, a spot, a fragment) / B at once, mid-fight.
 **Recommendation:** all A. Shangri-La Frontier's hidden stats and Monster Hunter's per-weapon hunt counts track what a character did across sessions; two counters cover the catalogue's example and more are one line each. Per player follows Q-235d. Checking at memory events keeps fights free of story interrupts (pillar: story between fights).
 **Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; which milestones exist is Crown's.
-
+**Crown (2026-11-08):** kept as built.
