@@ -9,7 +9,7 @@
 namespace
 {
 	FAutoConsoleCommand GPrintStoneRowsCmd(
-		TEXT("wor.PrintStoneRows"),
+		TEXT("wor.Stones.Print"),
 		TEXT("DEBUG: print every stat stone's row (attached stat, consumable effect, buff/debuff, base percent)."),
 		FConsoleCommandDelegate::CreateStatic(&UStoneRowDebug::PrintStoneRows));
 
