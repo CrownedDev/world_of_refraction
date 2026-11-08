@@ -537,11 +537,10 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 ## Known Gaps / Not-Yet-Implemented
 
-- **Strain persistence DEFERRED.** The shipped strain accrual resets per combat
-  (`BeginPlay`), so the design's *"strain accumulates across the whole run until it gives"*
-  does **not** yet hold — overreach in one combat does not carry into the next. The mechanism
-  (deterministic accrual → break, plus the break / revert / combat-start resets) is shipped;
-  only cross-run persistence (a save-state home for `AccruedStrain`) is the follow-up.
+- **Strain persistence: B-348c (UNBUILT).** A party member's strain is banked at each fight's
+  end (`FPartyMember::RunStrain`) and applied after the per-combat reset
+  (`ApplyCarriedStrain`), so *"strain accumulates across the whole run until it gives"*; the
+  run's end clears it (`ClearAllMemberVitals`), and it is saved with a saved run.
 - **Defence-composition asymmetry (intended).** Strain reads **Spell Damage fully composed**
   (`GetEffectiveSpellDamage`, incl. transient buffs) but **Defence durable-only**
   (`GetEvolutionModifiedFlatDefense`, no transient). This is deliberate per the soul-strain
@@ -555,8 +554,11 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
   forbidden cast element) is not yet wired. The dead `ApplySelfStatusBuildup`
   helper on `ActionExecutor` is retained as the intended apply hook. See
   `docs/Gaps/IntegrationGaps.md` §4.2.
-- **`bIsBrokenDarkness` save persistence (gap 4.4) / un-transform path
-  (gap 4.5).** Both designed, neither built. See `docs/Gaps/IntegrationGaps.md`.
+- **`bIsBrokenDarkness` save persistence (gap 4.4): B-348c (UNBUILT, Q-348b, Crown 2026-11-08).**
+  Persistent in and out of the run: `FPartyMember::bBrokenDarkness` is banked at each fight's end,
+  seeds the pawn as a born-BD does, and is saved (`FSavedPartyMember`, v21). **Un-transform path
+  (gap 4.5)** still designed, not built: `RevertTransformation` has no gameplay caller; its revert is
+  banked when it runs. See `docs/Gaps/IntegrationGaps.md`.
 - **Phase 2 — delete `ESpellElement::BrokenDarkness` (SHIPPED, PIE-verified).** The enum value
   is **deleted** (`feature/bd-value-deletion`). BD is now represented **only** by
   `bBrokenDarknessInnate` + `InnateElement == Darkness` — there is no BD element value. Both
@@ -629,3 +631,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-11-02 | B-287: spec `WoR.Combat.BrokenDarkness` pins ED-39 (resistance row), ED-40 (Guard 5% / Perfect Guard 10% x2 absorption, 30% overload, no absorb from None / Generic / Reality), ED-41 (forbidden cast 25% HP, waived at matching world levels) and SB-06 (stack multipliers, 25% forbidden-cast buildup). No code change. | chore/B-287-broken-darkness-spec |
 | 2026-11-03 | B-256b (A17): the three BD console commands (`WoR.AbsorptionSnapshot`, `WoR.TestBDRevert`, `WoR.StrainSnapshot`) share `FindCombatBDManager`; the CrystalManager debug commands share `CrystalManagerDebug::FindDebugCrystal`. Same warnings. `UCrystalManager::GetLoadoutComponent` is now unused (remove after PIE). | refactor/B-256b-interact-hint |
 | 2026-11-04 | B-353b: a crystal used on a Broken Darkness character grants absorption energy only if it is a gem; a stone of any kind (Luck, Reflex and Healing included, which the old kind list missed) grants none (CrystalEffectTable::GetBrokenDarknessEnergyPercent, one IsAugmentStoneType predicate). | fix/B-353b-bd-stone-energy |
+| 2026-11-08 | B-348c (Q-348b changed by Crown): Broken Darkness persists in and out of the run (`FPartyMember::bBrokenDarkness`, banked at fight end, seeded like a born-BD, saved v21); strain carries through the run (`RunStrain`, `ApplyCarriedStrain`). | feature/B-348c-broken-darkness-persists-cloud (UNBUILT) |
