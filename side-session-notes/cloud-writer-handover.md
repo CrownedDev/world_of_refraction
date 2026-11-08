@@ -1,3 +1,14 @@
+# Cloud writer handover (2026-11-08, third part: the brain unblocked B-073) — IN PROGRESS
+
+The brain (08:32 UTC): B-073 was stale-blocked (D-048 answered 2026-10-26); write it and its chain (B-187 → B-363 → B-364, B-234b, B-235d's payout), then B-357b and B-351d in parts with reference-backed defaults. Still skip B-233b, B-107-109, B-127, B-340, B-042f, editor / VRoid / profiler jobs.
+
+| Job | Branch | State | Q- defaults chosen |
+|---|---|---|---|
+| B-073 | `feature/B-073-run-rewards-cloud` | REVIEW (UNBUILT): `Trial/RunRewards` (win run Prisms now; hub Gold + Gear / Skill Essence tallied per win and chest; the run's end pays the tally scaled by difficulty, a +25 % boss bonus and the multiplier, to every player in full); `UTrialRunSubsystem::RecordFightReward` / `RecordChestReward` / `ExitTrial` pays; save **v23** (`FSavedRun::Tally*`); `wor.Trial.PrintRewards`; `RunRewardsSpec`; Rules ER-06..09, PIE B-073. Covers B-235d's payout (every player in full) | **Q-073 = A**: Gear + Skill Essence (D-094's Unknown essence retired with D-125), boss bonus for "further", first numbers (Nightreign / Hades encounter-plus-clear) |
+| B-187 | `feature/B-187-rest-spot-cloud` (**on** B-073) | REVIEW part 1 (UNBUILT): `ATrialRestSpot` + `WoRRestSpot::Rest` (full HP / EP, revive, last rest spot), placeholder `URestSpotWidget` (inventory, leave with confirm), `LeaveRunEarly` (half the tally); `wor.Trial.Rest`; `RestSpotSpec`; Rules ER-09b, PIE B-187 (placing the actor in a map is an editor step; the console works without). Mini-boss rest spots / revival: new row **B-187b** | **Q-187 = A**: leaving pays half (Darkest Dungeon retreat), every use rests (Hades) |
+
+---
+
 # Cloud writer handover (2026-11-08, second part, after the brain widened the rules) — STOPPED: no cleanly writable job left
 
 **Why it stopped:** every remaining row is blocked or needs the desktop: B-233b (EOS: Crown's EOS product ids, Q-233), B-234b (hand-over: needs B-187's rest spot; B-187 waits on B-073, BLOCKED on D-048), B-235d's payout (B-073), B-351d (crystal spell lists: ~69 reads, needs a compiler), B-357b (left for the desktop), B-127 (editor spot-check first), B-107-109 (Crown's B-102 review), and the editor / VRoid / profiler jobs. Every branch here is UNBUILT: build, run the specs, then PIE.
