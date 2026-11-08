@@ -68,6 +68,7 @@ void FCoopCheckpointSpec::Define()
 		TestTrue(TEXT("compressed"), WoRCheckpoint::Compress(Bytes, Compressed));
 		TestTrue(TEXT("decompressed"), WoRCheckpoint::Decompress(Compressed, Bytes.Num(), Back));
 		TestTrue(TEXT("the same bytes"), Back == Bytes);
+		AddExpectedError(TEXT("Failed to uncompress memory"), EAutomationExpectedErrorFlags::Contains, 1); // the engine logs the refusal
 		TestFalse(TEXT("a wrong size fails"), WoRCheckpoint::Decompress(Compressed, Bytes.Num() / 2, Back));
 		TestEqual(TEXT("chunks: 10 bytes by 4"), WoRCheckpoint::ChunkCountFor(10, CHECKPOINT_TEST_CHUNK), 3);
 		TestEqual(TEXT("chunks: empty still one"), WoRCheckpoint::ChunkCountFor(0, CHECKPOINT_TEST_CHUNK), 1);
