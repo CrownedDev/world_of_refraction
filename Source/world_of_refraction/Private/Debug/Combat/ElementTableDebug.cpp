@@ -29,7 +29,7 @@ namespace
 		FConsoleCommandDelegate::CreateLambda([]() { UE_LOG(LogWoR, Display, TEXT("%s"), *UElementTableDebug::GetElementTableString()); }));
 
 	FAutoConsoleCommand GCompareElementsCmd(
-		TEXT("wor.CompareElements"),
+		TEXT("wor.Elements.Compare"),
 		TEXT("DEBUG: compare the element table with the old per-element functions."),
 		FConsoleCommandDelegate::CreateLambda([]() { UElementTableDebug::PrintCompareElements(); }));
 

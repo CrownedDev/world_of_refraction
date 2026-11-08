@@ -145,8 +145,9 @@ namespace LoadoutClassTable
 
 	/** Refractor: budget 3, one item (a weapon, an adapter or an evolution) beside its innate pool. */
 	constexpr FLoadoutClassLimits REFRACTOR{3, 1, 1, 1};
-	/** Generic: budget 6, two items: up to two weapons, and it keeps one adapter (D-110 B). */
-	constexpr FLoadoutClassLimits GENERIC{6, 2, 2, 1};
+	/** Generic: budget 5 (Crown 2026-11-08, was 6: at most one evolved weapon), two items: up to two weapons, and it
+	 *  keeps one adapter (D-110 B). */
+	constexpr FLoadoutClassLimits GENERIC{LoadoutConstants::LOADOUT_TOTAL_BUDGET, 2, 2, 1}; // 5, as the Resonator
 	/** Resonator: budget 5 (CL-10), one weapon, any number of adapters. */
 	constexpr FLoadoutClassLimits RESONATOR{LoadoutConstants::LOADOUT_TOTAL_BUDGET, NO_LIMIT, 1, NO_LIMIT};
 
@@ -168,7 +169,8 @@ namespace LoadoutClassTable
 struct WORLD_OF_REFRACTION_API FLoadoutRules
 {
 	/** D-110: one cost for every class. Weapon: bare 1 / with a crystal, stone or fusion 2 / with an evolution 3.
-	 *  Adapter: 1 / with an evolution 2 (InventoryConstants). The evolution seat is EVOLUTION_PRIMARY_SLOT_COST. */
+	 *  Adapter: 1 / with an evolution 2 (InventoryConstants; Q-357: frame + attachment, LoadoutConstants). The evolution
+	 *  seat is EVOLUTION_PRIMARY_SLOT_COST. */
 	static int32 SlotCost(const FLoadoutSlot &Slot);
 
 	/** What the class's weapons and evolution seat cost (everything but adapters), over the slots the fight reads.

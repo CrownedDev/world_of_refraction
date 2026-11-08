@@ -26,6 +26,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Skills/Definitions/ESpellSource.h"
 #include "Loadout/CarriedGearState.h"
+#include "Equipment/Crystals/EvolutionPlacement.h"
 #include "Inventory/EInventoryChangeType.h"
 #include "LoadoutComponent.generated.h"
 
@@ -666,6 +667,15 @@ public:
      *  U3c read sites combine asset Base + this attachment's Generated. */
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     FEvolutionAttachment GetActivePrimaryEvolutionAttachment(AActor *Actor) const;
+
+    /** B-357b (D-147): the one resolve path: every evolution attached to this character, with its place: the
+     *  character's own slot (PrimarySlotType == Evolution), then the gear that counts (ForEachContributingGear: the
+     *  adapter in use, the weapon in hand), each with an evolution in its socket. WoREvolutionPlacement says what each
+     *  place gives. */
+    TArray<FAttachedEvolution> GatherAttachedEvolutions() const;
+
+    /** Debug (B-357b): one line per attached evolution: its place and whether its passives act at charge 0 and 2. */
+    FString GetAttachedEvolutionsString() const;
 
     /** InstanceID of the owned FEvolutionInventoryEntry the active PRIMARY-SLOT evolution
      *  (PrimarySlotType == Evolution) was inflated from (iii-b — retained on FCombatLoadout).

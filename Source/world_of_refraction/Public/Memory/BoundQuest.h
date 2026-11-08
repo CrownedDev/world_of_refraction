@@ -20,7 +20,8 @@ struct WORLD_OF_REFRACTION_API FBoundQuest
 	TObjectPtr<UHiddenQuestData> Quest = nullptr;
 
 	/** Met at a memory event while the item is worn (empty: being worn is enough). E.g. GearEquipped at least 2 for
-	 *  "upgraded", SkillUsed for "used a certain way". */
+	 *  "upgraded", SkillUsed for "used a certain way". The conditions read the whole event, so set Character on a gear or
+	 *  skill condition to mean the wearer (else another member's gear or skill can meet it; B-381 review). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
 	FWoRConditionSet Conditions;
 };

@@ -120,6 +120,7 @@ void ABattleGameMode::BootstrapCombat()
     TArray<AActor *> LocalParty;
     TArray<AActor *> OpposingParty;
     TArray<EEncounterRank> OpposingRanks; // B-224b: each spawned enemy's own rank for its HP, kept paired with OpposingParty
+    TArray<int32> OpposingTierSteps; // B-187b: each spawned enemy's tier steps (a revived mini-boss's team), paired the same way
 
     // Battle Party — the Trial Party members who were present when the join window
     // closed. Enemy roster still comes from the encounter, not the party.
@@ -222,6 +223,7 @@ void ABattleGameMode::BootstrapCombat()
         {
             OpposingParty.Add(Spawned);
             OpposingRanks.Add(TrialRun->GetPendingEnemyRank(i));
+            OpposingTierSteps.Add(TrialRun->GetPendingEnemyTierSteps(i)); // B-187b review: its own team's revivals
             const UCharacterFormData *Form = Forms ? Forms->FindFormForCharacter(OpposingPartyData[i]) : nullptr;
             const ACharacter *FormPawn = Cast<ACharacter>(Spawned);
             if (Form && FormPawn && FormPawn->GetMesh() && Form->DressMesh(*FormPawn->GetMesh()))
@@ -300,12 +302,14 @@ void ABattleGameMode::BootstrapCombat()
         // B-224 / B-224b: the enemy's own rank (its team's; Q-224c) and tier multiply max HP on top.
         const EEncounterRank EnemyRank = OpposingRanks.IsValidIndex(EnemyIndex) ? OpposingRanks[EnemyIndex] : TrialRun->GetPendingRank();
         SpawnedOrchestrator->SetEnemyRank(Enemy, EnemyRank); // B-223: its level drop
+        const int32 EnemyTierSteps = OpposingTierSteps.IsValidIndex(EnemyIndex) ? OpposingTierSteps[EnemyIndex] : 0;
+        SpawnedOrchestrator->SetEnemyTierSteps(Enemy, EnemyTierSteps); // B-187b review: its drops at the stepped-up tier
         if (!TrialGate::ApplyEnemyStrength(Enemy, EnemyHealth, EnemyStrength))
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: trial difficulty not applied (no character data or effect manager)"),
                    *GetNameSafe(Enemy));
         }
-        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyHealth, EnemyRank))
+        else if (!TrialGate::ApplyEnemyRankHealth(Enemy, EnemyHealth, EnemyRank, EnemyTierSteps)) // B-187b: a revived mini-boss
         {
             UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] %s: rank health (%s) not applied"),
                    *GetNameSafe(Enemy), *UEnum::GetValueAsString(EnemyRank));
@@ -499,6 +503,8 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
                     PartySession->SetMemberCarriedState(SlotIndex,
                                                         Loadout ? Loadout->SnapshotCarriedGear() : FCarriedGearState(),
                                                         BDManager ? BDManager->SnapshotCarriedAbsorption() : FCarriedAbsorptionState());
+                    // B-348c (Q-348b): Broken Darkness stays on the member until reverted; strain carries through the run.
+                    PartySession->SetMemberBrokenDarkness(SlotIndex, CharComp->IsBrokenDarkness(), BDManager ? BDManager->GetAccruedStrain() : 0.0f);
                     ++BankedCount;
                 }
             }
@@ -512,6 +518,8 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
     {
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
+            // B-073 (D-006): a win pays run Prisms now and adds to the run's tally (by the fight's rank).
+            TrialRun->RecordFightReward(GetWorld(), TrialRun->GetPendingRank());
             TrialRun->MarkPendingEncounterBeaten();
             // B-362c (D-160 changed): a win no longer recovers the dropped Prisms; the pickup on the map does
             // (APrismDropPickup). WoRDefeat::RecoverPrisms is OBSOLETE.
@@ -647,7 +655,8 @@ void ABattleGameMode::AddHiddenCount(const AActor *Member, const TCHAR *Counter)
         Friend->Client_AddCounter(FName(Counter), const_cast<UCharacterData *>(Character));
         return;
     }
-    if (UHiddenCounterSubsystem *Counters = GetGameInstance()->GetSubsystem<UHiddenCounterSubsystem>())
+    const UGameInstance *GI = GetGameInstance(); // B-379 review: a bare test world has none
+    if (UHiddenCounterSubsystem *Counters = GI ? GI->GetSubsystem<UHiddenCounterSubsystem>() : nullptr)
     {
         Counters->Add(FName(Counter), Character);
     }
