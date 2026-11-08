@@ -164,6 +164,11 @@ public:
     void AddRunEarnedLevels(FName CharacterKey, EWorldPillar Pillar, int32 Count);
     /** Levels Character bought from a vendor this run (the rising price, D-102). */
     int32 GetRunLevelPurchases(FName CharacterKey) const;
+
+    /** B-364 (D-157): a character's over-cap points in Pillar this run, and adding one (false at
+     *  OverCapRules::MAX_PER_PILLAR). They end with the run's levels. */
+    int32 GetRunOverCap(FName CharacterKey, EWorldPillar Pillar) const;
+    bool AddRunOverCap(FName CharacterKey, EWorldPillar Pillar);
     void AddRunLevelPurchase(FName CharacterKey);
     /** Forgets one character's run levels, purchases and waiting dropped levels (UCharacterDataComponent::ResetRunWorldStats). */
     void ForgetRunLevels(FName CharacterKey);
@@ -171,6 +176,9 @@ public:
     /** B-223b (Q-223 changed by Crown, 2026-11-03): each character's own dropped levels, not yet given to one of its
      *  pillars (wor.UI.LevelDrop). A character's levels go only to its own pillars. */
     int32 GetUnspentLevels(FName CharacterKey) const;
+
+    /** B-232d: every character's waiting levels (the GameState's run state copies them). */
+    const TMap<FName, int32> &GetAllUnspentLevels() const { return UnspentLevels; }
     int32 GetTotalUnspentLevels() const;
     void AddUnspentLevels(FName CharacterKey, int32 Count);
     /** Takes one of the character's unspent levels; false when it has none. */
@@ -276,7 +284,7 @@ public:
     int32 PayRunEnd(UWorld *World);
 
     /** B-073 / B-096: the payout multiplier (passives raise it); BASE 1.0. */
-    float GetPayoutMultiplier() const { return PayoutMultiplier; }
+    float GetRunPayoutMultiplier() const { return PayoutMultiplier; } // not GetPayoutMultiplier: that is the difficulty's
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
 
     /** B-187 (RunStructure §6): the party leaves the run at a rest spot: the end pays the tally at
@@ -341,6 +349,11 @@ public:
      *  from the rest spot and the trial level places the returning party there. */
     FName GetLastRestSpot() const { return LastRestSpot; }
     void NoteRestSpotUsed(FName RestSpotId) { LastRestSpot = RestSpotId; }
+
+    /** B-363 (D-156): the party is at a rest spot (rested, its menu open): pillar points are placed and bought only
+     *  here. Set by WoRRestSpot::Rest; cleared when a fight starts and when the trial is entered or left. */
+    bool IsAtRestSpot() const { return bAtRestSpot; }
+    void SetAtRestSpot(bool bInAtRestSpot) { bAtRestSpot = bInAtRestSpot; }
 
     /** Save restore: puts the run's loss counters back (RestoreRun does not take them). */
     void RestoreRunLosses(int32 Wipes, int32 MainBossLosses, FName RestSpotId);
@@ -411,6 +424,9 @@ public:
     FString GetTrialRunString() const;
 
 private:
+    /** B-232d: the GameState's run state copies the run's progress again (found features, memories, waiting levels). */
+    void NotifyRunProgressChanged() const;
+
     /** B-227: every level change. A listen server travels seamlessly and takes its clients along
      *  (World->ServerTravel; the game modes set bUseSeamlessTravel); standalone keeps OpenLevel. A client
      *  doesn't travel on its own (it follows the server; its inputs reach the server with B-229). */
@@ -461,6 +477,12 @@ private:
         int32 Body = 0;
         int32 Spirit = 0;
         int32 Purchases = 0;
+        /** B-364 (D-157): over-cap points per pillar (OverCapRules::MAX_PER_PILLAR at most). */
+        int32 OverMind = 0;
+        int32 OverBody = 0;
+        int32 OverSpirit = 0;
+        int32 &OverFor(EWorldPillar Pillar) { return Pillar == EWorldPillar::Body ? OverBody : Pillar == EWorldPillar::Spirit ? OverSpirit : OverMind; }
+        int32 GetOver(EWorldPillar Pillar) const { return Pillar == EWorldPillar::Body ? OverBody : Pillar == EWorldPillar::Spirit ? OverSpirit : OverMind; }
         int32 &For(EWorldPillar Pillar) { return Pillar == EWorldPillar::Body ? Body : Pillar == EWorldPillar::Spirit ? Spirit : Mind; }
         int32 Get(EWorldPillar Pillar) const { return Pillar == EWorldPillar::Body ? Body : Pillar == EWorldPillar::Spirit ? Spirit : Mind; }
     };
@@ -503,6 +525,9 @@ private:
     int32 RunWipes = 0;
     int32 RunMainBossLosses = 0;
     FName LastRestSpot;
+
+    /** B-363: see IsAtRestSpot. Not saved: a resumed run starts away from any rest spot. */
+    bool bAtRestSpot = false;
 
     /** B-362b: run state like RunWipes (cleared on trial entry and exit; saved with the run). */
     int32 DroppedPrisms = 0;

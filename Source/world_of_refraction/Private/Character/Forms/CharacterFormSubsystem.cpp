@@ -134,11 +134,13 @@ bool UCharacterFormSubsystem::IsInFight() const
 
 bool UCharacterFormSubsystem::IsAtSwitchSpot() const
 {
-    if (bAtRestSpot)
+    const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+    // B-363 desktop review: a trial's rest spot is the run's own flag (cleared by a fight, a level change and the
+    // run's end); bAtRestSpot is only the debug override now.
+    if (bAtRestSpot || (TrialRun && TrialRun->IsAtRestSpot()))
     {
         return true;
     }
-    const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
     return TrialRun && TrialRun->IsHubWorld(GetGameInstance()->GetWorld());
 }
 

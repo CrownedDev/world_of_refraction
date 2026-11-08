@@ -73,7 +73,7 @@
 | 32 | The four unreachable status-break cases (`SpeedDebuff`, `CritDebuff`, `EnergyDebuff`, `RandomDebuff`) — `SkillEffectManager.cpp:3106` (B-268) | `BarCapTriggerResolver`'s real outcomes | [B-268](B-268.md) (each element's status break) | sweep | [ ] |
 | 33 | `SkillEffectDisplayNames::GetDisplayInfo` — `Public/Skills/Effects/SkillEffectDisplayNames.h:212` (B-248) | The one status-per-element table, `FText` names (D-061) | [B-248](B-248.md) + Blueprint check: no caller | sweep | [ ] |
 | 34 | `UStatusBuildupManager` legacy resistance query — `Public/Skills/Effects/StatusBuildupManager.h:177` (B-216) | `WoRResistance::GetTypeResistance` | [B-216](B-216.md) (`UResistanceQueryDebug` comparison matches) | sweep | [ ] |
-| 46 | The old skill-effect conditions: `FSkillEffect::Conditions` / `FActiveSkillEffect::Conditions` (`FSkillCondition`), the legacy trigger fields (`TriggerCondition`, `SecondaryTriggerCondition`, thresholds, `bRequireBothTriggers`), `EvaluateConditionGroup`, `ECondSubject`, `IsOwnerSide` / `IsTargetSide`, the read-across (`SkillConditions::ToSets` / `FromLegacy`) and `USkillEffectManager::IsSingleTriggerMet` (B-337d, Crown 2026-11-04) | The authored `FWoRConditionSet` field (B-337e: filled on load, every effect asset resaved in the editor) | [B-337d](B-337d.md) + [B-337e](B-337e.md) (after the editor resave; the list command shows no asset on old conditions) + Blueprint check: no reads of `Conditions` / `TriggerCondition` | sweep (after B-337e) | [ ] |
+| 46 | The old skill-effect conditions: `FSkillEffect::Conditions` / `FActiveSkillEffect::Conditions` (`FSkillCondition`), the legacy trigger fields (`TriggerCondition`, `SecondaryTriggerCondition`, thresholds, `bRequireBothTriggers`), `EvaluateConditionGroup`, `ECondSubject`, `IsOwnerSide` / `IsTargetSide`, the read-across (`SkillConditions::ToSets` / `FromLegacy`) and `USkillEffectManager::IsSingleTriggerMet` (B-337d, Crown 2026-11-04) | The authored `FWoRConditionSet` field (B-337e: filled on load, every effect asset resaved in the editor) | [B-337d](B-337d.md) + [B-337e](B-337e.md) (after the editor resave; the list command shows no asset on old conditions; Q-337e: `wor.Conditions.ListAnyOf` lists every skill using Any of: if each can be rewritten without "or", delete Any of too) + Blueprint check: no reads of `Conditions` / `TriggerCondition` | sweep (after B-337e) | [ ] |
 
 ## Infusion
 
@@ -126,8 +126,8 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-008](B-008.md) | Debug console commands + test actors compiled out of Shipping; no editor change | Not tested | REVIEW (in dev) | [ ] |
 | [B-009](B-009.md) | Defense press window on world time: survives a pause, matches the close timer | Not tested | REVIEW (in dev) | [ ] |
 | [B-010](B-010.md) | One random seed per battle, logged; `wor.Battle.Seed` replays a fight | Not tested | REVIEW (in dev) | [ ] |
-| [B-020](B-020.md) | Stat buffs/debuffs read from one table (same numbers); `wor.CompareStats`, `wor.PrintStatModifiers` | Not tested | REVIEW (in dev) | [ ] |
-| [B-021](B-021.md) | Stat stones read from one row table (same effects); `wor.PrintStoneRows` | Not tested | REVIEW (in dev) | [ ] |
+| [B-020](B-020.md) | Stat buffs/debuffs read from one table (same numbers); `wor.Stats.Compare`, `wor.Stats.Print` | Not tested | REVIEW (in dev) | [ ] |
+| [B-021](B-021.md) | Stat stones read from one row table (same effects); `wor.Stones.Print` | Not tested | REVIEW (in dev) | [ ] |
 | [B-022](B-022.md) | Loadout read without copying; class from CharacterData; no gameplay change | Not tested | REVIEW (in dev) | [ ] |
 | [B-023](B-023.md) | AI sees Stun (not Wind's delay) and finds Cleanse Self spells | Not tested | REVIEW (in dev) | [ ] |
 | [B-024](B-024.md) | Ring/weapon managers folded into the loadout; ring auto-switch on break; no gameplay change | Not tested | REVIEW (in dev) | [ ] |
@@ -143,8 +143,8 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-033](B-033.md) | God-file splits (move-only): debug buttons, montage runner, costs | Not tested | REVIEW (in dev) | [ ] |
 | [B-034](B-034.md) | The menu holds the infusion level; the VFX only shows it | Not tested | REVIEW (in dev) | [ ] |
 | [B-035](B-035.md) | Combat-end crystal destruction split out (no behaviour change) | Not tested | REVIEW (in dev) | [ ] |
-| [B-040](B-040.md) | Gameplay tags for elements, classes and statuses (`wor.CompareTags`) | Not tested | REVIEW (in dev) | [ ] |
-| [B-041](B-041.md) | GAS attributes mirror the stats (`wor.CompareAttributes`) | Not tested | REVIEW (in dev) | [ ] |
+| [B-040](B-040.md) | Gameplay tags for elements, classes and statuses (`wor.Tags.Compare`) | Not tested | REVIEW (in dev) | [ ] |
+| [B-041](B-041.md) | GAS attributes mirror the stats (`wor.Attributes.Compare`) | Not tested | REVIEW (in dev) | [ ] |
 | [B-042](B-042.md) | GAS stage 3, part 1: Stun GE + turn tracker (nothing uses it in play yet) | Not tested | REVIEW (in dev) | [ ] |
 | [B-042b](B-042b.md) | GAS stage 3, part 2: effect context, family GEs, spec builder (nothing uses them in play yet) | Not tested | REVIEW (in dev) | [ ] |
 | [B-042c](B-042c.md) | GAS stage 3, part 3: effects mirrored onto GAS; `wor.Effects.UseGAS 1` reads them | Not tested | REVIEW (in dev) | [ ] |
@@ -158,7 +158,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-042n](B-042n.md) | GAS stage 3, part 5d: DOT and HOT ticks on GAS pay what the enum path pays | Not tested | REVIEW (in dev) | [ ] |
 | [B-042o](B-042o.md) | GAS stage 3, part 5e: with UseGAS 1 the status bar lives on GAS | Not tested | REVIEW (in dev) | [ ] |
 | [B-042p](B-042p.md) | GAS stage 3, part 5f: spell / raw damage and action / spell speed composed on GAS from their gear, stone and buff layers | Not tested | REVIEW (in dev) | [ ] |
-| [B-042q](B-042q.md) | GAS stage 3, part 5g: status multiplier, Defense and crit damage composed on GAS; `wor.CompareAttributes` checks the composed bases | Not tested | REVIEW (in dev) | [ ] |
+| [B-042q](B-042q.md) | GAS stage 3, part 5g: status multiplier, Defense and crit damage composed on GAS; `wor.Attributes.Compare` checks the composed bases | Not tested | REVIEW (in dev) | [ ] |
 | [B-042r](B-042r.md) | GAS stage 3, part 5h: Luck and the Reflex window factor composed on GAS | Not tested | REVIEW (in dev) | [ ] |
 | [B-042s](B-042s.md) | GAS stage 3, part 5i: crit chance and Efficiency derived on GAS from Luck and the cost reduction | Not tested | REVIEW (in dev) | [ ] |
 | [B-042t](B-042t.md) | GAS stage 3, part 5j: Mind, Body and Spirit built on GAS from their world base and layers | Not tested | REVIEW (in dev) | [ ] |
@@ -236,7 +236,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-150](B-150.md) | Fallen members stay in the party; a rest revives them | Not tested | REVIEW (in dev) | [ ] |
 | [B-151](B-151.md) | One wallet per player, shared by the party (`wor.Wallet.Print`) | Not tested | REVIEW (in dev) | [ ] |
 | [B-155](B-155.md) | Utility crystal tier caps reported in loadout checks | Not tested | REVIEW (in dev) | [ ] |
-| [B-156](B-156.md) | Combat camera: turn view behind the acting character, pan-out on enemy turns, `wor.Camera` style / movement-off commands (no cinematics until B-157) | Not tested | REVIEW (in dev) | [ ] |
+| [B-156](B-156.md) | Combat camera: turn view behind the acting character, pan-out on enemy turns, `wor.Camera.Print` style / movement-off commands (no cinematics until B-157) | Not tested | REVIEW (in dev) | [ ] |
 | [B-159](B-159.md) | Invalid picks refused; invalid loadout parts dropped at load | Not tested | REVIEW (in dev) | [ ] |
 | [B-160](B-160.md) | Camera cinematic settings: cinematics on/off, enemy cinematics, skip after hit | Not tested | REVIEW (in dev) | [ ] |
 | [B-161](B-161.md) | Editor loadout check uses the character's authored spell discount | Not tested | REVIEW (in dev) | [ ] |

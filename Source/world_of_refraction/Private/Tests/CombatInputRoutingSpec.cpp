@@ -106,6 +106,31 @@ void FCombatInputRoutingSpec::Define()
 		TestFalse(TEXT("nothing runs"), Orchestrator->IsWaitingForAsyncAction());
 	});
 
+	It("refuses a free step for a character the sender doesn't control (B-232c)", [this]()
+	{
+		AActor *Bot = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+		if (!TestTrue(TEXT("combatant spawned"), Bot && Controller))
+		{
+			return;
+		}
+		const ECombatInputVerdict Verdict = Controller->HandleFreeCommand(Bot, ECombatFreeCommand::SwitchWeapon, true);
+		TestTrue(TEXT("not controlled"), Verdict == ECombatInputVerdict::NotControlled);
+		TestTrue(TEXT("logged with the step"), LastVerdict() == ECombatInputVerdict::NotControlled
+												   && Controller->GetRecentInputs().Last().Description.Contains(TEXT("SwitchWeapon")));
+	});
+
+	It("refuses a free step while no fight is running (B-232c)", [this]()
+	{
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("combatant spawned"), Hero && Controller))
+		{
+			return;
+		}
+		TestTrue(TEXT("no combat: row step"), Controller->HandleFreeCommand(Hero, ECombatFreeCommand::MoveRowForward) == ECombatInputVerdict::NoCombat);
+		TestTrue(TEXT("no combat: hand to AI"), Controller->HandleFreeCommand(Hero, ECombatFreeCommand::HandToAI) == ECombatInputVerdict::NoCombat);
+		TestTrue(TEXT("no actor"), Controller->HandleFreeCommand(nullptr, ECombatFreeCommand::SwitchAdapter) == ECombatInputVerdict::NoActor);
+	});
+
 	It("records a defense press with no open window as nothing to defend", [this]()
 	{
 		Controller->RequestDefenseInput(EDefenseType::Block, EDefenseDirection::None);
