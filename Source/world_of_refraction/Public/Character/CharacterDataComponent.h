@@ -579,6 +579,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Stats|World")
     int32 GetWorldSpirit() const { return LiveWorldSpirit; }
 
+    /** B-364: this run's over-cap points on Pillar (0-3; OverCapRules). Each lifts the pillar's sub-stats by 5 %. */
+    int32 GetOverCapPoints(EWorldPillar Pillar) const;
+
     /** Pillar-keyed live read — for the earn/buy ops (C3/C4) that take an EWorldPillar. */
     UFUNCTION(BlueprintPure, Category = "Stats|World")
     int32 GetWorldStat(EWorldPillar Pillar) const;

@@ -3,6 +3,7 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "Trial/TrialMapLook.h"
 #include "Player/RunStateComponent.h"
+#include "Character/OverCapRules.h"
 #include "Memory/MemoryData.h"
 #include "Trial/DefeatRules.h"
 #include "WoRLog.h"
@@ -368,6 +369,22 @@ int32 UTrialRunSubsystem::GetRunLevelPurchases(FName CharacterKey) const
     return Levels ? Levels->Purchases : 0;
 }
 
+int32 UTrialRunSubsystem::GetRunOverCap(FName CharacterKey, EWorldPillar Pillar) const
+{
+    const FRunLevels *Levels = RunLevels.Find(CharacterKey);
+    return Levels ? Levels->GetOver(Pillar) : 0;
+}
+
+bool UTrialRunSubsystem::AddRunOverCap(FName CharacterKey, EWorldPillar Pillar)
+{
+    if (CharacterKey.IsNone() || GetRunOverCap(CharacterKey, Pillar) >= OverCapRules::MAX_PER_PILLAR)
+    {
+        return false;
+    }
+    ++RunLevels.FindOrAdd(CharacterKey).OverFor(Pillar);
+    return true;
+}
+
 void UTrialRunSubsystem::AddRunLevelPurchase(FName CharacterKey)
 {
     if (!CharacterKey.IsNone())
@@ -579,8 +596,9 @@ FString UTrialRunSubsystem::GetRunLevelsString() const
     FString Out = FString::Printf(TEXT("[TrialRun] Run pillar levels (B-223b, per character): %d unspent in all"), GetTotalUnspentLevels());
     for (const TPair<FName, FRunLevels> &Pair : RunLevels)
     {
-        Out += FString::Printf(TEXT("\n  %s: Mind +%d, Body +%d, Spirit +%d; bought %d; %d to place"), *FPaths::GetBaseFilename(Pair.Key.ToString()),
-                               Pair.Value.Mind, Pair.Value.Body, Pair.Value.Spirit, Pair.Value.Purchases, GetUnspentLevels(Pair.Key));
+        Out += FString::Printf(TEXT("\n  %s: Mind +%d, Body +%d, Spirit +%d; over-cap %d/%d/%d; bought %d; %d to place"),
+                               *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value.Mind, Pair.Value.Body, Pair.Value.Spirit,
+                               Pair.Value.OverMind, Pair.Value.OverBody, Pair.Value.OverSpirit, Pair.Value.Purchases, GetUnspentLevels(Pair.Key));
     }
     for (const TPair<FName, int32> &Pair : UnspentLevels)
     {
