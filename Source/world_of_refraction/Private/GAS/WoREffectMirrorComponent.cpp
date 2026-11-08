@@ -62,7 +62,8 @@ namespace
 bool FWoRMirroredEffect::Matches(const FWoRMirroredEffect &Other) const
 {
 	return Identity.IsSameIdentity(Other.Identity) && Identity.EffectType == Other.Identity.EffectType &&
-		   Identity.Element == Other.Identity.Element && Identity.bFromGear == Other.Identity.bFromGear &&
+		   Identity.Element == Other.Identity.Element && Identity.DamageScope == Other.Identity.DamageScope && // B-385
+		   Identity.bFromGear == Other.Identity.bFromGear &&
 		   FMath::IsNearlyEqual(Magnitude, Other.Magnitude, MIRROR_MAGNITUDE_TOLERANCE);
 }
 
@@ -241,6 +242,7 @@ uint32 UWoREffectMirrorComponent::GetSyncFingerprint() const
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.SourceKey));
 		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.EffectType)));
 		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.Element)));
+		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.DamageScope))); // B-385: Matches compares it
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.GetStackedValue()));
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.RemainingTurns));
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.HolderTurns.TurnsLeft));

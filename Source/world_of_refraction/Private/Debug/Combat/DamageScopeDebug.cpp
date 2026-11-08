@@ -27,7 +27,8 @@ FString WoRDamageScopeDebug::GetScopesString(AActor *Actor)
 		return FString::Printf(TEXT("%s: no effect manager"), *GetNameSafe(Actor));
 	}
 	TArray<FString> Lines;
-	for (const FActiveSkillEffect &Effect : Effects->GetActiveEffects(Actor))
+	// B-385: the held effects (the enum store, or GAS at UseGAS 1), the same set the damage reads see.
+	for (const FActiveSkillEffect &Effect : Effects->GetHeldEffects(Actor))
 	{
 		if (IsScopedType(Effect.EffectType))
 		{
