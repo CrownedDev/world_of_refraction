@@ -282,7 +282,10 @@ void UFightTriggers::Fire(FWaitingTrigger &Entry)
 				Party.Add(Actor);
 			}
 		}
-		FBossFightState &State = BossStates.FindOrAdd(Boss);
+		// Review fix: one per-fight state per boss (Q-211), the phase component's when it has one (as BossTriggers::ApplyTo),
+		// so moment and state-change results net out and a skip or an added phase happens once.
+		UBossPhaseComponent *Phases = Boss->FindComponentByClass<UBossPhaseComponent>();
+		FBossFightState &State = Phases ? Phases->GetFightState() : BossStates.FindOrAdd(Boss);
 		bool bSteps = false;
 		if (!BossTriggers::FireMomentRule(Boss, Entry.BossRule, Party, State, bSteps))
 		{
