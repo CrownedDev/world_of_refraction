@@ -16,6 +16,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/Forms/CharacterFormData.h"
+#include "Save/CoopCheckpoint.h"
 #include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
 #include "WoRPlayerState.generated.h"
 
@@ -39,6 +40,8 @@ public:
 	 *  server's copy of a client's included). */
 	virtual void CopyProperties(APlayerState *PlayerState) override;
 	virtual void ClientInitialize(AController *Controller) override;
+	/** B-234b: the server sets a joining player's id after AddPlayerState; the join order (AWoRGameState) takes it here. */
+	virtual void OnSetUniqueId() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
 	UCharacterFormData *GetWornForm() const { return WornForm; }
@@ -72,9 +75,24 @@ public:
 	 *  server it goes straight to the run state; a client sends ServerRequestJoin. Console: `wor.Party.RequestJoin`. */
 	void RequestJoin(UCharacterData *Character);
 
+	/** B-232e: a client asks the host to recruit the character RecruitOwner plays (a found character in a run; the
+	 *  host's UPartyInteractionComponent::InviteForClient runs it, invites only). */
+	UFUNCTION(Server, Reliable)
+	void ServerRecruit(AActor *RecruitOwner);
 	/** B-235b: a map feature's message for this player alone (a Prism pickup), shown on their own screen. */
 	UFUNCTION(Client, Reliable)
 	void Client_ShowFeatureMessage(const FText &Message);
+
+	/** B-187d: this player's rest press reached the host (ServerInteractFeature), which rested the party; their own
+	 *  rest menu opens on their screen. B-187e: with what the host knows of the spot's mini-boss (Revive shows when
+	 *  bCanRevive, labelled RevivalNumber). */
+	UFUNCTION(Client, Reliable)
+	void Client_OpenRestMenu(bool bCanRevive, int32 RevivalNumber);
+
+	/** B-187e: a client pressed Revive in its rest menu: the host revives the mini-boss of the run's last rest spot, if it
+	 *  can (WoRRestSpot::CanReviveHere), for everyone. */
+	UFUNCTION(Server, Reliable)
+	void ServerReviveMiniBoss();
 
 	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
 	 *  player's pawn, if it stands in the feature's trigger. */
@@ -96,7 +114,27 @@ public:
 	/** B-235d debug (`wor.Memory.Sent`): this player's own characters and the memories sent to them. */
 	FString GetSharedMemoriesString() const;
 
+	/** B-234 (host): sends this remote player the host's compressed save as checkpoint CheckpointId, in chunks. */
+	void SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize);
+
+	/** B-234 debug: the last checkpoint copy this client received and kept (wor.Coop.PrintCheckpoint). */
+	FString GetCheckpointString() const;
+
+	/** B-234c review: the host is handing over at a rest spot. Sent on this PlayerState after the checkpoint's chunks
+	 *  (reliable calls keep their order on one actor only), so the copy is complete before the client leaves. */
+	UFUNCTION(Client, Reliable)
+	void Client_BeginPlannedHandOver();
+
 private:
+	/** B-234: one chunk of the host's save; the last one of a checkpoint writes the copy to WoRCheckpoint::SLOT_NAME. */
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveCheckpointChunk(int32 CheckpointId, int32 ChunkIndex, int32 ChunkCount, int32 UncompressedSize, const TArray<uint8> &Chunk);
+
+	FCoopCheckpointAssembler CheckpointAssembler;
+	int32 KeptCheckpointId = INDEX_NONE;
+	int32 KeptCheckpointBytes = 0;
+	FDateTime KeptCheckpointTime;
+
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
 	bool IsLocalPlayerWallet() const;
 

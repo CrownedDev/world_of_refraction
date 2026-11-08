@@ -273,6 +273,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Row")
 	FText GetRowMoveRefusedReason(AActor *Actor, bool bForward) const;
 
+	/** B-230b: the refusal for a step off the grid's edge (forward from the front row, back from the back row), empty
+	 *  otherwise. Shared with a client's menu, which has no orchestrator but reads the replicated row. */
+	static FText GetRowEdgeRefusal(ECombatRow Row, bool bForward);
+
 	/** D-096: free, once per turn: step one row, into any free slot of that row (B-342, D-134: an ally
 	 *  never blocks; only a full row refuses). Row bonuses apply from the new row at once (the grid is
 	 *  read per hit). */
@@ -375,6 +379,10 @@ public:
 	/** B-223: Enemy's own rank (its team's, B-224b) for its level drop; set by the battle mode at spawn. An enemy
 	 *  without one uses the fight's rank. */
 	void SetEnemyRank(const AActor *Enemy, EEncounterRank Rank) { EnemyRanks.Add(Enemy, Rank); }
+
+	/** B-187b: Enemy's tier steps (a revived mini-boss's team, Q-187b) for its level drop; set by the battle mode at
+	 *  spawn, as SetEnemyRank. 0 when unset. */
+	void SetEnemyTierSteps(const AActor *Enemy, int32 Steps) { EnemyTierSteps.Add(Enemy, FMath::Max(0, Steps)); }
 
 	/** DEBUG-ONLY: dump the entire pending pool into the player team's Mind via AddEarnedWorldStat,
 	 *  then clear the pool. NOT the real draft (that's the deferred 5-pick-3 UI on
@@ -544,6 +552,9 @@ private:
 
 	/** B-223: each spawned enemy's own rank (SetEnemyRank); two enemies of one asset can differ. */
 	TMap<TWeakObjectPtr<const AActor>, EEncounterRank> EnemyRanks;
+
+	/** B-187b: each spawned enemy's tier steps (SetEnemyTierSteps). */
+	TMap<TWeakObjectPtr<const AActor>, int32> EnemyTierSteps;
 
 	/** Death listener bound per-combatant in StartCombat (both teams), unbound at combat end —
 	 *  mirrors TurnManager's OnDied lifecycle. Enemy (OpposingParty) deaths add caliber WSP to the pool;

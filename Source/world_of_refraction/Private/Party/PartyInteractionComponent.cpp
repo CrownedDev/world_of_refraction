@@ -2,6 +2,8 @@
 
 #include "Party/PartyInteractionComponent.h"
 
+#include "GameFramework/PlayerController.h"
+#include "Player/WoRPlayerState.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Components/SphereComponent.h"
@@ -76,6 +78,18 @@ void UPartyInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReaso
 
 void UPartyInteractionComponent::Interact()
 {
+	// B-232e: a client's party is the host's copy; the host runs the invite.
+	const UWorld *World = GetWorld();
+	if (World && World->GetNetMode() == NM_Client)
+	{
+		const APlayerController *PC = World->GetFirstPlayerController();
+		if (AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
+		{
+			Player->ServerRecruit(GetOwner());
+			UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] %s: recruit request sent to the host"), *GetNameSafe(GetOwner()));
+		}
+		return;
+	}
 	UCharacterData *OwnerData = GetOwnerCharacterData();
 	UPartySessionSubsystem *PartySession = GetPartySession();
 	if (!OwnerData || !PartySession)
@@ -223,4 +237,32 @@ FString UPartyInteractionComponent::GetHintText() const
 	return FString::Printf(TEXT("Press E to %s %s"),
 						   bIsMember ? TEXT("dismiss") : TEXT("invite"),
 						   *OwnerData->Name);
+}
+
+bool UPartyInteractionComponent::IsWithinReach(const APawn *Pawn) const
+{
+	return Pawn && TriggerSphere && TriggerSphere->IsOverlappingActor(Pawn);
+}
+
+bool UPartyInteractionComponent::InviteForClient()
+{
+	UCharacterData *OwnerData = GetOwnerCharacterData();
+	UPartySessionSubsystem *PartySession = GetPartySession();
+	const UWorld *World = GetWorld();
+	const UTrialRunSubsystem *TrialRun = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	if (!OwnerData || !PartySession || PartySession->GetMemberSlotByData(OwnerData) != INDEX_NONE)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] A client's recruit of %s refused (already in the party, or no party)"), *GetNameSafe(GetOwner()));
+		return false;
+	}
+	// A friend recruits only in a run (a found character, D-026); the hub's party is the host's to build.
+	if (!TrialRun || !TrialRun->IsRunActive())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] A client's recruit of %s refused: not in a run"), *OwnerData->Name);
+		return false;
+	}
+	const TSoftClassPtr<ACombatCharacter> PawnClass(GetOwner()->GetClass()->GetPathName());
+	const bool bInvited = PartySession->InviteRunMember(PawnClass, OwnerData);
+	UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] %s: a client's recruit %s"), *OwnerData->Name, bInvited ? TEXT("accepted") : TEXT("rejected"));
+	return bInvited;
 }
