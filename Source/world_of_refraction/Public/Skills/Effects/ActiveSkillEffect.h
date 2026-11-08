@@ -330,8 +330,13 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		// Charges: SEPARATE governor from duration. 0 (default) = no charge system, untouched.
 		Effect.Charges = P.Charges;
 		// B-042j3: a reflect's element is its scope (the payload's own, authored one); the cast element never scopes it.
+		// B-382 (Q-164b): a DamageBuff / DamageDebuff is keyed the same way, by the payload's own element only
+		// (None = every hit), so a spell's cast element never narrows an authored damage buff.
+		const bool bKeysByPayloadOnly = SkillEffectClassification::IsReflect(Effect.EffectType) ||
+										Effect.EffectType == ESkillEffectType::DamageBuff ||
+										Effect.EffectType == ESkillEffectType::DamageDebuff;
 		Effect.Element = Effect.EffectType == ESkillEffectType::ApplyDOTOnHit ? KeyElement
-						 : SkillEffectClassification::IsReflect(Effect.EffectType) ? (bPayloadKeysElement ? P.Element : ESpellElement::None)
+						 : bKeysByPayloadOnly ? (bPayloadKeysElement ? P.Element : ESpellElement::None)
 						 : Element;
 
 		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
