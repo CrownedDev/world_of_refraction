@@ -29,31 +29,34 @@ struct FFiredReaction;
 
 namespace MemoryUnlock
 {
-	/** Into the run and the journal. False when Memory is null or already collected. B-235d: in co-op, when the host's
-	 *  run newly unlocks it, the host also shares it with every friend it qualifies for (QualifiesFor); a friend who
-	 *  qualifies later gets it when they claim the character (ShareRunMemoriesWith). */
+	/** Into the run and the journal. False when Memory is null or already collected. B-235d (Q-235d, Crown): the host
+	 *  found it (a source with no player attribution yet), so in co-op only a memory for every character (it lists no
+	 *  character) also goes to each friend. */
 	WORLD_OF_REFRACTION_API bool Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
 
-	/** B-235d (D-103, Q-235d): a memory goes to a player when it means something to one of their characters
-	 *  (UMemoryData::CharacterDepth above None), or to everyone when it lists no character. */
+	/** B-235d (Q-235d, Crown): into the run, into the host's journal when bHostReceives, and to each of Friends (once
+	 *  each, privately: AWoRPlayerState::Client_UnlockMemory). False when Memory is null or already in the run (or, for
+	 *  the host, already in its journal). */
+	WORLD_OF_REFRACTION_API bool UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source, bool bHostReceives,
+										   const TArray<AWoRPlayerState *> &Friends);
+
+	/** B-235d: a memory is for one of Characters (UMemoryData::CharacterDepth above None), or for every character
+	 *  when it lists no character. */
 	WORLD_OF_REFRACTION_API bool QualifiesFor(const UMemoryData *Memory, const TArray<UCharacterData *> &PlayerCharacters);
 
-	/** B-235d (host): sends Memory to each remote player it qualifies for (their own characters,
-	 *  AWoRPlayerState::GetOwnCharacters) and has not been sent yet; their own journal records it and only they are
-	 *  told (AWoRPlayerState::Client_UnlockMemory). Returns how many it went to. */
-	WORLD_OF_REFRACTION_API int32 ShareWithPlayers(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
+	/** B-235d (Q-235d, Crown, after Shangri-La Frontier's unique scenarios): a friend gets Memory when it lists no
+	 *  character, or when it is for one of the friend's own characters and the friend met its conditions themselves
+	 *  (bMetThemselves: read against their own characters). */
+	WORLD_OF_REFRACTION_API bool ShouldFriendReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &FriendCharacters,
+													 bool bMetThemselves);
 
-	/** B-235d (Q-235d confirmed): of Memories, those that qualify for Characters and are not in AlreadySent. */
-	WORLD_OF_REFRACTION_API TArray<UMemoryData *> PickToShare(const TArray<UMemoryData *> &Memories, const TArray<UCharacterData *> &Characters,
-															   const TSet<FName> &AlreadySent);
+	/** B-235d (Q-235d, Crown): the host gets Memory when it lists no character, when it is for one of the host's own
+	 *  characters and the host met its conditions, or when no friend gets it (the host's run found it; solo always). */
+	WORLD_OF_REFRACTION_API bool ShouldHostReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &HostCharacters,
+												   bool bHostMet, bool bAnyFriendReceives);
 
-	/** B-235d (host): a remote player newly claimed a character or member: the memories this run already unlocked that
-	 *  now qualify for them are sent (each once, with the host's journal source). Returns how many. */
-	WORLD_OF_REFRACTION_API int32 ShareRunMemoriesWith(UGameInstance *GameInstance, AWoRPlayerState &Player);
-
-	/** B-235d (host, Q-235d confirmed): every remote player's own characters, so unlock conditions read a friend's
-	 *  characters as well as the host's party (MemoryConditions::MakeEvent). Empty out of a listen server. */
-	WORLD_OF_REFRACTION_API TArray<UCharacterData *> GetRemotePlayersCharacters(const UGameInstance *GameInstance);
+	/** B-235d: the remote players on a listen server (empty solo or on a client). */
+	WORLD_OF_REFRACTION_API TArray<AWoRPlayerState *> GetRemotePlayers(const UGameInstance *GameInstance);
 
 	/** B-210 (Q-190 changed by Crown): Memory is in the journal, so no source grants it again. */
 	WORLD_OF_REFRACTION_API bool IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory);

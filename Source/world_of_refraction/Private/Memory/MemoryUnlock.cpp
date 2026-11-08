@@ -35,28 +35,54 @@ namespace
 
 bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source)
 {
+	// The host found it: friends get it only when it is for every character (they did not meet anything themselves).
+	// TODO(B-235d part 3): attribute a client's find (its map-feature press, its character's gear or reaction) to it.
+	TArray<AWoRPlayerState *> Friends;
+	for (AWoRPlayerState *Friend : GetRemotePlayers(GameInstance))
+	{
+		if (ShouldFriendReceive(Memory, Friend->GetOwnCharacters(), /*bMetThemselves=*/false))
+		{
+			Friends.Add(Friend);
+		}
+	}
+	return UnlockFor(GameInstance, Memory, Source, /*bHostReceives=*/true, Friends);
+}
+
+bool MemoryUnlock::UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source, bool bHostReceives,
+							 const TArray<AWoRPlayerState *> &Friends)
+{
 	UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
 	if (!Memory || !TrialRun || !Journal)
 	{
 		return false;
 	}
-	if (Journal->HasMemory(Memory))
+	// TODO(B-235d): a memory the host collected in an earlier run is not shared with a friend who qualifies (its
+	// sources check IsCollected first and are spent); share from the host's journal once that is wanted.
+	if (bHostReceives ? Journal->HasMemory(Memory) : TrialRun->GetRunMemories().Contains(Memory))
 	{
-		// TODO(B-235d): a memory the host collected in an earlier run is not shared with a friend who qualifies (its
-		// sources check IsCollected first and are spent); share from the host's journal once that is wanted.
 		return false;
 	}
 	TrialRun->CollectMemory(Memory);
-	if (!Journal->RecordMemory(Memory, Source))
+	if (bHostReceives && !Journal->RecordMemory(Memory, Source))
 	{
 		return false;
 	}
-	// B-235d: shared when the host's run newly unlocks it; a friend who qualifies later gets it on their claim.
-	ShareWithPlayers(GameInstance, Memory, Source);
+	int32 Shared = 0;
+	for (AWoRPlayerState *Friend : Friends)
+	{
+		if (Friend && !Friend->WasMemorySent(Memory->GetMemoryId()))
+		{
+			Friend->MarkMemorySent(Memory->GetMemoryId());
+			Friend->Client_UnlockMemory(Memory, Source);
+			++Shared;
+		}
+	}
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s: host %s, %d friend(s) (Q-235d)"), *Memory->GetMemoryId().ToString(),
+		   bHostReceives ? TEXT("records it") : TEXT("does not (a friend found it)"), Shared);
 	// Q-209c: rewards come once, with the unlock. TODO: grant each kind once it can be: the item
 	// into the party's inventory (out-of-fight gear, B-085), the skill once rewards teach skills,
-	// titles and curses once they are systems.
+	// titles and curses once they are systems; in co-op, to whoever received the memory.
 	for (const FMemoryReward &Reward : Memory->Rewards)
 	{
 		UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reward: %s (logged, not granted yet)"), *Memory->GetMemoryId().ToString(),
@@ -81,116 +107,44 @@ bool MemoryUnlock::QualifiesFor(const UMemoryData *Memory, const TArray<UCharact
 	});
 }
 
-namespace
-{
-	/** The remote players' states on a listen server (each with a player controller that is not this machine's). */
-	TArray<AWoRPlayerState *> GetRemotePlayers(const UGameInstance *GameInstance)
-	{
-		TArray<AWoRPlayerState *> Remote;
-		const UWorld *World = GameInstance ? GameInstance->GetWorld() : nullptr;
-		const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
-		if (!GameState || World->GetNetMode() != NM_ListenServer)
-		{
-			return Remote; // solo: the host's journal is the only one
-		}
-		for (APlayerState *Player : GameState->PlayerArray)
-		{
-			AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
-			const APlayerController *PC = WoRPlayer ? Cast<APlayerController>(WoRPlayer->GetOwner()) : nullptr;
-			if (PC && !PC->IsLocalController())
-			{
-				Remote.Add(WoRPlayer);
-			}
-		}
-		return Remote;
-	}
-
-	bool IsRemotePlayer(const UGameInstance *GameInstance, const AWoRPlayerState &Player)
-	{
-		return GetRemotePlayers(GameInstance).Contains(&Player);
-	}
-}
-
-int32 MemoryUnlock::ShareWithPlayers(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source)
+bool MemoryUnlock::ShouldFriendReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &FriendCharacters, bool bMetThemselves)
 {
 	if (!Memory)
 	{
-		return 0;
+		return false;
 	}
-	int32 Shared = 0;
-	for (AWoRPlayerState *WoRPlayer : GetRemotePlayers(GameInstance))
-	{
-		if (!WoRPlayer->WasMemorySent(Memory->GetMemoryId()) && QualifiesFor(Memory, WoRPlayer->GetOwnCharacters()))
-		{
-			WoRPlayer->MarkMemorySent(Memory->GetMemoryId());
-			WoRPlayer->Client_UnlockMemory(Memory, Source);
-			++Shared;
-		}
-	}
-	if (Shared > 0)
-	{
-		UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s shared with %d friend(s)"), *Memory->GetMemoryId().ToString(), Shared);
-	}
-	return Shared;
+	return Memory->CharacterDepth.IsEmpty() || (bMetThemselves && QualifiesFor(Memory, FriendCharacters));
 }
 
-TArray<UMemoryData *> MemoryUnlock::PickToShare(const TArray<UMemoryData *> &Memories, const TArray<UCharacterData *> &Characters,
-												 const TSet<FName> &AlreadySent)
+bool MemoryUnlock::ShouldHostReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &HostCharacters, bool bHostMet,
+									 bool bAnyFriendReceives)
 {
-	TArray<UMemoryData *> Picked;
-	for (UMemoryData *Memory : Memories)
+	if (!Memory)
 	{
-		if (Memory && !AlreadySent.Contains(Memory->GetMemoryId()) && QualifiesFor(Memory, Characters))
-		{
-			Picked.AddUnique(Memory);
-		}
+		return false;
 	}
-	return Picked;
+	return Memory->CharacterDepth.IsEmpty() || (bHostMet && QualifiesFor(Memory, HostCharacters)) || !bAnyFriendReceives;
 }
 
-int32 MemoryUnlock::ShareRunMemoriesWith(UGameInstance *GameInstance, AWoRPlayerState &Player)
+TArray<AWoRPlayerState *> MemoryUnlock::GetRemotePlayers(const UGameInstance *GameInstance)
 {
-	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	const UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
-	if (!TrialRun || !IsRemotePlayer(GameInstance, Player))
+	TArray<AWoRPlayerState *> Remote;
+	const UWorld *World = GameInstance ? GameInstance->GetWorld() : nullptr;
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	if (!GameState || World->GetNetMode() != NM_ListenServer)
 	{
-		return 0;
+		return Remote; // solo: the host's journal is the only one
 	}
-	TSet<FName> AlreadySent;
-	const TArray<UMemoryData *> RunMemories(TrialRun->GetRunMemories());
-	for (const UMemoryData *Memory : RunMemories)
+	for (APlayerState *Player : GameState->PlayerArray)
 	{
-		if (Memory && Player.WasMemorySent(Memory->GetMemoryId()))
+		AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+		const APlayerController *PC = WoRPlayer ? Cast<APlayerController>(WoRPlayer->GetOwner()) : nullptr;
+		if (PC && !PC->IsLocalController())
 		{
-			AlreadySent.Add(Memory->GetMemoryId());
+			Remote.Add(WoRPlayer);
 		}
 	}
-	const TArray<UMemoryData *> ToShare = PickToShare(RunMemories, Player.GetOwnCharacters(), AlreadySent);
-	for (UMemoryData *Memory : ToShare)
-	{
-		// The host recorded the source when its run unlocked it; a fragment when the journal no longer says.
-		const EMemorySource Source = Journal ? Journal->GetSource(Memory).Get(EMemorySource::Fragment) : EMemorySource::Fragment;
-		Player.MarkMemorySent(Memory->GetMemoryId());
-		Player.Client_UnlockMemory(Memory, Source);
-	}
-	if (!ToShare.IsEmpty())
-	{
-		UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %d run memory(ies) shared with %s, who now qualifies"), ToShare.Num(), *Player.GetPlayerName());
-	}
-	return ToShare.Num();
-}
-
-TArray<UCharacterData *> MemoryUnlock::GetRemotePlayersCharacters(const UGameInstance *GameInstance)
-{
-	TArray<UCharacterData *> Characters;
-	for (const AWoRPlayerState *WoRPlayer : GetRemotePlayers(GameInstance))
-	{
-		for (UCharacterData *Character : WoRPlayer->GetOwnCharacters())
-		{
-			Characters.AddUnique(Character);
-		}
-	}
-	return Characters;
+	return Remote;
 }
 
 bool MemoryUnlock::IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory)

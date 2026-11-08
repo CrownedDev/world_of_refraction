@@ -20,7 +20,6 @@
 #include "Player/RunStateComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "Memory/MemoryData.h"
-#include "Memory/MemoryUnlock.h"
 #include "Trial/TrialMapFeature.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
@@ -193,7 +192,6 @@ void AWoRPlayerState::ClaimMember(const FGuid &MemberId)
 	}
 	ClaimedMembers.Add(MemberId);
 	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims member %s (B-360b)"), *GetPlayerName(), *MemberId.ToString(EGuidFormats::Short));
-	MemoryUnlock::ShareRunMemoriesWith(GetGameInstance(), *this); // B-235d: memories the run already has, now theirs too
 }
 
 TArray<UCharacterData *> AWoRPlayerState::GetOwnCharacters() const
@@ -268,7 +266,6 @@ void AWoRPlayerState::ClaimCharacter(UCharacterData *Character)
 	}
 	ClaimedCharacters.Add(Character);
 	UE_LOG(LogWoR, Log, TEXT("[PlayerState] %s claims %s (B-232)"), *GetPlayerName(), *GetNameSafe(Character));
-	MemoryUnlock::ShareRunMemoriesWith(GetGameInstance(), *this); // B-235d
 }
 
 void AWoRPlayerState::ReleaseCharacter(UCharacterData *Character)
