@@ -4086,3 +4086,11 @@ Moved here once applied. Newest first.
 **Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
 **Notes for Claude:** built in B-073 (`Trial/RunRewards.h`, `UTrialRunSubsystem::RecordFightReward` / `ExitTrial`). Every player is paid in full in co-op (D-103), which covers B-235d's payout part.
 
+### Q-187 — Rest spot: how much does leaving early pay, and what does resting do?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187, cloud) · **Blocks:** —
+**Question:** RunStructure §6 says leaving at a rest spot pays a "reduced (*tune*)" payout. How much, and does a rest happen on every use?
+**Options / as built (A):** **A** leaving pays **half** the tally (`RunRewards::LEAVE_EARLY_SHARE` 0.5, no boss bonus), after a confirm; every use of a rest spot rests (full HP / EP, the fallen revived, the last rest spot noted), with no limit. **B** a share by progress. **C** one rest per spot per run.
+**Recommendation:** A. Darkest Dungeon's retreat keeps what you carry but forfeits the completion reward, and Hades' rest rooms restore without a limit; players read both as fair. Half is a round first guess, `TODO: tune`.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
+**Notes for Claude:** built in B-187 part 1 (`Trial/TrialRestSpot`, `UTrialRunSubsystem::LeaveRunEarly`, `URestSpotWidget`).
+
