@@ -92,11 +92,16 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	else if (AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
 	{
 		// B-187d: a client's press (ServerInteractFeature) opens its own menu; B-187e: with the host's revive answer.
-		const UTrialRunSubsystem *Run = GetTrialRun();
-		const int32 RevivalNumber = Run ? Run->GetEncounterRevivals(Run->GetLastRestSpot()) + 1 : 0;
-		Player->Client_OpenRestMenu(WoRRestSpot::CanReviveHere(GetWorld()), RevivalNumber);
+		Player->Client_OpenRestMenu(WoRRestSpot::CanReviveHere(GetWorld()), WoRRestSpot::GetNextRevivalNumber(GetWorld()));
 	}
 	RefreshHint();
+}
+
+int32 WoRRestSpot::GetNextRevivalNumber(const UWorld *World)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	return Run ? Run->GetEncounterRevivals(Run->GetLastRestSpot()) + 1 : 0;
 }
 
 ATrialRestSpot *ATrialRestSpot::SpawnForMiniBoss(UWorld *World, const FTransform &Where, FName EncounterId)
