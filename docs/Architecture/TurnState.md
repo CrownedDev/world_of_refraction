@@ -18,7 +18,7 @@ The fight's turn state, kept on the GameState so every player in a co-op game re
 - Debug: `GetDebugString`, `wor.Turn.PrintState`; `wor.GameState.Print` includes it.
 
 ## Known Limitations / TODOs
-- Only the server builds the combat HUD (`CombatOrchestrator` `OnCombatStartedUI`). The client HUD is B-228b.
+- B-228b: a client builds its combat HUD when the replicated state first shows combat on (`UpdateClientCombatHUD` → `ACombatOrchestrator::BuildClientCombatHUD`), team 0 as its side; status bars, effects and the grid on a client wait on B-230. The six-field OnRep is still not folded into one snapshot (a client may redraw several times per turn).
 - `TURN_STATE_PREVIEW_COUNT` is 8. A strip with `PreviewCount` above 8 shows empty extra slots.
 - At combat end the host's strip empties, because the state clears. The old path never redrew at the end.
 
@@ -26,3 +26,4 @@ The fight's turn state, kept on the GameState so every player in a co-op game re
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-03 | B-228: created. Unbuilt (cloud). | feature/B-228-turn-state-gamestate |
+| 2026-11-07 | B-228b: `ClientCombatHUD::Next` (build once on, tear down once off, never on the server); `UTurnStateComponent::OnRep_TurnState` → `UpdateClientCombatHUD`; `ACombatOrchestrator::BuildClientCombatHUD`, `TeardownCombatHUD` public; spec in `WoR.TurnState`. Unbuilt (cloud pre-write). | feature/B-228b-client-combat-hud-cloud |
