@@ -243,6 +243,14 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	int32 TallySkillEssence = 0;
 
+	/** B-187c (save v24, on B-073's v23: renumber if dev moved): the beaten mini-bosses (each a rest spot) and the
+	 *  revivals per mini-boss encounter (Q-187b). */
+	UPROPERTY()
+	TArray<FName> BeatenMiniBosses;
+
+	UPROPERTY()
+	TMap<FName, int32> EncounterRevivals;
+
 	/** B-314b (save v15): the run layer was open; its marks follow, so a resumed run keeps its found gear run-only and
 	 *  puts home gear back as it left home. */
 	UPROPERTY()
