@@ -91,7 +91,10 @@ APrismDropPickup *APrismDropPickup::PlaceForRun(UWorld *World, UTrialRunSubsyste
 	{
 		It->Destroy();
 	}
-	if (Run.GetTotalDroppedPrisms() <= 0) // B-235: anyone's drop
+	// B-235: anyone's drop. Not only the present players' (B-235b's removal rule): at level load the clients may
+	// still be travelling. A drop of a player who left can place an untakeable pickup; forgetting it when they
+	// leave is B-235c.
+	if (Run.GetTotalDroppedPrisms() <= 0)
 	{
 		return nullptr;
 	}

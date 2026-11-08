@@ -139,6 +139,8 @@ namespace WoRDefeat
 		}
 		for (const APlayerState *Player : GameState->PlayerArray)
 		{
+			// A PlayerState with no controller (mid-travel) counts as absent; the pickup is only removed on a pickup,
+			// when every player is in the level.
 			const APlayerController *PC = Player ? Cast<APlayerController>(Player->GetOwner()) : nullptr;
 			if (PC && !PC->IsLocalController())
 			{
