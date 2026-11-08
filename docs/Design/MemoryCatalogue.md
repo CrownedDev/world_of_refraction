@@ -85,7 +85,11 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 
 ### 3.8 Curse
 - **What:** a reward that is also a penalty, and a key: it weakens something and opens other secrets (SLF's curses, D-100).
-- **Lasts:** until removed by its own quest or memory. It stays across runs.
+- **Given by** a memory or a hidden quest (Crown, 2026-11-08).
+- **A key:** a curse can be a hidden-quest condition, e.g. "parry while this curse is on you" (Crown, 2026-11-08).
+- **Clearable** (Crown, 2026-11-08): by a memory or quest that removes it, or by choosing to clear it (*default:* a hub service, Crown can change where). While cleared, a quest that needs it can't progress.
+- **Regainable** (Crown, 2026-11-08): meeting its giving memory's or quest's conditions again gives it back, so its quests carry on (never missed for good, D-100).
+- **Lasts:** across runs, until cleared. Any number can be held; each is the holder's own (Q-235d); its penalty weakens the holder's own characters, flat, summed (Q-378).
 - **Example:** *(Crown)*
 
 ### 3.9 Counter milestone
@@ -104,6 +108,18 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 - **Rules:** as every kind (§1). Bound gear (3.4) is one case: its quest may need its owner wearing it.
 - **Built:** after the hidden-quest job.
 - **Example:** *(Crown)*
+
+### 3.12 Main quest
+- **What:** the main story's quests, visible and tracked in the journal: what to do next is shown (unlike hidden content). They follow the story phases (3.10).
+- **Rules:** solo-reachable, never rare, never co-op-only. Given by the story (V, a story-phase memory).
+- **Example:** *(Crown)*
+
+### 3.13 Side quest
+- **What:** optional visible quests, given by V, a character conversation, an NPC or a memory; tracked in the journal with their goal shown. They can carry rewards (§4) and chain into memories or hidden quests.
+- **Co-op:** each player's own (Q-235d); shared goals (what was beaten, where) count for everyone present.
+- **Example:** *(Crown)*
+
+Hidden content (3.1-3.9, 3.11) gives no hints; main and side quests are the visible layer.
 
 ## 4. What an unlock can give
 
@@ -125,7 +141,7 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 | Field | Fill in |
 |---|---|
 | Id / title | |
-| Kind | 3.1 to 3.11 |
+| Kind | 3.1 to 3.13 |
 | Scope and depth per character | §2 |
 | Condition sets (any one opens it; all conditions in a set must hold) | |
 | Earlier memories needed | |
