@@ -812,6 +812,12 @@ void UTrialRunSubsystem::LeaveRunEarly()
     {
         return;
     }
+    if (HubLevel.IsNull())
+    {
+        // Desktop review: the run can't end without a hub, so its payout isn't cut either.
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Can't leave the run: no HubLevel (DefaultGame.ini)"));
+        return;
+    }
     bLeavingEarly = true;
     UE_LOG(LogWoR, Log, TEXT("[TrialRun] Leaving the run at a rest spot: the end pays %s"), *RunRewards::GetPayoutString(GetRunEndPayout()));
     ExitTrialNextTick();
