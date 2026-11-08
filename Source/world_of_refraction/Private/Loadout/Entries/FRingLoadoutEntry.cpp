@@ -74,13 +74,15 @@ TArray<USpellData *> FRingLoadoutEntry::GetSpellSlots(bool bAsIfIntact) const
         return Presets;
     }
     // A broken crystal gives no picks; the ring's own presets stay (as in the old merge).
-    const bool bPicksPlay = bAsIfIntact || RingEntry.AttachedItem.CanProvideSpells();
+    const bool bPicksPlay = RingEntry.AttachedItem.IsSpellSource() && (bAsIfIntact || RingEntry.AttachedItem.CanProvideSpells());
     return SkillSlotList::Resolve(Presets, bPicksPlay ? RingEntry.SpellPicks : TArray<USpellData *>(), GetSpellSlotCap());
 }
 
 bool FRingLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
 {
-    if ((RingEntry.Ring && RingEntry.Ring->bSpellsLocked) || Slot >= GetSpellSlotCap() || !SkillSlotList::Replace(RingEntry.SpellPicks, Slot, Spell))
+    // Review: picks need a spell-giving crystal or evolution in the element socket (a broken one keeps its list).
+    if ((RingEntry.Ring && RingEntry.Ring->bSpellsLocked) || !RingEntry.AttachedItem.IsSpellSource() || Slot >= GetSpellSlotCap() ||
+        !SkillSlotList::Replace(RingEntry.SpellPicks, Slot, Spell))
     {
         return false;
     }

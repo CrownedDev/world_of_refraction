@@ -3492,7 +3492,8 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
     {
         // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
         // same crystal, so they grey out with it too.
-        if (!Weapon || !(Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells)))
+        // B-351d review: and the crystal's one-list picks.
+        if (!Weapon || !(Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells) || Lists(Weapon->WeaponEntry.SpellPicks)))
         {
             continue;
         }
@@ -3538,7 +3539,8 @@ bool ULoadoutComponent::IsSpellFromBrokenRing(const USpellData *Spell) const
         }
     }
     // Raw lists, not the capped GetAllSpells(true): the player's capabilities list them all, and each must be greyed.
-    return Lists(Ring->RingEntry.AssignedSpells) || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
+    return Lists(Ring->RingEntry.AssignedSpells) || Lists(Ring->RingEntry.SpellPicks) // B-351d review: a pick greys out too
+           || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
 }
 
 FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holder)

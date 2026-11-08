@@ -7,6 +7,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/FCrystalAttachment.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/Entries/FRingLoadoutEntry.h"
@@ -20,6 +21,8 @@ namespace
 	constexpr int32 SPELL_SLOT_TEST_FIRST = 0;
 	constexpr int32 SPELL_SLOT_TEST_SECOND = 1;
 	constexpr int32 SPELL_SLOT_TEST_PAST_CAP = 5;
+	/** Review: an intact gem (durability 0 reads as broken, which gives no spells). */
+	constexpr int32 SPELL_SLOT_TEST_DURABILITY = 5;
 }
 
 BEGIN_DEFINE_SPEC(FSpellSlotListSpec, "WoR.Loadout.SpellSlotList", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -33,7 +36,7 @@ BEGIN_DEFINE_SPEC(FSpellSlotListSpec, "WoR.Loadout.SpellSlotList", EAutomationTe
 	{
 		FRuntimeAttachedItem Socket;
 		Socket.Kind = EAttachedItemKind::Crystal;
-		Socket.Crystal.Id = SPELL_SLOT_TEST_GEM;
+		Socket.Crystal = FCrystalAttachment(SPELL_SLOT_TEST_GEM, SPELL_SLOT_TEST_DURABILITY);
 		return Socket;
 	}
 END_DEFINE_SPEC(FSpellSlotListSpec)
