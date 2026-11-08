@@ -56,6 +56,8 @@ void AWoRGameState::UpdateHostOrder(const APlayerState *PlayerState, bool bJoine
 	{
 		return;
 	}
+	// TODO: B-234c (review): a new level's GameState rebuilds the order as the players arrive; after a seamless travel
+	// that is usually the old order, but two joiners could swap. Carry the previous level's order over if PIE shows it.
 	const FString Id = PlayerState->GetUniqueId().ToString();
 	if (bJoined)
 	{

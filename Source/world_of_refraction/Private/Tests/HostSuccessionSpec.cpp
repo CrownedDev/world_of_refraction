@@ -19,6 +19,8 @@ namespace
 	const FString SUCCESSION_TEST_SECOND(TEXT("second-id"));
 	const FString SUCCESSION_TEST_THIRD(TEXT("third-id"));
 	constexpr int32 SUCCESSION_TEST_USER = 0;
+	/** Review: the spec's own slot, never the real checkpoint copy (WoRCheckpoint::SLOT_NAME) a player keeps. */
+	const FString SUCCESSION_TEST_SLOT(TEXT("WoRTestHandOverCopy"));
 }
 
 BEGIN_DEFINE_SPEC(FHostSuccessionSpec, "WoR.Coop.HostSuccession", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -31,13 +33,13 @@ void FHostSuccessionSpec::Define()
 	{
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("test world created"), TestWorld->Create());
-		UGameplayStatics::DeleteGameInSlot(WoRCheckpoint::SLOT_NAME, SUCCESSION_TEST_USER);
+		UGameplayStatics::DeleteGameInSlot(SUCCESSION_TEST_SLOT, SUCCESSION_TEST_USER);
 	});
 
 	AfterEach([this]()
 	{
 		TestWorld.Reset();
-		UGameplayStatics::DeleteGameInSlot(WoRCheckpoint::SLOT_NAME, SUCCESSION_TEST_USER);
+		UGameplayStatics::DeleteGameInSlot(SUCCESSION_TEST_SLOT, SUCCESSION_TEST_USER);
 	});
 
 	It("picks the next player in join order after the old host", [this]()
@@ -81,17 +83,17 @@ void FHostSuccessionSpec::Define()
 		{
 			return;
 		}
-		TestFalse(TEXT("no copy kept"), Save->AdoptCheckpoint());
+		TestFalse(TEXT("no copy kept"), Save->AdoptCheckpointFrom(SUCCESSION_TEST_SLOT));
 		UWoRSaveGame *Copy = Cast<UWoRSaveGame>(UGameplayStatics::CreateSaveGameObject(UWoRSaveGame::StaticClass()));
 		if (!TestNotNull(TEXT("copy"), Copy))
 		{
 			return;
 		}
-		TestTrue(TEXT("a copy without a run written"), UGameplayStatics::SaveGameToSlot(Copy, WoRCheckpoint::SLOT_NAME, SUCCESSION_TEST_USER));
-		TestFalse(TEXT("a copy without a run: refused"), Save->AdoptCheckpoint());
+		TestTrue(TEXT("a copy without a run written"), UGameplayStatics::SaveGameToSlot(Copy, SUCCESSION_TEST_SLOT, SUCCESSION_TEST_USER));
+		TestFalse(TEXT("a copy without a run: refused"), Save->AdoptCheckpointFrom(SUCCESSION_TEST_SLOT));
 		Copy->Data.Run.bHasRun = true;
-		TestTrue(TEXT("a copy with a run written"), UGameplayStatics::SaveGameToSlot(Copy, WoRCheckpoint::SLOT_NAME, SUCCESSION_TEST_USER));
-		TestTrue(TEXT("adopted"), Save->AdoptCheckpoint());
+		TestTrue(TEXT("a copy with a run written"), UGameplayStatics::SaveGameToSlot(Copy, SUCCESSION_TEST_SLOT, SUCCESSION_TEST_USER));
+		TestTrue(TEXT("adopted"), Save->AdoptCheckpointFrom(SUCCESSION_TEST_SLOT));
 		TestTrue(TEXT("playing the host's copy"), Save->IsPlayingHostCopy());
 		TestTrue(TEXT("its run waits to resume"), Save->GetData().Run.bHasRun);
 	});
