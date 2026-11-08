@@ -308,6 +308,14 @@ void UCharacterDataComponent::SeedWorldStats()
     const int32 BaseBody   = CharacterData ? CharacterData->WorldBodyLevel   : 0;
     const int32 BaseSpirit = CharacterData ? CharacterData->WorldSpiritLevel : 0;
 
+    // B-348b: a rostered member's head-start lives on its party record (saved); the component keeps a copy.
+    if (const FPartyMember *Member = FindCarriedPartyMember())
+    {
+        HeadStartMind = Member->HeadStartMind;
+        HeadStartBody = Member->HeadStartBody;
+        HeadStartSpirit = Member->HeadStartSpirit;
+    }
+
     // B-223: plus what this party member earned or bought this run (kept by the run across level travel).
     FName RunKey;
     const UTrialRunSubsystem *Run = FindRunLevelStore(RunKey);
@@ -366,6 +374,16 @@ bool UCharacterDataComponent::SetHeadStartAllocation(int32 M, int32 B, int32 S)
     HeadStartMind = M;
     HeadStartBody = B;
     HeadStartSpirit = S;
+    // B-348b: a rostered member keeps it on its party record, which the save writes.
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+    {
+        const int32 Slot = PartySession->GetMemberSlotOf(this);
+        if (Slot != INDEX_NONE)
+        {
+            PartySession->SetMemberHeadStart(Slot, M, B, S);
+        }
+    }
     SeedWorldStats(); // new floor → re-seed live (NOTE: wipes earned this run — see header flag)
     return true;
 }
