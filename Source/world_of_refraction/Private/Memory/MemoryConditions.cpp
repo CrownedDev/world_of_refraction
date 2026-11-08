@@ -2,6 +2,8 @@
 
 #include "Memory/MemoryConditions.h"
 
+#include "Memory/CurseSubsystem.h"
+
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -489,6 +491,11 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 	{
 		UE_LOG(LogWoR, Log, TEXT("[MemoryConditions] %s: %d memory(ies) unlocked"),
 			   *UEnum::GetDisplayValueAsText(Event.Source).ToString(), Unlocked);
+	}
+	// Q-378 (Crown): a memory this player already has gives back a curse they cleared when it is met again.
+	if (UCurseSubsystem *Curses = GameInstance->GetSubsystem<UCurseSubsystem>())
+	{
+		Curses->CheckRegain(Event, Candidates);
 	}
 	// B-377: the same event moves this player's hidden quests on (after its memories, which can start one).
 	if (UHiddenQuestSubsystem *Quests = GameInstance->GetSubsystem<UHiddenQuestSubsystem>())
