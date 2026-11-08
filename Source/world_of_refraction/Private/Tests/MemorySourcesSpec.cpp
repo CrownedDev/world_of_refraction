@@ -12,6 +12,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemorySpot.h"
@@ -238,7 +239,7 @@ void FMemorySourcesSpec::Define()
 		TestFalse(TEXT("Spent for the run"), Spot->Reach());
 	});
 
-	It("goes to a friend when it means something to one of their characters, or lists no one (B-235d, Q-235d)", [this]()
+	It("is for a character it lists above None, or for everyone when it lists no one (B-235d)", [this]()
 	{
 		UMemoryData *Shared = NewObject<UMemoryData>(GetTransientPackage());
 		UMemoryData *Personal = NewObject<UMemoryData>(GetTransientPackage());
@@ -251,32 +252,42 @@ void FMemorySourcesSpec::Define()
 		TestFalse(TEXT("listed as None: not theirs"), MemoryUnlock::QualifiesFor(Personal, {Theirs}));
 		TestFalse(TEXT("no characters"), MemoryUnlock::QualifiesFor(Personal, {}));
 		TestFalse(TEXT("no memory"), MemoryUnlock::QualifiesFor(nullptr, {Mine}));
-		TestEqual(TEXT("standalone: shared with nobody"), MemoryUnlock::ShareWithPlayers(TestWorld->GetWorld()->GetGameInstance(), Shared, EMemorySource::Boss), 0);
+		TestEqual(TEXT("standalone: no friends"), MemoryUnlock::GetRemotePlayers(TestWorld->GetWorld()->GetGameInstance()).Num(), 0);
 	});
 
-	It("shares the run's memories with a friend who newly qualifies, each once (B-235d, Q-235d confirmed)", [this]()
+	It("goes to the player whose character found it, a same-character player who met it too, or everyone (Q-235d, Crown)", [this]()
 	{
-		UMemoryData *Shared = NewObject<UMemoryData>(GetTransientPackage());
-		UMemoryData *Personal = NewObject<UMemoryData>(GetTransientPackage());
-		UMemoryData *HostsOwn = NewObject<UMemoryData>(GetTransientPackage());
-		UCharacterData *Friends = NewObject<UCharacterData>(GetTransientPackage());
-		UCharacterData *Hosts = NewObject<UCharacterData>(GetTransientPackage());
-		Personal->CharacterDepth.Add(Friends, EMemoryDepth::Deep);
-		HostsOwn->CharacterDepth.Add(Hosts, EMemoryDepth::Deep);
-		const TArray<UMemoryData *> RunMemories = {Shared, Personal, HostsOwn, nullptr};
+		UMemoryData *ForEveryone = NewObject<UMemoryData>(GetTransientPackage());
+		UMemoryData *ForX = NewObject<UMemoryData>(GetTransientPackage());
+		UCharacterData *X = NewObject<UCharacterData>(GetTransientPackage());
+		UCharacterData *Y = NewObject<UCharacterData>(GetTransientPackage());
+		ForX->CharacterDepth.Add(X, EMemoryDepth::Deep);
 
-		const TArray<UMemoryData *> FirstClaim = MemoryUnlock::PickToShare(RunMemories, {Friends}, {});
-		TestEqual(TEXT("everyone's and the friend's own"), FirstClaim.Num(), 2);
-		TestTrue(TEXT("the friend's character's memory"), FirstClaim.Contains(Personal));
-		TestFalse(TEXT("not the host's character's"), FirstClaim.Contains(HostsOwn));
+		// 3: a memory for every character goes to everyone, met or not.
+		TestTrue(TEXT("everyone's: a friend"), MemoryUnlock::ShouldFriendReceive(ForEveryone, {Y}, false));
+		TestTrue(TEXT("everyone's: the host"), MemoryUnlock::ShouldHostReceive(ForEveryone, {Y}, false, true));
+		// 1-2: a friend playing X who met it themselves; not one playing Y, nor one who did not meet it.
+		TestTrue(TEXT("plays X and met it"), MemoryUnlock::ShouldFriendReceive(ForX, {X}, true));
+		TestFalse(TEXT("plays X, did not meet it"), MemoryUnlock::ShouldFriendReceive(ForX, {X}, false));
+		TestFalse(TEXT("met it, plays Y"), MemoryUnlock::ShouldFriendReceive(ForX, {Y}, true));
+		// The host: the same, and keeps it when no friend found it (the host's run did; solo always).
+		TestFalse(TEXT("a friend playing X found it: not the host playing Y"), MemoryUnlock::ShouldHostReceive(ForX, {Y}, true, true));
+		TestTrue(TEXT("host plays X and met it"), MemoryUnlock::ShouldHostReceive(ForX, {X}, true, true));
+		TestTrue(TEXT("no friend got it: the host's find"), MemoryUnlock::ShouldHostReceive(ForX, {Y}, false, false));
+		TestFalse(TEXT("no memory"), MemoryUnlock::ShouldFriendReceive(nullptr, {X}, true));
 
-		const TSet<FName> Sent = {Shared->GetMemoryId(), Personal->GetMemoryId()};
-		TestEqual(TEXT("sent once: nothing again"), MemoryUnlock::PickToShare(RunMemories, {Friends}, Sent).Num(), 0);
-		TestTrue(TEXT("claiming the host's character later: only that one"),
-				 MemoryUnlock::PickToShare(RunMemories, {Friends, Hosts}, Sent) == TArray<UMemoryData *>{HostsOwn});
+		// Each player's part of an event: their own characters' members.
+		FMemoryEvent Event;
+		Event.Party.Add({X, {}});
+		Event.Party.Add({Y, {}});
+		const FMemoryEvent Kept = MemoryConditions::FilterParty(Event, {X}, true);
+		TestTrue(TEXT("kept to X"), Kept.Party.Num() == 1 && Kept.Party[0].Character == X);
+		const FMemoryEvent Dropped = MemoryConditions::FilterParty(Event, {X}, false);
+		TestTrue(TEXT("X left out"), Dropped.Party.Num() == 1 && Dropped.Party[0].Character == Y);
 
-		UGameInstance *GameInstance = TestWorld->GetWorld()->GetGameInstance();
-		TestEqual(TEXT("standalone: no friends' characters"), MemoryUnlock::GetRemotePlayersCharacters(GameInstance).Num(), 0);
+		const FMemoryReceivers Solo = MemoryConditions::PickReceivers(TestWorld->GetWorld()->GetGameInstance(), *ForX, Event, nullptr);
+		TestTrue(TEXT("standalone: the host"), Solo.bHost);
+		TestEqual(TEXT("standalone: no friends"), Solo.Friends.Num(), 0);
 	});
 }
 
