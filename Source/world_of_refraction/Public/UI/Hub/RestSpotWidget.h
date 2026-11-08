@@ -44,6 +44,10 @@ private:
 	UFUNCTION()
 	void HandleCloseClicked();
 
+	/** B-234c: the host hands the run over to the next player (shown only to a host with another player). */
+	UFUNCTION()
+	void HandleHandOverClicked();
+
 	void CloseMenu();
 
 	/** The leave button asks first; the second press (Confirm) leaves. */
@@ -57,4 +61,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> ConfirmButton;
+
+	/** B-234c: Hand over host. */
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> HandOverButton;
 };
