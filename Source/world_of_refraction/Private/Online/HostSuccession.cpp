@@ -328,6 +328,8 @@ bool UWoRHostHandOverSubsystem::BeginPlannedHandOver(UWorld *World)
 		if (Cleaned == World && bPlannedLeavePending)
 		{
 			bPlannedLeavePending = false;
+			FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle); // desktop review: once only
+			WorldCleanupHandle.Reset();
 			Step = EHostHandOverStep::None;
 			UE_LOG(LogWoR, Warning, TEXT("[HandOver] The level changed before leaving: planned hand-over dropped"));
 		}
