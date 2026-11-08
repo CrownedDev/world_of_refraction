@@ -4117,6 +4117,11 @@ Moved here once applied. Newest first.
 **Question:** D-164 left open: (1) how many apparel slots; (2) what an apparel crystal gives beyond its element; (3) whether an evolution can sit in an apparel socket, and what it gives; also (4) whether apparel's lines scale with its tier.
 **Answer (Crown, 2026-11-08):** (1) **two** (the deckbuilder's `MaxApparelSeated` 2). (2) **resistance to its element**, on top of the piece's own lines; apparel also **carries effects** like the deckbuilder's vessels. (3) **yes**: as on other gear it gives its passive effects (D-147 / B-357c), keys the piece to its element and adds that element's resistance like a crystal, and powers no skill; its cost does not matter (outside the budget). No augment stone. (4) **yes**, as every gear line (HP raw), by the reference-backed default; Crown may change it.
 **Notes for Claude:** B-380: `ApparelRules::MAX_APPAREL_SLOTS`, `CRYSTAL_ELEMENT_RESISTANCE` (5, TODO tune), `CanSocket`, `FApparelEntry::GetEvolution`; the effects through the loadout's effect gatherers. At merge with B-357b, gate the apparel evolution's passives as gear evolutions are (charge level 2).
+### Q-386 — Apparel Amp lines (follows D-164 and Q-164b)
+**Status:** Answered (approved by the reference-backed default: the deckbuilder rule) · **Raised:** 2026-11-08 (brain) · **Blocks:** —
+**Question:** D-164 gave apparel only HP and Defence lines because this game had no Amp stat. Now it has one (B-382). Should apparel carry Amp?
+**Answer (default):** yes, as the deckbuilder's Apparel does (default tiles `HP · Amp · Def`, `01-card-model.md`). Apparel's Amp lines join the wearer's one Amp total like any gear's. Built in B-386.
+
 ### Q-380d — Apparel socket: what happens to the crystal taken out?
 **Status:** Answered (approved by the reference-backed default) · **Raised:** 2026-11-08 (cloud writer, B-380d) · **Blocks:** —
 **Question:** When a new crystal goes into an apparel piece's socket, what happens to the old one?
