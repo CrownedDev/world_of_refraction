@@ -65,7 +65,8 @@ Depth decides what the memory gives that character: **Deep** opens its scenes, c
 ### 3.5 Chain memory
 - **What:** a memory whose conditions include **earlier memories**. Chains carry a character's arc.
 - **Rule:** a chain never needs a memory from a character the player can no longer get (`HiddenQuests.md` §3).
-- **Default:** chains can cross characters (a memory of Orthos's that needs one of Garnet's), as long as both can be reached solo. Persona and Expedition 33 camp scenes unlock from other characters' progress, and players praise that.
+- **Chains cross characters** (**Crown, 2026-11-08**): a memory of Orthos's can need one of Garnet's, as long as both can be reached solo (Persona and Expedition 33 camp scenes unlock from other characters' progress).
+- **The team's progress counts in co-op** (Crown, 2026-11-08): an "earlier memory / quest done" condition is met when **any player present** has it ("my Garnet quest is done, your Orthos quest is done" → the memory needing both can unlock). Solo, the player needs them all. A memory unlocked this way follows §1.7 for who receives it.
 - **Example:** *(Crown)*
 
 ### 3.6 Hidden quest (unique scenario)
