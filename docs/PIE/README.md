@@ -345,3 +345,4 @@ Move rows to **Done** when every check passes.
 | [B-026](B-026.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-027](B-027.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-029](B-029.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
+| [B-357b](B-357b.md) | `feature/B-357b-evolution-resolve-path-cloud` (UNBUILT, on B-357) | One list of attached evolutions (character, weapon, adapter); no change in play | Pending |
