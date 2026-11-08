@@ -4097,15 +4097,37 @@ Moved here once applied. Newest first.
 **Answer (Crown):** a weapon, adapter, apparel piece or evolution can carry **conditional quests**: a hidden quest (`Design/MemoryCatalogue.md` §3.6) that starts when its conditions are met while the player has or wears that item (found, worn, upgraded, used in a certain way). The same no-hints, never-missed and who-receives rules apply (D-100, Q-235d). Probably built later, after the hidden-quest job.
 **Notes for Claude:** `Design/MemoryCatalogue.md` §3.11.
 
-### Q-164b — An Amp stat? (D-164 "look into later")
+### Q-164b — An Amp stat? (D-164 "look into later"; reshaped by Crown 2026-11-08: compare first)
 **Status:** OPEN (Crown decides; nothing built) · **Raised:** 2026-11-08 (cloud writer, from D-164) · **Blocks:** —
-**Question:** The deckbuilder's apparel and bonuses carry **Amp**: `+2 Amp` (a flat boost to every skill) or `+1 Fire Amp` (to one element's skills). This game has no Amp stat. Should it, and how would it fit the damage formula?
-**How it would fit** (`docs/Architecture/DamageCalculator.md`, `ScalingSystem.md`): `UDamageCalculator::CalculateDamage` starts from the skill's `BaseDamage`, multiplies by the attacker multiplier (the Raw or Spell axis, gear's `BonusRawDamage` / `BonusSpellDamage` as per-point fractions, plus the authored `FStatScaling` tiers), then the augment-stone %, grid, status, crit, defence. The caller (`ActionExecutor`) stacks charge, tier-gap and tier-power on top. Gear lines live in `FEquipmentStatBonus` and are tier-weighted at `ULoadoutComponent::GetActiveStatBonus`.
+**Question:** The deckbuilder's cards carry **Amp** (`+2 Amp` for every skill, `+1 Fire Amp` for one element's) and **Def** (`+1 Def`, `+2 Fire Def`). They are flat lines on any card, all added into one total. Does this game need Amp, or does an existing source already cover it? Judge it by "granular and composable".
+**The comparison:** `docs/analysis/DamageAndDefenceSources_2026-11-08.md` (every damage and defence source, with code lines, scope and stacking).
+- **Defence: already covered.** Element resistance is the deckbuilder's element Def: keyed to one element and summed from every source (gear, apparel, evolution, class profile, effects). Defence is its plain Def.
+- **Damage: one gap.** Nothing raises one element's damage.
+  - Gear has only Raw / Spell lines (`FEquipmentStatBonus`).
+  - The all-damage effects ignore their element (`GetTotalStatModifier`).
+  - Meanwhile four "all damage %" channels already multiply each other (DamageBuff, ModifyDamageDealt, Raw / SpellDamageBuff, difficulty).
 **Options:**
-- **A — flat Amp added to the skill's base** before Step 1: `BaseDamage += Amp + ElementAmp[element]`, so every multiplier after it scales it. New lines `BonusAmp` and a per-element Amp on `FEquipmentStatBonus` (gear, apparel, evolutions, curses). Closest to the deckbuilder (Amp adds to a card's power before anything else). Path of Exile's "adds X to Y fire damage" is the well-liked model of a flat add that scales with multipliers; it makes cheap and fast skills better, so the deckbuilder's per-card (here per-action, not per-hit) rule should stay.
-- **B — Amp as a percent** of damage, all or one element (`+10% Fire damage`). Simple to read, but it overlaps the existing Raw / Spell damage lines and the damage stone, and multiplies with them (stacking percents, the usual ARPG inflation).
-- **C — flat Amp added after the attacker multiplier** (at Step 1.25, beside the stone): a true flat bonus that nothing scales. Easy to balance, but it fades at high tiers (tier power reaches ×4.8) unless its numbers scale with the item's tier.
-- **D — no Amp**: keep damage on the Raw / Spell lines and stones; give apparel only HP, Defence and resistances (as built in B-380).
-**Recommendation:** **A**, per action not per hit, with small numbers (the deckbuilder's +1 / +2 range against base damage), and Amp on apparel only through its effects or bonuses rows at first. The deckbuilder is this game's simplest level and its rule comes first; Path of Exile shows flat-then-scaled adds give builds a clear axis players like; per-action keeps multi-hit skills from running away (a known PoE problem with added damage on fast skills). Whether Amp adds to status buildup: no by default (status has its own StatusMultiplier line).
-**Notes for Claude:** do not build until Crown answers. If A: a new `FEquipmentStatBonus` line (and a per-element map or nine lines), summed in `GetActiveStatBonus`, read in `CalculateDamage` before Step 1 for the action's resolved element; debug in the damage breakdown; a DamageCalculatorSpec case.
-
+- **A — Amp as keyed lines in one sum (the deckbuilder's model).**
+  - **The line:** an `Amp` line has a scope: All, Physical, Spell or one element. It can sit on gear, apparel, evolutions, curses and effects.
+  - **The sum:** every line whose scope matches the action is added into one Amp total, as resistance is summed today.
+  - **Where it enters:** flat, added to the skill's base before the multipliers, once per action, not per hit.
+  - **Effects:** an element-keyed DamageBuff reads through the existing exact-element read (`GetTotalStatModifierForElement`, already used for status buildup). The generic and the keyed reads are two calls, so they never double-count.
+- **B — Amp as a percent**, all or one element (`+10% Fire damage`): one more multiplier beside the four, the usual stacking inflation.
+- **C — a flat add after the multipliers** (beside the stone): it fades at high tiers (tier power reaches ×4.8) unless its numbers scale with the item's tier.
+- **D — no Amp.** Element damage stays inexpressible; build variety per element comes only from the target's resistances.
+**Recommendation:** **A**.
+- **The deckbuilder comes first.** It is this game's simplest level, and its Amp is exactly "keyed lines, one sum". This game already composes defence that way, so Amp mirrors resistance and adds no new idea.
+- **Reference-backed:**
+  - **Path of Exile.** "Adds X to Y Fire Damage" is added to the base and then scaled by the multipliers; flat added damage of one element is a well-liked build axis. It is also known to make fast multi-hit skills run away, which per-action Amp avoids.
+  - **Monster Hunter.** A weapon's separate element value makes element builds (Fire against Fire-weak monsters) a favourite way to play.
+  - **Diablo IV, Season 4 ("Loot Reborn", 2024).** It cut many overlapping damage affixes down to fewer, clearer ones, and players welcomed it. That argues against B's fifth percent channel.
+- **Defaults if Crown picks A:**
+  - small numbers, like the deckbuilder's +1 / +2 against base damage;
+  - Amp does not raise status buildup (StatusMultiplier has its own line);
+  - crystals granting Amp of their element by tier (the deckbuilder's F0 E0 D1 C1 B2 A2 S3 ladder) is a later, separate question.
+- **A separate tidy-up (not part of this question):** fold ModifyDamageDealt into DamageBuff, since both are "all damage %".
+**Notes for Claude:** don't build until Crown answers. If A:
+- `FEquipmentStatBonus` gets `BonusAmp` plus a per-element Amp (a nine-entry map or nine lines). It is summed in `GetActiveStatBonus` and read in `PreviewActionDamage` for the action's resolved element, before the infusion and tier multipliers.
+- An element-keyed DamageBuff effect reads through `GetTotalStatModifierForElement`.
+- The `wor.Damage` breakdown shows the Amp line.
+- Add a DamageCalculatorSpec case.
