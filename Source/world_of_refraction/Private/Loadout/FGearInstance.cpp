@@ -25,6 +25,12 @@ namespace
 		{
 			To.AssignedSpells.Add(Spell);
 		}
+		To.SpellPicks.Reset(From.SpellPicks.Num()); // B-351d (D-145): the crystal's one spell list
+		for (USpellData *Pick : From.SpellPicks)
+		{
+			To.SpellPicks.Add(Pick);
+		}
+		To.bSpellSlotsActive = From.bSpellSlotsActive;
 		To.StatBonus = From.StatBonus;
 		To.ResistanceBonus = From.ResistanceBonus;
 		To.StatPool = From.StatPool;

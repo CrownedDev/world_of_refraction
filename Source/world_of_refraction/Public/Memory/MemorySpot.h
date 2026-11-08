@@ -29,6 +29,10 @@ public:
 	UPROPERTY(EditInstanceOnly, Category = "Memory")
 	TObjectPtr<UMemoryData> Memory;
 
+public:
+	/** B-232d: on a client, the run's progress arrived: spent / taken here too. */
+	virtual void RefreshFromRun() override;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual FString GetHintText() const override { return FString(); }
