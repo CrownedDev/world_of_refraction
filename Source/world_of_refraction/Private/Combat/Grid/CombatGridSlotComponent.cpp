@@ -21,6 +21,10 @@ UCombatGridSlotComponent *UCombatGridSlotComponent::Find(const AActor *Actor)
 
 void UCombatGridSlotComponent::SetSlot(const FCombatGridPosition &Position)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority()) // review fix: replicated state is written on the server only
+	{
+		return;
+	}
 	Slot = Position;
 	bOnGrid = true;
 	OnSlotChanged.Broadcast(GetOwner()); // the server's own readers; clients get OnRep_Slot
@@ -28,7 +32,7 @@ void UCombatGridSlotComponent::SetSlot(const FCombatGridPosition &Position)
 
 void UCombatGridSlotComponent::ClearSlot()
 {
-	if (!bOnGrid)
+	if (!bOnGrid || !GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return;
 	}
