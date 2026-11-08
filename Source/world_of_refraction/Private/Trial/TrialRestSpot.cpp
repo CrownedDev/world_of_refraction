@@ -60,6 +60,8 @@ bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
 	}
 	Run->ReloadTrialLevel();
 	return true;
+}
+
 void WoRRestSpot::StepAway(UWorld *World)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
