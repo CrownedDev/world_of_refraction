@@ -7,6 +7,8 @@
 #include "Misc/AutomationTest.h"
 #include "Combat/CombatPresentationComponent.h"
 #include "Animation/AnimMontage.h"
+#include "Combat/Projectile/SkillProjectile.h"
+#include "Components/SphereComponent.h"
 #include "WoRTestWorld.h"
 
 BEGIN_DEFINE_SPEC(FCombatPresentationSpec, "WoR.Net.Presentation", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -53,6 +55,34 @@ void FCombatPresentationSpec::Define()
 			}
 			Presentation->SendHit(42, true);
 			TestTrue(TEXT("one hit shown, a crit"), Presentation->GetDebugString().Contains(TEXT("1 hit(s) shown, last 42 (crit)")));
+		});
+
+		It("sets up a projectile as a cosmetic copy of the server's launch (B-231b)", [this]()
+		{
+			UWorld *World = TestWorld->GetWorld();
+			AActor *Caster = World ? World->SpawnActor<AActor>() : nullptr;
+			AActor *Target = World ? World->SpawnActor<AActor>() : nullptr;
+			ASkillProjectile *Copy = World ? World->SpawnActor<ASkillProjectile>() : nullptr;
+			if (!TestTrue(TEXT("setup"), Caster && Target && Copy))
+			{
+				return;
+			}
+			FCosmeticProjectileLaunch Launch;
+			Launch.ProjectileClass = ASkillProjectile::StaticClass();
+			Launch.Target = Target;
+			Launch.TargetLocation = FVector(1000.0f, 0.0f, 0.0f);
+			Launch.Speed = 900.0f;
+			Launch.Element = ESpellElement::Water;
+			Copy->InitializeCosmetic(Caster, Launch);
+			TestTrue(TEXT("a copy"), Copy->IsCosmeticOnly());
+			TestTrue(TEXT("its target"), Copy->GetTarget() == Target);
+			TestTrue(TEXT("from the caster"), Copy->GetActorLocation().Equals(Caster->GetActorLocation(), 1.0f));
+			const USphereComponent *HitBox = Copy->FindComponentByClass<USphereComponent>();
+			TestTrue(TEXT("touches nothing"), HitBox && HitBox->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
+			const FCosmeticProjectileLaunch Back = Copy->MakeCosmeticLaunch();
+			TestTrue(TEXT("the server's fixed spot"), Back.TargetLocation.Equals(Launch.TargetLocation));
+			TestEqual(TEXT("the speed"), Back.Speed, Launch.Speed);
+			TestTrue(TEXT("the element"), Back.Element == ESpellElement::Water);
 		});
 
 		It("sends no montage (no clients)", [this]()

@@ -64,6 +64,37 @@ void UCombatPresentationComponent::SendHit(int32 Damage, bool bCritical)
 	Multicast_ShowHit_Implementation(Damage, bCritical); // standalone: just this machine
 }
 
+void UCombatPresentationComponent::SendProjectile(const ASkillProjectile &Projectile)
+{
+	const UWorld *World = GetWorld();
+	if (!World || !GetOwner() || !GetOwner()->HasAuthority() || !CombatPresentation::SendsFromHere(World->GetNetMode()))
+	{
+		return;
+	}
+	++ProjectilesSent;
+	Multicast_LaunchProjectile(Projectile.MakeCosmeticLaunch());
+}
+
+void UCombatPresentationComponent::Multicast_LaunchProjectile_Implementation(const FCosmeticProjectileLaunch &Launch)
+{
+	UWorld *World = GetWorld();
+	if (!World || !GetOwner() || GetOwner()->HasAuthority() || !Launch.ProjectileClass)
+	{
+		return; // the server flies the real one
+	}
+	FActorSpawnParameters Params;
+	Params.Owner = GetOwner();
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ASkillProjectile *Copy = World->SpawnActor<ASkillProjectile>(Launch.ProjectileClass, GetOwner()->GetActorLocation(), FRotator::ZeroRotator, Params);
+	if (!Copy)
+	{
+		return;
+	}
+	Copy->InitializeCosmetic(GetOwner(), Launch);
+	Copy->Launch();
+	++ProjectilesFlown;
+}
+
 void UCombatPresentationComponent::Multicast_PlayMontage_Implementation(UAnimMontage *Montage, float PlayRate)
 {
 	if (!CombatPresentation::PlaysReceivedMontage(GetOwner() && GetOwner()->HasAuthority()))
@@ -100,9 +131,9 @@ void UCombatPresentationComponent::PlayLocally(UAnimMontage *Montage, float Play
 
 FString UCombatPresentationComponent::GetDebugString() const
 {
-	return FString::Printf(TEXT("%s: last montage %s (%d sent, %d received), %d hit(s) shown, last %d%s"), *GetNameSafe(GetOwner()),
-						   LastMontage.IsEmpty() ? TEXT("none") : *LastMontage, MontagesSent, MontagesReceived, HitsShown, LastHitDamage,
-						   bLastHitCritical ? TEXT(" (crit)") : TEXT(""));
+	return FString::Printf(TEXT("%s: last montage %s (%d sent, %d received), %d hit(s) shown, last %d%s; projectiles %d sent, %d flown"),
+						   *GetNameSafe(GetOwner()), LastMontage.IsEmpty() ? TEXT("none") : *LastMontage, MontagesSent, MontagesReceived,
+						   HitsShown, LastHitDamage, bLastHitCritical ? TEXT(" (crit)") : TEXT(""), ProjectilesSent, ProjectilesFlown);
 }
 
 static FAutoConsoleCommandWithWorld GNetPrintPresentationCommand(
