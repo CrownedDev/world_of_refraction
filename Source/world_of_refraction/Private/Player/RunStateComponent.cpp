@@ -1,6 +1,8 @@
 // RunStateComponent.cpp
 
 #include "Player/RunStateComponent.h"
+#include "EngineUtils.h"
+#include "Trial/TrialMapFeature.h"
 #include "Memory/MemoryData.h"
 
 #include "Character/CharacterData.h"
@@ -114,6 +116,17 @@ void URunStateComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &O
 	DOREPLIFETIME(URunStateComponent, RunMemories);
 	DOREPLIFETIME(URunStateComponent, UnspentLevels);
 	DOREPLIFETIME(URunStateComponent, RotationIndex);
+}
+
+namespace
+{
+	/** B-232d (review): the GameState's copy answers only on a client. The host and solo read the run itself: the
+	 *  copy is filled at the component's BeginPlay, after placed actors may already have asked. */
+	const URunStateComponent *RunStateCopyFor(const UObject *WorldContext)
+	{
+		const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
+		return World && World->GetNetMode() == NM_Client ? URunStateComponent::Find(WorldContext) : nullptr;
+	}
 }
 
 URunStateComponent *URunStateComponent::Find(const UObject *WorldContext)
@@ -243,9 +256,18 @@ void URunStateComponent::PullRunProgress()
 	}
 }
 
+void URunStateComponent::OnRep_RunProgress()
+{
+	// B-232d (review): a feature that checked the run at its BeginPlay, before this arrived, takes its state now.
+	for (TActorIterator<ATrialMapFeature> It(GetWorld()); It; ++It)
+	{
+		It->RefreshFromRun();
+	}
+}
+
 bool URunStateComponent::HasFoundFeature(const UObject *WorldContext, FName FeatureId)
 {
-	if (const URunStateComponent *Run = Find(WorldContext))
+	if (const URunStateComponent *Run = RunStateCopyFor(WorldContext))
 	{
 		return Run->FoundFeatureIds.Contains(FeatureId);
 	}
@@ -255,7 +277,7 @@ bool URunStateComponent::HasFoundFeature(const UObject *WorldContext, FName Feat
 
 TArray<UMemoryData *> URunStateComponent::GetRunMemories(const UObject *WorldContext)
 {
-	if (const URunStateComponent *Run = Find(WorldContext))
+	if (const URunStateComponent *Run = RunStateCopyFor(WorldContext))
 	{
 		return TArray<UMemoryData *>(Run->RunMemories);
 	}
@@ -265,7 +287,7 @@ TArray<UMemoryData *> URunStateComponent::GetRunMemories(const UObject *WorldCon
 
 int32 URunStateComponent::GetUnspentLevels(const UObject *WorldContext, FName CharacterKey)
 {
-	if (const URunStateComponent *Run = Find(WorldContext))
+	if (const URunStateComponent *Run = RunStateCopyFor(WorldContext))
 	{
 		const FRunUnspentLevels *Entry = Run->UnspentLevels.FindByPredicate([CharacterKey](const FRunUnspentLevels &Each) { return Each.CharacterKey == CharacterKey; });
 		return Entry ? Entry->Count : 0;
@@ -276,7 +298,7 @@ int32 URunStateComponent::GetUnspentLevels(const UObject *WorldContext, FName Ch
 
 UTrialData *URunStateComponent::GetActiveTrial(const UObject *WorldContext)
 {
-	if (const URunStateComponent *Run = Find(WorldContext))
+	if (const URunStateComponent *Run = RunStateCopyFor(WorldContext))
 	{
 		return Run->ActiveTrial;
 	}
@@ -286,7 +308,7 @@ UTrialData *URunStateComponent::GetActiveTrial(const UObject *WorldContext)
 
 int32 URunStateComponent::GetRunSeed(const UObject *WorldContext)
 {
-	if (const URunStateComponent *Run = Find(WorldContext))
+	if (const URunStateComponent *Run = RunStateCopyFor(WorldContext))
 	{
 		return Run->RunSeed;
 	}
@@ -296,7 +318,7 @@ int32 URunStateComponent::GetRunSeed(const UObject *WorldContext)
 
 bool URunStateComponent::IsEncounterBeaten(const UObject *WorldContext, FName EncounterId)
 {
-	if (const URunStateComponent *Run = Find(WorldContext))
+	if (const URunStateComponent *Run = RunStateCopyFor(WorldContext))
 	{
 		return Run->BeatenEncounters.Contains(EncounterId);
 	}
