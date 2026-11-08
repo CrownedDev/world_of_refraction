@@ -1946,6 +1946,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **The deckbuilder's rule (cited):** `CrownedDev/wor-deckbuilder` `docs/reference/02-enums.md:65` (an Evolution "attaching it to the Character costs 1 Action + its EN"), `:447` (`WhenAttached`: "an Evolution to a vessel or the Character … even on an Evolution on a vessel, whose other triggered rows stay off"), `:63` (an Evolution on the Character licenses spells of its element). The deckbuilder allows all three placements, which the audit missed.
 **Notes for Claude:** job B-357, after B-351 (sockets) and B-356.
 
+### Q-357 — An evolution's one cost, and B-357 in parts
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-357, cloud) · **Blocks:** —
+**Question:** D-147 gives an evolution one D-110 cost wherever it attaches. Today it adds 2 on a weapon (1 → 3), 1 on an adapter (1 → 2) and costs 2 on the character's own slot. Which one cost? And B-357 also asks for one resolve path and "only passives, only at infusion level 2" on gear: one job?
+**Options / as built (A):** (1) **2**, the cost it already has on the character and on a weapon: an evolved adapter goes from 2 to 3, the gear's base cost on top as for every attachment. **B** 1 (weapon 2, character 1). (2) parts: **B-357** the one cost (this branch); **B-357b** the one resolve path ("an evolution attached to X") and the gear rule (only its passive skills, only while the item is infused at level 2).
+**Recommendation:** A / A. The deckbuilder charges an Evolution its own cost wherever it attaches (`docs/reference/02-enums.md:65`, "1 Action + its EN"), and 2 already holds in two of the three places; the resolve path touches over two hundred reads and is checkable on its own, as Q-351 sliced B-351.
+**Answer:** **A / A**, by the reference-backed default (2026-11-07). Crown may change either. Note for data: a Resonator loadout with an evolved adapter can now be over budget; data validation lists it.
+**Notes for Claude:** B-357 built the cost; B-357b added under it in the backlog.
+
 ### D-148 — One Physical resistance column (audit round 3 §33)
 **Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §33) · **Blocks:** —
 **Answer (Crown):** one Physical resistance column. Slash, Pierce and Impact stay as subtypes (D-037); each subtype only picks its break (SB-19 to SB-21). Saves stay append-only.
