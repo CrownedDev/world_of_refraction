@@ -13,6 +13,9 @@
 
 #pragma once
 
+class APawn;
+class APlayerState;
+
 #include "CoreMinimal.h"
 #include "Character/EWorldPillar.h"
 #include "Combat/Encounter/EEncounterRank.h"
@@ -97,8 +100,8 @@ namespace WoRDefeat
 	/** The party was wiped by an enemy of Rank: counts it on the run, drops the local wallet's run Prisms at this fight
 	 *  (DropPrisms), and, if the run continues, brings the fallen back at full (the rest spot's revive, D-043). The
 	 *  caller sends the party back to the trial (the last rest spot used) or, when bRunEnds, to the hub. Server side.
-	 *  MemberKeys: the members that fought (logged; they no longer pay points, D-160). TODO(D-103 co-op): every
-	 *  player's wallet drops once co-op fights land. */
+	 *  MemberKeys: the members that fought (logged; they no longer pay points, D-160). B-235: every other player's
+	 *  wallet drops too, each into their own drop at the same spot. */
 	WORLD_OF_REFRACTION_API FWipeResult ApplyWipe(UWorld *World, EEncounterRank Rank, const TArray<FName> &MemberKeys);
 
 	/** B-362b: Wallet's whole run balance leaves it and becomes Run's drop at the pending fight. Returns the amount
@@ -117,9 +120,15 @@ namespace WoRDefeat
 	 *  wallet the drop stays. */
 	WORLD_OF_REFRACTION_API int32 PickUpDrop(UTrialRunSubsystem &Run, UCurrencyComponent *Wallet);
 
-	/** PickUpDrop into the local player's wallet, saved at once (quitting must not undo it). TODO(B-235 co-op): each
-	 *  player's own pickup and wallet. */
+	/** PickUpDrop into the local player's wallet, saved at once (quitting must not undo it). */
 	WORLD_OF_REFRACTION_API int32 PickUpDrop(UWorld *World);
+
+	/** B-235 (D-160 co-op): Pawn's player takes their own drop into their own wallet: the local player through
+	 *  PickUpDrop(World), another player through UTrialRunSubsystem::TakeDropForPlayer. Returns the amount (0: none). */
+	WORLD_OF_REFRACTION_API int32 PickUpDropFor(UWorld *World, const APawn *Pawn);
+
+	/** B-235: a player's key for their own drop: their unique net id, else their player id. */
+	WORLD_OF_REFRACTION_API FString PlayerDropKey(const APlayerState *Player);
 
 	/** Debug: the run's wipe and main-boss-loss counts against their limits, the dropped Prisms and their spot, and
 	 *  the last rest spot. */

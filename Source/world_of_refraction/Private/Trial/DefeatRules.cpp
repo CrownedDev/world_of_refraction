@@ -6,6 +6,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
@@ -45,6 +47,21 @@ namespace WoRDefeat
 		Result.MainBossLosses = Run->GetRunMainBossLosses();
 		// D-160: the run's Prisms drop here instead of pillar points (every rank alike, the main boss too).
 		Result.PrismsDropped = DropPrisms(*Run, DefeatLocalWallet(World), Result.PrismsLostForGood);
+		// B-235 (D-160 co-op): every other player drops their own Prisms at the same spot.
+		const AGameStateBase *GameState = World->GetGameState();
+		for (APlayerState *Player : GameState ? GameState->PlayerArray : TArray<TObjectPtr<APlayerState>>())
+		{
+			const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+			UCurrencyComponent *Wallet = WoRPlayer ? WoRPlayer->GetWallet() : nullptr;
+			if (!Wallet || Wallet == DefeatLocalWallet(World))
+			{
+				continue;
+			}
+			const int32 Balance = Wallet->GetBalance(ECurrencyType::Gold);
+			const int32 Dropped = Balance > 0 && Wallet->Spend(ECurrencyType::Gold, Balance) ? Balance : 0;
+			Result.PrismsLostForGood += Run->DropPrismsForPlayer(PlayerDropKey(Player), Dropped);
+			Result.PrismsDropped += Dropped;
+		}
 		if (!Result.bRunEnds)
 		{
 			// D-043: the rest spot revives the fallen; the whole party fell, so all of it comes back at full.
@@ -95,6 +112,38 @@ namespace WoRDefeat
 		}
 		const int32 Taken = Run.TakeDrop();
 		Wallet->Add(ECurrencyType::Gold, Taken);
+		return Taken;
+	}
+
+	FString PlayerDropKey(const APlayerState *Player)
+	{
+		if (!Player)
+		{
+			return FString();
+		}
+		return Player->GetUniqueId().IsValid() ? Player->GetUniqueId().ToString() : FString::FromInt(Player->GetPlayerId());
+	}
+
+	int32 PickUpDropFor(UWorld *World, const APawn *Pawn)
+	{
+		const AController *Controller = Pawn ? Pawn->GetController() : nullptr;
+		const APlayerController *PC = Cast<APlayerController>(Controller);
+		if (!PC || PC->IsLocalController())
+		{
+			return PickUpDrop(World); // the local (host / solo) player: the saved drop, as before
+		}
+		UTrialRunSubsystem *Run = DefeatRun(World);
+		const AWoRPlayerState *Player = PC->GetPlayerState<AWoRPlayerState>();
+		UCurrencyComponent *Wallet = Player ? Player->GetWallet() : nullptr;
+		if (!Run || !Run->IsRunActive() || !Wallet)
+		{
+			return 0;
+		}
+		const int32 Taken = Run->TakeDropForPlayer(PlayerDropKey(Player));
+		if (Taken > 0)
+		{
+			Wallet->Add(ECurrencyType::Gold, Taken);
+		}
 		return Taken;
 	}
 
