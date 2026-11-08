@@ -491,7 +491,7 @@ FString UWeatherStateManager::GetWeatherStateString() const
 namespace
 {
     static FAutoConsoleCommandWithWorld GPrintWeatherCmd(
-        TEXT("wor.PrintWeather"),
+        TEXT("wor.Weather.Print"),
         TEXT("Snapshot weather state: leaders, HP %, resolved DA, blend values, listener count (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -504,7 +504,7 @@ namespace
                 }
                 else
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[Weather] wor.PrintWeather: no subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[Weather] wor.Weather.Print: no subsystem (no PIE world?)."));
                 }
             }));
 }

@@ -46,6 +46,10 @@ void UStatusBarStateComponent::HandleBuildupChanged(AActor *Target, float Curren
 
 void UStatusBarStateComponent::SetBar(float Current, float Max, ESpellElement PendingElement, AActor *Source)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority()) // review fix: replicated state is written on the server only
+	{
+		return;
+	}
 	Bar.Current = Current;
 	Bar.Max = Max;
 	Bar.PendingElement = PendingElement;

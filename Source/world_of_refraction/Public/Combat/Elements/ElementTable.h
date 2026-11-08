@@ -1,7 +1,7 @@
 // ElementTable.h
 // B-271 (SimplifyAudit S5): one row per damage type holding what the old per-element switches each
 // knew: its element and physical axes, gem, essence, break trigger, immunity, colour and Broken
-// Darkness flags. The old functions forward here; WoR.Elements.Compare / wor.CompareElements pin
+// Darkness flags. The old functions forward here; WoR.Elements.Compare / wor.Elements.Compare pin
 // old = new. Names (FText) and gameplay tags stay in their tables (WoRGameNames, WoRTags): they
 // need the engine up, this table doesn't.
 
