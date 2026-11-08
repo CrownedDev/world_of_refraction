@@ -3,7 +3,7 @@
 // the Details panel. A new asset starts with the C++ table's values (ClassInnateResistanceTable.h),
 // so creating it changes no number; the C++ table stays the fallback while no asset exists.
 // The game reads the one asset at RESISTANCE_PROFILE_ASSET_PATH.
-// Debug: the Details-panel buttons below; wor.CompareResistance.
+// Debug: the Details-panel buttons below; wor.Resistance.Compare.
 
 #pragma once
 

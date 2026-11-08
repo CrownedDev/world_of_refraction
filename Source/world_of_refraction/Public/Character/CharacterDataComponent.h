@@ -550,9 +550,9 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
     int32 LiveWorldSpirit = 0;
 
-    /** Persistent head-start allocation (per pillar) — the starting floor raised by §8 perks.
-     *  Not saved yet (B-348 removed the SaveGame tags, D-059; B-348b gives it a home in FWoRSaveData; session-only
-     *  until then, like bIsBrokenDarkness). Capped at HEAD_START_BUDGET total across pillars. */
+    /** Head-start allocation (per pillar) — the starting floor raised by §8 perks. B-348b: a rostered member's copy of
+     *  FPartyMember::HeadStart* (its saved home), read at each seed and written back by SetHeadStartAllocation; an
+     *  enemy or a pawn outside a party keeps it here only. Capped at HEAD_START_BUDGET total across pillars. */
     UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
     int32 HeadStartMind = 0;
 

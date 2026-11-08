@@ -75,6 +75,11 @@ public:
 
 	UFUNCTION(CallInEditor, Category = "Debug")
 	void PrintTriggers() const;
+
+#if WITH_EDITOR
+	/** B-337e: each reaction effect's condition group follows its edited old rows (FSkillEffect::MigrateConditionGroup). */
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
+#endif
 };
 
 /** One reaction that fired this fight. Points into the trigger list FindFired was given: use it

@@ -2,7 +2,7 @@
 // Debug utilities for the native (C++-owned) UI layer added by the BP-logic
 // overhaul: UCombatHUD, UDefensePromptWidget, AExplorationPlayerController.
 //
-// Console: wor.UIState — prints all three to Output Log + screen.
+// Console: wor.UI.Print — prints all three to Output Log + screen.
 // World of Refraction - Debug
 
 #pragma once

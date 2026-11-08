@@ -2,6 +2,7 @@
 
 #include "UI/Hub/LevelDropWidget.h"
 
+#include "Player/RunStateComponent.h"
 #include "Blueprint/WidgetTree.h"
 #include "Character/CharacterData.h"
 #include "Components/Border.h"
@@ -154,12 +155,10 @@ void ULevelDropWidget::Refresh()
 	{
 		return;
 	}
-	const UGameInstance *GI = GetGameInstance();
-	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	const FPartyMember *Member = SelectedMember();
 	// B-223b: each character places its own levels; Next member steps through whose levels these are.
 	WaitingText->SetText(Member ? FText::Format(LOCTEXT("Waiting", "{0}'s pillar levels to place: {1}"), FText::FromString(Member->CharacterData->Name),
-												FText::AsNumber(Run ? Run->GetUnspentLevels(UPoolSubsystem::GetCharacterKey(*Member)) : 0))
+												FText::AsNumber(URunStateComponent::GetUnspentLevels(this, UPoolSubsystem::GetCharacterKey(*Member))))
 								: LOCTEXT("WaitingNone", "No party member"));
 
 	if (!Member)

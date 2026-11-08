@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Save/SaveSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "WoRLog.h"
@@ -19,20 +20,42 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	if (!Run || !Run->IsRunActive() || !PartySession)
+	// Desktop review: the host rests the party (a client has no run; its press reaches the host in B-187b, D-103).
+	if (!Run || !Run->IsRunActive() || !PartySession || World->GetNetMode() == NM_Client)
 	{
 		return INDEX_NONE;
 	}
 	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
-	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here
-	if (UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>())
+	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here; the skin switch reads it too
+	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
 	{
-		Forms->SetAtRestSpot(true); // review: the skin switch's older rest-spot flag follows the run's
+		Save->SaveNow(World, true); // desktop review: a rest is a checkpoint (the heal and the rest spot survive a quit)
 	}
 	UE_LOG(LogWoR, Log, TEXT("[RestSpot] Rested at %s: every member full, %d revived"), *RestSpotId.ToString(), Revived);
 	return Revived;
+}
+
+bool WoRRestSpot::CanReviveHere(const UWorld *World)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	return Run && Run->CanReviveEncounter(Run->GetLastRestSpot());
+}
+
+bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
+{
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	if (!Run || World->GetNetMode() == NM_Client || !Run->ReviveEncounter(Run->GetLastRestSpot()))
+	{
+		return false;
+	}
+	// TODO: B-187c: place the party back at this spot after the reload (it starts at the level's start for now).
+	StepAway(World); // desktop review: the party leaves the spot with the reload
+	Run->ReloadTrialLevel();
+	return true;
 }
 
 void WoRRestSpot::StepAway(UWorld *World)
@@ -52,7 +75,7 @@ bool WoRRestSpot::LeaveRun(UWorld *World)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	if (!Run || !Run->IsRunActive())
+	if (!Run || !Run->IsRunActive() || World->GetNetMode() == NM_Client)
 	{
 		return false;
 	}
@@ -67,7 +90,7 @@ FText WoRRestSpot::GetLeaveConfirmText()
 
 void ATrialRestSpot::Interact(APawn *Pawn)
 {
-	if (WoRRestSpot::Rest(GetWorld(), GetFeatureId()) == INDEX_NONE)
+	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId()) == INDEX_NONE)
 	{
 		return;
 	}
@@ -78,6 +101,24 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 		URestSpotWidget::Open(PC); // TODO: co-op: a client's menu (its press reaches the host's rest, B-187b)
 	}
 	RefreshHint();
+}
+
+ATrialRestSpot *ATrialRestSpot::SpawnForMiniBoss(UWorld *World, const FTransform &Where, FName EncounterId)
+{
+	if (!World || EncounterId.IsNone())
+	{
+		return nullptr;
+	}
+	ATrialRestSpot *Spot = World->SpawnActorDeferred<ATrialRestSpot>(ATrialRestSpot::StaticClass(), Where, nullptr, nullptr,
+																	 ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (!Spot)
+	{
+		return nullptr;
+	}
+	Spot->MiniBossEncounterId = EncounterId; // before BeginPlay, so the hint and id are right from the start
+	Spot->FinishSpawning(Where);
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] A rest spot where mini-boss %s fell"), *EncounterId.ToString());
+	return Spot;
 }
 
 FString ATrialRestSpot::GetHintText() const

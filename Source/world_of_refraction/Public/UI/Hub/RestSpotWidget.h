@@ -48,6 +48,10 @@ private:
 	UFUNCTION()
 	void HandleCloseClicked();
 
+	/** B-187b (Q-187b): revive the mini-boss whose rest spot this is (shown only when it can be). */
+	UFUNCTION()
+	void HandleReviveClicked();
+
 	void CloseMenu();
 
 	/** The leave button asks first; the second press (Confirm) leaves. */
@@ -61,4 +65,11 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> ConfirmButton;
+
+	/** B-187b: Revive, with its label (which revival, how many left). */
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> ReviveButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ReviveLabel;
 };

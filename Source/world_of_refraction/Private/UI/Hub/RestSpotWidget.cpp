@@ -96,6 +96,9 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Inventory", "Inventory"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInventoryClicked);
+		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
+		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
+		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
@@ -131,6 +134,25 @@ void URestSpotWidget::Refresh()
 	{
 		ConfirmButton->SetVisibility(bConfirmingLeave ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
+	// B-187b: only at a mini-boss's rest spot that can still be revived.
+	const bool bCanRevive = WoRRestSpot::CanReviveHere(GetWorld());
+	if (ReviveButton)
+	{
+		ReviveButton->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (ReviveLabel && bCanRevive && Run)
+	{
+		const int32 Done = Run->GetEncounterRevivals(Run->GetLastRestSpot());
+		ReviveLabel->SetText(FText::Format(LOCTEXT("ReviveCount", "Revive the mini-boss: one tier stronger, better drops ({0} of {1})"),
+										   FText::AsNumber(Done + 1), FText::AsNumber(MiniBossRevival::MAX_REVIVALS)));
+	}
+}
+
+void URestSpotWidget::HandleReviveClicked()
+{
+	UWorld *World = GetWorld();
+	CloseMenu();
+	WoRRestSpot::ReviveMiniBoss(World);
 }
 
 FString URestSpotWidget::GetRestSpotWidgetString() const
