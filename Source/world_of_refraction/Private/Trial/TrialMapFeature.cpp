@@ -111,12 +111,14 @@ FName ATrialMapFeature::GetFeatureIdFor(const APawn *Pawn) const
 void ATrialMapFeature::ShowMessageTo(const APawn *Pawn, const FText &Message)
 {
 	const APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
-	if (!PC || PC->IsLocalController())
+	if (!Pawn || (PC && PC->IsLocalController()))
 	{
 		ShowMessage(Message);
 		return;
 	}
-	if (AWoRPlayerState *Player = PC->GetPlayerState<AWoRPlayerState>())
+	// Review: the pawn's player state, as GetFeatureIdFor reads it, so a controller missing mid-travel can't put
+	// another player's message on the host's screen.
+	if (AWoRPlayerState *Player = Pawn->GetPlayerState<AWoRPlayerState>())
 	{
 		Player->Client_ShowFeatureMessage(Message); // B-235c: on that player's own screen
 	}
