@@ -6,6 +6,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SaveGame.h"
 #include "Kismet/GameplayStatics.h"
+#include "Misc/Compression.h"
 #include "Player/WoRPlayerState.h"
 #include "WoRLog.h"
 
@@ -32,22 +33,65 @@ TArray<TArray<uint8>> WoRCheckpoint::Split(const TArray<uint8> &Bytes, int32 Chu
 	return Chunks;
 }
 
+int32 WoRCheckpoint::ChunkCountFor(int32 ByteCount, int32 ChunkBytes)
+{
+	const int32 Size = FMath::Max(ChunkBytes, 1);
+	return FMath::Max(1, (ByteCount + Size - 1) / Size);
+}
+
+bool WoRCheckpoint::Compress(const TArray<uint8> &Bytes, TArray<uint8> &OutCompressed)
+{
+	int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, Bytes.Num());
+	OutCompressed.SetNumUninitialized(CompressedSize);
+	if (!FCompression::CompressMemory(NAME_Zlib, OutCompressed.GetData(), CompressedSize, Bytes.GetData(), Bytes.Num()))
+	{
+		OutCompressed.Reset();
+		return false;
+	}
+	OutCompressed.SetNum(CompressedSize);
+	return true;
+}
+
+bool WoRCheckpoint::Decompress(const TArray<uint8> &Compressed, int32 UncompressedSize, TArray<uint8> &OutBytes)
+{
+	OutBytes.SetNumUninitialized(FMath::Max(UncompressedSize, 0));
+	if (UncompressedSize <= 0
+		|| !FCompression::UncompressMemory(NAME_Zlib, OutBytes.GetData(), UncompressedSize, Compressed.GetData(), Compressed.Num()))
+	{
+		OutBytes.Reset();
+		return UncompressedSize == 0;
+	}
+	return true;
+}
+
 int32 WoRCheckpoint::SendToClients(UWorld *World, USaveGame *Save)
 {
 	if (!World || !Save || World->GetNetMode() != NM_ListenServer)
 	{
 		return 0; // solo has no one to send to; a client never sends (B-234b: a dedicated host would send too)
 	}
-	TArray<uint8> Bytes;
-	if (!UGameplayStatics::SaveGameToMemory(Save, Bytes))
+	const AGameStateBase *GameState = World->GetGameState();
+	if (!GameState)
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Could not serialize the save; no copy sent"));
+		return 0;
+	}
+	TArray<uint8> Bytes;
+	TArray<uint8> Compressed;
+	if (!UGameplayStatics::SaveGameToMemory(Save, Bytes) || !Compress(Bytes, Compressed))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] Could not serialize or compress the save; no copy sent"));
+		return 0;
+	}
+	const int32 ChunkCount = ChunkCountFor(Compressed.Num());
+	if (ChunkCount > MAX_CHUNKS)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Checkpoint] The save is too big to copy (%d bytes compressed, %d chunks, max %d); no copy sent"),
+			   Compressed.Num(), ChunkCount, MAX_CHUNKS);
 		return 0;
 	}
 	const int32 CheckpointId = GNextCheckpointId++;
 	int32 Sent = 0;
-	const AGameStateBase *GameState = World->GetGameState();
-	for (APlayerState *Player : GameState ? GameState->PlayerArray : TArray<TObjectPtr<APlayerState>>())
+	for (APlayerState *Player : GameState->PlayerArray)
 	{
 		AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
 		const APlayerController *PC = WoRPlayer ? Cast<APlayerController>(WoRPlayer->GetOwner()) : nullptr;
@@ -55,11 +99,11 @@ int32 WoRCheckpoint::SendToClients(UWorld *World, USaveGame *Save)
 		{
 			continue; // the host keeps its own save
 		}
-		WoRPlayer->SendCheckpoint(CheckpointId, Bytes);
+		WoRPlayer->SendCheckpoint(CheckpointId, Compressed, Bytes.Num());
 		++Sent;
 	}
-	UE_LOG(LogWoR, Log, TEXT("[Checkpoint] Copy %d (%d bytes, %d chunk(s)) sent to %d player(s)"), CheckpointId, Bytes.Num(),
-		   Split(Bytes).Num(), Sent);
+	UE_LOG(LogWoR, Log, TEXT("[Checkpoint] Copy %d (%d bytes, %d compressed, %d chunk(s)) sent to %d player(s)"), CheckpointId, Bytes.Num(),
+		   Compressed.Num(), ChunkCount, Sent);
 	return Sent;
 }
 

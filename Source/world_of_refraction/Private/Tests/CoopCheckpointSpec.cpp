@@ -60,6 +60,20 @@ void FCoopCheckpointSpec::Define()
 		TestTrue(TEXT("still 6's bytes"), Assembler.GetBytes() == NewBytes);
 	});
 
+	It("compresses for the trip and back, and counts the chunks (review)", [this]()
+	{
+		const TArray<uint8> Bytes = CheckpointTestBytes(5000);
+		TArray<uint8> Compressed;
+		TArray<uint8> Back;
+		TestTrue(TEXT("compressed"), WoRCheckpoint::Compress(Bytes, Compressed));
+		TestTrue(TEXT("decompressed"), WoRCheckpoint::Decompress(Compressed, Bytes.Num(), Back));
+		TestTrue(TEXT("the same bytes"), Back == Bytes);
+		TestFalse(TEXT("a wrong size fails"), WoRCheckpoint::Decompress(Compressed, Bytes.Num() / 2, Back));
+		TestEqual(TEXT("chunks: 10 bytes by 4"), WoRCheckpoint::ChunkCountFor(10, CHECKPOINT_TEST_CHUNK), 3);
+		TestEqual(TEXT("chunks: empty still one"), WoRCheckpoint::ChunkCountFor(0, CHECKPOINT_TEST_CHUNK), 1);
+		TestEqual(TEXT("ChunkCountFor matches Split"), WoRCheckpoint::ChunkCountFor(Bytes.Num()), WoRCheckpoint::Split(Bytes).Num());
+	});
+
 	It("ignores a bad index or a count that disagrees", [this]()
 	{
 		FCoopCheckpointAssembler Assembler;
