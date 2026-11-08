@@ -1,7 +1,7 @@
 // FAmpBonus.h
 // B-382 (Q-164b A, Crown 2026-11-08): Amp lines, the deckbuilder's "+2 Amp" / "+1 Fire Amp". Each line has a
-// scope (all hits, physical hits, or one element's); every line whose scope matches the action's resolved
-// element is added into one total, as element resistance is summed. The total adds flat to the skill's base
+// scope (all actions, physical ones, spells, or one element's: the same scopes as EDamageScope, B-383); every
+// line whose scope matches the action is added into one total, as element resistance is summed. The total adds flat to the skill's base
 // damage before the charge / tier multipliers, once per action (UActionExecutor::PreviewActionDamage).
 // Amp does not raise status buildup.
 
@@ -22,9 +22,13 @@ struct WORLD_OF_REFRACTION_API FAmpBonus
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Amp", meta = (ClampMin = "-5", ClampMax = "5"))
 	int32 All = 0;
 
-	/** "+N Physical Amp": non-elemental actions (element None). */
+	/** "+N Physical Amp": actions that are not spells (attacks and abilities, infused or not): the Raw axis (B-383). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Amp", meta = (ClampMin = "-5", ClampMax = "5"))
 	int32 Physical = 0;
+
+	/** "+N Spell Amp": spells (B-383). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Amp", meta = (ClampMin = "-5", ClampMax = "5"))
+	int32 Spell = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Amp|Element", meta = (ClampMin = "-5", ClampMax = "5"))
 	int32 Fire = 0;
@@ -53,7 +57,7 @@ struct WORLD_OF_REFRACTION_API FAmpBonus
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Amp|Element", meta = (ClampMin = "-5", ClampMax = "5"))
 	int32 Reality = 0;
 
-	/** The one element line for Element (0 for None / Generic: Generic never reaches damage, None is Physical). */
+	/** The one element line for Element (0 for None / Generic: Generic never reaches damage). */
 	int32 GetElementLine(ESpellElement Element) const
 	{
 		switch (Element)
@@ -71,15 +75,16 @@ struct WORLD_OF_REFRACTION_API FAmpBonus
 		}
 	}
 
-	/** The total for an action of ResolvedElement: All, plus Physical (element None) or that element's line. */
-	int32 GetTotalFor(ESpellElement ResolvedElement) const
+	/** The total for an action of ResolvedElement: All, plus Spell (a spell) or Physical (not a spell), plus that
+	 *  element's line. */
+	int32 GetTotalFor(ESpellElement ResolvedElement, bool bIsSpell) const
 	{
-		return All + (ResolvedElement == ESpellElement::None ? Physical : GetElementLine(ResolvedElement));
+		return All + (bIsSpell ? Spell : Physical) + GetElementLine(ResolvedElement);
 	}
 
 	bool IsEmpty() const
 	{
-		return All == 0 && Physical == 0 && Fire == 0 && Water == 0 && Earth == 0 && Wind == 0 && Light == 0 &&
+		return All == 0 && Physical == 0 && Spell == 0 && Fire == 0 && Water == 0 && Earth == 0 && Wind == 0 && Light == 0 &&
 			   Darkness == 0 && Lightning == 0 && Void == 0 && Reality == 0;
 	}
 
@@ -88,6 +93,7 @@ struct WORLD_OF_REFRACTION_API FAmpBonus
 	{
 		All += Other.All;
 		Physical += Other.Physical;
+		Spell += Other.Spell;
 		Fire += Other.Fire;
 		Water += Other.Water;
 		Earth += Other.Earth;
@@ -112,6 +118,7 @@ struct WORLD_OF_REFRACTION_API FAmpBonus
 		};
 		Add(All, TEXT("Amp"));
 		Add(Physical, TEXT("Physical"));
+		Add(Spell, TEXT("Spell"));
 		Add(Fire, TEXT("Fire"));
 		Add(Water, TEXT("Water"));
 		Add(Earth, TEXT("Earth"));
