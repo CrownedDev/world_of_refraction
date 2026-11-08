@@ -95,6 +95,8 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 58 | `feature/B-380b-apparel-store-save-cloud` | B-380 | 28 | none |
 | 59 | `feature/B-380c-apparel-slots-saved-cloud` | B-380b | **29** | **save** |
 | 60 | `docs/damage-defence-sources-cloud` | `docs/Q-164b-amp-cloud` (contains it; merge this one) | – | docs (DesignDecisions, Rules 02 ED-50). The trial branch merged only `docs/Q-164b-amp-cloud`; this branch adds the comparison doc on top. |
+| 61 | `feature/B-382-amp-lines-cloud` | row 60 | **30** | **save** (29 → 30; add the `30: B-382's Amp lines…` note to the one comment). **DesignDecisions Q-164b:** keep only the answered version; a union also keeps the old OPEN heading and options A–D (drop them). Backlog: keep the REVIEW rows (B-367b, B-374 come back as TODO from this branch's older base). Docs (Backlog, DesignDecisions Q-164b, Rules 02 ED-50 / ED-50b, DamageCalculator changelog). Code: `FEquipmentStatBonus` (B-380's apparel lines sit beside it; no overlap), `LoadoutComponent::GetActiveStatBonus` `AddScaled` (one added line), `ActionExecutor` `PreviewActionDamage` / `FActionDamagePreview`, `DamageCalculator::GetStatusEffectDamageModifier`. |
+| 62 | `feature/B-383-damage-scopes-cloud` | B-382 | 30 | Backlog: the same doubled rows (keep REVIEW; B-382's row with "save v30"). Code in effect / GAS / damage-calculator files only (`EDamageScope`, `FSkillEffectPayload`, `FActiveSkillEffect`, `WoREffectContext`, `WoREffectSpecBuilder`, `SkillEffectManager`, `DamageCalculator`). Docs: Backlog (B-383, B-384), D-166, Rules 02, PIE. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
@@ -119,8 +121,9 @@ Each cloud branch took the next free number after the branches it knew of. In th
 | 27 | B-379 | Hidden counters (`FSavedCounters`) |
 | 28 | B-377b | The memory journal (`FSavedJournal`) |
 | 29 | B-380c | Apparel in loadouts (`FSavedLoadout`, `FSavedCustomLoadout::Apparel`) |
+| 30 | B-382 | Amp lines on gear (`FEquipmentStatBonus::Amp`, inside `FSavedGear::StatBonus`) |
 
-**Branches that don't bump the version:** B-348c, B-351c/d, B-187, B-187b, B-363/364, B-187d/e, B-381, B-380b. They carry their base's number.
+**Branches that don't bump the version:** B-348c, B-351c/d, B-187, B-187b, B-363/364, B-187d/e, B-381, B-380b, B-383. They carry their base's number.
 
 **The `LATEST` comment.** A text merge copies the whole 2–20 history once per branch. After each save merge, write the comment once: the 2–20 history, then 21 up to the version just merged, using the "What it saves" column. The trial branch's final line, in commit `c17141b7`, is the target. Remove the "(renumber at merge)" / "(another branch; renumber if it lands later)" notes as you go.
 
