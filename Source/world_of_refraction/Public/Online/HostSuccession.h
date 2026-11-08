@@ -2,9 +2,10 @@
 // B-234b part 1 (D-103, Q-234b): when the host drops, the next player in join order hosts from their checkpoint copy
 // (B-234) and the others find and rejoin that player's session. The host replicates the join order
 // (AWoRGameState::HostOrder); every client keeps the last order it saw here, so it still knows it once the host is
-// gone. On a lost connection the game travels to the default map; when that world is up, the successor takes over
-// (USaveSubsystem::AdoptCheckpoint, then UWoRSessionSubsystem::HostSession; the hub's run resume reopens the trial
-// at the last checkpoint, so the fight is exited) and the others search for it. A planned hand-over at a rest spot
+// gone. On a lost connection the game travels to the default map; when that world is up, everyone leaves the dead
+// session; the successor then hosts (UWoRSessionSubsystem::HostSession) and, once hosting works, adopts its copy
+// (USaveSubsystem::AdoptCheckpoint; the hub's run resume reopens the trial at the last checkpoint, so the fight is
+// exited); the others search for its session and join it. A planned hand-over at a rest spot
 // is B-234c. The old host's claimed seats are AI until it rejoins (the copy's party has no claims).
 // Debug: wor.Coop.PrintSuccession (GetSuccessionString), wor.Coop.SimulateHostDrop.
 
@@ -13,6 +14,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/TimerHandle.h"
 #include "HostSuccession.generated.h"
 
 class UNetDriver;
@@ -42,9 +44,9 @@ enum class EHostHandOverStep : uint8
 	None,
 	/** Waiting for the default map to load before hosting from the copy. */
 	TakeOverPending,
-	/** Hosting from the copy (HostSession started). */
+	/** HostSession started; the copy is adopted when it succeeds (then the step is None again). */
 	Hosting,
-	/** Searching for the new host's session. */
+	/** Searching for the new host's session, or joining it (None again once travelling). */
 	Rejoining,
 	/** No copy, nobody left, or the new host never appeared. */
 	GaveUp
@@ -80,9 +82,13 @@ private:
 	void HandleNetworkFailure(UWorld *World, UNetDriver *NetDriver, ENetworkFailure::Type FailureType, const FString &Error);
 	void HandleWorldActorsInitialized(const struct FActorsInitializedParams &Params);
 	void ContinueHandOver(UWorld *World);
-	void TakeOver(UWorld *World);
+	/** After the old session is gone (TAKE_OVER_DELAY_SECONDS): host; the copy is adopted only once hosting works. */
+	void StartHosting();
+	void HandleSessionCreated(bool bSucceeded);
 	void TryRejoin();
 	void HandleSessionsFound();
+	void HandleSessionJoined(bool bSucceeded);
+	void StartRejoinTimer();
 
 	TArray<FString> KnownOrder;
 	FString OldHost;
@@ -93,5 +99,7 @@ private:
 	FDelegateHandle NetworkFailureHandle;
 	FDelegateHandle WorldInitHandle;
 	FDelegateHandle SessionsFoundHandle;
+	FDelegateHandle SessionCreatedHandle;
+	FDelegateHandle SessionJoinedHandle;
 	FTimerHandle RetryTimer;
 };

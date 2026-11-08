@@ -47,6 +47,8 @@ void UWoRHostHandOverSubsystem::Deinitialize()
 	if (UWoRSessionSubsystem *Sessions = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWoRSessionSubsystem>() : nullptr)
 	{
 		Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
+		Sessions->OnSessionCreated.Remove(SessionCreatedHandle);
+		Sessions->OnSessionJoined.Remove(SessionJoinedHandle);
 	}
 	Super::Deinitialize();
 }
@@ -114,35 +116,74 @@ void UWoRHostHandOverSubsystem::HandleWorldActorsInitialized(const FActorsInitia
 
 void UWoRHostHandOverSubsystem::ContinueHandOver(UWorld *World)
 {
-	// Not inside world initialisation: the session calls and the level change wait for the next tick.
+	// The old host's session is gone; drop our side of it first (review: HostSession refuses while one exists, and on
+	// EOS a destroy finishes late, so hosting waits TAKE_OVER_DELAY_SECONDS).
+	if (UWoRSessionSubsystem *Sessions = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWoRSessionSubsystem>() : nullptr)
+	{
+		Sessions->LeaveSession();
+	}
+	// Not inside world initialisation: the session calls and the level change wait for a timer.
 	if (Step == EHostHandOverStep::TakeOverPending)
 	{
-		World->GetTimerManager().SetTimer(RetryTimer, FTimerDelegate::CreateWeakLambda(this, [this, World]() { TakeOver(World); }),
+		World->GetTimerManager().SetTimer(RetryTimer, FTimerDelegate::CreateUObject(this, &UWoRHostHandOverSubsystem::StartHosting),
 										  WoRHostSuccession::TAKE_OVER_DELAY_SECONDS, false);
 	}
 	else if (Step == EHostHandOverStep::Rejoining)
 	{
-		World->GetTimerManager().SetTimer(RetryTimer, FTimerDelegate::CreateUObject(this, &UWoRHostHandOverSubsystem::TryRejoin),
-										  WoRHostSuccession::REJOIN_RETRY_SECONDS, true);
+		StartRejoinTimer();
 	}
 }
 
-void UWoRHostHandOverSubsystem::TakeOver(UWorld *World)
+void UWoRHostHandOverSubsystem::StartHosting()
 {
 	UGameInstance *GI = GetGameInstance();
-	USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
 	UWoRSessionSubsystem *Sessions = GI ? GI->GetSubsystem<UWoRSessionSubsystem>() : nullptr;
-	if (!Save || !Sessions || !Save->AdoptCheckpoint())
+	if (!Sessions)
 	{
 		Step = EHostHandOverStep::GaveUp;
-		UE_LOG(LogWoR, Warning, TEXT("[HandOver] Can't host from the checkpoint copy (no copy kept?); the run stays where the last save left it"));
 		return;
 	}
-	Sessions->LeaveSession(); // the old host's session is gone; drop our side of it before hosting
-	Step = Sessions->HostSession() ? EHostHandOverStep::Hosting : EHostHandOverStep::GaveUp;
-	UE_LOG(LogWoR, Display, TEXT("[HandOver] %s"), Step == EHostHandOverStep::Hosting
-		   ? TEXT("Hosting from the checkpoint copy; the run resumes at its last checkpoint")
-		   : TEXT("Could not host; try wor.Session.Host"));
+	Sessions->OnSessionCreated.Remove(SessionCreatedHandle);
+	SessionCreatedHandle = Sessions->OnSessionCreated.AddUObject(this, &UWoRHostHandOverSubsystem::HandleSessionCreated);
+	Step = EHostHandOverStep::Hosting;
+	if (!Sessions->HostSession())
+	{
+		Sessions->OnSessionCreated.Remove(SessionCreatedHandle);
+		SessionCreatedHandle.Reset();
+		Step = EHostHandOverStep::GaveUp;
+		UE_LOG(LogWoR, Warning, TEXT("[HandOver] Could not host; try wor.Session.Host"));
+	}
+}
+
+void UWoRHostHandOverSubsystem::HandleSessionCreated(bool bSucceeded)
+{
+	UGameInstance *GI = GetGameInstance();
+	if (UWoRSessionSubsystem *Sessions = GI ? GI->GetSubsystem<UWoRSessionSubsystem>() : nullptr)
+	{
+		Sessions->OnSessionCreated.Remove(SessionCreatedHandle);
+	}
+	SessionCreatedHandle.Reset();
+	if (!bSucceeded)
+	{
+		Step = EHostHandOverStep::GaveUp;
+		UE_LOG(LogWoR, Warning, TEXT("[HandOver] Hosting failed; nothing adopted (try wor.Session.Host)"));
+		return;
+	}
+	// Review: adopt only now that hosting works, so a failed host never leaves this player in the old host's game.
+	USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
+	const bool bAdopted = Save && Save->AdoptCheckpoint();
+	Step = EHostHandOverStep::None; // done: a later lost host starts a new hand-over
+	UE_LOG(LogWoR, Display, TEXT("[HandOver] %s"), bAdopted ? TEXT("Hosting from the checkpoint copy; the run resumes at its last checkpoint")
+															: TEXT("Hosting, but no checkpoint copy with a run was kept: the run doesn't resume"));
+}
+
+void UWoRHostHandOverSubsystem::StartRejoinTimer()
+{
+	if (UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
+	{
+		World->GetTimerManager().SetTimer(RetryTimer, FTimerDelegate::CreateUObject(this, &UWoRHostHandOverSubsystem::TryRejoin),
+										  WoRHostSuccession::REJOIN_RETRY_SECONDS, true);
+	}
 }
 
 void UWoRHostHandOverSubsystem::TryRejoin()
@@ -167,10 +208,6 @@ void UWoRHostHandOverSubsystem::TryRejoin()
 	{
 		SessionsFoundHandle = Sessions->OnSessionsFound.AddUObject(this, &UWoRHostHandOverSubsystem::HandleSessionsFound);
 	}
-	if (RejoinTries == 1)
-	{
-		Sessions->LeaveSession(); // the joined session is gone with its host
-	}
 	Sessions->FindSessions();
 }
 
@@ -178,23 +215,52 @@ void UWoRHostHandOverSubsystem::HandleSessionsFound()
 {
 	UGameInstance *GI = GetGameInstance();
 	UWoRSessionSubsystem *Sessions = GI ? GI->GetSubsystem<UWoRSessionSubsystem>() : nullptr;
-	if (!Sessions || Step != EHostHandOverStep::Rejoining)
+	if (!Sessions || Step != EHostHandOverStep::Rejoining || SessionJoinedHandle.IsValid())
 	{
 		return;
 	}
 	const int32 Index = Sessions->FindSessionIndexByOwner(NextHost);
-	if (Index == INDEX_NONE || !Sessions->JoinFoundSession(Index))
+	if (Index == INDEX_NONE)
 	{
 		return; // the next retry searches again
 	}
+	SessionJoinedHandle = Sessions->OnSessionJoined.AddUObject(this, &UWoRHostHandOverSubsystem::HandleSessionJoined);
+	if (!Sessions->JoinFoundSession(Index))
+	{
+		Sessions->OnSessionJoined.Remove(SessionJoinedHandle);
+		SessionJoinedHandle.Reset();
+		return;
+	}
+	// Review: no more searches while the join runs; a failed join starts them again.
 	if (UWorld *World = GI->GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RetryTimer);
 	}
-	Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
-	SessionsFoundHandle.Reset();
-	Step = EHostHandOverStep::None;
-	UE_LOG(LogWoR, Display, TEXT("[HandOver] Rejoining %s's session"), *NextHost);
+	UE_LOG(LogWoR, Display, TEXT("[HandOver] Joining %s's session"), *NextHost);
+}
+
+void UWoRHostHandOverSubsystem::HandleSessionJoined(bool bSucceeded)
+{
+	UGameInstance *GI = GetGameInstance();
+	UWoRSessionSubsystem *Sessions = GI ? GI->GetSubsystem<UWoRSessionSubsystem>() : nullptr;
+	if (Sessions)
+	{
+		Sessions->OnSessionJoined.Remove(SessionJoinedHandle);
+	}
+	SessionJoinedHandle.Reset();
+	if (bSucceeded)
+	{
+		if (Sessions)
+		{
+			Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
+		}
+		SessionsFoundHandle.Reset();
+		Step = EHostHandOverStep::None; // travelling to the new host
+		UE_LOG(LogWoR, Display, TEXT("[HandOver] Rejoined %s"), *NextHost);
+		return;
+	}
+	UE_LOG(LogWoR, Warning, TEXT("[HandOver] Joining %s failed; searching again"), *NextHost);
+	StartRejoinTimer();
 }
 
 FString UWoRHostHandOverSubsystem::GetSuccessionString() const
