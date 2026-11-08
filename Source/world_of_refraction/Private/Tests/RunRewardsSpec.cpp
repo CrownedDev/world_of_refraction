@@ -89,11 +89,26 @@ void FRunRewardsSpec::Define()
 			TestEqual(TEXT("no hub Gold mid-run"), Wallet->GetBalance(ECurrencyType::Prisms), HubBefore);
 			TestFalse(TEXT("the tally grew"), Run->GetRunTally().IsEmpty());
 
-			// The run's end (ExitTrial pays this, win or lose).
+			// The run's end (ExitTrial's PayRunEnd, win or lose).
 			const FRunPayout Payout = Run->GetRunEndPayout();
-			TestEqual(TEXT("paid to the one player"), RunRewards::PayRunEndToPlayers(TestWorld->GetWorld(), Payout), 1);
+			TestEqual(TEXT("paid to the one player"), Run->PayRunEnd(TestWorld->GetWorld()), 1);
 			TestEqual(TEXT("hub Gold at the end"), Wallet->GetBalance(ECurrencyType::Prisms), HubBefore + Payout.HubGold);
 			TestEqual(TEXT("Gear Essence at the end"), Wallet->GetBalance(ECurrencyType::GearEssence), Payout.GearEssence);
+			TestTrue(TEXT("hub Gold buys in the hub afterwards"), Wallet->CanAfford(ECurrencyType::Prisms, Payout.HubGold));
+			TestEqual(TEXT("paid once"), Run->PayRunEnd(TestWorld->GetWorld()), 0);
+		});
+
+		It("pays the tally when the run ends in a loss too (D-006: win or lose)", [this]()
+		{
+			if (!TestTrue(TEXT("setup"), Run && Wallet))
+			{
+				return;
+			}
+			Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), RUN_REWARDS_TEST_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, {}, {});
+			Run->RecordFightReward(TestWorld->GetWorld(), EEncounterRank::MiniBoss);
+			const FRunPayout Payout = Run->GetRunEndPayout(); // no boss beaten: no bonus
+			TestEqual(TEXT("the losing run's end pays"), Run->PayRunEnd(TestWorld->GetWorld()), 1);
+			TestEqual(TEXT("its hub Gold"), Wallet->GetBalance(ECurrencyType::Prisms), Payout.HubGold);
 		});
 
 		It("pays nothing for a fight outside a run", [this]()

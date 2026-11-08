@@ -198,13 +198,18 @@ public:
     /** B-073: what the run's end would pay now (the tally scaled by difficulty, boss bonus and multiplier). */
     FRunPayout GetRunEndPayout() const;
 
+    /** B-073: the run's end pays the tally to every player (ExitTrial calls it, win or lose; specs call it). Empties
+     *  the tally so it can't be paid twice. Returns how many players were paid. */
+    int32 PayRunEnd(UWorld *World);
+
     /** B-073 / B-096: the payout multiplier (passives raise it); BASE 1.0. */
     float GetPayoutMultiplier() const { return PayoutMultiplier; }
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
 
     /** B-187 (RunStructure §6): the party leaves the run at a rest spot: the end pays the tally at
-     *  RunRewards::LEAVE_EARLY_SHARE (no boss bonus: the boss isn't beaten), then back to the hub next tick. */
+     *  RunRewards::LEAVE_EARLY_SHARE with no boss bonus, then back to the hub next tick. Once per run. */
     void LeaveRunEarly();
+    bool IsLeavingEarly() const { return bLeavingEarly; }
 
     /** B-073: the save puts a resumed run's tally back. */
     void RestoreRunTally(const FRunPayout &Tally) { RunTally = Tally; }
@@ -401,6 +406,8 @@ private:
     /** B-073: hub Gold and essences earned this run, paid at its end. */
     FRunPayout RunTally;
     float PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
+    /** B-187: the party chose to leave at a rest spot (the run's end pays the leave share). */
+    bool bLeavingEarly = false;
 
     /** B-362: run state like BeatenEncounters (cleared on trial entry and exit; saved with the run in FSavedRun). */
     int32 RunWipes = 0;
