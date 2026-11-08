@@ -130,6 +130,11 @@ static FAutoConsoleCommandWithWorldAndArgs GTrialLookCommand(
 			UE_LOG(LogWoR, Display, TEXT("%s"), *TrialMapLook::GetLookString());
 			return;
 		}
+		if (!World || !World->IsGameWorld())
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[TrialMapLook] wor.Trial.Look previews in a game world only (PIE), never the editor's level"));
+			return;
+		}
 		const int64 Value = StaticEnum<ESpellElement>()->GetValueByNameString(Args[0]);
 		if (Value == INDEX_NONE)
 		{
