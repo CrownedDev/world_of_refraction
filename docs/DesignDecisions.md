@@ -3870,6 +3870,15 @@ Moved here once applied. Newest first.
 **Answer:** **A / A / A**, by the reference-backed default (2026-11-04). Crown may change any of them.
 **Notes for Claude:** built in B-337d. As built: `SkillConditions` (Skills/Effects) reads a group across (event trigger = condition Trigger, thresholds = `HpPercent` / `EpPercent` with Below / Above, the side = `Who` incl. the new `SelfTeam` / `TargetTeam`, AND / OR = sets any one of which holds); `ESkillCheck` State / Defense / ActionResult says which events count. An actor with no character data is no fighter: an HP / EP check on it fails, as before; a target-side or team **event** condition (e.g. On Hit, Target Team) no longer needs the side to have character data (every fighter has it, so nothing changes in play). `Defender` (25) = the side defended the event; `Disabled` (26) = a condition authored None, never holds. `IsSingleTriggerMet` is OBSOLETE (no caller). B-337e: the authored field, re-authoring, then `FSkillCondition` / `EvaluateConditionGroup` retire.
 
+### Q-337e — The migrated skill condition field: one set, or All of / Any of
+**Status:** ANSWERED (Crown, 2026-11-08) · **Raised:** 2026-11-07 (B-337e, cloud) · **Blocks:** —
+**Question:** B-337e's row asks for "an authored `FWoRConditionSet` field" on `FSkillEffect`. One set is an AND of conditions; the old skill groups mix AND and OR rows ("hit, and either HP below 50% or EP above 70%"). Which shape keeps every authored group's result?
+**Options / as built (A):** two sets, `FSkillConditionGroup` **All of** and **Any of** (`AllOf` must all hold, and one of `AnyOf` when it has any): the old rows condition for condition, so the result is exact (the parity spec covers every check). Until the sweep the group is shown read-only and rebuilt from the old rows on each edit, so the two never drift. **B** one `FWoRConditionSet` as the row says, which loses the OR rows. **C** a list of sets (any one holds), harder to author by hand.
+**Recommendation:** A. It is the same "all of / any of" shape as the shared condition lists (`WoRConditions::IsAnyMet` over sets) and the familiar authoring form in Unreal's own Gameplay Tag queries (All / Any) and Path of Exile's item filters; B would change some authored effects' results.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it.
+**Notes for Claude:** built in B-337e. After the sweep the group becomes the edited field (EditAnywhere) and the rebuild-on-edit goes.
+**Answer (Crown, 2026-11-08):** follow the deckbuilder's shape (`wor-deckbuilder` `docs/reference/05-triggers-conditions.md`, "Nested conditions"): **one trigger on top, the All of checks nested under it**, shown as an indented tree; that is the default authoring and display (the Details panel, `wor.Conditions.Tree` and the skill debug prints show trigger → indented checks). **Any of stays, hidden** (collapsed, `AdvancedDisplay`), only so migrated old OR rows keep their result; new skills author All of only. The content sweep lists every skill using Any of (`wor.Conditions.ListAnyOf`); if each can be rewritten without "or", Any of is deleted so we match the deckbuilder. **Difference from the deckbuilder:** it has no OR at all; ours keeps Any of until that sweep.
+
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
 **Question:** B-313 makes each member's pouch its only carried-items list (D-111 "per-loadout item lists retire", D-117). Three things the rulings don't say: (1) switch every reader of the per-member mirror and the per-preset item slots in one unbuilt job, or the combat side first? (2) D-072 caps how many utility crystals of each tier band a character has "equipped" in its item slots (S 1, A/B 2, C/D 3, E/F 4); with no item slots, what does the cap count? (3) a trial recruit (run-only, D-026) brings no pouch of its own; its authored preset's items were a free supply in the preset's slots. Where do they go?
@@ -4087,3 +4096,22 @@ Moved here once applied. Newest first.
 **Reference check:** *deckbuilder*: schools are labels and cost filters only (`02-enums.md` ESpellSchool). *Games*: Divinity: Original Sin 2's shared Memory pool and Baldur's Gate 3's shared spell slots keep schools as categories, not limits.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
+
+### D-164 — Apparel: a gear piece outside the budget, with its own crystal socket
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** add an **apparel** gear piece, working like the deckbuilder's (`wor-deckbuilder docs/reference/01-card-model.md`: Apparel, a vessel with HP and Defence lines and a crystal socket):
+- **Outside the loadout budget:** apparel never takes budget or an item limit from weapons, adapters or evolutions (D-110 budgets unchanged).
+- **Its own crystal socket:** a crystal on apparel is separate from the weapon / adapter crystals; it keys the apparel (its element) and powers no skill (the deckbuilder's rule).
+- **Stats:** HP and Defence lines (the deckbuilder's `HP · Amp · Def` without Amp: this game has no Amp stat yet).
+- **Separate from cosmetics:** the outfit pieces (D-111) stay the look; apparel is stats only (Monster Hunter's armour vs. layered armour).
+- **Two apparel slots** (Crown, 2026-11-08; the deckbuilder's `MaxApparelSeated` 2).
+- **An apparel crystal gives extra resistance** to its element (Crown, 2026-11-08), on top of the apparel's own lines (the deckbuilder's resistance apparel: an elemental Defence line).
+- **Apparel carries effects** like the deckbuilder's vessels (Crown, 2026-11-08): passive effect rows with a trigger and conditions, and bonuses (`wor-deckbuilder docs/reference/04-effects.md`, `06-bonuses.md`), through this game's skill-effect rows (`FSkillEffect`, the nested condition shape of Q-337e).
+- **An evolution can go on apparel** (Crown, 2026-11-08). As on other gear it gives its passive abilities (D-147, B-357c), keys the apparel to its element and adds that element's resistance like a crystal; it powers no skill (the deckbuilder's rule).
+**Look into later (Crown):** an **Amp** stat (the deckbuilder's `+2 Amp` / `+1 Fire Amp`: a flat boost to skills, all or one element); not decided.
+**Notes for Claude:** new item type in the owned-items store (D-111); stats compose through the stat sources (GAS `UWoRGE_StatSources`); quests can hang off it (D-165).
+
+### D-165 — Gear and evolutions can carry conditional quests
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** a weapon, adapter, apparel piece or evolution can carry **conditional quests**: a hidden quest (`Design/MemoryCatalogue.md` §3.6) that starts when its conditions are met while the player has or wears that item (found, worn, upgraded, used in a certain way). The same no-hints, never-missed and who-receives rules apply (D-100, Q-235d). Probably built later, after the hidden-quest job.
+**Notes for Claude:** `Design/MemoryCatalogue.md` §3.11.

@@ -21,6 +21,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-337b](B-337b.md) | `feature/B-337b-conditions-part2` (in `dev`) | Reactions match through the shared conditions (no gameplay change); `wor.Reaction.Print` shows the condition list | Pending |
 | [B-337c](B-337c.md) | `feature/B-337c-bound-memory-conditions` (in `dev`) | Bound-item memories check through the shared conditions; skill trigger On Flawless Parry | Pending |
 | [B-337d](B-337d.md) | `refactor/B-337d-skill-conditions` (in `dev`) | Skill-effect conditions check through the shared conditions (HP / EP percent) | Pending |
+| [B-337e](B-337e.md) | `feature/B-337e-condition-migration-cloud` (in `dev`) | Skill-effect conditions convert on load; `wor.Conditions.ListOld` lists assets to resave (editor step); effects fire as before | Pending |
 | [B-362b](B-362b.md) | `feature/B-362b-wipe-drops-prisms` (in `dev`) | A wipe drops the run's Prisms at the fight instead of taking pillar points; beating that team gets them back; a second wipe loses the first drop | Pending |
 | [B-362c](B-362c.md) | `feature/B-362c-prism-pickup` (in `dev`) | The Prism drop lies as a pickup where the party stood when the fight started; walking into it gives it back; a win no longer does | Pending |
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
@@ -29,6 +30,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
 | [B-367](B-367.md) | `feature/B-367-interrupt-points` (in `dev`) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending |
+| [B-189](B-189.md) | `feature/B-189-element-map-look-cloud` (in `dev`) | A trial's element sets its map's sky, fog and sun (placeholder colours); `wor.Trial.Look <Element>` previews | Pending |
+| [B-278](B-278.md) | `feature/B-278-asset-manager-rules-cloud` (in `dev`) | A packaged Development build has every data asset; first fights don't stutter (PSO steps) | Pending |
 | [B-347b](B-347b.md) | `feature/B-347b-run-armoury` (in `dev`) | During a run a member sees and equips only what the run brought or found; left-home gear and loadouts come back intact; the chest waits until the run ends | Pending |
 | [B-366c](B-366c.md) | `feature/B-366c-shop-place-currency` (in `dev`) | Shops charge the hub currency (Gold) at home and the run currency (Prisms) in a run; cost lines, totals and Confirm follow it | Pending |
 | [B-366b](B-366b.md) | `fix/B-366b-convert-place-currency` (in `dev`) | Converting a duplicate pays the hub currency (Gold) at home and the run currency (Prisms) in a run; the texts name it | Pending |
