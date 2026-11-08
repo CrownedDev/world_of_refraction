@@ -17,6 +17,7 @@
 class UCharacterDataComponent;
 class URingData;
 enum class ESkillCheck : uint8;
+struct FSkillConditionGroup;
 
 /** One fires-once use (D-011): per holder and per source of the effect, so two wearers
  *  of the same once-per-match gear each get theirs. */
