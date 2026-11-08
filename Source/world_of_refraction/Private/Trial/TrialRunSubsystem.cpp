@@ -383,7 +383,7 @@ void UTrialRunSubsystem::AddUnspentLevels(FName CharacterKey, int32 Count)
     if (Count > 0 && !CharacterKey.IsNone())
     {
         const int32 Waiting = UnspentLevels.FindOrAdd(CharacterKey) += Count;
-        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place (%d waiting): wor.UI.LevelDrop"),
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place at a rest spot (%d waiting): wor.Trial.Rest, Level up"),
                *FPaths::GetBaseFilename(CharacterKey.ToString()), Count, Waiting);
     }
 }
