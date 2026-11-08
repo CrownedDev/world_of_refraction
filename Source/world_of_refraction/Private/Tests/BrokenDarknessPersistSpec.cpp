@@ -10,6 +10,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
+#include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 
@@ -22,6 +23,26 @@ BEGIN_DEFINE_SPEC(FBrokenDarknessPersistSpec, "WoR.Combat.BrokenDarknessPersists
 TUniquePtr<FWoRTestWorld> TestWorld;
 UPartySessionSubsystem *PartySession = nullptr;
 UCharacterData *Member = nullptr;
+
+/** Review: as ACombatCharacter builds it: the character component first (its BeginPlay runs first and seeds the
+ *  manager), then the Broken Darkness manager's own BeginPlay, which must not undo the seeding. */
+UBrokenDarknessManager *SpawnWithManager(UCharacterData *Data)
+{
+	UWorld *World = TestWorld->GetWorld();
+	AActor *Actor = World ? World->SpawnActor<AActor>() : nullptr;
+	if (!Actor)
+	{
+		return nullptr;
+	}
+	UBrokenDarknessManager *Manager = NewObject<UBrokenDarknessManager>(Actor);
+	Actor->AddInstanceComponent(Manager);
+	UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(Actor);
+	CharComp->CharacterData = Data;
+	Actor->AddInstanceComponent(CharComp);
+	CharComp->RegisterComponent(); // BeginPlay: the init cascade (flip, absorption, strain)
+	Manager->RegisterComponent();  // then the manager's BeginPlay
+	return Manager;
+}
 END_DEFINE_SPEC(FBrokenDarknessPersistSpec)
 
 void FBrokenDarknessPersistSpec::Define()
@@ -59,6 +80,25 @@ void FBrokenDarknessPersistSpec::Define()
 		const UCharacterDataComponent *Comp = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		if (!TestNotNull(TEXT("spawned"), Comp)) return;
 		TestTrue(TEXT("still Broken Darkness"), Comp->IsBrokenDarkness());
+	});
+
+	It("the manager stays flipped after its own BeginPlay (review)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), PartySession && Member)) return;
+		PartySession->SetMemberBrokenDarkness(0, true, 0.0f);
+		const UBrokenDarknessManager *Manager = SpawnWithManager(Member);
+		if (!TestNotNull(TEXT("manager"), Manager)) return;
+		TestTrue(TEXT("transformed"), Manager->IsTransformed());
+	});
+
+	It("the run's strain survives the manager's BeginPlay (review)", [this]()
+	{
+		if (!TestTrue(TEXT("setup"), PartySession && Member)) return;
+		PartySession->SetMemberBrokenDarkness(0, false, BD_PERSIST_TEST_STRAIN);
+		const UBrokenDarknessManager *Manager = SpawnWithManager(Member);
+		if (!TestNotNull(TEXT("manager"), Manager)) return;
+		TestFalse(TEXT("not transformed"), Manager->IsTransformed());
+		TestEqual(TEXT("its run strain"), Manager->GetAccruedStrain(), BD_PERSIST_TEST_STRAIN);
 	});
 
 	It("a member that never broke spawns as itself", [this]()
