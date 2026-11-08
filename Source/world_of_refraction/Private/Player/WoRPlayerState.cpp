@@ -638,14 +638,28 @@ void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Fea
 
 void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &MemoryIds)
 {
-	KnownMemoryIds.Append(MemoryIds);
-	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reported %d memory(ies) in their journal (B-235e)"), *GetPlayerName(), MemoryIds.Num());
+	// B-235e review: a bounded report, so one message can't grow the host's list without end.
+	constexpr int32 MaxJournalReport = 4096; // TODO: tune to the authored memory count once the catalogue is in
+	const int32 Taken = FMath::Min(MemoryIds.Num(), MaxJournalReport);
+	for (int32 Index = 0; Index < Taken; ++Index)
+	{
+		KnownMemoryIds.Add(MemoryIds[Index]);
+	}
+	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reported %d memory(ies) in their journal (B-235e)%s"), *GetPlayerName(), Taken,
+		   Taken < MemoryIds.Num() ? TEXT(", the rest dropped (over the cap)") : TEXT(""));
 }
 
 void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
 {
 	if (!Memory)
 	{
+		return;
+	}
+	// B-235e review: a character's memory only from a player who plays that character.
+	if (!MemoryUnlock::QualifiesFor(Memory, GetOwnCharacters()))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: none of their characters has it"), *GetPlayerName(),
+			   *Memory->GetMemoryId().ToString());
 		return;
 	}
 	AddMemoryId(Memory->GetMemoryId());
