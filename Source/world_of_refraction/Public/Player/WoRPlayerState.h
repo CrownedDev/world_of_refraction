@@ -88,10 +88,15 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_OpenRestMenu(bool bCanRevive, int32 RevivalNumber);
 
-	/** B-187e: a client pressed Revive in its rest menu: the host revives the mini-boss of the run's last rest spot, if it
-	 *  can (WoRRestSpot::CanReviveHere), for everyone. */
+	/** B-187e: a client pressed Revive in its rest menu. Q-187e (Crown, 2026-11-08): it starts the revive vote
+	 *  (AWoRGameState::StartReviveVote) if the mini-boss of the run's last rest spot can be revived and this player stands
+	 *  at the rest spot, outside a fight. */
 	UFUNCTION(Server, Reliable)
 	void ServerReviveMiniBoss();
+
+	/** B-187e (Q-187e): this player's answer to the open revive vote. */
+	UFUNCTION(Server, Reliable)
+	void ServerCastReviveVote(bool bYes);
 
 	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
 	 *  player's pawn, if it stands in the feature's trigger. */
