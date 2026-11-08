@@ -112,8 +112,6 @@ namespace MemoryConditions
 	 *  every memory asset per event; cache it once authored memories make that slow. */
 	WORLD_OF_REFRACTION_API TArray<UMemoryData *> GatherConditional();
 
-	/** Unlock every memory among Conditional and Event.Named whose conditions hold, repeating so
-	 *  one earned now can unlock the next. Returns how many were new. */
 	/** B-235d: Event with its party kept to (bKeep) or rid of (!bKeep) Characters' members; a level-up by someone
 	 *  left out drops its upgraded item. What one player met is read on their part of the event. */
 	WORLD_OF_REFRACTION_API FMemoryEvent FilterParty(const FMemoryEvent &Event, const TArray<UCharacterData *> &Characters, bool bKeep);
@@ -128,6 +126,9 @@ namespace MemoryConditions
 	WORLD_OF_REFRACTION_API bool UnlockForFinders(UGameInstance *GameInstance, UMemoryData *Memory, const FMemoryEvent &Event,
 												  const UMemoryJournalSubsystem *Journal);
 
+	/** Unlock every memory among Conditional and Event.Named whose conditions hold, repeating so
+	 *  one earned now can unlock the next. Returns how many were new. B-235d: in co-op a
+	 *  memory the host already has is checked again for friends who have not had it. */
 	WORLD_OF_REFRACTION_API int32 CheckEvent(UGameInstance *GameInstance, const FMemoryEvent &Event,
 											 const TArray<UMemoryData *> &Conditional);
 

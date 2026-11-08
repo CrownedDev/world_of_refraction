@@ -57,29 +57,35 @@ bool MemoryUnlock::UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, E
 	{
 		return false;
 	}
-	// TODO(B-235d): a memory the host collected in an earlier run is not shared with a friend who qualifies (its
-	// sources check IsCollected first and are spent); share from the host's journal once that is wanted.
-	if (bHostReceives ? Journal->HasMemory(Memory) : TrialRun->GetRunMemories().Contains(Memory))
-	{
-		return false;
-	}
-	TrialRun->CollectMemory(Memory);
-	if (bHostReceives && !Journal->RecordMemory(Memory, Source))
-	{
-		return false;
-	}
-	int32 Shared = 0;
+	// Someone new must receive it: the host (not in its journal yet) or a friend not sent it yet. A memory the host
+	// had from an earlier run, with no friend new to it, stays out of this run as before.
+	// TODO(B-235d): a memory the host collected in an earlier run reaches a friend only through a source that is not
+	// spent (its map spots and fragments check IsCollected first).
+	const bool bHostNew = bHostReceives && !Journal->HasMemory(Memory);
+	TArray<AWoRPlayerState *> NewFriends;
 	for (AWoRPlayerState *Friend : Friends)
 	{
 		if (Friend && !Friend->WasMemorySent(Memory->GetMemoryId()))
 		{
-			Friend->MarkMemorySent(Memory->GetMemoryId());
-			Friend->Client_UnlockMemory(Memory, Source);
-			++Shared;
+			NewFriends.AddUnique(Friend);
 		}
 	}
+	if (!bHostNew && NewFriends.IsEmpty())
+	{
+		return false;
+	}
+	TrialRun->CollectMemory(Memory); // no-op when the run already has it (a second finder)
+	if (bHostNew && !Journal->RecordMemory(Memory, Source))
+	{
+		return false;
+	}
+	for (AWoRPlayerState *Friend : NewFriends)
+	{
+		Friend->MarkMemorySent(Memory->GetMemoryId());
+		Friend->Client_UnlockMemory(Memory, Source);
+	}
 	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s: host %s, %d friend(s) (Q-235d)"), *Memory->GetMemoryId().ToString(),
-		   bHostReceives ? TEXT("records it") : TEXT("does not (a friend found it)"), Shared);
+		   bHostNew ? TEXT("records it") : TEXT("does not (a friend found it, or already had it)"), NewFriends.Num());
 	// Q-209c: rewards come once, with the unlock. TODO: grant each kind once it can be: the item
 	// into the party's inventory (out-of-fight gear, B-085), the skill once rewards teach skills,
 	// titles and curses once they are systems; in co-op, to whoever received the memory.

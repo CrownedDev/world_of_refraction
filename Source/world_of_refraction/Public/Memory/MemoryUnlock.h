@@ -35,8 +35,8 @@ namespace MemoryUnlock
 	WORLD_OF_REFRACTION_API bool Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
 
 	/** B-235d (Q-235d, Crown): into the run, into the host's journal when bHostReceives, and to each of Friends (once
-	 *  each, privately: AWoRPlayerState::Client_UnlockMemory). False when Memory is null or already in the run (or, for
-	 *  the host, already in its journal). */
+	 *  each, privately: AWoRPlayerState::Client_UnlockMemory). True only when someone new received it (the host's journal
+	 *  recorded it, or a friend was sent it for the first time); a second finder later in the run still gets it. */
 	WORLD_OF_REFRACTION_API bool UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source, bool bHostReceives,
 										   const TArray<AWoRPlayerState *> &Friends);
 
