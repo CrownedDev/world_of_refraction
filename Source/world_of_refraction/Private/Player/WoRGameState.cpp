@@ -67,7 +67,10 @@ void AWoRGameState::UpdateHostOrder(const APlayerState *PlayerState, bool bJoine
 	{
 		HostOrder.Remove(Id);
 	}
-	OnRep_HostOrder(); // the host keeps its own copy too
+	if (GetNetMode() != NM_Standalone) // desktop review: a solo world (the default map mid hand-over) keeps the known order
+	{
+		OnRep_HostOrder(); // the host keeps its own copy too
+	}
 }
 
 void AWoRGameState::OnRep_HostOrder()

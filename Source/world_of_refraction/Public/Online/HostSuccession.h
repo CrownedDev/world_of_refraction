@@ -88,6 +88,7 @@ private:
 	void TryRejoin();
 	void HandleSessionsFound();
 	void HandleSessionJoined(bool bSucceeded);
+	void FinishRejoin();
 	void StartRejoinTimer();
 
 	TArray<FString> KnownOrder;
