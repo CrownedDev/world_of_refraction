@@ -2,7 +2,7 @@
 // Inspection for the combat tuning data (B-218, CombatTuningData.h).
 // - GetActiveTuningString: which asset is live (or the C++ defaults) and every value it gives.
 // - CompareCombatTuning: every ladder key and single value against the C++ constants.
-//   Console: wor.PrintCombatTuning (alias wor.Tuning.Print, B-224), wor.CompareCombatTuning.
+//   Console: wor.Tuning.Print (alias wor.Tuning.Print, B-224), wor.Tuning.Compare.
 
 #pragma once
 
