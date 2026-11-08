@@ -8,8 +8,9 @@
 // - each hit the server resolves fires OnHitShown on every machine (damage numbers bind it; on the server too;
 //   reliable, so no screen misses one).
 // - B-231b: each projectile the server launches from the owner flies as a cosmetic copy on the clients
-//   (ASkillProjectile::InitializeCosmetic: same path and VFX, no gameplay). Telegraphs and the B-369 impact
-//   visuals on clients are B-231c.
+//   (ASkillProjectile::InitializeCosmetic: same path and VFX, no gameplay).
+// - B-231c: each skill VFX the server's runner spawns (cast / ritual effects, telegraph tells) spawns on the clients
+//   too (FCosmeticVFX: attached to the same socket of the owner, or at the same spot; the same element tint).
 // Debug: GetDebugString (the last montage and hit sent or received), wor.Net.PrintPresentation.
 
 #pragma once
@@ -20,6 +21,39 @@
 #include "CombatPresentationComponent.generated.h"
 
 class UAnimMontage;
+class UNiagaraSystem;
+
+/** B-231c: one skill VFX the server spawned, for the clients to spawn the same. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FCosmeticVFX
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> System = nullptr;
+
+	/** Attached to the owner's mesh at Socket; else at Location. */
+	UPROPERTY()
+	bool bAttached = false;
+
+	UPROPERTY()
+	FName Socket;
+
+	UPROPERTY()
+	FVector Location = FVector::ZeroVector;
+
+	UPROPERTY()
+	float Scale = 1.0f;
+
+	UPROPERTY()
+	bool bTinted = false;
+
+	UPROPERTY()
+	FLinearColor CoreColor = FLinearColor::White;
+
+	UPROPERTY()
+	FLinearColor EdgeColor = FLinearColor::White;
+};
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCombatHitShown, AActor *, Target, int32, Damage, bool, bCritical);
 
@@ -51,6 +85,13 @@ public:
 	 *  SendsFromHere. */
 	void SendProjectile(const ASkillProjectile &Projectile);
 
+	/** B-231c (server): the runner spawned a skill VFX for the owner; the clients spawn the same. No-op unless
+	 *  SendsFromHere. */
+	void SendVFX(const FCosmeticVFX &VFX);
+
+	/** B-231c: spawns VFX on this machine (attached to the owner, or at its spot); null when it can't. */
+	class UNiagaraComponent *SpawnLocally(const FCosmeticVFX &VFX) const;
+
 	/** Fired on every machine for each hit the server resolves on the owner (damage numbers, hit flashes). */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Presentation")
 	FOnCombatHitShown OnHitShown;
@@ -71,6 +112,11 @@ private:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_LaunchProjectile(const FCosmeticProjectileLaunch &Launch);
 
+	/** Reliable (desktop review): the same path carries the telegraph tell, the client's defence cue, so it must not
+	 *  drop; turn-based actions send few. */
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_SpawnVFX(const FCosmeticVFX &VFX);
+
 	/** Plays Montage on the owner's combat anim instance (else the character), as the executor does. */
 	void PlayLocally(UAnimMontage *Montage, float PlayRate);
 
@@ -82,4 +128,6 @@ private:
 	int32 HitsShown = 0;
 	int32 ProjectilesSent = 0;
 	int32 ProjectilesFlown = 0;
+	int32 VFXSent = 0;
+	int32 VFXSpawned = 0;
 };

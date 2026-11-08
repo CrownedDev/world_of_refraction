@@ -85,6 +85,18 @@ void FCombatPresentationSpec::Define()
 			TestTrue(TEXT("the element"), Back.Element == ESpellElement::Water);
 		});
 
+		It("sends no VFX standalone, and spawns nothing without a system (B-231c)", [this]()
+		{
+			if (!TestNotNull(TEXT("setup"), Presentation))
+			{
+				return;
+			}
+			FCosmeticVFX VFX;
+			Presentation->SendVFX(VFX);
+			TestTrue(TEXT("nothing sent"), Presentation->GetDebugString().Contains(TEXT("VFX 0 sent")));
+			TestNull(TEXT("no system: nothing spawned"), Presentation->SpawnLocally(VFX));
+		});
+
 		It("sends no montage (no clients)", [this]()
 		{
 			if (!TestNotNull(TEXT("setup"), Presentation))
