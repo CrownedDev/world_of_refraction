@@ -4085,3 +4085,12 @@ Moved here once applied. Newest first.
 **Reference check:** *deckbuilder*: schools are labels and cost filters only (`02-enums.md` ESpellSchool). *Games*: Divinity: Original Sin 2's shared Memory pool and Baldur's Gate 3's shared spell slots keep schools as categories, not limits.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
+
+### Q-351d — B-351c in two parts
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-351c, cloud) · **Blocks:** —
+**Question:** B-351c's readers turned out mostly done: `GetAvailableAbilities` reads the inventory's `FCombatLoadout`, on the one list since B-351, and the stone bonuses read the stone socket. What is left is the crystals' spell slot list (two `AssignedSpells` lists in a position merge, ~69 reads), the old-list deletion after PIE, the editor move of authored stones and the gear screen. One job or parts?
+**Options / as built (A):** two parts by the 3-files rule and the editor / UI split, as Q-351 and Q-351c sliced the earlier parts: **part 1** (this branch) the debug readers (`LogActiveLoadout` on the one list and both sockets, `wor.Loadout.PrintActive`) and a spec that an Ability Stone's slot reaches `FCombatLoadout::GetAllAbilities`; **B-351d** the spell lists, the deletion, the editor move and the gear screen. `GetEquippedCrystals` stays on the element socket: its readers are crystal break / repair / element source, where stones take no part. **B** one job.
+**Recommendation:** A, the same slicing Q-351 / Q-351c approved; the spell list is a refactor best done with a compiler.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
+**Notes for Claude:** part 1 built in B-351c; B-351d added to the backlog under it.
+
