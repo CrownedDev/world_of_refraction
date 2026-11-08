@@ -390,13 +390,24 @@ void UEncounterComponent::OnJoinWindowExpired()
 	// EnterEncounter OpenLevels to the trial's battle stage; this component,
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
-	// B-187b (Q-187b): a revived mini-boss's fight is one tier stronger per revival (the most revived team rules).
-	int32 Revivals = 0;
-	for (const FName CaughtId : CaughtIds)
+	// B-187b (Q-187b): a revived mini-boss's team is one tier stronger per revival (review: only that team's members),
+	// and only teams whose own rank is a mini-boss's leave a rest spot when beaten.
+	TArray<int32> MemberTierSteps;
+	for (int32 Index = 0; Index < OpposingPartyData.Num(); ++Index)
 	{
-		Revivals = FMath::Max(Revivals, TrialRun->GetEncounterRevivals(CaughtId));
+		const UEncounterComponent *Team = Caught.IsValidIndex(TeamOfMember[Index]) ? Caught[TeamOfMember[Index]] : this;
+		MemberTierSteps.Add(TrialRun->GetEncounterRevivals(Team->GetEncounterId()) * MiniBossRevival::TIER_STEPS_PER_REVIVAL);
 	}
-	TrialRun->SetPendingTierSteps(Revivals * MiniBossRevival::TIER_STEPS_PER_REVIVAL);
+	TArray<FName> MiniBossIds;
+	for (const UEncounterComponent *Encounter : Caught)
+	{
+		if (UEncounterData::GetFightRank(Encounter->EncounterData, Encounter->Rank, Encounter->GetOwnTeam()) == EEncounterRank::MiniBoss)
+		{
+			MiniBossIds.Add(Encounter->GetEncounterId());
+		}
+	}
+	TrialRun->SetPendingEnemyTierSteps(MemberTierSteps);
+	TrialRun->SetPendingMiniBossSources(MiniBossIds);
 	TrialRun->SetPendingEncounterSources(CaughtIds);
 	TrialRun->SetPendingEnemyRanks(MemberRanks);
 	TrialRun->SetPendingFirstStrike(PendingFirstStrike);
@@ -406,7 +417,8 @@ void UEncounterComponent::OnJoinWindowExpired()
 	if (!TrialRun->HasPendingEncounter())
 	{
 		TrialRun->SetPendingEncounterSources({});
-		TrialRun->SetPendingTierSteps(0);
+		TrialRun->SetPendingEnemyTierSteps({});
+		TrialRun->SetPendingMiniBossSources({});
 		TrialRun->SetPendingEnemyRanks({});
 		TrialRun->SetPendingFirstStrike(EFirstStrike::None);
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
