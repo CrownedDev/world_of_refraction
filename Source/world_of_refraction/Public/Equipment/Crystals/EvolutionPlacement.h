@@ -4,8 +4,8 @@
 // lists them; these rules say what each place gives. On the character an evolution gives everything; on gear it gives
 // only its passive skills (its effects), and only to an action that item powers at infusion charge level 2 (nothing
 // at L0 / L1). Fight-start effects are gathered at charge 0, so gear evolutions add none there (as before).
-// Part 2 (B-357c): the L2 action turns the gear evolution's passives on for that action, and gear evolutions stop
-// giving stats and resistance (the remaining readers of GetActivePrimaryEvolutionAttachment).
+// B-357c part 1: gear evolutions stop giving stats and resistance (GivesStats; the pillar layer and the resistance
+// sum read the resolve path). Left (B-357d): the L2 action turning the gear evolution's passives on for that action.
 // Debug: ULoadoutComponent::GetAttachedEvolutionsString, wor.Loadout.PrintEvolutions.
 
 #pragma once
@@ -46,6 +46,10 @@ namespace WoREvolutionPlacement
 	/** Whether an evolution at Place gives its passive skills to an action charged at ChargeLevel (0 = not infused,
 	 *  and every fight-start read). The character's own slot always does; gear only at GEAR_PASSIVES_CHARGE_LEVEL. */
 	WORLD_OF_REFRACTION_API bool GivesPassives(EEvolutionPlace Place, int32 ChargeLevel);
+
+	/** B-357c (D-147): whether an evolution at Place gives its stats (pillar modifiers) and resistance: only on the
+	 *  character's own slot; on gear it gives only its passive skills. */
+	WORLD_OF_REFRACTION_API bool GivesStats(EEvolutionPlace Place);
 
 	/** Adds Item's evolution, if it holds one, to Out at Place. False when it holds something else or nothing. */
 	WORLD_OF_REFRACTION_API bool AppendFrom(const FRuntimeAttachedItem &Item, EEvolutionPlace Place, TArray<FAttachedEvolution> &Out);
