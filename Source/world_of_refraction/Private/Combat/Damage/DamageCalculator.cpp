@@ -146,9 +146,9 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	if (!bSkipDefense && Defender)
 	{
 		Inputs.bApplyDefense = true;
-		Inputs.DefenderDefense = GetDefenderDefenseForHit(Defender, Input.Element, Input.ActionType == EActionType::Spell);
-		// B-385: the GAS execution replaces DefenderDefense with the synced attribute; this keeps its scope.
-		Inputs.DefenseScopeRatio = GetDefenseScopeRatio(Defender, Input.Element, Input.ActionType == EActionType::Spell);
+		// B-385: the GAS execution replaces DefenderDefense with the synced attribute; DefenseScopeDelta keeps its scope.
+		Inputs.DefenderDefense =
+			GetDefenderDefenseForHit(Defender, Input.Element, Input.ActionType == EActionType::Spell, &Inputs.DefenseScopeDelta);
 	}
 	if (Grid && Defender)
 	{
@@ -358,31 +358,30 @@ bool UDamageCalculator::GetDefenseLayersForHit(AActor *Defender, ESpellElement H
 	return true;
 }
 
-float UDamageCalculator::GetDefenseScopeRatio(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const
+float UDamageCalculator::GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell, float *OutScopeDelta) const
 {
-	float All = 0.0f;
-	float ForHit = 0.0f;
-	if (!GetDefenseLayersForHit(Defender, HitElement, bHitIsSpell, All, ForHit) || All <= KINDA_SMALL_NUMBER)
+	if (OutScopeDelta)
 	{
-		return 1.0f;
+		*OutScopeDelta = 0.0f;
 	}
-	return ForHit / All;
-}
-
-float UDamageCalculator::GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const
-{
 	float All = 0.0f;
 	float ForHit = 0.0f;
 	if (!GetDefenseLayersForHit(Defender, HitElement, bHitIsSpell, All, ForHit))
 	{
 		return GetDefenderFlatDefense(Defender);
 	}
-	// B-385: at UseGAS 1 the composed Defense attribute is the base; the scope ratio (this hit's layers over all of
-	// them) takes out the DefenseBuffs whose scope doesn't match. 1 with no scoped effects.
+	// B-385 review: an additive correction (this hit's layers minus all of them), so it still holds when every
+	// DefenseBuff floors the unscoped layers to 0. 0 with no scoped effects.
+	const float ScopeDelta = ForHit - All;
+	if (OutScopeDelta)
+	{
+		*OutScopeDelta = ScopeDelta;
+	}
 	float OnGAS = 0.0f;
 	if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Defender, UWoRAttributeSet_Stats::GetDefenseAttribute(), OnGAS))
 	{
-		return All > KINDA_SMALL_NUMBER ? OnGAS * ForHit / All : OnGAS;
+		// B-385: at UseGAS 1 the composed attribute is the base and the correction takes out the unmatched scopes.
+		return FMath::Clamp(OnGAS + ScopeDelta, 0.0f, CombatConstants::DEFENSE_REDUCTION_CEILING);
 	}
 	return ForHit;
 }

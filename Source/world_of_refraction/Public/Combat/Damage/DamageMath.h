@@ -64,11 +64,11 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	 *  (Q-146b A). 1 = today's full ignore: the Defense step is skipped. */
 	float IgnoreDefense = 0.0f;
 	bool bApplyDefense = false;
-	/** GetDefenderFlatDefense: a reduction fraction. */
+	/** GetDefenderDefenseForHit: a reduction fraction (scoped to this hit, B-383). */
 	float DefenderDefense = 0.0f;
-	/** B-385: the share of DefenderDefense this hit's scopes keep (UDamageCalculator::GetDefenseScopeRatio); only the GAS
-	 *  execution reads it, on the synced Defense attribute it puts in DefenderDefense's place. */
-	float DefenseScopeRatio = 1.0f;
+	/** B-385: this hit's scoped Defense minus the unscoped one (UDamageCalculator::GetDefenderDefenseForHit); only the GAS
+	 *  execution reads it, added to the synced Defense attribute it puts in DefenderDefense's place. */
+	float DefenseScopeDelta = 0.0f;
 	/** Grid defense modifier; applied when above 0. */
 	float GridDefenseModifier = 0.0f;
 	/** B-293d: the defender's Damage Taken factor (UDamageCalculator::GetDamageTakenFactor), already inside

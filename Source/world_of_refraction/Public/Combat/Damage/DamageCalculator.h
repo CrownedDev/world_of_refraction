@@ -226,12 +226,10 @@ public:
 	float GetDefenderFlatDefense(AActor *Defender) const;
 
 	/** B-383 (D-166): GetDefenderFlatDefense for one hit: DefenseBuff / DefenseDebuff count only where their scope
-	 *  matches HitElement and the hit's kind (spell or not). Equal to GetDefenderFlatDefense with no scoped effects. */
-	float GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const;
-
-	/** B-385: this hit's Defense layers over the unscoped ones (DefenseBuffs whose scope doesn't match taken out); 1 with
-	 *  no scoped effects. The GAS execution multiplies its synced Defense attribute by it. */
-	float GetDefenseScopeRatio(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell) const;
+	 *  matches HitElement and the hit's kind (spell or not). Equal to GetDefenderFlatDefense with no scoped effects.
+	 *  B-385: at UseGAS 1 the composed attribute plus the scope correction; OutScopeDelta = this hit's layers minus all
+	 *  of them (0 with no scoped effects), which the GAS execution adds to its synced attribute. */
+	float GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell, float *OutScopeDelta = nullptr) const;
 
 	/** Defender's Defense layers composed as they are (OutAll) and for this hit's scopes (OutForHit); false without a
 	 *  character component or effect manager. */
