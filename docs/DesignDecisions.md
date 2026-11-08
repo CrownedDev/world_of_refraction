@@ -1328,7 +1328,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A, except the animation: a Perfect Guard should probably play the parry animation (needs the press to know it is perfect, a small follow-up).
 **Answer (Crown):** (2026-10-26, detail by detail)
 - **Perfect Guard takes 0%** (B, like Expedition 33's parry); normal Guard stays 50%. Change `PerfectGuardReduction` to 1.0.
-- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built). **Changed by D-161 (Crown, 2026-11-04):** a Perfect Guard or a **Perfect** Dodge only; built in B-367.
+- **Interruptible (choke) hits:** stopped by a Perfect Guard or a Dodge, not a normal Guard (A, as built). **Changed by D-161 (Crown, 2026-11-04):** a Perfect Guard or a **Perfect** Dodge only; built in B-367. **Corrected by Crown (2026-11-05):** a **Perfect Guard only**; a Dodge of any timing does not stop one; built in B-367b.
 - **Approved by the reference-backed default (Crown, 2026-10-26: 'just go with them'):** Broken Darkness absorbs 5% on Guard / 20% on Perfect Guard (Expedition 33: +1 AP per parry); reflect effects send back their % of damage actually taken, as pure damage, as a timed buff (FF/Persona style); **Perfect Guard plays the parry animation**, normal Guard the block animation (Expedition 33 / Sekiro; small follow-up); the old Parry key works as Guard until removed in the editor.
 
 **Notes for Claude:** Applied in fix/Q-168-perfect-guard-zero: `PerfectGuardReduction` 1.0. The parry animation on a Perfect Guard is B-182 (the animation plays at the press, before Perfect is known). The rest was as built. An "On Perfect Guard: reflect" is a timed buff, so it pays out on later hits that land.
@@ -2170,6 +2170,7 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A / A. D-161 says a *Perfect* Dodge, which a lucky miss is not; Sekiro's deflects and Expedition 33's parries reward timing only. One report per attack keeps D-158's "a condition, reported once".
 **Answer:** **A / A**, by the reference-backed default (2026-11-04). Crown may change either.
 **Notes for Claude:** built in B-367 (`FPendingDefenseContext::bResolvedLuckDodge`; `FlawlessParry::FTally::bReported`).
+**Superseded in part (B-367b, D-161 / D-158 corrected by Crown 2026-11-05):** (1) is moot now that no Dodge stops an interrupt point or counts for a Flawless Parry; `bResolvedLuckDodge` stays as a guard. (2) is unchanged.
 
 ### Q-360 — D-150 against the deckbuilder's co-op rules
 **Status:** ANSWERED (Crown's rule, D-150; the deckbuilder differs on one point) · **Raised:** 2026-11-04 (D-150 reference check) · **Blocks:** —

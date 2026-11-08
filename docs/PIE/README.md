@@ -33,6 +33,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-367](B-367.md) | `feature/B-367-interrupt-points` (in `dev`) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending |
 | [B-189](B-189.md) | `feature/B-189-element-map-look-cloud` (UNBUILT) | A trial's element sets its map's sky, fog and sun (placeholder colours); `wor.Trial.Look <Element>` previews | Pending |
 | [B-278](B-278.md) | `feature/B-278-asset-manager-rules-cloud` (UNBUILT) | A packaged Development build has every data asset; first fights don't stutter (PSO steps) | Pending |
+| [B-367b](B-367b.md) | `feature/B-367b-perfect-guard-only-cloud` (UNBUILT) | Only a Perfect Guard stops an interrupt point or counts toward a Flawless Parry; a Perfect Dodge does neither | Pending |
 | [B-347b](B-347b.md) | `feature/B-347b-run-armoury` (in `dev`) | During a run a member sees and equips only what the run brought or found; left-home gear and loadouts come back intact; the chest waits until the run ends | Pending |
 | [B-366c](B-366c.md) | `feature/B-366c-shop-place-currency` (in `dev`) | Shops charge the hub currency (Gold) at home and the run currency (Prisms) in a run; cost lines, totals and Confirm follow it | Pending |
 | [B-366b](B-366b.md) | `fix/B-366b-convert-place-currency` (in `dev`) | Converting a duplicate pays the hub currency (Gold) at home and the run currency (Prisms) in a run; the texts name it | Pending |
