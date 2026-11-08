@@ -96,8 +96,8 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
-		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"))
-			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
+		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"));
+		LeaveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
 		ConfirmButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("ConfirmLeave", "Confirm: leave"));
 		ConfirmButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleConfirmLeaveClicked);
@@ -116,8 +116,15 @@ void URestSpotWidget::Refresh()
 {
 	const UGameInstance *GI = GetGameInstance();
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	// B-187d: on a client the run lives on the host: no earnings or Leave here until B-187e routes them.
+	const bool bOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
+	if (LeaveButton)
+	{
+		LeaveButton->SetVisibility(bOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
 	if (PayoutText)
 	{
+		PayoutText->SetVisibility(bOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		const FRunPayout Earned = Run ? Run->GetRunEndPayout() : FRunPayout();
 		PayoutText->SetText(FText::Format(LOCTEXT("Earned", "Earned so far: {0} Gold, {1} Gear Essence, {2} Skill Essence (leaving now pays {3}%)."),
 										  FText::AsNumber(Earned.HubGold), FText::AsNumber(Earned.GearEssence), FText::AsNumber(Earned.SkillEssence),

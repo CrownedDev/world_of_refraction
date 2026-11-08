@@ -68,4 +68,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ReviveLabel;
+
+	/** B-187d: Leave, hidden on a client (with the run's earnings) until B-187e routes it to the host. */
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> LeaveButton;
 };
