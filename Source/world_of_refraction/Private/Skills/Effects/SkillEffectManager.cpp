@@ -540,7 +540,7 @@ namespace
 namespace
 {
 	static FAutoConsoleCommandWithWorld GStartingEffectsCmd(
-		TEXT("wor.StartingEffects"),
+		TEXT("wor.Effects.PrintStarting"),
 		TEXT("Inspect the active combatant's starting effects per gear source (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -553,12 +553,12 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.StartingEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.PrintStarting: no subsystem (no PIE world?)."));
 				}
 			}));
 
 	static FAutoConsoleCommandWithWorld GPrintAllEffectsCmd(
-		TEXT("wor.PrintAllEffects"),
+		TEXT("wor.Effects.PrintAll"),
 		TEXT("Print active effects for every tracked actor (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -571,12 +571,12 @@ namespace
 				}
 				else
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintAllEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.PrintAll: no subsystem (no PIE world?)."));
 				}
 			}));
 
 	static FAutoConsoleCommandWithWorld GPrintEffectsCmd(
-		TEXT("wor.PrintEffects"),
+		TEXT("wor.Effects.Print"),
 		TEXT("Print active effects for the active combatant (PIE debug)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
@@ -585,14 +585,14 @@ namespace
 				USkillEffectManager *Mgr = WoRFight::Get<USkillEffectManager>(GI);
 				if (!Mgr)
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no subsystem (no PIE world?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.Print: no subsystem (no PIE world?)."));
 					return;
 				}
 				UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GI);
 				AActor *Actor = TurnMgr ? TurnMgr->GetCurrentActor() : nullptr;
 				if (!Actor)
 				{
-					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.PrintEffects: no active combatant (combat not active?)."));
+					UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] wor.Effects.Print: no active combatant (combat not active?)."));
 					return;
 				}
 				Mgr->DebugPrintEffects(Actor);
