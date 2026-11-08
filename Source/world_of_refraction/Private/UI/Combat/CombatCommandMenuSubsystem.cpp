@@ -23,6 +23,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
+#include "Player/RunStateComponent.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/Actions/CombatPickRequest.h"
 #include "WoRAuthority.h"
@@ -162,9 +163,16 @@ void UCombatCommandMenuSubsystem::HandlePlayerActionRequested(AActor *Actor)
         return;
     }
 
-    // AI actors handle their own decisions; we only show the menu for player-controlled actors.
-    if (Orchestrator->IsActorAIControlled(Actor))
+    // AI actors handle their own decisions; we only show the menu for player-controlled actors. B-232b: and only on the
+    // machine whose player commands this member (a client's member opens on that client, UTurnStateComponent).
+    const URunStateComponent *Run = URunStateComponent::Find(this);
+    const UWorld *World = GetWorld();
+    // Review fix: only a roster member follows the seat rule; off the roster (a test actor, a guest) the host opens it.
+    const bool bOnRoster = Run && Run->FindRosterEntry(Actor);
+    const bool bCommandedHere = bOnRoster && World && Run->IsCommandedBy(Actor, World->GetFirstPlayerController());
+    if (!CommandMenuRules::OpensHere(Orchestrator->IsActorAIControlled(Actor), bOnRoster, bCommandedHere))
     {
+        UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] %s is not commanded here - no menu on this machine"), *Actor->GetName());
         return;
     }
 

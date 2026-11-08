@@ -182,6 +182,10 @@ protected:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SubmitMenuPick(const FCombatPickRequest &Pick);
 
+	/** B-232b (review): the server refused this client's menu pick; the client reopens its menu for the same turn. */
+	UFUNCTION(Client, Reliable)
+	void Client_MenuPickRefused(ECombatInputVerdict Verdict);
+
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_SubmitDefenseInput(EDefenseType DefenseType, EDefenseDirection Direction, double PressServerTime);
 
