@@ -337,6 +337,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-294](B-294.md) | `feature/B-294-element-palette` (in `dev`) | Colour-blind element palette: new element colours in bars, tints and glows | Not tested |
 | [B-292](B-292.md) | `feature/B-292-sim-runner` (in `dev`) | Balance sim runner, recorder, archetypes (tests only; nothing in play changes) | Not tested |
 | [B-357b](B-357b.md) | `feature/B-357b-evolution-resolve-path-cloud` (UNBUILT, on B-357) | One list of attached evolutions (character, weapon, adapter); no change in play | Pending |
+| [B-357c](B-357c.md) | `feature/B-357c-gear-evolutions-passives-only-cloud` (UNBUILT, on B-357b) | An evolution on gear gives no stats or resistance (D-147 play change) | Pending |
 
 Move rows to **Done** when every check passes.
 
