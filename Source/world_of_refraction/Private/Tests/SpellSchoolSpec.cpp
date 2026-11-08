@@ -153,8 +153,12 @@ void FSpellSchoolSpec::Define()
 		TestTrue(TEXT("a drain: Destruction"), Proposes(SchoolTestSpell(ESpellSchool::Restoration, ETargetType::Enemy, SCHOOL_TEST_DAMAGE, true), ESpellSchool::Destruction));
 		TestTrue(TEXT("a heal: Restoration"), Proposes(SchoolTestSpell(ESpellSchool::Enhancement, ETargetType::Ally, 0, true), ESpellSchool::Restoration));
 		TestTrue(TEXT("a cleanse: Restoration"), Proposes(SchoolTestEffectSpell(ESpellSchool::Enhancement, ETargetType::Ally, ESkillEffectType::CleanseAllies), ESpellSchool::Restoration));
-		TestTrue(TEXT("a stun: Manipulation"), Proposes(SchoolTestEffectSpell(ESpellSchool::Impairment, ETargetType::Enemy, ESkillEffectType::Stun), ESpellSchool::Manipulation));
-		TestTrue(TEXT("a silence: Manipulation"), Proposes(SchoolTestEffectSpell(ESpellSchool::Impairment, ETargetType::Enemy, ESkillEffectType::Silenced), ESpellSchool::Manipulation));
+		// Crown 2026-11-08: stun / silence / skip are Impairment; Manipulation changes what the enemy does.
+		TestTrue(TEXT("a stun: Impairment"), Proposes(SchoolTestEffectSpell(ESpellSchool::Manipulation, ETargetType::Enemy, ESkillEffectType::Stun), ESpellSchool::Impairment));
+		TestTrue(TEXT("apply stun: Impairment"), Proposes(SchoolTestEffectSpell(ESpellSchool::Manipulation, ETargetType::Enemy, ESkillEffectType::ApplyStunToTarget), ESpellSchool::Impairment));
+		TestTrue(TEXT("a skip turn: Impairment"), Proposes(SchoolTestEffectSpell(ESpellSchool::Manipulation, ETargetType::Enemy, ESkillEffectType::SkipTurn), ESpellSchool::Impairment));
+		TestTrue(TEXT("a silence: Impairment"), Proposes(SchoolTestEffectSpell(ESpellSchool::Manipulation, ETargetType::Enemy, ESkillEffectType::Silenced), ESpellSchool::Impairment));
+		TestTrue(TEXT("confusion (Random Skill): Manipulation"), Proposes(SchoolTestEffectSpell(ESpellSchool::Impairment, ETargetType::Enemy, ESkillEffectType::RandomSkill), ESpellSchool::Manipulation));
 		TestTrue(TEXT("a stat debuff: Impairment"), Proposes(SchoolTestEffectSpell(ESpellSchool::Manipulation, ETargetType::Enemy, ESkillEffectType::DefenseDebuff), ESpellSchool::Impairment));
 		USpellData *StatusAttack = SchoolTestSpell(ESpellSchool::Destruction, ETargetType::Enemy, 0, false);
 		StatusAttack->StatusBuildup = SCHOOL_TEST_BUILDUP;

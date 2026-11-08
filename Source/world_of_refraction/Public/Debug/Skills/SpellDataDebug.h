@@ -37,10 +37,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Spell Debug")
     static FString GetSchoolString(const USpellData *Spell);
 
-    /** B-374 (D-163, Q-374): the school a spell's main effect proposes, read from its effects the way the AI reads
-     *  them (Q-356c): damage at an enemy → Destruction; a heal (not a drain) or a cleanse → Restoration; control at
-     *  an enemy (stun, skip turn, silence, loss of control) → Manipulation; a debuff or status buildup at an enemy →
-     *  Impairment; a buff → Enhancement. False when the effects propose nothing (an empty spell). */
+    /** B-374 (D-163, Q-374, Crown 2026-11-08): the school a spell's main effect proposes, read from its effects the
+     *  way the AI reads them (Q-356c): damage at an enemy → Destruction; a heal (not a drain) or a cleanse →
+     *  Restoration; changing what an enemy does (Random Skill / confusion; later taunt, forced target, row swap,
+     *  charm) → Manipulation; stun, apply stun, skip turn, silence, a debuff or status buildup at an enemy →
+     *  Impairment; a buff → Enhancement. Never Conjuration (that school is authored). Only a warning: the school is
+     *  set on the spell. False when the effects propose nothing (an empty spell). */
     static bool ProposeSchool(const USpellData *Spell, ESpellSchool &OutSchool);
 
     /** B-374: the spell's shown school differs from the proposed one. Conjuration is never flagged: its identity

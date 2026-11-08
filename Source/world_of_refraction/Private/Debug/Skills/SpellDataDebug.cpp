@@ -249,8 +249,15 @@ namespace
         }
     }
 
-    /** Control over what the target does (D-163 Manipulation). No taunt / forced-target effect exists yet. */
-    bool IsControlPayload(ESkillEffectType Type)
+    /** Changing what the target does (D-163 Manipulation, Crown 2026-11-08): confusion (Random Skill) today; taunt,
+     *  forced target, row swap and charm when they exist. */
+    bool IsManipulationPayload(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::RandomSkill;
+    }
+
+    /** Stopping or weakening the target (Impairment, Crown 2026-11-08): stun, apply stun, skip turn, silence. */
+    bool IsImpairmentPayload(ESkillEffectType Type)
     {
         switch (Type)
         {
@@ -258,7 +265,6 @@ namespace
         case ESkillEffectType::ApplyStunToTarget:
         case ESkillEffectType::SkipTurn:
         case ESkillEffectType::Silenced:
-        case ESkillEffectType::RandomSkill:
             return true;
         default:
             return false;
@@ -283,12 +289,13 @@ bool USpellDataDebug::ProposeSchool(const USpellData *Spell, ESpellSchool &OutSc
         OutSchool = ESpellSchool::Restoration;
         return true;
     }
-    if (bAimsAtEnemies && HasPayloadWhere(*Spell, [](ESkillEffectType Type) { return IsControlPayload(Type); }))
+    if (bAimsAtEnemies && HasPayloadWhere(*Spell, [](ESkillEffectType Type) { return IsManipulationPayload(Type); }))
     {
         OutSchool = ESpellSchool::Manipulation;
         return true;
     }
-    if (bAimsAtEnemies && (Spell->HasDebuffEffects() || SupportSkillRules::GetAuthoredStatusBuildup(Spell) > 0))
+    if (bAimsAtEnemies && (HasPayloadWhere(*Spell, [](ESkillEffectType Type) { return IsImpairmentPayload(Type); }) || Spell->HasDebuffEffects() ||
+                           SupportSkillRules::GetAuthoredStatusBuildup(Spell) > 0))
     {
         OutSchool = ESpellSchool::Impairment;
         return true;
