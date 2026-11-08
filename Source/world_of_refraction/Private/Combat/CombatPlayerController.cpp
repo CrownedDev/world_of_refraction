@@ -431,6 +431,10 @@ void ACombatPlayerController::Server_SubmitFreeCommand_Implementation(AActor *Ac
 	{
 		Client_FreeCommandApplied(Actor, Command); // a refused step changes nothing; the client's menu stays as it is
 	}
+	else if (Command == ECombatFreeCommand::HandToAI)
+	{
+		Client_MenuPickRefused(Verdict); // review fix: the client closed its menu for the hand-off; it reopens
+	}
 }
 
 void ACombatPlayerController::Client_FreeCommandApplied_Implementation(AActor *Actor, ECombatFreeCommand Command)
@@ -439,6 +443,11 @@ void ACombatPlayerController::Client_FreeCommandApplied_Implementation(AActor *A
 	// The row and the AI hand-off live on the server (the orchestrator); the menu reads them from the turn state.
 	if (Command == ECombatFreeCommand::SwitchWeapon || Command == ECombatFreeCommand::SwitchAdapter)
 	{
+		// Review fix: the server approved it, so the client's copy takes it even if its own turn flag lags.
+		if (ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr)
+		{
+			Loadout->ResetTurnSwitch();
+		}
 		ApplyFreeCommand(nullptr, Actor, Command);
 	}
 	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
