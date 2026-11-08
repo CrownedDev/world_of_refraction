@@ -1,0 +1,121 @@
+// CombatPresentationComponent.cpp
+
+#include "Combat/CombatPresentationComponent.h"
+#include "Animation/AnimMontage.h"
+#include "Combat/CombatAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
+#include "EngineUtils.h"
+#include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
+#include "WoRLog.h"
+
+bool CombatPresentation::SendsFromHere(ENetMode NetMode)
+{
+	return NetMode == NM_ListenServer || NetMode == NM_DedicatedServer;
+}
+
+bool CombatPresentation::PlaysReceivedMontage(bool bHasAuthority)
+{
+	return !bHasAuthority;
+}
+
+UCombatPresentationComponent::UCombatPresentationComponent()
+{
+	PrimaryComponentTick.bCanEverTick = false;
+	SetIsReplicatedByDefault(true); // a component's multicast needs the component replicated
+}
+
+UCombatPresentationComponent *UCombatPresentationComponent::Find(const AActor *Actor)
+{
+	return Actor ? Actor->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
+}
+
+void UCombatPresentationComponent::SendMontage(UAnimMontage *Montage, float PlayRate)
+{
+	const UWorld *World = GetWorld();
+	if (!Montage || !World || !GetOwner() || !GetOwner()->HasAuthority() || !CombatPresentation::SendsFromHere(World->GetNetMode()))
+	{
+		return;
+	}
+	LastMontage = Montage->GetName();
+	++MontagesSent;
+	Multicast_PlayMontage(Montage, PlayRate);
+}
+
+void UCombatPresentationComponent::SendHit(int32 Damage, bool bCritical)
+{
+	const UWorld *World = GetWorld();
+	if (!World || !GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	if (CombatPresentation::SendsFromHere(World->GetNetMode()))
+	{
+		Multicast_ShowHit(Damage, bCritical); // runs here too (a multicast runs on the server and every client)
+		return;
+	}
+	Multicast_ShowHit_Implementation(Damage, bCritical); // standalone: just this machine
+}
+
+void UCombatPresentationComponent::Multicast_PlayMontage_Implementation(UAnimMontage *Montage, float PlayRate)
+{
+	if (!CombatPresentation::PlaysReceivedMontage(GetOwner() && GetOwner()->HasAuthority()))
+	{
+		return; // the server already played it
+	}
+	LastMontage = GetNameSafe(Montage);
+	++MontagesReceived;
+	PlayLocally(Montage, PlayRate);
+}
+
+void UCombatPresentationComponent::Multicast_ShowHit_Implementation(int32 Damage, bool bCritical)
+{
+	LastHitDamage = Damage;
+	bLastHitCritical = bCritical;
+	++HitsShown;
+	OnHitShown.Broadcast(GetOwner(), Damage, bCritical);
+}
+
+void UCombatPresentationComponent::PlayLocally(UAnimMontage *Montage, float PlayRate)
+{
+	ACharacter *Character = Cast<ACharacter>(GetOwner());
+	if (!Montage || !Character || !Character->GetMesh())
+	{
+		return;
+	}
+	if (UCombatAnimInstance *CombatAnim = Cast<UCombatAnimInstance>(Character->GetMesh()->GetAnimInstance()))
+	{
+		CombatAnim->PlayActionMontage(Montage, PlayRate);
+		return;
+	}
+	Character->PlayAnimMontage(Montage, PlayRate);
+}
+
+FString UCombatPresentationComponent::GetDebugString() const
+{
+	return FString::Printf(TEXT("%s: last montage %s (%d sent, %d received), %d hit(s) shown, last %d%s"), *GetNameSafe(GetOwner()),
+						   LastMontage.IsEmpty() ? TEXT("none") : *LastMontage, MontagesSent, MontagesReceived, HitsShown, LastHitDamage,
+						   bLastHitCritical ? TEXT(" (crit)") : TEXT(""));
+}
+
+static FAutoConsoleCommandWithWorld GNetPrintPresentationCommand(
+	TEXT("wor.Net.PrintPresentation"),
+	TEXT("B-231: every combatant's presentation traffic (montages sent by the server / received by this client, hits shown)."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		if (!World)
+		{
+			return;
+		}
+		int32 Count = 0;
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (const UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(*It))
+			{
+				UE_LOG(LogWoR, Display, TEXT("[Presentation] %s"), *Presentation->GetDebugString());
+				++Count;
+			}
+		}
+		UE_LOG(LogWoR, Display, TEXT("[Presentation] %d combatant(s), net mode %d"), Count, static_cast<int32>(World->GetNetMode()));
+	}));
