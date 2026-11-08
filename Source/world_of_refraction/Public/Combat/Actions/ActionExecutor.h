@@ -417,8 +417,8 @@ public:
 	float GetWeaponPart(AActor *Actor, const FAction &Action) const;
 
 	/** B-382 (Q-164b A): Actor's Amp total for an action of ResolvedElement: the worn gear's Amp lines
-	 *  (ULoadoutComponent::GetActiveStatBonus), All + Physical or that element. 0 with no loadout (enemies). */
-	int32 GetActionAmp(AActor *Actor, ESpellElement ResolvedElement) const;
+	 *  (ULoadoutComponent::GetActiveStatBonus), All + Spell or Physical (B-383) + that element. 0 with no loadout (enemies). */
+	int32 GetActionAmp(AActor *Actor, ESpellElement ResolvedElement, bool bIsSpell) const;
 
 	/** B-220: the active weapon's Power, grades, requirement factor and part for Actor (`wor.Weapon.Print`). */
 	FString GetWeaponPartString(AActor *Actor) const;

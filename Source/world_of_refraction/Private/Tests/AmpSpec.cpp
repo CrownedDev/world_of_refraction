@@ -1,8 +1,8 @@
 // AmpSpec.cpp
 // B-382 (Q-164b A, Crown 2026-11-08): Amp lines in one sum. A Fire Amp raises a Fire action only; an All Amp
-// raises any; Physical Amp raises an unelemental action; worn gear's lines add into one total that joins the
-// action's base before the multipliers; a 0-damage action takes none. A DamageBuff keyed to Fire no longer raises a
-// Water hit, while an unkeyed one still raises every hit.
+// raises any; Physical Amp raises attacks and abilities, Spell Amp spells (B-383); worn gear's lines add into one total that joins the
+// action's base before the multipliers; a 0-damage action takes none. A DamageBuff scoped to Fire (B-383's Element
+// scope) does not raise a Water hit, while an All-scope one raises every hit.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -80,19 +80,28 @@ void FAmpSpec::Define()
 {
 	Describe("the lines", [this]()
 	{
-		It("a Fire line counts for Fire only; All for every element; Physical for unelemental", [this]()
+		It("a Fire line counts for Fire only; All for every action; Physical for attacks and abilities, not spells", [this]()
 		{
 			const FAmpBonus Amp = Lines(AMP_TEST_ALL, AMP_TEST_FIRE, AMP_TEST_PHYSICAL);
-			TestEqual(TEXT("Fire action"), Amp.GetTotalFor(ESpellElement::Fire), AMP_TEST_ALL + AMP_TEST_FIRE);
-			TestEqual(TEXT("Water action"), Amp.GetTotalFor(ESpellElement::Water), AMP_TEST_ALL);
-			TestEqual(TEXT("physical action"), Amp.GetTotalFor(ESpellElement::None), AMP_TEST_ALL + AMP_TEST_PHYSICAL);
+			TestEqual(TEXT("Fire spell"), Amp.GetTotalFor(ESpellElement::Fire, true), AMP_TEST_ALL + AMP_TEST_FIRE);
+			TestEqual(TEXT("Water spell"), Amp.GetTotalFor(ESpellElement::Water, true), AMP_TEST_ALL);
+			TestEqual(TEXT("unelemental attack"), Amp.GetTotalFor(ESpellElement::None, false), AMP_TEST_ALL + AMP_TEST_PHYSICAL);
+			TestEqual(TEXT("Fire-infused ability"), Amp.GetTotalFor(ESpellElement::Fire, false), AMP_TEST_ALL + AMP_TEST_PHYSICAL + AMP_TEST_FIRE);
+		});
+
+		It("a Spell line counts for spells only (B-383)", [this]()
+		{
+			FAmpBonus Amp;
+			Amp.Spell = AMP_TEST_FIRE;
+			TestEqual(TEXT("spell"), Amp.GetTotalFor(ESpellElement::Water, true), AMP_TEST_FIRE);
+			TestEqual(TEXT("ability"), Amp.GetTotalFor(ESpellElement::Water, false), 0);
 		});
 
 		It("add up across items, line by line", [this]()
 		{
 			FAmpBonus Sum = Lines(AMP_TEST_ALL, 0);
 			Sum.Accumulate(Lines(0, AMP_TEST_FIRE));
-			TestEqual(TEXT("one total"), Sum.GetTotalFor(ESpellElement::Fire), AMP_TEST_ALL + AMP_TEST_FIRE);
+			TestEqual(TEXT("one total"), Sum.GetTotalFor(ESpellElement::Fire, true), AMP_TEST_ALL + AMP_TEST_FIRE);
 			TestFalse(TEXT("not empty"), Sum.IsEmpty());
 			TestTrue(TEXT("a fresh one is empty"), FAmpBonus().IsEmpty());
 		});
@@ -153,7 +162,7 @@ void FAmpSpec::Define()
 			TestEqual(TEXT("support spell: no Amp"), Support.AmpBonus, 0);
 			TestEqual(TEXT("support spell: still 0 damage"), Support.FinalDamage, 0);
 			AActor *Bare = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-			TestEqual(TEXT("no loadout"), Executor->GetActionAmp(Bare, ESpellElement::Fire), 0);
+			TestEqual(TEXT("no loadout"), Executor->GetActionAmp(Bare, ESpellElement::Fire, true), 0);
 			TestTrue(TEXT("debug string names the lines"), WoRAmpDebug::GetAmpString(Loadout->GetOwner()).Contains(TEXT("Fire")));
 		});
 	});
@@ -182,6 +191,7 @@ void FAmpSpec::Define()
 			FActiveSkillEffect Buff = FActiveSkillEffect::CreateBuff(TEXT("Damage Up"), AMP_TEST_BUFF_EFFECT_ID, ESkillEffectType::DamageBuff,
 																	 AMP_TEST_DOUBLING_PERCENT, AMP_TEST_BUFF_TURNS);
 			Buff.Element = BuffElement;
+			Buff.DamageScope = BuffElement == ESpellElement::None ? EDamageScope::All : EDamageScope::Element; // B-383
 			Effects->ApplyEffect(Attacker, Buff);
 			FDamageCalculationInput Input;
 			Input.BaseDamage = AMP_TEST_BASE_DAMAGE;
@@ -192,7 +202,7 @@ void FAmpSpec::Define()
 			return Calculator->CalculateDamage(Attacker, Defender, Input).FinalDamage;
 		};
 
-		It("a Fire damage buff raises a Fire hit, not a Water hit", [this, HitWithBuff]()
+		It("a Fire-scoped damage buff raises a Fire hit, not a Water hit", [this, HitWithBuff]()
 		{
 			const int32 FireHit = HitWithBuff(ESpellElement::Fire, ESpellElement::Fire);
 			const int32 WaterHit = HitWithBuff(ESpellElement::Fire, ESpellElement::Water);
@@ -201,7 +211,7 @@ void FAmpSpec::Define()
 			TestEqual(TEXT("Water hit is not (same as a hit the buff does not key)"), WaterHit, Unbuffed);
 		});
 
-		It("an unkeyed damage buff still raises every hit", [this, HitWithBuff]()
+		It("an All-scope damage buff still raises every hit", [this, HitWithBuff]()
 		{
 			TestEqual(TEXT("Water and Fire alike"), HitWithBuff(ESpellElement::None, ESpellElement::Water),
 					  HitWithBuff(ESpellElement::None, ESpellElement::Fire));

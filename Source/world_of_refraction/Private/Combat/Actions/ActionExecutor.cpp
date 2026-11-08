@@ -592,10 +592,10 @@ float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &
 	return Weapon->Requirements.GetWeaponRequirementFactor(GetLiveWorldLevels(Actor, *UserData));
 }
 
-int32 UActionExecutor::GetActionAmp(AActor *Actor, ESpellElement ResolvedElement) const
+int32 UActionExecutor::GetActionAmp(AActor *Actor, ESpellElement ResolvedElement, bool bIsSpell) const
 {
 	const ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
-	return Loadout ? Loadout->GetActiveStatBonus(Actor).Amp.GetTotalFor(ResolvedElement) : 0;
+	return Loadout ? Loadout->GetActiveStatBonus(Actor).Amp.GetTotalFor(ResolvedElement, bIsSpell) : 0;
 }
 
 float UActionExecutor::GetWeaponPart(AActor *Actor, const FAction &Action) const
@@ -687,7 +687,7 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 
 	// B-382 (Q-164b A): Amp adds flat to the base, once per action, so every multiplier after it scales it.
 	// Only a damaging action takes it (a 0-damage buff or heal spell stays 0).
-	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, Preview.Element) : 0;
+	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, Preview.Element, bIsSpell) : 0;
 	if (bLog && Preview.AmpBonus != 0)
 	{
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[Amp] %s: %d + Amp %d (%s)"), *Skill->Name, Preview.BaseDamage, Preview.AmpBonus,
