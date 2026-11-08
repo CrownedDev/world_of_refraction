@@ -13,6 +13,8 @@
 #include "GameFramework/Pawn.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/Entries/FApparelEntry.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "Character/CharacterDataComponent.h"
 #include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -199,6 +201,36 @@ namespace
 					}
 				}
 				UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %d loadout(s)"), Printed);
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GWearApparelCmd(
+		TEXT("wor.Loadout.WearApparel"),
+		TEXT("DEBUG: wor.Loadout.WearApparel <ApparelData asset path> - the player wears that apparel piece in its active loadout (outside the budget, up to 2; B-380 placeholder until the gear screen)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				UInventoryComponent *Inventory = PlayerInventory(World);
+				UApparelData *Piece = Args.Num() > 0 ? LoadObject<UApparelData>(nullptr, *Args[0]) : nullptr;
+				if (!Inventory || !Piece || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] usage: wor.Loadout.WearApparel <ApparelData asset path> (in a level with the player)"));
+					return;
+				}
+				FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+				if (!ApparelRules::AddApparel(Active, FApparelEntry::CreateFromApparel(Piece)))
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] no free apparel slot (%d)"), ApparelRules::MAX_APPAREL_SLOTS);
+					return;
+				}
+				// The max pools read gear HP; recompute so the new HP shows now.
+				if (UCharacterDataComponent *Data = Inventory->GetOwner()->FindComponentByClass<UCharacterDataComponent>())
+				{
+					Data->RecomputeMaxPools();
+				}
+				if (const ULoadoutComponent *Loadout = Inventory->GetOwner()->FindComponentByClass<ULoadoutComponent>())
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Loadout] %s"), *GetLoadoutPrintString(*Loadout));
+				}
 			}));
 
 	FAutoConsoleCommandWithWorldAndArgs GPrintSkillSlotsCmd(
