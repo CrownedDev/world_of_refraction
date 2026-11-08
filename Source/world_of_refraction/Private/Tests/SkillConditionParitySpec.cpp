@@ -141,7 +141,8 @@ namespace
 		// B-337e: the check reads the migrated, authored group (ToAuthored), which must give the same answer.
 		const bool bReadAcross = SkillConditions::IsGroupMet(Conditions, Check, Context, Scene.bHasTarget);
 		const bool bMigrated = SkillConditions::IsGroupMet(SkillConditions::ToAuthored(Conditions), Check, Context, Scene.bHasTarget);
-		return bReadAcross == bMigrated ? bMigrated : !bReadAcross; // a disagreement shows as a mismatch with the old check
+		// A disagreement between the two is reported by CountMismatches against the old check (bMigrated is returned).
+		return bMigrated;
 	}
 
 	FSkillCondition ParityCondition(ESkillTrigger Trigger, ECondSubject Subject, ECondCombine Combine, float Threshold)
