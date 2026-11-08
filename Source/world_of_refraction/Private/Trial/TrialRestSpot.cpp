@@ -29,6 +29,26 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	return Revived;
 }
 
+bool WoRRestSpot::CanReviveHere(const UWorld *World)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	return Run && Run->CanReviveEncounter(Run->GetLastRestSpot());
+}
+
+bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
+{
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	if (!Run || World->GetNetMode() == NM_Client || !Run->ReviveEncounter(Run->GetLastRestSpot()))
+	{
+		return false;
+	}
+	// TODO: B-187c: place the party back at this spot after the reload (it starts at the level's start for now).
+	Run->ReloadTrialLevel();
+	return true;
+}
+
 bool WoRRestSpot::LeaveRun(UWorld *World)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
@@ -48,7 +68,7 @@ FText WoRRestSpot::GetLeaveConfirmText()
 
 void ATrialRestSpot::Interact(APawn *Pawn)
 {
-	if (WoRRestSpot::Rest(GetWorld(), GetFeatureId()) == INDEX_NONE)
+	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId()) == INDEX_NONE)
 	{
 		return;
 	}
@@ -59,6 +79,24 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 		URestSpotWidget::Open(PC); // TODO: co-op: a client's menu (its press reaches the host's rest, B-187b)
 	}
 	RefreshHint();
+}
+
+ATrialRestSpot *ATrialRestSpot::SpawnForMiniBoss(UWorld *World, const FTransform &Where, FName EncounterId)
+{
+	if (!World || EncounterId.IsNone())
+	{
+		return nullptr;
+	}
+	ATrialRestSpot *Spot = World->SpawnActorDeferred<ATrialRestSpot>(ATrialRestSpot::StaticClass(), Where, nullptr, nullptr,
+																	 ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (!Spot)
+	{
+		return nullptr;
+	}
+	Spot->MiniBossEncounterId = EncounterId; // before BeginPlay, so the hint and id are right from the start
+	Spot->FinishSpawning(Where);
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] A rest spot where mini-boss %s fell"), *EncounterId.ToString());
+	return Spot;
 }
 
 FString ATrialRestSpot::GetHintText() const
