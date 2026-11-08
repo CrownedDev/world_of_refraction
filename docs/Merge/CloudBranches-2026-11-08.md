@@ -54,6 +54,29 @@ These branches are all in `dev` already, so **merge them into dev again**, in th
    - No save change.
 - The trial branch has all of these cherry-picked. Its `HiddenQuestSubsystem.h/.cpp` show the combined result.
 
+## Update, 23:45 UTC: Crown's confirmations, B-381 activations, and new row B-389 (D-168)
+
+- **Docs only, merge into dev again:**
+  - Q-379 confirmed (`feature/B-379-hidden-counters-cloud`, one commit);
+  - Q-380 (4) confirmed (`feature/B-380-apparel-cloud`, one commit).
+- **B-381 activations** (Crown, MemoryCatalogue §3.11). Merge `feature/B-381-gear-quests-cloud` into dev again. What changed:
+  - the `WornItemState` condition (subject 30, with fields `SocketElement`, `StoneType`, `MinTier`);
+  - `FWoRConditionContext::BoundItem`;
+  - `FWornItemState` / `FMemoryEventMember::WornStates` (`MemoryConditions::GetWornStates`: weapons, adapter, apparel);
+  - `StartGearQuests` checks each item with its own state;
+  - a spec case;
+  - Q-381 confirmed.
+  - The branch merged B-380b in (for the apparel socket). Since B-380b came from dev, the quest subsystem took B-377b's resolved version, so B-381 now equals B-377b plus apparel plus the activations, and the dev merge should be close to clean.
+- **New row 69: B-389** (`feature/B-389-resistance-by-type-cloud`, UNBUILT, cut from dev after B-387). D-168, resistance by damage type:
+  - `FResistanceBonus::PhysicalDamage` / `SpellDamage` (appended, damage-only, summed by `Accumulate`);
+  - `WoRResistance::GetScopeLineResistance`;
+  - `FDamageMathInputs::ResistanceScopeLine`, added to the element line in step 3 (kept on GAS);
+  - the debug prints;
+  - ResistanceLinesSpec;
+  - Q-389, and ED-20 / ED-27.
+  - **No save change.** The new fields are tagged UPROPERTYs, so old data reads 0. The existing damage and resistance specs must pass untouched: that is the no-balance-change proof.
+- The trial branch has all of these cherry-picked.
+
 ## How to use the table
 
 Go top to bottom. Every branch's base comes before it. For each row:
@@ -146,6 +169,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 66 | `feature/B-386-apparel-amp-cloud` | B-380d **and** B-385 (it merges B-385 in) | 31 | Small code (ApparelData, FApparelEntry). Docs: Q-386, CL-50c; Backlog doubled rows again (keep REVIEW). |
 | 67 | `feature/B-387-crystal-amp-cloud` | B-386 | 31 | Code: FAmpBonus.h (AmpRules), LoadoutComponent `GetActiveStatBonus`, AmpSpec. Docs: Q-387, ED-50d. **Balance note:** worn crystals from D tier up add flat Amp to their element. |
 | 68 | `feature/B-388-main-side-quests-cloud` | B-377 (merge after B-377b, see the 23:00 update) | – | Code: HiddenQuestData (EQuestKind, Title, step Goal), HiddenQuestSubsystem (GetVisibleQuests, StartQuestById, visible notices; put them in `dev`'s `CountStepMet`), MemoryJournalWidget (Quests page), WoRGameNames (GetQuestKindName), QuestJournalSpec. Docs: Backlog B-388, Q-388, ER-12l, PIE B-388 and its Pending row, HiddenQuestSystem changelog, session entry. | Backlog / Rules / PIE README: add the rows next to dev's (B-377b, ER-12k, the B-38x Pending rows). |
+| 69 | `feature/B-389-resistance-by-type-cloud` | dev (after B-387) | – | Code: FResistanceBonus (two appended lines), ResistanceQuery (`GetScopeLineResistance`), DamageMath / DamageCalculator (step 3), the Resistance / Stat debug prints, ResistanceLinesSpec. Docs: Backlog B-389, Q-389 (and D-168 already in dev), ED-20 / ED-27, PIE B-389 and its Pending row, ResistanceSystem / DamageCalculator changelogs, session entry. | Every existing damage / resistance spec must pass unchanged (no balance change). |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
