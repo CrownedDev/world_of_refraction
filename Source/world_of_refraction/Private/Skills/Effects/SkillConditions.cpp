@@ -5,6 +5,7 @@
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Skills/Effects/EffectDefinition.h"
+#include "Reaction/ReactionTrigger.h"
 #if WITH_EDITOR
 #include "AssetRegistry/AssetRegistryModule.h"
 #endif
@@ -267,8 +268,13 @@ namespace
 	}
 }
 
-void FSkillEffect::MigrateConditionGroup()
+void FSkillEffect::MigrateConditionGroup(bool bRebuild)
 {
+	if (bRebuild)
+	{
+		ConditionGroup = SkillConditions::ToAuthored(Conditions); // an edit of the old rows: the group follows
+		return;
+	}
 	if (!ConditionGroup.IsEmpty() || Conditions.IsEmpty())
 	{
 		return;
@@ -381,6 +387,28 @@ FString SkillConditions::GetUnmigratedEffectsString()
 			continue;
 		}
 		const int32 OnOld = Definition->Effects.FilterByPredicate([](const FSkillEffect &Effect) { return Effect.bConditionGroupMigratedOnLoad; }).Num();
+		if (OnOld > 0)
+		{
+			Out += FString::Printf(TEXT("%s: %d effect(s) on the old conditions (resave)\n"), *Asset.GetObjectPathString(), OnOld);
+		}
+	}
+
+	// Review fix: reaction assets carry effects too (FReactionTrigger::Effects).
+	TArray<FAssetData> ReactionAssets;
+	Registry.GetAssetsByClass(UReactionTriggerData::StaticClass()->GetClassPathName(), ReactionAssets, /*bSearchSubClasses=*/true);
+	Out += FString::Printf(TEXT("%d reaction assets scanned\n"), ReactionAssets.Num());
+	for (const FAssetData &Asset : ReactionAssets)
+	{
+		const UReactionTriggerData *Reactions = Cast<UReactionTriggerData>(Asset.GetAsset());
+		if (!Reactions)
+		{
+			continue;
+		}
+		int32 OnOld = 0;
+		for (const FReactionTrigger &Trigger : Reactions->Triggers)
+		{
+			OnOld += Trigger.Effects.FilterByPredicate([](const FSkillEffect &Effect) { return Effect.bConditionGroupMigratedOnLoad; }).Num();
+		}
 		if (OnOld > 0)
 		{
 			Out += FString::Printf(TEXT("%s: %d effect(s) on the old conditions (resave)\n"), *Asset.GetObjectPathString(), OnOld);
