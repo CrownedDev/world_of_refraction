@@ -8,6 +8,8 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Conditions/WoRConditions.h"
+#include "Equipment/Apparel/ApparelData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Memory/HiddenQuestData.h"
 #include "Memory/HiddenQuestSubsystem.h"
@@ -19,6 +21,8 @@ namespace
 {
 	const FName QUEST_TEST_LOCATION(TEXT("Spot_HiddenQuestSpec"));
 	constexpr int32 QUEST_TEST_TIMES = 2;
+	/** B-381 activations: the upgrade level a WornItemState case asks for. */
+	constexpr int32 QUEST_TEST_UPGRADE_LEVEL = 2;
 }
 
 BEGIN_DEFINE_SPEC(FHiddenQuestSpec, "WoR.Memory.HiddenQuest", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -153,6 +157,50 @@ void FHiddenQuestSpec::Define()
 		TestEqual(TEXT("worn and met: it starts"), Quests->StartGearQuests(Worn), 1);
 		TestTrue(TEXT("started"), Quests->IsStarted(Quest->GetQuestId()));
 		TestEqual(TEXT("once"), Quests->StartGearQuests(Worn), 0);
+	});
+
+	It("activations: an apparel piece with a Fire crystal starts its quest, the same piece with a Water crystal doesn't (B-381)", [this]()
+	{
+		UCharacterData *Wearer = FWoRTestWorld::NewCharacterData();
+		UApparelData *Cloak = NewObject<UApparelData>(GetTransientPackage());
+		FWoRCondition FireSocket;
+		FireSocket.Subject = EWoRConditionSubject::WornItemState;
+		FireSocket.SocketElement = ESpellElement::Fire;
+		FBoundQuest Carried;
+		Carried.Quest = Quest;
+		Carried.Conditions.Conditions.Add(FireSocket);
+		Cloak->BoundQuests.Add(Carried);
+
+		auto WearingCloak = [Wearer, Cloak](ESpellElement Socketed, ECrystalType Stone = ECrystalType::None)
+		{
+			FMemoryEventMember Member;
+			Member.Character = Wearer;
+			FWornItemState State;
+			State.Item = Cloak;
+			State.SocketElement = Socketed;
+			State.StoneType = Stone;
+			Member.WornStates.Add(State);
+			FMemoryEvent Event;
+			Event.Party.Add(Member);
+			return Event;
+		};
+		TestEqual(TEXT("a Water crystal: nothing starts"), Quests->StartGearQuests(WearingCloak(ESpellElement::Water)), 0);
+		TestEqual(TEXT("an empty socket: nothing starts"), Quests->StartGearQuests(WearingCloak(ESpellElement::None)), 0);
+		TestEqual(TEXT("a Fire crystal: it starts"), Quests->StartGearQuests(WearingCloak(ESpellElement::Fire)), 1);
+		TestTrue(TEXT("started"), Quests->IsStarted(Quest->GetQuestId()));
+
+		// The same condition with no bound item (a memory's condition, not an item's quest) never holds.
+		FWoRConditionContext NoItem;
+		TestFalse(TEXT("no bound item: it fails"), WoRConditions::IsMet(FireSocket, NoItem));
+		FWornItemState Upgraded;
+		Upgraded.SocketElement = ESpellElement::Fire;
+		Upgraded.UpgradeSteps = QUEST_TEST_UPGRADE_LEVEL;
+		FWoRCondition Levelled = FireSocket;
+		Levelled.Value = QUEST_TEST_UPGRADE_LEVEL;
+		NoItem.BoundItem = &Upgraded;
+		TestTrue(TEXT("upgraded enough: it holds"), WoRConditions::IsMet(Levelled, NoItem));
+		Upgraded.UpgradeSteps = QUEST_TEST_UPGRADE_LEVEL - 1;
+		TestFalse(TEXT("one level short: it fails"), WoRConditions::IsMet(Levelled, NoItem));
 	});
 
 	It("saves the journal and restores it without starting quests again (B-377b, D-059)", [this]()
