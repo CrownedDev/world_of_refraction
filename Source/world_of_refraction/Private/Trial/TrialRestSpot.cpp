@@ -7,8 +7,9 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
-#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Save/SaveSubsystem.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
+#include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "WoRLog.h"
@@ -48,11 +49,22 @@ bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	if (!Run || World->GetNetMode() == NM_Client || !Run->ReviveEncounter(Run->GetLastRestSpot()))
+	// Desktop review: only when the level can reload, so a revive is never spent for nothing.
+	const UTrialData *Trial = Run ? Run->GetActiveTrial() : nullptr;
+	if (!Run || World->GetNetMode() == NM_Client || !Trial || Trial->Level.IsNull() || !Run->ReviveEncounter(Run->GetLastRestSpot()))
 	{
 		return false;
 	}
-	// TODO: B-187c: place the party back at this spot after the reload (it starts at the level's start for now).
+	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
+	{
+		Save->SaveNow(World, true); // desktop review: quitting right after a revive can't skip the mini-boss
+	}
+	// B-187c: the reload puts the party back where it stood to rest (ATrialGameMode::RestartPlayer).
+	FTransform Stand;
+	if (Run->GetRestStand(Stand))
+	{
+		Run->SetPendingReturnStand(Stand);
+	}
 	StepAway(World); // desktop review: the party leaves the spot with the reload
 	Run->ReloadTrialLevel();
 	return true;
@@ -93,6 +105,10 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId()) == INDEX_NONE)
 	{
 		return;
+	}
+	if (UTrialRunSubsystem *Run = Pawn ? GetTrialRun() : nullptr)
+	{
+		Run->NoteRestStand(Pawn->GetActorTransform()); // B-187c: a revive brings the party back here
 	}
 	ShowMessage(LOCTEXT("Rested", "You rest. The party is restored."));
 	APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;

@@ -99,6 +99,8 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     BeatenEncounters.Reset();
     BeatenMiniBosses.Reset(); // B-187b
     EncounterRevivals.Reset();
+    bHasRestStand = false; // B-187c
+    bHasPendingReturnStand = false;
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
@@ -210,6 +212,8 @@ void UTrialRunSubsystem::ExitTrial()
     BeatenEncounters.Reset();
     BeatenMiniBosses.Reset(); // B-187b
     EncounterRevivals.Reset();
+    bHasRestStand = false; // B-187c
+    bHasPendingReturnStand = false;
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
     RunMainBossLosses = 0;
@@ -725,9 +729,11 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     VariationIndex = InVariationIndex;
     TrialDifficulty = InDifficulty;
     BeatenEncounters = TSet<FName>(Beaten);
-    // TODO: B-187c: save the mini-boss marks and revivals with the run; a resumed run has no mini-boss rest spots yet.
+    // B-187c: USaveSubsystem::RestoreRun puts the saved marks and revivals back after this (RestoreMiniBossRevivals).
     BeatenMiniBosses.Reset();
     EncounterRevivals.Reset();
+    bHasRestStand = false;
+    bHasPendingReturnStand = false;
     FoundFeatures = Found;
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
     NotifyRunProgressChanged();
@@ -846,6 +852,30 @@ bool UTrialRunSubsystem::ReviveEncounter(FName EncounterId)
     return true;
 }
 
+void UTrialRunSubsystem::RestoreMiniBossRevivals(const TArray<FName> &MiniBosses, const TMap<FName, int32> &Revivals)
+{
+    BeatenMiniBosses.Reset();
+    for (const FName Id : MiniBosses)
+    {
+        if (IsEncounterBeaten(Id))
+        {
+            BeatenMiniBosses.Add(Id);
+        }
+    }
+    EncounterRevivals = Revivals;
+}
+
+bool UTrialRunSubsystem::ConsumePendingReturnStand(FTransform &OutStand)
+{
+    if (!bHasPendingReturnStand)
+    {
+        return false;
+    }
+    OutStand = PendingReturnStand;
+    bHasPendingReturnStand = false;
+    return true;
+}
+
 void UTrialRunSubsystem::ReloadTrialLevel()
 {
     if (ActiveTrial && !ActiveTrial->Level.IsNull())
@@ -870,6 +900,10 @@ FString UTrialRunSubsystem::GetRevivalsString() const
             Out += FString::Printf(TEXT("\n  %s: revived %d time(s), waiting on the map"), *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value);
         }
     }
+    // B-187c review: where the party rested, and where the next load puts it.
+    Out += bHasRestStand ? FString::Printf(TEXT("\n  rest stand %s"), *RestStand.GetLocation().ToCompactString()) : FString(TEXT("\n  no rest stand yet"));
+    Out += bHasPendingReturnStand ? FString::Printf(TEXT("; pending return %s"), *PendingReturnStand.GetLocation().ToCompactString())
+                                  : FString(TEXT("; no pending return"));
     return Out;
 }
 
