@@ -160,6 +160,22 @@ const FApparelEntry *UPoolSubsystem::FindApparelInPool(const FGuid &PersistentID
                                   : nullptr;
 }
 
+bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAttachedItem &Attachment)
+{
+    FApparelEntry *Owned = PersistentID.IsValid()
+                               ? OwnedApparel.FindByPredicate([&PersistentID](const FApparelEntry &E) { return E.PersistentID == PersistentID; })
+                               : nullptr;
+    if (!Owned || (!Attachment.IsEmpty() && !ApparelRules::CanSocket(Attachment)))
+    {
+        return false;
+    }
+    Owned->AttachedItem = Attachment;
+    UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s socket: %s"), *GetNameSafe(Owned->Apparel.Get()),
+           *UEnum::GetDisplayValueAsText(Owned->GetElement()).ToString());
+    OnPoolGearChanged.Broadcast(PersistentID); // B-380c: worn copies follow (UInventoryComponent::HandlePoolGearChanged)
+    return true;
+}
+
 void UPoolSubsystem::AddEvolutionToPool(const FEvolutionInventoryEntry &Entry)
 {
     OwnedEvolutions.Add(Entry);
