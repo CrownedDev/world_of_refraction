@@ -22,5 +22,5 @@ Hidden counters (MemoryCatalogue §3.9; Shangri-La Frontier's hidden stats) are 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
-| 2026-11-08 | Created (B-379): counters per character and all, Parries and Kills, the CounterReached condition, save v27, `wor.Counter.Print` / `wor.Counter.Add`, HiddenCounterSpec. | `feature/B-379-hidden-counters-cloud` (UNBUILT) |
-| 2026-11-08 | Review: `WoRConditions::Compare` qualified (compile fix); parries through `GuardRules::IsPerfectGuard`. | `feature/B-379-hidden-counters-cloud` (UNBUILT) |
+| 2026-11-08 | Created (B-379): counters per character and all, Parries and Kills, the CounterReached condition, save v27, `wor.Counter.Print` / `wor.Counter.Add`, HiddenCounterSpec. | `feature/B-379-hidden-counters-cloud` (in dev) |
+| 2026-11-08 | Review: `WoRConditions::Compare` qualified (compile fix); parries through `GuardRules::IsPerfectGuard`. | `feature/B-379-hidden-counters-cloud` (in dev) |
