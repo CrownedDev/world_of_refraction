@@ -1,6 +1,7 @@
 // SaveSubsystem.cpp
 
 #include "Save/SaveSubsystem.h"
+#include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
 #include "Character/CharacterData.h"
@@ -502,7 +503,12 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 bool USaveSubsystem::SaveNow(UWorld *World, bool bAsync)
 {
 	CaptureInto(World);
-	return WriteSlot(bAsync);
+	const bool bWritten = WriteSlot(bAsync);
+	if (bWritten)
+	{
+		WoRCheckpoint::SendToClients(World, SaveGame); // B-234: every other player keeps the host's checkpoint (review: only a written one)
+	}
+	return bWritten;
 }
 
 bool USaveSubsystem::WriteSlot(bool bAsync)
