@@ -18,6 +18,7 @@ namespace
 		TEXT("ResistanceProfileData"), // fixed path
 		TEXT("CombatTuningData"),	   // fixed path
 		TEXT("TrialData"),
+		TEXT("CharacterForm"),		   // CharacterFormSubsystem lists them by type (GetPrimaryAssetIdList)
 		TEXT("WeaponData"), TEXT("RingData"), TEXT("EvolutionItemData"), // TrialLoot::GatherPool (equipment)
 		TEXT("SpellData"), TEXT("AbilityData"),							  // TrialLoot::GatherPool (skills)
 	};

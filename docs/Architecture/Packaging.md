@@ -14,9 +14,10 @@ A packaged build cooks only what the maps and their assets reference. This game 
   | `MemoryData` | `MemoryConditions.cpp` scans the registry |
   | `ResistanceProfileData`, `CombatTuningData` | loaded by a fixed path |
   | `TrialData` | picked by the hub, saved by id |
+  | `CharacterForm` | `UCharacterFormSubsystem` lists the forms by type (`GetPrimaryAssetIdList`) |
   | `WeaponData`, `RingData`, `EvolutionItemData`, `SpellData`, `AbilityData` | `TrialLoot::GatherPool` scans every equipment and skill asset for its pool tags |
 
-  The other types (`CharacterData`, `InventoryData`, `CharacterForm`) stay `Unknown` (cooked when referenced).
+  The other types (`CharacterData`, `InventoryData`) stay `Unknown` (cooked when referenced).
 - **Packaging settings** (`[/Script/UnrealEd.ProjectPackagingSettings]`): `MapsToCook` lists the five levels (travel opens them by name: `HubLevel`, the trials' `Level` / `EncounterLevel`); `DirectoriesToAlwaysCook` the player-form meshes `AWoRPlayerState` loads by path.
 - **Check:** `WoR.Packaging.CookRules` (`Tests/CookRulesSpec.cpp`) fails when a listed type has no AlwaysCook rule. A new scanned or path-loaded type goes in that list and in `DefaultGame.ini`.
 
