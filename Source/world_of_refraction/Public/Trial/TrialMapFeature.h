@@ -42,6 +42,9 @@ public:
 	 *  the trial level's reloads). */
 	FName GetFeatureId() const;
 
+	/** B-232d (client): the run's progress arrived (URunStateComponent): a feature already found takes its found
+	 *  state (spent, removed, opened hint). Default: redraw the hint. */
+	virtual void RefreshFromRun() { RefreshHint(); }
 	/** B-235c (server): Pawn stands in this feature's trigger (any player's pawn; the host's overlap). */
 	bool IsWithinReach(const APawn *Pawn) const;
 

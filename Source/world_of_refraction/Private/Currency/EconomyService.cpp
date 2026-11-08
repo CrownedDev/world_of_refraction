@@ -1585,6 +1585,8 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     return true;
 }
 
+// OBSOLETE (B-363, D-156, Q-156): points are bought only at rest spots (WoRLevelDrops::TryBuyPoint); the vendor's
+// sale stays until Crown's PIE pass, then goes.
 bool UEconomyService::BuyWorldStat(AActor *Owner, EWorldPillar Pillar)
 {
     if (!EconomyMayAct(Owner, TEXT("BuyWorldStat")))
@@ -1965,7 +1967,7 @@ void UEconomyService::PrintEconomy(AActor *Owner) const
 namespace
 {
     static FAutoConsoleCommandWithWorld GPrintEconomyCmd(
-        TEXT("wor.PrintEconomy"),
+        TEXT("wor.Economy.Print"),
         TEXT("Snapshot the played character's economy: authority, component checklist, wallet (PIE debug)."),
         FConsoleCommandWithWorldDelegate::CreateLambda(
             [](UWorld *World)
@@ -1974,21 +1976,21 @@ namespace
                 UEconomyService *Economy = GI ? GI->GetSubsystem<UEconomyService>() : nullptr;
                 if (!Economy)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.PrintEconomy: no subsystem (no PIE world?)."));
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.Print: no subsystem (no PIE world?)."));
                     return;
                 }
                 APlayerController *PC = World->GetFirstPlayerController();
                 APawn *Pawn = PC ? PC->GetPawn() : nullptr;
                 if (!Pawn)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.PrintEconomy: no played pawn to inspect."));
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.Economy.Print: no played pawn to inspect."));
                     return;
                 }
                 Economy->PrintEconomy(Pawn);
             }));
 
     static FAutoConsoleCommandWithWorldAndArgs GBuyWorldStatCmd(
-        TEXT("wor.BuyWorldStat"),
+        TEXT("wor.WorldStat.Buy"),
         TEXT("DEBUG: buy +1 world stat for the played pawn (arg: Mind|Body|Spirit, default Mind). Tests the escalating Gold cost — run it 3x and watch the cost rise + the stat + count climb."),
         FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
             [](const TArray<FString> &Args, UWorld *World)
@@ -2012,11 +2014,11 @@ namespace
                 APawn *Pawn = PC ? PC->GetPawn() : nullptr;
                 if (!Economy || !Pawn)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.BuyWorldStat: no subsystem or played pawn."));
+                    UE_LOG(LogTemp, Warning, TEXT("[EconomyService] wor.WorldStat.Buy: no subsystem or played pawn."));
                     return;
                 }
                 const bool bOK = Economy->BuyWorldStat(Pawn, Pillar);
-                UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.BuyWorldStat %s -> %s"),
+                UE_LOG(LogTemp, Display, TEXT("[EconomyService] wor.WorldStat.Buy %s -> %s"),
                        *UEnum::GetValueAsString(Pillar), bOK ? TEXT("OK") : TEXT("FAILED (cap / can't afford / missing component)"));
             }));
 
