@@ -10,7 +10,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/Crystals/CrystalType.h"
 #include "Inventory/ItemTier.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "Memory/MemoryJournalSubsystem.h"
 
 class AActor;
@@ -34,6 +36,21 @@ struct FMemoryFightUsage
 	TArray<const UEquipmentDataBase *> FinishingWeapons;
 };
 
+/** B-381 activations (MemoryCatalogue §3.11): one worn item and its state, for a WornItemState condition on the quests
+ *  it carries (FWoRConditionContext::BoundItem). */
+struct FWornItemState
+{
+	const UEquipmentDataBase *Item = nullptr;
+	/** Its instance tier, and how many tiers above its authored tier that is (its upgrade level). */
+	EItemTier Tier = EItemTier::F_Tier;
+	int32 UpgradeSteps = 0;
+	/** The crystal's or evolution's element in its socket (None: empty, or a stone / fusion). */
+	ESpellElement SocketElement = ESpellElement::None;
+	const UEvolutionItemData *SocketEvolution = nullptr;
+	/** The augment stone in its stone socket (None: none; apparel has no stone socket). */
+	ECrystalType StoneType = ECrystalType::None;
+};
+
 /** One party member as an event sees them: who, what they wear at which level, what they have
  *  slotted and what they used. */
 struct FMemoryEventMember
@@ -47,6 +64,9 @@ struct FMemoryEventMember
 	TArray<const USkillDataBase *> Slotted;
 	/** Filled for a fight won. */
 	FMemoryFightUsage Used;
+	/** B-381 activations: every worn item's state (weapons, adapters and apparel); MakeMember fills it. An event built
+	 *  without it (tests, old callers) reads each Worn item with its tier only. */
+	TArray<FWornItemState> WornStates;
 };
 
 /** What is true when an event checks memory conditions. */
@@ -90,6 +110,10 @@ namespace MemoryConditions
 	/** A combatant: its character, worn gear and primary-slot evolution with levels, and slotted
 	 *  skills (not what it used: that comes from the fight's record). */
 	WORLD_OF_REFRACTION_API FMemoryEventMember MakeMember(const AActor *Combatant);
+
+	/** B-381 activations: the state of each item Actor wears now: its weapons and adapter in use (as GetWornWithTiers
+	 *  picks them, owned entries first) and its apparel, with socket, stone, tier and upgrade level. */
+	WORLD_OF_REFRACTION_API TArray<FWornItemState> GetWornStates(const AActor *Actor);
 
 	/** Q-209d: Actor used Action: its skill, and a Breakthrough spell's evolution. */
 	WORLD_OF_REFRACTION_API void RecordAction(FMemoryFightUsage &Usage, const AActor *Actor, const FAction &Action);
