@@ -28,7 +28,7 @@ void UCurseSubsystem::Deinitialize()
 
 bool UCurseSubsystem::AddCurse(FName CurseId)
 {
-	if (CurseId.IsNone() || HeldCurses.Contains(CurseId))
+	if (CurseId.IsNone() || HeldCurses.Contains(CurseId) || LiftedCurses.Contains(CurseId))
 	{
 		return false;
 	}
@@ -43,6 +43,7 @@ bool UCurseSubsystem::RemoveCurse(FName CurseId)
 	{
 		return false;
 	}
+	LiftedCurses.Add(CurseId);
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s lifted (%d left)"), *CurseId.ToString(), HeldCurses.Num());
 	return true;
 }
@@ -77,12 +78,16 @@ FSavedCurses UCurseSubsystem::Capture() const
 	FSavedCurses Saved;
 	Saved.Held = HeldCurses.Array();
 	Saved.Held.Sort([](const FName &A, const FName &B) { return A.LexicalLess(B); });
+	Saved.Lifted = LiftedCurses.Array();
+	Saved.Lifted.Sort([](const FName &A, const FName &B) { return A.LexicalLess(B); });
 	return Saved;
 }
 
 void UCurseSubsystem::Restore(const FSavedCurses &Saved)
 {
 	HeldCurses.Reset();
+	LiftedCurses.Reset();
+	LiftedCurses.Append(Saved.Lifted);
 	for (const FName &CurseId : Saved.Held)
 	{
 		if (!CurseId.IsNone())

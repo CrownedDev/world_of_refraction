@@ -647,6 +647,10 @@ struct WORLD_OF_REFRACTION_API FSavedCurses
 
 	UPROPERTY()
 	TArray<FName> Held;
+
+	/** Lifted before: never given again. */
+	UPROPERTY()
+	TArray<FName> Lifted;
 };
 
 /** Everything one save slot holds. */
