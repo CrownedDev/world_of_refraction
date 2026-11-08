@@ -2577,6 +2577,16 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 
 // ==================== COMBAT ACCESSORS ====================
 
+void ULoadoutComponent::NotifyApparelChanged()
+{
+    if (UCharacterDataComponent *Data = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        Data->RecomputeMaxPools(); // gear HP
+    }
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    OnLoadoutChanged.Broadcast(Inv ? Inv->ActiveLoadoutIndex : 0); // GAS stats and resistances re-sync on this
+}
+
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
     // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.

@@ -275,6 +275,14 @@ FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
 			Saved.AdapterInstances.Add(Slot.RingInstance);
 		}
 	}
+	for (int32 Index = 0; Index < Loadout.Apparel.Num(); ++Index) // B-380c
+	{
+		if (Loadout.Apparel[Index])
+		{
+			Saved.Apparel.Add(FSavedAssetRef::Make(Loadout.Apparel[Index].Get()));
+			Saved.ApparelInstances.Add(Loadout.ApparelInstances.IsValidIndex(Index) ? Loadout.ApparelInstances[Index] : FGuid());
+		}
+	}
 	Saved.InnateSpells = SaveLoadoutSpellRefs(Loadout.InnateSpells);
 	for (const FSavedBDElementSpellPool &Pool : Loadout.BDSpellPools)
 	{
@@ -313,6 +321,14 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 			FResonatorRingSlot &Slot = Loadout.EquippedRings.AddDefaulted_GetRef();
 			Slot.Ring = Ring;
 			Slot.RingInstance = Saved.AdapterInstances.IsValidIndex(Index) ? Saved.AdapterInstances[Index] : FGuid();
+		}
+	}
+	for (int32 Index = 0; Index < Saved.Apparel.Num(); ++Index) // B-380c
+	{
+		if (UApparelData *Piece = Saved.Apparel[Index].ResolveAs<UApparelData>())
+		{
+			Loadout.Apparel.Add(Piece);
+			Loadout.ApparelInstances.Add(Saved.ApparelInstances.IsValidIndex(Index) ? Saved.ApparelInstances[Index] : FGuid());
 		}
 	}
 	Loadout.InnateSpells = RestoreLoadoutSpellRefs(Saved.InnateSpells);
