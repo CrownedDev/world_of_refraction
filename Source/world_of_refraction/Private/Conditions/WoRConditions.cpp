@@ -226,6 +226,10 @@ namespace
 		{
 			return false;
 		}
+		if (Condition.Subject == EWoRConditionSubject::WornItemState)
+		{
+			return Context.BoundItem && IsWornItemStateMet(Condition, *Context.BoundItem); // B-381: reads the item, not the event
+		}
 		if (!Context.Event)
 		{
 			return false; // every other subject reads the event
@@ -242,8 +246,6 @@ namespace
 		case EWoRConditionSubject::CounterReached:
 			return !Condition.CounterId.IsNone() &&
 				   WoRConditions::Compare(Context.Counters ? Context.Counters->Get(Condition.CounterId, Condition.Character) : 0, Condition.Operator, Condition.Value);
-		case EWoRConditionSubject::WornItemState:
-			return Context.BoundItem && IsWornItemStateMet(Condition, *Context.BoundItem);
 		case EWoRConditionSubject::GearEquipped:
 			return IsGearMet(Condition, Event);
 		case EWoRConditionSubject::AtLocation:
