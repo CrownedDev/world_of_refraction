@@ -1889,6 +1889,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A**, by the reference-backed default (2026-11-04). Crown may change it.
 **Notes for Claude:** built on the desktop 2026-11-04 (in dev) as save version 12 (B-333 took 11). Also saved there: B-346's AI seat difficulty (`FSavedPartyMember::AISeatDifficulty`, free inside the unreleased v12). The round-trip spec covers the wallet, pool and party fields; the character, crystal and evolution components had nothing saved to begin with (option A).
 
+
+### Q-348b — Does a mid-fight Broken Darkness transformation outlast the fight or the session?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-07 (B-348b, cloud) · **Blocks:** —
+**Question:** B-348b asks whether a runtime Broken Darkness transformation (a Darkness caster's strain reaching 100% mid-fight, `UBrokenDarknessManager::TriggerTransformation`) should be saved. Today it lives on the fight's pawn (`UCharacterDataComponent::bIsBrokenDarkness`) and ends with it; a born Broken Darkness character comes from its asset and needs nothing saved.
+**Options:** **A** the transformation lasts the fight only: nothing saved; the next fight starts the caster as Darkness with strain reset. **B** it stays until reverted, carried on the party member and saved.
+**Recommendation:** A. A battle-only transformation is the well-liked pattern for a power state earned mid-fight: Final Fantasy VI's Trance and Final Fantasy IX's Trance end with the battle, as do Xenoblade's Talent Arts states; it keeps each fight's risk and reward inside the fight. The deckbuilder has no Broken Darkness transformation to compare.
+**Answer:** **A**, by the reference-backed default (2026-11-07). Crown may change it. The head-starts are saved (B-348b); the transformation is not.
+**Notes for Claude:** B-348b saves the head-starts only.
 ### D-139 — One console naming rule (audit §24)
 **Status:** DECIDED (Crown, 2026-11-03) · **Raised:** 2026-11-03 (`docs/analysis/SimplicityAudit.md` §24) · **Blocks:** —
 **Answer (Crown):** every console command is `wor.<System>.<Verb>`, with one `Print` per system. Duplicates are removed outright, with no alias period. Every `docs/PIE/*.md` and Architecture doc naming an old command is updated, as is CLAUDE.md's debug-tools section (Crown to approve that edit).

@@ -27,6 +27,8 @@ namespace
 	constexpr int32 SAVED_HP = 37;
 	constexpr int32 SAVED_EP = 4;
 	constexpr int32 SAVED_COLUMN = 2;
+	constexpr int32 SAVED_HEAD_START_MIND = 2;
+	constexpr int32 SAVED_HEAD_START_SPIRIT = 1;
 	constexpr int32 PRISMS = 5;
 	constexpr int32 ELEMENTAL_ESSENCE = 3;
 	constexpr int32 PILLAR_ESSENCE = 4;
@@ -94,6 +96,8 @@ void FSaveSpec::Define()
 		Party->Members[1].bPlayerControlled = false;
 		Party->Members[1].bAISeat = true; // B-346: the saved mirror of bPlayerControlled
 		Party->Members[1].AISeatDifficulty = EAIDifficulty::Hard;
+		Party->Members[1].HeadStartMind = SAVED_HEAD_START_MIND; // B-348b
+		Party->Members[1].HeadStartSpirit = SAVED_HEAD_START_SPIRIT;
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -122,6 +126,8 @@ void FSaveSpec::Define()
 		TestTrue(TEXT("Cell"), Back.PreferredRow == ECombatRow::Back && Back.PreferredColumn == SAVED_COLUMN);
 		TestFalse(TEXT("AI-controlled"), Back.bPlayerControlled);
 		TestTrue(TEXT("AI seat, Hard (B-346 / B-348)"), Back.bAISeat && Back.AISeatDifficulty == EAIDifficulty::Hard);
+		TestTrue(TEXT("Head-start survives save / load (B-348b)"), Back.HeadStartMind == SAVED_HEAD_START_MIND && Back.HeadStartBody == 0 &&
+																		Back.HeadStartSpirit == SAVED_HEAD_START_SPIRIT);
 		TestFalse(TEXT("A party that already exists is left alone"),
 				  USaveSubsystem::RestoreParty(Loaded->Data.Party, *PartySession));
 	});
