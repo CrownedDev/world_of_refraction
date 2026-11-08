@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/RestSpotWidget.h"
@@ -27,6 +28,7 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
+	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here; the skin switch reads it too
 	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
 	{
 		Save->SaveNow(World, true); // desktop review: a rest is a checkpoint (the heal and the rest spot survive a quit)
@@ -51,8 +53,22 @@ bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
 		return false;
 	}
 	// TODO: B-187c: place the party back at this spot after the reload (it starts at the level's start for now).
+	StepAway(World); // desktop review: the party leaves the spot with the reload
 	Run->ReloadTrialLevel();
 	return true;
+}
+
+void WoRRestSpot::StepAway(UWorld *World)
+{
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	if (UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+	{
+		Run->SetAtRestSpot(false);
+	}
+	if (UCharacterFormSubsystem *Forms = GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
+	{
+		Forms->SetAtRestSpot(false);
+	}
 }
 
 bool WoRRestSpot::LeaveRun(UWorld *World)

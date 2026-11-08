@@ -104,6 +104,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
+    bAtRestSpot = false; // B-363
     bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
@@ -214,6 +215,7 @@ void UTrialRunSubsystem::ExitTrial()
     LastRestSpot = NAME_None;
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
+    bAtRestSpot = false; // B-363
     bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
@@ -265,6 +267,7 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
                                         const TArray<UCharacterData *> &OpposingParty, EAIDifficulty Difficulty,
                                         EEncounterRank Rank)
 {
+    bAtRestSpot = false; // B-363: a fight leaves the rest spot
     if (!Trial || Trial->EncounterLevel.IsNull())
     {
         UE_LOG(LogTemp, Warning, TEXT("[TrialRun] EnterEncounter: %s — ignored."),
@@ -400,7 +403,7 @@ void UTrialRunSubsystem::AddUnspentLevels(FName CharacterKey, int32 Count)
     if (Count > 0 && !CharacterKey.IsNone())
     {
         const int32 Waiting = UnspentLevels.FindOrAdd(CharacterKey) += Count;
-        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place (%d waiting): wor.UI.LevelDrop"),
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s: +%d pillar level(s) to place at a rest spot (%d waiting): wor.Trial.Rest, Level up"),
                *FPaths::GetBaseFilename(CharacterKey.ToString()), Count, Waiting);
         NotifyRunProgressChanged();
     }
@@ -717,6 +720,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingTierSteps = 0; // B-187b
     PendingEnemyTierSteps.Reset();
     PendingMiniBossSources.Reset();
+    bAtRestSpot = false; // B-363 review: a resumed run starts away from a rest spot
     // B-073 desktop review: nothing of an earlier run's payout lingers (the save restores the tally and the boss mark).
     bRunBossBeaten = false;
     RunTally = FRunPayout();

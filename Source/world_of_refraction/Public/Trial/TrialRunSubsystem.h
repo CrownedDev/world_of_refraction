@@ -325,6 +325,11 @@ public:
     FName GetLastRestSpot() const { return LastRestSpot; }
     void NoteRestSpotUsed(FName RestSpotId) { LastRestSpot = RestSpotId; }
 
+    /** B-363 (D-156): the party is at a rest spot (rested, its menu open): pillar points are placed and bought only
+     *  here. Set by WoRRestSpot::Rest; cleared when a fight starts and when the trial is entered or left. */
+    bool IsAtRestSpot() const { return bAtRestSpot; }
+    void SetAtRestSpot(bool bInAtRestSpot) { bAtRestSpot = bInAtRestSpot; }
+
     /** Save restore: puts the run's loss counters back (RestoreRun does not take them). */
     void RestoreRunLosses(int32 Wipes, int32 MainBossLosses, FName RestSpotId);
 
@@ -483,6 +488,9 @@ private:
     int32 RunWipes = 0;
     int32 RunMainBossLosses = 0;
     FName LastRestSpot;
+
+    /** B-363: see IsAtRestSpot. Not saved: a resumed run starts away from any rest spot. */
+    bool bAtRestSpot = false;
 
     /** B-362b: run state like RunWipes (cleared on trial entry and exit; saved with the run). */
     int32 DroppedPrisms = 0;
