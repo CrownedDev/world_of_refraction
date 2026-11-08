@@ -4078,14 +4078,32 @@ Moved here once applied. Newest first.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
 
+### D-166 — Every damage and defence boost has a scope, like Amp (follows Q-164b)
+**Status:** DECIDED (Crown, 2026-11-08; recorded by the cloud writer from the brain's message) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** each damage-boost effect (DamageBuff / Debuff, ModifyDamageDealt, Raw / SpellDamageBuff / Debuff) and defence-boost effect (DefenseBuff / Debuff, ReduceDamageTaken / IncreaseDamageTaken) gets a **scope**: All, Physical, Spell or one element. **Default All**, so authored data plays exactly as before. The read is per hit, against the action's element and kind. The gear's Physical / Spell damage lines and stones stay as they are; they already are the Physical / Spell scopes.
+**Not part of it:** folding the four "all damage %" channels into one: Crown answered it separately, D-167 (B-384).
+**As built (B-383):** `EDamageScope` {All, Physical = not a spell (attacks and abilities, infused or not), Spell, Element = the effect's own element}; `FSkillEffectPayload::DamageScope` / `FActiveSkillEffect::DamageScope`; `USkillEffectManager::GetTotalStatModifierForHit` (GAS twin `SumMagnitudeForHit`); every read in `UDamageCalculator` goes through it, Defense through `GetDefenderDefenseForHit`. Amp's lines take the same meanings (Physical = not a spell; a Spell line added). B-382's implicit keying (any element on a DamageBuff narrowed it) is replaced by the explicit Element scope.
+**Reference check:** *deckbuilder*: every Amp / Def line and grant bonus is scoped by damage type, `All` matching everything (`06-bonuses.md`). *Games*: Path of Exile's modifiers name what they scale ("increased Fire Damage", "increased Spell Damage", "increased Physical Damage"); Elden Ring's damage negation is per damage type.
+**Notes for Claude:** at UseGAS 1 the composed Defense attribute still counts every DefenseBuff whatever its scope (TODO in `GetDefenderDefenseForHit`). Displays that read `GetTransientRaw/SpellDamageFactor` or `GetDefenderFlatDefense` show the unscoped total.
+
+### D-167 — One "all damage %" channel: the four add, they don't multiply (answers B-384)
+**Status:** DECIDED (Crown, 2026-11-08: "fold them"; recorded by the cloud writer from the brain's message) · **Raised:** 2026-11-08 (D-166 note) · **Blocks:** —
+**Answer (Crown):** DamageBuff / Debuff (the difficulty's enemy-strength buff is one), ModifyDamageDealt and the hit's Raw or Spell DamageBuff / Debuff add into **one All-damage percent**, each with its D-166 scope, applied once: ×(1 + total / 100). Before, each multiplied the others. The effect types stay, so authored data loads as before; only stacking changes.
+**Balance shift:** one source alone is unchanged; stacked sources hit a little lower. Example: three +20% sources on an ability went from ×1.728 to ×1.6, about −7%. Retuning may be needed after PIE.
+**Reference check:** *deckbuilder*: every bonus adds into one total, "add the magnitude" (`06-bonuses.md`, `StatTotal`). *Games*: Path of Exile's "increased" modifiers all add into one pool before the separate "more" multipliers; Diablo IV's Season 4 cut overlapping damage buckets, and players welcomed it.
+**Notes for Claude (as built in B-384):** `UDamageCalculator::GetAllDamagePercent`; `GetStatusEffectDamageModifier` applies it once. The old multiplied path stays behind `wor.Damage.FoldAllDamage 0`, marked OBSOLETE, for the before / after check; delete it after Crown's PIE pass. **The stat cap (reference-backed default, B-384 review; Crown can change it):** Raw / Spell buffs now count only in the one sum, which no stat cap limits, the same as DamageBuff always was. So a character already at the damage stat cap still gains from a Raw / Spell buff (before, the cap swallowed it). Mixing the two rules made a Raw buff next to another boost *lower* a capped hit. Path of Exile's "increased" pool isn't capped by the stat either. The other option, keeping the Raw / Spell share capped, needs a capped-share term in the sum.
+
 ### D-164 — Apparel: a gear piece outside the budget, with its own crystal socket
-**Status:** DECIDED in part (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
 **Answer (Crown):** add an **apparel** gear piece, working like the deckbuilder's (`wor-deckbuilder docs/reference/01-card-model.md`: Apparel, a vessel with HP and Defence lines and a crystal socket):
 - **Outside the loadout budget:** apparel never takes budget or an item limit from weapons, adapters or evolutions (D-110 budgets unchanged).
 - **Its own crystal socket:** a crystal on apparel is separate from the weapon / adapter crystals; it keys the apparel (its element) and powers no skill (the deckbuilder's rule).
 - **Stats:** HP and Defence lines (the deckbuilder's `HP · Amp · Def` without Amp: this game has no Amp stat yet).
 - **Separate from cosmetics:** the outfit pieces (D-111) stay the look; apparel is stats only (Monster Hunter's armour vs. layered armour).
-**Still open (non-lore, take the reference-backed default when the job is written):** how many apparel slots (the deckbuilder caps apparel at 2); what an apparel crystal or evolution gives beyond its element (e.g. that element's Defence line); whether an evolution can sit on apparel.
+- **Two apparel slots** (Crown, 2026-11-08; the deckbuilder's `MaxApparelSeated` 2).
+- **An apparel crystal gives extra resistance** to its element (Crown, 2026-11-08), on top of the apparel's own lines (the deckbuilder's resistance apparel: an elemental Defence line).
+- **Apparel carries effects** like the deckbuilder's vessels (Crown, 2026-11-08): passive effect rows with a trigger and conditions, and bonuses (`wor-deckbuilder docs/reference/04-effects.md`, `06-bonuses.md`), through this game's skill-effect rows (`FSkillEffect`, the nested condition shape of Q-337e).
+- **An evolution can go on apparel** (Crown, 2026-11-08). As on other gear it gives its passive abilities (D-147, B-357c), keys the apparel to its element and adds that element's resistance like a crystal; it powers no skill (the deckbuilder's rule).
 **Look into later (Crown):** an **Amp** stat (the deckbuilder's `+2 Amp` / `+1 Fire Amp`: a flat boost to skills, all or one element); not decided.
 **Notes for Claude:** new item type in the owned-items store (D-111); stats compose through the stat sources (GAS `UWoRGE_StatSources`); quests can hang off it (D-165).
 
@@ -4111,3 +4129,37 @@ Moved here once applied. Newest first.
 **Answer (default):** keep it, as the character's own kit. The first draw banks it into the store, as `BankStartingGear` does for authored weapons, so it is owned and `StripUnownedGear` treats it like any piece. Apparel the player puts on a lore loadout is saved per character (lore loadouts themselves are rebuilt from the asset). Reference: this game's own starting-gear rule (B-321); the deckbuilder's starting deck is owned.
 **Notes for Claude:** B-380e. The lore loadouts are rebuilt from the asset each draw, so banking must match by asset and slot, not by a new id, or each session mints a copy. Needs a build to test.
 
+### Q-164b — An Amp stat? (D-164 "look into later"; reshaped by Crown 2026-11-08: compare first)
+**Status:** Answered (Crown, 2026-11-08): **A, as an addition** (existing damage sources unchanged; folding ModifyDamageDealt into DamageBuff is not part of it). Defaults taken: small numbers, flat into the base per action, no status buildup, crystal Amp by tier later. Built in **B-382** · **Raised:** 2026-11-08 (cloud writer, from D-164) · **Blocks:** —
+**Question:** The deckbuilder's cards carry **Amp** (`+2 Amp` for every skill, `+1 Fire Amp` for one element's) and **Def** (`+1 Def`, `+2 Fire Def`). They are flat lines on any card, all added into one total. Does this game need Amp, or does an existing source already cover it? Judge it by "granular and composable".
+**The comparison:** `docs/analysis/DamageAndDefenceSources_2026-11-08.md` (every damage and defence source, with code lines, scope and stacking).
+- **Defence: already covered.** Element resistance is the deckbuilder's element Def: keyed to one element and summed from every source (gear, apparel, evolution, class profile, effects). Defence is its plain Def.
+- **Damage: one gap.** Nothing raises one element's damage.
+  - Gear has only Raw / Spell lines (`FEquipmentStatBonus`).
+  - The all-damage effects ignore their element (`GetTotalStatModifier`).
+  - Meanwhile four "all damage %" channels already multiply each other (DamageBuff, ModifyDamageDealt, Raw / SpellDamageBuff, difficulty).
+**Options:**
+- **A — Amp as keyed lines in one sum (the deckbuilder's model).**
+  - **The line:** an `Amp` line has a scope: All, Physical, Spell or one element. It can sit on gear, apparel, evolutions, curses and effects.
+  - **The sum:** every line whose scope matches the action is added into one Amp total, as resistance is summed today.
+  - **Where it enters:** flat, added to the skill's base before the multipliers, once per action, not per hit.
+  - **Effects:** an element-keyed DamageBuff reads through the existing exact-element read (`GetTotalStatModifierForElement`, already used for status buildup). The generic and the keyed reads are two calls, so they never double-count.
+- **B — Amp as a percent**, all or one element (`+10% Fire damage`): one more multiplier beside the four, the usual stacking inflation.
+- **C — a flat add after the multipliers** (beside the stone): it fades at high tiers (tier power reaches ×4.8) unless its numbers scale with the item's tier.
+- **D — no Amp.** Element damage stays inexpressible; build variety per element comes only from the target's resistances.
+**Recommendation:** **A**.
+- **The deckbuilder comes first.** It is this game's simplest level, and its Amp is exactly "keyed lines, one sum". This game already composes defence that way, so Amp mirrors resistance and adds no new idea.
+- **Reference-backed:**
+  - **Path of Exile.** "Adds X to Y Fire Damage" is added to the base and then scaled by the multipliers; flat added damage of one element is a well-liked build axis. It is also known to make fast multi-hit skills run away, which per-action Amp avoids.
+  - **Monster Hunter.** A weapon's separate element value makes element builds (Fire against Fire-weak monsters) a favourite way to play.
+  - **Diablo IV, Season 4 ("Loot Reborn", 2024).** It cut many overlapping damage affixes down to fewer, clearer ones, and players welcomed it. That argues against B's fifth percent channel.
+- **Defaults if Crown picks A:**
+  - small numbers, like the deckbuilder's +1 / +2 against base damage;
+  - Amp does not raise status buildup (StatusMultiplier has its own line);
+  - crystals granting Amp of their element by tier (the deckbuilder's F0 E0 D1 C1 B2 A2 S3 ladder) is a later, separate question.
+- **A separate tidy-up (not part of this question):** fold ModifyDamageDealt into DamageBuff, since both are "all damage %".
+**Notes for Claude (as built in B-382):**
+- `FEquipmentStatBonus` gets `BonusAmp` plus a per-element Amp (a nine-entry map or nine lines). It is summed in `GetActiveStatBonus` and read in `PreviewActionDamage` for the action's resolved element, before the infusion and tier multipliers.
+- An element-keyed DamageBuff effect reads through `GetTotalStatModifierForElement`.
+- The `wor.Damage` breakdown shows the Amp line.
+- Add a DamageCalculatorSpec case.

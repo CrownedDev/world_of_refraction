@@ -2666,6 +2666,28 @@ float USkillEffectManager::GetTotalStatModifierForElement(AActor *Actor, ESkillE
 	return Total;
 }
 
+float USkillEffectManager::GetTotalStatModifierForHit(AActor *Actor, ESkillEffectType ModifierType, ESpellElement HitElement,
+													  bool bHitIsSpell) const
+{
+	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, ModifierType))
+	{
+		return FWoREffectSpecBuilder::SumMagnitudeForHit(*ASC, ModifierType, HitElement, bHitIsSpell);
+	}
+	if (!Actor || !ActiveEffects.Contains(Actor))
+	{
+		return 0.0f;
+	}
+	float Total = 0.0f;
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
+	{
+		if (Effect.EffectType == ModifierType && WoRDamageScope::Matches(Effect.DamageScope, Effect.Element, HitElement, bHitIsSpell))
+		{
+			Total += Effect.GetStackedValue();
+		}
+	}
+	return Total;
+}
+
 float USkillEffectManager::GetNetStatModifier(AActor *Actor, ESubStat Stat) const
 {
 	const FStatModifierRow Row = StatModifierTable::Find(Stat);
