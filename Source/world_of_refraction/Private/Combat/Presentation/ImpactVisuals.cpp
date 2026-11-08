@@ -5,6 +5,7 @@
 #include "Combat/CombatPresentationComponent.h"
 #include "Character/CharacterData.h"
 #include "Character/CosmeticsData.h"
+#include "Combat/Presentation/ImpactVisualDefaults.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
@@ -48,6 +49,8 @@ namespace
 			return TEXT("none");
 		case EImpactVisualSource::SkillEntry:
 			return TEXT("skill Impact entry");
+		case EImpactVisualSource::SkillCritEntry:
+			return TEXT("skill CritImpact entry");
 		case EImpactVisualSource::ElementDefault:
 			return TEXT("element default");
 		case EImpactVisualSource::GenericDefault:
@@ -97,45 +100,62 @@ namespace ImpactVisuals
 	}
 
 	FImpactVisualChoice Choose(EImpactOutcome Outcome, const USkillDataBase *Skill, ESpellElement Element,
-							   const UCosmeticsData *Cosmetics, bool bIsProjectileArrival)
+							   const UImpactVisualDefaults *Defaults, const UCosmeticsData *DefenderCosmetics, bool bIsProjectileArrival)
 	{
+		// Layer 3: the defence outcome is the defender's cosmetic slot.
 		switch (Outcome)
 		{
 		case EImpactOutcome::PerfectGuard:
 			return Make(TSoftObjectPtr<UNiagaraSystem>(), EImpactVisualSource::PerfectGuardFlash);
 		case EImpactOutcome::Guard:
-			return Cosmetics ? Make(Cosmetics->GuardSparkVFX, EImpactVisualSource::GuardSpark) : FImpactVisualChoice();
+			return DefenderCosmetics ? Make(DefenderCosmetics->GuardSparkVFX, EImpactVisualSource::GuardSpark) : FImpactVisualChoice();
 		case EImpactOutcome::Dodge:
-			return Cosmetics ? Make(Cosmetics->DodgeWhiffVFX, EImpactVisualSource::DodgeWhiff) : FImpactVisualChoice();
+			return DefenderCosmetics ? Make(DefenderCosmetics->DodgeWhiffVFX, EImpactVisualSource::DodgeWhiff) : FImpactVisualChoice();
 		case EImpactOutcome::Hit:
 		case EImpactOutcome::Crit:
 			break;
 		}
 
+		// Layer 2: the impact is on the skill.
 		if (bIsProjectileArrival)
 		{
 			return Make(TSoftObjectPtr<UNiagaraSystem>(), EImpactVisualSource::ProjectileArrival);
 		}
-		const float Scale = (Outcome == EImpactOutcome::Crit && Cosmetics) ? Cosmetics->CritImpactVFXScale : 1.0f;
+		const bool bCrit = Outcome == EImpactOutcome::Crit;
+		const float CritScale = bCrit ? (Defaults ? Defaults->CritImpactVFXScale : FALLBACK_CRIT_SCALE) : 1.0f;
 		if (Skill)
 		{
+			const FSkillVFXEntry *ImpactEntry = nullptr;
 			for (const FSkillVFXEntry &Entry : Skill->VFXArray)
 			{
-				if (Entry.Role == EVFXRole::Impact && !Entry.VFX.IsNull())
+				if (Entry.VFX.IsNull())
 				{
-					return Make(Entry.VFX, EImpactVisualSource::SkillEntry, Scale);
+					continue;
+				}
+				if (bCrit && Entry.Role == EVFXRole::CritImpact)
+				{
+					return Make(Entry.VFX, EImpactVisualSource::SkillCritEntry);
+				}
+				if (!ImpactEntry && Entry.Role == EVFXRole::Impact)
+				{
+					ImpactEntry = &Entry;
 				}
 			}
-		}
-		if (Cosmetics)
-		{
-			if (const TSoftObjectPtr<UNiagaraSystem> *ElementVFX = Cosmetics->ElementHitVFX.Find(Element); ElementVFX && !ElementVFX->IsNull())
+			if (ImpactEntry)
 			{
-				return Make(*ElementVFX, EImpactVisualSource::ElementDefault, Scale);
+				return Make(ImpactEntry->VFX, EImpactVisualSource::SkillEntry, CritScale);
 			}
-			if (!Cosmetics->GenericHitVFX.IsNull())
+		}
+		// The skill has no Impact entry: its element's default, then a generic one.
+		if (Defaults)
+		{
+			if (const TSoftObjectPtr<UNiagaraSystem> *ElementVFX = Defaults->ElementHitVFX.Find(Element); ElementVFX && !ElementVFX->IsNull())
 			{
-				return Make(Cosmetics->GenericHitVFX, EImpactVisualSource::GenericDefault, Scale);
+				return Make(*ElementVFX, EImpactVisualSource::ElementDefault, CritScale);
+			}
+			if (!Defaults->GenericHitVFX.IsNull())
+			{
+				return Make(Defaults->GenericHitVFX, EImpactVisualSource::GenericDefault, CritScale);
 			}
 		}
 		return FImpactVisualChoice();
@@ -163,7 +183,7 @@ namespace ImpactVisuals
 		{
 			return;
 		}
-		const FImpactVisualChoice Choice = Choose(Outcome, Skill, Element, GetCosmetics(Target), bIsProjectileArrival);
+		const FImpactVisualChoice Choice = Choose(Outcome, Skill, Element, UImpactVisualDefaults::Get(), GetCosmetics(Target), bIsProjectileArrival);
 		if (CVarImpactVFXLog.GetValueOnGameThread())
 		{
 			UE_LOG(LogWoR, Display, TEXT("[ImpactVFX] %s on %s"), *GetChoiceString(Outcome, Choice), *GetNameSafe(Target));

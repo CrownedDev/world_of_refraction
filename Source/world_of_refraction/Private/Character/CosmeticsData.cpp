@@ -27,8 +27,7 @@ FString UCosmeticsData::GetCosmeticsDataString() const
     Output += FString::Printf(TEXT("  Block: %s\n"), *AssetName(BlockMontage));
     Output += FString::Printf(TEXT("  Perfect Guard flash / sound: %s / %s\n"), *PerfectGuardFlashVFX.ToString(),
                               *PerfectGuardSound.ToString());
-    Output += FString::Printf(TEXT("  Impact visuals (B-369): %d element hit(s), generic %s, crit x%.2f, guard spark %s, dodge whiff %s\n"),
-                              ElementHitVFX.Num(), *GenericHitVFX.ToString(), CritImpactVFXScale, *GuardSparkVFX.ToString(),
+    Output += FString::Printf(TEXT("  Defence visuals (B-369): guard spark %s, dodge whiff %s\n"), *GuardSparkVFX.ToString(),
                               *DodgeWhiffVFX.ToString());
     Output += FString::Printf(TEXT("  Unarmed stance: %s\n"), *AssetName(UnarmedStance));
     Output += FString::Printf(TEXT("  Ring switch: %s\n"), *AssetName(RingSwitchMontage));
