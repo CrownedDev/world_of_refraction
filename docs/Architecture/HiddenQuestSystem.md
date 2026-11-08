@@ -9,6 +9,7 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 - Save: `FSavedHiddenQuests` / `FSavedQuestProgress` in `FWoRSaveData` (v25, D-059).
 
 ## Integration Points
+- B-381: `FBoundQuest` on `UEquipmentDataBase::BoundQuests` / `UEvolutionItemData::BoundQuests`; `StartGearQuests` runs first in `CheckEvent` (the event's worn gear and primary evolution, this player's own characters).
 - `UMemoryJournalSubsystem::OnMemoryRecorded` → `HandleMemoryRecorded` starts quests (any machine's journal).
 - `MemoryConditions::CheckEvent` → `UHiddenQuestSubsystem::CheckEvent` after the event's memories.
 - `UTrialRunSubsystem::ExitTrial` → `EndRun`.
@@ -28,3 +29,4 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 |---|---|---|
 | 2026-11-08 | Created (B-377): data asset, subsystem, save v25, `wor.Quest.Print`, HiddenQuestSpec. | `feature/B-377-hidden-quests-cloud` (in dev) |
 | 2026-11-08 | Review: the end memory is its player's alone and always lands (`Finish`); a quest started this event waits for the next; empty steps finish at once; quests gathered once. | `feature/B-377-hidden-quests-cloud` (in dev) |
+| 2026-11-08 | B-381 (D-165): gear and evolutions carry hidden quests (`FBoundQuest`), started while worn (`StartGearQuests`). | `feature/B-381-gear-quests-cloud` (in dev) |

@@ -8,6 +8,8 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Memory/HiddenQuestData.h"
+#include "Equipment/EquipmentDataBase.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
@@ -158,7 +160,49 @@ int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<
 
 int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event)
 {
+	StartGearQuests(Event); // started now: their steps wait for the next event (Q-377)
 	return Progress.IsEmpty() ? 0 : CheckEvent(Event, GetAllQuests());
+}
+
+int32 UHiddenQuestSubsystem::StartGearQuests(const FMemoryEvent &Event)
+{
+	const UMemoryJournalSubsystem *Journal = GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>();
+	const FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
+	TArray<UCharacterData *> FriendsCharacters;
+	for (const AWoRPlayerState *Friend : MemoryUnlock::GetRemotePlayers(GetGameInstance()))
+	{
+		FriendsCharacters.Append(Friend->GetOwnCharacters());
+	}
+	int32 Started = 0;
+	auto TryStart = [&](const TArray<FBoundQuest> &BoundQuests)
+	{
+		for (const FBoundQuest &Bound : BoundQuests)
+		{
+			if (Bound.Quest && !IsStarted(Bound.Quest->GetQuestId()) && WoRConditions::IsMet(Bound.Conditions, Context) && StartQuest(Bound.Quest))
+			{
+				++Started;
+			}
+		}
+	};
+	for (const FMemoryEventMember &Member : Event.Party)
+	{
+		if (FriendsCharacters.Contains(Member.Character))
+		{
+			continue; // Q-235d: a friend's gear is theirs. TODO(B-377b): start it on their machine.
+		}
+		for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : Member.Worn)
+		{
+			if (Worn.Key)
+			{
+				TryStart(Worn.Key->BoundQuests);
+			}
+		}
+		if (Member.Evolution)
+		{
+			TryStart(Member.Evolution->BoundQuests);
+		}
+	}
+	return Started;
 }
 
 TArray<UHiddenQuestData *> UHiddenQuestSubsystem::GetAllQuests()

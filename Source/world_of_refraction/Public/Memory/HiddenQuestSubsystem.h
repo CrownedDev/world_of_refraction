@@ -42,8 +42,12 @@ public:
 
 	/** Every started quest among Quests checks its current step against Event. Returns how many steps were done. */
 	int32 CheckEvent(const FMemoryEvent &Event, const TArray<UHiddenQuestData *> &Quests);
-	/** The same, against every hidden quest asset. */
+	/** The same, against every hidden quest asset; first (B-381) the quests the event's worn gear and evolutions carry. */
 	int32 CheckEvent(const FMemoryEvent &Event);
+
+	/** B-381 (D-165): starts each quest an item worn in Event carries (FBoundQuest) whose conditions hold, for this
+	 *  player's own characters only (a co-op friend's gear starts theirs: B-377b). Returns how many started. */
+	int32 StartGearQuests(const FMemoryEvent &Event);
 
 	/** Run end: the step in progress starts its count again next run; steps done stay. */
 	void EndRun();

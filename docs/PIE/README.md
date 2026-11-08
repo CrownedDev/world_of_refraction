@@ -388,6 +388,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-378](B-378.md) | `feature/B-378-curses-cloud` (UNBUILT, on B-377, save v26) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
 | [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (UNBUILT, on B-378) | A held curse weakens your own characters by its penalty | Pending |
 | [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
+| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
 
 Move rows to **Done** when every check passes.
 
