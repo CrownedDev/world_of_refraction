@@ -154,6 +154,14 @@ FMemoryEvent MemoryConditions::MakeEvent(const UGameInstance *GameInstance, EMem
 			}
 		}
 	}
+	// B-235d (Q-235d confirmed): a friend's own characters count too, so a memory for one of them can unlock.
+	for (const UCharacterData *Character : MemoryUnlock::GetRemotePlayersCharacters(GameInstance))
+	{
+		if (!Event.Party.ContainsByPredicate([Character](const FMemoryEventMember &Member) { return Member.Character == Character; }))
+		{
+			Event.Party.Add({Character, {}});
+		}
+	}
 	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	if (const UTrialData *Trial = TrialRun ? TrialRun->GetActiveTrial() : nullptr)
 	{
