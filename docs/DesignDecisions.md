@@ -4380,3 +4380,15 @@ Moved here once applied. Newest first.
 - **The % maths stays** (this game's numbers are tier-scaled up to ×4.8, so the deckbuilder's flat +1 / +2 would fade): the All line keeps Defence's step and its 75% cap (ED-20); the per-type lines keep resistance's step and its ±50% cap (ED-27). No balance change intended.
 - Mirrors Amp (Q-164b) and the scopes of D-166.
 **Notes for Claude:** a naming and data-shape change first (one `Resistance` line type with a scope; `Defense` read as its All line; old fields read across), then the readers. Rules ED-20 / ED-27, the Resistance and DamageCalculator docs.
+
+### Q-389 — Resistance by damage type: which Physical line counts for damage
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-389, cloud) · **Blocks:** —
+**Question:** D-168 adds a Physical resistance line for damage. The resistance columns already have a Physical column (B-358), but it feeds status buildup only, and the class table puts **+15 on Generic and −15 on Resonator** in it. Should damage read that column, or a new line?
+**Options / as built:** **A** a new damage-only line (`FResistanceBonus::PhysicalDamage`, with `SpellDamage` beside it); the buildup column stays buildup-only, so old data plays exactly as before / B read the buildup Physical column for damage: Generic characters take 15% less physical damage, Resonators 15% more, which is a balance change.
+**Recommendation:** A. D-168 says "no balance change intended", and the deckbuilder's Def lines are separate damage lines from the buildup it tracks elsewhere. Path of Exile also keeps physical damage reduction apart from ailment avoidance.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may switch to B, a one-line change in `WoRResistance::GetScopeLineResistance`, if the class lean should show in physical damage too.
+**Notes for Claude (as built):** B-389.
+- `PhysicalDamage` and `SpellDamage` are appended to `FResistanceBonus`. They are saved per instance as tagged fields, so old saves read 0, and they are not in `ResistanceColumns::Types`.
+- Defence is unchanged and is read as the All line.
+- Step 3 applies `ElementResistance + ResistanceScopeLine` under ±50%.
+- Not yet scoped: ResistanceBuff effects, DoT ticks (element only), and the gear roll. They will get scope lines when authored data needs them.
