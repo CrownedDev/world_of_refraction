@@ -26,6 +26,14 @@ namespace
 	/** The further you got (D-006): beating the run's boss adds this share to the whole tally. */
 	constexpr float BOSS_BEATEN_BONUS = 0.25f;
 
+	// Review fix: a new rank or difficulty must get its own row, not Normal's / Medium's.
+	constexpr int32 RANK_COUNT = static_cast<int32>(EEncounterRank::Elite) + 1;
+	static_assert(UE_ARRAY_COUNT(WIN_RUN_PRISMS) == RANK_COUNT && UE_ARRAY_COUNT(TALLY_HUB_GOLD) == RANK_COUNT
+					  && UE_ARRAY_COUNT(TALLY_GEAR_ESSENCE) == RANK_COUNT && UE_ARRAY_COUNT(TALLY_SKILL_ESSENCE) == RANK_COUNT,
+				  "RunRewards: one row per EEncounterRank (Normal, MiniBoss, Boss, Elite)");
+	static_assert(UE_ARRAY_COUNT(DIFFICULTY_SCALE) == static_cast<int32>(ETrialDifficulty::Hard) + 1,
+				  "RunRewards: one row per ETrialDifficulty (Easy, Medium, Hard)");
+
 	int32 RankIndex(EEncounterRank Rank)
 	{
 		const int32 Index = static_cast<int32>(Rank);

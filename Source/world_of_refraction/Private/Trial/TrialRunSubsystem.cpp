@@ -101,6 +101,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
     bAtRestSpot = false; // B-363
+    bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -183,7 +184,7 @@ void UTrialRunSubsystem::ExitTrial()
     }
 
     // B-073 (D-006): the run's tally is paid now, win or lose, to every player in full (D-103).
-    RunRewards::PayRunEndToPlayers(GetGameInstance()->GetWorld(), GetRunEndPayout());
+    PayRunEnd(GetGameInstance()->GetWorld());
 
     // B-361b (D-154, Q-361b): a finished co-op run (its boss beaten) pays every player; leaving early pays nothing.
     if (bRunBossBeaten)
@@ -205,6 +206,7 @@ void UTrialRunSubsystem::ExitTrial()
     DroppedPrisms = 0; // B-362b
     RunTally = FRunPayout(); // B-073
     bAtRestSpot = false; // B-363
+    bLeavingEarly = false; // B-187
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
@@ -776,18 +778,29 @@ void UTrialRunSubsystem::RecordChestReward()
 
 void UTrialRunSubsystem::LeaveRunEarly()
 {
-    if (!IsRunActive())
+    // Review fix: once only; the share is applied in GetRunEndPayout, so a second press can't cut it again.
+    if (!IsRunActive() || bLeavingEarly)
     {
         return;
     }
-    PayoutMultiplier *= RunRewards::LEAVE_EARLY_SHARE;
+    bLeavingEarly = true;
     UE_LOG(LogWoR, Log, TEXT("[TrialRun] Leaving the run at a rest spot: the end pays %s"), *RunRewards::GetPayoutString(GetRunEndPayout()));
     ExitTrialNextTick();
 }
 
+int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
+{
+    const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
+    RunTally = FRunPayout();
+    return Paid;
+}
+
 FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
 {
-    return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten, PayoutMultiplier);
+    // B-187 (Q-187): leaving at a rest spot pays the leave share, with no boss bonus (full rewards only for beating
+    // the boss or falling in battle).
+    const float Multiplier = bLeavingEarly ? PayoutMultiplier * RunRewards::LEAVE_EARLY_SHARE : PayoutMultiplier;
+    return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten && !bLeavingEarly, Multiplier);
 }
 
 static FAutoConsoleCommandWithWorld GTrialPrintRewardsCommand(

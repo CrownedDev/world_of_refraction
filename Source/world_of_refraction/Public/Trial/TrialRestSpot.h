@@ -4,7 +4,7 @@
 // sends you back, D-155). It opens the placeholder rest menu (URestSpotWidget): inventory, and leaving the trial
 // here for a reduced payout ("full rewards only for beating the boss or falling in battle"). Mini-boss rest spots and
 // mini-boss revival are B-187b; placing pillar levels here is B-363.
-// Debug: wor.Trial.Rest (rest at the nearest one, or anywhere in a run), GetRestString.
+// Debug: wor.Trial.Rest (rests the party anywhere in a run, as the spot "ConsoleRest", and opens the menu).
 
 #pragma once
 
