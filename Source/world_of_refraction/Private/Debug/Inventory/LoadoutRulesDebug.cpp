@@ -188,9 +188,10 @@ namespace
 							   *FString::Join(Adapters, TEXT(", ")), *ApparelRules::GetApparelString(Active), Gear.BonusMaxHP, Gear.BonusDefense);
 	}
 
-	FAutoConsoleCommandWithWorld GPrintLoadoutCmd(
-		TEXT("wor.Loadout.Print"),
-		TEXT("DEBUG: wor.Loadout.Print - every combatant's active loadout: weapons, adapters, apparel and gear HP / Defence (B-380)."),
+	// Merge B-351c + B-380: wor.Loadout.Print is B-351c's (the player's loadout); this one prints every combatant.
+	FAutoConsoleCommandWithWorld GPrintAllLoadoutsCmd(
+		TEXT("wor.Loadout.PrintAll"),
+		TEXT("DEBUG: wor.Loadout.PrintAll - every combatant's active loadout: weapons, adapters, apparel and gear HP / Defence (B-380)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
