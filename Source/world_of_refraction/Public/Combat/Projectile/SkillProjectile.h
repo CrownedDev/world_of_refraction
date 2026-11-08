@@ -36,6 +36,41 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     AActor *, Target,
     FVector, ImpactLocation);
 
+/** B-231b: what a client needs to fly a cosmetic copy of the server's projectile (CombatPresentation multicast). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FCosmeticProjectileLaunch
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TSubclassOf<class ASkillProjectile> ProjectileClass;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> MuzzleFX = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> TrailFX = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UNiagaraSystem> ImpactFX = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<AActor> Target = nullptr;
+
+	/** Where the server's projectile flies (the target's spot at cast time). */
+	UPROPERTY()
+	FVector TargetLocation = FVector::ZeroVector;
+
+	UPROPERTY()
+	float Speed = 0.0f;
+
+	UPROPERTY()
+	ESpellElement Element = ESpellElement::None;
+
+	UPROPERTY()
+	float VisualScale = 1.0f;
+};
+
 // ==================== MAIN CLASS ====================
 
 /**
@@ -217,6 +252,17 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "SkillProjectile")
     void Launch();
+
+    /** B-231b (server): what a client needs to fly a copy of this projectile (after InitializeProjectile and
+     *  SetVFXAssets). */
+    FCosmeticProjectileLaunch MakeCosmeticLaunch() const;
+
+    /** B-231b (client): set up as a cosmetic copy from the server's launch: same path, speed, element, scale and
+     *  VFX; it bursts on arrival and does nothing else (no dodge check, no impact or dodge event). Then Launch(). */
+    void InitializeCosmetic(AActor *InCaster, const FCosmeticProjectileLaunch &Launch);
+
+    /** B-231b: a client's copy (no gameplay). */
+    bool IsCosmeticOnly() const { return bCosmeticOnly; }
     // ==================== GETTERS ====================
 
     UFUNCTION(BlueprintPure, Category = "SkillProjectile")
@@ -243,6 +289,9 @@ public:
 
     /** Has Launch() been called? Prevents Tick until ready */
     bool bIsLaunched = false;
+
+    /** B-231b: a client's cosmetic copy (InitializeCosmetic). */
+    bool bCosmeticOnly = false;
 
     UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE bool HasImpacted() const { return bHasImpacted; }

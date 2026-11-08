@@ -275,6 +275,44 @@ void ASkillProjectile::SetVFXAssets(
     ApplyElementColors();
 }
 
+FCosmeticProjectileLaunch ASkillProjectile::MakeCosmeticLaunch() const
+{
+    FCosmeticProjectileLaunch Launch;
+    Launch.ProjectileClass = GetClass();
+    Launch.MuzzleFX = MuzzleFX ? MuzzleFX->GetAsset() : nullptr;
+    Launch.TrailFX = ProjectileFX ? ProjectileFX->GetAsset() : nullptr;
+    Launch.ImpactFX = HitFX ? HitFX->GetAsset() : nullptr;
+    Launch.Target = Target;
+    Launch.TargetLocation = TargetLocation;
+    Launch.Speed = Speed;
+    Launch.Element = Element;
+    Launch.VisualScale = VisualScale;
+    return Launch;
+}
+
+void ASkillProjectile::InitializeCosmetic(AActor *InCaster, const FCosmeticProjectileLaunch &Launch)
+{
+    bCosmeticOnly = true;
+    DeliveryType = ESpellDeliveryType::Projectile;
+    Caster = InCaster;
+    Target = Launch.Target;
+    Speed = Launch.Speed;
+    Element = Launch.Element;
+    VisualScale = Launch.VisualScale;
+    HitBox->SetCollisionEnabled(ECollisionEnabled::NoCollision); // a copy touches nothing
+    if (Caster)
+    {
+        SetActorLocation(Caster->GetActorLocation());
+    }
+    TargetLocation = Launch.TargetLocation; // the server's fixed spot, not the target's position now
+    const FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
+    if (!Direction.IsNearlyZero())
+    {
+        SetActorRotation(Direction.Rotation());
+    }
+    SetVFXAssets(Launch.MuzzleFX, Launch.TrailFX, Launch.ImpactFX);
+}
+
 void ASkillProjectile::Launch()
 {
     // Validate setup
@@ -383,8 +421,13 @@ void ASkillProjectile::ResolveImpact()
         ProjectileFX->Deactivate();
     }
 
+    // B-231b: a client's copy only bursts; the server's projectile decides hit or dodge.
+    if (bCosmeticOnly)
+    {
+        PlayHitEffect(GetActorLocation());
+    }
     // Check for move dodge (Projectile type only)
-    if (DeliveryType == ESpellDeliveryType::Projectile && CheckMoveDodge())
+    else if (DeliveryType == ESpellDeliveryType::Projectile && CheckMoveDodge())
     {
         // Target moved out of impact zone - DODGED
         UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Target dodged by moving!"));
