@@ -143,12 +143,16 @@ const FRingInventoryEntry *UPoolSubsystem::FindRingInPool(const FGuid &Persisten
     return const_cast<UPoolSubsystem *>(this)->FindRingInPool(PersistentID);
 }
 
-FGuid UPoolSubsystem::AddApparelToPool(const FApparelEntry &Entry)
+FGuid UPoolSubsystem::AddApparelToPool(const FApparelEntry &Entry, FName OwnerKey)
 {
     FApparelEntry &Owned = OwnedApparel.Add_GetRef(Entry);
     if (!Owned.PersistentID.IsValid())
     {
         Owned.PersistentID = FGuid::NewGuid(); // B-380b: owned from here
+    }
+    if (!OwnerKey.IsNone())
+    {
+        SetGearOwner(Owned.PersistentID, OwnerKey); // B-380d review: whose piece it is (the evolution owner check reads it)
     }
     UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s banked (%d owned)"), *GetNameSafe(Owned.Apparel.Get()), OwnedApparel.Num());
     return Owned.PersistentID;
@@ -196,6 +200,11 @@ bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAt
     {
         return false;
     }
+    // B-380d review: the same attachment again is a no-op (overwriting would reset the worn crystal's durability).
+    if (Owned->AttachedItem == Attachment)
+    {
+        return true;
+    }
     // B-380d: an evolution must be owned, belong to the piece's owner when both have one, and not sit in another socket.
     if (Attachment.IsEvolution())
     {
@@ -224,9 +233,11 @@ bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAt
     // new crystal from the pouch or storage (the placeholder command makes one).
     const FRuntimeAttachedItem Previous = Owned->AttachedItem;
     Owned->AttachedItem = Attachment;
-    if (Previous.IsCrystal() && Previous != Attachment)
+    if (Previous.IsCrystal())
     {
+        // TODO: Q-380d: a worn or broken crystal comes back whole (stored crystals carry no wear): Crown's call.
         AddCrystalToPool(Previous.Crystal.Id, 1);
+        OnPoolItemsChanged.Broadcast();
         UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel socket: the old crystal went back to storage"));
     }
     UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s socket: %s"), *GetNameSafe(Owned->Apparel.Get()),
