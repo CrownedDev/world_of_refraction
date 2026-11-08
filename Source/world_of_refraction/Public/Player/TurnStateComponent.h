@@ -132,10 +132,14 @@ private:
 	/** B-228b: this client built its combat HUD for the fight now running. */
 	bool bClientHUDBuilt = false;
 
+	/** B-228b: a client's own combat HUD (the orchestrator, which owns the server's, is server-only). */
+	UPROPERTY(Transient)
+	TObjectPtr<class UCombatHUD> ClientHUD;
+
 	UTurnManager *GetTurnManager() const;
 
 	// One OnRep function for the whole state. Each replicated field that changed calls it, so a client may redraw up to
-	// six times per turn; folding the fields into one snapshot struct (one OnRep) is B-228b's. The readers redraw from all of it.
+	// six times per turn; folding the fields into one snapshot struct (one OnRep) is still to do. The readers redraw from all of it.
 	UPROPERTY(ReplicatedUsing = OnRep_TurnState)
 	bool bCombatActive = false;
 	UPROPERTY(ReplicatedUsing = OnRep_TurnState)

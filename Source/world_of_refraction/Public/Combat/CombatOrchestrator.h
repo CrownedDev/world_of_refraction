@@ -156,13 +156,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|UI")
 	UCombatHUD *GetCombatHUD() const { return CombatHUD; }
 
-	/** B-228b: a client's HUD build, called by UTurnStateComponent when the replicated state first shows combat on:
-	 *  OnCombatStartedUI with the replicated sides (a BP override runs here too). True once it ran. */
-	bool BuildClientCombatHUD(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
-
-	/** B-228b: public so a client tears its HUD down when the replicated state shows combat off. */
-	void TeardownCombatHUD();
-
 	UCombatCameraDirector *GetCameraDirector() const { return CameraDirector; }
 
 	/** Force end combat (e.g., flee, cutscene interrupt) */
@@ -590,6 +583,8 @@ private:
 	/** Combat camera (B-157 sets its template sequences on BP_CombatOrchestrator). */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Combat|Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCombatCameraDirector> CameraDirector;
+
+	void TeardownCombatHUD();
 
 	/** Shared end-of-combat cleanup for ALL three end paths (win in OnActionCompleted,
 	 *  TurnManager-driven HandleCombatEnded, ForceEndCombat): timers, TurnManager +
