@@ -16,10 +16,11 @@ Hidden counters (MemoryCatalogue §3.9; Shangri-La Frontier's hidden stats) are 
 
 ## Known Limitations / TODOs
 - Only Parries and Kills are counted so far; each new counter is one constant and one `AddHiddenCount` call.
-- On the host, a friend's CounterReached fails until their counts reach the host (B-377b).
+- A co-op friend's counter milestone cannot open yet: the host reads none of their counters and their machine runs no memory checks for fights (B-377b).
 - Milestones are Crown's.
 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-08 | Created (B-379): counters per character and all, Parries and Kills, the CounterReached condition, save v27, `wor.Counter.Print` / `wor.Counter.Add`, HiddenCounterSpec. | `feature/B-379-hidden-counters-cloud` (UNBUILT) |
+| 2026-11-08 | Review: `WoRConditions::Compare` qualified (compile fix); parries through `GuardRules::IsPerfectGuard`. | `feature/B-379-hidden-counters-cloud` (UNBUILT) |
