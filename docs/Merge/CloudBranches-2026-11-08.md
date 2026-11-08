@@ -11,6 +11,14 @@ For the desktop builder. It covers every cloud branch marked `UNBUILT` in `docs/
 - Use the trial branch to look up a resolution: `git show <merge commit> -- <file>`. Each merge commit is titled `Integration (trial): merge <branch>`.
 - Nothing was built or tested in the cloud. The first desktop build of the trial branch is the first compile of the combined code.
 
+## Update, 21:50 UTC: B-187d and B-187e have new commits after reaching dev
+
+Crown changed Q-187d (1) on 2026-11-08: **only the presser's characters rest**. In solo that is still the whole party.
+- The new commits are on `feature/B-187d-co-op-rest-cloud`, merged forward into `feature/B-187e-client-rest-menu-cloud`.
+- `dev` already holds the older B-187d and B-187e, so **merge both branches into dev again**.
+- One conflict to expect, in `WoRRestSpot::Rest`: keep the `Presser` signature. The host's at-rest flag is set when `bPresserIsHost` is true; that is what `bLocalPlayerRests` meant.
+- The trial branch has the four commits cherry-picked.
+
 ## How to use the table
 
 Go top to bottom. Every branch's base comes before it. For each row:
