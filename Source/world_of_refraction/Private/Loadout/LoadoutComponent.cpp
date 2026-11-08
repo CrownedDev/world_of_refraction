@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Memory/CurseSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Algo/Count.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -4291,6 +4292,21 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
     return CachedInventory.Get();
 }
 
+namespace
+{
+	/** B-378b: the curse subsystem when this loadout's character is one its player's curses weaken; else null. */
+	const UCurseSubsystem *CursesFor(const ULoadoutComponent &Loadout)
+	{
+		const UGameInstance *GI = Loadout.GetOwner() ? Loadout.GetOwner()->GetGameInstance() : nullptr;
+		const UCurseSubsystem *Curses = GI ? GI->GetSubsystem<UCurseSubsystem>() : nullptr;
+		if (!Curses || Curses->GetHeldCurses().IsEmpty())
+		{
+			return nullptr; // the usual case: no lookups past this
+		}
+		return Curses->IsCursedHere(Loadout.GetOwnerCharacterData()) ? Curses : nullptr; // cached component
+	}
+}
+
 // ==================== EQUIPMENT STAT QUERIES ====================
 
 FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
@@ -4391,6 +4407,13 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     Combined.BonusTurnSpeed        = FMath::RoundToInt(AccTurnSpeed);
     Combined.BonusLuck             = FMath::RoundToInt(AccLuck);
 
+    // B-378b (MemoryCatalogue §3.8, review): the player's held curses weaken their own party characters, flat (added
+    // after the tier-scaled sum, so a retuned tier ladder never scales them).
+    if (const UCurseSubsystem *Curses = CursesFor(*this))
+    {
+        Combined.Accumulate(Curses->GetStatPenalty());
+    }
+
     return Combined;
 }
 
@@ -4418,6 +4441,11 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
             EvoResist.Accumulate(Evolution.Attachment.GeneratedResistance);
             Combined.Accumulate(EvoResist);
         }
+    }
+
+    if (const UCurseSubsystem *Curses = CursesFor(*this)) // B-378b
+    {
+        Combined.Accumulate(Curses->GetResistancePenalty());
     }
 
     return Combined;
