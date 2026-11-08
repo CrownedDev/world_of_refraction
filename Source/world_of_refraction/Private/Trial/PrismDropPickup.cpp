@@ -55,11 +55,21 @@ bool APrismDropPickup::PickUp(APawn *Pawn)
 	const int32 Taken = Pawn ? WoRDefeat::PickUpDropFor(GetWorld(), Pawn) : WoRDefeat::PickUpDrop(GetWorld());
 	if (Taken <= 0)
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[PrismDrop] %s: nothing taken (no drop of this player's, or no wallet)"), *GetName());
+		// Verbose (review): a player with no drop of their own walks over it every time they pass.
+		UE_LOG(LogWoR, Verbose, TEXT("[PrismDrop] %s: nothing taken (no drop of this player's, or no wallet)"), *GetName());
 		return false;
 	}
-	ShowMessage(FText::Format(LOCTEXT("PickedUp", "You pick up your {0} {1}."), FText::AsNumber(Taken),
-							  WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
+	// B-235 (review): the message is for the player who picked up; the server shows it only for its own player.
+	// TODO: a client's own pickup message (a Client RPC on its controller) is B-235b.
+	if (!Pawn || Pawn->IsLocallyControlled())
+	{
+		ShowMessage(FText::Format(LOCTEXT("PickedUp", "You pick up your {0} {1}."), FText::AsNumber(Taken),
+								  WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
+	}
+	else
+	{
+		UE_LOG(LogWoR, Log, TEXT("[PrismDrop] %s picked up their %d Prism(s)"), *Pawn->GetName(), Taken);
+	}
 	const UTrialRunSubsystem *Run = GetTrialRun();
 	if (!Run || Run->GetTotalDroppedPrisms() <= 0)
 	{
@@ -118,7 +128,14 @@ int32 APrismDropPickup::CountIn(const UWorld *World)
 FString APrismDropPickup::GetHintText() const
 {
 	const UTrialRunSubsystem *Run = GetTrialRun();
+	// B-235 (review): the hint shows this machine's player's own drop. Another player's drop (or a client, whose run
+	// holds no drops) gets the hint without an amount.
 	const int32 Amount = Run ? Run->GetDroppedPrisms() : 0;
+	if (Amount <= 0)
+	{
+		return FText::Format(LOCTEXT("HintNoAmount", "Press E to pick up dropped {0}"),
+							 WoRGameNames::GetCurrencyName(ECurrencyType::Gold)).ToString();
+	}
 	return FText::Format(LOCTEXT("Hint", "Press E to pick up your {0} {1}"), FText::AsNumber(Amount),
 						 WoRGameNames::GetCurrencyName(ECurrencyType::Gold)).ToString();
 }

@@ -450,6 +450,13 @@ int32 UTrialRunSubsystem::TakeDropForPlayer(const FString &PlayerKey)
 {
     int32 Taken = 0;
     OtherPlayerDrops.RemoveAndCopyValue(PlayerKey, Taken);
+    // Review fix: the spot goes with the last drop, whoever's it was (as TakeDrop does).
+    if (GetTotalDroppedPrisms() <= 0)
+    {
+        DropEncounters.Reset();
+        DropSpot = FVector::ZeroVector;
+        bDropHasSpot = false;
+    }
     if (Taken > 0)
     {
         UE_LOG(LogTemp, Log, TEXT("[TrialRun] Player %s picked up their %d dropped Prism(s)"), *PlayerKey, Taken);
