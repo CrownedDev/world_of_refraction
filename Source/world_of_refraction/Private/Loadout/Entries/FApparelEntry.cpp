@@ -32,6 +32,7 @@ FEquipmentStatBonus FApparelEntry::GetStatLines() const
 	FEquipmentStatBonus Lines = Apparel ? Apparel->GetStatLines() : FEquipmentStatBonus();
 	Lines.BonusMaxHP += StatBonus.BonusMaxHP;
 	Lines.BonusDefense += StatBonus.BonusDefense;
+	Lines.Amp.Accumulate(StatBonus.Amp); // B-386
 	return Lines;
 }
 
@@ -98,8 +99,9 @@ FString ApparelRules::GetApparelString(const FCombatLoadout &Loadout)
 	for (const FApparelEntry &Entry : Loadout.Apparel)
 	{
 		const FEquipmentStatBonus Lines = Entry.GetStatLines();
-		Pieces.Add(FString::Printf(TEXT("%s [%s] HP %+d Def %+d"), *GetNameSafe(Entry.Apparel.Get()),
-								   *UEnum::GetDisplayValueAsText(Entry.GetElement()).ToString(), Lines.BonusMaxHP, Lines.BonusDefense));
+		Pieces.Add(FString::Printf(TEXT("%s [%s] HP %+d Def %+d %s"), *GetNameSafe(Entry.Apparel.Get()),
+								   *UEnum::GetDisplayValueAsText(Entry.GetElement()).ToString(), Lines.BonusMaxHP, Lines.BonusDefense,
+								   *Lines.Amp.ToString()));
 	}
 	return FString::Printf(TEXT("apparel (%d of %d, no budget): %s"), Loadout.Apparel.Num(), MAX_APPAREL_SLOTS, *FString::Join(Pieces, TEXT("; ")));
 }

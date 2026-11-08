@@ -9,6 +9,7 @@ FEquipmentStatBonus UApparelData::GetStatLines() const
 	FEquipmentStatBonus Lines;
 	Lines.BonusMaxHP = BaseStatBonus.BonusMaxHP;
 	Lines.BonusDefense = BaseStatBonus.BonusDefense;
+	Lines.Amp = BaseStatBonus.Amp; // B-386: the deckbuilder's Apparel tiles are HP, Amp and Def
 	return Lines;
 }
 
