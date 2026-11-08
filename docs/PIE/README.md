@@ -25,6 +25,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-362c](B-362c.md) | `feature/B-362c-prism-pickup` (in `dev`) | The Prism drop lies as a pickup where the party stood when the fight started; walking into it gives it back; a win no longer does | Pending |
 | [B-365](B-365.md) | `feature/B-365-flawless-parry` (in `dev`) | Flawless Parry: every hit of one attack perfectly guarded or dodged logs one line at the last hit; a condition only | Pending |
 | [B-351b](B-351b.md) | `feature/B-351b-stone-socket-carry-cloud` (UNBUILT) | Removing crystals takes the stone off too; no second stone over an authored one; the stone socket carries through a run and its save (v22) | Pending |
+| [B-351c](B-351c.md) | `feature/B-351c-one-list-readers-cloud` (UNBUILT, on B-351b) | `wor.Loadout.PrintActive` shows both sockets and the one skill list; a stone slot's pick reaches the fight | |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
