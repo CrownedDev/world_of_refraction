@@ -87,7 +87,7 @@ void FApparelSpec::Define()
 		TestTrue(TEXT("the print names it"), ApparelRules::GetApparelString(Loadout).Contains(TEXT("2 of 2")));
 	});
 
-	It("keys to a refined crystal only, which gives its element", [this]()
+	It("keys to a refined crystal or an evolution, not an augment stone", [this]()
 	{
 		FRuntimeAttachedItem Evolution;
 		Evolution.Kind = EAttachedItemKind::Evolution;
@@ -96,13 +96,16 @@ void FApparelSpec::Define()
 		FRuntimeAttachedItem Crystal;
 		Crystal.Kind = EAttachedItemKind::Crystal;
 		TestTrue(TEXT("a crystal"), ApparelRules::CanSocket(Crystal));
-		TestFalse(TEXT("no evolution (Q-380)"), ApparelRules::CanSocket(Evolution));
+		TestTrue(TEXT("an evolution (Crown, D-164)"), ApparelRules::CanSocket(Evolution));
 		TestFalse(TEXT("no augment stone"), ApparelRules::CanSocket(Stone));
 		TestEqual(TEXT("no crystal: no element"), FApparelEntry::CreateFromApparel(ApparelTestPiece()).GetElement(), ESpellElement::None);
 		FCombatLoadout Loadout;
+		FApparelEntry WithStone = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		WithStone.AttachedItem = Stone;
+		TestFalse(TEXT("a piece holding an augment stone is not worn"), ApparelRules::AddApparel(Loadout, WithStone));
 		FApparelEntry WithEvolution = FApparelEntry::CreateFromApparel(ApparelTestPiece());
 		WithEvolution.AttachedItem = Evolution;
-		TestFalse(TEXT("a piece holding an evolution is not worn"), ApparelRules::AddApparel(Loadout, WithEvolution));
+		TestTrue(TEXT("a piece holding an evolution is worn"), ApparelRules::AddApparel(Loadout, WithEvolution));
 	});
 
 	It("adds resistance to its crystal's element, and its effects count (D-164, Crown)", [this]()
