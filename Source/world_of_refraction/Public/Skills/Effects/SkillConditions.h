@@ -12,13 +12,19 @@
 //    Who defended; the other events count as in State.
 //  - ActionResult: UActionExecutor's gate after an action; only Hit (damage dealt), Crit and Kill count, and
 //    nothing reads HP / EP.
-// Debug: GetGroupString.
+// B-337e: the effect assets carry the group in the one vocabulary (FSkillEffect::ConditionGroup, filled on load from
+// the old field); every check reads it through GroupOf. The old-group functions stay for the runtime copy
+// (FActiveSkillEffect::Conditions) and the parity spec until the sweep.
+// Debug: GetGroupString; wor.Conditions.ListOld (GetUnmigratedEffectsString).
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Conditions/WoRConditions.h"
 #include "Skills/Effects/FSkillCondition.h"
+#include "Skills/Effects/SkillConditionGroup.h"
+
+struct FSkillEffect;
 
 enum class ESkillCheck : uint8
 {
@@ -60,4 +66,34 @@ namespace SkillConditions
 
 	/** Debug: the group's sets as "a + b | c" in the one vocabulary. */
 	WORLD_OF_REFRACTION_API FString GetGroupString(const TArray<FSkillCondition> &Conditions, ESkillCheck Check, bool bHasTarget);
+
+	// ==================== B-337e: the authored group ====================
+
+	/** The old group in the one vocabulary, check-neutral: each condition as ToCondition reads it for a State check,
+	 *  the ANDs into AllOf and the ORs into AnyOf. */
+	WORLD_OF_REFRACTION_API FSkillConditionGroup ToAuthored(const TArray<FSkillCondition> &Conditions);
+
+	/** The group an effect checks: its authored ConditionGroup, or (an effect built in code with only the old field)
+	 *  the old Conditions read across. */
+	WORLD_OF_REFRACTION_API FSkillConditionGroup GroupOf(const FSkillEffect &Effect);
+
+	/** A defense outcome event in the one vocabulary (as SkillTriggerUtils::IsDefenseOutcomeTrigger). */
+	WORLD_OF_REFRACTION_API bool IsDefenseOutcome(EWoRConditionTrigger Trigger);
+
+	/** Whether Condition takes part in Check: an owner-side one always, a target-side one only with a target, never
+	 *  after an action (as Participates). */
+	WORLD_OF_REFRACTION_API bool Participates(const FWoRCondition &Condition, ESkillCheck Check, bool bHasTarget);
+
+	/** The group as sets for Check, any one of which holds (as ToSets on the old group): the impact path reads a
+	 *  defense event as "Who defended". */
+	WORLD_OF_REFRACTION_API TArray<FWoRConditionSet> ToSets(const FSkillConditionGroup &Group, ESkillCheck Check, bool bHasTarget);
+
+	WORLD_OF_REFRACTION_API bool IsGroupMet(const FSkillConditionGroup &Group, ESkillCheck Check, const FWoRConditionContext &Context,
+											bool bHasTarget);
+
+	WORLD_OF_REFRACTION_API FString GetGroupString(const FSkillConditionGroup &Group, ESkillCheck Check, bool bHasTarget);
+
+	/** Debug (wor.Conditions.ListOld): every effect asset whose effects this load filled from the old conditions,
+	 *  i.e. not resaved since B-337e. First line: how many assets were scanned. Editor only. */
+	WORLD_OF_REFRACTION_API FString GetUnmigratedEffectsString();
 }

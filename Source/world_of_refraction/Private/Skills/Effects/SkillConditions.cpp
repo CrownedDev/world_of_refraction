@@ -3,6 +3,11 @@
 #include "Skills/Effects/SkillConditions.h"
 
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/EffectDefinition.h"
+#if WITH_EDITOR
+#include "AssetRegistry/AssetRegistryModule.h"
+#endif
 
 namespace
 {
@@ -220,4 +225,167 @@ FString SkillConditions::GetGroupString(const TArray<FSkillCondition> &Condition
 		SetStrings.Add(FString::Join(Parts, TEXT(" + ")));
 	}
 	return FString::Join(SetStrings, TEXT(" | "));
+}
+
+// ==================== B-337e: the authored group ====================
+
+namespace
+{
+	bool IsOwnerSideWho(EWoRConditionWho Who)
+	{
+		return Who == EWoRConditionWho::Self || Who == EWoRConditionWho::SelfTeam;
+	}
+
+	/** One authored condition as Check reads it: the impact path asks whose defense a defense event was. */
+	FWoRCondition ForCheck(const FWoRCondition &Authored, ESkillCheck Check)
+	{
+		FWoRCondition Out = Authored;
+		if (Check == ESkillCheck::Defense && Out.Subject == EWoRConditionSubject::None && SkillConditions::IsDefenseOutcome(Out.Trigger))
+		{
+			Out.Subject = EWoRConditionSubject::Defender;
+		}
+		return Out;
+	}
+
+	FString SetsToString(const TArray<FWoRConditionSet> &Sets)
+	{
+		if (Sets.IsEmpty())
+		{
+			return TEXT("(always)");
+		}
+		TArray<FString> SetStrings;
+		for (const FWoRConditionSet &Set : Sets)
+		{
+			TArray<FString> Parts;
+			for (const FWoRCondition &Condition : Set.Conditions)
+			{
+				Parts.Add(WoRConditions::GetConditionString(Condition));
+			}
+			SetStrings.Add(FString::Join(Parts, TEXT(" + ")));
+		}
+		return FString::Join(SetStrings, TEXT(" | "));
+	}
+}
+
+void FSkillEffect::MigrateConditionGroup()
+{
+	if (!ConditionGroup.IsEmpty() || Conditions.IsEmpty())
+	{
+		return;
+	}
+	ConditionGroup = SkillConditions::ToAuthored(Conditions);
+	bConditionGroupMigratedOnLoad = true;
+}
+
+FSkillConditionGroup SkillConditions::ToAuthored(const TArray<FSkillCondition> &Conditions)
+{
+	FSkillConditionGroup Group;
+	for (const FSkillCondition &Condition : Conditions)
+	{
+		(Condition.Combine == ECondCombine::And ? Group.AllOf : Group.AnyOf).Conditions.Add(ToCondition(Condition, ESkillCheck::State));
+	}
+	return Group;
+}
+
+FSkillConditionGroup SkillConditions::GroupOf(const FSkillEffect &Effect)
+{
+	return Effect.ConditionGroup.IsEmpty() ? ToAuthored(Effect.Conditions) : Effect.ConditionGroup;
+}
+
+bool SkillConditions::IsDefenseOutcome(EWoRConditionTrigger Trigger)
+{
+	switch (Trigger)
+	{
+	case EWoRConditionTrigger::Parry:
+	case EWoRConditionTrigger::PerfectParry:
+	case EWoRConditionTrigger::Block:
+	case EWoRConditionTrigger::PerfectBlock:
+	case EWoRConditionTrigger::Dodge:
+	case EWoRConditionTrigger::PerfectDodge:
+	case EWoRConditionTrigger::Guard:
+	case EWoRConditionTrigger::PerfectGuard:
+	case EWoRConditionTrigger::TakeDamage:
+	case EWoRConditionTrigger::FlawlessParry:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool SkillConditions::Participates(const FWoRCondition &Condition, ESkillCheck Check, bool bHasTarget)
+{
+	return IsOwnerSideWho(Condition.Who) || (Check != ESkillCheck::ActionResult && bHasTarget);
+}
+
+TArray<FWoRConditionSet> SkillConditions::ToSets(const FSkillConditionGroup &Group, ESkillCheck Check, bool bHasTarget)
+{
+	FWoRConditionSet Ands;
+	TArray<FWoRCondition> Ors;
+	for (const FWoRCondition &Condition : Group.AllOf.Conditions)
+	{
+		if (Participates(Condition, Check, bHasTarget))
+		{
+			Ands.Conditions.Add(ForCheck(Condition, Check));
+		}
+	}
+	for (const FWoRCondition &Condition : Group.AnyOf.Conditions)
+	{
+		if (Participates(Condition, Check, bHasTarget))
+		{
+			Ors.Add(ForCheck(Condition, Check));
+		}
+	}
+	TArray<FWoRConditionSet> Sets;
+	if (Ors.IsEmpty())
+	{
+		if (!Ands.Conditions.IsEmpty())
+		{
+			Sets.Add(MoveTemp(Ands));
+		}
+		return Sets; // no sets: nothing to meet
+	}
+	for (const FWoRCondition &Or : Ors)
+	{
+		FWoRConditionSet &Set = Sets.Add_GetRef(Ands);
+		Set.Conditions.Add(Or);
+	}
+	return Sets;
+}
+
+bool SkillConditions::IsGroupMet(const FSkillConditionGroup &Group, ESkillCheck Check, const FWoRConditionContext &Context, bool bHasTarget)
+{
+	return WoRConditions::IsAnyMet(ToSets(Group, Check, bHasTarget), Context);
+}
+
+FString SkillConditions::GetGroupString(const FSkillConditionGroup &Group, ESkillCheck Check, bool bHasTarget)
+{
+	return SetsToString(ToSets(Group, Check, bHasTarget));
+}
+
+FString SkillConditions::GetUnmigratedEffectsString()
+{
+#if !WITH_EDITOR
+	return TEXT("(editor only)");
+#else
+	IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	Registry.WaitForCompletion(); // a half-scanned registry would read as "all resaved"
+	TArray<FAssetData> Assets;
+	Registry.GetAssetsByClass(UEffectDefinition::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
+
+	FString Out = FString::Printf(TEXT("%d effect assets scanned\n"), Assets.Num());
+	for (const FAssetData &Asset : Assets)
+	{
+		const UEffectDefinition *Definition = Cast<UEffectDefinition>(Asset.GetAsset());
+		if (!Definition)
+		{
+			continue;
+		}
+		const int32 OnOld = Definition->Effects.FilterByPredicate([](const FSkillEffect &Effect) { return Effect.bConditionGroupMigratedOnLoad; }).Num();
+		if (OnOld > 0)
+		{
+			Out += FString::Printf(TEXT("%s: %d effect(s) on the old conditions (resave)\n"), *Asset.GetObjectPathString(), OnOld);
+		}
+	}
+	return Out;
+#endif
 }
