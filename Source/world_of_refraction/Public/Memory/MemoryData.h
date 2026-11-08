@@ -110,7 +110,8 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	EMemoryConditionKind Kind = EMemoryConditionKind::Character;
 
-	/** Character: who must be in the party. Gear and skill kinds: whose it must be (empty: anyone). */
+	/** Character: who must be in the party. PartyHas (B-376): who must be present on any player's side. Gear and
+	 *  skill kinds: whose it must be (empty: anyone). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TObjectPtr<UCharacterData> Character = nullptr;
 

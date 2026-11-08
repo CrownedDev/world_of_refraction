@@ -28,13 +28,29 @@ UMemoryData *MemoryDebug::FindMemory(FName MemoryId)
 	const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	TArray<FAssetData> Assets;
 	Registry.GetAssetsByClass(UMemoryData::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
+	// Most memories use their asset name as the id (GetMemoryId): try that without loading every memory first.
 	for (const FAssetData &Asset : Assets)
 	{
-		UMemoryData *Memory = Cast<UMemoryData>(Asset.GetAsset());
+		if (Asset.AssetName == MemoryId)
+		{
+			UMemoryData *Memory = Cast<UMemoryData>(Asset.GetAsset());
+			if (Memory && Memory->GetMemoryId() == MemoryId)
+			{
+				return Memory;
+			}
+		}
+	}
+	for (const FAssetData &Asset : Assets)
+	{
+		UMemoryData *Memory = Asset.AssetName == MemoryId ? nullptr : Cast<UMemoryData>(Asset.GetAsset());
 		if (Memory && Memory->GetMemoryId() == MemoryId)
 		{
-			return Memory;
+			return Memory; // an authored MemoryId
 		}
+	}
+	if (Registry.IsLoadingAssets())
+	{
+		UE_LOG(LogWoR, Display, TEXT("[MemoryDebug] the asset registry is still scanning; try again in a moment"));
 	}
 	return nullptr;
 }
