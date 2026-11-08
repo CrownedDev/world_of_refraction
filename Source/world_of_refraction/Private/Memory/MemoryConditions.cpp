@@ -266,6 +266,8 @@ bool MemoryConditions::IsMet(const FMemoryCondition &Condition, const FMemoryEve
 	case EMemoryConditionKind::PartyHas:
 		// B-376: the parity reference reads as the new subject does (FMemoryEvent::Present, else the party).
 		return Condition.Character && (Event.Present.IsEmpty() ? IsInParty(Condition.Character, Event) : Event.Present.Contains(Condition.Character.Get()));
+	case EMemoryConditionKind::CurseHeld:
+		return false; // B-378: the parity reference has no curse state; CurseHeld reads it through WoRConditions
 	}
 	return false;
 }
