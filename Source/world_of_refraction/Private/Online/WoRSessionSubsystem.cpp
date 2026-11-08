@@ -51,14 +51,21 @@ bool UWoRSessionSubsystem::HostSession()
 		UE_LOG(LogWoR, Warning, TEXT("[Session] Host: no session interface or no local player"));
 		return false;
 	}
+	if (CreateHandle.IsValid())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Host: already starting one"));
+		return false;
+	}
+	// Review fix: one session at a time; leave first (on EOS a destroy finishes later, so destroy-then-create fails).
 	if (Sessions->GetNamedSession(NAME_GameSession))
 	{
-		Sessions->DestroySession(NAME_GameSession); // one session at a time
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Host: a session already exists (wor.Session.Leave first)"));
+		return false;
 	}
 	CreateHandle = Sessions->AddOnCreateSessionCompleteDelegate_Handle(
 		FOnCreateSessionCompleteDelegate::CreateUObject(this, &UWoRSessionSubsystem::HandleCreateComplete));
 	const FOnlineSessionSettings Settings = WoRSession::MakeHostSettings(IsLAN());
-	if (!Sessions->CreateSession(*Player->GetPreferredUniqueNetId(), NAME_GameSession, Settings))
+	if (!Sessions->CreateSession(Player->GetControllerId(), NAME_GameSession, Settings))
 	{
 		Sessions->ClearOnCreateSessionCompleteDelegate_Handle(CreateHandle);
 		UE_LOG(LogWoR, Warning, TEXT("[Session] Host: CreateSession refused"));
@@ -81,7 +88,9 @@ void UWoRSessionSubsystem::HandleCreateComplete(FName SessionName, bool bWasSucc
 	}
 	bHosting = true;
 	// The current level again as a listen server, so friends can join (the hub, D-103).
-	World->ServerTravel(FString::Printf(TEXT("%s?listen"), *UGameplayStatics::GetCurrentLevelName(World, /*bRemovePrefixString=*/true)));
+	// Review fix: OpenLevel, not ServerTravel: the game modes use seamless travel, which opens no listen socket.
+	UGameplayStatics::OpenLevel(World, FName(*UGameplayStatics::GetCurrentLevelName(World, /*bRemovePrefixString=*/true)),
+								/*bAbsolute=*/true, TEXT("listen"));
 }
 
 bool UWoRSessionSubsystem::FindSessions()
@@ -93,6 +102,11 @@ bool UWoRSessionSubsystem::FindSessions()
 		UE_LOG(LogWoR, Warning, TEXT("[Session] Find: no session interface or no local player"));
 		return false;
 	}
+	if (FindHandle.IsValid())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Find: a search is still running"));
+		return false;
+	}
 	LastSearch = MakeShared<FOnlineSessionSearch>();
 	LastSearch->bIsLanQuery = IsLAN();
 	LastSearch->MaxSearchResults = SESSION_SEARCH_MAX_RESULTS;
@@ -102,9 +116,10 @@ bool UWoRSessionSubsystem::FindSessions()
 	}
 	FindHandle = Sessions->AddOnFindSessionsCompleteDelegate_Handle(
 		FOnFindSessionsCompleteDelegate::CreateUObject(this, &UWoRSessionSubsystem::HandleFindComplete));
-	if (!Sessions->FindSessions(*Player->GetPreferredUniqueNetId(), LastSearch.ToSharedRef()))
+	if (!Sessions->FindSessions(Player->GetControllerId(), LastSearch.ToSharedRef()))
 	{
 		Sessions->ClearOnFindSessionsCompleteDelegate_Handle(FindHandle);
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Find: FindSessions refused"));
 		return false;
 	}
 	return true;
@@ -128,9 +143,20 @@ bool UWoRSessionSubsystem::JoinFoundSession(int32 Index)
 		UE_LOG(LogWoR, Warning, TEXT("[Session] Join: no session %d (run wor.Session.Find first)"), Index);
 		return false;
 	}
+	if (JoinHandle.IsValid())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Join: already joining"));
+		return false;
+	}
 	JoinHandle = Sessions->AddOnJoinSessionCompleteDelegate_Handle(
 		FOnJoinSessionCompleteDelegate::CreateUObject(this, &UWoRSessionSubsystem::HandleJoinComplete));
-	return Sessions->JoinSession(*Player->GetPreferredUniqueNetId(), NAME_GameSession, LastSearch->SearchResults[Index]);
+	if (!Sessions->JoinSession(Player->GetControllerId(), NAME_GameSession, LastSearch->SearchResults[Index]))
+	{
+		Sessions->ClearOnJoinSessionCompleteDelegate_Handle(JoinHandle); // review fix: no stale handler on the next join
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Join: JoinSession refused"));
+		return false;
+	}
+	return true;
 }
 
 void UWoRSessionSubsystem::HandleJoinComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
@@ -149,6 +175,22 @@ void UWoRSessionSubsystem::HandleJoinComplete(FName SessionName, EOnJoinSessionC
 	}
 	UE_LOG(LogWoR, Log, TEXT("[Session] Joined; travelling to %s"), *Address);
 	PC->ClientTravel(Address, TRAVEL_Absolute);
+}
+
+void UWoRSessionSubsystem::Deinitialize()
+{
+	// Review fix: nothing calls back into a gone subsystem, and the session doesn't outlive the game instance.
+	if (IOnlineSessionPtr Sessions = GetSessionInterface())
+	{
+		Sessions->ClearOnCreateSessionCompleteDelegate_Handle(CreateHandle);
+		Sessions->ClearOnFindSessionsCompleteDelegate_Handle(FindHandle);
+		Sessions->ClearOnJoinSessionCompleteDelegate_Handle(JoinHandle);
+		if (Sessions->GetNamedSession(NAME_GameSession))
+		{
+			Sessions->DestroySession(NAME_GameSession);
+		}
+	}
+	Super::Deinitialize();
 }
 
 void UWoRSessionSubsystem::LeaveSession()
@@ -200,6 +242,9 @@ namespace
 				S->JoinFoundSession(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0);
 			}
 		}));
+
+	FAutoConsoleCommandWithWorld GSessionLeaveCmd(TEXT("wor.Session.Leave"), TEXT("DEBUG (B-233): leave the session this machine hosts or joined."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { if (UWoRSessionSubsystem *S = FindSessionSubsystem(World)) { S->LeaveSession(); } }));
 
 	FAutoConsoleCommandWithWorld GSessionPrintCmd(TEXT("wor.Session.Print"), TEXT("DEBUG (B-233): the session state and the last search's results."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)

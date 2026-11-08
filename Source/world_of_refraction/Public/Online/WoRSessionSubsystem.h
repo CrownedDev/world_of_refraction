@@ -3,7 +3,7 @@
 // The Null subsystem (LAN) until EOS is configured (DefaultEngine.ini [OnlineSubsystem]); the code is the same for
 // EOS. Hosting opens the current hub level as a listen server; joining client-travels to the host. Invites, joining a
 // run in progress at a rest spot and a leaving friend dropping out are B-233b.
-// Debug: wor.Session.Host / Find / Join <index> / Print (GetSessionString).
+// Debug: wor.Session.Host / Find / Join <index> / Leave / Print (GetSessionString).
 
 #pragma once
 
@@ -28,7 +28,10 @@ class WORLD_OF_REFRACTION_API UWoRSessionSubsystem : public UGameInstanceSubsyst
 	GENERATED_BODY()
 
 public:
-	/** Creates the session, then reopens the current level as a listen server. False when it can't start. */
+	virtual void Deinitialize() override;
+
+	/** Creates the session, then reopens the current level as a listen server. False when it can't start, one is
+	 *  already starting, or a session exists (leave it first). */
 	bool HostSession();
 
 	/** Searches for sessions; the results land in GetFoundSessions (logged). False when it can't start. */
