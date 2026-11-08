@@ -31,6 +31,8 @@ namespace
 	const FCrystalId APPAREL_TEST_FIRE_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	constexpr int32 APPAREL_TEST_DURABILITY = 5;
 	const FCrystalId APPAREL_TEST_WATER_GEM(ECrystalType::Sapphire, EItemTier::F_Tier);
+	constexpr int32 APPAREL_TEST_FIRE_AMP = 2;
+	constexpr int32 APPAREL_TEST_ALL_AMP = 1;
 
 	UApparelData *ApparelTestPiece()
 	{
@@ -77,6 +79,31 @@ void FApparelSpec::Define()
 		TestEqual(TEXT("Defence (F tier: x1)"), After.BonusDefense - Before.BonusDefense, APPAREL_TEST_DEFENSE);
 		TestEqual(TEXT("Luck is not an apparel line"), After.BonusLuck, Before.BonusLuck);
 		TestTrue(TEXT("the asset flags the unused line"), ApparelTestPiece()->HasUnusedStatLines());
+	});
+
+	It("adds its Amp lines to the wearer's one Amp total (B-386, the deckbuilder's Apparel)", [this]()
+	{
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		UApparelData *Piece = ApparelTestPiece();
+		Piece->BaseStatBonus.Amp.Fire = APPAREL_TEST_FIRE_AMP;
+		Piece->BaseStatBonus.Amp.All = APPAREL_TEST_ALL_AMP;
+		const FAmpBonus Before = Loadout->GetActiveStatBonus(Loadout->GetOwner()).Amp;
+		TestTrue(TEXT("worn"), ApparelRules::AddApparel(ActiveOf(Loadout), FApparelEntry::CreateFromApparel(Piece)));
+		const FAmpBonus After = Loadout->GetActiveStatBonus(Loadout->GetOwner()).Amp;
+		TestEqual(TEXT("a Fire spell's Amp"), After.GetTotalFor(ESpellElement::Fire, true) - Before.GetTotalFor(ESpellElement::Fire, true),
+				  APPAREL_TEST_FIRE_AMP + APPAREL_TEST_ALL_AMP);
+		TestEqual(TEXT("a Water spell's Amp (All only)"),
+				  After.GetTotalFor(ESpellElement::Water, true) - Before.GetTotalFor(ESpellElement::Water, true), APPAREL_TEST_ALL_AMP);
+		TestFalse(TEXT("Amp is an apparel line, not an unused one"), [&Piece]()
+		{
+			UApparelData *AmpOnly = DuplicateObject(Piece, GetTransientPackage());
+			AmpOnly->BaseStatBonus.BonusLuck = 0;
+			return AmpOnly->HasUnusedStatLines();
+		}());
 	});
 
 	It("takes no budget, holds at most two pieces, and not the same piece twice", [this]()
