@@ -156,8 +156,16 @@ bool AWoRGameState::IsAnyFightActive() const
 
 EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 {
-	if (!HasAuthority() || !Starter || bReviveWaitsForFight || !WoRRestSpot::CanReviveHere(GetWorld()))
+	if (!HasAuthority() || !Starter)
 	{
+		return EReviveVoteResult::Failed;
+	}
+	if (bReviveWaitsForFight || !WoRRestSpot::CanReviveHere(GetWorld()))
+	{
+		// Review: the client's menu has closed, so it hears why (a passed revive is waiting, or nothing to revive).
+		Starter->Client_ShowFeatureMessage(bReviveWaitsForFight
+			? NSLOCTEXT("WoRGameState", "ReviveVoteAlreadyWaits", "The mini-boss already returns when the fight ends.")
+			: NSLOCTEXT("WoRGameState", "ReviveVoteNothing", "There is no mini-boss to revive here."));
 		return EReviveVoteResult::Failed;
 	}
 	TArray<int32> PlayerIds;
@@ -284,6 +292,8 @@ void AWoRGameState::CloseReviveVote(EReviveVoteResult Result)
 	if (IsAnyFightActive())
 	{
 		// Q-187e2 (review): a revive reloads the level, so it waits until no fight is running.
+		// TODO: not replicated, so a host hand-over (B-234b) loses a waiting revive; PIE check 2e also watches that the
+		// reload doesn't cut off the victory / level-drop screens (it fires within a tick of the fight ending).
 		bReviveWaitsForFight = true;
 		GetWorldTimerManager().SetTimer(ReviveVoteTimer, this, &AWoRGameState::TickReviveVote, REVIVE_VOTE_TICK_SECONDS, true);
 		TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVoteWaits", "Everyone agreed: the mini-boss returns when the fight ends."));
@@ -323,7 +333,8 @@ void AWoRGameState::OnRep_ReviveVote()
 
 FString AWoRGameState::GetReviveVoteString() const
 {
-	return FString::Printf(TEXT("[ReviveVote] %s"), *ReviveVote::GetVoteString(ReviveVoteState, GetServerWorldTimeSeconds()));
+	return FString::Printf(TEXT("[ReviveVote] %s%s"), *ReviveVote::GetVoteString(ReviveVoteState, GetServerWorldTimeSeconds()),
+						   bReviveWaitsForFight ? TEXT(", waiting for the fight to end") : TEXT(""));
 }
 
 static FAutoConsoleCommandWithWorld GTrialReviveVoteCommand(
