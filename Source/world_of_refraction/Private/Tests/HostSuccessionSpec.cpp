@@ -89,6 +89,7 @@ void FHostSuccessionSpec::Define()
 		{
 			return;
 		}
+		Copy->HandlePreSave(); // stamps the save version, as a real save does (else the load check wipes it, D-060)
 		TestTrue(TEXT("a copy without a run written"), UGameplayStatics::SaveGameToSlot(Copy, SUCCESSION_TEST_SLOT, SUCCESSION_TEST_USER));
 		TestFalse(TEXT("a copy without a run: refused"), Save->AdoptCheckpointFrom(SUCCESSION_TEST_SLOT));
 		Copy->Data.Run.bHasRun = true;

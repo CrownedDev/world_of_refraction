@@ -347,7 +347,7 @@ void USaveSubsystem::Deinitialize()
 
 void USaveSubsystem::HandleLocalPlayerAdded(ULocalPlayer *LocalPlayer)
 {
-	if (!IsBoundToPlayer())
+	if (!IsBoundToPlayer() && !bPlayingHostCopy) // B-234b review: a handed-over run keeps the host's copy
 	{
 		LoadForPlayer(LocalPlayer);
 	}
@@ -423,7 +423,10 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 							 : nullptr;
 	if (Copy)
 	{
-		Copy->HandlePostLoad(); // review: the version check and migrations (D-060), as a loaded slot gets
+		// The version check and migrations (D-060), as a loaded slot gets. InitializeSaveGame, not HandlePostLoad alone:
+		// only it reads the saved version, and it binds the copy to this player, so a local player joining later
+		// doesn't swap this player's own save in, and the shutdown save writes the copy (desktop review).
+		Copy->InitializeSaveGame(Local, SlotName, /*bWasLoaded=*/true);
 	}
 	if (!GI || !Copy || !Copy->Data.Run.bHasRun)
 	{
@@ -437,11 +440,17 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 		Copy->Data.Forms = SaveGame->Data.Forms;
 	}
 	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+	UPoolSubsystem *Pool = GI->GetSubsystem<UPoolSubsystem>();
+	if (!PartySession || !Pool)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: no party or pool subsystem; the copy isn't adopted"));
+		return false;
+	}
 	PartySession->ForgetLocalParty();
 	const bool bParty = Copy->Data.Party.bHasParty && RestoreParty(Copy->Data.Party, *PartySession);
 	// The old host's gear joins the pool for this session (party gear points into it); never written to this
 	// player's own slot. TODO: B-234c: a pool reset so the hub after the run shows only this player's own armoury.
-	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *GI->GetSubsystem<UPoolSubsystem>());
+	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *Pool);
 	SaveGame = Copy;
 	bPlayingHostCopy = true;
 	AdoptedSlotName = SlotName;
