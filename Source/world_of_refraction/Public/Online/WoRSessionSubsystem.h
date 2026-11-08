@@ -22,6 +22,9 @@ namespace WoRSession
 	WORLD_OF_REFRACTION_API FOnlineSessionSettings MakeHostSettings(bool bLAN);
 }
 
+/** B-234b review: a host or join attempt finished (true: hosting / travelling to the host). */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWoRSessionResult, bool /*bSucceeded*/);
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRSessionSubsystem : public UGameInstanceSubsystem
 {
@@ -51,6 +54,13 @@ public:
 
 	/** B-234b: a search finished (found or not); GetFoundSessionCount / FindSessionIndexByOwner read it. */
 	FSimpleMulticastDelegate OnSessionsFound;
+
+	/** B-234b review: HostSession's create finished; on success it fires just before the level reopens as a listen
+	 *  server (so a hand-over adopts its copy only once hosting works). */
+	FOnWoRSessionResult OnSessionCreated;
+
+	/** B-234b review: JoinFoundSession's join finished; on success the client is travelling to the host. */
+	FOnWoRSessionResult OnSessionJoined;
 
 	FString GetSessionString() const;
 

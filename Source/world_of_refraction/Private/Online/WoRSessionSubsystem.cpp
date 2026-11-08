@@ -84,9 +84,11 @@ void UWoRSessionSubsystem::HandleCreateComplete(FName SessionName, bool bWasSucc
 	UE_LOG(LogWoR, Log, TEXT("[Session] Hosted %s: %s"), *SessionName.ToString(), bWasSuccessful ? TEXT("yes") : TEXT("no"));
 	if (!bWasSuccessful || !World)
 	{
+		OnSessionCreated.Broadcast(false);
 		return;
 	}
 	bHosting = true;
+	OnSessionCreated.Broadcast(true); // B-234b review: before the reopen, so a hand-over's run waits for the new world
 	// The current level again as a listen server, so friends can join (the hub, D-103).
 	// Review fix: OpenLevel, not ServerTravel: the game modes use seamless travel, which opens no listen socket.
 	UGameplayStatics::OpenLevel(World, FName(*UGameplayStatics::GetCurrentLevelName(World, /*bRemovePrefixString=*/true)),
@@ -172,9 +174,11 @@ void UWoRSessionSubsystem::HandleJoinComplete(FName SessionName, EOnJoinSessionC
 	if (Result != EOnJoinSessionCompleteResult::Success || !Sessions.IsValid() || !Sessions->GetResolvedConnectString(SessionName, Address) || !PC)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[Session] Join failed (%d)"), static_cast<int32>(Result));
+		OnSessionJoined.Broadcast(false);
 		return;
 	}
 	UE_LOG(LogWoR, Log, TEXT("[Session] Joined; travelling to %s"), *Address);
+	OnSessionJoined.Broadcast(true);
 	PC->ClientTravel(Address, TRAVEL_Absolute);
 }
 
