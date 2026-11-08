@@ -1,3 +1,26 @@
+# Cloud writer handover (2026-11-08, tenth part: confirmations, B-381 activations, B-389 / D-168) — STOPPED
+
+**The brain's three messages from 21:57–21:59 UTC are all done.** Everything is pushed, reviewed by wor-reviewer with its findings fixed, and cherry-picked onto the trial branch. Nothing was built.
+
+- **Confirmed by Crown, marked on their branches:**
+  - Q-379 (B-379, and B-381);
+  - Q-380 (4) (B-380);
+  - Q-381 (B-381).
+- **B-381 activations** (Crown, MemoryCatalogue §3.11). A gear quest's start can now read the worn item's own state with a `WornItemState` condition: the socket's crystal or evolution element, a given evolution, a stone type, a minimum tier, and the upgrade level.
+  - Weapons, the adapter and apparel all count; B-380b was merged in for the apparel socket.
+  - Spec: an apparel piece with a Fire crystal starts the quest; Water or an empty socket doesn't.
+  - The review BLOCKed it. Fixed: the condition was checked after the "no event" guard, and a broken crystal still counted.
+- **New row B-389: resistance by damage type** (Crown's D-168). Cut from dev after B-387.
+  - Defence stays as it is, as the All line.
+  - Gear gains Physical and Spell damage lines. They are summed from every source and added to the element line under the ±50% cap.
+  - Old data deals the same damage.
+  - **Q-389** (reference-backed default): the class table's buildup Physical column (Generic +15 / Resonator −15) does not count for damage, because that would be a balance change.
+  - The review passed with notes; all fixed.
+  - Left for later: scoped ResistanceBuff effects, DoT ticks (element only), and rolling the new lines on gear.
+- **Merge plan:** the 23:45 update and new row 69.
+
+**Writable jobs left:** none. What's left needs a compiler or Crown, including Q-378's open cure question and Q-389.
+
 # Cloud writer handover (2026-11-08, ninth part: Q-187e vote, Q-377 confirmed, Q-378 changed, B-388) — STOPPED
 
 **The brain's four messages (21:42–21:45 UTC) are all done.** Every branch below is pushed, reviewed by wor-reviewer, and has its review findings fixed. Nothing was built.
