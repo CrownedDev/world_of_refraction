@@ -19,6 +19,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/RunStateComponent.h"
 #include "Player/WoRGameState.h"
+#include "Online/HostSuccession.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/CoopCheckpoint.h"
 #include "Kismet/GameplayStatics.h"
@@ -431,6 +432,15 @@ void AWoRPlayerState::OnSetUniqueId()
 	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
 	{
 		GameState->UpdateHostOrder(this, /*bJoined=*/true); // server only (UpdateHostOrder checks)
+	}
+}
+
+void AWoRPlayerState::Client_BeginPlannedHandOver_Implementation()
+{
+	UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	if (UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr)
+	{
+		HandOver->HandlePlannedHandOver(GetWorld());
 	}
 }
 

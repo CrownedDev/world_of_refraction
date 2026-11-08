@@ -81,6 +81,11 @@ public:
 	/** B-234 debug: the last checkpoint copy this client received and kept (wor.Coop.PrintCheckpoint). */
 	FString GetCheckpointString() const;
 
+	/** B-234c review: the host is handing over at a rest spot. Sent on this PlayerState after the checkpoint's chunks
+	 *  (reliable calls keep their order on one actor only), so the copy is complete before the client leaves. */
+	UFUNCTION(Client, Reliable)
+	void Client_BeginPlannedHandOver();
+
 private:
 	/** B-234: one chunk of the host's save; the last one of a checkpoint writes the copy to WoRCheckpoint::SLOT_NAME. */
 	UFUNCTION(Client, Reliable)
