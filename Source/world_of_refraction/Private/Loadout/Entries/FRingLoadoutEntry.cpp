@@ -5,6 +5,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Loadout/Entries/FSpellCollection.h"
+#include "Loadout/SkillSlotList.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 
@@ -65,6 +66,55 @@ int32 FRingLoadoutEntry::GetSpellsOverCap() const
     return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
 }
 
+TArray<USpellData *> FRingLoadoutEntry::GetSpellSlots(bool bAsIfIntact) const
+{
+    const TArray<USpellData *> Presets = RingEntry.Ring ? RingEntry.Ring->PresetSpells : TArray<USpellData *>();
+    if (RingEntry.Ring && RingEntry.Ring->bSpellsLocked)
+    {
+        return Presets;
+    }
+    // A broken crystal gives no picks; the ring's own presets stay (as in the old merge).
+    const bool bPicksPlay = bAsIfIntact || RingEntry.AttachedItem.CanProvideSpells();
+    return SkillSlotList::Resolve(Presets, bPicksPlay ? RingEntry.SpellPicks : TArray<USpellData *>(), GetSpellSlotCap());
+}
+
+bool FRingLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
+{
+    if ((RingEntry.Ring && RingEntry.Ring->bSpellsLocked) || Slot >= GetSpellSlotCap() || !SkillSlotList::Replace(RingEntry.SpellPicks, Slot, Spell))
+    {
+        return false;
+    }
+    RingEntry.bSpellSlotsActive = true;
+    return true;
+}
+
+bool FRingLoadoutEntry::RestoreSpell(int32 Slot)
+{
+    if (!SkillSlotList::Restore(RingEntry.SpellPicks, Slot))
+    {
+        return false;
+    }
+    RingEntry.bSpellSlotsActive = true;
+    return true;
+}
+
+FString FRingLoadoutEntry::GetSpellSlotString() const
+{
+    const TArray<USpellData *> Slots = GetSpellSlots();
+    const TArray<USpellData *> Presets = RingEntry.Ring ? RingEntry.Ring->PresetSpells : TArray<USpellData *>();
+    FString Out = FString::Printf(TEXT("%s spell slots: %d (%s)"), *GetNameSafe(RingEntry.Ring), Slots.Num(),
+                                  RingEntry.bSpellSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old merge plays"));
+    for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
+    {
+        const USpellData *BuiltIn = Presets.IsValidIndex(Slot) ? Presets[Slot] : nullptr;
+        const bool bReplaced = SkillSlotList::IsReplaced(RingEntry.SpellPicks, Slot);
+        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, *GetNameSafe(Slots[Slot]),
+                               bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; preset %s restorable)"), *GetNameSafe(BuiltIn)) : TEXT(" (pick)"))
+                                         : (BuiltIn ? TEXT(" (preset)") : TEXT("")));
+    }
+    return Out;
+}
+
 TArray<USpellData *> FRingLoadoutEntry::GetAllSpellsUncapped(bool bAsIfIntact) const
 {
     // Preset spells from the ring asset.
@@ -76,6 +126,14 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpellsUncapped(bool bAsIfIntact) c
     if (RingEntry.Ring && RingEntry.Ring->bSpellsLocked)
     {
         return Presets;
+    }
+
+    // B-351d (D-145): once the player has edited the one list, it is the list (the position merge below is OBSOLETE).
+    if (RingEntry.bSpellSlotsActive)
+    {
+        TArray<USpellData *> Spells = GetSpellSlots(bAsIfIntact);
+        Spells.RemoveAll([](const USpellData *Spell) { return Spell == nullptr; });
+        return Spells;
     }
 
     // Sequential override merge: customisable spells replace preset slots in
