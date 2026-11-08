@@ -128,6 +128,17 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 HeadStartSpirit = 0;
 
+	/** B-348c (Q-348b, Crown 2026-11-08): the member is in Broken Darkness. Persistent in and out of the run: a
+	 *  mid-fight transformation stays across fights, runs and the save until reverted
+	 *  (UBrokenDarknessManager::RevertTransformation). Banked at each fight's end; the pawn seeds from it. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bBrokenDarkness = false;
+
+	/** B-348c: the strain this member has built up this run (UBrokenDarknessManager::AccruedStrain); it carries from
+	 *  fight to fight until the break, and the run's end clears it. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	float RunStrain = 0.0f;
+
 	/** B-076 (D-026): found during a trial. Joins for that run only and leaves when it ends. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bRunOnly = false;

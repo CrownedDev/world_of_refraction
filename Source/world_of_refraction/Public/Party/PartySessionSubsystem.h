@@ -191,6 +191,10 @@ public:
 	 *  budget and writes through). False for an invalid slot. */
 	bool SetMemberHeadStart(int32 SlotIndex, int32 Mind, int32 Body, int32 Spirit);
 
+	/** B-348c: banks a member's Broken Darkness state and the run's strain (at a fight's end). False for an invalid
+	 *  slot. */
+	bool SetMemberBrokenDarkness(int32 SlotIndex, bool bBrokenDarkness, float RunStrain);
+
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberAISeat(int32 SlotIndex) const;
