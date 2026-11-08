@@ -116,6 +116,18 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	EAIDifficulty AISeatDifficulty = EAIDifficulty::Medium;
 
+	/** B-348b (Q-348): the member's head-start pillar allocation (the §8 floor raised by perks), its persistent home;
+	 *  the pawn's UCharacterDataComponent seeds from it and writes it back (SetHeadStartAllocation). Saved
+	 *  (FSavedPartyMember, v21). Total within WorldStatConstants::HEAD_START_BUDGET. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 HeadStartMind = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 HeadStartBody = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 HeadStartSpirit = 0;
+
 	/** B-076 (D-026): found during a trial. Joins for that run only and leaves when it ends. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bRunOnly = false;
