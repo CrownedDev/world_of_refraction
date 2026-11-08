@@ -41,7 +41,6 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 	{
 		return false;
 	}
-	ShareWithPlayers(GameInstance, Memory, Source); // B-235d: each friend's own journal, whether or not the host has it
 	if (Journal->HasMemory(Memory))
 	{
 		return false;
@@ -51,6 +50,9 @@ bool MemoryUnlock::Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMem
 	{
 		return false;
 	}
+	// B-235d (review): shared once, when the host's run newly unlocks it. A memory the host already had is not
+	// shared (its callers check first); that and friend-only conditions are B-235d's leftovers.
+	ShareWithPlayers(GameInstance, Memory, Source);
 	// Q-209c: rewards come once, with the unlock. TODO: grant each kind once it can be: the item
 	// into the party's inventory (out-of-fight gear, B-085), the skill once rewards teach skills,
 	// titles and curses once they are systems.

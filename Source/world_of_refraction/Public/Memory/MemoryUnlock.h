@@ -28,8 +28,8 @@ struct FFiredReaction;
 
 namespace MemoryUnlock
 {
-	/** Into the run and the journal. False when Memory is null or already collected. B-235d: in co-op the host also
-	 *  shares it with every friend it qualifies for (QualifiesFor), whether or not the host had it. */
+	/** Into the run and the journal. False when Memory is null or already collected. B-235d: in co-op, when the host's
+	 *  run newly unlocks it, the host also shares it with every friend it qualifies for (QualifiesFor). */
 	WORLD_OF_REFRACTION_API bool Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
 
 	/** B-235d (D-103, Q-235d): a memory goes to a player when it means something to one of their characters
