@@ -283,6 +283,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	int32 ReviveFallenMembers();
 
+	/** B-187d (Q-187d changed by Crown, 2026-11-08): a rest for the members IsRested picks: each comes back to full
+	 *  (the fallen revived, as ReviveFallenMembers), its carried gear and absorption cleared (as SetAllMembersFull).
+	 *  Others are untouched. Returns how many of them were fallen. */
+	int32 RestMembersWhere(TFunctionRef<bool(const FPartyMember &)> IsRested);
+
 	/** D-043: the slot's member fell in an earlier fight and sits out the next ones. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberFallen(int32 SlotIndex) const;
