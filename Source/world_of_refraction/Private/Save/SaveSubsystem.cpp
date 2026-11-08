@@ -1,6 +1,7 @@
 // SaveSubsystem.cpp
 
 #include "Save/SaveSubsystem.h"
+#include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
 #include "Character/CharacterData.h"
@@ -346,7 +347,7 @@ void USaveSubsystem::Deinitialize()
 
 void USaveSubsystem::HandleLocalPlayerAdded(ULocalPlayer *LocalPlayer)
 {
-	if (!IsBoundToPlayer())
+	if (!IsBoundToPlayer() && !bPlayingHostCopy) // B-234b review: a handed-over run keeps the host's copy
 	{
 		LoadForPlayer(LocalPlayer);
 	}
@@ -405,6 +406,60 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 				FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
 		}
 	}
+}
+
+bool USaveSubsystem::AdoptCheckpoint()
+{
+	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME);
+}
+
+bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
+{
+	UGameInstance *GI = GetGameInstance();
+	const ULocalPlayer *Local = GI ? GI->GetFirstGamePlayer() : nullptr;
+	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+	UWoRSaveGame *Copy = UGameplayStatics::DoesSaveGameExist(SlotName, UserIndex)
+							 ? Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex))
+							 : nullptr;
+	if (Copy)
+	{
+		// The version check and migrations (D-060), as a loaded slot gets. InitializeSaveGame, not HandlePostLoad alone:
+		// only it reads the saved version, and it binds the copy to this player, so a local player joining later
+		// doesn't swap this player's own save in, and the shutdown save writes the copy (desktop review).
+		Copy->InitializeSaveGame(Local, SlotName, /*bWasLoaded=*/true);
+	}
+	if (!GI || !Copy || !Copy->Data.Run.bHasRun)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: %s"), Copy ? TEXT("the copy holds no run") : TEXT("no checkpoint copy to host from"));
+		return false;
+	}
+	// This player's own wallet and look stay its own (Q-234b (2)).
+	if (SaveGame)
+	{
+		Copy->Data.Wallet = SaveGame->Data.Wallet;
+		Copy->Data.Forms = SaveGame->Data.Forms;
+	}
+	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+	UPoolSubsystem *Pool = GI->GetSubsystem<UPoolSubsystem>();
+	if (!PartySession || !Pool)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: no party or pool subsystem; the copy isn't adopted"));
+		return false;
+	}
+	PartySession->ForgetLocalParty();
+	const bool bParty = Copy->Data.Party.bHasParty && RestoreParty(Copy->Data.Party, *PartySession);
+	// The old host's gear joins the pool for this session (party gear points into it); never written to this
+	// player's own slot. TODO: B-234c: a pool reset so the hub after the run shows only this player's own armoury.
+	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *Pool);
+	SaveGame = Copy;
+	bPlayingHostCopy = true;
+	AdoptedSlotName = SlotName;
+	PendingRun = Copy->Data.Run;
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
+	UE_LOG(LogWoR, Display, TEXT("[Save] Hand-over: hosting from the copy (party %s, %d pool entries); the run resumes in the next hub"),
+		   bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries);
+	return true;
 }
 
 void USaveSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
@@ -502,11 +557,25 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 bool USaveSubsystem::SaveNow(UWorld *World, bool bAsync)
 {
 	CaptureInto(World);
-	return WriteSlot(bAsync);
+	const bool bWritten = WriteSlot(bAsync);
+	if (bWritten)
+	{
+		WoRCheckpoint::SendToClients(World, SaveGame); // B-234: every other player keeps the host's checkpoint (review: only a written one)
+	}
+	return bWritten;
 }
 
 bool USaveSubsystem::WriteSlot(bool bAsync)
 {
+	if (bPlayingHostCopy && !bWritesStopped)
+	{
+		// B-234b: a handed-over run saves into the copy's slot; this player's own save is never overwritten.
+		const ULocalPlayer *Local = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
+		const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+		const bool bCopyWritten = UGameplayStatics::SaveGameToSlot(SaveGame, AdoptedSlotName, UserIndex);
+		UE_LOG(LogWoR, Log, TEXT("[Save] Handed-over run saved to '%s': %s"), *AdoptedSlotName, bCopyWritten ? TEXT("yes") : TEXT("no"));
+		return bCopyWritten;
+	}
 	if (!IsBoundToPlayer() || bWritesStopped)
 	{
 		return false;

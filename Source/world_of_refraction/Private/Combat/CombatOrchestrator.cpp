@@ -824,6 +824,19 @@ namespace
 	}
 }
 
+FText ACombatOrchestrator::GetRowEdgeRefusal(ECombatRow Row, bool bForward)
+{
+	if (bForward && Row == ECombatRow::Front)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowAtFront", "Already in the front row.");
+	}
+	if (!bForward && Row == ECombatRow::Back)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
+	}
+	return FText::GetEmpty();
+}
+
 FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward) const
 {
 	if (CombatState != ECombatState::InProgress)
@@ -848,13 +861,9 @@ FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward)
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowNoGrid", "Not on the battle grid.");
 	}
-	if (bForward && Position.Row == ECombatRow::Front)
+	if (const FText Edge = GetRowEdgeRefusal(Position.Row, bForward); !Edge.IsEmpty())
 	{
-		return NSLOCTEXT("CombatOrchestrator", "RowAtFront", "Already in the front row.");
-	}
-	if (!bForward && Position.Row == ECombatRow::Back)
-	{
-		return NSLOCTEXT("CombatOrchestrator", "RowAtBack", "Already in the back row.");
+		return Edge;
 	}
 	// B-342 (D-134): three rows, no columns. A row holds the whole side, so an ally there never blocks the
 	// step; only a full row would (it can't be, at MAX_TEAM_SIZE). Replaces Q-180's empty-cell rule.

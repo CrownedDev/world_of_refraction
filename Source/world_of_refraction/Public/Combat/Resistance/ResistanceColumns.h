@@ -7,7 +7,7 @@
 // append-only), but every read of a physical type gives the one Physical value, their average (old values fold in as
 // they load), and every write sets all three to it. Slash stands for the Physical column in Types(). The subtypes stay
 // on the hit and only pick its break (SB-19 to SB-21).
-// Debug: ToString; wor.CompareResistance; spec WoR.Resistance.Columns, WoR.Resistance.OnePhysical.
+// Debug: ToString; wor.Resistance.Compare; spec WoR.Resistance.Columns, WoR.Resistance.OnePhysical.
 
 #pragma once
 
