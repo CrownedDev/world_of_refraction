@@ -27,8 +27,8 @@ void FReviveVoteSpec::Define()
 		FReviveVote Vote;
 		TestTrue(TEXT("open"), ReviveVote::Start(Vote, VOTE_TEST_HOST, Everyone(), VOTE_TEST_NOW) == EReviveVoteResult::Pending);
 		TestTrue(TEXT("the starter is not asked again"), !ReviveVote::IsWaitingFor(Vote, VOTE_TEST_HOST));
-		TestTrue(TEXT("one more yes: still waiting"), ReviveVote::Cast(Vote, VOTE_TEST_FRIEND, true) == EReviveVoteResult::Pending);
-		TestTrue(TEXT("the last yes passes it"), ReviveVote::Cast(Vote, VOTE_TEST_THIRD, true) == EReviveVoteResult::Passed);
+		TestTrue(TEXT("one more yes: still waiting"), ReviveVote::Answer(Vote, VOTE_TEST_FRIEND, true) == EReviveVoteResult::Pending);
+		TestTrue(TEXT("the last yes passes it"), ReviveVote::Answer(Vote, VOTE_TEST_THIRD, true) == EReviveVoteResult::Passed);
 		TestFalse(TEXT("closed"), Vote.bOpen);
 	});
 
@@ -36,9 +36,9 @@ void FReviveVoteSpec::Define()
 	{
 		FReviveVote Vote;
 		ReviveVote::Start(Vote, VOTE_TEST_FRIEND, Everyone(), VOTE_TEST_NOW);
-		ReviveVote::Cast(Vote, VOTE_TEST_HOST, true);
-		TestTrue(TEXT("a no fails it"), ReviveVote::Cast(Vote, VOTE_TEST_THIRD, false) == EReviveVoteResult::Failed);
-		TestTrue(TEXT("and it stays failed"), ReviveVote::Cast(Vote, VOTE_TEST_HOST, true) == EReviveVoteResult::Failed);
+		ReviveVote::Answer(Vote, VOTE_TEST_HOST, true);
+		TestTrue(TEXT("a no fails it"), ReviveVote::Answer(Vote, VOTE_TEST_THIRD, false) == EReviveVoteResult::Failed);
+		TestTrue(TEXT("and it stays failed"), ReviveVote::Answer(Vote, VOTE_TEST_HOST, true) == EReviveVoteResult::Failed);
 	});
 
 	It("doesn't ask a player in battle, and drops one who enters a fight", [this]()
@@ -71,7 +71,7 @@ void FReviveVoteSpec::Define()
 		FReviveVote Vote;
 		TestTrue(TEXT("passes"), ReviveVote::Start(Vote, VOTE_TEST_HOST, {VOTE_TEST_HOST}, VOTE_TEST_NOW) == EReviveVoteResult::Passed);
 		TestFalse(TEXT("nothing left open"), Vote.bOpen);
-		TestFalse(TEXT("the debug string says so"), ReviveVote::GetVoteString(Vote, VOTE_TEST_NOW).IsEmpty());
+		TestTrue(TEXT("the debug string says so"), ReviveVote::GetVoteString(Vote, VOTE_TEST_NOW).Contains(TEXT("passed")));
 	});
 }
 

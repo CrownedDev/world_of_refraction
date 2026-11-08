@@ -55,7 +55,7 @@ EReviveVoteResult ReviveVote::Start(FReviveVote &Vote, int32 StarterId, const TA
 	return PassIfAllYes(Vote);
 }
 
-EReviveVoteResult ReviveVote::Cast(FReviveVote &Vote, int32 PlayerId, bool bYes)
+EReviveVoteResult ReviveVote::Answer(FReviveVote &Vote, int32 PlayerId, bool bYes)
 {
 	if (!Vote.bOpen || !IsWaitingFor(Vote, PlayerId))
 	{
@@ -100,5 +100,16 @@ FString ReviveVote::GetVoteString(const FReviveVote &Vote, double Now)
 	{
 		return FString::Printf(TEXT("open: %d of %d yes, %.0f s left"), Vote.YesIds.Num(), Vote.VoterIds.Num(), FMath::Max(0.0, Vote.Deadline - Now));
 	}
-	return FString::Printf(TEXT("closed: %s"), *UEnum::GetValueAsString(Vote.LastResult));
+	return FString::Printf(TEXT("closed: %s"), ResultName(Vote.LastResult));
+}
+
+const TCHAR *ReviveVote::ResultName(EReviveVoteResult Result)
+{
+	switch (Result)
+	{
+	case EReviveVoteResult::Pending: return TEXT("pending");
+	case EReviveVoteResult::Passed: return TEXT("passed");
+	case EReviveVoteResult::Failed: return TEXT("failed");
+	default: return TEXT("none");
+	}
 }

@@ -56,8 +56,9 @@ namespace ReviveVote
 	 *  (solo), else Pending; Failed when the starter is not a voter (in battle) or a vote is already open. */
 	WORLD_OF_REFRACTION_API EReviveVoteResult Start(FReviveVote &Vote, int32 StarterId, const TArray<int32> &Voters, double Now);
 
-	/** A voter's answer: a no fails it; the last yes passes it. Non-voters and repeats change nothing (Pending). */
-	WORLD_OF_REFRACTION_API EReviveVoteResult Cast(FReviveVote &Vote, int32 PlayerId, bool bYes);
+	/** A voter's answer: a no fails it; the last yes passes it. Non-voters, repeats and late answers change nothing (they
+	 *  return Pending, or the closed vote's LastResult). Not named Cast: that would hide UE's Cast<T> in this namespace. */
+	WORLD_OF_REFRACTION_API EReviveVoteResult Answer(FReviveVote &Vote, int32 PlayerId, bool bYes);
 
 	/** A voter entered a fight (or left): off the list; the vote then passes if every remaining voter said yes, and fails
 	 *  when nobody is left. */
@@ -68,6 +69,9 @@ namespace ReviveVote
 
 	/** Whether PlayerId still has to answer. */
 	WORLD_OF_REFRACTION_API bool IsWaitingFor(const FReviveVote &Vote, int32 PlayerId);
+
+	/** "pending" / "passed" / "failed" / "none" (debug). */
+	WORLD_OF_REFRACTION_API const TCHAR *ResultName(EReviveVoteResult Result);
 
 	/** Debug: "open: 2 of 3 yes, 12 s left" / "closed: passed". */
 	WORLD_OF_REFRACTION_API FString GetVoteString(const FReviveVote &Vote, double Now);
