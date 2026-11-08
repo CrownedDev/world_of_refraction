@@ -23,5 +23,5 @@ Curses (MemoryCatalogue §3.8; Shangri-La Frontier's curses, D-100) are rewards 
 ## Changelog
 | Date | Change | Branch |
 |---|---|---|
-| 2026-11-08 | Created (B-378): held curses, Curse / RemoveCurse rewards, the CurseHeld condition, save v26, `wor.Curse.Print`, CurseSpec. | `feature/B-378-curses-cloud` (UNBUILT) |
-| 2026-11-08 | Review: a friend's part never reads the host's curses; a lifted curse stays lifted (`FSavedCurses::Lifted`). | `feature/B-378-curses-cloud` (UNBUILT) |
+| 2026-11-08 | Created (B-378): held curses, Curse / RemoveCurse rewards, the CurseHeld condition, save v26, `wor.Curse.Print`, CurseSpec. | `feature/B-378-curses-cloud` (in dev) |
+| 2026-11-08 | Review: a friend's part never reads the host's curses; a lifted curse stays lifted (`FSavedCurses::Lifted`). | `feature/B-378-curses-cloud` (in dev) |
