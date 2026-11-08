@@ -41,6 +41,18 @@ enum class ECombatMenuDepth : uint8
     TargetSelection
 };
 
+// ==================== WHERE THE MENU OPENS (B-232b) ====================
+
+namespace CommandMenuRules
+{
+	/** The command menu opens on the machine whose player commands the member (Q-232, D-150): never for an AI seat;
+	 *  with no run state (standalone, specs) the one player commands everything, as before. */
+	inline bool OpensHere(bool bAIControlled, bool bHasRunState, bool bCommandedHere)
+	{
+		return !bAIControlled && (!bHasRunState || bCommandedHere);
+	}
+}
+
 // ==================== SUBSYSTEM ====================
 
 UCLASS()
