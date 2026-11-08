@@ -43,7 +43,7 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Apparel")
 	FRuntimeAttachedItem AttachedItem;
 
-	/** The instance roll on top of the asset's lines; only HP and Defence count. */
+	/** The instance roll on top of the asset's lines; only HP, Defence and Amp count. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Apparel")
 	FEquipmentStatBonus StatBonus;
 
@@ -57,7 +57,7 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 	 *  resistance like a crystal; it powers no skill); null otherwise. */
 	const UEvolutionItemData *GetEvolution() const;
 
-	/** The asset's HP and Defence plus the instance roll's (nothing else counts). */
+	/** The asset's HP, Defence and Amp lines plus the instance roll's (nothing else counts; Amp: B-386). */
 	FEquipmentStatBonus GetStatLines() const;
 
 	/** D-164 (Crown): the asset's resistance, plus ApparelRules::CRYSTAL_ELEMENT_RESISTANCE to its crystal's element. */

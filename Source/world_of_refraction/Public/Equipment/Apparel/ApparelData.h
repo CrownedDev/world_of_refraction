@@ -17,13 +17,13 @@ class WORLD_OF_REFRACTION_API UApparelData : public UEquipmentDataBase
 	GENERATED_BODY()
 
 public:
-	/** BaseStatBonus kept to the two apparel lines: max HP and Defence. */
+	/** BaseStatBonus kept to the apparel lines: max HP, Defence and the Amp lines (B-386). */
 	FEquipmentStatBonus GetStatLines() const;
 
 	/** True when BaseStatBonus has a line apparel does not use (ignored in play). */
 	bool HasUnusedStatLines() const;
 
-	/** Debug: name, tier, HP and Defence, any unused lines. */
+	/** Debug: name, tier, HP, Defence and Amp, any unused lines. */
 	FString GetApparelString() const;
 
 	UFUNCTION(CallInEditor, Category = "Debug")

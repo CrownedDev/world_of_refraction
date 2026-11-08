@@ -4389,7 +4389,8 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
                                  AmpRules::GetCrystalTierAmp(Loadout.PrimaryEvolution.Tier));
     }
 
-    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines (nothing else), tier-scaled like gear;
+    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines, tier-scaled like gear, and its Amp lines
+    // raw (B-386, through AddScaled);
     // outside the budget, so it sits beside whatever ForEachContributingGear visits.
     for (const FApparelEntry &Piece : Loadout.Apparel)
     {
