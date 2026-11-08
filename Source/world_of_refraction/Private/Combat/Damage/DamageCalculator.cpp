@@ -473,8 +473,10 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// payloads stamp DamageBuff with None (ActionExecutor's per-payload element), so authored buffs are unchanged.
 		auto KeyedTotal = [StatusManager, Attacker, HitElement](ESkillEffectType Type)
 		{
-			float Total = StatusManager->GetTotalStatModifierForElement(Attacker, Type, ESpellElement::None);
-			if (HitElement != ESpellElement::None)
+			// Generic ("inherit") is never a hit's element; an effect stamped with it counts as unkeyed, as before.
+			float Total = StatusManager->GetTotalStatModifierForElement(Attacker, Type, ESpellElement::None) +
+						  StatusManager->GetTotalStatModifierForElement(Attacker, Type, ESpellElement::Generic);
+			if (HitElement != ESpellElement::None && HitElement != ESpellElement::Generic)
 			{
 				Total += StatusManager->GetTotalStatModifierForElement(Attacker, Type, HitElement);
 			}
