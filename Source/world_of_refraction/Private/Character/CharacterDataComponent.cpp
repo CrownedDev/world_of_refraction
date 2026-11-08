@@ -150,8 +150,11 @@ void UCharacterDataComponent::BeginPlay()
         // flag (read via IsBrokenDarkness()) is authoritative. The flag stays
         // true at rest, so the EP gates (ServerGainEnergy/ServerSetEP) keep
         // treating a born-BD as BD.
+        // B-348c (Q-348b, Crown 2026-11-08): a party member that broke earlier stays in Broken Darkness (its record,
+        // saved) until reverted; it seeds exactly as a born-BD does.
+        const FPartyMember *CarriedMember = FindCarriedPartyMember(); // the same by-data fallback as the carried vitals; only a stamped pawn writes
         if (HasServerAuthority() && CharacterData &&
-            CharacterData->bBrokenDarknessInnate)
+            (CharacterData->bBrokenDarknessInnate || (CarriedMember && CarriedMember->bBrokenDarkness)))
         {
             bIsBrokenDarkness = true;
 
@@ -181,6 +184,7 @@ void UCharacterDataComponent::BeginPlay()
                 if (const FPartyMember *Carried = FindCarriedPartyMember())
                 {
                     BDManager->ApplyCarriedAbsorption(Carried->CarriedAbsorption);
+                    BDManager->ApplyCarriedStrain(Carried->RunStrain); // B-348c: strain builds across the run
                 }
             }
 
@@ -308,6 +312,17 @@ void UCharacterDataComponent::SeedWorldStats()
     const int32 BaseBody   = CharacterData ? CharacterData->WorldBodyLevel   : 0;
     const int32 BaseSpirit = CharacterData ? CharacterData->WorldSpiritLevel : 0;
 
+    // B-348b: a rostered member's head-start lives on its party record (saved); the component keeps a copy. Only a
+    // pawn stamped with its member id reads it, as only one writes it (desktop review): an enemy sharing a member's
+    // asset doesn't inherit it, and an unstamped pawn keeps its own allocation.
+    const FPartyMember *Member = PartyMemberId.IsValid() ? FindCarriedPartyMember() : nullptr;
+    if (Member)
+    {
+        HeadStartMind = Member->HeadStartMind;
+        HeadStartBody = Member->HeadStartBody;
+        HeadStartSpirit = Member->HeadStartSpirit;
+    }
+
     // B-223: plus what this party member earned or bought this run (kept by the run across level travel).
     FName RunKey;
     const UTrialRunSubsystem *Run = FindRunLevelStore(RunKey);
@@ -366,6 +381,18 @@ bool UCharacterDataComponent::SetHeadStartAllocation(int32 M, int32 B, int32 S)
     HeadStartMind = M;
     HeadStartBody = B;
     HeadStartSpirit = S;
+    // B-348b: a rostered member keeps it on its party record, which the save writes. Only a pawn stamped with its
+    // member id writes back: an enemy that merely shares a member's character asset must not overwrite the record.
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UPartySessionSubsystem *PartySession = GI && PartyMemberId.IsValid() ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    if (PartySession)
+    {
+        const int32 Slot = PartySession->GetMemberSlotOf(this);
+        if (Slot != INDEX_NONE)
+        {
+            PartySession->SetMemberHeadStart(Slot, M, B, S);
+        }
+    }
     SeedWorldStats(); // new floor → re-seed live (NOTE: wipes earned this run — see header flag)
     return true;
 }
