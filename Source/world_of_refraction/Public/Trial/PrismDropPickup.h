@@ -23,8 +23,9 @@ public:
 
 	virtual void Interact(APawn *Pawn) override;
 
-	/** Takes the run's drop into the wallet and removes the pickup. False when there was nothing to take. */
-	bool PickUp();
+	/** Takes Pawn's player's own drop into their wallet (B-235; null: the local player's, as before) and removes the
+	 *  pickup once no player's drop is left. False when there was nothing of theirs to take. */
+	bool PickUp(APawn *Pawn = nullptr);
 
 	/** Removes any pickup already in World, then places one for Run's drop (null when there is none). */
 	static APrismDropPickup *PlaceForRun(UWorld *World, UTrialRunSubsystem &Run);

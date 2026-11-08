@@ -16,6 +16,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/Forms/CharacterFormData.h"
+#include "Save/CoopCheckpoint.h"
+#include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
+#include "Save/WoRSaveTypes.h" // FSavedQuestProgress (B-377b)
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
@@ -38,6 +41,8 @@ public:
 	 *  server's copy of a client's included). */
 	virtual void CopyProperties(APlayerState *PlayerState) override;
 	virtual void ClientInitialize(AController *Controller) override;
+	/** B-234b: the server sets a joining player's id after AddPlayerState; the join order (AWoRGameState) takes it here. */
+	virtual void OnSetUniqueId() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
 	UCharacterFormData *GetWornForm() const { return WornForm; }
@@ -70,9 +75,103 @@ public:
 	/** D-150 (B-360): ask the host for a seat in its run with Character (your own, picked before joining). On the
 	 *  server it goes straight to the run state; a client sends ServerRequestJoin. Console: `wor.Party.RequestJoin`. */
 	void RequestJoin(UCharacterData *Character);
+
+	/** B-232e: a client asks the host to recruit the character RecruitOwner plays (a found character in a run; the
+	 *  host's UPartyInteractionComponent::InviteForClient runs it, invites only). */
+	UFUNCTION(Server, Reliable)
+	void ServerRecruit(AActor *RecruitOwner);
+	/** B-235b: a map feature's message for this player alone (a Prism pickup), shown on their own screen. */
+	UFUNCTION(Client, Reliable)
+	void Client_ShowFeatureMessage(const FText &Message);
+
+	/** B-187d: this player's rest press reached the host (ServerInteractFeature), which rested the party; their own
+	 *  rest menu opens on their screen. B-187e: with what the host knows of the spot's mini-boss (Revive shows when
+	 *  bCanRevive, labelled RevivalNumber). */
+	UFUNCTION(Client, Reliable)
+	void Client_OpenRestMenu(bool bCanRevive, int32 RevivalNumber);
+
+	/** B-187e: a client pressed Revive in its rest menu: the host revives the mini-boss of the run's last rest spot, if it
+	 *  can (WoRRestSpot::CanReviveHere), for everyone. */
+	UFUNCTION(Server, Reliable)
+	void ServerReviveMiniBoss();
+
+	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
+	 *  player's pawn, if it stands in the feature's trigger. */
+	UFUNCTION(Server, Reliable)
+	void ServerInteractFeature(class ATrialMapFeature *Feature);
+
+	/** B-235d: the host's run unlocked Memory and it qualifies for this player: their own journal records it and only
+	 *  they see the notice (D-103: hidden unlocks are private). */
+	UFUNCTION(Client, Reliable)
+	void Client_UnlockMemory(class UMemoryData *Memory, EMemorySource Source);
+
+	/** B-379: one of this player's characters added to a hidden counter in a fight the host ran; their own save counts it. */
+	UFUNCTION(Client, Reliable)
+	void Client_AddCounter(FName Counter, class UCharacterData *Character);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
+	/** B-235d (Q-235d, Crown): the characters this player plays: the claimed characters and the characters of the
+	 *  claimed party members (the host's party knows them). A memory's conditions are read against these for them. */
+	TArray<UCharacterData *> GetOwnCharacters() const;
+	/** B-235d / B-235e (server): the memories this player has: what their journal reported on joining
+	 *  (ServerReportJournal), what they found themselves (ServerReportFoundMemory) and what the host sent them. Each
+	 *  memory goes to a player once; their PriorMemory conditions read this. Seamless travel carries it. */
+	bool HasMemoryId(FName MemoryId) const { return KnownMemoryIds.Contains(MemoryId); }
+	void AddMemoryId(FName MemoryId) { KnownMemoryIds.Add(MemoryId); }
+	const TSet<FName> &GetKnownMemoryIds() const { return KnownMemoryIds; }
+
+	/** B-235e: a client tells the host which memories its own journal holds (sent once it owns this state).
+	 *  TODO: trusted co-op only: no WithValidation and no cap on the list's size (add both before public matchmaking). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportJournal(const TArray<FName> &MemoryIds);
+
+	/** B-377b: a client's hidden quest progress, for the host to check its steps (sent on joining and on each change). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportQuests(const TArray<FSavedQuestProgress> &Quests);
+
+	/** B-377b (server): this player's unfinished quests: quest id -> steps done. */
+	const TMap<FName, int32> &GetReportedQuests() const { return ReportedQuests; }
+
+	/** B-377b (server): a gear quest offered to this player once (until they report it started). */
+	bool WasQuestOffered(FName QuestId) const { return OfferedQuests.Contains(QuestId); }
+	void MarkQuestOffered(FName QuestId) { OfferedQuests.Add(QuestId); }
+
+	/** B-377b: the host saw this player's own part of an event meet QuestId's current step. */
+	UFUNCTION(Client, Reliable)
+	void Client_QuestStepMet(FName QuestId, int32 StepIndex);
+
+	/** B-377b: this player's worn gear started Quest at an event the host ran. */
+	UFUNCTION(Client, Reliable)
+	void Client_StartQuest(class UHiddenQuestData *Quest);
+
+	/** B-235e: a client found Memory itself (its own map spot, fragment or event): the host notes it, and shares one for
+	 *  every character (it lists none) with itself and the other friends (Q-235d rule 3). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportFoundMemory(class UMemoryData *Memory, EMemorySource Source);
+
+	/** B-235d debug (`wor.Memory.Sent`): this player's own characters and the memories they have. */
+	FString GetSharedMemoriesString() const;
+
+	/** B-234 (host): sends this remote player the host's compressed save as checkpoint CheckpointId, in chunks. */
+	void SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize);
+
+	/** B-234 debug: the last checkpoint copy this client received and kept (wor.Coop.PrintCheckpoint). */
+	FString GetCheckpointString() const;
+
+	/** B-234c review: the host is handing over at a rest spot. Sent on this PlayerState after the checkpoint's chunks
+	 *  (reliable calls keep their order on one actor only), so the copy is complete before the client leaves. */
+	UFUNCTION(Client, Reliable)
+	void Client_BeginPlannedHandOver();
 
 private:
+	/** B-234: one chunk of the host's save; the last one of a checkpoint writes the copy to WoRCheckpoint::SLOT_NAME. */
+	UFUNCTION(Client, Reliable)
+	void Client_ReceiveCheckpointChunk(int32 CheckpointId, int32 ChunkIndex, int32 ChunkCount, int32 UncompressedSize, const TArray<uint8> &Chunk);
+
+	FCoopCheckpointAssembler CheckpointAssembler;
+	int32 KeptCheckpointId = INDEX_NONE;
+	int32 KeptCheckpointBytes = 0;
+	FDateTime KeptCheckpointTime;
+
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
 	bool IsLocalPlayerWallet() const;
 
@@ -118,4 +217,11 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Economy")
 	TObjectPtr<UCurrencyComponent> Wallet;
+
+	/** B-377b (server only): see GetReportedQuests / WasQuestOffered. */
+	TMap<FName, int32> ReportedQuests;
+	TSet<FName> OfferedQuests;
+
+	/** B-235d / B-235e (server only): the memory ids this player has (see HasMemoryId). */
+	TSet<FName> KnownMemoryIds;
 };
