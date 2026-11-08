@@ -9,6 +9,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "WoRLog.h"
@@ -48,9 +49,15 @@ bool WoRRestSpot::ReviveMiniBoss(UWorld *World)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	if (!Run || World->GetNetMode() == NM_Client || !Run->ReviveEncounter(Run->GetLastRestSpot()))
+	// Desktop review: only when the level can reload, so a revive is never spent for nothing.
+	const UTrialData *Trial = Run ? Run->GetActiveTrial() : nullptr;
+	if (!Run || World->GetNetMode() == NM_Client || !Trial || Trial->Level.IsNull() || !Run->ReviveEncounter(Run->GetLastRestSpot()))
 	{
 		return false;
+	}
+	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
+	{
+		Save->SaveNow(World, true); // desktop review: quitting right after a revive can't skip the mini-boss
 	}
 	// B-187c: the reload puts the party back where it stood to rest (ATrialGameMode::RestartPlayer).
 	FTransform Stand;
