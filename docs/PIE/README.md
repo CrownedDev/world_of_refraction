@@ -18,6 +18,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (unbuilt) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (unbuilt) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
 | [B-387](B-387.md) | `feature/B-387-crystal-amp-cloud` (unbuilt) | Worn crystals (and the seated evolution) grant Amp to their element by tier: F0 E0 D1 C1 B2 A2 S3 | Pending |
+| [B-389](B-389.md) | `feature/B-389-resistance-by-type-cloud` (UNBUILT, from dev) | Resistance by damage type: Defence is the All line; a Physical line cuts physical hits only | Pending |
 | [B-382](B-382.md) | `feature/B-382-amp-lines-cloud` (unbuilt) | Amp lines on gear: All / Physical / one element, added to the action's base; damage buffs keyed by element; `wor.Damage.Amp` | Pending |
 | [B-383](B-383.md) | `feature/B-383-damage-scopes-cloud` (unbuilt) | Every damage / defence boost has a scope (All, Physical, Spell, one element; default All); `wor.Damage.Scopes` | Pending |
 | [B-384](B-384.md) | `feature/B-384-one-damage-channel-cloud` (unbuilt) | The four all-damage % channels add into one; **stacked builds hit a little lower** (before / after numbers in the sheet); `wor.Damage.FoldAllDamage` | Pending |
