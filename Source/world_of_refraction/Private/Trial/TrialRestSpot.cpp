@@ -16,7 +16,7 @@
 
 #define LOCTEXT_NAMESPACE "TrialRestSpot"
 
-int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
+int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId, bool bLocalPlayerRests)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
@@ -28,10 +28,13 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId)
 	const int32 Revived = PartySession->ReviveFallenMembers(); // D-043: the fallen come back here
 	PartySession->SetAllMembersFull();
 	Run->NoteRestSpotUsed(RestSpotId); // a wipe sends the party back here (D-155)
-	Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here
-	if (UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>())
+	if (bLocalPlayerRests)
 	{
-		Forms->SetAtRestSpot(true); // review: the skin switch's older rest-spot flag follows the run's
+		Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here
+		if (UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>())
+		{
+			Forms->SetAtRestSpot(true); // review: the skin switch's older rest-spot flag follows the run's
+		}
 	}
 	UE_LOG(LogWoR, Log, TEXT("[RestSpot] Rested at %s: every member full, %d revived"), *RestSpotId.ToString(), Revived);
 	return Revived;
@@ -94,7 +97,9 @@ FText WoRRestSpot::GetLeaveConfirmText()
 
 void ATrialRestSpot::Interact(APawn *Pawn)
 {
-	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId()) == INDEX_NONE)
+	const APlayerController *RestingPC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
+	const bool bLocalPlayerRests = !RestingPC || RestingPC->IsLocalController();
+	if (WoRRestSpot::Rest(GetWorld(), GetRestSpotId(), bLocalPlayerRests) == INDEX_NONE)
 	{
 		return;
 	}

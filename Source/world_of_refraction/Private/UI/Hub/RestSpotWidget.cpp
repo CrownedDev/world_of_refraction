@@ -96,8 +96,12 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 
 		RestSpotStyle::AddText(WidgetTree, Box)->SetText(LOCTEXT("Rested", "Rest spot: the party is restored."));
 		PayoutText = RestSpotStyle::AddText(WidgetTree, Box);
-		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("LevelUp", "Level up"))
-			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
+		UButton *LevelUpButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("LevelUp", "Level up"));
+		LevelUpButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
+		// Merge B-363 + B-187e: a client's level drop reads its own (empty) run, so it would only say "No run".
+		// TODO: a server RPC so a client places its own pillar levels at the host's rest spot.
+		const bool bMenuOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
+		LevelUpButton->SetVisibility(bMenuOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Inventory", "Inventory"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInventoryClicked);
 		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
