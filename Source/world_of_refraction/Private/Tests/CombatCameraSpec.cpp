@@ -277,7 +277,7 @@ void FCombatCameraSpec::Define()
 			const float Base = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning()).End.GetLocation().X;
 			FSkillCameraTuning Twice;
 			Twice.DistanceScale = 2.0f;
-			TestEqual(TEXT("twice as far back"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Twice).End.GetLocation().X, Base * 2.0f, 0.01f);
+			TestEqual(TEXT("twice as far back"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Twice).End.GetLocation().X, Base * 2.0, 0.01);
 			FSkillCameraTuning Close, Wide;
 			Close.Style = ECameraShotStyle::Close;
 			Wide.Style = ECameraShotStyle::Wide;
