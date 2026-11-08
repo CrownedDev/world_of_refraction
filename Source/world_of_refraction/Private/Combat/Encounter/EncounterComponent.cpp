@@ -24,6 +24,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "TimerManager.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Trial/TrialRestSpot.h"
 
 namespace EncounterConstants
 {
@@ -48,6 +49,11 @@ void UEncounterComponent::BeginPlay()
 	if (Owner && TrialRun && TrialRun->IsEncounterBeaten(GetEncounterId()))
 	{
 		UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s was beaten earlier this run - removed"), *Owner->GetName());
+		// B-187b (RunStructure §4): a beaten mini-boss leaves a rest spot where it stood; its menu can revive it.
+		if (TrialRun->IsBeatenMiniBoss(GetEncounterId()) && Owner->HasAuthority())
+		{
+			ATrialRestSpot::SpawnForMiniBoss(GetWorld(), Owner->GetActorTransform(), GetEncounterId());
+		}
 		Owner->Destroy();
 		return;
 	}
@@ -384,6 +390,13 @@ void UEncounterComponent::OnJoinWindowExpired()
 	// EnterEncounter OpenLevels to the trial's battle stage; this component,
 	// the arena, and every trial actor die with the swap. If it rejects
 	// (no EncounterLevel authored), re-arm so the trial stays playable.
+	// B-187b (Q-187b): a revived mini-boss's fight is one tier stronger per revival (the most revived team rules).
+	int32 Revivals = 0;
+	for (const FName CaughtId : CaughtIds)
+	{
+		Revivals = FMath::Max(Revivals, TrialRun->GetEncounterRevivals(CaughtId));
+	}
+	TrialRun->SetPendingTierSteps(Revivals * MiniBossRevival::TIER_STEPS_PER_REVIVAL);
 	TrialRun->SetPendingEncounterSources(CaughtIds);
 	TrialRun->SetPendingEnemyRanks(MemberRanks);
 	TrialRun->SetPendingFirstStrike(PendingFirstStrike);
@@ -393,6 +406,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 	if (!TrialRun->HasPendingEncounter())
 	{
 		TrialRun->SetPendingEncounterSources({});
+		TrialRun->SetPendingTierSteps(0);
 		TrialRun->SetPendingEnemyRanks({});
 		TrialRun->SetPendingFirstStrike(EFirstStrike::None);
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
