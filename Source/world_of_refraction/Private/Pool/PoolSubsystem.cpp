@@ -2,6 +2,8 @@
 // Phase 1c (all owned types, INERT) implementation. See PoolSubsystem.h.
 
 #include "Pool/PoolSubsystem.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "WoRLog.h"
 #include "Equipment/Rings/RingData.h"
 
 #include "Pool/PoolAccessors.h"             // the filter/translation layer
@@ -141,6 +143,23 @@ const FRingInventoryEntry *UPoolSubsystem::FindRingInPool(const FGuid &Persisten
     return const_cast<UPoolSubsystem *>(this)->FindRingInPool(PersistentID);
 }
 
+FGuid UPoolSubsystem::AddApparelToPool(const FApparelEntry &Entry)
+{
+    FApparelEntry &Owned = OwnedApparel.Add_GetRef(Entry);
+    if (!Owned.PersistentID.IsValid())
+    {
+        Owned.PersistentID = FGuid::NewGuid(); // B-380b: owned from here
+    }
+    UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s banked (%d owned)"), *GetNameSafe(Owned.Apparel.Get()), OwnedApparel.Num());
+    return Owned.PersistentID;
+}
+
+const FApparelEntry *UPoolSubsystem::FindApparelInPool(const FGuid &PersistentID) const
+{
+    return PersistentID.IsValid() ? OwnedApparel.FindByPredicate([&PersistentID](const FApparelEntry &E) { return E.PersistentID == PersistentID; })
+                                  : nullptr;
+}
+
 void UPoolSubsystem::AddEvolutionToPool(const FEvolutionInventoryEntry &Entry)
 {
     OwnedEvolutions.Add(Entry);
@@ -196,8 +215,8 @@ FString UPoolSubsystem::GetStoreString() const
     {
         Owners.Add(Owned.Value);
     }
-    FString Out = FString::Printf(TEXT("[Pool] Store (B-312): %d weapon(s), %d adapter(s), %d evolution(s), %d owner(s)"), OwnedWeapons.Num(),
-                                  OwnedRings.Num(), OwnedEvolutions.Num(), Owners.Num());
+    FString Out = FString::Printf(TEXT("[Pool] Store (B-312): %d weapon(s), %d adapter(s), %d evolution(s), %d apparel (B-380b), %d owner(s)"),
+                                  OwnedWeapons.Num(), OwnedRings.Num(), OwnedEvolutions.Num(), OwnedApparel.Num(), Owners.Num());
     for (const FName Owner : Owners)
     {
         const FPoolGearView View = GetOwnedGearOf(Owner);
@@ -353,8 +372,9 @@ void UPoolSubsystem::RemoveGear(const FGuid &GearID)
     const auto MatchesWeapon = [&GearID](const FWeaponInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesRing = [&GearID](const FRingInventoryEntry &E) { return E.PersistentID == GearID; };
     const auto MatchesEvolution = [&GearID](const FEvolutionInventoryEntry &E) { return E.InstanceID == GearID; };
+    const auto MatchesApparel = [&GearID](const FApparelEntry &E) { return E.PersistentID == GearID; }; // B-380b
     const int32 Removed = OwnedWeapons.RemoveAll(MatchesWeapon) + OwnedRings.RemoveAll(MatchesRing) +
-                          OwnedEvolutions.RemoveAll(MatchesEvolution);
+                          OwnedEvolutions.RemoveAll(MatchesEvolution) + OwnedApparel.RemoveAll(MatchesApparel);
     MarkGearIndexDirty();
     Wearers.Remove(GearID);
     GearOwners.Remove(GearID);

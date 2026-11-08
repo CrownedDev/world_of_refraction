@@ -15,6 +15,8 @@
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutRules.h"
+#include "Pool/PoolSubsystem.h"
+#include "Save/SaveSubsystem.h"
 
 namespace
 {
@@ -135,6 +137,31 @@ void FApparelSpec::Define()
 		TestEqual(TEXT("its effect counts"), Loadout->GetActiveEffects(Loadout->GetOwner()).Num(), EffectsBefore + 1);
 		TestEqual(TEXT("its Fire resistance counts"), Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire - FireBefore,
 				  ApparelRules::CRYSTAL_ELEMENT_RESISTANCE);
+	});
+
+	It("is owned in the store with its socket and comes back from the save (B-380b)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool"), Pool))
+		{
+			return;
+		}
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.AttachedItem.Kind = EAttachedItemKind::Crystal;
+		Piece.AttachedItem.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		Piece.StatBonus.BonusDefense = 1;
+		const FGuid Id = Pool->AddApparelToPool(Piece);
+		TestTrue(TEXT("owned: an id minted"), Id.IsValid());
+		TestNotNull(TEXT("found by its id"), Pool->FindApparelInPool(Id));
+
+		const int32 OwnedBefore = Pool->GetOwnedApparel().Num();
+		const FSavedPool Saved = USaveSubsystem::CapturePool(*Pool);
+		USaveSubsystem::RestorePool(Saved, *Pool); // restored beside the original
+		TestEqual(TEXT("restored as apparel"), Pool->GetOwnedApparel().Num(), OwnedBefore * 2);
+		const FApparelEntry &Back = Pool->GetOwnedApparel().Last();
+		TestTrue(TEXT("same id"), Back.PersistentID == Id);
+		TestEqual(TEXT("its crystal: Fire"), Back.GetElement(), ESpellElement::Fire);
+		TestEqual(TEXT("its roll"), Back.StatBonus.BonusDefense, 1);
 	});
 }
 
