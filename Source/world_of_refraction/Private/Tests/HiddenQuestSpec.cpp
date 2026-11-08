@@ -141,12 +141,15 @@ void FHiddenQuestSpec::Define()
 		NotWorn.Party.Add({Wearer, {}});
 		TestEqual(TEXT("not worn: nothing starts"), Quests->StartGearQuests(NotWorn), 0);
 
+		FMemoryEventMember Wearing;
+		Wearing.Character = Wearer;
+		Wearing.Worn.Emplace(Sword, EItemTier::F_Tier);
 		FMemoryEvent WornElsewhere;
-		WornElsewhere.Party.Add({Wearer, {{Sword, EItemTier::F_Tier}}});
+		WornElsewhere.Party.Add(Wearing);
 		TestEqual(TEXT("worn, conditions unmet: nothing starts"), Quests->StartGearQuests(WornElsewhere), 0);
 
 		FMemoryEvent Worn = AtLocation();
-		Worn.Party.Add({Wearer, {{Sword, EItemTier::F_Tier}}});
+		Worn.Party.Add(Wearing);
 		TestEqual(TEXT("worn and met: it starts"), Quests->StartGearQuests(Worn), 1);
 		TestTrue(TEXT("started"), Quests->IsStarted(Quest->GetQuestId()));
 		TestEqual(TEXT("once"), Quests->StartGearQuests(Worn), 0);
