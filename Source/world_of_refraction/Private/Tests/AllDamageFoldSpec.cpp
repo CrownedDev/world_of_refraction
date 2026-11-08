@@ -21,6 +21,11 @@ namespace
 	constexpr int32 FOLD_TEST_EFFECT_ID = 9384;
 	constexpr float FOLD_TEST_PERCENT = 20.0f;
 	constexpr int32 FOLD_TEST_TURNS = 2;
+	/** Keeps the strength buff's id clear of the boosts' (each boost takes the next id up from FOLD_TEST_EFFECT_ID). */
+	constexpr int32 FOLD_TEST_STRENGTH_EFFECT_ID = FOLD_TEST_EFFECT_ID + 100;
+	/** Far past the RawDamage cap, so the stat-cap correction is active. */
+	constexpr int32 FOLD_TEST_OVERCAP_POINTS = 500;
+	constexpr float FOLD_TEST_SMALL_DEBUFF = 10.0f;
 
 	struct FFoldBoost
 	{
@@ -47,7 +52,7 @@ BEGIN_DEFINE_SPEC(FAllDamageFoldSpec, "WoR.Damage.AllDamageFold", EAutomationTes
 	}
 
 	/** One hit's final damage with Boosts on the attacker (each its own effect id, as from different sources). */
-	int32 Hit(EActionType ActionType, ESpellElement HitElement, const TArray<FFoldBoost> &Boosts)
+	int32 Hit(EActionType ActionType, ESpellElement HitElement, const TArray<FFoldBoost> &Boosts, int32 AttackerRawPoints = 0)
 	{
 		UDamageCalculator *Calculator = TestWorld->GetSubsystem<UDamageCalculator>();
 		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
@@ -56,7 +61,9 @@ BEGIN_DEFINE_SPEC(FAllDamageFoldSpec, "WoR.Damage.AllDamageFold", EAutomationTes
 			AddError(TEXT("no calculator or effect manager"));
 			return INDEX_NONE;
 		}
-		AActor *Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UCharacterData *AttackerData = FWoRTestWorld::NewCharacterData();
+		AttackerData->RawDamage = AttackerRawPoints;
+		AActor *Attacker = TestWorld->SpawnCombatant(AttackerData);
 		AActor *Defender = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		int32 Id = FOLD_TEST_EFFECT_ID;
 		for (const FFoldBoost &Boost : Boosts)
@@ -124,7 +131,7 @@ void FAllDamageFoldSpec::Define()
 		{
 			return;
 		}
-		FActiveSkillEffect Strength = FActiveSkillEffect::CreatePersistent(TEXT("Enemy strength (damage)"), FOLD_TEST_EFFECT_ID + 100,
+		FActiveSkillEffect Strength = FActiveSkillEffect::CreatePersistent(TEXT("Enemy strength (damage)"), FOLD_TEST_STRENGTH_EFFECT_ID,
 																		   ESkillEffectType::DamageBuff, FOLD_TEST_PERCENT);
 		Strength.bFromGear = true;
 		Effects->ApplyEffect(LastAttacker, Strength);
@@ -141,6 +148,17 @@ void FAllDamageFoldSpec::Define()
 		TestTrue(TEXT("the debug shows the one line"), WoRDamageScopeDebug::GetAllDamageString(LastAttacker).Contains(TEXT("All-damage")));
 	});
 
+	It("at the stat cap a Raw buff never lowers a hit and a Raw debuff never raises it (they sit in the one sum)", [this]()
+	{
+		const FFoldBoost Generic = Of(ESkillEffectType::DamageBuff);
+		const int32 GenericOnly = Hit(EActionType::Ability, ESpellElement::None, {Generic}, FOLD_TEST_OVERCAP_POINTS);
+		const int32 WithRawBuff = Hit(EActionType::Ability, ESpellElement::None, {Generic, Of(ESkillEffectType::RawDamageBuff)}, FOLD_TEST_OVERCAP_POINTS);
+		const int32 WithRawDebuff = Hit(EActionType::Ability, ESpellElement::None,
+										{Generic, Of(ESkillEffectType::RawDamageDebuff, FOLD_TEST_SMALL_DEBUFF)}, FOLD_TEST_OVERCAP_POINTS);
+		TestTrue(TEXT("a Raw buff adds"), WithRawBuff > GenericOnly);
+		TestTrue(TEXT("a Raw debuff takes away"), WithRawDebuff < GenericOnly);
+	});
+
 	It("wor.Damage.FoldAllDamage 0 brings back the old multiplied channels (before / after check)", [this]()
 	{
 		IConsoleVariable *Fold = IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Damage.FoldAllDamage"));
@@ -148,11 +166,15 @@ void FAllDamageFoldSpec::Define()
 		{
 			return;
 		}
+		// Console priority, so a value Crown typed earlier in the session (PIE B-384 check 3) can't override it;
+		// the earlier value is put back.
+		const int32 Before = Fold->GetInt();
 		const TArray<FFoldBoost> Stack = {Of(ESkillEffectType::DamageBuff), Of(ESkillEffectType::ModifyDamageDealt)};
+		Fold->Set(1, ECVF_SetByConsole);
 		const int32 Folded = Hit(EActionType::Spell, ESpellElement::Fire, Stack);
-		Fold->Set(0, ECVF_SetByCode);
+		Fold->Set(0, ECVF_SetByConsole);
 		const int32 Multiplied = Hit(EActionType::Spell, ESpellElement::Fire, Stack);
-		Fold->Set(1, ECVF_SetByCode);
+		Fold->Set(Before, ECVF_SetByConsole);
 		TestTrue(TEXT("the old path stacks higher (x1.44 against x1.40)"), Multiplied > Folded);
 	});
 }

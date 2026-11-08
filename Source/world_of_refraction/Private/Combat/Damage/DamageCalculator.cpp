@@ -55,6 +55,8 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AActor *Defender,
 															const FDamageCalculationInput &Input) const
 {
+	// B-384 (D-167): read once per hit, so the cap correction and the status factor agree.
+	const bool bFoldAllDamage = CVarFoldAllDamage.GetValueOnAnyThread() != 0;
 	FDamageMathInputs Inputs;
 	Inputs.BaseDamage = Input.BaseDamage;
 	Inputs.bIsSpell = Input.ActionType == EActionType::Spell;
@@ -70,9 +72,10 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		Inputs.bHasAttackerStats = true;
 		Inputs.EquipmentTerm = Inputs.bIsSpell ? AttackerComp->GetEquipmentSpellDamageTerm() : AttackerComp->GetEquipmentRawDamageTerm();
 		Inputs.StoneFactor = Inputs.bIsSpell ? AttackerComp->GetStoneSpellDamageFactor() : AttackerComp->GetStoneRawDamageFactor();
-		// B-383 review: the same scoped Raw / Spell net the status factor applies, so the stat-cap correction (which
-		// divides by it) still cancels it below the caps and caps the same value at them.
-		Inputs.TransientFactor = GetScopedTransientDamageFactor(Attacker, Inputs.bIsSpell, Input.Element);
+		// B-384 (D-167): folded, the Raw / Spell buffs live in the one All-damage sum (the status factor), which no
+		// stat cap limits, so the cap correction sees no transient layer. OBSOLETE unfolded path: the same scoped net
+		// the status factor applies (B-383 review), cancelled below the caps and capped at them.
+		Inputs.TransientFactor = bFoldAllDamage ? 1.0f : GetScopedTransientDamageFactor(Attacker, Inputs.bIsSpell, Input.Element);
 		Inputs.EvolutionModifiedStat = Inputs.bIsSpell ? AttackerComp->GetEvolutionModifiedSpellDamage() : AttackerComp->GetEvolutionModifiedRawDamage();
 		// The gear term joins the attacker multiplier only with a loadout (as before B-219).
 		if (Attacker->FindComponentByClass<ULoadoutComponent>())
@@ -99,7 +102,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	{
 		Inputs.GridDamageModifier = Grid->GetDamageModifier(Attacker);
 	}
-	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType, Input.Element);
+	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType, Input.Element, bFoldAllDamage);
 	// B-293d: the defender's Damage Taken share and Guard's, so the damage floor measures from the unreduced hit.
 	Inputs.GuardFactor = Input.GuardFactor;
 	if (const USkillEffectManager *StatusManager = Defender ? GetSkillEffectManager() : nullptr)
@@ -523,7 +526,8 @@ float UDamageCalculator::GetAllDamagePercent(AActor *Attacker, EActionType Actio
 	return Generic + Dealt + Axis;
 }
 
-float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType, ESpellElement HitElement) const
+float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType, ESpellElement HitElement,
+														bool bFoldAllDamage) const
 {
 	float Modifier = 1.0f;
 
@@ -542,7 +546,7 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	// Attacker damage buffs/debuffs
 	if (Attacker)
 	{
-		if (CVarFoldAllDamage.GetValueOnGameThread() != 0)
+		if (bFoldAllDamage)
 		{
 			// B-384 (D-167): one All-damage channel: every source's percent adds into one total, applied once.
 			Modifier *= FMath::Max(0.0f, 1.0f + GetAllDamagePercent(Attacker, ActionType, HitElement) / CombatConstants::STAT_PERCENT_DIVISOR);
