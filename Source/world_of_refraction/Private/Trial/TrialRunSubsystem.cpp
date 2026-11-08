@@ -1,6 +1,7 @@
 // TrialRunSubsystem.cpp
 
 #include "Trial/TrialRunSubsystem.h"
+#include "Character/OverCapRules.h"
 #include "Memory/MemoryData.h"
 #include "Trial/DefeatRules.h"
 #include "WoRLog.h"
@@ -349,6 +350,22 @@ int32 UTrialRunSubsystem::GetRunLevelPurchases(FName CharacterKey) const
 {
     const FRunLevels *Levels = RunLevels.Find(CharacterKey);
     return Levels ? Levels->Purchases : 0;
+}
+
+int32 UTrialRunSubsystem::GetRunOverCap(FName CharacterKey, EWorldPillar Pillar) const
+{
+    const FRunLevels *Levels = RunLevels.Find(CharacterKey);
+    return Levels ? Levels->GetOver(Pillar) : 0;
+}
+
+bool UTrialRunSubsystem::AddRunOverCap(FName CharacterKey, EWorldPillar Pillar)
+{
+    if (CharacterKey.IsNone() || GetRunOverCap(CharacterKey, Pillar) >= OverCapRules::MAX_PER_PILLAR)
+    {
+        return false;
+    }
+    ++RunLevels.FindOrAdd(CharacterKey).OverFor(Pillar);
+    return true;
 }
 
 void UTrialRunSubsystem::AddRunLevelPurchase(FName CharacterKey)

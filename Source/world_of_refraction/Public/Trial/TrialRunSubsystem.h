@@ -155,6 +155,11 @@ public:
     void AddRunEarnedLevels(FName CharacterKey, EWorldPillar Pillar, int32 Count);
     /** Levels Character bought from a vendor this run (the rising price, D-102). */
     int32 GetRunLevelPurchases(FName CharacterKey) const;
+
+    /** B-364 (D-157): a character's over-cap points in Pillar this run, and adding one (false at
+     *  OverCapRules::MAX_PER_PILLAR). They end with the run's levels. */
+    int32 GetRunOverCap(FName CharacterKey, EWorldPillar Pillar) const;
+    bool AddRunOverCap(FName CharacterKey, EWorldPillar Pillar);
     void AddRunLevelPurchase(FName CharacterKey);
     /** Forgets one character's run levels, purchases and waiting dropped levels (UCharacterDataComponent::ResetRunWorldStats). */
     void ForgetRunLevels(FName CharacterKey);
@@ -393,6 +398,12 @@ private:
         int32 Body = 0;
         int32 Spirit = 0;
         int32 Purchases = 0;
+        /** B-364 (D-157): over-cap points per pillar (OverCapRules::MAX_PER_PILLAR at most). */
+        int32 OverMind = 0;
+        int32 OverBody = 0;
+        int32 OverSpirit = 0;
+        int32 &OverFor(EWorldPillar Pillar) { return Pillar == EWorldPillar::Body ? OverBody : Pillar == EWorldPillar::Spirit ? OverSpirit : OverMind; }
+        int32 GetOver(EWorldPillar Pillar) const { return Pillar == EWorldPillar::Body ? OverBody : Pillar == EWorldPillar::Spirit ? OverSpirit : OverMind; }
         int32 &For(EWorldPillar Pillar) { return Pillar == EWorldPillar::Body ? Body : Pillar == EWorldPillar::Spirit ? Spirit : Mind; }
         int32 Get(EWorldPillar Pillar) const { return Pillar == EWorldPillar::Body ? Body : Pillar == EWorldPillar::Spirit ? Spirit : Mind; }
     };
