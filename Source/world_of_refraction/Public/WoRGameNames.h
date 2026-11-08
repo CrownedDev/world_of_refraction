@@ -47,7 +47,7 @@ namespace WoRGameNames
     /** "Front Row", "Middle Row", "Back Row". */
     WORLD_OF_REFRACTION_API FText GetCombatRowName(ECombatRow Row);
 
-    /** "Conjuration", "Enhancement", "Restoration"; a retired school shows its mapped one (Q-356). */
+    /** The six school names (D-163, B-374): "Destruction", "Conjuration", "Enhancement", "Restoration", "Manipulation", "Impairment". */
     WORLD_OF_REFRACTION_API FText GetSpellSchoolName(ESpellSchool School);
 
     /** The merchant and its wares in brackets: "Blacksmith (weapons, augment stones)". */
