@@ -10,6 +10,7 @@
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Skills/Effects/FSkillCondition.h"
+#include "Skills/Effects/SkillConditionGroup.h"
 #include "Skills/Effects/FSkillEffectPayload.h"
 #include "WoRGameNames.h"
 #include "FSkillEffect.generated.h"
@@ -42,6 +43,18 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
      *  Empty == Always (unconditional). The single source of truth for gating. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
     TArray<FSkillCondition> Conditions;
+
+    /** B-337e: the condition group in the one vocabulary; the checks read it (SkillConditions::GroupOf). Filled from
+     *  Conditions on load when empty (MigrateConditionGroup); a resave stores it. Conditions goes in the sweep
+     *  (docs/PIE/Sweep.md row 46) once Crown's PIE pass is in. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Conditions")
+    FSkillConditionGroup ConditionGroup;
+
+    /** B-337e: this load filled ConditionGroup from Conditions, so the asset is not resaved yet (wor.Conditions.ListOld). */
+    bool bConditionGroupMigratedOnLoad = false;
+
+    /** B-337e: fills an empty ConditionGroup from the old Conditions (same result, SkillConditions::ToAuthored). */
+    void MigrateConditionGroup();
 
     /** Payload list: one effect may carry several payloads (FSkillEffectPayload).
      *  Each payload is one applied effect (type/value/duration/target). */
@@ -317,6 +330,10 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     void PostSerialize(const FArchive &Ar)
     {
         SyncThresholdFlags();
+        if (Ar.IsLoading())
+        {
+            MigrateConditionGroup(); // B-337e
+        }
     }
 };
 
