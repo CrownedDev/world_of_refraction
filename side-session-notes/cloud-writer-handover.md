@@ -1,3 +1,15 @@
+# Cloud writer handover (2026-11-08, second part, after the brain widened the rules) — IN PROGRESS
+
+The brain (Crown's coordinating session) widened the rules at 06:37 UTC: stack on my own UNBUILT branches where a job depends on one, pre-write the co-op jobs (headless specs + PIE sheet), write the CC part of CC+UE jobs; still skip B-340 and B-042f. Slicing L / M jobs into part 1 + a new row, as before.
+
+| Job | Branch | State | Q- defaults chosen |
+|---|---|---|---|
+| B-232b | `feature/B-232b-menu-on-commander-cloud` (**on** `feature/B-228b-client-combat-hud-cloud`) | REVIEW part 1 (UNBUILT): `CommandMenuRules::OpensHere`; the host's menu opens only for members it commands; a client opens its own member's menu from `OnRep_TurnState`; TurnStateSpec case; Rules PA-37c, PIE B-232b. The rest is new row **B-232c** (run readers on `URunStateComponent::Get*`, a recruit fills a spot) | none |
+| B-235 | `feature/B-235-personal-prism-drops-cloud` | REVIEW part 1 (UNBUILT): per-player Prism drops at one spot (`UTrialRunSubsystem::DropPrismsForPlayer` / `TakeDropForPlayer` / `GetTotalDroppedPrisms`), every player's wallet drops on a wipe, the pickup gives each their own and stays for the others; DefeatSpec case; Rules ER-12b, PIE B-235. Only the host's drop is saved (a client's run copy is B-234). The rest is new row **B-235b** | none |
+| B-357b | not started | **Left for the desktop:** "only while that item is infused at level 2" has no item state behind it (infusion is a per-action charge today), so the gear rule needs a model decision with the code, and the one resolve path touches ~220 reads: best done with a compiler | — |
+
+---
+
 # Cloud writer handover (2026-11-08 night run) — STOPPED: no cleanly writable job left
 
 wor-reviewer read B-348b / B-349 / B-355b too (no blockers; fixes pushed: B-355b shares the phase fight state, B-348b write-back only for a stamped pawn + level drops count the head-start, B-349 `wor.Turns.PrintBelt`). Last review (B-351b / B-357 / B-228b): fixed and pushed: B-357 two ClassLimitsSpec cases that would fail with the adapter cost 3, and its storage-size note; B-228b now owns the client HUD in UTurnStateComponent (the orchestrator is server-only) and waits for both sides; B-351b comment. Open notes for the builder: B-351b has no spec of the fight-to-fight carry itself (Snapshot → Apply), and the party debug print does not show the stone socket. Earlier: wor-reviewer read B-367b and B-374 (no blockers), and B-368 and B-370 (three must-fixes in the B-370 director: an instant hand-off under a cinematic, arm turns, movement off; plus play rates and an unused B-368 helper): all fixed and pushed. its fixes are pushed on both branches (stale comments; the school audit also lists Conjuration damage spells as "check: conjured, or Destruction"; PIE check for the new `School_Destruction` button id).
