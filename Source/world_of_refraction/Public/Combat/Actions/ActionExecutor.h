@@ -124,11 +124,15 @@ struct FActionDamagePreview
 {
 	/** Attacker-side base from the skill asset. */
 	int32 BaseDamage = 0;
-	/** Charge (infusion level) damage multiplier applied to BaseDamage. */
+	/** B-382 (Q-164b): the user's Amp total for the action's resolved element, added to BaseDamage before the
+	 *  charge multiplier (once per action). */
+	int32 AmpBonus = 0;
+	/** Charge (infusion level) damage multiplier applied to BaseDamage + AmpBonus. */
 	float ChargeMultiplier = 1.0f;
 	/** Weapon requirement factor (B-162): 1.0 for spells, unarmed, or a met requirement. */
 	float WeaponRequirementFactor = 1.0f;
-	/** BaseDamage x charge x tier-gap x tier-power x weapon requirement, each step rounded as execution does. */
+	/** (BaseDamage + AmpBonus) x charge x tier-gap x tier-power x skill requirement, plus the weapon part, each step
+	 *  rounded as execution does. */
 	int32 FinalDamage = 0;
 	/** The element the hit carries (a Generic spell resolved to its source; infused abilities carry
 	 *  the user's innate element; never Generic). */
@@ -408,6 +412,10 @@ public:
 	/** B-220 (D-101): the active weapon's part of an attack or ability (WoRWeaponPower::GetWeaponPart at the copy's
 	 *  tier, the live pillar levels and the requirement factor); 0 for spells, unarmed and a weapon with Power 0. */
 	float GetWeaponPart(AActor *Actor, const FAction &Action) const;
+
+	/** B-382 (Q-164b A): Actor's Amp total for an action of ResolvedElement: the worn gear's Amp lines
+	 *  (ULoadoutComponent::GetActiveStatBonus), All + Physical or that element. 0 with no loadout (enemies). */
+	int32 GetActionAmp(AActor *Actor, ESpellElement ResolvedElement) const;
 
 	/** B-220: the active weapon's Power, grades, requirement factor and part for Actor (`wor.Weapon.Print`). */
 	FString GetWeaponPartString(AActor *Actor) const;
