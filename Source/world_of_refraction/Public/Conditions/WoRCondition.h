@@ -123,6 +123,8 @@ enum class EWoRConditionSubject : uint8
 	/** B-376 (MemoryCatalogue §3.7): Character is present in the event's whole team (FMemoryEvent::Present: every
 	 *  player's characters in co-op), not only in the part being read. Pair memories use two of these. */
 	CharacterPresent = 27,
+	/** B-378 (MemoryCatalogue §3.8): this player holds the curse CurseId (FWoRConditionContext::HeldCurses). */
+	CurseHeld = 28,
 };
 
 /** Whose state a fight subject reads (the deckbuilder's Who). Append only. */
@@ -199,6 +201,10 @@ struct WORLD_OF_REFRACTION_API FWoRCondition
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	FName LocationId;
+
+	/** B-378: CurseHeld's curse id. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	FName CurseId;
 
 	/** Hp / HpPercent / EpPercent / Defender: whose. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")

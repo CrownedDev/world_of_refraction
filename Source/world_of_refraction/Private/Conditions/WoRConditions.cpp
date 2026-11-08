@@ -10,6 +10,8 @@
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "Memory/CurseSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Memory/MemoryUnlock.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
@@ -223,6 +225,8 @@ namespace
 			return Condition.Character && IsMemberInParty(Condition.Character, Event);
 		case EWoRConditionSubject::CharacterPresent:
 			return Condition.Character && IsPresent(Condition.Character, Event);
+		case EWoRConditionSubject::CurseHeld:
+			return !Condition.CurseId.IsNone() && Context.HeldCurses && Context.HeldCurses->Contains(Condition.CurseId);
 		case EWoRConditionSubject::GearEquipped:
 			return IsGearMet(Condition, Event);
 		case EWoRConditionSubject::AtLocation:
@@ -271,6 +275,7 @@ namespace
 		case EMemoryConditionKind::BreakthroughUsed:  return EWoRConditionSubject::BreakthroughUsed;
 		case EMemoryConditionKind::FinishingBlow:     return EWoRConditionSubject::FinishingBlow;
 		case EMemoryConditionKind::PartyHas:          return EWoRConditionSubject::CharacterPresent;
+		case EMemoryConditionKind::CurseHeld:         return EWoRConditionSubject::CurseHeld;
 		}
 		return EWoRConditionSubject::Hidden; // an unknown kind never holds, as before
 	}
@@ -412,6 +417,10 @@ FWoRConditionContext WoRConditions::MakeContext(const FMemoryEvent &Event, const
 	Context.Trigger = TriggerFor(Event.Source);
 	Context.Event = &Event;
 	Context.Journal = Journal;
+	// B-378: this player's curses, from the same game instance as the journal.
+	const UGameInstance *GameInstance = Journal ? Journal->GetGameInstance() : nullptr;
+	const UCurseSubsystem *Curses = GameInstance ? GameInstance->GetSubsystem<UCurseSubsystem>() : nullptr;
+	Context.HeldCurses = Curses ? &Curses->GetHeldCurses() : nullptr;
 	return Context;
 }
 
@@ -427,6 +436,7 @@ FWoRCondition WoRConditions::FromMemory(const FMemoryCondition &Condition)
 	Out.Enemy = Condition.Enemy;
 	Out.PriorMemory = Condition.PriorMemory;
 	Out.LocationId = Condition.LocationId;
+	Out.CurseId = Condition.CurseId; // B-378
 	Out.Operator = EWoRConditionOperator::AtLeast;
 	Out.Value = Condition.UpgradeLevel;
 	Out.RequirementFit = FitFor(Condition.RequirementFit);
@@ -462,6 +472,10 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	if (!Condition.LocationId.IsNone())
 	{
 		Out += TEXT(" ") + Condition.LocationId.ToString();
+	}
+	if (!Condition.CurseId.IsNone())
+	{
+		Out += TEXT(" ") + Condition.CurseId.ToString(); // B-378
 	}
 	if (IsFighterSubject(Condition.Subject))
 	{
