@@ -12,6 +12,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/Camera/CombatCameraComponent.h"
+#include "LevelSequence.h"
 
 namespace
 {
@@ -202,6 +203,109 @@ void FCombatCameraSpec::Define()
 			const FCinematicWindowTiming Timing = FCombatCameraRules::ReadWindowTiming(NewObject<UAbilityData>(GetTransientPackage()), 1.0f, false);
 			TestFalse(TEXT("no window"), Timing.bHasAuthoredWindow);
 			TestFalse(TEXT("nothing to defend"), Timing.bHasDefendable);
+		});
+	});
+
+	Describe("shot patterns (B-371, Q-371)", [this]()
+	{
+		// Caster at the origin, one target 1000 cm ahead on +X (Right is +Y).
+		const auto Context = [](TArray<FVector> Targets = {FVector(1000.0f, 0.0f, 0.0f)})
+		{
+			FCameraShotContext Out;
+			Out.Targets = MoveTemp(Targets);
+			return Out;
+		};
+
+		It("winds up over the caster's shoulder and pushes in", [this, Context]()
+		{
+			const FCameraShot Shot = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning());
+			TestTrue(TEXT("behind the caster"), Shot.End.GetLocation().X < 0.0f);
+			TestTrue(TEXT("pushes in"), Shot.Start.GetLocation().X < Shot.End.GetLocation().X);
+			TestTrue(TEXT("right shoulder"), Shot.End.GetLocation().Y > 0.0f);
+			TestTrue(TEXT("over time"), Shot.BlendSeconds > 0.0f);
+			FSkillCameraTuning Left;
+			Left.Side = ECameraShotSide::Left;
+			TestTrue(TEXT("left shoulder when tuned"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Left).End.GetLocation().Y < 0.0f);
+		});
+
+		It("frames the target on impact with a FOV punch and a shake, larger on a crit", [this, Context]()
+		{
+			const FCameraShot Hit = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Context(), FSkillCameraTuning());
+			const FVector ToTarget = (FVector(1000.0f, 0.0f, 0.0f) - Hit.End.GetLocation()).GetSafeNormal();
+			TestTrue(TEXT("looks at the target"), FVector::DotProduct(Hit.End.GetRotation().GetForwardVector(), ToTarget) > 0.99f);
+			TestTrue(TEXT("FOV punch"), Hit.FieldOfView < FCombatCameraRules::DefaultFieldOfView);
+			TestTrue(TEXT("a shake"), Hit.ShakeScale > 0.0f);
+			FCameraShotContext CritContext = Context();
+			CritContext.bCritical = true;
+			const FCameraShot Crit = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, CritContext, FSkillCameraTuning());
+			TestTrue(TEXT("crit: a bigger punch"), Crit.FieldOfView < Hit.FieldOfView);
+			TestTrue(TEXT("crit: a bigger shake"), Crit.ShakeScale > Hit.ShakeScale);
+			FSkillCameraTuning Calm;
+			Calm.ShakeScale = 0.0f;
+			const FCameraShot Still = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, CritContext, Calm);
+			TestEqual(TEXT("no shake when tuned off"), Still.ShakeScale, 0.0f);
+			TestEqual(TEXT("no punch when tuned off"), Still.FieldOfView, FCombatCameraRules::DefaultFieldOfView);
+		});
+
+		It("pulls out for several targets, further the wider they stand", [this, Context]()
+		{
+			TestEqual(TEXT("one target: Impact"), FCombatCameraRules::ImpactMomentFor(1), ECameraShotMoment::Impact);
+			TestEqual(TEXT("two: Spread"), FCombatCameraRules::ImpactMomentFor(2), ECameraShotMoment::Spread);
+			const FCameraShot Close = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread,
+				Context({FVector(1000.0f, -100.0f, 0.0f), FVector(1000.0f, 100.0f, 0.0f)}), FSkillCameraTuning());
+			const FCameraShot Far = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread,
+				Context({FVector(1000.0f, -600.0f, 0.0f), FVector(1000.0f, 600.0f, 0.0f)}), FSkillCameraTuning());
+			TestTrue(TEXT("wider spread: further back"), Far.End.GetLocation().X < Close.End.GetLocation().X);
+		});
+
+		It("follows the projectile on the Cast shot, or holds on the target", [this, Context]()
+		{
+			FCameraShotContext Flying = Context();
+			Flying.Projectile = FVector(400.0f, 0.0f, 600.0f);
+			const FCameraShot Follow = FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, Flying, FSkillCameraTuning());
+			const FVector ToProjectile = (Flying.Projectile.GetValue() - Follow.End.GetLocation()).GetSafeNormal();
+			TestTrue(TEXT("looks at the projectile"), FVector::DotProduct(Follow.End.GetRotation().GetForwardVector(), ToProjectile) > 0.99f);
+			FSkillCameraTuning Hold;
+			Hold.bFollowProjectile = false;
+			const FCameraShot Held = FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, Flying, Hold);
+			const FVector ToTarget = (FVector(1000.0f, 0.0f, 0.0f) - Held.End.GetLocation()).GetSafeNormal();
+			TestTrue(TEXT("tuned off: looks at the target"), FVector::DotProduct(Held.End.GetRotation().GetForwardVector(), ToTarget) > 0.99f);
+		});
+
+		It("changes with the tuning: distance and style", [this, Context]()
+		{
+			const float Base = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning()).End.GetLocation().X;
+			FSkillCameraTuning Twice;
+			Twice.DistanceScale = 2.0f;
+			TestEqual(TEXT("twice as far back"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Twice).End.GetLocation().X, Base * 2.0f, 0.01f);
+			FSkillCameraTuning Close, Wide;
+			Close.Style = ECameraShotStyle::Close;
+			Wide.Style = ECameraShotStyle::Wide;
+			TestTrue(TEXT("Wide sits further back than Close"),
+					 FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Wide).End.GetLocation().X
+						 < FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Close).End.GetLocation().X);
+			FCameraShotContext Ranged = Context();
+			Ranged.bRanged = true;
+			TestTrue(TEXT("Default frames a ranged skill wide"),
+					 FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Ranged, FSkillCameraTuning()).End.GetLocation().X < Base);
+		});
+
+		It("blends from start to end and holds at the end", [this, Context]()
+		{
+			const FCameraShot Shot = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning());
+			TestTrue(TEXT("at the start"), FCombatCameraRules::BlendShot(Shot, 0.0f).GetLocation().Equals(Shot.Start.GetLocation(), 0.1f));
+			TestTrue(TEXT("at the end"), FCombatCameraRules::BlendShot(Shot, 1.0f).GetLocation().Equals(Shot.End.GetLocation(), 0.1f));
+			TestTrue(TEXT("held past the end"), FCombatCameraRules::BlendShot(Shot, 2.0f).GetLocation().Equals(Shot.End.GetLocation(), 0.1f));
+		});
+
+		It("plays a skill's own CameraSequence instead (a signature move)", [this]()
+		{
+			UAbilityData *Plain = NewObject<UAbilityData>(GetTransientPackage());
+			TestTrue(TEXT("no sequence: the patterns"), FCombatCameraRules::UsesShotPatterns(Plain));
+			UAbilityData *Signature = NewObject<UAbilityData>(GetTransientPackage());
+			Signature->CameraSequence = TSoftObjectPtr<ULevelSequence>(FSoftObjectPath(TEXT("/Game/Test/LS_SignatureTest.LS_SignatureTest")));
+			TestFalse(TEXT("its own sequence wins"), FCombatCameraRules::UsesShotPatterns(Signature));
+			TestFalse(TEXT("no skill: nothing"), FCombatCameraRules::UsesShotPatterns(nullptr));
 		});
 	});
 }
