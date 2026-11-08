@@ -105,7 +105,7 @@ bool UCurseClearWidget::CanClearHere(const UObject *Context)
 	const UWorld *World = Context ? Context->GetWorld() : nullptr;
 	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	return !(Run && Run->IsRunActive());
+	return !(Run && Run->IsRunActive()); // no run subsystem (a test world, the menu): not in a run, so the hub's rule
 }
 
 TSharedRef<SWidget> UCurseClearWidget::RebuildWidget()

@@ -23,6 +23,7 @@ namespace
 {
 	const FName CURSE_TEST_ID(TEXT("Curse_CurseSpec"));
 	const FName CURSE_TEST_LOCATION(TEXT("Spot_CurseSpec"));
+	constexpr int32 CURSE_TEST_HP_PENALTY = -4;
 
 	FMemoryEvent AtCurseLocation()
 	{
@@ -194,19 +195,20 @@ void FCurseSpec::Define()
 		TestEqual(TEXT("lifted: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
 	});
 
-	It("Q-378: clearing a curse stops its penalty, regaining it brings it back; the hub service refuses during a run", [this]()
+	It("Q-378: clearing a curse stops its penalty, regaining it brings it back; the hub service clears outside a run", [this]()
 	{
 		UCurseData *Curse = NewObject<UCurseData>(GetTransientPackage());
 		Curse->CurseId = CURSE_TEST_ID;
-		Curse->StatPenalty.BonusMaxHP = -4;
+		Curse->StatPenalty.BonusMaxHP = CURSE_TEST_HP_PENALTY;
 		Curses->SetCurseAssets({Curse});
 		Curses->AddCurse(CURSE_TEST_ID);
 		TestTrue(TEXT("the player clears it"), Curses->ClearCurse(CURSE_TEST_ID));
 		TestEqual(TEXT("cleared: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
 		TestFalse(TEXT("cleared twice: no"), Curses->ClearCurse(CURSE_TEST_ID));
 		TestEqual(TEXT("regained: the penalty is back"), Curses->RegainFrom({CurseReward()}), 1);
-		TestEqual(TEXT("regained: HP"), Curses->GetStatPenalty().BonusMaxHP, -4);
+		TestEqual(TEXT("regained: HP"), Curses->GetStatPenalty().BonusMaxHP, CURSE_TEST_HP_PENALTY);
 		TestTrue(TEXT("the hub (no run): the service clears"), UCurseClearWidget::CanClearHere(TestWorld->GetWorld()));
+		// The in-run refusal needs an active trial run; PIE B-378b check 7 covers it.
 	});
 }
 
