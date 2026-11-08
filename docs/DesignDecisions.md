@@ -3915,6 +3915,13 @@ Moved here once applied. Newest first.
 **Recommendation:** A. Boss scripts in Final Fantasy XIV and Elden Ring check their conditions at the trigger point ("at 50% HP, if the add is alive"), which is what makes them read as reactions; the deckbuilder's triggers also check on the event.
 **Notes for Claude:** built in B-355b (`BossTriggers::FireMomentRule`, `UFightTriggers::Fire`).
 **Confirmed by Crown, 2026-11-08:** kept as built.
+### Q-233 — Sessions before EOS is configured
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-233, cloud) · **Blocks:** —
+**Question:** B-233 wants EOS sessions with Steam friends on top. EOS needs Crown's product, sandbox and deployment ids from the Epic developer portal (and a client id / secret), which the code can't make up. Build nothing until then, or build the session layer now on another subsystem?
+**Options / as built (A):** build `UWoRSessionSubsystem` on the online subsystem's generic session interface now, running on the **Null** subsystem (LAN, works in PIE and between two machines on one network); switching to EOS is the config change in `DefaultEngine.ini` plus the EOS plugin and Crown's ids, with no code change. **B** wait for the EOS ids.
+**Recommendation:** A. Epic's own guidance (the online subsystem's design and the Lyra sample's session flow) is to write against `IOnlineSession` and swap the platform in config; most UE co-op projects prototype on Null / LAN first.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it. **Crown action for B-233b:** create the EOS product in the Epic developer portal and share its ids (never in chat or git: as environment secrets / local config).
+**Notes for Claude:** B-233 part 1 built the subsystem and `wor.Session.*`; B-233b: EOS config, Steam on top, the hub-menu invite (placeholder C++ UI), joining a run at a rest spot, a leaving friend dropping out.
 
 ### Q-313 — The pouch in a fight: how far B-313 goes, the tier caps, and a recruit's items
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-03 (B-313, cloud) · **Blocks:** —
