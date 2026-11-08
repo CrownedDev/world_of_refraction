@@ -436,6 +436,11 @@ bool UPartySessionSubsystem::DismissMember(int32 SlotIndex)
 	return true;
 }
 
+bool PartySeats::RecruitIsAISeat(ENetMode NetMode)
+{
+	return NetMode != NM_Standalone;
+}
+
 bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data)
 {
 	// A run-only member never leads: DismissRunMembers would take the leader with it.
@@ -448,7 +453,16 @@ bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> Paw
 	Member.bRunOnly = true;
 	// The rest of the party was seeded full at trial entry; the newcomer joins the same way.
 	SetMemberVitalsFull(Member);
-	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s joins for this run only, ungeared"), *Data->Name);
+	// B-232e (D-150 #3): in multiplayer every slot is a player's character or an AI seat, so a recruit is an AI seat
+	// (a friend joining later can take it, D-150 #4). Solo is unchanged: you command it.
+	const UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	if (PartySeats::RecruitIsAISeat(World ? World->GetNetMode() : NM_Standalone))
+	{
+		Member.bAISeat = true;
+		Member.bPlayerControlled = false; // OBSOLETE mirror, kept for the save
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s joins for this run only, ungeared%s"), *Data->Name,
+		   Member.bAISeat ? TEXT(", as an AI seat (multiplayer)") : TEXT(""));
 	OnPartyChanged.Broadcast(GetLocalParty());
 	return true;
 }
