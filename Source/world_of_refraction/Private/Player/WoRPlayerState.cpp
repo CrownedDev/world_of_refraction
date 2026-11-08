@@ -660,14 +660,27 @@ void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &Me
 void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuestProgress> &Quests)
 {
 	ReportedQuests.Reset();
-	for (const FSavedQuestProgress &Quest : Quests)
+	// B-377b review: a bounded report, as ServerReportJournal's.
+	constexpr int32 MaxQuestReport = 1024; // TODO: tune to the authored quest count once the catalogue is in
+	const int32 Taken = FMath::Min(Quests.Num(), MaxQuestReport);
+	if (Taken < Quests.Num())
 	{
-		if (!Quest.QuestId.IsNone() && !Quest.bFinished)
+		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s reported %d quests; the %d over the cap are dropped"), *GetPlayerName(), Quests.Num(),
+			   Quests.Num() - Taken);
+	}
+	for (int32 Index = 0; Index < Taken; ++Index)
+	{
+		const FSavedQuestProgress &Quest = Quests[Index];
+		if (Quest.QuestId.IsNone())
+		{
+			continue;
+		}
+		if (!Quest.bFinished)
 		{
 			ReportedQuests.Add(Quest.QuestId, Quest.StepsDone);
 			OfferedQuests.Remove(Quest.QuestId); // reported: started on their side
 		}
-		else if (Quest.bFinished)
+		else
 		{
 			OfferedQuests.Add(Quest.QuestId); // finished: never offered again
 		}
