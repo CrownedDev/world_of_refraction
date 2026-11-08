@@ -67,6 +67,21 @@ struct WORLD_OF_REFRACTION_API FRingLoadoutEntry
     /** Spells the cap drops (0 for a locked ring, whose presets are never capped). */
     int32 GetSpellsOverCap() const;
 
+    // ==================== ONE SPELL-SLOT LIST (B-351d, D-145) ====================
+
+    /** The one spell list slot by slot (null = an empty slot): the pick (while the crystal can give spells, or
+     *  bAsIfIntact), else the ring's preset spell at that position; GetSpellSlotCap slots. A locked ring: its presets. */
+    TArray<USpellData *> GetSpellSlots(bool bAsIfIntact = false) const;
+
+    /** Replace what Slot holds with Spell; activates the list. False for a locked ring or past the cap. */
+    bool ReplaceSpell(int32 Slot, USpellData *Spell);
+
+    /** Bring back the preset (or empty) Slot held before a replace; activates the list. False if nothing was replaced. */
+    bool RestoreSpell(int32 Slot);
+
+    /** Debug: the spell list slot by slot and whether it is active. */
+    FString GetSpellSlotString() const;
+
     /** Get only the locked/preset spells (empty when bSpellsLocked is false). */
     TArray<USpellData *> GetLockedSpells() const;
 

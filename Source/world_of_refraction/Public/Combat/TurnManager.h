@@ -395,7 +395,7 @@ public:
 	void DebugPrintPendingTurns();
 
 	/** Log TurnBelt in DebugPrintTurnOrder's slot format so output diffs by eye.
-	 *  Console trigger is wor.PrintBelt (in the .cpp) — a subsystem
+	 *  Console trigger is wor.Turns.PrintBelt (in the .cpp) — a subsystem
 	 *  is not on the engine's Exec dispatch chain. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintBelt();

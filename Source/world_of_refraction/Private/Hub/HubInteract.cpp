@@ -1,6 +1,7 @@
 // HubInteract.cpp
 
 #include "Hub/HubInteract.h"
+#include "Trial/TrialRestSpot.h"
 #include "Trial/PrismDropPickup.h"
 #include "Player/WoRPlayerState.h"
 #include "Merchant/MerchantInteractable.h"
@@ -55,10 +56,11 @@ namespace HubInteract
             AddCandidate(Candidates, FString::Printf(TEXT("Map feature %s"), *Feature->GetName()), PawnLocation, Feature,
                          [Feature, Pawn]()
                          {
-                             // B-235c: a chest or the Prism pickup lives on the host; a client's press goes there. Lore and
+                             // B-235c: a chest, the Prism pickup or (B-187d) a rest spot lives on the host; a client's press goes there. Lore and
                              // memory features keep running here until they show and record on the client's side (B-235e).
                              const UWorld *World = Pawn->GetWorld();
-                             const bool bHostFeature = Feature->IsA<ATrialChest>() || Feature->IsA<APrismDropPickup>();
+                             const bool bHostFeature = Feature->IsA<ATrialChest>() || Feature->IsA<APrismDropPickup>() ||
+                                                        Feature->IsA<ATrialRestSpot>(); // B-187d: the host rests the party
                              AWoRPlayerState *Player = bHostFeature && World && World->GetNetMode() == NM_Client ? Pawn->GetPlayerState<AWoRPlayerState>() : nullptr;
                              if (Player)
                              {

@@ -154,6 +154,17 @@ UParty *UPartySessionSubsystem::GetLocalParty() const
 	return Parties.IsValidIndex(0) ? Parties[0].Get() : nullptr;
 }
 
+void UPartySessionSubsystem::ForgetLocalParty()
+{
+	if (!Parties.IsValidIndex(0))
+	{
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Local party '%s' forgotten (B-234b hand-over)"), *GetNameSafe(Parties[0]));
+	Parties.RemoveAt(0);
+	OnPartyChanged.Broadcast(nullptr);
+}
+
 UParty *UPartySessionSubsystem::CreateSoloParty(APlayerController *Leader, TSoftClassPtr<ACombatCharacter> LeaderPawnClass)
 {
 	// Re-entry (hub reload) rebinds rather than rebuilds — a party assembled
@@ -436,6 +447,11 @@ bool UPartySessionSubsystem::DismissMember(int32 SlotIndex)
 	return true;
 }
 
+bool PartySeats::RecruitIsAISeat(ENetMode NetMode)
+{
+	return NetMode != NM_Standalone;
+}
+
 bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data)
 {
 	// A run-only member never leads: DismissRunMembers would take the leader with it.
@@ -448,7 +464,16 @@ bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> Paw
 	Member.bRunOnly = true;
 	// The rest of the party was seeded full at trial entry; the newcomer joins the same way.
 	SetMemberVitalsFull(Member);
-	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s joins for this run only, ungeared"), *Data->Name);
+	// B-232e (D-150 #3): in multiplayer every slot is a player's character or an AI seat, so a recruit is an AI seat
+	// (a friend joining later can take it, D-150 #4). Solo is unchanged: you command it.
+	const UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	if (PartySeats::RecruitIsAISeat(World ? World->GetNetMode() : NM_Standalone))
+	{
+		Member.bAISeat = true;
+		Member.bPlayerControlled = false; // OBSOLETE mirror, kept for the save
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s joins for this run only, ungeared%s"), *Data->Name,
+		   Member.bAISeat ? TEXT(", as an AI seat (multiplayer)") : TEXT(""));
 	OnPartyChanged.Broadcast(GetLocalParty());
 	return true;
 }
@@ -762,6 +787,38 @@ bool UPartySessionSubsystem::SetMemberAISeatDifficulty(int32 SlotIndex, EAIDiffi
 	return true;
 }
 
+bool UPartySessionSubsystem::SetMemberHeadStart(int32 SlotIndex, int32 Mind, int32 Body, int32 Spirit)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	FPartyMember &Member = Party->Members[SlotIndex];
+	Member.HeadStartMind = Mind;
+	Member.HeadStartBody = Body;
+	Member.HeadStartSpirit = Spirit;
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d head-start %d / %d / %d (B-348b)"), SlotIndex, Mind, Body, Spirit);
+	return true;
+}
+
+bool UPartySessionSubsystem::SetMemberBrokenDarkness(int32 SlotIndex, bool bBrokenDarkness, float RunStrain)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	FPartyMember &Member = Party->Members[SlotIndex];
+	if (Member.bBrokenDarkness != bBrokenDarkness)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d %s Broken Darkness (B-348c)"), SlotIndex, bBrokenDarkness ? TEXT("is now in") : TEXT("left"));
+	}
+	Member.bBrokenDarkness = bBrokenDarkness;
+	Member.RunStrain = FMath::Max(0.0f, RunStrain);
+	return true;
+}
+
 bool UPartySessionSubsystem::IsMemberAISeat(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();
@@ -946,6 +1003,7 @@ void UPartySessionSubsystem::ClearAllMemberVitals()
 		Member.CurrentEP = PartyConstants::NO_CARRIED_VITALS;
 		Member.CarriedGear = FCarriedGearState();
 		Member.CarriedAbsorption = FCarriedAbsorptionState();
+		Member.RunStrain = 0.0f; // B-348c: strain is the run's; Broken Darkness itself stays (Q-348b)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Carried vitals cleared for %d member(s)"), Party->GetMemberCount());

@@ -11,6 +11,7 @@
 
 #include "CoreMinimal.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "Memory/MemoryData.h" // EMemoryDepth (a non-unity compile of this file found it missing)
 #include "Save/WoRSaveTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "HiddenQuestSubsystem.generated.h"
