@@ -168,13 +168,17 @@ void ULevelDropWidget::Refresh()
 	else
 	{
 		const UWorld *World = GetWorld();
+		// B-364: a pillar past 7 shows its over-cap points.
+		auto PillarLevel = [World, Member](EWorldPillar Pillar)
+		{
+			const FText Level = FText::AsNumber(WoRLevelDrops::GetLiveLevel(World, *Member, Pillar));
+			const int32 Over = WoRLevelDrops::GetOverCap(World, *Member, Pillar);
+			return Over > 0 ? FText::Format(LOCTEXT("PillarOverCap", "{0} (+{1} over-cap)"), Level, FText::AsNumber(Over)) : Level;
+		};
 		MemberText->SetText(FText::Format(LOCTEXT("MemberRow", "{0}: {1} {2}, {3} {4}, {5} {6}"), FText::FromString(Member->CharacterData->Name),
-										  WoRLevelDrops::GetPillarName(EWorldPillar::Mind),
-										  FText::AsNumber(WoRLevelDrops::GetLiveLevel(World, *Member, EWorldPillar::Mind)),
-										  WoRLevelDrops::GetPillarName(EWorldPillar::Body),
-										  FText::AsNumber(WoRLevelDrops::GetLiveLevel(World, *Member, EWorldPillar::Body)),
-										  WoRLevelDrops::GetPillarName(EWorldPillar::Spirit),
-										  FText::AsNumber(WoRLevelDrops::GetLiveLevel(World, *Member, EWorldPillar::Spirit))));
+										  WoRLevelDrops::GetPillarName(EWorldPillar::Mind), PillarLevel(EWorldPillar::Mind),
+										  WoRLevelDrops::GetPillarName(EWorldPillar::Body), PillarLevel(EWorldPillar::Body),
+										  WoRLevelDrops::GetPillarName(EWorldPillar::Spirit), PillarLevel(EWorldPillar::Spirit)));
 	}
 	if (BuyLabel)
 	{

@@ -29,16 +29,22 @@ namespace WoRLevelDrops
 	 *  (head-start lives on the spawned component). */
 	WORLD_OF_REFRACTION_API int32 GetLiveLevel(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
 
-	/** Places one unspent level on Member's Pillar. Empty on success, else why not (not at a rest spot (B-363, D-156),
-	 *  none waiting, at the cap). */
+	/** B-364: Member's over-cap points on Pillar this run (0-3, OverCapRules). */
+	WORLD_OF_REFRACTION_API int32 GetOverCap(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
+
+	/** B-364: Pillar is at 7 with every over-cap point used, so it takes no more points. */
+	WORLD_OF_REFRACTION_API bool IsPillarFull(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
+
+	/** Places one unspent level on Member's Pillar; at 7 it becomes an over-cap point (B-364, D-157). Empty on success,
+	 *  else why not (not at a rest spot (B-363, D-156), none waiting, 7 with 3 over-cap points). */
 	WORLD_OF_REFRACTION_API FText TryPlaceLevel(UWorld *World, const FPartyMember &Member, EWorldPillar Pillar);
 
 	/** B-363 (Q-156): the run Prisms Member's next bought point costs: ER-24's ladder per character this run. */
 	WORLD_OF_REFRACTION_API int32 GetPointPrice(const UWorld *World, const FPartyMember &Member);
 
 	/** B-363 (D-156, Q-156): buys Member one unspent point with run Prisms from Wallet (null: the first local player's),
-	 *  at a rest spot. Empty on
-	 *  success, else why not (not at a rest spot, every pillar at the cap (until B-364), too few Prisms). */
+	 *  at a rest spot. Empty on success, else why not (not at a rest spot, every pillar full (7 and 3 over-cap), too few
+	 *  Prisms). */
 	WORLD_OF_REFRACTION_API FText TryBuyPoint(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet = nullptr);
 
 	/** Debug: the run's levels, the unspent count and each party member's live pillars. */
