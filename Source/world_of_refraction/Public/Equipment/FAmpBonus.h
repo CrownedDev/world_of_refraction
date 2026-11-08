@@ -11,11 +11,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "FAmpBonus.generated.h"
 
-namespace AmpRules
-{
-	/** Authored range per line (the deckbuilder's small numbers). TODO: tune in PIE. UHT meta clamps below mirror it. */
-	constexpr int32 MAX_LINE = 5;
-}
+// Authored range per line: -5..+5, the deckbuilder's small numbers (UHT meta clamps take literals). TODO: tune in PIE.
 
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FAmpBonus

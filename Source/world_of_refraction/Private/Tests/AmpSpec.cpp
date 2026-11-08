@@ -130,7 +130,7 @@ void FAmpSpec::Define()
 		{
 			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
 			ULoadoutComponent *Loadout = SpawnWithWeaponAmp(Lines(AMP_TEST_ALL, 0));
-			if (!Executor || !TestNotNull(TEXT("loadout"), Loadout))
+			if (!TestNotNull(TEXT("executor"), Executor) || !TestNotNull(TEXT("loadout"), Loadout))
 			{
 				return;
 			}
@@ -145,7 +145,7 @@ void FAmpSpec::Define()
 		{
 			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
 			ULoadoutComponent *Loadout = SpawnWithWeaponAmp(Lines(AMP_TEST_ALL, AMP_TEST_FIRE));
-			if (!Executor || !TestNotNull(TEXT("loadout"), Loadout))
+			if (!TestNotNull(TEXT("executor"), Executor) || !TestNotNull(TEXT("loadout"), Loadout))
 			{
 				return;
 			}
