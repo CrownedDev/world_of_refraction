@@ -69,6 +69,9 @@ struct FMemoryEvent
 	const UCharacterData *UpgradedBy = nullptr;
 	/** Memories the source itself names; checked even with no conditions (none: always met). */
 	TArray<UMemoryData *> Named;
+	/** B-376: every character present (all players'), kept when FilterParty narrows Party to one player's part, so a
+	 *  "party has" condition reads the whole team. Empty: Party is the whole team. */
+	TArray<const UCharacterData *> Present;
 };
 
 /** B-235d (Q-235d, Crown): who a memory a conditions event unlocked goes to. */

@@ -131,6 +131,8 @@ FString UMemoryData::GetConditionString(const FMemoryCondition &Condition)
 		return FString::Printf(TEXT("%s Breakthrough used by %s"), *NameOf(Condition.Evolution), *Whose);
 	case EMemoryConditionKind::FinishingBlow:
 		return FString::Printf(TEXT("finishing blow with %s by %s"), *NameOf(Condition.Item), *Whose);
+	case EMemoryConditionKind::PartyHas:
+		return FString::Printf(TEXT("%s present (any player)"), *NameOf(Condition.Character)); // B-376
 	}
 	return TEXT("<unknown>");
 }
