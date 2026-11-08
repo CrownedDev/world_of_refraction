@@ -84,8 +84,9 @@ public:
 	bool BeginHandOver();
 
 	/** B-234c (host, at a rest spot): hand the run over on purpose. Saves (every player gets the copy), tells every
-	 *  client to hand over (AWoRGameState::Multicast_BeginPlannedHandOver), then leaves after
-	 *  PLANNED_LEAVE_DELAY_SECONDS and rejoins the next host as a client. False when CanHandOverFrom says no. */
+	 *  client to hand over (AWoRPlayerState::Client_BeginPlannedHandOver, after its copy's chunks), then leaves after
+	 *  PLANNED_LEAVE_DELAY_SECONDS and rejoins the next host as a client. False when CanHandOverFrom says no or the
+	 *  save fails. */
 	bool BeginPlannedHandOver(UWorld *World);
 
 	/** B-234c (client): the host is handing over: start the hand-over now and leave, as on a drop. */
@@ -114,6 +115,9 @@ private:
 
 	FDelegateHandle NetworkFailureHandle;
 	FDelegateHandle WorldInitHandle;
+	/** B-234c review: a planned hand-over waits to leave; a level change during the wait drops it. */
+	FDelegateHandle WorldCleanupHandle;
+	bool bPlannedLeavePending = false;
 	FDelegateHandle SessionsFoundHandle;
 	FDelegateHandle SessionCreatedHandle;
 	FDelegateHandle SessionJoinedHandle;
