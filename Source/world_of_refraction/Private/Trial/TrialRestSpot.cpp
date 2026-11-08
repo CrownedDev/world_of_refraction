@@ -1,6 +1,8 @@
 // TrialRestSpot.cpp
 
 #include "Trial/TrialRestSpot.h"
+
+#include "Player/WoRPlayerState.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
@@ -110,11 +112,15 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	{
 		Run->NoteRestStand(Pawn->GetActorTransform()); // B-187c: a revive brings the party back here
 	}
-	ShowMessage(LOCTEXT("Rested", "You rest. The party is restored."));
+	ShowMessageTo(Pawn, LOCTEXT("Rested", "You rest. The party is restored."));
 	APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
 	if (PC && PC->IsLocalController())
 	{
-		URestSpotWidget::Open(PC); // TODO: co-op: a client's menu (its press reaches the host's rest, B-187b)
+		URestSpotWidget::Open(PC);
+	}
+	else if (AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
+	{
+		Player->Client_OpenRestMenu(); // B-187d: a client's press (ServerInteractFeature) opens its own menu
 	}
 	RefreshHint();
 }

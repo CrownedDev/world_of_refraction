@@ -4240,3 +4240,12 @@ Moved here once applied. Newest first.
 **Recommendation:** A for each. Hades' Heat / Pact and Elden Ring's NG+ raise the same fight's numbers step by step for better rewards, and players liked choosing their own risk; three steps keep it a short loop (Darkest Dungeon caps its re-run rewards the same way). A tier step is the game's own strength unit (D-118, D-120), so it raises HP and drops the same way a tougher placed enemy would.
 **Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; the cap and the step are named constants.
 **Notes for Claude:** B-187b part 1; new row B-187c. As built (review): only the revived team's members get its steps (other teams caught in the same fight fight as placed), and only a team whose own rank is a mini-boss's leaves a rest spot.
+
+### Q-187d — Co-op rest: what a client's rest restores, how a shared chest tallies, where players return
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187d, cloud) · **Blocks:** —
+**Question:** (1) When a client presses a rest spot, what is restored? (2) With chests per player (B-235c), does each player's open add to the run's tally (B-073 pays every player the full tally)? (3) Where does each player stand after a revive?
+**Options / as built:** (1) **A** the whole shared party on the host (every seat, the friends' included) / B only the presser's characters. (2) **A** a chest counts once, on its first open by anyone / B every player's open counts. (3) **A** side by side at the stand, 150 cm apart, alternating right and left, the stand itself when a side is blocked / B everyone at player starts.
+**Recommendation:** all A. (1) Baldur's Gate 3's long rest and Divinity: Original Sin 2's bedroll restore the whole party at once, which co-op players expect. (2) Each player already gets their own chest's item (Diablo IV-style personal loot); counting a chest once keeps the shared payout what one chest is worth to each player rather than doubling it with the party size. (3) Monster Hunter and Deep Rock Galactic regroup the team at one spot, side by side.
+**Answer:** **A, A, A**, by the reference-backed default (2026-11-08). Crown may change any.
+**Notes for Claude:** B-187d (`WoRRestSpot::Rest` on the host, `ATrialChest::Interact` / `IsOpenedByAnyone`, `TrialReturn::GetReturnStand`). (1) restores the host's party, which holds every seat (B-360b); a friend's character outside it is not restored (TODO with B-187e).
+

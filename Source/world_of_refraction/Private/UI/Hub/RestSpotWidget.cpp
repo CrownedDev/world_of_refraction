@@ -102,8 +102,8 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
 		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host (the next player hosts; you rejoin)"));
 		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
-		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"))
-			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
+		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"));
+		LeaveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
 		ConfirmButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("ConfirmLeave", "Confirm: leave"));
 		ConfirmButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleConfirmLeaveClicked);
@@ -122,8 +122,15 @@ void URestSpotWidget::Refresh()
 {
 	const UGameInstance *GI = GetGameInstance();
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	// B-187d: on a client the run lives on the host: no earnings or Leave here until B-187e routes them.
+	const bool bOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
+	if (LeaveButton)
+	{
+		LeaveButton->SetVisibility(bOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
 	if (PayoutText)
 	{
+		PayoutText->SetVisibility(bOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		const FRunPayout Earned = Run ? Run->GetRunEndPayout() : FRunPayout();
 		PayoutText->SetText(FText::Format(LOCTEXT("Earned", "Earned so far: {0} Gold, {1} Gear Essence, {2} Skill Essence (leaving now pays {3}%)."),
 										  FText::AsNumber(Earned.HubGold), FText::AsNumber(Earned.GearEssence), FText::AsNumber(Earned.SkillEssence),
@@ -145,8 +152,9 @@ void URestSpotWidget::Refresh()
 		const bool bCanHandOver = HandOver && World && WoRHostSuccession::CanHandOverFrom(World->GetNetMode(), HandOver->GetKnownOrder().Num());
 		HandOverButton->SetVisibility(bCanHandOver ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
-	// B-187b: only at a mini-boss's rest spot that can still be revived.
-	const bool bCanRevive = WoRRestSpot::CanReviveHere(GetWorld());
+	// B-187b: only at a mini-boss's rest spot that can still be revived. B-187d review: not on a client, whose own
+	// run is empty and whose ReviveMiniBoss is refused (the host revives).
+	const bool bCanRevive = !bOnClient && WoRRestSpot::CanReviveHere(GetWorld());
 	if (ReviveButton)
 	{
 		ReviveButton->SetVisibility(bCanRevive ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
