@@ -16,6 +16,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 
 class AActor;
+class AWoRPlayerState;
 class UBossData;
 class UCharacterData;
 class UEquipmentDataBase;
@@ -28,8 +29,42 @@ struct FFiredReaction;
 
 namespace MemoryUnlock
 {
-	/** Into the run and the journal. False when Memory is null or already collected. */
+	/** Into the run and the journal. False when Memory is null or already collected. B-235d (Q-235d, Crown): this
+	 *  machine's player found it, so in co-op only a memory for every character (it lists no character) also goes to
+	 *  each friend. B-235e: a client's own find (its map spot or fragment runs on its side) is reported to the host. */
 	WORLD_OF_REFRACTION_API bool Unlock(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source);
+
+	/** B-235d (Q-235d, Crown): into the run, into the host's journal when bHostReceives, and to each of Friends (once
+	 *  each, privately: AWoRPlayerState::Client_UnlockMemory). True only when someone new received it (the host's journal
+	 *  recorded it, or a friend was sent it for the first time); a second finder later in the run still gets it. */
+	WORLD_OF_REFRACTION_API bool UnlockFor(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source, bool bHostReceives,
+										   const TArray<AWoRPlayerState *> &Friends);
+
+	/** B-235e (Q-235d rule 1): Memory found by FinderCharacter (a worn item's or a reaction's memory at a fight): the
+	 *  player who plays it gets it, and everyone when it lists no character; the host's find when no friend plays it. */
+	WORLD_OF_REFRACTION_API bool UnlockFoundBy(UGameInstance *GameInstance, UMemoryData *Memory, EMemorySource Source,
+											   const UCharacterData *FinderCharacter);
+
+	/** B-235e: the remote player who plays Character (AWoRPlayerState::GetOwnCharacters); null when none does. */
+	WORLD_OF_REFRACTION_API AWoRPlayerState *FindRemotePlayerOf(const UGameInstance *GameInstance, const UCharacterData *Character);
+
+	/** B-235d: a memory is for one of Characters (UMemoryData::CharacterDepth above None), or for every character
+	 *  when it lists no character. */
+	WORLD_OF_REFRACTION_API bool QualifiesFor(const UMemoryData *Memory, const TArray<UCharacterData *> &PlayerCharacters);
+
+	/** B-235d (Q-235d, Crown, after Shangri-La Frontier's unique scenarios): a friend gets Memory when it lists no
+	 *  character, or when it is for one of the friend's own characters and the friend met its conditions themselves
+	 *  (bMetThemselves: read against their own characters). */
+	WORLD_OF_REFRACTION_API bool ShouldFriendReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &FriendCharacters,
+													 bool bMetThemselves);
+
+	/** B-235d (Q-235d, Crown): the host gets Memory when it lists no character, when it is for one of the host's own
+	 *  characters and the host met its conditions, or when no friend gets it (the host's run found it; solo always). */
+	WORLD_OF_REFRACTION_API bool ShouldHostReceive(const UMemoryData *Memory, const TArray<UCharacterData *> &HostCharacters,
+												   bool bHostMet, bool bAnyFriendReceives);
+
+	/** B-235d: the remote players on a listen server (empty solo or on a client). */
+	WORLD_OF_REFRACTION_API TArray<AWoRPlayerState *> GetRemotePlayers(const UGameInstance *GameInstance);
 
 	/** B-210 (Q-190 changed by Crown): Memory is in the journal, so no source grants it again. */
 	WORLD_OF_REFRACTION_API bool IsCollected(const UGameInstance *GameInstance, const UMemoryData *Memory);

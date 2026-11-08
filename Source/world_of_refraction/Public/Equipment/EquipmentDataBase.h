@@ -19,6 +19,7 @@
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Equipment/IEquipmentGenerator.h"
 #include "Conditions/WoRCondition.h" // FBoundMemory::Conditions (B-337c)
+#include "Memory/BoundQuest.h" // B-381
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 
 #if WITH_EDITOR
@@ -279,6 +280,10 @@ public:
      *  trigger conditions (MemoryUnlock). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
     TArray<FBoundMemory> BoundMemories;
+
+    /** B-381 (D-165): hidden quests this item carries; each starts while it is worn and its conditions hold. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
+    TArray<FBoundQuest> BoundQuests;
 
     /** True when Wearer is this item's owner, or wears the owner's skin (B-279b: WornSkin is the skin's
      *  character). Never for an unbound item. */
