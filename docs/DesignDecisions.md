@@ -4077,3 +4077,12 @@ Moved here once applied. Newest first.
 **Reference check:** *deckbuilder*: schools are labels and cost filters only (`02-enums.md` ESpellSchool). *Games*: Divinity: Original Sin 2's shared Memory pool and Baldur's Gate 3's shared spell slots keep schools as categories, not limits.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
+
+### Q-235d — Co-op: who gets a memory the run unlocks?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-235d, cloud) · **Blocks:** —
+**Question:** D-103 says hidden memories go "to whoever qualifies", notified privately. When the host's run unlocks a memory in co-op, which friends get it in their own journal?
+**Options / as built (A):** **A** a friend gets it when the memory means something to one of their characters (`UMemoryData::CharacterDepth` above None), or everyone when it lists no character; each is told on their own screen only, and a friend gets it even if the host already had it. **B** every player in the session always. **C** only the host (friends never collect in co-op).
+**Recommendation:** A. Baldur's Gate 3 and Divinity: Original Sin 2 give an origin character's personal story beats to the player who plays that origin and shared beats to everyone, and players like that their own character's story stays theirs. It reads the data the memories already carry (no new field).
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
+**Notes for Claude:** built in B-235d part 1 (`MemoryUnlock::QualifiesFor` / `ShareWithPlayers`, `AWoRPlayerState::Client_UnlockMemory`). A player's characters are the ones they claim (`GetClaimedCharacters`).
+
