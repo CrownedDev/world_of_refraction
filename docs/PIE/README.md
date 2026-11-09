@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-170b](B-170b.md) | `feature/B-170b-turn-rotation-cloud` (UNBUILT, on B-170a) | Action pips 2: with `wor.Turns.ActionPips 1` set before a fight, turns go round in a fixed rotation (sides alternate, party first; a lone boss after every hero; a smaller side's extra seats rotate on; first strike opens); the strip matches; bonus, skip, Execution turns as built; `wor.Turns.PrintBelt` shows the mode and round; switch off = unchanged | Pending |
 | [B-170a](B-170a.md) | `feature/B-170a-action-pips-cloud` (UNBUILT) | Action pips 1: `wor.Actions.Print` shows each combatant's actions, Max Actions with action-point progress ("Max 3 (+75/100)") and Reflex regain; `AddPoints` / `Reset` move them; play unchanged | Pending |
 | [B-396](B-396.md) | `fix/B-396-combat-hud-visibility` (in dev) | Combat HUD invisible: `wor.UI.Print` in a fight shows each HUD widget's viewport, visibility, opacity, position and size; the trial gate's focus error is gone | Pending |
 | [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (in dev) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
