@@ -208,7 +208,7 @@ broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
    `FCombatResult`, clears teams, returns to `Idle`.
 4. Otherwise `TurnManager->AdvanceToNextTurn()`.
 
-### Action pips (B-170c, behind `wor.Turns.ActionPips`; UNBUILT)
+### Action pips (B-170c, behind `wor.Turns.ActionPips`)
 
 `IsActionPipsFight()` is the TurnManager's latched rotation mode; at 0 none of this runs and a turn is one action, as built.
 - **Fight start:** `StartCombat` calls `ResetActionsForFight` on every combatant before `InitializeCombat` dispatches turn 1.
@@ -380,3 +380,5 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-11-09 | B-170c (Q-170b, Q-170c, Q-170c2): several actions per turn behind `wor.Turns.ActionPips` ("Action pips" above): fight-start bank, per-turn regain, the 0-actions skip, `PayActionCost` / `GetActionCostRefusedReason`, `OnActionCompleted` asks again until 0 / End Turn (`EActionType::EndTurn`) / Defend, ritual arming keeps the turn, AI one action a turn until B-170f; `GetTurnSpendsString`. | `feature/B-170c-multi-action-turns-cloud` (UNBUILT) |
 | 2026-11-09 | B-394 (D-170, Q-394): one cast visual resolver, `CastVisuals` (`Combat/Presentation/CastVisuals.h`): attacks, abilities and weapon-crystal spells play `UWeaponData::CastVFX`; adapter, innate and evolution spells the adapter type's default (`UImpactVisualDefaults::AdapterCastVFX`, Ring with no adapter); a Generic wearing both follows `GenericCastVFXPreference`; unauthored sources and spell items play the skill's own muzzle. `SpawnProjectileActor` (muzzle) and `SpawnVFXArrayEntry` (Muzzle role) ask it. Debug `wor.VFX.PrintCastSource`; spec `WoR.Presentation.CastVisuals` | `feature/B-394-cast-vfx-source-cloud` (UNBUILT) |
 | 2026-11-09 | **B-393 Landing a parry (D-170 corrected, Q-393).** `ParryVisuals` (`Combat/Presentation/`): `Resolve` (the weapon guard's spark, none for unarmed or a Perfect Guard; the guard's parry-effect cosmetic, `UCosmeticsData::WeaponGuardParryEffectVFX` / `UnarmedGuardParryEffectVFX`, tinted `CoreColor` / `EdgeColor` by the weapon crystal (weapon guard only) or the character's magic, the member's `EParryElementPriority` picking; no element, no effect), `GatherInputs`, `SpawnForLandedParry` (sent to clients). `ImpactVisuals::SpawnForImpact` hands Guard / Perfect Guard to it; `Choose` unchanged. The unarmed guard no longer sparks. Spec `WoR.Presentation.ParryVisuals`. Unbuilt (cloud pre-write). | feature/B-393-parry-vfx-cloud |
+
+| 2026-11-09 | B-170c built and merged into dev (full suite green). A refused Flee is checked before the action cost is paid, so it spends and records nothing. | `feature/B-170c-multi-action-turns` |

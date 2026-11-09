@@ -276,6 +276,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	CurrentTurnNumber = 0;
 	CurrentActor = nullptr;
 	bWaitingForAsyncAction = false;
+	bHoldingForBossOpening = false; // B-406
+	bHoldingForBossCinematic = false;
 	bTurnContinuesAfterAction = false;
 	ActorsPastFirstTurn.Reset();
 	TurnSpends.Reset();
@@ -371,6 +373,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// Cameras before InitializeCombat: the first turn is dispatched inside it.
 	if (CameraDirector)
 	{
+		CameraDirector->OnBossCinematicFinished.AddUniqueDynamic(this, &ACombatOrchestrator::HandleBossCinematicFinished); // B-406
+		CameraDirector->OnCinematicHudHidden.AddUniqueDynamic(this, &ACombatOrchestrator::HandleCinematicHudHidden);
 		CameraDirector->BeginCombat(LocalParty, OpposingParty, ActionExecutorRef);
 	}
 
@@ -394,13 +398,59 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	const int32 OpeningTeam = FightFirstStrike == EFirstStrike::Party   ? TurnManagerTeams::LOCAL_TEAM_INDEX
 							: FightFirstStrike == EFirstStrike::Enemy ? TurnManagerTeams::OPPOSING_TEAM_INDEX
 																 : INDEX_NONE;
-	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty, OpeningTeam);
+	// B-406 (FeelGuide 9, on trial): a boss's opening cinematic plays first; turn 1 waits for it (nothing is
+	// submitted meanwhile: the async-action wait). No boss, no sequence or no viewer: turn 1 starts now.
+	if (CameraDirector && CameraDirector->PlayBossOpening())
+	{
+		PendingOpeningTeam = OpeningTeam;
+		bHoldingForBossOpening = true;
+		bWaitingForAsyncAction = true;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] Turn 1 waits for the boss's opening cinematic"));
+		return;
+	}
+	BeginFirstTurn(OpeningTeam);
+}
+
+void ACombatOrchestrator::BeginFirstTurn(int32 OpeningTeam)
+{
+	TurnManagerRef->InitializeCombat(LocalPartyCombatants, OpposingPartyCombatants, OpeningTeam);
 
 	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
 	// teams emptied) — don't build UI for a fight that's already over.
 	if (CombatState == ECombatState::InProgress)
 	{
 		OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
+	}
+}
+
+void ACombatOrchestrator::HandleBossCinematicFinished(EBossCinematicKind Kind)
+{
+	const bool bOpening = bHoldingForBossOpening;
+	const bool bHeldRequest = bHoldingForBossCinematic;
+	bHoldingForBossOpening = false;
+	bHoldingForBossCinematic = false;
+	if (CombatState != ECombatState::InProgress || (!bOpening && !bHeldRequest))
+	{
+		return; // a preview, or a cinematic that ended while an action was still running: nothing was held
+	}
+	bWaitingForAsyncAction = false;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s cinematic ended: %s"), *UEnum::GetValueAsString(Kind),
+		   bOpening ? TEXT("turn 1 starts") : TEXT("the held action request goes out"));
+	if (bOpening)
+	{
+		BeginFirstTurn(PendingOpeningTeam);
+	}
+	else if (CurrentActor)
+	{
+		RequestActionFromActor(CurrentActor);
+	}
+}
+
+void ACombatOrchestrator::HandleCinematicHudHidden(bool bHidden)
+{
+	if (CombatHUD)
+	{
+		CombatHUD->SetHiddenForCinematic(bHidden);
 	}
 }
 
@@ -835,11 +885,7 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 		return false;
 	}
 
-	if (!PayActionCost(Action, OutInvalidReason))
-	{
-		return false;
-	}
-
+	// Every refusal comes before the payment, so a refused action spends and records nothing.
 	if (Action.ActionType == EActionType::Flee)
 	{
 		const FText FleeRefused = GetFleeRefusedReason(CurrentActor);
@@ -848,6 +894,15 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 			OutInvalidReason = FleeRefused.ToString();
 			return false;
 		}
+	}
+
+	if (!PayActionCost(Action, OutInvalidReason))
+	{
+		return false;
+	}
+
+	if (Action.ActionType == EActionType::Flee)
+	{
 		bWaitingForAsyncAction = true; // nothing else may start while the fight ends
 		BeginFlee();
 		return true;
@@ -1699,6 +1754,15 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] RequestActionFromActor called with null actor"));
+		return;
+	}
+
+	// B-406: a boss phase cinematic holds the next action (no menu, no AI, no defence timing) until the HUD is back.
+	if (CameraDirector && CameraDirector->IsBossCinematicPlaying())
+	{
+		bHoldingForBossCinematic = true;
+		bWaitingForAsyncAction = true;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s's action waits for the boss cinematic"), *Actor->GetName());
 		return;
 	}
 

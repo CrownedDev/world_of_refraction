@@ -251,6 +251,7 @@ The queue of questions only Crown can answer.
 - **The AI takes one action per turn and banks the rest until B-170f** (the plan's spend-or-bank rule lands there). A Void break playing your turn does the same.
 - **A stunned unit gets one action (Attack or Defend, D-001), then its turn ends**: a stun that let a full bank act would barely be a stun (the plan's "not stunned" gate before each prompt). At turn start a stunned unit is still asked, as built.
 - **Switching is free with the switch on, read from `wor.Turns.ActionPips` itself** (not the fight's latched mode): a co-op client's loadout copy has no TurnManager fight to ask. Flipping the switch mid-fight changes only the switching rule until the next fight (a debug-only edge).
+- **A bonus turn (Extra Turn) regains like any turn.** ET-15 keeps it "a whole bonus turn, as built", and a whole turn starts with the regain (Octopath's Boost Points come back on every turn the unit gets). Added at the desktop build's review; B-170d may revisit it with Extra Turn's text.
 - **End Turn at switch 0** ends the turn as a pass (nothing submits it yet; the button is B-170e).
 - **A win during a turn ends the fight at once** (the win check runs after every action, plan §3.3); the turn-end step doesn't run for that last turn.
 - **"No actions" on the HUD** waits for the placeholder UI (B-170e); the skip is logged.
@@ -454,6 +455,20 @@ The queue of questions only Crown can answer.
 - **Only the viewer's own turn view moves:** camera movement off, a cinematic or a held shot: nothing moves (R15).
 - Numbers are first guesses, `TODO: tune`. A world marker on the highlighted target (Expedition 33 shows the target's HP bar) is not in this job: `OnTargetHighlighted` is ready for it.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-400.md`).
+
+### Q-406 — Per-boss cinematics: the details the row leaves open
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-406, study R9/R17/R18, FeelGuide 9) · **Blocks:** —
+**Question:** B-406 builds the opt-in boss opening and phase cinematics and the named-attack shot. Details the row leaves open: (1) where the phase sequence lives; (2) what holds the fight and for how long; (3) settings and headless fights; (4) two phases at once; (5) what the sequences bind; (6) a skip key; (7) the named attack's reach; (8) what is not built.
+**Options / Recommendation:** Expedition 33's boss opening and phase change (study Part 2 §9: hero shots, a HUD-free cinematic, back to a wide shot with the HUD; widely praised staging), FeelGuide 9 (opt-in, on trial):
+1. **On each phase** (`FBossPhase::CinematicSequence`), so a memory's skip or added phase keeps its own; the opening on `UBossData::OpeningSequence`. Both soft (D-057), empty = none; a mini-boss's preset phases have none.
+2. **Turn 1 waits for the opening** (the orchestrator's async wait); **a phase cinematic holds the next action request** (no menu, no AI, so no defence timing until the HUD is back, R17). An action already playing when the phase is reached finishes under the cinematic. **Cap 20 s** (`BossCinematicMaxSeconds`, `TODO: tune`; the study's phase change is ~15 s).
+3. **Skill cinematics setting applies** (D-078: camera movement off skips them unless Cinematics is On). **No local viewer** (headless specs): nothing plays, the fight starts at once.
+4. **The newest phase's cinematic replaces a playing one**; the hold continues.
+5. Tags **"Boss"** (the boss) and **"Party"** (the local combatants), like the skill sequences' Caster / Targets.
+6. **No skip key yet** (follow-up B-406b, with its `InputMap.md` row; E33 lets you skip cutscenes). Until then `wor.Camera.BossCinematic stop`.
+7. **An enemy's named attack** (`FSkillCameraTuning::bNamedAttack`) opens on a ~1 s front medium shot of the enemy instead of the over-the-shoulder wind-up (R9, Crown's Q3). Any enemy can carry it; a party skill ignores it. A skill's own `CameraSequence` still wins.
+8. **Not built (B-406b):** a hero shot on every boss turn (Q3 reads "bosses and big attacks"; built for flagged attacks only); a fade between cinematic and fight (author it in the sequence); a held Execution (ritual fire) turn; a skip key; the real CommonUI HUD binding (the native `UCombatHUD` hides now; a Blueprint `OnCombatStartedUI` override must bind `OnCinematicHudHidden` itself); **co-op**: only the server's local viewer decides whether a cinematic plays, so a listen-server phase cinematic holds clients who never see it (the client view waits on B-228b). Known limit: under a phase cinematic only the next **action request** waits; that actor's turn-start effects (damage over time, Broken Darkness overflow) still resolve and the turn strip updates while the HUD is hidden.
+**Answer:** all eight as recommended, by the reference-backed default (2026-11-09). Crown: judge the trial on one boss in PIE (`docs/PIE/B-406.md`).
 
 ## Parked
 

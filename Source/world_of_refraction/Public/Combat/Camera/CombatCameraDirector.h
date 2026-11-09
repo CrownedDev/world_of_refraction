@@ -3,6 +3,7 @@
 // Lives on the combat orchestrator; driven by turn start and action start. Plays the
 // skill's own Level Sequence (a signature move) bound to the caster and targets, else the
 // code-built shot patterns (B-371, Q-371: wind-up, Cast, Impact / Spread; the next turn blends back).
+// B-406: per-boss opt-in cinematics (an opening before turn 1, one per phase), with the HUD hidden and the fight held.
 
 #pragma once
 
@@ -24,7 +25,14 @@ class UNiagaraSystem;
 class UCameraComponent;
 
 class UCombatCommandMenuSubsystem;
+
+class UBossPhaseComponent;
 struct FAction;
+
+/** B-406: the whole combat HUD hides (true) for a boss cinematic and comes back (false) when it ends. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCinematicHudHidden, bool, bHidden);
+/** B-406: a boss cinematic ended (its sequence, the cap, or a stop): the fight may go on. Not sent when the fight ends. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBossCinematicFinished, EBossCinematicKind, Kind);
 
 UCLASS(ClassGroup = (Combat))
 class WORLD_OF_REFRACTION_API UCombatCameraDirector : public UActorComponent
@@ -141,6 +149,39 @@ public:
 	 *  4.00 s by Hero: cut at 2.00 s". */
 	FString GetSignatureCapString() const;
 
+	/** B-406: plays the first opposing boss's opening cinematic (UBossData::OpeningSequence). True: it plays, and turn 1
+	 *  waits for OnBossCinematicFinished. False (no boss, field empty, no local viewer, cinematics off): nothing plays. */
+	bool PlayBossOpening();
+
+	/** B-406 (wor.Camera.BossCinematic): plays Kind's sequence of the first opposing boss (PhaseIndex for Phase); an
+	 *  empty field holds for the preview time with no sequence, so the HUD hide and the hold can be judged. */
+	bool PreviewBossCinematic(EBossCinematicKind Kind, int32 PhaseIndex);
+
+	/** B-406: the boss-cinematic hold with no sequence: the HUD hides, the fight waits, and it ends after Seconds or on
+	 *  FinishBossCinematic. Used by the preview and by the specs (a headless world has no viewer). */
+	void HoldForBossCinematic(EBossCinematicKind Kind, AActor *Boss, float Seconds);
+
+	/** B-406: ends a playing boss cinematic now (also its end and the cap): the HUD comes back, the turn view shows and
+	 *  OnBossCinematicFinished fires. Nothing playing: nothing happens. */
+	void FinishBossCinematic();
+
+	bool IsBossCinematicPlaying() const { return BossCinematicKind != EBossCinematicKind::None; }
+	EBossCinematicKind GetBossCinematicKind() const { return BossCinematicKind; }
+
+	/** B-406 (wor.Camera): e.g. "boss cinematic: Phase 1 of Boss_1 (LS_BossPhase2)" or "boss cinematic: none". */
+	FString GetBossCinematicString() const;
+
+	UPROPERTY(BlueprintAssignable, Category = "Camera|Events")
+	FOnCinematicHudHidden OnCinematicHudHidden;
+
+	UPROPERTY(BlueprintAssignable, Category = "Camera|Events")
+	FOnBossCinematicFinished OnBossCinematicFinished;
+
+	/** B-406 debug: above 0, a boss whose cinematic field is empty still holds this long (no sequence, no viewer
+	 *  needed), to judge the HUD hide and the hold before any sequence is made. 0 (default): off. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Debug", meta = (ClampMin = "0.0"))
+	float BossCinematicPreviewSeconds = 0.0f;
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -181,6 +222,20 @@ private:
 
 	/** B-400: the target's feet and height from its collision bounds (a default height without any). */
 	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
+
+	UFUNCTION()
+	void HandleBossPhaseReached(AActor *Boss, int32 PhaseIndex);
+
+	UFUNCTION()
+	void HandleBossSequenceFinished();
+
+	/** B-406: plays Sequence as Kind's cinematic for Boss (or the preview hold when it is empty and the preview is on). */
+	bool PlayBossCinematic(EBossCinematicKind Kind, AActor *Boss, const TSoftObjectPtr<ULevelSequence> &Sequence, int32 PhaseIndex);
+	void EnterBossCinematic(EBossCinematicKind Kind, AActor *Boss, float CapSeconds, int32 PhaseIndex);
+	void EndBossCinematic(bool bFromPlayer);
+	void StopBossSequence(bool bDeferDestroy);
+	UBossPhaseComponent *FindFirstBoss() const;
+	bool HasLocalViewer() const;
 
 	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
 	 *  could not (no camera or no viewer): nothing is left playing. */
@@ -309,4 +364,18 @@ private:
 	int32 HighlightTargetCount = 0;
 	bool bTargetViewShowing = false;
 	int32 TargetMoveCount = 0;
+
+	// B-406: the boss cinematic now playing (per fight, on the orchestrator's component: D-064).
+	UPROPERTY(Transient)
+	TObjectPtr<ULevelSequencePlayer> BossSequencePlayer;
+
+	UPROPERTY(Transient)
+	TObjectPtr<ALevelSequenceActor> BossSequenceActor;
+
+	EBossCinematicKind BossCinematicKind = EBossCinematicKind::None;
+	TWeakObjectPtr<AActor> BossCinematicBoss;
+	int32 BossCinematicPhase = INDEX_NONE;
+	FString BossCinematicName;
+	FTimerHandle BossCinematicCapTimer;
+	TArray<TWeakObjectPtr<UBossPhaseComponent>> BoundBossPhases;
 };
