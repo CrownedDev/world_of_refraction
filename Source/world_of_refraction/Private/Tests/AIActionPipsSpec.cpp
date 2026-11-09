@@ -48,6 +48,8 @@ namespace
 	constexpr float AI_PIPS_SMALL_HELD_SCORE = 30.0f;
 	/** Beats the held pick, so only the above-Max rule keeps it from being held. */
 	constexpr float AI_PIPS_ABOVE_MAX_SCORE = 100.0f;
+	/** Far above any test combatant's EP: a skill nobody can pay in Energy. */
+	constexpr int32 AI_PIPS_UNPAYABLE_ENERGY = 100000;
 	constexpr float AI_PIPS_ROLL_LOW = 0.1f;
 	constexpr float AI_PIPS_ROLL_HIGH = 0.9f;
 	constexpr float AI_PIPS_THREAT = 40.0f;
@@ -316,6 +318,30 @@ void FAIActionPipsSpec::Define()
 			TestEqual(TEXT("... never held"), AI->PickNotes.HeldActionCost, AI_PIPS_COST_TWO);
 		});
 
+		It("holds a pricey skill only when its Energy can be paid", [this]()
+		{
+			if (!StartFight(AI_PIPS_ON))
+			{
+				return;
+			}
+			UAbilityData *Pricey = NewRooted<UAbilityData>();
+			Pricey->Name = TEXT("AI pips pricey skill");
+			Pricey->ActionCost = AI_PIPS_COST_TWO;
+			const TArray<USkillDataBase *> Candidates{Pricey};
+			float BestScore = 0.0f;
+			float UnaffordableBest = 0.0f;
+			int32 UnaffordableCost = 0;
+
+			AI->PickNotes = FAIPickNotes();
+			AI->ChooseBestSkill(Hero, Foe, Candidates, BestScore, UnaffordableBest, UnaffordableCost);
+			TestEqual(TEXT("Energy payable, cost 2 over a bank of 1: held"), AI->PickNotes.HeldActionCost, AI_PIPS_COST_TWO);
+
+			Pricey->BaseEnergyCost = AI_PIPS_UNPAYABLE_ENERGY;
+			AI->PickNotes = FAIPickNotes();
+			AI->ChooseBestSkill(Hero, Foe, Candidates, BestScore, UnaffordableBest, UnaffordableCost);
+			TestEqual(TEXT("Energy unpayable: never held"), AI->PickNotes.HeldActionCost, 0);
+		});
+
 		It("changes nothing with the switch off", [this]()
 		{
 			if (!StartFight(AI_PIPS_OFF))
@@ -399,7 +425,7 @@ void FAIActionPipsSpec::Define()
 			}
 			TestEqual(TEXT("Foe struck twice in its turn"), CountFoeActions(EActionType::Ability), AI_PIPS_MAX);
 			TestEqual(TEXT("Its bank is spent"), DataOf(Foe)->CurrentActions, 0);
-			TestTrue(TEXT("The debug line says it spent"), AI->GetLastSpendOrBankString().Contains(TEXT("spend")));
+			TestTrue(TEXT("The debug line says it spent"), AI->GetLastSpendOrBankString().Contains(TEXT(": spend")));
 		});
 
 		It("keeps one action a turn with the switch off", [this]()
@@ -426,7 +452,7 @@ void FAIActionPipsSpec::Define()
 			TestEqual(TEXT("Foe didn't strike"), CountFoeActions(EActionType::Ability), 0);
 			TestEqual(TEXT("Nor defend"), CountFoeActions(EActionType::Defend), 0);
 			TestEqual(TEXT("Its action stays banked, plus nothing (no regain on a first turn)"), DataOf(Foe)->CurrentActions, AI_PIPS_REGAIN);
-			TestTrue(TEXT("The debug line says it banked"), AI->GetLastSpendOrBankString().Contains(TEXT("bank")));
+			TestTrue(TEXT("The debug line says it banked"), AI->GetLastSpendOrBankString().Contains(TEXT(": bank")));
 		});
 	});
 }
