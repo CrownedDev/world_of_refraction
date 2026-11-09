@@ -203,3 +203,18 @@ The queue of questions only Crown can answer.
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
 
 ---
+
+### D-170 — Visual effects and parry rules: weapon VFX fixed, two guards (weapon / unarmed), crystal parry effect
+**Status:** DECIDED (Crown, 2026-11-09, desktop operator session) · **Raised:** 2026-11-09 · **Blocks:** —
+**Answer (Crown):**
+- **Weapon attack VFX are fixed** per weapon.
+- **Adapter and spell-cast VFX:** each adapter type has a default (rings are the default). There is **no per-adapter override**; adapters share the character's own setting with Refractors and Generic.
+- **Generic with both a weapon and an adapter:** the class preference decides which VFX shows.
+- **Two guards:**
+  - The **unarmed guard** (the body) is the default for adapter users, Refractors and Generic, and can be customised per character.
+  - The **weapon guard** is that weapon type's own and can't be customised.
+  - A per-character setting picks which is used: with a weapon equipped, either parry with it or put it away and parry unarmed. Equipping a weapon makes the weapon guard the default.
+- **Landing a parry:** all weapons share the default sparks; only a weapon **with a crystal attached** adds its element's parry effect (e.g. a magic circle).
+- **Parry timing** is identical in both guards: looks only (reference-backed default: Expedition 33's parry plays the same for every character).
+- **There is no separate parry-style cosmetic** beyond the unarmed guard's customisation (Crown changed this the same day).
+**Notes for Claude:** plan in `docs/Design/VisualGameplayPlan.md`; jobs B-391 to B-395.
