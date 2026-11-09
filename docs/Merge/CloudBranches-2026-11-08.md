@@ -198,6 +198,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 79 | `feature/B-043d-projectile-abilities-cloud` | dev (B-043c in) | – | GAS stage 4 part 4 (Q-043d): projectile / burst arrivals and dodges through the spell's ability (`Event.Combat.Projectile.Arrived/.Dodged`), exactly once, executor fallback; behind `wor.Abilities.UseGAS`. Reviewed; fixed. |
 | 80 | `feature/B-170a-action-pips-cloud` | dev | – | Action pips 1 (Q-170a): actions on the character, no play change. **Q-170a differs from ActionPips.md §3.1** (an additive layer set, not a stat entry): Crown may veto. Reviewed; fixed. |
 | 81 | `feature/B-397-hidden-quests-shown-cloud` | dev | – | D-171: hidden quests listed once found, current goal only, private discovery notice; Q-377's placeholder notices superseded. Reviewed; fixed. |
+| 82 | `feature/B-170b-turn-rotation-cloud` | row 80 (B-170a) | – | Action pips 2 (Q-170b2): fixed round-robin rotation behind `wor.Turns.ActionPips` (default 0, read per fight); speed hooks keep broadcasting; first-striking side leads every round (Crown may change). Reviewed; fixed. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
