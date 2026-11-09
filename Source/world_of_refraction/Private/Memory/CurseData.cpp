@@ -3,7 +3,19 @@
 #include "Memory/CurseData.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Currency/EconomyYield.h"
 #include "WoRLog.h"
+
+ECurrencyType UCurseData::GetClearCurrency() const
+{
+	return ClearEssence == ECurseClearEssence::Elemental ? ECurrencyType::ElementalEssence : ECurrencyType::PillarEssence;
+}
+
+int32 UCurseData::GetClearPrice() const
+{
+	// D-169: the item essence price ladder's step for this tier (starting values, tune in PIE).
+	return EconomyYield::GetTypedEssencePurchaseCostForTier(Tier);
+}
 
 TArray<UCurseData *> UCurseData::GatherAll()
 {
@@ -25,9 +37,10 @@ TArray<UCurseData *> UCurseData::GatherAll()
 FString UCurseData::GetCurseString() const
 {
 	const FEquipmentStatBonus &P = StatPenalty;
-	return FString::Printf(TEXT("%s (%s): HP %+d, Defence %+d, raw damage %+d, spell damage %+d, luck %+d; Fire resist %+.0f"),
-						   *CurseId.ToString(), *Title.ToString(), P.BonusMaxHP, P.BonusDefense, P.BonusRawDamage, P.BonusSpellDamage,
-						   P.BonusLuck, ResistancePenalty.Fire);
+	return FString::Printf(TEXT("%s (%s, %s): HP %+d, Defence %+d, raw damage %+d, spell damage %+d, luck %+d; Fire resist %+.0f; clear costs %d %s"),
+						   *CurseId.ToString(), *Title.ToString(), *TierHelpers::GetTierDisplayString(Tier), P.BonusMaxHP, P.BonusDefense,
+						   P.BonusRawDamage, P.BonusSpellDamage, P.BonusLuck, ResistancePenalty.Fire, GetClearPrice(),
+						   GetClearCurrency() == ECurrencyType::ElementalEssence ? TEXT("Elemental Essence") : TEXT("Pillar Essence"));
 }
 
 void UCurseData::PrintCurse() const
