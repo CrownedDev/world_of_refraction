@@ -1,8 +1,8 @@
 // GASOtherPayoutsSpec.cpp
-// GAS stage 3 (B-042yd): with `wor.Effects.UseGAS 1` the other payouts (energy restore / drain, HP drain,
-// self-damage, the percent restores) are paid by their GE's tick spec (UWoRTickExecution), and the Vitals set
-// hands the Health / Energy change to the game's HP / EP path. With 0 the enum path pays. Each type leaves the
-// same HP and EP on both paths; an instant pays through a tick spec of its own.
+// GAS stage 3 (B-042yd): the other payouts (energy restore / drain, HP drain, self-damage, the percent restores)
+// are paid by their GE's tick spec (UWoRTickExecution), and the Vitals set hands the Health / Energy change to the
+// game's HP / EP path; an instant pays through a tick spec of its own. B-042g2: the UseGAS 0 pass (the enum path
+// paying) went with the switch.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -77,8 +77,6 @@ BEGIN_DEFINE_SPEC(FGASOtherPayoutsSpec, "WoR.GAS.OtherPayouts",
 		HeroStats->ServerSetEP(HeroStats->MaxEP / OTHER_PAYOUT_HALF);
 	}
 
-	int32 ExpectedTicks(bool bReadsFromGAS, int32 Ticks) const { return bReadsFromGAS ? Ticks : 0; }
-
 	/** On the GAS path the attribute a payout changed holds the game's pool (the pools stay the truth). The
 	 *  test world has no attribute sync, so only the changed one is set. */
 	void TestAttributeHoldsPool(bool bEnergy)
@@ -129,7 +127,6 @@ void FGASOtherPayoutsSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		EffectManager = nullptr;
 		ASC = nullptr;
 		HeroStats = nullptr;
@@ -138,88 +135,74 @@ void FGASOtherPayoutsSpec::Define()
 		TestWorld.Reset();
 	});
 
-	for (const bool bReadsFromGAS : {false, true})
+	for (const FOtherPayoutCase &Case : OTHER_PAYOUT_CASES)
 	{
-		Describe(bReadsFromGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0"), [this, bReadsFromGAS]()
+		const FString TypeName = UEnum::GetValueAsString(Case.Type);
+		It(FString::Printf(TEXT("pays %s each turn, on GAS"), *TypeName), [this, Case, TypeName]()
 		{
-			BeforeEach([bReadsFromGAS]() { UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS); });
-
-			for (const FOtherPayoutCase &Case : OTHER_PAYOUT_CASES)
+			if (!EffectManager) return;
+			Prepare();
+			const int32 StartHP = HeroStats->CurrentHP;
+			const int32 StartEP = HeroStats->CurrentEP;
+			const int32 Tick = Case.ExpectedTick(Case.bEnergy ? HeroStats->MaxEP : HeroStats->MaxHP, Case.Value);
+			EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TypeName, OTHER_PAYOUT_ID, Case.Type, Case.Value,
+																		   OTHER_PAYOUT_TURNS),
+									   Foe);
+			for (int32 Turn = 0; Turn < OTHER_PAYOUT_TURNS; ++Turn)
 			{
-				const FString TypeName = UEnum::GetValueAsString(Case.Type);
-				It(FString::Printf(TEXT("pays %s each turn, on GAS with the switch on"), *TypeName), [this, bReadsFromGAS, Case, TypeName]()
-				{
-					if (!EffectManager) return;
-					Prepare();
-					const int32 StartHP = HeroStats->CurrentHP;
-					const int32 StartEP = HeroStats->CurrentEP;
-					const int32 Tick = Case.ExpectedTick(Case.bEnergy ? HeroStats->MaxEP : HeroStats->MaxHP, Case.Value);
-					EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TypeName, OTHER_PAYOUT_ID, Case.Type, Case.Value,
-																				   OTHER_PAYOUT_TURNS),
-											   Foe);
-					for (int32 Turn = 0; Turn < OTHER_PAYOUT_TURNS; ++Turn)
-					{
-						HolderTurn();
-					}
-					HolderTurn(); // expired: no more payouts
-					TestTrue(TEXT("The payout moves something"), Tick != 0);
-					TestEqual(TEXT("HP after N payouts"), HeroStats->CurrentHP, StartHP + (Case.bEnergy ? 0 : OTHER_PAYOUT_TURNS * Tick));
-					TestEqual(TEXT("EP after N payouts"), HeroStats->CurrentEP, StartEP + (Case.bEnergy ? OTHER_PAYOUT_TURNS * Tick : 0));
-					TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, ExpectedTicks(bReadsFromGAS, OTHER_PAYOUT_TURNS));
-					if (bReadsFromGAS)
-					{
-						TestAttributeHoldsPool(Case.bEnergy);
-					}
-				});
+				HolderTurn();
 			}
-
-			It("pays an instant self-damage once, through a tick spec of its own with the switch on", [this, bReadsFromGAS]()
-			{
-				if (!EffectManager) return;
-				const int32 StartHP = HeroStats->CurrentHP;
-				EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Instant self-damage"), OTHER_PAYOUT_ID,
-																			   ESkillEffectType::SelfDamage, OTHER_PAYOUT_FLAT,
-																			   OTHER_PAYOUT_INSTANT),
-										   Foe);
-				TestEqual(TEXT("Hit once"), HeroStats->CurrentHP, StartHP - FMath::RoundToInt(OTHER_PAYOUT_FLAT));
-				TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, ExpectedTicks(bReadsFromGAS, 1));
-				if (bReadsFromGAS)
-				{
-					TestAttributeHoldsPool(false);
-				}
-			});
-
-			It("skips a percent HP restore while heal-blocked", [this]()
-			{
-				if (!EffectManager) return;
-				Prepare();
-				const int32 WoundedHP = HeroStats->CurrentHP;
-				EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Percent restore"), OTHER_PAYOUT_ID,
-																			   ESkillEffectType::RestoreHPPercent, OTHER_PAYOUT_PERCENT,
-																			   OTHER_PAYOUT_TURNS),
-										   Foe);
-				EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Heal block"), OTHER_PAYOUT_HEAL_BLOCK_ID,
-																			   ESkillEffectType::HealBlock, 0.0f, OTHER_PAYOUT_TURNS + 1),
-										   Foe);
-				EffectManager->ProcessStartOfTurnEffects(Hero);
-				TestEqual(TEXT("No heal"), HeroStats->CurrentHP, WoundedHP);
-				TestEqual(TEXT("No tick"), TicksThroughGAS, 0);
-			});
-
-			It("kills through the death path when a drain is lethal", [this, bReadsFromGAS]()
-			{
-				if (!EffectManager) return;
-				HeroStats->ServerSetHP(1);
-				EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Lethal drain"), OTHER_PAYOUT_ID, ESkillEffectType::DrainHP,
-																			   OTHER_PAYOUT_FLAT, OTHER_PAYOUT_TURNS),
-										   Foe);
-				EffectManager->ProcessStartOfTurnEffects(Hero);
-				TestEqual(TEXT("HP 0"), HeroStats->CurrentHP, 0);
-				TestFalse(TEXT("Dead"), HeroStats->bIsAlive);
-				TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, ExpectedTicks(bReadsFromGAS, 1));
-			});
+			HolderTurn(); // expired: no more payouts
+			TestTrue(TEXT("The payout moves something"), Tick != 0);
+			TestEqual(TEXT("HP after N payouts"), HeroStats->CurrentHP, StartHP + (Case.bEnergy ? 0 : OTHER_PAYOUT_TURNS * Tick));
+			TestEqual(TEXT("EP after N payouts"), HeroStats->CurrentEP, StartEP + (Case.bEnergy ? OTHER_PAYOUT_TURNS * Tick : 0));
+			TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, OTHER_PAYOUT_TURNS);
+			TestAttributeHoldsPool(Case.bEnergy);
 		});
 	}
+
+	It("pays an instant self-damage once, through a tick spec of its own", [this]()
+	{
+		if (!EffectManager) return;
+		const int32 StartHP = HeroStats->CurrentHP;
+		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Instant self-damage"), OTHER_PAYOUT_ID,
+																	   ESkillEffectType::SelfDamage, OTHER_PAYOUT_FLAT,
+																	   OTHER_PAYOUT_INSTANT),
+								   Foe);
+		TestEqual(TEXT("Hit once"), HeroStats->CurrentHP, StartHP - FMath::RoundToInt(OTHER_PAYOUT_FLAT));
+		TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, 1);
+		TestAttributeHoldsPool(false);
+	});
+
+	It("skips a percent HP restore while heal-blocked", [this]()
+	{
+		if (!EffectManager) return;
+		Prepare();
+		const int32 WoundedHP = HeroStats->CurrentHP;
+		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Percent restore"), OTHER_PAYOUT_ID,
+																	   ESkillEffectType::RestoreHPPercent, OTHER_PAYOUT_PERCENT,
+																	   OTHER_PAYOUT_TURNS),
+								   Foe);
+		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Heal block"), OTHER_PAYOUT_HEAL_BLOCK_ID,
+																	   ESkillEffectType::HealBlock, 0.0f, OTHER_PAYOUT_TURNS + 1),
+								   Foe);
+		EffectManager->ProcessStartOfTurnEffects(Hero);
+		TestEqual(TEXT("No heal"), HeroStats->CurrentHP, WoundedHP);
+		TestEqual(TEXT("No tick"), TicksThroughGAS, 0);
+	});
+
+	It("kills through the death path when a drain is lethal", [this]()
+	{
+		if (!EffectManager) return;
+		HeroStats->ServerSetHP(1);
+		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Lethal drain"), OTHER_PAYOUT_ID, ESkillEffectType::DrainHP,
+																	   OTHER_PAYOUT_FLAT, OTHER_PAYOUT_TURNS),
+								   Foe);
+		EffectManager->ProcessStartOfTurnEffects(Hero);
+		TestEqual(TEXT("HP 0"), HeroStats->CurrentHP, 0);
+		TestFalse(TEXT("Dead"), HeroStats->bIsAlive);
+		TestEqual(TEXT("Ticks through GAS"), TicksThroughGAS, 1);
+	});
 }
 
 #endif

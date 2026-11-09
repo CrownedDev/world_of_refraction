@@ -23,8 +23,7 @@ Central service. Owns all effect state and exposes the application/removal/query
 
 Important internal fields:
 - `TMap<TWeakObjectPtr<AActor>, TArray<FActiveSkillEffect>> ActiveEffects` — all active effects, keyed per actor. Not a `UPROPERTY` (`TArray` nested in a `TMap` is not reflection-supported).
-- `TSet<int32> FiredOnceThisMatch` — `EffectID`s that have fired this combat (backs `bFiresOncePerMatch`); cleared by `ResetForNewCombat`.
-- `TMap<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> ArmedConditionals` — gear **conditional** effects armed per actor at combat start; read by the defender-trigger handler. Cleared by `ResetForNewCombat`.
+- Fires-once uses (backs `bFiresOncePerMatch`) and the gear **conditional** effects armed at combat start (read by the defender-trigger handler) live on each holder's `UWoRTurnEffectTracker` (B-042z; B-042g2 deleted the manager's own `FiredOnceThisMatch` / `ArmedConditionals`). `ResetForNewCombat` resets every tracker in the world; a holder without a tracker keeps no record and isn't armed.
 - `int32 NextInstanceID` — counter for `GenerateInstanceID()`.
 
 Public-facing API groups (all `UFUNCTION(BlueprintCallable)` unless noted):
@@ -140,7 +139,7 @@ Helpers: `IsBuff`/`IsDebuff` (delegate to the single-source `SkillEffectClassifi
 ### Effect application — `ApplyEffect`
 
 1. Reject a null target; check `IsImmuneToEffectType`.
-2. **Fires-once gate** — if `bFiresOncePerMatch` and `EffectID ∈ FiredOnceThisMatch`, reject *before* any stacking/refresh.
+2. **Fires-once gate** — if `bFiresOncePerMatch` and the holder's tracker has the use (`HasFiredOnce`), reject *before* any stacking/refresh.
 3. Stamp source attribution; set `InitialDuration` from `RemainingTurns`.
 4. `FindEffectByID` on the target's array:
    - found + `bCanStack` + `CanAddStack()` → `CurrentStacks++`, optional refresh, broadcast `OnEffectStacksChanged`, return `StackAdded`.
@@ -163,7 +162,7 @@ Helpers: `IsBuff`/`IsDebuff` (delegate to the single-source `SkillEffectClassifi
 
 Conditional effects are a **gear** concept (skills fire all their effects on cast). The flow:
 
-1. **Arm.** At combat start, `ACombatOrchestrator` calls `SkillEffectManager->ResetForNewCombat()` then, per actor, `ArmConditionalEffects(Actor, Loadout->GetActiveConditionalEffectsGathered(Actor))`. The armed sets sit inert in `ArmedConditionals` until an outcome fires them.
+1. **Arm.** At combat start, `ACombatOrchestrator` calls `SkillEffectManager->ResetForNewCombat()` then, per actor, `ArmConditionalEffects(Actor, Loadout->GetActiveConditionalEffectsGathered(Actor))`. The armed sets sit inert on the holder's tracker until an outcome fires them.
 2. **Dispatch.** `OnDefenseResolvedHandler` is bound to `UDefenseSystem::OnDefenseResolved(Defender, Attacker, DefenseType, bPerfect, ImpactIndex)`. It maps the outcome to its trigger set via `DefenseOutcomeToTriggers`, then evaluates from **both perspectives** — `{Owner=Defender, Target=Attacker}` ("I parried") and `{Owner=Attacker, Target=Defender}` ("my target dodged me").
 3. **Guard.** For each armed effect, a **defense-trigger guard** skips any group that contains no `IsDefenseOutcomeTrigger` condition — so a pure-threshold conditional never leaks into the impact path.
 4. **Evaluate.** `EvaluateConditionGroup` runs with: `Participates = IsOwnerSide(Subject) || Target != nullptr`; `IsMet` dispatches — a defense-outcome condition requires `OutcomeTriggers.Contains(Trigger)` **and** that `ResolveSubjectActors(Subject, Owner, Target)` contains the actual `Defender` (so the outcome's perspective resolves correctly per owner); other (threshold) conditions ANY-fold `IsSingleTriggerMet` over the subject's actors.
@@ -316,3 +315,4 @@ Coverage mirrors `GetActiveStatBonus` per class plus the innate (primary-slot) e
 | 2026-11-03 | B-275 (S9, Q-275): element-keyed members `GrantElementImmunity` and `ApplyDOTOnHit` (appended). `SkillEffectClassification::ResolveKeyed` turns them into the old member at build time (`BuildRuntimeFromPayload`): immunity via `GetElementImmunityType`, Fire / Water DoT on hit to Burn / Chill; any other element stays keyed and deals a DoT of its element on hit. Payload element None or Generic takes the cast element. Text, names and GAS families added; old members kept. Spec `WoR.Effects.Keyed`. | refactor/B-275-keyed-effects |
 | 2026-11-08 | B-383 (D-166): `EDamageScope` (All / Physical / Spell / Element) on `FSkillEffectPayload` and `FActiveSkillEffect` (`BuildRuntimeFromPayload` copies it; the Element scope keys to the payload's element, else the cast element); `GetTotalStatModifierForHit` sums a type's effects whose scope matches a hit; the GAS identity carries the scope (`SumMagnitudeForHit`). | feature/B-383-damage-scopes-cloud (unbuilt) |
 | 2026-11-09 | B-064a: `ESkillEffectType::IceBreak` appended (a break trigger, never stored: its row applies Water's slow plus damage); named "Ice break" (placeholder, Q-064a2), worded in `EffectText`, a debuff in `SkillEffectClassification::IsDebuff`, mirrored as `UWoRGE_Periodic` beside `BurstDamage`. `USpellData::bDealsIce` gives a Water spell's hits the Ice hit kind. | `feature/B-064a-ice-cloud` (UNBUILT) |
+| 2026-11-09 | B-042g2 (D-121): the `wor.Effects.UseGAS` branches go (the GAS arm stays; an actor without a mirror keeps the store until B-042g5); `FiredOnceThisMatch` / `ArmedConditionals` deleted, the tracker holds the fight records (`ForEachTurnTracker` resets / disarms them); file-local `FindLifetimeMirror` replaces `UWoREffectMirrorComponent::OwnsLifetime`. | `feature/B-042g2-usegas-switch-delete-cloud` (UNBUILT) |

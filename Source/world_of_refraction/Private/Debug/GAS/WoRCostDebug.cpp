@@ -38,9 +38,9 @@ FString UWoRCostDebug::GetCostString(AActor *Actor)
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor);
 	const bool bVitals = ASC && ASC->GetSet<UWoRAttributeSet_Vitals>();
 	FString Line = FString::Printf(
-		TEXT("%s: costs paid %s (wor.Costs.UseGAS %d, wor.Effects.UseGAS %d, authority %s, ASC %s, Vitals %s); EP %d/%d, HP %d/%d"),
+		TEXT("%s: costs paid %s (wor.Costs.UseGAS %d, authority %s, ASC %s, Vitals %s); EP %d/%d, HP %d/%d"),
 		*Actor->GetName(), WoRCosts::PaysThroughGAS(Actor) ? TEXT("through GAS") : TEXT("the old way"),
-		WoRCosts::PaysThroughGASEnabled() ? 1 : 0, UWoREffectMirrorComponent::ReadsFromGAS() ? 1 : 0,
+		WoRCosts::PaysThroughGASEnabled() ? 1 : 0,
 		YesNo(Actor->HasAuthority()), YesNo(ASC != nullptr), YesNo(bVitals), Char->CurrentEP, Char->MaxEP, Char->CurrentHP,
 		Char->MaxHP);
 	if (bVitals)
