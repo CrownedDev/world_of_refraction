@@ -4,6 +4,7 @@
 #include "Combat/CombatConstants.h"
 #include "AbilitySystemComponent.h"
 #include "Combat/Resistance/EWoRDamageType.h"
+#include "Combat/Elements/ElementTable.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoREffectContext.h"
@@ -45,25 +46,32 @@ FDamageMathInputs UWoRDamageExecution::ReadAttributes(const FWoRDamageRequest &R
 
 	if (!Request.bIgnoreResistance)
 	{
-		ReadElementResistance(Target, Inputs.Element, Inputs.ElementResistance);
+		ReadHitDamageResistance(Target, Inputs.GetHitKind(), Inputs.ElementResistance);
 	}
 	return Inputs;
 }
 
 bool UWoRDamageExecution::ReadElementResistance(const UAbilitySystemComponent *Target, ESpellElement Element, float &OutResistance)
 {
-	const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Element);
+	return ReadHitDamageResistance(Target, FWoRHitKind::FromPair(Element, EPhysicalDamageType::None), OutResistance);
+}
+
+bool UWoRDamageExecution::ReadHitDamageResistance(const UAbilitySystemComponent *Target, const FWoRHitKind &Hit, float &OutResistance)
+{
+	const EWoRDamageType ElementType = Hit.ElementType();
 	float Resistance = 0.0f;
 	if (ElementType == EWoRDamageType::None ||
 		!UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(ElementType), Resistance))
 	{
 		return false;
 	}
-	float IceResistance = 0.0f;
-	if (ElementType == EWoRDamageType::Water &&
-		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), IceResistance))
+	// Water adds Ice (Q-145b); an Ice hit's row adds nothing.
+	const EWoRDamageType AlsoType = ElementTable::For(ElementType).AlsoResistedBy;
+	float AlsoResistance = 0.0f;
+	if (AlsoType != EWoRDamageType::None &&
+		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(AlsoType), AlsoResistance))
 	{
-		Resistance += IceResistance;
+		Resistance += AlsoResistance;
 	}
 	OutResistance = Resistance;
 	return true;
