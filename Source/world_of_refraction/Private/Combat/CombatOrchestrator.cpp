@@ -666,6 +666,13 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	if (Action.ActionType == EActionType::EndTurn)
 	{
+		// B-170e review: End Turn exists only in an action-pips fight (a co-op client with its own switch at 1 must
+		// not pass a turn in a normal fight).
+		if (!IsActionPipsFight())
+		{
+			UE_LOG(LogWoRCombat, Warning, TEXT("[CombatOrchestrator] End Turn refused: not an action-pips fight"));
+			return false;
+		}
 		EndTurnByChoice();
 		return true;
 	}
@@ -825,6 +832,12 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 
 	if (Action.ActionType == EActionType::EndTurn)
 	{
+		if (!IsActionPipsFight()) // B-170e review, as SubmitAction: the turn is asked for again
+		{
+			OutInvalidReason = TEXT("End Turn refused: not an action-pips fight");
+			UE_LOG(LogWoRCombat, Warning, TEXT("[CombatOrchestrator] %s"), *OutInvalidReason);
+			return false;
+		}
 		EndTurnByChoice();
 		return true;
 	}
