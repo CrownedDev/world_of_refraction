@@ -6,6 +6,7 @@
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Definitions/SpellData.h"
 #include "HAL/IConsoleManager.h"
+#include "WoRLog.h"
 #include "UObject/UObjectIterator.h"
 
 namespace
@@ -20,6 +21,35 @@ namespace
 	/** Absorbs even-fraction float error (100/3 = 33.333332) so an exact share doesn't floor one short; the same
 	 *  epsilon as ApplyOneImpact's lumped slice, so both paths cut a hit the same way. */
 	constexpr float SPLIT_FLOOR_EPSILON = 0.01f;
+
+	/** B-032d (Q-032d): per-impact defense for every spell shape. On by default; 0 keeps the lumped path for
+	 *  comparison until B-032b deletes it. */
+	TAutoConsoleVariable<bool> CVarCombatPerImpactDefense(
+		TEXT("wor.Combat.PerImpactDefense"),
+		true,
+		TEXT("1 = every offensive spell (several cast entries, or a hit count above 1) defends per impact, spell windows ")
+		TEXT("stay open past the cast animation for their arrivals, an ability's impacts with no Impact notify land as ")
+		TEXT("fallback impacts when its animation ends, and a window that closes early or times out lands its remaining ")
+		TEXT("impacts one by one (B-032d). 0 = those keep the lumped path."));
+}
+
+bool SpellImpactPlan::IsPerImpactDefenseOn()
+{
+	return CVarCombatPerImpactDefense.GetValueOnGameThread();
+}
+
+int32 SpellImpactPlan::CastEntryOfImpact(const USpellData &Spell, int32 ImpactIndex)
+{
+	int32 FirstOfEntry = 0;
+	for (int32 EntryIndex = 0; EntryIndex < Spell.CastArray.Num(); ++EntryIndex)
+	{
+		FirstOfEntry += ArrivalsOf(Spell.CastArray[EntryIndex]);
+		if (ImpactIndex >= 0 && ImpactIndex < FirstOfEntry)
+		{
+			return EntryIndex;
+		}
+	}
+	return INDEX_NONE;
 }
 
 int32 SpellImpactPlan::ArrivalsOf(const FSkillCastEntry &Entry)
@@ -84,8 +114,7 @@ namespace
 		TEXT("the current wor.Combat.PerImpactDefense."),
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
-			const IConsoleVariable *PerImpact = IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Combat.PerImpactDefense"));
-			const bool bOn = PerImpact && PerImpact->GetBool();
+			const bool bOn = SpellImpactPlan::IsPerImpactDefenseOn();
 			int32 Listed = 0;
 			for (TObjectIterator<USpellData> It; It; ++It)
 			{
@@ -93,9 +122,9 @@ namespace
 				{
 					continue;
 				}
-				UE_LOG(LogTemp, Log, TEXT("[SpellImpacts] %s"), *SpellImpactPlan::GetPlanString(**It, bOn));
+				UE_LOG(LogWoRCombat, Log, TEXT("[SpellImpacts] %s"), *SpellImpactPlan::GetPlanString(**It, bOn));
 				++Listed;
 			}
-			UE_LOG(LogTemp, Log, TEXT("[SpellImpacts] %d loaded spell(s), wor.Combat.PerImpactDefense %d"), Listed, bOn ? 1 : 0);
+			UE_LOG(LogWoRCombat, Log, TEXT("[SpellImpacts] %d loaded spell(s), wor.Combat.PerImpactDefense %d"), Listed, bOn ? 1 : 0);
 		}));
 }

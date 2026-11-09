@@ -91,18 +91,10 @@ namespace
 		TEXT("1 = a skill with no montage lands each impact (or releases its spell) at once, through the same defense ")
 		TEXT("code as a montage. 0 = it waits for the defense failsafe (lands undefended)."));
 
-	/** B-032d (Q-032d): per-impact defense for every spell shape. On by default; 0 keeps the lumped path for
-	 *  comparison until B-032b deletes it. */
-	TAutoConsoleVariable<bool> CVarCombatPerImpactDefense(
-		TEXT("wor.Combat.PerImpactDefense"),
-		true,
-		TEXT("1 = every offensive spell (several cast entries, or a hit count above 1) defends per impact, an ability's ")
-		TEXT("impacts with no Impact notify land as fallback impacts when its animation ends, and a window that closes ")
-		TEXT("early or times out lands its remaining impacts one by one (B-032d). 0 = those keep the lumped path."));
-
+	/** B-032d (Q-032d): wor.Combat.PerImpactDefense, defined with the rules in SpellImpactPlan.cpp. */
 	bool UsesPerImpactDefense()
 	{
-		return CVarCombatPerImpactDefense.GetValueOnGameThread();
+		return SpellImpactPlan::IsPerImpactDefenseOn();
 	}
 
 	/** The AI reaction-delay seed a spell window re-opens with, the same as its lumped open. */
@@ -2337,11 +2329,23 @@ void UActionExecutor::ApplyRemainingImpacts(AActor *Attacker, AActor *Target, FP
 	UE_LOG(LogWoRCombat, Log, TEXT("[PerImpact] %s: impacts %d-%d of %d land at the window's close, one by one (defense %d, share %.2f)"),
 		   *Target->GetName(), Ctx.ImpactsLanded, ImpactCount - 1, ImpactCount, static_cast<int32>(CloseResult.DefenseType), CloseShare);
 
+	// Each impact's own no-damage / no-status flags (B1), not the last landed impact's: a spell's from the cast entry
+	// the impact belongs to (SpellImpactPlan's arrival order), an ability's from its hit.
+	const USpellData *ImpactSpell = Ctx.ActionType == EActionType::Spell ? Cast<USpellData>(GetCurrentSkillData()) : nullptr;
 	for (int32 Index = Ctx.ImpactsLanded; Index < ImpactCount; ++Index)
 	{
 		if (!CurrentExecutionContext.IsSet() || !IsTargetAlive(Target))
 		{
 			break; // a kill stops the rest, as at the impact frames (a kill can also end the action)
+		}
+		if (Ctx.ActionType == EActionType::Spell)
+		{
+			StashHitFlags(Ctx, CurrentExecutionContext->ResolvedCastFlags,
+						  ImpactSpell ? SpellImpactPlan::CastEntryOfImpact(*ImpactSpell, Index) : INDEX_NONE);
+		}
+		else
+		{
+			StashHitFlags(Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
 		}
 		const int32 Slice = SpellImpactPlan::ImpactBaseSlice(Ctx.BaseDamage, ImpactCount, CurrentExecutionContext->ResolvedDamageSplit, Index);
 		Ctx.ResolvedFinalDamage = FMath::RoundToInt(Slice * CloseShare);
@@ -5350,6 +5354,18 @@ void UActionExecutor::LandFallbackImpacts()
 		CurrentExecutionContext->Action.ActionType != EActionType::Ability)
 	{
 		return; // spells land their impacts at their arrivals; a window they never reach closes per impact (ApplyRemainingImpacts)
+	}
+	// An ability that fires projectiles (a projectile cast entry) may still have one flying: its impacts are not the
+	// swing's to land. Skipped whole; its window closes as before (reconcile, then ApplyRemainingImpacts).
+	const USkillDataBase *FallbackSkill = GetCurrentSkillData();
+	if (FallbackSkill && FallbackSkill->CastArray.ContainsByPredicate([](const FSkillCastEntry &Entry)
+		{
+			return Entry.DeliveryType == ESpellDeliveryType::Projectile;
+		}))
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[ImpactFrame] %s fires projectiles: no fallback impacts at the swing's end (B-032d)"),
+			   *GetNameSafe(FallbackSkill));
+		return;
 	}
 
 	// The impacts no Impact notify landed, the same for every defender (one swing hits them all).

@@ -26,6 +26,10 @@ struct WORLD_OF_REFRACTION_API FSpellImpactPlan
 
 namespace SpellImpactPlan
 {
+	/** wor.Combat.PerImpactDefense (default 1): B-032d's widened spell gate, the fallback impacts, the per-impact close,
+	 *  and spell windows left open past the animation's end. 0 = the lumped path, for comparison until B-032b. */
+	WORLD_OF_REFRACTION_API bool IsPerImpactDefenseOn();
+
 	/** Arrivals on each target from one cast entry: a projectile entry's Count (at least 1), else 1. */
 	WORLD_OF_REFRACTION_API int32 ArrivalsOf(const FSkillCastEntry &Entry);
 
@@ -37,6 +41,10 @@ namespace SpellImpactPlan
 
 	/** The shapes B-032d adds (wor.Combat.PerImpactDefense): an offensive spell that is not single-entry single-hit. */
 	WORLD_OF_REFRACTION_API bool IsWidened(const USpellData &Spell);
+
+	/** The cast entry an impact ordinal belongs to, counting each entry's arrivals in CastArray order (a burst's
+	 *  arrivals before the next entry's). INDEX_NONE for a spell with no cast entries or an ordinal past the plan. */
+	WORLD_OF_REFRACTION_API int32 CastEntryOfImpact(const USpellData &Spell, int32 ImpactIndex);
 
 	/** One impact's share of BaseDamage before defense: the DamageSplit percent when the table has one entry per
 	 *  impact, else an even share with the remainder on the first impacts (the shares sum to BaseDamage). The one
