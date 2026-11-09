@@ -62,12 +62,17 @@ BEGIN_DEFINE_SPEC(FTickExecutionSpec, "WoR.GAS.TickExecution",
 		return Effect;
 	}
 
-	/** The Health one holder turn start's ticks change on GAS. */
+	/** The HP one holder turn start's GAS ticks change. B-042g2: the Vitals set always hands a Health change to the
+	 *  game's HP path, so the change is read from the game's HP (Health follows it). */
 	float PayTicks()
 	{
+		UCharacterDataComponent *Char = Hero->FindComponentByClass<UCharacterDataComponent>();
+		const int32 StartHP = FMath::RoundToInt(TICK_TEST_START_HEALTH);
+		Char->ServerSetHP(StartHP);
 		ASC->SetNumericAttributeBase(UWoRAttributeSet_Vitals::GetHealthAttribute(), TICK_TEST_START_HEALTH);
 		Tracker->OnHolderTurnStart();
-		const float Change = Health() - TICK_TEST_START_HEALTH;
+		const float Change = static_cast<float>(Char->CurrentHP - StartHP);
+		TestEqual(TEXT("Health follows the game's HP"), FMath::RoundToInt(Health()), Char->CurrentHP);
 		Tracker->OnHolderTurnEnd();
 		return Change;
 	}
