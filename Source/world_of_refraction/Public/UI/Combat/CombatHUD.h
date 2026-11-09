@@ -17,6 +17,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "Components/SlateWrapperTypes.h"
 #include "CombatHUD.generated.h"
 
 class AActor;
@@ -40,6 +41,11 @@ public:
     void Teardown();
 
     bool IsBuilt() const { return bBuilt; }
+
+    /** B-406: hides every combat widget for a boss cinematic (true) and restores each one's own visibility (false). */
+    void SetHiddenForCinematic(bool bHidden);
+
+    bool IsHiddenForCinematic() const { return bHiddenForCinematic; }
 
     /** Debug: one line per widget with bound actor / validity. */
     FString GetHUDStateString() const;
@@ -81,6 +87,13 @@ private:
     TObjectPtr<UDefensePromptWidget> DefensePrompt;
 
     bool bBuilt = false;
+
+    /** B-406: hidden for a boss cinematic, and each widget's visibility from before, to put back. */
+    bool bHiddenForCinematic = false;
+    TMap<TWeakObjectPtr<UUserWidget>, ESlateVisibility> VisibilityBeforeCinematic;
+
+    /** B-406: every combat widget this HUD built. */
+    TArray<UUserWidget *> GetAllWidgets() const;
 
     UClass *ResolvePanelClass() const;
 
