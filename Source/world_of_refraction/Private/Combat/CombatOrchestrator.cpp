@@ -9,7 +9,6 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Defense/DefenseSystem.h"
-#include "Infusion/InfusionChargeManager.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Combat/CombatConstants.h"   // WORLDSTAT_KILL_DIVISOR (§7 C3 earn faucet)
@@ -517,10 +516,6 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	if (UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(GI))
 	{
 		Defense->ResetForCombat();
-	}
-	if (UInfusionChargeManager *Infusion = WoRFight::Get<UInfusionChargeManager>(GI))
-	{
-		Infusion->ResetForCombat();
 	}
 
 	if (UWeatherStateManager *WeatherManager = WoRFight::Get<UWeatherStateManager>(GI))
