@@ -10,6 +10,9 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Boss/BossData.h"
+#include "Combat/Boss/BossPhaseComponent.h"
+#include "Engine/LocalPlayer.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
@@ -31,6 +34,9 @@ namespace CombatCameraTiming
 	// character's camera when the shot then moves on that camera. TODO: tune in PIE (B-157).
 	constexpr float ShotStepSeconds = 1.0f / 60.0f;
 	constexpr float ShotCutSeconds = 0.2f;
+	// B-406: how long wor.Camera.BossCinematic holds for an empty field when BossCinematicPreviewSeconds is 0.
+	// TODO: tune (debug only).
+	constexpr float BossCinematicPreviewDefaultSeconds = 3.0f;
 }
 
 namespace
@@ -45,6 +51,9 @@ namespace CombatCameraBindings
 {
 	const FName CasterTag(TEXT("Caster"));
 	const FName TargetsTag(TEXT("Targets"));
+	// B-406: a boss cinematic's bindings.
+	const FName BossTag(TEXT("Boss"));
+	const FName PartyTag(TEXT("Party"));
 }
 
 void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, UActionExecutor *Executor)
@@ -70,6 +79,16 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 				Camera->RegisterComponent();
 			}
 			Cameras.Add(Camera);
+		}
+	}
+
+	// B-406: a boss's phase cinematics (Normal enemies have no phase component, so never get one).
+	for (AActor *Actor : OpposingCombatants)
+	{
+		if (UBossPhaseComponent *Phases = IsValid(Actor) ? Actor->FindComponentByClass<UBossPhaseComponent>() : nullptr)
+		{
+			Phases->OnBossPhaseReached.AddUniqueDynamic(this, &UCombatCameraDirector::HandleBossPhaseReached);
+			BoundBossPhases.Add(Phases);
 		}
 	}
 
@@ -100,6 +119,15 @@ void UCombatCameraDirector::EndCombat()
 	}
 	bInCombat = false;
 	ClearDefenceHandOff();
+	EndBossCinematic(false); // B-406: the HUD comes back; no finish broadcast once the fight is over
+	for (const TWeakObjectPtr<UBossPhaseComponent> &Phases : BoundBossPhases)
+	{
+		if (UBossPhaseComponent *Component = Phases.Get())
+		{
+			Component->OnBossPhaseReached.RemoveDynamic(this, &UCombatCameraDirector::HandleBossPhaseReached);
+		}
+	}
+	BoundBossPhases.Reset();
 	StopSequence();
 	StopShotPattern();
 
@@ -208,6 +236,10 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 {
 	ViewedActor = Actor;
 	ClearDefenceHandOff();
+	if (IsBossCinematicPlaying())
+	{
+		return; // B-406: the boss cinematic keeps the view; its end shows this turn
+	}
 	StopSequence();
 	ShowTurnView();
 }
@@ -224,6 +256,10 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	if (bNewActor)
 	{
 		ViewedActor = Executor;
+	}
+	if (IsBossCinematicPlaying())
+	{
+		return; // B-406: no shots and no Defence hand-off under a boss cinematic
 	}
 	// B-370: whatever the cinematic, a viewer who must defend gets the Defence view at the window's end. A hit
 	// too soon for any cinematic shows it now, and no cinematic plays over it.
@@ -304,6 +340,10 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 
 void UCombatCameraDirector::ShowTurnView()
 {
+	if (IsBossCinematicPlaying())
+	{
+		return; // B-406: its end shows the turn view
+	}
 	StopShotPattern(); // B-371: the end of a pattern blends back to the turn view
 	AActor *Actor = ViewedActor.Get();
 	APlayerController *Viewer = GetViewer();
@@ -524,6 +564,10 @@ void UCombatCameraDirector::ClearDefenceHandOff()
 
 void UCombatCameraDirector::ShowDefenceView()
 {
+	if (IsBossCinematicPlaying())
+	{
+		return; // B-406: no defence view until the HUD is back
+	}
 	AActor *Attacker = HandOffAttacker.Get();
 	TArray<FVector> Defenders;
 	UCombatCameraComponent *Camera = nullptr;
@@ -586,7 +630,9 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	ShotTuning = Skill->CameraTuning;
 	bShotRanged = Action.ActionType == EActionType::Spell || Skill->ExecutionType == EAbilityExecutionType::Ranged;
 	ShotStartFrame = GFrameCounter;
-	if (!PlayShot(Camera, ECameraShotMoment::WindUp, FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, BuildShotContext(false), ShotTuning)))
+	// B-406: an enemy's named attack opens on a front shot of the enemy, everything else on the wind-up.
+	const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(ShotTuning, OpposingCombatants.Contains(Caster));
+	if (!PlayShot(Camera, Opening, FCombatCameraRules::ComputeShot(Opening, BuildShotContext(false), ShotTuning)))
 	{
 		StopShotPattern(); // review fix: no viewer or camera, nothing left half-playing
 		return false;
@@ -748,4 +794,241 @@ FString UCombatCameraDirector::GetShotString() const
 	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f%s)"), *UEnum::GetValueAsString(ShotMoment),
 						   *GetNameSafe(ShotCaster.Get()), Camera ? *GetNameSafe(Camera->GetOwner()) : TEXT("no"),
 						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""));
+}
+
+// ========================================
+// B-406: per-boss cinematics (opening, phase change), on trial
+// ========================================
+
+UBossPhaseComponent *UCombatCameraDirector::FindFirstBoss() const
+{
+	for (AActor *Actor : OpposingCombatants)
+	{
+		if (UBossPhaseComponent *Phases = IsValid(Actor) ? Actor->FindComponentByClass<UBossPhaseComponent>() : nullptr)
+		{
+			return Phases;
+		}
+	}
+	return nullptr;
+}
+
+bool UCombatCameraDirector::HasLocalViewer() const
+{
+	const APlayerController *Viewer = GetViewer();
+	return Viewer && Viewer->GetLocalPlayer(); // a headless world's controller has none (as UCombatHUD checks)
+}
+
+bool UCombatCameraDirector::PlayBossOpening()
+{
+	if (!bInCombat)
+	{
+		return false;
+	}
+	for (AActor *Actor : OpposingCombatants)
+	{
+		const UBossPhaseComponent *Phases = IsValid(Actor) ? Actor->FindComponentByClass<UBossPhaseComponent>() : nullptr;
+		const UBossData *Data = Phases ? Phases->GetBossData() : nullptr;
+		if (Data && (!Data->OpeningSequence.IsNull() || BossCinematicPreviewSeconds > 0.0f))
+		{
+			return PlayBossCinematic(EBossCinematicKind::Opening, Actor, Data->OpeningSequence, INDEX_NONE);
+		}
+	}
+	return false;
+}
+
+bool UCombatCameraDirector::PreviewBossCinematic(EBossCinematicKind Kind, int32 PhaseIndex)
+{
+	UBossPhaseComponent *Phases = FindFirstBoss();
+	if (!bInCombat || !Phases || Kind == EBossCinematicKind::None)
+	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] Boss cinematic preview: no fight or no boss in it"));
+		return false;
+	}
+	const UBossData *Data = Phases->GetBossData();
+	const TSoftObjectPtr<ULevelSequence> Sequence = Kind == EBossCinematicKind::Opening
+		? (Data ? Data->OpeningSequence : TSoftObjectPtr<ULevelSequence>())
+		: Phases->GetPhaseCinematic(PhaseIndex);
+	if (Sequence.IsNull())
+	{
+		const float Seconds = BossCinematicPreviewSeconds > 0.0f ? BossCinematicPreviewSeconds : CombatCameraTiming::BossCinematicPreviewDefaultSeconds;
+		HoldForBossCinematic(Kind, Phases->GetOwner(), Seconds);
+		BossCinematicPhase = PhaseIndex;
+		return true;
+	}
+	return PlayBossCinematic(Kind, Phases->GetOwner(), Sequence, PhaseIndex);
+}
+
+void UCombatCameraDirector::HandleBossPhaseReached(AActor *Boss, int32 PhaseIndex)
+{
+	const UBossPhaseComponent *Phases = IsValid(Boss) ? Boss->FindComponentByClass<UBossPhaseComponent>() : nullptr;
+	if (bInCombat && Phases)
+	{
+		PlayBossCinematic(EBossCinematicKind::Phase, Boss, Phases->GetPhaseCinematic(PhaseIndex), PhaseIndex);
+	}
+}
+
+bool UCombatCameraDirector::PlayBossCinematic(EBossCinematicKind Kind, AActor *Boss, const TSoftObjectPtr<ULevelSequence> &Sequence, int32 PhaseIndex)
+{
+	if (!bInCombat || !Boss)
+	{
+		return false;
+	}
+	if (Sequence.IsNull() && BossCinematicPreviewSeconds > 0.0f)
+	{
+		HoldForBossCinematic(Kind, Boss, BossCinematicPreviewSeconds); // debug preview of an empty field
+		BossCinematicPhase = PhaseIndex;
+		return true;
+	}
+	if (!FCombatCameraRules::ShouldPlayBossCinematic(!Sequence.IsNull(), HasLocalViewer(), SkillCinematics, bCameraMovementOff))
+	{
+		if (!Sequence.IsNull())
+		{
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s cinematic of %s skipped (no local viewer, or cinematics off)"),
+				   *UEnum::GetValueAsString(Kind), *GetNameSafe(Boss));
+		}
+		return false;
+	}
+	// TODO: B-140 async loading; one sync load per boss moment is fine for the trial.
+	ULevelSequence *Loaded = Sequence.LoadSynchronous();
+	FMovieSceneSequencePlaybackSettings Settings;
+	ALevelSequenceActor *NewActor = nullptr;
+	ULevelSequencePlayer *Player = Loaded ? ULevelSequencePlayer::CreateLevelSequencePlayer(this, Loaded, Settings, NewActor) : nullptr;
+	if (!Player || !NewActor)
+	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] Boss cinematic %s did not load or play; the fight goes on"), *Sequence.ToString());
+		return false;
+	}
+	TArray<AActor *> Party;
+	for (AActor *Member : LocalCombatants)
+	{
+		if (IsValid(Member))
+		{
+			Party.Add(Member);
+		}
+	}
+	NewActor->SetBindingByTag(CombatCameraBindings::BossTag, {Boss});
+	NewActor->SetBindingByTag(CombatCameraBindings::PartyTag, Party);
+
+	// A second phase reached under a playing cinematic replaces it (the boss's newest state); the hold carries on.
+	StopBossSequence(false);
+	ClearDefenceHandOff();
+	StopSequence();
+	StopShotPattern();
+	EnterBossCinematic(Kind, Boss, FCombatCameraRules::BossCinematicMaxSeconds, PhaseIndex);
+	BossSequencePlayer = Player;
+	BossSequenceActor = NewActor;
+	BossCinematicName = Loaded->GetName();
+	Player->OnFinished.AddDynamic(this, &UCombatCameraDirector::HandleBossSequenceFinished);
+	Player->Play();
+	return true;
+}
+
+void UCombatCameraDirector::HoldForBossCinematic(EBossCinematicKind Kind, AActor *Boss, float Seconds)
+{
+	if (!bInCombat || Kind == EBossCinematicKind::None)
+	{
+		return;
+	}
+	StopBossSequence(false);
+	ClearDefenceHandOff();
+	StopSequence();
+	StopShotPattern();
+	EnterBossCinematic(Kind, Boss, FMath::Min(Seconds, FCombatCameraRules::BossCinematicMaxSeconds), INDEX_NONE);
+	BossCinematicName = TEXT("preview hold, no sequence");
+}
+
+void UCombatCameraDirector::EnterBossCinematic(EBossCinematicKind Kind, AActor *Boss, float CapSeconds, int32 PhaseIndex)
+{
+	const bool bWasPlaying = IsBossCinematicPlaying();
+	BossCinematicKind = Kind;
+	BossCinematicBoss = Boss;
+	BossCinematicPhase = PhaseIndex;
+	CurrentMode = ECombatCameraMode::Action;
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(BossCinematicCapTimer, this, &UCombatCameraDirector::FinishBossCinematic, CapSeconds, false);
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Boss cinematic %s of %s: HUD hidden, the fight waits (cap %.1f s)"),
+		   *UEnum::GetValueAsString(Kind), *GetNameSafe(Boss), CapSeconds);
+	if (!bWasPlaying)
+	{
+		OnCinematicHudHidden.Broadcast(true);
+	}
+}
+
+void UCombatCameraDirector::HandleBossSequenceFinished()
+{
+	EndBossCinematic(true);
+}
+
+void UCombatCameraDirector::FinishBossCinematic()
+{
+	EndBossCinematic(false);
+}
+
+void UCombatCameraDirector::EndBossCinematic(bool bFromPlayer)
+{
+	if (!IsBossCinematicPlaying())
+	{
+		return;
+	}
+	const EBossCinematicKind Kind = BossCinematicKind;
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BossCinematicCapTimer);
+	}
+	StopBossSequence(bFromPlayer);
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Boss cinematic %s of %s ended: HUD back"), *UEnum::GetValueAsString(Kind),
+		   *GetNameSafe(BossCinematicBoss.Get()));
+	BossCinematicKind = EBossCinematicKind::None;
+	BossCinematicBoss.Reset();
+	BossCinematicPhase = INDEX_NONE;
+	BossCinematicName.Reset();
+	OnCinematicHudHidden.Broadcast(false);
+	if (bInCombat)
+	{
+		ShowTurnView(); // before turn 1 nobody is viewed yet: turn 1's own start shows it
+		OnBossCinematicFinished.Broadcast(Kind);
+	}
+}
+
+void UCombatCameraDirector::StopBossSequence(bool bDeferDestroy)
+{
+	if (BossSequencePlayer)
+	{
+		BossSequencePlayer->OnFinished.RemoveAll(this);
+		if (!bDeferDestroy)
+		{
+			BossSequencePlayer->Stop();
+		}
+	}
+	if (IsValid(BossSequenceActor))
+	{
+		UWorld *World = GetWorld();
+		if (bDeferDestroy && World)
+		{
+			// Called from the player's own OnFinished: the actor goes next tick (as StopSequence does).
+			World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(BossSequenceActor.Get(), [Actor = BossSequenceActor.Get()]()
+			{
+				Actor->Destroy();
+			}));
+		}
+		else
+		{
+			BossSequenceActor->Destroy();
+		}
+	}
+	BossSequencePlayer = nullptr;
+	BossSequenceActor = nullptr;
+}
+
+FString UCombatCameraDirector::GetBossCinematicString() const
+{
+	if (!IsBossCinematicPlaying())
+	{
+		return TEXT("boss cinematic: none");
+	}
+	const FString Phase = BossCinematicPhase != INDEX_NONE ? FString::Printf(TEXT(" %d"), BossCinematicPhase) : FString();
+	return FString::Printf(TEXT("boss cinematic: %s%s of %s (%s)"), *UEnum::GetValueAsString(BossCinematicKind), *Phase,
+						   *GetNameSafe(BossCinematicBoss.Get()), *BossCinematicName);
 }
