@@ -231,7 +231,7 @@ Labels below: **[confirms]** = the new fights back a Part 1 rule; **[changes]** 
 - **[new] R16 Party handover:** blend (≈0.5 s) from the last wide beat to behind the next hero; card lift + ring and the turn-strip step on the same frame. No cut.
 - **[new] R17 Phase change:** cut to black, a HUD-free cinematic of the boss changing (data: a sequence per boss phase), back to a wide shot with the HUD and the next attack's banner. Defence timing must not start until the HUD is back.
 - **[new] R18 Boss opening:** the encounter's opening cinematic ends on (1) a low hero shot of the boss, (2) one wide side-on shot of both sides, (3) the first turn view. Short fade between cinematic and fight. Normal fights have none (FeelGuide 1, crystal break).
-- **Note for Crown:** R17/R18 sit against FeelGuide 9 ("bosses: no cinematics or flashy staging", Nightreign; "later, maybe" for main bosses). Crown's Q3 answer allows a data-driven cinematic opening for main/mini bosses, so R17/R18 should be **opt-in per boss data**, off by default, until FeelGuide 9 is updated.
+- **Crown's ruling (2026-11-09):** R18 (boss opening cinematic) and R17 (phase-change cinematic) are **per-boss opt-in in the boss's data, on trial**: try them and judge them in play. FeelGuide 9 now says this instead of "no cinematics". **Player and team spells** each get their own camera, but **deliberately less cinematic than a boss's** to keep the pace: short, no long sequences; R7's signature shots stay brief.
 
 ## 10. VFX
 
