@@ -11,6 +11,8 @@
 // B-043e (Q-043e): an AOE spell, an Instant spell and a support (self) spell, cast the same headless way, each
 // resolve through one Event.Combat.SpellResolve.AOE / .Instant / .Support at their ability's WaitGameplayEvent task,
 // with the same result as the old path.
+// B-043f (Q-043f): through its ability, an action's EP is committed and paid by the ability (once, the same amount),
+// and an all-AI 1v1 runs to the same end at both switch values, every impact through an ability.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -18,6 +20,8 @@
 #include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "BalanceSimSignalRecorder.h"
+#include "UObject/StrongObjectPtr.h"
 #include "AbilitySystemGlobals.h"
 #include "Abilities/GameplayAbility.h"
 #include "Character/CharacterDataComponent.h"
@@ -59,6 +63,8 @@ namespace
 	/** B-043e: upper bound for one spell-shape action to settle (test ticks are 0.01s; spans the executor's 10s
 	 *  timeout, as WoR.Skills.SupportNoBuildup); the run stops as soon as the turn moves on. */
 	constexpr int32 ABILITIES_SPEC_SHAPE_SETTLE_FRAMES = 1100;
+	/** B-043f: a whole all-AI 1v1 at ~3 frames a turn (as WoR.Balance.Sim.OneFight); reaching it means a stall. */
+	constexpr int32 ABILITIES_SPEC_FIGHT_TICK_CAP = 3000;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -79,6 +85,8 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 	USpellData *ShapeSpell = nullptr;
 	int32 Activations = 0;
 	int32 Ends = 0;
+	/** B-043f: every ability instance that activated (fight end clears the specs, so the counts are read here). */
+	TArray<TStrongObjectPtr<UWoRGameplayAbility>> ActivatedAbilities;
 
 	/** An initialised ASC on Actor that counts its abilities' activations and ends. */
 	UAbilitySystemComponent *GiveASC(AActor *Actor)
@@ -89,7 +97,15 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		}
 		UAbilitySystemComponent *ASC = FWoRTestWorld::AddComponent<UAbilitySystemComponent>(Actor);
 		ASC->InitAbilityActorInfo(Actor, Actor);
-		ASC->AbilityActivatedCallbacks.AddLambda([this](UGameplayAbility *) { ++Activations; });
+		ASC->AbilityActivatedCallbacks.AddLambda([this](UGameplayAbility *Ability)
+		{
+			++Activations;
+			UWoRGameplayAbility *SkillAbility = Cast<UWoRGameplayAbility>(Ability);
+			if (SkillAbility && !ActivatedAbilities.ContainsByPredicate([SkillAbility](const TStrongObjectPtr<UWoRGameplayAbility> &Seen) { return Seen.Get() == SkillAbility; }))
+			{
+				ActivatedAbilities.Emplace(SkillAbility);
+			}
+		});
 		ASC->AbilityEndedCallbacks.AddLambda([this](UGameplayAbility *) { ++Ends; });
 		return ASC;
 	}
@@ -171,6 +187,8 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		bool bStillListeningForProjectiles = false;
 		/** The turn moved on from the hero: the action completed. */
 		bool bTurnMovedOn = false;
+		/** B-043f: costs the hero's ability for the skill committed and paid. */
+		int32 CostsCommitted = 0;
 	};
 
 	/** B-043c: Hero's Strike on Foe in a fresh world (the battle seed set by the caller), one switch value. */
@@ -267,6 +285,72 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		Outcome.BurstSpawns = SumOverInstances(Hero, Skill, [](const UWoRGameplayAbility &Ability) { return Ability.GetBurstSpawnsDriven(); });
 		Outcome.bStillListeningForProjectiles = WoRSkillAbilities::FindProjectileListener(Hero) != nullptr;
 		Outcome.bTurnMovedOn = Orchestrator->GetCurrentActor() != Hero;
+		Outcome.CostsCommitted = SumOverInstances(Hero, Skill, [](const UWoRGameplayAbility &Ability) { return Ability.GetCostsCommitted(); });
+		return Outcome;
+	}
+
+	struct FFightOutcome
+	{
+		bool bEnded = false;
+		int32 HeroHP = 0;
+		int32 FoeHP = 0;
+		int32 Rounds = 0;
+		int32 ImpactFrames = 0;
+		int32 ImpactEvents = 0;
+		int32 Activations = 0;
+		int32 Ends = 0;
+		int32 CostsCommitted = 0;
+	};
+
+	/** B-043f: an all-AI 1v1 of Strike fighters, both with an ASC, in a fresh world at one switch value, run to its
+	 *  end (as WoR.Balance.Sim.OneFight; the caller sets wor.AI.ThinkDelayScale 0). */
+	FFightOutcome RunFight(bool bThroughAbility)
+	{
+		FFightOutcome Outcome;
+		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
+		{
+			Orchestrator->ForceEndCombat();
+		}
+		Orchestrator = nullptr;
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		if (!TestWorld->Create() || !TestWorld->GetWorld())
+		{
+			return Outcome;
+		}
+		Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		WoRSkillAbilities::SetUsesAbilities(bThroughAbility);
+		AActor *Hero = SpawnArmed(true);
+		AActor *Foe = SpawnArmed(true);
+		GiveASC(Hero);
+		GiveASC(Foe);
+		if (!Orchestrator || !Hero || !Foe)
+		{
+			return Outcome;
+		}
+		TStrongObjectPtr<UBalanceSimSignalRecorder> Recorder(NewObject<UBalanceSimSignalRecorder>());
+		Recorder->Listen(TestWorld->GetSubsystem<UActionExecutor>(), TestWorld->GetSubsystem<UTurnManager>(),
+						 TestWorld->GetSubsystem<UStatusBuildupManager>());
+		Activations = 0;
+		Ends = 0;
+		ActivatedAbilities.Reset();
+		Orchestrator->StartCombat({Hero}, {Foe});
+		for (int32 Tick = 0; Tick < ABILITIES_SPEC_FIGHT_TICK_CAP && Orchestrator->GetCombatState() == ECombatState::InProgress; ++Tick)
+		{
+			TestWorld->Tick();
+		}
+
+		Outcome.bEnded = Orchestrator->GetCombatState() != ECombatState::InProgress;
+		Outcome.HeroHP = CurrentHPOf(Hero);
+		Outcome.FoeHP = CurrentHPOf(Foe);
+		Outcome.Rounds = Recorder->Rounds;
+		Outcome.ImpactFrames = Recorder->ImpactIndices.Num();
+		Outcome.Activations = Activations;
+		Outcome.Ends = Ends;
+		for (const TStrongObjectPtr<UWoRGameplayAbility> &Ability : ActivatedAbilities)
+		{
+			Outcome.ImpactEvents += Ability->GetImpactEventsResolved();
+			Outcome.CostsCommitted += Ability->GetCostsCommitted();
+		}
 		return Outcome;
 	}
 	/** B-043e: a montage-less Generic spell of one flightless shape (rooted; AfterEach removes it). AOE / Instant: one
@@ -440,6 +524,7 @@ void FGASAbilitiesSpec::Define()
 	AfterEach([this]()
 	{
 		WoRSkillAbilities::SetUsesAbilities(false);
+		ActivatedAbilities.Reset();
 		SetAbilitiesSpecCVar(TEXT("wor.Combat.InstantImpacts"), 0);
 		SetAbilitiesSpecCVar(TEXT("wor.Battle.Seed"), 0);
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
@@ -618,6 +703,9 @@ void FGASAbilitiesSpec::Define()
 				}
 				TestEqual(TEXT("Impacts through Event.Combat.Impact (B-043c)"), ImpactEventsOf(Hero),
 						  bThroughAbility ? Strike->HitCount : 0);
+				TestEqual(TEXT("The cost paid through the ability's commit (B-043f)"),
+						  SumOverInstances(Hero, Strike, [](const UWoRGameplayAbility &Ability) { return Ability.GetCostsCommitted(); }),
+						  bThroughAbility ? 1 : 0);
 			});
 		});
 	}
@@ -816,6 +904,64 @@ void FGASAbilitiesSpec::Define()
 		It("resolves a support spell through one Event.Combat.SpellResolve.Support, with the old path's result", [this]()
 		{
 			CheckShapeParity(EWoRSpellResolveKind::Support);
+		});
+	});
+
+	Describe("costs and whole fights (B-043f)", [this]()
+	{
+		It("pays a spell's EP once, through its ability's commit, the old path's amount", [this]()
+		{
+			const FStrikeOutcome OldPath = RunBolt(false);
+			const FStrikeOutcome ThroughAbility = RunBolt(true);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			TestTrue(FString::Printf(TEXT("The old path paid EP (refusal: %s)"), *OldPath.Refusal), OldPath.EPSpent > 0);
+			TestEqual(TEXT("Same EP through the ability"), ThroughAbility.EPSpent, OldPath.EPSpent);
+			TestEqual(TEXT("No ability commit on the old path"), OldPath.CostsCommitted, 0);
+			TestEqual(TEXT("One commit through the ability"), ThroughAbility.CostsCommitted, 1);
+		});
+
+		It("leaves the cost to the executor when no ability runs the action", [this]()
+		{
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			UCharacterDataComponent *HeroStats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			if (!TestNotNull(TEXT("ASC"), GiveASC(Hero)) || !TestNotNull(TEXT("Stats"), HeroStats) ||
+				!TestTrue(TEXT("Granted"), WoRSkillAbilities::GrantSkill(Hero, Strike).IsValid()))
+			{
+				return;
+			}
+			HeroStats->CurrentEP = ABILITIES_SPEC_START_EP;
+			const FAction Action = WoRSkillAbilities::MakePlainAction(Strike);
+			TestNull(TEXT("An idle ability runs no action"), WoRSkillAbilities::FindActionRunner(Hero, Action));
+			TestFalse(TEXT("The cost is not taken"), WoRSkillAbilities::CommitCostThroughAbility(Hero, Action, ABILITIES_SPEC_STRIKE_EP));
+			TestEqual(TEXT("Nothing paid"), HeroStats->CurrentEP, ABILITIES_SPEC_START_EP);
+			TestFalse(TEXT("No actor: not taken"), WoRSkillAbilities::CommitCostThroughAbility(nullptr, Action, ABILITIES_SPEC_STRIKE_EP));
+		});
+
+		It("runs an all-AI 1v1 to the same end through abilities, every impact and cost through them", [this]()
+		{
+			SetAbilitiesSpecCVar(TEXT("wor.AI.ThinkDelayScale"), 0);
+			const FFightOutcome OldPath = RunFight(false);
+			const FFightOutcome ThroughAbility = RunFight(true);
+			SetAbilitiesSpecCVar(TEXT("wor.AI.ThinkDelayScale"), 1);
+			if (!TestTrue(TEXT("Both fights ended (not stalled at the tick cap)"), OldPath.bEnded && ThroughAbility.bEnded))
+			{
+				return;
+			}
+			TestTrue(TEXT("One side is down"), ThroughAbility.HeroHP <= 0 || ThroughAbility.FoeHP <= 0);
+			TestEqual(TEXT("Same rounds"), ThroughAbility.Rounds, OldPath.Rounds);
+			TestEqual(TEXT("Same hero HP at the end"), ThroughAbility.HeroHP, OldPath.HeroHP);
+			TestEqual(TEXT("Same foe HP at the end"), ThroughAbility.FoeHP, OldPath.FoeHP);
+			TestEqual(TEXT("No ability ran on the old path"), OldPath.Activations, 0);
+			TestTrue(TEXT("Abilities ran the fight"), ThroughAbility.Activations > 0);
+			TestEqual(TEXT("Every ability ended"), ThroughAbility.Ends, ThroughAbility.Activations);
+			// Strict on purpose: one battle seed, and Strike passes every gate, so each activation reaches its pay point;
+			// a mismatch means an action paid outside its ability or not at all.
+			TestEqual(TEXT("Every action's cost paid through its ability"), ThroughAbility.CostsCommitted, ThroughAbility.Activations);
+			TestTrue(TEXT("Impacts landed"), ThroughAbility.ImpactFrames > 0);
+			TestEqual(TEXT("Every impact through an ability"), ThroughAbility.ImpactEvents, ThroughAbility.ImpactFrames);
 		});
 	});
 }

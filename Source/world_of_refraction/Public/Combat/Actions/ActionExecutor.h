@@ -903,6 +903,10 @@ private:
 	/** Spend energy from actor */
 	bool SpendEnergy(AActor *Actor, int32 Amount);
 
+	/** B-043f (Q-043f): an action's EP at its pay point. The skill ability running Action commits and pays it
+	 *  (WoRSkillAbilities::CommitCostThroughAbility, wor.Abilities.UseGAS 1); else SpendEnergy, as before. */
+	bool PayActionEnergy(AActor *Actor, const FAction &Action, int32 Amount);
+
 public:
 	// ========================================
 	// CHARGE INFUSION HELPERS (NEW)
