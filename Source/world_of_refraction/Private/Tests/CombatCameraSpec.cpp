@@ -607,6 +607,10 @@ void FCombatCameraDirectorSpec::Define()
 		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
 		Orchestrator->OnActionRequested.Broadcast(Hero);
 		TestEqual(TEXT("a third action's ask: a return"), Director->GetSameTurnReturnCount(), 2);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(SecondHero); // not the actor the camera follows
+		TestEqual(TEXT("another actor asked after Hero acted: no return"), Director->GetSameTurnReturnCount(), 2);
+		TestTrue(TEXT("still following Hero"), Director->GetViewedActor() == Hero);
 
 		// Only a turn change does the full move.
 		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
