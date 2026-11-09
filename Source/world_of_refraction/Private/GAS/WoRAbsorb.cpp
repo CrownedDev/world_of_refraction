@@ -14,7 +14,7 @@ void FWoRAbsorbCharge::Fill()
 	PoolLeft = Mode == EWoRChargeMode::Pool ? Magnitude : 0;
 }
 
-bool FWoRAbsorbCharge::Catches(ESpellElement HitElement, EPhysicalDamageType HitPhysical) const
+bool FWoRAbsorbCharge::Catches(ESpellElement HitElement, EPhysicalDamageType HitPhysical, EWoRDamageType HitDealt) const
 {
 	switch (Verb)
 	{
@@ -32,6 +32,11 @@ bool FWoRAbsorbCharge::Catches(ESpellElement HitElement, EPhysicalDamageType Hit
 			return HitElement != ESpellElement::None;
 		case EWoRWardScope::Element:
 		default:
+			// B-064c (the deckbuilder's Ice reach): an Ice hit (keyed Water) is caught only by a Ward keyed Ice.
+			if (HitDealt == EWoRDamageType::Ice)
+			{
+				return bKeyedIce && Element == ESpellElement::Water;
+			}
 			return HitElement == Element && Element != ESpellElement::None;
 		}
 	default:
@@ -61,7 +66,8 @@ bool FWoRAbsorbCharge::IsUsedUp() const
 FString FWoRAbsorbCharge::ToString() const
 {
 	const FString ScopeText = Verb != EWoRAbsorbVerb::Ward ? FString()
-							  : Scope == EWoRWardScope::Element ? FString::Printf(TEXT(" %s"), *UEnum::GetDisplayValueAsText(Element).ToString())
+							  : Scope == EWoRWardScope::Element ? FString::Printf(TEXT(" %s%s"), *UEnum::GetDisplayValueAsText(Element).ToString(),
+																				  bKeyedIce ? TEXT(" (keyed Ice: Ice and Water)") : TEXT(""))
 							  : Scope == EWoRWardScope::Elemental ? FString(TEXT(" (every element)"))
 																  : FString(TEXT(" (all)"));
 	const FString Spend = Mode == EWoRChargeMode::Pool
@@ -74,7 +80,8 @@ FString FWoRAbsorbCharge::ToString() const
 
 namespace WoRAbsorb
 {
-	int32 Spend(TArrayView<FWoRAbsorbCharge *> Charges, int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical)
+	int32 Spend(TArrayView<FWoRAbsorbCharge *> Charges, int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical,
+				EWoRDamageType HitDealt)
 	{
 		TArray<FWoRAbsorbCharge *> Ordered(Charges.GetData(), Charges.Num());
 		Ordered.RemoveAll([](const FWoRAbsorbCharge *Charge) { return Charge == nullptr; });
@@ -90,7 +97,7 @@ namespace WoRAbsorb
 			{
 				break;
 			}
-			if (!Charge->IsLive() || !Charge->Catches(HitElement, HitPhysical))
+			if (!Charge->IsLive() || !Charge->Catches(HitElement, HitPhysical, HitDealt))
 			{
 				continue;
 			}
