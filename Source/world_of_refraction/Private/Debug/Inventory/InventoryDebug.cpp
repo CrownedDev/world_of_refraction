@@ -292,17 +292,17 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         break;
 
     case EPrimarySlotType::Evolution:
-        if (Active.PrimaryEvolution.Item)
+        if (const FEvolutionAttachment Seat = Loadout->GetCharacterSlotEvolution(); Seat.Item) // B-357e: the one resolve path
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Evolution: %s"),
-                   *Active.PrimaryEvolution.Item->ItemName);
+                   *Seat.Item->ItemName);
             UE_LOG(LogTemp, Display, TEXT("  Evolution Spells: %d"),
                    Active.EvolutionSpells.Num());
             // Spell slot capacity by evolution tier (no attachment crystal — straight tier cap).
             const int32 SpellCap = CrystalEffectTable::SlotsForContainerTier(
-                Active.PrimaryEvolution.Tier);
+                Seat.Tier);
             UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: spells %d/%d"),
-                   *TierHelpers::GetTierDisplayString(Active.PrimaryEvolution.Tier),
+                   *TierHelpers::GetTierDisplayString(Seat.Tier),
                    Active.EvolutionSpells.Num(), SpellCap);
         }
         else

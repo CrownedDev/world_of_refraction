@@ -649,16 +649,15 @@ void USkillEffectManager::WOR_StartingEffects()
 	// PRE — per gear source, the same gear GetActiveEffects counts.
 	// Debug-only re-enumeration; the TOTAL cross-check below self-reports drift.
 	int32 Labeled = 0;
-	const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 	// B-306: the same gear the readers count (ForEachContributingGear), labelled by kind.
 	LC->ForEachContributingGear([&Labeled, &PrintSpecs](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
 	{
 		Labeled += Weapon ? PrintSpecs(TEXT("ActiveWeapon"), Weapon->WeaponEntry.Weapon->GetStartingEffects())
 						  : PrintSpecs(TEXT("ActiveAdapter"), Adapter->RingEntry.Ring->GetStartingEffects());
 	});
-	if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+	if (const UEvolutionItemData *Seat = LC->GetCharacterSlotEvolution().Item) // B-357e: the one resolve path
 	{
-		Labeled += PrintSpecs(TEXT("InnateEvolution"), Loadout.PrimaryEvolution.Item->GetStartingEffects());
+		Labeled += PrintSpecs(TEXT("InnateEvolution"), Seat->GetStartingEffects());
 	}
 
 	const int32 Total = LC->GetActiveEffects(Actor).Num();
