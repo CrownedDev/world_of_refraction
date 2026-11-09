@@ -83,6 +83,14 @@ struct WORLD_OF_REFRACTION_API FResistanceBonus
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resistance", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
 	float SpellDamage = 0.0f;
 
+	// ==================== ICE (B-064c, D-029) ====================
+
+	/** Ice resistance, percent: resists Ice hits and Water hits too (Q-145b). A resistance column (last in
+	 *  ResistanceColumns::Types) but never rolled (Q-064c): authored lines only. Appended: old assets and saves read 0
+	 *  (the save copies this struct by tagged property, so no save version bump). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resistance", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
+	float Ice = 0.0f;
+
 	/** B-389: the scope line a hit reads (SpellDamage for a spell, else PhysicalDamage), percent. */
 	float GetScopeLine(bool bHitIsSpell) const { return bHitIsSpell ? SpellDamage : PhysicalDamage; }
 

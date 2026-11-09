@@ -7,7 +7,7 @@
 // P1 B P2 B P3 B P4 B. First strike: the striking side takes a whole opening round, then the
 // alternation starts with that side.
 // UTurnManager owns one FTurnRotation and steps it from AdvanceSimState (the live turn and the belt
-// preview share it, on a scratch copy for the belt). Debug: UTurnManager::GetRotationString,
+// preview share it, on a scratch copy for the belt). Debug: UTurnManager::GetTurnModeString,
 // wor.Turns.PrintBelt.
 
 #pragma once

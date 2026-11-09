@@ -87,6 +87,12 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnStart, "Event.Combat.TurnStart", "Sent to the actor whose turn starts");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnEnd, "Event.Combat.TurnEnd", "Sent to the actor whose turn ends");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Impact, "Event.Combat.Impact", "B-043b (sent from B-043c): a melee impact frame, for WaitGameplayEvent");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile_Arrived, "Event.Combat.Projectile.Arrived", "B-043d: to the caster when its projectile reaches a target; Target = the target, magnitude = cast entry index");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile_Dodged, "Event.Combat.Projectile.Dodged", "B-043d: to the caster when its projectile misses a target that moved; Target = the target");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve, "Event.Combat.SpellResolve", "B-043e: a spell shape resolving with no flight (parent of AOE, Instant, Support), for WaitGameplayEvent");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve_AOE, "Event.Combat.SpellResolve.AOE", "B-043e: an area cast reached one defender; Target = that defender, magnitude = cast entry index");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve_Instant, "Event.Combat.SpellResolve.Instant", "B-043e: an instant cast reached one defender; Target = that defender, magnitude = cast entry index");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve_Support, "Event.Combat.SpellResolve.Support", "B-043e: a support (self / ally) cast's effect on all its targets; Target = the first target");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Melee, "Ability.Shape.Melee", "B-043b: a skill that strikes at close range");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Ranged, "Ability.Shape.Ranged", "B-043b: a skill that stays in place and strikes from range");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_SelfCast, "Ability.Shape.SelfCast", "B-043b: a skill on self or allies, no projectile");

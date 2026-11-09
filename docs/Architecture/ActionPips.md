@@ -51,5 +51,7 @@ Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-09 | B-170a: created. Constants, action-point layers, Max Actions with progress, Reflex regain, the bank on `UCharacterDataComponent` (`CurrentActions`, replicated, not saved) with `OnActionsChanged`; `wor.Actions.Print` / `AddPoints` / `Reset`; `ActionPipsSpec`. No play change. | `feature/B-170a-action-pips-cloud` (UNBUILT) |
+| 2026-11-09 | B-170a built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix). | `feature/B-170a-action-pips` |
 | 2026-11-09 | B-170b: `wor.Turns.ActionPips` defined (`TurnRotation::IsActionPipsOn`); the fixed rotation in `UTurnManager` (see TurnManager.md). The bank is still not read by turns (B-170c). | `feature/B-170b-turn-rotation-cloud` (UNBUILT) |
+| 2026-11-09 | B-170b built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix). | `feature/B-170b-turn-rotation` |
 | 2026-11-09 | B-170c: the bank plays. Action costs (`USkillDataBase::ActionCost`, items in `CrystalEffectTable`, `FAction::GetActionCost`, `ACTION_COST_DEFAULT`, `IsCostAboveMax` / `CanAfford`); the orchestrator's multi-action turn, `EActionType::EndTurn`, free switching; `wor.Actions.Print` shows the turn's spends; `MultiActionTurnSpec`. Build choices Q-170c2. | `feature/B-170c-multi-action-turns-cloud` (UNBUILT) |

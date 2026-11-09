@@ -1192,6 +1192,8 @@ int32 UAIDecisionManager::ComputeActionDamageEstimate(AActor *Attacker, AActor *
     Input.BaseDamage = Preview.FinalDamage;
     Input.ActionType = Action.ActionType;
     Input.Element = Preview.Element;
+    // B-064c: an Ice spell's hits deal Ice (resistance, scoped boosts), as ActionExecutor's hit does.
+    Input.DealtTypeOverride = bIsSpell && Action.SpellData ? Action.SpellData->GetDealtTypeOverride(Preview.Element) : EWoRDamageType::None;
     Input.ActionMods = ActionMods;
     Input.bCanCrit = false;
     Input.bWasInfused = InfusionLevel > 0;
