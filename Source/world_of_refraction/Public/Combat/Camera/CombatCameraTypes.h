@@ -85,7 +85,20 @@ enum class ECameraShotMoment : uint8
 	/** Frame the target; a small shake and FOV punch (larger on a crit). */
 	Impact,
 	/** Several targets: pull out until all are in frame. */
-	Spread
+	Spread,
+	/** B-406 (study R9): an enemy's named attack opens on a front medium shot of the enemy, pushing in. */
+	NamedAttack
+};
+
+/** B-406 (study R17, R18; FeelGuide 9): a per-boss cinematic, opt-in in the boss's data. */
+UENUM(BlueprintType)
+enum class EBossCinematicKind : uint8
+{
+	None,
+	/** Before the first turn; turn 1 waits for it. */
+	Opening,
+	/** When a boss phase is reached; the next action waits for it. */
+	Phase
 };
 
 /** B-371 (Q-371): per-skill tuning of the code-built shots, without Sequencer. A skill with its own CameraSequence
@@ -112,6 +125,11 @@ struct WORLD_OF_REFRACTION_API FSkillCameraTuning
 	/** The Cast shot follows the projectile (off: it holds on the caster). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
 	bool bFollowProjectile = true;
+
+	/** B-406 (study R9, Crown's Q3): a named attack. Used by an enemy, its wind-up is a front shot of the enemy (the
+	 *  threat announced) instead of the over-the-shoulder push-in. No effect on a party member's skill. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
+	bool bNamedAttack = false;
 };
 
 /** B-371: what a code-built shot needs to know about the action. */
@@ -227,4 +245,17 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 
 	/** B-371: the camera at Alpha (0 to 1, clamped) along Shot, eased in and out. */
 	static FTransform BlendShot(const FCameraShot &Shot, float Alpha);
+
+	/** B-406: the first shot of a skill's pattern: an enemy's named attack opens on the NamedAttack front shot, every
+	 *  other skill on the over-the-shoulder WindUp. */
+	static ECameraShotMoment OpeningMomentFor(const FSkillCameraTuning &Tuning, bool bCasterIsEnemy);
+
+	/** B-406: the longest a boss cinematic may hold the fight; a broken or over-long sequence is cut here.
+	 *  TODO: tune in PIE (the study's phase change runs about 15 s). */
+	static constexpr float BossCinematicMaxSeconds = 20.0f;
+
+	/** B-406 (FeelGuide 9, on trial): whether a boss cinematic plays. Only with a sequence set and a local viewer to
+	 *  watch it (a headless fight starts at once), and only while skill cinematics are on (D-078: camera movement off
+	 *  skips them unless that setting is On). */
+	static bool ShouldPlayBossCinematic(bool bHasSequence, bool bHasLocalViewer, ESkillCinematics Setting, bool bMovementOff);
 };
