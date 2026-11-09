@@ -433,3 +433,34 @@ bool WoRSkillAbilities::SendSpellResolveEvent(AActor *Actor, const FWoRSpellReso
 		   *Actor->GetName(), *Payload.EventTag.ToString(), *GetNameSafe(Resolve.GetEventTarget()), *GetNameSafe(Listener));
 	return false;
 }
+
+UWoRGameplayAbility *WoRSkillAbilities::FindActionRunner(AActor *Actor, const FAction &Action)
+{
+	const USkillDataBase *Skill = GetActionSkill(Action);
+	if (!Skill)
+	{
+		return nullptr;
+	}
+	return FindListeningSkillAbility(Actor, [Skill](const UWoRGameplayAbility &Ability)
+	{
+		const FAction *Running = Ability.GetRunningAction();
+		return Running && GetActionSkill(*Running) == Skill;
+	});
+}
+
+bool WoRSkillAbilities::CommitCostThroughAbility(AActor *Actor, const FAction &Action, int32 Cost)
+{
+	UWoRGameplayAbility *Runner = FindActionRunner(Actor, Action);
+	if (!Runner)
+	{
+		return false;
+	}
+	if (Runner->CommitActionCost(Cost))
+	{
+		return true;
+	}
+	// Never pay twice: nothing was paid, so the executor pays (or refuses, as before).
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s did not pay %d EP; the executor pays it"), *Actor->GetName(),
+		   *GetNameSafe(Runner), Cost);
+	return false;
+}
