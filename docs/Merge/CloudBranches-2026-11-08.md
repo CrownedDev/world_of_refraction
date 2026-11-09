@@ -200,6 +200,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 81 | `feature/B-397-hidden-quests-shown-cloud` | dev | – | D-171: hidden quests listed once found, current goal only, private discovery notice; Q-377's placeholder notices superseded. Reviewed; fixed. |
 | 82 | `feature/B-170b-turn-rotation-cloud` | row 80 (B-170a) | – | Action pips 2 (Q-170b2): fixed round-robin rotation behind `wor.Turns.ActionPips` (default 0, read per fight); speed hooks keep broadcasting; first-striking side leads every round (Crown may change). Reviewed; fixed. |
 | 83 | `feature/B-043e-spell-shapes-abilities-cloud` | row 79 (B-043d) | – | GAS stage 4 part 5 (Q-043e): AOE / Instant hits and support casts through the spell's ability (`Event.Combat.SpellResolve.*`), bodies moved unchanged, executor fallback; behind `wor.Abilities.UseGAS`. Reviewed (spec gaps noted in its PIE sheet). |
+| 84 | `feature/B-170c-multi-action-turns-cloud` | row 82 (B-170b) | – | Action pips 3 (Q-170c2): several actions per turn behind `wor.Turns.ActionPips`, `ActionCost` (≥1) on skills and items, `EActionType::EndTurn` (appended), ritual arming continues the turn, switching free. Reviewed; fixed (ClampMin 1 per the plan). |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
@@ -311,3 +312,5 @@ Deletions of code a finished job made obsolete. CLAUDE.md: no deleting code befo
 ## Update, 2026-11-09 (afternoon): after B-043b / B-043c landed
 
 Rows 79–81 written and reviewed. Being written: B-170b (on row 80) and B-043e (on row 79). Rows 74–77 and C1–C7 still wait on the desktop.
+
+The trial branch `integration/cloud-2026-11-09` now also has current dev and rows 79–84 merged (doc conflicts only; a duplicated-row slip in the B-043a..c rows is fixed). **Backlog conflicts: use a row union keyed by job id, never 'keep both blocks'.**
