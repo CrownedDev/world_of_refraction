@@ -1,7 +1,7 @@
 // ResistanceColumnsSpec.cpp
 // B-272 (S7): the four resistance column structs read, copy, add and compare by damage type, and every
 // column lands in the field of the same name. B-358: ten columns, the one Physical column held in the three
-// physical fields.
+// physical fields. B-064c: Ice is the eleventh.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -14,8 +14,9 @@
 
 namespace
 {
-	constexpr int32 RESISTANCE_COLUMN_COUNT = 10;
-	constexpr float PHYSICAL_COLUMN_VALUE = 10.0f; // the last column's distinct value
+	constexpr int32 RESISTANCE_COLUMN_COUNT = 11;
+	constexpr float PHYSICAL_COLUMN_VALUE = 10.0f; // the tenth column's distinct value
+	constexpr float ICE_COLUMN_VALUE = 11.0f;      // B-064c: the last column's
 
 	/** Each column a different value (its position + 1) so a crossed field shows. */
 	FResistanceBonus DistinctColumns()
@@ -35,7 +36,7 @@ namespace
 	{
 		return R.Fire == B.Fire && R.Water == B.Water && R.Earth == B.Earth && R.Wind == B.Wind && R.Light == B.Light &&
 			   R.Darkness == B.Darkness && R.Lightning == B.Lightning && R.Void == B.Void && R.Reality == B.Reality &&
-			   R.Slash == B.Slash && R.Pierce == B.Pierce && R.Impact == B.Impact;
+			   R.Slash == B.Slash && R.Pierce == B.Pierce && R.Impact == B.Impact && R.Ice == B.Ice;
 	}
 }
 
@@ -45,34 +46,36 @@ END_DEFINE_SPEC(FResistanceColumnsSpec)
 
 void FResistanceColumnsSpec::Define()
 {
-	It("has 10 columns: the nine elements and one Physical", [this]()
+	It("has 11 columns: the nine elements, one Physical and Ice", [this]()
 	{
 		TestEqual(TEXT("column count"), ResistanceColumns::Types().Num(), RESISTANCE_COLUMN_COUNT);
 		const FResistanceBonus Bonus = DistinctColumns();
 		TestEqual(TEXT("Fire is first"), Bonus.Fire, 1.0f);
 		TestEqual(TEXT("Reality is ninth"), Bonus.Reality, 9.0f);
-		TestTrue(TEXT("Physical is last, held in all three physical fields"),
+		TestTrue(TEXT("Physical is tenth, held in all three physical fields"),
 				 Bonus.Slash == PHYSICAL_COLUMN_VALUE && Bonus.Pierce == PHYSICAL_COLUMN_VALUE && Bonus.Impact == PHYSICAL_COLUMN_VALUE);
+		TestEqual(TEXT("Ice is last (B-064c)"), Bonus.Ice, ICE_COLUMN_VALUE);
 	});
 
-	It("keeps the column order the gear roll's slots use (Fire..Reality, Physical)", [this]()
+	It("keeps the column order the gear roll's slots use (Fire..Reality, Physical; Ice after, never rolled)", [this]()
 	{
 		const EWoRDamageType Expected[] = {
 			EWoRDamageType::Fire, EWoRDamageType::Water, EWoRDamageType::Earth, EWoRDamageType::Wind,
 			EWoRDamageType::Light, EWoRDamageType::Darkness, EWoRDamageType::Lightning, EWoRDamageType::Void,
-			EWoRDamageType::Reality, ResistanceColumns::PHYSICAL_COLUMN};
+			EWoRDamageType::Reality, ResistanceColumns::PHYSICAL_COLUMN, EWoRDamageType::Ice};
 		TestEqual(TEXT("one slot per column"), ResistanceColumns::Types().Num(), static_cast<int32>(UE_ARRAY_COUNT(Expected)));
 		for (int32 Slot = 0; Slot < FMath::Min(ResistanceColumns::Types().Num(), static_cast<int32>(UE_ARRAY_COUNT(Expected))); ++Slot)
 		{
 			TestTrue(FString::Printf(TEXT("slot %d"), Slot), ResistanceColumns::Types()[Slot] == Expected[Slot]);
 		}
+		TestEqual(TEXT("the roll covers every column but Ice"), ResistanceColumns::ROLLED_COLUMN_COUNT, RESISTANCE_COLUMN_COUNT - 1);
 	});
 
-	It("reads 0 for a type with no column (None, Ice)", [this]()
+	It("reads 0 for None, which has no column, and Ice's own column (B-064c)", [this]()
 	{
 		const FResistanceBonus Bonus = DistinctColumns();
 		TestEqual(TEXT("None"), ResistanceColumns::Get(Bonus, EWoRDamageType::None), 0.0f);
-		TestEqual(TEXT("Ice"), ResistanceColumns::Get(Bonus, EWoRDamageType::Ice), 0.0f);
+		TestEqual(TEXT("Ice"), ResistanceColumns::Get(Bonus, EWoRDamageType::Ice), ICE_COLUMN_VALUE);
 	});
 
 	It("copies every column into the field of the same name in each struct", [this]()

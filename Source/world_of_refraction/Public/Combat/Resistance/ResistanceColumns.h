@@ -1,8 +1,10 @@
 // ResistanceColumns.h
-// B-272 (S7): the resistance columns (ten since B-358), read and written by damage type. Four structs carry the same
+// B-272 (S7): the resistance columns (ten since B-358, eleven with Ice since B-064c), read and written by damage type. Four structs carry the same
 // named columns: ClassInnateResistanceTable::FResistanceRow, FResistanceProfileRow, FResistanceBonus and
 // FResistanceProfileDisplay. Their fields stay as they are (authored and saved); copies, sums, compares
-// and column reads go through here. Adding Ice = one field per struct and one case in Field.
+// and column reads go through here.
+// B-064c (D-029, Q-145b): Ice is the last column. Ice is no element axis (an Ice hit is keyed Water); its column is
+// read for an Ice hit, and for a Water hit as the type that also resists it (ElementTable's AlsoResistedBy).
 // B-358 (D-148, Q-358): one Physical column. The structs keep their Slash / Pierce / Impact fields (authored and saved,
 // append-only), but every read of a physical type gives the one Physical value, their average (old values fold in as
 // they load), and every write sets all three to it. Slash stands for the Physical column in Types(). The subtypes stay
@@ -22,16 +24,20 @@ namespace ResistanceColumns
 	/** B-358: how many stored fields the Physical column folds (Slash, Pierce, Impact). */
 	constexpr float PHYSICAL_FIELD_COUNT = 3.0f;
 
-	/** The columns, in field order: the nine elements and Physical (B-358). None has no column; Ice has none yet
-	 *  (D-029, keyed Water). */
+	/** The columns, in field order: the nine elements, Physical (B-358), then Ice (B-064c). None has no column. The gear
+	 *  roll's slots are the first ROLLED_COLUMN_COUNT; Ice is never rolled (Q-064c). */
 	inline const TArray<EWoRDamageType> &Types()
 	{
 		static const TArray<EWoRDamageType> ColumnTypes = {
 			EWoRDamageType::Fire, EWoRDamageType::Water, EWoRDamageType::Earth, EWoRDamageType::Wind,
 			EWoRDamageType::Light, EWoRDamageType::Darkness, EWoRDamageType::Lightning, EWoRDamageType::Void,
-			EWoRDamageType::Reality, PHYSICAL_COLUMN};
+			EWoRDamageType::Reality, PHYSICAL_COLUMN, EWoRDamageType::Ice};
 		return ColumnTypes;
 	}
+
+	/** B-064c (Q-064c): the columns the gear resistance roll spreads its budget over, Types()[0 .. this): every column
+	 *  but Ice, which comes from authored lines only (the rarer, stronger pick, Q-145b). */
+	constexpr int32 ROLLED_COLUMN_COUNT = 10;
 
 	/** Row's stored field for Type, or null when no struct has that column. Const in, const out. Raw: a physical type
 	 *  names its own stored field; read and write columns through Get / Set. */
@@ -52,8 +58,8 @@ namespace ResistanceColumns
 		case EWoRDamageType::Slash:     return &Row.Slash;
 		case EWoRDamageType::Pierce:    return &Row.Pierce;
 		case EWoRDamageType::Impact:    return &Row.Impact;
+		case EWoRDamageType::Ice:       return &Row.Ice;
 		case EWoRDamageType::None:
-		case EWoRDamageType::Ice:
 		default:
 			return nullptr;
 		}
@@ -125,12 +131,12 @@ namespace ResistanceColumns
 		return true;
 	}
 
-	/** One line, percent: "Fi +15 Wa -15 ... | Ph +0" (B-358: the one Physical column). */
+	/** One line, percent: "Fi +15 Wa -15 ... | Ph +0 | Ic +0" (B-358: the one Physical column; B-064c: Ice). */
 	template <class TRow>
 	FString ToString(const TRow &R)
 	{
-		return FString::Printf(TEXT("Fi %+.0f Wa %+.0f Ea %+.0f Wi %+.0f Li %+.0f Da %+.0f Lt %+.0f Vo %+.0f Re %+.0f | Ph %+.0f"),
+		return FString::Printf(TEXT("Fi %+.0f Wa %+.0f Ea %+.0f Wi %+.0f Li %+.0f Da %+.0f Lt %+.0f Vo %+.0f Re %+.0f | Ph %+.0f | Ic %+.0f"),
 							   R.Fire, R.Water, R.Earth, R.Wind, R.Light, R.Darkness, R.Lightning, R.Void, R.Reality,
-							   ResistanceColumns::Get(R, PHYSICAL_COLUMN));
+							   ResistanceColumns::Get(R, PHYSICAL_COLUMN), R.Ice);
 	}
 }
