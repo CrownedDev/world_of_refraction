@@ -320,3 +320,15 @@ Rows 79–81 written and reviewed. Being written: B-170b (on row 80) and B-043e 
 The trial branch `integration/cloud-2026-11-09` now also has current dev and rows 79–84 merged (doc conflicts only; a duplicated-row slip in the B-043a..c rows is fixed). **Backlog conflicts: use a row union keyed by job id, never 'keep both blocks'.**
 
 **Save versions after rows 86–87:** 32 (B-392) then 33 (B-393). Every other open cloud branch stays at 31 or lower.
+
+## Update, 2026-11-09 (evening)
+
+- **Do not merge `feature/B-043f-orchestrator-abilities-cloud`.** The desktop built B-043f itself (`feature/B-043f-ability-commits-cost`, in dev) with Q-043f's answer C (the montage stays in the executor). The cloud branch holds only docs: an OPEN Q-043f, a BLOCKED row and a re-pointed B-043g. All of these are superseded by dev. Its PIE baseline sheet idea is covered by dev's `docs/PIE/B-043f.md`.
+- **New trial branch `integration/cloud-2026-11-09b`.** It is current dev (B-043b..f) plus the 18 unmerged cloud branches: rows 74–77 (without B-043b), 80–82, 84–88, 81, and C1–C7.
+  - No code conflicts.
+  - A cross-merge review found no code breakage.
+  - It did find Backlog status cells overwritten by the trial merges. Those are restored from each branch's tip.
+  - It supersedes `integration/cloud-2026-11-09`.
+- **B-170e must target B-391's `UBattleCommandMenuWidget`** for its End Turn button, because `wor.UI.NewHUD` defaults to 1.
+- B-043g (rituals) is being written from dev.
+
