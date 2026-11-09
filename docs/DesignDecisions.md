@@ -232,6 +232,22 @@ The queue of questions only Crown can answer.
 - **The first-striking side also leads every later round** (Q-170f says the alternation starts with that side). Visible: a boss that strikes first acts twice in a row (its opening round, then B P1 …); a party that strikes first in 4v4 plays five turns in a row. Crown may prefer the other side to lead after the opening round.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170b (`Combat/TurnRotation.h`, `UTurnManager`).
 
+### Q-170c2 — Action pips part 3: how several actions per turn are built
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170c) · **Blocks:** —
+**Question:** The plan (`ActionPips.md` §1, §3.3) and Q-170b / Q-170c set what costs actions and what ends a turn. Some build details are left open: when the first regain lands, when the cost is paid, what the AI and a stunned unit do with a bank, where an item's cost lives, and how free switching is read.
+**Recommendation (reference-backed default):**
+- **A combatant's first turn plays the fight-start bank, with no regain on top** (start 1, then +1 from the second turn). Octopath Traveler's Boost Points work this way (1 BP at the start, +1 each later turn), the best-liked banked-turn resource (Q-170). Regaining on the first turn too would start every fight with twice the regain.
+- **The cost is paid when the action is accepted**, after its checks and before it plays, as Energy is (ActionExecutorCosts). An action that then fails (a miss, a fizzle) keeps its cost spent, like a thrown item that misses (ET-54).
+- **An action cost may be 0 (`ClampMin 0`)**, not the plan's `ClampMin 1`: a free quick skill (Divinity: Original Sin 2's 0-AP actions) is the obvious later need; default stays 1. Data validation warns when a cost is above `MAX_ACTIONS_CAP` (no one could pay it). A cost above the user's Max Actions is unusable even when a gain has pushed the bank past Max (Crown's "above Max = unusable", read literally).
+- **Items have no asset**, so their cost lives in the item table (`CrystalEffectTable::GetActionCost`): every item costs 1 until one is priced per (type, tier).
+- **The AI takes one action per turn and banks the rest until B-170f** (the plan's spend-or-bank rule lands there). A Void break playing your turn does the same.
+- **A stunned unit gets one action (Attack or Defend, D-001), then its turn ends**: a stun that let a full bank act would barely be a stun (the plan's "not stunned" gate before each prompt). At turn start a stunned unit is still asked, as built.
+- **Switching is free with the switch on, read from `wor.Turns.ActionPips` itself** (not the fight's latched mode): a co-op client's loadout copy has no TurnManager fight to ask. Flipping the switch mid-fight changes only the switching rule until the next fight (a debug-only edge).
+- **End Turn at switch 0** ends the turn as a pass (nothing submits it yet; the button is B-170e).
+- **A win during a turn ends the fight at once** (the win check runs after every action, plan §3.3); the turn-end step doesn't run for that last turn.
+- **"No actions" on the HUD** waits for the placeholder UI (B-170e); the skip is logged.
+**Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170c (`ACombatOrchestrator` action pips section, `USkillDataBase::ActionCost`, `FAction::GetActionCost`, `ULoadoutComponent::GetTurnSwitchRefusedReason`).
+
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
 **Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?
