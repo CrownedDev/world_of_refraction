@@ -591,6 +591,17 @@ private:
 
 	FTimerHandle AutoAdvanceTimerHandle;
 
+	// B-405 (R14): the kill shot's hold between the last enemy's death and the end of a won fight.
+	FTimerHandle KillShotHoldTimer;
+	TWeakObjectPtr<AActor> LastEnemyDown;
+
+	/** B-405: plays the kill shot on the last enemy down and sets the hold timer. False when no kill shot shows (no
+	 *  viewer, as in headless tests): the caller ends the fight at once, as before. */
+	bool StartKillShotHold();
+	/** B-405: the hold is over: the won fight ends (rewards, return to the world). */
+	void FinishKillShotHold();
+	bool IsHoldingKillShot() const;
+
 	UPROPERTY()
 	UAIDecisionManager *AIDecisionManagerRef = nullptr;
 

@@ -500,7 +500,9 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+		World->GetTimerManager().ClearTimer(KillShotHoldTimer); // B-405: a forced end during the hold
 	}
+	LastEnemyDown.Reset();
 
 	UnbindTurnManagerEvents();
 
@@ -1016,6 +1018,13 @@ void ACombatOrchestrator::OnActionCompleted()
 		return;
 	}
 
+	// B-405: the fight is won and its kill shot is holding; the hold's end finishes it.
+	if (IsHoldingKillShot())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] OnActionCompleted ignored - the kill shot is holding"));
+		return;
+	}
+
 	// Clear auto-advance timer if it was running
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
@@ -1028,12 +1037,50 @@ void ACombatOrchestrator::OnActionCompleted()
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met: %d"), (int32)WinState);
 
+		// B-405 (R14): a win holds on its kill shot before the fight ends and its rewards show (FeelGuide 6).
+		if (WinState == ECombatState::Victory && StartKillShotHold())
+		{
+			return;
+		}
 		FinishCombat(WinState, /*bTurnManagerEnded=*/false);
 		return;
 	}
 
 	// Advance to next turn
 	TurnManagerRef->AdvanceToNextTurn();
+}
+
+bool ACombatOrchestrator::StartKillShotHold()
+{
+	AActor *Victim = LastEnemyDown.Get();
+	UWorld *World = GetWorld();
+	if (!CameraDirector || !Victim || !World)
+	{
+		return false;
+	}
+	const float HoldSeconds = CameraDirector->PlayKillShot(Victim, GetEnemyRank(Victim));
+	if (HoldSeconds <= 0.0f)
+	{
+		return false;
+	}
+	World->GetTimerManager().SetTimer(KillShotHoldTimer, this, &ACombatOrchestrator::FinishKillShotHold, HoldSeconds, false);
+	return true;
+}
+
+void ACombatOrchestrator::FinishKillShotHold()
+{
+	KillShotHoldTimer.Invalidate();
+	if (CombatState != ECombatState::InProgress)
+	{
+		return; // ended another way during the hold (a forced end)
+	}
+	FinishCombat(ECombatState::Victory, /*bTurnManagerEnded=*/false);
+}
+
+bool ACombatOrchestrator::IsHoldingKillShot() const
+{
+	const UWorld *World = GetWorld();
+	return World && World->GetTimerManager().IsTimerActive(KillShotHoldTimer);
 }
 
 // ========================================
@@ -1231,6 +1278,7 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		return;
 	}
+	LastEnemyDown = Victim; // B-405: the last one down gets the kill shot
 	const UCharacterDataComponent *VictimComp = Victim->FindComponentByClass<UCharacterDataComponent>();
 	const UCharacterData *VictimData = VictimComp ? VictimComp->CharacterData : nullptr;
 	if (!VictimData)
