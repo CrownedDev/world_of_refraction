@@ -19,7 +19,7 @@
   - Left for later: scoped ResistanceBuff effects, DoT ticks (element only), and rolling the new lines on gear.
 - **Merge plan:** the 23:45 update and new row 69.
 
-**Writable jobs left:** none. What's left needs a compiler. Q-378's cure question is closed (the brain, 2026-11-09: Crown says a cleared curse is regainable, as built; marked on B-378 and the trial branch). Q-389's default stands unless Crown changes it.
+**Writable jobs left:** none. What's left needs a compiler. Q-378's cure question is closed (the brain, 2026-11-09: Crown says a cleared curse is regainable, as built; marked on B-378 and the trial branch). **Q-389 changed by Crown (2026-11-09):** damage reads the class table's Physical column, so a Generic takes 15% less physical damage and a Resonator 15% more (an intended balance change). Built on B-389 with spec cases, Q-389 answer, ED-27, PIE checks 7–8; reviewed (PASS WITH NOTES, fixed); on the trial branch; merge plan row 69 flags it. Note: a Generic or Resonator turning Broken Darkness loses that line (the BD row's physical column is 0); the Generic boss "Lord" now takes 15% less physical damage.
 
 # Cloud writer handover (2026-11-08, ninth part: Q-187e vote, Q-377 confirmed, Q-378 changed, B-388) — STOPPED
 
