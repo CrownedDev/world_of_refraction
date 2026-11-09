@@ -227,6 +227,19 @@ The queue of questions only Crown can answer.
 - `SpendActions` refuses a cost above the bank (nothing spent); `LoseActions` floors at 0; `GainActions(N, bMayPassMax)` stops at Max unless it may pass, and never trims actions already over Max.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170a (`ActionPipsRules.h`, `UCharacterDataComponent`).
 
+### Q-170b2 — Action pips part 2: how the rotation is built
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170b) · **Blocks:** —
+**Question:** The plan (`ActionPips.md` §3.2) and Q-170d / Q-170f set the rotation's order. Some build details are left open: what an uneven side does when someone falls mid-round, whether pinned turns take a rotation seat, how first strike's opening round counts, and what the retired speed hooks do with the switch on.
+**Recommendation (reference-backed default):**
+- **Seats per round** = the larger side's living count at the round's start; the smaller side's rotation carries on across rounds (the deckbuilder, `WoR_TCG_Pivot_Design.md` §8 item 53: 2v3 plays A1 B1 A2 B2 A1 B3, then A2 B1 A1 B2 A2 B3). **A fallen combatant's own turn is purged; a smaller side's extra-seat turn passes to the next living teammate in the same place** (items 55, 56). The next round recounts the living.
+- **Pinned turns don't take a rotation seat:** a bonus turn and a ritual's Execution turn are inserted (the deckbuilder's "a bonus turn inserts, a skip removes", §7c), and the holder keeps its own rotation turn. Under the speed timeline an Execution turn cost one slot of the caster's normal priority; in a fixed rotation there is no priority to cost, and the cast already cost its actions (B-170c). Every turn still burns pinned delays (ET-16 as built).
+- **First strike's opening round is a round of its own** (`OnRoundAdded` fires at its start and again when the alternation starts), so the balance simulator counts it.
+- **The switch is read once per fight**, at `InitializeCombat`: flipping it mid-fight changes nothing until the next fight (no half-switched fight).
+- **With the switch on, `DelayNextTurn` (Wind's one-place delay) and `OnActorSpeedChanged` do nothing.** Wind's break takes an action instead, which lands with B-170d; until then the Wind break has no turn effect in rotation mode (switch on only; default play unchanged).
+- **"No actions, no turn" (D-088) is not the rotation's job:** the rotation always gives the seat; the orchestrator skips the turn at 0 actions after the turn-start changes (B-170c, §3.3). Emerald on an enemy already removes their next turn through `SkipNextTurn`, which the rotation honours; Emerald's ally actions are B-170d.
+- **The first-striking side also leads every later round** (Q-170f says the alternation starts with that side). Visible: a boss that strikes first acts twice in a row (its opening round, then B P1 …); a party that strikes first in 4v4 plays five turns in a row. Crown may prefer the other side to lead after the opening round.
+**Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170b (`Combat/TurnRotation.h`, `UTurnManager`).
+
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
 **Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?
