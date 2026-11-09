@@ -95,6 +95,40 @@ namespace
 		TEXT("wor.Camera.SkipAfterHit"),
 		TEXT("DEBUG: 1 = cut a cinematic once its caster's first hit lands, 0 = run to its end (default)."),
 		[](UCombatCameraDirector &Director, int32 Value) { Director.SetSkipCinematicAfterHit(Value != 0); });
+
+	FAutoConsoleCommandWithWorldAndArgs GCombatCameraBossCinematicCmd(
+		TEXT("wor.Camera.BossCinematic"),
+		TEXT("DEBUG (B-406): preview a boss cinematic of the fight's first boss: 'opening', 'phase N' (N from 0), or 'stop'. ")
+		TEXT("An empty field holds with the HUD hidden for the preview time instead."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				UCombatCameraDirector *Director = UCombatCameraDebug::FindDirector(World);
+				const FString Which = Args.Num() > 0 ? Args[0].ToLower() : FString();
+				if (!Director || Which.IsEmpty())
+				{
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.BossCinematic: no combat orchestrator, or no 'opening' / 'phase N' / 'stop'."));
+					return;
+				}
+				if (Which == TEXT("stop"))
+				{
+					Director->FinishBossCinematic();
+				}
+				else if (Which == TEXT("opening"))
+				{
+					Director->PreviewBossCinematic(EBossCinematicKind::Opening, INDEX_NONE);
+				}
+				else if (Which == TEXT("phase") && Args.Num() > 1)
+				{
+					Director->PreviewBossCinematic(EBossCinematicKind::Phase, FCString::Atoi(*Args[1]));
+				}
+				else
+				{
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.BossCinematic: use 'opening', 'phase N' or 'stop'."));
+					return;
+				}
+				UCombatCameraDebug::PrintCameraState(World);
+			}));
 }
 
 FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Director)
@@ -103,7 +137,7 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 	{
 		return TEXT("No combat camera (no combat orchestrator in this world)");
 	}
-	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s"),
+	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s | %s"),
 						   Director->IsInCombat() ? TEXT("In combat") : TEXT("Not in combat"),
 						   *UEnum::GetValueAsString(Director->GetCurrentMode()),
 						   *GetNameSafe(Director->GetViewedActor()),
@@ -115,7 +149,8 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 						   Director->GetPlayingSequence() ? *Director->GetPlayingSequence()->GetName() : TEXT("none"),
 						   *Director->GetShotString(), // B-371
 						   Director->GetCameraCount(),
-						   *Director->GetCinematicWindowString()); // B-370
+						   *Director->GetCinematicWindowString(), // B-370
+						   *Director->GetBossCinematicString()); // B-406
 }
 
 UCombatCameraDirector *UCombatCameraDebug::FindDirector(const UObject *WorldContextObject)
