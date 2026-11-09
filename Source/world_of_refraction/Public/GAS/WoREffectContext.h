@@ -55,6 +55,10 @@ struct WORLD_OF_REFRACTION_API FWoREffectIdentity
 	UPROPERTY(BlueprintReadOnly, Category = "Effect")
 	EPhysicalDamageType PhysicalType = EPhysicalDamageType::None;
 
+	/** B-064c: keyed Ice (FActiveSkillEffect::bKeyedIce), so the resistance readers match it on GAS as on the enum path. */
+	UPROPERTY(BlueprintReadOnly, Category = "Effect")
+	bool bKeyedIce = false;
+
 	/** B-042g (part 1): one application's value (FActiveSkillEffect::EffectValue, before stacks): the Ignore Defense
 	 *  flag test reads it per application (D-086). The GE's SetByCaller.Magnitude is the stacked value. */
 	UPROPERTY(BlueprintReadOnly, Category = "Effect")
