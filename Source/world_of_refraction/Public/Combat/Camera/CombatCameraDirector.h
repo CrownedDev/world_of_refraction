@@ -55,7 +55,7 @@ public:
 
 	/** Turn-view style (D-074 (2)). B-398: each fight starts from the player's saved setting (USaveSubsystem); this
 	 *  value is used only where there is no save subsystem. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera|Settings", meta = (ToolTip = "Set by the player's saved setting at each fight start (wor.Camera.Style); not editable here"))
 	ETurnViewStyle TurnViewStyle = ETurnViewStyle::CentredWide;
 
 	/** B-398 (wor.Camera): where the viewed character and the enemy centre land in its turn view, e.g. "layout
