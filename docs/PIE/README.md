@@ -16,6 +16,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-392](B-392.md) | `feature/B-392-two-guards-cloud` (UNBUILT, from dev, save v32) | Two guards: the weapon's guard or the character's unarmed one by a per-character setting (`wor.Guard.Set`); same window | Pending |
+| [B-393](B-393.md) | `feature/B-393-parry-vfx-cloud` (UNBUILT, on B-392's branch, save v33) | Landing a parry: the weapon guard sparks; the guard's parry effect plays in the element behind it (weapon crystal or own magic, `wor.Guard.SetParryPriority`); unarmed with no element shows nothing | Pending |
 | [B-396](B-396.md) | `fix/B-396-combat-hud-visibility` (in dev) | Combat HUD invisible: `wor.UI.Print` in a fight shows each HUD widget's viewport, visibility, opacity, position and size; the trial gate's focus error is gone | Pending |
 | [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (in dev) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
 | [B-273b](B-273b.md) | `feature/B-273b-hit-kind-cloud` (in dev, with B-064a) | The hit kind replaces the element / physical pair in buildup, damage resistance and the GAS executions; no number changes (an Ice hit reads Ice resistance alone, for B-064a) | Pending |
