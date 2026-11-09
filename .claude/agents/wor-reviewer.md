@@ -28,7 +28,7 @@ Check, citing `file:line` for every finding:
 4. **Backlog discipline**
    - The job's "done when" check in `docs/Backlog.md` is actually demonstrated.
    - Its status is `REVIEW (branch)`.
-   - Any design choice the code makes that isn't recorded as `DECIDED` in `docs/DesignDecisions.md` → flag it as an **undecided design choice**.
+   - Any design choice the code makes that isn't recorded as `DECIDED` in `docs/DesignDecisions.md` or `docs/DesignDecisions_Archive.md` → flag it as an **undecided design choice**.
 5. **Scope**
    - Anything unrelated to the job.
    - Anything that deletes code not yet verified in PIE.
