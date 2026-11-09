@@ -35,7 +35,7 @@ Key fields:
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `CharacterClass` | `ECharacterClass` | Determines loadout rules; defaults to `Generic`. Set from `CharacterData` during initialization. |
+| `GetCharacterClass()` | `ECharacterClass` | Determines loadout rules: the owner's `CharacterData` class, `Generic` without one (a getter, not a field, since B-153). |
 | `bIsReadyForBattle` | `bool` | Set true by `PrepareForBattle`; gates `UseItem`. |
 
 `SavedLoadouts` (`TArray<FCombatLoadout>`, `UPROPERTY()`-tagged for GC), `MaxSavedLoadouts` and `ActiveLoadoutIndex` live on **`UInventoryComponent`**, not on `ULoadoutComponent` — the loadout component is a thin facade that reads them through `GetInventoryComponent()` on every accessor.
@@ -235,7 +235,7 @@ struct stored inline on `UInventoryData`), `GetAllAbilities`, `GetAllSpells`,
    characters get an empty inventory and one fallback empty `"Default"`
    loadout (soft-fail).
 2. `ULoadoutComponent::InitializeFromCharacterData(CharacterData)` runs after.
-   It sets `CharacterClass` from `CharacterData->CharacterClass`. If the
+   The class is read from `CharacterData` through `GetCharacterClass()`. If the
    inventory's `SavedLoadouts` is empty (legacy soft-fail), it seeds one empty
    `FCombatLoadout` initialized for the class.
 
@@ -519,3 +519,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-08 | B-380c: loadout apparel saved by owned id (`FSavedLoadout`, `FSavedCustomLoadout`, save v29) and resolved from the store; `UPoolSubsystem::AttachToApparel` → `HandlePoolGearChanged` → `ApparelRules::RefreshFromStore` → `ULoadoutComponent::NotifyApparelChanged`; `wor.Loadout.SocketApparel`. | `feature/B-380c-apparel-slots-saved-cloud` (in dev) |
 | 2026-11-08 | B-380d: `UPoolSubsystem::AttachToApparel` returns the swapped-out crystal to storage and checks an evolution (owned, the piece owner's, not in another socket: `IsEvolutionSocketedElsewhere`). Lore-loadout apparel is B-380e. | feature/B-380d-apparel-lore-socket-cloud (unbuilt) |
 | 2026-11-08 | B-386 (Q-386): apparel's Amp lines count: `UApparelData::GetStatLines` / `FApparelEntry::GetStatLines` add them; `GetActiveStatBonus` sums them raw with the rest (B-382). | feature/B-386-apparel-amp-cloud (unbuilt) |
+| 2026-11-09 | B-153: the OBSOLETE `ULoadoutComponent::CharacterClass` UPROPERTY is removed with its sync in `InitializeFromCharacterData`; `GetCharacterClass()` is the only class read (the owner's CharacterData, `Generic` without one); `WoR.Loadout.Getters` drops its synced-field check. | `feature/B-153-loadout-class-field-delete-cloud` (UNBUILT; after Crown's PIE of B-022) |
