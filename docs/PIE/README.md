@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (unbuilt, on B-273b) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
 | [B-273b](B-273b.md) | `feature/B-273b-hit-kind-cloud` (unbuilt) | The hit kind replaces the element / physical pair in buildup, damage resistance and the GAS executions; no number changes (an Ice hit reads Ice resistance alone, for B-064a) | Pending |
 | [B-317](B-317.md) | `feature/B-317-store-old-copies-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-312, B-313, B-313b, B-314, B-316) | Store 6, first part: a member's crystal inventory keeps no copy of its pouch; the post-fight hand-back is gone; list the enemies with authored item slots | Pending |
 | [B-034b](B-034b.md) | `feature/B-034b-charge-manager-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-034) | Delete the dead hold-to-charge `InfusionChargeManager`; check 1 is the editor's no-Blueprint-uses-it check | Pending |
