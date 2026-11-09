@@ -18,7 +18,6 @@
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
-#include "Infusion/InfusionChargeManager.h"
 #include "AI/AIDecisionManager.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 
@@ -27,7 +26,7 @@ namespace
 	constexpr int32 FIGHT_SUBSYSTEMS_TEST_EFFECT_ID = 9601;
 	constexpr float FIGHT_SUBSYSTEMS_TEST_BUFF = 10.0f;
 	constexpr int32 FIGHT_SUBSYSTEMS_TEST_TURNS = 2;
-	constexpr int32 FIGHT_SUBSYSTEMS_COUNT = 10;
+	constexpr int32 FIGHT_SUBSYSTEMS_COUNT = 9;
 }
 
 BEGIN_DEFINE_SPEC(FFightSubsystemsSpec, "WoR.Combat.FightSubsystems",
@@ -76,7 +75,6 @@ void FFightSubsystemsSpec::Define()
 		ExpectOnWorld<UWeatherStateManager>(*First, TEXT("WeatherStateManager"));
 		ExpectOnWorld<USkillEffectManager>(*First, TEXT("SkillEffectManager"));
 		ExpectOnWorld<UStatusBuildupManager>(*First, TEXT("StatusBuildupManager"));
-		ExpectOnWorld<UInfusionChargeManager>(*First, TEXT("InfusionChargeManager"));
 		ExpectOnWorld<UAIDecisionManager>(*First, TEXT("AIDecisionManager"));
 		ExpectOnWorld<UCombatCommandMenuSubsystem>(*First, TEXT("CombatCommandMenuSubsystem"));
 		TestEqual(TEXT("fight subsystem count"),
