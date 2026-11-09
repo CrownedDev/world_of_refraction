@@ -121,8 +121,11 @@ private:
 	bool ScheduleDefenceHandOff(AActor *Executor, const FAction &Action);
 	void HandleCinematicWindowEnd();
 	void ClearDefenceHandOff();
-	/** Behind the viewer's targeted characters, the attacker in front. */
+	/** B-402: a low side-on shot of the viewer's targeted characters and the attacker (several: a wide one). */
 	void ShowDefenceView();
+	/** B-402 (R10, R11): one of the viewer's characters is defending: the Defence hand-off is pending or showing, or
+	 *  one of them has a defense window open. Shots then play without shake or FOV punch. */
+	bool IsViewerDefending() const;
 
 	/** After a settings change: cuts a playing cinematic the settings now skip. */
 	void StopCinematicIfNowSkipped();
@@ -171,6 +174,8 @@ private:
 	float LastWindowEnd = 0.0f;
 	FCinematicWindowTiming LastWindowTiming;
 	ECombatCameraMode LastHandOffMode = ECombatCameraMode::None;
+	/** B-402 (wor.Camera): shakes / FOV punches held back this fight because the viewer was defending. */
+	int32 DefencePunchesHeld = 0;
 
 	// B-371: the shot pattern of the current action.
 	TWeakObjectPtr<AActor> ShotCaster;
