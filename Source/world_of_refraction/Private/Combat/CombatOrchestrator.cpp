@@ -1063,6 +1063,9 @@ bool ACombatOrchestrator::StartKillShotHold()
 	{
 		return false;
 	}
+	// The fight is won: nothing else may start during the hold (actions, flee, control switches, menu picks all refuse
+	// on this flag, as during BeginFlee). FinishCombat clears it.
+	bWaitingForAsyncAction = true;
 	World->GetTimerManager().SetTimer(KillShotHoldTimer, this, &ACombatOrchestrator::FinishKillShotHold, HoldSeconds, false);
 	return true;
 }
