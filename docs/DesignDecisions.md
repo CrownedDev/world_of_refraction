@@ -4382,12 +4382,13 @@ Moved here once applied. Newest first.
 **Notes for Claude:** a naming and data-shape change first (one `Resistance` line type with a scope; `Defense` read as its All line; old fields read across), then the readers. Rules ED-20 / ED-27, the Resistance and DamageCalculator docs.
 
 ### Q-389 — Resistance by damage type: which Physical line counts for damage
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-389, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-09: B, changed from the default) · **Raised:** 2026-11-08 (B-389, cloud) · **Blocks:** —
 **Question:** D-168 adds a Physical resistance line for damage. The resistance columns already have a Physical column (B-358), but it feeds status buildup only, and the class table puts **+15 on Generic and −15 on Resonator** in it. Should damage read that column, or a new line?
 **Options / as built:** **A** a new damage-only line (`FResistanceBonus::PhysicalDamage`, with `SpellDamage` beside it); the buildup column stays buildup-only, so old data plays exactly as before / B read the buildup Physical column for damage: Generic characters take 15% less physical damage, Resonators 15% more, which is a balance change.
 **Recommendation:** A. D-168 says "no balance change intended", and the deckbuilder's Def lines are separate damage lines from the buildup it tracks elsewhere. Path of Exile also keeps physical damage reduction apart from ailment avoidance.
-**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may switch to B, a one-line change in `WoRResistance::GetScopeLineResistance`, if the class lean should show in physical damage too.
+**Answer (Crown, 2026-11-09):** **B.** "Generic should take less physical damage and Resonators more, by the nature of their classes." Damage reads the class table's Physical column as the class's Physical line (Generic +15%, Resonator −15%, Refractor 0), summed into the Physical scope line under the ±50% cap. This is an intended balance change, Crown's exception to D-168's "no change". (First default, 2026-11-08: A.)
 **Notes for Claude (as built):** B-389.
+- Q-389 B: `GetScopeLineResistance` adds `ClassInnateResistanceTable::GetClassInnateResistance(Target, None, Physical)` for a hit that is not a spell.
 - `PhysicalDamage` and `SpellDamage` are appended to `FResistanceBonus`. They are saved per instance as tagged fields, so old saves read 0, and they are not in `ResistanceColumns::Types`.
 - Defence is unchanged and is read as the All line.
 - Step 3 applies `ElementResistance + ResistanceScopeLine` under ±50%.
