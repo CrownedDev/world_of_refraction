@@ -1,8 +1,8 @@
 // EffectLifetimeSpec.cpp
-// GAS stage 3 (B-042h, Q-042h): with `wor.Effects.UseGAS 1` the turn tracker owns a stored effect's
+// GAS stage 3 (B-042h, Q-042h): on a holder with a mirror and a tracker the tracker owns a stored effect's
 // lifetime. Its GE is turn-counted from the stored span, a refresh restarts the tracked span, the
 // stored copy takes the tracker's count and goes when the tracker ends its GE, and removing the
-// stored effect ends the GE. Permanent effects and UseGAS 0 keep untracked GEs.
+// stored effect ends the GE. Permanent effects keep untracked GEs (B-042g2: the UseGAS 0 case went with the switch).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -82,7 +82,6 @@ void FEffectLifetimeSpec::Define()
 		Mirror = FWoRTestWorld::AddEffectMirror(Hero);
 		Tracker = Hero ? Hero->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
 		ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Hero);
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
 		if (!TestNotNull(TEXT("SkillEffectManager"), EffectManager) || !TestNotNull(TEXT("Mirror"), Mirror) ||
 			!TestNotNull(TEXT("Tracker"), Tracker) || !TestNotNull(TEXT("AbilitySystemComponent"), ASC))
 		{
@@ -92,7 +91,6 @@ void FEffectLifetimeSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		EffectManager = nullptr;
 		Mirror = nullptr;
 		Tracker = nullptr;
@@ -107,7 +105,6 @@ void FEffectLifetimeSpec::Define()
 	{
 		if (!EffectManager) return;
 		EffectManager->ApplyEffect(Hero, Buff(), Foe);
-		TestTrue(TEXT("GAS owns the lifetime"), UWoREffectMirrorComponent::OwnsLifetime(Hero));
 		TestEqual(TEXT("One tracked GE"), Tracker->NumTracked(), 1);
 		TestEqual(TEXT("Tracked for the stored span"), Tracker->GetTurnsLeft(BuffGE()), LIFETIME_TURNS);
 		TestMatches(TEXT("applied"));
@@ -230,22 +227,6 @@ void FEffectLifetimeSpec::Define()
 		TestEqual(TEXT("Mirrored"), Mirror->NumMirrored(), 1);
 		TestEqual(TEXT("Not tracked"), Tracker->NumTracked(), 0);
 		TestMatches(TEXT("permanent"));
-	});
-
-	It("keeps the lifetime on the enum path at UseGAS 0, and moves it to the tracker when switched on", [this]()
-	{
-		if (!EffectManager) return;
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
-		EffectManager->ApplyEffect(Hero, Buff(), Foe);
-		TestFalse(TEXT("Enum path owns the lifetime"), UWoREffectMirrorComponent::OwnsLifetime(Hero));
-		TestEqual(TEXT("Mirrored"), Mirror->NumMirrored(), 1);
-		TestEqual(TEXT("Not tracked"), Tracker->NumTracked(), 0);
-
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		Mirror->SyncMirror();
-		TestEqual(TEXT("Tracked once switched on"), Tracker->NumTracked(), 1);
-		TestEqual(TEXT("Still one GE"), Mirror->NumMirrored(), 1);
-		TestEqual(TEXT("With the stored span"), Tracker->GetTurnsLeft(BuffGE()), LIFETIME_TURNS);
 	});
 }
 
