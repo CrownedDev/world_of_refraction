@@ -4,6 +4,7 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/CombatConstants.h"
 #include "Combat/CombatPlayerController.h"
 #include "Combat/TurnManager.h"
 #include "Combat/WoRFightSubsystem.h"
@@ -19,6 +20,12 @@ namespace
 {
 	/** "xN" shows from this many stacks. */
 	constexpr int32 MIN_STACKS_SHOWN = 2;
+
+	// B-391b: the old panel's overload tints (CharacterPanelWidget::RefreshEnergyBar).
+	const FLinearColor OVERLOAD_NONE_COLOUR = FLinearColor::White;
+	const FLinearColor OVERLOAD_YELLOW_COLOUR = FLinearColor::Yellow;
+	const FLinearColor OVERLOAD_ORANGE_COLOUR(1.0f, 0.5f, 0.0f);
+	const FLinearColor OVERLOAD_RED_COLOUR = FLinearColor::Red;
 }
 
 TArray<FBattleTurnSlot> BattleHUDView::MakeTurnStrip(AActor *Current, bool bCurrentBonus, int32 TurnNumber,
@@ -95,6 +102,45 @@ FText BattleHUDView::GetHPLabel()
 FText BattleHUDView::GetEPLabel()
 {
 	return LOCTEXT("EP", "EP");
+}
+
+FText BattleHUDView::GetAbsorbLabel()
+{
+	return LOCTEXT("Absorb", "Absorb");
+}
+
+bool BattleHUDView::IsOverloaded(int32 Current, int32 Max)
+{
+	return Max > 0 && Current > Max;
+}
+
+FText BattleHUDView::FormatAbsorbLine(int32 Current, int32 Max)
+{
+	const FText Pool = FormatPool(GetAbsorbLabel(), Current, Max);
+	if (!IsOverloaded(Current, Max))
+	{
+		return Pool;
+	}
+	const double Ratio = static_cast<double>(Current) / static_cast<double>(Max);
+	return FText::Format(LOCTEXT("AbsorbOverload", "{0}, overload {1}"), Pool, FText::AsPercent(Ratio));
+}
+
+FLinearColor BattleHUDView::GetOverloadColour(int32 Current, int32 Max)
+{
+	if (!IsOverloaded(Current, Max))
+	{
+		return OVERLOAD_NONE_COLOUR;
+	}
+	const float Ratio = static_cast<float>(Current) / static_cast<float>(Max);
+	if (Ratio > CombatConstants::OVERLOAD_RED_THRESHOLD)
+	{
+		return OVERLOAD_RED_COLOUR;
+	}
+	if (Ratio > CombatConstants::OVERLOAD_ORANGE_THRESHOLD)
+	{
+		return OVERLOAD_ORANGE_COLOUR;
+	}
+	return Ratio > CombatConstants::OVERLOAD_YELLOW_THRESHOLD ? OVERLOAD_YELLOW_COLOUR : OVERLOAD_NONE_COLOUR;
 }
 
 FText BattleHUDView::GetCombatantName(const AActor *Actor)
