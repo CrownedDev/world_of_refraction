@@ -3,8 +3,11 @@
 // One spec per skill, the skill asset (USkillDataBase) as the spec's source object, its Ability.Shape.* tags
 // on the spec (WoRSkillAbilities::GetShapeTags). Activating it runs the FAction handed over by
 // FWoRSkillActivationScope through UActionExecutor::ExecuteActionAsync, and the ability ends when that action
-// completes. The executor still pays the costs at commit (SpendEnergy, B-043a's cost GEs), so CheckCost is
-// the executor's spendable-EP check and ApplyCost pays nothing: exactly one payment.
+// completes. CheckCost is the executor's spendable-EP check. B-043f (Q-043f): the EP is paid by this ability's
+// commit, called from the executor's own pay point (UActionExecutor::PayActionEnergy, after its gates); with no
+// running ability the executor pays it, as before: exactly one payment. The infusion HP backlash stays in the
+// executor. The montage chain stays in the executor too (presentation; it replicates through
+// UCombatPresentationComponent, not the ASC, so PlayMontageAndWait is not used).
 // Instanced per actor, server only (Q-043b). Later parts (B-043d..g) split it per delivery shape.
 // B-043c (Q-043c): while it runs a non-spell action that lands impacts, a WaitGameplayEvent(Event.Combat.Impact)
 // task takes the action's impacts: the executor sends each Impact notify (or montage-less impact) to the avatar as
@@ -112,6 +115,14 @@ public:
 	 *  cast entries that is a support spell or whose loose delivery is AOE / Instant. */
 	static bool ShouldListenForSpellResolves(const FAction &Action);
 
+	/** B-043f (Q-043f): commits the running action's cost from the executor's pay point (after its gates, as Lyra's
+	 *  ranged weapon commits once its target data is in): CommitAbility re-checks CheckCost, then ApplyCost pays
+	 *  Cost. True once paid; false with nothing paid (not running an action, ended, or it can't afford it). */
+	bool CommitActionCost(int32 Cost);
+
+	/** B-043f: action costs this instance committed and paid, over its life (debug, spec). */
+	int32 GetCostsCommitted() const { return CostsCommitted; }
+
 	/** EP check only: the executor's spendable EP against the action's cost (the action being activated, else
 	 *  the skill's plain cast, WoRSkillAbilities::MakePlainAction). */
 	/** Refused while an earlier action still runs (the ability was cancelled before it finished): that action
@@ -124,7 +135,8 @@ public:
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 						   FGameplayTagContainer *OptionalRelevantTags = nullptr) const override;
 
-	/** Pays nothing: the executor pays the EP at commit (and the backlash after the action), once. */
+	/** B-043f: pays the EP CommitActionCost hands it (through UActionExecutor::SpendEnergy: B-043a's cost GE when
+	 *  wor.Costs.UseGAS is on); any other commit pays nothing. */
 	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 						   const FGameplayAbilityActivationInfo ActivationInfo) const override;
 
@@ -158,6 +170,12 @@ private:
 
 	FOnActionComplete ForwardOnComplete;
 	bool bActionRunning = false;
+
+	/** B-043f: the EP CommitActionCost is paying (INDEX_NONE outside it) and whether ApplyCost paid it. ApplyCost is
+	 *  const in UGameplayAbility. */
+	mutable int32 PendingCommitCost = INDEX_NONE;
+	mutable bool bCommitCostPaid = false;
+	int32 CostsCommitted = 0;
 
 	/** The running action's impact task (B-043c), or null. */
 	UPROPERTY(Transient)

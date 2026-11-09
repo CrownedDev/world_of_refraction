@@ -107,9 +107,36 @@ bool UWoRGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle, con
 void UWoRGameplayAbility::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 									const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	// Intentionally empty (Q-043b): ExecuteActionAsync pays the EP through SpendEnergy (B-043a's cost GE when
-	// wor.Costs.UseGAS is on) and the infusion backlash after the action, so paying here would pay twice.
-	// No CostGameplayEffectClass is set, so Super would pay nothing either.
+	// B-043f: only the commit CommitActionCost makes pays; no CostGameplayEffectClass is set, so Super pays nothing.
+	if (PendingCommitCost == INDEX_NONE)
+	{
+		return;
+	}
+	AActor *Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	bCommitCostPaid = Executor && Executor->SpendEnergy(Avatar, PendingCommitCost);
+}
+
+bool UWoRGameplayAbility::CommitActionCost(int32 Cost)
+{
+	// Ended (cancelled) mid-action: the executor pays.
+	if (!bActionRunning || !IsActive())
+	{
+		return false;
+	}
+	PendingCommitCost = Cost;
+	bCommitCostPaid = false;
+	const bool bCommitted = CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo());
+	const bool bPaid = bCommitted && bCommitCostPaid;
+	PendingCommitCost = INDEX_NONE;
+	bCommitCostPaid = false;
+	if (bPaid)
+	{
+		++CostsCommitted;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s commits %d EP (%s)"), *GetNameSafe(GetAvatarActorFromActorInfo()),
+		   *RunningAction.GetActionName(), Cost, bPaid ? TEXT("paid") : TEXT("not paid"));
+	return bPaid;
 }
 
 void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
@@ -134,11 +161,8 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	BurstDelayTask = nullptr;
 	SpellResolveTask = nullptr;
 
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		FailActivation(TEXT("Not enough energy"));
-		return;
-	}
+	// No commit here (B-043f, Q-043f): TryActivateAbility already checked the cost (CheckCost), and the executor
+	// commits it through CommitActionCost once its own gates have passed, so a refused action pays nothing.
 	AActor *Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
 	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
 	if (!Executor)

@@ -20,6 +20,8 @@
 //   defender, one per support cast) to SendSpellResolveEvent, which sends Event.Combat.SpellResolve.AOE / .Instant /
 //   .Support to the ability's WaitGameplayEvent task; the task takes it from the executor and resolves it. With no
 //   such ability the executor resolves it itself, as before. Effects stay spawned in the executor.
+// - Costs (B-043f, Q-043f): at the executor's pay point (after its gates) the ability running the action commits
+//   and pays the EP (CommitCostThroughAbility); with no such ability the executor pays it, as before.
 // Debug: Debug/GAS/WoRAbilityDebug.h (wor.Abilities.Print). Spec: WoR.GAS.Abilities.
 
 #pragma once
@@ -115,4 +117,11 @@ namespace WoRSkillAbilities
 	 *  taken and resolved it. False when the caller must resolve it itself (no listener, or the event did not
 	 *  reach it). */
 	WORLD_OF_REFRACTION_API bool SendSpellResolveEvent(AActor *Actor, const FWoRSpellResolve &Resolve);
+
+	/** B-043f: Actor's skill ability that is running Action (the same skill), or null. */
+	WORLD_OF_REFRACTION_API UWoRGameplayAbility *FindActionRunner(AActor *Actor, const FAction &Action);
+
+	/** B-043f (Q-043f): has the ability running Action on Actor commit and pay Cost EP. True once paid; false,
+	 *  with nothing paid, when the caller must pay it itself (no such ability, or its commit failed). */
+	WORLD_OF_REFRACTION_API bool CommitCostThroughAbility(AActor *Actor, const FAction &Action, int32 Cost);
 }
