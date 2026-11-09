@@ -14,7 +14,12 @@ Open details are the **Q-170** entries in `docs/DesignDecisions.md` (Q-170 to Q-
 
 ## 1. The new turn, in plain words
 
-1. The rotation reaches you. Your **turn starts**: effects that end, end; payouts land (ET-17, unchanged); you gain **+1 action** (up to Max Actions) and your Energy refill (B-173), then waiting next-turn losses apply (Wind). **No actions, no turn (Crown, 2026-11-09):** if you have 0 actions after the turn's gain (Wind or a lose-actions effect took them), the turn is skipped: the turn-start step has run, then the turn-end step runs and the rotation moves on.
+1. The rotation reaches you. Your **turn starts**: effects that end, end; payouts land (ET-17, unchanged); your Energy refill (B-173). Then the actions, **always in this order (Crown, 2026-11-09):**
+   1. **Gain** the turn's actions (+1, up to Max Actions).
+   2. **Apply every start-of-turn change** to them: waiting next-turn gains and losses (`GainActions` / `LoseActions` timed "next turn"), Wind's loss, a delayed Emerald gain landing this turn, and any other effect that adds or removes actions at turn start.
+   3. **Only then check:** 0 actions means **the turn is skipped**. The turn-end step still runs, then the rotation moves on. No action prompt opens.
+
+   **Rule: no unit is ever asked for an action at 0 actions.** The same check runs before every prompt (§3.3), so a unit dropped to 0 mid-turn has its turn end too.
 2. You act. **Attack, Ability, Refraction and Item cost 1 action each** (Q-170b). After each one, if you still have actions, you choose again.
 3. Your turn **ends** when you reach 0 actions, choose **End Turn** (the rest stays banked), **Defend** (costs nothing, ends the turn), or **arm a ritual** (Q-170c).
 4. The turn-end step runs once (ET-17's end half). The rotation moves to the next combatant.
@@ -60,7 +65,8 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 - Built **behind one switch, `wor.Turns.ActionPips`** (default 0 = today's speed timeline), so the old path keeps working until Crown's PIE; then the default flips and a later job deletes the old path.
 
 ### 3.3 `ACombatOrchestrator` — several actions per turn
-- `ProceedWithTurnStart`: after the turn-start step, gain the turn's actions and apply any waiting next-turn gains or losses (Wind). **At 0 actions the turn is skipped** (Crown): go straight to `OnActionCompleted`'s turn-end path, as a stunned-out or dead actor's turn does today; log it and show "No actions" on the HUD. Otherwise ask for an action.
+- `ProceedWithTurnStart`, fixed order (§1, Crown): (1) gain the turn's actions; (2) apply every start-of-turn action change (waiting gains and losses, Wind, a delayed Emerald gain, any turn-start effect that removes actions); (3) only then check. **At 0 actions the turn is skipped:** go straight to `OnActionCompleted`'s turn-end path, as a stunned-out or dead actor's turn does today; log it and show "No actions" on the HUD. Otherwise ask for an action. Steps (1) to (3) are one function, so no path can check before the changes or prompt before the check.
+- **One gate before every prompt:** a single check (`CanStillAct`: alive, not stunned, `CurrentActions` > 0) runs before the orchestrator opens the menu or asks the AI, at turn start and after each action. An effect that lands mid-turn and drops the unit to 0 (a counter, a reflect) ends the turn once the current action has resolved; if a prompt is open when the count reaches 0 (a co-op client's menu), it closes and the turn ends.
 - `ValidateAction`: refuse an action that costs more than `CurrentActions` ("Needs 1 action."). The menu greys it with that reason. The check and the spend run on the server (co-op), like every action; clients only read the replicated count.
 - `OnActionCompleted`: spend the cost, check the win condition, then either **ask again** (actions left and the action doesn't end the turn) or run the turn-end step and `AdvanceToNextTurn`. The turn-start step never re-runs inside a turn.
 - **End Turn** is new: an `EActionType` appended (`EndTurn`), so it uses the existing submit path and the co-op server call.
@@ -77,7 +83,14 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 - **Ice / Water breaks** (Q-170e): unchanged. Both slow Action Speed and Spell Speed, Ice adds its damage (D-090, B-064a). With Turn Speed gone, the slow means the holder's attacks and spells are easier to defend against (wider windows) and play slower.
 - **Extra Action** (`ESkillEffectType::ExtraAction`, Q-170f): becomes +1 action now (its name), no longer a bonus turn.
 - **Wind, two rules (Crown, D-088, 2026-11-09):** the Wind **status bar** (its break) takes **action pips** (above); the **Wind crystal effect** (Emerald, Wind's gem) makes the **target lose their next turn** in the rotation. A unit left with 0 actions after its turn's gain loses that turn too (§1).
-- **Emerald** (Q-170f, Crown's Wind rule): on an **enemy**, it removes their next turn (`SkipNextTurn`, already built: ET-13; replaces today's "force their turn" gamble). On **yourself or an ally**, it keeps its bonus turn (D-052, D-133, ET-12; built) — CC's reading, since losing your own turn helps no one; Crown to confirm. S tier: two turns either way (Q-341b). A bonus turn is a real turn: it gains +1 action and runs the turn steps. Code: `UItemExecutor::ExecuteBonusTurnEffect` branches on the target's side; the AI's Emerald scoring (`AIFreeActionFactor`, the exposure look-ahead) flips to "the foe loses a turn".
+- **Emerald** (Q-170f, Crown's Wind rule and answer, 2026-11-09): on an **enemy**, it removes their next turn (`SkipNextTurn`, already built: ET-13; replaces today's "force their turn" gamble). On **yourself or an ally** it **grants actions instead of a bonus turn**, scaled by tier (Crown): lower tiers give +1 action after a set number of the holder's turns (a `GainActions` row timed at that turn's start, so it lands in step 2 of the turn-start order, §1); S gives 2 to 3 actions at once (a gain now may pass Max for this turn, Q-170g). Ladder, all named constants marked `// TODO: tune` (`AugmentStoneConstants.h`, beside the retired bonus-turn table):
+
+  | Tier | F | E | D | C | B | A | S |
+  |---|---|---|---|---|---|---|---|
+  | Ally / self | +1 after 6 turns | +1 after 5 | +1 after 4 | +1 after 3 | +1 after 2 | +1 after 1 (next turn) | +2 to +3 now |
+  | Enemy | loses next turn | same | same | same | same | same | loses next 2 turns (Q-341b) |
+
+  Constants: `EMERALD_ACTION_GAIN_DELAY_TURNS[6] = {6, 5, 4, 3, 2, 1}` (F..A), `EMERALD_ACTIONS_GAINED = 1`, `EMERALD_S_ACTIONS_NOW_MIN = 2`, `EMERALD_S_ACTIONS_NOW_MAX = 3` (rolled per crystal instance, `PerInstanceRollSystem.md`). The delays reuse Emerald's own former delay ladder (6..0, Q-341b, `EMERALD_BONUS_TURN_DELAY`), so the tier spacing stays the one the game already had. Code: `UItemExecutor::ExecuteBonusTurnEffect` branches on the target's side (enemy: skip; ally: `GainActions`); the AI's Emerald scoring (`AIFreeActionFactor`, the exposure look-ahead) flips to "the foe loses a turn" on enemies and values the ally gain as actions.
 - **Retired** (enum entries kept, append-only; data validation refuses them, the D-056 pattern): `ModifyTurnSpeed`, `TurnSpeedBuff`, `TurnSpeedDebuff`; `EItemEffectType::BuffTurnSpeed`; the Turn Speed sub-stat (`ESubStat::TurnSpeed`, `UCharacterData::TurnSpeed`, Q-170h); the GAS `TurnSpeed` attribute, its sync, GEs and debug lines (§3.2 callers). `TurnSpeedStone` is already retired (B-353).
 - Effect text (`EffectText.cpp`) gets lines for the four new types: "Gain 1 action.", "Lose 1 action at the start of their next turn.", "+1 Max Actions for 2 turns.".
 
@@ -110,13 +123,13 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 |---|---|
 | `TurnManagerSpec`, `TurnBeltSpec`, `TurnStartOrderSpec`, `FirstStrikeSpec` | Add rotation cases with the switch on; old cases stay with it off until the deletion job |
 | `TurnCapSpec`, `TurnSpeedSourcesSpec`, `TurnSpeedTieBreakSpec` | Kept with the switch off; deleted with the old path |
-| `BonusTurnSpec`, `EmeraldExtraTurnSpec`, `CombatRitualFireSpec` | Re-checked with the switch on (Extra Action now +1 action; Emerald on an enemy removes their next turn, on an ally grants a bonus turn) |
+| `BonusTurnSpec`, `EmeraldExtraTurnSpec`, `CombatRitualFireSpec` | Re-checked with the switch on (Extra Action now +1 action; Emerald on an enemy removes their next turn; on an ally, F to A give +1 action after their tier's delay (landing at that turn start), S gives 2 to 3 now, past Max for the turn) |
 | `StatusBreakSpec` | Wind takes 1 action at the next turn start |
 | `EffectTextSpec` | Extra Action's line ("take an extra turn" → "Gain 1 action."); the four new types' lines |
 | `StoneRowSpec`, `SignAwareModifierSpec`, `GASStatGettersSpec`, `StatModifierSpec` | Their Turn Speed cases retire with the family (B-170g / B-170h) |
 | **New** `ActionPipsSpec` | Fight start 1; +1 per turn; bank up to Max; Reflex → Max 2..5; cap 5; spend; End Turn banks; 0 actions ends the turn |
 | **New** `ActionEffectsSpec` | `GainActions` / `LoseActions` now and next turn; Max Actions buff and debuff; the "+1 now, −1 next" pair; never below 0 |
-| **New** `MultiActionTurnSpec` | Turn-start and turn-end steps run once per turn; durations tick once; win check after each action; Defend and ritual end the turn; a turn starting at 0 actions (Wind took the gain) is skipped, its turn-start and turn-end steps still run |
+| **New** `MultiActionTurnSpec` | Turn-start and turn-end steps run once per turn; durations tick once; win check after each action; Defend and ritual end the turn. **Turn-start order (Crown):** (a) the turn's gain, then a waiting loss to 0: the turn is skipped, turn-end still runs, no prompt opens; (b) a waiting loss that leaves 1: the turn plays with 1 action; (c) an effect landing mid-turn that drops the unit to 0: the turn ends after that action, no further prompt; (d) a delayed gain landing the same turn as a loss counts before the check (gain, changes, then check) |
 | `AIOneSkillPathSpec` + new AI case | AI acts until its best pick is under the floor, then banks |
 
 ## 5. Build order (each ≤ 3 files plus its spec)
