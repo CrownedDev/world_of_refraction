@@ -6,6 +6,7 @@
 #include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoRCombatEvents.h"
 #include "GAS/WoRActionCosts.h"
+#include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Tags/WoRGameplayTags.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -4129,14 +4130,102 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	{
 		return;
 	}
+	FWoRProjectileArrival Arrival;
+	Arrival.Target = Target;
+	Arrival.Location = ImpactLocation;
+	Arrival.ImpactRadius = ImpactRadius;
+	Arrival.Damage = Damage;
+	Arrival.CastEntryIndex = CastEntryIndex;
+	RouteProjectileArrival(Arrival); // B-043d: through the skill's ability when it runs the action
+}
 
+void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
+{
+	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Projectile dodged by %s at %s"),
+		   Target ? *Target->GetName() : TEXT("None"), *ImpactLocation.ToString());
+
+	FWoRProjectileArrival Arrival;
+	Arrival.Target = Target;
+	Arrival.Location = ImpactLocation;
+	Arrival.bDodged = true;
+	RouteProjectileArrival(Arrival); // B-043d: through the skill's ability when it runs the action
+}
+
+void UActionExecutor::RouteProjectileArrival(const FWoRProjectileArrival &Arrival)
+{
+	// The action's actor: its running skill ability (if any) is the one listening. A projectile that lands after its
+	// action ended has no listener and resolves here, as before.
+	AActor *Actor = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get() : nullptr;
+	// Held while the event is out; a nested arrival (none today) holds and restores its own.
+	const TOptional<FWoRProjectileArrival> Outer = RoutingProjectile;
+	RoutingProjectile = Arrival;
+	WoRSkillAbilities::SendProjectileEvent(Actor, Arrival);
+	// Still held = not taken (no listener, or the event did not reach it): never drop an arrival, resolve it here.
+	const bool bUntaken = RoutingProjectile.IsSet();
+	RoutingProjectile = Outer;
+	if (bUntaken)
+	{
+		ResolveProjectileArrival(Arrival);
+	}
+}
+
+bool UActionExecutor::TakeRoutedProjectile(const AActor *Target, bool bDodged, FWoRProjectileArrival &OutArrival)
+{
+	if (!RoutingProjectile.IsSet() || !Target || RoutingProjectile->Target.Get() != Target || RoutingProjectile->bDodged != bDodged)
+	{
+		return false;
+	}
+	OutArrival = RoutingProjectile.GetValue();
+	RoutingProjectile.Reset();
+	return true;
+}
+
+void UActionExecutor::ResolveProjectileArrival(const FWoRProjectileArrival &Arrival)
+{
+	AActor *Target = Arrival.Target.Get();
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
+
+	if (Arrival.bDodged)
+	{
+		// No damage applied - target successfully moved out of impact zone
+		// Could broadcast event for UI feedback here
+
+		// Update execution context if tracking
+		if (CurrentExecutionContext.IsSet() && Target)
+		{
+			CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+			CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, 0); // 0 damage = dodged
+		}
+
+		// Stage 6 cluster 6 — CONVERTED path count integrity: a move-dodged projectile is an ARRIVAL that
+		// bypasses the impact path (and its ++ImpactsLanded), so without this a burst window would hang
+		// waiting for a count that never comes. Count the dodged arrival as landed-but-zero (no damage —
+		// already recorded above) so the close still reaches ExpectedImpacts. Inert today (move-dodge never
+		// fires in fixed-position combat) but correct for robustness / future positional mechanics.
+		if (DefenseSys && CurrentExecutionContext.IsSet())
+		{
+			if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
+			{
+				const bool bLastArrival = (++Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
+				if (bLastArrival)
+				{
+					DefenseSys->CloseDefenseWindow(Target);
+				}
+			}
+		}
+		return;
+	}
+
+	if (!Target)
+	{
+		return; // destroyed while the event was out
+	}
 
 	// Stage 6 cluster 4 — CONVERTED single-projectile path: the dispatch re-opened this defender's
 	// window count-based with ExpectedImpacts=1, so the projectile's LANDING is the impact moment.
 	// Resolve THIS arrival per-impact (reading the spell cast-entry difficulty) and apply exactly
 	// once — mirroring the melee Impact-notify loop (drain counter, resolve, apply slice, close).
-	if (ResolveSpellArrival(Target, CastEntryIndex, nullptr, nullptr, TEXT("Projectile"), /*bProjectileArrival=*/true))
+	if (ResolveSpellArrival(Target, Arrival.CastEntryIndex, nullptr, nullptr, TEXT("Projectile"), /*bProjectileArrival=*/true))
 	{
 		return;
 	}
@@ -4145,45 +4234,12 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	// behavior (the lumped cast-time window resolves these); cluster 6 retires the lumped path.
 	if (DefenseSys)
 	{
-		DefenseSys->OpenDefenseWindow(nullptr, Target, ImpactRadius, Damage, 0.3f);
+		DefenseSys->OpenDefenseWindow(nullptr, Target, Arrival.ImpactRadius, Arrival.Damage, 0.3f);
 	}
 	else
 	{
 		// Q-031 = A: a setup error, not a game state; no undefended damage fallback.
 		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - projectile damage not applied"));
-	}
-}
-
-void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
-{
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Projectile dodged by %s at %s"),
-		   Target ? *Target->GetName() : TEXT("None"), *ImpactLocation.ToString());
-
-	// No damage applied - target successfully moved out of impact zone
-	// Could broadcast event for UI feedback here
-
-	// Update execution context if tracking
-	if (CurrentExecutionContext.IsSet() && Target)
-	{
-		CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
-		CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, 0); // 0 damage = dodged
-	}
-
-	// Stage 6 cluster 6 — CONVERTED path count integrity: a move-dodged projectile is an ARRIVAL that
-	// bypasses OnProjectileImpact (and its ++ImpactsLanded), so without this a burst window would hang
-	// waiting for a count that never comes. Count the dodged arrival as landed-but-zero (no damage —
-	// already recorded above) so the close still reaches ExpectedImpacts. Inert today (move-dodge never
-	// fires in fixed-position combat) but correct for robustness / future positional mechanics.
-	if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
-	{
-		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
-		{
-			const bool bLastArrival = (++Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
-			if (bLastArrival)
-			{
-				DefenseSys->CloseDefenseWindow(Target);
-			}
-		}
 	}
 }
 
