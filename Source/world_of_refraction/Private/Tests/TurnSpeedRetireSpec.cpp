@@ -79,8 +79,8 @@ void FTurnSpeedRetireSpec::Define()
 			{
 				const FString Name = UEnum::GetValueAsString(Type);
 				const FTurnSpeedValidation Validation = ValidateForTurnSpeed(NewTurnSpeedTestDefinition(Type));
-				TestNotEqual(Name + TEXT(" not refused"), Validation.Result, EDataValidationResult::Invalid);
-				TestEqual(Name + TEXT(" warns once"), Validation.Warnings, Baseline.Warnings + 1u);
+				TestNotEqual(*(Name + TEXT(" not refused")), Validation.Result, EDataValidationResult::Invalid);
+				TestEqual(*(Name + TEXT(" warns once")), Validation.Warnings, Baseline.Warnings + 1u);
 			}
 		});
 
@@ -90,7 +90,7 @@ void FTurnSpeedRetireSpec::Define()
 			for (const ESkillEffectType Type : {ESkillEffectType::ActionSpeedBuff, ESkillEffectType::ActionSpeedDebuff,
 												ESkillEffectType::SpellSpeedBuff, ESkillEffectType::SpellSpeedDebuff})
 			{
-				TestEqual(UEnum::GetValueAsString(Type) + TEXT(" no extra warning"),
+				TestEqual(*(UEnum::GetValueAsString(Type) + TEXT(" no extra warning")),
 						  ValidateForTurnSpeed(NewTurnSpeedTestDefinition(Type)).Warnings, Baseline.Warnings);
 			}
 		});
