@@ -325,6 +325,7 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	if (bNewActor)
 	{
 		ViewedActor = Executor;
+		MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: another actor's menu step never carries over
 	}
 	// B-370: whatever the cinematic, a viewer who must defend gets the Defence view at the window's end. A hit
 	// too soon for any cinematic shows it now, and no cinematic plays over it.

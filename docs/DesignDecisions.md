@@ -299,7 +299,7 @@ The queue of questions only Crown can answer.
 - **A target picker keeps the depth it was opened from:** a skill's picker stays stepped in, Attack's picker stays at the main view; the Allies / Enemies step likewise. So picking a target never moves the camera (R3; one enemy in Expedition 33: no move while picking). Several enemies get B-400's target cut instead.
 - **The step:** in toward the acting hero by 0.25 of the camera's distance and down by 0.3 of its height, still aimed at the same point, in every turn-view style; blended over 0.3 s (study estimate), then still. All `TODO: tune`.
 - **Only the viewer's own turn view moves:** with camera movement off (static view, R15), during a skill's cinematic or a held shot, the depth is remembered but nothing moves.
-- **Closing the menu (an action is picked) moves nothing:** the action's shots take over; the next open sends its depth, so a second action in one turn (B-170c) that reopens on the main menu steps back out (a skill's shot still held stays put; B-401 brings that back to the turn view).
+- **Closing the menu (an action is picked) moves nothing:** the action's shots take over; the next open sends its depth, so a second action in one turn (B-170c) that reopens on the main menu steps back out (a skill's shot still held stays put; B-401 brings that back to the turn view). The step is the acting character's own: an action started by anyone else (an Execution turn, a ritual firing) resets it to the main view.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-399.md`).
 
 ## Parked
