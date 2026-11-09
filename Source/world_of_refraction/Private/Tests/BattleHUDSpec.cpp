@@ -3,7 +3,7 @@
 // two widgets built headless (not added to a viewport, so their plain-data state is what's checked) on a real duel:
 // a card's HP line follows damage, the turn strip leads with the acting character, the command menu lists the
 // subsystem's buttons with their keys and a row press acts. Layout and looks are PIE (docs/PIE/B-391.md).
-// B-391b: the Broken Darkness absorb line and overload tint.
+// B-391b: the Broken Darkness absorb line and overload tint; damage numbers pool, stack and drop a 0.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -23,6 +23,8 @@ namespace
 {
 	constexpr int32 BATTLE_HUD_SETTLE_FRAMES = 3;
 	constexpr int32 BATTLE_HUD_HIT = 1;
+	constexpr int32 BATTLE_HUD_NUMBER = 45;
+	constexpr float BATTLE_HUD_WEAK = 1.5f;
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -211,6 +213,37 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("the status panel names every combatant"),
 					 HUD->GetStatusPanelText().ToString().Contains(HUD->GetCards()[1].Name.ToString()));
 			HUD->Teardown();
+		});
+
+		It("floats a damage number over a hit character, stacks a second, and drops a hit that took nothing (B-391b)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestNotNull(TEXT("battle HUD widget"), HUD))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			FCombatHitShown Weak;
+			Weak.Amount = BATTLE_HUD_NUMBER;
+			Weak.ElementMultiplier = BATTLE_HUD_WEAK;
+			Weak.DamageType = EWoRDamageType::Fire;
+			HUD->ShowDamageNumber(Foe, Weak);
+			HUD->ShowDamageNumber(Foe, Weak);
+			FCombatHitShown Nothing = Weak;
+			Nothing.Amount = 0;
+			HUD->ShowDamageNumber(Foe, Nothing);
+			TestEqual(TEXT("two live numbers, the 0 dropped"), HUD->GetLiveDamageNumberCount(), 2);
+			const FBattleDamageNumber *Second = HUD->GetDamageNumbers().FindByPredicate(
+				[](const FBattleDamageNumber &Number) { return Number.bLive && Number.StackIndex == 1; });
+			TestTrue(TEXT("the second stacks above the first"), Second != nullptr);
+			TestTrue(TEXT("styled weak"), Second && Second->Style.Tier == EDamageNumberTier::Weak);
+			TestTrue(TEXT("wor.UI.Print shows it"), HUD->GetBattleHUDString().Contains(TEXT("2 live")));
+			HUD->Teardown();
+			TestEqual(TEXT("teardown clears them"), HUD->GetLiveDamageNumberCount(), 0);
 		});
 
 		It("lists the menu's buttons with their keys, and a row press acts", [this]()
