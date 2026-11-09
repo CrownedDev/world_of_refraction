@@ -347,6 +347,23 @@ public:
 	bool bRowMoveUsedThisTurn = false;
 
 	// ========================================
+	// ACTION PIPS (B-170c, ActionPips.md §3.3)
+	// ========================================
+
+	/** True when this fight runs banked actions: wor.Turns.ActionPips was 1 when it started (the TurnManager's
+	 *  latched mode). False = one action per turn, as built. */
+	bool IsActionPipsFight() const;
+
+	/** Q-170b: why Actor can't pay Action's action cost now: above its Max Actions ("Costs more actions than you
+	 *  can hold.") or above its bank ("Needs 2 actions."). Empty when it can, or outside an action-pips fight.
+	 *  The menu greys a skill with it (B-170e); the submit paths refuse with it. */
+	UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+	FText GetActionCostRefusedReason(AActor *Actor, const FAction &Action) const;
+
+	/** "Hero's turn: Basic Attack -1, Ability -1 (0 left)": the current turn's action spends (wor.Actions.Print). */
+	FString GetTurnSpendsString() const;
+
+	// ========================================
 	// DEBUG TOOLS
 	// ========================================
 
@@ -605,6 +622,34 @@ private:
 
 	/** Track if we're waiting for async action to complete */
 	bool bWaitingForAsyncAction = false;
+
+	/** B-170c (Q-170c): the action just paid for leaves the turn open (a skill, spell, item, ritual arming or
+	 *  switch in an action-pips fight). Read and cleared by OnActionCompleted, so every other way there (Defend,
+	 *  End Turn, a pass, auto-advance, an Execution turn, a death at turn start) ends the turn as before. */
+	bool bTurnContinuesAfterAction = false;
+
+	/** B-170c: combatants that have had a turn this fight. A first turn plays the fight-start bank without a
+	 *  regain (Q-170c2); per-fight state on the battle actor (D-064). */
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> ActorsPastFirstTurn;
+
+	/** B-170c: the current turn's spends, for GetTurnSpendsString. Reset at each turn start. */
+	TArray<FString> TurnSpends;
+
+	/** B-170c (ActionPips.md §1): the turn's actions, in Crown's order: (1) the regain (not on the actor's first
+	 *  turn), (2) the start-of-turn action changes (B-170d), (3) only then the check. False = no actions, no turn. */
+	bool BeginTurnActions(AActor *Actor);
+
+	/** B-170c: in an action-pips fight, refuses an action the bank can't pay (OutRefusedReason) or spends its
+	 *  cost and sets bTurnContinuesAfterAction. Outside one, pays nothing and the turn ends after it (as built). */
+	bool PayActionCost(const FAction &Action, FString &OutRefusedReason);
+
+	/** B-170c: after an action, whether Actor is asked again: alive, not on an Execution turn, player-driven
+	 *  (the AI spends one action a turn until B-170f), not stunned, actions left. */
+	bool CanContinueTurn(AActor *Actor) const;
+
+	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left stay banked. */
+	void EndTurnByChoice();
 
 	/** Armed deferred activations (W-B). Keyed by an orchestrator-owned PayloadId
 	 *  handed to TurnManager::ScheduleExecutionTurn at arm; looked up by the same
