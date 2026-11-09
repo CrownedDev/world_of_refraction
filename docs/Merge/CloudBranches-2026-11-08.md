@@ -77,6 +77,15 @@ These branches are all in `dev` already, so **merge them into dev again**, in th
   - **No save change.** The new fields are tagged UPROPERTYs, so old data reads 0. The existing damage and resistance specs must pass untouched: that is the no-balance-change proof.
 - The trial branch has all of these cherry-picked.
 
+## Update, 2026-11-09: the GAS plan (B-042f, B-042g, B-043a) and the PIE-gated cleanups
+
+- **B-042f** is merged into dev (desktop, built, full suite green). Its PIE (`docs/PIE/B-042f.md`, `wor.Effects.Compare` 0 differ at UseGAS 0 and 1) is the gate for row 70.
+- **Row 70: B-042g part 1** (`feature/B-042g-gas-readers-default-cloud`, UNBUILT, on B-042f): **merge only after B-042f's comparison passes.** The B-042g row is now part 1 of 6 (new rows B-042g2..g6, not written).
+- **Row 71: B-043a** (`feature/B-043a-costs-gas-cloud`, UNBUILT, on B-042f, so it merges straight onto dev): skill costs as Instant GEs behind `wor.Costs.UseGAS` (default 0). B-043 is sliced into B-043a–h; B-214 now waits on B-043b, B-236 on B-214.
+- **B-273b and B-064a (Ice)** are being written; rows follow when they are pushed.
+- **Cleanups** are in their own section at the end ("PIE-gated cleanups"): each merges only after Crown's PIE of the job it cleans up.
+- The trial branch has rows 70, 71 and B-152 cherry-picked.
+
 ## How to use the table
 
 Go top to bottom. Every branch's base comes before it. For each row:
@@ -170,6 +179,8 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 67 | `feature/B-387-crystal-amp-cloud` | B-386 | 31 | Code: FAmpBonus.h (AmpRules), LoadoutComponent `GetActiveStatBonus`, AmpSpec. Docs: Q-387, ED-50d. **Balance note:** worn crystals from D tier up add flat Amp to their element. |
 | 68 | `feature/B-388-main-side-quests-cloud` | B-377 (merge after B-377b, see the 23:00 update) | – | Code: HiddenQuestData (EQuestKind, Title, step Goal), HiddenQuestSubsystem (GetVisibleQuests, StartQuestById, visible notices; put them in `dev`'s `CountStepMet`), MemoryJournalWidget (Quests page), WoRGameNames (GetQuestKindName), QuestJournalSpec. Docs: Backlog B-388, Q-388, ER-12l, PIE B-388 and its Pending row, HiddenQuestSystem changelog, session entry. | Backlog / Rules / PIE README: add the rows next to dev's (B-377b, ER-12k, the B-38x Pending rows). |
 | 69 | `feature/B-389-resistance-by-type-cloud` | dev (after B-387) | – | Code: FResistanceBonus (two appended lines), ResistanceQuery (`GetScopeLineResistance`), DamageMath / DamageCalculator (step 3), the Resistance / Stat debug prints, ResistanceLinesSpec. Docs: Backlog B-389, Q-389 (and D-168 already in dev), ED-20 / ED-27, PIE B-389 and its Pending row, ResistanceSystem / DamageCalculator changelogs, session entry. | Every existing damage / resistance spec must pass unchanged (no balance change). **Q-389 changed by Crown (2026-11-09): an intended balance change** — the class's Physical column counts for damage (Generic −15% physical damage taken, Resonator +15%); every existing spec should still pass (their defenders are Casters). |
+| 70 | `feature/B-042g-gas-readers-default-cloud` | B-042f (in dev) | – | **Merge only after B-042f's PIE comparison passes.** Code: EffectIdentity (PhysicalType, EffectValue), WoREffectSpecBuilder (`GetEffectsOfType`), mirror `Matches` and fingerprint, SkillEffectManager `GetEffectsByType` at UseGAS 1, GASEffectsByTypeSpec. Docs: Backlog (B-042g part 1 + new rows g2..g6), Q-042g, PIE. |
+| 71 | `feature/B-043a-costs-gas-cloud` | B-042f (in dev) | – | Code: tags (`Effect.Family.Cost/Backlash`, `SetByCaller.Cost.*`), WoRGameplayEffects (`UWoRGE_EnergyCost`, `UWoRGE_HPBacklash`), new `GAS/WoRActionCosts`, ActionExecutor `SpendEnergy`, ActionExecutorCosts backlash, `WoRCostDebug`, GASCostsSpec. Docs: Backlog (B-043 sliced a–h, B-214 re-pointed), Q-043a, PIE. If it merges before row 70, the Backlog / DesignDecisions / GASSystem conflicts are row unions. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
@@ -258,3 +269,14 @@ These problems only exist once two branches meet. Apply each one at the row name
 - Rules 01 has one CL-28b (B-351b) and one CL-28c (B-357b/c). Rules 02 has one ED-37 / 37b / 37c. Rules 05 has one ER-12h and one ER-12i.
 - `DesignDecisions.md` already has two headings each for Q-155, Q-321 and Q-042i in `dev`. They are not from these merges; leave them.
 - The first full build of the combined code is the real check: the reviewer read it but nothing was compiled.
+
+## PIE-gated cleanups (merge last, each only after its gate)
+
+Deletions of code a finished job made obsolete. CLAUDE.md: no deleting code before it is verified in PIE. Each branch is cut from dev, UNBUILT, and **merges only after Crown's PIE of its gate job**. Each PIE sheet starts with the Blueprint reference checks (Find in Blueprints / Reference Viewer) where a deleted symbol was Blueprint-visible.
+
+| # | Branch | Gate (Crown's PIE of) | What it deletes |
+|---|---|---|---|
+| C1 | `feature/B-152-stone-wrappers-delete-cloud` | B-021 | The twelve stat-stone consumable wrappers and their dispatch cases; the DefenseStone / CritStone branches in Amber's and Opal's handlers. Reviewed (PASS WITH NOTES, fixed). |
+
+More rows follow as they are written: B-153 (B-022), B-154 (B-024), B-165 (B-031), B-172 (B-028), B-034b (B-034), B-032b (B-032), B-309 (B-301..B-308), B-317 (the store jobs), B-299 (after B-042g).
+
