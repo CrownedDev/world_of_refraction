@@ -19,6 +19,7 @@ class ULevelSequencePlayer;
 class ALevelSequenceActor;
 class APlayerController;
 class UCameraShakeBase;
+class UCombatCommandMenuSubsystem;
 struct FAction;
 
 UCLASS(ClassGroup = (Combat))
@@ -40,6 +41,15 @@ public:
 	void SetSkillCinematics(ESkillCinematics NewSetting);
 	void SetEnemySkillCinematics(bool bOn);
 	void SetSkipCinematicAfterHit(bool bSkip);
+
+	/** B-399 (study R2, R3): the command menu's depth (0 main, 1 a sub-menu; UCombatCommandMenuSubsystem::
+	 *  OnMenuDepthChanged, or wor.Camera.MenuDepth). On the viewer's own turn view, one short blend to the turn view
+	 *  for that depth; then the camera holds still until the depth changes again. Static, a cinematic or a held shot:
+	 *  the depth is kept and nothing moves. */
+	void SetMenuDepth(int32 NewDepth);
+	int32 GetMenuDepth() const { return MenuDepth; }
+	/** B-399 (debug, specs): the menu-depth camera moves this fight. */
+	int32 GetMenuStepCount() const { return MenuStepCount; }
 
 	bool IsInCombat() const { return bInCombat; }
 	ETurnViewStyle GetTurnViewStyle() const { return TurnViewStyle; }
@@ -110,6 +120,13 @@ private:
 
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
+
+	/** B-399: the command menu's depth changed; only the viewed character's menu moves the camera. */
+	UFUNCTION()
+	void HandleMenuDepthChanged(AActor *Actor, int32 NewDepth);
+
+	/** B-399: blends the viewed character's turn camera to the turn view for MenuDepth on the shot timer (StepShot). */
+	void StepTurnViewForMenu();
 
 	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
 	 *  could not (no camera or no viewer): nothing is left playing. */
@@ -192,4 +209,9 @@ private:
 	FCameraShot ActiveShot;
 	float ShotElapsed = 0.0f;
 	FTimerHandle ShotTimer;
+
+	// B-399: the command menu's depth (calm menus).
+	TWeakObjectPtr<UCombatCommandMenuSubsystem> BoundMenu;
+	int32 MenuDepth = 0;
+	int32 MenuStepCount = 0;
 };

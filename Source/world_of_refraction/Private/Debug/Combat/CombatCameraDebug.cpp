@@ -115,6 +115,12 @@ namespace
 		TEXT("wor.Camera.SkipAfterHit"),
 		TEXT("DEBUG: 1 = cut a cinematic once its caster's first hit lands, 0 = run to its end (default)."),
 		[](UCombatCameraDirector &Director, int32 Value) { Director.SetSkipCinematicAfterHit(Value != 0); });
+
+	FAutoConsoleCommandWithWorldAndArgs GCombatCameraMenuDepthCmd = MakeCameraSettingCmd(
+		TEXT("wor.Camera.MenuDepth"),
+		TEXT("DEBUG (B-399): what the command menu sends. 1 = a sub-menu is open (one step closer and lower), 0 = the main menu. ")
+			TEXT("Moves only on your own turn view; wor.Camera.Print shows the depth and the menu moves this fight."),
+		[](UCombatCameraDirector &Director, int32 Value) { Director.SetMenuDepth(Value); });
 }
 
 FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Director)
