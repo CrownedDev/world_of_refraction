@@ -7,7 +7,10 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Memory/CurseSubsystem.h"
 #include "Memory/HiddenQuestData.h"
+#include "Equipment/EquipmentDataBase.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
@@ -135,6 +138,7 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 	Progress.Add(Quest->GetQuestId());
 	KnownQuests.Add(Quest->GetQuestId(), const_cast<UHiddenQuestData *>(Quest)); // B-388: the journal shows its title and goal
 	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
+	ReportToHost(); // B-377b: a client's host checks its steps
 	ATrialMapFeature::ShowMessage(Quest->IsVisible() ? HiddenQuestNotice::VisibleStarted(*Quest) : HiddenQuestNotice::Started());
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s started (%d step(s))"), *Quest->GetQuestId().ToString(), Quest->Steps.Num());
 	if (Quest->Steps.IsEmpty())
@@ -148,44 +152,230 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event, const TArray<UHiddenQuestData *> &Quests)
 {
 	const UMemoryJournalSubsystem *Journal = GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>();
-	const FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
+	// B-377b: in co-op this player's steps read their own part of the event (Q-235d), with the team's memories.
+	TArray<UCharacterData *> FriendsCharacters;
+	TArray<const TSet<FName> *> FriendsKnown;
+	for (const AWoRPlayerState *Friend : MemoryUnlock::GetRemotePlayers(GetGameInstance()))
+	{
+		FriendsCharacters.Append(Friend->GetOwnCharacters());
+		FriendsKnown.Add(&Friend->GetKnownMemoryIds());
+	}
+	const FMemoryEvent OwnPart = FriendsCharacters.IsEmpty() ? Event : MemoryConditions::FilterParty(Event, FriendsCharacters, /*bKeep=*/false);
+	const TSet<FName> Team = FriendsKnown.IsEmpty() ? TSet<FName>() : MemoryConditions::GetTeamMemoryIds(Journal, FriendsKnown);
+	FWoRConditionContext Context = WoRConditions::MakeContext(OwnPart, Journal);
+	Context.KnownMemoryIds = FriendsKnown.IsEmpty() ? nullptr : &Team;
 	int32 StepsDoneNow = 0;
 	// Quests started by this event (or since the last one) wait for the next event; one this loop starts waits too.
 	const TSet<FName> StartedJustNow = MoveTemp(JustStarted);
 	JustStarted.Reset();
+	UCurseSubsystem *Curses = GetGameInstance()->GetSubsystem<UCurseSubsystem>();
+	if (Curses)
+	{
+		RegainCurses(*Curses, Context, Quests); // before this event moves any step on (a step done now gives it anyway)
+	}
 	for (const UHiddenQuestData *Quest : Quests)
 	{
-		FHiddenQuestProgress *Entry = Quest ? Progress.Find(Quest->GetQuestId()) : nullptr;
+		const FHiddenQuestProgress *Entry = Quest ? Progress.Find(Quest->GetQuestId()) : nullptr;
 		if (!Entry || Entry->bFinished || !Quest->Steps.IsValidIndex(Entry->StepsDone) || StartedJustNow.Contains(Quest->GetQuestId()) ||
 			JustStarted.Contains(Quest->GetQuestId()))
 		{
 			continue;
 		}
-		const FHiddenQuestStep &Step = Quest->Steps[Entry->StepsDone];
-		if (!WoRConditions::IsMet(Step.Conditions, Context) || ++Entry->RunCount < FMath::Max(Step.TimesInOneRun, 1))
+		if (WoRConditions::IsMet(Quest->Steps[Entry->StepsDone].Conditions, Context) && CountStepMet(*Quest))
 		{
-			continue;
-		}
-		++Entry->StepsDone;
-		Entry->RunCount = 0;
-		++StepsDoneNow;
-		UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s: step %d of %d done"), *Quest->GetQuestId().ToString(), Entry->StepsDone, Quest->Steps.Num());
-		if (Entry->StepsDone >= Quest->Steps.Num())
-		{
-			Finish(*Quest); // may start another quest (Progress grows): Entry is not used after this
-		}
-		else
-		{
-			ATrialMapFeature::ShowMessage(Quest->IsVisible() ? HiddenQuestNotice::VisibleStepDone(*Quest, Entry->StepsDone)
-															 : HiddenQuestNotice::StepDone());
+			++StepsDoneNow;
 		}
 	}
+	CheckFriendsQuests(Event, Quests, Team);
 	return StepsDoneNow;
 }
 
+bool UHiddenQuestSubsystem::CountStepMet(const UHiddenQuestData &Quest)
+{
+	FHiddenQuestProgress *Entry = Progress.Find(Quest.GetQuestId());
+	if (!Entry || Entry->bFinished || !Quest.Steps.IsValidIndex(Entry->StepsDone))
+	{
+		return false;
+	}
+	const FHiddenQuestStep &Step = Quest.Steps[Entry->StepsDone];
+	if (++Entry->RunCount < FMath::Max(Step.TimesInOneRun, 1))
+	{
+		return false;
+	}
+	++Entry->StepsDone;
+	Entry->RunCount = 0;
+	GiveStepRewards(Quest, Step, GetGameInstance()->GetSubsystem<UCurseSubsystem>()); // Q-378: on this player's own machine
+	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s: step %d of %d done"), *Quest.GetQuestId().ToString(), Entry->StepsDone, Quest.Steps.Num());
+	if (Entry->StepsDone >= Quest.Steps.Num())
+	{
+		Finish(Quest); // may start another quest (Progress grows): Entry is not used after this
+	}
+	else
+	{
+		// Merge B-388: a main or side quest shows its next goal; a hidden one stays vague.
+		ATrialMapFeature::ShowMessage(Quest.IsVisible() ? HiddenQuestNotice::VisibleStepDone(Quest, Entry->StepsDone)
+														: HiddenQuestNotice::StepDone());
+	}
+	ReportToHost();
+	return true;
+}
+
+void UHiddenQuestSubsystem::CheckFriendsQuests(const FMemoryEvent &Event, const TArray<UHiddenQuestData *> &Quests, const TSet<FName> &Team)
+{
+	const UMemoryJournalSubsystem *Journal = GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>();
+	for (AWoRPlayerState *Friend : MemoryUnlock::GetRemotePlayers(GetGameInstance()))
+	{
+		if (Friend->GetReportedQuests().IsEmpty())
+		{
+			continue;
+		}
+		const FMemoryEvent FriendsPart = MemoryConditions::FilterParty(Event, Friend->GetOwnCharacters(), /*bKeep=*/true);
+		FWoRConditionContext Context = WoRConditions::MakeContext(FriendsPart, Journal);
+		Context.KnownMemoryIds = &Team;
+		Context.HeldCurses = nullptr; // not this machine's (their own curses and counters stay on their machine)
+		Context.Counters = nullptr;
+		for (const TPair<FName, int32> &Reported : Friend->GetReportedQuests())
+		{
+			const UHiddenQuestData *const *Found = Quests.FindByPredicate([&Reported](const UHiddenQuestData *Quest)
+			{
+				return Quest && Quest->GetQuestId() == Reported.Key;
+			});
+			const UHiddenQuestData *Quest = Found ? *Found : nullptr;
+			if (Quest && Quest->Steps.IsValidIndex(Reported.Value) && WoRConditions::IsMet(Quest->Steps[Reported.Value].Conditions, Context))
+			{
+				Friend->Client_QuestStepMet(Reported.Key, Reported.Value); // their machine counts it (for that step) and reports back
+			}
+		}
+	}
+}
+
+void UHiddenQuestSubsystem::ApplyStepMetFromHost(FName QuestId, int32 StepIndex)
+{
+	// Review: the host checked the step it last heard of; a late message for a step already done is not counted on the next.
+	const FHiddenQuestProgress *Entry = Progress.Find(QuestId);
+	if (!Entry || Entry->StepsDone != StepIndex)
+	{
+		return;
+	}
+	// Merge fix: the same quest list a start reads (QuestsForStarts when set, else the catalogue).
+	TArray<UHiddenQuestData *> Quests(QuestsForStarts);
+	if (Quests.IsEmpty())
+	{
+		Quests = GetAllQuests();
+	}
+	for (const UHiddenQuestData *Quest : Quests)
+	{
+		if (Quest && Quest->GetQuestId() == QuestId)
+		{
+			// The host only checks quests this player reported before the event, so the starting event never counts.
+			JustStarted.Remove(QuestId);
+			CountStepMet(*Quest);
+			return;
+		}
+	}
+}
+
+void UHiddenQuestSubsystem::ReportToHost() const
+{
+	const UWorld *World = GetGameInstance()->GetWorld();
+	if (!World || World->GetNetMode() != NM_Client)
+	{
+		return;
+	}
+	const APlayerController *PC = World->GetFirstPlayerController();
+	if (AWoRPlayerState *Self = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
+	{
+		Self->ServerReportQuests(Capture().Quests);
+	}
+}
+
+
 int32 UHiddenQuestSubsystem::CheckEvent(const FMemoryEvent &Event)
 {
-	return Progress.IsEmpty() ? 0 : CheckEvent(Event, GetAllQuests());
+	StartGearQuests(Event); // started now: their steps wait for the next event (Q-377)
+	// Review: a friend's quests move even when this player has none started.
+	const bool bNothingToCheck = Progress.IsEmpty() && MemoryUnlock::GetRemotePlayers(GetGameInstance()).IsEmpty();
+	return bNothingToCheck ? 0 : CheckEvent(Event, GetAllQuests());
+}
+
+int32 UHiddenQuestSubsystem::StartGearQuests(const FMemoryEvent &Event)
+{
+	const UMemoryJournalSubsystem *Journal = GetGameInstance()->GetSubsystem<UMemoryJournalSubsystem>();
+	FWoRConditionContext Context = WoRConditions::MakeContext(Event, Journal);
+	int32 Started = 0;
+	// B-381 activations: each item's quests are checked with that item as BoundItem (a WornItemState condition reads it).
+	auto MetFor = [&Context](const FBoundQuest &Bound, const FWornItemState *Item)
+	{
+		Context.BoundItem = Item;
+		const bool bMet = WoRConditions::IsMet(Bound.Conditions, Context);
+		Context.BoundItem = nullptr;
+		return bMet;
+	};
+	auto TryStart = [&](const TArray<FBoundQuest> &BoundQuests, const FWornItemState *Item)
+	{
+		for (const FBoundQuest &Bound : BoundQuests)
+		{
+			if (Bound.Quest && !IsStarted(Bound.Quest->GetQuestId()) && MetFor(Bound, Item) && StartQuest(Bound.Quest))
+			{
+				++Started;
+			}
+		}
+	};
+	for (const FMemoryEventMember &Member : Event.Party)
+	{
+		// Every worn item with its state; an event built without states (tests, older callers) reads Worn's tiers only.
+		TArray<FWornItemState> Items = Member.WornStates;
+		for (const TPair<const UEquipmentDataBase *, EItemTier> &Worn : Member.Worn)
+		{
+			if (Worn.Key && !Items.ContainsByPredicate([&Worn](const FWornItemState &Item) { return Item.Item == Worn.Key; }))
+			{
+				FWornItemState &Item = Items.AddDefaulted_GetRef();
+				Item.Item = Worn.Key;
+				Item.Tier = Worn.Value;
+				Item.UpgradeSteps = MemoryUnlock::GetUpgradeSteps(*Worn.Key, Worn.Value);
+			}
+		}
+		if (AWoRPlayerState *Friend = MemoryUnlock::FindRemotePlayerOf(GetGameInstance(), Member.Character))
+		{
+			// B-377b (Q-235d): a friend's worn gear starts the quest on their machine.
+			auto TellFriend = [&](const TArray<FBoundQuest> &BoundQuests, const FWornItemState *Item)
+			{
+				for (const FBoundQuest &Bound : BoundQuests)
+				{
+					if (Bound.Quest && !Friend->GetReportedQuests().Contains(Bound.Quest->GetQuestId()) &&
+						!Friend->WasQuestOffered(Bound.Quest->GetQuestId()) && MetFor(Bound, Item))
+					{
+						Friend->MarkQuestOffered(Bound.Quest->GetQuestId());
+						Friend->Client_StartQuest(Bound.Quest);
+					}
+				}
+			};
+			for (const FWornItemState &Item : Items)
+			{
+				if (Item.Item) // review: a caller-filled state can lack its item
+				{
+					TellFriend(Item.Item->BoundQuests, &Item);
+				}
+			}
+			if (Member.Evolution)
+			{
+				TellFriend(Member.Evolution->BoundQuests, nullptr);
+			}
+			continue;
+		}
+		for (const FWornItemState &Item : Items)
+		{
+			if (Item.Item) // review: a caller-filled state can lack its item
+			{
+				TryStart(Item.Item->BoundQuests, &Item);
+			}
+		}
+		if (Member.Evolution)
+		{
+			TryStart(Member.Evolution->BoundQuests, nullptr); // its own state is EvolutionEquipped's (not a bound item)
+		}
+	}
+	return Started;
 }
 
 TArray<UHiddenQuestData *> UHiddenQuestSubsystem::GetAllQuests()
@@ -211,6 +401,52 @@ TArray<UHiddenQuestData *> UHiddenQuestSubsystem::GetAllQuests()
 		Quests.Add(Quest);
 	}
 	return Quests;
+}
+
+void UHiddenQuestSubsystem::GiveStepRewards(const UHiddenQuestData &Quest, const FHiddenQuestStep &Step, UCurseSubsystem *Curses)
+{
+	for (const FMemoryReward &Reward : Step.Rewards)
+	{
+		if (Reward.Kind != EMemoryRewardKind::Curse && Reward.Kind != EMemoryRewardKind::RemoveCurse)
+		{
+			UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s step reward: %s (logged, not granted yet)"), *Quest.GetQuestId().ToString(),
+				   *UMemoryData::GetRewardString(Reward));
+		}
+	}
+	if (Curses)
+	{
+		Curses->ApplyRewards(Step.Rewards); // Q-378: a quest step gives (or lifts) a curse
+	}
+}
+
+int32 UHiddenQuestSubsystem::RegainCurses(UCurseSubsystem &Curses, const FWoRConditionContext &Context, const TArray<UHiddenQuestData *> &Quests)
+{
+	// Q-378 (Crown, 2026-11-08): a curse a done step (or a finished quest's end memory) gave, cleared since, comes back
+	// when that step's conditions are met again. One meeting is enough (TimesInOneRun is the first time's count).
+	int32 Regained = 0;
+	for (const UHiddenQuestData *Quest : Quests)
+	{
+		const FHiddenQuestProgress *Entry = Quest ? Progress.Find(Quest->GetQuestId()) : nullptr;
+		if (!Entry)
+		{
+			continue;
+		}
+		const int32 Done = FMath::Min(Entry->StepsDone, Quest->Steps.Num());
+		for (int32 Index = 0; Index < Done; ++Index)
+		{
+			const FHiddenQuestStep &Step = Quest->Steps[Index];
+			const bool bGivesEndCurse = Entry->bFinished && Index == Quest->Steps.Num() - 1 && Quest->EndMemory &&
+										Curses.CouldRegain(Quest->EndMemory->Rewards);
+			if ((!Curses.CouldRegain(Step.Rewards) && !bGivesEndCurse) || !WoRConditions::IsMet(Step.Conditions, Context))
+			{
+				continue;
+			}
+			const int32 Back = Curses.RegainFrom(Step.Rewards) + (bGivesEndCurse ? Curses.RegainFrom(Quest->EndMemory->Rewards) : 0);
+			Regained += Back;
+			UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s step %d met again: %d curse(s) back"), *Quest->GetQuestId().ToString(), Index + 1, Back);
+		}
+	}
+	return Regained;
 }
 
 void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)

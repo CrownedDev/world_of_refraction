@@ -41,6 +41,8 @@ struct FWoRFighterState
 	bool bDefender = false;
 };
 
+struct FWornItemState; // B-381 (Memory/MemoryConditions.h)
+
 /** What is true when conditions are checked. Memories fill Event (party, worn gear, slotted and used
  *  skills, locations, enemies beaten, level-ups) and Journal; a boss rule adds Boss; a reaction (B-337b)
  *  fills Event with its wearer alone, Opposing with the faced character, Self and Target. */
@@ -52,6 +54,11 @@ struct FWoRConditionContext
 	/** B-235e: a co-op friend's memories (by UMemoryData::GetMemoryId), read for MemoryCollected instead of Journal
 	 *  when set: the host has no copy of a friend's journal. */
 	const TSet<FName> *KnownMemoryIds = nullptr;
+	/** B-378: the curses this player holds (UCurseSubsystem), for CurseHeld; MakeContext fills it from Journal's game
+	 *  instance. Null: no curse is held. */
+	const TSet<FName> *HeldCurses = nullptr;
+	/** B-379: this player's hidden counters, for CounterReached; MakeContext fills it like HeldCurses. Null: all 0. */
+	const class UHiddenCounterSubsystem *Counters = nullptr;
 	/** B-355: set when a boss's rules are checked (null: every Boss* subject fails). */
 	const FWoRBossState *Boss = nullptr;
 	/** B-337b: the opposing team's characters (FacingEnemy). */
@@ -66,6 +73,8 @@ struct FWoRConditionContext
 	TArray<EWoRConditionTrigger> AlsoFiring;
 	/** B-365: set when the event is Self's Flawless Parry (UDefenseSystem::OnFlawlessParry; Target = the attacker). */
 	bool bFlawlessParry = false;
+	/** B-381 activations: the worn item whose bound quest is being checked (WornItemState; null: it fails). */
+	const FWornItemState *BoundItem = nullptr;
 };
 
 namespace WoRConditions

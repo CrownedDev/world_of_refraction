@@ -1,0 +1,313 @@
+// ApparelSpec.cpp
+// B-380 (D-164, Q-380): an apparel piece adds its HP and Defence lines (nothing else) to the wearer's gear stats, takes
+// no loadout budget, holds at most two pieces, and its socket takes a refined crystal only.
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Misc/AutomationTest.h"
+#include "WoRTestWorld.h"
+#include "Character/CharacterData.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/FEvolutionInventoryEntry.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/FCrystalAttachment.h"
+#include "Skills/Effects/EffectDefinition.h"
+#include "Inventory/InventoryComponent.h"
+#include "Loadout/Entries/FApparelEntry.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Loadout/LoadoutRules.h"
+#include "Loadout/FSavedLoadout.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
+#include "Character/CombatCharacter.h"
+#include "Pool/PoolSubsystem.h"
+#include "Save/SaveSubsystem.h"
+
+namespace
+{
+	constexpr int32 APPAREL_TEST_HP = 5;
+	constexpr int32 APPAREL_TEST_DEFENSE = 3;
+	constexpr int32 APPAREL_TEST_LUCK = 4;
+	const FCrystalId APPAREL_TEST_FIRE_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
+	constexpr int32 APPAREL_TEST_DURABILITY = 5;
+	const FCrystalId APPAREL_TEST_WATER_GEM(ECrystalType::Sapphire, EItemTier::F_Tier);
+	constexpr int32 APPAREL_TEST_FIRE_AMP = 2;
+	constexpr int32 APPAREL_TEST_ALL_AMP = 1;
+
+	UApparelData *ApparelTestPiece()
+	{
+		UApparelData *Piece = NewObject<UApparelData>(GetTransientPackage());
+		Piece->Tier = EItemTier::F_Tier;
+		Piece->BaseStatBonus.BonusMaxHP = APPAREL_TEST_HP;
+		Piece->BaseStatBonus.BonusDefense = APPAREL_TEST_DEFENSE;
+		Piece->BaseStatBonus.BonusLuck = APPAREL_TEST_LUCK; // not an apparel line: ignored
+		return Piece;
+	}
+}
+
+BEGIN_DEFINE_SPEC(FApparelSpec, "WoR.Loadout.Apparel", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	TUniquePtr<FWoRTestWorld> TestWorld;
+
+	static FCombatLoadout &ActiveOf(ULoadoutComponent *Loadout)
+	{
+		UInventoryComponent *Inventory = Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>();
+		return Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+	}
+END_DEFINE_SPEC(FApparelSpec)
+
+void FApparelSpec::Define()
+{
+	BeforeEach([this]()
+	{
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		TestTrue(TEXT("Test world created"), TestWorld->Create());
+	});
+
+	AfterEach([this]() { TestWorld.Reset(); });
+
+	It("adds only its HP and Defence lines to the wearer's gear stats", [this]()
+	{
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		const FEquipmentStatBonus Before = Loadout->GetActiveStatBonus(Loadout->GetOwner());
+		TestTrue(TEXT("worn"), ApparelRules::AddApparel(ActiveOf(Loadout), FApparelEntry::CreateFromApparel(ApparelTestPiece())));
+		const FEquipmentStatBonus After = Loadout->GetActiveStatBonus(Loadout->GetOwner());
+		TestEqual(TEXT("HP"), After.BonusMaxHP - Before.BonusMaxHP, APPAREL_TEST_HP);
+		TestEqual(TEXT("Defence (F tier: x1)"), After.BonusDefense - Before.BonusDefense, APPAREL_TEST_DEFENSE);
+		TestEqual(TEXT("Luck is not an apparel line"), After.BonusLuck, Before.BonusLuck);
+		TestTrue(TEXT("the asset flags the unused line"), ApparelTestPiece()->HasUnusedStatLines());
+	});
+
+	It("adds its Amp lines to the wearer's one Amp total (B-386, the deckbuilder's Apparel)", [this]()
+	{
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		UApparelData *Piece = ApparelTestPiece();
+		Piece->BaseStatBonus.Amp.Fire = APPAREL_TEST_FIRE_AMP;
+		Piece->BaseStatBonus.Amp.All = APPAREL_TEST_ALL_AMP;
+		const FAmpBonus Before = Loadout->GetActiveStatBonus(Loadout->GetOwner()).Amp;
+		TestTrue(TEXT("worn"), ApparelRules::AddApparel(ActiveOf(Loadout), FApparelEntry::CreateFromApparel(Piece)));
+		const FAmpBonus After = Loadout->GetActiveStatBonus(Loadout->GetOwner()).Amp;
+		TestEqual(TEXT("a Fire spell's Amp"), After.GetTotalFor(ESpellElement::Fire, true) - Before.GetTotalFor(ESpellElement::Fire, true),
+				  APPAREL_TEST_FIRE_AMP + APPAREL_TEST_ALL_AMP);
+		TestEqual(TEXT("a Water spell's Amp (All only)"),
+				  After.GetTotalFor(ESpellElement::Water, true) - Before.GetTotalFor(ESpellElement::Water, true), APPAREL_TEST_ALL_AMP);
+		TestFalse(TEXT("Amp is an apparel line, not an unused one"), [&Piece]()
+		{
+			UApparelData *AmpOnly = DuplicateObject(Piece, GetTransientPackage());
+			AmpOnly->BaseStatBonus.BonusLuck = 0;
+			return AmpOnly->HasUnusedStatLines();
+		}());
+	});
+
+	It("takes no budget, holds at most two pieces, and not the same piece twice", [this]()
+	{
+		FCombatLoadout Loadout;
+		FLoadoutRuleContext Context;
+		const int32 FindingsBefore = FLoadoutRules::CollectFindings(Loadout, Context).Num();
+		FApparelEntry Owned = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Owned.PersistentID = FGuid::NewGuid();
+		TestTrue(TEXT("first"), ApparelRules::AddApparel(Loadout, Owned));
+		TestFalse(TEXT("the same owned piece again"), ApparelRules::AddApparel(Loadout, Owned));
+		TestTrue(TEXT("second"), ApparelRules::AddApparel(Loadout, FApparelEntry::CreateFromApparel(ApparelTestPiece())));
+		TestFalse(TEXT("a third (Q-380: two slots)"), ApparelRules::AddApparel(Loadout, FApparelEntry::CreateFromApparel(ApparelTestPiece())));
+		TestFalse(TEXT("no asset"), ApparelRules::AddApparel(Loadout, FApparelEntry()));
+		TestEqual(TEXT("no new budget findings"), FLoadoutRules::CollectFindings(Loadout, Context).Num(), FindingsBefore);
+		TestTrue(TEXT("the print names it"), ApparelRules::GetApparelString(Loadout).Contains(TEXT("2 of 2")));
+	});
+
+	It("keys to a refined crystal or an evolution, not an augment stone", [this]()
+	{
+		FRuntimeAttachedItem Evolution;
+		Evolution.Kind = EAttachedItemKind::Evolution;
+		FRuntimeAttachedItem Stone;
+		Stone.Kind = EAttachedItemKind::AugmentStone;
+		FRuntimeAttachedItem Crystal;
+		Crystal.Kind = EAttachedItemKind::Crystal;
+		TestTrue(TEXT("a crystal"), ApparelRules::CanSocket(Crystal));
+		TestTrue(TEXT("an evolution (Crown, D-164)"), ApparelRules::CanSocket(Evolution));
+		TestFalse(TEXT("no augment stone"), ApparelRules::CanSocket(Stone));
+		TestEqual(TEXT("no crystal: no element"), FApparelEntry::CreateFromApparel(ApparelTestPiece()).GetElement(), ESpellElement::None);
+		FCombatLoadout Loadout;
+		FApparelEntry WithStone = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		WithStone.AttachedItem = Stone;
+		TestFalse(TEXT("a piece holding an augment stone is not worn"), ApparelRules::AddApparel(Loadout, WithStone));
+		FApparelEntry WithEvolution = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		WithEvolution.AttachedItem = Evolution;
+		TestTrue(TEXT("a piece holding an evolution is worn"), ApparelRules::AddApparel(Loadout, WithEvolution));
+	});
+
+	It("adds resistance to its crystal's element, and its effects count (D-164, Crown)", [this]()
+	{
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.AttachedItem.Kind = EAttachedItemKind::Crystal;
+		Piece.AttachedItem.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		TestEqual(TEXT("keyed to Fire"), Piece.GetElement(), ESpellElement::Fire);
+		TestEqual(TEXT("Fire resistance"), Piece.GetResistance().Fire, ApparelRules::CRYSTAL_ELEMENT_RESISTANCE);
+		TestEqual(TEXT("not Water"), Piece.GetResistance().Water, 0.0f);
+
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		UEffectDefinition *Bundle = NewObject<UEffectDefinition>(GetTransientPackage());
+		FSkillEffect Effect;
+		FSkillEffectPayload Payload;
+		Payload.EffectType = ESkillEffectType::DefenseBuff;
+		Effect.Payloads.Add(Payload);
+		Bundle->Effects.Add(Effect);
+		Piece.Apparel->ReferencedEffects.Add(Bundle);
+		const int32 EffectsBefore = Loadout->GetActiveEffects(Loadout->GetOwner()).Num();
+		const float FireBefore = Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire;
+		TestTrue(TEXT("worn"), ApparelRules::AddApparel(ActiveOf(Loadout), Piece));
+		TestEqual(TEXT("its effect counts"), Loadout->GetActiveEffects(Loadout->GetOwner()).Num(), EffectsBefore + 1);
+		TestEqual(TEXT("its Fire resistance counts"), Loadout->GetActiveResistanceBonus(Loadout->GetOwner()).Fire - FireBefore,
+				  ApparelRules::CRYSTAL_ELEMENT_RESISTANCE);
+	});
+
+	It("is owned in the store with its socket and comes back from the save (B-380b)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool"), Pool))
+		{
+			return;
+		}
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.AttachedItem.Kind = EAttachedItemKind::Crystal;
+		Piece.AttachedItem.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		Piece.StatBonus.BonusDefense = 1;
+		const FGuid Id = Pool->AddApparelToPool(Piece);
+		TestTrue(TEXT("owned: an id minted"), Id.IsValid());
+		TestNotNull(TEXT("found by its id"), Pool->FindApparelInPool(Id));
+
+		const int32 OwnedBefore = Pool->GetOwnedApparel().Num();
+		const FSavedPool Saved = USaveSubsystem::CapturePool(*Pool);
+		USaveSubsystem::RestorePool(Saved, *Pool); // restored beside the original
+		TestEqual(TEXT("restored as apparel"), Pool->GetOwnedApparel().Num(), OwnedBefore * 2);
+		const FApparelEntry &Back = Pool->GetOwnedApparel().Last();
+		TestTrue(TEXT("same id"), Back.PersistentID == Id);
+		TestEqual(TEXT("its crystal: Fire"), Back.GetElement(), ESpellElement::Fire);
+		TestEqual(TEXT("its roll"), Back.StatBonus.BonusDefense, 1);
+	});
+
+	It("keeps worn apparel through a saved loadout and follows a crystal set in play (B-380c)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		// Review: a party member drawn from the store (DrawSharedGear binds the store's change event), as CustomLoadoutsSpec.
+		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
+		if (!TestNotNull(TEXT("Pool"), Pool) || !TestNotNull(TEXT("Party"), Party))
+		{
+			return;
+		}
+		Party->Members.Empty();
+		UCharacterData *Member = FWoRTestWorld::NewCharacterData();
+		FPartyMember &PartyMember = Party->Members.AddDefaulted_GetRef();
+		PartyMember.PawnClass = ACombatCharacter::StaticClass();
+		PartyMember.CharacterData = Member;
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Member);
+		if (!TestNotNull(TEXT("Loadout"), Loadout))
+		{
+			return;
+		}
+		Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>()->DrawSharedGear();
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.PersistentID = Pool->AddApparelToPool(Piece);
+		FCombatLoadout &Active = ActiveOf(Loadout);
+		TestTrue(TEXT("worn"), ApparelRules::AddApparel(Active, Piece));
+
+		// A crystal set in play reaches the worn copy, and its Fire resistance counts.
+		FRuntimeAttachedItem Gem;
+		Gem.Kind = EAttachedItemKind::Crystal;
+		Gem.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		TestTrue(TEXT("attached through the store"), Pool->AttachToApparel(Piece.PersistentID, Gem));
+		TestEqual(TEXT("the worn copy follows"), ActiveOf(Loadout).Apparel[0].GetElement(), ESpellElement::Fire);
+		TestFalse(TEXT("an unowned piece cannot be socketed"), Pool->AttachToApparel(FGuid::NewGuid(), Gem));
+
+		// Through a saved loadout and back: the same owned piece, with its crystal.
+		const UInventoryComponent *Inventory = Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>();
+		const FSavedLoadout Saved = ActiveOf(Loadout).ToSavedLoadout(ECharacterClass::Generic);
+		TestEqual(TEXT("saved with its id"), Saved.ApparelInstances.Num(), 1);
+		const FCombatLoadout Back = FCombatLoadout::CreateFromSavedLoadout(Saved, Inventory, nullptr);
+		TestEqual(TEXT("one piece back"), Back.Apparel.Num(), 1);
+		TestTrue(TEXT("the owned piece"), Back.Apparel.Num() == 1 && Back.Apparel[0].PersistentID == Piece.PersistentID);
+		TestTrue(TEXT("with its crystal"), Back.Apparel.Num() == 1 && Back.Apparel[0].GetElement() == ESpellElement::Fire);
+	});
+
+	It("gives the old crystal back when the socket changes, and refuses an evolution it doesn't own (B-380d)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool"), Pool))
+		{
+			return;
+		}
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.PersistentID = Pool->AddApparelToPool(Piece);
+		FRuntimeAttachedItem Fire;
+		Fire.Kind = EAttachedItemKind::Crystal;
+		Fire.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		FRuntimeAttachedItem Water = Fire;
+		Water.Crystal = FCrystalAttachment(APPAREL_TEST_WATER_GEM, APPAREL_TEST_DURABILITY);
+		TestTrue(TEXT("Fire in"), Pool->AttachToApparel(Piece.PersistentID, Fire));
+		const int32 StoredBefore = Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM);
+		TestTrue(TEXT("Water in"), Pool->AttachToApparel(Piece.PersistentID, Water));
+		TestEqual(TEXT("the Fire crystal went back to storage"), Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM), StoredBefore + 1);
+
+		FRuntimeAttachedItem Evolution;
+		Evolution.Kind = EAttachedItemKind::Evolution;
+		Evolution.Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution.Evolution.InstanceID = FGuid::NewGuid();
+		TestFalse(TEXT("an evolution not in the store is refused"), Pool->AttachToApparel(Piece.PersistentID, Evolution));
+		const FApparelEntry *Stored = Pool->FindApparelInPool(Piece.PersistentID);
+		if (TestNotNull(TEXT("the piece is still owned"), Stored))
+		{
+			TestEqual(TEXT("and the socket keeps its crystal"), Stored->GetElement(), ESpellElement::Water);
+		}
+	});
+
+	It("re-socketing the same crystal changes nothing, and another owner's evolution is refused (B-380d review)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool"), Pool))
+		{
+			return;
+		}
+		const FName Wearer(TEXT("ApparelTestWearer"));
+		const FName Other(TEXT("ApparelTestOther"));
+		FApparelEntry Piece = FApparelEntry::CreateFromApparel(ApparelTestPiece());
+		Piece.PersistentID = Pool->AddApparelToPool(Piece, Wearer);
+		TestTrue(TEXT("the piece has its owner"), Pool->GetGearOwner(Piece.PersistentID) == Wearer);
+
+		FRuntimeAttachedItem Fire;
+		Fire.Kind = EAttachedItemKind::Crystal;
+		Fire.Crystal = FCrystalAttachment(APPAREL_TEST_FIRE_GEM, APPAREL_TEST_DURABILITY);
+		TestTrue(TEXT("Fire in"), Pool->AttachToApparel(Piece.PersistentID, Fire));
+		const int32 StoredBefore = Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM);
+		TestTrue(TEXT("the same Fire again"), Pool->AttachToApparel(Piece.PersistentID, Fire));
+		TestEqual(TEXT("nothing came back to storage"), Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM), StoredBefore);
+
+		FEvolutionInventoryEntry Evolution;
+		Evolution.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution.InstanceID = FGuid::NewGuid();
+		Pool->AddEvolutionToPool(Evolution);
+		Pool->SetGearOwner(Evolution.InstanceID, Other);
+		FRuntimeAttachedItem Socketed;
+		Socketed.Kind = EAttachedItemKind::Evolution;
+		Socketed.Evolution.Item = Evolution.Item;
+		Socketed.Evolution.InstanceID = Evolution.InstanceID;
+		TestFalse(TEXT("another owner's evolution is refused"), Pool->AttachToApparel(Piece.PersistentID, Socketed));
+		Pool->SetGearOwner(Evolution.InstanceID, Wearer);
+		TestTrue(TEXT("the wearer's own evolution fits"), Pool->AttachToApparel(Piece.PersistentID, Socketed));
+		TestEqual(TEXT("and the Fire crystal went back"), Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM), StoredBefore + 1);
+	});
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS

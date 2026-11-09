@@ -10,6 +10,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/Crystals/CrystalType.h"
+#include "Inventory/ItemTier.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "WoRCondition.generated.h"
 
 class UCharacterData;
@@ -123,6 +126,16 @@ enum class EWoRConditionSubject : uint8
 	/** B-376 (MemoryCatalogue §3.7): Character is present in the event's whole team (FMemoryEvent::Present: every
 	 *  player's characters in co-op), not only in the part being read. Pair memories use two of these. */
 	CharacterPresent = 27,
+	/** B-378 (MemoryCatalogue §3.8): this player holds the curse CurseId (FWoRConditionContext::HeldCurses). */
+	CurseHeld = 28,
+	/** B-379 (MemoryCatalogue §3.9): the player's hidden counter CounterId (for Character when set, else all
+	 *  characters) compares to Value by Operator (FWoRConditionContext::Counters). */
+	CounterReached = 29,
+	/** B-381 activations (Crown, MemoryCatalogue §3.11): the worn item that carries the quest is in a certain state:
+	 *  its socket holds a crystal or evolution of SocketElement (None: any), the evolution Evolution (null: any), a
+	 *  stone of StoneType in its stone socket (None: none needed), at least MinTier, and its upgrade level (tiers
+	 *  above the authored tier) compares to Value by Operator (FWoRConditionContext::BoundItem; none: it fails). */
+	WornItemState = 30,
 };
 
 /** Whose state a fight subject reads (the deckbuilder's Who). Append only. */
@@ -199,6 +212,26 @@ struct WORLD_OF_REFRACTION_API FWoRCondition
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
 	FName LocationId;
+
+	/** B-378: CurseHeld's curse id. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	FName CurseId;
+
+	/** B-379: CounterReached's counter (HiddenCounters). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	FName CounterId;
+
+	/** B-381 WornItemState: the element of the crystal or evolution in the item's socket (None: any). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	ESpellElement SocketElement = ESpellElement::None;
+
+	/** B-381 WornItemState: the augment stone in its stone socket (None: no stone needed). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	ECrystalType StoneType = ECrystalType::None;
+
+	/** B-381 WornItemState: the item's own tier, at least this. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")
+	EItemTier MinTier = EItemTier::F_Tier;
 
 	/** Hp / HpPercent / EpPercent / Defender: whose. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Condition")

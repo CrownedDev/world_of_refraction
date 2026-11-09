@@ -10,6 +10,9 @@
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "Memory/CurseSubsystem.h"
+#include "Memory/HiddenCounterSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Memory/MemoryUnlock.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
@@ -55,6 +58,17 @@ namespace
 	const UCharacterData *GetUpgrader(const FWoRCondition &Condition, const FMemoryEvent &Event)
 	{
 		return Event.UpgradedBy ? Event.UpgradedBy : Condition.Character.Get();
+	}
+
+	/** B-381 activations: the bound item's socket, stone, tier and upgrade level against Condition (WornItemState). */
+	bool IsWornItemStateMet(const FWoRCondition &Condition, const FWornItemState &Item)
+	{
+		const bool bAnyElement = Condition.SocketElement == ESpellElement::None;
+		return (bAnyElement || Item.SocketElement == Condition.SocketElement) &&
+			   (!Condition.Evolution || Item.SocketEvolution == Condition.Evolution) &&
+			   (Condition.StoneType == ECrystalType::None || Item.StoneType == Condition.StoneType) &&
+			   static_cast<uint8>(Item.Tier) >= static_cast<uint8>(Condition.MinTier) &&
+			   WoRConditions::Compare(Item.UpgradeSteps, Condition.Operator, Condition.Value);
 	}
 
 	bool IsGearMet(const FWoRCondition &Condition, const FMemoryEvent &Event)
@@ -212,6 +226,10 @@ namespace
 		{
 			return false;
 		}
+		if (Condition.Subject == EWoRConditionSubject::WornItemState)
+		{
+			return Context.BoundItem && IsWornItemStateMet(Condition, *Context.BoundItem); // B-381: reads the item, not the event
+		}
 		if (!Context.Event)
 		{
 			return false; // every other subject reads the event
@@ -223,6 +241,11 @@ namespace
 			return Condition.Character && IsMemberInParty(Condition.Character, Event);
 		case EWoRConditionSubject::CharacterPresent:
 			return Condition.Character && IsPresent(Condition.Character, Event);
+		case EWoRConditionSubject::CurseHeld:
+			return !Condition.CurseId.IsNone() && Context.HeldCurses && Context.HeldCurses->Contains(Condition.CurseId);
+		case EWoRConditionSubject::CounterReached:
+			return !Condition.CounterId.IsNone() &&
+				   WoRConditions::Compare(Context.Counters ? Context.Counters->Get(Condition.CounterId, Condition.Character) : 0, Condition.Operator, Condition.Value);
 		case EWoRConditionSubject::GearEquipped:
 			return IsGearMet(Condition, Event);
 		case EWoRConditionSubject::AtLocation:
@@ -271,6 +294,8 @@ namespace
 		case EMemoryConditionKind::BreakthroughUsed:  return EWoRConditionSubject::BreakthroughUsed;
 		case EMemoryConditionKind::FinishingBlow:     return EWoRConditionSubject::FinishingBlow;
 		case EMemoryConditionKind::PartyHas:          return EWoRConditionSubject::CharacterPresent;
+		case EMemoryConditionKind::CurseHeld:         return EWoRConditionSubject::CurseHeld;
+		case EMemoryConditionKind::CounterReached:    return EWoRConditionSubject::CounterReached;
 		}
 		return EWoRConditionSubject::Hidden; // an unknown kind never holds, as before
 	}
@@ -412,6 +437,11 @@ FWoRConditionContext WoRConditions::MakeContext(const FMemoryEvent &Event, const
 	Context.Trigger = TriggerFor(Event.Source);
 	Context.Event = &Event;
 	Context.Journal = Journal;
+	// B-378: this player's curses, from the same game instance as the journal.
+	const UGameInstance *GameInstance = Journal ? Journal->GetGameInstance() : nullptr;
+	const UCurseSubsystem *Curses = GameInstance ? GameInstance->GetSubsystem<UCurseSubsystem>() : nullptr;
+	Context.HeldCurses = Curses ? &Curses->GetHeldCurses() : nullptr;
+	Context.Counters = GameInstance ? GameInstance->GetSubsystem<UHiddenCounterSubsystem>() : nullptr; // B-379
 	return Context;
 }
 
@@ -427,8 +457,14 @@ FWoRCondition WoRConditions::FromMemory(const FMemoryCondition &Condition)
 	Out.Enemy = Condition.Enemy;
 	Out.PriorMemory = Condition.PriorMemory;
 	Out.LocationId = Condition.LocationId;
+	Out.CurseId = Condition.CurseId; // B-378
 	Out.Operator = EWoRConditionOperator::AtLeast;
 	Out.Value = Condition.UpgradeLevel;
+	if (Condition.Kind == EMemoryConditionKind::CounterReached)
+	{
+		Out.CounterId = Condition.CounterId; // B-379
+		Out.Value = Condition.CounterTarget;
+	}
 	Out.RequirementFit = FitFor(Condition.RequirementFit);
 	Out.RequirementMargin = Condition.RequirementMargin;
 	return Out;
@@ -462,6 +498,24 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	if (!Condition.LocationId.IsNone())
 	{
 		Out += TEXT(" ") + Condition.LocationId.ToString();
+	}
+	if (!Condition.CurseId.IsNone())
+	{
+		Out += TEXT(" ") + Condition.CurseId.ToString(); // B-378
+	}
+	if (Condition.Subject == EWoRConditionSubject::WornItemState) // B-381
+	{
+		Out += FString::Printf(TEXT(" socket %s, stone %s, tier >= %s, level %s %d"), *ConditionEnumName(Condition.SocketElement),
+							   *ConditionEnumName(Condition.StoneType), *ConditionEnumName(Condition.MinTier),
+							   *ConditionEnumName(Condition.Operator), Condition.Value);
+		if (Condition.Evolution)
+		{
+			Out += TEXT(", evolution ") + Condition.Evolution->GetName();
+		}
+	}
+	if (!Condition.CounterId.IsNone())
+	{
+		Out += FString::Printf(TEXT(" %s %s %d"), *Condition.CounterId.ToString(), *ConditionEnumName(Condition.Operator), Condition.Value); // B-379
 	}
 	if (IsFighterSubject(Condition.Subject))
 	{

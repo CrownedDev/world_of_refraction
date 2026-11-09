@@ -9,6 +9,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Save/WoRSaveTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "MemoryJournalSubsystem.generated.h"
 
@@ -85,6 +86,11 @@ public:
 	void MarkConversationPlayed(FName ConversationId) { PlayedConversations.AddUnique(ConversationId); }
 	bool HasPlayedConversation(FName ConversationId) const { return PlayedConversations.Contains(ConversationId); }
 	const TArray<FName> &GetPlayedConversations() const { return PlayedConversations; }
+
+	/** B-377b (D-059): the journal for the save, and back. Restore does not announce the memories (OnMemoryRecorded):
+	 *  quests and curses keep their own saved state. An unresolvable memory asset is dropped with a warning. */
+	FSavedJournal Capture() const;
+	void Restore(const FSavedJournal &Saved);
 
 	/** Debug: one line per memory (with its character depths) and per lore entry. */
 	FString GetJournalString() const;

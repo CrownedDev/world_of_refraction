@@ -24,6 +24,59 @@ bool UMemoryJournalSubsystem::RecordMemory(UMemoryData *Memory, EMemorySource So
 	return true;
 }
 
+FSavedJournal UMemoryJournalSubsystem::Capture() const
+{
+	FSavedJournal Saved;
+	for (int32 Index = 0; Index < Memories.Num(); ++Index)
+	{
+		if (Memories[Index])
+		{
+			Saved.Memories.Add(FSavedAssetRef::Make(Memories[Index]));
+			Saved.Sources.Add(static_cast<uint8>(Sources.IsValidIndex(Index) ? Sources[Index] : EMemorySource::Fragment));
+		}
+	}
+	for (const FJournalLoreEntry &Entry : Lore)
+	{
+		FSavedLore &Out = Saved.Lore.AddDefaulted_GetRef();
+		Out.LoreId = Entry.LoreId;
+		Out.Title = Entry.Title;
+		Out.Body = Entry.Body;
+	}
+	Saved.HeardVLines = HeardVLines.Array();
+	Saved.PlayedConversations = PlayedConversations;
+	return Saved;
+}
+
+void UMemoryJournalSubsystem::Restore(const FSavedJournal &Saved)
+{
+	Memories.Reset();
+	Sources.Reset();
+	for (int32 Index = 0; Index < Saved.Memories.Num(); ++Index)
+	{
+		UMemoryData *Memory = Saved.Memories[Index].ResolveAs<UMemoryData>();
+		if (!Memory)
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[MemoryJournal] a saved memory no longer resolves - dropped"));
+			continue;
+		}
+		Memories.Add(Memory);
+		const uint8 Source = Saved.Sources.IsValidIndex(Index) ? Saved.Sources[Index] : 0;
+		Sources.Add(static_cast<EMemorySource>(Source));
+	}
+	Lore.Reset();
+	for (const FSavedLore &Entry : Saved.Lore)
+	{
+		FJournalLoreEntry &Kept = Lore.AddDefaulted_GetRef();
+		Kept.LoreId = Entry.LoreId;
+		Kept.Title = Entry.Title;
+		Kept.Body = Entry.Body;
+	}
+	HeardVLines.Reset();
+	HeardVLines.Append(Saved.HeardVLines);
+	PlayedConversations = Saved.PlayedConversations;
+	UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] Restored %d memory(ies), %d lore entr(ies)"), Memories.Num(), Lore.Num());
+}
+
 TOptional<EMemorySource> UMemoryJournalSubsystem::GetSource(const UMemoryData *Memory) const
 {
 	const int32 Index = Memories.IndexOfByKey(Memory);

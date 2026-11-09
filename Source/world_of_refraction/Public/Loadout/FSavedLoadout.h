@@ -15,6 +15,8 @@
 #include "Equipment/FEquippedItemSlot.h"
 #include "FSavedLoadout.generated.h"
 
+class UApparelData;
+
 class UWeaponData;
 class URingData;
 class UEvolutionItemData;
@@ -173,6 +175,14 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Resonator Rings",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Resonator", EditConditionHides))
     TArray<FResonatorRingSlot> EquippedRings;
+
+    /** B-380c (D-164): apparel worn with this loadout (outside the budget), each with its owned instance (invalid: an
+     *  authored piece, built from the asset). Parallel arrays. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Apparel")
+    TArray<TObjectPtr<UApparelData>> Apparel;
+
+    UPROPERTY(BlueprintReadOnly, Category = "2. Class|Apparel")
+    TArray<FGuid> ApparelInstances;
 
     // ==================== PRIMARY EQUIPMENT ====================
 
