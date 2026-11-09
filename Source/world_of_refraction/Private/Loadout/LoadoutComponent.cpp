@@ -2692,25 +2692,7 @@ URingData *ULoadoutComponent::GetActiveRing() const
 
 UEvolutionItemData *ULoadoutComponent::GetPrimaryEvolution() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryEvolution] No InventoryComponent found on owner"));
-        return nullptr;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
-    {
-        return nullptr;
-    }
-
-    return Loadout.PrimaryEvolution.Item;
+    return GetCharacterSlotEvolution().Item; // B-357e: through the one resolve path
 }
 
 TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
@@ -3488,8 +3470,7 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
             return FText::GetEmpty();
         }
         // A broken primary evolution is kept (Q-159), so its Breakthrough spells grey out (D-083).
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.IsBroken() &&
-            Lists(Loadout.EvolutionSpells))
+        if (GetCharacterSlotEvolution().IsBroken() && Lists(Loadout.EvolutionSpells))
         {
             return SourceBreakRules::BrokenEvolutionReason();
         }
@@ -4405,10 +4386,11 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     // Sums with the gear ForEachContributingGear visits (a Generic's secondary weapon
     // beside the seat, Q-244). Base + Generated
     // are the SAME item, so both ride the evolution item's tier.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    const FEvolutionAttachment Seat = GetCharacterSlotEvolution(); // B-357e: the one resolve path
+    if (Seat.Item)
     {
-        FEquipmentStatBonus EvoBonus = Loadout.PrimaryEvolution.Item->BaseStatBonus;
-        EvoBonus.Accumulate(Loadout.PrimaryEvolution.GeneratedStatBonus);
+        FEquipmentStatBonus EvoBonus = Seat.Item->BaseStatBonus;
+        EvoBonus.Accumulate(Seat.GeneratedStatBonus);
         // Pillar percents deliberately NOT summed: the evolution's pillar % already
         // applies as ApplyEvolutionPillarModifier's CRYSTAL layer; leaving them in
         // would double-apply through that function's EQUIPMENT layer, which reads
@@ -4416,13 +4398,13 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         EvoBonus.BonusMindModifierPercent = 0.0f;
         EvoBonus.BonusBodyModifierPercent = 0.0f;
         EvoBonus.BonusSpiritModifierPercent = 0.0f;
-        AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
+        AddScaled(EvoBonus, Seat.Tier);
         // B-387 (Q-387): the evolution in the character's own seat grants Amp to its element by its tier (on gear it
         // gives passives only, D-147).
-        if (!Loadout.PrimaryEvolution.IsBroken())
+        if (!Seat.IsBroken())
         {
-            AmpRules::AddElementLine(Combined.Amp, Loadout.PrimaryEvolution.Item->GetAssociatedElement(),
-                                     AmpRules::GetCrystalTierAmp(Loadout.PrimaryEvolution.Tier));
+            AmpRules::AddElementLine(Combined.Amp, Seat.Item->GetAssociatedElement(),
+                                     AmpRules::GetCrystalTierAmp(Seat.Tier));
         }
     }
 
@@ -4666,6 +4648,18 @@ TArray<FAttachedEvolution> ULoadoutComponent::GatherAttachedEvolutions() const
         }
     }
     return Attached;
+}
+
+FEvolutionAttachment ULoadoutComponent::GetCharacterSlotEvolution() const
+{
+    for (const FAttachedEvolution &Evolution : GatherAttachedEvolutions())
+    {
+        if (Evolution.Place == EEvolutionPlace::Character)
+        {
+            return Evolution.Attachment;
+        }
+    }
+    return FEvolutionAttachment();
 }
 
 TArray<FGatheredEffect> ULoadoutComponent::GetGearEvolutionPassivesForAction(EActionType ActionType, EInfusionSourceOption Source,
