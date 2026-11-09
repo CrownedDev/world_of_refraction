@@ -1219,7 +1219,8 @@ bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
 	{
 		ActorsPastFirstTurn.Add(Actor);
 	}
-	// (2) TODO: B-170d: waiting next-turn gains and losses (Wind, a delayed Emerald gain) land here, before the check.
+	// (2) B-170d: waiting gains and losses (Lose Action next turn, Wind's break, a delayed Emerald gain) land here.
+	CharComp->ApplyWaitingActionChanges();
 	// (3) Only then the check.
 	return CharComp->CurrentActions > 0;
 }
