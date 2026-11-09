@@ -1,6 +1,7 @@
 // WoRAttributeSyncComponent.cpp
 
 #include "GAS/WoRAttributeSyncComponent.h"
+#include "GAS/WoREffectSpecBuilder.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRAttributeSets.h"
@@ -177,6 +178,41 @@ bool UWoRAttributeSyncComponent::RefreshComposed(UAbilitySystemComponent &ASC, c
 		return true;
 	}
 	return false;
+}
+
+FString UWoRAttributeSyncComponent::GetStoneMismatchString() const
+{
+	const AActor *Owner = GetOwner();
+	const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+	const UCharacterDataComponent *Char = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!ASC || !Char || !Char->CharacterData)
+	{
+		return FString();
+	}
+	TGuardValue<bool> ComposeOnGameSide(GReadingSourceValues, true); // the game-side layers, not GAS's own read
+	TArray<FString> Lines;
+	for (const TPair<FGameplayAttribute, FWoRAppliedStatSources> &Entry : AppliedStatSources)
+	{
+		const FActiveGameplayEffect *Live = ASC->GetActiveGameplayEffect(Entry.Value.Handle);
+		ESubStat Stat;
+		EWorldPillar Pillar;
+		FWoRStatLayers Layers;
+		const bool bHasLayers = (UWoRAttributeSet_Stats::GetComposedStat(Entry.Key, Stat) && Char->GetStatLayers(Stat, Layers)) ||
+								(UWoRAttributeSet_Stats::GetComposedPillar(Entry.Key, Pillar) && Char->GetPillarLayers(Pillar, Layers));
+		if (!Live || !bHasLayers)
+		{
+			continue; // not a stat or pillar the stones feed, or no live GE to compare
+		}
+		// Merge review: a GE missing the Stone tag reads as the sentinel, so it shows as a difference (never as x1.0).
+		constexpr float MISSING_STONE_TAG = -1.0f;
+		const float OnGAS = Live->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, /*WarnIfNotFound=*/false, MISSING_STONE_TAG);
+		if (!FMath::IsNearlyEqual(OnGAS, Layers.StoneFactor, KINDA_SMALL_NUMBER))
+		{
+			Lines.Add(FString::Printf(TEXT("%s stones: game x%.4f, GAS x%.4f"), *Entry.Key.GetName(), Layers.StoneFactor, OnGAS));
+		}
+	}
+	Lines.Sort();
+	return FString::Join(Lines, TEXT("\n"));
 }
 
 TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(const AActor *Actor)
@@ -464,7 +500,9 @@ void UWoRAttributeSyncComponent::SyncPoolStat(UAbilitySystemComponent &ASC, cons
 			   *Layers.ToString());
 		return;
 	}
-	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(PoolClass, STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
+	// B-042f: stones and gear enter GAS through the one spec builder.
+	const FGameplayEffectSpecHandle Spec =
+		FWoREffectSpecBuilder::BuildPoolSources(ASC, PoolClass, STAT_SOURCES_EFFECT_LEVEL, Layers.GearAmount, Layers.PercentFactor);
 	if (!Spec.IsValid())
 	{
 		// No effect to carry the layers, so the base holds the composed max.
@@ -472,8 +510,6 @@ void UWoRAttributeSyncComponent::SyncPoolStat(UAbilitySystemComponent &ASC, cons
 		AppliedPoolSources.Remove(Attribute);
 		return;
 	}
-	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Gear, Layers.GearAmount);
-	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, Layers.PercentFactor);
 	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	Applied.Layers = Layers;
 	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s pool sources: %s"), *GetOwner()->GetName(), *Attribute.GetName(),
@@ -507,15 +543,14 @@ void UWoRAttributeSyncComponent::SyncComposedStat(UAbilitySystemComponent &ASC, 
 			   *Layers.ToString());
 		return;
 	}
-	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(SourcesClass, STAT_SOURCES_EFFECT_LEVEL, ASC.MakeEffectContext());
+	// B-042f: stones and gear enter GAS through the one spec builder.
+	const FGameplayEffectSpecHandle Spec = FWoREffectSpecBuilder::BuildStatSources(ASC, SourcesClass, STAT_SOURCES_EFFECT_LEVEL, Layers.GearFactor,
+																				   Layers.StoneFactor, Layers.TransientFactor);
 	if (!Spec.IsValid())
 	{
 		Applied = FWoRAppliedStatSources();
 		return;
 	}
-	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Gear, Layers.GearFactor);
-	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, Layers.StoneFactor);
-	Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Transient, Layers.TransientFactor);
 	// Found again after the apply: a getter read during it may refresh another stat and grow the map.
 	const FActiveGameplayEffectHandle Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
 	AppliedStatSources.FindOrAdd(Attribute) = {Handle, Layers};

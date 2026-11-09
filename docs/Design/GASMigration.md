@@ -199,3 +199,4 @@ These Architecture review items are absorbed by the migration and should **not**
 |---|---|---|
 | 2026-10-25 | Initial design: 4-stage migration, turn tracker, family GE classes + spec builder, what stays custom | docs/gas-migration |
 | 2026-10-25 | Decisions: BD option C (custom, revisit after stage 3 with zero-diff bar); real-time field abilities yes (movement types + evolution passives); ASC on the character permanently | docs/gas-decisions, docs/gas-asc-placement |
+| 2026-11-09 | Stage 3 step 5 (B-042f, Q-042f): stones and item effects through the one builder; stones stay aggregated per stat (Pattern P exact); the compare covers them. | `feature/B-042f-stones-item-effects-gas-cloud` |

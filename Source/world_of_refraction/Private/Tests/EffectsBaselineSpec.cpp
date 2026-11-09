@@ -19,6 +19,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Debug/GAS/WoREffectDebug.h"
@@ -38,6 +39,11 @@ namespace
 	constexpr int32 BASELINE_MAX_STACKS = 2;
 	/** Far past the bar's threshold, whatever the holder's resistance (below RESISTANCE_MAX). */
 	constexpr float BASELINE_OVERWHELMING_FACTOR = 100.0f;
+	/** B-042f (stage 3 step 5): gear passives (item effects) on both paths. */
+	constexpr int32 BASELINE_GEAR_DEF_ID = 9406;
+	constexpr int32 BASELINE_GEAR_SOURCE_KEY = 9407;
+	constexpr int32 BASELINE_OTHER_GEAR_SOURCE_KEY = 9408;
+	constexpr int32 BASELINE_GEAR_VALUE = 10;
 	constexpr float BASELINE_OVERWHELMING_BUILDUP = CombatConstants::STATUS_EFFECT_THRESHOLD * BASELINE_OVERWHELMING_FACTOR;
 	/** A holder-turn span landing during the holder's own turn counts that turn. */
 	constexpr int32 BASELINE_LANDING_TURN = 1;
@@ -122,6 +128,20 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 	/** One of the holder's own turns ending: end-of-turn effects run, then durations tick. */
 	void EndHolderTurn() { EffectManager->ProcessEndOfTurnEffects(Holder); }
 
+	/** B-042f: a one-payload gear passive of Type from the item SourceKey, gathered the way equipping does. */
+	static FGatheredEffect GearPassive(ESkillEffectType Type, int32 SourceKey)
+	{
+		FSkillEffectPayload Payload;
+		Payload.EffectType = Type;
+		Payload.Value = BASELINE_GEAR_VALUE;
+		Payload.bPermanent = true;
+		FSkillEffect Effect;
+		Effect.EffectName = TEXT("Baseline gear passive");
+		Effect.Payloads.Add(Payload);
+		// Bundle index = the type, so two passives of different types are two bundle slots (as CleanseGearSpec does).
+		return FGatheredEffect(BASELINE_GEAR_DEF_ID, static_cast<int32>(Type), Effect, SourceKey);
+	}
+
 	void DefineCases();
 END_DEFINE_SPEC(FEffectsBaselineSpec)
 
@@ -170,6 +190,48 @@ void FEffectsBaselineSpec::Define()
 
 void FEffectsBaselineSpec::DefineCases()
 {
+	// B-042f (stage 3 step 5): item effects run through the same builder; AfterEach's effect compare must be empty on
+	// both paths. (Stones need an attribute sync component, which these combatants don't carry: WoR.GAS.StoneSources.)
+	Describe("Gear passives", [this]()
+	{
+		It("are held on both paths with the same totals", [this]()
+		{
+			if (!EffectManager)
+			{
+				return;
+			}
+			EffectManager->ApplyEquipmentEffects(Holder, {GearPassive(ESkillEffectType::DefenseBuff, BASELINE_GEAR_SOURCE_KEY)});
+			TestTrue(TEXT("held"), EffectManager->HasEffectOfType(Holder, ESkillEffectType::DefenseBuff));
+		});
+
+		It("survive a cleanse of their type; a cast effect of that type does not", [this]()
+		{
+			if (!EffectManager)
+			{
+				return;
+			}
+			EffectManager->ApplyEquipmentEffects(Holder, {GearPassive(ESkillEffectType::DefenseDebuff, BASELINE_GEAR_SOURCE_KEY)});
+			EffectManager->ApplyEffect(Holder, FActiveSkillEffect::CreateBuff(TEXT("Baseline cast debuff"), BASELINE_DEBUFF_ID,
+				ESkillEffectType::DefenseDebuff, BASELINE_BUFF_VALUE, BASELINE_DURATION_TURNS));
+			TestEqual(TEXT("only the cast one cleansed"), EffectManager->CleanseEffectsByType(Holder, ESkillEffectType::DefenseDebuff), 1);
+			TestTrue(TEXT("the gear one stays"), EffectManager->HasEffectOfType(Holder, ESkillEffectType::DefenseDebuff));
+		});
+
+		It("swap with the gear: the old item's passive goes, the new one's comes", [this]()
+		{
+			if (!EffectManager)
+			{
+				return;
+			}
+			const TArray<FGatheredEffect> Old = {GearPassive(ESkillEffectType::DefenseBuff, BASELINE_GEAR_SOURCE_KEY)};
+			const TArray<FGatheredEffect> New = {GearPassive(ESkillEffectType::DamageBuff, BASELINE_OTHER_GEAR_SOURCE_KEY)};
+			EffectManager->ApplyEquipmentEffects(Holder, Old);
+			TestTrue(TEXT("one removed and one applied"), EffectManager->SwapEquipmentEffects(Holder, Old, New) >= 2);
+			TestFalse(TEXT("the old passive is gone"), EffectManager->HasEffectOfType(Holder, ESkillEffectType::DefenseBuff));
+			TestTrue(TEXT("the new one is held"), EffectManager->HasEffectOfType(Holder, ESkillEffectType::DamageBuff));
+		});
+	});
+
 	Describe("Apply", [this]()
 	{
 		It("adds a new effect with its full duration", [this]()

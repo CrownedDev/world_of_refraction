@@ -4417,3 +4417,11 @@ Moved here once applied. Newest first.
 - Defence is unchanged and is read as the All line.
 - Step 3 applies `ElementResistance + ResistanceScopeLine` under ±50%.
 - Not yet scoped: ResistanceBuff effects, DoT ticks (element only), and the gear roll. They will get scope lines when authored data needs them.
+
+### Q-042f — GAS stage 3 step 5: one GE per stone, or the stat's one sources GE?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-042f, cloud) · **Blocks:** —
+**Question:** Stones reach GAS today as the Stone factor on each stat's one sources GE (SetByCaller), built by the attribute sync. Should each stone become its own GE (one per socket and stat), or should the aggregated sources GE stay, built through the spec builder?
+**Options / as built:** **A** keep one sources GE per stat, built by `FWoREffectSpecBuilder::BuildStatSources` / `BuildPoolSources` (the same SetByCaller values, so every number is unchanged), and add stones to `wor.Effects.Compare` (and so B-134's compare) / **B** per-stone GEs (`MultiplyAdditive` within a stone group, a diff by socket identity, the Stone SetByCaller retired): new GAS-side composition that must reproduce Pattern P exactly.
+**Recommendation:** A. GASMigration's own risk list says Pattern-P maths "must stay exact" and is kept as one pure C++ function; GAS's documented pattern (tranek's GASDocumentation, Epic's Lyra) is SetByCaller for values computed outside GAS. Item effects already enter through the builder as their own GEs (B-042c / i).
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change it.
+**Notes for Claude (as built):** B-042f. The read-time refresh (Q-042p / Q-042yb) stays: the sources GEs are still refreshed from the game-side layers. B-042g deletes the enum path.
