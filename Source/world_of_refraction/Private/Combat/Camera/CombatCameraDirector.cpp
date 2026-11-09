@@ -200,6 +200,7 @@ void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 	if (bInCombat && !PlayingSequence && !IsShotPlaying())
 	{
 		ShowTurnView();
+		ReapplyHighlightedTarget(); // B-400: an open picker keeps its target view
 	}
 }
 
@@ -215,6 +216,7 @@ void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 	if (bInCombat && !PlayingSequence && !IsShotPlaying())
 	{
 		ShowTurnView();
+		ReapplyHighlightedTarget(); // B-400: an open picker keeps its target view
 	}
 }
 
@@ -360,6 +362,14 @@ void UCombatCameraDirector::HandleTargetHighlighted(AActor *Actor, AActor *Targe
 		return;
 	}
 	SetHighlightedTarget(Target, TargetCount);
+}
+
+void UCombatCameraDirector::ReapplyHighlightedTarget()
+{
+	if (AActor *Target = HighlightedTarget.Get())
+	{
+		SetHighlightedTarget(Target, HighlightTargetCount);
+	}
 }
 
 void UCombatCameraDirector::SetHighlightedTarget(AActor *Target, int32 TargetCount)

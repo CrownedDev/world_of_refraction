@@ -56,6 +56,8 @@ public:
 	 *  view (ComputeTargetView; Over-the-Shoulder cuts, the others re-aim briefly). Null (the picker closed) while a
 	 *  target view shows: back to the turn view at the menu's depth. Static, a cinematic or a held shot: nothing moves. */
 	void SetHighlightedTarget(AActor *Target, int32 TargetCount);
+	/** B-400: shows the highlighted target's view again after a turn-view reset (a setting changed with the picker open). */
+	void ReapplyHighlightedTarget();
 	AActor *GetHighlightedTarget() const { return HighlightedTarget.Get(); }
 	bool IsTargetViewShowing() const { return bTargetViewShowing; }
 	/** B-400 (debug, specs): the target-view camera moves this fight (to a target, between targets and back). */
