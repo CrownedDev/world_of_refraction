@@ -64,6 +64,8 @@ bool FWoRMirroredEffect::Matches(const FWoRMirroredEffect &Other) const
 	return Identity.IsSameIdentity(Other.Identity) && Identity.EffectType == Other.Identity.EffectType &&
 		   Identity.Element == Other.Identity.Element && Identity.DamageScope == Other.Identity.DamageScope && // B-385
 		   Identity.bFromGear == Other.Identity.bFromGear &&
+		   Identity.PhysicalType == Other.Identity.PhysicalType && // B-042g: the per-effect readers match on these
+		   FMath::IsNearlyEqual(Identity.EffectValue, Other.Identity.EffectValue, MIRROR_MAGNITUDE_TOLERANCE) &&
 		   FMath::IsNearlyEqual(Magnitude, Other.Magnitude, MIRROR_MAGNITUDE_TOLERANCE);
 }
 
@@ -243,6 +245,8 @@ uint32 UWoREffectMirrorComponent::GetSyncFingerprint() const
 		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.EffectType)));
 		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.Element)));
 		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.DamageScope))); // B-385: Matches compares it
+		Hash = HashCombineFast(Hash, GetTypeHash(static_cast<uint8>(Effect.PhysicalType))); // B-042g: Matches compares these
+		Hash = HashCombineFast(Hash, GetTypeHash(Effect.EffectValue));
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.GetStackedValue()));
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.RemainingTurns));
 		Hash = HashCombineFast(Hash, GetTypeHash(Effect.HolderTurns.TurnsLeft));

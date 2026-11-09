@@ -4261,6 +4261,16 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change it.
 **Notes for Claude (as built):** B-042f. The read-time refresh (Q-042p / Q-042yb) stays: the sources GEs are still refreshed from the game-side layers. B-042g deletes the enum path.
 
+### Q-042g — The enum path's deletion: what FActiveSkillEffect becomes, and how the job is cut
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-042g, cloud) · **Blocks:** —
+**Question:** B-042g says "retire `FActiveSkillEffect` storage". But the struct is also `ApplyEffect`'s input, the event payload, and what 62 specs and the Blueprint library build. Should it go with the store? And how is a job this large (about 40 clusters) cut?
+**Options / as built:** (1) **A** keep `FActiveSkillEffect` as the description of an effect to apply (input and event payload); only the per-actor store, the switch and the ID schemes go / B delete it and author GE specs directly. (2) **A** six parts, each compilable and behaviour-preserving at UseGAS 1 (B-042g … B-042g6) / B one large job.
+**Recommendation:** A, A. GAS itself splits a description (the GE class and spec) from the live instance (the active GE). Lyra and tranek's GASDocumentation keep game-side "effect definitions" as data that builds specs. Deleting the input struct would touch every caller for no behaviour change. The incremental rule (CLAUDE.md: build new alongside old, remove after PIE) argues for parts.
+**Answer:** **A, A**, by the reference-backed default (2026-11-09). Crown may change either.
+**Notes for Claude (as built, part 1):**
+- UseGAS stays 0 by default in part 1. Flipping it would leave 20 spec AfterEach resets out of step with the default, and part 2 deletes the switch anyway.
+- `ESkillEffectTiming` is authored data (`FSkillEffectPayload`, `BreakTable`), so part 6 keeps the enum and removes only its runtime uses.
+
 ### D-169 — Curses have tiers; clearing one costs essence by tier
 **Status:** DECIDED (Crown, 2026-11-09, desktop operator session) · **Raised:** 2026-11-09 (B-378b hand-off: the hub's Clear curse service is free) · **Blocks:** —
 **Answer (Crown):** curses are **tiered like items, F to S** (`EItemTier`; corrected by Crown 2026-11-09: not Light / Medium / Heavy), and the price to clear one is set **by its tier**. The price is paid in **essence**: **Elemental or Pillar Essence, chosen per curse** (authored on the curse).
