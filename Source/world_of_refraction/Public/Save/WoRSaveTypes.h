@@ -777,6 +777,19 @@ struct WORLD_OF_REFRACTION_API FSavedJournal
 	TArray<FName> PlayedConversations;
 };
 
+/** B-398: the player's own settings (the settings save, D-024's screen later). They stay this player's on a host
+ *  hand-over (USaveSubsystem::AdoptCheckpoint). Enums are kept as their byte; readers fall back to the default on an
+ *  unknown value. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedSettings
+{
+	GENERATED_BODY()
+
+	/** ETurnViewStyle; 0 = Centred Wide, the default (D-074). */
+	UPROPERTY()
+	uint8 TurnViewStyle = 0;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -809,4 +822,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedJournal Journal; // B-377b
+
+	UPROPERTY()
+	FSavedSettings Settings; // B-398
 };
