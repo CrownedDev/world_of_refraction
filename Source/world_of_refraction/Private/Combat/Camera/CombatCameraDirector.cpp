@@ -669,9 +669,11 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	ShotElapsed = 0.0f;
 	ACameraActor *Existing = Camera->GetCameraActor();
 	const bool bAlreadyViewed = Existing && Viewer->GetViewTarget() == Existing;
-	if (bAlreadyViewed)
+	// Move from where the camera is (no jump), except the melee rush (B-403, R5): it cuts to its own start, 420 cm back,
+	// and pushes in from there, so it reads the same whatever the turn view was.
+	if (bAlreadyViewed && ActiveShot.MotionBlur <= 0.0f)
 	{
-		ActiveShot.Start = Existing->GetActorTransform(); // move from where the camera is: no jump
+		ActiveShot.Start = Existing->GetActorTransform();
 	}
 	ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::Action, ActiveShot.Start);
 	if (!CameraActor)
