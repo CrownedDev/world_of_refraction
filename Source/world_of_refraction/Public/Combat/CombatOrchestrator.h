@@ -206,6 +206,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	int32 GetCurrentTurnNumber() const { return CurrentTurnNumber; }
 
+	/** B-043g: the armed rituals waiting for their Execution turn, by payload id (read-only, for wor.Abilities.Print). */
+	const TMap<int32, FDeferredActivation> &GetArmedRituals() const { return DeferredPayloads; }
+
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	const TArray<AActor *> &GetLocalParty() const { return LocalPartyCombatants; }
 

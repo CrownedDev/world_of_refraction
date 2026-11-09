@@ -7,8 +7,11 @@
 //   used. Granting changes nothing in play.
 // - `wor.Abilities.UseGAS` (default 0): at 1, TryExecuteThroughAbility starts a spell or ability action through
 //   TryActivateAbility on its skill's spec; the ability runs the same UActionExecutor::ExecuteActionAsync.
-//   At 0, or for an action with no skill (Defend, Item, Flee, Switch Weapon), a deferred ritual fire (B-043g),
-//   an actor with no ASC, or an activation GAS refuses, the caller runs the old call.
+//   At 0, or for an action with no skill (Defend, Item, Flee, Switch Weapon), an actor with no ASC, or an
+//   activation GAS refuses, the caller runs the old call.
+// - Rituals (B-043g, Q-043g): the arm runs through the skill's ability like any action (it commits and pays at the
+//   executor's arm pay point, TryArmDeferredActivation); the fire on the Execution turn (bIsDeferredFire) activates
+//   the same spec again, cost-free: CommitCostThroughAbility commits nothing for it, and B-043c/d/e route its hits.
 // - Impacts (B-043c, Q-043c): while an ability runs a non-spell action, the executor hands each impact to
 //   SendImpactEvent, which sends it to the ability's WaitGameplayEvent(Event.Combat.Impact) task; with no such
 //   ability the executor resolves the impact itself, as before.
@@ -122,6 +125,7 @@ namespace WoRSkillAbilities
 	WORLD_OF_REFRACTION_API UWoRGameplayAbility *FindActionRunner(AActor *Actor, const FAction &Action);
 
 	/** B-043f (Q-043f): has the ability running Action on Actor commit and pay Cost EP. True once paid; false,
-	 *  with nothing paid, when the caller must pay it itself (no such ability, or its commit failed). */
+	 *  with nothing paid, when the caller must pay it itself (no such ability, or its commit failed).
+	 *  B-043g: always false for a ritual's fire (bIsDeferredFire): it was paid at its arm. */
 	WORLD_OF_REFRACTION_API bool CommitCostThroughAbility(AActor *Actor, const FAction &Action, int32 Cost);
 }
