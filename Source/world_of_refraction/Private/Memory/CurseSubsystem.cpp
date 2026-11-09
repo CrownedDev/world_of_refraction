@@ -11,8 +11,12 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Memory/MemoryUnlock.h"
 #include "Party/Party.h"
+#include "Currency/CurrencyComponent.h"
 #include "Party/PartySessionSubsystem.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
+
+#define LOCTEXT_NAMESPACE "Curse"
 
 void UCurseSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -69,6 +73,54 @@ bool UCurseSubsystem::ClearCurse(FName CurseId)
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s cleared by the player (it comes back if its giver's conditions are met again)"),
 		   *CurseId.ToString());
 	return true;
+}
+
+bool UCurseSubsystem::PayToClearCurse(FName CurseId, UCurrencyComponent *Wallet, FText &OutRefusal)
+{
+	if (!HasCurse(CurseId))
+	{
+		OutRefusal = LOCTEXT("NotHeld", "You don't hold that curse.");
+		return false;
+	}
+	if (!EnsureCurseAssetsGathered())
+	{
+		// Review: the asset (its tier) isn't known yet; never price an S-tier curse at the defaults.
+		OutRefusal = LOCTEXT("StillLoading", "The curse records are still loading. Try again in a moment.");
+		return false;
+	}
+	const UCurseData *Curse = FindCurseAsset(CurseId);
+	const UCurseData *Priced = Curse ? Curse : GetDefault<UCurseData>(); // Q-390: no asset prices as the defaults
+	const ECurrencyType Currency = Priced->GetClearCurrency();
+	const int32 Price = Priced->GetClearPrice();
+	if (!Wallet || !Wallet->CanAfford(Currency, Price))
+	{
+		OutRefusal = FText::Format(LOCTEXT("Short", "Clearing it costs {0} {1}; you have {2}."), FText::AsNumber(Price),
+								   WoRGameNames::GetCurrencyName(Currency), FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0));
+		return false;
+	}
+	if (!Wallet->Spend(Currency, Price))
+	{
+		OutRefusal = LOCTEXT("SpendRefused", "The payment didn't go through.");
+		UE_LOG(LogWoR, Warning, TEXT("[Curse] %s: the clear's spend of %d was refused (no server authority?)"), *CurseId.ToString(), Price);
+		return false;
+	}
+	ClearCurse(CurseId);
+	UE_LOG(LogWoR, Log, TEXT("[Curse] %s cleared for %d %s"), *CurseId.ToString(), Price,
+		   *WoRGameNames::GetCurrencyName(Currency).ToString());
+	return true;
+}
+
+const UCurseData *UCurseSubsystem::FindCurseAsset(FName CurseId) const
+{
+	EnsureCurseAssetsGathered();
+	for (const UCurseData *Curse : CurseAssets)
+	{
+		if (Curse && Curse->CurseId == CurseId)
+		{
+			return Curse;
+		}
+	}
+	return nullptr;
 }
 
 int32 UCurseSubsystem::ApplyRewards(const TArray<FMemoryReward> &Rewards)
@@ -195,7 +247,7 @@ void UCurseSubsystem::SetCurseAssets(const TArray<UCurseData *> &Curses)
 	bPenaltyDirty = true;
 }
 
-TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
+bool UCurseSubsystem::EnsureCurseAssetsGathered() const
 {
 	if (!bGatheredCurses)
 	{
@@ -206,6 +258,12 @@ TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
 			const_cast<UCurseSubsystem *>(this)->SetCurseAssets(UCurseData::GatherAll()); // once
 		}
 	}
+	return bGatheredCurses;
+}
+
+TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
+{
+	EnsureCurseAssetsGathered();
 	TArray<const UCurseData *> Held;
 	for (const UCurseData *Curse : CurseAssets)
 	{
@@ -298,3 +356,5 @@ static FAutoConsoleCommandWithWorld GCursePrintCommand(
 		}
 	}));
 #endif
+
+#undef LOCTEXT_NAMESPACE

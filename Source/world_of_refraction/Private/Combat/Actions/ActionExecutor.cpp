@@ -5,6 +5,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoRCombatEvents.h"
+#include "GAS/WoRActionCosts.h"
 #include "Tags/WoRGameplayTags.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -1061,6 +1062,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	if (CurrentExecutionContext.IsSet())
 	{
 		CurrentExecutionContext->ActionMods = ActionMods;
+		CurrentExecutionContext->GearEvolutionPassives = PutOnGearEvolutionPassives(Actor, Action);
 	}
 
 	if (ActionMods.IsActive())
@@ -2490,6 +2492,8 @@ void UActionExecutor::FinalizeAsyncAction()
 	// animation have resolved; a lethal cost kills the caster now, post-action.
 	ApplyPendingInfusionHPCost(Executor);
 
+	TakeOffGearEvolutionPassives(Executor, CurrentExecutionContext->GearEvolutionPassives); // B-357d: after the action's own effects, on every finalize path
+
 	// Mark complete
 	CurrentExecutionContext->bInProgress = false;
 
@@ -2511,6 +2515,33 @@ void UActionExecutor::FinalizeAsyncAction()
 	// for and no component state to reset (SC-D), so finalize falls straight to
 	// completion.
 	CompleteAsyncActionFinal(Executor);
+}
+
+TArray<FGatheredEffect> UActionExecutor::PutOnGearEvolutionPassives(AActor *Actor, const FAction &Action)
+{
+	const ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+	USkillEffectManager *Effects = GetSkillEffectManager();
+	if (!Loadout || !Effects)
+	{
+		return {};
+	}
+	TArray<FGatheredEffect> Passives = Loadout->GetGearEvolutionPassivesForAction(Action.ActionType, Action.SelectedSource, Action.GetChargeLevel());
+	if (Passives.Num() > 0)
+	{
+		Effects->SwapEquipmentEffects(Actor, {}, Passives);
+		UE_LOG(LogWoREffects, Log, TEXT("[ActionExecutor] %s: %s at charge %d gets %d gear evolution passive(s) (B-357d)"),
+			   *Actor->GetName(), *Action.GetActionName(), Action.GetChargeLevel(), Passives.Num());
+	}
+	return Passives;
+}
+
+void UActionExecutor::TakeOffGearEvolutionPassives(AActor *Actor, const TArray<FGatheredEffect> &Passives)
+{
+	USkillEffectManager *Effects = GetSkillEffectManager();
+	if (Actor && Effects && Passives.Num() > 0)
+	{
+		Effects->SwapEquipmentEffects(Actor, Passives, {});
+	}
 }
 
 void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
@@ -3451,7 +3482,11 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 	if (GetSpendableEP(Actor) < Amount)
 		return false;
 
-	Comp->ServerSpendEnergy(Amount);
+	// B-043a: as an Instant cost GE when wor.Costs.UseGAS is on; the same ServerSpendEnergy either way.
+	if (!WoRCosts::TryPayEnergy(Actor, Amount))
+	{
+		Comp->ServerSpendEnergy(Amount);
+	}
 	return true;
 }
 
@@ -5878,6 +5913,7 @@ void UActionExecutor::DebugForceResetAsync()
 	if (CurrentExecutionContext.IsSet())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] FORCE RESETTING stuck async action"));
+		TakeOffGearEvolutionPassives(CurrentExecutionContext->Executor.Get(), CurrentExecutionContext->GearEvolutionPassives); // B-357d review
 		CurrentExecutionContext.Reset();
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;

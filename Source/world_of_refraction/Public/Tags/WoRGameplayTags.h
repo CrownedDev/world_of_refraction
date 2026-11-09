@@ -95,6 +95,11 @@ namespace WoRTags
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_StatSources);
 	// B-042s: a stat derived from other attributes (crit chance from Luck, Efficiency from its reduction).
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_DerivedStat);
+	// B-043a: what a skill costs, paid as an Instant GE (GAS/WoRActionCosts.h).
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_Cost);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Effect_Family_Backlash);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Cost_Energy);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(SetByCaller_Cost_Health);
 
 	// B-042d: GameplayEvents the combat code sends (GAS/WoRCombatEvents.h, Q-044j).
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Hit);

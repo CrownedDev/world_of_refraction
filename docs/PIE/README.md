@@ -18,6 +18,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (unbuilt, on B-273b) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
 | [B-273b](B-273b.md) | `feature/B-273b-hit-kind-cloud` (unbuilt) | The hit kind replaces the element / physical pair in buildup, damage resistance and the GAS executions; no number changes (an Ice hit reads Ice resistance alone, for B-064a) | Pending |
 | [B-042f](B-042f.md) | `feature/B-042f-stones-item-effects-gas-cloud` (in dev) | GAS stage 3 part 6: `wor.Effects.Compare` 0 differ at UseGAS 0 and 1 (stones and item effects included); B-042g's gate | Pending |
+| [B-043a](B-043a.md) | `feature/B-043a-costs-gas-cloud` (in dev) | GAS stage 4 part 1: skill EP costs and the infusion HP backlash paid as Instant GEs (`wor.Costs.UseGAS`), same numbers | Pending |
+| [B-390](B-390.md) | `feature/B-390-curse-tiers-clear-price` (in dev) | A curse's tier (F to S) sets its clear price in its essence (Pillar or Elemental); short of it the hub refuses with a message | Pending |
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (in dev) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
 | [B-387](B-387.md) | `feature/B-387-crystal-amp-cloud` (in dev) | Worn crystals (and the seated evolution) grant Amp to their element by tier: F0 E0 D1 C1 B2 A2 S3 | Pending |
@@ -405,6 +407,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
 | [B-380c](B-380c.md) | `feature/B-380c-apparel-slots-saved-cloud` (UNBUILT, on B-380b, save v29) | Worn apparel saved; a crystal set in play | Pending |
+| [B-357d](B-357d.md) | `feature/B-357d-gear-evolution-l2-passives` (in dev) | A gear evolution's passives act on an L2 action from its item (apparel: any L2 action), for that action only | Pending |
 
 Move rows to **Done** when every check passes.
 

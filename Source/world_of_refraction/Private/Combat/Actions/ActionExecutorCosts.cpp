@@ -70,6 +70,7 @@
 #include "GameFramework/Character.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Tuning/CombatTuningData.h"
+#include "GAS/WoRActionCosts.h"
 
 int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const
 {
@@ -568,8 +569,12 @@ void UActionExecutor::ApplyPendingInfusionHPCost(AActor *Actor)
 	// No clamp — design changed: infusion CAN kill. Full cost routes through
 	// ServerTakeDamage so OnHPChanged broadcasts AND a lethal cost trips
 	// CheckDeath -> OnDied (same death path as any killing blow). Runs at
-	// finalize, so the infused effect has already resolved.
-	CharComp->ServerTakeDamage(Cost);
+	// finalize, so the infused effect has already resolved. B-043a: as an Instant backlash GE when
+	// wor.Costs.UseGAS is on; the Vitals set hands it to the same ServerTakeDamage.
+	if (!WoRCosts::TryPayBacklash(Actor, Cost))
+	{
+		CharComp->ServerTakeDamage(Cost);
+	}
 
 	UE_LOG(LogTemp, Log,
 		   TEXT("[ActionExecutor] %s paid %d HP for infusion at finalize (HP: %d -> %d)%s"),

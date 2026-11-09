@@ -1,7 +1,8 @@
 // EvolutionPlacementSpec.cpp
 // B-357b part 1 (D-147, Q-357b): the one resolve path for "an evolution attached to X" and what each place gives:
 // the character's own slot always gives its passives; a weapon's or adapter's evolution only to an action charged at
-// level 2, so none at fight start.
+// level 2, so none at fight start. B-357d: an L2 action from the item holding a gear evolution wears its lasting
+// passives for that action only; an L1 one doesn't.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -16,12 +17,17 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/EffectDefinition.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Actions/ActionExecutor.h"
+#include "Equipment/Apparel/ApparelData.h"
+#include "Skills/Effects/SkillEffectManager.h"
 
 namespace
 {
 	constexpr float EVOLUTION_PLACEMENT_TEST_RESIST = 5.0f;
 	constexpr float EVOLUTION_PLACEMENT_TEST_MIND_PERCENT = 20.0f;
 	constexpr float EVOLUTION_PLACEMENT_TEST_TOLERANCE = 0.001f;
+	constexpr int32 EVOLUTION_PLACEMENT_TEST_DURABILITY = 10;
+	constexpr int32 EVOLUTION_PLACEMENT_TEST_L1 = 1;
 
 	UEvolutionItemData *EvolutionPlacementTestEvolution()
 	{
@@ -30,6 +36,8 @@ namespace
 		FSkillEffect Effect;
 		FSkillEffectPayload Payload;
 		Payload.EffectType = ESkillEffectType::DefenseBuff;
+		Payload.bPermanent = true; // a lasting passive (B-357d: only those come on for an action)
+		Effect.EffectName = TEXT("Evolution placement test passive");
 		Effect.Payloads.Add(Payload);
 		Bundle->Effects.Add(Effect);
 		Evolution->ReferencedEffects.Add(Bundle);
@@ -41,7 +49,25 @@ namespace
 		FRuntimeAttachedItem Socket;
 		Socket.Kind = EAttachedItemKind::Evolution;
 		Socket.Evolution.Item = Evolution;
+		Socket.Evolution.CurrentDurability = EVOLUTION_PLACEMENT_TEST_DURABILITY;
 		return Socket;
+	}
+
+	FAttachedEvolution EvolutionPlacementTestAttached(EEvolutionPlace Place)
+	{
+		FAttachedEvolution Attached;
+		Attached.Attachment = EvolutionPlacementTestSocket(EvolutionPlacementTestEvolution()).Evolution;
+		Attached.Place = Place;
+		return Attached;
+	}
+
+	FAction EvolutionPlacementTestAbility(int32 ChargeLevel)
+	{
+		FAction Action;
+		Action.ActionType = EActionType::Ability;
+		Action.SelectedSource = EInfusionSourceOption::Raw;
+		Action.AbilityInfusionLevel = ChargeLevel;
+		return Action;
 	}
 }
 
@@ -95,6 +121,35 @@ void FEvolutionPlacementSpec::Define()
 		TestTrue(TEXT("character"), WoREvolutionPlacement::GivesStats(EEvolutionPlace::Character));
 		TestFalse(TEXT("weapon"), WoREvolutionPlacement::GivesStats(EEvolutionPlace::Weapon));
 		TestFalse(TEXT("adapter"), WoREvolutionPlacement::GivesStats(EEvolutionPlace::Adapter));
+	});
+
+	It("B-357d: which gear powers an action", [this]()
+	{
+		using namespace WoREvolutionPlacement;
+		TestTrue(TEXT("weapon: its ability"), PowersAction(EEvolutionPlace::Weapon, EActionType::Ability, EInfusionSourceOption::Raw));
+		TestTrue(TEXT("weapon: infused from its socket"), PowersAction(EEvolutionPlace::Weapon, EActionType::Spell, EInfusionSourceOption::WeaponCrystal));
+		TestFalse(TEXT("weapon: an innate spell"), PowersAction(EEvolutionPlace::Weapon, EActionType::Spell, EInfusionSourceOption::Innate));
+		TestTrue(TEXT("adapter: infused from its socket"), PowersAction(EEvolutionPlace::Adapter, EActionType::Spell, EInfusionSourceOption::ActiveRing));
+		TestTrue(TEXT("adapter: either ring option"), PowersAction(EEvolutionPlace::Adapter, EActionType::Ability, EInfusionSourceOption::PrimaryRing));
+		TestFalse(TEXT("adapter: a raw ability"), PowersAction(EEvolutionPlace::Adapter, EActionType::Ability, EInfusionSourceOption::Raw));
+		TestTrue(TEXT("apparel: every action (Q-357d)"), PowersAction(EEvolutionPlace::Apparel, EActionType::Spell, EInfusionSourceOption::None));
+		TestFalse(TEXT("character: no single action"), PowersAction(EEvolutionPlace::Character, EActionType::Ability, EInfusionSourceOption::Raw));
+		TestFalse(TEXT("apparel gives no stats"), GivesStats(EEvolutionPlace::Apparel));
+	});
+
+	It("B-357d: an action gets the gear evolutions that power it, at L2 and unbroken", [this]()
+	{
+		using namespace WoREvolutionPlacement;
+		TArray<FAttachedEvolution> Attached = {EvolutionPlacementTestAttached(EEvolutionPlace::Weapon), EvolutionPlacementTestAttached(EEvolutionPlace::Adapter),
+											   EvolutionPlacementTestAttached(EEvolutionPlace::Character)};
+		TestEqual(TEXT("L1: none"), FilterForAction(Attached, EActionType::Ability, EInfusionSourceOption::Raw, EVOLUTION_PLACEMENT_TEST_L1).Num(), 0);
+		const TArray<FAttachedEvolution> Raw = FilterForAction(Attached, EActionType::Ability, EInfusionSourceOption::Raw, GEAR_PASSIVES_CHARGE_LEVEL);
+		TestTrue(TEXT("L2 raw ability: the weapon's"), Raw.Num() == 1 && Raw[0].Place == EEvolutionPlace::Weapon);
+		TestEqual(TEXT("L2 ability from the adapter's socket: weapon and adapter"),
+				  FilterForAction(Attached, EActionType::Ability, EInfusionSourceOption::ActiveRing, GEAR_PASSIVES_CHARGE_LEVEL).Num(), 2);
+		Attached[0].Attachment.Item->Breakability = EBreakability::Breakable;
+		Attached[0].Attachment.CurrentDurability = 0;
+		TestEqual(TEXT("a broken one gives nothing"), FilterForAction(Attached, EActionType::Ability, EInfusionSourceOption::Raw, GEAR_PASSIVES_CHARGE_LEVEL).Num(), 0);
 	});
 
 	Describe("on a loadout", [this]()
@@ -173,6 +228,62 @@ void FEvolutionPlacementSpec::Define()
 			}
 			TestEqual(TEXT("no effect at fight start (the weapon has none of its own)"), Loadout->GetActiveEffects(Loadout->GetOwner()).Num(), 0);
 			TestTrue(TEXT("debug names the place"), Loadout->GetAttachedEvolutionsString().Contains(TEXT("on the weapon")));
+		});
+
+		It("B-357d: an L2 action from an evolved weapon wears the evolution's passive for that action; an L1 one doesn't", [this]()
+		{
+			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			ULoadoutComponent *Loadout = SpawnGeneric(Weapon);
+			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+			if (!TestNotNull(TEXT("Loadout"), Loadout) || !TestNotNull(TEXT("executor"), Executor) || !TestNotNull(TEXT("effects"), Effects)) return;
+			AActor *Actor = Loadout->GetOwner();
+			FCombatLoadout &L = ActiveOf(Loadout);
+			L.PrimarySlotType = EPrimarySlotType::Weapon;
+			L.PrimaryWeapon.WeaponEntry.Weapon = Weapon;
+			L.PrimaryWeapon.WeaponEntry.AttachedItem = EvolutionPlacementTestSocket(EvolutionPlacementTestEvolution());
+			TestEqual(TEXT("L1: no passives for the action"),
+					  Loadout->GetGearEvolutionPassivesForAction(EActionType::Ability, EInfusionSourceOption::Raw, EVOLUTION_PLACEMENT_TEST_L1).Num(), 0);
+			TestEqual(TEXT("L2: the evolution's passive"),
+					  Loadout->GetGearEvolutionPassivesForAction(EActionType::Ability, EInfusionSourceOption::Raw, WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL).Num(), 1);
+
+			TestEqual(TEXT("L1 action: nothing put on"), Executor->PutOnGearEvolutionPassives(Actor, EvolutionPlacementTestAbility(EVOLUTION_PLACEMENT_TEST_L1)).Num(), 0);
+			TestFalse(TEXT("L1 action: not worn"), Effects->HasEffectOfType(Actor, ESkillEffectType::DefenseBuff));
+
+			const TArray<FGatheredEffect> Passives = Executor->PutOnGearEvolutionPassives(Actor, EvolutionPlacementTestAbility(WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL));
+			TestTrue(TEXT("L2 action: worn during the action"), Effects->HasEffectOfType(Actor, ESkillEffectType::DefenseBuff));
+			Executor->TakeOffGearEvolutionPassives(Actor, Passives);
+			TestFalse(TEXT("after the action: off again"), Effects->HasEffectOfType(Actor, ESkillEffectType::DefenseBuff));
+		});
+
+		It("B-357d: an evolution also on the character's own slot isn't added again for the action", [this]()
+		{
+			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			ULoadoutComponent *Loadout = SpawnGeneric(Weapon);
+			if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
+			UEvolutionItemData *Evolution = EvolutionPlacementTestEvolution();
+			FCombatLoadout &L = ActiveOf(Loadout);
+			L.PrimarySlotType = EPrimarySlotType::Evolution;
+			L.PrimaryEvolution = EvolutionPlacementTestSocket(Evolution).Evolution;
+			L.PrimaryWeapon.WeaponEntry.Weapon = Weapon;
+			L.PrimaryWeapon.WeaponEntry.AttachedItem = EvolutionPlacementTestSocket(Evolution);
+			TestEqual(TEXT("already on all fight"),
+					  Loadout->GetGearEvolutionPassivesForAction(EActionType::Ability, EInfusionSourceOption::Raw, WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL).Num(), 0);
+		});
+
+		It("B-357d (Q-357d): an apparel piece's evolution is on the resolve path and acts on any L2 action", [this]()
+		{
+			ULoadoutComponent *Loadout = SpawnGeneric(nullptr);
+			if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
+			FApparelEntry Piece;
+			Piece.Apparel = NewObject<UApparelData>(GetTransientPackage());
+			Piece.AttachedItem = EvolutionPlacementTestSocket(EvolutionPlacementTestEvolution());
+			ActiveOf(Loadout).Apparel.Add(Piece);
+			const TArray<FAttachedEvolution> Attached = Loadout->GatherAttachedEvolutions();
+			TestTrue(TEXT("listed on the apparel"), Attached.Num() == 1 && Attached[0].Place == EEvolutionPlace::Apparel);
+			TestEqual(TEXT("nothing at fight start"), Loadout->GetActiveEffects(Loadout->GetOwner()).Num(), 0);
+			TestEqual(TEXT("an L2 innate spell gets it"),
+					  Loadout->GetGearEvolutionPassivesForAction(EActionType::Spell, EInfusionSourceOption::Innate, WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL).Num(), 1);
 		});
 	});
 }
