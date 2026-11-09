@@ -46,7 +46,7 @@ namespace WoRResistance
 	/** Target's resistance to one damage type: typed resistance buffs minus debuffs (#4), the class
 	 *  table (#5) and gear rolls (#6). None is the non-elemental bucket: buffs and debuffs keyed to
 	 *  no element and no physical type (the class table and gear have no None column). Ice reads the
-	 *  class table's Ice column (B-064a; 0 until tuned); Ice-keyed buffs and gear rolls are B-064c.
+	 *  class table's Ice column (B-064a; 0 until tuned), gear Ice lines and Ice-keyed buffs (B-064c).
 	 *  Uncapped; each caller applies its own cap. */
 	WORLD_OF_REFRACTION_API float GetTypeResistance(AActor *Target, EWoRDamageType DamageType);
 

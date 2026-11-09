@@ -254,8 +254,8 @@ TArray<FGameplayAbilitySpec> WoRSkillAbilities::GetSkillSpecs(AActor *Actor)
 
 bool WoRSkillAbilities::TryExecuteThroughAbility(AActor *Actor, const FAction &Action, const FOnActionComplete &OnComplete)
 {
-	// A ritual's fire stays on the old call until it becomes an arm ability (B-043g).
-	if (!UsesAbilities() || Action.bIsDeferredFire)
+	// B-043g: a ritual's fire (bIsDeferredFire) runs through its skill's ability too; it commits nothing (paid at arm).
+	if (!UsesAbilities())
 	{
 		return false;
 	}
@@ -372,5 +372,95 @@ bool WoRSkillAbilities::SendImpactEvent(AActor *Actor, int32 Index)
 	// Never drop a hit: the old path resolves it.
 	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: impact %d did not reach %s's impact task; resolving it directly"),
 		   *Actor->GetName(), Index, *GetNameSafe(Listener));
+	return false;
+}
+
+FGameplayTag WoRSkillAbilities::GetSpellResolveEventTag(EWoRSpellResolveKind Kind)
+{
+	switch (Kind)
+	{
+	case EWoRSpellResolveKind::Instant:
+		return WoRTags::Event_Combat_SpellResolve_Instant;
+	case EWoRSpellResolveKind::Support:
+		return WoRTags::Event_Combat_SpellResolve_Support;
+	case EWoRSpellResolveKind::AOE:
+	default:
+		return WoRTags::Event_Combat_SpellResolve_AOE;
+	}
+}
+
+bool WoRSkillAbilities::GetSpellResolveKind(const FGameplayTag &EventTag, EWoRSpellResolveKind &OutKind)
+{
+	for (const EWoRSpellResolveKind Kind : {EWoRSpellResolveKind::AOE, EWoRSpellResolveKind::Instant, EWoRSpellResolveKind::Support})
+	{
+		if (EventTag.MatchesTagExact(GetSpellResolveEventTag(Kind)))
+		{
+			OutKind = Kind;
+			return true;
+		}
+	}
+	return false;
+}
+
+UWoRGameplayAbility *WoRSkillAbilities::FindSpellResolveListener(AActor *Actor)
+{
+	return FindListeningSkillAbility(Actor, [](const UWoRGameplayAbility &Ability) { return Ability.IsListeningForSpellResolves(); });
+}
+
+bool WoRSkillAbilities::SendSpellResolveEvent(AActor *Actor, const FWoRSpellResolve &Resolve)
+{
+	UWoRGameplayAbility *Listener = FindSpellResolveListener(Actor);
+	UAbilitySystemComponent *ASC = Listener ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+	if (!ASC)
+	{
+		return false;
+	}
+	// Built here, as SendProjectileEvent: this event's Target is the defender (Q-043e), not the receiver.
+	FGameplayEventData Payload;
+	Payload.EventTag = GetSpellResolveEventTag(Resolve.Kind);
+	Payload.Instigator = Actor;
+	Payload.Target = Resolve.GetEventTarget();
+	Payload.EventMagnitude = static_cast<float>(Resolve.CastEntryIndex);
+	const int32 TakenBefore = Listener->GetSpellResolvesResolved();
+	ASC->HandleGameplayEvent(Payload.EventTag, &Payload);
+	if (Listener->GetSpellResolvesResolved() != TakenBefore)
+	{
+		return true;
+	}
+	// Never drop a resolution: the executor resolves it (RouteSpellResolve). These resolve inside their own action,
+	// so a listener that did not take one is a fault worth seeing.
+	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: %s on %s did not reach %s's spell-resolve task; resolving it directly"),
+		   *Actor->GetName(), *Payload.EventTag.ToString(), *GetNameSafe(Resolve.GetEventTarget()), *GetNameSafe(Listener));
+	return false;
+}
+
+UWoRGameplayAbility *WoRSkillAbilities::FindActionRunner(AActor *Actor, const FAction &Action)
+{
+	const USkillDataBase *Skill = GetActionSkill(Action);
+	if (!Skill)
+	{
+		return nullptr;
+	}
+	return FindListeningSkillAbility(Actor, [Skill](const UWoRGameplayAbility &Ability)
+	{
+		const FAction *Running = Ability.GetRunningAction();
+		return Running && GetActionSkill(*Running) == Skill;
+	});
+}
+
+bool WoRSkillAbilities::CommitCostThroughAbility(AActor *Actor, const FAction &Action, int32 Cost)
+{
+	UWoRGameplayAbility *Runner = FindActionRunner(Actor, Action);
+	if (!Runner)
+	{
+		return false;
+	}
+	if (Runner->CommitActionCost(Cost))
+	{
+		return true;
+	}
+	// Never pay twice: nothing was paid, so the executor pays (or refuses, as before).
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s did not pay %d EP; the executor pays it"), *Actor->GetName(),
+		   *GetNameSafe(Runner), Cost);
 	return false;
 }

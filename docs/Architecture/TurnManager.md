@@ -210,6 +210,14 @@ Broadcasts `OnCombatEnded(GlobalTurnCount)`, then clears `bCombatActive`,
 `Combatants`, `CurrentActor`, `PreviousActor`, `PendingTurns`, resets
 `GlobalTurnCount`, and clears `bCurrentTurnIsBonus`.
 
+### Fixed rotation (B-170b, behind `wor.Turns.ActionPips`)
+
+`wor.Turns.ActionPips` (default 0) is read once per fight in `InitializeCombat` into `bRotationMode`. At 0 every path above runs unchanged. At 1 (`ActionPips.md` §3.2, Q-170d, Q-170f, build choices Q-170b2):
+- `AdvanceSimState` takes an `FTurnRotation &` (the live `Rotation`, or `RebuildBelt`'s scratch copy). The pinned-fire step runs first as built (bonus lands next, skip on a bonus, Execution speed race, opening-round wait); then `FTurnRotation::PickNext` replaces the debt pick, the 2:1 cap, the tie-break and the Wind yield. A rotation turn burns pinned delays like any turn; pinned turns don't take a rotation seat.
+- `FTurnRotation` (`Public/Combat/TurnRotation.h`, plain data, indexes into `Combatants`): `RoundOrder` (the rest of the round; `FTurnRotationSeat` = combatant index + `bEmptySeat`), `LeadTeam`, `LastDrawnSlot[2]`, `bOpeningRoundNext`, `RoundsBuilt`. `BuildRound`: an opening round of the striking side if first strike, else the sides alternate lead first, seats per side = the larger side's living count, each side drawing the next living slot after its last draw (so a smaller side's rotation carries on across rounds; 4v1 = P1 B P2 B P3 B P4 B). `PickNext` uses up seats: a dead holder's own seat is dropped, its empty seat passes to the next living teammate; `TurnsToSkip` removes a seat. `OnActorDied` calls `OnCombatantDied` so a revive re-enters from the next round.
+- `DelayNextTurn` and `OnActorSpeedChanged` return at once (Wind takes an action in B-170d; speed no longer moves turns).
+- Debug: `GetTurnModeString()` (mode, round, rest of the round), printed by `DebugPrintTurnOrder` and `wor.Turns.PrintBelt`; `IsRotationMode()`. Spec `WoR.Turns.Rotation`.
+
 ## Integration Points
 
 ### Delegates broadcast
@@ -283,3 +291,6 @@ Observations from the code:
 | 2026-11-04 | B-341 built and tested on the desktop; merged into dev. | feature/B-341-turn-rules-trim |
 | 2026-11-04 | B-336 (D-129, D-064): TurnManager and the other nine per-fight subsystems (ActionExecutor, DefenseSystem, CombatGridSubsystem, WeatherStateManager, SkillEffectManager, StatusBuildupManager, InfusionChargeManager, AIDecisionManager, CombatCommandMenuSubsystem) derive from `UWoRFightSubsystem` (a `UWorldSubsystem`, Game + PIE worlds): one per world, fresh after a level change. Look them up with `WoRFight::Get<T>(Context)` (`Combat/WoRFightSubsystem.h`), which also returns game-instance subsystems. Game-instance subsystems must not cache them (DamageCalculator / ItemExecutor caches removed). Debug: `wor.Fight.Subsystems`. Spec `WoR.Combat.FightSubsystems`. | refactor/B-336-world-subsystems |
 | 2026-11-09 | B-170 plan (D-088 confirmed): fixed rotation, banked action pips, Turn Speed retired. `docs/analysis/ActionPips.md` lists what changes here (rotation behind `wor.Turns.ActionPips`; the debt pick, 2:1 cap, tie-break and `DelayNextTurn` retired after PIE). No code yet. | docs/B-170-action-pips-plan |
+| 2026-11-09 | B-170b: the fixed rotation behind `wor.Turns.ActionPips` (default 0, latched per fight): `FTurnRotation` (`Combat/TurnRotation.h/.cpp`), `AdvanceSimState` takes the rotation state, `RebuildBelt` steps a copy (the strip shows the rotation), `OnActorDied` purges own seats and passes extra seats; `DelayNextTurn` / `OnActorSpeedChanged` no-ops when on; `GetTurnModeString` in the turn-order print and `wor.Turns.PrintBelt`. Spec `WoR.Turns.Rotation`; existing turn specs unchanged at 0. Build choices Q-170b2. | `feature/B-170b-turn-rotation-cloud` (UNBUILT) |
+| 2026-11-09 | B-170b built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix; header comment names `GetTurnModeString`). | `feature/B-170b-turn-rotation` |
+| 2026-11-09 | B-170c: `ScheduleExecutionTurn` rebuilds the belt and broadcasts `OnSpeedChanged`, as `GrantBonusTurn` does: with action pips, arming a ritual no longer ends the turn, so the strip shows the Execution turn at once. | `feature/B-170c-multi-action-turns` |
