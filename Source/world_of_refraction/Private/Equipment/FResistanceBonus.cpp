@@ -12,14 +12,16 @@
 namespace
 {
 	// 10 categories: Fire Water Earth Wind Light Darkness Lightning Void Reality | Physical (B-358, D-148: the
-	// Slash / Pierce / Impact fields hold one Physical value, ResistanceColumns::Set).
-	constexpr int32 RESISTANCE_SLOT_COUNT = 10;
+	// Slash / Pierce / Impact fields hold one Physical value, ResistanceColumns::Set). Ice, the last column, is never
+	// rolled (B-064c, Q-064c).
+	constexpr int32 RESISTANCE_SLOT_COUNT = ResistanceColumns::ROLLED_COLUMN_COUNT;
 
+	/** Zeroes the rolled columns; an authored Ice line (never rolled) stays. */
 	void WipeResistance(FResistanceBonus &B)
 	{
-		for (const EWoRDamageType Type : ResistanceColumns::Types())
+		for (int32 Slot = 0; Slot < RESISTANCE_SLOT_COUNT; ++Slot)
 		{
-			ResistanceColumns::Set(B, Type, 0.0f);
+			ResistanceColumns::Set(B, ResistanceColumns::Types()[Slot], 0.0f);
 		}
 	}
 
@@ -70,7 +72,8 @@ int32 FResistanceBonus::RerollResistance(int32 Budget)
 	}
 
 	WipeResistance(*this);
-	ensureMsgf(ResistanceColumns::Types().Num() == RESISTANCE_SLOT_COUNT,
+	ensureMsgf(ResistanceColumns::Types().Last() == EWoRDamageType::Ice &&
+				   ResistanceColumns::Types().Find(EWoRDamageType::Ice) == RESISTANCE_SLOT_COUNT,
 			   TEXT("RESISTANCE_SLOT_COUNT is out of step with ResistanceColumns::Types(): a new column isn't rolled"));
 
 	FRandomStream RNG(FMath::Rand());

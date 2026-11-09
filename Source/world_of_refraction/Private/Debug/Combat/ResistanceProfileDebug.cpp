@@ -76,6 +76,7 @@ namespace
 		Out += FString::Printf(TEXT("  Lightning: %+5.0f\n"), Row.Lightning);
 		Out += FString::Printf(TEXT("  Void:      %+5.0f\n"), Row.Void);
 		Out += FString::Printf(TEXT("  Reality:   %+5.0f\n"), Row.Reality);
+		Out += FString::Printf(TEXT("  Ice:       %+5.0f   (B-064c: also resists Water)\n"), Row.Ice);
 		Out += TEXT("--- Physical (percent, +resist / -weak; B-358: one value for Slash, Pierce and Impact) ---\n");
 		Out += FString::Printf(TEXT("  Physical:  %+5.0f\n"), ResistanceColumns::Get(Row, ResistanceColumns::PHYSICAL_COLUMN));
 		Out += FString::Printf(TEXT("(combined term per hit = (element + physical) / %.0f, clamped [-1,+1] at the buildup site)\n"),
@@ -187,7 +188,8 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 		const ClassInnateResistanceTable::FResistanceRow GearRow =
 			ResistanceColumns::Convert<ClassInnateResistanceTable::FResistanceRow>(GearBonus);
 		GearResist = (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
-		              ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
+		              ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType) +
+					(Element == ESpellElement::Water ? GearRow.Ice : 0.0f)) / // B-064c: Water hits read gear Ice too
 		             ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 

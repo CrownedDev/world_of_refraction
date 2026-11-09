@@ -3216,7 +3216,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			int32 Negated = 0;
 			if (UWoRTurnEffectTracker *Absorbers = Input.Target->FindComponentByClass<UWoRTurnEffectTracker>())
 			{
-				Negated = Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType);
+				// B-064c: by hit kind, so a Water Ward doesn't catch an Ice hit (an Ice-keyed one does).
+				Negated = Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType, Input.DealtTypeOverride);
 				FinalDamage -= Negated;
 			}
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
