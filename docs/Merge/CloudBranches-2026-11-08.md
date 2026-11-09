@@ -199,6 +199,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 80 | `feature/B-170a-action-pips-cloud` | dev | – | Action pips 1 (Q-170a): actions on the character, no play change. **Q-170a differs from ActionPips.md §3.1** (an additive layer set, not a stat entry): Crown may veto. Reviewed; fixed. |
 | 81 | `feature/B-397-hidden-quests-shown-cloud` | dev | – | D-171: hidden quests listed once found, current goal only, private discovery notice; Q-377's placeholder notices superseded. Reviewed; fixed. |
 | 82 | `feature/B-170b-turn-rotation-cloud` | row 80 (B-170a) | – | Action pips 2 (Q-170b2): fixed round-robin rotation behind `wor.Turns.ActionPips` (default 0, read per fight); speed hooks keep broadcasting; first-striking side leads every round (Crown may change). Reviewed; fixed. |
+| 83 | `feature/B-043e-spell-shapes-abilities-cloud` | row 79 (B-043d) | – | GAS stage 4 part 5 (Q-043e): AOE / Instant hits and support casts through the spell's ability (`Event.Combat.SpellResolve.*`), bodies moved unchanged, executor fallback; behind `wor.Abilities.UseGAS`. Reviewed (spec gaps noted in its PIE sheet). |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
