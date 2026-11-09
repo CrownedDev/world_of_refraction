@@ -54,6 +54,12 @@ namespace WoRResistance
 	 *  only (Q-145). Uncapped; the damage step caps it (WoRDamageMath::GetElementMultiplier). */
 	WORLD_OF_REFRACTION_API float GetElementDamageResistance(AActor *Target, ESpellElement Element);
 
+	/** B-389 (D-168): Target's damage scope line for a hit, as a fraction: for a hit that is not a spell its gear's
+	 *  Physical line plus its class's Physical column (Q-389, Crown 2026-11-09: Generic +15%, Resonator -15%); for a
+	 *  spell its gear's Spell line (FResistanceBonus::GetScopeLine). Summed with the element line under the same ±50% cap
+	 *  (FDamageMathInputs::ResistanceScopeLine). Not a GAS column: read from the loadout and the class table. */
+	WORLD_OF_REFRACTION_API float GetScopeLineResistance(AActor *Target, bool bHitIsSpell);
+
 	/** B-273: Target's resistance to the hit's damage: its element-axis type (Ice for an Ice hit) plus the
 	 *  type that also resists it (Water adds Ice; an Ice hit reads Ice alone, Q-145b). 0 for a non-elemental hit. */
 	WORLD_OF_REFRACTION_API float GetHitDamageResistance(AActor *Target, const FWoRHitKind &Hit);

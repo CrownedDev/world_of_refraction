@@ -68,7 +68,8 @@ FDamageCalculationResult WoRDamageMath::Compute(const FDamageMathInputs &Inputs)
 	}
 
 	// Step 3: the defender's resistance to the hit's element (D-005 C, D-036).
-	Result.ElementMultiplier = GetElementMultiplier(Inputs.ElementResistance, Inputs.IgnoreDefense);
+	// B-389 (D-168): the element line and the hit's Physical / Spell line are one resistance, under the one ±50% cap.
+	Result.ElementMultiplier = GetElementMultiplier(Inputs.ElementResistance + Inputs.ResistanceScopeLine, Inputs.IgnoreDefense);
 	RunningDamage *= Result.ElementMultiplier;
 
 	// Step 4: critical hit. ActionMods' crit-chance boost routes through Luck (5e-C2).
@@ -138,11 +139,15 @@ FString WoRDamageMath::GetInputsString(const FDamageMathInputs &Inputs)
 	Out += FString::Printf(TEXT("Crit %s: chance %.4f  forced %s  roll %.4f  damage x%.4f\n"),
 						   Inputs.bCanCrit ? TEXT("on") : TEXT("off"), Inputs.CritChance,
 						   Inputs.bForceCrit ? TEXT("yes") : TEXT("no"), Inputs.CritRoll, Inputs.CritDamageMultiplier);
-	Out += FString::Printf(TEXT("Element resistance %.4f (x%.4f)  ignore defense %.0f%%\n"), Inputs.ElementResistance,
-						   GetElementMultiplier(Inputs.ElementResistance, Inputs.IgnoreDefense),
+	// B-389 (D-168): resistance by damage type, line by line: All (Defence, its own step), then the per-type sum.
+	Out += FString::Printf(TEXT("Resistance All (Defence) %s: %.4f (scope correction %+.4f)  grid defense %.4f\n"),
+						   Inputs.bApplyDefense ? TEXT("on") : TEXT("off"), Inputs.DefenderDefense, Inputs.DefenseScopeDelta,
+						   Inputs.GridDefenseModifier);
+	Out += FString::Printf(TEXT("Resistance %s %.4f + element %.4f = %.4f (x%.4f)  ignore defense %.0f%%\n"),
+						   Inputs.bIsSpell ? TEXT("Spell") : TEXT("Physical"), Inputs.ResistanceScopeLine, Inputs.ElementResistance,
+						   Inputs.ElementResistance + Inputs.ResistanceScopeLine,
+						   GetElementMultiplier(Inputs.ElementResistance + Inputs.ResistanceScopeLine, Inputs.IgnoreDefense),
 						   Inputs.IgnoreDefense * CombatConstants::STAT_PERCENT_DIVISOR);
-	Out += FString::Printf(TEXT("Defense %s: %.4f (scope correction %+.4f)  grid defense %.4f\n"), Inputs.bApplyDefense ? TEXT("on") : TEXT("off"),
-						   Inputs.DefenderDefense, Inputs.DefenseScopeDelta, Inputs.GridDefenseModifier);
 	Out += FString::Printf(TEXT("Damage taken x%.4f  guard x%.4f  floor %.0f%% of the unreduced hit\n"),
 						   Inputs.DamageTakenFactor, Inputs.GuardFactor,
 						   DamageConstants::HIT_DAMAGE_FLOOR_SHARE * CombatConstants::STAT_PERCENT_DIVISOR);

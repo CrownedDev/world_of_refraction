@@ -133,6 +133,20 @@ namespace WoRResistance
 		return GetHitDamageResistance(Target, FWoRHitKind::FromPair(Element, EPhysicalDamageType::None));
 	}
 
+	float GetScopeLineResistance(AActor *Target, bool bHitIsSpell)
+	{
+		const ULoadoutComponent *Loadout = Target ? Target->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		const float Gear = Loadout ? Loadout->GetActiveResistanceBonus(Target).GetScopeLine(bHitIsSpell) /
+										 ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR
+								   : 0.0f;
+		// Q-389 (Crown, 2026-11-09): the class table's Physical column is the class's Physical line for damage too
+		// (Generic +15%, Resonator -15%, Refractor 0): an intended balance change. No element passed, so only that column.
+		const float ClassPhysical = bHitIsSpell ? 0.0f
+												: ClassInnateResistanceTable::GetClassInnateResistance(Target, ESpellElement::None,
+																										 EPhysicalDamageType::Slash);
+		return Gear + ClassPhysical;
+	}
+
 	float GetHitDamageResistance(AActor *Target, const FWoRHitKind &Hit)
 	{
 		const EWoRDamageType ElementType = Hit.ElementType();

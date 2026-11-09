@@ -14,6 +14,13 @@
 // NOTE: the ClampMin/ClampMax meta literals below must mirror
 // CombatConstants::RESISTANCE_BONUS_MIN / RESISTANCE_BONUS_MAX (UHT meta tags
 // require literals, not named constants).
+//
+// B-389 (D-168, Crown 2026-11-08): defence is resistance by damage type, in one family of scoped lines (the
+// deckbuilder's Def lines): All (today's Defence, BonusDefense: its own step and 75% cap, ED-20), each element (the
+// columns above), and two damage-only scope lines appended below, Physical (a hit that is not a spell) and Spell. The
+// element and scope lines that match a hit are summed into one resistance under the ±50% cap (ED-27). The two new lines
+// are not resistance columns (ResistanceColumns::Types), so the buildup roll, the GAS columns and status buildup are
+// unchanged; old data reads 0.
 
 #pragma once
 
@@ -66,6 +73,19 @@ struct WORLD_OF_REFRACTION_API FResistanceBonus
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resistance", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
 	float Impact = 0.0f;
 
+	// ==================== DAMAGE SCOPE LINES (B-389, D-168) ====================
+
+	/** A cut to every hit that is not a spell (attacks and abilities, infused or not), percent. Damage only. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resistance", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
+	float PhysicalDamage = 0.0f;
+
+	/** A cut to every spell hit, percent. Damage only. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Resistance", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
+	float SpellDamage = 0.0f;
+
+	/** B-389: the scope line a hit reads (SpellDamage for a spell, else PhysicalDamage), percent. */
+	float GetScopeLine(bool bHitIsSpell) const { return bHitIsSpell ? SpellDamage : PhysicalDamage; }
+
 	// ==================== BUDGET / ROLL ====================
 
 	/** Tier -> resistance point budget (own pool). Returns 0 for an unmapped tier. */
@@ -83,7 +103,7 @@ struct WORLD_OF_REFRACTION_API FResistanceBonus
 	 *  per-asset overrides also land here). */
 	int32 RerollResistance(int32 Budget); // OBSOLETE (B-335, D-127; delete in the D-124 sweep)
 
-	/** Field-wise add Other onto this (every column, unclamped). Composes the
-	 *  authored Base with a fresh per-instance roll at acquisition. */
+	/** Field-wise add Other onto this (every column and the B-389 scope lines, unclamped). Composes the
+	 *  authored Base with a fresh per-instance roll at acquisition, and every gear source into one total. */
 	void Accumulate(const FResistanceBonus &Other);
 };
