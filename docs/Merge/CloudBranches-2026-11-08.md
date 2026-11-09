@@ -336,3 +336,13 @@ The trial branch `integration/cloud-2026-11-09` now also has current dev and row
 - **B-170e must target B-391's `UBattleCommandMenuWidget`** for its End Turn button, because `wor.UI.NewHUD` defaults to 1.
 - B-043g (rituals) is being written from dev.
 
+## Update, 2026-11-09 (night)
+
+- **Now in dev, built by the desktop:** B-043g, B-064c, B-170a.
+- **New trial branch `integration/cloud-2026-11-09c`.** It is current dev plus every still-unmerged cloud branch: rows 74, 76–77, 81–82, 84–88, 90–92, and C1–C7. It supersedes 09b.
+- **Code conflicts the real merges will meet, as resolved on the trial branch:**
+  - **B-402 then B-405** (`CombatCameraTypes.h`, `ECombatCameraMode`): keep B-402's Defence comment, add a comma after `Defence`, then B-405's appended `KillShot`.
+  - **B-405 then B-398** (`CombatCameraDebug.cpp`, `GetCameraStateString`): the format string gets both new fields (`style %s | %s | … | %s | %s`), and the argument list already has both.
+  - **Saves:** B-392 (32), B-393 (33), B-398 (34). Keep `LATEST = 34` with the comment in order.
+- Backlog conflicts: take each job's row from its own branch (row union by job id). The trial branch has the restored rows.
+
