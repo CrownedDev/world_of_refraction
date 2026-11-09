@@ -776,7 +776,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	// Arming consumes this turn's action and pays FULL costs now; the skill
 	// executes at fire time (8c) cost-free (bIsDeferredFire skips both paths).
 	const int32 EnergyCost = CalculateActionEnergyCost(Actor, ArmedAction);
-	if (!SpendEnergy(Actor, EnergyCost))
+	if (!PayActionEnergy(Actor, ArmedAction, EnergyCost))
 	{
 		FActionResult FailResult;
 		FailResult.Executor = Actor;
@@ -1246,7 +1246,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// base * infusion-multiplier * efficiency for innate/evolution spells.
 	const int32 FinalEnergyCost = CalculateActionEnergyCost(Caster, Action);
 
-	if (!SpendEnergy(Caster, FinalEnergyCost))
+	if (!PayActionEnergy(Caster, Action, FinalEnergyCost))
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
@@ -1547,7 +1547,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// TryArmDeferredActivation), closing the latent double-charge the inline path had.
 	const int32 FinalEnergyCost = CalculateActionEnergyCost(User, Action);
 
-	if (!SpendEnergy(User, FinalEnergyCost))
+	if (!PayActionEnergy(User, Action, FinalEnergyCost))
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
@@ -3216,7 +3216,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			int32 Negated = 0;
 			if (UWoRTurnEffectTracker *Absorbers = Input.Target->FindComponentByClass<UWoRTurnEffectTracker>())
 			{
-				Negated = Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType);
+				// B-064c: by hit kind, so a Water Ward doesn't catch an Ice hit (an Ice-keyed one does).
+				Negated = Absorbers->AbsorbHit(FinalDamage, Input.Element, Input.PhysicalDamageType, Input.DealtTypeOverride);
 				FinalDamage -= Negated;
 			}
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
@@ -3491,6 +3492,12 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 	return true;
 }
 
+bool UActionExecutor::PayActionEnergy(AActor *Actor, const FAction &Action, int32 Amount)
+{
+	// Exactly once: the ability pays it, or (nothing paid) the old call does.
+	return WoRSkillAbilities::CommitCostThroughAbility(Actor, Action, Amount) || SpendEnergy(Actor, Amount);
+}
+
 // ========================================
 // ANIMATION/VFX STUBS
 // ========================================
@@ -3622,6 +3629,25 @@ void UActionExecutor::SpawnSpellDelivery(
 }
 
 void UActionExecutor::SpawnSupportSpellEffect(
+	AActor *Caster,
+	const TArray<AActor *> &Targets,
+	USkillDataBase *Skill,
+	ESpellElement InElement,
+	float FinalVisualScale,
+	bool bIsBrokenDarkness)
+{
+	FWoRSpellResolve Resolve;
+	Resolve.Kind = EWoRSpellResolveKind::Support;
+	Resolve.Caster = Caster;
+	Resolve.Targets = Targets;
+	Resolve.Skill = Skill;
+	Resolve.Element = InElement;
+	Resolve.VisualScale = FinalVisualScale;
+	Resolve.bIsBrokenDarkness = bIsBrokenDarkness;
+	RouteSpellResolve(Resolve); // B-043e: through the skill's ability when it runs the action
+}
+
+void UActionExecutor::ResolveSupportSpellEffect(
 	AActor *Caster,
 	const TArray<AActor *> &Targets,
 	USkillDataBase *Skill,
@@ -3768,6 +3794,37 @@ void UActionExecutor::SpawnAOEEffect(
 	{
 		return;
 	}
+	FWoRSpellResolve Resolve;
+	Resolve.Kind = EWoRSpellResolveKind::AOE;
+	Resolve.Caster = Caster;
+	Resolve.Target = Target;
+	Resolve.Skill = Skill;
+	Resolve.Element = InElement;
+	Resolve.ImpactRadius = FinalImpactRadius;
+	Resolve.VisualScale = FinalVisualScale;
+	Resolve.Damage = FinalDamage;
+	Resolve.bIsBrokenDarkness = bIsBrokenDarkness;
+	Resolve.Entry = Entry;
+	Resolve.CastEntryIndex = CastEntryIndex;
+	RouteSpellResolve(Resolve); // B-043e: through the skill's ability when it runs the action
+}
+
+void UActionExecutor::ResolveAOEEffect(
+	AActor *Caster,
+	AActor *Target,
+	USkillDataBase *Skill,
+	ESpellElement InElement,
+	float FinalImpactRadius,
+	float FinalVisualScale,
+	int32 FinalDamage,
+	bool bIsBrokenDarkness,
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
+{
+	if (!Target || !Skill)
+	{
+		return;
+	}
 
 	FVector SpawnLocation = Target->GetActorLocation();
 
@@ -3838,6 +3895,35 @@ void UActionExecutor::ResolveInstantSpell(
 	{
 		return;
 	}
+	FWoRSpellResolve Resolve;
+	Resolve.Kind = EWoRSpellResolveKind::Instant;
+	Resolve.Caster = Caster;
+	Resolve.Target = Target;
+	Resolve.Skill = Skill;
+	Resolve.Element = InElement;
+	Resolve.ImpactRadius = FinalImpactRadius;
+	Resolve.Damage = FinalDamage;
+	Resolve.bIsBrokenDarkness = bIsBrokenDarkness;
+	Resolve.Entry = Entry;
+	Resolve.CastEntryIndex = CastEntryIndex;
+	RouteSpellResolve(Resolve); // B-043e: through the skill's ability when it runs the action
+}
+
+void UActionExecutor::ResolveInstantSpellEffect(
+	AActor *Caster,
+	AActor *Target,
+	USkillDataBase *Skill,
+	ESpellElement InElement,
+	float FinalImpactRadius,
+	int32 FinalDamage,
+	bool bIsBrokenDarkness,
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
+{
+	if (!Target || !Skill)
+	{
+		return;
+	}
 
 	// Get colors for VFX
 	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(InElement, bIsBrokenDarkness);
@@ -3883,6 +3969,55 @@ void UActionExecutor::ResolveInstantSpell(
 	if (!DefenseSys)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - Instant damage not applied"));
+	}
+}
+
+void UActionExecutor::RouteSpellResolve(const FWoRSpellResolve &Resolve)
+{
+	// The action's actor: its running skill ability (if any) is the one listening. These resolutions happen inside
+	// the dispatch (no flight), so a listener is always on this action; with none, it resolves here, as before.
+	AActor *Actor = GetExecutingActor();
+	// Held while the event is out; a nested resolution (the last hit finishing the action and a deferred fire
+	// starting the next) holds and restores its own.
+	const TOptional<FWoRSpellResolve> Outer = RoutingSpellResolve;
+	RoutingSpellResolve = Resolve;
+	WoRSkillAbilities::SendSpellResolveEvent(Actor, Resolve);
+	// Still held = not taken (no listener, or the event did not reach it): never drop a resolution, resolve it here.
+	const bool bUntaken = RoutingSpellResolve.IsSet();
+	RoutingSpellResolve = Outer;
+	if (bUntaken)
+	{
+		ResolveRoutedSpell(Resolve);
+	}
+}
+
+bool UActionExecutor::TakeRoutedSpellResolve(EWoRSpellResolveKind Kind, const AActor *EventTarget, FWoRSpellResolve &OutResolve)
+{
+	if (!RoutingSpellResolve.IsSet() || RoutingSpellResolve->Kind != Kind || RoutingSpellResolve->GetEventTarget() != EventTarget)
+	{
+		return false;
+	}
+	OutResolve = RoutingSpellResolve.GetValue();
+	RoutingSpellResolve.Reset();
+	return true;
+}
+
+void UActionExecutor::ResolveRoutedSpell(const FWoRSpellResolve &Resolve)
+{
+	switch (Resolve.Kind)
+	{
+	case EWoRSpellResolveKind::AOE:
+		ResolveAOEEffect(Resolve.Caster, Resolve.Target, Resolve.Skill, Resolve.Element, Resolve.ImpactRadius,
+						 Resolve.VisualScale, Resolve.Damage, Resolve.bIsBrokenDarkness, Resolve.Entry, Resolve.CastEntryIndex);
+		return;
+	case EWoRSpellResolveKind::Instant:
+		ResolveInstantSpellEffect(Resolve.Caster, Resolve.Target, Resolve.Skill, Resolve.Element, Resolve.ImpactRadius,
+								  Resolve.Damage, Resolve.bIsBrokenDarkness, Resolve.Entry, Resolve.CastEntryIndex);
+		return;
+	case EWoRSpellResolveKind::Support:
+		ResolveSupportSpellEffect(Resolve.Caster, Resolve.Targets, Resolve.Skill, Resolve.Element, Resolve.VisualScale,
+								  Resolve.bIsBrokenDarkness);
+		return;
 	}
 }
 

@@ -5,9 +5,12 @@
 #include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/TargetType.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
+#include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Tags/WoRGameplayTags.h"
 #include "WoRLog.h"
 
@@ -104,9 +107,41 @@ bool UWoRGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle, con
 void UWoRGameplayAbility::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 									const FGameplayAbilityActivationInfo ActivationInfo) const
 {
-	// Intentionally empty (Q-043b): ExecuteActionAsync pays the EP through SpendEnergy (B-043a's cost GE when
-	// wor.Costs.UseGAS is on) and the infusion backlash after the action, so paying here would pay twice.
-	// No CostGameplayEffectClass is set, so Super would pay nothing either.
+	// B-043f: only the commit CommitActionCost makes pays; no CostGameplayEffectClass is set, so Super pays nothing.
+	if (PendingCommitCost == INDEX_NONE)
+	{
+		return;
+	}
+	AActor *Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	bCommitCostPaid = Executor && Executor->SpendEnergy(Avatar, PendingCommitCost);
+}
+
+bool UWoRGameplayAbility::CommitActionCost(int32 Cost)
+{
+	// Ended (cancelled) mid-action: the executor pays.
+	if (!bActionRunning || !IsActive())
+	{
+		return false;
+	}
+	// B-043g (Q-043g): a ritual's fire was paid by its arm's commit; the executor's zero-cost pay is a no-op.
+	if (RunningAction.bIsDeferredFire)
+	{
+		return false;
+	}
+	PendingCommitCost = Cost;
+	bCommitCostPaid = false;
+	const bool bCommitted = CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo());
+	const bool bPaid = bCommitted && bCommitCostPaid;
+	PendingCommitCost = INDEX_NONE;
+	bCommitCostPaid = false;
+	if (bPaid)
+	{
+		++CostsCommitted;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s commits %d EP (%s)"), *GetNameSafe(GetAvatarActorFromActorInfo()),
+		   *RunningAction.GetActionName(), Cost, bPaid ? TEXT("paid") : TEXT("not paid"));
+	return bPaid;
 }
 
 void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
@@ -129,12 +164,10 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	ProjectileArrivedTask = nullptr;
 	ProjectileDodgedTask = nullptr;
 	BurstDelayTask = nullptr;
+	SpellResolveTask = nullptr;
 
-	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
-	{
-		FailActivation(TEXT("Not enough energy"));
-		return;
-	}
+	// No commit here (B-043f, Q-043f): TryActivateAbility already checked the cost (CheckCost), and the executor
+	// commits it through CommitActionCost once its own gates have passed, so a refused action pays nothing.
 	AActor *Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
 	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
 	if (!Executor)
@@ -143,7 +176,12 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 		return;
 	}
 
-	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability"), *Avatar->GetName(), *RunningAction.GetActionName());
+	if (RunningAction.bIsDeferredFire)
+	{
+		++RitualFiresRun;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability%s"), *Avatar->GetName(),
+		   *RunningAction.GetActionName(), RunningAction.bIsDeferredFire ? TEXT(" (ritual fire)") : TEXT(""));
 	// Before the executor call: a montage-less action (wor.Combat.InstantImpacts) lands its impacts inside it.
 	if (ShouldListenForImpacts(RunningAction))
 	{
@@ -153,6 +191,11 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	if (ShouldListenForProjectiles(RunningAction))
 	{
 		StartProjectileListeners();
+	}
+	// B-043e: an AOE / Instant / support release resolves inside the call too (a montage-less spell).
+	if (ShouldListenForSpellResolves(RunningAction))
+	{
+		StartSpellResolveListener();
 	}
 	// A copy: the completion can run inside this call and a bonus turn can start this ability again.
 	const FAction Action = RunningAction;
@@ -261,6 +304,7 @@ void UWoRGameplayAbility::EndActionTasks()
 	EndTask(ProjectileArrivedTask);
 	EndTask(ProjectileDodgedTask);
 	EndTask(BurstDelayTask);
+	EndTask(SpellResolveTask);
 }
 
 bool UWoRGameplayAbility::ShouldListenForProjectiles(const FAction &Action)
@@ -412,4 +456,95 @@ void UWoRGameplayAbility::HandleBurstDelayFinished()
 	{
 		ArmBurstDelay();
 	}
+}
+
+bool UWoRGameplayAbility::ShouldListenForSpellResolves(const FAction &Action)
+{
+	const USkillDataBase *Skill = WoRSkillAbilities::GetActionSkill(Action);
+	if (!Skill)
+	{
+		return false;
+	}
+	// The executor's own test for the support path (SpawnSpellDelivery, DispatchSpellCast).
+	const bool bSupport = Skill->TargetType != ETargetType::Enemy;
+	const auto IsFlightless = [](ESpellDeliveryType Delivery)
+	{
+		return Delivery == ESpellDeliveryType::AOE || Delivery == ESpellDeliveryType::Instant;
+	};
+	if (Skill->CastArray.Num() > 0)
+	{
+		// DispatchSpellCast's support, AOE and Instant cases (spells and cast-notify abilities alike).
+		return bSupport || Skill->CastArray.ContainsByPredicate([&IsFlightless](const FSkillCastEntry &Entry)
+		{
+			return IsFlightless(Entry.DeliveryType);
+		});
+	}
+	// SpawnSpellDelivery's loose path reads the spell's own TargetType and DeliveryType.
+	return Skill->IsA<USpellData>() && (bSupport || IsFlightless(Skill->DeliveryType));
+}
+
+bool UWoRGameplayAbility::IsListeningForSpellResolves() const
+{
+	return bActionRunning && IsActive() && SpellResolveTask && SpellResolveTask->IsActive();
+}
+
+void UWoRGameplayAbility::StartSpellResolveListener()
+{
+	// Q-043e: one task on the parent tag takes all three kinds, every resolution of the action (not OnlyTriggerOnce);
+	// GASDocumentation's one-task-many-event-tags pattern, Lyra's WaitGameplayEvent per ability.
+	SpellResolveTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, WoRTags::Event_Combat_SpellResolve,
+																		 /*OptionalExternalTarget*/ nullptr,
+																		 /*OnlyTriggerOnce*/ false, /*OnlyMatchExact*/ false);
+	if (!SpellResolveTask)
+	{
+		return; // the executor resolves them itself
+	}
+	SpellResolveTask->EventReceived.AddDynamic(this, &UWoRGameplayAbility::HandleSpellResolveEvent);
+	SpellResolveTask->ReadyForActivation();
+}
+
+void UWoRGameplayAbility::HandleSpellResolveEvent(FGameplayEventData Payload)
+{
+	if (!bActionRunning)
+	{
+		return;
+	}
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	// As the projectile events: only the listener the sender chose, and only for this ability's own action.
+	if (WoRSkillAbilities::FindSpellResolveListener(Avatar) != this)
+	{
+		return;
+	}
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	if (!Executor || Executor->GetCurrentSkillData() != WoRSkillAbilities::GetActionSkill(RunningAction))
+	{
+		return; // not taken: the executor resolves it (RouteSpellResolve)
+	}
+	EWoRSpellResolveKind Kind = EWoRSpellResolveKind::AOE;
+	if (!WoRSkillAbilities::GetSpellResolveKind(Payload.EventTag, Kind))
+	{
+		return;
+	}
+	FWoRSpellResolve Resolve;
+	// Taking it clears it on the executor: whatever happens next, nothing resolves it twice.
+	if (!Executor->TakeRoutedSpellResolve(Kind, Payload.Target.Get(), Resolve))
+	{
+		return;
+	}
+	// Counted before resolving: the last hit can finish the action and end this ability.
+	switch (Kind)
+	{
+	case EWoRSpellResolveKind::AOE:
+		++AOEResolves;
+		break;
+	case EWoRSpellResolveKind::Instant:
+		++InstantResolves;
+		break;
+	case EWoRSpellResolveKind::Support:
+		++SupportResolves;
+		break;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s on %s through its event (cast entry %d)"), *Avatar->GetName(),
+		   *Payload.EventTag.ToString(), *GetNameSafe(Resolve.GetEventTarget()), Resolve.CastEntryIndex);
+	Executor->ResolveRoutedSpell(Resolve);
 }

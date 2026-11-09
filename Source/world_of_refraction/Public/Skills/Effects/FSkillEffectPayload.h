@@ -33,6 +33,12 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     ESpellElement Element = ESpellElement::None;
 
+    /** B-064c (D-029, the deckbuilder's Ice key, Q-064c): keyed Ice. Only with a Water element (the payload's or the
+     *  cast's); elsewhere ignored with a warning. A resistance buff / debuff or a Ward keyed Ice covers Ice **and**
+     *  Water hits; one keyed plain Water covers Water only. Default false: existing data plays as before. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    bool bKeyedIce = false;
+
     /** B-383 (D-166): which hits a damage or defence boost counts for (DamageBuff / Debuff, ModifyDamageDealt,
      *  Raw / SpellDamageBuff / Debuff, DefenseBuff / Debuff, Reduce / IncreaseDamageTaken; other types ignore it).
      *  All (default) = every hit, as before; Element = only hits of this payload's Element (or, with Element None,

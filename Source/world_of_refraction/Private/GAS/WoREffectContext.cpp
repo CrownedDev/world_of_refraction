@@ -12,12 +12,13 @@ void FWoREffectIdentity::Serialize(FArchive &Ar)
 	Ar << bFromGear;
 	Ar << PhysicalType; // B-042g
 	Ar << EffectValue;
+	Ar << bKeyedIce; // B-064c
 }
 
 FString FWoREffectIdentity::ToString() const
 {
-	return FString::Printf(TEXT("%s %s scope=%s id=%d source=%d%s%s value=%.2f"),
-						   *UEnum::GetValueAsString(EffectType), *UEnum::GetValueAsString(Element),
+	return FString::Printf(TEXT("%s %s%s scope=%s id=%d source=%d%s%s value=%.2f"),
+						   *UEnum::GetValueAsString(EffectType), *UEnum::GetValueAsString(Element), bKeyedIce ? TEXT(" (keyed Ice)") : TEXT(""),
 						   *WoRDamageScope::ToString(DamageScope, Element), EffectID, SourceKey, bFromGear ? TEXT(" gear") : TEXT(""),
 						   PhysicalType != EPhysicalDamageType::None ? *(TEXT(" ") + UEnum::GetValueAsString(PhysicalType)) : TEXT(""),
 						   EffectValue);

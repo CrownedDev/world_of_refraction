@@ -60,9 +60,9 @@ namespace ClassInnateResistanceTable
 		float Pierce;
 		float Impact;
 		/** B-064a (D-029, Q-145b): Ice resistance, which also resists Water hits. Appended with a default, so the rows
-		 *  below (12 values each) leave it 0 for every profile. TODO: tune per profile. Read by GetClassIceResistance
-		 *  only: ResistanceColumns has no Ice column yet (the asset, gear rolls and display: B-064c). Tune only after
-		 *  B-064c: with the profile asset present, ResolveRow converts through ResistanceColumns and Ice reads 0. */
+		 *  below (12 values each) leave it 0 for every profile. TODO: tune per profile. Read by GetClassIceResistance.
+		 *  B-064c: ResistanceColumns' last column, so the profile asset carries it (tune it there once the asset exists;
+		 *  a new asset starts from these values). */
 		float Ice = 0.0f;
 	};
 
