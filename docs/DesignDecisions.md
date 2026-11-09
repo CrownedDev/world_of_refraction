@@ -245,7 +245,7 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED (approved by the reference-backed default; confirm with the B-170 plan) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170b, B-170d)
 **Question:** Does Emerald's bonus turn (D-052) become +1 action? Does first strike (D-069 / Q-185) become +1 action or stay "act first"?
 **Recommendation (default):**
-- **Emerald keeps its bonus turn** in the belt, as built (D-133, ET-12; the deckbuilder's "a bonus turn inserts"). A bonus turn is a real turn: +1 action, the turn steps, the Energy refill.
+- **Emerald (Wind's crystal), changed by Crown's Wind rule (D-088, 2026-11-09):** on an **enemy** it makes them **lose their next turn** in the rotation (the built skip, ET-13). On **yourself or an ally** it keeps its bonus turn in the belt (D-133, ET-12; the deckbuilder's "a bonus turn inserts") — CC's reading, for Crown to confirm. A bonus turn is a real turn: +1 action, the turn steps, the Energy refill.
 - **The Extra Action effect becomes +1 action now** (what its name says; the deckbuilder: "an Action effect arrives in the pool at once").
 - **First strike stays as built:** the striking side takes its whole first round, then the alternation starts with that side.
 **Answer:** the default, by the reference-backed default (2026-11-09).
