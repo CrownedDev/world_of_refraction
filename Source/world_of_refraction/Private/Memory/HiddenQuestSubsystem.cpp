@@ -333,7 +333,10 @@ int32 UHiddenQuestSubsystem::StartGearQuests(const FMemoryEvent &Event)
 			};
 			for (const FWornItemState &Item : Items)
 			{
-				TellFriend(Item.Item->BoundQuests, &Item);
+				if (Item.Item) // review: a caller-filled state can lack its item
+				{
+					TellFriend(Item.Item->BoundQuests, &Item);
+				}
 			}
 			if (Member.Evolution)
 			{
@@ -343,7 +346,10 @@ int32 UHiddenQuestSubsystem::StartGearQuests(const FMemoryEvent &Event)
 		}
 		for (const FWornItemState &Item : Items)
 		{
-			TryStart(Item.Item->BoundQuests, &Item);
+			if (Item.Item) // review: a caller-filled state can lack its item
+			{
+				TryStart(Item.Item->BoundQuests, &Item);
+			}
 		}
 		if (Member.Evolution)
 		{
