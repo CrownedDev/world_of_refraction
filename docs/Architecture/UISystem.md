@@ -26,6 +26,10 @@ This doc covers three current widgets:
   else the TurnManager), and a Statuses button that opens every status in full. `Initialise` binds and fills
   plain-data state before `AddToViewport`; `RebuildWidget` builds one card per combatant once; delegates only
   rewrite texts (no Tick, no widgets recreated).
+  B-391b: floating damage numbers from each card character's `UCombatPresentationComponent::OnHitDetailShown`
+  (the server's hits and heals, on every machine), styled by `DamageNumberView` (Q-111 / Q-391b), from a pool of
+  16 text blocks built once and stepped by one timer that stops when none are live; a Broken Darkness card's EP
+  line is "Absorb x / y" with its overload. Debug: `wor.UI.DamageNumber <amount> [type|Heal] [mult]`.
 - `UBattleCommandMenuWidget`: a view of `UCombatCommandMenuSubsystem` (`OnCommandMenuReady` / `Closed`), a pool
   of 16 rows built once, each row's key hint from `ACombatPlayerController::GetMenuKeys`
   (`BattleHUDView::AssignMenuKeys`); a click goes to `HandleSelection` through `UBattleMenuRowRelay`.
