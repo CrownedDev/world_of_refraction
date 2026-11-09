@@ -13,6 +13,8 @@
 // with the same result as the old path.
 // B-043f (Q-043f): through its ability, an action's EP is committed and paid by the ability (once, the same amount),
 // and an all-AI 1v1 runs to the same end at both switch values, every impact through an ability.
+// B-043g (Q-043g): a ritual arms and fires through its ability (two activations), paid once at the arm, with the
+// old path's damage and EP.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -65,6 +67,9 @@ namespace
 	constexpr int32 ABILITIES_SPEC_SHAPE_SETTLE_FRAMES = 1100;
 	/** B-043f: a whole all-AI 1v1 at ~3 frames a turn (as WoR.Balance.Sim.OneFight); reaching it means a stall. */
 	constexpr int32 ABILITIES_SPEC_FIGHT_TICK_CAP = 3000;
+	/** B-043g: a ritual Strike fires one normal turn after its arm; turns played at most before calling it stalled. */
+	constexpr int32 ABILITIES_SPEC_RITUAL_DELAY_TURNS = 1;
+	constexpr int32 ABILITIES_SPEC_RITUAL_MAX_TURNS = 6;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -483,6 +488,99 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		TestEqual(TEXT("One Support event"), ThroughAbility.SupportEvents, Kind == EWoRSpellResolveKind::Support ? 1 : 0);
 		TestFalse(TEXT("Nothing listens once the action is done"), ThroughAbility.bStillListening);
 		TestTrue(TEXT("The turn moved on (both paths)"), OldPath.bTurnMovedOn && ThroughAbility.bTurnMovedOn);
+	}
+
+	struct FRitualOutcome
+	{
+		bool bRan = false;
+		FString Refusal;
+		/** The arm ended the hero's turn without striking. */
+		bool bArmed = false;
+		int32 FoeDamageAtArm = 0;
+		int32 FoeDamage = 0;
+		int32 EPSpent = 0;
+		int32 Activations = 0;
+		int32 Ends = 0;
+		int32 CostsCommitted = 0;
+		int32 RitualFires = 0;
+		int32 ImpactEvents = 0;
+	};
+
+	/** B-043g: Hero arms Strike as a ritual (ActivationDelay) on a foe that does not defend, in a fresh world at one
+	 *  switch value; normal turns are ended until the Execution turn has fired it (the foe took damage) or the cap. */
+	FRitualOutcome RunRitual(bool bThroughAbility)
+	{
+		FRitualOutcome Outcome;
+		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
+		{
+			Orchestrator->ForceEndCombat();
+		}
+		Orchestrator = nullptr;
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		if (!TestWorld->Create() || !TestWorld->GetWorld())
+		{
+			return Outcome;
+		}
+		Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		WoRSkillAbilities::SetUsesAbilities(bThroughAbility);
+		Strike->ActivationDelay = ABILITIES_SPEC_RITUAL_DELAY_TURNS;
+		AActor *Hero = SpawnArmed(false);
+		GiveASC(Hero);
+		AActor *Foe = SpawnArmed(false);
+		UCharacterDataComponent *HeroStats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		UTurnManager *TurnManager = TestWorld->GetSubsystem<UTurnManager>();
+		if (!Orchestrator || !Foe || !HeroStats || !TurnManager)
+		{
+			return Outcome;
+		}
+		Activations = 0;
+		Ends = 0;
+		ActivatedAbilities.Reset();
+		Orchestrator->StartCombat({Hero}, {Foe});
+		if (Orchestrator->GetCurrentActor() != Hero)
+		{
+			return Outcome;
+		}
+		HeroStats->MaxEP = ABILITIES_SPEC_START_EP;
+		HeroStats->CurrentEP = ABILITIES_SPEC_START_EP;
+		const int32 FoeHPBefore = CurrentHPOf(Foe);
+
+		FAction Action;
+		Action.ActionType = EActionType::Ability;
+		Action.SkillData = Strike;
+		Action.Targets.Add(Foe);
+		if (const UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>())
+		{
+			Outcome.Refusal = Executor->ValidateAction(Hero, Action).ErrorMessage;
+		}
+		Orchestrator->SubmitActionAsync(Action);
+		TestWorld->Tick(ABILITIES_SPEC_ACTION_FRAMES);
+		Outcome.bArmed = Orchestrator->GetCurrentActor() != Hero;
+		Outcome.FoeDamageAtArm = FoeHPBefore - CurrentHPOf(Foe);
+
+		for (int32 Turn = 0; Turn < ABILITIES_SPEC_RITUAL_MAX_TURNS && CurrentHPOf(Foe) == FoeHPBefore &&
+							 Orchestrator->GetCombatState() == ECombatState::InProgress; ++Turn)
+		{
+			Orchestrator->OnActionCompleted(); // ends the current normal turn; the Execution turn fires inside the advance
+			for (int32 Frame = 0; Frame < ABILITIES_SPEC_SHAPE_SETTLE_FRAMES && TurnManager->GetCurrentTurnType() == ETurnType::Execution; ++Frame)
+			{
+				TestWorld->Tick();
+			}
+			TestWorld->Tick(ABILITIES_SPEC_ACTION_FRAMES);
+		}
+
+		Outcome.bRan = true;
+		Outcome.FoeDamage = FoeHPBefore - CurrentHPOf(Foe);
+		Outcome.EPSpent = ABILITIES_SPEC_START_EP - HeroStats->CurrentEP;
+		Outcome.Activations = Activations;
+		Outcome.Ends = Ends;
+		for (const TStrongObjectPtr<UWoRGameplayAbility> &Ability : ActivatedAbilities)
+		{
+			Outcome.CostsCommitted += Ability->GetCostsCommitted();
+			Outcome.RitualFires += Ability->GetRitualFiresRun();
+			Outcome.ImpactEvents += Ability->GetImpactEventsResolved();
+		}
+		return Outcome;
 	}
 END_DEFINE_SPEC(FGASAbilitiesSpec)
 
@@ -962,6 +1060,32 @@ void FGASAbilitiesSpec::Define()
 			TestEqual(TEXT("Every action's cost paid through its ability"), ThroughAbility.CostsCommitted, ThroughAbility.Activations);
 			TestTrue(TEXT("Impacts landed"), ThroughAbility.ImpactFrames > 0);
 			TestEqual(TEXT("Every impact through an ability"), ThroughAbility.ImpactEvents, ThroughAbility.ImpactFrames);
+		});
+	});
+
+	Describe("rituals (B-043g)", [this]()
+	{
+		It("arms and fires a ritual through its ability, paid once at the arm, with the old path's result", [this]()
+		{
+			const FRitualOutcome OldPath = RunRitual(false);
+			const FRitualOutcome ThroughAbility = RunRitual(true);
+			if (!TestTrue(TEXT("Both runs reached the arm"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			TestTrue(FString::Printf(TEXT("The arm ended the turn (refusal: %s)"), *OldPath.Refusal), OldPath.bArmed && ThroughAbility.bArmed);
+			TestEqual(TEXT("The arm strikes nothing (old path)"), OldPath.FoeDamageAtArm, 0);
+			TestEqual(TEXT("The arm strikes nothing (through the ability)"), ThroughAbility.FoeDamageAtArm, 0);
+			TestTrue(TEXT("The old path fired it"), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("The old path paid the cost once"), OldPath.EPSpent, ABILITIES_SPEC_STRIKE_EP);
+			TestEqual(TEXT("Same EP through the ability"), ThroughAbility.EPSpent, OldPath.EPSpent);
+			TestEqual(TEXT("No ability on the old path"), OldPath.Activations, 0);
+			TestEqual(TEXT("Two activations: the arm and the fire"), ThroughAbility.Activations, 2);
+			TestEqual(TEXT("Both ended"), ThroughAbility.Ends, ThroughAbility.Activations);
+			TestEqual(TEXT("One commit: the arm's"), ThroughAbility.CostsCommitted, 1);
+			TestEqual(TEXT("One ritual fire through the ability"), ThroughAbility.RitualFires, 1);
+			TestTrue(TEXT("The fire's impacts went through the ability"), ThroughAbility.ImpactEvents > 0);
 		});
 	});
 }
