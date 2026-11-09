@@ -1,4 +1,6 @@
-# Camera study: Expedition 33, Painted Maelle (Alicia) fight
+# Combat presentation study: Expedition 33, Painted Maelle (Alicia) fight
+
+Sections: **Camera** (§1–§3), **VFX** (§6), **UI** (§7), **Feedback and timing** (§8). Unclear points (§4) and questions (§5) cover all four. Earlier name: `MaelleCameraStudy.md`.
 
 **Purpose:** research for later combat-camera jobs. What the camera does in Expedition 33's Alicia / Painted Maelle fight, the patterns behind it, and what that means for our camera (`docs/Architecture/CombatCamera.md`, `docs/Design/CombatCamera.md`).
 **Source:** YouTube `LItGIL9XfzE` ("Alicia Secret Boss Fight (4K)"). The fight runs **5:27 → 7:00** (about 90 s, one phase, then the victory screen and a long cutscene). Frames were stepped about every 1 s, denser around key moments.
@@ -83,3 +85,71 @@ Suggested order: R1–R4 and R10 first (they shape every turn and are cheap twea
 - Q1: Should the default turn view become over-the-shoulder (R1), replacing CentredWide (D-074)?
 - Q2: Defence view: switch from "behind the defender" to the low side-on two-shot (R10)?
 - Q3: Want the enemy "hero shot" at enemy turn start (R9) for every enemy, or bosses and big attacks only?
+
+## 6. VFX
+
+| Moment | What is shown | Time(s) |
+|---|---|---|
+| Melee hit | Element-coloured trail on the blade (purple-orange flame), a short spark burst at the contact point, then the damage number | 5:35–5:36 |
+| Signature skill | Coloured flame column, vertical light bars, a full-screen purple flash at impact, debris | 6:00–6:02 |
+| Area fire skill | A burst of orange streaks that swallows the boss, held for about 2 s | 6:53–6:56 |
+| Enemy buff | Red aura and a red fog that floods the lower half of the screen | 6:06–6:07 |
+| Enemy wind-up | Golden glow behind the attacker | 6:18 |
+| Enemy swing | Pale white sword arcs (motion trails) that show each swing's path | 5:41, 5:47, 6:24 |
+| Parry / dodge success | Short white streak or flash at the defender; "PERFECT" text; on some, the whole frame drains to black-and-white for an instant | 5:38.9, 6:12.7, 6:39 |
+| Counter | Bright white beams cross the screen | 5:51 |
+| Set dressing | Gold light threads drift through the arena all fight; they make every shot feel alive without moving the camera | throughout |
+| Kill | Dark vignette and colour drain on a wide shot | 6:57–6:59 |
+| Phase change | None in this fight | — |
+| Screen shake | Little or none on normal hits and none during defence; motion blur is used on camera rushes instead | — |
+
+**Patterns:** effects carry the element colour; enemy swings always leave a readable trail; the screen-wide effects (flash, colour drain, fog) are kept for big moments (signature hit, perfect parry, buff, kill).
+
+**Rules for us:**
+- V1: every skill hit = element-coloured trail + small hit burst. Big Pack Magic VFX already covers this per element (`*_Slash`, `*_Hit`; AssetAudit §2) for 7 elements.
+- V2: every defendable enemy swing gets a visible weapon trail, so the swing reads in the Defence view (FeelGuide 14).
+- V3: a landed parry = small element-coloured circle flash at the defender (Magic Circle 1, AssetAudit "parry-effect cosmetic") + sparks; no pause (FeelGuide 3). Sparks are missing: make a small Niagara burst.
+- V4: enemy buffs = aura on the caster (`*_Aura` / `*_Buff` exist per element).
+- V5: full-screen effects (flash, colour drain, vignette) only for crits/weakness breaks, perfect parry, and the kill. Screen effects are post-process, not assets.
+- V6: arena ambience (drifting particles) per biome is cheap life; SoStylized wind lines / fog are a start.
+
+## 7. UI
+
+| Element | Where | Size / behaviour |
+|---|---|---|
+| Turn order | Left edge, vertical column of small portraits, top to bottom | Always on screen, small; the current actor sits at the top |
+| Boss bar | Top centre, thin red bar with the boss name under it | Always on; very slim |
+| Ability name | Small banner under the boss bar | Appears when any skill or enemy attack starts, gone when it ends |
+| Player HP / energy | Bottom right: portrait, HP bar, energy pips, small numbers | Always on; compact |
+| Special charge counter | Bottom right, above the player block ("0/3" style) | Always on |
+| Enemy stance / status panel | Right side, middle: enemy portrait with stance word and a short list of effects | Shown on the player's turn; hidden in most enemy-turn shots |
+| Action menu | Floats beside the hero, right of her body, a few short rows with face-button icons | Only on the player's turn; sub-menu (skills) opens as a wider list with cost and short text |
+| Target marker | Not visible in our frames (only one enemy) | — |
+| Damage numbers | At the hit point in the world; large for big hits (orange), smaller white for small/counter hits; stack when several land | Stay about 1–2 s, then fade |
+| Defend prompt | No big prompt; the defence is read from the attack itself; feedback text "PERFECT" appears at the defender | Only after the input |
+| Timed-press ring | Circle with a button icon beside the target during the player's special skill | Only during the skill |
+| Hints | Bottom left, small button hints ("Back", "Skip") | Only when useful |
+
+**Patterns:** HUD hugs the edges and corners; the centre stays clear for the fight. Menus attach to the hero, not to a fixed panel. Everything not needed in the enemy turn hides.
+
+**Rules for us** (current widgets in `UISystem.md`):
+- U1: keep `UTurnOrderStripWidget` but consider a vertical left-edge layout; current actor first.
+- U2: `UCharacterPanelWidget` for the player goes compact, bottom right; enemy details move to a side panel shown on our turn only.
+- U3: the action menu sits next to the acting hero (screen-projected), not fixed; with action pips, show remaining pips beside the menu.
+- U4: add an ability-name banner under the boss bar for every skill, ours and the enemy's (no widget for this yet).
+- U5: `UDefensePromptWidget`: keep the on-screen prompt minimal; the attack animation is the cue. Show result text ("Perfect", "Dodged") at the defender.
+- U6: damage numbers in world space; colour by weakness (FeelGuide 5), size by hit strength.
+- U7: hide the menu, enemy panel and hints during enemy turns and cinematics; keep HP, turn order and the boss bar.
+
+## 8. Feedback and timing
+
+- **Hit pause:** no visible freeze on normal hits in the frames (sampling at ~1 s can't see 40 ms). The signature hit holds on the impact for roughly 0.5 s with the screen flash.
+- **Perfect parry:** text + flash, sometimes a black-and-white instant; the combo keeps flowing; no camera move.
+- **Whose turn:** three signals together: the turn-order column updates, the camera moves behind the actor, and the menu appears beside them. On enemy turns, the ability-name banner plus a front shot of the enemy.
+- **Pace:** each player action about 3–5 s from confirm to back in the turn view; an enemy combo about 10–15 s; the whole round about 25 s.
+
+**Rules for us:**
+- F1: keep FeelGuide 4 values (normal ~40 ms, big ~100 ms freeze); add a ~0.4 s hold for signature impacts.
+- F2: never pause on defence (FeelGuide 3), matching the video.
+- F3: turn start = strip highlight + camera move + menu, all on the same frame.
+- F4: enemy turn start = banner + short front shot before the first swing (fits the 0.75 s read time).
