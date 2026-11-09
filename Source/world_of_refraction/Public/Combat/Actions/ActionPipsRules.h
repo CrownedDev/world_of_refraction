@@ -3,7 +3,8 @@
 // plus one per whole block of action points (a composed, additive stat: gear, evolutions, buffs add up),
 // with the leftover shown as progress ("Max 3 (+75/100)"). Reflex sets the per-turn regain (1 / 2 / 3), which
 // never fills the bank past Max. Pure maths, no actor: the character component
-// reads its sources and asks these functions. Debug: UActionPipsDebug (wor.Actions.Print).
+// reads its sources and asks these functions. B-170c adds the action cost (ACTION_COST_DEFAULT, the cost check).
+// Debug: UActionPipsDebug (wor.Actions.Print).
 
 #pragma once
 
@@ -26,6 +27,9 @@ namespace ActionPipsConstants
 	/** Reflex's share of its window range (0..1) for a regain of 2, and of 3 (Crown, Q-170; 7bc136f4). */
 	constexpr float ACTIONS_REGAIN_REFLEX_THRESHOLD_2 = 0.5f; // TODO: tune
 	constexpr float ACTIONS_REGAIN_REFLEX_THRESHOLD_3 = 0.8f; // TODO: tune
+
+	/** B-170c (Q-170b): what a skill, spell or item costs unless its asset says otherwise. */
+	constexpr int32 ACTION_COST_DEFAULT = 1; // TODO: tune
 }
 
 /** B-170a (Q-170a): action points are additive (+25 and +50 make +75), unlike the multiplied Pattern P
@@ -108,5 +112,17 @@ namespace ActionPipsRules
 	inline int32 ActionsAtFightStart(int32 Regain, int32 MaxActions)
 	{
 		return FMath::Clamp(Regain, 0, MaxActions);
+	}
+
+	/** B-170c (Q-170b): a cost above Max Actions can never be paid, so the skill is unusable (greyed). */
+	inline bool IsCostAboveMax(int32 ActionCost, int32 MaxActions)
+	{
+		return ActionCost > MaxActions;
+	}
+
+	/** B-170c: the bank pays the cost now (a cost of 0 always can). */
+	inline bool CanAfford(int32 ActionCost, int32 CurrentActions)
+	{
+		return FMath::Max(0, ActionCost) <= CurrentActions;
 	}
 }
