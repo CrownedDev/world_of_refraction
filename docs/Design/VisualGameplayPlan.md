@@ -17,7 +17,7 @@
 | **Adapter and spell-cast VFX** | Each adapter type has a default (rings are the default). Adapters have **no** per-item override; casters use the character's own setting (below). |
 | **Generic with both a weapon and an adapter** | The class preference decides which VFX shows. |
 | **Parry animation** | There are two guards. The **unarmed guard** is the body, used by adapter users, Refractors and Generic by default, and it can be customised per character. The **weapon guard** is that weapon type's own and can't be customised. A per-character setting picks which is used: with a weapon equipped, either parry with it or put it away and parry unarmed. Equipping a weapon switches to the weapon guard by default. |
-| **Landing a parry (VFX)** | All weapons share the default sparks. **Only a weapon with a crystal attached** adds its element's own parry effect (e.g. a magic circle). |
+| **Landing a parry (VFX)** | Weapons always have the default sparks; unarmed has nothing by default. A **parry-effect cosmetic** (e.g. a magic circle), one for each guard, plays on a landed parry, coloured by the element behind it: a Refractor's source element, a Resonator's active adapter, or the weapon's element or crystal. With no element, unarmed shows nothing. A **loadout setting** picks the priority when several sources apply. |
 | **Parry timing** | The same window for both guards; the choice is looks only. Reference: Expedition 33's parry plays the same for every character, while each one's wind-up looks different. |
 
 References: Elden Ring and Dark Souls (the parry animation follows the item held, one per shield or weapon type); Sekiro (one readable deflect for everyone).
