@@ -258,12 +258,12 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
         Result = EDataValidationResult::Invalid;
     }
 
-    // B-064a (D-029, the deckbuilder's rule 75): Ice is a Water damage type; only a Water spell deals it.
+    // B-064a (D-029, the deckbuilder's rule 75, a note): Ice is a Water damage type, so a spell keyed neither Water
+    // nor Generic never casts as Water and its Ice flag does nothing.
     if (!IsIceKeyValid())
     {
-        Context.AddError(FText::FromString(FString::Printf(TEXT("Deals Ice needs a Water spell (this one is %s)"),
-                                                           *UEnum::GetValueAsString(Element))));
-        Result = EDataValidationResult::Invalid;
+        Context.AddWarning(FText::FromString(FString::Printf(TEXT("Deals Ice does nothing on a %s spell: key it Water or Generic"),
+                                                             *UEnum::GetValueAsString(Element))));
     }
 
     // Validate construct
