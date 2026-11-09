@@ -16,7 +16,9 @@
 
 **Superseded:** the desktop built its own **B-043f** (Q-043f C) and B-043g. My cloud `feature/B-043f-orchestrator-abilities-cloud` is docs only: **don't merge it**.
 
-**Still writable, in order:** B-400 (target cut; on B-399), B-404 (wide beats; on B-371 and B-398), B-401 (no reset between actions; on B-170c and B-398), B-406 (per-boss cinematics), B-391b (on B-391). B-170d onward waits for B-170b/c to build. B-043h waits for PIE.
+**Still writable, in order:** B-400 (target cut; on B-399), B-404 (wide beats; on B-371 and B-398), B-401 (no reset between actions; B-170c is in dev, so it stacks on B-398 only), B-406 (per-boss cinematics), B-391b (on B-391). The desktop built B-170b and B-170c into dev, so B-170d onward is writable from dev. B-043h waits for PIE.
+
+**Being written now:** B-400 (on B-399) and B-406 (from dev).
 
 **Not cloud work:** B-395 (the slice fight: Crown's loop, animations reviewed one at a time) and B-214 (held by Crown).
 
