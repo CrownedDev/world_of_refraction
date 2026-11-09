@@ -436,11 +436,16 @@ void ACombatOrchestrator::HandleBossCinematicFinished(EBossCinematicKind Kind)
 		return; // a preview, or a cinematic that ended while an action was still running: nothing was held
 	}
 	bWaitingForAsyncAction = false;
+	const bool bHeldRitualFire = !bOpening && TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution;
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s cinematic ended: %s"), *UEnum::GetValueAsString(Kind),
-		   bOpening ? TEXT("turn 1 starts") : TEXT("the held action request goes out"));
+		   bOpening ? TEXT("turn 1 starts") : bHeldRitualFire ? TEXT("the held ritual fires") : TEXT("the held action request goes out"));
 	if (bOpening)
 	{
 		BeginFirstTurn(PendingOpeningTeam);
+	}
+	else if (bHeldRitualFire)
+	{
+		FireScheduledExecution(); // B-406b: the Execution turn held under the cinematic
 	}
 	else if (CurrentActor)
 	{
@@ -1472,6 +1477,16 @@ void ACombatOrchestrator::HandleActionDeferredArmed(AActor *Caster, const FActio
 
 void ACombatOrchestrator::FireScheduledExecution()
 {
+	// B-406b: held like an action request under a boss phase cinematic (no fire, no defence timing until the HUD is
+	// back); HandleBossCinematicFinished calls this again. The payload stays armed meanwhile.
+	if (CameraDirector && CameraDirector->IsBossCinematicPlaying())
+	{
+		bHoldingForBossCinematic = true;
+		bWaitingForAsyncAction = true;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s's ritual fire waits for the boss cinematic"), *GetNameSafe(CurrentActor));
+		return;
+	}
+
 	if (!ActionExecutorRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Execution turn but no ActionExecutor — skipping"));

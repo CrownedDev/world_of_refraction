@@ -5,6 +5,7 @@
 // B-400: the target view (target cut with several enemies), the highlight's cycling, and the director following it.
 
 // B-406: boss cinematics (opening before turn 1, phase change) with the HUD broadcast, and the named-attack shot.
+// B-406b: the skip key's action (ACombatPlayerController::SkipBossCinematic) ends one and the fight goes on.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -30,6 +31,7 @@
 #include "Combat/Boss/BossData.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "BossCinematicRecorder.h"
+#include "Combat/CombatPlayerController.h"
 
 namespace
 {
@@ -1267,6 +1269,59 @@ void FCombatCameraDirectorSpec::Define()
 			Orchestrator->StartCombat({Hero}, {Foe});
 			TestFalse(TEXT("no opening"), Director->IsBossCinematicPlaying());
 			TestFalse(TEXT("no preview either"), Director->PreviewBossCinematic(EBossCinematicKind::Phase, 0));
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+	});
+
+	Describe("the boss cinematic skip (B-406b)", [this]()
+	{
+		It("skips an opening: the HUD comes back and turn 1 starts", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			TestFalse(TEXT("nothing to skip outside a fight"), ACombatPlayerController::SkipBossCinematic(TestWorld->GetWorld()));
+			MakeFoeABoss();
+			Director->BossCinematicPreviewSeconds = 1.0f; // the sequence-free hold: a headless world has no viewer
+			UBossCinematicRecorder *Recorder = NewObject<UBossCinematicRecorder>();
+			Recorder->Listen(Director);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestNull(TEXT("turn 1 waits for the opening"), Director->GetViewedActor());
+
+			TestTrue(TEXT("skipped"), ACombatPlayerController::SkipBossCinematic(TestWorld->GetWorld()));
+			TestFalse(TEXT("ended"), Director->IsBossCinematicPlaying());
+			TestTrue(TEXT("HUD back"), Recorder->HudHidden.Num() == 2 && !Recorder->HudHidden[1]);
+			TestTrue(TEXT("finished: Opening"), Recorder->Finished.Num() == 1 && Recorder->Finished[0] == EBossCinematicKind::Opening);
+			TestNotNull(TEXT("turn 1 started"), Director->GetViewedActor());
+			TestFalse(TEXT("the fight goes on"), Orchestrator->IsWaitingForAsyncAction());
+			TestFalse(TEXT("nothing left to skip"), ACombatPlayerController::SkipBossCinematic(TestWorld->GetWorld()));
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("skips a phase cinematic: the held action request goes out", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			Orchestrator->StartCombat({Hero}, {Foe});
+			const int32 FirstTurn = Orchestrator->GetCurrentTurnNumber();
+			Director->HoldForBossCinematic(EBossCinematicKind::Phase, Foe, FCombatCameraRules::BossCinematicMaxSeconds);
+			Orchestrator->OnActionCompleted();
+			const int32 HeldTurn = Orchestrator->GetCurrentTurnNumber();
+			if (!TestTrue(TEXT("the next turn started"), HeldTurn > FirstTurn))
+			{
+				return;
+			}
+			TestTrue(TEXT("its action request is held"), Orchestrator->IsWaitingForAsyncAction());
+
+			TestTrue(TEXT("skipped"), ACombatPlayerController::SkipBossCinematic(TestWorld->GetWorld()));
+			TestFalse(TEXT("ended"), Director->IsBossCinematicPlaying());
+			TestFalse(TEXT("the held request went out"), Orchestrator->IsWaitingForAsyncAction());
+			TestEqual(TEXT("on that same turn"), Orchestrator->GetCurrentTurnNumber(), HeldTurn);
 			Orchestrator->ForceEndCombat(ECombatState::Victory);
 		});
 	});

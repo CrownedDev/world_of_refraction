@@ -71,6 +71,9 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 
 - B-404: `OnTurnHandover` has no HUD listener yet (the turn strip and card highlight bind it with the new HUD, B-105), and the action menu still opens at turn start, during the wide beat (Q-404).
 - B-401: between two actions of one turn the camera blends back to the same turn view only when the hero's menu is asked for again (`OnActionRequested`), so a signature sequence that outlasts the action keeps the view until it ends (Q-401).
+
+- B-406: no hero shot on every boss turn (waits on the B-406 trial; hook `HandleActorTurnStarted`, Q-406b, B-406c), and an action already playing finishes under a phase cinematic. The skip key and the held Execution turn came in B-406b. The CommonUI HUD (D-024) will bind `OnCinematicHudHidden`.
+- B-406b: the skip is local; a co-op client's skip doesn't end the server's hold (Q-406b (2)).
 - Arming a delayed skill also broadcasts `OnActionStarted`. Once templates exist, a ritual's cinematic may play at arm time and again when it fires. Check this in B-157.
 
 ## Changelog
@@ -99,3 +102,5 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 
 | 2026-11-09 | B-404 (study R12, R16, Q-404): wide beats and the party handover. `FCombatCameraRules::PlanTurnChange` / `FTurnChangePlan` (beat only between turns of different actors after an action, into a hero's Turn view; 0.3 s in, 0.2 s hold, 0.5 s handover blend, `TODO: tune`); the director's `StartTurnChange` / `HandleWideBeatEnd` play it on `WideBeatTimer` and B-371's shot timer (`StepShot`), no Tick; new BlueprintAssignable `OnTurnHandover(From, To)`, once per turn start on the frame the blend starts. `wor.Camera.Print` shows it; `wor.Camera.Handover [N]` previews it. | feature/B-404-wide-beats-cloud (UNBUILT) |
 | 2026-11-09 | B-401 (study R4, Q-401): no reset between actions. `FCombatCameraRules::PlanSameTurnReturn` / `FSameTurnReturnPlan` (the turn start's transform, Turn view only, 0.35 s, `TODO: tune`); the director binds `ACombatOrchestrator::OnActionRequested` and, when the followed actor is asked again after an action (B-170c action pips), blends back to that same turn view on B-371's shot timer (or a view-target blend), with no wide beat. `GetSameTurnReturnCount`; `wor.Camera.Print` counts same-turn returns. | feature/B-401-no-reset-between-actions-cloud (UNBUILT) |
+
+| 2026-11-09 | B-406b (Q-406b): skip key `IA_Combat_SkipCinematic` (Tab / Menu; review: not Space) in `ACombatPlayerController`'s code-built menu-keys context calls `FinishBossCinematic` via `SkipBossCinematic` (this machine only); `FireScheduledExecution` holds an Execution turn under a boss cinematic and `HandleBossCinematicFinished` fires it after; specs in `WoR.Combat.Camera.Director` and `WoR.Combat.RitualFire`. | feature/B-406b-boss-cinematic-skip-cloud (UNBUILT) |

@@ -20,6 +20,7 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Player/TurnStateComponent.h"
 #include "EngineUtils.h"
@@ -31,6 +32,12 @@ namespace CombatMenuKeys
 {
 	/** Above the editor-authored combat context (priority 0), so a shared key goes to the menu. */
 	constexpr int32 CONTEXT_PRIORITY = 1;
+
+	/** B-406b (Q-406b): skips a boss cinematic. Its own action name (D-063); keys from InputMap.md. Functions, not
+	 *  globals: an EKeys value is only safe to copy after its module's static init. */
+	constexpr const TCHAR *SKIP_CINEMATIC_ACTION_NAME = TEXT("IA_Combat_SkipCinematic");
+	FKey GetSkipCinematicKeyboard() { return EKeys::Tab; } // not Space: the likely dodge key and Slate's Accept
+	FKey GetSkipCinematicGamepad() { return EKeys::Gamepad_Special_Right; }
 
 	FAutoConsoleCommand GPrintMenuKeysCmd(
 		TEXT("wor.Input.MenuKeys"),
@@ -166,6 +173,7 @@ void ACombatPlayerController::SetupInputComponent()
 	{
 		EnhancedInput->BindAction(CategoryAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnCategoryKey);
 	}
+	EnhancedInput->BindAction(SkipCinematicAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnSkipCinematic);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
 }
@@ -582,6 +590,44 @@ void ACombatPlayerController::BuildMenuKeys()
 			break;
 		}
 	}
+
+	// B-406b: the boss-cinematic skip, in the same always-on context (it does nothing when no cinematic plays).
+	SkipCinematicAction = NewObject<UInputAction>(this, CombatMenuKeys::SKIP_CINEMATIC_ACTION_NAME);
+	SkipCinematicAction->ValueType = EInputActionValueType::Boolean;
+	SkipCinematicAction->bConsumeInput = false;
+	MenuKeysContext->MapKey(SkipCinematicAction, CombatMenuKeys::GetSkipCinematicKeyboard());
+	MenuKeysContext->MapKey(SkipCinematicAction, CombatMenuKeys::GetSkipCinematicGamepad());
+}
+
+void ACombatPlayerController::OnSkipCinematic(const FInputActionValue &Value)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+	SkipBossCinematic(this);
+}
+
+bool ACombatPlayerController::SkipBossCinematic(const UObject *WorldContext)
+{
+	UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	if (!World)
+	{
+		return false;
+	}
+	for (TActorIterator<ACombatOrchestrator> It(World); It; ++It)
+	{
+		UCombatCameraDirector *Director = It->GetCameraDirector();
+		if (It->GetCombatState() == ECombatState::InProgress && Director && Director->IsBossCinematicPlaying())
+		{
+			// Q-406b: this machine's view only. On a co-op client the server's hold ends on its own end or the cap.
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatPC] Boss cinematic skipped (%s)"),
+				   *UEnum::GetValueAsString(Director->GetBossCinematicKind()));
+			Director->FinishBossCinematic();
+			return true;
+		}
+	}
+	return false;
 }
 
 void ACombatPlayerController::OnCategoryKey(const FInputActionInstance &Instance)
@@ -623,6 +669,9 @@ FString ACombatPlayerController::GetMenuKeysString()
 							   *UEnum::GetValueAsString(Binding.Category), *Binding.Keyboard.GetDisplayName().ToString(),
 							   Binding.Gamepad.IsValid() ? *Binding.Gamepad.GetDisplayName().ToString() : TEXT("-"));
 	}
+	Out += FString::Printf(TEXT("\n  %s (skip boss cinematic, B-406b): %s / %s"), CombatMenuKeys::SKIP_CINEMATIC_ACTION_NAME,
+						   *CombatMenuKeys::GetSkipCinematicKeyboard().GetDisplayName().ToString(),
+						   *CombatMenuKeys::GetSkipCinematicGamepad().GetDisplayName().ToString());
 	return Out;
 }
 
