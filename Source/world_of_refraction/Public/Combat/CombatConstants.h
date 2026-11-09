@@ -362,6 +362,12 @@ namespace CombatConstants
 
     // ==================== SPELL DATA ====================
     // Status bar system
+    // Energy refill (D-089, changed 2026-11-09): at the start of each of the holder's turns it gains this share of
+    // its Max EP, at least TURN_START_EP_MIN while Max EP > 0. Broken Darkness gains none (its absorption is its EP).
+    // TODO: tune
+    constexpr float TURN_START_EP_SHARE_OF_MAX = 0.10f;
+    constexpr int32 TURN_START_EP_MIN = 1;
+
     // Status Effect Thresholds
     constexpr float STATUS_EFFECT_THRESHOLD = 100.0f; // Buildup needed to trigger status
 
