@@ -6,7 +6,7 @@ Sections: **Camera** (§1–§3), **VFX** (§6), **UI** (§7), **Feedback and ti
 **Source:** YouTube `LItGIL9XfzE` ("Alicia Secret Boss Fight (4K)"). The fight runs **5:27 → 7:00** (about 90 s, one phase, then the victory screen and a long cutscene). Frames were stepped about every 1 s, denser around key moments.
 **Date:** 2026-11-09. Docs only, no code.
 
-Fight set-up, for reading the table: Maelle alone against **Painted Maelle**, a dark fencer who looks like her (white hair, rapier). A giant doll ("Alicia") sits on a throne of broken wood far behind the arena, framed in almost every shot. Turn order runs down the left edge; the boss bar is top-centre; the enemy's stance panel sits on the right.
+Fight set-up, for reading the table: Maelle alone against **Painted Maelle**, a dark fencer who looks like her (white hair, rapier). A giant doll ("Alicia") sits on a throne of broken wood far behind the arena, framed in almost every shot. Turn order runs down the left edge; the boss bar is top-centre; the acting hero's stance panel sits on the right (corrected in §9: it is the hero's own class panel, not the enemy's).
 
 ## 1. Shot table
 
@@ -80,11 +80,14 @@ Suggested order: R1–R4 and R10 first (they shape every turn and are cheap twea
 - **Target picking.** The player picks quickly with one enemy; with several enemies the camera might re-aim on target change. Not visible here.
 - **Party turns.** Maelle fights solo, so handover between party members isn't shown.
 
-## 5. Questions for Crown (suggested, not decided)
+## 5. Questions for Crown (answered 2026-11-09)
 
 - Q1: Should the default turn view become over-the-shoulder (R1), replacing CentredWide (D-074)?
+  **Crown: both views; a player setting picks Centred Wide or Over-the-Shoulder. The default stays Centred Wide (D-074).**
 - Q2: Defence view: switch from "behind the defender" to the low side-on two-shot (R10)?
+  **Crown: yes. The low side-on two-shot for defence, steady, no shake.**
 - Q3: Want the enemy "hero shot" at enemy turn start (R9) for every enemy, or bosses and big attacks only?
+  **Crown: bosses and big attacks only, data-driven: a main or mini boss, or a named attack, uses a cinematic camera for its opening.**
 
 ## 6. VFX
 
@@ -136,7 +139,7 @@ Positions are on a 16:9 screen, read from crops of the 4K frames.
 | **Player block** | Bottom right, about 25% wide: portrait, stance word, red HP bar with numbers, and an **action-point counter: a number in a blue diamond plus a row of blue pips**. A special-charge gauge ("0/3") sits to its left | Always on | 5:34 |
 | **Action menu** | Fanned **diagonally** beside the hero's right hip, 4 rows, each a face-button icon + a word (attack, skills, items, special attack); an aim option to the hero's left. The **AP counter repeats above the menu** at the hero's shoulder | Only on the player's turn; appears once the camera settles behind the hero | 5:30.5–5:30.8 |
 | **Skill list** | Replaces the menu at the same spot: two columns of cards. Each card: face button, skill name, **AP cost in a diamond** at the right, and 2–3 lines of text with **element words coloured** and small status icons | Only while choosing | 5:57.7–5:58.5 |
-| **Enemy panel** | Right side, middle: the enemy's portrait in a torn-paper frame, its **stance** word, and a short list of its effects with icons (stance bonuses as plus/minus percentages) | Shown on the player's turn; mostly hidden in enemy-turn shots | 5:34, 5:58.5, 6:02.2 |
+| **Class panel** (first read as an enemy panel; corrected in §9) | Right side, middle: the **acting hero's** portrait in a torn-paper frame, her **stance** word, and what the stance does (plus/minus percentages) | Shown on the player's turn; mostly hidden in enemy-turn shots | 5:34, 5:58.5, 6:02.2 |
 | **Defend hints** | Bottom left, small: four rows with button icons (special parry, parry, dodge, jump) | Appear at the **enemy turn start** and stay through the combo; hidden on our turn | 5:38.9, 5:51, 6:06.4–6:07.3 |
 | **Defend result** | "PERFECT" in large serif letters, placed in the world **between the two fighters at the clash** | Only after a successful input; fades in ~0.5 s | 5:38.9, 6:12.7 |
 | **Damage numbers** | In the world at the hit point. Big hits: large gold serif digits with a dark outline, a **"Weakness" tag**, plus a status tag ("BURN") and icon. Small hits and counters: white digits, one large and one small copy. Heals: small green "+" numbers | Stay ~1–2 s; several stack upward | 5:36.3, 5:40.1, 6:00.7, 6:02.2, 6:57.4 |
@@ -154,11 +157,11 @@ Positions are on a 16:9 screen, read from crops of the 4K frames.
 - U3: a new **boss bar** widget: thin, top centre, status icons at its ends. Normal enemies don't need it.
 - U4: a new **ability name banner** under the boss bar for every skill, ours and the enemy's. Cheap, and it names the telegraph (FeelGuide 14).
 - U5: the action menu sits next to the acting hero (screen position from the hero), one face button per row (FeelGuide 13). Skill cards show the **pip cost** on the right and element words in element colours (`ElementColors`).
-- U6: an enemy info panel on the right, shown on our turn only: portrait, stance/state, effects. Statuses as small icons (FeelGuide 5); no weakness icons.
+- U6 (changed by §9): a **class panel** on the right for the acting hero's own mechanic (e.g. a Resonator's state), shown on our turn only. Enemy statuses go as small icons on the enemy and the boss bar (FeelGuide 5); no weakness icons.
 - U7: `UDefensePromptWidget`: **no big centre prompt**. Show the defend buttons as small bottom-left hints for the whole enemy turn, and the result ("Perfect", "Dodged") in the world at the clash point.
 - U8: damage numbers in the world: size by hit strength, **colour plus a tag word for weakness** (FeelGuide 5: colour, not icons), a status tag when a status applies, green for heals.
 - U9: a small floating HP bar over a character for a moment after it is hit.
-- U10: hide only the menu and the enemy panel during enemy turns and cinematics; turn order, HP, boss bar and hints stay.
+- U10: hide only the menu and the class panel during enemy turns and cinematics; turn order, HP, boss bar and hints stay.
 - U11: our victory flow has no results screen (FeelGuide 6), so their victory panel doesn't carry over; a perfect-defence count could go in the reward popup.
 
 ## 8. Feedback and timing
@@ -184,4 +187,126 @@ Positions are on a 16:9 screen, read from crops of the 4K frames.
 - F6: the kill gets a ~1.5–2 s darkened wide beat, then our reward popups (FeelGuide 6).
 
 **Unclear (VFX, UI, timing):** freezes under ~100 ms can't be seen at these frame steps; a dodge's feedback wasn't caught apart from the parry's; the blue diamond after a parry is read as an AP gain but isn't confirmed; the aim option wasn't used, so free-aim UI isn't shown; with one enemy, target markers never appear.
+
+---
+
+# Part 2: a main boss and a standard fight
+
+Added 2026-11-09 on `docs/e33-combat-study-2`, to cover what the Maelle fight couldn't show. Frames stepped the same way (1–6 s, denser at key moments; crops of UI from the 1440p/4K sources).
+
+| Fight | Video | Which | Fight runs | Set-up |
+|---|---|---|---|---|
+| **Dualliste** | YouTube `vQXk8wJLrDc` (12:32) | **Main boss**: story cutscene, opening cinematic, two phases | Cinematic 2:51–2:58, fight **2:59 → 11:42**, victory 11:43 | Full party of 3 against one tall armoured swordsman on a raised rock, dark red cave lit by a shaft of light |
+| **Field fight** | YouTube `yc6HsnICEvE` (2:51, "Expedition 33 Combat") | **Standard enemies**: no intro, no phases | Already in progress at 0:00, kill 2:44, victory 2:46.7 | Party of 3 against two normal enemies (a large stone golem with a crystal on its back, a tall robed lancer), ruined grassy field |
+
+Labels below: **[confirms]** = the new fights back a Part 1 rule; **[changes]** = they change it; **[new]** = not covered before.
+
+## 9. Camera
+
+| Moment | What the camera does | Time(s) |
+|---|---|---|
+| **Boss opening cinematic** | The story scene ends on 3 low-angle hero shots of the boss raising a glowing red blade against a shaft of light (2:51–2:53), then **one wide side-on shot of the whole arena**: party small on the left, boss on the right (2:54–2:55). About 2 s of black (2:57–2:58), then the fight opens on a wide shot from behind the party, **boss raised in the centre**, HUD fading in | Boss 2:51–2:59.6 |
+| Standard fight start | Not shown (the clip starts mid-fight). First frame: a wide side-on view of the field, party left, enemies right | Field 0:02.5 |
+| **Boss turn view** | Same over-the-shoulder layout as Maelle, but the camera sits **lower and looks up**: the boss towers in the centre and its head is cut by the top of the frame in the skill-list view. The other two party members stay visible on the right | Boss 3:01.9–3:10 |
+| **Normal-enemy turn view** | Same layout at **eye level**: hero left, the larger enemy centre, the smaller one beside it, party members on the right. Nothing is cut off | Field 0:04, 0:24.8, 1:54.8 |
+| **Party handover** | After an action or enemy turn, the camera is wide; within about 0.5 s it **blends (not cuts) to behind the next hero**. At the same moment that hero's card in the bottom-right lifts and a ring of ticks flashes under it, and the turn-order column steps. Each hero gets the same over-the-shoulder layout | Boss 3:25.9–3:26.9; Field 2:32–2:34 |
+| **Target picking (several enemies)** | **The camera re-aims to each target.** After a skill is chosen, it jumps to a front medium shot of the first target (full body, small HP bar on it); cycling to the next enemy **cuts to that enemy** in the same kind of shot. Confirming cuts to the skill | Field 0:15.4 → 0:16.5 → 0:18.0; 2:12.7, 2:26 |
+| Skill confirm | Pulls back a little to show hero and target together, then the rush / skill shots as in Part 1 | Boss 3:31.9; Field 0:18 |
+| **Enemy attack on the whole party** | A **wide side-on shot that holds all three heroes**; damage numbers rise over each hero at once; the effect (red fire) fills the screen | Boss 3:23.6–3:24.9 |
+| Enemy attack on one hero | Low side-on two-shot as in Part 1 | Boss 3:54.5, 4:00; Field 0:48.7 |
+| **Normal enemy attacks** | Mostly **wide** side or three-quarter shots at eye level, party in view; some low shots of the golem for its size. No close front "hero shot" of a normal enemy seen | Field 0:37, 0:48.7, 0:54.8, 1:36–1:48 |
+| Boss attacks | Closer and lower: the boss is framed mid-shot from the side with its blade arc across the frame | Boss 3:21.9, 4:36, 4:54 |
+| **Phase change** | A heavy hit (6:33) → **cut to black** (6:36) → a **HUD-free cinematic** of about 15 s: the boss kneels, rises, draws a **second, purple blade** (close and low shots, slow moves, 6:37.9–6:51.9) → back to a wide shot with the HUD and the boss's next attack banner (6:54.7) | Boss 6:33–6:55 |
+| **Boss kill** | A close, dramatic shot of the final blow (11:36), the boss **breaks apart into particles** (11:40), then the victory panel (11:43) | Boss 11:36–11:43 |
+| **Normal kill** | Wide shot (2:44), short darkened, desaturated hold (2:44.8–2:45.7), victory panel about 2 s after the kill | Field 2:44–2:46.7 |
+
+**What changed or was confirmed:**
+- R1 **[confirms]**: hero lower-left, enemies centre, for every hero. With Crown's Q1 answer, both Centred Wide and Over-the-Shoulder exist; Over-the-Shoulder should follow this layout.
+- R3 **[changes]**: "target cycling should not move the camera" was wrong once there are several enemies. **New R3:** with one enemy, no move. With several, **cut to a front medium shot of each target** as you cycle (the target's HP bar visible), and cut to the skill on confirm. In Centred Wide, a highlight + small re-aim is enough (a setting, not a rule).
+- R9 **[confirms Crown's Q3]**: normal enemies never got a front "hero shot"; the boss did (opening, phase change, big attacks). Data-driven: main/mini boss or named attack only.
+- R10 **[confirms Crown's Q2]** for one target. **[new] R10b:** an attack on the whole party uses a **wide side-on shot that holds every target**, not the two-shot.
+- R12 **[confirms]**: wide beats between turns; they are also where the party handover starts.
+- R13 **[changes]**: "don't tilt up at the boss" was wrong for a tall boss. **New R13:** bosses get a **lower camera that looks up** in the turn view (a per-enemy "height" value); normal enemies stay at eye level.
+- R14 **[changes]**: two kill shots. Normal: wide, short darkened hold (~1.5 s). Boss: close final-blow shot + break-apart effect (~5 s).
+- **[new] R16 Party handover:** blend (≈0.5 s) from the last wide beat to behind the next hero; card lift + ring and the turn-strip step on the same frame. No cut.
+- **[new] R17 Phase change:** cut to black, a HUD-free cinematic of the boss changing (data: a sequence per boss phase), back to a wide shot with the HUD and the next attack's banner. Defence timing must not start until the HUD is back.
+- **[new] R18 Boss opening:** the encounter's opening cinematic ends on (1) a low hero shot of the boss, (2) one wide side-on shot of both sides, (3) the first turn view. Short fade between cinematic and fight. Normal fights have none (FeelGuide 1, crystal break).
+- **Note for Crown:** R17/R18 sit against FeelGuide 9 ("bosses: no cinematics or flashy staging", Nightreign; "later, maybe" for main bosses). Crown's Q3 answer allows a data-driven cinematic opening for main/mini bosses, so R17/R18 should be **opt-in per boss data**, off by default, until FeelGuide 9 is updated.
+
+## 10. VFX
+
+| Moment | What is shown | Time(s) |
+|---|---|---|
+| Boss signature look | The boss's blades glow (red, then red + purple after the phase change); every swing leaves a long **coloured arc** in the blade's colour | Boss 3:21.9, 4:36, 7:10 |
+| Party-wide enemy attack | Red flame fills the screen around the party | Boss 3:23.6 |
+| Ice skill | Ice crystal burst at the target; the number carries a **snowflake** element icon | Boss 3:48.6 |
+| Fire skill (caster) | Fireball and an orange explosion around the target | Field 1:06.7, 2:00.8 |
+| Lightning skill | White lightning flash that whites out most of the frame | Field 2:42 |
+| Dark/void skill | Purple swirl and purple debris | Field 0:13, 0:19–0:20 |
+| Perfect parry | Same as Part 1: "PERFECT" text, white burst; one parry also shows a **green magic circle on the floor** under the defender | Boss 3:54.5, 4:00 |
+| **Timed-press prompt, variant** | A tilted **gold-and-white picture frame** snaps around the target with the button in the middle, then the hit | Field 0:18.0; Boss 4:48 |
+| Turn start | A ring of ticks bursts under the active hero's card | Boss 3:26.4 |
+| Phase change | No HUD; light shaft and embers, the new purple blade's glow; no full-screen flash | Boss 6:37–6:52 |
+| Boss death | The boss breaks apart into particles | Boss 11:40 |
+| Normal death | Short darkened, desaturated hold | Field 2:44.8 |
+
+**What changed or was confirmed:**
+- V1, V2 **[confirm]**: element colour on every hit; every enemy swing leaves an arc, and a boss's arcs carry its own colour.
+- V3 **[confirms]**, plus **[new]**: a floor circle under the defender on a parry is used too; this matches our "parry-effect cosmetic" (Magic Circle 1, AssetAudit).
+- V4 **[confirms]**: full-screen effects stay rare (white-out for a big lightning spell, red flood for a party-wide attack).
+- **[new] V8:** the element icon (snowflake, flame) sits **next to the damage number**. Ties to our element colours; no extra asset.
+- **[new] V9 Boss death:** break-apart particles. Not in our packs as such: a dissolve material plus a particle burst (make).
+- **[new] V10 Phase change:** the change is shown by the boss's look (a new glowing weapon), not by a screen effect. Data: a phase can swap or add a weapon effect.
+
+## 11. UI
+
+| Piece | Where / what | When | Time(s) |
+|---|---|---|---|
+| **Party cards** | Bottom right, one card per hero (3 here): portrait, HP bar with numbers, AP number in a blue diamond with pips, and a class word for some heroes. The **active hero's card is lifted** with a ring of ticks under it | Always on; the lift moves on each handover | Boss 3:26.8, 3:29.4 |
+| **Class panel** (correction to §7) | Right side: the **acting hero's** own mechanic (e.g. a rank or stance) with a short explanation. It changes with each hero. It is **not** an enemy panel | Our turns only | Boss 3:26.8; Field 0:16.6 |
+| Turn order | Left column, as in Part 1 | Always | both |
+| Boss bar | Top centre, as in Part 1; a status icon at its left end. **After the phase change the bar is full again**: the new phase gets a fresh bar | Always on in boss fights | Boss 6:25 vs 6:56.7 |
+| **No boss bar for normal enemies** | Each normal enemy shows a **small red HP bar on its body** during target picking and when hit; nothing at top centre | Field fight | Field 0:16.6, 0:19 |
+| Ability banner | Under the boss bar in the boss fight; in the standard fight it **floats near the top centre without a bar** | Each enemy attack | Boss 3:22.3; Field 0:37 |
+| **Target picking** | The skill card moves to the **top left** (name, short text, cost); small hints bottom left (confirm / back); the camera shows the target with its HP bar | While picking | Field 0:15.4–0:16.6 |
+| Damage numbers | As in Part 1; multiple targets each get their own number at once. A timed-press result shows **"Perfect!" inside a ring** next to the number | Each hit | Boss 3:23.6, 3:33.7; Field 0:19.0 |
+| Element icon on numbers | Snowflake for ice, flame for fire | Elemental hits | Boss 3:48.6 |
+| Phase change | **All HUD hidden** for the whole cinematic | 6:37–6:52 | Boss |
+| Victory panel | Same layout for boss and normal fights (loot, XP, stats, one card per hero) | ~2 s after the kill | Boss 11:43; Field 2:46.7 |
+
+**What changed or was confirmed:**
+- U1 **[confirms]**: vertical turn-order column.
+- U2 **[changes]**: the player block is **one card per party member** in a row bottom right; the **active card lifts** with a ring under it. Each card shows HP and the action-pip counter.
+- U3 **[confirms, with detail]**: the boss bar is **for bosses only**; a new phase **refills it** (a phase is a fresh bar, not a marker on one long bar). Normal enemies use small on-body HP bars.
+- U4 **[confirms]**: an ability banner for every enemy attack; without a boss bar it sits alone at the top.
+- U5 **[new detail]**: during target picking, move the skill card to the top left and show only confirm/back hints, so the target shot stays clear.
+- U6 **[changes, see §7 fix]**: the right-side panel is the **acting hero's class panel** (for us: Caster / Resonator state), not an enemy panel.
+- **[new] U12:** hide the whole HUD during phase-change and opening cinematics; bring it back before any defendable moment.
+
+## 12. Feedback and timing
+
+| What | How / how long | Time(s) |
+|---|---|---|
+| Boss opening | ~5 s of boss shots + 2 s fade before the first turn | Boss 2:51–2:59 |
+| Handover | ~0.5 s from wide to the next hero; card lift + ring + strip step together | Boss 3:25.9–3:26.9 |
+| Target cycling | One cut per target press, no blend | Field 0:15.4–0:16.6 |
+| Phase change | ~20 s from the last hit to the next enemy attack (3 s to black, 15 s cinematic, back on a wide) | Boss 6:33–6:55 |
+| Boss kill | ~7 s from the final blow to the victory panel | Boss 11:36–11:43 |
+| Normal kill | ~2.5 s from the kill to the victory panel | Field 2:44–2:46.7 |
+| Pace | Boss fight ~8.5 min; the standard fight ~3 min shown | — |
+
+**What changed or was confirmed:**
+- F3 **[confirms]**: whose turn = strip step + camera move + menu, plus (with a party) the card lift.
+- F4 **[confirms]** with handover detail (R16).
+- F5 **[confirms]**: enemy banner + defend hints before the swing.
+- F6 **[changes]**: normal kill ~1.5–2.5 s; boss kill ~5–7 s with a close final-blow shot.
+- **[new] F7:** a phase change is a full stop (~15–20 s) with no defence timing until the HUD is back; skippable later (FeelGuide 2 allows shortening non-defence moments).
+
+## 13. Unclear from frames alone (Part 2)
+
+- The field clip starts mid-fight, so a standard fight's opening isn't shown.
+- Whether the target-picking camera is a cut or a very fast blend: at 1 s steps it reads as a cut.
+- Whether the boss's opening cinematic is a fixed scene or reused for the phase change: they look hand-made per boss.
+- The timed-press picture frame may belong to one hero's skills only.
+- In-game names of the party members and the class panel's mechanics aren't needed for our rules and weren't confirmed.
 
