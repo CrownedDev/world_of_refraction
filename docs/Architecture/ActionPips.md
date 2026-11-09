@@ -4,7 +4,7 @@
 
 D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, and on each turn a character spends **banked actions**. Reflex sets how many come back each turn (1, 2 or 3), **Max Actions** (2 + one per 100 action points from gear, evolutions and the like) caps the regain, and unused actions carry over. The plan is `docs/analysis/ActionPips.md` (B-170a..h); rulings Q-170..Q-170h, build choices Q-170a.
 
-**Built so far (B-170a, B-170b, UNBUILT):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0). Nothing reads the bank for turns yet; default play is unchanged until B-170c..d land and Crown's PIE flips the switch.
+**Built so far (B-170a, B-170b):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0). Nothing reads the bank for turns yet; default play is unchanged until B-170c..d land and Crown's PIE flips the switch.
 
 ## Architecture
 
@@ -48,3 +48,4 @@ Spec: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`).
 | 2026-11-09 | B-170a: created. Constants, action-point layers, Max Actions with progress, Reflex regain, the bank on `UCharacterDataComponent` (`CurrentActions`, replicated, not saved) with `OnActionsChanged`; `wor.Actions.Print` / `AddPoints` / `Reset`; `ActionPipsSpec`. No play change. | `feature/B-170a-action-pips-cloud` (UNBUILT) |
 | 2026-11-09 | B-170a built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix). | `feature/B-170a-action-pips` |
 | 2026-11-09 | B-170b: `wor.Turns.ActionPips` defined (`TurnRotation::IsActionPipsOn`); the fixed rotation in `UTurnManager` (see TurnManager.md). The bank is still not read by turns (B-170c). | `feature/B-170b-turn-rotation-cloud` (UNBUILT) |
+| 2026-11-09 | B-170b built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix). | `feature/B-170b-turn-rotation` |
