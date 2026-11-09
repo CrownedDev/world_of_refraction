@@ -1,4 +1,4 @@
-# Cloud writer handover (2026-11-09, twelfth part: after the desktop merged the GAS / Ice batch) — IN PROGRESS
+# Cloud writer handover (2026-11-09, twelfth part: after the desktop merged the GAS / Ice batch) — STOPPED: what's left needs a build first
 
 The desktop merged these into dev: B-043a, B-273b + B-064a (with the review fixes), B-042g part 1 (after B-042f's PIE passed), B-390, B-396, and the two blocked-job notes. Crown also changed D-089 (Energy), which unblocks B-173. Newly writable:
 
@@ -15,7 +15,9 @@ The desktop merged these into dev: B-043a, B-273b + B-064a (with the review fixe
   - The UE API is written from memory of 5.5 or later, so watch the first compile.
   - B-214 can stack on it.
 - **New trial branch `integration/cloud-2026-11-09`.** It is dev plus everything unmerged (rows 74–77 and C1–C7). The cross-merge review found no code breakage, and the doc-row damage is fixed.
-- **B-043c** (melee through ability tasks, stacked on B-043b). Being written.
+- **B-043c** (`feature/B-043c-melee-ability-tasks-cloud`, stacked on B-043b). Pushed, reviewed, fixed. A skill's impacts reach its ability as `Event.Combat.Impact`; the montage stays in the executor until B-043f.
+
+**Why I stopped here.** B-043d..h would stack a fourth, fifth, ... unbuilt GAS layer on B-043b/c, whose UE API use is written from memory. One compile of B-043b/c first is the cheaper path. B-214 (field skills, L) can stack on B-043b, but it needs the map pawn's ASC, which the survey couldn't find, and most of its tables are Crown's (`// TODO: Crown`), so it waits too. Everything else on the queue needs a compiler, PIE or Crown.
 
 # Cloud writer handover (2026-11-09, eleventh part: the brain's GAS / Ice / cleanup plan) — STOPPED: the plan is done; no writable job left
 
