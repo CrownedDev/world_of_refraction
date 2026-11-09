@@ -54,7 +54,7 @@ namespace CombatMenuKeys
 	/** B-406b (Q-406b): skips a boss cinematic. Its own action name (D-063); keys from InputMap.md. Functions, not
 	 *  globals: an EKeys value is only safe to copy after its module's static init. */
 	constexpr const TCHAR *SKIP_CINEMATIC_ACTION_NAME = TEXT("IA_Combat_SkipCinematic");
-	FKey GetSkipCinematicKeyboard() { return EKeys::SpaceBar; }
+	FKey GetSkipCinematicKeyboard() { return EKeys::Tab; } // not Space: the likely dodge key and Slate's Accept
 	FKey GetSkipCinematicGamepad() { return EKeys::Gamepad_Special_Right; }
 
 	FAutoConsoleCommand GPrintMenuKeysCmd(

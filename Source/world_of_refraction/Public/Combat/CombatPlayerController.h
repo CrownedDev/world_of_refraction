@@ -122,7 +122,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> InfusionLevelAction;
 
-	/** B-406b (Q-406b): skips a boss cinematic on this machine (Space / Menu). */
+	/** B-406b (Q-406b): skips a boss cinematic on this machine (Tab / Menu). */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> SkipCinematicAction;
 
