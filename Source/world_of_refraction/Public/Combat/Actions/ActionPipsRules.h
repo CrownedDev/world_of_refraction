@@ -30,7 +30,32 @@ namespace ActionPipsConstants
 
 	/** B-170c (Q-170b): what a skill, spell or item costs unless its asset says otherwise. */
 	constexpr int32 ACTION_COST_DEFAULT = 1; // TODO: tune
+
+	/** B-170d (Q-170d): Max Actions never drops below this, whatever Max Actions Debuffs hold, so a default-cost
+	 *  action always stays usable. */
+	constexpr int32 MAX_ACTIONS_FLOOR = 1; // TODO: tune
+	/** B-170d: a waiting action change timed "next turn" lands at the holder's next turn start. */
+	constexpr int32 ACTION_CHANGE_NEXT_TURN = 1;
 }
+
+/** B-170d (ActionPips.md §1 step 2, §3.4): a gain or loss of actions waiting for one of the holder's later turn starts
+ *  (Lose Action next turn, Wind's break, a delayed Emerald gain). Per-fight, kept on the character component. */
+struct FWoRWaitingActionChange
+{
+	/** +N gains, -N loses. */
+	int32 Change = 0;
+	/** Holder turn starts still to come before it lands; it lands at the start that brings this to 0. */
+	int32 TurnsLeft = ActionPipsConstants::ACTION_CHANGE_NEXT_TURN;
+	/** A gain that may pass Max Actions (Q-170g: effect gains and Emerald's do). */
+	bool bMayPassMax = true;
+
+	FString ToString() const
+	{
+		return FString::Printf(TEXT("%+d %s"), Change,
+							   TurnsLeft <= ActionPipsConstants::ACTION_CHANGE_NEXT_TURN ? TEXT("next turn")
+																						 : *FString::Printf(TEXT("in %d turns"), TurnsLeft));
+	}
+};
 
 /** B-170a (Q-170a): action points are additive (+25 and +50 make +75), unlike the multiplied Pattern P
  *  sub-stats in FWoRStatLayers, so they compose as a sum, never below 0. */
@@ -70,6 +95,13 @@ namespace ActionPipsRules
 	inline int32 ActionPointProgress(int32 ActionPoints)
 	{
 		return FMath::Max(0, ActionPoints) % ActionPipsConstants::ACTION_POINTS_PER_ACTION;
+	}
+
+	/** B-170d: Max Actions with the holder's Max Actions Buff / Debuff (whole actions, net), kept within
+	 *  MAX_ACTIONS_FLOOR..MAX_ACTIONS_CAP. */
+	inline int32 MaxActionsWithChange(int32 MaxFromPoints, int32 MaxChange)
+	{
+		return FMath::Clamp(MaxFromPoints + MaxChange, ActionPipsConstants::MAX_ACTIONS_FLOOR, ActionPipsConstants::MAX_ACTIONS_CAP);
 	}
 
 	/** "Max 3 (+75/100)", the stat screen's line (Q-170); a debug string, the player-facing FText comes with B-170e. */
