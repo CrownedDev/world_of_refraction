@@ -268,7 +268,7 @@ void FBattleHUDSpec::Define()
 			MenuWidget->Initialise();
 
 			const int32 DefendRow = FindLabel(MenuWidget->GetRowLabels(), TEXT("Defend"));
-			if (DefendRow != INDEX_NONE)
+			if (TestTrue(TEXT("a Defend row to hover"), DefendRow != INDEX_NONE))
 			{
 				MenuWidget->HoverRow(DefendRow);
 				TestNull(TEXT("hovering a non-target row highlights nothing"), Menu->GetHighlightedTarget());
