@@ -47,7 +47,7 @@ enum class ECastVFXSource : uint8
 	Skill
 };
 
-/** What a cast needs to know to pick its visual; GatherCastVisualInputs reads it from a combatant. */
+/** What a cast needs to know to pick its visual; GatherInputs reads it from a combatant. */
 struct WORLD_OF_REFRACTION_API FCastVisualInputs
 {
 	/** False when the cast has no action (nothing to read the source from): the skill's own VFX plays. */

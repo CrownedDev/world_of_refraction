@@ -81,6 +81,12 @@ ECastVFXSource CastVisuals::PickSource(const FCastVisualInputs &Inputs, ECastVFX
 	{
 		return ECastVFXSource::Weapon;
 	}
+	// With no adapter worn, only a Refractor's spells take the Ring default (Q-394): an enemy or a Generic / Resonator
+	// casting an innate spell keeps the skill's own visual, so a filled Ring row doesn't reskin every monster's cast.
+	if (!Inputs.Adapter && Inputs.CharacterClass != ECharacterClass::Caster)
+	{
+		return ECastVFXSource::Skill;
+	}
 	// An adapter's spell, a Refractor's innate spell and an evolution's spell: the adapter type's default (Q-394).
 	return ECastVFXSource::AdapterDefault;
 }

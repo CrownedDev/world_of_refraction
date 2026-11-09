@@ -95,6 +95,12 @@ void FCastVisualsSpec::Define()
 				 FromInnate.Source == ECastVFXSource::AdapterDefault && FromInnate.AdapterForm == EAdapterForm::Ring && FromInnate.VFX == CastTestVFX(TEXT("RingCast")));
 	});
 
+	It("keeps the skill's own visual for a non-Refractor's innate spell with no adapter (enemies)", [this]()
+	{
+		const FCastVisualChoice Enemy = Resolve(SpellInputs(ECharacterClass::Generic, ESpellSource::Innate, nullptr, nullptr), CastTestDefaults());
+		TestTrue(TEXT("skill's own visual"), Enemy.Source == ECastVFXSource::Skill);
+	});
+
 	It("lets the class preference decide for a Generic wearing a weapon and an adapter", [this]()
 	{
 		UWeaponData *Sword = CastTestWeapon();
