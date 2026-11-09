@@ -135,7 +135,7 @@ FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FComb
 	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
 
-	FVector Location;
+	FVector Location = Frame.Focus; // every style sets it below
 	FVector LookAt = Frame.EnemyCentre;
 	switch (Style)
 	{
