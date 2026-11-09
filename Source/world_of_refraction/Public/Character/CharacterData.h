@@ -102,6 +102,10 @@ struct WORLD_OF_REFRACTION_API FResistanceProfileDisplay
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
 	float Impact = 0.0f;
+
+	/** B-064c (D-029): Ice resistance, which also resists Water hits (Q-145b). */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Ice = 0.0f;
 };
 
 /**
