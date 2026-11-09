@@ -1,13 +1,18 @@
 # Cloud writer handover (2026-11-09, fourteenth part: the visual phase) — IN PROGRESS
 
-Crown's current phase is visuals (`docs/Design/VisualGameplayPlan.md`, D-170). These have no blockers and are being written:
-- **B-391**: a placeholder battle HUD in C++.
-- **B-392**: two guards (Weapon / Unarmed) that pick the parry montage.
-- **B-394**: the cast VFX source rule.
+Written, pushed, reviewed and fixed. All are on the trial branch `integration/cloud-2026-11-09b` (merge plan rows 85–88):
+- **B-394:** cast VFX source rule (Q-394).
+- **B-392:** two guards. Save v32.
+- **B-393:** parry landing VFX, stacked on B-392. Save v33.
+- **B-391:** placeholder battle HUD and command menu, behind `wor.UI.NewHUD` (default 1). The new row **B-391b** holds the damage numbers and the pieces the old HUD had.
 
-They are followed by B-393 (parry VFX, stacked on B-392) and B-395 (the slice fight, stacked on B-391, with animations reviewed one at a time by Crown).
+The desktop built and merged B-043d, B-043e and its own **B-043f** (Q-043f C: the montage stays in the executor). My cloud `feature/B-043f-orchestrator-abilities-cloud` is docs only and superseded: **don't merge it**.
 
-Crown has confirmed the three B-170 readings (Ice takes the action at once; actions over Max stay banked; the regain steps at 0.8). They match B-170a as built.
+**B-043g** (rituals through the ability) is being written from dev.
+
+The trial branch `integration/cloud-2026-11-09b` is dev plus every unmerged cloud branch. The cross-merge review found no code breakage, and the Backlog status damage it found is restored.
+
+B-395 (the slice fight) is Crown's loop, with animations reviewed one at a time, so it isn't cloud work.
 
 # Cloud writer handover (2026-11-09, thirteenth part: after B-043b / B-043c landed) — STOPPED: the next parts wait for builds
 
