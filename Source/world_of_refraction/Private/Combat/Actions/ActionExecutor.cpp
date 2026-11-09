@@ -29,21 +29,18 @@
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Inventory/ItemExecutor.h"
-#include "Equipment/Weapons/WeaponManager.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/WeaponPower.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Combat/Defense/DefenseSystem.h"
@@ -4470,19 +4467,6 @@ UItemExecutor *UActionExecutor::GetItemExecutor() const
 	return ItemExecutorRef;
 }
 
-UWeaponManager *UActionExecutor::GetWeaponManager() const
-{
-	if (!WeaponManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UActionExecutor *>(this)->WeaponManagerRef =
-				GI->GetSubsystem<UWeaponManager>();
-		}
-	}
-	return WeaponManagerRef;
-}
-
 TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActor *Actor) const
 {
 	TArray<EInfusionSourceOption> Sources;
@@ -4968,23 +4952,6 @@ void UActionExecutor::ProcessForbiddenElementCast(AActor *Actor, ESpellElement E
 }
 
 // ========================================
-// RING MANAGER GETTER
-// ========================================
-
-URingManager *UActionExecutor::GetRingManager() const
-{
-	if (!RingManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UActionExecutor *>(this)->RingManagerRef =
-				GI->GetSubsystem<URingManager>();
-		}
-	}
-	return RingManagerRef;
-}
-
-// ========================================
 // DEBUG
 // ========================================
 
@@ -4999,8 +4966,7 @@ ULoadoutComponent *UActionExecutor::GetLoadoutComponent(AActor *Actor) const
 
 const FWeaponInventoryEntry *UActionExecutor::ResolveActiveWeaponEntry(AActor *Actor) const
 {
-	// Mirrors WeaponManager::GetActiveWeapon(Actor) resolution: that delegates to
-	// LoadoutComponent::GetActiveWeapon(), which selects the SAME loadout entry as
+	// Mirrors LoadoutComponent::GetActiveWeapon() resolution, which selects the SAME loadout entry as
 	// GetActiveWeaponLoadout() (identical Generic dual-weapon bShowPrimary toggle and
 	// ring/evolution-primary fallbacks). Returning the entry instead of the asset gives
 	// callers the instance .Tier. Null entry → caller keeps its asset-tier fallback.
