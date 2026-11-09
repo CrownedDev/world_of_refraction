@@ -4543,7 +4543,8 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
             Result.Append(Piece.Apparel->GetStartingEffects());
         }
         // Crown, D-164: its passives. Merge B-357b + B-380 (Q-380): apparel is gear, so as a gear evolution's (D-147):
-        // only on an action charged to GEAR_PASSIVES_CHARGE_LEVEL, never at fight start (the L2 read is B-357d).
+        // only on an action charged to GEAR_PASSIVES_CHARGE_LEVEL, never at fight start (the L2 read:
+        // GetGearEvolutionPassivesForAction, B-357d).
         const UEvolutionItemData *Evolution = Piece.GetEvolution();
         if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
         {
@@ -4657,7 +4658,50 @@ TArray<FAttachedEvolution> ULoadoutComponent::GatherAttachedEvolutions() const
             WoREvolutionPlacement::AppendFrom(Adapter->RingEntry.AttachedItem, EEvolutionPlace::Adapter, Attached);
         }
     });
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-357d (D-164): apparel is gear too
+    {
+        if (Piece.Apparel)
+        {
+            WoREvolutionPlacement::AppendFrom(Piece.AttachedItem, EEvolutionPlace::Apparel, Attached);
+        }
+    }
     return Attached;
+}
+
+TArray<FGatheredEffect> ULoadoutComponent::GetGearEvolutionPassivesForAction(EActionType ActionType, EInfusionSourceOption Source,
+                                                                            int32 ChargeLevel) const
+{
+    TArray<FGatheredEffect> Passives;
+    const TArray<FAttachedEvolution> Attached = GatherAttachedEvolutions();
+    TSet<const UEvolutionItemData *> Counted;
+    for (const FAttachedEvolution &Evolution : Attached)
+    {
+        if (Evolution.Place == EEvolutionPlace::Character)
+        {
+            Counted.Add(Evolution.Attachment.Item); // its effects are on all fight, under the same source key
+        }
+    }
+    for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterForAction(Attached, ActionType, Source, ChargeLevel))
+    {
+        bool bAlreadyCounted = false;
+        Counted.Add(Evolution.Attachment.Item, &bAlreadyCounted);
+        if (bAlreadyCounted)
+        {
+            continue;
+        }
+        // Only lasting passives (every payload permanent), the ones the gear-swap path puts on (Q-081), so the list
+        // is exactly what goes on and comes off (B-357d review).
+        for (const FGatheredEffect &Effect : Evolution.Attachment.Item->GetStartingEffectsGathered())
+        {
+            const bool bLasting = Effect.Effect.Payloads.Num() > 0 &&
+                                  !Effect.Effect.Payloads.ContainsByPredicate([](const FSkillEffectPayload &Payload) { return !Payload.bPermanent; });
+            if (bLasting)
+            {
+                Passives.Add(Effect);
+            }
+        }
+    }
+    return Passives;
 }
 
 FString ULoadoutComponent::GetAttachedEvolutionsString() const

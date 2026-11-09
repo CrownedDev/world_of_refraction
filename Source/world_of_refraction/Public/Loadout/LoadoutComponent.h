@@ -670,9 +670,14 @@ public:
 
     /** B-357b (D-147): the one resolve path: every evolution attached to this character, with its place: the
      *  character's own slot (PrimarySlotType == Evolution), then the gear that counts (ForEachContributingGear: the
-     *  adapter in use, the weapon in hand), each with an evolution in its socket. WoREvolutionPlacement says what each
-     *  place gives. */
+     *  adapter in use, the weapon in hand), each with an evolution in its socket, then each apparel piece's (B-357d).
+     *  WoREvolutionPlacement says what each place gives. */
     TArray<FAttachedEvolution> GatherAttachedEvolutions() const;
+
+    /** B-357d (D-147, Q-357b A): the lasting passive effects one action gets from the gear evolutions that power it
+     *  (WoREvolutionPlacement::FilterForAction: charged to L2, the weapon / adapter / apparel holding it). An evolution
+     *  also on the character's own slot is left out: its passives already act all fight. Empty below L2. */
+    TArray<FGatheredEffect> GetGearEvolutionPassivesForAction(EActionType ActionType, EInfusionSourceOption Source, int32 ChargeLevel) const;
 
     /** Debug (B-357b): one line per attached evolution: its place and whether its passives act at charge 0 and 2. */
     FString GetAttachedEvolutionsString() const;
