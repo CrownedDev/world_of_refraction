@@ -1,11 +1,11 @@
 # Hidden Quest System
 
 ## Overview
-Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-100) are multi-step quests found like hidden memories. A start memory begins one; its steps are condition sets done in order; the last step unlocks an end memory, which carries the quest's rewards. How a quest starts is never shown. **D-171 (Crown, 2026-11-09; built in B-397, not yet):** once found, the player is told privately ("Hidden quest discovered: <title>") and the journal shows the current step's goal only; later steps and the end memory stay hidden. Until B-397 lands, no text says what the next step is.
+Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-100) are multi-step quests found like hidden memories. A start memory begins one; its steps are condition sets done in order; the last step unlocks an end memory, which carries the quest's rewards. How a quest starts is never shown. **D-171 (Crown, 2026-11-09; B-397, unbuilt):** once found, the player is told privately ("Hidden quest discovered: <title>") and the journal shows the current step's goal only; later steps and the end memory stay hidden until reached or earned.
 
 ## Architecture
-- `UHiddenQuestData` (`Memory/HiddenQuestData.h`, primary data asset, AlwaysCook): `QuestId`, `Starts` (`FHiddenQuestStart`: a memory and the depth it must have for the player; None = any), `Steps` (`FHiddenQuestStep`: an `FWoRConditionSet`, `TimesInOneRun`, a designer note), `EndMemory`. Debug: `GetQuestString`, `PrintQuest` button.
-- `UHiddenQuestSubsystem` (`Memory/HiddenQuestSubsystem.h`, game instance subsystem: cross-run save state, not per-fight): `Progress` per quest id (`StepsDone`, `bFinished`, the transient `RunCount` of the step in progress). `StartQuest`, `CheckEvent`, `EndRun`, `Capture` / `Restore`, `GetQuestsString`, `GetDepthForPlayer`.
+- `UHiddenQuestData` (`Memory/HiddenQuestData.h`, primary data asset, AlwaysCook): `QuestId`, `Starts` (`FHiddenQuestStart`: a memory and the depth it must have for the player; None = any), `Steps` (`FHiddenQuestStep`: an `FWoRConditionSet`, `TimesInOneRun`, a designer note), `EndMemory`. Debug: `GetQuestString`, `PrintQuest` button. B-397: `GetDisplayTitle` / `GetGoalAfter` give placeholder text for a hidden quest's missing Title / Goal; `IsDataValid` warns for each.
+- `UHiddenQuestSubsystem` (`Memory/HiddenQuestSubsystem.h`, game instance subsystem: cross-run save state, not per-fight): `Progress` per quest id (`StepsDone`, `bFinished`, the transient `RunCount` of the step in progress). `StartQuest`, `CheckEvent`, `EndRun`, `Capture` / `Restore`, `GetQuestsString`, `GetDepthForPlayer`. B-397: every notice goes through `ShowNotice` (this machine's screen only; kept as `GetLastNotice`); `GetVisibleQuests` lists started quests main, side, then hidden, each with the current goal only.
 - Save: `FSavedHiddenQuests` / `FSavedQuestProgress` in `FWoRSaveData` (v25, D-059).
 
 ## Integration Points
@@ -19,11 +19,11 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 
 ## Known Limitations / TODOs
 - Co-op (B-377b): a friend's curses and counters are not read for their steps on the host; a client's quest end memory is not added to the host's known set.
-- Notices are placeholder text (Crown's words).
+- Notices, and the placeholder title / goal for unwritten hidden quests, are placeholder text (Crown's words).
 - A load replaces any progress started before it; a mid-run reload loses the step in progress's count (by design: it resets at run end anyway).
 - The quest list is gathered once per game instance: an asset added during a session is seen next session.
 - Quest content is Crown's.
-- D-171 not built yet (B-397): hidden quests don't list in the journal or name their next goal.
+- B-397 unbuilt: until it is built and PIE-checked, dev's hidden quests still use the vague notices.
 
 ## Changelog
 | Date | Change | Branch |
@@ -35,3 +35,4 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 | 2026-11-08 | B-377b: co-op friends' quests (report, host check on their part, step met / start RPCs); `CountStepMet`; the host's own quests read its own part. | `feature/B-377b-coop-quests-journal-save-cloud` (in dev) |
 | 2026-11-08 | B-381 activations (Crown, MemoryCatalogue §3.11): `FWornItemState` per worn item (`MemoryConditions::GetWornStates`: weapons, adapter, apparel; socket element, evolution, stone, tier, upgrade level), the `WornItemState` condition reading `FWoRConditionContext::BoundItem`, set by `StartGearQuests` per item. | `feature/B-381-gear-quests-cloud` (in dev) |
 | 2026-11-09 | D-171 recorded: a found hidden quest shows its current step's goal (job B-397); docs only. | `docs/D-171-hidden-quest-steps` |
+| 2026-11-09 | B-397 (D-171): "Hidden quest discovered: <title>" private notice (`ShowNotice`, `GetLastNotice`); found hidden quests in `GetVisibleQuests` after main and side with the current goal only; step done notices name the next goal; placeholder title / goal and `IsDataValid` warnings; `wor.Quest.Print` shows every quest's goal and the last notice. | `feature/B-397-hidden-quests-shown-cloud` (UNBUILT) |
