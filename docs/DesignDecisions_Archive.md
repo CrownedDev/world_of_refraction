@@ -4326,3 +4326,17 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 - (3) Any ability's Impact notify resolves through the same `ResolveImpactFrame`, so the shape doesn't matter to the route, and one rule is simpler than a shape list. A spell's hits come with its casts.
 **Answer:** **all A**, by the reference-backed default (2026-11-09). Crown may change any.
 **Notes for Claude (as built):** B-043c. `UWoRGameplayAbility::StartImpactListener` / `HandleImpactEvent` / `ShouldListenForImpacts` / `IsListeningForImpacts`; `WoRSkillAbilities::FindImpactListener` / `SendImpactEvent` (through `WoRCombatEvents::Send`, `EventMagnitude` = impact index); `UActionExecutor::RouteImpactFrame` (`ActionExecutorMontage.cpp`), called by the Impact notify and `ResolveMontagelessAction`; `ResolveImpactDefense` / `ApplyOneImpact` / `ResolveImpactFrame` unchanged. Only at `wor.Abilities.UseGAS` 1. Left: `PlayMontageAndWait` (B-043f).
+
+### Q-043d — GAS stage 4 part 4: how projectile spells meet the ability
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-043d, desktop) · **Blocks:** —
+**Question:** B-043d makes a projectile spell's work reach its skill's ability. Three non-lore choices: (1) what moves onto the ability; (2) how an arrival travels; (3) who runs a burst's spacing.
+**Options / as built:**
+- (1) **A** the arrival, the dodge and the burst spacing; spawning the projectile stays in the executor / **B** the ability spawns the projectile too.
+- (2) **A** the executor's projectile callbacks send `Event.Combat.Projectile.Arrived` / `.Dodged` to the caster (Target = the target, `EventMagnitude` = cast entry index) and the ability's `WaitGameplayEvent` tasks resolve them through the same `ResolveSpellArrival` / dodge code; a lumped arrival (no per-impact window) keeps the old path / **B** bind the projectile's own delegates to the ability.
+- (3) **A** the ability's `UAbilityTask_WaitDelay` chain, so a cancelled ability stops spawning / **B** keep the executor's looping timer.
+**Recommendation:** all A.
+- (1) B-043f leaves the executor "targets and presentation"; the projectile actor, its VFX and the client copy (B-231b) are presentation. Lyra's ranged weapons spawn from the ability, but its projectiles carry their own damage; ours resolve through the defense window, which the executor owns until B-043f.
+- (2) The same notify / callback → gameplay event → `WaitGameplayEvent` pattern as B-043c (Lyra, tranek's GASDocumentation). The event is synchronous, so the arrival lands on the same frame; a listener that does not take it leaves it to the old path, so none is lost.
+- (3) GASDocumentation: timed steps inside an ability are ability tasks (`WaitDelay`), which end with the ability. The executor still empties its queue on cancel or interrupt, so either side stops the chain.
+**Answer:** **all A**, by the reference-backed default (2026-11-09). Crown may change any.
+**Notes for Claude (as built):** B-043d. `UWoRGameplayAbility::ShouldListenForProjectiles` / `StartProjectileListeners` / `HandleProjectileArrivedEvent` / `HandleProjectileDodgedEvent` / `StartBurstChain` / `EndActionTasks`; `WoRSkillAbilities::FindProjectileListener` / `SendProjectileEvent` / `StartBurstThroughAbility`; `UActionExecutor::RouteProjectileArrival` / `CanResolveSpellArrival` / `ResolveProjectileArrival` / `ResolveProjectileDodge` / `HasBurstQueued`. Only at `wor.Abilities.UseGAS` 1.
