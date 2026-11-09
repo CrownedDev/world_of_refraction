@@ -24,6 +24,9 @@ namespace
 			{S::ActionSpeedDebuff, S::ActionSpeedDebuff, Z::Percent,              CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT,       T::Persistent,      false,      S::SpellSpeedDebuff,   0},
 			{S::DrainEnergy,       S::DrainEnergy,       Z::ShareOfMaxEP,         CombatConstants::BD_BREAK_EP_DRAIN_FRACTION,           T::StartOfOwnTurn,  true,       S::None,               0},
 			{S::BurstDamage,       S::BurstDamage,       Z::OneShotShareOfMaxHP,  CombatConstants::REALITY_BREAK_MAX_HP_FRACTION,        T::StartOfOwnTurn,  false,      S::None,               0},
+			// B-064a (D-090): Ice's break is Water's slow plus a one-off share of max HP (DamageShareOfMaxHP, the last column).
+			{S::IceBreak,          S::ActionSpeedDebuff, Z::Percent,              CombatConstants::ICE_BREAK_SPEED_SLOW_PERCENT,         T::Persistent,      false,      S::SpellSpeedDebuff,   0,
+			 CombatConstants::ICE_BREAK_DAMAGE_MAX_HP_FRACTION},
 		};
 	}
 
@@ -57,11 +60,12 @@ namespace BreakTable
 		FString Out = FString::Printf(TEXT("Break table (%d rows)\n"), Rows().Num());
 		for (const FBreakRow &Row : Rows())
 		{
-			Out += FString::Printf(TEXT("  %-18s -> %-18s %s %.2f, %s%s%s%s\n"), *BreakEnumName(Row.Trigger), *BreakEnumName(Row.Applied),
+			Out += FString::Printf(TEXT("  %-18s -> %-18s %s %.2f, %s%s%s%s%s\n"), *BreakEnumName(Row.Trigger), *BreakEnumName(Row.Applied),
 								   SIZE_KIND_NAMES[static_cast<uint8>(Row.SizeKind)], Row.Size,
 								   *UEnum::GetValueAsString(Row.Timing).Replace(TEXT("ESkillEffectTiming::"), TEXT("")), Row.bDelayFirstExecution ? TEXT(", from next turn") : TEXT(""),
 								   Row.AlsoApplied != ESkillEffectType::None ? *(TEXT(", also ") + BreakEnumName(Row.AlsoApplied)) : TEXT(""),
-								   Row.DelayTurnPlaces > 0 ? *FString::Printf(TEXT(", delays %d"), Row.DelayTurnPlaces) : TEXT(""));
+								   Row.DelayTurnPlaces > 0 ? *FString::Printf(TEXT(", delays %d"), Row.DelayTurnPlaces) : TEXT(""),
+								   Row.DamageShareOfMaxHP > 0.0f ? *FString::Printf(TEXT(", deals %.2f of max HP"), Row.DamageShareOfMaxHP) : TEXT(""));
 		}
 		return Out;
 	}
