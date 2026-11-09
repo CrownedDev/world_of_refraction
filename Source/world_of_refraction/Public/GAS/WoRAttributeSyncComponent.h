@@ -97,10 +97,10 @@ public:
 	 *  0s, so the executions keep their gathered inputs (B-042e, B-042l). */
 	static bool ReadSyncedAttribute(const UAbilitySystemComponent *ASC, const FGameplayAttribute &Attribute, float &Out);
 
-	/** B-042yb: with wor.Effects.UseGAS 1, Out = a composed sub-stat or pillar Attribute on Owner's ASC, its layers
+	/** B-042yb: Out = a composed sub-stat or pillar Attribute on Owner's ASC, its layers
 	 *  refreshed first on the authority (so GAS holds what the getter would compose). B-042yc adds turn speed, the
 	 *  status resistance, the resistance-source attributes (per type, the blanket bonus) and crit chance. False
-	 *  without the switch, a sync, character data or the set, for any other attribute, and while ReadSourceValues
+	 *  without a sync, character data or the set, for any other attribute, and while ReadSourceValues
 	 *  runs: the getter then composes it itself. */
 	static bool ReadComposedOnGAS(const AActor *Owner, const FGameplayAttribute &Attribute, float &Out);
 

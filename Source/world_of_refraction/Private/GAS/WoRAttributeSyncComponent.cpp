@@ -104,7 +104,7 @@ bool UWoRAttributeSyncComponent::ReadSyncedAttribute(const UAbilitySystemCompone
 
 bool UWoRAttributeSyncComponent::ReadComposedOnGAS(const AActor *Owner, const FGameplayAttribute &Attribute, float &Out)
 {
-	if (GReadingSourceValues || !UWoREffectMirrorComponent::ReadsFromGAS() || !Owner)
+	if (GReadingSourceValues || !Owner)
 	{
 		return false;
 	}
