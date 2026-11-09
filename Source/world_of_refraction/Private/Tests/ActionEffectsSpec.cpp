@@ -336,6 +336,7 @@ void FActionEffectsSpec::Define()
 				TestTrue(TEXT("Hero's turn goes on"), Fight->GetCurrentActor() == Hero);
 			}
 			Fight->ForceEndCombat();
+			TestEqual(TEXT("FinishCombat clears the foe's waiting loss (D-064)"), FoeData->GetWaitingActionChanges().Num(), 0);
 			Ability->RemoveFromRoot();
 		});
 

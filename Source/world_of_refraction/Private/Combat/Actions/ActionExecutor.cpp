@@ -5976,7 +5976,10 @@ void UActionExecutor::ApplySkillEffects(
 				// can't see — overwrite the core's payload-derived value. Reproduces the deleted
 				// CreateFromSpellEffect's EXACT expression ((Value!=0)?Value:Magnitude*100, Value=RuntimeValue)
 				// so the zero-RuntimeValue fallback stays byte-identical, not just the common case.
-				StatusEffect.EffectValue = (RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (P.Magnitude * 100.0f);
+				// B-170d: an action effect never falls back to Magnitude*100 (Value 0 = no actions, as the validator warns).
+				StatusEffect.EffectValue = (RuntimeValue != 0 || SkillEffectClassification::CountsWholeActions(P.EffectType))
+											   ? static_cast<float>(RuntimeValue)
+											   : (P.Magnitude * 100.0f);
 				StatusEffect.bDoesNotStack = Effect.bDoesNotStack; // D-053; source = caster + skill (ApplyEffect)
 
 				StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);

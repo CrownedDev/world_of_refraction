@@ -736,7 +736,7 @@ private:
     void SetCurrentActions(int32 NewActions);
 
     /** Per-fight (B-170d, D-064): gains and losses waiting for a later turn start. Server only, not replicated,
-     *  not saved; cleared by ResetActionsForFight. */
+     *  not saved; the orchestrator clears them at every fight start and in FinishCombat, whatever the switch. */
     TArray<FWoRWaitingActionChange> WaitingActionChanges;
 
     UFUNCTION()
