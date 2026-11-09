@@ -612,6 +612,21 @@ namespace
 {
 	TAutoConsoleVariable<int32> CVarCheckFraming(TEXT("wor.Camera.CheckFraming"), 0,
 												 TEXT("B-372: 1 logs each code-built shot's framing (points on screen, clear sight, camera clear)."));
+
+	/** B-403: a shot's motion blur on its camera while it moves; 0 hands the blur back to the project's own. */
+	void SetShotMotionBlur(ACameraActor *CameraActor, float Amount)
+	{
+		if (!CameraActor || !CameraActor->GetCameraComponent())
+		{
+			return;
+		}
+		FPostProcessSettings &PostProcess = CameraActor->GetCameraComponent()->PostProcessSettings;
+		PostProcess.bOverride_MotionBlurAmount = Amount > 0.0f;
+		if (Amount > 0.0f)
+		{
+			PostProcess.MotionBlurAmount = Amount;
+		}
+	}
 }
 
 bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot)
@@ -644,6 +659,10 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer);
 	}
+	if (ShotCamera.IsValid() && ShotCamera.Get() != Camera)
+	{
+		SetShotMotionBlur(ShotCamera->GetCameraActor(), 0.0f); // B-403: the rush's blur stays on the camera it left
+	}
 	ShotCamera = Camera;
 	ShotMoment = Moment;
 	ActiveShot = Shot;
@@ -660,6 +679,7 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 		return false;
 	}
 	CameraActor->GetCameraComponent()->SetFieldOfView(ActiveShot.FieldOfView);
+	SetShotMotionBlur(CameraActor, ActiveShot.MotionBlur); // B-403 (R5): the melee rush
 	const bool bMoves = !ActiveShot.Start.Equals(ActiveShot.End) || ShotProjectile.IsValid();
 	if (!bAlreadyViewed)
 	{
@@ -697,6 +717,7 @@ void UCombatCameraDirector::StepShot()
 	if (Alpha >= 1.0f && !bFollowing)
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer); // the shot holds where it ended
+		SetShotMotionBlur(CameraActor, 0.0f);			// B-403: the rush is over
 	}
 }
 
@@ -705,6 +726,10 @@ void UCombatCameraDirector::StopShotPattern()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer);
+	}
+	if (UCombatCameraComponent *Camera = ShotCamera.Get())
+	{
+		SetShotMotionBlur(Camera->GetCameraActor(), 0.0f); // B-403: the turn and Defence views never blur
 	}
 	ShotCaster.Reset();
 	ShotTargets.Reset();
@@ -735,6 +760,7 @@ FCameraShotContext UCombatCameraDirector::BuildShotContext(bool bCritical) const
 	}
 	Context.bRanged = bShotRanged;
 	Context.bCritical = bCritical;
+	Context.bAllowRush = !bCameraMovementOff; // B-403 (R15)
 	return Context;
 }
 
@@ -745,7 +771,8 @@ FString UCombatCameraDirector::GetShotString() const
 		return TEXT("shot: none");
 	}
 	const UCombatCameraComponent *Camera = ShotCamera.Get();
-	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f%s)"), *UEnum::GetValueAsString(ShotMoment),
+	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f, blur %.2f over %.2f s%s)"), *UEnum::GetValueAsString(ShotMoment),
 						   *GetNameSafe(ShotCaster.Get()), Camera ? *GetNameSafe(Camera->GetOwner()) : TEXT("no"),
-						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""));
+						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ActiveShot.MotionBlur, ActiveShot.BlendSeconds,
+						   ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""));
 }

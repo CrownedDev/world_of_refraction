@@ -97,6 +97,62 @@ namespace
 		[](UCombatCameraDirector &Director, int32 Value) { Director.SetSkipCinematicAfterHit(Value != 0); });
 }
 
+namespace
+{
+	/** B-403: the sample fight wor.Camera.ShotPreview frames: caster at the origin, a target ahead on +X (melee
+	 *  distance) and a second one beside it for the spread. */
+	const FVector SHOT_PREVIEW_TARGET(800.0f, 0.0f, 0.0f);
+	const FVector SHOT_PREVIEW_SECOND_TARGET(800.0f, 300.0f, 0.0f);
+
+	FString DescribePreviewShot(const TCHAR *Label, const FCameraShot &Shot)
+	{
+		return FString::Printf(TEXT("%s: %s -> %s over %.2f s | fov %.0f | shake %.2f | blur %.2f"), Label,
+							   *Shot.Start.GetLocation().ToCompactString(), *Shot.End.GetLocation().ToCompactString(),
+							   Shot.BlendSeconds, Shot.FieldOfView, Shot.ShakeScale, Shot.MotionBlur);
+	}
+
+	/** B-403: every code-built shot for the sample fight with default tuning, one line each. */
+	FString GetCameraShotPreviewString()
+	{
+		FCameraShotContext Melee;
+		Melee.Targets.Add(SHOT_PREVIEW_TARGET);
+		FCameraShotContext Ranged = Melee;
+		Ranged.bRanged = true;
+		FCameraShotContext Crit = Melee;
+		Crit.bCritical = true;
+		FCameraShotContext Spread = Melee;
+		Spread.Targets.Add(SHOT_PREVIEW_SECOND_TARGET);
+		const FSkillCameraTuning Tuning;
+		const TPair<const TCHAR *, FCameraShot> Shots[] = {
+			{TEXT("melee wind-up (rush)"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Melee, Tuning)},
+			{TEXT("spell wind-up"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Ranged, Tuning)},
+			{TEXT("cast"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, Ranged, Tuning)},
+			{TEXT("impact"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Melee, Tuning)},
+			{TEXT("impact, crit"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Crit, Tuning)},
+			{TEXT("spread (holds)"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread, Spread, Tuning)}};
+		TArray<FString> Lines;
+		for (const TPair<const TCHAR *, FCameraShot> &Shot : Shots)
+		{
+			Lines.Add(DescribePreviewShot(Shot.Key, Shot.Value));
+		}
+		return FString::Join(Lines, TEXT("\n"));
+	}
+
+	FAutoConsoleCommand GCombatCameraShotPreviewCmd(
+		TEXT("wor.Camera.ShotPreview"),
+		TEXT("DEBUG (B-403): print every code-built shot for a sample fight (caster at the origin, a target 800 cm ahead): start, end, blend, FOV, shake, motion blur. No fight needed."),
+		FConsoleCommandDelegate::CreateLambda(
+			[]()
+			{
+				const FString Preview = GetCameraShotPreviewString();
+				UE_LOG(LogWoRCombat, Display, TEXT("[CombatCamera] Shot preview:\n%s"), *Preview);
+				if (GEngine)
+				{
+					GEngine->AddOnScreenDebugMessage(INDEX_NONE, COMBAT_CAMERA_SCREEN_SECONDS, FColor::Cyan, Preview);
+				}
+			}));
+}
+
 FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Director)
 {
 	if (!Director)
