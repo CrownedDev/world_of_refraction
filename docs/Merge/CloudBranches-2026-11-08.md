@@ -86,6 +86,13 @@ These branches are all in `dev` already, so **merge them into dev again**, in th
 - **Cleanups** are in their own section at the end ("PIE-gated cleanups"): each merges only after Crown's PIE of the job it cleans up.
 - The trial branch has rows 70–73 and the cleanups C1–C7 cherry-picked.
 
+## Update, 2026-11-09 (later): round 2 and a fresh trial branch
+
+- **New trial branch `integration/cloud-2026-11-09`**: current dev plus no-ff merges of rows 74–77 and cleanups C1–C7, in that order. No code conflicts; doc conflicts only. A cross-merge review found no code breakage (PASS WITH NOTES). The old `integration/cloud-2026-11-08` is superseded.
+- **When resolving Backlog conflicts, take the branch's row for its own job** (and for rows it deliberately edits). A plain "keep dev's row" union left B-153 and B-172 BLOCKED and dropped B-042g2's note on B-043a; the trial branch has the fix (cbe9a118).
+- After B-042g2 merges, PIE checks that set `wor.Effects.UseGAS` are only for before it (B-043b check 10, B-064c check 10 now say so; older sheets B-042c/h/k/o/x/y/g/i too).
+- B-043c (melee through ability tasks) is being written, stacked on row 76.
+
 ## How to use the table
 
 Go top to bottom. Every branch's base comes before it. For each row:
