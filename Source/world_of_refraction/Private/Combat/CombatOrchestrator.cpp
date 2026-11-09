@@ -1298,9 +1298,10 @@ bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
 	{
 		return false;
 	}
-	// TODO: B-170f: the AI spends or banks (Q-170c2); until then an AI-played turn (and a Void break's) is one action.
+	// B-170f (ActionPips.md §3.6): the AI is asked again like a player and spends or banks itself
+	// (UAIDecisionManager::DecideSpendOrBank). A Void break's random turn stays one action (Q-170c2, Q-170f2).
 	const bool bVoidBroken = SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill);
-	if (IsActorAIControlled(Actor) || bVoidBroken)
+	if (bVoidBroken)
 	{
 		return false;
 	}
