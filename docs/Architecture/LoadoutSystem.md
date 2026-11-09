@@ -310,6 +310,11 @@ While in combat, callers query the component:
   the one resolver `UDefenseSystem::PlayDefenseAnimation` plays on every Guard: the weapon's
   `ParryMontage`, else the character's `BlockMontage`. Looks only. Debug: `wor.Guard.Print` /
   `wor.Guard.Set` (`Debug/Combat/GuardDebug`).
+- **Parry colour priority (B-393, D-170)** — `GetParryElementPriority` / `SetParryElementPriority`
+  (`EParryElementPriority` Weapon / Magic, default Weapon; a stamped party pawn writes through to
+  `FPartyMember::ParryElementPriority`, saved v33): which element colours a landed parry's effect when
+  the weapon guard has both a weapon crystal and the character's own magic. Read by `ParryVisuals`
+  (`Combat/Presentation/`). Debug: `wor.Guard.Print` (the parry pick), `wor.Guard.SetParryPriority`.
 - **Equipment switching** — `ToggleEquipment()` flips `bShowPrimary` and notifies
   `UTurnManager::OnActorSpeedChanged`. `SetActiveRingIndex()` changes the active
   Resonator ring and likewise notifies the turn manager.
@@ -528,3 +533,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-09 | B-357d (D-147, Q-357b A, Q-357d): an action charged to L2 wears the lasting passives of the gear evolutions in the items that power it, for that action only: `WoREvolutionPlacement::PowersAction` / `FilterForAction`, `EEvolutionPlace::Apparel` (apparel joins `GatherAttachedEvolutions`), `ULoadoutComponent::GetGearEvolutionPassivesForAction`, `UActionExecutor::PutOnGearEvolutionPassives` / `TakeOffGearEvolutionPassives` (through `SwapEquipmentEffects`). The remaining old evolution readers: B-357e. | feature/B-357d-gear-evolution-l2-passives |
 | 2026-11-09 | B-357e (D-147): `ULoadoutComponent::GetCharacterSlotEvolution` (the Place Character entry of `GatherAttachedEvolutions`); every remaining reader of the character slot's evolution reads it (infusion source, wear, Reality check, seat stats and Amp, broken Breakthrough, capabilities, quest conditions, combat tier, debug prints); the slot's writes stay on `FCombatLoadout::PrimaryEvolution`. `GetActivePrimaryEvolutionCrystal` / `Attachment` OBSOLETE (no C++ reader). `FSkillEffect::IsLastingPassive` shared by `SwapEquipmentEffects` and `GetGearEvolutionPassivesForAction`. No play change. | refactor/B-357e-evolution-readers (in dev) |
 | 2026-11-09 | B-392 (D-170, Q-392): two guards. `EGuardStyle`; `ULoadoutComponent::GetGuardStyle` / `SetGuardStyle` / `GetGuardMontage` / `ResolveGuardStyle`; the setting on `FPartyMember` (saved, `FSavedPartyMember`, save v32); every Guard plays `GetGuardMontage`; `FWeaponLoadoutEntry::bUseWeaponParryAnimation` OBSOLETE; `wor.Guard.Print` / `wor.Guard.Set`; spec `WoR.Defense.TwoGuards`. | feature/B-392-two-guards-cloud (UNBUILT) |
+| 2026-11-09 | B-393 (D-170 corrected, Q-393): the parry colour priority. `EParryElementPriority`; `ULoadoutComponent::GetParryElementPriority` / `SetParryElementPriority`; on `FPartyMember` (saved, `FSavedPartyMember`, save v33); `UPartySessionSubsystem::SetMemberParryPriority`; `wor.Guard.Print` adds the parry pick, `wor.Guard.SetParryPriority`. | feature/B-393-parry-vfx-cloud (UNBUILT) |
