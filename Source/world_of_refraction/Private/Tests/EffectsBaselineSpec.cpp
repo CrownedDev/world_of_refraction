@@ -138,6 +138,7 @@ BEGIN_DEFINE_SPEC(FEffectsBaselineSpec, "WoR.Effects.Baseline",
 		FSkillEffect Effect;
 		Effect.EffectName = TEXT("Baseline gear passive");
 		Effect.Payloads.Add(Payload);
+		// Bundle index = the type, so two passives of different types are two bundle slots (as CleanseGearSpec does).
 		return FGatheredEffect(BASELINE_GEAR_DEF_ID, static_cast<int32>(Type), Effect, SourceKey);
 	}
 
@@ -189,8 +190,8 @@ void FEffectsBaselineSpec::Define()
 
 void FEffectsBaselineSpec::DefineCases()
 {
-	// B-042f (stage 3 step 5): item effects run through the same builder; AfterEach's compare (stones included) must
-	// be empty on both paths.
+	// B-042f (stage 3 step 5): item effects run through the same builder; AfterEach's effect compare must be empty on
+	// both paths. (Stones need an attribute sync component, which these combatants don't carry: WoR.GAS.StoneSources.)
 	Describe("Gear passives", [this]()
 	{
 		It("are held on both paths with the same totals", [this]()
