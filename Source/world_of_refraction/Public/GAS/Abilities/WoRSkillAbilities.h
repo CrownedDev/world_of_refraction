@@ -15,6 +15,11 @@
 // - Projectiles (B-043d, Q-043d): while an ability runs a projectile action, the executor sends each arrival and
 //   dodge to it (SendProjectileEvent) and hands it the burst stagger (StartBurstThroughAbility); with no such
 //   ability the executor resolves them and runs its own timer, as before.
+// - Flightless spell resolutions (B-043e, Q-043e): while an ability runs an action whose skill resolves an AOE or
+//   Instant cast entry, or a support (self / ally) cast, the executor hands each resolution (one per AOE / Instant
+//   defender, one per support cast) to SendSpellResolveEvent, which sends Event.Combat.SpellResolve.AOE / .Instant /
+//   .Support to the ability's WaitGameplayEvent task; the task takes it from the executor and resolves it. With no
+//   such ability the executor resolves it itself, as before. Effects stay spawned in the executor.
 // Debug: Debug/GAS/WoRAbilityDebug.h (wor.Abilities.Print). Spec: WoR.GAS.Abilities.
 
 #pragma once
@@ -95,4 +100,19 @@ namespace WoRSkillAbilities
 	/** B-043d: hands a burst's stagger (one spawn per Interval) to Actor's projectile listener. False when there
 	 *  is none: the caller runs its own timer. */
 	WORLD_OF_REFRACTION_API bool StartBurstThroughAbility(AActor *Actor, float Interval);
+
+	/** B-043e: Event.Combat.SpellResolve.AOE / .Instant / .Support for Kind. */
+	WORLD_OF_REFRACTION_API FGameplayTag GetSpellResolveEventTag(EWoRSpellResolveKind Kind);
+
+	/** B-043e: the kind an Event.Combat.SpellResolve.* tag names; false for any other tag. */
+	WORLD_OF_REFRACTION_API bool GetSpellResolveKind(const FGameplayTag &EventTag, EWoRSpellResolveKind &OutKind);
+
+	/** B-043e: Actor's skill ability that is running an action and waiting for its spell resolutions, or null. */
+	WORLD_OF_REFRACTION_API UWoRGameplayAbility *FindSpellResolveListener(AActor *Actor);
+
+	/** B-043e: with a spell-resolve listener on Actor, sends Resolve's event to Actor (Target = the defender, or a
+	 *  support cast's first target; EventMagnitude = the cast entry index) and returns true once the listener has
+	 *  taken and resolved it. False when the caller must resolve it itself (no listener, or the event did not
+	 *  reach it). */
+	WORLD_OF_REFRACTION_API bool SendSpellResolveEvent(AActor *Actor, const FWoRSpellResolve &Resolve);
 }
