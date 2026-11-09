@@ -249,6 +249,17 @@ The queue of questions only Crown can answer.
 - **"No actions" on the HUD** waits for the placeholder UI (B-170e); the skip is logged.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170c (`ACombatOrchestrator` action pips section, `USkillDataBase::ActionCost`, `FAction::GetActionCost`, `ULoadoutComponent::GetTurnSwitchRefusedReason`).
 
+### Q-234d — Host hand-over part 3: what the new host keeps after the run, and the join order across a travel
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-234d, cloud) · **Blocks:** —
+**Question:** (1) When a handed-over run ends, when does the new host get its own party and pool back, and what of the run stays with it? (2) How is the join order kept across a seamless travel?
+**Context:** Q-234b (2): the new host plays the old host's copy (party, armoury, run), keeps its own wallet and look, and never writes its own slot; `USaveSubsystem::AdoptCheckpoint` restores the copy's armoury on top of the new host's pool for the rest of the session. `AWoRGameState::HostOrder` was built up as players arrived, so a new level's GameState could swap two joiners (B-234b review TODO).
+**Options / as built:**
+- (1) **A** at the run's end (the trial's exit, after its save): in the hub that follows, the party and pool come from the player's own save as it was before the hand-over; everything else stays as played (the wallet with the run-end payout, the look, journal, hidden quests, curses and counters were its own all along); its own slot is written again from then on. **B** only at a restart (today). **C** also keep in the new host's pool what the old host's characters gained during the run.
+- (2) **A** each player's join place on its PlayerState (server only), carried by `CopyProperties`; the order is rebuilt from the places. **B** carry the last order over in the hand-over subsystem (a game-instance subsystem; D-064 / D-103 put per-session player state on the PlayerState).
+**Recommendation:** A, A. (1) Diablo III and Borderlands 2 keep each player's character and stash their own: playing in someone else's game never puts their gear in your stash, and what you earned yourself (gold, XP) goes home with you; leaving the party puts you back in your own game with your own character. The copy's gains stay in the copy (the old host keeps it as its checkpoint copy). C would hand one player the other player's characters' gear. (2) Unreal's `APlayerState::CopyProperties` is the engine's own place for per-player data across a seamless travel (it carries the score and the ids), and Epic's ShooterGame sample keeps each player's team that way. The deckbuilder has no co-op rule (it is a card model, `docs/reference/00-index.md`).
+**Answer:** **A, A**, by the reference-backed default (2026-11-09). Crown may change either.
+**Notes for Claude:** built in B-234d (`USaveSubsystem::EndHandedOverRun` / `ReturnToOwnSave`, `UPoolSubsystem::ResetStore`, `AWoRPlayerState::JoinSequence`, `WoRHostSuccession::OrderByJoinSequence`). Left as is: a new host that hands over again in the middle of the copied run stays on the copy until a restart (its run ends on another machine).
+
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
 **Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?
