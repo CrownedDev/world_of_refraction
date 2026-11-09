@@ -175,7 +175,7 @@ private:
 	FCinematicWindowTiming LastWindowTiming;
 	ECombatCameraMode LastHandOffMode = ECombatCameraMode::None;
 	/** B-402 (wor.Camera): shakes / FOV punches held back this fight because the viewer was defending. */
-	int32 DefencePunchesHeld = 0;
+	int32 DefencePunchesDropped = 0;
 
 	// B-371: the shot pattern of the current action.
 	TWeakObjectPtr<AActor> ShotCaster;

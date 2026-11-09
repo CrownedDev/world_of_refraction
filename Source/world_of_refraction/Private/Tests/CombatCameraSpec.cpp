@@ -251,6 +251,7 @@ void FCombatCameraSpec::Define()
 			TestEqual(TEXT("defending: no shake"), Steady.ShakeScale, 0.0f);
 			TestEqual(TEXT("defending: no punch"), Steady.FieldOfView, FCombatCameraRules::DefaultFieldOfView);
 			TestTrue(TEXT("defending: same framing"), Steady.End.Equals(Punch.End));
+			TestTrue(TEXT("the test shot has a shake to drop"), Punch.ShakeScale > 0.0f);
 			const FCameraShot Free = FCombatCameraRules::SteadyForDefence(Punch, false);
 			TestEqual(TEXT("not defending: the shake stays"), Free.ShakeScale, Punch.ShakeScale);
 			TestEqual(TEXT("not defending: the punch stays"), Free.FieldOfView, Punch.FieldOfView);

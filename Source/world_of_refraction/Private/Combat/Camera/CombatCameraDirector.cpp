@@ -53,7 +53,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 {
 	EndCombat();
 	bInCombat = true;
-	DefencePunchesHeld = 0;
+	DefencePunchesDropped = 0;
 	LocalCombatants.Append(LocalParty);
 	OpposingCombatants.Append(OpposingParty);
 
@@ -581,7 +581,7 @@ FString UCombatCameraDirector::GetCinematicWindowString() const
 {
 	// B-402: whether shots are held still, and how many punches that has held back this fight.
 	const FString Steady = FString::Printf(TEXT(" | defending %s, %d punch(es) held"), IsViewerDefending() ? TEXT("yes (steady)") : TEXT("no"),
-										   DefencePunchesHeld);
+										   DefencePunchesDropped);
 	if (!bHasLastWindow)
 	{
 		return TEXT("window: none (nothing placed and nothing to defend, or no action yet)") + Steady;
@@ -674,11 +674,11 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	}
 	ShotCamera = Camera;
 	ShotMoment = Moment;
-	// B-402 (R10, R11): no shake and no FOV punch while the viewer defends; the next shot after the combo has them.
+	// B-402 (R10, R11): no shake and no FOV punch while the viewer defends; a held punch is dropped, not replayed (Q-402).
 	const bool bDefending = IsViewerDefending();
 	if (bDefending && (Shot.ShakeScale > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
 	{
-		++DefencePunchesHeld;
+		++DefencePunchesDropped;
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] %s shot held steady: the viewer is defending"), *UEnum::GetValueAsString(Moment));
 	}
 	ActiveShot = FCombatCameraRules::SteadyForDefence(Shot, bDefending);

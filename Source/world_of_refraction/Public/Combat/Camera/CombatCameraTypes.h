@@ -213,8 +213,8 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  frame at DefaultFieldOfView. */
 	static FTransform ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker);
 
-	/** B-402 (R10, R11; Q-402): a shot shown while the viewer defends keeps still: no shake and no FOV punch. Punches
-	 *  come back with the next shot once the combo is over. */
+	/** B-402 (R10, R11; Q-402): a shot shown while the viewer defends keeps still: no shake and no FOV punch. A held
+	 *  punch is dropped, not replayed; the next shot after the combo plays its own as usual. */
 	static FCameraShot SteadyForDefence(const FCameraShot &Shot, bool bViewerDefending);
 
 	/** The field of view every view but an impact punch uses. */
