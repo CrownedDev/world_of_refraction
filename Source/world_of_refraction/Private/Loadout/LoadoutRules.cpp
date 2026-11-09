@@ -225,23 +225,6 @@ namespace
 						   bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
 	}
 
-	// OBSOLETE (B-303): the budget now reads FLoadoutRules::SlotCost over the unified slots. Remove with B-309.
-	[[maybe_unused]] int32 PrimarySlotCost(const FCombatLoadout &Loadout)
-	{
-		switch (Loadout.PrimarySlotType)
-		{
-		case EPrimarySlotType::Weapon:
-			// The fight's cost: the actual attached crystal (bare 1 / crystal 2 / evolution 3).
-			return Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
-		case EPrimarySlotType::Evolution:
-			return LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
-		case EPrimarySlotType::None:
-		case EPrimarySlotType::Ring:
-		default:
-			return 0;
-		}
-	}
-
 	void CheckCasterSpells(FFindingSink &Sink, const FCombatLoadout &Loadout, const FLoadoutRuleContext &Context)
 	{
 		if (Context.bBrokenDarkness)

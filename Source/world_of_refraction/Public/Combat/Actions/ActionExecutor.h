@@ -258,10 +258,6 @@ public:
 	 */
 	ESpellElement ResolveSpellCastElement(AActor *Caster, const USpellData *Spell) const;
 
-	/** Check if weapon stats apply for this source */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	bool DoWeaponStatsApply(EInfusionSourceOption Option) const;
-
 	// ==================== MOVEMENT ====================
 	/** Set arena center for movement calculations */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Movement")
