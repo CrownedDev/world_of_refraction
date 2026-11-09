@@ -208,6 +208,16 @@ broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
    `FCombatResult`, clears teams, returns to `Idle`.
 4. Otherwise `TurnManager->AdvanceToNextTurn()`.
 
+### Action pips (B-170c, behind `wor.Turns.ActionPips`; UNBUILT)
+
+`IsActionPipsFight()` is the TurnManager's latched rotation mode; at 0 none of this runs and a turn is one action, as built.
+- **Fight start:** `StartCombat` calls `ResetActionsForFight` on every combatant before `InitializeCombat` dispatches turn 1.
+- **Turn start:** after the start-of-turn effects and the death check, `BeginTurnActions` runs (1) the regain (`RegainActions`; not on a combatant's first turn, tracked in `ActorsPastFirstTurn`), (2) the start-of-turn action changes (B-170d), (3) the check. 0 actions = the turn is skipped through `OnActionCompleted` (no prompt, no `OnActorTurnStarted`).
+- **Each action:** `PayActionCost` (in `SubmitAction` and `StartActionAsync`, after the executor's validation) refuses with `GetActionCostRefusedReason` (cost above Max: "Costs more actions than you can hold."; above the bank: "Needs N actions.") or spends `FAction::GetActionCost()` and sets `bTurnContinuesAfterAction` (not for Defend, Flee or a ritual's fire). `ValidateAction` adds the same refusal for the menu.
+- **After it:** `OnActionCompleted` reads and clears the flag; when set and `CanContinueTurn` (alive, not an Execution turn, player-driven, not stunned, actions left) it runs the win check and asks again; the turn-start and turn-end steps are skipped, so they run once per turn. Every other way in ends the turn.
+- **End Turn:** `EActionType::EndTurn` goes to `EndTurnByChoice` in either submit path (the rest stays banked).
+- **Debug:** `GetTurnSpendsString` ("Hero's turn: Ability -1, End Turn (1 left)"), printed by `wor.Actions.Print`.
+
 ### Forced end (`ForceEndCombat`)
 
 Ends combat outside the win-condition path (flee, cutscene interrupt). Ends the
@@ -366,3 +376,4 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-11-08 | B-235 part 1 (D-160 co-op): per-player Prism drops. `UTrialRunSubsystem::OtherPlayerDrops` beside the saved local drop; `WoRDefeat::ApplyWipe` drops every player's wallet; `PickUpDropFor` gives the pawn's player their own; `APrismDropPickup` stays while any drop is left. The rest of B-235 is B-235b. Unbuilt (cloud pre-write). | feature/B-235-personal-prism-drops-cloud |
 | 2026-11-08 | B-235b part 1: `AWoRPlayerState::Client_ShowFeatureMessage` (a pickup message on the picker's screen); `WoRDefeat::GetPresentDroppedPrisms` (only present players keep the Prism pickup up). Rewards: B-235c. | `feature/B-235b-personal-rewards-cloud` (in dev) |
 | 2026-11-08 | B-235c part 1 (D-103): chests per player (`ATrialMapFeature::GetFeatureIdFor`, per-player seed and record), `ShowMessageTo`; a client's map-feature press goes to the host (`AWoRPlayerState::ServerInteractFeature`, `IsWithinReach`). Also fixed: `ATrialMapFeature::ShowMessage` public (B-235b called it). Rest: B-235d. | `feature/B-235c-instanced-chests-cloud` (in dev) |
+| 2026-11-09 | B-170c (Q-170b, Q-170c, Q-170c2): several actions per turn behind `wor.Turns.ActionPips` ("Action pips" above): fight-start bank, per-turn regain, the 0-actions skip, `PayActionCost` / `GetActionCostRefusedReason`, `OnActionCompleted` asks again until 0 / End Turn (`EActionType::EndTurn`) / Defend, ritual arming keeps the turn, AI one action a turn until B-170f; `GetTurnSpendsString`. | `feature/B-170c-multi-action-turns-cloud` (UNBUILT) |
