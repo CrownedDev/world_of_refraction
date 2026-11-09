@@ -56,6 +56,8 @@
 #include "Combat/Projectile/SkillProjectile.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Combat/Presentation/ImpactVisuals.h"
+#include "Combat/Presentation/CastVisuals.h"
+#include "NiagaraSystem.h" // B-394: TSoftObjectPtr from the loose MuzzleVFX pointer
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Equipment/Rings/RingData.h"
@@ -3738,8 +3740,17 @@ void UActionExecutor::SpawnProjectileActor(
 		USpellData *AsSpell = Cast<USpellData>(Skill);
 		const FSkillVFXEntry *MuzzleEntry = GetVFXEntryByRole(Skill, EVFXRole::Muzzle);
 		const FSkillVFXEntry *ImpactEntry = GetVFXEntryByRole(Skill, EVFXRole::Impact);
+		// B-394 (D-170): the cast flash's source (weapon / adapter-type default / Generic preference); the skill's own
+		// muzzle when that source has nothing authored.
+		const TSoftObjectPtr<UNiagaraSystem> SkillMuzzle =
+			MuzzleEntry ? MuzzleEntry->VFX : TSoftObjectPtr<UNiagaraSystem>(AsSpell ? AsSpell->MuzzleVFX : nullptr);
+		const FAction *CastAction = (CurrentExecutionContext.IsSet() && CurrentExecutionContext->Executor.Get() == Caster)
+										? &CurrentExecutionContext->Action
+										: nullptr;
+		const FCastVisualChoice CastChoice = CastVisuals::ResolveForCaster(Caster, CastAction, AsSpell != nullptr, SkillMuzzle);
+		UE_LOG(LogWoR, Verbose, TEXT("[CastVFX] %s projectile: %s"), *GetNameSafe(Caster), *CastVisuals::GetChoiceString(CastChoice));
 		Projectile->SetVFXAssets(
-			MuzzleEntry ? MuzzleEntry->VFX.LoadSynchronous() : (AsSpell ? AsSpell->MuzzleVFX : nullptr),
+			CastChoice.VFX.LoadSynchronous(),
 			Entry ? Entry->Trail.LoadSynchronous() : (AsSpell ? AsSpell->SpellVFX : nullptr),
 			ImpactEntry ? ImpactEntry->VFX.LoadSynchronous() : (AsSpell ? AsSpell->ImpactVFX : nullptr));
 
