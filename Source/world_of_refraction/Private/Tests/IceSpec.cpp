@@ -84,10 +84,14 @@ void FIceSpec::Define()
 		TestEqual(TEXT("cast as Water, it deals Ice"), Ice->GetDealtTypeOverride(ESpellElement::Water), EWoRDamageType::Ice);
 		TestEqual(TEXT("a cast that resolved elsewhere deals no Ice"), Ice->GetDealtTypeOverride(ESpellElement::Fire), EWoRDamageType::None);
 
-		TestFalse(TEXT("an Ice flag on a Fire spell is invalid (rule 75)"), NewIceSpell(ESpellElement::Fire)->IsIceKeyValid());
-		TestFalse(TEXT("and on a Generic spell (it deals Water on a Water source)"), NewIceSpell(ESpellElement::Generic)->IsIceKeyValid());
-		TestEqual(TEXT("an invalid flag deals nothing"), NewIceSpell(ESpellElement::Generic)->GetDealtTypeOverride(ESpellElement::Water),
-				  EWoRDamageType::None);
+		TestFalse(TEXT("an Ice flag on a Fire spell gets rule 75's note"), NewIceSpell(ESpellElement::Fire)->IsIceKeyValid());
+		TestEqual(TEXT("a Fire-keyed flag deals nothing (it never casts as Water)"),
+				  NewIceSpell(ESpellElement::Fire)->GetDealtTypeOverride(ESpellElement::Fire), EWoRDamageType::None);
+		TestTrue(TEXT("a Generic spell may deal Ice (rule 75)"), NewIceSpell(ESpellElement::Generic)->IsIceKeyValid());
+		TestEqual(TEXT("a Generic Ice spell resolved to Water deals Ice"),
+				  NewIceSpell(ESpellElement::Generic)->GetDealtTypeOverride(ESpellElement::Water), EWoRDamageType::Ice);
+		TestEqual(TEXT("resolved to Fire, it deals Fire"),
+				  NewIceSpell(ESpellElement::Generic)->GetDealtTypeOverride(ESpellElement::Fire), EWoRDamageType::None);
 		USpellData *Water = NewObject<USpellData>(GetTransientPackage());
 		Water->Element = ESpellElement::Water;
 		TestEqual(TEXT("a plain Water spell deals Water"), Water->GetDealtTypeOverride(ESpellElement::Water), EWoRDamageType::None);

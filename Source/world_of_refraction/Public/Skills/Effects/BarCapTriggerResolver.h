@@ -43,7 +43,8 @@ namespace BarCapTriggerResolver
 
     /** B-273b: the same by hit kind. A hit whose dealt elemental type is its element's own (every FromPair hit)
      *  resolves as the pair does; one that deals another elemental type (Ice, keyed Water) resolves on that
-     *  type's row, falling back to its physical subtype like the pair. */
+     *  type's row. A dealt row with no break yet falls back to the key's pair (Ice breaks as Water until its own
+     *  row has one, D-090), so a full bar always breaks. The Broken Darkness rule is the pair's and runs there. */
     inline ESkillEffectType ResolveTrigger(const FWoRHitKind &Kind, bool bSourceIsBrokenDarkness)
     {
         const EWoRDamageType ElementType = Kind.ElementType();
@@ -53,6 +54,6 @@ namespace BarCapTriggerResolver
         }
         const ESkillEffectType DealtTrigger = ElementTable::For(ElementType).BreakTrigger;
         return DealtTrigger != ESkillEffectType::None ? DealtTrigger
-                                                      : ElementTable::ForPhysical(Kind.Physical).BreakTrigger;
+                                                      : ResolveTrigger(Kind.Element, Kind.Physical, bSourceIsBrokenDarkness);
     }
 }
