@@ -5068,7 +5068,7 @@ void UActionExecutor::ResolveMontagelessAction(const FAction &Action)
 		{
 			return; // the impact killed, interrupted or finished the action
 		}
-		ResolveImpactFrame(Index);
+		RouteImpactFrame(Index); // B-043c: through the skill's ability when it runs the action
 	}
 	if (!ThisActionGone())
 	{
