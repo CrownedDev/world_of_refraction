@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-152](B-152.md) | `feature/B-152-stone-wrappers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-021) | Delete the unreachable stat-stone consumable wrappers | Pending |
 | [B-173](B-173.md) | `feature/B-173-turn-start-energy-cloud` (UNBUILT) | Energy refills a share of Max EP at each turn start (D-089); no base EP from basic attacks / Perfect Guards | Pending |
 | [B-396](B-396.md) | `fix/B-396-combat-hud-visibility` (in dev) | Combat HUD invisible: `wor.UI.Print` in a fight shows each HUD widget's viewport, visibility, opacity, position and size; the trial gate's focus error is gone | Pending |
 | [B-064c](B-064c.md) | `feature/B-064c-ice-rest-cloud` (UNBUILT) | Ice, the rest: Ice resistance from the profile asset, gear and Ice-keyed buffs (Ice and Water); a Water Ward or Water-scoped boost doesn't reach an Ice hit, an Ice-keyed Ward does | Pending |
