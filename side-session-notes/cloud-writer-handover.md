@@ -19,7 +19,7 @@
   - Left for later: scoped ResistanceBuff effects, DoT ticks (element only), and rolling the new lines on gear.
 - **Merge plan:** the 23:45 update and new row 69.
 
-**Writable jobs left:** none. What's left needs a compiler or Crown, including Q-378's open cure question and Q-389.
+**Writable jobs left:** none. What's left needs a compiler. Q-378's cure question is closed (the brain, 2026-11-09: Crown says a cleared curse is regainable, as built; marked on B-378 and the trial branch). Q-389's default stands unless Crown changes it.
 
 # Cloud writer handover (2026-11-08, ninth part: Q-187e vote, Q-377 confirmed, Q-378 changed, B-388) — STOPPED
 
