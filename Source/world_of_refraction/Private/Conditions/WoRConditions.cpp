@@ -60,6 +60,17 @@ namespace
 		return Event.UpgradedBy ? Event.UpgradedBy : Condition.Character.Get();
 	}
 
+	/** B-381 activations: the bound item's socket, stone, tier and upgrade level against Condition (WornItemState). */
+	bool IsWornItemStateMet(const FWoRCondition &Condition, const FWornItemState &Item)
+	{
+		const bool bAnyElement = Condition.SocketElement == ESpellElement::None;
+		return (bAnyElement || Item.SocketElement == Condition.SocketElement) &&
+			   (!Condition.Evolution || Item.SocketEvolution == Condition.Evolution) &&
+			   (Condition.StoneType == ECrystalType::None || Item.StoneType == Condition.StoneType) &&
+			   static_cast<uint8>(Item.Tier) >= static_cast<uint8>(Condition.MinTier) &&
+			   WoRConditions::Compare(Item.UpgradeSteps, Condition.Operator, Condition.Value);
+	}
+
 	bool IsGearMet(const FWoRCondition &Condition, const FMemoryEvent &Event)
 	{
 		if (!Condition.Item)
@@ -214,6 +225,10 @@ namespace
 		if (Condition.Subject == EWoRConditionSubject::Disabled)
 		{
 			return false;
+		}
+		if (Condition.Subject == EWoRConditionSubject::WornItemState)
+		{
+			return Context.BoundItem && IsWornItemStateMet(Condition, *Context.BoundItem); // B-381: reads the item, not the event
 		}
 		if (!Context.Event)
 		{
@@ -487,6 +502,16 @@ FString WoRConditions::GetConditionString(const FWoRCondition &Condition)
 	if (!Condition.CurseId.IsNone())
 	{
 		Out += TEXT(" ") + Condition.CurseId.ToString(); // B-378
+	}
+	if (Condition.Subject == EWoRConditionSubject::WornItemState) // B-381
+	{
+		Out += FString::Printf(TEXT(" socket %s, stone %s, tier >= %s, level %s %d"), *ConditionEnumName(Condition.SocketElement),
+							   *ConditionEnumName(Condition.StoneType), *ConditionEnumName(Condition.MinTier),
+							   *ConditionEnumName(Condition.Operator), Condition.Value);
+		if (Condition.Evolution)
+		{
+			Out += TEXT(", evolution ") + Condition.Evolution->GetName();
+		}
 	}
 	if (!Condition.CounterId.IsNone())
 	{

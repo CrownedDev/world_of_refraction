@@ -137,10 +137,12 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	const bool bSkipDefense = Inputs.IgnoreDefense >= 1.0f;
 
 	// Element resistance (D-005 C, D-036): the defender's per-element resistance; Ice resistance
-	// also resists Water (Q-145b). Non-elemental hits read none: physical is Defense only (Q-145).
+	// also resists Water (Q-145b). Non-elemental hits read no element line (Q-145); B-389 adds the scope line.
 	if (!Input.bIgnoreResistance)
 	{
 		Inputs.ElementResistance = WoRResistance::GetElementDamageResistance(Defender, Input.Element);
+		// B-389 (D-168): the defender's Physical line for a hit that is not a spell, its Spell line for a spell.
+		Inputs.ResistanceScopeLine = WoRResistance::GetScopeLineResistance(Defender, Input.ActionType == EActionType::Spell);
 	}
 
 	if (!bSkipDefense && Defender)

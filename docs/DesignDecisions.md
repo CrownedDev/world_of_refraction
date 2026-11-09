@@ -4298,6 +4298,14 @@ Moved here once applied. Newest first.
 **Crown (2026-11-08):** kept as built, all A. The two notices ("Something has begun." / "Something has moved forward.") are placeholders: Crown writes lore-flavoured lines later. They sit in one place, `HiddenQuestNotice` at the top of `HiddenQuestSubsystem.cpp`, marked `// TODO: Crown's text`.
 **Notes for Claude:** B-377 (`UHiddenQuestData`, `UHiddenQuestSubsystem`). The journal itself is not saved yet (transient), so after a reload a quest's start memory is gone from the journal while the quest's progress stays: flag for the save work. Co-op friends' quests: B-377b.
 
+### Q-388 — Main and side quests: one quest type, what the journal shows, the notices, who gives one
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-388, cloud) · **Blocks:** —
+**Question:** MemoryCatalogue §3.12 / §3.13: main and side quests are visible and tracked in the journal with their goal shown. (1) Are they their own data, or the hidden-quest data with a flag? (2) What does the journal show? (3) What do their notices say? (4) How is one given before V, NPCs and conversations can give quests?
+**Options / as built:** (1) **A** the hidden-quest data with a Kind (Hidden / Main / Side), a Title and a Goal per step; the same steps, saving and start memories / B a separate quest type. (2) **A** each started main or side quest, main first: its title and the current step's goal, or "done" / B every step listed. (3) **A** "New quest: {title}", "{title}: {next goal}", "Quest complete: {title}" (placeholders; hidden quests keep their unhinted notices, D-100) / B no notices. (4) **A** a memory starts one through its start memories as now; `StartQuestById` is what the story, V, a conversation or an NPC will call, with `wor.Quest.Give <id>` standing in / B wait for those systems.
+**Recommendation:** all A. Skyrim keeps main, side and miscellaneous quests in one quest record with a type field, which is why its journal and its hidden radiant quests share one system; The Witcher 3 and Skyrim both show the current objective rather than the whole step list, and announce "quest started / objective / completed" in a short banner. Sharing the data means everything hidden quests already do (saving, conditions, curses, co-op reading) works for visible ones at once.
+**Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; every quest's title, goals and notice wording are Crown's (placeholders, `HiddenQuestNotice` in `HiddenQuestSubsystem.cpp`, marked `// TODO: Crown's text`).
+**Notes for Claude (as built):** B-388: `EQuestKind`, `UHiddenQuestData::Kind` / `Title` / `GetDisplayTitle` / `GetGoalAfter`, `FHiddenQuestStep::Goal`; `UHiddenQuestSubsystem::GetVisibleQuests` (it gathers the assets once for a quest restored from the save) / `StartQuestById` / `KnownQuests`; `UMemoryJournalWidget::ShowQuestsPage`. No save change (the kind, title and goals live on the asset). Part 2: shared goals for everyone present (co-op, §3.13), the givers.
+
 ### Q-378 — Curses: how one is named, given, lifted and held
 **Status:** ANSWERED (Crown, 2026-11-08: changed; the rest kept) · **Raised:** 2026-11-08 (B-378, cloud) · **Blocks:** —
 **Question:** MemoryCatalogue §3.8: a curse is a reward that is a penalty and a key, lasting across runs until its own quest or memory removes it. (1) How is a curse named and given? (2) How is it lifted? (3) Can several be held? (4) In co-op, whose is it?
@@ -4316,11 +4324,12 @@ Moved here once applied. Newest first.
 **Crown (2026-11-08):** kept as built.
 
 ### Q-381 — Gear quests: where they are authored, and what "has or wears" means first
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-381, cloud) · **Blocks:** —
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08: kept as built; activations added, B-381) · **Raised:** 2026-11-08 (B-381, cloud) · **Blocks:** —
 **Question:** D-165: a weapon, adapter, apparel piece or evolution carries a hidden quest that starts when its conditions are met while the player has or wears it. (1) Where is it authored? (2) Is "has" (owned, not worn) included now? (3) In co-op, whose quest is it?
 **Options / as built:** (1) **A** on the item (`BoundQuests`, beside its `BoundMemories`), each with the conditions that start it / B on the quest. (2) **A** worn first (the event's worn gear and primary evolution); owned-only starts later / B both now. (3) **A** the player whose character wears it (Q-235d) / B the host.
 **Recommendation:** all A. NieR: Automata's weapon stories open as you level the weapon you use, and the item is where a designer looks for what it carries (as bound memories already are). Worn gear is what memory events record today; owned-only needs the owned store in the event (a later slice).
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; which quests exist is Crown's.
+**Crown (2026-11-08):** kept as built, and added **activations** (MemoryCatalogue §3.11): a gear quest's start can need the item in a certain state: a crystal of a given element in its socket (e.g. an apparel piece with a Fire crystal), an evolution attached, an augment stone, an upgrade level or tier. Built on B-381 (WornItemState condition).
 
 ### Q-380 — Apparel: slots, what its crystal gives, evolutions on it
 **Status:** ANSWERED (Crown, 2026-11-08; (4) tier scaling confirmed by Crown) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
@@ -4395,6 +4404,19 @@ Moved here once applied. Newest first.
 - **The % maths stays** (this game's numbers are tier-scaled up to ×4.8, so the deckbuilder's flat +1 / +2 would fade): the All line keeps Defence's step and its 75% cap (ED-20); the per-type lines keep resistance's step and its ±50% cap (ED-27). No balance change intended.
 - Mirrors Amp (Q-164b) and the scopes of D-166.
 **Notes for Claude:** a naming and data-shape change first (one `Resistance` line type with a scope; `Defense` read as its All line; old fields read across), then the readers. Rules ED-20 / ED-27, the Resistance and DamageCalculator docs.
+
+### Q-389 — Resistance by damage type: which Physical line counts for damage
+**Status:** ANSWERED (Crown, 2026-11-09: B, changed from the default) · **Raised:** 2026-11-08 (B-389, cloud) · **Blocks:** —
+**Question:** D-168 adds a Physical resistance line for damage. The resistance columns already have a Physical column (B-358), but it feeds status buildup only, and the class table puts **+15 on Generic and −15 on Resonator** in it. Should damage read that column, or a new line?
+**Options / as built:** **A** a new damage-only line (`FResistanceBonus::PhysicalDamage`, with `SpellDamage` beside it); the buildup column stays buildup-only, so old data plays exactly as before / B read the buildup Physical column for damage: Generic characters take 15% less physical damage, Resonators 15% more, which is a balance change.
+**Recommendation:** A. D-168 says "no balance change intended", and the deckbuilder's Def lines are separate damage lines from the buildup it tracks elsewhere. Path of Exile also keeps physical damage reduction apart from ailment avoidance.
+**Answer (Crown, 2026-11-09):** **B.** "Generic should take less physical damage and Resonators more, by the nature of their classes." Damage reads the class table's Physical column as the class's Physical line (Generic +15%, Resonator −15%, Refractor 0), summed into the Physical scope line under the ±50% cap. This is an intended balance change, Crown's exception to D-168's "no change". (First default, 2026-11-08: A.)
+**Notes for Claude (as built):** B-389.
+- Q-389 B: `GetScopeLineResistance` adds `ClassInnateResistanceTable::GetClassInnateResistance(Target, None, Physical)` for a hit that is not a spell.
+- `PhysicalDamage` and `SpellDamage` are appended to `FResistanceBonus`. They are saved per instance as tagged fields, so old saves read 0, and they are not in `ResistanceColumns::Types`.
+- Defence is unchanged and is read as the All line.
+- Step 3 applies `ElementResistance + ResistanceScopeLine` under ±50%.
+- Not yet scoped: ResistanceBuff effects, DoT ticks (element only), and the gear roll. They will get scope lines when authored data needs them.
 
 ### Q-042f — GAS stage 3 step 5: one GE per stone, or the stat's one sources GE?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-042f, cloud) · **Blocks:** —

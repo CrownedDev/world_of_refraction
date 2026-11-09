@@ -22,6 +22,7 @@ enum class EMerchantType : uint8;
 enum class EEssenceType : uint8;
 enum class EInventoryVerb : uint8;
 enum class ECurrencyType : uint8;
+enum class EQuestKind : uint8;
 
 namespace WoRGameNames
 {
@@ -76,4 +77,7 @@ namespace WoRGameNames
     /** B-333 (D-125): the seven balances' names: "Gold", "Prisms", "Diamond", "Gear Essence",
      *  "Skill Essence", "Elemental Essence", "Pillar Essence". */
     WORLD_OF_REFRACTION_API FText GetCurrencyName(ECurrencyType Currency);
+
+    /** B-388: "Hidden" (never shown to players, D-100), "Main", "Side". */
+    WORLD_OF_REFRACTION_API FText GetQuestKindName(EQuestKind Kind);
 }

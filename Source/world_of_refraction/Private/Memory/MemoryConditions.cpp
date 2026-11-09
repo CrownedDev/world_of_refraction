@@ -15,7 +15,9 @@
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Apparel/ApparelData.h"
 #include "Equipment/EquipmentDataBase.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
@@ -24,6 +26,7 @@
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
 #include "Player/WoRPlayerState.h"
+#include "Reaction/ReactionTrigger.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -177,6 +180,70 @@ FMemoryEvent MemoryConditions::MakeEvent(const UGameInstance *GameInstance, EMem
 	return Event;
 }
 
+namespace
+{
+	/** B-381: one worn entry's state (a weapon's, an adapter's or an apparel piece's; Stone null for apparel). */
+	FWornItemState MakeWornState(const UEquipmentDataBase *Item, EItemTier Tier, const FRuntimeAttachedItem &Socket,
+								 const FRuntimeAttachedItem *Stone)
+	{
+		FWornItemState State;
+		State.Item = Item;
+		State.Tier = Tier;
+		State.UpgradeSteps = Item ? MemoryUnlock::GetUpgradeSteps(*Item, Tier) : 0;
+		// Review: a broken crystal gives no element, as FApparelEntry::GetElement treats it.
+		const bool bWorking = !Socket.IsBroken();
+		State.SocketElement = bWorking && (Socket.IsCrystal() || Socket.IsEvolution()) ? Socket.GetElement() : ESpellElement::None;
+		State.SocketEvolution = bWorking && Socket.IsEvolution() ? Socket.Evolution.Item : nullptr;
+		State.StoneType = Stone && Stone->IsAugmentStone() ? Stone->Crystal.Id.Type : ECrystalType::None;
+		return State;
+	}
+}
+
+TArray<FWornItemState> MemoryConditions::GetWornStates(const AActor *Actor)
+{
+	TArray<FWornItemState> States;
+	const UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
+	if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+	{
+		return States;
+	}
+	const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+	const TArray<const UEquipmentDataBase *> InUse = ReactionTriggers::GetWornItems(Actor);
+	// TODO: one state per asset, so two copies of the same weapon with different sockets keep the first; apparel is read
+	// from the loadout copy (check against the owned store, UPoolSubsystem::OwnedApparel, if a socket change skips it).
+	auto AddOnce = [&States, &InUse](const FWornItemState &State, bool bNeedsInUse)
+	{
+		if (State.Item && (!bNeedsInUse || InUse.Contains(State.Item)) &&
+			!States.ContainsByPredicate([&State](const FWornItemState &Kept) { return Kept.Item == State.Item; }))
+		{
+			States.Add(State);
+		}
+	};
+	// A level-up or a socket change writes the owned entry, not the loadout's copy: read the owned one when it exists.
+	for (const FWeaponInventoryEntry *Copy : {&Loadout.PrimaryWeapon.WeaponEntry, &Loadout.SecondaryWeapon.WeaponEntry})
+	{
+		const FWeaponInventoryEntry *Owned = Copy->PersistentID.IsValid() ? Inventory->FindOwnedWeapon(Copy->PersistentID) : nullptr;
+		const FWeaponInventoryEntry &Entry = Owned ? *Owned : *Copy;
+		AddOnce(MakeWornState(Entry.Weapon, Entry.Tier, Entry.AttachedItem, &Entry.StoneSocket), /*bNeedsInUse=*/true);
+	}
+	TArray<const FRingInventoryEntry *> Rings = {&Loadout.PrimaryRing.RingEntry};
+	if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
+	{
+		Rings.Add(&Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry);
+	}
+	for (const FRingInventoryEntry *Copy : Rings)
+	{
+		const FRingInventoryEntry *Owned = Copy->PersistentID.IsValid() ? Inventory->FindOwnedRing(Copy->PersistentID) : nullptr;
+		const FRingInventoryEntry &Entry = Owned ? *Owned : *Copy;
+		AddOnce(MakeWornState(Entry.Ring, Entry.Tier, Entry.AttachedItem, &Entry.StoneSocket), /*bNeedsInUse=*/true);
+	}
+	for (const FApparelEntry &Apparel : Loadout.Apparel) // worn while in the loadout (outside the budget, B-380)
+	{
+		AddOnce(MakeWornState(Apparel.Apparel, Apparel.Tier, Apparel.AttachedItem, nullptr), /*bNeedsInUse=*/false);
+	}
+	return States;
+}
+
 FMemoryEventMember MemoryConditions::MakeMember(const AActor *Combatant)
 {
 	const UCharacterDataComponent *DataComponent = Combatant ? Combatant->FindComponentByClass<UCharacterDataComponent>() : nullptr;
@@ -184,6 +251,7 @@ FMemoryEventMember MemoryConditions::MakeMember(const AActor *Combatant)
 	const TPair<const UEvolutionItemData *, EItemTier> Evolution = GetPrimaryEvolution(Combatant);
 	Member.Evolution = Evolution.Key;
 	Member.EvolutionTier = Evolution.Value;
+	Member.WornStates = GetWornStates(Combatant); // B-381 activations
 	if (const ULoadoutComponent *Loadout = Combatant ? Combatant->FindComponentByClass<ULoadoutComponent>() : nullptr)
 	{
 		for (const USkillDataBase *Attack : Loadout->GetAllWeaponAttacks())

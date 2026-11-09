@@ -19,6 +19,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (in dev) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
 | [B-387](B-387.md) | `feature/B-387-crystal-amp-cloud` (in dev) | Worn crystals (and the seated evolution) grant Amp to their element by tier: F0 E0 D1 C1 B2 A2 S3 | Pending |
+| [B-389](B-389.md) | `feature/B-389-resistance-by-type-cloud` (in dev) | Resistance by damage type: Defence is the All line; a Physical line cuts physical hits only | Pending |
 | [B-382](B-382.md) | `feature/B-382-amp-lines-cloud` (unbuilt) | Amp lines on gear: All / Physical / one element, added to the action's base; damage buffs keyed by element; `wor.Damage.Amp` | Pending |
 | [B-383](B-383.md) | `feature/B-383-damage-scopes-cloud` (unbuilt) | Every damage / defence boost has a scope (All, Physical, Spell, one element; default All); `wor.Damage.Scopes` | Pending |
 | [B-384](B-384.md) | `feature/B-384-one-damage-channel-cloud` (in dev) | The four all-damage % channels add into one; **stacked builds hit a little lower** (before / after numbers in the sheet); `wor.Damage.FoldAllDamage` | Pending |
@@ -393,10 +394,11 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
 | [B-376](B-376.md) | `feature/B-376-party-has-cloud` (UNBUILT, on B-375) | Pair memories: both characters present, solo or across players | Pending |
 | [B-377](B-377.md) | `feature/B-377-hidden-quests-cloud` (UNBUILT, on B-376, save v25) | Hidden quests: start, steps across runs, end memory | Pending |
+| [B-388](B-388.md) | `feature/B-388-main-side-quests-cloud` (in dev) | Main and side quests: listed in the journal with their goal | Pending |
 | [B-378](B-378.md) | `feature/B-378-curses-cloud` (in dev) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
 | [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (in dev) | A held curse weakens your own characters by its penalty | Pending |
 | [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
-| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
+| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (in dev) | A worn item's hidden quest starts while its condition holds | Pending |
 | [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (in dev) | The journal saved; a friend's quests move on the host's events | Pending |
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
