@@ -18,6 +18,7 @@
 #include "Character/Forms/CharacterFormData.h"
 #include "Save/CoopCheckpoint.h"
 #include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
+#include "Save/WoRSaveTypes.h" // FSavedQuestProgress (B-377b)
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
@@ -89,10 +90,15 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_OpenRestMenu(bool bCanRevive, int32 RevivalNumber);
 
-	/** B-187e: a client pressed Revive in its rest menu: the host revives the mini-boss of the run's last rest spot, if it
-	 *  can (WoRRestSpot::CanReviveHere), for everyone. */
+	/** B-187e: a client pressed Revive in its rest menu. Q-187e (Crown, 2026-11-08): it starts the revive vote
+	 *  (AWoRGameState::StartReviveVote) if the mini-boss of the run's last rest spot can be revived and this player stands
+	 *  at the rest spot, outside a fight. */
 	UFUNCTION(Server, Reliable)
 	void ServerReviveMiniBoss();
+
+	/** B-187e (Q-187e): this player's answer to the open revive vote. */
+	UFUNCTION(Server, Reliable)
+	void ServerCastReviveVote(bool bYes);
 
 	/** B-235c: a client uses a map feature (a chest, a memory spot, the Prism pickup): the host runs it for this
 	 *  player's pawn, if it stands in the feature's trigger. */
@@ -122,6 +128,25 @@ public:
 	 *  TODO: trusted co-op only: no WithValidation and no cap on the list's size (add both before public matchmaking). */
 	UFUNCTION(Server, Reliable)
 	void ServerReportJournal(const TArray<FName> &MemoryIds);
+
+	/** B-377b: a client's hidden quest progress, for the host to check its steps (sent on joining and on each change). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportQuests(const TArray<FSavedQuestProgress> &Quests);
+
+	/** B-377b (server): this player's unfinished quests: quest id -> steps done. */
+	const TMap<FName, int32> &GetReportedQuests() const { return ReportedQuests; }
+
+	/** B-377b (server): a gear quest offered to this player once (until they report it started). */
+	bool WasQuestOffered(FName QuestId) const { return OfferedQuests.Contains(QuestId); }
+	void MarkQuestOffered(FName QuestId) { OfferedQuests.Add(QuestId); }
+
+	/** B-377b: the host saw this player's own part of an event meet QuestId's current step. */
+	UFUNCTION(Client, Reliable)
+	void Client_QuestStepMet(FName QuestId, int32 StepIndex);
+
+	/** B-377b: this player's worn gear started Quest at an event the host ran. */
+	UFUNCTION(Client, Reliable)
+	void Client_StartQuest(class UHiddenQuestData *Quest);
 
 	/** B-235e: a client found Memory itself (its own map spot, fragment or event): the host notes it, and shares one for
 	 *  every character (it lists none) with itself and the other friends (Q-235d rule 3). */
@@ -197,6 +222,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Economy")
 	TObjectPtr<UCurrencyComponent> Wallet;
+
+	/** B-377b (server only): see GetReportedQuests / WasQuestOffered. */
+	TMap<FName, int32> ReportedQuests;
+	TSet<FName> OfferedQuests;
 
 	/** B-235d / B-235e (server only): the memory ids this player has (see HasMemoryId). */
 	TSet<FName> KnownMemoryIds;

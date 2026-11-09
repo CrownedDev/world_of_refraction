@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
 #include "Memory/CurseSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Algo/Count.h"
@@ -2577,6 +2578,16 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 
 // ==================== COMBAT ACCESSORS ====================
 
+void ULoadoutComponent::NotifyApparelChanged()
+{
+    if (UCharacterDataComponent *Data = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        Data->RecomputeMaxPools(); // gear HP
+    }
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    OnLoadoutChanged.Broadcast(Inv ? Inv->ActiveLoadoutIndex : 0); // GAS stats and resistances re-sync on this
+}
+
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
     // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.
@@ -4352,6 +4363,9 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         Combined.BonusMindModifierPercent   += Src.BonusMindModifierPercent;
         Combined.BonusBodyModifierPercent   += Src.BonusBodyModifierPercent;
         Combined.BonusSpiritModifierPercent += Src.BonusSpiritModifierPercent;
+        // B-382 (Q-164b): Amp lines are flat adds to an action's base, which the skill's own tier power
+        // scales; scaling them by the item's tier too would double it, so they sum raw.
+        Combined.Amp.Accumulate(Src.Amp);
     };
 
     auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Tier : EItemTier::F_Tier; }; // instance Tier (was E.Weapon->Tier)
@@ -4359,16 +4373,29 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 
     const FCombatLoadout &Loadout = GetActiveLoadout();
 
+    // B-387 (Q-387): a refined crystal in a worn socket grants Amp to its own element by its tier (the deckbuilder's
+    // ladder). An evolution in a gear socket gives passives only (D-147), so only a crystal counts here; a broken one
+    // gives none (as it loses its element key and spells, D-083).
+    auto AddSocketCrystalAmp = [&Combined](const FRuntimeAttachedItem &Socket)
+    {
+        if (Socket.IsCrystal() && !Socket.IsBroken())
+        {
+            AmpRules::AddElementLine(Combined.Amp, Socket.GetElement(), AmpRules::GetCrystalTierAmp(Socket.Crystal.Id.Tier));
+        }
+    };
+
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
     ForEachContributingGear([&](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
         if (Weapon)
         {
             AddScaled(Weapon->WeaponEntry.StatBonus, WeaponTier(Weapon->WeaponEntry));
+            AddSocketCrystalAmp(Weapon->WeaponEntry.AttachedItem);
         }
         else
         {
             AddScaled(Adapter->RingEntry.StatBonus, RingTier(Adapter->RingEntry));
+            AddSocketCrystalAmp(Adapter->RingEntry.AttachedItem);
         }
     });
 
@@ -4390,6 +4417,25 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         EvoBonus.BonusBodyModifierPercent = 0.0f;
         EvoBonus.BonusSpiritModifierPercent = 0.0f;
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
+        // B-387 (Q-387): the evolution in the character's own seat grants Amp to its element by its tier (on gear it
+        // gives passives only, D-147).
+        if (!Loadout.PrimaryEvolution.IsBroken())
+        {
+            AmpRules::AddElementLine(Combined.Amp, Loadout.PrimaryEvolution.Item->GetAssociatedElement(),
+                                     AmpRules::GetCrystalTierAmp(Loadout.PrimaryEvolution.Tier));
+        }
+    }
+
+    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines, tier-scaled like gear, and its Amp lines
+    // raw (B-386, through AddScaled);
+    // outside the budget, so it sits beside whatever ForEachContributingGear visits.
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            AddScaled(Piece.GetStatLines(), Piece.Tier);
+            AddSocketCrystalAmp(Piece.AttachedItem); // B-387
+        }
     }
 
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
@@ -4448,6 +4494,16 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
         Combined.Accumulate(Curses->GetResistancePenalty());
     }
 
+    // B-380 (D-164): every apparel piece's resistance, with its crystal's element added (Crown).
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Combined.Accumulate(Piece.GetResistance());
+        }
+    }
+
     return Combined;
 }
 
@@ -4478,6 +4534,22 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     {
         Result.Append(Evolution.Attachment.Item->GetStartingEffects());
     }
+    // B-380 (D-164, Crown): apparel carries effects like the deckbuilder's vessels.
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffects());
+        }
+        // Crown, D-164: its passives. Merge B-357b + B-380 (Q-380): apparel is gear, so as a gear evolution's (D-147):
+        // only on an action charged to GEAR_PASSIVES_CHARGE_LEVEL, never at fight start (the L2 read is B-357d).
+        const UEvolutionItemData *Evolution = Piece.GetEvolution();
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
+        {
+            Result.Append(Evolution->GetStartingEffects());
+        }
+    }
 
     return Result;
 }
@@ -4507,6 +4579,19 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Acto
     {
         Result.Append(Evolution.Attachment.Item->GetStartingEffectsGathered());
     }
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164)
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetStartingEffectsGathered(Wearer, WornSkin));
+        }
+        const UEvolutionItemData *Evolution = Piece.GetEvolution(); // gated as GetActiveEffects' (D-147)
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
+        {
+            Result.Append(Evolution->GetStartingEffectsGathered());
+        }
+    }
 
     return Result;
 }
@@ -4535,6 +4620,19 @@ TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(A
     for (const FAttachedEvolution &Evolution : WoREvolutionPlacement::FilterPassives(GatherAttachedEvolutions(), LOADOUT_FIGHT_START_CHARGE_LEVEL))
     {
         Result.Append(Evolution.Attachment.Item->GetConditionalEffectsGathered());
+    }
+    const FCombatLoadout &Loadout = GetActiveLoadout(); // merge B-357c + B-380: B-357c dropped it, B-380's apparel reads it
+    for (const FApparelEntry &Piece : Loadout.Apparel) // B-380 (D-164): its trigger-gated rows
+    {
+        if (Piece.Apparel)
+        {
+            Result.Append(Piece.Apparel->GetConditionalEffectsGathered(Wearer, WornSkin));
+        }
+        const UEvolutionItemData *Evolution = Piece.GetEvolution(); // gated as GetActiveEffects' (D-147)
+        if (Evolution && WoREvolutionPlacement::GivesPassives(EEvolutionPlace::Adapter, LOADOUT_FIGHT_START_CHARGE_LEVEL))
+        {
+            Result.Append(Evolution->GetConditionalEffectsGathered());
+        }
     }
 
     return Result;

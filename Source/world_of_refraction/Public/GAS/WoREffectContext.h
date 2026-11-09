@@ -14,6 +14,7 @@
 #include "GameplayEffectTypes.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Skills/Effects/EDamageScope.h"
 #include "WoREffectContext.generated.h"
 
 struct FWoRBuildupRequest;
@@ -31,6 +32,10 @@ struct WORLD_OF_REFRACTION_API FWoREffectIdentity
 	/** The effect's element; None when it has none. */
 	UPROPERTY(BlueprintReadOnly, Category = "Effect")
 	ESpellElement Element = ESpellElement::None;
+
+	/** B-383 (D-166): which hits a damage or defence boost counts for (the enum path's FActiveSkillEffect::DamageScope). */
+	UPROPERTY(BlueprintReadOnly, Category = "Effect")
+	EDamageScope DamageScope = EDamageScope::All;
 
 	/** The enum path's EffectID (EffectIdentity.h), kept for parity until B-042g. */
 	UPROPERTY(BlueprintReadOnly, Category = "Effect")
