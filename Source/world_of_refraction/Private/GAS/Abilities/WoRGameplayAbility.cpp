@@ -2,6 +2,7 @@
 
 #include "GAS/Abilities/WoRGameplayAbility.h"
 #include "AbilitySystemGlobals.h"
+#include "Abilities/Tasks/AbilityTask_WaitDelay.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/WoRFightSubsystem.h"
@@ -125,6 +126,9 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	ForwardOnComplete = Scope->OnComplete;
 	bActionRunning = true;
 	ImpactTask = nullptr;
+	ProjectileArrivedTask = nullptr;
+	ProjectileDodgedTask = nullptr;
+	BurstDelayTask = nullptr;
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -145,6 +149,11 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	{
 		StartImpactListener();
 	}
+	// B-043d: before the executor call too: a montage-less spell releases its cast inside it.
+	if (ShouldListenForProjectiles(RunningAction))
+	{
+		StartProjectileListeners();
+	}
 	// A copy: the completion can run inside this call and a bonus turn can start this ability again.
 	const FAction Action = RunningAction;
 	Executor->ExecuteActionAsync(Avatar, Action, FOnActionComplete::CreateUObject(this, &UWoRGameplayAbility::HandleActionComplete));
@@ -158,12 +167,7 @@ void UWoRGameplayAbility::HandleActionComplete(const FActionResult &Result)
 	}
 	bActionRunning = false;
 	RunningAction = FAction(); // drop its targets and skill until the next activation
-	if (UAbilityTask_WaitGameplayEvent *Task = ImpactTask)
-	{
-		// Safe from inside the task's own broadcast: the ASC and the delegate both broadcast from copies.
-		ImpactTask = nullptr;
-		Task->EndTask();
-	}
+	EndActionTasks();
 	FOnActionComplete Forward = ForwardOnComplete;
 	ForwardOnComplete.Unbind();
 	// End first, so whoever started the action can start this ability again from the forwarded call
@@ -239,4 +243,153 @@ void UWoRGameplayAbility::HandleImpactEvent(FGameplayEventData Payload)
 	++ImpactEventsResolved;
 	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: impact %d through Event.Combat.Impact"), *Avatar->GetName(), Index);
 	Executor->ResolveImpactFrame(Index);
+}
+
+void UWoRGameplayAbility::EndActionTasks()
+{
+	// Each pointer is cleared before EndTask: safe from inside a task's own broadcast (the ASC and the delegates
+	// broadcast from copies).
+	const auto EndTask = [](auto &TaskPtr)
+	{
+		if (UAbilityTask *Task = TaskPtr)
+		{
+			TaskPtr = nullptr;
+			Task->EndTask();
+		}
+	};
+	EndTask(ImpactTask);
+	EndTask(ProjectileArrivedTask);
+	EndTask(ProjectileDodgedTask);
+	EndTask(BurstDelayTask);
+}
+
+bool UWoRGameplayAbility::ShouldListenForProjectiles(const FAction &Action)
+{
+	// Support casts (self / ally) spawn no projectile (SpawnSupportSpellEffect); a skill with no Projectile delivery
+	// has nothing to wait for.
+	const USkillDataBase *Skill = WoRSkillAbilities::GetActionSkill(Action);
+	return Skill && Skill->TargetType == ETargetType::Enemy &&
+		   WoRSkillAbilities::GetShapeTags(*Skill).HasTagExact(WoRTags::Ability_Shape_Projectile);
+}
+
+bool UWoRGameplayAbility::IsListeningForProjectiles() const
+{
+	return bActionRunning && IsActive() && ProjectileArrivedTask && ProjectileArrivedTask->IsActive();
+}
+
+void UWoRGameplayAbility::StartProjectileListeners()
+{
+	// Q-043d: every arrival of the action (a burst lands several), exact tags, as the impact task (Q-043c).
+	ProjectileArrivedTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, WoRTags::Event_Combat_Projectile_Arrived,
+																			  /*OptionalExternalTarget*/ nullptr,
+																			  /*OnlyTriggerOnce*/ false, /*OnlyMatchExact*/ true);
+	ProjectileDodgedTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, WoRTags::Event_Combat_Projectile_Dodged,
+																			 /*OptionalExternalTarget*/ nullptr,
+																			 /*OnlyTriggerOnce*/ false, /*OnlyMatchExact*/ true);
+	if (!ProjectileArrivedTask || !ProjectileDodgedTask)
+	{
+		// Neither listens, so the executor resolves the arrivals itself.
+		ProjectileArrivedTask = nullptr;
+		ProjectileDodgedTask = nullptr;
+		return;
+	}
+	ProjectileArrivedTask->EventReceived.AddDynamic(this, &UWoRGameplayAbility::HandleProjectileArrivedEvent);
+	ProjectileDodgedTask->EventReceived.AddDynamic(this, &UWoRGameplayAbility::HandleProjectileDodgedEvent);
+	ProjectileArrivedTask->ReadyForActivation();
+	ProjectileDodgedTask->ReadyForActivation();
+}
+
+bool UWoRGameplayAbility::AcceptsProjectileEvent(const FGameplayEventData &Payload) const
+{
+	if (!bActionRunning || !Payload.Target)
+	{
+		return false;
+	}
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	// As the impact event: only the listener the sender chose resolves it, and only for its own action.
+	if (WoRSkillAbilities::FindProjectileListener(Avatar) != this)
+	{
+		return false;
+	}
+	const UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	return Executor && Executor->GetCurrentSkillData() == WoRSkillAbilities::GetActionSkill(RunningAction);
+}
+
+void UWoRGameplayAbility::HandleProjectileArrivedEvent(FGameplayEventData Payload)
+{
+	if (!AcceptsProjectileEvent(Payload))
+	{
+		return; // not counted: the sender resolves it (SendProjectileEvent)
+	}
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(Avatar);
+	// The payload holds the target as const; the executor's defense contexts are keyed by the mutable actor.
+	AActor *Target = const_cast<AActor *>(Payload.Target.Get());
+	const int32 CastEntryIndex = FMath::RoundToInt(Payload.EventMagnitude);
+	// Counted before resolving: the arrival can finish the action and end this ability.
+	++ProjectileEventsResolved;
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: projectile on %s (cast entry %d) through Event.Combat.Projectile.Arrived"),
+		   *Avatar->GetName(), *Target->GetName(), CastEntryIndex);
+	Executor->ResolveProjectileArrival(Target, CastEntryIndex);
+}
+
+void UWoRGameplayAbility::HandleProjectileDodgedEvent(FGameplayEventData Payload)
+{
+	if (!AcceptsProjectileEvent(Payload))
+	{
+		return;
+	}
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(Avatar);
+	AActor *Target = const_cast<AActor *>(Payload.Target.Get());
+	++ProjectileEventsResolved;
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: projectile dodged by %s through Event.Combat.Projectile.Dodged"),
+		   *Avatar->GetName(), *Target->GetName());
+	Executor->ResolveProjectileDodge(Target);
+}
+
+bool UWoRGameplayAbility::StartBurstChain(float Interval)
+{
+	if (!IsListeningForProjectiles())
+	{
+		return false;
+	}
+	// A new burst replaces the old chain, as the executor's SetTimer replaced its timer.
+	if (UAbilityTask *Old = BurstDelayTask)
+	{
+		BurstDelayTask = nullptr;
+		Old->EndTask();
+	}
+	BurstInterval = Interval;
+	ArmBurstDelay();
+	return BurstDelayTask != nullptr;
+}
+
+void UWoRGameplayAbility::ArmBurstDelay()
+{
+	BurstDelayTask = UAbilityTask_WaitDelay::WaitDelay(this, BurstInterval);
+	if (!BurstDelayTask)
+	{
+		return;
+	}
+	BurstDelayTask->OnFinish.AddDynamic(this, &UWoRGameplayAbility::HandleBurstDelayFinished);
+	BurstDelayTask->ReadyForActivation();
+}
+
+void UWoRGameplayAbility::HandleBurstDelayFinished()
+{
+	BurstDelayTask = nullptr;
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	// The executor empties its queue when the action is cancelled or interrupted: the chain then stops here.
+	if (!bActionRunning || !Executor || !Executor->HasBurstQueued())
+	{
+		return;
+	}
+	++BurstSpawnsDriven;
+	Executor->SpawnNextBurstProjectile();
+	if (bActionRunning && !BurstDelayTask && Executor->HasBurstQueued())
+	{
+		ArmBurstDelay();
+	}
 }
