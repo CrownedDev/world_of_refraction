@@ -254,8 +254,9 @@ TArray<FGameplayAbilitySpec> WoRSkillAbilities::GetSkillSpecs(AActor *Actor)
 
 bool WoRSkillAbilities::TryExecuteThroughAbility(AActor *Actor, const FAction &Action, const FOnActionComplete &OnComplete)
 {
-	// A ritual's fire stays on the old call until it becomes an arm ability (B-043g).
-	if (!UsesAbilities() || Action.bIsDeferredFire)
+	// B-043g (Q-043g): a ritual's fire (bIsDeferredFire) runs through the same skill spec as its arm; the executor's
+	// bIsDeferredFire gates keep it cost-free and skip the ritual leg, and CommitCostThroughAbility commits nothing.
+	if (!UsesAbilities())
 	{
 		return false;
 	}
@@ -450,6 +451,11 @@ UWoRGameplayAbility *WoRSkillAbilities::FindActionRunner(AActor *Actor, const FA
 
 bool WoRSkillAbilities::CommitCostThroughAbility(AActor *Actor, const FAction &Action, int32 Cost)
 {
+	// B-043g (Q-043g): a ritual paid at its arm; its fire commits nothing (the executor's SpendEnergy of 0 is a no-op).
+	if (Action.bIsDeferredFire)
+	{
+		return false;
+	}
 	UWoRGameplayAbility *Runner = FindActionRunner(Actor, Action);
 	if (!Runner)
 	{
