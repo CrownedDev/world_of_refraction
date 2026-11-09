@@ -6,6 +6,7 @@
 #include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoRCombatEvents.h"
 #include "GAS/WoRActionCosts.h"
+#include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Tags/WoRGameplayTags.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -3981,11 +3982,17 @@ void UActionExecutor::DispatchSpellCast(
 			ActiveBurstDamage = FinalDamage;
 			bActiveBurstIsBD = bIsBD;
 			ActiveBurstElement = InElement;
-			if (UWorld *World = GetWorld())
+			const float BurstInterval = FMath::Max(Entry.BurstInterval, 0.01f);
+			// B-043d: the caster's skill ability runs the stagger as its own task when it waits for these projectiles.
+			if (WoRSkillAbilities::StartBurstThroughAbility(Caster, BurstInterval))
+			{
+				UE_LOG(LogTemp, Verbose, TEXT("[Runner] Burst of %d stagger runs through %s's skill ability"),
+					   BurstSpawnQueue.Num(), *Caster->GetName());
+			}
+			else if (UWorld *World = GetWorld())
 			{
 				World->GetTimerManager().SetTimer(
-					BurstTimerHandle, this, &UActionExecutor::SpawnNextBurstProjectile,
-					FMath::Max(Entry.BurstInterval, 0.01f), true);
+					BurstTimerHandle, this, &UActionExecutor::SpawnNextBurstProjectile, BurstInterval, true);
 			}
 		}
 		break;
@@ -4136,7 +4143,8 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	// window count-based with ExpectedImpacts=1, so the projectile's LANDING is the impact moment.
 	// Resolve THIS arrival per-impact (reading the spell cast-entry difficulty) and apply exactly
 	// once — mirroring the melee Impact-notify loop (drain counter, resolve, apply slice, close).
-	if (ResolveSpellArrival(Target, CastEntryIndex, nullptr, nullptr, TEXT("Projectile"), /*bProjectileArrival=*/true))
+	// B-043d: through the caster's skill ability when it runs the action.
+	if (RouteProjectileArrival(Target, CastEntryIndex))
 	{
 		return;
 	}
@@ -4159,6 +4167,47 @@ void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Projectile dodged by %s at %s"),
 		   Target ? *Target->GetName() : TEXT("None"), *ImpactLocation.ToString());
 
+	// B-043d: through the caster's skill ability when it runs the action.
+	if (WoRSkillAbilities::SendProjectileEvent(GetExecutingActor(), WoRTags::Event_Combat_Projectile_Dodged, Target, INDEX_NONE))
+	{
+		return;
+	}
+	ResolveProjectileDodge(Target);
+}
+
+AActor *UActionExecutor::GetExecutingActor() const
+{
+	return CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get() : nullptr;
+}
+
+bool UActionExecutor::CanResolveSpellArrival(AActor *Target) const
+{
+	if (!Target || !GetDefenseSystem() || !CurrentExecutionContext.IsSet())
+	{
+		return false;
+	}
+	const FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target);
+	return Ctx && Ctx->ExpectedImpacts > 0;
+}
+
+bool UActionExecutor::RouteProjectileArrival(AActor *Target, int32 CastEntryIndex)
+{
+	// Only an arrival the per-impact path takes goes to the ability; a lumped one stays with the caller.
+	if (CanResolveSpellArrival(Target) &&
+		WoRSkillAbilities::SendProjectileEvent(GetExecutingActor(), WoRTags::Event_Combat_Projectile_Arrived, Target, CastEntryIndex))
+	{
+		return true; // the ability's arrival task resolved it (ResolveProjectileArrival)
+	}
+	return ResolveProjectileArrival(Target, CastEntryIndex);
+}
+
+bool UActionExecutor::ResolveProjectileArrival(AActor *Target, int32 CastEntryIndex)
+{
+	return ResolveSpellArrival(Target, CastEntryIndex, nullptr, nullptr, TEXT("Projectile"), /*bProjectileArrival=*/true);
+}
+
+void UActionExecutor::ResolveProjectileDodge(AActor *Target)
+{
 	// No damage applied - target successfully moved out of impact zone
 	// Could broadcast event for UI feedback here
 

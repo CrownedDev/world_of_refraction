@@ -1332,4 +1332,26 @@ protected:
 	/** Called when target dodged projectile */
 	UFUNCTION()
 	void OnProjectileDodged(AActor *Target, FVector ImpactLocation);
+
+	// ==================== PROJECTILES THROUGH THE ABILITY (B-043d, Q-043d) ====================
+
+	/** The running action's caster (the projectile's), or null outside an action. */
+	AActor *GetExecutingActor() const;
+
+	/** True when a projectile landing on Target resolves per impact (ResolveSpellArrival's own checks). */
+	bool CanResolveSpellArrival(AActor *Target) const;
+
+	/** A projectile landing on Target: to the caster's skill ability when one runs the action and waits for its
+	 *  projectiles (WoRSkillAbilities::SendProjectileEvent), else ResolveProjectileArrival. False when Target has
+	 *  no converted window (the caller keeps its lumped path). */
+	bool RouteProjectileArrival(AActor *Target, int32 CastEntryIndex);
+
+	/** One projectile landing, resolved per impact (ResolveSpellArrival). The ability's arrival task calls it. */
+	bool ResolveProjectileArrival(AActor *Target, int32 CastEntryIndex);
+
+	/** One dodged projectile: recorded as 0 damage and counted as an arrival so its window can close. */
+	void ResolveProjectileDodge(AActor *Target);
+
+	/** True while a burst still has projectiles to spawn. */
+	bool HasBurstQueued() const { return !BurstSpawnQueue.IsEmpty(); }
 };
