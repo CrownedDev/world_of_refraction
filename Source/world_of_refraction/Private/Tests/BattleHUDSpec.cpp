@@ -15,7 +15,12 @@
 #include "Combat/CombatConstants.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
+#include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/FCrystalAttachment.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Infusion/ElementColors.h"
+#include "Inventory/InventoryComponent.h"
 #include "Infusion/HybridSpellColors.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/StatusBuildupManager.h"
@@ -37,6 +42,8 @@ namespace
 	constexpr int32 BATTLE_HUD_RING_MAX = 5;
 	constexpr int32 BATTLE_HUD_WEAPON_NOW = 2;
 	constexpr int32 BATTLE_HUD_WEAPON_MAX = 4;
+	constexpr int32 BATTLE_HUD_GEM_DURABILITY = 7; // the hero's weapon gem in the durability header case
+	const FCrystalId BATTLE_HUD_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -440,10 +447,36 @@ void FBattleHUDSpec::Define()
 			{
 				return;
 			}
-			MenuWidget->Initialise(); // replays the open menu
-			const TArray<FText> Expected = BattleHUDView::MakeDurabilityLines(BattleHUDView::ReadDurability(Menu->GetCurrentActor()));
-			TestEqual(TEXT("the header's lines"), MenuWidget->GetDurabilityLines().Num(), Expected.Num());
-			TestTrue(TEXT("wor.UI.Print shows it"), MenuWidget->GetCommandMenuString().Contains(TEXT("durability:")));
+			// Review fix: give the acting hero a gemmed weapon, so the header has a line to check (as CrystalBreakSpec).
+			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+			ULoadoutComponent *HeroLoadout = Hero->FindComponentByClass<ULoadoutComponent>();
+			UInventoryComponent *Inventory = FWoRTestWorld::AddComponent<UInventoryComponent>(Hero);
+			if (!TestTrue(TEXT("hero data, loadout and inventory"), HeroData && HeroLoadout && Inventory))
+			{
+				return;
+			}
+			HeroLoadout->InitializeFromCharacterData(HeroData->CharacterData, Inventory);
+			if (!TestTrue(TEXT("an active saved loadout"), Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
+			{
+				return;
+			}
+			FRuntimeAttachedItem Gem;
+			Gem.Kind = EAttachedItemKind::Crystal;
+			Gem.Crystal = FCrystalAttachment(BATTLE_HUD_GEM, BATTLE_HUD_GEM_DURABILITY);
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Active.PrimarySlotType = EPrimarySlotType::Weapon;
+			Active.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Active.PrimaryWeapon.WeaponEntry.AttachedItem = Gem;
+			HeroLoadout->NotifyActiveWeaponChanged(); // a direct edit, so announce it (B-138)
+
+			MenuWidget->Initialise(); // replays the open menu, which reads the header
+			const TArray<FText> &Lines = MenuWidget->GetDurabilityLines();
+			if (TestTrue(TEXT("Hero's menu, with a header line"), Menu->GetCurrentActor() == Hero && Lines.Num() > 0))
+			{
+				const FString Expected = FString::Printf(TEXT("WD %d / "), BATTLE_HUD_GEM_DURABILITY);
+				TestTrue(TEXT("the weapon gem's durability"), Lines.Last().ToString().StartsWith(Expected));
+			}
+			TestTrue(TEXT("wor.UI.Print shows it"), MenuWidget->GetCommandMenuString().Contains(TEXT("WD ")));
 			MenuWidget->Teardown();
 		});
 
