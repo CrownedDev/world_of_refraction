@@ -15,6 +15,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Skills/Effects/ActiveSkillEffect.h" // UFUNCTION handler parameter type
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "BattleHUDWidget.generated.h"
 
@@ -28,7 +29,6 @@ class UTurnManager;
 class UTurnStateComponent;
 class UVerticalBox;
 class UWoREffectMirrorComponent;
-struct FActiveSkillEffect;
 
 /** One combatant's card: what it shows (plain data) and, once built, its text blocks. */
 USTRUCT()
