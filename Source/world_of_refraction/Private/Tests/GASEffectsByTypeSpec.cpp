@@ -1,6 +1,7 @@
 // GASEffectsByTypeSpec.cpp
-// B-042g (part 1): USkillEffectManager::GetEffectsByType reads the GEs at UseGAS 1, and its views read the same as the
-// enum path's copies: keys (element), one application's value (the Ignore Defense flag test) and the stacked value.
+// B-042g (part 1): USkillEffectManager::GetEffectsByType reads the GEs, and its views read the same as the stored
+// copies: keys (element), one application's value (the Ignore Defense flag test) and the stacked value. B-042g2: the
+// stored side is read straight from the store (StoredOfType), the switch being gone.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -30,6 +31,12 @@ BEGIN_DEFINE_SPEC(FGASEffectsByTypeSpec, "WoR.GAS.EffectsByType", EAutomationTes
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	USkillEffectManager *Effects = nullptr;
 	AActor *Holder = nullptr;
+
+	/** The store's copies of Type, read directly (GetEffectsByType reads the GEs). */
+	TArray<FActiveSkillEffect> StoredOfType(ESkillEffectType Type) const
+	{
+		return Effects->GetActiveEffects(Holder).FilterByPredicate([Type](const FActiveSkillEffect &Effect) { return Effect.EffectType == Type; });
+	}
 END_DEFINE_SPEC(FGASEffectsByTypeSpec)
 
 void FGASEffectsByTypeSpec::Define()
@@ -62,26 +69,21 @@ void FGASEffectsByTypeSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		Effects = nullptr;
 		Holder = nullptr;
 		TestWorld.Reset();
 	});
 
-	It("reads the same views on GAS as on the enum path", [this]()
+	It("reads the same views on GAS as the store holds", [this]()
 	{
 		if (!Effects)
 		{
 			return;
 		}
-		auto Read = [this](bool bFromGAS)
-		{
-			UWoREffectMirrorComponent::SetReadsFromGAS(bFromGAS);
-			return TPair<TArray<FActiveSkillEffect>, TArray<FActiveSkillEffect>>(
-				Effects->GetEffectsByType(Holder, ESkillEffectType::IgnoreDefense), Effects->GetEffectsByType(Holder, ESkillEffectType::DamageReflect));
-		};
-		const auto Enum = Read(false);
-		const auto GAS = Read(true);
+		using FViews = TPair<TArray<FActiveSkillEffect>, TArray<FActiveSkillEffect>>;
+		const FViews Enum(StoredOfType(ESkillEffectType::IgnoreDefense), StoredOfType(ESkillEffectType::DamageReflect));
+		const FViews GAS(Effects->GetEffectsByType(Holder, ESkillEffectType::IgnoreDefense),
+						 Effects->GetEffectsByType(Holder, ESkillEffectType::DamageReflect));
 		TestEqual(TEXT("the mirror matches"), UWoREffectDebug::GetEffectMismatchString(Holder), FString());
 		if (!TestEqual(TEXT("one flag effect on GAS"), GAS.Key.Num(), 1) || !TestEqual(TEXT("one reflect on GAS"), GAS.Value.Num(), 1) ||
 			!TestEqual(TEXT("one flag effect stored"), Enum.Key.Num(), 1) || !TestEqual(TEXT("one reflect stored"), Enum.Value.Num(), 1))
@@ -105,14 +107,11 @@ void FGASEffectsByTypeSpec::Define()
 		Strong.bCanStack = true;
 		Strong.MaxStacks = BY_TYPE_TEST_STACKS;
 		Effects->ApplyEffect(Holder, Strong);
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
 		Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit); // result unused: this read syncs the mirror so the GE exists before the weaker apply
 		FActiveSkillEffect Weak = Strong;
 		Weak.EffectValue = BY_TYPE_TEST_WEAK_VALUE;
 		Effects->ApplyEffect(Holder, Weak);
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
-		const TArray<FActiveSkillEffect> Stored = Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit);
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		const TArray<FActiveSkillEffect> Stored = StoredOfType(ESkillEffectType::ApplyDOTOnHit);
 		const TArray<FActiveSkillEffect> OnGAS = Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit);
 		if (TestEqual(TEXT("one stored"), Stored.Num(), 1) && TestEqual(TEXT("one on GAS"), OnGAS.Num(), 1))
 		{
