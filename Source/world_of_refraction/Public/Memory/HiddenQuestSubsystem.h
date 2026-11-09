@@ -5,7 +5,8 @@
 // FSavedHiddenQuests), and only the count of the step in progress resets at run end (EndRun, from ExitTrial). The last
 // step unlocks the quest's end memory. Notices are private and say nothing of the next step (D-100).
 // Debug: GetQuestsString; wor.Quest.Print.
-// TODO(B-377b): a co-op friend's quests (events run on the host; their progress is on their own machine).
+// B-377b: a co-op friend's quests stay on their machine; it reports them to the host, which tells it when its own part of
+// an event meets a step (CheckFriendsQuests / ApplyStepMetFromHost) or its worn gear starts one.
 
 #pragma once
 
@@ -45,8 +46,16 @@ public:
 
 	/** Every started quest among Quests checks its current step against Event. Returns how many steps were done. */
 	int32 CheckEvent(const FMemoryEvent &Event, const TArray<UHiddenQuestData *> &Quests);
-	/** The same, against every hidden quest asset. */
+	/** The same, against every hidden quest asset; first (B-381) the quests the event's worn gear and evolutions carry. */
 	int32 CheckEvent(const FMemoryEvent &Event);
+
+	/** B-381 (D-165): starts each quest an item worn in Event carries (FBoundQuest) whose conditions hold, for this
+	 *  player's own characters only (a co-op friend's gear starts theirs: B-377b). Returns how many started. */
+	int32 StartGearQuests(const FMemoryEvent &Event);
+
+	/** B-377b (client): the host saw this player's part of an event meet QuestId's step StepIndex (CheckFriendsQuests);
+	 *  counted only while that is still the current step. */
+	void ApplyStepMetFromHost(FName QuestId, int32 StepIndex);
 
 	/** Run end: the step in progress starts its count again next run; steps done stay. */
 	void EndRun();
@@ -79,6 +88,16 @@ private:
 
 	/** The last step is done: finished, and its end memory into this player's run and journal only. */
 	void Finish(const UHiddenQuestData &Quest);
+
+	/** Quest's current step was met once more: counts it, moves on when its times are reached (notice, finish).
+	 *  True when a step was done. */
+	bool CountStepMet(const UHiddenQuestData &Quest);
+
+	/** B-377b (host): each friend's reported quests check their current step on the friend's own part of Event. */
+	void CheckFriendsQuests(const FMemoryEvent &Event, const TArray<UHiddenQuestData *> &Quests, const TSet<FName> &Team);
+
+	/** B-377b (client): sends this player's quest progress to the host (AWoRPlayerState::ServerReportQuests). */
+	void ReportToHost() const;
 
 	/** Q-378: a step's Rewards (curses through Curses, which may be null; other kinds logged). */
 	void GiveStepRewards(const UHiddenQuestData &Quest, const FHiddenQuestStep &Step, UCurseSubsystem *Curses);

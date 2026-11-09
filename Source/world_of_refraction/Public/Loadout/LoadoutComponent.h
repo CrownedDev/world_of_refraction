@@ -821,6 +821,10 @@ public:
      *  Mutators here call it on every return; code that edits SavedLoadouts directly calls it after. */
     void NotifyActiveWeaponChanged();
 
+    /** B-380c: apparel worn in this loadout changed (worn, removed, or its socket set in play): the max pools and every
+     *  stat reader (GAS sync, loadout UI: OnLoadoutChanged) re-read it. */
+    void NotifyApparelChanged();
+
     /** Debug: Log current loadout state */
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void DebugLogLoadout();

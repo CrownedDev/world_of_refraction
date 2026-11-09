@@ -12,6 +12,8 @@
 
 #include "CoreMinimal.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Memory/MemoryData.h" // FMemoryReward, UMemoryData::Rewards (review: the inline ApplyRewards reads them)
 #include "Save/WoRSaveTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
@@ -64,11 +66,35 @@ public:
 
 	FString GetCursesString() const;
 
+	/** B-378b: the summed penalty of every held curse that has a UCurseData (by CurseId); zero for none. */
+	FEquipmentStatBonus GetStatPenalty() const;
+	FResistanceBonus GetResistancePenalty() const;
+
+	/** B-378b: Character is one of this player's own party characters (the local party's, not a co-op friend's): the
+	 *  only ones this player's curses weaken (a friend's curses are theirs, B-377b). */
+	bool IsCursedHere(const class UCharacterData *Character) const;
+
+	/** The curse assets to read (tests set a list); unset, every curse asset is gathered once the registry has loaded. */
+	void SetCurseAssets(const TArray<class UCurseData *> &Curses);
+
 private:
 	UFUNCTION()
 	void HandleMemoryRecorded(UMemoryData *Memory, EMemorySource Source);
 
 	TSet<FName> HeldCurses;
+
+	/** B-378b: the held curses' assets. */
+	TArray<const class UCurseData *> GetHeldCurseAssets() const;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class UCurseData>> CurseAssets;
+	bool bGatheredCurses = false;
+
+	/** Review: the held curses' summed penalties, rebuilt when what is held or the asset list changes. */
+	void RebuildPenalty() const;
+	mutable FEquipmentStatBonus CachedStatPenalty;
+	mutable FResistanceBonus CachedResistancePenalty;
+	mutable bool bPenaltyDirty = true;
 	/** Curses lifted or cleared before (Q-378: they can be regained). */
 	TSet<FName> LiftedCurses;
 	/** Lifted since BeginEvent: not regained by the same event. */

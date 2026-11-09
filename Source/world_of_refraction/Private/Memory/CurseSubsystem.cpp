@@ -7,6 +7,11 @@
 #include "HAL/IConsoleManager.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
+#include "Memory/CurseData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Memory/MemoryUnlock.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "WoRLog.h"
 
 void UCurseSubsystem::Initialize(FSubsystemCollectionBase &Collection)
@@ -34,6 +39,7 @@ bool UCurseSubsystem::AddCurse(FName CurseId)
 		return false;
 	}
 	HeldCurses.Add(CurseId);
+	bPenaltyDirty = true;
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s now held%s (%d)"), *CurseId.ToString(), LiftedCurses.Contains(CurseId) ? TEXT(" again") : TEXT(""),
 		   HeldCurses.Num());
 	return true;
@@ -46,6 +52,7 @@ bool UCurseSubsystem::RemoveCurse(FName CurseId)
 		return false;
 	}
 	LiftedCurses.Add(CurseId);
+	bPenaltyDirty = true;
 	LiftedThisEvent.Add(CurseId);
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s lifted (%d left)"), *CurseId.ToString(), HeldCurses.Num());
 	return true;
@@ -57,6 +64,8 @@ bool UCurseSubsystem::ClearCurse(FName CurseId)
 	{
 		return false;
 	}
+	// Merge fix: the same-event guard is for a cure a memory event gives (RemoveCurse reward), not the player's own clear.
+	LiftedThisEvent.Remove(CurseId);
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s cleared by the player (it comes back if its giver's conditions are met again)"),
 		   *CurseId.ToString());
 	return true;
@@ -138,6 +147,7 @@ FSavedCurses UCurseSubsystem::Capture() const
 void UCurseSubsystem::Restore(const FSavedCurses &Saved)
 {
 	HeldCurses.Reset();
+	bPenaltyDirty = true;
 	LiftedCurses.Reset();
 	LiftedCurses.Append(Saved.Lifted);
 	for (const FName &CurseId : Saved.Held)
@@ -174,6 +184,88 @@ FString UCurseSubsystem::GetCursesString() const
 	return FString::Printf(TEXT("curses held: %s"), *FString::Join(Names, TEXT(", "))) + LiftedText;
 }
 
+void UCurseSubsystem::SetCurseAssets(const TArray<UCurseData *> &Curses)
+{
+	CurseAssets.Reset();
+	for (UCurseData *Curse : Curses)
+	{
+		CurseAssets.Add(Curse);
+	}
+	bGatheredCurses = true;
+	bPenaltyDirty = true;
+}
+
+TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
+{
+	if (!bGatheredCurses)
+	{
+		// Review: not while the registry is still scanning (it would keep a partial list for good).
+		const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		if (!Registry.IsLoadingAssets())
+		{
+			const_cast<UCurseSubsystem *>(this)->SetCurseAssets(UCurseData::GatherAll()); // once
+		}
+	}
+	TArray<const UCurseData *> Held;
+	for (const UCurseData *Curse : CurseAssets)
+	{
+		if (Curse && HeldCurses.Contains(Curse->CurseId))
+		{
+			Held.Add(Curse);
+		}
+	}
+	return Held;
+}
+
+void UCurseSubsystem::RebuildPenalty() const
+{
+	CachedStatPenalty = FEquipmentStatBonus();
+	CachedResistancePenalty = FResistanceBonus();
+	for (const UCurseData *Curse : GetHeldCurseAssets())
+	{
+		CachedStatPenalty.Accumulate(Curse->StatPenalty);
+		CachedResistancePenalty.Accumulate(Curse->ResistancePenalty);
+	}
+	bPenaltyDirty = !bGatheredCurses; // try again once the registry has loaded
+}
+
+FEquipmentStatBonus UCurseSubsystem::GetStatPenalty() const
+{
+	if (HeldCurses.IsEmpty())
+	{
+		return FEquipmentStatBonus();
+	}
+	if (bPenaltyDirty)
+	{
+		RebuildPenalty();
+	}
+	return CachedStatPenalty;
+}
+
+FResistanceBonus UCurseSubsystem::GetResistancePenalty() const
+{
+	if (HeldCurses.IsEmpty())
+	{
+		return FResistanceBonus();
+	}
+	if (bPenaltyDirty)
+	{
+		RebuildPenalty();
+	}
+	return CachedResistancePenalty;
+}
+
+bool UCurseSubsystem::IsCursedHere(const UCharacterData *Character) const
+{
+	if (!Character || HeldCurses.IsEmpty() || MemoryUnlock::FindRemotePlayerOf(GetGameInstance(), Character))
+	{
+		return false;
+	}
+	const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	return Party && Party->Members.ContainsByPredicate([Character](const FPartyMember &Member) { return Member.CharacterData == Character; });
+}
+
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorldAndArgs GCurseClearCommand(
 	TEXT("wor.Curse.Clear"),
@@ -199,5 +291,10 @@ static FAutoConsoleCommandWithWorld GCursePrintCommand(
 		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
 		const UCurseSubsystem *Curses = GameInstance ? GameInstance->GetSubsystem<UCurseSubsystem>() : nullptr;
 		UE_LOG(LogWoR, Display, TEXT("[Curse] %s"), Curses ? *Curses->GetCursesString() : TEXT("no curse subsystem"));
+		if (Curses)
+		{
+			const FEquipmentStatBonus P = Curses->GetStatPenalty();
+			UE_LOG(LogWoR, Display, TEXT("[Curse] penalty on your characters: HP %+d, Defence %+d"), P.BonusMaxHP, P.BonusDefense);
+		}
 	}));
 #endif

@@ -11,6 +11,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/ESkillEffectTiming.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Skills/Effects/EDamageScope.h"
 #include "Combat/TargetType.h"
 #include "FSkillEffectPayload.generated.h"
 
@@ -31,6 +32,13 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
      *  compatible generic (USTRUCT serialized by name, so existing payloads load as None). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     ESpellElement Element = ESpellElement::None;
+
+    /** B-383 (D-166): which hits a damage or defence boost counts for (DamageBuff / Debuff, ModifyDamageDealt,
+     *  Raw / SpellDamageBuff / Debuff, DefenseBuff / Debuff, Reduce / IncreaseDamageTaken; other types ignore it).
+     *  All (default) = every hit, as before; Element = only hits of this payload's Element (or, with Element None,
+     *  the cast element). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    EDamageScope DamageScope = EDamageScope::All;
 
     /** Effect strength. Buffs/debuffs: decimal percent (0.2 = 20%). Restore/drain: flat or DrainPercent. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect",

@@ -85,7 +85,10 @@ enum class EMemoryConditionKind : uint8
 	 *  in co-op (it counts for every player, unlike Character, which reads each player's own characters). */
 	PartyHas,
 	/** B-378 (MemoryCatalogue §3.8): the player holds the curse CurseId (a curse is also a key). */
-	CurseHeld
+	CurseHeld,
+	/** B-379 (MemoryCatalogue §3.9): the player's hidden counter CounterId (for Character when set, else all
+	 *  characters) has reached CounterTarget, across runs. */
+	CounterReached
 };
 
 /** OBSOLETE (B-337): EWoRRequirementFit. Kept: assets store it.
@@ -151,6 +154,13 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 	/** B-378: CurseHeld's curse (FMemoryReward::RewardId of the Curse reward that gave it). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	FName CurseId;
+
+	/** B-379: CounterReached's counter (HiddenCounters: Parries, Kills) and the total it needs. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	FName CounterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory", meta = (ClampMin = "1"))
+	int32 CounterTarget = 1;
 };
 
 /** OBSOLETE (B-337): FWoRConditionSet. Kept: assets store it.

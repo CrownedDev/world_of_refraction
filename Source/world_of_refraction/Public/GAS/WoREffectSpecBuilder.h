@@ -59,6 +59,10 @@ struct WORLD_OF_REFRACTION_API FWoREffectSpecBuilder
 	/** The same, over the GEs of exactly this element: the twin of GetTotalStatModifierForElement. */
 	static float SumMagnitudeForElement(const UAbilitySystemComponent &ASC, ESkillEffectType Type, ESpellElement Element);
 
+	/** B-383: the GEs of this type whose damage scope counts for a hit of HitElement (spell or not):
+	 *  the twin of USkillEffectManager::GetTotalStatModifierForHit. */
+	static float SumMagnitudeForHit(const UAbilitySystemComponent &ASC, ESkillEffectType Type, ESpellElement HitElement, bool bHitIsSpell);
+
 	/** One line per active GE: class, identity, magnitude. */
 	static FString GetDebugString(const UAbilitySystemComponent &ASC);
 };

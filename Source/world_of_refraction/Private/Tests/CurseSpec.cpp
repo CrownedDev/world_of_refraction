@@ -9,17 +9,21 @@
 #include "Misc/AutomationTest.h"
 #include "Engine/GameInstance.h"
 #include "WoRTestWorld.h"
+#include "Character/CharacterData.h"
+#include "Memory/CurseData.h"
 #include "Memory/CurseSubsystem.h"
 #include "Memory/HiddenQuestData.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "UI/Hub/CurseClearWidget.h"
 
 namespace
 {
 	const FName CURSE_TEST_ID(TEXT("Curse_CurseSpec"));
 	const FName CURSE_TEST_LOCATION(TEXT("Spot_CurseSpec"));
+	constexpr int32 CURSE_TEST_HP_PENALTY = -4;
 
 	FMemoryEvent AtCurseLocation()
 	{
@@ -170,6 +174,41 @@ void FCurseSpec::Define()
 		TestTrue(TEXT("restored"), Curses->HasCurse(CURSE_TEST_ID));
 		TestFalse(TEXT("held twice: no"), Curses->AddCurse(CURSE_TEST_ID));
 		TestTrue(TEXT("the debug text names it"), Curses->GetCursesString().Contains(CURSE_TEST_ID.ToString()));
+	});
+
+	It("weakens its holder by its penalty while held, and only their own party characters (B-378b)", [this]()
+	{
+		UCurseData *Curse = NewObject<UCurseData>(GetTransientPackage());
+		Curse->CurseId = CURSE_TEST_ID;
+		Curse->StatPenalty.BonusMaxHP = -4;
+		Curse->StatPenalty.BonusDefense = -2;
+		Curse->ResistancePenalty.Fire = -5.0f;
+		Curses->SetCurseAssets({Curse});
+
+		TestEqual(TEXT("not held: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
+		Curses->AddCurse(CURSE_TEST_ID);
+		TestEqual(TEXT("held: HP"), Curses->GetStatPenalty().BonusMaxHP, -4);
+		TestEqual(TEXT("held: Defence"), Curses->GetStatPenalty().BonusDefense, -2);
+		TestEqual(TEXT("held: Fire resistance"), Curses->GetResistancePenalty().Fire, -5.0f);
+		TestFalse(TEXT("a character outside the party is not weakened (an enemy)"), Curses->IsCursedHere(FWoRTestWorld::NewCharacterData()));
+		Curses->RemoveCurse(CURSE_TEST_ID);
+		TestEqual(TEXT("lifted: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
+	});
+
+	It("Q-378: clearing a curse stops its penalty, regaining it brings it back; the hub service clears outside a run", [this]()
+	{
+		UCurseData *Curse = NewObject<UCurseData>(GetTransientPackage());
+		Curse->CurseId = CURSE_TEST_ID;
+		Curse->StatPenalty.BonusMaxHP = CURSE_TEST_HP_PENALTY;
+		Curses->SetCurseAssets({Curse});
+		Curses->AddCurse(CURSE_TEST_ID);
+		TestTrue(TEXT("the player clears it"), Curses->ClearCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("cleared: no penalty"), Curses->GetStatPenalty().BonusMaxHP, 0);
+		TestFalse(TEXT("cleared twice: no"), Curses->ClearCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("regained: the penalty is back"), Curses->RegainFrom({CurseReward()}), 1);
+		TestEqual(TEXT("regained: HP"), Curses->GetStatPenalty().BonusMaxHP, CURSE_TEST_HP_PENALTY);
+		TestTrue(TEXT("the hub (no run): the service clears"), UCurseClearWidget::CanClearHere(TestWorld->GetWorld()));
+		// The in-run refusal needs an active trial run; PIE B-378b check 7 covers it.
 	});
 }
 
