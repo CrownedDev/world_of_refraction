@@ -90,6 +90,10 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile, "Event.Combat.Projectile", "B-043d: a projectile's end (parent of Arrived and Dodged), for WaitGameplayEvent");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile_Arrived, "Event.Combat.Projectile.Arrived", "B-043d: a projectile reached its target; Target = the struck actor, magnitude = cast entry index");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile_Dodged, "Event.Combat.Projectile.Dodged", "B-043d: a projectile's target moved out of its impact zone; Target = that actor");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve, "Event.Combat.SpellResolve", "B-043e: a spell shape resolving with no flight (parent of AOE, Instant, Support), for WaitGameplayEvent");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve_AOE, "Event.Combat.SpellResolve.AOE", "B-043e: an area cast reached one defender; Target = that defender, magnitude = cast entry index");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve_Instant, "Event.Combat.SpellResolve.Instant", "B-043e: an instant cast reached one defender; Target = that defender, magnitude = cast entry index");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_SpellResolve_Support, "Event.Combat.SpellResolve.Support", "B-043e: a support (self / ally) cast's effect on all its targets; Target = the first target");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Melee, "Ability.Shape.Melee", "B-043b: a skill that strikes at close range");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Ranged, "Ability.Shape.Ranged", "B-043b: a skill that stays in place and strikes from range");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_SelfCast, "Ability.Shape.SelfCast", "B-043b: a skill on self or allies, no projectile");
