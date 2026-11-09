@@ -1,8 +1,8 @@
 // GASClientReadsSpec.cpp
-// B-318 (Q-042ye, Q-318): co-op guests read effects from GAS. At UseGAS 1 the server's effect mirror keeps its GAS
+// B-318 (Q-042ye, Q-318): co-op guests read effects from GAS. The server's effect mirror keeps its GAS
 // read of the held effects (turns left from the tracker) in a replicated snapshot; an actor without authority (a
 // simulated proxy, as a guest sees another player's character) reads that snapshot, not its stored list, so it lists
-// the same effects and turns as the server. At UseGAS 0 nothing changes.
+// the same effects and turns as the server. B-042g2: the UseGAS 0 cases went with the switch.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -79,7 +79,6 @@ void FGASClientReadsSpec::Define()
 		{
 			Hero->SetRole(ROLE_Authority);
 		}
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		EffectManager = nullptr;
 		Mirror = nullptr;
 		Hero = nullptr;
@@ -87,10 +86,9 @@ void FGASClientReadsSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("keeps the server's GAS read in the replicated snapshot at UseGAS 1", [this]()
+	It("keeps the server's GAS read in the replicated snapshot", [this]()
 	{
 		if (!EffectManager) return;
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
 		ApplyMix();
 		// Read before anything could resync: the effect events' syncs alone must have filled it.
 		const TArray<FActiveSkillEffect> Snapshot = Mirror->GetHeldSnapshot();
@@ -104,37 +102,14 @@ void FGASClientReadsSpec::Define()
 		TestSameHeld(TEXT("snapshot"), ServerHeld, Snapshot);
 	});
 
-	It("gives an actor without authority the server's list and turns, not its stored list, at UseGAS 1", [this]()
+	It("gives an actor without authority the server's list and turns, not its stored list", [this]()
 	{
 		if (!EffectManager) return;
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
 		ApplyMix();
 		const TArray<FActiveSkillEffect> ServerHeld = EffectManager->GetHeldEffects(Hero);
 		Hero->SetRole(ROLE_SimulatedProxy); // as a co-op guest sees another player's character
 		TestSameHeld(TEXT("client read, empty stored list"), ServerHeld, Mirror->ReadHeldEffects(TArray<FActiveSkillEffect>()));
 		TestSameHeld(TEXT("client read through the effect manager"), ServerHeld, EffectManager->GetHeldEffects(Hero));
-	});
-
-	It("a client at UseGAS 0 still reads the server's snapshot when the server is at 1", [this]()
-	{
-		if (!EffectManager) return;
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		ApplyMix();
-		const TArray<FActiveSkillEffect> ServerHeld = EffectManager->GetHeldEffects(Hero);
-		Hero->SetRole(ROLE_SimulatedProxy);
-		UWoREffectMirrorComponent::SetReadsFromGAS(false); // this client's own switch; the server's snapshot says 1
-		TestSameHeld(TEXT("client follows the server through the effect manager"), ServerHeld, EffectManager->GetHeldEffects(Hero));
-	});
-
-	It("changes nothing at UseGAS 0: no snapshot, and a client reads its stored list", [this]()
-	{
-		if (!EffectManager) return;
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
-		ApplyMix();
-		TestEqual(TEXT("no snapshot"), Mirror->GetHeldSnapshot().Num(), 0);
-		const TArray<FActiveSkillEffect> Stored = EffectManager->GetActiveEffects(Hero);
-		Hero->SetRole(ROLE_SimulatedProxy);
-		TestSameHeld(TEXT("client read"), Stored, Mirror->ReadHeldEffects(Stored));
 	});
 }
 
