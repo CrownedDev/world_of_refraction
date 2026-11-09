@@ -52,6 +52,9 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
   - enemy actions play sequences too
   - a death at turn start leaves the view where it was
 - The Defence view (B-402) holds one angle per enemy action; cutting between side angles inside a long combo is not built (Q-402). Its side assumes a right-handed weapon (`WeaponSideSign`).
+
+- No Defence mode: it is to be play-tested first (design §2).
+- B-407: a player or team skill's own `CameraSequence` is cut back at `SignatureCameraCap::MaxSignatureSeconds` (2 s, `TODO: tune`); enemy casters' sequences run to their end. The validator counts only skills a `UBossData` phase adds as a boss's (Q-407).
 - Arming a delayed skill also broadcasts `OnActionStarted`. Once templates exist, a ritual's cinematic may play at arm time and again when it fires. Check this in B-157.
 
 ## Changelog
@@ -70,3 +73,5 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 | 2026-11-09 | B-398 (study R1, Q1, Q-398): turn-view setting. `FCombatCameraRules::ComputeTurnView` (ComputeView's Turn calls it; B-399 / B-400 extend it); Over-the-Shoulder re-framed (actor lower-left third, enemy centre mid-frame, offsets scaled by distance, `TODO: tune`); Centred Wide and Tactical unchanged. Saved in `FSavedSettings::TurnViewStyle` (save v34), applied at `BeginCombat`. `CameraFraming::ProjectToScreen` / `GetThirdsCell`; `wor.Camera.Style` also outside a fight; `wor.Camera.Print` shows the layout. | feature/B-398-turn-view-setting-cloud (UNBUILT) |
 
 | 2026-11-09 | B-403 (Q-403, study R5, R6, R8): shot-pattern tuning in `ComputeShot`. A melee wind-up rushes in over 0.25 s with motion blur (`FCameraShot::MotionBlur`, set on the camera's post-process by the director and dropped when the move ends or the pattern stops); spells and ranged skills, and camera movement off (`FCameraShotContext::bAllowRush`), keep the slow push. The Impact is a low side-on / three-quarter-front two-shot of the caster and the first target (the framing check now needs both), with a smaller FOV punch (5, crit 10) and a light shake (0.25, crit 0.6). Spread holds still: no shake, no punch. `wor.Camera.ShotPreview` prints every shot for a sample fight; `wor.Camera.Print`'s shot line adds blur and blend time. | `feature/B-403-shot-pattern-tuning-cloud` (UNBUILT) |
+
+| 2026-11-09 | B-407 (study R7, FeelGuide 9, Q-407): `SignatureCameraCap` (`MaxSignatureSeconds` 2.0, `IsOverCap`, `GetCutSeconds`, `GetSequenceSeconds`); `PlaySequence` sets `SignatureCapTimer` for a player or team caster's sequence over the cap, and `HandleSignatureCapReached` cuts back to the turn view (`StopSequence` clears the timer); `NotifyValidation::CheckSignatureSeconds` / `CheckSignatureSequence` warn in `wor.Presentation.Validate` unless a `UBossData` phase adds the skill; debug `wor.Camera.SignatureCap`; spec `WoR.Combat.Camera.SignatureCap`. | `feature/B-407-short-signature-cameras-cloud` (UNBUILT) |

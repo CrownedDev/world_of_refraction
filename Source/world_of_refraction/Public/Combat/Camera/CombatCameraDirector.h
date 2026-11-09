@@ -112,6 +112,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|KillShot")
 	TSoftObjectPtr<UNiagaraSystem> BreakApartEffect;
 
+	/** B-407 (wor.Camera.SignatureCap): the cap and the last signature sequence, e.g. "cap 2.00 s | last LS_Nova
+	 *  4.00 s by Hero: cut at 2.00 s". */
+	FString GetSignatureCapString() const;
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -162,6 +166,8 @@ private:
 	void PlaySequence(ULevelSequence *Sequence, AActor *Caster, const TArray<AActor *> &Targets);
 	/** bDeferDestroy: called from the player's own OnFinished, so the actor goes next tick. */
 	void StopSequence(bool bDeferDestroy = false);
+	/** B-407: a player or team signature sequence reached the cap; cut back as if it had finished. */
+	void HandleSignatureCapReached();
 	FCombatCameraFrame BuildFrame(AActor *Focus) const;
 	/** B-405: the turn view's height from the living enemies' data and ranks (FBossFramingRules::FightHeight). */
 	EEnemyCameraHeight GetFightCameraHeight() const;
@@ -195,6 +201,17 @@ private:
 	TWeakObjectPtr<AActor> ViewedActor;
 	TWeakObjectPtr<AActor> SequenceCaster;
 	uint64 SequenceStartFrame = 0;
+
+	// B-407: the signature cap's cut timer and the last sequence it judged (for wor.Camera.SignatureCap).
+	FTimerHandle SignatureCapTimer;
+	FString LastSignatureName;
+	FString LastSignatureCaster;
+	float LastSignatureSeconds = 0.0f;
+	float LastSignatureCutSeconds = 0.0f;
+	bool bLastSignatureEnemy = false;
+	bool bLastSignatureCut = false;
+	/** B-407: the last capped sequence was stopped before its cap (debug only). */
+	bool bLastSignatureStoppedEarly = false;
 	TWeakObjectPtr<AActor> ViewTargetBeforeCombat;
 	ECombatCameraMode CurrentMode = ECombatCameraMode::None;
 	bool bInCombat = false;
