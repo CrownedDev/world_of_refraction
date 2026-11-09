@@ -528,6 +528,13 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	TArray<FSavedCustomBDPool> BDSpellPools;
+
+	/** B-380c (D-164, save v29): apparel worn with this loadout, and each piece's owned instance. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Apparel;
+
+	UPROPERTY()
+	TArray<FGuid> ApparelInstances;
 };
 
 /** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */
@@ -691,6 +698,85 @@ struct WORLD_OF_REFRACTION_API FSavedHiddenQuests
 	TArray<FSavedQuestProgress> Quests;
 };
 
+/** B-378: the curses this player holds (save v26); they last across runs until removed. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCurses
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FName> Held;
+
+	/** Lifted before: never given again. */
+	UPROPERTY()
+	TArray<FName> Lifted;
+};
+
+/** B-379: one hidden counter's count for a character (None: all characters). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCounter
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Counter;
+
+	UPROPERTY()
+	FName Character;
+
+	UPROPERTY()
+	int32 Count = 0;
+};
+
+/** B-379: this player's hidden counters (save v27); they keep counting across runs. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCounters
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedCounter> Counts;
+};
+
+/** B-377b: a lore entry the journal kept. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedLore
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName LoreId;
+
+	UPROPERTY()
+	FText Title;
+
+	UPROPERTY()
+	FText Body;
+};
+
+/** B-377b: this player's memory journal (save v28; it was transient before): memories in order with where each came
+ *  from (EMemorySource as a byte), lore, V lines heard, conversations played. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedJournal
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Memories;
+
+	UPROPERTY()
+	TArray<uint8> Sources;
+
+	UPROPERTY()
+	TArray<FSavedLore> Lore;
+
+	UPROPERTY()
+	TArray<FName> HeardVLines;
+
+	UPROPERTY()
+	TArray<FName> PlayedConversations;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -714,4 +800,13 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedHiddenQuests HiddenQuests; // B-377
+
+	UPROPERTY()
+	FSavedCurses Curses; // B-378
+
+	UPROPERTY()
+	FSavedCounters Counters; // B-379
+
+	UPROPERTY()
+	FSavedJournal Journal; // B-377b
 };

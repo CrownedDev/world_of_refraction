@@ -225,6 +225,24 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
 	float GetDefenderFlatDefense(AActor *Defender) const;
 
+	/** B-383 (D-166): GetDefenderFlatDefense for one hit: DefenseBuff / DefenseDebuff count only where their scope
+	 *  matches HitElement and the hit's kind (spell or not). Equal to GetDefenderFlatDefense with no scoped effects.
+	 *  B-385: at UseGAS 1 the composed attribute plus the scope correction; OutScopeDelta = this hit's layers minus all
+	 *  of them (0 with no scoped effects), which the GAS execution adds to its synced attribute. */
+	float GetDefenderDefenseForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell, float *OutScopeDelta = nullptr) const;
+
+	/** Defender's Defense layers composed as they are (OutAll) and for this hit's scopes (OutForHit); false without a
+	 *  character component or effect manager. */
+	bool GetDefenseLayersForHit(AActor *Defender, ESpellElement HitElement, bool bHitIsSpell, float &OutAll, float &OutForHit) const;
+
+	/** B-383: 1 + (Raw or Spell DamageBuff - Debuff) / 100 for one hit, each effect counted by its scope; the one value
+	 *  both the status factor and the stat-cap correction read (GetTransientRaw/SpellDamageFactor with no scoped effects). */
+	float GetScopedTransientDamageFactor(AActor *Attacker, bool bIsSpell, ESpellElement HitElement) const;
+
+	/** B-384 (D-167): the attacker's one All-damage percent for a hit: DamageBuff - DamageDebuff + ModifyDamageDealt
+	 *  + (Spell or Raw) DamageBuff - Debuff, each read through its scope; applied once as x(1 + total / 100). */
+	float GetAllDamagePercent(AActor *Attacker, EActionType ActionType, ESpellElement HitElement) const;
+
 	/** Ignore Defense for one hit as a fraction, 0-1 (D-086): Input's amount (bIgnoreDefense = 100%)
 	 *  plus each of the attacker's IgnoreDefense effects (one without an amount, or valued 1, = 100%), capped at 1. */
 	float GetIgnoreDefenseFraction(AActor *Attacker, const FDamageCalculationInput &Input) const;
@@ -292,8 +310,12 @@ private:
 	UBrokenDarknessManager *GetBrokenDarknessManager(AActor *Actor) const;
 
 	/** Apply status effect modifiers to damage. ActionType gates the
-	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). */
-	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const;
+	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). B-382 (Q-164b): HitElement keys the
+	 *  attacker's DamageBuff / DamageDebuff: unkeyed (None) effects count for every hit, an element-keyed one only
+	 *  for a hit of its element. B-384 (D-167): bFoldAllDamage adds the four all-damage channels into one percent
+	 *  (false = the OBSOLETE multiplied path, wor.Damage.FoldAllDamage 0). */
+	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType, ESpellElement HitElement,
+									   bool bFoldAllDamage) const;
 
 	/** Attacker's EFFECTIVE (composed, crystal-aware) value for an arbitrary substat, used by the
 	 *  per-skill scaling-tier term. RawDamage/SpellDamage map to the SAME GetEvolutionModified* getters

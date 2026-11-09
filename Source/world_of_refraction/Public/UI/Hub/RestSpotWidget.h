@@ -12,6 +12,7 @@
 
 class UTextBlock;
 class UButton;
+class APlayerController;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API URestSpotWidget : public UUserWidget
@@ -29,9 +30,14 @@ public:
 	/** Debug: what the menu shows. */
 	FString GetRestSpotWidgetString() const;
 
+	/** B-187e (Q-187e changed): PC's player answers the open revive vote (a client through ServerCastReviveVote, the host
+	 *  directly). The menu's buttons and the wor.Trial.Vote console placeholder use it. */
+	static void CastReviveVoteFor(APlayerController *PC, bool bYes);
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
 private:
 	void Refresh();
@@ -55,6 +61,16 @@ private:
 	/** B-187b (Q-187b): revive the mini-boss whose rest spot this is (shown only when it can be). */
 	UFUNCTION()
 	void HandleReviveClicked();
+
+	/** B-187e (Q-187e changed): this player's answer to the open revive vote. */
+	UFUNCTION()
+	void HandleVoteYesClicked();
+	UFUNCTION()
+	void HandleVoteNoClicked();
+
+	/** The revive vote changed (AWoRGameState::OnReviveVoteChanged): redraw. */
+	UFUNCTION()
+	void HandleReviveVoteChanged();
 	/** B-234c: the host hands the run over to the next player (shown only to a host with another player). */
 	UFUNCTION()
 	void HandleHandOverClicked();
@@ -83,6 +99,16 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ReviveLabel;
+
+	/** B-187e (Q-187e changed): the vote's line and this player's two answers (placeholder until the real screen). */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> VoteText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> VoteYesButton;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> VoteNoButton;
 	/** B-234c: Hand over host. */
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> HandOverButton;

@@ -25,6 +25,9 @@
 #include "Combat/Boss/BossTriggers.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
+#include "Memory/HiddenCounterSubsystem.h"
+#include "Combat/Defense/DefenseSystem.h"
+#include "Combat/Defense/GuardRules.h"
 #include "Reaction/FightTriggers.h"
 #include "Reaction/ReactionTrigger.h"
 #include "Pool/PoolSubsystem.h"
@@ -624,6 +627,38 @@ void ABattleGameMode::HandleTargetKilled(AActor *Killer, AActor *Victim)
     if (PartyStartHP.Contains(Killer) && !PartyStartHP.Contains(Victim))
     {
         MemoryConditions::RecordKill(FightUsage.FindOrAdd(Killer), Killer);
+        AddHiddenCount(Killer, HiddenCounters::KILLS); // B-379
+    }
+}
+
+void ABattleGameMode::HandleDefenseResolved(AActor *Defender, AActor * /*Attacker*/, EDefenseType DefenseType, bool bPerfect,
+                                            int32 /*ImpactIndex*/, float /*AttackEnergyCost*/)
+{
+    // D-084: a Guard on Perfect timing is a parry. The party's own only.
+    if (PartyStartHP.Contains(Defender) && GuardRules::IsPerfectGuard(DefenseType, bPerfect))
+    {
+        AddHiddenCount(Defender, HiddenCounters::PARRIES);
+    }
+}
+
+void ABattleGameMode::AddHiddenCount(const AActor *Member, const TCHAR *Counter)
+{
+    const UCharacterDataComponent *Data = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const UCharacterData *Character = Data ? Data->CharacterData : nullptr;
+    if (!Character)
+    {
+        return;
+    }
+    // The count is the player's own (their save): a co-op friend's character's goes to their machine.
+    if (AWoRPlayerState *Friend = MemoryUnlock::FindRemotePlayerOf(GetGameInstance(), Character))
+    {
+        Friend->Client_AddCounter(FName(Counter), const_cast<UCharacterData *>(Character));
+        return;
+    }
+    const UGameInstance *GI = GetGameInstance(); // B-379 review: a bare test world has none
+    if (UHiddenCounterSubsystem *Counters = GI ? GI->GetSubsystem<UHiddenCounterSubsystem>() : nullptr)
+    {
+        Counters->Add(FName(Counter), Character);
     }
 }
 
@@ -635,15 +670,24 @@ void ABattleGameMode::WatchFightUsage(bool bWatch)
         UE_LOG(LogTemp, Warning, TEXT("[BattleGameMode] No action executor - skill and weapon use won't count for memories"));
         return;
     }
+    UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(this); // B-379: parries for the hidden counters
     if (bWatch)
     {
         Executor->OnActionStarted.AddUniqueDynamic(this, &ABattleGameMode::HandleActionStarted);
         Executor->OnTargetKilled.AddUniqueDynamic(this, &ABattleGameMode::HandleTargetKilled);
+        if (Defense)
+        {
+            Defense->OnDefenseResolved.AddUniqueDynamic(this, &ABattleGameMode::HandleDefenseResolved);
+        }
     }
     else
     {
         Executor->OnActionStarted.RemoveDynamic(this, &ABattleGameMode::HandleActionStarted);
         Executor->OnTargetKilled.RemoveDynamic(this, &ABattleGameMode::HandleTargetKilled);
+        if (Defense)
+        {
+            Defense->OnDefenseResolved.RemoveDynamic(this, &ABattleGameMode::HandleDefenseResolved);
+        }
     }
 }
 

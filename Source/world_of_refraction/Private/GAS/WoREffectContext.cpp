@@ -6,6 +6,7 @@ void FWoREffectIdentity::Serialize(FArchive &Ar)
 {
 	Ar << EffectType;
 	Ar << Element;
+	Ar << DamageScope; // B-383
 	Ar << EffectID;
 	Ar << SourceKey;
 	Ar << bFromGear;
@@ -13,9 +14,9 @@ void FWoREffectIdentity::Serialize(FArchive &Ar)
 
 FString FWoREffectIdentity::ToString() const
 {
-	return FString::Printf(TEXT("%s %s id=%d source=%d%s"),
+	return FString::Printf(TEXT("%s %s scope=%s id=%d source=%d%s"),
 						   *UEnum::GetValueAsString(EffectType), *UEnum::GetValueAsString(Element),
-						   EffectID, SourceKey, bFromGear ? TEXT(" gear") : TEXT(""));
+						   *WoRDamageScope::ToString(DamageScope, Element), EffectID, SourceKey, bFromGear ? TEXT(" gear") : TEXT(""));
 }
 
 const FWoREffectContext *FWoREffectContext::Get(const FGameplayEffectContextHandle &Handle)

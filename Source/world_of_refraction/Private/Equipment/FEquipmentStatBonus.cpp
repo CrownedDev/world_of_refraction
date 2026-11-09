@@ -332,6 +332,7 @@ void FEquipmentStatBonus::Accumulate(const FEquipmentStatBonus &Other)
     BonusMindModifierPercent   += Other.BonusMindModifierPercent;
     BonusBodyModifierPercent   += Other.BonusBodyModifierPercent;
     BonusSpiritModifierPercent += Other.BonusSpiritModifierPercent;
+    Amp.Accumulate(Other.Amp); // B-382
 }
 
 float FEquipmentStatBonus::RerollPillars(EItemTier Tier)

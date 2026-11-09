@@ -193,6 +193,7 @@ FWoREffectIdentity FWoREffectSpecBuilder::MakeIdentity(const FActiveSkillEffect 
 	FWoREffectIdentity Identity;
 	Identity.EffectType = Effect.EffectType;
 	Identity.Element = Effect.Element;
+	Identity.DamageScope = Effect.DamageScope; // B-383
 	Identity.EffectID = Effect.EffectID;
 	Identity.SourceKey = Effect.SourceKey;
 	Identity.bFromGear = Effect.bFromGear;
@@ -314,6 +315,15 @@ float FWoREffectSpecBuilder::SumMagnitudeForElement(const UAbilitySystemComponen
 	return SumWhere(ASC, [Type, Element](const FWoREffectIdentity &Identity)
 	{
 		return Identity.EffectType == Type && Identity.Element == Element;
+	});
+}
+
+float FWoREffectSpecBuilder::SumMagnitudeForHit(const UAbilitySystemComponent &ASC, ESkillEffectType Type, ESpellElement HitElement,
+												 bool bHitIsSpell)
+{
+	return SumWhere(ASC, [Type, HitElement, bHitIsSpell](const FWoREffectIdentity &Identity)
+	{
+		return Identity.EffectType == Type && WoRDamageScope::Matches(Identity.DamageScope, Identity.Element, HitElement, bHitIsSpell);
 	});
 }
 

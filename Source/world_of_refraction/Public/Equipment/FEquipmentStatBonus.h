@@ -18,6 +18,7 @@
 
 #include "CoreMinimal.h"
 #include "Inventory/ItemTier.h"
+#include "Equipment/FAmpBonus.h"
 #include "FEquipmentStatBonus.generated.h"
 
 /**
@@ -111,6 +112,14 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses|Pillar", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
     float BonusSpiritModifierPercent = 0.0f;
 
+    // ==================== AMP (B-382, Q-164b A) ====================
+    // Flat lines added to an action's base damage: all, physical, or one element's. Designer-authored;
+    // NOT part of the tier substat budget and NOT tier-scaled in GetActiveStatBonus (the skill's own tier
+    // power scales the base it is added to).
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses|Amp")
+    FAmpBonus Amp;
+
     // ==================== BUDGET / QUERIES ====================
 
     /** Tier → substat capacity budget. Delegates to EquipmentBonusGen::GetSubstatBudget
@@ -138,7 +147,7 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
      *  the pool and re-rolls; per-asset overrides also land here). */
     int32 RerollSubstats(int32 Budget, const struct FPillarWeights &Weights); // OBSOLETE (B-335, D-127; delete in the D-124 sweep)
 
-    /** Field-wise add Other onto this (all 16 fields, unclamped). Composes the
+    /** Field-wise add Other onto this (all 16 fields and the Amp lines, unclamped). Composes the
      *  authored Base with a fresh per-instance roll at acquisition. */
     void Accumulate(const FEquipmentStatBonus &Other);
 

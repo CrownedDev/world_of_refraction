@@ -20,6 +20,7 @@
 #include "Equipment/Crystals/CrystalTypeHelpers.h"   // IsGemType / IsValidFusionPair / IsElementalFusion
 #include "Equipment/Crystals/ItemIdentity.h"         // GetMaxDurability + GetDisplayName for attach
 #include "Pool/PoolSubsystem.h" // InitializeFromPool draw source (step 2)
+#include "Loadout/LoadoutComponent.h" // B-380c: NotifyApparelChanged
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h" // B-091: party members draw the shared armoury
 #include "Equipment/EquipmentDataBase.h" // B-091: gear display names
@@ -149,6 +150,14 @@ namespace
             if (L.PrimaryEvolutionInstance == EvoInstanceID)
             {
                 return true;
+            }
+            // B-380d review: an evolution in a worn apparel socket is slotted too.
+            for (const FApparelEntry &Piece : L.Apparel)
+            {
+                if (Piece.AttachedItem.IsEvolution() && Piece.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+                {
+                    return true;
+                }
             }
         }
         for (const FWeaponInventoryEntry &W : Inv.Weapons)
@@ -2158,6 +2167,19 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
         return;
     }
     TGuardValue<bool> Syncing(bSyncingWithPool, true);
+    // B-380c (D-164): worn apparel follows the store (a crystal attached in play), then the stats re-read it.
+    if (const FApparelEntry *Apparel = Pool->FindApparelInPool(GearID))
+    {
+        if (ApparelRules::RefreshFromStore(SavedLoadouts, *Apparel) > 0)
+        {
+            if (ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr)
+            {
+                Loadout->NotifyApparelChanged();
+            }
+            BroadcastInventoryChanged(EInventoryChangeType::Equipped); // review: inventory listeners refresh too
+        }
+        return; // apparel is not in the weapon / adapter / evolution views below
+    }
     UEvolutionInventoryComponent *EvoInv = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     // B-321 (D-117): another member's piece is not in this armoury (dropped if it was, e.g. after a give).
     const FName GearOwner = Pool->GetGearOwner(GearID);
@@ -2264,6 +2286,11 @@ int32 UInventoryComponent::GetRemainingRingCapacity() const
 bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID)
 {
     return AttachEvolutionToGear(Weapons, WeaponPersistentID, EvoInstanceID, TEXT("AttachEvolutionToWeapon"));
+}
+
+bool UInventoryComponent::IsEvolutionInUse(const FGuid &EvoInstanceID) const
+{
+    return IsEvolutionSlottedAnywhere(*this, EvoInstanceID);
 }
 
 bool UInventoryComponent::AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID)

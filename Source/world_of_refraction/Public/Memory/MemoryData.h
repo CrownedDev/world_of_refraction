@@ -83,7 +83,12 @@ enum class EMemoryConditionKind : uint8
 	FinishingBlow,
 	/** B-376 (MemoryCatalogue §3.7, pair memories): Character is present: in the party solo, or played by any player
 	 *  in co-op (it counts for every player, unlike Character, which reads each player's own characters). */
-	PartyHas
+	PartyHas,
+	/** B-378 (MemoryCatalogue §3.8): the player holds the curse CurseId (a curse is also a key). */
+	CurseHeld,
+	/** B-379 (MemoryCatalogue §3.9): the player's hidden counter CounterId (for Character when set, else all
+	 *  characters) has reached CounterTarget, across runs. */
+	CounterReached
 };
 
 /** OBSOLETE (B-337): EWoRRequirementFit. Kept: assets store it.
@@ -145,6 +150,17 @@ struct WORLD_OF_REFRACTION_API FMemoryCondition
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
 	TObjectPtr<UMemoryData> PriorMemory = nullptr;
+
+	/** B-378: CurseHeld's curse (FMemoryReward::RewardId of the Curse reward that gave it). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	FName CurseId;
+
+	/** B-379: CounterReached's counter (HiddenCounters: Parries, Kills) and the total it needs. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory")
+	FName CounterId;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Memory", meta = (ClampMin = "1"))
+	int32 CounterTarget = 1;
 };
 
 /** OBSOLETE (B-337): FWoRConditionSet. Kept: assets store it.
@@ -165,8 +181,10 @@ enum class EMemoryRewardKind : uint8
 	Item,
 	Skill,
 	Title,
-	/** A penalty and a key at once. */
-	Curse
+	/** A penalty and a key at once. B-378: RewardId names it; held across runs until a RemoveCurse takes it. */
+	Curse,
+	/** B-378: lifts the curse RewardId (its own quest or memory ends it, MemoryCatalogue §3.8). */
+	RemoveCurse
 };
 
 USTRUCT(BlueprintType)
@@ -183,7 +201,7 @@ struct WORLD_OF_REFRACTION_API FMemoryReward
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
 	TObjectPtr<USkillDataBase> Skill = nullptr;
 
-	/** Title / Curse: its id (logged until titles and curses exist). */
+	/** Title / Curse / RemoveCurse: its id (titles are logged until they exist). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Reward")
 	FName RewardId;
 };
