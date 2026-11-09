@@ -68,5 +68,5 @@ private:
     void HandleHovered();
 
     /** B-400: a per-actor target button's data tells the menu to highlight its target. */
-    void HighlightOwnTarget();
+    bool HighlightOwnTarget(); // true for a per-actor target button
 };

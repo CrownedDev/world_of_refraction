@@ -111,22 +111,27 @@ void UCombatCommandButtonWidget::NativeOnAddedToFocusPath(const FFocusEvent &InF
 
 void UCombatCommandButtonWidget::HandleHovered()
 {
-    HighlightOwnTarget();
+    // B-400: a hovered target button takes focus too, so the target the camera frames is the one Enter confirms.
+    if (HighlightOwnTarget() && CommandButton && !CommandButton->HasKeyboardFocus())
+    {
+        CommandButton->SetFocus();
+    }
 }
 
-void UCombatCommandButtonWidget::HighlightOwnTarget()
+bool UCombatCommandButtonWidget::HighlightOwnTarget()
 {
     // Only a per-actor target button (a group confirm carries Targets instead); the menu ignores a target its open
     // picker doesn't offer, so a stale pool slot does nothing.
     AActor *Target = Cast<AActor>(CurrentData.DataReference);
     if (!bHasData || CurrentData.Category != EPieMenuCategory::Target || !CurrentData.Targets.IsEmpty() || !Target)
     {
-        return;
+        return false;
     }
     if (UCombatCommandMenuSubsystem *Subsystem = WoRFight::Get<UCombatCommandMenuSubsystem>(GetGameInstance()))
     {
         Subsystem->HighlightTarget(Target);
     }
+    return true;
 }
 
 void UCombatCommandButtonWidget::DebugLogData() const

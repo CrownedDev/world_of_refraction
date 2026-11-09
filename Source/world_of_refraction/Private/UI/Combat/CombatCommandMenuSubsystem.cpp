@@ -592,11 +592,20 @@ void UCombatCommandMenuSubsystem::CycleHighlightedTarget(int32 Direction)
     {
         return;
     }
-    const int32 Current = IndexOfHighlightTarget(HighlightedTarget.Get());
-    const int32 Next = CommandMenuRules::CycleIndex(Current, Direction, HighlightTargets.Num());
-    if (Next != INDEX_NONE)
+    // A target that died while the picker is open stays in the list until it rebuilds: skip it.
+    int32 Index = IndexOfHighlightTarget(HighlightedTarget.Get());
+    for (int32 Step = 0; Step < HighlightTargets.Num(); ++Step)
     {
-        SetHighlightedTarget(HighlightTargets[Next].Get());
+        Index = CommandMenuRules::CycleIndex(Index, Direction, HighlightTargets.Num());
+        if (Index == INDEX_NONE)
+        {
+            return;
+        }
+        if (AActor *Next = HighlightTargets[Index].Get(); IsValid(Next))
+        {
+            SetHighlightedTarget(Next);
+            return;
+        }
     }
 }
 
