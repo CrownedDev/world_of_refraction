@@ -108,6 +108,11 @@ namespace WoRTags
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_TurnEnd);
 	// B-043b: a melee impact frame as a GameplayEvent; declared now, sent from B-043c's montage task.
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Impact);
+	// B-043d (Q-043d): a projectile's end, sent to the caster's running skill ability (WaitGameplayEvent on the
+	// parent). Target = the struck actor, EventMagnitude = the cast entry's index.
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Projectile);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Projectile_Arrived);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Projectile_Dodged);
 
 	// B-043b: a granted skill ability's delivery shape (GAS/Abilities/WoRSkillAbilities.h, Q-043b). One per
 	// EAbilityExecutionType, plus one per ESpellDeliveryType the skill's casts use.

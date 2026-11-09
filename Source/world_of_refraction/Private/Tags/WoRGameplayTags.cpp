@@ -87,6 +87,9 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnStart, "Event.Combat.TurnStart", "Sent to the actor whose turn starts");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnEnd, "Event.Combat.TurnEnd", "Sent to the actor whose turn ends");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Impact, "Event.Combat.Impact", "B-043b (sent from B-043c): a melee impact frame, for WaitGameplayEvent");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile, "Event.Combat.Projectile", "B-043d: a projectile's end (parent of Arrived and Dodged), for WaitGameplayEvent");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile_Arrived, "Event.Combat.Projectile.Arrived", "B-043d: a projectile reached its target; Target = the struck actor, magnitude = cast entry index");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Projectile_Dodged, "Event.Combat.Projectile.Dodged", "B-043d: a projectile's target moved out of its impact zone; Target = that actor");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Melee, "Ability.Shape.Melee", "B-043b: a skill that strikes at close range");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Ranged, "Ability.Shape.Ranged", "B-043b: a skill that stays in place and strikes from range");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_SelfCast, "Ability.Shape.SelfCast", "B-043b: a skill on self or allies, no projectile");
