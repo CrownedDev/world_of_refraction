@@ -16,6 +16,7 @@
 #include "AbilitySystemComponent.h"
 #include "Abilities/GameplayAbility.h"
 #include "Character/CharacterDataComponent.h"
+#include "Components/SceneComponent.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -45,7 +46,9 @@ namespace
 	constexpr float ABILITIES_SPEC_BURST_INTERVAL = 0.05f;
 	/** Test-world frames are 0.01 s: the combatants share a spot, so a projectile lands in a few frames and a
 	 *  burst's last spawn comes after 0.1 s; this budget is several times that. */
-	constexpr int32 ABILITIES_SPEC_PROJECTILE_FRAMES = 120;
+	constexpr int32 ABILITIES_SPEC_PROJECTILE_FRAMES = 200;
+	/** Units between the duellists: about 0.33 s of flight at the default 1500 units/s. */
+	constexpr float ABILITIES_SPEC_DUEL_RANGE = 500.0f;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -101,6 +104,22 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		return Char ? Char->CurrentHP : 0;
 	}
 
+	/** Gives Actor a scene root (if it has none) and moves it to Location. */
+	static void PlaceAt(AActor *Actor, const FVector &Location)
+	{
+		if (!Actor)
+		{
+			return;
+		}
+		if (!Actor->GetRootComponent())
+		{
+			USceneComponent *Root = NewObject<USceneComponent>(Actor);
+			Actor->SetRootComponent(Root);
+			Root->RegisterComponent();
+		}
+		Actor->SetActorLocation(Location);
+	}
+
 	/** Sum of Count over the instances of Actor's ability for Skill. */
 	template <typename CountType>
 	static int32 SumOverInstances(AActor *Actor, const USkillDataBase *Skill, CountType Count)
@@ -132,6 +151,9 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		int32 ImpactEvents = 0;
 		bool bStillListening = false;
 		/** B-043d */
+		int32 EPSpent = 0;
+		/** Why the executor refuses the action (empty when it is valid). */
+		FString Refusal;
 		int32 ProjectileEvents = 0;
 		int32 BurstSpawns = 0;
 		bool bStillListeningForProjectiles = false;
@@ -181,6 +203,12 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		HeroStats->MaxEP = ABILITIES_SPEC_START_EP;
 		HeroStats->CurrentEP = ABILITIES_SPEC_START_EP;
 		const int32 FoeHPBefore = CurrentHPOf(Foe);
+		// A projectile needs a distance to fly (the combatants have no root, so both sit at the origin).
+		if (Skill->IsA<USpellData>())
+		{
+			PlaceAt(Hero, FVector::ZeroVector);
+			PlaceAt(Foe, FVector(ABILITIES_SPEC_DUEL_RANGE, 0.0f, 0.0f));
+		}
 
 		FAction Action;
 		if (USpellData *Spell = Cast<USpellData>(Skill))
@@ -194,10 +222,15 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 			Action.SkillData = Skill;
 		}
 		Action.Targets.Add(Foe);
+		if (const UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>())
+		{
+			Outcome.Refusal = Executor->ValidateAction(Hero, Action).ErrorMessage;
+		}
 		Orchestrator->SubmitActionAsync(Action);
 		TestWorld->Tick(Frames);
 
 		Outcome.bRan = true;
+		Outcome.EPSpent = ABILITIES_SPEC_START_EP - HeroStats->CurrentEP;
 		Outcome.FoeDamage = FoeHPBefore - CurrentHPOf(Foe);
 		Outcome.ImpactEvents = ImpactEventsOf(Hero);
 		Outcome.bStillListening = WoRSkillAbilities::FindImpactListener(Hero) != nullptr;
@@ -229,6 +262,8 @@ void FGASAbilitiesSpec::Define()
 		Bolt->BaseEnergyCost = ABILITIES_SPEC_BOLT_EP;
 		Bolt->ExecutionType = EAbilityExecutionType::Ranged;
 		Bolt->TargetType = ETargetType::Enemy;
+		// Generic (inherit) is castable by any Caster (the test character's class), so no element gate refuses it.
+		Bolt->Element = ESpellElement::Generic;
 		Bolt->DeliveryType = ESpellDeliveryType::Projectile;
 		FSkillCastEntry &BoltCast = Bolt->CastArray.AddDefaulted_GetRef();
 		BoltCast.DeliveryType = ESpellDeliveryType::Projectile;
@@ -473,7 +508,7 @@ void FGASAbilitiesSpec::Define()
 			{
 				return;
 			}
-			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+			TestTrue(FString::Printf(TEXT("The old path dealt damage (EP spent %d, through the ability %d; refusal: %s)"), OldPath.EPSpent, ThroughAbility.EPSpent, *OldPath.Refusal), OldPath.FoeDamage > 0);
 			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
 			TestEqual(TEXT("No projectile events on the old path"), OldPath.ProjectileEvents, 0);
 			TestEqual(TEXT("The arrival through the ability's event"), ThroughAbility.ProjectileEvents, 1);
@@ -490,7 +525,7 @@ void FGASAbilitiesSpec::Define()
 			{
 				return;
 			}
-			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+			TestTrue(FString::Printf(TEXT("The old path dealt damage (EP spent %d, through the ability %d; refusal: %s)"), OldPath.EPSpent, ThroughAbility.EPSpent, *OldPath.Refusal), OldPath.FoeDamage > 0);
 			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
 			TestEqual(TEXT("No burst spawns by an ability on the old path"), OldPath.BurstSpawns, 0);
 			TestEqual(TEXT("Every arrival through the ability's event"), ThroughAbility.ProjectileEvents, ABILITIES_SPEC_BURST_COUNT);
