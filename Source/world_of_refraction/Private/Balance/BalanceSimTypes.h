@@ -68,14 +68,11 @@ enum class EBalanceFightOutcome : uint8
 	Stalled
 };
 
-/** What one seeded fight produced. Equal records for one seed = a deterministic fight (bGAS is not compared:
- *  the parity check is exactly a record from each path). */
+/** What one seeded fight produced. Equal records for one seed = a deterministic fight. */
 struct FBalanceFightRecord
 {
 	FName MatchupId;
 	int32 Seed = 0;
-	/** B-293: the effect reads went through GAS (wor.Effects.UseGAS 1) for this fight. */
-	bool bGAS = false;
 	EBalanceFightOutcome Outcome = EBalanceFightOutcome::Stalled;
 	int32 Ticks = 0;
 	int32 Turns = 0;
@@ -109,8 +106,8 @@ struct FBalanceFightRecord
 	FString ToString() const
 	{
 		static const TCHAR *OutcomeNames[] = {TEXT("PartyWon"), TEXT("EnemiesWon"), TEXT("Draw"), TEXT("Stalled")};
-		return FString::Printf(TEXT("%s seed %d%s: %s, %d turns (%d party), %d rounds, %d ticks, dmg %d / %d, hits %d (crits %d), breaks %d, hits-to-kill [%s]"),
-							   *MatchupId.ToString(), Seed, bGAS ? TEXT(" (GAS)") : TEXT(""), OutcomeNames[static_cast<int32>(Outcome)], Turns, PartyTurns, Rounds,
+		return FString::Printf(TEXT("%s seed %d: %s, %d turns (%d party), %d rounds, %d ticks, dmg %d / %d, hits %d (crits %d), breaks %d, hits-to-kill [%s]"),
+							   *MatchupId.ToString(), Seed, OutcomeNames[static_cast<int32>(Outcome)], Turns, PartyTurns, Rounds,
 							   Ticks, PartyDamage, EnemyDamage, Hits, Crits, StatusBreaks,
 							   *FString::JoinBy(HitsToKill, TEXT(","), [](int32 Value) { return FString::FromInt(Value); }));
 	}
