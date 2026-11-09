@@ -43,7 +43,7 @@ namespace ClassInnateResistanceTable
 	// ==================== ROW TYPE ====================
 
 	/** One full resistance profile. Field order IS the column order:
-	 *  Fire Water Earth Wind Light Darkness Lightning Void Reality | Slash Pierce Impact.
+	 *  Fire Water Earth Wind Light Darkness Lightning Void Reality | Slash Pierce Impact, then Ice (B-064a).
 	 *  Plain struct (not reflected) — the Details-panel display struct is separate. */
 	struct FResistanceRow
 	{
@@ -59,6 +59,10 @@ namespace ClassInnateResistanceTable
 		float Slash;
 		float Pierce;
 		float Impact;
+		/** B-064a (D-029, Q-145b): Ice resistance, which also resists Water hits. Appended with a default, so the rows
+		 *  below (12 values each) leave it 0 for every profile. TODO: tune per profile. Read by GetClassIceResistance
+		 *  only: ResistanceColumns has no Ice column yet (the asset, gear rolls and display: B-064c). */
+		float Ice = 0.0f;
 	};
 
 	// ==================== ELEMENT (CASTER) ROWS ====================
@@ -153,4 +157,8 @@ namespace ClassInnateResistanceTable
 	 *  its CharacterData is missing. Defined out-of-line (reaches into
 	 *  UCharacterDataComponent). */
 	WORLD_OF_REFRACTION_API float GetClassInnateResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType);
+
+	/** B-064a: Target's profile's Ice column as a fraction (Row.Ice / 100); 0 without CharacterData. Ice is no element
+	 *  axis (an Ice hit is keyed Water), so GetClassInnateResistance can't reach it. */
+	WORLD_OF_REFRACTION_API float GetClassIceResistance(AActor *Target);
 }
