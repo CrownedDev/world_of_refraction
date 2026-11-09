@@ -124,6 +124,8 @@ struct WORLD_OF_REFRACTION_API FCameraShotContext
 	/** A spell or ranged skill (the Default style frames it wide). */
 	bool bRanged = false;
 	bool bCritical = false;
+	/** B-403 (study R5, R15): a melee wind-up may rush in. Off while camera movement is off: the slow push instead. */
+	bool bAllowRush = true;
 };
 
 /** B-371: one code-built shot: the camera moves from Start to End over BlendSeconds (a push-in when they differ). */
@@ -135,6 +137,8 @@ struct WORLD_OF_REFRACTION_API FCameraShot
 	float FieldOfView = 90.0f;
 	/** The shake to play with it (0 = none). */
 	float ShakeScale = 0.0f;
+	/** B-403: the camera's motion-blur amount while the shot moves (0 = the project's own blur). */
+	float MotionBlur = 0.0f;
 };
 
 /** Where the fight is, from the camera's point of view. */
@@ -220,8 +224,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);
 
 	/** B-371 (SkillPresentationPipeline.md §5): the code-built shot for Moment. Wind-up: over the caster's shoulder
-	 *  (Tuning.Side), pushing in. Cast: holds on the caster, or looks at the projectile. Impact: frames the first
-	 *  target with a FOV punch and a shake, larger on a crit. Spread: pulls back until every target is in frame.
+	 *  (Tuning.Side), pushing in: slowly for a spell or ranged skill, a short fast rush with motion blur for a melee
+	 *  one (B-403, R5). Cast: holds on the caster, or looks at the projectile. Impact (B-403, R6): a low side-on /
+	 *  three-quarter-front two-shot of the caster and the first target, a small FOV punch and a light shake, larger
+	 *  on a crit. Spread (B-403, R8): pulls back until every target is in frame and holds still (no shake, no punch).
 	 *  Distances scale by Tuning.DistanceScale, Close / Wide by Tuning.Style; the shake by Tuning.ShakeScale. */
 	static FCameraShot ComputeShot(ECameraShotMoment Moment, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
 
