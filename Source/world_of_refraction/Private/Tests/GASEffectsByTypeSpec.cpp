@@ -106,7 +106,7 @@ void FGASEffectsByTypeSpec::Define()
 		Strong.MaxStacks = BY_TYPE_TEST_STACKS;
 		Effects->ApplyEffect(Holder, Strong);
 		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit); // the GE as it stands
+		Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit); // result unused: this read syncs the mirror so the GE exists before the weaker apply
 		FActiveSkillEffect Weak = Strong;
 		Weak.EffectValue = BY_TYPE_TEST_WEAK_VALUE;
 		Effects->ApplyEffect(Holder, Weak);

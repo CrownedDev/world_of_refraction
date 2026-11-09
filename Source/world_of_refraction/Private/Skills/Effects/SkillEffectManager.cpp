@@ -2489,6 +2489,7 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, 
 
 	// B-042g (part 1): at UseGAS 1 the per-effect readers (resistance and buildup matches, Ignore Defense, reflect) read
 	// the GEs: one view per GE with its identity's keys and value, its stacks from the stacked magnitude.
+	// Partial views: duration, stacking rules and charges stay default, so never read those from them (review).
 	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, EffectType))
 	{
 		for (const FWoRActiveEffectView &View : FWoREffectSpecBuilder::GetEffectsOfType(*ASC, EffectType))
