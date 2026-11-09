@@ -2,7 +2,7 @@
 
 The desktop merged these into dev: B-043a, B-273b + B-064a (with the review fixes), B-042g part 1 (after B-042f's PIE passed), B-390, B-396, and the two blocked-job notes. Crown also changed D-089 (Energy), which unblocks B-173. Newly writable:
 
-- **B-173** (`feature/B-173-turn-start-energy-cloud`, from dev). Pushed; under review.
+- **B-173** (`feature/B-173-turn-start-energy-cloud`, from dev). Pushed, reviewed, fixed (Q-173: every turn kind refills).
   - Energy refills at the start of each of a character's turns: 10% of Max EP, at least 1, TODO: tune.
   - The refill goes through `ServerGainEnergy`'s gates, so Broken Darkness and a dormant Resonator gain nothing.
   - Debug: `wor.Energy.Print`. Spec: `WoR.Energy.TurnStart`.
