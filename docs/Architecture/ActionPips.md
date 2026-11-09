@@ -4,7 +4,7 @@
 
 D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, and on each turn a character spends **banked actions**. Reflex sets how many come back each turn (1, 2 or 3), **Max Actions** (2 + one per 100 action points from gear, evolutions and the like) caps the regain, and unused actions carry over. The plan is `docs/analysis/ActionPips.md` (B-170a..h); rulings Q-170..Q-170h, build choices Q-170a.
 
-**Built so far (B-170a, B-170b, B-170c, UNBUILT):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0); several actions per turn in the orchestrator, action costs on skills, spells and items, End Turn, free switching (B-170c). Default play is unchanged until Crown's PIE flips the switch.
+**Built so far (B-170a, B-170b, B-170c):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0); several actions per turn in the orchestrator, action costs on skills, spells and items, End Turn, free switching (B-170c). Default play is unchanged until Crown's PIE flips the switch.
 
 ## Architecture
 
@@ -18,7 +18,7 @@ D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, an
   - Writes (authority only, like the EP functions): `ResetActionsForFight`, `RegainActions`, `GainActions(N, bMayPassMax)`, `SpendActions(N)` (false when above the bank), `LoseActions(N)` (floors at 0). All go through `SetCurrentActions`, which broadcasts only on a change.
   - `DebugActionPoints` (transient): the debug layer.
 
-- **Action cost** (B-170c, Q-170b, Q-170c2): `USkillDataBase::ActionCost` (int, default `ACTION_COST_DEFAULT` 1, `ClampMin 0`; `IsDataValid` warns above `MAX_ACTIONS_CAP`); items `CrystalEffectTable::GetActionCost` (all 1 for now); `FAction::GetActionCost()` reads them (Defend, End Turn, switch, Flee and a ritual's fire cost 0). `ActionPipsRules::IsCostAboveMax` / `CanAfford` are the check.
+- **Action cost** (B-170c, Q-170b, Q-170c2): `USkillDataBase::ActionCost` (int, default `ACTION_COST_DEFAULT` 1, `ClampMin 1`; `IsDataValid` warns above `MAX_ACTIONS_CAP`); items `CrystalEffectTable::GetActionCost` (all 1 for now); `FAction::GetActionCost()` reads them (Defend, End Turn, switch, Flee and a ritual's fire cost 0). `ActionPipsRules::IsCostAboveMax` / `CanAfford` are the check.
 - **The turn** (B-170c): `ACombatOrchestrator` sets the fight-start bank, regains at each turn start (not on a first turn), skips a turn at 0, pays each action's cost and asks again until 0, End Turn (`EActionType::EndTurn`) or Defend. Details: `docs/Architecture/CombatOrchestrator.md`, "Action pips".
 - **`wor.Turns.ActionPips`** (B-170b, `Private/Combat/TurnRotation.cpp`, `TurnRotation::IsActionPipsOn()`): the one switch for every part. `UTurnManager` reads it per fight; with 1 it runs `FTurnRotation` (sides alternate, a smaller side's seats rotate on). Details: `docs/Architecture/TurnManager.md`, "Fixed rotation".
 
@@ -55,3 +55,4 @@ Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.
 | 2026-11-09 | B-170b: `wor.Turns.ActionPips` defined (`TurnRotation::IsActionPipsOn`); the fixed rotation in `UTurnManager` (see TurnManager.md). The bank is still not read by turns (B-170c). | `feature/B-170b-turn-rotation-cloud` (UNBUILT) |
 | 2026-11-09 | B-170b built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix). | `feature/B-170b-turn-rotation` |
 | 2026-11-09 | B-170c: the bank plays. Action costs (`USkillDataBase::ActionCost`, items in `CrystalEffectTable`, `FAction::GetActionCost`, `ACTION_COST_DEFAULT`, `IsCostAboveMax` / `CanAfford`); the orchestrator's multi-action turn, `EActionType::EndTurn`, free switching; `wor.Actions.Print` shows the turn's spends; `MultiActionTurnSpec`. Build choices Q-170c2. | `feature/B-170c-multi-action-turns-cloud` (UNBUILT) |
+| 2026-11-09 | B-170c built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no code must-fix). Build fixes: an armed ritual shows on the strip at once (`ScheduleExecutionTurn` rebuilds the belt); a refused Flee spends nothing; Q-170c2: a bonus turn regains like any turn. | `feature/B-170c-multi-action-turns` |

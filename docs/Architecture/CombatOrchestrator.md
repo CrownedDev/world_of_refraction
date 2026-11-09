@@ -208,7 +208,7 @@ broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
    `FCombatResult`, clears teams, returns to `Idle`.
 4. Otherwise `TurnManager->AdvanceToNextTurn()`.
 
-### Action pips (B-170c, behind `wor.Turns.ActionPips`; UNBUILT)
+### Action pips (B-170c, behind `wor.Turns.ActionPips`)
 
 `IsActionPipsFight()` is the TurnManager's latched rotation mode; at 0 none of this runs and a turn is one action, as built.
 - **Fight start:** `StartCombat` calls `ResetActionsForFight` on every combatant before `InitializeCombat` dispatches turn 1.
@@ -377,3 +377,4 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-11-08 | B-235b part 1: `AWoRPlayerState::Client_ShowFeatureMessage` (a pickup message on the picker's screen); `WoRDefeat::GetPresentDroppedPrisms` (only present players keep the Prism pickup up). Rewards: B-235c. | `feature/B-235b-personal-rewards-cloud` (in dev) |
 | 2026-11-08 | B-235c part 1 (D-103): chests per player (`ATrialMapFeature::GetFeatureIdFor`, per-player seed and record), `ShowMessageTo`; a client's map-feature press goes to the host (`AWoRPlayerState::ServerInteractFeature`, `IsWithinReach`). Also fixed: `ATrialMapFeature::ShowMessage` public (B-235b called it). Rest: B-235d. | `feature/B-235c-instanced-chests-cloud` (in dev) |
 | 2026-11-09 | B-170c (Q-170b, Q-170c, Q-170c2): several actions per turn behind `wor.Turns.ActionPips` ("Action pips" above): fight-start bank, per-turn regain, the 0-actions skip, `PayActionCost` / `GetActionCostRefusedReason`, `OnActionCompleted` asks again until 0 / End Turn (`EActionType::EndTurn`) / Defend, ritual arming keeps the turn, AI one action a turn until B-170f; `GetTurnSpendsString`. | `feature/B-170c-multi-action-turns-cloud` (UNBUILT) |
+| 2026-11-09 | B-170c built and merged into dev (full suite green). A refused Flee is checked before the action cost is paid, so it spends and records nothing. | `feature/B-170c-multi-action-turns` |
