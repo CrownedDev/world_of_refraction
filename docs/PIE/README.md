@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-317](B-317.md) | `feature/B-317-store-old-copies-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-312, B-313, B-313b, B-314, B-316) | Store 6, first part: a member's crystal inventory keeps no copy of its pouch; the post-fight hand-back is gone; list the enemies with authored item slots | Pending |
 | [B-034b](B-034b.md) | `feature/B-034b-charge-manager-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-034) | Delete the dead hold-to-charge `InfusionChargeManager`; check 1 is the editor's no-Blueprint-uses-it check | Pending |
 | [B-172](B-172.md) | `feature/B-172-legacy-validators-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-028) | Delete the legacy loadout validators and `wor.Loadout.CompareRules` | Pending |
 | [B-309](B-309.md) | `feature/B-309-unified-loadout-old-path-delete-cloud` (UNBUILT, on B-172's branch; merge only after Crown's PIE of B-301..B-308 and B-312) | Unified loadout 9, safe subset: delete `DoWeaponStatsApply` and `PrimarySlotCost` (the old loadout fields stay) | Pending |
