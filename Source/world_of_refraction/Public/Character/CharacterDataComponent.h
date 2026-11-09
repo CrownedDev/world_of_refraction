@@ -32,6 +32,7 @@ namespace WorldStatConstants
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, int32, CurrentHP, int32, MaxHP);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEPChanged, int32, CurrentEP, int32, MaxEP);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionsChanged, int32, CurrentActions, int32, MaxActions);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDied, AActor *, DeadActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResurrected, AActor *, ResurrectedActor);
 
@@ -136,6 +137,12 @@ public:
 
     UPROPERTY(ReplicatedUsing = OnRep_CurrentEP, BlueprintReadOnly, Category = "Combat")
     int32 MaxEP;
+
+    /** Per-fight (B-170a, D-064): the banked actions (ActionPips.md §3.1). Set by ResetActionsForFight,
+     *  changed only through the action functions below; meaningless outside a fight. Not saved. Nothing
+     *  reads it for turns until B-170b / B-170c. */
+    UPROPERTY(ReplicatedUsing = OnRep_CurrentActions, BlueprintReadOnly, Category = "Combat|Actions")
+    int32 CurrentActions = 0;
 
     UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
     bool bIsAlive;
@@ -459,6 +466,41 @@ public:
     UPROPERTY(Transient)
     int32 DebugActionPoints = 0;
 
+    /** Reflex's share of its window range, 0..1, read as the defense window reads it: the stat term
+     *  (CalculateReflexWindowBonus) x its gear factor (ReflexWindowGearFactor), over WINDOW_CAP_SECONDS. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    float GetReflexRegainShare() const;
+
+    /** Actions regained per turn: 1, 2 or 3 by Reflex (ActionPipsRules::RegainForReflexShare). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    int32 GetActionRegain() const;
+
+    // Server only, like the EP functions (B-131): plain calls run on the authority. Each broadcasts
+    // OnActionsChanged when the count changes.
+
+    /** Fight start: the regain amount, capped at Max (Q-170). */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
+    void ResetActionsForFight();
+
+    /** A turn's regain: never past Max, nothing at or above it (BankAfterRegain). */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
+    void RegainActions();
+
+    /** +Amount; past Max only with bMayPassMax (Emerald, Gain Action), and the extra stays banked. */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
+    void GainActions(int32 Amount, bool bMayPassMax);
+
+    /** Pays an action cost: false, and nothing spent, when Amount is not positive or above CurrentActions. */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
+    bool SpendActions(int32 Amount);
+
+    /** -Amount from an effect (Lose Action, a status break): never below 0. */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
+    void LoseActions(int32 Amount);
+
+    UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+    FOnActionsChanged OnActionsChanged;
+
     /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
      *  is the verbatim return of an existing getter. Additive convenience for snapshot
      *  consumers (e.g. the crystal-wear input cluster); existing direct-getter callers
@@ -665,6 +707,12 @@ private:
 
     UFUNCTION()
     void OnRep_CurrentEP();
+
+    UFUNCTION()
+    void OnRep_CurrentActions();
+
+    /** Writes CurrentActions on the authority and broadcasts OnActionsChanged when it changed. */
+    void SetCurrentActions(int32 NewActions);
 
     UFUNCTION()
     void OnRep_bIsAlive();
