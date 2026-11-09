@@ -1,8 +1,7 @@
 // RingWeaponQuerySpec.cpp
-// The ring and weapon queries URingManager / UWeaponManager answer, and the ring auto-switch
-// when a ring's crystal breaks (B-024). Written against the two subsystems first, so the
-// loadout component must give the same results once it owns them; the component's own
-// GetActiveRingElement / SwitchToNextUsableRing are checked alongside.
+// The ring queries and the ring switch on ULoadoutComponent, and the ring auto-switch when a
+// ring's crystal breaks (B-024). First written against URingManager / UWeaponManager, which
+// forwarded to the component; their checks went with them (B-154).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -11,9 +10,7 @@
 #include "Equipment/Crystals/CrystalManager.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Rings/RingData.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
-#include "Equipment/Weapons/WeaponManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 
@@ -44,8 +41,6 @@ namespace
 BEGIN_DEFINE_SPEC(FRingWeaponQuerySpec, "WoR.Loadout.RingWeaponQueries",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 TUniquePtr<FWoRTestWorld> TestWorld;
-URingManager *RingManager = nullptr;
-UWeaponManager *WeaponManager = nullptr;
 UCrystalManager *CrystalManager = nullptr;
 UInventoryComponent *Inventory = nullptr;
 
@@ -80,11 +75,7 @@ void FRingWeaponQuerySpec::Define()
 	{
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("test world created"), TestWorld->Create());
-		RingManager = TestWorld->GetSubsystem<URingManager>();
-		WeaponManager = TestWorld->GetSubsystem<UWeaponManager>();
 		CrystalManager = TestWorld->GetSubsystem<UCrystalManager>();
-		TestNotNull(TEXT("ring manager"), RingManager);
-		TestNotNull(TEXT("weapon manager"), WeaponManager);
 		TestNotNull(TEXT("crystal manager"), CrystalManager);
 	});
 
@@ -96,7 +87,7 @@ void FRingWeaponQuerySpec::Define()
 
 	Describe("ring queries", [this]()
 	{
-		It("give the active ring, the primary ring and the active ring's element", [this]()
+		It("give the active ring and the active ring's element", [this]()
 		{
 			const TArray<FRingLoadoutEntry> Rings = {RingTestEntry(ECrystalType::Garnet, RING_TEST_INTACT_DURABILITY),
 													 RingTestEntry(ECrystalType::Sapphire, RING_TEST_INTACT_DURABILITY)};
@@ -105,23 +96,9 @@ void FRingWeaponQuerySpec::Define()
 			{
 				return;
 			}
-			AActor *Actor = Loadout->GetOwner();
-			TestEqual(TEXT("active ring"), RingManager->GetActiveRing(Actor), Rings[0].RingEntry.Ring);
-			TestEqual(TEXT("active ring matches the loadout"), RingManager->GetActiveRing(Actor), Loadout->GetActiveRing());
-			TestEqual(TEXT("primary ring matches the loadout"), RingManager->GetPrimaryRing(Actor), Loadout->GetPrimaryRing());
-			TestEqual(TEXT("active element"), RingManager->GetActiveElement(Actor),
-					  CrystalTypeHelpers::GetElement(ECrystalType::Garnet));
+			TestEqual(TEXT("active ring"), Loadout->GetActiveRing(), Rings[0].RingEntry.Ring);
 			TestEqual(TEXT("loadout's active element"), Loadout->GetActiveRingElement(),
 					  CrystalTypeHelpers::GetElement(ECrystalType::Garnet));
-		});
-
-		It("give nothing for an actor without a loadout", [this]()
-		{
-			AActor *Bare = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-			TestNull(TEXT("active ring"), RingManager->GetActiveRing(Bare));
-			TestNull(TEXT("primary ring"), RingManager->GetPrimaryRing(Bare));
-			TestEqual(TEXT("active element"), RingManager->GetActiveElement(Bare), ESpellElement::None);
-			TestFalse(TEXT("switch"), RingManager->SwitchToNextRing(Bare));
 		});
 	});
 
@@ -136,7 +113,7 @@ void FRingWeaponQuerySpec::Define()
 			{
 				return;
 			}
-			TestTrue(TEXT("switched"), RingManager->SwitchToNextRing(Loadout->GetOwner()));
+			TestTrue(TEXT("switched"), Loadout->SwitchToNextUsableRing());
 			TestEqual(TEXT("landed past the broken ring"), ActiveRingIndex(), 2);
 			TestTrue(TEXT("loadout switch wraps"), Loadout->SwitchToNextUsableRing());
 			TestEqual(TEXT("wrapped past the broken ring to the first"), ActiveRingIndex(), 0);
@@ -150,7 +127,6 @@ void FRingWeaponQuerySpec::Define()
 			{
 				return;
 			}
-			TestFalse(TEXT("no switch"), RingManager->SwitchToNextRing(Loadout->GetOwner()));
 			TestFalse(TEXT("no loadout switch"), Loadout->SwitchToNextUsableRing());
 			TestEqual(TEXT("stayed"), ActiveRingIndex(), 0);
 		});
@@ -180,24 +156,6 @@ void FRingWeaponQuerySpec::Define()
 			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			CrystalManager->NotifyCrystalBroken(Loadout->GetOwner(), Weapon, FBrokenCrystalPayload());
 			TestEqual(TEXT("stayed"), ActiveRingIndex(), 0);
-		});
-	});
-
-	Describe("weapon queries", [this]()
-	{
-		It("match the loadout's active weapon and attack", [this]()
-		{
-			ULoadoutComponent *Loadout = SpawnResonator({});
-			if (!Loadout)
-			{
-				return;
-			}
-			AActor *Actor = Loadout->GetOwner();
-			TestEqual(TEXT("active weapon"), WeaponManager->GetActiveWeapon(Actor), Loadout->GetActiveWeapon());
-			TestEqual(TEXT("active attack"), WeaponManager->GetActiveAttack(Actor), Loadout->GetCurrentAttack());
-			AActor *Bare = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
-			TestNull(TEXT("no loadout: weapon"), WeaponManager->GetActiveWeapon(Bare));
-			TestNull(TEXT("no loadout: attack"), WeaponManager->GetActiveAttack(Bare));
 		});
 	});
 }
