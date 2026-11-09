@@ -10,6 +10,10 @@
 // task takes the action's impacts: the executor sends each Impact notify (or montage-less impact) to the avatar as
 // that event (index in EventMagnitude) and the task resolves it through UActionExecutor::ResolveImpactFrame. The
 // montage chain itself stays in the executor (PlayMontageAndWait waits for a later part).
+// B-043d (Q-043d): while it runs an action whose skill fires projectiles, a WaitGameplayEvent(Event.Combat.Projectile)
+// task (Arrived and Dodged, one event per projectile) takes each projectile's end from the executor
+// (UActionExecutor::TakeRoutedProjectile) and resolves it through UActionExecutor::ResolveProjectileArrival. Spawning,
+// flight and the burst timer stay in the executor.
 // Granting and the orchestrator hand-off: GAS/Abilities/WoRSkillAbilities.h. Debug: wor.Abilities.Print.
 
 #pragma once
@@ -70,6 +74,18 @@ public:
 	/** B-043c: whether Action's impacts route through its ability: a non-spell action whose skill lands impacts. */
 	static bool ShouldListenForImpacts(const FAction &Action);
 
+	/** B-043d: true while this instance runs an action and its WaitGameplayEvent(Event.Combat.Projectile) task waits. */
+	bool IsListeningForProjectiles() const;
+
+	/** B-043d: projectile ends (arrivals and dodges) this instance took and resolved, over its life (debug, spec). */
+	int32 GetProjectileEventsResolved() const { return ProjectileArrivalsResolved + ProjectileDodgesResolved; }
+	int32 GetProjectileArrivalsResolved() const { return ProjectileArrivalsResolved; }
+	int32 GetProjectileDodgesResolved() const { return ProjectileDodgesResolved; }
+
+	/** B-043d: whether Action's projectiles route through its ability: its skill (spell or not) has a Projectile
+	 *  cast entry, or is a spell with no cast entries whose loose delivery is Projectile. AOE / Instant: B-043e. */
+	static bool ShouldListenForProjectiles(const FAction &Action);
+
 	/** EP check only: the executor's spendable EP against the action's cost (the action being activated, else
 	 *  the skill's plain cast, WoRSkillAbilities::MakePlainAction). */
 	/** Refused while an earlier action still runs (the ability was cancelled before it finished): that action
@@ -104,6 +120,20 @@ private:
 	UFUNCTION()
 	void HandleImpactEvent(FGameplayEventData Payload);
 
+	/** B-043d: starts the WaitGameplayEvent(Event.Combat.Projectile) task for the running action. */
+	void StartProjectileListener();
+
+	/** B-043d: one projectile's end (Arrived or Dodged, Target = the struck actor), taken from the executor and
+	 *  resolved as OnProjectileImpact / OnProjectileDodged would. */
+	UFUNCTION()
+	void HandleProjectileEvent(FGameplayEventData Payload);
+
+	/** B-043c/d: ends and forgets the running action's event tasks. */
+	void EndEventTasks();
+
+	/** B-043c/d: whether the executor's current action is this instance's running one (own-action check). */
+	bool IsExecutorOnRunningAction(const UActionExecutor &Executor) const;
+
 	/** A UPROPERTY so its targets and skill asset stay referenced while the action runs. */
 	UPROPERTY(Transient)
 	FAction RunningAction;
@@ -116,4 +146,11 @@ private:
 	TObjectPtr<UAbilityTask_WaitGameplayEvent> ImpactTask;
 
 	int32 ImpactEventsResolved = 0;
+
+	/** The running action's projectile task (B-043d), or null. */
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> ProjectileTask;
+
+	int32 ProjectileArrivalsResolved = 0;
+	int32 ProjectileDodgesResolved = 0;
 };

@@ -51,6 +51,19 @@ class UCombatAnimInstance;
 class USkillDataBase;
 class UMotionWarpingComponent;
 
+/** B-043d (Q-043d): one projectile's end, as ASkillProjectile reported it (OnSkillImpact / OnSkillDodged). The
+ *  executor routes it to the caster's running skill ability as Event.Combat.Projectile.Arrived / .Dodged, else
+ *  resolves it itself; either way UActionExecutor::ResolveProjectileArrival resolves it, once. */
+struct FWoRProjectileArrival
+{
+	TWeakObjectPtr<AActor> Target;
+	FVector Location = FVector::ZeroVector;
+	float ImpactRadius = 0.0f;
+	int32 Damage = 0;
+	int32 CastEntryIndex = INDEX_NONE;
+	bool bDodged = false;
+};
+
 // ========================================
 // MONTAGE CHAIN
 // ========================================
@@ -1303,11 +1316,28 @@ protected:
 		float FinalVisualScale,
 		bool bIsBrokenDarkness);
 
-	/** Called when projectile impacts target */
+	/** Called when projectile impacts target. B-043d: routed (RouteProjectileArrival). */
 	UFUNCTION()
 	void OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex);
 
-	/** Called when target dodged projectile */
+	/** Called when target dodged projectile. B-043d: routed (RouteProjectileArrival). */
 	UFUNCTION()
 	void OnProjectileDodged(AActor *Target, FVector ImpactLocation);
+
+	/** B-043d (Q-043d): where a projectile's end goes. To the action's skill ability when one is running it and
+	 *  waiting for projectiles (WoRSkillAbilities::SendProjectileEvent), else straight to ResolveProjectileArrival.
+	 *  Exactly once: the arrival is held in RoutingProjectile while the event is out; the ability takes it
+	 *  (TakeRoutedProjectile) and resolves it, and one nobody took is resolved here. */
+	void RouteProjectileArrival(const FWoRProjectileArrival &Arrival);
+
+	/** B-043d: the old OnProjectileImpact / OnProjectileDodged bodies: an arrival resolves per impact
+	 *  (ResolveSpellArrival) or opens the lumped window; a dodge records 0 damage and counts the arrival. */
+	void ResolveProjectileArrival(const FWoRProjectileArrival &Arrival);
+
+	/** B-043d: hands the arrival being routed to the ability that got its event, if it is for Target and of that
+	 *  kind (dodge or not), and clears it so nothing else resolves it. False when there is none to take. */
+	bool TakeRoutedProjectile(const AActor *Target, bool bDodged, FWoRProjectileArrival &OutArrival);
+
+	/** B-043d: the arrival RouteProjectileArrival has out as an event, until it is taken or resolved. */
+	TOptional<FWoRProjectileArrival> RoutingProjectile;
 };

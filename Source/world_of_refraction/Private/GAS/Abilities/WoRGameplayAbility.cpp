@@ -6,7 +6,9 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
+#include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Tags/WoRGameplayTags.h"
 #include "WoRLog.h"
 
@@ -125,6 +127,7 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	ForwardOnComplete = Scope->OnComplete;
 	bActionRunning = true;
 	ImpactTask = nullptr;
+	ProjectileTask = nullptr;
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -145,6 +148,11 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	{
 		StartImpactListener();
 	}
+	// B-043d: a projectile can be dispatched inside the call too (a montage-less spell's release).
+	if (ShouldListenForProjectiles(RunningAction))
+	{
+		StartProjectileListener();
+	}
 	// A copy: the completion can run inside this call and a bonus turn can start this ability again.
 	const FAction Action = RunningAction;
 	Executor->ExecuteActionAsync(Avatar, Action, FOnActionComplete::CreateUObject(this, &UWoRGameplayAbility::HandleActionComplete));
@@ -158,12 +166,7 @@ void UWoRGameplayAbility::HandleActionComplete(const FActionResult &Result)
 	}
 	bActionRunning = false;
 	RunningAction = FAction(); // drop its targets and skill until the next activation
-	if (UAbilityTask_WaitGameplayEvent *Task = ImpactTask)
-	{
-		// Safe from inside the task's own broadcast: the ASC and the delegate both broadcast from copies.
-		ImpactTask = nullptr;
-		Task->EndTask();
-	}
+	EndEventTasks();
 	FOnActionComplete Forward = ForwardOnComplete;
 	ForwardOnComplete.Unbind();
 	// End first, so whoever started the action can start this ability again from the forwarded call
@@ -194,6 +197,26 @@ bool UWoRGameplayAbility::ShouldListenForImpacts(const FAction &Action)
 	// the old path. Every other skill action (melee, ranged and cast abilities alike) lands its impacts here.
 	const USkillDataBase *Skill = Action.ActionType == EActionType::Ability ? Action.SkillData : nullptr;
 	return Skill && Skill->HitCount > 0;
+}
+
+void UWoRGameplayAbility::EndEventTasks()
+{
+	// Safe from inside a task's own broadcast: the ASC and the delegate both broadcast from copies.
+	if (UAbilityTask_WaitGameplayEvent *Task = ImpactTask)
+	{
+		ImpactTask = nullptr;
+		Task->EndTask();
+	}
+	if (UAbilityTask_WaitGameplayEvent *Task = ProjectileTask)
+	{
+		ProjectileTask = nullptr;
+		Task->EndTask();
+	}
+}
+
+bool UWoRGameplayAbility::IsExecutorOnRunningAction(const UActionExecutor &Executor) const
+{
+	return Executor.GetCurrentSkillData() == WoRSkillAbilities::GetActionSkill(RunningAction);
 }
 
 bool UWoRGameplayAbility::IsListeningForImpacts() const
@@ -230,7 +253,7 @@ void UWoRGameplayAbility::HandleImpactEvent(FGameplayEventData Payload)
 		return;
 	}
 	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
-	if (!Executor || Executor->GetCurrentSkillData() != RunningAction.SkillData)
+	if (!Executor || !IsExecutorOnRunningAction(*Executor))
 	{
 		return; // not this ability's action, or no executor: not counted, the sender resolves it (SendImpactEvent)
 	}
@@ -239,4 +262,75 @@ void UWoRGameplayAbility::HandleImpactEvent(FGameplayEventData Payload)
 	++ImpactEventsResolved;
 	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: impact %d through Event.Combat.Impact"), *Avatar->GetName(), Index);
 	Executor->ResolveImpactFrame(Index);
+}
+
+bool UWoRGameplayAbility::ShouldListenForProjectiles(const FAction &Action)
+{
+	const USkillDataBase *Skill = WoRSkillAbilities::GetActionSkill(Action);
+	if (!Skill)
+	{
+		return false;
+	}
+	if (Skill->CastArray.Num() > 0)
+	{
+		// DispatchSpellCast's projectile case (a burst is one entry with Count > 1).
+		return Skill->CastArray.ContainsByPredicate([](const FSkillCastEntry &Entry)
+		{
+			return Entry.DeliveryType == ESpellDeliveryType::Projectile;
+		});
+	}
+	// SpawnSpellDelivery's loose path reads the spell's own DeliveryType.
+	return Skill->IsA<USpellData>() && Skill->DeliveryType == ESpellDeliveryType::Projectile;
+}
+
+bool UWoRGameplayAbility::IsListeningForProjectiles() const
+{
+	return bActionRunning && IsActive() && ProjectileTask && ProjectileTask->IsActive();
+}
+
+void UWoRGameplayAbility::StartProjectileListener()
+{
+	// Q-043d: one task on the parent tag takes both ends (Arrived, Dodged), every projectile of the action (not
+	// OnlyTriggerOnce): GASDocumentation's one-task-many-event-tags pattern, Lyra's WaitGameplayEvent per ability.
+	ProjectileTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, WoRTags::Event_Combat_Projectile,
+																	   /*OptionalExternalTarget*/ nullptr,
+																	   /*OnlyTriggerOnce*/ false, /*OnlyMatchExact*/ false);
+	if (!ProjectileTask)
+	{
+		return; // the executor resolves the projectiles itself
+	}
+	ProjectileTask->EventReceived.AddDynamic(this, &UWoRGameplayAbility::HandleProjectileEvent);
+	ProjectileTask->ReadyForActivation();
+}
+
+void UWoRGameplayAbility::HandleProjectileEvent(FGameplayEventData Payload)
+{
+	if (!bActionRunning)
+	{
+		return;
+	}
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	// As HandleImpactEvent: only the listener the sender chose, and only for this ability's own action.
+	if (WoRSkillAbilities::FindProjectileListener(Avatar) != this)
+	{
+		return;
+	}
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	if (!Executor || !IsExecutorOnRunningAction(*Executor))
+	{
+		return; // not counted: the executor resolves it (RouteProjectileArrival)
+	}
+	const bool bDodged = Payload.EventTag.MatchesTagExact(WoRTags::Event_Combat_Projectile_Dodged);
+	FWoRProjectileArrival Arrival;
+	// Taking it clears it on the executor: whatever happens next, nothing resolves this projectile twice.
+	if (!Executor->TakeRoutedProjectile(Payload.Target.Get(), bDodged, Arrival))
+	{
+		return;
+	}
+	// Counted before resolving: the last arrival can finish the action and end this ability.
+	++(bDodged ? ProjectileDodgesResolved : ProjectileArrivalsResolved);
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: projectile %s %s through %s (cast entry %d)"), *Avatar->GetName(),
+		   bDodged ? TEXT("dodged by") : TEXT("reached"), *GetNameSafe(Arrival.Target.Get()), *Payload.EventTag.ToString(),
+		   Arrival.CastEntryIndex);
+	Executor->ResolveProjectileArrival(Arrival);
 }

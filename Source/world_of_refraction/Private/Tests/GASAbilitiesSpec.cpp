@@ -7,6 +7,10 @@
 // B-043c (Q-043c): through its ability, the attack's impacts arrive as Event.Combat.Impact at the ability's
 // WaitGameplayEvent task and resolve to the same damage as the old path (same battle seed); an impact on an actor
 // with no running ability takes the old path.
+// B-043d (Q-043d): a projectile spell's ends arrive as Event.Combat.Projectile.Arrived / .Dodged at its ability's
+// WaitGameplayEvent task. Run headless like the sim's Instant spell (B-293): a Caster's innate, montage-less spell
+// released at once (wor.Combat.InstantImpacts 1); caster and foe stand at the origin, so each projectile reaches its
+// target on its first tick. A dodge moves the foe away while its projectile is in flight.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -14,6 +18,11 @@
 #include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "Components/SceneComponent.h"
+#include "EngineUtils.h"
+#include "Combat/Projectile/SkillProjectile.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Skills/Definitions/SkillCastEntry.h"
 #include "Abilities/GameplayAbility.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatOrchestrator.h"
@@ -38,6 +47,14 @@ namespace
 	constexpr int32 ABILITIES_SPEC_MULTI_HIT_COUNT = 3;
 	/** B-043c: one battle seed for both paths, so their rolls match. */
 	constexpr int32 ABILITIES_SPEC_BATTLE_SEED = 4307;
+	/** B-043d: the projectile spell and its burst. */
+	constexpr int32 ABILITIES_SPEC_BOLT_DAMAGE = 30;
+	constexpr int32 ABILITIES_SPEC_BURST_COUNT = 3;
+	constexpr float ABILITIES_SPEC_BURST_INTERVAL = 0.05f;
+	/** Enough frames for the release, every burst spawn and every flight (each lands on its first tick). */
+	constexpr int32 ABILITIES_SPEC_PROJECTILE_FRAMES = 30;
+	/** Far past any impact radius: the foe has left the zone its projectile aims at. */
+	constexpr float ABILITIES_SPEC_DODGE_DISTANCE = 100000.0f;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -53,6 +70,7 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	ACombatOrchestrator *Orchestrator = nullptr;
 	UAbilityData *Strike = nullptr;
+	USpellData *BoltSpell = nullptr;
 	int32 Activations = 0;
 	int32 Ends = 0;
 
@@ -163,6 +181,148 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		Outcome.bStillListening = WoRSkillAbilities::FindImpactListener(Hero) != nullptr;
 		return Outcome;
 	}
+
+	/** B-043d: a projectile spell with one cast entry of Count projectiles (rooted; AfterEach removes it). */
+	USpellData *MakeBolt(int32 Count)
+	{
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->Name = TEXT("Montage-less Bolt");
+		Spell->BaseDamage = ABILITIES_SPEC_BOLT_DAMAGE;
+		Spell->BaseEnergyCost = ABILITIES_SPEC_STRIKE_EP;
+		Spell->Element = ESpellElement::Fire;
+		Spell->DeliveryType = ESpellDeliveryType::Projectile;
+		FSkillCastEntry &Cast = Spell->CastArray.AddDefaulted_GetRef();
+		Cast.DeliveryType = ESpellDeliveryType::Projectile;
+		Cast.Count = Count;
+		Cast.BurstInterval = ABILITIES_SPEC_BURST_INTERVAL;
+		Spell->AddToRoot();
+		return Spell;
+	}
+
+	/** B-043d: a Fire Caster with BoltSpell innate (as the sim gives a Caster its spell, B-293). */
+	AActor *SpawnBoltCaster()
+	{
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		Data->CharacterClass = ECharacterClass::Caster;
+		Data->InnateElement = ESpellElement::Fire;
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Weapon->WeaponAttack = Strike;
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Weapon, false);
+		AActor *Actor = Loadout ? Loadout->GetOwner() : nullptr;
+		UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
+		if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+		{
+			return nullptr;
+		}
+		Inventory->LearnSpell(BoltSpell);
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].InnateSpells.Add(BoltSpell);
+		Loadout->NotifyActiveWeaponChanged();
+		return Actor;
+	}
+
+	/** The live (not yet landed) projectile in the test world, or null. */
+	ASkillProjectile *FindFlyingProjectile() const
+	{
+		for (TActorIterator<ASkillProjectile> It(TestWorld->GetWorld()); It; ++It)
+		{
+			if (IsValid(*It) && !It->HasImpacted())
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
+	struct FBoltOutcome
+	{
+		bool bRan = false;
+		bool bSawProjectile = false;
+		int32 FoeDamage = 0;
+		int32 Arrivals = 0;
+		int32 Dodges = 0;
+		bool bStillListening = false;
+		bool bTurnMovedOn = false;
+	};
+
+	/** B-043d: Hero casts BoltSpell at Foe in a fresh world, one switch value; with bDodge the foe steps out of the
+	 *  impact zone once the first projectile is in flight. */
+	FBoltOutcome RunBolt(bool bThroughAbility, bool bDodge)
+	{
+		FBoltOutcome Outcome;
+		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
+		{
+			Orchestrator->ForceEndCombat();
+		}
+		Orchestrator = nullptr;
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		if (!TestWorld->Create() || !TestWorld->GetWorld())
+		{
+			return Outcome;
+		}
+		Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		WoRSkillAbilities::SetUsesAbilities(bThroughAbility);
+		AActor *Hero = SpawnBoltCaster();
+		GiveASC(Hero);
+		// Not AI-driven: no defense is rolled, so every arrival lands (as the UseGAS 0/1 strike cases).
+		AActor *Foe = SpawnArmed(false);
+		UCharacterDataComponent *HeroStats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!Orchestrator || !Foe || !HeroStats)
+		{
+			return Outcome;
+		}
+		if (bDodge)
+		{
+			// A plain actor has no root, so it could not move: give it one, at the origin.
+			USceneComponent *Root = FWoRTestWorld::AddComponent<USceneComponent>(Foe);
+			Foe->SetRootComponent(Root);
+		}
+		Orchestrator->StartCombat({Hero}, {Foe});
+		if (Orchestrator->GetCurrentActor() != Hero)
+		{
+			return Outcome;
+		}
+		HeroStats->MaxEP = ABILITIES_SPEC_START_EP;
+		HeroStats->CurrentEP = ABILITIES_SPEC_START_EP;
+		const int32 FoeHPBefore = CurrentHPOf(Foe);
+
+		FAction Action;
+		Action.ActionType = EActionType::Spell;
+		Action.SpellData = BoltSpell;
+		Action.SpellSource = ESpellSource::Innate;
+		Action.Targets.Add(Foe);
+		Orchestrator->SubmitActionAsync(Action);
+		Outcome.bSawProjectile = FindFlyingProjectile() != nullptr;
+		for (int32 Frame = 0; Frame < ABILITIES_SPEC_PROJECTILE_FRAMES; ++Frame)
+		{
+			if (bDodge && !Outcome.bSawProjectile && FindFlyingProjectile())
+			{
+				Outcome.bSawProjectile = true;
+			}
+			if (bDodge && Outcome.bSawProjectile && Foe->GetActorLocation().IsNearlyZero())
+			{
+				Foe->SetActorLocation(FVector(ABILITIES_SPEC_DODGE_DISTANCE, 0.0f, 0.0f));
+			}
+			TestWorld->Tick();
+			Outcome.bSawProjectile = Outcome.bSawProjectile || FindFlyingProjectile() != nullptr;
+		}
+
+		Outcome.bRan = true;
+		Outcome.FoeDamage = FoeHPBefore - CurrentHPOf(Foe);
+		if (FGameplayAbilitySpec *Spec = WoRSkillAbilities::FindSkillSpec(Hero, BoltSpell))
+		{
+			for (UGameplayAbility *Instance : Spec->GetAbilityInstances())
+			{
+				if (const UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance))
+				{
+					Outcome.Arrivals += Ability->GetProjectileArrivalsResolved();
+					Outcome.Dodges += Ability->GetProjectileDodgesResolved();
+				}
+			}
+		}
+		Outcome.bStillListening = WoRSkillAbilities::FindProjectileListener(Hero) != nullptr;
+		Outcome.bTurnMovedOn = Orchestrator->GetCurrentActor() == Foe;
+		return Outcome;
+	}
 END_DEFINE_SPEC(FGASAbilitiesSpec)
 
 void FGASAbilitiesSpec::Define()
@@ -199,6 +359,11 @@ void FGASAbilitiesSpec::Define()
 		{
 			Strike->RemoveFromRoot();
 			Strike = nullptr;
+		}
+		if (BoltSpell)
+		{
+			BoltSpell->RemoveFromRoot();
+			BoltSpell = nullptr;
 		}
 		Orchestrator = nullptr;
 		TestWorld.Reset();
@@ -401,6 +566,110 @@ void FGASAbilitiesSpec::Define()
 			TestFalse(TEXT("No impacts"), UWoRGameplayAbility::ShouldListenForImpacts(WoRSkillAbilities::MakePlainAction(NoHits)));
 			USpellData *Bolt = NewObject<USpellData>(GetTransientPackage());
 			TestFalse(TEXT("A spell"), UWoRGameplayAbility::ShouldListenForImpacts(WoRSkillAbilities::MakePlainAction(Bolt)));
+		});
+	});
+
+	Describe("projectiles (B-043d)", [this]()
+	{
+		It("listens only for a skill that fires projectiles", [this]()
+		{
+			BoltSpell = MakeBolt(1);
+			TestTrue(TEXT("A projectile spell"), UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(BoltSpell)));
+			USpellData *Loose = NewObject<USpellData>(GetTransientPackage());
+			Loose->DeliveryType = ESpellDeliveryType::Projectile;
+			TestTrue(TEXT("A spell with no cast entries, Projectile delivery"),
+					 UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(Loose)));
+			USpellData *Area = NewObject<USpellData>(GetTransientPackage());
+			FSkillCastEntry AreaCast;
+			AreaCast.DeliveryType = ESpellDeliveryType::AOE;
+			Area->CastArray.Add(AreaCast);
+			TestFalse(TEXT("An AOE spell (B-043e)"), UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(Area)));
+			TestFalse(TEXT("A melee attack"), UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(Strike)));
+			TestFalse(TEXT("No skill"), UWoRGameplayAbility::ShouldListenForProjectiles(FAction()));
+		});
+
+		It("names an arrival and a dodge with their own events", [this]()
+		{
+			const FGameplayTag Arrived = WoRSkillAbilities::GetProjectileEventTag(false);
+			const FGameplayTag Dodged = WoRSkillAbilities::GetProjectileEventTag(true);
+			TestTrue(TEXT("Arrived"), Arrived == WoRTags::Event_Combat_Projectile_Arrived);
+			TestTrue(TEXT("Dodged"), Dodged == WoRTags::Event_Combat_Projectile_Dodged);
+			TestTrue(TEXT("Both under Event.Combat.Projectile"),
+					 Arrived.MatchesTag(WoRTags::Event_Combat_Projectile) && Dodged.MatchesTag(WoRTags::Event_Combat_Projectile));
+			TestFalse(TEXT("Not an impact frame"), Arrived.MatchesTag(WoRTags::Event_Combat_Impact));
+		});
+
+		It("leaves a projectile on an actor with no running ability to the old path", [this]()
+		{
+			BoltSpell = MakeBolt(1);
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestNotNull(TEXT("ASC"), GiveASC(Hero)) || !TestTrue(TEXT("Granted"), WoRSkillAbilities::GrantSkill(Hero, BoltSpell).IsValid()))
+			{
+				return;
+			}
+			FWoRProjectileArrival Arrival;
+			Arrival.Target = Foe;
+			TestNull(TEXT("An idle ability is not listening"), WoRSkillAbilities::FindProjectileListener(Hero));
+			TestFalse(TEXT("The arrival is not taken"), WoRSkillAbilities::SendProjectileEvent(Hero, Arrival));
+			Arrival.bDodged = true;
+			TestFalse(TEXT("The dodge is not taken"), WoRSkillAbilities::SendProjectileEvent(Hero, Arrival));
+			TestFalse(TEXT("No ASC: not taken"), WoRSkillAbilities::SendProjectileEvent(Foe, Arrival));
+			TestFalse(TEXT("No actor: not taken"), WoRSkillAbilities::SendProjectileEvent(nullptr, Arrival));
+		});
+
+		It("lands a projectile spell through Event.Combat.Projectile.Arrived, with the old path's damage", [this]()
+		{
+			BoltSpell = MakeBolt(1);
+			const FBoltOutcome OldPath = RunBolt(false, false);
+			const FBoltOutcome ThroughAbility = RunBolt(true, false);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("No projectile events on the old path"), OldPath.Arrivals, 0);
+			TestEqual(TEXT("One arrival through the ability's event"), ThroughAbility.Arrivals, 1);
+			TestEqual(TEXT("No dodge"), ThroughAbility.Dodges, 0);
+			TestFalse(TEXT("Nothing listens once the action is done"), ThroughAbility.bStillListening);
+			TestTrue(TEXT("The turn moved on (both paths)"), OldPath.bTurnMovedOn && ThroughAbility.bTurnMovedOn);
+		});
+
+		It("lands every projectile of a burst once, with the old path's damage", [this]()
+		{
+			BoltSpell = MakeBolt(ABILITIES_SPEC_BURST_COUNT);
+			const FBoltOutcome OldPath = RunBolt(false, false);
+			const FBoltOutcome ThroughAbility = RunBolt(true, false);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("Every projectile arrived once through the ability"), ThroughAbility.Arrivals, ABILITIES_SPEC_BURST_COUNT);
+			TestFalse(TEXT("Nothing listens once the burst is done"), ThroughAbility.bStillListening);
+			TestTrue(TEXT("The turn moved on (both paths)"), OldPath.bTurnMovedOn && ThroughAbility.bTurnMovedOn);
+		});
+
+		It("resolves a dodged projectile as a dodge through Event.Combat.Projectile.Dodged", [this]()
+		{
+			BoltSpell = MakeBolt(1);
+			const FBoltOutcome OldPath = RunBolt(false, true);
+			const FBoltOutcome ThroughAbility = RunBolt(true, true);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			if (!TestTrue(TEXT("A projectile was in flight to dodge"), OldPath.bSawProjectile && ThroughAbility.bSawProjectile))
+			{
+				return;
+			}
+			TestEqual(TEXT("No damage on the old path"), OldPath.FoeDamage, 0);
+			TestEqual(TEXT("No damage through the ability"), ThroughAbility.FoeDamage, 0);
+			TestEqual(TEXT("One dodge through the ability's event"), ThroughAbility.Dodges, 1);
+			TestEqual(TEXT("No arrival"), ThroughAbility.Arrivals, 0);
+			TestTrue(TEXT("The turn moved on (both paths)"), OldPath.bTurnMovedOn && ThroughAbility.bTurnMovedOn);
 		});
 	});
 }

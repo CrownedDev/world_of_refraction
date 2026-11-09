@@ -21,7 +21,7 @@ namespace
 
 	FAutoConsoleCommandWithWorld GPrintAbilitiesCmd(
 		TEXT("wor.Abilities.Print"),
-		TEXT("DEBUG: each combatant's granted skill abilities: source skill, shape tags, active or idle, whether impacts route through GAS, plain EP cost (B-043b/c)."),
+		TEXT("DEBUG: each combatant's granted skill abilities: source skill, shape tags, active or idle, whether impacts and projectiles route through GAS, plain EP cost (B-043b/c/d)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UWoRAbilityDebug::PrintAbilities(World); }));
 }
 
@@ -56,6 +56,10 @@ FString UWoRAbilityDebug::GetAbilitiesString(AActor *Actor)
 			Out += FString::Printf(TEXT(", impacts via GAS: %s (%d resolved)"),
 								   Instance->IsListeningForImpacts() ? TEXT("listening") : TEXT("not listening"),
 								   Instance->GetImpactEventsResolved());
+			// B-043d: whether this action's projectile ends arrive as Event.Combat.Projectile.*, and how many have.
+			Out += FString::Printf(TEXT(", projectiles via GAS: %s (%d arrived, %d dodged)"),
+								   Instance->IsListeningForProjectiles() ? TEXT("listening") : TEXT("not listening"),
+								   Instance->GetProjectileArrivalsResolved(), Instance->GetProjectileDodgesResolved());
 		}
 		if (bPriceable && Skill)
 		{
