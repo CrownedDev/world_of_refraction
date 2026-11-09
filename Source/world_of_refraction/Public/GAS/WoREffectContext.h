@@ -15,6 +15,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/EDamageScope.h"
+#include "Combat/Damage/EPhysicalDamageType.h"
 #include "WoREffectContext.generated.h"
 
 struct FWoRBuildupRequest;
@@ -48,6 +49,16 @@ struct WORLD_OF_REFRACTION_API FWoREffectIdentity
 	/** Came from worn gear: a cleanse leaves it (D-015). */
 	UPROPERTY(BlueprintReadOnly, Category = "Effect")
 	bool bFromGear = false;
+
+	/** B-042g (part 1): the physical subtype a resistance buff or debuff is keyed to (FActiveSkillEffect::PhysicalType),
+	 *  so the per-effect readers can match on GAS. None for element-keyed or unkeyed effects. */
+	UPROPERTY(BlueprintReadOnly, Category = "Effect")
+	EPhysicalDamageType PhysicalType = EPhysicalDamageType::None;
+
+	/** B-042g (part 1): one application's value (FActiveSkillEffect::EffectValue, before stacks): the Ignore Defense
+	 *  flag test reads it per application (D-086). The GE's SetByCaller.Magnitude is the stacked value. */
+	UPROPERTY(BlueprintReadOnly, Category = "Effect")
+	float EffectValue = 0.0f;
 
 	/** Same identity as the enum path's (USkillEffectManager::FindEffectByIdentity): EffectID and source. */
 	bool IsSameIdentity(const FWoREffectIdentity &Other) const
