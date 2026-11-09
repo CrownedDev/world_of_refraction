@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-153](B-153.md) | `feature/B-153-loadout-class-field-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-022) | Remove the OBSOLETE loadout `CharacterClass` field; Blueprint check first | Pending |
 | [B-152](B-152.md) | `feature/B-152-stone-wrappers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-021) | Delete the unreachable stat-stone consumable wrappers | Pending |
 | [B-173](B-173.md) | `feature/B-173-turn-start-energy-cloud` (UNBUILT) | Energy refills a share of Max EP at each turn start (D-089); no base EP from basic attacks / Perfect Guards | Pending |
 | [B-396](B-396.md) | `fix/B-396-combat-hud-visibility` (in dev) | Combat HUD invisible: `wor.UI.Print` in a fight shows each HUD widget's viewport, visibility, opacity, position and size; the trial gate's focus error is gone | Pending |

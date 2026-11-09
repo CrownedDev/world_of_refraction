@@ -35,7 +35,7 @@ Key fields:
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `CharacterClass` | `ECharacterClass` | Determines loadout rules; defaults to `Generic`. Set from `CharacterData` during initialization. |
+| `GetCharacterClass()` | `ECharacterClass` | Determines loadout rules: the owner's `CharacterData` class, `Generic` without one (a getter, not a field, since B-153). |
 | `bIsReadyForBattle` | `bool` | Set true by `PrepareForBattle`; gates `UseItem`. |
 
 `SavedLoadouts` (`TArray<FCombatLoadout>`, `UPROPERTY()`-tagged for GC), `MaxSavedLoadouts` and `ActiveLoadoutIndex` live on **`UInventoryComponent`**, not on `ULoadoutComponent` — the loadout component is a thin facade that reads them through `GetInventoryComponent()` on every accessor.
@@ -235,7 +235,7 @@ struct stored inline on `UInventoryData`), `GetAllAbilities`, `GetAllSpells`,
    characters get an empty inventory and one fallback empty `"Default"`
    loadout (soft-fail).
 2. `ULoadoutComponent::InitializeFromCharacterData(CharacterData)` runs after.
-   It sets `CharacterClass` from `CharacterData->CharacterClass`. If the
+   The class is read from `CharacterData` through `GetCharacterClass()`. If the
    inventory's `SavedLoadouts` is empty (legacy soft-fail), it seeds one empty
    `FCombatLoadout` initialized for the class.
 
@@ -521,3 +521,5 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-08 | B-386 (Q-386): apparel's Amp lines count: `UApparelData::GetStatLines` / `FApparelEntry::GetStatLines` add them; `GetActiveStatBonus` sums them raw with the rest (B-382). | feature/B-386-apparel-amp-cloud (unbuilt) |
 | 2026-11-09 | B-357d (D-147, Q-357b A, Q-357d): an action charged to L2 wears the lasting passives of the gear evolutions in the items that power it, for that action only: `WoREvolutionPlacement::PowersAction` / `FilterForAction`, `EEvolutionPlace::Apparel` (apparel joins `GatherAttachedEvolutions`), `ULoadoutComponent::GetGearEvolutionPassivesForAction`, `UActionExecutor::PutOnGearEvolutionPassives` / `TakeOffGearEvolutionPassives` (through `SwapEquipmentEffects`). The remaining old evolution readers: B-357e. | feature/B-357d-gear-evolution-l2-passives |
 | 2026-11-09 | B-357e (D-147): `ULoadoutComponent::GetCharacterSlotEvolution` (the Place Character entry of `GatherAttachedEvolutions`); every remaining reader of the character slot's evolution reads it (infusion source, wear, Reality check, seat stats and Amp, broken Breakthrough, capabilities, quest conditions, combat tier, debug prints); the slot's writes stay on `FCombatLoadout::PrimaryEvolution`. `GetActivePrimaryEvolutionCrystal` / `Attachment` OBSOLETE (no C++ reader). `FSkillEffect::IsLastingPassive` shared by `SwapEquipmentEffects` and `GetGearEvolutionPassivesForAction`. No play change. | refactor/B-357e-evolution-readers (in dev) |
+
+| 2026-11-09 | B-153: the OBSOLETE `ULoadoutComponent::CharacterClass` UPROPERTY is removed with its sync in `InitializeFromCharacterData`; `GetCharacterClass()` is the only class read (the owner's CharacterData, `Generic` without one); `WoR.Loadout.Getters` drops its synced-field check. | `feature/B-153-loadout-class-field-delete-cloud` (UNBUILT; after Crown's PIE of B-022) |

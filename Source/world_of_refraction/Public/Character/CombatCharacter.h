@@ -76,10 +76,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
     TObjectPtr<UInfusionVFXComponent> InfusionVFXComponent;
 
-    /** CharacterClass carries no authored default here: the cascade overwrites it
-     *  from the asset (LoadoutComponent.cpp:1900, CharacterClass =
-     *  CharacterData->CharacterClass) before EnsureDefaultLoadout reads it. The
-     *  old SCS value was a fallback for a null-CharacterData character only. */
+    /** The loadout's class is the asset's: GetCharacterClass() reads
+     *  CharacterData->CharacterClass (Generic without CharacterData). The
+     *  component carries no class field since B-153. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character")
     TObjectPtr<ULoadoutComponent> LoadoutComponent;
 
