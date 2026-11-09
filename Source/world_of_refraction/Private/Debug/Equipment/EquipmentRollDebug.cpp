@@ -117,31 +117,20 @@ FString UEquipmentRollDebug::GetEquipmentRollString(AActor *Actor)
 					   E.StatPool, E.StatMaxPool, E.ResistancePool, E.ResistanceMaxPool);
 	}
 
-	// Evolution — the SAME accessor the pillar/resistance reads use (case A:
-	// weapon-attached), then the standalone slot (case B). FEvolutionAttachment
+	// Evolutions — the SAME resolve path the pillar/resistance reads use (B-357e:
+	// GatherAttachedEvolutions, each with its place). FEvolutionAttachment
 	// carries no guid (destroyed-on-removal design), so the path marker is a
 	// HEURISTIC: any instance state (MaxPool or Generated non-zero) means the
 	// bridge carried a roll; all-zero means asset-Base only.
-	const FEvolutionAttachment WeaponEvo = LC->GetActivePrimaryEvolutionAttachment(Actor);
-	const FEvolutionAttachment *Evo = nullptr;
-	const TCHAR *EvoSlotName = nullptr;
-	if (WeaponEvo.Item)
+	for (const FAttachedEvolution &Attached : LC->GatherAttachedEvolutions())
 	{
-		Evo = &WeaponEvo;
-		EvoSlotName = TEXT("Evolution (weapon-attached)");
-	}
-	else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
-	{
-		Evo = &Loadout.PrimaryEvolution;
-		EvoSlotName = TEXT("Evolution (standalone slot)");
-	}
-	if (Evo)
-	{
+		const FEvolutionAttachment *Evo = &Attached.Attachment;
+		const FString EvoSlotName = FString::Printf(TEXT("Evolution (on the %s)"), WoREvolutionPlacement::GetPlaceName(Attached.Place));
 		const bool bHasInstanceState =
 			Evo->StatMaxPool > 0 || Evo->ResistanceMaxPool > 0 ||
 			FormatStatBonus(Evo->GeneratedStatBonus) != TEXT("(none)") ||
 			FormatResistanceBonus(Evo->GeneratedResistance) != TEXT("(none)");
-		Out += FString::Printf(TEXT("%s: %s\n"), EvoSlotName, *Evo->Item->ItemName);
+		Out += FString::Printf(TEXT("%s: %s\n"), *EvoSlotName, *Evo->Item->ItemName);
 		Out += bHasInstanceState
 				   ? TEXT("  path: INSTANCE ROLL (instance state present - heuristic, no guid on attachments)\n")
 				   : TEXT("  path: asset Base (no instance state)\n");

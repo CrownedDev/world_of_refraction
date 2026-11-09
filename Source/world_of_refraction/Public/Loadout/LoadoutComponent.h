@@ -629,7 +629,7 @@ public:
      *  ResistanceBonus of each contributing weapon/ring entry. Read at buildup by
      *  UStatusBuildupManager::GetTotalStatusResistance (source #6). Returns an
      *  all-zero FResistanceBonus when no equipment carries resistance.
-     *  NOTE: evolution-crystal resistance is added in C-3 (via GetActivePrimaryEvolutionCrystal). */
+     *  The character slot's evolution adds its resistance through GatherAttachedEvolutions (B-357c). */
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     FResistanceBonus GetActiveResistanceBonus(AActor *Actor) const;
 
@@ -654,13 +654,16 @@ public:
      *  defense handler (C3). Carries def id + bundle index per effect. */
     TArray<FGatheredEffect> GetActiveConditionalEffectsGathered(AActor *Actor) const;
 
-    /** Evolution crystal slotted in the PRIMARY WEAPON slot only.
+    /** OBSOLETE (B-357e): no C++ reader left; read GatherAttachedEvolutions (Place Weapon) instead. Kept for any
+     *  Blueprint caller until Crown's PIE.
+     *  Evolution crystal slotted in the PRIMARY WEAPON slot only.
      *  Returns nullptr for: secondary weapon crystal, ring crystal, non-evolution
      *  crystal in primary weapon, no weapon equipped, or non-Weapon primary slot. */
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     UEvolutionItemData *GetActivePrimaryEvolutionCrystal(AActor *Actor) const;
 
-    /** The full FEvolutionAttachment behind GetActivePrimaryEvolutionCrystal —
+    /** OBSOLETE (B-357e): as GetActivePrimaryEvolutionCrystal; read GatherAttachedEvolutions instead.
+     *  The full FEvolutionAttachment behind GetActivePrimaryEvolutionCrystal —
      *  same weapon-slot resolution, but returns the ATTACHMENT (by value), which
      *  carries the per-instance rolled state (GeneratedStatBonus/Resistance +
      *  pools) that the bare asset pointer cannot. Item == nullptr means none.
@@ -673,6 +676,11 @@ public:
      *  adapter in use, the weapon in hand), each with an evolution in its socket, then each apparel piece's (B-357d).
      *  WoREvolutionPlacement says what each place gives. */
     TArray<FAttachedEvolution> GatherAttachedEvolutions() const;
+
+    /** B-357e: the evolution on the character's own slot, read through GatherAttachedEvolutions (Place Character).
+     *  Item == nullptr when the primary slot holds no evolution. The slot's writes (equip, wear, repair, save,
+     *  inventory sync) still go to FCombatLoadout::PrimaryEvolution. */
+    FEvolutionAttachment GetCharacterSlotEvolution() const;
 
     /** B-357d (D-147, Q-357b A): the lasting passive effects one action gets from the gear evolutions that power it
      *  (WoREvolutionPlacement::FilterForAction: charged to L2, the weapon / adapter / apparel holding it). An evolution

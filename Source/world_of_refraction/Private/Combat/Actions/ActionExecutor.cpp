@@ -4464,14 +4464,14 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 	case EInfusionSourceOption::Evolution:
 		if (LC && LC->IsEvolved())
 		{
-			const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-			if (Loadout.PrimaryEvolution.Item)
+			const FEvolutionAttachment Seat = LC->GetCharacterSlotEvolution(); // B-357e: the one resolve path
+			if (Seat.Item)
 			{
 				// The seat is wrapped whole, so its per-instance roll travels with it.
 				View.Attached.Kind = EAttachedItemKind::Evolution;
-				View.Attached.Evolution = Loadout.PrimaryEvolution;
-				View.Element = View.Attached.IsBroken() ? ESpellElement::None : Loadout.PrimaryEvolution.Item->GetAssociatedElement();
-				View.Mode = Loadout.PrimaryEvolution.Item->InfusionMode;
+				View.Attached.Evolution = Seat;
+				View.Element = View.Attached.IsBroken() ? ESpellElement::None : Seat.Item->GetAssociatedElement();
+				View.Mode = Seat.Item->InfusionMode;
 			}
 			View.bUsable = true;
 		}
@@ -5811,11 +5811,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	UEvolutionItemData *PrimaryEvolutionCrystal = nullptr;
 	if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
-		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-		{
-			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution.Item;
-		}
+		PrimaryEvolutionCrystal = LC->GetCharacterSlotEvolution().Item; // B-357e: the one resolve path
 	}
 
 	if (PrimaryEvolutionCrystal)

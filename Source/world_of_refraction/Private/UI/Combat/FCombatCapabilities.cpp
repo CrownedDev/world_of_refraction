@@ -125,10 +125,10 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Out.bHasBreakthrough = Out.BreakthroughSpells.Num() > 0;
 
         // Get element from evolution crystal
-        if (Loadout.PrimaryEvolution.Item)
+        if (const UEvolutionItemData *Seat = LC->GetCharacterSlotEvolution().Item) // B-357e: the one resolve path
         {
             Out.BreakthroughColor = GetElementColorFn(
-                static_cast<int32>(Loadout.PrimaryEvolution.Item->GetAssociatedElement()));
+                static_cast<int32>(Seat->GetAssociatedElement()));
         }
     }
 
