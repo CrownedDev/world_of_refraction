@@ -10,8 +10,10 @@
 
 namespace
 {
+	/** An AOE or Instant entry, or a projectile entry's least Count, lands once per target. */
+	constexpr int32 SINGLE_ARRIVAL = 1;
 	/** A spell with no cast entries delivers once per target (SpawnSpellDelivery). */
-	constexpr int32 LOOSE_PATH_ARRIVALS = 1;
+	constexpr int32 LOOSE_PATH_ARRIVALS = SINGLE_ARRIVAL;
 	/** The B-032 shape: one cast entry, one asset hit. */
 	constexpr int32 SINGLE_CAST_ENTRY = 1;
 	constexpr int32 SINGLE_HIT = 1;
@@ -22,7 +24,7 @@ namespace
 
 int32 SpellImpactPlan::ArrivalsOf(const FSkillCastEntry &Entry)
 {
-	return Entry.DeliveryType == ESpellDeliveryType::Projectile ? FMath::Max(1, Entry.Count) : 1;
+	return Entry.DeliveryType == ESpellDeliveryType::Projectile ? FMath::Max(SINGLE_ARRIVAL, Entry.Count) : SINGLE_ARRIVAL;
 }
 
 FSpellImpactPlan SpellImpactPlan::Make(const USpellData &Spell)
@@ -36,7 +38,7 @@ FSpellImpactPlan SpellImpactPlan::Make(const USpellData &Spell)
 	{
 		Arrivals += ArrivalsOf(Entry);
 	}
-	Plan.ImpactsPerTarget = Spell.CastArray.IsEmpty() ? LOOSE_PATH_ARRIVALS : FMath::Max(1, Arrivals);
+	Plan.ImpactsPerTarget = Spell.CastArray.IsEmpty() ? LOOSE_PATH_ARRIVALS : FMath::Max(SINGLE_ARRIVAL, Arrivals);
 	Plan.bUsesDamageSplit = Plan.AuthoredHitCount == Plan.ImpactsPerTarget;
 	return Plan;
 }
@@ -53,7 +55,7 @@ bool SpellImpactPlan::IsWidened(const USpellData &Spell)
 
 int32 SpellImpactPlan::ImpactBaseSlice(int32 BaseDamage, int32 ImpactCount, const TArray<float> &SplitPercents, int32 ImpactIndex)
 {
-	const int32 Count = FMath::Max(1, ImpactCount);
+	const int32 Count = FMath::Max(SINGLE_ARRIVAL, ImpactCount);
 	const bool bUseSplit = (SplitPercents.Num() == Count) && SplitPercents.IsValidIndex(ImpactIndex);
 	if (bUseSplit)
 	{
