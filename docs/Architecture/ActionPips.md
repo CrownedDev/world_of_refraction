@@ -4,7 +4,7 @@
 
 D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, and on each turn a character spends **banked actions**. Reflex sets how many come back each turn (1, 2 or 3), **Max Actions** (2 + one per 100 action points from gear, evolutions and the like) caps the regain, and unused actions carry over. The plan is `docs/analysis/ActionPips.md` (B-170a..h); rulings Q-170..Q-170h, build choices Q-170a.
 
-**Built so far (B-170a, B-170b, B-170c):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0); several actions per turn in the orchestrator, action costs on skills, spells and items, End Turn, free switching (B-170c). Default play is unchanged until Crown's PIE flips the switch.
+**Built so far (B-170a, B-170b, B-170c; B-170e written, unbuilt):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0); several actions per turn in the orchestrator, action costs on skills, spells and items, End Turn, free switching (B-170c); the placeholder UI on B-391's new HUD: pips and Max Actions on party cards, End Turn button and key, costs shown and greyed (B-170e). Default play is unchanged until Crown's PIE flips the switch.
 
 ## Architecture
 
@@ -20,11 +20,13 @@ D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, an
 
 - **Action cost** (B-170c, Q-170b, Q-170c2): `USkillDataBase::ActionCost` (int, default `ACTION_COST_DEFAULT` 1, `ClampMin 1`; `IsDataValid` warns above `MAX_ACTIONS_CAP`); items `CrystalEffectTable::GetActionCost` (all 1 for now); `FAction::GetActionCost()` reads them (Defend, End Turn, switch, Flee and a ritual's fire cost 0). `ActionPipsRules::IsCostAboveMax` / `CanAfford` are the check.
 - **The turn** (B-170c): `ACombatOrchestrator` sets the fight-start bank, regains at each turn start (not on a first turn), skips a turn at 0, pays each action's cost and asks again until 0, End Turn (`EActionType::EndTurn`) or Defend. Details: `docs/Architecture/CombatOrchestrator.md`, "Action pips".
+- **Player-facing text** (B-170e, Q-170e2): `Public/Combat/Actions/ActionPipsText.h`: `GetCostState` / `GetCostRefusedReason` (the orchestrator's refusal and the menu's greyed reason, one copy), `WithCost` ("Fireball (2 actions)"), `MakePips` ("●●○"), `MakeMaxActionsText` ("Max 3 (+75/100)", "Max 5" at the cap), `MakeActionsLine`, the Defend / End Turn tooltips, and `IsActionPipsFight(Context)` (the TurnManager's latched mode; a co-op client reads the switch). Shared words "Actions" / "End Turn" in `WoRGameNames`.
+- **Placeholder UI** (B-170e): `UBattleHUDWidget` party cards show `MakeActionsLine` under EP, bound to `OnActionsChanged`; `UCombatCommandMenuSubsystem` adds the End Turn button (`EPieMenuCategory::EndTurn`, submits `EActionType::EndTurn` through `SubmitConfirmedAction`) and `ShowActionCost` on Attack / ability / spell / item buttons; key `IA_Combat_MenuEndTurn` (Backspace / View). Details: `UISystem.md`.
 - **`wor.Turns.ActionPips`** (B-170b, `Private/Combat/TurnRotation.cpp`, `TurnRotation::IsActionPipsOn()`): the one switch for every part. `UTurnManager` reads it per fight; with 1 it runs `FTurnRotation` (sides alternate, a smaller side's seats rotate on). Details: `docs/Architecture/TurnManager.md`, "Fixed rotation".
 
 ## Integration Points
 
-- `OnActionsChanged(CurrentActions, MaxActions)`: dynamic multicast on the component, fired on the server on each change and on clients by the OnRep. The placeholder pips (B-170e) bind to it.
+- `OnActionsChanged(CurrentActions, MaxActions)`: dynamic multicast on the component, fired on the server on each change and on clients by the OnRep. The placeholder pips (B-170e, `UBattleHUDWidget`) bind to it.
 - The orchestrator calls `ResetActionsForFight` at fight start, `RegainActions` in the turn-start step and `SpendActions` per action (B-170c). `ULoadoutComponent::GetTurnSwitchRefusedReason` is empty while the switch is 1 (switching free).
 - Coming: the effects call `GainActions` / `LoseActions` (B-170d, in `BeginTurnActions` step 2 for the next-turn ones); the AI reads the bank (B-170f).
 
@@ -35,7 +37,9 @@ D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, an
 - `wor.Actions.AddPoints <N>`: debug action points on every combatant.
 - `wor.Actions.Reset`: every combatant to its fight-start bank.
 
-Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.MultiAction` (`Private/Tests/MultiActionTurnSpec.cpp`, B-170c).
+- `wor.UI.Print` (B-170e): the battle HUD's `actionPips=on/off` and each party card's actions line.
+
+Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.MultiAction` (`Private/Tests/MultiActionTurnSpec.cpp`, B-170c), `WoR.Combat.ActionPipsText` (`Private/Tests/ActionPipsTextSpec.cpp`, B-170e); the UI cases in `WoR.UI.BattleHUD` and `WoR.UI.CommandMenu.Keys` (B-170e).
 
 ## Known Limitations / TODOs
 
@@ -43,7 +47,9 @@ Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.
 - Max Actions is computed where read, not replicated; replicate it (as `MaxEP`) once a source exists that a client may not hold.
 - The `wor.Actions.Print` line has no "waiting next-turn gains and losses" yet; they come with the effects (B-170d).
 - The AI takes one action per turn and banks the rest until B-170f; a stunned unit gets one action (Q-170c2).
-- The turn-start skip at 0 can't happen in play before B-170d's waiting losses; "No actions" on the HUD is B-170e.
+- The turn-start skip at 0 can't happen in play before B-170d's waiting losses; it is logged, not shown (B-170e shows the empty pips, not a "No actions" banner).
+- A co-op client reads `wor.Turns.ActionPips` for the fight's mode (no TurnManager there); replicate the mode on the turn state (TODO in `ActionPipsText::IsActionPipsFight`).
+- The old WBP HUD (`wor.UI.NewHUD 0`) gets the End Turn button and cost labels (same subsystem buttons) but no pips line.
 - Not listed in CLAUDE.md's "Existing documents" (that file is edited only by Crown's sessions); add it there.
 
 ## Changelog
@@ -56,3 +62,4 @@ Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.
 | 2026-11-09 | B-170b built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix). | `feature/B-170b-turn-rotation` |
 | 2026-11-09 | B-170c: the bank plays. Action costs (`USkillDataBase::ActionCost`, items in `CrystalEffectTable`, `FAction::GetActionCost`, `ACTION_COST_DEFAULT`, `IsCostAboveMax` / `CanAfford`); the orchestrator's multi-action turn, `EActionType::EndTurn`, free switching; `wor.Actions.Print` shows the turn's spends; `MultiActionTurnSpec`. Build choices Q-170c2. | `feature/B-170c-multi-action-turns-cloud` (UNBUILT) |
 | 2026-11-09 | B-170c built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no code must-fix). Build fixes: an armed ritual shows on the strip at once (`ScheduleExecutionTurn` rebuilds the belt); a refused Flee spends nothing; Q-170c2: a bonus turn regains like any turn. | `feature/B-170c-multi-action-turns` |
+| 2026-11-09 | B-170e: placeholder UI on B-391's HUD: `ActionPipsText` (pips, Max line, cost label and reasons; the orchestrator's refusal uses it), party-card pips line from `OnActionsChanged`, End Turn button and key (Backspace / View), costs on every skill / spell / item and greyed with the reason, Defend's tooltip; build choices Q-170e2. | `feature/B-170e-action-pips-ui-cloud` (UNBUILT, on B-391) |

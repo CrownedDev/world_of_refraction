@@ -249,6 +249,19 @@ The queue of questions only Crown can answer.
 - **"No actions" on the HUD** waits for the placeholder UI (B-170e); the skip is logged.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170c (`ACombatOrchestrator` action pips section, `USkillDataBase::ActionCost`, `FAction::GetActionCost`, `ULoadoutComponent::GetTurnSwitchRefusedReason`).
 
+### Q-170e2 — Action pips part 5: how the placeholder UI shows actions
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170e) · **Blocks:** —
+**Question:** The plan (`ActionPips.md` §3.5) asks for pips on the character panel, an End Turn button and key, each skill's cost, greyed costs and Max Actions with its progress. Left open: how the pips and costs read, where they sit on B-391's new HUD, which key ends the turn, and whether enemies show pips.
+**Recommendation (reference-backed default):**
+- **The deckbuilder first:** its Battle screen ended on **"ACT 2"**, a number beside Energy, because pips "don't scale to 6+ Actions" (`WoR_TCG_Pivot_Design.md`, "Actions are a number", Crown 2026-10-13), with **End Turn** on its action strip. Here Max Actions stops at 5 (`MAX_ACTIONS_CAP`) and the approved plan asks for pips, so the card shows **both**: filled pips for the bank, empty ones up to Max, then the number, as Expedition 33's AP pips (widely praised for reading at a glance): **"Actions ●●○ 2 · Max 3 (+75/100)"**, on each party card under EP. A bank past Max (Q-170g) shows all filled; past 8 pips only the number shows.
+- **Max Actions with its progress** sits on the same line ("Max 3 (+75/100)", Q-170's format); at the cap just "Max 5". The stat screen's line (§3.5) waits for that screen (B-391 slice screens).
+- **Party only:** enemy cards show no pips, as Expedition 33 shows only the party's AP (enemies keep B-391's bar-only card, Q-391).
+- **Costs on every skill, spell and item button**, as Expedition 33 prints each skill's AP: "Fireball (2 actions)". The deckbuilder dropped cost labels for a hover preview on its card strip; this menu has no hover yet, so the label stays (the plan's own ask). Greyed with the reason (the plan; B-170c's two texts): "Needs 2 actions." (bank too low) or "Costs more actions than you can hold." (above Max). A spell already greyed by a broken source keeps that reason.
+- **End Turn** is a main-menu button (after Defend), shown only in an action-pips fight; a stunned actor's menu stays Attack + Defend (D-001). Defend's tooltip says "Ends your turn."
+- **End Turn's key: Backspace / View (Touchpad), main menu only**, like the B-391 category keys. Backspace is XCOM 2's End Turn key; Space and letter keys stay clear in case the editor-authored Guard / Dodge context uses them; View is the one gamepad button combat leaves free. Code-built (`IA_Combat_MenuEndTurn`), no `IA_` asset.
+- **A co-op client** reads the switch (`wor.Turns.ActionPips`) to know the fight's mode, since it runs no TurnManager; the server reads its latched mode. Replicating the mode on the turn state is a TODO (a mid-fight flip on a client is a debug-only edge).
+**Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170e (`ActionPipsText`, `UBattleHUDWidget`, `UCombatCommandMenuSubsystem::ShowActionCost` / `CreateEndTurnButton`, `ACombatPlayerController::GetMenuKeys`).
+
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
 **Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?
