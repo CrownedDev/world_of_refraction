@@ -5,6 +5,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoRCombatEvents.h"
+#include "GAS/WoRActionCosts.h"
 #include "Tags/WoRGameplayTags.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -3472,7 +3473,11 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 	if (GetSpendableEP(Actor) < Amount)
 		return false;
 
-	Comp->ServerSpendEnergy(Amount);
+	// B-043a: as an Instant cost GE when wor.Costs.UseGAS is on; the same ServerSpendEnergy either way.
+	if (!WoRCosts::TryPayEnergy(Actor, Amount))
+	{
+		Comp->ServerSpendEnergy(Amount);
+	}
 	return true;
 }
 

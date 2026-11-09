@@ -78,6 +78,10 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Stat_Transient, "SetByCaller.Stat.Transient", "A composed stat's buff / debuff factor");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Family_StatSources, "Effect.Family.StatSources", "B-042p: a stat's gear / stone / buff layers");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Family_DerivedStat, "Effect.Family.DerivedStat", "B-042s: a stat derived from other attributes");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Family_Cost, "Effect.Family.Cost", "B-043a: a skill's EP cost");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Effect_Family_Backlash, "Effect.Family.Backlash", "B-043a: an infused skill's HP cost");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Cost_Energy, "SetByCaller.Cost.Energy", "The EP change a cost GE makes: minus the cost");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(SetByCaller_Cost_Health, "SetByCaller.Cost.Health", "The HP change a backlash GE makes: minus the cost");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Hit, "Event.Combat.Hit", "Sent to the target of a hit; magnitude = damage, 0 = a hit the absorbers stopped entirely (B-042j2)");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_DefenseResolved, "Event.Combat.DefenseResolved", "Sent to the defender once its defense resolves");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnStart, "Event.Combat.TurnStart", "Sent to the actor whose turn starts");
