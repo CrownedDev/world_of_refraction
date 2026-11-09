@@ -98,7 +98,7 @@ The queue of questions only Crown can answer.
 - Reflex today also widens the defense timing window; keep both jobs or split them.
 - Effect durations already count the holder's own turns (D-051), unchanged.
 
-**Confirmed by Crown (2026-11-09):** the fixed rotation and banked actions stay (Turn Speed goes; Reflex sets Max Actions). Next is B-170's plan doc (`docs/analysis/ActionPips.md`). Open for the plan: Speed is split again into Action Speed and Spell Speed (D-151), so say which one Ice slows. **Also (Crown, 2026-11-09):** effects can **give or take actions** (e.g. +1 action now, -1 action next turn), alongside Wind's pip loss; the plan lists them as effect types.
+**Confirmed by Crown (2026-11-09):** the fixed rotation and banked actions stay (Turn Speed goes; Reflex sets Max Actions). Next is B-170's plan doc (`docs/analysis/ActionPips.md`). Open for the plan: Speed is split again into Action Speed and Spell Speed (D-151), so say which one Ice slows. **Also (Crown, 2026-11-09):** effects can **give or take actions** (e.g. +1 action now, -1 action next turn), alongside Wind's pip loss; the plan lists them as effect types. **Wind (Crown, 2026-11-09):** the Wind **status bar** (build-up) takes **action pips**; the **Wind crystal effect** makes the target **lose their next turn** in the rotation.
 ### D-089 — Should Energy refill each turn?
 **Status:** DECIDED, BUILD (Crown, 2026-11-09: changed from C, see the change below) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
 **Question:** EP never refills on its own today (ET-29: only effects, items, drains and Broken Darkness absorption). Should it?
