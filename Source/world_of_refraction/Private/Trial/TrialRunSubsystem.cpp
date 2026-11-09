@@ -985,6 +985,11 @@ void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
         {
             UE_LOG(LogTemp, Error, TEXT("[TrialRun] Server travel to %s refused (in PIE: net.AllowPIESeamlessTravel 1)"),
                    *Level.ToString());
+            // B-234d review: a handed-over run's return waits for this travel's hub; it won't come.
+            if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+            {
+                Save->CancelHandedOverRunEnd();
+            }
         }
         return;
     }
