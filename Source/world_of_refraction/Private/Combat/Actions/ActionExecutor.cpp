@@ -775,7 +775,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	// Arming consumes this turn's action and pays FULL costs now; the skill
 	// executes at fire time (8c) cost-free (bIsDeferredFire skips both paths).
 	const int32 EnergyCost = CalculateActionEnergyCost(Actor, ArmedAction);
-	if (!SpendEnergy(Actor, EnergyCost))
+	if (!PayActionEnergy(Actor, ArmedAction, EnergyCost))
 	{
 		FActionResult FailResult;
 		FailResult.Executor = Actor;
@@ -1245,7 +1245,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// base * infusion-multiplier * efficiency for innate/evolution spells.
 	const int32 FinalEnergyCost = CalculateActionEnergyCost(Caster, Action);
 
-	if (!SpendEnergy(Caster, FinalEnergyCost))
+	if (!PayActionEnergy(Caster, Action, FinalEnergyCost))
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
@@ -1546,7 +1546,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// TryArmDeferredActivation), closing the latent double-charge the inline path had.
 	const int32 FinalEnergyCost = CalculateActionEnergyCost(User, Action);
 
-	if (!SpendEnergy(User, FinalEnergyCost))
+	if (!PayActionEnergy(User, Action, FinalEnergyCost))
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
@@ -3489,6 +3489,12 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 		Comp->ServerSpendEnergy(Amount);
 	}
 	return true;
+}
+
+bool UActionExecutor::PayActionEnergy(AActor *Actor, const FAction &Action, int32 Amount)
+{
+	// Exactly once: the ability pays it, or (nothing paid) the old call does.
+	return WoRSkillAbilities::CommitCostThroughAbility(Actor, Action, Amount) || SpendEnergy(Actor, Amount);
 }
 
 // ========================================
