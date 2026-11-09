@@ -1,7 +1,8 @@
 // WoRAbilityDebug.h
 // Inspection for the skill abilities (B-043b, GAS/Abilities/WoRSkillAbilities.h).
 // - GetAbilitiesString: Actor's granted skill specs, one line each: the source skill, its Ability.Shape.* tags,
-//   active or idle, the running action, and the plain cast's EP cost (what CheckCost reads with no action).
+//   active or idle, the running action, whether its impacts route through Event.Combat.Impact (B-043c) and how
+//   many it has resolved, and the plain cast's EP cost (what CheckCost reads with no action).
 // - PrintAbilities: logs it for every combatant in the world. Console: wor.Abilities.Print.
 
 #pragma once
