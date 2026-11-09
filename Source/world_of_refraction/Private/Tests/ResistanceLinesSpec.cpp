@@ -1,7 +1,9 @@
 // ResistanceLinesSpec.cpp
 // B-389 (D-168, Crown 2026-11-08): defence is resistance by damage type. Defence stays the All line (its own step); a
 // Physical line cuts only hits that are not spells, a Spell line only spells; the matching scope line and the element
-// line are one resistance under the ±50% cap; old data (no scope lines) gives the same numbers as before.
+// line are one resistance under the ±50% cap; old data (no scope lines) gives the same numbers as before. Q-389 (Crown,
+// 2026-11-09): the class table's Physical column joins the Physical line, so a Generic takes 15% less from a physical
+// hit, a Resonator 15% more, a Refractor the same; spells are unaffected.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -10,6 +12,7 @@
 #include "Character/CharacterData.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Damage/DamageMath.h"
+#include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Resistance/ResistanceQuery.h"
 #include "Equipment/Apparel/ApparelData.h"
 #include "Inventory/InventoryComponent.h"
@@ -24,6 +27,8 @@ namespace
 	constexpr float RESIST_LINES_TEST_FRACTION = 0.1f;
 	constexpr float RESIST_LINES_TEST_ELEMENT = 0.45f;
 	constexpr float RESIST_LINES_TEST_LINE = 0.2f;
+	/** The class table's Physical column, as a fraction (ClassInnateResistanceTable::R_STRONG percent). */
+	constexpr float RESIST_LINES_TEST_CLASS_PHYSICAL = ClassInnateResistanceTable::R_STRONG / ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 
 	FDamageMathInputs PlainInputs()
 	{
@@ -95,6 +100,27 @@ void FResistanceLinesSpec::Define()
 		});
 
 		AfterEach([this]() { TestWorld.Reset(); });
+
+		It("Q-389: a Generic takes 15% less from a physical hit, a Resonator 15% more, a Refractor the same; spells unaffected", [this]()
+		{
+			auto SpawnOfClass = [this](ECharacterClass Class)
+			{
+				UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+				Data->CharacterClass = Class;
+				return TestWorld->SpawnCombatant(Data);
+			};
+			AActor *Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *Refractor = SpawnOfClass(ECharacterClass::Caster);
+			AActor *Generic = SpawnOfClass(ECharacterClass::Generic);
+			AActor *Resonator = SpawnOfClass(ECharacterClass::Resonator);
+			TestEqual(TEXT("Refractor: no class Physical line"), WoRResistance::GetScopeLineResistance(Refractor, false), 0.0f, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("Generic: +15%"), WoRResistance::GetScopeLineResistance(Generic, false), RESIST_LINES_TEST_CLASS_PHYSICAL, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("Resonator: -15%"), WoRResistance::GetScopeLineResistance(Resonator, false), -RESIST_LINES_TEST_CLASS_PHYSICAL, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("a spell reads no class Physical line"), WoRResistance::GetScopeLineResistance(Generic, true), 0.0f, KINDA_SMALL_NUMBER);
+			const int32 OnRefractor = Hit(Attacker, Refractor, /*bSpell=*/false);
+			TestTrue(TEXT("a Generic takes less from a physical hit"), Hit(Attacker, Generic, false) < OnRefractor);
+			TestTrue(TEXT("a Resonator takes more"), Hit(Attacker, Resonator, false) > OnRefractor);
+		});
 
 		It("a Physical line cuts an ability hit and leaves a spell alone; a Spell line the other way round", [this]()
 		{
