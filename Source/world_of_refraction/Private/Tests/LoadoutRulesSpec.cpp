@@ -129,7 +129,6 @@ void FLoadoutRulesSpec::Define()
 			}
 
 			TestTrue(TEXT("now flagged"), AnyReasonContains(Saved.GetValidationErrors(), TEXT("Too many evolution spells")));
-			TestFalse(TEXT("the old check passed it"), AnyReasonContains(Saved.GetValidationErrorsLegacy(), TEXT("Too many evolution spells")));
 		});
 
 		It("lets an evolution carry exactly its tier's spell count (D-039)", [this]()
