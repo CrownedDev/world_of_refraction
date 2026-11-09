@@ -137,7 +137,8 @@ float UResistanceQueryDebug::GetLegacyTotalStatusResistance(AActor *Target, ESpe
 		const ClassInnateResistanceTable::FResistanceRow GearRow =
 			ResistanceColumns::Convert<ClassInnateResistanceTable::FResistanceRow>(GearResist);
 		Matched += (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
-					ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
+					ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType) +
+					(Element == ESpellElement::Water ? GearRow.Ice : 0.0f)) / // B-064c: Water hits read gear Ice too
 				   ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 	if (EffectMgr)

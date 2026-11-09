@@ -29,6 +29,17 @@ static TAutoConsoleVariable<int32> CVarFoldAllDamage(TEXT("wor.Damage.FoldAllDam
 	TEXT("B-384: 1 = DamageBuff, ModifyDamageDealt and Raw / SpellDamageBuff add into one All-damage percent (default); "
 		 "0 = the old multiplied channels (before / after check only)."));
 
+namespace
+{
+	/** B-064c (the deckbuilder's Ice reach: Amp and Damage are exact, a Defense keyed Water covers Water only): the element
+	 *  a damage or defence boost scoped to one element is matched against. An Ice hit (keyed Water, dealing Ice) matches
+	 *  none, so a Water-scoped boost never reaches it; the All / Physical / Spell scopes don't read the element. */
+	ESpellElement GetDamageScopeElementForHit(const FDamageCalculationInput &Input)
+	{
+		return Input.DealtTypeOverride == EWoRDamageType::Ice ? ESpellElement::None : Input.Element;
+	}
+}
+
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
@@ -57,6 +68,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 {
 	// B-384 (D-167): read once per hit, so the cap correction and the status factor agree.
 	const bool bFoldAllDamage = CVarFoldAllDamage.GetValueOnAnyThread() != 0;
+	const ESpellElement ScopeElement = GetDamageScopeElementForHit(Input); // B-064c: element-scoped boosts
 	FDamageMathInputs Inputs;
 	Inputs.BaseDamage = Input.BaseDamage;
 	Inputs.bIsSpell = Input.ActionType == EActionType::Spell;
@@ -76,7 +88,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		// B-384 (D-167): folded, the Raw / Spell buffs live in the one All-damage sum (the status factor), which no
 		// stat cap limits, so the cap correction sees no transient layer. OBSOLETE unfolded path: the same scoped net
 		// the status factor applies (B-383 review), cancelled below the caps and capped at them.
-		Inputs.TransientFactor = bFoldAllDamage ? 1.0f : GetScopedTransientDamageFactor(Attacker, Inputs.bIsSpell, Input.Element);
+		Inputs.TransientFactor = bFoldAllDamage ? 1.0f : GetScopedTransientDamageFactor(Attacker, Inputs.bIsSpell, ScopeElement);
 		Inputs.EvolutionModifiedStat = Inputs.bIsSpell ? AttackerComp->GetEvolutionModifiedSpellDamage() : AttackerComp->GetEvolutionModifiedRawDamage();
 		// The gear term joins the attacker multiplier only with a loadout (as before B-219).
 		if (Attacker->FindComponentByClass<ULoadoutComponent>())
@@ -103,7 +115,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	{
 		Inputs.GridDamageModifier = Grid->GetDamageModifier(Attacker);
 	}
-	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType, Input.Element, bFoldAllDamage);
+	Inputs.StatusEffectModifier = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType, ScopeElement, bFoldAllDamage);
 	// B-293d: the defender's Damage Taken share and Guard's, so the damage floor measures from the unreduced hit.
 	Inputs.GuardFactor = Input.GuardFactor;
 	if (const USkillEffectManager *StatusManager = Defender ? GetSkillEffectManager() : nullptr)
@@ -111,8 +123,8 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		// B-383: the same scoped read as GetStatusEffectDamageModifier's defender side, for this hit.
 		const bool bHitIsSpell = Input.ActionType == EActionType::Spell;
 		Inputs.DamageTakenFactor = GetDamageTakenFactor(
-			StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::ReduceDamageTaken, Input.Element, bHitIsSpell),
-			StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::IncreaseDamageTaken, Input.Element, bHitIsSpell));
+			StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::ReduceDamageTaken, ScopeElement, bHitIsSpell),
+			StatusManager->GetTotalStatModifierForHit(Defender, ESkillEffectType::IncreaseDamageTaken, ScopeElement, bHitIsSpell));
 	}
 
 	// Crit. The one battle-random roll; skipped when the crit is forced, as before.
@@ -152,7 +164,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 		Inputs.bApplyDefense = true;
 		// B-385: the GAS execution replaces DefenderDefense with the synced attribute; DefenseScopeDelta keeps its scope.
 		Inputs.DefenderDefense =
-			GetDefenderDefenseForHit(Defender, Input.Element, Input.ActionType == EActionType::Spell, &Inputs.DefenseScopeDelta);
+			GetDefenderDefenseForHit(Defender, ScopeElement, Input.ActionType == EActionType::Spell, &Inputs.DefenseScopeDelta);
 	}
 	if (Grid && Defender)
 	{

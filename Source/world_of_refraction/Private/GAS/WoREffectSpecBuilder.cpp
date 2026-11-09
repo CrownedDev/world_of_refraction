@@ -199,6 +199,7 @@ FWoREffectIdentity FWoREffectSpecBuilder::MakeIdentity(const FActiveSkillEffect 
 	Identity.SourceKey = Effect.SourceKey;
 	Identity.bFromGear = Effect.bFromGear;
 	Identity.PhysicalType = Effect.PhysicalType; // B-042g: the per-effect readers' match on GAS
+	Identity.bKeyedIce = Effect.bKeyedIce;       // B-064c
 	Identity.EffectValue = Effect.EffectValue;
 	return Identity;
 }

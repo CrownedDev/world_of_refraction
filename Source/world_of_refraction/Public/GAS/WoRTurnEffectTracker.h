@@ -71,15 +71,18 @@ public:
 	FActiveGameplayEffectHandle ApplyAbsorb(const FWoRAbsorbCharge &Charge, int32 Turns, AActor *Instigator);
 
 	/** B-042j: one damage instance after Guard and Defense (Q-044e B): the damage the absorbers negate. A used-up
-	 *  absorber goes (its GE is removed); a timed counted one waits for its refill at the holder's turn start. */
-	int32 AbsorbHit(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical);
+	 *  absorber goes (its GE is removed); a timed counted one waits for its refill at the holder's turn start. HitDealt:
+	 *  what the hit deals when that isn't its element's own type (Ice, B-064c), else None. */
+	int32 AbsorbHit(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical,
+					EWoRDamageType HitDealt = EWoRDamageType::None);
 
 	/** B-042j: the holder's absorbers as they stand (copies, in no order). */
 	TArray<FWoRAbsorbCharge> GetAbsorbs() const;
 
 	/** B-042j3: what AbsorbHit would negate of this damage instance, spending nothing (a DoT tick preview, the AI's
 	 *  lethal check). */
-	int32 PreviewAbsorb(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical) const;
+	int32 PreviewAbsorb(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical,
+						EWoRDamageType HitDealt = EWoRDamageType::None) const;
 
 	/** B-042j2: remove the absorbers EffectID / SourceKey gave (a same-source re-cast replaces, Q-044 A). How many went. */
 	int32 RemoveAbsorbsFrom(int32 EffectID, int32 SourceKey);

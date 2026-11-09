@@ -193,6 +193,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 			Charge.Verb = EWoRAbsorbVerb::Ward;
 			Charge.Scope = EWoRWardScope::Element;
 			Charge.Element = Effect.Element;
+			Charge.bKeyedIce = Effect.bKeyedIce; // B-064c: catches Ice hits too
 			break;
 		case ESkillEffectType::NegateElemental:
 			Charge.Verb = EWoRAbsorbVerb::Ward;
@@ -2498,6 +2499,7 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, 
 			Effect.EffectType = View.Identity.EffectType;
 			Effect.Element = View.Identity.Element;
 			Effect.PhysicalType = View.Identity.PhysicalType;
+			Effect.bKeyedIce = View.Identity.bKeyedIce; // B-064c
 			Effect.DamageScope = View.Identity.DamageScope;
 			Effect.EffectID = View.Identity.EffectID;
 			Effect.SourceKey = View.Identity.SourceKey;

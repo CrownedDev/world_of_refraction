@@ -44,6 +44,10 @@ struct WORLD_OF_REFRACTION_API FResistanceProfileRow
 	float Pierce = 0.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physical", meta = (Units = "Percent"))
 	float Impact = 0.0f;
+	/** B-064c (D-029, Q-145b): Ice resistance, which also resists Water hits. Appended: an existing asset reads 0, as
+	 *  the C++ table's Ice column is today. TODO: tune per profile. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Element", meta = (Units = "Percent"))
+	float Ice = 0.0f;
 
 	ClassInnateResistanceTable::FResistanceRow ToTableRow() const;
 	static FResistanceProfileRow FromTableRow(const ClassInnateResistanceTable::FResistanceRow &Row);
