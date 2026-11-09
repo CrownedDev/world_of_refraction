@@ -58,6 +58,13 @@ public:
 
 	/** EP check only: the executor's spendable EP against the action's cost (the action being activated, else
 	 *  the skill's plain cast, WoRSkillAbilities::MakePlainAction). */
+	/** Refused while an earlier action still runs (the ability was cancelled before it finished): that action
+	 *  keeps its own caller, and the new one runs the old call. */
+	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+									const FGameplayTagContainer *SourceTags = nullptr,
+									const FGameplayTagContainer *TargetTags = nullptr,
+									FGameplayTagContainer *OptionalRelevantTags = nullptr) const override;
+
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 						   FGameplayTagContainer *OptionalRelevantTags = nullptr) const override;
 
