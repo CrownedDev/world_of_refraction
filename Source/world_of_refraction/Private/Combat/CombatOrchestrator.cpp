@@ -837,11 +837,7 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 		return false;
 	}
 
-	if (!PayActionCost(Action, OutInvalidReason))
-	{
-		return false;
-	}
-
+	// Every refusal comes before the payment, so a refused action spends and records nothing.
 	if (Action.ActionType == EActionType::Flee)
 	{
 		const FText FleeRefused = GetFleeRefusedReason(CurrentActor);
@@ -850,6 +846,15 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 			OutInvalidReason = FleeRefused.ToString();
 			return false;
 		}
+	}
+
+	if (!PayActionCost(Action, OutInvalidReason))
+	{
+		return false;
+	}
+
+	if (Action.ActionType == EActionType::Flee)
+	{
 		bWaitingForAsyncAction = true; // nothing else may start while the fight ends
 		BeginFlee();
 		return true;

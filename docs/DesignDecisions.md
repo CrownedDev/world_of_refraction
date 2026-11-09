@@ -243,6 +243,7 @@ The queue of questions only Crown can answer.
 - **The AI takes one action per turn and banks the rest until B-170f** (the plan's spend-or-bank rule lands there). A Void break playing your turn does the same.
 - **A stunned unit gets one action (Attack or Defend, D-001), then its turn ends**: a stun that let a full bank act would barely be a stun (the plan's "not stunned" gate before each prompt). At turn start a stunned unit is still asked, as built.
 - **Switching is free with the switch on, read from `wor.Turns.ActionPips` itself** (not the fight's latched mode): a co-op client's loadout copy has no TurnManager fight to ask. Flipping the switch mid-fight changes only the switching rule until the next fight (a debug-only edge).
+- **A bonus turn (Extra Turn) regains like any turn.** ET-15 keeps it "a whole bonus turn, as built", and a whole turn starts with the regain (Octopath's Boost Points come back on every turn the unit gets). Added at the desktop build's review; B-170d may revisit it with Extra Turn's text.
 - **End Turn at switch 0** ends the turn as a pass (nothing submits it yet; the button is B-170e).
 - **A win during a turn ends the fight at once** (the win check runs after every action, plan §3.3); the turn-end step doesn't run for that last turn.
 - **"No actions" on the HUD** waits for the placeholder UI (B-170e); the skip is logged.

@@ -448,6 +448,9 @@ void UTurnManager::ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32
 
 	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Scheduled Execution Turn for %s after %d normal turn(s) (payload %d, spellspeed %.2f)"),
 		   *Caster->GetName(), DelayTurns, PayloadId, SpellSpeed);
+	// B-170c: with action pips, arming no longer ends the turn, so the strip shows the ritual now, as a bonus turn does.
+	RebuildBelt();
+	OnSpeedChanged.Broadcast(Caster);
 }
 
 void UTurnManager::GrantBonusTurn(AActor *Actor, int32 Count)
