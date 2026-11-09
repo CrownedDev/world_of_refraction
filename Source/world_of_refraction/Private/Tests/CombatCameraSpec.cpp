@@ -409,6 +409,38 @@ void FCombatCameraSpec::Define()
 			TestFalse(TEXT("no skill: nothing"), FCombatCameraRules::UsesShotPatterns(nullptr));
 		});
 	});
+
+	Describe("wide beats and the party handover (B-404, study R12, R16)", [this]()
+	{
+		It("passes a turn change after an action through the wide view, then blends to the next hero", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, {TURN_TEST_ONE_ENEMY});
+			const FTurnChangePlan Plan = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FTransform Wide = FCombatCameraRules::ComputeView(ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
+			TestTrue(TEXT("a wide beat"), Plan.bWideBeat);
+			TestTrue(TEXT("through the wide (NotYourTurn) view"), Plan.WideView.GetLocation().Equals(Wide.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("ends on the next hero's turn view"), Plan.TurnView.GetLocation().Equals(Turn.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("the wide is higher than the turn view"), Plan.WideView.GetLocation().Z > Plan.TurnView.GetLocation().Z);
+			TestTrue(TEXT("the beat holds after blending in"), Plan.BeatSeconds > Plan.BeatBlendSeconds && Plan.BeatBlendSeconds > 0.0f);
+			TestTrue(TEXT("the handover is a blend, not a cut"), Plan.HandoverBlendSeconds > 0.0f);
+		});
+
+		It("adds no wide beat between actions of one actor, on the first turn, with movement off or before an enemy's turn", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTurnChangePlan SameActor = FCombatCameraRules::PlanTurnChange(true, true, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan NobodyActed = FCombatCameraRules::PlanTurnChange(false, false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan MovementOff = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan EnemyTurn = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame);
+			TestFalse(TEXT("same actor keeps acting (B-401)"), SameActor.bWideBeat);
+			TestFalse(TEXT("first turn: nobody acted yet"), NobodyActed.bWideBeat);
+			TestFalse(TEXT("movement off: the static view"), MovementOff.bWideBeat);
+			TestFalse(TEXT("an enemy's watch view is already the wide"), EnemyTurn.bWideBeat);
+			const FTransform Static = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
+			TestTrue(TEXT("movement off still ends on the static view"), MovementOff.TurnView.GetLocation().Equals(Static.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+		});
+	});
 }
 
 BEGIN_DEFINE_SPEC(FCombatCameraDirectorSpec, "WoR.Combat.Camera.Director",
