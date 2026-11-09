@@ -499,15 +499,10 @@ int32 USkillEffectManager::SwapEquipmentEffects(
 
 	// Q-081: only lasting passives come on with a swap; a one-shot, timed or charged starting
 	// effect is the fight's start bonus, given once (a swap back would farm it).
-	const auto IsPassive = [](const FSkillEffect &Effect)
-	{
-		return Effect.Payloads.Num() > 0 &&
-			   !Effect.Payloads.ContainsByPredicate([](const FSkillEffectPayload &Payload) { return !Payload.bPermanent; });
-	};
 	TArray<FGatheredEffect> Added;
 	for (const FGatheredEffect &New : NewEffects)
 	{
-		if (!Lists(OldEffects, New) && IsPassive(New.Effect))
+		if (!Lists(OldEffects, New) && New.Effect.IsLastingPassive())
 		{
 			Added.Add(New);
 		}

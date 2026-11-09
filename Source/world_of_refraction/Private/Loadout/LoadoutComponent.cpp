@@ -4693,9 +4693,7 @@ TArray<FGatheredEffect> ULoadoutComponent::GetGearEvolutionPassivesForAction(EAc
         // is exactly what goes on and comes off (B-357d review).
         for (const FGatheredEffect &Effect : Evolution.Attachment.Item->GetStartingEffectsGathered())
         {
-            const bool bLasting = Effect.Effect.Payloads.Num() > 0 &&
-                                  !Effect.Effect.Payloads.ContainsByPredicate([](const FSkillEffectPayload &Payload) { return !Payload.bPermanent; });
-            if (bLasting)
+            if (Effect.Effect.IsLastingPassive())
             {
                 Passives.Add(Effect);
             }
