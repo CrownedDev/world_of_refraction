@@ -429,6 +429,18 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change any; every number is a named constant `TODO: tune`.
 **Notes for Claude:** built in B-407. A boss's base-loadout skills are not in `UBossData`, so the validator may warn on them; the warning says "fine if only enemies use it". The runtime cut doesn't depend on that list: it reads the caster's side.
 
+### Q-399 — Calm menus: which menus step the camera in, and what the step is
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-399, study R2, R3) · **Blocks:** —
+**Question:** The row says opening Skills / Items steps the turn camera closer and lower, cancel steps back, and nothing moves while choosing. Our menu also has spell-source sub-menus, a direct Attack → target picker, an Allies / Enemies step, and several actions per turn. Which of these move the camera, and how far?
+**Context:** `UCombatCommandMenuSubsystem` (depths Main / Submenu / TargetCategory / TargetSelection); `FCombatCameraRules::ComputeTurnView`; `UCombatCameraDirector`.
+**Recommendation (default):**
+- **One step, for any sub-menu** (Skills, Items, every spell source and school list): depth 1. Deeper menus (a school's spell list) hold that one step. Reference: Expedition 33's skill list (study §1 "Skill list open": one step closer and lower, then still while browsing), a widely praised turn presentation.
+- **A target picker keeps the depth it was opened from:** a skill's picker stays stepped in, Attack's picker stays at the main view; the Allies / Enemies step likewise. So picking a target never moves the camera (R3; one enemy in Expedition 33: no move while picking). Several enemies get B-400's target cut instead.
+- **The step:** in toward the acting hero by 0.25 of the camera's distance and down by 0.3 of its height, still aimed at the same point, in every turn-view style; blended over 0.3 s (study estimate), then still. All `TODO: tune`.
+- **Only the viewer's own turn view moves:** with camera movement off (static view, R15), during a skill's cinematic or a held shot, the depth is remembered but nothing moves.
+- **Closing the menu (an action is picked) moves nothing:** the action's shots take over; the next open sends its depth, so a second action in one turn (B-170c) that reopens on the main menu steps back out (a skill's shot still held stays put; B-401 brings that back to the turn view). The step is the acting character's own: an action started by anyone else (an Execution turn, a ritual firing) resets it to the main view.
+**Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-399.md`).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

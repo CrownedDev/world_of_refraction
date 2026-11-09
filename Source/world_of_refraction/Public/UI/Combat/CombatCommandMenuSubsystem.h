@@ -31,6 +31,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCommandMenuReady,
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCommandMenuClosed);
 
+/** B-399 (study R2): the open menu's depth changed (CommandMenuRules::CameraDepthFor); Actor is whose menu it is.
+ *  Closing the menu sends nothing (the camera holds for the action); the next open sends its depth if it differs. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCommandMenuDepthChanged, AActor *, Actor, int32, MenuDepth);
+
 // ==================== MENU DEPTH ====================
 
 enum class ECombatMenuDepth : uint8
@@ -89,6 +93,27 @@ namespace CommandMenuRules
 			return Button == EPieMenuCategory::Breakthrough || Button == EPieMenuCategory::ResonateRing;
 		}
 		return false;
+	}
+
+	/** B-399: the main menu (or a closed menu) and a sub-menu (Skills / Items / a spell source), as the camera sees
+	 *  them (UCombatCameraDirector steps one closer for a sub-menu). */
+	constexpr int32 MAIN_MENU_DEPTH = 0;
+	constexpr int32 SUBMENU_DEPTH = 1;
+
+	/** B-399 (study R2, R3, Q-399): the menu depth the camera follows. A target picker keeps the depth it was opened
+	 *  from (Attack's picker the main menu's, a skill's the sub-menu's), so picking a target never moves the camera. */
+	inline int32 CameraDepthFor(ECombatMenuDepth Depth, ECombatMenuDepth DepthBeforeTargets)
+	{
+		switch (Depth)
+		{
+		case ECombatMenuDepth::Submenu:
+			return SUBMENU_DEPTH;
+		case ECombatMenuDepth::TargetCategory:
+		case ECombatMenuDepth::TargetSelection:
+			return DepthBeforeTargets == ECombatMenuDepth::Submenu ? SUBMENU_DEPTH : MAIN_MENU_DEPTH;
+		default:
+			return MAIN_MENU_DEPTH;
+		}
 	}
 }
 
@@ -149,6 +174,14 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
     FOnCommandMenuClosed OnCommandMenuClosed;
+
+    /** B-399: once per menu-depth change (CommandMenuRules::CameraDepthFor), never for a redraw or a scroll. The
+     *  combat camera listens (whichever HUD draws the menu). */
+    UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
+    FOnCommandMenuDepthChanged OnMenuDepthChanged;
+
+    /** B-399: the depth last broadcast on OnMenuDepthChanged. */
+    int32 GetCameraMenuDepth() const { return BroadcastMenuDepth; }
 
     // ==================== STATE QUERIES ====================
 
@@ -234,6 +267,11 @@ private:
     int32 PendingInfusionLevel = 0;
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
+
+    /** B-399: while the menu is open, broadcasts OnMenuDepthChanged when the camera depth differs from the last one
+     *  sent. Runs at the end of every call that can change the depth (OpenForActor, HandleSelection, HandleBack). */
+    void BroadcastMenuDepthIfChanged();
+    int32 BroadcastMenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
 
     /** BrokenDarknessManager of the actor whose menu is open — bound to
      *  OnAlignmentChanged for live BD spell-pool refresh. */
