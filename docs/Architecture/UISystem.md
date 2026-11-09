@@ -30,9 +30,19 @@ This doc covers three current widgets:
   (the server's hits and heals, on every machine), styled by `DamageNumberView` (Q-111 / Q-391b), from a pool of
   16 text blocks built once and stepped by one timer that stops when none are live; a Broken Darkness card's EP
   line is "Absorb x / y" with its overload. Debug: `wor.UI.DamageNumber <amount> [type|Heal] [mult]`.
+  B-391c: every card has a status buildup bar under its HP bar, fed as the old panel's (`UStatusBuildupManager::
+  OnStatusBuildupChanged` on the server, the replicated `UStatusBarStateComponent::OnBarChanged` on a guest), tinted
+  by `BattleHUDView::GetBuildupColour`, with Q-111 A's cracks (a row of `CRACK_COUNT` marks over the bar, built once,
+  shown past each `GetCrackPositions` point); party cards add "Status x / y", a "weapon · ring" line and a loadout
+  hover tooltip (`BattleHUDView::ReadGearNames`; refreshed on `ULoadoutComponent::OnLoadoutChanged` /
+  `OnActiveWeaponChanged`; party card frames take the mouse for it). A 0 hit on Broken Darkness floats "Absorbed"
+  (`DamageNumberView::SHOW_ABSORB_CUE`, Q-391c).
 - `UBattleCommandMenuWidget`: a view of `UCombatCommandMenuSubsystem` (`OnCommandMenuReady` / `Closed`), a pool
   of 16 rows built once, each row's key hint from `ACombatPlayerController::GetMenuKeys`
   (`BattleHUDView::AssignMenuKeys`); a click goes to `HandleSelection` through `UBattleMenuRowRelay`.
+  B-391c: under the title, the old `UDurabilityHeaderWidget`'s line ("AD x / y", "WD x / y";
+  `BattleHUDView::ReadDurability` / `MakeDurabilityLines`), refreshed per menu open and on `UCrystalManager`'s
+  `OnCrystalDurabilityChanged` / `OnCrystalBroken` for the acting character.
 - the native `UDefensePromptWidget`.
 At 0 it builds the old WBP panels, strip and menu described below (the fallback until Crown's PIE pass).
 The main-menu category keys (Attack, Skills, Spells, Items, Flee, switches; Q-391) press their button through
@@ -298,8 +308,19 @@ controlled actor.
 ## Known Limitations / TODOs
 
 - **New battle HUD (B-391):** placeholder looks (text chips, no icons); picking inside a submenu or a target list
-  is a click (gamepad navigation there comes with CommonUI, D-024); no damage numbers and no Broken Darkness
-  absorption line yet (B-391b). The old WBP widgets stay until Crown's PIE pass of B-391.
+  is a click (gamepad navigation there comes with CommonUI, D-024); damage numbers and the Broken Darkness
+  absorption line came in B-391b, the buildup bar, gear and durability header in B-391c. The old WBP widgets stay
+  until Crown's PIE pass of B-391.
+- **No cards or numbers for combatants that join mid-fight (B-391c).** The new HUD binds the combatants
+  `UCombatHUD` passes at fight start. Nothing in the code adds a combatant mid-fight or announces one (no summon
+  system; no orchestrator or TurnManager join event), so there is nothing to bind to. When summons land, they need a
+  join event, and the HUD a spare card pool built once (TransBuffer rule).
+- **Buildup bar (B-391c):** it cracks (Q-111 A) but doesn't shatter or show shards during a break yet (art pass).
+  Its seed at Initialise has no attacker, so a bar part-filled by Broken Darkness before the HUD exists shows the
+  plain element colour until the next hit. Gear and the durability header follow server-side loadout and crystal
+  events, as the old HUD: a guest refreshes them on its next menu open.
+- **"Absorbed" is inferred (B-391c):** `FCombatHitShown` doesn't say why a hit took 0; any 0 hit on a Broken
+  Darkness target reads "Absorbed" (a ward stopping a whole hit included).
 
 - No literal `// TODO`, `// FIXME`, or `// HACK` markers exist in the four files
   documented.
@@ -363,3 +384,4 @@ controlled actor.
 | 2026-11-09 | B-396: `UCombatHUD::GetHUDStateString` (`wor.UI.Print`) prints each HUD widget's in-viewport, visibility, opacity, drawn position and size, and the game viewport size (Crown's invisible-HUD report). `UTrialGateWidget::Open` sets the gate focusable before UIOnly focuses it. | fix/B-396-combat-hud-visibility |
 | 2026-11-09 | B-391 (Q-391): new plain C++ battle HUD behind `wor.UI.NewHUD` (default 1; 0 = the old WBP HUD): `UBattleHUDWidget` (party / enemy cards, turn order, status chips and a view-all panel), `UBattleCommandMenuWidget` (the subsystem's buttons with key hints), `BattleHUDView` text helpers; main-menu category keys through `PressMenuKey` (`ACombatPlayerController::GetMenuKeys`); `wor.UI.Print` prints both widgets. Spec `WoR.UI.BattleHUD`. Damage numbers: B-391b. | feature/B-391-battle-hud-cloud (UNBUILT) |
 | 2026-11-09 | B-391b (Q-391b): damage numbers. `UCombatPresentationComponent` hits carry `FCombatHitShown` (element multiplier, damage type, heal; `Multicast_ShowHit` RPC changed, new `OnHitDetailShown`, `SendHeal` from `USkillEffectManager::BroadcastHealing`); `DamageNumberView` (colour by damage type, Physical white; size / brightness by multiplier; immune grey; heals green); `UBattleHUDWidget` floats them from a pooled set of text blocks on one timer (no Tick) and shows a Broken Darkness card's "Absorb x / y, overload z%" (`BattleHUDView::FormatAbsorbLine` / `GetOverloadColour`). `wor.UI.DamageNumber`; specs `WoR.UI.DamageNumber`, `WoR.UI.BattleHUD`, `WoR.Net.Presentation`. Buildup bar, weapon name, durability header: B-391c. | feature/B-391b-hud-pieces-cloud (UNBUILT) |
+| 2026-11-09 | B-391c (Q-391c): the new HUD gets the old HUD's missing pieces. `UBattleHUDWidget`: a status buildup bar on every card (manager / replicated bar, old-panel tint, Q-111 A cracks past half; "Status x / y" on party cards), a party "weapon · ring" line and loadout hover tooltip (party card frames now hit-testable), "Absorbed" over a 0 hit on Broken Darkness (`DamageNumberView::SHOW_ABSORB_CUE`, new `EDamageNumberTier::Absorbed`). `UBattleCommandMenuWidget`: the durability header ("AD" / "WD", old slot rule; a Generic / Caster ring reads its primary ring). Helpers in `BattleHUDView` (buildup, cracks, gear, durability). `wor.UI.Print` prints them; spec `WoR.UI.BattleHUD`. Mid-fight joiners: a known limitation (no join event exists). | feature/B-391c-hud-pieces-2-cloud (UNBUILT) |
