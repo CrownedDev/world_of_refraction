@@ -12,6 +12,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/CharacterData.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
@@ -20,6 +21,9 @@
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Engine/Engine.h"
 #include "TimerManager.h"
 #include "WoRLog.h"
 
@@ -103,6 +107,22 @@ void UCombatCameraDirector::EndCombat()
 	}
 	bInCombat = false;
 	ClearDefenceHandOff();
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BreakApartTimer); // B-405
+		World->GetTimerManager().ClearTimer(KillShotPreviewTimer);
+	}
+	// B-405: undo what a kill shot left on its victim (debug levels reuse the pawns): the darkened look and the hidden boss.
+	if (AActor *Victim = KillShotVictim.Get())
+	{
+		const UCombatCameraComponent *Camera = Victim->FindComponentByClass<UCombatCameraComponent>();
+		if (ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr)
+		{
+			SetDarkened(CameraActor->GetCameraComponent(), false);
+		}
+		Victim->SetActorHiddenInGame(false);
+	}
+	KillShotVictim.Reset();
 	StopSequence();
 	StopShotPattern();
 
@@ -316,7 +336,12 @@ void UCombatCameraDirector::ShowTurnView()
 		return;
 	}
 	CurrentMode = FCombatCameraRules::SelectMode(IsViewersCharacter(Actor), false, bCameraMovementOff);
-	const FTransform View = FCombatCameraRules::ComputeView(CurrentMode, TurnViewStyle, BuildFrame(Actor));
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	FTransform View = FCombatCameraRules::ComputeView(CurrentMode, TurnViewStyle, Frame);
+	if (CurrentMode == ECombatCameraMode::Turn)
+	{
+		View = FBossFramingRules::ApplyHeight(View, GetFightCameraHeight(), TurnViewStyle, Frame); // B-405 (R13)
+	}
 	if (ACameraActor *CameraActor = Camera->ShowView(CurrentMode, View))
 	{
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371: undo a punch
@@ -443,7 +468,9 @@ APlayerController *UCombatCameraDirector::GetViewer() const
 {
 	// Same viewer the combat HUD uses (UCombatHUD). TODO: co-op/PvP (D-065).
 	UWorld *World = GetWorld();
-	return World ? World->GetFirstPlayerController() : nullptr;
+	// The local player's controller: on a dedicated server there is none, so no server-side camera or kill-shot hold
+	// (GetFirstPlayerController would return a remote client's controller there).
+	return World && GEngine ? GEngine->GetFirstLocalPlayerController(World) : nullptr;
 }
 
 bool UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FAction &Action)
@@ -783,4 +810,157 @@ FString UCombatCameraDirector::GetShotString() const
 	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f%s)"), *UEnum::GetValueAsString(ShotMoment),
 						   *GetNameSafe(ShotCaster.Get()), Camera ? *GetNameSafe(Camera->GetOwner()) : TEXT("no"),
 						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""));
+}
+
+EEnemyCameraHeight UCombatCameraDirector::GetFightCameraHeight() const
+{
+	const ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner());
+	TArray<EEnemyCameraHeight> Heights;
+	for (const AActor *Enemy : OpposingCombatants)
+	{
+		if (!IsValid(Enemy))
+		{
+			continue;
+		}
+		const UCharacterDataComponent *Data = Enemy->FindComponentByClass<UCharacterDataComponent>();
+		if (Data && !Data->bIsAlive)
+		{
+			continue; // the boss fell: its minions are framed at their own height
+		}
+		const EEnemyCameraHeight Authored = Data && Data->CharacterData ? Data->CharacterData->EnemyCameraHeight : EEnemyCameraHeight::ByRank;
+		const EEncounterRank Rank = Orchestrator ? Orchestrator->GetEnemyRank(Enemy) : EEncounterRank::Normal;
+		Heights.Add(FBossFramingRules::ResolveHeight(Authored, Rank));
+	}
+	return FBossFramingRules::FightHeight(Heights);
+}
+
+float UCombatCameraDirector::PlayKillShot(AActor *Victim, EEncounterRank Rank)
+{
+	if (!bInCombat || !ShowKillShot(Victim, FBossFramingRules::KillShotFor(Rank), true))
+	{
+		return 0.0f;
+	}
+	const float Hold = FBossFramingRules::KillShotSeconds(LastKillShot);
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Kill shot %s on %s (rank %s): holding %.1f s before the fight ends"),
+		   *UEnum::GetValueAsString(LastKillShot), *GetNameSafe(Victim), *UEnum::GetValueAsString(Rank), Hold);
+	return Hold;
+}
+
+void UCombatCameraDirector::PreviewKillShot(EKillShotKind Kind)
+{
+	AActor *Enemy = nullptr;
+	for (AActor *Opposing : OpposingCombatants)
+	{
+		if (IsValid(Opposing))
+		{
+			Enemy = Opposing;
+			break;
+		}
+	}
+	UWorld *World = GetWorld();
+	if (!bInCombat || !World || !ShowKillShot(Enemy, Kind, false))
+	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] Kill shot preview: not in a fight, or no viewer or camera."));
+		return;
+	}
+	World->GetTimerManager().SetTimer(KillShotPreviewTimer, this, &UCombatCameraDirector::EndKillShotPreview, FBossFramingRules::KillShotSeconds(Kind), false);
+}
+
+bool UCombatCameraDirector::ShowKillShot(AActor *Victim, EKillShotKind Kind, bool bHideOnBreakApart)
+{
+	APlayerController *Viewer = GetViewer();
+	UCombatCameraComponent *Camera = IsValid(Victim) ? Victim->FindComponentByClass<UCombatCameraComponent>() : nullptr;
+	if (!Viewer || !Camera)
+	{
+		return false;
+	}
+	ClearDefenceHandOff();
+	StopSequence();
+	StopShotPattern();
+	const FCombatCameraFrame Frame = BuildFrame(Victim);
+	// Camera movement off (D-078): the one static view holds instead; the hold and the look stay.
+	const FTransform View = bCameraMovementOff ? FCombatCameraRules::ComputeView(ECombatCameraMode::Static, TurnViewStyle, Frame)
+											   : FBossFramingRules::ComputeKillShot(Kind, Frame, Victim->GetActorLocation());
+	ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::KillShot, View);
+	if (!CameraActor)
+	{
+		return false;
+	}
+	KillShotVictim = Victim;
+	LastKillShot = Kind;
+	bHasLastKillShot = true;
+	bKillShotHidesVictim = bHideOnBreakApart;
+	CurrentMode = ECombatCameraMode::KillShot;
+	CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
+	SetDarkened(CameraActor->GetCameraComponent(), FBossFramingRules::DarkensView(Kind));
+	Viewer->SetViewTargetWithBlend(CameraActor, bCameraMovementOff ? 0.0f : FBossFramingRules::KillShotBlendSeconds);
+	if (FBossFramingRules::BreaksApart(Kind))
+	{
+		if (UWorld *World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(BreakApartTimer, this, &UCombatCameraDirector::BreakApart, FBossFramingRules::BreakApartDelaySeconds, false);
+		}
+	}
+	return true;
+}
+
+void UCombatCameraDirector::BreakApart()
+{
+	AActor *Victim = KillShotVictim.Get();
+	if (!bInCombat || !Victim)
+	{
+		return;
+	}
+	// TODO: B-140 async loading. Loaded once per boss kill; a sync load here is a short hitch at most.
+	UNiagaraSystem *Effect = BreakApartEffect.IsNull() ? nullptr : BreakApartEffect.LoadSynchronous();
+	if (!Effect)
+	{
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's kill shot: no BreakApartEffect set, so it stays as it fell"), *GetNameSafe(Victim));
+		return;
+	}
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(Victim, Effect, Victim->GetActorLocation(), Victim->GetActorRotation());
+	if (bKillShotHidesVictim)
+	{
+		Victim->SetActorHiddenInGame(true); // it broke apart; the fight ends within the hold
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s breaks apart (%s)%s"), *GetNameSafe(Victim), *Effect->GetName(),
+		   bKillShotHidesVictim ? TEXT("") : TEXT(", preview: not hidden"));
+}
+
+void UCombatCameraDirector::EndKillShotPreview()
+{
+	if (const AActor *Victim = KillShotVictim.Get())
+	{
+		const UCombatCameraComponent *Camera = Victim->FindComponentByClass<UCombatCameraComponent>();
+		if (ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr)
+		{
+			SetDarkened(CameraActor->GetCameraComponent(), false);
+		}
+	}
+	KillShotVictim.Reset();
+	if (bInCombat && CurrentMode == ECombatCameraMode::KillShot)
+	{
+		ShowTurnView(); // a turn that started meanwhile already moved the view
+	}
+}
+
+void UCombatCameraDirector::SetDarkened(UCameraComponent *Camera, bool bDarkened)
+{
+	if (!Camera)
+	{
+		return;
+	}
+	const float Saturation = bDarkened ? FBossFramingRules::DarkenedSaturation : 1.0f;
+	Camera->PostProcessSettings.bOverride_ColorSaturation = bDarkened;
+	Camera->PostProcessSettings.ColorSaturation = FVector4(Saturation, Saturation, Saturation, 1.0f);
+	Camera->PostProcessSettings.bOverride_VignetteIntensity = bDarkened;
+	Camera->PostProcessSettings.VignetteIntensity = FBossFramingRules::DarkenedVignette;
+}
+
+FString UCombatCameraDirector::GetBossFramingString() const
+{
+	const FString KillShot = bHasLastKillShot
+								 ? FString::Printf(TEXT("kill shot %s on %s"), *UEnum::GetValueAsString(LastKillShot), *GetNameSafe(KillShotVictim.Get()))
+								 : FString(TEXT("kill shot none"));
+	return FString::Printf(TEXT("height %s | %s"), bInCombat ? *UEnum::GetValueAsString(GetFightCameraHeight()) : TEXT("-"), *KillShot);
 }

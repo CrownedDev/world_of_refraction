@@ -397,6 +397,13 @@ public:
 	 *  without one uses the fight's rank. */
 	void SetEnemyRank(const AActor *Enemy, EEncounterRank Rank) { EnemyRanks.Add(Enemy, Rank); }
 
+	/** B-405: Enemy's own rank (SetEnemyRank), else the fight's. Read by the camera (boss height, kill shot). */
+	EEncounterRank GetEnemyRank(const AActor *Enemy) const
+	{
+		const EEncounterRank *OwnRank = EnemyRanks.Find(Enemy);
+		return OwnRank ? *OwnRank : EncounterRank;
+	}
+
 	/** B-187b: Enemy's tier steps (a revived mini-boss's team, Q-187b) for its level drop; set by the battle mode at
 	 *  spawn, as SetEnemyRank. 0 when unset. */
 	void SetEnemyTierSteps(const AActor *Enemy, int32 Steps) { EnemyTierSteps.Add(Enemy, FMath::Max(0, Steps)); }
@@ -600,6 +607,17 @@ private:
 	UActionExecutor *ActionExecutorRef;
 
 	FTimerHandle AutoAdvanceTimerHandle;
+
+	// B-405 (R14): the kill shot's hold between the last enemy's death and the end of a won fight.
+	FTimerHandle KillShotHoldTimer;
+	TWeakObjectPtr<AActor> LastEnemyDown;
+
+	/** B-405: plays the kill shot on the last enemy down and sets the hold timer. False when no kill shot shows (no
+	 *  viewer, as in headless tests): the caller ends the fight at once, as before. */
+	bool StartKillShotHold();
+	/** B-405: the hold is over: the won fight ends (rewards, return to the world). */
+	void FinishKillShotHold();
+	bool IsHoldingKillShot() const;
 
 	UPROPERTY()
 	UAIDecisionManager *AIDecisionManagerRef = nullptr;

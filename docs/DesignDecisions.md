@@ -383,6 +383,18 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change any; every number is a named constant `TODO: tune`.
 **Notes for Claude:** built in B-402. Cutting between side angles inside a long combo (study §1, "a few clean cuts") is not built: one angle per enemy action.
 
+### Q-405 — Boss framing and kill shots: the details the row leaves open
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-405, study R13/R14) · **Blocks:** —
+**Question:** B-405 builds the low boss camera and the two kill shots. Six details aren't in the row: (1) which ranks count as "boss"; (2) a fight with a boss and minions; (3) which views get the height; (4) when the kill shot starts and how it delays the rewards; (5) what "breaks apart" means in code; (6) camera movement off.
+**Options / Recommendation:** Expedition 33 (study Part 2 §9 and §12: the Dualliste boss vs the field fight; its boss staging is widely praised):
+1. **Boss and Mini-boss** get the low camera and the Boss kill shot; **Normal and Elite** stay at eye level with the Normal shot (Elite is a beefier normal fight, Q-224). An enemy's own data (`UCharacterData::EnemyCameraHeight`) can override its rank: Low for a tall normal enemy (E33 shot its golem low for size), EyeLevel for a small boss.
+2. The turn view is **low while any living enemy is low**; once the boss falls, its minions are framed at eye level again.
+3. **The turn view only** (centred-wide and over-the-shoulder). Not-your-turn, the static view, Defence and the skill shots keep their framing; the Tactical side-on view is an overview and keeps its height. Normal fights keep today's turn view exactly (the "eye level" of the row; B-157 / B-398 tune it).
+4. It starts **when the killing action completes** (the win is checked there) and **holds the fight open**: the rewards, results and return to the world come after it (FeelGuide 6). The kill shot is chosen by the **last enemy down's own rank**, not the fight's. Normal: wide and high from the party's side, darkened (saturation 0.35, vignette 0.8), 1.5 s. Boss: close, low and to one side, looking up, 5 s, breaking apart at 2 s. No slow motion (it would slow gameplay timers). All `TODO: tune`.
+5. **One Niagara effect** on the camera director (`BreakApartEffect`, soft, D-057) spawned at the boss, then the boss is **hidden**. Empty: the boss stays as it fell. A per-boss effect on `UBossData` can come later if bosses need their own.
+6. **Movement off** (D-078): the static view holds instead, but the hold, the darkening and the break-apart stay (they are pacing, not camera motion).
+**Answer:** all six as recommended, by the reference-backed default (2026-11-09). Crown: change any in PIE (`docs/PIE/B-405.md`).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
