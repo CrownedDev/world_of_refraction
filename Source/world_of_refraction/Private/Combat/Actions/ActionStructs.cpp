@@ -4,6 +4,9 @@
 
 #include "Combat/Actions/ActionStructs.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Combat/Actions/ActionPipsRules.h"
 
 FString FAction::GetActionName() const
 {
@@ -26,7 +29,28 @@ FString FAction::GetActionName() const
 		return TEXT("Switch Weapon");
 	case EActionType::Flee:
 		return TEXT("Flee");
+	case EActionType::EndTurn:
+		return TEXT("End Turn");
 	default:
 		return TEXT("Unknown Action");
+	}
+}
+
+int32 FAction::GetActionCost() const
+{
+	if (bIsDeferredFire)
+	{
+		return 0; // the ritual's cost was paid when it was armed
+	}
+	switch (ActionType)
+	{
+	case EActionType::Spell:
+		return SpellData ? SpellData->ActionCost : ActionPipsConstants::ACTION_COST_DEFAULT;
+	case EActionType::Ability:
+		return SkillData ? SkillData->ActionCost : ActionPipsConstants::ACTION_COST_DEFAULT;
+	case EActionType::Item:
+		return CrystalEffectTable::GetActionCost(ItemData);
+	default:
+		return 0; // Defend, End Turn, Switch Weapon, Flee (Q-170c)
 	}
 }
