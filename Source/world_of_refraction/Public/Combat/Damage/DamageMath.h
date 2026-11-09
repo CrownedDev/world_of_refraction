@@ -61,7 +61,8 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	float ElementResistance = 0.0f;
 	/** B-389 (D-168): the defender's Physical or Spell damage line for this hit (fraction; WoRResistance::
 	 *  GetScopeLineResistance). Step 3 adds it to ElementResistance under the same cap; the GAS execution, which puts the
-	 *  synced element attribute in ElementResistance's place, keeps it. 0 for old data, so old numbers are unchanged. */
+	 *  synced element attribute in ElementResistance's place, keeps it. Gear-only old data reads 0; Q-389 (Crown) adds the
+	 *  class's Physical column (Generic +15%, Resonator -15%) for a hit that is not a spell. */
 	float ResistanceScopeLine = 0.0f;
 	/** Ignore Defense as a fraction, 0-1 (D-086): the skill's amount plus the attacker's IgnoreDefense
 	 *  effects. It scales down Defense and positive element resistance alike; weaknesses stay
