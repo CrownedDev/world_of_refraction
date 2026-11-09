@@ -254,8 +254,8 @@ TArray<FGameplayAbilitySpec> WoRSkillAbilities::GetSkillSpecs(AActor *Actor)
 
 bool WoRSkillAbilities::TryExecuteThroughAbility(AActor *Actor, const FAction &Action, const FOnActionComplete &OnComplete)
 {
-	// A ritual's fire stays on the old call until it becomes an arm ability (B-043g).
-	if (!UsesAbilities() || Action.bIsDeferredFire)
+	// B-043g: a ritual's fire (bIsDeferredFire) runs through its skill's ability too; it commits nothing (paid at arm).
+	if (!UsesAbilities())
 	{
 		return false;
 	}
