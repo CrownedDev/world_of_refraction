@@ -31,6 +31,7 @@ enum class ESubStat : uint8
 	RawDamage UMETA(DisplayName = "Raw Damage"),
 	// Spirit
 	Resistance UMETA(DisplayName = "Resistance"),
+	// OBSOLETE (B-170h): retired with action pips (B-170g, Q-170h); kept (append-only, serialized). Skill scaling on it warns.
 	TurnSpeed UMETA(DisplayName = "Turn Speed"),
 	Luck UMETA(DisplayName = "Luck"),
 	// Appended (serialization-safe) — "targets no sub-stat" sentinel, e.g.
