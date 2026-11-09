@@ -34,6 +34,7 @@ public:
 	void EndCombat();
 
 	// TODO: settings menu (D-024 CommonUI). For now: Details panel or wor.Camera.Style / wor.Camera.MovementOff.
+	/** B-398: also the player's saved setting (USaveSubsystem), so it holds for the next fight. */
 	void SetTurnViewStyle(ETurnViewStyle NewStyle);
 	void SetCameraMovementOff(bool bOff);
 	void SetSkillCinematics(ESkillCinematics NewSetting);
@@ -52,9 +53,14 @@ public:
 	 *  defendable 2.00 s) -> Defence, pending". */
 	FString GetCinematicWindowString() const;
 
-	/** Turn-view style (D-074 (2)). */
+	/** Turn-view style (D-074 (2)). B-398: each fight starts from the player's saved setting (USaveSubsystem); this
+	 *  value is used only where there is no save subsystem. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
 	ETurnViewStyle TurnViewStyle = ETurnViewStyle::CentredWide;
+
+	/** B-398 (wor.Camera): where the viewed character and the enemy centre land in its turn view, e.g. "layout
+	 *  OverTheShoulder: Hero_1 lower-left (-0.44, -0.61), enemy centre middle-centre (0.00, 0.00)". */
+	FString GetTurnLayoutString() const;
 
 	/** Motion-sickness setting: one static wide view. Also skips cinematics unless SkillCinematics is On. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
