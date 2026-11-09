@@ -2,6 +2,8 @@
 // B-377 (MemoryCatalogue §3.6, Crown 2026-11-08): a hidden quest starts from its memory at the set depth, its steps
 // are done in order (a step can need several events in one run; that count resets at run end, steps done stay), the
 // last step unlocks its end memory, and progress round-trips through its save struct.
+// B-397 (D-171): started by its memory, it tells its player "Hidden quest discovered: <title>"; a quest with no Title
+// or step Goal shows placeholder text, never empty, and data validation warns for each.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -92,6 +94,34 @@ void FHiddenQuestSpec::Define()
 		TestTrue(TEXT("any depth"), Quest->StartsFrom(StartMemory, EMemoryDepth::Minor));
 		TestFalse(TEXT("set for Deep: a Minor one does not start it"), ForDeep->StartsFrom(DeepOnly, EMemoryDepth::Minor));
 		TestTrue(TEXT("set for Deep: a Deep one does"), ForDeep->StartsFrom(DeepOnly, EMemoryDepth::Deep));
+	});
+
+	It("notifies \"Hidden quest discovered\" when its memory starts it, with placeholders for unwritten text (B-397)", [this]()
+	{
+		TestTrue(TEXT("no notice before"), Quests->GetLastNotice().IsEmpty());
+		Journal->RecordMemory(StartMemory, EMemorySource::Fragment);
+		const FString Notice = Quests->GetLastNotice().ToString();
+		TestTrue(TEXT("the discovery notice"), Notice.StartsWith(TEXT("Hidden quest discovered: ")));
+		TestFalse(TEXT("no Title: a placeholder, not the quest id"), Notice.Contains(Quest->GetQuestId().ToString()));
+		TestFalse(TEXT("no Goal: a placeholder goal"), Quest->GetGoalAfter(0).IsEmpty());
+		TestTrue(TEXT("finished or past the last step: no goal"), Quest->GetGoalAfter(Quest->Steps.Num()).IsEmpty());
+		const TArray<FVisibleQuest> Visible = Quests->GetVisibleQuests();
+		TestTrue(TEXT("listed with its current goal"), Visible.Num() == 1 && Visible[0].Kind == EQuestKind::Hidden &&
+														   Visible[0].Goal.EqualTo(Quest->GetGoalAfter(0)));
+		TestTrue(TEXT("the print names the notice"), Quests->GetQuestsString().Contains(Notice));
+#if WITH_EDITOR
+		FDataValidationContext Context;
+		TestNotEqual(TEXT("unwritten text never makes it invalid"), Quest->IsDataValid(Context), EDataValidationResult::Invalid);
+		TestEqual(TEXT("a warning for the Title and each step's Goal"), Context.GetNumWarnings(), static_cast<uint32>(1 + Quest->Steps.Num()));
+		Quest->Title = FText::FromString(TEXT("Written"));
+		for (FHiddenQuestStep &Step : Quest->Steps)
+		{
+			Step.Goal = FText::FromString(TEXT("Written goal"));
+		}
+		FDataValidationContext Written;
+		Quest->IsDataValid(Written);
+		TestEqual(TEXT("written: no warnings"), Written.GetNumWarnings(), 0u);
+#endif
 	});
 
 	It("does its steps in order; a step's count resets at run end, steps done stay", [this]()

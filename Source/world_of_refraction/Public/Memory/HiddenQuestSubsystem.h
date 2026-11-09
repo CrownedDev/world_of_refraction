@@ -7,6 +7,9 @@
 // Debug: GetQuestsString; wor.Quest.Print.
 // B-377b: a co-op friend's quests stay on their machine; it reports them to the host, which tells it when its own part of
 // an event meets a step (CheckFriendsQuests / ApplyStepMetFromHost) or its worn gear starts one.
+// B-397 (D-171): a hidden quest's start is never hinted; once started, this player alone is told ("Hidden quest
+// discovered: <title>") and it lists in their journal with the current step's goal, like main and side quests. Each
+// machine keeps its own player's quests and notices, so in co-op each player sees only their own.
 
 #pragma once
 
@@ -33,13 +36,13 @@ struct FHiddenQuestProgress
 	int32 RunCount = 0;
 };
 
-/** B-388: a main or side quest as the journal shows it. */
+/** B-388: a started quest as the journal shows it (B-397: a found hidden quest too). */
 struct FVisibleQuest
 {
 	FName QuestId;
 	EQuestKind Kind = EQuestKind::Main;
 	FText Title;
-	/** The step in progress's goal; empty once finished. */
+	/** The step in progress's goal only (later steps and the end memory never); empty once finished. */
 	FText Goal;
 	bool bFinished = false;
 };
@@ -81,12 +84,16 @@ public:
 	FSavedHiddenQuests Capture() const;
 	void Restore(const FSavedHiddenQuests &Saved);
 
-	/** Debug: one line per started quest (a main or side quest with its title and goal, B-388). */
+	/** Debug: one line per started quest with its kind, title and current goal (B-388; B-397: hidden ones too), and
+	 *  the last notice shown. */
 	FString GetQuestsString() const;
 
-	/** B-388: this player's started main and side quests: main first, then side; unfinished before finished; by id.
-	 *  Not const: a quest restored from the save is found by gathering the quest assets. */
+	/** B-388: this player's started quests: main first, then side, then (B-397) found hidden ones; unfinished before
+	 *  finished; by id. Not const: a quest restored from the save is found by gathering the quest assets. */
 	TArray<FVisibleQuest> GetVisibleQuests();
+
+	/** B-397: the last private quest notice this player was shown (debug and specs; empty before any). */
+	const FText &GetLastNotice() const { return LastNotice; }
 
 	/** B-388: gives the quest QuestId (a main or side quest from the story, V, a conversation or an NPC; any quest asset).
 	 *  False when no asset has that id, or it was started already. */
@@ -145,4 +152,9 @@ private:
 
 	/** The asset for QuestId among KnownQuests (null when not seen). */
 	const UHiddenQuestData *FindKnownQuest(FName QuestId) const;
+
+	/** B-397: shows Notice on this machine's screen only (this player's own) and keeps it as LastNotice. */
+	void ShowNotice(const FText &Notice);
+
+	FText LastNotice;
 };
