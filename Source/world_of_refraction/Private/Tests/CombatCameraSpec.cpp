@@ -487,6 +487,30 @@ void FCombatCameraDirectorSpec::Define()
 		TestNull(TEXT("hero's camera removed"), Hero->FindComponentByClass<UCombatCameraComponent>());
 	});
 
+	It("fires the turn handover once per turn start, whoever acts (B-404, study R16)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, nullptr);
+		TestEqual(TEXT("none before the first turn"), Director->GetHandoverCount(), 0);
+		// Hero -> hero, hero -> enemy, enemy -> hero, and a second turn in a row for one hero.
+		const TArray<AActor *> TurnOrder = {Hero, SecondHero, Foe, Hero, Hero};
+		for (int32 Turn = 0; Turn < TurnOrder.Num(); ++Turn)
+		{
+			Orchestrator->OnActorTurnStarted.Broadcast(TurnOrder[Turn], Turn + 1);
+			TestEqual(FString::Printf(TEXT("one handover after turn start %d"), Turn + 1), Director->GetHandoverCount(), Turn + 1);
+		}
+		TestTrue(TEXT("follows the last turn"), Director->GetViewedActor() == Hero);
+		Director->EndCombat();
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, nullptr);
+		TestEqual(TEXT("a new fight counts from zero"), Director->GetHandoverCount(), 0);
+		Director->EndCombat();
+	});
+
 	It("keeps the turn-view setting across a fight restart and on a new orchestrator (B-398, saved)", [this]()
 	{
 		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
