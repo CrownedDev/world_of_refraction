@@ -312,7 +312,7 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 		const FVector Line = Target - Context.Caster;
 		const FVector Along = Line.GetSafeNormal2D(UE_SMALL_NUMBER, Forward);
 		const FVector Across = FVector::CrossProduct(FVector::UpVector, Along);
-		const float Gap = Line.Size2D();
+		const float Gap = static_cast<float>(Line.Size2D());
 		const float Out = FMath::Max((ImpactSide + Gap * ImpactSidePerGap) * Scale, Gap * ImpactFitPerGap);
 		const FVector Middle = (Context.Caster + Target) * 0.5f;
 		Shot.End = LookFrom(Middle + Across * Out * SideSign - Along * ImpactThreeQuarterBack * Scale + FVector::UpVector * ImpactHeight, Middle);

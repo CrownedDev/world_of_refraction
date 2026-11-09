@@ -123,7 +123,12 @@ namespace
 		FCameraShotContext Spread = Melee;
 		Spread.Targets.Add(SHOT_PREVIEW_SECOND_TARGET);
 		const FSkillCameraTuning Tuning;
-		const TPair<const TCHAR *, FCameraShot> Shots[] = {
+		struct FPreviewEntry
+		{
+			const TCHAR *Label;
+			FCameraShot Shot;
+		};
+		const FPreviewEntry Shots[] = {
 			{TEXT("melee wind-up (rush)"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Melee, Tuning)},
 			{TEXT("spell wind-up"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Ranged, Tuning)},
 			{TEXT("cast"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, Ranged, Tuning)},
@@ -131,9 +136,9 @@ namespace
 			{TEXT("impact, crit"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Crit, Tuning)},
 			{TEXT("spread (holds)"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread, Spread, Tuning)}};
 		TArray<FString> Lines;
-		for (const TPair<const TCHAR *, FCameraShot> &Shot : Shots)
+		for (const FPreviewEntry &Entry : Shots)
 		{
-			Lines.Add(DescribePreviewShot(Shot.Key, Shot.Value));
+			Lines.Add(DescribePreviewShot(Entry.Label, Entry.Shot));
 		}
 		return FString::Join(Lines, TEXT("\n"));
 	}
