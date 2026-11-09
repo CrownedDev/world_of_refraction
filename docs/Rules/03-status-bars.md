@@ -64,13 +64,13 @@ This page covers the status buildup bar: what fills it, how much, what slows the
 
 ## Coming with B-170 (action pips; Crown, 2026-11-09)
 
-Decided, not built yet; lands behind `wor.Turns.ActionPips` with the rest of B-170 (`docs/analysis/ActionPips.md` §3.4, Q-170e). Sizes are named constants, `// TODO: tune`.
+Decided; in code but not played yet (B-170d), behind `wor.Turns.ActionPips` with the rest of B-170 (`docs/analysis/ActionPips.md` §3.4, Q-170e). Sizes are named constants, `// TODO: tune`.
 
 | Changes | New rule |
 |---|---|
-| SB-29 Ice | Slows Action Speed and Spell Speed and deals 10% max HP (as now), **and removes 1 action at once** (`ICE_BREAK_ACTIONS_LOST`). |
-| SB-22 Water | Slows **Spell Speed only** (no longer Action Speed). |
-| SB-23 Wind | **Slows Action Speed** (`WIND_BREAK_ACTION_SPEED_SLOW_PERCENT`) and **takes 1 action at the target's next turn** (`WIND_BREAK_ACTIONS_LOST`); no more one-place delay. |
+| SB-29 Ice | Slows Action Speed and Spell Speed and deals 10% max HP (as now), **and removes 1 action at once** (`ICE_BREAK_ACTIONS_LOST`), on every break, never below 0. In code but not played yet (B-170d, Q-170d2, UNBUILT): `Skills/Effects/BreakTable.cpp` (`ActionPipsRows`), `Skills/Effects/SkillEffectManager.cpp` (`ApplyTriggeredSkillEffect`), `Tests/StatusBreakSpec.cpp`. |
+| SB-22 Water | Slows **Spell Speed only** (no longer Action Speed). In code but not played yet (B-170d, Q-170d2, UNBUILT): `Skills/Effects/BreakTable.cpp` (`ActionPipsRows`), `Skills/Effects/SkillEffectManager.cpp` (`ApplyTriggeredSkillEffect`), `Tests/StatusBreakSpec.cpp`. |
+| SB-23 Wind | **Slows Action Speed** (`WIND_BREAK_ACTION_SPEED_SLOW_PERCENT`) and **takes 1 action at the target's next turn** (`WIND_BREAK_ACTIONS_LOST`), on a new gust only (a same-attacker refresh takes none, D-012); no more one-place delay; the Skip Turn marker is no longer stored. In code but not played yet (B-170d, Q-170d2, UNBUILT): `Skills/Effects/BreakTable.cpp` (`ActionPipsRows`), `Skills/Effects/SkillEffectManager.cpp` (`ApplyTriggeredSkillEffect`), `Tests/StatusBreakSpec.cpp`. |
 
 ## Open questions
 - D-038 (ANSWERED): Silenced seals half your EP (now for 1 holder turn, D-090) (C3-2); **built in B-148**. Its name is "Silenced" (D-070, answered).
