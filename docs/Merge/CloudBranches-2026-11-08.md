@@ -205,6 +205,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 86 | `feature/B-392-two-guards-cloud` | dev | **32** | D-170 two guards (Q-392): `EGuardStyle`, the guard picks the parry montage; **save v32** (older saves wiped). Behaviour: any authored weapon `ParryMontage` now plays. Reviewed; fixed. |
 | 87 | `feature/B-393-parry-vfx-cloud` | row 86 | **33** | D-170 parry landing VFX (Q-393): weapon guard sparks, parry-effect cosmetic tinted by its element source, priority setting; **save v33**; unarmed Guard no longer sparks. Reviewed; fixed. |
 | 88 | `feature/B-391-battle-hud-cloud` | dev | – | Placeholder battle HUD (Q-391): new C++ HUD + command menu behind `wor.UI.NewHUD` (default 1, old HUD at 0), menu keys + InputMap rows; B-391b holds damage numbers and the old HUD's missing pieces. Reviewed; fixed. |
+| 89 | `feature/B-043g-ritual-ability-cloud` | dev (B-043f in) | – | GAS stage 4 part 7 (Q-043g): a ritual's fire runs through the same skill ability, cost-free (arm pays once, B-043f); behind `wor.Abilities.UseGAS`. Reviewed (PASS WITH NOTES). |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
