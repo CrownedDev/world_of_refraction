@@ -11,6 +11,9 @@
 // WaitGameplayEvent task. Run headless like the sim's Instant spell (B-293): a Caster's innate, montage-less spell
 // released at once (wor.Combat.InstantImpacts 1); caster and foe stand at the origin, so each projectile reaches its
 // target on its first tick. A dodge moves the foe away while its projectile is in flight.
+// B-043e (Q-043e): an AOE spell, an Instant spell and a support (self) spell, cast the same headless way, each
+// resolve through one Event.Combat.SpellResolve.AOE / .Instant / .Support at their ability's WaitGameplayEvent task,
+// with the same result as the old path.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -55,6 +58,9 @@ namespace
 	constexpr int32 ABILITIES_SPEC_PROJECTILE_FRAMES = 30;
 	/** Far past any impact radius: the foe has left the zone its projectile aims at. */
 	constexpr float ABILITIES_SPEC_DODGE_DISTANCE = 100000.0f;
+	/** B-043e: upper bound for one spell-shape action to settle (test ticks are 0.01s; spans the executor's 10s
+	 *  timeout, as WoR.Skills.SupportNoBuildup); the run stops as soon as the turn moves on. */
+	constexpr int32 ABILITIES_SPEC_SHAPE_SETTLE_FRAMES = 1100;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -71,6 +77,8 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 	ACombatOrchestrator *Orchestrator = nullptr;
 	UAbilityData *Strike = nullptr;
 	USpellData *BoltSpell = nullptr;
+	/** B-043e: the AOE / Instant / support spell of the current case. */
+	USpellData *ShapeSpell = nullptr;
 	int32 Activations = 0;
 	int32 Ends = 0;
 
@@ -202,6 +210,12 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 	/** B-043d: a Fire Caster with BoltSpell innate (as the sim gives a Caster its spell, B-293). */
 	AActor *SpawnBoltCaster()
 	{
+		return SpawnSpellCaster(BoltSpell);
+	}
+
+	/** B-043d/e: a Fire Caster with Spell innate. */
+	AActor *SpawnSpellCaster(USpellData *Spell)
+	{
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 		Data->CharacterClass = ECharacterClass::Caster;
 		Data->InnateElement = ESpellElement::Fire;
@@ -214,8 +228,8 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		{
 			return nullptr;
 		}
-		Inventory->LearnSpell(BoltSpell);
-		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].InnateSpells.Add(BoltSpell);
+		Inventory->LearnSpell(Spell);
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].InnateSpells.Add(Spell);
 		Loadout->NotifyActiveWeaponChanged();
 		return Actor;
 	}
@@ -323,6 +337,137 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		Outcome.bTurnMovedOn = Orchestrator->GetCurrentActor() == Foe;
 		return Outcome;
 	}
+
+	/** B-043e: a montage-less Fire spell of one flightless shape (rooted; AfterEach removes it). AOE / Instant: one
+	 *  enemy-targeted cast entry of that delivery (as the sim's Instant spell, B-293). Support: a self-targeted spell
+	 *  with no cast entries and no damage (the loose path, SpawnSpellDelivery's support branch). */
+	USpellData *MakeShapeSpell(EWoRSpellResolveKind Kind)
+	{
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->Name = TEXT("Montage-less Shape Spell");
+		Spell->BaseEnergyCost = ABILITIES_SPEC_STRIKE_EP;
+		Spell->Element = ESpellElement::Fire;
+		if (Kind == EWoRSpellResolveKind::Support)
+		{
+			Spell->TargetType = ETargetType::Self;
+			Spell->BaseDamage = 0;
+		}
+		else
+		{
+			const ESpellDeliveryType Delivery = Kind == EWoRSpellResolveKind::AOE ? ESpellDeliveryType::AOE : ESpellDeliveryType::Instant;
+			Spell->TargetType = ETargetType::Enemy;
+			Spell->BaseDamage = ABILITIES_SPEC_BOLT_DAMAGE;
+			Spell->DeliveryType = Delivery;
+			Spell->CastArray.AddDefaulted_GetRef().DeliveryType = Delivery;
+		}
+		Spell->AddToRoot();
+		return Spell;
+	}
+
+	struct FShapeOutcome
+	{
+		bool bRan = false;
+		int32 FoeDamage = 0;
+		int32 HeroHPChange = 0;
+		int32 AOEEvents = 0;
+		int32 InstantEvents = 0;
+		int32 SupportEvents = 0;
+		bool bStillListening = false;
+		bool bTurnMovedOn = false;
+	};
+
+	/** B-043e: Hero casts ShapeSpell in a fresh world (at Foe, or at itself for a support spell), one switch value,
+	 *  until the turn moves on. */
+	FShapeOutcome RunShape(bool bThroughAbility)
+	{
+		FShapeOutcome Outcome;
+		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
+		{
+			Orchestrator->ForceEndCombat();
+		}
+		Orchestrator = nullptr;
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		if (!ShapeSpell || !TestWorld->Create() || !TestWorld->GetWorld())
+		{
+			return Outcome;
+		}
+		Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		WoRSkillAbilities::SetUsesAbilities(bThroughAbility);
+		AActor *Hero = SpawnSpellCaster(ShapeSpell);
+		GiveASC(Hero);
+		// Not AI-driven: no defense is rolled, so every hit lands (as the bolt cases).
+		AActor *Foe = SpawnArmed(false);
+		UCharacterDataComponent *HeroStats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!Orchestrator || !Foe || !HeroStats)
+		{
+			return Outcome;
+		}
+		Orchestrator->StartCombat({Hero}, {Foe});
+		if (Orchestrator->GetCurrentActor() != Hero)
+		{
+			return Outcome;
+		}
+		HeroStats->MaxEP = ABILITIES_SPEC_START_EP;
+		HeroStats->CurrentEP = ABILITIES_SPEC_START_EP;
+		const int32 FoeHPBefore = CurrentHPOf(Foe);
+		const int32 HeroHPBefore = CurrentHPOf(Hero);
+
+		FAction Action;
+		Action.ActionType = EActionType::Spell;
+		Action.SpellData = ShapeSpell;
+		Action.SpellSource = ESpellSource::Innate;
+		Action.Targets.Add(ShapeSpell->TargetType == ETargetType::Enemy ? Foe : Hero);
+		Orchestrator->SubmitActionAsync(Action);
+		for (int32 Frame = 0; Frame < ABILITIES_SPEC_SHAPE_SETTLE_FRAMES && Orchestrator->GetCurrentActor() == Hero; ++Frame)
+		{
+			TestWorld->Tick();
+		}
+
+		Outcome.bRan = true;
+		Outcome.FoeDamage = FoeHPBefore - CurrentHPOf(Foe);
+		Outcome.HeroHPChange = CurrentHPOf(Hero) - HeroHPBefore;
+		if (FGameplayAbilitySpec *Spec = WoRSkillAbilities::FindSkillSpec(Hero, ShapeSpell))
+		{
+			for (UGameplayAbility *Instance : Spec->GetAbilityInstances())
+			{
+				if (const UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance))
+				{
+					Outcome.AOEEvents += Ability->GetAOEResolves();
+					Outcome.InstantEvents += Ability->GetInstantResolves();
+					Outcome.SupportEvents += Ability->GetSupportResolves();
+				}
+			}
+		}
+		Outcome.bStillListening = WoRSkillAbilities::FindSpellResolveListener(Hero) != nullptr;
+		Outcome.bTurnMovedOn = Orchestrator->GetCurrentActor() == Foe;
+		return Outcome;
+	}
+
+	/** B-043e: one shape's case: the same result at wor.Abilities.UseGAS 0 and 1, and exactly one event of its kind
+	 *  through the ability (none on the old path). */
+	void CheckShapeParity(EWoRSpellResolveKind Kind)
+	{
+		ShapeSpell = MakeShapeSpell(Kind);
+		const FShapeOutcome OldPath = RunShape(false);
+		const FShapeOutcome ThroughAbility = RunShape(true);
+		if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && ThroughAbility.bRan))
+		{
+			return;
+		}
+		if (Kind != EWoRSpellResolveKind::Support)
+		{
+			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+		}
+		TestEqual(TEXT("Same damage to the foe through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
+		TestEqual(TEXT("Same change to the caster's HP through the ability"), ThroughAbility.HeroHPChange, OldPath.HeroHPChange);
+		TestEqual(TEXT("No spell-resolve events on the old path"),
+				  OldPath.AOEEvents + OldPath.InstantEvents + OldPath.SupportEvents, 0);
+		TestEqual(TEXT("One AOE event"), ThroughAbility.AOEEvents, Kind == EWoRSpellResolveKind::AOE ? 1 : 0);
+		TestEqual(TEXT("One Instant event"), ThroughAbility.InstantEvents, Kind == EWoRSpellResolveKind::Instant ? 1 : 0);
+		TestEqual(TEXT("One Support event"), ThroughAbility.SupportEvents, Kind == EWoRSpellResolveKind::Support ? 1 : 0);
+		TestFalse(TEXT("Nothing listens once the action is done"), ThroughAbility.bStillListening);
+		TestTrue(TEXT("The turn moved on (both paths)"), OldPath.bTurnMovedOn && ThroughAbility.bTurnMovedOn);
+	}
 END_DEFINE_SPEC(FGASAbilitiesSpec)
 
 void FGASAbilitiesSpec::Define()
@@ -364,6 +509,11 @@ void FGASAbilitiesSpec::Define()
 		{
 			BoltSpell->RemoveFromRoot();
 			BoltSpell = nullptr;
+		}
+		if (ShapeSpell)
+		{
+			ShapeSpell->RemoveFromRoot();
+			ShapeSpell = nullptr;
 		}
 		Orchestrator = nullptr;
 		TestWorld.Reset();
@@ -670,6 +820,84 @@ void FGASAbilitiesSpec::Define()
 			TestEqual(TEXT("One dodge through the ability's event"), ThroughAbility.Dodges, 1);
 			TestEqual(TEXT("No arrival"), ThroughAbility.Arrivals, 0);
 			TestTrue(TEXT("The turn moved on (both paths)"), OldPath.bTurnMovedOn && ThroughAbility.bTurnMovedOn);
+		});
+	});
+
+	Describe("AOE, instant and support resolutions (B-043e)", [this]()
+	{
+		It("listens only for a skill with a flightless resolution", [this]()
+		{
+			ShapeSpell = MakeShapeSpell(EWoRSpellResolveKind::AOE);
+			TestTrue(TEXT("An AOE spell"), UWoRGameplayAbility::ShouldListenForSpellResolves(WoRSkillAbilities::MakePlainAction(ShapeSpell)));
+			USpellData *Instant = NewObject<USpellData>(GetTransientPackage());
+			FSkillCastEntry InstantCast;
+			InstantCast.DeliveryType = ESpellDeliveryType::Instant;
+			Instant->CastArray.Add(InstantCast);
+			TestTrue(TEXT("An Instant spell"), UWoRGameplayAbility::ShouldListenForSpellResolves(WoRSkillAbilities::MakePlainAction(Instant)));
+			USpellData *LooseAOE = NewObject<USpellData>(GetTransientPackage());
+			LooseAOE->DeliveryType = ESpellDeliveryType::AOE;
+			TestTrue(TEXT("A spell with no cast entries, AOE delivery"),
+					 UWoRGameplayAbility::ShouldListenForSpellResolves(WoRSkillAbilities::MakePlainAction(LooseAOE)));
+			USpellData *Support = NewObject<USpellData>(GetTransientPackage());
+			Support->TargetType = ETargetType::Ally;
+			Support->DeliveryType = ESpellDeliveryType::Projectile;
+			TestTrue(TEXT("A support spell (any delivery)"),
+					 UWoRGameplayAbility::ShouldListenForSpellResolves(WoRSkillAbilities::MakePlainAction(Support)));
+			BoltSpell = MakeBolt(1);
+			TestFalse(TEXT("A projectile spell (B-043d)"), UWoRGameplayAbility::ShouldListenForSpellResolves(WoRSkillAbilities::MakePlainAction(BoltSpell)));
+			TestFalse(TEXT("A melee attack"), UWoRGameplayAbility::ShouldListenForSpellResolves(WoRSkillAbilities::MakePlainAction(Strike)));
+			TestFalse(TEXT("No skill"), UWoRGameplayAbility::ShouldListenForSpellResolves(FAction()));
+		});
+
+		It("names each kind with its own event under Event.Combat.SpellResolve", [this]()
+		{
+			for (const EWoRSpellResolveKind Kind : {EWoRSpellResolveKind::AOE, EWoRSpellResolveKind::Instant, EWoRSpellResolveKind::Support})
+			{
+				const FGameplayTag Tag = WoRSkillAbilities::GetSpellResolveEventTag(Kind);
+				EWoRSpellResolveKind RoundTrip = EWoRSpellResolveKind::AOE;
+				TestTrue(TEXT("Under Event.Combat.SpellResolve"), Tag.MatchesTag(WoRTags::Event_Combat_SpellResolve));
+				TestTrue(TEXT("Read back"), WoRSkillAbilities::GetSpellResolveKind(Tag, RoundTrip) && RoundTrip == Kind);
+			}
+			TestTrue(TEXT("AOE"), WoRSkillAbilities::GetSpellResolveEventTag(EWoRSpellResolveKind::AOE) == WoRTags::Event_Combat_SpellResolve_AOE);
+			TestTrue(TEXT("Instant"), WoRSkillAbilities::GetSpellResolveEventTag(EWoRSpellResolveKind::Instant) == WoRTags::Event_Combat_SpellResolve_Instant);
+			TestTrue(TEXT("Support"), WoRSkillAbilities::GetSpellResolveEventTag(EWoRSpellResolveKind::Support) == WoRTags::Event_Combat_SpellResolve_Support);
+			EWoRSpellResolveKind Unused = EWoRSpellResolveKind::AOE;
+			TestFalse(TEXT("A projectile end is no spell resolve"), WoRSkillAbilities::GetSpellResolveKind(WoRTags::Event_Combat_Projectile_Arrived, Unused));
+		});
+
+		It("leaves a resolution on an actor with no running ability to the old path", [this]()
+		{
+			ShapeSpell = MakeShapeSpell(EWoRSpellResolveKind::AOE);
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestNotNull(TEXT("ASC"), GiveASC(Hero)) || !TestTrue(TEXT("Granted"), WoRSkillAbilities::GrantSkill(Hero, ShapeSpell).IsValid()))
+			{
+				return;
+			}
+			FWoRSpellResolve Resolve;
+			Resolve.Target = Foe;
+			TestNull(TEXT("An idle ability is not listening"), WoRSkillAbilities::FindSpellResolveListener(Hero));
+			TestFalse(TEXT("The AOE hit is not taken"), WoRSkillAbilities::SendSpellResolveEvent(Hero, Resolve));
+			Resolve.Kind = EWoRSpellResolveKind::Support;
+			Resolve.Targets.Add(Hero);
+			TestFalse(TEXT("The support cast is not taken"), WoRSkillAbilities::SendSpellResolveEvent(Hero, Resolve));
+			TestFalse(TEXT("No ASC: not taken"), WoRSkillAbilities::SendSpellResolveEvent(Foe, Resolve));
+			TestFalse(TEXT("No actor: not taken"), WoRSkillAbilities::SendSpellResolveEvent(nullptr, Resolve));
+		});
+
+		It("lands an AOE spell through one Event.Combat.SpellResolve.AOE, with the old path's damage", [this]()
+		{
+			CheckShapeParity(EWoRSpellResolveKind::AOE);
+		});
+
+		It("lands an Instant spell through one Event.Combat.SpellResolve.Instant, with the old path's damage", [this]()
+		{
+			CheckShapeParity(EWoRSpellResolveKind::Instant);
+		});
+
+		It("resolves a support spell through one Event.Combat.SpellResolve.Support, with the old path's result", [this]()
+		{
+			CheckShapeParity(EWoRSpellResolveKind::Support);
 		});
 	});
 }
