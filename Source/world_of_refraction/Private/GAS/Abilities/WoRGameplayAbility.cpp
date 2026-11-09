@@ -224,9 +224,9 @@ void UWoRGameplayAbility::HandleImpactEvent(FGameplayEventData Payload)
 	}
 	AActor *Avatar = GetAvatarActorFromActorInfo();
 	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
-	if (!Executor)
+	if (!Executor || Executor->GetCurrentSkillData() != RunningAction.SkillData)
 	{
-		return; // not counted: the sender resolves it itself (WoRSkillAbilities::SendImpactEvent)
+		return; // not this ability's action, or no executor: not counted, the sender resolves it (SendImpactEvent)
 	}
 	const int32 Index = FMath::RoundToInt(Payload.EventMagnitude);
 	// Counted before resolving: the impact can finish the action and end this ability.
