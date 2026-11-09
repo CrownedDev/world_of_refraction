@@ -3,6 +3,7 @@
 // two widgets built headless (not added to a viewport, so their plain-data state is what's checked) on a real duel:
 // a card's HP line follows damage, the turn strip leads with the acting character, the command menu lists the
 // subsystem's buttons with their keys and a row press acts. Layout and looks are PIE (docs/PIE/B-391.md).
+// B-391b: the Broken Darkness absorb line and overload tint.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -117,6 +118,19 @@ void FBattleHUDSpec::Define()
 			TestEqual(TEXT("fraction"), BattleHUDView::PoolFraction(10, 40), 0.25f);
 			TestEqual(TEXT("no max"), BattleHUDView::PoolFraction(10, 0), 0.0f);
 			TestEqual(TEXT("over max"), BattleHUDView::PoolFraction(50, 40), 1.0f);
+		});
+
+		It("shows a Broken Darkness absorb line and its overload (B-391b)", [this]()
+		{
+			TestEqual(TEXT("absorb line"), BattleHUDView::FormatAbsorbLine(80, 100).ToString(), FString(TEXT("Absorb 80 / 100")));
+			TestFalse(TEXT("at max: not overloaded"), BattleHUDView::IsOverloaded(100, 100));
+			TestTrue(TEXT("past max: overloaded"), BattleHUDView::IsOverloaded(115, 100));
+			const FString Over = BattleHUDView::FormatAbsorbLine(130, 100).ToString();
+			TestTrue(TEXT("overload line"), Over.StartsWith(TEXT("Absorb 130 / 100, overload")) && Over.Contains(TEXT("130")));
+			TestTrue(TEXT("white below"), BattleHUDView::GetOverloadColour(80, 100).Equals(FLinearColor::White));
+			TestTrue(TEXT("yellow just past"), BattleHUDView::GetOverloadColour(105, 100).Equals(FLinearColor::Yellow));
+			TestTrue(TEXT("red near the cap"), BattleHUDView::GetOverloadColour(125, 100).Equals(FLinearColor::Red));
+			TestFalse(TEXT("no max: never overloaded"), BattleHUDView::IsOverloaded(5, 0));
 		});
 
 		It("shows a status chip's turns and stacks, and none for a permanent single", [this]()
