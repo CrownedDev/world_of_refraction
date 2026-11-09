@@ -106,6 +106,18 @@ namespace WoRTags
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_DefenseResolved);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_TurnStart);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_TurnEnd);
+	// B-043b: a melee impact frame as a GameplayEvent; declared now, sent from B-043c's montage task.
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Impact);
+
+	// B-043b: a granted skill ability's delivery shape (GAS/Abilities/WoRSkillAbilities.h, Q-043b). One per
+	// EAbilityExecutionType, plus one per ESpellDeliveryType the skill's casts use.
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Shape_Melee);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Shape_Ranged);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Shape_SelfCast);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Shape_TargetCast);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Shape_Projectile);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Shape_AOE);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Ability_Shape_Instant);
 
 	/** Element.<name>; every ESpellElement has one. */
 	WORLD_OF_REFRACTION_API FGameplayTag ElementToTag(ESpellElement Element);

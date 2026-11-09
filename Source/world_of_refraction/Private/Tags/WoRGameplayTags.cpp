@@ -86,6 +86,14 @@ namespace WoRTags
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_DefenseResolved, "Event.Combat.DefenseResolved", "Sent to the defender once its defense resolves");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnStart, "Event.Combat.TurnStart", "Sent to the actor whose turn starts");
 	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_TurnEnd, "Event.Combat.TurnEnd", "Sent to the actor whose turn ends");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Event_Combat_Impact, "Event.Combat.Impact", "B-043b (sent from B-043c): a melee impact frame, for WaitGameplayEvent");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Melee, "Ability.Shape.Melee", "B-043b: a skill that strikes at close range");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Ranged, "Ability.Shape.Ranged", "B-043b: a skill that stays in place and strikes from range");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_SelfCast, "Ability.Shape.SelfCast", "B-043b: a skill on self or allies, no projectile");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_TargetCast, "Ability.Shape.TargetCast", "B-043b: a direct effect on the target, no projectile");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Projectile, "Ability.Shape.Projectile", "B-043b: a cast that travels to the target");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_AOE, "Ability.Shape.AOE", "B-043b: a cast that spawns at the target's area");
+	UE_DEFINE_GAMEPLAY_TAG_COMMENT(Ability_Shape_Instant, "Ability.Shape.Instant", "B-043b: a cast with no travel time");
 
 	namespace
 	{
