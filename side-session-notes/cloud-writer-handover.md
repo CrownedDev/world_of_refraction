@@ -1,3 +1,22 @@
+# Cloud writer handover (2026-11-09, eleventh part: the brain's GAS / Ice / cleanup plan) — IN PROGRESS
+
+**The brain's plan (2026-11-09), in order, and where each item stands.** Nothing was built.
+
+1. **B-042f.** Merged into dev by the desktop (built, suite green). Its PIE (`wor.Effects.Compare` 0 differ at UseGAS 0 and 1) gates B-042g.
+2. **B-042g part 1** (`feature/B-042g-gas-readers-default-cloud`, on B-042f). Pushed, reviewed, fixed, and on the trial branch. Merge only after B-042f's comparison passes. B-042g is cut into six parts; rows B-042g2..g6 are not written.
+3. **B-043, sliced into B-043a–h.** Part 1 is **B-043a** (`feature/B-043a-costs-gas-cloud`, on B-042f):
+   - Skill EP costs and the infusion HP backlash are paid as Instant GEs behind `wor.Costs.UseGAS`.
+   - Q-043a (reference-backed default): SetByCaller from the one cost formula; the MMC comes with B-043b.
+   - Reviewed and fixed: a blocked GE pays the old way, and the ASC must belong to the payer.
+   - On the trial branch; merge-plan row 71.
+4. **B-273b + B-064a (Ice).** Being written: B-273b on `feature/B-273b-hit-kind-cloud` from dev, and B-064a stacked on it.
+5. **Cleanups**, each on its own branch from dev, gated on Crown's PIE of the job it cleans up (merge plan section "PIE-gated cleanups"):
+   - Done: B-152 (gate B-021). Reviewed and fixed, on the trial branch, row C1.
+   - Being written: B-153, B-154, B-165, B-172, B-034b, B-032b and B-317. B-317 gets a new row, B-317b, for the co-op store move.
+   - Not started: B-309, which folds in B-172, so it is stacked on B-172 once that lands.
+   - Not writable: B-299, which waits for all of B-042g, not only part 1.
+6. **B-214 / B-236: not writable after part 1.** Field skills need B-043b (the ability base, granting and tags), and B-236 waits on B-214. B-214 is re-pointed to B-043b.
+
 # Cloud writer handover (2026-11-08, tenth part: confirmations, B-381 activations, B-389 / D-168) — STOPPED
 
 **The brain's three messages from 21:57–21:59 UTC are all done.** Everything is pushed, reviewed by wor-reviewer with its findings fixed, and cherry-picked onto the trial branch. Nothing was built.
