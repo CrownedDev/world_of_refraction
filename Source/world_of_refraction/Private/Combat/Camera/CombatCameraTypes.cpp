@@ -19,6 +19,10 @@ namespace CombatCameraOffsets
 	/** The shortest range the offsets scale from, so a close enemy doesn't put the camera inside the character.
 	 *  TODO: tune in PIE. */
 	constexpr float ShoulderMinRange = 500.0f;
+	// B-399 (R2): a sub-menu's step in, as parts of the turn camera's horizontal distance from the acting character
+	// and of its height above it. TODO: tune in PIE.
+	constexpr float MenuStepCloser = 0.25f;
+	constexpr float MenuStepLower = 0.3f;
 	constexpr float TacticalSide = 1400.0f;
 	constexpr float TacticalHeight = 550.0f;
 	constexpr float NotYourTurnBack = 1300.0f;
@@ -105,7 +109,7 @@ ECameraTemplateKind FCombatCameraRules::TemplateKindFor(const USkillDataBase *Sk
 																			  : ECameraTemplateKind::Melee;
 }
 
-FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame)
+FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth)
 {
 	using namespace CombatCameraOffsets;
 	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
@@ -113,7 +117,7 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 	switch (Mode)
 	{
 	case ECombatCameraMode::Turn:
-		return ComputeTurnView(Style, Frame);
+		return ComputeTurnView(Style, Frame, MenuDepth);
 	case ECombatCameraMode::NotYourTurn:
 		return LookFrom(Frame.Focus - Forward * NotYourTurnBack + FVector::UpVector * NotYourTurnHeight, Frame.ArenaCentre);
 	case ECombatCameraMode::Static:
@@ -125,12 +129,14 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 	}
 }
 
-FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame)
+FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth)
 {
 	using namespace CombatCameraOffsets;
 	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
 	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
 
+	FVector Location;
+	FVector LookAt = Frame.EnemyCentre;
 	switch (Style)
 	{
 	case ETurnViewStyle::OverTheShoulder:
@@ -142,17 +148,28 @@ FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FComb
 		const FVector AimRight = FVector::CrossProduct(FVector::UpVector, Aim);
 		const float Range = FMath::Max(static_cast<float>(ToEnemies.Size2D()), ShoulderMinRange);
 		const FVector Offset = -Aim * ShoulderBackPerRange + AimRight * ShoulderSidePerRange + FVector::UpVector * ShoulderHeightPerRange;
-		return LookFrom(Frame.Focus + Offset * Range, Frame.EnemyCentre);
+		Location = Frame.Focus + Offset * Range;
+		break;
 	}
 	case ETurnViewStyle::Tactical:
-	{
-		const FVector Middle = (Frame.Focus + Frame.EnemyCentre) * 0.5f;
-		return LookFrom(Middle + Right * TacticalSide + FVector::UpVector * TacticalHeight, Middle);
-	}
+		LookAt = (Frame.Focus + Frame.EnemyCentre) * 0.5f;
+		Location = LookAt + Right * TacticalSide + FVector::UpVector * TacticalHeight;
+		break;
 	case ETurnViewStyle::CentredWide:
 	default:
-		return LookFrom(Frame.Focus - Forward * CentredWideBack + FVector::UpVector * CentredWideHeight, Frame.EnemyCentre);
+		Location = Frame.Focus - Forward * CentredWideBack + FVector::UpVector * CentredWideHeight;
+		break;
 	}
+
+	if (FMath::Clamp(MenuDepth, 0, MaxMenuDepth) > 0)
+	{
+		// B-399 (study R2): one step in toward the acting character and down, still aimed where the view aims, so the
+		// layout holds and the character grows in the frame.
+		const FVector FromCharacter = Location - Frame.Focus;
+		const FVector Horizontal(FromCharacter.X, FromCharacter.Y, 0.0f);
+		Location = Frame.Focus + Horizontal * (1.0f - MenuStepCloser) + FVector::UpVector * FromCharacter.Z * (1.0f - MenuStepLower);
+	}
+	return LookFrom(Location, LookAt);
 }
 
 #define LOCTEXT_NAMESPACE "CombatCameraSettings"
