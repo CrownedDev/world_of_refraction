@@ -5,8 +5,8 @@
 // STATUS_DECAY_FULL_RESET_TURNS; at STATUS_EFFECT_THRESHOLD it fires the element's status and
 // empties; an immunity blocks the hit. Source-side amplification and the infused path are
 // WoR.Status.InfusedBuildup; bar-cap break lengths are WoR.Effects.StatusBreaks.
-// B-042o: every case runs on the enum bar (wor.Effects.UseGAS 0) and on GAS (1: the target carries
-// an ASC with synced attributes and an effect mirror, so the bar is its Buildup attribute).
+// B-042o: every case runs on GAS: the target carries an ASC with synced attributes and an effect mirror, so the
+// bar is its Buildup attribute (B-042g2: the enum-bar pass went with the UseGAS switch).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -95,28 +95,20 @@ void FStatusBuildupSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		Target = nullptr;
 		Buildup = nullptr;
 		Effects = nullptr;
 		TestWorld.Reset();
 	});
 
-	for (const bool bOnGAS : {false, true})
+	BeforeEach([this]()
 	{
-		Describe(bOnGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0"), [this, bOnGAS]()
+		if (Target)
 		{
-			BeforeEach([this, bOnGAS]()
-			{
-				UWoREffectMirrorComponent::SetReadsFromGAS(bOnGAS);
-				if (bOnGAS && Target)
-				{
-					PutOnGAS(Target);
-				}
-			});
-			DefineCases();
-		});
-	}
+			PutOnGAS(Target);
+		}
+	});
+	DefineCases();
 }
 
 void FStatusBuildupSpec::DefineCases()
@@ -245,10 +237,7 @@ void FStatusBuildupSpec::DefineCases()
 		if (!Buildup) return;
 		AActor *Other = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
 		if (!TestNotNull(TEXT("Second target"), Other)) return;
-		if (UWoREffectMirrorComponent::ReadsFromGAS())
-		{
-			PutOnGAS(Other);
-		}
+		PutOnGAS(Other);
 		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
 		Buildup->AddStatusBuildup(nullptr, Other, BUILDUP_TEST_HIT, ESpellElement::Fire, EPhysicalDamageType::None);
 		Buildup->ResetForCombat();
@@ -256,16 +245,11 @@ void FStatusBuildupSpec::DefineCases()
 		TestNearlyEqual(TEXT("The other bar empty"), Buildup->GetStatusBarBuildup(Other), 0.0f, BUILDUP_TEST_TOLERANCE);
 	});
 
-	It("keeps the bar in the Buildup attribute on GAS, and only there", [this]()
+	It("keeps the bar in the Buildup attribute", [this]()
 	{
 		if (!Buildup) return;
 		Hit(BUILDUP_TEST_HIT, ESpellElement::Fire);
 		const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
-		if (!UWoREffectMirrorComponent::ReadsFromGAS())
-		{
-			TestTrue(TEXT("Enum bar"), Buildup->GetBarDebugString(Target).Contains(TEXT("the enum bar")));
-			return;
-		}
 		if (!TestNotNull(TEXT("ASC"), ASC)) return;
 		const FGameplayAttribute Attribute = UWoRAttributeSet_Vitals::GetBuildupAttribute();
 		const float Expected = Landed(BUILDUP_TEST_HIT, ESpellElement::Fire);

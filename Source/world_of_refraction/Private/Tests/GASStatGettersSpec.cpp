@@ -1,7 +1,7 @@
 // GASStatGettersSpec.cpp
-// GAS stage 3 (B-042yb): with `wor.Effects.UseGAS 1` the composed sub-stat getters (spell / raw damage, action /
-// spell speed) and the pillar getters return their GAS attribute; with 0 they compose on the game's side. Both
-// give the same value, and the debug compare still checks the attribute against the game's composition.
+// GAS stage 3 (B-042yb): the composed sub-stat getters (spell / raw damage, action / spell speed) and the pillar
+// getters return their GAS attribute, and the debug compare checks the attribute against the game's composition.
+// B-042g2: the exact UseGAS 0 vs 1 comparisons went with the switch (D-140); the attribute compare stays.
 // B-042yc adds luck, reflex, efficiency, status multiplier, Defense, crit chance / damage, turn speed and the
 // resistances (per type, general status, blanket bonus).
 
@@ -25,8 +25,6 @@
 namespace
 {
 	constexpr float GETTER_TOLERANCE = 0.0001f;
-	/** TestEqual on floats defaults to a tolerance; the getters must match to the bit. */
-	constexpr float GETTER_EXACT = 0.0f;
 	/** Small enough to stay under each attribute's clamp. */
 	constexpr float GETTER_EXTRA_SPELL_DAMAGE = 0.05f;
 	constexpr float GETTER_EXTRA_MIND = 1.0f;
@@ -127,30 +125,25 @@ void FGASStatGettersSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		ASC = nullptr;
 		Char = nullptr;
 		Hero = nullptr;
 		TestWorld.Reset();
 	});
 
-	It("returns the same value from each getter with UseGAS 0 and 1", [this]()
+	It("reads each getter from GAS, and the attributes match the composition", [this]()
 	{
 		if (!ASC) return;
 		TArray<FGetterCase> Cases = GetterCases();
 		Cases.Append(SubsystemGetterCases());
 		for (const FGetterCase &Case : Cases)
 		{
-			UWoREffectMirrorComponent::SetReadsFromGAS(false);
-			const float OnGameSide = Case.Read(*Char);
-			UWoREffectMirrorComponent::SetReadsFromGAS(true);
-			// Exactly: a caller may round these (turn speed, max pools), so an ulp could flip a result.
-			TestEqual(FString::Printf(TEXT("%s: same on both paths"), Case.Label), Case.Read(*Char), OnGameSide, GETTER_EXACT);
+			TestTrue(FString::Printf(TEXT("%s: a finite read"), Case.Label), FMath::IsFinite(Case.Read(*Char)));
 		}
-		TestEqual(TEXT("UseGAS 1: attributes match the composition"), UWoRAttributeDebug::GetAttributeMismatchString(Hero), FString());
+		TestEqual(TEXT("attributes match the composition"), UWoRAttributeDebug::GetAttributeMismatchString(Hero), FString());
 	});
 
-	It("matches exactly with a buff layer that isn't 1", [this]()
+	It("matches the composition with a buff layer that isn't 1", [this]()
 	{
 		if (!ASC) return;
 		USkillEffectManager *EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
@@ -158,13 +151,11 @@ void FGASStatGettersSpec::Define()
 		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Getter buff"), GETTER_BUFF_ID, ESkillEffectType::SpellDamageBuff,
 																	   GETTER_BUFF_PERCENT, GETTER_BUFF_TURNS),
 								   Hero);
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
-		const float OnGameSide = Char->GetEffectiveSpellDamage();
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestEqual(TEXT("SpellDamage with a buff: same on both paths, exactly"), Char->GetEffectiveSpellDamage(), OnGameSide, GETTER_EXACT);
+		TestTrue(TEXT("SpellDamage with a buff: a finite read"), FMath::IsFinite(Char->GetEffectiveSpellDamage()));
+		TestEqual(TEXT("attributes match the composition with a buff"), UWoRAttributeDebug::GetAttributeMismatchString(Hero), FString());
 	});
 
-	It("matches crit chance exactly with its buff layer (B-042yc)", [this]()
+	It("matches the composition with a crit chance buff layer (B-042yc)", [this]()
 	{
 		if (!ASC) return;
 		USkillEffectManager *EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
@@ -173,13 +164,11 @@ void FGASStatGettersSpec::Define()
 		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Getter crit buff"), GETTER_CRIT_BUFF_ID,
 																	   ESkillEffectType::CritChanceBuff, GETTER_BUFF_PERCENT, GETTER_BUFF_TURNS),
 								   Hero);
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
-		const float OnGameSide = Calc->GetCriticalChance(Hero);
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestEqual(TEXT("CritChance with a buff: same on both paths, exactly"), Calc->GetCriticalChance(Hero), OnGameSide, GETTER_EXACT);
+		TestTrue(TEXT("CritChance with a buff: a finite read"), FMath::IsFinite(Calc->GetCriticalChance(Hero)));
+		TestEqual(TEXT("attributes match the composition with a crit buff"), UWoRAttributeDebug::GetAttributeMismatchString(Hero), FString());
 	});
 
-	It("returns the GAS attribute with UseGAS 1, and the composition with 0", [this]()
+	It("returns the GAS attribute", [this]()
 	{
 		if (!ASC) return;
 		const float SpellDamage = Char->GetEffectiveSpellDamage();
@@ -187,16 +176,13 @@ void FGASStatGettersSpec::Define()
 		AddGASOnlyBonus(UWoRAttributeSet_Stats::GetSpellDamageAttribute(), GETTER_EXTRA_SPELL_DAMAGE);
 		AddGASOnlyBonus(UWoRAttributeSet_Stats::GetMindAttribute(), GETTER_EXTRA_MIND);
 
-		TestEqual(TEXT("UseGAS 0: SpellDamage composed"), Char->GetEffectiveSpellDamage(), SpellDamage, GETTER_TOLERANCE);
-		TestEqual(TEXT("UseGAS 0: Mind composed"), Char->GetEvolutionModifiedMind(), Mind, GETTER_TOLERANCE);
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestTrue(TEXT("UseGAS 1: SpellDamage from GAS"), Char->GetEffectiveSpellDamage() > SpellDamage + GETTER_TOLERANCE);
-		TestTrue(TEXT("UseGAS 1: Mind from GAS"), Char->GetEvolutionModifiedMind() > Mind + GETTER_TOLERANCE);
-		TestFalse(TEXT("UseGAS 1: the compare still reads the composition, so it sees the extra"),
+		TestTrue(TEXT("SpellDamage from GAS"), Char->GetEffectiveSpellDamage() > SpellDamage + GETTER_TOLERANCE);
+		TestTrue(TEXT("Mind from GAS"), Char->GetEvolutionModifiedMind() > Mind + GETTER_TOLERANCE);
+		TestFalse(TEXT("the compare still reads the composition, so it sees the extra"),
 				  UWoRAttributeDebug::GetAttributeMismatchString(Hero).IsEmpty());
 	});
 
-	It("returns GAS's Defense, crit damage and a resistance with UseGAS 1 (B-042yc)", [this]()
+	It("returns GAS's Defense, crit damage and a resistance (B-042yc)", [this]()
 	{
 		if (!ASC) return;
 		const UDamageCalculator *Calc = TestWorld->GetSubsystem<UDamageCalculator>();
@@ -209,13 +195,9 @@ void FGASStatGettersSpec::Define()
 		AddGASOnlyBonus(UWoRAttributeSet_Stats::GetCritDamageAttribute(), GETTER_EXTRA_SPELL_DAMAGE);
 		AddGASOnlyBonus(UWoRAttributeSet_Resistance::GetResist_FireAttribute(), GETTER_EXTRA_SPELL_DAMAGE);
 
-		TestEqual(TEXT("UseGAS 0: Defense composed"), Calc->GetDefenderFlatDefense(Target), Defense, GETTER_TOLERANCE);
-		TestEqual(TEXT("UseGAS 0: Fire resistance composed"), WoRResistance::GetTypeResistance(Target, EWoRDamageType::Fire), FireResist,
-				  GETTER_TOLERANCE);
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestTrue(TEXT("UseGAS 1: Defense from GAS"), Calc->GetDefenderFlatDefense(Target) > Defense + GETTER_TOLERANCE);
-		TestTrue(TEXT("UseGAS 1: crit damage from GAS"), Calc->GetCritDamageMultiplier(Target) > CritDamage + GETTER_TOLERANCE);
-		TestTrue(TEXT("UseGAS 1: Fire resistance from GAS"),
+		TestTrue(TEXT("Defense from GAS"), Calc->GetDefenderFlatDefense(Target) > Defense + GETTER_TOLERANCE);
+		TestTrue(TEXT("crit damage from GAS"), Calc->GetCritDamageMultiplier(Target) > CritDamage + GETTER_TOLERANCE);
+		TestTrue(TEXT("Fire resistance from GAS"),
 				 WoRResistance::GetTypeResistance(Target, EWoRDamageType::Fire) > FireResist + GETTER_TOLERANCE);
 	});
 }
