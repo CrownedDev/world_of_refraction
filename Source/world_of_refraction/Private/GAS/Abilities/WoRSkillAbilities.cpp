@@ -5,6 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "GAS/Abilities/WoRGameplayAbility.h"
+#include "GAS/WoRCombatEvents.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -281,5 +282,49 @@ bool WoRSkillAbilities::TryExecuteThroughAbility(AActor *Actor, const FAction &A
 	}
 	UE_LOG(LogWoR, Log, TEXT("[Abilities] %s: %s's ability did not run the action (activated: %s); the old call runs it"),
 		   *Actor->GetName(), *Skill->GetName(), bActivated ? TEXT("yes") : TEXT("no"));
+	return false;
+}
+
+UWoRGameplayAbility *WoRSkillAbilities::FindImpactListener(AActor *Actor)
+{
+	UAbilitySystemComponent *ASC = Actor ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+	if (!ASC)
+	{
+		return nullptr;
+	}
+	for (const FGameplayAbilitySpec &Spec : ASC->GetActivatableAbilities())
+	{
+		if (!IsSkillSpec(Spec) || !Spec.IsActive())
+		{
+			continue;
+		}
+		for (UGameplayAbility *Instance : Spec.GetAbilityInstances())
+		{
+			UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance);
+			if (Ability && Ability->IsListeningForImpacts())
+			{
+				return Ability;
+			}
+		}
+	}
+	return nullptr;
+}
+
+bool WoRSkillAbilities::SendImpactEvent(AActor *Actor, int32 Index)
+{
+	UWoRGameplayAbility *Listener = FindImpactListener(Actor);
+	if (!Listener)
+	{
+		return false;
+	}
+	const int32 ResolvedBefore = Listener->GetImpactEventsResolved();
+	WoRCombatEvents::Send(Actor, WoRTags::Event_Combat_Impact, Actor, static_cast<float>(Index));
+	if (Listener->GetImpactEventsResolved() != ResolvedBefore)
+	{
+		return true;
+	}
+	// Never drop a hit: the old path resolves it.
+	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: impact %d did not reach %s's impact task; resolving it directly"),
+		   *Actor->GetName(), Index, *GetNameSafe(Listener));
 	return false;
 }
