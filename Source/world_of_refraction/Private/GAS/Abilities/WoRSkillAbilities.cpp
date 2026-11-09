@@ -6,6 +6,7 @@
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "GAS/Abilities/WoRGameplayAbility.h"
 #include "GAS/WoRCombatEvents.h"
+#include "GameplayPrediction.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -60,6 +61,33 @@ namespace
 	bool IsSkillSpec(const FGameplayAbilitySpec &Spec)
 	{
 		return Spec.Ability && Spec.Ability->IsA<UWoRGameplayAbility>();
+	}
+
+	/** Actor's running skill ability for which IsListening holds, or null (B-043c / B-043d). */
+	template <typename TPredicate>
+	UWoRGameplayAbility *FindListeningAbility(AActor *Actor, TPredicate IsListening)
+	{
+		UAbilitySystemComponent *ASC = Actor ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+		if (!ASC)
+		{
+			return nullptr;
+		}
+		for (const FGameplayAbilitySpec &Spec : ASC->GetActivatableAbilities())
+		{
+			if (!IsSkillSpec(Spec) || !Spec.IsActive())
+			{
+				continue;
+			}
+			for (UGameplayAbility *Instance : Spec.GetAbilityInstances())
+			{
+				UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance);
+				if (Ability && IsListening(*Ability))
+				{
+					return Ability;
+				}
+			}
+		}
+		return nullptr;
 	}
 }
 
@@ -287,27 +315,7 @@ bool WoRSkillAbilities::TryExecuteThroughAbility(AActor *Actor, const FAction &A
 
 UWoRGameplayAbility *WoRSkillAbilities::FindImpactListener(AActor *Actor)
 {
-	UAbilitySystemComponent *ASC = Actor ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
-	if (!ASC)
-	{
-		return nullptr;
-	}
-	for (const FGameplayAbilitySpec &Spec : ASC->GetActivatableAbilities())
-	{
-		if (!IsSkillSpec(Spec) || !Spec.IsActive())
-		{
-			continue;
-		}
-		for (UGameplayAbility *Instance : Spec.GetAbilityInstances())
-		{
-			UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance);
-			if (Ability && Ability->IsListeningForImpacts())
-			{
-				return Ability;
-			}
-		}
-	}
-	return nullptr;
+	return FindListeningAbility(Actor, [](const UWoRGameplayAbility &Ability) { return Ability.IsListeningForImpacts(); });
 }
 
 bool WoRSkillAbilities::SendImpactEvent(AActor *Actor, int32 Index)
@@ -326,5 +334,46 @@ bool WoRSkillAbilities::SendImpactEvent(AActor *Actor, int32 Index)
 	// Never drop a hit: the old path resolves it.
 	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: impact %d did not reach %s's impact task; resolving it directly"),
 		   *Actor->GetName(), Index, *GetNameSafe(Listener));
+	return false;
+}
+
+FGameplayTag WoRSkillAbilities::GetProjectileEventTag(bool bDodged)
+{
+	return bDodged ? WoRTags::Event_Combat_Projectile_Dodged : WoRTags::Event_Combat_Projectile_Arrived;
+}
+
+UWoRGameplayAbility *WoRSkillAbilities::FindProjectileListener(AActor *Actor)
+{
+	return FindListeningAbility(Actor, [](const UWoRGameplayAbility &Ability) { return Ability.IsListeningForProjectiles(); });
+}
+
+bool WoRSkillAbilities::SendProjectileEvent(AActor *Actor, const FWoRProjectileArrival &Arrival)
+{
+	UWoRGameplayAbility *Listener = FindProjectileListener(Actor);
+	UAbilitySystemComponent *ASC = Listener ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+	if (!ASC)
+	{
+		return false;
+	}
+	// Built here, not through WoRCombatEvents::Send: that one sets Target to the receiver, and this event's Target is
+	// the actor the projectile struck (Q-043d).
+	FGameplayEventData Payload;
+	Payload.EventTag = GetProjectileEventTag(Arrival.bDodged);
+	Payload.Instigator = Actor;
+	Payload.Target = Arrival.Target.Get();
+	Payload.EventMagnitude = static_cast<float>(Arrival.CastEntryIndex);
+	const int32 TakenBefore = Listener->GetProjectileEventsResolved();
+	{
+		// As UAbilitySystemBlueprintLibrary::SendGameplayEventToActor.
+		FScopedPredictionWindow PredictionWindow(ASC, true);
+		ASC->HandleGameplayEvent(Payload.EventTag, &Payload);
+	}
+	if (Listener->GetProjectileEventsResolved() != TakenBefore)
+	{
+		return true;
+	}
+	// Never drop an arrival: the executor resolves it (RouteProjectileArrival).
+	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: %s on %s did not reach %s's projectile task; resolving it directly"),
+		   *Actor->GetName(), *Payload.EventTag.ToString(), *GetNameSafe(Arrival.Target.Get()), *GetNameSafe(Listener));
 	return false;
 }

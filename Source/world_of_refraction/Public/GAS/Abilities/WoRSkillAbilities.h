@@ -12,6 +12,11 @@
 // - Impacts (B-043c, Q-043c): while an ability runs a non-spell action, the executor hands each impact to
 //   SendImpactEvent, which sends it to the ability's WaitGameplayEvent(Event.Combat.Impact) task; with no such
 //   ability the executor resolves the impact itself, as before.
+// - Projectiles (B-043d, Q-043d): while an ability runs an action whose skill fires projectiles, the executor
+//   hands each projectile's end (one per projectile, a burst's in arrival order) to SendProjectileEvent, which
+//   sends Event.Combat.Projectile.Arrived / .Dodged to the ability's WaitGameplayEvent task; the task takes the
+//   arrival from the executor and resolves it. With no such ability the executor resolves it itself, as before.
+//   Spawning, flight and the burst timer stay in the executor.
 // Debug: Debug/GAS/WoRAbilityDebug.h (wor.Abilities.Print). Spec: WoR.GAS.Abilities.
 
 #pragma once
@@ -80,4 +85,15 @@ namespace WoRSkillAbilities
 	 *  returns true once the listener has resolved it. False, with nothing resolved, when the caller must resolve
 	 *  the impact itself (no listener, or the event did not reach it). */
 	WORLD_OF_REFRACTION_API bool SendImpactEvent(AActor *Actor, int32 Index);
+
+	/** B-043d: Event.Combat.Projectile.Dodged for a dodge, else Event.Combat.Projectile.Arrived. */
+	WORLD_OF_REFRACTION_API FGameplayTag GetProjectileEventTag(bool bDodged);
+
+	/** B-043d: Actor's skill ability that is running an action and waiting for its projectiles, or null. */
+	WORLD_OF_REFRACTION_API UWoRGameplayAbility *FindProjectileListener(AActor *Actor);
+
+	/** B-043d: with a projectile listener on Actor, sends Arrival's event to Actor (Target = the struck actor,
+	 *  EventMagnitude = the cast entry index) and returns true once the listener has taken and resolved it. False
+	 *  when the caller must resolve it itself (no listener, or the event did not reach it). */
+	WORLD_OF_REFRACTION_API bool SendProjectileEvent(AActor *Actor, const FWoRProjectileArrival &Arrival);
 }
