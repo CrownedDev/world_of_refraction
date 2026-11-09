@@ -14,6 +14,11 @@
 // task (Arrived and Dodged, one event per projectile) takes each projectile's end from the executor
 // (UActionExecutor::TakeRoutedProjectile) and resolves it through UActionExecutor::ResolveProjectileArrival. Spawning,
 // flight and the burst timer stay in the executor.
+// B-043e (Q-043e): while it runs an action whose skill resolves an AOE or Instant cast entry, or a support cast, a
+// WaitGameplayEvent(Event.Combat.SpellResolve) task (AOE, Instant, Support; one event per AOE / Instant defender, one
+// per support cast) takes each resolution from the executor (UActionExecutor::TakeRoutedSpellResolve) and resolves
+// it through UActionExecutor::ResolveRoutedSpell. The effects stay spawned in the executor. SelfCast / TargetCast
+// abilities have no resolution point of their own: their hits route as impacts (B-043c), their casts as these.
 // Granting and the orchestrator hand-off: GAS/Abilities/WoRSkillAbilities.h. Debug: wor.Abilities.Print.
 
 #pragma once
@@ -86,6 +91,20 @@ public:
 	 *  cast entry, or is a spell with no cast entries whose loose delivery is Projectile. AOE / Instant: B-043e. */
 	static bool ShouldListenForProjectiles(const FAction &Action);
 
+	/** B-043e: true while this instance runs an action and its WaitGameplayEvent(Event.Combat.SpellResolve) task waits. */
+	bool IsListeningForSpellResolves() const;
+
+	/** B-043e: AOE / Instant / Support resolutions this instance took and resolved, over its life (debug, spec). */
+	int32 GetSpellResolvesResolved() const { return AOEResolves + InstantResolves + SupportResolves; }
+	int32 GetAOEResolves() const { return AOEResolves; }
+	int32 GetInstantResolves() const { return InstantResolves; }
+	int32 GetSupportResolves() const { return SupportResolves; }
+
+	/** B-043e: whether Action's flightless resolutions route through its ability: its skill (spell or not) has cast
+	 *  entries and is a support skill (not enemy-targeted) or has an AOE / Instant entry; or it is a spell with no
+	 *  cast entries that is a support spell or whose loose delivery is AOE / Instant. */
+	static bool ShouldListenForSpellResolves(const FAction &Action);
+
 	/** EP check only: the executor's spendable EP against the action's cost (the action being activated, else
 	 *  the skill's plain cast, WoRSkillAbilities::MakePlainAction). */
 	/** Refused while an earlier action still runs (the ability was cancelled before it finished): that action
@@ -128,7 +147,15 @@ private:
 	UFUNCTION()
 	void HandleProjectileEvent(FGameplayEventData Payload);
 
-	/** B-043c/d: ends and forgets the running action's event tasks. */
+	/** B-043e: starts the WaitGameplayEvent(Event.Combat.SpellResolve) task for the running action. */
+	void StartSpellResolveListener();
+
+	/** B-043e: one AOE / Instant / Support resolution (kind from the tag, Target = the event target), taken from the
+	 *  executor and resolved as SpawnAOEEffect / ResolveInstantSpell / SpawnSupportSpellEffect would. */
+	UFUNCTION()
+	void HandleSpellResolveEvent(FGameplayEventData Payload);
+
+	/** B-043c/d/e: ends and forgets the running action's event tasks. */
 	void EndEventTasks();
 
 	/** B-043c/d: whether the executor's current action is this instance's running one (own-action check). */
@@ -153,4 +180,12 @@ private:
 
 	int32 ProjectileArrivalsResolved = 0;
 	int32 ProjectileDodgesResolved = 0;
+
+	/** The running action's spell-resolve task (B-043e), or null. */
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> SpellResolveTask;
+
+	int32 AOEResolves = 0;
+	int32 InstantResolves = 0;
+	int32 SupportResolves = 0;
 };

@@ -3,7 +3,9 @@
 // - GetAbilitiesString: Actor's granted skill specs, one line each: the source skill, its Ability.Shape.* tags,
 //   active or idle, the running action, whether its impacts route through Event.Combat.Impact (B-043c) and how
 //   many it has resolved, whether its projectiles route through Event.Combat.Projectile.* (B-043d) and how many
-//   arrived / were dodged, and the plain cast's EP cost (what CheckCost reads with no action).
+//   arrived / were dodged, whether its AOE / Instant / support resolutions route through
+//   Event.Combat.SpellResolve.* (B-043e) and how many of each, and the plain cast's EP cost (what CheckCost reads
+//   with no action).
 // - PrintAbilities: logs it for every combatant in the world. Console: wor.Abilities.Print.
 
 #pragma once
