@@ -35,6 +35,11 @@ namespace
 	const FName SUCCESSION_TEST_NET_TYPE(TEXT("NULL"));
 	constexpr int32 SUCCESSION_TEST_OWN_GARNETS = 3;
 	constexpr int32 SUCCESSION_TEST_COPY_SAPPHIRES = 5;
+	/** B-234d review: upgrade-memory keys (definition keys; any name does for the merge). */
+	const FName SUCCESSION_TEST_DEF_OWN(TEXT("TestDef_Own"));
+	const FName SUCCESSION_TEST_DEF_OLD(TEXT("TestDef_OldHost"));
+	const FName SUCCESSION_TEST_DEF_RAISED(TEXT("TestDef_Raised"));
+	const FName SUCCESSION_TEST_DEF_NEW(TEXT("TestDef_New"));
 
 	const FCrystalId OwnCrystal() { return FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier); }
 	const FCrystalId CopyCrystal() { return FCrystalId(ECrystalType::Sapphire, EItemTier::F_Tier); }
@@ -201,6 +206,58 @@ void FHostSuccessionSpec::Define()
 			TestFalse(TEXT("only once"), Save->ReturnToOwnSaveFrom(SUCCESSION_TEST_OWN_SLOT));
 		});
 
+		It("review: the run's upgrade memory raises the own memory; the old host's earlier memory isn't taken", [this]()
+		{
+			const TMap<FName, EItemTier> Own = {{SUCCESSION_TEST_DEF_OWN, EItemTier::E_Tier}, {SUCCESSION_TEST_DEF_RAISED, EItemTier::B_Tier}};
+			const TMap<FName, EItemTier> AtHandOver = {{SUCCESSION_TEST_DEF_OLD, EItemTier::D_Tier}, {SUCCESSION_TEST_DEF_RAISED, EItemTier::F_Tier}};
+			const TMap<FName, EItemTier> Played = {{SUCCESSION_TEST_DEF_OLD, EItemTier::D_Tier}, {SUCCESSION_TEST_DEF_RAISED, EItemTier::C_Tier},
+												   {SUCCESSION_TEST_DEF_NEW, EItemTier::A_Tier}};
+			const TMap<FName, EItemTier> Merged = USaveSubsystem::MergeRunUpgradeMemory(Own, AtHandOver, Played);
+			TestEqual(TEXT("own memory kept"), Merged.FindRef(SUCCESSION_TEST_DEF_OWN), EItemTier::E_Tier);
+			TestEqual(TEXT("a run raise lower than the own memory: the own one stays"), Merged.FindRef(SUCCESSION_TEST_DEF_RAISED), EItemTier::B_Tier);
+			TestEqual(TEXT("reached first in this run"), Merged.FindRef(SUCCESSION_TEST_DEF_NEW), EItemTier::A_Tier);
+			TestFalse(TEXT("the old host's earlier memory isn't taken"), Merged.Contains(SUCCESSION_TEST_DEF_OLD));
+		});
+
+		It("review: the run's end writes the own save at once: played data, own pool, the run's memory, no run", [this]()
+		{
+			USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+			UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+			if (!TestNotNull(TEXT("save subsystem"), Save) || !TestNotNull(TEXT("pool subsystem"), Pool))
+			{
+				return;
+			}
+			FWoRSaveData Built;
+			TestFalse(TEXT("no handed-over run: nothing to build"), Save->BuildOwnSaveFrom(SUCCESSION_TEST_OWN_SLOT, Built));
+			TestTrue(TEXT("own save written"), WriteHandOverTestSave(SUCCESSION_TEST_OWN_SLOT, SavedStack(OwnCrystal(), SUCCESSION_TEST_OWN_GARNETS), false));
+			TestTrue(TEXT("copy written"), WriteHandOverTestSave(SUCCESSION_TEST_SLOT, SavedStack(CopyCrystal(), SUCCESSION_TEST_COPY_SAPPHIRES), true));
+			if (!TestTrue(TEXT("adopted"), Save->AdoptCheckpointFrom(SUCCESSION_TEST_SLOT)))
+			{
+				return;
+			}
+			// The run raises a definition's memory; the exit save captures it (into the copy's slot).
+			Pool->RestoreUpgradeMemory({{SUCCESSION_TEST_DEF_NEW, EItemTier::A_Tier}});
+			TestTrue(TEXT("exit save"), Save->SaveNow(TestWorld->GetWorld(), /*bAsync=*/false));
+
+			if (!TestTrue(TEXT("built"), Save->BuildOwnSaveFrom(SUCCESSION_TEST_OWN_SLOT, Built)))
+			{
+				return;
+			}
+			int32 OwnGarnets = 0;
+			int32 CopySapphires = 0;
+			for (const FSavedCrystalStack &Stack : Built.Pool.Crystals)
+			{
+				OwnGarnets += Stack.Type == static_cast<uint8>(OwnCrystal().Type) ? Stack.Count : 0;
+				CopySapphires += Stack.Type == static_cast<uint8>(CopyCrystal().Type) ? Stack.Count : 0;
+			}
+			TestEqual(TEXT("the own pool"), OwnGarnets, SUCCESSION_TEST_OWN_GARNETS);
+			TestEqual(TEXT("none of the copy's"), CopySapphires, 0);
+			TestEqual(TEXT("the run's memory kept"), Built.Pool.UpgradeMemory.FindRef(SUCCESSION_TEST_DEF_NEW), EItemTier::A_Tier);
+			TestFalse(TEXT("no run"), Built.Run.bHasRun);
+			TestTrue(TEXT("memory not changed yet: still playing the copy"), Save->IsPlayingHostCopy());
+			TestEqual(TEXT("the copy's items still in the pool"), CountInPool(*Pool, CopyCrystal()), SUCCESSION_TEST_COPY_SAPPHIRES);
+		});
+
 		It("join places: the next place, and the order by place", [this]()
 		{
 			TestEqual(TEXT("first player"), WoRHostSuccession::NextJoinSequence({}), 0);
@@ -217,13 +274,15 @@ void FHostSuccessionSpec::Define()
 
 		It("the join order survives a seamless travel", [this]()
 		{
+			// Review: no explicit SetGameState / AddPlayerState here. A spawned GameState's PostInitializeComponents sets
+			// itself as the world's GameState and adds every PlayerState already in the world (actor order), and a spawned
+			// PlayerState's PostInitializeComponents adds itself to the world's GameState (its id comes later, at login).
 			UWorld *World = TestWorld->GetWorld();
 			AWoRGameState *Before = World ? World->SpawnActor<AWoRGameState>() : nullptr;
 			if (!TestNotNull(TEXT("first level's GameState"), Before))
 			{
 				return;
 			}
-			World->SetGameState(Before);
 			const TArray<FString> Joined = {SUCCESSION_TEST_HOST, SUCCESSION_TEST_SECOND, SUCCESSION_TEST_THIRD};
 			TArray<AWoRPlayerState *> Old;
 			for (const FString &Id : Joined)
@@ -233,7 +292,6 @@ void FHostSuccessionSpec::Define()
 				{
 					return;
 				}
-				Before->AddPlayerState(Player);
 				LogInTestPlayer(Player, Id);
 				Old.Add(Player);
 			}
@@ -241,17 +299,12 @@ void FHostSuccessionSpec::Define()
 			TestEqual(TEXT("the host has the first place"), Old[0]->GetJoinSequence(), 0);
 
 			// The travel, as AGameModeBase::HandleSeamlessTravelPlayer does it, the players taken last-joined first: the
-			// next level's GameState holds the travelled PlayerStates, each player gets a new one (place and id copied)
-			// and the old one leaves.
+			// next level's GameState holds the travelled PlayerStates (added on spawn), each player gets a new one (place
+			// and id copied) and the old one leaves.
 			AWoRGameState *After = World->SpawnActor<AWoRGameState>();
 			if (!TestNotNull(TEXT("next level's GameState"), After))
 			{
 				return;
-			}
-			World->SetGameState(After);
-			for (int32 Index = Old.Num() - 1; Index >= 0; --Index)
-			{
-				After->AddPlayerState(Old[Index]);
 			}
 			for (int32 Index = Old.Num() - 1; Index >= 0; --Index)
 			{
@@ -260,7 +313,6 @@ void FHostSuccessionSpec::Define()
 				{
 					return;
 				}
-				After->AddPlayerState(Next);
 				Old[Index]->CopyProperties(Next);
 				After->RemovePlayerState(Old[Index]);
 				Old[Index]->Destroy();
@@ -272,7 +324,6 @@ void FHostSuccessionSpec::Define()
 			{
 				return;
 			}
-			After->AddPlayerState(Late);
 			LogInTestPlayer(Late, SUCCESSION_TEST_FOURTH);
 			TestEqual(TEXT("a player joining after the travel comes last"), JoinOrderString(After->GetHostOrder()),
 					  JoinOrderString({SUCCESSION_TEST_HOST, SUCCESSION_TEST_SECOND, SUCCESSION_TEST_THIRD, SUCCESSION_TEST_FOURTH}));
