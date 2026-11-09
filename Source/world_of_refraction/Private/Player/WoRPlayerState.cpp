@@ -170,6 +170,12 @@ void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 {
+	// B-234d: the join place first: Super sets the next PlayerState's id, and its OnSetUniqueId rebuilds the join
+	// order, which must find the place already there (else the player would be given a new, last place).
+	if (AWoRPlayerState *NextPlace = Cast<AWoRPlayerState>(PlayerState))
+	{
+		NextPlace->SetJoinSequence(JoinSequence);
+	}
 	Super::CopyProperties(PlayerState);
 	AWoRPlayerState *Next = Cast<AWoRPlayerState>(PlayerState);
 	if (Next && Next->Wallet && Wallet)

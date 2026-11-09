@@ -43,6 +43,18 @@ namespace WoRHostSuccession
 	/** Whether a lost connection should start a hand-over: a client losing its host, not a refused join or a
 	 *  pending-connection failure. */
 	WORLD_OF_REFRACTION_API bool IsHostLoss(ENetworkFailure::Type FailureType);
+
+	/** B-234d: a player's place in the join order before the server gives it one (AWoRPlayerState::GetJoinSequence). */
+	constexpr int32 NO_JOIN_SEQUENCE = INDEX_NONE;
+
+	/** B-234d: the place a newly joined player takes: after every place in Held (0 for the first player). */
+	WORLD_OF_REFRACTION_API int32 NextJoinSequence(const TArray<int32> &Held);
+
+	/** B-234d: the join order (ids, host first) from each player's id and place, lowest place first; a player with no
+	 *  place goes last, equal places keep the given order, and an id listed twice (a travelling player's old and new
+	 *  PlayerState) appears once, at its lowest place. A seamless travel re-adds the players in any order; their
+	 *  places, kept on the PlayerState, keep the order. */
+	WORLD_OF_REFRACTION_API TArray<FString> OrderByJoinSequence(TArray<TPair<FString, int32>> Players);
 }
 
 /** What this machine does after the host dropped. */
