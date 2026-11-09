@@ -2,9 +2,9 @@
 
 ## Overview
 
-**Infusion** is the charge mechanic: holding an action before release powers it up
-at one of two **charge levels** — L1 (casual, `LEVEL_1_CHARGE_TIME` 0.5s hold) or
-L2 (all-in, `LEVEL_2_CHARGE_TIME` 1.5s) — in exchange for a cost. An infused action
+**Infusion** is the charge mechanic: an action picked at one of two **charge levels**
+— L1 (casual) or L2 (all-in), set with the command menu's level button on the pending
+action (B-034; the old hold-to-charge timer is gone, B-034b) — is powered up in exchange for a cost. An infused action
 carries an **element** (or stays elementless for Raw), pays a cost along one of three
 axes, and applies a charge **effect**.
 
@@ -260,3 +260,4 @@ See `AISystem.md`.
 | 2026-11-14 | Q-435 changed by Crown to B: spells stack under D-174 too (origin element; Reality / Broken Darkness pick their own or the source element). Not built: B-435b (Known Limitations 3). Docs only. | docs/spell-stacking |
 | 2026-11-14 | B-435b built and tested on the desktop (merged up to dev first; build OK, full suite 2030 passed, validation 0 new). Reviewer (Sonnet): one fix. The AI's affordability check (`CanAffordSkill`) priced an infused spell with no source, so the stack's EP was missed and a ring spell with a same-element innate looked free; it now passes the source the AI will pick (spec case in `WoR.Infusion.SameElementStack`). A BD evolution joining a stack takes no wear (Known Limitations 4). | `feature/B-435b-spell-stacking` |
 | 2026-11-13 | B-435b (Q-435 B, ED-51): spells stack. `ResolveSameElementInfusionSources` takes infused spells (Q-435b) (origin first, or a BD / Reality Innate pick); spell EP is the sum over the stack (`CalculateSpellSourceEnergyCost`); the spell status multiplier × `SameElementBuildupMultiplier`; `GetAllowedInfusionSourcesForSpell` adds Innate for a BD / Reality caster on any origin (was evolution only); such a pick casts their own element. Spec cases in `WoR.Infusion.SameElementStack`. Unbuilt (cloud). | feature/B-435b-spell-stacking-cloud |
+| 2026-11-15 | B-034b (redone on dev, cloud, unbuilt): the dead hold-to-charge `UInfusionChargeManager` is deleted (with `EChargeState`, `FChargeStatus`, its four `OnCharge*` delegates and `InfusionConstants::LEVEL_1/2_CHARGE_TIME`), along with the VFX component's `OnChargeLevelChanged` / `OnChargeComplete` / `OnChargeCancelled` handlers, the orchestrator's fight-end reset call and the `WoR.Combat.ResetBetweenFights` charging check; the fight-subsystem count is 9. The command menu's pending level (B-034) is the only infusion level. | feature/B-034b-charge-manager-delete-cloud (UNBUILT) |
