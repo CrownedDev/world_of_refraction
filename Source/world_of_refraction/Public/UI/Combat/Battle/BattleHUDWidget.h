@@ -10,6 +10,12 @@
 //   absorption pool and overload ("Absorb x / y, overload z%", tinted as the old panel);
 // - B-170e: in an action-pips fight (wor.Turns.ActionPips 1), each party card's action pips and Max Actions line
 //   ("Actions ●●○ 2 · Max 3 (+75/100)", ActionPipsText), live from OnActionsChanged. At 0 the cards are as before.
+// - B-391c: a status buildup bar on every card (UStatusBuildupManager::OnStatusBuildupChanged; on a client the
+//   replicated UStatusBarStateComponent), tinted as the old panel, with Q-111 A's cracks past half (a fixed set of
+//   marks built once, shown as the bar fills); party cards add "Status x / y", a gear line (weapon · ring) and a hover
+//   tooltip with the loadout, from the ULoadoutComponent; a 0-damage hit on Broken Darkness reads "Absorbed"
+//   (DamageNumberView::SHOW_ABSORB_CUE, Q-391c). Combatants that join mid-fight get no card or numbers: nothing
+//   announces a join today (no summons exist; UISystem.md Known Limitations).
 // The command menu is its own widget (UBattleCommandMenuWidget). CommonUI replaces both later (D-024).
 //
 // Created once per fight: Initialise (binds, fills the state) BEFORE AddToViewport, so RebuildWidget builds one card
@@ -32,12 +38,16 @@ class UCombatPresentationComponent;
 class UButton;
 class UCanvasPanel;
 class UCharacterDataComponent;
+class ULoadoutComponent;
 class UProgressBar;
 class USkillEffectManager;
+class UStatusBarStateComponent;
+class UStatusBuildupManager;
 class UTextBlock;
 class UTurnManager;
 class UTurnStateComponent;
 class UVerticalBox;
+class UWeaponData;
 class UWoREffectMirrorComponent;
 
 /** One combatant's card: what it shows (plain data) and, once built, its text blocks. */
@@ -63,6 +73,17 @@ struct FBattleHUDCard
 	FText ActionsLine;
 	FText StatusLine;
 
+	/** B-391c: the status buildup bar (every card; the line on party cards only, Q-391). */
+	float BuildupFraction = 0.0f;
+	int32 CracksShown = 0;
+	FLinearColor BuildupColour = FLinearColor::White;
+	FText BuildupLine;
+
+	/** B-391c: party cards: "weapon · ring" and the hover tooltip with the loadout. */
+	TWeakObjectPtr<ULoadoutComponent> Loadout;
+	FText GearLine;
+	FText GearTooltip;
+
 	UPROPERTY()
 	TObjectPtr<UBorder> Frame;
 
@@ -83,6 +104,19 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> StatusText;
+
+	UPROPERTY()
+	TObjectPtr<UProgressBar> BuildupBar;
+
+	/** One mark per BattleHUDView::GetCrackPositions, built once; shown as the bar passes each. */
+	UPROPERTY()
+	TArray<TObjectPtr<UWidget>> CrackMarks;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> BuildupText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> GearText;
 };
 
 /** B-391b: one pooled floating damage number. */
@@ -145,10 +179,16 @@ private:
 	void AddCard(AActor *Actor, bool bParty);
 	void BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Column);
 
+	void BuildBuildupWidgets(FBattleHUDCard &Card, UVerticalBox *Rows);
+
 	void RefreshPools();
 	void RefreshStatuses();
 	void RefreshTurnStrip();
+	void RefreshGear();
 	void PushToWidgets();
+
+	/** B-391c: one card's bar from a buildup report (the manager's, or the replicated bar on a client). */
+	static void SetCardBuildup(FBattleHUDCard &Card, float Current, float Max, ESpellElement PendingElement, const AActor *Source);
 
 	TArray<FActiveSkillEffect> GetStatusesOf(AActor *Actor) const;
 
@@ -185,6 +225,15 @@ private:
 	UFUNCTION()
 	void HandleStatusButtonClicked();
 
+	UFUNCTION()
+	void HandleBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source);
+
+	UFUNCTION()
+	void HandleLoadoutChanged(int32 NewLoadoutIndex);
+
+	UFUNCTION()
+	void HandleActiveWeaponChanged(UWeaponData *NewWeapon);
+
 	UPROPERTY(Transient)
 	TArray<FBattleHUDCard> Cards;
 
@@ -201,6 +250,8 @@ private:
 	TWeakObjectPtr<UTurnManager> BoundTurnManager;
 	TArray<TWeakObjectPtr<UWoREffectMirrorComponent>> BoundMirrors;
 	TArray<TWeakObjectPtr<UCombatPresentationComponent>> BoundPresentations;
+	TWeakObjectPtr<UStatusBuildupManager> BoundBuildup;
+	TArray<TWeakObjectPtr<UStatusBarStateComponent>> BoundBarStates;
 
 	UPROPERTY(Transient)
 	TArray<FBattleDamageNumber> DamageNumbers;

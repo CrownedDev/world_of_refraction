@@ -573,6 +573,20 @@ The queue of questions only Crown can answer.
 5. **Waits on the CommonUI screens (D-024; B-406c)**, which don't exist yet. `UCombatCameraDirector::OnCinematicHudHidden(bool)` stays the contract: the native `UCombatHUD` binds it today; the CommonUI battle HUD binds the same delegate when it lands.
 **Answer:** all five as recommended, by the reference-backed default (2026-11-09). Crown: check the skip in PIE (`docs/PIE/B-406b.md`); judge (4) with the B-406 trial.
 
+### Q-391c — The buildup bar, gear line, durability header and the absorb cue: the build details
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-391c) · **Blocks:** — (B-391c ships with it)
+**Question:** Bringing the old HUD's buildup bar, weapon name and durability header to the new HUD, and adding an absorb cue, needed a few choices the rulings don't name. Keep these?
+**Context:** `UI/Combat/Battle/BattleHUDView.h` (`CRACK_START_FRACTION`, `CRACK_COUNT`), `BattleHUDWidget.cpp` (`BattleHUDStyle`), `BattleCommandMenuWidget.cpp`, `DamageNumberView.h` (`SHOW_ABSORB_CUE`, `ABSORBED_SCALE`). The deckbuilder has no HUD rule (its reference is a card model, no match presentation), so the references are Crown's Q-111 A, the old HUD itself, and other games below.
+**What was built:**
+1. **Buildup bar on every card**, under the HP bar, tinted as the old panel (the last hit's element; a Broken Darkness attacker darkens it; physical neutral). Party cards add "Status x / y"; enemy cards show the bar only, as their HP (Q-391).
+2. **Cracks (Q-111 A):** clean below half, then **four** thin dark marks at 50 / 62.5 / 75 / 87.5% appear as the bar passes each, so it "cracks more and more" toward the break. The **shatter** and the dimmed shards during the break wait for the art pass; the break's status chip shows it today. Octopath Traveler's shield count and Honkai: Star Rail's toughness bar breaking, both praised for reading at a glance (Q-111's own references).
+3. **Gear:** a party card's line reads "weapon · ring" (the Resonator's active ring, else the primary ring); hovering the card shows "Loadout / Weapon / Ring". To make the hover work, party cards now take the mouse; enemy cards still let clicks through.
+4. **Durability header:** the old header's rule and labels ("AD x / y" ring first, then "WD x / y"; none without a crystal), under the menu title. One fix: a Generic / Caster ring reads its primary ring (the old header showed "AD:0/0" there since B-304 made `GetActiveRing` Resonator-only).
+5. **Absorb cue:** a hit that took 0 on a character in Broken Darkness form floats a small **"Absorbed"** in the hit's colour (0.75x), instead of nothing. Persona 5 prints a word (NULL / DRAIN / REPEL) where a hit does no damage, and its readable battle feedback is widely praised; Expedition 33 shows nothing for a miss, which is today's behaviour. One switch (`DamageNumberView::SHOW_ABSORB_CUE`, default on): **Crown may veto it** and it goes back to no number. The hit event doesn't say why it was 0, so a ward stopping a whole hit on Broken Darkness reads "Absorbed" too. Two Broken Darkness checks are in play, each matching its old source: the cue asks the target's `UCharacterDataComponent::IsBrokenDarkness()` (the replicated flag), the buildup tint asks the attacker's `UBrokenDarknessManager::IsInBDForm()` (the manager's transform flag, as the old panel). They can disagree for a born-in-Broken-Darkness character before its manager mirrors the flag (`InitializeBornBrokenDarkness`), or on a client where the manager's flag isn't replicated.
+6. **Combatants that join mid-fight:** not built. Nothing in the code adds or announces a combatant mid-fight (no summons exist); when a summon system lands, it should broadcast a join event and the HUD add a card from a spare pool (TransBuffer rule).
+**Recommendation:** all six as built (references above; not lore). Crown tunes sizes and colours in PIE.
+**Answer:** all six, by the reference-backed default (2026-11-09). Crown may change any; the absorb cue is one switch.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
