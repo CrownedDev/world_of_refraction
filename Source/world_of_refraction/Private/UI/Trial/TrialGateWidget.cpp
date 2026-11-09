@@ -68,6 +68,7 @@ UTrialGateWidget *UTrialGateWidget::Open(APlayerController *PC, UTrialData *Tria
 	Widget->Trial = Trial;
 	Widget->VariationIndex = Trial->Variations.IsEmpty() ? INDEX_NONE : 0;
 	Widget->AddToViewport(TrialGateStyle::ZOrder);
+	Widget->SetIsFocusable(true); // B-396: FInputModeUIOnly focuses this widget (logged an error when it couldn't)
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Widget->TakeWidget());
 	PC->SetInputMode(InputMode);
