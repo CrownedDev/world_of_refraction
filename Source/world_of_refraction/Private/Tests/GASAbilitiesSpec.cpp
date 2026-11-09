@@ -957,6 +957,8 @@ void FGASAbilitiesSpec::Define()
 			TestEqual(TEXT("No ability ran on the old path"), OldPath.Activations, 0);
 			TestTrue(TEXT("Abilities ran the fight"), ThroughAbility.Activations > 0);
 			TestEqual(TEXT("Every ability ended"), ThroughAbility.Ends, ThroughAbility.Activations);
+			// Strict on purpose: one battle seed, and Strike passes every gate, so each activation reaches its pay point;
+			// a mismatch means an action paid outside its ability or not at all.
 			TestEqual(TEXT("Every action's cost paid through its ability"), ThroughAbility.CostsCommitted, ThroughAbility.Activations);
 			TestTrue(TEXT("Impacts landed"), ThroughAbility.ImpactFrames > 0);
 			TestEqual(TEXT("Every impact through an ability"), ThroughAbility.ImpactEvents, ThroughAbility.ImpactFrames);
