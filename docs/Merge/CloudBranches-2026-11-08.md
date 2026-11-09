@@ -278,5 +278,13 @@ Deletions of code a finished job made obsolete. CLAUDE.md: no deleting code befo
 |---|---|---|---|
 | C1 | `feature/B-152-stone-wrappers-delete-cloud` | B-021 | The twelve stat-stone consumable wrappers and their dispatch cases; the DefenseStone / CritStone branches in Amber's and Opal's handlers. Reviewed (PASS WITH NOTES, fixed). |
 
-More rows follow as they are written: B-153 (B-022), B-154 (B-024), B-165 (B-031), B-172 (B-028), B-034b (B-034), B-032b (B-032), B-309 (B-301..B-308), B-317 (the store jobs), B-299 (after B-042g).
+| C2 | `feature/B-153-loadout-class-field-delete-cloud` | B-022 | `ULoadoutComponent::CharacterClass` (a BlueprintReadWrite UPROPERTY: Blueprint search first). Reviewed, PASS WITH NOTES. |
+| C3 | `feature/B-154-ring-weapon-managers-delete-cloud` | B-024 | `URingManager`, `UWeaponManager`, `UActionExecutor::GetRingManager` / `GetWeaponManager`. Reviewed; fixed (weapon-query spec case kept, CoopStateOwnership). Recommend one `-DisableUnity` build. |
+| C4 | `feature/B-172-legacy-validators-delete-cloud` | B-028, **and** B-351 check 10, B-380 check 4, B-196-spell-cap check 3 (they still run `wor.Loadout.CompareRules`) | The `*Legacy` loadout validators and `wor.Loadout.CompareRules`. Reviewed; fixed (gate widened). |
+| C5 | `feature/B-309-unified-loadout-old-path-delete-cloud` | C4 merged, and B-301..B-308, B-312 | **Stacked on C4; merge after it.** Safe subset only: `DoWeaponStatsApply`, `PrimarySlotCost`. The old `FCombatLoadout` fields / entry types stay (live writers, saves); the row lists them. Reviewed; fixed. |
+| C6 | `feature/B-034b-charge-manager-delete-cloud` | B-034, plus the editor Blueprint check (sheet check 1) | `UInfusionChargeManager` and its VFX handlers, hold-time constants; fight-subsystem count 10 → 9 (another branch adding a fight subsystem first changes that number). Reviewed; fixed (docs). |
+| C7 | `feature/B-317-store-old-copies-delete-cloud` | B-312, B-313, B-313b, B-314, B-316 | First part (Q-313b): the crystal inventory's pouch copy, `BattleItemsTaken` and the post-fight hand-back. New row B-317b (co-op store move). Wearers / per-member copies / enemy `ItemSlots` stay (live readers, saves, editor move). Reviewed, PASS WITH NOTES. |
 
+**Docs-only, merge any time:** `chore/B-032b-blocked-cloud` (B-032b BLOCKED on new row B-032c: the lumped spell path still serves multi-entry / multi-hit spells), `chore/B-165-blocked-cloud` (B-165 needs the D-067 spec first, best written on the desktop).
+
+**Not written:** B-299 (waits for all of B-042g). All C-rows touch the same doc lines (Backlog, PIE README Pending, LoadoutSystem changelog, the session's "Cloud writer: PIE-gated deletions" heading): resolve by keeping both rows / bullets and one heading. The trial branch has C1–C7 cherry-picked.
