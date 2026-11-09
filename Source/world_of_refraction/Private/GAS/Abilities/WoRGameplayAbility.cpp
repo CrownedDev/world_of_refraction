@@ -223,6 +223,12 @@ void UWoRGameplayAbility::HandleImpactEvent(FGameplayEventData Payload)
 		return;
 	}
 	AActor *Avatar = GetAvatarActorFromActorInfo();
+	// The event reaches every impact task on this ASC; only the listener the sender chose resolves it, so two
+	// listening abilities on one actor could never land one impact twice.
+	if (WoRSkillAbilities::FindImpactListener(Avatar) != this)
+	{
+		return;
+	}
 	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
 	if (!Executor || Executor->GetCurrentSkillData() != RunningAction.SkillData)
 	{
