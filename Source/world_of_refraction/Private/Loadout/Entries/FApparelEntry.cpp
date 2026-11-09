@@ -32,6 +32,7 @@ FEquipmentStatBonus FApparelEntry::GetStatLines() const
 	FEquipmentStatBonus Lines = Apparel ? Apparel->GetStatLines() : FEquipmentStatBonus();
 	Lines.BonusMaxHP += StatBonus.BonusMaxHP;
 	Lines.BonusDefense += StatBonus.BonusDefense;
+	Lines.Amp.Accumulate(StatBonus.Amp); // B-386
 	return Lines;
 }
 
@@ -67,6 +68,27 @@ bool ApparelRules::AddApparel(FCombatLoadout &Loadout, const FApparelEntry &Entr
 	return true;
 }
 
+int32 ApparelRules::RefreshFromStore(TArray<FCombatLoadout> &Loadouts, const FApparelEntry &Owned)
+{
+	if (!Owned.PersistentID.IsValid())
+	{
+		return 0;
+	}
+	int32 Changed = 0;
+	for (FCombatLoadout &Loadout : Loadouts)
+	{
+		for (FApparelEntry &Worn : Loadout.Apparel)
+		{
+			if (Worn.PersistentID == Owned.PersistentID)
+			{
+				Worn = Owned;
+				++Changed;
+			}
+		}
+	}
+	return Changed;
+}
+
 FString ApparelRules::GetApparelString(const FCombatLoadout &Loadout)
 {
 	if (Loadout.Apparel.IsEmpty())
@@ -77,8 +99,9 @@ FString ApparelRules::GetApparelString(const FCombatLoadout &Loadout)
 	for (const FApparelEntry &Entry : Loadout.Apparel)
 	{
 		const FEquipmentStatBonus Lines = Entry.GetStatLines();
-		Pieces.Add(FString::Printf(TEXT("%s [%s] HP %+d Def %+d"), *GetNameSafe(Entry.Apparel.Get()),
-								   *UEnum::GetDisplayValueAsText(Entry.GetElement()).ToString(), Lines.BonusMaxHP, Lines.BonusDefense));
+		Pieces.Add(FString::Printf(TEXT("%s [%s] HP %+d Def %+d %s"), *GetNameSafe(Entry.Apparel.Get()),
+								   *UEnum::GetDisplayValueAsText(Entry.GetElement()).ToString(), Lines.BonusMaxHP, Lines.BonusDefense,
+								   *Lines.Amp.ToString()));
 	}
 	return FString::Printf(TEXT("apparel (%d of %d, no budget): %s"), Loadout.Apparel.Num(), MAX_APPAREL_SLOTS, *FString::Join(Pieces, TEXT("; ")));
 }

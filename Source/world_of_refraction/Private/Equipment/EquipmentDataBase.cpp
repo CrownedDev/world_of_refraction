@@ -342,6 +342,8 @@ FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
     Combined.BonusMindModifierPercent   = BaseStatBonus.BonusMindModifierPercent   + GeneratedStatBonus.BonusMindModifierPercent;
     Combined.BonusBodyModifierPercent   = BaseStatBonus.BonusBodyModifierPercent   + GeneratedStatBonus.BonusBodyModifierPercent;
     Combined.BonusSpiritModifierPercent = BaseStatBonus.BonusSpiritModifierPercent + GeneratedStatBonus.BonusSpiritModifierPercent;
+    Combined.Amp = BaseStatBonus.Amp; // B-382: Amp is authored only (never generated)
+    Combined.Amp.Accumulate(GeneratedStatBonus.Amp);
     return Combined;
 }
 

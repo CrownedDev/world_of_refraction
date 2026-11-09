@@ -4188,6 +4188,22 @@ Moved here once applied. Newest first.
 **To verify when built:** a `StatusIncrease` payload can target the healed ally; "Overheat" may be Crown's word for the Fire buildup bar, not a new status (check). The Broken Darkness pool (6 Darkness spells) is separate.
 **Notes for Claude:** job B-374. Supersedes D-146's three-school list and Q-356's mapping of Destruction onto Conjuration. Re-tagging spell assets is an editor step; the effect classifier (Q-356c) proposes each spell's school.
 
+### D-166 — Every damage and defence boost has a scope, like Amp (follows Q-164b)
+**Status:** DECIDED (Crown, 2026-11-08; recorded by the cloud writer from the brain's message) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** each damage-boost effect (DamageBuff / Debuff, ModifyDamageDealt, Raw / SpellDamageBuff / Debuff) and defence-boost effect (DefenseBuff / Debuff, ReduceDamageTaken / IncreaseDamageTaken) gets a **scope**: All, Physical, Spell or one element. **Default All**, so authored data plays exactly as before. The read is per hit, against the action's element and kind. The gear's Physical / Spell damage lines and stones stay as they are; they already are the Physical / Spell scopes.
+**Not part of it:** folding the four "all damage %" channels into one: Crown answered it separately, D-167 (B-384).
+**As built (B-383):** `EDamageScope` {All, Physical = not a spell (attacks and abilities, infused or not), Spell, Element = the effect's own element}; `FSkillEffectPayload::DamageScope` / `FActiveSkillEffect::DamageScope`; `USkillEffectManager::GetTotalStatModifierForHit` (GAS twin `SumMagnitudeForHit`); every read in `UDamageCalculator` goes through it, Defense through `GetDefenderDefenseForHit`. Amp's lines take the same meanings (Physical = not a spell; a Spell line added). B-382's implicit keying (any element on a DamageBuff narrowed it) is replaced by the explicit Element scope.
+**Reference check:** *deckbuilder*: every Amp / Def line and grant bonus is scoped by damage type, `All` matching everything (`06-bonuses.md`). *Games*: Path of Exile's modifiers name what they scale ("increased Fire Damage", "increased Spell Damage", "increased Physical Damage"); Elden Ring's damage negation is per damage type.
+**Notes for Claude:** at UseGAS 1 the composed Defense attribute counted every DefenseBuff whatever its scope; B-385 closed that (an additive scope correction). Displays that read `GetTransientRaw/SpellDamageFactor` or `GetDefenderFlatDefense` show the unscoped total.
+**Replaces B-382's keying (merge review, 2026-11-08):** B-382 keyed a DamageBuff / Debuff by its payload's own element; B-383 replaces that with the explicit scope, so a payload with an element but scope All now counts for every hit. Author one element's buff with scope Element. No asset used B-382's keying (both landed in dev the same day). An unkeyed DamageBuff / Debuff stores no element.
+
+### D-167 — One "all damage %" channel: the four add, they don't multiply (answers B-384)
+**Status:** DECIDED (Crown, 2026-11-08: "fold them"; recorded by the cloud writer from the brain's message) · **Raised:** 2026-11-08 (D-166 note) · **Blocks:** —
+**Answer (Crown):** DamageBuff / Debuff (the difficulty's enemy-strength buff is one), ModifyDamageDealt and the hit's Raw or Spell DamageBuff / Debuff add into **one All-damage percent**, each with its D-166 scope, applied once: ×(1 + total / 100). Before, each multiplied the others. The effect types stay, so authored data loads as before; only stacking changes.
+**Balance shift:** one source alone is unchanged; stacked sources hit a little lower. Example: three +20% sources on an ability went from ×1.728 to ×1.6, about −7%. Retuning may be needed after PIE.
+**Reference check:** *deckbuilder*: every bonus adds into one total, "add the magnitude" (`06-bonuses.md`, `StatTotal`). *Games*: Path of Exile's "increased" modifiers all add into one pool before the separate "more" multipliers; Diablo IV's Season 4 cut overlapping damage buckets, and players welcomed it.
+**Notes for Claude (as built in B-384):** `UDamageCalculator::GetAllDamagePercent`; `GetStatusEffectDamageModifier` applies it once. The old multiplied path stays behind `wor.Damage.FoldAllDamage 0`, marked OBSOLETE, for the before / after check; delete it after Crown's PIE pass. **The stat cap (reference-backed default, B-384 review; Crown can change it):** Raw / Spell buffs now count only in the one sum, which no stat cap limits, the same as DamageBuff always was. So a character already at the damage stat cap still gains from a Raw / Spell buff (before, the cap swallowed it). Mixing the two rules made a Raw buff next to another boost *lower* a capped hit. Path of Exile's "increased" pool isn't capped by the stat either. The other option, keeping the Raw / Spell share capped, needs a capped-share term in the sum.
+
 ### D-164 — Apparel: a gear piece outside the budget, with its own crystal socket
 **Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
 **Answer (Crown):** add an **apparel** gear piece, working like the deckbuilder's (`wor-deckbuilder docs/reference/01-card-model.md`: Apparel, a vessel with HP and Defence lines and a crystal socket):
@@ -4242,19 +4258,28 @@ Moved here once applied. Newest first.
 **Notes for Claude:** B-187b part 1; new row B-187c. As built (review): only the revived team's members get its steps (other teams caught in the same fight fight as placed), and only a team whose own rank is a mini-boss's leaves a rest spot.
 
 ### Q-187d — Co-op rest: what a client's rest restores, how a shared chest tallies, where players return
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187d, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-08: (1) changed to B; (2) and (3) A confirmed) · **Raised:** 2026-11-08 (B-187d, cloud) · **Blocks:** —
 **Question:** (1) When a client presses a rest spot, what is restored? (2) With chests per player (B-235c), does each player's open add to the run's tally (B-073 pays every player the full tally)? (3) Where does each player stand after a revive?
 **Options / as built:** (1) **A** the whole shared party on the host (every seat, the friends' included) / B only the presser's characters. (2) **A** a chest counts once, on its first open by anyone / B every player's open counts. (3) **A** side by side at the stand, 150 cm apart, alternating right and left, the stand itself when a side is blocked / B everyone at player starts.
 **Recommendation:** all A. (1) Baldur's Gate 3's long rest and Divinity: Original Sin 2's bedroll restore the whole party at once, which co-op players expect. (2) Each player already gets their own chest's item (Diablo IV-style personal loot); counting a chest once keeps the shared payout what one chest is worth to each player rather than doubling it with the party size. (3) Monster Hunter and Deep Rock Galactic regroup the team at one spot, side by side.
-**Answer:** **A, A, A**, by the reference-backed default (2026-11-08). Crown may change any.
-**Notes for Claude:** B-187d (`WoRRestSpot::Rest` on the host, `ATrialChest::Interact` / `IsOpenedByAnyone`, `TrialReturn::GetReturnStand`). (1) restores the host's party, which holds every seat (B-360b); a friend's character outside it is not restored (TODO with B-187e).
+**Answer (Crown, 2026-11-08):** **(1) B: only the character(s) that use the rest spot rest**, i.e. the presser's own (the ones that player commands); friends' characters don't heal or revive from someone else's press. In solo that is still the whole party (the player commands everyone). **(2) A** and **(3) A** confirmed. (The reference-backed default had been A, A, A.)
+**Notes for Claude:** (1) as Crown changed it: `WoRRestSpot::RestsMember`, the presser's claimed members (`AWoRPlayerState::ClaimsMember` / `ClaimsCharacter`), plus, for the host, every member no player claims (unclaimed and AI seats); `UPartySessionSubsystem::RestMembersWhere`. Earlier note: B-187d (`WoRRestSpot::Rest` on the host, `ATrialChest::Interact` / `IsOpenedByAnyone`, `TrialReturn::GetReturnStand`). (1) restores the host's party, which holds every seat (B-360b); a friend's character outside it is not restored (TODO with B-187e).
 
 ### Q-187e — Co-op rest menu: what a client's Revive and Leave do
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187e, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-08: (1) changed to a vote; (2) A confirmed by Crown: Leave stays personal) · **Raised:** 2026-11-08 (B-187e, cloud) · **Blocks:** —
 **Question:** The run lives on the host. From a client's rest menu: (1) what does Revive the mini-boss do? (2) what does Leave do?
 **Options / as built:** (1) **A** asks the host, which revives it for everyone (the party fights it again) / B host only, hidden on clients. (2) **A** the client leaves the session only, back to their own hub; the run and its rewards stay with the others / B asks the host to end the run for everyone / C hidden on clients.
 **Recommendation:** all A. Monster Hunter lets any hunter abandon a quest alone (they leave, the others carry on, and the leaver gets no reward); Deep Rock Galactic likewise lets a player leave a mission without ending it. A shared revive is the party's choice like resting is (Q-187d).
-**Answer:** **A, A**, by the reference-backed default (2026-11-08). Crown may change either.
+**Answer (Crown, 2026-11-08):** **(1) Revive the mini-boss is a vote.** Any player can start it from a rest menu. Every player **outside battle** at that moment votes; players in a fight don't vote and aren't counted. It passes only if **all** of them agree (unanimous), and then the host revives it as before. A vote can't start for a starter in a fight, and a player who enters a fight during the vote leaves the voter list. Solo there is no vote: it just revives. **(2) Leave stays as built** (personal: that player leaves the session); Crown can change it.
+**Notes for Claude (as built):** `Trial/ReviveVote.h` (rules: the starter's start is its yes; one no fails; `TIMEOUT_SECONDS` 30, TODO tune); `AWoRGameState::StartReviveVote` / `CastReviveVote` (a replicated `FReviveVote`, a 1 s timer that drops voters who entered a fight and checks the timeout); `AWoRPlayerState::ServerReviveMiniBoss` starts it and `ServerCastReviveVote` answers. Placeholder UI: Vote yes / no in the rest menu, the message to each voter, and `wor.Trial.Vote yes | no`.
+
+### Q-187e2 — A passed revive vote while someone is in a fight
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-187e review, cloud) · **Blocks:** —
+**Question:** Q-187e lets players outside battle vote while another player fights. But a revive reloads the whole level, which would end that player's fight. What happens when the vote passes during a fight?
+**Options / as built:** **A** it waits: everyone is told "the mini-boss returns when the fight ends", and the host revives it once no fight is running; no new vote starts meanwhile / B it fails ("a fight is on") / C the fight is ended.
+**Recommendation:** A. Baldur's Gate 3 never lets a party long rest while anyone is in combat; the request has to wait until the fight is over. That way the agreed revive isn't lost and nobody's fight is cut short. B would throw away a vote everyone agreed to, and C would wipe a fight.
+**Answer:** **A**, by the reference-backed default (2026-11-08). Crown may change it.
+**Notes for Claude (as built):** `AWoRGameState::CloseReviveVote` sets `bReviveWaitsForFight`; the 1 s vote timer revives once `IsAnyFightActive` is false. `ReviveAfterVote` checks `CanReviveHere` again, and the message says what really happened. The client's `ServerReviveMiniBoss` refuses only a player who is in a fight themselves, like the host's path.
 
 ### Q-235d — Co-op: who gets a memory the run unlocks?
 **Status:** ANSWERED (Crown, 2026-11-08: changed from A) · **Raised:** 2026-11-08 (B-235d, cloud) · **Blocks:** —
@@ -4280,7 +4305,7 @@ Moved here once applied. Newest first.
 **Recommendation:** all A. Shangri-La Frontier's curses (Lycagon's Mark) come from what the player did and stay until a specific scenario lifts them, and they are the key to other scenarios; Dark Souls' curse-style statuses and Elden Ring's Frenzied Flame are likewise lifted by one specific act. Per player follows Q-235d.
 **Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; which curses exist and what they say is Crown's (lore). What a curse weakens in a fight is B-378b: by the same default, its penalty lines weaken the holder's own party characters only (not enemies, not a friend's), in and out of fights, flat (not tier-scaled), summed when several are held.
 **Answer (Crown, 2026-11-08; MemoryCatalogue §3.8 on dev):** (1) a curse is given by a **memory or a hidden quest** (the quest's end, or a step's reward). (2) A curse can be a **hidden-quest condition** ("parry while this curse is on you": the CurseHeld condition on a step). (3) Curses are **clearable**: by a RemoveCurse memory or quest, or by the **player choosing to clear one** (by default a hub service with a placeholder C++ button; Crown can move it). While it's cleared, a quest step that needs it can't move on. (4) Curses are **regainable**: meeting its giving memory's or quest's conditions again gives it back. This is an exception to the one-time unlock for curse-giving: the curse comes back, not the memory text. The rest of Q-378 stays as built.
-**Notes for Claude (as built, Q-378 change):** `UCurseSubsystem::ClearCurse` / `RegainFrom` / `CheckRegain` (called from `MemoryConditions::CheckEvent`); `AddCurse` no longer refuses a curse lifted before. `FHiddenQuestStep::Rewards`; `UHiddenQuestSubsystem::RegainCurses` (a done step met again; for a finished quest's last step, its end memory's curses too). One meeting is enough to regain. The hub's Clear curse button is B-378b; `wor.Curse.Clear <id>` for now. TODO(co-op): a friend's own curses regain on their machine. A curse lifted by its RemoveCurse cure is regainable too, as Crown's words say (review: a cure and the giver met by the same event don't undo each other; `UCurseSubsystem::BeginEvent`). Flag for Crown: should a cure be permanent and only the player's clear regainable? As built, both are regainable.
+**Notes for Claude (as built, Q-378 change):** `UCurseSubsystem::ClearCurse` / `RegainFrom` / `CheckRegain` (called from `MemoryConditions::CheckEvent`); `AddCurse` no longer refuses a curse lifted before. `FHiddenQuestStep::Rewards`; `UHiddenQuestSubsystem::RegainCurses` (a done step met again; for a finished quest's last step, its end memory's curses too). One meeting is enough to regain. The hub's Clear curse button is B-378b; `wor.Curse.Clear <id>` for now. TODO(co-op): a friend's own curses regain on their machine. A curse lifted by its RemoveCurse cure is regainable too, as Crown's words say (review: a cure and the giver met by the same event don't undo each other; `UCurseSubsystem::BeginEvent`). **Confirmed by Crown (2026-11-08, MemoryCatalogue §3.8):** a lifted or cleared curse is regainable, as built.
 
 ### Q-379 — Hidden counters: what is counted, whose, and when a milestone opens
 **Status:** ANSWERED (confirmed by Crown, 2026-11-08: kept as built, all A) · **Raised:** 2026-11-08 (B-379, cloud) · **Blocks:** —
@@ -4299,7 +4324,75 @@ Moved here once applied. Newest first.
 **Crown (2026-11-08):** kept as built, and added **activations** (MemoryCatalogue §3.11): a gear quest's start can need the item in a certain state: a crystal of a given element in its socket (e.g. an apparel piece with a Fire crystal), an evolution attached, an augment stone, an upgrade level or tier. Built on B-381 (WornItemState condition).
 
 ### Q-380 — Apparel: slots, what its crystal gives, evolutions on it
-**Status:** ANSWERED (Crown, 2026-11-08; tier scaling by the reference-backed default) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-08; (4) tier scaling confirmed by Crown) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —
 **Question:** D-164 left open: (1) how many apparel slots; (2) what an apparel crystal gives beyond its element; (3) whether an evolution can sit in an apparel socket, and what it gives; also (4) whether apparel's lines scale with its tier.
 **Answer (Crown, 2026-11-08):** (1) **two** (the deckbuilder's `MaxApparelSeated` 2). (2) **resistance to its element**, on top of the piece's own lines; apparel also **carries effects** like the deckbuilder's vessels. (3) **yes**: as on other gear it gives its passive effects (D-147 / B-357c), keys the piece to its element and adds that element's resistance like a crystal, and powers no skill; its cost does not matter (outside the budget). No augment stone. (4) **yes**, as every gear line (HP raw), by the reference-backed default; Crown may change it.
 **Notes for Claude:** B-380: `ApparelRules::MAX_APPAREL_SLOTS`, `CRYSTAL_ELEMENT_RESISTANCE` (5, TODO tune), `CanSocket`, `FApparelEntry::GetEvolution`; the effects through the loadout's effect gatherers. At merge with B-357b, gate the apparel evolution's passives as gear evolutions are (charge level 2).
+**Crown (2026-11-08):** (4) kept: apparel lines scale with the piece's tier, as built.
+
+### Q-387 — Crystals grant Amp of their element by tier (Q-164b's "later question")
+**Status:** Answered (approved by the reference-backed default: the deckbuilder rule) · **Raised:** 2026-11-08 (brain) · **Blocks:** —
+**Question:** In the deckbuilder a Crystal's and an Evolution's Amp come from their tier, to their own element. Should socketed crystals here grant Amp the same way?
+**Answer (default):** yes. A refined crystal in a worn socket (the weapon's or adapter's element socket, an apparel piece's) grants Amp to its element by its tier: **F 0, E 0, D 1, C 1, B 2, A 2, S 3** (`wor.core/.../TierLadders.cs:20-30`). The evolution in the character's own seat grants the same by its tier. An evolution in a **gear** socket gives none: here it gives passives only (D-147, this game's ruling; the deckbuilder has no such rule). Quartz and other element-less crystals give none; a **broken** crystal or seated evolution gives none (it already loses its element key and spells, D-083); a fusion gives none (only a crystal-kind socket counts). Built in B-387.
+**Notes for Claude:** the crystal-on-apparel +5 element resistance (D-164) stays as it is; the deckbuilder's matching crystal Def grant is not ported (resistance already covers it).
+
+### Q-386 — Apparel Amp lines (follows D-164 and Q-164b)
+**Status:** Answered (approved by the reference-backed default: the deckbuilder rule) · **Raised:** 2026-11-08 (brain) · **Blocks:** —
+**Question:** D-164 gave apparel only HP and Defence lines because this game had no Amp stat. Now it has one (B-382). Should apparel carry Amp?
+**Answer (default):** yes, as the deckbuilder's Apparel does (default tiles `HP · Amp · Def`, `01-card-model.md`). Apparel's Amp lines join the wearer's one Amp total like any gear's. Built in B-386.
+
+
+### Q-380d — Apparel socket: what happens to the crystal taken out?
+**Status:** Answered (approved by the reference-backed default) · **Raised:** 2026-11-08 (cloud writer, B-380d) · **Blocks:** —
+**Question:** When a new crystal goes into an apparel piece's socket, what happens to the old one?
+**Answer (default):** it goes back to storage as one crystal of its type and tier. Its wear isn't kept, because stored crystals carry none. An evolution taken out stays owned. Reference: Monster Hunter World / Rise decorations come out of gear intact and freely, which is widely liked because it makes trying builds cheap. D-097 here says items are never thrown away.
+**Notes for Claude:** built in `UPoolSubsystem::AttachToApparel`. If swapping out a worn crystal becomes a free repair, keep its wear or charge the repair cost: Crown's call.
+
+### Q-380c — Apparel worn on an authored (lore) loadout: owned or stripped?
+**Status:** Answered (approved by the reference-backed default); built in B-380e · **Raised:** 2026-11-08 (B-380c review) · **Blocks:** —
+**Question:** Apparel authored on a character's lore loadout isn't in the store. Strip it like other unowned gear, or keep it?
+**Answer (default):** keep it, as the character's own kit. The first draw banks it into the store, as `BankStartingGear` does for authored weapons, so it is owned and `StripUnownedGear` treats it like any piece. Apparel the player puts on a lore loadout is saved per character (lore loadouts themselves are rebuilt from the asset). Reference: this game's own starting-gear rule (B-321); the deckbuilder's starting deck is owned.
+**Notes for Claude:** B-380e. The lore loadouts are rebuilt from the asset each draw, so banking must match by asset and slot, not by a new id, or each session mints a copy. Needs a build to test.
+
+### Q-164b — An Amp stat? (D-164 "look into later"; reshaped by Crown 2026-11-08: compare first)
+**Status:** Answered (Crown, 2026-11-08): **A, as an addition** (existing damage sources unchanged; folding ModifyDamageDealt into DamageBuff is not part of it). Defaults taken: small numbers, flat into the base per action, no status buildup, crystal Amp by tier later. Built in **B-382** · **Raised:** 2026-11-08 (cloud writer, from D-164) · **Blocks:** —
+**Question:** The deckbuilder's cards carry **Amp** (`+2 Amp` for every skill, `+1 Fire Amp` for one element's) and **Def** (`+1 Def`, `+2 Fire Def`). They are flat lines on any card, all added into one total. Does this game need Amp, or does an existing source already cover it? Judge it by "granular and composable".
+**The comparison:** `docs/analysis/DamageAndDefenceSources_2026-11-08.md` (every damage and defence source, with code lines, scope and stacking).
+- **Defence: already covered.** Element resistance is the deckbuilder's element Def: keyed to one element and summed from every source (gear, apparel, evolution, class profile, effects). Defence is its plain Def.
+- **Damage: one gap.** Nothing raises one element's damage.
+  - Gear has only Raw / Spell lines (`FEquipmentStatBonus`).
+  - The all-damage effects ignore their element (`GetTotalStatModifier`).
+  - Meanwhile four "all damage %" channels already multiply each other (DamageBuff, ModifyDamageDealt, Raw / SpellDamageBuff, difficulty).
+**Options:**
+- **A — Amp as keyed lines in one sum (the deckbuilder's model).**
+  - **The line:** an `Amp` line has a scope: All, Physical, Spell or one element. It can sit on gear, apparel, evolutions, curses and effects.
+  - **The sum:** every line whose scope matches the action is added into one Amp total, as resistance is summed today.
+  - **Where it enters:** flat, added to the skill's base before the multipliers, once per action, not per hit.
+  - **Effects:** an element-keyed DamageBuff reads through the existing exact-element read (`GetTotalStatModifierForElement`, already used for status buildup). The generic and the keyed reads are two calls, so they never double-count.
+- **B — Amp as a percent**, all or one element (`+10% Fire damage`): one more multiplier beside the four, the usual stacking inflation.
+- **C — a flat add after the multipliers** (beside the stone): it fades at high tiers (tier power reaches ×4.8) unless its numbers scale with the item's tier.
+- **D — no Amp.** Element damage stays inexpressible; build variety per element comes only from the target's resistances.
+**Recommendation:** **A**.
+- **The deckbuilder comes first.** It is this game's simplest level, and its Amp is exactly "keyed lines, one sum". This game already composes defence that way, so Amp mirrors resistance and adds no new idea.
+- **Reference-backed:**
+  - **Path of Exile.** "Adds X to Y Fire Damage" is added to the base and then scaled by the multipliers; flat added damage of one element is a well-liked build axis. It is also known to make fast multi-hit skills run away, which per-action Amp avoids.
+  - **Monster Hunter.** A weapon's separate element value makes element builds (Fire against Fire-weak monsters) a favourite way to play.
+  - **Diablo IV, Season 4 ("Loot Reborn", 2024).** It cut many overlapping damage affixes down to fewer, clearer ones, and players welcomed it. That argues against B's fifth percent channel.
+- **Defaults if Crown picks A:**
+  - small numbers, like the deckbuilder's +1 / +2 against base damage;
+  - Amp does not raise status buildup (StatusMultiplier has its own line);
+  - crystals granting Amp of their element by tier (the deckbuilder's F0 E0 D1 C1 B2 A2 S3 ladder) is a later, separate question.
+- **A separate tidy-up (not part of this question):** fold ModifyDamageDealt into DamageBuff, since both are "all damage %".
+**Notes for Claude (as built in B-382):**
+- `FEquipmentStatBonus` gets `BonusAmp` plus a per-element Amp (a nine-entry map or nine lines). It is summed in `GetActiveStatBonus` and read in `PreviewActionDamage` for the action's resolved element, before the infusion and tier multipliers.
+- An element-keyed DamageBuff effect reads through `GetTotalStatModifierForElement`.
+- The `wor.Damage` breakdown shows the Amp line.
+- Add a DamageCalculatorSpec case.
+
+### D-168 — Defence is resistance by damage type: the general Defence becomes "All" resistance
+**Status:** DECIDED (Crown, 2026-11-08, brain session) · **Raised:** 2026-11-08 · **Blocks:** —
+**Answer (Crown):** treat defence as the deckbuilder does (`wor-deckbuilder docs/reference/01-card-model.md`: `+1 Def`, `+2 Fire Def`, all lines summed into one total), as **resistance by damage type**: one family of scoped lines (**All**, Physical, Spell, each element), summed per type from every source (gear, apparel, crystals, evolutions, effects, the class table).
+- Today's general **Defence becomes the "All" line** of that family (Crown: "isn't that how it works in most games"; it keeps today's behaviour: a cut against every hit).
+- **The % maths stays** (this game's numbers are tier-scaled up to ×4.8, so the deckbuilder's flat +1 / +2 would fade): the All line keeps Defence's step and its 75% cap (ED-20); the per-type lines keep resistance's step and its ±50% cap (ED-27). No balance change intended.
+- Mirrors Amp (Q-164b) and the scopes of D-166.
+**Notes for Claude:** a naming and data-shape change first (one `Resistance` line type with a scope; `Defense` read as its All line; old fields read across), then the readers. Rules ED-20 / ED-27, the Resistance and DamageCalculator docs.

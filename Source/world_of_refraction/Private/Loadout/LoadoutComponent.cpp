@@ -2578,6 +2578,16 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 
 // ==================== COMBAT ACCESSORS ====================
 
+void ULoadoutComponent::NotifyApparelChanged()
+{
+    if (UCharacterDataComponent *Data = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        Data->RecomputeMaxPools(); // gear HP
+    }
+    const UInventoryComponent *Inv = GetInventoryComponent();
+    OnLoadoutChanged.Broadcast(Inv ? Inv->ActiveLoadoutIndex : 0); // GAS stats and resistances re-sync on this
+}
+
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
     // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.
@@ -4353,6 +4363,9 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         Combined.BonusMindModifierPercent   += Src.BonusMindModifierPercent;
         Combined.BonusBodyModifierPercent   += Src.BonusBodyModifierPercent;
         Combined.BonusSpiritModifierPercent += Src.BonusSpiritModifierPercent;
+        // B-382 (Q-164b): Amp lines are flat adds to an action's base, which the skill's own tier power
+        // scales; scaling them by the item's tier too would double it, so they sum raw.
+        Combined.Amp.Accumulate(Src.Amp);
     };
 
     auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Tier : EItemTier::F_Tier; }; // instance Tier (was E.Weapon->Tier)
@@ -4360,16 +4373,29 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 
     const FCombatLoadout &Loadout = GetActiveLoadout();
 
+    // B-387 (Q-387): a refined crystal in a worn socket grants Amp to its own element by its tier (the deckbuilder's
+    // ladder). An evolution in a gear socket gives passives only (D-147), so only a crystal counts here; a broken one
+    // gives none (as it loses its element key and spells, D-083).
+    auto AddSocketCrystalAmp = [&Combined](const FRuntimeAttachedItem &Socket)
+    {
+        if (Socket.IsCrystal() && !Socket.IsBroken())
+        {
+            AmpRules::AddElementLine(Combined.Amp, Socket.GetElement(), AmpRules::GetCrystalTierAmp(Socket.Crystal.Id.Tier));
+        }
+    };
+
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
     ForEachContributingGear([&](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
         if (Weapon)
         {
             AddScaled(Weapon->WeaponEntry.StatBonus, WeaponTier(Weapon->WeaponEntry));
+            AddSocketCrystalAmp(Weapon->WeaponEntry.AttachedItem);
         }
         else
         {
             AddScaled(Adapter->RingEntry.StatBonus, RingTier(Adapter->RingEntry));
+            AddSocketCrystalAmp(Adapter->RingEntry.AttachedItem);
         }
     });
 
@@ -4391,15 +4417,24 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         EvoBonus.BonusBodyModifierPercent = 0.0f;
         EvoBonus.BonusSpiritModifierPercent = 0.0f;
         AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
+        // B-387 (Q-387): the evolution in the character's own seat grants Amp to its element by its tier (on gear it
+        // gives passives only, D-147).
+        if (!Loadout.PrimaryEvolution.IsBroken())
+        {
+            AmpRules::AddElementLine(Combined.Amp, Loadout.PrimaryEvolution.Item->GetAssociatedElement(),
+                                     AmpRules::GetCrystalTierAmp(Loadout.PrimaryEvolution.Tier));
+        }
     }
 
-    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines (nothing else), tier-scaled like gear;
+    // B-380 (D-164): every apparel piece worn adds its HP and Defence lines, tier-scaled like gear, and its Amp lines
+    // raw (B-386, through AddScaled);
     // outside the budget, so it sits beside whatever ForEachContributingGear visits.
     for (const FApparelEntry &Piece : Loadout.Apparel)
     {
         if (Piece.Apparel)
         {
             AddScaled(Piece.GetStatLines(), Piece.Tier);
+            AddSocketCrystalAmp(Piece.AttachedItem); // B-387
         }
     }
 
