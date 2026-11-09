@@ -62,7 +62,7 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** _optional_
 
 ### D-088 — Actions per turn (discussion: one utility then one battle action; Turn Speed stays)
-**Status:** DISCUSSED, NOT TO BUILD YET (Crown, 2026-10-26: a discussion for now; don't implement until Crown says) · **Raised:** 2026-10-26 (rules review, actions per turn) · **Blocks:** — (turn-system plan, B-170)
+**Status:** APPROVED, PLAN FIRST (Crown, 2026-11-09: build B-170's plan; code after Crown approves it) · **Raised:** 2026-10-26 (rules review, actions per turn) · **Blocks:** — (turn-system plan, B-170)
 **Answer (Crown):** (2026-10-26)
 - **Action pips:** each turn you get **action pips** set by your **Reflex** stat; each action (attack, skill, item, …) costs a pip, so a high-Reflex character can act **more than once per turn**.
 - **No Turn Speed:** turn order becomes **fixed (round-robin)**, as the deckbuilder's turn belt. A faster-paced game; Reflex is what makes a character "fast".
@@ -98,6 +98,7 @@ The queue of questions only Crown can answer.
 - Reflex today also widens the defense timing window; keep both jobs or split them.
 - Effect durations already count the holder's own turns (D-051), unchanged.
 
+**Confirmed by Crown (2026-11-09):** the fixed rotation and banked actions stay (Turn Speed goes; Reflex sets Max Actions). Next is B-170's plan doc (`docs/analysis/ActionPips.md`). Open for the plan: Speed is split again into Action Speed and Spell Speed (D-151), so say which one Ice slows.
 ### D-089 — Should Energy refill each turn?
 **Status:** DECIDED, BUILD (Crown, 2026-11-09: changed from C, see the change below) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
 **Question:** EP never refills on its own today (ET-29: only effects, items, drains and Broken Darkness absorption). Should it?
