@@ -394,6 +394,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID);
 
+    /** B-380d: EvoInstanceID is seated as a loadout's primary or attached to a weapon, adapter or worn apparel piece (the
+     *  one-evolution-one-slot guard). The gear screen asks this before UPoolSubsystem::AttachToApparel. */
+    bool IsEvolutionInUse(const FGuid &EvoInstanceID) const;
+
     /** Socket a refined gem or an augment stone onto the owned ring (by PersistentID). Ring counterpart of
      *  AttachCrystalToWeapon — same DEBIT model. B-351 (D-141): an adapter has an element socket (gem) and a stone
      *  socket (stone) like a weapon; the weapon-only stone guard retired. Fires ONE signal: Equipped. */

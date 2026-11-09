@@ -14,13 +14,20 @@
 #include "TrialRestSpot.generated.h"
 
 class UWorld;
+class AWoRPlayerState;
+struct FPartyMember;
 
 namespace WoRRestSpot
 {
-	/** Rests the party at RestSpotId: revive the fallen, every member to full, the run's last rest spot. Returns how
-	 *  many members were revived; INDEX_NONE outside a run. bLocalPlayerRests false (a client's rest, run on the host):
-	 *  the host's own at-rest-spot flag stays as it is (merge B-187e + B-363: the client's Close never clears it). */
-	WORLD_OF_REFRACTION_API int32 Rest(UWorld *World, FName RestSpotId, bool bLocalPlayerRests = true);
+	/** Rests at RestSpotId: the presser's characters back to full (the fallen revived), the run's last rest spot. Returns
+	 *  how many were revived; INDEX_NONE outside a run. Q-187d (Crown, 2026-11-08): only the characters Presser
+	 *  commands rest (RestsMember); a null Presser (console, specs) rests the whole party. */
+	WORLD_OF_REFRACTION_API int32 Rest(UWorld *World, FName RestSpotId, const AWoRPlayerState *Presser = nullptr);
+
+	/** Q-187d: whether Presser's press rests Member: Presser claims it (by member id or character), or Presser is the host
+	 *  and no player in Players claims it (unclaimed members and AI seats are the host's; solo, that is the whole party). */
+	WORLD_OF_REFRACTION_API bool RestsMember(const FPartyMember &Member, const AWoRPlayerState *Presser, bool bPresserIsHost,
+											 const TArray<const AWoRPlayerState *> &Players);
 
 	/** Leaves the run here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False
 	 *  outside a run. */

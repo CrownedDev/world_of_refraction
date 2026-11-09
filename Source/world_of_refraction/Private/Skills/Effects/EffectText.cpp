@@ -198,7 +198,13 @@ namespace
     /** Gain, lose, give (07, "Gain, lose, give"): "gain +20% Defense", "lose 1 Defense", "give an Enemy -20% Defense". */
     FText StatBody(const FSkillEffectPayload &P, const FSide &Side, const FText &Stat, bool bRaises)
     {
-        const FText Named = FText::Format(LOCTEXT("StatWithElement", "{0}{1}"), ElementPrefix(P.Element), Stat);
+        // B-383 (D-166): a damage / defence boost names its scope ("Fire Damage" only when it is Fire-scoped); other
+        // stats keep their element prefix.
+        const FText Prefix = !WoRDamageScope::IsScopedType(P.EffectType) || P.DamageScope == EDamageScope::Element ? ElementPrefix(P.Element)
+                             : P.DamageScope == EDamageScope::Physical ? LOCTEXT("ScopePhysicalPrefix", "Physical ")
+                             : P.DamageScope == EDamageScope::Spell ? LOCTEXT("ScopeSpellPrefix", "Spell ")
+                             : FText::GetEmpty();
+        const FText Named = FText::Format(LOCTEXT("StatWithElement", "{0}{1}"), Prefix, Stat);
         if (Side.bSelf)
         {
             return bRaises ? FText::Format(LOCTEXT("Stat_Gain", "gain +{0} {1}{2}"), Amount(P), Named, Span(P))

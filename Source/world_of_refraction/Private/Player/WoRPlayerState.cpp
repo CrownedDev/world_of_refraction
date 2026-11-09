@@ -610,11 +610,12 @@ void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 		Client_ShowFeatureMessage(Refused);
 		return;
 	}
-	// Review: never mid-fight (a menu left open while the host walked into one), and only from beside the rest stand.
-	const UTurnManager *Turns = WoRFight::Get<UTurnManager>(this);
-	if (Turns && Turns->IsCombatActive())
+	// Review: never from a player in a fight (Q-187e: a vote can't start mid-fight for the starter), and only from beside
+	// the rest stand. Another player's fight doesn't refuse it: a passed vote waits for that fight to end (Q-187e2).
+	const AWoRGameState *VoteState = World ? World->GetGameState<AWoRGameState>() : nullptr;
+	if (VoteState && VoteState->IsPlayerInBattle(this))
 	{
-		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: a fight is on"), *GetPlayerName());
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: in a fight"), *GetPlayerName());
 		Client_ShowFeatureMessage(Refused);
 		return;
 	}
@@ -629,8 +630,20 @@ void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 		Client_ShowFeatureMessage(Refused);
 		return;
 	}
-	UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s revives the mini-boss (B-187e)"), *GetPlayerName());
-	WoRRestSpot::ReviveMiniBoss(World);
+	// Q-187e (Crown, 2026-11-08): a vote of every player outside battle; solo it revives at once.
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s asks to revive the mini-boss (B-187e vote)"), *GetPlayerName());
+	if (AWoRGameState *GameState = World ? World->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->StartReviveVote(this);
+	}
+}
+
+void AWoRPlayerState::ServerCastReviveVote_Implementation(bool bYes)
+{
+	if (AWoRGameState *GameState = GetWorld() ? GetWorld()->GetGameState<AWoRGameState>() : nullptr)
+	{
+		GameState->CastReviveVote(this, bYes);
+	}
 }
 
 void AWoRPlayerState::ServerInteractFeature_Implementation(ATrialMapFeature *Feature)

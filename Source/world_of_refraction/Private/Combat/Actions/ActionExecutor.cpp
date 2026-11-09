@@ -592,6 +592,12 @@ float UActionExecutor::GetWeaponRequirementFactor(AActor *Actor, const FAction &
 	return Weapon->Requirements.GetWeaponRequirementFactor(GetLiveWorldLevels(Actor, *UserData));
 }
 
+int32 UActionExecutor::GetActionAmp(AActor *Actor, ESpellElement ResolvedElement, bool bIsSpell) const
+{
+	const ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+	return Loadout ? Loadout->GetActiveStatBonus(Actor).Amp.GetTotalFor(ResolvedElement, bIsSpell) : 0;
+}
+
 float UActionExecutor::GetWeaponPart(AActor *Actor, const FAction &Action) const
 {
 	if (Action.ActionType == EActionType::Spell)
@@ -679,11 +685,21 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 		}
 	}
 
+	// B-382 (Q-164b A): Amp adds flat to the base, once per action, so every multiplier after it scales it.
+	// Only a damaging action takes it (a 0-damage buff or heal spell stays 0).
+	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, Preview.Element, bIsSpell) : 0;
+	if (bLog && Preview.AmpBonus != 0)
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[Amp] %s: %d + Amp %d (%s)"), *Skill->Name, Preview.BaseDamage, Preview.AmpBonus,
+			   *UEnum::GetDisplayValueAsText(Preview.Element).ToString());
+	}
+
 	// 6-3-3: per-mode, stat-scaled charge damage (L0 x1.0), resolved from the action's infusion source.
 	const int32 InfusionLevel = bIsSpell ? Action.SpellInfusionLevel : Action.AbilityInfusionLevel;
 	const EInfusionMode Mode = ResolveInfusionMode(Action.SelectedSource, User);
 	Preview.ChargeMultiplier = GetChargeDamageMultiplier(InfusionLevel, Mode, bIsSpell, GetCharacterDataComponent(User));
-	int32 Damage = FMath::RoundToInt(Preview.BaseDamage * Preview.ChargeMultiplier);
+	// A negative Amp total never takes the base below zero.
+	int32 Damage = FMath::RoundToInt(FMath::Max(0, Preview.BaseDamage + Preview.AmpBonus) * Preview.ChargeMultiplier);
 
 	// Tier-gap (B2) then tier-power (the skill's OWN tier, F=x1.0 floor); all commutative.
 	const float TierGap = bLog ? ResolveTierGapMultiplier(User, Action, Skill->Name) : GetTierGapDamageMultiplier(User, Action);
