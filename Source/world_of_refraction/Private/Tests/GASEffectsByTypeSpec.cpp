@@ -20,6 +20,10 @@ namespace
 	constexpr int32 BY_TYPE_TEST_STACKS = 2;
 	constexpr float BY_TYPE_TEST_REFLECT_VALUE = 20.0f;
 	constexpr int32 BY_TYPE_TEST_TURNS = 3;
+	/** A weaker application stacking onto a stronger one keeps the stacked value (20 x 1 = 10 x 2). */
+	constexpr float BY_TYPE_TEST_STRONG_VALUE = 20.0f;
+	constexpr float BY_TYPE_TEST_WEAK_VALUE = 10.0f;
+	constexpr int32 BY_TYPE_TEST_WEAK_ID = 9423;
 }
 
 BEGIN_DEFINE_SPEC(FGASEffectsByTypeSpec, "WoR.GAS.EffectsByType", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -88,6 +92,33 @@ void FGASEffectsByTypeSpec::Define()
 		TestEqual(TEXT("its stacked value, as stored"), GAS.Key[0].GetStackedValue(), Enum.Key[0].GetStackedValue());
 		TestEqual(TEXT("the reflect keeps its element"), GAS.Value[0].Element, ESpellElement::Fire);
 		TestEqual(TEXT("and its value"), GAS.Value[0].GetStackedValue(), Enum.Value[0].GetStackedValue());
+	});
+
+	It("follows a weaker application stacking on (the same stacked value, a new per-application value)", [this]()
+	{
+		if (!Effects)
+		{
+			return;
+		}
+		FActiveSkillEffect Strong = FActiveSkillEffect::CreateBuff(TEXT("By-type stack"), BY_TYPE_TEST_WEAK_ID, ESkillEffectType::ApplyDOTOnHit,
+																	BY_TYPE_TEST_STRONG_VALUE, BY_TYPE_TEST_TURNS);
+		Strong.bCanStack = true;
+		Strong.MaxStacks = BY_TYPE_TEST_STACKS;
+		Effects->ApplyEffect(Holder, Strong);
+		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit); // the GE as it stands
+		FActiveSkillEffect Weak = Strong;
+		Weak.EffectValue = BY_TYPE_TEST_WEAK_VALUE;
+		Effects->ApplyEffect(Holder, Weak);
+		UWoREffectMirrorComponent::SetReadsFromGAS(false);
+		const TArray<FActiveSkillEffect> Stored = Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit);
+		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		const TArray<FActiveSkillEffect> OnGAS = Effects->GetEffectsByType(Holder, ESkillEffectType::ApplyDOTOnHit);
+		if (TestEqual(TEXT("one stored"), Stored.Num(), 1) && TestEqual(TEXT("one on GAS"), OnGAS.Num(), 1))
+		{
+			TestEqual(TEXT("the per-application value follows the store"), OnGAS[0].EffectValue, Stored[0].EffectValue);
+			TestEqual(TEXT("and the stacked value"), OnGAS[0].GetStackedValue(), Stored[0].GetStackedValue());
+		}
 	});
 }
 
