@@ -208,12 +208,74 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
 
-	It("lists the three menu keys", [this]()
+	It("matches each category key to its class's buttons (B-391)", [this]()
+	{
+		TestTrue(TEXT("Skills key presses Abilities"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Abilities, EPieMenuCategory::Abilities));
+		TestTrue(TEXT("Skills key presses a weapon resonance"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Abilities, EPieMenuCategory::ResonateWeapon));
+		TestTrue(TEXT("Spells key presses a ring resonance"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Refractions, EPieMenuCategory::ResonateRing));
+		TestTrue(TEXT("Spells key presses a breakthrough"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Refractions, EPieMenuCategory::Breakthrough));
+		TestFalse(TEXT("Attack key never presses Items"),
+				  CommandMenuRules::KeyPressesButton(EPieMenuCategory::Attack, EPieMenuCategory::Items));
+		TestTrue(TEXT("Attack is a main-menu key"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Attack));
+		TestFalse(TEXT("Defend keeps its own rule"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Defend));
+	});
+
+	It("ignores a category key whose button the menu doesn't offer (B-391)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		// The duel's bare loadout has no weapon, so no Attack button and no abilities.
+		TestFalse(TEXT("Attack key"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestFalse(TEXT("Skills key"), Menu->PressMenuKey(EPieMenuCategory::Abilities));
+		TestTrue(TEXT("Still on the main menu"), Menu->IsAtMainMenu());
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("ignores the category keys outside the main menu (B-391)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		FPieMenuButtonData Ability;
+		Ability.Category = EPieMenuCategory::Ability;
+		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
+		Menu->HandleSelection(Ability);
+
+		TestFalse(TEXT("Items key"), Menu->PressMenuKey(EPieMenuCategory::Items));
+		TestFalse(TEXT("Flee key"), Menu->PressMenuKey(EPieMenuCategory::Flee));
+		TestTrue(TEXT("Still picking"), Menu->IsOpen() && !Menu->IsAtMainMenu());
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("lists the menu keys", [this]()
 	{
 		const FString Keys = ACombatPlayerController::GetMenuKeysString();
 		TestTrue(TEXT("Defend"), Keys.Contains(TEXT("IA_Combat_MenuDefend")));
 		TestTrue(TEXT("Source"), Keys.Contains(TEXT("IA_Combat_MenuInfusionSource")));
 		TestTrue(TEXT("Level"), Keys.Contains(TEXT("IA_Combat_MenuInfusionLevel")));
+		TestTrue(TEXT("Attack (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuAttack")));
+		TestTrue(TEXT("Skills (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuSkills")));
+	});
+
+	It("gives every menu key a unique action name and a keyboard key (D-063, B-391)", [this]()
+	{
+		TSet<FName> Names;
+		for (const FCombatMenuKey &Key : ACombatPlayerController::GetMenuKeys())
+		{
+			TestFalse(FString::Printf(TEXT("%s is unique"), *Key.ActionName.ToString()), Names.Contains(Key.ActionName));
+			Names.Add(Key.ActionName);
+			TestTrue(FString::Printf(TEXT("%s has a keyboard key"), *Key.ActionName.ToString()), Key.Keyboard.IsValid());
+			const bool bKnownRule = Key.Category == EPieMenuCategory::Defend || Key.Category == EPieMenuCategory::CycleSource ||
+									Key.Category == EPieMenuCategory::CycleLevel || CommandMenuRules::IsMainMenuKey(Key.Category);
+			TestTrue(FString::Printf(TEXT("%s presses a category PressMenuKey knows"), *Key.ActionName.ToString()), bKnownRule);
+		}
 	});
 }
 

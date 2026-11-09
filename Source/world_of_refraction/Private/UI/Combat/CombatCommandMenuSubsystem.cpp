@@ -2252,8 +2252,12 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
     {
         View = RebuildCurrentPicker();
     }
+    else if (CommandMenuRules::IsMainMenuKey(Category) && CurrentDepth == ECombatMenuDepth::Main) // B-391
+    {
+        View = BuildMainMenuButtons();
+    }
     const FPieMenuButtonData *Button = View.FindByPredicate([Category](const FPieMenuButtonData &Candidate)
-                                                            { return Candidate.Category == Category && Candidate.bEnabled; });
+                                                            { return CommandMenuRules::KeyPressesButton(Category, Candidate.Category) && Candidate.bEnabled; });
     if (!Button)
     {
         UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Key for %s: no such button here"), *UEnum::GetValueAsString(Category));
