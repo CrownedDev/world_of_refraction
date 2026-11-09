@@ -230,6 +230,7 @@ The queue of questions only Crown can answer.
 - **With the switch on, `DelayNextTurn` (Wind's one-place delay) and `OnActorSpeedChanged` do nothing.** Wind's break takes an action instead, which lands with B-170d; until then the Wind break has no turn effect in rotation mode (switch on only; default play unchanged).
 - **"No actions, no turn" (D-088) is not the rotation's job:** the rotation always gives the seat; the orchestrator skips the turn at 0 actions after the turn-start changes (B-170c, §3.3). Emerald on an enemy already removes their next turn through `SkipNextTurn`, which the rotation honours; Emerald's ally actions are B-170d.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170b (`Combat/TurnRotation.h`, `UTurnManager`).
+- **The first-striking side also leads every later round** (Q-170f says the alternation starts with that side). Visible: a boss that strikes first acts twice in a row (its opening round, then B P1 …); a party that strikes first in 4v4 plays five turns in a row. Crown may prefer the other side to lead after the opening round.
 
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
