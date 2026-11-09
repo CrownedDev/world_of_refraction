@@ -181,6 +181,16 @@ struct WORLD_OF_REFRACTION_API FTurnChangePlan
 	float HandoverBlendSeconds = 0.0f;
 };
 
+/** B-401 (study R4, Q-401): how the camera comes back after one action of a turn that goes on (B-170c action pips).
+ *  bReturn: one short blend from where the last shot ended to TurnView, the same turn view the turn started on; no
+ *  wide beat. Without it the camera stays as it is (an enemy's watch view, the static view with movement off). */
+struct WORLD_OF_REFRACTION_API FSameTurnReturnPlan
+{
+	bool bReturn = false;
+	FTransform TurnView = FTransform::Identity;
+	float BlendSeconds = 0.0f;
+};
+
 struct WORLD_OF_REFRACTION_API FCombatCameraRules
 {
 	/** D-162 / Q-370: the least time between the window's end and the first defendable moment.
@@ -260,4 +270,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  movement off (Static), and not before an enemy's turn (its watch view is already the wide). */
 	static FTurnChangePlan PlanTurnChange(bool bSomeoneActed, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
 										  const FCombatCameraFrame &Frame);
+
+	/** B-401 (study R4, Q-401): the camera's way back when the actor whose turn it is gets asked again after an action
+	 *  (bActedSinceAsked). A return only for a Turn view: TurnView is PlanTurnChange's for the same actor, so every
+	 *  action of a turn starts from the same transform. Never a wide beat; only a turn change does the full move. */
+	static FSameTurnReturnPlan PlanSameTurnReturn(bool bActedSinceAsked, ECombatCameraMode Mode, ETurnViewStyle Style,
+												  const FCombatCameraFrame &Frame);
 };

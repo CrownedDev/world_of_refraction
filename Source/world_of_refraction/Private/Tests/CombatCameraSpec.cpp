@@ -446,6 +446,35 @@ void FCombatCameraSpec::Define()
 			TestTrue(TEXT("movement off still ends on the static view"), MovementOff.TurnView.GetLocation().Equals(Static.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
 		});
 	});
+
+	Describe("no reset between actions (B-401, study R4)", [this]()
+	{
+		It("sends the second action of a turn back to the same turn transform, in one short blend", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, {TURN_TEST_ONE_ENEMY});
+			for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+			{
+				const FTurnChangePlan TurnStart = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, Style, Frame);
+				const FSameTurnReturnPlan Return = FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::Turn, Style, Frame);
+				const FString Name = UEnum::GetValueAsString(Style);
+				TestTrue(Name + TEXT(": a return"), Return.bReturn);
+				TestTrue(Name + TEXT(": the turn start's own transform"), Return.TurnView.Equals(TurnStart.TurnView, TURN_TEST_LOCATION_TOLERANCE));
+				TestTrue(Name + TEXT(": a blend, not a cut"), Return.BlendSeconds > 0.0f);
+				TestTrue(Name + TEXT(": shorter than the handover from wide"), Return.BlendSeconds < TurnStart.HandoverBlendSeconds);
+			}
+		});
+
+		It("leaves the camera alone before any action, on an enemy's watch view and with movement off", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			TestFalse(TEXT("asked again without acting (a refused pick)"),
+					  FCombatCameraRules::PlanSameTurnReturn(false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame).bReturn);
+			TestFalse(TEXT("an enemy's turn"),
+					  FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame).bReturn);
+			TestFalse(TEXT("movement off: the static view"),
+					  FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame).bReturn);
+		});
+	});
 }
 
 BEGIN_DEFINE_SPEC(FCombatCameraDirectorSpec, "WoR.Combat.Camera.Director",
