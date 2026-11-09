@@ -9,6 +9,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionPipsRules.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/TurnRotation.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Combat/Defense/DefenseSystem.h"
@@ -1235,16 +1236,8 @@ FText ACombatOrchestrator::GetActionCostRefusedReason(AActor *Actor, const FActi
 	{
 		return FText::GetEmpty();
 	}
-	const int32 Cost = Action.GetActionCost();
-	if (ActionPipsRules::IsCostAboveMax(Cost, CharComp->GetMaxActions()))
-	{
-		return NSLOCTEXT("CombatOrchestrator", "ActionCostAboveMax", "Costs more actions than you can hold.");
-	}
-	if (!ActionPipsRules::CanAfford(Cost, CharComp->CurrentActions))
-	{
-		return FText::Format(NSLOCTEXT("CombatOrchestrator", "ActionCostNeeds", "Needs {0} {0}|plural(one=action,other=actions)."), Cost);
-	}
-	return FText::GetEmpty();
+	// B-170e: the same text the command menu greys a button with (ActionPipsText).
+	return ActionPipsText::GetCostRefusedReason(Action.GetActionCost(), CharComp->CurrentActions, CharComp->GetMaxActions());
 }
 
 bool ACombatOrchestrator::PayActionCost(const FAction &Action, FString &OutRefusedReason)
