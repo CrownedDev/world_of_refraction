@@ -124,6 +124,11 @@ bool UWoRGameplayAbility::CommitActionCost(int32 Cost)
 	{
 		return false;
 	}
+	// B-043g (Q-043g): a ritual's fire was paid by its arm's commit; the executor's zero-cost pay is a no-op.
+	if (RunningAction.bIsDeferredFire)
+	{
+		return false;
+	}
 	PendingCommitCost = Cost;
 	bCommitCostPaid = false;
 	const bool bCommitted = CommitAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo());
@@ -171,7 +176,12 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 		return;
 	}
 
-	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability"), *Avatar->GetName(), *RunningAction.GetActionName());
+	if (RunningAction.bIsDeferredFire)
+	{
+		++RitualFiresRun;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability%s"), *Avatar->GetName(),
+		   *RunningAction.GetActionName(), RunningAction.bIsDeferredFire ? TEXT(" (ritual fire)") : TEXT(""));
 	// Before the executor call: a montage-less action (wor.Combat.InstantImpacts) lands its impacts inside it.
 	if (ShouldListenForImpacts(RunningAction))
 	{

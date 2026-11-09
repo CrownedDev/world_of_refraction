@@ -7,8 +7,9 @@
 //   used. Granting changes nothing in play.
 // - `wor.Abilities.UseGAS` (default 0): at 1, TryExecuteThroughAbility starts a spell or ability action through
 //   TryActivateAbility on its skill's spec; the ability runs the same UActionExecutor::ExecuteActionAsync.
-//   At 0, or for an action with no skill (Defend, Item, Flee, Switch Weapon), a deferred ritual fire (B-043g),
-//   an actor with no ASC, or an activation GAS refuses, the caller runs the old call.
+//   At 0, or for an action with no skill (Defend, Item, Flee, Switch Weapon), an actor with no ASC, or an
+//   activation GAS refuses, the caller runs the old call. B-043g (Q-043g): a ritual's fire (bIsDeferredFire, from
+//   FireScheduledExecution) runs through its ability too, as a second activation that commits nothing (paid at arm).
 // - Impacts (B-043c, Q-043c): while an ability runs a non-spell action, the executor hands each impact to
 //   SendImpactEvent, which sends it to the ability's WaitGameplayEvent(Event.Combat.Impact) task; with no such
 //   ability the executor resolves the impact itself, as before.

@@ -66,6 +66,8 @@ FString UWoRAbilityDebug::GetAbilitiesString(AActor *Actor)
 								   Instance->GetAOEResolves(), Instance->GetInstantResolves(), Instance->GetSupportResolves());
 			// B-043f: action costs this ability committed and paid.
 			Out += FString::Printf(TEXT(", costs paid via GAS: %d"), Instance->GetCostsCommitted());
+			// B-043g: ritual fires (paid at their arm) this ability ran.
+			Out += FString::Printf(TEXT(", ritual fires via GAS: %d"), Instance->GetRitualFiresRun());
 		}
 		if (bPriceable && Skill)
 		{
