@@ -5,7 +5,6 @@
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterDataComponent.h"
 #include "GAS/WoRAttributeSets.h"
-#include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoRGameplayEffects.h"
 #include "HAL/IConsoleManager.h"
 #include "Tags/WoRGameplayTags.h"
@@ -19,7 +18,7 @@ namespace
 	int32 GWoRCostsUseGAS = 0;
 	FAutoConsoleVariableRef CVarWoRCostsUseGAS(
 		TEXT("wor.Costs.UseGAS"), GWoRCostsUseGAS,
-		TEXT("1: a skill's EP cost and infusion HP backlash are paid as Instant GameplayEffects (B-043a); needs wor.Effects.UseGAS 1. 0: the old calls (default)."),
+		TEXT("1: a skill's EP cost and infusion HP backlash are paid as Instant GameplayEffects (B-043a). 0: the old calls (default)."),
 		ECVF_Default);
 
 	FGameplayEffectSpecHandle MakeCostSpec(UAbilitySystemComponent *ASC, TSubclassOf<UGameplayEffect> Class,
@@ -78,7 +77,7 @@ void WoRCosts::SetPaysThroughGAS(bool bEnabled)
 
 bool WoRCosts::PaysThroughGAS(const AActor *Payer)
 {
-	if (!PaysThroughGASEnabled() || !UWoREffectMirrorComponent::ReadsFromGAS() || !Payer || !Payer->HasAuthority())
+	if (!PaysThroughGASEnabled() || !Payer || !Payer->HasAuthority())
 	{
 		return false;
 	}
