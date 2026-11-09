@@ -374,3 +374,62 @@ bool WoRSkillAbilities::SendImpactEvent(AActor *Actor, int32 Index)
 		   *Actor->GetName(), Index, *GetNameSafe(Listener));
 	return false;
 }
+
+FGameplayTag WoRSkillAbilities::GetSpellResolveEventTag(EWoRSpellResolveKind Kind)
+{
+	switch (Kind)
+	{
+	case EWoRSpellResolveKind::Instant:
+		return WoRTags::Event_Combat_SpellResolve_Instant;
+	case EWoRSpellResolveKind::Support:
+		return WoRTags::Event_Combat_SpellResolve_Support;
+	case EWoRSpellResolveKind::AOE:
+	default:
+		return WoRTags::Event_Combat_SpellResolve_AOE;
+	}
+}
+
+bool WoRSkillAbilities::GetSpellResolveKind(const FGameplayTag &EventTag, EWoRSpellResolveKind &OutKind)
+{
+	for (const EWoRSpellResolveKind Kind : {EWoRSpellResolveKind::AOE, EWoRSpellResolveKind::Instant, EWoRSpellResolveKind::Support})
+	{
+		if (EventTag.MatchesTagExact(GetSpellResolveEventTag(Kind)))
+		{
+			OutKind = Kind;
+			return true;
+		}
+	}
+	return false;
+}
+
+UWoRGameplayAbility *WoRSkillAbilities::FindSpellResolveListener(AActor *Actor)
+{
+	return FindListeningSkillAbility(Actor, [](const UWoRGameplayAbility &Ability) { return Ability.IsListeningForSpellResolves(); });
+}
+
+bool WoRSkillAbilities::SendSpellResolveEvent(AActor *Actor, const FWoRSpellResolve &Resolve)
+{
+	UWoRGameplayAbility *Listener = FindSpellResolveListener(Actor);
+	UAbilitySystemComponent *ASC = Listener ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+	if (!ASC)
+	{
+		return false;
+	}
+	// Built here, as SendProjectileEvent: this event's Target is the defender (Q-043e), not the receiver.
+	FGameplayEventData Payload;
+	Payload.EventTag = GetSpellResolveEventTag(Resolve.Kind);
+	Payload.Instigator = Actor;
+	Payload.Target = Resolve.GetEventTarget();
+	Payload.EventMagnitude = static_cast<float>(Resolve.CastEntryIndex);
+	const int32 TakenBefore = Listener->GetSpellResolvesResolved();
+	ASC->HandleGameplayEvent(Payload.EventTag, &Payload);
+	if (Listener->GetSpellResolvesResolved() != TakenBefore)
+	{
+		return true;
+	}
+	// Never drop a resolution: the executor resolves it (RouteSpellResolve). These resolve inside their own action,
+	// so a listener that did not take one is a fault worth seeing.
+	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: %s on %s did not reach %s's spell-resolve task; resolving it directly"),
+		   *Actor->GetName(), *Payload.EventTag.ToString(), *GetNameSafe(Resolve.GetEventTarget()), *GetNameSafe(Listener));
+	return false;
+}
