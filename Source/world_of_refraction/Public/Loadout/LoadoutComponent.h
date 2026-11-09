@@ -238,10 +238,6 @@ public:
      *  component pointers: use the context at once, don't store it. */
     FLoadoutRuleContext BuildRuleContext(const UInventoryComponent *Inventory) const;
 
-    // OBSOLETE (B-028): the pre-merge checks, kept for wor.Loadout.CompareRules until Crown's PIE pass.
-    TArray<FString> GetValidationErrorsLegacy(int32 Index, UInventoryComponent *Inventory) const;
-    TArray<FInvalidSlotFinding> CollectInvalidSlotFindingsLegacy() const;
-
     /** Clears every clearable finding from CollectInvalidSlotFindings on the
      *  active loadout (DropInvalidParts on the active index), announcing each
      *  drop through OnPartsDropped. */
