@@ -87,7 +87,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | TierPowerScaling.md | DEC | Completed | 06-22 | Tier as single power dial (F→S ≈4.8×) |
 | TurnOrderArchitecture_OnlineMigration.md | DEC | Active | 06-17 | Banked: replicated turn queue for online |
 
-## Mechanics/Archetypes/
+## archive/Mechanics/Archetypes/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -97,7 +97,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | Refractor.md | DEC | Active | 06-22 | Player view: innate spellcaster (code "Caster") |
 | Resonator.md | DEC | Active | 06-22 | Player view: ring caster, flexible but fragile |
 
-## Mechanics/Character/
+## archive/Mechanics/Character/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -105,7 +105,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | Leveling.md | DEC | Active | 06-24 | Pillar progression (growth loop unbuilt) |
 | Stats.md | DEC | Active | 06-22 | Pillars + 14 substats |
 
-## Mechanics/Combat/
+## archive/Mechanics/Combat/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -118,7 +118,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | Targeting.md | DEC | Active | 06-22 | Two-axis TargetType/Count + multi-hit |
 | TurnOrder.md | DEC | Active | 06-22 | Turn strip; faster combatants act more |
 
-## Mechanics/Economy/
+## archive/Mechanics/Economy/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -129,7 +129,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | Merging.md | DEC | Active | 06-24 | Merge same-type crystals up a tier |
 | Upgrading.md | DEC | Active | 06-24 | Item tier progression (up/down/dismantle) |
 
-## Mechanics/Gear/
+## archive/Mechanics/Gear/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -144,7 +144,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | Socketing.md | DEC | Active | 06-22 | Attach crystal/fusion/evolution to slot |
 | Weapons.md | DEC | Active | 07-11 | 11 weapon types; physical-type→status |
 
-## Mechanics/Items/
+## archive/Mechanics/Items/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -154,7 +154,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | FusionStones.md | DEC | Active | 06-22 | Player-made stones from two attachables |
 | README.md | OTH | Active | 06-22 | Items family index |
 
-## Mechanics/Magic/
+## archive/Mechanics/Magic/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -166,7 +166,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | SpellSchools.md | DEC | Active | 06-22 | Destruction/Enhancement/Restoration roles |
 | SpellSources.md | DEC | Active | 06-22 | Cast origin routes post-cast consequence |
 
-## Mechanics/Scaling/
+## archive/Mechanics/Scaling/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -175,7 +175,7 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | TierGap.md | DEC | Active | 06-22 | Action-vs-channel tier gap, 4 dimensions |
 | TierPower.md | DEC | Active | 06-22 | Own tier sets raw power (F→S ≈4.8×) |
 
-## Mechanics/Status/
+## archive/Mechanics/Status/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -184,14 +184,14 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 | StatusBuildup.md | DEC | Active | 06-22 | The bar: fill, cap→proc, decay |
 | StatusEffects.md | DEC | Active | 06-22 | Status bar catalogue + per-proc effects |
 
-## Mechanics/World/
+## archive/Mechanics/World/
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
 | EnemyAI.md | DEC | Active | 06-22 | What AI difficulty feels like |
 | Weather.md | DEC | Active | 06-22 | Sky shifts with leader element/HP |
 
-## Mechanics/ (root)
+## archive/Mechanics/ (root)
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
@@ -243,19 +243,28 @@ Superseded · Snapshot · Untracked. **Updated** = last-commit `MM-DD` (all 2026
 
 | File | B | Status | Upd | Purpose |
 |---|---|---|---|---|
-| Architecture_2026-05-14.md | ANL | Superseded | 06-23 | Monolith snapshot; superseded by Architecture/* |
-| Conceptual_Overview_2026-05-11.md | ANL | Superseded | 05-11 | Designer overview (see 05-14) |
-| Conceptual_Overview_2026-05-14.md | ANL | Active | 05-15 | Design bible: systems in designer terms |
-| HighLevel_Overview_2026-05-14.md | ANL | Snapshot | 05-15 | One-page pitch overview |
+| Backlog_Done.md | BKL | Active | 11-09 | Finished backlog rows (D-132) |
+| DesignDecisions_Archive.md | DEC | Active | 11-09 | Answered and decided entries; the standing rulings (D-132) |
 | PastDocumentation_Audit.md | ANL | Snapshot | 05-15 | Audit of deleted PastDocumentation/; refs dangling |
 | TODO.md | BKL | Active | 06-23 | Living deferred/watch backlog |
+
+## archive/
+
+May overviews moved here by D-132 (B-340); `docs/Rules/` is the rule source.
+
+| File | B | Status | Upd | Purpose |
+|---|---|---|---|---|
+| Architecture_2026-05-14.md | ANL | Archived | 06-23 | Monolith snapshot; superseded by Architecture/* |
+| Conceptual_Overview_2026-05-11.md | ANL | Archived | 05-11 | Designer overview (see 05-14) |
+| Conceptual_Overview_2026-05-14.md | ANL | Archived | 05-15 | Design bible: systems in designer terms |
+| HighLevel_Overview_2026-05-14.md | ANL | Archived | 05-15 | One-page pitch overview |
 
 ## Supersession chains
 
 Read the **newer**; older kept for history.
 
-- `Conceptual_Overview_2026-05-14` ← `-05-11` — read **-14** (design bible).
-- `Architecture/*` per-system ← `Architecture_2026-05-14` monolith — read **per-system**.
+- `archive/Conceptual_Overview_2026-05-14` ← `-05-11` — read **-14** (design bible; archived, D-132).
+- `Architecture/*` per-system ← `archive/Architecture_2026-05-14` monolith — read **per-system**.
 - `Gaps/IntegrationGaps_2026-06-21_Update` ← `Gaps/IntegrationGaps` — read **-21 update**.
 - `analysis/…Pass2` ← `…Pass1_StatusUpdate` ← `…Pass1_Map` — read **Pass2**.
 - `Design/InstanceBasedRuntimeLayer_Design` ← `Design/InventorySystem_Design` — read **InstanceBased**.

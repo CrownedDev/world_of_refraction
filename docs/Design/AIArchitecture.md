@@ -188,5 +188,5 @@ justifies the BT plumbing.
 ## Related
 
 - [`../Architecture/AISystem.md`](../Architecture/AISystem.md) — current built spec
-- [`../Mechanics/World/EnemyAI.md`](../Mechanics/World/EnemyAI.md) — player-facing behaviour
+- [`../Mechanics/World/EnemyAI.md`](../archive/Mechanics/World/EnemyAI.md) — player-facing behaviour
 - [`LootTierOverflow.md`](./LootTierOverflow.md) — the reward half of zone scaling

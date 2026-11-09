@@ -5,7 +5,7 @@ confirmed shipped (editor-side, confirmed complete). This is the authoritative r
 stat composes and how crit/Luck work.
 
 Cross-reference: [`docs/Design/Completed/CombatEconomy_StatRedesign.md`](../Design/Completed/CombatEconomy_StatRedesign.md)
-(economy + targets) and [`docs/Mechanics/Scaling/TierGap.md`](../Mechanics/Scaling/TierGap.md) (the working
+(economy + targets) and [`docs/archive/Mechanics/Scaling/TierGap.md`](../archive/Mechanics/Scaling/TierGap.md) (the working
 tier-gap, untouched by this arc).
 
 ---

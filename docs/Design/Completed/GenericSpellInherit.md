@@ -1,6 +1,6 @@
 # Generic Spell Inheritance + `ESpellElement::None` Sentinel
 
-**Status:** ✅ BUILT — PIE-verified (`feature/generic-spell-inherit`). See *As-Built* + *Changelog* at the foot of this doc; several locked-design points evolved during build (Reality, colour, BD model). Architecture: `docs/Architecture/BrokenDarkness.md` (Model-B), `docs/Architecture/InfusionSystem.md` (resolver). Player-facing: `docs/Mechanics/GenericSpells.md`.
+**Status:** ✅ BUILT — PIE-verified (`feature/generic-spell-inherit`). See *As-Built* + *Changelog* at the foot of this doc; several locked-design points evolved during build (Reality, colour, BD model). Architecture: `docs/Architecture/BrokenDarkness.md` (Model-B), `docs/Architecture/InfusionSystem.md` (resolver). Player-facing: `docs/archive/Mechanics/GenericSpells.md`.
 
 ---
 

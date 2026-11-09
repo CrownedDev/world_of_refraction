@@ -9,7 +9,7 @@ You are in **Backlog mode** (CLAUDE.md, "Backlog mode"). Follow these steps exac
 
 ## 0. Sync
 - `git fetch origin` and `git checkout dev && git pull --ff-only origin dev`. Jobs start from an up-to-date **`dev`**, never `main`.
-- Read `docs/Backlog.md` and `docs/DesignDecisions.md`.
+- Read `docs/Backlog.md` and `docs/DesignDecisions.md` (answered and decided entries: `docs/DesignDecisions_Archive.md`; finished rows: `docs/Backlog_Done.md`).
 - **Apply answers first:** for every decision marked `ANSWERED`, set the jobs it blocks back to `TODO`. Note in its "Notes for Claude" anything you'll do differently.
 
 ## 1. Pick
