@@ -245,10 +245,11 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED (approved by the reference-backed default; confirm with the B-170 plan) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170b, B-170d)
 **Question:** Does Emerald's bonus turn (D-052) become +1 action? Does first strike (D-069 / Q-185) become +1 action or stay "act first"?
 **Recommendation (default):**
-- **Emerald (Wind's crystal), changed by Crown's Wind rule (D-088, 2026-11-09):** on an **enemy** it makes them **lose their next turn** in the rotation (the built skip, ET-13). On **yourself or an ally** it keeps its bonus turn in the belt (D-133, ET-12; the deckbuilder's "a bonus turn inserts") — CC's reading, for Crown to confirm. A bonus turn is a real turn: +1 action, the turn steps, the Energy refill.
+- **Emerald (Wind's crystal), changed by Crown's Wind rule (D-088, 2026-11-09):** on an **enemy** it makes them **lose their next turn** in the rotation (the built skip, ET-13; S: the next two, Q-341b).
+- **Emerald on yourself or an ally: actions, not a bonus turn (Crown, 2026-11-09).** Lower tiers give +1 action after a set number of the holder's turns; S gives 2 to 3 actions at once. Ladder (reference-backed default, all `// TODO: tune`): F +1 after 6 turns, E 5, D 4, C 3, B 2, A 1 (its next turn); S +2 to +3 now, rolled per crystal. Why: it reuses Emerald's own former delay table (F 6 to S 0, Q-341b), so the tier spacing is one this game already had; an immediate +2 echoes Divinity: Original Sin 2's Adrenaline (+2 AP now, a well-liked tempo tool), topped at 3 like Octopath Traveler's maximum boost. A delayed gain lands in step 2 of the turn-start order (ActionPips.md §1), before the 0-action check. The S gain may pass Max Actions for that turn (Q-170g). Replaces CC's earlier "keeps its bonus turn" reading.
 - **The Extra Action effect becomes +1 action now** (what its name says; the deckbuilder: "an Action effect arrives in the pool at once").
 - **First strike stays as built:** the striking side takes its whole first round, then the alternation starts with that side.
-**Answer:** the default, by the reference-backed default (2026-11-09).
+**Answer:** the default, by the reference-backed default (2026-11-09), except Emerald on yourself or an ally: **Crown, 2026-11-09: actions scaled by tier** (above; the ladder numbers are the reference-backed default).
 
 ### Q-170g — Effects that give or take actions
 **Status:** ANSWERED (approved by the reference-backed default; confirm with the B-170 plan) · **Raised:** 2026-11-09 (B-170, D-088, Crown's note of 2026-11-09) · **Blocks:** — (B-170d)
