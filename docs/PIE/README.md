@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (unbuilt, on B-273b) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
 | [B-273b](B-273b.md) | `feature/B-273b-hit-kind-cloud` (unbuilt) | The hit kind replaces the element / physical pair in buildup, damage resistance and the GAS executions; no number changes (an Ice hit reads Ice resistance alone, for B-064a) | Pending |
 | [B-042f](B-042f.md) | `feature/B-042f-stones-item-effects-gas-cloud` (in dev) | GAS stage 3 part 6: `wor.Effects.Compare` 0 differ at UseGAS 0 and 1 (stones and item effects included); B-042g's gate | Pending |
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
