@@ -1,6 +1,6 @@
 # Hidden Quests and Lore (Shangri-La Frontier model)
 
-**Status:** decided (`DesignDecisions.md` D-100, pillar 10, Crown 2026-10-27). The research that informs it is in the appendix (web summaries, fan-wiki details are what fans report, not canon).
+**Status:** decided (`DesignDecisions.md` D-100, pillar 10, Crown 2026-10-27; hidden quests' tracking changed by D-171, Crown 2026-11-09). The research that informs it is in the appendix (web summaries, fan-wiki details are what fans report, not canon).
 
 ## 1. Decided (D-100)
 
@@ -15,6 +15,8 @@
 - **Equip conditions** (Crown, 2026-10-27): a certain character equipping a certain skill / spell / ring / weapon / evolution, optionally relative to its requirements (meeting them, above, or **under** them), and its upgrade level.
 - **More than one way in** (Crown, 2026-10-27, SLF's Akane / Rabituza): an unlock can list **alternative condition sets**; meeting any one set opens it.
 
+- **Hidden quests, found then tracked** (D-171, Crown 2026-11-09, SLF's Unique Scenarios): how one **starts** stays fully hidden (no hints, no listing). Once a player triggers it, that player alone gets "Hidden quest discovered: <title>" and the quest lists in their journal with **the current step's goal in plain words**; later steps and the end memory / rewards stay hidden until reached or earned. In co-op each player sees only their own. (Replaces "no text ever says what the next step is" for hidden quests; hidden memories are unchanged.)
+
 ## 2. What the research suggests (to decide)
 
 1. ~~Hints~~ **decided: none.** SLF has none (it relies on 30 million players trading tips). Small games that did well give **soft hints that never show the conditions**: NPC rumours (V's lines), a small cue when you're close, journal "?" slots (Outer Wilds' ship log, Hades II's prophecy list).
@@ -28,6 +30,7 @@
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-27 | Created from D-100 and the research | docs/hidden-quests-research |
+| 2026-11-09 | D-171: hidden quests show their current step once found (job B-397) | docs/D-171-hidden-quest-steps |
 | 2026-10-27 | No hints (Crown) | docs/hidden-no-hints |
 
 ---
