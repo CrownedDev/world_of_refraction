@@ -24,6 +24,8 @@
 #include "Loadout/LoadoutComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/ScopeExit.h"
+#include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Actions/ActionStructs.h"
 #include "LevelSequence.h"
 #include "Combat/Boss/BossData.h"
 #include "Combat/Boss/BossPhaseComponent.h"
@@ -51,6 +53,8 @@ namespace
 	/** B-156's centred-wide turn view for CombatCameraTestFrame: 650 back, 320 up. B-398 must not move it. */
 	const FVector TURN_TEST_CENTRED_WIDE_LOCATION(-650.0f, 0.0f, 320.0f);
 	constexpr float TURN_TEST_LOCATION_TOLERANCE = 0.1f;
+	/** B-404: world ticks well past a wide beat (0.5 s) at the test wrapper's 0.01 s step. */
+	constexpr int32 BEAT_TEST_TICKS_PAST_BEAT = 200;
 	/** A byte past the last ETurnViewStyle (a save from a later build). */
 	constexpr uint8 TURN_TEST_UNKNOWN_STYLE = 7;
 
@@ -749,6 +753,38 @@ void FCombatCameraSpec::Define()
 			TestTrue(TEXT("its boss data"), Phases->GetBossData() == Data);
 		});
 	});
+
+	Describe("wide beats and the party handover (B-404, study R12, R16)", [this]()
+	{
+		It("passes a turn change after an action through the wide view, then blends to the next hero", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, {TURN_TEST_ONE_ENEMY});
+			const FTurnChangePlan Plan = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FTransform Wide = FCombatCameraRules::ComputeView(ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
+			TestTrue(TEXT("a wide beat"), Plan.bWideBeat);
+			TestTrue(TEXT("through the wide (NotYourTurn) view"), Plan.WideView.GetLocation().Equals(Wide.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("ends on the next hero's turn view"), Plan.TurnView.GetLocation().Equals(Turn.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("the wide is higher than the turn view"), Plan.WideView.GetLocation().Z > Plan.TurnView.GetLocation().Z);
+			TestTrue(TEXT("the beat holds after blending in"), Plan.BeatSeconds > Plan.BeatBlendSeconds && Plan.BeatBlendSeconds > 0.0f);
+			TestTrue(TEXT("the handover is a blend, not a cut"), Plan.HandoverBlendSeconds > 0.0f);
+		});
+
+		It("adds no wide beat between actions of one actor, on the first turn, with movement off or before an enemy's turn", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTurnChangePlan SameActor = FCombatCameraRules::PlanTurnChange(true, true, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan NobodyActed = FCombatCameraRules::PlanTurnChange(false, false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan MovementOff = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan EnemyTurn = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame);
+			TestFalse(TEXT("same actor keeps acting (B-401)"), SameActor.bWideBeat);
+			TestFalse(TEXT("first turn: nobody acted yet"), NobodyActed.bWideBeat);
+			TestFalse(TEXT("movement off: the static view"), MovementOff.bWideBeat);
+			TestFalse(TEXT("an enemy's watch view is already the wide"), EnemyTurn.bWideBeat);
+			const FTransform Static = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
+			TestTrue(TEXT("movement off still ends on the static view"), MovementOff.TurnView.GetLocation().Equals(Static.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+		});
+	});
 }
 
 BEGIN_DEFINE_SPEC(FCombatCameraDirectorSpec, "WoR.Combat.Camera.Director",
@@ -806,6 +842,98 @@ void FCombatCameraDirectorSpec::Define()
 		TestFalse(TEXT("out of combat"), Director->IsInCombat());
 		TestEqual(TEXT("no cameras left"), Director->GetCameraCount(), 0);
 		TestNull(TEXT("hero's camera removed"), Hero->FindComponentByClass<UCombatCameraComponent>());
+	});
+
+	It("fires the turn handover once per turn start, whoever acts (B-404, study R16)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, nullptr);
+		TestEqual(TEXT("none before the first turn"), Director->GetHandoverCount(), 0);
+		// Hero -> hero, hero -> enemy, enemy -> hero, and a second turn in a row for one hero.
+		const TArray<AActor *> TurnOrder = {Hero, SecondHero, Foe, Hero, Hero};
+		for (int32 Turn = 0; Turn < TurnOrder.Num(); ++Turn)
+		{
+			Orchestrator->OnActorTurnStarted.Broadcast(TurnOrder[Turn], Turn + 1);
+			TestEqual(FString::Printf(TEXT("one handover after turn start %d"), Turn + 1), Director->GetHandoverCount(), Turn + 1);
+		}
+		TestTrue(TEXT("follows the last turn"), Director->GetViewedActor() == Hero);
+		Director->EndCombat();
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, nullptr);
+		TestEqual(TEXT("a new fight counts from zero"), Director->GetHandoverCount(), 0);
+		Director->EndCombat();
+	});
+
+	It("fires a pending handover exactly once when a turn, or an action, starts inside the beat (B-404)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		TestEqual(TEXT("first turn: at once"), Director->GetHandoverCount(), 1);
+
+		// A turn starting inside the beat.
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestTrue(TEXT("hero -> hero after an action: a wide beat"), Director->IsHandoverPending());
+		TestEqual(TEXT("the beat holds the handover"), Director->GetHandoverCount(), 1);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 3); // nobody acted in turn 2: no beat of its own
+		TestFalse(TEXT("the next turn ran the pending one"), Director->IsHandoverPending());
+		TestEqual(TEXT("the pending one once, then turn 3's own"), Director->GetHandoverCount(), 3);
+
+		// An action starting inside the beat.
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 4);
+		TestTrue(TEXT("a wide beat again"), Director->IsHandoverPending());
+		Executor->OnActionStarted.Broadcast(SecondHero, FAction(), 0);
+		TestFalse(TEXT("the action ran the pending one"), Director->IsHandoverPending());
+		TestEqual(TEXT("once for turn 4"), Director->GetHandoverCount(), 4);
+		Executor->OnActionStarted.Broadcast(SecondHero, FAction(), 0);
+		TestEqual(TEXT("a second action of the turn adds none"), Director->GetHandoverCount(), 4);
+		Director->EndCombat();
+	});
+
+	It("drops a pending handover when the fight ends, and never fires one for a preview (B-404)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestTrue(TEXT("a wide beat"), Director->IsHandoverPending());
+		Director->EndCombat();
+		TestFalse(TEXT("the fight's end dropped it"), Director->IsHandoverPending());
+		TestWorld->Tick(BEAT_TEST_TICKS_PAST_BEAT);
+		TestEqual(TEXT("its timer was cleared: nothing fires later"), Director->GetHandoverCount(), 1);
+
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		TestTrue(TEXT("a preview plays a beat"), Director->PreviewHandover(1));
+		TestEqual(TEXT("a preview fires nothing at its start"), Director->GetHandoverCount(), 1);
+		TestWorld->Tick(BEAT_TEST_TICKS_PAST_BEAT);
+		TestEqual(TEXT("nor at its end"), Director->GetHandoverCount(), 1);
+		TestTrue(TEXT("the turn is unchanged"), Director->GetViewedActor() == Hero);
+		TestTrue(TEXT("a second preview"), Director->PreviewHandover(1));
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 2); // a turn inside the preview: only its own handover
+		TestEqual(TEXT("the flushed preview fires nothing"), Director->GetHandoverCount(), 2);
+		Director->EndCombat();
 	});
 
 	It("keeps the turn-view setting across a fight restart and on a new orchestrator (B-398, saved)", [this]()
@@ -966,6 +1094,7 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("movement off: the static view holds (R15)"), Director->GetTargetMoveCount(), 4);
 		Menu->HandleBack();
 		Director->SetCameraMovementOff(false);
+	});
 
 	Describe("boss cinematics (B-406)", [this]()
 	{

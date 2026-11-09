@@ -192,6 +192,20 @@ struct WORLD_OF_REFRACTION_API FCinematicWindowTiming
 	float FirstDefendable = 0.0f;
 };
 
+/** B-404 (study R12, R16, Q-404): how the camera reaches a new turn's view. With a wide beat: into WideView over
+ *  BeatBlendSeconds, held until BeatSeconds, then the handover blend to TurnView over HandoverBlendSeconds. Without
+ *  one: straight to TurnView, as before. */
+struct WORLD_OF_REFRACTION_API FTurnChangePlan
+{
+	bool bWideBeat = false;
+	FTransform WideView = FTransform::Identity;
+	FTransform TurnView = FTransform::Identity;
+	float BeatBlendSeconds = 0.0f;
+	/** From the turn start to the handover blend's start (the blend into the wide plus its hold). */
+	float BeatSeconds = 0.0f;
+	float HandoverBlendSeconds = 0.0f;
+};
+
 struct WORLD_OF_REFRACTION_API FCombatCameraRules
 {
 	/** D-162 / Q-370: the least time between the window's end and the first defendable moment.
@@ -310,4 +324,11 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  watch it (a headless fight starts at once), and only while skill cinematics are on (D-078: camera movement off
 	 *  skips them unless that setting is On). */
 	static bool ShouldPlayBossCinematic(bool bHasSequence, bool bHasLocalViewer, ESkillCinematics Setting, bool bMovementOff);
+
+	/** B-404 (study R12, R16, Q-404): the camera's way into a new turn. A wide beat (the NotYourTurn wide, framed
+	 *  from the new actor's side) plays only between turns: someone acted since the last turn start, the turn passes
+	 *  to another actor, and the new view is a Turn view. Never between actions of one actor (B-401), never with
+	 *  movement off (Static), and not before an enemy's turn (its watch view is already the wide). */
+	static FTurnChangePlan PlanTurnChange(bool bSomeoneActed, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
+										  const FCombatCameraFrame &Frame);
 };

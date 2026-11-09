@@ -68,6 +68,8 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 - B-407: a player or team skill's own `CameraSequence` is cut back at `SignatureCameraCap::MaxSignatureSeconds` (2 s, `TODO: tune`); enemy casters' sequences run to their end. The validator counts only skills a `UBossData` phase adds as a boss's (Q-407).
 
 - B-406: no skip key for a boss cinematic, no hero shot on every boss turn, an Execution (ritual fire) turn is not held by a phase cinematic, and an action already playing finishes under it (B-406b).
+
+- B-404: `OnTurnHandover` has no HUD listener yet (the turn strip and card highlight bind it with the new HUD, B-105), and the action menu still opens at turn start, during the wide beat (Q-404).
 - Arming a delayed skill also broadcasts `OnActionStarted`. Once templates exist, a ritual's cinematic may play at arm time and again when it fires. Check this in B-157.
 
 ## Changelog
@@ -93,3 +95,5 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 | 2026-11-09 | B-400 (study R3 / §9, Q-400): target cut with several enemies. The command menu keeps a highlighted target in the single-target picker (`OnTargetHighlighted`, `HighlightTarget`, `CycleHighlightedTarget`; button hover / focus drives it); `ComputeTargetView`: Over-the-Shoulder cuts to a front medium shot, Centred Wide / Tactical re-aim 0.15 s, one target no move (`TODO: tune`); the director cuts back on confirm and returns on cancel; `MoveTurnCamera` shared with B-399; `wor.Camera.TargetCycle`, target in `wor.Camera.Print`. No save change. | feature/B-400-target-cut-cloud (UNBUILT, on B-399) |
 
 | 2026-11-09 | B-406 (Q-406, study R9/R17/R18, FeelGuide 9): per-boss opening and phase cinematics, on trial (`UBossData::OpeningSequence`, `FBossPhase::CinematicSequence`); `PlayBossOpening` / phase binding / `FinishBossCinematic`, `OnCinematicHudHidden` and `OnBossCinematicFinished`; the orchestrator holds turn 1 and the next action request; `UCombatHUD::SetHiddenForCinematic`; `FSkillCameraTuning::bNamedAttack` and `ECameraShotMoment::NamedAttack`; `wor.Camera.BossCinematic`; specs in `WoR.Combat.Camera(.Director)`. | feature/B-406-boss-cinematics-cloud (UNBUILT) |
+
+| 2026-11-09 | B-404 (study R12, R16, Q-404): wide beats and the party handover. `FCombatCameraRules::PlanTurnChange` / `FTurnChangePlan` (beat only between turns of different actors after an action, into a hero's Turn view; 0.3 s in, 0.2 s hold, 0.5 s handover blend, `TODO: tune`); the director's `StartTurnChange` / `HandleWideBeatEnd` play it on `WideBeatTimer` and B-371's shot timer (`StepShot`), no Tick; new BlueprintAssignable `OnTurnHandover(From, To)`, once per turn start on the frame the blend starts. `wor.Camera.Print` shows it; `wor.Camera.Handover [N]` previews it. | feature/B-404-wide-beats-cloud (UNBUILT) |

@@ -557,3 +557,29 @@ FTransform FCombatCameraRules::BlendShot(const FCameraShot &Shot, float Alpha)
 	Out.Blend(Shot.Start, Shot.End, Eased);
 	return Out;
 }
+
+namespace CombatCameraTurnChange
+{
+	// B-404 (Q-404, study §9: Expedition 33 goes wide, then blends to the next hero within about 0.5 s).
+	// TODO: tune in PIE (B-157). Times in s.
+	constexpr float WideBeatBlendSeconds = 0.3f;
+	constexpr float WideBeatHoldSeconds = 0.2f;
+	constexpr float HandoverBlendSeconds = 0.5f;
+}
+
+FTurnChangePlan FCombatCameraRules::PlanTurnChange(bool bSomeoneActed, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
+												   const FCombatCameraFrame &Frame)
+{
+	using namespace CombatCameraTurnChange;
+	FTurnChangePlan Plan;
+	Plan.TurnView = ComputeView(NextMode, Style, Frame);
+	Plan.bWideBeat = bSomeoneActed && !bSameActor && NextMode == ECombatCameraMode::Turn;
+	if (Plan.bWideBeat)
+	{
+		Plan.WideView = ComputeView(ECombatCameraMode::NotYourTurn, Style, Frame);
+		Plan.BeatBlendSeconds = WideBeatBlendSeconds;
+		Plan.BeatSeconds = WideBeatBlendSeconds + WideBeatHoldSeconds;
+		Plan.HandoverBlendSeconds = HandoverBlendSeconds;
+	}
+	return Plan;
+}

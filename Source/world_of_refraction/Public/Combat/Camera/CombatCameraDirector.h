@@ -34,6 +34,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCinematicHudHidden, bool, bHidden
 /** B-406: a boss cinematic ended (its sequence, the cap, or a stop): the fight may go on. Not sent when the fight ends. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBossCinematicFinished, EBossCinematicKind, Kind);
 
+/** B-404 (study R16, F4): the turn passes From -> To; From is null on a fight's first turn and may equal To. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnHandover, AActor *, From, AActor *, To);
+
 UCLASS(ClassGroup = (Combat))
 class WORLD_OF_REFRACTION_API UCombatCameraDirector : public UActorComponent
 {
@@ -182,6 +185,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Debug", meta = (ClampMin = "0.0"))
 	float BossCinematicPreviewSeconds = 0.0f;
 
+	/** B-404 (study R16, F4, Q-404): once per turn start, on the frame the camera starts its move to the new turn's
+	 *  view (after the wide beat, when there is one). The HUD binds it for the turn-strip step and the active-card
+	 *  highlight, so all three move together. From: the actor the camera followed before (null on the first turn).
+	 *  The one exception: a fight that ends during the beat (won, lost or fled) drops its handover on purpose, as the
+	 *  HUD is going away. A wor.Camera.Handover preview never fires it. */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Camera")
+	FOnTurnHandover OnTurnHandover;
+
+	/** B-404 (wor.Camera): e.g. "handover: wide beat Hero_1 -> Hero_2, blend 0.50 s in 0.32 s; 4 sent this fight". */
+	FString GetHandoverString() const;
+	int32 GetHandoverCount() const { return HandoverCount; }
+	/** B-404: a wide beat is playing and its handover has not fired yet. */
+	bool IsHandoverPending() const { return bHandoverPending; }
+
+	/** B-404 (wor.Camera.Handover): plays the wide beat and the handover blend to party member PartyIndex's turn
+	 *  view (INDEX_NONE: the member after the viewed one), as a turn change would. The turn, the HUD and the event
+	 *  stay as they are; the next turn start or setting change ends it. False when it can't play. */
+	bool PreviewHandover(int32 PartyIndex);
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -258,6 +280,18 @@ private:
 	/** B-402 (R10, R11): one of the viewer's characters is defending: the Defence hand-off is pending or showing, or
 	 *  one of them has a defense window open. Shots then play without shake or FOV punch. */
 	bool IsViewerDefending() const;
+
+	/** B-404: the turn start's camera move (FCombatCameraRules::PlanTurnChange): a wide beat, then the handover
+	 *  blend on WideBeatTimer; or the turn view at once. bBroadcast false for a preview. */
+	void StartTurnChange(AActor *From, AActor *To, bool bSomeoneActed, bool bBroadcast);
+	/** B-404: the beat's end: the handover blend (unless something else took the view) and the event. */
+	void HandleWideBeatEnd();
+	/** B-404: a pending handover runs now (an action or a new turn comes before the beat ends): once per turn start. */
+	void FlushPendingHandover();
+	void BroadcastHandover(AActor *From, AActor *To);
+	/** B-404: moves Camera's actor from where it is to End over Seconds on the shot timer (StepShot); the viewer
+	 *  already looks through it, or is blending to it. */
+	void MoveCameraOnShotTimer(UCombatCameraComponent *Camera, const FTransform &End, float Seconds);
 
 	/** After a settings change: cuts a playing cinematic the settings now skip. */
 	void StopCinematicIfNowSkipped();
@@ -378,4 +412,14 @@ private:
 	FString BossCinematicName;
 	FTimerHandle BossCinematicCapTimer;
 	TArray<TWeakObjectPtr<UBossPhaseComponent>> BoundBossPhases;
+
+	// B-404: the wide beat and the party handover of the current turn start.
+	FTimerHandle WideBeatTimer;
+	FTurnChangePlan PendingTurnChange;
+	TWeakObjectPtr<AActor> HandoverFrom;
+	TWeakObjectPtr<AActor> HandoverTo;
+	bool bHandoverPending = false;
+	bool bHandoverBroadcasts = false;
+	bool bActedSinceTurnStart = false;
+	int32 HandoverCount = 0;
 };
