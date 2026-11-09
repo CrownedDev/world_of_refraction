@@ -4,14 +4,15 @@
 // (FWoREffectSpecBuilder::GetEffectClass): same identity, element and stacked value. The enum path
 // still owns lifetime, stacking and ticks, so the mirrored GEs are Infinite, untracked and never
 // tick; they come and go with the stored effects (OnEffectApplied / Removed / StacksChanged /
-// DurationChanged on the owner). Q-042c: with `wor.Effects.UseGAS 1` the effect manager's type
-// and total reads (HasEffectOfType, IsStunned, IsSilenced, GetTotalStatModifier[ForElement]) read
-// these GEs for ported types; 0 (the default) keeps every read on the enum path. A GAS read first
+// DurationChanged on the owner). Q-042c: the effect manager's type and total reads (HasEffectOfType,
+// IsStunned, IsSilenced, GetTotalStatModifier[ForElement]) read these GEs for ported types on an owner
+// with a mirror (B-042g2: always; the `wor.Effects.UseGAS` switch is gone, and an actor without a
+// mirror keeps the enum path until B-042g5). A GAS read first
 // resyncs the actor's mirror, so a read between a change and its event (turn order re-reading
 // speed, the HP/EP pool on its own OnEffectApplied) sees the change too.
 // The GAS reads count every GE with a WoR context on the ASC and the owner's tags: once anything
 // else puts such GEs on it (B-042d), they count too, so the mirror must give way by then (B-042h).
-// B-042h (Q-042h): at UseGAS 1 on an owner with a UWoRTurnEffectTracker, GAS owns the lifetime. A
+// B-042h (Q-042h): on an owner with a UWoRTurnEffectTracker, GAS owns the lifetime. A
 // timed effect's GE is turn-counted by the tracker from the stored effect's span. A refresh in
 // ApplyEffect pushes its new span to the tracker. The stored enum effect becomes a read-only copy:
 // its turns follow the tracker (GetTrackedTurnsLeft), and when the tracker ends a GE at the holder's
@@ -19,7 +20,7 @@
 // effect (cleanse, death, combat end) still ends its GE through the sync. Payouts stay on the enum
 // path until B-042y routes the tick's Health write through the real HP path (Q-042hb).
 // B-042ye: the per-effect reads (the AI's tick and turns, the debuff count, the character panel's list)
-// go through ReadHeldEffects / PreviewDotTick at UseGAS 1.
+// go through ReadHeldEffects / PreviewDotTick.
 // Debug: UWoREffectDebug (wor.Effects.Compare).
 
 #pragma once
@@ -66,27 +67,24 @@ public:
 
 	int32 NumMirrored() const { return Mirrored.Num(); }
 
-	/** B-261: what a sync reads (the stored effects, the live GE count, the tracker, the switch), hashed; a read
+	/** B-261: what a sync reads (the stored effects, the live GE count, the tracker), hashed; a read
 	 *  skips the sync while it matches the last sync's. */
 	uint32 GetSyncFingerprint() const;
 	/** Debug / spec: how many full syncs ran. */
 	int32 GetSyncCount() const { return SyncCount; }
-
-	/** GAS owns Actor's effect lifetime: the switch is on and Actor carries a mirror and a tracker. */
-	static bool OwnsLifetime(const AActor *Actor);
 
 	/** Holder turns left on the tracked GE of Effect's identity; INDEX_NONE when it has none. */
 	int32 GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const;
 
 	/** B-042ye (Q-042x, Q-042ye): Stored as GAS holds it: an effect whose GE GAS ended is left out, a live one
 	 *  takes the tracker's turns left, the rest stay as stored. Resyncs first (Q-042yb). A read mid-sync gets
-	 *  Stored unchanged. B-318 (Q-318): on a client (the mirror is the server's) at UseGAS 1 it is the server's
-	 *  read, replicated (GetHeldSnapshot); Stored is ignored there. */
+	 *  Stored unchanged. B-318 (Q-318): on a client (the mirror is the server's) it is the server's read,
+	 *  replicated (GetHeldSnapshot); Stored is ignored there. */
 	TArray<FActiveSkillEffect> ReadHeldEffects(const TArray<FActiveSkillEffect> &Stored);
 
 	/** B-318: the server's last GAS read of the owner's held effects (each effect with its turns left), refreshed
-	 *  by every sync at UseGAS 1 and replicated to every client (other players' characters get no GEs in Mixed
-	 *  replication, so a client can't read its own copy). Empty at UseGAS 0. */
+	 *  by every sync and replicated to every client (other players' characters get no GEs in Mixed
+	 *  replication, so a client can't read its own copy). */
 	const TArray<FActiveSkillEffect> &GetHeldSnapshot() const { return HeldSnapshot; }
 
 	/** Fired on a client when a new snapshot arrives (the effect manager's events don't fire there for the server's
@@ -117,12 +115,8 @@ public:
 	/** What the owner's stored effects should look like on GAS: one entry per ported, stored effect. */
 	static TArray<FWoRMirroredEffect> ReadEnumEffects(const AActor *Actor);
 
-	/** The value of `wor.Effects.UseGAS`; tests flip it with SetReadsFromGAS. */
-	static bool ReadsFromGAS();
-	static void SetReadsFromGAS(bool bEnabled);
-
 	/** The ASC an effect-manager read of Type on Actor should use instead of the enum path: set only
-	 *  when the switch is on, Type is ported, and Actor carries a mirror (resynced first). */
+	 *  when Type is ported and Actor carries a mirror (resynced first). */
 	static const UAbilitySystemComponent *GetGASReadSource(const AActor *Actor, ESkillEffectType Type);
 
 	/** The GAS twins of HasEffectOfType: the type's tag when it has one, else any GE of that type. */
@@ -157,11 +151,6 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_HeldSnapshot)
 	TArray<FActiveSkillEffect> HeldSnapshot;
-
-	/** The server read effects from GAS when it filled HeldSnapshot. The client follows the server's switch, not its
-	 *  own (wor.Effects.UseGAS is per process). */
-	UPROPERTY(Replicated)
-	bool bServerReadsFromGAS = false;
 
 	UFUNCTION()
 	void OnRep_HeldSnapshot();
