@@ -1770,6 +1770,11 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	// Attack collapsed into Ability (Cluster 3) — count-based close is the not-Spell / bPerImpact gate.
 	const bool bUseCountBasedClose = (ActionType == EActionType::Ability);
 
+	// B-064a (D-029): a Water spell that deals Ice; its hits carry the Ice hit kind (B-273b) while Element stays Water,
+	// so the source gate and "On Water hit" triggers hear it as before.
+	const USpellData *CastSpell = ActionType == EActionType::Spell ? Cast<USpellData>(GetCurrentSkillData()) : nullptr;
+	const EWoRDamageType DealtTypeOverride = CastSpell ? CastSpell->GetDealtTypeOverride(Element) : EWoRDamageType::None;
+
 	// Create pending defense context for each target
 	for (AActor *Target : Targets)
 	{
@@ -1789,6 +1794,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.SelectedSource = SelectedSource;
 		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
 		DefenseContext.PhysicalDamageType = PhysicalDamageType;
+		DefenseContext.DealtTypeOverride = DealtTypeOverride;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
