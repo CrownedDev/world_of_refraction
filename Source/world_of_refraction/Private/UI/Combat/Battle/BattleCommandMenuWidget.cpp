@@ -122,6 +122,9 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 		for (int32 Index = 0; Index < MAX_ROWS; ++Index)
 		{
 			UButton *Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
+			// Not focusable: a focused button would take A / Enter / Space as its own click, so the menu keys never
+			// reached Enhanced Input after one mouse click (review).
+			Button->InitIsFocusable(false);
 			UTextBlock *Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 			FSlateFontInfo RowFont = Label->GetFont();
 			RowFont.Size = BattleCommandMenuStyle::RowFontSize;

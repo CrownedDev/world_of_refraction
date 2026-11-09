@@ -284,6 +284,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 
 		// The one button that shows every status (FeelGuide 5).
 		UButton *StatusButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StatusesButton"));
+		StatusButton->InitIsFocusable(false); // keep A / Enter for the command menu (see BattleCommandMenuWidget)
 		UTextBlock *StatusButtonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		StatusButtonLabel->SetText(LOCTEXT("StatusesButton", "Statuses"));
 		StatusButton->AddChild(StatusButtonLabel);
