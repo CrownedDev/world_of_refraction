@@ -380,6 +380,13 @@ public:
 	 *  without one uses the fight's rank. */
 	void SetEnemyRank(const AActor *Enemy, EEncounterRank Rank) { EnemyRanks.Add(Enemy, Rank); }
 
+	/** B-405: Enemy's own rank (SetEnemyRank), else the fight's. Read by the camera (boss height, kill shot). */
+	EEncounterRank GetEnemyRank(const AActor *Enemy) const
+	{
+		const EEncounterRank *OwnRank = EnemyRanks.Find(Enemy);
+		return OwnRank ? *OwnRank : EncounterRank;
+	}
+
 	/** B-187b: Enemy's tier steps (a revived mini-boss's team, Q-187b) for its level drop; set by the battle mode at
 	 *  spawn, as SetEnemyRank. 0 when unset. */
 	void SetEnemyTierSteps(const AActor *Enemy, int32 Steps) { EnemyTierSteps.Add(Enemy, FMath::Max(0, Steps)); }

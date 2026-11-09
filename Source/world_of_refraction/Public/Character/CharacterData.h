@@ -13,6 +13,7 @@
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Actions/EActionType.h"
+#include "Combat/Camera/BossFraming.h"
 #include <Combat/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -219,6 +220,11 @@ public:
 	 *  S x4.8), on top of rank, zone and difficulty. F (the default) changes nothing until an enemy is authored. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	EItemTier EnemyTier = EItemTier::F_Tier;
+
+	/** B-405 (study R13): as an enemy, how high the turn-view camera sits against it. By rank (the default): a boss or
+	 *  mini-boss low and looking up, others at eye level. Set Low for a tall normal enemy, EyeLevel for a small boss. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
+	EEnemyCameraHeight EnemyCameraHeight = EEnemyCameraHeight::ByRank;
 
 	/** Widens the real-time defense input window (more Reflex = more lead-in time to
 	 *  land a parry/dodge). Scales ON TOP of UDefenseSystem::DefenseInputWindow — see
