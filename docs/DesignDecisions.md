@@ -278,6 +278,18 @@ The queue of questions only Crown can answer.
 **Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09). Watch in play: if Reflex becomes a must-have, split it (B).
 **Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **approved:** Reflex = the regain amount + the defense window (Reflex no longer sets Max Actions, Q-170); Turn Speed removed from Spirit.
 
+### Q-398 — Turn-view setting: the over-the-shoulder layout, and where the setting is kept
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-398, study R1, Q1) · **Blocks:** —
+**Question:** Crown's Q1 answer makes the turn view a player setting (Centred Wide default, D-074; Over-the-Shoulder option). How exactly is Over-the-Shoulder framed, where is the setting kept, and what happens to the third style?
+**Context:** `FCombatCameraRules::ComputeTurnView` (`Combat/Camera/CombatCameraTypes.cpp`); the old Over-the-Shoulder sat a fixed 260 cm back and 90 cm right, so the character's screen spot moved with the distance to the enemies. No settings save or settings screen existed (D-024).
+**Recommendation (default):**
+- **Layout:** the camera stands behind and to the **right** of the acting character, aimed along **its own** line to the enemy centre, which sits mid-frame; the character lands in the **lower-left third**, back to the camera (about x 28 %, y 80 % of the screen). The offsets are parts of that distance (back 0.35, right 0.25, up 0.2; never scaled below 500 cm), so every party member at any range gets the same layout. Reference: Expedition 33's turn view, the same for every hero in the Maelle, Dualliste and field fights (study §1, §9, R1 [confirms]): a widely praised combat presentation where the player always knows where "us" (bottom-left) and "them" (middle) are.
+- **Kept:** in the player's save slot (`FSavedSettings`, D-059 explicit struct, **save v34**), stays the player's own on a host hand-over, read at the start of every fight; set from `wor.Camera.Style` until the settings screen (D-024). Reference: Expedition 33 and console RPGs generally keep camera options in the game's settings, persistent across sessions, not per fight.
+- **Tactical** stays reachable through the same setting (D-074 (2) offered it); the settings screen may show only the two Crown named.
+- The player's saved setting overrides a value typed in the orchestrator's Details panel.
+- A boss's lower, looking-up turn view (R13 as changed) is not in this job.
+**Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the look in PIE (`docs/PIE/B-398.md`); the offsets are `TODO: tune`.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
