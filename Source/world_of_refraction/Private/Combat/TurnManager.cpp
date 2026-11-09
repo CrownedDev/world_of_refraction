@@ -109,6 +109,14 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 
 	bCombatActive = true;
 
+	// B-170b: the mode is read once per fight, so flipping the switch mid-fight changes nothing until the next.
+	bRotationMode = TurnRotation::IsActionPipsOn();
+	Rotation.Reset(OpeningTeam);
+	if (bRotationMode)
+	{
+		UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Fixed rotation (wor.Turns.ActionPips 1): lead team %d"), Rotation.LeadTeam);
+	}
+
 	// Liveness binds — TurnManager owns its invalidation: every combatant's REAL
 	// death/revive (CheckDeath / ServerResurrect broadcasts) recalcs speed ratios
 	// without each death-site needing to know about us. AddUnique so a re-init
@@ -177,6 +185,8 @@ void UTurnManager::EndCombat()
 	bCurrentTurnIsBonus = false;
 	CurrentTurnType = ETurnType::Normal;
 	CurrentTurnPayloadId = INDEX_NONE;
+	bRotationMode = false;
+	Rotation.Reset(INDEX_NONE);
 }
 
 void UTurnManager::AdvanceToNextTurn()
@@ -194,7 +204,7 @@ void UTurnManager::AdvanceToNextTurn()
 	// delay countdown — none of those may be repeated here or they would double-apply.
 	FPreviewTurnEntry Picked;
 	bool bRoundAdded = false;
-	if (!AdvanceSimState(Combatants, PendingTurns, Picked, &bRoundAdded))
+	if (!AdvanceSimState(Combatants, PendingTurns, Rotation, Picked, &bRoundAdded))
 	{
 		UE_LOG(LogWoRCombat, Error, TEXT("[TurnManager] No valid combatant found for next turn"));
 		EndCombat();
@@ -379,6 +389,12 @@ void UTurnManager::DelayNextTurn(AActor *Actor, int32 Places)
 {
 	if (!Actor || Places <= 0)
 	{
+		return;
+	}
+	if (bRotationMode)
+	{
+		// B-170b (ActionPips.md §3.2): no place delays in the fixed rotation; Wind's break takes an action (B-170d).
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] DelayNextTurn(%s, %d) ignored: fixed rotation"), *Actor->GetName(), Places);
 		return;
 	}
 
@@ -589,6 +605,10 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 
 void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 {
+	if (bRotationMode)
+	{
+		return; // B-170b: speed doesn't move turns in the fixed rotation
+	}
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
 		if (Combatant.Actor == Actor)
@@ -615,6 +635,12 @@ void UTurnManager::OnActorDied(AActor *Actor)
 			Combatant.PlacesToYield = 0;
 			Combatant.TurnsToSkip = 0;
 		}
+	}
+	if (bRotationMode)
+	{
+		// B-170b: its own seats this round go; its empty seats pass to the next living teammate.
+		Rotation.OnCombatantDied(Combatants, Combatants.IndexOfByPredicate([Actor](const FCombatantTurnDebt &Combatant)
+																		   { return Combatant.Actor == Actor; }));
 	}
 	const int32 Purged = PendingTurns.RemoveAll([Actor](const FScheduledTurn &Entry)
 												{ return Entry.Actor == Actor && Entry.Type == ETurnType::Bonus; });
@@ -674,6 +700,7 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 
 bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 								   TArray<FScheduledTurn> &Pending,
+								   FTurnRotation &RotationState,
 								   FPreviewTurnEntry &OutEntry,
 								   bool *bOutRoundAdded) const
 {
@@ -785,7 +812,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 				{
 					Pending.RemoveAt(WinnerIdx);
 				}
-				return AdvanceSimState(State, Pending, OutEntry, bOutRoundAdded);
+				return AdvanceSimState(State, Pending, RotationState, OutEntry, bOutRoundAdded);
 			}
 		}
 
@@ -832,6 +859,29 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 				continue; // a surviving multi-count winner never decrements itself
 			}
 			Pending[p].TurnsRemaining--;
+		}
+		return true;
+	}
+
+	// B-170b (ActionPips.md §3.2, Q-170d): the fixed rotation replaces the speed pick, the 2:1 cap, the
+	// tie-break and the Wind yield. Pinned turns above stay as built: they don't take a rotation seat.
+	if (bRotationMode)
+	{
+		const int32 PickedIndex = RotationState.PickNext(State, bOutRoundAdded);
+		if (PickedIndex == INDEX_NONE)
+		{
+			return false;
+		}
+		FCombatantTurnDebt &Picked = State[PickedIndex];
+		OutEntry.Actor = Picked.Actor;
+		OutEntry.bIsBonusTurn = false;
+		OutEntry.bIsForced = false;
+		OutEntry.Type = ETurnType::Normal;
+		OutEntry.PayloadId = INDEX_NONE;
+		Picked.TurnsTaken++;
+		for (FScheduledTurn &Entry : Pending)
+		{
+			Entry.TurnsRemaining--; // all turns count, as below
 		}
 		return true;
 	}
@@ -966,7 +1016,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	{
 		NextCombatant->TurnsToSkip--;
 		NextCombatant->TurnsTaken++;
-		return AdvanceSimState(State, Pending, OutEntry, bOutRoundAdded);
+		return AdvanceSimState(State, Pending, RotationState, OutEntry, bOutRoundAdded);
 	}
 
 	// Record the slot — a NORMAL turn. Bonus identity now comes solely from the
@@ -994,12 +1044,13 @@ void UTurnManager::RebuildBelt()
 {
 	TArray<FCombatantTurnDebt> Scratch = Combatants;
 	TArray<FScheduledTurn> ScratchPending = PendingTurns;
+	FTurnRotation ScratchRotation = Rotation;
 
 	TurnBelt.Reset();
 	for (int32 i = 0; i < CombatConstants::TURN_BELT_HORIZON; ++i)
 	{
 		FPreviewTurnEntry Entry;
-		if (!AdvanceSimState(Scratch, ScratchPending, Entry))
+		if (!AdvanceSimState(Scratch, ScratchPending, ScratchRotation, Entry))
 		{
 			break;
 		}
@@ -1011,6 +1062,7 @@ void UTurnManager::DebugPrintTurnOrder()
 {
 	UE_LOG(LogWoRCombat, Display, TEXT("=== TURN ORDER DEBUG ==="));
 	UE_LOG(LogWoRCombat, Display, TEXT("Current Turn: %d"), GlobalTurnCount);
+	UE_LOG(LogWoRCombat, Display, TEXT("%s"), *GetTurnModeString());
 
 	if (CurrentActor)
 	{
@@ -1045,6 +1097,15 @@ void UTurnManager::DebugPrintTurnOrder()
 	UE_LOG(LogWoRCombat, Display, TEXT("======================"));
 }
 
+FString UTurnManager::GetTurnModeString() const
+{
+	if (!bRotationMode)
+	{
+		return TEXT("Mode: speed timeline (wor.Turns.ActionPips 0 at fight start)");
+	}
+	return FString::Printf(TEXT("Mode: fixed rotation (wor.Turns.ActionPips 1 at fight start). %s"), *Rotation.ToString(Combatants));
+}
+
 FString UTurnManager::GetPendingTurnsString() const
 {
 	if (PendingTurns.Num() == 0)
@@ -1077,6 +1138,7 @@ void UTurnManager::DebugPrintPendingTurns()
 void UTurnManager::DebugPrintBelt()
 {
 	UE_LOG(LogWoRCombat, Display, TEXT("=== TURN BELT (%d entries) ==="), TurnBelt.Num());
+	UE_LOG(LogWoRCombat, Display, TEXT("%s"), *GetTurnModeString());
 	for (int32 i = 0; i < TurnBelt.Num(); i++)
 	{
 		UE_LOG(LogWoRCombat, Display, TEXT("  %d. %s [%s]"), i + 1,
