@@ -5,6 +5,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/CombatOrchestrator.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "GAS/Abilities/WoRGameplayAbility.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
@@ -21,7 +22,7 @@ namespace
 
 	FAutoConsoleCommandWithWorld GPrintAbilitiesCmd(
 		TEXT("wor.Abilities.Print"),
-		TEXT("DEBUG: each combatant's granted skill abilities: source skill, shape tags, active or idle, whether impacts, projectiles and AOE / instant / support resolutions route through GAS, costs paid through the ability, plain EP cost (B-043b..f)."),
+		TEXT("DEBUG: each combatant's granted skill abilities: source skill, shape tags, active or idle, whether impacts, projectiles and AOE / instant / support resolutions route through GAS, costs paid through the ability, ritual arms / fires run, plain EP cost (B-043b..g); then each armed ritual and how its fire will run (B-043g)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UWoRAbilityDebug::PrintAbilities(World); }));
 }
 
@@ -66,12 +67,38 @@ FString UWoRAbilityDebug::GetAbilitiesString(AActor *Actor)
 								   Instance->GetAOEResolves(), Instance->GetInstantResolves(), Instance->GetSupportResolves());
 			// B-043f: action costs this ability committed and paid.
 			Out += FString::Printf(TEXT(", costs paid via GAS: %d"), Instance->GetCostsCommitted());
+			// B-043g: a ritual's legs through this ability (the fire commits nothing: paid at arm).
+			Out += FString::Printf(TEXT(", ritual arms %d / fires %d"), Instance->GetRitualArmsRun(), Instance->GetRitualFiresRun());
 		}
 		if (bPriceable && Skill)
 		{
 			Out += FString::Printf(TEXT(", plain cast %d EP"),
 								   Executor->CalculateActionEnergyCost(Actor, WoRSkillAbilities::MakePlainAction(Skill)));
 		}
+	}
+	return Out;
+}
+
+FString UWoRAbilityDebug::GetArmedRitualsString(const ACombatOrchestrator *Orchestrator)
+{
+	if (!Orchestrator)
+	{
+		return TEXT("(no orchestrator)");
+	}
+	const TMap<int32, FDeferredActivation> &Rituals = Orchestrator->GetArmedRituals();
+	FString Out = FString::Printf(TEXT("%d armed ritual(s)"), Rituals.Num());
+	for (const TPair<int32, FDeferredActivation> &Pair : Rituals)
+	{
+		AActor *Caster = Pair.Value.Caster;
+		const USkillDataBase *Skill = WoRSkillAbilities::GetActionSkill(Pair.Value.Action);
+		// As TryExecuteThroughAbility decides at fire time (an activation GAS refuses still falls back then).
+		const TCHAR *Route = !Skill                                            ? TEXT("old call (no skill)")
+							 : !WoRSkillAbilities::UsesAbilities()             ? TEXT("old call (wor.Abilities.UseGAS 0)")
+							 : !WoRSkillAbilities::GetGrantingASC(Caster)      ? TEXT("old call (no ASC)")
+							 : WoRSkillAbilities::FindSkillSpec(Caster, Skill) ? TEXT("its skill's ability")
+																			   : TEXT("its skill's ability (granted at fire)");
+		Out += FString::Printf(TEXT("\n  - payload %d: %s by %s, fires through %s, cost-free (paid at arm)"), Pair.Key,
+							   *Pair.Value.Action.GetActionName(), *GetNameSafe(Caster), Route);
 	}
 	return Out;
 }
@@ -95,8 +122,14 @@ int32 UWoRAbilityDebug::PrintAbilities(const UObject *WorldContextObject)
 		SpecCount += WoRSkillAbilities::GetSkillSpecs(*It).Num();
 		UE_LOG(LogWoR, Display, TEXT("[AbilityDebug] %s"), *GetAbilitiesString(*It));
 	}
-	const FString Summary = FString::Printf(TEXT("wor.Abilities.Print: %d skill ability(ies) on %d combatant(s), wor.Abilities.UseGAS %d"),
-											SpecCount, Combatants, WoRSkillAbilities::UsesAbilities() ? 1 : 0);
+	int32 ArmedRituals = 0;
+	for (TActorIterator<ACombatOrchestrator> It(World); It; ++It)
+	{
+		ArmedRituals += It->GetArmedRituals().Num();
+		UE_LOG(LogWoR, Display, TEXT("[AbilityDebug] %s: %s"), *It->GetName(), *GetArmedRitualsString(*It));
+	}
+	const FString Summary = FString::Printf(TEXT("wor.Abilities.Print: %d skill ability(ies) on %d combatant(s), %d armed ritual(s), wor.Abilities.UseGAS %d"),
+											SpecCount, Combatants, ArmedRituals, WoRSkillAbilities::UsesAbilities() ? 1 : 0);
 	UE_LOG(LogWoR, Display, TEXT("[AbilityDebug] %s"), *Summary);
 	if (GEngine)
 	{
