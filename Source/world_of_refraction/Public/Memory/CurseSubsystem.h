@@ -36,6 +36,12 @@ public:
 	bool RemoveCurse(FName CurseId);
 	/** Q-378 (Crown): the player chooses to clear it (the hub's service, B-378b). False when it was not held. */
 	bool ClearCurse(FName CurseId);
+	/** B-390 (D-169): the hub's paid clear. Wallet pays the curse's price (UCurseData::GetClearPrice in its
+	 *  GetClearCurrency; a curse with no asset prices as the asset defaults), then ClearCurse. Short of it, or not
+	 *  held, or the spend refused (no server authority): nothing changes and OutRefusal says why. */
+	bool PayToClearCurse(FName CurseId, class UCurrencyComponent *Wallet, FText &OutRefusal);
+	/** The curse's asset (by CurseId), or null when none is authored. */
+	const class UCurseData *FindCurseAsset(FName CurseId) const;
 	bool HasCurse(FName CurseId) const { return HeldCurses.Contains(CurseId); }
 	const TSet<FName> &GetHeldCurses() const { return HeldCurses; }
 	/** Lifted or cleared before (and not held now): what CheckRegain can give back. */
@@ -85,6 +91,8 @@ private:
 
 	/** B-378b: the held curses' assets. */
 	TArray<const class UCurseData *> GetHeldCurseAssets() const;
+	/** Gathers every curse asset once the registry has loaded; false while it is still loading (and nothing set). */
+	bool EnsureCurseAssetsGathered() const;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<class UCurseData>> CurseAssets;

@@ -4442,6 +4442,14 @@ Moved here once applied. Newest first.
 - The penalty itself stays as authored per curse (Q-378's "flat, not tier-scaled" penalty is unchanged); the tier sets the clear price only.
 **Notes for Claude:** `UCurseData` gains `Tier` (`EItemTier`, F-S) and `ClearEssence` (Elemental / Pillar); the hub Clear curse button charges it through the existing economy service (D-125 balances), refused with a message when short. Which curses exist, their names, text and tiers stay Crown's (lore). Job: B-390.
 
+### Q-390 — Curse clear price: a curse with no asset, and a co-op client's clear
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-390, desktop review) · **Blocks:** —
+**Question:** D-169 prices a curse's clear by the tier and essence authored on its `UCurseData`. (1) A held curse with no asset (a reward id nobody authored yet): what does it cost? (2) Essence is spent on the server (`UCurrencyComponent::Spend`), so a co-op client's clear can't pay from its own machine: what happens?
+**Options / as built:** (1) **A** the asset defaults (F tier, Pillar Essence: the cheapest step) / **B** not clearable until authored. (2) **A** refused for now ("The payment didn't go through."), clearing joins the co-op plumbing as a server request / **B** keep a free clear on clients.
+**Recommendation:** (1) A and (2) A. Most games treat an unconfigured shop item as its base price rather than unbuyable (a missing price is a content gap, not a lock), and every paid service in this game is server-authoritative (D-046 wallets, the shop); a free client path would be a hole in D-169.
+**Answer:** **(1) A, (2) A**, by the reference-backed default (2026-11-09). Crown may change it.
+**Notes for Claude (as built):** B-390. `UCurseSubsystem::PayToClearCurse`: no asset prices as `GetDefault<UCurseData>()`; while the asset registry is still loading it refuses ("still loading"), so an S-tier curse is never priced at F. Client clear: CurseSystem.md Known Limitations.
+
 ### Q-043a — GAS stage 4 part 1: how big is the cost GE, and where does its number come from?
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-043a, cloud) · **Blocks:** —
 **Question:** B-043 asks for "cost GEs with MMC magnitudes". Part 1 has no `UGameplayAbility` yet (that is B-043b), so an MMC would have no ability to read the skill from. Should the cost GE compute the cost itself now (a second copy of `CalculateActionEnergyCost` inside an MMC), or carry the number the one cost function already gives?
