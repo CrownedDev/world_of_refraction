@@ -382,6 +382,12 @@ namespace CombatConstants
     constexpr float ICE_BREAK_SPEED_SLOW_PERCENT = 30.0f;
     // TODO: tune — Ice break: damage dealt once on landing, share of the holder's max HP; it can kill, as Reality's (Q-064a).
     constexpr float ICE_BREAK_DAMAGE_MAX_HP_FRACTION = 0.10f;
+    // B-170d (Q-170e), with wor.Turns.ActionPips 1 only: Ice's break also takes actions from the holder's bank at once.
+    constexpr int32 ICE_BREAK_ACTIONS_LOST = 1; // TODO: tune
+    // B-170d (Q-170e): Wind's break slows Action Speed (percent; starts at Water's) and takes actions at the holder's
+    // next turn start, instead of the one-place delay (WIND_BREAK_DELAY_PLACES).
+    constexpr float WIND_BREAK_ACTION_SPEED_SLOW_PERCENT = WATER_BREAK_SPEED_SLOW_PERCENT; // TODO: tune
+    constexpr int32 WIND_BREAK_ACTIONS_LOST = 1; // TODO: tune
     // TODO: tune — Broken Darkness break: EP drained at the holder's turn start, fraction of max EP.
     constexpr float BD_BREAK_EP_DRAIN_FRACTION = 0.25f;
     // TODO: tune — Light break: crit chance down, percent; 100 = no crits while it lasts (D-030).
