@@ -19,7 +19,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (in dev) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
 | [B-273b](B-273b.md) | `feature/B-273b-hit-kind-cloud` (in dev, with B-064a) | The hit kind replaces the element / physical pair in buildup, damage resistance and the GAS executions; no number changes (an Ice hit reads Ice resistance alone, for B-064a) | Pending |
 | [B-042f](B-042f.md) | `feature/B-042f-stones-item-effects-gas-cloud` (in dev) | GAS stage 3 part 6: `wor.Effects.Compare` 0 differ at UseGAS 0 and 1 (stones and item effects included); B-042g's gate | Pending |
-| [B-042g](B-042g.md) | `feature/B-042g-gas-readers-default-cloud` (in dev) | GAS: resistance, Ignore Defense and reflect read the GEs at UseGAS 1 | Pending |
+| [B-042g](B-042g.md) | `feature/B-042g-gas-readers-default-cloud` (in dev) | GAS: resistance, Ignore Defense and reflect read the GEs at UseGAS 1 | Pending (uses `wor.Effects.UseGAS 0/1`: run before B-042g2 merges, or treat as superseded by B-042g2's sheet) |
 | [B-042g2](B-042g2.md) | `feature/B-042g2-usegas-switch-delete-cloud` (UNBUILT; merge only after Crown's PIE play pass at `wor.Effects.UseGAS 1` on dev, sheet section A) | GAS: the `wor.Effects.UseGAS` switch and the parity specs deleted; effects always read from GAS | Pending |
 | [B-043a](B-043a.md) | `feature/B-043a-costs-gas-cloud` (in dev) | GAS stage 4 part 1: skill EP costs and the infusion HP backlash paid as Instant GEs (`wor.Costs.UseGAS`), same numbers | Pending |
 | [B-390](B-390.md) | `feature/B-390-curse-tiers-clear-price` (in dev) | A curse's tier (F to S) sets its clear price in its essence (Pillar or Elemental); short of it the hub refuses with a message | Pending |
@@ -133,7 +133,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-324](B-324.md) | `feature/B-324-shared-chest-gear` (in `dev`) | Unworn gear in the shared chest, any member takes it; `wor.UI.Storage` | Pending |
 | [B-313](B-313.md) | `refactor/B-313-pouch-per-member` (in `dev`) | Each member fights with its own pouch; item use spends the pouch only; D-072 caps per fight | Pending |
 | [B-325](B-325.md) | `feature/B-325-combat-tier` (in `dev`) | Combat Tier on panels, enemies' HP and level drops from it; `wor.Combat.PrintTiers` | Not built |
-| [B-042i](B-042i.md) | `refactor/B-042i-trigger-gas-specs` (in `dev`) | Parity specs: a trigger's effect lands on GAS as one GE on both paths; no gameplay change | Pending |
+| [B-042i](B-042i.md) | `refactor/B-042i-trigger-gas-specs` (in `dev`) | Parity specs: a trigger's effect lands on GAS as one GE on both paths; no gameplay change | Pending (uses `wor.Effects.UseGAS 0/1`: run before B-042g2 merges, or treat as superseded by B-042g2's sheet) |
 | [B-312b](B-312b.md) | `refactor/B-312b-loadout-owns` (in `dev`) | Store 1b step 1: the loadout's owns-checks read the store view; no gameplay change | Pending |
 | [B-314](B-314.md) | `refactor/B-314-run-layer` (in `dev`) | The run layer: found gear dropped at run end with its tier remembered; home gear's wear and run-added attachments reset | Pending |
 | [B-347](B-347.md) | `feature/B-347-free-run-loadout` (in `dev`) | The run loadout is free: the worn loadout goes on the run, no purchase; Gold for in-run vendors | Pending |
