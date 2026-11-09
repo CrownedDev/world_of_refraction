@@ -6,6 +6,8 @@
 - **actions are banked**: you gain 1 per turn, up to your **Max Actions**, which **Reflex** sets; unused actions carry over; a fight starts with 1;
 - **effects can give or take actions** (+1 now, −1 next turn, …), alongside Wind's action loss.
 
+**What this supersedes:** the "keep the speed timeline" part of D-133 (its belt rules stay: bonus turn lands next, skip, death purge, revive); D-088's own 2026-10-26 paragraphs "Turn Speed stays" and "one battle action + one utility action"; D-049 (the 2:1 cap); ET-15 (Extra Action as a bonus turn, reversed by Q-170f).
+
 Open details are the **Q-170** entries in `docs/DesignDecisions.md` (Q-170 to Q-170h). Each carries a reference-backed default; the plan below is written with those defaults.
 
 ---
@@ -50,14 +52,19 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
   - `GetEffectiveTurnSpeed`, `GetTurnSpeedLayers`, `ComputeCachedTurnSpeed`, the cached speed stats;
   - `OnActorSpeedChanged` becomes a no-op (callers stay until the deletion job);
   - `RequestExtraTurn`, `ScheduleBonusTurn` (already OBSOLETE).
+- **Callers of the retired functions outside `TurnManager.cpp`** (they keep working with the switch off; B-170g / B-170h retire them):
+  - `OnActorSpeedChanged`: `SkillEffectManager.cpp` (`NotifySpeedChanged`), `InventoryComponent.cpp`, `LoadoutComponent.cpp` (3 places), `CrystalManager.cpp`.
+  - `DelayNextTurn`: `SkillEffectManager.cpp` (`ApplyTriggeredSkillEffect`, Wind).
+  - `GetEffectiveTurnSpeed` / `GetTurnSpeedLayers`: the GAS `TurnSpeed` attribute's sync (`WoRAttributeSyncComponent.cpp`, `WoRAttributeSets.cpp`), its GEs (`WoRGameplayEffects.h/.cpp`, `WoREffectSpecBuilder.cpp`), `WoRAttributeDebug.cpp`, `StatModifierDebug.cpp`.
+  - `ScheduleBonusTurn`, `BuffTurnSpeed`: `ItemExecutor.cpp`. `TurnManagerTestActor.cpp` (legacy test actor, D-067).
 - Built **behind one switch, `wor.Turns.ActionPips`** (default 0 = today's speed timeline), so the old path keeps working until Crown's PIE; then the default flips and a later job deletes the old path.
 
 ### 3.3 `ACombatOrchestrator` — several actions per turn
 - `ProceedWithTurnStart`: after the turn-start step, gain the turn's actions and apply any waiting next-turn gains or losses (Wind), then ask for an action.
-- `ValidateAction`: refuse an action that costs more than `CurrentActions` ("Needs 1 action."). The menu greys it with that reason.
+- `ValidateAction`: refuse an action that costs more than `CurrentActions` ("Needs 1 action."). The menu greys it with that reason. The check and the spend run on the server (co-op), like every action; clients only read the replicated count.
 - `OnActionCompleted`: spend the cost, check the win condition, then either **ask again** (actions left and the action doesn't end the turn) or run the turn-end step and `AdvanceToNextTurn`. The turn-start step never re-runs inside a turn.
 - **End Turn** is new: an `EActionType` appended (`EndTurn`), so it uses the existing submit path and the co-op server call.
-- **Kept free, once per turn:** the weapon / ring switch (ET-19; Crown's note there: "the first switch is free, further switches cost a pip") and the row move (D-096). A second switch then costs 1 action instead of being refused.
+- **Kept free, once per turn:** the weapon / ring switch (ET-19; Crown's note there: "the first switch is free, further switches cost a pip") and the row move (D-096). A second switch then costs 1 action instead of being refused. A second row move stays refused (D-096 gives one; no ruling for more).
 - The camera's turn-start shot (`CombatCameraDirector::HandleActorTurnStarted`) stays once per turn; each action keeps its own action shot.
 
 ### 3.4 Effects
@@ -70,7 +77,7 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 - **Ice / Water breaks** (Q-170e): unchanged. Both slow Action Speed and Spell Speed, Ice adds its damage (D-090, B-064a). With Turn Speed gone, the slow means the holder's attacks and spells are easier to defend against (wider windows) and play slower.
 - **Extra Action** (`ESkillEffectType::ExtraAction`, Q-170f): becomes +1 action now (its name), no longer a bonus turn.
 - **Emerald** (Q-170f): keeps its bonus turn (D-052, D-133, ET-12; built). A bonus turn is a real turn: it gains +1 action and runs the turn steps.
-- **Retired** (enum entries kept, append-only; data validation refuses them, the D-056 pattern): `ModifyTurnSpeed`, `TurnSpeedBuff`, `TurnSpeedDebuff`; `EItemEffectType::BuffTurnSpeed`; the Turn Speed sub-stat (`ESubStat::TurnSpeed`, `UCharacterData::TurnSpeed`, Q-170h). `TurnSpeedStone` is already retired (B-353).
+- **Retired** (enum entries kept, append-only; data validation refuses them, the D-056 pattern): `ModifyTurnSpeed`, `TurnSpeedBuff`, `TurnSpeedDebuff`; `EItemEffectType::BuffTurnSpeed`; the Turn Speed sub-stat (`ESubStat::TurnSpeed`, `UCharacterData::TurnSpeed`, Q-170h); the GAS `TurnSpeed` attribute, its sync, GEs and debug lines (§3.2 callers). `TurnSpeedStone` is already retired (B-353).
 - Effect text (`EffectText.cpp`) gets lines for the four new types: "Gain 1 action.", "Lose 1 action at the start of their next turn.", "+1 Max Actions for 2 turns.".
 
 ### 3.5 Turn strip and menus (placeholder C++ until the visual phase)
@@ -92,7 +99,7 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 - `wor.Turns.PrintBelt` stays; it prints the rotation and its round.
 
 ### 3.8 Docs to update as each part lands
-- `docs/Rules/04-effects-and-turns.md`: ET-03 to ET-15 (turn order), ET-18 (one action per turn → banked actions), ET-19 (second switch costs an action).
+- `docs/Rules/04-effects-and-turns.md`: ET-03 to ET-14 (turn order), ET-15 (Extra Action: +1 action, no longer a bonus turn), ET-18 (one action per turn → banked actions), ET-19 (second switch costs an action).
 - `docs/Rules/03-status-bars.md` SB-23 (Wind).
 - `docs/Architecture/TurnManager.md`, `CombatOrchestrator.md`, `TurnState.md`; `docs/Design/InputMap.md`.
 
@@ -104,6 +111,8 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 | `TurnCapSpec`, `TurnSpeedSourcesSpec`, `TurnSpeedTieBreakSpec` | Kept with the switch off; deleted with the old path |
 | `BonusTurnSpec`, `EmeraldExtraTurnSpec`, `CombatRitualFireSpec` | Re-checked with the switch on (Extra Action now +1 action) |
 | `StatusBreakSpec` | Wind takes 1 action at the next turn start |
+| `EffectTextSpec` | Extra Action's line ("take an extra turn" → "Gain 1 action."); the four new types' lines |
+| `StoneRowSpec`, `SignAwareModifierSpec`, `GASStatGettersSpec`, `StatModifierSpec` | Their Turn Speed cases retire with the family (B-170g / B-170h) |
 | **New** `ActionPipsSpec` | Fight start 1; +1 per turn; bank up to Max; Reflex → Max 2..5; cap 5; spend; End Turn banks; 0 actions ends the turn |
 | **New** `ActionEffectsSpec` | `GainActions` / `LoseActions` now and next turn; Max Actions buff and debuff; the "+1 now, −1 next" pair; never below 0 |
 | **New** `MultiActionTurnSpec` | Turn-start and turn-end steps run once per turn; durations tick once; win check after each action; Defend and ritual end the turn |
