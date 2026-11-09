@@ -7,6 +7,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/EquipmentDataBase.h"
 #include "HAL/IConsoleManager.h"
+#include "Reaction/ReactionTrigger.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/EffectDefinition.h"
@@ -72,6 +73,18 @@ FString TurnSpeedRetireDebug::GetTurnSpeedUsesString(const UObject *Asset)
 	{
 		AddTurnSpeedPointUses(TEXT("BaseStatBonus.BonusTurnSpeed"), Evolution->BaseStatBonus.BonusTurnSpeed, Uses);
 	}
+	else if (const UReactionTriggerData *Reactions = Cast<UReactionTriggerData>(Asset))
+	{
+		for (int32 TriggerIndex = 0; TriggerIndex < Reactions->Triggers.Num(); ++TriggerIndex)
+		{
+			TArray<FString> TriggerUses;
+			AddTurnSpeedEffectUses(Reactions->Triggers[TriggerIndex].Effects, TriggerUses);
+			for (const FString &Use : TriggerUses)
+			{
+				Uses.Add(FString::Printf(TEXT("trigger %d (%s) %s"), TriggerIndex, *Reactions->Triggers[TriggerIndex].TriggerId.ToString(), *Use));
+			}
+		}
+	}
 	return FString::Join(Uses, TEXT("; "));
 }
 
@@ -79,7 +92,8 @@ FString TurnSpeedRetireDebug::GetTurnSpeedAssetsString()
 {
 	const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 	const UClass *const ScannedClasses[] = {UEffectDefinition::StaticClass(), USkillDataBase::StaticClass(), UCharacterData::StaticClass(),
-											UEquipmentDataBase::StaticClass(), UEvolutionItemData::StaticClass()};
+											UEquipmentDataBase::StaticClass(), UEvolutionItemData::StaticClass(),
+											UReactionTriggerData::StaticClass()};
 
 	TArray<FString> Lines;
 	for (const UClass *Class : ScannedClasses)
@@ -96,7 +110,12 @@ FString TurnSpeedRetireDebug::GetTurnSpeedAssetsString()
 		}
 	}
 
-	return Lines.IsEmpty() ? FString(TEXT("=== Turn Speed (retired, B-170g): no asset authors it ==="))
-						   : FString::Printf(TEXT("=== Turn Speed (retired, B-170g): %d asset(s) still author it ===\n%s"), Lines.Num(),
-											 *FString::Join(Lines, TEXT("\n")));
+	FString Report = Lines.IsEmpty() ? FString(TEXT("=== Turn Speed (retired, B-170g): no asset authors it ==="))
+									 : FString::Printf(TEXT("=== Turn Speed (retired, B-170g): %d asset(s) still author it ===\n%s"),
+													   Lines.Num(), *FString::Join(Lines, TEXT("\n")));
+	if (Registry.IsLoadingAssets())
+	{
+		Report += TEXT("\n  (asset scan still running: the list may be partial)");
+	}
+	return Report;
 }

@@ -14,6 +14,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Misc/DataValidation.h"
+#include "Reaction/ReactionTrigger.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Effects/EffectDefinition.h"
 #endif
@@ -150,6 +151,16 @@ void FTurnSpeedRetireSpec::Define()
 											   FString::Printf(TEXT("TurnSpeed = %d"), RETIRE_TEST_TURN_SPEED_POINTS)));
 
 			TestTrue(TEXT("null is empty"), TurnSpeedRetireDebug::GetTurnSpeedUsesString(nullptr).IsEmpty());
+		});
+
+		It("names a Turn Speed payload in a reaction trigger's effects", [this]()
+		{
+			UReactionTriggerData *Reactions = NewObject<UReactionTriggerData>(GetTransientPackage());
+			FReactionTrigger &Trigger = Reactions->Triggers.AddDefaulted_GetRef();
+			Trigger.Effects = NewTurnSpeedTestDefinition(ESkillEffectType::ModifyTurnSpeed)->Effects;
+			TestTrue(TEXT("trigger named"), TurnSpeedRetireDebug::GetTurnSpeedUsesString(Reactions).Contains(TEXT("ModifyTurnSpeed")));
+			Trigger.Effects = NewTurnSpeedTestDefinition(ESkillEffectType::ActionSpeedBuff)->Effects;
+			TestTrue(TEXT("other effect empty"), TurnSpeedRetireDebug::GetTurnSpeedUsesString(Reactions).IsEmpty());
 		});
 	});
 #endif

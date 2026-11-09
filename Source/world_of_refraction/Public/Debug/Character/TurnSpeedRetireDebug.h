@@ -2,7 +2,8 @@
 // B-170g (ActionPips.md §3.4, Q-170h): finds the assets that still author the retired Turn Speed family, the list
 // B-170h works from. Reads the same fields data validation warns on (Q-170g2): Turn Speed effect payloads
 // (TurnSpeedBuff / TurnSpeedDebuff / ModifyTurnSpeed), a skill's StatScaling on Turn Speed, a character's TurnSpeed
-// points and gear / evolution BaseStatBonus.BonusTurnSpeed.
+// points and gear / evolution BaseStatBonus.BonusTurnSpeed; also Turn Speed payloads in a reaction trigger's Effects
+// (UReactionTriggerData has no data validation, so only this list finds those).
 // Console: wor.Data.ListTurnSpeed (loads every such asset; editor or PIE).
 
 #pragma once
