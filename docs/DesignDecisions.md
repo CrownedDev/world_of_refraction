@@ -290,6 +290,15 @@ The queue of questions only Crown can answer.
 **Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09). Watch in play: if Reflex becomes a must-have, split it (B).
 **Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **approved:** Reflex = the regain amount + the defense window (Reflex no longer sets Max Actions, Q-170); Turn Speed removed from Spirit.
 
+### Q-407 — Short signature-spell cameras: how long, whose sequences, how the cut looks
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-407, cloud) · **Blocks:** —
+**Question:** FeelGuide 9 (Crown, 2026-11-09) keeps player and team spells less cinematic than a boss's: "short, no long sequences; signature shots stay brief" (study §9, R7). Still open: (1) the cap; (2) whose sequences are capped; (3) what happens at the cap; (4) how the validator tells a boss's skill from a player's.
+**Context:** `SignatureCameraCap` (`Combat/Camera/SignatureCameraCap.h`), `UCombatCameraDirector::PlaySequence` / `HandleSignatureCapReached`, `NotifyValidation::CheckSignatureSeconds` / `GetValidationReportString`.
+**Options / as built (A):** (1) **2.0 s** (`MaxSignatureSeconds`, `TODO: tune`; 0.05 s tolerance for frame rounding). (2) **any caster who is not an opposing combatant** (the player and co-op teammates); enemy casters run to the end, since only bosses and named attacks get a sequence (Q3). (3) **cut back as if it had finished**: the sequence stops and the view blends to the turn view (0.6 s); a pending Defence hand-off (B-370) takes the view instead; skip-after-hit and the next turn still cut earlier. The skill's animation and hits are not touched. (4) a skill some `UBossData` phase adds (`AddedSkills`) is a boss's; **every other skill is treated as a player or team skill** and gets a warning line (never a failure). **B** (1) 3 s; (3) a fade or a whip-cut instead of the blend; (4) a per-skill "boss sequence" flag.
+**Recommendation:** A. Expedition 33's player signature skill (Maelle, 5:59–6:03, study §1) runs about 4 s with timed presses; Crown asked for less than that, so half. Final Fantasy X's long summon sequences are a commonly cited pacing complaint once seen a few times, while Persona 5's critical-hit cut-ins last about a second and stay well liked; both point to short, repeatable shots for anything a player sees every fight. The blend back is the same one every shot pattern already uses (B-371), so no new look.
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change any; every number is a named constant `TODO: tune`.
+**Notes for Claude:** built in B-407. A boss's base-loadout skills are not in `UBossData`, so the validator may warn on them; the warning says "fine if only enemies use it". The runtime cut doesn't depend on that list: it reads the caster's side.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
