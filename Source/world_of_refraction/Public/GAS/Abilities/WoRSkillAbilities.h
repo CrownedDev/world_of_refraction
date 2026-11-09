@@ -1,0 +1,71 @@
+// WoRSkillAbilities.h
+// B-043b (GAS stage 4 part 2, Q-043b): a combatant's skills as granted UWoRGameplayAbility specs, and the
+// orchestrator's hand-off that starts an action through its skill's ability.
+// - Granting: the orchestrator grants each combatant's loadout skills at fight start (GrantLoadoutSkills:
+//   weapon attacks, abilities, spells) and clears them at fight end (ClearSkills, which cancels a running
+//   one). A skill the loadout gains mid-fight (weapon switch, a Broken Darkness pool) is granted when first
+//   used. Granting changes nothing in play.
+// - `wor.Abilities.UseGAS` (default 0): at 1, TryExecuteThroughAbility starts a spell or ability action through
+//   TryActivateAbility on its skill's spec; the ability runs the same UActionExecutor::ExecuteActionAsync.
+//   At 0, or for an action with no skill (Defend, Item, Flee, Switch Weapon), a deferred ritual fire (B-043g),
+//   an actor with no ASC, or an activation GAS refuses, the caller runs the old call.
+// Debug: Debug/GAS/WoRAbilityDebug.h (wor.Abilities.Print). Spec: WoR.GAS.Abilities.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameplayAbilitySpec.h"
+#include "GameplayTagContainer.h"
+#include "Combat/Actions/ActionExecutor.h"
+
+class AActor;
+class UAbilitySystemComponent;
+class USkillDataBase;
+struct FGameplayAbilitySpec;
+
+namespace WoRSkillAbilities
+{
+	/** The value of `wor.Abilities.UseGAS`; tests flip it with SetUsesAbilities. */
+	WORLD_OF_REFRACTION_API bool UsesAbilities();
+	WORLD_OF_REFRACTION_API void SetUsesAbilities(bool bEnabled);
+
+	/** Ability.Shape.<execution type>, plus Ability.Shape.<delivery> for each cast entry's delivery (a spell
+	 *  with no cast entries: its DeliveryType, as the orchestrator's async check reads it). */
+	WORLD_OF_REFRACTION_API FGameplayTagContainer GetShapeTags(const USkillDataBase &Skill);
+
+	/** The skill an action runs: the spell for a Spell action, the skill for an Ability action, else null. */
+	WORLD_OF_REFRACTION_API USkillDataBase *GetActionSkill(const FAction &Action);
+
+	/** The skill's plain cast (no infusion, innate source): what CheckCost and the debug print price
+	 *  a spec at when no action is being activated. */
+	WORLD_OF_REFRACTION_API FAction MakePlainAction(USkillDataBase *Skill);
+
+	/** The ASC skills are granted on: Actor's, authority only. Null otherwise. */
+	WORLD_OF_REFRACTION_API UAbilitySystemComponent *GetGrantingASC(AActor *Actor);
+
+	/** Actor's spec for Skill (a UWoRGameplayAbility spec whose source object is Skill), or null. */
+	WORLD_OF_REFRACTION_API FGameplayAbilitySpec *FindSkillSpec(AActor *Actor, const USkillDataBase *Skill);
+
+	/** Grants Skill unless Actor already has its spec; returns the spec's handle (invalid without an ASC). */
+	WORLD_OF_REFRACTION_API FGameplayAbilitySpecHandle GrantSkill(AActor *Actor, USkillDataBase *Skill);
+
+	/** Grants each skill (nulls and repeats skipped); returns how many new specs were given. */
+	WORLD_OF_REFRACTION_API int32 GrantSkills(AActor *Actor, const TArray<USkillDataBase *> &Skills);
+
+	/** The skills Actor's loadout can use now: weapon attacks, abilities, spells (ULoadoutComponent). */
+	WORLD_OF_REFRACTION_API TArray<USkillDataBase *> GetLoadoutSkills(const AActor *Actor);
+
+	/** GrantSkills(Actor, GetLoadoutSkills(Actor)). */
+	WORLD_OF_REFRACTION_API int32 GrantLoadoutSkills(AActor *Actor);
+
+	/** Cancels and removes every skill spec on Actor; returns how many were removed. */
+	WORLD_OF_REFRACTION_API int32 ClearSkills(AActor *Actor);
+
+	/** Every skill spec on Actor (copies, for inspection). */
+	WORLD_OF_REFRACTION_API TArray<FGameplayAbilitySpec> GetSkillSpecs(AActor *Actor);
+
+	/** With `wor.Abilities.UseGAS` 1: starts Action through its skill's ability (granted now if missing) and
+	 *  returns true; OnComplete runs when the action completes, after the ability has ended. False, with
+	 *  nothing started, when the caller must run UActionExecutor::ExecuteActionAsync itself. */
+	WORLD_OF_REFRACTION_API bool TryExecuteThroughAbility(AActor *Actor, const FAction &Action, const FOnActionComplete &OnComplete);
+}
