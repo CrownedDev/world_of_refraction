@@ -111,6 +111,13 @@ namespace WoRTags
 	// B-043d: a spell's projectile reached (or missed) its target, sent to the caster's running skill ability.
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Projectile_Arrived);
 	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_Projectile_Dodged);
+	// B-043e (Q-043e): a spell shape's resolution point with no flight (AOE, Instant, a support skill's effect),
+	// sent to the caster's running skill ability (WaitGameplayEvent on the parent). Target = the defender (Support:
+	// the first target), EventMagnitude = the cast entry's index.
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_SpellResolve);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_SpellResolve_AOE);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_SpellResolve_Instant);
+	WORLD_OF_REFRACTION_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(Event_Combat_SpellResolve_Support);
 
 	// B-043b: a granted skill ability's delivery shape (GAS/Abilities/WoRSkillAbilities.h, Q-043b). One per
 	// EAbilityExecutionType, plus one per ESpellDeliveryType the skill's casts use.
