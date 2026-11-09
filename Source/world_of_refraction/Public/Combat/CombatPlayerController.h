@@ -122,7 +122,11 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> InfusionLevelAction;
 
-	/** Creates the menu-key actions and their mapping context once. */
+	/** B-406b (Q-406b): skips a boss cinematic on this machine (Space / Menu). */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> SkipCinematicAction;
+
+	/** Creates the menu-key actions (and the cinematic skip) and their mapping context once. */
 	void BuildMenuKeys();
 
 	// ========================================
@@ -135,6 +139,7 @@ protected:
 	void OnDefend(const FInputActionValue &Value);
 	void OnInfusion(const FInputActionValue &Value);
 	void OnInfusionLevel(const FInputActionValue &Value);
+	void OnSkipCinematic(const FInputActionValue &Value);
 
 	/** Routes a menu key to the command menu; only the local player's keys count. */
 	void PressMenuKey(EPieMenuCategory Category);
@@ -142,6 +147,11 @@ protected:
 public:
 	/** Debug: each menu key's action, keyboard key and gamepad button. */
 	static FString GetMenuKeysString();
+
+	/** B-406b (Q-406b): ends the boss cinematic playing in WorldContext's fight on this machine (the director's
+	 *  FinishBossCinematic: HUD back, then turn 1 or the held request goes on). True if one was playing. Local only:
+	 *  on a co-op client it ends the local view, and the server's hold ends on its own end or the cap. */
+	static bool SkipBossCinematic(const UObject *WorldContext);
 
 	// ========================================
 	// CO-OP INPUT ROUTING (B-229)

@@ -31,6 +31,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Guard (timed; Perfect Guard) | (editor context) | (editor context) | (editor) | Built: CC to fill from the editor. Co-op: a client's press goes to the server (`Server_SubmitDefenseInput`, B-229) |
 | Dodge (timed) | (editor context) | (editor context) | (editor) | Built: one Dodge (D-135, B-343: the `DodgeLeftAction` binding; no left / right split, no Parry). CC to fill from the editor; removing `IA_Parry` and `IA_DodgeRight` is an editor step. Co-op: as Guard (B-229) |
 | Menu confirm / back | Enter / Esc | A (Cross) / B (Circle) | CommonUI Click / Back | Built (B-103). Co-op: a client's confirmed pick, with its infusion source and level, goes to the server (`Server_SubmitMenuPick`, B-229); back stays local |
+| Skip boss cinematic (opening, phase change) | Space | Menu (Options) | `IA_Combat_SkipCinematic` | Built (B-406b, Q-406b): press, in the code-built menu-keys context. Only while a boss cinematic plays (no HUD, no menu open), so it never meets a menu key. Co-op: ends this machine's view only; the server's hold ends on its own end or its cap |
 
 ## Notes
 
@@ -45,3 +46,4 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | 2026-10-27 | Created: built keys, Crown's double-click L3, standard-practice proposals | docs/input-map |
 | 2026-11-03 | B-229: Guard, Dodge and the menu confirm reach the server from a co-op client (no key changes) | feature/B-229-input-rpcs |
 | 2026-11-03 | B-343 (D-135): only Guard and Dodge; Parry and Dodge Right no longer bound | chore/B-343-guard-dodge-only |
+| 2026-11-09 | B-406b: Skip boss cinematic (Space / Menu), `IA_Combat_SkipCinematic` | feature/B-406b-boss-cinematic-skip-cloud |
