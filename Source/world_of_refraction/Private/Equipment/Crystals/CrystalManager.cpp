@@ -216,13 +216,13 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
         return;
     }
 
-    const FCombatLoadout Loadout = LC->GetActiveLoadout();
-    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution || !Loadout.PrimaryEvolution.Item)
+    const FEvolutionAttachment Seat = LC->GetCharacterSlotEvolution(); // B-357e: the one resolve path
+    if (!Seat.Item)
     {
         return;
     }
 
-    const EItemTier EvoTier = Loadout.PrimaryEvolution.Tier;
+    const EItemTier EvoTier = Seat.Tier;
 
     UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>(); // luck skip and force wear below
     const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell);
@@ -232,9 +232,9 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
         return;
     }
 
-    const int32 BeforeDur = Loadout.PrimaryEvolution.CurrentDurability;
-    const int32 MaxDur = Loadout.PrimaryEvolution.Item->MaxDurability;
-    const FString EvoName = Loadout.PrimaryEvolution.Item->GetFullItemName();
+    const int32 BeforeDur = Seat.CurrentDurability;
+    const int32 MaxDur = Seat.Item->MaxDurability;
+    const FString EvoName = Seat.Item->GetFullItemName();
 
     // Luck-driven break skip — mirrors ProcessPostCastWear (the refined-crystal
     // path). Roll the wielder's Luck before applying wear; on success skip the
@@ -265,8 +265,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
 
     const bool bBroke = LC->ApplyWearToActivePrimaryEvolution(Wear, bForceWear);
 
-    const FCombatLoadout &AfterLoadout = LC->GetActiveLoadout();
-    const int32 AfterDur = AfterLoadout.PrimaryEvolution.CurrentDurability;
+    const int32 AfterDur = LC->GetCharacterSlotEvolution().CurrentDurability;
 
     UE_LOG(LogTemp, Verbose,
            TEXT("[CrystalManager] %s applies %d evolution wear to '%s' (%d -> %d / %d)%s [ActionTier=%d L%d bIsSpell=%d]"),
