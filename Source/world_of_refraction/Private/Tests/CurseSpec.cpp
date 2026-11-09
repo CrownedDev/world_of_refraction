@@ -255,6 +255,13 @@ void FCurseSpec::Define()
 		TestEqual(TEXT("cleared: the other essence untouched"), Wallet->GetBalance(ECurrencyType::ElementalEssence), Price);
 		TestFalse(TEXT("not held: refused"), Curses->PayToClearCurse(CURSE_TEST_ID, Wallet, Refusal));
 		TestTrue(TEXT("cleared, so it can be regained (Q-378)"), Curses->WasLifted(CURSE_TEST_ID));
+
+		// Q-390: a held curse with no asset prices as the asset defaults (F, Pillar).
+		Curses->SetCurseAssets({});
+		Curses->AddCurse(CURSE_TEST_ID);
+		Wallet->Add(ECurrencyType::PillarEssence, Price);
+		TestTrue(TEXT("no asset: cleared at the default price"), Curses->PayToClearCurse(CURSE_TEST_ID, Wallet, Refusal));
+		TestEqual(TEXT("no asset: the F Pillar price spent"), Wallet->GetBalance(ECurrencyType::PillarEssence), 0);
 	});
 }
 
