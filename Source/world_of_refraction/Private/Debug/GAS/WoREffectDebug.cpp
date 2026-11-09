@@ -58,7 +58,7 @@ FString UWoREffectDebug::GetEffectMismatchString(AActor *Actor)
 		return TEXT("no EffectMirrorComponent");
 	}
 
-	// Read the stored effects directly, so the compare holds whatever wor.Effects.UseGAS says.
+	// Read the stored effects directly, so the compare holds the store against GAS (until B-042g5).
 	const TArray<FWoRMirroredEffect> Stored = UWoREffectMirrorComponent::ReadEnumEffects(Actor);
 	TArray<FString> Mismatches;
 	for (const ESkillEffectType Type : PortedTypes())
@@ -132,8 +132,8 @@ int32 UWoREffectDebug::CompareEffects(const UObject *WorldContextObject)
 		UE_LOG(LogWoREffects, Warning, TEXT("[EffectDebug] %s: effects DIFFER\n%s\nMirror:\n%s"), *It->GetName(), *Mismatches,
 			   *Mirror->GetDebugString());
 	}
-	const FString Summary = FString::Printf(TEXT("wor.Effects.Compare: %d of %d combatant(s) differ (UseGAS %d)"), Differing,
-											Checked, UWoREffectMirrorComponent::ReadsFromGAS() ? 1 : 0);
+	const FString Summary = FString::Printf(TEXT("wor.Effects.Compare: %d of %d combatant(s) differ"), Differing,
+											Checked);
 	UE_LOG(LogWoREffects, Display, TEXT("[EffectDebug] %s"), *Summary);
 	if (GEngine)
 	{
