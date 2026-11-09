@@ -303,8 +303,8 @@ enum class ESkillEffectType : uint8
     // (D-051), read by UCharacterDataComponent::GetMaxActions.
     GainActions UMETA(DisplayName = "Gain Action"),
     LoseActions UMETA(DisplayName = "Lose Action"),
-    MaxActionsBuff UMETA(DisplayName = "Max Actions Buff"),
-    MaxActionsDebuff UMETA(DisplayName = "Max Actions Debuff")
+    MaxActionsBuff UMETA(DisplayName = "Max Actions Up"),
+    MaxActionsDebuff UMETA(DisplayName = "Max Actions Down")
 };
 
 /**
@@ -346,6 +346,13 @@ namespace SkillEffectClassification
     inline bool IsActionChange(ESkillEffectType Type)
     {
         return Type == ESkillEffectType::GainActions || Type == ESkillEffectType::LoseActions;
+    }
+
+    /** B-170d: a type whose authored Value counts whole actions (the four action effects). Read as Value, never
+     *  Magnitude, and never scaled (a tier-gap multiplier would make a fraction of an action). */
+    inline bool CountsWholeActions(ESkillEffectType Type)
+    {
+        return IsActionChange(Type) || Type == ESkillEffectType::MaxActionsBuff || Type == ESkillEffectType::MaxActionsDebuff;
     }
 
     /** B-268: a legacy type with the same meaning as today's is stored as today's type, once, when applied. */

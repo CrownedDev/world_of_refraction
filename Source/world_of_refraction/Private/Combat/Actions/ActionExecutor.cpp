@@ -5907,7 +5907,9 @@ void UActionExecutor::ApplySkillEffects(
 			// Per-payload runtime value: gauge manipulators + DOT pass authored Value through;
 			// stat-modifier effects keep the Magnitude*100 percentage shape. Cluster 4: both
 			// halves scaled by the tier-gap effect-magnitude multiplier (EffMagMult).
+			// B-170d: the action effects count whole actions: authored Value, unscaled.
 			const int32 RuntimeValue =
+				SkillEffectClassification::CountsWholeActions(P.EffectType) ? P.Value :
 				(P.EffectType == ESkillEffectType::StatusIncrease ||
 				 P.EffectType == ESkillEffectType::StatusDecrease ||
 				 P.EffectType == ESkillEffectType::DOT ||

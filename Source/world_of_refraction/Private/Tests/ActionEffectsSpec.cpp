@@ -21,7 +21,9 @@
 #include "Equipment/Crystals/AugmentStoneConstants.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Inventory/ItemExecutor.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "Skills/Effects/SkillEffectManager.h"
 
 namespace
@@ -282,6 +284,60 @@ void FActionEffectsSpec::Define()
 			TestWorld->Tick(ACTION_EFFECTS_SETTLE_FRAMES);
 			return Fight;
 		};
+
+		It("takes an authored skill's Value as whole actions through the action executor (Value 1, Magnitude 0)", [this]()
+		{
+			if (!TestNotNull(TEXT("the switch exists"), PipsSwitch)) return;
+			SetSwitch(ACTION_EFFECTS_ON);
+			ACombatOrchestrator *Fight = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
+			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			Char = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			UCharacterDataComponent *FoeData = Foe ? Foe->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			if (!TestNotNull(TEXT("Orchestrator"), Fight) || !TestNotNull(TEXT("Hero data"), Char) || !TestNotNull(TEXT("Foe data"), FoeData)) return;
+
+			const auto Payload = [](ESkillEffectType Type, int32 Value, int32 Duration, ETargetType Target)
+			{
+				FSkillEffectPayload P;
+				P.EffectType = Type;
+				P.Value = Value;
+				P.Duration = Duration;
+				P.Target = Target;
+				return P;
+			};
+			UEffectDefinition *Def = NewObject<UEffectDefinition>(GetTransientPackage());
+			FSkillEffect Effect;
+			Effect.Payloads.Add(Payload(ESkillEffectType::GainActions, ACTION_EFFECTS_TWO, ACTION_EFFECTS_NOW, ETargetType::Self));
+			Effect.Payloads.Add(Payload(ESkillEffectType::MaxActionsBuff, ACTION_EFFECTS_ONE, ACTION_EFFECTS_TWO_TURNS, ETargetType::Self));
+			Effect.Payloads.Add(Payload(ESkillEffectType::LoseActions, ACTION_EFFECTS_ONE, ACTION_EFFECTS_NEXT_TURN, ETargetType::Enemy));
+			Def->Effects.Add(Effect);
+			UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+			Ability->Name = TEXT("Action effects ability");
+			Ability->TargetType = ETargetType::Enemy;
+			Ability->ReferencedEffects.Add(Def);
+			Ability->AddToRoot();
+
+			Fight->StartCombat({Hero}, {Foe});
+			if (TestTrue(TEXT("Hero opens an action-pips fight"), Fight->GetCurrentActor() == Hero && Fight->IsActionPipsFight()))
+			{
+				FAction Action;
+				Action.ActionType = EActionType::Ability;
+				Action.SkillData = Ability;
+				Action.Targets.Add(Foe);
+				Fight->SubmitActionAsync(Action);
+				TestWorld->Tick(ACTION_EFFECTS_SETTLE_FRAMES);
+
+				TestEqual(TEXT("1 - cost 1 + Gain 2"), Char->CurrentActions, ACTIONS_REGAIN_BASE - ACTION_COST_DEFAULT + ACTION_EFFECTS_TWO);
+				TestEqual(TEXT("Max Actions Up 1"), Char->GetMaxActions(), MAX_ACTIONS_BASE + ACTION_EFFECTS_ONE);
+				if (TestEqual(TEXT("Foe's loss waits"), FoeData->GetWaitingActionChanges().Num(), 1))
+				{
+					TestEqual(TEXT("-1, unscaled"), FoeData->GetWaitingActionChanges()[0].Change, -ACTION_EFFECTS_ONE);
+				}
+				TestTrue(TEXT("Hero's turn goes on"), Fight->GetCurrentActor() == Hero);
+			}
+			Fight->ForceEndCombat();
+			Ability->RemoveFromRoot();
+		});
 
 		It("skips Hero's turn when a waiting loss empties the bank after the regain", [this, RunToHeroSecondTurn]()
 		{
