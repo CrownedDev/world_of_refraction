@@ -3169,6 +3169,10 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 	UCharacterDataComponent *TargetComp = Input.Target->FindComponentByClass<UCharacterDataComponent>();
 
+	// B-391b: what the damage number shows on every machine (neutral until the calculator says otherwise).
+	float ShownElementMultiplier = 1.0f;
+	EWoRDamageType ShownDamageType = Input.GetHitKind().DamageType;
+
 	// Damage path — routes through UDamageCalculator so all Phase 1/2/2b math
 	// (EActionType-driven stat selection, ActionMods, element interaction,
 	// flat defense, grid modifiers, crit, BD multipliers) runs unchanged.
@@ -3207,6 +3211,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			const FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Input.Attacker, Input.Target, DmgInput);
 
 			Result.bWasCritical = CalcResult.bWasCritical;
+			ShownElementMultiplier = CalcResult.ElementMultiplier;
+			ShownDamageType = FWoRHitKind::FromPair(CalcResult.EffectiveElement, Input.PhysicalDamageType, Input.DealtTypeOverride).DamageType;
 
 			// Absorb — runs after DamageCalculator (element/crit/defense resolved) and before
 			// the HP drop, on a local FinalDamage copy (CalcResult stays const).
@@ -3297,7 +3303,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
 		if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Input.Target))
 		{
-			Presentation->SendHit(Result.DamageDealt, Result.bWasCritical); // B-231: every machine's damage numbers
+			// B-231: every machine's damage numbers; B-391b: styled by the element multiplier and damage type.
+			Presentation->SendHit(Result.DamageDealt, Result.bWasCritical, ShownElementMultiplier, ShownDamageType);
 		}
 		OnElementDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical, Input.Element);
 
