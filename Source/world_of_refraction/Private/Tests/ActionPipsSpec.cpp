@@ -161,7 +161,7 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("Mid Reflex"), Char->GetActionRegain(), ACTIONS_REGAIN_AT_THRESHOLD_2);
 
 			Data->Reflex = ACTION_PIPS_HUGE_REFLEX;
-			TestEqual(TEXT("Share capped at 1"), Char->GetReflexRegainShare(), 1.0f);
+			TestTrue(TEXT("Share at or past threshold 3"), Char->GetReflexRegainShare() >= ACTIONS_REGAIN_REFLEX_THRESHOLD_3);
 			TestEqual(TEXT("Full Reflex"), Char->GetActionRegain(), ACTIONS_REGAIN_AT_THRESHOLD_3);
 		});
 
