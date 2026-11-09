@@ -4436,8 +4436,8 @@ Moved here once applied. Newest first.
 
 ### D-169 — Curses have tiers; clearing one costs essence by tier
 **Status:** DECIDED (Crown, 2026-11-09, desktop operator session) · **Raised:** 2026-11-09 (B-378b hand-off: the hub's Clear curse service is free) · **Blocks:** —
-**Answer (Crown):** curses get **tiers** (Light / Medium / Heavy), and the price to clear one is set **by its tier**. The price is paid in **essence**: **Elemental or Pillar Essence, chosen per curse** (authored on the curse).
+**Answer (Crown):** curses are **tiered like items, F to S** (`EItemTier`; corrected by Crown 2026-11-09: not Light / Medium / Heavy), and the price to clear one is set **by its tier**. The price is paid in **essence**: **Elemental or Pillar Essence, chosen per curse** (authored on the curse).
 - Reference: Darkest Dungeon's Sanitarium charges more to remove worse quirks; a light curse is cheap to drop, a heavy one is a real choice.
-- Starting prices (*starting values, tune in PIE*): Light 100, Medium 250, Heavy 500 of the curse's essence.
+- Starting prices (*starting values, tune in PIE*): follow the game's existing essence-by-tier price ladder (the same tier steps items use, D-125 balances); F cheapest, S dearest.
 - The penalty itself stays as authored per curse (Q-378's "flat, not tier-scaled" penalty is unchanged); the tier sets the clear price only.
-**Notes for Claude:** `UCurseData` gains `Tier` and `ClearEssence` (Elemental / Pillar); the hub Clear curse button charges it through the existing economy service (D-125 balances), refused with a message when short. Which curses exist, their names, text and tiers stay Crown's (lore). Job: B-390.
+**Notes for Claude:** `UCurseData` gains `Tier` (`EItemTier`, F-S) and `ClearEssence` (Elemental / Pillar); the hub Clear curse button charges it through the existing economy service (D-125 balances), refused with a message when short. Which curses exist, their names, text and tiers stay Crown's (lore). Job: B-390.
