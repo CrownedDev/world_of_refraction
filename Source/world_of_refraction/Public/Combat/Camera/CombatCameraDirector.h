@@ -10,6 +10,7 @@
 #include "Components/ActorComponent.h"
 #include "Engine/TimerHandle.h"
 #include "Combat/Camera/CombatCameraTypes.h"
+#include "Combat/Camera/BossFraming.h"
 #include "CombatCameraDirector.generated.h"
 
 class UCombatCameraComponent;
@@ -19,6 +20,8 @@ class ULevelSequencePlayer;
 class ALevelSequenceActor;
 class APlayerController;
 class UCameraShakeBase;
+class UNiagaraSystem;
+class UCameraComponent;
 struct FAction;
 
 UCLASS(ClassGroup = (Combat))
@@ -86,6 +89,23 @@ public:
 	/** B-371 (wor.Camera): the shot pattern now playing, e.g. "shot: Impact on Goblin (fov 82, shake 0.60)". */
 	FString GetShotString() const;
 
+	/** B-405 (R14, Q-405): the last enemy fell. Shows the kill shot for Rank on Victim's camera (Normal: wide and
+	 *  darkened; Boss: close and low, then BreakApartEffect and the enemy hidden). Returns how long to hold before the
+	 *  fight ends; 0 when nothing shows (no viewer, as in headless tests), so the fight ends at once as before. */
+	float PlayKillShot(AActor *Victim, EEncounterRank Rank);
+
+	/** B-405 (wor.Camera.KillShot): Kind on the first enemy, for its length, then back to the turn view. The
+	 *  break-apart effect plays but nobody is hidden. */
+	void PreviewKillShot(EKillShotKind Kind);
+
+	/** B-405 (wor.Camera): the turn view's height and the last kill shot, e.g. "height Low | kill shot Boss on Boss_1". */
+	FString GetBossFramingString() const;
+
+	/** B-405 (R14): the effect a boss breaks apart into in its kill shot (D-057: soft). Empty: the boss stays as it fell.
+	 *  TODO: a Niagara system (editor step); a per-boss effect on UBossData if bosses need their own. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|KillShot")
+	TSoftObjectPtr<UNiagaraSystem> BreakApartEffect;
+
 protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
@@ -134,6 +154,13 @@ private:
 	/** bDeferDestroy: called from the player's own OnFinished, so the actor goes next tick. */
 	void StopSequence(bool bDeferDestroy = false);
 	FCombatCameraFrame BuildFrame(AActor *Focus) const;
+	/** B-405: the turn view's height from the living enemies' data and ranks (FBossFramingRules::FightHeight). */
+	EEnemyCameraHeight GetFightCameraHeight() const;
+	/** B-405: the kill shot's view, look and break-apart timer. False when there is no viewer or camera. */
+	bool ShowKillShot(AActor *Victim, EKillShotKind Kind, bool bHideOnBreakApart);
+	void BreakApart();
+	void EndKillShotPreview();
+	static void SetDarkened(UCameraComponent *Camera, bool bDarkened);
 	bool IsViewersCharacter(const AActor *Actor) const;
 	APlayerController *GetViewer() const;
 
@@ -186,4 +213,12 @@ private:
 	FCameraShot ActiveShot;
 	float ShotElapsed = 0.0f;
 	FTimerHandle ShotTimer;
+
+	// B-405: the kill shot now showing (or the last one, for wor.Camera).
+	TWeakObjectPtr<AActor> KillShotVictim;
+	EKillShotKind LastKillShot = EKillShotKind::Normal;
+	bool bHasLastKillShot = false;
+	bool bKillShotHidesVictim = false;
+	FTimerHandle BreakApartTimer;
+	FTimerHandle KillShotPreviewTimer;
 };
