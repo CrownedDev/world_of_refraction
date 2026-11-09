@@ -322,15 +322,28 @@ void UCombatCameraDirector::HandleActionRequested(AActor *Actor)
 	{
 		return; // a cinematic keeps the view; its end shows the turn view (HandleSequenceFinished), as before
 	}
+	const UWorld *World = GetWorld();
+	if (IsShotPlaying() && World && World->GetTimerManager().IsTimerActive(ShotTimer))
+	{
+		// Review: a shot still moving (an impact, a followed projectile) is seen in full; StepShot returns at its end.
+		bSameTurnReturnPending = true;
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Same-turn return for %s waits for the shot to end"), *Actor->GetName());
+		return;
+	}
+	ReturnToTurnView(Actor);
+}
+
+void UCombatCameraDirector::ReturnToTurnView(AActor *Actor)
+{
 	const ECombatCameraMode Mode = FCombatCameraRules::SelectMode(IsViewersCharacter(Actor), false, bCameraMovementOff);
-	const FSameTurnReturnPlan Plan = FCombatCameraRules::PlanSameTurnReturn(bActed, Mode, TurnViewStyle, BuildFrame(Actor));
+	const FSameTurnReturnPlan Plan = FCombatCameraRules::PlanSameTurnReturn(true, Mode, TurnViewStyle, BuildFrame(Actor));
 	UCombatCameraComponent *Camera = Actor->FindComponentByClass<UCombatCameraComponent>();
 	APlayerController *Viewer = GetViewer();
 	if (!Plan.bReturn || !Camera || !Viewer)
 	{
 		return; // movement off (the static view stays) or not the viewer's character: unchanged
 	}
-	StopShotPattern(); // the last action's held shot ends here
+	StopShotPattern(); // the last action's shot, already seen in full, ends here
 	CurrentMode = ECombatCameraMode::Turn;
 	ACameraActor *Existing = Camera->GetCameraActor();
 	if (Existing && Viewer->GetViewTarget() == Existing)
@@ -803,6 +816,14 @@ void UCombatCameraDirector::StepShot()
 	if (Alpha >= 1.0f && !bFollowing)
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer); // the shot holds where it ended
+		// B-401: the same hero was asked again while this shot moved; the return plays now that it is seen.
+		AActor *Returning = ViewedActor.Get();
+		if (bSameTurnReturnPending && bInCombat && Returning && !PlayingSequence && !DefenceHandOffTimer.IsValid())
+		{
+			bSameTurnReturnPending = false;
+			ReturnToTurnView(Returning);
+		}
+		bSameTurnReturnPending = false;
 	}
 }
 
@@ -819,6 +840,7 @@ void UCombatCameraDirector::StopShotPattern()
 	bShotImpactShown = false;
 	bShotCastShown = false;
 	ShotElapsed = 0.0f;
+	bSameTurnReturnPending = false; // B-401: whatever stopped the shot (an action, a turn, the fight's end) owns the view
 }
 
 FCameraShotContext UCombatCameraDirector::BuildShotContext(bool bCritical) const

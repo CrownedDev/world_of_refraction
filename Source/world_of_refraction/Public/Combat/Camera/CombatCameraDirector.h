@@ -132,6 +132,8 @@ private:
 	 *  while its turn goes on (B-170c), or again after a refused pick. Only an ask after an action returns the camera. */
 	UFUNCTION()
 	void HandleActionRequested(AActor *Actor);
+	/** B-401: the blend back to Actor's turn view (PlanSameTurnReturn); counted and logged. */
+	void ReturnToTurnView(AActor *Actor);
 
 	UFUNCTION()
 	void HandleSequenceFinished();
@@ -248,5 +250,7 @@ private:
 
 	// B-401: an action started since the orchestrator last asked for one (or since the turn start).
 	bool bActedSinceAsked = false;
+	/** B-401 (review): asked again while the last shot still moved; StepShot returns when it ends. */
+	bool bSameTurnReturnPending = false;
 	int32 SameTurnReturnCount = 0;
 };
