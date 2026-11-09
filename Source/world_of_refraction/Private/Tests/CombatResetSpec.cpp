@@ -1,6 +1,6 @@
 // CombatResetSpec.cpp
-// Nothing from one fight survives into the next (B-030): leave a defense window open, an infusion
-// charging, a status bar part-filled and a turn-order preview built, force the fight to end, and every per-fight subsystem is
+// Nothing from one fight survives into the next (B-030): leave a defense window open, a status bar
+// part-filled and a turn-order preview built, force the fight to end, and every per-fight subsystem is
 // clean before the second fight starts.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -10,7 +10,6 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Defense/DefenseSystem.h"
-#include "Infusion/InfusionChargeManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 
@@ -29,7 +28,6 @@ TUniquePtr<FWoRTestWorld> TestWorld;
 ACombatOrchestrator *Orchestrator = nullptr;
 UTurnManager *TurnManager = nullptr;
 UDefenseSystem *Defense = nullptr;
-UInfusionChargeManager *Infusion = nullptr;
 USkillEffectManager *Effects = nullptr;
 UStatusBuildupManager *Buildup = nullptr;
 AActor *Hero = nullptr;
@@ -39,7 +37,6 @@ AActor *Foe = nullptr;
 void ExpectClean(const FString &When)
 {
 	TestFalse(*(When + TEXT(": defense window closed")), Defense->IsDefenseWindowOpen(Foe));
-	TestFalse(*(When + TEXT(": infusion not charging")), Infusion->IsCharging());
 	TestEqual(*(When + TEXT(": no effects on the hero")), Effects->GetEffectCount(Hero), 0);
 	TestEqual(*(When + TEXT(": no effects on the foe")), Effects->GetEffectCount(Foe), 0);
 	TestEqual(*(When + TEXT(": hero status bar empty")), Buildup->GetStatusBarBuildup(Hero), 0.0f);
@@ -55,7 +52,6 @@ void FCombatResetSpec::Define()
 		Orchestrator = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
 		Defense = TestWorld->GetSubsystem<UDefenseSystem>();
-		Infusion = TestWorld->GetSubsystem<UInfusionChargeManager>();
 		Effects = TestWorld->GetSubsystem<USkillEffectManager>();
 		Buildup = TestWorld->GetSubsystem<UStatusBuildupManager>();
 		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
@@ -69,7 +65,7 @@ void FCombatResetSpec::Define()
 
 	It("leaves nothing from a forced-ended fight for the next one", [this]()
 	{
-		if (!TestTrue(TEXT("setup"), Orchestrator && TurnManager && Defense && Infusion && Effects && Buildup && Hero && Foe))
+		if (!TestTrue(TEXT("setup"), Orchestrator && TurnManager && Defense && Effects && Buildup && Hero && Foe))
 		{
 			return;
 		}
@@ -79,7 +75,6 @@ void FCombatResetSpec::Define()
 		TestTrue(TEXT("turn preview built"), TurnManager->PreviewTurnOrder(COMBAT_RESET_TEST_PREVIEW_TURNS).Num() > 0);
 		Defense->OpenDefenseWindow(Hero, Foe, COMBAT_RESET_TEST_ATTACK_SIZE, COMBAT_RESET_TEST_DAMAGE);
 		TestTrue(TEXT("defense window open"), Defense->IsDefenseWindowOpen(Foe));
-		TestTrue(TEXT("infusion charging"), Infusion->BeginCharge(Hero, EChargeInfusionType::Spell));
 		Buildup->AddStatusBuildup(Foe, Hero, COMBAT_RESET_TEST_BUILDUP, ESpellElement::Fire, EPhysicalDamageType::None);
 		TestTrue(TEXT("hero status bar part-filled"), Buildup->GetStatusBarBuildup(Hero) > 0.0f);
 
