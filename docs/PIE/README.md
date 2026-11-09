@@ -16,6 +16,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-398](B-398.md) | `feature/B-398-turn-view-setting-cloud` (UNBUILT, from dev, save v34) | Turn-view setting: Centred Wide (default) or Over the Shoulder (hero lower-left third, enemies mid-frame, the same for every member); saved, kept for the next fight (`wor.Camera.Style`) | Pending |
+| [B-404](B-404.md) | `feature/B-404-wide-beats-cloud` (UNBUILT, on `feature/B-398-turn-view-setting-cloud`) | Wide beats and the party handover: after an action the camera goes wide, then blends (~0.5 s) behind the next hero; `OnTurnHandover` once per turn start (`wor.Camera.Handover` preview) | Pending |
 | [B-396](B-396.md) | `fix/B-396-combat-hud-visibility` (in dev) | Combat HUD invisible: `wor.UI.Print` in a fight shows each HUD widget's viewport, visibility, opacity, position and size; the trial gate's focus error is gone | Pending |
 | [B-064c](B-064c.md) | `feature/B-064c-ice-rest` (in dev) | Ice, the rest: Ice resistance from the profile asset, gear and Ice-keyed buffs (Ice and Water); a Water Ward or Water-scoped boost doesn't reach an Ice hit, an Ice-keyed Ward does | Pending |
 | [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (in dev) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
