@@ -28,7 +28,11 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	int32 BaseDamage = 0;
 	bool bIsSpell = false;
 	ESpellElement Element = ESpellElement::None;
+	/** B-273b: FDamageCalculationInput::DealtTypeOverride (Ice); the GAS execution reads the resistance by hit kind. */
+	EWoRDamageType DealtTypeOverride = EWoRDamageType::None;
 	FActionStatModifiers ActionMods;
+
+	FWoRHitKind GetHitKind() const { return FWoRHitKind::FromPair(Element, EPhysicalDamageType::None, DealtTypeOverride); }
 
 	// ---- Attacker ----
 	/** GetAttackerDamageMultiplier (SpellDamage for spells, RawDamage otherwise). */
@@ -56,8 +60,8 @@ struct WORLD_OF_REFRACTION_API FDamageMathInputs
 	float CritDamageMultiplier = 1.0f;
 
 	// ---- Defender ----
-	/** The defender's resistance to the hit's element (fraction, + resists, - weak; uncapped).
-	 *  0 for non-elemental hits (D-005, D-036, Q-145). */
+	/** The defender's resistance to the hit's element (fraction, + resists, - weak; uncapped): by hit kind, so an Ice
+	 *  hit reads Ice alone (B-273b, Q-145b). 0 for non-elemental hits (D-005, D-036, Q-145). */
 	float ElementResistance = 0.0f;
 	/** B-389 (D-168): the defender's Physical or Spell damage line for this hit (fraction; WoRResistance::
 	 *  GetScopeLineResistance). Step 3 adds it to ElementResistance under the same cap; the GAS execution, which puts the

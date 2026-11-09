@@ -8,6 +8,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/Actions/EActionType.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Combat/Damage/WoRHitKind.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Skills/Definitions/EScalingTier.h"
@@ -62,6 +63,12 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	/** Element type (if elemental); None = non-elemental damage instance */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	ESpellElement Element = ESpellElement::None;
+
+	/** B-273b: what the hit deals when it isn't Element's own type (Ice, keyed Water); None keeps Element's. The
+	 *  element resistance reads the hit kind (an Ice hit reads Ice alone, Q-145b). Not a UPROPERTY, like GuardFactor. */
+	EWoRDamageType DealtTypeOverride = EWoRDamageType::None;
+
+	FWoRHitKind GetHitKind() const { return FWoRHitKind::FromPair(Element, EPhysicalDamageType::None, DealtTypeOverride); }
 
 	/** Can this attack critically hit? */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
