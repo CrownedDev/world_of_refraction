@@ -348,6 +348,26 @@ void UWoRGameplayAbility::HandleProjectileDodgedEvent(FGameplayEventData Payload
 	Executor->ResolveProjectileDodge(Target);
 }
 
+void UWoRGameplayAbility::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+									 const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+									 bool bWasCancelled)
+{
+	// HandleActionComplete clears bActionRunning before it ends the ability, so this runs only for an ability ended
+	// while its action goes on.
+	if (bActionRunning && BurstDelayTask)
+	{
+		AActor *Avatar = GetAvatarActorFromActorInfo();
+		if (UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr)
+		{
+			UE_LOG(LogWoR, Log, TEXT("[Abilities] %s: ended mid-burst; the executor's timer spawns the rest"),
+				   *GetNameSafe(GetSkill(Handle, ActorInfo)));
+			Executor->ResumeBurstTimer(BurstInterval);
+		}
+		BurstDelayTask = nullptr; // Super ends the task itself
+	}
+	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
+}
+
 bool UWoRGameplayAbility::StartBurstChain(float Interval)
 {
 	if (!IsListeningForProjectiles())

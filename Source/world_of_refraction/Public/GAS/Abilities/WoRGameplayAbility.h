@@ -113,6 +113,12 @@ public:
 								 const FGameplayAbilityActivationInfo ActivationInfo,
 								 const FGameplayEventData *TriggerEventData) override;
 
+	/** B-043d: ended while its action still runs (cancelled) mid-burst: the executor's timer takes the burst back,
+	 *  so the rest still spawns and the action's windows can close. */
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+							const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+							bool bWasCancelled) override;
+
 private:
 	/** The executor's completion: ends this ability, then hands the result on to whoever started the action. */
 	void HandleActionComplete(const FActionResult &Result);

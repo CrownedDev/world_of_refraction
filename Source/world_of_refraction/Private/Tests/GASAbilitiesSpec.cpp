@@ -14,6 +14,7 @@
 #include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Abilities/GameplayAbility.h"
 #include "Character/CharacterDataComponent.h"
 #include "Components/SceneComponent.h"
@@ -49,6 +50,8 @@ namespace
 	constexpr int32 ABILITIES_SPEC_PROJECTILE_FRAMES = 200;
 	/** Units between the duellists: about 0.33 s of flight at the default 1500 units/s. */
 	constexpr float ABILITIES_SPEC_DUEL_RANGE = 500.0f;
+	/** Inside the burst's first interval (5 frames): the first projectile is out, the second not yet. */
+	constexpr int32 ABILITIES_SPEC_BURST_CANCEL_FRAMES = 2;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -157,6 +160,8 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		int32 ProjectileEvents = 0;
 		int32 BurstSpawns = 0;
 		bool bStillListeningForProjectiles = false;
+		/** The turn moved on from the hero: the action completed. */
+		bool bTurnMovedOn = false;
 	};
 
 	/** B-043c: Hero's Strike on Foe in a fresh world (the battle seed set by the caller), one switch value. */
@@ -171,8 +176,14 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		return RunSkill(bThroughAbility, Bolt, /*bAIFoe*/ false, ABILITIES_SPEC_PROJECTILE_FRAMES);
 	}
 
+	/** B-043d review: Hero's Bolt through its ability, the ability cancelled CancelAfterFrames into the action. */
+	FStrikeOutcome RunBoltCancelled(int32 CancelAfterFrames)
+	{
+		return RunSkill(/*bThroughAbility*/ true, Bolt, /*bAIFoe*/ false, ABILITIES_SPEC_PROJECTILE_FRAMES, CancelAfterFrames);
+	}
+
 	/** Hero's Skill on Foe in a fresh world, one switch value; Frames ticked after the submit. */
-	FStrikeOutcome RunSkill(bool bThroughAbility, USkillDataBase *Skill, bool bAIFoe, int32 Frames)
+	FStrikeOutcome RunSkill(bool bThroughAbility, USkillDataBase *Skill, bool bAIFoe, int32 Frames, int32 CancelAfterFrames = INDEX_NONE)
 	{
 		FStrikeOutcome Outcome;
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
@@ -227,6 +238,15 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 			Outcome.Refusal = Executor->ValidateAction(Hero, Action).ErrorMessage;
 		}
 		Orchestrator->SubmitActionAsync(Action);
+		if (CancelAfterFrames != INDEX_NONE)
+		{
+			TestWorld->Tick(CancelAfterFrames);
+			UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Hero);
+			if (const FGameplayAbilitySpec *Spec = WoRSkillAbilities::FindSkillSpec(Hero, Skill); ASC && Spec)
+			{
+				ASC->CancelAbilityHandle(Spec->Handle);
+			}
+		}
 		TestWorld->Tick(Frames);
 
 		Outcome.bRan = true;
@@ -237,6 +257,7 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		Outcome.ProjectileEvents = SumOverInstances(Hero, Skill, [](const UWoRGameplayAbility &Ability) { return Ability.GetProjectileEventsResolved(); });
 		Outcome.BurstSpawns = SumOverInstances(Hero, Skill, [](const UWoRGameplayAbility &Ability) { return Ability.GetBurstSpawnsDriven(); });
 		Outcome.bStillListeningForProjectiles = WoRSkillAbilities::FindProjectileListener(Hero) != nullptr;
+		Outcome.bTurnMovedOn = Orchestrator->GetCurrentActor() != Hero;
 		return Outcome;
 	}
 END_DEFINE_SPEC(FGASAbilitiesSpec)
@@ -532,6 +553,21 @@ void FGASAbilitiesSpec::Define()
 			TestEqual(TEXT("The chain spawned every projectile after the first"), ThroughAbility.BurstSpawns,
 					  ABILITIES_SPEC_BURST_COUNT - 1);
 			TestFalse(TEXT("Nothing listens once the action is done"), ThroughAbility.bStillListeningForProjectiles);
+		});
+
+		It("finishes a burst on the executor's timer when the ability is cancelled mid-burst", [this]()
+		{
+			Bolt->CastArray[0].Count = ABILITIES_SPEC_BURST_COUNT;
+			const FStrikeOutcome OldPath = RunBolt(false);
+			const FStrikeOutcome Cancelled = RunBoltCancelled(ABILITIES_SPEC_BURST_CANCEL_FRAMES);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && Cancelled.bRan))
+			{
+				return;
+			}
+			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage after the cancel"), Cancelled.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("The chain spawned nothing before the cancel"), Cancelled.BurstSpawns, 0);
+			TestTrue(TEXT("The action completed (the turn moved on)"), Cancelled.bTurnMovedOn);
 		});
 
 		It("leaves an arrival or a burst on an actor with no running ability to the old path", [this]()
