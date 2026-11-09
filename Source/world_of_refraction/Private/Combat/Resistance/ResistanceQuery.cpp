@@ -84,8 +84,9 @@ namespace
 		return Net / CombatConstants::STAT_PERCENT_DIVISOR;
 	}
 
-	/** #6: the equipped pieces' rolled FResistanceBonus for this type's column, as a fraction. */
-	float GearTypeResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType Physical)
+	/** #6: the equipped pieces' FResistanceBonus for this type's column, as a fraction. Ice has no axis (keyed Water),
+	 *  so it reads its own column (B-064c); every other type its element's and physical subtype's. */
+	float GearTypeResistance(AActor *Target, EWoRDamageType DamageType, ESpellElement Element, EPhysicalDamageType Physical)
 	{
 		const ULoadoutComponent *Loadout = Target->FindComponentByClass<ULoadoutComponent>();
 		if (!Loadout)
@@ -93,9 +94,11 @@ namespace
 			return 0.0f;
 		}
 		const FResistanceBonus Gear = Loadout->GetActiveResistanceBonus(Target);
-		return (ResistanceColumns::Get(Gear, WoRDamageType::ElementToDamageType(Element)) +
-				ResistanceColumns::Get(Gear, WoRDamageType::PhysicalToDamageType(Physical))) /
-			   ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
+		const float Percent = DamageType == EWoRDamageType::Ice
+								  ? ResistanceColumns::Get(Gear, EWoRDamageType::Ice)
+								  : ResistanceColumns::Get(Gear, WoRDamageType::ElementToDamageType(Element)) +
+										ResistanceColumns::Get(Gear, WoRDamageType::PhysicalToDamageType(Physical));
+		return Percent / ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 }
 
@@ -113,11 +116,12 @@ namespace WoRResistance
 		ToAxes(DamageType, Element, Physical);
 
 		Sources.Effect = EffectTypeResistance(Target, DamageType);                                 // #4
-		// #5. Ice is no element axis (keyed Water, D-029): it reads the class table's own Ice column (B-064a).
+		// #5. Ice is no element axis (keyed Water, D-029): it reads the class table's own Ice column (B-064a; the
+		// profile asset carries it since B-064c).
 		Sources.Class = DamageType == EWoRDamageType::Ice
 							? ClassInnateResistanceTable::GetClassIceResistance(Target)
 							: ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, Physical);
-		Sources.Gear = GearTypeResistance(Target, Element, Physical);                              // #6
+		Sources.Gear = GearTypeResistance(Target, DamageType, Element, Physical);                  // #6
 		return Sources;
 	}
 
