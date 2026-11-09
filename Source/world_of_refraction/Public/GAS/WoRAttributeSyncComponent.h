@@ -86,6 +86,12 @@ public:
 	 *  Actor has no UCharacterDataComponent. Shared with the debug compare so both read one list. */
 	static TArray<FWoRAttributeSourceValue> ReadSourceValues(const AActor *Actor);
 
+	/** B-042f (stage 3 step 5): for each stat whose sources GE is live, the Stone factor that GE carries against the
+	 *  game-side stone factor (FWoRStatLayers::StoneFactor) now: one line per difference, empty when they match. Read by
+	 *  wor.Effects.Compare (UWoREffectDebug), so stones are part of "0 differ". Pools are left out: their percent factor
+	 *  mixes the stones with the buffs, which the effect compare already checks. */
+	FString GetStoneMismatchString() const;
+
 	/** Out = Attribute, when ASC holds its set and its owner has this sync and character data (so the
 	 *  attribute holds the getter's value). Otherwise false and Out untouched: an unsynced set holds
 	 *  0s, so the executions keep their gathered inputs (B-042e, B-042l). */

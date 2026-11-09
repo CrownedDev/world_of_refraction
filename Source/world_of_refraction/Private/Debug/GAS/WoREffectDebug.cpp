@@ -1,6 +1,7 @@
 // WoREffectDebug.cpp
 
 #include "Debug/GAS/WoREffectDebug.h"
+#include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoREffectSpecBuilder.h"
 #include "AbilitySystemComponent.h"
@@ -90,6 +91,15 @@ FString UWoREffectDebug::GetEffectMismatchString(AActor *Actor)
 				Mismatches.Add(FString::Printf(TEXT("%s %s: stored %.3f, GAS %.3f"), *TypeName,
 											   *UEnum::GetValueAsString(Element), StoredTotal, MirroredTotal));
 			}
+		}
+	}
+	// B-042f (stage 3 step 5): stones reach GAS on each stat's sources GE; a stale or missing Stone factor differs too.
+	if (const UWoRAttributeSyncComponent *Sync = Actor->FindComponentByClass<UWoRAttributeSyncComponent>())
+	{
+		const FString Stones = Sync->GetStoneMismatchString();
+		if (!Stones.IsEmpty())
+		{
+			Mismatches.Add(Stones);
 		}
 	}
 	return FString::Join(Mismatches, TEXT("\n"));
