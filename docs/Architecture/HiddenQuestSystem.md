@@ -23,7 +23,7 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 - A load replaces any progress started before it; a mid-run reload loses the step in progress's count (by design: it resets at run end anyway).
 - The quest list is gathered once per game instance: an asset added during a session is seen next session.
 - Quest content is Crown's.
-- B-397 unbuilt: until it is built and PIE-checked, dev's hidden quests still use the vague notices.
+- B-397 unbuilt: until it merges, dev's hidden quests still use the placeholder notices (remove this line when it does). "Quest complete" on a hidden quest's finish is a reference-backed default (it names only the title).
 
 ## Changelog
 | Date | Change | Branch |
