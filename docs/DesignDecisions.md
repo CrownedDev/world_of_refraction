@@ -214,7 +214,7 @@ The queue of questions only Crown can answer.
   - The **unarmed guard** (the body) is the default for adapter users, Refractors and Generic, and can be customised per character.
   - The **weapon guard** is that weapon type's own and can't be customised.
   - A per-character setting picks which is used: with a weapon equipped, either parry with it or put it away and parry unarmed. Equipping a weapon makes the weapon guard the default.
-- **Landing a parry:** all weapons share the default sparks; only a weapon **with a crystal attached** adds its element's parry effect (e.g. a magic circle).
+- **Landing a parry** (corrected by Crown, 2026-11-09): there is a **parry-effect cosmetic** (e.g. a magic circle), one for the weapon guard and one for the unarmed guard. Weapons always have the default sparks; unarmed has nothing by default. The equipped cosmetic plays on a landed parry, coloured by the **element behind it**: a Refractor's source element, a Resonator's active adapter, or a weapon's own element or its crystal. With no element behind it, unarmed shows nothing. When more than one source applies, a **loadout setting** says which takes priority.
 - **Parry timing** is identical in both guards: looks only (reference-backed default: Expedition 33's parry plays the same for every character).
 - **There is no separate parry-style cosmetic** beyond the unarmed guard's customisation (Crown changed this the same day).
 **Notes for Claude:** plan in `docs/Design/VisualGameplayPlan.md`; jobs B-391 to B-395.
