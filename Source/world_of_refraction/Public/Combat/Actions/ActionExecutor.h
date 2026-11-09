@@ -53,6 +53,47 @@ class UCombatAnimInstance;
 class USkillDataBase;
 class UMotionWarpingComponent;
 
+/** B-043e (Q-043e): which flightless spell resolution an FWoRSpellResolve is. */
+enum class EWoRSpellResolveKind : uint8
+{
+	AOE,	 // SpawnAOEEffect: one defender's area hit, at the Cast notify
+	Instant, // ResolveInstantSpell: one defender's instant hit, at the Cast notify
+	Support	 // SpawnSupportSpellEffect: a support (self / ally) cast's effect on all its targets
+};
+
+/** B-043e (Q-043e): one AOE / Instant / Support resolution, as the executor's dispatch made it. The executor routes
+ *  it to the caster's running skill ability as Event.Combat.SpellResolve.AOE / .Instant / .Support, else resolves it
+ *  itself; either way UActionExecutor::ResolveRoutedSpell resolves it, once. Lives only for the synchronous route
+ *  (the event is handled inside it, no GC between), so the raw pointers never outlive the dispatch that made them. */
+struct FWoRSpellResolve
+{
+	EWoRSpellResolveKind Kind = EWoRSpellResolveKind::AOE;
+	AActor *Caster = nullptr;
+	/** AOE / Instant: the defender. */
+	AActor *Target = nullptr;
+	/** Support: every target. */
+	TArray<AActor *> Targets;
+	USkillDataBase *Skill = nullptr;
+	ESpellElement Element = ESpellElement::None;
+	float ImpactRadius = 0.0f;
+	float VisualScale = 0.0f;
+	int32 Damage = 0;
+	bool bIsBrokenDarkness = false;
+	/** The cast entry (DispatchSpellCast), or null on the loose-field path (SpawnSpellDelivery). */
+	const FSkillCastEntry *Entry = nullptr;
+	int32 CastEntryIndex = INDEX_NONE;
+
+	/** The event's Target: the defender, or a support cast's first target (null when it has none). */
+	AActor *GetEventTarget() const
+	{
+		if (Kind != EWoRSpellResolveKind::Support)
+		{
+			return Target;
+		}
+		return Targets.Num() > 0 ? Targets[0] : nullptr;
+	}
+};
+
 // ========================================
 // MONTAGE CHAIN
 // ========================================
@@ -616,6 +657,14 @@ private:
 	/** One Impact frame (defense resolve + damage slice per defender, interrupt check, count-based close). The
 	 *  Impact notify calls it; so does ResolveMontagelessAction for a skill with no montage (B-291). */
 	void ResolveImpactFrame(int32 Index);
+	/** B-043c (Q-043c): an action running through its skill's ability takes its impacts as Event.Combat.Impact,
+	 *  and the ability's WaitGameplayEvent task calls ResolveImpactFrame. */
+	friend class UWoRGameplayAbility;
+
+	/** B-043c: where an impact goes. To the executing actor's skill ability when one is running the action and
+	 *  waiting for impacts (WoRSkillAbilities::SendImpactEvent), else straight to ResolveImpactFrame. The Impact
+	 *  notify and ResolveMontagelessAction both call it. */
+	void RouteImpactFrame(int32 Index);
 
 	/** B-291 (wor.Combat.InstantImpacts 1): a skill with no montage resolves now, the way a montage would. A
 	 *  spell releases its primary cast; an ability lands each expected impact, defended, then its windows close.
@@ -853,6 +902,10 @@ private:
 
 	/** Spend energy from actor */
 	bool SpendEnergy(AActor *Actor, int32 Amount);
+
+	/** B-043f (Q-043f): an action's EP at its pay point. The skill ability running Action commits and pays it
+	 *  (WoRSkillAbilities::CommitCostThroughAbility, wor.Abilities.UseGAS 1); else SpendEnergy, as before. */
+	bool PayActionEnergy(AActor *Actor, const FAction &Action, int32 Amount);
 
 public:
 	// ========================================
@@ -1308,7 +1361,8 @@ protected:
 	 *  impact that never lands. Cleared in FinalizeAsyncAction + CancelAsyncAction. */
 	TArray<FTimerHandle> TelegraphTimerHandles;
 
-	/** Spawn support skill VFX (Self/Ally - no defense window) */
+	/** Spawn support skill VFX (Self/Ally - no defense window). B-043e: routed (RouteSpellResolve); the effect
+	 *  itself is ResolveSupportSpellEffect. */
 	void SpawnSupportSpellEffect(
 		AActor *Caster,
 		const TArray<AActor *> &Targets,
@@ -1324,4 +1378,62 @@ protected:
 	/** Called when target dodged projectile */
 	UFUNCTION()
 	void OnProjectileDodged(AActor *Target, FVector ImpactLocation);
+
+	// ==================== PROJECTILES THROUGH THE ABILITY (B-043d, Q-043d) ====================
+
+	/** The running action's caster (the projectile's), or null outside an action. */
+	AActor *GetExecutingActor() const;
+
+	/** True when a projectile landing on Target resolves per impact (ResolveSpellArrival's own checks). */
+	bool CanResolveSpellArrival(AActor *Target) const;
+
+	/** A projectile landing on Target: to the caster's skill ability when one runs the action and waits for its
+	 *  projectiles (WoRSkillAbilities::SendProjectileEvent), else ResolveProjectileArrival. False when Target has
+	 *  no converted window (the caller keeps its lumped path). */
+	bool RouteProjectileArrival(AActor *Target, int32 CastEntryIndex);
+
+	/** One projectile landing, resolved per impact (ResolveSpellArrival). The ability's arrival task calls it. */
+	bool ResolveProjectileArrival(AActor *Target, int32 CastEntryIndex);
+
+	/** One dodged projectile: recorded as 0 damage and counted as an arrival so its window can close. */
+	void ResolveProjectileDodge(AActor *Target);
+
+	/** True while a burst still has projectiles to spawn. */
+	bool HasBurstQueued() const { return !BurstSpawnQueue.IsEmpty(); }
+
+	/** Takes a burst's stagger back on the executor's own timer (an ability running it ended mid-burst). */
+	void ResumeBurstTimer(float Interval);
+
+	// ==================== FLIGHTLESS SPELL RESOLUTIONS THROUGH THE ABILITY (B-043e, Q-043e) ====================
+
+	/** B-043e: the old SpawnAOEEffect body, unchanged: ground VFX, then this defender's per-impact resolve
+	 *  (ResolveSpellArrival) or the lumped window's. */
+	void ResolveAOEEffect(AActor *Caster, AActor *Target, USkillDataBase *Skill, ESpellElement InElement,
+						  float FinalImpactRadius, float FinalVisualScale, int32 FinalDamage, bool bIsBrokenDarkness,
+						  const FSkillCastEntry *Entry, int32 CastEntryIndex);
+
+	/** B-043e: the old ResolveInstantSpell body, unchanged: VFX at the target, then its per-impact resolve. */
+	void ResolveInstantSpellEffect(AActor *Caster, AActor *Target, USkillDataBase *Skill, ESpellElement InElement,
+								   float FinalImpactRadius, int32 FinalDamage, bool bIsBrokenDarkness,
+								   const FSkillCastEntry *Entry, int32 CastEntryIndex);
+
+	/** B-043e: the old SpawnSupportSpellEffect body, unchanged: the support VFX on each target. */
+	void ResolveSupportSpellEffect(AActor *Caster, const TArray<AActor *> &Targets, USkillDataBase *Skill,
+								   ESpellElement InElement, float FinalVisualScale, bool bIsBrokenDarkness);
+
+	/** B-043e (Q-043e): where an AOE / Instant / Support resolution goes. To the action's skill ability when one is
+	 *  running it and waiting for spell resolutions (WoRSkillAbilities::SendSpellResolveEvent), else straight to
+	 *  ResolveRoutedSpell. Exactly once: the resolution is held in RoutingSpellResolve while the event is out; the
+	 *  ability takes it (TakeRoutedSpellResolve) and resolves it, and one nobody took is resolved here. */
+	void RouteSpellResolve(const FWoRSpellResolve &Resolve);
+
+	/** B-043e: resolves one routed resolution through its kind's old body. */
+	void ResolveRoutedSpell(const FWoRSpellResolve &Resolve);
+
+	/** B-043e: hands the resolution being routed to the ability that got its event, if it is of that kind and for
+	 *  that event target, and clears it so nothing else resolves it. False when there is none to take. */
+	bool TakeRoutedSpellResolve(EWoRSpellResolveKind Kind, const AActor *EventTarget, FWoRSpellResolve &OutResolve);
+
+	/** B-043e: the resolution RouteSpellResolve has out as an event, until it is taken or resolved. */
+	TOptional<FWoRSpellResolve> RoutingSpellResolve;
 };

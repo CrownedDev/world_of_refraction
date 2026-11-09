@@ -98,7 +98,7 @@ The queue of questions only Crown can answer.
 - Reflex today also widens the defense timing window; keep both jobs or split them.
 - Effect durations already count the holder's own turns (D-051), unchanged.
 
-**Confirmed by Crown (2026-11-09):** the fixed rotation and banked actions stay (Turn Speed goes; Reflex sets Max Actions). Next is B-170's plan doc (`docs/analysis/ActionPips.md`). Open for the plan: Speed is split again into Action Speed and Spell Speed (D-151), so say which one Ice slows. **Also (Crown, 2026-11-09):** effects can **give or take actions** (e.g. +1 action now, -1 action next turn), alongside Wind's pip loss; the plan lists them as effect types.
+**Confirmed by Crown (2026-11-09):** the fixed rotation and banked actions stay (Turn Speed goes; Reflex sets Max Actions). Next is B-170's plan doc (`docs/analysis/ActionPips.md`). Open for the plan: Speed is split again into Action Speed and Spell Speed (D-151), so say which one Ice slows. **Also (Crown, 2026-11-09):** effects can **give or take actions** (e.g. +1 action now, -1 action next turn), alongside Wind's pip loss; the plan lists them as effect types. **Wind (Crown, 2026-11-09):** the Wind **status bar** (build-up) takes **action pips**; the **Wind crystal effect** makes the target **lose their next turn** in the rotation. **No actions, no turn (Crown, 2026-11-09):** a unit that starts its turn with 0 action pips after the turn's gain (e.g. Wind or a lose-actions effect took them) has its turn skipped.
 ### D-089 — Should Energy refill each turn?
 **Status:** DECIDED, BUILD (Crown, 2026-11-09: changed from C, see the change below) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
 **Question:** EP never refills on its own today (ET-29: only effects, items, drains and Broken Darkness absorption). Should it?
@@ -199,10 +199,100 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** _write here_
 **Notes for Claude:** a name is one `LOCTEXT` change (and `ElementBreakNameSpec`'s expected words if Water's change).
 
+### Q-170 — Action pips: the numbers
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170a)
+**Question:** How many actions at fight start, per turn, at most, and how much does Reflex add?
+**Options:** **A** start 1, +1 per turn, Max 2 base, Reflex adds +1 Max at each third of its range (2 → 5), hard cap 5 / **B** start 1, +1 per turn, Max 3 base, Reflex up to 6 (Divinity: Original Sin 2's AP ceiling).
+**Recommendation (superseded by Crown's answer below):** A. Crown already set start 1, +1 per turn and base Max 2 (D-088). Octopath Traveler's Boost Points (start 1, +1 per turn, bank up to 5) are the best-liked banked-turn resource in recent turn-based RPGs; its cap of 5 keeps bursts readable. Reflex's share is read like the defense window's, so its gear and stones count with no new maths.
+**Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09). Constants `ACTIONS_AT_FIGHT_START`, `ACTIONS_GAINED_PER_TURN`, `MAX_ACTIONS_BASE`, `MAX_ACTIONS_FROM_REFLEX`, `MAX_ACTIONS_CAP`, all `// TODO: tune`.
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** start a fight with your **regain amount**. **Base Max Actions 2.** Max Actions come from **gear, evolutions and the like, not Reflex**: they give **action points**, 100 points = 1 action; items give e.g. +25 or +50 and they add up; only whole actions count (175 = +1), the leftover shows as progress ("Max 3 (+75/100)"). **Reflex sets the regain per turn:** 1, or 2 at a Reflex threshold, with room for 3 at a second threshold; the regain never fills past Max. **Confirmed by Crown (2026-11-09):** the second threshold is a real step at 0.8 of the Reflex range. Constants (`// TODO: tune`): `ACTIONS_REGAIN_BASE` 1, `ACTIONS_REGAIN_REFLEX_THRESHOLD_2` 0.5, `ACTIONS_REGAIN_REFLEX_THRESHOLD_3` 0.8 (share of the Reflex window range), `MAX_ACTIONS_BASE` 2, `ACTION_POINTS_PER_ACTION` 100, `MAX_ACTIONS_CAP` 5 (a safety ceiling only). Plan: `ActionPips.md` §2, §3.1.
+
+### Q-170b — Action pips: what a skill costs
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
+**Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?
+**Options:** **A** every Attack, Ability, Refraction and Item costs 1 action; Energy alone prices big skills / **B** by tier, F–D 1, C–A 2, S 3 (so Max Actions unlocks the big skills) / **C** F 1 … S 7.
+**Recommendation (superseded by Crown's answer below):** A. The deckbuilder prices skills in Energy only and never in Actions (`docs/reference/06-bonuses.md`, "The turn economy"), and that rule comes first. Two prices on one skill (Energy and actions) is the kind of double gate Crown dropped as over-engineering (D-088, "Simplified"). Banking still matters: Divinity: Original Sin 2's carried-over AP is what made its turns feel tactical. B stays an easy later change (one function from tier to cost).
+**Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09).
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** every skill, spell and item has **its own action cost**, default 1, set per asset (big skills can cost 2 or more). **Energy still applies too.** A skill whose cost is above the unit's Max Actions is unusable (greyed). Plan: `ActionPips.md` §1, §3.1, §3.3.
+
+### Q-170c — Action pips: what costs an action, and what ends the turn
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
+**Question:** Which commands cost an action, and when does a turn end?
+**Recommendation (superseded by Crown's answer below) (default):**
+- Attack, Ability, Refraction, Item: 1 action each.
+- **Defend:** free, and ends the turn (the rest stays banked). Octopath Traveler's Defend also ends the turn and still lets BP build.
+- **End Turn** (new): ends the turn, banking the rest (Divinity: Original Sin 2's "end turn" keeps unused AP).
+- **Arming a ritual:** 1 action, and ends the turn (ET-16 already ends it).
+- **Weapon / ring switch:** the first each turn is free; a second costs 1 action (Crown's own note on ET-19).
+- **Row move:** one free per turn (D-096), unchanged.
+- **Flee:** free; it ends the fight (D-091).
+- The turn also ends at 0 actions; a turn that **starts** with 0 (after the gain) is skipped (Crown, 2026-11-09).
+**Answer (superseded by Crown's answer below):** the default, by the reference-backed default (2026-11-09).
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** the turn ends **at 0 actions, on End Turn, or on Defend**; unused actions bank. **Arming a ritual does not end the turn**; it just costs its actions (ET-16 changes). **Weapon switching is always free** (no free-first rule, never costs; ET-19 changes). The row move and Flee stay as in the default. Plan: `ActionPips.md` §1, §3.3.
+
+### Q-170d — Fixed rotation: the order within a round
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170b)
+**Question:** With Turn Speed gone, who goes when in a round?
+**Options:** **A** the deckbuilder's turn belt: sides alternate (P1 E1 P2 E2 …); a smaller side fills the empty seats in turn, carried across rounds; within a side, party-screen order and enemy spawn slot / **B** sides alternate while both have members left, then the rest of the larger side in order (each combatant exactly once a round).
+**Recommendation:** A. It is the deckbuilder's rule (`WoR_TCG_Pivot_Design.md` §7c and §8 items 53–56), which comes first. It also answers the classic "a lone boss loses to the party's action count" problem the way D&D 5e's legendary actions do (a boss acts between the heroes' turns; widely used and praised). **Cost:** a lone boss acts 4 times a round against 4 heroes, so boss damage per hit needs a tuning pass. Party first in round 1 unless the enemy struck first.
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown: if a lone boss acting once per hero feels wrong, B is a small change in one function.
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **approved as planned** (A): sides alternate; a lone boss acts after every hero; boss damage gets a tuning pass.
+
+### Q-170e — Ice: which speed does it slow?
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088, D-151) · **Blocks:** —
+**Question:** D-088 first said "Ice slows Action Speed". D-151 split Action Speed and Spell Speed again, and D-090 / B-064a made Ice's break "a heavier Water", which slows both. Which stands?
+**Options:** **A** both, as built (Action Speed and Spell Speed, plus Ice's damage) / **B** Action Speed only, so Ice differs from Water by more than its damage / **C** Spell Speed only.
+**Recommendation (superseded by Crown's answer below):** A. It is the latest ruling and already in the game (`BreakTable`, `ICE_BREAK_SPEED_SLOW_PERCENT`), so no code changes. Final Fantasy's Slow slows every kind of action and players read it at a glance. With Turn Speed gone, a slow makes the holder's attacks and spells easier to defend against (wider defense windows) and slower to play out.
+**Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09).
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **Ice** slows Action Speed and Spell Speed, **removes 1 action** and deals its damage. **Water** slows **Spell Speed only**. **Wind** slows **Action Speed** and still takes 1 action at the target's next turn. **Confirmed by Crown (2026-11-09):** Ice's action comes off **at once** (Wind's is the one Crown timed at the next turn). Constants (`// TODO: tune`): `ICE_BREAK_ACTIONS_LOST` 1, `WIND_BREAK_ACTIONS_LOST` 1, `WIND_BREAK_ACTION_SPEED_SLOW_PERCENT` (starts at Water's 30%). Behind `wor.Turns.ActionPips` with the rest. Plan: `ActionPips.md` §3.4; Rules SB-22, SB-23, SB-29 ("Coming with B-170").
+
+### Q-170f — Bonus turns, Extra Action and first strike with action pips
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170b, B-170d)
+**Question:** Does Emerald's bonus turn (D-052) become +1 action? Does first strike (D-069 / Q-185) become +1 action or stay "act first"?
+**Recommendation (superseded by Crown's answer below) (default):**
+- **Emerald (Wind's crystal), changed by Crown's Wind rule (D-088, 2026-11-09):** on an **enemy** it makes them **lose their next turn** in the rotation (the built skip, ET-13; S: the next two, Q-341b).
+- **Emerald on yourself or an ally: actions, not a bonus turn (Crown, 2026-11-09).** Lower tiers give +1 action after a set number of the holder's turns; S gives 2 to 3 actions at once. Ladder (reference-backed default, all `// TODO: tune`): F +1 after 6 turns, E 5, D 4, C 3, B 2, A 1 (its next turn); S +2 to +3 now, rolled per crystal. Why: it reuses Emerald's own former delay table (F 6 to S 0, Q-341b), so the tier spacing is one this game already had; an immediate +2 echoes Divinity: Original Sin 2's Adrenaline (+2 AP now, a well-liked tempo tool), topped at 3 like Octopath Traveler's maximum boost. A delayed gain lands in step 2 of the turn-start order (ActionPips.md §1), before the 0-action check. The S gain may pass Max Actions for that turn (Q-170g). Replaces CC's earlier "keeps its bonus turn" reading.
+- **The Extra Action effect becomes +1 action now** (what its name says; the deckbuilder: "an Action effect arrives in the pool at once").
+- **First strike stays as built:** the striking side takes its whole first round, then the alternation starts with that side.
+**Answer (superseded by Crown's answer below):** the default, by the reference-backed default (2026-11-09), except Emerald on yourself or an ally: **Crown, 2026-11-09: actions scaled by tier** (above; the ladder numbers are the reference-backed default).
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **keep both effects:** **Gain Action** (+1 action now, within the turn; the new `GainActions`) and **Extra Turn** (a whole bonus turn, as built). The existing **Extra Action** effects **become Extra Turns** (they keep their bonus turn; the name changes; ET-15 stays). **Emerald on yourself or an ally** (replaces the 6..1 ladder): F +1 action in 2 turns; E +1 next turn; D +1 now; C +2 in 2 turns; B +2 next turn; A +2 now; S +3 now. **Emerald's actions may go over Max.** On an enemy, Emerald still removes their next turn. Constants (`// TODO: tune`): `EMERALD_ALLY_ACTIONS_GAINED` {1,1,1,2,2,2,3}, `EMERALD_ALLY_GAIN_DELAY_TURNS` {2,1,0,2,1,0,0} (F..S). First strike: as in the default. Plan: `ActionPips.md` §3.4.
+
+### Q-170g — Effects that give or take actions
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088, Crown's note of 2026-11-09) · **Blocks:** — (B-170d)
+**Question:** Which effect types, and can a gain go past Max Actions?
+**Recommendation (default):** four new effect types:
+- `GainActions` (+N, now or at the holder's next turn start);
+- `LoseActions` (−N, same two timings, never below 0);
+- `MaxActionsBuff` / `MaxActionsDebuff` (±N Max for N holder turns, D-051).
+- Crown's "+1 now, −1 next turn" is one skill with two rows, exactly Divinity: Original Sin 2's Adrenaline (+2 AP now, −2 next turn), a well-liked tempo skill.
+- Wind's break becomes `LoseActions` 1 at the next turn start (D-090's placeholder).
+- **A gain "now" may go past Max for this turn;** (superseded: the extra now stays banked, see Crown's answer below) the bank is trimmed to Max when the turn ends, so "+1 action" is never wasted at a full bank (CC's call).
+**Answer:** the default, by the reference-backed default (2026-11-09).
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **approved:** gain actions, lose actions (now or next turn), raise or lower Max Actions for N turns. A gain may pass Max and the extra **stays banked until spent** (follows Crown's "Emerald's actions may go over max"; the default's trim at turn end is dropped; confirmed by Crown 2026-11-09); the regain adds nothing at or above Max.
+
+### Q-170h — Reflex's two jobs, and Spirit's Turn Speed slot
+**Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170a, B-170g)
+**Question:** Reflex widens the defense window today. Does it keep that job as well as setting Max Actions? And Turn Speed is one of Spirit's five sub-stats: what fills its place?
+**Options:** **A** Reflex keeps both jobs; Spirit keeps four sub-stats (Turn Speed retired, its points inert, data validation flags them) / **B** Reflex sets Max Actions only, and the window loses its stat / **C** move Max Actions to a Spirit sub-stat.
+**Recommendation (superseded by Crown's answer below):** A. One "quick" stat that acts and reacts more reads naturally, and none of Reflex's gear, stones or buffs need reworking. Spirit loses no value in practice: Max Energy now also sets the per-turn Energy refill (D-089 as changed, B-173). Crown already chose Reflex for Max Actions (D-088), so C is out.
+**Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09). Watch in play: if Reflex becomes a must-have, split it (B).
+**Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **approved:** Reflex = the regain amount + the defense window (Reflex no longer sets Max Actions, Q-170); Turn Speed removed from Spirit.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
+
+---
+
+### D-171 — Hidden quests: found in secret, then tracked in plain words
+**Status:** DECIDED (Crown, 2026-11-09, desktop operator session) · **Raised:** 2026-11-09 · **Blocks:** — (B-397)
+**Answer (Crown)** (model: Shangri-La Frontier's Unique Scenarios; changes D-100's and HiddenQuestSystem's "no text ever says what the next step is"):
+- **Starting a hidden quest stays fully hidden:** no hints, no listing, no text about how to trigger it (D-100's "no hints" stands for the start).
+- **Once a player triggers it,** that player alone gets a private notice, **"Hidden quest discovered: <title>"** (D-100's private unlocks), and the quest appears in their journal's **Quests** page.
+- **From then on, the current step's conditions are shown in plain words** (the step's `Goal` text, the journal list `GetVisibleQuests` from B-388). **Only the current step** is shown; later steps stay hidden until reached. **The end memory and its rewards stay hidden until earned.**
+- **Co-op:** each player sees only their own discovered hidden quests.
+**Notes for Claude:** hidden quest assets need a `Title` and a `Goal` per step (designer-written `FText`; both fields exist since B-388; placeholder text is fine until Crown writes them). Job: B-397.
 
 ---
 
