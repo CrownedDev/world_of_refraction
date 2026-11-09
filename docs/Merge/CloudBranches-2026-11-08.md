@@ -82,9 +82,9 @@ These branches are all in `dev` already, so **merge them into dev again**, in th
 - **B-042f** is merged into dev (desktop, built, full suite green). Its PIE (`docs/PIE/B-042f.md`, `wor.Effects.Compare` 0 differ at UseGAS 0 and 1) is the gate for row 70.
 - **Row 70: B-042g part 1** (`feature/B-042g-gas-readers-default-cloud`, UNBUILT, on B-042f): **merge only after B-042f's comparison passes.** The B-042g row is now part 1 of 6 (new rows B-042g2..g6, not written).
 - **Row 71: B-043a** (`feature/B-043a-costs-gas-cloud`, UNBUILT, on B-042f, so it merges straight onto dev): skill costs as Instant GEs behind `wor.Costs.UseGAS` (default 0). B-043 is sliced into B-043a–h; B-214 now waits on B-043b, B-236 on B-214.
-- **B-273b and B-064a (Ice)** are being written; rows follow when they are pushed.
+- **Rows 72 / 73: B-273b and B-064a (Ice)**, written, reviewed and fixed; B-064a is stacked on B-273b.
 - **Cleanups** are in their own section at the end ("PIE-gated cleanups"): each merges only after Crown's PIE of the job it cleans up.
-- The trial branch has rows 70, 71 and B-152 cherry-picked.
+- The trial branch has rows 70–73 and the cleanups C1–C7 cherry-picked.
 
 ## How to use the table
 
@@ -181,6 +181,8 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 69 | `feature/B-389-resistance-by-type-cloud` | dev (after B-387) | – | Code: FResistanceBonus (two appended lines), ResistanceQuery (`GetScopeLineResistance`), DamageMath / DamageCalculator (step 3), the Resistance / Stat debug prints, ResistanceLinesSpec. Docs: Backlog B-389, Q-389 (and D-168 already in dev), ED-20 / ED-27, PIE B-389 and its Pending row, ResistanceSystem / DamageCalculator changelogs, session entry. | Every existing damage / resistance spec must pass unchanged (no balance change). **Q-389 changed by Crown (2026-11-09): an intended balance change** — the class's Physical column counts for damage (Generic −15% physical damage taken, Resonator +15%); every existing spec should still pass (their defenders are Casters). |
 | 70 | `feature/B-042g-gas-readers-default-cloud` | B-042f (in dev) | – | **Merge only after B-042f's PIE comparison passes.** Code: EffectIdentity (PhysicalType, EffectValue), WoREffectSpecBuilder (`GetEffectsOfType`), mirror `Matches` and fingerprint, SkillEffectManager `GetEffectsByType` at UseGAS 1, GASEffectsByTypeSpec. Docs: Backlog (B-042g part 1 + new rows g2..g6), Q-042g, PIE. |
 | 71 | `feature/B-043a-costs-gas-cloud` | B-042f (in dev) | – | Code: tags (`Effect.Family.Cost/Backlash`, `SetByCaller.Cost.*`), WoRGameplayEffects (`UWoRGE_EnergyCost`, `UWoRGE_HPBacklash`), new `GAS/WoRActionCosts`, ActionExecutor `SpendEnergy`, ActionExecutorCosts backlash, `WoRCostDebug`, GASCostsSpec. Docs: Backlog (B-043 sliced a–h, B-214 re-pointed), Q-043a, PIE. If it merges before row 70, the Backlog / DesignDecisions / GASSystem conflicts are row unions. |
+| 72 | `feature/B-273b-hit-kind-cloud` | dev | – | The pair becomes the hit kind: `DealtTypeOverride` + `GetHitKind()` on the hit structs, `AddStatusBuildupForHit`, the bar remembers the dealt type, `BarCapTriggerResolver` by hit kind (an Ice row with no break falls back to Water's), GAS damage / buildup executions read `Resist_<ElementType>`. No number changes for existing callers. Commits 0798ec4f + 7ec15d25 only build together. Reviewed; fixed. |
+| 73 | `feature/B-064a-ice-cloud` | row 72 | – | Ice (D-029, D-090, Q-064a): `ESkillEffectType::IceBreak` (appended), its BreakTable row (Water's slow + 10% max HP), `USpellData::bDealsIce` (rule 75: Water or Generic), the class table's Ice column, Water Amp skips Ice, spec `WoR.Elements.Ice`. New row B-064c (the rest); Q-064a2 OPEN (lore: the break's name). Reviewed; fixed. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
