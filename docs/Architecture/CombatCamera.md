@@ -50,7 +50,8 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
   - enemy actions play sequences too
   - a death at turn start leaves the view where it was
 - No Defence mode: it is to be play-tested first (design §2).
-- B-406: no skip key for a boss cinematic, no hero shot on every boss turn, an Execution (ritual fire) turn is not held by a phase cinematic, and an action already playing finishes under it (B-406b).
+- B-406: no hero shot on every boss turn (waits on the B-406 trial; hook `HandleActorTurnStarted`, Q-406b), and an action already playing finishes under a phase cinematic. The skip key and the held Execution turn came in B-406b. The CommonUI HUD (D-024) will bind `OnCinematicHudHidden`.
+- B-406b: the skip is local; a co-op client's skip doesn't end the server's hold (Q-406b (2)).
 - Arming a delayed skill also broadcasts `OnActionStarted`. Once templates exist, a ritual's cinematic may play at arm time and again when it fires. Check this in B-157.
 
 ## Changelog
@@ -65,3 +66,4 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 | 2026-11-08 | B-372: `CameraFraming` (`IsOnScreen`, `GetRequiredPoints`, `IsLineClear`, `IsCameraClear`, `CheckShot`); the director logs each shot's report under `wor.Camera.CheckFraming 1`; spec `WoR.Camera.Framing`. | feature/B-372-camera-framing-checks-cloud (UNBUILT) |
 | 2026-11-08 | B-372 review: `ComputeShot`'s wind-up height scales with the style's distance scale (a Close wind-up framed the caster off screen); the framing spec covers Close / Wide and a blocking wall; the PIE check ignores the caster and targets; Q-372. | feature/B-372-camera-framing-checks-cloud (UNBUILT) |
 | 2026-11-09 | B-406 (Q-406, study R9/R17/R18, FeelGuide 9): per-boss opening and phase cinematics, on trial (`UBossData::OpeningSequence`, `FBossPhase::CinematicSequence`); `PlayBossOpening` / phase binding / `FinishBossCinematic`, `OnCinematicHudHidden` and `OnBossCinematicFinished`; the orchestrator holds turn 1 and the next action request; `UCombatHUD::SetHiddenForCinematic`; `FSkillCameraTuning::bNamedAttack` and `ECameraShotMoment::NamedAttack`; `wor.Camera.BossCinematic`; specs in `WoR.Combat.Camera(.Director)`. | feature/B-406-boss-cinematics-cloud (UNBUILT) |
+| 2026-11-09 | B-406b (Q-406b): skip key `IA_Combat_SkipCinematic` (Space / Menu) in `ACombatPlayerController`'s code-built menu-keys context calls `FinishBossCinematic` via `SkipBossCinematic` (this machine only); `FireScheduledExecution` holds an Execution turn under a boss cinematic and `HandleBossCinematicFinished` fires it after; specs in `WoR.Combat.Camera.Director` and `WoR.Combat.RitualFire`. | feature/B-406b-boss-cinematic-skip-cloud (UNBUILT) |
