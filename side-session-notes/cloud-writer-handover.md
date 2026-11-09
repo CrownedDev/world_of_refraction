@@ -1,4 +1,4 @@
-# Cloud writer handover (2026-11-09, fourteenth part: the visual and camera phase) — IN PROGRESS
+# Cloud writer handover (2026-11-09, fourteenth part: the visual and camera phase) — STOPPED: no writable job left
 
 **Written, pushed, reviewed and fixed** (merge plan rows 85–95). All are on the current trial branch **`integration/cloud-2026-11-09c`** (dev plus every unmerged cloud branch; it supersedes 09b):
 - **B-394:** cast VFX source rule (Q-394).
@@ -20,9 +20,14 @@
 
 **Also done (rows 101–104, all on trial 09c):** B-170e (action-pips placeholder UI on B-391; **changes built B-170c: End Turn is refused outside an action-pips fight**), B-400b (new HUD's target rows highlight on hover), B-170f (AI spends or banks; **the Emerald look-ahead is dropped in action-pips fights, for Crown to confirm**, Q-170f2), B-391b (damage numbers from a replicated `FCombatHitShown`, Broken Darkness card; new row B-391c).
 
-**In review / being written now (2026-11-09 evening):** B-170g (Turn Speed retired for authoring: warnings, labels, OBSOLETE flags, rules pages; on B-170f), B-406b (boss-cinematic skip key Space / Menu, ritual fire held; on B-406), B-391c (status buildup bar, weapon name, durability header, absorb cue, summon numbers; on B-391b).
+**Also done (rows 105–109, all on trial 09c):** B-406b (boss-cinematic skip on **Tab** / Menu, moved off Space; ritual fire held; new row B-406c), B-170g (Turn Speed retired for authoring: warnings, labels, OBSOLETE flags, `wor.Data.ListTurnSpeed`; rules pages), B-391c (buildup bar and cracks, gear line and tooltip, AD / WD header, "Absorbed" cue), B-234d (new host's own party and pool back after a handed-over run, own slot written at run end; join order across a travel; **touches saves**), B-032d (one defense window per spell impact behind `wor.Combat.PerImpactDefense`; **per-hit effects now count arrivals, for Crown**).
 
-**After those:** nothing else in the camera / HUD / action-pips run is writable in the cloud. B-170h waits for Crown's PIE of B-170a–g (D-067); B-043h waits for PIE; B-395 is Crown's loop; B-214 is held by Crown. Check the Backlog for new rows before stopping.
+**STOPPED (2026-11-09, ~21:30 UTC): no writable job left.**
+- B-170h: BLOCKED on Crown's PIE of B-170a–g (D-067). B-043h, B-351e and B-406c also wait on PIE or the B-406 trial.
+- B-042g2 is written (cloud branch); B-042g3–g6 follow it once it merges after Crown's `wor.Effects.UseGAS 1` fight.
+- B-104 / B-107 / B-108 wait on B-102 (Crown's mockup review). B-373, B-237, B-240, B-215 and B-280 are editor or desktop jobs. B-233b needs Crown's EOS ids. B-395 is Crown's loop; B-214 is held by Crown.
+- **For Crown to answer or veto:** Q-403 (FOV punch cut), Q-170f2 (Emerald look-ahead dropped in action-pips fights), B-170e's change to built B-170c (End Turn refused outside an action-pips fight), Q-032d (per-hit effects count arrivals), Q-391c ("Absorbed" cue on by default), Q-406b (skip key Tab / Menu), Q-064a2 (lore), Q-392 (re-equip).
+- **Merge order:** follow the merge plan rows 70–109; the trial branch `integration/cloud-2026-11-09c` holds them all on current dev with every conflict resolved.
 
 **Trial-merge lesson:** after a keep-both resolution, count braces per file; two slips were found and fixed that way. Every camera row's turn-view move goes through `GetTurnViewWithHeight` on the trial branch; the merge plan lists each place.
 
