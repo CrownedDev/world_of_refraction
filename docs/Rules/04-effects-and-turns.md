@@ -94,6 +94,20 @@ This page covers how a fight starts, who acts when (the speed schedule, ties, bo
 | ET-55 | Keys next to the menu: Defend **G** / pad **Y** (from the main menu or a submenu, on your turn), infusion source **R** / **LB** and infusion level **T** / **RB** (in a target picker that shows those buttons). Each presses the menu's own button, so it follows the same rules; infusion cycles 0, 1, 2. Fixed keys for now. | In game (B-093) | `Q-093`; `D-063`; `UCombatCommandMenuSubsystem::PressMenuKey`; `Private/Combat/CombatPlayerController.cpp` (`CombatMenuKeys`) |
 | ET-54 | An item use that fails (its effect could not land, e.g. no valid target) still spends its charge, like a thrown item that misses, and ends the turn; it is reported as a failure. An area item has landed when it lands on at least one target. | In game | `Q-060` (changed by Crown), `B-060`, `B-201`; `Private/Inventory/ItemExecutor.cpp` (`UseItem`, `UseItemMultiTarget`); `Private/Combat/Actions/ActionExecutor.cpp` (`ExecuteItem`: consumes on every use) |
 
+## Coming with B-170 (action pips; Crown, 2026-11-09)
+
+Decided, not built yet. Each part lands behind `wor.Turns.ActionPips` (default 0, so the rows above stay true until Crown's PIE flips it). Plan: `docs/analysis/ActionPips.md`; answers: Q-170 to Q-170h.
+
+| Changes | New rule | Ruling |
+|---|---|---|
+| ET-03 to ET-14 | Turns go round in a **fixed rotation**, sides alternating (a lone boss acts after every hero); Turn Speed, the speed pick, the 2:1 cap and the tie-break go. Bonus turns, skips, death purge and revive stay as built. | D-088, Q-170d |
+| ET-04 | Turn Speed is retired (Spirit loses it). | Q-170h |
+| ET-18 | Actions are **banked**. Each turn you regain 1 (2 or 3 at Reflex thresholds), never past your Max Actions; a fight starts with your regain. **Max Actions** = 2 + 1 per 100 **action points** from gear, evolutions and the like (they add up; leftover shown as progress). Every skill, spell and item has its own **action cost** (default 1); Energy is paid too; a cost above your Max can't be used. The turn ends at 0 actions, on **End Turn** or on **Defend**; the rest stays banked. A turn that starts at 0 (after the regain and turn-start changes) is skipped. | Q-170, Q-170b, Q-170c |
+| ET-16 | Arming a ritual costs its actions and **does not end the turn**. | Q-170c |
+| ET-19 | Switching weapon (or adapter) is **always free**, any number of times. | Q-170c |
+| ET-15 | The Extra Action effect **keeps its bonus turn** and is shown as **Extra Turn**. New effects: **Gain Action** (+N actions now or at the next turn start), **Lose Action** (−N, now or next turn, never below 0), **Max Actions ±N for N turns**. A gain may pass Max; the extra stays banked until spent. | Q-170f, Q-170g |
+| Emerald (ET-12, ET-13) | On an enemy: they lose their next turn (S: two). On yourself or an ally: F +1 action in 2 turns, E +1 next turn, D +1 now, C +2 in 2 turns, B +2 next turn, A +2 now, S +3 now; may pass Max. | Q-170f |
+
 ## Open questions
 - D-038 (ANSWERED): Silenced seals half your EP (1 holder turn since D-090) (C4-6); **built in B-148**.
 - D-049 (ANSWERED): cap turns at 2 per turn of the slowest; built by B-297 (`CalculateSpeedRatios`, `TurnsSinceOpponent`). Emerald bonus turns go past the cap (Q-297 A, B-297b).

@@ -182,6 +182,8 @@ void FGASAbilitiesSpec::Define()
 		Activations = 0;
 		Ends = 0;
 		SetAbilitiesSpecCVar(TEXT("wor.Combat.InstantImpacts"), 1);
+		// One battle seed for every case: no random roll (or a seed left by an earlier spec) decides a damage check.
+		SetAbilitiesSpecCVar(TEXT("wor.Battle.Seed"), ABILITIES_SPEC_BATTLE_SEED);
 	});
 
 	AfterEach([this]()
@@ -312,15 +314,16 @@ void FGASAbilitiesSpec::Define()
 				WoRSkillAbilities::SetUsesAbilities(bThroughAbility);
 				AActor *Hero = SpawnArmed(false);
 				GiveASC(Hero);
-				AActor *Foe = SpawnArmed(true);
+				// Not AI-driven: no defense is rolled for it, so the single hit always lands (an AI foe could block
+				// it on some seeds). Its turn then waits for input, far past these frames.
+				AActor *Foe = SpawnArmed(false);
 				UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
 				UCharacterDataComponent *HeroStats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 				if (!TestTrue(TEXT("Set up"), Hero && Foe && Executor && HeroStats))
 				{
 					return;
 				}
-				// Equal stats: the tie-break gives the local party (Hero) turn 1. The foe is AI with the live think
-				// delay, so its own turn waits far past these frames.
+				// Equal stats: the tie-break gives the local party (Hero) turn 1.
 				Orchestrator->StartCombat({Hero}, {Foe});
 				if (!TestTrue(TEXT("Turn 1 is Hero's"), Orchestrator->GetCurrentActor() == Hero))
 				{
@@ -341,7 +344,9 @@ void FGASAbilitiesSpec::Define()
 				TestWorld->Tick(ABILITIES_SPEC_ACTION_FRAMES);
 
 				TestEqual(TEXT("EP spent once, the cost formula's"), HeroStats->CurrentEP, ABILITIES_SPEC_START_EP - ExpectedCost);
-				TestTrue(TEXT("The foe took damage"), CurrentHPOf(Foe) < FoeHPBefore);
+				TestTrue(FString::Printf(TEXT("The foe took damage (HP %d -> %d, %d hit(s), turn of %s)"), FoeHPBefore,
+										 CurrentHPOf(Foe), Strike->HitCount, *GetNameSafe(Orchestrator->GetCurrentActor())),
+						 CurrentHPOf(Foe) < FoeHPBefore);
 				TestTrue(TEXT("The turn moved on to the foe"), Orchestrator->GetCurrentActor() == Foe);
 				TestEqual(TEXT("Ability activations"), Activations, bThroughAbility ? 1 : 0);
 				TestEqual(TEXT("Ability ends"), Ends, bThroughAbility ? 1 : 0);
@@ -361,7 +366,6 @@ void FGASAbilitiesSpec::Define()
 		It("lands a multi-hit attack's impacts through Event.Combat.Impact, with the old path's damage", [this]()
 		{
 			Strike->HitCount = ABILITIES_SPEC_MULTI_HIT_COUNT;
-			SetAbilitiesSpecCVar(TEXT("wor.Battle.Seed"), ABILITIES_SPEC_BATTLE_SEED);
 			const FStrikeOutcome OldPath = RunStrike(false);
 			const FStrikeOutcome ThroughAbility = RunStrike(true);
 			if (!TestTrue(TEXT("Both runs reached the strike"), OldPath.bRan && ThroughAbility.bRan))

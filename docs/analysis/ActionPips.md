@@ -1,43 +1,56 @@
 # Action pips — the turn system rework (B-170 plan)
 
-**Status:** plan for Crown's approval. **No code until Crown approves it** (D-088, 2026-11-09).
-**Ruling:** D-088 as confirmed by Crown on 2026-11-09:
+**Status:** **approved by Crown (2026-11-09)**, with Crown's answers to Q-170..Q-170h folded in below. B-170a..g are buildable; B-170h waits on Crown's PIE.
+**Ruling:** D-088 as confirmed by Crown on 2026-11-09, and Crown's answers of the same day:
 - turns go round in a **fixed rotation**; Turn Speed is retired;
-- **actions are banked**: you gain 1 per turn, up to your **Max Actions**, which **Reflex** sets; unused actions carry over; a fight starts with 1;
-- **effects can give or take actions** (+1 now, −1 next turn, …), alongside Wind's action loss.
+- **actions are banked**: each turn you regain actions (**Reflex** sets how many: 1, 2 or 3), up to your **Max Actions** (base 2, raised by **action points** from gear, evolutions and the like); unused actions carry over; a fight starts with your regain amount;
+- every skill, spell and item has its own **action cost** (default 1); Energy still applies too;
+- **effects can give or take actions** (+1 now, −1 next turn, ±Max for N turns), alongside the status bars' action losses.
 
-**What this supersedes:** the "keep the speed timeline" part of D-133 (its belt rules stay: bonus turn lands next, skip, death purge, revive); D-088's own 2026-10-26 paragraphs "Turn Speed stays" and "one battle action + one utility action"; D-049 (the 2:1 cap); ET-15 (Extra Action as a bonus turn, reversed by Q-170f).
+**What this supersedes:** the "keep the speed timeline" part of D-133 (its belt rules stay: bonus turn lands next, skip, death purge, revive); D-088's own 2026-10-26 paragraphs "Turn Speed stays" and "one battle action + one utility action"; D-049 (the 2:1 cap); ET-16's "arming ends the turn"; ET-19's "one free switch per turn"; SB-22 (Water slows Action Speed too) and SB-23 (Wind's one-place delay). **ET-15 stays:** the Extra Action effect keeps its bonus turn and is renamed **Extra Turn** (Crown).
 
-Open details are the **Q-170** entries in `docs/DesignDecisions.md` (Q-170 to Q-170h). Each carries a reference-backed default; the plan below is written with those defaults.
+The details are the **Q-170** entries in `docs/DesignDecisions.md` (Q-170 to Q-170h), all answered by Crown on 2026-11-09. Every number below is a named constant marked `// TODO: tune`.
 
 ---
 
 ## 1. The new turn, in plain words
 
-1. The rotation reaches you. Your **turn starts**: effects that end, end; payouts land (ET-17, unchanged); you gain **+1 action** (up to Max Actions) and your Energy refill (B-173), then waiting next-turn losses apply (Wind). **No actions, no turn (Crown, 2026-11-09):** if you have 0 actions after the turn's gain (Wind or a lose-actions effect took them), the turn is skipped: the turn-start step has run, then the turn-end step runs and the rotation moves on.
-2. You act. **Attack, Ability, Refraction and Item cost 1 action each** (Q-170b). After each one, if you still have actions, you choose again.
-3. Your turn **ends** when you reach 0 actions, choose **End Turn** (the rest stays banked), **Defend** (costs nothing, ends the turn), or **arm a ritual** (Q-170c).
+1. The rotation reaches you. Your **turn starts**: effects that end, end; payouts land (ET-17, unchanged); your Energy refill (B-173). Then the actions, **always in this order (Crown, 2026-11-09):**
+   1. **Gain** the turn's actions (your regain amount from Reflex, never past Max Actions).
+   2. **Apply every start-of-turn change** to them: waiting next-turn gains and losses (`GainActions` / `LoseActions` timed "next turn"), Wind's loss, a delayed Emerald gain landing this turn (it may pass Max), and any other effect that adds or removes actions at turn start.
+   3. **Only then check:** 0 actions means **the turn is skipped**. The turn-end step still runs, then the rotation moves on. No action prompt opens.
+
+   **Rule: no unit is ever asked for an action at 0 actions.** The same check runs before every prompt (§3.3), so a unit dropped to 0 mid-turn has its turn end too.
+2. You act. **Every Attack, Ability, Refraction and Item costs its own action cost** (default 1, set per asset; a big skill can cost 2 or more; Energy is paid too) (Q-170b). A skill that costs more than your Max Actions can't be used (greyed); one that costs more than your current actions waits until you have them. After each act, if you still have actions, you choose again. **Arming a ritual** costs its action cost and does **not** end the turn. **Switching weapon** is always free and never ends the turn (Q-170c).
+3. Your turn **ends** only when you reach 0 actions, choose **End Turn**, or choose **Defend** (costs nothing). Unused actions stay banked (Q-170c).
 4. The turn-end step runs once (ET-17's end half). The rotation moves to the next combatant.
 
 Durations still count the holder's own **turns**, not actions (D-051): three actions in one turn tick a "for 1 turn" effect once.
 
 ## 2. The numbers (Q-170)
 
-| What | Default | Constant (all `// TODO: tune`) |
-|---|---|---|
-| Actions at fight start | 1 | `ACTIONS_AT_FIGHT_START` |
-| Gained per turn | 1 | `ACTIONS_GAINED_PER_TURN` |
-| Base Max Actions | 2 | `MAX_ACTIONS_BASE` |
-| Extra Max Actions from Reflex | +1 at each third of the Reflex range: 2, 3, 4, 5 | `MAX_ACTIONS_FROM_REFLEX` (3) |
-| Hard cap | 5 | `MAX_ACTIONS_CAP` |
+Crown, 2026-11-09 (Q-170, Q-170h):
 
-Reflex's share is read the way the defense window already reads it (`UCharacterData::CalculateReflexWindowBonus` ÷ `WINDOW_CAP_SECONDS`, 0..1), so Reflex gear, stones and buffs raise Max Actions with no new stat maths.
+| What | Value | Constant (all `// TODO: tune`) |
+|---|---|---|
+| Actions at fight start | your regain amount (capped at Max) | — (reads the regain) |
+| Regain per turn | 1; 2 at the first Reflex threshold; 3 at the second | `ACTIONS_REGAIN_BASE` (1), `ACTIONS_REGAIN_REFLEX_THRESHOLD_2` (0.5), `ACTIONS_REGAIN_REFLEX_THRESHOLD_3` (0.8) |
+| Regain never fills past | Max Actions | — |
+| Base Max Actions | 2 | `MAX_ACTIONS_BASE` |
+| Action points per Max Action | 100 (+25, +50 … add up; only whole actions count) | `ACTION_POINTS_PER_ACTION` |
+| Safety ceiling on Max | 5 | `MAX_ACTIONS_CAP` (not a design limit; raise it if gear needs more) |
+
+- **Reflex sets the regain, not the Max.** Reflex's share is read the way the defense window already reads it (`UCharacterData::CalculateReflexWindowBonus` ÷ `WINDOW_CAP_SECONDS`, 0..1); at or above threshold 2 the regain is 2, at or above threshold 3 it is 3. Reading to confirm with Crown: "room for 3 at a second threshold" is read as a real second step at 0.8 of the range (reachable with heavy Reflex investment, not only at the cap). Reflex keeps its defense-window job too (Q-170h).
+- **Max Actions = `MAX_ACTIONS_BASE` + ⌊action points ÷ 100⌋.** Action points are a new composed stat: gear, evolutions, stones and buffs add to it through the stat composition (`docs/Architecture/StatComposition.md`), so +25 and +50 from two items make +75. The leftover shows as progress: **"Max 3 (+75/100)"**. No asset has action points yet: authoring them is content work (until then everyone has Max 2).
+- Example: Max 3 (175 points), regain 2: start the fight with 2; bank 3 at most from regains.
 
 ## 3. What changes, system by system
 
 ### 3.1 Actions on the character (new state)
-- `UCharacterDataComponent` gets `CurrentActions` (replicated, beside `CurrentEP`), `GetMaxActions()`, `GainActions(N)`, `SpendActions(N)`, `OnActionsChanged`. Per-fight state on the battle actor (D-064); co-op clients see it through the same replication as EP.
-- Reset to `ACTIONS_AT_FIGHT_START` when a fight starts; meaningless outside a fight.
+- `UCharacterDataComponent` gets `CurrentActions` (replicated, beside `CurrentEP`), `GetMaxActions()`, `GetActionPoints()` (the composed total; the progress line reads its remainder), `GetActionRegain()` (from Reflex), `GainActions(N, bMayPassMax)`, `SpendActions(N)`, `OnActionsChanged`. Per-fight state on the battle actor (D-064); co-op clients see it through the same replication as EP.
+- **Action points** are a new stat in the stat composition (one new stat entry, summed from gear, evolutions, stones and buffs like any other composed stat). No asset authors any yet.
+- Set to the regain amount (capped at Max) when a fight starts; meaningless outside a fight.
+- **Action cost on the assets (Q-170b):** `USkillDataBase::ActionCost` (skills and spells; weapon attacks are abilities) and the item asset's `ActionCost`, `int32`, default 1, `ClampMin=1`. Default `ACTION_COST_DEFAULT` (1, `// TODO: tune`). Data validation warns when a cost is above `MAX_ACTIONS_CAP`. A `MaxActionsBuff` / `MaxActionsDebuff` row's size and turns are authored per effect (data, like every buff's), not constants.
 - Later, with Energy's GAS move (B-043 line), actions can become a GAS attribute. Not part of this plan.
 
 ### 3.2 `UTurnManager` — fixed rotation
@@ -48,7 +61,7 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
   - `CalculateSpeedRatios`, `TurnsOwed` / `SpeedRatio` (the debt pick);
   - the 2:1 cap (`MAX_TURN_RATIO`, `TurnsSinceOpponent`, D-049): Max Actions is the cap now;
   - the 3-step tie-break (no ties in a fixed order);
-  - `DelayNextTurn` / `PlacesToYield` (Wind now takes an action);
+  - `DelayNextTurn` / `PlacesToYield` (Wind now slows and takes an action);
   - `GetEffectiveTurnSpeed`, `GetTurnSpeedLayers`, `ComputeCachedTurnSpeed`, the cached speed stats;
   - `OnActorSpeedChanged` becomes a no-op (callers stay until the deletion job);
   - `RequestExtraTurn`, `ScheduleBonusTurn` (already OBSOLETE).
@@ -60,48 +73,61 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 - Built **behind one switch, `wor.Turns.ActionPips`** (default 0 = today's speed timeline), so the old path keeps working until Crown's PIE; then the default flips and a later job deletes the old path.
 
 ### 3.3 `ACombatOrchestrator` — several actions per turn
-- `ProceedWithTurnStart`: after the turn-start step, gain the turn's actions and apply any waiting next-turn gains or losses (Wind). **At 0 actions the turn is skipped** (Crown): go straight to `OnActionCompleted`'s turn-end path, as a stunned-out or dead actor's turn does today; log it and show "No actions" on the HUD. Otherwise ask for an action.
-- `ValidateAction`: refuse an action that costs more than `CurrentActions` ("Needs 1 action."). The menu greys it with that reason. The check and the spend run on the server (co-op), like every action; clients only read the replicated count.
-- `OnActionCompleted`: spend the cost, check the win condition, then either **ask again** (actions left and the action doesn't end the turn) or run the turn-end step and `AdvanceToNextTurn`. The turn-start step never re-runs inside a turn.
+- `ProceedWithTurnStart`, fixed order (§1, Crown): (1) gain the turn's actions; (2) apply every start-of-turn action change (waiting gains and losses, Wind, a delayed Emerald gain, any turn-start effect that removes actions); (3) only then check. **At 0 actions the turn is skipped:** go straight to `OnActionCompleted`'s turn-end path, as a stunned-out or dead actor's turn does today; log it and show "No actions" on the HUD (an `FText` in the shared turn words, D-062). Otherwise ask for an action. Steps (1) to (3) are one function, so no path can check before the changes or prompt before the check.
+- **One gate before every prompt:** a single check (`CanStillAct`: alive, not stunned, `CurrentActions` > 0) runs before the orchestrator opens the menu or asks the AI, at turn start and after each action. An effect that lands mid-turn and drops the unit to 0 (a counter, a reflect) ends the turn once the current action has resolved; if a prompt is open when the count reaches 0 (a co-op client's menu), it closes and the turn ends.
+- `ValidateAction`: refuse an action whose `ActionCost` is above `CurrentActions` ("Needs 2 actions."), or above Max Actions ("Costs more actions than you can hold."). The menu greys it with that reason. The check and the spend run on the server (co-op), like every action; clients only read the replicated count.
+- `OnActionCompleted`: spend the action's `ActionCost`, check the win condition, then either **ask again** (actions left and the action doesn't end the turn) or run the turn-end step and `AdvanceToNextTurn`. The turn-start step never re-runs inside a turn. Only reaching 0, End Turn and Defend end the turn (Q-170c); **arming a ritual no longer ends it** (ET-16 changes): the ritual's `ActionCost` is spent at arming, with its EP, HP and wear as today.
 - **End Turn** is new: an `EActionType` appended (`EndTurn`), so it uses the existing submit path and the co-op server call.
-- **Kept free, once per turn:** the weapon / ring switch (ET-19; Crown's note there: "the first switch is free, further switches cost a pip") and the row move (D-096). A second switch then costs 1 action instead of being refused. A second row move stays refused (D-096 gives one; no ruling for more).
+- **Always free:** the weapon / ring switch, as many times as wanted (Crown, Q-170c: no free-first rule, never costs; ET-19 changes). **The row move** stays one free per turn (D-096); a second stays refused.
 - The camera's turn-start shot (`CombatCameraDirector::HandleActorTurnStarted`) stays once per turn; each action keeps its own action shot.
 
 ### 3.4 Effects
-- **New effect types** (appended to `ESkillEffectType`, Q-170g; the deckbuilder's "an Action effect arrives in the pool at once; a next-turn version is a row with a one-turn delay"):
-  - `GainActions` — +N actions. Timing *now*, or *at the holder's next turn start*.
+- **New effect types** (appended to `ESkillEffectType`, Q-170g, approved by Crown; the deckbuilder's "an Action effect arrives in the pool at once; a next-turn version is a row with a one-turn delay"):
+  - `GainActions` — +N actions. Timing *now* (within the current turn), or *at the holder's next turn start*. Shown as **Gain Action**.
   - `LoseActions` — −N actions (never below 0). Same two timings.
-  - `MaxActionsBuff` / `MaxActionsDebuff` — ±N Max Actions for N holder turns (D-051).
+  - `MaxActionsBuff` / `MaxActionsDebuff` — ±N Max Actions (whole actions) for N holder turns (D-051).
   - Crown's example "+1 now, −1 next turn" is one skill with two rows (`GainActions` now + `LoseActions` next turn), as Divinity: Original Sin 2's Adrenaline.
-- **Wind's break** (`BreakTable` row `SkipTurn`): `DelayTurnPlaces` 1 → 0; applies `LoseActions` 1 at the holder's next turn start (D-090's placeholder −1). The `SkipTurn` effect type keeps its slot; only the row changes.
-- **Ice / Water breaks** (Q-170e): unchanged. Both slow Action Speed and Spell Speed, Ice adds its damage (D-090, B-064a). With Turn Speed gone, the slow means the holder's attacks and spells are easier to defend against (wider windows) and play slower.
-- **Extra Action** (`ESkillEffectType::ExtraAction`, Q-170f): becomes +1 action now (its name), no longer a bonus turn.
-- **Wind, two rules (Crown, D-088, 2026-11-09):** the Wind **status bar** (its break) takes **action pips** (above); the **Wind crystal effect** (Emerald, Wind's gem) makes the **target lose their next turn** in the rotation. A unit left with 0 actions after its turn's gain loses that turn too (§1).
-- **Emerald** (Q-170f, Crown's Wind rule): on an **enemy**, it removes their next turn (`SkipNextTurn`, already built: ET-13; replaces today's "force their turn" gamble). On **yourself or an ally**, it keeps its bonus turn (D-052, D-133, ET-12; built) — CC's reading, since losing your own turn helps no one; Crown to confirm. S tier: two turns either way (Q-341b). A bonus turn is a real turn: it gains +1 action and runs the turn steps. Code: `UItemExecutor::ExecuteBonusTurnEffect` branches on the target's side; the AI's Emerald scoring (`AIFreeActionFactor`, the exposure look-ahead) flips to "the foe loses a turn".
+- **Status-bar breaks (Crown, Q-170e)**, all sizes named constants, `// TODO: tune`:
+  - **Ice** (SB-29): slows Action Speed and Spell Speed (as built), deals its 10% max HP (as built), **and removes 1 action at once** from the holder's bank (`ICE_BREAK_ACTIONS_LOST` 1, never below 0). "At once" is the reading of Crown's "removes 1 action" beside Wind's "at the target's next turn"; if Crown meant the next turn, it is the same row with the next-turn timing.
+  - **Water** (SB-22): slows **Spell Speed only** (Action Speed no longer). The `BreakTable` Water row drops its Action Speed part.
+  - **Wind** (SB-23, `BreakTable` row `SkipTurn`): slows **Action Speed** (`WIND_BREAK_ACTION_SPEED_SLOW_PERCENT`, new; starts at Water's 30%) **and** takes 1 action at the holder's next turn start (`WIND_BREAK_ACTIONS_LOST` 1, a `LoseActions` next-turn row; D-090's placeholder −1). `DelayTurnPlaces` 1 → 0. The `SkipTurn` effect type keeps its slot; only the row changes.
+  - With Turn Speed gone, a slow means the holder's attacks (Action Speed) or spells (Spell Speed) are easier to defend against (wider windows) and play slower.
+- **Extra Turn (Crown, Q-170f):** both effects are kept. The existing **Extra Action** effect (`ESkillEffectType::ExtraAction`) **stays a whole bonus turn, as built** (ET-12, ET-15), and its player-facing name becomes **Extra Turn** (display name and effect text only; the enum entry keeps its name, it is serialized). **+1 action now** is the new `GainActions` (Gain Action).
+- **Wind, two rules (Crown, D-088, 2026-11-09):** the Wind **status bar** (its break) slows and takes an action (above); the **Wind crystal effect** (Emerald, Wind's gem) makes an **enemy target lose their next turn** in the rotation. A unit left with 0 actions after its turn's gain loses that turn too (§1).
+- **Emerald** (Q-170f, Crown, 2026-11-09): on an **enemy**, it still removes their next turn (`SkipNextTurn`, already built: ET-13; S: the next two, Q-341b; replaces today's "force their turn" gamble). On **yourself or an ally** it **grants actions instead of a bonus turn**, by tier (Crown's ladder). A delayed gain is a `GainActions` row timed at that turn's start, so it lands in step 2 of the turn-start order (§1). **Emerald's actions may go past Max Actions** (Crown). Named constants, `// TODO: tune` (`AugmentStoneConstants.h`, beside the retired bonus-turn table):
+
+  | Tier | F | E | D | C | B | A | S |
+  |---|---|---|---|---|---|---|---|
+  | Ally / self | +1 in 2 turns | +1 next turn | +1 now | +2 in 2 turns | +2 next turn | +2 now | +3 now |
+  | Enemy | loses next turn | same | same | same | same | same | loses next 2 turns (Q-341b) |
+
+  Constants: `EMERALD_ALLY_ACTIONS_GAINED[7] = {1, 1, 1, 2, 2, 2, 3}` and `EMERALD_ALLY_GAIN_DELAY_TURNS[7] = {2, 1, 0, 2, 1, 0, 0}` (F..S; 0 = now, 1 = the holder's next turn start, 2 = the one after). No per-instance roll (S is a fixed +3). Code: `UItemExecutor::ExecuteBonusTurnEffect` branches on the target's side (enemy: skip; ally: `GainActions`, may pass Max); the AI's Emerald scoring (`AIFreeActionFactor`, the exposure look-ahead) flips to "the foe loses a turn" on enemies and values the ally gain as actions.
+- **Over Max:** a gain (an effect or Emerald) may pass Max, and the extra actions **stay banked until spent** (Crown: Emerald's actions "may go over max"; trimming them at turn end would undo that). The per-turn regain adds nothing while the bank is at or above Max. Reading to confirm with Crown: the Q-170g default trimmed the bank at turn end; this keeps the extra instead.
 - **Retired** (enum entries kept, append-only; data validation refuses them, the D-056 pattern): `ModifyTurnSpeed`, `TurnSpeedBuff`, `TurnSpeedDebuff`; `EItemEffectType::BuffTurnSpeed`; the Turn Speed sub-stat (`ESubStat::TurnSpeed`, `UCharacterData::TurnSpeed`, Q-170h); the GAS `TurnSpeed` attribute, its sync, GEs and debug lines (§3.2 callers). `TurnSpeedStone` is already retired (B-353).
-- Effect text (`EffectText.cpp`) gets lines for the four new types: "Gain 1 action.", "Lose 1 action at the start of their next turn.", "+1 Max Actions for 2 turns.".
+- Effect text (`EffectText.cpp`) gets lines for the four new types: "Gain 1 action.", "Lose 1 action at the start of their next turn.", "+1 Max Actions for 2 turns."; Extra Action's line reads "Take an extra turn." under the name Extra Turn; the Ice, Water and Wind break lines follow their new rows.
 
 ### 3.5 Turn strip and menus (placeholder C++ until the visual phase)
 - **Turn strip** (`UTurnOrderStripWidget`): no code change; it reads `PreviewTurnOrder`, which now shows the rotation.
 - **Character panel:** action pips beside the EP bar (filled = current, empty up to Max), bound to `OnActionsChanged`.
-- **Command menu** (`UCombatCommandMenuSubsystem`): an **End Turn** button; actions you can't afford greyed with the reason; Defend's tooltip says it ends the turn.
+- **Command menu** (`UCombatCommandMenuSubsystem`): an **End Turn** button; each skill, spell and item shows its action cost; ones you can't afford now greyed with the reason, ones above your Max greyed as unusable; Defend's tooltip says it ends the turn.
 - **Input:** End Turn gets a key and its row in `docs/Design/InputMap.md` in the same change (rule of 2026-10-27).
-- **Stat screen:** a Max Actions line; the Turn Speed line goes.
+- **Stat screen:** a Max Actions line with the action-point progress ("Max 3 (+75/100)") and the regain per turn; the Turn Speed line goes.
 - The real HUD comes in the visual phase (B-391 onward); these are placeholders it replaces.
 
 ### 3.6 AI (`UAIDecisionManager`)
 - Asked once per action (the orchestrator asks again while actions remain), so the existing pick runs per action.
-- **Spend or bank:** act while the best pick scores above `AI_END_TURN_SCORE_FLOOR` (`// TODO: tune`); otherwise End Turn and bank. Defend still ends the turn.
-- Scoring: drop the Turn Speed debuff value; value `LoseActions` on a foe and `GainActions` on an ally as one action of that unit's threat; value Wind's break the same way.
+- **Spend or bank:** act while the best pick scores above `AI_END_TURN_SCORE_FLOOR` (`// TODO: tune`); otherwise End Turn and bank. Defend still ends the turn. A pick whose action cost is above the unit's current actions is skipped (it may bank for it).
+- Scoring: drop the Turn Speed debuff value; value `LoseActions` on a foe and `GainActions` on an ally as one action of that unit's threat; value the Wind and Ice breaks' action loss the same way.
 - The Emerald look-ahead (`PreviewTurnOrder`, `EMERALD_EXPOSURE_LOOKAHEAD`) keeps working.
 
 ### 3.7 Debug tools
-- `wor.Actions.Print`: each combatant's actions / Max / waiting next-turn gains and losses (`GetActionsString()`).
+- `wor.Actions.Print`: each combatant's actions / Max (with action points and progress) / regain / waiting next-turn gains and losses (`GetActionsString()`).
 - `wor.Turns.PrintBelt` stays; it prints the rotation and its round.
 
 ### 3.8 Docs to update as each part lands
-- `docs/Rules/04-effects-and-turns.md`: ET-03 to ET-14 (turn order), ET-15 (Extra Action: +1 action, no longer a bonus turn), ET-18 (one action per turn → banked actions), ET-19 (second switch costs an action).
-- `docs/Rules/03-status-bars.md` SB-23 (Wind).
+- `docs/Rules/04-effects-and-turns.md`: ET-03 to ET-14 (turn order), ET-15 (Extra Action keeps its bonus turn, shown as Extra Turn), ET-16 (arming a ritual no longer ends the turn), ET-18 (one action per turn → banked actions with costs), ET-19 (switching always free). The page's "Coming with B-170" section lists them until each part lands.
+- `docs/Rules/03-status-bars.md` SB-22 (Water: Spell Speed only), SB-23 (Wind: Action Speed slow + 1 action), SB-29 (Ice: + 1 action at once); same "Coming with B-170" section.
+- The status-bar row changes ship behind `wor.Turns.ActionPips` like the rest: at 0 the rows play as built today.
 - `docs/Architecture/TurnManager.md`, `CombatOrchestrator.md`, `TurnState.md`; `docs/Design/InputMap.md`.
 
 ## 4. Tests
@@ -110,23 +136,23 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 |---|---|
 | `TurnManagerSpec`, `TurnBeltSpec`, `TurnStartOrderSpec`, `FirstStrikeSpec` | Add rotation cases with the switch on; old cases stay with it off until the deletion job |
 | `TurnCapSpec`, `TurnSpeedSourcesSpec`, `TurnSpeedTieBreakSpec` | Kept with the switch off; deleted with the old path |
-| `BonusTurnSpec`, `EmeraldExtraTurnSpec`, `CombatRitualFireSpec` | Re-checked with the switch on (Extra Action now +1 action; Emerald on an enemy removes their next turn, on an ally grants a bonus turn) |
-| `StatusBreakSpec` | Wind takes 1 action at the next turn start |
-| `EffectTextSpec` | Extra Action's line ("take an extra turn" → "Gain 1 action."); the four new types' lines |
+| `BonusTurnSpec`, `EmeraldExtraTurnSpec`, `CombatRitualFireSpec` | Re-checked with the switch on (Extra Action still a bonus turn; Emerald on an enemy removes their next turn; on an ally, each tier's gain lands on its turn (now, next turn, or the one after) and may pass Max; arming a ritual spends its action cost and the turn goes on) |
+| `StatusBreakSpec` | With the switch on: Ice takes 1 action at once; Water slows Spell Speed only; Wind slows Action Speed and takes 1 action at the next turn start. With it off: the rows as built |
+| `EffectTextSpec` | Extra Action shown as Extra Turn (its line unchanged); the four new types' lines; the new break lines |
 | `StoneRowSpec`, `SignAwareModifierSpec`, `GASStatGettersSpec`, `StatModifierSpec` | Their Turn Speed cases retire with the family (B-170g / B-170h) |
-| **New** `ActionPipsSpec` | Fight start 1; +1 per turn; bank up to Max; Reflex → Max 2..5; cap 5; spend; End Turn banks; 0 actions ends the turn |
-| **New** `ActionEffectsSpec` | `GainActions` / `LoseActions` now and next turn; Max Actions buff and debuff; the "+1 now, −1 next" pair; never below 0 |
-| **New** `MultiActionTurnSpec` | Turn-start and turn-end steps run once per turn; durations tick once; win check after each action; Defend and ritual end the turn; a turn starting at 0 actions (Wind took the gain) is skipped, its turn-start and turn-end steps still run |
+| **New** `ActionPipsSpec` | Fight start = regain; regain 1 / 2 / 3 at the Reflex thresholds; regain never fills past Max; Max 2 + ⌊action points ÷ 100⌋ (+25 +50 → 75 → Max 2, "+75/100"; 175 → Max 3); spend by cost; End Turn banks; 0 actions ends the turn |
+| **New** `ActionEffectsSpec` | `GainActions` / `LoseActions` now and next turn; Max Actions buff and debuff; the "+1 now, −1 next" pair; never below 0; a gain passes Max and stays banked; the regain adds nothing at or above Max |
+| **New** `MultiActionTurnSpec` | Turn-start and turn-end steps run once per turn; durations tick once; win check after each action; Defend and End Turn end the turn, arming a ritual does not; a switch is free; a cost-2 skill needs 2 actions and is refused above Max. **Turn-start order (Crown):** (a) the turn's gain, then a waiting loss to 0: the turn is skipped, turn-end still runs, no prompt opens; (b) a waiting loss that leaves 1: the turn plays with 1 action; (c) an effect landing mid-turn that drops the unit to 0: the turn ends after that action, no further prompt; (d) a delayed gain landing the same turn as a loss counts before the check (gain, changes, then check) |
 | `AIOneSkillPathSpec` + new AI case | AI acts until its best pick is under the floor, then banks |
 
 ## 5. Build order (each ≤ 3 files plus its spec)
 
 | Job | What | Size |
 |---|---|---|
-| B-170a | Actions on the character: state, constants, Max from Reflex, `OnActionsChanged`, `wor.Actions.Print`, `ActionPipsSpec`. No play change | S |
+| B-170a | Actions on the character: state, constants, action points (new composed stat) → Max, Reflex → regain, `OnActionsChanged`, `wor.Actions.Print`, `ActionPipsSpec`. No play change | S |
 | B-170b | `UTurnManager` rotation behind `wor.Turns.ActionPips`; rotation specs | M |
-| B-170c | Orchestrator: several actions per turn, `EndTurn`, cost check; `MultiActionTurnSpec` | M |
-| B-170d | Effects: the four new types, Wind's row, Extra Action, effect text; `ActionEffectsSpec` | M |
+| B-170c | Orchestrator: several actions per turn, `EndTurn`, `ActionCost` on skills / spells / items and the cost check, ritual arming no longer ends the turn, free switching; `MultiActionTurnSpec` | M |
+| B-170d | Effects: the four new types, the Ice / Water / Wind break rows, Extra Turn naming, Emerald's ally ladder, effect text; `ActionEffectsSpec`, `StatusBreakSpec` | M |
 | B-170e | Placeholder UI: pips, End Turn button, greyed costs, InputMap row | S |
 | B-170f | AI spend or bank, scoring | S |
 | B-170g | Retire the Turn Speed family (data validation, stat screen), rules pages | S |

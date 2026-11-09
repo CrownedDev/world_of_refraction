@@ -51,6 +51,18 @@ USkillDataBase *UWoRGameplayAbility::GetSkill(FGameplayAbilitySpecHandle Handle,
 	return Cast<USkillDataBase>(GetSourceObject(Handle, ActorInfo));
 }
 
+bool UWoRGameplayAbility::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+											  const FGameplayTagContainer *SourceTags, const FGameplayTagContainer *TargetTags,
+											  FGameplayTagContainer *OptionalRelevantTags) const
+{
+	if (bActionRunning)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[Abilities] %s: an earlier action still runs; not activating"), *GetNameSafe(GetSkill(Handle, ActorInfo)));
+		return false;
+	}
+	return Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+}
+
 bool UWoRGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 									FGameplayTagContainer *OptionalRelevantTags) const
 {
@@ -71,7 +83,8 @@ bool UWoRGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle, con
 	{
 		return true;
 	}
-	const FAction Action = Scope ? Scope->Action : WoRSkillAbilities::MakePlainAction(Skill);
+	// The action being activated; during CommitAbility (the scope is consumed by then) the one now running.
+	const FAction Action = Scope ? Scope->Action : bActionRunning ? RunningAction : WoRSkillAbilities::MakePlainAction(Skill);
 	const int32 Cost = Executor->CalculateActionEnergyCost(Avatar, Action);
 	const int32 Spendable = Executor->GetSpendableEP(Avatar);
 	if (Spendable >= Cost)
@@ -217,9 +230,9 @@ void UWoRGameplayAbility::HandleImpactEvent(FGameplayEventData Payload)
 		return;
 	}
 	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
-	if (!Executor)
+	if (!Executor || Executor->GetCurrentSkillData() != RunningAction.SkillData)
 	{
-		return; // not counted: the sender resolves it itself (WoRSkillAbilities::SendImpactEvent)
+		return; // not this ability's action, or no executor: not counted, the sender resolves it (SendImpactEvent)
 	}
 	const int32 Index = FMath::RoundToInt(Payload.EventMagnitude);
 	// Counted before resolving: the impact can finish the action and end this ability.
