@@ -331,7 +331,7 @@ nominal caps when a future stone/FusionStone targets them:
 
 - **`DamageCalculator`** — Step 1.25 reads the active weapon attachment and
   applies the `DamageStone` multiplier (physical actions only).
-- **`ItemExecutor`** — the directional stone-consumable handlers (`ExecuteRawDamageBuffEffect` for DamageStone, `ExecuteDefenseBuffEffect` for DefenseStone + Amber).
+- **`ItemExecutor`** — the directional stone consumables, all through `ApplyStoneBuffEffect` from their stone row (B-021; the per-stone wrappers went in B-152); `ExecuteDefenseBuffEffect` is Amber's.
 - **`LoadoutSystem`** — `FWeaponLoadoutEntry` stone-ability slots; `FSavedLoadout`
   / `FCombatLoadout` plumbing; `GetEquippedCrystals` surfaces `AugmentStone` slots.
 - **`WeaponSystem`** — `UEquipmentDataBase` owns `AttachedItem`,
@@ -850,3 +850,4 @@ hard guarantee survives; only the editor affordance degrades.
 | 2026-11-04 | B-353b: `CrystalEffectTable::GetBrokenDarknessEnergyPercent` returns 0 for every stone kind through `IsAugmentStoneType` (the kind list had missed Luck, Reflex and Healing); a gem grants tier energy as before. Reviewer (Sonnet) on the desktop: no must-fix (IsAugmentStoneType names every stone kind; HealingStone is consume-only; the spec's enum walk is right); changelog lines added to BrokenDarkness.md and ItemSystem.md on its advice. | fix/B-353b-bd-stone-energy |
 | 2026-11-13 | D-175 (Crown): the Ability Stone is retired; no augment stone adds ability slots (a weapon's slots are its tier plus its crystal's, at most 12). Code removal and the save bump are B-437 (Q-437: older saves wiped). Docs only, branch docs/retire-ability-stone. |
 | 2026-11-14 | B-437 (D-175, Q-437): the Ability Stone is removed from the code. `ECrystalType::AbilityStone` is deleted (the values after `DamageStone` move down one; assets store the name, and `DefaultEngine.ini` redirects an old `AbilityStone` to `None`); `CrystalEffectTable::AbilityStoneSlotIdentity` goes and `GetAttachmentSlotsForTier` is a gem's only; `IsStatStone` is every augment stone; the stone-ability list (`AssignedAugmentStoneAbilities`, `GetAugmentStoneAbilities`, the saved lists, the Resonate Weapon ability branch) is deleted; save v38 wipes older saves. `UEquipmentDataBase::DefaultAbilities` has no reader left (OBSOLETE). Open editor step: the five merchants' Ability Stone stock lines and any asset still holding one. | feature/B-437-remove-ability-stone |
+| 2026-11-14 | B-152 (D-204: Crown waived the PIE gate of B-021): the stat-stone consumable wrappers B-021 made unreachable are deleted; every standard stat stone goes through `UItemExecutor::ApplyStoneBuffEffect` from its stone row; Amber and Opal keep their handlers. | chore/B-152-delete-stone-wrappers |
