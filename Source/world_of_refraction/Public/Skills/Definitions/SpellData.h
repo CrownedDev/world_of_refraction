@@ -50,18 +50,19 @@ public:
 
     /** B-064a (D-029): a Water spell that deals Ice. It stays keyed Water, so Water sources unlock it and "On Water hit"
      *  triggers hear it; its hits deal Ice, which only Ice resistance resists (Q-145b), and a full bar breaks as Ice.
-     *  Only on a Water spell (IsDataValid; the deckbuilder's rule 75): a Generic spell on a Water source deals Water. */
+     *  Keyed Water or Generic (the deckbuilder's rule 75: another key is a validation note, and such a spell never
+     *  casts as Water so deals no Ice). A Generic spell with it deals Ice when it resolves to Water. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     bool bDealsIce = false;
 
-    /** False when bDealsIce sits on a spell not keyed Water. */
-    bool IsIceKeyValid() const { return !bDealsIce || Element == ESpellElement::Water; }
+    /** False when bDealsIce sits on a spell keyed neither Water nor Generic (rule 75's note). */
+    bool IsIceKeyValid() const { return !bDealsIce || Element == ESpellElement::Water || Element == ESpellElement::Generic; }
 
     /** What this spell's hits deal instead of their cast element's own type: Ice when bDealsIce and the cast resolved
      *  to Water (FWoRHitKind::Ice), else None. */
     EWoRDamageType GetDealtTypeOverride(ESpellElement CastElement) const
     {
-        return bDealsIce && Element == ESpellElement::Water && CastElement == ESpellElement::Water ? EWoRDamageType::Ice
+        return bDealsIce && CastElement == ESpellElement::Water ? EWoRDamageType::Ice
                                                                                                     : EWoRDamageType::None;
     }
 
