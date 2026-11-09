@@ -5899,6 +5899,7 @@ void UActionExecutor::DebugForceResetAsync()
 	if (CurrentExecutionContext.IsSet())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] FORCE RESETTING stuck async action"));
+		TakeOffGearEvolutionPassives(CurrentExecutionContext->Executor.Get(), CurrentExecutionContext->GearEvolutionPassives); // B-357d review
 		CurrentExecutionContext.Reset();
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;

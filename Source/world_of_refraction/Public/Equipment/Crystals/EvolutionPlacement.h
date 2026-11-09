@@ -67,7 +67,8 @@ namespace WoREvolutionPlacement
 
 	/** B-357d (Q-357b A, Q-357d): whether the gear at Place powers an action of ActionType infused from Source. The
 	 *  weapon in hand powers its abilities and any action infused from its socket; the adapter in use, any action
-	 *  infused from its socket; apparel is worn, so it powers every action. The character's own slot is not gear: its
+	 *  infused from its socket; apparel is worn, so it powers every action (in play: every spell or ability, the
+	 *  only actions with a charge; attacks are abilities). The character's own slot is not gear: its
 	 *  passives act all fight, so it powers no single action. */
 	WORLD_OF_REFRACTION_API bool PowersAction(EEvolutionPlace Place, EActionType ActionType, EInfusionSourceOption Source);
 
@@ -76,6 +77,6 @@ namespace WoREvolutionPlacement
 	WORLD_OF_REFRACTION_API TArray<FAttachedEvolution> FilterForAction(const TArray<FAttachedEvolution> &Attached, EActionType ActionType,
 																	   EInfusionSourceOption Source, int32 ChargeLevel);
 
-	/** "character" / "weapon" / "adapter", for debug lines. */
+	/** "character" / "weapon" / "adapter" / "apparel", for debug lines. */
 	WORLD_OF_REFRACTION_API const TCHAR *GetPlaceName(EEvolutionPlace Place);
 }

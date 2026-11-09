@@ -4685,9 +4685,20 @@ TArray<FGatheredEffect> ULoadoutComponent::GetGearEvolutionPassivesForAction(EAc
     {
         bool bAlreadyCounted = false;
         Counted.Add(Evolution.Attachment.Item, &bAlreadyCounted);
-        if (!bAlreadyCounted)
+        if (bAlreadyCounted)
         {
-            Passives.Append(Evolution.Attachment.Item->GetStartingEffectsGathered());
+            continue;
+        }
+        // Only lasting passives (every payload permanent), the ones the gear-swap path puts on (Q-081), so the list
+        // is exactly what goes on and comes off (B-357d review).
+        for (const FGatheredEffect &Effect : Evolution.Attachment.Item->GetStartingEffectsGathered())
+        {
+            const bool bLasting = Effect.Effect.Payloads.Num() > 0 &&
+                                  !Effect.Effect.Payloads.ContainsByPredicate([](const FSkillEffectPayload &Payload) { return !Payload.bPermanent; });
+            if (bLasting)
+            {
+                Passives.Add(Effect);
+            }
         }
     }
     return Passives;
