@@ -23,6 +23,7 @@ class UAbilityData;
 class UStanceData;
 class USkillDataBase;
 class UMaterialInterface;
+class UNiagaraSystem;
 
 /**
  * Weapon Data Asset
@@ -95,6 +96,13 @@ public:
      *  FWeaponLoadoutEntry::bUseWeaponParryAnimation is true) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage *ParryMontage = nullptr;
+
+    // ==================== VISUALS (B-394, D-170) ====================
+
+    /** The cast flash this weapon's attacks, abilities and weapon-crystal spells play at the caster (D-170: fixed per
+     *  weapon; CastVisuals.h). Empty: the skill's own Muzzle VFX plays, as before. TODO: art. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+    TSoftObjectPtr<UNiagaraSystem> CastVFX;
 
     // ==================== MESH ====================
 
