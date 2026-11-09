@@ -3733,6 +3733,26 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Recommendation:** A: plain text in git, re-runnable, no new module (the project has one runtime module). Move to B later if designers want it inside the animation editor.
 **Answer:** **A**, by the reference-backed default (2026-11-05). Crown may change it.
 
+### Q-064a — Ice break: what it slows, how big, which immunity
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-064a, cloud) · **Blocks:** —
+**Question:** D-029 said a full Ice bar slows turn speed; D-090 later said Ice's break does what Water's does (Action Speed and Spell Speed slow for 1 holder turn) **and deals damage**, its size a named %. What exactly does the Ice break apply, how big, and which immunity stops Ice?
+**Options / as built (A):** **A** Water's slow (Action Speed + Spell Speed, 30%, `ICE_BREAK_SPEED_SLOW_PERCENT`) for `STATUS_CAP_TURNS` (1 holder turn), plus **10% of the holder's max HP once, on landing** (`ICE_BREAK_DAMAGE_MAX_HP_FRACTION`; can kill, like Reality Burst); no immunity of its own: an Ice hit is keyed Water, so **Water immunity blocks Ice buildup** (SB-13), and no break in this game grants an immunity afterwards. / **B** D-029's first idea, a Turn Speed debuff (moves turn order). / **C** the damage as a tick each turn, like Burn.
+**Recommendation:** A. D-090 already rules the slow (it supersedes D-029's turn-speed note, and D-056 keeps turn order on Turn Speed alone), and the deckbuilder's guideline is "Ice is a heavier, slower Water" (`02-enums.md`, "Ice"). For the damage, Elden Ring's **Frostbite** is the closest well-received model: a full frost bar deals 10% of max HP (plus a flat amount) at once and leaves a debuff (20% more damage taken), and it is one of its most-used statuses (Fextralife Elden Ring wiki, "Frostbite"). Pokémon Legends: Arceus also turned freezing into **Frostbite**, chip damage plus a weakened offense, replacing the all-or-nothing freeze players disliked (Bulbapedia, "Frostbite (status condition)"). A one-off hit keeps Ice distinct from Burn's tick (C), and B would undo D-056.
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change it; both sizes are named constants marked `// TODO: tune`.
+**Notes for Claude (as built):** B-064a: `ESkillEffectType::IceBreak` (appended) is the Ice row's `BreakTrigger` (`ElementTable.cpp`); its `BreakTable` row applies `ActionSpeedDebuff` + `SpellSpeedDebuff` and `FBreakRow::DamageShareOfMaxHP`, dealt by `USkillEffectManager::ApplyTriggeredSkillEffect` through the same helper as Reality Burst. The brief's "Ice row's Immunity = GrantWaterImmunity" was **not** built: that column is what an item grants and what blocks an element's buildup, the Ice row's element is None (Ice is no element axis), and setting it breaks `WoR.Effects.Keyed`; Water immunity already blocks Ice through the hit's Water key. The player-facing name is Q-064a2.
+
+### Q-064a2 — Ice break's name, and whether Water's "Frozen" moves to Ice
+**Status:** OPEN (lore: Crown's) · **Raised:** 2026-11-09 (B-064a, cloud) · **Blocks:** — (the mechanic ships with the placeholder)
+**Question:** What is Ice's break called? Water's break is "Frozen" and Water's damage over time "Frost Bite" today (`WoRGameNames::GetElementBreakName`, `SkillEffectDisplayNames`), names that fit Ice better now that Ice exists. The deckbuilder gives Water the adjective "Tide" and Ice "Frost" (`02-enums.md`, element trait table; "Ice took Frost", Crown, 2026-09-29).
+**Context:** B-064a ships the placeholder "Ice break" (`WoRGameNames::GetSkillEffectTypeName(IceBreak)`, `// TODO: Crown`); Water's names are unchanged.
+**Options:**
+- **A** Water keeps "Frozen" and "Frost Bite"; Ice gets a new name of Crown's choosing.
+- **B** Ice takes "Frozen" (and "Frost Bite" if Ice gets a damage over time); Water's break gets a new, tide-like name, matching the deckbuilder's Tide / Frost split.
+- **C** Something else.
+**Recommendation:** none: names and lore are Crown's (CLAUDE.md, "Recommendations").
+**Answer (Crown):** _write here_
+**Notes for Claude:** a name is one `LOCTEXT` change (and `ElementBreakNameSpec`'s expected words if Water's change).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
