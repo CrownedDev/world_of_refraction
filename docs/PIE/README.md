@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-399](B-399.md) | `feature/B-399-calm-menus-cloud` (UNBUILT, on B-398) | Calm menus: opening a sub-menu steps the turn camera one short step closer and lower, Back steps out; nothing moves while browsing or picking a target (`wor.Camera.MenuDepth`) | Pending |
 | [B-398](B-398.md) | `feature/B-398-turn-view-setting-cloud` (UNBUILT, from dev, save v34) | Turn-view setting: Centred Wide (default) or Over the Shoulder (hero lower-left third, enemies mid-frame, the same for every member); saved, kept for the next fight (`wor.Camera.Style`) | Pending |
 | [B-396](B-396.md) | `fix/B-396-combat-hud-visibility` (in dev) | Combat HUD invisible: `wor.UI.Print` in a fight shows each HUD widget's viewport, visibility, opacity, position and size; the trial gate's focus error is gone | Pending |
 | [B-064c](B-064c.md) | `feature/B-064c-ice-rest` (in dev) | Ice, the rest: Ice resistance from the profile asset, gear and Ice-keyed buffs (Ice and Water); a Water Ward or Water-scoped boost doesn't reach an Ice hit, an Ice-keyed Ward does | Pending |
