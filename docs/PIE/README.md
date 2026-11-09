@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-154](B-154.md) | `feature/B-154-ring-weapon-managers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-024) | Delete the OBSOLETE ring and weapon manager subsystems; Blueprint check first | Pending |
 | [B-042f](B-042f.md) | `feature/B-042f-stones-item-effects-gas-cloud` (in dev) | GAS stage 3 part 6: `wor.Effects.Compare` 0 differ at UseGAS 0 and 1 (stones and item effects included); B-042g's gate | Pending |
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (in dev) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
