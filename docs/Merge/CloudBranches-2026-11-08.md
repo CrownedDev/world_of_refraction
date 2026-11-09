@@ -349,3 +349,10 @@ The trial branch `integration/cloud-2026-11-09` now also has current dev and row
   - **Saves:** B-392 (32), B-393 (33), B-398 (34). Keep `LATEST = 34` with the comment in order.
 - Backlog conflicts: take each job's row from its own branch (row union by job id). The trial branch has the restored rows.
 
+
+## Update, 2026-11-09 (late night): rows 93–95 on the trial branch
+
+`integration/cloud-2026-11-09c` now also has rows 93 (B-403), 94 (B-407) and 95 (B-399). The real merges will meet these code conflicts:
+- **B-403 after B-398** (`CameraFramingChecks.h`): keep B-398's `THIRD_LINE` / `ProjectToScreen` / `GetThirdsCell`, then B-403's `GetRequiredPoints` comment (impact needs the caster too).
+- **B-407 after B-405** (`CombatCameraDirector.h`): keep both blocks (B-405's kill-shot API and `BreakApartEffect`, then B-407's `GetSignatureCapString`).
+- **B-399 after B-405** (`CombatCameraDirector.cpp`): the turn view is `ComputeView(..., MenuDepth)` then `FBossFramingRules::ApplyHeight` for the Turn mode. **Also** wrap B-399's two other `ComputeTurnView(..., MenuDepth)` calls (`StepTurnViewForMenu`, `GetTurnLayoutString`) in `ApplyHeight`; git won't flag those, and without the wrap a sub-menu step against a boss jumps back to eye level. Headers, `CombatCameraDebug.cpp` and `CommandMenuRules`: keep both sides.
