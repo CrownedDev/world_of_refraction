@@ -475,7 +475,7 @@ void UStatusBuildupManager::ResetForCombat()
 
 UAbilitySystemComponent *UStatusBuildupManager::GetBarASC(const AActor *Target)
 {
-	if (!UWoREffectMirrorComponent::ReadsFromGAS() || !Target)
+	if (!Target)
 	{
 		return nullptr;
 	}
