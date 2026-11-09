@@ -278,6 +278,14 @@ The queue of questions only Crown can answer.
 **Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09). Watch in play: if Reflex becomes a must-have, split it (B).
 **Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **approved:** Reflex = the regain amount + the defense window (Reflex no longer sets Max Actions, Q-170); Turn Speed removed from Spirit.
 
+### Q-394 — Cast visual source: the cases D-170 leaves open
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-394, cloud) · **Blocks:** —
+**Question:** D-170 sets weapon / adapter-type default / Generic preference. (1) Which visual do a Refractor's innate spells and an evolution's spells show? (2) Where does the Generic "class preference" live, and what is its default? (3) Does the weapon's fixed visual cover its abilities and weapon-crystal spells too? (4) What plays before any art is authored?
+**Options / as built (A):** (1) the adapter-type default, read from the worn adapter's type, **Ring** with none (D-170: "rings are the default"; casters share the one setting); a spell item keeps its own visual. (2) **class data**, one value on the presentation-defaults asset (`UImpactVisualDefaults::GenericCastVFXPreference`), default **Adapter**, applied to every spell a Generic casts while it wears both. (3) yes: attacks, abilities and weapon-crystal spells play `UWeaponData::CastVFX`. (4) the skill's own Muzzle VFX (today's look) whenever the picked source has nothing set. **B** (2) a per-character player setting (needs a menu and a save field).
+**Recommendation:** A. Elden Ring and Dark Souls show a spell's cast through the catalyst that casts it (staff glow, seal glow), so the spell tool decides the look; Final Fantasy XIV's casters all share one cast circle per job rather than per item, the same as one default per adapter type. Keeping (2) as class data matches D-170's word "class" and adds no setting before the cosmetics work.
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change any part; a per-character setting (B) is one more input to `CastVisuals::Resolve`.
+**Notes for Claude:** built in B-394 (`Combat/Presentation/CastVisuals.h`; `UWeaponData::CastVFX`; `UImpactVisualDefaults::AdapterCastVFX`, `GenericCastVFXPreference`).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
