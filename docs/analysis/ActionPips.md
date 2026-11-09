@@ -76,7 +76,8 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 - **Wind's break** (`BreakTable` row `SkipTurn`): `DelayTurnPlaces` 1 → 0; applies `LoseActions` 1 at the holder's next turn start (D-090's placeholder −1). The `SkipTurn` effect type keeps its slot; only the row changes.
 - **Ice / Water breaks** (Q-170e): unchanged. Both slow Action Speed and Spell Speed, Ice adds its damage (D-090, B-064a). With Turn Speed gone, the slow means the holder's attacks and spells are easier to defend against (wider windows) and play slower.
 - **Extra Action** (`ESkillEffectType::ExtraAction`, Q-170f): becomes +1 action now (its name), no longer a bonus turn.
-- **Emerald** (Q-170f): keeps its bonus turn (D-052, D-133, ET-12; built). A bonus turn is a real turn: it gains +1 action and runs the turn steps.
+- **Wind, two rules (Crown, D-088, 2026-11-09):** the Wind **status bar** (its break) takes **action pips** (above); the **Wind crystal effect** (Emerald, Wind's gem) makes the **target lose their next turn** in the rotation.
+- **Emerald** (Q-170f, Crown's Wind rule): on an **enemy**, it removes their next turn (`SkipNextTurn`, already built: ET-13; replaces today's "force their turn" gamble). On **yourself or an ally**, it keeps its bonus turn (D-052, D-133, ET-12; built) — CC's reading, since losing your own turn helps no one; Crown to confirm. S tier: two turns either way (Q-341b). A bonus turn is a real turn: it gains +1 action and runs the turn steps. Code: `UItemExecutor::ExecuteBonusTurnEffect` branches on the target's side; the AI's Emerald scoring (`AIFreeActionFactor`, the exposure look-ahead) flips to "the foe loses a turn".
 - **Retired** (enum entries kept, append-only; data validation refuses them, the D-056 pattern): `ModifyTurnSpeed`, `TurnSpeedBuff`, `TurnSpeedDebuff`; `EItemEffectType::BuffTurnSpeed`; the Turn Speed sub-stat (`ESubStat::TurnSpeed`, `UCharacterData::TurnSpeed`, Q-170h); the GAS `TurnSpeed` attribute, its sync, GEs and debug lines (§3.2 callers). `TurnSpeedStone` is already retired (B-353).
 - Effect text (`EffectText.cpp`) gets lines for the four new types: "Gain 1 action.", "Lose 1 action at the start of their next turn.", "+1 Max Actions for 2 turns.".
 
@@ -109,7 +110,7 @@ Reflex's share is read the way the defense window already reads it (`UCharacterD
 |---|---|
 | `TurnManagerSpec`, `TurnBeltSpec`, `TurnStartOrderSpec`, `FirstStrikeSpec` | Add rotation cases with the switch on; old cases stay with it off until the deletion job |
 | `TurnCapSpec`, `TurnSpeedSourcesSpec`, `TurnSpeedTieBreakSpec` | Kept with the switch off; deleted with the old path |
-| `BonusTurnSpec`, `EmeraldExtraTurnSpec`, `CombatRitualFireSpec` | Re-checked with the switch on (Extra Action now +1 action) |
+| `BonusTurnSpec`, `EmeraldExtraTurnSpec`, `CombatRitualFireSpec` | Re-checked with the switch on (Extra Action now +1 action; Emerald on an enemy removes their next turn, on an ally grants a bonus turn) |
 | `StatusBreakSpec` | Wind takes 1 action at the next turn start |
 | `EffectTextSpec` | Extra Action's line ("take an extra turn" → "Gain 1 action."); the four new types' lines |
 | `StoneRowSpec`, `SignAwareModifierSpec`, `GASStatGettersSpec`, `StatModifierSpec` | Their Turn Speed cases retire with the family (B-170g / B-170h) |
