@@ -94,7 +94,6 @@ bool FBalanceSimRunner::Begin()
 	{
 		PartySession->RestoreLocalParty(FText::FromString(TEXT("Balance sim")), /*bLetAIFinish=*/true, {FPartyMember()});
 	}
-	bSavedUseGAS = UWoREffectMirrorComponent::ReadsFromGAS();
 	Recorder.Reset(NewObject<UBalanceSimRecorder>());
 	Recorder->Listen(TestWorld->GetSubsystem<UActionExecutor>(), Orchestrator, TestWorld->GetSubsystem<UTurnManager>(),
 					 TestWorld->GetSubsystem<UStatusBuildupManager>());
@@ -149,7 +148,6 @@ void FBalanceSimRunner::End()
 	{
 		CVar->Set(SavedBattleSeed, SimPriority(CVar));
 	}
-	UWoREffectMirrorComponent::SetReadsFromGAS(bSavedUseGAS);
 	LogTemp.SetVerbosity(SavedLogTemp);
 	LogWoRCombat.SetVerbosity(SavedLogCombat);
 	LogWoREffects.SetVerbosity(SavedLogEffects);
@@ -160,17 +158,11 @@ void FBalanceSimRunner::End()
 	bRunning = false;
 }
 
-void FBalanceSimRunner::SetUseGAS(bool bEnabled)
-{
-	bUseGAS = bEnabled;
-}
-
 FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, int32 Seed)
 {
 	FBalanceFightRecord Failed;
 	Failed.MatchupId = Matchup.Id;
 	Failed.Seed = Seed;
-	Failed.bGAS = bUseGAS;
 	const FBalanceArchetype *EnemyArchetype = BalanceArchetypes::Find(Matchup.Enemy);
 	if (!bRunning || !Orchestrator || !EnemyArchetype)
 	{
@@ -208,7 +200,6 @@ FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, 
 	{
 		CVar->Set(Seed, SimPriority(CVar)); // StartCombat's BeginBattle seeds the stream from it
 	}
-	UWoREffectMirrorComponent::SetReadsFromGAS(bUseGAS); // B-293: the same seed on either path must give the same record
 	Recorder->Begin(Matchup.Id, Seed, Party);
 	Orchestrator->SetEncounterRank(Matchup.Rank);
 	// B-346: the sim's party plays at the AI seat setting; Hard keeps the pre-B-346 numbers
@@ -226,7 +217,6 @@ FBalanceFightRecord FBalanceSimRunner::RunFight(const FBalanceMatchup &Matchup, 
 		++Ticks;
 	}
 	FBalanceFightRecord Record = Recorder->Record;
-	Record.bGAS = bUseGAS;
 	Record.Ticks = Ticks;
 	Record.Outcome = OutcomeOf(Recorder->FinalState.Get(Orchestrator->GetCombatState()));
 	if (Record.Outcome == EBalanceFightOutcome::Stalled && Orchestrator->GetCombatState() == ECombatState::InProgress)

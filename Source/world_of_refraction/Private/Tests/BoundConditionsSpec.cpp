@@ -9,6 +9,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "Character/CharacterData.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Conditions/WoRConditions.h"
@@ -177,6 +178,7 @@ void FBoundConditionsSpec::Define()
 	{
 		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
 		AActor *Holder = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		FWoRTestWorld::AddComponent<UWoRTurnEffectTracker>(Holder); // B-042g2: fires-once records live on the tracker
 		AActor *Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
 		if (!TestNotNull(TEXT("Effects"), Effects) || !TestNotNull(TEXT("Holder"), Holder) || !TestNotNull(TEXT("Attacker"), Attacker)) return;
 		Effects->ResetForNewCombat();
@@ -197,6 +199,7 @@ void FBoundConditionsSpec::Define()
 	{
 		USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
 		AActor *Holder = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		FWoRTestWorld::AddComponent<UWoRTurnEffectTracker>(Holder); // B-042g2: fires-once records live on the tracker
 		AActor *Attacker = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
 		if (!TestNotNull(TEXT("Effects"), Effects) || !TestNotNull(TEXT("Holder"), Holder) || !TestNotNull(TEXT("Attacker"), Attacker)) return;
 		Effects->ResetForNewCombat();

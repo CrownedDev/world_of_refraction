@@ -103,7 +103,7 @@ public:
 	}
 
 	/** Gives Actor an ability system component (unless it has one), a turn tracker and an effect mirror
-	 *  (B-042c, B-042h), so its stored effects are mirrored onto GAS and `wor.Effects.UseGAS` can use them. */
+	 *  (B-042c, B-042h), so its stored effects are mirrored onto GAS and the effect reads use them. */
 	static UWoREffectMirrorComponent *AddEffectMirror(AActor *Actor)
 	{
 		if (!Actor)
@@ -114,8 +114,8 @@ public:
 		{
 			AddComponent<UAbilitySystemComponent>(Actor)->InitAbilityActorInfo(Actor, Actor);
 		}
-		// As on ACombatCharacter: the attribute sets (a GAS tick changes Health, B-042y), and with
-		// UseGAS 1 the tracker owns the effects' lifetime (B-042h).
+		// As on ACombatCharacter: the attribute sets (a GAS tick changes Health, B-042y), and the
+		// tracker owns the effects' lifetime (B-042h).
 		UWoRAttributeSyncComponent::PrepareAbilitySystem(Actor);
 		if (!Actor->FindComponentByClass<UWoRTurnEffectTracker>())
 		{

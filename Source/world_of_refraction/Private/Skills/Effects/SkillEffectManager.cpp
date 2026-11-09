@@ -27,6 +27,7 @@
 #include "Skills/Effects/BreakTable.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "AbilitySystemComponent.h"
 #include "GAS/WoRTurnEffectTracker.h"
@@ -129,6 +130,30 @@ namespace
 				   BreakDamage, Share, *GetNameSafe(HolderComp->GetOwner()));
 		}
 		return FMath::Max(BreakDamage, 0);
+	}
+
+	/** B-042h: Actor's mirror when its turn tracker counts the stored effects' lifetime (it carries both), else null:
+	 *  an actor without them keeps the store's lifetime (the no-ASC fallback until B-042g5). */
+	UWoREffectMirrorComponent *FindLifetimeMirror(const AActor *Actor)
+	{
+		UWoREffectMirrorComponent *Mirror = Actor ? Actor->FindComponentByClass<UWoREffectMirrorComponent>() : nullptr;
+		return Mirror && Actor->FindComponentByClass<UWoRTurnEffectTracker>() ? Mirror : nullptr;
+	}
+
+	/** B-042g2: every turn tracker in World (the fight records live there, B-042z). */
+	void ForEachTurnTracker(const UWorld *World, TFunctionRef<void(UWoRTurnEffectTracker &)> Visit)
+	{
+		if (!World)
+		{
+			return;
+		}
+		for (TActorIterator<AActor> It(World); It; ++It)
+		{
+			if (UWoRTurnEffectTracker *Tracker = It->FindComponentByClass<UWoRTurnEffectTracker>())
+			{
+				Visit(*Tracker);
+			}
+		}
 	}
 }
 
@@ -274,10 +299,11 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// The copy this source already put on the holder, if any (D-012, D-053). Another
 	// source's copy is a separate effect, unless the definition says it doesn't stack.
 	FActiveSkillEffect *ExistingEffect = FindEffectByIdentity(Target, Effect.EffectID, Effect.SourceKey);
-	if (ExistingEffect && UWoREffectMirrorComponent::OwnsLifetime(Target))
+	UWoREffectMirrorComponent *LifetimeMirror = ExistingEffect ? FindLifetimeMirror(Target) : nullptr;
+	if (LifetimeMirror)
 	{
 		// B-042h: a same-source re-apply of a copy whose GE GAS already ended starts it again.
-		Target->FindComponentByClass<UWoREffectMirrorComponent>()->ForgetEnded(*ExistingEffect);
+		LifetimeMirror->ForgetEnded(*ExistingEffect);
 	}
 
 	if (!ExistingEffect && Effect.bDoesNotStack && FindEffectByID(Target, Effect.EffectID))
@@ -520,13 +546,11 @@ int32 USkillEffectManager::SwapEquipmentEffects(
 // any class. "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
 namespace
 {
-	/** B-042y: with wor.Effects.UseGAS 1, a DOT / HOT tick on an actor with a mirror is paid by its GE's tick
-	 *  spec (Q-042y). False when it isn't (the enum path pays). */
+	/** B-042y: a DOT / HOT tick on an actor with a mirror is paid by its GE's tick spec (Q-042y). False when it
+	 *  isn't (no mirror: the store's payout, until B-042g5). */
 	bool PayTickThroughGAS(AActor *Actor, const FActiveSkillEffect &Effect)
 	{
-		UWoREffectMirrorComponent *Mirror = UWoREffectMirrorComponent::ReadsFromGAS() && Actor
-												? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
-												: nullptr;
+		UWoREffectMirrorComponent *Mirror = Actor ? Actor->FindComponentByClass<UWoREffectMirrorComponent>() : nullptr;
 		return Mirror && Mirror->PayTick(Effect);
 	}
 
@@ -1057,57 +1081,35 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 
 void USkillEffectManager::ResetForNewCombat()
 {
-	// Every record is written to both, so these keys reach every tracker holding one (B-042z).
-	for (const FWoRFiredOnceKey &Key : FiredOnceThisMatch)
-	{
-		const AActor *Holder = Key.Holder.ResolveObjectPtr();
-		if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
-		{
-			Tracker->ResetFightRecords();
-		}
-	}
-	for (const TPair<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> &Armed : ArmedConditionals)
-	{
-		const AActor *Holder = Armed.Key.Get();
-		if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
-		{
-			Tracker->ResetFightRecords();
-		}
-	}
-	FiredOnceThisMatch.Empty();
-	ArmedConditionals.Empty();
-	UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] FiredOnceThisMatch + ArmedConditionals reset for new combat"));
+	// B-042g2: the fight records live on each holder's tracker (B-042z).
+	ForEachTurnTracker(GetWorld(), [](UWoRTurnEffectTracker &Tracker) { Tracker.ResetFightRecords(); });
+	UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] fires-once uses and armed gear reset for new combat"));
 }
 
 bool USkillEffectManager::HasFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key) const
 {
 	const UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
-	if (Tracker && UWoREffectMirrorComponent::ReadsFromGAS())
-	{
-		return Tracker->HasFiredOnce(Key.EffectID, Key.SourceKey);
-	}
-	return FiredOnceThisMatch.Contains(Key);
+	return Tracker && Tracker->HasFiredOnce(Key.EffectID, Key.SourceKey);
 }
 
 void USkillEffectManager::RecordFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key)
 {
-	FiredOnceThisMatch.Add(Key);
 	if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
 	{
 		Tracker->RecordFiredOnce(Key.EffectID, Key.SourceKey);
+		return;
 	}
+	// TODO: B-042g5 - a holder without a tracker (no combat character) keeps no fires-once record.
+	UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s has no turn tracker; its fires-once use isn't recorded"),
+		   *GetNameSafe(Holder));
 }
 
 // The tracker reads assume the tracker was there before the fight's records were written: ACombatCharacter creates it
-// in its constructor. One added later (a test actor) starts empty at UseGAS 1.
+// in its constructor. One added later (a test actor) starts empty.
 const TArray<FGatheredEffect> *USkillEffectManager::FindArmedConditionals(const AActor *Actor) const
 {
 	const UWoRTurnEffectTracker *Tracker = Actor ? Actor->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
-	if (Tracker && UWoREffectMirrorComponent::ReadsFromGAS())
-	{
-		return Tracker->GetArmedConditionals();
-	}
-	return ArmedConditionals.Find(Actor);
+	return Tracker ? Tracker->GetArmedConditionals() : nullptr;
 }
 
 void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals)
@@ -1116,11 +1118,14 @@ void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGat
 	{
 		return;
 	}
-	ArmedConditionals.Add(Actor, Conditionals);
-	if (UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
+	UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>();
+	if (!Tracker)
 	{
-		Tracker->ArmConditionals(Conditionals);
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s has no turn tracker; its gear conditionals aren't armed"),
+			   *Actor->GetName());
+		return;
 	}
+	Tracker->ArmConditionals(Conditionals);
 	UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Armed %d conditional effect(s) on %s"),
 		   Conditionals.Num(), *Actor->GetName());
 }
@@ -1131,15 +1136,7 @@ void USkillEffectManager::ClearAllEffects()
 	const auto Removed = MoveTemp(ActiveEffects);
 	ActiveEffects.Empty();
 	// B-081: the fight is over, so a later gear swap must not re-apply gear effects (IsGearArmed).
-	for (const TPair<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> &Armed : ArmedConditionals)
-	{
-		const AActor *Holder = Armed.Key.Get();
-		if (UWoRTurnEffectTracker *Tracker = Holder ? Holder->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr)
-		{
-			Tracker->DisarmConditionals();
-		}
-	}
-	ArmedConditionals.Empty();
+	ForEachTurnTracker(GetWorld(), [](UWoRTurnEffectTracker &Tracker) { Tracker.DisarmConditionals(); });
 
 	int32 TotalCount = 0;
 	for (const auto &Pair : Removed)
@@ -1231,14 +1228,14 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 	// where GAS owns the lifetime the tracker ends the GEs first and their stored copies follow; the
 	// enum expiry then only finds effects GAS doesn't hold.
 	UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>();
-	const bool bGASLifetime = UWoREffectMirrorComponent::OwnsLifetime(Actor);
-	if (bGASLifetime)
+	UWoREffectMirrorComponent *LifetimeMirror = FindLifetimeMirror(Actor);
+	if (LifetimeMirror)
 	{
 		Tracker->OnHolderTurnStart();
-		Actor->FindComponentByClass<UWoREffectMirrorComponent>()->ReleaseEndedCopies();
+		LifetimeMirror->ReleaseEndedCopies();
 	}
 	ExpireFinishedHolderTurnSpans(Actor);
-	if (Tracker && !bGASLifetime)
+	if (Tracker && !LifetimeMirror)
 	{
 		Tracker->OnHolderTurnStart(); // the same rule for the GAS effects (B-042)
 	}
@@ -1277,7 +1274,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	// Tick durations and remove expired effects. B-042h: where GAS owns the lifetime the tracker
 	// counts first and the stored copies take its count.
 	UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>();
-	const bool bGASLifetime = UWoREffectMirrorComponent::OwnsLifetime(Actor);
+	const bool bGASLifetime = FindLifetimeMirror(Actor) != nullptr;
 	if (bGASLifetime)
 	{
 		Tracker->OnHolderTurnEnd();
@@ -1474,8 +1471,7 @@ void USkillEffectManager::CountHolderTurnSpans(AActor *Actor)
 		return;
 	}
 
-	const UWoREffectMirrorComponent *GASLifetime =
-		UWoREffectMirrorComponent::OwnsLifetime(Actor) ? Actor->FindComponentByClass<UWoREffectMirrorComponent>() : nullptr;
+	const UWoREffectMirrorComponent *GASLifetime = FindLifetimeMirror(Actor);
 	TArray<FActiveSkillEffect> Counted;
 	for (FActiveSkillEffect &Effect : *Effects)
 	{
@@ -1942,7 +1938,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Resource changes — percent restore / drain. Value is the percent (0..100).
 	case ESkillEffectType::RestoreHPPercent:
 	{
-		// B-042yd: past the HealBlock gate, the restore pays through GAS at UseGAS 1, and reports its heal (B-247).
+		// B-042yd: past the HealBlock gate, the restore pays through GAS (an actor with a mirror), and reports its heal (B-247).
 		if (const int32 HPBefore = CharComp->CurrentHP;
 			!IsImmuneToEffectType(Actor, ESkillEffectType::RestoreHPPercent) && PayPayoutThroughGAS(Actor, Effect, *CharComp))
 		{
@@ -2463,19 +2459,14 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetActiveEffects(AActor *Actor) 
 
 TArray<FActiveSkillEffect> USkillEffectManager::GetHeldEffects(AActor *Actor) const
 {
-	// B-318: an actor without authority always asks the mirror, which follows the server's switch, not this client's.
-	UWoREffectMirrorComponent *Mirror = Actor && (UWoREffectMirrorComponent::ReadsFromGAS() || !Actor->HasAuthority())
-											? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
-											: nullptr;
+	// B-318: on an actor without authority the mirror answers with the server's read.
+	UWoREffectMirrorComponent *Mirror = Actor ? Actor->FindComponentByClass<UWoREffectMirrorComponent>() : nullptr;
 	return Mirror ? Mirror->ReadHeldEffects(GetActiveEffects(Actor)) : GetActiveEffects(Actor);
 }
 
 int32 USkillEffectManager::PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect, bool bAfterAbsorbers) const
 {
-	// B-318: an actor without authority always asks the mirror, which follows the server's switch, not this client's.
-	UWoREffectMirrorComponent *Mirror = Actor && (UWoREffectMirrorComponent::ReadsFromGAS() || !Actor->HasAuthority())
-											? Actor->FindComponentByClass<UWoREffectMirrorComponent>()
-											: nullptr;
+	UWoREffectMirrorComponent *Mirror = Actor ? Actor->FindComponentByClass<UWoREffectMirrorComponent>() : nullptr;
 	const int32 FromGAS = Mirror ? Mirror->PreviewDotTick(Effect) : INDEX_NONE;
 	const int32 Tick = FromGAS != INDEX_NONE ? FromGAS : GetDotTickDamage(Actor, Effect);
 	// B-042j3 (D-092 rule 1): the next tick as the holder would pay it, after its absorbers (nothing spent here).
@@ -2488,7 +2479,7 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, 
 {
 	TArray<FActiveSkillEffect> Result;
 
-	// B-042g (part 1): at UseGAS 1 the per-effect readers (resistance and buildup matches, Ignore Defense, reflect) read
+	// B-042g (part 1): on an actor with a mirror the per-effect readers (resistance and buildup matches, Ignore Defense, reflect) read
 	// the GEs: one view per GE with its identity's keys and value, its stacks from the stacked magnitude.
 	// Partial views: duration, stacking rules and charges stay default, so never read those from them (review).
 	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, EffectType))
@@ -2548,7 +2539,7 @@ bool USkillEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
 
 bool USkillEffectManager::HasEffectOfType(AActor *Actor, ESkillEffectType EffectType) const
 {
-	// B-042c facade: wor.Effects.UseGAS 1 reads the mirrored GameplayEffects for ported types.
+	// B-042c facade: an actor with a mirror reads the mirrored GameplayEffects for ported types.
 	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, EffectType))
 	{
 		return UWoREffectMirrorComponent::HasEffectOfType(*ASC, EffectType);
@@ -2643,7 +2634,7 @@ bool USkillEffectManager::IsSkillGroupMet(const FSkillConditionGroup &Group, ESk
 
 FGameplayTagContainer USkillEffectManager::GetEffectTags(AActor *Actor) const
 {
-	// B-042x: per type through HasEffectOfType, so wor.Effects.UseGAS 1 reads the holder's tags.
+	// B-042x: per type through HasEffectOfType, so an actor with a mirror reads its tags.
 	// One mirror resync per type: fine for its debug / Blueprint callers, not for a hot path.
 	FGameplayTagContainer Tags;
 	for (const ESkillEffectType Type : WoRTags::TaggedEffectTypes())
@@ -2758,7 +2749,7 @@ int32 USkillEffectManager::GetEffectCount(AActor *Actor) const
 int32 USkillEffectManager::GetBuffCount(AActor *Actor) const
 {
 	int32 Count = 0;
-	for (const FActiveSkillEffect &Effect : GetHeldEffects(Actor)) // B-042ye: GAS at UseGAS 1
+	for (const FActiveSkillEffect &Effect : GetHeldEffects(Actor)) // B-042ye: GAS on an actor with a mirror
 	{
 		if (Effect.IsBuff())
 		{
@@ -2772,7 +2763,7 @@ int32 USkillEffectManager::GetBuffCount(AActor *Actor) const
 int32 USkillEffectManager::GetDebuffCount(AActor *Actor) const
 {
 	int32 Count = 0;
-	for (const FActiveSkillEffect &Effect : GetHeldEffects(Actor)) // B-042ye: GAS at UseGAS 1
+	for (const FActiveSkillEffect &Effect : GetHeldEffects(Actor)) // B-042ye: GAS on an actor with a mirror
 	{
 		if (Effect.IsDebuff())
 		{
@@ -2820,7 +2811,7 @@ int32 USkillEffectManager::GetSpendableEP(AActor *Actor) const
 
 bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 {
-	return HasEffectOfType(Actor, ESkillEffectType::DOT); // B-042x: the Status.DOT tag at UseGAS 1
+	return HasEffectOfType(Actor, ESkillEffectType::DOT); // B-042x: the Status.DOT tag on an actor with a mirror
 }
 
 int32 USkillEffectManager::HealActor(AActor *Recipient, int32 Amount, AActor *Healer, ESkillEffectType GateType)
@@ -2923,17 +2914,11 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 			   Effect.EffectValue, *Effect.GetDurationString(), Effect.CurrentStacks);
 	}
 
-	int32 FiredOnceUses = 0;
-	for (const FWoRFiredOnceKey &Key : FiredOnceThisMatch)
-	{
-		FiredOnceUses += (Key.Holder == TObjectKey<AActor>(Actor)) ? 1 : 0;
-	}
 	if (const UWoRTurnEffectTracker *Tracker = Actor->FindComponentByClass<UWoRTurnEffectTracker>())
 	{
 		UE_LOG(LogWoREffects, Display, TEXT("  Fight records on the tracker (B-042z): %d fires-once use(s), gear %s"),
 			   Tracker->NumFiredOnce(), Tracker->GetArmedConditionals() ? TEXT("armed") : TEXT("not armed"));
 	}
-	UE_LOG(LogWoREffects, Display, TEXT("  Once-per-match uses spent on %s: %d"), *Actor->GetName(), FiredOnceUses);
 	UE_LOG(LogWoREffects, Display, TEXT("  EP sealed by Silenced: %d, spendable: %d"), GetSealedEP(Actor), GetSpendableEP(Actor));
 }
 

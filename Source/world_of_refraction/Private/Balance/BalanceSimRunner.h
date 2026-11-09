@@ -31,11 +31,6 @@ public:
 	/** Restores the console variables and log levels and releases the world. Safe to call twice. */
 	void End();
 
-	/** B-293: run the next fights with the effect reads on GAS (wor.Effects.UseGAS 1) or the enum path. The value
-	 *  found at Begin is restored at End. */
-	void SetUseGAS(bool bEnabled);
-	bool UsesGAS() const { return bUseGAS; }
-
 	/** One fight of Matchup on Seed (non-zero: 0 asks the battle stream for a fresh seed). */
 	FBalanceFightRecord RunFight(const FBalanceMatchup &Matchup, int32 Seed);
 
@@ -54,8 +49,6 @@ private:
 	TArray<TStrongObjectPtr<UObject>> FightAssets;
 	TArray<AActor *> FightActors;
 
-	bool bUseGAS = false;
-	bool bSavedUseGAS = false;
 	int32 SavedInstantImpacts = 0;
 	float SavedThinkDelayScale = 1.0f;
 	int32 SavedBattleSeed = 0;

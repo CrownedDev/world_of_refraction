@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "Character/CharacterData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Inventory/InventoryComponent.h"
@@ -72,6 +73,8 @@ void FGearSwapEffectsSpec::Define()
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 		Data->CharacterClass = ECharacterClass::Resonator;
 		Wearer = TestWorld->SpawnCombatant(Data);
+		// B-042g2: fires-once records and armed gear live on the holder's turn tracker, as on ACombatCharacter.
+		FWoRTestWorld::AddComponent<UWoRTurnEffectTracker>(Wearer);
 		UInventoryComponent *Inventory = GearSwapAddComponent<UInventoryComponent>(Wearer);
 		Loadout = GearSwapAddComponent<ULoadoutComponent>(Wearer);
 		Loadout->InitializeFromCharacterData(Data, Inventory);

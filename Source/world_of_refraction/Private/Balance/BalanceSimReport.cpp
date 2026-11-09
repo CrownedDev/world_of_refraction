@@ -160,11 +160,11 @@ namespace BalanceSimReport
 	FString ToCSV(FName Preset, const TArray<FBalanceFightRecord> &Records)
 	{
 		static const TCHAR *OutcomeNames[] = {TEXT("PartyWon"), TEXT("EnemiesWon"), TEXT("Draw"), TEXT("Stalled")};
-		FString Out = TEXT("preset,matchup,seed,gas,outcome,turns,party_turns,rounds,ticks,party_damage,enemy_damage,hits,crits,status_breaks,hits_to_kill,stalled\n");
+		FString Out = TEXT("preset,matchup,seed,outcome,turns,party_turns,rounds,ticks,party_damage,enemy_damage,hits,crits,status_breaks,hits_to_kill,stalled\n");
 		for (const FBalanceFightRecord &R : Records)
 		{
-			Out += FString::Printf(TEXT("%s,%s,%d,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%d\n"), *Preset.ToString(), *R.MatchupId.ToString(), R.Seed,
-								   R.bGAS ? 1 : 0, OutcomeNames[static_cast<int32>(R.Outcome)], R.Turns, R.PartyTurns, R.Rounds, R.Ticks, R.PartyDamage,
+			Out += FString::Printf(TEXT("%s,%s,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s,%d\n"), *Preset.ToString(), *R.MatchupId.ToString(), R.Seed,
+								   OutcomeNames[static_cast<int32>(R.Outcome)], R.Turns, R.PartyTurns, R.Rounds, R.Ticks, R.PartyDamage,
 								   R.EnemyDamage, R.Hits, R.Crits, R.StatusBreaks,
 								   *FString::JoinBy(R.HitsToKill, TEXT(";"), [](int32 V) { return FString::FromInt(V); }),
 								   R.Outcome == EBalanceFightOutcome::Stalled ? 1 : 0);

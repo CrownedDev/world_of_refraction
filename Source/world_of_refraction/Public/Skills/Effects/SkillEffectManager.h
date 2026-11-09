@@ -268,13 +268,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ClearAllEffects();
 
-	/** Reset per-match state at the start of a new combat (clears the fires-once set +
+	/** Reset per-match state at the start of a new combat (every turn tracker's fires-once uses and
 	 *  armed conditionals). */
 	UFUNCTION()
 	void ResetForNewCombat();
 
-	/** Store the gear conditional effects for an actor (replaces any prior entry).
-	 *  Called at combat start; the OnDefenseResolved handler reads these (C3b). */
+	/** Store the gear conditional effects on the actor's turn tracker (replaces any prior set; B-042g2: an actor
+	 *  without a tracker isn't armed). Called at combat start; the OnDefenseResolved handler reads these (C3b). */
 	void ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals);
 
 	/** True once battle prep armed this actor's gear (until combat end): a swap then re-gathers it. */
@@ -352,14 +352,13 @@ public:
 	static int32 GetDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect);
 
 	/** B-042ye (Q-042x): Actor's effects as the read source holds them, for per-effect reads (the AI, the
-	 *  character panel, the buff / debuff counts): with wor.Effects.UseGAS 1 on an actor with a mirror, the
-	 *  stored effects GAS holds, with the tracker's turns left (UWoREffectMirrorComponent::ReadHeldEffects);
+	 *  character panel, the buff / debuff counts): on an actor with a mirror, the stored effects GAS holds, with the tracker's turns left (UWoREffectMirrorComponent::ReadHeldEffects);
 	 *  otherwise GetActiveEffects. Not pure in Blueprint: the GAS read resyncs the mirror. */
 	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Skill Effects|Query")
 	TArray<FActiveSkillEffect> GetHeldEffects(AActor *Actor) const;
 
-	/** B-042ye: GetDotTickDamage as the read source would pay it: from the DOT's GE tick spec at UseGAS 1
-	 *  (UWoREffectMirrorComponent::PreviewDotTick), else the enum path's number. */
+	/** B-042ye: GetDotTickDamage as the read source would pay it: from the DOT's GE tick spec on an actor
+	 *  with a mirror (UWoREffectMirrorComponent::PreviewDotTick), else the enum path's number. */
 	int32 PreviewDotTickDamage(AActor *Actor, const FActiveSkillEffect &Effect, bool bAfterAbsorbers = true) const;
 
 	/** Get all effects of a specific type on actor */
@@ -537,25 +536,14 @@ private:
 	/** Map of all active effects per actor (not exposed to reflection - TArray in TMap not supported) */
 	TMap<TWeakObjectPtr<AActor>, TArray<FActiveSkillEffect>> ActiveEffects;
 
-	/** Fires-once uses spent this combat (bFiresOncePerMatch), per holder + EffectID + source
-	 *  (D-011); cleared per combat by ResetForNewCombat(). B-042z: each holder's tracker keeps a copy,
-	 *  read at wor.Effects.UseGAS 1 (D-064); this set retires with the stored copies (B-042g). */
-	TSet<FWoRFiredOnceKey> FiredOnceThisMatch;
-
-	/** Gear conditional effects armed per actor at combat start (C3a). The
-	 *  OnDefenseResolved handler (C3b) reads these to fire on matching impact outcomes;
-	 *  nothing reads it yet. Cleared per combat by ResetForNewCombat(). TWeakObjectPtr key
-	 *  mirrors ActiveEffects (non-reflected; no cross-combat actor retention). */
-	TMap<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> ArmedConditionals;
-
 	/** Next unique effect instance ID (for distinguishing same-type effects) */
 	int32 NextInstanceID = 1;
 
 	/** Generate a unique instance ID */
 	int32 GenerateInstanceID() { return NextInstanceID++; }
 
-	/** B-042z: the fires-once and armed-conditional reads (the holder's tracker at UseGAS 1, else the sets
-	 *  above) and the record, written to both. */
+	/** B-042z: the fires-once and armed-conditional reads and the record, on the holder's turn tracker (B-042g2:
+	 *  none for a holder without one). */
 	bool HasFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key) const;
 	void RecordFiredOnce(AActor *Holder, const FWoRFiredOnceKey &Key);
 	const TArray<FGatheredEffect> *FindArmedConditionals(const AActor *Actor) const;
