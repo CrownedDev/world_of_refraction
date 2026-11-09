@@ -53,7 +53,7 @@ float DamageNumberView::GetBrightness(float ElementMultiplier)
 
 namespace
 {
-	/** Above 1 moves the colour toward white; below 1 darkens it. Alpha kept. */
+	/** Above 1 moves the colour toward white; below 1 toward DIM_COLOUR, so dark elements stay readable. Alpha kept. */
 	FLinearColor BrightenDamageColour(const FLinearColor &Colour, float Brightness)
 	{
 		if (Brightness >= 1.0f)
@@ -62,7 +62,9 @@ namespace
 			Lit.A = Colour.A;
 			return Lit;
 		}
-		return FLinearColor(Colour.R * Brightness, Colour.G * Brightness, Colour.B * Brightness, Colour.A);
+		FLinearColor Dim = FMath::Lerp(Colour, DamageNumberView::DIM_COLOUR, FMath::Clamp(1.0f - Brightness, 0.0f, 1.0f));
+		Dim.A = Colour.A;
+		return Dim;
 	}
 }
 
@@ -113,6 +115,16 @@ FDamageNumberStyle DamageNumberView::MakeStyle(const FCombatHitShown &Hit)
 bool DamageNumberView::ShouldShow(const FCombatHitShown &Hit)
 {
 	return Hit.Amount > 0 || (!Hit.bHeal && Hit.ElementMultiplier <= IMMUNE_MULTIPLIER);
+}
+
+int32 DamageNumberView::NextStackIndex(const TArray<int32> &LiveStackIndices)
+{
+	int32 Highest = INDEX_NONE;
+	for (const int32 Index : LiveStackIndices)
+	{
+		Highest = FMath::Max(Highest, Index);
+	}
+	return Highest + 1;
 }
 
 float DamageNumberView::GetRiseOffset(float AgeSeconds)

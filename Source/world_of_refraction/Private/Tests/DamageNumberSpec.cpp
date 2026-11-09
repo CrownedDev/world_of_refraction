@@ -112,6 +112,21 @@ void FDamageNumberSpec::Define()
 		TestTrue(TEXT("pale outline"), Dark.OutlineColour.Equals(ElementColors::TextOutline));
 	});
 
+	It("dims a resisted dark element toward grey, not black (review)", [this]()
+	{
+		const FDamageNumberStyle Dark = DamageNumberView::MakeStyle(MakeDamageNumberHit(DAMAGE_NUMBER_RESISTED, EWoRDamageType::Darkness));
+		TestTrue(TEXT("lighter than plain Darkness"), Dark.Colour.GetLuminance() > ElementColors::Darkness.GetLuminance());
+		const FDamageNumberStyle Fire = DamageNumberView::MakeStyle(MakeDamageNumberHit(DAMAGE_NUMBER_RESISTED, EWoRDamageType::Fire));
+		TestFalse(TEXT("still not the immune grey"), Fire.Colour.Equals(DamageNumberView::IMMUNE_COLOUR));
+	});
+
+	It("starts a new number above the highest live one on its target (review)", [this]()
+	{
+		TestEqual(TEXT("none up: row 0"), DamageNumberView::NextStackIndex({}), 0);
+		TestEqual(TEXT("rows 0 and 1 up: row 2"), DamageNumberView::NextStackIndex({0, 1}), 2);
+		TestEqual(TEXT("row 0 expired, row 1 still up: row 2, not 1"), DamageNumberView::NextStackIndex({1}), 2);
+	});
+
 	It("rises and fades over its life", [this]()
 	{
 		TestEqual(TEXT("starts in place"), DamageNumberView::GetRiseOffset(0.0f), 0.0f);

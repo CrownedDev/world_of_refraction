@@ -59,9 +59,11 @@ namespace DamageNumberView
 	constexpr int32 GLOW_OUTLINE_SIZE = 4; // the weak hit's glow: a wide outline in its own colour
 	constexpr float GLOW_ALPHA = 0.8f;
 
-	const FLinearColor HEAL_COLOUR(0.25f, 0.85f, 0.3f);
-	const FLinearColor IMMUNE_COLOUR(0.35f, 0.35f, 0.35f);
-	const FLinearColor OUTLINE_COLOUR(0.0f, 0.0f, 0.0f, 0.85f);
+	inline const FLinearColor HEAL_COLOUR(0.25f, 0.85f, 0.3f);
+	inline const FLinearColor IMMUNE_COLOUR(0.35f, 0.35f, 0.35f);
+	inline const FLinearColor OUTLINE_COLOUR(0.0f, 0.0f, 0.0f, 0.85f);
+	/** A resisted hit's colour moves toward this mid grey (not toward black, which vanished under the dark outline). */
+	inline const FLinearColor DIM_COLOUR(0.3f, 0.3f, 0.3f);
 
 	// Motion (one HUD timer steps every live number; no Tick).
 	constexpr float LIFETIME_SECONDS = 1.5f;   // E33: numbers stay about 1-2 s
@@ -80,7 +82,8 @@ namespace DamageNumberView
 	/** Size from the multiplier, clamped; IMMUNE_SCALE at or below IMMUNE_MULTIPLIER. */
 	WORLD_OF_REFRACTION_API float GetScale(float ElementMultiplier);
 
-	/** Brightness from the multiplier, clamped (1 = the plain element colour). */
+	/** Brightness from the multiplier, clamped (1 = the plain element colour; above moves toward white, below toward
+	 *  DIM_COLOUR). */
 	WORLD_OF_REFRACTION_API float GetBrightness(float ElementMultiplier);
 
 	/** The full look of one number. */
@@ -94,6 +97,10 @@ namespace DamageNumberView
 
 	/** Opacity at this age: 1 until FADE_START_FRACTION of its life, then down to 0 at LIFETIME_SECONDS. */
 	WORLD_OF_REFRACTION_API float GetOpacity(float AgeSeconds);
+
+	/** Where a new number on a target starts: one row above the highest of its live numbers (LiveStackIndices),
+	 *  so it never lands on a row still in use after a lower one expired; 0 when none are up. */
+	WORLD_OF_REFRACTION_API int32 NextStackIndex(const TArray<int32> &LiveStackIndices);
 
 	/** Debug: "Fire 1.50x weak: '45' size 42 bright 1.50 glow". */
 	WORLD_OF_REFRACTION_API FString DescribeStyle(const FCombatHitShown &Hit, const FDamageNumberStyle &Style);
