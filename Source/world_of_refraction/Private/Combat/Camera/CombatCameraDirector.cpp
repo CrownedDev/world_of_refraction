@@ -21,6 +21,7 @@
 #include "LevelSequencePlayer.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "Engine/Engine.h"
 #include "TimerManager.h"
 #include "WoRLog.h"
 
@@ -107,6 +108,16 @@ void UCombatCameraDirector::EndCombat()
 	{
 		World->GetTimerManager().ClearTimer(BreakApartTimer); // B-405
 		World->GetTimerManager().ClearTimer(KillShotPreviewTimer);
+	}
+	// B-405: undo what a kill shot left on its victim (debug levels reuse the pawns): the darkened look and the hidden boss.
+	if (AActor *Victim = KillShotVictim.Get())
+	{
+		const UCombatCameraComponent *Camera = Victim->FindComponentByClass<UCombatCameraComponent>();
+		if (ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr)
+		{
+			SetDarkened(CameraActor->GetCameraComponent(), false);
+		}
+		Victim->SetActorHiddenInGame(false);
 	}
 	KillShotVictim.Reset();
 	StopSequence();
@@ -454,7 +465,9 @@ APlayerController *UCombatCameraDirector::GetViewer() const
 {
 	// Same viewer the combat HUD uses (UCombatHUD). TODO: co-op/PvP (D-065).
 	UWorld *World = GetWorld();
-	return World ? World->GetFirstPlayerController() : nullptr;
+	// The local player's controller: on a dedicated server there is none, so no server-side camera or kill-shot hold
+	// (GetFirstPlayerController would return a remote client's controller there).
+	return World && GEngine ? GEngine->GetFirstLocalPlayerController(World) : nullptr;
 }
 
 bool UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FAction &Action)
