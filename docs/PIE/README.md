@@ -42,6 +42,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-043g](B-043g.md) | `feature/B-043g-ritual-arm-ability` (in dev) | GAS stage 4 part 7: at `wor.Abilities.UseGAS` 1 a ritual's fire runs through its skill ability; paid once at the arm, fires as before | Pending |
 | [B-390](B-390.md) | `feature/B-390-curse-tiers-clear-price` (in dev) | A curse's tier (F to S) sets its clear price in its essence (Pillar or Elemental); short of it the hub refuses with a message | Pending |
 | [B-357e](B-357e.md) | `refactor/B-357e-evolution-readers` (in dev) | No play change: the remaining evolution readers go through the one resolve path; one lasting-passive check | Pending |
+| [B-152](B-152.md) | `feature/B-152-stone-wrappers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-021) | Delete the unreachable stat-stone consumable wrappers | Pending |
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (in dev) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
 | [B-387](B-387.md) | `feature/B-387-crystal-amp-cloud` (in dev) | Worn crystals (and the seated evolution) grant Amp to their element by tier: F0 E0 D1 C1 B2 A2 S3 | Pending |
