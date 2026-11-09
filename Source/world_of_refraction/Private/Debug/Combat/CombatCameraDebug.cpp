@@ -8,6 +8,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Save/SaveSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -121,6 +123,23 @@ namespace
 		TEXT("DEBUG (B-399): what the command menu sends. 1 = a sub-menu is open (one step closer and lower), 0 = the main menu. ")
 			TEXT("Moves only on your own turn view; wor.Camera.Print shows the depth and the menu moves this fight."),
 		[](UCombatCameraDirector &Director, int32 Value) { Director.SetMenuDepth(Value); });
+
+	FAutoConsoleCommandWithWorldAndArgs GCombatCameraTargetCycleCmd(
+		TEXT("wor.Camera.TargetCycle"),
+		TEXT("DEBUG (B-400): in an open single-target picker, highlight the next target (1, the default) or the previous one (-1), ")
+			TEXT("as hovering or focusing its button does. With 2+ targets the camera cuts (Over-the-Shoulder) or re-aims to it."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				UCombatCommandMenuSubsystem *Menu = World ? WoRFight::Get<UCombatCommandMenuSubsystem>(World) : nullptr;
+				if (!Menu || !Menu->GetHighlightedTarget())
+				{
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.TargetCycle: no single-target picker open."));
+					return;
+				}
+				Menu->CycleHighlightedTarget(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 1);
+				UCombatCameraDebug::PrintCameraState(World);
+			}));
 }
 
 FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Director)
@@ -129,12 +148,13 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 	{
 		return TEXT("No combat camera (no combat orchestrator in this world)");
 	}
-	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s"),
+	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | %s | %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s"),
 						   Director->IsInCombat() ? TEXT("In combat") : TEXT("Not in combat"),
 						   *UEnum::GetValueAsString(Director->GetCurrentMode()),
 						   *GetNameSafe(Director->GetViewedActor()),
 						   *UEnum::GetValueAsString(Director->GetTurnViewStyle()),
 						   *Director->GetTurnLayoutString(), // B-398
+						   *Director->GetTargetViewString(), // B-400
 						   Director->IsCameraMovementOff() ? TEXT("off") : TEXT("on"),
 						   *UEnum::GetValueAsString(Director->SkillCinematics),
 						   Director->bEnemySkillCinematics ? TEXT("on") : TEXT("off"),
