@@ -7,6 +7,7 @@ The combat camera decides what the player sees during a fight (design: `docs/Des
 - **Not your turn:** anyone else's turn, panned out wide.
 - **Action:** a skill's Level Sequence is playing.
 - **Static:** camera movement is turned off.
+- **Defence** (B-370, B-402): an enemy attack on the viewer's character: a low side-on shot of the defender and the attacker from the attacker's weapon side (several targeted: a wide side-on shot of them all), held still: no shake and no FOV punch while the viewer defends.
 
 Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 
@@ -48,7 +49,7 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
   - camera movement off also skips sequences
   - enemy actions play sequences too
   - a death at turn start leaves the view where it was
-- No Defence mode: it is to be play-tested first (design §2).
+- The Defence view (B-402) holds one angle per enemy action; cutting between side angles inside a long combo is not built (Q-402). Its side assumes a right-handed weapon (`WeaponSideSign`).
 - Arming a delayed skill also broadcasts `OnActionStarted`. Once templates exist, a ritual's cinematic may play at arm time and again when it fires. Check this in B-157.
 
 ## Changelog
@@ -62,3 +63,4 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 | 2026-11-08 | B-371 (Q-371): code-built shot patterns. `FSkillCameraTuning` on `USkillDataBase::CameraTuning`; `ECameraShotMoment` / `FCameraShot`; `FCombatCameraRules::ComputeShot` / `BlendShot` / `UsesShotPatterns` / `ImpactMomentFor`; the director plays them for a skill without its own `CameraSequence` (wind-up at action start, Cast on the new `UActionExecutor::OnProjectileLaunched`, Impact / Spread on the caster's first hit with a FOV punch and the `ImpactShake` class, back to the turn view next turn; a 60 Hz timer only while a shot moves). `TemplateSequences` OBSOLETE. `wor.Camera` prints the shot. | `feature/B-371-shot-patterns-cloud` (UNBUILT) |
 | 2026-11-08 | B-372: `CameraFraming` (`IsOnScreen`, `GetRequiredPoints`, `IsLineClear`, `IsCameraClear`, `CheckShot`); the director logs each shot's report under `wor.Camera.CheckFraming 1`; spec `WoR.Camera.Framing`. | feature/B-372-camera-framing-checks-cloud (UNBUILT) |
 | 2026-11-08 | B-372 review: `ComputeShot`'s wind-up height scales with the style's distance scale (a Close wind-up framed the caster off screen); the framing spec covers Close / Wide and a blocking wall; the PIE check ignores the caster and targets; Q-372. | feature/B-372-camera-framing-checks-cloud (UNBUILT) |
+| 2026-11-09 | B-402 (study R10, R10b, R11; Q2, Q-402): `ComputeDefenceView` is a low side-on shot from the attacker's weapon side, swung toward the defenders, stood back until every defender and the attacker fit (one: two-shot; several: wide); new `FCombatCameraRules::SteadyForDefence`; the director's `PlayShot` drops shake and FOV punch while `IsViewerDefending` (hand-off pending or showing, or a defense window open); `wor.Camera.Print` shows defending and punches held. Old Defence offsets removed. | `feature/B-402-side-on-defence-view-cloud` (UNBUILT) |

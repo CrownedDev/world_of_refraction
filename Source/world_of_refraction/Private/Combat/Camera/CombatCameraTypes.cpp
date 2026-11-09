@@ -20,11 +20,6 @@ namespace CombatCameraOffsets
 	constexpr float NotYourTurnHeight = 750.0f;
 	constexpr float StaticBack = 1600.0f;
 	constexpr float StaticHeight = 950.0f;
-	constexpr float DefenceBack = 320.0f;
-	constexpr float DefenceSide = 110.0f;
-	constexpr float DefenceHeight = 170.0f;
-	/** Extra distance back per cm the defenders stand from their centre (several targeted, Q-370 (3)). */
-	constexpr float DefenceSpreadPullback = 1.2f;
 }
 
 namespace CombatCameraShots
@@ -215,28 +210,86 @@ ECombatCameraMode FCombatCameraRules::SelectHandOffMode(bool bViewerDefends, boo
 	return bSequencePlaying ? ECombatCameraMode::Action : ECombatCameraMode::NotYourTurn;
 }
 
+namespace CombatCameraDefence
+{
+	// B-402 (study R10, R10b; Q-402). TODO: tune in PIE (B-157). Distances in cm, angles in degrees.
+	/** Camera height above the fighters' mean centre (their actor locations): low, about hip height. */
+	constexpr float CameraHeight = 20.0f;
+	/** Where the camera looks, above the same centre: chest height, so the shot tilts up a little. */
+	constexpr float AimHeight = 50.0f;
+	/** How far the camera swings from square side-on toward the defenders' backs, so they sit nearer. */
+	constexpr float SwingTowardDefendersDegrees = 20.0f;
+	/** 1: the camera stands on the attacker's right (the weapon hand of most rigs); -1: its left. */
+	constexpr float WeaponSideSign = 1.0f;
+	/** Room kept beside each fighter's centre across the frame, so bodies and weapons stay whole. */
+	constexpr float TwoShotPadding = 150.0f;
+	constexpr float WidePadding = 220.0f;
+	/** The nearest the camera stands to the shot's centre. */
+	constexpr float TwoShotMinDistance = 450.0f;
+	constexpr float WideMinDistance = 700.0f;
+	/** Part of the half-width the fit keeps free: more than CameraFraming's margin, as the fit ignores the small tilt. */
+	constexpr float FitMargin = 0.15f;
+}
+
 FTransform FCombatCameraRules::ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker)
 {
-	using namespace CombatCameraOffsets;
-	if (Defenders.IsEmpty())
+	using namespace CombatCameraDefence;
+	FVector DefenderCentre = Attacker - FVector::ForwardVector * TwoShotMinDistance; // none listed: the attacker alone
+	if (!Defenders.IsEmpty())
 	{
-		return LookFrom(Attacker - FVector::ForwardVector * DefenceBack + FVector::UpVector * DefenceHeight, Attacker);
+		DefenderCentre = FVector::ZeroVector;
+		for (const FVector &Defender : Defenders)
+		{
+			DefenderCentre += Defender;
+		}
+		DefenderCentre /= Defenders.Num();
 	}
-	FVector Centre = FVector::ZeroVector;
-	for (const FVector &Defender : Defenders)
+	const FVector Axis = (Attacker - DefenderCentre).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	// The attacker faces back along the axis, so its right is Up x (-Axis).
+	const FVector WeaponSide = FVector::CrossProduct(FVector::UpVector, -Axis) * WeaponSideSign;
+	const float Swing = FMath::DegreesToRadians(SwingTowardDefendersDegrees);
+	// From the camera toward the fight: square across the axis, swung so the camera stands nearer the defenders' backs.
+	const FVector Look = (Axis * FMath::Sin(Swing) - WeaponSide * FMath::Cos(Swing)).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::RightVector);
+	const FVector Across = FVector::CrossProduct(FVector::UpVector, Look);
+
+	TArray<FVector> Points = Defenders;
+	Points.Add(Attacker);
+	// Centre the frame on the fighters' extremes across the screen, so none is pushed to one edge.
+	FVector Mid = (DefenderCentre + Attacker) * 0.5f;
+	float MinAcross = TNumericLimits<float>::Max();
+	float MaxAcross = TNumericLimits<float>::Lowest();
+	for (const FVector &Point : Points)
 	{
-		Centre += Defender;
+		const float Offset = FVector::DotProduct(Point - Mid, Across);
+		MinAcross = FMath::Min(MinAcross, Offset);
+		MaxAcross = FMath::Max(MaxAcross, Offset);
 	}
-	Centre /= Defenders.Num();
-	float Spread = 0.0f;
-	for (const FVector &Defender : Defenders)
+	Mid += Across * ((MinAcross + MaxAcross) * 0.5f);
+
+	// Stand back until every fighter (plus padding) fits the half-width: nearer fighters need more room.
+	const bool bWide = Defenders.Num() > 1;
+	const float Padding = bWide ? WidePadding : TwoShotPadding;
+	const float HalfTan = FMath::Tan(FMath::DegreesToRadians(DefaultFieldOfView * 0.5f)) * (1.0f - FitMargin);
+	float Distance = bWide ? WideMinDistance : TwoShotMinDistance;
+	for (const FVector &Point : Points)
 	{
-		Spread = FMath::Max(Spread, FVector::Dist2D(Defender, Centre));
+		const FVector Offset = Point - Mid;
+		const float AcrossDistance = FMath::Abs(FVector::DotProduct(Offset, Across));
+		const float Depth = FVector::DotProduct(Offset, Look);
+		Distance = FMath::Max(Distance, (AcrossDistance + Padding) / HalfTan - Depth);
 	}
-	const FVector Forward = (Attacker - Centre).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
-	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
-	const float Back = DefenceBack + Spread * DefenceSpreadPullback;
-	return LookFrom(Centre - Forward * Back + Right * DefenceSide + FVector::UpVector * DefenceHeight, Attacker);
+	return LookFrom(Mid - Look * Distance + FVector::UpVector * CameraHeight, Mid + FVector::UpVector * AimHeight);
+}
+
+FCameraShot FCombatCameraRules::SteadyForDefence(const FCameraShot &Shot, bool bViewerDefending)
+{
+	FCameraShot Out = Shot;
+	if (bViewerDefending)
+	{
+		Out.ShakeScale = 0.0f;
+		Out.FieldOfView = DefaultFieldOfView;
+	}
+	return Out;
 }
 
 bool FCombatCameraRules::UsesShotPatterns(const USkillDataBase *Skill)

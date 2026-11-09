@@ -373,6 +373,16 @@ The queue of questions only Crown can answer.
 **Recommendation:** all five as built: they follow the E33 study and FeelGuide 5 and 13, and every value is one named constant or one key row (`docs/Design/InputMap.md`).
 **Answer:** all five, by the reference-backed default (2026-11-09). Damage numbers follow Crown's Q-111 rule (element colour, size and brightness by resistance, grey when immune) in B-391b.
 
+
+### Q-402 — Side-on Defence view: which side, how wide, and what "no shake" covers
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-402, cloud) · **Blocks:** —
+**Question:** Crown's Q2 (2026-11-09) made the Defence view a low side-on two-shot, steady, no shake (study R10, R10b, R11). Still open: (1) which side of the fight the camera stands on; (2) how a wide shot for several targets differs from the two-shot; (3) when shake and the FOV punch are held, and what happens to them afterwards.
+**Context:** `FCombatCameraRules::ComputeDefenceView` / `SteadyForDefence` (`Combat/Camera/CombatCameraTypes.cpp`), `UCombatCameraDirector::IsViewerDefending` / `PlayShot`.
+**Options / as built (A):** (1) the **attacker's right** (the weapon hand of most rigs), swung 20° toward the defenders' backs so they sit nearer, the camera at about hip height looking a little up; one constant flips it (`WeaponSideSign`). (2) the **same rule**, stood back until every defender and the attacker fit, with more padding and a longer minimum (700 cm against 450 cm). (3) held while the viewer defends: the Defence hand-off is pending or showing, or a viewer character's defense window is open; **dropped, not replayed**: the first shot after the combo has its punch again. The view is set once per enemy action, so the angle only changes between actions. **B** (1) the side the turn view looks from; (3) replay the held shake when the combo ends.
+**Recommendation:** A. Expedition 33's defend shots (Painted Maelle, 5:38–5:52, 6:10–6:31; study §1) keep the attacker's sword in view from the side with one fighter near the camera, and its whole-party attacks (Part 2, 3:23) hold every hero in one wide side-on shot; its parries get text and a flash while the camera stays put, with no delayed shake (R11). FeelGuide 3 ("no pause") and Sekiro's deflects point the same way: a late shake after the combo would land on nothing.
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change any; every number is a named constant `TODO: tune`.
+**Notes for Claude:** built in B-402. Cutting between side angles inside a long combo (study §1, "a few clean cuts") is not built: one angle per enemy action.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
