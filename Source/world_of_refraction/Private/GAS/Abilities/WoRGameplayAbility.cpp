@@ -2,10 +2,12 @@
 
 #include "GAS/Abilities/WoRGameplayAbility.h"
 #include "AbilitySystemGlobals.h"
+#include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Tags/WoRGameplayTags.h"
 #include "WoRLog.h"
 
 FWoRSkillActivationScope *FWoRSkillActivationScope::Innermost = nullptr;
@@ -109,6 +111,7 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	RunningAction = Scope->Action;
 	ForwardOnComplete = Scope->OnComplete;
 	bActionRunning = true;
+	ImpactTask = nullptr;
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -124,6 +127,11 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	}
 
 	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability"), *Avatar->GetName(), *RunningAction.GetActionName());
+	// Before the executor call: a montage-less action (wor.Combat.InstantImpacts) lands its impacts inside it.
+	if (ShouldListenForImpacts(RunningAction))
+	{
+		StartImpactListener();
+	}
 	// A copy: the completion can run inside this call and a bonus turn can start this ability again.
 	const FAction Action = RunningAction;
 	Executor->ExecuteActionAsync(Avatar, Action, FOnActionComplete::CreateUObject(this, &UWoRGameplayAbility::HandleActionComplete));
@@ -137,6 +145,12 @@ void UWoRGameplayAbility::HandleActionComplete(const FActionResult &Result)
 	}
 	bActionRunning = false;
 	RunningAction = FAction(); // drop its targets and skill until the next activation
+	if (UAbilityTask_WaitGameplayEvent *Task = ImpactTask)
+	{
+		// Safe from inside the task's own broadcast: the ASC and the delegate both broadcast from copies.
+		ImpactTask = nullptr;
+		Task->EndTask();
+	}
 	FOnActionComplete Forward = ForwardOnComplete;
 	ForwardOnComplete.Unbind();
 	// End first, so whoever started the action can start this ability again from the forwarded call
@@ -159,4 +173,57 @@ void UWoRGameplayAbility::FailActivation(const FString &Reason)
 	Fail.Executor = GetAvatarActorFromActorInfo();
 	Fail.ErrorMessage = Reason;
 	HandleActionComplete(Fail);
+}
+
+bool UWoRGameplayAbility::ShouldListenForImpacts(const FAction &Action)
+{
+	// A spell's hits arrive with its casts (projectiles, AOE, instant: B-043d/e); its Impact notifies, if any, keep
+	// the old path. Every other skill action (melee, ranged and cast abilities alike) lands its impacts here.
+	const USkillDataBase *Skill = Action.ActionType == EActionType::Ability ? Action.SkillData : nullptr;
+	return Skill && Skill->HitCount > 0;
+}
+
+bool UWoRGameplayAbility::IsListeningForImpacts() const
+{
+	return bActionRunning && IsActive() && ImpactTask && ImpactTask->IsActive();
+}
+
+void UWoRGameplayAbility::StartImpactListener()
+{
+	// Q-043c: every impact of the action (not OnlyTriggerOnce), the exact tag (Lyra's and GASDocumentation's
+	// montage-plus-gameplay-event pattern).
+	ImpactTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, WoRTags::Event_Combat_Impact,
+																   /*OptionalExternalTarget*/ nullptr,
+																   /*OnlyTriggerOnce*/ false, /*OnlyMatchExact*/ true);
+	if (!ImpactTask)
+	{
+		return; // the executor resolves the impacts itself
+	}
+	ImpactTask->EventReceived.AddDynamic(this, &UWoRGameplayAbility::HandleImpactEvent);
+	ImpactTask->ReadyForActivation();
+}
+
+void UWoRGameplayAbility::HandleImpactEvent(FGameplayEventData Payload)
+{
+	if (!bActionRunning)
+	{
+		return;
+	}
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	// The event reaches every impact task on this ASC; only the listener the sender chose resolves it, so two
+	// listening abilities on one actor could never land one impact twice.
+	if (WoRSkillAbilities::FindImpactListener(Avatar) != this)
+	{
+		return;
+	}
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	if (!Executor)
+	{
+		return; // not counted: the sender resolves it itself (WoRSkillAbilities::SendImpactEvent)
+	}
+	const int32 Index = FMath::RoundToInt(Payload.EventMagnitude);
+	// Counted before resolving: the impact can finish the action and end this ability.
+	++ImpactEventsResolved;
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: impact %d through Event.Combat.Impact"), *Avatar->GetName(), Index);
+	Executor->ResolveImpactFrame(Index);
 }

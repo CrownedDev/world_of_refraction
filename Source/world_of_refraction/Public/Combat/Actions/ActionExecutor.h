@@ -602,6 +602,14 @@ private:
 	/** One Impact frame (defense resolve + damage slice per defender, interrupt check, count-based close). The
 	 *  Impact notify calls it; so does ResolveMontagelessAction for a skill with no montage (B-291). */
 	void ResolveImpactFrame(int32 Index);
+	/** B-043c (Q-043c): an action running through its skill's ability takes its impacts as Event.Combat.Impact,
+	 *  and the ability's WaitGameplayEvent task calls ResolveImpactFrame. */
+	friend class UWoRGameplayAbility;
+
+	/** B-043c: where an impact goes. To the executing actor's skill ability when one is running the action and
+	 *  waiting for impacts (WoRSkillAbilities::SendImpactEvent), else straight to ResolveImpactFrame. The Impact
+	 *  notify and ResolveMontagelessAction both call it. */
+	void RouteImpactFrame(int32 Index);
 
 	/** B-291 (wor.Combat.InstantImpacts 1): a skill with no montage resolves now, the way a montage would. A
 	 *  spell releases its primary cast; an ability lands each expected impact, defended, then its windows close.

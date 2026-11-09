@@ -67,6 +67,7 @@
 #include "GameFramework/Character.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Tuning/CombatTuningData.h"
+#include "GAS/Abilities/WoRSkillAbilities.h"
 
 // ==================== FUSED-MONTAGE RUNNER (Stage 12) ====================
 
@@ -449,6 +450,19 @@ void UActionExecutor::ResolveImpactFrame(int32 Index)
 	}
 }
 
+void UActionExecutor::RouteImpactFrame(int32 Index)
+{
+	// The same actor ResolveImpactFrame reads: the chain's, or a montage-less action's executor.
+	AActor *Actor = ChainActor.IsValid() ? ChainActor.Get()
+				  : CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get()
+													: nullptr;
+	if (WoRSkillAbilities::SendImpactEvent(Actor, Index))
+	{
+		return; // the ability's impact task resolved it (ResolveImpactFrame)
+	}
+	ResolveImpactFrame(Index);
+}
+
 void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 Index)
 {
 	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
@@ -486,7 +500,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 
 	case ECombatNotifyFamily::Impact:
 	{
-		ResolveImpactFrame(Index);
+		RouteImpactFrame(Index);
 		return;
 	}
 

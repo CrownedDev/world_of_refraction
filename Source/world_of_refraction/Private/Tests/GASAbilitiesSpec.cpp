@@ -4,6 +4,9 @@
 // `wor.Abilities.UseGAS 1` an action starts through its skill's ability, which runs the same executor call, spends
 // the same EP once and ends when the action completes. The action runs headless as in WoR.Balance.Sim.OneFight
 // (a montage-less weapon attack, wor.Combat.InstantImpacts 1).
+// B-043c (Q-043c): through its ability, the attack's impacts arrive as Event.Combat.Impact at the ability's
+// WaitGameplayEvent task and resolve to the same damage as the old path (same battle seed); an impact on an actor
+// with no running ability takes the old path.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -16,6 +19,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "GAS/Abilities/WoRGameplayAbility.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -30,6 +34,10 @@ namespace
 	constexpr int32 ABILITIES_SPEC_START_EP = 40;
 	/** Next-tick timers only once the instant-impact seam is on: a few frames settle one action. */
 	constexpr int32 ABILITIES_SPEC_ACTION_FRAMES = 10;
+	/** B-043c: a multi-hit strike, so every impact's routing is checked. */
+	constexpr int32 ABILITIES_SPEC_MULTI_HIT_COUNT = 3;
+	/** B-043c: one battle seed for both paths, so their rolls match. */
+	constexpr int32 ABILITIES_SPEC_BATTLE_SEED = 4307;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -83,6 +91,78 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		const UCharacterDataComponent *Char = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		return Char ? Char->CurrentHP : 0;
 	}
+
+	/** Impacts Actor's Strike ability has taken as Event.Combat.Impact (B-043c). */
+	int32 ImpactEventsOf(AActor *Actor) const
+	{
+		int32 Total = 0;
+		if (FGameplayAbilitySpec *Spec = WoRSkillAbilities::FindSkillSpec(Actor, Strike))
+		{
+			for (UGameplayAbility *Instance : Spec->GetAbilityInstances())
+			{
+				if (const UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance))
+				{
+					Total += Ability->GetImpactEventsResolved();
+				}
+			}
+		}
+		return Total;
+	}
+
+	struct FStrikeOutcome
+	{
+		bool bRan = false;
+		int32 FoeDamage = 0;
+		int32 ImpactEvents = 0;
+		bool bStillListening = false;
+	};
+
+	/** B-043c: Hero's Strike on Foe in a fresh world (the battle seed set by the caller), one switch value. */
+	FStrikeOutcome RunStrike(bool bThroughAbility)
+	{
+		FStrikeOutcome Outcome;
+		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
+		{
+			Orchestrator->ForceEndCombat();
+		}
+		Orchestrator = nullptr;
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		if (!TestWorld->Create() || !TestWorld->GetWorld())
+		{
+			return Outcome;
+		}
+		Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		WoRSkillAbilities::SetUsesAbilities(bThroughAbility);
+		AActor *Hero = SpawnArmed(false);
+		GiveASC(Hero);
+		AActor *Foe = SpawnArmed(true);
+		UCharacterDataComponent *HeroStats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		if (!Orchestrator || !Foe || !HeroStats)
+		{
+			return Outcome;
+		}
+		Orchestrator->StartCombat({Hero}, {Foe});
+		if (Orchestrator->GetCurrentActor() != Hero)
+		{
+			return Outcome;
+		}
+		HeroStats->MaxEP = ABILITIES_SPEC_START_EP;
+		HeroStats->CurrentEP = ABILITIES_SPEC_START_EP;
+		const int32 FoeHPBefore = CurrentHPOf(Foe);
+
+		FAction Action;
+		Action.ActionType = EActionType::Ability;
+		Action.SkillData = Strike;
+		Action.Targets.Add(Foe);
+		Orchestrator->SubmitActionAsync(Action);
+		TestWorld->Tick(ABILITIES_SPEC_ACTION_FRAMES);
+
+		Outcome.bRan = true;
+		Outcome.FoeDamage = FoeHPBefore - CurrentHPOf(Foe);
+		Outcome.ImpactEvents = ImpactEventsOf(Hero);
+		Outcome.bStillListening = WoRSkillAbilities::FindImpactListener(Hero) != nullptr;
+		return Outcome;
+	}
 END_DEFINE_SPEC(FGASAbilitiesSpec)
 
 void FGASAbilitiesSpec::Define()
@@ -108,6 +188,7 @@ void FGASAbilitiesSpec::Define()
 	{
 		WoRSkillAbilities::SetUsesAbilities(false);
 		SetAbilitiesSpecCVar(TEXT("wor.Combat.InstantImpacts"), 0);
+		SetAbilitiesSpecCVar(TEXT("wor.Battle.Seed"), 0);
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
 		{
 			Orchestrator->ForceEndCombat();
@@ -269,9 +350,55 @@ void FGASAbilitiesSpec::Define()
 				{
 					TestFalse(TEXT("The ability is not active after the action"), Spec->IsActive());
 				}
+				TestEqual(TEXT("Impacts through Event.Combat.Impact (B-043c)"), ImpactEventsOf(Hero),
+						  bThroughAbility ? Strike->HitCount : 0);
 			});
 		});
 	}
+
+	Describe("impacts (B-043c)", [this]()
+	{
+		It("lands a multi-hit attack's impacts through Event.Combat.Impact, with the old path's damage", [this]()
+		{
+			Strike->HitCount = ABILITIES_SPEC_MULTI_HIT_COUNT;
+			SetAbilitiesSpecCVar(TEXT("wor.Battle.Seed"), ABILITIES_SPEC_BATTLE_SEED);
+			const FStrikeOutcome OldPath = RunStrike(false);
+			const FStrikeOutcome ThroughAbility = RunStrike(true);
+			if (!TestTrue(TEXT("Both runs reached the strike"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("No impact events on the old path"), OldPath.ImpactEvents, 0);
+			TestEqual(TEXT("Every impact through the ability's event"), ThroughAbility.ImpactEvents, ABILITIES_SPEC_MULTI_HIT_COUNT);
+			TestFalse(TEXT("Nothing listens once the action is done"), ThroughAbility.bStillListening);
+		});
+
+		It("leaves an impact on an actor with no running ability to the old path", [this]()
+		{
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestNotNull(TEXT("ASC"), GiveASC(Hero)) || !TestTrue(TEXT("Granted"), WoRSkillAbilities::GrantSkill(Hero, Strike).IsValid()))
+			{
+				return;
+			}
+			TestNull(TEXT("An idle ability is not listening"), WoRSkillAbilities::FindImpactListener(Hero));
+			TestFalse(TEXT("The impact is not taken"), WoRSkillAbilities::SendImpactEvent(Hero, 0));
+			AActor *Bare = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			TestFalse(TEXT("No ASC: not taken"), WoRSkillAbilities::SendImpactEvent(Bare, 0));
+			TestFalse(TEXT("No actor: not taken"), WoRSkillAbilities::SendImpactEvent(nullptr, 0));
+		});
+
+		It("listens only for a non-spell action that lands impacts", [this]()
+		{
+			TestTrue(TEXT("A melee attack"), UWoRGameplayAbility::ShouldListenForImpacts(WoRSkillAbilities::MakePlainAction(Strike)));
+			UAbilityData *NoHits = NewObject<UAbilityData>(GetTransientPackage());
+			NoHits->HitCount = 0;
+			TestFalse(TEXT("No impacts"), UWoRGameplayAbility::ShouldListenForImpacts(WoRSkillAbilities::MakePlainAction(NoHits)));
+			USpellData *Bolt = NewObject<USpellData>(GetTransientPackage());
+			TestFalse(TEXT("A spell"), UWoRGameplayAbility::ShouldListenForImpacts(WoRSkillAbilities::MakePlainAction(Bolt)));
+		});
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
