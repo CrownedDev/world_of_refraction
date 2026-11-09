@@ -5,13 +5,16 @@
 // only its passive skills (its effects), and only to an action that item powers at infusion charge level 2 (nothing
 // at L0 / L1). Fight-start effects are gathered at charge 0, so gear evolutions add none there (as before).
 // B-357c part 1: gear evolutions stop giving stats and resistance (GivesStats; the pillar layer and the resistance
-// sum read the resolve path). Left (B-357d): the L2 action turning the gear evolution's passives on for that action.
+// sum read the resolve path). B-357d: an action charged to L2 gets the lasting passives of the gear evolutions in the
+// items that power it (FilterForAction), for that action only (UActionExecutor puts them on and takes them off).
 // Debug: ULoadoutComponent::GetAttachedEvolutionsString, wor.Loadout.PrintEvolutions.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/Actions/EActionType.h"
 #include "Equipment/Crystals/FEvolutionAttachment.h"
+#include "Infusion/EInfusionSourceOption.h"
 #include "EvolutionPlacement.generated.h"
 
 struct FRuntimeAttachedItem;
@@ -22,7 +25,9 @@ enum class EEvolutionPlace : uint8
 {
 	Character,
 	Weapon,
-	Adapter
+	Adapter,
+	/** B-357d (Q-357d): an apparel piece's socket (D-164). Gear: only passives, only on an L2 action. */
+	Apparel
 };
 
 /** One evolution and the place it is attached to. */
@@ -59,6 +64,17 @@ namespace WoREvolutionPlacement
 
 	/** The ones in Attached whose passive skills act at ChargeLevel (GivesPassives). */
 	WORLD_OF_REFRACTION_API TArray<FAttachedEvolution> FilterPassives(const TArray<FAttachedEvolution> &Attached, int32 ChargeLevel);
+
+	/** B-357d (Q-357b A, Q-357d): whether the gear at Place powers an action of ActionType infused from Source. The
+	 *  weapon in hand powers its abilities and any action infused from its socket; the adapter in use, any action
+	 *  infused from its socket; apparel is worn, so it powers every action. The character's own slot is not gear: its
+	 *  passives act all fight, so it powers no single action. */
+	WORLD_OF_REFRACTION_API bool PowersAction(EEvolutionPlace Place, EActionType ActionType, EInfusionSourceOption Source);
+
+	/** B-357d: the gear evolutions in Attached whose passive skills act on one action: it is charged to
+	 *  GEAR_PASSIVES_CHARGE_LEVEL or more, the evolution's item powers it (PowersAction) and the evolution isn't broken. */
+	WORLD_OF_REFRACTION_API TArray<FAttachedEvolution> FilterForAction(const TArray<FAttachedEvolution> &Attached, EActionType ActionType,
+																	   EInfusionSourceOption Source, int32 ChargeLevel);
 
 	/** "character" / "weapon" / "adapter", for debug lines. */
 	WORLD_OF_REFRACTION_API const TCHAR *GetPlaceName(EEvolutionPlace Place);
