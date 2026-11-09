@@ -4180,8 +4180,21 @@ AActor *UActionExecutor::GetExecutingActor() const
 	return CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get() : nullptr;
 }
 
+void UActionExecutor::ResumeBurstTimer(float Interval)
+{
+	UWorld *World = GetWorld();
+	if (!World || !HasBurstQueued())
+	{
+		return;
+	}
+	UE_LOG(LogTemp, Verbose, TEXT("[Runner] Burst of %d resumes on the executor's timer"), BurstSpawnQueue.Num());
+	World->GetTimerManager().SetTimer(BurstTimerHandle, this, &UActionExecutor::SpawnNextBurstProjectile, Interval, true);
+}
+
 bool UActionExecutor::CanResolveSpellArrival(AActor *Target) const
 {
+	// Must mirror ResolveSpellArrival's early-outs exactly: the ability counts an arrival as taken before resolving
+	// it, so a check only ResolveSpellArrival made would drop that arrival instead of sending it to the lumped path.
 	if (!Target || !GetDefenseSystem() || !CurrentExecutionContext.IsSet())
 	{
 		return false;

@@ -1354,4 +1354,7 @@ protected:
 
 	/** True while a burst still has projectiles to spawn. */
 	bool HasBurstQueued() const { return !BurstSpawnQueue.IsEmpty(); }
+
+	/** Takes a burst's stagger back on the executor's own timer (an ability running it ended mid-burst). */
+	void ResumeBurstTimer(float Interval);
 };
