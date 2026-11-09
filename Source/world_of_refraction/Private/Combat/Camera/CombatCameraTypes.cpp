@@ -583,3 +583,20 @@ FTurnChangePlan FCombatCameraRules::PlanTurnChange(bool bSomeoneActed, bool bSam
 	}
 	return Plan;
 }
+
+namespace CombatCameraSameTurn
+{
+	// B-401 (Q-401, study R4): Expedition 33 settles straight back behind the same hero between that hero's actions;
+	// shorter than the turn blend (0.6 s) and the handover (0.5 s). TODO: tune in PIE (B-157).
+	constexpr float ReturnBlendSeconds = 0.35f;
+}
+
+FSameTurnReturnPlan FCombatCameraRules::PlanSameTurnReturn(bool bActedSinceAsked, ECombatCameraMode Mode, ETurnViewStyle Style,
+														   const FCombatCameraFrame &Frame)
+{
+	FSameTurnReturnPlan Plan;
+	Plan.TurnView = ComputeView(Mode, Style, Frame);
+	Plan.bReturn = bActedSinceAsked && Mode == ECombatCameraMode::Turn;
+	Plan.BlendSeconds = Plan.bReturn ? CombatCameraSameTurn::ReturnBlendSeconds : 0.0f;
+	return Plan;
+}

@@ -199,6 +199,10 @@ public:
 	/** B-404: a wide beat is playing and its handover has not fired yet. */
 	bool IsHandoverPending() const { return bHandoverPending; }
 
+	/** B-401 (study R4, Q-401): times this fight the camera blended back to the same hero's turn view between two
+	 *  actions of one turn (action pips, B-170c). Shown by wor.Camera.Print with the handover line. */
+	int32 GetSameTurnReturnCount() const { return SameTurnReturnCount; }
+
 	/** B-404 (wor.Camera.Handover): plays the wide beat and the handover blend to party member PartyIndex's turn
 	 *  view (INDEX_NONE: the member after the viewed one), as a turn change would. The turn, the HUD and the event
 	 *  stay as they are; the next turn start or setting change ends it. False when it can't play. */
@@ -213,6 +217,13 @@ private:
 
 	UFUNCTION()
 	void HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost);
+
+	/** B-401: the orchestrator asks a player-driven actor for an action: at its turn start, again after each action
+	 *  while its turn goes on (B-170c), or again after a refused pick. Only an ask after an action returns the camera. */
+	UFUNCTION()
+	void HandleActionRequested(AActor *Actor);
+	/** B-401: the blend back to Actor's turn view (PlanSameTurnReturn); counted and logged. */
+	void ReturnToTurnView(AActor *Actor);
 
 	UFUNCTION()
 	void HandleSequenceFinished();
@@ -422,4 +433,10 @@ private:
 	bool bHandoverBroadcasts = false;
 	bool bActedSinceTurnStart = false;
 	int32 HandoverCount = 0;
+
+	// B-401: an action started since the orchestrator last asked for one (or since the turn start).
+	bool bActedSinceAsked = false;
+	/** B-401 (review): asked again while the last shot still moved; StepShot returns when it ends. */
+	bool bSameTurnReturnPending = false;
+	int32 SameTurnReturnCount = 0;
 };
