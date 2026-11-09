@@ -4257,6 +4257,29 @@ bool ULoadoutComponent::SetGuardStyle(EGuardStyle Style)
     return true;
 }
 
+EParryElementPriority ULoadoutComponent::GetParryElementPriority() const
+{
+    const FPartyMember *Record = FindGuardRecord();
+    return Record ? Record->ParryElementPriority : LocalParryElementPriority;
+}
+
+void ULoadoutComponent::SetParryElementPriority(EParryElementPriority Priority)
+{
+    // TODO: co-op (D-103): as SetGuardStyle, a guest's choice stays on its machine until the party record replicates.
+    LocalParryElementPriority = Priority;
+    if (FindGuardRecord())
+    {
+        const UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+        const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+        if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+        {
+            PartySession->SetMemberParryPriority(PartySession->GetMemberSlotOf(CharComp), Priority);
+        }
+    }
+    UE_LOG(LogWoRLoadout, Log, TEXT("%s: parry colour priority set to %s (B-393)"), *GetNameSafe(GetOwner()),
+           *StaticEnum<EParryElementPriority>()->GetNameStringByValue(static_cast<int64>(Priority)));
+}
+
 UAnimMontage *ULoadoutComponent::GetGuardMontage() const
 {
     if (GetGuardStyle() == EGuardStyle::Weapon)
