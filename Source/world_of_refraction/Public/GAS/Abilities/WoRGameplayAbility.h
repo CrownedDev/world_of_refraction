@@ -5,7 +5,11 @@
 // FWoRSkillActivationScope through UActionExecutor::ExecuteActionAsync, and the ability ends when that action
 // completes. The executor still pays the costs at commit (SpendEnergy, B-043a's cost GEs), so CheckCost is
 // the executor's spendable-EP check and ApplyCost pays nothing: exactly one payment.
-// Instanced per actor, server only (Q-043b). Later parts (B-043c..g) split it per delivery shape.
+// Instanced per actor, server only (Q-043b). Later parts (B-043d..g) split it per delivery shape.
+// B-043c (Q-043c): while it runs a non-spell action that lands impacts, a WaitGameplayEvent(Event.Combat.Impact)
+// task takes the action's impacts: the executor sends each Impact notify (or montage-less impact) to the avatar as
+// that event (index in EventMagnitude) and the task resolves it through UActionExecutor::ResolveImpactFrame. The
+// montage chain itself stays in the executor (PlayMontageAndWait waits for a later part).
 // Granting and the orchestrator hand-off: GAS/Abilities/WoRSkillAbilities.h. Debug: wor.Abilities.Print.
 
 #pragma once
@@ -15,6 +19,7 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "WoRGameplayAbility.generated.h"
 
+class UAbilityTask_WaitGameplayEvent;
 class USkillDataBase;
 
 /** While alive, an activation of Handle runs Action and reports to OnComplete. Lives on the caller's stack
@@ -56,6 +61,15 @@ public:
 	/** The action this instance is running, or null when idle. */
 	const FAction *GetRunningAction() const { return bActionRunning ? &RunningAction : nullptr; }
 
+	/** B-043c: true while this instance runs an action and its WaitGameplayEvent(Event.Combat.Impact) task waits. */
+	bool IsListeningForImpacts() const;
+
+	/** B-043c: impacts this instance took as Event.Combat.Impact and resolved, over its life (debug, spec). */
+	int32 GetImpactEventsResolved() const { return ImpactEventsResolved; }
+
+	/** B-043c: whether Action's impacts route through its ability: a non-spell action whose skill lands impacts. */
+	static bool ShouldListenForImpacts(const FAction &Action);
+
 	/** EP check only: the executor's spendable EP against the action's cost (the action being activated, else
 	 *  the skill's plain cast, WoRSkillAbilities::MakePlainAction). */
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
@@ -76,10 +90,23 @@ private:
 	/** Ends the ability with a failed result handed on (no executor, no action, the commit failed). */
 	void FailActivation(const FString &Reason);
 
+	/** B-043c: starts the WaitGameplayEvent(Event.Combat.Impact) task for the running action. */
+	void StartImpactListener();
+
+	/** B-043c: one impact (index in EventMagnitude), resolved by the executor as the Impact notify would. */
+	UFUNCTION()
+	void HandleImpactEvent(FGameplayEventData Payload);
+
 	/** A UPROPERTY so its targets and skill asset stay referenced while the action runs. */
 	UPROPERTY(Transient)
 	FAction RunningAction;
 
 	FOnActionComplete ForwardOnComplete;
 	bool bActionRunning = false;
+
+	/** The running action's impact task (B-043c), or null. */
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> ImpactTask;
+
+	int32 ImpactEventsResolved = 0;
 };
