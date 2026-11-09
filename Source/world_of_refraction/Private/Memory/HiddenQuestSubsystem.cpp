@@ -23,13 +23,16 @@
 
 #define LOCTEXT_NAMESPACE "HiddenQuest"
 
-/** The quest notices, all in one place. They are private: no hint of which quest or what comes next (D-100). */
+/** The quest notices, all in one place. They are private (this player's screen only); how a hidden quest starts is
+ *  never hinted (D-100). */
 namespace HiddenQuestNotice
 {
-	// TODO: Crown's text (placeholders, Crown writes lore-flavoured lines later; Q-377).
-	static FText Started() { return LOCTEXT("QuestStarted", "Something has begun."); }
-	// TODO: Crown's text (placeholder; Q-377).
-	static FText StepDone() { return LOCTEXT("StepDone", "Something has moved forward."); }
+	// B-397 (D-171, replaces B-377's vague "Something has begun." / "Something has moved forward."): a found hidden quest
+	// is named, then its steps show their next goal as main and side quests do. TODO: Crown's text (placeholder).
+	static FText Discovered(const UHiddenQuestData &Quest)
+	{
+		return FText::Format(LOCTEXT("HiddenDiscovered", "Hidden quest discovered: {0}"), Quest.GetDisplayTitle());
+	}
 
 	// B-388: a main or side quest is visible, so its notices name it and its next goal. TODO: Crown's text (placeholders).
 	static FText VisibleStarted(const UHiddenQuestData &Quest)
@@ -139,7 +142,7 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 	KnownQuests.Add(Quest->GetQuestId(), const_cast<UHiddenQuestData *>(Quest)); // B-388: the journal shows its title and goal
 	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
 	ReportToHost(); // B-377b: a client's host checks its steps
-	ATrialMapFeature::ShowMessage(Quest->IsVisible() ? HiddenQuestNotice::VisibleStarted(*Quest) : HiddenQuestNotice::Started());
+	ShowNotice(Quest->IsVisible() ? HiddenQuestNotice::VisibleStarted(*Quest) : HiddenQuestNotice::Discovered(*Quest));
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s started (%d step(s))"), *Quest->GetQuestId().ToString(), Quest->Steps.Num());
 	if (Quest->Steps.IsEmpty())
 	{
@@ -212,9 +215,8 @@ bool UHiddenQuestSubsystem::CountStepMet(const UHiddenQuestData &Quest)
 	}
 	else
 	{
-		// Merge B-388: a main or side quest shows its next goal; a hidden one stays vague.
-		ATrialMapFeature::ShowMessage(Quest.IsVisible() ? HiddenQuestNotice::VisibleStepDone(Quest, Entry->StepsDone)
-														: HiddenQuestNotice::StepDone());
+		// B-388: the next goal; B-397 (D-171): a found hidden quest's too (its later steps stay unnamed until reached).
+		ShowNotice(HiddenQuestNotice::VisibleStepDone(Quest, Entry->StepsDone));
 	}
 	ReportToHost();
 	return true;
@@ -456,10 +458,7 @@ void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
 		Entry->bFinished = true;
 	}
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s finished"), *Quest.GetQuestId().ToString());
-	if (Quest.IsVisible())
-	{
-		ATrialMapFeature::ShowMessage(HiddenQuestNotice::VisibleFinished(Quest)); // B-388
-	}
+	ShowNotice(HiddenQuestNotice::VisibleFinished(Quest)); // B-388; B-397: a found hidden quest too
 	if (!Quest.EndMemory)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s has no end memory"), *Quest.GetQuestId().ToString());
@@ -475,7 +474,7 @@ void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
 	UMemoryJournalSubsystem *Journal = GI->GetSubsystem<UMemoryJournalSubsystem>();
 	if (Journal && Journal->RecordMemory(Quest.EndMemory, EMemorySource::HiddenQuest))
 	{
-		ATrialMapFeature::ShowMessage(FText::Format(LOCTEXT("QuestEnded", "New memory: {0}"), Quest.EndMemory->Title));
+		ShowNotice(FText::Format(LOCTEXT("QuestEnded", "New memory: {0}"), Quest.EndMemory->Title)); // only once earned (D-171)
 	}
 }
 
@@ -538,6 +537,30 @@ const UHiddenQuestData *UHiddenQuestSubsystem::FindKnownQuest(FName QuestId) con
 	return Found ? Found->Get() : nullptr;
 }
 
+void UHiddenQuestSubsystem::ShowNotice(const FText &Notice)
+{
+	LastNotice = Notice;
+	ATrialMapFeature::ShowMessage(Notice); // this machine's screen: a co-op friend's quests run (and notify) on theirs
+}
+
+namespace HiddenQuestJournal
+{
+	/** B-397: the journal's order of kinds: main, side, then found hidden quests. */
+	static int32 GetListRank(EQuestKind Kind)
+	{
+		switch (Kind)
+		{
+		case EQuestKind::Main:
+			return 0;
+		case EQuestKind::Side:
+			return 1;
+		case EQuestKind::Hidden:
+			return 2;
+		}
+		return 2;
+	}
+}
+
 TArray<FVisibleQuest> UHiddenQuestSubsystem::GetVisibleQuests()
 {
 	// A quest restored from the save is not known until the assets are gathered (once per game instance).
@@ -553,9 +576,9 @@ TArray<FVisibleQuest> UHiddenQuestSubsystem::GetVisibleQuests()
 	for (const TPair<FName, FHiddenQuestProgress> &Entry : Progress)
 	{
 		const UHiddenQuestData *Quest = FindKnownQuest(Entry.Key);
-		if (!Quest || !Quest->IsVisible())
+		if (!Quest)
 		{
-			continue; // a hidden quest is never listed (D-100)
+			continue; // B-397 (D-171): a started hidden quest is listed; an unstarted one never is (not in Progress)
 		}
 		FVisibleQuest &Row = Out.AddDefaulted_GetRef();
 		Row.QuestId = Entry.Key;
@@ -568,7 +591,7 @@ TArray<FVisibleQuest> UHiddenQuestSubsystem::GetVisibleQuests()
 	{
 		if (A.Kind != B.Kind)
 		{
-			return static_cast<uint8>(A.Kind) < static_cast<uint8>(B.Kind); // Main before Side
+			return HiddenQuestJournal::GetListRank(A.Kind) < HiddenQuestJournal::GetListRank(B.Kind); // main, side, hidden
 		}
 		if (A.bFinished != B.bFinished)
 		{
@@ -605,7 +628,8 @@ FString UHiddenQuestSubsystem::GetQuestsString() const
 	for (const TPair<FName, FHiddenQuestProgress> &Entry : Progress)
 	{
 		const UHiddenQuestData *Quest = FindKnownQuest(Entry.Key);
-		const FString Visible = Quest && Quest->IsVisible()
+		// B-397: a found hidden quest shows its title and current goal like the others.
+		const FString Visible = Quest
 									? FString::Printf(TEXT(" [%s \"%s\"%s]"), *UEnum::GetDisplayValueAsText(Quest->Kind).ToString(),
 													  *Quest->GetDisplayTitle().ToString(),
 													  Entry.Value.bFinished ? TEXT("") : *FString::Printf(TEXT(", goal: %s"), *Quest->GetGoalAfter(Entry.Value.StepsDone).ToString()))
@@ -614,6 +638,10 @@ FString UHiddenQuestSubsystem::GetQuestsString() const
 								  Entry.Value.StepsDone, Entry.Value.bFinished ? TEXT(", finished") : TEXT(""), Entry.Value.RunCount));
 	}
 	Lines.Sort();
+	if (!LastNotice.IsEmpty())
+	{
+		Lines.Add(FString::Printf(TEXT("last notice: %s"), *LastNotice.ToString()));
+	}
 	return FString::Join(Lines, TEXT("\n"));
 }
 
@@ -638,7 +666,7 @@ static FAutoConsoleCommandWithWorldAndArgs GQuestGiveCommand(
 
 static FAutoConsoleCommandWithWorld GQuestPrintCommand(
 	TEXT("wor.Quest.Print"),
-	TEXT("B-377: this player's quests: steps done, finished, the step in progress's count this run; main and side quests with their title and goal (B-388)."),
+	TEXT("B-377: this player's quests: steps done, finished, the step in progress's count this run; each quest's kind, title and current goal (B-388, B-397); the last notice."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
