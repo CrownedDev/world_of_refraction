@@ -64,6 +64,8 @@ bool UCurseSubsystem::ClearCurse(FName CurseId)
 	{
 		return false;
 	}
+	// Merge fix: the same-event guard is for a cure a memory event gives (RemoveCurse reward), not the player's own clear.
+	LiftedThisEvent.Remove(CurseId);
 	UE_LOG(LogWoR, Log, TEXT("[Curse] %s cleared by the player (it comes back if its giver's conditions are met again)"),
 		   *CurseId.ToString());
 	return true;
