@@ -16,9 +16,13 @@
 
 **Superseded:** the desktop built its own **B-043f** (Q-043f C) and B-043g. My cloud `feature/B-043f-orchestrator-abilities-cloud` is docs only: **don't merge it**.
 
-**Still writable, in order:** B-400 (target cut; on B-399), B-404 (wide beats; on B-371 and B-398), B-401 (no reset between actions; B-170c is in dev, so it stacks on B-398 only), B-406 (per-boss cinematics), B-391b (on B-391). The desktop built B-170b and B-170c into dev, so B-170d onward is writable from dev. B-043h waits for PIE.
+**Also written, reviewed and fixed (rows 96–100, all on trial 09c):** B-400 (target cut, on B-399; new row B-400b wires B-391's HUD), B-406 (per-boss cinematics on trial; B-406b holds the skip key and the rest), B-404 (wide beats and `OnTurnHandover`, on B-398), B-170d (action effects and break rows, from dev; its review BLOCK is fixed), B-401 (no reset between actions, on B-404).
 
-**Being written now:** B-400 (on B-399) and B-406 (from dev).
+**Being written / reviewed now:** B-170e (action-pips placeholder UI, on B-391 with dev merged in; in review) and B-170f (AI spend or bank, on B-170d).
+
+**Still writable after those:** B-391b (on B-391), B-400b (on B-400 + B-391), B-406b. B-170g follows B-170f. B-170h waits for Crown's PIE; B-043h waits for PIE.
+
+**Trial-merge lesson:** after a keep-both resolution, count braces per file; two slips were found and fixed that way. Every camera row's turn-view move goes through `GetTurnViewWithHeight` on the trial branch; the merge plan lists each place.
 
 **Not cloud work:** B-395 (the slice fight: Crown's loop, animations reviewed one at a time) and B-214 (held by Crown).
 
