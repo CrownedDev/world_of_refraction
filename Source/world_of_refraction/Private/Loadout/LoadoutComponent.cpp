@@ -215,7 +215,7 @@ const FCombatLoadout &ULoadoutComponent::GetActiveLoadout() const
 ECharacterClass ULoadoutComponent::GetCharacterClass() const
 {
     const UCharacterData *CharData = GetOwnerCharacterData();
-    return CharData ? CharData->CharacterClass : CharacterClass;
+    return CharData ? CharData->CharacterClass : ECharacterClass::Generic;
 }
 
 bool ULoadoutComponent::GetActiveLoadoutRef(FCombatLoadout &OutLoadout) const
@@ -2480,12 +2480,9 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         return;
     }
 
-    // Set class from CharacterData
-    CharacterClass = CharacterData->CharacterClass;
-
     // New path: InventoryComponent has already populated SavedLoadouts +
-    // ActiveLoadoutIndex from UInventoryData. LC just sets class, applies
-    // BD pool runtime flag, and returns.
+    // ActiveLoadoutIndex from UInventoryData. LC just applies the
+    // BD pool runtime flag and returns.
     if (CharacterData->Inventory)
     {
         ApplyBDPoolsIfBroken();

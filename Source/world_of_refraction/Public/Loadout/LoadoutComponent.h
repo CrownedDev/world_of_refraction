@@ -112,14 +112,7 @@ public:
 
     // ==================== CONFIGURATION ====================
 
-    /** Character class (determines loadout rules). Synced from CharacterData in
-     *  InitializeFromCharacterData; only the fallback when the owner has no CharacterData.
-     *  C++ reads GetCharacterClass(). OBSOLETE (B-022): kept for Blueprint readers until
-     *  Crown's PIE pass. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Config")
-    ECharacterClass CharacterClass = ECharacterClass::Generic;
-
-    /** The owner's CharacterData class; the CharacterClass field when there is no CharacterData. */
+    /** The owner's CharacterData class (determines loadout rules); Generic when there is no CharacterData. */
     UFUNCTION(BlueprintPure, Category = "Loadout")
     ECharacterClass GetCharacterClass() const;
 
