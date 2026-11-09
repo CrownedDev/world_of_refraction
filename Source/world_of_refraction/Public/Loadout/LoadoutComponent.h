@@ -756,18 +756,12 @@ public:
     // ==================== POST-BATTLE ====================
     // Crystal-refactor 9.5b: ConsumeUsedItems and GetItemsToConsume removed.
     // Item slot Quantity is now the persistent post-combat state; inventory
-    // is debited at equip/auto-equip time, not at battle end. B-203: for a member
-    // sharing the party's carried items, ResetBattleState hands the unused
-    // auto-equipped part back and lowers the slot to match.
+    // is debited at equip/auto-equip time, not at battle end. A member with a
+    // pouch fights from the pouch itself (B-313), so nothing is handed back.
 
-    /** Reset battle state (call after battle ends). B-203: crystals auto-equip took from the party's
-     *  shared carried items and the fight didn't use go back to them. */
+    /** Reset battle state (call after battle ends). */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Battle")
     void ResetBattleState();
-
-    /** B-203: crystals of each type this member's auto-equip took from the party's carried items
-     *  for the coming fight (all that can go back; an authored slot's own crystals never came from them). */
-    const TMap<FCrystalId, int32> &GetBattleItemsTaken() const { return BattleItemsTaken; }
 
     // ==================== QUICK SETUP ====================
 
@@ -895,10 +889,6 @@ protected:
     /** Is loadout ready for battle? */
     UPROPERTY(BlueprintReadOnly, Category = "Loadout|Runtime")
     bool bIsReadyForBattle = false;
-
-    /** B-203: see GetBattleItemsTaken. Per-fight state on the actor (D-064).
-     *  OBSOLETE (B-313): a member with a pouch no longer auto-equips, so this stays empty for it. */
-    TMap<FCrystalId, int32> BattleItemsTaken;
 
     /** OBSOLETE (B-354, D-143): B-313's pouch uses this fight per D-072 tier band. No longer counted; still cleared by
      *  PrepareForBattle and ResetBattleState. Delete after Crown's PIE. */
