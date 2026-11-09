@@ -88,68 +88,100 @@ Suggested order: R1–R4 and R10 first (they shape every turn and are cheap twea
 
 ## 6. VFX
 
+Second pass (2026-11-09): frames re-captured from the 4K source, with close crops of effects. Times are ±0.5 s.
+
 | Moment | What is shown | Time(s) |
 |---|---|---|
-| Melee hit | Element-coloured trail on the blade (purple-orange flame), a short spark burst at the contact point, then the damage number | 5:35–5:36 |
-| Signature skill | Coloured flame column, vertical light bars, a full-screen purple flash at impact, debris | 6:00–6:02 |
-| Area fire skill | A burst of orange streaks that swallows the boss, held for about 2 s | 6:53–6:56 |
-| Enemy buff | Red aura and a red fog that floods the lower half of the screen | 6:06–6:07 |
-| Enemy wind-up | Golden glow behind the attacker | 6:18 |
-| Enemy swing | Pale white sword arcs (motion trails) that show each swing's path | 5:41, 5:47, 6:24 |
-| Parry / dodge success | Short white streak or flash at the defender; "PERFECT" text; on some, the whole frame drains to black-and-white for an instant | 5:38.9, 6:12.7, 6:39 |
-| Counter | Bright white beams cross the screen | 5:51 |
-| Set dressing | Gold light threads drift through the arena all fight; they make every shot feel alive without moving the camera | throughout |
-| Kill | Dark vignette and colour drain on a wide shot | 6:57–6:59 |
+| Fight start | The screen sweeps low over the floor in a dark, grainy shot, then opens on the arena. Gold light threads drift through the air for the whole fight (arena life, no gameplay meaning) | 5:27–5:28 |
+| Skill confirm | Strong radial motion blur on the camera rush; no extra particle effect | 5:33.8, 6:52.7 |
+| Melee hit (fire skill) | Orange-red flame burst at the blade's contact point with **purple glyph sparks** around it; the blade leaves a bright orange-to-purple trail | 5:35.9–5:36.3 |
+| Signature skill: timed press | A gold **diamond with a button icon and a shrinking ring** sits beside the target; orange flame and light bars around it | 6:00.4–6:00.7 |
+| Signature skill: impact | The **whole screen floods purple**, thin vertical light bars, dark debris flying outward; heavy flash | 6:02.2 |
+| Area fire skill | A burst of orange streaks and embers swallows the enemy and hangs for ~2 s | 6:53.9–6:55.7 |
+| Status on the enemy | Burn: flame icon and a "BURN" tag on the numbers, small embers on the body; no big looping aura | 6:00.7, 6:17.3 |
+| Enemy buff | Red glow on the blade, then a **red fog** that floods the lower screen and a swarm of red sparks | 6:06.4–6:07.3 |
+| Enemy wind-up | Golden glow / arc behind the attacker | 6:06.4, 6:18.5 |
+| Enemy swings | White-gold **sword arcs** trace every swing; easy to read even in wide shots | 5:41–5:52, 6:21–6:31 |
+| Perfect parry | At the clash point: a **white star-burst** (thin crossing lines) and a bright yellow-white streak, plus the word "PERFECT" (§7) | 5:38.9, 6:12.7 |
+| Counter after parries | Red slash lines across the attacker, white beams across the screen | 5:40.1, 5:51.0 |
+| Special counter | The frame turns **black-and-white** with a **radial burst and speed lines** centred on the defender, for a fraction of a second | 6:39.0–6:39.4 |
+| Kill | Stacked gold numbers, then a dark vignette and colour drain on a wide shot; the victory panel opens over it | 6:57–7:00.6 |
 | Phase change | None in this fight | — |
-| Screen shake | Little or none on normal hits and none during defence; motion blur is used on camera rushes instead | — |
+| Screen shake | Not visible in frames on normal hits or during defence. Motion blur and flashes do the work | — |
 
-**Patterns:** effects carry the element colour; enemy swings always leave a readable trail; the screen-wide effects (flash, colour drain, fog) are kept for big moments (signature hit, perfect parry, buff, kill).
+**Patterns:**
+- The **attacker's element sets the colour** of trails, bursts and flashes (fire = orange, with the skill's own purple accent).
+- **Every defendable swing leaves an arc.** The defender reads the swing from the trail, not from a prompt.
+- **Screen-wide effects are rare** and each has one meaning: purple flood = signature hit, black-and-white burst = special counter, red fog = enemy power-up, vignette and drain = kill.
+- **Statuses are quiet in the world** (small embers) and loud in the numbers and icons.
 
-**Rules for us:**
-- V1: every skill hit = element-coloured trail + small hit burst. Big Pack Magic VFX already covers this per element (`*_Slash`, `*_Hit`; AssetAudit §2) for 7 elements.
-- V2: every defendable enemy swing gets a visible weapon trail, so the swing reads in the Defence view (FeelGuide 14).
-- V3: a landed parry = small element-coloured circle flash at the defender (Magic Circle 1, AssetAudit "parry-effect cosmetic") + sparks; no pause (FeelGuide 3). Sparks are missing: make a small Niagara burst.
-- V4: enemy buffs = aura on the caster (`*_Aura` / `*_Buff` exist per element).
-- V5: full-screen effects (flash, colour drain, vignette) only for crits/weakness breaks, perfect parry, and the kill. Screen effects are post-process, not assets.
-- V6: arena ambience (drifting particles) per biome is cheap life; SoStylized wind lines / fog are a start.
+**Rules for our game:**
+- V1: every skill hit = element-coloured weapon trail + one hit burst at the contact point. Our assets: Big Pack Magic VFX `*_Slash` and `*_Hit` cover 7 elements (`AssetAudit.md` §2); Void needs a recolour, Reality is missing.
+- V2: every **defendable** enemy swing must have a visible trail (FeelGuide 14). Add a trail to each enemy attack montage; no trail means no readable defence.
+- V3: perfect parry = a short star-burst at the clash point + "Perfect" text, no pause (FeelGuide 3). Assets: Magic Circle 1 tinted to the element (AssetAudit "parry-effect cosmetic"); the spark burst itself is **missing** (make a small Niagara burst).
+- V4: one full-screen effect per meaning, and only these: signature hit (colour flood), special counter (colour drain + radial burst), enemy power-up (coloured fog), kill (vignette + drain). These are post-process materials plus timing, not pack assets.
+- V5: enemy buffs = a short aura on the caster (`*_Aura` / `*_Buff` exist per element), then a small lingering effect, not a constant loop.
+- V6: status effects in the world stay small (embers, drips); the status itself is shown by icons and number tags (§7). Blood and Poison sets cover bleed/poison markers; stun and silence markers are missing.
+- V7: arena ambience (drifting particles) per biome. SoStylized wind lines / fog are a start.
 
 ## 7. UI
 
-| Element | Where | Size / behaviour |
-|---|---|---|
-| Turn order | Left edge, vertical column of small portraits, top to bottom | Always on screen, small; the current actor sits at the top |
-| Boss bar | Top centre, thin red bar with the boss name under it | Always on; very slim |
-| Ability name | Small banner under the boss bar | Appears when any skill or enemy attack starts, gone when it ends |
-| Player HP / energy | Bottom right: portrait, HP bar, energy pips, small numbers | Always on; compact |
-| Special charge counter | Bottom right, above the player block ("0/3" style) | Always on |
-| Enemy stance / status panel | Right side, middle: enemy portrait with stance word and a short list of effects | Shown on the player's turn; hidden in most enemy-turn shots |
-| Action menu | Floats beside the hero, right of her body, a few short rows with face-button icons | Only on the player's turn; sub-menu (skills) opens as a wider list with cost and short text |
-| Target marker | Not visible in our frames (only one enemy) | — |
-| Damage numbers | At the hit point in the world; large for big hits (orange), smaller white for small/counter hits; stack when several land | Stay about 1–2 s, then fade |
-| Defend prompt | No big prompt; the defence is read from the attack itself; feedback text "PERFECT" appears at the defender | Only after the input |
-| Timed-press ring | Circle with a button icon beside the target during the player's special skill | Only during the skill |
-| Hints | Bottom left, small button hints ("Back", "Skip") | Only when useful |
+Positions are on a 16:9 screen, read from crops of the 4K frames.
 
-**Patterns:** HUD hugs the edges and corners; the centre stays clear for the fight. Menus attach to the hero, not to a fixed panel. Everything not needed in the enemy turn hides.
+| Piece | Where and how big | When it shows / hides | Time(s) |
+|---|---|---|---|
+| **Turn order** | Left edge, top half: a vertical column of ~8 small portrait cards (about 5% of screen width). Our side in colour, the enemy in greyscale; the current actor at the top with a marker | Always on, from the first frame of the fight to the kill | 5:28.5, 5:34 |
+| **Boss bar** | Top centre, about 40% of screen width, a very thin red bar in a decorative frame; boss name in small caps under it. **Status icons sit at its ends** (e.g. a burn icon with a count on the left) | Always on | 5:34, 6:06.9 |
+| **Ability name banner** | Small dark banner under the boss name | Appears when any skill or enemy attack starts; gone when it ends | 5:38.9, 6:06.4, 6:17.3, 6:57.4 |
+| **Player block** | Bottom right, about 25% wide: portrait, stance word, red HP bar with numbers, and an **action-point counter: a number in a blue diamond plus a row of blue pips**. A special-charge gauge ("0/3") sits to its left | Always on | 5:34 |
+| **Action menu** | Fanned **diagonally** beside the hero's right hip, 4 rows, each a face-button icon + a word (attack, skills, items, special attack); an aim option to the hero's left. The **AP counter repeats above the menu** at the hero's shoulder | Only on the player's turn; appears once the camera settles behind the hero | 5:30.5–5:30.8 |
+| **Skill list** | Replaces the menu at the same spot: two columns of cards. Each card: face button, skill name, **AP cost in a diamond** at the right, and 2–3 lines of text with **element words coloured** and small status icons | Only while choosing | 5:57.7–5:58.5 |
+| **Enemy panel** | Right side, middle: the enemy's portrait in a torn-paper frame, its **stance** word, and a short list of its effects with icons (stance bonuses as plus/minus percentages) | Shown on the player's turn; mostly hidden in enemy-turn shots | 5:34, 5:58.5, 6:02.2 |
+| **Defend hints** | Bottom left, small: four rows with button icons (special parry, parry, dodge, jump) | Appear at the **enemy turn start** and stay through the combo; hidden on our turn | 5:38.9, 5:51, 6:06.4–6:07.3 |
+| **Defend result** | "PERFECT" in large serif letters, placed in the world **between the two fighters at the clash** | Only after a successful input; fades in ~0.5 s | 5:38.9, 6:12.7 |
+| **Damage numbers** | In the world at the hit point. Big hits: large gold serif digits with a dark outline, a **"Weakness" tag**, plus a status tag ("BURN") and icon. Small hits and counters: white digits, one large and one small copy. Heals: small green "+" numbers | Stay ~1–2 s; several stack upward | 5:36.3, 5:40.1, 6:00.7, 6:02.2, 6:57.4 |
+| **Floating HP bar** | A small red bar with a number over the character just hit | Only for a moment after a hit | 5:40.1, 6:39.4 |
+| **AP gain** | A small **blue diamond** pops at the defender after a parry (reads as an action point gained) | After a parry | 5:40.1 |
+| **Timed-press prompt** | A gold diamond with the button icon and a shrinking ring, beside the target | Only during skills with timed presses | 6:00.7 |
+| **Target marker** | Not seen (only one enemy) | — | — |
+| **Victory panel** | Left: title, loot, kills, and stats (damage dealt and taken, time, **perfect parries and dodges**); right: character card with XP | Opens about 2 s after the kill, over the wide shot | 7:00.6 |
 
-**Rules for us** (current widgets in `UISystem.md`):
-- U1: keep `UTurnOrderStripWidget` but consider a vertical left-edge layout; current actor first.
-- U2: `UCharacterPanelWidget` for the player goes compact, bottom right; enemy details move to a side panel shown on our turn only.
-- U3: the action menu sits next to the acting hero (screen-projected), not fixed; with action pips, show remaining pips beside the menu.
-- U4: add an ability-name banner under the boss bar for every skill, ours and the enemy's (no widget for this yet).
-- U5: `UDefensePromptWidget`: keep the on-screen prompt minimal; the attack animation is the cue. Show result text ("Perfect", "Dodged") at the defender.
-- U6: damage numbers in world space; colour by weakness (FeelGuide 5), size by hit strength.
-- U7: hide the menu, enemy panel and hints during enemy turns and cinematics; keep HP, turn order and the boss bar.
+**How it moves with the camera:** the edge HUD (turn order, boss bar, player block, hints) is fixed to the screen and **stays on through every shot**, including the big skill. The action menu and skill list are flat on the screen but **placed next to the hero**, and they only exist while the camera is still. Damage numbers, "PERFECT", the floating HP bar, the AP diamond and the timed-press prompt are **anchored in the world** and move with the shot.
+
+**Rules for our game** (widgets from `UISystem.md`):
+- U1: `UTurnOrderStripWidget`: try a vertical left-edge column; our side in colour, enemies greyed; current actor at the top. Keep the pre-spawned slots (TransBuffer rule).
+- U2: `UCharacterPanelWidget` for the player: compact block bottom right (portrait, HP, EP). For action pips (B-170), show **a number plus a row of pips**, and repeat it next to the menu while choosing.
+- U3: a new **boss bar** widget: thin, top centre, status icons at its ends. Normal enemies don't need it.
+- U4: a new **ability name banner** under the boss bar for every skill, ours and the enemy's. Cheap, and it names the telegraph (FeelGuide 14).
+- U5: the action menu sits next to the acting hero (screen position from the hero), one face button per row (FeelGuide 13). Skill cards show the **pip cost** on the right and element words in element colours (`ElementColors`).
+- U6: an enemy info panel on the right, shown on our turn only: portrait, stance/state, effects. Statuses as small icons (FeelGuide 5); no weakness icons.
+- U7: `UDefensePromptWidget`: **no big centre prompt**. Show the defend buttons as small bottom-left hints for the whole enemy turn, and the result ("Perfect", "Dodged") in the world at the clash point.
+- U8: damage numbers in the world: size by hit strength, **colour plus a tag word for weakness** (FeelGuide 5: colour, not icons), a status tag when a status applies, green for heals.
+- U9: a small floating HP bar over a character for a moment after it is hit.
+- U10: hide only the menu and the enemy panel during enemy turns and cinematics; turn order, HP, boss bar and hints stay.
+- U11: our victory flow has no results screen (FeelGuide 6), so their victory panel doesn't carry over; a perfect-defence count could go in the reward popup.
 
 ## 8. Feedback and timing
 
-- **Hit pause:** no visible freeze on normal hits in the frames (sampling at ~1 s can't see 40 ms). The signature hit holds on the impact for roughly 0.5 s with the screen flash.
-- **Perfect parry:** text + flash, sometimes a black-and-white instant; the combo keeps flowing; no camera move.
-- **Whose turn:** three signals together: the turn-order column updates, the camera moves behind the actor, and the menu appears beside them. On enemy turns, the ability-name banner plus a front shot of the enemy.
-- **Pace:** each player action about 3–5 s from confirm to back in the turn view; an enemy combo about 10–15 s; the whole round about 25 s.
+| What | How it's shown | Time(s) |
+|---|---|---|
+| Whose turn | Three signals at once: the turn-order column updates, the camera settles behind the actor, the menu fans out beside them | 5:30.5, 5:55, 6:43 |
+| Enemy turn | The ability banner and the bottom-left defend hints appear; the camera gives a front shot of the enemy | 6:06.4 |
+| Hit weight | No freeze long enough to see at these frame steps; weight comes from the burst, the big number and the flash | 5:35.9 |
+| Signature hit | Holds on the impact flash for ~0.5 s before whipping back | 6:02.2–6:03.4 |
+| Perfect parry | Star-burst + "PERFECT" + a blue AP diamond; the combo **keeps flowing**, no pause, no camera move | 5:38.9–5:40.1 |
+| Counter | After the combo, a counter strike with big numbers, often in a wide shot | 5:40, 5:51, 6:16 |
+| Special counter | The only freeze-like beat: a black-and-white radial frame for a fraction of a second | 6:39 |
+| Kill | ~2 s of wide, darkened shot before the victory panel | 6:57–7:00.6 |
+| Pace | A player action ~3–5 s from confirm to back in the turn view; an enemy combo ~10–15 s; a full round ~25 s | — |
 
-**Rules for us:**
-- F1: keep FeelGuide 4 values (normal ~40 ms, big ~100 ms freeze); add a ~0.4 s hold for signature impacts.
-- F2: never pause on defence (FeelGuide 3), matching the video.
-- F3: turn start = strip highlight + camera move + menu, all on the same frame.
-- F4: enemy turn start = banner + short front shot before the first swing (fits the 0.75 s read time).
+**Rules for our game:**
+- F1: keep FeelGuide 4 (normal ~40 ms freeze, big ~100 ms); add a ~0.4 s hold on signature impacts only.
+- F2: never pause on a defence (FeelGuide 3); a parry is text + burst + (if we grant one) a pip-gain marker.
+- F3: if a parry grants an action pip (B-170d, `GainActions`), show it as a pip popping at the defender **and** filling in the player block.
+- F4: turn start = strip highlight + camera move + menu, on the same frame.
+- F5: enemy turn start = banner + defend hints + a short front shot, all before the first defendable moment (inside the 0.75 s read time, B-370).
+- F6: the kill gets a ~1.5–2 s darkened wide beat, then our reward popups (FeelGuide 6).
+
+**Unclear (VFX, UI, timing):** freezes under ~100 ms can't be seen at these frame steps; a dodge's feedback wasn't caught apart from the parry's; the blue diamond after a parry is read as an AP gain but isn't confirmed; the aim option wasn't used, so free-aim UI isn't shown; with one enemy, target markers never appear.
+
