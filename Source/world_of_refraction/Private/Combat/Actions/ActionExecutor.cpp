@@ -687,7 +687,10 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 
 	// B-382 (Q-164b A): Amp adds flat to the base, once per action, so every multiplier after it scales it.
 	// Only a damaging action takes it (a 0-damage buff or heal spell stays 0).
-	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, Preview.Element, bIsSpell) : 0;
+	// B-064a (the deckbuilder's Ice reach: Amp is exact): an Ice spell takes no Water Amp line; All and Spell still count.
+	const bool bDealsIce = bIsSpell && Action.SpellData->GetDealtTypeOverride(Preview.Element) == EWoRDamageType::Ice;
+	const ESpellElement AmpElement = bDealsIce ? ESpellElement::None : Preview.Element;
+	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, AmpElement, bIsSpell) : 0;
 	if (bLog && Preview.AmpBonus != 0)
 	{
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[Amp] %s: %d + Amp %d (%s)"), *Skill->Name, Preview.BaseDamage, Preview.AmpBonus,
