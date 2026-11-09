@@ -288,7 +288,12 @@ enum class ESkillEffectType : uint8
     NegateElement UMETA(DisplayName = "Negate Element Damage (Ward, by element)"),
     NegateElemental UMETA(DisplayName = "Negate Elemental Damage (Ward, every element)"),
     NegateDamageTotal UMETA(DisplayName = "Negate Damage in Total (Barrier pool)"),
-    NegateElementTotal UMETA(DisplayName = "Negate Element Damage in Total (Ward pool, by element)")
+    NegateElementTotal UMETA(DisplayName = "Negate Element Damage in Total (Ward pool, by element)"),
+
+    // B-064a (D-029, D-090): what a full Ice bar fires (ElementTable's Ice row). Its BreakTable row applies Water's
+    // Action Speed + Spell Speed slow and deals a share of the holder's max HP; the trigger itself is never stored.
+    // Appended, so saved values don't move.
+    IceBreak UMETA(DisplayName = "Ice Break (slow + damage)")
 };
 
 /**
@@ -496,6 +501,7 @@ namespace SkillEffectClassification
         case ESkillEffectType::HealBlock:
         case ESkillEffectType::Silenced:
         case ESkillEffectType::RandomSkill:
+        case ESkillEffectType::IceBreak:
         case ESkillEffectType::SelfDamage:
         // Phase 2 passive-layer debuffs
         case ESkillEffectType::IncreaseDamageTaken:
