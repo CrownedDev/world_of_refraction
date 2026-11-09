@@ -321,6 +321,11 @@ controlled actor.
   events, as the old HUD: a guest refreshes them on its next menu open.
 - **"Absorbed" is inferred (B-391c):** `FCombatHitShown` doesn't say why a hit took 0; any 0 hit on a Broken
   Darkness target reads "Absorbed" (a ward stopping a whole hit included).
+- **Two Broken Darkness checks (B-391c review):** the "Absorbed" cue reads the target's
+  `UCharacterDataComponent::IsBrokenDarkness()` (replicated flag); the buildup tint reads the attacker's
+  `UBrokenDarknessManager::IsInBDForm()` (the manager's flag, as the old panel's `ApplyStatusBarTint`). Each matches
+  its old source, but they can disagree for a born-in-BD character before the manager mirrors the flag
+  (`InitializeBornBrokenDarkness`), or on a client if the manager's flag isn't replicated.
 
 - No literal `// TODO`, `// FIXME`, or `// HACK` markers exist in the four files
   documented.
