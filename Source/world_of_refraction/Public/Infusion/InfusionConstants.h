@@ -41,14 +41,6 @@ namespace InfusionConstants
 	/** Highest infusion level a pick can carry (levels run 0..2; 0 is no infusion). */
 	constexpr int32 MAX_INFUSION_LEVEL = 2;
 
-	// ==================== TIMING ====================
-
-	/** Time to hold for Level 1 charge (seconds). Read only by the dead InfusionChargeManager (B-034). */
-	constexpr float LEVEL_1_CHARGE_TIME = 0.5f;
-
-	/** Time to hold for Level 2 charge (seconds). Read only by the dead InfusionChargeManager (B-034). */
-	constexpr float LEVEL_2_CHARGE_TIME = 1.5f;
-
 	// ==================== L2 COSTS (SOURCE-BASED) ====================
 
 	// Evolution backlash HP cost is EP-based (UInfusionCostHelper::CalculateHPCost, ED-32).
