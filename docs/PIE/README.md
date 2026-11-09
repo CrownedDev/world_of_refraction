@@ -15,6 +15,13 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
+| [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (in dev) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
+| [B-387](B-387.md) | `feature/B-387-crystal-amp-cloud` (in dev) | Worn crystals (and the seated evolution) grant Amp to their element by tier: F0 E0 D1 C1 B2 A2 S3 | Pending |
+| [B-382](B-382.md) | `feature/B-382-amp-lines-cloud` (unbuilt) | Amp lines on gear: All / Physical / one element, added to the action's base; damage buffs keyed by element; `wor.Damage.Amp` | Pending |
+| [B-383](B-383.md) | `feature/B-383-damage-scopes-cloud` (unbuilt) | Every damage / defence boost has a scope (All, Physical, Spell, one element; default All); `wor.Damage.Scopes` | Pending |
+| [B-384](B-384.md) | `feature/B-384-one-damage-channel-cloud` (in dev) | The four all-damage % channels add into one; **stacked builds hit a little lower** (before / after numbers in the sheet); `wor.Damage.FoldAllDamage` | Pending |
+| [B-385](B-385.md) | `feature/B-385-scope-gas-followups-cloud` (in dev) | Damage scopes hold at `wor.Effects.UseGAS 1` (Defense, the mirror, `wor.Damage.Scopes`) | Pending |
 | [B-360c](B-360c.md) | `feature/B-360c-copies-by-member` (in `dev`) | A later copy of a character places its own victory levels and is bought for under its own key | Pending |
 | [B-336](B-336.md) | `refactor/B-336-world-subsystems` (in `dev`) | The ten fight systems live on the level's world (one per PIE window and per level); `wor.Fight.Subsystems` lists them | Pending |
 | [B-361c](B-361c.md) | `test/B-361c-recruit-inventory-specs` (in `dev`) | Tests only: a recruit through a mid-run save, the one-pouch give refusal, buying for a recruit, a full or missing host ledger at hand-over | Pending |
@@ -47,6 +54,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-235](B-235.md) | `feature/B-235-personal-prism-drops-cloud` (in `dev`) | 2-player PIE: a wipe drops each player's own Prisms; each picks up only theirs | Pending |
 | [B-235b](B-235b.md) | `feature/B-235b-personal-rewards-cloud` (UNBUILT, on B-235) | 2-player: the pickup message on the picker's screen; a player who left doesn't keep the pickup up | Pending |
 | [B-235c](B-235c.md) | `feature/B-235c-instanced-chests-cloud` (UNBUILT, on B-235b) | 2-player: each player opens a chest for their own item; a client's presses run on the host | Pending |
+| [B-235d](B-235d.md) | `feature/B-235d-private-memories-cloud` (UNBUILT, on B-235c) | 2-player: a friend's qualifying memories land in their own journal, privately | Pending |
 | [B-366](B-366.md) | `feature/B-366-currency-names` (in `dev`) | Currency names: the run currency reads Prisms, the hub currency Gold (names only) | Pending |
 | [B-366d](B-366d.md) | `feature/B-366d-merge-place-currency` (in `dev`) | Merging crystals costs hub Gold at home and run Prisms in a run (console merge) | Pending |
 | [B-366e](B-366e.md) | `fix/B-366e-repair-place-currency` (in `dev`) | Gear repair costs the currency of the place | Pending |
@@ -380,6 +388,18 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-234c](B-234c.md) | `feature/B-234c-planned-host-hand-over-cloud` (UNBUILT, on B-234b + B-187) | Hand the host over at a rest spot; the old host rejoins | Pending |
 | [B-187d](B-187d.md) | `feature/B-187d-co-op-rest-cloud` (UNBUILT, on B-187c + B-235c, merge-resolved without a compiler) | 2-player: a client rests the party; everyone returns beside the spot after a revive | Pending |
 | [B-187e](B-187e.md) | `feature/B-187e-client-rest-menu-cloud` (UNBUILT, on B-187d) | 2-player: a client's Revive asks the host; Leave leaves the session | Pending |
+| [B-235e](B-235e.md) | `feature/B-235e-own-memory-finds-cloud` (UNBUILT, on B-235d) | 2-player: the client's own spot, fragment, gear and reaction memories are theirs; a friend's PriorMemory reads their own memories | Pending |
+| [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
+| [B-376](B-376.md) | `feature/B-376-party-has-cloud` (UNBUILT, on B-375) | Pair memories: both characters present, solo or across players | Pending |
+| [B-377](B-377.md) | `feature/B-377-hidden-quests-cloud` (UNBUILT, on B-376, save v25) | Hidden quests: start, steps across runs, end memory | Pending |
+| [B-378](B-378.md) | `feature/B-378-curses-cloud` (UNBUILT, on B-377, save v26) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
+| [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (UNBUILT, on B-378) | A held curse weakens your own characters by its penalty | Pending |
+| [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
+| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
+| [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (UNBUILT, on B-381, save v28) | The journal saved; a friend's quests move on the host's events | Pending |
+| [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
+| [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
+| [B-380c](B-380c.md) | `feature/B-380c-apparel-slots-saved-cloud` (UNBUILT, on B-380b, save v29) | Worn apparel saved; a crystal set in play | Pending |
 
 Move rows to **Done** when every check passes.
 

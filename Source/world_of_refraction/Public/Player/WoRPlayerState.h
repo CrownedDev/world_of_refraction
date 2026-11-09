@@ -17,6 +17,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Character/Forms/CharacterFormData.h"
 #include "Save/CoopCheckpoint.h"
+#include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
+#include "Save/WoRSaveTypes.h" // FSavedQuestProgress (B-377b)
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
@@ -102,7 +104,57 @@ public:
 	 *  player's pawn, if it stands in the feature's trigger. */
 	UFUNCTION(Server, Reliable)
 	void ServerInteractFeature(class ATrialMapFeature *Feature);
+
+	/** B-235d: the host's run unlocked Memory and it qualifies for this player: their own journal records it and only
+	 *  they see the notice (D-103: hidden unlocks are private). */
+	UFUNCTION(Client, Reliable)
+	void Client_UnlockMemory(class UMemoryData *Memory, EMemorySource Source);
+
+	/** B-379: one of this player's characters added to a hidden counter in a fight the host ran; their own save counts it. */
+	UFUNCTION(Client, Reliable)
+	void Client_AddCounter(FName Counter, class UCharacterData *Character);
 	const TArray<TObjectPtr<UCharacterData>> &GetClaimedCharacters() const { return ClaimedCharacters; }
+	/** B-235d (Q-235d, Crown): the characters this player plays: the claimed characters and the characters of the
+	 *  claimed party members (the host's party knows them). A memory's conditions are read against these for them. */
+	TArray<UCharacterData *> GetOwnCharacters() const;
+	/** B-235d / B-235e (server): the memories this player has: what their journal reported on joining
+	 *  (ServerReportJournal), what they found themselves (ServerReportFoundMemory) and what the host sent them. Each
+	 *  memory goes to a player once; their PriorMemory conditions read this. Seamless travel carries it. */
+	bool HasMemoryId(FName MemoryId) const { return KnownMemoryIds.Contains(MemoryId); }
+	void AddMemoryId(FName MemoryId) { KnownMemoryIds.Add(MemoryId); }
+	const TSet<FName> &GetKnownMemoryIds() const { return KnownMemoryIds; }
+
+	/** B-235e: a client tells the host which memories its own journal holds (sent once it owns this state).
+	 *  TODO: trusted co-op only: no WithValidation and no cap on the list's size (add both before public matchmaking). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportJournal(const TArray<FName> &MemoryIds);
+
+	/** B-377b: a client's hidden quest progress, for the host to check its steps (sent on joining and on each change). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportQuests(const TArray<FSavedQuestProgress> &Quests);
+
+	/** B-377b (server): this player's unfinished quests: quest id -> steps done. */
+	const TMap<FName, int32> &GetReportedQuests() const { return ReportedQuests; }
+
+	/** B-377b (server): a gear quest offered to this player once (until they report it started). */
+	bool WasQuestOffered(FName QuestId) const { return OfferedQuests.Contains(QuestId); }
+	void MarkQuestOffered(FName QuestId) { OfferedQuests.Add(QuestId); }
+
+	/** B-377b: the host saw this player's own part of an event meet QuestId's current step. */
+	UFUNCTION(Client, Reliable)
+	void Client_QuestStepMet(FName QuestId, int32 StepIndex);
+
+	/** B-377b: this player's worn gear started Quest at an event the host ran. */
+	UFUNCTION(Client, Reliable)
+	void Client_StartQuest(class UHiddenQuestData *Quest);
+
+	/** B-235e: a client found Memory itself (its own map spot, fragment or event): the host notes it, and shares one for
+	 *  every character (it lists none) with itself and the other friends (Q-235d rule 3). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportFoundMemory(class UMemoryData *Memory, EMemorySource Source);
+
+	/** B-235d debug (`wor.Memory.Sent`): this player's own characters and the memories they have. */
+	FString GetSharedMemoriesString() const;
 
 	/** B-234 (host): sends this remote player the host's compressed save as checkpoint CheckpointId, in chunks. */
 	void SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize);
@@ -170,4 +222,11 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Economy")
 	TObjectPtr<UCurrencyComponent> Wallet;
+
+	/** B-377b (server only): see GetReportedQuests / WasQuestOffered. */
+	TMap<FName, int32> ReportedQuests;
+	TSet<FName> OfferedQuests;
+
+	/** B-235d / B-235e (server only): the memory ids this player has (see HasMemoryId). */
+	TSet<FName> KnownMemoryIds;
 };
