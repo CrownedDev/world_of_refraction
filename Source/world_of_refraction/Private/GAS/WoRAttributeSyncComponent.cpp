@@ -180,6 +180,39 @@ bool UWoRAttributeSyncComponent::RefreshComposed(UAbilitySystemComponent &ASC, c
 	return false;
 }
 
+FString UWoRAttributeSyncComponent::GetStoneMismatchString() const
+{
+	const AActor *Owner = GetOwner();
+	const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
+	const UCharacterDataComponent *Char = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!ASC || !Char || !Char->CharacterData)
+	{
+		return FString();
+	}
+	TGuardValue<bool> ComposeOnGameSide(GReadingSourceValues, true); // the game-side layers, not GAS's own read
+	TArray<FString> Lines;
+	for (const TPair<FGameplayAttribute, FWoRAppliedStatSources> &Entry : AppliedStatSources)
+	{
+		const FActiveGameplayEffect *Live = ASC->GetActiveGameplayEffect(Entry.Value.Handle);
+		ESubStat Stat;
+		EWorldPillar Pillar;
+		FWoRStatLayers Layers;
+		const bool bHasLayers = (UWoRAttributeSet_Stats::GetComposedStat(Entry.Key, Stat) && Char->GetStatLayers(Stat, Layers)) ||
+								(UWoRAttributeSet_Stats::GetComposedPillar(Entry.Key, Pillar) && Char->GetPillarLayers(Pillar, Layers));
+		if (!Live || !bHasLayers)
+		{
+			continue; // not a stat or pillar the stones feed, or no live GE to compare
+		}
+		const float OnGAS = Live->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, /*WarnIfNotFound=*/false, 1.0f);
+		if (!FMath::IsNearlyEqual(OnGAS, Layers.StoneFactor, KINDA_SMALL_NUMBER))
+		{
+			Lines.Add(FString::Printf(TEXT("%s stones: game x%.4f, GAS x%.4f"), *Entry.Key.GetName(), Layers.StoneFactor, OnGAS));
+		}
+	}
+	Lines.Sort();
+	return FString::Join(Lines, TEXT("\n"));
+}
+
 TArray<FWoRAttributeSourceValue> UWoRAttributeSyncComponent::ReadSourceValues(const AActor *Actor)
 {
 	TGuardValue<bool> ComposeOnGameSide(GReadingSourceValues, true);
