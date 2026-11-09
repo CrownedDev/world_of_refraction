@@ -1,5 +1,5 @@
 // RingWeaponQuerySpec.cpp
-// The ring queries and the ring switch on ULoadoutComponent, and the ring auto-switch when a
+// The ring and weapon queries and the ring switch on ULoadoutComponent, and the ring auto-switch when a
 // ring's crystal breaks (B-024). First written against URingManager / UWeaponManager, which
 // forwarded to the component; their checks went with them (B-154).
 
@@ -99,6 +99,21 @@ void FRingWeaponQuerySpec::Define()
 			TestEqual(TEXT("active ring"), Loadout->GetActiveRing(), Rings[0].RingEntry.Ring);
 			TestEqual(TEXT("loadout's active element"), Loadout->GetActiveRingElement(),
 					  CrystalTypeHelpers::GetElement(ECrystalType::Garnet));
+		});
+	});
+
+	Describe("weapon queries", [this]()
+	{
+		It("give the primary weapon as the active weapon", [this]()
+		{
+			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			const ULoadoutComponent *Loadout =
+				TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData(), Weapon);
+			if (!TestNotNull(TEXT("loadout"), Loadout))
+			{
+				return;
+			}
+			TestEqual(TEXT("active weapon"), Loadout->GetActiveWeapon(), Weapon);
 		});
 	});
 
