@@ -18,9 +18,11 @@
 
 **Also written, reviewed and fixed (rows 96–100, all on trial 09c):** B-400 (target cut, on B-399; new row B-400b wires B-391's HUD), B-406 (per-boss cinematics on trial; B-406b holds the skip key and the rest), B-404 (wide beats and `OnTurnHandover`, on B-398), B-170d (action effects and break rows, from dev; its review BLOCK is fixed), B-401 (no reset between actions, on B-404).
 
-**Being written / reviewed now:** B-170e (action-pips placeholder UI, on B-391 with dev merged in; in review) and B-170f (AI spend or bank, on B-170d).
+**Also done (rows 101–104, all on trial 09c):** B-170e (action-pips placeholder UI on B-391; **changes built B-170c: End Turn is refused outside an action-pips fight**), B-400b (new HUD's target rows highlight on hover), B-170f (AI spends or banks; **the Emerald look-ahead is dropped in action-pips fights, for Crown to confirm**, Q-170f2), B-391b (damage numbers from a replicated `FCombatHitShown`, Broken Darkness card; new row B-391c).
 
-**Still writable after those:** B-391b (on B-391), B-400b (on B-400 + B-391), B-406b. B-170g follows B-170f. B-170h waits for Crown's PIE; B-043h waits for PIE.
+**In review / being written now (2026-11-09 evening):** B-170g (Turn Speed retired for authoring: warnings, labels, OBSOLETE flags, rules pages; on B-170f), B-406b (boss-cinematic skip key Space / Menu, ritual fire held; on B-406), B-391c (status buildup bar, weapon name, durability header, absorb cue, summon numbers; on B-391b).
+
+**After those:** nothing else in the camera / HUD / action-pips run is writable in the cloud. B-170h waits for Crown's PIE of B-170a–g (D-067); B-043h waits for PIE; B-395 is Crown's loop; B-214 is held by Crown. Check the Backlog for new rows before stopping.
 
 **Trial-merge lesson:** after a keep-both resolution, count braces per file; two slips were found and fixed that way. Every camera row's turn-view move goes through `GetTurnViewWithHeight` on the trial branch; the merge plan lists each place.
 
