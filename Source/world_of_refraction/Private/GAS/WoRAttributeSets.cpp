@@ -52,7 +52,7 @@ void UWoRAttributeSet_Vitals::PostGameplayEffectExecute(const FGameplayEffectMod
 	UCharacterDataComponent *Char = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const bool bHealth = Data.EvaluatedData.Attribute == GetHealthAttribute();
 	const bool bEnergy = Data.EvaluatedData.Attribute == GetEnergyAttribute();
-	if ((!bHealth && !bEnergy) || !UWoREffectMirrorComponent::ReadsFromGAS() || !Char || !Char->CharacterData)
+	if ((!bHealth && !bEnergy) || !Char || !Char->CharacterData)
 	{
 		return;
 	}
