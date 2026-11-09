@@ -233,7 +233,7 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::CleanseAllies:
         return LOCTEXT("ESkillEffectType_CleanseAllies", "Cleanse Allies");
     case ESkillEffectType::ExtraAction:
-        return LOCTEXT("ESkillEffectType_ExtraAction", "Extra Action");
+        return LOCTEXT("ESkillEffectType_ExtraAction", "Extra Turn"); // B-170d (Q-170f): a whole bonus turn
     case ESkillEffectType::GuaranteedCrit:
         return LOCTEXT("ESkillEffectType_GuaranteedCrit", "Guaranteed Crit");
     case ESkillEffectType::IgnoreDefense:
@@ -288,6 +288,15 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     // B-064a: Ice's status break. TODO: Crown — the name is lore (Q-064a2); a placeholder until then.
     case ESkillEffectType::IceBreak:
         return LOCTEXT("ESkillEffectType_IceBreak", "Ice break");
+    // B-170d (Q-170g): banked actions
+    case ESkillEffectType::GainActions:
+        return LOCTEXT("ESkillEffectType_GainActions", "Gain Action");
+    case ESkillEffectType::LoseActions:
+        return LOCTEXT("ESkillEffectType_LoseActions", "Lose Action");
+    case ESkillEffectType::MaxActionsBuff:
+        return LOCTEXT("ESkillEffectType_MaxActionsBuff", "Max Actions Up");
+    case ESkillEffectType::MaxActionsDebuff:
+        return LOCTEXT("ESkillEffectType_MaxActionsDebuff", "Max Actions Down");
     }
     return FText::GetEmpty();
 }

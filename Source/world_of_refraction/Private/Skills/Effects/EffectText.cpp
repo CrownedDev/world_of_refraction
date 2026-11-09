@@ -6,6 +6,7 @@
 #include "Skills/Effects/EffectText.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Elements/ElementTable.h"
+#include "Combat/TurnRotation.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "WoRGameNames.h"
 
@@ -119,6 +120,26 @@ namespace
             return FText::GetEmpty();
         }
         return FText::Format(LOCTEXT("Span", " for {0} {0}|plural(one=turn,other=turns)"), P.Duration);
+    }
+
+    /** B-170d: how many actions a Gain / Lose Action or Max Actions payload moves (the runtime's Value-else-Magnitude rule). */
+    int32 ActionCount(const FSkillEffectPayload &P)
+    {
+        return P.Value != 0 ? FMath::Abs(P.Value) : FMath::RoundToInt(FMath::Abs(P.Magnitude) * PERCENT_SCALE);
+    }
+
+    /** B-170d: when a Gain / Lose Action lands: now (nothing), at the holder's next turn start, or in N turns. */
+    FText ActionChangeWhen(const FSkillEffectPayload &P, const FText &Whose)
+    {
+        if (P.ProcessTiming != ESkillEffectTiming::StartOfOwnTurn)
+        {
+            return FText::GetEmpty();
+        }
+        if (P.Duration <= 1)
+        {
+            return FText::Format(LOCTEXT("ActionsWhen_Next", " at the start of {0} next turn"), Whose);
+        }
+        return FText::Format(LOCTEXT("ActionsWhen_InTurns", " in {0} turns"), P.Duration);
     }
 
     /** " each turn for 3 turns" on a payout repeated every turn. */
@@ -857,9 +878,44 @@ namespace EffectText
                               : FText::Format(LOCTEXT("Pull_Other", "pull {0} forward one row"), Side.Noun);
         // B-064a (D-090): Ice's break, a heavier Water break.
         case ESkillEffectType::IceBreak:
-            return Side.bSelf ? FText::Format(LOCTEXT("IceBreak_Self", "act and cast slower and take Ice damage{0}"), Span(P))
-                              : FText::Format(LOCTEXT("IceBreak_Other", "slow {0} actions and spells and deal Ice damage{1}"),
-                                              Side.Possessive, Span(P));
+        {
+            // B-170d (Q-170e): with action pips Ice also takes actions at once.
+            const FText ActionsLost = TurnRotation::IsActionPipsOn()
+                                          ? FText::Format(LOCTEXT("IceBreak_Actions", " and lose {0} {0}|plural(one=action,other=actions)"),
+                                                          CombatConstants::ICE_BREAK_ACTIONS_LOST)
+                                          : FText::GetEmpty();
+            return Side.bSelf ? FText::Format(LOCTEXT("IceBreak_Self2", "act and cast slower and take Ice damage{1}{0}"), Span(P), ActionsLost)
+                              : FText::Format(LOCTEXT("IceBreak_Other2", "slow {0} actions and spells and deal Ice damage{2}{1}"),
+                                              Side.Possessive, Span(P), ActionsLost);
+        }
+
+        // ---- banked actions (B-170d, Q-170g) ----
+        case ESkillEffectType::GainActions:
+        {
+            const int32 N = ActionCount(P);
+            return Side.bSelf
+                       ? FText::Format(LOCTEXT("GainActions_Self", "gain {0} {0}|plural(one=action,other=actions){1}"), N,
+                                       ActionChangeWhen(P, LOCTEXT("Whose_Self", "your")))
+                       : FText::Format(LOCTEXT("GainActions_Other", "give {0} {1} {1}|plural(one=action,other=actions){2}"), Side.Noun, N,
+                                       ActionChangeWhen(P, Side.Possessive));
+        }
+        case ESkillEffectType::LoseActions:
+        {
+            const int32 N = ActionCount(P);
+            return Side.bSelf
+                       ? FText::Format(LOCTEXT("LoseActions_Self", "lose {0} {0}|plural(one=action,other=actions){1}"), N,
+                                       ActionChangeWhen(P, LOCTEXT("Whose_Self", "your")))
+                       : Fronted(Side, LOCTEXT("Loses_Sg", "loses"), LOCTEXT("Loses_Pl", "lose"),
+                                 FText::Format(LOCTEXT("LoseActions_Rest", " {0} {0}|plural(one=action,other=actions){1}"), N,
+                                               ActionChangeWhen(P, Side.Possessive)));
+        }
+        case ESkillEffectType::MaxActionsBuff:
+            return Side.bSelf ? FText::Format(LOCTEXT("MaxActionsUp_Self", "gain +{0} Max Actions{1}"), ActionCount(P), Span(P))
+                              : FText::Format(LOCTEXT("MaxActionsUp_Other", "give {0} +{1} Max Actions{2}"), Side.Noun, ActionCount(P), Span(P));
+        case ESkillEffectType::MaxActionsDebuff:
+            return Side.bSelf ? FText::Format(LOCTEXT("MaxActionsDown_Self", "lose {0} Max Actions{1}"), ActionCount(P), Span(P))
+                              : Fronted(Side, LOCTEXT("Loses_Sg", "loses"), LOCTEXT("Loses_Pl", "lose"),
+                                        FText::Format(LOCTEXT("MaxActionsDown_Rest", " {0} Max Actions{1}"), ActionCount(P), Span(P)));
 
         default:
             // A kind with no sentence yet prints its name, the loud failure (07: "a gap to close").
