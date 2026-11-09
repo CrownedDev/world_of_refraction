@@ -99,13 +99,14 @@ The queue of questions only Crown can answer.
 - Effect durations already count the holder's own turns (D-051), unchanged.
 
 ### D-089 — Should Energy refill each turn?
-**Status:** DISCUSSED, NOT TO BUILD YET (Crown, 2026-10-26: a discussion for now; don't implement until Crown says) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
+**Status:** DECIDED, BUILD (Crown, 2026-11-09: changed from C, see the change below) · **Raised:** 2026-10-26 (rules review) · **Blocks:** —
 **Question:** EP never refills on its own today (ET-29: only effects, items, drains and Broken Darkness absorption). Should it?
 **Context:** Max Energy (Spirit) is the pool size; Efficiency (Mind) lowers costs. Deckbuilder: +1 Energy per turn, banked, no cap. Expedition 33: AP +1 per turn plus more from basic attacks and parries. With action pips (D-088), a basic attack that returns Energy becomes a use for spare pips.
 **Options:** A no refill (current) / B a share of Max Energy each turn (e.g. 10%; Max Energy then also sets refill) / C Expedition 33 style: a small refill each turn **plus** Energy from basic attacks and Perfect Guards.
 **Recommendation:** C, because it rewards good play (timing gives Energy back), gives basic attacks a purpose, keeps casters from running dry, and needs no new stat. Broken Darkness keeps its own absorption system.
 **Answer (Crown):** **C** (2026-10-26): Energy **refills a little at the start of each of your turns**, plus extra from **basic attacks** and **Perfect Guards** (Expedition 33 style). Amounts are named constants (`// TODO: tune`); the per-turn share can scale with Max Energy. Broken Darkness keeps its own absorption system (no passive refill, ET-29 for BD).
 
+**Changed by Crown (2026-11-09):** Energy refills **only at the start of each of your turns** (a share of Max Energy, a named constant, `// TODO: tune`). Energy from basic attacks and Perfect Guards is **not** a base rule: it comes from **gear effects** (passives) where an item grants it. Broken Darkness keeps its own absorption (no passive refill). Job: B-173.
 ### D-099 — Field commands: the battle menu outside battle
 **Status:** ANSWERED in part (2026-10-27; details being asked one at a time) · **Raised:** 2026-10-27 (Crown, from Q-185 first strike) · **Blocks:** — (builds on GASMigration decision 2, real-time field abilities)
 **Answer (Crown):** (2026-10-27; Metaphor: ReFantazio, Kingdom Hearts)
