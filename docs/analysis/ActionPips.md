@@ -48,7 +48,7 @@ Crown, 2026-11-09 (Q-170, Q-170h):
 
 ### 3.1 Actions on the character (new state)
 - `UCharacterDataComponent` gets `CurrentActions` (replicated, beside `CurrentEP`), `GetMaxActions()`, `GetActionPoints()` (the composed total; the progress line reads its remainder), `GetActionRegain()` (from Reflex), `GainActions(N, bMayPassMax)`, `SpendActions(N)`, `OnActionsChanged`. Per-fight state on the battle actor (D-064); co-op clients see it through the same replication as EP.
-- **Action points** are a new stat in the stat composition (one new stat entry, summed from gear, evolutions, stones and buffs like any other composed stat). No asset authors any yet.
+- **Action points** are a new stat in the stat composition (one new stat entry, summed from gear, evolutions, stones and buffs like any other composed stat). No asset authors any yet. *(As built in B-170a: an additive layer set instead of a stat entry; stones fold into gear. See Q-170a; Crown may veto.)*
 - Set to the regain amount (capped at Max) when a fight starts; meaningless outside a fight.
 - **Action cost on the assets (Q-170b):** `USkillDataBase::ActionCost` (skills and spells; weapon attacks are abilities) and the item asset's `ActionCost`, `int32`, default 1, `ClampMin=1`. Default `ACTION_COST_DEFAULT` (1, `// TODO: tune`). Data validation warns when a cost is above `MAX_ACTIONS_CAP`. A `MaxActionsBuff` / `MaxActionsDebuff` row's size and turns are authored per effect (data, like every buff's), not constants.
 - Later, with Energy's GAS move (B-043 line), actions can become a GAS attribute. Not part of this plan.
