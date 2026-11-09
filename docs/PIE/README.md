@@ -403,6 +403,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
 | [B-380c](B-380c.md) | `feature/B-380c-apparel-slots-saved-cloud` (UNBUILT, on B-380b, save v29) | Worn apparel saved; a crystal set in play | Pending |
+| [B-357d](B-357d.md) | `feature/B-357d-gear-evolution-l2-passives` (in dev) | A gear evolution's passives act on an L2 action from its item (apparel: any L2 action), for that action only | Pending |
 
 Move rows to **Done** when every check passes.
 

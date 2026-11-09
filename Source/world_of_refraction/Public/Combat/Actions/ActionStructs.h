@@ -16,6 +16,7 @@
 #include "Combat/Defense/DefenseDifficulty.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -471,6 +472,11 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  (Reality innate, Reality slotted, Reality infused, Evolution slotted,
 	 *  Evolution infused). Read by damage/status/animation/movement consumers. */
 	FActionStatModifiers ActionMods;
+
+	/** B-357d (D-147): the gear evolutions' lasting passives this action put on its executor (an L2 action from the
+	 *  item holding them, ULoadoutComponent::GetGearEvolutionPassivesForAction); taken off at FinalizeAsyncAction. */
+	UPROPERTY()
+	TArray<FGatheredEffect> GearEvolutionPassives;
 
 	/** Infusion HP cost computed at COMMIT (commit-time CurrentHP, unclamped) and
 	 *  deducted at FinalizeAsyncAction — after the infused effect, damage and

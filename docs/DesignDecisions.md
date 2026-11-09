@@ -1986,6 +1986,14 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A / A**, by the reference-backed default (2026-11-08). Crown may change either; the level is a named constant (`WoREvolutionPlacement::GEAR_PASSIVES_CHARGE_LEVEL`).
 **Notes for Claude:** B-357b part 1 built the resolve path; new row B-357c.
 
+### Q-357d — An evolution in an apparel socket: which action does it power?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-357d) · **Blocks:** —
+**Question:** Q-357b A gives a gear evolution's passive skills to an action **that item powers** at charge level 2. A weapon powers its own abilities and anything infused from its socket; an adapter, anything infused from its socket. Apparel (D-164) has a socket that can hold an evolution, but no action comes from it and it is no infusion source. When does an apparel evolution's passive act?
+**Options:** **A** on every action its wearer charges to L2 (apparel is worn, so it is in on every action). **B** never (no action comes from apparel; the socket only gives its element). **C** at fight start, like the character's own slot.
+**Recommendation:** A. Worn gear that adds effects to charged actions is a liked, familiar pattern (Elden Ring's talismans that boost charge attacks, e.g. the Axe Talisman; Monster Hunter's armour skills such as Focus that act on charged attacks). B makes the apparel evolution socket do nothing, against D-164 ("its passives"); C breaks D-147 (gear gives its passives only at L2).
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change it: `WoREvolutionPlacement::PowersAction` (Apparel case).
+**Notes for Claude:** B-357d. Only lasting passives (every payload permanent) come on for the action, as on a mid-fight gear swap (Q-081); a gear evolution's trigger-gated rows stay off on gear, as the deckbuilder keeps a vessel's other triggered rows off (`02-enums.md:447`).
+
 ### D-148 — One Physical resistance column (audit round 3 §33)
 **Status:** DECIDED (Crown, 2026-11-04) · **Raised:** 2026-11-04 (`docs/analysis/SimplicityAudit.md` §33) · **Blocks:** —
 **Answer (Crown):** one Physical resistance column. Slash, Pierce and Impact stay as subtypes (D-037); each subtype only picks its break (SB-19 to SB-21). Saves stay append-only.
