@@ -34,13 +34,13 @@ Crown, 2026-11-09 (Q-170, Q-170h):
 | What | Value | Constant (all `// TODO: tune`) |
 |---|---|---|
 | Actions at fight start | your regain amount (capped at Max) | — (reads the regain) |
-| Regain per turn | 1; 2 at the first Reflex threshold; 3 at the second | `ACTIONS_REGAIN_BASE` (1), `ACTIONS_REGAIN_REFLEX_THRESHOLD_2` (0.5), `ACTIONS_REGAIN_REFLEX_THRESHOLD_3` (1.0) |
+| Regain per turn | 1; 2 at the first Reflex threshold; 3 at the second | `ACTIONS_REGAIN_BASE` (1), `ACTIONS_REGAIN_REFLEX_THRESHOLD_2` (0.5), `ACTIONS_REGAIN_REFLEX_THRESHOLD_3` (0.8) |
 | Regain never fills past | Max Actions | — |
 | Base Max Actions | 2 | `MAX_ACTIONS_BASE` |
 | Action points per Max Action | 100 (+25, +50 … add up; only whole actions count) | `ACTION_POINTS_PER_ACTION` |
 | Safety ceiling on Max | 5 | `MAX_ACTIONS_CAP` (not a design limit; raise it if gear needs more) |
 
-- **Reflex sets the regain, not the Max.** Reflex's share is read the way the defense window already reads it (`UCharacterData::CalculateReflexWindowBonus` ÷ `WINDOW_CAP_SECONDS`, 0..1); at or above threshold 2 the regain is 2, at or above threshold 3 it is 3 (threshold 3 at the window cap leaves room for it without making it common). Reflex keeps its defense-window job too (Q-170h).
+- **Reflex sets the regain, not the Max.** Reflex's share is read the way the defense window already reads it (`UCharacterData::CalculateReflexWindowBonus` ÷ `WINDOW_CAP_SECONDS`, 0..1); at or above threshold 2 the regain is 2, at or above threshold 3 it is 3. Reading to confirm with Crown: "room for 3 at a second threshold" is read as a real second step at 0.8 of the range (reachable with heavy Reflex investment, not only at the cap). Reflex keeps its defense-window job too (Q-170h).
 - **Max Actions = `MAX_ACTIONS_BASE` + ⌊action points ÷ 100⌋.** Action points are a new composed stat: gear, evolutions, stones and buffs add to it through the stat composition (`docs/Architecture/StatComposition.md`), so +25 and +50 from two items make +75. The leftover shows as progress: **"Max 3 (+75/100)"**. No asset has action points yet: authoring them is content work (until then everyone has Max 2).
 - Example: Max 3 (175 points), regain 2: start the fight with 2; bank 3 at most from regains.
 
@@ -50,7 +50,7 @@ Crown, 2026-11-09 (Q-170, Q-170h):
 - `UCharacterDataComponent` gets `CurrentActions` (replicated, beside `CurrentEP`), `GetMaxActions()`, `GetActionPoints()` (the composed total; the progress line reads its remainder), `GetActionRegain()` (from Reflex), `GainActions(N, bMayPassMax)`, `SpendActions(N)`, `OnActionsChanged`. Per-fight state on the battle actor (D-064); co-op clients see it through the same replication as EP.
 - **Action points** are a new stat in the stat composition (one new stat entry, summed from gear, evolutions, stones and buffs like any other composed stat). No asset authors any yet.
 - Set to the regain amount (capped at Max) when a fight starts; meaningless outside a fight.
-- **Action cost on the assets (Q-170b):** `USkillDataBase::ActionCost` (skills and spells; weapon attacks are abilities) and the item asset's `ActionCost`, `int32`, default 1, `ClampMin=1`. Data validation warns when a cost is above `MAX_ACTIONS_CAP`.
+- **Action cost on the assets (Q-170b):** `USkillDataBase::ActionCost` (skills and spells; weapon attacks are abilities) and the item asset's `ActionCost`, `int32`, default 1, `ClampMin=1`. Default `ACTION_COST_DEFAULT` (1, `// TODO: tune`). Data validation warns when a cost is above `MAX_ACTIONS_CAP`. A `MaxActionsBuff` / `MaxActionsDebuff` row's size and turns are authored per effect (data, like every buff's), not constants.
 - Later, with Energy's GAS move (B-043 line), actions can become a GAS attribute. Not part of this plan.
 
 ### 3.2 `UTurnManager` — fixed rotation
@@ -73,7 +73,7 @@ Crown, 2026-11-09 (Q-170, Q-170h):
 - Built **behind one switch, `wor.Turns.ActionPips`** (default 0 = today's speed timeline), so the old path keeps working until Crown's PIE; then the default flips and a later job deletes the old path.
 
 ### 3.3 `ACombatOrchestrator` — several actions per turn
-- `ProceedWithTurnStart`, fixed order (§1, Crown): (1) gain the turn's actions; (2) apply every start-of-turn action change (waiting gains and losses, Wind, a delayed Emerald gain, any turn-start effect that removes actions); (3) only then check. **At 0 actions the turn is skipped:** go straight to `OnActionCompleted`'s turn-end path, as a stunned-out or dead actor's turn does today; log it and show "No actions" on the HUD. Otherwise ask for an action. Steps (1) to (3) are one function, so no path can check before the changes or prompt before the check.
+- `ProceedWithTurnStart`, fixed order (§1, Crown): (1) gain the turn's actions; (2) apply every start-of-turn action change (waiting gains and losses, Wind, a delayed Emerald gain, any turn-start effect that removes actions); (3) only then check. **At 0 actions the turn is skipped:** go straight to `OnActionCompleted`'s turn-end path, as a stunned-out or dead actor's turn does today; log it and show "No actions" on the HUD (an `FText` in the shared turn words, D-062). Otherwise ask for an action. Steps (1) to (3) are one function, so no path can check before the changes or prompt before the check.
 - **One gate before every prompt:** a single check (`CanStillAct`: alive, not stunned, `CurrentActions` > 0) runs before the orchestrator opens the menu or asks the AI, at turn start and after each action. An effect that lands mid-turn and drops the unit to 0 (a counter, a reflect) ends the turn once the current action has resolved; if a prompt is open when the count reaches 0 (a co-op client's menu), it closes and the turn ends.
 - `ValidateAction`: refuse an action whose `ActionCost` is above `CurrentActions` ("Needs 2 actions."), or above Max Actions ("Costs more actions than you can hold."). The menu greys it with that reason. The check and the spend run on the server (co-op), like every action; clients only read the replicated count.
 - `OnActionCompleted`: spend the action's `ActionCost`, check the win condition, then either **ask again** (actions left and the action doesn't end the turn) or run the turn-end step and `AdvanceToNextTurn`. The turn-start step never re-runs inside a turn. Only reaching 0, End Turn and Defend end the turn (Q-170c); **arming a ritual no longer ends it** (ET-16 changes): the ritual's `ActionCost` is spent at arming, with its EP, HP and wear as today.
@@ -102,7 +102,7 @@ Crown, 2026-11-09 (Q-170, Q-170h):
   | Enemy | loses next turn | same | same | same | same | same | loses next 2 turns (Q-341b) |
 
   Constants: `EMERALD_ALLY_ACTIONS_GAINED[7] = {1, 1, 1, 2, 2, 2, 3}` and `EMERALD_ALLY_GAIN_DELAY_TURNS[7] = {2, 1, 0, 2, 1, 0, 0}` (F..S; 0 = now, 1 = the holder's next turn start, 2 = the one after). No per-instance roll (S is a fixed +3). Code: `UItemExecutor::ExecuteBonusTurnEffect` branches on the target's side (enemy: skip; ally: `GainActions`, may pass Max); the AI's Emerald scoring (`AIFreeActionFactor`, the exposure look-ahead) flips to "the foe loses a turn" on enemies and values the ally gain as actions.
-- **Over Max:** a gain "now" (an effect or Emerald) may pass Max for the turn; the bank is trimmed to Max when the turn ends (Q-170g). The per-turn regain never fills past Max.
+- **Over Max:** a gain (an effect or Emerald) may pass Max, and the extra actions **stay banked until spent** (Crown: Emerald's actions "may go over max"; trimming them at turn end would undo that). The per-turn regain adds nothing while the bank is at or above Max. Reading to confirm with Crown: the Q-170g default trimmed the bank at turn end; this keeps the extra instead.
 - **Retired** (enum entries kept, append-only; data validation refuses them, the D-056 pattern): `ModifyTurnSpeed`, `TurnSpeedBuff`, `TurnSpeedDebuff`; `EItemEffectType::BuffTurnSpeed`; the Turn Speed sub-stat (`ESubStat::TurnSpeed`, `UCharacterData::TurnSpeed`, Q-170h); the GAS `TurnSpeed` attribute, its sync, GEs and debug lines (§3.2 callers). `TurnSpeedStone` is already retired (B-353).
 - Effect text (`EffectText.cpp`) gets lines for the four new types: "Gain 1 action.", "Lose 1 action at the start of their next turn.", "+1 Max Actions for 2 turns."; Extra Action's line reads "Take an extra turn." under the name Extra Turn; the Ice, Water and Wind break lines follow their new rows.
 
@@ -141,7 +141,7 @@ Crown, 2026-11-09 (Q-170, Q-170h):
 | `EffectTextSpec` | Extra Action shown as Extra Turn (its line unchanged); the four new types' lines; the new break lines |
 | `StoneRowSpec`, `SignAwareModifierSpec`, `GASStatGettersSpec`, `StatModifierSpec` | Their Turn Speed cases retire with the family (B-170g / B-170h) |
 | **New** `ActionPipsSpec` | Fight start = regain; regain 1 / 2 / 3 at the Reflex thresholds; regain never fills past Max; Max 2 + ⌊action points ÷ 100⌋ (+25 +50 → 75 → Max 2, "+75/100"; 175 → Max 3); spend by cost; End Turn banks; 0 actions ends the turn |
-| **New** `ActionEffectsSpec` | `GainActions` / `LoseActions` now and next turn; Max Actions buff and debuff; the "+1 now, −1 next" pair; never below 0; a gain now passes Max, trimmed at turn end |
+| **New** `ActionEffectsSpec` | `GainActions` / `LoseActions` now and next turn; Max Actions buff and debuff; the "+1 now, −1 next" pair; never below 0; a gain passes Max and stays banked; the regain adds nothing at or above Max |
 | **New** `MultiActionTurnSpec` | Turn-start and turn-end steps run once per turn; durations tick once; win check after each action; Defend and End Turn end the turn, arming a ritual does not; a switch is free; a cost-2 skill needs 2 actions and is refused above Max. **Turn-start order (Crown):** (a) the turn's gain, then a waiting loss to 0: the turn is skipped, turn-end still runs, no prompt opens; (b) a waiting loss that leaves 1: the turn plays with 1 action; (c) an effect landing mid-turn that drops the unit to 0: the turn ends after that action, no further prompt; (d) a delayed gain landing the same turn as a loss counts before the check (gain, changes, then check) |
 | `AIOneSkillPathSpec` + new AI case | AI acts until its best pick is under the floor, then banks |
 

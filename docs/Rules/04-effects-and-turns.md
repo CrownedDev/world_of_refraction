@@ -105,7 +105,7 @@ Decided, not built yet. Each part lands behind `wor.Turns.ActionPips` (default 0
 | ET-18 | Actions are **banked**. Each turn you regain 1 (2 or 3 at Reflex thresholds), never past your Max Actions; a fight starts with your regain. **Max Actions** = 2 + 1 per 100 **action points** from gear, evolutions and the like (they add up; leftover shown as progress). Every skill, spell and item has its own **action cost** (default 1); Energy is paid too; a cost above your Max can't be used. The turn ends at 0 actions, on **End Turn** or on **Defend**; the rest stays banked. A turn that starts at 0 (after the regain and turn-start changes) is skipped. | Q-170, Q-170b, Q-170c |
 | ET-16 | Arming a ritual costs its actions and **does not end the turn**. | Q-170c |
 | ET-19 | Switching weapon (or adapter) is **always free**, any number of times. | Q-170c |
-| ET-15 | The Extra Action effect **keeps its bonus turn** and is shown as **Extra Turn**. New effects: **Gain Action** (+N actions now or at the next turn start), **Lose Action** (−N, now or next turn, never below 0), **Max Actions ±N for N turns**. A gain now may pass Max for the turn. | Q-170f, Q-170g |
+| ET-15 | The Extra Action effect **keeps its bonus turn** and is shown as **Extra Turn**. New effects: **Gain Action** (+N actions now or at the next turn start), **Lose Action** (−N, now or next turn, never below 0), **Max Actions ±N for N turns**. A gain may pass Max; the extra stays banked until spent. | Q-170f, Q-170g |
 | Emerald (ET-12, ET-13) | On an enemy: they lose their next turn (S: two). On yourself or an ally: F +1 action in 2 turns, E +1 next turn, D +1 now, C +2 in 2 turns, B +2 next turn, A +2 now, S +3 now; may pass Max. | Q-170f |
 
 ## Open questions
