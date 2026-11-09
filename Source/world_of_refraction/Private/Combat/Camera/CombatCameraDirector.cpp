@@ -580,7 +580,7 @@ bool UCombatCameraDirector::IsViewerDefending() const
 FString UCombatCameraDirector::GetCinematicWindowString() const
 {
 	// B-402: whether shots are held still, and how many punches that has held back this fight.
-	const FString Steady = FString::Printf(TEXT(" | defending %s, %d punch(es) held"), IsViewerDefending() ? TEXT("yes (steady)") : TEXT("no"),
+	const FString Steady = FString::Printf(TEXT(" | defending %s, %d punch(es) dropped"), IsViewerDefending() ? TEXT("yes (steady)") : TEXT("no"),
 										   DefencePunchesDropped);
 	if (!bHasLastWindow)
 	{
