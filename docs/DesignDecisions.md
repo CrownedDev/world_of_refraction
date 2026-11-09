@@ -4429,3 +4429,11 @@ Moved here once applied. Newest first.
 **Notes for Claude (as built, part 1):**
 - UseGAS stays 0 by default in part 1. Flipping it would leave 20 spec AfterEach resets out of step with the default, and part 2 deletes the switch anyway.
 - `ESkillEffectTiming` is authored data (`FSkillEffectPayload`, `BreakTable`), so part 6 keeps the enum and removes only its runtime uses.
+
+### Q-043a — GAS stage 4 part 1: how big is the cost GE, and where does its number come from?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-043a, cloud) · **Blocks:** —
+**Question:** B-043 asks for "cost GEs with MMC magnitudes". Part 1 has no `UGameplayAbility` yet (that is B-043b), so an MMC would have no ability to read the skill from. Should the cost GE compute the cost itself now (a second copy of `CalculateActionEnergyCost` inside an MMC), or carry the number the one cost function already gives?
+**Options / as built:** **A** the GEs are sized by SetByCaller (`SetByCaller.Cost.Energy` / `.Health`, minus the cost) from `CalculateActionEnergyCost` and the backlash stored at commit; the MMC arrives with B-043b, when the ability is the source object / **B** an MMC now that rebuilds the cost from the action (a second formula that must match the first everywhere: preview, AI estimate, spend).
+**Recommendation:** A. tranek's GASDocumentation (the community's standard GAS reference) lists SetByCaller as the way to size a GE from a value computed outside GAS, and Epic's Lyra doesn't put costs in an MMC at all (its `ULyraAbilityCost` objects compute in C++). One formula keeps preview, AI estimate and spend equal, which today's code guarantees (`ActionExecutorCosts.cpp:74`).
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change it.
+**Notes for Claude (as built):** B-043a. Behind `wor.Costs.UseGAS` (default 0), live only with `wor.Effects.UseGAS` 1 (the Vitals set hands a GAS Health / Energy change to the game's path only then). The Silence seal check stays before the spend. Crystal wear stays custom. B-043h deletes the switch after Crown's PIE.
