@@ -372,8 +372,9 @@ bool WoRSkillAbilities::SendProjectileEvent(AActor *Actor, const FWoRProjectileA
 	{
 		return true;
 	}
-	// Never drop an arrival: the executor resolves it (RouteProjectileArrival).
-	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: %s on %s did not reach %s's projectile task; resolving it directly"),
+	// Never drop an arrival: the executor resolves it (RouteProjectileArrival). Verbose: a projectile from an earlier
+	// action landing during this one is a normal case, not a fault.
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s on %s did not reach %s's projectile task; resolving it directly"),
 		   *Actor->GetName(), *Payload.EventTag.ToString(), *GetNameSafe(Arrival.Target.Get()), *GetNameSafe(Listener));
 	return false;
 }

@@ -4154,7 +4154,10 @@ void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 void UActionExecutor::RouteProjectileArrival(const FWoRProjectileArrival &Arrival)
 {
 	// The action's actor: its running skill ability (if any) is the one listening. A projectile that lands after its
-	// action ended has no listener and resolves here, as before.
+	// action ended has no listener and resolves here, as before. Known (review): a stray projectile from an earlier
+	// action landing during a new action of the same actor and shape is taken by the new action's ability; it resolves
+	// exactly as here, only wor.Abilities.Print's arrived count includes it (the projectile's delegate carries no
+	// caster to tell them apart; TODO: B-043f, when the ability spawns its own projectiles).
 	AActor *Actor = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->Executor.Get() : nullptr;
 	// Held while the event is out; a nested arrival (none today) holds and restores its own.
 	const TOptional<FWoRProjectileArrival> Outer = RoutingProjectile;
