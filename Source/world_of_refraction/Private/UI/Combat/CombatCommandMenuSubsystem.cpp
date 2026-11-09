@@ -237,7 +237,7 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 
 void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &ButtonData)
 {
-    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399: a sub-menu or a picker opened, or the action closed it
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399: a sub-menu or a picker opened
     // A greyed button (D-083 broken source, empty pool) does nothing, whichever widget sent it.
     if (!bIsOpen || !ButtonData.bEnabled)
     {
@@ -511,21 +511,24 @@ void UCombatCommandMenuSubsystem::Close()
     UnbindBDAbsorptionDelegate();
     CurrentActor.Reset();
     OnCommandMenuClosed.Broadcast();
-    BroadcastMenuDepthIfChanged(); // B-399
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Closed"));
 }
 
 void UCombatCommandMenuSubsystem::BroadcastMenuDepthIfChanged()
 {
+    if (!bIsOpen)
+    {
+        return; // closed for the action: the camera holds until the next open says where it is
+    }
     const int32 Depth = CommandMenuRules::CameraDepthFor(CurrentDepth, DepthBeforeTargetSelection);
     if (Depth == BroadcastMenuDepth)
     {
         return; // a redraw, an infusion step or a target cycle: the camera holds (study R3)
     }
     BroadcastMenuDepth = Depth;
-    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Menu depth %d (%s)"), Depth, bIsOpen ? TEXT("open") : TEXT("closed"));
-    OnMenuDepthChanged.Broadcast(CurrentActor.Get(), Depth, bIsOpen);
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Menu depth %d for %s"), Depth, *GetNameSafe(CurrentActor.Get()));
+    OnMenuDepthChanged.Broadcast(CurrentActor.Get(), Depth);
 }
 
 // ==================== CAPABILITIES / BD LIVE REFRESH ====================

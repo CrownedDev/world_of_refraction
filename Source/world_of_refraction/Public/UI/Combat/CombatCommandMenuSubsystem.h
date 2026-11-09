@@ -31,10 +31,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCommandMenuReady,
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCommandMenuClosed);
 
-/** B-399 (study R2): the menu's depth changed (CommandMenuRules::CameraDepthFor). Actor: whose menu it is, null once
- *  closed. bMenuOpen false: the menu closed (the camera holds; the action's shots take over). */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCommandMenuDepthChanged,
-                                               AActor *, Actor, int32, MenuDepth, bool, bMenuOpen);
+/** B-399 (study R2): the open menu's depth changed (CommandMenuRules::CameraDepthFor); Actor is whose menu it is.
+ *  Closing the menu sends nothing (the camera holds for the action); the next open sends its depth if it differs. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCommandMenuDepthChanged, AActor *, Actor, int32, MenuDepth);
 
 // ==================== MENU DEPTH ====================
 
@@ -229,8 +228,8 @@ private:
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 
-    /** B-399: broadcasts OnMenuDepthChanged when the camera depth differs from the last one sent. Runs at the end of
-     *  every call that can change the depth (OpenForActor, HandleSelection, HandleBack, Close). */
+    /** B-399: while the menu is open, broadcasts OnMenuDepthChanged when the camera depth differs from the last one
+     *  sent. Runs at the end of every call that can change the depth (OpenForActor, HandleSelection, HandleBack). */
     void BroadcastMenuDepthIfChanged();
     int32 BroadcastMenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
 
