@@ -111,8 +111,14 @@ struct WORLD_OF_REFRACTION_API FAction
 	{
 		return ActionType != EActionType::Defend &&
 			   ActionType != EActionType::Flee &&
-			   ActionType != EActionType::SwitchWeapon;
+			   ActionType != EActionType::SwitchWeapon &&
+			   ActionType != EActionType::EndTurn;
 	}
+
+	/** B-170c (Q-170b, Q-170c): the banked actions this costs. A skill or spell its asset's ActionCost, an item
+	 *  its table cost; Defend, End Turn, a switch and Flee are free, and so is a ritual's fire (paid at arming).
+	 *  Body in ActionStructs.cpp (needs the skill and item types). */
+	int32 GetActionCost() const;
 
 	// Body in ActionStructs.cpp — needs USkillDataBase's full type to call SkillData->IsAttack() for the
 	// "Basic Attack" vs "Ability" label (the forward declaration here can't reach the virtual).
