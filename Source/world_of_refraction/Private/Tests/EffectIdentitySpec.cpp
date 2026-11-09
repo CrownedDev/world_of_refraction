@@ -9,6 +9,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "GAS/WoRTurnEffectTracker.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/EffectIdentity.h"
@@ -38,7 +39,13 @@ BEGIN_DEFINE_SPEC(FEffectIdentitySpec, "WoR.Effects.Identity",
 
 	AActor *Spawn()
 	{
-		return TestWorld->SpawnCombatant(Data);
+		AActor *Actor = TestWorld->SpawnCombatant(Data);
+		// B-042g2: fires-once records and armed gear live on the holder's turn tracker, as on ACombatCharacter.
+		if (Actor)
+		{
+			FWoRTestWorld::AddComponent<UWoRTurnEffectTracker>(Actor);
+		}
+		return Actor;
 	}
 
 	TArray<FActiveSkillEffect> EffectsOfType(AActor *Actor, ESkillEffectType Type) const
