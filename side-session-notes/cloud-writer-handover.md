@@ -1,4 +1,4 @@
-# Cloud writer handover (2026-11-09, eleventh part: the brain's GAS / Ice / cleanup plan) — IN PROGRESS
+# Cloud writer handover (2026-11-09, eleventh part: the brain's GAS / Ice / cleanup plan) — STOPPED: the plan is done; no writable job left
 
 **The brain's plan (2026-11-09), in order, and where each item stands.** Nothing was built.
 
@@ -9,7 +9,17 @@
    - Q-043a (reference-backed default): SetByCaller from the one cost formula; the MMC comes with B-043b.
    - Reviewed and fixed: a blocked GE pays the old way, and the ASC must belong to the payer.
    - On the trial branch; merge-plan row 71.
-4. **B-273b + B-064a (Ice).** Being written: B-273b on `feature/B-273b-hit-kind-cloud` from dev, and B-064a stacked on it.
+4. **B-273b + B-064a (Ice).** Both are pushed, reviewed and fixed, and are on the trial branch (merge plan rows 72 and 73).
+   - B-273b (`feature/B-273b-hit-kind-cloud`, from dev): the hit kind carries a dealt-type override. Buildup, the break trigger and the GAS executions read it, and no existing number changes.
+   - B-064a (`feature/B-064a-ice-cloud`, on B-273b), Ice:
+     - IceBreak: Water's slow for 1 turn plus 10% of max HP;
+     - `bDealsIce` on Water or Generic spells (deckbuilder rule 75);
+     - the class table's Ice column;
+     - Water Amp doesn't boost Ice;
+     - spec `WoR.Elements.Ice`.
+   - Q-064a was approved by the reference-backed default (Elden Ring's Frostbite).
+   - **Q-064a2 is OPEN (lore, Crown's):** the Ice break's name ("Ice break" is a placeholder), and whether Water's "Frozen" / "Frost Bite" move to Ice.
+   - New row B-064c holds the rest: the Ice column in ResistanceColumns (the asset, gear, saves), Ice-keyed resistance buffs, the Water StatusMultiplier on Ice, AI / VFX by hit kind, Ice abilities and tuning.
 5. **Cleanups.** Each has its own branch from dev and merges only after Crown's PIE of its gate (merge plan section "PIE-gated cleanups", rows C1–C7). All are reviewed, have their findings fixed, and are on the trial branch:
    - C1: B-152 (gate B-021).
    - C2: B-153 (gate B-022).
@@ -25,6 +35,15 @@
 
    **Not writable:** B-299, which waits for all of B-042g.
 6. **B-214 / B-236: not writable after part 1.** Field skills need B-043b (the ability base, granting and tags), and B-236 waits on B-214. B-214 is re-pointed to B-043b.
+
+**Writable jobs left: none from the brain's list.** What's left needs a compiler, Crown's PIE, or Crown's answer:
+- B-042g2..g6 wait on B-042g part 1 merging, after B-042f's PIE.
+- B-043b..h are stacked work for after B-043a builds.
+- B-299 waits for B-042g.
+- B-032c is a behaviour change for Crown to approve.
+- B-165 needs a spec run on the desktop.
+- B-064c can start once B-064a builds.
+- Q-064a2 is Crown's lore call.
 
 # Cloud writer handover (2026-11-08, tenth part: confirmations, B-381 activations, B-389 / D-168) — STOPPED
 
