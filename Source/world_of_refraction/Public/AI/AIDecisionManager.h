@@ -135,6 +135,9 @@ private:
     TWeakObjectPtr<AActor> LastActedActor;
     int32 LastActedTurn = INDEX_NONE;
 
+    /** Forgets the last acted turn; at fight start and end (SetCombatOrchestrator / ClearCombatOrchestrator). */
+    void ResetActedThisTurn();
+
     /** The current fight plays action pips (wor.Turns.ActionPips 1 at its start). */
     bool IsActionPipsFight() const;
 

@@ -112,6 +112,7 @@ void UAIDecisionManager::Deinitialize()
 void UAIDecisionManager::SetCombatOrchestrator(ACombatOrchestrator *Orchestrator)
 {
     CurrentCombat = Orchestrator;
+    ResetActedThisTurn(); // B-170f: turn numbers restart each fight
     UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Combat orchestrator set"));
 }
 
@@ -123,6 +124,7 @@ void UAIDecisionManager::ClearCombatOrchestrator()
     }
     CurrentCombat = nullptr;
     PendingActor = nullptr;
+    ResetActedThisTurn();
     UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Combat orchestrator cleared"));
 }
 
@@ -1028,11 +1030,14 @@ USkillDataBase *UAIDecisionManager::ChooseBestSkill(AActor *AIActor, AActor *Tar
             continue;
         }
         const float Score = ScoreSkill(AIActor, Target, Skill);
-        if (!CanPayActionsOrHold(AIActor, MakeSkillAction(AIActor, nullptr, Skill).GetActionCost(), Score))
+        // B-170f: Energy first, so only a skill the AI can pay in Energy becomes the held pick (banking for one it
+        // could never cast would lose every other turn).
+        const bool bEnergyAffordable = CanAffordSkill(AIActor, Skill);
+        if (bEnergyAffordable && !CanPayActionsOrHold(AIActor, MakeSkillAction(AIActor, nullptr, Skill).GetActionCost(), Score))
         {
             continue; // B-170f: the bank can't pay it now (held for a later turn when within Max)
         }
-        if (CanAffordSkill(AIActor, Skill))
+        if (bEnergyAffordable)
         {
             if (Score > BestScore)
             {
@@ -1918,6 +1923,12 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
 }
 
 // ==================== ACTION PIPS (B-170f, ActionPips.md §3.6) ====================
+
+void UAIDecisionManager::ResetActedThisTurn()
+{
+    LastActedActor.Reset();
+    LastActedTurn = INDEX_NONE;
+}
 
 bool UAIDecisionManager::IsActionPipsFight() const
 {
