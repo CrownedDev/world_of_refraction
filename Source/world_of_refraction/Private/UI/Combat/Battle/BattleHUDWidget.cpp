@@ -423,6 +423,10 @@ void UBattleHUDWidget::BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Colu
 	Card.Frame->SetPadding(FMargin(BattleHUDStyle::CardPadding));
 	// B-391c: a party card is hit-testable so its gear tooltip shows on hover; an enemy card lets clicks through.
 	Card.Frame->SetVisibility(Card.bParty ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
+	if (Card.bParty)
+	{
+		Card.Frame->SetToolTipText(Card.GearTooltip); // Initialise's RefreshGear ran before the widgets existed
+	}
 	if (UVerticalBoxSlot *ColumnSlot = Column->AddChildToVerticalBox(Card.Frame))
 	{
 		ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
@@ -621,7 +625,17 @@ void UBattleHUDWidget::RefreshGear()
 		}
 		const FBattleGearNames Gear = BattleHUDView::ReadGearNames(Card.Actor.Get());
 		Card.GearLine = BattleHUDView::FormatGearLine(Gear);
-		Card.GearTooltip = BattleHUDView::FormatGearTooltip(Gear);
+		const FText Tooltip = BattleHUDView::FormatGearTooltip(Gear);
+		// Review fix: the tooltip is set only when it changes (setting it rebuilds the Slate tooltip and can close an
+		// open one), not on every push.
+		if (!Tooltip.EqualTo(Card.GearTooltip))
+		{
+			Card.GearTooltip = Tooltip;
+			if (Card.Frame)
+			{
+				Card.Frame->SetToolTipText(Card.GearTooltip);
+			}
+		}
 	}
 	PushToWidgets();
 }
@@ -669,10 +683,6 @@ void UBattleHUDWidget::PushToWidgets()
 		if (Card.Frame)
 		{
 			Card.Frame->SetRenderOpacity(Card.bAlive ? 1.0f : BattleHUDStyle::DownedCardOpacity);
-			if (Card.bParty)
-			{
-				Card.Frame->SetToolTipText(Card.GearTooltip);
-			}
 		}
 		if (Card.BuildupBar)
 		{
