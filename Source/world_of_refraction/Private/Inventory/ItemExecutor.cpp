@@ -426,10 +426,8 @@ void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalI
 {
 	// Shared body for the standard directional stone-consumable buffs. Ally → BuffType,
 	// enemy → DebuffType (IsAlly direction), at the stone's GetStoneBasePercent magnitude
-	// for the flat AUGMENT_STONE_CONSUMABLE_DURATION. Byte-identical to each delegating
-	// handler's prior inline body (same effect construction); only the diagnostic log line
-	// is now generic. Outliers do NOT route here (different magnitude/duration source,
-	// sign-encoded type, or extra-turn branch).
+	// for the flat AUGMENT_STONE_CONSUMABLE_DURATION. Outliers do NOT route here (different
+	// magnitude/duration source, sign-encoded type, or extra-turn branch).
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -606,43 +604,41 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 
 	const bool bAlly = IsAlly(User, Target);
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	// ---- Opal: guaranteed-crit window (no longer the old multiplicative CritChanceBuff/Debuff) ----
+	// TODO: S-rank stat reveal — implement in UI pass
+	const int32 Duration = CrystalEffectTable::GetOpalCritWindowDuration(Id);
+
+	if (bAlly)
 	{
-		// ---- Opal: guaranteed-crit window (no longer the old multiplicative CritChanceBuff/Debuff) ----
-		// TODO: S-rank stat reveal — implement in UI pass
-		const int32 Duration = CrystalEffectTable::GetOpalCritWindowDuration(Id);
+		// Force-crit window — a presence/duration flag (magnitude inert; 1.0 mirrors Silenced's
+		// flag-style construction). DamageCalculator reads it via HasEffectOfType(GuaranteedCrit).
+		FActiveSkillEffect CritWindow = FActiveSkillEffect::CreateBuff(
+			FString::Printf(TEXT("%s Guaranteed Crit"), *DisplayName),
+			ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::GuaranteedCrit, 1.0f, Duration);
+		CritWindow.Element = ItemIdentity::GetElement(Id);
+		SEM->ApplyEffect(Target, CritWindow, User, DisplayName, -1);
+		OutResult.BuffsApplied++;
 
-		if (bAlly)
-		{
-			// Force-crit window — a presence/duration flag (magnitude inert; 1.0 mirrors Silenced's
-			// flag-style construction). DamageCalculator reads it via HasEffectOfType(GuaranteedCrit).
-			FActiveSkillEffect CritWindow = FActiveSkillEffect::CreateBuff(
-				FString::Printf(TEXT("%s Guaranteed Crit"), *DisplayName),
-				ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::GuaranteedCrit, 1.0f, Duration);
-			CritWindow.Element = ItemIdentity::GetElement(Id);
-			SEM->ApplyEffect(Target, CritWindow, User, DisplayName, -1);
-			OutResult.BuffsApplied++;
+		// Small crit-DAMAGE rider — ModifyCritDamage, read by GetCritDamageMultiplier. Same duration.
+		const float RiderPct = CrystalEffectTable::GetOpalCritDamageRider(Id);
+		FActiveSkillEffect Rider = FActiveSkillEffect::CreateBuff(
+			FString::Printf(TEXT("%s Crit Damage"), *DisplayName),
+			ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::ModifyCritDamage, RiderPct, Duration);
+		Rider.Element = ItemIdentity::GetElement(Id);
+		SEM->ApplyEffect(Target, Rider, User, DisplayName, -1);
+		OutResult.BuffsApplied++;
 
-			// Small crit-DAMAGE rider — ModifyCritDamage, read by GetCritDamageMultiplier. Same duration.
-			const float RiderPct = CrystalEffectTable::GetOpalCritDamageRider(Id);
-			FActiveSkillEffect Rider = FActiveSkillEffect::CreateBuff(
-				FString::Printf(TEXT("%s Crit Damage"), *DisplayName),
-				ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::ModifyCritDamage, RiderPct, Duration);
-			Rider.Element = ItemIdentity::GetElement(Id);
-			SEM->ApplyEffect(Target, Rider, User, DisplayName, -1);
-			OutResult.BuffsApplied++;
-
-			OutResult.bSuccess = true;
-			UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Opal: Guaranteed-crit window on %s for %d turns (+%.0f%% crit-dmg rider)"),
-				   *Target->GetName(), Duration, RiderPct);
-		}
-		else
-		{
-			// Enemy: STRIP any active guaranteed-crit window (the counter). No-op (still success) if none.
-			const int32 Removed = SEM->RemoveEffectsByType(Target, ESkillEffectType::GuaranteedCrit);
-			OutResult.bSuccess = true;
-			UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Opal: Stripped %d guaranteed-crit window(s) from %s"),
-				   Removed, *Target->GetName());
-		}
+		OutResult.bSuccess = true;
+		UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Opal: Guaranteed-crit window on %s for %d turns (+%.0f%% crit-dmg rider)"),
+			   *Target->GetName(), Duration, RiderPct);
+	}
+	else
+	{
+		// Enemy: STRIP any active guaranteed-crit window (the counter). No-op (still success) if none.
+		const int32 Removed = SEM->RemoveEffectsByType(Target, ESkillEffectType::GuaranteedCrit);
+		OutResult.bSuccess = true;
+		UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Opal: Stripped %d guaranteed-crit window(s) from %s"),
+			   Removed, *Target->GetName());
 	}
 }
 
