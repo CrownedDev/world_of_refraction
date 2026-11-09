@@ -439,6 +439,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-357d](B-357d.md) | `feature/B-357d-gear-evolution-l2-passives` (in dev) | A gear evolution's passives act on an L2 action from its item (apparel: any L2 action), for that action only | Pending |
 | [B-397](B-397.md) | `feature/B-397-hidden-quests-shown-cloud` (UNBUILT, from dev) | A found hidden quest is announced to its player and listed with its current goal only | Pending |
 | [B-405](B-405.md) | `feature/B-405-boss-framing-kill-shots-cloud` (UNBUILT) | A boss or mini-boss turn view sits low and looks up; a won fight holds on a kill shot before the rewards (normal: wide and darkened ~1.5 s; boss: close, breaks apart, ~5 s); `wor.Camera.KillShot 0/1` | Pending |
+| [B-403](B-403.md) | `feature/B-403-shot-pattern-tuning-cloud` (UNBUILT, from dev) | Shot-pattern feel: a melee confirm rushes in with blur, a normal hit is a low side-on two-shot with a small punch, an area skill's pull-out holds still; compare with the study | Pending |
 
 Move rows to **Done** when every check passes.
 
