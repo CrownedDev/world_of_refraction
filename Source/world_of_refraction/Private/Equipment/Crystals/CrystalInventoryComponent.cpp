@@ -51,7 +51,7 @@ bool UCrystalInventoryComponent::AddCount(FCrystalId Id, int32 Count)
     }
     if (UPoolSubsystem *Pool = SharedPool.Get())
     {
-        Pool->CarryOrStore(PouchKey, Id, Count); // OnPoolItemsChanged refreshes this mirror
+        Pool->CarryOrStore(PouchKey, Id, Count);
         return true;
     }
     PoolFor(Id.Type).FindOrAdd(Id) += Count;
@@ -183,33 +183,16 @@ void UCrystalInventoryComponent::BindSharedItems(UPoolSubsystem *Pool, FName Cha
     }
     SharedPool = Pool;
     PouchKey = CharacterKey;
-    Pool->OnPoolItemsChanged.AddUniqueDynamic(this, &UCrystalInventoryComponent::HandlePoolItemsChanged);
-    HandlePoolItemsChanged();
+    // B-317: the pouch is the member's only items list; no copy of it is kept here (the authored counts were
+    // banked into the pouch before binding, UInventoryComponent's draw).
+    Crystals.Empty();
+    Stones.Empty();
 }
 
 void UCrystalInventoryComponent::UnbindSharedItems()
 {
-    if (UPoolSubsystem *Pool = SharedPool.Get())
-    {
-        Pool->OnPoolItemsChanged.RemoveDynamic(this, &UCrystalInventoryComponent::HandlePoolItemsChanged);
-    }
     SharedPool.Reset();
     PouchKey = NAME_None;
-}
-
-void UCrystalInventoryComponent::HandlePoolItemsChanged()
-{
-    const UPoolSubsystem *Pool = SharedPool.Get();
-    if (!Pool)
-    {
-        return;
-    }
-    Crystals.Empty();
-    Stones.Empty();
-    for (const TPair<FCrystalId, int32> &Pair : Pool->GetCarriedItems(PouchKey))
-    {
-        PoolFor(Pair.Key.Type).Add(Pair.Key, Pair.Value);
-    }
 }
 
 void UCrystalInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
