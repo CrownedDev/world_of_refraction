@@ -2673,6 +2673,28 @@ float USkillEffectManager::GetTotalStatModifierForElement(AActor *Actor, ESkillE
 	return Total;
 }
 
+float USkillEffectManager::GetTotalStatModifierForHit(AActor *Actor, ESkillEffectType ModifierType, ESpellElement HitElement,
+													  bool bHitIsSpell) const
+{
+	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, ModifierType))
+	{
+		return FWoREffectSpecBuilder::SumMagnitudeForHit(*ASC, ModifierType, HitElement, bHitIsSpell);
+	}
+	if (!Actor || !ActiveEffects.Contains(Actor))
+	{
+		return 0.0f;
+	}
+	float Total = 0.0f;
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
+	{
+		if (Effect.EffectType == ModifierType && WoRDamageScope::Matches(Effect.DamageScope, Effect.Element, HitElement, bHitIsSpell))
+		{
+			Total += Effect.GetStackedValue();
+		}
+	}
+	return Total;
+}
+
 float USkillEffectManager::GetNetStatModifier(AActor *Actor, ESubStat Stat) const
 {
 	const FStatModifierRow Row = StatModifierTable::Find(Stat);
@@ -3262,6 +3284,12 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// ApplyEffect's timing rule then times a payout break (Burn, EP drain) as Q-063 says.
 	Effect.StartHolderTurnSpan(CombatConstants::STATUS_CAP_TURNS);
 	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
+	// B-382 review (Q-164b, existing sources unchanged): a DamageBuff / DamageDebuff is keyed by element only when
+	// authored so; a status break's (RandomDebuff can resolve to DamageDebuff) counts for every hit, as before.
+	if (Effect.EffectType == ESkillEffectType::DamageBuff || Effect.EffectType == ESkillEffectType::DamageDebuff)
+	{
+		Effect.Element = ESpellElement::None;
+	}
 	Effect.EffectID = EffectIdentity::MakeStatusCapEffectID(static_cast<uint8>(Effect.EffectType), static_cast<uint8>(Element));
 	const EEffectApplicationResult Result = ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 

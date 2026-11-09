@@ -9,6 +9,7 @@ FEquipmentStatBonus UApparelData::GetStatLines() const
 	FEquipmentStatBonus Lines;
 	Lines.BonusMaxHP = BaseStatBonus.BonusMaxHP;
 	Lines.BonusDefense = BaseStatBonus.BonusDefense;
+	Lines.Amp = BaseStatBonus.Amp; // B-386: the deckbuilder's Apparel tiles are HP, Amp and Def
 	return Lines;
 }
 
@@ -25,8 +26,8 @@ bool UApparelData::HasUnusedStatLines() const
 FString UApparelData::GetApparelString() const
 {
 	const FEquipmentStatBonus Lines = GetStatLines();
-	return FString::Printf(TEXT("%s (%s): HP %+d, Defence %+d%s"), *GetName(), *UEnum::GetDisplayValueAsText(Tier).ToString(), Lines.BonusMaxHP,
-						   Lines.BonusDefense, HasUnusedStatLines() ? TEXT(" [has stat lines apparel ignores]") : TEXT(""));
+	return FString::Printf(TEXT("%s (%s): HP %+d, Defence %+d, %s%s"), *GetName(), *UEnum::GetDisplayValueAsText(Tier).ToString(), Lines.BonusMaxHP,
+						   Lines.BonusDefense, *Lines.Amp.ToString(), HasUnusedStatLines() ? TEXT(" [has stat lines apparel ignores]") : TEXT(""));
 }
 
 void UApparelData::PrintApparel() const
