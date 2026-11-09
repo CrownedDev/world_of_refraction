@@ -22,6 +22,7 @@ Curses (MemoryCatalogue §3.8; Shangri-La Frontier's curses, D-100) are rewards 
 - Which curses exist is Crown's.
 - The party check matches by character asset: an enemy built from a party member's asset would also be weakened.
 - No spec drives a party member's stats through `ULoadoutComponent` with a curse held (the subsystem sums are tested; PIE B-378b covers the rest).
+- **Co-op regain gaps (merge review, 2026-11-09).** On the host, `CheckRegain` reads the whole event, so a friend's find can regain the host's cleared curse (`HiddenQuestSubsystem::CheckEvent` uses `FilterParty` for this; do the same). A client's cleared quest-step curse is never regained: `RegainCurses` runs only in the host's own `CheckEvent`. TODO(co-op).
 
 ## Changelog
 | Date | Change | Branch |
@@ -29,3 +30,5 @@ Curses (MemoryCatalogue §3.8; Shangri-La Frontier's curses, D-100) are rewards 
 | 2026-11-08 | Created (B-378): held curses, Curse / RemoveCurse rewards, the CurseHeld condition, save v26, `wor.Curse.Print`, CurseSpec. | `feature/B-378-curses-cloud` (in dev) |
 | 2026-11-08 | Review: a friend's part never reads the host's curses; a lifted curse stays lifted (`FSavedCurses::Lifted`). | `feature/B-378-curses-cloud` (in dev) |
 | 2026-11-08 | B-378b: a curse's penalty (`UCurseData`) weakens the holder's own party characters through the gear stat and resistance sums. | `feature/B-378b-curse-penalty-cloud` (in dev) |
+| 2026-11-08 | Q-378 changed by Crown: a hidden quest gives curses (`FHiddenQuestStep::Rewards`); the player clears one (`UCurseSubsystem::ClearCurse`, `wor.Curse.Clear`; hub button B-378b); a lifted or cleared curse comes back when its giver is met again (`CheckRegain` for memories, `UHiddenQuestSubsystem::RegainCurses` for steps); `AddCurse` no longer refuses a lifted one. | `feature/B-378-curses-cloud` (UNBUILT) |
+| 2026-11-08 | Q-378 changed by Crown: placeholder hub service `UCurseClearWidget` (`wor.UI.ClearCurse`; refused during a run) clears a held curse by the player's choice; its penalty stops until it is regained. | `feature/B-378b-curse-penalty-cloud` (UNBUILT) |

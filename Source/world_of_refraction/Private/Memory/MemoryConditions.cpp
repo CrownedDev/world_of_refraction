@@ -2,6 +2,8 @@
 
 #include "Memory/MemoryConditions.h"
 
+#include "Memory/CurseSubsystem.h"
+
 #include "Algo/AllOf.h"
 #include "Algo/AnyOf.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -465,6 +467,11 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 	{
 		return 0;
 	}
+	UCurseSubsystem *Curses = GameInstance->GetSubsystem<UCurseSubsystem>();
+	if (Curses)
+	{
+		Curses->BeginEvent(); // review: a cure unlocked by this event isn't undone by CheckRegain below
+	}
 	TArray<UMemoryData *> Candidates = Event.Named;
 	for (UMemoryData *Memory : Conditional)
 	{
@@ -492,6 +499,11 @@ int32 MemoryConditions::CheckEvent(UGameInstance *GameInstance, const FMemoryEve
 	{
 		UE_LOG(LogWoR, Log, TEXT("[MemoryConditions] %s: %d memory(ies) unlocked"),
 			   *UEnum::GetDisplayValueAsText(Event.Source).ToString(), Unlocked);
+	}
+	// Q-378 (Crown): a memory this player already has gives back a curse they cleared when it is met again.
+	if (Curses)
+	{
+		Curses->CheckRegain(Event, Candidates);
 	}
 	// B-377: the same event moves this player's hidden quests on (after its memories, which can start one).
 	if (UHiddenQuestSubsystem *Quests = GameInstance->GetSubsystem<UHiddenQuestSubsystem>())

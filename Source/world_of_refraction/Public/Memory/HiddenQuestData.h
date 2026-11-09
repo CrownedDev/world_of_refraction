@@ -39,6 +39,11 @@ struct WORLD_OF_REFRACTION_API FHiddenQuestStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest", meta = (ClampMin = 1))
 	int32 TimesInOneRun = 1;
 
+	/** Q-378 (Crown, 2026-11-08): given when this step is done. Curse / RemoveCurse are granted (UCurseSubsystem); a cleared
+	 *  curse from here comes back when this step's conditions are met again. Other kinds are logged until they exist. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
+	TArray<FMemoryReward> Rewards;
+
 	/** For designers only; never shown (no hints, D-100). */
 	UPROPERTY(EditAnywhere, Category = "Quest")
 	FString DesignerNote;

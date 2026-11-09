@@ -707,7 +707,7 @@ struct WORLD_OF_REFRACTION_API FSavedCurses
 	UPROPERTY()
 	TArray<FName> Held;
 
-	/** Lifted before: never given again. */
+	/** Lifted before (Q-378 changed: a lifted curse can be regained; this list feeds logging and WasLifted). */
 	UPROPERTY()
 	TArray<FName> Lifted;
 };
