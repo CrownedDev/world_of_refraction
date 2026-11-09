@@ -107,6 +107,14 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** **C** (2026-10-26): Energy **refills a little at the start of each of your turns**, plus extra from **basic attacks** and **Perfect Guards** (Expedition 33 style). Amounts are named constants (`// TODO: tune`); the per-turn share can scale with Max Energy. Broken Darkness keeps its own absorption system (no passive refill, ET-29 for BD).
 
 **Changed by Crown (2026-11-09):** Energy refills **only at the start of each of your turns** (a share of Max Energy, a named constant, `// TODO: tune`). Energy from basic attacks and Perfect Guards is **not** a base rule: it comes from **gear effects** (passives) where an item grants it. Broken Darkness keeps its own absorption (no passive refill). Job: B-173.
+### Q-173 — Which turns refill Energy: every turn kind, or Normal turns only?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-173, cloud) · **Blocks:** —
+**Question:** D-089 (changed 2026-11-09) says Energy refills "at the start of each of your turns". A character also gets Bonus turns (Emerald) and a ritual's Execution turn. Do those refill too?
+**Options / as built:** **A** every turn kind refills, because each runs the same turn-start step (ET-17; Q-044d: an Execution turn is still one of the caster's turns) / **B** only Normal turns refill (a check on the turn type).
+**Recommendation:** A. It is what "each of your turns" says, and it keeps one turn-start step for every turn kind (Q-044d). D-089's own reference, Expedition 33, gives AP at the start of a character's turn (Crown's 2026-10-26 context); the deckbuilder's +1 Energy per turn (D-089 context) has no bonus-turn case to compare.
+**Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change it (B is a one-line turn-type check in `TurnStartEnergy::Apply`'s caller).
+**Notes for Claude (as built):** B-173: `ACombatOrchestrator::ProcessStartOfTurnEffects` calls `TurnStartEnergy::Apply` on both of `HandleTurnStarted`'s branches.
+
 ### D-099 — Field commands: the battle menu outside battle
 **Status:** ANSWERED in part (2026-10-27; details being asked one at a time) · **Raised:** 2026-10-27 (Crown, from Q-185 first strike) · **Blocks:** — (builds on GASMigration decision 2, real-time field abilities)
 **Answer (Crown):** (2026-10-27; Metaphor: ReFantazio, Kingdom Hearts)
