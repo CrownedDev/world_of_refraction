@@ -618,7 +618,8 @@ private:
 	/** B-406: turn 1 (TurnManager InitializeCombat) and the HUD; after a boss's opening cinematic when it has one. */
 	void BeginFirstTurn(int32 OpeningTeam);
 
-	/** B-406: a boss cinematic ended: turn 1 starts (opening) or the held action request goes out (phase). */
+	/** B-406: a boss cinematic ended: turn 1 starts (opening) or the held action request goes out (phase); B-406b: a
+	 *  held Execution turn fires its ritual. */
 	UFUNCTION()
 	void HandleBossCinematicFinished(EBossCinematicKind Kind);
 
@@ -636,7 +637,8 @@ private:
 	bool bWaitingForAsyncAction = false;
 
 	/** B-406: waiting (with bWaitingForAsyncAction) on a boss cinematic: the opening before turn 1 (with the team that
-	 *  opens), or a phase cinematic before the next action request (no defence timing until the HUD is back). */
+	 *  opens), or a phase cinematic before the next action request or, on an Execution turn, the ritual fire (B-406b)
+	 *  (no defence timing until the HUD is back). */
 	bool bHoldingForBossOpening = false;
 	bool bHoldingForBossCinematic = false;
 	int32 PendingOpeningTeam = INDEX_NONE;
