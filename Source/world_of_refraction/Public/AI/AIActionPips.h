@@ -38,6 +38,16 @@ enum class EAISpendOrBank : uint8
 	Bank
 };
 
+/** What the AI noted about its pick while building it, for the spend-or-bank decision: the pick's score when it was
+ *  chosen by score (offence, Emerald), and the best held pick (costs more actions than the bank, no more than Max). */
+struct FAIPickNotes
+{
+	float Score = 0.0f;
+	bool bScored = false;
+	int32 HeldActionCost = 0;
+	float HeldScore = 0.0f;
+};
+
 /** What DecideSpendOrBank reads. Scores are in HP-damage units, as the AI's other scores. */
 struct FAISpendOrBankInput
 {

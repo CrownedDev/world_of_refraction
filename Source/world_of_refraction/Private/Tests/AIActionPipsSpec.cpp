@@ -46,6 +46,8 @@ namespace
 	constexpr float AI_PIPS_BIG_HELD_SCORE = 50.0f;
 	/** Less than twice the pick: not worth a turn's wait. */
 	constexpr float AI_PIPS_SMALL_HELD_SCORE = 30.0f;
+	/** Beats the held pick, so only the above-Max rule keeps it from being held. */
+	constexpr float AI_PIPS_ABOVE_MAX_SCORE = 100.0f;
 	constexpr float AI_PIPS_ROLL_LOW = 0.1f;
 	constexpr float AI_PIPS_ROLL_HIGH = 0.9f;
 	constexpr float AI_PIPS_THREAT = 40.0f;
@@ -306,11 +308,11 @@ void FAIActionPipsSpec::Define()
 			{
 				return;
 			}
-			AI->PickNotes = UAIDecisionManager::FAIPickNotes();
+			AI->PickNotes = FAIPickNotes();
 			TestTrue(TEXT("Cost 1 is paid"), AI->CanPayActionsOrHold(Hero, AI_PIPS_COST_ONE, AI_PIPS_PICK_SCORE));
 			TestFalse(TEXT("Cost 2 waits"), AI->CanPayActionsOrHold(Hero, AI_PIPS_COST_TWO, AI_PIPS_BIG_HELD_SCORE));
 			TestEqual(TEXT("... held"), AI->PickNotes.HeldActionCost, AI_PIPS_COST_TWO);
-			TestFalse(TEXT("Cost 3 is above Max"), AI->CanPayActionsOrHold(Hero, AI_PIPS_COST_ABOVE_MAX, AI_PIPS_BIG_HELD_SCORE * 2.0f));
+			TestFalse(TEXT("Cost 3 is above Max"), AI->CanPayActionsOrHold(Hero, AI_PIPS_COST_ABOVE_MAX, AI_PIPS_ABOVE_MAX_SCORE));
 			TestEqual(TEXT("... never held"), AI->PickNotes.HeldActionCost, AI_PIPS_COST_TWO);
 		});
 

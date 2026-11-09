@@ -124,16 +124,8 @@ private:
 
     // ==================== ACTION PIPS (B-170f, ActionPips.md §3.6) ====================
 
-    /** What BuildAction noted about its pick, for the spend-or-bank decision: the pick's score when it was chosen
-     *  by score (offence, Emerald), and the best held pick (costs more actions than the bank, no more than Max).
-     *  Per-decision scratch, reset by BuildAction (not per-fight state, D-064). */
-    struct FAIPickNotes
-    {
-        float Score = 0.0f;
-        bool bScored = false;
-        int32 HeldActionCost = 0;
-        float HeldScore = 0.0f;
-    };
+    /** What BuildAction noted about its pick (AIActionPips.h). Per-decision scratch, reset by BuildAction
+     *  (not per-fight state, D-064). */
     FAIPickNotes PickNotes;
 
     /** Debug: the last spend-or-bank decision (GetLastSpendOrBankString). */
