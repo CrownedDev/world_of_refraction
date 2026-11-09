@@ -3,7 +3,8 @@
 // arrivals on each target, summed over its cast entries (SpellImpactPlan); each one is defended on its own, so a
 // guard on the first impact leaves the second untouched. A window that times out lands its impacts one by one, an
 // ability whose animation ends before its Impact notifies lands the rest as fallback impacts, and when nothing is
-// defended a multi-hit spell deals the same hits as the lumped path did. Cast headless as in WoR.GAS.Abilities
+// defended a multi-hit spell deals the same hits as the lumped path did. A spell's window stays open past the cast
+// animation for projectiles still flying. Cast headless as in WoR.GAS.Abilities
 // (montage-less skills, wor.Combat.InstantImpacts 1); the foe is player-driven, so no defense is rolled for it.
 // Through the running ability (wor.Abilities.UseGAS 1) every arrival is still taken exactly once (B-043d/e).
 
@@ -125,6 +126,8 @@ BEGIN_DEFINE_SPEC(FPerImpactDefenseSpec, "WoR.Combat.PerImpactDefense",
 		GuardAtCast,
 		/** Every projectile is destroyed in flight, so the action times out. */
 		ShootDown,
+		/** The cast animation ends (the Skill-end reconcile) while the projectiles still fly. */
+		AnimationEndsInFlight,
 	};
 
 	/** A rooted, montage-less Generic spell at an enemy (Generic: castable by the test character, a Caster). */
@@ -307,6 +310,10 @@ BEGIN_DEFINE_SPEC(FPerImpactDefenseSpec, "WoR.Combat.PerImpactDefense",
 			}
 			Defense->SubmitDefenseInput(Foe, EDefenseType::Block); // stamped now
 		}
+		if (Twist == ECastTwist::AnimationEndsInFlight)
+		{
+			Executor->ReconcileDefenseWindowsAtAnimationEnd(); // what Skill-end runs
+		}
 		for (int32 Frame = 0; Frame < PER_IMPACT_SPEC_SETTLE_FRAMES && Orchestrator->GetCurrentActor() == Hero; ++Frame)
 		{
 			if (Twist == ECastTwist::ShootDown && Frame < PER_IMPACT_SPEC_SHOOT_DOWN_FRAMES)
@@ -396,6 +403,16 @@ void FPerImpactDefenseSpec::Define()
 					  SpellImpactPlan::ArrivalsOf(MakeCastEntry(ESpellDeliveryType::Projectile, 0)), 1);
 			Spell->CastArray.Reset();
 			TestEqual(TEXT("No cast entries: one arrival (the loose path)"), SpellImpactPlan::Make(*Spell).ImpactsPerTarget, 1);
+		});
+
+		It("finds the cast entry each impact belongs to, in arrival order", [this]()
+		{
+			Spell = MakeSpell({MakeCastEntry(ESpellDeliveryType::Projectile, PER_IMPACT_SPEC_TWO_IMPACTS), MakeCastEntry(ESpellDeliveryType::AOE)},
+							  /*HitCount*/ 1);
+			TestEqual(TEXT("Burst arrival 1: entry 0"), SpellImpactPlan::CastEntryOfImpact(*Spell, 0), 0);
+			TestEqual(TEXT("Burst arrival 2: entry 0"), SpellImpactPlan::CastEntryOfImpact(*Spell, 1), 0);
+			TestEqual(TEXT("The AOE: entry 1"), SpellImpactPlan::CastEntryOfImpact(*Spell, PER_IMPACT_SPEC_TWO_IMPACTS), 1);
+			TestEqual(TEXT("Past the plan: none"), SpellImpactPlan::CastEntryOfImpact(*Spell, PER_IMPACT_SPEC_BURST_OF_THREE), INDEX_NONE);
 		});
 
 		It("uses the DamageSplit only when HitCount equals the impacts", [this]()
@@ -499,6 +516,20 @@ void FPerImpactDefenseSpec::Define()
 			TestEqual(TEXT("Both impacts landed, one by one"), TimedOut.Hits, Arrived.Hits);
 			TestEqual(TEXT("The same damage as when they arrive"), TimedOut.FoeDamage, Arrived.FoeDamage);
 			TestTrue(TEXT("The turn moved on"), TimedOut.bTurnMovedOn);
+		});
+
+		It("keeps a spell's window open past the cast animation for projectiles still flying", [this]()
+		{
+			Spell = MakeTwoHitSpell();
+			const FCastOutcome Arrived = RunCast(Spell, /*bPerImpact*/ true);
+			const FCastOutcome EndedEarly = RunCast(Spell, /*bPerImpact*/ true, ECastTwist::AnimationEndsInFlight);
+			if (!TestCastLanded(TEXT("Arrived"), Arrived) || !TestCastLanded(TEXT("Animation ended in flight"), EndedEarly))
+			{
+				return;
+			}
+			TestEqual(TEXT("Both impacts still resolved at their arrivals"), EndedEarly.DefendedImpacts, TArray<int32>({0, 1}));
+			TestEqual(TEXT("The same hits"), EndedEarly.Hits, Arrived.Hits);
+			TestTrue(TEXT("The turn moved on"), EndedEarly.bTurnMovedOn);
 		});
 
 		It("takes each arrival exactly once through the running ability (wor.Abilities.UseGAS 1)", [this]()
