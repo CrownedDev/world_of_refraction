@@ -10,7 +10,7 @@
 //
 // Reads via the SAME accessors the gameplay path uses (the active loadout's
 // entries — what GetActiveStatBonus consumes — plus
-// GetActivePrimaryEvolutionAttachment and the GetActive* aggregates), so the
+// GatherAttachedEvolutions and the GetActive* aggregates), so the
 // output cannot drift from what combat actually reads.
 
 #pragma once
