@@ -8,6 +8,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Infusion/InfusionChargeManager.h"
 #include "Character/CharacterDataComponent.h"
@@ -286,6 +287,15 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// Prepare loadouts for battle
 	PrepareAllLoadoutsForBattle();
 
+	// B-043b: each combatant's loadout skills as granted abilities (no play change; used at wor.Abilities.UseGAS 1).
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+	{
+		for (AActor *Actor : *Team)
+		{
+			WoRSkillAbilities::GrantLoadoutSkills(Actor);
+		}
+	}
+
 	// Assign grid positions and place actors
 	if (UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this))
 	{
@@ -509,6 +519,19 @@ void ACombatOrchestrator::ReleaseCombatResources()
 
 	UGameInstance *GI = GetGameInstance();
 
+	// B-043b: the skill abilities go before the executor's reset: a running one is cancelled (its action's
+	// result is dropped with the fight), then cleared.
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+	{
+		for (AActor *Actor : *Team)
+		{
+			if (IsValid(Actor))
+			{
+				WoRSkillAbilities::ClearSkills(Actor);
+			}
+		}
+	}
+
 	// B-030: nothing from this fight survives into the next. The executor goes first: it drops the
 	// in-flight action's defense windows unresolved, then the defense system forgets them.
 	if (ActionExecutorRef)
@@ -684,8 +707,12 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
 			   *CurrentActor->GetName(), *Action.GetActionName());
 
-		ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
-											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+		// B-043b: through the skill's ability at wor.Abilities.UseGAS 1 (the same executor call), else directly.
+		const FOnActionComplete OnComplete = FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted);
+		if (!WoRSkillAbilities::TryExecuteThroughAbility(CurrentActor, Action, OnComplete))
+		{
+			ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action, OnComplete);
+		}
 
 		return true; // Action started, will complete later
 	}
@@ -789,8 +816,12 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
 		   *CurrentActor->GetName(), *Action.GetActionName());
 
-	ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
-										  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	// B-043b: through the skill's ability at wor.Abilities.UseGAS 1 (the same executor call), else directly.
+	const FOnActionComplete OnComplete = FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted);
+	if (!WoRSkillAbilities::TryExecuteThroughAbility(CurrentActor, Action, OnComplete))
+	{
+		ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action, OnComplete);
+	}
 	return true;
 }
 
