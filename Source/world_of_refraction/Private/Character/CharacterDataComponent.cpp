@@ -4,6 +4,7 @@
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "WoRAuthority.h"
+#include "WoRLog.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -240,6 +241,11 @@ void UCharacterDataComponent::HandlePoolEffectChanged(AActor *Target, const FAct
     if (Target == GetOwner() && IsPoolEffect(Effect.EffectType) && HasServerAuthority()) // B-131: replicated to clients
     {
         RecomputeMaxPools();
+    }
+    // B-170d: a Max Actions buff or debuff changes the pips' Max; the bank itself stays (over Max stays banked).
+    if (Target == GetOwner() && (Effect.EffectType == ESkillEffectType::MaxActionsBuff || Effect.EffectType == ESkillEffectType::MaxActionsDebuff))
+    {
+        OnActionsChanged.Broadcast(CurrentActions, GetMaxActions());
     }
 }
 
@@ -1503,7 +1509,19 @@ int32 UCharacterDataComponent::GetActionPoints() const
 
 int32 UCharacterDataComponent::GetMaxActions() const
 {
-    return ActionPipsRules::MaxActionsForPoints(GetActionPoints());
+    return ActionPipsRules::MaxActionsWithChange(ActionPipsRules::MaxActionsForPoints(GetActionPoints()), GetMaxActionsChange());
+}
+
+int32 UCharacterDataComponent::GetMaxActionsChange() const
+{
+    USkillEffectManager *SEM = GetSkillEffectManager();
+    if (!SEM)
+    {
+        return 0;
+    }
+    const float Change = SEM->GetTotalStatModifier(GetOwner(), ESkillEffectType::MaxActionsBuff) -
+                         SEM->GetTotalStatModifier(GetOwner(), ESkillEffectType::MaxActionsDebuff);
+    return FMath::RoundToInt(Change); // whole actions (Q-170g)
 }
 
 int32 UCharacterDataComponent::GetActionPointProgress() const
@@ -1532,6 +1550,7 @@ void UCharacterDataComponent::ResetActionsForFight()
     {
         return;
     }
+    WaitingActionChanges.Reset();
     SetCurrentActions(ActionPipsRules::ActionsAtFightStart(GetActionRegain(), GetMaxActions()));
 }
 
@@ -1570,6 +1589,75 @@ void UCharacterDataComponent::LoseActions(int32 Amount)
         return;
     }
     SetCurrentActions(FMath::Max(0, CurrentActions - Amount));
+}
+
+void UCharacterDataComponent::QueueActionChange(int32 Amount, int32 TurnsFromNow, bool bMayPassMax, const FString &Source)
+{
+    if (!HasServerAuthority() || Amount == 0)
+    {
+        return;
+    }
+    FWoRWaitingActionChange &Change = WaitingActionChanges.AddDefaulted_GetRef();
+    Change.Amount = Amount;
+    Change.TurnsLeft = FMath::Max(ActionPipsConstants::ACTION_CHANGE_NEXT_TURN, TurnsFromNow);
+    Change.bMayPassMax = bMayPassMax;
+    Change.Source = Source;
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: %+d action(s) waiting %d turn start(s) (%s)"), *GetNameSafe(GetOwner()), Amount,
+           Change.TurnsLeft, *Source);
+}
+
+int32 UCharacterDataComponent::ApplyDueActionChanges()
+{
+    if (!HasServerAuthority() || WaitingActionChanges.Num() == 0)
+    {
+        return 0;
+    }
+    TArray<FWoRWaitingActionChange> Due;
+    for (int32 Index = WaitingActionChanges.Num() - 1; Index >= 0; --Index)
+    {
+        if (--WaitingActionChanges[Index].TurnsLeft <= 0)
+        {
+            Due.Insert(WaitingActionChanges[Index], 0); // keep the queued order
+            WaitingActionChanges.RemoveAt(Index);
+        }
+    }
+    // Q-170d2: gains first, then losses, so a loss landing with a gain takes from what arrived.
+    for (const FWoRWaitingActionChange &Change : Due)
+    {
+        if (Change.Amount > 0)
+        {
+            GainActions(Change.Amount, Change.bMayPassMax);
+        }
+    }
+    for (const FWoRWaitingActionChange &Change : Due)
+    {
+        if (Change.Amount < 0)
+        {
+            LoseActions(-Change.Amount);
+        }
+    }
+    if (Due.Num() > 0)
+    {
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: %d waiting action change(s) landed, bank %d"), *GetNameSafe(GetOwner()), Due.Num(),
+               CurrentActions);
+    }
+    return Due.Num();
+}
+
+FString UCharacterDataComponent::GetWaitingActionChangesString() const
+{
+    if (WaitingActionChanges.Num() == 0)
+    {
+        return TEXT("none");
+    }
+    TArray<FString> Lines;
+    for (const FWoRWaitingActionChange &Change : WaitingActionChanges)
+    {
+        const FString When = Change.TurnsLeft == ActionPipsConstants::ACTION_CHANGE_NEXT_TURN ? FString(TEXT("next turn"))
+                                                                                             : FString::Printf(TEXT("in %d turns"), Change.TurnsLeft);
+        Lines.Add(FString::Printf(TEXT("%+d %s (%s)"), Change.Amount, *When, *Change.Source));
+    }
+    return FString::Join(Lines, TEXT(", "));
 }
 
 void UCharacterDataComponent::SetCurrentActions(int32 NewActions)

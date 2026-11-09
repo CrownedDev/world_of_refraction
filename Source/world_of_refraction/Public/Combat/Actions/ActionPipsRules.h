@@ -30,7 +30,26 @@ namespace ActionPipsConstants
 
 	/** B-170c (Q-170b): what a skill, spell or item costs unless its asset says otherwise. */
 	constexpr int32 ACTION_COST_DEFAULT = 1; // TODO: tune
+
+	/** B-170d (Q-170d2): a Max Actions debuff never takes Max below this, so a cost-1 action stays usable. */
+	constexpr int32 MAX_ACTIONS_FLOOR = 1; // TODO: tune
+	/** B-170d: a "next turn" action change waits this many of the holder's turn starts. */
+	constexpr int32 ACTION_CHANGE_NEXT_TURN = 1;
 }
+
+/** B-170d (ActionPips.md §1 step 2): an action gain or loss waiting for one of the holder's turn starts
+ *  (a next-turn Gain / Lose Action, Wind's break, a delayed Emerald gain). Per fight, server only. */
+struct FWoRWaitingActionChange
+{
+	/** + gains, - loses. */
+	int32 Amount = 0;
+	/** The holder's turn starts still to come before it lands; 1 = the next one. */
+	int32 TurnsLeft = ActionPipsConstants::ACTION_CHANGE_NEXT_TURN;
+	/** A gain that may pass Max Actions (Emerald, Gain Action). */
+	bool bMayPassMax = false;
+	/** What queued it, for the debug print. */
+	FString Source;
+};
 
 /** B-170a (Q-170a): action points are additive (+25 and +50 make +75), unlike the multiplied Pattern P
  *  sub-stats in FWoRStatLayers, so they compose as a sum, never below 0. */
@@ -64,6 +83,13 @@ namespace ActionPipsRules
 	{
 		const int32 WholeActions = FMath::Max(0, ActionPoints) / ActionPipsConstants::ACTION_POINTS_PER_ACTION;
 		return FMath::Min(ActionPipsConstants::MAX_ACTIONS_BASE + WholeActions, ActionPipsConstants::MAX_ACTIONS_CAP);
+	}
+
+	/** B-170d (Q-170g): Max Actions after the timed Max Actions buffs and debuffs (Change, whole actions), kept
+	 *  between MAX_ACTIONS_FLOOR and the safety cap. */
+	inline int32 MaxActionsWithChange(int32 MaxFromPoints, int32 Change)
+	{
+		return FMath::Clamp(MaxFromPoints + Change, ActionPipsConstants::MAX_ACTIONS_FLOOR, ActionPipsConstants::MAX_ACTIONS_CAP);
 	}
 
 	/** The points toward the next Max Action (175 -> 75). */

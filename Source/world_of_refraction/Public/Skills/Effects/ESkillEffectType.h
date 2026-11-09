@@ -196,7 +196,8 @@ enum class ESkillEffectType : uint8
     CleanseAllies UMETA(DisplayName = "Cleanse Allies"),
 
     // Special Mechanics
-    ExtraAction UMETA(DisplayName = "Extra Action"),
+    // B-170d (Q-170f): a whole bonus turn, shown as Extra Turn; the name stays (serialized). +1 action now is GainActions.
+    ExtraAction UMETA(DisplayName = "Extra Turn"),
     GuaranteedCrit UMETA(DisplayName = "Guaranteed Crit"),
     IgnoreDefense UMETA(DisplayName = "Ignore Defense"),
     DoubleHit UMETA(DisplayName = "Double Hit"),
@@ -293,7 +294,17 @@ enum class ESkillEffectType : uint8
     // B-064a (D-029, D-090): what a full Ice bar fires (ElementTable's Ice row). Its BreakTable row applies Water's
     // Action Speed + Spell Speed slow and deals a share of the holder's max HP; the trigger itself is never stored.
     // Appended, so saved values don't move.
-    IceBreak UMETA(DisplayName = "Ice Break (slow + damage)")
+    IceBreak UMETA(DisplayName = "Ice Break (slow + damage)"),
+
+    // B-170d (Q-170g, ActionPips.md §3.4): effects that give or take banked actions. Appended, so saved values don't
+    // move. GainActions / LoseActions are never stored (USkillEffectManager::ApplyEffect hands them to the holder's
+    // bank): Value = how many; timing Start of Own Turn = at the holder's turn start Duration turns from now (at least
+    // the next), any other timing = now. A gain may pass Max Actions; a loss never takes the bank below 0.
+    GainActions UMETA(DisplayName = "Gain Action"),
+    LoseActions UMETA(DisplayName = "Lose Action"),
+    /** +/- Value whole Max Actions for Duration holder turns (D-051), read by UCharacterDataComponent::GetMaxActions. */
+    MaxActionsBuff UMETA(DisplayName = "Max Actions Buff"),
+    MaxActionsDebuff UMETA(DisplayName = "Max Actions Debuff")
 };
 
 /**
@@ -328,6 +339,12 @@ namespace SkillEffectClassification
     inline bool IsNegatePool(ESkillEffectType Type)
     {
         return Type == ESkillEffectType::NegateDamageTotal || Type == ESkillEffectType::NegateElementTotal;
+    }
+
+    /** B-170d: a change to the holder's banked actions, applied to the bank and never stored as a lasting effect. */
+    inline bool IsActionChange(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::GainActions || Type == ESkillEffectType::LoseActions;
     }
 
     /** B-268: a legacy type with the same meaning as today's is stored as today's type, once, when applied. */
@@ -459,6 +476,9 @@ namespace SkillEffectClassification
         case ESkillEffectType::NegateElemental:
         case ESkillEffectType::NegateDamageTotal:
         case ESkillEffectType::NegateElementTotal:
+        // B-170d: more actions, a higher Max
+        case ESkillEffectType::GainActions:
+        case ESkillEffectType::MaxActionsBuff:
             return true;
         default:
             // Sign-aware types (see IsSignAware): +magnitude is a buff, exactly 0 is neither.
@@ -513,6 +533,9 @@ namespace SkillEffectClassification
         case ESkillEffectType::ApplyDOTOnHit:
         // sweep-4: status-bar manipulation debuff (builds target's gauge)
         case ESkillEffectType::StatusIncrease:
+        // B-170d: fewer actions, a lower Max
+        case ESkillEffectType::LoseActions:
+        case ESkillEffectType::MaxActionsDebuff:
             return true;
         default:
             // Sign-aware types (see IsSignAware): -magnitude is a debuff.

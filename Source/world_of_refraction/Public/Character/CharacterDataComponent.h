@@ -498,6 +498,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void LoseActions(int32 Amount);
 
+    /** B-170d: the timed Max Actions buffs minus debuffs on this character, in whole actions (Q-170g). */
+    int32 GetMaxActionsChange() const;
+
+    /** B-170d (ActionPips.md §1 step 2): a gain (+) or loss (-) of Amount that lands at the holder's turn start
+     *  TurnsFromNow turns from now (1 = the next). Server only; cleared when a fight starts. */
+    void QueueActionChange(int32 Amount, int32 TurnsFromNow, bool bMayPassMax, const FString &Source);
+
+    /** B-170d (ActionPips.md §1 step 2): counts one holder turn start off every waiting change and applies the ones
+     *  now due: gains first, then losses (Q-170d2). Returns how many landed. The orchestrator calls it after the regain. */
+    int32 ApplyDueActionChanges();
+
+    const TArray<FWoRWaitingActionChange> &GetWaitingActionChanges() const { return WaitingActionChanges; }
+
+    /** "+1 in 2 turns (Emerald), -1 next turn (Wind break)" or "none", for wor.Actions.Print. */
+    FString GetWaitingActionChangesString() const;
+
     UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
     FOnActionsChanged OnActionsChanged;
 
@@ -689,6 +705,9 @@ private:
     /** What RecomputeMaxPools built MaxHP / MaxEP from (GetMaxHPLayers / GetMaxEPLayers). */
     FWoRPoolLayers MaxHPLayers;
     FWoRPoolLayers MaxEPLayers;
+
+    /** B-170d: action changes waiting for a holder turn start (QueueActionChange). Per fight, server only. */
+    TArray<FWoRWaitingActionChange> WaitingActionChanges;
 
 
     /** B-223 (D-102): the run that keeps this party member's earned pillar levels across level travel, and its
