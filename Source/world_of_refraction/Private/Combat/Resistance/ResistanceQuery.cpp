@@ -47,13 +47,18 @@ namespace
 
 	/** Whether a resistance buff/debuff counts toward DamageType. A physical-keyed effect counts
 	 *  for its subtype only; any other effect counts for its element's type (None and Generic both
-	 *  the non-elemental bucket, Q-216). */
+	 *  the non-elemental bucket, Q-216). An Ice-keyed one (Element Water) counts for Ice only: a Water hit reaches it
+	 *  as the type that also resists Water (GetAlsoResistance), so it covers Ice and Water once each (B-064c). */
 	bool EffectMatches(const FActiveSkillEffect &Effect, EWoRDamageType DamageType)
 	{
 		if (Effect.PhysicalType != EPhysicalDamageType::None)
 		{
 			// B-358 (D-148): one Physical resistance: a physical buff or debuff of any subtype covers every physical hit.
 			return WoRDamageType::IsPhysical(DamageType);
+		}
+		if (Effect.bKeyedIce)
+		{
+			return DamageType == EWoRDamageType::Ice;
 		}
 		return WoRDamageType::ElementToDamageType(Effect.Element) == DamageType;
 	}
