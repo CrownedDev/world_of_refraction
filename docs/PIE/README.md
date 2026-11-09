@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-152](B-152.md) | `feature/B-152-stone-wrappers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-021) | Delete the unreachable stat-stone consumable wrappers | Pending |
 | [B-042f](B-042f.md) | `feature/B-042f-stones-item-effects-gas-cloud` (UNBUILT, from dev) | GAS stage 3 part 6: `wor.Effects.Compare` 0 differ at UseGAS 0 and 1 (stones and item effects included); B-042g's gate | Pending |
 | [B-042g](B-042g.md) | `feature/B-042g-gas-readers-default-cloud` (UNBUILT, on B-042f; merge only after B-042f's comparison passes) | GAS: resistance, Ignore Defense and reflect read the GEs at UseGAS 1 | Pending |
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (unbuilt) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
