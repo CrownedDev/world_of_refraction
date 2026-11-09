@@ -1,7 +1,8 @@
 // WoRHitKind.h
 // B-273 (S6): a hit's kind in one struct. Buildup reads both axes (a Fire sword swing builds Fire and
 // Slash, SB-11); damage reads the one damage type. FromPair is today's rule (the element wins, else the
-// physical subtype). An Ice hit is {Water, None, Ice}: Water-keyed and Water-sourced (D-029, ED-04),
+// physical subtype). B-273b: the hit paths (buildup, damage, the GAS executions) take a hit kind; the pair forms
+// forward as FromPair. An Ice hit is {Water, None, Ice}: Water-keyed and Water-sourced (D-029, ED-04),
 // dealing Ice. Spec WoR.Resistance.HitKind.
 
 #pragma once
@@ -33,6 +34,27 @@ struct WORLD_OF_REFRACTION_API FWoRHitKind
 		Kind.Physical = InPhysical;
 		Kind.DamageType = WoRDamageType::ToDamageType(InElement, InPhysical);
 		return Kind;
+	}
+
+	/** B-273b: the pair plus what the hit deals when that isn't the pair's own type (Ice); None keeps FromPair's.
+	 *  The structs that carry the pair (FActionHitInput, FDamageCalculationInput, the buildup request...) carry this
+	 *  override beside it rather than a second copy of the axes, so a later element resolution can't leave a stale kind. */
+	static FWoRHitKind FromPair(ESpellElement InElement, EPhysicalDamageType InPhysical, EWoRDamageType DealtTypeOverride)
+	{
+		FWoRHitKind Kind = FromPair(InElement, InPhysical);
+		if (DealtTypeOverride != EWoRDamageType::None)
+		{
+			Kind.DamageType = DealtTypeOverride;
+		}
+		return Kind;
+	}
+
+	/** The override that FromPair(Kind.Element, Kind.Physical, override) needs to give Kind back: None when Kind deals
+	 *  its pair's own type. */
+	static EWoRDamageType GetDealtTypeOverride(const FWoRHitKind &Kind)
+	{
+		return Kind.DamageType == WoRDamageType::ToDamageType(Kind.Element, Kind.Physical) ? EWoRDamageType::None
+																						   : Kind.DamageType;
 	}
 
 	/** A Water-keyed hit that deals Ice (D-029). */

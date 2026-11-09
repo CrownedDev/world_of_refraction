@@ -17,6 +17,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Elements/ElementTable.h"
+#include "Combat/Damage/WoRHitKind.h"
 
 namespace BarCapTriggerResolver
 {
@@ -38,5 +39,20 @@ namespace BarCapTriggerResolver
         const ESkillEffectType ElementTrigger = ElementTable::ForElement(Element).BreakTrigger;
         return ElementTrigger != ESkillEffectType::None ? ElementTrigger
                                                         : ElementTable::ForPhysical(PhysicalType).BreakTrigger;
+    }
+
+    /** B-273b: the same by hit kind. A hit whose dealt elemental type is its element's own (every FromPair hit)
+     *  resolves as the pair does; one that deals another elemental type (Ice, keyed Water) resolves on that
+     *  type's row, falling back to its physical subtype like the pair. */
+    inline ESkillEffectType ResolveTrigger(const FWoRHitKind &Kind, bool bSourceIsBrokenDarkness)
+    {
+        const EWoRDamageType ElementType = Kind.ElementType();
+        if (ElementType == WoRDamageType::ElementToDamageType(Kind.Element))
+        {
+            return ResolveTrigger(Kind.Element, Kind.Physical, bSourceIsBrokenDarkness);
+        }
+        const ESkillEffectType DealtTrigger = ElementTable::For(ElementType).BreakTrigger;
+        return DealtTrigger != ESkillEffectType::None ? DealtTrigger
+                                                      : ElementTable::ForPhysical(Kind.Physical).BreakTrigger;
     }
 }
