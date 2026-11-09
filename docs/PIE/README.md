@@ -392,11 +392,11 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
 | [B-376](B-376.md) | `feature/B-376-party-has-cloud` (UNBUILT, on B-375) | Pair memories: both characters present, solo or across players | Pending |
 | [B-377](B-377.md) | `feature/B-377-hidden-quests-cloud` (UNBUILT, on B-376, save v25) | Hidden quests: start, steps across runs, end memory | Pending |
-| [B-378](B-378.md) | `feature/B-378-curses-cloud` (UNBUILT, on B-377, save v26) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
-| [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (UNBUILT, on B-378) | A held curse weakens your own characters by its penalty | Pending |
+| [B-378](B-378.md) | `feature/B-378-curses-cloud` (in dev) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
+| [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (in dev) | A held curse weakens your own characters by its penalty | Pending |
 | [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
 | [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
-| [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (UNBUILT, on B-381, save v28) | The journal saved; a friend's quests move on the host's events | Pending |
+| [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (in dev) | The journal saved; a friend's quests move on the host's events | Pending |
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
 | [B-380c](B-380c.md) | `feature/B-380c-apparel-slots-saved-cloud` (UNBUILT, on B-380b, save v29) | Worn apparel saved; a crystal set in play | Pending |
