@@ -1,7 +1,7 @@
 # Hidden Quest System
 
 ## Overview
-Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-100) are multi-step quests found like hidden memories. A start memory begins one; its steps are condition sets done in order; the last step unlocks an end memory, which carries the quest's rewards. No text ever says what the next step is.
+Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-100) are multi-step quests found like hidden memories. A start memory begins one; its steps are condition sets done in order; the last step unlocks an end memory, which carries the quest's rewards. How a quest starts is never shown. **D-171 (Crown, 2026-11-09; built in B-397, not yet):** once found, the player is told privately ("Hidden quest discovered: <title>") and the journal shows the current step's goal only; later steps and the end memory stay hidden. Until B-397 lands, no text says what the next step is.
 
 ## Architecture
 - `UHiddenQuestData` (`Memory/HiddenQuestData.h`, primary data asset, AlwaysCook): `QuestId`, `Starts` (`FHiddenQuestStart`: a memory and the depth it must have for the player; None = any), `Steps` (`FHiddenQuestStep`: an `FWoRConditionSet`, `TimesInOneRun`, a designer note), `EndMemory`. Debug: `GetQuestString`, `PrintQuest` button.
@@ -23,6 +23,7 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 - A load replaces any progress started before it; a mid-run reload loses the step in progress's count (by design: it resets at run end anyway).
 - The quest list is gathered once per game instance: an asset added during a session is seen next session.
 - Quest content is Crown's.
+- D-171 not built yet (B-397): hidden quests don't list in the journal or name their next goal.
 
 ## Changelog
 | Date | Change | Branch |
@@ -33,3 +34,4 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 | 2026-11-08 | B-381 (D-165): gear and evolutions carry hidden quests (`FBoundQuest`), started while worn (`StartGearQuests`). | `feature/B-381-gear-quests-cloud` (in dev) |
 | 2026-11-08 | B-377b: co-op friends' quests (report, host check on their part, step met / start RPCs); `CountStepMet`; the host's own quests read its own part. | `feature/B-377b-coop-quests-journal-save-cloud` (in dev) |
 | 2026-11-08 | B-381 activations (Crown, MemoryCatalogue §3.11): `FWornItemState` per worn item (`MemoryConditions::GetWornStates`: weapons, adapter, apparel; socket element, evolution, stone, tier, upgrade level), the `WornItemState` condition reading `FWoRConditionContext::BoundItem`, set by `StartGearQuests` per item. | `feature/B-381-gear-quests-cloud` (in dev) |
+| 2026-11-09 | D-171 recorded: a found hidden quest shows its current step's goal (job B-397); docs only. | `docs/D-171-hidden-quest-steps` |

@@ -285,6 +285,17 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-171 — Hidden quests: found in secret, then tracked in plain words
+**Status:** DECIDED (Crown, 2026-11-09, desktop operator session) · **Raised:** 2026-11-09 · **Blocks:** — (B-397)
+**Answer (Crown)** (model: Shangri-La Frontier's Unique Scenarios; changes D-100's and HiddenQuestSystem's "no text ever says what the next step is"):
+- **Starting a hidden quest stays fully hidden:** no hints, no listing, no text about how to trigger it (D-100's "no hints" stands for the start).
+- **Once a player triggers it,** that player alone gets a private notice, **"Hidden quest discovered: <title>"** (D-100's private unlocks), and the quest appears in their journal's **Quests** page.
+- **From then on, the current step's conditions are shown in plain words** (the step's `Goal` text, the journal list `GetVisibleQuests` from B-388). **Only the current step** is shown; later steps stay hidden until reached. **The end memory and its rewards stay hidden until earned.**
+- **Co-op:** each player sees only their own discovered hidden quests.
+**Notes for Claude:** hidden quest assets need a `Title` and a `Goal` per step (designer-written `FText`; both fields exist since B-388; placeholder text is fine until Crown writes them). Job: B-397.
+
+---
+
 ### D-170 — Visual effects and parry rules: weapon VFX fixed, two guards (weapon / unarmed), crystal parry effect
 **Status:** DECIDED (Crown, 2026-11-09, desktop operator session) · **Raised:** 2026-11-09 · **Blocks:** —
 **Answer (Crown):**
