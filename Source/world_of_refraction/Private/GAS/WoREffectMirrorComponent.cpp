@@ -64,6 +64,8 @@ bool FWoRMirroredEffect::Matches(const FWoRMirroredEffect &Other) const
 	return Identity.IsSameIdentity(Other.Identity) && Identity.EffectType == Other.Identity.EffectType &&
 		   Identity.Element == Other.Identity.Element && Identity.DamageScope == Other.Identity.DamageScope && // B-385
 		   Identity.bFromGear == Other.Identity.bFromGear &&
+		   Identity.PhysicalType == Other.Identity.PhysicalType && // B-042g: the per-effect readers match on these
+		   FMath::IsNearlyEqual(Identity.EffectValue, Other.Identity.EffectValue, MIRROR_MAGNITUDE_TOLERANCE) &&
 		   FMath::IsNearlyEqual(Magnitude, Other.Magnitude, MIRROR_MAGNITUDE_TOLERANCE);
 }
 

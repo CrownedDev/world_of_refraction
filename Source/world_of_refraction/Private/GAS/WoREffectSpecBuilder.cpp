@@ -329,6 +329,27 @@ float FWoREffectSpecBuilder::SumMagnitudeForHit(const UAbilitySystemComponent &A
 	});
 }
 
+TArray<FWoRActiveEffectView> FWoREffectSpecBuilder::GetEffectsOfType(const UAbilitySystemComponent &ASC, ESkillEffectType Type)
+{
+	TArray<FWoRActiveEffectView> Views;
+	const FGameplayEffectQuery Query(FActiveGameplayEffectQueryCustomMatch::CreateLambda(
+		[Type](const FActiveGameplayEffect &Active)
+		{
+			const FWoREffectContext *Context = ContextOf(Active);
+			return Context && Context->Identity.EffectType == Type;
+		}));
+	for (const FActiveGameplayEffectHandle &Handle : ASC.GetActiveEffects(Query))
+	{
+		const FActiveGameplayEffect *Active = ASC.GetActiveGameplayEffect(Handle);
+		const FWoREffectContext *Context = Active ? ContextOf(*Active) : nullptr;
+		if (Context)
+		{
+			Views.Add({Context->Identity, Active->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Magnitude, false)});
+		}
+	}
+	return Views;
+}
+
 FString FWoREffectSpecBuilder::GetDebugString(const UAbilitySystemComponent &ASC)
 {
 	const FGameplayEffectQuery Everything(FActiveGameplayEffectQueryCustomMatch::CreateLambda(
