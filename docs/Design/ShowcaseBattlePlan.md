@@ -16,13 +16,13 @@ Inputs: `AssetAudit.md` (what we own, confidence marks H / M / L / Eye), `analys
 | **Action cost 1** unless marked 2. Cost-2 skills are the "big" ones and show the pip rules (B-170c: Max Actions starts at 2, so a cost-2 skill is a whole turn). | B-170 default. Until B-170c lands, cost is written in the job and the Description only. |
 | Effects use **existing effect types only** (`ESkillEffectType`). Durations and numbers are `// TODO: tune` starting values. | No new mechanics for a showcase. |
 | Target shapes use `ETargetType` (Self / Ally / Enemy / Anyone) × `ETargetCount` (Single / Double / All), and spell delivery `ESpellDeliveryType` (Projectile / AOE / Instant). | Existing fields. |
-| Each school gets **one spell and one ability per weapon**, so every school appears three times. | Crown's ask; also shows the camera on each skill shape. |
+| Each school gets **one spell**. Weapon abilities **carry no school** (Crown, 2026-11-09, Q1): schools stay with spells and their slot limits. The abilities still cover the same six **roles** (damage, buff, heal, conjured thing, control, debuff) so the camera sees each shape. | Crown's ask; also shows the camera on each skill shape. |
 | New assets follow `Conventions/ContentNaming.md`; new heavy references are `TSoftObjectPtr` (D-057); text is `FText` (D-061). | Standing rules. |
 
 **Gaps in the code this exposed** (each becomes a job in §8):
 
 1. **No per-element VFX lookup for a Generic skill.** A skill's VFX is authored on the skill (`SkillVFXEntry`); there is nothing that says "Prism Bolt cast by a Fire user uses the Fire projectile". Needed so one Generic asset looks right in every element. → C1.
-2. **Abilities have no school.** `ESpellSchool` lives on `USpellData` only (`SpellData.h:72`); `UAbilityData` has none. → Decision Q1 below.
+2. ~~Abilities have no school.~~ Answered by Crown (Q1, 2026-11-09): **that's correct and stays**. `ESpellSchool` lives on `USpellData` only (`SpellData.h:72`).
 3. **No taunt effect.** Manipulation today has `RandomSkill` (loss of control) and `Stun` (attack/defend only). Taunt and "force a target" (D-163) don't exist yet, so the showcase uses those two. → Decision Q2.
 
 ---
@@ -54,27 +54,27 @@ Abilities take their look from the weapon (D-170: weapon VFX fixed per weapon) a
 
 ### Sword + Shield (the Generic, "Warden")
 
-| # | Name | School | What it does | Target | Cost | Animation | VFX | Sound | Icon | Missing → stand-in |
+| # | Name | Role | What it does | Target | Cost | Animation | VFX | Sound | Icon | Missing → stand-in |
 |---|---|---|---|---|---|---|---|---|---|---|
-| W1 | **Rising Cut** | Destruction | Melee hit, `BaseDamage`, 2 hits (`HitCount` 2) | Enemy · Single | 1 | ✅ DSAS V1 `Combo1_IP` (H) | 🔧 weapon trail + `<Element>_Magic_Slash` on hit (V1) | ❌ | 🔧 | Sound: PONETI `melee-attack-with-voice`; trail: a plain ribbon |
-| W2 | **Brace** | Enhancement | `DefenseBuff` + `ReduceDamageTaken` on self, 2 turns | Self | 1 | ✅ SAS `Block` start (H) or CM `Buff` | ✅ `<Element>_Magic_Shield` short | ❌ | 🔧 | — |
-| W3 | **Second Wind** | Restoration | `RestoreHPPercent` on self + `CleanseSelf` | Self | 1 | ✅ HSAS `Buff` (H) | 🔧 recoloured heal (as S3) | ❌ | 🔧 | As S3 |
-| W4 | **Bulwark** | Conjuration | A conjured wall in front of the party: `AbsorbDamage` on all allies, 2 turns | Ally · All | **2** | ✅ DSAS shield slam combo (M) | ✅ `<Element>_Magic_Wall` (Fire, Ice, Water, Earth, Dark, Blood) (H/Eye) | ❌ | 🔧 | Other elements: Earth wall tinted. Burst only: a held loop is not needed for one showcase (AssetAudit "Conjuration") |
-| W5 | **Rattle** | Manipulation | Shield bash: small `BaseDamage` + `RandomSkill` 1 turn | Enemy · Single | 1 | ✅ DSAS bash (M) | 🔧 hit burst + tinted circle over the head (as S5) | ❌ | 🔧 | — |
-| W6 | **Hamstring** | Impairment | Melee hit + `ActionSpeedDebuff` 2 turns | Enemy · Single | 1 | ✅ DSAS V2 low cut `_IP` (M) | 🔧 slash + `Blood_Magic_Debuff` | ❌ | 🔧 | — |
+| W1 | **Rising Cut** | Damage | Melee hit, `BaseDamage`, 2 hits (`HitCount` 2) | Enemy · Single | 1 | ✅ DSAS V1 `Combo1_IP` (H) | 🔧 weapon trail + `<Element>_Magic_Slash` on hit (V1) | ❌ | 🔧 | Sound: PONETI `melee-attack-with-voice`; trail: a plain ribbon |
+| W2 | **Brace** | Buff | `DefenseBuff` + `ReduceDamageTaken` on self, 2 turns | Self | 1 | ✅ SAS `Block` start (H) or CM `Buff` | ✅ `<Element>_Magic_Shield` short | ❌ | 🔧 | — |
+| W3 | **Second Wind** | Heal | `RestoreHPPercent` on self + `CleanseSelf` | Self | 1 | ✅ HSAS `Buff` (H) | 🔧 recoloured heal (as S3) | ❌ | 🔧 | As S3 |
+| W4 | **Bulwark** | Conjured thing | A conjured wall in front of the party: `AbsorbDamage` on all allies, 2 turns | Ally · All | **2** | ✅ DSAS shield slam combo (M) | ✅ `<Element>_Magic_Wall` (Fire, Ice, Water, Earth, Dark, Blood) (H/Eye) | ❌ | 🔧 | Other elements: Earth wall tinted. Burst only: a held loop is not needed for one showcase (AssetAudit "Conjuration") |
+| W5 | **Rattle** | Control | Shield bash: small `BaseDamage` + `RandomSkill` 1 turn | Enemy · Single | 1 | ✅ DSAS bash (M) | 🔧 hit burst + tinted circle over the head (as S5) | ❌ | 🔧 | — |
+| W6 | **Hamstring** | Debuff | Melee hit + `ActionSpeedDebuff` 2 turns | Enemy · Single | 1 | ✅ DSAS V2 low cut `_IP` (M) | 🔧 slash + `Blood_Magic_Debuff` | ❌ | 🔧 | — |
 
 ### Dual Axe (the Resonator, "Reaver")
 
-| # | Name | School | What it does | Target | Cost | Animation | VFX | Sound | Icon | Missing → stand-in |
+| # | Name | Role | What it does | Target | Cost | Animation | VFX | Sound | Icon | Missing → stand-in |
 |---|---|---|---|---|---|---|---|---|---|---|
-| A1 | **Whirl** | Destruction | Spinning melee, 3 hits on two enemies | Enemy · **Double** | **2** | ✅ DynamicTwinAxe spin (RM, opt-in) (H) | 🔧 trails + `<Element>_Magic_Slash` | ❌ | 🔧 | — |
-| A2 | **Bloodrush** | Enhancement | `RawDamageBuff` + `CritChanceBuff` on self, 2 turns | Self | 1 | ✅ DynamicAxe `Buff` (H) | ✅ `<Element>_Magic_Aura` short (V5) | ❌ | 🔧 | — |
-| A3 | **Reap** | Restoration | Melee hit with `DrainHP` (heals by part of the damage) | Enemy · Single | 1 | ✅ DynamicTwinAxe cross-cut (M) | 🔧 slash + small recoloured heal on the user | ❌ | 🔧 | — |
-| A4 | **Spectral Axes** | Conjuration | Two conjured axes fly out and hit: `BaseDamage` | Enemy · Double | 1 | ✅ DynamicTwinAxe throw-like swing (L/Eye) | 🔧 `Light_Sword_*` (7) recoloured as axes, or the element Projectile | ❌ | 🔧 | VFX: element Projectile ×2 |
-| A5 | **Skull Splitter** | Manipulation | Heavy overhead: `BaseDamage` + `Stun` 1 turn (attack or defend only) | Enemy · Single | 1 | ✅ DynamicTwinAxe overhead (M) | 🔧 big hit + Paragon `Stun_Loop` on the target (anim) | ❌ | 🔧 | Stun marker VFX ❌: small tinted circle over the head |
-| A6 | **Sunder** | Impairment | Melee hit + `DefenseDebuff` + `ResistanceDebuff`, 2 turns | Enemy · Single | 1 | ✅ DynamicTwinAxe (M) | 🔧 slash + `Dark_Magic_Debuff` | ❌ | 🔧 | — |
+| A1 | **Whirl** | Damage | Spinning melee, 3 hits on two enemies | Enemy · **Double** | **2** | ✅ DynamicTwinAxe spin (RM, opt-in) (H) | 🔧 trails + `<Element>_Magic_Slash` | ❌ | 🔧 | — |
+| A2 | **Bloodrush** | Buff | `RawDamageBuff` + `CritChanceBuff` on self, 2 turns | Self | 1 | ✅ DynamicAxe `Buff` (H) | ✅ `<Element>_Magic_Aura` short (V5) | ❌ | 🔧 | — |
+| A3 | **Reap** | Heal | Melee hit with `DrainHP` (heals by part of the damage) | Enemy · Single | 1 | ✅ DynamicTwinAxe cross-cut (M) | 🔧 slash + small recoloured heal on the user | ❌ | 🔧 | — |
+| A4 | **Spectral Axes** | Conjured thing | Two conjured axes fly out and hit: `BaseDamage` | Enemy · Double | 1 | ✅ DynamicTwinAxe throw-like swing (L/Eye) | 🔧 `Light_Sword_*` (7) recoloured as axes, or the element Projectile | ❌ | 🔧 | VFX: element Projectile ×2 |
+| A5 | **Skull Splitter** | Control | Heavy overhead: `BaseDamage` + `Stun` 1 turn (attack or defend only) | Enemy · Single | 1 | ✅ DynamicTwinAxe overhead (M) | 🔧 big hit + Paragon `Stun_Loop` on the target (anim) | ❌ | 🔧 | Stun marker VFX ❌: small tinted circle over the head |
+| A6 | **Sunder** | Debuff | Melee hit + `DefenseDebuff` + `ResistanceDebuff`, 2 turns | Enemy · Single | 1 | ✅ DynamicTwinAxe (M) | 🔧 slash + `Dark_Magic_Debuff` | ❌ | 🔧 | — |
 
-**Every school is touched by each weapon.** The three cost-2 skills (S4, W4, A1) are the turn-filling "big" moves.
+**Each weapon covers all six roles** (not schools: Q1). The three cost-2 skills (S4, W4, A1) are the turn-filling "big" moves.
 
 **Sound across all 18:** the audit found **no combat SFX at all**. For the showcase: PONETI Freesound stand-ins (licence per file) for swing, hit, metal clang and one cast sound shared by all spells. Buying one combat SFX pack is the real fix (AssetAudit §3) and is Crown's call (Q3).
 
@@ -154,7 +154,7 @@ Small jobs, ≤ 3 files each. **C** = Code Writer (C++, headless specs). **E** =
 | Job | What | Depends on | Done when |
 |---|---|---|---|
 | **C1** | **Element VFX set**: a `UElementVFXSet` data asset (per element: muzzle, projectile, hit, AOE, buff, shield, wall, slash, debuff, heal; `TSoftObjectPtr<UNiagaraSystem>`) and a resolver: a Generic skill's VFX slot left empty takes the caster's resolved element's entry; a `Tint` colour parameter for recolours. `PrintElementVFXSet` debug. | B-394 (cast VFX source rule) | Spec: a Generic skill cast as Fire resolves Fire's projectile; an authored VFX on the skill still wins |
-| **C2** | **Ability school** (if Q1 = yes): an `ESpellSchool School` field on `UAbilityData` (default Destruction), shown in the skill card text; validation unchanged | Q1 | Spec: field saved and read; nothing else changes |
+| ~~C2~~ | ~~Ability school~~: **dropped** (Crown, Q1: abilities carry no school) | — | — |
 | **C3** | **`wor.Showcase.Start [Boss]`**: fills the party from a `UShowcaseSetupData` asset (members, loadouts, start points) through `UPartySessionSubsystem` (as `wor.Party.RecruitForRun` does), full HP/EP, teleports | — | Spec: the command fills three members with the authored loadouts |
 | **C4** | **Action cost on the 18 skills**: nothing new if B-170c has landed (set `ActionCost` in data, E-job); if not, the cost lives in Description only | B-170c | — |
 | **C5** | **Boss phase weapon glow** (V10): a boss phase can set a weapon VFX (`TSoftObjectPtr`, empty = none) played on the boss's weapon from the phase event | B-193 / B-355 | Spec: the phase event swaps the weapon VFX; empty does nothing |
@@ -178,18 +178,61 @@ Small jobs, ≤ 3 files each. **C** = Code Writer (C++, headless specs). **E** =
 
 ## 9. Decisions for Crown
 
-Reference-backed defaults (approve by default; Crown vetoes):
+Q1 is answered. **Q2 to Q5 are parked** (Crown, 2026-11-09: another day); until then their defaults are working assumptions only.
 
 | # | Question | Default | Reference |
 |---|---|---|---|
-| Q1 | Do weapon abilities carry a school like spells? | **Yes, a field on abilities** (C2), shown on the skill card. | No strong outside example found; Skyrim's schools tag spells only. It keeps D-163's one-label reading across every skill, for one field. |
-| Q2 | Manipulation has no taunt yet; use `RandomSkill` and `Stun` for the showcase? | **Yes**; taunt is its own later job. | — (uses what's built) |
-| Q3 | Sound: buy one combat SFX pack now, or Freesound stand-ins until the look is set? | **Stand-ins for the showcase**, buy before the first public build. | Common indie practice: placeholder audio until art direction is locked. |
-| Q4 | Weapons: Sword + Shield and Dual Axe (both have a full guard set)? | **Yes.** Gauntlets is the swap if Crown prefers. | AssetAudit ✅ rows. |
-| Q5 | Skill and character names (Prism Bolt, Warden, Prism Warden…) | **Placeholders**; naming is lore, Crown's call. | — |
+| Q1 | Do weapon abilities carry a school like spells? | **Answered (Crown, 2026-11-09): no.** Schools stay with spells and their slot limits. | — |
+| Q2 | Manipulation has no taunt yet; use `RandomSkill` and `Stun` for the showcase? | Parked. Working assumption: yes; taunt is its own later job. | — (uses what's built) |
+| Q3 | Sound: buy one combat SFX pack now, or Freesound stand-ins until the look is set? | Parked. Working assumption: stand-ins. | Common indie practice: placeholder audio until art direction is locked. |
+| Q4 | Weapons: Sword + Shield and Dual Axe (both have a full guard set)? | Parked. Working assumption: yes; asked again at item 7 (§10). | AssetAudit ✅ rows. |
+| Q5 | Skill and character names (Prism Bolt, Warden, Prism Warden…) | Parked. Placeholders; naming is lore, Crown's call. | — |
+
+---
+
+## 10. Picks, one item at a time (Crown chooses)
+
+Crown picks the assets for each item in turn; the choice is recorded here before moving to the next. Each item shows: animation, VFX, sound, icon (and the weapon mesh for gear), with Claude's pick and one or two alternatives. Picks are from **names** (AssetAudit confidence); Crown judges the look in the editor build (§11).
+
+| Order | Item | Status |
+|---|---|---|
+| 1 | S1 Prism Bolt | **Asking Crown** |
+| 2–6 | S2 Kindle, S3 Renewal, S4 Shard Field, S5 Bewilder, S6 Sap | Waiting |
+| 7 | Sword + Shield (mesh, guard) | Waiting |
+| 8–13 | W1–W6 | Waiting |
+| 14 | Dual Axe (mesh, guard) | Waiting |
+| 15–20 | A1–A6 | Waiting |
+
+### S1 Prism Bolt (Destruction, enemy single, projectile)
+
+| Part | Claude's pick | Alternatives | Crown's choice |
+|---|---|---|---|
+| Animation | `MageAnimationSet/.../InPlace/Mage_Fireball_R_IP`: a one-hand throw, in place, matches the Mage set used for the other casts | (a) `MagicAnimations/AS_Cast_PrepareAndFire` (a two-step charge then fire: a longer, clearer wind-up for FeelGuide 14); (b) `AS_Cast_Turn-basedAttackRT` (named for turn-based casting) | — |
+| VFX | The element set from Big Pack: `NS_<Element>_Magic_Muzzle` → `Projectile` → `Hit` (Fire: `NS_Fire_Magic_Projectile`) | (a) the second projectile style per element (`Projectile2`), smaller; (b) Mage pack `FireballTrail_P` (old Cascade, Fire only: not recommended) | — |
+| Sound | PONETI `249817__spookymodem__magic-missiles` (stand-in, licence to check) | (a) `446015__slavicmagic__wpn-2-generic`; (b) silent until a sound pack is bought | — |
+| Icon | PONETI `SkillsIcons/Bonus/Skill1_Nobg/Magic_bolt_nobg` (no colour of its own, fits a Generic spell) | (a) RPGIcons `T_MagicArrow`; (b) RPGIcons `T_Fireball` (reads as Fire only) | — |
+
+---
+
+## 11. Unreal build order (after the picks)
+
+The Unreal editor session builds each picked item **one at a time**, in this order, and Crown reviews it in the editor before the next. Each step is the matching E-job slice from §8.
+
+| Step | Build | Needs first | Crown reviews |
+|---|---|---|---|
+| 0 | Arena `L_Showcase_Arena` (E2) and the showcase party data with empty loadouts (E5 part) | C3 for `wor.Showcase.Start` | Walk the arena |
+| 1 | S1 Prism Bolt | C1 (element VFX lookup) for the per-element look; Fire only without it | Cast as Fire (Refractor) and Water (Reaver) |
+| 2–6 | S2 → S6, one per step | Step 1 | Each spell on its target |
+| 7 | Sword + Shield on the Warden: mesh, idle, weapon guard | B-392 for the guard choice | Idle, guard, block-hit |
+| 8–13 | W1 → W6 | Step 7 | Each ability |
+| 14 | Dual Axe on the Reaver: meshes, idle, guard | B-392 | Idle, guard |
+| 15–20 | A1 → A6 (root motion opted in per montage) | Step 14 | Each ability |
+| 21 | Enemies: Hollow group, then the Prism Warden boss data | Steps 1–20 | Both fights to victory |
+| 22 | Marks, trails, stand-in sounds, notify validator, `docs/PIE/Showcase.md` (E6) | Step 21 | The PIE sheet |
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-09 | Created: content, party, enemies, arena, PIE entry, build list | docs/showcase-battle-plan |
+| 2026-11-09 | Q1 answered (abilities carry no school; they keep six roles); Q2–Q5 parked; §10 picks one item at a time (S1 asked); §11 Unreal build order | docs/showcase-picks |
