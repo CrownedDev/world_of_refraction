@@ -9,8 +9,8 @@
 // turns and ends as the holder's turn after those starts (D-051); a DOT pays at the holder's turn
 // start, exactly N times (Q-044c). Cleanse's gear exclusion is
 // WoR.Effects.CleanseGear; holder-turn spans are WoR.Effects.StatusBreaks.
-// B-042c: both combatants carry an effect mirror, every case runs with wor.Effects.UseGAS 0 and 1,
-// and each case ends with the mirrored GameplayEffects matching the stored effects.
+// B-042c: both combatants carry an effect mirror, and each case ends with the mirrored GameplayEffects
+// matching the stored effects. B-042g2: the cases run on GAS only (the UseGAS 0 pass went with the switch).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -170,7 +170,6 @@ void FEffectsBaselineSpec::Define()
 			TestEqual(TEXT("Holder's mirror matches"), UWoREffectDebug::GetEffectMismatchString(Holder), FString());
 			TestEqual(TEXT("Foe's mirror matches"), UWoREffectDebug::GetEffectMismatchString(Foe), FString());
 		}
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		Holder = nullptr;
 		Foe = nullptr;
 		HolderStats = nullptr;
@@ -178,14 +177,7 @@ void FEffectsBaselineSpec::Define()
 		TestWorld.Reset();
 	});
 
-	for (const bool bReadsFromGAS : {false, true})
-	{
-		Describe(bReadsFromGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0"), [this, bReadsFromGAS]()
-		{
-			BeforeEach([bReadsFromGAS]() { UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS); });
-			DefineCases();
-		});
-	}
+	DefineCases();
 }
 
 void FEffectsBaselineSpec::DefineCases()

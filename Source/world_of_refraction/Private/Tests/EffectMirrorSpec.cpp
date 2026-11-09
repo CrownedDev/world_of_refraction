@@ -1,7 +1,8 @@
 // EffectMirrorSpec.cpp
 // GAS stage 3 (B-042c): UWoREffectMirrorComponent keeps one GameplayEffect per stored, ported
 // enum-path effect (value, stacks, same-source replace, removal, expiry, clear), skips instant
-// effects, mirrors every effect type (B-042k), and `wor.Effects.UseGAS 1` makes the effect manager's reads use those GEs.
+// effects, mirrors every effect type (B-042k), and the effect manager's reads use those GEs
+// (B-042g2: always; the UseGAS 0 comparisons went with the switch).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -75,7 +76,6 @@ void FEffectMirrorSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		EffectManager = nullptr;
 		Mirror = nullptr;
 		ASC = nullptr;
@@ -168,7 +168,7 @@ void FEffectMirrorSpec::Define()
 		TestMatches(TEXT("instant"));
 	});
 
-	It("mirrors every effect type, and UseGAS 1 reads each the same as 0 (B-042k)", [this]()
+	It("mirrors every effect type (B-042k)", [this]()
 	{
 		if (!EffectManager) return;
 		const UEnum *Types = StaticEnum<ESkillEffectType>();
@@ -189,25 +189,9 @@ void FEffectMirrorSpec::Define()
 		TestMatches(TEXT("every type"));
 		// Immunities may turn a few away, but most must land, or the per-type compare proves nothing.
 		TestTrue(TEXT("Most types mirrored"), Mirror->NumMirrored() >= (Types->NumEnums() - 1) / MIRROR_SWEEP_MIN_SHARE);
-
-		for (int32 Index = 0; Index < Types->NumEnums() - 1; ++Index)
-		{
-			const ESkillEffectType Type = static_cast<ESkillEffectType>(Types->GetValueByIndex(Index));
-			if (Type == ESkillEffectType::None)
-			{
-				continue;
-			}
-			const FString Name = UEnum::GetValueAsString(Type);
-			UWoREffectMirrorComponent::SetReadsFromGAS(false);
-			const bool bEnumHas = EffectManager->HasEffectOfType(Hero, Type);
-			const float EnumTotal = EffectManager->GetTotalStatModifier(Hero, Type);
-			UWoREffectMirrorComponent::SetReadsFromGAS(true);
-			TestEqual(*FString::Printf(TEXT("%s: has"), *Name), EffectManager->HasEffectOfType(Hero, Type), bEnumHas);
-			TestEqual(*FString::Printf(TEXT("%s: total"), *Name), EffectManager->GetTotalStatModifier(Hero, Type), EnumTotal);
-		}
 	});
 
-	It("reads from GAS with wor.Effects.UseGAS 1 and from the enum path with 0", [this]()
+	It("reads from GAS on an actor with a mirror", [this]()
 	{
 		if (!EffectManager) return;
 		// A GE put straight on the ASC, with nothing stored: only a GAS read sees it.
@@ -215,16 +199,12 @@ void FEffectMirrorSpec::Define()
 		ASC->ApplyGameplayEffectSpecToSelf(*FWoREffectSpecBuilder::Build(*ASC, Stun, Foe).Spec.Data.Get());
 		ASC->ApplyGameplayEffectSpecToSelf(*FWoREffectSpecBuilder::Build(*ASC, Buff(), Foe).Spec.Data.Get());
 
-		TestFalse(TEXT("UseGAS 0: not stunned"), EffectManager->IsStunned(Hero));
-		TestEqual(TEXT("UseGAS 0: no buff"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseBuff), 0.0f);
-
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestTrue(TEXT("UseGAS 1: stunned"), EffectManager->IsStunned(Hero));
-		TestTrue(TEXT("UseGAS 1: HasEffectOfType"), EffectManager->HasEffectOfType(Hero, ESkillEffectType::Stun));
-		TestEqual(TEXT("UseGAS 1: buff"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseBuff), MIRROR_BUFF);
-		TestEqual(TEXT("UseGAS 1: generic-element buff"),
+		TestTrue(TEXT("stunned"), EffectManager->IsStunned(Hero));
+		TestTrue(TEXT("HasEffectOfType"), EffectManager->HasEffectOfType(Hero, ESkillEffectType::Stun));
+		TestEqual(TEXT("buff"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseBuff), MIRROR_BUFF);
+		TestEqual(TEXT("generic-element buff"),
 				  EffectManager->GetTotalStatModifierForElement(Hero, ESkillEffectType::DefenseBuff, Buff().Element), MIRROR_BUFF);
-		TestFalse(TEXT("UseGAS 1: an actor without a mirror stays on the enum path"), EffectManager->IsStunned(Foe));
+		TestFalse(TEXT("an actor without a mirror stays on the store"), EffectManager->IsStunned(Foe));
 	});
 }
 
