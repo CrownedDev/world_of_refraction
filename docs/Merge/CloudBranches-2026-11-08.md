@@ -195,6 +195,9 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 76 | `feature/B-043b-ability-base-cloud` | dev | – | GAS stage 4 part 2 (Q-043b): `UWoRGameplayAbility`, granting at fight start, `wor.Abilities.UseGAS` (default 0) routes actions through abilities; costs still paid once by the executor. API from UE 5.5+ memory: watch the first compile (`GetDynamicSpecSourceTags`, InstancingPolicy in the constructor). Reviewed; fixed. B-214 can start after it. |
 | 77 | `feature/B-042g2-usegas-switch-delete-cloud` | dev | – | **Merge only after Crown's full PIE fight at `wor.Effects.UseGAS 1` on dev (its sheet, section A).** Deletes the UseGAS switch (GAS reads always), the parity specs and the enum-side spec halves (D-140). Review BLOCKED on five specs; fixed (trackers on spec holders; HP-based asserts). Run the full suite: its sheet lists the specs to watch. Conflicts likely with row 75 (ResistanceQuery / SkillEffectManager): resolve keeping both. |
 | 78 | `feature/B-043c-melee-ability-tasks-cloud` | row 76 (B-043b) | – | GAS stage 4 part 3 (Q-043c): a skill's impacts reach its ability as `Event.Combat.Impact` (`UActionExecutor::RouteImpactFrame`, `WaitGameplayEvent`), else resolved as before; the montage stays in the executor (moved to B-043f). Behind `wor.Abilities.UseGAS`. Reviewed; fixed. |
+| 79 | `feature/B-043d-projectile-abilities-cloud` | dev (B-043c in) | – | GAS stage 4 part 4 (Q-043d): projectile / burst arrivals and dodges through the spell's ability (`Event.Combat.Projectile.Arrived/.Dodged`), exactly once, executor fallback; behind `wor.Abilities.UseGAS`. Reviewed; fixed. |
+| 80 | `feature/B-170a-action-pips-cloud` | dev | – | Action pips 1 (Q-170a): actions on the character, no play change. **Q-170a differs from ActionPips.md §3.1** (an additive layer set, not a stat entry): Crown may veto. Reviewed; fixed. |
+| 81 | `feature/B-397-hidden-quests-shown-cloud` | dev | – | D-171: hidden quests listed once found, current goal only, private discovery notice; Q-377's placeholder notices superseded. Reviewed; fixed. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
@@ -302,3 +305,7 @@ Deletions of code a finished job made obsolete. CLAUDE.md: no deleting code befo
 **Docs-only, merge any time:** `chore/B-032b-blocked-cloud` (B-032b BLOCKED on new row B-032c: the lumped spell path still serves multi-entry / multi-hit spells), `chore/B-165-blocked-cloud` (B-165 needs the D-067 spec first, best written on the desktop).
 
 **Not written:** B-299 (waits for all of B-042g). All C-rows touch the same doc lines (Backlog, PIE README Pending, LoadoutSystem changelog, the session's "Cloud writer: PIE-gated deletions" heading): resolve by keeping both rows / bullets and one heading. The trial branch has C1–C7 cherry-picked.
+
+## Update, 2026-11-09 (afternoon): after B-043b / B-043c landed
+
+Rows 79–81 written and reviewed. Being written: B-170b (on row 80) and B-043e (on row 79). Rows 74–77 and C1–C7 still wait on the desktop.
