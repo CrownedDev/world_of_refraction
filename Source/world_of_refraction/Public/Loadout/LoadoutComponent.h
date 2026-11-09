@@ -28,6 +28,7 @@
 #include "Loadout/CarriedGearState.h"
 #include "Equipment/Crystals/EvolutionPlacement.h"
 #include "Inventory/EInventoryChangeType.h"
+#include "Combat/Defense/EGuardStyle.h"
 #include "LoadoutComponent.generated.h"
 
 struct FBrokenCrystalPayload;
@@ -41,6 +42,7 @@ class UEvolutionItemData;
 class URingData;
 class UEvolutionItemData;
 struct FWeaponLoadoutEntry;
+struct FPartyMember;
 struct FRingLoadoutEntry;
 struct FRuntimeAttachedItem;
 class UStanceData;
@@ -514,6 +516,30 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
     UAnimMontage *GetParryMontage() const;
 
+    // ==================== GUARD (B-392, D-170) ====================
+
+    /** B-392 (D-170, Q-392): the guard this character parries with now. No weapon in hand: Unarmed. A weapon in hand:
+     *  the chosen guard, except that Unarmed holds only for the weapon it was chosen with (equipping another weapon
+     *  brings the weapon guard back). Looks only: the timing window never reads it. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    EGuardStyle GetGuardStyle() const;
+
+    /** B-392: choose the guard. Unarmed puts the weapon now in hand away for parrying; refused (false) with no weapon in
+     *  hand, which is unarmed already. A rostered member (a pawn stamped with its PartyMemberId) keeps the choice on its
+     *  party record, which the save writes; any other pawn keeps it here for its life. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Defense")
+    bool SetGuardStyle(EGuardStyle Style);
+
+    /** B-392: the one guard-montage resolver. The weapon guard is the active weapon's ParryMontage (its type's guard, not
+     *  customisable); the unarmed guard is the character's Cosmetics BlockMontage (customisable per character). A weapon
+     *  with no guard montage authored yet falls back to the unarmed one, so nothing goes still. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetGuardMontage() const;
+
+    /** B-392: the rule GetGuardStyle applies, pure for the spec. ActiveWeaponId is the in-hand weapon's PersistentID. */
+    static EGuardStyle ResolveGuardStyle(bool bWeaponInHand, const FGuid &ActiveWeaponId, EGuardStyle Chosen,
+                                         const FGuid &ChosenWithWeaponId);
+
     /** Get unarmed stance */
     UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
     UStanceData *GetUnarmedStance() const;
@@ -862,6 +888,14 @@ private:
     /** The weapon OnActiveWeaponChanged last announced. */
     UPROPERTY(Transient)
     TObjectPtr<UWeaponData> LastNotifiedWeapon;
+
+    /** B-392: the guard choice of a pawn with no party record (an enemy, a hub or test pawn); a rostered member's lives
+     *  on FPartyMember::GuardStyle / GuardWeaponId. */
+    EGuardStyle LocalGuardStyle = EGuardStyle::Weapon;
+    FGuid LocalGuardWeaponId;
+
+    /** B-392: the party record of a pawn stamped with its member id, else null (the head-start rule, B-348b). */
+    const FPartyMember *FindGuardRecord() const;
 
     /** Inventory edits (loads, gear removed) write SavedLoadouts directly; re-check the weapon. */
     UFUNCTION()
