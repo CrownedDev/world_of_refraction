@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-154](B-154.md) | `feature/B-154-ring-weapon-managers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-024) | Delete the OBSOLETE ring and weapon manager subsystems; Blueprint check first | Pending |
 | [B-153](B-153.md) | `feature/B-153-loadout-class-field-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-022) | Remove the OBSOLETE loadout `CharacterClass` field; Blueprint check first | Pending |
 | [B-043a](B-043a.md) | `feature/B-043a-costs-gas-cloud` (UNBUILT, on B-042f) | GAS stage 4 part 1: skill EP costs and the infusion HP backlash paid as Instant GEs (`wor.Costs.UseGAS`), same numbers | Pending |
 | [B-152](B-152.md) | `feature/B-152-stone-wrappers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-021) | Delete the unreachable stat-stone consumable wrappers | Pending |
