@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-034b](B-034b.md) | `feature/B-034b-charge-manager-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-034) | Delete the dead hold-to-charge `InfusionChargeManager`; check 1 is the editor's no-Blueprint-uses-it check | Pending |
 | [B-172](B-172.md) | `feature/B-172-legacy-validators-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-028) | Delete the legacy loadout validators and `wor.Loadout.CompareRules` | Pending |
 | [B-154](B-154.md) | `feature/B-154-ring-weapon-managers-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-024) | Delete the OBSOLETE ring and weapon manager subsystems; Blueprint check first | Pending |
 | [B-153](B-153.md) | `feature/B-153-loadout-class-field-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-022) | Remove the OBSOLETE loadout `CharacterClass` field; Blueprint check first | Pending |
