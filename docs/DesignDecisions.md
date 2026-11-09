@@ -4433,3 +4433,11 @@ Moved here once applied. Newest first.
 **Recommendation:** A. GASMigration's own risk list says Pattern-P maths "must stay exact" and is kept as one pure C++ function; GAS's documented pattern (tranek's GASDocumentation, Epic's Lyra) is SetByCaller for values computed outside GAS. Item effects already enter through the builder as their own GEs (B-042c / i).
 **Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change it.
 **Notes for Claude (as built):** B-042f. The read-time refresh (Q-042p / Q-042yb) stays: the sources GEs are still refreshed from the game-side layers. B-042g deletes the enum path.
+
+### D-169 — Curses have tiers; clearing one costs essence by tier
+**Status:** DECIDED (Crown, 2026-11-09, desktop operator session) · **Raised:** 2026-11-09 (B-378b hand-off: the hub's Clear curse service is free) · **Blocks:** —
+**Answer (Crown):** curses get **tiers** (Light / Medium / Heavy), and the price to clear one is set **by its tier**. The price is paid in **essence**: **Elemental or Pillar Essence, chosen per curse** (authored on the curse).
+- Reference: Darkest Dungeon's Sanitarium charges more to remove worse quirks; a light curse is cheap to drop, a heavy one is a real choice.
+- Starting prices (*starting values, tune in PIE*): Light 100, Medium 250, Heavy 500 of the curse's essence.
+- The penalty itself stays as authored per curse (Q-378's "flat, not tier-scaled" penalty is unchanged); the tier sets the clear price only.
+**Notes for Claude:** `UCurseData` gains `Tier` and `ClearEssence` (Elemental / Pillar); the hub Clear curse button charges it through the existing economy service (D-125 balances), refused with a message when short. Which curses exist, their names, text and tiers stay Crown's (lore). Job: B-390.
