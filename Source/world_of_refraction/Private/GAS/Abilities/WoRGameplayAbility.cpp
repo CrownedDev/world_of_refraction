@@ -4,6 +4,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Abilities/Tasks/AbilityTask_WaitGameplayEvent.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/TargetType.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
@@ -128,6 +129,7 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	bActionRunning = true;
 	ImpactTask = nullptr;
 	ProjectileTask = nullptr;
+	SpellResolveTask = nullptr;
 
 	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
 	{
@@ -152,6 +154,11 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	if (ShouldListenForProjectiles(RunningAction))
 	{
 		StartProjectileListener();
+	}
+	// B-043e: an AOE / Instant / support release resolves inside the call too (a montage-less spell).
+	if (ShouldListenForSpellResolves(RunningAction))
+	{
+		StartSpellResolveListener();
 	}
 	// A copy: the completion can run inside this call and a bonus turn can start this ability again.
 	const FAction Action = RunningAction;
@@ -210,6 +217,11 @@ void UWoRGameplayAbility::EndEventTasks()
 	if (UAbilityTask_WaitGameplayEvent *Task = ProjectileTask)
 	{
 		ProjectileTask = nullptr;
+		Task->EndTask();
+	}
+	if (UAbilityTask_WaitGameplayEvent *Task = SpellResolveTask)
+	{
+		SpellResolveTask = nullptr;
 		Task->EndTask();
 	}
 }
@@ -333,4 +345,96 @@ void UWoRGameplayAbility::HandleProjectileEvent(FGameplayEventData Payload)
 		   bDodged ? TEXT("dodged by") : TEXT("reached"), *GetNameSafe(Arrival.Target.Get()), *Payload.EventTag.ToString(),
 		   Arrival.CastEntryIndex);
 	Executor->ResolveProjectileArrival(Arrival);
+}
+
+bool UWoRGameplayAbility::ShouldListenForSpellResolves(const FAction &Action)
+{
+	const USkillDataBase *Skill = WoRSkillAbilities::GetActionSkill(Action);
+	if (!Skill)
+	{
+		return false;
+	}
+	// The executor's own test for the support path (SpawnSpellDelivery, DispatchSpellCast).
+	const bool bSupport = Skill->TargetType != ETargetType::Enemy;
+	const auto IsFlightless = [](ESpellDeliveryType Delivery)
+	{
+		return Delivery == ESpellDeliveryType::AOE || Delivery == ESpellDeliveryType::Instant;
+	};
+	if (Skill->CastArray.Num() > 0)
+	{
+		// DispatchSpellCast's support, AOE and Instant cases (spells and cast-notify abilities alike).
+		return bSupport || Skill->CastArray.ContainsByPredicate([&IsFlightless](const FSkillCastEntry &Entry)
+		{
+			return IsFlightless(Entry.DeliveryType);
+		});
+	}
+	// SpawnSpellDelivery's loose path reads the spell's own TargetType and DeliveryType.
+	return Skill->IsA<USpellData>() && (bSupport || IsFlightless(Skill->DeliveryType));
+}
+
+bool UWoRGameplayAbility::IsListeningForSpellResolves() const
+{
+	return bActionRunning && IsActive() && SpellResolveTask && SpellResolveTask->IsActive();
+}
+
+void UWoRGameplayAbility::StartSpellResolveListener()
+{
+	// Q-043e: as the projectile task (Q-043d): one task on the parent tag takes all three kinds, every resolution
+	// of the action (not OnlyTriggerOnce); GASDocumentation's one-task-many-event-tags pattern, Lyra's
+	// WaitGameplayEvent per ability.
+	SpellResolveTask = UAbilityTask_WaitGameplayEvent::WaitGameplayEvent(this, WoRTags::Event_Combat_SpellResolve,
+																		 /*OptionalExternalTarget*/ nullptr,
+																		 /*OnlyTriggerOnce*/ false, /*OnlyMatchExact*/ false);
+	if (!SpellResolveTask)
+	{
+		return; // the executor resolves them itself
+	}
+	SpellResolveTask->EventReceived.AddDynamic(this, &UWoRGameplayAbility::HandleSpellResolveEvent);
+	SpellResolveTask->ReadyForActivation();
+}
+
+void UWoRGameplayAbility::HandleSpellResolveEvent(FGameplayEventData Payload)
+{
+	if (!bActionRunning)
+	{
+		return;
+	}
+	AActor *Avatar = GetAvatarActorFromActorInfo();
+	// As HandleProjectileEvent: only the listener the sender chose, and only for this ability's own action.
+	if (WoRSkillAbilities::FindSpellResolveListener(Avatar) != this)
+	{
+		return;
+	}
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	if (!Executor || !IsExecutorOnRunningAction(*Executor))
+	{
+		return; // not counted: the executor resolves it (RouteSpellResolve)
+	}
+	EWoRSpellResolveKind Kind = EWoRSpellResolveKind::AOE;
+	if (!WoRSkillAbilities::GetSpellResolveKind(Payload.EventTag, Kind))
+	{
+		return;
+	}
+	FWoRSpellResolve Resolve;
+	// Taking it clears it on the executor: whatever happens next, nothing resolves it twice.
+	if (!Executor->TakeRoutedSpellResolve(Kind, Payload.Target.Get(), Resolve))
+	{
+		return;
+	}
+	// Counted before resolving: the last hit can finish the action and end this ability.
+	switch (Kind)
+	{
+	case EWoRSpellResolveKind::AOE:
+		++AOEResolves;
+		break;
+	case EWoRSpellResolveKind::Instant:
+		++InstantResolves;
+		break;
+	case EWoRSpellResolveKind::Support:
+		++SupportResolves;
+		break;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s on %s through its event (cast entry %d)"), *Avatar->GetName(),
+		   *Payload.EventTag.ToString(), *GetNameSafe(Resolve.GetEventTarget()), Resolve.CastEntryIndex);
+	Executor->ResolveRoutedSpell(Resolve);
 }
