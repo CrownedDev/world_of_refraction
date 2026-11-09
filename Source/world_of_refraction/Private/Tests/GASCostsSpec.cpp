@@ -15,6 +15,7 @@
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoRGameplayEffects.h"
+#include "GameplayEffectComponents/ImmunityGameplayEffectComponent.h"
 #include "Tags/WoRGameplayTags.h"
 
 namespace
@@ -138,6 +139,26 @@ void FGASCostsSpec::Define()
 		TestTrue(TEXT("Zero is paid"), WoRCosts::TryPayEnergy(Hero, 0));
 		TestEqual(TEXT("EP unchanged"), HeroStats->CurrentEP, COSTS_START_EP);
 		TestEqual(TEXT("No cost GE"), CostEffectsApplied, 0);
+	});
+
+	It("pays once the old way when an immunity blocks the cost GE (never free, never twice)", [this]()
+	{
+		if (!HeroStats)
+		{
+			return;
+		}
+		UGameplayEffect *CostImmunity = NewObject<UGameplayEffect>(GetTransientPackage(), TEXT("GE_TestCostImmunity"));
+		CostImmunity->DurationPolicy = EGameplayEffectDurationType::Infinite;
+		CostImmunity->FindOrAddComponent<UImmunityGameplayEffectComponent>().ImmunityQueries.Add(
+			FGameplayEffectQuery::MakeQuery_MatchAnyEffectTags(FGameplayTagContainer(WoRTags::Effect_Family_Cost)));
+		ASC->ApplyGameplayEffectToSelf(CostImmunity, 1.0f, ASC->MakeEffectContext());
+
+		SetSwitches(true, true);
+		TestFalse(TEXT("The blocked GE declines"), WoRCosts::TryPayEnergy(Hero, COSTS_EP_COST));
+		TestEqual(TEXT("Nothing paid by the blocked GE"), HeroStats->CurrentEP, COSTS_START_EP);
+		SpendAsExecutor(COSTS_EP_COST);
+		TestEqual(TEXT("Paid once the old way"), HeroStats->CurrentEP, COSTS_START_EP - COSTS_EP_COST);
+		TestEqual(TEXT("No cost GE applied"), CostEffectsApplied, 0);
 	});
 
 	for (const bool bThroughGAS : {false, true})

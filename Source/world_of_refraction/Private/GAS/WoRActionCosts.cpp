@@ -52,13 +52,13 @@ namespace
 		const FGameplayEffectSpecHandle Spec = MakeCostSpec(ASC, Class, DataTag, Amount);
 		if (!Spec.IsValid())
 		{
-			UE_LOG(LogWoR, Warning, TEXT("[Costs] %s: no %s spec; paying the old way"), *GetNameSafe(Payer), What);
+			UE_LOG(LogWoR, Log, TEXT("[Costs] %s: no %s spec; paying the old way"), *GetNameSafe(Payer), What);
 			return false;
 		}
 		if (!ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get()).WasSuccessfullyApplied())
 		{
 			// Something blocked the GE (a tag requirement, an immunity): pay the old way, never cast free.
-			UE_LOG(LogWoR, Warning, TEXT("[Costs] %s: the %s cost GE did not apply; paying the old way"), *GetNameSafe(Payer), What);
+			UE_LOG(LogWoR, Log, TEXT("[Costs] %s: the %s cost GE did not apply; paying the old way"), *GetNameSafe(Payer), What);
 			return false;
 		}
 		UE_LOG(LogWoR, Verbose, TEXT("[Costs] %s paid %d %s through GAS"), *GetNameSafe(Payer), Amount, What);
