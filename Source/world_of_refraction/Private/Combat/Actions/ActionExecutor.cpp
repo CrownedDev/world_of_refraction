@@ -4750,12 +4750,6 @@ ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USp
 	return ESpellElement::None;
 }
 
-// OBSOLETE (B-307, SimplifyAudit S4): no callers, and its comment contradicts the code. Remove with B-309.
-bool UActionExecutor::DoWeaponStatsApply(EInfusionSourceOption Option) const
-{
-	return Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw;
-}
-
 float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor) const
 {
 	if (!Actor)
