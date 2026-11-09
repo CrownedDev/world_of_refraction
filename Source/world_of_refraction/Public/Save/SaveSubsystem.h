@@ -50,10 +50,10 @@ public:
 	bool SaveNow(UWorld *World, bool bAsync);
 
 	/** B-234b (Q-234b (2)): this player takes over as host. Loads the host's checkpoint copy (WoRCheckpoint::SLOT_NAME)
-	 *  and plays from it: the old host's party replaces the local one, its armoury joins the pool for this session,
-	 *  and its run waits for the next hub world to resume (the last checkpoint). This player's own wallet and forms
-	 *  stay. From now on saves go to the copy's slot (and to the others), never this player's own slot: a restart
-	 *  comes back to its own save. False without a copy holding a run. */
+	 *  and plays from it: the old host's party replaces the local one, its armoury joins the pool until the run ends
+	 *  (EndHandedOverRun), and its run waits for the next hub world to resume (the last checkpoint). This player's own
+	 *  wallet and forms stay. From now on saves go to the copy's slot (and to the others), never this player's own
+	 *  slot: a restart comes back to its own save. False without a copy holding a run. */
 	bool AdoptCheckpoint();
 
 	/** AdoptCheckpoint from SlotName (specs use their own slot, never the real copy). Its saves then go to SlotName. */
@@ -61,6 +61,20 @@ public:
 
 	/** B-234b: playing a run handed over from the old host's copy (AdoptCheckpoint). */
 	bool IsPlayingHostCopy() const { return bPlayingHostCopy; }
+
+	/** B-234d (Q-234d): the handed-over run ended (UTrialRunSubsystem::ExitTrial, after its exit save). When the next
+	 *  game world is up (the run's members have pushed their last loadouts into the pool by then, and the hub's party
+	 *  is not built yet), ReturnToOwnSave runs. No-op unless a handed-over run is being played. */
+	void EndHandedOverRun();
+
+	/** B-234d (Q-234d): the party and the pool go back to this player's own save (SLOT_NAME), as it was before the
+	 *  hand-over; everything else stays as played (wallet, forms, journal, quests, curses, counters were this player's
+	 *  own all along); the run is over. Saves go to its own slot again (written now). False unless a handed-over run
+	 *  is being played. */
+	bool ReturnToOwnSave();
+
+	/** ReturnToOwnSave from SlotName (specs use their own slot, never the player's real save). */
+	bool ReturnToOwnSaveFrom(const FString &SlotName);
 
 	/** Remove the slot from disk and start an empty one in memory. Nothing is written again this
 	 *  session (so the next start is fresh) until wor.Save.Now. */
@@ -116,9 +130,14 @@ private:
 	/** A run not resumed: the restored party forgets its carried state. */
 	void DropRunVitals();
 
+	/** B-234d: the world after a handed-over run's end is up: ReturnToOwnSave. */
+	void HandleOwnSaveReturnWorld(const FActorsInitializedParams &Params);
+
 	/** The run the slot was loaded with, waiting for the first game world. */
 	FSavedRun PendingRun;
 	FDelegateHandle WorldActorsInitializedHandle;
+	/** B-234d: EndHandedOverRun waiting for the next game world. */
+	FDelegateHandle OwnSaveReturnHandle;
 
 	/** Always set: an unbound in-memory slot until a local player loads the real one. */
 	UPROPERTY()
@@ -133,9 +152,9 @@ private:
 	/** Set by DeleteSave: automatic saves stop for the rest of the session. */
 	bool bWritesStopped = false;
 
-	/** B-234b: set by AdoptCheckpoint; WriteSlot writes the copy's slot instead of this player's own. Stays set for the
-	 *  session on purpose (Q-234b (2)): the game in memory holds the old host's party and armoury from then on, so its
-	 *  own slot is never written again until a restart reloads it. */
+	/** B-234b: set by AdoptCheckpoint; WriteSlot writes the copy's slot instead of this player's own. Stays set while the
+	 *  handed-over run lasts (Q-234b (2)): the game in memory holds the old host's party and armoury, so this player's
+	 *  own slot is not written; cleared by ReturnToOwnSave when the run ends (B-234d), or by a restart. */
 	bool bPlayingHostCopy = false;
 
 	/** B-234b: the slot the adopted copy came from and is saved back to. */

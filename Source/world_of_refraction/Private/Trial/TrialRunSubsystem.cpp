@@ -251,7 +251,10 @@ void UTrialRunSubsystem::ExitTrial()
     PendingOpposingParty.Reset();
     EncounterReturnLevel = nullptr;
     // B-090: a trial's exit is a save point.
-    GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
+    USaveSubsystem *ExitSave = GetGameInstance()->GetSubsystem<USaveSubsystem>();
+    ExitSave->SaveNow(GetGameInstance()->GetWorld(), true);
+    // B-234d (Q-234d): a run handed over from the old host's copy ends here; the hub gets this player's own party and pool.
+    ExitSave->EndHandedOverRun();
     TravelTo(HubLevel);
 }
 

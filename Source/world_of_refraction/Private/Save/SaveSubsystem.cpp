@@ -374,6 +374,7 @@ void USaveSubsystem::Deinitialize()
 	GI->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
 	GI->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	FWorldDelegates::OnWorldInitializedActors.Remove(OwnSaveReturnHandle); // B-234d
 	Super::Deinitialize();
 }
 
@@ -484,8 +485,8 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 	}
 	PartySession->ForgetLocalParty();
 	const bool bParty = Copy->Data.Party.bHasParty && RestoreParty(Copy->Data.Party, *PartySession);
-	// The old host's gear joins the pool for this session (party gear points into it); never written to this
-	// player's own slot. TODO: B-234c: a pool reset so the hub after the run shows only this player's own armoury.
+	// The old host's gear joins the pool until the run ends (party gear points into it); never written to this
+	// player's own slot. B-234d: the run's end gives this player its own pool back (ReturnToOwnSave).
 	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *Pool);
 	SaveGame = Copy;
 	bPlayingHostCopy = true;
@@ -495,6 +496,81 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
 	UE_LOG(LogWoR, Display, TEXT("[Save] Hand-over: hosting from the copy (party %s, %d pool entries); the run resumes in the next hub"),
 		   bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries);
+	return true;
+}
+
+void USaveSubsystem::EndHandedOverRun()
+{
+	if (!bPlayingHostCopy)
+	{
+		return;
+	}
+	// Not now: the run's members still stand in this level and push their loadouts into the pool as it goes.
+	FWorldDelegates::OnWorldInitializedActors.Remove(OwnSaveReturnHandle);
+	OwnSaveReturnHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleOwnSaveReturnWorld);
+	UE_LOG(LogWoR, Display, TEXT("[Save] Handed-over run ended: this player's own party and pool come back in the next level"));
+}
+
+void USaveSubsystem::HandleOwnSaveReturnWorld(const FActorsInitializedParams &Params)
+{
+	if (!Params.World || !Params.World->IsGameWorld() || Params.World->GetGameInstance() != GetGameInstance())
+	{
+		return;
+	}
+	FWorldDelegates::OnWorldInitializedActors.Remove(OwnSaveReturnHandle);
+	OwnSaveReturnHandle.Reset();
+	ReturnToOwnSave(); // before the level's BeginPlay builds the party from it
+}
+
+bool USaveSubsystem::ReturnToOwnSave()
+{
+	return ReturnToOwnSaveFrom(SLOT_NAME);
+}
+
+bool USaveSubsystem::ReturnToOwnSaveFrom(const FString &SlotName)
+{
+	UGameInstance *GI = GetGameInstance();
+	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	if (!bPlayingHostCopy || !PartySession || !Pool)
+	{
+		return false;
+	}
+	const ULocalPlayer *Local = GI->GetFirstGamePlayer();
+	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+	const bool bOwnExists = UGameplayStatics::DoesSaveGameExist(SlotName, UserIndex);
+	UWoRSaveGame *Own = bOwnExists ? Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex))
+								   : Cast<UWoRSaveGame>(UGameplayStatics::CreateSaveGameObject(UWoRSaveGame::StaticClass()));
+	if (!Own)
+	{
+		UE_LOG(LogWoR, Error, TEXT("[Save] Handed-over run's end: this player's own save '%s' could not be read; still playing the copy"), *SlotName);
+		return false;
+	}
+	// The version check and migrations (D-060) and bound to this player, as AdoptCheckpointFrom does. No own save (or
+	// one the version check wiped) gives this player a fresh party and pool, as a first start does.
+	Own->InitializeSaveGame(Local, SlotName, /*bWasLoaded=*/bOwnExists);
+	// Q-234d: only the party, the pool and the run came from the old host's copy. The rest (wallet with the run's
+	// payout, forms, journal, quests, curses, counters) was this player's own all along, and the exit save has just
+	// captured it, so it stays as played. The run is over.
+	FWoRSaveData Played = SaveGame->Data;
+	Played.Party = Own->Data.Party;
+	Played.Pool = Own->Data.Pool;
+	Played.Run = FSavedRun();
+	Own->Data = MoveTemp(Played);
+
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	WorldActorsInitializedHandle.Reset();
+	PendingRun = FSavedRun();
+	PartySession->ForgetLocalParty();
+	const bool bParty = Own->Data.Party.bHasParty && RestoreParty(Own->Data.Party, *PartySession);
+	Pool->ResetStore();
+	const int32 PoolEntries = RestorePool(Own->Data.Pool, *Pool);
+	SaveGame = Own;
+	bPlayingHostCopy = false;
+	AdoptedSlotName.Reset();
+	const bool bWritten = WriteSlot(/*bAsync=*/false);
+	UE_LOG(LogWoR, Display, TEXT("[Save] Handed-over run over: back to this player's own save (party %s, %d pool entries; written %s)"),
+		   bParty ? TEXT("restored") : TEXT("fresh"), PoolEntries, bWritten ? TEXT("yes") : TEXT("no"));
 	return true;
 }
 
