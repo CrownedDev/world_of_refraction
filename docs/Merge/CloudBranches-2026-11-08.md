@@ -91,7 +91,7 @@ These branches are all in `dev` already, so **merge them into dev again**, in th
 - **New trial branch `integration/cloud-2026-11-09`**: current dev plus no-ff merges of rows 74–77 and cleanups C1–C7, in that order. No code conflicts; doc conflicts only. A cross-merge review found no code breakage (PASS WITH NOTES). The old `integration/cloud-2026-11-08` is superseded.
 - **When resolving Backlog conflicts, take the branch's row for its own job** (and for rows it deliberately edits). A plain "keep dev's row" union left B-153 and B-172 BLOCKED and dropped B-042g2's note on B-043a; the trial branch has the fix (cbe9a118).
 - After B-042g2 merges, PIE checks that set `wor.Effects.UseGAS` are only for before it (B-043b check 10, B-064c check 10 now say so; older sheets B-042c/h/k/o/x/y/g/i too).
-- B-043c (melee through ability tasks) is being written, stacked on row 76.
+- Row 78, B-043c, is written and reviewed (stacked on row 76). The trial branch has it.
 
 ## How to use the table
 
@@ -194,6 +194,7 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 75 | `feature/B-064c-ice-rest-cloud` | dev | – | Ice, the rest (Q-064c): Ice column in `ResistanceColumns` and its structs (old data reads 0, no save bump), `bKeyedIce` on resistance buffs / Wards (Ice-keyed covers Ice and Water), Water boosts and StatusMultiplier skip Ice, AI estimate by hit kind. Net format of `FWoREffectIdentity` changes (both ends same build). Reviewed; fixed (debug readouts). |
 | 76 | `feature/B-043b-ability-base-cloud` | dev | – | GAS stage 4 part 2 (Q-043b): `UWoRGameplayAbility`, granting at fight start, `wor.Abilities.UseGAS` (default 0) routes actions through abilities; costs still paid once by the executor. API from UE 5.5+ memory: watch the first compile (`GetDynamicSpecSourceTags`, InstancingPolicy in the constructor). Reviewed; fixed. B-214 can start after it. |
 | 77 | `feature/B-042g2-usegas-switch-delete-cloud` | dev | – | **Merge only after Crown's full PIE fight at `wor.Effects.UseGAS 1` on dev (its sheet, section A).** Deletes the UseGAS switch (GAS reads always), the parity specs and the enum-side spec halves (D-140). Review BLOCKED on five specs; fixed (trackers on spec holders; HP-based asserts). Run the full suite: its sheet lists the specs to watch. Conflicts likely with row 75 (ResistanceQuery / SkillEffectManager): resolve keeping both. |
+| 78 | `feature/B-043c-melee-ability-tasks-cloud` | row 76 (B-043b) | – | GAS stage 4 part 3 (Q-043c): a skill's impacts reach its ability as `Event.Combat.Impact` (`UActionExecutor::RouteImpactFrame`, `WaitGameplayEvent`), else resolved as before; the montage stays in the executor (moved to B-043f). Behind `wor.Abilities.UseGAS`. Reviewed; fixed. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
