@@ -96,56 +96,8 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteCritBuffEffect(User, Target, Id, Result);
 		break;
 
-	case EItemEffectType::BuffTurnSpeed:
-		ExecuteTurnSpeedStoneEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffStatusMultiplier:
-		ExecuteStatusBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffEfficiency:
-		ExecuteEfficiencyBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffMaxHP:
-		ExecuteMaxHPBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffMaxEP:
-		ExecuteMaxEPBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffRawDamage:
-		ExecuteRawDamageBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffSpellDamage:
-		ExecuteSpellDamageBuffEffect(User, Target, Id, Result);
-		break;
-
 	case EItemEffectType::BuffResistance:
 		ExecuteResistanceBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffSpellSpeed:
-		ExecuteSpellSpeedBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffActionSpeed:
-		ExecuteActionSpeedBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffCritDamage:
-		ExecuteCritDamageBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffLuck:
-		ExecuteLuckBuffEffect(User, Target, Id, Result);
-		break;
-
-	case EItemEffectType::BuffReflex:
-		ExecuteReflexBuffEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::Silence:
@@ -573,106 +525,6 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 	OutResult.bSuccess = true;
 }
 
-void UItemExecutor::ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// TurnSpeedStone consumable - DIRECTIONAL pure stat: buff an ally's turn speed, or
-	// debuff an enemy's, at the stone's 3-15 magnitude for the flat stone duration. NO
-	// turn mechanic (no extra-turn/skip) — that lives in Emerald's ExecuteBonusTurnEffect.
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::TurnSpeedBuff, ESkillEffectType::TurnSpeedDebuff,
-						 TEXT("Turn Speed"), OutResult);
-}
-
-void UItemExecutor::ExecuteStatusBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// StatusStone consumable - DIRECTIONAL: buff an ally's status multiplier, or debuff
-	// an enemy's, at the stone's 3-15 magnitude for the flat stone duration. This is a
-	// TRANSIENT StatusMultiplierBuff/Debuff (the Step-5b layer in AddStatusBuildup) —
-	// SEPARATE from the attached StatusStone's base-stat getter (B3). Applied via SEM.
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::StatusMultiplierBuff, ESkillEffectType::StatusMultiplierDebuff,
-						 TEXT("Status Multiplier"), OutResult);
-}
-
-void UItemExecutor::ExecuteEfficiencyBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// EfficiencyStone consumable - DIRECTIONAL: buff an ally's Efficiency (cheaper casts /
-	// slower BD drain / less crystal wear) or debuff an enemy's (the inverse), at the
-	// stone's 3-15 magnitude for the flat stone duration. Applies the TRANSIENT
-	// EfficiencyBuff/Debuff (H0); GetEffectiveEfficiencyMultiplier folds it in, so it
-	// reaches BD drain + EP cost + durability with no per-consumer wiring here. The
-	// getter's sign handles direction; this handler just picks buff-ally / debuff-enemy.
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::EfficiencyBuff, ESkillEffectType::EfficiencyDebuff,
-						 TEXT("Efficiency"), OutResult);
-}
-
-void UItemExecutor::ExecuteMaxHPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// MaxHPStone consumable - DIRECTIONAL: raise an ally's MaxHP, or lower an enemy's, at
-	// the stone's 3-15 magnitude for the flat stone duration. Applies the TRANSIENT
-	// MaxHPBuff/Debuff (P2a); RecomputeMaxPools folds it in and the P2b subscribe trigger
-	// recomputes the pool on apply/expire — no per-consumer pool wiring here. Current HP is
-	// untouched (raise = no heal; expiry = overcap, no damage).
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::MaxHPBuff, ESkillEffectType::MaxHPDebuff,
-						 TEXT("Max HP"), OutResult);
-}
-
-void UItemExecutor::ExecuteMaxEPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// MaxEPStone consumable - DIRECTIONAL: raise an ally's MaxEP, or lower an enemy's, at
-	// the stone's 3-15 magnitude for the flat stone duration. Applies the TRANSIENT
-	// MaxEnergyBuff/Debuff; RecomputeMaxPools folds it in via the P2b trigger. Current EP
-	// untouched; a raised MaxEP also lifts the BD overload entry/ceiling (intended).
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::MaxEnergyBuff, ESkillEffectType::MaxEnergyDebuff,
-						 TEXT("Max EP"), OutResult);
-}
-
-void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// Damage stone consumable - DIRECTIONAL (Cluster 4): buff an ally's raw
-	// (physical) damage, or debuff an enemy's, for a fixed duration. Magnitude is a
-	// whole-number percent, consumed physical-only by GetStatusEffectDamageModifier.
-	// CHANGED in C4: was a self-only buff before — shipped-behaviour modification.
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::RawDamageBuff : ESkillEffectType::RawDamageDebuff;
-	const float Magnitude = CrystalEffectTable::GetDamageStoneBasePercent(Id);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Raw Damage"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Damage stone: Applied %s %.0f%% raw-damage for %d turns to %s"),
-		   bAlly ? TEXT("RawDamageBuff") : TEXT("RawDamageDebuff"), Magnitude, Duration, *Target->GetName());
-}
-
-void UItemExecutor::ExecuteSpellDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// Spell-damage stone consumable - DIRECTIONAL: buff an ally's spell (magical)
-	// damage, or debuff an enemy's, for a fixed duration. Magnitude is a whole-number
-	// percent, consumed SPELL-only by GetStatusEffectDamageModifier (== Spell gate).
-	// The magical mirror of ExecuteRawDamageBuffEffect.
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::SpellDamageBuff, ESkillEffectType::SpellDamageDebuff,
-						 TEXT("Spell Damage"), OutResult);
-}
-
 void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Resistance stone consumable - DIRECTIONAL, BLANKET: raise an ally's status
@@ -708,33 +560,10 @@ void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FC
 		   Magnitude, Duration, *Target->GetName(), bAlly ? TEXT("ally buff") : TEXT("enemy vulnerability"));
 }
 
-void UItemExecutor::ExecuteSpellSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// Spell-speed stone consumable - DIRECTIONAL: buff an ally's cast speed, or debuff an
-	// enemy's. Read on the cast-montage PlayRate path (PlaySpellAnimation, SpellSpeedBuff/
-	// Debuff). Visual now; the COMBAT effect (defender reaction window) lands with the
-	// Real-Time Defense Rework (docs/Design/RealTimeDefenseRework.md).
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::SpellSpeedBuff, ESkillEffectType::SpellSpeedDebuff,
-						 TEXT("Spell Speed"), OutResult);
-}
-
-void UItemExecutor::ExecuteActionSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// Action-speed stone consumable - DIRECTIONAL: buff an ally's action speed, or debuff
-	// an enemy's. Read on the ability/attack montage PlayRate path (ActionSpeedBuff/Debuff;
-	// read-site added in PlayAbility/PlayAttackAnimation). Visual now; the COMBAT effect
-	// lands with the Real-Time Defense Rework (docs/Design/RealTimeDefenseRework.md).
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::ActionSpeedBuff, ESkillEffectType::ActionSpeedDebuff,
-						 TEXT("Action Speed"), OutResult);
-}
-
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Directional defense consumable: buff an ally's defense, or debuff an enemy's.
-	// Shared by Amber (crystal) and DefenseStone (augment stone) — both map to
-	// EItemEffectType::BuffDefense.
+	// Amber: buff an ally's defense, or debuff an enemy's. (B-152: the DefenseStone consumable goes through
+	// ApplyStoneBuffEffect from its stone row, B-021, so this is Amber's alone.)
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -745,15 +574,8 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 	const bool bAlly = IsAlly(User, Target);
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::DefenseBuff : ESkillEffectType::DefenseDebuff;
 
-	// DefenseStone sources the shared stone curve + flat stone duration; Amber keeps
-	// its own GetAmberDefensePercent + GetCrystalDuration. Direction (IsAlly) is identical.
-	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
-	const float Magnitude = bIsStone
-		? CrystalEffectTable::GetStoneBasePercent(StatStone::RowType(Id), Id.Tier)
-		: CrystalEffectTable::GetAmberDefensePercent(Id);
-	const int32 Duration = bIsStone
-		? CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION
-		: CrystalEffectTable::GetCrystalDuration(Id);
+	const float Magnitude = CrystalEffectTable::GetAmberDefensePercent(Id);
+	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
 
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
@@ -771,11 +593,10 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 
 void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Opal and the CritStone consumable both route here (EItemEffectType::BuffCrit). Opal reworked
-	// (crit pass): ally → a GUARANTEED-CRIT window (force-crit primitive) + a small crit-damage rider;
+	// Opal (crit pass): ally → a GUARANTEED-CRIT window (force-crit primitive) + a small crit-damage rider;
 	// enemy → STRIP an active guaranteed-crit window (pure dispel — the counter to a self-applied
-	// window, no debuff, no damage). The CritStone consumable keeps its original crit-CHANCE buff/debuff,
-	// branched out below on bIsStone.
+	// window, no debuff, no damage). B-152: the CritStone consumable's crit-chance branch went (unreachable since
+	// B-021: CritStone is a standard stone row, BuffCritDamage).
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -785,9 +606,6 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 
 	const bool bAlly = IsAlly(User, Target);
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
-
-	if (!bIsStone)
 	{
 		// ---- Opal: guaranteed-crit window (no longer the old multiplicative CritChanceBuff/Debuff) ----
 		// TODO: S-rank stat reveal — implement in UI pass
@@ -825,62 +643,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 			UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Opal: Stripped %d guaranteed-crit window(s) from %s"),
 				   Removed, *Target->GetName());
 		}
-		return;
 	}
-
-	// ---- CritStone consumable: original crit-CHANCE buff/debuff (UNCHANGED) ----
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(StatStone::RowType(Id), Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Crit"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] CritStone: Applied %s %.0f%% for %d turns to %s"),
-		   bAlly ? TEXT("CritChanceBuff") : TEXT("CritChanceDebuff"), Magnitude, Duration, *Target->GetName());
-}
-
-void UItemExecutor::ExecuteCritDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// CritDamage stone consumable (5f-C, revised) — DIRECTIONAL like every other stone: buff an ally's
-	// crit damage or debuff an enemy's, at the stone's 3-15 magnitude for the flat stone duration.
-	// Ally → ModifyCritDamage ("Crit Damage Up", the buff GetCritDamageMultiplier already reads); enemy →
-	// CritDamageDebuff (the paired debuff, SUBTRACTED there, final-clamped at CRIT_DMG_BASE so a crit
-	// never drops below a normal hit). Matches the attached CritStone's crit-DAMAGE form and mirrors the
-	// crit-CHANCE / Luck consumables' buff/debuff shape via the shared helper.
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::ModifyCritDamage, ESkillEffectType::CritDamageDebuff,
-						 TEXT("Crit Damage"), OutResult);
-}
-
-void UItemExecutor::ExecuteLuckBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// LuckStone consumable (5f-C) — DIRECTIONAL: buff an ally's Luck or debuff an enemy's, at the
-	// stone's 3-15 magnitude for the flat stone duration. Applies the transient LuckBuff/LuckDebuff,
-	// which GetEquipmentModifiedLuck reads as (LuckBuff - LuckDebuff) — so it lifts/lowers EVERY luck
-	// consumer uniformly (crit chance, break-skip, future dodge/drops). The getter's sign handles
-	// direction; this just picks buff-ally / debuff-enemy via the shared helper.
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::LuckBuff, ESkillEffectType::LuckDebuff,
-						 TEXT("Luck"), OutResult);
-}
-
-void UItemExecutor::ExecuteReflexBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
-{
-	// ReflexStone consumable (Cluster B-6) — DIRECTIONAL: buff an ally's Reflex or debuff an enemy's, at
-	// the stone's 3-15 magnitude for the flat stone duration. Applies the transient ReflexBuff/ReflexDebuff,
-	// which UDefenseSystem::GetEffectiveDefenseInputWindow (B-5) reads as (ReflexBuff - ReflexDebuff) through
-	// ReflexWindowGearFactor — so an ally's defense window widens, an enemy's narrows. The window read's sign
-	// handles direction; this just picks buff-ally / debuff-enemy via the shared helper.
-	ApplyStoneBuffEffect(User, Target, Id,
-						 ESkillEffectType::ReflexBuff, ESkillEffectType::ReflexDebuff,
-						 TEXT("Reflex"), OutResult);
 }
 
 void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
