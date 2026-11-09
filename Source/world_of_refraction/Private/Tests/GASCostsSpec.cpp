@@ -1,5 +1,5 @@
 // GASCostsSpec.cpp
-// B-043a (Q-043a): with `wor.Costs.UseGAS 1` and `wor.Effects.UseGAS 1` a skill's EP cost and its infusion HP
+// B-043a (Q-043a): with `wor.Costs.UseGAS 1` a skill's EP cost and its infusion HP
 // backlash are paid by Instant GEs (WoRCosts), and the Vitals set hands the change to the game's EP / HP path.
 // Otherwise WoRCosts declines and the caller pays the old way. Each case pays as UActionExecutor::SpendEnergy and
 // ApplyPendingInfusionHPCost do (TryPay, else the old call), so both paths must leave the same EP and HP.
@@ -52,10 +52,10 @@ BEGIN_DEFINE_SPEC(FGASCostsSpec, "WoR.GAS.Costs",
 		}
 	}
 
-	void SetSwitches(bool bCosts, bool bEffects)
+	/** B-042g2: wor.Costs.UseGAS alone (the effects switch is gone; B-043h deletes this one). */
+	void SetCostsSwitch(bool bCosts)
 	{
 		WoRCosts::SetPaysThroughGAS(bCosts);
-		UWoREffectMirrorComponent::SetReadsFromGAS(bEffects);
 	}
 END_DEFINE_SPEC(FGASCostsSpec)
 
@@ -90,7 +90,7 @@ void FGASCostsSpec::Define()
 
 	AfterEach([this]()
 	{
-		SetSwitches(false, false);
+		SetCostsSwitch(false);
 		Hero = nullptr;
 		ASC = nullptr;
 		HeroStats = nullptr;
@@ -115,16 +115,14 @@ void FGASCostsSpec::Define()
 		TestFalse(TEXT("No spec without an ASC"), WoRCosts::MakeEnergyCostSpec(nullptr, COSTS_EP_COST).IsValid());
 	});
 
-	It("declines unless both switches are on", [this]()
+	It("declines with the costs switch off", [this]()
 	{
 		if (!HeroStats)
 		{
 			return;
 		}
-		SetSwitches(false, true);
+		SetCostsSwitch(false);
 		TestFalse(TEXT("Costs switch off"), WoRCosts::TryPayEnergy(Hero, COSTS_EP_COST));
-		SetSwitches(true, false);
-		TestFalse(TEXT("Effects switch off"), WoRCosts::TryPayEnergy(Hero, COSTS_EP_COST));
 		TestEqual(TEXT("Nothing paid"), HeroStats->CurrentEP, COSTS_START_EP);
 		TestEqual(TEXT("No cost GE"), CostEffectsApplied, 0);
 	});
@@ -135,7 +133,7 @@ void FGASCostsSpec::Define()
 		{
 			return;
 		}
-		SetSwitches(true, true);
+		SetCostsSwitch(true);
 		TestTrue(TEXT("Zero is paid"), WoRCosts::TryPayEnergy(Hero, 0));
 		TestEqual(TEXT("EP unchanged"), HeroStats->CurrentEP, COSTS_START_EP);
 		TestEqual(TEXT("No cost GE"), CostEffectsApplied, 0);
@@ -153,7 +151,7 @@ void FGASCostsSpec::Define()
 			FGameplayEffectQuery::MakeQuery_MatchAnyEffectTags(FGameplayTagContainer(WoRTags::Effect_Family_Cost)));
 		ASC->ApplyGameplayEffectToSelf(CostImmunity, 1.0f, ASC->MakeEffectContext());
 
-		SetSwitches(true, true);
+		SetCostsSwitch(true);
 		TestFalse(TEXT("The blocked GE declines"), WoRCosts::TryPayEnergy(Hero, COSTS_EP_COST));
 		TestEqual(TEXT("Nothing paid by the blocked GE"), HeroStats->CurrentEP, COSTS_START_EP);
 		SpendAsExecutor(COSTS_EP_COST);
@@ -165,7 +163,7 @@ void FGASCostsSpec::Define()
 	{
 		Describe(bThroughGAS ? TEXT("through GAS") : TEXT("the old way"), [this, bThroughGAS]()
 		{
-			BeforeEach([this, bThroughGAS]() { SetSwitches(bThroughGAS, bThroughGAS); });
+			BeforeEach([this, bThroughGAS]() { SetCostsSwitch(bThroughGAS); });
 
 			It("pays the EP cost", [this, bThroughGAS]()
 			{

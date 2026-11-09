@@ -1,13 +1,12 @@
 // FightRecordsSpec.cpp
 // GAS stage 3 (B-042z, D-064): the fires-once uses and the armed gear conditionals are kept on the holder's
-// turn tracker as well as on USkillEffectManager, and read from the tracker with `wor.Effects.UseGAS 1`.
-// Both paths refuse a second use, arm and disarm the gear the same way, and a new fight clears both.
+// turn tracker (B-042g2: only there; USkillEffectManager's own sets and the UseGAS 0 pass are gone). The tracker
+// refuses a second use, arms and disarms the gear, and a new fight clears it.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
-#include "GAS/WoREffectMirrorComponent.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/FGatheredEffect.h"
@@ -69,7 +68,6 @@ void FFightRecordsSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		EffectManager = nullptr;
 		Holder = nullptr;
 		Source = nullptr;
@@ -77,43 +75,25 @@ void FFightRecordsSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("refuses a second fires-once use on both paths, and the tracker records it", [this]()
+	It("refuses a second fires-once use, and the tracker records it", [this]()
 	{
 		if (!EffectManager) return;
-		for (const bool bUseGAS : {false, true})
-		{
-			EffectManager->ResetForNewCombat();
-			UWoREffectMirrorComponent::SetReadsFromGAS(bUseGAS);
-			const TCHAR *Path = bUseGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0");
-			TestTrue(FString::Printf(TEXT("%s: the first use lands"), Path), ApplyHeal());
-			TestFalse(FString::Printf(TEXT("%s: the second use is refused"), Path), ApplyHeal());
-			TestEqual(FString::Printf(TEXT("%s: the tracker holds the use"), Path), Tracker->NumFiredOnce(), 1);
-		}
+		EffectManager->ResetForNewCombat();
+		TestTrue(TEXT("the first use lands"), ApplyHeal());
+		TestFalse(TEXT("the second use is refused"), ApplyHeal());
+		TestEqual(TEXT("the tracker holds the use"), Tracker->NumFiredOnce(), 1);
 	});
 
-	It("gives a doesn't-stack effect one use per holder, whichever source brings it, on both paths", [this]()
+	It("gives a doesn't-stack effect one use per holder, whichever source brings it", [this]()
 	{
 		if (!EffectManager) return;
-		for (const bool bUseGAS : {false, true})
-		{
-			EffectManager->ResetForNewCombat();
-			UWoREffectMirrorComponent::SetReadsFromGAS(bUseGAS);
-			const TCHAR *Path = bUseGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0");
-			FActiveSkillEffect Heal = OnceHeal();
-			Heal.bDoesNotStack = true;
-			TestTrue(FString::Printf(TEXT("%s: the first source's use lands"), Path),
-					 EffectManager->ApplyEffect(Holder, Heal, Source, TEXT("Test")) == EEffectApplicationResult::Applied);
-			TestTrue(FString::Printf(TEXT("%s: another source's use is refused"), Path),
-					 EffectManager->ApplyEffect(Holder, Heal, Holder, TEXT("Other")) == EEffectApplicationResult::Rejected);
-		}
-	});
-
-	It("keeps a use spent before the switch is turned on", [this]()
-	{
-		if (!EffectManager) return;
-		TestTrue(TEXT("UseGAS 0: the first use lands"), ApplyHeal());
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestFalse(TEXT("UseGAS 1: the tracker refuses the second"), ApplyHeal());
+		EffectManager->ResetForNewCombat();
+		FActiveSkillEffect Heal = OnceHeal();
+		Heal.bDoesNotStack = true;
+		TestTrue(TEXT("the first source's use lands"),
+				 EffectManager->ApplyEffect(Holder, Heal, Source, TEXT("Test")) == EEffectApplicationResult::Applied);
+		TestTrue(TEXT("another source's use is refused"),
+				 EffectManager->ApplyEffect(Holder, Heal, Holder, TEXT("Other")) == EEffectApplicationResult::Rejected);
 	});
 
 	It("clears the tracker's records for a new fight", [this]()
@@ -124,25 +104,19 @@ void FFightRecordsSpec::Define()
 		EffectManager->ResetForNewCombat();
 		TestEqual(TEXT("No fires-once use left"), Tracker->NumFiredOnce(), 0);
 		TestNull(TEXT("Gear no longer armed"), Tracker->GetArmedConditionals());
-		UWoREffectMirrorComponent::SetReadsFromGAS(true);
-		TestTrue(TEXT("UseGAS 1: the use is back"), ApplyHeal());
+		TestTrue(TEXT("the use is back"), ApplyHeal());
 	});
 
-	It("arms and disarms the gear the same way on both paths", [this]()
+	It("arms and disarms the gear", [this]()
 	{
 		if (!EffectManager) return;
-		for (const bool bUseGAS : {false, true})
-		{
-			UWoREffectMirrorComponent::SetReadsFromGAS(bUseGAS);
-			const TCHAR *Path = bUseGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0");
-			TestFalse(FString::Printf(TEXT("%s: not armed before battle prep"), Path), EffectManager->IsGearArmed(Holder));
-			EffectManager->ArmConditionalEffects(Holder, {ArmedGear()});
-			TestTrue(FString::Printf(TEXT("%s: armed"), Path), EffectManager->IsGearArmed(Holder));
-			const TArray<FGatheredEffect> *Armed = Tracker->GetArmedConditionals();
-			TestTrue(FString::Printf(TEXT("%s: the tracker holds the armed set"), Path), Armed && Armed->Num() == 1);
-			EffectManager->ClearAllEffects();
-			TestFalse(FString::Printf(TEXT("%s: disarmed at fight end"), Path), EffectManager->IsGearArmed(Holder));
-		}
+		TestFalse(TEXT("not armed before battle prep"), EffectManager->IsGearArmed(Holder));
+		EffectManager->ArmConditionalEffects(Holder, {ArmedGear()});
+		TestTrue(TEXT("armed"), EffectManager->IsGearArmed(Holder));
+		const TArray<FGatheredEffect> *Armed = Tracker->GetArmedConditionals();
+		TestTrue(TEXT("the tracker holds the armed set"), Armed && Armed->Num() == 1);
+		EffectManager->ClearAllEffects();
+		TestFalse(TEXT("disarmed at fight end"), EffectManager->IsGearArmed(Holder));
 	});
 }
 
