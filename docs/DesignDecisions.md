@@ -290,6 +290,18 @@ The queue of questions only Crown can answer.
 - A boss's lower, looking-up turn view (R13 as changed) is not in this job.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the look in PIE (`docs/PIE/B-398.md`); the offsets are `TODO: tune`.
 
+### Q-404 — Wide beats and the party handover: when, how long, and when the HUD steps
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-404, study R12, R16, §9) · **Blocks:** —
+**Question:** R12 puts a short wide beat between turns and R16 blends from it to the next hero with the turn strip and the active card moving on the same frame. When exactly does a beat play, how long are its parts, and which moment does the HUD follow?
+**Context:** our turn start comes on the same frame as the end of the last action (`ACombatOrchestrator::OnActionCompleted` → `AdvanceToNextTurn`), so the beat has to sit at the start of the new turn. The camera director (`Combat/Camera/CombatCameraDirector.cpp`) already blends shots on a short timer (B-371); B-401 owns several actions inside one turn (B-170c).
+**Recommendation (default):**
+- **When:** only between turns: someone acted since the last turn start, the turn passes to **another** actor, and the new view is a hero's Turn view. No beat on the first turn, between actions or turns of the same actor (B-401), with camera movement off (the static view, R15), or before an enemy's turn (its watch view is already the wide). Reference: Expedition 33 goes wide after an action or an enemy turn and then to the next hero (study §9, Boss 3:25.9–3:26.9, Field 2:32–2:34); it never resets the camera between a single hero's moves (R4).
+- **How long:** 0.3 s into the wide (the NotYourTurn wide, from the next hero's side), 0.2 s hold, then a **0.5 s blend** behind the next hero (`TODO: tune`). Reference: the same clips, "within about 0.5 s it blends (not cuts)". The whole change takes about 1 s, inside the pace FeelGuide rule 2 asks for.
+- **HUD moment:** the director's new `OnTurnHandover(From, To)` fires once per turn start **on the frame the blend to the next hero starts** (after the beat); the HUD binds it for the turn-strip step and the card lift + ring. Reference: Expedition 33 lifts the card and steps the turn column at the moment the camera starts its move (study §9, F4 [confirms]).
+- **Interruptions:** an action (or another turn) that starts during the beat runs the handover at once (the event still fires exactly once); the action's own camera then plays. The Defence hand-off (B-370) and cinematics are never delayed by a beat.
+- The menu still opens at turn start (`OnActionRequested`), during the beat; holding it until the handover is a HUD change for B-105.
+**Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-404.md`).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
