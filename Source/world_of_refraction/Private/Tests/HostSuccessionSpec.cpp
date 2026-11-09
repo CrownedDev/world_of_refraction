@@ -254,7 +254,7 @@ void FHostSuccessionSpec::Define()
 			TestEqual(TEXT("none of the copy's"), CopySapphires, 0);
 			TestEqual(TEXT("the run's memory kept"), Built.Pool.UpgradeMemory.FindRef(SUCCESSION_TEST_DEF_NEW), EItemTier::A_Tier);
 			TestFalse(TEXT("no run"), Built.Run.bHasRun);
-			TestTrue(TEXT("memory not changed yet: still playing the copy"), Save->IsPlayingHostCopy());
+			TestTrue(TEXT("building the own save leaves the game on the copy"), Save->IsPlayingHostCopy());
 			TestEqual(TEXT("the copy's items still in the pool"), CountInPool(*Pool, CopyCrystal()), SUCCESSION_TEST_COPY_SAPPHIRES);
 		});
 
