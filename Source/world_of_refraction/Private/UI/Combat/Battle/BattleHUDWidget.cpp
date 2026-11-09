@@ -629,16 +629,11 @@ void UBattleHUDWidget::ShowDamageNumber(AActor *Target, const FCombatHitShown &H
 	}
 	EnsureDamageNumberPool();
 
-	// A free slot, else the oldest live one; and how many of this target's numbers are already up.
+	// A free slot, else the oldest live one.
 	int32 SlotIndex = INDEX_NONE;
-	int32 Stack = 0;
 	for (int32 Index = 0; Index < DamageNumbers.Num(); ++Index)
 	{
 		const FBattleDamageNumber &Candidate = DamageNumbers[Index];
-		if (Candidate.bLive && Candidate.Target.Get() == Target)
-		{
-			++Stack;
-		}
 		const bool bBetter = SlotIndex == INDEX_NONE || (DamageNumbers[SlotIndex].bLive &&
 														 (!Candidate.bLive || Candidate.SpawnTime < DamageNumbers[SlotIndex].SpawnTime));
 		if (bBetter)
@@ -650,6 +645,16 @@ void UBattleHUDWidget::ShowDamageNumber(AActor *Target, const FCombatHitShown &H
 	{
 		return;
 	}
+	// Review fix: one row above this target's highest live number (not a count, which reused a row still up).
+	TArray<int32> LiveStackIndices;
+	for (int32 Index = 0; Index < DamageNumbers.Num(); ++Index)
+	{
+		const FBattleDamageNumber &Other = DamageNumbers[Index];
+		if (Index != SlotIndex && Other.bLive && Other.Target.Get() == Target)
+		{
+			LiveStackIndices.Add(Other.StackIndex);
+		}
+	}
 
 	FBattleDamageNumber &Number = DamageNumbers[SlotIndex];
 	Number.Target = Target;
@@ -657,7 +662,7 @@ void UBattleHUDWidget::ShowDamageNumber(AActor *Target, const FCombatHitShown &H
 	Number.Style = DamageNumberView::MakeStyle(Hit);
 	Number.WorldPoint = Target->GetActorLocation() + FVector(0.0f, 0.0f, Target->GetSimpleCollisionHalfHeight());
 	Number.SpawnTime = World->GetTimeSeconds();
-	Number.StackIndex = Stack;
+	Number.StackIndex = DamageNumberView::NextStackIndex(LiveStackIndices);
 	Number.bLive = true;
 	if (UTextBlock *Text = Number.Text)
 	{

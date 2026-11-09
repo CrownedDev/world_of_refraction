@@ -90,7 +90,7 @@ struct FBattleDamageNumber
 	/** Where it was hit (the top of the target), projected each step so it stays put as the camera moves. */
 	FVector WorldPoint = FVector::ZeroVector;
 	double SpawnTime = 0.0;
-	/** How many of this target's numbers were live when it appeared: it starts that many rows higher. */
+	/** Its row: one above the highest of this target's numbers live when it appeared (DamageNumberView::NextStackIndex). */
 	int32 StackIndex = 0;
 	bool bLive = false;
 
