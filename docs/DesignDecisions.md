@@ -302,6 +302,20 @@ The queue of questions only Crown can answer.
 - **Closing the menu (an action is picked) moves nothing:** the action's shots take over; the next open sends its depth, so a second action in one turn (B-170c) that reopens on the main menu steps back out (a skill's shot still held stays put; B-401 brings that back to the turn view). The step is the acting character's own: an action started by anyone else (an Execution turn, a ritual firing) resets it to the main view.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-399.md`).
 
+### Q-400 — Target cut: what the camera shows while picking among several targets
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-400, study R3 as changed in §9) · **Blocks:** —
+**Question:** With two or more targets, the row says the picker cuts to a front medium shot of the highlighted target on each press, back to the turn view on cancel, the skill's shots on confirm; Centred Wide keeps "a highlight and a small re-aim". What exactly do the shots look like, what counts as a press, and what about ally targets and confirm?
+**Context:** the target picker is a list of buttons with no highlight concept before this job; `UCombatCommandMenuSubsystem`, `FCombatCameraRules::ComputeTargetView`, `UCombatCameraDirector`.
+**Recommendation (default):**
+- **Over the Shoulder: a cut to a front medium shot** of the highlighted target, from the side of the fight it faces (an enemy from the party's side, an ally from the enemies' side), a three-quarter view a little above eye level; the body plus room for its HP bar fills about 0.6 of the screen's height (min 250 cm away). Reference: Expedition 33's field fight (study §9 / §12: "jumps to a front medium shot of the first target … cycling cuts to that enemy", one cut per press, no blend), praised for making each target readable.
+- **Centred Wide / Tactical: a small re-aim** (0.35 of the way toward the target, from the same place, 0.15 s blend): §9 says Centred Wide needs only a highlight and a small re-aim.
+- **One target: no move** (§9 R3).
+- **What highlights:** the first valid target when the picker opens; then a target button's hover or keyboard/gamepad focus (existing menu navigation, no new key), or `wor.Camera.TargetCycle`. Confirm is unchanged: the button pressed is the target picked.
+- **Confirm:** the camera cuts back to the turn view and the action's camera runs exactly as before B-400 (its wind-up starts from the turn view). **Cancel:** back to the turn view (cut in Over the Shoulder, short blend otherwise), at the menu's depth (Q-399).
+- **Only the viewer's own turn view moves:** camera movement off, a cinematic or a held shot: nothing moves (R15).
+- Numbers are first guesses, `TODO: tune`. A world marker on the highlighted target (Expedition 33 shows the target's HP bar) is not in this job: `OnTargetHighlighted` is ready for it.
+**Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-400.md`).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
