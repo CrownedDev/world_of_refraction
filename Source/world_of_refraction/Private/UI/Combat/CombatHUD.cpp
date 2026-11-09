@@ -7,6 +7,8 @@
 #include "UI/Combat/DefensePromptWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "GameFramework/PlayerController.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/World.h"
 #include "Widgets/Layout/Anchors.h"
 #include "WoRLog.h"
 
@@ -144,19 +146,47 @@ void UCombatHUD::Teardown()
     bBuilt = false;
 }
 
+namespace
+{
+    // B-396: everything that decides whether a built widget is on screen, so "built but invisible" shows its cause.
+    FString DescribeOnScreen(const UUserWidget *Widget)
+    {
+        if (!Widget)
+        {
+            return TEXT("none");
+        }
+        const FGeometry &Geometry = Widget->GetCachedGeometry();
+        const FVector2D Position(Geometry.GetAbsolutePosition());
+        const FVector2D Size(Geometry.GetAbsoluteSize());
+        return FString::Printf(TEXT("%s inViewport=%s visibility=%s opacity=%.2f drawn at (%.0f, %.0f) size %.0f x %.0f"),
+                               *Widget->GetClass()->GetName(), Widget->IsInViewport() ? TEXT("yes") : TEXT("NO"),
+                               *StaticEnum<ESlateVisibility>()->GetNameStringByValue(static_cast<int64>(Widget->GetVisibility())),
+                               Widget->GetRenderOpacity(), Position.X, Position.Y, Size.X, Size.Y);
+    }
+}
+
 FString UCombatHUD::GetHUDStateString() const
 {
     FString Out = FString::Printf(TEXT("[CombatHUD] built=%s panels=%d\n"), bBuilt ? TEXT("yes") : TEXT("no"), Panels.Num());
+    const UWorld *World = GetWorld();
+    if (const UGameViewportClient *Viewport = World ? World->GetGameViewport() : nullptr)
+    {
+        FVector2D ViewportSize;
+        Viewport->GetViewportSize(ViewportSize);
+        Out += FString::Printf(TEXT("  game viewport %.0f x %.0f\n"), ViewportSize.X, ViewportSize.Y);
+    }
+    else
+    {
+        Out += TEXT("  game viewport: NONE for this world\n");
+    }
     for (int32 i = 0; i < Panels.Num(); ++i)
     {
         const UCharacterPanelWidget *Panel = Panels[i];
         const AActor *Bound = Panel ? Panel->GetBoundActor() : nullptr;
-        Out += FString::Printf(TEXT("  panel[%d] -> %s\n"), i, Bound ? *Bound->GetName() : TEXT("<unbound>"));
+        Out += FString::Printf(TEXT("  panel[%d] -> %s: %s\n"), i, Bound ? *Bound->GetName() : TEXT("<unbound>"), *DescribeOnScreen(Panel));
     }
-    Out += FString::Printf(TEXT("  strip=%s menu=%s prompt=%s"),
-                           TurnOrderStrip ? TEXT("ok") : TEXT("none"),
-                           CommandMenu ? TEXT("ok") : TEXT("none"),
-                           DefensePrompt ? TEXT("ok") : TEXT("none"));
+    Out += FString::Printf(TEXT("  strip: %s\n  menu: %s\n  prompt: %s"), *DescribeOnScreen(TurnOrderStrip),
+                           *DescribeOnScreen(CommandMenu), *DescribeOnScreen(DefensePrompt));
     return Out;
 }
 
