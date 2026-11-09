@@ -16,7 +16,6 @@
 #include "Combat/Mechanics/BattleRandomSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Equipment/Weapons/WeaponData.h"
-#include "Equipment/Weapons/WeaponManager.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
