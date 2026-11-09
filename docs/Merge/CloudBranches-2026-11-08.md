@@ -209,6 +209,9 @@ Go top to bottom. Every branch's base comes before it. For each row:
 | 90 | `feature/B-402-side-on-defence-view-cloud` | dev | – | Side-on defence view (Q-402): low side-on shot framing defenders and attacker; no shake / punch while defending (dropped, not replayed). Reviewed; fixed. |
 | 91 | `feature/B-405-boss-framing-kill-shots-cloud` | dev | – | Boss framing and kill shots (Q-405): low turn view against Boss / MiniBoss; a kill-shot hold before FinishCombat (nothing can start during it); the camera viewer is the local player. Review BLOCKed (actions during the hold); fixed. |
 | 92 | `feature/B-398-turn-view-setting-cloud` | dev | **34** | Turn-view setting (Q-398): Centred Wide default, Over-the-Shoulder option, saved per player (`FSavedSettings`) → **save v34**. **Save merge rule:** whatever order rows 86, 87 and 92 merge in, keep `LATEST = 34` and order the comment 31, 32 (B-392), 33 (B-393), 34 (B-398); drop the "32 and 33 are taken" prefix. Reviewed; fixed. |
+| 93 | `feature/B-403-shot-pattern-tuning-cloud` | dev | – | Shot-pattern tuning (Q-403): melee rush with motion blur, side-on impact framing that keeps the caster, still spread; `wor.Camera.ShotPreview`. FOV punch cut (8/14 → 5/10) listed for Crown. Reviewed; fixed. |
+| 94 | `feature/B-407-short-signature-cameras-cloud` | dev | – | Short signature cameras (Q-407): `SignatureCameraCap` cuts a player/team signature sequence back at the cap; `wor.Presentation.Validate` warns on long ones. Reviewed; fixed. |
+| 95 | `feature/B-399-calm-menus-cloud` | row 92 | – | Calm menus (Q-399): a sub-menu steps the turn camera one step in, cancel steps back, nothing moves while choosing; `OnMenuDepthChanged`, `wor.Camera.MenuDepth`. **Stacked on row 92; merge after it.** Reviewed (PASS WITH NOTES); fixed. |
 
 **Skip:** `feature/B-361b-mentor-tokens-cloud`. It is already in `dev` (the "Merge B-361b" commit; save v17).
 
