@@ -31,7 +31,7 @@ namespace ActionPipsConstants
 	/** B-170c (Q-170b): what a skill, spell or item costs unless its asset says otherwise. */
 	constexpr int32 ACTION_COST_DEFAULT = 1; // TODO: tune
 
-	/** B-170d (Q-170d): Max Actions never drops below this, whatever Max Actions Debuffs hold, so a default-cost
+	/** B-170d (Q-170d2): Max Actions never drops below this, whatever Max Actions Debuffs hold, so a default-cost
 	 *  action always stays usable. */
 	constexpr int32 MAX_ACTIONS_FLOOR = 1; // TODO: tune
 	/** B-170d: a waiting action change timed "next turn" lands at the holder's next turn start. */

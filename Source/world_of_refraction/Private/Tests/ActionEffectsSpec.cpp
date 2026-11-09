@@ -1,5 +1,5 @@
 // ActionEffectsSpec.cpp
-// B-170d (ActionPips.md §1, §3.4; Q-170f, Q-170g, Q-170d): effects that give or take banked actions.
+// B-170d (ActionPips.md §1, §3.4; Q-170f, Q-170g, Q-170d2): effects that give or take banked actions.
 // - Gain / Lose Action now (Duration 0) change the bank at once; a gain may pass Max and stays banked; a loss stops at 0.
 // - Timed ones (Duration N) wait on the holder and land at its Nth turn start: gains first, then losses.
 // - The "+1 now, -1 next turn" pair (Divinity: Original Sin 2's Adrenaline).
