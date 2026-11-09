@@ -11,6 +11,8 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/GameInstance.h"
+#include "Equipment/Crystals/CrystalManager.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRLog.h"
@@ -27,6 +29,7 @@ namespace BattleCommandMenuStyle
 	constexpr int32 RowFontSize = 14;
 	const FLinearColor BackgroundColor(0.0f, 0.0f, 0.0f, 0.7f);
 	const FLinearColor HeaderColor(0.7f, 0.7f, 0.7f);
+	const FLinearColor DurabilityColor(0.85f, 0.85f, 0.7f); // B-391c
 }
 
 void UBattleMenuRowRelay::HandleClicked()
@@ -59,6 +62,17 @@ void UBattleCommandMenuWidget::Initialise()
 	BoundMenu = Menu;
 	Menu->OnCommandMenuReady.AddDynamic(this, &UBattleCommandMenuWidget::HandleMenuReady);
 	Menu->OnCommandMenuClosed.AddDynamic(this, &UBattleCommandMenuWidget::HandleMenuClosed);
+	// B-391c: the durability header follows per-cast wear and breaks, as the old header (a run-wide service; the weak
+	// pointer is only for the unbind).
+	if (UGameInstance *GameInstance = GetGameInstance())
+	{
+		if (UCrystalManager *Crystals = GameInstance->GetSubsystem<UCrystalManager>())
+		{
+			BoundCrystals = Crystals;
+			Crystals->OnCrystalDurabilityChanged.AddDynamic(this, &UBattleCommandMenuWidget::HandleCrystalDurabilityChanged);
+			Crystals->OnCrystalBroken.AddDynamic(this, &UBattleCommandMenuWidget::HandleCrystalBroken);
+		}
+	}
 	bBound = true;
 
 	// Replay: the first player turn opens the menu inside InitializeCombat, before the HUD is built.
@@ -80,6 +94,12 @@ void UBattleCommandMenuWidget::Teardown()
 		Menu->OnCommandMenuClosed.RemoveDynamic(this, &UBattleCommandMenuWidget::HandleMenuClosed);
 	}
 	BoundMenu.Reset();
+	if (UCrystalManager *Crystals = BoundCrystals.Get())
+	{
+		Crystals->OnCrystalDurabilityChanged.RemoveDynamic(this, &UBattleCommandMenuWidget::HandleCrystalDurabilityChanged);
+		Crystals->OnCrystalBroken.RemoveDynamic(this, &UBattleCommandMenuWidget::HandleCrystalBroken);
+	}
+	BoundCrystals.Reset();
 	bBound = false;
 }
 
@@ -117,6 +137,17 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 		if (UVerticalBoxSlot *TitleSlot = List->AddChildToVerticalBox(TitleText))
 		{
 			TitleSlot->SetPadding(FMargin(BattleCommandMenuStyle::RowPadding));
+		}
+
+		// B-391c: the durability header, under the title (the old header sat at the top of the menu).
+		DurabilityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Durability"));
+		FSlateFontInfo DurabilityFont = DurabilityText->GetFont();
+		DurabilityFont.Size = BattleCommandMenuStyle::RowFontSize;
+		DurabilityText->SetFont(DurabilityFont);
+		DurabilityText->SetColorAndOpacity(FSlateColor(BattleCommandMenuStyle::DurabilityColor));
+		if (UVerticalBoxSlot *DurabilitySlot = List->AddChildToVerticalBox(DurabilityText))
+		{
+			DurabilitySlot->SetPadding(FMargin(BattleCommandMenuStyle::RowPadding));
 		}
 
 		for (int32 Index = 0; Index < MAX_ROWS; ++Index)
@@ -184,6 +215,7 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 
 	const AActor *Acting = Menu ? Menu->GetCurrentActor() : nullptr;
 	Title = Acting ? FText::Format(LOCTEXT("Title", "{0}'s turn"), BattleHUDView::GetCombatantName(Acting)) : FText::GetEmpty();
+	RefreshDurability(); // B-391c: per menu open, as the old header
 	bShowing = true;
 	PushToWidgets();
 }
@@ -192,8 +224,32 @@ void UBattleCommandMenuWidget::HandleMenuClosed()
 {
 	Rows.Reset();
 	RowLabels.Reset();
+	DurabilityLines.Reset();
 	bShowing = false;
 	PushToWidgets();
+}
+
+void UBattleCommandMenuWidget::RefreshDurability()
+{
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	DurabilityLines = BattleHUDView::MakeDurabilityLines(BattleHUDView::ReadDurability(Menu ? Menu->GetCurrentActor() : nullptr));
+}
+
+void UBattleCommandMenuWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObject *Holder, int32 NewDurability, int32 MaxDurability)
+{
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	if (!bShowing || !Menu || Actor != Menu->GetCurrentActor())
+	{
+		return;
+	}
+	RefreshDurability();
+	PushToWidgets();
+}
+
+void UBattleCommandMenuWidget::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload)
+{
+	// A break can switch the active ring (the manager switches first, then broadcasts), so re-read everything.
+	HandleCrystalDurabilityChanged(Actor, Holder, 0, 0);
 }
 
 void UBattleCommandMenuWidget::PressRow(int32 RowIndex)
@@ -219,6 +275,12 @@ void UBattleCommandMenuWidget::PushToWidgets()
 	if (TitleText)
 	{
 		TitleText->SetText(Title);
+	}
+	if (DurabilityText)
+	{
+		DurabilityText->SetText(FText::Join(LOCTEXT("DurabilitySeparator", "   "), DurabilityLines));
+		DurabilityText->SetVisibility(bShowing && !DurabilityLines.IsEmpty() ? ESlateVisibility::HitTestInvisible
+																			  : ESlateVisibility::Collapsed);
 	}
 	for (int32 Index = 0; Index < RowButtons.Num(); ++Index)
 	{
@@ -248,8 +310,10 @@ void UBattleCommandMenuWidget::PushToWidgets()
 
 FString UBattleCommandMenuWidget::GetCommandMenuString() const
 {
-	FString Out = FString::Printf(TEXT("[BattleCommandMenu] bound=%s showing=%s rows=%d title=\"%s\""), bBound ? TEXT("yes") : TEXT("no"),
-								  bShowing ? TEXT("yes") : TEXT("no"), Rows.Num(), *Title.ToString());
+	FString Out = FString::Printf(TEXT("[BattleCommandMenu] bound=%s showing=%s rows=%d title=\"%s\" durability: %s"),
+								  bBound ? TEXT("yes") : TEXT("no"), bShowing ? TEXT("yes") : TEXT("no"), Rows.Num(), *Title.ToString(),
+								  DurabilityLines.IsEmpty() ? TEXT("none")
+															: *FText::Join(FText::FromString(TEXT(", ")), DurabilityLines).ToString());
 	for (int32 Index = 0; Index < RowLabels.Num(); ++Index)
 	{
 		Out += FString::Printf(TEXT("\n  [%d] %s%s"), Index, *RowLabels[Index].ToString(),
