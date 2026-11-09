@@ -299,8 +299,8 @@ void UWoRTurnEffectTracker::OnHolderTurnStart()
 
 bool UWoRTurnEffectTracker::IsHolderDown() const
 {
-	// B-042y: the game's HP and death state where the holder has them, and Health (a bare ASC, or a GAS
-	// tick at UseGAS 0 that only moves the attribute).
+	// B-042y: the game's HP and death state where the holder has them, and Health (a bare ASC, whose GAS
+	// tick only moves the attribute).
 	const UCharacterDataComponent *Char = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	if (Char && Char->CharacterData && (!Char->bIsAlive || Char->CurrentHP <= 0))
 	{

@@ -9,7 +9,7 @@
 // applied at each holder turn start the GE survives, after the finished spans end (Q-044c), in the
 // order the effects arrived, and no more once the holder's Health reaches 0.
 // B-042z: it also holds the holder's fires-once uses (D-011) and its armed gear conditionals (C3a); the
-// effect manager writes them here and in its own sets, and reads them here at wor.Effects.UseGAS 1.
+// effect manager writes and reads them here only (B-042g2: its own sets are gone).
 // Per-fight state on the battle actor (D-064).
 // Debug: GetDebugString, PrintState, `wor.Effects.PrintTurns` (every combatant, with its GEs).
 
