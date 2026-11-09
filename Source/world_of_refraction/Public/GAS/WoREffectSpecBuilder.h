@@ -65,4 +65,14 @@ struct WORLD_OF_REFRACTION_API FWoREffectSpecBuilder
 
 	/** One line per active GE: class, identity, magnitude. */
 	static FString GetDebugString(const UAbilitySystemComponent &ASC);
+
+	/** B-042f (stage 3 step 5, Q-042f): a stat's sources GE (UWoRGE_StatSources) with the game-side layers it carries:
+	 *  gear, stones and transient effects as SetByCaller factors. Stones and gear lines enter GAS here, through the one
+	 *  builder, aggregated per stat so the Pattern-P maths stays the one C++ composition (no per-stone GE). */
+	static FGameplayEffectSpecHandle BuildStatSources(UAbilitySystemComponent &ASC, TSubclassOf<UGameplayEffect> SourcesClass, float Level,
+													  float GearFactor, float StoneFactor, float TransientFactor);
+
+	/** B-042f: a pool's sources GE (max HP / EP): its gear amount and its percent factor (stones and buffs). */
+	static FGameplayEffectSpecHandle BuildPoolSources(UAbilitySystemComponent &ASC, TSubclassOf<UGameplayEffect> PoolClass, float Level,
+													  float GearAmount, float PercentFactor);
 };
