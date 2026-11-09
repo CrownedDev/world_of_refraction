@@ -580,6 +580,54 @@ void FCombatCameraDirectorSpec::Define()
 		Director->EndCombat();
 	});
 
+	It("returns to the same hero's turn view between actions of one turn, with no wide beat (B-401, study R4)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("the turn start's own ask is no return"), Director->GetSameTurnReturnCount(), 0);
+
+		// Two actions in one turn (B-170c): asked again after each.
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("asked again after an action: a return"), Director->GetSameTurnReturnCount(), 1);
+		TestFalse(TEXT("no wide beat between actions of one turn"), Director->IsHandoverPending());
+		TestEqual(TEXT("no handover between actions of one turn"), Director->GetHandoverCount(), 1);
+		TestEqual(TEXT("the turn view again"), Director->GetCurrentMode(), ECombatCameraMode::Turn);
+		Orchestrator->OnActionRequested.Broadcast(Hero); // a refused pick asked again
+		TestEqual(TEXT("no action since the last ask: none"), Director->GetSameTurnReturnCount(), 1);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("a third action's ask: a return"), Director->GetSameTurnReturnCount(), 2);
+
+		// Only a turn change does the full move.
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestTrue(TEXT("hero -> hero after acting: the wide beat"), Director->IsHandoverPending());
+		Orchestrator->OnActionRequested.Broadcast(SecondHero);
+		TestEqual(TEXT("a new turn's ask is no return"), Director->GetSameTurnReturnCount(), 2);
+
+		// Movement off: the static view stays.
+		Director->SetCameraMovementOff(true);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 3);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("movement off: no return"), Director->GetSameTurnReturnCount(), 2);
+		TestEqual(TEXT("movement off: static"), Director->GetCurrentMode(), ECombatCameraMode::Static);
+		Director->SetCameraMovementOff(false);
+		Director->EndCombat();
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		TestEqual(TEXT("a new fight counts from zero"), Director->GetSameTurnReturnCount(), 0);
+		Director->EndCombat();
+	});
+
 	It("drops a pending handover when the fight ends, and never fires one for a preview (B-404)", [this]()
 	{
 		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;

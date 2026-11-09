@@ -68,6 +68,8 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	bInCombat = true;
 	bActedSinceTurnStart = false; // B-404
 	HandoverCount = 0;
+	bActedSinceAsked = false; // B-401
+	SameTurnReturnCount = 0;
 	LocalCombatants.Append(LocalParty);
 	OpposingCombatants.Append(OpposingParty);
 
@@ -93,6 +95,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	if (ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner()))
 	{
 		Orchestrator->OnActorTurnStarted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleActorTurnStarted);
+		Orchestrator->OnActionRequested.AddUniqueDynamic(this, &UCombatCameraDirector::HandleActionRequested); // B-401
 	}
 	if (Executor)
 	{
@@ -127,10 +130,12 @@ void UCombatCameraDirector::EndCombat()
 	bHandoverPending = false;
 	HandoverFrom.Reset();
 	HandoverTo.Reset();
+	bActedSinceAsked = false; // B-401
 
 	if (ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner()))
 	{
 		Orchestrator->OnActorTurnStarted.RemoveDynamic(this, &UCombatCameraDirector::HandleActorTurnStarted);
+		Orchestrator->OnActionRequested.RemoveDynamic(this, &UCombatCameraDirector::HandleActionRequested);
 	}
 	if (UActionExecutor *Executor = BoundExecutor.Get())
 	{
@@ -241,6 +246,7 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 	AActor *From = ViewedActor.Get();
 	const bool bSomeoneActed = bActedSinceTurnStart;
 	bActedSinceTurnStart = false;
+	bActedSinceAsked = false; // B-401: the turn start's own ask is not a return
 	ViewedActor = Actor;
 	ClearDefenceHandOff();
 	StopSequence();
@@ -255,6 +261,7 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	}
 	FlushPendingHandover(); // B-404: an action inside the beat: the handover now; the action's own camera follows
 	bActedSinceTurnStart = true;
+	bActedSinceAsked = true; // B-401
 	ClearDefenceHandOff();
 	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
 	const bool bNewActor = Executor && Executor != ViewedActor.Get();
@@ -299,6 +306,45 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		return;
 	}
 	PlaySequence(Sequence, Executor, Action.Targets);
+}
+
+void UCombatCameraDirector::HandleActionRequested(AActor *Actor)
+{
+	// B-401 (study R4, Q-401): the same hero asked again after an action of its turn (B-170c) gets the same turn view
+	// back in one short blend from where the last shot ended. No wide beat: only a turn start does the full move.
+	const bool bActed = bActedSinceAsked;
+	bActedSinceAsked = false;
+	if (!bInCombat || !bActed || !Actor || Actor != ViewedActor.Get())
+	{
+		return; // a turn start's ask, a refused pick asked again, or not the actor the camera follows
+	}
+	if (PlayingSequence || DefenceHandOffTimer.IsValid())
+	{
+		return; // a cinematic keeps the view; its end shows the turn view (HandleSequenceFinished), as before
+	}
+	const ECombatCameraMode Mode = FCombatCameraRules::SelectMode(IsViewersCharacter(Actor), false, bCameraMovementOff);
+	const FSameTurnReturnPlan Plan = FCombatCameraRules::PlanSameTurnReturn(bActed, Mode, TurnViewStyle, BuildFrame(Actor));
+	UCombatCameraComponent *Camera = Actor->FindComponentByClass<UCombatCameraComponent>();
+	APlayerController *Viewer = GetViewer();
+	if (!Plan.bReturn || !Camera || !Viewer)
+	{
+		return; // movement off (the static view stays) or not the viewer's character: unchanged
+	}
+	StopShotPattern(); // the last action's held shot ends here
+	CurrentMode = ECombatCameraMode::Turn;
+	ACameraActor *Existing = Camera->GetCameraActor();
+	if (Existing && Viewer->GetViewTarget() == Existing)
+	{
+		MoveCameraOnShotTimer(Camera, Plan.TurnView, Plan.BlendSeconds); // the wind-up / cast shot's camera: no jump
+	}
+	else if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::Turn, Plan.TurnView))
+	{
+		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // undo an impact punch
+		Viewer->SetViewTargetWithBlend(CameraActor, Plan.BlendSeconds); // from the target's impact camera
+	}
+	++SameTurnReturnCount;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Same-turn return: %s acts again, its turn view in %.2f s, no wide beat (%d this fight)"),
+		   *Actor->GetName(), Plan.BlendSeconds, SameTurnReturnCount);
 }
 
 void UCombatCameraDirector::HandleSequenceFinished()
@@ -933,7 +979,9 @@ FString UCombatCameraDirector::GetHandoverString() const
 								*GetNameSafe(HandoverTo.Get()), PendingTurnChange.HandoverBlendSeconds, Left,
 								bHandoverBroadcasts ? TEXT("") : TEXT(" (preview)"));
 	}
-	return FString::Printf(TEXT("%s; %d sent this fight%s"), *State, HandoverCount, bActedSinceTurnStart ? TEXT("; acted this turn") : TEXT(""));
+	// B-401: the same-turn returns ride on the handover line (wor.Camera.Print).
+	return FString::Printf(TEXT("%s; %d sent this fight%s; %d same-turn return(s)"), *State, HandoverCount,
+						   bActedSinceTurnStart ? TEXT("; acted this turn") : TEXT(""), SameTurnReturnCount);
 }
 
 bool UCombatCameraDirector::PreviewHandover(int32 PartyIndex)
