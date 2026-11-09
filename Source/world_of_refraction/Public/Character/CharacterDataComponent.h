@@ -7,6 +7,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Character/CharacterData.h"
 #include "Character/StatLayers.h"
+#include "Combat/Actions/ActionPipsRules.h"
 #include "Character/StatConstants.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Character/EWorldPillar.h"
@@ -435,6 +436,28 @@ public:
      *  (B-4) — a bare multiplier on the RAW ≤0.25-capped CalculateReflexWindowBonus term. Reflex ADDS to
      *  the window (defender widens), so this scales HOW MUCH it widens. 1.0 at zero Reflex gear. */
     float ReflexWindowGearFactor() const;
+
+    // ==================== ACTION PIPS (B-170a, ActionPips.md §2, §3.1) ====================
+
+    /** The action-point sources (FWoRActionPointLayers). No asset authors action points yet (Q-170a). */
+    FWoRActionPointLayers GetActionPointLayers() const;
+
+    /** The composed action points (gear + evolutions + buffs; +25 and +50 make 75). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    int32 GetActionPoints() const;
+
+    /** 2 + 1 per whole 100 action points, at most the safety cap (ActionPipsRules::MaxActionsForPoints). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    int32 GetMaxActions() const;
+
+    /** The action points toward the next Max Action (175 -> 75), for "Max 3 (+75/100)". */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    int32 GetActionPointProgress() const;
+
+    /** Added to the action points by wor.Actions.AddPoints (UActionPipsDebug), so Max Actions can be
+     *  checked in PIE before any asset authors action points. Not saved, not replicated. */
+    UPROPERTY(Transient)
+    int32 DebugActionPoints = 0;
 
     /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
      *  is the verbatim return of an existing getter. Additive convenience for snapshot

@@ -1481,6 +1481,30 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
     return Layers.Compose();
 }
 
+FWoRActionPointLayers UCharacterDataComponent::GetActionPointLayers() const
+{
+    FWoRActionPointLayers Layers;
+    // TODO: B-170 follow-up (Q-170a): read the gear's and evolutions' action points once a data field
+    // carries them; MaxActionsBuff / MaxActionsDebuff (B-170d) change Max Actions, not these points.
+    Layers.Debug = DebugActionPoints;
+    return Layers;
+}
+
+int32 UCharacterDataComponent::GetActionPoints() const
+{
+    return GetActionPointLayers().Compose();
+}
+
+int32 UCharacterDataComponent::GetMaxActions() const
+{
+    return ActionPipsRules::MaxActionsForPoints(GetActionPoints());
+}
+
+int32 UCharacterDataComponent::GetActionPointProgress() const
+{
+    return ActionPipsRules::ActionPointProgress(GetActionPoints());
+}
+
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
 {
     // Pure snapshot — each field is the verbatim return of an existing getter, no
