@@ -1,3 +1,14 @@
+# Cloud writer handover (2026-11-09, fourteenth part: the visual phase) — IN PROGRESS
+
+Crown's current phase is visuals (`docs/Design/VisualGameplayPlan.md`, D-170). These have no blockers and are being written:
+- **B-391**: a placeholder battle HUD in C++.
+- **B-392**: two guards (Weapon / Unarmed) that pick the parry montage.
+- **B-394**: the cast VFX source rule.
+
+They are followed by B-393 (parry VFX, stacked on B-392) and B-395 (the slice fight, stacked on B-391, with animations reviewed one at a time by Crown).
+
+Crown has confirmed the three B-170 readings (Ice takes the action at once; actions over Max stay banked; the regain steps at 0.8). They match B-170a as built.
+
 # Cloud writer handover (2026-11-09, thirteenth part: after B-043b / B-043c landed) — STOPPED: the next parts wait for builds
 
 The desktop built and merged B-043b and B-043c. Crown answered Q-170..Q-170h, which unblocked B-170a..g, and D-171 became B-397.
