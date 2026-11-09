@@ -24,7 +24,8 @@ namespace
 		using S = ESkillEffectType;
 
 		// Water's break slows Action and Spell Speed (D-090; ApplyTriggeredSkillEffect adds the Spell Speed half).
-		// Ice resists as Water damage too (B-226, Q-042o, Q-145b).
+		// Ice resists as Water damage too (B-226, Q-042o, Q-145b). Ice's break (B-064a, D-090) is Water's slow plus damage
+		// (IceBreak); it has no immunity of its own: an Ice hit is keyed Water, so Water immunity blocks its buildup (Q-064a).
 		// Type, Element, Physical, AlsoResistedBy, Gem, Essence, BreakTrigger, Immunity, Colour, bBDAbsorbable, bBDForbidden
 		return {
 			{T::None,      E::None,      P::None,   T::None, G::Quartz,   Ess::Generic,   S::None,              S::None,                   ElementColors::Generic,  false, false},
@@ -40,7 +41,7 @@ namespace
 			{T::Slash,     E::None,      P::Slash,  T::None, G::None,     Ess::Generic,   S::DOT,               S::None,                   PHYSICAL_COLOUR,          false, false},
 			{T::Pierce,    E::None,      P::Pierce, T::None, G::None,     Ess::Generic,   S::DefenseDebuff,     S::None,                   PHYSICAL_COLOUR,          false, false},
 			{T::Impact,    E::None,      P::Impact, T::None, G::None,     Ess::Generic,   S::Stun,              S::None,                   PHYSICAL_COLOUR,          false, false},
-			{T::Ice,       E::None,      P::None,   T::None, G::None,     Ess::Generic,   S::None,              S::None,                   ICE_COLOUR,               false, false},
+			{T::Ice,       E::None,      P::None,   T::None, G::None,     Ess::Generic,   S::IceBreak,          S::None,                   ICE_COLOUR,               false, false},
 		};
 	}
 }
