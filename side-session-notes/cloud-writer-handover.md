@@ -6,9 +6,16 @@ The desktop merged these into dev: B-043a, B-273b + B-064a (with the review fixe
   - Energy refills at the start of each of a character's turns: 10% of Max EP, at least 1, TODO: tune.
   - The refill goes through `ServerGainEnergy`'s gates, so Broken Darkness and a dormant Resonator gain nothing.
   - Debug: `wor.Energy.Print`. Spec: `WoR.Energy.TurnStart`.
-- **B-042g2** (deletes the UseGAS switch). Being written. It makes GAS-only reads permanent, which is a behaviour change, so it merges only after Crown's PIE at `wor.Effects.UseGAS 1`.
-- **B-064c** (the rest of Ice). Being written.
-- **B-043b** (the ability base class): next.
+- **B-042g2** (`feature/B-042g2-usegas-switch-delete-cloud`). Pushed. The review BLOCKed it over five specs; all are fixed.
+  - It makes GAS reads permanent.
+  - **Merge only after Crown's full fight at `wor.Effects.UseGAS 1` on dev.**
+- **B-064c** (`feature/B-064c-ice-rest-cloud`). Pushed, reviewed, fixed. The rest of Ice: the resistance column, Ice-keyed buffs and Wards, and Water boosts skipping Ice.
+  - Note for Crown: a Status Multiplier buff granted by an Ice spell no longer boosts that spell's own buildup.
+- **B-043b** (`feature/B-043b-ability-base-cloud`). Pushed, reviewed, fixed. Adds the ability base class and granting, behind `wor.Abilities.UseGAS` (default 0).
+  - The UE API is written from memory of 5.5 or later, so watch the first compile.
+  - B-214 can stack on it.
+- **New trial branch `integration/cloud-2026-11-09`.** It is dev plus everything unmerged (rows 74–77 and C1–C7). The cross-merge review found no code breakage, and the doc-row damage is fixed.
+- **B-043c** (melee through ability tasks, stacked on B-043b). Being written.
 
 # Cloud writer handover (2026-11-09, eleventh part: the brain's GAS / Ice / cleanup plan) — STOPPED: the plan is done; no writable job left
 
