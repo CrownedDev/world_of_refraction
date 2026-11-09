@@ -956,6 +956,36 @@ void UPartySessionSubsystem::SetMemberVitalsFull(FPartyMember &Member)
 						   : Member.CharacterData->CalculateMaxEnergy();
 }
 
+int32 UPartySessionSubsystem::RestMembersWhere(TFunctionRef<bool(const FPartyMember &)> IsRested)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] RestMembersWhere with no local party"));
+		return 0;
+	}
+	int32 Rested = 0;
+	int32 Revived = 0;
+	for (FPartyMember &Member : Party->Members)
+	{
+		if (!Member.CharacterData || !IsRested(Member))
+		{
+			continue;
+		}
+		Revived += Member.IsFallen() ? 1 : 0;
+		SetMemberVitalsFull(Member);
+		Member.CarriedGear = FCarriedGearState();
+		Member.CarriedAbsorption = FCarriedAbsorptionState();
+		++Rested;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Rested %d member(s), %d revived"), Rested, Revived);
+	if (Rested > 0)
+	{
+		OnPartyChanged.Broadcast(Party); // the party HUD re-reads vitals on it
+	}
+	return Revived;
+}
+
 int32 UPartySessionSubsystem::ReviveFallenMembers()
 {
 	UParty *Party = GetLocalParty();
