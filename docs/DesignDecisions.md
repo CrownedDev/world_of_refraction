@@ -290,6 +290,18 @@ The queue of questions only Crown can answer.
 **Answer (superseded by Crown's answer below):** **A**, by the reference-backed default (2026-11-09). Watch in play: if Reflex becomes a must-have, split it (B).
 **Answer (Crown, 2026-11-09, supersedes the default above where they differ):** **approved:** Reflex = the regain amount + the defense window (Reflex no longer sets Max Actions, Q-170); Turn Speed removed from Spirit.
 
+### Q-403 — Shot-pattern tuning: the rush, the impact two-shot and the held spread
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-403) · **Blocks:** —
+**Question:** The row (study R5, R6, R8) leaves four build choices open: which skills rush, where the impact camera stands, how big the normal-hit punch and shake are, and when the spread is "still".
+**Context:** `FCombatCameraRules::ComputeShot` and the `CombatCameraShots` constants (`CombatCameraTypes.cpp`); the director plays them (`CombatCameraDirector.cpp` `PlayShot`).
+**Recommendation (reference-backed default):**
+- **Rush on melee only.** A melee ability's wind-up becomes a 0.25 s rush in (from 420 cm back to the 200 cm wind-up end) with motion blur 0.8 on the camera; spells (melee-warping spells included, as the row says "spells don't") and ranged skills keep the 1.2 s slow push. With camera movement off (when cinematics still play), the slow push (study R15). Expedition 33's confirm rush (study §1, 5:33.8, 6:52.7) is the reference: the cut from still to fast is what makes the press feel strong (study §2 pattern 3).
+- **Impact two-shot:** the camera stands out to the side of the caster-target line, 120 cm toward the caster (three-quarter front of the target), 40 cm above the fighters' centres, looking at their middle; it pulls out with their gap so both stay in frame at any style (the framing check now asks for the caster too). Expedition 33's normal hits (study §1, 5:35.4; pattern 4: "close enough to feel, wide enough to read").
+- **Smaller punch and shake:** FOV punch 5 (crit 10, was 8 / 14), shake 0.25 (crit 0.6, was 0.6 / 1.0). Crits stay bigger (FeelGuide 4).
+- **Spread holds still:** no shake and no FOV punch at all, even on a crit; nothing replaces the pull-out until the next turn, the Defence hand-off or another action. Our prompts are on the HUD (screen space), so "timing prompt kept on screen" holds; anything shown beside a target stays in frame because every target does. Expedition 33's area skill (study §1, 6:53–6:56) holds still so the whole effect fits.
+**Answer:** the recommendation, by the reference-backed default (2026-11-09). All numbers `TODO: tune` in Crown's B-157 PIE pass.
+**Notes for Claude:** the rush doesn't follow the dashing caster yet (the camera ends 200 cm behind where the caster started); if it reads badly in PIE, follow the caster during the rush as a follow-up.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
