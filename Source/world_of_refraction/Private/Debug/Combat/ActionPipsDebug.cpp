@@ -64,9 +64,11 @@ FString UActionPipsDebug::GetActionsString(AActor *Actor)
 		return TEXT("no CharacterDataComponent");
 	}
 	const FWoRActionPointLayers Layers = Char->GetActionPointLayers();
-	return FString::Printf(TEXT("actions %d / %s | points %s | regain %d (Reflex share %.2f)"), Char->CurrentActions,
-						   *ActionPipsRules::MaxActionsString(Layers.Compose()), *Layers.ToString(), Char->GetActionRegain(),
-						   Char->GetReflexRegainShare());
+	// B-170d: Max after the timed Max Actions buffs / debuffs, and the gains and losses waiting for a turn start.
+	return FString::Printf(TEXT("actions %d / %s | Max now %d (buffs %+d) | points %s | regain %d (Reflex share %.2f) | waiting %s"),
+						   Char->CurrentActions, *ActionPipsRules::MaxActionsString(Layers.Compose()), Char->GetMaxActions(),
+						   Char->GetMaxActionsChange(), *Layers.ToString(), Char->GetActionRegain(), Char->GetReflexRegainShare(),
+						   *Char->GetWaitingActionChangesString());
 }
 
 void UActionPipsDebug::PrintActions(const UObject *WorldContextObject)

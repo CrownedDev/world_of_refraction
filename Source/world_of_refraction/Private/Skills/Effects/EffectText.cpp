@@ -897,7 +897,7 @@ namespace EffectText
                        ? FText::Format(LOCTEXT("GainActions_Self", "gain {0} {0}|plural(one=action,other=actions){1}"), N,
                                        ActionChangeWhen(P, LOCTEXT("Whose_Self", "your")))
                        : FText::Format(LOCTEXT("GainActions_Other", "give {0} {1} {1}|plural(one=action,other=actions){2}"), Side.Noun, N,
-                                       ActionChangeWhen(P, Side.Possessive));
+                                       ActionChangeWhen(P, LOCTEXT("Whose_Their", "their")));
         }
         case ESkillEffectType::LoseActions:
         {
@@ -907,7 +907,7 @@ namespace EffectText
                                        ActionChangeWhen(P, LOCTEXT("Whose_Self", "your")))
                        : Fronted(Side, LOCTEXT("Loses_Sg", "loses"), LOCTEXT("Loses_Pl", "lose"),
                                  FText::Format(LOCTEXT("LoseActions_Rest", " {0} {0}|plural(one=action,other=actions){1}"), N,
-                                               ActionChangeWhen(P, Side.Possessive)));
+                                               ActionChangeWhen(P, LOCTEXT("Whose_Their", "their"))));
         }
         case ESkillEffectType::MaxActionsBuff:
             return Side.bSelf ? FText::Format(LOCTEXT("MaxActionsUp_Self", "gain +{0} Max Actions{1}"), ActionCount(P), Span(P))

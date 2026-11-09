@@ -10,6 +10,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
@@ -31,6 +32,12 @@ namespace
 	constexpr float B286_SB28_REALITY_MAX_HP_FRACTION = 0.25f;
 	/** HP left on the holder so the Reality break is a killing blow. */
 	constexpr int32 B286_REALITY_LETHAL_HP = 1;
+
+	// B-170d: the action-pips rows.
+	const TCHAR *const BREAK_TEST_PIPS_SWITCH = TEXT("wor.Turns.ActionPips");
+	constexpr int32 BREAK_TEST_PIPS_ON = 1;
+	/** Actions given to the Ice holder before its break. */
+	constexpr int32 BREAK_TEST_BANK = 2;
 }
 
 BEGIN_DEFINE_SPEC(FStatusBreakSpec, "WoR.Effects.StatusBreaks",
@@ -38,6 +45,11 @@ BEGIN_DEFINE_SPEC(FStatusBreakSpec, "WoR.Effects.StatusBreaks",
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	USkillEffectManager *EffectManager = nullptr;
 	UTurnManager *TurnManager = nullptr;
+	// B-170d: the action-pips cases.
+	IConsoleVariable *PipsSwitch = nullptr;
+	int32 SwitchBefore = 0;
+	AActor *Local = nullptr;
+	AActor *Opposing = nullptr;
 
 	AActor *Spawn()
 	{
@@ -343,6 +355,101 @@ void FStatusBreakSpec::Define()
 			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, ESkillEffectType::BurstDamage, ESpellElement::Reality);
 			TestEqual(TEXT("HP reaches 0"), Char->CurrentHP, 0);
 			TestFalse(TEXT("The holder dies"), Char->bIsAlive);
+		});
+	});
+
+	// B-170d (Q-170e, ActionPips.md §3.4): a fight started with wor.Turns.ActionPips 1 reads the action-pips rows.
+	Describe("A full bar with action pips (wor.Turns.ActionPips 1)", [this]()
+	{
+		BeforeEach([this]()
+		{
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			TestTrue(TEXT("Test world created"), TestWorld->Create());
+			EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
+			TurnManager = TestWorld->GetSubsystem<UTurnManager>();
+			PipsSwitch = IConsoleManager::Get().FindConsoleVariable(BREAK_TEST_PIPS_SWITCH);
+			SwitchBefore = PipsSwitch ? PipsSwitch->GetInt() : 0;
+			if (PipsSwitch)
+			{
+				PipsSwitch->Set(BREAK_TEST_PIPS_ON, ECVF_SetByConsole);
+			}
+			Local = Spawn();
+			Opposing = Spawn();
+			if (TestNotNull(TEXT("TurnManager"), TurnManager) && TestTrue(TEXT("Combatants"), Local && Opposing))
+			{
+				TurnManager->InitializeCombat({Local}, {Opposing});
+				TestTrue(TEXT("The fight runs the fixed rotation"), TurnManager->IsRotationMode());
+			}
+		});
+
+		AfterEach([this]()
+		{
+			if (TurnManager && TurnManager->IsCombatActive())
+			{
+				TurnManager->EndCombat();
+			}
+			if (PipsSwitch)
+			{
+				PipsSwitch->Set(SwitchBefore, ECVF_SetByConsole);
+			}
+			PipsSwitch = nullptr;
+			Local = Opposing = nullptr;
+			TestWorld.Reset();
+			EffectManager = nullptr;
+			TurnManager = nullptr;
+		});
+
+		It("of Water slows Spell Speed only (SB-22)", [this]()
+		{
+			UCharacterDataComponent *Char = CharOf(Opposing);
+			if (!EffectManager || !TestNotNull(TEXT("Holder"), Char)) return;
+			const float ActionSpeedBefore = Char->GetEffectiveActionSpeed();
+			const float SpellSpeedBefore = Char->GetEffectiveSpellSpeed();
+
+			const ESkillEffectType WaterBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Water, EPhysicalDamageType::None, false);
+			EffectManager->ApplyTriggeredSkillEffect(Local, Opposing, WaterBreak, ESpellElement::Water);
+			TestTrue(TEXT("Spell Speed slowed"), Char->GetEffectiveSpellSpeed() < SpellSpeedBefore);
+			TestEqual(TEXT("Action Speed unchanged"), Char->GetEffectiveActionSpeed(), ActionSpeedBefore);
+			TestFalse(TEXT("No Action Speed slow"), Has(Opposing, ESkillEffectType::ActionSpeedDebuff));
+		});
+
+		It("of Wind slows Action Speed and takes 1 action at the next turn start, with no place delay (SB-23)", [this]()
+		{
+			UCharacterDataComponent *Char = CharOf(Opposing);
+			if (!EffectManager || !TestNotNull(TEXT("Holder"), Char)) return;
+			const float ActionSpeedBefore = Char->GetEffectiveActionSpeed();
+
+			EffectManager->ApplyTriggeredSkillEffect(Local, Opposing, ESkillEffectType::SkipTurn, ESpellElement::Wind);
+			EffectManager->ApplyTriggeredSkillEffect(Local, Opposing, ESkillEffectType::SkipTurn, ESpellElement::Wind);
+			TestTrue(TEXT("Action Speed slowed"), Char->GetEffectiveActionSpeed() < ActionSpeedBefore);
+			TestEqual(TEXT("Slowed by the Wind break's percent"), EffectManager->GetTotalStatModifier(Opposing, ESkillEffectType::ActionSpeedDebuff),
+					  CombatConstants::WIND_BREAK_ACTION_SPEED_SLOW_PERCENT);
+			if (TestEqual(TEXT("One loss waiting: the same attacker's refresh adds none"), Char->GetWaitingActionChanges().Num(), 1))
+			{
+				TestEqual(TEXT("It takes the Wind break's actions"), Char->GetWaitingActionChanges()[0].Amount, -CombatConstants::WIND_BREAK_ACTIONS_LOST);
+				TestEqual(TEXT("At the next turn start"), Char->GetWaitingActionChanges()[0].TurnsLeft, ActionPipsConstants::ACTION_CHANGE_NEXT_TURN);
+			}
+			const TArray<AActor *> Order = NextTurns(BREAK_TEST_TURNS_RECORDED);
+			if (TestEqual(TEXT("Turns recorded"), Order.Num(), BREAK_TEST_TURNS_RECORDED))
+			{
+				TestTrue(TEXT("No place delay: the rotation gives Opposing the next turn"), Order[0] == Opposing);
+			}
+		});
+
+		It("of Ice takes 1 action at once, never below 0 (SB-29)", [this]()
+		{
+			UCharacterDataComponent *Char = CharOf(Opposing);
+			if (!EffectManager || !TestNotNull(TEXT("Holder"), Char)) return;
+			Char->GainActions(BREAK_TEST_BANK, /*bMayPassMax=*/true);
+			const int32 Before = Char->CurrentActions;
+
+			EffectManager->ApplyTriggeredSkillEffect(Local, Opposing, ESkillEffectType::IceBreak, ESpellElement::Water);
+			TestEqual(TEXT("The Ice break's actions taken at once"), Char->CurrentActions, Before - CombatConstants::ICE_BREAK_ACTIONS_LOST);
+			TestEqual(TEXT("Nothing waits"), Char->GetWaitingActionChanges().Num(), 0);
+
+			Char->LoseActions(Char->CurrentActions);
+			EffectManager->ApplyTriggeredSkillEffect(Local, Opposing, ESkillEffectType::IceBreak, ESpellElement::Water);
+			TestEqual(TEXT("Never below 0"), Char->CurrentActions, 0);
 		});
 	});
 }

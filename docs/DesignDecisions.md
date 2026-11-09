@@ -249,6 +249,18 @@ The queue of questions only Crown can answer.
 - **"No actions" on the HUD** waits for the placeholder UI (B-170e); the skip is logged.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170c (`ACombatOrchestrator` action pips section, `USkillDataBase::ActionCost`, `FAction::GetActionCost`, `ULoadoutComponent::GetTurnSwitchRefusedReason`).
 
+### Q-170d2 — Action pips part 4: how the action effects are built
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170d) · **Blocks:** —
+**Question:** The plan (`ActionPips.md` §3.4) and Q-170e / Q-170f / Q-170g set the effects. Some build details are left open: how a designer marks "now" versus "next turn", what happens when a gain and a loss land on the same turn start, how low a Max Actions debuff can go, and when Ice's and Wind's losses apply.
+**Recommendation (reference-backed default):**
+- **Timing is the effect's own timing field:** a Gain / Lose Action set to "Start of Own Turn" waits for the holder's turn start, its Duration turns from now (1 = next turn, 2 = the one after, as Emerald's ladder needs); any other timing lands now. No new field. Divinity: Original Sin 2's Adrenaline is authored the same way (an AP gain now and a loss on the next turn as two parts of one skill).
+- **A gain and a loss landing at the same turn start: gains first, then losses.** The loss takes from what arrived, so "+1 now, −1 next turn" always costs its action back (DOS2's Adrenaline debt is never waived). Loss first would let a gain on the same turn hide it.
+- **A Max Actions debuff never takes Max below 1** (`MAX_ACTIONS_FLOOR`), so a cost-1 action stays usable: a debuff slows, it never locks a unit out (that is Stun's job). The bank above a lowered Max stays banked (the over-Max rule, Q-170g).
+- **Ice takes its action every time it lands** (as its damage does); **Wind queues its loss only on a new gust** (as its place delay did: the same attacker's refresh adds none, D-012).
+- **Emerald on an enemy skips its next turn(s) only in a rotation fight;** with the switch off the old bonus turn stays as built.
+- **With the switch off, Gain / Lose Action still move the bank** (it does nothing there); waiting changes only land at a rotation fight's turn starts.
+**Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170d (`USkillEffectManager::ApplyEffect`, `UCharacterDataComponent::QueueActionChange` / `ApplyDueActionChanges`, `BreakTable::ActionPipsRows`, `UItemExecutor::ExecuteBonusTurnEffect`).
+
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
 **Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?

@@ -287,6 +287,15 @@ void FEffectTextSpec::Define()
 			TestEqual(TEXT("Fronted"), Body(Pay(ESkillEffectType::ReduceDamageTaken, ETargetType::Ally, 0, 0.2f, 0, ESpellElement::None, ETargetCount::All)),
 					  FString(TEXT("all Allies take 20% less damage")));
 			TestEqual(TEXT("One extra turn"), Body(Pay(ESkillEffectType::ExtraAction, ETargetType::Self, 2)), FString(TEXT("take an extra turn")));
+			// B-170d (Q-170f, Q-170g): Extra Action is named Extra Turn; the four action effects.
+			TestEqual(TEXT("Extra Turn's name"), WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::ExtraAction).ToString(), FString(TEXT("Extra Turn")));
+			TestEqual(TEXT("Gain Action now"), Body(Pay(ESkillEffectType::GainActions, ETargetType::Self, 1)), FString(TEXT("gain 1 action")));
+			TestEqual(TEXT("Gain Action for an ally"), Body(Pay(ESkillEffectType::GainActions, ETargetType::Ally, 2)), FString(TEXT("give an Ally 2 actions")));
+			FSkillEffectPayload NextTurnLoss = Pay(ESkillEffectType::LoseActions, ETargetType::Enemy, 1, 0.0f, 1);
+			NextTurnLoss.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
+			TestEqual(TEXT("Lose Action next turn"), Body(NextTurnLoss), FString(TEXT("an Enemy loses 1 action at the start of their next turn")));
+			TestEqual(TEXT("Max Actions up"), Body(Pay(ESkillEffectType::MaxActionsBuff, ETargetType::Self, 1, 0.0f, 2)),
+					  FString(TEXT("gain +1 Max Actions for 2 turns")));
 			TestEqual(TEXT("Positive Energy cost is cheaper"), Body(Pay(ESkillEffectType::ModifyEnergyCost, ETargetType::Self, 0, 0.2f)),
 					  FString(TEXT("your Refractions and Abilities cost 20% less")));
 			TestEqual(TEXT("Random stat"), Body(Pay(ESkillEffectType::RandomDebuff, ETargetType::Enemy, 0, 0.1f, 2)),
