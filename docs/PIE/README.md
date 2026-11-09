@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-170a](B-170a.md) | `feature/B-170a-action-pips-cloud` (UNBUILT) | Action pips 1: `wor.Actions.Print` shows each combatant's actions, Max Actions with action-point progress ("Max 3 (+75/100)") and Reflex regain; `AddPoints` / `Reset` move them; play unchanged | Pending |
 | [B-317](B-317.md) | `feature/B-317-store-old-copies-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-312, B-313, B-313b, B-314, B-316) | Store 6, first part: a member's crystal inventory keeps no copy of its pouch; the post-fight hand-back is gone; list the enemies with authored item slots | Pending |
 | [B-034b](B-034b.md) | `feature/B-034b-charge-manager-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-034) | Delete the dead hold-to-charge `InfusionChargeManager`; check 1 is the editor's no-Blueprint-uses-it check | Pending |
 | [B-172](B-172.md) | `feature/B-172-legacy-validators-delete-cloud` (UNBUILT; merge only after Crown's PIE of B-028) | Delete the legacy loadout validators and `wor.Loadout.CompareRules` | Pending |

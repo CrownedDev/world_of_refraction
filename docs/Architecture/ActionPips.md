@@ -1,0 +1,46 @@
+# Action Pips (banked actions)
+
+## Overview
+
+D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, and on each turn a character spends **banked actions**. Reflex sets how many come back each turn (1, 2 or 3), **Max Actions** (2 + one per 100 action points from gear, evolutions and the like) caps the regain, and unused actions carry over. The plan is `docs/analysis/ActionPips.md` (B-170a..h); rulings Q-170..Q-170h, build choices Q-170a.
+
+**Built so far (B-170a, UNBUILT):** the state and the numbers on the character. Nothing reads the bank for turns yet; play is unchanged until B-170b..d land behind `wor.Turns.ActionPips`.
+
+## Architecture
+
+- **`Public/Combat/Actions/ActionPipsRules.h`** (header only, pure):
+  - `ActionPipsConstants`: `MAX_ACTIONS_BASE` 2, `ACTION_POINTS_PER_ACTION` 100, `MAX_ACTIONS_CAP` 5 (safety ceiling), `ACTIONS_REGAIN_BASE` 1, `ACTIONS_REGAIN_AT_THRESHOLD_2` 2 / `_3` 3, `ACTIONS_REGAIN_REFLEX_THRESHOLD_2` 0.5 / `_3` 0.8. All `// TODO: tune`.
+  - `FWoRActionPointLayers`: gear + evolution + transient + debug, summed, never below 0 (action points add up; they are not a Pattern P sub-stat, Q-170a).
+  - `ActionPipsRules`: `MaxActionsForPoints`, `ActionPointProgress`, `MaxActionsString` ("Max 3 (+75/100)"), `RegainForReflexShare`, `BankAfterRegain` (never past Max, nothing at or above it), `BankAfterGain` (past Max only when allowed; never trims), `ActionsAtFightStart`.
+- **`UCharacterDataComponent`** (per fight, D-064):
+  - `CurrentActions`: replicated (`OnRep_CurrentActions`), not saved.
+  - Reads: `GetActionPointLayers`, `GetActionPoints`, `GetMaxActions`, `GetActionPointProgress`, `GetReflexRegainShare` ((`CalculateReflexWindowBonus` × `ReflexWindowGearFactor`) ÷ `WINDOW_CAP_SECONDS`, 0..1), `GetActionRegain`.
+  - Writes (authority only, like the EP functions): `ResetActionsForFight`, `RegainActions`, `GainActions(N, bMayPassMax)`, `SpendActions(N)` (false when above the bank), `LoseActions(N)` (floors at 0). All go through `SetCurrentActions`, which broadcasts only on a change.
+  - `DebugActionPoints` (transient): the debug layer.
+
+## Integration Points
+
+- `OnActionsChanged(CurrentActions, MaxActions)`: dynamic multicast on the component, fired on the server on each change and on clients by the OnRep. The placeholder pips (B-170e) bind to it.
+- Coming: the orchestrator calls `ResetActionsForFight` at fight start and `RegainActions` in the turn-start step, then `SpendActions` per action (B-170c); the effects call `GainActions` / `LoseActions` (B-170d); the AI reads the bank (B-170f).
+
+## Debug
+
+`UActionPipsDebug` (`Debug/Combat/ActionPipsDebug.h`): `GetActionsString`, `PrintActions`.
+- `wor.Actions.Print`: each combatant's `actions N / Max M (+P/100) | points (layers) | regain R (Reflex share S)`.
+- `wor.Actions.AddPoints <N>`: debug action points on every combatant.
+- `wor.Actions.Reset`: every combatant to its fight-start bank.
+
+Spec: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`).
+
+## Known Limitations / TODOs
+
+- The gear and evolution layers read 0: no data field carries action points yet (Q-170a). A later job adds `BonusActionPoints` with the first authored item.
+- Max Actions is computed where read, not replicated; replicate it (as `MaxEP`) once a source exists that a client may not hold.
+- The `wor.Actions.Print` line has no "waiting next-turn gains and losses" yet; they come with the effects (B-170d).
+- Not listed in CLAUDE.md's "Existing documents" (that file is edited only by Crown's sessions); add it there.
+
+## Changelog
+
+| Date | Change | Branch |
+|---|---|---|
+| 2026-11-09 | B-170a: created. Constants, action-point layers, Max Actions with progress, Reflex regain, the bank on `UCharacterDataComponent` (`CurrentActions`, replicated, not saved) with `OnActionsChanged`; `wor.Actions.Print` / `AddPoints` / `Reset`; `ActionPipsSpec`. No play change. | `feature/B-170a-action-pips-cloud` (UNBUILT) |
