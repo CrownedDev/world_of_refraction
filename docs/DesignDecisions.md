@@ -4308,11 +4308,12 @@ Moved here once applied. Newest first.
 **Notes for Claude (as built, Q-378 change):** `UCurseSubsystem::ClearCurse` / `RegainFrom` / `CheckRegain` (called from `MemoryConditions::CheckEvent`); `AddCurse` no longer refuses a curse lifted before. `FHiddenQuestStep::Rewards`; `UHiddenQuestSubsystem::RegainCurses` (a done step met again; for a finished quest's last step, its end memory's curses too). One meeting is enough to regain. The hub's Clear curse button is B-378b; `wor.Curse.Clear <id>` for now. TODO(co-op): a friend's own curses regain on their machine. A curse lifted by its RemoveCurse cure is regainable too, as Crown's words say (review: a cure and the giver met by the same event don't undo each other; `UCurseSubsystem::BeginEvent`). **Confirmed by Crown (2026-11-08, MemoryCatalogue §3.8):** a lifted or cleared curse is regainable, as built.
 
 ### Q-379 — Hidden counters: what is counted, whose, and when a milestone opens
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-379, cloud) · **Blocks:** —
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08: kept as built, all A) · **Raised:** 2026-11-08 (B-379, cloud) · **Blocks:** —
 **Question:** MemoryCatalogue §3.9: a hidden running total on the save ("parried 50 times as Sapphire") that keeps counting across runs. (1) What is counted first? (2) Per character or per player? (3) In co-op, whose save counts a friend's character? (4) When does a milestone memory open?
 **Options / as built:** (1) **A** Parries (a Perfect Guard, D-084) and Kills (finishing blows) / B a long list now. (2) **A** both: each counter per character and for all characters together; a memory names the character or not / B per player only. (3) **A** the player who plays it (their machine counts it) / B the host's. (4) **A** at the next memory event after it is reached (a fight won, a spot, a fragment) / B at once, mid-fight.
 **Recommendation:** all A. Shangri-La Frontier's hidden stats and Monster Hunter's per-weapon hunt counts track what a character did across sessions; two counters cover the catalogue's example and more are one line each. Per player follows Q-235d. Checking at memory events keeps fights free of story interrupts (pillar: story between fights).
 **Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; which milestones exist is Crown's.
+**Crown (2026-11-08):** kept as built.
 
 ### Q-381 — Gear quests: where they are authored, and what "has or wears" means first
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-381, cloud) · **Blocks:** —
