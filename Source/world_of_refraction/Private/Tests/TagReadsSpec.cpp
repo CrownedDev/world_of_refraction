@@ -1,6 +1,6 @@
 // TagReadsSpec.cpp
-// GAS stage 3 (B-042x): with `wor.Effects.UseGAS 1` the Stun / Silence / HealBlock / immunity / DOT
-// checks read the holder's tags (Status.*, Immunity.*), not the enum store; with 0 they read the store.
+// GAS stage 3 (B-042x): the Stun / Silence / HealBlock / immunity / DOT checks read the holder's tags
+// (Status.*, Immunity.*), not the enum store (B-042g2: the store-read pass went with the UseGAS switch).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -75,7 +75,6 @@ void FTagReadsSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		EffectManager = nullptr;
 		ASC = nullptr;
 		Hero = nullptr;
@@ -83,58 +82,42 @@ void FTagReadsSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("reads each status and immunity from the holder's tag with UseGAS 1, and from the store with 0", [this]()
+	It("reads each status and immunity from the holder's tag", [this]()
 	{
 		if (!EffectManager) return;
 		for (const FTagReadCase &Case : TagReadCases())
 		{
 			// A tag with no stored effect behind it: only a tag read sees it.
 			ASC->AddLooseGameplayTag(Case.Tag);
-			UWoREffectMirrorComponent::SetReadsFromGAS(false);
-			TestFalse(FString::Printf(TEXT("UseGAS 0: not %s from a tag alone"), Case.Label), Case.Read(*EffectManager, Hero));
-			UWoREffectMirrorComponent::SetReadsFromGAS(true);
-			TestTrue(FString::Printf(TEXT("UseGAS 1: %s from the tag"), Case.Label), Case.Read(*EffectManager, Hero));
-			TestTrue(FString::Printf(TEXT("UseGAS 1: GetEffectTags lists %s"), *Case.Tag.ToString()),
+			TestTrue(FString::Printf(TEXT("%s from the tag"), Case.Label), Case.Read(*EffectManager, Hero));
+			TestTrue(FString::Printf(TEXT("GetEffectTags lists %s"), *Case.Tag.ToString()),
 					 EffectManager->GetEffectTags(Hero).HasTagExact(Case.Tag));
 			ASC->RemoveLooseGameplayTag(Case.Tag);
-			TestFalse(FString::Printf(TEXT("UseGAS 1: not %s once the tag goes"), Case.Label), Case.Read(*EffectManager, Hero));
+			TestFalse(FString::Printf(TEXT("not %s once the tag goes"), Case.Label), Case.Read(*EffectManager, Hero));
 		}
 	});
 
-	It("reads a stored stun the same on both paths, tags included", [this]()
+	It("reads a stored stun, tags included", [this]()
 	{
 		if (!EffectManager) return;
 		EffectManager->ApplyEffect(Hero, FActiveSkillEffect::CreateBuff(TEXT("Tag read stun"), TAG_READ_STUN_ID,
 																		ESkillEffectType::Stun, 0.0f, TAG_READ_TURNS),
 								   Foe);
-		for (const bool bReadsFromGAS : {false, true})
-		{
-			UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS);
-			const TCHAR *Path = bReadsFromGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0");
-			TestTrue(FString::Printf(TEXT("%s: stunned"), Path), EffectManager->IsStunned(Hero));
-			TestTrue(FString::Printf(TEXT("%s: GetEffectTags lists Status.Stun"), Path),
-					 EffectManager->GetEffectTags(Hero).HasTagExact(WoRTags::Status_Stun));
-			TestFalse(FString::Printf(TEXT("%s: no DOT"), Path), EffectManager->HasActiveDOT(Hero));
-			TestTrue(FString::Printf(TEXT("%s: the stun is cleansable"), Path),
-					 EffectManager->HasCleansableEffectOfType(Hero, ESkillEffectType::Stun));
-		}
+		TestTrue(TEXT("stunned"), EffectManager->IsStunned(Hero));
+		TestTrue(TEXT("GetEffectTags lists Status.Stun"), EffectManager->GetEffectTags(Hero).HasTagExact(WoRTags::Status_Stun));
+		TestFalse(TEXT("no DOT"), EffectManager->HasActiveDOT(Hero));
+		TestTrue(TEXT("the stun is cleansable"), EffectManager->HasCleansableEffectOfType(Hero, ESkillEffectType::Stun));
 	});
 
-	It("leaves a gear stun out of the cleansable read on both paths (D-015)", [this]()
+	It("leaves a gear stun out of the cleansable read (D-015)", [this]()
 	{
 		if (!EffectManager) return;
 		FActiveSkillEffect GearStun = FActiveSkillEffect::CreateBuff(TEXT("Tag read gear stun"), TAG_READ_STUN_ID,
 																	 ESkillEffectType::Stun, 0.0f, TAG_READ_TURNS);
 		GearStun.bFromGear = true;
 		EffectManager->ApplyEffect(Hero, GearStun, Foe);
-		for (const bool bReadsFromGAS : {false, true})
-		{
-			UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS);
-			const TCHAR *Path = bReadsFromGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0");
-			TestTrue(FString::Printf(TEXT("%s: stunned"), Path), EffectManager->IsStunned(Hero));
-			TestFalse(FString::Printf(TEXT("%s: a gear stun isn't cleansable"), Path),
-					  EffectManager->HasCleansableEffectOfType(Hero, ESkillEffectType::Stun));
-		}
+		TestTrue(TEXT("stunned"), EffectManager->IsStunned(Hero));
+		TestFalse(TEXT("a gear stun isn't cleansable"), EffectManager->HasCleansableEffectOfType(Hero, ESkillEffectType::Stun));
 	});
 }
 
