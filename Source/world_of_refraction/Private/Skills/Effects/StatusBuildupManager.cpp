@@ -153,8 +153,7 @@ ESkillEffectType UStatusBuildupManager::GetPendingTrigger(AActor *Target) const
 			bSourceIsBrokenDarkness = SrcComp->IsBrokenDarkness();
 		}
 	}
-	return BarCapTriggerResolver::ResolveTrigger(State->PendingElement, State->PendingPhysicalType,
-												 bSourceIsBrokenDarkness);
+	return BarCapTriggerResolver::ResolveTrigger(State->GetPendingHitKind(), bSourceIsBrokenDarkness);
 }
 
 ESpellElement UStatusBuildupManager::GetPendingElement(AActor *Target) const
@@ -244,6 +243,15 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 											 ESpellElement Element, EPhysicalDamageType PhysicalType,
 											 bool bSkipBaseStatAmp)
 {
+	// B-273b: one path, by hit kind; FromPair keeps every pair caller's numbers.
+	return AddStatusBuildupForHit(Source, Target, Amount, FWoRHitKind::FromPair(Element, PhysicalType), bSkipBaseStatAmp);
+}
+
+bool UStatusBuildupManager::AddStatusBuildupForHit(AActor *Source, AActor *Target, float Amount, const FWoRHitKind &Hit,
+												   bool bSkipBaseStatAmp)
+{
+	const ESpellElement Element = Hit.Element;
+	const EPhysicalDamageType PhysicalType = Hit.Physical;
 	if (!Target || Amount <= 0.0f)
 	{
 		return false;
@@ -267,7 +275,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// Buildup never accrues for immune targets (returns false and short-circuits the
 	// amplification, resistance, and bar-update steps).
 	const ESkillEffectType ResolvedTrigger =
-		BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType, bSourceIsBrokenDarkness);
+		BarCapTriggerResolver::ResolveTrigger(Hit, bSourceIsBrokenDarkness);
 	if (USkillEffectManager *EffectMgr = GetEffectManager())
 	{
 		// Global immunity — blocks any buildup.
@@ -321,13 +329,13 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	if (UAbilitySystemComponent *BarASC = GetBarASC(Target))
 	{
 		OldBuildup = BarASC->GetNumericAttribute(UWoRAttributeSet_Vitals::GetBuildupAttribute());
-		Amount = AddThroughExecution(*BarASC, Source, Target, Amount, Element, PhysicalType, bSkipBaseStatAmp);
+		Amount = AddThroughExecution(*BarASC, Source, Target, Amount, Hit, bSkipBaseStatAmp);
 	}
 	else
 	{
 		const FStatusBarState *Existing = StatusBarStates.Find(Target);
 		OldBuildup = Existing ? Existing->CurrentBuildup : 0.0f;
-		Amount = WoRBuildupMath::Compute(GatherBuildupMathInputs(Source, Target, Amount, Element, PhysicalType, bSkipBaseStatAmp));
+		Amount = WoRBuildupMath::Compute(GatherBuildupMathInputs(Source, Target, Amount, Hit, bSkipBaseStatAmp));
 	}
 	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
 	State.CurrentBuildup = OldBuildup + Amount;
@@ -335,6 +343,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// Update bar state - most recent hit wins on element + physical type
 	State.PendingElement = Element;
 	State.PendingPhysicalType = PhysicalType;
+	State.PendingDamageType = Hit.DamageType;
 	State.LastSource = Source;
 	State.TurnsSinceLastHit = 0; // Reset decay counter
 
@@ -343,10 +352,8 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup,
 		CombatConstants::STATUS_EFFECT_THRESHOLD, Element, Source);
 
-	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Element: %s, Physical: %s, Resolved trigger: %s"),
-		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount,
-		   *UEnum::GetValueAsString(Element),
-		   *UEnum::GetValueAsString(PhysicalType),
+	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Hit: %s, Resolved trigger: %s"),
+		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount, *Hit.ToString(),
 		   *UEnum::GetValueAsString(ResolvedTrigger));
 
 	// Check if triggered
@@ -381,6 +388,14 @@ FBuildupMathInputs UStatusBuildupManager::GatherBuildupMathInputs(AActor *Source
 																		 ESpellElement Element, EPhysicalDamageType PhysicalType,
 																		 bool bSkipBaseStatAmp) const
 {
+	return GatherBuildupMathInputs(Source, Target, Amount, FWoRHitKind::FromPair(Element, PhysicalType), bSkipBaseStatAmp);
+}
+
+FBuildupMathInputs UStatusBuildupManager::GatherBuildupMathInputs(AActor *Source, AActor *Target, float Amount,
+																		 const FWoRHitKind &Hit, bool bSkipBaseStatAmp) const
+{
+	// The element keys the source-side amps (an Ice hit is keyed Water); the hit's types key the resistance.
+	const ESpellElement Element = Hit.Element;
 	FBuildupMathInputs Inputs;
 	Inputs.Amount = Amount;
 
@@ -443,7 +458,7 @@ FBuildupMathInputs UStatusBuildupManager::GatherBuildupMathInputs(AActor *Source
 	if (TargetComp && TargetComp->CharacterData)
 	{
 		Inputs.GeneralStatusResistance = WoRResistance::GetGeneralStatusResistance(Target);
-		Inputs.HitTypeResistance = WoRResistance::GetHitTypeResistance(Target, Element, PhysicalType);
+		Inputs.HitTypeResistance = WoRResistance::GetHitTypeResistance(Target, Hit);
 		Inputs.StatusResistBonus = WoRResistance::GetStatusResistBonus(Target);
 	}
 	return Inputs;
@@ -478,9 +493,9 @@ void UStatusBuildupManager::SetBar(const AActor *Target, FStatusBarState &State,
 }
 
 float UStatusBuildupManager::AddThroughExecution(UAbilitySystemComponent &TargetASC, AActor *Source, AActor *Target, float Amount,
-												 ESpellElement Element, EPhysicalDamageType PhysicalType, bool bSkipBaseStatAmp)
+												 const FWoRHitKind &Hit, bool bSkipBaseStatAmp)
 {
-	FWoRBuildupRequest Request = UWoRBuildupExecution::MakeRequest(*this, Source, Target, Amount, Element, PhysicalType, bSkipBaseStatAmp);
+	FWoRBuildupRequest Request = UWoRBuildupExecution::MakeRequest(*this, Source, Target, Amount, Hit, bSkipBaseStatAmp);
 	// The spec's source is the one whose StatusMultiplier the execution reads. A source with no ASC
 	// keeps the multiplier gathered above (not re-read from the target's ASC).
 	UAbilitySystemComponent *SourceASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Source);
@@ -509,10 +524,9 @@ FString UStatusBuildupManager::GetBarDebugString(AActor *Target) const
 		return FString::Printf(TEXT("%s: no status bar"), *GetNameSafe(Target));
 	}
 	const UAbilitySystemComponent *ASC = GetBarASC(Target);
-	return FString::Printf(TEXT("%s: %.1f / %.0f on %s (state copy %.1f), pending %s / %s, %d turn(s) since the last hit"),
+	return FString::Printf(TEXT("%s: %.1f / %.0f on %s (state copy %.1f), pending %s, %d turn(s) since the last hit"),
 						   *GetNameSafe(Target), GetStatusBarBuildup(Target), CombatConstants::STATUS_EFFECT_THRESHOLD,
-						   ASC ? TEXT("GAS") : TEXT("the enum bar"), State->CurrentBuildup,
-						   *UEnum::GetValueAsString(State->PendingElement), *UEnum::GetValueAsString(State->PendingPhysicalType),
+						   ASC ? TEXT("GAS") : TEXT("the enum bar"), State->CurrentBuildup, *State->GetPendingHitKind().ToString(),
 						   State->TurnsSinceLastHit);
 }
 
@@ -530,6 +544,7 @@ void UStatusBuildupManager::ResetStatusBar(AActor *Target)
 		SetBar(Target, *State, 0.0f);
 		State->PendingElement = ESpellElement::None;
 		State->PendingPhysicalType = EPhysicalDamageType::None;
+		State->PendingDamageType = EWoRDamageType::None;
 		State->LastSource = nullptr;
 		State->TurnsSinceLastHit = 0;
 
