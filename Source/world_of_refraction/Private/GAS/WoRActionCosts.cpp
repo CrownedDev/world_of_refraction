@@ -55,7 +55,12 @@ namespace
 			UE_LOG(LogWoR, Warning, TEXT("[Costs] %s: no %s spec; paying the old way"), *GetNameSafe(Payer), What);
 			return false;
 		}
-		ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+		if (!ASC->ApplyGameplayEffectSpecToSelf(*Spec.Data.Get()).WasSuccessfullyApplied())
+		{
+			// Something blocked the GE (a tag requirement, an immunity): pay the old way, never cast free.
+			UE_LOG(LogWoR, Warning, TEXT("[Costs] %s: the %s cost GE did not apply; paying the old way"), *GetNameSafe(Payer), What);
+			return false;
+		}
 		UE_LOG(LogWoR, Verbose, TEXT("[Costs] %s paid %d %s through GAS"), *GetNameSafe(Payer), Amount, What);
 		return true;
 	}
@@ -79,7 +84,8 @@ bool WoRCosts::PaysThroughGAS(const AActor *Payer)
 	}
 	const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Payer);
 	const UCharacterDataComponent *Char = Payer->FindComponentByClass<UCharacterDataComponent>();
-	return ASC && ASC->GetSet<UWoRAttributeSet_Vitals>() && Char && Char->CharacterData;
+	// The Vitals set reads the character from the ASC's owner, so a cost is paid through GAS only when that is Payer.
+	return ASC && ASC->GetOwner() == Payer && ASC->GetSet<UWoRAttributeSet_Vitals>() && Char && Char->CharacterData;
 }
 
 FGameplayEffectSpecHandle WoRCosts::MakeEnergyCostSpec(UAbilitySystemComponent *ASC, int32 Amount)

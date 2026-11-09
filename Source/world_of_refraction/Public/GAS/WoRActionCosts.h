@@ -21,8 +21,8 @@ namespace WoRCosts
 	WORLD_OF_REFRACTION_API bool PaysThroughGASEnabled();
 	WORLD_OF_REFRACTION_API void SetPaysThroughGAS(bool bEnabled);
 
-	/** True when Payer's costs go through the GEs: both switches on, authority, an ASC with the
-	 *  Vitals set and character data (what the Vitals set's hand-off needs). */
+	/** True when Payer's costs go through the GEs: both switches on, authority, an ASC owned by Payer
+	 *  with the Vitals set, and character data (what the Vitals set's hand-off needs). */
 	WORLD_OF_REFRACTION_API bool PaysThroughGAS(const AActor *Payer);
 
 	/** The EP cost spec, SetByCaller.Cost.Energy = -Amount. Invalid without an ASC. */
