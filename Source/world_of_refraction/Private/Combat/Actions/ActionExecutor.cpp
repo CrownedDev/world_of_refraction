@@ -2198,6 +2198,7 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// carry its real PhysicalDamageType so a physical attack's bar-cap trigger resolves on EVERY hit, not
 	// just hit 0 (was hit-0-only — harmless when later hits applied zero buildup; now they don't).
 	Input.PhysicalDamageType = Context.PhysicalDamageType;
+	Input.DealtTypeOverride = Context.DealtTypeOverride; // B-273b: an Ice hit stays Ice
 	Input.ActionMods = CurrentExecutionContext->ActionMods;
 
 	// Read before the hit: Context may be the PendingDefenses entry, which a death inside ApplyHit can remove.
@@ -3116,14 +3117,13 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 	}
 
 	UE_LOG(LogTemp, Verbose,
-		   TEXT("[ApplyHit] %s -> %s | ActionType=%s Element=%s Dmg=%d Buildup=%d Physical=%s Inf=L%d"),
+		   TEXT("[ApplyHit] %s -> %s | ActionType=%s Hit=%s Dmg=%d Buildup=%d Inf=L%d"),
 		   Input.Attacker ? *Input.Attacker->GetName() : TEXT("null"),
 		   *Input.Target->GetName(),
 		   *UEnum::GetValueAsString(Input.ActionType),
-		   *UEnum::GetValueAsString(Input.Element),
+		   *Input.GetHitKind().ToString(),
 		   Input.BaseDamage,
 		   Input.BaseStatusBuildup,
-		   *UEnum::GetValueAsString(Input.PhysicalDamageType),
 		   Input.InfusionLevel);
 
 	UCharacterDataComponent *TargetComp = Input.Target->FindComponentByClass<UCharacterDataComponent>();
@@ -3140,6 +3140,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			DmgInput.GuardFactor = Input.GuardFactor;
 			DmgInput.ActionType = Input.ActionType;
 			DmgInput.Element = Input.Element;
+			DmgInput.DealtTypeOverride = Input.DealtTypeOverride; // B-273b: resistance by hit kind
 			DmgInput.bCanCrit = Input.bCanCrit;
 			DmgInput.bWasInfused = Input.InfusionLevel > 0;
 			DmgInput.InfusionLevel = Input.InfusionLevel;
@@ -3284,21 +3285,20 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		}
 	}
 
-	// Buildup path — manager resolves the trigger type internally from
-	// (Element, PhysicalType) via BarCapTriggerResolver. Manager also runs the
-	// attacker StatusMultiplier amplification (Spirit-driven via
-	// CalculateStatusMultiplier) and the per-element resistance reduction.
+	// Buildup path — manager resolves the trigger type internally from the hit
+	// kind via BarCapTriggerResolver (B-273b: an Ice hit breaks on the Ice row). Manager
+	// also runs the attacker StatusMultiplier amplification (Spirit-driven via
+	// CalculateStatusMultiplier) and the per-type resistance reduction.
 	if (Input.BaseStatusBuildup > 0)
 	{
 		UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
 		if (BuildupManager)
 		{
-			BuildupManager->AddStatusBuildup(
+			BuildupManager->AddStatusBuildupForHit(
 				Input.Attacker,
 				Input.Target,
 				static_cast<float>(Input.BaseStatusBuildup),
-				Input.Element,
-				Input.PhysicalDamageType);
+				Input.GetHitKind());
 		}
 	}
 
