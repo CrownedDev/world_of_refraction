@@ -203,7 +203,9 @@ FString UWoRAttributeSyncComponent::GetStoneMismatchString() const
 		{
 			continue; // not a stat or pillar the stones feed, or no live GE to compare
 		}
-		const float OnGAS = Live->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, /*WarnIfNotFound=*/false, 1.0f);
+		// Merge review: a GE missing the Stone tag reads as the sentinel, so it shows as a difference (never as x1.0).
+		constexpr float MISSING_STONE_TAG = -1.0f;
+		const float OnGAS = Live->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, /*WarnIfNotFound=*/false, MISSING_STONE_TAG);
 		if (!FMath::IsNearlyEqual(OnGAS, Layers.StoneFactor, KINDA_SMALL_NUMBER))
 		{
 			Lines.Add(FString::Printf(TEXT("%s stones: game x%.4f, GAS x%.4f"), *Entry.Key.GetName(), Layers.StoneFactor, OnGAS));
