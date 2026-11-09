@@ -17,7 +17,10 @@
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Save/SaveSubsystem.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
@@ -45,6 +48,14 @@ namespace
 	{
 		return Action.ActionType == EActionType::Spell ? static_cast<const USkillDataBase *>(Action.SpellData) : Action.SkillData;
 	}
+
+	/** B-398: the player's settings live in the save; looked up each time, never cached across PIE. */
+	USaveSubsystem *FindSaveSubsystem(const UActorComponent *Component)
+	{
+		const UWorld *World = Component ? Component->GetWorld() : nullptr;
+		UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+		return GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+	}
 }
 
 namespace CombatCameraBindings
@@ -56,6 +67,10 @@ namespace CombatCameraBindings
 void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, UActionExecutor *Executor)
 {
 	EndCombat();
+	if (const USaveSubsystem *Save = FindSaveSubsystem(this))
+	{
+		TurnViewStyle = Save->GetTurnViewStyle(); // B-398: the player's setting, whichever orchestrator runs the fight
+	}
 	bInCombat = true;
 	DefencePunchesDropped = 0;
 	LocalCombatants.Append(LocalParty);
@@ -96,7 +111,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	{
 		ViewTargetBeforeCombat = Viewer->GetViewTarget();
 	}
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Fight started: %d cameras"), Cameras.Num());
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Fight started: %d cameras, turn view %s"), Cameras.Num(), *UEnum::GetValueAsString(TurnViewStyle));
 }
 
 void UCombatCameraDirector::EndCombat()
@@ -167,6 +182,11 @@ void UCombatCameraDirector::EndCombat()
 void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 {
 	TurnViewStyle = NewStyle;
+	if (USaveSubsystem *Save = FindSaveSubsystem(this))
+	{
+		Save->SetTurnViewStyle(NewStyle); // B-398: kept for the next fight; on disk with the next save
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Turn view: %s"), *FCombatCameraRules::GetTurnViewStyleName(NewStyle).ToString());
 	if (bInCombat && !PlayingSequence && !IsShotPlaying())
 	{
 		ShowTurnView();
@@ -618,6 +638,26 @@ FString UCombatCameraDirector::GetCinematicWindowString() const
 	return FString::Printf(TEXT("window ends %.2f s (%s; first defendable %s; read %.2f s) -> %s%s%s"), LastWindowEnd, Source, *Defendable,
 						   FCombatCameraRules::MinDefenseReadSeconds, *UEnum::GetValueAsString(LastHandOffMode),
 						   DefenceHandOffTimer.IsValid() ? TEXT(", pending") : TEXT(""), *Steady);
+}
+
+FString UCombatCameraDirector::GetTurnLayoutString() const
+{
+	AActor *Actor = ViewedActor.Get();
+	if (!bInCombat || !Actor)
+	{
+		return TEXT("layout: no turn view");
+	}
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	const FTransform View = FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame);
+	auto Describe = [&View](const FVector &Point)
+	{
+		FVector2D Screen;
+		return CameraFraming::ProjectToScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Point, Screen)
+				   ? CameraFraming::GetThirdsCell(Screen)
+				   : FString(TEXT("behind the camera"));
+	};
+	return FString::Printf(TEXT("layout %s: %s %s, enemy centre %s"), *UEnum::GetValueAsString(TurnViewStyle), *Actor->GetName(),
+						   *Describe(Frame.Focus), *Describe(Frame.EnemyCentre));
 }
 
 bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill)
