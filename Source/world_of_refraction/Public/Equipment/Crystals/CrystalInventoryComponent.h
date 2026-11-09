@@ -23,17 +23,12 @@
 // fungible — two refined Garnet (F) crystals are interchangeable. Per-attachment
 // durability lives on the holder, not here.
 //
-// B-203 (D-097): a party member's component SHARES the party's carried items once bound
-// (BindSharedItems, at spawn). Its two pools then mirror UPoolSubsystem's carried slots;
-// AddCount carries what fits and stores the rest (so it never fails for space), RemoveCount
-// takes from the carried slots. Unbound components (enemies, tests) keep their own counts.
-//
-// OBSOLETE (B-313, D-111, D-117) as a party member's copy: the member's pouch in UPoolSubsystem is its only
-// carried-items list. Fight item lists and item use read the pouch directly (ULoadoutComponent::GetUsableItems
-// / UseCarriedItem); the Crystals / Stones mirror stays for the readers not yet moved (B-313b) and is deleted
-// after Crown's PIE pass. Enemies keep their own counts here.
-// B-313b: every read (GetCount, GetCountForTier, GetTotalCount, GetStackCount, GetHeldStacks) goes to the pouch while
-// bound; nothing in C++ reads the mirror. It is still filled for Blueprint readers until Crown's PIE pass (OBSOLETE).
+// B-203 / B-322 (D-097, D-117): a party member's component is bound to its pouch in UPoolSubsystem
+// (BindSharedItems, at spawn). While bound, every call goes to the pouch: AddCount carries what fits and
+// stores the rest (so it never fails for space), RemoveCount takes from the pouch, and every read
+// (GetCount, GetCountForTier, GetTotalCount, GetStackCount, GetHeldStacks) is the pouch's (B-313b).
+// B-317: the Crystals / Stones maps are no longer a copy of the pouch; a bound component leaves them empty.
+// Unbound components (enemies, tests) keep their own counts in them.
 
 #pragma once
 
@@ -60,12 +55,14 @@ public:
 
     /** DUAL-PURPOSE gem-family crystals (throwable AND slottable), counted per (Type, Tier).
      *  The gem-merge (§13.5) collapsed the former GemItem + GemRefined into this one
-     *  bucket — slotting and throwing both debit it. */
+     *  bucket — slotting and throwing both debit it. Unbound components only: empty while
+     *  bound to a pouch (B-317; read the pouch through GetCount / GetHeldStacks). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Crystals")
     TMap<FCrystalId, int32> Crystals;
 
     /** AUGMENT STONES (slot-only; attach directly, no refined form), counted per
-     *  (Type, Tier). Renamed from StoneItem in the gem-merge; behaviour unchanged. */
+     *  (Type, Tier). Renamed from StoneItem in the gem-merge; behaviour unchanged.
+     *  Unbound components only: empty while bound to a pouch (B-317). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory|Crystals")
     TMap<FCrystalId, int32> Stones;
 
@@ -118,8 +115,8 @@ public:
 
     // ==================== THE CHARACTER'S POUCH (B-203, B-322) ====================
 
-    /** Mirror the character's pouch (CharacterKey, UPoolSubsystem::GetCharacterKey) from now on; changes go to
-     *  Pool. ClearAll unbinds. */
+    /** Use the character's pouch (CharacterKey, UPoolSubsystem::GetCharacterKey) from now on: reads and changes go
+     *  to Pool, and this component's own counts are emptied. ClearAll unbinds. */
     void BindSharedItems(UPoolSubsystem *Pool, FName CharacterKey);
 
     bool IsSharingItems() const { return SharedPool.IsValid(); }
@@ -132,16 +129,13 @@ protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-    UFUNCTION()
-    void HandlePoolItemsChanged();
-
     void UnbindSharedItems();
 
     /** B-313b: the bound pouch's stacks (UPoolSubsystem::GetCarriedItems); null when unbound. */
     const TMap<FCrystalId, int32> *GetPouchStacks() const;
 
     TWeakObjectPtr<UPoolSubsystem> SharedPool;
-    /** Whose pouch this mirrors while SharedPool is set. */
+    /** Whose pouch this component uses while SharedPool is set. */
     FName PouchKey;
 
     // ==================== POOL DISPATCH ====================

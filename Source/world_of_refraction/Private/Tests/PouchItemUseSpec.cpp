@@ -3,8 +3,8 @@
 // item in a fight spends it from the user's pouch and nothing else (not another member's pouch, not the shared
 // storage, not the preset's item slots). No tier cap on what a member carries or uses (B-354, D-143 retired the
 // D-072 bands); stones are slot-only and never listed.
-// B-313b: a member's crystal inventory reads its pouch (never the old mirror); the item-slot rules skip a pouch
-// member's preset picks, which hold no supply.
+// B-313b: a member's crystal inventory reads its pouch; the item-slot rules skip a pouch member's preset picks,
+// which hold no supply. B-317: the bound crystal inventory keeps no copy of the pouch.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -138,8 +138,8 @@ void FPouchItemUseSpec::Define()
 		TestEqual(TEXT("Storage is untouched"), Pool->GetStoredCount(POUCH_USE_GARNET), POUCH_USE_STORED);
 		TestEqual(TEXT("The preset's item slots are untouched"),
 				  Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].GetTotalItemUses(), PresetUsesBefore);
-		const UCrystalInventoryComponent *Mirror = User->FindComponentByClass<UCrystalInventoryComponent>();
-		TestEqual(TEXT("The old mirror agrees with the pouch"), Mirror ? Mirror->GetCount(POUCH_USE_GARNET) : INDEX_NONE,
+		const UCrystalInventoryComponent *CrystalInv = User->FindComponentByClass<UCrystalInventoryComponent>();
+		TestEqual(TEXT("The member's crystal inventory reads the pouch"), CrystalInv ? CrystalInv->GetCount(POUCH_USE_GARNET) : INDEX_NONE,
 				  POUCH_USE_A_STACK - 1);
 	});
 
@@ -175,7 +175,7 @@ void FPouchItemUseSpec::Define()
 		TestEqual(TEXT("All the carried ones used in one fight"), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_S_GARNET), 0);
 	});
 
-	It("reads a member's crystal counts from its pouch, not the old mirror (B-313b)", [this]()
+	It("reads a member's crystal counts from its pouch and keeps no copy of it (B-313b, B-317)", [this]()
 	{
 		if (!Pool) return;
 		UCrystalInventoryComponent *CrystalInv = User->FindComponentByClass<UCrystalInventoryComponent>();
@@ -187,8 +187,8 @@ void FPouchItemUseSpec::Define()
 		{
 			PouchTotal += Pair.Value;
 		}
-		CrystalInv->Crystals.Empty(); // a stale mirror must not matter
-		CrystalInv->Stones.Empty();
+		TestTrue(TEXT("No copy of the pouch's gems (B-317)"), CrystalInv->Crystals.IsEmpty());
+		TestTrue(TEXT("No copy of the pouch's stones (B-317)"), CrystalInv->Stones.IsEmpty());
 		TestEqual(TEXT("The Garnets, from the pouch"), CrystalInv->GetCount(POUCH_USE_GARNET), POUCH_USE_A_STACK);
 		TestEqual(TEXT("The stone, from the pouch"), CrystalInv->GetCount(POUCH_USE_STONE), Pool->GetCarriedCount(KeyOf(0), POUCH_USE_STONE));
 		TestEqual(TEXT("The total"), CrystalInv->GetTotalCount(), PouchTotal);
