@@ -82,8 +82,14 @@ bool UCurseSubsystem::PayToClearCurse(FName CurseId, UCurrencyComponent *Wallet,
 		OutRefusal = LOCTEXT("NotHeld", "You don't hold that curse.");
 		return false;
 	}
+	if (!EnsureCurseAssetsGathered())
+	{
+		// Review: the asset (its tier) isn't known yet; never price an S-tier curse at the defaults.
+		OutRefusal = LOCTEXT("StillLoading", "The curse records are still loading. Try again in a moment.");
+		return false;
+	}
 	const UCurseData *Curse = FindCurseAsset(CurseId);
-	const UCurseData *Priced = Curse ? Curse : GetDefault<UCurseData>();
+	const UCurseData *Priced = Curse ? Curse : GetDefault<UCurseData>(); // Q-390: no asset prices as the defaults
 	const ECurrencyType Currency = Priced->GetClearCurrency();
 	const int32 Price = Priced->GetClearPrice();
 	if (!Wallet || !Wallet->CanAfford(Currency, Price))
@@ -106,7 +112,7 @@ bool UCurseSubsystem::PayToClearCurse(FName CurseId, UCurrencyComponent *Wallet,
 
 const UCurseData *UCurseSubsystem::FindCurseAsset(FName CurseId) const
 {
-	GetHeldCurseAssets(); // gathers the asset list once the registry has loaded
+	EnsureCurseAssetsGathered();
 	for (const UCurseData *Curse : CurseAssets)
 	{
 		if (Curse && Curse->CurseId == CurseId)
@@ -241,7 +247,7 @@ void UCurseSubsystem::SetCurseAssets(const TArray<UCurseData *> &Curses)
 	bPenaltyDirty = true;
 }
 
-TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
+bool UCurseSubsystem::EnsureCurseAssetsGathered() const
 {
 	if (!bGatheredCurses)
 	{
@@ -252,6 +258,12 @@ TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
 			const_cast<UCurseSubsystem *>(this)->SetCurseAssets(UCurseData::GatherAll()); // once
 		}
 	}
+	return bGatheredCurses;
+}
+
+TArray<const UCurseData *> UCurseSubsystem::GetHeldCurseAssets() const
+{
+	EnsureCurseAssetsGathered();
 	TArray<const UCurseData *> Held;
 	for (const UCurseData *Curse : CurseAssets)
 	{

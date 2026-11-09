@@ -91,6 +91,8 @@ private:
 
 	/** B-378b: the held curses' assets. */
 	TArray<const class UCurseData *> GetHeldCurseAssets() const;
+	/** Gathers every curse asset once the registry has loaded; false while it is still loading (and nothing set). */
+	bool EnsureCurseAssetsGathered() const;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<class UCurseData>> CurseAssets;
