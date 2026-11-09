@@ -171,7 +171,17 @@ void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 		return;
 	}
 
-	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability"), *Avatar->GetName(), *RunningAction.GetActionName());
+	// B-043g: a ritual's two legs, counted as they start (the arm can complete inside the executor call).
+	if (RunningAction.bIsDeferredFire)
+	{
+		++RitualFiresRun;
+	}
+	else if (IsRitualArm(RunningAction))
+	{
+		++RitualArmsRun;
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability%s"), *Avatar->GetName(), *RunningAction.GetActionName(),
+		   RunningAction.bIsDeferredFire ? TEXT(" (ritual fire, cost paid at arm)") : TEXT(""));
 	// Before the executor call: a montage-less action (wor.Combat.InstantImpacts) lands its impacts inside it.
 	if (ShouldListenForImpacts(RunningAction))
 	{
@@ -223,6 +233,13 @@ void UWoRGameplayAbility::FailActivation(const FString &Reason)
 	Fail.Executor = GetAvatarActorFromActorInfo();
 	Fail.ErrorMessage = Reason;
 	HandleActionComplete(Fail);
+}
+
+bool UWoRGameplayAbility::IsRitualArm(const FAction &Action)
+{
+	// As UActionExecutor::GetActionActivationDelay: the action's own skill (SkillData is resolved at construction).
+	const USkillDataBase *Skill = WoRSkillAbilities::GetActionSkill(Action);
+	return !Action.bIsDeferredFire && Skill && Skill->ActivationDelay > 0;
 }
 
 bool UWoRGameplayAbility::ShouldListenForImpacts(const FAction &Action)

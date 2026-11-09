@@ -22,6 +22,9 @@
 // per support cast) takes each resolution from the executor (UActionExecutor::TakeRoutedSpellResolve) and resolves
 // it through UActionExecutor::ResolveRoutedSpell. The effects stay spawned in the executor. SelfCast / TargetCast
 // abilities have no resolution point of their own: their hits route as impacts (B-043c), their casts as these.
+// B-043g (Q-043g): a ritual (ActivationDelay > 0) is two activations of the same spec: the arm (the executor arms
+// it and this ability commits its EP) and, on the caster's Execution turn, the fire (bIsDeferredFire: no commit, the
+// executor skips the ritual leg); the fire's hits route as above. Counted as RitualArmsRun / RitualFiresRun.
 // Granting and the orchestrator hand-off: GAS/Abilities/WoRSkillAbilities.h. Debug: wor.Abilities.Print.
 
 #pragma once
@@ -123,6 +126,15 @@ public:
 	/** B-043f: action costs this instance committed and paid, over its life (debug, spec). */
 	int32 GetCostsCommitted() const { return CostsCommitted; }
 
+	/** B-043g: ritual arms (an action whose skill has an ActivationDelay, not a fire) this instance ran, over its life. */
+	int32 GetRitualArmsRun() const { return RitualArmsRun; }
+
+	/** B-043g: ritual fires (bIsDeferredFire) this instance ran, over its life. */
+	int32 GetRitualFiresRun() const { return RitualFiresRun; }
+
+	/** B-043g: whether Action arms a ritual (its skill has an ActivationDelay and it is not the fire). */
+	static bool IsRitualArm(const FAction &Action);
+
 	/** EP check only: the executor's spendable EP against the action's cost (the action being activated, else
 	 *  the skill's plain cast, WoRSkillAbilities::MakePlainAction). */
 	/** Refused while an earlier action still runs (the ability was cancelled before it finished): that action
@@ -176,6 +188,8 @@ private:
 	mutable int32 PendingCommitCost = INDEX_NONE;
 	mutable bool bCommitCostPaid = false;
 	int32 CostsCommitted = 0;
+	int32 RitualArmsRun = 0;
+	int32 RitualFiresRun = 0;
 
 	/** The running action's impact task (B-043c), or null. */
 	UPROPERTY(Transient)
