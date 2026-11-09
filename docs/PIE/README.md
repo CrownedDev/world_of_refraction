@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-170a](B-170a.md) | `feature/B-170a-action-pips` (in dev) | Action pips 1: `wor.Actions.Print` shows each combatant's actions, Max Actions with action-point progress ("Max 3 (+75/100)") and Reflex regain; `AddPoints` / `Reset` move them; play unchanged | Pending |
 | [B-396](B-396.md) | `fix/B-396-combat-hud-visibility` (in dev) | Combat HUD invisible: `wor.UI.Print` in a fight shows each HUD widget's viewport, visibility, opacity, position and size; the trial gate's focus error is gone | Pending |
 | [B-064c](B-064c.md) | `feature/B-064c-ice-rest` (in dev) | Ice, the rest: Ice resistance from the profile asset, gear and Ice-keyed buffs (Ice and Water); a Water Ward or Water-scoped boost doesn't reach an Ice hit, an Ice-keyed Ward does | Pending |
 | [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (in dev) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
