@@ -31,7 +31,7 @@ FText ActionPipsText::GetCostRefusedReason(int32 Cost, int32 CurrentActions, int
 	case EActionCostState::AboveMax:
 		return LOCTEXT("CostAboveMax", "Costs more actions than you can hold.");
 	case EActionCostState::NeedsMore:
-		return FText::Format(LOCTEXT("CostNeeds", "Needs {0} {0}|plural(one=action,other=actions)."), FText::AsNumber(Cost));
+		return FText::Format(LOCTEXT("CostNeeds", "Needs {0} {0}|plural(one=action,other=actions)."), Cost);
 	default:
 		return FText::GetEmpty();
 	}
@@ -43,7 +43,7 @@ FText ActionPipsText::WithCost(const FText &Label, int32 Cost)
 	{
 		return Label;
 	}
-	return FText::Format(LOCTEXT("LabelWithCost", "{0} ({1} {1}|plural(one=action,other=actions))"), Label, FText::AsNumber(Cost));
+	return FText::Format(LOCTEXT("LabelWithCost", "{0} ({1} {1}|plural(one=action,other=actions))"), Label, Cost);
 }
 
 FText ActionPipsText::MakePips(int32 CurrentActions, int32 MaxActions)
@@ -54,8 +54,9 @@ FText ActionPipsText::MakePips(int32 CurrentActions, int32 MaxActions)
 	{
 		return FText::GetEmpty();
 	}
-	const FText FilledPip = LOCTEXT("PipFilled", "●");
-	const FText EmptyPip = LOCTEXT("PipEmpty", "○");
+	// Symbols, not words: nothing to translate.
+	const FText FilledPip = FText::AsCultureInvariant(TEXT("●"));
+	const FText EmptyPip = FText::AsCultureInvariant(TEXT("○"));
 	TArray<FText> Pips;
 	for (int32 Index = 0; Index < Slots; ++Index)
 	{
