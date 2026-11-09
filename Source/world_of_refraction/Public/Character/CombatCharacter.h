@@ -110,7 +110,7 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     TObjectPtr<UWoRTurnEffectTracker> TurnEffectTracker;
 
-    /** GAS stage 3 (B-042c): mirrors this pawn's stored effects onto its ASC for `wor.Effects.UseGAS`. */
+    /** GAS stage 3 (B-042c): mirrors this pawn's stored effects onto its ASC, which the effect reads use. */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "GAS")
     TObjectPtr<UWoREffectMirrorComponent> EffectMirrorComponent;
 

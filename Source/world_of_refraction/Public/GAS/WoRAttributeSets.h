@@ -35,7 +35,7 @@ public:
 	 *  RecomputeMaxPools rounds the product once (B-042u). */
 	virtual void PreAttributeChange(const FGameplayAttribute &Attribute, float &NewValue) override;
 
-	/** B-042y: with wor.Effects.UseGAS 1, a GE execution's Health change on a combatant with character data goes to the
+	/** B-042y: a GE execution's Health change on a combatant with character data goes to the
 	 *  game's HP path (ServerTakeDamage / ServerHeal, so death runs as for any hit); Health keeps the real HP.
 	 *  B-042yd: an Energy change goes to ServerSpendEnergy / ServerGainEnergy the same way; Energy keeps the real EP. */
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData &Data) override;
