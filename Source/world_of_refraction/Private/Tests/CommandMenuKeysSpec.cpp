@@ -254,12 +254,28 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
 
-	It("lists the three menu keys", [this]()
+	It("lists the menu keys", [this]()
 	{
 		const FString Keys = ACombatPlayerController::GetMenuKeysString();
 		TestTrue(TEXT("Defend"), Keys.Contains(TEXT("IA_Combat_MenuDefend")));
 		TestTrue(TEXT("Source"), Keys.Contains(TEXT("IA_Combat_MenuInfusionSource")));
 		TestTrue(TEXT("Level"), Keys.Contains(TEXT("IA_Combat_MenuInfusionLevel")));
+		TestTrue(TEXT("Attack (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuAttack")));
+		TestTrue(TEXT("Skills (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuSkills")));
+	});
+
+	It("gives every menu key a unique action name and a keyboard key (D-063, B-391)", [this]()
+	{
+		TSet<FName> Names;
+		for (const FCombatMenuKey &Key : ACombatPlayerController::GetMenuKeys())
+		{
+			TestFalse(FString::Printf(TEXT("%s is unique"), *Key.ActionName.ToString()), Names.Contains(Key.ActionName));
+			Names.Add(Key.ActionName);
+			TestTrue(FString::Printf(TEXT("%s has a keyboard key"), *Key.ActionName.ToString()), Key.Keyboard.IsValid());
+			const bool bKnownRule = Key.Category == EPieMenuCategory::Defend || Key.Category == EPieMenuCategory::CycleSource ||
+									Key.Category == EPieMenuCategory::CycleLevel || CommandMenuRules::IsMainMenuKey(Key.Category);
+			TestTrue(FString::Printf(TEXT("%s presses a category PressMenuKey knows"), *Key.ActionName.ToString()), bKnownRule);
+		}
 	});
 }
 
