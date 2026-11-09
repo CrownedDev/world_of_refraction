@@ -510,6 +510,10 @@ public:
      *  and before the 0-action check. */
     void ApplyWaitingActionChanges();
 
+    /** B-170d (D-064): drops every waiting change. The orchestrator calls it at every fight start and end, whatever
+     *  wor.Turns.ActionPips says, so none outlives its fight. */
+    void ClearWaitingActionChanges();
+
     const TArray<FWoRWaitingActionChange> &GetWaitingActionChanges() const { return WaitingActionChanges; }
 
     /** "+1 next turn, -1 in 2 turns", or "none" (wor.Actions.Print). */

@@ -268,6 +268,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		{
 			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 			{
+				CharComp->ClearWaitingActionChanges(); // B-170d (D-064): per fight, whatever the switch
 				CharComp->OnDied.AddUniqueDynamic(this, &ACombatOrchestrator::OnCombatantDied);
 			}
 		}
@@ -500,6 +501,18 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s) across the party"), LevelDrops);
 		OnLevelDropsReady.Broadcast(LevelDrops);
+	}
+
+	// B-170d (D-064): no waiting action change outlives its fight, whatever the switch.
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+	{
+		for (AActor *Actor : *Team)
+		{
+			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+			{
+				CharComp->ClearWaitingActionChanges();
+			}
+		}
 	}
 
 	// BEFORE the team arrays empty — it walks them for per-actor unbinds.

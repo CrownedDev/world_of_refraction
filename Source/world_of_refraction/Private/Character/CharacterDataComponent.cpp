@@ -1534,6 +1534,11 @@ void UCharacterDataComponent::AddWaitingActionChange(int32 Change, int32 TurnsLe
     UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: waiting action change %s"), *GetNameSafe(GetOwner()), *Waiting.ToString());
 }
 
+void UCharacterDataComponent::ClearWaitingActionChanges()
+{
+    WaitingActionChanges.Reset();
+}
+
 void UCharacterDataComponent::ApplyWaitingActionChanges()
 {
     if (!HasServerAuthority() || WaitingActionChanges.Num() == 0)
@@ -1611,7 +1616,7 @@ void UCharacterDataComponent::ResetActionsForFight()
     {
         return;
     }
-    WaitingActionChanges.Reset(); // B-170d: nothing waits across fights
+    ClearWaitingActionChanges(); // B-170d: nothing waits across fights
     SetCurrentActions(ActionPipsRules::ActionsAtFightStart(GetActionRegain(), GetMaxActions()));
 }
 
