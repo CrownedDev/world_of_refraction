@@ -2,7 +2,7 @@
 // B-273 (S6): a hit's kind in one struct. FromPair keeps today's rule; an Ice hit is Water-keyed, deals
 // Ice and reads Ice resistance alone (Q-145b); its tag sits under Water so Water triggers hear it (D-029, ED-04, Q-273).
 // B-273b: the pair path and the FromPair hit-kind path give the same trigger, buildup and bar; an Ice hit breaks on
-// the Ice row and its bar remembers it.
+// the Ice row (as Water while that row has none) and its bar remembers it.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -36,6 +36,13 @@ namespace
 		static const TArray<EPhysicalDamageType> Physicals = {EPhysicalDamageType::None, EPhysicalDamageType::Slash,
 															  EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact};
 		return Physicals;
+	}
+
+	/** An Ice hit breaks on the Ice row, or as its Water key while that row has no break (B-273b). */
+	ESkillEffectType ExpectedIceBreak()
+	{
+		const ESkillEffectType IceRow = ElementTable::For(EWoRDamageType::Ice).BreakTrigger;
+		return IceRow != ESkillEffectType::None ? IceRow : ElementTable::ForElement(ESpellElement::Water).BreakTrigger;
 	}
 }
 
@@ -92,8 +99,8 @@ void FHitKindSpec::Define()
 
 	It("resolves an Ice hit's break on the Ice row, and round-trips its override (B-273b)", [this]()
 	{
-		TestEqual(TEXT("Ice row"), BarCapTriggerResolver::ResolveTrigger(FWoRHitKind::Ice(), false),
-				  ElementTable::For(EWoRDamageType::Ice).BreakTrigger);
+		TestEqual(TEXT("Ice row, else Water's"), BarCapTriggerResolver::ResolveTrigger(FWoRHitKind::Ice(), false),
+				  ExpectedIceBreak());
 		TestEqual(TEXT("override of an Ice hit"), FWoRHitKind::GetDealtTypeOverride(FWoRHitKind::Ice()), EWoRDamageType::Ice);
 		TestEqual(TEXT("no override for a pair"), FWoRHitKind::GetDealtTypeOverride(FWoRHitKind::FromPair(ESpellElement::Water, EPhysicalDamageType::Slash)),
 				  EWoRDamageType::None);
@@ -164,7 +171,7 @@ void FHitKindSpec::Define()
 			TestEqual(TEXT("Ice resistance alone"), Inputs.HitTypeResistance, WoRResistance::GetTypeResistance(FireCaster, EWoRDamageType::Ice));
 			Buildup->AddStatusBuildupForHit(nullptr, FireCaster, HIT_KIND_BUILDUP, FWoRHitKind::Ice());
 			TestEqual(TEXT("keyed Water on the bar"), Buildup->GetPendingElement(FireCaster), ESpellElement::Water);
-			TestEqual(TEXT("breaks on the Ice row"), Buildup->GetPendingTrigger(FireCaster), ElementTable::For(EWoRDamageType::Ice).BreakTrigger);
+			TestEqual(TEXT("breaks on the Ice row"), Buildup->GetPendingTrigger(FireCaster), ExpectedIceBreak());
 			TestTrue(TEXT("the debug line names Ice"), Buildup->GetBarDebugString(FireCaster).Contains(TEXT("Ice")));
 		});
 
