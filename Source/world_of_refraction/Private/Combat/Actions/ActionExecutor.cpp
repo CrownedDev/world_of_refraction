@@ -56,6 +56,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Combat/Presentation/ImpactVisuals.h"
 #include "Combat/Presentation/CastVisuals.h"
+#include "NiagaraSystem.h" // B-394: TSoftObjectPtr from the loose MuzzleVFX pointer
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Equipment/Rings/RingData.h"
