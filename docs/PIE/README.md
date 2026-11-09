@@ -386,8 +386,8 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-187b](B-187b.md) | `feature/B-187b-mini-boss-rest-spots-cloud` (UNBUILT, on B-187) | A rest spot where a mini-boss fell; revive it one tier stronger (3 times) | Pending |
 | [B-187c](B-187c.md) | `feature/B-187c-revive-return-and-save-cloud` (UNBUILT, on B-187b) | Back at the rest spot after a revive; revivals saved (save v24) | Pending |
 | [B-234c](B-234c.md) | `feature/B-234c-planned-host-hand-over-cloud` (UNBUILT, on B-234b + B-187) | Hand the host over at a rest spot; the old host rejoins | Pending |
-| [B-187d](B-187d.md) | `feature/B-187d-co-op-rest-cloud` (UNBUILT, on B-187c + B-235c, merge-resolved without a compiler) | 2-player: a client rests the party; everyone returns beside the spot after a revive | Pending |
-| [B-187e](B-187e.md) | `feature/B-187e-client-rest-menu-cloud` (UNBUILT, on B-187d) | 2-player: a client's Revive asks the host; Leave leaves the session | Pending |
+| [B-187d](B-187d.md) | `feature/B-187d-co-op-rest-cloud` (in dev) | 2-player: a client rests the party; everyone returns beside the spot after a revive | Pending |
+| [B-187e](B-187e.md) | `feature/B-187e-client-rest-menu-cloud` (in dev) | 2-player: a client's Revive asks the host; Leave leaves the session | Pending |
 | [B-235e](B-235e.md) | `feature/B-235e-own-memory-finds-cloud` (UNBUILT, on B-235d) | 2-player: the client's own spot, fragment, gear and reaction memories are theirs; a friend's PriorMemory reads their own memories | Pending |
 | [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
 | [B-376](B-376.md) | `feature/B-376-party-has-cloud` (UNBUILT, on B-375) | Pair memories: both characters present, solo or across players | Pending |
