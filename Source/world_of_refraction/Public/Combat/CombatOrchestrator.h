@@ -680,8 +680,9 @@ private:
 	 *  cost and sets bTurnContinuesAfterAction. Outside one, pays nothing and the turn ends after it (as built). */
 	bool PayActionCost(const FAction &Action, FString &OutRefusedReason);
 
-	/** B-170c: after an action, whether Actor is asked again: alive, not on an Execution turn, player-driven
-	 *  (the AI spends one action a turn until B-170f), not stunned, actions left. */
+	/** B-170c: after an action, whether Actor is asked again: alive, not on an Execution turn, not Void-broken
+	 *  (its random turn is one action), not stunned, actions left. B-170f: the AI is asked again too, and banks
+	 *  by choosing End Turn. */
 	bool CanContinueTurn(AActor *Actor) const;
 
 	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left stay banked. */
