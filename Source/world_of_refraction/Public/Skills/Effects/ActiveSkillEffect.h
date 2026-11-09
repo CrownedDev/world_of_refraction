@@ -177,6 +177,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	EPhysicalDamageType PhysicalType = EPhysicalDamageType::None;
 
+	/** B-064c (FSkillEffectPayload::bKeyedIce): keyed Ice, so Element is Water. A resistance buff / debuff counts toward
+	 *  the Ice type (a Water hit reaches it as the type that also resists Water, Q-145b); a Ward catches Ice and Water. */
+	UPROPERTY(BlueprintReadOnly, Category = "Effect")
+	bool bKeyedIce = false;
+
 	/** Status-bar buildup contributed per damage event. Set by the effect's
 	 *  source (e.g. Garnet) so each DOT tick mirrors the buildup of the
 	 *  immediate hit. Left 0 for DOTs that don't build status (weapon Bleed,
@@ -354,6 +359,18 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 						 // readers and debug output don't see the cast element on it.
 						 : (Effect.EffectType == ESkillEffectType::DamageBuff || Effect.EffectType == ESkillEffectType::DamageDebuff) ? ESpellElement::None
 						 : Element;
+		// B-064c (Q-064c): the Ice key, on the defences the deckbuilder lets it widen (resistance, Ward), keyed Water.
+		const bool bIceKeyableType = Effect.EffectType == ESkillEffectType::ResistanceBuff ||
+									 Effect.EffectType == ESkillEffectType::ResistanceDebuff ||
+									 Effect.EffectType == ESkillEffectType::NegateElement ||
+									 Effect.EffectType == ESkillEffectType::NegateElementTotal;
+		Effect.bKeyedIce = P.bKeyedIce && bIceKeyableType && Effect.Element == ESpellElement::Water;
+		if (P.bKeyedIce && !Effect.bKeyedIce)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[FActiveSkillEffect] '%s' is keyed Ice but isn't a Water resistance buff / debuff or "
+										  "Ward: the Ice key is ignored."),
+				   *Effect.EffectName);
+		}
 
 		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
 		// → ApplyEffect runs it down the instant lane and NEVER stores it, so its charges can

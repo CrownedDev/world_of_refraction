@@ -45,6 +45,7 @@ namespace
 		Add(TEXT("Wind"), R.Wind);       Add(TEXT("Light"), R.Light);   Add(TEXT("Dark"), R.Darkness);
 		Add(TEXT("Ltng"), R.Lightning);  Add(TEXT("Void"), R.Void);     Add(TEXT("Reality"), R.Reality);
 		Add(TEXT("Physical"), ResistanceColumns::Get(R, ResistanceColumns::PHYSICAL_COLUMN)); // B-358: one Physical column
+		Add(TEXT("Ice"), R.Ice); // B-064c
 		return T.Num() ? FString::Join(T, TEXT(", ")) : TEXT("(none)");
 	}
 
