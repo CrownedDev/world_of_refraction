@@ -10,11 +10,20 @@
    - Reviewed and fixed: a blocked GE pays the old way, and the ASC must belong to the payer.
    - On the trial branch; merge-plan row 71.
 4. **B-273b + B-064a (Ice).** Being written: B-273b on `feature/B-273b-hit-kind-cloud` from dev, and B-064a stacked on it.
-5. **Cleanups**, each on its own branch from dev, gated on Crown's PIE of the job it cleans up (merge plan section "PIE-gated cleanups"):
-   - Done: B-152 (gate B-021). Reviewed and fixed, on the trial branch, row C1.
-   - Being written: B-153, B-154, B-165, B-172, B-034b, B-032b and B-317. B-317 gets a new row, B-317b, for the co-op store move.
-   - Not started: B-309, which folds in B-172, so it is stacked on B-172 once that lands.
-   - Not writable: B-299, which waits for all of B-042g, not only part 1.
+5. **Cleanups.** Each has its own branch from dev and merges only after Crown's PIE of its gate (merge plan section "PIE-gated cleanups", rows C1–C7). All are reviewed, have their findings fixed, and are on the trial branch:
+   - C1: B-152 (gate B-021).
+   - C2: B-153 (gate B-022).
+   - C3: B-154 (gate B-024).
+   - C4: B-172. Its gate is B-028 plus three PIE checks that still run the deleted `wor.Loadout.CompareRules`.
+   - C5: B-309, stacked on B-172. Only the safe subset: the old `FCombatLoadout` fields still have live writers and are what the save stores, so they need their own job first.
+   - C6: B-034b (gate B-034, plus an editor Blueprint check).
+   - C7: B-317, first part. New row B-317b covers the co-op store move. The wearers, the per-member copies and the enemies' `ItemSlots` stay.
+
+   **Blocked,** with docs-only branches:
+   - B-032b → new row B-032c. The lumped spell path still serves multi-hit spells, so per-impact defense needs building first, which changes behaviour.
+   - B-165 needs the D-067 spec first, written on the desktop.
+
+   **Not writable:** B-299, which waits for all of B-042g.
 6. **B-214 / B-236: not writable after part 1.** Field skills need B-043b (the ability base, granting and tags), and B-236 waits on B-214. B-214 is re-pointed to B-043b.
 
 # Cloud writer handover (2026-11-08, tenth part: confirmations, B-381 activations, B-389 / D-168) — STOPPED
