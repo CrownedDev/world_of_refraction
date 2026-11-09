@@ -1,3 +1,13 @@
+# Cloud writer handover (2026-11-09, thirteenth part: after B-043b / B-043c landed) — IN PROGRESS
+
+The desktop built and merged B-043b and B-043c. Crown answered Q-170..Q-170h, which unblocks B-170a..g, and added D-171, which became B-397. Being written now:
+
+- **B-043d**: projectile and burst spells through their ability.
+- **B-170a**: action pips, part 1. Actions live on the character; no play change.
+- **B-397**: hidden quests appear in the journal once found.
+
+B-214 is held until after the visual phase, by Crown's order. B-173, B-064c, B-042g2 and the cleanups C1–C7 are still waiting on the desktop.
+
 # Cloud writer handover (2026-11-09, twelfth part: after the desktop merged the GAS / Ice batch) — STOPPED: what's left needs a build first
 
 The desktop merged these into dev: B-043a, B-273b + B-064a (with the review fixes), B-042g part 1 (after B-042f's PIE passed), B-390, B-396, and the two blocked-job notes. Crown also changed D-089 (Energy), which unblocks B-173. Newly writable:
