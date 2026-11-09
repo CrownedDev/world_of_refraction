@@ -1,0 +1,159 @@
+// WoRGameplayAbility.cpp
+
+#include "GAS/Abilities/WoRGameplayAbility.h"
+#include "AbilitySystemGlobals.h"
+#include "Character/CharacterDataComponent.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "GAS/Abilities/WoRSkillAbilities.h"
+#include "Skills/Definitions/SkillDataBase.h"
+#include "WoRLog.h"
+
+FWoRSkillActivationScope *FWoRSkillActivationScope::Innermost = nullptr;
+
+FWoRSkillActivationScope::FWoRSkillActivationScope(FGameplayAbilitySpecHandle InHandle, const FAction &InAction,
+												   FOnActionComplete InOnComplete)
+	: Handle(InHandle), Action(InAction), OnComplete(MoveTemp(InOnComplete)), Outer(Innermost)
+{
+	Innermost = this;
+}
+
+FWoRSkillActivationScope::~FWoRSkillActivationScope()
+{
+	Innermost = Outer;
+}
+
+FWoRSkillActivationScope *FWoRSkillActivationScope::Find(FGameplayAbilitySpecHandle Handle)
+{
+	for (FWoRSkillActivationScope *Scope = Innermost; Scope; Scope = Scope->Outer)
+	{
+		if (Scope->Handle == Handle)
+		{
+			return Scope;
+		}
+	}
+	return nullptr;
+}
+
+UWoRGameplayAbility::UWoRGameplayAbility()
+{
+	// Q-043b: one instance per granted spec, reused each turn (Lyra's and GASDocumentation's default); the
+	// orchestrator and executor run on the server, so the ability does too.
+	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+	NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+}
+
+USkillDataBase *UWoRGameplayAbility::GetSkill(FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo) const
+{
+	return Cast<USkillDataBase>(GetSourceObject(Handle, ActorInfo));
+}
+
+bool UWoRGameplayAbility::CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+									FGameplayTagContainer *OptionalRelevantTags) const
+{
+	if (!Super::CheckCost(Handle, ActorInfo, OptionalRelevantTags))
+	{
+		return false;
+	}
+	AActor *Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	// As UActionExecutor::ValidateAction: no character data, no EP check.
+	if (!Executor || !Avatar->FindComponentByClass<UCharacterDataComponent>())
+	{
+		return true;
+	}
+	const FWoRSkillActivationScope *Scope = FWoRSkillActivationScope::Find(Handle);
+	USkillDataBase *Skill = GetSkill(Handle, ActorInfo);
+	if (!Scope && !Skill)
+	{
+		return true;
+	}
+	const FAction Action = Scope ? Scope->Action : WoRSkillAbilities::MakePlainAction(Skill);
+	const int32 Cost = Executor->CalculateActionEnergyCost(Avatar, Action);
+	const int32 Spendable = Executor->GetSpendableEP(Avatar);
+	if (Spendable >= Cost)
+	{
+		return true;
+	}
+	if (OptionalRelevantTags && UAbilitySystemGlobals::Get().ActivateFailCostTag.IsValid())
+	{
+		OptionalRelevantTags->AddTag(UAbilitySystemGlobals::Get().ActivateFailCostTag);
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s can't afford %s: costs %d EP, %d spendable"), *Avatar->GetName(),
+		   *GetNameSafe(Skill), Cost, Spendable);
+	return false;
+}
+
+void UWoRGameplayAbility::ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+									const FGameplayAbilityActivationInfo ActivationInfo) const
+{
+	// Intentionally empty (Q-043b): ExecuteActionAsync pays the EP through SpendEnergy (B-043a's cost GE when
+	// wor.Costs.UseGAS is on) and the infusion backlash after the action, so paying here would pay twice.
+	// No CostGameplayEffectClass is set, so Super would pay nothing either.
+}
+
+void UWoRGameplayAbility::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+										  const FGameplayAbilityActivationInfo ActivationInfo,
+										  const FGameplayEventData *TriggerEventData)
+{
+	FWoRSkillActivationScope *Scope = FWoRSkillActivationScope::Find(Handle);
+	if (!Scope)
+	{
+		// Activated some other way (a debug TryActivateAbility): there is no action to run.
+		UE_LOG(LogWoR, Log, TEXT("[Abilities] %s activated with no action; ending"), *GetNameSafe(GetSkill(Handle, ActorInfo)));
+		EndAbility(Handle, ActorInfo, ActivationInfo, /*bReplicateEndAbility*/ true, /*bWasCancelled*/ true);
+		return;
+	}
+	Scope->bConsumed = true;
+	RunningAction = Scope->Action;
+	ForwardOnComplete = Scope->OnComplete;
+	bActionRunning = true;
+
+	if (!CommitAbility(Handle, ActorInfo, ActivationInfo))
+	{
+		FailActivation(TEXT("Not enough energy"));
+		return;
+	}
+	AActor *Avatar = ActorInfo ? ActorInfo->AvatarActor.Get() : nullptr;
+	UActionExecutor *Executor = Avatar ? WoRFight::Get<UActionExecutor>(Avatar) : nullptr;
+	if (!Executor)
+	{
+		FailActivation(TEXT("No action executor"));
+		return;
+	}
+
+	UE_LOG(LogWoR, Verbose, TEXT("[Abilities] %s: %s runs through its ability"), *Avatar->GetName(), *RunningAction.GetActionName());
+	// A copy: the completion can run inside this call and a bonus turn can start this ability again.
+	const FAction Action = RunningAction;
+	Executor->ExecuteActionAsync(Avatar, Action, FOnActionComplete::CreateUObject(this, &UWoRGameplayAbility::HandleActionComplete));
+}
+
+void UWoRGameplayAbility::HandleActionComplete(const FActionResult &Result)
+{
+	if (!bActionRunning)
+	{
+		return;
+	}
+	bActionRunning = false;
+	FOnActionComplete Forward = ForwardOnComplete;
+	ForwardOnComplete.Unbind();
+	// End first, so whoever started the action can start this ability again from the forwarded call
+	// (a bonus turn). A cancelled ability (EndAbility already ran) still hands its action's result on.
+	if (IsActive())
+	{
+		EndAbility(GetCurrentAbilitySpecHandle(), GetCurrentActorInfo(), GetCurrentActivationInfo(),
+				   /*bReplicateEndAbility*/ true, /*bWasCancelled*/ false);
+	}
+	Forward.ExecuteIfBound(Result);
+}
+
+void UWoRGameplayAbility::FailActivation(const FString &Reason)
+{
+	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: %s did not start (%s)"), *GetNameSafe(GetAvatarActorFromActorInfo()),
+		   *RunningAction.GetActionName(), *Reason);
+	FActionResult Fail;
+	Fail.bSuccess = false;
+	Fail.ActionType = RunningAction.ActionType;
+	Fail.Executor = GetAvatarActorFromActorInfo();
+	Fail.ErrorMessage = Reason;
+	HandleActionComplete(Fail);
+}
