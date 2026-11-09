@@ -24,7 +24,8 @@ enum class ECombatCameraMode : uint8
 	NotYourTurn UMETA(DisplayName = "Not Your Turn"),
 	/** Camera movement off: one fixed wide view. */
 	Static UMETA(DisplayName = "Static"),
-	/** B-370 (D-162): your character is targeted: behind it, the attacker in front (several: frame them all). */
+	/** B-370 (D-162), B-402: your character is targeted: a low side-on shot of it and the attacker (several: a wide
+	 *  side-on shot of them all). */
 	Defence UMETA(DisplayName = "Defence")
 };
 
@@ -206,9 +207,15 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  character is targeted: Defence. Anyone else keeps a playing cinematic (Action) or watches (NotYourTurn). */
 	static ECombatCameraMode SelectHandOffMode(bool bViewerDefends, bool bSequencePlaying, bool bMovementOff);
 
-	/** B-370: behind and beside the defenders' centre, facing the attacker; pulled back further the wider the
-	 *  defenders stand, so several targeted characters are all in frame (Q-370 (3)). */
+	/** B-402 (study R10, R10b; Q2, Q-402): a low side-on shot of the defenders and the attacker, from the attacker's
+	 *  weapon side, swung a little behind the defenders so they sit nearer. One defender: a two-shot. Several: a wider
+	 *  shot. Either way the camera stands back far enough that every defender and the attacker project inside the
+	 *  frame at DefaultFieldOfView. */
 	static FTransform ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker);
+
+	/** B-402 (R10, R11; Q-402): a shot shown while the viewer defends keeps still: no shake and no FOV punch. Punches
+	 *  come back with the next shot once the combo is over. */
+	static FCameraShot SteadyForDefence(const FCameraShot &Shot, bool bViewerDefending);
 
 	/** The field of view every view but an impact punch uses. */
 	static constexpr float DefaultFieldOfView = 90.0f;

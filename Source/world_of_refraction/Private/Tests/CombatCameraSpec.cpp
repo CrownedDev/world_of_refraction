@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Combat/Camera/CombatCameraTypes.h"
+#include "Combat/Camera/CameraFramingChecks.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "WoRTestWorld.h"
@@ -187,15 +188,72 @@ void FCombatCameraSpec::Define()
 			TestEqual(TEXT("movement off: static (D-078)"), FCombatCameraRules::SelectHandOffMode(true, true, true), ECombatCameraMode::Static);
 		});
 
-		It("puts the Defence view behind the defender, facing the attacker; further back for several", [this]()
+		Describe("the side-on Defence view (B-402, R10, R10b)", [this]()
 		{
+			// Defender(s) around the origin, the attacker 1000 cm ahead on +X, facing back along -X (its right is -Y).
 			const FVector Attacker(1000.0f, 0.0f, 0.0f);
-			const FTransform One = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Attacker);
-			TestTrue(TEXT("behind the defender"), One.GetLocation().X < 0.0f);
-			TestTrue(TEXT("above it"), One.GetLocation().Z > 0.0f);
-			TestTrue(TEXT("facing the attacker"), One.GetRotation().GetForwardVector().X > 0.0f);
-			const FTransform Two = FCombatCameraRules::ComputeDefenceView({FVector(0.0f, -300.0f, 0.0f), FVector(0.0f, 300.0f, 0.0f)}, Attacker);
-			TestTrue(TEXT("two spread out: further back"), Two.GetLocation().X < One.GetLocation().X);
+			const float HalfHeight = 90.0f; // a character's head and feet above and below its centre
+			const auto WholeOnScreen = [this, HalfHeight](const FTransform &View, const FVector &Who, const TCHAR *Name)
+			{
+				for (const float Z : {-HalfHeight, 0.0f, HalfHeight})
+				{
+					TestTrue(FString::Printf(TEXT("%s on screen at %+.0f cm"), Name, Z),
+							 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Who + FVector(0.0f, 0.0f, Z)));
+				}
+			};
+
+			It("one target: a low side-on two-shot with both fighters whole on screen, from the weapon side", [this, Attacker, WholeOnScreen]()
+			{
+				const FVector Defender = FVector::ZeroVector;
+				const FTransform View = FCombatCameraRules::ComputeDefenceView({Defender}, Attacker);
+				WholeOnScreen(View, Defender, TEXT("defender"));
+				WholeOnScreen(View, Attacker, TEXT("attacker"));
+				const FVector Mid = (Defender + Attacker) * 0.5f;
+				TestTrue(TEXT("side-on: further across the axis than along it"),
+						 FMath::Abs(View.GetLocation().Y) > FMath::Abs(View.GetLocation().X - Mid.X));
+				TestTrue(TEXT("the attacker's right (weapon) side"), View.GetLocation().Y < 0.0f);
+				const FTransform Turn = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, CombatCameraTestFrame());
+				TestTrue(TEXT("low: below the turn view"), View.GetLocation().Z < Turn.GetLocation().Z);
+				TestTrue(TEXT("nearer the defender than the attacker"),
+						 FVector::Dist(View.GetLocation(), Defender) < FVector::Dist(View.GetLocation(), Attacker));
+			});
+
+			It("several targets: a wide side-on shot that holds every target and the attacker", [this, Attacker, WholeOnScreen]()
+			{
+				const TArray<FVector> Party = {FVector(0.0f, -300.0f, 0.0f), FVector::ZeroVector, FVector(0.0f, 300.0f, 0.0f)};
+				const FTransform Wide = FCombatCameraRules::ComputeDefenceView(Party, Attacker);
+				for (int32 Index = 0; Index < Party.Num(); ++Index)
+				{
+					WholeOnScreen(Wide, Party[Index], *FString::Printf(TEXT("target %d"), Index));
+				}
+				WholeOnScreen(Wide, Attacker, TEXT("attacker"));
+				const FTransform Two = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Attacker);
+				const FVector Mid = (FVector::ZeroVector + Attacker) * 0.5f;
+				TestTrue(TEXT("wider than the two-shot"), FVector::Dist2D(Wide.GetLocation(), Mid) > FVector::Dist2D(Two.GetLocation(), Mid));
+			});
+
+			It("keeps both fighters on screen when the attacker has closed in to melee range", [this, WholeOnScreen]()
+			{
+				const FVector Close(150.0f, 0.0f, 0.0f);
+				const FTransform View = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Close);
+				WholeOnScreen(View, FVector::ZeroVector, TEXT("defender"));
+				WholeOnScreen(View, Close, TEXT("attacker"));
+			});
+		});
+
+		It("keeps a shot still while the viewer defends: no shake and no FOV punch (B-402, R10, R11)", [this]()
+		{
+			FCameraShotContext Context;
+			Context.Targets = {FVector(1000.0f, 0.0f, 0.0f)};
+			Context.bCritical = true;
+			const FCameraShot Punch = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Context, FSkillCameraTuning());
+			const FCameraShot Steady = FCombatCameraRules::SteadyForDefence(Punch, true);
+			TestEqual(TEXT("defending: no shake"), Steady.ShakeScale, 0.0f);
+			TestEqual(TEXT("defending: no punch"), Steady.FieldOfView, FCombatCameraRules::DefaultFieldOfView);
+			TestTrue(TEXT("defending: same framing"), Steady.End.Equals(Punch.End));
+			const FCameraShot Free = FCombatCameraRules::SteadyForDefence(Punch, false);
+			TestEqual(TEXT("not defending: the shake stays"), Free.ShakeScale, Punch.ShakeScale);
+			TestEqual(TEXT("not defending: the punch stays"), Free.FieldOfView, Punch.FieldOfView);
 		});
 
 		It("reads nothing from a skill without a montage", [this]()
