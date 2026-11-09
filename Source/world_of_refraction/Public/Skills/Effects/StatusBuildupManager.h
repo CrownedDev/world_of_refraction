@@ -7,6 +7,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Damage/WoRHitKind.h"
 #include "Skills/Effects/BuildupMath.h"
 #include "StatusBuildupManager.generated.h"
 
@@ -66,7 +67,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
  * gates read the holder's tags (HasEffectOfType at UseGAS 1), the cap fires the break through
  * ApplyEffect (its lifetime on the tracker, B-042h), and decay runs after the tracker's turn start.
  * A DOT's BuildupPerTick reaches the bar through AddStatusBuildup, so on GAS it runs the execution too.
- * The pending element, physical type, last source and turns since the last hit stay here.
+ * The pending element, physical type, damage type (B-273b), last source and turns since the last hit stay here.
  * Debug: GetBarDebugString, `wor.StatusBars.Print`.
  */
 UCLASS()
@@ -99,8 +100,8 @@ public:
 	float GetBuildupToTrigger(AActor *Target) const;
 
 	/** Get the trigger type that will fire if the bar caps now.
-	 *  Resolved live from PendingElement + PendingPhysicalType via
-	 *  BarCapTriggerResolver - no cached trigger state. */
+	 *  Resolved live from the pending hit kind (element, physical type and, since
+	 *  B-273b, the damage type it dealt) via BarCapTriggerResolver - no cached trigger state. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	ESkillEffectType GetPendingTrigger(AActor *Target) const;
 
@@ -109,7 +110,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	ESpellElement GetPendingElement(AActor *Target) const;
 
-	/** One line: the bar's value and where it lives (GAS or the enum bar), its pending element and decay count. */
+	/** One line: the bar's value and where it lives (GAS or the enum bar), its pending hit kind and decay count. */
 	FString GetBarDebugString(AActor *Target) const;
 
 	// ========================================
@@ -136,8 +137,19 @@ public:
 	                      ESpellElement Element, EPhysicalDamageType PhysicalType,
 	                      bool bSkipBaseStatAmp = false);
 
+	/** B-273b: AddStatusBuildup by hit kind; the pair form forwards here as FWoRHitKind::FromPair, so its numbers
+	 *  are unchanged. The element keys the immunity, the element-keyed StatusMultiplier and the Broken Darkness
+	 *  stack; the hit's types (Ice for an Ice hit, Q-145b) key the resistance; the dealt type picks the break
+	 *  (BarCapTriggerResolver). Not a UFUNCTION: Blueprints keep the pair form. */
+	bool AddStatusBuildupForHit(AActor *Source, AActor *Target, float Amount, const FWoRHitKind &Hit,
+								bool bSkipBaseStatAmp = false);
+
 	/** AddStatusBuildup's maths inputs for one hit (steps 5-6), read from the actors; the immunity
 	 *  gates are not part of it. WoRBuildupMath::Compute gives the buildup added (B-042l). */
+	FBuildupMathInputs GatherBuildupMathInputs(AActor *Source, AActor *Target, float Amount, const FWoRHitKind &Hit,
+											   bool bSkipBaseStatAmp) const;
+
+	// OBSOLETE (B-273b): the pair form; forwards to the hit-kind form. Remove after Crown's PIE.
 	FBuildupMathInputs GatherBuildupMathInputs(AActor *Source, AActor *Target, float Amount, ESpellElement Element,
 											   EPhysicalDamageType PhysicalType, bool bSkipBaseStatAmp) const;
 
@@ -226,7 +238,16 @@ private:
 		float CurrentBuildup = 0.0f;
 		ESpellElement PendingElement = ESpellElement::None;
 		EPhysicalDamageType PendingPhysicalType = EPhysicalDamageType::None;
+		/** B-273b: the damage type the last hit dealt (Ice for an Ice hit), so the break resolves on its row. */
+		EWoRDamageType PendingDamageType = EWoRDamageType::None;
 		TWeakObjectPtr<AActor> LastSource;
+
+		FWoRHitKind GetPendingHitKind() const
+		{
+			FWoRHitKind Kind = FWoRHitKind::FromPair(PendingElement, PendingPhysicalType);
+			Kind.DamageType = PendingDamageType;
+			return Kind;
+		}
 		int32 TurnsSinceLastHit = 0;
 	};
 
@@ -242,7 +263,7 @@ private:
 
 	/** Add one hit onto TargetASC's Buildup through UWoRBuildupExecution; returns the amount added. */
 	float AddThroughExecution(UAbilitySystemComponent &TargetASC, AActor *Source, AActor *Target, float Amount,
-							  ESpellElement Element, EPhysicalDamageType PhysicalType, bool bSkipBaseStatAmp);
+							  const FWoRHitKind &Hit, bool bSkipBaseStatAmp);
 
 	/** Trigger the status effect when bar fills. Looks up the effect manager
 	 *  and calls ApplyTriggeredSkillEffect on it. */
