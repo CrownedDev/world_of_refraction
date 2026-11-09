@@ -260,6 +260,8 @@ The queue of questions only Crown can answer.
 - **Wind takes its action only on a new gust** (a same-source refresh doesn't, as its one-place delay didn't, D-012); **Ice takes its action on every break**, as its damage lands every time.
 - **The break rows change with the fight's latched mode** (`TurnManager::IsRotationMode`), like the rotation; the effect text follows the live switch (text has no fight).
 - **Emerald's side is the fight's teams:** a target on the other team is an enemy (loses its next turn); anything else, outside a fight included, is treated as an ally (gains actions), never skipped.
+- **A turn removed by `SkipNextTurn` doesn't count down waiting changes** (Emerald on an enemy): it isn't a turn start, so nothing lands on it and a waiting Wind loss lands at the next turn the holder really starts. Intended: a loss always costs a turn the holder plays. Counting removed turns would need the turn belt to call into the character, which isn't a one-line change.
+- **Authoring checks:** `UEffectDefinition::IsDataValid` warns when an action effect's Value is 0 or less (Magnitude isn't read), when it is Permanent, and when a Max Actions change has Duration 0.
 - **Extra Turn's regain** stays as B-170c built it (Q-170c2: a bonus turn regains like any turn); nothing changes here.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170d (`UCharacterDataComponent` waiting changes, `BreakTable::ActionPipsRows`, `UItemExecutor::ExecuteBonusTurnEffect`).
 

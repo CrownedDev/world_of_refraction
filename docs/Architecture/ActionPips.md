@@ -26,24 +26,24 @@ D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, an
 
 - `OnActionsChanged(CurrentActions, MaxActions)`: dynamic multicast on the component, fired on the server on each change and on clients by the OnRep. The placeholder pips (B-170e) bind to it.
 - The orchestrator calls `ResetActionsForFight` at fight start, `RegainActions` in the turn-start step and `SpendActions` per action (B-170c). `ULoadoutComponent::GetTurnSwitchRefusedReason` is empty while the switch is 1 (switching free).
-- Coming: the effects call `GainActions` / `LoseActions` (B-170d, in `BeginTurnActions` step 2 for the next-turn ones); the AI reads the bank (B-170f).
+- B-170d: Gain / Lose Action "now" call `GainActions` / `LoseActions` (`USkillEffectManager::ApplyEffectLogic`); timed ones, Wind's break and a delayed Emerald gain call `AddWaitingActionChange`, and `BeginTurnActions` step 2 lands them (`ApplyWaitingActionChanges`, gains before losses). The orchestrator clears them at every fight start and end (`ClearWaitingActionChanges`, D-064). `GetMaxActions` adds the net `MaxActionsBuff` − `MaxActionsDebuff` (floor `MAX_ACTIONS_FLOOR` 1). The action executor passes an action effect's authored Value through unscaled (`SkillEffectClassification::CountsWholeActions`). Coming: the AI reads the bank and scores the action effects and Emerald (B-170f).
 
 ## Debug
 
 `UActionPipsDebug` (`Debug/Combat/ActionPipsDebug.h`): `GetActionsString`, `PrintActions`.
-- `wor.Actions.Print`: each combatant's `actions N / Max M (+P/100) | points (layers) | regain R (Reflex share S)`, then the current turn's spends (B-170c, `ACombatOrchestrator::GetTurnSpendsString`).
+- `wor.Actions.Print`: each combatant's `actions N / Max M (from points: Max P (+x/100), effects ±E) | points (layers) | regain R (Reflex share S) | waiting (+1 next turn, …)`, then the current turn's spends (B-170c, `ACombatOrchestrator::GetTurnSpendsString`).
 - `wor.Actions.AddPoints <N>`: debug action points on every combatant.
 - `wor.Actions.Reset`: every combatant to its fight-start bank.
 
-Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.MultiAction` (`Private/Tests/MultiActionTurnSpec.cpp`, B-170c).
+Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.MultiAction` (`Private/Tests/MultiActionTurnSpec.cpp`, B-170c), `WoR.Combat.ActionEffects` (`Private/Tests/ActionEffectsSpec.cpp`, B-170d).
 
 ## Known Limitations / TODOs
 
 - The gear and evolution layers read 0: no data field carries action points yet (Q-170a). A later job adds `BonusActionPoints` with the first authored item.
 - Max Actions is computed where read, not replicated; replicate it (as `MaxEP`) once a source exists that a client may not hold.
-- The `wor.Actions.Print` line has no "waiting next-turn gains and losses" yet; they come with the effects (B-170d).
+- A turn removed by `SkipNextTurn` (Emerald on an enemy) is not a turn start, so waiting changes don't count down on it: a waiting Wind loss lands at the next turn the holder really starts (Q-170d2). Waiting changes can't be cleansed.
 - The AI takes one action per turn and banks the rest until B-170f; a stunned unit gets one action (Q-170c2).
-- The turn-start skip at 0 can't happen in play before B-170d's waiting losses; "No actions" on the HUD is B-170e.
+- "No actions" on the HUD is B-170e (a waiting loss or Wind's break can now empty a bank at turn start, so the skip happens in play).
 - Not listed in CLAUDE.md's "Existing documents" (that file is edited only by Crown's sessions); add it there.
 
 ## Changelog
@@ -56,3 +56,4 @@ Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.
 | 2026-11-09 | B-170b built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no must-fix). | `feature/B-170b-turn-rotation` |
 | 2026-11-09 | B-170c: the bank plays. Action costs (`USkillDataBase::ActionCost`, items in `CrystalEffectTable`, `FAction::GetActionCost`, `ACTION_COST_DEFAULT`, `IsCostAboveMax` / `CanAfford`); the orchestrator's multi-action turn, `EActionType::EndTurn`, free switching; `wor.Actions.Print` shows the turn's spends; `MultiActionTurnSpec`. Build choices Q-170c2. | `feature/B-170c-multi-action-turns-cloud` (UNBUILT) |
 | 2026-11-09 | B-170c built and merged into dev (cloud branch + dev; full suite green, wor-reviewer: no code must-fix). Build fixes: an armed ritual shows on the strip at once (`ScheduleExecutionTurn` rebuilds the belt); a refused Flee spends nothing; Q-170c2: a bonus turn regains like any turn. | `feature/B-170c-multi-action-turns` |
+| 2026-11-09 | B-170d: effects on the bank. The four action effect types (Gain / Lose Action now or at the Nth turn start, Max Actions Up / Down), waiting changes on `UCharacterDataComponent` (`AddWaitingActionChange`, `ApplyWaitingActionChanges`, `ClearWaitingActionChanges`, per fight), `GetMaxActions` with the Max effects and `MAX_ACTIONS_FLOOR`; the action-pips break rows (Ice −1 now, Wind −1 next turn); Emerald's ally ladder; authored Value passed through the action executor unscaled; `EffectDefinition` validation warnings; `wor.Actions.Print` shows the live Max and waiting changes; `ActionEffectsSpec`. Build choices Q-170d2. | `feature/B-170d-action-effects-cloud` (UNBUILT) |
