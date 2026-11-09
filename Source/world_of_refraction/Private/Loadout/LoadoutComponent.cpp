@@ -3388,6 +3388,8 @@ FText ULoadoutComponent::GetTurnSwitchRefusedReason() const
 {
     // B-170c (Q-170c): with action pips a switch is always free, any number of times (ET-19 changes). Read from
     // the switch, not the fight's latched mode: a co-op client's copy has no TurnManager fight to ask.
+    // TODO: co-op (D-103): console variables don't replicate, so read the fight's latched mode on the server and
+    // replicate it to clients (GameState); a host flipping the cvar mid-fight would otherwise free switches.
     if (TurnRotation::IsActionPipsOn())
     {
         return FText::GetEmpty();
