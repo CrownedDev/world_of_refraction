@@ -12,6 +12,9 @@
 // - Impacts (B-043c, Q-043c): while an ability runs a non-spell action, the executor hands each impact to
 //   SendImpactEvent, which sends it to the ability's WaitGameplayEvent(Event.Combat.Impact) task; with no such
 //   ability the executor resolves the impact itself, as before.
+// - Projectiles (B-043d, Q-043d): while an ability runs a projectile action, the executor sends each arrival and
+//   dodge to it (SendProjectileEvent) and hands it the burst stagger (StartBurstThroughAbility); with no such
+//   ability the executor resolves them and runs its own timer, as before.
 // Debug: Debug/GAS/WoRAbilityDebug.h (wor.Abilities.Print). Spec: WoR.GAS.Abilities.
 
 #pragma once
@@ -80,4 +83,16 @@ namespace WoRSkillAbilities
 	 *  returns true once the listener has resolved it. False, with nothing resolved, when the caller must resolve
 	 *  the impact itself (no listener, or the event did not reach it). */
 	WORLD_OF_REFRACTION_API bool SendImpactEvent(AActor *Actor, int32 Index);
+
+	/** B-043d: Actor's skill ability that is running an action and waiting for its projectiles, or null. */
+	WORLD_OF_REFRACTION_API UWoRGameplayAbility *FindProjectileListener(AActor *Actor);
+
+	/** B-043d: with a projectile listener on Actor (the caster), sends Event (Event.Combat.Projectile.Arrived or
+	 *  .Dodged; Target = Target, EventMagnitude = CastEntryIndex) and returns true once the listener has resolved it.
+	 *  False, with nothing resolved, when the caller must resolve the arrival itself. */
+	WORLD_OF_REFRACTION_API bool SendProjectileEvent(AActor *Actor, const FGameplayTag &Event, AActor *Target, int32 CastEntryIndex);
+
+	/** B-043d: hands a burst's stagger (one spawn per Interval) to Actor's projectile listener. False when there
+	 *  is none: the caller runs its own timer. */
+	WORLD_OF_REFRACTION_API bool StartBurstThroughAbility(AActor *Actor, float Interval);
 }

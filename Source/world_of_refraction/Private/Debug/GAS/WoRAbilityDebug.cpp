@@ -56,6 +56,10 @@ FString UWoRAbilityDebug::GetAbilitiesString(AActor *Actor)
 			Out += FString::Printf(TEXT(", impacts via GAS: %s (%d resolved)"),
 								   Instance->IsListeningForImpacts() ? TEXT("listening") : TEXT("not listening"),
 								   Instance->GetImpactEventsResolved());
+			// B-043d: projectile arrivals / dodges through events, and burst spawns its WaitDelay chain drove.
+			Out += FString::Printf(TEXT(", projectiles via GAS: %s (%d resolved, %d burst spawns)"),
+								   Instance->IsListeningForProjectiles() ? TEXT("listening") : TEXT("not listening"),
+								   Instance->GetProjectileEventsResolved(), Instance->GetBurstSpawnsDriven());
 		}
 		if (bPriceable && Skill)
 		{
