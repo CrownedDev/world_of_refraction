@@ -213,6 +213,25 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  0..MaxMenuDepth. */
 	static FTransform ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth = 0);
 
+	/** B-400 (study R3 as changed in §9): the fewest valid targets for which the single-target picker moves the
+	 *  camera; with one, the camera holds on the turn view. */
+	static constexpr int32 MinTargetsForTargetView = 2;
+
+	/** B-400 (study R3 / §9, Q-400): the view while the single-target picker highlights a target whose feet are at
+	 *  TargetFeet, TargetHeight tall. Fewer than MinTargetsForTargetView targets: ComputeTurnView(Style, Frame,
+	 *  MenuDepth), unchanged. OverTheShoulder: a front medium shot of the target (its whole body and the HP bar above
+	 *  it in frame), from the side of the fight it faces. CentredWide / Tactical: the turn view from the same place,
+	 *  re-aimed part of the way toward the target. */
+	static FTransform ComputeTargetView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FVector &TargetFeet, float TargetHeight,
+										int32 MenuDepth, int32 TargetCount);
+
+	/** B-400: the move to, between and back from target views: 0 (a cut) for OverTheShoulder (study §12: one cut per
+	 *  press); a very short re-aim blend for the other styles (§9: a setting, not a rule). */
+	static float GetTargetViewBlendSeconds(ETurnViewStyle Style);
+
+	/** B-400: the point above a target's head that its HP bar needs in frame. */
+	static FVector GetTargetHealthBarPoint(const FVector &TargetFeet, float TargetHeight);
+
 	/** B-398 (D-061 / D-062): the setting's player-facing name, and each style's. */
 	static FText GetTurnViewSettingName();
 	static FText GetTurnViewStyleName(ETurnViewStyle Style);

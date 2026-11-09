@@ -47,6 +47,12 @@ namespace CombatCameraTiming
 	constexpr float MenuStepSeconds = 0.3f;
 }
 
+namespace CombatCameraTargetShape
+{
+	/** B-400: the height a target without collision bounds is framed at, in cm. TODO: tune in PIE. */
+	constexpr float DefaultTargetHeight = 180.0f;
+}
+
 namespace
 {
 	const USkillDataBase *GetActionSkill(const FAction &Action)
@@ -114,9 +120,14 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	// B-399: the command menu's depth, whichever HUD draws it. Looked up per fight, not cached across PIE.
 	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
 	MenuStepCount = 0;
+	HighlightedTarget.Reset(); // B-400
+	HighlightTargetCount = 0;
+	bTargetViewShowing = false;
+	TargetMoveCount = 0;
 	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
 	{
 		Menu->OnMenuDepthChanged.AddUniqueDynamic(this, &UCombatCameraDirector::HandleMenuDepthChanged);
+		Menu->OnTargetHighlighted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleTargetHighlighted); // B-400
 		BoundMenu = Menu;
 	}
 
@@ -168,9 +179,13 @@ void UCombatCameraDirector::EndCombat()
 	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
 	{
 		Menu->OnMenuDepthChanged.RemoveDynamic(this, &UCombatCameraDirector::HandleMenuDepthChanged);
+		Menu->OnTargetHighlighted.RemoveDynamic(this, &UCombatCameraDirector::HandleTargetHighlighted);
 	}
 	BoundMenu.Reset();
 	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
+	HighlightedTarget.Reset(); // B-400
+	HighlightTargetCount = 0;
+	bTargetViewShowing = false;
 
 	if (APlayerController *Viewer = GetViewer())
 	{
@@ -209,6 +224,7 @@ void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 	if (bInCombat && !PlayingSequence && !IsShotPlaying())
 	{
 		ShowTurnView();
+		ReapplyHighlightedTarget(); // B-400: an open picker keeps its target view
 	}
 }
 
@@ -224,6 +240,7 @@ void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 	if (bInCombat && !PlayingSequence && !IsShotPlaying())
 	{
 		ShowTurnView();
+		ReapplyHighlightedTarget(); // B-400: an open picker keeps its target view
 	}
 }
 
@@ -270,6 +287,8 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 {
 	ViewedActor = Actor;
 	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: a new turn opens on the main menu's view
+	HighlightedTarget.Reset(); // B-400: a new turn has no picker open
+	HighlightTargetCount = 0;
 	ClearDefenceHandOff();
 	StopSequence();
 	ShowTurnView();
@@ -308,7 +327,27 @@ void UCombatCameraDirector::SetMenuDepth(int32 NewDepth)
 	StepTurnViewForMenu();
 }
 
+FTransform UCombatCameraDirector::GetTurnViewWithHeight(const FCombatCameraFrame &Frame) const
+{
+	// B-399 menu depth, then B-405's boss height (trial merge: every turn-view move goes through both).
+	return FBossFramingRules::ApplyHeight(FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame, MenuDepth), GetFightCameraHeight(), TurnViewStyle, Frame);
+}
+
 void UCombatCameraDirector::StepTurnViewForMenu()
+{
+	AActor *Actor = ViewedActor.Get();
+	if (!Actor || !MoveTurnCamera(GetTurnViewWithHeight(BuildFrame(Actor)), CombatCameraTiming::MenuStepSeconds))
+	{
+		return;
+	}
+	bTargetViewShowing = false; // B-400: a depth step (wor.Camera.MenuDepth) lands on the turn view
+	++MenuStepCount;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Menu depth %d: %s (%.2f s, move %d)"), MenuDepth,
+		   MenuDepth > CommandMenuRules::MAIN_MENU_DEPTH ? TEXT("one step closer") : TEXT("back to the turn view"),
+		   CombatCameraTiming::MenuStepSeconds, MenuStepCount);
+}
+
+bool UCombatCameraDirector::MoveTurnCamera(const FTransform &End, float Seconds)
 {
 	AActor *Actor = ViewedActor.Get();
 	UCombatCameraComponent *Camera = Actor ? Actor->FindComponentByClass<UCombatCameraComponent>() : nullptr;
@@ -316,27 +355,135 @@ void UCombatCameraDirector::StepTurnViewForMenu()
 	UWorld *World = GetWorld();
 	if (!CameraActor || !World)
 	{
-		return;
+		return false;
 	}
-	// The shot timer's move (StepShot), on the turn camera, from where it is now: one short blend, then still. No
-	// pattern is playing (ShotCaster stays empty), so the next turn view or shot clears it as it clears any shot.
+	// The shot timer's move (StepShot), on the turn camera, from where it is now. No pattern is playing (ShotCaster
+	// stays empty), so the next turn view or shot clears it as it clears any shot.
 	World->GetTimerManager().ClearTimer(ShotTimer);
+	if (Seconds <= 0.0f)
+	{
+		CameraActor->SetActorTransform(End); // a cut (B-400, study §12)
+		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
+		return true;
+	}
 	ShotCamera = Camera;
 	ShotMoment = ECameraShotMoment::WindUp;
 	ShotProjectile.Reset();
 	ActiveShot = FCameraShot();
 	ActiveShot.Start = CameraActor->GetActorTransform();
-	const FCombatCameraFrame Frame = BuildFrame(Actor);
-	ActiveShot.End = FBossFramingRules::ApplyHeight(FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame, MenuDepth),
-													GetFightCameraHeight(), TurnViewStyle, Frame); // B-399 step, B-405 height
-	ActiveShot.BlendSeconds = CombatCameraTiming::MenuStepSeconds;
+	ActiveShot.End = End;
+	ActiveShot.BlendSeconds = Seconds;
 	ActiveShot.FieldOfView = FCombatCameraRules::DefaultFieldOfView;
 	ShotElapsed = 0.0f;
-	++MenuStepCount;
 	World->GetTimerManager().SetTimer(ShotTimer, this, &UCombatCameraDirector::StepShot, CombatCameraTiming::ShotStepSeconds, true);
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Menu depth %d: %s (%.2f s, move %d)"), MenuDepth,
-		   MenuDepth > CommandMenuRules::MAIN_MENU_DEPTH ? TEXT("one step closer") : TEXT("back to the turn view"),
-		   CombatCameraTiming::MenuStepSeconds, MenuStepCount);
+	return true;
+}
+
+void UCombatCameraDirector::HandleTargetHighlighted(AActor *Actor, AActor *Target, int32 TargetCount)
+{
+	if (!bInCombat)
+	{
+		return;
+	}
+	if (Actor != ViewedActor.Get())
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Target %s highlighted for %s, not the viewed %s: ignored"), *GetNameSafe(Target),
+			   *GetNameSafe(Actor), *GetNameSafe(ViewedActor.Get()));
+		return;
+	}
+	SetHighlightedTarget(Target, TargetCount);
+}
+
+void UCombatCameraDirector::ReapplyHighlightedTarget()
+{
+	if (AActor *Target = HighlightedTarget.Get())
+	{
+		SetHighlightedTarget(Target, HighlightTargetCount);
+	}
+}
+
+void UCombatCameraDirector::SetHighlightedTarget(AActor *Target, int32 TargetCount)
+{
+	HighlightedTarget = Target;
+	HighlightTargetCount = Target ? TargetCount : 0;
+	AActor *Actor = ViewedActor.Get();
+	// Movement off (Static), a cinematic, a held shot or someone else's turn: nothing moves (R3, R15).
+	const bool bTurnViewShowing = bInCombat && Actor && CurrentMode == ECombatCameraMode::Turn && !PlayingSequence && !IsShotPlaying();
+	if (!bTurnViewShowing)
+	{
+		bTargetViewShowing = false;
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Target %s: camera holds (mode %s)"), *GetNameSafe(Target), *UEnum::GetValueAsString(CurrentMode));
+		return;
+	}
+	const float Seconds = FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle);
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	if (Target && TargetCount >= FCombatCameraRules::MinTargetsForTargetView)
+	{
+		FVector Feet;
+		float Height = 0.0f;
+		GetTargetShape(Target, Feet, Height);
+		if (MoveTurnCamera(FCombatCameraRules::ComputeTargetView(TurnViewStyle, Frame, Feet, Height, MenuDepth, TargetCount), Seconds))
+		{
+			bTargetViewShowing = true;
+			++TargetMoveCount;
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Target view: %s of %d (%s, move %d)"), *Target->GetName(), TargetCount,
+				   Seconds > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount);
+		}
+		return;
+	}
+	if (!bTargetViewShowing)
+	{
+		return; // one target (no move, study R3), or the picker closed with no target view showing
+	}
+	bTargetViewShowing = false;
+	if (MoveTurnCamera(GetTurnViewWithHeight(Frame), Seconds))
+	{
+		++TargetMoveCount;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Target picker closed: back to the turn view (move %d)"), TargetMoveCount);
+	}
+}
+
+void UCombatCameraDirector::CutBackFromTargetView()
+{
+	if (!bTargetViewShowing)
+	{
+		return;
+	}
+	bTargetViewShowing = false;
+	if (AActor *Actor = ViewedActor.Get())
+	{
+		MoveTurnCamera(GetTurnViewWithHeight(BuildFrame(Actor)), 0.0f);
+	}
+}
+
+void UCombatCameraDirector::GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight)
+{
+	OutFeet = Target ? Target->GetActorLocation() : FVector::ZeroVector;
+	OutHeight = CombatCameraTargetShape::DefaultTargetHeight;
+	if (!Target)
+	{
+		return;
+	}
+	FVector Origin;
+	FVector Extent;
+	Target->GetActorBounds(true, Origin, Extent); // colliding only: a character's capsule
+	if (Extent.Z > UE_KINDA_SMALL_NUMBER)
+	{
+		OutFeet = FVector(Origin.X, Origin.Y, Origin.Z - Extent.Z);
+		OutHeight = static_cast<float>(Extent.Z * 2.0);
+	}
+}
+
+FString UCombatCameraDirector::GetTargetViewString() const
+{
+	const AActor *Target = HighlightedTarget.Get();
+	if (!Target)
+	{
+		return FString::Printf(TEXT("target view: none (%d moves)"), TargetMoveCount);
+	}
+	return FString::Printf(TEXT("target view: %s of %d (%s, %s, %d moves)"), *Target->GetName(), HighlightTargetCount,
+						   bTargetViewShowing ? TEXT("showing") : TEXT("held"),
+						   FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle) > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount);
 }
 
 void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
@@ -346,6 +493,7 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		return;
 	}
 	ClearDefenceHandOff();
+	CutBackFromTargetView(); // B-400: confirm cuts from the target view; the action's camera goes on as before
 	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
 	const bool bNewActor = Executor && Executor != ViewedActor.Get();
 	if (bNewActor)
@@ -433,6 +581,7 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 void UCombatCameraDirector::ShowTurnView()
 {
 	StopShotPattern(); // B-371: the end of a pattern blends back to the turn view
+	bTargetViewShowing = false; // B-400
 	AActor *Actor = ViewedActor.Get();
 	APlayerController *Viewer = GetViewer();
 	UCombatCameraComponent *Camera = Actor ? Actor->FindComponentByClass<UCombatCameraComponent>() : nullptr;

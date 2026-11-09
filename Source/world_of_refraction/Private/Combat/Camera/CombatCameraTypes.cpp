@@ -5,6 +5,7 @@
 #include "Combat/Camera/CombatCinematicWindow.h"
 #include "Combat/CombatNotify.h"
 #include "Animation/AnimMontage.h"
+#include "Combat/Camera/CameraFramingChecks.h"
 
 namespace CombatCameraOffsets
 {
@@ -69,6 +70,26 @@ namespace CombatCameraShots
 	constexpr float CloseScale = 0.75f;
 	constexpr float WideScale = 1.4f;
 	constexpr float BlendEaseExponent = 2.0f;
+}
+
+namespace CombatCameraTargetView
+{
+	// B-400 (study R3 / §9, Q-400). TODO: tune in PIE.
+	/** Room above a target's head for its HP bar, as a part of its height. */
+	constexpr float HealthBarHeadroom = 0.25f;
+	/** The shortest target the shot frames, in cm, so a missing or tiny bound still gives a sensible shot. */
+	constexpr float MinTargetHeight = 100.0f;
+	/** The part of the screen's height the target and its HP bar fill in the over-the-shoulder medium shot. */
+	constexpr float MediumShotFill = 0.6f;
+	/** The closest the medium shot stands to the target, in cm. */
+	constexpr float MediumShotMinDistance = 250.0f;
+	/** The medium shot's step to the side and up, as parts of its distance: a three-quarter front view, slightly high. */
+	constexpr float MediumShotSide = 0.35f;
+	constexpr float MediumShotRise = 0.15f;
+	/** Centred Wide / Tactical: how far the aim turns from the turn view's toward the target (0 none, 1 all the way). */
+	constexpr float ReaimFraction = 0.35f;
+	/** Centred Wide / Tactical: the re-aim's blend (Over-the-Shoulder cuts). */
+	constexpr float ReaimBlendSeconds = 0.15f;
 }
 
 namespace CombatCameraWindow
@@ -175,6 +196,52 @@ FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FComb
 		Location = Frame.Focus + Horizontal * (1.0f - MenuStepCloser) + FVector::UpVector * FromCharacter.Z * (1.0f - MenuStepLower);
 	}
 	return LookFrom(Location, LookAt);
+}
+
+FVector FCombatCameraRules::GetTargetHealthBarPoint(const FVector &TargetFeet, float TargetHeight)
+{
+	using namespace CombatCameraTargetView;
+	return TargetFeet + FVector::UpVector * FMath::Max(TargetHeight, MinTargetHeight) * (1.0f + HealthBarHeadroom);
+}
+
+float FCombatCameraRules::GetTargetViewBlendSeconds(ETurnViewStyle Style)
+{
+	return Style == ETurnViewStyle::OverTheShoulder ? 0.0f : CombatCameraTargetView::ReaimBlendSeconds;
+}
+
+FTransform FCombatCameraRules::ComputeTargetView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FVector &TargetFeet, float TargetHeight,
+												 int32 MenuDepth, int32 TargetCount)
+{
+	using namespace CombatCameraTargetView;
+	const FTransform TurnView = ComputeTurnView(Style, Frame, MenuDepth);
+	if (TargetCount < MinTargetsForTargetView)
+	{
+		return TurnView; // one target: the camera holds (study R3)
+	}
+	// The body and the HP bar above it, aimed at their middle.
+	const float FramedHeight = FMath::Max(TargetHeight, MinTargetHeight) * (1.0f + HealthBarHeadroom);
+	const FVector AimPoint = TargetFeet + FVector::UpVector * FramedHeight * 0.5f;
+
+	if (Style != ETurnViewStyle::OverTheShoulder)
+	{
+		// A small re-aim from where the turn view stands: part of the way from its aim toward the target.
+		const FVector Location = TurnView.GetLocation();
+		const FVector TurnAim = TurnView.GetRotation().Vector();
+		const FVector ToTarget = (AimPoint - Location).GetSafeNormal(UE_SMALL_NUMBER, TurnAim);
+		const FVector Aim = (TurnAim * (1.0f - ReaimFraction) + ToTarget * ReaimFraction).GetSafeNormal(UE_SMALL_NUMBER, TurnAim);
+		return FTransform(Aim.Rotation(), Location);
+	}
+
+	// A front medium shot: the camera on the side of the fight the target faces (an enemy faces the party, an ally the
+	// enemies), far enough back that the framed height fills MediumShotFill of the screen's height.
+	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const bool bOnEnemySide = FVector::DotProduct(TargetFeet - Frame.ArenaCentre, Forward) >= 0.0f;
+	const FVector Facing = bOnEnemySide ? -Forward : Forward;
+	const FVector Side = FVector::CrossProduct(FVector::UpVector, Facing);
+	const float VerticalHalfTan = FMath::Tan(FMath::DegreesToRadians(DefaultFieldOfView * 0.5f)) / CameraFraming::DEFAULT_ASPECT;
+	const float Distance = FMath::Max(FramedHeight * 0.5f / (VerticalHalfTan * MediumShotFill), MediumShotMinDistance);
+	const FVector Location = AimPoint + (Facing + Side * MediumShotSide + FVector::UpVector * MediumShotRise) * Distance;
+	return LookFrom(Location, AimPoint);
 }
 
 #define LOCTEXT_NAMESPACE "CombatCameraSettings"

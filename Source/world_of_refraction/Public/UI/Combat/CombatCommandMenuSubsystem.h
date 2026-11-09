@@ -35,6 +35,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCommandMenuClosed);
  *  Closing the menu sends nothing (the camera holds for the action); the next open sends its depth if it differs. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCommandMenuDepthChanged, AActor *, Actor, int32, MenuDepth);
 
+/** B-400 (study R3 / §9): the single-target picker's highlighted target changed. Actor is whose menu it is; Target is
+ *  null when the picker closes (cancel, confirm or the menu closing); TargetCount is how many it can pick from. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCommandMenuTargetHighlighted, AActor *, Actor, AActor *, Target, int32, TargetCount);
+
 // ==================== MENU DEPTH ====================
 
 enum class ECombatMenuDepth : uint8
@@ -115,6 +119,22 @@ namespace CommandMenuRules
 			return MAIN_MENU_DEPTH;
 		}
 	}
+
+	/** B-400: the index one step from Current in Direction's sign through Count entries, wrapping at both ends; the
+	 *  first entry for an index out of range, INDEX_NONE for no entries. Direction 0 keeps Current. */
+	inline int32 CycleIndex(int32 Current, int32 Direction, int32 Count)
+	{
+		if (Count <= 0)
+		{
+			return INDEX_NONE;
+		}
+		if (Current < 0 || Current >= Count)
+		{
+			return 0;
+		}
+		const int32 Step = FMath::Sign(Direction);
+		return (Current + Step + Count) % Count;
+	}
 }
 
 // ==================== SUBSYSTEM ====================
@@ -182,6 +202,29 @@ public:
 
     /** B-399: the depth last broadcast on OnMenuDepthChanged. */
     int32 GetCameraMenuDepth() const { return BroadcastMenuDepth; }
+
+    // ==================== TARGET HIGHLIGHT (B-400) ====================
+
+    /** B-400: once per change of the single-target picker's highlighted target (the first valid target when it opens;
+     *  null when it closes). The combat camera listens; a world marker can too. */
+    UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
+    FOnCommandMenuTargetHighlighted OnTargetHighlighted;
+
+    /** B-400: highlight Target in the open single-target picker (a target button's hover or focus). Nothing for a
+     *  target the picker doesn't offer. Confirm is unchanged: the pressed button's target is the one picked. */
+    UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
+    void HighlightTarget(AActor *Target);
+
+    /** B-400: highlight the next (Direction > 0) or previous (< 0) target, wrapping (wor.Camera.TargetCycle). */
+    UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
+    void CycleHighlightedTarget(int32 Direction);
+
+    /** B-400: the highlighted target, or null when no single-target picker is open. */
+    UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
+    AActor *GetHighlightedTarget() const { return HighlightedTarget.Get(); }
+
+    /** B-400: how many targets the open single-target picker offers (0 when none is open). */
+    int32 GetHighlightTargetCount() const { return HighlightTargets.Num(); }
 
     // ==================== STATE QUERIES ====================
 
@@ -272,6 +315,17 @@ private:
      *  sent. Runs at the end of every call that can change the depth (OpenForActor, HandleSelection, HandleBack). */
     void BroadcastMenuDepthIfChanged();
     int32 BroadcastMenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
+
+    /** B-400: the single-target picker is open (per-actor buttons: not Self, not a group). */
+    bool IsSingleTargetPickerOpen() const;
+    /** B-400: re-reads the picker's targets and keeps the highlight on one of them (the first when it isn't), or
+     *  clears it when no single-target picker is open. Runs next to BroadcastMenuDepthIfChanged and in Close. */
+    void RefreshTargetHighlight();
+    /** B-400: sets the highlight and broadcasts OnTargetHighlighted when it changed. */
+    void SetHighlightedTarget(AActor *Target);
+    int32 IndexOfHighlightTarget(const AActor *Target) const;
+    TArray<TWeakObjectPtr<AActor>> HighlightTargets;
+    TWeakObjectPtr<AActor> HighlightedTarget;
 
     /** BrokenDarknessManager of the actor whose menu is open — bound to
      *  OnAlignmentChanged for live BD spell-pool refresh. */

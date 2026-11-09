@@ -55,6 +55,20 @@ public:
 	/** B-399 (debug, specs): the menu-depth camera moves this fight. */
 	int32 GetMenuStepCount() const { return MenuStepCount; }
 
+	/** B-400 (study R3 / §9, Q-400): the command menu's highlighted target (UCombatCommandMenuSubsystem::
+	 *  OnTargetHighlighted). On the viewer's own turn view with at least MinTargetsForTargetView targets: the target
+	 *  view (ComputeTargetView; Over-the-Shoulder cuts, the others re-aim briefly). Null (the picker closed) while a
+	 *  target view shows: back to the turn view at the menu's depth. Static, a cinematic or a held shot: nothing moves. */
+	void SetHighlightedTarget(AActor *Target, int32 TargetCount);
+	/** B-400: shows the highlighted target's view again after a turn-view reset (a setting changed with the picker open). */
+	void ReapplyHighlightedTarget();
+	AActor *GetHighlightedTarget() const { return HighlightedTarget.Get(); }
+	bool IsTargetViewShowing() const { return bTargetViewShowing; }
+	/** B-400 (debug, specs): the target-view camera moves this fight (to a target, between targets and back). */
+	int32 GetTargetMoveCount() const { return TargetMoveCount; }
+	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (cut, 4 moves)" or "target view: none". */
+	FString GetTargetViewString() const;
+
 	bool IsInCombat() const { return bInCombat; }
 	ETurnViewStyle GetTurnViewStyle() const { return TurnViewStyle; }
 	bool IsCameraMovementOff() const { return bCameraMovementOff; }
@@ -153,6 +167,21 @@ private:
 	/** B-399: blends the viewed character's turn camera to the turn view for MenuDepth on the shot timer (StepShot). */
 	void StepTurnViewForMenu();
 
+	/** B-400: the highlighted target changed; only the viewed character's menu moves the camera. */
+	UFUNCTION()
+	void HandleTargetHighlighted(AActor *Actor, AActor *Target, int32 TargetCount);
+
+	/** B-399 / B-400: moves the viewed character's turn camera to End: a cut when Seconds is 0, else a blend on the
+	 *  shot timer (StepShot), from where the camera is. False when there's no camera to move. */
+	bool MoveTurnCamera(const FTransform &End, float Seconds);
+
+	/** B-400: the turn view at MenuDepth, by a cut, when a target view shows (confirm: the action's shots start from
+	 *  the turn view, as before B-400). */
+	void CutBackFromTargetView();
+
+	/** B-400: the target's feet and height from its collision bounds (a default height without any). */
+	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
+
 	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
 	 *  could not (no camera or no viewer): nothing is left playing. */
 	bool StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill);
@@ -189,6 +218,8 @@ private:
 	FCombatCameraFrame BuildFrame(AActor *Focus) const;
 	/** B-405: the turn view's height from the living enemies' data and ranks (FBossFramingRules::FightHeight). */
 	EEnemyCameraHeight GetFightCameraHeight() const;
+	/** Trial merge (B-399 + B-400 + B-405): the turn view at the menu depth, with the fight's camera height. */
+	FTransform GetTurnViewWithHeight(const FCombatCameraFrame &Frame) const;
 	/** B-405: the kill shot's view, look and break-apart timer. False when there is no viewer or camera. */
 	bool ShowKillShot(AActor *Victim, EKillShotKind Kind, bool bHideOnBreakApart);
 	void BreakApart();
@@ -272,4 +303,10 @@ private:
 	TWeakObjectPtr<UCombatCommandMenuSubsystem> BoundMenu;
 	int32 MenuDepth = 0;
 	int32 MenuStepCount = 0;
+
+	// B-400: the target picker's highlight (target cut).
+	TWeakObjectPtr<AActor> HighlightedTarget;
+	int32 HighlightTargetCount = 0;
+	bool bTargetViewShowing = false;
+	int32 TargetMoveCount = 0;
 };
