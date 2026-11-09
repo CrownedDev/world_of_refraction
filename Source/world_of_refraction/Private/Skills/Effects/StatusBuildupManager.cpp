@@ -423,7 +423,9 @@ FBuildupMathInputs UStatusBuildupManager::GatherBuildupMathInputs(AActor *Source
 			// otherwise re-read the generic None buffs, double-counting). Cast-driven for free: a
 			// spell-granted StatusMultiplierBuff is stamped with the resolved cast element, so e.g. a Fire
 			// spell's buff keys to Fire automatically.
-			if (Element != ESpellElement::None)
+			// B-064c (the deckbuilder's Ice reach, as Water Amp since B-064a): a Water-keyed multiplier doesn't boost an
+			// Ice hit's buildup; the generic layer above still does.
+			if (Element != ESpellElement::None && Hit.DamageType != EWoRDamageType::Ice)
 			{
 				if (USkillEffectManager *EffectMgr = GetEffectManager())
 				{

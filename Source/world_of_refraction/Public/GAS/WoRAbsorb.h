@@ -14,6 +14,7 @@
 #include "CoreMinimal.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Combat/Resistance/EWoRDamageType.h"
 #include "WoRAbsorb.generated.h"
 
 /** The three absorbing verbs, in spend order (Ward first). */
@@ -60,6 +61,11 @@ struct WORLD_OF_REFRACTION_API FWoRAbsorbCharge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
 	ESpellElement Element = ESpellElement::None;
 
+	/** Ward only, Scope Element, Element Water (B-064c, Q-064c): keyed Ice, so it catches Ice hits as well as Water ones.
+	 *  A plain Water Ward catches Water hits only, not an Ice hit (keyed Water, dealing Ice). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
+	bool bKeyedIce = false;
+
 	/** Ward only (B-042j2): one element, every element, or everything. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Absorb")
 	EWoRWardScope Scope = EWoRWardScope::Element;
@@ -88,8 +94,9 @@ struct WORLD_OF_REFRACTION_API FWoRAbsorbCharge
 	/** Fills the runtime counts from the authored ones. */
 	void Fill();
 
-	/** Whether this scope covers a damage instance of Element / Physical. */
-	bool Catches(ESpellElement HitElement, EPhysicalDamageType HitPhysical) const;
+	/** Whether this scope covers a damage instance of Element / Physical. HitDealt is what the hit deals when that isn't
+	 *  its element's own type (Ice, B-064c; FWoRHitKind::GetDealtTypeOverride); None for every other hit. */
+	bool Catches(ESpellElement HitElement, EPhysicalDamageType HitPhysical, EWoRDamageType HitDealt = EWoRDamageType::None) const;
 
 	/** Uses with charges left (or unlimited), or Pool with budget left. */
 	bool IsLive() const;
@@ -105,7 +112,7 @@ namespace WoRAbsorb
 	/** Spend Charges (any order; sorted here) against one damage instance. Returns the damage negated;
 	 *  updates the charges' counts. Stops once nothing is left to negate. */
 	WORLD_OF_REFRACTION_API int32 Spend(TArrayView<FWoRAbsorbCharge *> Charges, int32 Damage, ESpellElement HitElement,
-										EPhysicalDamageType HitPhysical);
+										EPhysicalDamageType HitPhysical, EWoRDamageType HitDealt = EWoRDamageType::None);
 
 	/** Refused (logged) by the appliers: a magnitude of 0, negative uses, a Ward with no element (it would just be
 	 *  a Barrier) or a Generic one (it would never catch a resolved hit). */

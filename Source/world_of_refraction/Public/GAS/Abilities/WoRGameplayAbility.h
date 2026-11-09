@@ -3,13 +3,29 @@
 // One spec per skill, the skill asset (USkillDataBase) as the spec's source object, its Ability.Shape.* tags
 // on the spec (WoRSkillAbilities::GetShapeTags). Activating it runs the FAction handed over by
 // FWoRSkillActivationScope through UActionExecutor::ExecuteActionAsync, and the ability ends when that action
-// completes. The executor still pays the costs at commit (SpendEnergy, B-043a's cost GEs), so CheckCost is
-// the executor's spendable-EP check and ApplyCost pays nothing: exactly one payment.
+// completes. CheckCost is the executor's spendable-EP check. B-043f (Q-043f): the EP is paid by this ability's
+// commit, called from the executor's own pay point (UActionExecutor::PayActionEnergy, after its gates); with no
+// running ability the executor pays it, as before: exactly one payment. The infusion HP backlash stays in the
+// executor. The montage chain stays in the executor too (presentation; it replicates through
+// UCombatPresentationComponent, not the ASC, so PlayMontageAndWait is not used).
 // Instanced per actor, server only (Q-043b). Later parts (B-043d..g) split it per delivery shape.
 // B-043c (Q-043c): while it runs a non-spell action that lands impacts, a WaitGameplayEvent(Event.Combat.Impact)
 // task takes the action's impacts: the executor sends each Impact notify (or montage-less impact) to the avatar as
 // that event (index in EventMagnitude) and the task resolves it through UActionExecutor::ResolveImpactFrame. The
 // montage chain itself stays in the executor (PlayMontageAndWait waits for a later part).
+// B-043d (Q-043d): while it runs an action whose skill fires projectiles at enemies, WaitGameplayEvent tasks take
+// Event.Combat.Projectile.Arrived / .Dodged (Target = the target, cast entry index in EventMagnitude) and resolve
+// them through the executor's same arrival / dodge code; a burst's stagger runs as a WaitDelay chain here.
+// Spawning the projectile stays in the executor (presentation).
+// B-043e (Q-043e): while it runs an action whose skill resolves an AOE or Instant cast entry, or a support cast, a
+// WaitGameplayEvent(Event.Combat.SpellResolve) task (AOE, Instant, Support; one event per AOE / Instant defender, one
+// per support cast) takes each resolution from the executor (UActionExecutor::TakeRoutedSpellResolve) and resolves
+// it through UActionExecutor::ResolveRoutedSpell. The effects stay spawned in the executor. SelfCast / TargetCast
+// abilities have no resolution point of their own: their hits route as impacts (B-043c), their casts as these.
+// B-043g (Q-043g): a ritual runs through this ability twice: the arm (the cast turn, which commits and pays the full
+// cost) and the fire on its Execution turn (FAction::bIsDeferredFire, started by the orchestrator's
+// FireScheduledExecution). The fire commits nothing: its cost was the arm's. Its impacts, projectiles and
+// resolutions route here as any action's.
 // Granting and the orchestrator hand-off: GAS/Abilities/WoRSkillAbilities.h. Debug: wor.Abilities.Print.
 
 #pragma once
@@ -19,6 +35,7 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "WoRGameplayAbility.generated.h"
 
+class UAbilityTask_WaitDelay;
 class UAbilityTask_WaitGameplayEvent;
 class USkillDataBase;
 
@@ -70,6 +87,49 @@ public:
 	/** B-043c: whether Action's impacts route through its ability: a non-spell action whose skill lands impacts. */
 	static bool ShouldListenForImpacts(const FAction &Action);
 
+	/** B-043d: whether Action's projectile arrivals route through its ability: its skill strikes an enemy and has
+	 *  a Projectile delivery (Ability.Shape.Projectile). */
+	static bool ShouldListenForProjectiles(const FAction &Action);
+
+	/** B-043d: true while this instance runs an action and its projectile tasks wait. */
+	bool IsListeningForProjectiles() const;
+
+	/** B-043d: projectile arrivals and dodges this instance took as events and resolved, over its life. */
+	int32 GetProjectileEventsResolved() const { return ProjectileEventsResolved; }
+
+	/** B-043d: burst projectiles this instance's WaitDelay chain spawned, over its life. */
+	int32 GetBurstSpawnsDriven() const { return BurstSpawnsDriven; }
+
+	/** B-043d: while listening for projectiles, runs the executor's burst stagger as a WaitDelay chain (one
+	 *  SpawnNextBurstProjectile per Interval while the executor's queue holds any). False when not listening:
+	 *  the executor runs its own timer. */
+	bool StartBurstChain(float Interval);
+
+	/** B-043e: true while this instance runs an action and its WaitGameplayEvent(Event.Combat.SpellResolve) task waits. */
+	bool IsListeningForSpellResolves() const;
+
+	/** B-043e: AOE / Instant / Support resolutions this instance took and resolved, over its life (debug, spec). */
+	int32 GetSpellResolvesResolved() const { return AOEResolves + InstantResolves + SupportResolves; }
+	int32 GetAOEResolves() const { return AOEResolves; }
+	int32 GetInstantResolves() const { return InstantResolves; }
+	int32 GetSupportResolves() const { return SupportResolves; }
+
+	/** B-043e: whether Action's flightless resolutions route through its ability: its skill (spell or not) has cast
+	 *  entries and is a support skill (not enemy-targeted) or has an AOE / Instant entry; or it is a spell with no
+	 *  cast entries that is a support spell or whose loose delivery is AOE / Instant. */
+	static bool ShouldListenForSpellResolves(const FAction &Action);
+
+	/** B-043f (Q-043f): commits the running action's cost from the executor's pay point (after its gates, as Lyra's
+	 *  ranged weapon commits once its target data is in): CommitAbility re-checks CheckCost, then ApplyCost pays
+	 *  Cost. True once paid; false with nothing paid (not running an action, ended, or it can't afford it). */
+	bool CommitActionCost(int32 Cost);
+
+	/** B-043f: action costs this instance committed and paid, over its life (debug, spec). */
+	int32 GetCostsCommitted() const { return CostsCommitted; }
+
+	/** B-043g: ritual fires (deferred fires, paid at their arm) this instance ran, over its life (debug, spec). */
+	int32 GetRitualFiresRun() const { return RitualFiresRun; }
+
 	/** EP check only: the executor's spendable EP against the action's cost (the action being activated, else
 	 *  the skill's plain cast, WoRSkillAbilities::MakePlainAction). */
 	/** Refused while an earlier action still runs (the ability was cancelled before it finished): that action
@@ -82,13 +142,20 @@ public:
 	virtual bool CheckCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 						   FGameplayTagContainer *OptionalRelevantTags = nullptr) const override;
 
-	/** Pays nothing: the executor pays the EP at commit (and the backlash after the action), once. */
+	/** B-043f: pays the EP CommitActionCost hands it (through UActionExecutor::SpendEnergy: B-043a's cost GE when
+	 *  wor.Costs.UseGAS is on); any other commit pays nothing. */
 	virtual void ApplyCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 						   const FGameplayAbilityActivationInfo ActivationInfo) const override;
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
 								 const FGameplayAbilityActivationInfo ActivationInfo,
 								 const FGameplayEventData *TriggerEventData) override;
+
+	/** B-043d: ended while its action still runs (cancelled) mid-burst: the executor's timer takes the burst back,
+	 *  so the rest still spawns and the action's windows can close. */
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo *ActorInfo,
+							const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility,
+							bool bWasCancelled) override;
 
 private:
 	/** The executor's completion: ends this ability, then hands the result on to whoever started the action. */
@@ -111,9 +178,70 @@ private:
 	FOnActionComplete ForwardOnComplete;
 	bool bActionRunning = false;
 
+	/** B-043f: the EP CommitActionCost is paying (INDEX_NONE outside it) and whether ApplyCost paid it. ApplyCost is
+	 *  const in UGameplayAbility. */
+	mutable int32 PendingCommitCost = INDEX_NONE;
+	mutable bool bCommitCostPaid = false;
+	int32 CostsCommitted = 0;
+	int32 RitualFiresRun = 0;
+
 	/** The running action's impact task (B-043c), or null. */
 	UPROPERTY(Transient)
 	TObjectPtr<UAbilityTask_WaitGameplayEvent> ImpactTask;
 
 	int32 ImpactEventsResolved = 0;
+
+	/** B-043d: starts the Projectile.Arrived / Projectile.Dodged tasks for the running action. */
+	void StartProjectileListeners();
+
+	/** B-043d: one arrival (Target, cast entry index in EventMagnitude), resolved as the projectile's own
+	 *  impact callback would. */
+	UFUNCTION()
+	void HandleProjectileArrivedEvent(FGameplayEventData Payload);
+
+	/** B-043d: one dodged projectile, counted as the projectile's own dodge callback would. */
+	UFUNCTION()
+	void HandleProjectileDodgedEvent(FGameplayEventData Payload);
+
+	/** B-043d: true when this instance should resolve Payload (the chosen listener, its own action running). */
+	bool AcceptsProjectileEvent(const FGameplayEventData &Payload) const;
+
+	/** B-043d: arms the next burst delay. */
+	void ArmBurstDelay();
+
+	/** B-043d: one burst spawn, then the next delay while the executor's queue holds any. */
+	UFUNCTION()
+	void HandleBurstDelayFinished();
+
+	/** Ends the running action's tasks (impact, projectile, burst). */
+	void EndActionTasks();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> ProjectileArrivedTask;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> ProjectileDodgedTask;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitDelay> BurstDelayTask;
+
+	float BurstInterval = 0.0f;
+	int32 ProjectileEventsResolved = 0;
+	int32 BurstSpawnsDriven = 0;
+
+	/** B-043e: starts the WaitGameplayEvent(Event.Combat.SpellResolve) task for the running action. */
+	void StartSpellResolveListener();
+
+	/** B-043e: one AOE / Instant / Support resolution (kind from the tag, Target = the event target), taken from the
+	 *  executor and resolved as SpawnAOEEffect / ResolveInstantSpell / SpawnSupportSpellEffect would. */
+	UFUNCTION()
+	void HandleSpellResolveEvent(FGameplayEventData Payload);
+
+	/** The running action's spell-resolve task (B-043e), or null. */
+	UPROPERTY(Transient)
+	TObjectPtr<UAbilityTask_WaitGameplayEvent> SpellResolveTask;
+
+	int32 AOEResolves = 0;
+	int32 InstantResolves = 0;
+	int32 SupportResolves = 0;
 };

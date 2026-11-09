@@ -378,7 +378,7 @@ FActiveGameplayEffectHandle UWoRTurnEffectTracker::ApplyAbsorb(const FWoRAbsorbC
 	return Handle;
 }
 
-int32 UWoRTurnEffectTracker::AbsorbHit(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical)
+int32 UWoRTurnEffectTracker::AbsorbHit(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical, EWoRDamageType HitDealt)
 {
 	if (Damage <= 0 || Absorbs.Num() == 0)
 	{
@@ -389,7 +389,7 @@ int32 UWoRTurnEffectTracker::AbsorbHit(int32 Damage, ESpellElement HitElement, E
 	{
 		Charges.Add(&Absorb.Value);
 	}
-	const int32 Negated = WoRAbsorb::Spend(Charges, Damage, HitElement, HitPhysical);
+	const int32 Negated = WoRAbsorb::Spend(Charges, Damage, HitElement, HitPhysical, HitDealt);
 
 	TArray<FActiveGameplayEffectHandle> UsedUp;
 	for (const TPair<FActiveGameplayEffectHandle, FWoRAbsorbCharge> &Absorb : Absorbs)
@@ -445,7 +445,8 @@ TArray<FWoRAbsorbCharge> UWoRTurnEffectTracker::GetAbsorbs() const
 	return Out;
 }
 
-int32 UWoRTurnEffectTracker::PreviewAbsorb(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical) const
+int32 UWoRTurnEffectTracker::PreviewAbsorb(int32 Damage, ESpellElement HitElement, EPhysicalDamageType HitPhysical,
+										  EWoRDamageType HitDealt) const
 {
 	if (Damage <= 0 || Absorbs.Num() == 0)
 	{
@@ -458,7 +459,7 @@ int32 UWoRTurnEffectTracker::PreviewAbsorb(int32 Damage, ESpellElement HitElemen
 	{
 		Charges.Add(&Copy);
 	}
-	return WoRAbsorb::Spend(Charges, Damage, HitElement, HitPhysical);
+	return WoRAbsorb::Spend(Charges, Damage, HitElement, HitPhysical, HitDealt);
 }
 
 FString UWoRTurnEffectTracker::GetDebugString() const
