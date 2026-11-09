@@ -2,6 +2,7 @@
 
 #include "Debug/Combat/ActionPipsDebug.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionPipsRules.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -83,6 +84,24 @@ void UActionPipsDebug::PrintActions(const UObject *WorldContextObject)
 		if (GEngine)
 		{
 			GEngine->AddOnScreenDebugMessage(INDEX_NONE, ACTIONS_DEBUG_SCREEN_SECONDS, FColor::Cyan, Line);
+		}
+	}
+	// B-170c: the current turn's spends, from each running fight.
+	UWorld *World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
+	if (!World)
+	{
+		return;
+	}
+	for (TActorIterator<ACombatOrchestrator> It(World); It; ++It)
+	{
+		if (It->GetCombatState() == ECombatState::InProgress)
+		{
+			const FString Line = It->GetTurnSpendsString();
+			UE_LOG(LogWoRCombat, Log, TEXT("[ActionPipsDebug] %s"), *Line);
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(INDEX_NONE, ACTIONS_DEBUG_SCREEN_SECONDS, FColor::Cyan, Line);
+			}
 		}
 	}
 }

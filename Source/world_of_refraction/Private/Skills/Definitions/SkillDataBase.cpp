@@ -342,7 +342,7 @@ FString USkillDataBase::GetSkillDataString() const
     Output += FString::Printf(TEXT("  Tier: %s | %s\n"), *GetTierString(), *GetAttackSummary());
     Output += FString::Printf(TEXT("  Execution: %s, range %.0f | Target: %s\n"), *UEnum::GetValueAsString(ExecutionType),
                               ExecutionRange, *UEnum::GetValueAsString(TargetType));
-    Output += FString::Printf(TEXT("  Base damage: %d | Activation delay: %d\n"), BaseDamage, ActivationDelay);
+    Output += FString::Printf(TEXT("  Base damage: %d | Activation delay: %d | Action cost: %d\n"), BaseDamage, ActivationDelay, ActionCost);
     Output += FString::Printf(TEXT("  Montage: %s\n"), SkillMontage ? *SkillMontage->GetName() : TEXT("(none)"));
     return Output;
 }
@@ -408,6 +408,13 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
     {
         Context.AddError(FText::FromString(TEXT("BaseEnergyCost cannot be negative")));
         Result = EDataValidationResult::Invalid;
+    }
+
+    // B-170c (Q-170b): no one can hold more than the safety cap, so such a cost could never be paid.
+    if (ActionCost > ActionPipsConstants::MAX_ACTIONS_CAP)
+    {
+        Context.AddWarning(FText::FromString(FString::Printf(TEXT("ActionCost %d is above the most actions anyone can hold (%d): the skill can never be used"),
+                                                             ActionCost, ActionPipsConstants::MAX_ACTIONS_CAP)));
     }
 
     return Result;

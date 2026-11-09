@@ -8,6 +8,8 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Actions/ActionPipsRules.h"
+#include "Combat/TurnRotation.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Infusion/InfusionChargeManager.h"
@@ -274,6 +276,9 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	CurrentTurnNumber = 0;
 	CurrentActor = nullptr;
 	bWaitingForAsyncAction = false;
+	bTurnContinuesAfterAction = false;
+	ActorsPastFirstTurn.Reset();
+	TurnSpends.Reset();
 
 	SetCombatState(ECombatState::Initializing);
 
@@ -367,6 +372,22 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	if (CameraDirector)
 	{
 		CameraDirector->BeginCombat(LocalParty, OpposingParty, ActionExecutorRef);
+	}
+
+	// B-170c (Q-170): the fight-start bank, set before turn 1 is dispatched inside InitializeCombat. The switch is
+	// read here as InitializeCombat latches it a moment later (the same call), so the two never disagree.
+	if (TurnRotation::IsActionPipsOn())
+	{
+		for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+		{
+			for (AActor *Actor : *Team)
+			{
+				if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+				{
+					CharComp->ResetActionsForFight();
+				}
+			}
+		}
 	}
 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
@@ -642,6 +663,12 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		return false;
 	}
 
+	if (Action.ActionType == EActionType::EndTurn)
+	{
+		EndTurnByChoice();
+		return true;
+	}
+
 	// Clear auto-advance timer since we're submitting a real action
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
@@ -653,6 +680,13 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 	if (!Validation.bIsValid)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action validation failed: %s"), *Validation.ErrorMessage);
+		return false;
+	}
+
+	FString CostRefusal;
+	if (!PayActionCost(Action, CostRefusal))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action refused: %s"), *CostRefusal);
 		return false;
 	}
 
@@ -729,7 +763,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 	// Broadcast result for UI
 	OnActionExecuted.Broadcast(CurrentActor, Result);
 
-	// End turn
+	// End turn (B-170c: or ask again, in an action-pips fight with actions left)
 	OnActionCompleted();
 
 	return Result.bSuccess;
@@ -788,6 +822,12 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 		return false;
 	}
 
+	if (Action.ActionType == EActionType::EndTurn)
+	{
+		EndTurnByChoice();
+		return true;
+	}
+
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
 	const FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
@@ -797,6 +837,7 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 		return false;
 	}
 
+	// Every refusal comes before the payment, so a refused action spends and records nothing.
 	if (Action.ActionType == EActionType::Flee)
 	{
 		const FText FleeRefused = GetFleeRefusedReason(CurrentActor);
@@ -805,6 +846,15 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 			OutInvalidReason = FleeRefused.ToString();
 			return false;
 		}
+	}
+
+	if (!PayActionCost(Action, OutInvalidReason))
+	{
+		return false;
+	}
+
+	if (Action.ActionType == EActionType::Flee)
+	{
 		bWaitingForAsyncAction = true; // nothing else may start while the fight ends
 		BeginFlee();
 		return true;
@@ -981,7 +1031,16 @@ FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction &Actio
 		return FActionValidationResult(false, TEXT("No current actor"));
 	}
 
-	return ActionExecutorRef->ValidateAction(CurrentActor, Action);
+	FActionValidationResult Result = ActionExecutorRef->ValidateAction(CurrentActor, Action);
+	if (Result.bIsValid)
+	{
+		const FText CostRefusal = GetActionCostRefusedReason(Actor, Action); // B-170c: empty outside an action-pips fight
+		if (!CostRefusal.IsEmpty())
+		{
+			return FActionValidationResult(false, CostRefusal.ToString(), Result.EnergyCost);
+		}
+	}
+	return Result;
 }
 
 void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult &Result)
@@ -1019,6 +1078,24 @@ void ACombatOrchestrator::OnActionCompleted()
 	// Clear auto-advance timer if it was running
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
+	// B-170c (Q-170c): an action-pips turn goes on while actions are left; only 0, End Turn and Defend end it.
+	// The turn-start and turn-end steps run once per turn: asking again skips both.
+	const bool bActionKeepsTurn = bTurnContinuesAfterAction;
+	bTurnContinuesAfterAction = false;
+	if (bActionKeepsTurn && CanContinueTurn(CurrentActor))
+	{
+		const ECombatState MidTurnWinState = CheckWinCondition();
+		if (MidTurnWinState != ECombatState::InProgress)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met mid-turn: %d"), (int32)MidTurnWinState);
+			FinishCombat(MidTurnWinState, /*bTurnManagerEnded=*/false);
+			return;
+		}
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatOrchestrator] %s acts again: %s"), *CurrentActor->GetName(), *GetTurnSpendsString());
+		RequestActionFromActor(CurrentActor);
+		return;
+	}
+
 	// Process end-of-turn effects
 	ProcessEndOfTurnEffects(CurrentActor);
 
@@ -1044,6 +1121,8 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 {
 	CurrentActor = Actor;
 	CurrentTurnNumber = TurnNumber;
+	bTurnContinuesAfterAction = false; // B-170c: a new turn, Execution turns included
+	TurnSpends.Reset();
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Turn %d started: %s"),
 		   TurnNumber, *Actor->GetName());
@@ -1098,12 +1177,146 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 		return;
 	}
 
+	// B-170c (D-088, ActionPips.md §1): no actions, no turn. The turn-end step still runs, then the rotation moves on.
+	if (IsActionPipsFight() && !BeginTurnActions(CurrentActor))
+	{
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s has no actions: turn skipped"), *CurrentActor->GetName());
+		// TODO: B-170e: show "No actions" on the HUD (an FText in the shared turn words, D-062).
+		OnActionCompleted();
+		return;
+	}
+
 	// Broadcast for UI/listeners
 	OnActorTurnStarted.Broadcast(CurrentActor, CurrentTurnNumber);
 
 	// Stunned actors are asked too (D-001: Attack/Defend still allowed). ValidateAction
 	// enforces the rule; an invalid pick re-asks a player and passes an AI's turn.
 	RequestActionFromActor(CurrentActor);
+}
+
+// ========================================
+// ACTION PIPS (B-170c, ActionPips.md §3.3)
+// ========================================
+
+bool ACombatOrchestrator::IsActionPipsFight() const
+{
+	return TurnManagerRef && TurnManagerRef->IsRotationMode();
+}
+
+bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
+{
+	UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!CharComp)
+	{
+		return true; // nothing to bank: the turn plays as built
+	}
+	// (1) The turn's regain. A first turn plays the fight-start bank (Q-170c2).
+	if (ActorsPastFirstTurn.Contains(Actor))
+	{
+		CharComp->RegainActions();
+	}
+	else
+	{
+		ActorsPastFirstTurn.Add(Actor);
+	}
+	// (2) TODO: B-170d: waiting next-turn gains and losses (Wind, a delayed Emerald gain) land here, before the check.
+	// (3) Only then the check.
+	return CharComp->CurrentActions > 0;
+}
+
+FText ACombatOrchestrator::GetActionCostRefusedReason(AActor *Actor, const FAction &Action) const
+{
+	if (!IsActionPipsFight())
+	{
+		return FText::GetEmpty();
+	}
+	const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!CharComp)
+	{
+		return FText::GetEmpty();
+	}
+	const int32 Cost = Action.GetActionCost();
+	if (ActionPipsRules::IsCostAboveMax(Cost, CharComp->GetMaxActions()))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "ActionCostAboveMax", "Costs more actions than you can hold.");
+	}
+	if (!ActionPipsRules::CanAfford(Cost, CharComp->CurrentActions))
+	{
+		return FText::Format(NSLOCTEXT("CombatOrchestrator", "ActionCostNeeds", "Needs {0} {0}|plural(one=action,other=actions)."), Cost);
+	}
+	return FText::GetEmpty();
+}
+
+bool ACombatOrchestrator::PayActionCost(const FAction &Action, FString &OutRefusedReason)
+{
+	bTurnContinuesAfterAction = false;
+	if (!IsActionPipsFight())
+	{
+		return true; // one action per turn, as built
+	}
+	const FText Refusal = GetActionCostRefusedReason(CurrentActor, Action);
+	if (!Refusal.IsEmpty())
+	{
+		OutRefusedReason = Refusal.ToString();
+		return false;
+	}
+	const int32 Cost = Action.GetActionCost();
+	UCharacterDataComponent *CharComp = CurrentActor ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (Cost > 0 && CharComp && !CharComp->SpendActions(Cost))
+	{
+		OutRefusedReason = TEXT("the actions could not be spent"); // the check above passed, so only a client copy lands here
+		return false;
+	}
+	TurnSpends.Add(FString::Printf(TEXT("%s -%d"), *Action.GetActionName(), Cost));
+	// Q-170c: Defend ends the turn; Flee ends the fight; a ritual's fire is its own Execution turn.
+	const bool bEndsTurn = Action.ActionType == EActionType::Defend || Action.ActionType == EActionType::Flee || Action.bIsDeferredFire;
+	bTurnContinuesAfterAction = !bEndsTurn;
+	return true;
+}
+
+bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
+{
+	if (!Actor || !IsActorAlive(Actor))
+	{
+		return false;
+	}
+	if (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution)
+	{
+		return false;
+	}
+	// TODO: B-170f: the AI spends or banks (Q-170c2); until then an AI-played turn (and a Void break's) is one action.
+	const bool bVoidBroken = SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill);
+	if (IsActorAIControlled(Actor) || bVoidBroken)
+	{
+		return false;
+	}
+	if (SkillEffectManagerRef && SkillEffectManagerRef->IsStunned(Actor))
+	{
+		return false; // a stun leaves one action (Attack or Defend, D-001), not a bank of them (Q-170c2)
+	}
+	const UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	return CharComp && CharComp->CurrentActions > 0;
+}
+
+void ACombatOrchestrator::EndTurnByChoice()
+{
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	TurnSpends.Add(TEXT("End Turn"));
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatOrchestrator] %s ends the turn: %s"), *GetNameSafe(CurrentActor), *GetTurnSpendsString());
+	bTurnContinuesAfterAction = false;
+	OnActionCompleted();
+}
+
+FString ACombatOrchestrator::GetTurnSpendsString() const
+{
+	if (!IsActionPipsFight())
+	{
+		return TEXT("one action per turn (wor.Turns.ActionPips 0 at fight start)");
+	}
+	const UCharacterDataComponent *CharComp = CurrentActor ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	return FString::Printf(TEXT("%s's turn: %s (%d left)"), *GetNameSafe(CurrentActor),
+						   TurnSpends.Num() > 0 ? *FString::Join(TurnSpends, TEXT(", ")) : TEXT("nothing spent"),
+						   CharComp ? CharComp->CurrentActions : 0);
 }
 
 void ACombatOrchestrator::HandleActionDeferredArmed(AActor *Caster, const FAction &Action, int32 DelayTurns)

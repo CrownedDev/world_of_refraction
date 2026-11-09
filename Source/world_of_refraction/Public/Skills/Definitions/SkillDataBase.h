@@ -19,6 +19,7 @@
 #include "Skills/Definitions/EScalingTier.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "Combat/Camera/CombatCameraTypes.h" // B-371: FSkillCameraTuning
+#include "Combat/Actions/ActionPipsRules.h" // B-170c: ACTION_COST_DEFAULT
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 
 #if WITH_EDITOR
@@ -268,6 +269,12 @@ public:
     /** Default 0 means free. Attacks are free unless designers set a cost. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
     int32 BaseEnergyCost = 0;
+
+    /** B-170c (Q-170b): the actions this skill costs from the banked actions, on top of its Energy. A big skill
+     *  can cost 2 or more; at least 1 (ActionPips.md §3.1: a free action could repeat without limit in one turn).
+     *  A cost above the user's Max Actions makes it unusable. Read only when wor.Turns.ActionPips is 1. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "1"))
+    int32 ActionCost = ActionPipsConstants::ACTION_COST_DEFAULT;
 
     /** Turns before this skill fires after arming. 0 = fires this turn (no
      *  deferral). N = arms now, fires at the start of the turn N global turns
