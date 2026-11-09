@@ -289,6 +289,18 @@ The queue of questions only Crown can answer.
 - It is set from the console for now (`wor.Guard.Set`), and from the loadout screen later (D-024). There is no player-facing label yet; the screen adds its LOCTEXT names when it is built (D-062).
 **Answer:** the default, by the reference-backed default (2026-11-09).
 
+### Q-393 — Landing a parry: what counts, which element, which priority
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-393, D-170 corrected) · **Blocks:** —
+**Question:** D-170 (corrected) says weapons always spark, a parry-effect cosmetic per guard plays on a landed parry coloured by the element behind it, unarmed with no element shows nothing, and a loadout setting picks the priority between sources. What counts as a landed parry, where do the cosmetic and the setting live, and which sources count for which guard?
+**Context:** a successful Guard plays the defender's `UCosmeticsData::GuardSparkVFX` and a Perfect Guard its flash and sound (B-202, B-369). There is no weapon element field: a weapon's element is its crystal (`FRuntimeAttachedItem::GetElement`). `ESpellElement::Generic` means "inherit" (no colour of its own).
+**Recommendation (default):**
+- **A landed parry** is any successful Guard, normal or Perfect (D-084: Guard is the parry). The weapon guard's spark plays on a normal Guard; a **Perfect Guard keeps its flash in the spark's place** (B-202), and the parry effect plays on both. The unarmed guard has no spark.
+- **The cosmetic** is two slots on the character's cosmetics (`UCosmeticsData::WeaponGuardParryEffectVFX` / `UnarmedGuardParryEffectVFX`, soft references), empty until art: with none authored, play is the spark as before. It is tinted through the `CoreColor` / `EdgeColor` user parameters with the element's palette colour (`ElementColors`), as skill VFX are.
+- **The sources:** the weapon's crystal counts **only for the weapon guard** (the unarmed guard has put the weapon away); the character's own magic is a Refractor's element, else its adapter's crystal (a Resonator's active adapter; another class's primary adapter). None, Generic and a broken crystal give no colour, so a weapon with no crystal sparks only and the unarmed guard shows nothing.
+- **The priority setting** (`EParryElementPriority`: Weapon / Magic) is per party member, beside the guard (`FPartyMember::ParryElementPriority`, saved, **save v33**), read through the loadout. It decides only when both sources have an element; the other fills in when the first has none. **Default Weapon:** the thing that parried colours it. Set from the console for now (`wor.Guard.SetParryPriority`), from the loadout screen later (D-024); no player-facing label yet (D-062, as Q-392).
+- Reference: Sekiro's deflect is one readable spark for every weapon (widely praised for clarity), and Elden Ring's weapon buffs (fire, lightning, holy) colour the weapon you hold, so the element shows on the thing in use. Here the spark stays the same and the element tint on the parry effect carries the identity, coming first from what parried.
+**Answer:** the default, by the reference-backed default (2026-11-09).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
