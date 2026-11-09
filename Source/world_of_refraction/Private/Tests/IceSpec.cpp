@@ -66,7 +66,7 @@ namespace
 	constexpr int32 ICE_SPEC_HIT_DAMAGE = 50;
 	constexpr float ICE_SPEC_BUILDUP_AMOUNT = 10.0f;
 
-	FWoRAbsorbCharge WaterWard(bool bKeyedIce)
+	FWoRAbsorbCharge IceSpecWaterWard(bool bKeyedIce)
 	{
 		FWoRAbsorbCharge Ward;
 		Ward.Verb = EWoRAbsorbVerb::Ward;
@@ -78,7 +78,7 @@ namespace
 		return Ward;
 	}
 
-	FActiveSkillEffect BuildFromPayload(ESkillEffectType Type, ESpellElement Element, bool bKeyedIce)
+	FActiveSkillEffect IceSpecFromPayload(ESkillEffectType Type, ESpellElement Element, bool bKeyedIce)
 	{
 		FSkillEffectPayload P;
 		P.EffectType = Type;
@@ -206,27 +206,27 @@ void FIceSpec::Define()
 
 	It("keys a resistance buff or Ward Ice only on Water (Q-064c)", [this]()
 	{
-		TestTrue(TEXT("a Water resistance buff keyed Ice"), BuildFromPayload(ESkillEffectType::ResistanceBuff, ESpellElement::Water, true).bKeyedIce);
-		TestTrue(TEXT("a Water Ward keyed Ice"), BuildFromPayload(ESkillEffectType::NegateElement, ESpellElement::Water, true).bKeyedIce);
-		TestFalse(TEXT("a Fire one: ignored"), BuildFromPayload(ESkillEffectType::ResistanceBuff, ESpellElement::Fire, true).bKeyedIce);
-		TestFalse(TEXT("a damage buff: ignored"), BuildFromPayload(ESkillEffectType::DamageBuff, ESpellElement::Water, true).bKeyedIce);
-		TestFalse(TEXT("unkeyed by default"), BuildFromPayload(ESkillEffectType::ResistanceBuff, ESpellElement::Water, false).bKeyedIce);
+		TestTrue(TEXT("a Water resistance buff keyed Ice"), IceSpecFromPayload(ESkillEffectType::ResistanceBuff, ESpellElement::Water, true).bKeyedIce);
+		TestTrue(TEXT("a Water Ward keyed Ice"), IceSpecFromPayload(ESkillEffectType::NegateElement, ESpellElement::Water, true).bKeyedIce);
+		TestFalse(TEXT("a Fire one: ignored"), IceSpecFromPayload(ESkillEffectType::ResistanceBuff, ESpellElement::Fire, true).bKeyedIce);
+		TestFalse(TEXT("a damage buff: ignored"), IceSpecFromPayload(ESkillEffectType::DamageBuff, ESpellElement::Water, true).bKeyedIce);
+		TestFalse(TEXT("unkeyed by default"), IceSpecFromPayload(ESkillEffectType::ResistanceBuff, ESpellElement::Water, false).bKeyedIce);
 	});
 
 	It("wards by the deckbuilder's reach: a Water Ward catches Water only, one keyed Ice catches both (B-064c)", [this]()
 	{
-		const FWoRAbsorbCharge Water = WaterWard(false);
-		const FWoRAbsorbCharge IceKeyed = WaterWard(true);
+		const FWoRAbsorbCharge Water = IceSpecWaterWard(false);
+		const FWoRAbsorbCharge IceKeyed = IceSpecWaterWard(true);
 		TestTrue(TEXT("Water Ward, Water hit"), Water.Catches(ESpellElement::Water, EPhysicalDamageType::None));
 		TestFalse(TEXT("Water Ward, Ice hit"), Water.Catches(ESpellElement::Water, EPhysicalDamageType::None, EWoRDamageType::Ice));
 		TestTrue(TEXT("Ice Ward, Water hit"), IceKeyed.Catches(ESpellElement::Water, EPhysicalDamageType::None));
 		TestTrue(TEXT("Ice Ward, Ice hit"), IceKeyed.Catches(ESpellElement::Water, EPhysicalDamageType::None, EWoRDamageType::Ice));
 		TestFalse(TEXT("Ice Ward, Fire hit"), IceKeyed.Catches(ESpellElement::Fire, EPhysicalDamageType::None));
-		FWoRAbsorbCharge Elemental = WaterWard(false);
+		FWoRAbsorbCharge Elemental = IceSpecWaterWard(false);
 		Elemental.Scope = EWoRWardScope::Elemental;
 		TestTrue(TEXT("an Elemental Ward catches Ice"), Elemental.Catches(ESpellElement::Water, EPhysicalDamageType::None, EWoRDamageType::Ice));
 
-		FWoRAbsorbCharge Spent = WaterWard(false);
+		FWoRAbsorbCharge Spent = IceSpecWaterWard(false);
 		TArray<FWoRAbsorbCharge *> Charges{&Spent};
 		TestEqual(TEXT("Spend: a Water Ward negates nothing of an Ice hit"),
 				  WoRAbsorb::Spend(Charges, ICE_SPEC_HIT_DAMAGE, ESpellElement::Water, EPhysicalDamageType::None, EWoRDamageType::Ice), 0);
