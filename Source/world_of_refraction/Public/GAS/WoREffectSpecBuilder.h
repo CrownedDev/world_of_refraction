@@ -32,6 +32,13 @@ struct FWoRBuiltEffect
 	bool IsValid() const { return Spec.IsValid(); }
 };
 
+/** B-042g (part 1): one active GE of a type as the per-effect readers see it: its identity and its stacked magnitude. */
+struct FWoRActiveEffectView
+{
+	FWoREffectIdentity Identity;
+	float Magnitude = 0.0f;
+};
+
 struct WORLD_OF_REFRACTION_API FWoREffectSpecBuilder
 {
 	/** The family GE class for an effect type; null for None. */
@@ -62,6 +69,10 @@ struct WORLD_OF_REFRACTION_API FWoREffectSpecBuilder
 	/** B-383: the GEs of this type whose damage scope counts for a hit of HitElement (spell or not):
 	 *  the twin of USkillEffectManager::GetTotalStatModifierForHit. */
 	static float SumMagnitudeForHit(const UAbilitySystemComponent &ASC, ESkillEffectType Type, ESpellElement HitElement, bool bHitIsSpell);
+
+	/** B-042g (part 1): every active GE of this type, with its identity and stacked magnitude: the GAS twin of
+	 *  USkillEffectManager::GetEffectsByType (the per-effect readers: resistance, buildup, Ignore Defense, reflect). */
+	static TArray<FWoRActiveEffectView> GetEffectsOfType(const UAbilitySystemComponent &ASC, ESkillEffectType Type);
 
 	/** One line per active GE: class, identity, magnitude. */
 	static FString GetDebugString(const UAbilitySystemComponent &ASC);
