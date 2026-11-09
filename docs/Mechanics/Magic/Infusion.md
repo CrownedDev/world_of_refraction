@@ -38,7 +38,7 @@ The chosen source sets the **mode**, which determines the per-mode damage/status
 
 ## Entry points
 
-- `UInfusionChargeManager` — `BeginCharge` / `UpdateCharge` / `CompleteCharge`, `FChargeStatus` (level + progress, `OnChargeLevelChanged`).
+- ~~`UInfusionChargeManager`~~ — deleted by B-034b (B-034 moved the charge level onto the action: `FAction` infusion level, picked in the action menu).
 - `UActionExecutor::GetChargeDamageMultiplier` / `GetChargeStatusMultiplier` / `ComputeInfusionCostMultiplier` — the applied multipliers (shared with the AI preview, so AI estimates match).
 - `UActionExecutor::ApplyCommitCosts` → `PendingInfusionHPCost`, paid at `FinalizeAsyncAction` (the lethal-at-finalize path).
 
