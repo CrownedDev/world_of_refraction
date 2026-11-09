@@ -16,7 +16,7 @@ namespace
 		TEXT("Read when a fight starts, so set it before the fight."),
 		ECVF_Default);
 
-	constexpr int32 TURN_ROTATION_SIDE_COUNT = 2;
+	constexpr int32 TURN_ROTATION_SIDE_COUNT = TurnRotationConstants::SIDE_COUNT;
 
 	bool IsTurnRotationSide(int32 Team)
 	{

@@ -605,17 +605,17 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 
 void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 {
-	if (bRotationMode)
-	{
-		return; // B-170b: speed doesn't move turns in the fixed rotation
-	}
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
 		if (Combatant.Actor == Actor)
 		{
 			CacheActorStats(Combatant);
-			// Recalculate all ratios since relative speeds changed
-			CalculateSpeedRatios();
+			// Recalculate all ratios since relative speeds changed. B-170b: speed doesn't move turns in the fixed
+			// rotation, but the broadcast still runs (the GAS attribute sync listens to it).
+			if (!bRotationMode)
+			{
+				CalculateSpeedRatios();
+			}
 			OnSpeedChanged.Broadcast(Actor);
 			return;
 		}

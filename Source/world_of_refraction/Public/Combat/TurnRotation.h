@@ -21,6 +21,9 @@ namespace TurnRotationConstants
 	/** Safety bound on one pick: each step uses up a seat or builds a round, and skips are finite, so a
 	 *  real fight never comes near it. */
 	constexpr int32 MAX_PICK_STEPS = 256;
+
+	/** The two sides of a fight (party, enemies). */
+	constexpr int32 SIDE_COUNT = 2;
 }
 
 namespace TurnRotation
@@ -49,7 +52,7 @@ struct WORLD_OF_REFRACTION_API FTurnRotation
 	int32 LeadTeam = 0;
 
 	/** Per side (team 0, team 1): the slot drawn last; the next draw takes the next living slot after it. */
-	int32 LastDrawnSlot[2] = {INDEX_NONE, INDEX_NONE};
+	int32 LastDrawnSlot[TurnRotationConstants::SIDE_COUNT] = {INDEX_NONE, INDEX_NONE};
 
 	/** First strike: the next round built is the striking side's opening round. */
 	bool bOpeningRoundNext = false;
