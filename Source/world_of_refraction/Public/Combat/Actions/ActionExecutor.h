@@ -66,6 +66,47 @@ struct FWoRProjectileArrival
 	bool bDodged = false;
 };
 
+/** B-043e (Q-043e): which flightless spell resolution an FWoRSpellResolve is. */
+enum class EWoRSpellResolveKind : uint8
+{
+	AOE,	 // SpawnAOEEffect: one defender's area hit, at the Cast notify
+	Instant, // ResolveInstantSpell: one defender's instant hit, at the Cast notify
+	Support	 // SpawnSupportSpellEffect: a support (self / ally) cast's effect on all its targets
+};
+
+/** B-043e (Q-043e): one AOE / Instant / Support resolution, as the executor's dispatch made it. The executor routes
+ *  it to the caster's running skill ability as Event.Combat.SpellResolve.AOE / .Instant / .Support, else resolves it
+ *  itself; either way UActionExecutor::ResolveRoutedSpell resolves it, once. Lives only for the synchronous route
+ *  (the event is handled inside it, no GC between), so the raw pointers never outlive the dispatch that made them. */
+struct FWoRSpellResolve
+{
+	EWoRSpellResolveKind Kind = EWoRSpellResolveKind::AOE;
+	AActor *Caster = nullptr;
+	/** AOE / Instant: the defender. */
+	AActor *Target = nullptr;
+	/** Support: every target. */
+	TArray<AActor *> Targets;
+	USkillDataBase *Skill = nullptr;
+	ESpellElement Element = ESpellElement::None;
+	float ImpactRadius = 0.0f;
+	float VisualScale = 0.0f;
+	int32 Damage = 0;
+	bool bIsBrokenDarkness = false;
+	/** The cast entry (DispatchSpellCast), or null on the loose-field path (SpawnSpellDelivery). */
+	const FSkillCastEntry *Entry = nullptr;
+	int32 CastEntryIndex = INDEX_NONE;
+
+	/** The event's Target: the defender, or a support cast's first target (null when it has none). */
+	AActor *GetEventTarget() const
+	{
+		if (Kind != EWoRSpellResolveKind::Support)
+		{
+			return Target;
+		}
+		return Targets.Num() > 0 ? Targets[0] : nullptr;
+	}
+};
+
 // ========================================
 // MONTAGE CHAIN
 // ========================================
@@ -1255,7 +1296,8 @@ protected:
 		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Spawn AOE effect (no projectile). Entry non-null = ground visual from
-	 *  the entry's Trail; null = loose SpellVFX. */
+	 *  the entry's Trail; null = loose SpellVFX. B-043e: routed (RouteSpellResolve);
+	 *  the effect itself is ResolveAOEEffect. */
 	void SpawnAOEEffect(
 		AActor *Caster,
 		AActor *Target,
@@ -1271,7 +1313,8 @@ protected:
 	/** Resolve instant spell (immediate hit, now defendable per-impact at the Cast
 	 *  notify — Hard difficulty). Entry non-null = visual from the entry's Trail;
 	 *  null = loose SpellVFX. CastEntryIndex keys the per-cast-entry defense
-	 *  difficulty (INDEX_NONE → Easy ×1.0), mirroring SpawnAOEEffect. */
+	 *  difficulty (INDEX_NONE → Easy ×1.0), mirroring SpawnAOEEffect. B-043e: routed
+	 *  (RouteSpellResolve); the hit itself is ResolveInstantSpellEffect. */
 	void ResolveInstantSpell(
 		AActor *Caster,
 		AActor *Target,
@@ -1329,7 +1372,8 @@ protected:
 	 *  impact that never lands. Cleared in FinalizeAsyncAction + CancelAsyncAction. */
 	TArray<FTimerHandle> TelegraphTimerHandles;
 
-	/** Spawn support skill VFX (Self/Ally - no defense window) */
+	/** Spawn support skill VFX (Self/Ally - no defense window). B-043e: routed
+	 *  (RouteSpellResolve); the effect itself is ResolveSupportSpellEffect. */
 	void SpawnSupportSpellEffect(
 		AActor *Caster,
 		const TArray<AActor *> &Targets,
@@ -1337,6 +1381,58 @@ protected:
 		ESpellElement InElement,
 		float FinalVisualScale,
 		bool bIsBrokenDarkness);
+
+	/** B-043e: the old SpawnAOEEffect body, unchanged: ground VFX, then this defender's per-impact resolve
+	 *  (ResolveSpellArrival) or the lumped window's. */
+	void ResolveAOEEffect(
+		AActor *Caster,
+		AActor *Target,
+		USkillDataBase *Skill,
+		ESpellElement InElement,
+		float FinalImpactRadius,
+		float FinalVisualScale,
+		int32 FinalDamage,
+		bool bIsBrokenDarkness,
+		const FSkillCastEntry *Entry,
+		int32 CastEntryIndex);
+
+	/** B-043e: the old ResolveInstantSpell body, unchanged: VFX at the target, then its per-impact resolve. */
+	void ResolveInstantSpellEffect(
+		AActor *Caster,
+		AActor *Target,
+		USkillDataBase *Skill,
+		ESpellElement InElement,
+		float FinalImpactRadius,
+		int32 FinalDamage,
+		bool bIsBrokenDarkness,
+		const FSkillCastEntry *Entry,
+		int32 CastEntryIndex);
+
+	/** B-043e: the old SpawnSupportSpellEffect body, unchanged: the support VFX on each target. */
+	void ResolveSupportSpellEffect(
+		AActor *Caster,
+		const TArray<AActor *> &Targets,
+		USkillDataBase *Skill,
+		ESpellElement InElement,
+		float FinalVisualScale,
+		bool bIsBrokenDarkness);
+
+	/** B-043e (Q-043e): where an AOE / Instant / Support resolution goes. To the action's skill ability when one is
+	 *  running it and waiting for spell resolutions (WoRSkillAbilities::SendSpellResolveEvent), else straight to
+	 *  ResolveRoutedSpell. Exactly once: the resolution is held in RoutingSpellResolve while the event is out; the
+	 *  ability takes it (TakeRoutedSpellResolve) and resolves it, and one nobody took is resolved here. */
+	void RouteSpellResolve(const FWoRSpellResolve &Resolve);
+
+	/** B-043e: resolves one routed resolution through its kind's old body (ResolveAOEEffect,
+	 *  ResolveInstantSpellEffect or ResolveSupportSpellEffect). */
+	void ResolveRoutedSpell(const FWoRSpellResolve &Resolve);
+
+	/** B-043e: hands the resolution being routed to the ability that got its event, if it is of that kind and for
+	 *  that event target, and clears it so nothing else resolves it. False when there is none to take. */
+	bool TakeRoutedSpellResolve(EWoRSpellResolveKind Kind, const AActor *EventTarget, FWoRSpellResolve &OutResolve);
+
+	/** B-043e: the resolution RouteSpellResolve has out as an event, until it is taken or resolved. */
+	TOptional<FWoRSpellResolve> RoutingSpellResolve;
 
 	/** Called when projectile impacts target. B-043d: routed (RouteProjectileArrival). */
 	UFUNCTION()
