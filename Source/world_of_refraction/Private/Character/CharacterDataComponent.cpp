@@ -251,6 +251,7 @@ void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
     DOREPLIFETIME(UCharacterDataComponent, CurrentEP);
     DOREPLIFETIME(UCharacterDataComponent, MaxHP);
     DOREPLIFETIME(UCharacterDataComponent, MaxEP);
+    DOREPLIFETIME(UCharacterDataComponent, CurrentActions); // B-170a: co-op clients read the bank as they read EP
     // B-131: the server picks the template when it spawns the pawn; a client needs it for names and panels.
     DOREPLIFETIME(UCharacterDataComponent, CharacterData); // also a template set after spawn (recruit, swap)
     DOREPLIFETIME(UCharacterDataComponent, PartyMemberId); // B-360b: a client tells two copies apart by it
@@ -598,6 +599,11 @@ void UCharacterDataComponent::OnRep_CurrentHP()
 void UCharacterDataComponent::OnRep_CurrentEP()
 {
     OnEPChanged.Broadcast(CurrentEP, MaxEP);
+}
+
+void UCharacterDataComponent::OnRep_CurrentActions()
+{
+    OnActionsChanged.Broadcast(CurrentActions, GetMaxActions());
 }
 
 void UCharacterDataComponent::OnRep_bIsAlive()
@@ -1479,6 +1485,101 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
     FWoRStatLayers Layers;
     GetStatLayers(ESubStat::Reflex, Layers);
     return Layers.Compose();
+}
+
+FWoRActionPointLayers UCharacterDataComponent::GetActionPointLayers() const
+{
+    FWoRActionPointLayers Layers;
+    // TODO: B-170 follow-up (Q-170a): read the gear's and evolutions' action points once a data field
+    // carries them; MaxActionsBuff / MaxActionsDebuff (B-170d) change Max Actions, not these points.
+    Layers.Debug = DebugActionPoints;
+    return Layers;
+}
+
+int32 UCharacterDataComponent::GetActionPoints() const
+{
+    return GetActionPointLayers().Compose();
+}
+
+int32 UCharacterDataComponent::GetMaxActions() const
+{
+    return ActionPipsRules::MaxActionsForPoints(GetActionPoints());
+}
+
+int32 UCharacterDataComponent::GetActionPointProgress() const
+{
+    return ActionPipsRules::ActionPointProgress(GetActionPoints());
+}
+
+float UCharacterDataComponent::GetReflexRegainShare() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    const float ReflexTerm = CharacterData->CalculateReflexWindowBonus() * ReflexWindowGearFactor();
+    return FMath::Clamp(ReflexTerm / CombatConstants::WINDOW_CAP_SECONDS, 0.0f, 1.0f);
+}
+
+int32 UCharacterDataComponent::GetActionRegain() const
+{
+    return ActionPipsRules::RegainForReflexShare(GetReflexRegainShare());
+}
+
+void UCharacterDataComponent::ResetActionsForFight()
+{
+    if (!HasServerAuthority())
+    {
+        return;
+    }
+    SetCurrentActions(ActionPipsRules::ActionsAtFightStart(GetActionRegain(), GetMaxActions()));
+}
+
+void UCharacterDataComponent::RegainActions()
+{
+    if (!HasServerAuthority())
+    {
+        return;
+    }
+    SetCurrentActions(ActionPipsRules::BankAfterRegain(CurrentActions, GetActionRegain(), GetMaxActions()));
+}
+
+void UCharacterDataComponent::GainActions(int32 Amount, bool bMayPassMax)
+{
+    if (!HasServerAuthority() || Amount <= 0)
+    {
+        return;
+    }
+    SetCurrentActions(ActionPipsRules::BankAfterGain(CurrentActions, Amount, GetMaxActions(), bMayPassMax));
+}
+
+bool UCharacterDataComponent::SpendActions(int32 Amount)
+{
+    if (!HasServerAuthority() || Amount <= 0 || Amount > CurrentActions)
+    {
+        return false;
+    }
+    SetCurrentActions(CurrentActions - Amount);
+    return true;
+}
+
+void UCharacterDataComponent::LoseActions(int32 Amount)
+{
+    if (!HasServerAuthority() || Amount <= 0)
+    {
+        return;
+    }
+    SetCurrentActions(FMath::Max(0, CurrentActions - Amount));
+}
+
+void UCharacterDataComponent::SetCurrentActions(int32 NewActions)
+{
+    if (NewActions == CurrentActions)
+    {
+        return;
+    }
+    CurrentActions = NewActions;
+    OnActionsChanged.Broadcast(CurrentActions, GetMaxActions());
 }
 
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
