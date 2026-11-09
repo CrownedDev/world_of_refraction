@@ -4316,11 +4316,12 @@ Moved here once applied. Newest first.
 **Crown (2026-11-08):** kept as built.
 
 ### Q-381 — Gear quests: where they are authored, and what "has or wears" means first
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-08 (B-381, cloud) · **Blocks:** —
+**Status:** ANSWERED (confirmed by Crown, 2026-11-08: kept as built; activations added, B-381) · **Raised:** 2026-11-08 (B-381, cloud) · **Blocks:** —
 **Question:** D-165: a weapon, adapter, apparel piece or evolution carries a hidden quest that starts when its conditions are met while the player has or wears it. (1) Where is it authored? (2) Is "has" (owned, not worn) included now? (3) In co-op, whose quest is it?
 **Options / as built:** (1) **A** on the item (`BoundQuests`, beside its `BoundMemories`), each with the conditions that start it / B on the quest. (2) **A** worn first (the event's worn gear and primary evolution); owned-only starts later / B both now. (3) **A** the player whose character wears it (Q-235d) / B the host.
 **Recommendation:** all A. NieR: Automata's weapon stories open as you level the weapon you use, and the item is where a designer looks for what it carries (as bound memories already are). Worn gear is what memory events record today; owned-only needs the owned store in the event (a later slice).
 **Answer:** **A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; which quests exist is Crown's.
+**Crown (2026-11-08):** kept as built, and added **activations** (MemoryCatalogue §3.11): a gear quest's start can need the item in a certain state: a crystal of a given element in its socket (e.g. an apparel piece with a Fire crystal), an evolution attached, an augment stone, an upgrade level or tier. Built on B-381 (WornItemState condition).
 
 ### Q-380 — Apparel: slots, what its crystal gives, evolutions on it
 **Status:** ANSWERED (Crown, 2026-11-08; (4) tier scaling confirmed by Crown) · **Raised:** 2026-11-08 (B-380, cloud) · **Blocks:** —

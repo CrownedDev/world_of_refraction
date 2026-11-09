@@ -395,7 +395,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-378](B-378.md) | `feature/B-378-curses-cloud` (in dev) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
 | [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (in dev) | A held curse weakens your own characters by its penalty | Pending |
 | [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
-| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
+| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (in dev) | A worn item's hidden quest starts while its condition holds | Pending |
 | [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (in dev) | The journal saved; a friend's quests move on the host's events | Pending |
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
