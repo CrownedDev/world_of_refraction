@@ -8,7 +8,6 @@
 #include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/EInfusionDisplayLocation.h"
 #include "Skills/Definitions/ESpellElement.h"
-#include "Infusion/EChargeInfusionType.h"
 #include "InfusionVFXComponent.generated.h"
 
 class UNiagaraComponent;
@@ -131,18 +130,6 @@ public:
     /** Get display name of current source */
     UFUNCTION(BlueprintPure, Category = "Debug")
     FString GetCurrentSourceName() const;
-
-    // ==================== Spell Infusion ====================
-    // OBSOLETE (B-034): bound to the dead UInfusionChargeManager; removed with it in B-034b.
-    // The menu drives the level through SetInfusionLevel.
-    UFUNCTION()
-    void OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel);
-
-    UFUNCTION()
-    void OnChargeComplete(AActor *Actor, EChargeInfusionType ChargeType, EInfusionSourceOption Source, int32 FinalLevel);
-
-    UFUNCTION()
-    void OnChargeCancelled(AActor *Actor, int32 LevelAtCancel);
 
     // ==================== DEBUG ====================
 

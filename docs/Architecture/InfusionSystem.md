@@ -2,9 +2,9 @@
 
 ## Overview
 
-**Infusion** is the charge mechanic: holding an action before release powers it up
-at one of two **charge levels** — L1 (casual, `LEVEL_1_CHARGE_TIME` 0.5s hold) or
-L2 (all-in, `LEVEL_2_CHARGE_TIME` 1.5s) — in exchange for a cost. An infused action
+**Infusion** is the charge mechanic: an action picked at one of two **charge levels**
+— L1 (casual) or L2 (all-in), set with the command menu's level button on the pending
+action (B-034; the old hold-to-charge timer is gone, B-034b) — is powered up in exchange for a cost. An infused action
 carries an **element** (or stays elementless for Raw), pays a cost along one of three
 axes, and applies a charge **effect**.
 
@@ -254,3 +254,4 @@ See `AISystem.md`.
 | 2026-10-27 | B-034: the pending infusion level lives on `UCombatCommandMenuSubsystem` (`PendingInfusionLevel`, `SetPendingInfusionLevel`: 0 when locked, clamped to `InfusionConstants::MAX_INFUSION_LEVEL`) and is mirrored to `UInfusionVFXComponent::SetInfusionLevel`; the VFX is display only. `UInfusionChargeManager` marked OBSOLETE (deletion B-034b, after an editor Blueprint-reference check). TODO: the VFX `% 3` / `2` literals go with B-034b. | refactor/B-034-infusion-level-on-pending-action |
 | 2026-11-03 | B-307 (D-110 step 7, SimplifyAudit S4, CL-24): `UActionExecutor::ResolveInfusionSource` returns `FInfusionSourceView` (attachment, element, mode, usable); `GetElementForSourceOption`, `ResolveInfusionAttachment`, `ResolveInfusionMode` and the adapter / weapon availability read it. ActiveRing and PrimaryRing both mean the adapter in use. A missing or broken crystal or evolution pushes no element on every path (so a Caster's broken Reality weapon crystal no longer unlocks any-element casting, a broken weapon crystal's Generic-inherit spell resolves to None, and the infusion tint goes neutral). Also: a non-Resonator's ActiveRing reads its adapter; the evolution attachment needs `IsEvolved()`; a ring entry with no asset gives no attachment. Q-307: a broken evolution is still offered (default). Spec `WoR.Infusion.SourceResolver`. Supersedes B-270. | refactor/B-307-infusion-resolver-v2 |
 | 2026-11-03 | B-334 (D-126, Q-334): the source choice stays; infusion EP = the base × the charge level (`ChargeLevelCostMultiplier`: x1 / x1 / x2), the stat surcharge on cost retires; the HP cost (Raw, Innate spell, Evolution) only at L2 (`LevelPaysHP`); the AI's lethal drop stops at L1; the x1.5 / x2.0 constants, `GetSpellInfusionCostMultiplier` and `GetAbilityChargeCostMultiplier` flagged OBSOLETE. Spec `WoR.Infusion.Cost` updated. UNBUILT (cloud). | feature/B-334-infusion-costs |
+| 2026-11-09 | B-034b: the dead hold-to-charge `UInfusionChargeManager` is deleted (with `EChargeState`, `FChargeStatus`, its four `OnCharge*` delegates and `InfusionConstants::LEVEL_1/2_CHARGE_TIME`), along with the VFX component's `OnChargeLevelChanged` / `OnChargeComplete` / `OnChargeCancelled` handlers, the orchestrator's fight-end reset call and the `WoR.Combat.ResetBetweenFights` charging check; the fight-subsystem count is 9. The command menu's pending level (B-034) is the only infusion level. | feature/B-034b-charge-manager-delete-cloud (UNBUILT) |
