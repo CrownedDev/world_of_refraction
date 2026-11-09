@@ -4207,7 +4207,10 @@ EGuardStyle ULoadoutComponent::ResolveGuardStyle(bool bWeaponInHand, const FGuid
         return EGuardStyle::Unarmed;
     }
     // D-170: equipping a weapon makes the weapon guard the default, so Unarmed holds only for the weapon put away.
-    return (Chosen == EGuardStyle::Unarmed && ActiveWeaponId == ChosenWithWeaponId) ? EGuardStyle::Unarmed
+    // TODO: D-024 (the loadout screen's equip action): set Weapon there and drop the remembered weapon id. Until one
+    // equip-commit path exists, re-equipping the same weapon keeps Unarmed (Q-392). A weapon with no id (enemy / test
+    // weapons) never matches, so any weapon in hand brings the weapon guard back.
+    return (Chosen == EGuardStyle::Unarmed && ChosenWithWeaponId.IsValid() && ActiveWeaponId == ChosenWithWeaponId) ? EGuardStyle::Unarmed
                                                                                      : EGuardStyle::Weapon;
 }
 
@@ -4228,6 +4231,8 @@ EGuardStyle ULoadoutComponent::GetGuardStyle() const
 
 bool ULoadoutComponent::SetGuardStyle(EGuardStyle Style)
 {
+    // TODO: co-op (D-103): UParty is not replicated; a guest's choice made on its machine never reaches the host,
+    // which picks the guard montage. Route it through a server RPC with the party record's replication.
     const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
     if (Style == EGuardStyle::Unarmed && !WeaponEntry)
     {
