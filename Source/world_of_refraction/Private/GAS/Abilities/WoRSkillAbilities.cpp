@@ -285,29 +285,75 @@ bool WoRSkillAbilities::TryExecuteThroughAbility(AActor *Actor, const FAction &A
 	return false;
 }
 
-UWoRGameplayAbility *WoRSkillAbilities::FindImpactListener(AActor *Actor)
+namespace
 {
-	UAbilitySystemComponent *ASC = Actor ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
-	if (!ASC)
+	/** The first active skill ability on Actor that IsListening accepts, or null. */
+	template <typename PredicateType>
+	UWoRGameplayAbility *FindListeningSkillAbility(AActor *Actor, PredicateType IsListening)
 	{
-		return nullptr;
-	}
-	for (const FGameplayAbilitySpec &Spec : ASC->GetActivatableAbilities())
-	{
-		if (!IsSkillSpec(Spec) || !Spec.IsActive())
+		UAbilitySystemComponent *ASC = Actor ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+		if (!ASC)
 		{
-			continue;
+			return nullptr;
 		}
-		for (UGameplayAbility *Instance : Spec.GetAbilityInstances())
+		for (const FGameplayAbilitySpec &Spec : ASC->GetActivatableAbilities())
 		{
-			UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance);
-			if (Ability && Ability->IsListeningForImpacts())
+			if (!IsSkillSpec(Spec) || !Spec.IsActive())
 			{
-				return Ability;
+				continue;
+			}
+			for (UGameplayAbility *Instance : Spec.GetAbilityInstances())
+			{
+				UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance);
+				if (Ability && IsListening(*Ability))
+				{
+					return Ability;
+				}
 			}
 		}
+		return nullptr;
 	}
-	return nullptr;
+}
+
+UWoRGameplayAbility *WoRSkillAbilities::FindImpactListener(AActor *Actor)
+{
+	return FindListeningSkillAbility(Actor, [](const UWoRGameplayAbility &Ability) { return Ability.IsListeningForImpacts(); });
+}
+
+UWoRGameplayAbility *WoRSkillAbilities::FindProjectileListener(AActor *Actor)
+{
+	return FindListeningSkillAbility(Actor, [](const UWoRGameplayAbility &Ability) { return Ability.IsListeningForProjectiles(); });
+}
+
+bool WoRSkillAbilities::SendProjectileEvent(AActor *Actor, const FGameplayTag &Event, AActor *Target, int32 CastEntryIndex)
+{
+	UWoRGameplayAbility *Listener = FindProjectileListener(Actor);
+	UAbilitySystemComponent *ASC = Listener ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Actor) : nullptr;
+	if (!ASC || !Target)
+	{
+		return false;
+	}
+	FGameplayEventData Payload;
+	Payload.EventTag = Event;
+	Payload.Instigator = Actor;
+	Payload.Target = Target;
+	Payload.EventMagnitude = static_cast<float>(CastEntryIndex);
+	const int32 ResolvedBefore = Listener->GetProjectileEventsResolved();
+	ASC->HandleGameplayEvent(Event, &Payload);
+	if (Listener->GetProjectileEventsResolved() != ResolvedBefore)
+	{
+		return true;
+	}
+	// Never drop an arrival: the old path resolves it.
+	UE_LOG(LogWoR, Warning, TEXT("[Abilities] %s: %s on %s did not reach %s's projectile task; resolving it directly"),
+		   *Actor->GetName(), *Event.ToString(), *Target->GetName(), *GetNameSafe(Listener));
+	return false;
+}
+
+bool WoRSkillAbilities::StartBurstThroughAbility(AActor *Actor, float Interval)
+{
+	UWoRGameplayAbility *Listener = FindProjectileListener(Actor);
+	return Listener && Listener->StartBurstChain(Interval);
 }
 
 bool WoRSkillAbilities::SendImpactEvent(AActor *Actor, int32 Index)

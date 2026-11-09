@@ -14,8 +14,10 @@
 #include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "AbilitySystemComponent.h"
+#include "AbilitySystemGlobals.h"
 #include "Abilities/GameplayAbility.h"
 #include "Character/CharacterDataComponent.h"
+#include "Components/SceneComponent.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -38,6 +40,18 @@ namespace
 	constexpr int32 ABILITIES_SPEC_MULTI_HIT_COUNT = 3;
 	/** B-043c: one battle seed for both paths, so their rolls match. */
 	constexpr int32 ABILITIES_SPEC_BATTLE_SEED = 4307;
+	/** B-043d: a projectile spell; a burst of three, spaced well inside the frame budget. */
+	constexpr int32 ABILITIES_SPEC_BOLT_DAMAGE = 24;
+	constexpr int32 ABILITIES_SPEC_BOLT_EP = 5;
+	constexpr int32 ABILITIES_SPEC_BURST_COUNT = 3;
+	constexpr float ABILITIES_SPEC_BURST_INTERVAL = 0.05f;
+	/** Test-world frames are 0.01 s: the combatants share a spot, so a projectile lands in a few frames and a
+	 *  burst's last spawn comes after 0.1 s; this budget is several times that. */
+	constexpr int32 ABILITIES_SPEC_PROJECTILE_FRAMES = 200;
+	/** Units between the duellists: about 0.33 s of flight at the default 1500 units/s. */
+	constexpr float ABILITIES_SPEC_DUEL_RANGE = 500.0f;
+	/** Inside the burst's first interval (5 frames): the first projectile is out, the second not yet. */
+	constexpr int32 ABILITIES_SPEC_BURST_CANCEL_FRAMES = 2;
 
 	void SetAbilitiesSpecCVar(const TCHAR *Name, int32 Value)
 	{
@@ -53,6 +67,7 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	ACombatOrchestrator *Orchestrator = nullptr;
 	UAbilityData *Strike = nullptr;
+	USpellData *Bolt = nullptr;
 	int32 Activations = 0;
 	int32 Ends = 0;
 
@@ -92,21 +107,44 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		return Char ? Char->CurrentHP : 0;
 	}
 
-	/** Impacts Actor's Strike ability has taken as Event.Combat.Impact (B-043c). */
-	int32 ImpactEventsOf(AActor *Actor) const
+	/** Gives Actor a scene root (if it has none) and moves it to Location. */
+	static void PlaceAt(AActor *Actor, const FVector &Location)
+	{
+		if (!Actor)
+		{
+			return;
+		}
+		if (!Actor->GetRootComponent())
+		{
+			USceneComponent *Root = NewObject<USceneComponent>(Actor);
+			Actor->SetRootComponent(Root);
+			Root->RegisterComponent();
+		}
+		Actor->SetActorLocation(Location);
+	}
+
+	/** Sum of Count over the instances of Actor's ability for Skill. */
+	template <typename CountType>
+	static int32 SumOverInstances(AActor *Actor, const USkillDataBase *Skill, CountType Count)
 	{
 		int32 Total = 0;
-		if (FGameplayAbilitySpec *Spec = WoRSkillAbilities::FindSkillSpec(Actor, Strike))
+		if (FGameplayAbilitySpec *Spec = WoRSkillAbilities::FindSkillSpec(Actor, Skill))
 		{
 			for (UGameplayAbility *Instance : Spec->GetAbilityInstances())
 			{
 				if (const UWoRGameplayAbility *Ability = Cast<UWoRGameplayAbility>(Instance))
 				{
-					Total += Ability->GetImpactEventsResolved();
+					Total += Count(*Ability);
 				}
 			}
 		}
 		return Total;
+	}
+
+	/** Impacts Actor's Strike ability has taken as Event.Combat.Impact (B-043c). */
+	int32 ImpactEventsOf(AActor *Actor) const
+	{
+		return SumOverInstances(Actor, Strike, [](const UWoRGameplayAbility &Ability) { return Ability.GetImpactEventsResolved(); });
 	}
 
 	struct FStrikeOutcome
@@ -115,10 +153,37 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		int32 FoeDamage = 0;
 		int32 ImpactEvents = 0;
 		bool bStillListening = false;
+		/** B-043d */
+		int32 EPSpent = 0;
+		/** Why the executor refuses the action (empty when it is valid). */
+		FString Refusal;
+		int32 ProjectileEvents = 0;
+		int32 BurstSpawns = 0;
+		bool bStillListeningForProjectiles = false;
+		/** The turn moved on from the hero: the action completed. */
+		bool bTurnMovedOn = false;
 	};
 
 	/** B-043c: Hero's Strike on Foe in a fresh world (the battle seed set by the caller), one switch value. */
 	FStrikeOutcome RunStrike(bool bThroughAbility)
+	{
+		return RunSkill(bThroughAbility, Strike, /*bAIFoe*/ true, ABILITIES_SPEC_ACTION_FRAMES);
+	}
+
+	/** B-043d: Hero's Bolt on a foe that does not defend (no random defense roll), one switch value. */
+	FStrikeOutcome RunBolt(bool bThroughAbility)
+	{
+		return RunSkill(bThroughAbility, Bolt, /*bAIFoe*/ false, ABILITIES_SPEC_PROJECTILE_FRAMES);
+	}
+
+	/** B-043d review: Hero's Bolt through its ability, the ability cancelled CancelAfterFrames into the action. */
+	FStrikeOutcome RunBoltCancelled(int32 CancelAfterFrames)
+	{
+		return RunSkill(/*bThroughAbility*/ true, Bolt, /*bAIFoe*/ false, ABILITIES_SPEC_PROJECTILE_FRAMES, CancelAfterFrames);
+	}
+
+	/** Hero's Skill on Foe in a fresh world, one switch value; Frames ticked after the submit. */
+	FStrikeOutcome RunSkill(bool bThroughAbility, USkillDataBase *Skill, bool bAIFoe, int32 Frames, int32 CancelAfterFrames = INDEX_NONE)
 	{
 		FStrikeOutcome Outcome;
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
@@ -135,9 +200,9 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		WoRSkillAbilities::SetUsesAbilities(bThroughAbility);
 		AActor *Hero = SpawnArmed(false);
 		GiveASC(Hero);
-		AActor *Foe = SpawnArmed(true);
+		AActor *Foe = SpawnArmed(bAIFoe);
 		UCharacterDataComponent *HeroStats = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-		if (!Orchestrator || !Foe || !HeroStats)
+		if (!Orchestrator || !Foe || !HeroStats || !Skill)
 		{
 			return Outcome;
 		}
@@ -149,18 +214,50 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		HeroStats->MaxEP = ABILITIES_SPEC_START_EP;
 		HeroStats->CurrentEP = ABILITIES_SPEC_START_EP;
 		const int32 FoeHPBefore = CurrentHPOf(Foe);
+		// A projectile needs a distance to fly (the combatants have no root, so both sit at the origin).
+		if (Skill->IsA<USpellData>())
+		{
+			PlaceAt(Hero, FVector::ZeroVector);
+			PlaceAt(Foe, FVector(ABILITIES_SPEC_DUEL_RANGE, 0.0f, 0.0f));
+		}
 
 		FAction Action;
-		Action.ActionType = EActionType::Ability;
-		Action.SkillData = Strike;
+		if (USpellData *Spell = Cast<USpellData>(Skill))
+		{
+			Action.ActionType = EActionType::Spell;
+			Action.SpellData = Spell;
+		}
+		else
+		{
+			Action.ActionType = EActionType::Ability;
+			Action.SkillData = Skill;
+		}
 		Action.Targets.Add(Foe);
+		if (const UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>())
+		{
+			Outcome.Refusal = Executor->ValidateAction(Hero, Action).ErrorMessage;
+		}
 		Orchestrator->SubmitActionAsync(Action);
-		TestWorld->Tick(ABILITIES_SPEC_ACTION_FRAMES);
+		if (CancelAfterFrames != INDEX_NONE)
+		{
+			TestWorld->Tick(CancelAfterFrames);
+			UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Hero);
+			if (const FGameplayAbilitySpec *Spec = WoRSkillAbilities::FindSkillSpec(Hero, Skill); ASC && Spec)
+			{
+				ASC->CancelAbilityHandle(Spec->Handle);
+			}
+		}
+		TestWorld->Tick(Frames);
 
 		Outcome.bRan = true;
+		Outcome.EPSpent = ABILITIES_SPEC_START_EP - HeroStats->CurrentEP;
 		Outcome.FoeDamage = FoeHPBefore - CurrentHPOf(Foe);
 		Outcome.ImpactEvents = ImpactEventsOf(Hero);
 		Outcome.bStillListening = WoRSkillAbilities::FindImpactListener(Hero) != nullptr;
+		Outcome.ProjectileEvents = SumOverInstances(Hero, Skill, [](const UWoRGameplayAbility &Ability) { return Ability.GetProjectileEventsResolved(); });
+		Outcome.BurstSpawns = SumOverInstances(Hero, Skill, [](const UWoRGameplayAbility &Ability) { return Ability.GetBurstSpawnsDriven(); });
+		Outcome.bStillListeningForProjectiles = WoRSkillAbilities::FindProjectileListener(Hero) != nullptr;
+		Outcome.bTurnMovedOn = Orchestrator->GetCurrentActor() != Hero;
 		return Outcome;
 	}
 END_DEFINE_SPEC(FGASAbilitiesSpec)
@@ -179,6 +276,20 @@ void FGASAbilitiesSpec::Define()
 		Strike->ExecutionType = EAbilityExecutionType::Melee;
 		Strike->bIsAttack = true;
 		Strike->AddToRoot();
+		// B-043d: an offensive projectile spell, one Projectile cast entry (a burst sets its Count).
+		Bolt = NewObject<USpellData>(GetTransientPackage());
+		Bolt->Name = TEXT("Montage-less Bolt");
+		Bolt->BaseDamage = ABILITIES_SPEC_BOLT_DAMAGE;
+		Bolt->BaseEnergyCost = ABILITIES_SPEC_BOLT_EP;
+		Bolt->ExecutionType = EAbilityExecutionType::Ranged;
+		Bolt->TargetType = ETargetType::Enemy;
+		// Generic (inherit) is castable by any Caster (the test character's class), so no element gate refuses it.
+		Bolt->Element = ESpellElement::Generic;
+		Bolt->DeliveryType = ESpellDeliveryType::Projectile;
+		FSkillCastEntry &BoltCast = Bolt->CastArray.AddDefaulted_GetRef();
+		BoltCast.DeliveryType = ESpellDeliveryType::Projectile;
+		BoltCast.BurstInterval = ABILITIES_SPEC_BURST_INTERVAL;
+		Bolt->AddToRoot();
 		Activations = 0;
 		Ends = 0;
 		SetAbilitiesSpecCVar(TEXT("wor.Combat.InstantImpacts"), 1);
@@ -199,6 +310,11 @@ void FGASAbilitiesSpec::Define()
 		{
 			Strike->RemoveFromRoot();
 			Strike = nullptr;
+		}
+		if (Bolt)
+		{
+			Bolt->RemoveFromRoot();
+			Bolt = nullptr;
 		}
 		Orchestrator = nullptr;
 		TestWorld.Reset();
@@ -399,8 +515,88 @@ void FGASAbilitiesSpec::Define()
 			UAbilityData *NoHits = NewObject<UAbilityData>(GetTransientPackage());
 			NoHits->HitCount = 0;
 			TestFalse(TEXT("No impacts"), UWoRGameplayAbility::ShouldListenForImpacts(WoRSkillAbilities::MakePlainAction(NoHits)));
-			USpellData *Bolt = NewObject<USpellData>(GetTransientPackage());
 			TestFalse(TEXT("A spell"), UWoRGameplayAbility::ShouldListenForImpacts(WoRSkillAbilities::MakePlainAction(Bolt)));
+		});
+	});
+
+	Describe("projectiles (B-043d)", [this]()
+	{
+		It("lands a projectile spell through Event.Combat.Projectile.Arrived, with the old path's damage", [this]()
+		{
+			const FStrikeOutcome OldPath = RunBolt(false);
+			const FStrikeOutcome ThroughAbility = RunBolt(true);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			TestTrue(FString::Printf(TEXT("The old path dealt damage (EP spent %d, through the ability %d; refusal: %s)"), OldPath.EPSpent, ThroughAbility.EPSpent, *OldPath.Refusal), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("No projectile events on the old path"), OldPath.ProjectileEvents, 0);
+			TestEqual(TEXT("The arrival through the ability's event"), ThroughAbility.ProjectileEvents, 1);
+			TestEqual(TEXT("No burst for a single projectile"), ThroughAbility.BurstSpawns, 0);
+			TestFalse(TEXT("Nothing listens once the action is done"), ThroughAbility.bStillListeningForProjectiles);
+		});
+
+		It("runs a burst's stagger through the ability's WaitDelay chain, with the old path's damage", [this]()
+		{
+			Bolt->CastArray[0].Count = ABILITIES_SPEC_BURST_COUNT;
+			const FStrikeOutcome OldPath = RunBolt(false);
+			const FStrikeOutcome ThroughAbility = RunBolt(true);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && ThroughAbility.bRan))
+			{
+				return;
+			}
+			TestTrue(FString::Printf(TEXT("The old path dealt damage (EP spent %d, through the ability %d; refusal: %s)"), OldPath.EPSpent, ThroughAbility.EPSpent, *OldPath.Refusal), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("No burst spawns by an ability on the old path"), OldPath.BurstSpawns, 0);
+			TestEqual(TEXT("Every arrival through the ability's event"), ThroughAbility.ProjectileEvents, ABILITIES_SPEC_BURST_COUNT);
+			TestEqual(TEXT("The chain spawned every projectile after the first"), ThroughAbility.BurstSpawns,
+					  ABILITIES_SPEC_BURST_COUNT - 1);
+			TestFalse(TEXT("Nothing listens once the action is done"), ThroughAbility.bStillListeningForProjectiles);
+		});
+
+		It("finishes a burst on the executor's timer when the ability is cancelled mid-burst", [this]()
+		{
+			Bolt->CastArray[0].Count = ABILITIES_SPEC_BURST_COUNT;
+			const FStrikeOutcome OldPath = RunBolt(false);
+			const FStrikeOutcome Cancelled = RunBoltCancelled(ABILITIES_SPEC_BURST_CANCEL_FRAMES);
+			if (!TestTrue(TEXT("Both runs reached the cast"), OldPath.bRan && Cancelled.bRan))
+			{
+				return;
+			}
+			TestTrue(TEXT("The old path dealt damage"), OldPath.FoeDamage > 0);
+			TestEqual(TEXT("Same damage after the cancel"), Cancelled.FoeDamage, OldPath.FoeDamage);
+			TestEqual(TEXT("The chain spawned nothing before the cancel"), Cancelled.BurstSpawns, 0);
+			TestTrue(TEXT("The action completed (the turn moved on)"), Cancelled.bTurnMovedOn);
+		});
+
+		It("leaves an arrival or a burst on an actor with no running ability to the old path", [this]()
+		{
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestNotNull(TEXT("ASC"), GiveASC(Hero)) || !TestTrue(TEXT("Granted"), WoRSkillAbilities::GrantSkill(Hero, Bolt).IsValid()))
+			{
+				return;
+			}
+			TestNull(TEXT("An idle ability is not listening"), WoRSkillAbilities::FindProjectileListener(Hero));
+			TestFalse(TEXT("The arrival is not taken"),
+					  WoRSkillAbilities::SendProjectileEvent(Hero, WoRTags::Event_Combat_Projectile_Arrived, Foe, 0));
+			TestFalse(TEXT("The dodge is not taken"),
+					  WoRSkillAbilities::SendProjectileEvent(Hero, WoRTags::Event_Combat_Projectile_Dodged, Foe, INDEX_NONE));
+			TestFalse(TEXT("The burst is not taken"), WoRSkillAbilities::StartBurstThroughAbility(Hero, ABILITIES_SPEC_BURST_INTERVAL));
+			TestFalse(TEXT("No actor: not taken"),
+					  WoRSkillAbilities::SendProjectileEvent(nullptr, WoRTags::Event_Combat_Projectile_Arrived, Foe, 0));
+		});
+
+		It("listens only for an offensive skill with a Projectile delivery", [this]()
+		{
+			TestTrue(TEXT("A projectile spell"), UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(Bolt)));
+			TestFalse(TEXT("A melee attack"), UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(Strike)));
+			Bolt->TargetType = ETargetType::Ally;
+			TestFalse(TEXT("A support cast"), UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(Bolt)));
+			Bolt->TargetType = ETargetType::Enemy;
+			Bolt->CastArray[0].DeliveryType = ESpellDeliveryType::AOE;
+			TestFalse(TEXT("An AOE spell"), UWoRGameplayAbility::ShouldListenForProjectiles(WoRSkillAbilities::MakePlainAction(Bolt)));
 		});
 	});
 }
