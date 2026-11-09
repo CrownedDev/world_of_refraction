@@ -2,6 +2,8 @@
 
 #include "Debug/Combat/GuardDebug.h"
 #include "Combat/Defense/EGuardStyle.h"
+#include "Combat/Defense/EParryElementPriority.h"
+#include "Combat/Presentation/ParryVisuals.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -55,7 +57,8 @@ namespace
 
 	FAutoConsoleCommandWithWorld GGuardPrintCmd(
 		TEXT("wor.Guard.Print"),
-		TEXT("DEBUG (B-392): every combatant's guard (Weapon / Unarmed), weapon in hand and the montage a Guard plays."),
+		TEXT("DEBUG (B-392, B-393): every combatant's guard (Weapon / Unarmed), weapon in hand, the montage a Guard plays, "
+			 "and what a landed parry plays (spark, parry effect and its element colour)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { WoRGuardDebug::PrintGuardState(World); }));
 
 	FAutoConsoleCommandWithWorldAndArgs GGuardSetCmd(
@@ -102,6 +105,52 @@ namespace
 					UE_LOG(LogWoRLoadout, Display, TEXT("[Guard] %s"), *WoRGuardDebug::GetGuardString(Loadout));
 				}
 			}));
+
+	constexpr int32 PARRY_PRIORITY_ARG = 0;
+	constexpr int32 PARRY_PRIORITY_NAME_ARG = 1;
+
+	FAutoConsoleCommandWithWorldAndArgs GGuardSetParryPriorityCmd(
+		TEXT("wor.Guard.SetParryPriority"),
+		TEXT("DEBUG (B-393 placeholder until the loadout screen): wor.Guard.SetParryPriority <Weapon|Magic> [name part] - "
+			 "which element colours the landed-parry effect when the weapon guard has both a weapon crystal and the "
+			 "character's own magic (D-170)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				const int64 Value = Args.IsValidIndex(PARRY_PRIORITY_ARG)
+										? StaticEnum<EParryElementPriority>()->GetValueByNameString(Args[PARRY_PRIORITY_ARG])
+										: INDEX_NONE;
+				if (Value == INDEX_NONE)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Guard] usage: wor.Guard.SetParryPriority <Weapon|Magic> [name part]"));
+					return;
+				}
+				TArray<ULoadoutComponent *> Targets;
+				if (Args.IsValidIndex(PARRY_PRIORITY_NAME_ARG))
+				{
+					for (ULoadoutComponent *Loadout : WorldLoadouts(World))
+					{
+						if (GetNameSafe(Loadout->GetOwner()).Contains(Args[PARRY_PRIORITY_NAME_ARG]))
+						{
+							Targets.Add(Loadout);
+						}
+					}
+				}
+				else if (ULoadoutComponent *Loadout = PlayerLoadout(World))
+				{
+					Targets.Add(Loadout);
+				}
+				if (Targets.Num() == 0)
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Guard] no combatant found (in a level with the player?)"));
+					return;
+				}
+				for (ULoadoutComponent *Loadout : Targets)
+				{
+					Loadout->SetParryElementPriority(static_cast<EParryElementPriority>(Value));
+					UE_LOG(LogWoRLoadout, Display, TEXT("[Guard] %s"), *WoRGuardDebug::GetGuardString(Loadout));
+				}
+			}));
 }
 
 FString WoRGuardDebug::GetGuardString(const ULoadoutComponent *Loadout)
@@ -115,9 +164,12 @@ FString WoRGuardDebug::GetGuardString(const ULoadoutComponent *Loadout)
 	const UCharacterDataComponent *CharComp =
 		Loadout->GetOwner() ? Loadout->GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const bool bOnRecord = CharComp && CharComp->PartyMemberId.IsValid() && CharComp->FindCarriedPartyMember();
-	return FString::Printf(TEXT("%s: guard %s | weapon %s | montage %s | record %s"), *GetNameSafe(Loadout->GetOwner()),
-						   *GuardName(Loadout->GetGuardStyle()), Weapon ? *Weapon->Name : TEXT("none"),
-						   *GetNameSafe(Montage), bOnRecord ? TEXT("yes (saved)") : TEXT("no (this pawn only)"));
+	const AActor *Owner = Loadout->GetOwner();
+	return FString::Printf(TEXT("%s: guard %s | weapon %s | montage %s | record %s\n  parry (B-393): %s -> %s"),
+						   *GetNameSafe(Owner), *GuardName(Loadout->GetGuardStyle()), Weapon ? *Weapon->Name : TEXT("none"),
+						   *GetNameSafe(Montage), bOnRecord ? TEXT("yes (saved)") : TEXT("no (this pawn only)"),
+						   *ParryVisuals::GetInputsString(ParryVisuals::GatherInputs(Owner, false)),
+						   *ParryVisuals::GetChoiceString(ParryVisuals::ResolveForDefender(Owner, false)));
 }
 
 void WoRGuardDebug::PrintGuardState(UWorld *World)
