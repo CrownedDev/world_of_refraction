@@ -182,8 +182,10 @@ TArray<USkillDataBase *> WoRSkillAbilities::GetLoadoutSkills(const AActor *Actor
 {
 	TArray<USkillDataBase *> Skills;
 	const ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
-	// The loadout's getters warn without an inventory; a combatant with none has no loadout skills.
-	if (!Loadout || !Actor->FindComponentByClass<UInventoryComponent>())
+	const UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
+	// The loadout's getters warn without an inventory or an active saved loadout; such a combatant has no
+	// loadout skills (its actions still get theirs granted on first use).
+	if (!Loadout || !Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
 	{
 		return Skills;
 	}
