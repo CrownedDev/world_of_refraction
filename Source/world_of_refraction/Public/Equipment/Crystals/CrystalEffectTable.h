@@ -20,9 +20,21 @@
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/Crystals/StoneRowTable.h"
 #include "Equipment/Crystals/StatStone.h"
+#include "Combat/Actions/ActionPipsRules.h"
 
 namespace CrystalEffectTable
 {
+    // ==================== ACTION COST (B-170c) ====================
+
+    /** Q-170b: the actions an item use costs. Item crystals have no asset (this table is their data), so
+     *  every item costs the default until one is priced here, per (Type, Tier). Read only when
+     *  wor.Turns.ActionPips is 1. */
+    inline int32 GetActionCost(const FCrystalId &Id)
+    {
+        // TODO: B-170c (Q-170c2): per-item costs, if a big item should cost 2 or more.
+        return ActionPipsConstants::ACTION_COST_DEFAULT;
+    }
+
     // ==================== GARNET DOT ====================
 
     /** Garnet: percent of target MaxHP per turn. 0 for non-Garnet. */
