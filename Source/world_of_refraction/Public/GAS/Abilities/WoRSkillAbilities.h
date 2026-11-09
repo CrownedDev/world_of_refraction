@@ -9,6 +9,9 @@
 //   TryActivateAbility on its skill's spec; the ability runs the same UActionExecutor::ExecuteActionAsync.
 //   At 0, or for an action with no skill (Defend, Item, Flee, Switch Weapon), a deferred ritual fire (B-043g),
 //   an actor with no ASC, or an activation GAS refuses, the caller runs the old call.
+// - Impacts (B-043c, Q-043c): while an ability runs a non-spell action, the executor hands each impact to
+//   SendImpactEvent, which sends it to the ability's WaitGameplayEvent(Event.Combat.Impact) task; with no such
+//   ability the executor resolves the impact itself, as before.
 // Debug: Debug/GAS/WoRAbilityDebug.h (wor.Abilities.Print). Spec: WoR.GAS.Abilities.
 
 #pragma once
@@ -21,6 +24,7 @@
 class AActor;
 class UAbilitySystemComponent;
 class USkillDataBase;
+class UWoRGameplayAbility;
 struct FGameplayAbilitySpec;
 
 namespace WoRSkillAbilities
@@ -68,4 +72,12 @@ namespace WoRSkillAbilities
 	 *  returns true; OnComplete runs when the action completes, after the ability has ended. False, with
 	 *  nothing started, when the caller must run UActionExecutor::ExecuteActionAsync itself. */
 	WORLD_OF_REFRACTION_API bool TryExecuteThroughAbility(AActor *Actor, const FAction &Action, const FOnActionComplete &OnComplete);
+
+	/** B-043c: Actor's skill ability that is running an action and waiting for its impacts, or null. */
+	WORLD_OF_REFRACTION_API UWoRGameplayAbility *FindImpactListener(AActor *Actor);
+
+	/** B-043c: with an impact listener on Actor, sends Event.Combat.Impact (EventMagnitude = Index) to Actor and
+	 *  returns true once the listener has resolved it. False, with nothing resolved, when the caller must resolve
+	 *  the impact itself (no listener, or the event did not reach it). */
+	WORLD_OF_REFRACTION_API bool SendImpactEvent(AActor *Actor, int32 Index);
 }
