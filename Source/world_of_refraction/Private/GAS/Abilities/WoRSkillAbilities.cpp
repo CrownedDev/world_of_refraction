@@ -264,7 +264,10 @@ bool WoRSkillAbilities::TryExecuteThroughAbility(AActor *Actor, const FAction &A
 	{
 		return false;
 	}
-	// A skill the loadout gained mid-fight (weapon switch, a Broken Darkness pool) is granted on first use.
+	// A skill the loadout gained mid-fight (weapon switch, a Broken Darkness pool) is granted on first use. If the
+	// ASC's ability list is locked (this runs inside another ability's synchronous activation), GiveAbility is
+	// deferred: TryActivateAbility then fails and the old call runs the action, which is safe; the deferred grant
+	// lands when the lock ends (FindSkillSpec finds it next time, so no duplicate spec is given after that).
 	const FGameplayAbilitySpecHandle Handle = GrantSkill(Actor, Skill);
 	if (!Handle.IsValid())
 	{

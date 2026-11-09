@@ -26,7 +26,9 @@ FWoRSkillActivationScope *FWoRSkillActivationScope::Find(FGameplayAbilitySpecHan
 {
 	for (FWoRSkillActivationScope *Scope = Innermost; Scope; Scope = Scope->Outer)
 	{
-		if (Scope->Handle == Handle)
+		// A scope whose action an ability already took is spent: a later activation of the same handle (from the
+		// forwarded completion) must not replay it.
+		if (Scope->Handle == Handle && !Scope->bConsumed)
 		{
 			return Scope;
 		}
@@ -134,6 +136,7 @@ void UWoRGameplayAbility::HandleActionComplete(const FActionResult &Result)
 		return;
 	}
 	bActionRunning = false;
+	RunningAction = FAction(); // drop its targets and skill until the next activation
 	FOnActionComplete Forward = ForwardOnComplete;
 	ForwardOnComplete.Unbind();
 	// End first, so whoever started the action can start this ability again from the forwarded call
