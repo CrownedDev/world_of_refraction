@@ -51,10 +51,10 @@ void WoRCombatTier::GatherTiers(const AActor *Actor, TArray<EItemTier> &OutTiers
 			OutTiers.Add(Adapter->RingEntry.Tier);
 		}
 	});
-	const FCombatLoadout &Active = Loadout->GetActiveLoadout();
-	if (Active.PrimarySlotType == EPrimarySlotType::Evolution && Active.PrimaryEvolution.Item)
+	const FEvolutionAttachment Seat = Loadout->GetCharacterSlotEvolution(); // B-357e: the one resolve path
+	if (Seat.Item)
 	{
-		OutTiers.Add(Active.PrimaryEvolution.Tier);
+		OutTiers.Add(Seat.Tier);
 	}
 	for (const UAbilityData *Ability : Loadout->GetAvailableAbilities())
 	{

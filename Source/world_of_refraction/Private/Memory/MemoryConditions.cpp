@@ -125,24 +125,21 @@ namespace
 	 *  writes that and not the loadout's copy. TODO(B-085): loadouts will point at owned gear. */
 	TPair<const UEvolutionItemData *, EItemTier> GetPrimaryEvolution(const AActor *Actor)
 	{
-		const UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
-		if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+		const ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		const FEvolutionAttachment Seat = Loadout ? Loadout->GetCharacterSlotEvolution() : FEvolutionAttachment(); // B-357e
+		if (!Seat.Item)
 		{
 			return {nullptr, EItemTier::F_Tier};
 		}
-		const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-		if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution || !Loadout.PrimaryEvolution.Item)
-		{
-			return {nullptr, EItemTier::F_Tier};
-		}
+		const FGuid Instance = Loadout->GetActivePrimaryEvolutionInstance();
 		const UEvolutionInventoryComponent *Owned = Actor->FindComponentByClass<UEvolutionInventoryComponent>();
-		const FEvolutionInventoryEntry *Entry = Owned && Loadout.PrimaryEvolutionInstance.IsValid()
-			? Owned->Entries.FindByPredicate([&Loadout](const FEvolutionInventoryEntry &Candidate)
+		const FEvolutionInventoryEntry *Entry = Owned && Instance.IsValid()
+			? Owned->Entries.FindByPredicate([&Instance](const FEvolutionInventoryEntry &Candidate)
 			  {
-				  return Candidate.InstanceID == Loadout.PrimaryEvolutionInstance;
+				  return Candidate.InstanceID == Instance;
 			  })
 			: nullptr;
-		return {Loadout.PrimaryEvolution.Item, Entry ? Entry->Tier : Loadout.PrimaryEvolution.Tier};
+		return {Seat.Item, Entry ? Entry->Tier : Seat.Tier};
 	}
 }
 
