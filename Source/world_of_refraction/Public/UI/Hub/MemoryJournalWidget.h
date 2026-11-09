@@ -1,7 +1,8 @@
 // MemoryJournalWidget.h
 // PLACEHOLDER UI (B-194, Q-194): the hub's memory journal (HubAndStory §4). Three pages: the
 // journal (every memory, lore object and conversation played, to reread), V (hear V's next line)
-// and conversations (play an unlocked talk line by line). Plain buttons built in C++, opened by
+// and conversations (play an unlocked talk line by line). B-388: a Quests page lists the player's main and side quests
+// with their goal (hidden quests never show, D-100). Plain buttons built in C++, opened by
 // AHubJournalStation or `wor.Journal.Open`. Replaced by the CommonUI journal screen (D-024).
 //
 // Built once in RebuildWidget; the page logic only writes Title / Body, so it runs unbuilt too.
@@ -34,6 +35,9 @@ public:
 	/** Every memory, lore entry and played conversation. */
 	void ShowJournalPage();
 
+	/** B-388: the started main and side quests, each with its current goal (or done). */
+	void ShowQuestsPage();
+
 	/** V says the next unlocked line not heard yet. False when V has nothing new. */
 	bool HearNextVLine();
 
@@ -57,6 +61,9 @@ protected:
 private:
 	UFUNCTION()
 	void HandleJournalClicked();
+
+	UFUNCTION()
+	void HandleQuestsClicked();
 
 	UFUNCTION()
 	void HandleVClicked();
@@ -87,7 +94,8 @@ private:
 	{
 		Journal,
 		V,
-		Conversation
+		Conversation,
+		Quests
 	};
 	EPage Page = EPage::Journal;
 	/** By id: the unlocked list can grow while the journal is open. */

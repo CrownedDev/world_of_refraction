@@ -176,7 +176,7 @@ All clusters implemented on `feature/tier-power-scaling` (pending final PIE sign
 4. **Cluster 3c:** per-point tier scaling at `GetActiveStatBonus` aggregation (both signs; pools + pillar-percents excluded; float-accumulate, round once).
 5. **Cluster 4:** `TierPowerDebug` inspection tooling.
 
-Mechanics reference: `docs/Mechanics/TierPower.md` (player-facing). Architecture touch-points: `DamageCalculator.md`, `ScalingSystem.md`, `LoadoutSystem.md`.
+Mechanics reference: `docs/archive/Mechanics/TierPower.md` (player-facing). Architecture touch-points: `DamageCalculator.md`, `ScalingSystem.md`, `LoadoutSystem.md`.
 
 ## 10. Debug tooling
 

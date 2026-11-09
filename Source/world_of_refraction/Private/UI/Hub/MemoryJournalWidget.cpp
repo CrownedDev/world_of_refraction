@@ -13,9 +13,11 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "UObject/UObjectIterator.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Story/StoryLinesData.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "MemoryJournal"
@@ -107,6 +109,8 @@ TSharedRef<SWidget> UMemoryJournalWidget::RebuildWidget()
 
 		MemoryJournalBuild::AddButton(WidgetTree, Box, LOCTEXT("JournalButton", "Journal"))
 			->OnClicked.AddDynamic(this, &UMemoryJournalWidget::HandleJournalClicked);
+		MemoryJournalBuild::AddButton(WidgetTree, Box, LOCTEXT("QuestsButton", "Quests"))
+			->OnClicked.AddDynamic(this, &UMemoryJournalWidget::HandleQuestsClicked);
 		MemoryJournalBuild::AddButton(WidgetTree, Box, LOCTEXT("VButton", "Talk to V"))
 			->OnClicked.AddDynamic(this, &UMemoryJournalWidget::HandleVClicked);
 		MemoryJournalBuild::AddButton(WidgetTree, Box, LOCTEXT("ConversationsButton", "Conversations (next)"))
@@ -269,6 +273,32 @@ FString UMemoryJournalWidget::GetJournalWidgetString() const
 void UMemoryJournalWidget::HandleJournalClicked()
 {
 	ShowJournalPage();
+}
+
+void UMemoryJournalWidget::HandleQuestsClicked()
+{
+	ShowQuestsPage();
+}
+
+void UMemoryJournalWidget::ShowQuestsPage()
+{
+	Page = EPage::Quests;
+	const UGameInstance *GameInstance = GetGameInstance();
+	UHiddenQuestSubsystem *Quests = GameInstance ? GameInstance->GetSubsystem<UHiddenQuestSubsystem>() : nullptr;
+	const TArray<FVisibleQuest> Visible = Quests ? Quests->GetVisibleQuests() : TArray<FVisibleQuest>();
+	if (Visible.IsEmpty())
+	{
+		SetPage(LOCTEXT("QuestsTitle", "Quests"), LOCTEXT("NoQuests", "No quests yet."));
+		return;
+	}
+	TArray<FText> Lines;
+	for (const FVisibleQuest &Quest : Visible)
+	{
+		const FText Kind = WoRGameNames::GetQuestKindName(Quest.Kind); // D-062: a shared game word
+		Lines.Add(Quest.bFinished ? FText::Format(LOCTEXT("QuestDoneRow", "- [{0}] {1}: done"), Kind, Quest.Title)
+								  : FText::Format(LOCTEXT("QuestRow", "- [{0}] {1}: {2}"), Kind, Quest.Title, Quest.Goal));
+	}
+	SetPage(LOCTEXT("QuestsTitle", "Quests"), FText::Join(FText::AsCultureInvariant(TEXT("\n")), Lines));
 }
 
 void UMemoryJournalWidget::HandleVClicked()

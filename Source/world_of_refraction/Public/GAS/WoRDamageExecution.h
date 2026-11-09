@@ -2,7 +2,8 @@
 // GAS stage 3 (B-042e, StatMathsRedesign.md §4 step 5): the damage execution wraps B-219's core
 // (WoRDamageMath::Compute). The inputs that are attributes come from the ability system components:
 // the attacker's CritChance (unless the action overrides it) and CritDamage, the defender's Defense
-// and its resistance to the hit's element (Resist_<type>, Ice also resists Water, Q-145b). The rest
+// and its resistance to the hit's kind (Resist_<type>; Ice also resists Water, an Ice hit reads Resist_Ice alone,
+// Q-145b, B-273b). The rest
 // (base damage, action mods, scaling, grid, status, the crit roll and flags) travel in the effect
 // context as an FWoRDamageRequest, gathered by UDamageCalculator as today. The output is Health -=
 // the final damage. Nothing in play applies it yet: UDamageCalculator stays the damage path until
@@ -48,6 +49,11 @@ public:
 	 *  rule: the element's own, plus Ice for Water (Q-145b); none for non-elemental (Q-145). False and Out
 	 *  untouched when the element has none or Target's attributes aren't synced. Also read by DOT ticks (B-042n). */
 	static bool ReadElementResistance(const UAbilitySystemComponent *Target, ESpellElement Element, float &OutResistance);
+
+	/** B-273b: the same by hit kind, WoRResistance::GetHitDamageResistance's rule: the hit's element-axis type (Ice for
+	 *  an Ice hit) plus the type that also resists it (a Water hit adds Ice; an Ice hit adds nothing). The Element
+	 *  form forwards here as FWoRHitKind::FromPair. */
+	static bool ReadHitDamageResistance(const UAbilitySystemComponent *Target, const FWoRHitKind &Hit, float &OutResistance);
 
 	/** The request for one hit, gathered by Calculator as CalculateDamage does (rolls the crit once). */
 	static FWoRDamageRequest MakeRequest(const UDamageCalculator &Calculator, AActor *Attacker, AActor *Defender,

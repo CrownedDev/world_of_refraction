@@ -178,6 +178,35 @@ TSubclassOf<UGameplayEffect> UWoRGE_StatSources::GetClassFor(EWorldPillar Pillar
 	}
 }
 
+namespace
+{
+	/** One Additive modifier on Attribute sized by the SetByCaller DataTag (B-043a costs). */
+	FGameplayModifierInfo MakeSetByCallerAdd(const FGameplayAttribute &Attribute, const FGameplayTag &DataTag)
+	{
+		FSetByCallerFloat SetByCaller;
+		SetByCaller.DataTag = DataTag;
+		FGameplayModifierInfo Modifier;
+		Modifier.Attribute = Attribute;
+		Modifier.ModifierOp = EGameplayModOp::Additive;
+		Modifier.ModifierMagnitude = FGameplayEffectModifierMagnitude(SetByCaller);
+		return Modifier;
+	}
+}
+
+UWoRGE_EnergyCost::UWoRGE_EnergyCost()
+{
+	DurationPolicy = EGameplayEffectDurationType::Instant;
+	AddAssetTag(WoRTags::Effect_Family_Cost);
+	Modifiers.Add(MakeSetByCallerAdd(UWoRAttributeSet_Vitals::GetEnergyAttribute(), WoRTags::SetByCaller_Cost_Energy));
+}
+
+UWoRGE_HPBacklash::UWoRGE_HPBacklash()
+{
+	DurationPolicy = EGameplayEffectDurationType::Instant;
+	AddAssetTag(WoRTags::Effect_Family_Backlash);
+	Modifiers.Add(MakeSetByCallerAdd(UWoRAttributeSet_Vitals::GetHealthAttribute(), WoRTags::SetByCaller_Cost_Health));
+}
+
 void UWoRGE_StatSources::AddSourceModifiers(const FGameplayAttribute &Attribute)
 {
 	DurationPolicy = EGameplayEffectDurationType::Infinite;

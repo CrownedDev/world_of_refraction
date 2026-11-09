@@ -5,6 +5,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRTurnEffectTracker.h"
 #include "GAS/WoRCombatEvents.h"
+#include "GAS/WoRActionCosts.h"
 #include "Tags/WoRGameplayTags.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -687,7 +688,10 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 
 	// B-382 (Q-164b A): Amp adds flat to the base, once per action, so every multiplier after it scales it.
 	// Only a damaging action takes it (a 0-damage buff or heal spell stays 0).
-	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, Preview.Element, bIsSpell) : 0;
+	// B-064a (the deckbuilder's Ice reach: Amp is exact): an Ice spell takes no Water Amp line; All and Spell still count.
+	const bool bDealsIce = bIsSpell && Action.SpellData->GetDealtTypeOverride(Preview.Element) == EWoRDamageType::Ice;
+	const ESpellElement AmpElement = bDealsIce ? ESpellElement::None : Preview.Element;
+	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, AmpElement, bIsSpell) : 0;
 	if (bLog && Preview.AmpBonus != 0)
 	{
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[Amp] %s: %d + Amp %d (%s)"), *Skill->Name, Preview.BaseDamage, Preview.AmpBonus,
@@ -1058,6 +1062,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	if (CurrentExecutionContext.IsSet())
 	{
 		CurrentExecutionContext->ActionMods = ActionMods;
+		CurrentExecutionContext->GearEvolutionPassives = PutOnGearEvolutionPassives(Actor, Action);
 	}
 
 	if (ActionMods.IsActive())
@@ -1772,6 +1777,11 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	// Attack collapsed into Ability (Cluster 3) — count-based close is the not-Spell / bPerImpact gate.
 	const bool bUseCountBasedClose = (ActionType == EActionType::Ability);
 
+	// B-064a (D-029): a Water spell that deals Ice; its hits carry the Ice hit kind (B-273b) while Element stays Water,
+	// so the source gate and "On Water hit" triggers hear it as before.
+	const USpellData *CastSpell = ActionType == EActionType::Spell ? Cast<USpellData>(GetCurrentSkillData()) : nullptr;
+	const EWoRDamageType DealtTypeOverride = CastSpell ? CastSpell->GetDealtTypeOverride(Element) : EWoRDamageType::None;
+
 	// Create pending defense context for each target
 	for (AActor *Target : Targets)
 	{
@@ -1791,6 +1801,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.SelectedSource = SelectedSource;
 		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
 		DefenseContext.PhysicalDamageType = PhysicalDamageType;
+		DefenseContext.DealtTypeOverride = DealtTypeOverride;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
@@ -2198,6 +2209,7 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	// carry its real PhysicalDamageType so a physical attack's bar-cap trigger resolves on EVERY hit, not
 	// just hit 0 (was hit-0-only — harmless when later hits applied zero buildup; now they don't).
 	Input.PhysicalDamageType = Context.PhysicalDamageType;
+	Input.DealtTypeOverride = Context.DealtTypeOverride; // B-273b: an Ice hit stays Ice
 	Input.ActionMods = CurrentExecutionContext->ActionMods;
 
 	// Read before the hit: Context may be the PendingDefenses entry, which a death inside ApplyHit can remove.
@@ -2480,6 +2492,8 @@ void UActionExecutor::FinalizeAsyncAction()
 	// animation have resolved; a lethal cost kills the caster now, post-action.
 	ApplyPendingInfusionHPCost(Executor);
 
+	TakeOffGearEvolutionPassives(Executor, CurrentExecutionContext->GearEvolutionPassives); // B-357d: after the action's own effects, on every finalize path
+
 	// Mark complete
 	CurrentExecutionContext->bInProgress = false;
 
@@ -2501,6 +2515,33 @@ void UActionExecutor::FinalizeAsyncAction()
 	// for and no component state to reset (SC-D), so finalize falls straight to
 	// completion.
 	CompleteAsyncActionFinal(Executor);
+}
+
+TArray<FGatheredEffect> UActionExecutor::PutOnGearEvolutionPassives(AActor *Actor, const FAction &Action)
+{
+	const ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+	USkillEffectManager *Effects = GetSkillEffectManager();
+	if (!Loadout || !Effects)
+	{
+		return {};
+	}
+	TArray<FGatheredEffect> Passives = Loadout->GetGearEvolutionPassivesForAction(Action.ActionType, Action.SelectedSource, Action.GetChargeLevel());
+	if (Passives.Num() > 0)
+	{
+		Effects->SwapEquipmentEffects(Actor, {}, Passives);
+		UE_LOG(LogWoREffects, Log, TEXT("[ActionExecutor] %s: %s at charge %d gets %d gear evolution passive(s) (B-357d)"),
+			   *Actor->GetName(), *Action.GetActionName(), Action.GetChargeLevel(), Passives.Num());
+	}
+	return Passives;
+}
+
+void UActionExecutor::TakeOffGearEvolutionPassives(AActor *Actor, const TArray<FGatheredEffect> &Passives)
+{
+	USkillEffectManager *Effects = GetSkillEffectManager();
+	if (Actor && Effects && Passives.Num() > 0)
+	{
+		Effects->SwapEquipmentEffects(Actor, Passives, {});
+	}
 }
 
 void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
@@ -3116,14 +3157,13 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 	}
 
 	UE_LOG(LogTemp, Verbose,
-		   TEXT("[ApplyHit] %s -> %s | ActionType=%s Element=%s Dmg=%d Buildup=%d Physical=%s Inf=L%d"),
+		   TEXT("[ApplyHit] %s -> %s | ActionType=%s Hit=%s Dmg=%d Buildup=%d Inf=L%d"),
 		   Input.Attacker ? *Input.Attacker->GetName() : TEXT("null"),
 		   *Input.Target->GetName(),
 		   *UEnum::GetValueAsString(Input.ActionType),
-		   *UEnum::GetValueAsString(Input.Element),
+		   *Input.GetHitKind().ToString(),
 		   Input.BaseDamage,
 		   Input.BaseStatusBuildup,
-		   *UEnum::GetValueAsString(Input.PhysicalDamageType),
 		   Input.InfusionLevel);
 
 	UCharacterDataComponent *TargetComp = Input.Target->FindComponentByClass<UCharacterDataComponent>();
@@ -3140,6 +3180,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			DmgInput.GuardFactor = Input.GuardFactor;
 			DmgInput.ActionType = Input.ActionType;
 			DmgInput.Element = Input.Element;
+			DmgInput.DealtTypeOverride = Input.DealtTypeOverride; // B-273b: resistance by hit kind
 			DmgInput.bCanCrit = Input.bCanCrit;
 			DmgInput.bWasInfused = Input.InfusionLevel > 0;
 			DmgInput.InfusionLevel = Input.InfusionLevel;
@@ -3284,21 +3325,20 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		}
 	}
 
-	// Buildup path — manager resolves the trigger type internally from
-	// (Element, PhysicalType) via BarCapTriggerResolver. Manager also runs the
-	// attacker StatusMultiplier amplification (Spirit-driven via
-	// CalculateStatusMultiplier) and the per-element resistance reduction.
+	// Buildup path — manager resolves the trigger type internally from the hit
+	// kind via BarCapTriggerResolver (B-273b: an Ice hit breaks on the Ice row). Manager
+	// also runs the attacker StatusMultiplier amplification (Spirit-driven via
+	// CalculateStatusMultiplier) and the per-type resistance reduction.
 	if (Input.BaseStatusBuildup > 0)
 	{
 		UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
 		if (BuildupManager)
 		{
-			BuildupManager->AddStatusBuildup(
+			BuildupManager->AddStatusBuildupForHit(
 				Input.Attacker,
 				Input.Target,
 				static_cast<float>(Input.BaseStatusBuildup),
-				Input.Element,
-				Input.PhysicalDamageType);
+				Input.GetHitKind());
 		}
 	}
 
@@ -3442,7 +3482,11 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 	if (GetSpendableEP(Actor) < Amount)
 		return false;
 
-	Comp->ServerSpendEnergy(Amount);
+	// B-043a: as an Instant cost GE when wor.Costs.UseGAS is on; the same ServerSpendEnergy either way.
+	if (!WoRCosts::TryPayEnergy(Actor, Amount))
+	{
+		Comp->ServerSpendEnergy(Amount);
+	}
 	return true;
 }
 
@@ -4420,14 +4464,14 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 	case EInfusionSourceOption::Evolution:
 		if (LC && LC->IsEvolved())
 		{
-			const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-			if (Loadout.PrimaryEvolution.Item)
+			const FEvolutionAttachment Seat = LC->GetCharacterSlotEvolution(); // B-357e: the one resolve path
+			if (Seat.Item)
 			{
 				// The seat is wrapped whole, so its per-instance roll travels with it.
 				View.Attached.Kind = EAttachedItemKind::Evolution;
-				View.Attached.Evolution = Loadout.PrimaryEvolution;
-				View.Element = View.Attached.IsBroken() ? ESpellElement::None : Loadout.PrimaryEvolution.Item->GetAssociatedElement();
-				View.Mode = Loadout.PrimaryEvolution.Item->InfusionMode;
+				View.Attached.Evolution = Seat;
+				View.Element = View.Attached.IsBroken() ? ESpellElement::None : Seat.Item->GetAssociatedElement();
+				View.Mode = Seat.Item->InfusionMode;
 			}
 			View.bUsable = true;
 		}
@@ -5767,11 +5811,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	UEvolutionItemData *PrimaryEvolutionCrystal = nullptr;
 	if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
-		const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-		{
-			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution.Item;
-		}
+		PrimaryEvolutionCrystal = LC->GetCharacterSlotEvolution().Item; // B-357e: the one resolve path
 	}
 
 	if (PrimaryEvolutionCrystal)
@@ -5869,6 +5909,7 @@ void UActionExecutor::DebugForceResetAsync()
 	if (CurrentExecutionContext.IsSet())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] FORCE RESETTING stuck async action"));
+		TakeOffGearEvolutionPassives(CurrentExecutionContext->Executor.Get(), CurrentExecutionContext->GearEvolutionPassives); // B-357d review
 		CurrentExecutionContext.Reset();
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;

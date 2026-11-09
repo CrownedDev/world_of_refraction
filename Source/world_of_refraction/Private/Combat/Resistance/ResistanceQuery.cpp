@@ -113,7 +113,10 @@ namespace WoRResistance
 		ToAxes(DamageType, Element, Physical);
 
 		Sources.Effect = EffectTypeResistance(Target, DamageType);                                 // #4
-		Sources.Class = ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, Physical); // #5
+		// #5. Ice is no element axis (keyed Water, D-029): it reads the class table's own Ice column (B-064a).
+		Sources.Class = DamageType == EWoRDamageType::Ice
+							? ClassInnateResistanceTable::GetClassIceResistance(Target)
+							: ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, Physical);
 		Sources.Gear = GearTypeResistance(Target, Element, Physical);                              // #6
 		return Sources;
 	}
@@ -131,6 +134,20 @@ namespace WoRResistance
 	float GetElementDamageResistance(AActor *Target, ESpellElement Element)
 	{
 		return GetHitDamageResistance(Target, FWoRHitKind::FromPair(Element, EPhysicalDamageType::None));
+	}
+
+	float GetScopeLineResistance(AActor *Target, bool bHitIsSpell)
+	{
+		const ULoadoutComponent *Loadout = Target ? Target->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		const float Gear = Loadout ? Loadout->GetActiveResistanceBonus(Target).GetScopeLine(bHitIsSpell) /
+										 ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR
+								   : 0.0f;
+		// Q-389 (Crown, 2026-11-09): the class table's Physical column is the class's Physical line for damage too
+		// (Generic +15%, Resonator -15%, Refractor 0): an intended balance change. No element passed, so only that column.
+		const float ClassPhysical = bHitIsSpell ? 0.0f
+												: ClassInnateResistanceTable::GetClassInnateResistance(Target, ESpellElement::None,
+																										 EPhysicalDamageType::Slash);
+		return Gear + ClassPhysical;
 	}
 
 	float GetHitDamageResistance(AActor *Target, const FWoRHitKind &Hit)

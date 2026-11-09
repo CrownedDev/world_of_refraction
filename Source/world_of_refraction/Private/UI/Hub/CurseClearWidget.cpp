@@ -8,6 +8,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Currency/CurrencyWallet.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -15,6 +16,7 @@
 #include "Memory/CurseData.h"
 #include "Memory/CurseSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "CurseClear"
@@ -78,6 +80,16 @@ namespace CurseClearBuild
 			}
 		}
 		return FText::FromName(CurseId);
+	}
+
+	/** B-390 (D-169): "F-Tier, clearing costs 10 Pillar Essence" (the asset defaults when none is authored). */
+	FText PriceOf(const UCurseSubsystem &Curses, FName CurseId)
+	{
+		const UCurseData *Curse = Curses.FindCurseAsset(CurseId);
+		const UCurseData *Priced = Curse ? Curse : GetDefault<UCurseData>();
+		return FText::Format(LOCTEXT("Price", "{0}, clearing costs {1} {2}"),
+							 FText::AsCultureInvariant(TierHelpers::GetTierDisplayString(Priced->Tier)),
+							 FText::AsNumber(Priced->GetClearPrice()), WoRGameNames::GetCurrencyName(Priced->GetClearCurrency()));
 	}
 }
 
@@ -155,12 +167,13 @@ void UCurseClearWidget::Refresh()
 	const TArray<FName> Held = GatherHeld();
 	SelectedIndex = Held.IsEmpty() ? 0 : SelectedIndex % Held.Num();
 	const bool bCanClear = !Held.IsEmpty() && CanClearHere(this);
+	const UCurseSubsystem *Curses = CurseClearBuild::CursesOf(this);
 	if (CurseText)
 	{
-		CurseText->SetText(Held.IsEmpty()
+		CurseText->SetText(Held.IsEmpty() || !Curses
 			? LOCTEXT("NoCurses", "You hold no curses.")
-			: FText::Format(LOCTEXT("Selected", "Curse {0} of {1}: {2}"), FText::AsNumber(SelectedIndex + 1), FText::AsNumber(Held.Num()),
-							CurseClearBuild::NameOf(Held[SelectedIndex])));
+			: FText::Format(LOCTEXT("Selected", "Curse {0} of {1}: {2} ({3})"), FText::AsNumber(SelectedIndex + 1), FText::AsNumber(Held.Num()),
+							CurseClearBuild::NameOf(Held[SelectedIndex]), CurseClearBuild::PriceOf(*Curses, Held[SelectedIndex])));
 	}
 	if (ClearButton)
 	{
@@ -194,11 +207,16 @@ void UCurseClearWidget::HandleClearClicked()
 	{
 		return;
 	}
-	// TODO(Crown): a price for clearing, if any (none set; Q-378 names only the service).
+	// B-390 (D-169): paid in the curse's essence by its tier, from the player's wallet.
 	const FName CurseId = Held[SelectedIndex];
-	if (Curses->ClearCurse(CurseId))
+	FText Refusal;
+	if (Curses->PayToClearCurse(CurseId, CurrencyWallet::FindFor(GetOwningPlayerPawn()), Refusal))
 	{
 		Status = FText::Format(LOCTEXT("Cleared", "{0} is cleared. It may come back."), CurseClearBuild::NameOf(CurseId));
+	}
+	else
+	{
+		Status = Refusal;
 	}
 	Refresh();
 	UE_LOG(LogWoR, Log, TEXT("%s"), *GetCurseClearString());

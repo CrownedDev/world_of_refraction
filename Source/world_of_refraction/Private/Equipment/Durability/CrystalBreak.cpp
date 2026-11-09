@@ -240,7 +240,7 @@ int32 CrystalBreak::RepairOn(AActor *Actor, int32 Amount)
 	{
 		Repaired += CrystalBreakRepairSlot(Actor, Loadout, Slot, Amount) ? 1 : 0;
 	}
-	const FEvolutionAttachment PrimaryBefore = Loadout->GetActiveLoadout().PrimaryEvolution;
+	const FEvolutionAttachment PrimaryBefore = Loadout->GetCharacterSlotEvolution(); // B-357e: the one resolve path
 	const int32 PrimaryRestored = Loadout->RepairActivePrimaryEvolution(Amount);
 	if (PrimaryRestored > 0)
 	{

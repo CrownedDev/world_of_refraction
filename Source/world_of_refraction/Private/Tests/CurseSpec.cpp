@@ -10,6 +10,8 @@
 #include "Engine/GameInstance.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Currency/CurrencyComponent.h"
+#include "Currency/EconomyYield.h"
 #include "Memory/CurseData.h"
 #include "Memory/CurseSubsystem.h"
 #include "Memory/HiddenQuestData.h"
@@ -209,6 +211,57 @@ void FCurseSpec::Define()
 		TestEqual(TEXT("regained: HP"), Curses->GetStatPenalty().BonusMaxHP, CURSE_TEST_HP_PENALTY);
 		TestTrue(TEXT("the hub (no run): the service clears"), UCurseClearWidget::CanClearHere(TestWorld->GetWorld()));
 		// The in-run refusal needs an active trial run; PIE B-378b check 7 covers it.
+	});
+
+	It("B-390 (D-169): the clear costs the curse's essence by its tier; short of it, the curse stays", [this]()
+	{
+		UCurseData *Curse = NewObject<UCurseData>(GetTransientPackage());
+		Curse->CurseId = CURSE_TEST_ID;
+		Curses->SetCurseAssets({Curse});
+		TestEqual(TEXT("F Pillar by default: the F step of the essence ladder"), Curse->GetClearPrice(),
+				  EconomyYield::GetTypedEssencePurchaseCostForTier(EItemTier::F_Tier));
+		TestTrue(TEXT("F Pillar by default: Pillar Essence"), Curse->GetClearCurrency() == ECurrencyType::PillarEssence);
+		Curse->Tier = EItemTier::S_Tier;
+		Curse->ClearEssence = ECurseClearEssence::Elemental;
+		TestTrue(TEXT("S costs more than F"), Curse->GetClearPrice() > EconomyYield::GetTypedEssencePurchaseCostForTier(EItemTier::F_Tier));
+		TestTrue(TEXT("Elemental chosen"), Curse->GetClearCurrency() == ECurrencyType::ElementalEssence);
+		Curse->Tier = EItemTier::F_Tier;
+		Curse->ClearEssence = ECurseClearEssence::Pillar;
+		const int32 Price = Curse->GetClearPrice();
+
+		AActor *Player = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UCurrencyComponent *Wallet = Player ? Player->FindComponentByClass<UCurrencyComponent>() : nullptr;
+		if (!Wallet && Player)
+		{
+			Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(Player);
+		}
+		if (!TestNotNull(TEXT("wallet"), Wallet))
+		{
+			return;
+		}
+		Curses->AddCurse(CURSE_TEST_ID);
+		Wallet->Add(ECurrencyType::PillarEssence, Price - 1);
+		Wallet->Add(ECurrencyType::ElementalEssence, Price);
+		FText Refusal;
+		TestFalse(TEXT("short of Pillar Essence: refused"), Curses->PayToClearCurse(CURSE_TEST_ID, Wallet, Refusal));
+		TestFalse(TEXT("refused: a message says why"), Refusal.IsEmpty());
+		TestTrue(TEXT("refused: still held"), Curses->HasCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("refused: nothing spent"), Wallet->GetBalance(ECurrencyType::PillarEssence), Price - 1);
+
+		Wallet->Add(ECurrencyType::PillarEssence, 1);
+		TestTrue(TEXT("enough: cleared"), Curses->PayToClearCurse(CURSE_TEST_ID, Wallet, Refusal));
+		TestFalse(TEXT("cleared: not held"), Curses->HasCurse(CURSE_TEST_ID));
+		TestEqual(TEXT("cleared: the price spent"), Wallet->GetBalance(ECurrencyType::PillarEssence), 0);
+		TestEqual(TEXT("cleared: the other essence untouched"), Wallet->GetBalance(ECurrencyType::ElementalEssence), Price);
+		TestFalse(TEXT("not held: refused"), Curses->PayToClearCurse(CURSE_TEST_ID, Wallet, Refusal));
+		TestTrue(TEXT("cleared, so it can be regained (Q-378)"), Curses->WasLifted(CURSE_TEST_ID));
+
+		// Q-390: a held curse with no asset prices as the asset defaults (F, Pillar).
+		Curses->SetCurseAssets({});
+		Curses->AddCurse(CURSE_TEST_ID);
+		Wallet->Add(ECurrencyType::PillarEssence, Price);
+		TestTrue(TEXT("no asset: cleared at the default price"), Curses->PayToClearCurse(CURSE_TEST_ID, Wallet, Refusal));
+		TestEqual(TEXT("no asset: the F Pillar price spent"), Wallet->GetBalance(ECurrencyType::PillarEssence), 0);
 	});
 }
 

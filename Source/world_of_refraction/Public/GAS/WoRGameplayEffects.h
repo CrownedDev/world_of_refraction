@@ -216,6 +216,30 @@ public:
 	UWoRGE_Action();
 };
 
+/** B-043a (StatMathsRedesign.md §2.6, Q-043a): a skill's EP cost, Instant, one Additive modifier on
+ *  Energy sized by SetByCaller.Cost.Energy (minus the cost UActionExecutor::CalculateActionEnergyCost
+ *  gives). The Vitals set hands the change to ServerSpendEnergy, as the enum path pays it. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_EnergyCost : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_EnergyCost();
+};
+
+/** B-043a: an infused skill's HP backlash (D-035), Instant, one Additive modifier on Health sized by
+ *  SetByCaller.Cost.Health (minus the cost stored at commit). The Vitals set hands it to
+ *  ServerTakeDamage, so a lethal backlash kills, as today. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UWoRGE_HPBacklash : public UWoRGameplayEffect
+{
+	GENERATED_BODY()
+
+public:
+	UWoRGE_HPBacklash();
+};
+
 /** B-042p (StatMathsRedesign.md §2.1, Q-042p): a composed stat's gear, stone and transient layers
  *  (FWoRStatLayers) as one Infinite effect of three MultiplyCompound modifiers on its attribute,
  *  each magnitude by SetByCaller.Stat.*. The attribute sync applies one per stat over the capped

@@ -99,7 +99,7 @@ spell with its resolved element: `"[Element] [Name]"` ("Fire Ball"); BD → `"Da
 [Name]"` except Darkness (`"Darkness [Name]"`, no doubling); Reality → `"Reality [Name]"`;
 unresolvable/fixed-element → raw `Name`. Wired into the combat spell-menu button label + tint.
 
-See `docs/Design/Completed/GenericSpellInherit.md` (full arc) and `docs/Mechanics/GenericSpells.md`
+See `docs/Design/Completed/GenericSpellInherit.md` (full arc) and `docs/archive/Mechanics/GenericSpells.md`
 (player-facing). Debug: `UGenericSpellResolveDebug`.
 
 ## Cost model

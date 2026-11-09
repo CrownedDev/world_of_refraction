@@ -240,7 +240,7 @@ last broadcast set it to. Known limitation, already pinned in
 
 ### G4 — Stale documentation: `EquippedWeatherVariant` location
 
-`docs/Architecture_2026-05-14.md:506` states the field is "`UPrimaryDataAsset*` on
+`docs/archive/Architecture_2026-05-14.md:506` states the field is "`UPrimaryDataAsset*` on
 `CharacterData.h:195`". It is actually on `CosmeticsData.h:75`, reached via
 `UCharacterData::Cosmetics`. `WeatherStateManager.cpp:237-238` confirms the access
 path. Update the long-form architecture doc when next touched.

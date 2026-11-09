@@ -107,6 +107,15 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         return false;
     }
 
+    /** Q-081 / B-357e: a lasting passive: at least one payload and every payload permanent. Only these come on with a
+     *  gear swap (USkillEffectManager::SwapEquipmentEffects) or an L2 action's gear evolution
+     *  (ULoadoutComponent::GetGearEvolutionPassivesForAction); a one-shot, timed or charged one is a fight-start bonus. */
+    bool IsLastingPassive() const
+    {
+        return Payloads.Num() > 0 &&
+               !Payloads.ContainsByPredicate([](const FSkillEffectPayload &Payload) { return !Payload.bPermanent; });
+    }
+
     /** Buff if ANY payload classifies as a buff. */
     bool IsBuff() const
     {

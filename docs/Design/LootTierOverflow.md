@@ -5,7 +5,7 @@ quality, and what happens when the improvement would exceed S tier.
 
 Related: [`AIArchitecture.md`](./AIArchitecture.md) §6 (the difficulty half of the same lever),
 [`Resources_Design.md`](./Resources_Design.md) (essence curves),
-[`../Mechanics/Economy/Economy.md`](../Mechanics/Economy/Economy.md) (faucets/sinks).
+[`../Mechanics/Economy/Economy.md`](../archive/Mechanics/Economy/Economy.md) (faucets/sinks).
 
 ---
 

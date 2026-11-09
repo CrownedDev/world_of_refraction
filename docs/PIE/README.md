@@ -15,11 +15,17 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-042f](B-042f.md) | `feature/B-042f-stones-item-effects-gas-cloud` (UNBUILT, from dev) | GAS stage 3 part 6: `wor.Effects.Compare` 0 differ at UseGAS 0 and 1 (stones and item effects included); B-042g's gate | Pending |
-| [B-042g](B-042g.md) | `feature/B-042g-gas-readers-default-cloud` (UNBUILT, on B-042f; merge only after B-042f's comparison passes) | GAS: resistance, Ignore Defense and reflect read the GEs at UseGAS 1 | Pending |
+| [B-064a](B-064a.md) | `feature/B-064a-ice-cloud` (in dev) | Ice: a Water spell can deal Ice (Deals Ice); Ice resistance alone resists it; a full Ice bar slows like Water's and deals 10% max HP | Pending |
+| [B-273b](B-273b.md) | `feature/B-273b-hit-kind-cloud` (in dev, with B-064a) | The hit kind replaces the element / physical pair in buildup, damage resistance and the GAS executions; no number changes (an Ice hit reads Ice resistance alone, for B-064a) | Pending |
+| [B-042f](B-042f.md) | `feature/B-042f-stones-item-effects-gas-cloud` (in dev) | GAS stage 3 part 6: `wor.Effects.Compare` 0 differ at UseGAS 0 and 1 (stones and item effects included); B-042g's gate | Pending |
+| [B-042g](B-042g.md) | `feature/B-042g-gas-readers-default-cloud` (in dev) | GAS: resistance, Ignore Defense and reflect read the GEs at UseGAS 1 | Pending |
+| [B-043a](B-043a.md) | `feature/B-043a-costs-gas-cloud` (in dev) | GAS stage 4 part 1: skill EP costs and the infusion HP backlash paid as Instant GEs (`wor.Costs.UseGAS`), same numbers | Pending |
+| [B-390](B-390.md) | `feature/B-390-curse-tiers-clear-price` (in dev) | A curse's tier (F to S) sets its clear price in its essence (Pillar or Elemental); short of it the hub refuses with a message | Pending |
+| [B-357e](B-357e.md) | `refactor/B-357e-evolution-readers` (in dev) | No play change: the remaining evolution readers go through the one resolve path; one lasting-passive check | Pending |
 | [B-380d](B-380d.md) | `feature/B-380d-apparel-lore-socket-cloud` (in dev) | Apparel socket swap: the old crystal goes back to storage; an evolution must be owned and free | Pending |
 | [B-386](B-386.md) | `feature/B-386-apparel-amp-cloud` (in dev) | Apparel carries Amp lines (the deckbuilder's HP · Amp · Def) | Pending |
 | [B-387](B-387.md) | `feature/B-387-crystal-amp-cloud` (in dev) | Worn crystals (and the seated evolution) grant Amp to their element by tier: F0 E0 D1 C1 B2 A2 S3 | Pending |
+| [B-389](B-389.md) | `feature/B-389-resistance-by-type-cloud` (in dev) | Resistance by damage type: Defence is the All line; a Physical line cuts physical hits only | Pending |
 | [B-382](B-382.md) | `feature/B-382-amp-lines-cloud` (unbuilt) | Amp lines on gear: All / Physical / one element, added to the action's base; damage buffs keyed by element; `wor.Damage.Amp` | Pending |
 | [B-383](B-383.md) | `feature/B-383-damage-scopes-cloud` (unbuilt) | Every damage / defence boost has a scope (All, Physical, Spell, one element; default All); `wor.Damage.Scopes` | Pending |
 | [B-384](B-384.md) | `feature/B-384-one-damage-channel-cloud` (in dev) | The four all-damage % channels add into one; **stacked builds hit a little lower** (before / after numbers in the sheet); `wor.Damage.FoldAllDamage` | Pending |
@@ -394,14 +400,16 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-375](B-375.md) | `feature/B-375-memory-debug-cloud` (UNBUILT, on B-235e) | `wor.Memory.Why <Id>`: each condition met / not yet per player, who would get it | Pending |
 | [B-376](B-376.md) | `feature/B-376-party-has-cloud` (UNBUILT, on B-375) | Pair memories: both characters present, solo or across players | Pending |
 | [B-377](B-377.md) | `feature/B-377-hidden-quests-cloud` (UNBUILT, on B-376, save v25) | Hidden quests: start, steps across runs, end memory | Pending |
+| [B-388](B-388.md) | `feature/B-388-main-side-quests-cloud` (in dev) | Main and side quests: listed in the journal with their goal | Pending |
 | [B-378](B-378.md) | `feature/B-378-curses-cloud` (in dev) | Curses: given by a memory, a key, lifted, kept across runs | Pending |
 | [B-378b](B-378b.md) | `feature/B-378b-curse-penalty-cloud` (in dev) | A held curse weakens your own characters by its penalty | Pending |
 | [B-379](B-379.md) | `feature/B-379-hidden-counters-cloud` (UNBUILT, on B-378, save v27) | Hidden counters: parries and kills across runs, a milestone memory | Pending |
-| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (UNBUILT, on B-379) | A worn item's hidden quest starts while its condition holds | Pending |
+| [B-381](B-381.md) | `feature/B-381-gear-quests-cloud` (in dev) | A worn item's hidden quest starts while its condition holds | Pending |
 | [B-377b](B-377b.md) | `feature/B-377b-coop-quests-journal-save-cloud` (in dev) | The journal saved; a friend's quests move on the host's events | Pending |
 | [B-380](B-380.md) | `feature/B-380-apparel-cloud` (UNBUILT, from dev) | Apparel adds HP and Defence outside the budget; `wor.Loadout.Print` | Pending |
 | [B-380b](B-380b.md) | `feature/B-380b-apparel-store-save-cloud` (UNBUILT, on B-380) | Owned apparel in the store, saved with its socket | Pending |
 | [B-380c](B-380c.md) | `feature/B-380c-apparel-slots-saved-cloud` (UNBUILT, on B-380b, save v29) | Worn apparel saved; a crystal set in play | Pending |
+| [B-357d](B-357d.md) | `feature/B-357d-gear-evolution-l2-passives` (in dev) | A gear evolution's passives act on an L2 action from its item (apparel: any L2 action), for that action only | Pending |
 
 Move rows to **Done** when every check passes.
 

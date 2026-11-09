@@ -116,6 +116,20 @@ namespace
 		const int32 SideOfTarget = TurnManager->GetActorTeam(Target);
 		return SideOfSource >= 0 && SideOfTarget >= 0 && SideOfSource != SideOfTarget;
 	}
+
+	/** A status break's one-off damage (Reality Burst, Ice's, B-064a): Share of the holder's max HP, target-scaled, can
+	 *  kill (no 1-HP clamp; the normal death path, like a killing blow). Returns the damage dealt. */
+	int32 DealBreakShareOfMaxHP(UCharacterDataComponent *HolderComp, float Share, const TCHAR *BreakLabel)
+	{
+		const int32 BreakDamage = HolderComp ? FMath::RoundToInt(HolderComp->MaxHP * Share) : 0;
+		if (BreakDamage > 0)
+		{
+			HolderComp->ServerTakeDamage(BreakDamage);
+			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s dealt %d (%.2f of MaxHP, can be lethal) to %s"), BreakLabel,
+				   BreakDamage, Share, *GetNameSafe(HolderComp->GetOwner()));
+		}
+		return FMath::Max(BreakDamage, 0);
+	}
 }
 
 EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiveSkillEffect Effect,
@@ -485,15 +499,10 @@ int32 USkillEffectManager::SwapEquipmentEffects(
 
 	// Q-081: only lasting passives come on with a swap; a one-shot, timed or charged starting
 	// effect is the fight's start bonus, given once (a swap back would farm it).
-	const auto IsPassive = [](const FSkillEffect &Effect)
-	{
-		return Effect.Payloads.Num() > 0 &&
-			   !Effect.Payloads.ContainsByPredicate([](const FSkillEffectPayload &Payload) { return !Payload.bPermanent; });
-	};
 	TArray<FGatheredEffect> Added;
 	for (const FGatheredEffect &New : NewEffects)
 	{
-		if (!Lists(OldEffects, New) && IsPassive(New.Effect))
+		if (!Lists(OldEffects, New) && New.Effect.IsLastingPassive())
 		{
 			Added.Add(New);
 		}
@@ -640,16 +649,15 @@ void USkillEffectManager::WOR_StartingEffects()
 	// PRE — per gear source, the same gear GetActiveEffects counts.
 	// Debug-only re-enumeration; the TOTAL cross-check below self-reports drift.
 	int32 Labeled = 0;
-	const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 	// B-306: the same gear the readers count (ForEachContributingGear), labelled by kind.
 	LC->ForEachContributingGear([&Labeled, &PrintSpecs](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
 	{
 		Labeled += Weapon ? PrintSpecs(TEXT("ActiveWeapon"), Weapon->WeaponEntry.Weapon->GetStartingEffects())
 						  : PrintSpecs(TEXT("ActiveAdapter"), Adapter->RingEntry.Ring->GetStartingEffects());
 	});
-	if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+	if (const UEvolutionItemData *Seat = LC->GetCharacterSlotEvolution().Item) // B-357e: the one resolve path
 	{
-		Labeled += PrintSpecs(TEXT("InnateEvolution"), Loadout.PrimaryEvolution.Item->GetStartingEffects());
+		Labeled += PrintSpecs(TEXT("InnateEvolution"), Seat->GetStartingEffects());
 	}
 
 	const int32 Total = LC->GetActiveEffects(Actor).Num();
@@ -3213,16 +3221,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	{
 		// Reality Burst: a share of max HP, target-scaled, can kill (no 1-HP clamp). Full damage routes
 		// through the normal death path (ServerTakeDamage -> CheckDeath -> OnDied), like a killing blow.
-		if (TargetComp)
-		{
-			const int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * Row->Size);
-			if (BurstDamage > 0)
-			{
-				TargetComp->ServerTakeDamage(BurstDamage);
-				UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Reality Burst dealt %d (%.2f of MaxHP, can be lethal) to %s"),
-					   BurstDamage, Row->Size, *Target->GetName());
-			}
-		}
+		DealBreakShareOfMaxHP(TargetComp, Row->Size, TEXT("Reality Burst"));
 		return; // one-shot, no FActiveSkillEffect applied
 	}
 	if (Row)
@@ -3325,6 +3324,13 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		{
 			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Break's second effect %s refused on %s"), *SpellSlow.EffectName, *Target->GetName());
 		}
+	}
+
+	// Ice break (B-064a, D-090): the slow above, then a one-off share of max HP. Last, so a killing break has applied
+	// everything else first (the slow on a corpse is harmless; Reality's lone damage returns early above).
+	if (Row && Row->DamageShareOfMaxHP > 0.0f)
+	{
+		DealBreakShareOfMaxHP(TargetComp, Row->DamageShareOfMaxHP, *Effect.EffectName);
 	}
 
 	// Wind break (D-014, D-090): a NEW gust pushes the holder's next turn back. The same

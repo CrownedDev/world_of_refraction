@@ -10,19 +10,15 @@
 #include "Character/CharacterData.h"
 #include "Combat/Resistance/ResistanceProfileData.h"
 
-namespace ClassInnateResistanceTable
+namespace
 {
-	float GetClassInnateResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)
+	/** Target's resistance profile row; false without CharacterData. */
+	bool ResolveClassInnateRow(const AActor *Target, ClassInnateResistanceTable::FResistanceRow &OutRow)
 	{
-		if (!Target)
-		{
-			return 0.0f;
-		}
-
-		const UCharacterDataComponent *Comp = Target->FindComponentByClass<UCharacterDataComponent>();
+		const UCharacterDataComponent *Comp = Target ? Target->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 		if (!Comp || !Comp->CharacterData)
 		{
-			return 0.0f;
+			return false;
 		}
 
 		const UCharacterData *Data = Comp->CharacterData;
@@ -31,14 +27,32 @@ namespace ClassInnateResistanceTable
 		// Generic > Resonator > Caster-by-innate-element. The data asset when one exists (B-216),
 		// else this table.
 		const UResistanceProfileData *Profiles = UResistanceProfileData::GetActive();
-		const FResistanceRow Row = Profiles
-									   ? Profiles->ResolveRow(Data->CharacterClass, Data->GetElement(), Comp->IsBrokenDarkness())
-									   : ResolveRow(Data->CharacterClass, Data->GetElement(), Comp->IsBrokenDarkness());
+		OutRow = Profiles ? Profiles->ResolveRow(Data->CharacterClass, Data->GetElement(), Comp->IsBrokenDarkness())
+						  : ClassInnateResistanceTable::ResolveRow(Data->CharacterClass, Data->GetElement(), Comp->IsBrokenDarkness());
+		return true;
+	}
+}
+
+namespace ClassInnateResistanceTable
+{
+	float GetClassInnateResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType)
+	{
+		FResistanceRow Row{};
+		if (!ResolveClassInnateRow(Target, Row))
+		{
+			return 0.0f;
+		}
 
 		// Both axes compose: incoming element (BD-aliased) + incoming physical type.
 		const float ElementTerm = GetElementColumn(Row, Element);
 		const float PhysicalTerm = GetPhysicalColumn(Row, PhysicalType);
 
 		return (ElementTerm + PhysicalTerm) / RESISTANCE_PERCENT_DIVISOR;
+	}
+
+	float GetClassIceResistance(AActor *Target)
+	{
+		FResistanceRow Row{};
+		return ResolveClassInnateRow(Target, Row) ? Row.Ice / RESISTANCE_PERCENT_DIVISOR : 0.0f;
 	}
 }

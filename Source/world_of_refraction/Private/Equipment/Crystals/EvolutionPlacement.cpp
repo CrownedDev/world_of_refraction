@@ -42,12 +42,42 @@ TArray<FAttachedEvolution> WoREvolutionPlacement::FilterPassives(const TArray<FA
 	return Attached.FilterByPredicate([ChargeLevel](const FAttachedEvolution &Evolution) { return GivesPassives(Evolution.Place, ChargeLevel); });
 }
 
+bool WoREvolutionPlacement::PowersAction(EEvolutionPlace Place, EActionType ActionType, EInfusionSourceOption Source)
+{
+	switch (Place)
+	{
+	case EEvolutionPlace::Weapon:
+		return ActionType == EActionType::Ability || Source == EInfusionSourceOption::WeaponCrystal;
+	case EEvolutionPlace::Adapter:
+		return Source == EInfusionSourceOption::ActiveRing || Source == EInfusionSourceOption::PrimaryRing;
+	case EEvolutionPlace::Apparel:
+		return true;
+	case EEvolutionPlace::Character:
+	default:
+		return false;
+	}
+}
+
+TArray<FAttachedEvolution> WoREvolutionPlacement::FilterForAction(const TArray<FAttachedEvolution> &Attached, EActionType ActionType,
+																  EInfusionSourceOption Source, int32 ChargeLevel)
+{
+	if (ChargeLevel < GEAR_PASSIVES_CHARGE_LEVEL)
+	{
+		return {};
+	}
+	return Attached.FilterByPredicate([ActionType, Source](const FAttachedEvolution &Evolution)
+	{
+		return Evolution.Attachment.Item && !Evolution.Attachment.IsBroken() && PowersAction(Evolution.Place, ActionType, Source);
+	});
+}
+
 const TCHAR *WoREvolutionPlacement::GetPlaceName(EEvolutionPlace Place)
 {
 	switch (Place)
 	{
 	case EEvolutionPlace::Weapon:  return TEXT("weapon");
 	case EEvolutionPlace::Adapter: return TEXT("adapter");
+	case EEvolutionPlace::Apparel: return TEXT("apparel");
 	case EEvolutionPlace::Character:
 	default:                       return TEXT("character");
 	}

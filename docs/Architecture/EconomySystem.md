@@ -113,7 +113,7 @@ never priced — weapon identity, not added value. Drives the Themed-Ring price 
 
 #### Leveling (`LevelUp*`) + Downgrade (`Downgrade*`)
 The level up/down pair across all five instance types — see [`TierOnInstance.md`](./TierOnInstance.md)
-and the player-facing [`../Mechanics/Economy/Upgrading.md`](../Mechanics/Economy/Upgrading.md). Both route through
+and the player-facing [`../Mechanics/Economy/Upgrading.md`](../archive/Mechanics/Economy/Upgrading.md). Both route through
 two shared, type-agnostic private cores:
 
 - **`TryLevelUpEntry(Currency, EItemTier& InOutTier, ECurrencyType LevelingEssence = GearEssence, bool bHasElement = false)`**

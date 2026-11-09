@@ -6,6 +6,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
+#include "Memory/HiddenQuestData.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
 
@@ -284,6 +285,9 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
         return LOCTEXT("ESkillEffectType_NegateDamageTotal", "Barrier (in total)");
     case ESkillEffectType::NegateElementTotal:
         return LOCTEXT("ESkillEffectType_NegateElementTotal", "Ward (in total)");
+    // B-064a: Ice's status break. TODO: Crown — the name is lore (Q-064a2); a placeholder until then.
+    case ESkillEffectType::IceBreak:
+        return LOCTEXT("ESkillEffectType_IceBreak", "Ice break");
     }
     return FText::GetEmpty();
 }
@@ -333,6 +337,20 @@ FText GetCombatRowName(ECombatRow Row)
         return LOCTEXT("ECombatRow_Middle", "Middle Row");
     case ECombatRow::Front:
         return LOCTEXT("ECombatRow_Front", "Front Row");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetQuestKindName(EQuestKind Kind)
+{
+    switch (Kind)
+    {
+    case EQuestKind::Hidden:
+        return LOCTEXT("EQuestKind_Hidden", "Hidden");
+    case EQuestKind::Main:
+        return LOCTEXT("EQuestKind_Main", "Main");
+    case EQuestKind::Side:
+        return LOCTEXT("EQuestKind_Side", "Side");
     }
     return FText::GetEmpty();
 }

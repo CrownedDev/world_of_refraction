@@ -2,7 +2,8 @@
 // B-274 (S8): one row per status break: what a capped bar applies, its size, timing and any second
 // effect. The trigger per damage type is ElementTable's BreakTrigger (BD's drain stays a resolver
 // override); the flavour name is SkillEffectDisplayNames. USkillEffectManager::ApplyTriggeredSkillEffect
-// reads this table. Ice's slow (B-064a) or a new break = one row. Debug: wor.Breaks.Print; spec WoR.Status.BreakTable.
+// reads this table. A new break = one row (Ice's, B-064a: Water's slow plus damage). Debug: wor.Breaks.Print; spec
+// WoR.Status.BreakTable.
 
 #pragma once
 
@@ -40,6 +41,9 @@ struct FBreakRow
 	ESkillEffectType AlsoApplied;
 	/** Places a newly applied break pushes the holder's next turn back (Wind). 0 for most. */
 	int32 DelayTurnPlaces;
+	/** B-064a: a share of the holder's max HP dealt once on landing, besides the applied effect (Ice, D-090). Can kill,
+	 *  as Reality Burst. 0 for most (the rows that leave it out). */
+	float DamageShareOfMaxHP = 0.0f;
 };
 
 namespace BreakTable

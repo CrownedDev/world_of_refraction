@@ -2,6 +2,7 @@
 // GAS stage 3 (B-042l): UWoRBuildupExecution reads the source's StatusMultiplier and the target's
 // status resistance layers from the ASCs and runs WoRBuildupMath: the same buildup as
 // UStatusBuildupManager::AddStatusBuildup for the same hit, and applied as Buildup += that amount.
+// B-273b: the pair and the FromPair hit kind make the same request; an Ice hit reads Resist_Ice alone.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -224,6 +225,32 @@ void FBuildupExecutionSpec::Define()
 				  BUILDUP_EXEC_TOLERANCE);
 		TestTrue(TEXT("Water: less buildup"), GASBuildup(Water) < WaterBefore - BUILDUP_EXEC_TOLERANCE);
 		TestEqual(TEXT("Fire: unchanged"), GASBuildup(Fire), FireBefore, BUILDUP_EXEC_TOLERANCE);
+	});
+
+	It("makes the same request by pair and by FromPair hit kind, and reads Resist_Ice alone for an Ice hit (B-273b)", [this]()
+	{
+		if (!Buildup) return;
+		for (const ESpellElement Element : {ESpellElement::None, ESpellElement::Fire, ESpellElement::Water})
+		{
+			for (const EPhysicalDamageType Physical : {EPhysicalDamageType::None, EPhysicalDamageType::Slash})
+			{
+				const FString Case = FString::Printf(TEXT("%s %s"), *UEnum::GetValueAsString(Element), *UEnum::GetValueAsString(Physical));
+				const FWoRBuildupRequest Pair = UWoRBuildupExecution::MakeRequest(*Buildup, Source, Target, BUILDUP_EXEC_AMOUNT, Element, Physical);
+				const FWoRBuildupRequest Kind = UWoRBuildupExecution::MakeRequest(*Buildup, Source, Target, BUILDUP_EXEC_AMOUNT,
+																				  FWoRHitKind::FromPair(Element, Physical));
+				TestEqual(*(Case + TEXT(": gathered")), WoRBuildupMath::Compute(Kind.Inputs), WoRBuildupMath::Compute(Pair.Inputs),
+						  BUILDUP_EXEC_TOLERANCE);
+				TestEqual(*(Case + TEXT(": on GAS")), GASBuildup(Kind), GASBuildup(Pair), BUILDUP_EXEC_TOLERANCE);
+			}
+		}
+
+		TargetASC->SetNumericAttributeBase(UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), BUILDUP_EXEC_ICE_RESIST);
+		const FWoRBuildupRequest Ice =
+			UWoRBuildupExecution::MakeRequest(*Buildup, Source, Target, BUILDUP_EXEC_AMOUNT, FWoRHitKind::Ice());
+		TestEqual(TEXT("The request keeps the Ice hit"), Ice.GetHitKind().DamageType, EWoRDamageType::Ice);
+		TestEqual(TEXT("An Ice hit's type resistance is Resist_Ice alone"),
+				  UWoRBuildupExecution::ReadAttributes(Ice, SourceASC, TargetASC).HitTypeResistance, BUILDUP_EXEC_ICE_RESIST,
+				  BUILDUP_EXEC_TOLERANCE);
 	});
 
 	It("keeps a baked-in or missing source multiplier", [this]()

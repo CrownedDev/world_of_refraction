@@ -321,6 +321,14 @@ public:
 	 *  lethal cost routes through ServerTakeDamage -> CheckDeath -> OnDied. */
 	void ApplyPendingInfusionHPCost(AActor *Actor);
 
+	/** B-357d (D-147, Q-357b A): an action charged to L2 gets the lasting passives of the gear evolutions in the items
+	 *  that power it (ULoadoutComponent::GetGearEvolutionPassivesForAction), put on Actor through the gear-swap path
+	 *  (USkillEffectManager::SwapEquipmentEffects, both effect paths). Returns what went on, for TakeOff. */
+	TArray<FGatheredEffect> PutOnGearEvolutionPassives(AActor *Actor, const FAction &Action);
+
+	/** B-357d: takes Passives (PutOnGearEvolutionPassives' list) off Actor when the action is done. */
+	void TakeOffGearEvolutionPassives(AActor *Actor, const TArray<FGatheredEffect> &Passives);
+
 	/** Compute the full per-action stat modifier accumulator for an action.
 	 *  Walks Reality innate, Reality slotted, Reality infused, Evolution slotted,
 	 *  and Evolution-infused (stub). Returns a populated FActionStatModifiers. */

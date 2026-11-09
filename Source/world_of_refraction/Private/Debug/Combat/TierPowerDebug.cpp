@@ -103,13 +103,13 @@ void UTierPowerDebug::PrintGearContribution(ULoadoutComponent *Loadout)
 
     // Primary-slot evolution — contributes Base + Generated at the item's tier
     // (mirrors GetActiveStatBonus; pillar percents are not summed there).
-    const FCombatLoadout &Active = Loadout->GetActiveLoadout();
-    if (Active.IsEvolutionLoadout() && Active.PrimaryEvolution.Item)
+    const FEvolutionAttachment Seat = Loadout->GetCharacterSlotEvolution(); // B-357e: the one resolve path
+    if (Seat.Item)
     {
-        FEquipmentStatBonus EvoBonus = Active.PrimaryEvolution.Item->BaseStatBonus;
-        EvoBonus.Accumulate(Active.PrimaryEvolution.GeneratedStatBonus);
-        PrintItem(TEXT("Evolution"), Active.PrimaryEvolution.Item->GetName(),
-                  Active.PrimaryEvolution.Tier, EvoBonus); // INSTANCE tier, not Item->Tier (asset)
+        FEquipmentStatBonus EvoBonus = Seat.Item->BaseStatBonus;
+        EvoBonus.Accumulate(Seat.GeneratedStatBonus);
+        PrintItem(TEXT("Evolution"), Seat.Item->GetName(),
+                  Seat.Tier, EvoBonus); // INSTANCE tier, not Item->Tier (asset)
     }
 
     // Authoritative aggregate the game actually reads (tier-weighted, rounded once).

@@ -3,6 +3,7 @@
 #include "GAS/WoRBuildupExecution.h"
 #include "AbilitySystemComponent.h"
 #include "Combat/Resistance/EWoRDamageType.h"
+#include "Combat/Elements/ElementTable.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoREffectContext.h"
@@ -32,20 +33,23 @@ FBuildupMathInputs UWoRBuildupExecution::ReadAttributes(const FWoRBuildupRequest
 														Inputs.SourceStatusMultiplier);
 	}
 
-	// WoRResistance::GetHitTypeResistance's rule on the attributes: the element's type (None and
-	// Generic read Resist_NonElemental; Water adds Ice, B-226), plus the physical subtype when the hit has one.
-	const EWoRDamageType ElementType = WoRDamageType::ElementToDamageType(Request.Element);
+	// WoRResistance::GetHitTypeResistance's rule on the attributes: the hit's element-axis type (None and
+	// Generic read Resist_NonElemental; an Ice hit reads Resist_Ice, B-273b), plus the type that also resists it
+	// (a Water hit adds Ice, B-226, Q-145b; an Ice hit adds nothing), plus the physical subtype when the hit has one.
+	const FWoRHitKind Hit = Request.GetHitKind();
+	const EWoRDamageType ElementType = Hit.ElementType();
+	const EWoRDamageType AlsoType = ElementTable::For(ElementType).AlsoResistedBy;
 	float General = 0.0f;
 	float HitType = 0.0f;
 	float Bonus = 0.0f;
-	float Ice = 0.0f;
+	float Also = 0.0f;
 	if (UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetStatusResistanceAttribute(), General) &&
 		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(ElementType), HitType) &&
 		UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetStatusResistBonusAttribute(), Bonus) &&
-		(ElementType != EWoRDamageType::Water ||
-		 UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), Ice)))
+		(AlsoType == EWoRDamageType::None ||
+		 UWoRAttributeSyncComponent::ReadSyncedAttribute(Target, UWoRAttributeSet_Resistance::GetTypeAttribute(AlsoType), Also)))
 	{
-		HitType += Ice;
+		HitType += Also;
 		float Physical = 0.0f;
 		if (Request.PhysicalType != EPhysicalDamageType::None &&
 			UWoRAttributeSyncComponent::ReadSyncedAttribute(
@@ -85,10 +89,17 @@ void UWoRBuildupExecution::Execute_Implementation(const FGameplayEffectCustomExe
 FWoRBuildupRequest UWoRBuildupExecution::MakeRequest(const UStatusBuildupManager &Buildup, AActor *Source, AActor *Target, float Amount,
 													 ESpellElement Element, EPhysicalDamageType PhysicalType, bool bSkipBaseStatAmp)
 {
+	return MakeRequest(Buildup, Source, Target, Amount, FWoRHitKind::FromPair(Element, PhysicalType), bSkipBaseStatAmp);
+}
+
+FWoRBuildupRequest UWoRBuildupExecution::MakeRequest(const UStatusBuildupManager &Buildup, AActor *Source, AActor *Target, float Amount,
+													 const FWoRHitKind &Hit, bool bSkipBaseStatAmp)
+{
 	FWoRBuildupRequest Request;
-	Request.Inputs = Buildup.GatherBuildupMathInputs(Source, Target, Amount, Element, PhysicalType, bSkipBaseStatAmp);
-	Request.Element = Element;
-	Request.PhysicalType = PhysicalType;
+	Request.Inputs = Buildup.GatherBuildupMathInputs(Source, Target, Amount, Hit, bSkipBaseStatAmp);
+	Request.Element = Hit.Element;
+	Request.PhysicalType = Hit.Physical;
+	Request.DealtTypeOverride = FWoRHitKind::GetDealtTypeOverride(Hit);
 	Request.bHasSource = Source != nullptr;
 	Request.bSkipBaseStatAmp = bSkipBaseStatAmp;
 	return Request;
@@ -106,7 +117,6 @@ FGameplayEffectSpecHandle UWoRBuildupExecution::MakeBuildupSpec(UAbilitySystemCo
 
 FString UWoRBuildupExecution::GetRequestString(const FWoRBuildupRequest &Request)
 {
-	return FString::Printf(TEXT("element %s, physical %s, source=%d, skip source multiplier=%d\n%s"),
-						   *UEnum::GetValueAsString(Request.Element), *UEnum::GetValueAsString(Request.PhysicalType),
-						   Request.bHasSource, Request.bSkipBaseStatAmp, *WoRBuildupMath::GetInputsString(Request.Inputs));
+	return FString::Printf(TEXT("hit %s, source=%d, skip source multiplier=%d\n%s"),
+						   *Request.GetHitKind().ToString(), Request.bHasSource, Request.bSkipBaseStatAmp, *WoRBuildupMath::GetInputsString(Request.Inputs));
 }
