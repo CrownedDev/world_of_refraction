@@ -1,18 +1,24 @@
-# Cloud writer handover (2026-11-09, fourteenth part: the visual phase) — IN PROGRESS
+# Cloud writer handover (2026-11-09, fourteenth part: the visual and camera phase) — IN PROGRESS
 
-Written, pushed, reviewed and fixed. All are on the trial branch `integration/cloud-2026-11-09b` (merge plan rows 85–88):
+**Written, pushed, reviewed and fixed** (merge plan rows 85–95). All are on the current trial branch **`integration/cloud-2026-11-09c`** (dev plus every unmerged cloud branch; it supersedes 09b):
 - **B-394:** cast VFX source rule (Q-394).
 - **B-392:** two guards. Save v32.
 - **B-393:** parry landing VFX, stacked on B-392. Save v33.
-- **B-391:** placeholder battle HUD and command menu, behind `wor.UI.NewHUD` (default 1). The new row **B-391b** holds the damage numbers and the pieces the old HUD had.
+- **B-391:** placeholder battle HUD and command menu, behind `wor.UI.NewHUD` (default 1). New row **B-391b** holds the damage numbers and the old HUD's missing pieces.
+- **B-402:** side-on defence view; shake / punch while defending are dropped, not replayed (Q-402).
+- **B-405:** boss framing (low turn view) and kill shots; nothing can start during the kill-shot hold (Q-405).
+- **B-398:** turn-view setting, Centred Wide default, saved per player. Save v34.
+- **B-403:** shot-pattern tuning (melee rush with motion blur, side-on impact). **Q-403 lists the FOV punch cut (8/14 → 5/10) for Crown.**
+- **B-407:** short signature-spell cameras (`SignatureCameraCap`, 2.0 s, TODO: tune).
+- **B-399:** calm menus (a sub-menu steps the turn camera in), stacked on B-398.
 
-The desktop built and merged B-043d, B-043e and its own **B-043f** (Q-043f C: the montage stays in the executor). My cloud `feature/B-043f-orchestrator-abilities-cloud` is docs only and superseded: **don't merge it**.
+**Merge rules:** keep `LATEST = 34` whatever order rows 86, 87 and 92 merge in. The camera rows conflict with one another; the merge plan's late-night update gives each resolution. The one git won't flag: B-399's menu-step calls need B-405's `ApplyHeight` wrap.
 
-**B-043g** (rituals through the ability) is being written from dev.
+**Superseded:** the desktop built its own **B-043f** (Q-043f C) and B-043g. My cloud `feature/B-043f-orchestrator-abilities-cloud` is docs only: **don't merge it**.
 
-The trial branch `integration/cloud-2026-11-09b` is dev plus every unmerged cloud branch. The cross-merge review found no code breakage, and the Backlog status damage it found is restored.
+**Still writable, in order:** B-400 (target cut; on B-399), B-404 (wide beats; on B-371 and B-398), B-401 (no reset between actions; on B-170c and B-398), B-406 (per-boss cinematics), B-391b (on B-391). B-170d onward waits for B-170b/c to build. B-043h waits for PIE.
 
-B-395 (the slice fight) is Crown's loop, with animations reviewed one at a time, so it isn't cloud work.
+**Not cloud work:** B-395 (the slice fight: Crown's loop, animations reviewed one at a time) and B-214 (held by Crown).
 
 # Cloud writer handover (2026-11-09, thirteenth part: after B-043b / B-043c landed) — STOPPED: the next parts wait for builds
 
