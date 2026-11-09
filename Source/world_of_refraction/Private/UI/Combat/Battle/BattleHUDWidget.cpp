@@ -4,6 +4,7 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/TurnManager.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Components/Border.h"
@@ -114,6 +115,8 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 		return;
 	}
 	ClearFlags(RF_Transactional); // TransBuffer rule, as the old panels
+	// B-170e: the fight's mode is latched at its start (InitializeCombat runs before the HUD is built).
+	bShowActions = ActionPipsText::IsActionPipsFight(this);
 
 	for (AActor *Actor : Party)
 	{
@@ -175,6 +178,10 @@ void UBattleHUDWidget::AddCard(AActor *Actor, bool bParty)
 		CharData->OnResurrected.AddDynamic(this, &UBattleHUDWidget::HandleLifeChanged);
 		// A Resonator with nothing to spend EP on has no EP line, as the old panel (init-only there too).
 		Card.bShowEP = bParty && CharData->HasUsableEPTarget();
+		if (bParty && bShowActions)
+		{
+			CharData->OnActionsChanged.AddDynamic(this, &UBattleHUDWidget::HandlePoolChanged); // B-170e; same (int32, int32) shape
+		}
 	}
 	else
 	{
@@ -201,6 +208,7 @@ void UBattleHUDWidget::Teardown()
 		{
 			CharData->OnHPChanged.RemoveDynamic(this, &UBattleHUDWidget::HandlePoolChanged);
 			CharData->OnEPChanged.RemoveDynamic(this, &UBattleHUDWidget::HandlePoolChanged);
+			CharData->OnActionsChanged.RemoveDynamic(this, &UBattleHUDWidget::HandlePoolChanged); // B-170e; a no-op when unbound
 			CharData->OnDied.RemoveDynamic(this, &UBattleHUDWidget::HandleLifeChanged);
 			CharData->OnResurrected.RemoveDynamic(this, &UBattleHUDWidget::HandleLifeChanged);
 		}
@@ -337,6 +345,8 @@ void UBattleHUDWidget::BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Colu
 		Card.HPText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 		Card.EPText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 		Card.EPText->SetVisibility(Card.bShowEP ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		Card.ActionsText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize); // B-170e
+		Card.ActionsText->SetVisibility(bShowActions ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	Card.StatusText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 }
@@ -359,6 +369,11 @@ void UBattleHUDWidget::RefreshPools()
 		Card.HPLine = BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), CharData->CurrentHP, CharData->MaxHP);
 		// TODO: B-391b or later: a Broken Darkness character's absorption pool and overload (the old panel's "Abs").
 		Card.EPLine = BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), CharData->CurrentEP, CharData->MaxEP);
+		if (Card.bParty && bShowActions) // B-170e
+		{
+			Card.ActionsLine = ActionPipsText::MakeActionsLine(CharData->CurrentActions, CharData->GetMaxActions(),
+															   CharData->GetActionPointProgress());
+		}
 	}
 	PushToWidgets();
 }
@@ -457,6 +472,7 @@ void UBattleHUDWidget::PushToWidgets()
 		}
 		BattleHUDBuild::SetTextSafe(Card.HPText, Card.HPLine);
 		BattleHUDBuild::SetTextSafe(Card.EPText, Card.EPLine);
+		BattleHUDBuild::SetTextSafe(Card.ActionsText, Card.ActionsLine);
 		BattleHUDBuild::SetTextSafe(Card.StatusText, Card.StatusLine);
 		if (Card.Frame)
 		{
@@ -516,6 +532,10 @@ void UBattleHUDWidget::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	CurrentTurnNumber = TurnNumber;
 	RefreshTurnStrip();
 	RefreshStatuses(); // durations are shown per turn
+	if (bShowActions)
+	{
+		RefreshPools(); // B-170e: Max Actions can move with buffs that don't change the bank
+	}
 }
 
 void UBattleHUDWidget::HandleTurnStateChanged()
@@ -526,6 +546,10 @@ void UBattleHUDWidget::HandleTurnStateChanged()
 	}
 	RefreshTurnStrip();
 	RefreshStatuses();
+	if (bShowActions)
+	{
+		RefreshPools(); // B-170e, as HandleTurnStarted
+	}
 }
 
 void UBattleHUDWidget::HandleStatusButtonClicked()
@@ -539,15 +563,19 @@ void UBattleHUDWidget::HandleStatusButtonClicked()
 
 FString UBattleHUDWidget::GetBattleHUDString() const
 {
-	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s"), bBound ? TEXT("yes") : TEXT("no"),
+	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s actionPips=%s"), bBound ? TEXT("yes") : TEXT("no"),
 								  Cards.Num(), CurrentTurnNumber, bStatusPanelOpen ? TEXT("open") : TEXT("closed"),
-								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"));
+								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"), bShowActions ? TEXT("on") : TEXT("off"));
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		Out += FString::Printf(TEXT("\n  %s %s%s%s | %s | %s | %s"), Card.bParty ? TEXT("party") : TEXT("enemy"), *Card.Name.ToString(),
 							   Card.bActing ? TEXT(" (acting)") : TEXT(""), Card.bAlive ? TEXT("") : TEXT(" (down)"),
 							   *Card.HPLine.ToString(), Card.bShowEP ? *Card.EPLine.ToString() : TEXT("no EP"),
 							   Card.StatusLine.IsEmpty() ? TEXT("no statuses") : *Card.StatusLine.ToString());
+		if (Card.bParty && bShowActions)
+		{
+			Out += FString::Printf(TEXT(" | %s"), *Card.ActionsLine.ToString()); // B-170e
+		}
 	}
 	for (const FText &Line : TurnLines)
 	{
