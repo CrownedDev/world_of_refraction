@@ -15,7 +15,6 @@
 #include "Tags/WoRGameplayTags.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "HAL/IConsoleManager.h"
 #include "Net/UnrealNetwork.h"
 #include "WoRLog.h"
 
@@ -23,12 +22,6 @@ namespace
 {
 	/** Stacked values are copied, not recomputed, so anything above rounding noise is a change. */
 	constexpr float MIRROR_MAGNITUDE_TOLERANCE = 0.001f;
-
-	int32 GWoREffectsUseGAS = 0;
-	FAutoConsoleVariableRef CVarWoREffectsUseGAS(
-		TEXT("wor.Effects.UseGAS"), GWoREffectsUseGAS,
-		TEXT("1: the effect manager's type and total reads use the mirrored GameplayEffects for ported types (B-042c, Q-042c). 0: the enum path (default)."),
-		ECVF_Default);
 
 	USkillEffectManager *MirrorEffectManager(const UObject *WorldContext)
 	{
@@ -79,22 +72,11 @@ void UWoREffectMirrorComponent::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(UWoREffectMirrorComponent, HeldSnapshot);
-	DOREPLIFETIME(UWoREffectMirrorComponent, bServerReadsFromGAS);
 }
 
 void UWoREffectMirrorComponent::OnRep_HeldSnapshot()
 {
 	OnHeldSnapshotChanged.Broadcast(GetOwner());
-}
-
-bool UWoREffectMirrorComponent::ReadsFromGAS()
-{
-	return GWoREffectsUseGAS != 0;
-}
-
-void UWoREffectMirrorComponent::SetReadsFromGAS(bool bEnabled)
-{
-	GWoREffectsUseGAS = bEnabled ? 1 : 0;
 }
 
 TArray<FWoRMirroredEffect> UWoREffectMirrorComponent::ReadEnumEffects(const AActor *Actor)
@@ -131,7 +113,7 @@ void UWoREffectMirrorComponent::SyncMirror()
 	TGuardValue<bool> SyncingGuard(bSyncing, true);
 	++SyncCount;
 
-	UWoRTurnEffectTracker *Tracker = OwnsLifetime(Owner) ? GetTracker() : nullptr;
+	UWoRTurnEffectTracker *Tracker = GetTracker(); // B-042h: with one, GAS owns the lifetime
 	// Holder-turn spans only: an Immediate effect's teardown stays the enum path's (bPendingRemoval).
 	const auto ShouldTrack = [Tracker](const FActiveSkillEffect &Effect)
 	{
@@ -194,7 +176,7 @@ void UWoREffectMirrorComponent::SyncMirror()
 		{
 			continue;
 		}
-		// Untracked when the enum path owns the lifetime (UseGAS 0, or no tracker) and for permanent
+		// Untracked when the enum path owns the lifetime (no tracker) and for permanent
 		// effects. The tracker doesn't pay the tick: the effect manager's turn pass calls PayTick (Q-042y).
 		FWoRMirroredEffect Entry = ToMirrored(Effect);
 		Entry.bTracked = ShouldTrack(Effect);
@@ -208,9 +190,8 @@ void UWoREffectMirrorComponent::SyncMirror()
 	}
 	Mirrored = MoveTemp(Kept);
 	SyncedFingerprint = GetSyncFingerprint();
-	// B-318: the read a client can't make itself, kept for replication (empty while the enum path reads).
-	bServerReadsFromGAS = ReadsFromGAS();
-	HeldSnapshot = bServerReadsFromGAS ? BuildHeld(SEM->GetActiveEffects(Owner)) : TArray<FActiveSkillEffect>();
+	// B-318: the read a client can't make itself, kept for replication.
+	HeldSnapshot = BuildHeld(SEM->GetActiveEffects(Owner));
 
 	if (bResyncRequested)
 	{
@@ -225,7 +206,7 @@ uint32 UWoREffectMirrorComponent::GetSyncFingerprint() const
 	AActor *Owner = GetOwner();
 	const UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Owner);
 	const USkillEffectManager *SEM = MirrorEffectManager(this);
-	uint32 Hash = HashCombineFast(GetTypeHash(ReadsFromGAS()), PointerHash(GetTracker()));
+	uint32 Hash = PointerHash(GetTracker());
 	Hash = HashCombineFast(Hash, GetTypeHash(ASC ? ASC->GetActiveGameplayEffects().GetNumGameplayEffects() : INDEX_NONE));
 	// Which of our GEs are still live (one ending while another GE lands keeps the count).
 	for (const FWoRMirroredEffect &Entry : Mirrored)
@@ -261,12 +242,6 @@ UWoRTurnEffectTracker *UWoREffectMirrorComponent::GetTracker() const
 	return GetOwner() ? GetOwner()->FindComponentByClass<UWoRTurnEffectTracker>() : nullptr;
 }
 
-bool UWoREffectMirrorComponent::OwnsLifetime(const AActor *Actor)
-{
-	return ReadsFromGAS() && Actor && Actor->FindComponentByClass<UWoREffectMirrorComponent>() &&
-		   Actor->FindComponentByClass<UWoRTurnEffectTracker>();
-}
-
 int32 UWoREffectMirrorComponent::GetTrackedTurnsLeft(const FActiveSkillEffect &Effect) const
 {
 	const UWoRTurnEffectTracker *Tracker = GetTracker();
@@ -283,12 +258,7 @@ TArray<FActiveSkillEffect> UWoREffectMirrorComponent::ReadHeldEffects(const TArr
 	// B-318 (Q-318): a client reads the server's GAS read, replicated; its own stored list isn't the truth.
 	if (GetOwner() && !GetOwner()->HasAuthority())
 	{
-		if (ReadsFromGAS() != bServerReadsFromGAS)
-		{
-			UE_LOG(LogWoREffects, Verbose, TEXT("[EffectMirror] %s: this client's wor.Effects.UseGAS differs from the server's; following the server"),
-				   *GetNameSafe(GetOwner()));
-		}
-		return bServerReadsFromGAS ? HeldSnapshot : Stored;
+		return HeldSnapshot;
 	}
 	UAbilitySystemComponent *ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetOwner());
 	// Mid-sync, Mirrored is half-updated: the stored list is the safe answer.
@@ -426,7 +396,7 @@ void UWoREffectMirrorComponent::ReleaseEndedCopies()
 
 const UAbilitySystemComponent *UWoREffectMirrorComponent::GetGASReadSource(const AActor *Actor, ESkillEffectType Type)
 {
-	if (!ReadsFromGAS() || !Actor || !FWoREffectSpecBuilder::GetEffectClass(Type))
+	if (!Actor || !FWoREffectSpecBuilder::GetEffectClass(Type))
 	{
 		return nullptr;
 	}
