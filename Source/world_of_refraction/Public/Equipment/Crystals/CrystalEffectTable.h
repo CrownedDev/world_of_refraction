@@ -230,6 +230,28 @@ namespace CrystalEffectTable
                                             : AugmentStoneConstants::EMERALD_BONUS_TURNS;
     }
 
+    /** B-170d (Q-170f): actions an Emerald grants yourself or an ally with action pips; 0 for a non-Emerald. */
+    inline int32 GetEmeraldAllyActionsGained(const FCrystalId &Id)
+    {
+        const int32 i = TierHelpers::GetTierValue(Id.Tier);
+        if (Id.Type != ECrystalType::Emerald || i < 0 || i >= 7)
+        {
+            return 0;
+        }
+        return AugmentStoneConstants::EMERALD_ALLY_ACTIONS_GAINED[i];
+    }
+
+    /** B-170d (Q-170f): the holder turn starts before that gain lands (0 = now). */
+    inline int32 GetEmeraldAllyGainDelay(const FCrystalId &Id)
+    {
+        const int32 i = TierHelpers::GetTierValue(Id.Tier);
+        if (Id.Type != ECrystalType::Emerald || i < 0 || i >= 7)
+        {
+            return 0;
+        }
+        return AugmentStoneConstants::EMERALD_ALLY_GAIN_DELAY_TURNS[i];
+    }
+
     // ==================== SHARED BUFF DURATION ====================
 
     /** Shared consumable buff/debuff duration curve (turns) by tier: F/E=4,

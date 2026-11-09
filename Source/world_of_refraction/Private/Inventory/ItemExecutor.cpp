@@ -528,8 +528,41 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 		return;
 	}
 
-	// OBSOLETE (B-341): the delayed path (ScheduleBonusTurn after EMERALD_BONUS_TURN_DELAY turns) retired.
+	// B-170d (Q-170f, ActionPips.md §3.4): in a fixed-rotation fight an enemy loses its next turn (S: the next two),
+	// and yourself or an ally gains actions by tier (now, next turn or the one after), which may pass Max Actions.
 	const int32 Count = CrystalEffectTable::GetEmeraldBonusTurnCount(Id);
+	if (TurnMgr->IsRotationMode())
+	{
+		if (User && TurnMgr->GetActorTeam(User) != TurnMgr->GetActorTeam(Target))
+		{
+			TurnMgr->SkipNextTurn(Target, Count);
+			UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: %s loses %d turn(s)"), *Target->GetName(), Count);
+			OutResult.bSuccess = true;
+			return;
+		}
+		UCharacterDataComponent *Bank = Target->FindComponentByClass<UCharacterDataComponent>();
+		if (!Bank)
+		{
+			OutResult.ErrorMessage = TEXT("Emerald: the target has no actions");
+			return;
+		}
+		const int32 Gained = CrystalEffectTable::GetEmeraldAllyActionsGained(Id);
+		const int32 Delay = CrystalEffectTable::GetEmeraldAllyGainDelay(Id);
+		if (Delay <= 0)
+		{
+			Bank->GainActions(Gained, true);
+		}
+		else
+		{
+			Bank->QueueActionChange(Gained, Delay, true, TEXT("Emerald"));
+		}
+		UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: %s gains %d action(s), %d turn start(s) from now"), *Target->GetName(),
+			   Gained, Delay);
+		OutResult.bSuccess = true;
+		return;
+	}
+
+	// OBSOLETE (B-341): the delayed path (ScheduleBonusTurn after EMERALD_BONUS_TURN_DELAY turns) retired.
 	TurnMgr->GrantBonusTurn(Target, Count);
 	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: %d bonus turn(s) for %s, landing next"), Count, *Target->GetName());
 
