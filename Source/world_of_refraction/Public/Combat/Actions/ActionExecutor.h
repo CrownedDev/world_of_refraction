@@ -875,6 +875,22 @@ private:
 	bool ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, AActor *InterruptCaster,
 							 USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel, bool bProjectileArrival = false);
 
+	/** B-032d (Q-032d): a count-based window closed (its last impact, the animation's end, the 8s failsafe, the
+	 *  action timeout) with impacts [ImpactsLanded, HitCount) still to land: each lands on its own, its slice
+	 *  (SpellImpactPlan::ImpactBaseSlice) reduced by the close's outcome share. Replaces the lumped tail for these
+	 *  windows under wor.Combat.PerImpactDefense. Ctx is the caller's copy. */
+	void ApplyRemainingImpacts(AActor *Attacker, AActor *Target, FPendingDefenseContext &Ctx, const FDefenseResult &CloseResult);
+
+	/** B-032d: the skill animation ended. Lands an ability's missing impacts (LandFallbackImpacts), then closes the
+	 *  count-based windows (ReconcileCountBasedDefenseWindows). Called at Skill-end. */
+	void ReconcileDefenseWindowsAtAnimationEnd();
+
+	/** B-032d: an ability whose montage carried fewer Impact notifies than its HitCount (or none) lands each missing
+	 *  impact now through RouteImpactFrame: its own defense resolve, AI press and interrupt check, as a notify would.
+	 *  Off with wor.Combat.PerImpactDefense 0 (the close-time tail lands them, lumped). */
+	void LandFallbackImpacts();
+	friend class FPerImpactDefenseSpec; // B-032d: drives the animation-end fallback headless
+
 	/** Handle multi-hit abilities. OBSOLETE (B-167): its only caller was the no-DefenseSystem
 	 *  fallback; remove after Crown's PIE pass of B-167 / B-032. */
 	int32 ProcessMultiHit(
