@@ -498,6 +498,27 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void LoseActions(int32 Amount);
 
+    /** B-170d: the net Max Actions Buff minus Debuff held (whole actions); 0 without an effect manager. */
+    int32 GetMaxActionsChange() const;
+
+    /** B-170d (ActionPips.md §1 step 2): Change (+gain / -loss) lands at the holder's TurnsLeft-th turn start from now
+     *  (1 = the next). Server only; ignored at 0 change or TurnsLeft below 1 (a change "now" calls Gain / LoseActions). */
+    void AddWaitingActionChange(int32 Change, int32 TurnsLeft, bool bMayPassMax);
+
+    /** B-170d (ActionPips.md §1 step 2): counts one turn start on every waiting change and lands those due: the gains
+     *  first, then the losses (a loss is never wasted on an empty bank). The orchestrator calls it after the regain
+     *  and before the 0-action check. */
+    void ApplyWaitingActionChanges();
+
+    /** B-170d (D-064): drops every waiting change. The orchestrator calls it at every fight start and end, whatever
+     *  wor.Turns.ActionPips says, so none outlives its fight. */
+    void ClearWaitingActionChanges();
+
+    const TArray<FWoRWaitingActionChange> &GetWaitingActionChanges() const { return WaitingActionChanges; }
+
+    /** "+1 next turn, -1 in 2 turns", or "none" (wor.Actions.Print). */
+    FString GetWaitingActionChangesString() const;
+
     UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
     FOnActionsChanged OnActionsChanged;
 
@@ -713,6 +734,10 @@ private:
 
     /** Writes CurrentActions on the authority and broadcasts OnActionsChanged when it changed. */
     void SetCurrentActions(int32 NewActions);
+
+    /** Per-fight (B-170d, D-064): gains and losses waiting for a later turn start. Server only, not replicated,
+     *  not saved; the orchestrator clears them at every fight start and in FinishCombat, whatever the switch. */
+    TArray<FWoRWaitingActionChange> WaitingActionChanges;
 
     UFUNCTION()
     void OnRep_bIsAlive();

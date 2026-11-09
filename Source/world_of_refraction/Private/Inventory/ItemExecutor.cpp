@@ -480,6 +480,42 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 
 	// OBSOLETE (B-341): the delayed path (ScheduleBonusTurn after EMERALD_BONUS_TURN_DELAY turns) retired.
 	const int32 Count = CrystalEffectTable::GetEmeraldBonusTurnCount(Id);
+
+	// B-170d (Crown, Q-170f), action-pips fights only: on an enemy the target loses its next turn (S: two, Q-341b);
+	// on yourself or an ally it gains actions by tier (EMERALD_ALLY_*), which may pass Max.
+	if (TurnMgr->IsRotationMode())
+	{
+		const int32 UserTeam = TurnMgr->GetActorTeam(User);
+		const bool bOnEnemy = UserTeam != INDEX_NONE && TurnMgr->GetActorTeam(Target) != INDEX_NONE && TurnMgr->GetActorTeam(Target) != UserTeam;
+		if (bOnEnemy)
+		{
+			TurnMgr->SkipNextTurn(Target, Count);
+			UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: %s loses its next %d turn(s)"), *Target->GetName(), Count);
+			OutResult.bSuccess = true;
+			return;
+		}
+		UCharacterDataComponent *TargetData = Target->FindComponentByClass<UCharacterDataComponent>();
+		const int32 TierIndex = TierHelpers::GetTierValue(Id.Tier);
+		if (!TargetData || TierIndex < 0 || TierIndex >= static_cast<int32>(UE_ARRAY_COUNT(AugmentStoneConstants::EMERALD_ALLY_ACTIONS_GAINED)))
+		{
+			OutResult.ErrorMessage = TEXT("Emerald: no actions to give");
+			return;
+		}
+		const int32 Gained = AugmentStoneConstants::EMERALD_ALLY_ACTIONS_GAINED[TierIndex];
+		const int32 Delay = AugmentStoneConstants::EMERALD_ALLY_GAIN_DELAY_TURNS[TierIndex];
+		if (Delay <= 0)
+		{
+			TargetData->GainActions(Gained, /*bMayPassMax=*/true);
+		}
+		else
+		{
+			TargetData->AddWaitingActionChange(Gained, Delay, /*bMayPassMax=*/true);
+		}
+		UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: +%d action(s) for %s in %d turn(s)"), Gained, *Target->GetName(), Delay);
+		OutResult.bSuccess = true;
+		return;
+	}
+
 	TurnMgr->GrantBonusTurn(Target, Count);
 	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: %d bonus turn(s) for %s, landing next"), Count, *Target->GetName());
 

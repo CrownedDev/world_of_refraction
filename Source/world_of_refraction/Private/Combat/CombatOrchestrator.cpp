@@ -268,6 +268,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		{
 			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 			{
+				CharComp->ClearWaitingActionChanges(); // B-170d (D-064): per fight, whatever the switch
 				CharComp->OnDied.AddUniqueDynamic(this, &ACombatOrchestrator::OnCombatantDied);
 			}
 		}
@@ -550,6 +551,18 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s) across the party"), LevelDrops);
 		OnLevelDropsReady.Broadcast(LevelDrops);
+	}
+
+	// B-170d (D-064): no waiting action change outlives its fight, whatever the switch.
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+	{
+		for (AActor *Actor : *Team)
+		{
+			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+			{
+				CharComp->ClearWaitingActionChanges();
+			}
+		}
 	}
 
 	// BEFORE the team arrays empty — it walks them for per-actor unbinds.
@@ -1315,7 +1328,8 @@ bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
 	{
 		ActorsPastFirstTurn.Add(Actor);
 	}
-	// (2) TODO: B-170d: waiting next-turn gains and losses (Wind, a delayed Emerald gain) land here, before the check.
+	// (2) B-170d: waiting gains and losses (Lose Action next turn, Wind's break, a delayed Emerald gain) land here.
+	CharComp->ApplyWaitingActionChanges();
 	// (3) Only then the check.
 	return CharComp->CurrentActions > 0;
 }
