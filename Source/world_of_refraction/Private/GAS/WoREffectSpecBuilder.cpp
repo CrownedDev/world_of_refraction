@@ -344,3 +344,28 @@ FString FWoREffectSpecBuilder::GetDebugString(const UAbilitySystemComponent &ASC
 	}
 	return Lines.Num() > 0 ? FString::Join(Lines, TEXT("\n")) : TEXT("no active GameplayEffects");
 }
+
+FGameplayEffectSpecHandle FWoREffectSpecBuilder::BuildStatSources(UAbilitySystemComponent &ASC, TSubclassOf<UGameplayEffect> SourcesClass,
+																   float Level, float GearFactor, float StoneFactor, float TransientFactor)
+{
+	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(SourcesClass, Level, ASC.MakeEffectContext());
+	if (Spec.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Gear, GearFactor);
+		Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, StoneFactor);
+		Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Transient, TransientFactor);
+	}
+	return Spec;
+}
+
+FGameplayEffectSpecHandle FWoREffectSpecBuilder::BuildPoolSources(UAbilitySystemComponent &ASC, TSubclassOf<UGameplayEffect> PoolClass,
+																   float Level, float GearAmount, float PercentFactor)
+{
+	const FGameplayEffectSpecHandle Spec = ASC.MakeOutgoingSpec(PoolClass, Level, ASC.MakeEffectContext());
+	if (Spec.IsValid())
+	{
+		Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Gear, GearAmount);
+		Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Stone, PercentFactor);
+	}
+	return Spec;
+}
