@@ -5,6 +5,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "UObject/Package.h"
 #include "Combat/Camera/SignatureCameraCap.h"
 #include "LevelSequence.h"
 #include "MovieScene.h"

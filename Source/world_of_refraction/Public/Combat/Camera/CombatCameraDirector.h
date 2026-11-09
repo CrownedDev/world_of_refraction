@@ -174,6 +174,8 @@ private:
 	float LastSignatureCutSeconds = 0.0f;
 	bool bLastSignatureEnemy = false;
 	bool bLastSignatureCut = false;
+	/** B-407: the last capped sequence was stopped before its cap (debug only). */
+	bool bLastSignatureStoppedEarly = false;
 	TWeakObjectPtr<AActor> ViewTargetBeforeCombat;
 	ECombatCameraMode CurrentMode = ECombatCameraMode::None;
 	bool bInCombat = false;

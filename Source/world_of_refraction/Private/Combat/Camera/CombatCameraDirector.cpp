@@ -378,6 +378,7 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 	bLastSignatureEnemy = OpposingCombatants.Contains(Caster);
 	LastSignatureCutSeconds = SignatureCameraCap::GetCutSeconds(LastSignatureSeconds, bLastSignatureEnemy);
 	bLastSignatureCut = false;
+	bLastSignatureStoppedEarly = false;
 	UWorld *World = GetWorld();
 	if (LastSignatureCutSeconds > 0.0f && World)
 	{
@@ -422,7 +423,7 @@ FString UCombatCameraDirector::GetSignatureCapString() const
 	}
 	else
 	{
-		Outcome = FString::Printf(TEXT("%s at %.2f s"), bLastSignatureCut ? TEXT("cut") : TEXT("to be cut"), LastSignatureCutSeconds);
+		Outcome = FString::Printf(TEXT("%s at %.2f s"), bLastSignatureCut ? TEXT("cut") : (bLastSignatureStoppedEarly ? TEXT("stopped before the cap") : TEXT("to be cut")), LastSignatureCutSeconds);
 	}
 	return FString::Printf(TEXT("%s | last %s %.2f s by %s: %s"), *Cap, *LastSignatureName, LastSignatureSeconds, *LastSignatureCaster, *Outcome);
 }
@@ -431,6 +432,8 @@ void UCombatCameraDirector::StopSequence(bool bDeferDestroy)
 {
 	if (UWorld *World = GetWorld())
 	{
+		// B-407: a capped sequence stopped before its cap (a hit, the next turn, a hand-off) says so in the debug line.
+		bLastSignatureStoppedEarly = bLastSignatureStoppedEarly || World->GetTimerManager().IsTimerActive(SignatureCapTimer);
 		World->GetTimerManager().ClearTimer(SignatureCapTimer); // B-407
 	}
 	SignatureCapTimer.Invalidate();
