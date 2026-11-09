@@ -378,6 +378,10 @@ namespace CombatConstants
     constexpr int32 WIND_BREAK_DELAY_PLACES = 1;
     // TODO: tune — Water break: Action Speed and Spell Speed slow, percent (D-090).
     constexpr float WATER_BREAK_SPEED_SLOW_PERCENT = 30.0f;
+    // TODO: tune — Ice break (B-064a, D-090: a heavier Water): Action Speed and Spell Speed slow, percent, as Water's.
+    constexpr float ICE_BREAK_SPEED_SLOW_PERCENT = 30.0f;
+    // TODO: tune — Ice break: damage dealt once on landing, share of the holder's max HP; it can kill, as Reality's (Q-064a).
+    constexpr float ICE_BREAK_DAMAGE_MAX_HP_FRACTION = 0.10f;
     // TODO: tune — Broken Darkness break: EP drained at the holder's turn start, fraction of max EP.
     constexpr float BD_BREAK_EP_DRAIN_FRACTION = 0.25f;
     // TODO: tune — Light break: crit chance down, percent; 100 = no crits while it lasts (D-030).
