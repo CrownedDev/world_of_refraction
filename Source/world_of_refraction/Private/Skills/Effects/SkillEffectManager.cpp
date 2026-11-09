@@ -2487,6 +2487,29 @@ TArray<FActiveSkillEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, 
 {
 	TArray<FActiveSkillEffect> Result;
 
+	// B-042g (part 1): at UseGAS 1 the per-effect readers (resistance and buildup matches, Ignore Defense, reflect) read
+	// the GEs: one view per GE with its identity's keys and value, its stacks from the stacked magnitude.
+	// Partial views: duration, stacking rules and charges stay default, so never read those from them (review).
+	if (const UAbilitySystemComponent *ASC = UWoREffectMirrorComponent::GetGASReadSource(Actor, EffectType))
+	{
+		for (const FWoRActiveEffectView &View : FWoREffectSpecBuilder::GetEffectsOfType(*ASC, EffectType))
+		{
+			FActiveSkillEffect &Effect = Result.AddDefaulted_GetRef();
+			Effect.EffectType = View.Identity.EffectType;
+			Effect.Element = View.Identity.Element;
+			Effect.PhysicalType = View.Identity.PhysicalType;
+			Effect.DamageScope = View.Identity.DamageScope;
+			Effect.EffectID = View.Identity.EffectID;
+			Effect.SourceKey = View.Identity.SourceKey;
+			Effect.bFromGear = View.Identity.bFromGear;
+			// GetStackedValue (EffectValue x CurrentStacks) gives back the GE's stacked magnitude.
+			const bool bHasValue = !FMath::IsNearlyZero(View.Identity.EffectValue);
+			Effect.EffectValue = bHasValue ? View.Identity.EffectValue : View.Magnitude;
+			Effect.CurrentStacks = bHasValue ? FMath::Max(1, FMath::RoundToInt(View.Magnitude / View.Identity.EffectValue)) : 1;
+		}
+		return Result;
+	}
+
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
 		return Result;

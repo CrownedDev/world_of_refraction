@@ -198,6 +198,8 @@ FWoREffectIdentity FWoREffectSpecBuilder::MakeIdentity(const FActiveSkillEffect 
 	Identity.EffectID = Effect.EffectID;
 	Identity.SourceKey = Effect.SourceKey;
 	Identity.bFromGear = Effect.bFromGear;
+	Identity.PhysicalType = Effect.PhysicalType; // B-042g: the per-effect readers' match on GAS
+	Identity.EffectValue = Effect.EffectValue;
 	return Identity;
 }
 
@@ -326,6 +328,27 @@ float FWoREffectSpecBuilder::SumMagnitudeForHit(const UAbilitySystemComponent &A
 	{
 		return Identity.EffectType == Type && WoRDamageScope::Matches(Identity.DamageScope, Identity.Element, HitElement, bHitIsSpell);
 	});
+}
+
+TArray<FWoRActiveEffectView> FWoREffectSpecBuilder::GetEffectsOfType(const UAbilitySystemComponent &ASC, ESkillEffectType Type)
+{
+	TArray<FWoRActiveEffectView> Views;
+	const FGameplayEffectQuery Query(FActiveGameplayEffectQueryCustomMatch::CreateLambda(
+		[Type](const FActiveGameplayEffect &Active)
+		{
+			const FWoREffectContext *Context = ContextOf(Active);
+			return Context && Context->Identity.EffectType == Type;
+		}));
+	for (const FActiveGameplayEffectHandle &Handle : ASC.GetActiveEffects(Query))
+	{
+		const FActiveGameplayEffect *Active = ASC.GetActiveGameplayEffect(Handle);
+		const FWoREffectContext *Context = Active ? ContextOf(*Active) : nullptr;
+		if (Context)
+		{
+			Views.Add({Context->Identity, Active->Spec.GetSetByCallerMagnitude(WoRTags::SetByCaller_Magnitude, false)});
+		}
+	}
+	return Views;
 }
 
 FString FWoREffectSpecBuilder::GetDebugString(const UAbilitySystemComponent &ASC)
