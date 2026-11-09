@@ -1,12 +1,28 @@
-# Cloud writer handover (2026-11-09, thirteenth part: after B-043b / B-043c landed) — IN PROGRESS
+# Cloud writer handover (2026-11-09, thirteenth part: after B-043b / B-043c landed) — STOPPED: the next parts wait for builds
 
-The desktop built and merged B-043b and B-043c. Crown answered Q-170..Q-170h, which unblocks B-170a..g, and added D-171, which became B-397. Being written now:
+The desktop built and merged B-043b and B-043c. Crown answered Q-170..Q-170h, which unblocked B-170a..g, and D-171 became B-397.
 
-- **B-043d**: projectile and burst spells through their ability.
-- **B-170a**: action pips, part 1. Actions live on the character; no play change.
-- **B-397**: hidden quests appear in the journal once found.
+These are written, pushed, reviewed and fixed, and they are on the trial branch `integration/cloud-2026-11-09` (merge plan rows 79–84):
 
-B-214 is held until after the visual phase, by Crown's order. B-173, B-064c, B-042g2 and the cleanups C1–C7 are still waiting on the desktop.
+- **B-043d** (from dev): projectile and burst spells go through their ability (Q-043d).
+- **B-043e** (on B-043d): AOE, Instant and support spells go through their ability (Q-043e). Two spec gaps are noted in its PIE sheet.
+- **B-397** (from dev): hidden quests are listed once found, showing the current goal only, with a private discovery notice.
+  - Q-377's placeholder notices are marked superseded.
+  - The older PIE sheets now carry notes about this.
+- **B-170a** (from dev): action pips 1, actions on the character.
+  - **Q-170a differs from the plan:** action points are an additive layer set, not a stat entry. Crown may veto.
+- **B-170b** (on B-170a): a fixed rotation behind `wor.Turns.ActionPips`.
+  - Q-170b2: the side that strikes first leads every later round. Crown may change this.
+- **B-170c** (on B-170b): several actions per turn.
+  - `ActionCost` is at least 1. That is the plan's minimum; the writer brief had wrongly said 0.
+  - `EActionType::EndTurn` is appended.
+  - Q-170c2.
+
+**Why I stopped:**
+- **B-043f** (the orchestrator through abilities, with the montage moved into `PlayMontageAndWait`) is the big rewrite. It should wait for B-043d and B-043e to build.
+- **B-170d** would be the fourth unbuilt layer on B-170a/b/c.
+- **B-214** is held by Crown until after the visual phase.
+- Rows 74–77 and the cleanups C1–C7 are still waiting on the desktop.
 
 # Cloud writer handover (2026-11-09, twelfth part: after the desktop merged the GAS / Ice batch) — STOPPED: what's left needs a build first
 
