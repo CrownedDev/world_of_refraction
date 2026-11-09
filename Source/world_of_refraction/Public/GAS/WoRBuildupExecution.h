@@ -2,7 +2,7 @@
 // GAS stage 3 (B-042l, ResistanceRedesign.md §3.3-3.4): the status buildup execution wraps
 // WoRBuildupMath::Compute. The inputs that are attributes come from the ability system components:
 // the source's StatusMultiplier (unless the caller baked it in), and the target's StatusResistance,
-// the hit's type resistances (Resist_<element>, + Resist_<physical type> when it has one) and
+// the hit's type resistances (Resist_<element axis>, Ice for an Ice hit, B-273b; + Resist_<physical type> when it has one) and
 // StatusResistBonus. The rest (element-keyed StatusMultiplier buffs, the Broken Darkness stack factor)
 // travel in the effect context as an FWoRBuildupRequest gathered by UStatusBuildupManager. The output
 // is Buildup += the result. Immunities, the cap trigger and decay stay on UStatusBuildupManager, and
@@ -14,6 +14,7 @@
 #include "CoreMinimal.h"
 #include "GameplayEffectExecutionCalculation.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Damage/WoRHitKind.h"
 #include "GAS/WoRGameplayEffects.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/BuildupMath.h"
@@ -29,10 +30,14 @@ struct FWoRBuildupRequest
 	FBuildupMathInputs Inputs;
 	ESpellElement Element = ESpellElement::None;
 	EPhysicalDamageType PhysicalType = EPhysicalDamageType::None;
+	/** B-273b: what the hit deals when it isn't the pair's own type (Ice); None keeps FromPair's. */
+	EWoRDamageType DealtTypeOverride = EWoRDamageType::None;
 	/** The hit has a source: only then is the spec's source StatusMultiplier read. */
 	bool bHasSource = false;
 	/** The caller baked the source StatusMultiplier into Amount (bSkipBaseStatAmp): keep 1. */
 	bool bSkipBaseStatAmp = false;
+
+	FWoRHitKind GetHitKind() const { return FWoRHitKind::FromPair(Element, PhysicalType, DealtTypeOverride); }
 };
 
 UCLASS()
@@ -50,6 +55,10 @@ public:
 											 const UAbilitySystemComponent *Target);
 
 	/** The request for one hit, gathered as AddStatusBuildup does (immunities not checked). */
+	static FWoRBuildupRequest MakeRequest(const UStatusBuildupManager &Buildup, AActor *Source, AActor *Target, float Amount,
+										  const FWoRHitKind &Hit, bool bSkipBaseStatAmp = false);
+
+	// OBSOLETE (B-273b): the pair form; forwards as FWoRHitKind::FromPair. Remove after Crown's PIE.
 	static FWoRBuildupRequest MakeRequest(const UStatusBuildupManager &Buildup, AActor *Source, AActor *Target, float Amount,
 										  ESpellElement Element, EPhysicalDamageType PhysicalType, bool bSkipBaseStatAmp = false);
 

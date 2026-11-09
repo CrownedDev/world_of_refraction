@@ -158,6 +158,7 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 	case ESkillEffectType::DrainEnergy:
 	case ESkillEffectType::SelfDamage:
 	case ESkillEffectType::BurstDamage:
+	case ESkillEffectType::IceBreak: // B-064a: a break trigger, never stored by the break path; mirrored like Burst
 	case ESkillEffectType::StatusIncrease:
 	case ESkillEffectType::StatusDecrease:
 		return UWoRGE_Periodic::StaticClass();

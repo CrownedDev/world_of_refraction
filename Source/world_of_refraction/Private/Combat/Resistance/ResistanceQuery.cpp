@@ -113,7 +113,10 @@ namespace WoRResistance
 		ToAxes(DamageType, Element, Physical);
 
 		Sources.Effect = EffectTypeResistance(Target, DamageType);                                 // #4
-		Sources.Class = ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, Physical); // #5
+		// #5. Ice is no element axis (keyed Water, D-029): it reads the class table's own Ice column (B-064a).
+		Sources.Class = DamageType == EWoRDamageType::Ice
+							? ClassInnateResistanceTable::GetClassIceResistance(Target)
+							: ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, Physical);
 		Sources.Gear = GearTypeResistance(Target, Element, Physical);                              // #6
 		return Sources;
 	}

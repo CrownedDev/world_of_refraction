@@ -2,6 +2,7 @@
 // GAS stage 3 (B-042e): UWoRDamageExecution reads the attacker's crit attributes and the
 // defender's Defense and element resistance from the ASCs and runs B-219's core: the same damage
 // as UDamageCalculator for the same gathered request, and applied as Health -= that damage.
+// B-273b: an Ice hit (keyed Water, dealing Ice) reads Resist_Ice alone, in the gather and in the execution.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -11,6 +12,7 @@
 #include "Character/CharacterData.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "Combat/Damage/DamageCalculator.h"
+#include "Combat/Resistance/ResistanceQuery.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoRAttributeSyncComponent.h"
 #include "GAS/WoRDamageExecution.h"
@@ -158,6 +160,26 @@ void FDamageExecutionSpec::Define()
 		TestEqual(TEXT("Crit damage kept"), Read.CritDamageMultiplier, Request.Inputs.CritDamageMultiplier);
 		TestEqual(TEXT("Defense kept"), Read.DefenderDefense, Request.Inputs.DefenderDefense);
 		TestEqual(TEXT("Resistance kept"), Read.ElementResistance, Request.Inputs.ElementResistance);
+	});
+
+	It("reads Resist_Ice alone for an Ice hit, Resist_Water + Resist_Ice for a Water hit (B-273b, Q-145b)", [this]()
+	{
+		if (!Calculator) return;
+		FDamageCalculationInput IceInput = Hit(EActionType::Spell, ESpellElement::Water);
+		IceInput.DealtTypeOverride = EWoRDamageType::Ice;
+		const FWoRDamageRequest Ice = UWoRDamageExecution::MakeRequest(*Calculator, Attacker, Defender, IceInput);
+		TestEqual(TEXT("The request carries the Ice hit"), Ice.Inputs.GetHitKind().DamageType, EWoRDamageType::Ice);
+		TestEqual(TEXT("Gathered: Ice resistance alone"), Ice.Inputs.ElementResistance,
+				  WoRResistance::GetTypeResistance(Defender, EWoRDamageType::Ice));
+
+		// Nothing in the test world grants Ice resistance, so set the attribute; Water's stays what it is.
+		DefenderASC->SetNumericAttributeBase(UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Ice), EXECUTION_ICE_RESIST);
+		const float ResistWater = DefenderASC->GetNumericAttribute(UWoRAttributeSet_Resistance::GetTypeAttribute(EWoRDamageType::Water));
+		TestEqual(TEXT("GAS: an Ice hit reads Resist_Ice"), UWoRDamageExecution::ReadAttributes(Ice, AttackerASC, DefenderASC).ElementResistance,
+				  EXECUTION_ICE_RESIST);
+		const FWoRDamageRequest Water = UWoRDamageExecution::MakeRequest(*Calculator, Attacker, Defender, Hit(EActionType::Spell, ESpellElement::Water));
+		TestEqual(TEXT("GAS: a Water hit reads Resist_Water + Resist_Ice"),
+				  UWoRDamageExecution::ReadAttributes(Water, AttackerASC, DefenderASC).ElementResistance, ResistWater + EXECUTION_ICE_RESIST);
 	});
 
 	It("keeps an overridden crit chance and an ignored resistance", [this]()

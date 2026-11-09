@@ -1,6 +1,8 @@
 // HitKindSpec.cpp
 // B-273 (S6): a hit's kind in one struct. FromPair keeps today's rule; an Ice hit is Water-keyed, deals
 // Ice and reads Ice resistance alone (Q-145b); its tag sits under Water so Water triggers hear it (D-029, ED-04, Q-273).
+// B-273b: the pair path and the FromPair hit-kind path give the same trigger, buildup and bar; an Ice hit breaks on
+// the Ice row and its bar remembers it.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -10,7 +12,32 @@
 #include "Combat/Damage/WoRHitKind.h"
 #include "Combat/Elements/ElementTable.h"
 #include "Combat/Resistance/ResistanceQuery.h"
+#include "Skills/Effects/BarCapTriggerResolver.h"
+#include "Skills/Effects/StatusBuildupManager.h"
 #include "Tags/WoRGameplayTags.h"
+
+namespace
+{
+	/** Well under the bar's cap, so no hit fires a break. */
+	constexpr float HIT_KIND_BUILDUP = 10.0f;
+	constexpr float HIT_KIND_TOLERANCE = 1.0e-4f;
+
+	const TArray<ESpellElement> &HitKindElements()
+	{
+		static const TArray<ESpellElement> Elements = {
+			ESpellElement::None, ESpellElement::Generic, ESpellElement::Fire, ESpellElement::Water, ESpellElement::Earth,
+			ESpellElement::Wind, ESpellElement::Light, ESpellElement::Darkness, ESpellElement::Lightning, ESpellElement::Void,
+			ESpellElement::Reality};
+		return Elements;
+	}
+
+	const TArray<EPhysicalDamageType> &HitKindPhysicals()
+	{
+		static const TArray<EPhysicalDamageType> Physicals = {EPhysicalDamageType::None, EPhysicalDamageType::Slash,
+															  EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact};
+		return Physicals;
+	}
+}
 
 BEGIN_DEFINE_SPEC(FHitKindSpec, "WoR.Resistance.HitKind",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -47,6 +74,33 @@ void FHitKindSpec::Define()
 		TestTrue(TEXT("tag reads back"), WoRTags::TagToDamageType(IceTag, RoundTrip) && RoundTrip == EWoRDamageType::Ice);
 	});
 
+	It("resolves the bar-cap trigger the same by pair and by FromPair hit kind (B-273b)", [this]()
+	{
+		for (const ESpellElement Element : HitKindElements())
+		{
+			for (const EPhysicalDamageType Physical : HitKindPhysicals())
+			{
+				for (const bool bBrokenDarkness : {false, true})
+				{
+					const FWoRHitKind Kind = FWoRHitKind::FromPair(Element, Physical);
+					TestEqual(Kind.ToString(), BarCapTriggerResolver::ResolveTrigger(Kind, bBrokenDarkness),
+							  BarCapTriggerResolver::ResolveTrigger(Element, Physical, bBrokenDarkness));
+				}
+			}
+		}
+	});
+
+	It("resolves an Ice hit's break on the Ice row, and round-trips its override (B-273b)", [this]()
+	{
+		TestEqual(TEXT("Ice row"), BarCapTriggerResolver::ResolveTrigger(FWoRHitKind::Ice(), false),
+				  ElementTable::For(EWoRDamageType::Ice).BreakTrigger);
+		TestEqual(TEXT("override of an Ice hit"), FWoRHitKind::GetDealtTypeOverride(FWoRHitKind::Ice()), EWoRDamageType::Ice);
+		TestEqual(TEXT("no override for a pair"), FWoRHitKind::GetDealtTypeOverride(FWoRHitKind::FromPair(ESpellElement::Water, EPhysicalDamageType::Slash)),
+				  EWoRDamageType::None);
+		const FWoRHitKind Rebuilt = FWoRHitKind::FromPair(ESpellElement::Water, EPhysicalDamageType::None, EWoRDamageType::Ice);
+		TestEqual(TEXT("rebuilt Ice hit"), Rebuilt.DamageType, EWoRDamageType::Ice);
+	});
+
 	Describe("resistance", [this]()
 	{
 		BeforeEach([this]()
@@ -73,6 +127,45 @@ void FHitKindSpec::Define()
 			TestEqual(TEXT("Ice hit"), WoRResistance::GetHitDamageResistance(FireCaster, FWoRHitKind::Ice()), Ice);
 			TestEqual(TEXT("Ice hit, buildup axes"), WoRResistance::GetHitTypeResistance(FireCaster, FWoRHitKind::Ice()), Ice);
 			TestEqual(TEXT("a Water hit still adds Ice"), WoRResistance::GetHitDamageResistance(FireCaster, FWoRHitKind::FromPair(ESpellElement::Water, EPhysicalDamageType::None)), Water + Ice);
+		});
+
+		It("fills the bar the same by pair and by FromPair hit kind (B-273b)", [this]()
+		{
+			UStatusBuildupManager *Buildup = TestWorld->GetSubsystem<UStatusBuildupManager>();
+			AActor *Other = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+			if (!TestNotNull(TEXT("StatusBuildupManager"), Buildup) || !TestNotNull(TEXT("second target"), Other)) return;
+			for (const ESpellElement Element : HitKindElements())
+			{
+				for (const EPhysicalDamageType Physical : HitKindPhysicals())
+				{
+					const FWoRHitKind Kind = FWoRHitKind::FromPair(Element, Physical);
+					TestEqual(*(Kind.ToString() + TEXT(": gathered")),
+							  WoRBuildupMath::Compute(Buildup->GatherBuildupMathInputs(Other, FireCaster, HIT_KIND_BUILDUP, Kind, false)),
+							  WoRBuildupMath::Compute(Buildup->GatherBuildupMathInputs(Other, FireCaster, HIT_KIND_BUILDUP, Element, Physical, false)),
+							  HIT_KIND_TOLERANCE);
+					Buildup->ResetStatusBar(FireCaster);
+					Buildup->AddStatusBuildup(Other, FireCaster, HIT_KIND_BUILDUP, Element, Physical);
+					const float ByPair = Buildup->GetStatusBarBuildup(FireCaster);
+					const ESkillEffectType PairTrigger = Buildup->GetPendingTrigger(FireCaster);
+					Buildup->ResetStatusBar(FireCaster);
+					Buildup->AddStatusBuildupForHit(Other, FireCaster, HIT_KIND_BUILDUP, Kind);
+					TestEqual(*(Kind.ToString() + TEXT(": bar")), Buildup->GetStatusBarBuildup(FireCaster), ByPair, HIT_KIND_TOLERANCE);
+					TestEqual(*(Kind.ToString() + TEXT(": pending trigger")), Buildup->GetPendingTrigger(FireCaster), PairTrigger);
+					Buildup->ResetStatusBar(FireCaster);
+				}
+			}
+		});
+
+		It("builds an Ice hit against Ice resistance alone, and its bar remembers Ice (B-273b)", [this]()
+		{
+			UStatusBuildupManager *Buildup = TestWorld->GetSubsystem<UStatusBuildupManager>();
+			if (!TestNotNull(TEXT("StatusBuildupManager"), Buildup)) return;
+			const FBuildupMathInputs Inputs = Buildup->GatherBuildupMathInputs(nullptr, FireCaster, HIT_KIND_BUILDUP, FWoRHitKind::Ice(), false);
+			TestEqual(TEXT("Ice resistance alone"), Inputs.HitTypeResistance, WoRResistance::GetTypeResistance(FireCaster, EWoRDamageType::Ice));
+			Buildup->AddStatusBuildupForHit(nullptr, FireCaster, HIT_KIND_BUILDUP, FWoRHitKind::Ice());
+			TestEqual(TEXT("keyed Water on the bar"), Buildup->GetPendingElement(FireCaster), ESpellElement::Water);
+			TestEqual(TEXT("breaks on the Ice row"), Buildup->GetPendingTrigger(FireCaster), ElementTable::For(EWoRDamageType::Ice).BreakTrigger);
+			TestTrue(TEXT("the debug line names Ice"), Buildup->GetBarDebugString(FireCaster).Contains(TEXT("Ice")));
 		});
 
 		It("reads the old pair formula for every element and physical type", [this]()

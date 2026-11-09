@@ -61,6 +61,7 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	Inputs.BaseDamage = Input.BaseDamage;
 	Inputs.bIsSpell = Input.ActionType == EActionType::Spell;
 	Inputs.Element = Input.Element;
+	Inputs.DealtTypeOverride = Input.DealtTypeOverride;
 	Inputs.ActionMods = Input.ActionMods;
 
 	// Attacker. Cross-stat scaling is authored per skill (StatScaling), so the baseline stat is the
@@ -136,11 +137,12 @@ FDamageMathInputs UDamageCalculator::GatherDamageMathInputs(AActor *Attacker, AA
 	Inputs.IgnoreDefense = GetIgnoreDefenseFraction(Attacker, Input);
 	const bool bSkipDefense = Inputs.IgnoreDefense >= 1.0f;
 
-	// Element resistance (D-005 C, D-036): the defender's per-element resistance; Ice resistance
-	// also resists Water (Q-145b). Non-elemental hits read no element line (Q-145); B-389 adds the scope line.
+	// Element resistance (D-005 C, D-036): the defender's resistance to the hit's kind (B-273b); Ice resistance
+	// also resists Water, an Ice hit reads Ice alone (Q-145b). Non-elemental hits read no element line (Q-145);
+	// B-389 adds the scope line.
 	if (!Input.bIgnoreResistance)
 	{
-		Inputs.ElementResistance = WoRResistance::GetElementDamageResistance(Defender, Input.Element);
+		Inputs.ElementResistance = WoRResistance::GetHitDamageResistance(Defender, Input.GetHitKind());
 		// B-389 (D-168): the defender's Physical line for a hit that is not a spell, its Spell line for a spell.
 		Inputs.ResistanceScopeLine = WoRResistance::GetScopeLineResistance(Defender, Input.ActionType == EActionType::Spell);
 	}

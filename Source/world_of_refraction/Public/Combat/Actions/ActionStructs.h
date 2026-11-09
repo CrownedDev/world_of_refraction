@@ -8,6 +8,7 @@
 #include "Skills/Definitions/ESpellSource.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Damage/WoRHitKind.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/FlawlessParry.h"
 #include "Infusion/EInfusionSourceOption.h"
@@ -413,6 +414,12 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::None;
 
+	/** B-273b: what the hit deals when it isn't the pair's own type (Ice, keyed Water); None keeps the pair's.
+	 *  Carried into FActionHitInput by ApplyOneImpact. Not a UPROPERTY: Blueprints see the pair as before. */
+	EWoRDamageType DealtTypeOverride = EWoRDamageType::None;
+
+	FWoRHitKind GetHitKind() const { return FWoRHitKind::FromPair(Element, PhysicalDamageType, DealtTypeOverride); }
+
 	/** Unique ID for this defense context */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense", Meta = (IgnoreForMemberInitializationTest))
 	FGuid ContextId;
@@ -653,6 +660,12 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	 *  (Session Y). None for spells/abilities; populated for weapon attacks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Buildup")
 	EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::None;
+
+	/** B-273b: what the hit deals when it isn't the pair's own type (Ice, keyed Water); None keeps the pair's, so
+	 *  every existing caller is unchanged. ApplyHit hands the damage and the buildup the hit kind. Not a UPROPERTY. */
+	EWoRDamageType DealtTypeOverride = EWoRDamageType::None;
+
+	FWoRHitKind GetHitKind() const { return FWoRHitKind::FromPair(Element, PhysicalDamageType, DealtTypeOverride); }
 
 	/** Per-action stat modifiers (Reality + Evolution + future per-action buffs).
 	 *  Explicit on the input rather than implicit via CurrentExecutionContext —

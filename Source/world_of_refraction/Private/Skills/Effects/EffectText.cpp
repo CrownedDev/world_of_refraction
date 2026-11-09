@@ -855,6 +855,11 @@ namespace EffectText
         case ESkillEffectType::PullForward:
             return Side.bSelf ? LOCTEXT("Pull_Self", "move forward one row")
                               : FText::Format(LOCTEXT("Pull_Other", "pull {0} forward one row"), Side.Noun);
+        // B-064a (D-090): Ice's break, a heavier Water break.
+        case ESkillEffectType::IceBreak:
+            return Side.bSelf ? FText::Format(LOCTEXT("IceBreak_Self", "act and cast slower and take Ice damage{0}"), Span(P))
+                              : FText::Format(LOCTEXT("IceBreak_Other", "slow {0} actions and spells and deal Ice damage{1}"),
+                                              Side.Possessive, Span(P));
 
         default:
             // A kind with no sentence yet prints its name, the loud failure (07: "a gap to close").

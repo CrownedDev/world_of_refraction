@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Combat/Resistance/EWoRDamageType.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/SpellSchool.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -46,6 +47,23 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellElement Element = ESpellElement::Fire;
+
+    /** B-064a (D-029): a Water spell that deals Ice. It stays keyed Water, so Water sources unlock it and "On Water hit"
+     *  triggers hear it; its hits deal Ice, which only Ice resistance resists (Q-145b), and a full bar breaks as Ice.
+     *  Only on a Water spell (IsDataValid; the deckbuilder's rule 75): a Generic spell on a Water source deals Water. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    bool bDealsIce = false;
+
+    /** False when bDealsIce sits on a spell not keyed Water. */
+    bool IsIceKeyValid() const { return !bDealsIce || Element == ESpellElement::Water; }
+
+    /** What this spell's hits deal instead of their cast element's own type: Ice when bDealsIce and the cast resolved
+     *  to Water (FWoRHitKind::Ice), else None. */
+    EWoRDamageType GetDealtTypeOverride(ESpellElement CastElement) const
+    {
+        return bDealsIce && Element == ESpellElement::Water && CastElement == ESpellElement::Water ? EWoRDamageType::Ice
+                                                                                                    : EWoRDamageType::None;
+    }
 
     /** Authored school (D-163: one of six). Read GetSchool(). The default stays Conjuration: changing it would
      *  silently re-tag every asset saved at the default (B-374). */
