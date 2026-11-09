@@ -16,7 +16,6 @@
 #include "Engine/GameInstance.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Loadout/LoadoutComponent.h"
-#include "Infusion/InfusionChargeManager.h"
 
 UInfusionVFXComponent::UInfusionVFXComponent()
 {
@@ -51,16 +50,6 @@ void UInfusionVFXComponent::BeginPlay()
     if (!WeaponMeshComponent)
     {
         UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No WeaponMeshComponent found"));
-    }
-
-    if (UGameInstance *GI = Cast<UGameInstance>(UGameplayStatics::GetGameInstance(this)))
-    {
-        if (UInfusionChargeManager *ChargeMgr = WoRFight::Get<UInfusionChargeManager>(GI))
-        {
-            ChargeMgr->OnChargeLevelChanged.AddDynamic(this, &UInfusionVFXComponent::OnChargeLevelChanged);
-            ChargeMgr->OnChargeComplete.AddDynamic(this, &UInfusionVFXComponent::OnChargeComplete);
-            ChargeMgr->OnChargeCancelled.AddDynamic(this, &UInfusionVFXComponent::OnChargeCancelled);
-        }
     }
 
     // Get skeletal mesh for body attachment
@@ -231,27 +220,6 @@ void UInfusionVFXComponent::RefreshVFX()
 }
 
 // ==================== INTERNAL ====================
-
-void UInfusionVFXComponent::OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel)
-{
-    if (Actor != GetOwner())
-        return;
-    SetInfusionLevel(NewLevel);
-}
-
-void UInfusionVFXComponent::OnChargeComplete(AActor *Actor, EChargeInfusionType ChargeType, EInfusionSourceOption Source, int32 FinalLevel)
-{
-    if (Actor != GetOwner())
-        return;
-    // VFX stays at final level - will be deactivated after spell completes
-}
-
-void UInfusionVFXComponent::OnChargeCancelled(AActor *Actor, int32 LevelAtCancel)
-{
-    if (Actor != GetOwner())
-        return;
-    DeactivateInfusion();
-}
 
 void UInfusionVFXComponent::SpawnVFX(UNiagaraSystem *VFXSystem, EInfusionDisplayLocation Location)
 {
