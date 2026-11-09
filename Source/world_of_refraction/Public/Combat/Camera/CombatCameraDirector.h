@@ -97,13 +97,17 @@ public:
 
 	/** B-404 (study R16, F4, Q-404): once per turn start, on the frame the camera starts its move to the new turn's
 	 *  view (after the wide beat, when there is one). The HUD binds it for the turn-strip step and the active-card
-	 *  highlight, so all three move together. From: the actor the camera followed before (null on the first turn). */
+	 *  highlight, so all three move together. From: the actor the camera followed before (null on the first turn).
+	 *  The one exception: a fight that ends during the beat (won, lost or fled) drops its handover on purpose, as the
+	 *  HUD is going away. A wor.Camera.Handover preview never fires it. */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Camera")
 	FOnTurnHandover OnTurnHandover;
 
 	/** B-404 (wor.Camera): e.g. "handover: wide beat Hero_1 -> Hero_2, blend 0.50 s in 0.32 s; 4 sent this fight". */
 	FString GetHandoverString() const;
 	int32 GetHandoverCount() const { return HandoverCount; }
+	/** B-404: a wide beat is playing and its handover has not fired yet. */
+	bool IsHandoverPending() const { return bHandoverPending; }
 
 	/** B-404 (wor.Camera.Handover): plays the wide beat and the handover blend to party member PartyIndex's turn
 	 *  view (INDEX_NONE: the member after the viewed one), as a turn change would. The turn, the HUD and the event
