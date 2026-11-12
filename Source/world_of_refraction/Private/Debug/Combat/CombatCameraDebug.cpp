@@ -5,7 +5,9 @@
 #include "Combat/CombatOrchestrator.h"
 #include "LevelSequence.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Save/SaveSubsystem.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -25,18 +27,36 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GCombatCameraStyleCmd(
 		TEXT("wor.Camera.Style"),
-		TEXT("DEBUG: turn-view style. 0 = centred-wide (default), 1 = over-the-shoulder, 2 = tactical side-on."),
+		TEXT("PLACEHOLDER setting (B-398, until the D-024 settings screen): turn view. 0 = centred-wide (default), 1 = over-the-shoulder, ")
+			TEXT("2 = tactical side-on. Saved; works in a fight or outside one (the next fight starts with it)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
 			{
-				UCombatCameraDirector *Director = UCombatCameraDebug::FindDirector(World);
 				const int32 Style = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
-				if (!Director || Style < 0 || Style > static_cast<int32>(ETurnViewStyle::Tactical))
+				if (Style < 0 || Style > static_cast<int32>(ETurnViewStyle::Tactical))
 				{
-					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.Style: no combat orchestrator, or style not 0-2."));
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.Style: style not 0-2."));
 					return;
 				}
-				Director->SetTurnViewStyle(static_cast<ETurnViewStyle>(Style));
+				const ETurnViewStyle NewStyle = static_cast<ETurnViewStyle>(Style);
+				UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+				USaveSubsystem *Save = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+				if (UCombatCameraDirector *Director = UCombatCameraDebug::FindDirector(World))
+				{
+					Director->SetTurnViewStyle(NewStyle); // saves it too
+				}
+				else if (Save)
+				{
+					Save->SetTurnViewStyle(NewStyle); // B-398: outside a fight; the next fight starts with it
+				}
+				else
+				{
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.Style: no combat orchestrator and no save."));
+					return;
+				}
+				UE_LOG(LogWoRCombat, Display, TEXT("[CombatCamera] %s: %s (saved setting: %s)"), *FCombatCameraRules::GetTurnViewSettingName().ToString(),
+					   *FCombatCameraRules::GetTurnViewStyleName(NewStyle).ToString(),
+					   Save ? *FCombatCameraRules::GetTurnViewStyleName(Save->GetTurnViewStyle()).ToString() : TEXT("no save"));
 				UCombatCameraDebug::PrintCameraState(World);
 			}));
 
@@ -108,11 +128,12 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 	{
 		return TEXT("No combat camera (no combat orchestrator in this world)");
 	}
-	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s | %s"),
+	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s | %s"),
 						   Director->IsInCombat() ? TEXT("In combat") : TEXT("Not in combat"),
 						   *UEnum::GetValueAsString(Director->GetCurrentMode()),
 						   *GetNameSafe(Director->GetViewedActor()),
 						   *UEnum::GetValueAsString(Director->GetTurnViewStyle()),
+						   *Director->GetTurnLayoutString(), // B-398
 						   Director->IsCameraMovementOff() ? TEXT("off") : TEXT("on"),
 						   *UEnum::GetValueAsString(Director->SkillCinematics),
 						   Director->bEnemySkillCinematics ? TEXT("on") : TEXT("off"),
