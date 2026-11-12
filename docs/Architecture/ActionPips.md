@@ -4,7 +4,7 @@
 
 D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, and on each turn a character spends **banked actions**. Reflex sets how many come back each turn (1 + one per whole step of Reflex value, B-170i / Q-170i), **Max Actions** (2 + one per 100 action points from gear, evolutions and the like) caps the regain, and unused actions carry over. The plan is `docs/analysis/ActionPips.md` (B-170a..h); rulings Q-170..Q-170h, build choices Q-170a.
 
-**Built so far (B-170a, B-170b, B-170c; B-170e written, unbuilt):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0); several actions per turn in the orchestrator, action costs on skills, spells and items, End Turn, free switching (B-170c); the placeholder UI on B-391's new HUD: pips and Max Actions on party cards, End Turn button and key, costs shown and greyed (B-170e). Default play is unchanged until Crown's PIE flips the switch.
+**Built so far (B-170a, B-170b, B-170c; B-170e written, unbuilt):** the state and the numbers on the character (B-170a); the fixed turn rotation in `UTurnManager` behind `wor.Turns.ActionPips` (B-170b, default 0); several actions per turn in the orchestrator, action costs on skills, spells and items, End Turn, free switching (B-170c); the placeholder UI on B-391's new HUD: pips and Max Actions on party cards, End Turn button (no key yet; the player can hide it), costs shown and greyed (B-170e). Default play is unchanged until Crown's PIE flips the switch.
 
 ## Architecture
 
