@@ -2122,7 +2122,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		}
 		break;
 	}
-	// B-170d (Q-170g): actions now. A gain may pass Max and stays banked; a loss never goes below 0. Timed ones wait on
+	// B-170d (Q-170g): actions now. A gain may pass Max until the holder's turn ends (Q-170f2); a loss never goes below 0. Timed ones wait on
 	// the holder (ApplyEffect), so only the instant lane reaches here.
 	case ESkillEffectType::GainActions:
 		CharComp->GainActions(FMath::RoundToInt(Value), /*bMayPassMax=*/true);
