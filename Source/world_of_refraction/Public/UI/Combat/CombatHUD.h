@@ -8,6 +8,10 @@
 // Built once per combat (Build) and torn down once (Teardown). Per-turn data
 // updates stay inside each widget's own delegate bindings.
 //
+// B-391: wor.UI.NewHUD (default 1) builds the new plain C++ battle HUD instead (UBattleHUDWidget for cards, turn order
+// and statuses; UBattleCommandMenuWidget for the menu; the native UDefensePromptWidget), with no WBP. 0 builds the old
+// WBP panels, strip and menu below, kept as the fallback until Crown's PIE pass. Read at each Build.
+//
 // Widget classes are config-backed soft refs, set under
 // [/Script/world_of_refraction.CombatHUD] in Config/DefaultGame.ini (B-205);
 // change them there if an asset moves.
@@ -26,6 +30,8 @@ class UCharacterPanelWidget;
 class UTurnOrderStripWidget;
 class UCombatCommandMenuWidget;
 class UDefensePromptWidget;
+class UBattleHUDWidget;
+class UBattleCommandMenuWidget;
 
 UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API UCombatHUD : public UObject
@@ -40,6 +46,12 @@ public:
     void Teardown();
 
     bool IsBuilt() const { return bBuilt; }
+
+    /** B-391: whether the last Build made the new battle HUD (wor.UI.NewHUD). */
+    bool IsUsingNewHUD() const { return bUsingNewHUD; }
+
+    /** B-391: the value of wor.UI.NewHUD (1 = the new battle HUD). */
+    static bool WantsNewHUD();
 
     /** Debug: one line per widget with bound actor / validity. */
     FString GetHUDStateString() const;
@@ -80,7 +92,21 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<UDefensePromptWidget> DefensePrompt;
 
+    /** B-391: the new battle HUD (wor.UI.NewHUD 1); null when the old widgets are built. */
+    UPROPERTY(Transient)
+    TObjectPtr<UBattleHUDWidget> BattleHUD;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UBattleCommandMenuWidget> BattleMenu;
+
     bool bBuilt = false;
+    bool bUsingNewHUD = false;
+
+    /** B-391: the new battle HUD's two widgets, added straight to the viewport. */
+    void BuildNewHUD(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
+
+    /** The old WBP widgets (wor.UI.NewHUD 0): character panels, turn order strip and command menu. */
+    void BuildOldHUD(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
 
     UClass *ResolvePanelClass() const;
 
