@@ -410,11 +410,22 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
         Result = EDataValidationResult::Invalid;
     }
 
-    // B-170c (Q-170b): no one can hold more than the safety cap, so such a cost could never be paid.
-    if (ActionCost > ActionPipsConstants::MAX_ACTIONS_CAP)
+    // Q-170j (Crown, 2026-11-12): a cost is 1 (small), 2 (medium) or 3 (large); a higher one is read as 3.
+    if (ActionCost > ActionPipsConstants::ACTION_COST_MAX)
     {
-        Context.AddWarning(FText::FromString(FString::Printf(TEXT("ActionCost %d is above the most actions anyone can hold (%d): the skill can never be used"),
-                                                             ActionCost, ActionPipsConstants::MAX_ACTIONS_CAP)));
+        Context.AddError(FText::FromString(FString::Printf(TEXT("ActionCost %d is above the largest cost (%d): it plays as %d"),
+                                                           ActionCost, ActionPipsConstants::ACTION_COST_MAX, ActionPipsConstants::ACTION_COST_MAX)));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    // B-170g (Q-170h, Q-170g2): Turn Speed is retired with action pips; scaling with it scales with nothing once they're on.
+    for (const FStatScaling &Scaling : StatScaling)
+    {
+        if (Scaling.Stat == ESubStat::TurnSpeed)
+        {
+            Context.AddWarning(FText::FromString(
+                TEXT("StatScaling uses Turn Speed, which is retired with action pips (B-170): pick another stat")));
+        }
     }
 
     return Result;

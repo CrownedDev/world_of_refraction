@@ -9,6 +9,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionPipsRules.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/TurnRotation.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Combat/Defense/DefenseSystem.h"
@@ -443,11 +444,16 @@ void ACombatOrchestrator::HandleBossCinematicFinished(EBossCinematicKind Kind)
 		return; // a preview, or a cinematic that ended while an action was still running: nothing was held
 	}
 	bWaitingForAsyncAction = false;
+	const bool bHeldRitualFire = !bOpening && TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution;
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s cinematic ended: %s"), *UEnum::GetValueAsString(Kind),
-		   bOpening ? TEXT("turn 1 starts") : TEXT("the held action request goes out"));
+		   bOpening ? TEXT("turn 1 starts") : bHeldRitualFire ? TEXT("the held ritual fires") : TEXT("the held action request goes out"));
 	if (bOpening)
 	{
 		BeginFirstTurn(PendingOpeningTeam);
+	}
+	else if (bHeldRitualFire)
+	{
+		FireScheduledExecution(); // B-406b: the Execution turn held under the cinematic
 	}
 	else if (CurrentActor)
 	{
@@ -738,6 +744,13 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	if (Action.ActionType == EActionType::EndTurn)
 	{
+		// B-170e review: End Turn exists only in an action-pips fight (a co-op client with its own switch at 1 must
+		// not pass a turn in a normal fight).
+		if (!IsActionPipsFight())
+		{
+			UE_LOG(LogWoRCombat, Warning, TEXT("[CombatOrchestrator] End Turn refused: not an action-pips fight"));
+			return false;
+		}
 		EndTurnByChoice();
 		return true;
 	}
@@ -897,6 +910,12 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 
 	if (Action.ActionType == EActionType::EndTurn)
 	{
+		if (!IsActionPipsFight()) // B-170e review, as SubmitAction: the turn is asked for again
+		{
+			OutInvalidReason = TEXT("End Turn refused: not an action-pips fight");
+			UE_LOG(LogWoRCombat, Warning, TEXT("[CombatOrchestrator] %s"), *OutInvalidReason);
+			return false;
+		}
 		EndTurnByChoice();
 		return true;
 	}
@@ -1181,6 +1200,12 @@ void ACombatOrchestrator::OnActionCompleted()
 		return;
 	}
 
+	// Q-170f2 (Crown, 2026-11-12): actions above Max are used this turn or lost now; the rest stays banked. Q-170f3:
+	// that includes a bank left above a lowered Max (Max Actions Down). Before the turn-end effects, so a Max Actions
+	// Buff whose duration ticks out here doesn't take an action banked under it. An Execution turn (a ritual's fire)
+	// is not the holder's own turn and keeps the bank.
+	ExpireBonusActionsAtTurnEnd(CurrentActor);
+
 	// Process end-of-turn effects
 	ProcessEndOfTurnEffects(CurrentActor);
 
@@ -1345,6 +1370,7 @@ bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
 	{
 		ActorsPastFirstTurn.Add(Actor);
 	}
+	CharComp->ResetSkillsUsedThisTurn(); // Q-170j: the per-turn skill limit counts this turn only
 	// (2) B-170d: waiting gains and losses (Lose Action next turn, Wind's break, a delayed Emerald gain) land here.
 	CharComp->ApplyWaitingActionChanges();
 	// (3) Only then the check.
@@ -1362,16 +1388,8 @@ FText ACombatOrchestrator::GetActionCostRefusedReason(AActor *Actor, const FActi
 	{
 		return FText::GetEmpty();
 	}
-	const int32 Cost = Action.GetActionCost();
-	if (ActionPipsRules::IsCostAboveMax(Cost, CharComp->GetMaxActions()))
-	{
-		return NSLOCTEXT("CombatOrchestrator", "ActionCostAboveMax", "Costs more actions than you can hold.");
-	}
-	if (!ActionPipsRules::CanAfford(Cost, CharComp->CurrentActions))
-	{
-		return FText::Format(NSLOCTEXT("CombatOrchestrator", "ActionCostNeeds", "Needs {0} {0}|plural(one=action,other=actions)."), Cost);
-	}
-	return FText::GetEmpty();
+	// B-170e: the same text the command menu greys a button with (ActionPipsText).
+	return ActionPipsText::GetCostRefusedReason(Action.GetActionCost(), CharComp->CurrentActions, CharComp->GetMaxActions());
 }
 
 bool ACombatOrchestrator::PayActionCost(const FAction &Action, FString &OutRefusedReason)
@@ -1394,6 +1412,10 @@ bool ACombatOrchestrator::PayActionCost(const FAction &Action, FString &OutRefus
 		OutRefusedReason = TEXT("the actions could not be spent"); // the check above passed, so only a client copy lands here
 		return false;
 	}
+	if (Cost > 0 && CharComp)
+	{
+		CharComp->NoteSkillUsed(); // Q-170j: End Turn, Defend and switching cost nothing and don't count
+	}
 	TurnSpends.Add(FString::Printf(TEXT("%s -%d"), *Action.GetActionName(), Cost));
 	// Q-170c: Defend ends the turn; Flee ends the fight; a ritual's fire is its own Execution turn.
 	const bool bEndsTurn = Action.ActionType == EActionType::Defend || Action.ActionType == EActionType::Flee || Action.bIsDeferredFire;
@@ -1411,9 +1433,10 @@ bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
 	{
 		return false;
 	}
-	// TODO: B-170f: the AI spends or banks (Q-170c2); until then an AI-played turn (and a Void break's) is one action.
+	// B-170f (ActionPips.md §3.6): the AI is asked again like a player and spends or banks itself
+	// (UAIDecisionManager::DecideSpendOrBank). A Void break's random turn stays one action (Q-170c2, Q-170f2).
 	const bool bVoidBroken = SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill);
-	if (IsActorAIControlled(Actor) || bVoidBroken)
+	if (bVoidBroken)
 	{
 		return false;
 	}
@@ -1422,7 +1445,26 @@ bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
 		return false; // a stun leaves one action (Attack or Defend, D-001), not a bank of them (Q-170c2)
 	}
 	const UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (CharComp && !ActionPipsRules::HasSkillsLeftThisTurn(CharComp->SkillsUsedThisTurn))
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatOrchestrator] %s used %d skills: the turn ends, %d action(s) stay banked"),
+			   *Actor->GetName(), CharComp->SkillsUsedThisTurn, CharComp->CurrentActions);
+		return false; // Q-170j (Crown, 2026-11-12): at most SKILLS_PER_TURN_MAX per turn
+	}
 	return CharComp && CharComp->CurrentActions > 0;
+}
+
+void ACombatOrchestrator::ExpireBonusActionsAtTurnEnd(AActor *Actor)
+{
+	if (!IsActionPipsFight() || (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution))
+	{
+		return;
+	}
+	if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+	{
+		CharComp->ExpireActionsAboveMax();
+		CharComp->ResetSkillsUsedThisTurn(); // Q-170j: the HUD's "Skills n/3" shows only during the holder's turn
+	}
 }
 
 void ACombatOrchestrator::EndTurnByChoice()
@@ -1441,9 +1483,10 @@ FString ACombatOrchestrator::GetTurnSpendsString() const
 		return TEXT("one action per turn (wor.Turns.ActionPips 0 at fight start)");
 	}
 	const UCharacterDataComponent *CharComp = CurrentActor ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	return FString::Printf(TEXT("%s's turn: %s (%d left)"), *GetNameSafe(CurrentActor),
+	return FString::Printf(TEXT("%s's turn: %s (%d left, skills %d/%d)"), *GetNameSafe(CurrentActor),
 						   TurnSpends.Num() > 0 ? *FString::Join(TurnSpends, TEXT(", ")) : TEXT("nothing spent"),
-						   CharComp ? CharComp->CurrentActions : 0);
+						   CharComp ? CharComp->CurrentActions : 0, CharComp ? CharComp->SkillsUsedThisTurn : 0,
+						   ActionPipsConstants::SKILLS_PER_TURN_MAX);
 }
 
 void ACombatOrchestrator::HandleActionDeferredArmed(AActor *Caster, const FAction &Action, int32 DelayTurns)
@@ -1482,6 +1525,16 @@ void ACombatOrchestrator::HandleActionDeferredArmed(AActor *Caster, const FActio
 
 void ACombatOrchestrator::FireScheduledExecution()
 {
+	// B-406b: held like an action request under a boss phase cinematic (no fire, no defence timing until the HUD is
+	// back); HandleBossCinematicFinished calls this again. The payload stays armed meanwhile.
+	if (CameraDirector && CameraDirector->IsBossCinematicPlaying())
+	{
+		bHoldingForBossCinematic = true;
+		bWaitingForAsyncAction = true;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s's ritual fire waits for the boss cinematic"), *GetNameSafe(CurrentActor));
+		return;
+	}
+
 	if (!ActionExecutorRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Execution turn but no ActionExecutor — skipping"));

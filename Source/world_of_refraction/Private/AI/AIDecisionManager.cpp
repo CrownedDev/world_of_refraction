@@ -41,6 +41,10 @@
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "HAL/IConsoleManager.h"
 #include "Combat/Tuning/CombatTuningData.h"
+#include "Combat/Actions/ActionPipsRules.h"
+#include "Skills/Effects/BreakTable.h"
+#include "Equipment/Crystals/AugmentStoneConstants.h"
+#include "Inventory/ItemTier.h"
 
 namespace
 {
@@ -108,6 +112,7 @@ void UAIDecisionManager::Deinitialize()
 void UAIDecisionManager::SetCombatOrchestrator(ACombatOrchestrator *Orchestrator)
 {
     CurrentCombat = Orchestrator;
+    ResetActedThisTurn(); // B-170f: turn numbers restart each fight
     UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Combat orchestrator set"));
 }
 
@@ -119,6 +124,7 @@ void UAIDecisionManager::ClearCombatOrchestrator()
     }
     CurrentCombat = nullptr;
     PendingActor = nullptr;
+    ResetActedThisTurn();
     UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] Combat orchestrator cleared"));
 }
 
@@ -215,6 +221,25 @@ void UAIDecisionManager::ExecuteDecision()
         UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] %s chose an invalid action (%s) - falling back"),
                *Actor->GetName(), *Validation.ErrorMessage);
         Action = BuildFallbackAction(Actor);
+        PickNotes.bScored = false; // the fallback is a pick by need
+    }
+
+    // B-170f (ActionPips.md §3.6): in an action-pips fight the AI is asked once per action and spends the pick or
+    // banks the rest (End Turn). A stunned or Void-broken turn plays its one action (Q-170c2).
+    if (!bStunned && !bRandomAction && IsActionPipsFight())
+    {
+        const FAISpendOrBankDecision Decision = DecideSpendOrBank(Actor, Action);
+        LastSpendOrBankString = FString::Printf(TEXT("%s: %s"), *Actor->GetName(), *Decision.ToString());
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s"), *LastSpendOrBankString);
+        if (Decision.Choice == EAISpendOrBank::Bank)
+        {
+            FAction Bank;
+            Bank.ActionType = EActionType::EndTurn;
+            CurrentCombat->SubmitActionAsync(Bank);
+            return;
+        }
+        LastActedActor = Actor;
+        LastActedTurn = CurrentCombat->GetCurrentTurnNumber();
     }
 
     UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s executing action type %d"),
@@ -364,6 +389,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     EstimateMemo.Reset();
     EstimatePreviewCount = 0;
     EstimateMemoHitCount = 0;
+    PickNotes = FAIPickNotes(); // B-170f: the spend-or-bank notes are this decision's
     TGuardValue<bool> MemoScope(bEstimateMemoActive, true);
     ON_SCOPE_EXIT
     {
@@ -945,7 +971,8 @@ float UAIDecisionManager::EstimateSkillStatusScore(AActor *Attacker, AActor *Tar
 float UAIDecisionManager::ScoreSkill(AActor *Attacker, AActor *Target, USkillDataBase *Skill)
 {
     return EstimateSkillDamage(Attacker, Target, Skill) +
-           EstimateSkillStatusScore(Attacker, Target, Skill) * WoRTuning::Get().AIStatusScoreWeight;
+           EstimateSkillStatusScore(Attacker, Target, Skill) * WoRTuning::Get().AIStatusScoreWeight +
+           ScoreActionEffects(Attacker, Target, Skill); // B-170f: 0 outside an action-pips fight
 }
 
 bool UAIDecisionManager::CanAffordSkill(AActor *Actor, USkillDataBase *Skill, int32 InfusionLevel) const
@@ -1003,7 +1030,14 @@ USkillDataBase *UAIDecisionManager::ChooseBestSkill(AActor *AIActor, AActor *Tar
             continue;
         }
         const float Score = ScoreSkill(AIActor, Target, Skill);
-        if (CanAffordSkill(AIActor, Skill))
+        // B-170f: Energy first, so only a skill the AI can pay in Energy becomes the held pick (banking for one it
+        // could never cast would lose every other turn).
+        const bool bEnergyAffordable = CanAffordSkill(AIActor, Skill);
+        if (bEnergyAffordable && !CanPayActionsOrHold(AIActor, MakeSkillAction(AIActor, nullptr, Skill).GetActionCost(), Score))
+        {
+            continue; // B-170f: the bank can't pay it now (held for a later turn when within Max)
+        }
+        if (bEnergyAffordable)
         {
             if (Score > BestScore)
             {
@@ -1707,7 +1741,12 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             {
                 if (UAbilityData *AttackAbility = Cast<UAbilityData>(Attack))
                 {
-                    Score = FMath::Max(Score, EstimateSkillDamage(AIActor, BestTarget, AttackAbility));
+                    const int32 AttackDamage = EstimateSkillDamage(AIActor, BestTarget, AttackAbility);
+                    if (CanPayActionsOrHold(AIActor, MakeSkillAction(AIActor, nullptr, AttackAbility).GetActionCost(),
+                                            static_cast<float>(AttackDamage))) // B-170f: true outside an action-pips fight
+                    {
+                        Score = FMath::Max(Score, AttackDamage);
+                    }
                 }
             }
             break;
@@ -1741,11 +1780,25 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
     }
 
+    // B-170f (Q-170f): in an action-pips fight the Emerald takes a foe's turn or gives the AI actions.
+    const bool bActionPips = IsActionPipsFight();
+    if (bActionPips && GetDifficultyFor(AIActor) != EAIDifficulty::Easy)
+    {
+        bool bFoundEmerald = false;
+        const FCrystalId EmeraldId = FindBonusTurnItem(Loadout, bFoundEmerald);
+        FAction Emerald;
+        if (bFoundEmerald && TryActionPipsEmerald(AIActor, EmeraldId, BestTarget, static_cast<float>(BestScore), Emerald))
+        {
+            return Emerald;
+        }
+    }
+
     // ===== Emerald (bonus-turn item) valuation — Medium+ only =====
     // Slots in HERE because this is the only point where BestScore (best AFFORDABLE
     // action this turn, in HP-damage units) and the chosen BestTarget both exist.
     // Every Emerald score below is in the SAME HP-damage units as BestScore.
-    if (GetDifficultyFor(AIActor) != EAIDifficulty::Easy)
+    // B-170f: the bonus-turn Emerald only; an action-pips fight values it above.
+    if (!bActionPips && GetDifficultyFor(AIActor) != EAIDifficulty::Easy)
     {
         bool bFoundEmerald = false;
         const FCrystalId EmeraldId = FindBonusTurnItem(Loadout, bFoundEmerald);
@@ -1829,7 +1882,9 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                 continue;
             }
             const int32 AttackDamage = EstimateSkillDamage(AIActor, Action.Targets[0], AttackAbility);
-            if (AttackDamage > BestAttackDamage)
+            if (AttackDamage > BestAttackDamage &&
+                CanPayActionsOrHold(AIActor, MakeSkillAction(AIActor, nullptr, AttackAbility).GetActionCost(),
+                                    static_cast<float>(AttackDamage))) // B-170f: true outside an action-pips fight
             {
                 BestAttackDamage = AttackDamage;
                 BestAttack = Attack;
@@ -1837,6 +1892,10 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
 
         Action.SkillData = BestAttack;
+        if (!BestAttack && bActionPips)
+        {
+            Action.ActionType = EActionType::Defend; // B-170f: no attack the bank can pay
+        }
         break;
     }
     case EAIActionChoice::Spell:
@@ -1857,7 +1916,155 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         break;
     }
 
+    // B-170f: the spend-or-bank decision reads the pick's score (Defend is not a scored pick).
+    PickNotes.bScored = Action.ActionType != EActionType::Defend;
+    PickNotes.Score = static_cast<float>(BestScore);
     return Action;
+}
+
+// ==================== ACTION PIPS (B-170f, ActionPips.md §3.6) ====================
+
+void UAIDecisionManager::ResetActedThisTurn()
+{
+    LastActedActor.Reset();
+    LastActedTurn = INDEX_NONE;
+}
+
+bool UAIDecisionManager::IsActionPipsFight() const
+{
+    return CurrentCombat && CurrentCombat->IsActionPipsFight();
+}
+
+bool UAIDecisionManager::CanPayActionsOrHold(AActor *Actor, int32 ActionCost, float Score)
+{
+    if (!IsActionPipsFight())
+    {
+        return true;
+    }
+    const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!CharComp)
+    {
+        return true; // nothing banked: the orchestrator plays the turn as built
+    }
+    if (ActionPipsRules::CanAfford(ActionCost, CharComp->CurrentActions))
+    {
+        return true;
+    }
+    // Above the bank but within Max: banking reaches it (ActionPips.md §3.6, "it may bank for it").
+    if (!ActionPipsRules::IsCostAboveMax(ActionCost, CharComp->GetMaxActions()) && Score > PickNotes.HeldScore)
+    {
+        PickNotes.HeldScore = Score;
+        PickNotes.HeldActionCost = ActionCost;
+    }
+    return false;
+}
+
+FAISpendOrBankDecision UAIDecisionManager::DecideSpendOrBank(AActor *Actor, const FAction &Pick) const
+{
+    const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    FAISpendOrBankInput In;
+    In.CurrentActions = CharComp ? CharComp->CurrentActions : 0;
+    In.MaxActions = CharComp ? CharComp->GetMaxActions() : 0;
+    In.PickActionCost = Pick.GetActionCost();
+    In.PickScore = PickNotes.Score;
+    In.bPickIsScored = PickNotes.bScored;
+    In.bPickEndsTurn = Pick.ActionType == EActionType::Defend;
+    In.HeldActionCost = PickNotes.HeldActionCost;
+    In.HeldScore = PickNotes.HeldScore;
+    In.bEasy = GetDifficultyFor(Actor) == EAIDifficulty::Easy;
+    In.bActedThisTurn = CurrentCombat && LastActedActor.Get() == Actor && LastActedTurn == CurrentCombat->GetCurrentTurnNumber();
+    if (In.bEasy && In.bActedThisTurn)
+    {
+        In.EasyRoll = UBattleRandomSubsystem::FRand(this); // drawn only when it can matter, so other fights replay unchanged
+    }
+    return AIActionPips::DecideSpendOrBank(In);
+}
+
+float UAIDecisionManager::GetActionWorth(AActor *Unit, AActor *Victim)
+{
+    return Unit && Victim ? static_cast<float>(EstimateBestDamage(Unit, Victim)) : 0.0f;
+}
+
+float UAIDecisionManager::ScoreActionEffects(AActor *Attacker, AActor *Target, USkillDataBase *Skill)
+{
+    if (!Attacker || !Target || !Skill || !IsActionPipsFight())
+    {
+        return 0.0f;
+    }
+
+    float Worth = 0.0f;
+    for (const FSkillEffect &Effect : Skill->GetAllEffects())
+    {
+        for (const FSkillEffectPayload &Payload : Effect.Payloads)
+        {
+            if (!SkillEffectClassification::CountsWholeActions(Payload.EffectType))
+            {
+                continue;
+            }
+            // Self / Ally lands on the AI's side (the caster stands in for an ally); Enemy / Anyone on the target.
+            const bool bOnOwnSide = Payload.Target == ETargetType::Self || Payload.Target == ETargetType::Ally;
+            const bool bGain = Payload.EffectType == ESkillEffectType::GainActions || Payload.EffectType == ESkillEffectType::MaxActionsBuff;
+            const bool bMaxChange = !SkillEffectClassification::IsActionChange(Payload.EffectType);
+            const float UnitWorth = bOnOwnSide ? GetActionWorth(Attacker, Target) : GetActionWorth(Target, Attacker);
+            Worth += AIActionPips::ActionChangeWorth(Payload.Value, UnitWorth, bOnOwnSide, bGain, bMaxChange);
+        }
+    }
+
+    // The Ice and Wind breaks take actions too (Q-170e): worth it when this hit tips the target's bar (the status
+    // score's trigger tier). The bar's break is the pending hit kind's, as the status score reads it.
+    const UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
+    const FBreakRow *Break = BuildupManager ? BreakTable::For(BuildupManager->GetPendingTrigger(Target), /*bActionPips=*/true) : nullptr;
+    const int32 BreakActionsLost = Break ? Break->ActionsLostNow + Break->ActionsLostNextTurn : 0;
+    if (BreakActionsLost > 0 && EstimateSkillStatusScore(Attacker, Target, Skill) >= WoRTuning::Get().AIStatusScoreTrigger)
+    {
+        Worth += AIActionPips::ActionChangeWorth(BreakActionsLost, GetActionWorth(Target, Attacker), /*bOnOwnSide=*/false,
+                                                 /*bGain=*/false, /*bMaxChange=*/false);
+    }
+    return Worth;
+}
+
+bool UAIDecisionManager::TryActionPipsEmerald(AActor *AIActor, const FCrystalId &EmeraldId, AActor *BestTarget, float BestScore,
+                                              FAction &OutEmerald)
+{
+    const UCharacterDataComponent *Own = AIActor ? AIActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const UCharacterDataComponent *Foe = BestTarget ? BestTarget->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!Own || !Foe || !ActionPipsRules::CanAfford(ActionPipsRules::ClampActionCost(CrystalEffectTable::GetActionCost(EmeraldId)), Own->CurrentActions))
+    {
+        return false;
+    }
+
+    // On the foe: it loses its next turn (S: two, ItemExecutor::ExecuteBonusTurnEffect), each its regain of actions.
+    const float OnFoe = GetActionWorth(BestTarget, AIActor) * Foe->GetActionRegain() *
+                        CrystalEffectTable::GetEmeraldBonusTurnCount(EmeraldId);
+
+    // On itself: the tier's actions (Crown's ladder), discounted per turn of delay as the old self-Emerald was.
+    float OnSelf = 0.0f;
+    const int32 TierIndex = TierHelpers::GetTierValue(EmeraldId.Tier);
+    if (TierIndex >= 0 && TierIndex < static_cast<int32>(UE_ARRAY_COUNT(AugmentStoneConstants::EMERALD_ALLY_ACTIONS_GAINED)))
+    {
+        const int32 Delay = AugmentStoneConstants::EMERALD_ALLY_GAIN_DELAY_TURNS[TierIndex];
+        const float DelayDiscount = 1.0f / (1.0f + WoRTuning::Get().AIDelayDecay * Delay);
+        OnSelf = AIActionPips::ActionChangeWorth(AugmentStoneConstants::EMERALD_ALLY_ACTIONS_GAINED[TierIndex],
+                                                 GetActionWorth(AIActor, BestTarget), /*bOnOwnSide=*/true, /*bGain=*/true,
+                                                 /*bMaxChange=*/false) *
+                 DelayDiscount;
+    }
+
+    const bool bOnFoe = OnFoe >= OnSelf;
+    const float Worth = bOnFoe ? OnFoe : OnSelf;
+    if (Worth <= BestScore)
+    {
+        return false;
+    }
+    OutEmerald = FAction();
+    OutEmerald.ActionType = EActionType::Item;
+    OutEmerald.ItemData = EmeraldId;
+    OutEmerald.Targets.Add(bOnFoe ? BestTarget : AIActor);
+    PickNotes.bScored = true;
+    PickNotes.Score = Worth;
+    UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s: Emerald on %s (worth %.0f, best pick %.0f)"), *AIActor->GetName(),
+           bOnFoe ? *BestTarget->GetName() : TEXT("itself"), Worth, BestScore);
+    return true;
 }
 
 // ==================== HELPER FUNCTIONS ====================

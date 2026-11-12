@@ -2,6 +2,7 @@
 // B-031: a ritual fires on its Execution turn through the async path (the only action path
 // left), a montage-less ritual ability is no longer dropped, and a refused fire never strands
 // the turn. Driven through a real ACombatOrchestrator on bare 1v1 combatants.
+// B-406b: a ritual fire waits for a boss phase cinematic, then fires.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -15,6 +16,8 @@
 #include "Character/CharacterDataComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Combat/Camera/CombatCameraDirector.h"
+#include "Combat/Camera/CombatCameraTypes.h"
 
 namespace
 {
@@ -242,6 +245,52 @@ void FCombatRitualFireSpec::Define()
 		TestFalse(TEXT("The burn paid at the Execution turn start"), HeroData->bIsAlive);
 		TestEqual(TEXT("The dead caster's ritual never fired"), Recorder->Entries.Num(), 0);
 		TestTrue(TEXT("The fight is over"), Orchestrator->GetCombatState() != ECombatState::InProgress);
+	});
+
+	It("holds a ritual fire under a boss phase cinematic, then fires it (B-406b)", [this]()
+	{
+		const auto MakeDefend = []()
+		{
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			return Defend;
+		};
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		if (!TestNotNull(TEXT("Camera director"), Director) || !StartDuelWithRitual(MakeDefend))
+		{
+			return;
+		}
+		for (int32 Turn = 0; Turn < RITUAL_MAX_TURNS_TO_PLAY; ++Turn)
+		{
+			const TArray<FPreviewTurnEntry> Next = TurnManager->PreviewTurnOrder(1);
+			if (Next.Num() > 0 && Next[0].Type == ETurnType::Execution)
+			{
+				break;
+			}
+			Orchestrator->OnActionCompleted();
+			TestWorld->Tick(RITUAL_SETTLE_FRAMES);
+		}
+		const TArray<FPreviewTurnEntry> Next = TurnManager->PreviewTurnOrder(1);
+		if (!TestTrue(TEXT("The Execution turn is next"), Next.Num() > 0 && Next[0].Type == ETurnType::Execution))
+		{
+			return;
+		}
+
+		// A phase cinematic starts as the turn ends (the sequence-free hold: a headless world has no viewer).
+		Director->HoldForBossCinematic(EBossCinematicKind::Phase, Foe, FCombatCameraRules::BossCinematicMaxSeconds);
+		Orchestrator->OnActionCompleted();
+		TestWorld->Tick(RITUAL_SETTLE_FRAMES); // shorter than the cap: the cinematic still plays
+		TestTrue(TEXT("Still the Execution turn"), TurnManager->GetCurrentTurnType() == ETurnType::Execution);
+		TestTrue(TEXT("The cinematic still plays"), Director->IsBossCinematicPlaying());
+		TestEqual(TEXT("The ritual waits"), Recorder->Entries.Num(), 0);
+		TestTrue(TEXT("The fight is held"), Orchestrator->IsWaitingForAsyncAction());
+
+		Director->FinishBossCinematic();
+		TestWorld->Tick(RITUAL_SETTLE_FRAMES);
+		TestTrue(TEXT("Then the ritual fired"), Recorder->Saw(Hero, EActionType::Defend, true));
+		TestEqual(TEXT("Fired once"), Recorder->Entries.Num(), 1);
+		TestTrue(TEXT("Combat still running"), Orchestrator->GetCombatState() == ECombatState::InProgress);
+		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
 	});
 
 	It("advances past a ritual that can't fire", [this]()

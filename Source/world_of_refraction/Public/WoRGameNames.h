@@ -74,6 +74,10 @@ namespace WoRGameNames
     WORLD_OF_REFRACTION_API FText GetActiveAdapterWord();
     /** B-316: "yourself", the player's own character as a receiver (the shop's buy-for). */
     WORLD_OF_REFRACTION_API FText GetYourselfWord();
+    /** B-170e: "Actions", the banked actions a turn spends (action pips, ActionPips.md). */
+    WORLD_OF_REFRACTION_API FText GetActionsWord();
+    /** B-170e: "End Turn", the button verb that ends the turn and banks the actions left. */
+    WORLD_OF_REFRACTION_API FText GetEndTurnVerb();
     /** B-339: the inventory screen's button verbs: "Give", "Store", "Take", "Dismantle", "Convert to Gold". */
     WORLD_OF_REFRACTION_API FText GetInventoryVerbName(EInventoryVerb Verb);
     /** B-366b: the same, Convert naming the currency it pays (UEconomyService::GetPlaceCurrency). The one-argument

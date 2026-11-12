@@ -51,7 +51,25 @@ void UCombatPresentationComponent::SendMontage(UAnimMontage *Montage, float Play
 	Multicast_PlayMontage(Montage, PlayRate);
 }
 
-void UCombatPresentationComponent::SendHit(int32 Damage, bool bCritical)
+void UCombatPresentationComponent::SendHit(int32 Damage, bool bCritical, float ElementMultiplier, EWoRDamageType DamageType)
+{
+	FCombatHitShown Hit;
+	Hit.Amount = Damage;
+	Hit.bCritical = bCritical;
+	Hit.ElementMultiplier = ElementMultiplier;
+	Hit.DamageType = DamageType;
+	SendShown(Hit);
+}
+
+void UCombatPresentationComponent::SendHeal(int32 Amount)
+{
+	FCombatHitShown Heal;
+	Heal.Amount = Amount;
+	Heal.bHeal = true;
+	SendShown(Heal);
+}
+
+void UCombatPresentationComponent::SendShown(const FCombatHitShown &Hit)
 {
 	const UWorld *World = GetWorld();
 	if (!World || !GetOwner() || !GetOwner()->HasAuthority())
@@ -60,10 +78,10 @@ void UCombatPresentationComponent::SendHit(int32 Damage, bool bCritical)
 	}
 	if (CombatPresentation::SendsFromHere(World->GetNetMode()))
 	{
-		Multicast_ShowHit(Damage, bCritical); // runs here too (a multicast runs on the server and every client)
+		Multicast_ShowHit(Hit); // runs here too (a multicast runs on the server and every client)
 		return;
 	}
-	Multicast_ShowHit_Implementation(Damage, bCritical); // standalone: just this machine
+	Multicast_ShowHit_Implementation(Hit); // standalone: just this machine
 }
 
 void UCombatPresentationComponent::SendProjectile(const ASkillProjectile &Projectile)
@@ -158,12 +176,21 @@ void UCombatPresentationComponent::Multicast_PlayMontage_Implementation(UAnimMon
 	PlayLocally(Montage, PlayRate);
 }
 
-void UCombatPresentationComponent::Multicast_ShowHit_Implementation(int32 Damage, bool bCritical)
+void UCombatPresentationComponent::Multicast_ShowHit_Implementation(const FCombatHitShown &Hit)
 {
-	LastHitDamage = Damage;
-	bLastHitCritical = bCritical;
-	++HitsShown;
-	OnHitShown.Broadcast(GetOwner(), Damage, bCritical);
+	if (Hit.bHeal)
+	{
+		++HealsShown;
+	}
+	else
+	{
+		LastHitDamage = Hit.Amount;
+		bLastHitCritical = Hit.bCritical;
+		LastHitElementMultiplier = Hit.ElementMultiplier;
+		++HitsShown;
+		OnHitShown.Broadcast(GetOwner(), Hit.Amount, Hit.bCritical); // hits only, as before B-391b
+	}
+	OnHitDetailShown.Broadcast(GetOwner(), Hit);
 }
 
 void UCombatPresentationComponent::PlayLocally(UAnimMontage *Montage, float PlayRate)
@@ -183,10 +210,10 @@ void UCombatPresentationComponent::PlayLocally(UAnimMontage *Montage, float Play
 
 FString UCombatPresentationComponent::GetDebugString() const
 {
-	return FString::Printf(TEXT("%s: last montage %s (%d sent, %d received), %d hit(s) shown, last %d%s; projectiles %d sent, %d flown; VFX %d sent, %d spawned"),
+	return FString::Printf(TEXT("%s: last montage %s (%d sent, %d received), %d hit(s) shown, last %d%s x%.2f; %d heal(s) shown; projectiles %d sent, %d flown; VFX %d sent, %d spawned"),
 						   *GetNameSafe(GetOwner()), LastMontage.IsEmpty() ? TEXT("none") : *LastMontage, MontagesSent, MontagesReceived,
-						   HitsShown, LastHitDamage, bLastHitCritical ? TEXT(" (crit)") : TEXT(""), ProjectilesSent, ProjectilesFlown,
-						   VFXSent, VFXSpawned);
+						   HitsShown, LastHitDamage, bLastHitCritical ? TEXT(" (crit)") : TEXT(""), LastHitElementMultiplier, HealsShown,
+						   ProjectilesSent, ProjectilesFlown, VFXSent, VFXSpawned);
 }
 
 static FAutoConsoleCommandWithWorld GNetPrintPresentationCommand(

@@ -251,7 +251,10 @@ void UTrialRunSubsystem::ExitTrial()
     PendingOpposingParty.Reset();
     EncounterReturnLevel = nullptr;
     // B-090: a trial's exit is a save point.
-    GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
+    USaveSubsystem *ExitSave = GetGameInstance()->GetSubsystem<USaveSubsystem>();
+    ExitSave->SaveNow(GetGameInstance()->GetWorld(), true);
+    // B-234d (Q-234d): a run handed over from the old host's copy ends here; the hub gets this player's own party and pool.
+    ExitSave->EndHandedOverRun();
     TravelTo(HubLevel);
 }
 
@@ -982,6 +985,11 @@ void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
         {
             UE_LOG(LogTemp, Error, TEXT("[TrialRun] Server travel to %s refused (in PIE: net.AllowPIESeamlessTravel 1)"),
                    *Level.ToString());
+            // B-234d review: a handed-over run's return waits for this travel's hub; it won't come.
+            if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
+            {
+                Save->CancelHandedOverRunEnd();
+            }
         }
         return;
     }

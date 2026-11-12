@@ -57,7 +57,8 @@ namespace CombatCameraShots
 	constexpr float ImpactThreeQuarterBack = 120.0f;
 	constexpr float ImpactHeight = 40.0f;
 	constexpr float ImpactBlendSeconds = 0.15f;
-	// B-403 (R6): a small punch and a light shake on a normal hit; a crit stays bigger (FeelGuide 4). TODO: tune.
+	// B-403 (R6): a small punch and a light shake on a normal hit; a crit stays bigger (FeelGuide 4). The softer punch
+	// (5 / 10, was 8 / 14) is kept by Crown (Q-403, 2026-11-12). TODO: tune.
 	constexpr float ImpactFovPunch = 5.0f;
 	constexpr float CritFovPunch = 10.0f;
 	constexpr float ImpactShake = 0.25f;
