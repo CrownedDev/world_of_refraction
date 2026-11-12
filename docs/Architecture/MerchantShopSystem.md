@@ -20,8 +20,10 @@ is deliberately NOT a field on the merchant.
 
 ### `EMerchantType` (5 archetypes)
 
-Blacksmith (weapons, augment stones) · Jeweler (rings) · CombatMaster
+Blacksmith (weapons, augment stones) · Jeweler (rings; item slots, Q-239) · CombatMaster
 (abilities) · SpellShop (spells) · Spiritualist (evolutions, crystals, repairs).
+**D-173 (Crown, 2026-11-12):** the Stone Smith (`EMerchantType::StoneSmith`, B-195) merges into the
+Blacksmith; B-409 retires it in code and data.
 Item-type → merchant is automatic from the item's class (the merchant map);
 vendor tags only override. Selling a type outside the map is a **validation
 warning**, not an error — deliberate overrides are allowed.
@@ -218,3 +220,4 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 | 2026-10-26 | B-195 (Q-195): hub services as V. `EMerchantType` appends `StoneSmith` and `LoadoutVendor`; `UMerchantData::VOutfitMesh` (V's mesh for that service, else the cube); `AMerchantInteractable::GetMissingServices` / `GetServicesString`, `wor.Hub.Services`; spec `WoR.Hub.Services`. The NPCs only sell until the upgrade / repair / merge / purchase-loadout screens exist. | feature/B-195-hub-services |
 | 2026-11-03 | B-269: the shop's cost lines (detail, row) and wallet-totals labels read essence names from `WoRGameNames::GetEssenceName` (Generic = Quartz Essence, D-105; Reality = Unknown Essence, D-095) instead of the raw enum identifiers. The row cost line is still a built FString (TODO B-127). | fix/B-269-essence-names |
 | 2026-11-04 | B-366c (D-002 notes, ER-21): a purchase pays its money line in the currency of the place. `PurchaseCostBalances::PaidFrom(Listed, Place)` (`Currency/EconomyService.h`) maps the listed Prisms line to `UEconomyService::GetPlaceCurrency`; `PurchaseImpl` checks, spends and refunds through it (buy-for too); `UShopWindowWidget::GetCostLineText(Cost, Place)`, the totals labels / wallet cells, Confirm and `GetShopString` follow it. Spec `WoR.Economy.RoundTrip`. | feature/B-366c-shop-place-currency |
+| 2026-11-12 | D-173 (Crown): the Stone Smith merges into the Blacksmith (docs; code and data in B-409). Q-239 (Crown): the Jeweler sells item slots (B-239's placeholder `wor.UI.ItemSlots`; the Jeweler's merchant name lists them) | feature/B-239-item-slot-upgrades |
