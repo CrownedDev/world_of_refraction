@@ -2,7 +2,7 @@
 // PLACEHOLDER UI (B-187, Backlog rule 4): the rest spot's menu. The party has already rested (full HP / EP, the
 // fallen revived); from here the player opens the inventory, or leaves the trial for a reduced payout after a
 // confirm. Plain buttons built in C++ (like ULevelDropWidget); opened by ATrialRestSpot or wor.Trial.Rest. Replaced by
-// the CommonUI screen (D-024).
+// the CommonUI screen (D-024). B-233b: the host invites and seats friends from here (drop-in happens at rest spots).
 
 #pragma once
 
@@ -74,6 +74,9 @@ private:
 	/** B-234c: the host hands the run over to the next player (shown only to a host with another player). */
 	UFUNCTION()
 	void HandleHandOverClicked();
+	/** B-233b: the host opens the invite screen (the party stays at the rest spot, so friends can be seated). */
+	UFUNCTION()
+	void HandleInviteClicked();
 
 	void CloseMenu();
 
@@ -112,6 +115,9 @@ private:
 	/** B-234c: Hand over host. */
 	UPROPERTY(Transient)
 	TObjectPtr<UButton> HandOverButton;
+	/** B-233b: Invite friends (the host only). */
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> InviteButton;
 
 	/** B-187d: Leave, hidden on a client (with the run's earnings) until B-187e routes it to the host. */
 	UPROPERTY(Transient)

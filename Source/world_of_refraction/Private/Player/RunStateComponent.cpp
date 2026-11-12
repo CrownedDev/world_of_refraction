@@ -7,9 +7,14 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/TurnManager.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "TimerManager.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
+#include "GameFramework/GameModeBase.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "HAL/IConsoleManager.h"
@@ -17,11 +22,17 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Party/SeatRules.h"
+#include "Online/HostSuccession.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
+
+bool RunJoinRules::CanSeatJoiner(bool bInRun, bool bHostAtRestSpot, bool bOwnHeldSeat)
+{
+	return !bInRun || bHostAtRestSpot || bOwnHeldSeat;
+}
 
 namespace
 {
@@ -148,6 +159,8 @@ void URunStateComponent::BeginPlay()
 		{
 			PartySession->OnPartyChanged.AddUniqueDynamic(this, &URunStateComponent::HandlePartyChanged);
 		}
+		// B-233b: a logout is a player really leaving (seamless travel keeps its controller, so none fires then).
+		LogoutHandle = FGameModeEvents::GameModeLogoutEvent.AddUObject(this, &URunStateComponent::HandleLogout);
 	}
 }
 
@@ -158,6 +171,11 @@ void URunStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
 	{
 		PartySession->OnPartyChanged.RemoveDynamic(this, &URunStateComponent::HandlePartyChanged);
+	}
+	FGameModeEvents::GameModeLogoutEvent.Remove(LogoutHandle);
+	if (UTurnManager *Turns = WoRFight::Get<UTurnManager>(this))
+	{
+		Turns->OnCombatEnded.RemoveDynamic(this, &URunStateComponent::HandleCombatEndedForDrops);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -517,17 +535,40 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 		UE_LOG(LogWoR, Warning, TEXT("[RunState] AcceptJoin: player %d has left; its request is dropped"), PlayerId);
 		return false;
 	}
-	JoinRequests.RemoveAt(Index); // before the party broadcast, so the placeholder's refresh shows no stale line
 	const UWorld *World = GetWorld();
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	if (!PartySession || !PartySession->ReplaceAISeatWithPlayer(ReplaceSlot, Request.PawnClass, Request.Character))
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	const FGuid SeatMember = Party && Party->Members.IsValidIndex(ReplaceSlot) ? Party->Members[ReplaceSlot].MemberId : FGuid();
+	// B-233b: a friend taking back the seat it left (held for its id) keeps its member and gear: no swap.
+	const FString JoinerId = JoinerState->GetUniqueId().IsValid() ? JoinerState->GetUniqueId().ToString() : FString();
+	const bool bOwnHeldSeat = SeatMember.IsValid() && !JoinerId.IsEmpty() && GetHeldFor(SeatMember) == JoinerId;
+	if (!bOwnHeldSeat && !CanSeatNewJoinerNow())
 	{
-		JoinRequests.Add(Request); // still waiting: the host may pick another seat
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] AcceptJoin: in a run, friends are seated at a rest spot (rest at one first, Q-233b)"));
 		return false;
 	}
+	JoinRequests.RemoveAt(Index); // before the party broadcast, so the placeholder's refresh shows no stale line
+	if (bOwnHeldSeat)
+	{
+		if (!PartySession->IsMemberAISeat(ReplaceSlot) || !PartySession->SetMemberAISeat(ReplaceSlot, false))
+		{
+			JoinRequests.Insert(Request, Index); // review: keeps its place in the queue
+			return false;
+		}
+		HeldSeats.Remove(SeatMember);
+		JoinerState->ClaimMember(SeatMember);
+		RefreshRoster();
+		UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d took back its seat: slot %d (member %s)"), PlayerId, ReplaceSlot, *SeatMember.ToString(EGuidFormats::Short));
+		return true;
+	}
+	if (!PartySession || !PartySession->ReplaceAISeatWithPlayer(ReplaceSlot, Request.PawnClass, Request.Character))
+	{
+		JoinRequests.Insert(Request, Index); // still waiting, in its place: the host may pick another seat
+		return false;
+	}
+	HeldSeats.Remove(SeatMember); // another player took it: the hold is gone with the member
 	// B-360b: the joiner commands the member it became (its copy), not every copy of that character.
-	const UParty *Party = PartySession->GetLocalParty();
 	if (Party && Party->Members.IsValidIndex(ReplaceSlot))
 	{
 		JoinerState->ClaimMember(Party->Members[ReplaceSlot].MemberId);
@@ -551,6 +592,136 @@ bool URunStateComponent::RefuseJoin(int32 PlayerId)
 	return Removed > 0;
 }
 
+bool URunStateComponent::CanSeatNewJoinerNow() const
+{
+	const UTrialRunSubsystem *Run = RunStateTrialRunOf(this);
+	return RunJoinRules::CanSeatJoiner(Run && Run->IsRunActive(), Run && Run->IsAtRestSpot(), /*bOwnHeldSeat=*/false);
+}
+
+FString URunStateComponent::GetHeldFor(const FGuid &MemberId) const
+{
+	const FString *Held = HeldSeats.Find(MemberId);
+	return Held ? *Held : FString();
+}
+
+void URunStateComponent::HandleLogout(AGameModeBase *GameMode, AController *Exiting)
+{
+	const APlayerController *PC = Cast<APlayerController>(Exiting);
+	// Only this world's remote players: the host's own controller and other worlds' (PIE) are not a friend leaving.
+	if (!PC || PC->IsLocalController() || PC->GetWorld() != GetWorld())
+	{
+		return;
+	}
+	// Review: a closing world (travel, PIE end) or a host hand-over in flight (B-234c: every client leaves on purpose)
+	// is not a friend dropping out; the seats stay as saved.
+	const UWorld *World = GetWorld();
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr;
+	if (!World || World->bIsTearingDown || (HandOver && HandOver->GetStep() != EHostHandOverStep::None))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RunState] A player logged out during a level close or a hand-over: seats unchanged"));
+		return;
+	}
+	HandlePlayerLeft(PC->PlayerState);
+}
+
+void URunStateComponent::HandlePlayerLeft(APlayerState *Leaver)
+{
+	AWoRPlayerState *WoRLeaver = Cast<AWoRPlayerState>(Leaver);
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !WoRLeaver)
+	{
+		return;
+	}
+	const int32 LeaverId = WoRLeaver->GetPlayerId();
+	JoinRequests.RemoveAll([LeaverId](const FRunJoinRequest &R) { return R.PlayerId == LeaverId; });
+	const FString HeldFor = WoRLeaver->GetUniqueId().IsValid() ? WoRLeaver->GetUniqueId().ToString() : FString();
+	const UWorld *World = GetWorld();
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const bool bFighting = PartySession && PartySession->IsFightRunning();
+	const TArray<FGuid> LeaverMembers = WoRLeaver->GetClaimedMembers();
+	for (const FGuid &MemberId : LeaverMembers)
+	{
+		WoRLeaver->ReleaseMember(MemberId); // it is going: nobody claims the member (the host commands it until it turns AI)
+		if (!HeldFor.IsEmpty())
+		{
+			HeldSeats.Add(MemberId, HeldFor);
+		}
+		if (bFighting)
+		{
+			// Seats are fixed during a fight (Q-21-audit): the host commands the member (unclaimed) until it ends.
+			PendingSeatDrops.AddUnique(MemberId);
+		}
+		else
+		{
+			DropToAISeat(MemberId);
+		}
+	}
+	if (!PendingSeatDrops.IsEmpty())
+	{
+		if (UTurnManager *Turns = WoRFight::Get<UTurnManager>(this))
+		{
+			Turns->OnCombatEnded.AddUniqueDynamic(this, &URunStateComponent::HandleCombatEndedForDrops);
+		}
+	}
+	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d (%s) left: %d member(s) to the AI%s"), LeaverId, *WoRLeaver->GetPlayerName(),
+		   LeaverMembers.Num(), bFighting ? TEXT(" when this fight ends (the host commands them until then)") : TEXT(""));
+	RefreshRoster();
+}
+
+void URunStateComponent::HandleCombatEndedForDrops(int32 /*FinalTurnCount*/)
+{
+	if (UTurnManager *Turns = WoRFight::Get<UTurnManager>(this))
+	{
+		Turns->OnCombatEnded.RemoveDynamic(this, &URunStateComponent::HandleCombatEndedForDrops);
+	}
+	// The fight reads as running until EndCombat returns (it broadcasts first): drop the seats on the next tick.
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &URunStateComponent::ApplyPendingSeatDrops));
+	}
+}
+
+void URunStateComponent::ApplyPendingSeatDrops()
+{
+	TArray<FGuid> Drops = MoveTemp(PendingSeatDrops);
+	PendingSeatDrops.Reset();
+	const AGameStateBase *GameState = GetOwningGameState();
+	for (const FGuid &MemberId : Drops)
+	{
+		// Review: a member someone claimed again since (a player seated before the drop) stays theirs.
+		const bool bClaimedAgain = GameState && GameState->PlayerArray.ContainsByPredicate([&MemberId](const APlayerState *Player)
+		{
+			const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+			return WoRPlayer && WoRPlayer->ClaimsMember(MemberId);
+		});
+		if (bClaimedAgain)
+		{
+			continue;
+		}
+		if (!DropToAISeat(MemberId))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[RunState] Member %s stays the host's: its seat could not turn AI"), *MemberId.ToString(EGuidFormats::Short));
+		}
+	}
+	RefreshRoster();
+}
+
+bool URunStateComponent::DropToAISeat(const FGuid &MemberId)
+{
+	const UWorld *World = GetWorld();
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	const int32 Slot = Party ? Party->Members.IndexOfByPredicate([&MemberId](const FPartyMember &M) { return M.MemberId == MemberId; }) : INDEX_NONE;
+	if (Slot == INDEX_NONE)
+	{
+		return true; // gone from the party already: nothing to drop
+	}
+	// The leader is never an AI seat (Q-21-audit): a leader's player leaving leaves it to the host (unclaimed).
+	return Slot == PartyConstants::LEADER_SLOT || PartySession->SetMemberAISeat(Slot, true);
+}
+
 FString URunStateComponent::GetDebugString() const
 {
 	FString Out = FString::Printf(TEXT("[RunState] run %s: trial %s, seed %d, variation %d, %d beaten; %d player(s)"),
@@ -567,6 +738,16 @@ FString URunStateComponent::GetDebugString() const
 	for (const FRunJoinRequest &Request : JoinRequests)
 	{
 		Out += FString::Printf(TEXT("\n  join request: player %d with %s"), Request.PlayerId, *GetNameSafe(Request.Character));
+	}
+	// B-233b
+	Out += FString::Printf(TEXT("\n  seating new joiners: %s"), CanSeatNewJoinerNow() ? TEXT("open") : TEXT("closed (in a run, away from a rest spot)"));
+	for (const TPair<FGuid, FString> &Held : HeldSeats)
+	{
+		Out += FString::Printf(TEXT("\n  seat held: member %s for %s"), *Held.Key.ToString(EGuidFormats::Short), *Held.Value);
+	}
+	for (const FGuid &MemberId : PendingSeatDrops)
+	{
+		Out += FString::Printf(TEXT("\n  to the AI when this fight ends: member %s"), *MemberId.ToString(EGuidFormats::Short));
 	}
 	return Out;
 }

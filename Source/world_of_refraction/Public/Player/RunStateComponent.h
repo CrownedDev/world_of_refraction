@@ -10,6 +10,10 @@
 // Joining mid-run (D-150): a player asks for a seat (RequestJoin); the host picks the AI seat it replaces (AcceptJoin:
 // `wor.Party.AcceptJoin`, or the placeholder `wor.UI.JoinSeat`); that member's gear and pouch go to the host.
 // B-232d: the run's found features, memories and unspent levels join it (PullRunProgress on each change).
+// B-233b (Q-233b): in a run a new friend is seated only while the party is at a rest spot (UTrialRunSubsystem::
+// IsAtRestSpot: rested there, not yet walked away). A friend who leaves (its connection logs out) drops out: its members become AI seats held for it (in a
+// fight the host commands them until it ends, then they turn AI); seated again on a held seat, it takes its own member
+// back with its gear, anywhere outside a fight.
 // Debug: GetDebugString, `wor.Run.PrintState`, `wor.Party.PrintJoinRequests`.
 
 #pragma once
@@ -27,6 +31,13 @@ class UCharacterData;
 class UParty;
 class UTrialData;
 class UMemoryData;
+
+namespace RunJoinRules
+{
+	/** B-233b (Rules 06 drop-in ruling, Q-233b): may the host seat a joiner now? Outside a run always; in a run only at a
+	 *  rest spot, unless the joiner takes back the seat it left (held for it). */
+	WORLD_OF_REFRACTION_API bool CanSeatJoiner(bool bInRun, bool bHostAtRestSpot, bool bOwnHeldSeat);
+}
 
 /** D-150: a player waiting to join the run with its own character; the host picks the AI seat it takes. */
 USTRUCT(BlueprintType)
@@ -148,6 +159,15 @@ public:
 	/** The party slots an AI seat holds (never the leader's). */
 	TArray<int32> GetFreeAISeats() const;
 
+	// ---- B-233b: drop-in at rest spots, a leaving friend ----
+	/** Server: may the host seat a new joiner now (RunJoinRules::CanSeatJoiner on this machine's run)? */
+	bool CanSeatNewJoinerNow() const;
+	/** Server: Leaver left the session: its join request goes, its members become AI seats held for it (in a fight:
+	 *  when the fight ends). Called on a remote player's logout. */
+	void HandlePlayerLeft(APlayerState *Leaver);
+	/** The leaving player's id (unique net id string) a member's AI seat is held for, or empty. */
+	FString GetHeldFor(const FGuid &MemberId) const;
+
 	/** Does Sender (its PlayerState's id) command Member now? False off the roster. */
 	bool IsCommandedBy(const AActor *Member, const AController *Sender) const;
 
@@ -167,6 +187,16 @@ protected:
 private:
 	UFUNCTION()
 	void HandlePartyChanged(UParty *Party);
+
+	/** B-233b: a remote player's logout (FGameModeEvents::GameModeLogoutEvent). */
+	void HandleLogout(class AGameModeBase *GameMode, AController *Exiting);
+	/** B-233b: a fight with seats waiting to turn AI ended. */
+	UFUNCTION()
+	void HandleCombatEndedForDrops(int32 FinalTurnCount);
+	void ApplyPendingSeatDrops();
+	/** Makes Member an AI seat now; false when a fight runs (true when it already left the party). */
+	bool DropToAISeat(const FGuid &MemberId);
+	FDelegateHandle LogoutHandle;
 
 	/** The player id that claims the entry (B-360b: its member; by character when the roster was set from characters),
 	 *  or SeatRules::UNCLAIMED (none, or a player no longer here). */
@@ -212,6 +242,12 @@ private:
 	/** Server only: who is waiting to join (D-150). */
 	UPROPERTY()
 	TArray<FRunJoinRequest> JoinRequests;
+
+	/** B-233b, server only: member id -> the player (unique net id string) its AI seat is held for. Per level (a
+	 *  GameState lives for one): a level change forgets the holds, the seats stay AI. */
+	TMap<FGuid, FString> HeldSeats;
+	/** B-233b, server only: members of a player who left mid-fight; they turn AI when the fight ends. */
+	TArray<FGuid> PendingSeatDrops;
 
 	/** OBSOLETE (B-360, D-150): the B-232 rotation counter, no longer read. */
 	UPROPERTY(Replicated)

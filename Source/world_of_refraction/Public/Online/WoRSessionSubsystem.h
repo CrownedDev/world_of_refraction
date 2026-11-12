@@ -1,9 +1,11 @@
 // WoRSessionSubsystem.h
 // B-233 part 1 (D-103, Q-233): host, find and join a co-op session through the online subsystem's session interface.
 // The Null subsystem (LAN) until EOS is configured (DefaultEngine.ini [OnlineSubsystem]); the code is the same for
-// EOS. Hosting opens the current hub level as a listen server; joining client-travels to the host. Invites, joining a
-// run in progress at a rest spot and a leaving friend dropping out are B-233b.
-// Debug: wor.Session.Host / Find / Join <index> / Leave / Print (GetSessionString).
+// EOS. Hosting opens the current hub level as a listen server; joining client-travels to the host.
+// B-233b (Q-233b): invites from the platform's friends list (ReadFriends / InviteFriend; the Null subsystem has none, so
+// LAN friends use Find); an accepted invite joins. The session stays open to joins (a hand-over's rejoin needs it); in a
+// run the host seats a new friend only at a rest spot (URunStateComponent::AcceptJoin). EOS config is B-233c.
+// Debug: wor.Session.Host / Find / Join <index> / Leave / Print (GetSessionString), wor.Session.Friends / Invite <index>.
 
 #pragma once
 
@@ -11,6 +13,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
 #include "OnlineSessionSettings.h"
+#include "Interfaces/OnlineFriendsInterface.h"
 #include "WoRSessionSubsystem.generated.h"
 
 namespace WoRSession
@@ -64,6 +67,19 @@ public:
 
 	FString GetSessionString() const;
 
+	// ---- B-233b: invites ----
+
+	/** Reads the local player's friends list (OnFriendsRead fires when it lands). False with no friends interface (the
+	 *  Null subsystem: LAN friends use Find). */
+	bool ReadFriends();
+	/** The friends the last read found, by display name. */
+	TArray<FString> GetFriendNames() const;
+	/** Invites friend Index (GetFriendNames) to the hosted session. False with no session hosted or a bad index. */
+	bool InviteFriend(int32 Index);
+	/** This machine hosts a live session. */
+	bool IsHosting() const { return HostsSession(); }
+	FSimpleMulticastDelegate OnFriendsRead;
+
 private:
 	IOnlineSessionPtr GetSessionInterface() const;
 	bool IsLAN() const;
@@ -72,9 +88,19 @@ private:
 	void HandleFindComplete(bool bWasSuccessful);
 	void HandleJoinComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
+	/** Joins Result, then travels to it (HandleJoinComplete). Shared by JoinFoundSession and an accepted invite. */
+	bool JoinResult(const FOnlineSessionSearchResult &Result);
+	/** B-233b: binds the platform's invite-accepted event once, when a session interface exists. */
+	void EnsureInviteBinding();
+	void HandleInviteAccepted(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult &InviteResult);
+	void HandleFriendsRead(int32 LocalUserNum, bool bWasSuccessful, const FString &ListName, const FString &ErrorStr);
+	bool HostsSession() const;
+
 	TSharedPtr<FOnlineSessionSearch> LastSearch;
 	FDelegateHandle CreateHandle;
 	FDelegateHandle FindHandle;
 	FDelegateHandle JoinHandle;
+	FDelegateHandle InviteAcceptedHandle;
 	bool bHosting = false;
+	TArray<TSharedRef<FOnlineFriend>> Friends;
 };

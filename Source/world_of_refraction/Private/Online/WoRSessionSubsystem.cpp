@@ -16,6 +16,8 @@ namespace
 {
 	constexpr int32 SESSION_SEARCH_MAX_RESULTS = 20;
 	const FName SESSION_NULL_SUBSYSTEM(TEXT("NULL"));
+	/** The platform's default friends list (EFriendsLists::Default spells it "default"). */
+	const FString FRIENDS_LIST_NAME(TEXT("default"));
 }
 
 FOnlineSessionSettings WoRSession::MakeHostSettings(bool bLAN)
@@ -45,6 +47,7 @@ bool UWoRSessionSubsystem::IsLAN() const
 
 bool UWoRSessionSubsystem::HostSession()
 {
+	EnsureInviteBinding();
 	IOnlineSessionPtr Sessions = GetSessionInterface();
 	const ULocalPlayer *Player = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
 	if (!Sessions.IsValid() || !Player)
@@ -98,6 +101,7 @@ void UWoRSessionSubsystem::HandleCreateComplete(FName SessionName, bool bWasSucc
 
 bool UWoRSessionSubsystem::FindSessions()
 {
+	EnsureInviteBinding();
 	IOnlineSessionPtr Sessions = GetSessionInterface();
 	const ULocalPlayer *Player = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
 	if (!Sessions.IsValid() || !Player)
@@ -140,11 +144,21 @@ void UWoRSessionSubsystem::HandleFindComplete(bool bWasSuccessful)
 
 bool UWoRSessionSubsystem::JoinFoundSession(int32 Index)
 {
-	IOnlineSessionPtr Sessions = GetSessionInterface();
-	const ULocalPlayer *Player = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
-	if (!Sessions.IsValid() || !Player || !LastSearch.IsValid() || !LastSearch->SearchResults.IsValidIndex(Index))
+	if (!LastSearch.IsValid() || !LastSearch->SearchResults.IsValidIndex(Index))
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[Session] Join: no session %d (run wor.Session.Find first)"), Index);
+		return false;
+	}
+	return JoinResult(LastSearch->SearchResults[Index]);
+}
+
+bool UWoRSessionSubsystem::JoinResult(const FOnlineSessionSearchResult &Result)
+{
+	IOnlineSessionPtr Sessions = GetSessionInterface();
+	const ULocalPlayer *Player = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
+	if (!Sessions.IsValid() || !Player || !Result.IsValid())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Join: no session interface, no local player or no session"));
 		return false;
 	}
 	if (JoinHandle.IsValid())
@@ -154,7 +168,7 @@ bool UWoRSessionSubsystem::JoinFoundSession(int32 Index)
 	}
 	JoinHandle = Sessions->AddOnJoinSessionCompleteDelegate_Handle(
 		FOnJoinSessionCompleteDelegate::CreateUObject(this, &UWoRSessionSubsystem::HandleJoinComplete));
-	if (!Sessions->JoinSession(Player->GetControllerId(), NAME_GameSession, LastSearch->SearchResults[Index]))
+	if (!Sessions->JoinSession(Player->GetControllerId(), NAME_GameSession, Result))
 	{
 		Sessions->ClearOnJoinSessionCompleteDelegate_Handle(JoinHandle); // review fix: no stale handler on the next join
 		UE_LOG(LogWoR, Warning, TEXT("[Session] Join: JoinSession refused"));
@@ -191,6 +205,7 @@ void UWoRSessionSubsystem::Deinitialize()
 		Sessions->ClearOnCreateSessionCompleteDelegate_Handle(CreateHandle);
 		Sessions->ClearOnFindSessionsCompleteDelegate_Handle(FindHandle);
 		Sessions->ClearOnJoinSessionCompleteDelegate_Handle(JoinHandle);
+		Sessions->ClearOnSessionUserInviteAcceptedDelegate_Handle(InviteAcceptedHandle);
 		if (Sessions->GetNamedSession(NAME_GameSession))
 		{
 			Sessions->DestroySession(NAME_GameSession);
@@ -228,8 +243,12 @@ int32 UWoRSessionSubsystem::FindSessionIndexByOwner(const FString &OwnerId) cons
 
 FString UWoRSessionSubsystem::GetSessionString() const
 {
-	FString Out = FString::Printf(TEXT(" %s, %s, %d found"), IsLAN() ? TEXT("LAN (Null)") : TEXT("online"),
-								  bHosting ? TEXT("hosting") : TEXT("not hosting"), GetFoundSessionCount());
+	FString Out = FString::Printf(TEXT(" %s, %s, %d found, %d friend(s)"), IsLAN() ? TEXT("LAN (Null)") : TEXT("online"),
+								  bHosting ? TEXT("hosting") : TEXT("not hosting"), GetFoundSessionCount(), Friends.Num());
+	for (int32 Index = 0; Index < Friends.Num(); ++Index)
+	{
+		Out += FString::Printf(TEXT("\n  friend [%d] %s"), Index, *Friends[Index]->GetDisplayName());
+	}
 	for (int32 Index = 0; LastSearch.IsValid() && Index < LastSearch->SearchResults.Num(); ++Index)
 	{
 		const FOnlineSessionSearchResult &Result = LastSearch->SearchResults[Index];
@@ -237,6 +256,102 @@ FString UWoRSessionSubsystem::GetSessionString() const
 							   Result.Session.NumOpenPublicConnections, Result.Session.SessionSettings.NumPublicConnections, Result.PingInMs);
 	}
 	return Out;
+}
+
+bool UWoRSessionSubsystem::HostsSession() const
+{
+	IOnlineSessionPtr Sessions = GetSessionInterface();
+	return bHosting && Sessions.IsValid() && Sessions->GetNamedSession(NAME_GameSession) != nullptr;
+}
+
+void UWoRSessionSubsystem::EnsureInviteBinding()
+{
+	if (InviteAcceptedHandle.IsValid())
+	{
+		return;
+	}
+	if (IOnlineSessionPtr Sessions = GetSessionInterface())
+	{
+		InviteAcceptedHandle = Sessions->AddOnSessionUserInviteAcceptedDelegate_Handle(
+			FOnSessionUserInviteAcceptedDelegate::CreateUObject(this, &UWoRSessionSubsystem::HandleInviteAccepted));
+	}
+}
+
+void UWoRSessionSubsystem::HandleInviteAccepted(const bool bWasSuccessful, const int32 ControllerId, FUniqueNetIdPtr UserId,
+												const FOnlineSessionSearchResult &InviteResult)
+{
+	UE_LOG(LogWoR, Log, TEXT("[Session] Invite accepted (controller %d): %s"), ControllerId, bWasSuccessful ? TEXT("joining") : TEXT("failed"));
+	if (!bWasSuccessful)
+	{
+		return;
+	}
+	// One session at a time (as HostSession): a player still in its own session leaves it first.
+	if (IOnlineSessionPtr Sessions = GetSessionInterface(); Sessions.IsValid() && Sessions->GetNamedSession(NAME_GameSession))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Invite: leave your session first (wor.Session.Leave), then accept again"));
+		return;
+	}
+	JoinResult(InviteResult);
+}
+
+bool UWoRSessionSubsystem::ReadFriends()
+{
+	EnsureInviteBinding();
+	const IOnlineSubsystem *Online = Online::GetSubsystem(GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr);
+	IOnlineFriendsPtr FriendsInterface = Online ? Online->GetFriendsInterface() : nullptr;
+	const ULocalPlayer *Player = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
+	if (!FriendsInterface.IsValid() || !Player)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[Session] Friends: no friends list on %s (LAN friends: wor.Session.Find / Join)"), IsLAN() ? TEXT("LAN") : TEXT("this platform"));
+		Friends.Reset();
+		OnFriendsRead.Broadcast();
+		return false;
+	}
+	return FriendsInterface->ReadFriendsList(Player->GetControllerId(), FRIENDS_LIST_NAME,
+											 FOnReadFriendsListComplete::CreateUObject(this, &UWoRSessionSubsystem::HandleFriendsRead));
+}
+
+void UWoRSessionSubsystem::HandleFriendsRead(int32 LocalUserNum, bool bWasSuccessful, const FString &ListName, const FString &ErrorStr)
+{
+	Friends.Reset();
+	const IOnlineSubsystem *Online = Online::GetSubsystem(GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr);
+	IOnlineFriendsPtr FriendsInterface = Online ? Online->GetFriendsInterface() : nullptr;
+	if (bWasSuccessful && FriendsInterface.IsValid())
+	{
+		FriendsInterface->GetFriendsList(LocalUserNum, ListName, Friends);
+	}
+	UE_LOG(LogWoR, Log, TEXT("[Session] Friends read: %s, %d friend(s)%s"), bWasSuccessful ? TEXT("yes") : TEXT("no"), Friends.Num(),
+		   ErrorStr.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" (%s)"), *ErrorStr));
+	OnFriendsRead.Broadcast();
+}
+
+TArray<FString> UWoRSessionSubsystem::GetFriendNames() const
+{
+	TArray<FString> Names;
+	for (const TSharedRef<FOnlineFriend> &Friend : Friends)
+	{
+		Names.Add(Friend->GetDisplayName());
+	}
+	return Names;
+}
+
+bool UWoRSessionSubsystem::InviteFriend(int32 Index)
+{
+	IOnlineSessionPtr Sessions = GetSessionInterface();
+	const ULocalPlayer *Player = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
+	if (!Friends.IsValidIndex(Index) || !Sessions.IsValid() || !Player)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Invite: no friend %d (wor.Session.Friends first)"), Index);
+		return false;
+	}
+	if (!HostsSession())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Session] Invite: host a session first (wor.Session.Host)"));
+		return false;
+	}
+	const bool bSent = Sessions->SendSessionInviteToFriend(Player->GetControllerId(), NAME_GameSession, *Friends[Index]->GetUserId());
+	UE_LOG(LogWoR, Log, TEXT("[Session] Invite to %s: %s"), *Friends[Index]->GetDisplayName(), bSent ? TEXT("sent") : TEXT("refused"));
+	return bSent;
 }
 
 namespace
@@ -264,6 +379,18 @@ namespace
 
 	FAutoConsoleCommandWithWorld GSessionLeaveCmd(TEXT("wor.Session.Leave"), TEXT("DEBUG (B-233): leave the session this machine hosts or joined."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { if (UWoRSessionSubsystem *S = FindSessionSubsystem(World)) { S->LeaveSession(); } }));
+
+	FAutoConsoleCommandWithWorld GSessionFriendsCmd(TEXT("wor.Session.Friends"), TEXT("DEBUG (B-233b): read the friends list (none on LAN); then wor.Session.Invite <index>."),
+		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { if (UWoRSessionSubsystem *S = FindSessionSubsystem(World)) { S->ReadFriends(); } }));
+
+	FAutoConsoleCommandWithWorldAndArgs GSessionInviteCmd(TEXT("wor.Session.Invite"), TEXT("DEBUG (B-233b): invite friend <index> (wor.Session.Friends) to the session this machine hosts."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+		{
+			if (UWoRSessionSubsystem *S = FindSessionSubsystem(World))
+			{
+				S->InviteFriend(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0);
+			}
+		}));
 
 	FAutoConsoleCommandWithWorld GSessionPrintCmd(TEXT("wor.Session.Print"), TEXT("DEBUG (B-233): the session state and the last search's results."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
