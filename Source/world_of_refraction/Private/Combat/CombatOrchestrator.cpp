@@ -504,6 +504,11 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	{
 		ApplyBetweenCombatCrystalDestruction();
 		ApplyBetweenCombatRepair();
+		// B-096: the run-end payout reads the passives the party wore in this fight (after breaks are applied).
+		if (UTrialRunSubsystem *TrialRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr)
+		{
+			TrialRun->RefreshPayoutMultiplier(LocalPartyCombatants);
+		}
 	}
 
 	CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
