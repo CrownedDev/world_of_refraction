@@ -52,6 +52,8 @@
 **Checked again 2026-11-12, 16:05 UTC:** B-234d is in dev (`bc6505f7`). Still no writable job. 9 cloud branches remain open: B-042g2, B-032d, C1 to C7.
 
 **Checked again 2026-11-12, 17:05 UTC:** B-032d and Crown's answer fixes are in dev (`cfdda382`), as are the desktop's B-170j, Q-397 (save v35), Q-397b and B-392b. Still no writable job. The 8 open cloud branches (B-042g2, C1 to C7) all wait on Crown's PIE gates.
+
+**Checked again 2026-11-12, 19:05 UTC:** the desktop built B-233b (co-op invites and drop-in) into dev (`a650f95f`) and split the EOS setup into a new row, B-233c, which needs Crown's EOS ids. So the blocker formerly listed as B-233b is now B-233c. Still no writable job.
 - B-170h: BLOCKED on Crown's PIE of B-170a–g (D-067). B-043h, B-351e and B-406c also wait on PIE or the B-406 trial.
 - B-042g2 is written (cloud branch); B-042g3–g6 follow it once it merges after Crown's `wor.Effects.UseGAS 1` fight.
 - B-104 / B-107 / B-108 wait on B-102 (Crown's mockup review). B-373, B-237, B-240, B-215 and B-280 are editor or desktop jobs. B-233b needs Crown's EOS ids. B-395 is Crown's loop; B-214 is held by Crown.
