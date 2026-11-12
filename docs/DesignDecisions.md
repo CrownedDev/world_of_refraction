@@ -527,6 +527,17 @@ The queue of questions only Crown can answer.
 - **How fast:** one **0.35 s** blend from where the last shot ended (`TODO: tune`), shorter than the handover (0.5 s) since the camera is already close; reference: the same clips, the menu is back almost at once, and FeelGuide's pace rule.
 - **Where not:** camera movement off (the static view stays, R15); a signature sequence or Defence hand-off still playing (its end shows the turn view, as before); enemy turns (the AI acts once a turn until B-170f; the menu event is player-only).
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-401.md`).
+### Q-391 — The placeholder battle HUD: layout, enemy HP, statuses and menu keys
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-391) · **Blocks:** — (B-391 ships with it)
+**Question:** The new plain C++ battle HUD (VisualGameplayPlan step 1) had to pick where things sit, what enemies show, how statuses look and which keys the menu uses. Keep these?
+**Context:** `UI/Combat/Battle/BattleHUDWidget.cpp` (`BattleHUDStyle`), `BattleCommandMenuWidget.cpp`, `ACombatPlayerController::GetMenuKeys`. References: the Expedition 33 study (`docs/analysis/MaelleCombatPresentationStudy.md` §7 and §11), FeelGuide rows 5 and 13.
+**Options / what was built:**
+1. **Layout:** turn order down the left edge (current actor first, then the next six; E33's left column of about eight cards); party cards bottom-left; enemy cards top-right; command menu bottom-right; a **Statuses** button top centre. E33 puts the party bottom-right and the menu beside the acting hero; the placeholder keeps the menu fixed bottom-right, so the party moves left. The menu beside the hero (study U5) comes with the CommonUI HUD.
+2. **Enemy HP:** a bar, **no numbers** (E33 §11: normal enemies show a small HP bar, no numbers). Party cards show "HP x / y" and "EP x / y".
+3. **Statuses:** small text chips on each card ("Burn 2", "Haste x3": turns left, stacks), and one **Statuses** button that opens every combatant's statuses in full (name, element, turns, stacks, description), per FeelGuide 5. Icons replace the chips with the art pass.
+4. **Menu keys (main menu only, one key per category, two presses to act: FeelGuide 13; E33's menu rows are each a face button and a word, §7):** Attack **1 / A**, Skills **2 / X** (Abilities, else a weapon resonance), Spells **3 / B** (Refractions, else a breakthrough or ring resonance), Defend **G / Y** (built, B-093), Items **4 / D-pad Up**, Flee **5 / D-pad Down**, Switch weapon **6 / D-pad Left**, Change ring **7 / D-pad Right**. B stays Back everywhere except the main menu, where there is nothing to go back to. Picking inside a submenu or a target list is a click for now; gamepad navigation there comes with the CommonUI menu (D-024).
+5. **Switch:** `wor.UI.NewHUD` 1 (default) builds the new HUD; 0 builds the old WBP HUD, kept until Crown's PIE pass.
+**Recommendation:** all five as built: they follow the E33 study and FeelGuide 5 and 13, and every value is one named constant or one key row (`docs/Design/InputMap.md`).
 
 ## Parked
 
