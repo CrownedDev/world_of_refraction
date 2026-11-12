@@ -8,6 +8,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Character/CharacterDataComponent.h"
 #include "AbilitySystemComponent.h"
 #include "GAS/WoRAttributeSets.h"
 #include "GAS/WoREffectContext.h"
@@ -24,6 +25,8 @@ namespace
 	constexpr int32 BUILDER_SOURCE_A = 11;
 	constexpr int32 BUILDER_SOURCE_B = 22;
 	constexpr float BUILDER_START_HEALTH = 100.0f;
+	/** Room above the start so a HOT tick isn't capped by max HP. */
+	constexpr int32 BUILDER_MAX_HP = 200;
 	constexpr float BUILDER_BUFF = 20.0f;
 	constexpr float BUILDER_STRONGER_BUFF = 30.0f;
 	constexpr float BUILDER_DOT = 5.0f;
@@ -65,6 +68,13 @@ void FEffectSpecBuilderSpec::Define()
 			ASC = FWoRTestWorld::AddComponent<UAbilitySystemComponent>(Hero);
 			ASC->InitAbilityActorInfo(Hero, Hero);
 			ASC->AddAttributeSetSubobject(NewObject<UWoRAttributeSet_Vitals>(Hero));
+			// B-042g2: the Vitals set always hands a Health change to the game's HP, and Health follows it,
+			// so the game's HP starts where Health does.
+			if (UCharacterDataComponent *Char = Hero->FindComponentByClass<UCharacterDataComponent>())
+			{
+				Char->MaxHP = BUILDER_MAX_HP;
+				Char->ServerSetHP(FMath::RoundToInt(BUILDER_START_HEALTH));
+			}
 			ASC->SetNumericAttributeBase(UWoRAttributeSet_Vitals::GetHealthAttribute(), BUILDER_START_HEALTH);
 			Tracker = FWoRTestWorld::AddComponent<UWoRTurnEffectTracker>(Hero);
 		}

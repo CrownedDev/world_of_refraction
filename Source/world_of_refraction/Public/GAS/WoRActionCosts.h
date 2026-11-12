@@ -1,10 +1,10 @@
 // WoRActionCosts.h
 // B-043a (StatMathsRedesign.md §2.6, Q-043a): a skill's EP cost and its infusion HP backlash paid as
 // Instant GameplayEffects (UWoRGE_EnergyCost, UWoRGE_HPBacklash). Behind `wor.Costs.UseGAS`
-// (default 0). It takes effect only while `wor.Effects.UseGAS` is also 1, because only then does
-// the Vitals set hand a GAS change to the game's EP / HP path, and only for a payer whose ASC has
-// the Vitals set. Otherwise the callers pay the old way. Either way the amount is the one cost
-// formula's (UActionExecutor::CalculateActionEnergyCost, the backlash stored at commit).
+// (default 0; B-043h deletes it), only for a payer whose ASC has the Vitals set, which hands a GAS
+// change to the game's EP / HP path (B-042g2: no longer also behind `wor.Effects.UseGAS`, now
+// gone). Otherwise the callers pay the old way. Either way the amount is the one cost formula's
+// (UActionExecutor::CalculateActionEnergyCost, the backlash stored at commit).
 // Debug: Debug/GAS/WoRCostDebug.h (wor.Costs.Print).
 
 #pragma once

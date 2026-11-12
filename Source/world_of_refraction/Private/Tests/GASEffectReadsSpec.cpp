@@ -1,8 +1,8 @@
 // GASEffectReadsSpec.cpp
-// GAS stage 3 (B-042ye, Q-042x): with `wor.Effects.UseGAS 1` the per-effect reads go through GAS: the held
-// list (the character panel's effect list, the buff / debuff counts) comes from the mirrored GEs with the
-// tracker's turns left, and the AI sizes a DOT's tick from its GE's tick spec. With 0 they read the stored
-// effects. Both paths give the same list, counts, ticks and AI choices.
+// GAS stage 3 (B-042ye, Q-042x): the per-effect reads go through GAS: the held list (the character panel's effect
+// list, the buff / debuff counts) comes from the mirrored GEs with the tracker's turns left, and the AI sizes a DOT's
+// tick from its GE's tick spec. They give the stored effects' list, counts, ticks and AI choices. B-042g2: the
+// UseGAS 0 pass went with the switch.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -83,7 +83,6 @@ void FGASEffectReadsSpec::Define()
 
 	AfterEach([this]()
 	{
-		UWoREffectMirrorComponent::SetReadsFromGAS(false);
 		EffectManager = nullptr;
 		AI = nullptr;
 		Mirror = nullptr;
@@ -93,103 +92,85 @@ void FGASEffectReadsSpec::Define()
 		TestWorld.Reset();
 	});
 
-	for (const bool bReadsFromGAS : {false, true})
+	It("lists the held effects with the stored turns left", [this]()
 	{
-		Describe(bReadsFromGAS ? TEXT("UseGAS 1") : TEXT("UseGAS 0"), [this, bReadsFromGAS]()
+		if (!EffectManager) return;
+		ApplyMix();
+		const TArray<FActiveSkillEffect> Stored = EffectManager->GetActiveEffects(Hero);
+		const TArray<FActiveSkillEffect> Held = EffectManager->GetHeldEffects(Hero);
+		TestEqual(TEXT("Same number of effects"), Held.Num(), Stored.Num());
+		for (const FActiveSkillEffect &Effect : Stored)
 		{
-			BeforeEach([bReadsFromGAS]() { UWoREffectMirrorComponent::SetReadsFromGAS(bReadsFromGAS); });
-
-			It("lists the held effects with the stored turns left", [this]()
+			const FActiveSkillEffect *Read = FindHeld(Held, Effect.EffectID);
+			if (TestNotNull(*FString::Printf(TEXT("%s is held"), *Effect.EffectName), Read))
 			{
-				if (!EffectManager) return;
-				ApplyMix();
-				const TArray<FActiveSkillEffect> Stored = EffectManager->GetActiveEffects(Hero);
-				const TArray<FActiveSkillEffect> Held = EffectManager->GetHeldEffects(Hero);
-				TestEqual(TEXT("Same number of effects"), Held.Num(), Stored.Num());
-				for (const FActiveSkillEffect &Effect : Stored)
-				{
-					const FActiveSkillEffect *Read = FindHeld(Held, Effect.EffectID);
-					if (TestNotNull(*FString::Printf(TEXT("%s is held"), *Effect.EffectName), Read))
-					{
-						TestEqual(*FString::Printf(TEXT("%s turns left"), *Effect.EffectName), Read->RemainingTurns, Effect.RemainingTurns);
-					}
-				}
-			});
+				TestEqual(*FString::Printf(TEXT("%s turns left"), *Effect.EffectName), Read->RemainingTurns, Effect.RemainingTurns);
+			}
+		}
+	});
 
-			It("leaves out a burn GAS ended before its stored copy goes", [this, bReadsFromGAS]()
-			{
-				if (!EffectManager) return;
-				EffectManager->ApplyEffect(Hero, Burn(), Foe);
-				UWoRTurnEffectTracker *Tracker = Hero->FindComponentByClass<UWoRTurnEffectTracker>();
-				if (!TestNotNull(TEXT("Tracker"), Tracker)) return;
-				// The tracker's turns alone (it counts at the end, ends at the start): GAS ends the burn's GE, the
-				// stored copy waits for the effect manager's release.
-				for (int32 Turn = 0; Turn <= READS_TURNS; ++Turn)
-				{
-					Tracker->OnHolderTurnStart();
-					Tracker->OnHolderTurnEnd();
-				}
-				TestNotNull(TEXT("The stored copy is still there"), FindHeld(EffectManager->GetActiveEffects(Hero), READS_DOT_ID));
-				const FActiveSkillEffect *Held = FindHeld(EffectManager->GetHeldEffects(Hero), READS_DOT_ID);
-				if (bReadsFromGAS)
-				{
-					TestNull(TEXT("GAS ended it: not held"), Held);
-				}
-				else
-				{
-					TestNotNull(TEXT("The stored list holds it"), Held);
-				}
-			});
+	It("leaves out a burn GAS ended before its stored copy goes", [this]()
+	{
+		if (!EffectManager) return;
+		EffectManager->ApplyEffect(Hero, Burn(), Foe);
+		UWoRTurnEffectTracker *Tracker = Hero->FindComponentByClass<UWoRTurnEffectTracker>();
+		if (!TestNotNull(TEXT("Tracker"), Tracker)) return;
+		// The tracker's turns alone (it counts at the end, ends at the start): GAS ends the burn's GE, the
+		// stored copy waits for the effect manager's release.
+		for (int32 Turn = 0; Turn <= READS_TURNS; ++Turn)
+		{
+			Tracker->OnHolderTurnStart();
+			Tracker->OnHolderTurnEnd();
+		}
+		TestNotNull(TEXT("The stored copy is still there"), FindHeld(EffectManager->GetActiveEffects(Hero), READS_DOT_ID));
+		const FActiveSkillEffect *Held = FindHeld(EffectManager->GetHeldEffects(Hero), READS_DOT_ID);
+		TestNull(TEXT("GAS ended it: not held"), Held);
+	});
 
-			It("counts the same buffs and debuffs", [this]()
-			{
-				if (!EffectManager) return;
-				ApplyMix();
-				TestEqual(TEXT("Debuffs"), EffectManager->GetDebuffCount(Hero), READS_EXPECTED_DEBUFFS);
-				TestEqual(TEXT("Buffs"), EffectManager->GetBuffCount(Hero), READS_EXPECTED_BUFFS);
-			});
+	It("counts the same buffs and debuffs", [this]()
+	{
+		if (!EffectManager) return;
+		ApplyMix();
+		TestEqual(TEXT("Debuffs"), EffectManager->GetDebuffCount(Hero), READS_EXPECTED_DEBUFFS);
+		TestEqual(TEXT("Buffs"), EffectManager->GetBuffCount(Hero), READS_EXPECTED_BUFFS);
+	});
 
-			It("previews a burn's tick as the enum path's", [this, bReadsFromGAS]()
-			{
-				if (!EffectManager) return;
-				EffectManager->ApplyEffect(Hero, Burn(), Foe);
-				const TArray<FActiveSkillEffect> Held = EffectManager->GetHeldEffects(Hero);
-				const FActiveSkillEffect *Held_Burn = FindHeld(Held, READS_DOT_ID);
-				if (!TestNotNull(TEXT("The burn is held"), Held_Burn)) return;
-				const int32 EnumTick = USkillEffectManager::GetDotTickDamage(Hero, *Held_Burn);
-				TestTrue(TEXT("The burn hits"), EnumTick > 0);
-				TestEqual(TEXT("Same tick"), EffectManager->PreviewDotTickDamage(Hero, *Held_Burn), EnumTick);
-				if (bReadsFromGAS)
-				{
-					TestEqual(TEXT("From the GE's tick spec"), Mirror->PreviewDotTick(*Held_Burn), EnumTick);
-				}
-			});
+	It("previews a burn's tick as the enum path's", [this]()
+	{
+		if (!EffectManager) return;
+		EffectManager->ApplyEffect(Hero, Burn(), Foe);
+		const TArray<FActiveSkillEffect> Held = EffectManager->GetHeldEffects(Hero);
+		const FActiveSkillEffect *Held_Burn = FindHeld(Held, READS_DOT_ID);
+		if (!TestNotNull(TEXT("The burn is held"), Held_Burn)) return;
+		const int32 EnumTick = USkillEffectManager::GetDotTickDamage(Hero, *Held_Burn);
+		TestTrue(TEXT("The burn hits"), EnumTick > 0);
+		TestEqual(TEXT("Same tick"), EffectManager->PreviewDotTickDamage(Hero, *Held_Burn), EnumTick);
+		TestEqual(TEXT("From the GE's tick spec"), Mirror->PreviewDotTick(*Held_Burn), EnumTick);
+	});
 
-			It("re-syncs the mirror for a stat read only when the effects changed (B-261)", [this, bReadsFromGAS]()
-			{
-				if (!EffectManager || !bReadsFromGAS) return;
-				ApplyMix();
-				const float Before = EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff);
-				const int32 Syncs = Mirror->GetSyncCount();
-				TestEqual(TEXT("Same read"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff), Before);
-				TestEqual(TEXT("Nothing changed: no sync"), Mirror->GetSyncCount(), Syncs);
-				// ForgetEnded changes what the sync reads with no stored change and no event: the next read must sync.
-				Mirror->ForgetEnded(Burn());
-				TestEqual(TEXT("Same read after"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff), Before);
-				TestTrue(TEXT("The mirror synced"), Mirror->GetSyncCount() > Syncs);
-			});
+	It("re-syncs the mirror for a stat read only when the effects changed (B-261)", [this]()
+	{
+		if (!EffectManager) return;
+		ApplyMix();
+		const float Before = EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff);
+		const int32 Syncs = Mirror->GetSyncCount();
+		TestEqual(TEXT("Same read"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff), Before);
+		TestEqual(TEXT("Nothing changed: no sync"), Mirror->GetSyncCount(), Syncs);
+		// ForgetEnded changes what the sync reads with no stored change and no event: the next read must sync.
+		Mirror->ForgetEnded(Burn());
+		TestEqual(TEXT("Same read after"), EffectManager->GetTotalStatModifier(Hero, ESkillEffectType::DefenseDebuff), Before);
+		TestTrue(TEXT("The mirror synced"), Mirror->GetSyncCount() > Syncs);
+	});
 
-			It("makes the same AI choices on a lethal burn", [this]()
-			{
-				if (!EffectManager) return;
-				EffectManager->ApplyEffect(Hero, Burn(), Foe);
-				const int32 Tick = USkillEffectManager::GetDotTickDamage(Hero, Burn());
-				HeroStats->ServerSetHP(Tick);
-				TestTrue(TEXT("Dangerous: the burn kills over its turns"), AI->HasDangerousDebuff(Hero));
-				TestEqual(TEXT("One tick is lethal"), AI->GetLethalDoTPerTick(Hero), static_cast<float>(Tick));
-			});
-		});
-	}
+	It("makes the same AI choices on a lethal burn", [this]()
+	{
+		if (!EffectManager) return;
+		EffectManager->ApplyEffect(Hero, Burn(), Foe);
+		const int32 Tick = USkillEffectManager::GetDotTickDamage(Hero, Burn());
+		HeroStats->ServerSetHP(Tick);
+		TestTrue(TEXT("Dangerous: the burn kills over its turns"), AI->HasDangerousDebuff(Hero));
+		TestEqual(TEXT("One tick is lethal"), AI->GetLethalDoTPerTick(Hero), static_cast<float>(Tick));
+	});
 }
 
 #endif
