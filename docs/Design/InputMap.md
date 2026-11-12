@@ -55,6 +55,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 
 - Same verb, same key across modes where possible (switch source = R / LB in the field and in combat).
 - Exploration and combat use separate mapping contexts, so a key may mean different things in each (RB = field attack on the map, infusion level in combat).
+- Exploration and combat share priority 0 because their two controllers never run at the same time; give one a different priority before a map ever runs both.
 - Keyboard double-tap and gamepad double-click windows: one named constant (`// TODO: tune`).
 
 ## Changelog
