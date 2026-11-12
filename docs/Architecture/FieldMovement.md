@@ -11,7 +11,7 @@ B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free s
   - `SetActiveFieldSkill(Source, Type)` / `GetActiveFieldSkill()`: the choice's home is the party record (`FPartyMember::FieldSkill`, written by `UPartySessionSubsystem::SetMemberFieldSkill`; only a pawn stamped with its member id, B-348b's rule); a pawn with no record keeps it on the component. `ActiveChoice` is the replicated mirror for the owning client (`RefreshFromRecord` after possess). Changing the choice stops Enhanced Sprint.
   - `GetSourceElement(Source)`: Innate = `UCharacterData::GetElement` (a Caster's element, Generic otherwise); Weapon = the crystal in the weapon in hand (None when empty or broken); Ring = a Resonator's active adapter, another class's primary ring (as the parry colour reads it, B-393).
   - `ActivateFieldSkill()`: Dash dashes; Enhanced Sprint toggles; other types refused (not built yet).
-  - Enhanced Sprint: on start the first second is paid (`UCharacterDataComponent::ServerSpendEnergy`), then a looping 1 s timer (`DrainEnhancedSprint`) charges again; below one charge it turns off. `bEnhancedSprintActive` and its element replicate; `OnRep_EnhancedSprintActive` re-reads the sprint speed when the pawn is sprinting and broadcasts `OnEnhancedSprintChanged`.
+  - Enhanced Sprint: on start the first second is paid (`UCharacterDataComponent::ServerSpendEnergy`), then a looping 1 s timer (`DrainEnhancedSprint`) charges again; below one charge it turns off. A step charges only while the pawn moves at sprint speed (`IsMovingAtSprintSpeed`: the CharacterMovement's real ground speed above 600 cm/s; B-214a2, Crown's Q-214a answer), so standing or walking costs nothing and it stays on. `bEnhancedSprintActive` and its element replicate; `OnRep_EnhancedSprintActive` re-reads the sprint speed when the pawn is sprinting and broadcasts `OnEnhancedSprintChanged`.
   - Client calls (`Dash`, `ActivateFieldSkill`, `SetActiveFieldSkill`) go to the server by Server RPC; the server spends the EP and owns the record.
 - `UHubMovementLibrary::ComputeHubSprintSpeed` (the pawn Blueprint's sprint press) multiplies by `GetSprintSpeedMultiplier`; `GetSprintSpeedMin` tells the component whether the pawn is sprinting.
 - Save v36: `FSavedPartyMember::FieldSkillSource` / `FieldSkillType`.
@@ -25,7 +25,7 @@ B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free s
 ## Known Limitations / TODOs
 - A crystal source doesn't wear yet (B-214 row: crystal sources wear).
 - No unlock check: any built type with an elemental source can be picked (B-214b).
-- Enhanced Sprint drains while on even standing still (Q-214a (2)); no wall-run yet (B-214c).
+- The drain samples the speed once a second, so a second is charged or free by the speed at that moment. No wall-run yet (B-214c).
 - Co-op: a guest's dash launches on its own machine and on the server (not a predicted saved move), so a small correction is possible. `MaxWalkSpeed` doesn't replicate: the server and the guest each re-apply the sprint speed when Enhanced Sprint toggles (`OnRep`), so for a moment they can differ; the pawn Blueprint's sprint press must also run on the server for the two to agree (PIE check, review 2026-11-12).
 - Enhanced Sprint stops when its source loses the element it started with (gear change, broken crystal), checked each drain second.
 - No HUD cue for Enhanced Sprint (binds `OnEnhancedSprintChanged` later).
@@ -34,3 +34,4 @@ B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free s
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-12 | Created. B-214a: `UFieldMovementComponent` (dash, active field skill, Enhanced Sprint), `FieldSkillRules`, `FPartyMember::FieldSkill` (save v36), the hub controller's possess hook and `IA_Field_MovementSkill` binding, `wor.Field.*`, spec `WoR.Field.Skills`. | `feature/B-214a-field-skills-core` |
+| 2026-11-12 | B-214a2 (Crown's Q-214a answer): Enhanced Sprint charges only while the pawn moves at sprint speed (`FieldSkillRules::IsMovingAtSprintSpeed`, ground speed > 600 cm/s); `wor.Field.Print` says whether it drains. | `fix/B-214a2-drain-while-moving` |
