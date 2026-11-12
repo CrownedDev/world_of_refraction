@@ -249,7 +249,7 @@ EFieldSkillRefusal UFieldMovementComponent::StartEnhancedSprint()
 	}
 	EnhancedSprintElement = Element;
 	SetEnhancedSprintActive(true);
-	DrainEnhancedSprint(); // the first second is paid up front, so tapping it on and off is never free
+	DrainEnhancedSprint(); // started mid-sprint, the first second is paid up front, so tapping it on and off is never free
 	if (bEnhancedSprintActive)
 	{
 		GetWorld()->GetTimerManager().SetTimer(DrainTimer, this, &UFieldMovementComponent::DrainEnhancedSprint,
@@ -278,12 +278,25 @@ void UFieldMovementComponent::DrainEnhancedSprint()
 		StopEnhancedSprint();
 		return;
 	}
+	if (!IsMovingAtSprintSpeed())
+	{
+		return; // Q-214a (Crown): standing, walking or stopping to talk costs nothing; it stays on
+	}
 	CharComp->ServerSpendEnergy(FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND);
 	if (CharComp->CurrentEP < FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: Enhanced Sprint out of EP"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()));
 		StopEnhancedSprint();
 	}
+}
+
+bool UFieldMovementComponent::IsMovingAtSprintSpeed() const
+{
+	// The real ground speed, not MaxWalkSpeed: on the server a co-op guest's pawn moves at its true speed even if the
+	// pawn Blueprint's sprint press only changed the guest's own MaxWalkSpeed.
+	const ACharacter *Character = Cast<ACharacter>(GetOwner());
+	const UCharacterMovementComponent *Movement = Character ? Character->GetCharacterMovement() : nullptr;
+	return Movement && FieldSkillRules::IsMovingAtSprintSpeed(Movement->Velocity.Size2D());
 }
 
 void UFieldMovementComponent::StopEnhancedSprint()
@@ -332,12 +345,13 @@ FString UFieldMovementComponent::GetFieldStateString() const
 	const FFieldSkillChoice Choice = GetActiveFieldSkill();
 	const UCharacterDataComponent *CharComp = GetCharacterData();
 	const ESpellElement SourceElement = GetSourceElement(Choice.Source);
-	return FString::Printf(TEXT("%s: skill %s %s (%s, pick %s) | sprint %s x%.2f | EP %d/%d | dash %s | record %s"),
+	return FString::Printf(TEXT("%s: skill %s %s (%s, pick %s) | sprint %s x%.2f, %s | EP %d/%d | dash %s | record %s"),
 						   *GetNameSafe(GetOwner()), *FieldSkillRules::SourceName(Choice.Source),
 						   *FieldSkillRules::TypeName(Choice.Type),
 						   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(SourceElement)),
 						   *FieldSkillRules::RefusalName(FieldSkillRules::CheckPick(Choice.Type, SourceElement)),
 						   bEnhancedSprintActive ? TEXT("ON") : TEXT("off"), GetSprintSpeedMultiplier(),
+						   IsMovingAtSprintSpeed() ? TEXT("moving at sprint speed (draining)") : TEXT("not sprinting (no drain)"),
 						   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0,
 						   IsDashReady() ? TEXT("ready") : TEXT("cooling"), FindRecord() ? TEXT("yes") : TEXT("no"));
 }

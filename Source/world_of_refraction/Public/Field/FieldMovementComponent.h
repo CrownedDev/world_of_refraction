@@ -4,8 +4,8 @@
 //   - The normal dash: everyone, free, on a cooldown.
 //   - The active field skill (FFieldSkillChoice), whose home is the party record (FPartyMember::FieldSkill, saved);
 //     a pawn with no record keeps it here. Double-tap sprint (IA_Field_MovementSkill) or wor.Field.Activate uses it.
-//   - Enhanced Sprint: a faster sprint while on (by the source's element), EP per second, off at 0 EP or on a second
-//     double-tap. UHubMovementLibrary::ComputeHubSprintSpeed reads GetSprintSpeedMultiplier.
+//   - Enhanced Sprint: a faster sprint while on (by the source's element), EP per second while moving at sprint speed
+//     (Q-214a, Crown), off at 0 EP or on a second double-tap. UHubMovementLibrary::ComputeHubSprintSpeed reads GetSprintSpeedMultiplier.
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
 
 #pragma once
@@ -62,8 +62,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	void StopEnhancedSprint();
 
-	/** One Enhanced Sprint EP charge (the drain timer's step; public for the spec). Stops it below one charge. */
+	/** One Enhanced Sprint EP charge (the drain timer's step; public for the spec), charged only while the pawn moves at
+	 *  sprint speed (Q-214a, Crown). Stops it below one charge. */
 	void DrainEnhancedSprint();
+
+	/** The pawn's real ground speed is a sprint (FieldSkillRules::IsMovingAtSprintSpeed). */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsMovingAtSprintSpeed() const;
 
 	/** Server: copies the party record's choice into the replicated mirror (after the leader is rebound). */
 	void RefreshFromRecord();

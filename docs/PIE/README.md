@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-214a](B-214a.md) | `feature/B-214a-field-skills-core` (in dev, built 2026-11-12) | Field skills part 1: the dash, the active field skill per character (saved), Enhanced Sprint by element with EP per second (console until B-214g's keys); a 2-player check | Pending |
+| [B-214a](B-214a.md) | `feature/B-214a-field-skills-core` + `fix/B-214a2-drain-while-moving` (in dev, built 2026-11-12) | Field skills part 1: the dash, the active field skill per character (saved), Enhanced Sprint by element with EP per second only while sprinting (check 5b, Crown's Q-214a answer; console until B-214g's keys); a 2-player check | Pending |
 | [B-233b](B-233b.md) | `feature/B-233b-invites-drop-in` (in dev, built 2026-11-12) | 2-player: the invite screen; in a run friends are seated only at a rest spot; a leaving friend's character turns AI held for it and it takes it back with its gear; a mid-fight leave | Pending |
 | [B-392b](B-392b.md) | `fix/B-392b-guest-guard-sync` (in dev, built 2026-11-12) | A co-op guest's guard and parry colour priority reach the host (2-player) | Pending |
 | [Q-397b](Q-397b.md) | `feature/Q-397b-hidden-quest-mask` (in dev, built 2026-11-12) | Found hidden quests masked as "Hidden Quest <n>" until revealed, masked again on close; masked notices | Pending |
