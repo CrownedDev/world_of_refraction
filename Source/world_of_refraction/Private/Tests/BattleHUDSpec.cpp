@@ -3,12 +3,16 @@
 // two widgets built headless (not added to a viewport, so their plain-data state is what's checked) on a real duel:
 // a card's HP line follows damage, the turn strip leads with the acting character, the command menu lists the
 // subsystem's buttons with their keys and a row press acts. Layout and looks are PIE (docs/PIE/B-391.md).
+// B-170e: with wor.Turns.ActionPips 1 the party cards show the pips line live and the menu an End Turn row; at 0 neither.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Blueprint/UserWidget.h"
+#include "HAL/IConsoleManager.h"
+#include "Character/CharacterDataComponent.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
@@ -17,11 +21,41 @@
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRGameNames.h"
+#include "Save/SaveSubsystem.h"
+#include "Misc/ScopeExit.h"
 
 namespace
 {
 	constexpr int32 BATTLE_HUD_SETTLE_FRAMES = 3;
 	constexpr int32 BATTLE_HUD_HIT = 1;
+	constexpr int32 BATTLE_HUD_PIPS_OFF = 0;
+	constexpr int32 BATTLE_HUD_PIPS_ON = 1;
+	constexpr int32 BATTLE_HUD_ONE_ACTION = 1;
+
+	/** B-170e: sets wor.Turns.ActionPips for one test (before the fight starts, which latches it) and restores it. */
+	struct FBattleHUDPipsSwitchScope
+	{
+		IConsoleVariable *Switch = nullptr;
+		int32 Before = BATTLE_HUD_PIPS_OFF;
+
+		explicit FBattleHUDPipsSwitchScope(int32 Value)
+			: Switch(IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Turns.ActionPips")))
+		{
+			if (Switch)
+			{
+				Before = Switch->GetInt();
+				Switch->Set(Value, ECVF_SetByConsole);
+			}
+		}
+
+		~FBattleHUDPipsSwitchScope()
+		{
+			if (Switch)
+			{
+				Switch->Set(Before, ECVF_SetByConsole);
+			}
+		}
+	};
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -229,6 +263,87 @@ void FBattleHUDSpec::Define()
 				TestTrue(TEXT("titled for whoever the menu is open for"),
 						 MenuWidget->GetTitle().ToString().Contains(BattleHUDView::GetCombatantName(Menu->GetCurrentActor()).ToString()));
 			}
+			MenuWidget->Teardown();
+		});
+
+		It("shows the party's action pips live and an End Turn row in an action-pips fight (B-170e)", [this]()
+		{
+			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_ON);
+			USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !TestNotNull(TEXT("the save"), Save))
+			{
+				return;
+			}
+			const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+			ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+			Save->SetEndTurnButtonHidden(false); // shown, the default (Crown, 2026-11-12), whatever a loaded slot held
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestNotNull(TEXT("battle HUD widget"), HUD) || !TestNotNull(TEXT("Hero data"), HeroData))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			const auto ExpectedLine = [HeroData]()
+			{
+				return ActionPipsText::MakeActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions(), HeroData->GetActionPointProgress())
+					.ToString();
+			};
+			TestTrue(TEXT("the HUD shows actions"), HUD->IsShowingActions());
+			if (TestTrue(TEXT("two cards, the party's first"), HUD->GetCards().Num() == 2 && HUD->GetCards()[0].bParty))
+			{
+				TestEqual(TEXT("the party card's pips line"), HUD->GetCards()[0].ActionsLine.ToString(), ExpectedLine());
+				TestTrue(TEXT("no pips on the enemy card"), HUD->GetCards()[1].ActionsLine.IsEmpty());
+				HeroData->GainActions(BATTLE_HUD_ONE_ACTION, /*bMayPassMax=*/true);
+				TestEqual(TEXT("the line follows OnActionsChanged"), HUD->GetCards()[0].ActionsLine.ToString(), ExpectedLine());
+			}
+			HUD->Teardown();
+
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				return;
+			}
+			MenuWidget->Initialise();
+			const int32 EndTurnRow = FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString());
+			if (TestTrue(TEXT("an End Turn row"), EndTurnRow != INDEX_NONE))
+			{
+				TestFalse(TEXT("with no key hint: End Turn has no key yet (Crown, 2026-11-12)"),
+						  MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
+				MenuWidget->PressRow(EndTurnRow);
+				TestTrue(TEXT("End Turn ended Hero's turn"), Orchestrator->GetCurrentActor() == Foe);
+			}
+			MenuWidget->Teardown();
+		});
+
+		It("shows no action pips and no End Turn row with the switch off (B-170e)", [this]()
+		{
+			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_OFF);
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestNotNull(TEXT("battle HUD widget"), HUD))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			TestFalse(TEXT("the HUD shows no actions"), HUD->IsShowingActions());
+			TestTrue(TEXT("no pips line"), !HUD->GetCards().IsEmpty() && HUD->GetCards()[0].ActionsLine.IsEmpty());
+			HUD->Teardown();
+
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				return;
+			}
+			MenuWidget->Initialise();
+			TestEqual(TEXT("no End Turn row"), FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString()), INDEX_NONE);
 			MenuWidget->Teardown();
 		});
 	});
