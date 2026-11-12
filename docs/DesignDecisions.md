@@ -551,6 +551,19 @@ The queue of questions only Crown can answer.
 4. **Menu keys (main menu only, one key per category, two presses to act: FeelGuide 13; E33's menu rows are each a face button and a word, §7):** Attack **1 / A**, Skills **2 / X** (Abilities, else a weapon resonance), Spells **3 / B** (Refractions, else a breakthrough or ring resonance), Defend **G / Y** (built, B-093), Items **4 / D-pad Up**, Flee **5 / D-pad Down**, Switch weapon **6 / D-pad Left**, Change ring **7 / D-pad Right**. B stays Back everywhere except the main menu, where there is nothing to go back to. Picking inside a submenu or a target list is a click for now; gamepad navigation there comes with the CommonUI menu (D-024).
 5. **Switch:** `wor.UI.NewHUD` 1 (default) builds the new HUD; 0 builds the old WBP HUD, kept until Crown's PIE pass.
 **Recommendation:** all five as built: they follow the E33 study and FeelGuide 5 and 13, and every value is one named constant or one key row (`docs/Design/InputMap.md`).
+### Q-391b — Damage numbers and the Broken Darkness card: the build details
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-391b) · **Blocks:** — (B-391b ships with it)
+**Question:** Crown's Q-111 rule fixes what a damage number means (element colour, Physical white; weak bigger, brighter, a glow; resisted smaller, dimmer; immune grey and small). The build needed the numbers behind it, and a few details the rule doesn't name. Keep these?
+**Context:** `UI/Combat/Battle/DamageNumberView.h` (every value one named constant, `TODO: tune`), `BattleHUDWidget.cpp`, `BattleHUDView::FormatAbsorbLine`. The deckbuilder has no damage-number rule (its reference is a card model with no match presentation), so the reference is Expedition 33 (`docs/analysis/MaelleCombatPresentationStudy.md` §11: numbers at the hit point, about 1-2 s, several stack upward, small green "+" heals, a dark outline).
+**What was built:**
+1. **Size and brightness are linear in the element multiplier**, clamped: at the 50% resistance cap a weak hit is 1.5x size and lifted halfway to white with a glow (a wide outline in its own colour); a resisted hit 0.65x (clamp) and half as bright; within ±0.05 of 1 is neutral. A crit adds +0.25 size on top. Genshin Impact's element-coloured numbers (Crown's Q-111 model) and E33's size-by-strength.
+2. **Immune** is a multiplier at or below 0: grey, 0.6x. No hit can reach it today (resistance caps at 50%), so the style is ready for an immunity source; a hit that took 0 for any other reason (fully warded, buildup only) shows **no number**, as E33 shows none for a miss.
+3. **Heals** are green "+N" at 0.85x (E33). Sent from `USkillEffectManager::BroadcastHealing`, so every reported heal shows on every machine.
+4. **Motion:** at the top of the target (its collision top; the exact impact point isn't in the hit event), rising 60 units over 1.5 s, fading over the last 40%, each further number on the same target starting 30 units higher (E33's ~1-2 s, stacking). A pool of 16; the oldest is reused when all are up.
+5. **Darkness** keeps its pale outline (D-106); every other number has E33's dark outline.
+6. **Broken Darkness card:** the EP line reads "Absorb x / y" (the old panel's "Abs", spelled out), and past max ", overload z%", tinted white / yellow / orange / red at the old panel's thresholds (`CombatConstants::OVERLOAD_*_THRESHOLD`).
+7. **Split:** the status buildup bar, the weapon / loadout name and tooltip and the durability header go to B-391c, to keep B-391b at M.
+**Recommendation:** all seven as built (references above; not lore). Crown tunes the numbers in PIE.
 
 ## Parked
 

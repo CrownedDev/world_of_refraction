@@ -54,6 +54,19 @@ namespace BattleHUDView
 	WORLD_OF_REFRACTION_API FText GetHPLabel();
 	WORLD_OF_REFRACTION_API FText GetEPLabel();
 
+	/** B-391b: a Broken Darkness character's EP is its absorption pool (the old panel's "Abs"). */
+	WORLD_OF_REFRACTION_API FText GetAbsorbLabel();
+
+	/** B-391b: Current above a positive Max (Broken Darkness overload; capped at Max + 30% by the manager). */
+	WORLD_OF_REFRACTION_API bool IsOverloaded(int32 Current, int32 Max);
+
+	/** B-391b: "Absorb 80 / 100"; overloaded, "Absorb 130 / 100, overload 130%". */
+	WORLD_OF_REFRACTION_API FText FormatAbsorbLine(int32 Current, int32 Max);
+
+	/** B-391b: the absorb line's colour, as the old panel: white, then yellow / orange / red past the
+	 *  CombatConstants::OVERLOAD_*_THRESHOLD ratios. */
+	WORLD_OF_REFRACTION_API FLinearColor GetOverloadColour(int32 Current, int32 Max);
+
 	/** The character's name from its data asset, else the actor's name; empty for null. */
 	WORLD_OF_REFRACTION_API FText GetCombatantName(const AActor *Actor);
 
