@@ -130,6 +130,17 @@ void FActionPipsTextSpec::Define()
 					  FString::Printf(TEXT("Actions ●●●◆ 4 · Max 3 (+75/%d) · 1 bonus, lost at turn end"), ActionPipsConstants::ACTION_POINTS_PER_ACTION));
 		});
 
+		It("shows the turn's skills against the limit once one is used (Q-170j, Crown)", [this]()
+		{
+			TestEqual(TEXT("the counter"), ActionPipsText::MakeSkillsUsedText(PIPS_TEXT_TWO).ToString(),
+					  FString::Printf(TEXT("Skills 2/%d"), ActionPipsConstants::SKILLS_PER_TURN_MAX));
+			TestTrue(TEXT("on the card's line"),
+					 ActionPipsText::MakeActionsLine(PIPS_TEXT_ONE, PIPS_TEXT_THREE, PIPS_TEXT_PROGRESS, PIPS_TEXT_TWO).ToString().EndsWith(
+						 FString::Printf(TEXT("· Skills 2/%d"), ActionPipsConstants::SKILLS_PER_TURN_MAX)));
+			TestFalse(TEXT("not before the first skill"),
+					  ActionPipsText::MakeActionsLine(PIPS_TEXT_ONE, PIPS_TEXT_THREE, PIPS_TEXT_PROGRESS).ToString().Contains(TEXT("Skills")));
+		});
+
 		It("keeps the number when there are too many pips to draw", [this]()
 		{
 			const FString Line = ActionPipsText::MakeActionsLine(ActionPipsText::MAX_PIPS_SHOWN + 1, PIPS_TEXT_THREE, PIPS_TEXT_NONE).ToString();

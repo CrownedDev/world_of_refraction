@@ -50,7 +50,11 @@ namespace ActionPipsText
 
 	/** The party card's line: "Actions ●●○ 2 · Max 3 (+75/100)" (the pips, then the number, as the deckbuilder's
 	 *  "ACT 2"). With bonus actions it says they expire: "Actions ●●●◆ 4 · Max 3 (+75/100) · 1 bonus, lost at turn end". */
-	WORLD_OF_REFRACTION_API FText MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress);
+	WORLD_OF_REFRACTION_API FText MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress, int32 SkillsUsed = 0);
+
+	/** Q-170j (Crown, 2026-11-12): "Skills 2/3", the turn's skills against SKILLS_PER_TURN_MAX. The card line adds it
+	 *  while the holder has used one this turn (the limit is shown, never hidden). */
+	WORLD_OF_REFRACTION_API FText MakeSkillsUsedText(int32 SkillsUsed);
 
 	/** Defend's tooltip in an action-pips fight: "Ends your turn." (§3.5). */
 	WORLD_OF_REFRACTION_API FText GetDefendEndsTurnText();
