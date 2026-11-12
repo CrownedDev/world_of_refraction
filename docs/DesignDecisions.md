@@ -274,7 +274,7 @@ The queue of questions only Crown can answer.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170d (`UCharacterDataComponent` waiting changes, `BreakTable::ActionPipsRows`, `UItemExecutor::ExecuteBonusTurnEffect`).
 
 ### Q-170i — Action pips: the Reflex regain, Crown's rework
-**Status:** ANSWERED (Crown's ruling, 2026-11-12; the build details below by the reference-backed default, Crown vetoes) · **Raised:** 2026-11-12 (B-170i) · **Blocks:** —
+**Status:** ANSWERED (Crown's ruling, 2026-11-12; stones and buffs reading confirmed by Crown 2026-11-12; other build details by the reference-backed default) · **Raised:** 2026-11-12 (B-170i) · **Blocks:** —
 **Question:** The regain was 1 / 2 / 3 at Reflex window-share thresholds (Q-170). Crown reworked it: how is it built?
 **Crown's ruling (2026-11-12):** **Reflex value** = the character's Reflex points, each at its own worth (a higher gear tier makes a point worth more), × the Body multiplier **including** external Body boosts. **Step** per +1 regain = `REGAIN_STEP` × the character's **natural** Body multiplier (own Body level only). **Regain = 1 + ⌊value ÷ step⌋**, never filling the bank past Max Actions. Levelling Body cancels out; only Reflex investment, point worth and external Body boosts raise it. Progress is shown ("Regain 2 (Reflex 4.1 / 6.0)"). The defence window keeps its own Reflex formula.
 **Build details (reference-backed default):**
@@ -284,6 +284,7 @@ The queue of questions only Crown can answer.
 - **Reflex stones and Reflex buffs (percent) don't change the regain.** They are percent lifts on the window, not Reflex points, and the ruling names only points, their worth and Body boosts. They still widen the defence window.
 - **The regain stops at the Max Actions safety cap (5)**, so the text never shows a regain no bank could hold. A negative value (cursed gear) gives the base 1.
 - **The progress line** is a debug string in `wor.Actions.Print` until the battle HUD (B-170e) shows it as FText.
+**Confirmed (Crown, 2026-11-12):** Reflex stones and Reflex buffs raise Reflex's other effects (the defence window) but **not** the action regain; anything that raises actions is its own separate action buff (GainActions / regain effects).
 **Answer:** Crown's ruling, with the build details by the reference-backed default (2026-11-12). Built in B-170i (`ActionPipsRules::RegainForReflexValue`, `UCharacterDataComponent::GetRegainReflexValue` / `GetRegainReflexStep`).
 
 ### Q-170b — Action pips: what a skill costs
