@@ -14,18 +14,38 @@ Root drift, airborne time (both feet over 25 cm off the floor) and the start and
 
 **Notify rules used** (from code): `UCombatNotify` families Impact / Cast / VFX / SFX, named `<Family><Index>` (`Impact0`); B-368 wants Impact `0..HitCount-1` in time order; a `Cinematic Window` (B-370) must end ≥ 0.75 s before the first Impact minus its telegraph lead; the defence window needs **no notify** (a guard / dodge counts if pressed up to `DefenseInputWindow` 0.5 s before each Impact); hit-stop (~40 ms, FeelGuide 4), hit VFX choice (Q-369) and camera punch are code, driven by the Impact notify. No recovery / cancel notify exists today: a montage blend-out time is proposed instead.
 
-### Interrupt notify (Crown's proposal, 2026-11-12; not built)
+### Interrupt marker (Crown, 2026-11-12; not built)
 
-**What Crown asked for:** a strike notify that lands the hit and, at that frame, cancels or staggers the **target's** charge, cast or ritual.
+**What it is:** a strike notify that also marks **"this attack can be interrupted here"**. It is D-161's interrupt point: if **every target Perfect Guards** that strike, the attacker's skill ends there (ED-37c). It is **not** our hit cancelling the target's ritual (that idea is dropped).
 
-**How it fits what exists:**
-- Today's "interrupt" runs the other way: a defender's **Perfect Guard on an interrupt point** (`bInterruptable` on a hit or cast entry) ends the **attacker's** skill (D-161, ED-37c, `GuardRules.h:46`, `ActionExecutor::InterruptAsyncAction`). The new one is the attacker's hit stopping the target. Keep the names apart: suggested **"Interrupt"** for the new notify and keep calling the old one an **"interrupt point"**.
-- In this turn-based game a target is never mid-swing during your turn. What it can have in progress is an **armed ritual** (a deferred spell waiting for its Execution turn, ET-16). Infusion "charge" (ED-10) is picked with the action, not held. So in practice the Interrupt hits a ritual (and any future boss charge-up).
-- **Conflict to decide (Crown):** SB-36 says a ritual armed before a stun **still goes off**. An Interrupt that cancels rituals changes that. Options: cancel the ritual; delay it a turn; or weaken it (drop its charge level). Not decided here.
-- **Shape (proposal for the Code Writer's job):** keep it an **Impact** notify so the hit count, B-368's `0..HitCount-1` order and the outcome VFX all stay as they are. Either a flag on the notify (label `Interrupt<N>` in the montage editor, still counted as `Impact<N>`) or a flag on the skill's hit entry N, the way `bInterruptable` already lives on hit entries. The hit entry is the better home (data, per skill, readable by the AI); the label is an authoring aid.
-- **Defence:** it lands only if the hit lands; a successful Guard or Dodge on that impact cancels the interrupt (same rule as any on-hit effect, to confirm).
+**Crown's rule: an interrupted attack ends and the attacker goes back to their spot** (the return leg plays).
 
-**Where it goes:** not on light hits (it would make the cheapest action the ritual answer). Best fits: the **crippling strike** (stagger is its job) and the **heavy hit** (an overhead break). Proposed per skill as each is analysed.
+**How interrupt points are authored today** (data, not a notify or curve):
+- `bInterruptable` on a hit entry in the skill's damage split (`SkillDataBase.h:74`, keyed by hit number) and on a spell cast entry (`SkillCastEntry.h:89`).
+- The Impact notify `Impact<N>` fires the hit; the executor looks up hit N's flag (`ActionExecutorMontage.cpp:436-445`) and, if every target Perfect Guarded it, calls `InterruptAsyncAction` (`ActionExecutor.cpp:2815`).
+- Debug: `USkillCastDebug::GetInterruptPointsString`.
+- So the flag lives in the skill asset, and the strike frame lives in the montage. Nothing in the montage shows which strike is the choke point.
+
+**Proposal: one marker, on the Impact notify.**
+- Add `bInterruptPoint` to `UCombatNotify` (Impact and Cast families only). When ticked, the montage-editor label reads **`Interrupt<N>`** instead of `Impact<N>` (or `Cast<N>`), with its own track colour. It is still hit N: the hit count, B-368's `0..HitCount-1` order and outcome VFX don't change.
+- The executor treats hit N as an interrupt point if **either** the notify or the old data flag says so (transition). The B-368 validator warns when the two disagree.
+- After Crown's PIE pass, the data flags are moved onto the notifies and removed (per "remove old code only after PIE").
+- Why the notify, not the data: the choke point is a property of **this strike in this animation**; authors see it on the timeline next to the strike, and swapping the animation forces a re-check.
+- Code Writer's job; no asset is changed here.
+
+**Does it return the attacker today? Partly.** `InterruptAsyncAction` plays the skill's `ReturnMontage` (warped back to the saved grid spot) **if one is set**; without one it stops the montage where it is and ends the action (`ActionExecutor.cpp:2884-2900`), which leaves an attacker who dashed in standing at the target. Backlog **B-412** closes the gap. Also: the comments on both `bInterruptable` fields still say "parried OR dodged"; the rule (ED-37c, B-367b) is Perfect Guard only.
+
+**Where interrupt points go:**
+- A **one-hit** skill gains nothing: there is no "rest of the attack" to end, the return plays anyway. So no interrupt point on the light hit.
+- On **multi-hit** skills (heavy combo, finisher), mark the strike before the big blow: guarding it perfectly cancels the finisher. One per skill to start; more only on boss attacks.
+- **Enemy use:** the player's main reward for timing (E33's parry gives the counter; here, cancelling the rest of the combo).
+- **Player use:** only matters if enemies can Perfect Guard (AI defence). Author the same points; they do nothing until then.
+- Proposed per candidate below.
+
+**Rituals have two animations (Crown):**
+- **Arm:** an action like a cast (e.g. a prayer, with VFX and SFX, no strike). It has no Impact, so no interrupt point.
+- **Trigger** (the later Execution turn): a separate attack animation that holds the strikes, and the interrupt points.
+- Today `RitualCastMontage` plays straight before `SkillMontage` in one chain (`SkillDataBase.h:321-327`). Whether the armed (deferred, ET-16) path plays it on the arm turn and the strike on the trigger turn is not checked here (to check when the first ritual is built).
 
 ## All sword and shield in-place attacks (DSAS V1 / V2), screened
 
@@ -112,7 +132,7 @@ Root drift 0; the pelvis drops 31 cm in the lunge and comes back; starts and end
 | Defence window | — | — | none to place: code opens it 0.5 s before `Impact0` |
 | Blend-out (montage setting, not a notify) | 0.95–1.225 | 38–49 | 0.25 s blend back to idle; the next action can start from 0.95 s |
 
-`HitCount` 1, so only `Impact0` (B-368 passes). Interrupt: **none proposed** on the light hit; if Crown wants one, it replaces `Impact0` at the same frame (0.40 s, f16).
+`HitCount` 1, so only `Impact0` (B-368 passes). **Interrupt point: none** (one hit, nothing left to cancel), for player and enemy use alike.
 
 **Skill that fits the motion:** a **single-target, one-hit downward chop**: low cost, small flinch on the target, no area. The overhead tell and one clean blade-down are its identity. If an enemy uses it, the defender sees only 0.4 s from the first move to contact (less than E33's ~0.7 s), so either keep the telegraph above or play it at ~0.85 speed for enemies (`TODO:` a design call, not taken here).
 
@@ -127,7 +147,7 @@ Root drift 0; the pelvis drops 31 cm in the lunge and comes back; starts and end
 | Recovery | 0.65–1.00 | 26–40 |
 | End | 1.05 | 42 |
 
-Feel: a quick jab with almost no tell; from behind it is a pure push away from the camera, so it reads small unless shot from the side. Fits: a **single-target piercing** hit (e.g. ignores some armour). Starts and ends in the low guard stance (pelvis 76), not the standing pose: needs a matching idle or a 0.2 s blend in and out. Notifies: `VFX0` 0.375 (f15), `SFX0` 0.40 (f16), `Impact0` 0.45 (f18), blend-out from 0.85 s.
+Feel: a quick jab with almost no tell; from behind it is a pure push away from the camera, so it reads small unless shot from the side. Fits: a **single-target piercing** hit (e.g. ignores some armour). Starts and ends in the low guard stance (pelvis 76), not the standing pose: needs a matching idle or a 0.2 s blend in and out. Notifies: `VFX0` 0.375 (f15), `SFX0` 0.40 (f16), `Impact0` 0.45 (f18), blend-out from 0.85 s. Interrupt point: none (one hit).
 
 ### Runner-up 2: V1 `Anim_SAS_Combo2_01_IP`
 
@@ -140,7 +160,7 @@ Feel: a quick jab with almost no tell; from behind it is a pure push away from t
 | Recovery (rise to stand) | 0.85–1.20 | 34–48 |
 | End | 1.225 | 49 |
 
-Feel: a long, readable coil (0.55 s, close to E33's 0.7) and then a whip-fast sweep that lasts only two frames, so the swing itself can flicker. Fits: a **horizontal cleave**, every enemy in the front row, light damage each, better as its own skill than as the light hit. Starts and ends standing. Notifies: `VFX0` 0.65 (f26), `SFX0` 0.65 (f26), `Impact0` 0.70 (f28), blend-out from 1.0 s.
+Feel: a long, readable coil (0.55 s, close to E33's 0.7) and then a whip-fast sweep that lasts only two frames, so the swing itself can flicker. Fits: a **horizontal cleave**, every enemy in the front row, light damage each, better as its own skill than as the light hit. Starts and ends standing. Notifies: `VFX0` 0.65 (f26), `SFX0` 0.65 (f26), `Impact0` 0.70 (f28), blend-out from 1.0 s. Interrupt point: none (one hit).
 
 ### Rejected
 
@@ -210,3 +230,4 @@ Notifies in whole-action time: `VFX0` 1.03, `SFX0` 1.055, `Impact0` 1.13. `SFX1`
 | 2026-11-12 | Created: method, screen of all DSAS in-place attacks, light hit pick (V2 ComboAttack02_01) with runners-up | docs/showcase-anim-analysis |
 | 2026-11-12 | Crown's notes: flip and jump check by torso tilt (only ComboAttack01_01 flips; the pick has none), Interrupt notify proposal (fit, SB-36 conflict, placement) | docs/showcase-anim-analysis |
 | 2026-11-12 | Approach → strike → return: current movement code, V3 dash/evade clips, join blends, whole-action timings; Stab2 flagged as a ranged-thrust candidate; idle-stance correction | docs/showcase-anim-analysis |
+| 2026-11-12 | Interrupt reworked per Crown: a marker on the Impact notify for D-161's interrupt points (not a ritual cancel); today's authoring, merge proposal, return-on-interrupt gap (B-412), ritual arm/trigger split | docs/showcase-anim-analysis |
