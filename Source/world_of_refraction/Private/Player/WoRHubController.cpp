@@ -6,6 +6,7 @@
 #include "Character/CombatCharacter.h"
 #include "EnhancedInputComponent.h"
 #include "Engine/GameInstance.h"
+#include "Field/FieldMovementComponent.h"
 #include "Hub/HubInteract.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
@@ -69,35 +70,80 @@ void AWoRHubController::SetupInputComponent()
 	{
 		InteractAction = DefaultInteractAction.LoadSynchronous();
 	}
-	if (!InteractAction)
+	if (InteractAction)
+	{
+		EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AWoRHubController::HandleInteractPressed);
+	}
+	else
 	{
 		UE_LOG(LogWoR, Error,
 			   TEXT("[WoRHubController] No interact action: set DefaultInteractAction in Config/DefaultGame.ini "
 					"(now '%s') or InteractAction on the controller BP (B-205)"),
 			   *DefaultInteractAction.ToString());
-		return;
 	}
-	EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AWoRHubController::HandleInteractPressed);
+
+	if (!FieldMovementSkillAction && !DefaultFieldMovementSkillAction.IsNull())
+	{
+		FieldMovementSkillAction = DefaultFieldMovementSkillAction.LoadSynchronous();
+	}
+	if (FieldMovementSkillAction)
+	{
+		// The double tap is the asset's own trigger (B-214g), so one Triggered = one use.
+		EnhancedInput->BindAction(FieldMovementSkillAction, ETriggerEvent::Triggered, this,
+								  &AWoRHubController::HandleFieldMovementSkill);
+	}
+	else
+	{
+		UE_LOG(LogWoR, Log,
+			   TEXT("[WoRHubController] No field movement skill action yet (B-214g makes IA_Field_MovementSkill); "
+					"wor.Field.Activate stands in"));
+	}
 }
 
 void AWoRHubController::OnPossess(APawn *InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	if (!bEnsureLocalPartyOnPossess)
+	if (bEnsureLocalPartyOnPossess)
+	{
+		UGameInstance *GI = GetGameInstance();
+		if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+		{
+			PartySession->EnsureLocalParty(this, LocalPartyPawnClass);
+		}
+	}
+	EnsureFieldMovement(InPawn); // after EnsureLocalParty, so the leader's record is bound
+}
+
+void AWoRHubController::EnsureFieldMovement(APawn *InPawn) const
+{
+	if (!InPawn)
 	{
 		return;
 	}
-	UGameInstance *GI = GetGameInstance();
-	if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+	UFieldMovementComponent *FieldMovement = InPawn->FindComponentByClass<UFieldMovementComponent>();
+	if (!FieldMovement)
 	{
-		PartySession->EnsureLocalParty(this, LocalPartyPawnClass);
+		FieldMovement = NewObject<UFieldMovementComponent>(InPawn, TEXT("FieldMovement"));
+		InPawn->AddInstanceComponent(FieldMovement);
+		FieldMovement->RegisterComponent();
+		UE_LOG(LogWoR, Log, TEXT("[WoRHubController] Field movement added to %s (B-214a)"), *InPawn->GetName());
 	}
+	FieldMovement->RefreshFromRecord();
 }
 
 void AWoRHubController::HandleInteractPressed(const FInputActionValue & /*Value*/)
 {
 	InteractWithNearest();
+}
+
+void AWoRHubController::HandleFieldMovementSkill(const FInputActionValue & /*Value*/)
+{
+	UFieldMovementComponent *FieldMovement = GetPawn() ? GetPawn()->FindComponentByClass<UFieldMovementComponent>() : nullptr;
+	if (FieldMovement)
+	{
+		FieldMovement->ActivateFieldSkill();
+	}
 }
 
 void AWoRHubController::InteractWithNearest()

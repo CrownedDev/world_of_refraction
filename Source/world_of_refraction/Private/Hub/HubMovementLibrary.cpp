@@ -2,6 +2,7 @@
 
 #include "Hub/HubMovementLibrary.h"
 #include "Character/CharacterDataComponent.h"
+#include "Field/FieldMovementComponent.h"
 #include "GameFramework/Pawn.h"
 
 namespace HubMovement
@@ -33,10 +34,18 @@ float UHubMovementLibrary::ComputeHubSprintSpeed(APawn *Pawn)
 
     const float Mult = FMath::Clamp(Comp->GetEffectiveActionSpeed(), ACTIONSPEED_MULT_MIN, ACTIONSPEED_MULT_MAX);
     const float Alpha = (Mult - ACTIONSPEED_MULT_MIN) / (ACTIONSPEED_MULT_MAX - ACTIONSPEED_MULT_MIN);
-    const float SprintSpeed = FMath::Lerp(SPRINT_SPEED_MIN, SPRINT_SPEED_MAX, Alpha);
+    // B-214a: Enhanced Sprint multiplies the stat's sprint (x1 when off or with no field movement component).
+    const UFieldMovementComponent *FieldMovement = Pawn->FindComponentByClass<UFieldMovementComponent>();
+    const float FieldMultiplier = FieldMovement ? FieldMovement->GetSprintSpeedMultiplier() : FieldSkillRules::NO_SPRINT_BOOST;
+    const float SprintSpeed = FMath::Lerp(SPRINT_SPEED_MIN, SPRINT_SPEED_MAX, Alpha) * FieldMultiplier;
 
-    UE_LOG(LogTemp, Verbose, TEXT("[HubMovement] %s ActionSpeed x%.3f -> sprint %.0f"),
-           *Pawn->GetName(), Mult, SprintSpeed);
+    UE_LOG(LogTemp, Verbose, TEXT("[HubMovement] %s ActionSpeed x%.3f, field x%.2f -> sprint %.0f"),
+           *Pawn->GetName(), Mult, FieldMultiplier, SprintSpeed);
 
     return SprintSpeed;
+}
+
+float UHubMovementLibrary::GetSprintSpeedMin()
+{
+    return HubMovement::SPRINT_SPEED_MIN;
 }

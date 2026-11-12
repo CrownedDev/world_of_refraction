@@ -381,6 +381,8 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-337d](B-337d.md) | Skill-effect conditions check through the shared conditions (HP / EP percent) | Pending | REVIEW (in dev) | [ ] |
 | [B-366e](B-366e.md) | Gear repair costs the currency of the place | Pending | REVIEW (in dev) | [ ] |
 | [B-367](B-367.md) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending | REVIEW (in dev) | [ ] |
+| [B-096](B-096.md) | Evolutions' Run Payout Bonus Percent raises the run-end payout (adds up, cap x2.0) | Pending | REVIEW (in dev, `feature/B-096-payout-passives`) | [ ] |
+| [B-129](B-129.md) | Mapping-context priorities named (`WoRInputPriority`); no change in play | Pending | REVIEW (in dev, `feature/B-129-input-priorities`) | [ ] |
 | [B-239](B-239.md) | Buy +1 item slot per character at the hub (`wor.UI.ItemSlots`) | Pending | REVIEW (`feature/B-239-item-slot-upgrades-cloud`, UNBUILT) | [ ] |
 
 ---

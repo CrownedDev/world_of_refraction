@@ -10,7 +10,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Move | WASD | Left stick | — | Built |
 | Camera | Mouse | Right stick | — | Built |
 | Sprint (fast, free) | Left Shift (hold) | L3 click (toggle) | `IA_Sprint` | Built (key: check editor) |
-| Field movement (double-click sprint: Enhanced Sprint or the equipped field movement; D-099) | Double-tap Left Shift | **Double-click L3** | `IA_Field_MovementSkill` | Planned (Crown) |
+| Field movement (double-click sprint: Enhanced Sprint or the equipped field movement; D-099) | Double-tap Left Shift | **Double-click L3** | `IA_Field_MovementSkill` | Code bound (B-214a: `AWoRHubController`, config `DefaultFieldMovementSkillAction`, Triggered); the asset and its double-tap trigger come in B-214g; until then `wor.Field.Activate`. With no skill picked it dashes (Q-214a) |
 | Jump | Space | A (Cross) | `IA_Field_Jump` | Proposed |
 | Field attack (hold: charged; Water source → Ice) | Left mouse | RB (R1) | `IA_Field_Attack` | Proposed |
 | Aim (free aim for field spells / attacks) | Right mouse (hold) | LT (L2) (hold) | `IA_Field_Aim` | Proposed |
@@ -41,10 +41,21 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Move the target highlight (camera follows, B-400) | Arrow keys (menu focus) / mouse hover over a target button | D-pad / left stick (menu focus) | CommonUI navigation (no new input action) | Built (B-400): focus or hover on a target button calls `HighlightTarget`; debug `wor.Camera.TargetCycle` |
 | Skip boss cinematic (opening, phase change) | Tab | Menu (Options) | `IA_Combat_SkipCinematic` | Built (B-406b, Q-406b): press, in the code-built menu-keys context; does nothing unless a boss cinematic plays. Tab: no row here uses it (not Space, the usual dodge key and Slate's Accept; not Enter / Esc / Backspace / 1–7). The key doesn't consume input, so **PIE must confirm** the editor combat context puts no Guard / Dodge / pause on Tab or Menu (`docs/PIE/B-406b.md`). Co-op: ends this machine's view only; the server's hold ends on its own end or its cap |
 
+## Mapping contexts (B-129)
+
+Higher priority wins a key two contexts both map. The numbers live in `WoRInputPriority` (`Public/Player/InputPriorities.h`); no literal priority is left in C++.
+
+| Context | Added by | Priority | State |
+|---|---|---|---|
+| Exploration (hub and trial map) | `AExplorationPlayerController` (`ExplorationMappingContext`; a BP may override `ExplorationMappingPriority`) | `EXPLORATION` = 0 | Built (B-129: named) |
+| Combat (editor-authored: Guard, Dodge) | `ACombatPlayerController::CombatMappingContext` | `COMBAT` = 0 | Built (B-129: named) |
+| Combat menu keys (code-built: Defend, infusion, category keys, skip cinematic) | `ACombatPlayerController::BuildMenuKeys` | `COMBAT_MENU_KEYS` = `COMBAT` + 1 | Built (B-129: named; was `CombatMenuKeys::CONTEXT_PRIORITY`) |
+
 ## Notes
 
 - Same verb, same key across modes where possible (switch source = R / LB in the field and in combat).
 - Exploration and combat use separate mapping contexts, so a key may mean different things in each (RB = field attack on the map, infusion level in combat).
+- Exploration and combat share priority 0 because their two controllers never run at the same time; give one a different priority before a map ever runs both.
 - Keyboard double-tap and gamepad double-click windows: one named constant (`// TODO: tune`).
 
 ## Changelog
@@ -60,3 +71,4 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | 2026-11-09 | B-400: menu focus / hover on a target button now moves the target highlight (and the camera); no new key or input action | feature/B-400-target-cut-cloud |
 | 2026-11-09 | B-400b: in the new battle HUD (B-391), hovering a target row moves the target highlight; its rows stay non-focusable, so keys still pick | feature/B-400b-new-hud-target-highlight |
 | 2026-11-09 | B-406b: Skip boss cinematic (Tab / Menu), `IA_Combat_SkipCinematic` (review: moved off Space) | feature/B-406b-boss-cinematic-skip |
+| 2026-11-12 | B-129: mapping-context priorities named (`WoRInputPriority`: exploration 0, combat 0, combat menu keys 1) and listed under "Mapping contexts"; no key or priority changes | feature/B-129-input-priorities-cloud |

@@ -55,6 +55,11 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bound")
         TArray<FBoundQuest> BoundQuests;
 
+        /** B-096 (Q-096): while this evolution is worn (any place, not broken) the run-end payout grows by this many
+         *  percent; the party's bonuses add up, capped by RunRewards::MAX_PAYOUT_MULTIPLIER. 0 = none. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Rewards", meta = (ClampMin = "0"))
+        float RunPayoutBonusPercent = 0.0f;
+
         // ==================== SOURCE (loot/draft tags) ====================
 
         /** GameplayTag sources this evolution can drop from (e.g. Source.Floor.2, Source.Vendor.X).

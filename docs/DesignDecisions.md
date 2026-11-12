@@ -368,6 +368,19 @@ The queue of questions only Crown can answer.
 - **The enum entries stay visible** in the editor's dropdowns (not `Hidden`) until B-170h, so assets that still hold them show their value; each one gets the warning, and `wor.Data.ListTurnSpeed` lists them.
 - **The stat screen:** there is no character sheet yet, so the retirement lands where Turn Speed shows today: the character print (`UCharacterDataDebug`) marks its Turn Speed lines retired, the Details panel names the fields "Turn Speed (retired)" / "Bonus Turn Speed (retired)", and the character sheet's spec (`UI_ScreenInventory.md` 3.2) drops Turn Speed for Max Actions and the regain. B-170e's placeholder adds the Max Actions line.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170g (`SkillEffectClassification::IsTurnSpeedFamily`, the `IsDataValid` warnings, `TurnSpeedRetireDebug`).
+### Q-214a — Field skills part 1: the dash on the double tap, Enhanced Sprint as a toggle, the starting numbers
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-12; Crown vetoes) · **Raised:** 2026-11-12 (B-214a) · **Blocks:** —
+**Question:** (1) What does the double tap do before a character picks a field skill? (2) How does Enhanced Sprint run: held, or on / off, and when is EP paid? (3) Which source gives which element? (4) The starting numbers.
+**Context:** D-099 and `Design/FieldAbilities.md`: everyone has the normal dash (the only unlocked movement); one active field skill per character (a source, then a movement type); double-tap sprint uses it; Enhanced Sprint is faster by element (Lightning fastest, Wind second) and costs EP; EP has no regen in the field.
+**Options / as built:**
+- (1) **A** the dash is the default active field skill: the double tap dashes until another skill is picked. **B** a separate dash key.
+- (2) **A** a toggle: double tap on, double tap again off, off by itself at 0 EP; it drains while on (moving or not) and the first second is paid on start. **B** only while sprint is held.
+- (3) **A** innate = a Caster's element (other classes have none); weapon = the crystal in the weapon in hand (none when broken); ring = a Resonator's active adapter, another class's primary ring (the same reading as the parry colour, B-393).
+- (4) **A** dash: free, 1 s cooldown, 1800 cm/s; Enhanced Sprint: 1 EP per second; speed over the normal sprint ×1.5 Lightning, ×1.4 Wind, ×1.25 the other elements (all `// TODO: tune`).
+**Recommendation:** A, A, A, A. (1) Kingdom Hearts 2's growth abilities and Nightreign give every character a free basic dodge-dash; the design already makes the dash the one move everyone has, and B-214g's input list has no separate dash key (FieldAbilities, InputMap). (2) Warframe's channelled abilities (toggle on, energy per second, off at 0) are the standard drain model and widely used; paying the first second up front follows Honkai: Star Rail, where a missed Technique still spends its point (FieldAbilities appendix), so tapping it on and off is never free. (3) One reading of "the character's element" for the whole game keeps it learnable. (4) FieldAbilities §4: the passive bonus is modest; the big moment is the active skill; numbers are a starting point for play-testing.
+**Answer:** **A, A, A, A**, by the reference-backed default (2026-11-12). **Crown changed (2), 2026-11-12:** Enhanced Sprint drains EP **only while the character is actually moving at sprint speed**, not while standing still (still a toggle; started mid-sprint, the first second is paid at once). The rest stands.
+**Notes for Claude:** (2) as changed is built in B-214a2 (`FieldSkillRules::IsMovingAtSprintSpeed`: ground speed above 600 cm/s, between the 500 walk and the 800 slowest sprint; each 1 s drain step checks it). Follows from Crown's rule (review 2026-11-12): turning it on while standing costs nothing until the character sprints; a jump or a dash faster than 600 cm/s counts as sprinting (moving at that speed); the step samples the speed once a second, so a second is charged or free by the speed at that moment. Built in B-214a (`UFieldMovementComponent`, `FieldSkillRules`, `FPartyMember::FieldSkill`, save v36). Left: a crystal source doesn't wear yet (the B-214 row says it does; slice with B-214b or B-214f); unlocks are B-214b (any built type with an elemental source can be picked until then).
+
 ### Q-233b — Sessions part 2: when a friend can drop in, what happens when one leaves, and invites before EOS
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-12; Crown vetoes) · **Raised:** 2026-11-12 (B-233b) · **Blocks:** —
 **Question:** (1) Mid-run, when can the host seat a friend who joined? (2) What happens to a friend's character when it leaves (quits or loses its connection), in and out of a fight, and if it comes back? (3) How are friends invited before EOS exists?
@@ -674,6 +687,18 @@ The queue of questions only Crown can answer.
 **Answer:** as above, by the reference-backed default (2026-11-12). Crown may change the close behaviour or the notices. **Flag answered (Crown, 2026-11-12):** the end memory a hidden quest earns is masked too: "New memory found. Open the journal to view it." (a main or side quest's end memory still reads "New memory: <title>"). `wor.Quest.Print` (debug) still names everything.
 **Notes for Claude:** placeholder UI: one "Reveal Hidden Quest <n>" button per masked quest under the Quests page text (`UMemoryJournalWidget::RevealQuest` / `Close`); no key, so no InputMap row. The real CommonUI journal puts Reveal on the entry itself (D-024). Text is placeholder `LOCTEXT` (`HiddenQuestNotice`, `MemoryJournal` namespace). PIE `docs/PIE/Q-397b.md`.
 
+### Q-096 — Payout passives: who carries them, how they stack, when they're read
+**Status:** ANSWERED (reference-backed default, 2026-11-12) · **Raised:** 2026-11-12 (B-096, cloud) · **Blocks:** —
+**Question:** B-073 left one run-end payout multiplier for "passives"; which items carry the passive, how do several add up, and when is it read?
+**Context:** `UTrialRunSubsystem::PayoutMultiplier` (B-073, `TrialRunSubsystem.h`) was never raised; evolutions are the asset-backed passive carriers (`UEvolutionItemData`), attached to the character slot, weapon, adapter or apparel (`ULoadoutComponent::GatherAttachedEvolutions`).
+**Recommendation (default):**
+- **Carrier:** a number on the evolution, `RunPayoutBonusPercent` (e.g. 10 = "+10% run-end payout"). It counts **wherever it is worn** (any place, any charge level), because it is not a combat effect, so D-147's "gear passives only at L2" doesn't apply. A broken evolution gives nothing (as its other passives).
+- **Stacking:** the party's bonuses **add up** (+10% and +15% = x1.25), **capped at x2.0** (`RunRewards::MAX_PAYOUT_MULTIPLIER`, `TODO: tune`). Reference: Path of Exile's "increased Item Quantity" and Diablo II's Magic Find add up across gear (additive, well understood by players); Diablo II's diminishing returns on MF and Hades' capped Fated Authority / Fated Persuasion show a cap keeps a farming build from breaking the economy.
+- **When read:** at the end of each fight, won or lost (after breaks), from the fighters' gear, so the run's end pays by what the party wore in its last fight. Simple and visible; swapping gear at a rest spot after the last fight doesn't count. ~~A resumed run starts at x1.0 until its next fight (the multiplier isn't saved).~~ Moot: there are no saved runs (D-172, Crown 2026-11-12).
+- **Difficulty / leave early / boss bonus** apply on top, as before (B-073, B-187).
+**Answer:** the default, by the reference-backed default (2026-11-12). Crown may change the cap, the stacking or where it counts.
+**Notes for Claude:** applied in `RunRewards::SumPayoutBonusPercent` / `PayoutMultiplierForBonus`, `UTrialRunSubsystem::RefreshPayoutMultiplier`, called from `ACombatOrchestrator::FinishCombat`. No evolution asset sets it yet (an editor step).
+
 ### Q-239 — Item slot upgrades: whose pouch, which vendor, what price
 **Status:** ANSWERED (reference-backed default, 2026-11-12) · **Raised:** 2026-11-12 (B-239, cloud) · **Blocks:** —
 **Question:** D-097's slot upgrades were written for one party inventory; since D-117 each character has its own pouch. Whose slots does a purchase raise, which hub vendor sells it, and what are the numbers?
@@ -689,6 +714,13 @@ The queue of questions only Crown can answer.
 
 ### D-P01 — Move Broken Darkness onto GAS?
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
+
+---
+
+### D-172 — No saved runs: extract to leave a run
+**Status:** DECIDED (Crown, 2026-11-12, via the desktop operator session) · **Raised:** 2026-11-12 · **Blocks:** — (B-408)
+**Answer (Crown):** there are **no saved runs**. To leave a run the party must **extract**; a run can't be quit and resumed later.
+**Notes for Claude:** this makes Q-096's "a resumed run starts at x1.0" gap moot. B-208 (save the trial run, Q-090) and the run pieces that followed (`USaveSubsystem::RestoreRun`, B-187c's saved marks and revivals, the run tally) were built for quit-and-resume; **B-408** surveys them against this ruling (what to remove, what to keep, e.g. crash recovery or co-op host hand-over). Survey only: nothing is deleted until Crown agrees.
 
 ---
 
