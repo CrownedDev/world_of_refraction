@@ -356,6 +356,14 @@ void FCombatCameraSpec::Define()
 			const FCameraShot Free = FCombatCameraRules::SteadyForDefence(Punch, false);
 			TestEqual(TEXT("not defending: the shake stays"), Free.ShakeScale, Punch.ShakeScale);
 			TestEqual(TEXT("not defending: the punch stays"), Free.FieldOfView, Punch.FieldOfView);
+
+			// B-403 review: an enemy's melee rush seen while defending has no blur (so the director doesn't cut to it).
+			Context.bRanged = false;
+			Context.bAllowRush = true;
+			const FCameraShot Rush = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context, FSkillCameraTuning());
+			TestTrue(TEXT("the test rush has blur to drop"), Rush.MotionBlur > 0.0f);
+			TestEqual(TEXT("defending: no rush blur"), FCombatCameraRules::SteadyForDefence(Rush, true).MotionBlur, 0.0f);
+			TestEqual(TEXT("not defending: the rush blur stays"), FCombatCameraRules::SteadyForDefence(Rush, false).MotionBlur, Rush.MotionBlur);
 		});
 
 		It("reads nothing from a skill without a montage", [this]()

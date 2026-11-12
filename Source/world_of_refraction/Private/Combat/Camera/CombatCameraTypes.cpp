@@ -341,6 +341,7 @@ FCameraShot FCombatCameraRules::SteadyForDefence(const FCameraShot &Shot, bool b
 	{
 		Out.ShakeScale = 0.0f;
 		Out.FieldOfView = DefaultFieldOfView;
+		Out.MotionBlur = 0.0f; // B-403 review: no melee rush either (no blur, and the director keeps the camera where it is)
 	}
 	return Out;
 }
