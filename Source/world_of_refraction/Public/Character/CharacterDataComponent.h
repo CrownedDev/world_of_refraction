@@ -466,14 +466,30 @@ public:
     UPROPERTY(Transient)
     int32 DebugActionPoints = 0;
 
-    /** Reflex's share of its window range, 0..1, read as the defense window reads it: the stat term
+    /** OBSOLETE (B-170i): nothing reads it since the regain moved to the Reflex value; kept until PIE.
+     *  Reflex's share of its window range, 0..1, read as the defense window reads it: the stat term
      *  (CalculateReflexWindowBonus) x its gear factor (ReflexWindowGearFactor), over WINDOW_CAP_SECONDS. */
     UFUNCTION(BlueprintPure, Category = "Combat|Actions")
     float GetReflexRegainShare() const;
 
-    /** Actions regained per turn: 1, 2 or 3 by Reflex (ActionPipsRules::RegainForReflexShare). */
+    /** B-170i (Crown, 2026-11-12): the Reflex value the regain reads: the character's own Reflex points plus the
+     *  gear's (each gear point already at its tier's worth, GetActiveStatBonus), x the Body multiplier with every
+     *  external lift (crystal, gear pillar, buffs, over-cap: GetEvolutionModifiedBody). Reflex stones and Reflex
+     *  buffs (percent) widen the defense window only. Never below 0. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    float GetRegainReflexValue() const;
+
+    /** B-170i: the Reflex value per +1 regain: REGAIN_STEP x the natural Body multiplier (the character's own
+     *  Body level only), so levelling Body cancels out. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    float GetRegainReflexStep() const;
+
+    /** Actions regained per turn: 1 + one per whole step of Reflex value (ActionPipsRules::RegainForReflexValue). */
     UFUNCTION(BlueprintPure, Category = "Combat|Actions")
     int32 GetActionRegain() const;
+
+    /** "Regain 2 (Reflex 18.0 / 30.0)" (ActionPipsRules::RegainString), for wor.Actions.Print. */
+    FString GetActionRegainString() const;
 
     // Server only, like the EP functions (B-131): plain calls run on the authority. Each broadcasts
     // OnActionsChanged when the count changes.
