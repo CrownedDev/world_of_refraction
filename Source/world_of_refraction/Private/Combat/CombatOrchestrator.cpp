@@ -1109,9 +1109,10 @@ void ACombatOrchestrator::OnActionCompleted()
 		return;
 	}
 
-	// Q-170f2 (Crown, 2026-11-12): bonus actions above Max are used this turn or lost now; the rest stays banked.
-	// Before the turn-end effects, so a Max Actions Buff ending now doesn't take an action banked under it. An
-	// Execution turn (a ritual's fire) is not the holder's own turn and keeps the bank.
+	// Q-170f2 (Crown, 2026-11-12): actions above Max are used this turn or lost now; the rest stays banked. Q-170f3:
+	// that includes a bank left above a lowered Max (Max Actions Down). Before the turn-end effects, so a Max Actions
+	// Buff whose duration ticks out here doesn't take an action banked under it. An Execution turn (a ritual's fire)
+	// is not the holder's own turn and keeps the bank.
 	ExpireBonusActionsAtTurnEnd(CurrentActor);
 
 	// Process end-of-turn effects

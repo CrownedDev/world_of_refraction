@@ -499,8 +499,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void LoseActions(int32 Amount);
 
-    /** Q-170f2 (Crown, 2026-11-12): the holder's turn ends, so bonus actions above Max are lost; banked actions up
-     *  to Max carry over (ActionPipsRules::BankAtTurnEnd). The orchestrator calls it at each of the holder's own
+    /** Q-170f2 (Crown, 2026-11-12): the holder's turn ends, so actions above Max are lost (a bonus, or a bank above a
+     *  lowered Max, Q-170f3); banked actions up to Max carry over (ActionPipsRules::BankAtTurnEnd). The orchestrator calls it at each of the holder's own
      *  turn ends in an action-pips fight. Server only. */
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void ExpireActionsAboveMax();

@@ -103,7 +103,7 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("1 + 3 stops at Max 2"), ActionPipsRules::BankAfterRegain(1, ACTIONS_REGAIN_AT_THRESHOLD_3, MAX_ACTIONS_BASE),
 					  MAX_ACTIONS_BASE);
 			TestEqual(TEXT("At Max"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), MAX_ACTIONS_BASE);
-			TestEqual(TEXT("Over Max stays"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE + 2, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE),
+			TestEqual(TEXT("Over Max: the regain adds nothing"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE + 2, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE),
 					  MAX_ACTIONS_BASE + 2);
 		});
 
