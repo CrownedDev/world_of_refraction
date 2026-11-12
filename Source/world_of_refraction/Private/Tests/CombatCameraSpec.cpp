@@ -1,7 +1,7 @@
 // CombatCameraSpec.cpp
 // Combat camera rules (B-156, Design/CombatCamera.md): the mode the viewer sees, the template a
 // skill falls back to, and where each mode puts the camera. B-370: the cinematic window and the Defence view.
-// B-398: the turn-view setting's layouts and its save.
+// B-398: the turn-view setting's layouts and its save. B-399: the menu-depth step and the menu driving it.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -16,6 +16,11 @@
 #include "Combat/Camera/CombatCameraComponent.h"
 #include "Combat/Camera/CameraFramingChecks.h"
 #include "Save/SaveSubsystem.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "UI/Combat/PieMenuButtonData.h"
+#include "Loadout/LoadoutComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "Misc/ScopeExit.h"
 #include "LevelSequence.h"
 
 namespace
@@ -61,6 +66,17 @@ namespace
 		Frame.EnemyCentre /= FMath::Max(1, Enemies.Num());
 		Frame.ArenaCentre = (Focus + Frame.EnemyCentre) * 0.5f;
 		return Frame;
+	}
+
+	// B-399: frames for the orchestrator's first turn to open the menu (as the command-menu specs wait).
+	constexpr int32 MENU_CAMERA_TEST_SETTLE_FRAMES = 3;
+
+	/** B-399: the command menu needs a loadout to open. */
+	void MenuCameraTestAddLoadout(AActor *Actor)
+	{
+		ULoadoutComponent *Loadout = NewObject<ULoadoutComponent>(Actor);
+		Actor->AddInstanceComponent(Loadout);
+		Loadout->RegisterComponent();
 	}
 
 	FVector2D ProjectInTurnView(const FTransform &View, const FVector &Point)
@@ -238,6 +254,68 @@ void FCombatCameraSpec::Define()
 			const FText Shoulder = FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle::OverTheShoulder);
 			TestFalse(TEXT("named"), Wide.IsEmpty() || Shoulder.IsEmpty());
 			TestFalse(TEXT("distinct"), Wide.EqualTo(Shoulder));
+		});
+	});
+
+	Describe("calm menus (B-399, study R2, R3)", [this]()
+	{
+		It("gives the base turn view at menu depth 0 and one step closer and lower at depth 1, aimed the same", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, {TURN_TEST_ONE_ENEMY});
+			for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+			{
+				const FString Name = UEnum::GetValueAsString(Style);
+				const FTransform Base = FCombatCameraRules::ComputeTurnView(Style, Frame);
+				const FTransform Main = FCombatCameraRules::ComputeTurnView(Style, Frame, CommandMenuRules::MAIN_MENU_DEPTH);
+				const FTransform Sub = FCombatCameraRules::ComputeTurnView(Style, Frame, CommandMenuRules::SUBMENU_DEPTH);
+				TestTrue(FString::Printf(TEXT("%s: depth 0 is the base view"), *Name), Main.Equals(Base));
+				TestTrue(FString::Printf(TEXT("%s: ComputeView's turn passes the depth"), *Name),
+						 Sub.Equals(FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, Style, Frame, CommandMenuRules::SUBMENU_DEPTH)));
+				TestTrue(FString::Printf(TEXT("%s: closer to the character"), *Name),
+						 FVector::Dist2D(Sub.GetLocation(), Frame.Focus) < FVector::Dist2D(Base.GetLocation(), Frame.Focus));
+				TestTrue(FString::Printf(TEXT("%s: lower"), *Name), Sub.GetLocation().Z < Base.GetLocation().Z);
+				const FVector2D BaseCentre = ProjectInTurnView(Base, Frame.EnemyCentre);
+				const FVector2D SubCentre = ProjectInTurnView(Sub, Frame.EnemyCentre);
+				TestTrue(FString::Printf(TEXT("%s: the enemy centre keeps its side of the frame, in the middle band"), *Name),
+						 BaseCentre.X * SubCentre.X >= -TURN_TEST_LAYOUT_TOLERANCE && FMath::Abs(SubCentre.Y) <= CameraFraming::THIRD_LINE);
+			}
+			const FTransform WideSub = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame, CommandMenuRules::SUBMENU_DEPTH);
+			TestTrue(TEXT("centred wide: still aimed at the enemy centre"),
+					 ProjectInTurnView(WideSub, Frame.EnemyCentre).Equals(FVector2D::ZeroVector, TURN_TEST_LAYOUT_TOLERANCE));
+		});
+
+		It("keeps the over-the-shoulder layout one step in: hero lower-left, enemy centre mid-frame", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, TurnTestThreeEnemies());
+			const FTransform Sub = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame, CommandMenuRules::SUBMENU_DEPTH);
+			const FVector2D Hero = ProjectInTurnView(Sub, Frame.Focus);
+			const FVector2D Centre = ProjectInTurnView(Sub, Frame.EnemyCentre);
+			const FString Where = FString::Printf(TEXT("hero %s, enemy centre %s"), *CameraFraming::GetThirdsCell(Hero), *CameraFraming::GetThirdsCell(Centre));
+			TestTrue(FString::Printf(TEXT("hero on screen (%s)"), *Where),
+					 CameraFraming::IsOnScreen(Sub, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Frame.Focus));
+			TestTrue(FString::Printf(TEXT("hero lower-left (%s)"), *Where), Hero.X < -CameraFraming::THIRD_LINE && Hero.Y < -CameraFraming::THIRD_LINE);
+			TestTrue(FString::Printf(TEXT("enemy centre mid-frame (%s)"), *Where), Centre.Equals(FVector2D::ZeroVector, TURN_TEST_LAYOUT_TOLERANCE));
+		});
+
+		It("holds the one step for deeper menus and reads a negative depth as the main menu", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTransform Sub = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame, CommandMenuRules::SUBMENU_DEPTH);
+			TestTrue(TEXT("deeper holds the step"),
+					 Sub.Equals(FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame, FCombatCameraRules::MaxMenuDepth + 1)));
+			TestTrue(TEXT("negative is the base"),
+					 FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame, -1).Equals(FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame)));
+		});
+
+		It("follows a sub-menu, and keeps a target picker at the depth it was opened from (Q-399)", [this]()
+		{
+			using namespace CommandMenuRules;
+			TestEqual(TEXT("closed"), CameraDepthFor(ECombatMenuDepth::Closed, ECombatMenuDepth::Main), MAIN_MENU_DEPTH);
+			TestEqual(TEXT("main menu"), CameraDepthFor(ECombatMenuDepth::Main, ECombatMenuDepth::Main), MAIN_MENU_DEPTH);
+			TestEqual(TEXT("a sub-menu"), CameraDepthFor(ECombatMenuDepth::Submenu, ECombatMenuDepth::Main), SUBMENU_DEPTH);
+			TestEqual(TEXT("Attack's target picker"), CameraDepthFor(ECombatMenuDepth::TargetSelection, ECombatMenuDepth::Main), MAIN_MENU_DEPTH);
+			TestEqual(TEXT("a skill's target picker"), CameraDepthFor(ECombatMenuDepth::TargetSelection, ECombatMenuDepth::Submenu), SUBMENU_DEPTH);
+			TestEqual(TEXT("a skill's Allies / Enemies step"), CameraDepthFor(ECombatMenuDepth::TargetCategory, ECombatMenuDepth::Submenu), SUBMENU_DEPTH);
 		});
 	});
 
@@ -605,6 +683,61 @@ void FCombatCameraDirectorSpec::Define()
 		Save->SetTurnViewStyle(static_cast<ETurnViewStyle>(TURN_TEST_UNKNOWN_STYLE));
 		TestEqual(TEXT("an unknown saved value reads as the default"), Save->GetTurnViewStyle(), ETurnViewStyle::CentredWide);
 		Save->SetTurnViewStyle(ETurnViewStyle::CentredWide);
+	});
+
+	It("moves the camera once per menu-depth change and never while browsing one depth (B-399)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UCombatCommandMenuSubsystem *Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
+		// The turn view needs a viewer; a headless controller has no local player, so no HUD is built for it.
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		if (!TestTrue(TEXT("setup"), Director && Menu && Viewer && Hero && Foe))
+		{
+			return;
+		}
+		MenuCameraTestAddLoadout(Hero);
+		MenuCameraTestAddLoadout(Foe);
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe});
+		TestWorld->Tick(MENU_CAMERA_TEST_SETTLE_FRAMES);
+		ON_SCOPE_EXIT
+		{
+			Menu->ClearCombatOrchestrator();
+			if (Orchestrator->GetCombatState() != ECombatState::Idle)
+			{
+				Orchestrator->ForceEndCombat(ECombatState::Victory);
+			}
+		};
+		if (!TestTrue(TEXT("the hero's menu is open on the hero's turn view"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero &&
+																				   Director->GetViewedActor() == Hero &&
+																				   Director->GetCurrentMode() == ECombatCameraMode::Turn))
+		{
+			return;
+		}
+		TestEqual(TEXT("main menu: depth 0"), Director->GetMenuDepth(), CommandMenuRules::MAIN_MENU_DEPTH);
+		TestEqual(TEXT("main menu: no menu move"), Director->GetMenuStepCount(), 0);
+
+		FPieMenuButtonData Abilities;
+		Abilities.Category = EPieMenuCategory::Abilities;
+		FPieMenuButtonData Items;
+		Items.Category = EPieMenuCategory::Items;
+		Menu->HandleSelection(Abilities);
+		TestEqual(TEXT("a sub-menu: depth 1"), Director->GetMenuDepth(), CommandMenuRules::SUBMENU_DEPTH);
+		TestEqual(TEXT("a sub-menu: one move"), Director->GetMenuStepCount(), 1);
+
+		Menu->HandleSelection(Items); // another sub-menu: browsing at the same depth
+		TestWorld->Tick(MENU_CAMERA_TEST_SETTLE_FRAMES);
+		TestEqual(TEXT("browsing: no further move"), Director->GetMenuStepCount(), 1);
+
+		Menu->HandleBack();
+		TestEqual(TEXT("cancel: depth 0"), Director->GetMenuDepth(), CommandMenuRules::MAIN_MENU_DEPTH);
+		TestEqual(TEXT("cancel: one move back"), Director->GetMenuStepCount(), 2);
+
+		Director->SetCameraMovementOff(true);
+		Menu->HandleSelection(Abilities);
+		TestEqual(TEXT("movement off: the depth is kept"), Director->GetMenuDepth(), CommandMenuRules::SUBMENU_DEPTH);
+		TestEqual(TEXT("movement off: the static view holds (R15)"), Director->GetMenuStepCount(), 2);
+		Director->SetCameraMovementOff(false);
 	});
 }
 

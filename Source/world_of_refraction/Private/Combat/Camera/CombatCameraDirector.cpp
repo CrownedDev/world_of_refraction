@@ -22,6 +22,8 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Save/SaveSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
@@ -41,6 +43,8 @@ namespace CombatCameraTiming
 	// character's camera when the shot then moves on that camera. TODO: tune in PIE (B-157).
 	constexpr float ShotStepSeconds = 1.0f / 60.0f;
 	constexpr float ShotCutSeconds = 0.2f;
+	// B-399 (study R2): the sub-menu step in, and back out on cancel. TODO: tune in PIE (study estimate ~0.3 s).
+	constexpr float MenuStepSeconds = 0.3f;
 }
 
 namespace
@@ -107,6 +111,14 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 		Executor->OnProjectileLaunched.AddUniqueDynamic(this, &UCombatCameraDirector::HandleProjectileLaunched);
 		BoundExecutor = Executor;
 	}
+	// B-399: the command menu's depth, whichever HUD draws it. Looked up per fight, not cached across PIE.
+	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
+	MenuStepCount = 0;
+	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
+	{
+		Menu->OnMenuDepthChanged.AddUniqueDynamic(this, &UCombatCameraDirector::HandleMenuDepthChanged);
+		BoundMenu = Menu;
+	}
 
 	if (APlayerController *Viewer = GetViewer())
 	{
@@ -153,6 +165,12 @@ void UCombatCameraDirector::EndCombat()
 		Executor->OnProjectileLaunched.RemoveDynamic(this, &UCombatCameraDirector::HandleProjectileLaunched);
 	}
 	BoundExecutor.Reset();
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
+	{
+		Menu->OnMenuDepthChanged.RemoveDynamic(this, &UCombatCameraDirector::HandleMenuDepthChanged);
+	}
+	BoundMenu.Reset();
+	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
 
 	if (APlayerController *Viewer = GetViewer())
 	{
@@ -251,9 +269,75 @@ void UCombatCameraDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumber)
 {
 	ViewedActor = Actor;
+	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: a new turn opens on the main menu's view
 	ClearDefenceHandOff();
 	StopSequence();
 	ShowTurnView();
+}
+
+void UCombatCameraDirector::HandleMenuDepthChanged(AActor *Actor, int32 NewDepth)
+{
+	if (!bInCombat)
+	{
+		return;
+	}
+	if (Actor != ViewedActor.Get())
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Menu depth %d for %s, not the viewed %s: ignored"), NewDepth,
+			   *GetNameSafe(Actor), *GetNameSafe(ViewedActor.Get()));
+		return;
+	}
+	SetMenuDepth(NewDepth);
+}
+
+void UCombatCameraDirector::SetMenuDepth(int32 NewDepth)
+{
+	const int32 Depth = FMath::Clamp(NewDepth, 0, FCombatCameraRules::MaxMenuDepth);
+	if (Depth == MenuDepth)
+	{
+		return;
+	}
+	MenuDepth = Depth;
+	// Movement off (Static), a cinematic, a held shot or someone else's turn: the depth is kept, nothing moves (R3, R15).
+	const bool bTurnViewShowing = CurrentMode == ECombatCameraMode::Turn && !PlayingSequence && !IsShotPlaying();
+	if (!bInCombat || !bTurnViewShowing)
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Menu depth %d: camera holds (mode %s)"), Depth, *UEnum::GetValueAsString(CurrentMode));
+		return;
+	}
+	StepTurnViewForMenu();
+}
+
+void UCombatCameraDirector::StepTurnViewForMenu()
+{
+	AActor *Actor = ViewedActor.Get();
+	UCombatCameraComponent *Camera = Actor ? Actor->FindComponentByClass<UCombatCameraComponent>() : nullptr;
+	ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr;
+	UWorld *World = GetWorld();
+	if (!CameraActor || !World)
+	{
+		return;
+	}
+	// The shot timer's move (StepShot), on the turn camera, from where it is now: one short blend, then still. No
+	// pattern is playing (ShotCaster stays empty), so the next turn view or shot clears it as it clears any shot.
+	World->GetTimerManager().ClearTimer(ShotTimer);
+	ShotCamera = Camera;
+	ShotMoment = ECameraShotMoment::WindUp;
+	ShotProjectile.Reset();
+	ActiveShot = FCameraShot();
+	ActiveShot.Start = CameraActor->GetActorTransform();
+	// B-399 merge: the stepped view keeps B-405's fight height (a boss fight stays low and looking up).
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	ActiveShot.End = FBossFramingRules::ApplyHeight(FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame, MenuDepth),
+													GetFightCameraHeight(), TurnViewStyle, Frame);
+	ActiveShot.BlendSeconds = CombatCameraTiming::MenuStepSeconds;
+	ActiveShot.FieldOfView = FCombatCameraRules::DefaultFieldOfView;
+	ShotElapsed = 0.0f;
+	++MenuStepCount;
+	World->GetTimerManager().SetTimer(ShotTimer, this, &UCombatCameraDirector::StepShot, CombatCameraTiming::ShotStepSeconds, true);
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Menu depth %d: %s (%.2f s, move %d)"), MenuDepth,
+		   MenuDepth > CommandMenuRules::MAIN_MENU_DEPTH ? TEXT("one step closer") : TEXT("back to the turn view"),
+		   CombatCameraTiming::MenuStepSeconds, MenuStepCount);
 }
 
 void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
@@ -268,6 +352,7 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	if (bNewActor)
 	{
 		ViewedActor = Executor;
+		MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: another actor's menu step never carries over
 	}
 	// B-370: whatever the cinematic, a viewer who must defend gets the Defence view at the window's end. A hit
 	// too soon for any cinematic shows it now, and no cinematic plays over it.
@@ -358,7 +443,7 @@ void UCombatCameraDirector::ShowTurnView()
 	}
 	CurrentMode = FCombatCameraRules::SelectMode(IsViewersCharacter(Actor), false, bCameraMovementOff);
 	const FCombatCameraFrame Frame = BuildFrame(Actor);
-	FTransform View = FCombatCameraRules::ComputeView(CurrentMode, TurnViewStyle, Frame);
+	FTransform View = FCombatCameraRules::ComputeView(CurrentMode, TurnViewStyle, Frame, MenuDepth); // B-399
 	if (CurrentMode == ECombatCameraMode::Turn)
 	{
 		View = FBossFramingRules::ApplyHeight(View, GetFightCameraHeight(), TurnViewStyle, Frame); // B-405 (R13)
@@ -713,7 +798,7 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 	}
 	const FCombatCameraFrame Frame = BuildFrame(Actor);
 	// The real turn view: B-405's fight height on top (a boss fight is low and looks up).
-	const FTransform View = FBossFramingRules::ApplyHeight(FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame),
+	const FTransform View = FBossFramingRules::ApplyHeight(FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame, MenuDepth), // B-399
 														   GetFightCameraHeight(), TurnViewStyle, Frame);
 	auto Describe = [&View](const FVector &Point)
 	{
@@ -722,8 +807,8 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 				   ? CameraFraming::GetThirdsCell(Screen)
 				   : FString(TEXT("behind the camera"));
 	};
-	return FString::Printf(TEXT("layout %s: %s %s, enemy centre %s"), *UEnum::GetValueAsString(TurnViewStyle), *Actor->GetName(),
-						   *Describe(Frame.Focus), *Describe(Frame.EnemyCentre));
+	return FString::Printf(TEXT("layout %s, menu depth %d (%d menu moves): %s %s, enemy centre %s"), *UEnum::GetValueAsString(TurnViewStyle),
+						   MenuDepth, MenuStepCount, *Actor->GetName(), *Describe(Frame.Focus), *Describe(Frame.EnemyCentre));
 }
 
 bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill)
