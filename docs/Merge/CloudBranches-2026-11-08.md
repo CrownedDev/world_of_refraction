@@ -404,3 +404,30 @@ The trial branch `integration/cloud-2026-11-09` now also has current dev and row
   - **B-400 / B-404 / B-406** (`CombatCameraDebug.cpp`, `GetCameraStateString`): add one `| %s` field per row on top of dev's string, ending with 17 fields: B-400's target view after B-398's layout, B-404's handover after the shot string, B-406's boss cinematic last. Count the specifiers against the arguments.
   - **B-406 / B-404 / B-401** (`CombatCameraDirector.h`): their public block goes after dev's B-407 API, with no overlap.
   - **B-391b / B-391c / B-170e / B-400b** (`BattleHUDWidget.cpp`, `BattleCommandMenuWidget.cpp`): keep dev's `BattleHUDButton.h` include (the desktop's B-391 fix) beside each row's own includes.
+
+## Update, 2026-11-12 (midday): B-399, B-400, B-404, B-406 in dev; new trial branch
+
+- **Now in dev (desktop, built, full suite green):** B-399, B-400, B-404, B-406 (`8624aa65`). All the camera rows are in except B-401 and B-406b.
+- **New trial branch `integration/cloud-2026-11-12`** replaces `integration/cloud-2026-11-09c`. Dev now has the desktop's built and review-fixed copies of the camera and HUD rows, and the old trial can't follow it cleanly. The new branch is dev at `8624aa65` plus the 18 cloud branches still open, merged in this order. Each merge is one commit with its resolution in the message:
+  1. B-042g2 (row 77; merge only after its PIE gate)
+  2. B-401
+  3. B-170e
+  4. B-400b
+  5. B-170f
+  6. B-391b
+  7. B-406b
+  8. B-170g
+  9. B-391c
+  10. B-234d
+  11. B-032d
+  12. C1 to C5 in order (B-152, B-153, B-154, B-172, B-309)
+  13. C6 (B-034b)
+  14. C7 (B-317)
+- **Code conflicts the real merges will meet against today's dev** (the earlier rules for these rows still hold where they aren't repeated here):
+  - **B-401:** `CombatCameraDirector.cpp`, `.h`, `CombatCameraTypes.h` and `CombatCameraSpec.cpp`, keep both sides. In `StepShot`, B-403's motion-blur reset comes first, then B-401's pending return. In the spec, close B-406's Describe (`});` twice) before B-401's opens. **Not flagged by git:** `ReturnToTurnView` must land on `GetTurnViewWithHeight(BuildFrame(Actor))`, not `Plan.TurnView`. B-401's branch still has the plain plan.
+  - **B-400b:** `CombatCommandMenuSubsystem.h`, take dev's placement of `CameraDepthFor` and `CycleIndex` and drop the branch's copy higher up. `BattleCommandMenuWidget.cpp`: both include sets. `BattleHUDSpec.cpp`: B-170e's two cases, then B-400b's hover case. Each case needs the shared menu-widget setup lines, which git places between the hunks.
+  - **B-391b** and **B-391c** with B-170e: as in the 2026-11-09 rules above. Also keep dev's `BattleHUDButton.h` include. In B-391c's debug string, close the gear block before B-170e's actions block opens.
+  - **B-406b:** as in the 2026-11-09 rule. Tab and Menu clash with none of B-391's menu keys.
+  - **Docs:** `docs/Rules/04-effects-and-turns.md` must not be resolved by a line union, because the old and new action-pips rows both survive. Use the trial's file. Also watch for a partial second copy of Q-391 in `DesignDecisions.md`.
+- B-170f, B-170g, B-234d, B-032d and every C-row merged with docs-only conflicts. No symbol a C-row deletes is used by code that dev added since (only comments name `URingManager` / `UWeaponManager`).
+- UNBUILT: braces and parens balance in every resolved file, and there are no conflict markers or duplicate Backlog / PIE / Q rows. The desktop build is the real check.
