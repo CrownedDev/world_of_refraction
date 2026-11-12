@@ -92,6 +92,8 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 		TurnViewStyle = Save->GetTurnViewStyle(); // B-398: the player's setting, whichever orchestrator runs the fight
 	}
 	bInCombat = true;
+	bActedSinceTurnStart = false; // B-404
+	HandoverCount = 0;
 	DefencePunchesDropped = 0;
 	LocalCombatants.Append(LocalParty);
 	OpposingCombatants.Append(OpposingParty);
@@ -192,6 +194,14 @@ void UCombatCameraDirector::EndCombat()
 	KillShotVictim.Reset();
 	StopSequence();
 	StopShotPattern();
+	// B-404: a fight that ends inside a wide beat drops its handover (the HUD is going away).
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(WideBeatTimer);
+	}
+	bHandoverPending = false;
+	HandoverFrom.Reset();
+	HandoverTo.Reset();
 
 	if (ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner()))
 	{
@@ -313,6 +323,11 @@ void UCombatCameraDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumber)
 {
+	// B-404: who the camera followed, and whether anyone acted since the last turn start, decide the wide beat.
+	FlushPendingHandover();
+	AActor *From = ViewedActor.Get();
+	const bool bSomeoneActed = bActedSinceTurnStart;
+	bActedSinceTurnStart = false;
 	ViewedActor = Actor;
 	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: a new turn opens on the main menu's view
 	HighlightedTarget.Reset(); // B-400: a new turn has no picker open
@@ -320,10 +335,11 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 	ClearDefenceHandOff();
 	if (IsBossCinematicPlaying())
 	{
+		BroadcastHandover(From, Actor); // B-404 review: still once per turn start (the HUD is hidden meanwhile)
 		return; // B-406: the boss cinematic keeps the view; its end shows this turn
 	}
 	StopSequence();
-	ShowTurnView();
+	StartTurnChange(From, Actor, bSomeoneActed, true); // B-404: the turn view, through a wide beat between turns
 }
 
 void UCombatCameraDirector::HandleMenuDepthChanged(AActor *Actor, int32 NewDepth)
@@ -518,6 +534,8 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	{
 		return;
 	}
+	FlushPendingHandover(); // B-404: an action inside the beat: the handover now; the action's own camera follows
+	bActedSinceTurnStart = true;
 	ClearDefenceHandOff();
 	CutBackFromTargetView(); // B-400: confirm cuts from the target view; the action's camera goes on as before
 	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
@@ -556,7 +574,10 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		// No cinematic for this action (an attack, an item, cinematics off): the turn view stays.
 		// Review fix: a second action in one turn (a ritual fire, an extra action) ends an earlier skill's shots.
 		const bool bShotsWerePlaying = IsShotPlaying();
-		StopShotPattern();
+		if (bShotsWerePlaying)
+		{
+			StopShotPattern(); // B-404: only a pattern; a handover blend on the shot timer runs on into the turn view
+		}
 		if (bNewActor || bShotsWerePlaying)
 		{
 			ShowTurnView();
@@ -1288,6 +1309,7 @@ void UCombatCameraDirector::PreviewKillShot(EKillShotKind Kind)
 
 bool UCombatCameraDirector::ShowKillShot(AActor *Victim, EKillShotKind Kind, bool bHideOnBreakApart)
 {
+	FlushPendingHandover(); // B-404: a beat's handover goes out now, not under the kill shot
 	APlayerController *Viewer = GetViewer();
 	UCombatCameraComponent *Camera = IsValid(Victim) ? Victim->FindComponentByClass<UCombatCameraComponent>() : nullptr;
 	if (!Viewer || !Camera)
@@ -1528,6 +1550,7 @@ void UCombatCameraDirector::HoldForBossCinematic(EBossCinematicKind Kind, AActor
 
 void UCombatCameraDirector::EnterBossCinematic(EBossCinematicKind Kind, AActor *Boss, float CapSeconds, int32 PhaseIndex)
 {
+	FlushPendingHandover(); // B-404: a beat's handover goes out now, not under the cinematic
 	const bool bWasPlaying = IsBossCinematicPlaying();
 	BossCinematicKind = Kind;
 	BossCinematicBoss = Boss;
@@ -1620,4 +1643,154 @@ FString UCombatCameraDirector::GetBossCinematicString() const
 	const FString Phase = BossCinematicPhase != INDEX_NONE ? FString::Printf(TEXT(" %d"), BossCinematicPhase) : FString();
 	return FString::Printf(TEXT("boss cinematic: %s%s of %s (%s)"), *UEnum::GetValueAsString(BossCinematicKind), *Phase,
 						   *GetNameSafe(BossCinematicBoss.Get()), *BossCinematicName);
+}
+
+void UCombatCameraDirector::StartTurnChange(AActor *From, AActor *To, bool bSomeoneActed, bool bBroadcast)
+{
+	// B-404 (study R12, R16, Q-404): between turns, the camera goes wide, then blends behind the next hero.
+	UCombatCameraComponent *Camera = To ? To->FindComponentByClass<UCombatCameraComponent>() : nullptr;
+	APlayerController *Viewer = GetViewer();
+	UWorld *World = GetWorld();
+	FTurnChangePlan Plan;
+	if (Camera && Viewer && World)
+	{
+		const ECombatCameraMode NextMode = FCombatCameraRules::SelectMode(IsViewersCharacter(To), false, bCameraMovementOff);
+		Plan = FCombatCameraRules::PlanTurnChange(bSomeoneActed, To == From, NextMode, TurnViewStyle, BuildFrame(To));
+	}
+	if (!Plan.bWideBeat)
+	{
+		ShowTurnView(); // as before B-404: first turn, same actor, movement off, an enemy's turn
+		if (bBroadcast)
+		{
+			BroadcastHandover(From, To);
+		}
+		return;
+	}
+
+	StopShotPattern(); // the beat replaces the last pattern's hold, as the turn view did
+	PendingTurnChange = Plan;
+	HandoverFrom = From;
+	HandoverTo = To;
+	bHandoverPending = true;
+	bHandoverBroadcasts = bBroadcast;
+	CurrentMode = ECombatCameraMode::NotYourTurn; // the wide; HandleWideBeatEnd checks nothing else took the view
+	ACameraActor *Existing = Camera->GetCameraActor();
+	if (Existing && Viewer->GetViewTarget() == Existing)
+	{
+		MoveCameraOnShotTimer(Camera, Plan.WideView, Plan.BeatBlendSeconds); // already looking through it: no jump
+	}
+	else if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::NotYourTurn, Plan.WideView))
+	{
+		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
+		Viewer->SetViewTargetWithBlend(CameraActor, Plan.BeatBlendSeconds);
+	}
+	World->GetTimerManager().SetTimer(WideBeatTimer, this, &UCombatCameraDirector::HandleWideBeatEnd, Plan.BeatSeconds, false);
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Wide beat: %s -> %s, handover blend in %.2f s%s"), *GetNameSafe(From), *GetNameSafe(To),
+		   Plan.BeatSeconds, bBroadcast ? TEXT("") : TEXT(" (preview)"));
+}
+
+void UCombatCameraDirector::HandleWideBeatEnd()
+{
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(WideBeatTimer);
+	}
+	if (!bHandoverPending)
+	{
+		return;
+	}
+	bHandoverPending = false;
+	AActor *From = HandoverFrom.Get();
+	AActor *To = HandoverTo.Get();
+	HandoverFrom.Reset();
+	HandoverTo.Reset();
+	UCombatCameraComponent *Camera = To ? To->FindComponentByClass<UCombatCameraComponent>() : nullptr;
+	// A setting change, a sequence or the Defence view that took the view during the beat keeps it.
+	const bool bStillWide = bInCombat && CurrentMode == ECombatCameraMode::NotYourTurn && !bCameraMovementOff && !PlayingSequence &&
+							!IsShotPlaying() && !DefenceHandOffTimer.IsValid();
+	if (bStillWide && Camera)
+	{
+		CurrentMode = ECombatCameraMode::Turn;
+		// B-405 / B-399: the turn view as it stands now (boss height, menu depth), not the plan's plain one.
+		MoveCameraOnShotTimer(Camera, GetTurnViewWithHeight(BuildFrame(To)), PendingTurnChange.HandoverBlendSeconds);
+		ReapplyHighlightedTarget(); // B-400: a target highlighted during the beat gets its target view
+	}
+	// Same frame as the blend's start: the HUD steps the turn strip and lifts the card now (study R16, F4).
+	if (bHandoverBroadcasts)
+	{
+		BroadcastHandover(From, To);
+	}
+}
+
+void UCombatCameraDirector::FlushPendingHandover()
+{
+	if (bHandoverPending)
+	{
+		HandleWideBeatEnd();
+	}
+}
+
+void UCombatCameraDirector::BroadcastHandover(AActor *From, AActor *To)
+{
+	++HandoverCount;
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Handover %s -> %s (%d this fight)"), *GetNameSafe(From), *GetNameSafe(To), HandoverCount);
+	OnTurnHandover.Broadcast(From, To);
+}
+
+void UCombatCameraDirector::MoveCameraOnShotTimer(UCombatCameraComponent *Camera, const FTransform &End, float Seconds)
+{
+	ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr;
+	UWorld *World = GetWorld();
+	if (!CameraActor || !World)
+	{
+		return;
+	}
+	// B-371's shot timer and blend (StepShot / BlendShot); no pattern is playing, so nothing follows a projectile.
+	World->GetTimerManager().ClearTimer(ShotTimer);
+	ShotCamera = Camera;
+	ShotProjectile.Reset();
+	ActiveShot = FCameraShot();
+	ActiveShot.Start = CameraActor->GetActorTransform();
+	ActiveShot.End = End;
+	ActiveShot.BlendSeconds = Seconds;
+	ActiveShot.FieldOfView = FCombatCameraRules::DefaultFieldOfView;
+	ShotElapsed = 0.0f;
+	CameraActor->GetCameraComponent()->SetFieldOfView(ActiveShot.FieldOfView);
+	World->GetTimerManager().SetTimer(ShotTimer, this, &UCombatCameraDirector::StepShot, CombatCameraTiming::ShotStepSeconds, true);
+}
+
+FString UCombatCameraDirector::GetHandoverString() const
+{
+	FString State = TEXT("handover: none pending");
+	if (bHandoverPending)
+	{
+		const UWorld *World = GetWorld();
+		const float Left = World ? World->GetTimerManager().GetTimerRemaining(WideBeatTimer) : 0.0f;
+		State = FString::Printf(TEXT("handover: wide beat %s -> %s, blend %.2f s in %.2f s%s"), *GetNameSafe(HandoverFrom.Get()),
+								*GetNameSafe(HandoverTo.Get()), PendingTurnChange.HandoverBlendSeconds, Left,
+								bHandoverBroadcasts ? TEXT("") : TEXT(" (preview)"));
+	}
+	return FString::Printf(TEXT("%s; %d sent this fight%s"), *State, HandoverCount, bActedSinceTurnStart ? TEXT("; acted this turn") : TEXT(""));
+}
+
+bool UCombatCameraDirector::PreviewHandover(int32 PartyIndex)
+{
+	if (!bInCombat || LocalCombatants.IsEmpty())
+	{
+		return false;
+	}
+	int32 Index = PartyIndex;
+	if (Index == INDEX_NONE)
+	{
+		const int32 Viewed = LocalCombatants.IndexOfByKey(ViewedActor.Get());
+		Index = (Viewed + 1) % LocalCombatants.Num(); // not in the party (an enemy's turn): the first member
+	}
+	AActor *To = LocalCombatants.IsValidIndex(Index) ? LocalCombatants[Index].Get() : nullptr;
+	if (!IsValid(To) || To == ViewedActor.Get())
+	{
+		return false;
+	}
+	FlushPendingHandover();
+	StartTurnChange(ViewedActor.Get(), To, true, false);
+	return bHandoverPending;
 }
