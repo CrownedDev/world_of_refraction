@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-392b](B-392b.md) | `fix/B-392b-guest-guard-sync` (in dev, built 2026-11-12) | A co-op guest's guard and parry colour priority reach the host (2-player) | Pending |
 | [Q-397b](Q-397b.md) | `feature/Q-397b-hidden-quest-mask` (in dev, built 2026-11-12) | Found hidden quests masked as "Hidden Quest <n>" until revealed, masked again on close; masked notices | Pending |
 | [B-032d](B-032d.md) | `feature/B-032d-per-impact-defense` (in dev, built 2026-11-12) | Per-impact defense for every spell shape: multi-hit and multi-entry spells get one defense per impact (one parry per impact); an ability's impacts with no Impact notify land at the swing's end; a window closed early or timed out lands its impacts one by one; `wor.Combat.PerImpactDefense 0` compares with the old lumped hit; `wor.Combat.PrintSpellImpacts` lists each spell's plan | Pending |
 | [B-170j](B-170j.md) | `fix/Q-170j-action-caps` (in dev, built 2026-11-12) | Crown's action caps: cost 1..3, Max 5, bonus +4, three skills a turn with the "Skills n/3" counter | Pending |
