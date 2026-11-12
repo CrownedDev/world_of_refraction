@@ -14,6 +14,7 @@
 #include "UI/Combat/PieMenuButtonData.h"
 #include "BattleCommandMenuWidget.generated.h"
 
+class AActor;
 class UButton;
 class UTextBlock;
 class UCombatCommandMenuSubsystem;
@@ -31,6 +32,10 @@ public:
 
 	UFUNCTION()
 	void HandleClicked();
+
+	/** B-400b: a hovered row highlights its target (the camera follows, B-400). */
+	UFUNCTION()
+	void HandleHovered();
 };
 
 UCLASS()
@@ -52,6 +57,14 @@ public:
 	/** Press the row as a click would: its button goes to the subsystem's HandleSelection. Ignores a header, a
 	 *  disabled row and an index past the shown rows. */
 	void PressRow(int32 RowIndex);
+
+	/** B-400b: the mouse is over the row. A per-actor target row in an open single-target picker highlights that
+	 *  target (UCombatCommandMenuSubsystem::HighlightTarget), as hover or focus on the old pie menu's buttons does
+	 *  (B-400); any other row does nothing. The rows aren't focusable (menu keys, B-391), so hover is the only hook. */
+	void HoverRow(int32 RowIndex);
+
+	/** B-400b (debug, specs): the actor a per-actor target row picks; null for any other row. */
+	AActor *GetRowTarget(int32 RowIndex) const;
 
 	/** Debug (wor.UI.Print): showing or not, the title and every row as shown. */
 	FString GetCommandMenuString() const;

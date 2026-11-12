@@ -356,6 +356,68 @@ void FBattleHUDSpec::Define()
 			TestEqual(TEXT("no End Turn row"), FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString()), INDEX_NONE);
 			MenuWidget->Teardown();
 		});
+
+		It("highlights a hovered target row's enemy in the target picker (B-400b)", [this]()
+		{
+			// StartDuel's one foe, plus a second, so the picker offers two targets (B-400's target view).
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+			{
+				return;
+			}
+			Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+			Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
+			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestTrue(TEXT("Orchestrator, menu and combatants"), Orchestrator && Menu && Hero && Foe && SecondFoe))
+			{
+				return;
+			}
+			for (AActor *Actor : {Hero, Foe, SecondFoe})
+			{
+				BattleHUDAddLoadout(Actor);
+			}
+			Menu->SetCombatOrchestrator(Orchestrator);
+			Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+			TestWorld->Tick(BATTLE_HUD_SETTLE_FRAMES);
+			if (!TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero))
+			{
+				return;
+			}
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				return;
+			}
+			MenuWidget->Initialise();
+
+			const int32 DefendRow = FindLabel(MenuWidget->GetRowLabels(), TEXT("Defend"));
+			if (TestTrue(TEXT("a Defend row to hover"), DefendRow != INDEX_NONE))
+			{
+				MenuWidget->HoverRow(DefendRow);
+				TestNull(TEXT("hovering a non-target row highlights nothing"), Menu->GetHighlightedTarget());
+			}
+
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack); // the widget follows the menu's rebroadcast
+			int32 FoeRow = INDEX_NONE;
+			int32 SecondFoeRow = INDEX_NONE;
+			for (int32 Row = 0; Row < MenuWidget->GetRowLabels().Num(); ++Row)
+			{
+				FoeRow = MenuWidget->GetRowTarget(Row) == Foe ? Row : FoeRow;
+				SecondFoeRow = MenuWidget->GetRowTarget(Row) == SecondFoe ? Row : SecondFoeRow;
+			}
+			if (TestTrue(TEXT("a target row per enemy"), FoeRow != INDEX_NONE && SecondFoeRow != INDEX_NONE))
+			{
+				MenuWidget->HoverRow(SecondFoeRow);
+				TestTrue(TEXT("hover highlights the second enemy"), Menu->GetHighlightedTarget() == SecondFoe);
+				MenuWidget->HoverRow(FoeRow);
+				TestTrue(TEXT("and back to the first"), Menu->GetHighlightedTarget() == Foe);
+			}
+			MenuWidget->Teardown();
+		});
 	});
 }
 
