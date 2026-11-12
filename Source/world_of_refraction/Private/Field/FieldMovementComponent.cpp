@@ -177,11 +177,8 @@ EFieldSkillRefusal UFieldMovementComponent::Dash()
 	{
 		return EFieldSkillRefusal::OnCooldown;
 	}
-	if (!HasAuthority())
-	{
-		ServerDash(); // the server moves the pawn; the client follows its correction
-		return EFieldSkillRefusal::None;
-	}
+	// The client stamps its own cooldown (no RPC spam) and launches too, so its movement doesn't snap back while the
+	// server's launch of the same pawn arrives; the server's launch is the real one.
 	LastDashTime = GetWorld()->GetTimeSeconds();
 	FVector Direction = Character->GetVelocity().GetSafeNormal2D();
 	if (Direction.IsNearlyZero())
@@ -189,6 +186,11 @@ EFieldSkillRefusal UFieldMovementComponent::Dash()
 		Direction = Character->GetActorForwardVector().GetSafeNormal2D();
 	}
 	Character->LaunchCharacter(Direction * FieldSkillRules::DASH_LAUNCH_SPEED, true, false);
+	if (!HasAuthority())
+	{
+		ServerDash();
+		return EFieldSkillRefusal::None;
+	}
 	UE_LOG(LogWoR, Verbose, TEXT("%s %s: dash"), FieldMovementLog::TAG, *GetNameSafe(Character));
 	return EFieldSkillRefusal::None;
 }
@@ -200,12 +202,16 @@ void UFieldMovementComponent::ServerDash_Implementation()
 
 EFieldSkillRefusal UFieldMovementComponent::ActivateFieldSkill()
 {
+	const FFieldSkillChoice Choice = GetActiveFieldSkill();
 	if (!HasAuthority())
 	{
+		if (Choice.Type == EFieldMovementType::Dash)
+		{
+			return Dash(); // launches here too, then asks the server
+		}
 		ServerActivateFieldSkill();
 		return EFieldSkillRefusal::None;
 	}
-	const FFieldSkillChoice Choice = GetActiveFieldSkill();
 	switch (Choice.Type)
 	{
 	case EFieldMovementType::Dash:
@@ -262,6 +268,13 @@ void UFieldMovementComponent::DrainEnhancedSprint()
 	}
 	if (CharComp->CurrentEP < FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND)
 	{
+		StopEnhancedSprint();
+		return;
+	}
+	if (GetSourceElement(GetActiveFieldSkill().Source) != EnhancedSprintElement)
+	{
+		// A gear change or a broken crystal took the element it started with.
+		UE_LOG(LogWoR, Log, TEXT("%s %s: Enhanced Sprint lost its source element"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()));
 		StopEnhancedSprint();
 		return;
 	}
