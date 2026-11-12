@@ -1,7 +1,8 @@
 // ActionPipsSpec.cpp
 // B-170a (ActionPips.md §2, §3.1; Q-170, Q-170g, Q-170h): the banked actions on the character. Max Actions
 // = 2 + one per whole 100 action points (progress shown), Reflex sets the regain (B-170i, Q-170i: 1 + one per
-// whole step of Reflex value, Body levels cancel, Body boosts count), the regain never fills past Max, a gain may pass Max when it says so, a fight
+// whole step of Reflex value, Body levels cancel, Body boosts count), the regain never fills past Max, a gain may pass Max
+// when it says so and the extra is lost at turn end (Q-170f2), a fight
 // starts with the regain capped at Max, and OnActionsChanged reports each change. Nothing reads the bank
 // for turns yet (B-170b / B-170c).
 
@@ -127,6 +128,13 @@ void FActionPipsSpec::Define()
 					  MAX_ACTIONS_BASE + 2);
 		});
 
+		It("loses bonus actions above Max at turn end and keeps the bank up to Max (Q-170f2)", [this]()
+		{
+			TestEqual(TEXT("Above Max: trimmed to Max"), ActionPipsRules::BankAtTurnEnd(MAX_ACTIONS_BASE + 2, MAX_ACTIONS_BASE), MAX_ACTIONS_BASE);
+			TestEqual(TEXT("At Max: kept"), ActionPipsRules::BankAtTurnEnd(MAX_ACTIONS_BASE, MAX_ACTIONS_BASE), MAX_ACTIONS_BASE);
+			TestEqual(TEXT("Below Max: carries over"), ActionPipsRules::BankAtTurnEnd(ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), ACTIONS_REGAIN_BASE);
+		});
+
 		It("starts a fight with the regain, capped at Max", [this]()
 		{
 			TestEqual(TEXT("Regain 1"), ActionPipsRules::ActionsAtFightStart(ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), ACTIONS_REGAIN_BASE);
@@ -245,7 +253,7 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("Never below 0"), Char->CurrentActions, 0);
 		});
 
-		It("gains up to Max, or past it when the gain may pass, and the extra stays banked", [this]()
+		It("gains up to Max, or past it when the gain may pass, and loses the extra at turn end", [this]()
 		{
 			if (!Char) return;
 			Char->GainActions(MAX_ACTIONS_CAP, /*bMayPassMax=*/false);
@@ -256,6 +264,11 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("A capped gain never trims"), Char->CurrentActions, MAX_ACTIONS_BASE + 1);
 			Char->RegainActions();
 			TestEqual(TEXT("Regain adds nothing over Max"), Char->CurrentActions, MAX_ACTIONS_BASE + 1);
+			Char->ExpireActionsAboveMax();
+			TestEqual(TEXT("Turn end: the bonus above Max is lost"), Char->CurrentActions, MAX_ACTIONS_BASE);
+			Char->SpendActions(1);
+			Char->ExpireActionsAboveMax();
+			TestEqual(TEXT("Turn end: a bank below Max carries over"), Char->CurrentActions, MAX_ACTIONS_BASE - 1);
 		});
 
 		It("broadcasts OnActionsChanged with the bank and Max on each change, and not when nothing changes", [this]()

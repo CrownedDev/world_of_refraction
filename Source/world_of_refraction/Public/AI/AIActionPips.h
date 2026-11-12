@@ -93,6 +93,8 @@ namespace AIActionPips
 
 	/** B-170f (ActionPips.md §3.6, Q-170f2). In order:
 	 *  1. Defend spends (it ends the turn and banks the rest itself).
+	 *  1b. Q-170f2 (Crown, 2026-11-12): with bonus actions above Max, spend: they are lost at turn end, so the AI uses
+	 *     them on the turn it has them (every difficulty; Easy's early stop waits until the bank is back at Max).
 	 *  2. Easy spends, but after its first action of a turn stops early AI_EASY_END_TURN_EARLY_CHANCE of the time.
 	 *  3. A pick made by need (heal, cleanse, fallback) spends.
 	 *  4. A held pick whose score x AI_BANK_FOR_HELD_PICK_FACTOR beats the pick now: bank for it.
@@ -106,6 +108,12 @@ namespace AIActionPips
 		if (In.bPickEndsTurn)
 		{
 			Out.Reason = FString::Printf(TEXT("Defend ends the turn, %d banked"), In.CurrentActions);
+			return Out;
+		}
+		if (In.CurrentActions > In.MaxActions)
+		{
+			Out.Reason = FString::Printf(TEXT("%d bonus action(s) above Max %d are lost at turn end"), In.CurrentActions - In.MaxActions,
+										 In.MaxActions);
 			return Out;
 		}
 		if (In.bEasy)
