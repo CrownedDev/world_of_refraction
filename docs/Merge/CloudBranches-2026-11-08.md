@@ -395,3 +395,12 @@ The trial branch `integration/cloud-2026-11-09` now also has current dev and row
   - **B-170e/f/g after B-170i** (`ActionPips.md`): keep both changelog lines, in order d, e, f, g, i.
   - **B-170f's AI spec after B-170i:** "Hero's bank is the regain" expects a regain of 1 (`AI_PIPS_REGAIN`). That holds under B-170i only while the test hero has less Reflex value than one step (15 × Body). If it fails on the build, read the regain from `GetActionRegain()` instead of the constant.
 - **Stacked rows on B-170d** (B-170f, then B-170g): their base is now in dev, so they merge straight onto dev.
+
+## Update, 2026-11-12 (later): seven more rows in dev
+
+- **Now in dev (desktop, built):** B-393 (**save v33**), B-391, B-402, B-405, B-398 (**save v34**), B-403, B-407. Dev is at `53b98d79`. Every save bump in this plan is now in dev.
+- **Trial branch** has dev merged in again (`integration/cloud-2026-11-09c`). The remaining camera and HUD rows will meet these code conflicts when they land on dev:
+  - **B-399** (`CombatCameraDirector.cpp`, `GetTurnLayoutString`): dev's line is `ApplyHeight(ComputeTurnView(TurnViewStyle, Frame), …)`. Add B-399's `MenuDepth` inside it, or use `GetTurnViewWithHeight` once B-400 has added it.
+  - **B-400 / B-404 / B-406** (`CombatCameraDebug.cpp`, `GetCameraStateString`): add one `| %s` field per row on top of dev's string, ending with 17 fields: B-400's target view after B-398's layout, B-404's handover after the shot string, B-406's boss cinematic last. Count the specifiers against the arguments.
+  - **B-406 / B-404 / B-401** (`CombatCameraDirector.h`): their public block goes after dev's B-407 API, with no overlap.
+  - **B-391b / B-391c / B-170e / B-400b** (`BattleHUDWidget.cpp`, `BattleCommandMenuWidget.cpp`): keep dev's `BattleHUDButton.h` include (the desktop's B-391 fix) beside each row's own includes.
