@@ -1,8 +1,8 @@
 // ActionPipsRules.h
 // B-170a (ActionPips.md §2, Q-170): the numbers of banked actions. A character's Max Actions is a base
 // plus one per whole block of action points (a composed, additive stat: gear, evolutions, buffs add up),
-// with the leftover shown as progress ("Max 3 (+75/100)"). Reflex sets the per-turn regain (1 / 2 / 3), which
-// never fills the bank past Max. Pure maths, no actor: the character component
+// with the leftover shown as progress ("Max 3 (+75/100)"). Reflex sets the per-turn regain, 1 + one per whole
+// REGAIN_STEP of Reflex value (B-170i), which never fills the bank past Max. Pure maths, no actor: the character component
 // reads its sources and asks these functions. B-170c adds the action cost (ACTION_COST_DEFAULT, the cost check).
 // Debug: UActionPipsDebug (wor.Actions.Print).
 
@@ -21,10 +21,17 @@ namespace ActionPipsConstants
 
 	/** Actions regained per turn below the first Reflex threshold (Crown, Q-170). */
 	constexpr int32 ACTIONS_REGAIN_BASE = 1; // TODO: tune
-	/** The regain at or above each Reflex threshold. */
+	/** B-170i (Crown, 2026-11-12): Reflex points per +1 regain, times the character's natural Body multiplier.
+	 *  15 = about a sixth of the 93-point stat budget: a light Reflex build (~15 points) regains 2, a focused one
+	 *  (~30) regains 3. */
+	constexpr float REGAIN_STEP = 15.0f; // TODO: tune
+
+	/** OBSOLETE (B-170i): the old regain thresholds, not read since the Reflex value / step formula; kept until
+	 *  PIE. The regain at or above each Reflex threshold. */
 	constexpr int32 ACTIONS_REGAIN_AT_THRESHOLD_2 = 2; // TODO: tune
 	constexpr int32 ACTIONS_REGAIN_AT_THRESHOLD_3 = 3; // TODO: tune
-	/** Reflex's share of its window range (0..1) for a regain of 2, and of 3 (Crown, Q-170; 7bc136f4). */
+	/** OBSOLETE (B-170i), see above. Reflex's share of its window range (0..1) for a regain of 2, and of 3
+	 *  (Crown, Q-170; 7bc136f4). */
 	constexpr float ACTIONS_REGAIN_REFLEX_THRESHOLD_2 = 0.5f; // TODO: tune
 	constexpr float ACTIONS_REGAIN_REFLEX_THRESHOLD_3 = 0.8f; // TODO: tune
 
@@ -111,7 +118,40 @@ namespace ActionPipsRules
 							   ActionPipsConstants::ACTION_POINTS_PER_ACTION);
 	}
 
-	/** Reflex sets the regain (Q-170, Q-170h): 1, 2 at threshold 2, 3 at threshold 3 (ReflexShare 0..1). */
+	/** B-170i (Crown, 2026-11-12): the regain is 1 + one per whole Step of Reflex value (UCharacterDataComponent::
+	 *  GetRegainReflexValue / GetRegainReflexStep), at most MAX_ACTIONS_CAP; a Step of 0 or less gives the base. */
+	inline int32 RegainForReflexValue(float ReflexValue, float Step)
+	{
+		if (Step <= KINDA_SMALL_NUMBER)
+		{
+			return ActionPipsConstants::ACTIONS_REGAIN_BASE;
+		}
+		// The tolerance keeps an exact multiple reached through a Body boost (15 x 1.1 over 15 x 1.0...) on its step.
+		const int32 Steps = FMath::FloorToInt(FMath::Max(0.0f, ReflexValue) / Step + KINDA_SMALL_NUMBER);
+		return FMath::Clamp(ActionPipsConstants::ACTIONS_REGAIN_BASE + Steps, ActionPipsConstants::ACTIONS_REGAIN_BASE,
+							ActionPipsConstants::MAX_ACTIONS_CAP);
+	}
+
+	/** The Reflex value the next +1 regain needs (one Step past the current regain's). */
+	inline float NextRegainReflexValue(int32 Regain, float Step)
+	{
+		return FMath::Max(0.0f, Step) * (Regain - ActionPipsConstants::ACTIONS_REGAIN_BASE + 1);
+	}
+
+	/** "Regain 2 (Reflex 18.0 / 30.0)", the progress toward the next regain (Crown); "Regain 5" at MAX_ACTIONS_CAP.
+	 *  A debug string; the player-facing FText goes with the battle HUD (B-170e). */
+	inline FString RegainString(float ReflexValue, float Step)
+	{
+		const int32 Regain = RegainForReflexValue(ReflexValue, Step);
+		if (Regain >= ActionPipsConstants::MAX_ACTIONS_CAP)
+		{
+			return FString::Printf(TEXT("Regain %d"), Regain);
+		}
+		return FString::Printf(TEXT("Regain %d (Reflex %.1f / %.1f)"), Regain, ReflexValue, NextRegainReflexValue(Regain, Step));
+	}
+
+	/** OBSOLETE (B-170i): not read since RegainForReflexValue; kept until PIE.
+	 *  Reflex sets the regain (Q-170, Q-170h): 1, 2 at threshold 2, 3 at threshold 3 (ReflexShare 0..1). */
 	inline int32 RegainForReflexShare(float ReflexShare)
 	{
 		if (ReflexShare >= ActionPipsConstants::ACTIONS_REGAIN_REFLEX_THRESHOLD_3)
@@ -125,19 +165,28 @@ namespace ActionPipsRules
 		return ActionPipsConstants::ACTIONS_REGAIN_BASE;
 	}
 
-	/** The bank after a turn's regain: it never fills past Max, and adds nothing at or above it, so actions
-	 *  over Max from a gain stay banked (Q-170g as answered). */
+	/** The bank after a turn's regain: it never fills past Max, and adds nothing at or above it (a bonus over Max
+	 *  is spent that turn or lost at its end, BankAtTurnEnd). */
 	inline int32 BankAfterRegain(int32 Current, int32 Regain, int32 MaxActions)
 	{
 		return Current >= MaxActions ? Current : FMath::Min(Current + FMath::Max(0, Regain), MaxActions);
 	}
 
 	/** The bank after a gain of Amount: past Max only when the gain may pass it (Emerald, a Gain Action
-	 *  effect, Q-170f / Q-170g); otherwise it stops at Max and never trims actions already over it. */
+	 *  effect, Q-170f / Q-170g), and then only until the holder's turn ends (BankAtTurnEnd, Q-170f2); otherwise
+	 *  it stops at Max and never trims actions already over it. */
 	inline int32 BankAfterGain(int32 Current, int32 Amount, int32 MaxActions, bool bMayPassMax)
 	{
 		const int32 Raised = Current + FMath::Max(0, Amount);
 		return bMayPassMax ? Raised : FMath::Max(Current, FMath::Min(Raised, MaxActions));
+	}
+
+	/** The bank when the holder's turn ends: bonus actions above Max are lost, banked actions up to Max carry over
+	 *  (Q-170f2, Crown 2026-11-12: use-it-or-lose-it, as D&D's bonus action; Octopath's Boost Points never pass
+	 *  their cap). */
+	inline int32 BankAtTurnEnd(int32 Current, int32 MaxActions)
+	{
+		return FMath::Min(Current, FMath::Max(0, MaxActions));
 	}
 
 	/** A fight starts with the regain amount, capped at Max (Q-170). */

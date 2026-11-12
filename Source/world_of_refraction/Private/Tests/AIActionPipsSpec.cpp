@@ -1,6 +1,6 @@
 // AIActionPipsSpec.cpp
 // B-170f (ActionPips.md §3.6, Q-170f2): the AI in an action-pips fight (wor.Turns.ActionPips 1).
-// - The spend-or-bank rule (AIActionPips::DecideSpendOrBank), branch by branch.
+// - The spend-or-bank rule (AIActionPips::DecideSpendOrBank), branch by branch; bonus actions above Max are spent (Q-170f2).
 // - Affordability: a pick the bank can't pay is skipped; within Max it is held; with the switch off nothing changes.
 // - The worth of the action effects (Gain / Lose Action, Max Actions Up / Down), signed by side; 0 with the switch off.
 // - Through a real orchestrator (setup as MultiActionTurnSpec / BalanceSimOneFightSpec): an AI with 2 actions takes
@@ -34,12 +34,14 @@ namespace
 	constexpr float AI_PIPS_THINK_LIVE = 1.0f;
 	constexpr float AI_PIPS_THINK_NOW = 0.0f;
 
-	/** A default character: regain 1, Max 2. */
-	constexpr int32 AI_PIPS_REGAIN = 1;
-	constexpr int32 AI_PIPS_MAX = 2;
+	/** A default character (no Reflex points, so B-170i's regain is the base; no action points): regain 1, Max 2. */
+	constexpr int32 AI_PIPS_REGAIN = ActionPipsConstants::ACTIONS_REGAIN_BASE;
+	constexpr int32 AI_PIPS_MAX = ActionPipsConstants::MAX_ACTIONS_BASE;
 	constexpr int32 AI_PIPS_COST_ONE = 1;
 	constexpr int32 AI_PIPS_COST_TWO = 2;
 	constexpr int32 AI_PIPS_COST_ABOVE_MAX = 3;
+	/** Q-170f2: bonus actions above Max (an Emerald, a Gain Action effect). */
+	constexpr int32 AI_PIPS_BONUS = 1;
 
 	constexpr float AI_PIPS_PICK_SCORE = 20.0f;
 	/** More than twice the pick (AI_BANK_FOR_HELD_PICK_FACTOR 0.5): worth banking for. */
@@ -278,6 +280,18 @@ void FAIActionPipsSpec::Define()
 			TestTrue(TEXT("A heal / cleanse / fallback"), AIActionPips::DecideSpendOrBank(Heal).Choice == EAISpendOrBank::Spend);
 		});
 
+		It("spends bonus actions above Max on the turn it has them, Easy too (Q-170f2)", [this]()
+		{
+			FAISpendOrBankInput In = ScoredPick(AI_PIPS_MAX + AI_PIPS_BONUS, AI_END_TURN_SCORE_FLOOR);
+			TestTrue(TEXT("A pick worth nothing is still spent above Max"), AIActionPips::DecideSpendOrBank(In).Choice == EAISpendOrBank::Spend);
+			In.bEasy = true;
+			In.bActedThisTurn = true;
+			In.EasyRoll = AI_PIPS_ROLL_LOW;
+			TestTrue(TEXT("Easy doesn't stop early above Max"), AIActionPips::DecideSpendOrBank(In).Choice == EAISpendOrBank::Spend);
+			In.CurrentActions = AI_PIPS_MAX;
+			TestTrue(TEXT("Back at Max, Easy may stop early again"), AIActionPips::DecideSpendOrBank(In).Choice == EAISpendOrBank::Bank);
+		});
+
 		It("lets Easy stop early only after its first action of a turn", [this]()
 		{
 			FAISpendOrBankInput In = ScoredPick(AI_PIPS_REGAIN, AI_END_TURN_SCORE_FLOOR);
@@ -306,7 +320,7 @@ void FAIActionPipsSpec::Define()
 	{
 		It("skips a pick the bank can't pay, holds one within Max, never one above it", [this]()
 		{
-			if (!StartFight(AI_PIPS_ON) || !TestEqual(TEXT("Hero's bank is the regain"), DataOf(Hero)->CurrentActions, AI_PIPS_REGAIN))
+			if (!StartFight(AI_PIPS_ON) || !TestEqual(TEXT("Hero's bank is the regain"), DataOf(Hero)->CurrentActions, DataOf(Hero)->GetActionRegain()))
 			{
 				return;
 			}
@@ -327,6 +341,8 @@ void FAIActionPipsSpec::Define()
 			UAbilityData *Pricey = NewRooted<UAbilityData>();
 			Pricey->Name = TEXT("AI pips pricey skill");
 			Pricey->ActionCost = AI_PIPS_COST_TWO;
+			Pricey->BaseDamage = AI_PIPS_STRIKE_DAMAGE; // a pick worth something: a 0-score pick is never held
+			Pricey->HitCount = AI_PIPS_STRIKE_HITS;
 			const TArray<USkillDataBase *> Candidates{Pricey};
 			float BestScore = 0.0f;
 			float UnaffordableBest = 0.0f;

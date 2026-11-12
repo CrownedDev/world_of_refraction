@@ -498,7 +498,12 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		bool bArmed = false;
 		int32 FoeDamageAtArm = 0;
 		int32 FoeDamage = 0;
+		/** EP paid by the arm (read right after it). */
 		int32 EPSpent = 0;
+		/** EP when the run ends, after the turn-start refills (B-173). */
+		int32 EPAtEnd = 0;
+		/** EP never dropped below its after-arm value, so the fire paid nothing. */
+		bool bFirePaidNothing = false;
 		int32 Activations = 0;
 		int32 Ends = 0;
 		int32 CostsCommitted = 0;
@@ -557,6 +562,9 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 		TestWorld->Tick(ABILITIES_SPEC_ACTION_FRAMES);
 		Outcome.bArmed = Orchestrator->GetCurrentActor() != Hero;
 		Outcome.FoeDamageAtArm = FoeHPBefore - CurrentHPOf(Foe);
+		// B-173: the hero's later turn starts refill EP, so the cost is read right after the arm.
+		Outcome.EPSpent = ABILITIES_SPEC_START_EP - HeroStats->CurrentEP;
+		const int32 EPAfterArm = HeroStats->CurrentEP;
 
 		for (int32 Turn = 0; Turn < ABILITIES_SPEC_RITUAL_MAX_TURNS && CurrentHPOf(Foe) == FoeHPBefore &&
 							 Orchestrator->GetCombatState() == ECombatState::InProgress; ++Turn)
@@ -571,7 +579,8 @@ BEGIN_DEFINE_SPEC(FGASAbilitiesSpec, "WoR.GAS.Abilities",
 
 		Outcome.bRan = true;
 		Outcome.FoeDamage = FoeHPBefore - CurrentHPOf(Foe);
-		Outcome.EPSpent = ABILITIES_SPEC_START_EP - HeroStats->CurrentEP;
+		Outcome.EPAtEnd = HeroStats->CurrentEP;
+		Outcome.bFirePaidNothing = HeroStats->CurrentEP >= EPAfterArm; // only refills since the arm
 		Outcome.Activations = Activations;
 		Outcome.Ends = Ends;
 		for (const TStrongObjectPtr<UWoRGameplayAbility> &Ability : ActivatedAbilities)
@@ -1078,8 +1087,11 @@ void FGASAbilitiesSpec::Define()
 			TestEqual(TEXT("The arm strikes nothing (through the ability)"), ThroughAbility.FoeDamageAtArm, 0);
 			TestTrue(TEXT("The old path fired it"), OldPath.FoeDamage > 0);
 			TestEqual(TEXT("Same damage through the ability"), ThroughAbility.FoeDamage, OldPath.FoeDamage);
-			TestEqual(TEXT("The old path paid the cost once"), OldPath.EPSpent, ABILITIES_SPEC_STRIKE_EP);
-			TestEqual(TEXT("Same EP through the ability"), ThroughAbility.EPSpent, OldPath.EPSpent);
+			TestEqual(TEXT("The old path paid the cost at the arm"), OldPath.EPSpent, ABILITIES_SPEC_STRIKE_EP);
+			TestTrue(TEXT("The old path's fire paid nothing"), OldPath.bFirePaidNothing);
+			TestTrue(TEXT("The fire through the ability paid nothing"), ThroughAbility.bFirePaidNothing);
+			TestEqual(TEXT("Same EP at the arm through the ability"), ThroughAbility.EPSpent, OldPath.EPSpent);
+			TestEqual(TEXT("Same EP at the end through the ability"), ThroughAbility.EPAtEnd, OldPath.EPAtEnd);
 			TestEqual(TEXT("No ability on the old path"), OldPath.Activations, 0);
 			TestEqual(TEXT("Two activations: the arm and the fire"), ThroughAbility.Activations, 2);
 			TestEqual(TEXT("Both ended"), ThroughAbility.Ends, ThroughAbility.Activations);

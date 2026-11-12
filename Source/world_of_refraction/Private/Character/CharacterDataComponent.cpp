@@ -1605,9 +1605,38 @@ float UCharacterDataComponent::GetReflexRegainShare() const
     return FMath::Clamp(ReflexTerm / CombatConstants::WINDOW_CAP_SECONDS, 0.0f, 1.0f);
 }
 
+float UCharacterDataComponent::GetRegainReflexValue() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    int32 GearReflex = 0;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            GearReflex = Loadout->GetActiveStatBonus(Owner).BonusReflex; // per-point tier worth applied there (TierPowerScaling 3c)
+        }
+    }
+    const float ReflexPoints = static_cast<float>(CharacterData->GetTotalReflex() + GearReflex);
+    return FMath::Max(0.0f, ReflexPoints * GetEvolutionModifiedBody());
+}
+
+float UCharacterDataComponent::GetRegainReflexStep() const
+{
+    const float NaturalBody = CharacterData ? CharacterData->GetEffectiveBodyForLevel(GetWorldBody()) : 1.0f;
+    return ActionPipsConstants::REGAIN_STEP * NaturalBody;
+}
+
 int32 UCharacterDataComponent::GetActionRegain() const
 {
-    return ActionPipsRules::RegainForReflexShare(GetReflexRegainShare());
+    return ActionPipsRules::RegainForReflexValue(GetRegainReflexValue(), GetRegainReflexStep());
+}
+
+FString UCharacterDataComponent::GetActionRegainString() const
+{
+    return ActionPipsRules::RegainString(GetRegainReflexValue(), GetRegainReflexStep());
 }
 
 void UCharacterDataComponent::ResetActionsForFight()
@@ -1655,6 +1684,22 @@ void UCharacterDataComponent::LoseActions(int32 Amount)
         return;
     }
     SetCurrentActions(FMath::Max(0, CurrentActions - Amount));
+}
+
+void UCharacterDataComponent::ExpireActionsAboveMax()
+{
+    if (!HasServerAuthority())
+    {
+        return;
+    }
+    const int32 MaxActions = GetMaxActions();
+    const int32 Kept = ActionPipsRules::BankAtTurnEnd(CurrentActions, MaxActions);
+    if (Kept < CurrentActions)
+    {
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: %d bonus action(s) above Max %d lost at turn end"),
+               *GetNameSafe(GetOwner()), CurrentActions - Kept, MaxActions);
+    }
+    SetCurrentActions(Kept);
 }
 
 void UCharacterDataComponent::SetCurrentActions(int32 NewActions)

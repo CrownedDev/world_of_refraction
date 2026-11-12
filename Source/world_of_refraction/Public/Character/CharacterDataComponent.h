@@ -466,14 +466,30 @@ public:
     UPROPERTY(Transient)
     int32 DebugActionPoints = 0;
 
-    /** Reflex's share of its window range, 0..1, read as the defense window reads it: the stat term
+    /** OBSOLETE (B-170i): nothing reads it since the regain moved to the Reflex value; kept until PIE.
+     *  Reflex's share of its window range, 0..1, read as the defense window reads it: the stat term
      *  (CalculateReflexWindowBonus) x its gear factor (ReflexWindowGearFactor), over WINDOW_CAP_SECONDS. */
     UFUNCTION(BlueprintPure, Category = "Combat|Actions")
     float GetReflexRegainShare() const;
 
-    /** Actions regained per turn: 1, 2 or 3 by Reflex (ActionPipsRules::RegainForReflexShare). */
+    /** B-170i (Crown, 2026-11-12): the Reflex value the regain reads: the character's own Reflex points plus the
+     *  gear's (each gear point already at its tier's worth, GetActiveStatBonus), x the Body multiplier with every
+     *  external lift (crystal, gear pillar, buffs, over-cap: GetEvolutionModifiedBody). Reflex stones and Reflex
+     *  buffs (percent) widen the defense window only. Never below 0. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    float GetRegainReflexValue() const;
+
+    /** B-170i: the Reflex value per +1 regain: REGAIN_STEP x the natural Body multiplier (the character's own
+     *  Body level only), so levelling Body cancels out. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+    float GetRegainReflexStep() const;
+
+    /** Actions regained per turn: 1 + one per whole step of Reflex value (ActionPipsRules::RegainForReflexValue). */
     UFUNCTION(BlueprintPure, Category = "Combat|Actions")
     int32 GetActionRegain() const;
+
+    /** "Regain 2 (Reflex 18.0 / 30.0)" (ActionPipsRules::RegainString), for wor.Actions.Print. */
+    FString GetActionRegainString() const;
 
     // Server only, like the EP functions (B-131): plain calls run on the authority. Each broadcasts
     // OnActionsChanged when the count changes.
@@ -486,7 +502,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void RegainActions();
 
-    /** +Amount; past Max only with bMayPassMax (Emerald, Gain Action), and the extra stays banked. */
+    /** +Amount; past Max only with bMayPassMax (Emerald, Gain Action); the extra lasts until the holder's turn ends
+     *  (ExpireActionsAboveMax, Q-170f2). */
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void GainActions(int32 Amount, bool bMayPassMax);
 
@@ -497,6 +514,12 @@ public:
     /** -Amount from an effect (Lose Action, a status break): never below 0. */
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void LoseActions(int32 Amount);
+
+    /** Q-170f2 (Crown, 2026-11-12): the holder's turn ends, so actions above Max are lost (a bonus, or a bank above a
+     *  lowered Max, Q-170f3); banked actions up to Max carry over (ActionPipsRules::BankAtTurnEnd). The orchestrator calls it at each of the holder's own
+     *  turn ends in an action-pips fight. Server only. */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
+    void ExpireActionsAboveMax();
 
     /** B-170d: the net Max Actions Buff minus Debuff held (whole actions); 0 without an effect manager. */
     int32 GetMaxActionsChange() const;
