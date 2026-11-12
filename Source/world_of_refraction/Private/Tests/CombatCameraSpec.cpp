@@ -695,6 +695,7 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		MenuCameraTestAddLoadout(Hero);
 		MenuCameraTestAddLoadout(Foe);
 		Menu->SetCombatOrchestrator(Orchestrator);

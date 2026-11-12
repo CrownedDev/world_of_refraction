@@ -50,6 +50,10 @@ public:
 	 *  for that depth; then the camera holds still until the depth changes again. Static, a cinematic or a held shot:
 	 *  the depth is kept and nothing moves. */
 	void SetMenuDepth(int32 NewDepth);
+
+	/** Headless specs only: a controller with no local player (so no HUD is built for it) to view through. In play the
+	 *  viewer is always the local player (B-405 review). */
+	void SetViewerForTests(APlayerController *Viewer) { ViewerForTests = Viewer; }
 	int32 GetMenuDepth() const { return MenuDepth; }
 	/** B-399 (debug, specs): the menu-depth camera moves this fight. */
 	int32 GetMenuStepCount() const { return MenuStepCount; }
@@ -268,6 +272,7 @@ private:
 	FTimerHandle KillShotPreviewTimer;
 	// B-399: the command menu's depth (calm menus).
 	TWeakObjectPtr<UCombatCommandMenuSubsystem> BoundMenu;
+	TWeakObjectPtr<APlayerController> ViewerForTests;
 	int32 MenuDepth = 0;
 	int32 MenuStepCount = 0;
 };

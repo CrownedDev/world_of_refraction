@@ -639,6 +639,10 @@ APlayerController *UCombatCameraDirector::GetViewer() const
 	UWorld *World = GetWorld();
 	// The local player's controller: on a dedicated server there is none, so no server-side camera or kill-shot hold
 	// (GetFirstPlayerController would return a remote client's controller there).
+	if (APlayerController *TestViewer = ViewerForTests.Get())
+	{
+		return TestViewer;
+	}
 	return World && GEngine ? GEngine->GetFirstLocalPlayerController(World) : nullptr;
 }
 
