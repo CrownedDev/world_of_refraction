@@ -416,7 +416,7 @@ void UCombatCameraDirector::SetHighlightedTarget(AActor *Target, int32 TargetCou
 		FVector Feet;
 		float Height = 0.0f;
 		GetTargetShape(Target, Feet, Height);
-		if (MoveTurnCamera(FCombatCameraRules::ComputeTargetView(TurnViewStyle, Frame, Feet, Height, MenuDepth, TargetCount), Seconds))
+		if (MoveTurnCamera(FCombatCameraRules::ComputeTargetViewFrom(TurnViewStyle, Frame, GetTurnViewWithHeight(Frame), Feet, Height, TargetCount), Seconds))
 		{
 			bTargetViewShowing = true;
 			++TargetMoveCount;

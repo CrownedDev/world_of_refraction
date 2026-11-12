@@ -212,8 +212,13 @@ float FCombatCameraRules::GetTargetViewBlendSeconds(ETurnViewStyle Style)
 FTransform FCombatCameraRules::ComputeTargetView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FVector &TargetFeet, float TargetHeight,
 												 int32 MenuDepth, int32 TargetCount)
 {
+	return ComputeTargetViewFrom(Style, Frame, ComputeTurnView(Style, Frame, MenuDepth), TargetFeet, TargetHeight, TargetCount);
+}
+
+FTransform FCombatCameraRules::ComputeTargetViewFrom(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FTransform &TurnView,
+													 const FVector &TargetFeet, float TargetHeight, int32 TargetCount)
+{
 	using namespace CombatCameraTargetView;
-	const FTransform TurnView = ComputeTurnView(Style, Frame, MenuDepth);
 	if (TargetCount < MinTargetsForTargetView)
 	{
 		return TurnView; // one target: the camera holds (study R3)

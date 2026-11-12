@@ -224,6 +224,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  re-aimed part of the way toward the target. */
 	static FTransform ComputeTargetView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FVector &TargetFeet, float TargetHeight,
 										int32 MenuDepth, int32 TargetCount);
+	/** ComputeTargetView from a given turn view (the director passes its turn view with B-405's boss height, so a
+	 *  re-aim keeps that height and the way back doesn't jump). */
+	static FTransform ComputeTargetViewFrom(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FTransform &TurnView,
+											const FVector &TargetFeet, float TargetHeight, int32 TargetCount);
 
 	/** B-400: the move to, between and back from target views: 0 (a cut) for OverTheShoulder (study §12: one cut per
 	 *  press); a very short re-aim blend for the other styles (§9: a setting, not a rule). */
