@@ -21,6 +21,8 @@
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRGameNames.h"
+#include "Save/SaveSubsystem.h"
+#include "Misc/ScopeExit.h"
 
 namespace
 {
@@ -267,7 +269,15 @@ void FBattleHUDSpec::Define()
 		It("shows the party's action pips live and an End Turn row in an action-pips fight (B-170e)", [this]()
 		{
 			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_ON);
-			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !StartDuel())
+			USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !TestNotNull(TEXT("the save"), Save))
+			{
+				return;
+			}
+			const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+			ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+			Save->SetEndTurnButtonHidden(false); // shown, the default (Crown, 2026-11-12), whatever a loaded slot held
+			if (!StartDuel())
 			{
 				return;
 			}
@@ -302,7 +312,8 @@ void FBattleHUDSpec::Define()
 			const int32 EndTurnRow = FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString());
 			if (TestTrue(TEXT("an End Turn row"), EndTurnRow != INDEX_NONE))
 			{
-				TestTrue(TEXT("with its key hint"), MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
+				TestFalse(TEXT("with no key hint: End Turn has no key yet (Crown, 2026-11-12)"),
+						  MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
 				MenuWidget->PressRow(EndTurnRow);
 				TestTrue(TEXT("End Turn ended Hero's turn"), Orchestrator->GetCurrentActor() == Foe);
 			}

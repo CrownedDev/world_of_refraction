@@ -2,7 +2,8 @@
 // B-093: the Defend and infusion keys press the menu's own buttons, so they work exactly where
 // the buttons are: Defend from the action menu on your turn, the infusion keys only in a target
 // picker that offers them. Driven through a real orchestrator on two player actors.
-// B-170e: the End Turn key presses the End Turn button, which shows only with wor.Turns.ActionPips 1.
+// B-170e: a main-menu End Turn press reaches the End Turn button, which shows only with wor.Turns.ActionPips 1 and
+// unless the player hid it (Crown, 2026-11-12); End Turn has no bound key yet.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -17,6 +18,8 @@
 #include "Character/CharacterDataComponent.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
+#include "Save/SaveSubsystem.h"
+#include "Misc/ScopeExit.h"
 
 namespace
 {
@@ -285,7 +288,7 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("Level"), Keys.Contains(TEXT("IA_Combat_MenuInfusionLevel")));
 		TestTrue(TEXT("Attack (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuAttack")));
 		TestTrue(TEXT("Skills (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuSkills")));
-		TestTrue(TEXT("End Turn (B-170e)"), Keys.Contains(TEXT("IA_Combat_MenuEndTurn")));
+		TestFalse(TEXT("End Turn has no key yet (Crown, 2026-11-12)"), Keys.Contains(TEXT("IA_Combat_MenuEndTurn")));
 	});
 
 	It("has no End Turn button with the action pips switch off (B-170e)", [this]()
@@ -299,16 +302,40 @@ void FCommandMenuKeysSpec::Define()
 		{
 			return;
 		}
-		TestFalse(TEXT("End Turn key finds no button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestFalse(TEXT("End Turn press finds no button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("has no End Turn button when the player hid it, and the turn goes on (B-170e, Crown 2026-11-12)", [this]()
+	{
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch) || !TestNotNull(TEXT("the save"), Save))
+		{
+			return;
+		}
+		const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+		ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+		Save->SetEndTurnButtonHidden(true);
+		SetPipsSwitch(MENU_KEYS_PIPS_ON);
+		if (!StartDuel() || !TestTrue(TEXT("an action-pips fight"), Orchestrator->IsActionPipsFight()))
+		{
+			return;
+		}
+		TestFalse(TEXT("End Turn press finds no button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+		TestTrue(TEXT("Defend is still there"), Menu->PressMenuKey(EPieMenuCategory::Defend));
 	});
 
 	It("ends the turn from the End Turn button and banks the actions (B-170e)", [this]()
 	{
-		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch))
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch) || !TestNotNull(TEXT("the save"), Save))
 		{
 			return;
 		}
+		const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+		ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+		Save->SetEndTurnButtonHidden(false); // shown, the default, whatever a loaded slot held
 		SetPipsSwitch(MENU_KEYS_PIPS_ON);
 		if (!StartDuel() || !TestTrue(TEXT("an action-pips fight"), Orchestrator->IsActionPipsFight()))
 		{
@@ -316,12 +343,12 @@ void FCommandMenuKeysSpec::Define()
 		}
 		const UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
 		const int32 ActionsBefore = HeroData ? HeroData->CurrentActions : INDEX_NONE;
-		TestTrue(TEXT("End Turn key pressed the button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestTrue(TEXT("End Turn press reached the button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
 		TestTrue(TEXT("The turn moved on"), Orchestrator->GetCurrentActor() == Foe);
 		TestEqual(TEXT("Nothing was spent: the actions stay banked"), HeroData ? HeroData->CurrentActions : INDEX_NONE, ActionsBefore);
 	});
 
-	It("ignores the End Turn key outside the main menu (B-170e)", [this]()
+	It("ignores an End Turn press outside the main menu (B-170e)", [this]()
 	{
 		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch))
 		{
@@ -335,7 +362,7 @@ void FCommandMenuKeysSpec::Define()
 		FPieMenuButtonData Abilities;
 		Abilities.Category = EPieMenuCategory::Abilities;
 		Menu->HandleSelection(Abilities);
-		TestFalse(TEXT("End Turn key in a submenu"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestFalse(TEXT("End Turn press in a submenu"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
 

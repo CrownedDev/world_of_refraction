@@ -648,9 +648,8 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 		{TEXT("IA_Combat_MenuFlee"), EPieMenuCategory::Flee, EKeys::Five, EKeys::Gamepad_DPad_Down},
 		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_DPad_Left},
 		{TEXT("IA_Combat_MenuChangeRing"), EPieMenuCategory::ChangeRing, EKeys::Seven, EKeys::Gamepad_DPad_Right},
-		// B-170e (Q-170e2): End Turn, main menu only; its button shows only in an action-pips fight. Backspace as XCOM 2,
-		// View (Touchpad) the one free gamepad button in combat.
-		{TEXT("IA_Combat_MenuEndTurn"), EPieMenuCategory::EndTurn, EKeys::BackSpace, EKeys::Gamepad_Special_Left},
+		// B-170e (Crown, 2026-11-12): End Turn has no key yet; it comes later, with its InputMap.md row. The menu already
+		// takes it as a main-menu key (CommandMenuRules::IsMainMenuKey, PressMenuKey(EPieMenuCategory::EndTurn)).
 	};
 	return Keys;
 }
