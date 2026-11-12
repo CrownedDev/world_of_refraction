@@ -10,6 +10,7 @@
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Loadout/SkillSlotList.h"
+#include "Loadout/WeaponSpellRules.h"
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
@@ -148,6 +149,10 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
 {
+    if (!WeaponSpellRules::WeaponsGiveSpells())
+    {
+        return TArray<USpellData *>(); // B-098 (D-027): weapons give no spells; the data stays, unread
+    }
     TArray<USpellData *> Result = GetAllSpellsUncapped();
     if (Result.Num() > GetSpellSlotCap())
     {
@@ -174,7 +179,7 @@ int32 FWeaponLoadoutEntry::GetSpellsOverCap() const
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetSpellSlots() const
 {
-    if (!WeaponEntry.AttachedItem.CanProvideSpells())
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry.AttachedItem.CanProvideSpells())
     {
         return TArray<USpellData *>();
     }
@@ -183,7 +188,8 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetSpellSlots() const
 
 bool FWeaponLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
 {
-    if (!WeaponEntry.AttachedItem.CanProvideSpells() || Slot >= GetSpellSlotCap() || !SkillSlotList::Replace(WeaponEntry.SpellPicks, Slot, Spell))
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry.AttachedItem.CanProvideSpells() || Slot >= GetSpellSlotCap() ||
+        !SkillSlotList::Replace(WeaponEntry.SpellPicks, Slot, Spell))
     {
         return false;
     }

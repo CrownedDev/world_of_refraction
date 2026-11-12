@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/WeaponSpellRules.h"
 #include "Combat/TurnRotation.h" // B-170c: switching is free with action pips
 #include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
 #include "Memory/CurseSubsystem.h"
@@ -3107,8 +3108,8 @@ TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
         return Result;
     }
 
-    // Only evolved weapons have resonate spells
-    if (!WeaponEntry->WeaponEntry.IsEvolved())
+    // Only evolved weapons have resonate spells; none since D-027 (B-098, WeaponSpellRules)
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry->WeaponEntry.IsEvolved())
     {
         return Result;
     }
