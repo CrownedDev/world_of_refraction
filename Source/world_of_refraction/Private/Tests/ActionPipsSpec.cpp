@@ -135,6 +135,25 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("Below Max: carries over"), ActionPipsRules::BankAtTurnEnd(ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), ACTIONS_REGAIN_BASE);
 		});
 
+		It("caps bonus actions MAX_BONUS_ACTIONS past Max, and never trims a bank already over it (Q-170j, Crown)", [this]()
+		{
+			TestEqual(TEXT("A big gain stops 4 past Max"), ActionPipsRules::BankAfterGain(MAX_ACTIONS_CAP, MAX_ACTIONS_CAP, MAX_ACTIONS_CAP, /*bMayPassMax=*/true),
+					  MAX_ACTIONS_CAP + MAX_BONUS_ACTIONS);
+			TestEqual(TEXT("At most 9 actions"), MAX_ACTIONS_CAP + MAX_BONUS_ACTIONS, ACTION_COST_MAX * SKILLS_PER_TURN_MAX);
+			TestEqual(TEXT("A bank already past the ceiling keeps what it has"),
+					  ActionPipsRules::BankAfterGain(MAX_ACTIONS_BASE + MAX_BONUS_ACTIONS + 1, 1, MAX_ACTIONS_BASE, /*bMayPassMax=*/true),
+					  MAX_ACTIONS_BASE + MAX_BONUS_ACTIONS + 1);
+		});
+
+		It("keeps an action cost within 1..3 and allows three skills a turn (Q-170j, Crown)", [this]()
+		{
+			TestEqual(TEXT("A large skill costs 3"), ActionPipsRules::ClampActionCost(ACTION_COST_MAX + 2), ACTION_COST_MAX);
+			TestEqual(TEXT("At least 1"), ActionPipsRules::ClampActionCost(0), ACTION_COST_MIN);
+			TestEqual(TEXT("A medium skill stays 2"), ActionPipsRules::ClampActionCost(ACTION_COST_MIN + 1), ACTION_COST_MIN + 1);
+			TestTrue(TEXT("Two used: one more"), ActionPipsRules::HasSkillsLeftThisTurn(SKILLS_PER_TURN_MAX - 1));
+			TestFalse(TEXT("Three used: the turn ends"), ActionPipsRules::HasSkillsLeftThisTurn(SKILLS_PER_TURN_MAX));
+		});
+
 		It("starts a fight with the regain, capped at Max", [this]()
 		{
 			TestEqual(TEXT("Regain 1"), ActionPipsRules::ActionsAtFightStart(ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), ACTIONS_REGAIN_BASE);

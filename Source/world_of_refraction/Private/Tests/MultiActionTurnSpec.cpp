@@ -14,11 +14,13 @@
 #include "WoRTestWorld.h"
 #include "ActionExecutedRecorder.h"
 #include "TurnStartOrderRecorder.h"
+#include "Combat/Actions/ActionPipsRules.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/TurnManager.h"
 #include "Character/CharacterDataComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 
@@ -38,6 +40,10 @@ namespace
 	constexpr int32 MULTI_ACTION_COST_ABOVE_MAX = 3;
 	/** Q-170f2: bonus actions given past Max (an Emerald, a Gain Action effect). */
 	constexpr int32 MULTI_ACTION_BONUS = 2;
+	/** Q-170f3: a Max Actions Down of 1 on Foe, lasting past its next turn end (Max 2 -> 1). */
+	constexpr int32 MULTI_ACTION_MAX_DOWN = 1;
+	constexpr int32 MULTI_ACTION_MAX_DOWN_TURNS = 3;
+	constexpr int32 MULTI_ACTION_MAX_DOWN_ID = 9170;
 	constexpr int32 MULTI_ACTION_RITUAL_DELAY = 1;
 	/** Turns of preview to search for the armed ritual's Execution turn. */
 	constexpr int32 MULTI_ACTION_PREVIEW_TURNS = 6;
@@ -299,6 +305,88 @@ void FMultiActionTurnSpec::Define()
 			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
 			TestTrue(TEXT("End Turn ended it: Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
 			TestEqual(TEXT("What was above Max is lost; Max stays banked"), ActionsOf(Hero), MULTI_ACTION_MAX);
+		});
+
+		It("keeps a bank above Max through the other side's turn end, and trims it at the owner's own (Q-170f3, Crown)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			{
+				return;
+			}
+			DataOf(Foe)->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_REGAIN + MULTI_ACTION_BONUS, /*bMayPassMax=*/true);
+			TestEqual(TEXT("Foe holds bonus actions above Max during Hero's turn"), ActionsOf(Foe), MULTI_ACTION_MAX + MULTI_ACTION_BONUS);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			if (!TestTrue(TEXT("Foe's turn"), Orchestrator->GetCurrentActor() == Foe))
+			{
+				return;
+			}
+			TestEqual(TEXT("Hero's turn end leaves Foe's bonus for Foe's own turn"), ActionsOf(Foe), MULTI_ACTION_MAX + MULTI_ACTION_BONUS);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			TestTrue(TEXT("Hero's turn again"), Orchestrator->GetCurrentActor() == Hero);
+			TestEqual(TEXT("Foe's own turn end trims the unused bonus to Max"), ActionsOf(Foe), MULTI_ACTION_MAX);
+		});
+
+		It("keeps a bank above a lowered Max through the caster's turn end, and trims it at the holder's own (Q-170f3, Crown)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			{
+				return;
+			}
+			USkillEffectManager *Effects = TestWorld->GetSubsystem<USkillEffectManager>();
+			if (!TestNotNull(TEXT("SkillEffectManager"), Effects))
+			{
+				return;
+			}
+			DataOf(Foe)->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_REGAIN, /*bMayPassMax=*/false);
+			const FActiveSkillEffect MaxDown = FActiveSkillEffect::CreateBuff(TEXT("Max Actions Down"), MULTI_ACTION_MAX_DOWN_ID,
+				ESkillEffectType::MaxActionsDebuff, static_cast<float>(MULTI_ACTION_MAX_DOWN), MULTI_ACTION_MAX_DOWN_TURNS);
+			Effects->ApplyEffect(Foe, MaxDown, Hero, TEXT("MultiActionTurnSpec"));
+			const int32 LoweredMax = MULTI_ACTION_MAX - MULTI_ACTION_MAX_DOWN;
+			if (!TestEqual(TEXT("Hero's Max Actions Down lowers Foe's Max"), DataOf(Foe)->GetMaxActions(), LoweredMax))
+			{
+				return;
+			}
+			TestEqual(TEXT("The drop trims nothing at once"), ActionsOf(Foe), MULTI_ACTION_MAX);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			if (!TestTrue(TEXT("Foe's turn"), Orchestrator->GetCurrentActor() == Foe))
+			{
+				return;
+			}
+			TestEqual(TEXT("The caster's turn end leaves Foe's bank above its lowered Max"), ActionsOf(Foe), MULTI_ACTION_MAX);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			TestTrue(TEXT("Hero's turn again"), Orchestrator->GetCurrentActor() == Hero);
+			TestEqual(TEXT("Foe's own turn end trims to the lowered Max"), ActionsOf(Foe), LoweredMax);
+		});
+
+		It("ends the turn after three skills with actions left, which stay banked (Q-170j, Crown)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			{
+				return;
+			}
+			const int32 Bank = ActionPipsConstants::SKILLS_PER_TURN_MAX + 1;
+			DataOf(Hero)->GainActions(Bank - MULTI_ACTION_REGAIN, /*bMayPassMax=*/true);
+			if (!TestEqual(TEXT("Hero holds one more action than the skill limit"), ActionsOf(Hero), Bank))
+			{
+				return;
+			}
+			UAbilityData *Ability = NewAbility(MULTI_ACTION_COST_ONE);
+			for (int32 Used = 1; Used < ActionPipsConstants::SKILLS_PER_TURN_MAX; ++Used)
+			{
+				SubmitAndSettle(AbilityOn(Foe, Ability));
+				TestTrue(TEXT("Still Hero's turn below the limit"), Orchestrator->GetCurrentActor() == Hero);
+				TestEqual(TEXT("The skill is counted"), DataOf(Hero)->SkillsUsedThisTurn, Used);
+			}
+			SubmitAndSettle(AbilityOn(Foe, Ability));
+			TestTrue(TEXT("The third skill ends the turn: Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
+			TestEqual(TEXT("The action left stays banked"), ActionsOf(Hero), Bank - ActionPipsConstants::SKILLS_PER_TURN_MAX);
+			TestEqual(TEXT("The count clears at the turn's end"), DataOf(Hero)->SkillsUsedThisTurn, 0);
+		});
+
+		It("reads a cost above 3 as 3 (Q-170j, Crown)", [this]()
+		{
+			TestEqual(TEXT("cost 5 plays as 3"), AbilityOn(nullptr, NewAbility(ActionPipsConstants::ACTION_COST_MAX + 2)).GetActionCost(),
+					  ActionPipsConstants::ACTION_COST_MAX);
 		});
 
 		It("ends the turn on Defend, which costs nothing", [this]()

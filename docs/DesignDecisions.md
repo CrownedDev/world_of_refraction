@@ -309,10 +309,10 @@ The queue of questions only Crown can answer.
 **Build choice (reference-backed default, 2026-11-12; Crown vetoes):** a bonus given outside the holder's turn (an ally's Emerald, a Gain Action from someone else's skill) lasts until the end of the holder's next turn, so it is never lost before the holder could use it (D&D's bonus action belongs to your own turn).
 
 ### Q-170f3 — Actions above a lowered Max at turn end
-**Status:** ANSWERED (approved by the reference-backed default, 2026-11-12; Crown vetoes) · **Raised:** 2026-11-12 (B-170f review, after Q-170f2) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-12 (B-170f review, after Q-170f2) · **Blocks:** —
 **Question:** Q-170f2 (Crown) makes whatever is above Max lost at the end of the holder's turn. When Max drops (a Max Actions Down, or a Max Actions Buff ending) below actions already banked, are those lost too? B-170d built "a lowered Max never trims the bank" (Q-170d2; PIE B-170d check 14).
 **Recommendation (reference-backed default):** **yes, at the holder's turn end, the same rule:** the bank is never above Max once a turn ends. Crown's words name no source ("whatever is above Max"), and Octopath Traveler's Boost Points never sit above their cap, which players read at a glance; one rule is simpler than tracking which pips were bonus. The drop itself still never trims at once (Q-170d2 holds within the turn): the holder can spend them on its next turn, and only what is still above Max at that turn's end goes. The AI sees them as above Max and spends them (`DecideSpendOrBank` step 1b).
-**Answer:** the recommendation, by the reference-backed default (2026-11-12). Built with Q-170f2 (`UCharacterDataComponent::ExpireActionsAboveMax` trims to the live Max). PIE B-170d check 14 says so.
+**Answer: Crown, 2026-11-12:** **when Max drops below the actions already banked, the extra ones become bonus actions that must be used that turn; whatever is left is cut at the end of that unit's own turn** (never at another unit's turn end). The extra pips show as **bonus pips with their own look** so the player knows they will expire. Built in `fix/Q-170f3-bonus-pips` (2026-11-12): the trim was already only at the holder's own turn end (`ACombatOrchestrator::ExpireBonusActionsAtTurnEnd(CurrentActor)`), now proven by `WoR.Turns.MultiAction`; the party card draws actions above Max as ◆ and says "N bonus, lost at turn end" (`ActionPipsText::MakePips` / `GetBonusActions` / `MakeActionsLine`). Earlier: built with Q-170f2 (`UCharacterDataComponent::ExpireActionsAboveMax` trims to the live Max). **Desktop review (2026-11-12):** a stunned or Void-broken holder gets one action (Q-170c2) and its turn ends, so its bonus actions go unused at that turn end; this follows the rule as worded (cut at the end of its own turn). PIE B-170d check 14 says so.
 
 ### Q-170e2 — Action pips part 5: how the placeholder UI shows actions
 **Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-09 (B-170e) · **Blocks:** —
@@ -337,10 +337,21 @@ The queue of questions only Crown can answer.
 - **The points** are the character's own `Reflex` plus the gear's `BonusReflex`. Gear points already carry their tier's worth: that is where the per-point tier conversion lives (`GetActiveStatBonus`, TierPowerScaling 3c).
 - **External Body boosts** are everything `GetEvolutionModifiedBody` adds over the natural pillar: a slotted crystal's Body, gear Body percents, Body buffs and the run's over-cap points.
 - **Reflex stones and Reflex buffs (percent) don't change the regain.** They are percent lifts on the window, not Reflex points, and the ruling names only points, their worth and Body boosts. They still widen the defence window.
-- **The regain stops at the Max Actions safety cap (5)**, so the text never shows a regain no bank could hold. A negative value (cursed gear) gives the base 1.
+- **The regain stops at the Max Actions safety cap (5)**, so the text never shows a regain no bank could hold. **Confirmed by Crown (2026-11-12):** 5 is the cap for now; later, bigger skills and Vessels will cost 2 or 3 actions. A negative value (cursed gear) gives the base 1.
 - **The progress line** is a debug string in `wor.Actions.Print` until the battle HUD (B-170e) shows it as FText.
 **Confirmed (Crown, 2026-11-12):** Reflex stones and Reflex buffs raise Reflex's other effects (the defence window) but **not** the action regain; anything that raises actions is its own separate action buff (GainActions / regain effects).
 **Answer:** Crown's ruling, with the build details by the reference-backed default (2026-11-12). Built in B-170i (`ActionPipsRules::RegainForReflexValue`, `UCharacterDataComponent::GetRegainReflexValue` / `GetRegainReflexStep`).
+
+### Q-170j — Action pips: the caps (cost 1–3, Max 5, bonus +4) and three skills a turn
+**Status:** ANSWERED (Crown, 2026-11-12; point 7 by the reference-backed default, Crown vetoes) · **Raised:** 2026-11-12 (Crown, through the desktop operator) · **Blocks:** —
+**Crown's ruling (2026-11-12):**
+1. A skill's **action cost is 1 to 3**: small 1, medium 2, large 3 (`ACTION_COST_MIN` / `ACTION_COST_MAX`). A cost above 3 is read as 3 and data validation flags it as an error.
+2. **Max Actions has a hard cap of 5:** Max = min(2 + ⌊gear action points ÷ 100⌋, 5), buffs included (`MAX_ACTIONS_CAP`, no longer a safety ceiling). With 5 a hero can use five small skills, or one large and one medium. Actions gained above Max (an S-tier Emerald, bonus actions) still work as ruled (Q-170f2 / Q-170f3); this caps Max itself.
+3. **Bonus actions above Max are capped at 4** (`MAX_BONUS_ACTIONS`): a bank never passes 5 + 4 = 9, three large skills. A gain stops there; a bank already over it (a lowered Max) is not trimmed by the gain, only at the holder's turn end.
+4. **At most 3 skills per turn** (`SKILLS_PER_TURN_MAX`): every action that costs actions counts (skills, spells, items, attacks, arming a ritual); End Turn, Defend and weapon switching don't. At the third the turn ends even with actions left; they stay banked within the caps (bonus actions above Max are lost at that turn end, Q-170f2).
+5. Q-170i's regain cap of 5 stays (confirmed the same day): later, bigger skills and Vessels will cost 2 or 3 actions.
+**Point 7 (reference-backed default):** Crown called the 3-skill limit "hidden". **Recommendation, built:** the player can see it: the acting character's card reads "Skills 2/3" from the first skill of the turn. A limit you can't see feels like a bug; Slay the Spire's Velvet Choker (at most 6 cards a turn) shows its count on the relic, which players read at a glance. Greying the skill buttons at 3 isn't needed: the turn ends at the third skill, so the menu never shows at 3.
+**Answer:** points 1–5 Crown's; point 7 by the reference-backed default (2026-11-12). Built in `fix/Q-170j-action-caps` (`ActionPipsRules::ClampActionCost` / `BankAfterGain` / `HasSkillsLeftThisTurn`, `FAction::GetActionCost`, `USkillDataBase::ActionCost` ClampMax 3 and `IsDataValid`, `UCharacterDataComponent::SkillsUsedThisTurn` (replicated) / `NoteSkillUsed` / `ResetSkillsUsedThisTurn`, `ACombatOrchestrator::PayActionCost` / `CanContinueTurn` / `BeginTurnActions` / `ExpireBonusActionsAtTurnEnd`, `ActionPipsText::MakeSkillsUsedText`). Item costs are all 1 today (`CrystalEffectTable::GetActionCost`); the clamp covers them too.
 
 ### Q-170g2 — Action pips part 7: how Turn Speed is retired
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170g) · **Blocks:** —
@@ -537,7 +548,7 @@ The queue of questions only Crown can answer.
 - **Tactical** stays reachable through the same setting (D-074 (2) offered it); the settings screen may show only the two Crown named.
 - The player's saved setting overrides a value typed in the orchestrator's Details panel.
 - A boss's lower, looking-up turn view (R13 as changed) is not in this job.
-**Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the look in PIE (`docs/PIE/B-398.md`); the offsets are `TODO: tune`.
+**Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the look in PIE (`docs/PIE/B-398.md`); the offsets are `TODO: tune`. **Crown, 2026-11-12 (PIE B-398 check 14):** kept the default: Over the Shoulder also goes low and looks up against bosses and mini-bosses (B-405).
 - **Known (desktop merge, 2026-11-12):** against a boss or mini-boss, B-405's low height (`FBossFramingRules::ApplyHeight`) is applied on top of Over the Shoulder too (B-405's own PIE check 3), so the hero can leave its lower-left third in those fights. Kept as built; Crown may veto (PIE B-398 check 14).
 ### Q-403 — Shot-pattern tuning: the rush, the impact two-shot and the held spread
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-403) · **Blocks:** —

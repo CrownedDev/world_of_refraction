@@ -557,7 +557,7 @@ void UBattleHUDWidget::RefreshPools()
 		if (Card.bParty && bShowActions) // B-170e
 		{
 			Card.ActionsLine = ActionPipsText::MakeActionsLine(CharData->CurrentActions, CharData->GetMaxActions(),
-															   CharData->GetActionPointProgress());
+															   CharData->GetActionPointProgress(), CharData->SkillsUsedThisTurn); // Q-170j
 		}
 	}
 	PushToWidgets();

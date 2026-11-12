@@ -36,17 +36,25 @@ namespace ActionPipsText
 	 *  skill's AP cost). Label alone for a cost of 0. */
 	WORLD_OF_REFRACTION_API FText WithCost(const FText &Label, int32 Cost);
 
-	/** Filled pips for the bank, empty ones up to Max: 2 of 3 -> "●●○". A bank past Max shows all filled
-	 *  (Q-170g: gains may pass Max). Empty when either side passes MAX_PIPS_SHOWN. */
+	/** Filled pips for the bank, empty ones up to Max: 2 of 3 -> "●●○". Actions past Max (a gain, or a lowered Max)
+	 *  are bonus pips, drawn apart because they are lost at the end of the holder's turn (Q-170f2, Q-170f3, Crown):
+	 *  4 with Max 3 -> "●●●◆". Empty when either side passes MAX_PIPS_SHOWN. */
 	WORLD_OF_REFRACTION_API FText MakePips(int32 CurrentActions, int32 MaxActions);
+
+	/** How many banked actions are bonus actions (above Max, lost at the holder's turn end); 0 at or below Max. */
+	WORLD_OF_REFRACTION_API int32 GetBonusActions(int32 CurrentActions, int32 MaxActions);
 
 	/** "Max 3 (+75/100)": Max Actions with the action points toward the next one (UCharacterDataComponent::
 	 *  GetActionPointProgress, Q-170); "Max 5" at ActionPipsConstants::MAX_ACTIONS_CAP, where more points add nothing. */
 	WORLD_OF_REFRACTION_API FText MakeMaxActionsText(int32 MaxActions, int32 ActionPointProgress);
 
 	/** The party card's line: "Actions ●●○ 2 · Max 3 (+75/100)" (the pips, then the number, as the deckbuilder's
-	 *  "ACT 2"). */
-	WORLD_OF_REFRACTION_API FText MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress);
+	 *  "ACT 2"). With bonus actions it says they expire: "Actions ●●●◆ 4 · Max 3 (+75/100) · 1 bonus, lost at turn end". */
+	WORLD_OF_REFRACTION_API FText MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress, int32 SkillsUsed = 0);
+
+	/** Q-170j (Crown, 2026-11-12): "Skills 2/3", the turn's skills against SKILLS_PER_TURN_MAX. The card line adds it
+	 *  while the holder has used one this turn (the limit is shown, never hidden). */
+	WORLD_OF_REFRACTION_API FText MakeSkillsUsedText(int32 SkillsUsed);
 
 	/** Defend's tooltip in an action-pips fight: "Ends your turn." (§3.5). */
 	WORLD_OF_REFRACTION_API FText GetDefendEndsTurnText();

@@ -59,12 +59,19 @@ FText ActionPipsText::MakePips(int32 CurrentActions, int32 MaxActions)
 	// Symbols, not words: nothing to translate.
 	const FText FilledPip = FText::AsCultureInvariant(TEXT("●"));
 	const FText EmptyPip = FText::AsCultureInvariant(TEXT("○"));
+	const FText BonusPip = FText::AsCultureInvariant(TEXT("◆"));
+	const int32 BankedUpToMax = Filled - GetBonusActions(CurrentActions, MaxActions);
 	TArray<FText> Pips;
 	for (int32 Index = 0; Index < Slots; ++Index)
 	{
-		Pips.Add(Index < Filled ? FilledPip : EmptyPip);
+		Pips.Add(Index < BankedUpToMax ? FilledPip : Index < Filled ? BonusPip : EmptyPip);
 	}
 	return FText::Join(FText::GetEmpty(), Pips);
+}
+
+int32 ActionPipsText::GetBonusActions(int32 CurrentActions, int32 MaxActions)
+{
+	return FMath::Max(0, CurrentActions - FMath::Max(0, MaxActions));
 }
 
 FText ActionPipsText::MakeMaxActionsText(int32 MaxActions, int32 ActionPointProgress)
@@ -77,16 +84,27 @@ FText ActionPipsText::MakeMaxActionsText(int32 MaxActions, int32 ActionPointProg
 						 FText::AsNumber(FMath::Max(0, ActionPointProgress)), FText::AsNumber(ActionPipsConstants::ACTION_POINTS_PER_ACTION));
 }
 
-FText ActionPipsText::MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress)
+FText ActionPipsText::MakeSkillsUsedText(int32 SkillsUsed)
+{
+	return FText::Format(LOCTEXT("SkillsUsed", "Skills {0}/{1}"), FText::AsNumber(FMath::Max(0, SkillsUsed)),
+						 FText::AsNumber(ActionPipsConstants::SKILLS_PER_TURN_MAX));
+}
+
+FText ActionPipsText::MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress, int32 SkillsUsed)
 {
 	const FText Pips = MakePips(CurrentActions, MaxActions);
 	const FText MaxText = MakeMaxActionsText(MaxActions, ActionPointProgress);
 	const FText Count = FText::AsNumber(FMath::Max(0, CurrentActions));
-	if (Pips.IsEmpty())
+	const FText BaseLine = Pips.IsEmpty()
+						   ? FText::Format(LOCTEXT("ActionsLineNoPips", "{0} {1} · {2}"), WoRGameNames::GetActionsWord(), Count, MaxText)
+						   : FText::Format(LOCTEXT("ActionsLine", "{0} {1} {2} · {3}"), WoRGameNames::GetActionsWord(), Pips, Count, MaxText);
+	const FText Line = SkillsUsed > 0 ? FText::Format(LOCTEXT("ActionsLineSkills", "{0} · {1}"), BaseLine, MakeSkillsUsedText(SkillsUsed)) : BaseLine;
+	const int32 Bonus = GetBonusActions(CurrentActions, MaxActions);
+	if (Bonus == 0)
 	{
-		return FText::Format(LOCTEXT("ActionsLineNoPips", "{0} {1} · {2}"), WoRGameNames::GetActionsWord(), Count, MaxText);
+		return Line;
 	}
-	return FText::Format(LOCTEXT("ActionsLine", "{0} {1} {2} · {3}"), WoRGameNames::GetActionsWord(), Pips, Count, MaxText);
+	return FText::Format(LOCTEXT("ActionsLineBonus", "{0} · {1} bonus, lost at turn end"), Line, FText::AsNumber(Bonus));
 }
 
 FText ActionPipsText::GetDefendEndsTurnText()
