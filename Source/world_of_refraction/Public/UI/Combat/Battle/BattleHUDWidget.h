@@ -14,6 +14,8 @@
 //   tooltip with the loadout, from the ULoadoutComponent; a 0-damage hit on Broken Darkness reads "Negated"
 //   (DamageNumberView::SHOW_NEGATED_CUE, Q-391c). Combatants that join mid-fight get no card or numbers: nothing
 //   announces a join today (no summons exist; UISystem.md Known Limitations).
+// - B-170e: in an action-pips fight (wor.Turns.ActionPips 1), each party card's action pips and Max Actions line
+//   ("Actions ●●○ 2 · Max 3 (+75/100)", ActionPipsText), live from OnActionsChanged. At 0 the cards are as before.
 // The command menu is its own widget (UBattleCommandMenuWidget). CommonUI replaces both later (D-024).
 //
 // Created once per fight: Initialise (binds, fills the state) BEFORE AddToViewport, so RebuildWidget builds one card
@@ -67,6 +69,8 @@ struct FBattleHUDCard
 	FText Name;
 	FText HPLine;
 	FText EPLine;
+	/** B-170e: "Actions ●●○ 2 · Max 3 (+75/100)"; party cards in an action-pips fight only. */
+	FText ActionsLine;
 	FText StatusLine;
 
 	/** B-391c: the status buildup bar (every card; the line on party cards only, Q-391). */
@@ -94,6 +98,9 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> EPText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> ActionsText;
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> StatusText;
@@ -150,6 +157,8 @@ public:
 	const TArray<FBattleHUDCard> &GetCards() const { return Cards; }
 	const TArray<FText> &GetTurnLines() const { return TurnLines; }
 	const FText &GetStatusPanelText() const { return StatusPanelText; }
+	/** B-170e: true when this fight banks actions (read once in Initialise), so party cards show pips. */
+	bool IsShowingActions() const { return bShowActions; }
 	bool IsStatusPanelOpen() const { return bStatusPanelOpen; }
 
 	/** Open or close the view-all status panel (the Statuses button toggles it). */
@@ -233,6 +242,7 @@ private:
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
 	bool bBound = false;
+	bool bShowActions = false;
 	int32 CurrentTurnNumber = 1;
 
 	TWeakObjectPtr<USkillEffectManager> BoundEffects;

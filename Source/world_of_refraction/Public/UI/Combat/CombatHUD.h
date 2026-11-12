@@ -21,6 +21,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "Components/SlateWrapperTypes.h"
 #include "CombatHUD.generated.h"
 
 class AActor;
@@ -47,6 +48,10 @@ public:
 
     bool IsBuilt() const { return bBuilt; }
 
+    /** B-406: hides every combat widget for a boss cinematic (true) and restores each one's own visibility (false). */
+    void SetHiddenForCinematic(bool bHidden);
+
+    bool IsHiddenForCinematic() const { return bHiddenForCinematic; }
     /** B-391: whether the last Build made the new battle HUD (wor.UI.NewHUD). */
     bool IsUsingNewHUD() const { return bUsingNewHUD; }
 
@@ -107,6 +112,13 @@ private:
 
     /** The old WBP widgets (wor.UI.NewHUD 0): character panels, turn order strip and command menu. */
     void BuildOldHUD(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
+
+    /** B-406: hidden for a boss cinematic, and each widget's visibility from before, to put back. */
+    bool bHiddenForCinematic = false;
+    TMap<TWeakObjectPtr<UUserWidget>, ESlateVisibility> VisibilityBeforeCinematic;
+
+    /** B-406: every combat widget this HUD built. */
+    TArray<UUserWidget *> GetAllWidgets() const;
 
     UClass *ResolvePanelClass() const;
 

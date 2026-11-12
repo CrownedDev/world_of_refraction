@@ -1,6 +1,7 @@
 // ActionPipsDebug.h
 // B-170a: inspection for the banked actions on UCharacterDataComponent (ActionPips.md §3.7).
-// - GetActionsString: one combatant's actions / Max (action points and progress) / regain (Reflex share).
+// - GetActionsString: one combatant's actions / Max (action points and progress, B-170d: Max Actions effects) / regain
+//   (Reflex share) / waiting gains and losses (B-170d).
 // - PrintActions: that line for every combatant in the world, then the current turn's spends (B-170c).
 // Console: wor.Actions.Print; wor.Actions.AddPoints <N> (debug action points on every combatant, to see Max
 // rise before any asset authors them); wor.Actions.Reset (every combatant to its fight-start actions).

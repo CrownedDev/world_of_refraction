@@ -8,6 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Combat/CombatNotify.h"
 #include "Combat/Presentation/NotifyValidation.h"
+#include "Combat/Camera/SignatureCameraCap.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 
@@ -15,6 +16,7 @@ namespace
 {
 	constexpr float NOTIFY_TEST_TOLERANCE = 0.001f;
 	constexpr float NOTIFY_TEST_FAST_RATE = 2.0f;
+	constexpr float NOTIFY_TEST_LONG_SEQUENCE_SECONDS = 4.0f; // B-407: twice the signature cap
 
 	NotifyValidation::FNotifyMark Mark(ECombatNotifyFamily Family, int32 Index, float Seconds, float Lead = 0.0f)
 	{
@@ -150,6 +152,22 @@ void FNotifyValidationSpec::Define()
 			Spell->SkillMontage = NewObject<UAnimMontage>(GetTransientPackage());
 			AddNotify(Spell->SkillMontage, ECombatNotifyFamily::Cast, 0, 0.3f);
 			TestEqual(TEXT("a spell's cast with no Impact notify"), CheckSkill(*Spell).Num(), 0);
+		});
+	});
+
+	Describe("Signature sequence length (B-407)", [this]()
+	{
+		It("lists a player skill's 4 s sequence, not a boss's or a short one", [this]()
+		{
+			TestEqual(TEXT("player 4 s: listed"), CheckSignatureSeconds(NOTIFY_TEST_LONG_SEQUENCE_SECONDS, /*bBossSkill=*/false).Num(), 1);
+			TestEqual(TEXT("boss 4 s: not listed"), CheckSignatureSeconds(NOTIFY_TEST_LONG_SEQUENCE_SECONDS, /*bBossSkill=*/true).Num(), 0);
+			TestEqual(TEXT("player at the cap: not listed"), CheckSignatureSeconds(SignatureCameraCap::MaxSignatureSeconds, false).Num(), 0);
+		});
+
+		It("skips a skill with no CameraSequence", [this]()
+		{
+			UAbilityData *Plain = NewObject<UAbilityData>(GetTransientPackage());
+			TestEqual(TEXT("no sequence"), CheckSignatureSequence(*Plain, false).Num(), 0);
 		});
 	});
 

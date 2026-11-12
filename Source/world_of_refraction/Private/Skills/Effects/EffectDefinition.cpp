@@ -70,11 +70,20 @@ EDataValidationResult UEffectDefinition::IsDataValid(FDataValidationContext &Con
             const FString TypeName = UEnum::GetValueAsString(Payload.EffectType);
             if (SkillEffectClassification::IsRetired(Payload.EffectType))
             {
-                // D-056: the generic Speed Buff / Debuff do nothing; turn order reads the Turn Speed family.
+                // D-056: the generic Speed Buff / Debuff do nothing.
                 Context.AddError(FText::FromString(FString::Printf(
-                    TEXT("Effect %d uses %s, which is retired (D-056) and does nothing. Use TurnSpeedBuff / TurnSpeedDebuff."),
+                    TEXT("Effect %d uses %s, which is retired (D-056) and does nothing. Pick a current type."),
                     i, *TypeName)));
                 Result = EDataValidationResult::Invalid;
+            }
+            else if (SkillEffectClassification::IsTurnSpeedFamily(Payload.EffectType))
+            {
+                // B-170g (Q-170h, Q-170g2): retired with action pips. A warning, not an error, while the speed timeline
+                // still reads it (wor.Turns.ActionPips 0); B-170h deletes the reads.
+                Context.AddWarning(FText::FromString(FString::Printf(
+                    TEXT("Effect %d uses %s: Turn Speed is retired with action pips (B-170) and does nothing once they're on. "
+                         "Use Gain / Lose Action or Max Actions Up / Down instead."),
+                    i, *TypeName)));
             }
             else if (SkillEffectClassification::HasNoReader(Payload.EffectType))
             {
@@ -86,6 +95,28 @@ EDataValidationResult UEffectDefinition::IsDataValid(FDataValidationContext &Con
                 Context.AddWarning(FText::FromString(FString::Printf(
                     TEXT("Effect %d uses legacy %s; it works as %s. Pick that type instead."), i, *TypeName,
                     *UEnum::GetValueAsString(SkillEffectClassification::ResolveLegacyAlias(Payload.EffectType)))));
+            }
+            else if (SkillEffectClassification::CountsWholeActions(Payload.EffectType))
+            {
+                // B-170d (Q-170d2): the action effects count whole actions in Value; Duration is the timing (Gain / Lose:
+                // 0 = now, N = the Nth turn start) or the span (Max Actions); a permanent one is refused at runtime.
+                if (Payload.Value <= 0)
+                {
+                    Context.AddWarning(FText::FromString(FString::Printf(
+                        TEXT("Effect %d (%s) needs a positive Value (whole actions)%s; it does nothing as authored."), i, *TypeName,
+                        Payload.Magnitude > 0.0f ? TEXT(": Magnitude is not read for action effects") : TEXT(""))));
+                }
+                if (Payload.bPermanent)
+                {
+                    Context.AddWarning(FText::FromString(FString::Printf(
+                        TEXT("Effect %d (%s) is Permanent; action effects can't be permanent and are refused when applied."), i, *TypeName)));
+                }
+                const bool bMaxActions = !SkillEffectClassification::IsActionChange(Payload.EffectType);
+                if (bMaxActions && !Payload.bPermanent && Payload.Duration <= 0)
+                {
+                    Context.AddWarning(FText::FromString(FString::Printf(
+                        TEXT("Effect %d (%s) has Duration 0; a Max Actions change needs the turns it lasts."), i, *TypeName)));
+                }
             }
         }
     }

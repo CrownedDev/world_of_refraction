@@ -44,6 +44,10 @@ struct FBreakRow
 	/** B-064a: a share of the holder's max HP dealt once on landing, besides the applied effect (Ice, D-090). Can kill,
 	 *  as Reality Burst. 0 for most (the rows that leave it out). */
 	float DamageShareOfMaxHP = 0.0f;
+	/** B-170d (Q-170e): actions removed from the holder's bank on landing, never below 0 (Ice, action pips only). */
+	int32 ActionsLostNow = 0;
+	/** B-170d (Q-170e): actions removed at the holder's next turn start, by a new break only (Wind, action pips only). */
+	int32 ActionsLostNextTurn = 0;
 };
 
 namespace BreakTable
@@ -56,8 +60,13 @@ namespace BreakTable
 
 	WORLD_OF_REFRACTION_API const TArray<FBreakRow> &Rows();
 
-	/** The row for Trigger, or null when the trigger has no break row. */
-	WORLD_OF_REFRACTION_API const FBreakRow *For(ESkillEffectType Trigger);
+	/** B-170d (Q-170e): the rows that differ in an action-pips fight (Water: Spell Speed only; Wind: Action Speed slow
+	 *  and an action at the next turn, no delay; Ice: plus an action at once). */
+	WORLD_OF_REFRACTION_API const TArray<FBreakRow> &ActionPipsRows();
+
+	/** The row for Trigger, or null when the trigger has no break row. bActionPips (the fight's latched mode): the
+	 *  action-pips row where one differs. */
+	WORLD_OF_REFRACTION_API const FBreakRow *For(ESkillEffectType Trigger, bool bActionPips = false);
 
 	/** Every row, one line each. */
 	WORLD_OF_REFRACTION_API FString GetBreakTableString();

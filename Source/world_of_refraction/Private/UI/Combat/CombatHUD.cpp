@@ -160,8 +160,59 @@ void UCombatHUD::BuildOldHUD(APlayerController *PC, const TArray<AActor *> &Loca
     }
 }
 
+TArray<UUserWidget *> UCombatHUD::GetAllWidgets() const
+{
+    TArray<UUserWidget *> Widgets;
+    for (UCharacterPanelWidget *Panel : Panels)
+    {
+        Widgets.Add(Panel);
+    }
+    Widgets.Add(TurnOrderStrip);
+    Widgets.Add(CommandMenu);
+    Widgets.Add(DefensePrompt);
+    Widgets.Add(BattleHUD); // B-391's new HUD: hidden for a boss cinematic too (B-406)
+    Widgets.Add(BattleMenu);
+    Widgets.RemoveAll([](const UUserWidget *Widget) { return Widget == nullptr; });
+    return Widgets;
+}
+
+void UCombatHUD::SetHiddenForCinematic(bool bHidden)
+{
+    if (bHidden == bHiddenForCinematic)
+    {
+        return;
+    }
+    bHiddenForCinematic = bHidden;
+    if (bHidden)
+    {
+        VisibilityBeforeCinematic.Reset();
+        for (UUserWidget *Widget : GetAllWidgets())
+        {
+            VisibilityBeforeCinematic.Add(Widget, Widget->GetVisibility());
+            Widget->SetVisibility(ESlateVisibility::Collapsed);
+        }
+    }
+    else
+    {
+        // Review fix: a widget that set its own visibility meanwhile (the defence prompt for an action still playing
+        // under the cinematic, the new menu's refresh) keeps it; only the ones still collapsed by the hide come back.
+        for (const TPair<TWeakObjectPtr<UUserWidget>, ESlateVisibility> &Entry : VisibilityBeforeCinematic)
+        {
+            UUserWidget *Widget = Entry.Key.Get();
+            if (Widget && Widget->GetVisibility() == ESlateVisibility::Collapsed)
+            {
+                Widget->SetVisibility(Entry.Value);
+            }
+        }
+        VisibilityBeforeCinematic.Reset();
+    }
+    UE_LOG(LogWoRUI, Log, TEXT("[CombatHUD] %s for a boss cinematic"), bHidden ? TEXT("Hidden") : TEXT("Shown"));
+}
+
 void UCombatHUD::Teardown()
 {
+    bHiddenForCinematic = false; // B-406
+    VisibilityBeforeCinematic.Reset();
     for (UCharacterPanelWidget *Panel : Panels)
     {
         if (Panel)

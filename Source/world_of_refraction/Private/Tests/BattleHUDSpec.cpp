@@ -6,6 +6,7 @@
 // B-391b: the Broken Darkness absorb line and overload tint; damage numbers pool, stack and drop a 0.
 // B-391c: the status buildup bar (fill, cracks, line, tint), the party gear line and tooltip, the durability header
 // and the "Negated" cue; on the duel, a card's buildup follows a hit's buildup.
+// B-170e: with wor.Turns.ActionPips 1 the party cards show the pips line live and the menu an End Turn row; at 0 neither.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -13,6 +14,9 @@
 #include "WoRTestWorld.h"
 #include "Blueprint/UserWidget.h"
 #include "Combat/CombatConstants.h"
+#include "HAL/IConsoleManager.h"
+#include "Character/CharacterDataComponent.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
 #include "Equipment/Crystals/FCrystalId.h"
@@ -29,6 +33,8 @@
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRGameNames.h"
+#include "Save/SaveSubsystem.h"
+#include "Misc/ScopeExit.h"
 
 namespace
 {
@@ -44,6 +50,34 @@ namespace
 	constexpr int32 BATTLE_HUD_WEAPON_MAX = 4;
 	constexpr int32 BATTLE_HUD_GEM_DURABILITY = 7; // the hero's weapon gem in the durability header case
 	const FCrystalId BATTLE_HUD_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
+	constexpr int32 BATTLE_HUD_PIPS_OFF = 0;
+	constexpr int32 BATTLE_HUD_PIPS_ON = 1;
+	constexpr int32 BATTLE_HUD_ONE_ACTION = 1;
+
+	/** B-170e: sets wor.Turns.ActionPips for one test (before the fight starts, which latches it) and restores it. */
+	struct FBattleHUDPipsSwitchScope
+	{
+		IConsoleVariable *Switch = nullptr;
+		int32 Before = BATTLE_HUD_PIPS_OFF;
+
+		explicit FBattleHUDPipsSwitchScope(int32 Value)
+			: Switch(IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Turns.ActionPips")))
+		{
+			if (Switch)
+			{
+				Before = Switch->GetInt();
+				Switch->Set(Value, ECVF_SetByConsole);
+			}
+		}
+
+		~FBattleHUDPipsSwitchScope()
+		{
+			if (Switch)
+			{
+				Switch->Set(Before, ECVF_SetByConsole);
+			}
+		}
+	};
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -66,11 +100,21 @@ BEGIN_DEFINE_SPEC(FBattleHUDSpec, "WoR.UI.BattleHUD",
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
 
+	/** The test world, made once per case, so a case can set the save before StartDuel. False if setup failed. */
+	bool CreateTestWorld()
+	{
+		if (TestWorld)
+		{
+			return true;
+		}
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		return TestTrue(TEXT("Test world created"), TestWorld->Create());
+	}
+
 	/** Both sides player-controlled, so each turn opens the menu. False if setup failed. */
 	bool StartDuel()
 	{
-		TestWorld = MakeUnique<FWoRTestWorld>();
-		if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+		if (!CreateTestWorld())
 		{
 			return false;
 		}
@@ -509,6 +553,149 @@ void FBattleHUDSpec::Define()
 			{
 				TestTrue(TEXT("titled for whoever the menu is open for"),
 						 MenuWidget->GetTitle().ToString().Contains(BattleHUDView::GetCombatantName(Menu->GetCurrentActor()).ToString()));
+			}
+			MenuWidget->Teardown();
+		});
+
+		It("shows the party's action pips live and an End Turn row in an action-pips fight (B-170e)", [this]()
+		{
+			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_ON);
+			USaveSubsystem *Save = CreateTestWorld() ? TestWorld->GetSubsystem<USaveSubsystem>() : nullptr;
+			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !TestNotNull(TEXT("the save"), Save))
+			{
+				return;
+			}
+			const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+			ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+			Save->SetEndTurnButtonHidden(false); // shown, the default (Crown, 2026-11-12), whatever a loaded slot held
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestNotNull(TEXT("battle HUD widget"), HUD) || !TestNotNull(TEXT("Hero data"), HeroData))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			const auto ExpectedLine = [HeroData]()
+			{
+				return ActionPipsText::MakeActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions(), HeroData->GetActionPointProgress())
+					.ToString();
+			};
+			TestTrue(TEXT("the HUD shows actions"), HUD->IsShowingActions());
+			if (TestTrue(TEXT("two cards, the party's first"), HUD->GetCards().Num() == 2 && HUD->GetCards()[0].bParty))
+			{
+				TestEqual(TEXT("the party card's pips line"), HUD->GetCards()[0].ActionsLine.ToString(), ExpectedLine());
+				TestTrue(TEXT("no pips on the enemy card"), HUD->GetCards()[1].ActionsLine.IsEmpty());
+				HeroData->GainActions(BATTLE_HUD_ONE_ACTION, /*bMayPassMax=*/true);
+				TestEqual(TEXT("the line follows OnActionsChanged"), HUD->GetCards()[0].ActionsLine.ToString(), ExpectedLine());
+			}
+			HUD->Teardown();
+
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				return;
+			}
+			MenuWidget->Initialise();
+			const int32 EndTurnRow = FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString());
+			if (TestTrue(TEXT("an End Turn row"), EndTurnRow != INDEX_NONE))
+			{
+				TestFalse(TEXT("with no key hint: End Turn has no key yet (Crown, 2026-11-12)"),
+						  MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
+				MenuWidget->PressRow(EndTurnRow);
+				TestTrue(TEXT("End Turn ended Hero's turn"), Orchestrator->GetCurrentActor() == Foe);
+			}
+			MenuWidget->Teardown();
+		});
+
+		It("shows no action pips and no End Turn row with the switch off (B-170e)", [this]()
+		{
+			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_OFF);
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestNotNull(TEXT("battle HUD widget"), HUD))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			TestFalse(TEXT("the HUD shows no actions"), HUD->IsShowingActions());
+			TestTrue(TEXT("no pips line"), !HUD->GetCards().IsEmpty() && HUD->GetCards()[0].ActionsLine.IsEmpty());
+			HUD->Teardown();
+
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				return;
+			}
+			MenuWidget->Initialise();
+			TestEqual(TEXT("no End Turn row"), FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString()), INDEX_NONE);
+			MenuWidget->Teardown();
+		});
+
+		It("highlights a hovered target row's enemy in the target picker (B-400b)", [this]()
+		{
+			// StartDuel's one foe, plus a second, so the picker offers two targets (B-400's target view).
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+			{
+				return;
+			}
+			Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+			Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
+			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestTrue(TEXT("Orchestrator, menu and combatants"), Orchestrator && Menu && Hero && Foe && SecondFoe))
+			{
+				return;
+			}
+			for (AActor *Actor : {Hero, Foe, SecondFoe})
+			{
+				BattleHUDAddLoadout(Actor);
+			}
+			Menu->SetCombatOrchestrator(Orchestrator);
+			Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+			TestWorld->Tick(BATTLE_HUD_SETTLE_FRAMES);
+			if (!TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero))
+			{
+				return;
+			}
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				return;
+			}
+			MenuWidget->Initialise();
+
+			const int32 DefendRow = FindLabel(MenuWidget->GetRowLabels(), TEXT("Defend"));
+			if (TestTrue(TEXT("a Defend row to hover"), DefendRow != INDEX_NONE))
+			{
+				MenuWidget->HoverRow(DefendRow);
+				TestNull(TEXT("hovering a non-target row highlights nothing"), Menu->GetHighlightedTarget());
+			}
+
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack); // the widget follows the menu's rebroadcast
+			int32 FoeRow = INDEX_NONE;
+			int32 SecondFoeRow = INDEX_NONE;
+			for (int32 Row = 0; Row < MenuWidget->GetRowLabels().Num(); ++Row)
+			{
+				FoeRow = MenuWidget->GetRowTarget(Row) == Foe ? Row : FoeRow;
+				SecondFoeRow = MenuWidget->GetRowTarget(Row) == SecondFoe ? Row : SecondFoeRow;
+			}
+			if (TestTrue(TEXT("a target row per enemy"), FoeRow != INDEX_NONE && SecondFoeRow != INDEX_NONE))
+			{
+				MenuWidget->HoverRow(SecondFoeRow);
+				TestTrue(TEXT("hover highlights the second enemy"), Menu->GetHighlightedTarget() == SecondFoe);
+				MenuWidget->HoverRow(FoeRow);
+				TestTrue(TEXT("and back to the first"), Menu->GetHighlightedTarget() == Foe);
 			}
 			MenuWidget->Teardown();
 		});

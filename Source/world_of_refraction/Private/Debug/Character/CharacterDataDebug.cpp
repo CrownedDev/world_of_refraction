@@ -113,7 +113,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += TEXT("  Spirit:\n");
 	Output += FString::Printf(TEXT("    Max Energy:     %d\n"), Character->MaxEnergy);
 	Output += FString::Printf(TEXT("    Resistance:     %d\n"), Character->Resistance);
-	Output += FString::Printf(TEXT("    Turn Speed:     %d\n"), Character->TurnSpeed);
+	Output += FString::Printf(TEXT("    Turn Speed:     %d (retired with action pips, B-170)\n"), Character->TurnSpeed);
 	Output += FString::Printf(TEXT("    Luck:           %d\n"), Character->Luck);
 
 	// ==================== CALCULATED COMBAT STATS ====================
@@ -126,7 +126,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("  Status Multiplier:  %.2fx\n"), Character->CalculateStatusMultiplier());
 	Output += FString::Printf(TEXT("  Status Mult (flat): %d\n"), Character->CalculateStatusMultiplierFlat());
 	Output += FString::Printf(TEXT("  Resistance:    %.1f%%\n"), Character->CalculateResistance() * 100.0f);
-	Output += FString::Printf(TEXT("  Turn Speed:    %.1f\n"), Character->CalculateTurnSpeed());
+	Output += FString::Printf(TEXT("  Turn Speed:    %.1f (retired with action pips, B-170; read only at wor.Turns.ActionPips 0)\n"), Character->CalculateTurnSpeed());
 	Output += TEXT("\n");
 
 	// ==================== LOADOUT REMINDER ====================

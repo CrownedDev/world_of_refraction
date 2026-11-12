@@ -417,6 +417,16 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
                                                              ActionCost, ActionPipsConstants::MAX_ACTIONS_CAP)));
     }
 
+    // B-170g (Q-170h, Q-170g2): Turn Speed is retired with action pips; scaling with it scales with nothing once they're on.
+    for (const FStatScaling &Scaling : StatScaling)
+    {
+        if (Scaling.Stat == ESubStat::TurnSpeed)
+        {
+            Context.AddWarning(FText::FromString(
+                TEXT("StatScaling uses Turn Speed, which is retired with action pips (B-170): pick another stat")));
+        }
+    }
+
     return Result;
 }
 #endif

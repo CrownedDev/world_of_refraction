@@ -18,8 +18,10 @@
 #include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "UI/Combat/CombatHUD.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Player/TurnStateComponent.h"
 #include "EngineUtils.h"
@@ -31,6 +33,12 @@ namespace CombatMenuKeys
 {
 	/** Above the editor-authored combat context (priority 0), so a shared key goes to the menu. */
 	constexpr int32 CONTEXT_PRIORITY = 1;
+
+	/** B-406b (Q-406b): skips a boss cinematic. Its own action name (D-063); keys from InputMap.md. Functions, not
+	 *  globals: an EKeys value is only safe to copy after its module's static init. */
+	constexpr const TCHAR *SKIP_CINEMATIC_ACTION_NAME = TEXT("IA_Combat_SkipCinematic");
+	FKey GetSkipCinematicKeyboard() { return EKeys::Tab; } // not Space: the likely dodge key and Slate's Accept
+	FKey GetSkipCinematicGamepad() { return EKeys::Gamepad_Special_Right; }
 
 	FAutoConsoleCommand GPrintMenuKeysCmd(
 		TEXT("wor.Input.MenuKeys"),
@@ -166,6 +174,7 @@ void ACombatPlayerController::SetupInputComponent()
 	{
 		EnhancedInput->BindAction(CategoryAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnCategoryKey);
 	}
+	EnhancedInput->BindAction(SkipCinematicAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnSkipCinematic);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
 }
@@ -582,10 +591,53 @@ void ACombatPlayerController::BuildMenuKeys()
 			break;
 		}
 	}
+
+	// B-406b: the boss-cinematic skip, in the same always-on context (it does nothing when no cinematic plays).
+	SkipCinematicAction = NewObject<UInputAction>(this, CombatMenuKeys::SKIP_CINEMATIC_ACTION_NAME);
+	SkipCinematicAction->ValueType = EInputActionValueType::Boolean;
+	SkipCinematicAction->bConsumeInput = false;
+	MenuKeysContext->MapKey(SkipCinematicAction, CombatMenuKeys::GetSkipCinematicKeyboard());
+	MenuKeysContext->MapKey(SkipCinematicAction, CombatMenuKeys::GetSkipCinematicGamepad());
+}
+
+void ACombatPlayerController::OnSkipCinematic(const FInputActionValue &Value)
+{
+	if (!IsLocalController())
+	{
+		return;
+	}
+	SkipBossCinematic(this);
+}
+
+bool ACombatPlayerController::SkipBossCinematic(const UObject *WorldContext)
+{
+	UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
+	if (!World)
+	{
+		return false;
+	}
+	for (TActorIterator<ACombatOrchestrator> It(World); It; ++It)
+	{
+		UCombatCameraDirector *Director = It->GetCameraDirector();
+		if (It->GetCombatState() == ECombatState::InProgress && Director && Director->IsBossCinematicPlaying())
+		{
+			// Q-406b: this machine's view only. On a co-op client the server's hold ends on its own end or the cap.
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatPC] Boss cinematic skipped (%s)"),
+				   *UEnum::GetValueAsString(Director->GetBossCinematicKind()));
+			Director->FinishBossCinematic();
+			return true;
+		}
+	}
+	return false;
 }
 
 void ACombatPlayerController::OnCategoryKey(const FInputActionInstance &Instance)
 {
+	// The old WBP HUD (wor.UI.NewHUD 0) has its own confirm / back on A / B: the category keys would act twice there.
+	if (!UCombatHUD::WantsNewHUD())
+	{
+		return;
+	}
 	const UInputAction *Pressed = Instance.GetSourceAction();
 	const int32 Index = CategoryKeyActions.IndexOfByPredicate([Pressed](const TObjectPtr<UInputAction> &Action)
 															  { return Action.Get() == Pressed; });
@@ -623,6 +675,9 @@ FString ACombatPlayerController::GetMenuKeysString()
 							   *UEnum::GetValueAsString(Binding.Category), *Binding.Keyboard.GetDisplayName().ToString(),
 							   Binding.Gamepad.IsValid() ? *Binding.Gamepad.GetDisplayName().ToString() : TEXT("-"));
 	}
+	Out += FString::Printf(TEXT("\n  %s (skip boss cinematic, B-406b): %s / %s"), CombatMenuKeys::SKIP_CINEMATIC_ACTION_NAME,
+						   *CombatMenuKeys::GetSkipCinematicKeyboard().GetDisplayName().ToString(),
+						   *CombatMenuKeys::GetSkipCinematicGamepad().GetDisplayName().ToString());
 	return Out;
 }
 
@@ -642,6 +697,8 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 		{TEXT("IA_Combat_MenuFlee"), EPieMenuCategory::Flee, EKeys::Five, EKeys::Gamepad_DPad_Down},
 		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_DPad_Left},
 		{TEXT("IA_Combat_MenuChangeRing"), EPieMenuCategory::ChangeRing, EKeys::Seven, EKeys::Gamepad_DPad_Right},
+		// B-170e (Crown, 2026-11-12): End Turn has no key yet; it comes later, with its InputMap.md row. The menu already
+		// takes it as a main-menu key (CommandMenuRules::IsMainMenuKey, PressMenuKey(EPieMenuCategory::EndTurn)).
 	};
 	return Keys;
 }
