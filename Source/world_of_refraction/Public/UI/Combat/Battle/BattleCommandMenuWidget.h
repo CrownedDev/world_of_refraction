@@ -14,6 +14,7 @@
 #include "UI/Combat/PieMenuButtonData.h"
 #include "BattleCommandMenuWidget.generated.h"
 
+class AActor;
 class UButton;
 class UTextBlock;
 class UCombatCommandMenuSubsystem;
