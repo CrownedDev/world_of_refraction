@@ -704,6 +704,9 @@ void FCombatCameraDirectorSpec::Define()
 		ON_SCOPE_EXIT
 		{
 			Menu->ClearCombatOrchestrator();
+			// The bare controller is not a local player: restoring its own view mid-blend (EndCombat) makes the engine's
+			// camera manager call ClientSetViewTarget, which runs locally with no connection and recurses (stack overflow).
+			Director->SetViewerForTests(nullptr);
 			if (Orchestrator->GetCombatState() != ECombatState::Idle)
 			{
 				Orchestrator->ForceEndCombat(ECombatState::Victory);
