@@ -12,6 +12,31 @@ Key: ✅ have a good candidate · 🔧 have something, needs work or an eye chec
 - **Built from scratch (Crown, 2026-11-12):** the existing weapon, ring, evolution and Generic spell data assets are ignored; new data assets are made, named per `Conventions/ContentNaming.md`. Only the raw art below counts (meshes, anims, VFX, sounds).
 - **Bodies:** Manny and Quinn only.
 
+## Picks (Crown, in the editor)
+
+Crown goes through it in sets: a weapon, then that weapon's skills, then the next set. Set 1 = sword and shield; Set 2 = axe; then spells and projectiles.
+
+| Set | Item | Picked | Path |
+|---|---|---|---|
+| 1 | Sword mesh | **SK_Sword_1H_Generic_01** (2026-11-12) | `/Game/StylizedWeapons/WeaponPack2/Meshes/Item/Weapons/Sword/SK_Sword_1H_Generic_01` |
+| 1 | Shield mesh | — (open: `SM_Shield_DSAS`, `SK_Shield_Fantasy_01–09`) | |
+| 1 | Light, heavy, finisher, crippling, taunt, second wind, battle cry | — | |
+
+## Weapon families: meshes shared across styles (Crown, 2026-11-12)
+
+**One mesh family per weapon kind; the animation set decides the style, not the mesh.** The picked sword mesh serves sword and shield, single sword, dual swords, katana and dual katana; the one-handed axe family serves a single axe, twin axes and axe and shield. (A real katana or a greatsword can get its own mesh later; the showcase uses the shared one.)
+
+| Style | Animation sets (Combat Master unless named; RM = root motion, IP = in place) | Guard |
+|---|---|---|
+| Sword + shield | **DSAS V1 / V2 / V3** (IP + RM), HandsomeSwordAndShield (RM; buff, evade, heavy slash / stab) | ✅ DSAS V2 `Block`, `BlockHit`, block moves |
+| Single sword | HandsomeSword V1 / V2 (RM; V2 heavy + execution), PowerfulSwordAnims (RM); Paragon Greystone, Kwang, Feng Mao | ❌ |
+| Dual swords | HandsomeTwinSword (RM, 25) | 🔧 `Anim_Tb_Block` (one) |
+| Katana | DynamicKatana V1 (`DK`, IP + RM, 53), V2 (`DK2`, IP + RM, 63), V3 (`KT3`, RM, 36), HandsomeKatana (30) | 🔧 `Katana_Block` (HandsomeKatana) |
+| Dual katana | **No pack found by name.** Stand-in: HandsomeTwinSword | 🔧 `Anim_Tb_Block` |
+| Single axe (1H) | DynamicAxe (RM; combos, common attacks, buff) | ❌ |
+| Twin axes | DynamicTwinAxe (RM) | ✅ `Anim_DTA_Block_Start/Loop/Hit/End` |
+| Axe + shield | Paragon Terra (action timing) | ✅ Terra `RMB_*` shield guard |
+
 ## Gear
 
 | Item | Mesh | Anims | VFX | Sound | Notes |
@@ -29,7 +54,7 @@ Key: ✅ have a good candidate · 🔧 have something, needs work or an eye chec
 |---|---|---|
 | One-handed | `StylizedWeapons/WeaponPack1/Meshes/Item/Weapons/Axe/SK_Axe_1H_Fantasy_01–06`; `StylizedWeapons/WeaponPack2/Meshes/Item/Weapons/Axe/SK_Axe_1H_Generic_01–09` (+ `SK_Axe_1H_Generic_03Off`, an off-hand twin) | Textured, same style as the sword and shield in use |
 | Two-handed | `.../WeaponPack1/.../Axe/SK_Axe_2HL_Fantasy_01–06`; `.../WeaponPack2/.../Axe/SK_Axe_2HL_Generic_01–06`, `SK_Axe_2HL_Ud_01–02` | Textured |
-| Combat Master | `CombatMasterAnimBundle/Weapon/Meshes/SM_Axe` (SM; the twin-axe pack's own axe) | Matches the Combat Master axe anims' grip |
+| Combat Master | `CombatMasterAnimBundle/Weapon/Meshes/SM_Axe` (SM, the one-handed axe pack's axe) and `SM_DTA` (SM, the twin-axe pack's axe) | Match the Combat Master axe anims' grip |
 | Basemesh (untextured) | `Imports/_100_Fantasy_Weapons_Basemesh_Pack_V1_/Axe`, `Knight_Axe`, `Rough_Axe`; halberds `Adventurer_s_Halberd`, `Demonic_Halberd`, `Runic_Halberd`; `Pick_Ax` | Flat materials; shape reference only |
 
 **Animation sets** (all on Manny; Combat Master ones are root motion only, so opt in per montage):
@@ -97,4 +122,5 @@ Key: ✅ have a good candidate · 🔧 have something, needs work or an eye chec
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-12 | Created from the live editor's asset registry (unreal-mcp) | docs/showcase-inventory |
+| 2026-11-12 | Picks table (Set 1 sword: SK_Sword_1H_Generic_01); weapon families share meshes across styles (Crown), animation sets per style | docs/showcase-inventory |
 | 2026-11-12 | Crown: built from scratch (existing data assets ignored); weapon 2 is an axe (bow / staff dropped): axe meshes and anim sets listed | docs/showcase-inventory |

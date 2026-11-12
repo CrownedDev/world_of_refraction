@@ -155,6 +155,8 @@ Counts are by keyword in the name and are approximate (± a few per cell). **M**
 
 Families come from `Data/Pool/Generic/Weapons`.
 
+**Meshes are shared per family (Crown, 2026-11-12):** one sword mesh family serves sword and shield, dual swords, katana and dual katana; one one-handed axe family serves single axe, twin axes and axe and shield. The animation set decides the style. Styles and their sets: `ShowcaseInventory.md` "Weapon families".
+
 | Family (data) | Meshes | Attack anims | Weapon guard | Status | Conf. |
 |---|---|---|---|---|---|
 | Sword + Shield (4) | swords + 15 shields | DSAS V1–V3, HSAS (IP available) | ✅ `Anim_SAS_Block`, V2 `BlockHit`, block moves | ✅ | H |
