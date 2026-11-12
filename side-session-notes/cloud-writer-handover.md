@@ -1,3 +1,18 @@
+# Cloud writer handover (2026-11-12, fifteenth part: Crown's answers of 2026-11-12) — STOPPED: no writable job left
+
+**All eight answers are applied, pushed, reviewed by wor-reviewer and fixed.** Nothing was built. Details and merge notes: the merge plan's "2026-11-12 (evening)" update.
+- **Q-170f2 (B-170f, code):** bonus actions above Max are lost at the end of the holder's turn; the bank up to Max carries over; the AI spends bonus actions that turn. New Q-170f3 (reference-backed, for Crown to veto): a bank above a *lowered* Max goes too. Specs added.
+- **B-170e:** the desktop built it into dev with the hide-End-Turn setting (`wor.UI.HideEndTurn`) and no key. Two doc-fix commits remain on the branch: **merge it into dev again.**
+- **Q-391c (B-391c, code):** the cue reads "Negated" (LOCTEXT); the identifiers were renamed with it.
+- **Q-064a2 (`fix/B-064a-crown-answer-cloud`, code, new branch from dev):** every break "<Element> Break", every DoT "<Element> DoT" (LOCTEXT + FText::Format); Rules SB-37. New Q-064a3 (reference-backed, for Crown to veto): physical caps keep Bleed / Armor Break / Stunned, "Frozen" goes everywhere, other flavour names stay.
+- **Confirmed, docs only:** Q-403 (`fix/B-403-crown-answer-cloud`), Q-392 (`fix/B-392-crown-answer-cloud`), Q-032d (B-032d), Q-406b (B-406b).
+- **Trial branch `integration/cloud-2026-11-12`** has all of it, with dev at `8179c9fc` and the desktop's own dev merge merged in.
+- **Not written as session entries:** these changes are in this note and the merge plan; the desktop adds `docs/sessions/` lines when it merges them.
+
+**For Crown to veto:** Q-170f3 and Q-064a3 (both reference-backed defaults).
+
+**STOPPED (2026-11-12, evening): no writable job left.** What remains needs a compiler, Crown's PIE or Crown: B-170h (PIE of B-170a–g), B-406c (the B-406 trial), B-042g2..g6 (Crown's UseGAS fight), B-104 / B-107 / B-108 (B-102 mockups), editor and desktop jobs, B-233b (EOS ids), B-395 and B-214 (Crown's). The End Turn key waits for Crown to ask for it.
+
 # Cloud writer handover (2026-11-09, fourteenth part: the visual and camera phase) — STOPPED: no writable job left
 
 **Written, pushed, reviewed and fixed** (merge plan rows 85–95). All are on the current trial branch **`integration/cloud-2026-11-09c`** (dev plus every unmerged cloud branch; it supersedes 09b):
