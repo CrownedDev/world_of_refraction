@@ -349,7 +349,7 @@ The queue of questions only Crown can answer.
 **Answer:** all seven, by the reference-backed default (2026-11-09). Crown may change any.
 
 ### Q-391c — The buildup bar, gear line, durability header and the absorb cue: the build details
-**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-391c) · **Blocks:** — (B-391c ships with it)
+**Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-09 (B-391c) · **Blocks:** — (B-391c ships with it)
 **Question:** Bringing the old HUD's buildup bar, weapon name and durability header to the new HUD, and adding an absorb cue, needed a few choices the rulings don't name. Keep these?
 **Context:** `UI/Combat/Battle/BattleHUDView.h` (`CRACK_START_FRACTION`, `CRACK_COUNT`), `BattleHUDWidget.cpp` (`BattleHUDStyle`), `BattleCommandMenuWidget.cpp`, `DamageNumberView.h` (`SHOW_ABSORB_CUE`, `ABSORBED_SCALE`). The deckbuilder has no HUD rule (its reference is a card model, no match presentation), so the references are Crown's Q-111 A, the old HUD itself, and other games below.
 **What was built:**
@@ -361,6 +361,7 @@ The queue of questions only Crown can answer.
 6. **Combatants that join mid-fight:** not built. Nothing in the code adds or announces a combatant mid-fight (no summons exist); when a summon system lands, it should broadcast a join event and the HUD add a card from a spare pool (TransBuffer rule).
 **Recommendation:** all six as built (references above; not lore). Crown tunes sizes and colours in PIE.
 **Answer:** all six, by the reference-backed default (2026-11-09). Crown may change any; the absorb cue is one switch.
+**Answer: Crown, 2026-11-12:** all six kept, with one change: the cue text is **"Negated", not "Absorbed"** ("Absorbed" reads as Broken Darkness's energy absorption); **on by default**. `LOCTEXT("Negated", "Negated")` in `DamageNumberView::GetNegatedLabel`; the code names follow the word (`EDamageNumberTier::Negated`, `SHOW_NEGATED_CUE`, `NEGATED_SCALE`, `IsNegatedHit`, `MakeNegatedStyle`).
 
 ## Parked
 
