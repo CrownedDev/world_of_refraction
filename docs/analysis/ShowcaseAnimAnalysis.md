@@ -33,7 +33,7 @@ Root drift, airborne time (both feet over 25 cm off the floor) and the start and
 - Why the notify, not the data: the choke point is a property of **this strike in this animation**; authors see it on the timeline next to the strike, and swapping the animation forces a re-check.
 - Code Writer's job; no asset is changed here.
 
-**Does it return the attacker today? Partly.** `InterruptAsyncAction` plays the skill's `ReturnMontage` (warped back to the saved grid spot) **if one is set**; without one it stops the montage where it is and ends the action (`ActionExecutor.cpp:2884-2900`), which leaves an attacker who dashed in standing at the target. Backlog **B-412** closes the gap. Also: the comments on both `bInterruptable` fields still say "parried OR dodged"; the rule (ED-37c, B-367b) is Perfect Guard only.
+**Does it return the attacker today? Partly.** `InterruptAsyncAction` plays the skill's `ReturnMontage` (warped back to the saved grid spot) **if one is set**; without one it stops the montage where it is and ends the action (`ActionExecutor.cpp:2884-2900`), which leaves an attacker who dashed in standing at the target. Backlog **B-423** closes the gap. Also: the comments on both `bInterruptable` fields still say "parried OR dodged"; the rule (ED-37c, B-367b) is Perfect Guard only.
 
 **Where interrupt points go:**
 - A **one-hit** skill gains nothing: there is no "rest of the attack" to end, the return plays anyway. So no interrupt point on the light hit.
@@ -173,6 +173,8 @@ Feel: a long, readable coil (0.55 s, close to E33's 0.7) and then a whip-fast sw
 
 ### Reaching the target: approach → strike → return
 
+**Superseded in part (2026-11-12):** the 2×/3× warp below distorts the clips; see "Travel without stretching" for the recommended air-burst dash. Light-hit pick confirmed by Crown: `ComboAttack02_01_IP`.
+
 **What the game does today** (code read, not changed):
 - There is no separate approach step. The skill montage itself must carry the move (`ActionExecutor.h:1074`).
 - Before the montage, the game sets a Motion Warping target named `WarpTarget` 100 cm in front of the target (`ExecutionRange`, `ActionExecutor.cpp:5192-5212`). Only a **root-motion section with a warp window** moves the attacker there. An in-place clip ignores it, so **an in-place strike alone never reaches the target**.
@@ -221,6 +223,63 @@ Notifies in whole-action time: `VFX0` 1.03, `SFX0` 1.055, `Impact0` 1.13. `SFX1`
 
 **`Stab2` has no reach of its own:** its root-motion version moves 22 cm out and back. As a light hit it only works with the dash in front. Better as its **own ranged skill candidate**: a thrust from the grid spot that releases a pressure wave or projectile at contact (0.45 s). No approach or return, ~1.05 s total.
 
+### Travel without stretching (research, 2026-11-12)
+
+**Crown's concern:** warping the 354 cm dash over ~700 cm (2×) and the back-step 3× distorts the clips. Runs are ruled out (they break the cinematic feel). The question: how to keep approach → strike → return one continuous flourish with the clips we have.
+
+**Key fact:** what looks wrong in a stretched clip is mostly **feet sliding on the floor** while the body moves faster than the steps. A body in the air has no feet to slide. Motion Warping's Skew Warp only bends root motion **inside its window** and reaches the target at the window's end ([UE docs](https://dev.epicgames.com/documentation/en-us/unreal-engine/motion-warping-in-unreal-engine)). Put the window only over the airborne frames and the extra distance goes where nobody can see feet. Frames on the ground play at their own speed.
+
+**Airborne windows measured** (both feet off the floor):
+
+| Clip | Length | Travel | Off the ground | Travel in the air |
+|---|---|---|---|---|
+| V3 `Anim_DSS3_Dodge_F_RM` | 0.83 s | +354 cm | 0.18–0.42 s | 155 cm |
+| `HandsomeSwordAndShield/SwordAnimations/Evade/Anim_HSAS_Evade` | 1.27 s | −192 cm | 0.17–0.40 s | 76 cm (back hop) |
+| `HandsomeKatanaAnims/.../Evade/Katana_Dodge` | 1.50 s | +378 cm | 0.10–0.47 s | 216 cm |
+| V3 `Anim_DSS3_Evade_B_RM` | 0.83 s | −226 cm | never (feet stay down) | — |
+
+`Evade_B` has no airborne frames, so any warp on it slides the feet: that's the 3× problem. Replace it.
+
+**Options** (runs ruled out):
+
+| Option | How it looks | Clips | Cost | Limits |
+|---|---|---|---|---|
+| ★ **A. Air-burst dash:** warp only the hop (0.18–0.42); hop VFX smear; camera rush on the same 0.24 s | One dash; the hop becomes a burst (~2,100 cm/s front row, ~3,000 back row) and lands at striking range. The ground steps are untouched | `Dodge_F_RM`, strike, `HSAS_Evade` back | Small: one montage, warp-target offset (below), a dash-smear VFX | Very long hops read as a blink, not a jump: needs the smear to sell it. Retarget check on `HSAS_Evade` (another pack) |
+| B. Two chained dashes | Two hops, ~1.6 s; reads as a skip-in | `Dodge_F_RM` ×2 (708 cm ≈ front row exactly, no warp) | Montage only | Twice E33's rush time; back rows still need warp (split over two airborne windows, ~1.3×) |
+| C. Camera cut hides the travel | Shot on the attacker's hop, cut to the two-shot at the target; travel happens off screen | `Dodge_F_RM` or none | Small: one camera cut on the CombatCamera beat | Breaks the single continuous flourish Crown wants; good as a fallback for very long distances |
+| D. Closer spacing | `Dodge_F` covers it unwarped | none | Changes `TEAM_SEPARATION` 800 → ~450: the camera, ranged readability and every layout | Back rows still 200–400 cm further. A battle-layout decision, not an animation one |
+| E. Lunge or leap attacks, warped a little | Travel is part of the attack | `ComboAttack02_01_Root` (116 cm by contact), `HSAS_Slash_Dodge` (427 cm, swing 0.80), `Sword_1H_Attack_Jump1` (242), V1 `Combo1` (377) | Montage only | None covers 700 cm alone, so they still need A in front. Best for the heavy hit (a leap reads heavy) |
+
+**UE tools checked and not needed:**
+- Distance Matching: for run start, loop and stop, so it's ruled out with runs.
+- Stride Warping: fixes foot length when ground speed changes; not needed when only airborne frames warp.
+- Pose Search / Motion Matching: needs a large locomotion database; we have five travel clips.
+- Play rate: speeds up the whole pose, not just the distance. ≤1.2× on the approach is fine for timing.
+
+**Other games** (from footage, not measured): E33's hero closes in a fast rush of ~0.2 s from confirm while the camera rushes along (study §14). Persona 5, Metaphor and Honkai: Star Rail use a quick dash or leap with a fast camera follow or cut, then a fixed-length strike, and a quick hop or cut back. All of them make the travel **short and stylised**, not a natural run, which is what A does.
+
+**Recommendation: A (air-burst dash), with C as the fallback past a set distance.**
+
+Whole action, light hit:
+
+| Segment | Time (s) |
+|---|---|
+| Dash (`Dodge_F_RM`); burst 0.18–0.42 | 0.00–0.83 |
+| Strike (`ComboAttack02_01_IP`), 0.1 s join | 0.73–1.95 |
+| `Impact0` | **1.13** |
+| Back hop (`HSAS_Evade`); burst 0.17–0.40 of the clip | 1.68–2.95 |
+| **Total** | **~2.9** (E33 ~2.8) |
+
+Joins: `Dodge_F` ends in the strike's start pose (within 1 cm). The strike's end pose matches `HSAS_Evade`'s start within 3 cm.
+
+**Prototype plan for the Code Writer** (light hit only):
+1. **Montage** (editor): `Dodge_F_RM` section, then a `ComboAttack02_01_IP` section with a 0.1 s blend. A Motion Warping notify state (Skew Warp, target `WarpTarget`, translation and rotation) over **0.18–0.42 s only**. Notifies `VFX0` 1.03, `SFX0` 1.055, `Impact0` 1.13 in montage time.
+2. **Warp target offset** (code, `ActionExecutor.cpp:5192-5212`): the clip still travels ~124 cm after the window, so aim the warp target that much short of the stop point. Read the post-window travel from the montage's root motion, not a constant. First check whether UE 5.8's warp modifier already has an option to reach the target at the animation's end.
+3. **Return montage**: `HSAS_Evade`, window 0.17–0.40 to the grid spot, same offset. Check the retarget (Handsome pack) by eye.
+4. **Feel:** align the B-403 camera rush (0.25 s) with the burst window. Add a dash-smear or afterimage VFX over the burst. **Missing asset:** a dash-trail Niagara, to make or find.
+5. **Debug:** log the warp distance and burst speed per action. Over a threshold (`TODO:` tune, ~3,500 cm/s), use the camera cut (C) instead.
+6. **PIE:** attack a front-row and a back-row enemy. Check that the feet never slide, that the burst reads as a dash not a teleport, and that the join into the swing and the hop back are seamless.
+
 **Contact-pose pictures:** later, when Crown is at the PC (editor preview must be in front to redraw).
 
 ## Changelog
@@ -230,4 +289,5 @@ Notifies in whole-action time: `VFX0` 1.03, `SFX0` 1.055, `Impact0` 1.13. `SFX1`
 | 2026-11-12 | Created: method, screen of all DSAS in-place attacks, light hit pick (V2 ComboAttack02_01) with runners-up | docs/showcase-anim-analysis |
 | 2026-11-12 | Crown's notes: flip and jump check by torso tilt (only ComboAttack01_01 flips; the pick has none), Interrupt notify proposal (fit, SB-36 conflict, placement) | docs/showcase-anim-analysis |
 | 2026-11-12 | Approach → strike → return: current movement code, V3 dash/evade clips, join blends, whole-action timings; Stab2 flagged as a ranged-thrust candidate; idle-stance correction | docs/showcase-anim-analysis |
-| 2026-11-12 | Interrupt reworked per Crown: a marker on the Impact notify for D-161's interrupt points (not a ritual cancel); today's authoring, merge proposal, return-on-interrupt gap (B-412), ritual arm/trigger split | docs/showcase-anim-analysis |
+| 2026-11-12 | Interrupt reworked per Crown: a marker on the Impact notify for D-161's interrupt points (not a ritual cancel); today's authoring, merge proposal, return-on-interrupt gap (B-423), ritual arm/trigger split | docs/showcase-anim-analysis |
+| 2026-11-12 | Travel without stretching: airborne-window warp (air-burst dash) recommended, options compared, prototype plan; pick confirmed; B-412 renumbered B-423 | docs/showcase-anim-analysis |
