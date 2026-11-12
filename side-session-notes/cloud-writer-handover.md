@@ -46,6 +46,8 @@
 **Checked again 2026-11-12, 12:10 UTC:** B-399, B-400, B-404 and B-406 are in dev (`8624aa65`). Still no writable job. **New trial branch `integration/cloud-2026-11-12`** (dev plus the 18 still-open cloud branches) replaces `integration/cloud-2026-11-09c`. The merge plan's midday update lists each remaining row's conflicts against today's dev.
 
 **Checked again 2026-11-12, 14:10 UTC:** B-401 and B-170e are in dev (`8179c9fc`). Still no writable job. The trial branch has dev merged in (`727cb03e`, docs only). 16 cloud branches remain open.
+
+**Checked again 2026-11-12, 15:10 UTC:** B-400b, B-170f, B-391b, B-406b, B-170g and B-391c are in dev (`64edcdda`). Still no writable job: B-406c waits on Crown's B-406 trial. 10 cloud branches remain open (B-042g2, B-234d, B-032d, C1 to C7). The trial branch is now exactly dev plus those ten.
 - B-170h: BLOCKED on Crown's PIE of B-170a–g (D-067). B-043h, B-351e and B-406c also wait on PIE or the B-406 trial.
 - B-042g2 is written (cloud branch); B-042g3–g6 follow it once it merges after Crown's `wor.Effects.UseGAS 1` fight.
 - B-104 / B-107 / B-108 wait on B-102 (Crown's mockup review). B-373, B-237, B-240, B-215 and B-280 are editor or desktop jobs. B-233b needs Crown's EOS ids. B-395 is Crown's loop; B-214 is held by Crown.
