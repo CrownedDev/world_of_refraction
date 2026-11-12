@@ -699,10 +699,28 @@ The queue of questions only Crown can answer.
 **Answer:** the default, by the reference-backed default (2026-11-12). Crown may change the cap, the stacking or where it counts.
 **Notes for Claude:** applied in `RunRewards::SumPayoutBonusPercent` / `PayoutMultiplierForBonus`, `UTrialRunSubsystem::RefreshPayoutMultiplier`, called from `ACombatOrchestrator::FinishCombat`. No evolution asset sets it yet (an editor step).
 
+### Q-239 — Item slot upgrades: whose pouch, which vendor, what price
+**Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-12 (B-239, cloud) · **Blocks:** —
+**Question:** D-097's slot upgrades were written for one party inventory; since D-117 each character has its own pouch. Whose slots does a purchase raise, which hub vendor sells it, and what are the numbers?
+**Context:** `FPoolPouch::SlotCount` (`PoolSubsystem.h`, saved in `FSavedPouch`), `InventoryConstants::ITEM_SLOTS_START` 10. No vendor screen exists yet; the hub shop window is a Blueprint (`UMerchantShopSubsystem::OpenForMerchant`).
+**Recommendation (default):**
+- **Whose:** one chosen character's pouch, +1 slot per purchase (follows D-117: each character carries its own).
+- **Price:** hub Gold (`ECurrencyType::Prisms`, D-159 naming), **200 + 100 per slot already bought** for that pouch (200, 300, 400, …), **cap 20 slots** (all `TODO: tune`). Reference: Breath of the Wild's Hestu, one NPC who sells each extra slot for a rising price (well liked; the rising cost keeps it a long-term goal); Monster Hunter's and Diablo III's stash expansions likewise cost more each step.
+- **Where:** the **Spiritualist** (crystals and stones, which are what a pouch carries). Until the real CommonUI vendor screen exists the placeholder opens with `wor.UI.ItemSlots`; hub only (refused during a run, like the other hub services).
+**Answer (Crown, 2026-11-12):** the **Jeweler** sells pouch slots, not the Spiritualist (the placeholder and the Jeweler's merchant name say so). Currency and price curve as the default: hub Gold (`ECurrencyType::Prisms`), 200 +100 per slot, cap 20; host-only in co-op for now.
+**Notes for Claude:** `Inventory/ItemSlotUpgrade.h/.cpp`, `UPoolSubsystem::AddItemSlot`, `UItemSlotUpgradeWidget`. Co-op: **host-only (Crown)**: `ItemSlotUpgrade::TryBuy` refuses a wallet without authority ("Only the host can buy item slots.") and the placeholder greys out Buy for a guest. Not spec-covered (headless specs are standalone, so always authority): PIE check 10.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
+
+---
+
+### D-173 — The Stone Smith merges into the Blacksmith
+**Status:** DECIDED (Crown, 2026-11-12, via the desktop operator session) · **Raised:** 2026-11-12 · **Blocks:** — (B-409)
+**Answer (Crown):** there is **no separate Stone Smith**: the **Blacksmith** is one NPC who sells and handles **weapons and augment stones**. Changes B-195's / D-048's service list (seven services become six).
+**Notes for Claude:** `EMerchantType::StoneSmith` and its hub NPC / merchant data still exist (B-195); **B-409** merges them in code and data (CC+UE: the merchant data assets). Until then the docs name six services. The Blacksmith's merchant name already reads "Blacksmith (weapons, augment stones)".
 
 ---
 

@@ -411,6 +411,11 @@ public:
     int32 GetItemSlotCount(FName CharacterKey) const { return GetPouch(CharacterKey).SlotCount; }
     int32 GetUsedItemSlots(FName CharacterKey) const { return GetPouch(CharacterKey).Stacks.Num(); }
 
+    /** B-239 (D-097, Q-239): one more item slot in the character's pouch (bought at the hub vendor, ItemSlotUpgrade).
+     *  False (nothing changed) for no key or when the pouch already has InventoryConstants::ITEM_SLOTS_MAX. Saved
+     *  with the pouch (FSavedPouch::SlotCount). */
+    bool AddItemSlot(FName CharacterKey);
+
     /** How many of Count fit the character's pouch (a free slot, or room in Id's stack). */
     int32 GetCarryRoom(FName CharacterKey, const FCrystalId &Id) const;
 

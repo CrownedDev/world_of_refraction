@@ -391,7 +391,7 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     case EMerchantType::Blacksmith:
         return LOCTEXT("EMerchantType_Blacksmith", "Blacksmith (weapons, augment stones)");
     case EMerchantType::Jeweler:
-        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (adapters)");
+        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (adapters, item slots)");
     case EMerchantType::CombatMaster:
         return LOCTEXT("EMerchantType_CombatMaster", "Combat Master (abilities)");
     case EMerchantType::SpellShop:
