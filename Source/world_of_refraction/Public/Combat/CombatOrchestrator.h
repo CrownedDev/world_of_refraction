@@ -649,8 +649,12 @@ private:
 	 *  by choosing End Turn. */
 	bool CanContinueTurn(AActor *Actor) const;
 
-	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left stay banked. */
+	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left up to Max stay banked (Q-170f2). */
 	void EndTurnByChoice();
+
+	/** Q-170f2 (Crown, 2026-11-12): at the end of Actor's own turn in an action-pips fight, its bonus actions above
+	 *  Max are lost (UCharacterDataComponent::ExpireActionsAboveMax). Not on an Execution turn. */
+	void ExpireBonusActionsAtTurnEnd(AActor *Actor);
 
 	/** Armed deferred activations (W-B). Keyed by an orchestrator-owned PayloadId
 	 *  handed to TurnManager::ScheduleExecutionTurn at arm; looked up by the same
