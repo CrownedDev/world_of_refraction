@@ -97,7 +97,7 @@ FText ActionPipsText::MakeActionsLine(int32 CurrentActions, int32 MaxActions, in
 	{
 		return Line;
 	}
-	return FText::Format(LOCTEXT("ActionsLineBonus", "{0} · {1} bonus: use this turn"), Line, FText::AsNumber(Bonus));
+	return FText::Format(LOCTEXT("ActionsLineBonus", "{0} · {1} bonus, lost at turn end"), Line, FText::AsNumber(Bonus));
 }
 
 FText ActionPipsText::GetDefendEndsTurnText()

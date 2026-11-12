@@ -127,7 +127,7 @@ void FActionPipsTextSpec::Define()
 		It("says bonus actions must be used this turn (Q-170f3, Crown)", [this]()
 		{
 			TestEqual(TEXT("the line"), ActionPipsText::MakeActionsLine(PIPS_TEXT_FOUR, PIPS_TEXT_THREE, PIPS_TEXT_PROGRESS).ToString(),
-					  FString::Printf(TEXT("Actions ●●●◆ 4 · Max 3 (+75/%d) · 1 bonus: use this turn"), ActionPipsConstants::ACTION_POINTS_PER_ACTION));
+					  FString::Printf(TEXT("Actions ●●●◆ 4 · Max 3 (+75/%d) · 1 bonus, lost at turn end"), ActionPipsConstants::ACTION_POINTS_PER_ACTION));
 		});
 
 		It("keeps the number when there are too many pips to draw", [this]()

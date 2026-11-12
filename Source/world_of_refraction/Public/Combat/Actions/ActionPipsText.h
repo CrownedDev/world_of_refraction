@@ -49,7 +49,7 @@ namespace ActionPipsText
 	WORLD_OF_REFRACTION_API FText MakeMaxActionsText(int32 MaxActions, int32 ActionPointProgress);
 
 	/** The party card's line: "Actions ●●○ 2 · Max 3 (+75/100)" (the pips, then the number, as the deckbuilder's
-	 *  "ACT 2"). With bonus actions it says they expire: "Actions ●●●◆ 4 · Max 3 (+75/100) · 1 bonus: use this turn". */
+	 *  "ACT 2"). With bonus actions it says they expire: "Actions ●●●◆ 4 · Max 3 (+75/100) · 1 bonus, lost at turn end". */
 	WORLD_OF_REFRACTION_API FText MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress);
 
 	/** Defend's tooltip in an action-pips fight: "Ends your turn." (§3.5). */
