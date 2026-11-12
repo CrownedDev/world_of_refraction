@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-234d](B-234d.md) | `feature/B-234d-host-hand-over-3` (in dev, built 2026-11-12) | 3-player: after a handed-over run the new host has only its own pool and party; the join order survives level changes | Pending |
 | [B-391c](B-391c.md) | `feature/B-391c-hud-pieces-2` (in dev, built 2026-11-12) | The new HUD's status buildup bar with cracks, the party card's weapon / ring line and loadout tooltip, the menu's ring / weapon durability header (each against the old HUD), and the "Negated" cue on Broken Darkness | Pending |
 | [B-406b](B-406b.md) | `feature/B-406b-boss-cinematic-skip` (in dev, built 2026-11-12) | Boss cinematics, the rest: Tab / Menu skips a boss opening or phase cinematic (HUD back, the fight goes on), does nothing otherwise; a ritual's Execution turn waits for a phase cinematic, then fires | Pending |
 | [B-391b](B-391b.md) | `feature/B-391b-hud-pieces` (in dev, built 2026-11-12) | Damage numbers on the new HUD: element colour (Physical white), size / brightness by resistance, immune grey, heals green, the same on host and client; the Broken Darkness card's absorb and overload | Pending |

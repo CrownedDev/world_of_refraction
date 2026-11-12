@@ -36,6 +36,37 @@ bool WoRHostSuccession::CanHandOverFrom(ENetMode NetMode, int32 PlayersKnown)
 	return NetMode == NM_ListenServer && PlayersKnown >= 2;
 }
 
+int32 WoRHostSuccession::NextJoinSequence(const TArray<int32> &Held)
+{
+	int32 Next = 0;
+	for (const int32 Place : Held)
+	{
+		if (Place != NO_JOIN_SEQUENCE)
+		{
+			Next = FMath::Max(Next, Place + 1);
+		}
+	}
+	return Next;
+}
+
+TArray<FString> WoRHostSuccession::OrderByJoinSequence(TArray<TPair<FString, int32>> Players)
+{
+	const auto SortKey = [](int32 Place) { return Place == NO_JOIN_SEQUENCE ? MAX_int32 : Place; };
+	Players.StableSort([&SortKey](const TPair<FString, int32> &A, const TPair<FString, int32> &B)
+	{
+		return SortKey(A.Value) < SortKey(B.Value);
+	});
+	TArray<FString> Order;
+	for (const TPair<FString, int32> &Player : Players)
+	{
+		if (!Player.Key.IsEmpty())
+		{
+			Order.AddUnique(Player.Key);
+		}
+	}
+	return Order;
+}
+
 void UWoRHostHandOverSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
