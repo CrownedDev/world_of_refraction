@@ -2,6 +2,7 @@
 // Combat camera rules (B-156, Design/CombatCamera.md): the mode the viewer sees, the template a
 // skill falls back to, and where each mode puts the camera. B-370: the cinematic window and the Defence view.
 // B-398: the turn-view setting's layouts and its save. B-399: the menu-depth step and the menu driving it.
+// B-400: the target view (target cut with several enemies), the highlight's cycling, and the director following it.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -78,6 +79,14 @@ namespace
 		Actor->AddInstanceComponent(Loadout);
 		Loadout->RegisterComponent();
 	}
+
+	// B-400: target heights (a person, a tall golem) and how many targets the picker offers.
+	constexpr float TARGET_TEST_PERSON_HEIGHT = 180.0f;
+	constexpr float TARGET_TEST_GOLEM_HEIGHT = 400.0f;
+	constexpr int32 TARGET_TEST_SEVERAL = 3;
+	constexpr int32 TARGET_TEST_ONE = 1;
+	/** B-400: an ally beside the acting character (a heal's target). */
+	const FVector TARGET_TEST_ALLY(0.0f, 250.0f, 0.0f);
 
 	FVector2D ProjectInTurnView(const FTransform &View, const FVector &Point)
 	{
@@ -316,6 +325,97 @@ void FCombatCameraSpec::Define()
 			TestEqual(TEXT("Attack's target picker"), CameraDepthFor(ECombatMenuDepth::TargetSelection, ECombatMenuDepth::Main), MAIN_MENU_DEPTH);
 			TestEqual(TEXT("a skill's target picker"), CameraDepthFor(ECombatMenuDepth::TargetSelection, ECombatMenuDepth::Submenu), SUBMENU_DEPTH);
 			TestEqual(TEXT("a skill's Allies / Enemies step"), CameraDepthFor(ECombatMenuDepth::TargetCategory, ECombatMenuDepth::Submenu), SUBMENU_DEPTH);
+		});
+	});
+
+	Describe("target cut with several enemies (B-400, study R3 / §9, Q-400)", [this]()
+	{
+		It("keeps each target's feet, head and HP bar on screen, in every style, for several positions and sizes", [this]()
+		{
+			const TArray<FVector> Enemies = TurnTestThreeEnemies();
+			const FCombatCameraFrame Frames[] = {TurnViewTestFrame(FVector::ZeroVector, Enemies), TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, Enemies)};
+			TArray<FVector> Targets = Enemies;
+			Targets.Add(TARGET_TEST_ALLY);
+			for (const FCombatCameraFrame &Frame : Frames)
+			{
+				for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+				{
+					for (const FVector &Feet : Targets)
+					{
+						for (const float Height : {TARGET_TEST_PERSON_HEIGHT, TARGET_TEST_GOLEM_HEIGHT})
+						{
+							const FTransform View = FCombatCameraRules::ComputeTargetView(Style, Frame, Feet, Height, CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
+							const FVector Head = Feet + FVector::UpVector * Height;
+							const FVector Bar = FCombatCameraRules::GetTargetHealthBarPoint(Feet, Height);
+							const FString Name = FString::Printf(TEXT("%s, target %s, %.0f cm"), *UEnum::GetValueAsString(Style), *Feet.ToString(), Height);
+							for (const FVector &Point : {Feet, Head, Bar})
+							{
+								TestTrue(FString::Printf(TEXT("%s: %s on screen"), *Name, *CameraFraming::GetThirdsCell(ProjectInTurnView(View, Point))),
+										 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Point));
+							}
+						}
+					}
+				}
+			}
+		});
+
+		It("gives the turn view itself for one target, in every style and at either menu depth", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, {TURN_TEST_ONE_ENEMY});
+			for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+			{
+				for (const int32 Depth : {CommandMenuRules::MAIN_MENU_DEPTH, CommandMenuRules::SUBMENU_DEPTH})
+				{
+					const FTransform View = FCombatCameraRules::ComputeTargetView(Style, Frame, TURN_TEST_ONE_ENEMY, TARGET_TEST_PERSON_HEIGHT, Depth, TARGET_TEST_ONE);
+					TestTrue(FString::Printf(TEXT("%s depth %d: no move"), *UEnum::GetValueAsString(Style), Depth),
+							 View.Equals(FCombatCameraRules::ComputeTurnView(Style, Frame, Depth)));
+				}
+			}
+		});
+
+		It("over the shoulder: a front medium shot, the target centred and larger than in the turn view; a cut", [this]()
+		{
+			const TArray<FVector> Enemies = TurnTestThreeEnemies();
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, Enemies);
+			const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
+			for (const FVector &Feet : Enemies)
+			{
+				const FTransform View = FCombatCameraRules::ComputeTargetView(ETurnViewStyle::OverTheShoulder, Frame, Feet, TARGET_TEST_PERSON_HEIGHT,
+																			  CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
+				const FVector Head = Feet + FVector::UpVector * TARGET_TEST_PERSON_HEIGHT;
+				const float ShotHeight = ProjectInTurnView(View, Head).Y - ProjectInTurnView(View, Feet).Y;
+				const float TurnHeight = ProjectInTurnView(Turn, Head).Y - ProjectInTurnView(Turn, Feet).Y;
+				TestTrue(TEXT("larger than in the turn view"), ShotHeight > TurnHeight);
+				TestTrue(TEXT("centred left to right"), FMath::Abs(ProjectInTurnView(View, Feet).X) <= CameraFraming::THIRD_LINE);
+				TestTrue(TEXT("from the party's side (front)"), View.GetLocation().X < Feet.X);
+			}
+			TestEqual(TEXT("a cut"), FCombatCameraRules::GetTargetViewBlendSeconds(ETurnViewStyle::OverTheShoulder), 0.0f);
+		});
+
+		It("centred wide: the same place, re-aimed toward the target; a short blend", [this]()
+		{
+			const TArray<FVector> Enemies = TurnTestThreeEnemies();
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, Enemies);
+			const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame);
+			const FVector Side = Enemies[0];
+			const FTransform View = FCombatCameraRules::ComputeTargetView(ETurnViewStyle::CentredWide, Frame, Side, TARGET_TEST_PERSON_HEIGHT,
+																		  CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
+			TestTrue(TEXT("same place"), View.GetLocation().Equals(Turn.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("the target nearer the middle"), FMath::Abs(ProjectInTurnView(View, Side).X) < FMath::Abs(ProjectInTurnView(Turn, Side).X));
+			TestTrue(TEXT("a short blend"), FCombatCameraRules::GetTargetViewBlendSeconds(ETurnViewStyle::CentredWide) > 0.0f);
+		});
+
+		It("cycles the highlight forward and back, wrapping at both ends", [this]()
+		{
+			using CommandMenuRules::CycleIndex;
+			TestEqual(TEXT("next"), CycleIndex(0, 1, TARGET_TEST_SEVERAL), 1);
+			TestEqual(TEXT("wraps forward"), CycleIndex(TARGET_TEST_SEVERAL - 1, 1, TARGET_TEST_SEVERAL), 0);
+			TestEqual(TEXT("wraps back"), CycleIndex(0, -1, TARGET_TEST_SEVERAL), TARGET_TEST_SEVERAL - 1);
+			TestEqual(TEXT("a big step is one step"), CycleIndex(0, TARGET_TEST_SEVERAL + 1, TARGET_TEST_SEVERAL), 1);
+			TestEqual(TEXT("no step"), CycleIndex(1, 0, TARGET_TEST_SEVERAL), 1);
+			TestEqual(TEXT("out of range: the first"), CycleIndex(INDEX_NONE, 1, TARGET_TEST_SEVERAL), 0);
+			TestEqual(TEXT("one target stays"), CycleIndex(0, 1, TARGET_TEST_ONE), 0);
+			TestEqual(TEXT("none"), CycleIndex(0, 1, 0), INDEX_NONE);
 		});
 	});
 
@@ -741,6 +841,73 @@ void FCombatCameraDirectorSpec::Define()
 		Menu->HandleSelection(Abilities);
 		TestEqual(TEXT("movement off: the depth is kept"), Director->GetMenuDepth(), CommandMenuRules::SUBMENU_DEPTH);
 		TestEqual(TEXT("movement off: the static view holds (R15)"), Director->GetMenuStepCount(), 2);
+		Director->SetCameraMovementOff(false);
+	});
+
+	It("cuts to each highlighted target with two enemies, back on cancel, and holds with movement off (B-400)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UCombatCommandMenuSubsystem *Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Menu && Viewer && Hero && Foe && SecondFoe))
+		{
+			return;
+		}
+		for (AActor *Actor : {Hero, Foe, SecondFoe})
+		{
+			MenuCameraTestAddLoadout(Actor);
+		}
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+		TestWorld->Tick(MENU_CAMERA_TEST_SETTLE_FRAMES);
+		ON_SCOPE_EXIT
+		{
+			Menu->ClearCombatOrchestrator();
+			if (Orchestrator->GetCombatState() != ECombatState::Idle)
+			{
+				Orchestrator->ForceEndCombat(ECombatState::Victory);
+			}
+		};
+		if (!TestTrue(TEXT("the hero's menu is open on the hero's turn view"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero &&
+																				   Director->GetViewedActor() == Hero &&
+																				   Director->GetCurrentMode() == ECombatCameraMode::Turn))
+		{
+			return;
+		}
+		FPieMenuButtonData Attack;
+		Attack.Category = EPieMenuCategory::Attack;
+		Menu->HandleSelection(Attack);
+		if (!TestEqual(TEXT("the picker offers both enemies"), Menu->GetHighlightTargetCount(), 2))
+		{
+			return;
+		}
+		AActor *First = Menu->GetHighlightedTarget();
+		TestNotNull(TEXT("the first target is highlighted on open"), First);
+		TestTrue(TEXT("the director follows it"), Director->GetHighlightedTarget() == First && Director->IsTargetViewShowing());
+		TestEqual(TEXT("one move"), Director->GetTargetMoveCount(), 1);
+
+		Menu->CycleHighlightedTarget(1);
+		AActor *Second = Menu->GetHighlightedTarget();
+		TestTrue(TEXT("cycling moves to the other enemy"), Second && Second != First && Director->GetHighlightedTarget() == Second);
+		TestEqual(TEXT("one move per press"), Director->GetTargetMoveCount(), 2);
+		Menu->CycleHighlightedTarget(1);
+		TestTrue(TEXT("and wraps"), Menu->GetHighlightedTarget() == First);
+		Menu->HighlightTarget(First);
+		TestEqual(TEXT("hovering the highlighted target: no move"), Director->GetTargetMoveCount(), 3);
+
+		Menu->HandleBack();
+		TestNull(TEXT("cancel clears the highlight"), Menu->GetHighlightedTarget());
+		TestFalse(TEXT("cancel: back to the turn view"), Director->IsTargetViewShowing());
+		TestEqual(TEXT("cancel: one move back"), Director->GetTargetMoveCount(), 4);
+		TestEqual(TEXT("the menu depth is untouched (Q-399)"), Director->GetMenuDepth(), CommandMenuRules::MAIN_MENU_DEPTH);
+
+		Director->SetCameraMovementOff(true);
+		Menu->HandleSelection(Attack);
+		Menu->CycleHighlightedTarget(1);
+		TestFalse(TEXT("movement off: no target view"), Director->IsTargetViewShowing());
+		TestEqual(TEXT("movement off: the static view holds (R15)"), Director->GetTargetMoveCount(), 4);
+		Menu->HandleBack();
 		Director->SetCameraMovementOff(false);
 	});
 }

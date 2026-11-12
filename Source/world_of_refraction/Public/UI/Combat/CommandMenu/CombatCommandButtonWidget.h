@@ -40,6 +40,8 @@ public:
 protected:
     virtual void NativeConstruct() override;
     virtual void NativeDestruct() override;
+    /** B-400: keyboard / gamepad focus on a target button highlights its target (the camera follows). */
+    virtual void NativeOnAddedToFocusPath(const FFocusEvent &InFocusEvent) override;
 
     UPROPERTY(meta = (BindWidget))
     UButton *CommandButton = nullptr;
@@ -60,4 +62,11 @@ private:
 
     UFUNCTION()
     void HandleClicked();
+
+    /** B-400: the mouse over a target button highlights its target (the camera follows). */
+    UFUNCTION()
+    void HandleHovered();
+
+    /** B-400: a per-actor target button's data tells the menu to highlight its target. */
+    bool HighlightOwnTarget(); // true for a per-actor target button
 };
