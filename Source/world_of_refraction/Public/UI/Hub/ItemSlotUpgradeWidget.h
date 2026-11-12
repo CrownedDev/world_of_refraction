@@ -11,7 +11,9 @@
 #include "Blueprint/UserWidget.h"
 #include "ItemSlotUpgradeWidget.generated.h"
 
+class APlayerController;
 class UButton;
+class UCurrencyComponent;
 class UPoolSubsystem;
 class UTextBlock;
 
@@ -44,6 +46,9 @@ private:
 	/** The local party's members, in party order. */
 	TArray<FMember> GatherMembers() const;
 	UPoolSubsystem *GetPool() const;
+
+	/** The owning player's wallet: through the pawn (CurrencyWallet), else the player state's own (no pawn yet). */
+	UCurrencyComponent *GetWallet() const;
 
 	UFUNCTION()
 	void HandleNextClicked();

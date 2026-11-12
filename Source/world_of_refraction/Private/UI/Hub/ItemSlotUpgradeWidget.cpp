@@ -19,6 +19,7 @@
 #include "Inventory/ItemSlotUpgrade.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -123,6 +124,16 @@ UPoolSubsystem *UItemSlotUpgradeWidget::GetPool() const
 	return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
 }
 
+UCurrencyComponent *UItemSlotUpgradeWidget::GetWallet() const
+{
+	if (UCurrencyComponent *Wallet = CurrencyWallet::FindFor(GetOwningPlayerPawn()))
+	{
+		return Wallet;
+	}
+	const AWoRPlayerState *Player = GetOwningPlayerState<AWoRPlayerState>();
+	return Player ? Player->GetWallet() : nullptr;
+}
+
 TArray<UItemSlotUpgradeWidget::FMember> UItemSlotUpgradeWidget::GatherMembers() const
 {
 	TArray<FMember> Members;
@@ -137,6 +148,7 @@ TArray<UItemSlotUpgradeWidget::FMember> UItemSlotUpgradeWidget::GatherMembers() 
 	{
 		if (Member.CharacterData)
 		{
+			// TODO: D-061: the character's name is still an FString on its data asset.
 			Members.Add({UPoolSubsystem::GetCharacterKey(Member), FText::FromString(Member.CharacterData->Name)});
 		}
 	}
@@ -148,7 +160,7 @@ void UItemSlotUpgradeWidget::Refresh()
 	const TArray<FMember> Members = GatherMembers();
 	MemberIndex = Members.IsEmpty() ? 0 : MemberIndex % Members.Num();
 	const UPoolSubsystem *Pool = GetPool();
-	const UCurrencyComponent *Wallet = CurrencyWallet::FindFor(GetOwningPlayerPawn());
+	const UCurrencyComponent *Wallet = GetWallet();
 	const FText Currency = WoRGameNames::GetCurrencyName(ItemSlotUpgrade::GetCurrency());
 	const bool bHasMember = Pool && !Members.IsEmpty();
 	const int32 Slots = bHasMember ? Pool->GetItemSlotCount(Members[MemberIndex].Key) : 0;
@@ -204,7 +216,7 @@ void UItemSlotUpgradeWidget::HandleBuyClicked()
 		return;
 	}
 	FText Refusal;
-	if (ItemSlotUpgrade::TryBuy(this, *Pool, Members[MemberIndex].Key, CurrencyWallet::FindFor(GetOwningPlayerPawn()), Refusal))
+	if (ItemSlotUpgrade::TryBuy(this, *Pool, Members[MemberIndex].Key, GetWallet(), Refusal))
 	{
 		Status = FText::Format(LOCTEXT("Bought", "{0}'s pouch now holds {1} item types."), Members[MemberIndex].Name,
 							   FText::AsNumber(Pool->GetItemSlotCount(Members[MemberIndex].Key)));
