@@ -367,6 +367,17 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default (2026-11-09). Crown may change any part; a per-character setting (B) is one more input to `CastVisuals::Resolve`.
 **Notes for Claude:** built in B-394 (`Combat/Presentation/CastVisuals.h`; `UWeaponData::CastVFX`; `UImpactVisualDefaults::AdapterCastVFX`, `GenericCastVFXPreference`).
 
+### Q-392 — The two guards: where the setting lives, what "equipping" resets, which montages
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-392, D-170) · **Blocks:** —
+**Question:** Where does the per-character guard setting live, when does equipping a weapon put it back to Weapon, and which montages are the two guards?
+**Context:** Every Guard plays `UCosmeticsData::BlockMontage` today (B-202, `DefenseSystem.cpp` `PlayDefenseAnimation`). `UWeaponData::ParryMontage` and a per-weapon, unsaved `FWeaponLoadoutEntry::bUseWeaponParryAnimation` exist from before (only the obsolete `GetParryMontage` reads them). There is no weapon-type asset.
+**Recommendation (default):**
+- The setting is per party member (`FPartyMember::GuardStyle`, saved, save v32), read and set through the battle pawn's loadout (`ULoadoutComponent::GetGuardStyle` / `SetGuardStyle`). A pawn with no party record (an enemy) keeps its own, default Weapon.
+- Choosing Unarmed remembers the weapon put away (its owned GUID). With any other weapon in hand the weapon guard is back, so equipping a weapon makes the weapon guard the default without a hook in every equip path. Putting the same weapon back in hand later keeps it put away. With no weapon in hand the guard is always Unarmed.
+- The weapon guard is the weapon asset's `ParryMontage`, authored per weapon with its type's clip (AssetAudit "Weapon families"). The unarmed guard is the character's `Cosmetics->BlockMontage` (the body), and customising it means picking that asset. A weapon with no `ParryMontage` yet plays the unarmed guard. Reference: in Elden Ring and Dark Souls the guard animation follows the item held (one per weapon or shield type), and how you hold it changes only the look; players understand it well. The window doesn't change (D-170, Expedition 33).
+- It is set from the console for now (`wor.Guard.Set`), and from the loadout screen later (D-024). There is no player-facing label yet; the screen adds its LOCTEXT names when it is built (D-062).
+**Answer:** the default, by the reference-backed default (2026-11-09). **Known (desktop review, 2026-11-12):** in co-op a guest's guard choice stays on its own machine (`UParty` is not replicated), so the host plays the default weapon guard for a guest's character until the choice goes through a server call with the party record's replication (TODO in `ULoadoutComponent::SetGuardStyle`, D-103). Choosing Unarmed is refused when the weapon in hand has no persistent id.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?

@@ -101,6 +101,9 @@ void FSaveSpec::Define()
 		Party->Members[1].HeadStartSpirit = SAVED_HEAD_START_SPIRIT;
 		Party->Members[1].bBrokenDarkness = true; // B-348c
 		Party->Members[1].RunStrain = SAVED_RUN_STRAIN;
+		const FGuid SavedGuardWeapon = FGuid::NewGuid(); // B-392
+		Party->Members[1].GuardStyle = EGuardStyle::Unarmed;
+		Party->Members[1].GuardWeaponId = SavedGuardWeapon;
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -132,6 +135,9 @@ void FSaveSpec::Define()
 		TestTrue(TEXT("Head-start survives save / load (B-348b)"), Back.HeadStartMind == SAVED_HEAD_START_MIND && Back.HeadStartBody == 0 &&
 																		Back.HeadStartSpirit == SAVED_HEAD_START_SPIRIT);
 		TestTrue(TEXT("Broken Darkness survives save / load (B-348c)"), Back.bBrokenDarkness);
+		TestTrue(TEXT("The guard and its put-away weapon survive save / load (B-392)"),
+				 Back.GuardStyle == EGuardStyle::Unarmed && Back.GuardWeaponId == SavedGuardWeapon);
+		TestTrue(TEXT("Member 0 keeps the weapon guard"), Restored->Members[0].GuardStyle == EGuardStyle::Weapon);
 		TestEqual(TEXT("The run's strain goes with a saved run"), Back.RunStrain, SAVED_RUN_STRAIN);
 		TestEqual(TEXT("... and not without one"), USaveSubsystem::CaptureParty(Party, false).Members[1].RunStrain, 0.0f);
 		TestTrue(TEXT("... while Broken Darkness is kept outside the run too"), USaveSubsystem::CaptureParty(Party, false).Members[1].bBrokenDarkness);

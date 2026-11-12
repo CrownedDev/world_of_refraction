@@ -57,8 +57,9 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
     USkillDataBase *OverrideAttack = nullptr;
 
-    /** Use this weapon's own parry animation instead of the character's.
-     *  Per-equipped-weapon decision. */
+    /** OBSOLETE (B-392, D-170): the guard is a per-character setting now (ULoadoutComponent::GetGuardStyle); only the
+     *  obsolete GetParryMontage reads this. Remove with it after PIE.
+     *  Use this weapon's own parry animation instead of the character's. Per-equipped-weapon decision. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
     bool bUseWeaponParryAnimation = true;
 
