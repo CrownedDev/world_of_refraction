@@ -50,6 +50,17 @@ namespace AugmentStoneConstants
      *  S grants two back to back; every other tier one. */
     constexpr int32 EMERALD_BONUS_TURNS = 1;
     constexpr int32 EMERALD_S_BONUS_TURNS = 2;
+
+    /** B-170d (Crown, Q-170f), read only with wor.Turns.ActionPips 1: an Emerald on yourself or an ally gives actions,
+     *  not a bonus turn, by tier F..S: +1 in 2 turns, +1 next turn, +1 now, +2 in 2 turns, +2 next turn, +2 now, +3 now.
+     *  May pass Max Actions. Delay 0 = now, 1 = the holder's next turn start, 2 = the one after. */
+    constexpr int32 EMERALD_ALLY_ACTIONS_GAINED[7] = {1, 1, 1, 2, 2, 2, 3};    // TODO: tune
+    constexpr int32 EMERALD_ALLY_GAIN_DELAY_TURNS[7] = {2, 1, 0, 2, 1, 0, 0}; // TODO: tune
+    static_assert(sizeof(EMERALD_ALLY_ACTIONS_GAINED) / sizeof(int32) == 7,
+                  "EMERALD_ALLY_ACTIONS_GAINED must have one entry per tier (F..S)");
+    static_assert(sizeof(EMERALD_ALLY_GAIN_DELAY_TURNS) / sizeof(int32) == 7,
+                  "EMERALD_ALLY_GAIN_DELAY_TURNS must have one entry per tier (F..S)");
+
     static_assert(sizeof(EMERALD_BONUS_TURN_DELAY) / sizeof(int32) == 7,
                   "EMERALD_BONUS_TURN_DELAY must have one entry per tier (F..S)");
     static_assert(EMERALD_BONUS_TURN_DELAY[0] == 6 && EMERALD_BONUS_TURN_DELAY[6] == 0,

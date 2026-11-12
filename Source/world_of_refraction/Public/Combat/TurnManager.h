@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "Combat/TurnRotation.h"
 #include "TurnManager.generated.h"
 
 namespace TurnManagerTeams
@@ -277,11 +278,15 @@ public:
 	/** B-228: the global turn count (the number OnTurnStarted carries). */
 	int32 GetTurnCount() const { return GlobalTurnCount; }
 
+	/** B-170b: true when this fight runs the fixed rotation (wor.Turns.ActionPips was 1 when it started). */
+	bool IsRotationMode() const { return bRotationMode; }
+
 	// ========================================
 	// SPEED CHANGES
 	// ========================================
 
-	/** Notify that actor's speed changed (recalculates ratios) */
+	/** Notify that actor's speed changed (recalculates ratios). A no-op in the fixed rotation (B-170b):
+	 *  speed no longer moves turns; callers stay until the speed timeline is deleted (B-170h). */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void OnActorSpeedChanged(AActor *Actor);
 
@@ -303,7 +308,8 @@ public:
 
 	/** Push Actor's next normal turn back by Places places in the turn order (Wind break,
 	 *  D-014 / D-090): when it would be picked, the next in line goes first. It still acts
-	 *  that round. Pinned bonus / Execution turns are not moved. */
+	 *  that round. Pinned bonus / Execution turns are not moved. A no-op in the fixed rotation (B-170b):
+	 *  Wind's break takes an action there instead (B-170d). */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void DelayNextTurn(AActor *Actor, int32 Places);
 
@@ -400,6 +406,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintBelt();
 
+	/** B-170b: "Mode: fixed rotation" with the round and the rest of it, or "Mode: speed timeline". */
+	FString GetTurnModeString() const;
+
 private:
 	// ========================================
 	// INTERNAL STATE
@@ -453,6 +462,13 @@ private:
 	UPROPERTY()
 	bool bCombatActive;
 
+	/** B-170b: latched from wor.Turns.ActionPips at InitializeCombat, so a fight never changes mode midway.
+	 *  False = the speed timeline as built (byte-identical). */
+	bool bRotationMode = false;
+
+	/** B-170b: the fixed rotation's live state (used only when bRotationMode). RebuildBelt steps a copy. */
+	FTurnRotation Rotation;
+
 	// ========================================
 	// INTERNAL METHODS
 	// ========================================
@@ -468,6 +484,7 @@ private:
 	 *  passed refs. */
 	bool AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 						 TArray<FScheduledTurn> &Pending,
+						 FTurnRotation &RotationState,
 						 FPreviewTurnEntry &OutEntry,
 						 bool *bOutRoundAdded = nullptr) const;
 

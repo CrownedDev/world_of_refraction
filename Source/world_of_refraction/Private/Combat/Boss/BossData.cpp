@@ -124,9 +124,10 @@ UBossData *UBossData::FindFor(const UCharacterData *Character)
 FString UBossData::GetBossDataString() const
 {
 	const TArray<FBossPhase> InUse = GetPhasesToUse();
-	FString Out = FString::Printf(TEXT("Boss %s (%s, style %s): %d phase(s)%s"), *GetName(),
+	FString Out = FString::Printf(TEXT("Boss %s (%s, style %s): %d phase(s)%s, opening cinematic %s"), *GetName(),
 								  Boss ? *Boss->Name : TEXT("<no character>"), *UEnum::GetValueAsString(Style), InUse.Num(),
-								  Phases.IsEmpty() && !InUse.IsEmpty() ? TEXT(" from the style preset") : TEXT(""));
+								  Phases.IsEmpty() && !InUse.IsEmpty() ? TEXT(" from the style preset") : TEXT(""),
+								  OpeningSequence.IsNull() ? TEXT("none") : *OpeningSequence.ToString()); // B-406
 	for (const FBossPhase &Phase : InUse)
 	{
 		TArray<FString> Conditions;
@@ -137,6 +138,10 @@ FString UBossData::GetBossDataString() const
 		Out += FString::Printf(TEXT("\n  %s: when [%s] -> %d effect(s), AI +%d, weather %.2f%s"), *Phase.PhaseId.ToString(),
 							   *FString::Join(Conditions, TEXT(" and ")), Phase.PhaseEffects.Num(), Phase.AggressionSteps,
 							   Phase.WeatherIntensity, Phase.DialogueId.IsNone() ? TEXT("") : *FString::Printf(TEXT(", dialogue %s"), *Phase.DialogueId.ToString()));
+		if (!Phase.CinematicSequence.IsNull())
+		{
+			Out += FString::Printf(TEXT(", cinematic %s"), *Phase.CinematicSequence.ToString()); // B-406
+		}
 	}
 	for (const FBossTrigger &Trigger : Triggers)
 	{

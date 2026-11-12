@@ -10,6 +10,7 @@
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/Encounter/EFirstStrike.h"
 #include "Combat/Grid/ECombatRow.h"
+#include "Combat/Camera/CombatCameraTypes.h"
 #include "AI/AIDecisionManager.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
@@ -347,6 +348,23 @@ public:
 	bool bRowMoveUsedThisTurn = false;
 
 	// ========================================
+	// ACTION PIPS (B-170c, ActionPips.md §3.3)
+	// ========================================
+
+	/** True when this fight runs banked actions: wor.Turns.ActionPips was 1 when it started (the TurnManager's
+	 *  latched mode). False = one action per turn, as built. */
+	bool IsActionPipsFight() const;
+
+	/** Q-170b: why Actor can't pay Action's action cost now: above its Max Actions ("Costs more actions than you
+	 *  can hold.") or above its bank ("Needs 2 actions."). Empty when it can, or outside an action-pips fight.
+	 *  The menu greys a skill with it (B-170e); the submit paths refuse with it. */
+	UFUNCTION(BlueprintPure, Category = "Combat|Actions")
+	FText GetActionCostRefusedReason(AActor *Actor, const FAction &Action) const;
+
+	/** "Hero's turn: Basic Attack -1, Ability -1 (0 left)": the current turn's action spends (wor.Actions.Print). */
+	FString GetTurnSpendsString() const;
+
+	// ========================================
 	// DEBUG TOOLS
 	// ========================================
 
@@ -379,6 +397,13 @@ public:
 	/** B-223: Enemy's own rank (its team's, B-224b) for its level drop; set by the battle mode at spawn. An enemy
 	 *  without one uses the fight's rank. */
 	void SetEnemyRank(const AActor *Enemy, EEncounterRank Rank) { EnemyRanks.Add(Enemy, Rank); }
+
+	/** B-405: Enemy's own rank (SetEnemyRank), else the fight's. Read by the camera (boss height, kill shot). */
+	EEncounterRank GetEnemyRank(const AActor *Enemy) const
+	{
+		const EEncounterRank *OwnRank = EnemyRanks.Find(Enemy);
+		return OwnRank ? *OwnRank : EncounterRank;
+	}
 
 	/** B-187b: Enemy's tier steps (a revived mini-boss's team, Q-187b) for its level drop; set by the battle mode at
 	 *  spawn, as SetEnemyRank. 0 when unset. */
@@ -584,6 +609,17 @@ private:
 
 	FTimerHandle AutoAdvanceTimerHandle;
 
+	// B-405 (R14): the kill shot's hold between the last enemy's death and the end of a won fight.
+	FTimerHandle KillShotHoldTimer;
+	TWeakObjectPtr<AActor> LastEnemyDown;
+
+	/** B-405: plays the kill shot on the last enemy down and sets the hold timer. False when no kill shot shows (no
+	 *  viewer, as in headless tests): the caller ends the fight at once, as before. */
+	bool StartKillShotHold();
+	/** B-405: the hold is over: the won fight ends (rewards, return to the world). */
+	void FinishKillShotHold();
+	bool IsHoldingKillShot() const;
+
 	UPROPERTY()
 	UAIDecisionManager *AIDecisionManagerRef = nullptr;
 
@@ -597,6 +633,17 @@ private:
 
 	void TeardownCombatHUD();
 
+	/** B-406: turn 1 (TurnManager InitializeCombat) and the HUD; after a boss's opening cinematic when it has one. */
+	void BeginFirstTurn(int32 OpeningTeam);
+
+	/** B-406: a boss cinematic ended: turn 1 starts (opening) or the held action request goes out (phase). */
+	UFUNCTION()
+	void HandleBossCinematicFinished(EBossCinematicKind Kind);
+
+	/** B-406: the camera director hides / shows the whole combat HUD around a boss cinematic. */
+	UFUNCTION()
+	void HandleCinematicHudHidden(bool bHudHidden);
+
 	/** Shared end-of-combat cleanup for ALL three end paths (win in OnActionCompleted,
 	 *  TurnManager-driven HandleCombatEnded, ForceEndCombat): timers, TurnManager +
 	 *  per-actor OnDied unbinds, weather, effects, status bars, loadout battle state,
@@ -605,6 +652,40 @@ private:
 
 	/** Track if we're waiting for async action to complete */
 	bool bWaitingForAsyncAction = false;
+
+	/** B-406: waiting (with bWaitingForAsyncAction) on a boss cinematic: the opening before turn 1 (with the team that
+	 *  opens), or a phase cinematic before the next action request (no defence timing until the HUD is back). */
+	bool bHoldingForBossOpening = false;
+	bool bHoldingForBossCinematic = false;
+	int32 PendingOpeningTeam = INDEX_NONE;
+
+	/** B-170c (Q-170c): the action just paid for leaves the turn open (a skill, spell, item, ritual arming or
+	 *  switch in an action-pips fight). Read and cleared by OnActionCompleted, so every other way there (Defend,
+	 *  End Turn, a pass, auto-advance, an Execution turn, a death at turn start) ends the turn as before. */
+	bool bTurnContinuesAfterAction = false;
+
+	/** B-170c: combatants that have had a turn this fight. A first turn plays the fight-start bank without a
+	 *  regain (Q-170c2); per-fight state on the battle actor (D-064). */
+	UPROPERTY()
+	TArray<TObjectPtr<AActor>> ActorsPastFirstTurn;
+
+	/** B-170c: the current turn's spends, for GetTurnSpendsString. Reset at each turn start. */
+	TArray<FString> TurnSpends;
+
+	/** B-170c (ActionPips.md §1): the turn's actions, in Crown's order: (1) the regain (not on the actor's first
+	 *  turn), (2) the start-of-turn action changes (B-170d), (3) only then the check. False = no actions, no turn. */
+	bool BeginTurnActions(AActor *Actor);
+
+	/** B-170c: in an action-pips fight, refuses an action the bank can't pay (OutRefusedReason) or spends its
+	 *  cost and sets bTurnContinuesAfterAction. Outside one, pays nothing and the turn ends after it (as built). */
+	bool PayActionCost(const FAction &Action, FString &OutRefusedReason);
+
+	/** B-170c: after an action, whether Actor is asked again: alive, not on an Execution turn, player-driven
+	 *  (the AI spends one action a turn until B-170f), not stunned, actions left. */
+	bool CanContinueTurn(AActor *Actor) const;
+
+	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left stay banked. */
+	void EndTurnByChoice();
 
 	/** Armed deferred activations (W-B). Keyed by an orchestrator-owned PayloadId
 	 *  handed to TurnManager::ScheduleExecutionTurn at arm; looked up by the same

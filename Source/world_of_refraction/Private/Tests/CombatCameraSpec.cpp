@@ -1,6 +1,7 @@
 // CombatCameraSpec.cpp
 // Combat camera rules (B-156, Design/CombatCamera.md): the mode the viewer sees, the template a
 // skill falls back to, and where each mode puts the camera. B-370: the cinematic window and the Defence view.
+// B-406: boss cinematics (opening before turn 1, phase change) with the HUD broadcast, and the named-attack shot.
 // B-398: the turn-view setting's layouts and its save. B-399: the menu-depth step and the menu driving it.
 // B-400: the target view (target cut with several enemies), the highlight's cycling, and the director following it.
 
@@ -8,20 +9,27 @@
 
 #include "Misc/AutomationTest.h"
 #include "Combat/Camera/CombatCameraTypes.h"
+#include "Combat/Camera/CameraFramingChecks.h"
+#include "Combat/Camera/BossFraming.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "WoRTestWorld.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/Camera/CombatCameraComponent.h"
-#include "Combat/Camera/CameraFramingChecks.h"
 #include "Save/SaveSubsystem.h"
+#include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Actions/ActionStructs.h"
+#include "GameFramework/PlayerController.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/ScopeExit.h"
 #include "LevelSequence.h"
+#include "Combat/Boss/BossData.h"
+#include "Combat/Boss/BossPhaseComponent.h"
+#include "BossCinematicRecorder.h"
 
 namespace
 {
@@ -45,6 +53,8 @@ namespace
 	/** B-156's centred-wide turn view for CombatCameraTestFrame: 650 back, 320 up. B-398 must not move it. */
 	const FVector TURN_TEST_CENTRED_WIDE_LOCATION(-650.0f, 0.0f, 320.0f);
 	constexpr float TURN_TEST_LOCATION_TOLERANCE = 0.1f;
+	/** B-404: world ticks well past a wide beat (0.5 s) at the test wrapper's 0.01 s step. */
+	constexpr int32 BEAT_TEST_TICKS_PAST_BEAT = 200;
 	/** A byte past the last ETurnViewStyle (a save from a later build). */
 	constexpr uint8 TURN_TEST_UNKNOWN_STYLE = 7;
 
@@ -329,6 +339,29 @@ void FCombatCameraSpec::Define()
 
 	Describe("target cut with several enemies (B-400, study R3 / §9, Q-400)", [this]()
 	{
+		It("re-aims from the boss-height turn view it is given, and Over the Shoulder's front shot ignores it (B-400 x B-405)", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, TurnTestThreeEnemies());
+			const FVector Feet = TurnTestThreeEnemies()[0];
+			for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder})
+			{
+				const FTransform Base = FCombatCameraRules::ComputeTurnView(Style, Frame, CommandMenuRules::MAIN_MENU_DEPTH);
+				const FTransform Low = FBossFramingRules::ApplyHeight(Base, EEnemyCameraHeight::Low, Style, Frame);
+				const FTransform FromBase = FCombatCameraRules::ComputeTargetView(Style, Frame, Feet, TARGET_TEST_PERSON_HEIGHT,
+																				   CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
+				const FTransform FromLow = FCombatCameraRules::ComputeTargetViewFrom(Style, Frame, Low, Feet, TARGET_TEST_PERSON_HEIGHT, TARGET_TEST_SEVERAL);
+				const FString Name = UEnum::GetValueAsString(Style);
+				if (Style == ETurnViewStyle::OverTheShoulder)
+				{
+					TestTrue(FString::Printf(TEXT("%s: the front shot is the same"), *Name), FromLow.Equals(FromBase));
+					continue;
+				}
+				TestTrue(FString::Printf(TEXT("%s: the re-aim stands where the low turn view stands"), *Name),
+						 FromLow.GetLocation().Equals(Low.GetLocation()));
+				TestTrue(FString::Printf(TEXT("%s: the boss height is really lower"), *Name), Low.GetLocation().Z < Base.GetLocation().Z);
+			}
+		});
+
 		It("keeps each target's feet, head and HP bar on screen, in every style, for several positions and sizes", [this]()
 		{
 			const TArray<FVector> Enemies = TurnTestThreeEnemies();
@@ -466,15 +499,81 @@ void FCombatCameraSpec::Define()
 			TestEqual(TEXT("movement off: static (D-078)"), FCombatCameraRules::SelectHandOffMode(true, true, true), ECombatCameraMode::Static);
 		});
 
-		It("puts the Defence view behind the defender, facing the attacker; further back for several", [this]()
+		Describe("the side-on Defence view (B-402, R10, R10b)", [this]()
 		{
+			// Defender(s) around the origin, the attacker 1000 cm ahead on +X, facing back along -X (its right is -Y).
 			const FVector Attacker(1000.0f, 0.0f, 0.0f);
-			const FTransform One = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Attacker);
-			TestTrue(TEXT("behind the defender"), One.GetLocation().X < 0.0f);
-			TestTrue(TEXT("above it"), One.GetLocation().Z > 0.0f);
-			TestTrue(TEXT("facing the attacker"), One.GetRotation().GetForwardVector().X > 0.0f);
-			const FTransform Two = FCombatCameraRules::ComputeDefenceView({FVector(0.0f, -300.0f, 0.0f), FVector(0.0f, 300.0f, 0.0f)}, Attacker);
-			TestTrue(TEXT("two spread out: further back"), Two.GetLocation().X < One.GetLocation().X);
+			const float HalfHeight = 90.0f; // a character's head and feet above and below its centre
+			const auto WholeOnScreen = [this, HalfHeight](const FTransform &View, const FVector &Who, const TCHAR *Name)
+			{
+				for (const float Z : {-HalfHeight, 0.0f, HalfHeight})
+				{
+					TestTrue(FString::Printf(TEXT("%s on screen at %+.0f cm"), Name, Z),
+							 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Who + FVector(0.0f, 0.0f, Z)));
+				}
+			};
+
+			It("one target: a low side-on two-shot with both fighters whole on screen, from the weapon side", [this, Attacker, WholeOnScreen]()
+			{
+				const FVector Defender = FVector::ZeroVector;
+				const FTransform View = FCombatCameraRules::ComputeDefenceView({Defender}, Attacker);
+				WholeOnScreen(View, Defender, TEXT("defender"));
+				WholeOnScreen(View, Attacker, TEXT("attacker"));
+				const FVector Mid = (Defender + Attacker) * 0.5f;
+				TestTrue(TEXT("side-on: further across the axis than along it"),
+						 FMath::Abs(View.GetLocation().Y) > FMath::Abs(View.GetLocation().X - Mid.X));
+				TestTrue(TEXT("the attacker's right (weapon) side"), View.GetLocation().Y < 0.0f);
+				const FTransform Turn = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, CombatCameraTestFrame());
+				TestTrue(TEXT("low: below the turn view"), View.GetLocation().Z < Turn.GetLocation().Z);
+				TestTrue(TEXT("nearer the defender than the attacker"),
+						 FVector::Dist(View.GetLocation(), Defender) < FVector::Dist(View.GetLocation(), Attacker));
+			});
+
+			It("several targets: a wide side-on shot that holds every target and the attacker", [this, Attacker, WholeOnScreen]()
+			{
+				const TArray<FVector> Party = {FVector(0.0f, -300.0f, 0.0f), FVector::ZeroVector, FVector(0.0f, 300.0f, 0.0f)};
+				const FTransform Wide = FCombatCameraRules::ComputeDefenceView(Party, Attacker);
+				for (int32 Index = 0; Index < Party.Num(); ++Index)
+				{
+					WholeOnScreen(Wide, Party[Index], *FString::Printf(TEXT("target %d"), Index));
+				}
+				WholeOnScreen(Wide, Attacker, TEXT("attacker"));
+				const FTransform Two = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Attacker);
+				const FVector Mid = (FVector::ZeroVector + Attacker) * 0.5f;
+				TestTrue(TEXT("wider than the two-shot"), FVector::Dist2D(Wide.GetLocation(), Mid) > FVector::Dist2D(Two.GetLocation(), Mid));
+			});
+
+			It("keeps both fighters on screen when the attacker has closed in to melee range", [this, WholeOnScreen]()
+			{
+				const FVector Close(150.0f, 0.0f, 0.0f);
+				const FTransform View = FCombatCameraRules::ComputeDefenceView({FVector::ZeroVector}, Close);
+				WholeOnScreen(View, FVector::ZeroVector, TEXT("defender"));
+				WholeOnScreen(View, Close, TEXT("attacker"));
+			});
+		});
+
+		It("keeps a shot still while the viewer defends: no shake and no FOV punch (B-402, R10, R11)", [this]()
+		{
+			FCameraShotContext Context;
+			Context.Targets = {FVector(1000.0f, 0.0f, 0.0f)};
+			Context.bCritical = true;
+			const FCameraShot Punch = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Context, FSkillCameraTuning());
+			const FCameraShot Steady = FCombatCameraRules::SteadyForDefence(Punch, true);
+			TestEqual(TEXT("defending: no shake"), Steady.ShakeScale, 0.0f);
+			TestEqual(TEXT("defending: no punch"), Steady.FieldOfView, FCombatCameraRules::DefaultFieldOfView);
+			TestTrue(TEXT("defending: same framing"), Steady.End.Equals(Punch.End));
+			TestTrue(TEXT("the test shot has a shake to drop"), Punch.ShakeScale > 0.0f);
+			const FCameraShot Free = FCombatCameraRules::SteadyForDefence(Punch, false);
+			TestEqual(TEXT("not defending: the shake stays"), Free.ShakeScale, Punch.ShakeScale);
+			TestEqual(TEXT("not defending: the punch stays"), Free.FieldOfView, Punch.FieldOfView);
+
+			// B-403 review: an enemy's melee rush seen while defending has no blur (so the director doesn't cut to it).
+			Context.bRanged = false;
+			Context.bAllowRush = true;
+			const FCameraShot Rush = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context, FSkillCameraTuning());
+			TestTrue(TEXT("the test rush has blur to drop"), Rush.MotionBlur > 0.0f);
+			TestEqual(TEXT("defending: no rush blur"), FCombatCameraRules::SteadyForDefence(Rush, true).MotionBlur, 0.0f);
+			TestEqual(TEXT("not defending: the rush blur stays"), FCombatCameraRules::SteadyForDefence(Rush, false).MotionBlur, Rush.MotionBlur);
 		});
 
 		It("reads nothing from a skill without a montage", [this]()
@@ -507,12 +606,43 @@ void FCombatCameraSpec::Define()
 			TestTrue(TEXT("left shoulder when tuned"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Left).End.GetLocation().Y < 0.0f);
 		});
 
-		It("frames the target on impact with a FOV punch and a shake, larger on a crit", [this, Context]()
+		It("rushes in fast with motion blur on a melee wind-up; a spell keeps the slow push (B-403, R5)", [this, Context]()
+		{
+			const FCameraShot Melee = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning());
+			FCameraShotContext SpellContext = Context();
+			SpellContext.bRanged = true;
+			const FCameraShot Spell = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, SpellContext, FSkillCameraTuning());
+			TestTrue(TEXT("melee: a short rush (0.3 s or less)"), Melee.BlendSeconds > 0.0f && Melee.BlendSeconds <= 0.3f);
+			TestTrue(TEXT("melee: motion blur"), Melee.MotionBlur > 0.0f);
+			TestTrue(TEXT("melee: moves toward the target"), Melee.End.GetLocation().X - Melee.Start.GetLocation().X > 0.0f);
+			TestTrue(TEXT("spell: slower than the rush"), Spell.BlendSeconds > Melee.BlendSeconds);
+			TestEqual(TEXT("spell: no blur"), Spell.MotionBlur, 0.0f);
+			FCameraShotContext Calm = Context();
+			Calm.bAllowRush = false;
+			const FCameraShot Still = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Calm, FSkillCameraTuning());
+			TestEqual(TEXT("movement off: no blur"), Still.MotionBlur, 0.0f);
+			TestTrue(TEXT("movement off: the slow push"), Still.BlendSeconds > Melee.BlendSeconds);
+		});
+
+		It("frames caster and target side-on on impact, low, with a small FOV punch and a light shake, larger on a crit (B-403, R6)", [this, Context]()
 		{
 			const FCameraShot Hit = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Context(), FSkillCameraTuning());
-			const FVector ToTarget = (FVector(1000.0f, 0.0f, 0.0f) - Hit.End.GetLocation()).GetSafeNormal();
-			TestTrue(TEXT("looks at the target"), FVector::DotProduct(Hit.End.GetRotation().GetForwardVector(), ToTarget) > 0.99f);
-			TestTrue(TEXT("FOV punch"), Hit.FieldOfView < FCombatCameraRules::DefaultFieldOfView);
+			const FVector Caster = FVector::ZeroVector;
+			const FVector Target(1000.0f, 0.0f, 0.0f);
+			const FVector Look = Hit.End.GetRotation().GetForwardVector();
+			TestTrue(TEXT("side-on: looks across the caster-target line"), FMath::Abs(Look.X) < 0.5f);
+			TestTrue(TEXT("three-quarter front: on the caster's side of the middle"), Hit.End.GetLocation().X < 500.0f);
+			TestTrue(TEXT("low"), Hit.End.GetLocation().Z < 100.0f);
+			TestTrue(TEXT("caster on screen"), CameraFraming::IsOnScreen(Hit.End, Hit.FieldOfView, CameraFraming::DEFAULT_ASPECT, Caster));
+			TestTrue(TEXT("target on screen"), CameraFraming::IsOnScreen(Hit.End, Hit.FieldOfView, CameraFraming::DEFAULT_ASPECT, Target));
+			FCameraShotContext Close = Context({FVector(150.0f, 0.0f, 0.0f)});
+			const FCameraShot Melee = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Close, FSkillCameraTuning());
+			TestTrue(TEXT("melee distance: both on screen"),
+					 CameraFraming::IsOnScreen(Melee.End, Melee.FieldOfView, CameraFraming::DEFAULT_ASPECT, Caster)
+						 && CameraFraming::IsOnScreen(Melee.End, Melee.FieldOfView, CameraFraming::DEFAULT_ASPECT, FVector(150.0f, 0.0f, 0.0f)));
+			const float Punch = FCombatCameraRules::DefaultFieldOfView - Hit.FieldOfView;
+			TestTrue(TEXT("a small FOV punch (10 degrees or less)"), Punch > 0.0f && Punch <= 10.0f);
+			TestTrue(TEXT("no big shake on a normal hit"), Hit.ShakeScale <= 0.5f);
 			TestTrue(TEXT("a shake"), Hit.ShakeScale > 0.0f);
 			FCameraShotContext CritContext = Context();
 			CritContext.bCritical = true;
@@ -535,6 +665,22 @@ void FCombatCameraSpec::Define()
 			const FCameraShot Far = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread,
 				Context({FVector(1000.0f, -600.0f, 0.0f), FVector(1000.0f, 600.0f, 0.0f)}), FSkillCameraTuning());
 			TestTrue(TEXT("wider spread: further back"), Far.End.GetLocation().X < Close.End.GetLocation().X);
+		});
+
+		It("holds a spread still for the whole effect: no move after the pull-out, no shake, no punch (B-403, R8)", [this, Context]()
+		{
+			const TArray<FVector> Targets = {FVector(1000.0f, -600.0f, 0.0f), FVector(1000.0f, 600.0f, 0.0f)};
+			FCameraShotContext CritContext = Context(Targets);
+			CritContext.bCritical = true;
+			const FCameraShot Spread = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread, CritContext, FSkillCameraTuning());
+			TestTrue(TEXT("one transform: nothing to blend"), Spread.Start.Equals(Spread.End));
+			TestTrue(TEXT("held long after its blend"), FCombatCameraRules::BlendShot(Spread, 10.0f).Equals(Spread.End));
+			TestEqual(TEXT("no shake, even on a crit"), Spread.ShakeScale, 0.0f);
+			TestEqual(TEXT("no FOV punch"), Spread.FieldOfView, FCombatCameraRules::DefaultFieldOfView);
+			for (const FVector &Target : Targets)
+			{
+				TestTrue(TEXT("every target on screen"), CameraFraming::IsOnScreen(Spread.End, Spread.FieldOfView, CameraFraming::DEFAULT_ASPECT, Target));
+			}
 		});
 
 		It("follows the projectile on the Cast shot, or holds on the target", [this, Context]()
@@ -587,6 +733,118 @@ void FCombatCameraSpec::Define()
 			TestFalse(TEXT("no skill: nothing"), FCombatCameraRules::UsesShotPatterns(nullptr));
 		});
 	});
+
+	Describe("wide beats and the party handover (B-404, study R12, R16)", [this]()
+	{
+		It("passes a turn change after an action through the wide view, then blends to the next hero", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, {TURN_TEST_ONE_ENEMY});
+			const FTurnChangePlan Plan = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FTransform Wide = FCombatCameraRules::ComputeView(ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
+			TestTrue(TEXT("a wide beat"), Plan.bWideBeat);
+			TestTrue(TEXT("through the wide (NotYourTurn) view"), Plan.WideView.GetLocation().Equals(Wide.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("ends on the next hero's turn view"), Plan.TurnView.GetLocation().Equals(Turn.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("the wide is higher than the turn view"), Plan.WideView.GetLocation().Z > Plan.TurnView.GetLocation().Z);
+			TestTrue(TEXT("the beat holds after blending in"), Plan.BeatSeconds > Plan.BeatBlendSeconds && Plan.BeatBlendSeconds > 0.0f);
+			TestTrue(TEXT("the handover is a blend, not a cut"), Plan.HandoverBlendSeconds > 0.0f);
+		});
+
+		It("adds no wide beat between actions of one actor, on the first turn, with movement off or before an enemy's turn", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTurnChangePlan SameActor = FCombatCameraRules::PlanTurnChange(true, true, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan NobodyActed = FCombatCameraRules::PlanTurnChange(false, false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan MovementOff = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan EnemyTurn = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame);
+			TestFalse(TEXT("same actor keeps acting (B-401)"), SameActor.bWideBeat);
+			TestFalse(TEXT("first turn: nobody acted yet"), NobodyActed.bWideBeat);
+			TestFalse(TEXT("movement off: the static view"), MovementOff.bWideBeat);
+			TestFalse(TEXT("an enemy's watch view is already the wide"), EnemyTurn.bWideBeat);
+			const FTransform Static = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
+			TestTrue(TEXT("movement off still ends on the static view"), MovementOff.TurnView.GetLocation().Equals(Static.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+		});
+	});
+
+	Describe("boss cinematics and named attacks (B-406)", [this]()
+	{
+		It("plays a boss cinematic only with a sequence, a local viewer and cinematics on", [this]()
+		{
+			using R = FCombatCameraRules;
+			TestFalse(TEXT("empty field: nothing"), R::ShouldPlayBossCinematic(false, true, ESkillCinematics::FollowCameraMovement, false));
+			TestFalse(TEXT("no viewer (headless): nothing"), R::ShouldPlayBossCinematic(true, false, ESkillCinematics::FollowCameraMovement, false));
+			TestTrue(TEXT("set and watched: plays"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::FollowCameraMovement, false));
+			TestFalse(TEXT("camera movement off: skipped by default (D-078)"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::FollowCameraMovement, true));
+			TestTrue(TEXT("cinematics forced on: plays"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::On, true));
+			TestFalse(TEXT("cinematics off: nothing"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::Off, false));
+			TestTrue(TEXT("a cap so a broken sequence can't hang the fight"), R::BossCinematicMaxSeconds > 0.0f);
+		});
+
+		It("opens an enemy's named attack on the front shot, every other skill on the wind-up", [this]()
+		{
+			FSkillCameraTuning Named;
+			Named.bNamedAttack = true;
+			TestEqual(TEXT("enemy, named"), FCombatCameraRules::OpeningMomentFor(Named, true), ECameraShotMoment::NamedAttack);
+			TestEqual(TEXT("party member, named"), FCombatCameraRules::OpeningMomentFor(Named, false), ECameraShotMoment::WindUp);
+			TestEqual(TEXT("enemy, not named"), FCombatCameraRules::OpeningMomentFor(FSkillCameraTuning(), true), ECameraShotMoment::WindUp);
+		});
+
+		It("frames the named attack from in front of the enemy, looking back at it, pushing in", [this]()
+		{
+			FCameraShotContext Context;
+			Context.Targets = {FVector(1000.0f, 0.0f, 0.0f)};
+			const FCameraShot Shot = FCombatCameraRules::ComputeShot(ECameraShotMoment::NamedAttack, Context, FSkillCameraTuning());
+			TestTrue(TEXT("in front of the caster, toward its targets"), Shot.End.GetLocation().X > 0.0f);
+			TestTrue(TEXT("short of the targets"), Shot.Start.GetLocation().X < 1000.0f);
+			TestTrue(TEXT("looks back at the caster"), Shot.End.GetRotation().GetForwardVector().X < 0.0f);
+			TestTrue(TEXT("pushes in"), Shot.End.GetLocation().X < Shot.Start.GetLocation().X);
+			TestTrue(TEXT("over time"), Shot.BlendSeconds > 0.0f);
+			TestEqual(TEXT("no shake"), Shot.ShakeScale, 0.0f);
+		});
+
+		It("keeps each phase's cinematic with its phase", [this]()
+		{
+			UBossData *Data = NewObject<UBossData>(GetTransientPackage());
+			FBossPhase First;
+			First.CinematicSequence = TSoftObjectPtr<ULevelSequence>(FSoftObjectPath(TEXT("/Game/Test/LS_BossPhaseTest.LS_BossPhaseTest")));
+			Data->Phases = {First, FBossPhase()};
+			UBossPhaseComponent *Phases = NewObject<UBossPhaseComponent>(GetTransientPackage());
+			Phases->Setup(Data);
+			TestFalse(TEXT("phase 0: its sequence"), Phases->GetPhaseCinematic(0).IsNull());
+			TestTrue(TEXT("phase 1: empty"), Phases->GetPhaseCinematic(1).IsNull());
+			TestTrue(TEXT("out of range: empty"), Phases->GetPhaseCinematic(2).IsNull());
+			TestTrue(TEXT("its boss data"), Phases->GetBossData() == Data);
+		});
+	});
+
+	Describe("no reset between actions (B-401, study R4)", [this]()
+	{
+		It("sends the second action of a turn back to the same turn transform, in one short blend", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, {TURN_TEST_ONE_ENEMY});
+			for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+			{
+				const FTurnChangePlan TurnStart = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, Style, Frame);
+				const FSameTurnReturnPlan Return = FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::Turn, Style, Frame);
+				const FString Name = UEnum::GetValueAsString(Style);
+				TestTrue(Name + TEXT(": a return"), Return.bReturn);
+				TestTrue(Name + TEXT(": the turn start's own transform"), Return.TurnView.Equals(TurnStart.TurnView, TURN_TEST_LOCATION_TOLERANCE));
+				TestTrue(Name + TEXT(": a blend, not a cut"), Return.BlendSeconds > 0.0f);
+				TestTrue(Name + TEXT(": shorter than the handover from wide"), Return.BlendSeconds < TurnStart.HandoverBlendSeconds);
+			}
+		});
+
+		It("leaves the camera alone before any action, on an enemy's watch view and with movement off", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			TestFalse(TEXT("asked again without acting (a refused pick)"),
+					  FCombatCameraRules::PlanSameTurnReturn(false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame).bReturn);
+			TestFalse(TEXT("an enemy's turn"),
+					  FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame).bReturn);
+			TestFalse(TEXT("movement off: the static view"),
+					  FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame).bReturn);
+		});
+	});
 }
 
 BEGIN_DEFINE_SPEC(FCombatCameraDirectorSpec, "WoR.Combat.Camera.Director",
@@ -595,6 +853,19 @@ TUniquePtr<FWoRTestWorld> TestWorld;
 ACombatOrchestrator *Orchestrator = nullptr;
 AActor *Hero = nullptr;
 AActor *Foe = nullptr;
+
+/** B-406: makes Foe a boss with one phase (and Opening as its opening sequence, empty by default). */
+UBossPhaseComponent *MakeFoeABoss(const TSoftObjectPtr<ULevelSequence> &Opening = TSoftObjectPtr<ULevelSequence>())
+{
+	UBossData *Data = NewObject<UBossData>(GetTransientPackage());
+	Data->OpeningSequence = Opening;
+	Data->Phases.Add(FBossPhase());
+	UBossPhaseComponent *Phases = NewObject<UBossPhaseComponent>(Foe);
+	Foe->AddInstanceComponent(Phases);
+	Phases->RegisterComponent();
+	Phases->Setup(Data);
+	return Phases;
+}
 END_DEFINE_SPEC(FCombatCameraDirectorSpec)
 
 void FCombatCameraDirectorSpec::Define()
@@ -631,6 +902,172 @@ void FCombatCameraDirectorSpec::Define()
 		TestFalse(TEXT("out of combat"), Director->IsInCombat());
 		TestEqual(TEXT("no cameras left"), Director->GetCameraCount(), 0);
 		TestNull(TEXT("hero's camera removed"), Hero->FindComponentByClass<UCombatCameraComponent>());
+	});
+
+	It("fires the turn handover once per turn start, whoever acts (B-404, study R16)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, nullptr);
+		TestEqual(TEXT("none before the first turn"), Director->GetHandoverCount(), 0);
+		// Hero -> hero, hero -> enemy, enemy -> hero, and a second turn in a row for one hero.
+		const TArray<AActor *> TurnOrder = {Hero, SecondHero, Foe, Hero, Hero};
+		for (int32 Turn = 0; Turn < TurnOrder.Num(); ++Turn)
+		{
+			Orchestrator->OnActorTurnStarted.Broadcast(TurnOrder[Turn], Turn + 1);
+			TestEqual(FString::Printf(TEXT("one handover after turn start %d"), Turn + 1), Director->GetHandoverCount(), Turn + 1);
+		}
+		TestTrue(TEXT("follows the last turn"), Director->GetViewedActor() == Hero);
+		Director->EndCombat();
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, nullptr);
+		TestEqual(TEXT("a new fight counts from zero"), Director->GetHandoverCount(), 0);
+		Director->EndCombat();
+	});
+
+	It("fires a pending handover exactly once when a turn, or an action, starts inside the beat (B-404)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		TestEqual(TEXT("first turn: at once"), Director->GetHandoverCount(), 1);
+
+		// A turn starting inside the beat.
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestTrue(TEXT("hero -> hero after an action: a wide beat"), Director->IsHandoverPending());
+		TestEqual(TEXT("the beat holds the handover"), Director->GetHandoverCount(), 1);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 3); // nobody acted in turn 2: no beat of its own
+		TestFalse(TEXT("the next turn ran the pending one"), Director->IsHandoverPending());
+		TestEqual(TEXT("the pending one once, then turn 3's own"), Director->GetHandoverCount(), 3);
+
+		// An action starting inside the beat.
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 4);
+		TestTrue(TEXT("a wide beat again"), Director->IsHandoverPending());
+		Executor->OnActionStarted.Broadcast(SecondHero, FAction(), 0);
+		TestFalse(TEXT("the action ran the pending one"), Director->IsHandoverPending());
+		TestEqual(TEXT("once for turn 4"), Director->GetHandoverCount(), 4);
+		Executor->OnActionStarted.Broadcast(SecondHero, FAction(), 0);
+		TestEqual(TEXT("a second action of the turn adds none"), Director->GetHandoverCount(), 4);
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
+		Director->EndCombat();
+	});
+
+	It("returns to the same hero's turn view between actions of one turn, with no wide beat (B-401, study R4)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		// A non-local controller sent back to the view it is leaving mid-blend makes the engine call ClientSetViewTarget,
+		// which runs locally and recurses (PlayerCameraManager.cpp abort-transition branch). This case switches views
+		// mid-blend on purpose (return, kill shot, movement off), so the bare controller counts as local.
+		Viewer->SetAsLocalPlayerController();
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("the turn start's own ask is no return"), Director->GetSameTurnReturnCount(), 0);
+
+		// Two actions in one turn (B-170c): asked again after each.
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("asked again after an action: a return"), Director->GetSameTurnReturnCount(), 1);
+		TestFalse(TEXT("no wide beat between actions of one turn"), Director->IsHandoverPending());
+		TestEqual(TEXT("no handover between actions of one turn"), Director->GetHandoverCount(), 1);
+		TestEqual(TEXT("the turn view again"), Director->GetCurrentMode(), ECombatCameraMode::Turn);
+		Orchestrator->OnActionRequested.Broadcast(Hero); // a refused pick asked again
+		TestEqual(TEXT("no action since the last ask: none"), Director->GetSameTurnReturnCount(), 1);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("a third action's ask: a return"), Director->GetSameTurnReturnCount(), 2);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(SecondHero); // not the actor the camera follows
+		TestEqual(TEXT("another actor asked after Hero acted: no return"), Director->GetSameTurnReturnCount(), 2);
+		TestTrue(TEXT("still following Hero"), Director->GetViewedActor() == Hero);
+
+		// Only a turn change does the full move.
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestTrue(TEXT("hero -> hero after acting: the wide beat"), Director->IsHandoverPending());
+		Orchestrator->OnActionRequested.Broadcast(SecondHero);
+		TestEqual(TEXT("a new turn's ask is no return"), Director->GetSameTurnReturnCount(), 2);
+
+		// Movement off: the static view stays.
+		Director->SetCameraMovementOff(true);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 3);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("movement off: no return"), Director->GetSameTurnReturnCount(), 2);
+		TestEqual(TEXT("movement off: static"), Director->GetCurrentMode(), ECombatCameraMode::Static);
+		Director->SetCameraMovementOff(false);
+
+		// Review: a kill shot on screen keeps its view (B-405).
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Director->PreviewKillShot(EKillShotKind::Normal);
+		if (TestEqual(TEXT("the kill shot is on screen"), Director->GetCurrentMode(), ECombatCameraMode::KillShot))
+		{
+			Orchestrator->OnActionRequested.Broadcast(Hero);
+			TestEqual(TEXT("asked again under a kill shot: no return"), Director->GetSameTurnReturnCount(), 2);
+			TestEqual(TEXT("the kill shot stays"), Director->GetCurrentMode(), ECombatCameraMode::KillShot);
+		}
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
+		Director->EndCombat();
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		TestEqual(TEXT("a new fight counts from zero"), Director->GetSameTurnReturnCount(), 0);
+		Director->EndCombat();
+	});
+
+	It("drops a pending handover when the fight ends, and never fires one for a preview (B-404)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestTrue(TEXT("a wide beat"), Director->IsHandoverPending());
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
+		Director->EndCombat();
+		TestFalse(TEXT("the fight's end dropped it"), Director->IsHandoverPending());
+		TestWorld->Tick(BEAT_TEST_TICKS_PAST_BEAT);
+		TestEqual(TEXT("its timer was cleared: nothing fires later"), Director->GetHandoverCount(), 1);
+
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		TestTrue(TEXT("a preview plays a beat"), Director->PreviewHandover(1));
+		TestEqual(TEXT("a preview fires nothing at its start"), Director->GetHandoverCount(), 1);
+		TestWorld->Tick(BEAT_TEST_TICKS_PAST_BEAT);
+		TestEqual(TEXT("nor at its end"), Director->GetHandoverCount(), 1);
+		TestTrue(TEXT("the turn is unchanged"), Director->GetViewedActor() == Hero);
+		TestTrue(TEXT("a second preview"), Director->PreviewHandover(1));
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 2); // a turn inside the preview: only its own handover
+		TestEqual(TEXT("the flushed preview fires nothing"), Director->GetHandoverCount(), 2);
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
+		Director->EndCombat();
 	});
 
 	It("keeps the turn-view setting across a fight restart and on a new orchestrator (B-398, saved)", [this]()
@@ -681,6 +1118,7 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		MenuCameraTestAddLoadout(Hero);
 		MenuCameraTestAddLoadout(Foe);
 		Menu->SetCombatOrchestrator(Orchestrator);
@@ -689,6 +1127,9 @@ void FCombatCameraDirectorSpec::Define()
 		ON_SCOPE_EXIT
 		{
 			Menu->ClearCombatOrchestrator();
+			// The bare controller is not a local player: restoring its own view mid-blend (EndCombat) makes the engine's
+			// camera manager call ClientSetViewTarget, which runs locally with no connection and recurses (stack overflow).
+			Director->SetViewerForTests(nullptr);
 			if (Orchestrator->GetCombatState() != ECombatState::Idle)
 			{
 				Orchestrator->ForceEndCombat(ECombatState::Victory);
@@ -736,6 +1177,7 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		for (AActor *Actor : {Hero, Foe, SecondFoe})
 		{
 			MenuCameraTestAddLoadout(Actor);
@@ -746,6 +1188,7 @@ void FCombatCameraDirectorSpec::Define()
 		ON_SCOPE_EXIT
 		{
 			Menu->ClearCombatOrchestrator();
+			Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
 			if (Orchestrator->GetCombatState() != ECombatState::Idle)
 			{
 				Orchestrator->ForceEndCombat(ECombatState::Victory);
@@ -791,6 +1234,100 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("movement off: the static view holds (R15)"), Director->GetTargetMoveCount(), 4);
 		Menu->HandleBack();
 		Director->SetCameraMovementOff(false);
+	});
+
+	Describe("boss cinematics (B-406)", [this]()
+	{
+		It("plays nothing for a boss with empty fields: turn 1 starts at once", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			MakeFoeABoss();
+			UBossCinematicRecorder *Recorder = NewObject<UBossCinematicRecorder>();
+			Recorder->Listen(Director);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestFalse(TEXT("nothing plays"), Director->IsBossCinematicPlaying());
+			TestNotNull(TEXT("turn 1 started"), Director->GetViewedActor());
+			TestEqual(TEXT("no HUD broadcast"), Recorder->HudHidden.Num(), 0);
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("starts at once with an opening set but no viewer (headless)", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			MakeFoeABoss(TSoftObjectPtr<ULevelSequence>(FSoftObjectPath(TEXT("/Game/Test/LS_BossOpeningTest.LS_BossOpeningTest"))));
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestFalse(TEXT("nothing plays without a viewer"), Director->IsBossCinematicPlaying());
+			TestNotNull(TEXT("turn 1 started"), Director->GetViewedActor());
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("runs an opening before the first turn, the HUD hidden, then starts turn 1", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			MakeFoeABoss();
+			Director->BossCinematicPreviewSeconds = 1.0f; // the sequence-free hold: a headless world has no viewer
+			UBossCinematicRecorder *Recorder = NewObject<UBossCinematicRecorder>();
+			Recorder->Listen(Director);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestEqual(TEXT("the opening plays"), Director->GetBossCinematicKind(), EBossCinematicKind::Opening);
+			TestNull(TEXT("no turn yet"), Director->GetViewedActor());
+			TestTrue(TEXT("the fight waits"), Orchestrator->IsWaitingForAsyncAction());
+			TestTrue(TEXT("HUD hidden"), Recorder->HudHidden.Num() == 1 && Recorder->HudHidden[0]);
+
+			Director->FinishBossCinematic();
+			TestFalse(TEXT("ended"), Director->IsBossCinematicPlaying());
+			TestTrue(TEXT("HUD back"), Recorder->HudHidden.Num() == 2 && !Recorder->HudHidden[1]);
+			TestTrue(TEXT("finished: Opening"), Recorder->Finished.Num() == 1 && Recorder->Finished[0] == EBossCinematicKind::Opening);
+			TestNotNull(TEXT("turn 1 started after it"), Director->GetViewedActor());
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("plays a phase cinematic on the phase event, the HUD hidden around it", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			UBossPhaseComponent *Phases = MakeFoeABoss();
+			UBossCinematicRecorder *Recorder = NewObject<UBossCinematicRecorder>();
+			Recorder->Listen(Director);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			Director->BossCinematicPreviewSeconds = 1.0f; // after the start: no opening hold
+			Phases->EnterNextPhase();
+			TestEqual(TEXT("the phase cinematic plays"), Director->GetBossCinematicKind(), EBossCinematicKind::Phase);
+			TestTrue(TEXT("HUD hidden"), Recorder->HudHidden.Num() == 1 && Recorder->HudHidden[0]);
+			Director->FinishBossCinematic();
+			TestTrue(TEXT("HUD back"), Recorder->HudHidden.Num() == 2 && !Recorder->HudHidden[1]);
+			TestTrue(TEXT("finished: Phase"), Recorder->Finished.Num() == 1 && Recorder->Finished[0] == EBossCinematicKind::Phase);
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("never plays one for a normal enemy", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			Director->BossCinematicPreviewSeconds = 1.0f;
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestFalse(TEXT("no opening"), Director->IsBossCinematicPlaying());
+			TestFalse(TEXT("no preview either"), Director->PreviewBossCinematic(EBossCinematicKind::Phase, 0));
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
 	});
 }
 

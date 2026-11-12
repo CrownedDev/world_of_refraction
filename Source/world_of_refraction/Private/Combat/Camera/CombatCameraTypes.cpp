@@ -30,11 +30,6 @@ namespace CombatCameraOffsets
 	constexpr float NotYourTurnHeight = 750.0f;
 	constexpr float StaticBack = 1600.0f;
 	constexpr float StaticHeight = 950.0f;
-	constexpr float DefenceBack = 320.0f;
-	constexpr float DefenceSide = 110.0f;
-	constexpr float DefenceHeight = 170.0f;
-	/** Extra distance back per cm the defenders stand from their centre (several targeted, Q-370 (3)). */
-	constexpr float DefenceSpreadPullback = 1.2f;
 }
 
 namespace CombatCameraShots
@@ -49,14 +44,24 @@ namespace CombatCameraShots
 	constexpr float CastHeight = 180.0f;
 	constexpr float CastSide = 140.0f;
 	constexpr float CastBlendSeconds = 0.35f;
-	constexpr float ImpactBack = 330.0f;
-	constexpr float ImpactSide = 160.0f;
-	constexpr float ImpactHeight = 140.0f;
+	// B-403 (study R5): a melee confirm rushes in fast with motion blur (0.2-0.3 s in the study). TODO: tune.
+	constexpr float RushStartBack = 420.0f;
+	constexpr float RushSeconds = 0.25f;
+	constexpr float RushMotionBlur = 0.8f;
+	// B-403 (study R6): the impact two-shot stands out to the side of the caster-target line, a little toward the
+	// caster (three-quarter front of the target), low. Out = (ImpactSide + gap * ImpactSidePerGap) * scale, never
+	// under gap * ImpactFitPerGap so both fighters stay in frame at any style. TODO: tune.
+	constexpr float ImpactSide = 260.0f;
+	constexpr float ImpactSidePerGap = 0.6f;
+	constexpr float ImpactFitPerGap = 0.9f;
+	constexpr float ImpactThreeQuarterBack = 120.0f;
+	constexpr float ImpactHeight = 40.0f;
 	constexpr float ImpactBlendSeconds = 0.15f;
-	constexpr float ImpactFovPunch = 8.0f;
-	constexpr float CritFovPunch = 14.0f;
-	constexpr float ImpactShake = 0.6f;
-	constexpr float CritShake = 1.0f;
+	// B-403 (R6): a small punch and a light shake on a normal hit; a crit stays bigger (FeelGuide 4). TODO: tune.
+	constexpr float ImpactFovPunch = 5.0f;
+	constexpr float CritFovPunch = 10.0f;
+	constexpr float ImpactShake = 0.25f;
+	constexpr float CritShake = 0.6f;
 	constexpr float SpreadBack = 600.0f;
 	constexpr float SpreadHeight = 380.0f;
 	/** Extra distance back per cm the targets stand from their centre, so every one stays in frame. */
@@ -65,6 +70,13 @@ namespace CombatCameraShots
 	constexpr float CloseScale = 0.75f;
 	constexpr float WideScale = 1.4f;
 	constexpr float BlendEaseExponent = 2.0f;
+	// B-406 (study R9): the named-attack front shot, a medium shot of the enemy from in front, pushing in.
+	constexpr float NamedAttackStartFront = 520.0f;
+	constexpr float NamedAttackEndFront = 380.0f;
+	constexpr float NamedAttackSide = 60.0f;
+	constexpr float NamedAttackHeight = 110.0f;
+	constexpr float NamedAttackLookHeight = 90.0f;
+	constexpr float NamedAttackSeconds = 1.0f;
 }
 
 namespace CombatCameraTargetView
@@ -207,8 +219,13 @@ float FCombatCameraRules::GetTargetViewBlendSeconds(ETurnViewStyle Style)
 FTransform FCombatCameraRules::ComputeTargetView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FVector &TargetFeet, float TargetHeight,
 												 int32 MenuDepth, int32 TargetCount)
 {
+	return ComputeTargetViewFrom(Style, Frame, ComputeTurnView(Style, Frame, MenuDepth), TargetFeet, TargetHeight, TargetCount);
+}
+
+FTransform FCombatCameraRules::ComputeTargetViewFrom(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FTransform &TurnView,
+													 const FVector &TargetFeet, float TargetHeight, int32 TargetCount)
+{
 	using namespace CombatCameraTargetView;
-	const FTransform TurnView = ComputeTurnView(Style, Frame, MenuDepth);
 	if (TargetCount < MinTargetsForTargetView)
 	{
 		return TurnView; // one target: the camera holds (study R3)
@@ -342,28 +359,87 @@ ECombatCameraMode FCombatCameraRules::SelectHandOffMode(bool bViewerDefends, boo
 	return bSequencePlaying ? ECombatCameraMode::Action : ECombatCameraMode::NotYourTurn;
 }
 
+namespace CombatCameraDefence
+{
+	// B-402 (study R10, R10b; Q-402). TODO: tune in PIE (B-157). Distances in cm, angles in degrees.
+	/** Camera height above the fighters' mean centre (their actor locations): low, about hip height. */
+	constexpr float CameraHeight = 20.0f;
+	/** Where the camera looks, above the same centre: chest height, so the shot tilts up a little. */
+	constexpr float AimHeight = 50.0f;
+	/** How far the camera swings from square side-on toward the defenders' backs, so they sit nearer. */
+	constexpr float SwingTowardDefendersDegrees = 20.0f;
+	/** 1: the camera stands on the attacker's right (the weapon hand of most rigs); -1: its left. */
+	constexpr float WeaponSideSign = 1.0f;
+	/** Room kept beside each fighter's centre across the frame, so bodies and weapons stay whole. */
+	constexpr float TwoShotPadding = 150.0f;
+	constexpr float WidePadding = 220.0f;
+	/** The nearest the camera stands to the shot's centre. */
+	constexpr float TwoShotMinDistance = 450.0f;
+	constexpr float WideMinDistance = 700.0f;
+	/** Part of the half-width the fit keeps free: more than CameraFraming's margin, as the fit ignores the small tilt. */
+	constexpr float FitMargin = 0.15f;
+}
+
 FTransform FCombatCameraRules::ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker)
 {
-	using namespace CombatCameraOffsets;
-	if (Defenders.IsEmpty())
+	using namespace CombatCameraDefence;
+	FVector DefenderCentre = Attacker - FVector::ForwardVector * TwoShotMinDistance; // none listed: the attacker alone
+	if (!Defenders.IsEmpty())
 	{
-		return LookFrom(Attacker - FVector::ForwardVector * DefenceBack + FVector::UpVector * DefenceHeight, Attacker);
+		DefenderCentre = FVector::ZeroVector;
+		for (const FVector &Defender : Defenders)
+		{
+			DefenderCentre += Defender;
+		}
+		DefenderCentre /= Defenders.Num();
 	}
-	FVector Centre = FVector::ZeroVector;
-	for (const FVector &Defender : Defenders)
+	const FVector Axis = (Attacker - DefenderCentre).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	// The attacker faces back along the axis, so its right is Up x (-Axis).
+	const FVector WeaponSide = FVector::CrossProduct(FVector::UpVector, -Axis) * WeaponSideSign;
+	const float Swing = FMath::DegreesToRadians(SwingTowardDefendersDegrees);
+	// From the camera toward the fight: square across the axis, swung so the camera stands nearer the defenders' backs.
+	const FVector Look = (Axis * FMath::Sin(Swing) - WeaponSide * FMath::Cos(Swing)).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::RightVector);
+	const FVector Across = FVector::CrossProduct(FVector::UpVector, Look);
+
+	TArray<FVector> Points = Defenders;
+	Points.Add(Attacker);
+	// Centre the frame on the fighters' extremes across the screen, so none is pushed to one edge.
+	FVector Mid = (DefenderCentre + Attacker) * 0.5f;
+	float MinAcross = TNumericLimits<float>::Max();
+	float MaxAcross = TNumericLimits<float>::Lowest();
+	for (const FVector &Point : Points)
 	{
-		Centre += Defender;
+		const float Offset = FVector::DotProduct(Point - Mid, Across);
+		MinAcross = FMath::Min(MinAcross, Offset);
+		MaxAcross = FMath::Max(MaxAcross, Offset);
 	}
-	Centre /= Defenders.Num();
-	float Spread = 0.0f;
-	for (const FVector &Defender : Defenders)
+	Mid += Across * ((MinAcross + MaxAcross) * 0.5f);
+
+	// Stand back until every fighter (plus padding) fits the half-width: nearer fighters need more room.
+	const bool bWide = Defenders.Num() > 1;
+	const float Padding = bWide ? WidePadding : TwoShotPadding;
+	const float HalfTan = FMath::Tan(FMath::DegreesToRadians(DefaultFieldOfView * 0.5f)) * (1.0f - FitMargin);
+	float Distance = bWide ? WideMinDistance : TwoShotMinDistance;
+	for (const FVector &Point : Points)
 	{
-		Spread = FMath::Max(Spread, FVector::Dist2D(Defender, Centre));
+		const FVector Offset = Point - Mid;
+		const float AcrossDistance = FMath::Abs(FVector::DotProduct(Offset, Across));
+		const float Depth = FVector::DotProduct(Offset, Look);
+		Distance = FMath::Max(Distance, (AcrossDistance + Padding) / HalfTan - Depth);
 	}
-	const FVector Forward = (Attacker - Centre).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
-	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
-	const float Back = DefenceBack + Spread * DefenceSpreadPullback;
-	return LookFrom(Centre - Forward * Back + Right * DefenceSide + FVector::UpVector * DefenceHeight, Attacker);
+	return LookFrom(Mid - Look * Distance + FVector::UpVector * CameraHeight, Mid + FVector::UpVector * AimHeight);
+}
+
+FCameraShot FCombatCameraRules::SteadyForDefence(const FCameraShot &Shot, bool bViewerDefending)
+{
+	FCameraShot Out = Shot;
+	if (bViewerDefending)
+	{
+		Out.ShakeScale = 0.0f;
+		Out.FieldOfView = DefaultFieldOfView;
+		Out.MotionBlur = 0.0f; // B-403 review: no melee rush either (no blur, and the director keeps the camera where it is)
+	}
+	return Out;
 }
 
 bool FCombatCameraRules::UsesShotPatterns(const USkillDataBase *Skill)
@@ -404,9 +480,13 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 	{
 		// B-372 review: the height scales with the distance, so a Close wind-up still frames the caster.
 		const FVector Shoulder = Right * WindUpSide * SideSign * Scale + FVector::UpVector * WindUpHeight * Scale;
-		Shot.Start = LookFrom(Context.Caster - Forward * WindUpStartBack * Scale + Shoulder, TargetCentre);
+		// B-403 (R5): a melee confirm is the loud moment: a short fast rush in with motion blur. Spells and ranged
+		// skills keep the slow push (and so does camera movement off, R15).
+		const bool bRush = !Context.bRanged && Context.bAllowRush;
+		Shot.Start = LookFrom(Context.Caster - Forward * (bRush ? RushStartBack : WindUpStartBack) * Scale + Shoulder, TargetCentre);
 		Shot.End = LookFrom(Context.Caster - Forward * WindUpEndBack * Scale + Shoulder, TargetCentre);
-		Shot.BlendSeconds = WindUpSeconds;
+		Shot.BlendSeconds = bRush ? RushSeconds : WindUpSeconds;
+		Shot.MotionBlur = bRush ? RushMotionBlur : 0.0f;
 		break;
 	}
 	case ECameraShotMoment::Cast:
@@ -420,12 +500,29 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 	case ECameraShotMoment::Impact:
 	{
 		const FVector Target = Context.Targets.IsEmpty() ? TargetCentre : Context.Targets[0];
-		// From the caster's side of the target, beside it, so the hit reads toward the camera.
-		Shot.End = LookFrom(Target - Forward * ImpactBack * Scale + Right * ImpactSide * SideSign * Scale + FVector::UpVector * ImpactHeight, Target);
+		// B-403 (R6): a side-on two-shot, low: out to the side of the caster-target line, a little toward the
+		// caster (three-quarter front of the target), far enough out that both stay in frame.
+		const FVector Line = Target - Context.Caster;
+		const FVector Along = Line.GetSafeNormal2D(UE_SMALL_NUMBER, Forward);
+		const FVector Across = FVector::CrossProduct(FVector::UpVector, Along);
+		const float Gap = static_cast<float>(Line.Size2D());
+		const float Out = FMath::Max((ImpactSide + Gap * ImpactSidePerGap) * Scale, Gap * ImpactFitPerGap);
+		const FVector Middle = (Context.Caster + Target) * 0.5f;
+		Shot.End = LookFrom(Middle + Across * Out * SideSign - Along * ImpactThreeQuarterBack * Scale + FVector::UpVector * ImpactHeight, Middle);
 		Shot.Start = Shot.End;
 		Shot.BlendSeconds = ImpactBlendSeconds;
 		Shot.FieldOfView = DefaultFieldOfView - (Context.bCritical ? CritFovPunch : ImpactFovPunch) * Tuning.ShakeScale;
 		Shot.ShakeScale = (Context.bCritical ? CritShake : ImpactShake) * Tuning.ShakeScale;
+		break;
+	}
+	case ECameraShotMoment::NamedAttack:
+	{
+		// In front of the caster (between it and its targets), a little to the tuned side, looking back at it.
+		const FVector LookAt = Context.Caster + FVector::UpVector * NamedAttackLookHeight * Scale;
+		const FVector Offset = Right * NamedAttackSide * SideSign * Scale + FVector::UpVector * NamedAttackHeight * Scale;
+		Shot.Start = LookFrom(Context.Caster + Forward * NamedAttackStartFront * Scale + Offset, LookAt);
+		Shot.End = LookFrom(Context.Caster + Forward * NamedAttackEndFront * Scale + Offset, LookAt);
+		Shot.BlendSeconds = NamedAttackSeconds;
 		break;
 	}
 	case ECameraShotMoment::Spread:
@@ -440,11 +537,23 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 		Shot.End = LookFrom(TargetCentre - Forward * Back + FVector::UpVector * SpreadHeight * Scale, TargetCentre);
 		Shot.Start = Shot.End;
 		Shot.BlendSeconds = SpreadBlendSeconds;
-		Shot.ShakeScale = (Context.bCritical ? CritShake : ImpactShake) * Tuning.ShakeScale;
+		// B-403 (R8): the area effect gets room: the shot holds still to the end (no shake, no FOV punch), so the
+		// whole effect and anything shown beside a target stay in frame.
+		Shot.ShakeScale = 0.0f;
 		break;
 	}
 	}
 	return Shot;
+}
+
+ECameraShotMoment FCombatCameraRules::OpeningMomentFor(const FSkillCameraTuning &Tuning, bool bCasterIsEnemy)
+{
+	return Tuning.bNamedAttack && bCasterIsEnemy ? ECameraShotMoment::NamedAttack : ECameraShotMoment::WindUp;
+}
+
+bool FCombatCameraRules::ShouldPlayBossCinematic(bool bHasSequence, bool bHasLocalViewer, ESkillCinematics Setting, bool bMovementOff)
+{
+	return bHasSequence && bHasLocalViewer && ShouldPlayCinematic(Setting, bMovementOff, false, true);
 }
 
 FTransform FCombatCameraRules::BlendShot(const FCameraShot &Shot, float Alpha)
@@ -453,4 +562,47 @@ FTransform FCombatCameraRules::BlendShot(const FCameraShot &Shot, float Alpha)
 	FTransform Out;
 	Out.Blend(Shot.Start, Shot.End, Eased);
 	return Out;
+}
+
+namespace CombatCameraTurnChange
+{
+	// B-404 (Q-404, study §9: Expedition 33 goes wide, then blends to the next hero within about 0.5 s).
+	// TODO: tune in PIE (B-157). Times in s.
+	constexpr float WideBeatBlendSeconds = 0.3f;
+	constexpr float WideBeatHoldSeconds = 0.2f;
+	constexpr float HandoverBlendSeconds = 0.5f;
+}
+
+FTurnChangePlan FCombatCameraRules::PlanTurnChange(bool bSomeoneActed, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
+												   const FCombatCameraFrame &Frame)
+{
+	using namespace CombatCameraTurnChange;
+	FTurnChangePlan Plan;
+	Plan.TurnView = ComputeView(NextMode, Style, Frame);
+	Plan.bWideBeat = bSomeoneActed && !bSameActor && NextMode == ECombatCameraMode::Turn;
+	if (Plan.bWideBeat)
+	{
+		Plan.WideView = ComputeView(ECombatCameraMode::NotYourTurn, Style, Frame);
+		Plan.BeatBlendSeconds = WideBeatBlendSeconds;
+		Plan.BeatSeconds = WideBeatBlendSeconds + WideBeatHoldSeconds;
+		Plan.HandoverBlendSeconds = HandoverBlendSeconds;
+	}
+	return Plan;
+}
+
+namespace CombatCameraSameTurn
+{
+	// B-401 (Q-401, study R4): Expedition 33 settles straight back behind the same hero between that hero's actions;
+	// shorter than the turn blend (0.6 s) and the handover (0.5 s). TODO: tune in PIE (B-157).
+	constexpr float ReturnBlendSeconds = 0.35f;
+}
+
+FSameTurnReturnPlan FCombatCameraRules::PlanSameTurnReturn(bool bActedSinceAsked, ECombatCameraMode Mode, ETurnViewStyle Style,
+														   const FCombatCameraFrame &Frame)
+{
+	FSameTurnReturnPlan Plan;
+	Plan.TurnView = ComputeView(Mode, Style, Frame);
+	Plan.bReturn = bActedSinceAsked && Mode == ECombatCameraMode::Turn;
+	Plan.BlendSeconds = Plan.bReturn ? CombatCameraSameTurn::ReturnBlendSeconds : 0.0f;
+	return Plan;
 }

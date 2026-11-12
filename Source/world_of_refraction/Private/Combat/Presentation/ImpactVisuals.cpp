@@ -6,6 +6,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CosmeticsData.h"
 #include "Combat/Presentation/ImpactVisualDefaults.h"
+#include "Combat/Presentation/ParryVisuals.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
@@ -181,6 +182,18 @@ namespace ImpactVisuals
 	{
 		if (!IsValid(Target)) // runs after the hit, which can kill the target
 		{
+			return;
+		}
+		// B-393 (D-170): a landed parry (Guard or Perfect Guard) plays the guard's spark and parry effect (ParryVisuals);
+		// Choose's Guard spark is the cosmetic slot that resolver reads, not played from here any more.
+		if (Outcome == EImpactOutcome::Guard || Outcome == EImpactOutcome::PerfectGuard)
+		{
+			const FParryVisualChoice Parry = ParryVisuals::SpawnForLandedParry(Target, Outcome == EImpactOutcome::PerfectGuard);
+			if (CVarImpactVFXLog.GetValueOnGameThread())
+			{
+				UE_LOG(LogWoR, Display, TEXT("[ImpactVFX] %s: %s on %s"), OutcomeName(Outcome), *ParryVisuals::GetChoiceString(Parry),
+					   *GetNameSafe(Target));
+			}
 			return;
 		}
 		const FImpactVisualChoice Choice = Choose(Outcome, Skill, Element, UImpactVisualDefaults::Get(), GetCosmetics(Target), bIsProjectileArrival);

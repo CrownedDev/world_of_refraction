@@ -2,7 +2,8 @@
 // Debug utilities for the combat camera (UCombatCameraDirector, B-156). Console:
 // wor.Camera.Print (state; B-398: where the character and the enemy centre land in the turn view),
 // wor.Camera.Style 0|1|2 (centred-wide / over-the-shoulder / tactical; B-398: the saved player setting, also outside a
-// fight), wor.Camera.MovementOff 0|1, wor.Camera.MenuDepth 0|1 (B-399: what the command menu sends; Print shows the
+// fight), wor.Camera.MovementOff 0|1, wor.Camera.Handover [N] (B-404: preview the wide beat and the handover blend to
+// party member N; Print shows the pending beat and the handovers sent), wor.Camera.MenuDepth 0|1 (B-399: what the command menu sends; Print shows the
 // depth and the menu moves this fight), wor.Camera.TargetCycle [1|-1] (B-400: cycles the target picker's highlight;
 // Print shows the highlighted target and the target-view moves).
 

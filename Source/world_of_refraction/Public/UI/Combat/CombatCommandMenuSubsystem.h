@@ -61,6 +61,45 @@ namespace CommandMenuRules
 		return !bAIControlled && (!bHasRunState || bCommandedHere);
 	}
 
+	/** B-391 (Q-391): a category key that works on the main menu only (one key per category, two presses to act,
+	 *  FeelGuide 13). Defend and the infusion keys keep their own rules (B-093). B-170e: End Turn too (its button shows
+	 *  only in an action-pips fight, so its key does nothing otherwise). */
+	inline bool IsMainMenuKey(EPieMenuCategory Key)
+	{
+		switch (Key)
+		{
+		case EPieMenuCategory::Attack:
+		case EPieMenuCategory::Abilities:
+		case EPieMenuCategory::Refractions:
+		case EPieMenuCategory::Items:
+		case EPieMenuCategory::Flee:
+		case EPieMenuCategory::SwitchWeapon:
+		case EPieMenuCategory::ChangeRing:
+		case EPieMenuCategory::EndTurn:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** B-391 (Q-391): whether a key presses a button. The Skills key (Abilities) also presses a weapon resonance, and
+	 *  the Spells key (Refractions) a breakthrough or a ring resonance, so each class's skills and spells share a key. */
+	inline bool KeyPressesButton(EPieMenuCategory Key, EPieMenuCategory Button)
+	{
+		if (Key == Button)
+		{
+			return true;
+		}
+		if (Key == EPieMenuCategory::Abilities)
+		{
+			return Button == EPieMenuCategory::ResonateWeapon;
+		}
+		if (Key == EPieMenuCategory::Refractions)
+		{
+			return Button == EPieMenuCategory::Breakthrough || Button == EPieMenuCategory::ResonateRing;
+		}
+		return false;
+	}
 	/** B-399: the main menu (or a closed menu) and a sub-menu (Skills / Items / a spell source), as the camera sees
 	 *  them (UCombatCameraDirector steps one closer for a sub-menu). */
 	constexpr int32 MAIN_MENU_DEPTH = 0;
@@ -96,44 +135,6 @@ namespace CommandMenuRules
 		}
 		const int32 Step = FMath::Sign(Direction);
 		return (Current + Step + Count) % Count;
-	}
-
-	/** B-391 (Q-391): a category key that works on the main menu only (one key per category, two presses to act,
-	 *  FeelGuide 13). Defend and the infusion keys keep their own rules (B-093). */
-	inline bool IsMainMenuKey(EPieMenuCategory Key)
-	{
-		switch (Key)
-		{
-		case EPieMenuCategory::Attack:
-		case EPieMenuCategory::Abilities:
-		case EPieMenuCategory::Refractions:
-		case EPieMenuCategory::Items:
-		case EPieMenuCategory::Flee:
-		case EPieMenuCategory::SwitchWeapon:
-		case EPieMenuCategory::ChangeRing:
-			return true;
-		default:
-			return false;
-		}
-	}
-
-	/** B-391 (Q-391): whether a key presses a button. The Skills key (Abilities) also presses a weapon resonance, and
-	 *  the Spells key (Refractions) a breakthrough or a ring resonance, so each class's skills and spells share a key. */
-	inline bool KeyPressesButton(EPieMenuCategory Key, EPieMenuCategory Button)
-	{
-		if (Key == Button)
-		{
-			return true;
-		}
-		if (Key == EPieMenuCategory::Abilities)
-		{
-			return Button == EPieMenuCategory::ResonateWeapon;
-		}
-		if (Key == EPieMenuCategory::Refractions)
-		{
-			return Button == EPieMenuCategory::Breakthrough || Button == EPieMenuCategory::ResonateRing;
-		}
-		return false;
 	}
 }
 
@@ -358,6 +359,12 @@ private:
     void GreyIfTurnSwitchUsed(FPieMenuButtonData &Button) const;
     FPieMenuButtonData CreateSwitchRingButton() const;
     FPieMenuButtonData CreateDefendButton() const;
+    /** B-170e (ActionPips.md §3.5): "End Turn", on the main menu of an action-pips fight only. */
+    FPieMenuButtonData CreateEndTurnButton() const;
+    /** B-170e: in an action-pips fight, adds the action cost to an Attack, Ability, Spell or Item button's label
+     *  ("Fireball (2 actions)") and greys it with the reason when the current actor can't pay it now or ever
+     *  (ActionPipsText::GetCostRefusedReason). A button already greyed keeps its own reason. Nothing otherwise. */
+    void ShowActionCost(FPieMenuButtonData &Button) const;
 
     // ==================== SUBMENU BUILDERS ====================
 
