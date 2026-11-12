@@ -27,6 +27,8 @@
 **Checked again 2026-11-12, 10:10 UTC:** dev moved to `22158fd7`. The desktop built rows 74 (B-173), 81 (B-397), 85 (B-394), 86 (B-392, save v32) and 99 (B-170d) into dev, plus its own B-170i (Reflex regain rework). None of this unblocks a new job, so the run is still stopped. Upkeep done: the trial branch has dev merged in (`e0c32389`; code merged clean, docs only). The merge plan has a 2026-11-12 update: ET-18's regain wording when B-170g lands after B-170i, and B-170f's AI spec assuming a regain of 1.
 
 **Checked again 2026-11-12, 11:10 UTC:** seven more rows built into dev (`53b98d79`): B-391, B-393 (save v33), B-398 (save v34), B-402, B-403, B-405, B-407. Still no writable job. The trial branch has dev merged in again (`48fc3a93`). The merge plan lists the code conflicts the remaining camera and HUD rows will meet.
+
+**Checked again 2026-11-12, 12:10 UTC:** B-399, B-400, B-404 and B-406 are in dev (`8624aa65`). Still no writable job. **New trial branch `integration/cloud-2026-11-12`** (dev plus the 18 still-open cloud branches) replaces `integration/cloud-2026-11-09c`. The merge plan's midday update lists each remaining row's conflicts against today's dev.
 - B-170h: BLOCKED on Crown's PIE of B-170a–g (D-067). B-043h, B-351e and B-406c also wait on PIE or the B-406 trial.
 - B-042g2 is written (cloud branch); B-042g3–g6 follow it once it merges after Crown's `wor.Effects.UseGAS 1` fight.
 - B-104 / B-107 / B-108 wait on B-102 (Crown's mockup review). B-373, B-237, B-240, B-215 and B-280 are editor or desktop jobs. B-233b needs Crown's EOS ids. B-395 is Crown's loop; B-214 is held by Crown.
