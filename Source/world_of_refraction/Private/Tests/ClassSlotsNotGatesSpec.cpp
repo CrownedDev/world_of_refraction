@@ -1,6 +1,7 @@
 // ClassSlotsNotGatesSpec.cpp
 // B-097 (D-027): a class is made by its slots, not a skill gate. Every class with a weapon in hand is offered that
-// weapon's abilities (the class gates CanUseAbilities / CanUseSpells are retired); behaviour is unchanged.
+// weapon's abilities (the class gates CanUseAbilities / CanUseSpells are retired; FCombatCapabilities::bCanUseAbilities
+// reads the weapon's slot list, never the class). Guards against a class gate coming back; behaviour is unchanged.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -36,7 +37,6 @@ void FClassSlotsNotGatesSpec::Define()
 			Data->CharacterClass = Class;
 			UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
 			Sword->Name = TEXT("Class Gate Test Sword");
-			Sword->WeaponAttack = NewObject<UAbilityData>(GetTransientPackage());
 			ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Sword);
 			UInventoryComponent *Inventory = Loadout ? Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
 			if (!TestTrue(ClassName + TEXT(": setup"), Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
@@ -45,9 +45,7 @@ void FClassSlotsNotGatesSpec::Define()
 			}
 			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 			UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
-			Active.PrimarySlotType = EPrimarySlotType::Weapon;
-			Active.PrimaryWeapon.WeaponEntry.Weapon = Sword;
-			Active.PrimaryWeapon.AssignedAbilities = {Ability};
+			Active.PrimaryWeapon.AssignedAbilities = {Ability}; // the helper already put the sword in the primary slot
 
 			const FCombatCapabilities Caps = FCombatCapabilities::BuildFrom(Loadout, Class, FLinearColor::White, [](int32) { return FLinearColor::White; });
 			TestTrue(ClassName + TEXT(": can use abilities"), Caps.bCanUseAbilities);
