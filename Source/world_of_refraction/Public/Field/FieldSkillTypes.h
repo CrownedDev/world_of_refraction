@@ -73,6 +73,10 @@ namespace FieldSkillRules
 	constexpr int32 ENHANCED_SPRINT_EP_PER_SECOND = 1;     // TODO: tune
 	constexpr float ENHANCED_SPRINT_DRAIN_INTERVAL = 1.0f; // seconds per EP charge
 
+	/** Q-214a (Crown, 2026-11-12): a second is charged only while the pawn moves at sprint speed. Faster than the pawn
+	 *  Blueprint's walk (500 cm/s), slower than the slowest sprint (UHubMovementLibrary::GetSprintSpeedMin, 800). */
+	constexpr float ENHANCED_SPRINT_MIN_MOVING_SPEED = 600.0f; // cm/s along the ground. TODO: tune
+
 	/** Enhanced Sprint speed over the normal sprint, by the source's element (Crown: Lightning fastest, Wind second). */
 	constexpr float ENHANCED_SPRINT_LIGHTNING_MULTIPLIER = 1.5f; // TODO: tune
 	constexpr float ENHANCED_SPRINT_WIND_MULTIPLIER = 1.4f;      // TODO: tune
@@ -93,6 +97,9 @@ namespace FieldSkillRules
 
 	/** Can Enhanced Sprint start now? The pick rule again (gear may have changed), then the first second's EP. */
 	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckEnhancedSprintStart(ESpellElement SourceElement, int32 CurrentEP);
+
+	/** Is a pawn moving this fast along the ground sprinting (so an Enhanced Sprint second is charged)? */
+	WORLD_OF_REFRACTION_API bool IsMovingAtSprintSpeed(float GroundSpeed);
 
 	/** Sprint speed multiplier while Enhanced Sprint runs with this element; NO_SPRINT_BOOST for a non-element. */
 	WORLD_OF_REFRACTION_API float GetEnhancedSprintMultiplier(ESpellElement Element);

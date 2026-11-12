@@ -42,6 +42,11 @@ namespace FieldSkillRules
 		return CurrentEP < ENHANCED_SPRINT_EP_PER_SECOND ? EFieldSkillRefusal::NotEnoughEP : EFieldSkillRefusal::None;
 	}
 
+	bool IsMovingAtSprintSpeed(float GroundSpeed)
+	{
+		return GroundSpeed > ENHANCED_SPRINT_MIN_MOVING_SPEED;
+	}
+
 	float GetEnhancedSprintMultiplier(ESpellElement Element)
 	{
 		switch (Element)
