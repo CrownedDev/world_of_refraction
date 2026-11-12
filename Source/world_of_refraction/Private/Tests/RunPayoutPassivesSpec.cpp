@@ -106,6 +106,7 @@ void FRunPayoutPassivesSpec::Define()
 
 			Active.PrimaryEvolution = RunPayoutTestAttached(RUN_PAYOUT_TEST_BONUS_PERCENT, EEvolutionPlace::Character).Attachment;
 			Run->RefreshPayoutMultiplier(Fighters);
+			TestTrue(TEXT("a fresh one counts again"), Run->GetRunPayoutMultiplier() > RunRewards::BASE_PAYOUT_MULTIPLIER);
 			Active.PrimaryEvolution = FEvolutionAttachment(); // taken off before the next fight
 			Run->RefreshPayoutMultiplier(Fighters);
 			TestEqual(TEXT("taken off: base again"), Run->GetRunPayoutMultiplier(), RunRewards::BASE_PAYOUT_MULTIPLIER, RUN_PAYOUT_TEST_TOLERANCE);
