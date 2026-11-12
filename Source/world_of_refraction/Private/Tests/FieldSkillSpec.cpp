@@ -139,6 +139,9 @@ void FFieldSkillSpec::Define()
 			}
 			TestFalse(TEXT("walking is not a sprint"), FieldSkillRules::IsMovingAtSprintSpeed(FIELD_SPEC_WALK_SPEED));
 			TestTrue(TEXT("the slowest sprint is"), FieldSkillRules::IsMovingAtSprintSpeed(UHubMovementLibrary::GetSprintSpeedMin()));
+			TestTrue(TEXT("the threshold sits between the walk and the slowest sprint"),
+					 FieldSkillRules::ENHANCED_SPRINT_MIN_MOVING_SPEED > FIELD_SPEC_WALK_SPEED &&
+						 FieldSkillRules::ENHANCED_SPRINT_MIN_MOVING_SPEED < UHubMovementLibrary::GetSprintSpeedMin());
 			SetSprinting(false);
 			Field->SetActiveFieldSkill(EFieldSkillSource::Innate, EFieldMovementType::EnhancedSprint);
 			TestTrue(TEXT("started standing"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None && Field->IsEnhancedSprintActive());
