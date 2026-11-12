@@ -22,56 +22,30 @@ struct FSkillEffectDisplayInfo
 
 /**
  * Maps generic status types + elements to player-facing display names
- * Example: DOT + Fire = "Burn", DOT + Lightning = "Shocked"
+ * Example: DOT + Fire = "Fire DoT"; a Fire break = "Fire Break" (GetBreakDisplayName). Q-064a2 (Crown, 2026-11-12).
  */
 namespace SkillEffectDisplayNames
 {
     /** Get display name for status type + element combination */
     inline FString GetDisplayName(ESkillEffectType StatusType, ESpellElement Element)
     {
-        // B-248 (DRY audit A8): an element's bar-cap break shows that element's one break name, read off the
-        // trigger it actually fires, so a moved trigger (D-090) takes its name along.
-        if (Element != ESpellElement::None && BarCapTriggerResolver::ResolveTrigger(Element, EPhysicalDamageType::None, false) == StatusType)
-        {
-            const FText BreakName = WoRGameNames::GetElementBreakName(Element);
-            if (!BreakName.IsEmpty())
-            {
-                return BreakName.ToString();
-            }
-        }
-
         switch (StatusType)
         {
         case ESkillEffectType::DOT:
-            switch (Element)
+        {
+            // Q-064a2 (Crown, 2026-11-12): every damage over time is "<Element> DoT"; no special names.
+            const FText DoTName = WoRGameNames::GetElementDoTName(Element);
+            if (!DoTName.IsEmpty())
             {
-            case ESpellElement::Fire:
-                return TEXT("Burn");
-            case ESpellElement::Water:
-                return TEXT("Frost Bite");
-            case ESpellElement::Earth:
-                return TEXT("Poison");
-            case ESpellElement::Lightning:
-                return TEXT("Shocked");
-            case ESpellElement::Darkness:
-                return TEXT("Bleed");
-            case ESpellElement::Void:
-                return TEXT("Corrupt");
-            case ESpellElement::Light:
-                return TEXT("Sear");
-            case ESpellElement::Wind:
-                return TEXT("Lacerate");
-            case ESpellElement::Generic:
-                return TEXT("Bleed"); // Physical Slash
-            default:
-                return TEXT("Damage Over Time");
+                return DoTName.ToString();
             }
+            return Element == ESpellElement::Generic ? TEXT("Bleed") // Physical Slash: no element (TODO: Crown, Q-064a3)
+                                                     : WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::DOT).ToString();
+        }
 
         case ESkillEffectType::SpeedDebuff:
             switch (Element)
             {
-            case ESpellElement::Water:
-                return TEXT("Frozen");
             case ESpellElement::Earth:
                 return TEXT("Rooted");
             case ESpellElement::Lightning:
@@ -108,8 +82,6 @@ namespace SkillEffectDisplayNames
                 return TEXT("Tripped");
             case ESpellElement::Lightning:
                 return TEXT("Stunned");
-            case ESpellElement::Water:
-                return TEXT("Frozen Solid");
             case ESpellElement::Generic:
                 return TEXT("Staggered"); // Physical Impact
             default:
@@ -161,7 +133,7 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::Stun:
             return TEXT("Stunned");
         case ESkillEffectType::HealBlock:
-            return TEXT("Heal Blocked"); // B-248: "Frozen" is Water's break now (D-090); names key removal
+            return TEXT("Heal Blocked"); // B-248: Water's break has its own name (D-090; "Water Break", Q-064a2)
         case ESkillEffectType::RandomSkill:
             return TEXT("Voided");
 
@@ -206,6 +178,23 @@ namespace SkillEffectDisplayNames
         default:
             return WoRGameNames::GetSkillEffectTypeName(StatusType).ToString();
         }
+    }
+
+    /** Q-064a2 (Crown, 2026-11-12): what a capped bar applies (USkillEffectManager::ApplyTriggeredSkillEffect). When
+     *  StatusType is the element's own bar-cap trigger it is that element's "<Element> Break" (B-248: read off the
+     *  trigger it fires, so a moved trigger, D-090, takes its name along); otherwise (Ice's IceBreak on a Water hit,
+     *  a physical break) the type's own name. */
+    inline FString GetBreakDisplayName(ESkillEffectType StatusType, ESpellElement Element)
+    {
+        if (Element != ESpellElement::None && BarCapTriggerResolver::ResolveTrigger(Element, EPhysicalDamageType::None, false) == StatusType)
+        {
+            const FText BreakName = WoRGameNames::GetElementBreakName(Element);
+            if (!BreakName.IsEmpty())
+            {
+                return BreakName.ToString();
+            }
+        }
+        return GetDisplayName(StatusType, Element);
     }
 
     /** Get full display info (name, description, color).
