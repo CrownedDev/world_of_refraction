@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-032d](B-032d.md) | `feature/B-032d-per-impact-defense` (in dev, built 2026-11-12) | Per-impact defense for every spell shape: multi-hit and multi-entry spells get one defense per impact (one parry per impact); an ability's impacts with no Impact notify land at the swing's end; a window closed early or timed out lands its impacts one by one; `wor.Combat.PerImpactDefense 0` compares with the old lumped hit; `wor.Combat.PrintSpellImpacts` lists each spell's plan | Pending |
 | [B-170j](B-170j.md) | `fix/Q-170j-action-caps` (in dev, built 2026-11-12) | Crown's action caps: cost 1..3, Max 5, bonus +4, three skills a turn with the "Skills n/3" counter | Pending |
 | [B-234d](B-234d.md) | `feature/B-234d-host-hand-over-3` (in dev, built 2026-11-12) | 3-player: after a handed-over run the new host has only its own pool and party; the join order survives level changes | Pending |
 | [B-391c](B-391c.md) | `feature/B-391c-hud-pieces-2` (in dev, built 2026-11-12) | The new HUD's status buildup bar with cracks, the party card's weapon / ring line and loadout tooltip, the menu's ring / weapon durability header (each against the old HUD), and the "Negated" cue on Broken Darkness | Pending |
