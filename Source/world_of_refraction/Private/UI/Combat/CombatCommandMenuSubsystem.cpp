@@ -31,6 +31,7 @@
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
+#include "Misc/ScopeExit.h"
 #include "WoRGameNames.h"
 
 namespace
@@ -192,6 +193,7 @@ void UCombatCommandMenuSubsystem::HandleActionExecuted(AActor *Actor, const FAct
 
 void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 {
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399
     if (!Actor)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] OpenForActor: null actor"));
@@ -235,6 +237,7 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 
 void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &ButtonData)
 {
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399: a sub-menu or a picker opened
     // A greyed button (D-083 broken source, empty pool) does nothing, whichever widget sent it.
     if (!bIsOpen || !ButtonData.bEnabled)
     {
@@ -455,6 +458,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
 void UCombatCommandMenuSubsystem::HandleBack()
 {
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399: cancel steps the camera back
     if (!bIsOpen)
     {
         return;
@@ -509,6 +513,22 @@ void UCombatCommandMenuSubsystem::Close()
     OnCommandMenuClosed.Broadcast();
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Closed"));
+}
+
+void UCombatCommandMenuSubsystem::BroadcastMenuDepthIfChanged()
+{
+    if (!bIsOpen)
+    {
+        return; // closed for the action: the camera holds until the next open says where it is
+    }
+    const int32 Depth = CommandMenuRules::CameraDepthFor(CurrentDepth, DepthBeforeTargetSelection);
+    if (Depth == BroadcastMenuDepth)
+    {
+        return; // a redraw, an infusion step or a target cycle: the camera holds (study R3)
+    }
+    BroadcastMenuDepth = Depth;
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Menu depth %d for %s"), Depth, *GetNameSafe(CurrentActor.Get()));
+    OnMenuDepthChanged.Broadcast(CurrentActor.Get(), Depth);
 }
 
 // ==================== CAPABILITIES / BD LIVE REFRESH ====================

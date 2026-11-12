@@ -197,15 +197,21 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static ECameraTemplateKind TemplateKindFor(const USkillDataBase *Skill, EActionType ActionType);
 
 	/** Camera transform for a mode. Action has no transform of its own (the sequence owns the view). Defence uses
-	 *  ComputeDefenceView. Turn is ComputeTurnView. */
-	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame);
+	 *  ComputeDefenceView. Turn is ComputeTurnView (MenuDepth is read only there). */
+	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth = 0);
+
+	/** B-399: the deepest menu step the turn view takes (a sub-menu); deeper menus hold it. */
+	static constexpr int32 MaxMenuDepth = 1;
 
 	/** B-398 (study R1): the turn view for each turn-view setting; the one place a turn view is framed.
 	 *  CentredWide: behind and above the character, facing the enemy centre (D-074 default).
 	 *  OverTheShoulder: the acting character in the lower-left third, back to the camera, the enemy centre in the
 	 *  middle of the frame; scaled to the character's distance from the enemy centre, so every party member at any
-	 *  range gets the same layout. Tactical: side-on, both teams in view. */
-	static FTransform ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame);
+	 *  range gets the same layout. Tactical: side-on, both teams in view.
+	 *  B-399 (study R2): MenuDepth 1 (a sub-menu is open, UCombatCommandMenuSubsystem::OnMenuDepthChanged) steps the
+	 *  camera in toward the character and lower, aimed at the same point; 0 is the base view; clamped to
+	 *  0..MaxMenuDepth. */
+	static FTransform ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth = 0);
 
 	/** B-398 (D-061 / D-062): the setting's player-facing name, and each style's. */
 	static FText GetTurnViewSettingName();

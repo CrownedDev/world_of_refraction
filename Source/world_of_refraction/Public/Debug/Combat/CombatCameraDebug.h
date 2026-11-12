@@ -2,7 +2,8 @@
 // Debug utilities for the combat camera (UCombatCameraDirector, B-156). Console:
 // wor.Camera.Print (state; B-398: where the character and the enemy centre land in the turn view),
 // wor.Camera.Style 0|1|2 (centred-wide / over-the-shoulder / tactical; B-398: the saved player setting, also outside a
-// fight), wor.Camera.MovementOff 0|1.
+// fight), wor.Camera.MovementOff 0|1, wor.Camera.MenuDepth 0|1 (B-399: what the command menu sends; Print shows the
+// depth and the menu moves this fight).
 
 #pragma once
 
