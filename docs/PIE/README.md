@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-096](B-096.md) | `feature/B-096-payout-passives-cloud` (UNBUILT) | An evolution's Run Payout Bonus Percent raises the run-end payout; bonuses add up, cap x2.0, read at each fight's end | Pending |
+| [B-096](B-096.md) | `feature/B-096-payout-passives` (in dev, built 2026-11-12) | An evolution's Run Payout Bonus Percent raises the run-end payout; bonuses add up, cap x2.0, read at each fight's end | Pending |
 | [B-129](B-129.md) | `feature/B-129-input-priorities` (in dev, built 2026-11-12) | Mapping-context priorities named; hub and combat input unchanged | Pending |
 | [B-214a](B-214a.md) | `feature/B-214a-field-skills-core` + `fix/B-214a2-drain-while-moving` (in dev, built 2026-11-12) | Field skills part 1: the dash, the active field skill per character (saved), Enhanced Sprint by element with EP per second only while sprinting (check 5b, Crown's Q-214a answer; console until B-214g's keys); a 2-player check | Pending |
 | [B-233b](B-233b.md) | `feature/B-233b-invites-drop-in` (in dev, built 2026-11-12) | 2-player: the invite screen; in a run friends are seated only at a rest spot; a leaving friend's character turns AI held for it and it takes it back with its gear; a mid-fight leave | Pending |
