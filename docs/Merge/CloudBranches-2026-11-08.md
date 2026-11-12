@@ -487,3 +487,20 @@ Crown answered eight questions. Each answer is a new commit on its open branch, 
   - B-392b guest guard sync
   - B-280 docs
 - **Still open:** B-042g2 (row 77, after its PIE gate) and C1 to C7. All of them wait on Crown's PIE gates.
+
+## Update, 2026-11-12 (night): five new cloud branches (B-096, B-239, B-097, B-098, B-129)
+
+A new cloud writer pre-wrote five jobs whose BLOCKED marks were stale. All are **UNBUILT**, each from `dev` at `10fabdda` except B-098 (stacked on B-097, with B-097's review fixes merged in). wor-reviewer ran on each and its must-fixes are fixed. **No save version change** in any of them.
+
+| Order | Branch | What it does | Code it touches | Merge note |
+|---|---|---|---|---|
+| 1 | `feature/B-096-payout-passives-cloud` | Evolutions' `RunPayoutBonusPercent` raises the run-end payout (adds up, cap x2.0), read at each fight's end, before the between-fight repair (Q-096) | `EvolutionItemData.h`, `RunRewards.h/.cpp`, `TrialRunSubsystem.h/.cpp`, `CombatOrchestrator.cpp` (`FinishCombat`) | Run `WoR.Trial.RunPayoutPassives`, `WoR.Trial.RunRewards` |
+| 2 | `feature/B-239-item-slot-upgrades-cloud` | Buy +1 item slot per character's pouch at the hub (200 + 100 per slot, cap 20, hub only); placeholder `wor.UI.ItemSlots` (Q-239) | `InventoryConstants.h`, `PoolSubsystem.h/.cpp` (`AddItemSlot`), new `Inventory/ItemSlotUpgrade`, new `UI/Hub/ItemSlotUpgradeWidget` | Run `WoR.Inventory.ItemSlotUpgrade` |
+| 3 | `feature/B-097-class-gates-cleanup-cloud` | D-027: `CharacterClassHelpers::CanUseAbilities/CanUseSpells` deleted (no caller on any branch); `UCharacterData::CanUseSpells/CanUseAbilities` flagged `DeprecatedFunction` (Sweep row 47) | `ECharacterClass.h`, `CharacterData.h` | Run `WoR.Character.ClassSlotsNotGates`; compile Blueprints, watch for a deprecation warning |
+| 4 | `feature/B-098-weapons-no-spells-cloud` (**merge B-097 first**) | D-027: weapons give no spells (`WeaponSpellRules`, `wor.Loadout.WeaponSpells` 0); weapon spell data and saves untouched (Q-098); survey in `docs/PIE/B-098.md`; Sweep row 48 | new `Loadout/WeaponSpellRules`, `FWeaponLoadoutEntry.cpp`, `FCombatCapabilities.cpp`, `LoadoutComponent.cpp` (`GetWeaponResonateSpells`, `TryAssignWeaponSpell`, `GetBrokenSourceReason`); BrokenSource / SpellSlotList / GearChangeDrops / one LoadoutRules case run with the old path on | Run the **full suite**: a spec still expecting a weapon crystal's spells fails under the new default; wrap its case in `WeaponSpellRules::FScopedWeaponSpells(true)` (old path) or change its expectation (D-027) |
+| 5 | `feature/B-129-input-priorities-cloud` | Named mapping-context priorities (`WoRInputPriority`), same values; InputMap.md "Mapping contexts" | new `Player/InputPriorities.h`, `CombatPlayerController.cpp`, `ExplorationPlayerController.h` | Run `WoR.Input.Priorities`, `WoR.UI.CommandMenuKeys` |
+
+- **Code overlaps:** none between these five, and none seen with the still-open B-042g2 / C1 to C7.
+- **Doc conflicts to expect (keep both sides):** `docs/Backlog.md` (one row each, different lines); `docs/DesignDecisions.md` (Q-096, Q-239, Q-098 each just above `## Parked`: keep all three); `docs/PIE/README.md` (one row each at the top of Pending); `docs/PIE/Sweep.md` (rows 47 and 48 in "Flags on branches", one row each at the end of "Waiting on Crown's PIE", no blank line inside that table); `docs/sessions/2026-11-12.md` (B-096's "Cloud writer (B-096, …)" heading, then one bullet per job: keep one heading and five bullets).
+- **Q- defaults for Crown:** Q-096 (payout passives add up, cap x2, read at fight end, worn anywhere, not broken), Q-239 (per character, 200 + 100 per slot, cap 20, the Spiritualist; co-op clients can't buy yet), Q-098 (weapon spells kept unread, nothing refunded, swept later).
+
