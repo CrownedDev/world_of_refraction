@@ -542,9 +542,9 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 	// B-233b: a friend taking back the seat it left (held for its id) keeps its member and gear: no swap.
 	const FString JoinerId = JoinerState->GetUniqueId().IsValid() ? JoinerState->GetUniqueId().ToString() : FString();
 	const bool bOwnHeldSeat = SeatMember.IsValid() && !JoinerId.IsEmpty() && GetHeldFor(SeatMember) == JoinerId;
-	if (!RunJoinRules::CanSeatJoiner(bHasRun, bHostAtRestSpot, bOwnHeldSeat))
+	if (!bOwnHeldSeat && !CanSeatNewJoinerNow())
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[RunState] AcceptJoin: in a run, friends are seated at a rest spot (open its menu first, Q-233b)"));
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] AcceptJoin: in a run, friends are seated at a rest spot (rest at one first, Q-233b)"));
 		return false;
 	}
 	JoinRequests.RemoveAt(Index); // before the party broadcast, so the placeholder's refresh shows no stale line
@@ -591,13 +591,10 @@ bool URunStateComponent::RefuseJoin(int32 PlayerId)
 	return Removed > 0;
 }
 
-void URunStateComponent::SetHostAtRestSpot(bool bAtRestSpot)
+bool URunStateComponent::CanSeatNewJoinerNow() const
 {
-	if (GetOwner() && GetOwner()->HasAuthority() && bHostAtRestSpot != bAtRestSpot)
-	{
-		bHostAtRestSpot = bAtRestSpot;
-		UE_LOG(LogWoR, Log, TEXT("[RunState] Host %s a rest spot: %d join request(s) waiting"), bAtRestSpot ? TEXT("at") : TEXT("left"), JoinRequests.Num());
-	}
+	const UTrialRunSubsystem *Run = RunStateTrialRunOf(this);
+	return RunJoinRules::CanSeatJoiner(Run && Run->IsRunActive(), Run && Run->IsAtRestSpot(), /*bOwnHeldSeat=*/false);
 }
 
 FString URunStateComponent::GetHeldFor(const FGuid &MemberId) const
@@ -719,8 +716,7 @@ FString URunStateComponent::GetDebugString() const
 		Out += FString::Printf(TEXT("\n  join request: player %d with %s"), Request.PlayerId, *GetNameSafe(Request.Character));
 	}
 	// B-233b
-	Out += FString::Printf(TEXT("\n  host at a rest spot: %s; seating joiners %s"), bHostAtRestSpot ? TEXT("yes") : TEXT("no"),
-						   RunJoinRules::CanSeatJoiner(bHasRun, bHostAtRestSpot, false) ? TEXT("open") : TEXT("closed (in a run, away from a rest spot)"));
+	Out += FString::Printf(TEXT("\n  seating new joiners: %s"), CanSeatNewJoinerNow() ? TEXT("open") : TEXT("closed (in a run, away from a rest spot)"));
 	for (const TPair<FGuid, FString> &Held : HeldSeats)
 	{
 		Out += FString::Printf(TEXT("\n  seat held: member %s for %s"), *Held.Key.ToString(EGuidFormats::Short), *Held.Value);

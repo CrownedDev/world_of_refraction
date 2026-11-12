@@ -10,8 +10,8 @@
 // Joining mid-run (D-150): a player asks for a seat (RequestJoin); the host picks the AI seat it replaces (AcceptJoin:
 // `wor.Party.AcceptJoin`, or the placeholder `wor.UI.JoinSeat`); that member's gear and pouch go to the host.
 // B-232d: the run's found features, memories and unspent levels join it (PullRunProgress on each change).
-// B-233b (Q-233b): in a run a new friend is seated only while the host is at a rest spot (SetHostAtRestSpot, from the
-// rest menu). A friend who leaves (its connection logs out) drops out: its members become AI seats held for it (in a
+// B-233b (Q-233b): in a run a new friend is seated only while the party is at a rest spot (UTrialRunSubsystem::
+// IsAtRestSpot: rested there, not yet walked away). A friend who leaves (its connection logs out) drops out: its members become AI seats held for it (in a
 // fight the host commands them until it ends, then they turn AI); seated again on a held seat, it takes its own member
 // back with its gear, anywhere outside a fight.
 // Debug: GetDebugString, `wor.Run.PrintState`, `wor.Party.PrintJoinRequests`.
@@ -160,9 +160,8 @@ public:
 	TArray<int32> GetFreeAISeats() const;
 
 	// ---- B-233b: drop-in at rest spots, a leaving friend ----
-	/** Server: the host opened (true) or closed its rest menu; in a run, joiners are seated only while it is open. */
-	void SetHostAtRestSpot(bool bAtRestSpot);
-	bool IsHostAtRestSpot() const { return bHostAtRestSpot; }
+	/** Server: may the host seat a new joiner now (RunJoinRules::CanSeatJoiner on this machine's run)? */
+	bool CanSeatNewJoinerNow() const;
 	/** Server: Leaver left the session: its join request goes, its members become AI seats held for it (in a fight:
 	 *  when the fight ends). Called on a remote player's logout. */
 	void HandlePlayerLeft(APlayerState *Leaver);
@@ -244,8 +243,6 @@ private:
 	UPROPERTY()
 	TArray<FRunJoinRequest> JoinRequests;
 
-	/** B-233b, server only: the host's rest menu is open. */
-	bool bHostAtRestSpot = false;
 	/** B-233b, server only: member id -> the player (unique net id string) its AI seat is held for. Per level (a
 	 *  GameState lives for one): a level change forgets the holds, the seats stay AI. */
 	TMap<FGuid, FString> HeldSeats;
