@@ -196,7 +196,7 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** bugs found by the analysis to fix regardless: run wear keyed by asset (two identical adapters share one wear record); found gear never dropped at run end; player-edited presets not saved (PIE check). Remaining details: where it lives (pool now, PlayerState with co-op), presets as GUID lists per character, the run purchase marks pieces rather than copying, the per-preset 6 x 3 item slots retire, spells / abilities stay per character, outfits as entries, co-op visibility.
 
 ### Q-064a2 — Ice break's name, and whether Water's "Frozen" moves to Ice
-**Status:** OPEN (lore: Crown's) · **Raised:** 2026-11-09 (B-064a, cloud) · **Blocks:** — (the mechanic ships with the placeholder)
+**Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-09 (B-064a, cloud) · **Blocks:** — (the mechanic ships with the placeholder)
 **Question:** What is Ice's break called? Water's break is "Frozen" and Water's damage over time "Frost Bite" today (`WoRGameNames::GetElementBreakName`, `SkillEffectDisplayNames`), names that fit Ice better now that Ice exists. The deckbuilder gives Water the adjective "Tide" and Ice "Frost" (`02-enums.md`, element trait table; "Ice took Frost", Crown, 2026-09-29).
 **Context:** B-064a ships the placeholder "Ice break" (`WoRGameNames::GetSkillEffectTypeName(IceBreak)`, `// TODO: Crown`); Water's names are unchanged.
 **Options:**
@@ -204,8 +204,14 @@ The queue of questions only Crown can answer.
 - **B** Ice takes "Frozen" (and "Frost Bite" if Ice gets a damage over time); Water's break gets a new, tide-like name, matching the deckbuilder's Tide / Frost split.
 - **C** Something else.
 **Recommendation:** none: names and lore are Crown's (CLAUDE.md, "Recommendations").
-**Answer (Crown):** _write here_
+**Answer: Crown, 2026-11-12:** Crown's naming rule: **every break is "<Element> Break"** (Fire Break, Water Break, Ice Break...) and **every damage over time is "<Element> DoT"**. No special names ("Frozen", "Frost Bite" go). Built as `LOCTEXT` "{0} Break" / "{0} DoT" with `FText::Format` around the element's name-table entry (`WoRGameNames::FormatBreakName` / `FormatDoTName`, D-061 / D-062; Ice's entry is `GetIceName`, since Ice is a damage type). A capped bar names its effect through `SkillEffectDisplayNames::GetBreakDisplayName`; a plain DoT no longer borrows its element's break name (Fire's break and a Fire DoT were both "Burn"). Follow-up branch `fix/B-064a-crown-answer-cloud` (B-064a is in dev). Build details: Q-064a3.
 **Notes for Claude:** a name is one `LOCTEXT` change (and `ElementBreakNameSpec`'s expected words if Water's change).
+
+### Q-064a3 — Crown's break / DoT names: what else they reach
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-12; Crown vetoes) · **Raised:** 2026-11-12 (Q-064a2's build) · **Blocks:** —
+**Question:** Crown's rule (Q-064a2) names breaks and DoTs by element. Three cases it doesn't spell out: (1) the physical caps (Slash Bleed, Pierce Armor Break, Impact Stunned: its trigger is `Stun`), which have no element; (2) Water's other "Frozen" names (a Water Speed Debuff "Frozen", a Water Skip Turn "Frozen Solid"), which are neither break nor DoT; (3) the other flavour names of non-break effects (Rooted, Paralyzed, Scorched, Withered...).
+**Recommendation (reference-backed default):** (1) **keep the physical names** until Crown names them: the rule is "<Element>", and a physical hit has none (`ESpellElement::Generic` reads "Generic", which no player would read as Slash); (2) **"Frozen" goes everywhere**, as Crown named it: Water's slow reads "Slowed", its skip turn "Stunned" (the shared defaults); (3) **the other flavour names stay**: they are neither breaks nor DoTs. One plain naming scheme reads at a glance, as Honkai: Star Rail's "<Element> Weakness Break" and Octopath's plain status names do (both well liked for clarity).
+**Answer:** the recommendation, by the reference-backed default (2026-11-12). Each is one line in `SkillEffectDisplayNames::GetDisplayName` if Crown wants otherwise. **Desktop review (2026-11-12):** an infused ability's DoT keeps its own name ("<Ability> Infusion", `ActiveSkillEffect.h`), and Water's Speed Debuff / Skip Turn lost "Frozen" / "Frozen Solid" and now read the plain "Slowed" / "Stunned". "Bleed" is still an FString literal (`SkillEffectDisplayNames.h`); it moves into the `WoRGameNames` LOCTEXT table when Crown names the physical caps.
 
 ### Q-170 — Action pips: the numbers
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170a)

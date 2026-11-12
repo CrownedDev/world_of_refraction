@@ -93,7 +93,7 @@ namespace BattleHUDView
 	WORLD_OF_REFRACTION_API FText GetCombatantName(const AActor *Actor);
 
 	/** One status as a short chip (FeelGuide 5: small, on the character): its shared name (D-062), the turns left
-	 *  unless permanent, and "xN" for two or more stacks. "Burn 2", "Haste x3", "Regen". */
+	 *  unless permanent, and "xN" for two or more stacks. "Fire DoT 2", "Haste x3", "Regen". */
 	WORLD_OF_REFRACTION_API FText MakeStatusChip(const FActiveSkillEffect &Effect);
 
 	/** Every chip joined with " · "; empty for none. */
