@@ -94,7 +94,7 @@ Root drift is 0 on every clip (truly in place). "Stand" = pelvis 93 cm, the norm
 | Recovery (feet step back, rise to stand) | 0.65–1.15 | 26–46 | ~0.4–0.5 s |
 | End | 1.225 | 49 | — |
 
-Root drift 0; the pelvis drops 31 cm in the lunge and comes back; starts and ends in the standing pose (pelvis 93), so it blends straight back to idle. Feet: the front foot plants at the contact frame (16) and settles ~10 cm by frame 20; the back foot drags ~35 cm forward close to the floor (0.40–0.50 s), a natural catch-up step but worth a look in PIE for sliding.
+Root drift 0; the pelvis drops 31 cm in the lunge and comes back; starts and ends in the pack's standing pose (pelvis 93). The combat idle is a lower guard stance (pelvis 76), so it needs a ~0.2 s blend into idle; with an approach and return (below) it never touches idle directly. Feet: the front foot plants at the contact frame (16) and settles ~10 cm by frame 20; the back foot drags ~35 cm forward close to the floor (0.40–0.50 s), a natural catch-up step but worth a look in PIE for sliding.
 
 **Against E33:** contact, hold and recovery are close (0.2 s hold vs 0.3, 0.5 s recovery vs 0.4–0.5). The wind-up is **less than half** E33's (0.3 vs 0.7 s): right for a light hit (snappy), but tight if an enemy uses it (below).
 
@@ -151,6 +151,56 @@ Feel: a long, readable coil (0.55 s, close to E33's 0.7) and then a whip-fast sw
 | V2 `ComboAttack01_01` | rising cut into a somersault; acrobatic, not a knight with a shield |
 | V1 `Stab1` | same thrust as `Stab2` but the feet scissor ~90 cm; `Stab2` is cleaner |
 
+### Reaching the target: approach → strike → return
+
+**What the game does today** (code read, not changed):
+- There is no separate approach step. The skill montage itself must carry the move (`ActionExecutor.h:1074`).
+- Before the montage, the game sets a Motion Warping target named `WarpTarget` 100 cm in front of the target (`ExecutionRange`, `ActionExecutor.cpp:5192-5212`). Only a **root-motion section with a warp window** moves the attacker there. An in-place clip ignores it, so **an in-place strike alone never reaches the target**.
+- Chain: `[RitualCastMontage] → SkillMontage → [ReturnMontage]` (`SkillDataBase.h:310-340`). The return montage is warped back to the saved grid spot (`ActionExecutorMontage.cpp:188-220`). With no return montage the attacker stays where the strike ended.
+- Distance: teams stand 800 cm apart (`CombatGridConstants.h:69`), cells 200 cm. With the 100 cm stop, a front-row attacker travels **~700 cm** to a front-row target, more to the back rows.
+
+**Clips that exist for sword and shield:** V1/V2 have only walks (V2 `Move_F_Root` 178 cm / 1.22 s, `Move_B_Root` 146 cm, `Turn_L180_Root` 0.80 s), no run or dash. The **DSAS V3** set (same style, same skeleton) has them:
+
+| Clip (root motion) | Length | Travel | Shape | Use |
+|---|---|---|---|---|
+| ★ `Anim_DSS3_Dodge_F_RM` | 0.83 s | +354 cm | low hop 0.22–0.38, starts and ends standing | **approach** (dash-in) |
+| ★ `Anim_DSS3_Evade_B_RM` | 0.83 s | −226 cm | backward skip, grounded, standing | **return** |
+| `Anim_DSS3_Run_F_RM` | 0.67 s loop | +285 cm | run cycle (pelvis 86) | longer approach for back rows, if the dash stretches too far |
+| `Anim_DSS3_DodgeAttack_RM` | 1.22 s | +313 cm | dash with a swing at 0.65 s | a dash-in attack on its own (later candidate) |
+| `/Game/Data/Skills/Weapons/Anim_Approach_Leap` / `Anim_Return_Leap` | 1.40 s each | from `Anim_SAS_Combo1` (377 cm) | the existing project test montages: a jump | heavy-hit approach (a leap reads heavy) |
+
+All paths: `/Game/CombatMasterAnimBundle/Animations/DSAS_V3/Manny_UE5/RootMotion/{Dodge,Evade,Locomotion}/`.
+
+**Proposal (no code change):** the light hit's skill montage = two sections, `Dodge_F_RM` (warp window over its whole travel, 0.00–0.75 s) then the in-place strike; return montage = `Evade_B_RM`.
+- **Join:** `Dodge_F` ends in exactly the strike's start pose (pelvis 93, sword hand within 1 cm), so a **0.1 s blend** is enough. Idle → `Dodge_F` and `Evade_B` → idle each need ~0.2 s (idle is the lower guard stance, pelvis 76).
+- **In range:** yes. The in-place strike reaches ~66 cm (hand) + ~80 cm (blade) ≈ 146 cm forward, past the 100 cm stop.
+- **Why not the strike's own root-motion version** (`ComboAttack02_01_Root`, 116 cm lunge by contact): starting at the 100 cm stop it would run through the target, and warping only that 0.1 s lunge over 700 cm would look like a teleport.
+- **Check in PIE:** the dash is stretched ~2× (354 → ~700 cm) and the return ~3× (226 → ~700 cm). If that floats, use `Run_F_RM` ×N then the strike for the way in, and `Turn_L180` + `Run_F` + turn for the way back.
+- **Camera:** the 0.25 s camera rush (B-403) is timed for a wind-up with no approach. With a 0.83 s dash first, it should start with the dash.
+
+**Whole action, pick** (strike starts at 0.73 s after the 0.1 s blend; return starts at the strike's blend-out):
+
+| Segment | Time (s) | E33 hero (study §14) |
+|---|---|---|
+| Approach (`Dodge_F_RM`, warped) | 0.00–0.83 | rush 0.2 |
+| Strike wind-up | 0.73–1.03 | 0.7 |
+| **Contact** `Impact0` | **1.13** | ~1.2 after confirm |
+| Hold | 1.18–1.38 | 0.3 |
+| Recovery | 1.38–1.68 | 0.4 |
+| Return (`Evade_B_RM`, warped) | 1.68–2.51 | — |
+| **Total** | **~2.5** | **~2.8** |
+
+Notifies in whole-action time: `VFX0` 1.03, `SFX0` 1.055, `Impact0` 1.13. `SFX1` (foot step back, 1.83 in whole-action time) falls inside the return and can be dropped. A dash `SFX` on the approach is optional.
+
+**Runners-up in the same frame** (same approach and return):
+
+| Option | Join blend | Strike | Contact | Return | Total |
+|---|---|---|---|---|---|
+| `Stab2_IP` | 0.2 s (starts in the low guard, pelvis 76) | 0.63–1.48 | 1.08 | 1.48–2.31 | ~2.3 s |
+| `Combo2_01_IP` | 0.1 s | 0.73–1.73 | 1.43 | 1.73–2.56 | ~2.6 s |
+
+**`Stab2` has no reach of its own:** its root-motion version moves 22 cm out and back. As a light hit it only works with the dash in front. Better as its **own ranged skill candidate**: a thrust from the grid spot that releases a pressure wave or projectile at contact (0.45 s). No approach or return, ~1.05 s total.
+
 **Contact-pose pictures:** later, when Crown is at the PC (editor preview must be in front to redraw).
 
 ## Changelog
@@ -159,3 +209,4 @@ Feel: a long, readable coil (0.55 s, close to E33's 0.7) and then a whip-fast sw
 |---|---|---|
 | 2026-11-12 | Created: method, screen of all DSAS in-place attacks, light hit pick (V2 ComboAttack02_01) with runners-up | docs/showcase-anim-analysis |
 | 2026-11-12 | Crown's notes: flip and jump check by torso tilt (only ComboAttack01_01 flips; the pick has none), Interrupt notify proposal (fit, SB-36 conflict, placement) | docs/showcase-anim-analysis |
+| 2026-11-12 | Approach → strike → return: current movement code, V3 dash/evade clips, join blends, whole-action timings; Stab2 flagged as a ranged-thrust candidate; idle-stance correction | docs/showcase-anim-analysis |
