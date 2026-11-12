@@ -758,7 +758,7 @@ namespace EffectText
             return FText::Format(LOCTEXT("InflictDoT", "inflict {0} on {1}{2}"), WoRGameNames::GetElementDoTName(ESpellElement::Fire),
                                  Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
         case ESkillEffectType::ApplyChillToTarget:
-            return FText::Format(LOCTEXT("InflictDoT", "inflict {0} on {1}{2}"), WoRGameNames::GetElementDoTName(ESpellElement::Water),
+            return FText::Format(LOCTEXT("InflictWaterDoT", "inflict {0} on {1}{2}"), WoRGameNames::GetElementDoTName(ESpellElement::Water),
                                  Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
         // B-275: unresolved keyed members. No element on the payload means the cast's element at build time.
         case ESkillEffectType::GrantElementImmunity:

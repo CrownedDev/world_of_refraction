@@ -70,6 +70,9 @@ void FElementBreakNameSpec::Define()
 		// Fire's break fires a DOT: the break path says "Fire Break", a plain Fire DoT "Fire DoT".
 		TestNotEqual(TEXT("a Fire DoT is not its break"), SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::DOT, ESpellElement::Fire),
 					 WoRGameNames::GetElementBreakName(ESpellElement::Fire).ToString());
+		// Q-064a3: a physical cap keeps its own name (no element).
+		TestEqual(TEXT("physical DoT keeps Bleed"), SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::DOT, ESpellElement::Generic),
+				  FString(TEXT("Bleed")));
 	});
 
 	It("keeps the shared table's words for the dropped repeats", [this]()
