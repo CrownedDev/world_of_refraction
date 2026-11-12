@@ -256,7 +256,7 @@ The queue of questions only Crown can answer.
 - **Behind `wor.Combat.PerImpactDefense`, default 1**; 0 is the lumped path, to compare in PIE until B-032b deletes it.
 - Not changed: an interruptable cast entry only interrupts when it is the target's one impact (multi-entry spells never could); the spell-ending Flawless Parry tally counts per impact as for melee.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-032d (`SpellImpactPlan`, `UActionExecutor::ApplyRemainingImpacts`, `LandFallbackImpacts`).
-**Answer: Crown, 2026-11-12:** **kept.** One defence window per spell impact (one arrival), and per-hit effects (Lifesteal, Burn, Double Hit, crit rolls, the minimum-damage floor, reflect) count arrivals, not HitCount. Confirmed as built.
+**Answer: Crown, 2026-11-12:** **kept.** One defence window per spell impact (one arrival), and per-hit effects (Lifesteal, Burn, Double Hit, crit rolls, the minimum-damage floor, reflect) count arrivals, not HitCount. Confirmed as built. **Desktop review (2026-11-12):** a spell with no montage now sends its later cast entries at once (as the montage's Cast notifies do), support spells too, so a montage-less support spell's extra entries apply where they used to be dropped; the swing's end checks the action is still the same one before its Return leg (a fallback impact can finish it and, with action pips, start the next).
 
 ### Q-170c2 — Action pips part 3: how several actions per turn are built
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170c) · **Blocks:** —

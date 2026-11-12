@@ -5605,10 +5605,13 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 		// this is what actually closes them) BEFORE the warp-back Return leg. An attack
 		// with fewer Impact notifies than ExpectedImpacts still closes here, not at 8s.
 		// B-032d: its missing impacts land first, one by one (LandFallbackImpacts).
+		const int32 SkillActionSerial = AsyncActionSerial;
 		ReconcileDefenseWindowsAtAnimationEnd();
-		if (MontagePhase != EMontagePhase::Skill)
+		if (MontagePhase != EMontagePhase::Skill || AsyncActionSerial != SkillActionSerial)
 		{
-			return; // a fallback impact interrupted the action, which already started its own Return leg or finalized
+			// A fallback impact interrupted or finished the action (it already started its own Return leg or finalized);
+			// desktop review: with action pips the next action may already be in its own Skill phase.
+			return;
 		}
 
 		TWeakObjectPtr<AActor> WeakActor = Actor;
