@@ -249,6 +249,22 @@ The queue of questions only Crown can answer.
 - **"No actions" on the HUD** waits for the placeholder UI (B-170e); the skip is logged.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170c (`ACombatOrchestrator` action pips section, `USkillDataBase::ActionCost`, `FAction::GetActionCost`, `ULoadoutComponent::GetTurnSwitchRefusedReason`).
 
+### Q-170d2 — Action pips part 4: how the action effects are built
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170d) · **Blocks:** —
+**Question:** The plan (`ActionPips.md` §3.4) and Q-170e / Q-170f / Q-170g set the effects. Some build details are left open: how "now" and "next turn" are authored, what order same-turn changes land in, how low Max Actions can go, which Wind and Ice breaks take actions, and who counts as an ally for Emerald. (Named Q-170d2 because Q-170d is the rotation's order.)
+**Recommendation (reference-backed default):**
+- **Timing is the payload's Duration:** 0 = now, N = at the holder's Nth turn start from now (1 = next turn, 2 = the one after, which also carries Emerald's "in 2 turns"). One field, no new authoring field. A timed change waits on the holder (`UCharacterDataComponent`), not as a lasting effect, so it can land in step 2 of the turn-start order (after the regain, before the check). It can't be cleansed (as Divinity: Original Sin 2's Adrenaline AP debt, which nothing removes). Author **Value** (actions), not Magnitude; a permanent one is refused.
+- **Same-turn changes land gains first, then losses**, so a loss is never wasted on an empty bank (Crown's turn-start order sums them before the check either way; this only matters at 0).
+- **Every effect gain may pass Max** (Q-170g as answered); the waiting Wind loss doesn't need the flag.
+- **Max Actions never drops below 1** (`MAX_ACTIONS_FLOOR`), so a default-cost action always stays usable; the safety cap 5 still holds. A lowered Max never trims the bank (as gains over Max stay banked). Darkest Dungeon and Octopath never let a debuff remove the basic action either.
+- **Wind takes its action only on a new gust** (a same-source refresh doesn't, as its one-place delay didn't, D-012); **Ice takes its action on every break**, as its damage lands every time.
+- **The break rows change with the fight's latched mode** (`TurnManager::IsRotationMode`), like the rotation; the effect text follows the live switch (text has no fight).
+- **Emerald's side is the fight's teams:** a target on the other team is an enemy (loses its next turn); anything else, outside a fight included, is treated as an ally (gains actions), never skipped.
+- **A turn removed by `SkipNextTurn` doesn't count down waiting changes** (Emerald on an enemy): it isn't a turn start, so nothing lands on it and a waiting Wind loss lands at the next turn the holder really starts. Intended: a loss always costs a turn the holder plays. Counting removed turns would need the turn belt to call into the character, which isn't a one-line change.
+- **Authoring checks:** `UEffectDefinition::IsDataValid` warns when an action effect's Value is 0 or less (Magnitude isn't read), when it is Permanent, and when a Max Actions change has Duration 0.
+- **Extra Turn's regain** stays as B-170c built it (Q-170c2: a bonus turn regains like any turn); nothing changes here.
+**Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170d (`UCharacterDataComponent` waiting changes, `BreakTable::ActionPipsRows`, `UItemExecutor::ExecuteBonusTurnEffect`).
+
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
 **Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?
