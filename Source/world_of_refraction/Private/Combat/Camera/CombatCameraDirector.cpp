@@ -335,6 +335,7 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 	ClearDefenceHandOff();
 	if (IsBossCinematicPlaying())
 	{
+		BroadcastHandover(From, Actor); // B-404 review: still once per turn start (the HUD is hidden meanwhile)
 		return; // B-406: the boss cinematic keeps the view; its end shows this turn
 	}
 	StopSequence();
@@ -1308,6 +1309,7 @@ void UCombatCameraDirector::PreviewKillShot(EKillShotKind Kind)
 
 bool UCombatCameraDirector::ShowKillShot(AActor *Victim, EKillShotKind Kind, bool bHideOnBreakApart)
 {
+	FlushPendingHandover(); // B-404: a beat's handover goes out now, not under the kill shot
 	APlayerController *Viewer = GetViewer();
 	UCombatCameraComponent *Camera = IsValid(Victim) ? Victim->FindComponentByClass<UCombatCameraComponent>() : nullptr;
 	if (!Viewer || !Camera)
@@ -1548,6 +1550,7 @@ void UCombatCameraDirector::HoldForBossCinematic(EBossCinematicKind Kind, AActor
 
 void UCombatCameraDirector::EnterBossCinematic(EBossCinematicKind Kind, AActor *Boss, float CapSeconds, int32 PhaseIndex)
 {
+	FlushPendingHandover(); // B-404: a beat's handover goes out now, not under the cinematic
 	const bool bWasPlaying = IsBossCinematicPlaying();
 	BossCinematicKind = Kind;
 	BossCinematicBoss = Boss;
@@ -1710,6 +1713,7 @@ void UCombatCameraDirector::HandleWideBeatEnd()
 		CurrentMode = ECombatCameraMode::Turn;
 		// B-405 / B-399: the turn view as it stands now (boss height, menu depth), not the plan's plain one.
 		MoveCameraOnShotTimer(Camera, GetTurnViewWithHeight(BuildFrame(To)), PendingTurnChange.HandoverBlendSeconds);
+		ReapplyHighlightedTarget(); // B-400: a target highlighted during the beat gets its target view
 	}
 	// Same frame as the blend's start: the HUD steps the turn strip and lifts the card now (study R16, F4).
 	if (bHandoverBroadcasts)

@@ -909,6 +909,7 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
 		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
 		TestEqual(TEXT("first turn: at once"), Director->GetHandoverCount(), 1);
@@ -931,6 +932,7 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("once for turn 4"), Director->GetHandoverCount(), 4);
 		Executor->OnActionStarted.Broadcast(SecondHero, FAction(), 0);
 		TestEqual(TEXT("a second action of the turn adds none"), Director->GetHandoverCount(), 4);
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
 		Director->EndCombat();
 	});
 
@@ -944,16 +946,19 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
 		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
 		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
 		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
 		TestTrue(TEXT("a wide beat"), Director->IsHandoverPending());
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
 		Director->EndCombat();
 		TestFalse(TEXT("the fight's end dropped it"), Director->IsHandoverPending());
 		TestWorld->Tick(BEAT_TEST_TICKS_PAST_BEAT);
 		TestEqual(TEXT("its timer was cleared: nothing fires later"), Director->GetHandoverCount(), 1);
 
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
 		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
 		TestTrue(TEXT("a preview plays a beat"), Director->PreviewHandover(1));
@@ -964,6 +969,7 @@ void FCombatCameraDirectorSpec::Define()
 		TestTrue(TEXT("a second preview"), Director->PreviewHandover(1));
 		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 2); // a turn inside the preview: only its own handover
 		TestEqual(TEXT("the flushed preview fires nothing"), Director->GetHandoverCount(), 2);
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
 		Director->EndCombat();
 	});
 
