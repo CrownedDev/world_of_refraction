@@ -683,8 +683,8 @@ private:
 	bool PayActionCost(const FAction &Action, FString &OutRefusedReason);
 
 	/** B-170c: after an action, whether Actor is asked again: alive, not on an Execution turn, not Void-broken
-	 *  (its random turn is one action), not stunned, actions left. B-170f: the AI is asked again too, and banks
-	 *  by choosing End Turn. */
+	 *  (its random turn is one action), not stunned, actions left, fewer than SKILLS_PER_TURN_MAX skills used
+	 *  (Q-170j). B-170f: the AI is asked again too, and banks by choosing End Turn. */
 	bool CanContinueTurn(AActor *Actor) const;
 
 	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left up to Max stay banked (Q-170f2). */
