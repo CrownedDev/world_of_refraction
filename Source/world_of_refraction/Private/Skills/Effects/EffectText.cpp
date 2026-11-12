@@ -754,9 +754,12 @@ namespace EffectText
                               : Fronted(Side, LOCTEXT("Random_Sg", "acts"), LOCTEXT("Random_Pl", "act"),
                                         FText::Format(LOCTEXT("Random_Rest", " at random{0}"), Span(P)));
         case ESkillEffectType::ApplyBurnToTarget:
-            return FText::Format(LOCTEXT("Burn", "inflict Burn on {0}{1}"), Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
+            // Q-064a2 (Crown, 2026-11-12): the on-hit Fire DoT is named "Fire DoT", not "Burn".
+            return FText::Format(LOCTEXT("InflictDoT", "inflict {0} on {1}{2}"), WoRGameNames::GetElementDoTName(ESpellElement::Fire),
+                                 Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
         case ESkillEffectType::ApplyChillToTarget:
-            return FText::Format(LOCTEXT("Chill", "inflict Chill on {0}{1}"), Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
+            return FText::Format(LOCTEXT("InflictDoT", "inflict {0} on {1}{2}"), WoRGameNames::GetElementDoTName(ESpellElement::Water),
+                                 Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
         // B-275: unresolved keyed members. No element on the payload means the cast's element at build time.
         case ESkillEffectType::GrantElementImmunity:
         case ESkillEffectType::ApplyDOTOnHit:

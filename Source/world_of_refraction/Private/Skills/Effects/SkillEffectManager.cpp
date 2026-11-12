@@ -2259,9 +2259,9 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 		const float Magnitude = GetTotalStatModifier(Attacker, ESkillEffectType::ApplyBurnToTarget);
 		const float Damage_ApplyBurn = Magnitude > 0 ? Magnitude : ON_HIT_DOT_DEFAULT_DAMAGE;
 		const int32 BurnID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyBurnToTarget);
-		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(
-			TEXT("Burn"), BurnID, Damage_ApplyBurn, ON_HIT_DOT_TURNS, ESpellElement::Fire);
-		ApplyEffect(Target, Burn, Attacker, TEXT("Burn"), -1);
+		const FString BurnName = SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::DOT, ESpellElement::Fire); // "Fire DoT", Q-064a2
+		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(BurnName, BurnID, Damage_ApplyBurn, ON_HIT_DOT_TURNS, ESpellElement::Fire);
+		ApplyEffect(Target, Burn, Attacker, BurnName, -1);
 	}
 
 	// ApplyChillToTarget — DOT (Water) on the victim.
@@ -2270,9 +2270,9 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 		const float Magnitude = GetTotalStatModifier(Attacker, ESkillEffectType::ApplyChillToTarget);
 		const float Damage_ApplyChill = Magnitude > 0 ? Magnitude : ON_HIT_DOT_DEFAULT_DAMAGE;
 		const int32 ChillID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyChillToTarget);
-		FActiveSkillEffect Chill = FActiveSkillEffect::CreateDOT(
-			TEXT("Chill"), ChillID, Damage_ApplyChill, ON_HIT_DOT_TURNS, ESpellElement::Water);
-		ApplyEffect(Target, Chill, Attacker, TEXT("Chill"), -1);
+		const FString ChillName = SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::DOT, ESpellElement::Water); // "Water DoT", Q-064a2
+		FActiveSkillEffect Chill = FActiveSkillEffect::CreateDOT(ChillName, ChillID, Damage_ApplyChill, ON_HIT_DOT_TURNS, ESpellElement::Water);
+		ApplyEffect(Target, Chill, Attacker, ChillName, -1);
 	}
 
 	// B-275: ApplyDOTOnHit of an element with no old member (Fire / Water resolve to Burn / Chill at build
@@ -3251,8 +3251,8 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	FActiveSkillEffect Effect;
 	Effect.Element = Element;
 
-	// Generate element-aware display name
-	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
+	// Generate element-aware display name: a capped bar is a break, "<Element> Break" (Q-064a2)
+	Effect.EffectName = SkillEffectDisplayNames::GetBreakDisplayName(StatusType, Element);
 
 	// B-274 (S8): what the capped bar applies, its size and timing come from the break table. B-170d (Q-170e): an
 	// action-pips fight reads its own Water, Wind and Ice rows (the fight's latched mode, so play is unchanged at 0).

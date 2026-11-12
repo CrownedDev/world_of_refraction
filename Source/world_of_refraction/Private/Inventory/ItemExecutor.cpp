@@ -10,6 +10,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectDisplayNames.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Crystals/StoneRowTable.h"
@@ -299,7 +300,7 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 	const ESpellElement DOTElement = ItemIdentity::GetElement(Id);
 	const int32 EffectID = static_cast<int32>(GetTypeHash(DOTElement)) ^ static_cast<int32>(ESkillEffectType::DOT);
 	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
-		TEXT("Burn"), EffectID, DamagePerTurnInt, Duration, DOTElement);
+		SkillEffectDisplayNames::GetDisplayName(ESkillEffectType::DOT, DOTElement), EffectID, DamagePerTurnInt, Duration, DOTElement); // "Fire DoT", Q-064a2
 	DOT.BuildupPerTick = BuildupPerEvent;
 
 	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
