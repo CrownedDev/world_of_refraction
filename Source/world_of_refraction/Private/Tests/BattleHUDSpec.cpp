@@ -5,6 +5,8 @@
 // subsystem's buttons with their keys and a row press acts. Layout and looks are PIE (docs/PIE/B-391.md).
 // B-170e: with wor.Turns.ActionPips 1 the party cards show the pips line live and the menu an End Turn row; at 0 neither.
 // B-391b: the Broken Darkness absorb line and overload tint; damage numbers pool, stack and drop a 0.
+// B-391c: the status buildup bar (fill, cracks, line, tint), the party gear line and tooltip, the durability header
+// and the "Absorbed" cue; on the duel, a card's buildup follows a hit's buildup.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -14,9 +16,18 @@
 #include "HAL/IConsoleManager.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionPipsText.h"
+#include "Combat/CombatConstants.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
+#include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/FCrystalAttachment.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Infusion/ElementColors.h"
+#include "Inventory/InventoryComponent.h"
+#include "Infusion/HybridSpellColors.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/StatusBuildupManager.h"
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
@@ -57,6 +68,14 @@ namespace
 	};
 	constexpr int32 BATTLE_HUD_NUMBER = 45;
 	constexpr float BATTLE_HUD_WEAK = 1.5f;
+	constexpr float BATTLE_HUD_BUILDUP = 20.0f;  // well under the cap: no break
+	constexpr float BATTLE_HUD_CRACKED = 80.0f;  // past three of the four default cracks
+	constexpr int32 BATTLE_HUD_RING_NOW = 3;
+	constexpr int32 BATTLE_HUD_RING_MAX = 5;
+	constexpr int32 BATTLE_HUD_WEAPON_NOW = 2;
+	constexpr int32 BATTLE_HUD_WEAPON_MAX = 4;
+	constexpr int32 BATTLE_HUD_GEM_DURABILITY = 7; // the hero's weapon gem in the durability header case
+	const FCrystalId BATTLE_HUD_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -187,6 +206,99 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("no statuses, no chips"), BattleHUDView::JoinStatusChips({}).IsEmpty());
 		});
 
+		It("fills the buildup bar, cracks it past half and tints it as the old panel (B-391c)", [this]()
+		{
+			TestEqual(TEXT("fraction"), BattleHUDView::BuildupFraction(40.0f, 100.0f), 0.4f);
+			TestEqual(TEXT("over the cap"), BattleHUDView::BuildupFraction(150.0f, 100.0f), 1.0f);
+			TestEqual(TEXT("no cap"), BattleHUDView::BuildupFraction(5.0f, 0.0f), 0.0f);
+
+			const TArray<float> Cracks = BattleHUDView::GetCrackPositions();
+			if (!TestEqual(TEXT("one position per crack"), Cracks.Num(), BattleHUDView::CRACK_COUNT))
+			{
+				return;
+			}
+			TestEqual(TEXT("the first crack at the start"), Cracks[0], BattleHUDView::CRACK_START_FRACTION);
+			for (int32 Index = 1; Index < Cracks.Num(); ++Index)
+			{
+				TestTrue(TEXT("cracks run toward the cap"), Cracks[Index] > Cracks[Index - 1] && Cracks[Index] < 1.0f);
+			}
+			TestEqual(TEXT("clean below half"), BattleHUDView::CountCracksShown(0.49f), 0);
+			TestEqual(TEXT("the first at half"), BattleHUDView::CountCracksShown(0.5f), 1);
+			TestEqual(TEXT("three at 80%"), BattleHUDView::CountCracksShown(0.8f), 3);
+			TestEqual(TEXT("all at the cap"), BattleHUDView::CountCracksShown(1.0f), BattleHUDView::CRACK_COUNT);
+
+			TestEqual(TEXT("line"), BattleHUDView::FormatBuildupLine(40.7f, 100.0f).ToString(), FString(TEXT("Status 40 / 100")));
+			TestTrue(TEXT("element colour"), BattleHUDView::GetBuildupColour(ESpellElement::Fire, false)
+												 .Equals(ElementColors::GetColorForElement(ESpellElement::Fire)));
+			TestTrue(TEXT("a Broken Darkness attacker darkens it"), BattleHUDView::GetBuildupColour(ESpellElement::Fire, true)
+																		.Equals(UHybridSpellColors::GetHybridSpellColors(ESpellElement::Fire).BlendedColor));
+			TestTrue(TEXT("physical stays neutral, even from Broken Darkness"), BattleHUDView::GetBuildupColour(ESpellElement::None, true)
+																					.Equals(ElementColors::GetColorForElement(ESpellElement::None)));
+		});
+
+		It("names a party card's gear and lists it in the tooltip (B-391c)", [this]()
+		{
+			FBattleGearNames Gear;
+			Gear.LoadoutName = TEXT("Main");
+			Gear.WeaponName = TEXT("Iron Sword");
+			Gear.RingName = TEXT("Ember Ring");
+			TestEqual(TEXT("weapon and ring"), BattleHUDView::FormatGearLine(Gear).ToString(), FString(TEXT("Iron Sword · Ember Ring")));
+			const FString Tooltip = BattleHUDView::FormatGearTooltip(Gear).ToString();
+			TestTrue(TEXT("tooltip lists all three"), Tooltip.Contains(TEXT("Loadout: Main")) && Tooltip.Contains(TEXT("Weapon: Iron Sword")) &&
+														  Tooltip.Contains(TEXT("Ring: Ember Ring")));
+			Gear.RingName.Reset();
+			TestEqual(TEXT("weapon alone"), BattleHUDView::FormatGearLine(Gear).ToString(), FString(TEXT("Iron Sword")));
+			TestTrue(TEXT("an empty slot reads none"), BattleHUDView::FormatGearTooltip(Gear).ToString().Contains(TEXT("Ring: none")));
+			TestTrue(TEXT("no gear, no line"), BattleHUDView::FormatGearLine(FBattleGearNames()).IsEmpty());
+			TestTrue(TEXT("no actor, no gear"), BattleHUDView::ReadGearNames(nullptr).WeaponName.IsEmpty());
+		});
+
+		It("writes the durability header by the old header's slot rule (B-391c)", [this]()
+		{
+			TestEqual(TEXT("nothing to wear: no lines"), BattleHUDView::MakeDurabilityLines(FBattleDurability()).Num(), 0);
+			TestEqual(TEXT("no actor: no lines"), BattleHUDView::MakeDurabilityLines(BattleHUDView::ReadDurability(nullptr)).Num(), 0);
+
+			FBattleDurability Both;
+			Both.bHasRing = true;
+			Both.RingCurrent = BATTLE_HUD_RING_NOW;
+			Both.RingMax = BATTLE_HUD_RING_MAX;
+			Both.bHasWeapon = true;
+			Both.WeaponCurrent = BATTLE_HUD_WEAPON_NOW;
+			Both.WeaponMax = BATTLE_HUD_WEAPON_MAX;
+			const TArray<FText> Lines = BattleHUDView::MakeDurabilityLines(Both);
+			if (TestEqual(TEXT("ring and weapon: two lines"), Lines.Num(), 2))
+			{
+				TestEqual(TEXT("the ring first"), Lines[0].ToString(), FString(TEXT("AD 3 / 5")));
+				TestEqual(TEXT("then the weapon"), Lines[1].ToString(), FString(TEXT("WD 2 / 4")));
+			}
+			FBattleDurability WeaponOnly = Both;
+			WeaponOnly.bHasRing = false;
+			const TArray<FText> Weapon = BattleHUDView::MakeDurabilityLines(WeaponOnly);
+			TestTrue(TEXT("weapon alone takes the first line"), Weapon.Num() == 1 && Weapon[0].ToString() == TEXT("WD 2 / 4"));
+		});
+
+		It("reads Absorbed only for a hit Broken Darkness took fully (B-391c, Q-391c)", [this]()
+		{
+			FCombatHitShown Nothing;
+			Nothing.DamageType = EWoRDamageType::Fire;
+			TestTrue(TEXT("0 on Broken Darkness"), DamageNumberView::IsAbsorbedHit(Nothing, /*bTargetBrokenDarkness=*/true));
+			TestFalse(TEXT("0 on anyone else"), DamageNumberView::IsAbsorbedHit(Nothing, false));
+			FCombatHitShown Landed = Nothing;
+			Landed.Amount = BATTLE_HUD_NUMBER;
+			TestFalse(TEXT("a hit that took HP"), DamageNumberView::IsAbsorbedHit(Landed, true));
+			FCombatHitShown Heal = Nothing;
+			Heal.bHeal = true;
+			TestFalse(TEXT("a heal"), DamageNumberView::IsAbsorbedHit(Heal, true));
+			FCombatHitShown Immune = Nothing;
+			Immune.ElementMultiplier = DamageNumberView::IMMUNE_MULTIPLIER;
+			TestFalse(TEXT("immune keeps its grey number"), DamageNumberView::IsAbsorbedHit(Immune, true));
+
+			const FDamageNumberStyle Style = DamageNumberView::MakeAbsorbedStyle(Nothing);
+			TestTrue(TEXT("the Absorbed tier"), Style.Tier == EDamageNumberTier::Absorbed);
+			TestEqual(TEXT("the word"), Style.Text.ToString(), DamageNumberView::GetAbsorbedLabel().ToString());
+			TestTrue(TEXT("in the hit's colour"), Style.Colour.Equals(DamageNumberView::GetDamageTypeColour(EWoRDamageType::Fire)));
+		});
+
 		It("gives each menu key to the row it presses, as PressMenuKey does", [this]()
 		{
 			const TArray<EPieMenuCategory> Rows = {EPieMenuCategory::Attack, EPieMenuCategory::Abilities, EPieMenuCategory::ResonateWeapon,
@@ -276,6 +388,128 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("wor.UI.Print shows it"), HUD->GetBattleHUDString().Contains(TEXT("2 live")));
 			HUD->Teardown();
 			TestEqual(TEXT("teardown clears them"), HUD->GetLiveDamageNumberCount(), 0);
+		});
+
+		It("follows a hit's buildup on the card's bar and line, and cracks it (B-391c)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UStatusBuildupManager *Buildup = TestWorld->GetSubsystem<UStatusBuildupManager>();
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestTrue(TEXT("buildup manager and battle HUD widget"), Buildup && HUD))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			if (!TestEqual(TEXT("two cards"), HUD->GetCards().Num(), 2))
+			{
+				HUD->Teardown();
+				return;
+			}
+			const FBattleHUDCard &FoeCard = HUD->GetCards()[1];
+			TestEqual(TEXT("seeded empty"), FoeCard.BuildupFraction, 0.0f);
+
+			Buildup->AddStatusBuildup(Hero, Foe, BATTLE_HUD_BUILDUP, ESpellElement::Fire, EPhysicalDamageType::None);
+			const float Built = Buildup->GetStatusBarBuildup(Foe);
+			TestTrue(TEXT("the hit built some"), Built > 0.0f);
+			TestEqual(TEXT("the line follows the bar"), FoeCard.BuildupLine.ToString(),
+					  BattleHUDView::FormatBuildupLine(Built, CombatConstants::STATUS_EFFECT_THRESHOLD).ToString());
+			TestEqual(TEXT("the fill follows the bar"), FoeCard.BuildupFraction,
+					  BattleHUDView::BuildupFraction(Built, CombatConstants::STATUS_EFFECT_THRESHOLD));
+
+			Buildup->OnStatusBuildupChanged.Broadcast(Foe, BATTLE_HUD_CRACKED, CombatConstants::STATUS_EFFECT_THRESHOLD, ESpellElement::Fire, nullptr);
+			TestEqual(TEXT("cracked past half"), FoeCard.CracksShown,
+					  BattleHUDView::CountCracksShown(BATTLE_HUD_CRACKED / CombatConstants::STATUS_EFFECT_THRESHOLD));
+			TestTrue(TEXT("wor.UI.Print shows it"), HUD->GetBattleHUDString().Contains(TEXT("crack(s)")));
+			HUD->Teardown();
+		});
+
+		It("names a party card's gear, and floats Absorbed over a Broken Darkness hit that took nothing (B-391c)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			UCharacterDataComponent *FoeData = Foe->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestTrue(TEXT("battle HUD widget and the foe's data"), HUD && FoeData))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			if (!TestEqual(TEXT("two cards"), HUD->GetCards().Num(), 2))
+			{
+				HUD->Teardown();
+				return;
+			}
+			const FBattleHUDCard &HeroCard = HUD->GetCards()[0];
+			TestEqual(TEXT("the gear line reads the loadout"), HeroCard.GearLine.ToString(),
+					  BattleHUDView::FormatGearLine(BattleHUDView::ReadGearNames(Hero)).ToString());
+			TestTrue(TEXT("the tooltip names the loadout"), HeroCard.GearTooltip.ToString().Contains(TEXT("Loadout:")));
+			TestTrue(TEXT("an enemy card has no gear"), HUD->GetCards()[1].GearTooltip.IsEmpty());
+
+			FCombatHitShown Nothing;
+			Nothing.DamageType = EWoRDamageType::Fire;
+			HUD->ShowDamageNumber(Foe, Nothing);
+			TestEqual(TEXT("a 0 on a normal foe: nothing"), HUD->GetLiveDamageNumberCount(), 0);
+			FoeData->ServerSetBrokenDarkness(true);
+			if (!TestTrue(TEXT("the foe is in Broken Darkness"), FoeData->IsBrokenDarkness()))
+			{
+				HUD->Teardown();
+				return;
+			}
+			HUD->ShowDamageNumber(Foe, Nothing);
+			const FBattleDamageNumber *Absorbed = HUD->GetDamageNumbers().FindByPredicate(
+				[](const FBattleDamageNumber &Number) { return Number.bLive; });
+			TestTrue(TEXT("Absorbed floats"), DamageNumberView::SHOW_ABSORB_CUE == (Absorbed != nullptr));
+			TestTrue(TEXT("styled Absorbed"), !Absorbed || Absorbed->Style.Tier == EDamageNumberTier::Absorbed);
+			HUD->Teardown();
+		});
+
+		It("shows the acting character's durability header as the old header (B-391c)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				return;
+			}
+			// Review fix: give the acting hero a gemmed weapon, so the header has a line to check (as CrystalBreakSpec).
+			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+			ULoadoutComponent *HeroLoadout = Hero->FindComponentByClass<ULoadoutComponent>();
+			UInventoryComponent *Inventory = FWoRTestWorld::AddComponent<UInventoryComponent>(Hero);
+			if (!TestTrue(TEXT("hero data, loadout and inventory"), HeroData && HeroLoadout && Inventory))
+			{
+				return;
+			}
+			HeroLoadout->InitializeFromCharacterData(HeroData->CharacterData, Inventory);
+			if (!TestTrue(TEXT("an active saved loadout"), Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
+			{
+				return;
+			}
+			FRuntimeAttachedItem Gem;
+			Gem.Kind = EAttachedItemKind::Crystal;
+			Gem.Crystal = FCrystalAttachment(BATTLE_HUD_GEM, BATTLE_HUD_GEM_DURABILITY);
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Active.PrimarySlotType = EPrimarySlotType::Weapon;
+			Active.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Active.PrimaryWeapon.WeaponEntry.AttachedItem = Gem;
+			HeroLoadout->NotifyActiveWeaponChanged(); // a direct edit, so announce it (B-138)
+
+			MenuWidget->Initialise(); // replays the open menu, which reads the header
+			const TArray<FText> &Lines = MenuWidget->GetDurabilityLines();
+			if (TestTrue(TEXT("Hero's menu, with a header line"), Menu->GetCurrentActor() == Hero && Lines.Num() > 0))
+			{
+				const FString Expected = FString::Printf(TEXT("WD %d / "), BATTLE_HUD_GEM_DURABILITY);
+				TestTrue(TEXT("the weapon gem's durability"), Lines.Last().ToString().StartsWith(Expected));
+			}
+			TestTrue(TEXT("wor.UI.Print shows it"), MenuWidget->GetCommandMenuString().Contains(TEXT("WD ")));
+			MenuWidget->Teardown();
 		});
 
 		It("lists the menu's buttons with their keys, and a row press acts", [this]()
