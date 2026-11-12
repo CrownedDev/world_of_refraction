@@ -360,6 +360,13 @@ namespace CombatConstants
     constexpr float BLOCK_BUILDUP_MULTIPLIER = 0.5f; // Block: 50% buildup through
     constexpr float PARRY_BUILDUP_MULTIPLIER = 0.0f; // Perfect Guard: no buildup through (Q-168b, like its 0 damage)
 
+    // ==================== TURN-START ENERGY (B-173) ====================
+    // Energy refill (D-089, changed 2026-11-09): at the start of each of the holder's turns it gains this share of
+    // its Max EP, at least TURN_START_EP_MIN while Max EP > 0. Broken Darkness gains none (its absorption is its EP).
+    // TODO: tune
+    constexpr float TURN_START_EP_SHARE_OF_MAX = 0.10f;
+    constexpr int32 TURN_START_EP_MIN = 1;
+
     // ==================== SPELL DATA ====================
     // Status bar system
     // Status Effect Thresholds
