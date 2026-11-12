@@ -55,6 +55,7 @@
 #include "Player/RunStateComponent.h" // B-232: the seat rotation
 #include "Party/PartySessionSubsystem.h"
 #include "HAL/IConsoleManager.h"
+#include "Combat/Mechanics/TurnStartEnergy.h"
 #include "WoRLog.h"
 
 namespace CombatOwnedGearSync
@@ -1637,6 +1638,9 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 	{
 		BuildupManager->ProcessStatusBarDecay(Actor);
 	}
+
+	// D-089 (B-173): Energy refills at the start of each of the holder's turns, after the turn-start payouts.
+	TurnStartEnergy::Apply(Actor);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
 		   *Actor->GetName());
