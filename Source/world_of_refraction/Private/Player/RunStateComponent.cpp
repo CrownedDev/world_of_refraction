@@ -22,6 +22,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Party/SeatRules.h"
+#include "Online/HostSuccession.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
 #include "Trial/TrialData.h"
@@ -552,7 +553,7 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 	{
 		if (!PartySession->IsMemberAISeat(ReplaceSlot) || !PartySession->SetMemberAISeat(ReplaceSlot, false))
 		{
-			JoinRequests.Add(Request);
+			JoinRequests.Insert(Request, Index); // review: keeps its place in the queue
 			return false;
 		}
 		HeldSeats.Remove(SeatMember);
@@ -563,7 +564,7 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 	}
 	if (!PartySession || !PartySession->ReplaceAISeatWithPlayer(ReplaceSlot, Request.PawnClass, Request.Character))
 	{
-		JoinRequests.Add(Request); // still waiting: the host may pick another seat
+		JoinRequests.Insert(Request, Index); // still waiting, in its place: the host may pick another seat
 		return false;
 	}
 	HeldSeats.Remove(SeatMember); // another player took it: the hold is gone with the member
@@ -609,6 +610,16 @@ void URunStateComponent::HandleLogout(AGameModeBase *GameMode, AController *Exit
 	// Only this world's remote players: the host's own controller and other worlds' (PIE) are not a friend leaving.
 	if (!PC || PC->IsLocalController() || PC->GetWorld() != GetWorld())
 	{
+		return;
+	}
+	// Review: a closing world (travel, PIE end) or a host hand-over in flight (B-234c: every client leaves on purpose)
+	// is not a friend dropping out; the seats stay as saved.
+	const UWorld *World = GetWorld();
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr;
+	if (!World || World->bIsTearingDown || (HandOver && HandOver->GetStep() != EHostHandOverStep::None))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RunState] A player logged out during a level close or a hand-over: seats unchanged"));
 		return;
 	}
 	HandlePlayerLeft(PC->PlayerState);
@@ -675,8 +686,19 @@ void URunStateComponent::ApplyPendingSeatDrops()
 {
 	TArray<FGuid> Drops = MoveTemp(PendingSeatDrops);
 	PendingSeatDrops.Reset();
+	const AGameStateBase *GameState = GetOwningGameState();
 	for (const FGuid &MemberId : Drops)
 	{
+		// Review: a member someone claimed again since (a player seated before the drop) stays theirs.
+		const bool bClaimedAgain = GameState && GameState->PlayerArray.ContainsByPredicate([&MemberId](const APlayerState *Player)
+		{
+			const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+			return WoRPlayer && WoRPlayer->ClaimsMember(MemberId);
+		});
+		if (bClaimedAgain)
+		{
+			continue;
+		}
 		if (!DropToAISeat(MemberId))
 		{
 			UE_LOG(LogWoR, Warning, TEXT("[RunState] Member %s stays the host's: its seat could not turn AI"), *MemberId.ToString(EGuidFormats::Short));
