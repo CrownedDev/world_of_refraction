@@ -23,6 +23,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "Player/InputPriorities.h"
 #include "Player/TurnStateComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/GameStateBase.h"
@@ -31,9 +32,6 @@
 
 namespace CombatMenuKeys
 {
-	/** Above the editor-authored combat context (priority 0), so a shared key goes to the menu. */
-	constexpr int32 CONTEXT_PRIORITY = 1;
-
 	/** B-406b (Q-406b): skips a boss cinematic. Its own action name (D-063); keys from InputMap.md. Functions, not
 	 *  globals: an EKeys value is only safe to copy after its module's static init. */
 	constexpr const TCHAR *SKIP_CINEMATIC_ACTION_NAME = TEXT("IA_Combat_SkipCinematic");
@@ -105,13 +103,13 @@ void ACombatPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Add the combat input mapping context at priority 0.
+	// The combat input mapping context, then the code-built menu keys above it (WoRInputPriority, B-129).
 	if (UEnhancedInputLocalPlayerSubsystem *Subsystem =
 			ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		if (CombatMappingContext)
 		{
-			Subsystem->AddMappingContext(CombatMappingContext, 0);
+			Subsystem->AddMappingContext(CombatMappingContext, WoRInputPriority::COMBAT);
 			UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Added Combat Mapping Context"));
 		}
 		else
@@ -119,7 +117,7 @@ void ACombatPlayerController::BeginPlay()
 			UE_LOG(LogTemp, Warning, TEXT("[CombatPlayerController] CombatMappingContext not assigned!"));
 		}
 		BuildMenuKeys();
-		Subsystem->AddMappingContext(MenuKeysContext, CombatMenuKeys::CONTEXT_PRIORITY);
+		Subsystem->AddMappingContext(MenuKeysContext, WoRInputPriority::COMBAT_MENU_KEYS);
 	}
 }
 
