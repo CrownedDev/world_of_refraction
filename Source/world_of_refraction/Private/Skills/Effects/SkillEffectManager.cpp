@@ -8,6 +8,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/CombatPresentationComponent.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
@@ -169,6 +170,29 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s rejected on %s — already fired once this match (ID=%d)"),
 			   *Effect.EffectName, *Target->GetName(), Effect.EffectID);
 		return EEffectApplicationResult::Rejected;
+	}
+
+	// B-170d (ActionPips.md §3.4, Q-170g): a timed Gain / Lose Action waits on the holder for its turn start (Duration
+	// N = the Nth from now) and lands in the turn-start order's step 2; never a lasting effect. One "now" (Duration 0)
+	// takes the instant lane below. Value = actions (author Value, not Magnitude).
+	if (SkillEffectClassification::IsActionChange(Effect.EffectType) && !Effect.IsInstant())
+	{
+		UCharacterDataComponent *Holder = GetCharacterDataComponent(Target);
+		const int32 Amount = FMath::RoundToInt(Effect.EffectValue);
+		if (!Holder || Effect.bPermanent || Amount <= 0)
+		{
+			UE_LOG(LogWoREffects, Warning, TEXT("[SkillEffectManager] %s on %s not applied: an action change needs a positive Value and Duration 0 (now) or N (turn starts from now), not permanent"),
+				   *Effect.EffectName, *Target->GetName());
+			return EEffectApplicationResult::Rejected;
+		}
+		const bool bGain = Effect.EffectType == ESkillEffectType::GainActions;
+		Holder->AddWaitingActionChange(bGain ? Amount : -Amount, Effect.RemainingTurns, /*bMayPassMax=*/true);
+		OnEffectApplied.Broadcast(Target, Effect);
+		if (Effect.bFiresOncePerMatch)
+		{
+			RecordFiredOnce(Target, FiredOnceKey);
+		}
+		return EEffectApplicationResult::Applied;
 	}
 
 	// B-042j2 (D-092): a Negate payload is an absorber charge on the holder's tracker, not a lasting effect. It has
@@ -1864,6 +1888,8 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ReflexBuff:
 	case ESkillEffectType::ReflexDebuff:
 	case ESkillEffectType::CritDamageDebuff:
+	case ESkillEffectType::MaxActionsBuff: // B-170d: read by UCharacterDataComponent::GetMaxActions
+	case ESkillEffectType::MaxActionsDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
 		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
@@ -2097,6 +2123,18 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		}
 		break;
 	}
+	// B-170d (Q-170g): actions now. A gain may pass Max until the holder's turn ends (Q-170f2); a loss never goes below 0. Timed ones wait on
+	// the holder (ApplyEffect), so only the instant lane reaches here.
+	case ESkillEffectType::GainActions:
+		CharComp->GainActions(FMath::RoundToInt(Value), /*bMayPassMax=*/true);
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s: +%d action(s) via %s, %d now"), *Actor->GetName(),
+			   FMath::RoundToInt(Value), *Effect.EffectName, CharComp->CurrentActions);
+		break;
+	case ESkillEffectType::LoseActions:
+		CharComp->LoseActions(FMath::RoundToInt(Value));
+		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s: -%d action(s) via %s, %d now"), *Actor->GetName(),
+			   FMath::RoundToInt(Value), *Effect.EffectName, CharComp->CurrentActions);
+		break;
 	case ESkillEffectType::GuaranteedCrit:
 		UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] GuaranteedCrit active on %s"), *Actor->GetName());
 		break;
@@ -2853,6 +2891,12 @@ void USkillEffectManager::BroadcastHealing(AActor *Healer, AActor *Recipient, in
 	{
 		Executor->OnHealingDone.Broadcast(Healer, Recipient, Amount);
 	}
+	// B-391b: every machine's green heal number (the server sends; a guest's effect events don't fire).
+	UCombatPresentationComponent *Presentation = Amount > 0 ? UCombatPresentationComponent::Find(Recipient) : nullptr;
+	if (Presentation)
+	{
+		Presentation->SendHeal(Amount);
+	}
 }
 
 bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const
@@ -3217,8 +3261,11 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// Generate element-aware display name
 	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
 
-	// B-274 (S8): what the capped bar applies, its size and timing come from the break table.
-	const FBreakRow *Row = BreakTable::For(StatusType);
+	// B-274 (S8): what the capped bar applies, its size and timing come from the break table. B-170d (Q-170e): an
+	// action-pips fight reads its own Water, Wind and Ice rows (the fight's latched mode, so play is unchanged at 0).
+	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
+	const bool bActionPipsFight = TurnManager && TurnManager->IsRotationMode();
+	const FBreakRow *Row = BreakTable::For(StatusType, bActionPipsFight);
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	if (Row && Row->SizeKind == EBreakSize::OneShotShareOfMaxHP)
 	{
@@ -3307,7 +3354,6 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// by the one rule (FTurnSpan, D-051): it ends as the holder's turn after those starts.
 	// ApplyEffect's timing rule then times a payout break (Burn, EP drain) as Q-063 says.
 	Effect.StartHolderTurnSpan(CombatConstants::STATUS_CAP_TURNS);
-	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
 	// B-382 review (Q-164b, existing sources unchanged): a DamageBuff / DamageDebuff is keyed by element only when
 	// authored so; a status break's (RandomDebuff can resolve to DamageDebuff) counts for every hit, as before.
 	if (Effect.EffectType == ESkillEffectType::DamageBuff || Effect.EffectType == ESkillEffectType::DamageDebuff)
@@ -3341,6 +3387,17 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	if (Row && Row->DelayTurnPlaces > 0 && Result == EEffectApplicationResult::Applied && TurnManager)
 	{
 		TurnManager->DelayNextTurn(Target, Row->DelayTurnPlaces);
+	}
+
+	// B-170d (Q-170e), action-pips rows only: Ice takes its actions at once, every break (as its damage); Wind takes
+	// its at the holder's next turn start, a new gust only (as its delay did, D-012). Never below 0.
+	if (Row && TargetComp && Row->ActionsLostNow > 0)
+	{
+		TargetComp->LoseActions(Row->ActionsLostNow);
+	}
+	if (Row && TargetComp && Row->ActionsLostNextTurn > 0 && Result == EEffectApplicationResult::Applied)
+	{
+		TargetComp->AddWaitingActionChange(-Row->ActionsLostNextTurn, ActionPipsConstants::ACTION_CHANGE_NEXT_TURN, /*bMayPassMax=*/false);
 	}
 
 	UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] Applied triggered %s to %s for %d holder turn(s)"),

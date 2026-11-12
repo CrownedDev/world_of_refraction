@@ -4,6 +4,7 @@
 
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/CombatPresentationComponent.h"
+#include "Combat/Presentation/CastVisuals.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
 #include "WoRLog.h"
@@ -569,8 +570,20 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 		return;
 	}
 
-	// Soft ref — the runner resolves at spawn time.
-	UNiagaraSystem *System = Entry.VFX.LoadSynchronous();
+	// Soft ref — the runner resolves at spawn time. B-394 (D-170): a Muzzle entry is the cast flash, so its source
+	// (weapon / adapter-type default / Generic preference) decides; the entry's own asset when nothing is authored.
+	TSoftObjectPtr<UNiagaraSystem> EntryVFX = Entry.VFX;
+	if (Entry.Role == EVFXRole::Muzzle)
+	{
+		const FAction *CastAction = (CurrentExecutionContext.IsSet() && CurrentExecutionContext->Executor.Get() == Caster)
+										? &CurrentExecutionContext->Action
+										: nullptr;
+		const FCastVisualChoice CastChoice = CastVisuals::ResolveForCaster(
+			Caster, CastAction, Cast<USpellData>(GetCurrentSkillData()) != nullptr, Entry.VFX);
+		UE_LOG(LogWoR, Verbose, TEXT("[CastVFX] %s VFX[%d]: %s"), *GetNameSafe(Caster), Index, *CastVisuals::GetChoiceString(CastChoice));
+		EntryVFX = CastChoice.VFX;
+	}
+	UNiagaraSystem *System = EntryVFX.LoadSynchronous();
 	if (!System)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX[%d] '%s' has no asset"), Index, *Entry.Label);

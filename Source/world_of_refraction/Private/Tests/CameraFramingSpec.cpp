@@ -54,7 +54,7 @@ void FCameraFramingSpec::Define()
 	{
 		FCameraShotContext Context = FramingTestContext(true);
 		TestEqual(TEXT("wind-up: caster and targets"), CameraFraming::GetRequiredPoints(ECameraShotMoment::WindUp, Context).Num(), 3);
-		TestEqual(TEXT("impact: the first target"), CameraFraming::GetRequiredPoints(ECameraShotMoment::Impact, Context).Num(), 1);
+		TestEqual(TEXT("impact: the caster and the first target (B-403)"), CameraFraming::GetRequiredPoints(ECameraShotMoment::Impact, Context).Num(), 2);
 		TestEqual(TEXT("spread: every target"), CameraFraming::GetRequiredPoints(ECameraShotMoment::Spread, Context).Num(), 2);
 	});
 

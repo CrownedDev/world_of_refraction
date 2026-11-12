@@ -24,6 +24,7 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "Character/OverCapRules.h"
 #include "Engine/GameInstance.h"
+#include "WoRLog.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
 {
@@ -1491,7 +1492,7 @@ FWoRActionPointLayers UCharacterDataComponent::GetActionPointLayers() const
 {
     FWoRActionPointLayers Layers;
     // TODO: B-170 follow-up (Q-170a): read the gear's and evolutions' action points once a data field
-    // carries them; MaxActionsBuff / MaxActionsDebuff (B-170d) change Max Actions, not these points.
+    // carries them; MaxActionsBuff / MaxActionsDebuff (B-170d) change Max Actions (GetMaxActionsChange), not these points.
     Layers.Debug = DebugActionPoints;
     return Layers;
 }
@@ -1503,7 +1504,90 @@ int32 UCharacterDataComponent::GetActionPoints() const
 
 int32 UCharacterDataComponent::GetMaxActions() const
 {
-    return ActionPipsRules::MaxActionsForPoints(GetActionPoints());
+    return ActionPipsRules::MaxActionsWithChange(ActionPipsRules::MaxActionsForPoints(GetActionPoints()), GetMaxActionsChange());
+}
+
+int32 UCharacterDataComponent::GetMaxActionsChange() const
+{
+    USkillEffectManager *Effects = GetSkillEffectManager();
+    AActor *Owner = GetOwner();
+    if (!Effects || !Owner)
+    {
+        return 0;
+    }
+    const float Net = Effects->GetTotalStatModifier(Owner, ESkillEffectType::MaxActionsBuff) -
+                      Effects->GetTotalStatModifier(Owner, ESkillEffectType::MaxActionsDebuff);
+    return FMath::RoundToInt(Net);
+}
+
+void UCharacterDataComponent::AddWaitingActionChange(int32 Change, int32 TurnsLeft, bool bMayPassMax)
+{
+    if (!HasServerAuthority() || Change == 0 || TurnsLeft < ActionPipsConstants::ACTION_CHANGE_NEXT_TURN)
+    {
+        return;
+    }
+    FWoRWaitingActionChange Waiting;
+    Waiting.Change = Change;
+    Waiting.TurnsLeft = TurnsLeft;
+    Waiting.bMayPassMax = bMayPassMax;
+    WaitingActionChanges.Add(Waiting);
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: waiting action change %s"), *GetNameSafe(GetOwner()), *Waiting.ToString());
+}
+
+void UCharacterDataComponent::ClearWaitingActionChanges()
+{
+    WaitingActionChanges.Reset();
+}
+
+void UCharacterDataComponent::ApplyWaitingActionChanges()
+{
+    if (!HasServerAuthority() || WaitingActionChanges.Num() == 0)
+    {
+        return;
+    }
+    TArray<FWoRWaitingActionChange> Landing;
+    for (int32 Index = WaitingActionChanges.Num() - 1; Index >= 0; --Index)
+    {
+        FWoRWaitingActionChange &Waiting = WaitingActionChanges[Index];
+        if (--Waiting.TurnsLeft <= 0)
+        {
+            Landing.Insert(Waiting, 0); // keep the order they were added in
+            WaitingActionChanges.RemoveAt(Index);
+        }
+    }
+    for (const FWoRWaitingActionChange &Gain : Landing)
+    {
+        if (Gain.Change > 0)
+        {
+            GainActions(Gain.Change, Gain.bMayPassMax);
+        }
+    }
+    for (const FWoRWaitingActionChange &Loss : Landing)
+    {
+        if (Loss.Change < 0)
+        {
+            LoseActions(-Loss.Change);
+        }
+    }
+    if (Landing.Num() > 0)
+    {
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: %d waiting action change(s) landed, %d actions"), *GetNameSafe(GetOwner()),
+               Landing.Num(), CurrentActions);
+    }
+}
+
+FString UCharacterDataComponent::GetWaitingActionChangesString() const
+{
+    if (WaitingActionChanges.Num() == 0)
+    {
+        return TEXT("none");
+    }
+    TArray<FString> Parts;
+    for (const FWoRWaitingActionChange &Waiting : WaitingActionChanges)
+    {
+        Parts.Add(Waiting.ToString());
+    }
+    return FString::Join(Parts, TEXT(", "));
 }
 
 int32 UCharacterDataComponent::GetActionPointProgress() const
@@ -1521,9 +1605,38 @@ float UCharacterDataComponent::GetReflexRegainShare() const
     return FMath::Clamp(ReflexTerm / CombatConstants::WINDOW_CAP_SECONDS, 0.0f, 1.0f);
 }
 
+float UCharacterDataComponent::GetRegainReflexValue() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    int32 GearReflex = 0;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            GearReflex = Loadout->GetActiveStatBonus(Owner).BonusReflex; // per-point tier worth applied there (TierPowerScaling 3c)
+        }
+    }
+    const float ReflexPoints = static_cast<float>(CharacterData->GetTotalReflex() + GearReflex);
+    return FMath::Max(0.0f, ReflexPoints * GetEvolutionModifiedBody());
+}
+
+float UCharacterDataComponent::GetRegainReflexStep() const
+{
+    const float NaturalBody = CharacterData ? CharacterData->GetEffectiveBodyForLevel(GetWorldBody()) : 1.0f;
+    return ActionPipsConstants::REGAIN_STEP * NaturalBody;
+}
+
 int32 UCharacterDataComponent::GetActionRegain() const
 {
-    return ActionPipsRules::RegainForReflexShare(GetReflexRegainShare());
+    return ActionPipsRules::RegainForReflexValue(GetRegainReflexValue(), GetRegainReflexStep());
+}
+
+FString UCharacterDataComponent::GetActionRegainString() const
+{
+    return ActionPipsRules::RegainString(GetRegainReflexValue(), GetRegainReflexStep());
 }
 
 void UCharacterDataComponent::ResetActionsForFight()
@@ -1532,6 +1645,7 @@ void UCharacterDataComponent::ResetActionsForFight()
     {
         return;
     }
+    ClearWaitingActionChanges(); // B-170d: nothing waits across fights
     SetCurrentActions(ActionPipsRules::ActionsAtFightStart(GetActionRegain(), GetMaxActions()));
 }
 
@@ -1570,6 +1684,22 @@ void UCharacterDataComponent::LoseActions(int32 Amount)
         return;
     }
     SetCurrentActions(FMath::Max(0, CurrentActions - Amount));
+}
+
+void UCharacterDataComponent::ExpireActionsAboveMax()
+{
+    if (!HasServerAuthority())
+    {
+        return;
+    }
+    const int32 MaxActions = GetMaxActions();
+    const int32 Kept = ActionPipsRules::BankAtTurnEnd(CurrentActions, MaxActions);
+    if (Kept < CurrentActions)
+    {
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: %d bonus action(s) above Max %d lost at turn end"),
+               *GetNameSafe(GetOwner()), CurrentActions - Kept, MaxActions);
+    }
+    SetCurrentActions(Kept);
 }
 
 void UCharacterDataComponent::SetCurrentActions(int32 NewActions)

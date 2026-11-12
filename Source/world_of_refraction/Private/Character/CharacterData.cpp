@@ -84,6 +84,13 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
         Result = EDataValidationResult::Invalid;
     }
 
+    // B-170g (Q-170h, Q-170g2): Spirit loses Turn Speed with action pips; a warning while the speed timeline still reads it.
+    if (TurnSpeed != 0)
+    {
+        Context.AddWarning(FText::FromString(FString::Printf(
+            TEXT("TurnSpeed = %d: Turn Speed is retired with action pips (B-170) and does nothing once they are on."), TurnSpeed)));
+    }
+
     return Result;
 }
 
