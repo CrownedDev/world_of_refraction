@@ -16,6 +16,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loadout/LoadoutComponent.h"
 #include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
 #include "Merchant/MerchantStockRoll.h"
@@ -1038,6 +1039,29 @@ int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
     const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
     RunTally = FRunPayout();
     return Paid;
+}
+
+float UTrialRunSubsystem::RefreshPayoutMultiplier(const TArray<AActor *> &Fighters)
+{
+    if (!IsRunActive())
+    {
+        return PayoutMultiplier;
+    }
+    float BonusPercent = 0.0f;
+    for (const AActor *Fighter : Fighters)
+    {
+        if (const ULoadoutComponent *Loadout = Fighter ? Fighter->FindComponentByClass<ULoadoutComponent>() : nullptr)
+        {
+            BonusPercent += RunRewards::SumPayoutBonusPercent(Loadout->GatherAttachedEvolutions());
+        }
+    }
+    const float Previous = PayoutMultiplier;
+    SetPayoutMultiplier(RunRewards::PayoutMultiplierForBonus(BonusPercent));
+    if (!FMath::IsNearlyEqual(Previous, PayoutMultiplier))
+    {
+        UE_LOG(LogWoR, Log, TEXT("[TrialRun] Payout passives: +%.0f%% -> run-end multiplier x%.2f"), BonusPercent, PayoutMultiplier);
+    }
+    return PayoutMultiplier;
 }
 
 FRunPayout UTrialRunSubsystem::GetRunEndPayout() const

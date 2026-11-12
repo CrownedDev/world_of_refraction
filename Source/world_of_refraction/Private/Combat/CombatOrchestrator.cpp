@@ -503,6 +503,13 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	if (Result == ECombatState::Victory || Result == ECombatState::Defeat)
 	{
 		ApplyBetweenCombatCrystalDestruction();
+		// B-096 (Q-096): the run-end payout reads the passives the party wore in this fight. Before the repair, which
+		// lifts a kept broken evolution off 0 durability: one that broke in this fight gives nothing.
+		UTrialRunSubsystem *TrialRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+		if (TrialRun && HasAuthority())
+		{
+			TrialRun->RefreshPayoutMultiplier(LocalPartyCombatants);
+		}
 		ApplyBetweenCombatRepair();
 	}
 

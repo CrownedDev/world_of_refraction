@@ -687,10 +687,29 @@ The queue of questions only Crown can answer.
 **Answer:** as above, by the reference-backed default (2026-11-12). Crown may change the close behaviour or the notices. **Flag answered (Crown, 2026-11-12):** the end memory a hidden quest earns is masked too: "New memory found. Open the journal to view it." (a main or side quest's end memory still reads "New memory: <title>"). `wor.Quest.Print` (debug) still names everything.
 **Notes for Claude:** placeholder UI: one "Reveal Hidden Quest <n>" button per masked quest under the Quests page text (`UMemoryJournalWidget::RevealQuest` / `Close`); no key, so no InputMap row. The real CommonUI journal puts Reveal on the entry itself (D-024). Text is placeholder `LOCTEXT` (`HiddenQuestNotice`, `MemoryJournal` namespace). PIE `docs/PIE/Q-397b.md`.
 
+### Q-096 — Payout passives: who carries them, how they stack, when they're read
+**Status:** ANSWERED (reference-backed default, 2026-11-12) · **Raised:** 2026-11-12 (B-096, cloud) · **Blocks:** —
+**Question:** B-073 left one run-end payout multiplier for "passives"; which items carry the passive, how do several add up, and when is it read?
+**Context:** `UTrialRunSubsystem::PayoutMultiplier` (B-073, `TrialRunSubsystem.h`) was never raised; evolutions are the asset-backed passive carriers (`UEvolutionItemData`), attached to the character slot, weapon, adapter or apparel (`ULoadoutComponent::GatherAttachedEvolutions`).
+**Recommendation (default):**
+- **Carrier:** a number on the evolution, `RunPayoutBonusPercent` (e.g. 10 = "+10% run-end payout"). It counts **wherever it is worn** (any place, any charge level), because it is not a combat effect, so D-147's "gear passives only at L2" doesn't apply. A broken evolution gives nothing (as its other passives).
+- **Stacking:** the party's bonuses **add up** (+10% and +15% = x1.25), **capped at x2.0** (`RunRewards::MAX_PAYOUT_MULTIPLIER`, `TODO: tune`). Reference: Path of Exile's "increased Item Quantity" and Diablo II's Magic Find add up across gear (additive, well understood by players); Diablo II's diminishing returns on MF and Hades' capped Fated Authority / Fated Persuasion show a cap keeps a farming build from breaking the economy.
+- **When read:** at the end of each fight, won or lost (after breaks), from the fighters' gear, so the run's end pays by what the party wore in its last fight. Simple and visible; swapping gear at a rest spot after the last fight doesn't count. ~~A resumed run starts at x1.0 until its next fight (the multiplier isn't saved).~~ Moot: there are no saved runs (D-172, Crown 2026-11-12).
+- **Difficulty / leave early / boss bonus** apply on top, as before (B-073, B-187).
+**Answer:** the default, by the reference-backed default (2026-11-12). Crown may change the cap, the stacking or where it counts.
+**Notes for Claude:** applied in `RunRewards::SumPayoutBonusPercent` / `PayoutMultiplierForBonus`, `UTrialRunSubsystem::RefreshPayoutMultiplier`, called from `ACombatOrchestrator::FinishCombat`. No evolution asset sets it yet (an editor step).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
+
+---
+
+### D-172 — No saved runs: extract to leave a run
+**Status:** DECIDED (Crown, 2026-11-12, via the desktop operator session) · **Raised:** 2026-11-12 · **Blocks:** — (B-408)
+**Answer (Crown):** there are **no saved runs**. To leave a run the party must **extract**; a run can't be quit and resumed later.
+**Notes for Claude:** this makes Q-096's "a resumed run starts at x1.0" gap moot. B-208 (save the trial run, Q-090) and the run pieces that followed (`USaveSubsystem::RestoreRun`, B-187c's saved marks and revivals, the run tally) were built for quit-and-resume; **B-408** surveys them against this ruling (what to remove, what to keep, e.g. crash recovery or co-op host hand-over). Survey only: nothing is deleted until Crown agrees.
 
 ---
 

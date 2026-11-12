@@ -287,6 +287,13 @@ public:
     float GetRunPayoutMultiplier() const { return PayoutMultiplier; } // not GetPayoutMultiplier: that is the difficulty's
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
 
+    /** B-096 (server): reads the payout passives the party wears now (every evolution on each fighter, Q-096) into
+     *  the payout multiplier. The orchestrator calls it when a fight is won or lost, so the run's end pays by the
+     *  gear of the last fight. Does nothing outside a run. Returns the multiplier.
+     *  The multiplier isn't saved: there are no saved runs (D-172). Fighters = the whole player side of the fight
+     *  (the orchestrator's LocalPartyCombatants), co-op guests' characters included. */
+    float RefreshPayoutMultiplier(const TArray<AActor *> &Fighters);
+
     /** B-187 (RunStructure §6): the party leaves the run at a rest spot: the end pays the tally at
      *  RunRewards::LEAVE_EARLY_SHARE with no boss bonus, then back to the hub next tick. Once per run. */
     void LeaveRunEarly();
