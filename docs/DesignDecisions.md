@@ -432,6 +432,7 @@ The queue of questions only Crown can answer.
 - The player's saved setting overrides a value typed in the orchestrator's Details panel.
 - A boss's lower, looking-up turn view (R13 as changed) is not in this job.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the look in PIE (`docs/PIE/B-398.md`); the offsets are `TODO: tune`.
+- **Known (desktop merge, 2026-11-12):** against a boss or mini-boss, B-405's low height (`FBossFramingRules::ApplyHeight`) is applied on top of Over the Shoulder too (B-405's own PIE check 3), so the hero can leave its lower-left third in those fights. Kept as built; Crown may veto (PIE B-398 check 14).
 
 ## Parked
 
