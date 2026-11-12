@@ -728,6 +728,9 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.RunRing = Member.RunRing;
 		Out.MemberId = Member.MemberId; // B-360b: the pool's keys for a copy name this id
 		Out.bKeyedByMember = Member.bKeyedByMember;
+		Out.GuardStyle = Member.GuardStyle; // B-392 (D-170)
+		Out.GuardWeaponId = Member.GuardWeaponId;
+		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -1006,6 +1009,9 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.RunRing = In.RunRing;
 		Member.MemberId = In.MemberId; // B-360b (RestoreLocalParty mints one when invalid)
 		Member.bKeyedByMember = In.bKeyedByMember;
+		Member.GuardStyle = In.GuardStyle; // B-392 (D-170)
+		Member.GuardWeaponId = In.GuardWeaponId;
+		Member.ParryElementPriority = In.ParryElementPriority; // B-393 (D-170)
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();

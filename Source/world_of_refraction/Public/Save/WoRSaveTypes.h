@@ -151,6 +151,19 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	bool bKeyedByMember = false;
 
+	/** B-392 (D-170, save v32): the member's chosen guard and the weapon it put away (FPartyMember::GuardStyle /
+	 *  GuardWeaponId). */
+	UPROPERTY()
+	EGuardStyle GuardStyle = EGuardStyle::Weapon;
+
+	UPROPERTY()
+	FGuid GuardWeaponId;
+
+	/** B-393 (D-170, save v33): which element colours the member's landed-parry effect
+	 *  (FPartyMember::ParryElementPriority). */
+	UPROPERTY()
+	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 

@@ -18,6 +18,22 @@ This doc covers three current widgets:
 - `UTurnOrderStripWidget` — current actor + upcoming turns strip.
 - `UDefensePromptWidget` — block/parry/dodge defense window UI.
 
+**New battle HUD (B-391, `wor.UI.NewHUD` 1, the default; in dev, built 2026-11-12).**
+`UCombatHUD::Build` reads the cvar at each fight. At 1 it builds, with no WBP:
+- `UBattleHUDWidget` (`UI/Combat/Battle/`): one full-screen plain C++ widget. Party cards bottom-left
+  (name, HP bar, "HP x / y", "EP x / y", status chips), enemy cards top-right (name, HP bar without numbers,
+  status chips), the turn order down the left edge (`BattleHUDView::ReadTurnStrip`: the replicated turn state,
+  else the TurnManager), and a Statuses button that opens every status in full. `Initialise` binds and fills
+  plain-data state before `AddToViewport`; `RebuildWidget` builds one card per combatant once; delegates only
+  rewrite texts (no Tick, no widgets recreated).
+- `UBattleCommandMenuWidget`: a view of `UCombatCommandMenuSubsystem` (`OnCommandMenuReady` / `Closed`), a pool
+  of 16 rows built once, each row's key hint from `ACombatPlayerController::GetMenuKeys`
+  (`BattleHUDView::AssignMenuKeys`); a click goes to `HandleSelection` through `UBattleMenuRowRelay`.
+- the native `UDefensePromptWidget`.
+At 0 it builds the old WBP panels, strip and menu described below (the fallback until Crown's PIE pass).
+The main-menu category keys (Attack, Skills, Spells, Items, Flee, switches; Q-391) press their button through
+`UCombatCommandMenuSubsystem::PressMenuKey` with either HUD. `wor.UI.Print` prints both new widgets.
+
 **Not covered here:** the hub shop UI (`UShopWindowWidget` /
 `UShopRowWidget` and their `WBP_ShopWindow` / `WBP_StockRow` / `WBP_CartRow`
 Blueprints, plus the `UMerchantShopSubsystem` window-lifecycle owner) lives in
@@ -277,6 +293,10 @@ controlled actor.
 
 ## Known Limitations / TODOs
 
+- **New battle HUD (B-391):** placeholder looks (text chips, no icons); picking inside a submenu or a target list
+  is a click (gamepad navigation there comes with CommonUI, D-024); no damage numbers and no Broken Darkness
+  absorption line yet (B-391b). The old WBP widgets stay until Crown's PIE pass of B-391.
+
 - No literal `// TODO`, `// FIXME`, or `// HACK` markers exist in the four files
   documented.
 - **Stale "HUD root" references** — `UCharacterPanelWidget::TeardownPanel`'s
@@ -337,3 +357,5 @@ controlled actor.
 | 2026-11-04 | B-158 (D-076 = A): one hub controller. `AWoRHubController` binds `IA_Interact` (`InteractAction`, else the `Config` `DefaultInteractAction`, B-205) to `HubInteract::InteractWithNearest` (nearest door / merchant / recruit / map feature; shared with the retired `AExplorationPlayerController`); `GetInteractionStateString` and `NativeUIDebug::GetNativeUIStateString` print the candidates. Editor step: delete the Blueprint's IA_Interact nodes (`docs/PIE/B-158.md`). | feature/B-158-one-hub-controller |
 | 2026-11-04 | B-356b: `FPieMenuButtonData::MakeSchoolButton` sets ID and tint only; `BuildSchoolButtons` owns the name and count from the LOCTEXT table (D-061). | feature/B-356b-three-schools-part2 |
 | 2026-11-09 | B-396: `UCombatHUD::GetHUDStateString` (`wor.UI.Print`) prints each HUD widget's in-viewport, visibility, opacity, drawn position and size, and the game viewport size (Crown's invisible-HUD report). `UTrialGateWidget::Open` sets the gate focusable before UIOnly focuses it. | fix/B-396-combat-hud-visibility |
+| 2026-11-09 | B-391 (Q-391): new plain C++ battle HUD behind `wor.UI.NewHUD` (default 1; 0 = the old WBP HUD): `UBattleHUDWidget` (party / enemy cards, turn order, status chips and a view-all panel), `UBattleCommandMenuWidget` (the subsystem's buttons with key hints), `BattleHUDView` text helpers; main-menu category keys through `PressMenuKey` (`ACombatPlayerController::GetMenuKeys`); `wor.UI.Print` prints both widgets. Spec `WoR.UI.BattleHUD`. Damage numbers: B-391b. | feature/B-391-battle-hud-cloud (UNBUILT) |
+| 2026-11-12 | B-391 desktop build (`feature/B-391-battle-hud`): `UBattleHUDButton` (`UI/Combat/Battle/BattleHUDButton.h`), a never-focusable `UButton` for the menu rows and the Statuses button (`UButton::InitIsFocusable` is protected in 5.8); the category keys act only when `UCombatHUD::WantsNewHUD()` (the old menu has its own A / B). |

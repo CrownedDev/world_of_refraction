@@ -6,6 +6,7 @@
 #include "Skills/Effects/EffectText.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Elements/ElementTable.h"
+#include "Combat/TurnRotation.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "WoRGameNames.h"
 
@@ -109,6 +110,28 @@ namespace
             return LOCTEXT("ElementPrefix_Generic", "Elemental ");
         }
         return FText::Format(LOCTEXT("ElementPrefix", "{0} "), WoRGameNames::GetElementName(Element));
+    }
+
+    /** B-170d: when a Gain / Lose Action lands. Duration 0: now (nothing); 1: " at the start of your / their next turn";
+     *  N: " in N turns" (the holder's turn starts, ActionPips.md §3.4). */
+    FText ActionChangeWhen(const FSkillEffectPayload &P, bool bSelf)
+    {
+        if (P.Duration <= 0)
+        {
+            return FText::GetEmpty();
+        }
+        if (P.Duration == 1)
+        {
+            return bSelf ? LOCTEXT("ActionsWhen_YourNext", " at the start of your next turn")
+                         : LOCTEXT("ActionsWhen_TheirNext", " at the start of their next turn");
+        }
+        return FText::Format(LOCTEXT("ActionsWhen_InTurns", " in {0} turns"), P.Duration);
+    }
+
+    /** B-170d: "1 action" / "2 actions" (Value counts actions). */
+    FText ActionCount(int32 Count)
+    {
+        return FText::Format(LOCTEXT("ActionCount", "{0} {0}|plural(one=action,other=actions)"), Count);
     }
 
     /** " for 3 turns" on a standing effect; nothing when instant or permanent. */
@@ -705,6 +728,14 @@ namespace EffectText
             return Side.bSelf ? FText::Format(LOCTEXT("Stun_Self", "become stunned{0}"), Span(P))
                               : FText::Format(LOCTEXT("Stun_Other", "stun {0}{1}"), Side.Noun, Span(P));
         case ESkillEffectType::SkipTurn:
+            // B-170d (Q-170e): with action pips Wind's break slows actions and takes an action at the next turn start.
+            if (TurnRotation::IsActionPipsOn())
+            {
+                const FText Lost = ActionCount(CombatConstants::WIND_BREAK_ACTIONS_LOST);
+                return Side.bSelf ? FText::Format(LOCTEXT("WindPips_Self", "act slower and lose {0} at the start of your next turn"), Lost)
+                                  : FText::Format(LOCTEXT("WindPips_Other", "slow {0} actions and take {1} at the start of their next turn"),
+                                                  Side.Possessive, Lost);
+            }
             // Wind's break pushes the next turn back (D-014); nothing skips a turn outright.
             return Side.bSelf ? LOCTEXT("Delay_Self", "delay your next turn")
                               : FText::Format(Side.bPlural ? LOCTEXT("Delay_Pl", "delay {0} next turns") : LOCTEXT("Delay_Sg", "delay {0} next turn"),
@@ -818,8 +849,24 @@ namespace EffectText
                                         FText::Format(LOCTEXT("LastStand_Rest", " the next lethal hit{0}"), Span(P)));
 
         // ---- attacks ----
+        // ---- actions (B-170d, Q-170f, Q-170g; Value = actions) ----
+        case ESkillEffectType::GainActions:
+            return Side.bSelf ? FText::Format(LOCTEXT("GainActions_Self", "gain {0}{1}"), ActionCount(P.Value), ActionChangeWhen(P, true))
+                              : FText::Format(LOCTEXT("GainActions_Other", "give {0} {1}{2}"), Side.Noun, ActionCount(P.Value),
+                                              ActionChangeWhen(P, false));
+        case ESkillEffectType::LoseActions:
+            return Side.bSelf ? FText::Format(LOCTEXT("LoseActions_Self", "lose {0}{1}"), ActionCount(P.Value), ActionChangeWhen(P, true))
+                              : Fronted(Side, LOCTEXT("Loses_Sg", "loses"), LOCTEXT("Loses_Pl", "lose"),
+                                        FText::Format(LOCTEXT("LoseActions_Rest", " {0}{1}"), ActionCount(P.Value), ActionChangeWhen(P, false)));
+        case ESkillEffectType::MaxActionsBuff:
+            return Side.bSelf ? FText::Format(LOCTEXT("MaxActionsUp_Self", "+{0} Max Actions{1}"), P.Value, Span(P))
+                              : FText::Format(LOCTEXT("MaxActionsUp_Other", "give {0} +{1} Max Actions{2}"), Side.Noun, P.Value, Span(P));
+        case ESkillEffectType::MaxActionsDebuff:
+            return Side.bSelf ? FText::Format(LOCTEXT("MaxActionsDown_Self", "-{0} Max Actions{1}"), P.Value, Span(P))
+                              : FText::Format(LOCTEXT("MaxActionsDown_Other", "give {0} -{1} Max Actions{2}"), Side.Noun, P.Value, Span(P));
+
         case ESkillEffectType::ExtraAction:
-            // The runtime grants one bonus turn per apply, landing next (TurnManager::GrantBonusTurn, B-341).
+            // Shown as Extra Turn (B-170d, Q-170f). The runtime grants one bonus turn per apply, landing next (TurnManager::GrantBonusTurn, B-341).
             return Side.bSelf ? LOCTEXT("Extra_Self", "take an extra turn")
                               : FText::Format(LOCTEXT("Extra_Other", "give {0} an extra turn"), Side.Noun);
         case ESkillEffectType::GuaranteedCrit:
@@ -857,6 +904,14 @@ namespace EffectText
                               : FText::Format(LOCTEXT("Pull_Other", "pull {0} forward one row"), Side.Noun);
         // B-064a (D-090): Ice's break, a heavier Water break.
         case ESkillEffectType::IceBreak:
+            // B-170d (Q-170e): with action pips Ice also takes an action at once.
+            if (TurnRotation::IsActionPipsOn())
+            {
+                const FText Lost = ActionCount(CombatConstants::ICE_BREAK_ACTIONS_LOST);
+                return Side.bSelf ? FText::Format(LOCTEXT("IceBreakPips_Self", "act and cast slower, lose {0} and take Ice damage{1}"), Lost, Span(P))
+                                  : FText::Format(LOCTEXT("IceBreakPips_Other", "slow {0} actions and spells, take {1} and deal Ice damage{2}"),
+                                                  Side.Possessive, Lost, Span(P));
+            }
             return Side.bSelf ? FText::Format(LOCTEXT("IceBreak_Self", "act and cast slower and take Ice damage{0}"), Span(P))
                               : FText::Format(LOCTEXT("IceBreak_Other", "slow {0} actions and spells and deal Ice damage{1}"),
                                               Side.Possessive, Span(P));

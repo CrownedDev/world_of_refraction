@@ -581,10 +581,11 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 
 	switch (DefenseType)
 	{
-	// B-202 (Q-182 changed by Crown): every Guard plays the block montage, a legacy Parry press too.
+	// B-202 (Q-182 changed by Crown): every Guard plays one montage, a legacy Parry press too, Perfect or not.
+	// B-392 (D-170): which one follows the guard: the weapon's guard or the character's unarmed one. Looks only.
 	case EDefenseType::Block:
 	case EDefenseType::Parry:
-		MontageToPlay = LoadoutComp->GetBlockMontage();
+		MontageToPlay = LoadoutComp->GetGuardMontage();
 		break;
 
 	case EDefenseType::Dodge:
