@@ -4,7 +4,7 @@
 //   fight's rank and the trial's difficulty; it is what in-run shops and the loadout vendor charge (D-048).
 // - Each win (and each chest) also adds to the run's tally: hub Gold (ECurrencyType::Prisms, shown as Gold) and the
 //   upgrade materials (Gear and Skill Essence, Q-073). The tally is paid only when the run ends, win or lose (D-006,
-//   Nightreign): scaled by the difficulty, a bonus for beating the boss, and one payout multiplier (passives, B-096).
+//   Nightreign): scaled by the difficulty, a bonus for beating the boss, and one payout multiplier (passives, B-096: evolutions' RunPayoutBonusPercent).
 // - In co-op every player is paid in full (D-103).
 // Numbers are first guesses: TODO: tune. Debug: GetPayoutString, wor.Trial.PrintRewards.
 
@@ -15,6 +15,7 @@
 #include "Trial/TrialGate.h"
 
 class UWorld;
+struct FAttachedEvolution;
 
 /** The run's tally, paid at the run's end. */
 struct WORLD_OF_REFRACTION_API FRunPayout
@@ -38,6 +39,17 @@ namespace RunRewards
 {
 	/** The payout multiplier with no passives (B-096 raises it). */
 	constexpr float BASE_PAYOUT_MULTIPLIER = 1.0f;
+
+	/** B-096 (Q-096): the most the payout passives can raise the multiplier to (double). TODO: tune. */
+	constexpr float MAX_PAYOUT_MULTIPLIER = 2.0f;
+
+	/** B-096: the payout bonus, in percent, that these evolutions give (UEvolutionItemData::RunPayoutBonusPercent);
+	 *  a missing or broken one gives nothing. */
+	WORLD_OF_REFRACTION_API float SumPayoutBonusPercent(const TArray<FAttachedEvolution> &Attached);
+
+	/** B-096 (Q-096): the multiplier for a party bonus of BonusPercent: BASE + BonusPercent / 100, added up (not
+	 *  multiplied), clamped to [BASE, MAX_PAYOUT_MULTIPLIER]. */
+	WORLD_OF_REFRACTION_API float PayoutMultiplierForBonus(float BonusPercent);
 
 	/** B-187 (RunStructure §6, Q-187): leaving at a rest spot pays this share of the tally. TODO: tune. */
 	constexpr float LEAVE_EARLY_SHARE = 0.5f;

@@ -3,6 +3,8 @@
 #include "Trial/RunRewards.h"
 #include "Currency/CurrencyComponent.h"
 #include "Engine/GameInstance.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/EvolutionPlacement.h"
 #include "Engine/World.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerController.h"
@@ -148,6 +150,26 @@ int32 RunRewards::PayRunEndToPlayers(UWorld *World, const FRunPayout &Payout)
 	});
 	UE_LOG(LogWoR, Log, TEXT("[RunRewards] The run ends: %s to each of %d player(s)"), *GetPayoutString(Payout), Paid);
 	return Paid;
+}
+
+float RunRewards::SumPayoutBonusPercent(const TArray<FAttachedEvolution> &Attached)
+{
+	float Total = 0.0f;
+	for (const FAttachedEvolution &Evolution : Attached)
+	{
+		const UEvolutionItemData *Item = Evolution.Attachment.Item;
+		if (Item && !Evolution.Attachment.IsBroken())
+		{
+			Total += FMath::Max(Item->RunPayoutBonusPercent, 0.0f);
+		}
+	}
+	return Total;
+}
+
+float RunRewards::PayoutMultiplierForBonus(float BonusPercent)
+{
+	constexpr float PERCENT = 100.0f;
+	return FMath::Clamp(BASE_PAYOUT_MULTIPLIER + FMath::Max(BonusPercent, 0.0f) / PERCENT, BASE_PAYOUT_MULTIPLIER, MAX_PAYOUT_MULTIPLIER);
 }
 
 FString RunRewards::GetPayoutString(const FRunPayout &Payout)
