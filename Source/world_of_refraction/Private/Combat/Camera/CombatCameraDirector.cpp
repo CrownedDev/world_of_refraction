@@ -3,6 +3,7 @@
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/Camera/CombatCameraComponent.h"
 #include "Combat/Camera/CameraFramingChecks.h"
+#include "Combat/Camera/SignatureCameraCap.h"
 #include "HAL/IConsoleManager.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
@@ -417,10 +418,73 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 	Player->Play();
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Playing %s (caster %s, %d targets)"),
 		   *Sequence->GetName(), *GetNameSafe(Caster), ValidTargets.Num());
+
+	// B-407 (R7, FeelGuide 9): a player or team signature sequence is cut back at the cap; an enemy's runs to its end.
+	LastSignatureName = Sequence->GetName();
+	LastSignatureCaster = GetNameSafe(Caster);
+	LastSignatureSeconds = SignatureCameraCap::GetSequenceSeconds(Sequence);
+	bLastSignatureEnemy = OpposingCombatants.Contains(Caster);
+	LastSignatureCutSeconds = SignatureCameraCap::GetCutSeconds(LastSignatureSeconds, bLastSignatureEnemy);
+	bLastSignatureCut = false;
+	bLastSignatureStoppedEarly = false;
+	UWorld *World = GetWorld();
+	if (LastSignatureCutSeconds > 0.0f && World && PlayingSequence) // review: a sequence that finished inside Play() has nothing to cut
+	{
+		World->GetTimerManager().SetTimer(SignatureCapTimer, this, &UCombatCameraDirector::HandleSignatureCapReached, LastSignatureCutSeconds, false);
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s is %.2f s: cutting back at the %.2f s signature cap"),
+			   *LastSignatureName, LastSignatureSeconds, LastSignatureCutSeconds);
+	}
+}
+
+void UCombatCameraDirector::HandleSignatureCapReached()
+{
+	SignatureCapTimer.Invalidate();
+	if (!PlayingSequence)
+	{
+		return;
+	}
+	bLastSignatureCut = true;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s reached the signature cap: cutting back"), *PlayingSequence->GetName());
+	// As HandleSequenceFinished, but from a timer, not the player's own OnFinished, so the actor can go now.
+	StopSequence();
+	if (bInCombat && !DefenceHandOffTimer.IsValid())
+	{
+		ShowTurnView();
+	}
+}
+
+FString UCombatCameraDirector::GetSignatureCapString() const
+{
+	const FString Cap = FString::Printf(TEXT("cap %.2f s"), SignatureCameraCap::MaxSignatureSeconds);
+	if (LastSignatureName.IsEmpty())
+	{
+		return Cap + TEXT(" | no signature sequence played yet");
+	}
+	FString Outcome;
+	if (bLastSignatureEnemy)
+	{
+		Outcome = TEXT("enemy caster: not capped");
+	}
+	else if (LastSignatureCutSeconds <= 0.0f)
+	{
+		Outcome = TEXT("within the cap");
+	}
+	else
+	{
+		Outcome = FString::Printf(TEXT("%s at %.2f s"), bLastSignatureCut ? TEXT("cut") : (bLastSignatureStoppedEarly ? TEXT("stopped before the cap") : TEXT("to be cut")), LastSignatureCutSeconds);
+	}
+	return FString::Printf(TEXT("%s | last %s %.2f s by %s: %s"), *Cap, *LastSignatureName, LastSignatureSeconds, *LastSignatureCaster, *Outcome);
 }
 
 void UCombatCameraDirector::StopSequence(bool bDeferDestroy)
 {
+	if (UWorld *World = GetWorld())
+	{
+		// B-407: a capped sequence stopped before its cap (a hit, the next turn, a hand-off) says so in the debug line.
+		bLastSignatureStoppedEarly = bLastSignatureStoppedEarly || World->GetTimerManager().IsTimerActive(SignatureCapTimer);
+		World->GetTimerManager().ClearTimer(SignatureCapTimer); // B-407
+	}
+	SignatureCapTimer.Invalidate();
 	if (SequencePlayer)
 	{
 		SequencePlayer->OnFinished.RemoveAll(this);
