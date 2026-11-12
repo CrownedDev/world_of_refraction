@@ -38,18 +38,8 @@ enum class ECharacterClass : uint8
  */
 namespace CharacterClassHelpers
 {
-	// TODO: B-097 — the class-gate helpers below contradict D-027 and combat doesn't use them.
-	/** Can this class use physical abilities from weapons? */
-	inline bool CanUseAbilities(ECharacterClass Class)
-	{
-		return Class == ECharacterClass::Generic;
-	}
-
-	/** Can this class use spells? */
-	inline bool CanUseSpells(ECharacterClass Class)
-	{
-		return Class != ECharacterClass::Generic;
-	}
+	// B-097 (D-027): no ability / spell gate by class: what a character can use comes from its slots
+	// (FCombatCapabilities::BuildFrom). The old CanUseAbilities / CanUseSpells helpers had no caller and are gone.
 
 	/** Does this class have an innate element? */
 	inline bool HasInnateElement(ECharacterClass Class)

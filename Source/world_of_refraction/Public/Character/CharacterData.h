@@ -279,10 +279,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Character|Class")
 	bool IsResonator() const { return CharacterClass == ECharacterClass::Resonator; }
 
-	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	/** OBSOLETE (B-097, D-027; delete in the sweep after the Blueprint check): a class gate nothing in C++ reads. A class
+	 *  is made by its slots: ask the loadout (FCombatCapabilities) what it offers. Kept, unchanged, only in case a
+	 *  Blueprint still calls it (the deprecation warning names it). */
+	UFUNCTION(BlueprintPure, Category = "Character|Class", meta = (DeprecatedFunction, DeprecationMessage = "D-027: no class gate; spells come from the slots (B-097)."))
 	bool CanUseSpells() const { return CharacterClass != ECharacterClass::Generic; }
 
-	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	/** OBSOLETE (B-097, D-027; delete in the sweep after the Blueprint check): as CanUseSpells; any class with a weapon
+	 *  gets that weapon's abilities. */
+	UFUNCTION(BlueprintPure, Category = "Character|Class", meta = (DeprecatedFunction, DeprecationMessage = "D-027: no class gate; any weapon gives its abilities (B-097)."))
 	bool CanUseAbilities() const { return CharacterClass == ECharacterClass::Generic; }
 
 	UFUNCTION(BlueprintPure, Category = "Character|Class")
