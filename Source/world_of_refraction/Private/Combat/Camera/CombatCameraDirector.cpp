@@ -428,7 +428,7 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 	bLastSignatureCut = false;
 	bLastSignatureStoppedEarly = false;
 	UWorld *World = GetWorld();
-	if (LastSignatureCutSeconds > 0.0f && World)
+	if (LastSignatureCutSeconds > 0.0f && World && PlayingSequence) // review: a sequence that finished inside Play() has nothing to cut
 	{
 		World->GetTimerManager().SetTimer(SignatureCapTimer, this, &UCombatCameraDirector::HandleSignatureCapReached, LastSignatureCutSeconds, false);
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s is %.2f s: cutting back at the %.2f s signature cap"),
