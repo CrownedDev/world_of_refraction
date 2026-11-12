@@ -104,6 +104,7 @@ void FSaveSpec::Define()
 		const FGuid SavedGuardWeapon = FGuid::NewGuid(); // B-392
 		Party->Members[1].GuardStyle = EGuardStyle::Unarmed;
 		Party->Members[1].GuardWeaponId = SavedGuardWeapon;
+		Party->Members[1].ParryElementPriority = EParryElementPriority::Magic; // B-393
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -138,6 +139,9 @@ void FSaveSpec::Define()
 		TestTrue(TEXT("The guard and its put-away weapon survive save / load (B-392)"),
 				 Back.GuardStyle == EGuardStyle::Unarmed && Back.GuardWeaponId == SavedGuardWeapon);
 		TestTrue(TEXT("Member 0 keeps the weapon guard"), Restored->Members[0].GuardStyle == EGuardStyle::Weapon);
+		TestTrue(TEXT("The parry colour priority survives save / load (B-393)"),
+				 Back.ParryElementPriority == EParryElementPriority::Magic &&
+					 Restored->Members[0].ParryElementPriority == EParryElementPriority::Weapon);
 		TestEqual(TEXT("The run's strain goes with a saved run"), Back.RunStrain, SAVED_RUN_STRAIN);
 		TestEqual(TEXT("... and not without one"), USaveSubsystem::CaptureParty(Party, false).Members[1].RunStrain, 0.0f);
 		TestTrue(TEXT("... while Broken Darkness is kept outside the run too"), USaveSubsystem::CaptureParty(Party, false).Members[1].bBrokenDarkness);

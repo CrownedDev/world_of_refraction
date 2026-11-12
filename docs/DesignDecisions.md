@@ -340,7 +340,7 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** built in B-234d (`USaveSubsystem::EndHandedOverRun` / `ReturnToOwnSave`, `UPoolSubsystem::ResetStore`, `AWoRPlayerState::JoinSequence`, `WoRHostSuccession::OrderByJoinSequence`). Left as is: a new host that hands over again in the middle of the copied run stays on the copy until a restart (its run ends on another machine). **Review fixes (2026-11-09):** (a) the upgrade memory (D-097) the run raised is kept: memory is per definition, so the own save gets every entry the run took above what the copy held when adopted (the old host's earlier memory is not taken). (b) The own slot is written at the run's end, right after the exit save (played data, own party and pool, merged memory, no run), so a quit or crash before the hub loses nothing; the in-memory return still happens when the hub loads. (c) The return acts only in the hub; if the travel to it is refused, it is dropped (the own slot is already written, so a restart brings the player back). Known: after a refused travel the player keeps playing the copy and later saves go to the copy's slot only, so a restart loads the own slot as it was at the refusal (gains after it stay on the copy; the travel is retried by leaving again). (d) Personal loot taken after the hand-over (B-235c chests): gear is run-only and leaves at run end anyway (D-111); a spell or ability from a chest is learned by the copy's character (the old host's) and stays with the copy: moving it to one of this player's characters would need a rule for which one, so it isn't done.
 
 ### Q-170i — Action pips: the Reflex regain, Crown's rework
-**Status:** ANSWERED (Crown's ruling, 2026-11-12; the build details below by the reference-backed default, Crown vetoes) · **Raised:** 2026-11-12 (B-170i) · **Blocks:** —
+**Status:** ANSWERED (Crown's ruling, 2026-11-12; stones and buffs reading confirmed by Crown 2026-11-12; other build details by the reference-backed default) · **Raised:** 2026-11-12 (B-170i) · **Blocks:** —
 **Question:** The regain was 1 / 2 / 3 at Reflex window-share thresholds (Q-170). Crown reworked it: how is it built?
 **Crown's ruling (2026-11-12):** **Reflex value** = the character's Reflex points, each at its own worth (a higher gear tier makes a point worth more), × the Body multiplier **including** external Body boosts. **Step** per +1 regain = `REGAIN_STEP` × the character's **natural** Body multiplier (own Body level only). **Regain = 1 + ⌊value ÷ step⌋**, never filling the bank past Max Actions. Levelling Body cancels out; only Reflex investment, point worth and external Body boosts raise it. Progress is shown ("Regain 2 (Reflex 4.1 / 6.0)"). The defence window keeps its own Reflex formula.
 **Build details (reference-backed default):**
@@ -350,6 +350,7 @@ The queue of questions only Crown can answer.
 - **Reflex stones and Reflex buffs (percent) don't change the regain.** They are percent lifts on the window, not Reflex points, and the ruling names only points, their worth and Body boosts. They still widen the defence window.
 - **The regain stops at the Max Actions safety cap (5)**, so the text never shows a regain no bank could hold. A negative value (cursed gear) gives the base 1.
 - **The progress line** is a debug string in `wor.Actions.Print` until the battle HUD (B-170e) shows it as FText.
+**Confirmed (Crown, 2026-11-12):** Reflex stones and Reflex buffs raise Reflex's other effects (the defence window) but **not** the action regain; anything that raises actions is its own separate action buff (GainActions / regain effects).
 **Answer:** Crown's ruling, with the build details by the reference-backed default (2026-11-12). Built in B-170i (`ActionPipsRules::RegainForReflexValue`, `UCharacterDataComponent::GetRegainReflexValue` / `GetRegainReflexStep`).
 
 ### Q-170b — Action pips: what a skill costs
@@ -454,7 +455,7 @@ The queue of questions only Crown can answer.
 - **The sources:** the weapon's crystal counts **only for the weapon guard** (the unarmed guard has put the weapon away); the character's own magic is a Refractor's element, else its adapter's crystal (a Resonator's active adapter; another class's primary adapter). None, Generic and a broken crystal give no colour, so a weapon with no crystal sparks only and the unarmed guard shows nothing.
 - **The priority setting** (`EParryElementPriority`: Weapon / Magic) is per party member, beside the guard (`FPartyMember::ParryElementPriority`, saved, **save v33**), read through the loadout. It decides only when both sources have an element; the other fills in when the first has none. **Default Weapon:** the thing that parried colours it. Set from the console for now (`wor.Guard.SetParryPriority`), from the loadout screen later (D-024); no player-facing label yet (D-062, as Q-392).
 - Reference: Sekiro's deflect is one readable spark for every weapon (widely praised for clarity), and Elden Ring's weapon buffs (fire, lightning, holy) colour the weapon you hold, so the element shows on the thing in use. Here the spark stays the same and the element tint on the parry effect carries the identity, coming first from what parried.
-**Answer:** the default, by the reference-backed default (2026-11-09).
+**Answer:** the default, by the reference-backed default (2026-11-09). **Known (desktop review, 2026-11-12):** as with the guard (Q-392), a co-op guest's priority stays on its own machine; the host picks the visual, so a guest's character uses the default (Weapon) until the setting goes through a server call (TODO in `ULoadoutComponent::SetParryElementPriority`, D-103).
 
 ### Q-391 — The placeholder battle HUD: layout, enemy HP, statuses and menu keys
 **Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-391) · **Blocks:** — (B-391 ships with it)
@@ -502,6 +503,7 @@ The queue of questions only Crown can answer.
 - The player's saved setting overrides a value typed in the orchestrator's Details panel.
 - A boss's lower, looking-up turn view (R13 as changed) is not in this job.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the look in PIE (`docs/PIE/B-398.md`); the offsets are `TODO: tune`.
+- **Known (desktop merge, 2026-11-12):** against a boss or mini-boss, B-405's low height (`FBossFramingRules::ApplyHeight`) is applied on top of Over the Shoulder too (B-405's own PIE check 3), so the hero can leave its lower-left third in those fights. Kept as built; Crown may veto (PIE B-398 check 14).
 
 ### Q-403 — Shot-pattern tuning: the rush, the impact two-shot and the held spread
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-403) · **Blocks:** —

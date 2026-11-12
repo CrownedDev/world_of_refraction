@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "UI/Combat/CombatHUD.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
@@ -632,6 +633,11 @@ bool ACombatPlayerController::SkipBossCinematic(const UObject *WorldContext)
 
 void ACombatPlayerController::OnCategoryKey(const FInputActionInstance &Instance)
 {
+	// The old WBP HUD (wor.UI.NewHUD 0) has its own confirm / back on A / B: the category keys would act twice there.
+	if (!UCombatHUD::WantsNewHUD())
+	{
+		return;
+	}
 	const UInputAction *Pressed = Instance.GetSourceAction();
 	const int32 Index = CategoryKeyActions.IndexOfByPredicate([Pressed](const TObjectPtr<UInputAction> &Action)
 															  { return Action.Get() == Pressed; });

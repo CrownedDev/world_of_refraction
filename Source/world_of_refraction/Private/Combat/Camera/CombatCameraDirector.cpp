@@ -783,7 +783,7 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 	bLastSignatureCut = false;
 	bLastSignatureStoppedEarly = false;
 	UWorld *World = GetWorld();
-	if (LastSignatureCutSeconds > 0.0f && World)
+	if (LastSignatureCutSeconds > 0.0f && World && PlayingSequence) // review: a sequence that finished inside Play() has nothing to cut
 	{
 		World->GetTimerManager().SetTimer(SignatureCapTimer, this, &UCombatCameraDirector::HandleSignatureCapReached, LastSignatureCutSeconds, false);
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s is %.2f s: cutting back at the %.2f s signature cap"),
@@ -1188,7 +1188,7 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	ShotMoment = Moment;
 	// B-402 (R10, R11): no shake and no FOV punch while the viewer defends; a held punch is dropped, not replayed (Q-402).
 	const bool bDefending = IsViewerDefending();
-	if (bDefending && (Shot.ShakeScale > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
+	if (bDefending && (Shot.ShakeScale > 0.0f || Shot.MotionBlur > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
 	{
 		++DefencePunchesDropped;
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] %s shot held steady: the viewer is defending"), *UEnum::GetValueAsString(Moment));

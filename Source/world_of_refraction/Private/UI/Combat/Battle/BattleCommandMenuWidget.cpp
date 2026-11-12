@@ -14,6 +14,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/CrystalManager.h"
+#include "UI/Combat/Battle/BattleHUDButton.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRLog.h"
@@ -161,10 +162,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 
 		for (int32 Index = 0; Index < MAX_ROWS; ++Index)
 		{
-			UButton *Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-			// Not focusable: a focused button would take A / Enter / Space as its own click, so the menu keys never
-			// reached Enhanced Input after one mouse click (review).
-			Button->InitIsFocusable(false);
+			UButton *Button = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass());
 			UTextBlock *Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 			FSlateFontInfo RowFont = Label->GetFont();
 			RowFont.Size = BattleCommandMenuStyle::RowFontSize;
