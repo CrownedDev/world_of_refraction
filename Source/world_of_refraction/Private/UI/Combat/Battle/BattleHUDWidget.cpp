@@ -19,6 +19,7 @@
 #include "Player/TurnStateComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "UI/Combat/Battle/BattleHUDButton.h"
 #include "Widgets/Layout/Anchors.h"
 #include "WoRLog.h"
 
@@ -283,8 +284,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		BattleHUDBuild::Place(Canvas, EnemyColumn, BattleHUDStyle::EnemyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::EnemyAnchor));
 
 		// The one button that shows every status (FeelGuide 5).
-		UButton *StatusButton = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass(), TEXT("StatusesButton"));
-		StatusButton->InitIsFocusable(false); // keep A / Enter for the command menu (see BattleCommandMenuWidget)
+		UButton *StatusButton = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass(), TEXT("StatusesButton")); // not focusable: keeps A / Enter for the command menu
 		UTextBlock *StatusButtonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		StatusButtonLabel->SetText(LOCTEXT("StatusesButton", "Statuses"));
 		StatusButton->AddChild(StatusButtonLabel);
