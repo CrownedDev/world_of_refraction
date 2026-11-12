@@ -100,6 +100,7 @@ TSharedRef<SWidget> UItemSlotUpgradeWidget::RebuildWidget()
 		UVerticalBox *Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Rows"));
 		Overlay->SetContent(Box);
 
+		ItemSlotUpgradeBuild::AddText(WidgetTree, Box)->SetText(LOCTEXT("Title", "Jeweler: item slots"));
 		MemberText = ItemSlotUpgradeBuild::AddText(WidgetTree, Box);
 		ItemSlotUpgradeBuild::AddButton(WidgetTree, Box, LOCTEXT("Next", "Next character"))
 			->OnClicked.AddDynamic(this, &UItemSlotUpgradeWidget::HandleNextClicked);
@@ -241,7 +242,7 @@ void UItemSlotUpgradeWidget::HandleCloseClicked()
 
 static FAutoConsoleCommandWithWorld GItemSlotUpgradeUICommand(
 	TEXT("wor.UI.ItemSlots"),
-	TEXT("PLACEHOLDER UI (B-239): the hub vendor's item slot upgrades (one more slot in a character's pouch, for hub Gold)."),
+	TEXT("PLACEHOLDER UI (B-239): the Jeweler's item slot upgrades (one more slot in a character's pouch, for hub Gold)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda(
 		[](UWorld *World)
 		{

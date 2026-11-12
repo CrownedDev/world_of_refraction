@@ -1,7 +1,7 @@
 // ItemSlotUpgradeWidget.h
-// PLACEHOLDER UI (B-239, D-097, Q-239): the hub vendor's item slot upgrades. Pick a party member, see its pouch's
+// PLACEHOLDER UI (B-239, D-097, Q-239): the Jeweler's item slot upgrades. Pick a party member, see its pouch's
 // slots and the next price, buy one slot (ItemSlotUpgrade::TryBuy). Plain buttons built in C++, opened with
-// wor.UI.ItemSlots; the real CommonUI vendor screen (the Spiritualist's V service, Q-239) replaces this (D-024).
+// wor.UI.ItemSlots; the real CommonUI vendor screen (the Jeweler's V service, Crown's Q-239 answer) replaces this (D-024).
 //
 // Built once in RebuildWidget; Refresh only rewrites the texts, so nothing is recreated inside the widget.
 
