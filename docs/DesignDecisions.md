@@ -674,6 +674,17 @@ The queue of questions only Crown can answer.
 **Answer:** as above, by the reference-backed default (2026-11-12). Crown may change the close behaviour or the notices. **Flag answered (Crown, 2026-11-12):** the end memory a hidden quest earns is masked too: "New memory found. Open the journal to view it." (a main or side quest's end memory still reads "New memory: <title>"). `wor.Quest.Print` (debug) still names everything.
 **Notes for Claude:** placeholder UI: one "Reveal Hidden Quest <n>" button per masked quest under the Quests page text (`UMemoryJournalWidget::RevealQuest` / `Close`); no key, so no InputMap row. The real CommonUI journal puts Reveal on the entry itself (D-024). Text is placeholder `LOCTEXT` (`HiddenQuestNotice`, `MemoryJournal` namespace). PIE `docs/PIE/Q-397b.md`.
 
+### Q-239 — Item slot upgrades: whose pouch, which vendor, what price
+**Status:** ANSWERED (reference-backed default, 2026-11-12) · **Raised:** 2026-11-12 (B-239, cloud) · **Blocks:** —
+**Question:** D-097's slot upgrades were written for one party inventory; since D-117 each character has its own pouch. Whose slots does a purchase raise, which hub vendor sells it, and what are the numbers?
+**Context:** `FPoolPouch::SlotCount` (`PoolSubsystem.h`, saved in `FSavedPouch`), `InventoryConstants::ITEM_SLOTS_START` 10. No vendor screen exists yet; the hub shop window is a Blueprint (`UMerchantShopSubsystem::OpenForMerchant`).
+**Recommendation (default):**
+- **Whose:** one chosen character's pouch, +1 slot per purchase (follows D-117: each character carries its own).
+- **Price:** hub Gold (`ECurrencyType::Prisms`, D-159 naming), **200 + 100 per slot already bought** for that pouch (200, 300, 400, …), **cap 20 slots** (all `TODO: tune`). Reference: Breath of the Wild's Hestu, one NPC who sells each extra slot for a rising price (well liked; the rising cost keeps it a long-term goal); Monster Hunter's and Diablo III's stash expansions likewise cost more each step.
+- **Where:** the **Spiritualist** (crystals and stones, which are what a pouch carries). Until the real CommonUI vendor screen exists the placeholder opens with `wor.UI.ItemSlots`; hub only (refused during a run, like the other hub services).
+**Answer:** the default, by the reference-backed default (2026-11-12). Crown may change the vendor or the numbers.
+**Notes for Claude:** `Inventory/ItemSlotUpgrade.h/.cpp`, `UPoolSubsystem::AddItemSlot`, `UItemSlotUpgradeWidget`. Co-op: the purchase runs on the buying player's own machine (pool and wallet as the other placeholder hub services do).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
