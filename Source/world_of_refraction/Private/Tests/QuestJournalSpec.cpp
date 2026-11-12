@@ -186,6 +186,42 @@ void FQuestJournalSpec::Define()
 		TestTrue(TEXT("listed as done, no goal"), Visible.Last().Kind == EQuestKind::Hidden && Visible.Last().bFinished && Visible.Last().Goal.IsEmpty());
 	});
 
+	It("lists the newest found quest first within each group, and keeps that order through a save (Q-397)", [this]()
+	{
+		if (!Quests)
+		{
+			return;
+		}
+		// Ids chosen so id order (A, B, C) is the opposite of found order.
+		UHiddenQuestData *First = NewQuest(TEXT("NewestOrderC_Spec"), EQuestKind::Hidden);
+		UHiddenQuestData *Second = NewQuest(TEXT("NewestOrderB_Spec"), EQuestKind::Hidden);
+		UHiddenQuestData *Third = NewQuest(TEXT("NewestOrderA_Spec"), EQuestKind::Hidden);
+		Quests->StartQuest(First);
+		Quests->StartQuest(Second);
+		Quests->StartQuest(Third);
+		auto OrderIs = [this](const TCHAR *What, const TArray<FName> &Expected)
+		{
+			const TArray<FVisibleQuest> Visible = Quests->GetVisibleQuests();
+			TArray<FName> Ids;
+			for (const FVisibleQuest &Row : Visible)
+			{
+				Ids.Add(Row.QuestId);
+			}
+			TestTrue(What, Ids == Expected);
+		};
+		OrderIs(TEXT("newest found first"), {Third->GetQuestId(), Second->GetQuestId(), First->GetQuestId()});
+
+		const FSavedHiddenQuests Saved = Quests->Capture();
+		Quests->Restore(FSavedHiddenQuests());
+		Quests->Restore(Saved);
+		OrderIs(TEXT("the same order after a save and load"), {Third->GetQuestId(), Second->GetQuestId(), First->GetQuestId()});
+
+		UHiddenQuestData *AfterLoad = NewQuest(TEXT("NewestOrderZ_Spec"), EQuestKind::Hidden);
+		Quests->StartQuest(AfterLoad);
+		OrderIs(TEXT("a quest found after loading is the newest"),
+				{AfterLoad->GetQuestId(), Third->GetQuestId(), Second->GetQuestId(), First->GetQuestId()});
+	});
+
 	It("shows a found hidden quest to its own player only (co-op, D-171)", [this]()
 	{
 		FWoRTestWorld FriendWorld; // another player's machine: its own game instance and quest subsystem

@@ -699,6 +699,10 @@ struct WORLD_OF_REFRACTION_API FSavedQuestProgress
 
 	UPROPERTY()
 	bool bFinished = false;
+
+	/** Q-397 (save v35): when this player found it (higher = newer), for the journal's newest-first order. */
+	UPROPERTY()
+	int32 FoundOrder = 0;
 };
 
 /** B-377: this player's hidden quests (save v25). */
