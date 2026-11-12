@@ -467,3 +467,9 @@ Crown answered eight questions. Each answer is a new commit on its open branch, 
 
 - **Trial branch `integration/cloud-2026-11-12`** (`17194a02`) has all of the above: cherry-picks of the open branches' new commits, the three fix branches merged, dev at `8179c9fc` merged (B-401 and B-170e built), and the desktop's own dev merge (`727cb03e`) merged in with an identical tree. Braces and parens balance in every resolved code file; no conflict markers, no doubled Q- / Backlog / PIE rows.
 - **Still open, in order:** B-042g2 (PIE-gated), B-400b, B-170f, B-391b, B-406b, B-170g, B-391c, B-234d, B-032d, C1 to C7; plus B-170e again (two doc commits) and the three `fix/*-crown-answer-cloud` branches (any time).
+
+## Update, 2026-11-12 (later afternoon): six more rows in dev
+
+- **Now in dev (desktop, built):** B-400b, B-170f, B-391b, B-406b, B-170g, B-391c (`64edcdda`). Every camera, HUD and action-pips row from the cloud is now in dev.
+- **Trial branch `integration/cloud-2026-11-12`** is now exactly dev plus the 10 still-open branches: every file none of them touches matches dev. Resolution notes are in its last commit.
+- **Still open:** B-042g2 (row 77, after its PIE gate), B-234d (row 108), B-032d (row 109), then the PIE-gated cleanups C1 to C7. Their remaining conflicts with dev are in docs only (Backlog, PIE README, DesignDecisions, the CombatOrchestrator changelog, the 2026-11-09 session note). Take dev's copy and add the branch's own rows and lines.
