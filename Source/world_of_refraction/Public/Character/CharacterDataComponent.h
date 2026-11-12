@@ -144,6 +144,12 @@ public:
     UPROPERTY(ReplicatedUsing = OnRep_CurrentActions, BlueprintReadOnly, Category = "Combat|Actions")
     int32 CurrentActions = 0;
 
+    /** Per-fight (Q-170j, Crown 2026-11-12): actions that cost actions used this turn, at most
+     *  ActionPipsConstants::SKILLS_PER_TURN_MAX. Counted by the orchestrator, reset at the holder's turn start; the
+     *  HUD shows "Skills 2/3". Broadcasts OnActionsChanged. Not saved. */
+    UPROPERTY(ReplicatedUsing = OnRep_SkillsUsedThisTurn, BlueprintReadOnly, Category = "Combat|Actions")
+    int32 SkillsUsedThisTurn = 0;
+
     UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
     bool bIsAlive;
 
@@ -507,6 +513,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void GainActions(int32 Amount, bool bMayPassMax);
 
+    /** Q-170j: one more action that cost actions this turn (SkillsUsedThisTurn). Server only. */
+    void NoteSkillUsed();
+
+    /** Q-170j: the holder's turn starts (or a fight): no skills used yet. Server only. */
+    void ResetSkillsUsedThisTurn();
+
     /** Pays an action cost: false, and nothing spent, when Amount is not positive or above CurrentActions. */
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     bool SpendActions(int32 Amount);
@@ -754,6 +766,9 @@ private:
 
     UFUNCTION()
     void OnRep_CurrentActions();
+
+    UFUNCTION()
+    void OnRep_SkillsUsedThisTurn();
 
     /** Writes CurrentActions on the authority and broadcasts OnActionsChanged when it changed. */
     void SetCurrentActions(int32 NewActions);
