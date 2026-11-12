@@ -289,7 +289,9 @@ public:
 
     /** B-096 (server): reads the payout passives the party wears now (every evolution on each fighter, Q-096) into
      *  the payout multiplier. The orchestrator calls it when a fight is won or lost, so the run's end pays by the
-     *  gear of the last fight. Does nothing outside a run. Returns the multiplier. */
+     *  gear of the last fight. Does nothing outside a run. Returns the multiplier.
+     *  TODO: the multiplier isn't saved (a resumed run reads x1.0 until its next fight); co-op reads the fighters the
+     *  orchestrator calls its local party. */
     float RefreshPayoutMultiplier(const TArray<AActor *> &Fighters);
 
     /** B-187 (RunStructure §6): the party leaves the run at a rest spot: the end pays the tally at
