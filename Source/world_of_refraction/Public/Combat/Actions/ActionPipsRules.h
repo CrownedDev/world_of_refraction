@@ -165,19 +165,28 @@ namespace ActionPipsRules
 		return ActionPipsConstants::ACTIONS_REGAIN_BASE;
 	}
 
-	/** The bank after a turn's regain: it never fills past Max, and adds nothing at or above it, so actions
-	 *  over Max from a gain stay banked (Q-170g as answered). */
+	/** The bank after a turn's regain: it never fills past Max, and adds nothing at or above it (a bonus over Max
+	 *  is spent that turn or lost at its end, BankAtTurnEnd). */
 	inline int32 BankAfterRegain(int32 Current, int32 Regain, int32 MaxActions)
 	{
 		return Current >= MaxActions ? Current : FMath::Min(Current + FMath::Max(0, Regain), MaxActions);
 	}
 
 	/** The bank after a gain of Amount: past Max only when the gain may pass it (Emerald, a Gain Action
-	 *  effect, Q-170f / Q-170g); otherwise it stops at Max and never trims actions already over it. */
+	 *  effect, Q-170f / Q-170g), and then only until the holder's turn ends (BankAtTurnEnd, Q-170f2); otherwise
+	 *  it stops at Max and never trims actions already over it. */
 	inline int32 BankAfterGain(int32 Current, int32 Amount, int32 MaxActions, bool bMayPassMax)
 	{
 		const int32 Raised = Current + FMath::Max(0, Amount);
 		return bMayPassMax ? Raised : FMath::Max(Current, FMath::Min(Raised, MaxActions));
+	}
+
+	/** The bank when the holder's turn ends: bonus actions above Max are lost, banked actions up to Max carry over
+	 *  (Q-170f2, Crown 2026-11-12: use-it-or-lose-it, as D&D's bonus action; Octopath's Boost Points never pass
+	 *  their cap). */
+	inline int32 BankAtTurnEnd(int32 Current, int32 MaxActions)
+	{
+		return FMath::Min(Current, FMath::Max(0, MaxActions));
 	}
 
 	/** A fight starts with the regain amount, capped at Max (Q-170). */

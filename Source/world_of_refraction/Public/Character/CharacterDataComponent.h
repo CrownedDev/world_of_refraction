@@ -502,7 +502,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void RegainActions();
 
-    /** +Amount; past Max only with bMayPassMax (Emerald, Gain Action), and the extra stays banked. */
+    /** +Amount; past Max only with bMayPassMax (Emerald, Gain Action); the extra lasts until the holder's turn ends
+     *  (ExpireActionsAboveMax, Q-170f2). */
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void GainActions(int32 Amount, bool bMayPassMax);
 
@@ -513,6 +514,12 @@ public:
     /** -Amount from an effect (Lose Action, a status break): never below 0. */
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void LoseActions(int32 Amount);
+
+    /** Q-170f2 (Crown, 2026-11-12): the holder's turn ends, so actions above Max are lost (a bonus, or a bank above a
+     *  lowered Max, Q-170f3); banked actions up to Max carry over (ActionPipsRules::BankAtTurnEnd). The orchestrator calls it at each of the holder's own
+     *  turn ends in an action-pips fight. Server only. */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
+    void ExpireActionsAboveMax();
 
     /** B-170d: the net Max Actions Buff minus Debuff held (whole actions); 0 without an effect manager. */
     int32 GetMaxActionsChange() const;

@@ -7,6 +7,7 @@
 #include "Combat/WoRFightSubsystem.h"
 #include "AI/EAIDifficulty.h"
 #include "AI/AIDecisionConstants.h"
+#include "AI/AIActionPips.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/DefenseDifficulty.h"
@@ -93,6 +94,10 @@ public:
      *  authored buildup × the live Status Multiplier (gear, StatusStone, buffs), as AddStatusBuildup does. */
     static float EstimateBaseStatusBuildup(const UCharacterDataComponent *AttackerComp, const USkillDataBase *Skill);
 
+    /** B-170f debug: the last spend-or-bank decision and why ("spend (...)" / "bank (...)"); empty until the AI
+     *  decides in an action-pips fight. Also in the per-decision Verbose log line. */
+    const FString &GetLastSpendOrBankString() const { return LastSpendOrBankString; }
+
     // ==================== DEFENSE DECISIONS ====================
 
     /**
@@ -114,7 +119,48 @@ private:
     friend class FGASEffectReadsSpec;
     friend class FAIOneSkillPathSpec;
     friend class FSpellSchoolSpec;
+    friend class FAIActionPipsSpec;
     friend class USpellDataDebug; // B-356b: the school-vs-effects audit reads IsOffensiveSpell / IsHealingSpell
+
+    // ==================== ACTION PIPS (B-170f, ActionPips.md §3.6) ====================
+
+    /** What BuildAction noted about its pick (AIActionPips.h). Per-decision scratch, reset by BuildAction
+     *  (not per-fight state, D-064). */
+    FAIPickNotes PickNotes;
+
+    /** Debug: the last spend-or-bank decision (GetLastSpendOrBankString). */
+    FString LastSpendOrBankString;
+
+    /** The actor and turn number of the AI's last spent action, so Easy knows it already acted this turn. */
+    TWeakObjectPtr<AActor> LastActedActor;
+    int32 LastActedTurn = INDEX_NONE;
+
+    /** Forgets the last acted turn; at fight start and end (SetCombatOrchestrator / ClearCombatOrchestrator). */
+    void ResetActedThisTurn();
+
+    /** The current fight plays action pips (wor.Turns.ActionPips 1 at its start). */
+    bool IsActionPipsFight() const;
+
+    /** In an action-pips fight, whether Actor's bank pays ActionCost now. A cost above the bank but within Max is
+     *  noted in PickNotes as the held pick when Score beats the one held; a cost above Max never counts. Always
+     *  true outside an action-pips fight (play unchanged). */
+    bool CanPayActionsOrHold(AActor *Actor, int32 ActionCost, float Score);
+
+    /** The spend-or-bank decision for Pick (AIActionPips::DecideSpendOrBank on PickNotes and Actor's bank). */
+    FAISpendOrBankDecision DecideSpendOrBank(AActor *Actor, const FAction &Pick) const;
+
+    /** One action of Unit's threat against Victim, in HP-damage units: its best single action (EstimateBestDamage). */
+    float GetActionWorth(AActor *Unit, AActor *Victim);
+
+    /** In an action-pips fight, the worth of Skill's action effects (Gain / Lose Action, Max Actions Up / Down) and
+     *  of the Ice / Wind break's action loss when the hit tips the target's bar. 0 outside one. */
+    float ScoreActionEffects(AActor *Attacker, AActor *Target, USkillDataBase *Skill);
+
+    /** In an action-pips fight, the Emerald as Crown's rule plays it (Q-170f): on the foe, it loses its next turn
+     *  (S: two), worth that many turns of its threat; on the AI itself, the tier's actions, discounted by their delay.
+     *  True with OutEmerald set when the better of the two beats BestScore and the bank pays the item's cost. */
+    bool TryActionPipsEmerald(AActor *AIActor, const FCrystalId &EmeraldId, AActor *BestTarget, float BestScore,
+                              FAction &OutEmerald);
 
     // ==================== INTERNAL ====================
 

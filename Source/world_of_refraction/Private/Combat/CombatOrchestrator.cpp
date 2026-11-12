@@ -1195,6 +1195,12 @@ void ACombatOrchestrator::OnActionCompleted()
 		return;
 	}
 
+	// Q-170f2 (Crown, 2026-11-12): actions above Max are used this turn or lost now; the rest stays banked. Q-170f3:
+	// that includes a bank left above a lowered Max (Max Actions Down). Before the turn-end effects, so a Max Actions
+	// Buff whose duration ticks out here doesn't take an action banked under it. An Execution turn (a ritual's fire)
+	// is not the holder's own turn and keeps the bank.
+	ExpireBonusActionsAtTurnEnd(CurrentActor);
+
 	// Process end-of-turn effects
 	ProcessEndOfTurnEffects(CurrentActor);
 
@@ -1417,9 +1423,10 @@ bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
 	{
 		return false;
 	}
-	// TODO: B-170f: the AI spends or banks (Q-170c2); until then an AI-played turn (and a Void break's) is one action.
+	// B-170f (ActionPips.md §3.6): the AI is asked again like a player and spends or banks itself
+	// (UAIDecisionManager::DecideSpendOrBank). A Void break's random turn stays one action (Q-170c2, Q-170f2).
 	const bool bVoidBroken = SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill);
-	if (IsActorAIControlled(Actor) || bVoidBroken)
+	if (bVoidBroken)
 	{
 		return false;
 	}
@@ -1429,6 +1436,18 @@ bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
 	}
 	const UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	return CharComp && CharComp->CurrentActions > 0;
+}
+
+void ACombatOrchestrator::ExpireBonusActionsAtTurnEnd(AActor *Actor)
+{
+	if (!IsActionPipsFight() || (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution))
+	{
+		return;
+	}
+	if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+	{
+		CharComp->ExpireActionsAboveMax();
+	}
 }
 
 void ACombatOrchestrator::EndTurnByChoice()

@@ -1686,6 +1686,22 @@ void UCharacterDataComponent::LoseActions(int32 Amount)
     SetCurrentActions(FMath::Max(0, CurrentActions - Amount));
 }
 
+void UCharacterDataComponent::ExpireActionsAboveMax()
+{
+    if (!HasServerAuthority())
+    {
+        return;
+    }
+    const int32 MaxActions = GetMaxActions();
+    const int32 Kept = ActionPipsRules::BankAtTurnEnd(CurrentActions, MaxActions);
+    if (Kept < CurrentActions)
+    {
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: %d bonus action(s) above Max %d lost at turn end"),
+               *GetNameSafe(GetOwner()), CurrentActions - Kept, MaxActions);
+    }
+    SetCurrentActions(Kept);
+}
+
 void UCharacterDataComponent::SetCurrentActions(int32 NewActions)
 {
     if (NewActions == CurrentActions)
