@@ -647,8 +647,9 @@ FString UHiddenQuestSubsystem::GetQuestsString() const
 													  *Quest->GetDisplayTitle().ToString(),
 													  Entry.Value.bFinished ? TEXT("") : *FString::Printf(TEXT(", goal: %s"), *Quest->GetGoalAfter(Entry.Value.StepsDone).ToString()))
 									: FString();
-		Lines.Add(FString::Printf(TEXT("%s%s: %d step(s) done%s, step in progress met %d time(s) this run"), *Entry.Key.ToString(), *Visible,
-								  Entry.Value.StepsDone, Entry.Value.bFinished ? TEXT(", finished") : TEXT(""), Entry.Value.RunCount));
+		Lines.Add(FString::Printf(TEXT("%s%s: %d step(s) done%s, step in progress met %d time(s) this run, found #%d"), *Entry.Key.ToString(),
+								  *Visible, Entry.Value.StepsDone, Entry.Value.bFinished ? TEXT(", finished") : TEXT(""), Entry.Value.RunCount,
+								  Entry.Value.FoundOrder));
 	}
 	Lines.Sort();
 	if (!LastNotice.IsEmpty())
