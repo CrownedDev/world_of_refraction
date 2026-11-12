@@ -19,7 +19,7 @@ Crown goes through it in sets: a weapon, then that weapon's skills, then the nex
 | Set | Item | Picked | Path |
 |---|---|---|---|
 | 1 | Sword mesh | **SK_Sword_1H_Generic_01** (2026-11-12) | `/Game/StylizedWeapons/WeaponPack2/Meshes/Item/Weapons/Sword/SK_Sword_1H_Generic_01` |
-| 1 | Shield mesh | — (open: `SM_Shield_DSAS`, `SK_Shield_Fantasy_01–09`) | |
+| 1 | Shield mesh | **SK_Shield_Fantasy_06** (2026-11-12) | `/Game/StylizedWeapons/WeaponPack1/Meshes/Item/Weapons/Shield/SK_Shield_Fantasy_06` |
 | 1 | Light, heavy, finisher, crippling, taunt, second wind, battle cry | — | |
 
 ## Weapon families: meshes shared across styles (Crown, 2026-11-12)
