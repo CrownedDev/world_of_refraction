@@ -9,6 +9,7 @@
 #include "Inventory/InventoryConstants.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "WoRAuthority.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -63,6 +64,12 @@ bool ItemSlotUpgrade::TryBuy(const UObject *Context, UPoolSubsystem &Pool, FName
 		OutRefusal = LOCTEXT("NoWallet", "No wallet to pay from.");
 		return false;
 	}
+	if (!WoRAuthority::HasAuthority(Wallet->GetOwner()))
+	{
+		// Q-239 (Crown): host-only in co-op; a guest's own purchase would need a server RPC.
+		OutRefusal = LOCTEXT("HostOnly", "Only the host can buy item slots.");
+		return false;
+	}
 	if (!Wallet->CanAfford(GetCurrency(), Price))
 	{
 		OutRefusal = FText::Format(LOCTEXT("TooPoor", "You need {0} {1}."), FText::AsNumber(Price), WoRGameNames::GetCurrencyName(GetCurrency()));
@@ -70,8 +77,6 @@ bool ItemSlotUpgrade::TryBuy(const UObject *Context, UPoolSubsystem &Pool, FName
 	}
 	if (!Wallet->Spend(GetCurrency(), Price))
 	{
-		// TODO(co-op): the wallet changes only with server authority, so a co-op client's purchase is refused here
-		// until it goes through a server RPC (Q-239).
 		OutRefusal = LOCTEXT("SpendFailed", "The payment failed.");
 		return false;
 	}

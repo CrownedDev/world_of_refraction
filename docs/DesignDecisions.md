@@ -708,7 +708,7 @@ The queue of questions only Crown can answer.
 - **Price:** hub Gold (`ECurrencyType::Prisms`, D-159 naming), **200 + 100 per slot already bought** for that pouch (200, 300, 400, …), **cap 20 slots** (all `TODO: tune`). Reference: Breath of the Wild's Hestu, one NPC who sells each extra slot for a rising price (well liked; the rising cost keeps it a long-term goal); Monster Hunter's and Diablo III's stash expansions likewise cost more each step.
 - **Where:** the **Spiritualist** (crystals and stones, which are what a pouch carries). Until the real CommonUI vendor screen exists the placeholder opens with `wor.UI.ItemSlots`; hub only (refused during a run, like the other hub services).
 **Answer (Crown, 2026-11-12):** the **Jeweler** sells pouch slots, not the Spiritualist (the placeholder and the Jeweler's merchant name say so). Currency and price curve as the default: hub Gold (`ECurrencyType::Prisms`), 200 +100 per slot, cap 20; host-only in co-op for now.
-**Notes for Claude:** `Inventory/ItemSlotUpgrade.h/.cpp`, `UPoolSubsystem::AddItemSlot`, `UItemSlotUpgradeWidget`. Co-op: a client can't buy yet (wallets change with server authority only; its purchase is refused, `TODO(co-op)` in `ItemSlotUpgrade::TryBuy`): the host and solo players can. A server RPC comes with the real vendor screen.
+**Notes for Claude:** `Inventory/ItemSlotUpgrade.h/.cpp`, `UPoolSubsystem::AddItemSlot`, `UItemSlotUpgradeWidget`. Co-op: **host-only (Crown)**: `ItemSlotUpgrade::TryBuy` refuses a wallet without authority ("Only the host can buy item slots.") and the placeholder greys out Buy for a guest. Not spec-covered (headless specs are standalone, so always authority): PIE check 10.
 
 ## Parked
 

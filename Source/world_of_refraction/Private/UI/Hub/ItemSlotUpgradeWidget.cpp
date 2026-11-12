@@ -21,6 +21,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
+#include "WoRAuthority.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -186,7 +187,8 @@ void UItemSlotUpgradeWidget::Refresh()
 	}
 	if (BuyButton)
 	{
-		BuyButton->SetIsEnabled(bHasMember && ItemSlotUpgrade::CanGrow(Slots) && ItemSlotUpgrade::IsAvailableHere(this));
+		BuyButton->SetIsEnabled(bHasMember && ItemSlotUpgrade::CanGrow(Slots) && ItemSlotUpgrade::IsAvailableHere(this) &&
+								WoRAuthority::HasAuthority(GetOwningPlayer())); // Q-239: host-only in co-op
 	}
 	if (StatusLine)
 	{
