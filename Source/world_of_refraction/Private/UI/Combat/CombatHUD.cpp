@@ -194,11 +194,12 @@ void UCombatHUD::SetHiddenForCinematic(bool bHidden)
     }
     else
     {
-        // TODO: a widget that changes its own visibility while hidden gets its old one back; nothing does today
-        // (no action is requested and no defence opens under a boss cinematic).
+        // Review fix: a widget that set its own visibility meanwhile (the defence prompt for an action still playing
+        // under the cinematic, the new menu's refresh) keeps it; only the ones still collapsed by the hide come back.
         for (const TPair<TWeakObjectPtr<UUserWidget>, ESlateVisibility> &Entry : VisibilityBeforeCinematic)
         {
-            if (UUserWidget *Widget = Entry.Key.Get())
+            UUserWidget *Widget = Entry.Key.Get();
+            if (Widget && Widget->GetVisibility() == ESlateVisibility::Collapsed)
             {
                 Widget->SetVisibility(Entry.Value);
             }

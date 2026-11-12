@@ -1253,7 +1253,10 @@ EEnemyCameraHeight UCombatCameraDirector::GetFightCameraHeight() const
 
 float UCombatCameraDirector::PlayKillShot(AActor *Victim, EEncounterRank Rank)
 {
-	if (!bInCombat || !ShowKillShot(Victim, FBossFramingRules::KillShotFor(Rank), true))
+	// B-406 review: the winning action can also cross a boss phase; its cinematic ends here (HUD back) so the kill
+	// shot is not cut away when it would end later.
+	EndBossCinematic(false);
+	if (!bInCombat ||!ShowKillShot(Victim, FBossFramingRules::KillShotFor(Rank), true))
 	{
 		return 0.0f;
 	}

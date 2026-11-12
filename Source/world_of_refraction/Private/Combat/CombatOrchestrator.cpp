@@ -402,14 +402,21 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 																 : INDEX_NONE;
 	// B-406 (FeelGuide 9, on trial): a boss's opening cinematic plays first; turn 1 waits for it (nothing is
 	// submitted meanwhile: the async-action wait). No boss, no sequence or no viewer: turn 1 starts now.
+	// The hold is set before the play: a sequence that finishes inside Play() still finds it (review fix).
+	PendingOpeningTeam = OpeningTeam;
+	const bool bWasWaitingForAsyncAction = bWaitingForAsyncAction;
+	bHoldingForBossOpening = true;
+	bWaitingForAsyncAction = true;
 	if (CameraDirector && CameraDirector->PlayBossOpening())
 	{
-		PendingOpeningTeam = OpeningTeam;
-		bHoldingForBossOpening = true;
-		bWaitingForAsyncAction = true;
-		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] Turn 1 waits for the boss's opening cinematic"));
+		if (bHoldingForBossOpening)
+		{
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] Turn 1 waits for the boss's opening cinematic"));
+		}
 		return;
 	}
+	bHoldingForBossOpening = false;
+	bWaitingForAsyncAction = bWasWaitingForAsyncAction;
 	BeginFirstTurn(OpeningTeam);
 }
 
