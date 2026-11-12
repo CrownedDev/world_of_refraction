@@ -2,7 +2,8 @@
 // PLACEHOLDER UI (B-194, Q-194): the hub's memory journal (HubAndStory §4). Three pages: the
 // journal (every memory, lore object and conversation played, to reread), V (hear V's next line)
 // and conversations (play an unlocked talk line by line). B-388: a Quests page lists the player's main and side quests
-// with their goal (hidden quests never show, D-100). Plain buttons built in C++, opened by
+// with their goal (an unstarted hidden quest never shows, D-100; a found one is masked until revealed, Q-397b). Plain
+// buttons built in C++, opened by
 // AHubJournalStation or `wor.Journal.Open`. Replaced by the CommonUI journal screen (D-024).
 //
 // Built once in RebuildWidget; the page logic only writes Title / Body, so it runs unbuilt too.
@@ -15,9 +16,25 @@
 
 class UButton;
 class UMemoryJournalSubsystem;
+class UMemoryJournalWidget;
 class UStoryLinesData;
 class UTextBlock;
+class UVerticalBox;
 struct FStoryConversation;
+
+/** Q-397b: one Reveal button's quest (a button's click carries no data). */
+UCLASS()
+class UJournalRevealAction : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	FName QuestId;
+	TWeakObjectPtr<UMemoryJournalWidget> Journal;
+
+	UFUNCTION()
+	void HandleClicked();
+};
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UMemoryJournalWidget : public UUserWidget
@@ -35,8 +52,20 @@ public:
 	/** Every memory, lore entry and played conversation. */
 	void ShowJournalPage();
 
-	/** B-388: the started main and side quests, each with its current goal (or done). */
+	/** B-388: the started main and side quests, each with its current goal (or done). Q-397b: a found hidden quest is
+	 *  masked as "Hidden Quest <n>" (n in found order, oldest 1) with a Reveal button, so a shared screen spoils nothing. */
 	void ShowQuestsPage();
+
+	/** Q-397b: shows a masked hidden quest's title and goal until the journal closes (a spoiler tag). False when QuestId
+	 *  is not masked on the Quests page now. */
+	bool RevealQuest(FName QuestId);
+	bool IsQuestRevealed(FName QuestId) const { return RevealedQuests.Contains(QuestId); }
+
+	/** Q-397b: the hidden quests masked on the Quests page now (each has a Reveal button). */
+	TArray<FName> GetMaskedQuestIds() const;
+
+	/** Closes the journal; every revealed hidden quest is masked again (Q-397b). */
+	void Close();
 
 	/** V says the next unlocked line not heard yet. False when V has nothing new. */
 	bool HearNextVLine();
@@ -107,4 +136,23 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> BodyText;
+
+	/** Q-397b: a masked hidden quest on the Quests page. */
+	struct FMaskedQuest
+	{
+		FName QuestId;
+		FText MaskedName;
+	};
+	TArray<FMaskedQuest> MaskedQuests;
+	/** Revealed while this journal is open; cleared on Close. */
+	TSet<FName> RevealedQuests;
+
+	/** One Reveal button per masked quest, under the page text (built only when the widget is). */
+	void RebuildRevealButtons();
+
+	UPROPERTY()
+	TObjectPtr<UVerticalBox> RevealBox;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UJournalRevealAction>> RevealActions;
 };

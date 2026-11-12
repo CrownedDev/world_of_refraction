@@ -27,11 +27,20 @@
  *  never hinted (D-100). */
 namespace HiddenQuestNotice
 {
-	// B-397 (D-171, replaces B-377's vague "Something has begun." / "Something has moved forward."): a found hidden quest
-	// is named, then its steps show their next goal as main and side quests do. TODO: Crown's text (placeholder).
-	static FText Discovered(const UHiddenQuestData &Quest)
+	// Q-397b (Crown, 2026-11-12; replaces B-397's "Hidden quest discovered: <title>" and its named step / finish
+	// notices): a hidden quest's notices are masked, never naming it or its goal, so a shared screen spoils nothing; the
+	// journal shows it as "Hidden Quest <n>" until the player reveals it. TODO: Crown's text (placeholders).
+	static FText HiddenFound()
 	{
-		return FText::Format(LOCTEXT("HiddenDiscovered", "Hidden quest discovered: {0}"), Quest.GetDisplayTitle());
+		return LOCTEXT("HiddenFoundMasked", "Hidden quest found. Open the journal to view it.");
+	}
+	static FText HiddenStepDone()
+	{
+		return LOCTEXT("HiddenStepDoneMasked", "Hidden quest updated. Open the journal to view it.");
+	}
+	static FText HiddenFinished()
+	{
+		return LOCTEXT("HiddenFinishedMasked", "Hidden quest complete. Open the journal to view it.");
 	}
 
 	// B-388: a main or side quest is visible, so its notices name it and its next goal. TODO: Crown's text (placeholders).
@@ -142,7 +151,7 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 	KnownQuests.Add(Quest->GetQuestId(), const_cast<UHiddenQuestData *>(Quest)); // B-388: the journal shows its title and goal
 	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
 	ReportToHost(); // B-377b: a client's host checks its steps
-	ShowNotice(Quest->IsVisible() ? HiddenQuestNotice::VisibleStarted(*Quest) : HiddenQuestNotice::Discovered(*Quest));
+	ShowNotice(Quest->IsVisible() ? HiddenQuestNotice::VisibleStarted(*Quest) : HiddenQuestNotice::HiddenFound());
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s started (%d step(s))"), *Quest->GetQuestId().ToString(), Quest->Steps.Num());
 	if (Quest->Steps.IsEmpty())
 	{
@@ -215,8 +224,8 @@ bool UHiddenQuestSubsystem::CountStepMet(const UHiddenQuestData &Quest)
 	}
 	else
 	{
-		// B-388: the next goal; B-397 (D-171): a found hidden quest's too (its later steps stay unnamed until reached).
-		ShowNotice(HiddenQuestNotice::VisibleStepDone(Quest, Entry->StepsDone));
+		// B-388: the next goal; a hidden quest's notice is masked (Q-397b): its goal shows in the journal once revealed.
+		ShowNotice(Quest.IsVisible() ? HiddenQuestNotice::VisibleStepDone(Quest, Entry->StepsDone) : HiddenQuestNotice::HiddenStepDone());
 	}
 	ReportToHost();
 	return true;
@@ -458,7 +467,7 @@ void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
 		Entry->bFinished = true;
 	}
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s finished"), *Quest.GetQuestId().ToString());
-	ShowNotice(HiddenQuestNotice::VisibleFinished(Quest)); // B-388; B-397: a found hidden quest too
+	ShowNotice(Quest.IsVisible() ? HiddenQuestNotice::VisibleFinished(Quest) : HiddenQuestNotice::HiddenFinished()); // B-388; Q-397b masked
 	if (!Quest.EndMemory)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s has no end memory"), *Quest.GetQuestId().ToString());

@@ -2,7 +2,7 @@
 // B-377 (MemoryCatalogue §3.6, Crown 2026-11-08): a hidden quest starts from its memory at the set depth, its steps
 // are done in order (a step can need several events in one run; that count resets at run end, steps done stay), the
 // last step unlocks its end memory, and progress round-trips through its save struct.
-// B-397 (D-171): started by its memory, it tells its player "Hidden quest discovered: <title>"; a quest with no Title
+// B-397 (D-171): started by its memory, it tells its player it was found (Q-397b: masked, never naming it); a quest with no Title
 // or step Goal shows placeholder text, never empty, and data validation warns for each.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -96,12 +96,13 @@ void FHiddenQuestSpec::Define()
 		TestTrue(TEXT("set for Deep: a Deep one does"), ForDeep->StartsFrom(DeepOnly, EMemoryDepth::Deep));
 	});
 
-	It("notifies \"Hidden quest discovered\" when its memory starts it, with placeholders for unwritten text (B-397)", [this]()
+	It("notifies a masked \"Hidden quest found\" when its memory starts it, with placeholders for unwritten text (B-397, Q-397b)", [this]()
 	{
 		TestTrue(TEXT("no notice before"), Quests->GetLastNotice().IsEmpty());
 		Journal->RecordMemory(StartMemory, EMemorySource::Fragment);
 		const FString Notice = Quests->GetLastNotice().ToString();
-		TestTrue(TEXT("the discovery notice"), Notice.StartsWith(TEXT("Hidden quest discovered: ")));
+		TestEqual(TEXT("the masked discovery notice (Q-397b)"), Notice, FString(TEXT("Hidden quest found. Open the journal to view it.")));
+		TestFalse(TEXT("it never names the quest"), Notice.Contains(Quest->GetDisplayTitle().ToString()));
 		TestFalse(TEXT("no Title: a placeholder, not the quest id"), Notice.Contains(Quest->GetQuestId().ToString()));
 		TestFalse(TEXT("no Goal: a placeholder goal"), Quest->GetGoalAfter(0).IsEmpty());
 		TestTrue(TEXT("finished or past the last step: no goal"), Quest->GetGoalAfter(Quest->Steps.Num()).IsEmpty());
