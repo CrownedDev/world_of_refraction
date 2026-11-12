@@ -4143,6 +4143,12 @@ All of them allow use inside the game; none allows sharing the raw files. "Save 
 **Answer:** **A, A, A, A**, by the reference-backed default (2026-11-08). Crown may change any; every quest's title, goals and notice wording are Crown's (placeholders, `HiddenQuestNotice` in `HiddenQuestSubsystem.cpp`, marked `// TODO: Crown's text`).
 **Notes for Claude (as built):** B-388: `EQuestKind`, `UHiddenQuestData::Kind` / `Title` / `GetDisplayTitle` / `GetGoalAfter`, `FHiddenQuestStep::Goal`; `UHiddenQuestSubsystem::GetVisibleQuests` (it gathers the assets once for a quest restored from the save) / `StartQuestById` / `KnownQuests`; `UMemoryJournalWidget::ShowQuestsPage`. No save change (the kind, title and goals live on the asset). Part 2: shared goals for everyone present (co-op, §3.13), the givers.
 
+### Q-397 — Found hidden quests in the journal: the finish notice, placeholder text, list order
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-12; Crown vetoes) · **Raised:** 2026-11-12 (B-397 desktop review) · **Blocks:** —
+**Question:** D-171 shows a found hidden quest privately, with its current goal only. Three build details aren't in D-171: (1) does a hidden quest's finish show a notice, (2) what text shows when a quest has no title or goal authored, (3) where found hidden quests sit in the journal.
+**Recommendation:** (1) "Quest complete: <title>", as main and side quests already do (Q-388), since a found quest is now a visible one. (2) "Unnamed hidden quest" and "The way on is not yet clear." as placeholders, with editor warnings (`IsDataValid`) so an author fills them. (3) Main, then side, then hidden (`JOURNAL_RANK_*`). Skyrim's journal lists main quests first and miscellaneous ones last, and its unfinished ones above finished ones.
+**Answer:** the recommendation, by the reference-backed default (2026-11-12). All text is Crown's to change (placeholders in `HiddenQuestData.cpp` and `HiddenQuestNotice`). Known: the finish notice is replaced at once by the "New memory" notice, since they share one on-screen slot (`ATrialMapFeature::ShowMessage`).
+
 ### Q-378 — Curses: how one is named, given, lifted and held
 **Status:** ANSWERED (Crown, 2026-11-08: changed; the rest kept) · **Raised:** 2026-11-08 (B-378, cloud) · **Blocks:** —
 **Question:** MemoryCatalogue §3.8: a curse is a reward that is a penalty and a key, lasting across runs until its own quest or memory removes it. (1) How is a curse named and given? (2) How is it lifted? (3) Can several be held? (4) In co-op, whose is it?

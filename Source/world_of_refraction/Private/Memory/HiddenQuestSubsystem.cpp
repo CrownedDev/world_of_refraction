@@ -546,18 +546,23 @@ void UHiddenQuestSubsystem::ShowNotice(const FText &Notice)
 namespace HiddenQuestJournal
 {
 	/** B-397: the journal's order of kinds: main, side, then found hidden quests. */
+	/** The journal lists main quests first, then side, then hidden (Q-397). */
+	constexpr int32 JOURNAL_RANK_MAIN = 0;
+	constexpr int32 JOURNAL_RANK_SIDE = 1;
+	constexpr int32 JOURNAL_RANK_HIDDEN = 2;
+
 	static int32 GetListRank(EQuestKind Kind)
 	{
 		switch (Kind)
 		{
 		case EQuestKind::Main:
-			return 0;
+			return JOURNAL_RANK_MAIN;
 		case EQuestKind::Side:
-			return 1;
+			return JOURNAL_RANK_SIDE;
 		case EQuestKind::Hidden:
-			return 2;
+			return JOURNAL_RANK_HIDDEN;
 		}
-		return 2;
+		return JOURNAL_RANK_HIDDEN;
 	}
 }
 

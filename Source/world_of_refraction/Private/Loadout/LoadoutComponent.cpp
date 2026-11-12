@@ -3566,6 +3566,13 @@ bool ULoadoutComponent::SetGuardStyle(EGuardStyle Style)
         return false;
     }
     const FGuid GuardWeaponId = Style == EGuardStyle::Unarmed ? WeaponEntry->WeaponEntry.PersistentID : FGuid();
+    if (Style == EGuardStyle::Unarmed && !GuardWeaponId.IsValid())
+    {
+        // Unarmed holds only while the put-away weapon is in hand, found by its id; without one it would never hold.
+        UE_LOG(LogWoRLoadout, Warning, TEXT("%s: the weapon in hand has no persistent id; Unarmed refused (B-392)"),
+               *GetNameSafe(GetOwner()));
+        return false;
+    }
     LocalGuardStyle = Style;
     LocalGuardWeaponId = GuardWeaponId;
     // B-348b's rule: only a pawn stamped with its member id writes the record, never an enemy sharing its asset.
