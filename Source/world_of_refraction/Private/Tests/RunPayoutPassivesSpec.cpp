@@ -47,8 +47,7 @@ void FRunPayoutPassivesSpec::Define()
 											   RunPayoutTestAttached(RUN_PAYOUT_TEST_BONUS_PERCENT, EEvolutionPlace::Weapon)};
 		TestEqual(TEXT("two worn: both count"), RunRewards::SumPayoutBonusPercent(Attached), 2.0f * RUN_PAYOUT_TEST_BONUS_PERCENT,
 				  RUN_PAYOUT_TEST_TOLERANCE);
-		Attached[1].Attachment.Item->Breakability = EBreakability::Breakable;
-		Attached[1].Attachment.CurrentDurability = 0;
+		Attached[1].Attachment.CurrentDurability = 0; // Breakable by default: worn to 0 is broken
 		TestEqual(TEXT("a broken one gives nothing"), RunRewards::SumPayoutBonusPercent(Attached), RUN_PAYOUT_TEST_BONUS_PERCENT,
 				  RUN_PAYOUT_TEST_TOLERANCE);
 		TestEqual(TEXT("none worn"), RunRewards::SumPayoutBonusPercent({}), 0.0f, RUN_PAYOUT_TEST_TOLERANCE);
@@ -101,6 +100,12 @@ void FRunPayoutPassivesSpec::Define()
 					  RunRewards::PayoutMultiplierForBonus(RUN_PAYOUT_TEST_BONUS_PERCENT), RUN_PAYOUT_TEST_TOLERANCE);
 			TestTrue(TEXT("the run's end pays more"), Run->GetRunEndPayout().HubGold > Plain.HubGold);
 
+			Active.PrimaryEvolution.CurrentDurability = 0; // broke in the fight (the refresh runs before the repair)
+			Run->RefreshPayoutMultiplier(Fighters);
+			TestEqual(TEXT("broken: base again"), Run->GetRunPayoutMultiplier(), RunRewards::BASE_PAYOUT_MULTIPLIER, RUN_PAYOUT_TEST_TOLERANCE);
+
+			Active.PrimaryEvolution = RunPayoutTestAttached(RUN_PAYOUT_TEST_BONUS_PERCENT, EEvolutionPlace::Character).Attachment;
+			Run->RefreshPayoutMultiplier(Fighters);
 			Active.PrimaryEvolution = FEvolutionAttachment(); // taken off before the next fight
 			Run->RefreshPayoutMultiplier(Fighters);
 			TestEqual(TEXT("taken off: base again"), Run->GetRunPayoutMultiplier(), RunRewards::BASE_PAYOUT_MULTIPLIER, RUN_PAYOUT_TEST_TOLERANCE);
