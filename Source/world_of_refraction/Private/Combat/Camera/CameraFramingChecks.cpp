@@ -13,7 +13,7 @@ namespace
 	constexpr double FRAMING_MAX_MARGIN = 0.9;
 }
 
-bool CameraFraming::IsOnScreen(const FTransform &Camera, float FovDegrees, float Aspect, const FVector &Point, float Margin)
+bool CameraFraming::ProjectToScreen(const FTransform &Camera, float FovDegrees, float Aspect, const FVector &Point, FVector2D &OutScreen)
 {
 	const FVector Local = Camera.InverseTransformPositionNoScale(Point);
 	if (Local.X <= UE_KINDA_SMALL_NUMBER)
@@ -22,10 +22,27 @@ bool CameraFraming::IsOnScreen(const FTransform &Camera, float FovDegrees, float
 	}
 	const double HalfTan = FMath::Tan(FMath::DegreesToRadians(FMath::Clamp(static_cast<double>(FovDegrees), FRAMING_MIN_FOV, FRAMING_MAX_FOV) * 0.5));
 	const double SafeAspect = FMath::Max(static_cast<double>(Aspect), UE_KINDA_SMALL_NUMBER);
-	const double ScreenX = Local.Y / (Local.X * HalfTan);
-	const double ScreenY = Local.Z / (Local.X * HalfTan / SafeAspect);
+	OutScreen.X = Local.Y / (Local.X * HalfTan);
+	OutScreen.Y = Local.Z / (Local.X * HalfTan / SafeAspect);
+	return true;
+}
+
+bool CameraFraming::IsOnScreen(const FTransform &Camera, float FovDegrees, float Aspect, const FVector &Point, float Margin)
+{
+	FVector2D Screen;
+	if (!ProjectToScreen(Camera, FovDegrees, Aspect, Point, Screen))
+	{
+		return false;
+	}
 	const double Limit = 1.0 - FMath::Clamp(static_cast<double>(Margin), 0.0, FRAMING_MAX_MARGIN);
-	return FMath::Abs(ScreenX) <= Limit && FMath::Abs(ScreenY) <= Limit;
+	return FMath::Abs(Screen.X) <= Limit && FMath::Abs(Screen.Y) <= Limit;
+}
+
+FString CameraFraming::GetThirdsCell(const FVector2D &Screen)
+{
+	const TCHAR *Row = Screen.Y > THIRD_LINE ? TEXT("upper") : Screen.Y < -THIRD_LINE ? TEXT("lower") : TEXT("middle");
+	const TCHAR *Column = Screen.X < -THIRD_LINE ? TEXT("left") : Screen.X > THIRD_LINE ? TEXT("right") : TEXT("centre");
+	return FString::Printf(TEXT("%s-%s (%.2f, %.2f)"), Row, Column, Screen.X, Screen.Y);
 }
 
 TArray<FVector> CameraFraming::GetRequiredPoints(ECameraShotMoment Moment, const FCameraShotContext &Context)
@@ -42,6 +59,8 @@ TArray<FVector> CameraFraming::GetRequiredPoints(ECameraShotMoment Moment, const
 		Points.Add(Context.Caster); // B-406: the front shot frames the enemy alone; its targets are behind the camera
 		break;
 	case ECameraShotMoment::Impact:
+		// B-403 (R6): the impact is a two-shot: the caster and the first target.
+		Points.Add(Context.Caster);
 		if (!Context.Targets.IsEmpty())
 		{
 			Points.Add(Context.Targets[0]);

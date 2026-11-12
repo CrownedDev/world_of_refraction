@@ -17,6 +17,7 @@ void UCombatCommandButtonWidget::NativeConstruct()
     if (CommandButton)
     {
         CommandButton->OnClicked.AddDynamic(this, &UCombatCommandButtonWidget::HandleClicked);
+        CommandButton->OnHovered.AddDynamic(this, &UCombatCommandButtonWidget::HandleHovered); // B-400
     }
     else
     {
@@ -29,6 +30,7 @@ void UCombatCommandButtonWidget::NativeDestruct()
     if (CommandButton)
     {
         CommandButton->OnClicked.RemoveDynamic(this, &UCombatCommandButtonWidget::HandleClicked);
+        CommandButton->OnHovered.RemoveDynamic(this, &UCombatCommandButtonWidget::HandleHovered);
     }
 
     Super::NativeDestruct();
@@ -99,6 +101,37 @@ void UCombatCommandButtonWidget::HandleClicked()
     }
 
     Subsystem->HandleSelection(CurrentData);
+}
+
+void UCombatCommandButtonWidget::NativeOnAddedToFocusPath(const FFocusEvent &InFocusEvent)
+{
+    Super::NativeOnAddedToFocusPath(InFocusEvent);
+    HighlightOwnTarget();
+}
+
+void UCombatCommandButtonWidget::HandleHovered()
+{
+    // B-400: a hovered target button takes focus too, so the target the camera frames is the one Enter confirms.
+    if (HighlightOwnTarget() && CommandButton && !CommandButton->HasKeyboardFocus())
+    {
+        CommandButton->SetFocus();
+    }
+}
+
+bool UCombatCommandButtonWidget::HighlightOwnTarget()
+{
+    // Only a per-actor target button (a group confirm carries Targets instead); the menu ignores a target its open
+    // picker doesn't offer, so a stale pool slot does nothing.
+    AActor *Target = Cast<AActor>(CurrentData.DataReference);
+    if (!bHasData || CurrentData.Category != EPieMenuCategory::Target || !CurrentData.Targets.IsEmpty() || !Target)
+    {
+        return false;
+    }
+    if (UCombatCommandMenuSubsystem *Subsystem = WoRFight::Get<UCombatCommandMenuSubsystem>(GetGameInstance()))
+    {
+        Subsystem->HighlightTarget(Target);
+    }
+    return true;
 }
 
 void UCombatCommandButtonWidget::DebugLogData() const

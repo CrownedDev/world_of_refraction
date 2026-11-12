@@ -23,6 +23,8 @@ namespace
 	constexpr int32 SIM_TEST_BASE_DAMAGE = 30;
 	/** Next-tick timers only once the seams are on: a few frames settle one action. */
 	constexpr int32 SIM_TEST_ACTION_FRAMES = 10;
+	/** One battle seed for the defended-path case: the AI foe's random defense must not block every impact. */
+	constexpr int32 SIM_TEST_BATTLE_SEED = 4307;
 	/** A whole 1v1 at ~3 frames a turn; reaching it means a stall. */
 	constexpr int32 SIM_TEST_FIGHT_TICK_CAP = 3000;
 
@@ -100,6 +102,7 @@ void FBalanceSimOneFightSpec::Define()
 	{
 		SetSimCVar(TEXT("wor.Combat.InstantImpacts"), 0);
 		SetSimCVar(TEXT("wor.AI.ThinkDelayScale"), 1.0f);
+		SetSimCVar(TEXT("wor.Battle.Seed"), 0);
 		if (Orchestrator && Orchestrator->GetCombatState() == ECombatState::InProgress)
 		{
 			Orchestrator->ForceEndCombat();
@@ -125,6 +128,7 @@ void FBalanceSimOneFightSpec::Define()
 		// synthesized per impact (the defended path); with the live think delay its own turn waits far past
 		// these frames and adds no impacts.
 		SetSimCVar(TEXT("wor.AI.ThinkDelayScale"), 1.0f);
+		SetSimCVar(TEXT("wor.Battle.Seed"), SIM_TEST_BATTLE_SEED);
 		AActor *Hero = SpawnArmed(false);
 		AActor *Foe = SpawnArmed(true);
 		if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe)) return;

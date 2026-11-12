@@ -35,6 +35,7 @@ namespace
 		ESkillEffectType::TurnSpeedBuff, ESkillEffectType::TurnSpeedDebuff, ESkillEffectType::ModifyTurnSpeed,
 		ESkillEffectType::LuckBuff, ESkillEffectType::LuckDebuff,
 		ESkillEffectType::ReflexBuff, ESkillEffectType::ReflexDebuff,
+		ESkillEffectType::MaxActionsBuff, ESkillEffectType::MaxActionsDebuff, // B-170d
 		ESkillEffectType::ModifyStatusResist,
 		ESkillEffectType::DamageBuff, ESkillEffectType::DamageDebuff,
 		ESkillEffectType::ModifyDamageDealt, ESkillEffectType::ModifyCritChance, ESkillEffectType::ModifyEnergyCost,
@@ -170,6 +171,8 @@ TSubclassOf<UGameplayEffect> FWoREffectSpecBuilder::GetEffectClass(ESkillEffectT
 	case ESkillEffectType::CleanseAllies:
 	case ESkillEffectType::PushBack:
 	case ESkillEffectType::PullForward:
+	case ESkillEffectType::GainActions: // B-170d: a change to the bank, never a lasting effect
+	case ESkillEffectType::LoseActions:
 		return UWoRGE_Action::StaticClass();
 	default:
 		break;

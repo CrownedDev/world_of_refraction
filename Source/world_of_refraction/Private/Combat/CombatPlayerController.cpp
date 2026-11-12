@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "UI/Combat/CombatHUD.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
@@ -32,24 +33,6 @@ namespace CombatMenuKeys
 {
 	/** Above the editor-authored combat context (priority 0), so a shared key goes to the menu. */
 	constexpr int32 CONTEXT_PRIORITY = 1;
-
-	struct FBinding
-	{
-		FName ActionName;
-		EPieMenuCategory Category;
-		FKey Keyboard;
-		FKey Gamepad;
-	};
-
-	/** Q-093: fixed keys for now (D-063); each action name unique so rebinding can come later. */
-	TArray<FBinding> GetBindings()
-	{
-		return {
-			{TEXT("IA_Combat_MenuDefend"), EPieMenuCategory::Defend, EKeys::G, EKeys::Gamepad_FaceButton_Top},
-			{TEXT("IA_Combat_MenuInfusionSource"), EPieMenuCategory::CycleSource, EKeys::R, EKeys::Gamepad_LeftShoulder},
-			{TEXT("IA_Combat_MenuInfusionLevel"), EPieMenuCategory::CycleLevel, EKeys::T, EKeys::Gamepad_RightShoulder},
-		};
-	}
 
 	/** B-406b (Q-406b): skips a boss cinematic. Its own action name (D-063); keys from InputMap.md. Functions, not
 	 *  globals: an EKeys value is only safe to copy after its module's static init. */
@@ -187,6 +170,10 @@ void ACombatPlayerController::SetupInputComponent()
 	EnhancedInput->BindAction(DefendAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnDefend);
 	EnhancedInput->BindAction(InfusionAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnInfusion);
 	EnhancedInput->BindAction(InfusionLevelAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnInfusionLevel);
+	for (const TObjectPtr<UInputAction> &CategoryAction : CategoryKeyActions) // B-391
+	{
+		EnhancedInput->BindAction(CategoryAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnCategoryKey);
+	}
 	EnhancedInput->BindAction(SkipCinematicAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnSkipCinematic);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
@@ -573,7 +560,7 @@ void ACombatPlayerController::BuildMenuKeys()
 		return;
 	}
 	MenuKeysContext = NewObject<UInputMappingContext>(this, TEXT("IMC_Combat_MenuKeys"));
-	for (const CombatMenuKeys::FBinding &Binding : CombatMenuKeys::GetBindings())
+	for (const FCombatMenuKey &Binding : GetMenuKeys())
 	{
 		UInputAction *Action = NewObject<UInputAction>(this, Binding.ActionName);
 		Action->ValueType = EInputActionValueType::Boolean;
@@ -581,7 +568,10 @@ void ACombatPlayerController::BuildMenuKeys()
 		// (priority 0) must still reach the defense window on an enemy's turn.
 		Action->bConsumeInput = false;
 		MenuKeysContext->MapKey(Action, Binding.Keyboard);
-		MenuKeysContext->MapKey(Action, Binding.Gamepad);
+		if (Binding.Gamepad.IsValid())
+		{
+			MenuKeysContext->MapKey(Action, Binding.Gamepad);
+		}
 		switch (Binding.Category)
 		{
 		case EPieMenuCategory::Defend:
@@ -594,7 +584,10 @@ void ACombatPlayerController::BuildMenuKeys()
 			InfusionLevelAction = Action;
 			break;
 		default:
-			checkNoEntry();
+			// B-391: the main-menu category keys share one handler.
+			check(CommandMenuRules::IsMainMenuKey(Binding.Category));
+			CategoryKeyActions.Add(Action);
+			CategoryKeyCategories.Add(Binding.Category);
 			break;
 		}
 	}
@@ -638,6 +631,22 @@ bool ACombatPlayerController::SkipBossCinematic(const UObject *WorldContext)
 	return false;
 }
 
+void ACombatPlayerController::OnCategoryKey(const FInputActionInstance &Instance)
+{
+	// The old WBP HUD (wor.UI.NewHUD 0) has its own confirm / back on A / B: the category keys would act twice there.
+	if (!UCombatHUD::WantsNewHUD())
+	{
+		return;
+	}
+	const UInputAction *Pressed = Instance.GetSourceAction();
+	const int32 Index = CategoryKeyActions.IndexOfByPredicate([Pressed](const TObjectPtr<UInputAction> &Action)
+															  { return Action.Get() == Pressed; });
+	if (CategoryKeyCategories.IsValidIndex(Index))
+	{
+		PressMenuKey(CategoryKeyCategories[Index]);
+	}
+}
+
 void ACombatPlayerController::OnDefend(const FInputActionValue &Value) { PressMenuKey(EPieMenuCategory::Defend); }
 
 void ACombatPlayerController::OnInfusion(const FInputActionValue &Value) { PressMenuKey(EPieMenuCategory::CycleSource); }
@@ -660,16 +669,38 @@ void ACombatPlayerController::PressMenuKey(EPieMenuCategory Category)
 FString ACombatPlayerController::GetMenuKeysString()
 {
 	FString Out = TEXT("[CombatPC] Menu keys");
-	for (const CombatMenuKeys::FBinding &Binding : CombatMenuKeys::GetBindings())
+	for (const FCombatMenuKey &Binding : GetMenuKeys())
 	{
 		Out += FString::Printf(TEXT("\n  %s (%s): %s / %s"), *Binding.ActionName.ToString(),
 							   *UEnum::GetValueAsString(Binding.Category), *Binding.Keyboard.GetDisplayName().ToString(),
-							   *Binding.Gamepad.GetDisplayName().ToString());
+							   Binding.Gamepad.IsValid() ? *Binding.Gamepad.GetDisplayName().ToString() : TEXT("-"));
 	}
 	Out += FString::Printf(TEXT("\n  %s (skip boss cinematic, B-406b): %s / %s"), CombatMenuKeys::SKIP_CINEMATIC_ACTION_NAME,
 						   *CombatMenuKeys::GetSkipCinematicKeyboard().GetDisplayName().ToString(),
 						   *CombatMenuKeys::GetSkipCinematicGamepad().GetDisplayName().ToString());
 	return Out;
+}
+
+const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
+{
+	// Q-093 / Q-391: fixed keys for now (D-063); each action name unique so rebinding can come later. Every row is in
+	// docs/Design/InputMap.md. The category keys (B-391) work on the main menu only: face buttons for the four act
+	// categories (Y stays Defend), the d-pad for the rest; B is Back everywhere else.
+	static const TArray<FCombatMenuKey> Keys = {
+		{TEXT("IA_Combat_MenuDefend"), EPieMenuCategory::Defend, EKeys::G, EKeys::Gamepad_FaceButton_Top},
+		{TEXT("IA_Combat_MenuInfusionSource"), EPieMenuCategory::CycleSource, EKeys::R, EKeys::Gamepad_LeftShoulder},
+		{TEXT("IA_Combat_MenuInfusionLevel"), EPieMenuCategory::CycleLevel, EKeys::T, EKeys::Gamepad_RightShoulder},
+		{TEXT("IA_Combat_MenuAttack"), EPieMenuCategory::Attack, EKeys::One, EKeys::Gamepad_FaceButton_Bottom},
+		{TEXT("IA_Combat_MenuSkills"), EPieMenuCategory::Abilities, EKeys::Two, EKeys::Gamepad_FaceButton_Left},
+		{TEXT("IA_Combat_MenuSpells"), EPieMenuCategory::Refractions, EKeys::Three, EKeys::Gamepad_FaceButton_Right},
+		{TEXT("IA_Combat_MenuItems"), EPieMenuCategory::Items, EKeys::Four, EKeys::Gamepad_DPad_Up},
+		{TEXT("IA_Combat_MenuFlee"), EPieMenuCategory::Flee, EKeys::Five, EKeys::Gamepad_DPad_Down},
+		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_DPad_Left},
+		{TEXT("IA_Combat_MenuChangeRing"), EPieMenuCategory::ChangeRing, EKeys::Seven, EKeys::Gamepad_DPad_Right},
+		// B-170e (Crown, 2026-11-12): End Turn has no key yet; it comes later, with its InputMap.md row. The menu already
+		// takes it as a main-menu key (CommandMenuRules::IsMainMenuKey, PressMenuKey(EPieMenuCategory::EndTurn)).
+	};
+	return Keys;
 }
 
 // ========================================

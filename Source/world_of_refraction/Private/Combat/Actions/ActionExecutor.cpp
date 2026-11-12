@@ -56,6 +56,8 @@
 #include "Combat/Projectile/SkillProjectile.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Combat/Presentation/ImpactVisuals.h"
+#include "Combat/Presentation/CastVisuals.h"
+#include "NiagaraSystem.h" // B-394: TSoftObjectPtr from the loose MuzzleVFX pointer
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Equipment/Rings/RingData.h"
@@ -3169,6 +3171,10 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 	UCharacterDataComponent *TargetComp = Input.Target->FindComponentByClass<UCharacterDataComponent>();
 
+	// B-391b: what the damage number shows on every machine (neutral until the calculator says otherwise).
+	float ShownElementMultiplier = 1.0f;
+	EWoRDamageType ShownDamageType = Input.GetHitKind().DamageType;
+
 	// Damage path — routes through UDamageCalculator so all Phase 1/2/2b math
 	// (EActionType-driven stat selection, ActionMods, element interaction,
 	// flat defense, grid modifiers, crit, BD multipliers) runs unchanged.
@@ -3207,6 +3213,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			const FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Input.Attacker, Input.Target, DmgInput);
 
 			Result.bWasCritical = CalcResult.bWasCritical;
+			ShownElementMultiplier = CalcResult.ElementMultiplier;
+			ShownDamageType = FWoRHitKind::FromPair(CalcResult.EffectiveElement, Input.PhysicalDamageType, Input.DealtTypeOverride).DamageType;
 
 			// Absorb — runs after DamageCalculator (element/crit/defense resolved) and before
 			// the HP drop, on a local FinalDamage copy (CalcResult stays const).
@@ -3297,7 +3305,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
 		if (UCombatPresentationComponent *Presentation = UCombatPresentationComponent::Find(Input.Target))
 		{
-			Presentation->SendHit(Result.DamageDealt, Result.bWasCritical); // B-231: every machine's damage numbers
+			// B-231: every machine's damage numbers; B-391b: styled by the element multiplier and damage type.
+			Presentation->SendHit(Result.DamageDealt, Result.bWasCritical, ShownElementMultiplier, ShownDamageType);
 		}
 		OnElementDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical, Input.Element);
 
@@ -3738,8 +3747,17 @@ void UActionExecutor::SpawnProjectileActor(
 		USpellData *AsSpell = Cast<USpellData>(Skill);
 		const FSkillVFXEntry *MuzzleEntry = GetVFXEntryByRole(Skill, EVFXRole::Muzzle);
 		const FSkillVFXEntry *ImpactEntry = GetVFXEntryByRole(Skill, EVFXRole::Impact);
+		// B-394 (D-170): the cast flash's source (weapon / adapter-type default / Generic preference); the skill's own
+		// muzzle when that source has nothing authored.
+		const TSoftObjectPtr<UNiagaraSystem> SkillMuzzle =
+			MuzzleEntry ? MuzzleEntry->VFX : TSoftObjectPtr<UNiagaraSystem>(AsSpell ? AsSpell->MuzzleVFX : nullptr);
+		const FAction *CastAction = (CurrentExecutionContext.IsSet() && CurrentExecutionContext->Executor.Get() == Caster)
+										? &CurrentExecutionContext->Action
+										: nullptr;
+		const FCastVisualChoice CastChoice = CastVisuals::ResolveForCaster(Caster, CastAction, AsSpell != nullptr, SkillMuzzle);
+		UE_LOG(LogWoR, Verbose, TEXT("[CastVFX] %s projectile: %s"), *GetNameSafe(Caster), *CastVisuals::GetChoiceString(CastChoice));
 		Projectile->SetVFXAssets(
-			MuzzleEntry ? MuzzleEntry->VFX.LoadSynchronous() : (AsSpell ? AsSpell->MuzzleVFX : nullptr),
+			CastChoice.VFX.LoadSynchronous(),
 			Entry ? Entry->Trail.LoadSynchronous() : (AsSpell ? AsSpell->SpellVFX : nullptr),
 			ImpactEntry ? ImpactEntry->VFX.LoadSynchronous() : (AsSpell ? AsSpell->ImpactVFX : nullptr));
 
@@ -5907,7 +5925,9 @@ void UActionExecutor::ApplySkillEffects(
 			// Per-payload runtime value: gauge manipulators + DOT pass authored Value through;
 			// stat-modifier effects keep the Magnitude*100 percentage shape. Cluster 4: both
 			// halves scaled by the tier-gap effect-magnitude multiplier (EffMagMult).
+			// B-170d: the action effects count whole actions: authored Value, unscaled.
 			const int32 RuntimeValue =
+				SkillEffectClassification::CountsWholeActions(P.EffectType) ? P.Value :
 				(P.EffectType == ESkillEffectType::StatusIncrease ||
 				 P.EffectType == ESkillEffectType::StatusDecrease ||
 				 P.EffectType == ESkillEffectType::DOT ||
@@ -5974,7 +5994,10 @@ void UActionExecutor::ApplySkillEffects(
 				// can't see — overwrite the core's payload-derived value. Reproduces the deleted
 				// CreateFromSpellEffect's EXACT expression ((Value!=0)?Value:Magnitude*100, Value=RuntimeValue)
 				// so the zero-RuntimeValue fallback stays byte-identical, not just the common case.
-				StatusEffect.EffectValue = (RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (P.Magnitude * 100.0f);
+				// B-170d: an action effect never falls back to Magnitude*100 (Value 0 = no actions, as the validator warns).
+				StatusEffect.EffectValue = (RuntimeValue != 0 || SkillEffectClassification::CountsWholeActions(P.EffectType))
+											   ? static_cast<float>(RuntimeValue)
+											   : (P.Magnitude * 100.0f);
 				StatusEffect.bDoesNotStack = Effect.bDoesNotStack; // D-053; source = caster + skill (ApplyEffect)
 
 				StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);

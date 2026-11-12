@@ -23,6 +23,8 @@
 #include "Combat/Damage/TierPowerConstants.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Character/CosmeticsData.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Skills/Definitions/ElementHelpers.h"
@@ -4204,6 +4206,111 @@ UAnimMontage *ULoadoutComponent::GetParryMontage() const
         return nullptr;
     }
     return CharData->Cosmetics ? CharData->Cosmetics->ParryMontage : nullptr;
+}
+
+EGuardStyle ULoadoutComponent::ResolveGuardStyle(bool bWeaponInHand, const FGuid &ActiveWeaponId, EGuardStyle Chosen,
+                                              const FGuid &ChosenWithWeaponId)
+{
+    if (!bWeaponInHand)
+    {
+        return EGuardStyle::Unarmed;
+    }
+    // D-170: equipping a weapon makes the weapon guard the default, so Unarmed holds only for the weapon put away.
+    // TODO: D-024 (the loadout screen's equip action): set Weapon there and drop the remembered weapon id. Until one
+    // equip-commit path exists, re-equipping the same weapon keeps Unarmed (Q-392). A weapon with no id (enemy / test
+    // weapons) never matches, so any weapon in hand brings the weapon guard back.
+    return (Chosen == EGuardStyle::Unarmed && ChosenWithWeaponId.IsValid() && ActiveWeaponId == ChosenWithWeaponId) ? EGuardStyle::Unarmed
+                                                                                     : EGuardStyle::Weapon;
+}
+
+const FPartyMember *ULoadoutComponent::FindGuardRecord() const
+{
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    return CharComp && CharComp->PartyMemberId.IsValid() ? CharComp->FindCarriedPartyMember() : nullptr;
+}
+
+EGuardStyle ULoadoutComponent::GetGuardStyle() const
+{
+    const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    const FGuid ActiveWeaponId = WeaponEntry ? WeaponEntry->WeaponEntry.PersistentID : FGuid();
+    const FPartyMember *Record = FindGuardRecord();
+    return ResolveGuardStyle(WeaponEntry != nullptr, ActiveWeaponId, Record ? Record->GuardStyle : LocalGuardStyle,
+                             Record ? Record->GuardWeaponId : LocalGuardWeaponId);
+}
+
+bool ULoadoutComponent::SetGuardStyle(EGuardStyle Style)
+{
+    // TODO: co-op (D-103): UParty is not replicated; a guest's choice made on its machine never reaches the host,
+    // which picks the guard montage. Route it through a server RPC with the party record's replication.
+    const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    if (Style == EGuardStyle::Unarmed && !WeaponEntry)
+    {
+        UE_LOG(LogWoRLoadout, Log, TEXT("%s: no weapon in hand, already guarding unarmed (B-392)"), *GetNameSafe(GetOwner()));
+        return false;
+    }
+    const FGuid GuardWeaponId = Style == EGuardStyle::Unarmed ? WeaponEntry->WeaponEntry.PersistentID : FGuid();
+    if (Style == EGuardStyle::Unarmed && !GuardWeaponId.IsValid())
+    {
+        // Unarmed holds only while the put-away weapon is in hand, found by its id; without one it would never hold.
+        UE_LOG(LogWoRLoadout, Warning, TEXT("%s: the weapon in hand has no persistent id; Unarmed refused (B-392)"),
+               *GetNameSafe(GetOwner()));
+        return false;
+    }
+    LocalGuardStyle = Style;
+    LocalGuardWeaponId = GuardWeaponId;
+    // B-348b's rule: only a pawn stamped with its member id writes the record, never an enemy sharing its asset.
+    if (FindGuardRecord())
+    {
+        const UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+        const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+        if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+        {
+            PartySession->SetMemberGuard(PartySession->GetMemberSlotOf(CharComp), Style, GuardWeaponId);
+        }
+    }
+    UE_LOG(LogWoRLoadout, Log, TEXT("%s: guard set to %s (B-392)"), *GetNameSafe(GetOwner()),
+           *StaticEnum<EGuardStyle>()->GetNameStringByValue(static_cast<int64>(Style)));
+    return true;
+}
+
+EParryElementPriority ULoadoutComponent::GetParryElementPriority() const
+{
+    const FPartyMember *Record = FindGuardRecord();
+    return Record ? Record->ParryElementPriority : LocalParryElementPriority;
+}
+
+void ULoadoutComponent::SetParryElementPriority(EParryElementPriority Priority)
+{
+    // TODO: co-op (D-103): as SetGuardStyle, a guest's choice stays on its machine until the party record replicates.
+    LocalParryElementPriority = Priority;
+    if (FindGuardRecord())
+    {
+        const UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+        const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+        if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+        {
+            PartySession->SetMemberParryPriority(PartySession->GetMemberSlotOf(CharComp), Priority);
+        }
+    }
+    UE_LOG(LogWoRLoadout, Log, TEXT("%s: parry colour priority set to %s (B-393)"), *GetNameSafe(GetOwner()),
+           *StaticEnum<EParryElementPriority>()->GetNameStringByValue(static_cast<int64>(Priority)));
+}
+
+UAnimMontage *ULoadoutComponent::GetGuardMontage() const
+{
+    if (GetGuardStyle() == EGuardStyle::Weapon)
+    {
+        if (const UWeaponData *Weapon = GetActiveWeapon())
+        {
+            if (Weapon->ParryMontage)
+            {
+                return Weapon->ParryMontage;
+            }
+            UE_LOG(LogWoRLoadout, Verbose, TEXT("%s: weapon %s has no guard montage yet; the unarmed guard plays (B-392)"),
+                   *GetNameSafe(GetOwner()), *Weapon->Name);
+        }
+    }
+    return GetBlockMontage();
 }
 
 UStanceData *ULoadoutComponent::GetUnarmedStance() const

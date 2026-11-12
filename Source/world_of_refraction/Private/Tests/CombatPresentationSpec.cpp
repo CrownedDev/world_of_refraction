@@ -1,6 +1,7 @@
 // CombatPresentationSpec.cpp
 // B-231 part 1: who sends the presentation multicasts and who plays a received montage; standalone, a hit still
 // fires the local event and a montage sends nothing. The two-machine path is the PIE sheet (docs/PIE/B-231.md).
+// B-391b: a hit carries its element multiplier, and a heal is shown too (docs/PIE/B-391b.md for two machines).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -53,8 +54,22 @@ void FCombatPresentationSpec::Define()
 			{
 				return;
 			}
-			Presentation->SendHit(42, true);
+			Presentation->SendHit(42, true, 1.0f, EWoRDamageType::Slash);
 			TestTrue(TEXT("one hit shown, a crit"), Presentation->GetDebugString().Contains(TEXT("1 hit(s) shown, last 42 (crit)")));
+		});
+
+		It("carries the element multiplier on a hit, and shows a heal apart from hits (B-391b)", [this]()
+		{
+			if (!TestNotNull(TEXT("setup"), Presentation))
+			{
+				return;
+			}
+			constexpr float WeakMultiplier = 1.5f;
+			Presentation->SendHit(30, false, WeakMultiplier, EWoRDamageType::Fire);
+			Presentation->SendHeal(12);
+			const FString Debug = Presentation->GetDebugString();
+			TestTrue(TEXT("the multiplier rides with the hit"), Debug.Contains(TEXT("last 30 x1.50")));
+			TestTrue(TEXT("one hit, one heal"), Debug.Contains(TEXT("1 hit(s) shown")) && Debug.Contains(TEXT("1 heal(s) shown")));
 		});
 
 		It("sets up a projectile as a cosmetic copy of the server's launch (B-231b)", [this]()
