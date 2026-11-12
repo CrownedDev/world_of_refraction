@@ -312,6 +312,9 @@ While in combat, callers query the component:
   `wor.Guard.Set` (`Debug/Combat/GuardDebug`). Co-op (B-392b): on a guest, `SetGuardStyle` and
   `SetParryElementPriority` also send `AWoRPlayerState::ServerSetGuard` / `ServerSetParryPriority`; the host
   applies them to its copy of the fighter when that player commands it (`CommandsFighter`).
+  Known (review): the guest writes its own copy first; if the host refuses (e.g. Unarmed with no weapon in
+  hand there) it only logs, so the two can differ until the guest sets it again. TODO: a Client read-back when
+  that shows up in play.
 - **Parry colour priority (B-393, D-170)** — `GetParryElementPriority` / `SetParryElementPriority`
   (`EParryElementPriority` Weapon / Magic, default Weapon; a stamped party pawn writes through to
   `FPartyMember::ParryElementPriority`, saved v33): which element colours a landed parry's effect when
