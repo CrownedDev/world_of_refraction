@@ -9,18 +9,41 @@ Key: ✅ have a good candidate · 🔧 have something, needs work or an eye chec
 - **Sound is the big gap.** No combat sounds. All we have are 17 PONETI Freesound stand-ins (licence check per file: `hit-impact-sword-2`, `hit-metallic-01`, `melee-attack-with-voice-2`, `attack-punch`, `magic-missiles`, `magic-gargle-spell`, `energy-weapon-001`, `wpn-2-generic`, `monster-attack` …) and SoStylized lightning (`S_Lightning_Charge`, `SC_LightningStrike`). Every row below is ❌ or 🔧 stand-in for sound. Real fix: one combat SFX pack.
 - **No weapon trails** (no trail Niagara). Needs one ribbon trail made.
 - **Spell VFX come in 10 sets** (Big Pack Magic: Fire, Ice, Water, Earth, Air, Lightning, Light, Dark, Blood, Poison). Void and Reality have none (recolour). Heal exists in Light only; debuff exists in Blood, Dark and Poison only; beams exist in Light, Lightning, Blood and Poison only.
-- **The Generic spell data assets exist but are empty shells:** `DA_Spell_Bolt`, `_Lance`, `_Missile`, `_Storm`, `_Wave`, `_Aura`, `_EnhancementAura`, `_Grace`, `_Might`, `_Warding`, `_Cleanse`, `_Mend`, `_Rally`, `_Restore`, `_Renewal`. None references an animation or a VFX yet. **Bolt and Lance sit in the Conjuration folder;** Crown now wants Bolt to be Destruction. There is no Generic Manipulation or Impairment spell.
+- **Built from scratch (Crown, 2026-11-12):** the existing weapon, ring, evolution and Generic spell data assets are ignored; new data assets are made, named per `Conventions/ContentNaming.md`. Only the raw art below counts (meshes, anims, VFX, sounds).
 - **Bodies:** Manny and Quinn only.
 
 ## Gear
 
 | Item | Mesh | Anims | VFX | Sound | Notes |
 |---|---|---|---|---|---|
-| **Melee: Sword + Shield** | ✅ `SK_Sword_1H_Fantasy_01` + `SK_Shield_Fantasy_01` (on `DA_Equipment_Generic_SAS`); also `SM_Sword_DSAS` / `SM_Shield_DSAS` | ✅ DSAS V1–V3 (in-place and root motion, full guard in V2), HandsomeSword V2 (heavy, execution), Paragon Greystone / Kwang (sword heroes) | 🔧 element slash sets; ❌ trail | ❌ (stand-ins: sword hit, metal hit) | Best-covered weapon. Data exists (`DA_Weapon_SAS`, `DA_Equipment_Generic_SAS`). |
-| **Ranged/caster: Bow** (recommended) | ✅ 22 bows (`SK_Bow_Generic_01–14`, `Great_Crystal_Bow`, `Frost_Bow_Ignavus` …), arrows and quivers | ✅ Paragon **Sparrow** full bow kit: `Primary_Fire_Fast/Med/Slow`, `RMB_Drawback/Loop/Fire` (charged shot), `R_Ability_*_Fire` (volley), `Q_Ability`, taunt, stun; StylizedWeapons `A_Bow_Pull_Start/Loop/End`, `A_Bow_Attack` | 🔧 `NS_Air_Magic_Arrow1–4`, element projectiles | ❌ | **No bow weapon data and no arrow-shooting weapon path checked yet:** a code question before building. |
-| Ranged/caster: Staff (alternative) | 🔧 `SK_Staff_Fantasy_01–04`, one `Wand` | ❌ no staff-holding anims (Mage set and MagicAnimations cast empty-handed) | ✅ the spell sets | ❌ | Weaker than the bow: casts would look empty-handed. |
-| **2 adapters** (rings) | ❌ **no ring meshes at all** | — | 🔧 `NS_Magic_Circle1_*` (15) for a cast ring | ❌ | Data exists (`DA_Ring_Generic` + 48 element rings), but nothing to show on the hand. A ring mesh is needed, or the adapter shows as VFX only. |
-| **2 evolutions** | — (passive items) | — | 🔧 auras (`NS_Aura_Pack_Aura_1–25`, element `Aura`) if they should glow | ❌ | Data exists (27 element evolutions, e.g. `DA_Evo_Earth_SecondWind`, `DA_Evo_Fire_EmberVow`); no visual of their own. |
+| **Weapon 1: Sword + Shield** | ✅ `StylizedWeapons/WeaponPack1/.../SK_Sword_1H_Fantasy_01–03` + `SK_Shield_Fantasy_01–09`; `CombatMasterAnimBundle/Weapon/Meshes/SM_Sword_DSAS` / `SM_Shield_DSAS` | ✅ DSAS V1–V3 (in-place and root motion, full guard in V2), HandsomeSword V2 (heavy, execution), Paragon Greystone / Kwang (sword heroes) | 🔧 element slash sets; ❌ trail | ❌ (stand-ins: sword hit, metal hit) | Best-covered weapon. |
+| **Weapon 2: Axe** (Crown) | See **Axe** below | See **Axe** below | 🔧 element slash / shockwave; ❌ trail | ❌ (stand-ins: sword hit, metal hit) | Most complete set: the **Dynamic Twin Axe** (attacks + full guard). |
+| **2 adapters** (rings) | ❌ **no ring meshes at all** | — | 🔧 `NS_Magic_Circle1_*` (15) for a cast ring | ❌ | A ring mesh is needed, or the adapter shows as VFX only. |
+| **2 evolutions** | — (passive items) | — | 🔧 auras (`NS_Aura_Pack_Aura_1–25`, element `Aura`) if they should glow | ❌ | No visual of their own. |
+
+## Axe (second weapon)
+
+**Meshes** (all skeletal unless marked SM):
+
+| Kind | Assets | Notes |
+|---|---|---|
+| One-handed | `StylizedWeapons/WeaponPack1/Meshes/Item/Weapons/Axe/SK_Axe_1H_Fantasy_01–06`; `StylizedWeapons/WeaponPack2/Meshes/Item/Weapons/Axe/SK_Axe_1H_Generic_01–09` (+ `SK_Axe_1H_Generic_03Off`, an off-hand twin) | Textured, same style as the sword and shield in use |
+| Two-handed | `.../WeaponPack1/.../Axe/SK_Axe_2HL_Fantasy_01–06`; `.../WeaponPack2/.../Axe/SK_Axe_2HL_Generic_01–06`, `SK_Axe_2HL_Ud_01–02` | Textured |
+| Combat Master | `CombatMasterAnimBundle/Weapon/Meshes/SM_Axe` (SM; the twin-axe pack's own axe) | Matches the Combat Master axe anims' grip |
+| Basemesh (untextured) | `Imports/_100_Fantasy_Weapons_Basemesh_Pack_V1_/Axe`, `Knight_Axe`, `Rough_Axe`; halberds `Adventurer_s_Halberd`, `Demonic_Halberd`, `Runic_Halberd`; `Pick_Ax` | Flat materials; shape reference only |
+
+**Animation sets** (all on Manny; Combat Master ones are root motion only, so opt in per montage):
+
+| Set | Path | What's in it | Missing |
+|---|---|---|---|
+| **Dynamic Twin Axe** (dual) | `CombatMasterAnimBundle/Animations/DynamicTwinAxeCombatAnims/Manny_UE5/RootMotion/` | Combos A1–A4, B1–B4, C1–C3, D (+ full-chain `ComboA/B/C`); **guard** `Block_Start/Loop/Hit/End`; hits 1–4; idle 1–2; equip / unequip; jump | No buff, no death, no named heavy or finisher (pick from the combo ends by eye) |
+| **Dynamic Axe** (one-handed) | `CombatMasterAnimBundle/Animations/DynamicAxeAnims/Manny_UE5/RootMotion/` | Combos A1–A4, B1–B5, C1–C4 (+ full chains); `CommonAttack_A/B/C`; **`Buff`**; hits A/B; `Die`; idle A/B | **No guard** |
+| **Paragon Terra** (axe + shield) | `Imports/Paragon/ParagonAnimations/terramanny/` | `Primary_Melee_A–D_slow` (+ recovery), `Primary_Melee_Air`, `Q_swing_B`, `E_ability`, ultimate `R_Intro` / `R_ending`, shield guard `RMB_intro` / `RMB_Shield_pose` / `RMB_HitReact` / `RMB_melee` / `RMB_end`, `Emote_HooRah` (battle cry), `Emote_SharpenAxe`, stun, hit reacts | Action-game timing (long recoveries); Terra's own axe and shield meshes are not imported |
+| Two-handed axe | — | **No dedicated 2H axe anims.** Stand-in: Dynamic Great Sword (`DynamicGreatSwordAnims`, root motion, full block set) | 2H axe moves |
+| Project anims | `Data/Skills/Weapons/Axe/DualAxe/Anims/Anim_DualBlade_Attack_3–6`, `Anim_Dual_Whirlwind1–2`; `Data/Skills/Weapons/DualAxe/Abilities/Anims/Anim_DualBlade_Attack_1–2`, `Anim_Dual_Whirlwind` | Older project copies (dual-blade attacks, a whirlwind) | — |
+| Duplicate | `Imports/CombatMasterAnimBundle/...` | The same Combat Master pack a second time (B-122 cleanup) | — |
+
+**Most complete:** the **Dynamic Twin Axe**. It has the most attacks and the only full axe guard set, and it differs most from the sword and shield. Its gaps (buff, finisher) are covered by the one-handed Dynamic Axe `Buff`, Paragon Terra `Emote_HooRah` and the battle-cry picks below. Alternatives: a one-handed **Dynamic Axe** (good attacks plus a buff, but no guard), or **Terra** (an axe and shield with a guard, an ultimate and a battle cry, but long action-game timing and close to weapon 1's shield).
 
 ## Spells (Generic, take the element)
 
@@ -39,32 +62,39 @@ Key: ✅ have a good candidate · 🔧 have something, needs work or an eye chec
 |---|---|---|---|
 | Fast bolt | ✅ element `Projectile` (several styles each: Fire 1–5, Light 1–4, Water 1–4, Lightning 1–3, Poison 1–6; which read thin is an eye check) | `Mage_Fireball_R` | ❌ a thin trail ribbon |
 | Heavy orb | ✅ element `Orb` (Fire, Ice, Water, Earth, Air, Dark, Light, Lightning, Blood, Poison) | `Mage_Telekinesis_*`, Paragon TwinBlast `Ability_ChargeBlast_*` | Camera push-in is code |
-| Volley | ✅ `NS_Air_Magic_Arrow1–4`, any projectile ×N | Sparrow `R_Ability_*_Fire` | Spacing is code |
+| Volley | ✅ `NS_Air_Magic_Arrow1–4`, any projectile ×N | `Mage_Fireball_L` / `_R` alternating; `AS_Cast_MagicAttack` | Spacing is code |
 | Arcing lob | 🔧 `NS_Earth_Magic_Meteor`, element `Projectile`; landing circle ✅ element `Target` | `AS_Cast_MagicBall` | Arc path is code |
 | Homing | 🔧 any projectile | any cast | Curved path is code |
 | Beam / line | 🔧 `Light_Magic_Beam`, `Lightning_Magic_Beam`, `Blood_Magic_Beam1–2`, `Posion_Magic_Beam` | ✅ `Mage_Beam_2h_Start/Loop/End` | Beams for Fire, Water, Earth, Air, Dark: recolour |
 
 ## Weapon abilities (per weapon)
 
-| Ability | Sword + Shield anim | Bow anim | VFX | Sound | Missing |
+| Ability | Sword + Shield anim | Axe anim (Twin Axe unless named) | VFX | Sound | Missing |
 |---|---|---|---|---|---|
-| Light hit | ✅ DSAS V1 `Combo1_IP`; Greystone `Attack_A_Fast` | ✅ Sparrow `Primary_Fire_Fast` | 🔧 element `Slash`; arrow / `Air_Magic_Arrow` | 🔧 sword hit | Trail ❌ |
-| Heavy hit | ✅ `Anim_SwordV2_HeavyAttack`, `Anim_HSAS_Slash_Down_Heavy`; Greystone `Attack_A_Slow` | ✅ Sparrow `RMB_Drawback` → `RMB_Fire` (charged) | 🔧 element `Shockwave` / `Hit` | 🔧 metal hit | Impact pause is code |
-| Finisher | ✅ `Anim_SwordV2_Attack_Execution` (+ the victim's `_Executed`), Greystone `Ultimate_Entry/Part1/Part2` | 🔧 Sparrow `R_Ability_Slow_Fire` | 🔧 element `AOE` / `Explosion` | ❌ | Slow-mo / close cut is camera code |
-| Crippling strike | 🔧 no clearly named low cut; check DSAS V2 and Greystone attacks by eye | 🔧 Sparrow `Q_Ability` | 🔧 element `Debuff` (Blood/Dark/Poison) | ❌ | A low-slash anim may be missing |
-| Taunt | ✅ Greystone `Emote_Taunt_SwordPoint_T1` / `_BringItOn_T1`; `Mage_Shout` | ✅ Sparrow `Emote_Taunt_KickUpDust_M2` | 🔧 red ring: `NS_Magic_Circle1_*` tinted | ❌ shout | Enemy turning to face is code |
+| Light hit | ✅ DSAS V1 `Combo1_IP`; Greystone `Attack_A_Fast` | ✅ `Anim_DTA_ComboA1_RM` / `B1` (first hits) | 🔧 element `Slash` | 🔧 sword hit | Trail ❌ |
+| Heavy hit | ✅ `Anim_SwordV2_HeavyAttack`, `Anim_HSAS_Slash_Down_Heavy`; Greystone `Attack_A_Slow` | 🔧 a combo end (`ComboA4` / `C3` / `D`) by eye; Terra `Primary_Melee_A_slow` | 🔧 element `Shockwave` / `Hit` | 🔧 metal hit | Impact pause is code |
+| Finisher | ✅ `Anim_SwordV2_Attack_Execution` (+ the victim's `_Executed`), Greystone `Ultimate_Entry/Part1/Part2` | 🔧 full chain `Anim_DTA_ComboD_RM` / `ComboC_RM`; Terra `R_Intro` / `R_ending` | 🔧 element `AOE` / `Explosion` | ❌ | No named axe finisher; slow-mo / close cut is camera code |
+| Crippling strike | 🔧 no clearly named low cut; check DSAS V2 and Greystone attacks by eye | 🔧 by eye in the DTA / DA combos; Terra `Q_swing_B` | 🔧 element `Debuff` (Blood/Dark/Poison) | ❌ | A low-slash anim may be missing |
+| Taunt | ✅ Greystone `Emote_Taunt_SwordPoint_T1` / `_BringItOn_T1`; `Mage_Shout` | ✅ Grux `Emote_Taunt_FootSlide_T1`, Terra `Emote_SharpenAxe` | 🔧 red ring: `NS_Magic_Circle1_*` tinted | ❌ shout | Enemy turning to face is code |
 | Second wind | ✅ Paragon Kwang `Emote_DeepBreath_Intro/Loop/Outro` | (same, any body) | 🔧 `NS_Light_Magic_Heal` (green recolour) | 🔧 none fitting | — |
-| Battle cry | ✅ Kwang `Emote_RallyUp_*`, Grux `Ultimate_Roar`, `Anim_DSS3_Buff_RM`, `Mage_Shout` | (same) | ✅ element `Shockwave` (Earth, Fire, Ice, Lightning, Water) + `Buff` on each ally | ❌ shout | Buff icon is UI |
+| Battle cry | ✅ Kwang `Emote_RallyUp_*`, `Anim_DSS3_Buff_RM`, `Mage_Shout` | ✅ Terra `Emote_HooRah`, Grux `Ultimate_Roar` / `Emote_Master_BattleCry_T3`, `Anim_DA_Buff_RM` | ✅ element `Shockwave` (Earth, Fire, Ice, Lightning, Water) + `Buff` on each ally | ❌ shout | Buff icon is UI |
+| Guard | ✅ DSAS V2 `Block` / `BlockHit` | ✅ `Anim_DTA_Block_Start/Loop/Hit/End_RM` | — | 🔧 metal hit | — |
 
 ## Plain summary for Crown
 
-- **Good enough to start:** Sword + Shield, the Bolt, the buff, the blink, the projectile shapes, taunt, second wind, battle cry and the light, heavy and finisher animations.
-- **Needs work:** the Lance (only an Ice spear exists), heal and debuff in most elements (recolours), the beam in five elements, a weapon trail, and the crippling low-cut animation.
-- **Missing:** every combat sound (buy a pack), ring meshes for the adapters, and a bow weapon in the data. The bow path also needs a code check before it is built.
-- **Paragon animations are action-game moves** (many are root motion and long). Each needs an eye check for a turn-based, fixed-position fight.
+- **Good enough to start:** Sword + Shield; the axe (meshes plus the Twin Axe set with a guard); the Bolt, buff and blink spells; the projectile shapes; taunt, second wind and battle cry; the sword's light, heavy and finisher animations.
+- **Needs work:**
+  - The Lance: only an Ice spear exists.
+  - Heal and debuff in most elements, and the beam in five elements: recolours.
+  - A weapon trail.
+  - The axe's heavy, finisher and crippling moves: there are no named ones, so they're picked from the combos by eye.
+  - The crippling low cut for the sword.
+- **Missing:** every combat sound (buy a pack), ring meshes for the adapters, and two-handed axe animations (a one-handed or twin axe avoids that).
+- **Combat Master axe anims are root motion only, and Paragon moves are action-game timing.** Each needs an eye check for a turn-based, fixed-position fight.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-12 | Created from the live editor's asset registry (unreal-mcp) | docs/showcase-inventory |
+| 2026-11-12 | Crown: built from scratch (existing data assets ignored); weapon 2 is an axe (bow / staff dropped): axe meshes and anim sets listed | docs/showcase-inventory |
