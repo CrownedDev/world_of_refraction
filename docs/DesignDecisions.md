@@ -508,7 +508,7 @@ The queue of questions only Crown can answer.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the look in PIE (`docs/PIE/B-398.md`); the offsets are `TODO: tune`.
 - **Known (desktop merge, 2026-11-12):** against a boss or mini-boss, B-405's low height (`FBossFramingRules::ApplyHeight`) is applied on top of Over the Shoulder too (B-405's own PIE check 3), so the hero can leave its lower-left third in those fights. Kept as built; Crown may veto (PIE B-398 check 14).
 ### Q-403 — Shot-pattern tuning: the rush, the impact two-shot and the held spread
-**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-403) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-09 (B-403) · **Blocks:** —
 **Question:** The row (study R5, R6, R8) leaves four build choices open: which skills rush, where the impact camera stands, how big the normal-hit punch and shake are, and when the spread is "still".
 **Context:** `FCombatCameraRules::ComputeShot` and the `CombatCameraShots` constants (`CombatCameraTypes.cpp`); the director plays them (`CombatCameraDirector.cpp` `PlayShot`).
 **Recommendation (reference-backed default):**
@@ -519,6 +519,8 @@ The queue of questions only Crown can answer.
 - **The impact's FOV punch is cut from 8 / 14 to 5 / 10** (normal / crit). R6 says "keep the small FOV punch"; B-371's numbers were never tuned in PIE, so this is a tuning step, listed for Crown to keep or undo.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). All numbers `TODO: tune` in Crown's B-157 PIE pass.
 **Notes for Claude:** the rush doesn't follow the dashing caster yet (the camera ends 200 cm behind where the caster started); if it reads badly in PIE, follow the caster during the rush as a follow-up.
+**Answer: Crown, 2026-11-12:** **keep the softer FOV punch: 5 / 10** (normal / crit; was 8 / 14). Confirmed. The other three choices stand as built; the numbers stay `TODO: tune` for the B-157 PIE pass.
+
 ### Q-407 — Short signature-spell cameras: how long, whose sequences, how the cut looks
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-407, cloud) · **Blocks:** —
 **Question:** FeelGuide 9 (Crown, 2026-11-09) keeps player and team spells less cinematic than a boss's: "short, no long sequences; signature shots stay brief" (study §9, R7). Still open: (1) the cap; (2) whose sequences are capped; (3) what happens at the cap; (4) how the validator tells a boss's skill from a player's.
