@@ -42,6 +42,11 @@ namespace HiddenQuestNotice
 	{
 		return LOCTEXT("HiddenFinishedMasked", "Hidden quest complete. Open the journal to view it.");
 	}
+	// Crown (2026-11-12, Q-397b flag): the end memory a hidden quest earns is not named on screen either.
+	static FText HiddenNewMemory()
+	{
+		return LOCTEXT("HiddenNewMemoryMasked", "New memory found. Open the journal to view it.");
+	}
 
 	// B-388: a main or side quest is visible, so its notices name it and its next goal. TODO: Crown's text (placeholders).
 	static FText VisibleStarted(const UHiddenQuestData &Quest)
@@ -483,7 +488,9 @@ void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
 	UMemoryJournalSubsystem *Journal = GI->GetSubsystem<UMemoryJournalSubsystem>();
 	if (Journal && Journal->RecordMemory(Quest.EndMemory, EMemorySource::HiddenQuest))
 	{
-		ShowNotice(FText::Format(LOCTEXT("QuestEnded", "New memory: {0}"), Quest.EndMemory->Title)); // only once earned (D-171)
+		// Only once earned (D-171); a hidden quest's end memory is masked too (Q-397b, Crown 2026-11-12).
+		ShowNotice(Quest.IsVisible() ? FText::Format(LOCTEXT("QuestEnded", "New memory: {0}"), Quest.EndMemory->Title)
+									 : HiddenQuestNotice::HiddenNewMemory());
 	}
 }
 

@@ -187,7 +187,8 @@ void FQuestJournalSpec::Define()
 
 		Quests->CheckEvent(AtQuestSpot(), {Hidden});
 		TestTrue(TEXT("finished: its end memory lands"), Journal->HasMemory(Secret));
-		TestTrue(TEXT("and only now is named"), Quests->GetLastNotice().ToString().Contains(TEXT("SecretEndSpec")));
+		TestEqual(TEXT("its notice is masked too (Q-397b, Crown)"), Quests->GetLastNotice().ToString(),
+				  FString(TEXT("New memory found. Open the journal to view it.")));
 		Visible = Quests->GetVisibleQuests();
 		TestTrue(TEXT("listed as done, no goal"), Visible.Last().Kind == EQuestKind::Hidden && Visible.Last().bFinished && Visible.Last().Goal.IsEmpty());
 	});
