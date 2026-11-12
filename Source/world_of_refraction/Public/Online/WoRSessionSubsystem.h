@@ -76,6 +76,8 @@ public:
 	TArray<FString> GetFriendNames() const;
 	/** Invites friend Index (GetFriendNames) to the hosted session. False with no session hosted or a bad index. */
 	bool InviteFriend(int32 Index);
+	/** This machine hosts a live session. */
+	bool IsHosting() const { return HostsSession(); }
 	FSimpleMulticastDelegate OnFriendsRead;
 
 private:
