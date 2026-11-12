@@ -384,7 +384,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-367](B-367.md) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending | REVIEW (in dev) | [ ] |
 | [B-096](B-096.md) | Evolutions' Run Payout Bonus Percent raises the run-end payout (adds up, cap x2.0) | Pending | REVIEW (in dev, `feature/B-096-payout-passives`) | [ ] |
 | [B-129](B-129.md) | Mapping-context priorities named (`WoRInputPriority`); no change in play | Pending | REVIEW (in dev, `feature/B-129-input-priorities`) | [ ] |
-| [B-097](B-097.md) | Class gates retired (D-027): helpers deleted, two Blueprint functions flagged; no behaviour change | Pending | REVIEW (`feature/B-097-class-gates-cleanup-cloud`, UNBUILT) | [ ] |
+| [B-097](B-097.md) | Class gates retired (D-027): helpers deleted, two Blueprint functions flagged; no behaviour change | Pending | REVIEW (in dev, `feature/B-097-class-gates-cleanup-cloud`) | [ ] |
 
 ---
 
