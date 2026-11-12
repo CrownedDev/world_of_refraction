@@ -801,6 +801,11 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	/** ETurnViewStyle; 0 = Centred Wide, the default (D-074). */
 	UPROPERTY()
 	uint8 TurnViewStyle = 0;
+
+	/** B-170e (Crown, 2026-11-12): hide the End Turn button; false = shown, the default. Named so an older save, which
+	 *  has no such field, reads the default: no save version bump. */
+	UPROPERTY()
+	bool bHideEndTurnButton = false;
 };
 
 /** Everything one save slot holds. */

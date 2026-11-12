@@ -977,7 +977,12 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
+		// A non-local controller sent back to the view it is leaving mid-blend makes the engine call ClientSetViewTarget,
+		// which runs locally and recurses (PlayerCameraManager.cpp abort-transition branch). This case switches views
+		// mid-blend on purpose (return, kill shot, movement off), so the bare controller counts as local.
+		Viewer->SetAsLocalPlayerController();
 		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
 		Orchestrator->OnActionRequested.Broadcast(Hero);
 		TestEqual(TEXT("the turn start's own ask is no return"), Director->GetSameTurnReturnCount(), 0);
@@ -1013,6 +1018,17 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("movement off: no return"), Director->GetSameTurnReturnCount(), 2);
 		TestEqual(TEXT("movement off: static"), Director->GetCurrentMode(), ECombatCameraMode::Static);
 		Director->SetCameraMovementOff(false);
+
+		// Review: a kill shot on screen keeps its view (B-405).
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Director->PreviewKillShot(EKillShotKind::Normal);
+		if (TestEqual(TEXT("the kill shot is on screen"), Director->GetCurrentMode(), ECombatCameraMode::KillShot))
+		{
+			Orchestrator->OnActionRequested.Broadcast(Hero);
+			TestEqual(TEXT("asked again under a kill shot: no return"), Director->GetSameTurnReturnCount(), 2);
+			TestEqual(TEXT("the kill shot stays"), Director->GetCurrentMode(), ECombatCameraMode::KillShot);
+		}
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
 		Director->EndCombat();
 		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
 		TestEqual(TEXT("a new fight counts from zero"), Director->GetSameTurnReturnCount(), 0);

@@ -33,6 +33,8 @@
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRGameNames.h"
+#include "Save/SaveSubsystem.h"
+#include "Misc/ScopeExit.h"
 
 namespace
 {
@@ -98,11 +100,21 @@ BEGIN_DEFINE_SPEC(FBattleHUDSpec, "WoR.UI.BattleHUD",
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
 
+	/** The test world, made once per case, so a case can set the save before StartDuel. False if setup failed. */
+	bool CreateTestWorld()
+	{
+		if (TestWorld)
+		{
+			return true;
+		}
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		return TestTrue(TEXT("Test world created"), TestWorld->Create());
+	}
+
 	/** Both sides player-controlled, so each turn opens the menu. False if setup failed. */
 	bool StartDuel()
 	{
-		TestWorld = MakeUnique<FWoRTestWorld>();
-		if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+		if (!CreateTestWorld())
 		{
 			return false;
 		}
@@ -548,7 +560,15 @@ void FBattleHUDSpec::Define()
 		It("shows the party's action pips live and an End Turn row in an action-pips fight (B-170e)", [this]()
 		{
 			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_ON);
-			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !StartDuel())
+			USaveSubsystem *Save = CreateTestWorld() ? TestWorld->GetSubsystem<USaveSubsystem>() : nullptr;
+			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !TestNotNull(TEXT("the save"), Save))
+			{
+				return;
+			}
+			const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+			ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+			Save->SetEndTurnButtonHidden(false); // shown, the default (Crown, 2026-11-12), whatever a loaded slot held
+			if (!StartDuel())
 			{
 				return;
 			}
@@ -583,7 +603,8 @@ void FBattleHUDSpec::Define()
 			const int32 EndTurnRow = FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString());
 			if (TestTrue(TEXT("an End Turn row"), EndTurnRow != INDEX_NONE))
 			{
-				TestTrue(TEXT("with its key hint"), MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
+				TestFalse(TEXT("with no key hint: End Turn has no key yet (Crown, 2026-11-12)"),
+						  MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
 				MenuWidget->PressRow(EndTurnRow);
 				TestTrue(TEXT("End Turn ended Hero's turn"), Orchestrator->GetCurrentActor() == Foe);
 			}
