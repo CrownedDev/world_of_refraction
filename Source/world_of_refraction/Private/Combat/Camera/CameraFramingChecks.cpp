@@ -56,6 +56,8 @@ TArray<FVector> CameraFraming::GetRequiredPoints(ECameraShotMoment Moment, const
 		Points.Append(Context.Targets);
 		break;
 	case ECameraShotMoment::Impact:
+		// B-403 (R6): the impact is a two-shot: the caster and the first target.
+		Points.Add(Context.Caster);
 		if (!Context.Targets.IsEmpty())
 		{
 			Points.Add(Context.Targets[0]);

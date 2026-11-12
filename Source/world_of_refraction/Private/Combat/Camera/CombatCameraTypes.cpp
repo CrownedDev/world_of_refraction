@@ -39,14 +39,24 @@ namespace CombatCameraShots
 	constexpr float CastHeight = 180.0f;
 	constexpr float CastSide = 140.0f;
 	constexpr float CastBlendSeconds = 0.35f;
-	constexpr float ImpactBack = 330.0f;
-	constexpr float ImpactSide = 160.0f;
-	constexpr float ImpactHeight = 140.0f;
+	// B-403 (study R5): a melee confirm rushes in fast with motion blur (0.2-0.3 s in the study). TODO: tune.
+	constexpr float RushStartBack = 420.0f;
+	constexpr float RushSeconds = 0.25f;
+	constexpr float RushMotionBlur = 0.8f;
+	// B-403 (study R6): the impact two-shot stands out to the side of the caster-target line, a little toward the
+	// caster (three-quarter front of the target), low. Out = (ImpactSide + gap * ImpactSidePerGap) * scale, never
+	// under gap * ImpactFitPerGap so both fighters stay in frame at any style. TODO: tune.
+	constexpr float ImpactSide = 260.0f;
+	constexpr float ImpactSidePerGap = 0.6f;
+	constexpr float ImpactFitPerGap = 0.9f;
+	constexpr float ImpactThreeQuarterBack = 120.0f;
+	constexpr float ImpactHeight = 40.0f;
 	constexpr float ImpactBlendSeconds = 0.15f;
-	constexpr float ImpactFovPunch = 8.0f;
-	constexpr float CritFovPunch = 14.0f;
-	constexpr float ImpactShake = 0.6f;
-	constexpr float CritShake = 1.0f;
+	// B-403 (R6): a small punch and a light shake on a normal hit; a crit stays bigger (FeelGuide 4). TODO: tune.
+	constexpr float ImpactFovPunch = 5.0f;
+	constexpr float CritFovPunch = 10.0f;
+	constexpr float ImpactShake = 0.25f;
+	constexpr float CritShake = 0.6f;
 	constexpr float SpreadBack = 600.0f;
 	constexpr float SpreadHeight = 380.0f;
 	/** Extra distance back per cm the targets stand from their centre, so every one stays in frame. */
@@ -331,6 +341,7 @@ FCameraShot FCombatCameraRules::SteadyForDefence(const FCameraShot &Shot, bool b
 	{
 		Out.ShakeScale = 0.0f;
 		Out.FieldOfView = DefaultFieldOfView;
+		Out.MotionBlur = 0.0f; // B-403 review: no melee rush either (no blur, and the director keeps the camera where it is)
 	}
 	return Out;
 }
@@ -373,9 +384,13 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 	{
 		// B-372 review: the height scales with the distance, so a Close wind-up still frames the caster.
 		const FVector Shoulder = Right * WindUpSide * SideSign * Scale + FVector::UpVector * WindUpHeight * Scale;
-		Shot.Start = LookFrom(Context.Caster - Forward * WindUpStartBack * Scale + Shoulder, TargetCentre);
+		// B-403 (R5): a melee confirm is the loud moment: a short fast rush in with motion blur. Spells and ranged
+		// skills keep the slow push (and so does camera movement off, R15).
+		const bool bRush = !Context.bRanged && Context.bAllowRush;
+		Shot.Start = LookFrom(Context.Caster - Forward * (bRush ? RushStartBack : WindUpStartBack) * Scale + Shoulder, TargetCentre);
 		Shot.End = LookFrom(Context.Caster - Forward * WindUpEndBack * Scale + Shoulder, TargetCentre);
-		Shot.BlendSeconds = WindUpSeconds;
+		Shot.BlendSeconds = bRush ? RushSeconds : WindUpSeconds;
+		Shot.MotionBlur = bRush ? RushMotionBlur : 0.0f;
 		break;
 	}
 	case ECameraShotMoment::Cast:
@@ -389,8 +404,15 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 	case ECameraShotMoment::Impact:
 	{
 		const FVector Target = Context.Targets.IsEmpty() ? TargetCentre : Context.Targets[0];
-		// From the caster's side of the target, beside it, so the hit reads toward the camera.
-		Shot.End = LookFrom(Target - Forward * ImpactBack * Scale + Right * ImpactSide * SideSign * Scale + FVector::UpVector * ImpactHeight, Target);
+		// B-403 (R6): a side-on two-shot, low: out to the side of the caster-target line, a little toward the
+		// caster (three-quarter front of the target), far enough out that both stay in frame.
+		const FVector Line = Target - Context.Caster;
+		const FVector Along = Line.GetSafeNormal2D(UE_SMALL_NUMBER, Forward);
+		const FVector Across = FVector::CrossProduct(FVector::UpVector, Along);
+		const float Gap = static_cast<float>(Line.Size2D());
+		const float Out = FMath::Max((ImpactSide + Gap * ImpactSidePerGap) * Scale, Gap * ImpactFitPerGap);
+		const FVector Middle = (Context.Caster + Target) * 0.5f;
+		Shot.End = LookFrom(Middle + Across * Out * SideSign - Along * ImpactThreeQuarterBack * Scale + FVector::UpVector * ImpactHeight, Middle);
 		Shot.Start = Shot.End;
 		Shot.BlendSeconds = ImpactBlendSeconds;
 		Shot.FieldOfView = DefaultFieldOfView - (Context.bCritical ? CritFovPunch : ImpactFovPunch) * Tuning.ShakeScale;
@@ -409,7 +431,9 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 		Shot.End = LookFrom(TargetCentre - Forward * Back + FVector::UpVector * SpreadHeight * Scale, TargetCentre);
 		Shot.Start = Shot.End;
 		Shot.BlendSeconds = SpreadBlendSeconds;
-		Shot.ShakeScale = (Context.bCritical ? CritShake : ImpactShake) * Tuning.ShakeScale;
+		// B-403 (R8): the area effect gets room: the shot holds still to the end (no shake, no FOV punch), so the
+		// whole effect and anything shown beside a target stay in frame.
+		Shot.ShakeScale = 0.0f;
 		break;
 	}
 	}

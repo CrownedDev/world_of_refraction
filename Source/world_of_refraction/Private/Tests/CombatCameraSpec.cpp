@@ -356,6 +356,14 @@ void FCombatCameraSpec::Define()
 			const FCameraShot Free = FCombatCameraRules::SteadyForDefence(Punch, false);
 			TestEqual(TEXT("not defending: the shake stays"), Free.ShakeScale, Punch.ShakeScale);
 			TestEqual(TEXT("not defending: the punch stays"), Free.FieldOfView, Punch.FieldOfView);
+
+			// B-403 review: an enemy's melee rush seen while defending has no blur (so the director doesn't cut to it).
+			Context.bRanged = false;
+			Context.bAllowRush = true;
+			const FCameraShot Rush = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context, FSkillCameraTuning());
+			TestTrue(TEXT("the test rush has blur to drop"), Rush.MotionBlur > 0.0f);
+			TestEqual(TEXT("defending: no rush blur"), FCombatCameraRules::SteadyForDefence(Rush, true).MotionBlur, 0.0f);
+			TestEqual(TEXT("not defending: the rush blur stays"), FCombatCameraRules::SteadyForDefence(Rush, false).MotionBlur, Rush.MotionBlur);
 		});
 
 		It("reads nothing from a skill without a montage", [this]()
@@ -388,12 +396,43 @@ void FCombatCameraSpec::Define()
 			TestTrue(TEXT("left shoulder when tuned"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), Left).End.GetLocation().Y < 0.0f);
 		});
 
-		It("frames the target on impact with a FOV punch and a shake, larger on a crit", [this, Context]()
+		It("rushes in fast with motion blur on a melee wind-up; a spell keeps the slow push (B-403, R5)", [this, Context]()
+		{
+			const FCameraShot Melee = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context(), FSkillCameraTuning());
+			FCameraShotContext SpellContext = Context();
+			SpellContext.bRanged = true;
+			const FCameraShot Spell = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, SpellContext, FSkillCameraTuning());
+			TestTrue(TEXT("melee: a short rush (0.3 s or less)"), Melee.BlendSeconds > 0.0f && Melee.BlendSeconds <= 0.3f);
+			TestTrue(TEXT("melee: motion blur"), Melee.MotionBlur > 0.0f);
+			TestTrue(TEXT("melee: moves toward the target"), Melee.End.GetLocation().X - Melee.Start.GetLocation().X > 0.0f);
+			TestTrue(TEXT("spell: slower than the rush"), Spell.BlendSeconds > Melee.BlendSeconds);
+			TestEqual(TEXT("spell: no blur"), Spell.MotionBlur, 0.0f);
+			FCameraShotContext Calm = Context();
+			Calm.bAllowRush = false;
+			const FCameraShot Still = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Calm, FSkillCameraTuning());
+			TestEqual(TEXT("movement off: no blur"), Still.MotionBlur, 0.0f);
+			TestTrue(TEXT("movement off: the slow push"), Still.BlendSeconds > Melee.BlendSeconds);
+		});
+
+		It("frames caster and target side-on on impact, low, with a small FOV punch and a light shake, larger on a crit (B-403, R6)", [this, Context]()
 		{
 			const FCameraShot Hit = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Context(), FSkillCameraTuning());
-			const FVector ToTarget = (FVector(1000.0f, 0.0f, 0.0f) - Hit.End.GetLocation()).GetSafeNormal();
-			TestTrue(TEXT("looks at the target"), FVector::DotProduct(Hit.End.GetRotation().GetForwardVector(), ToTarget) > 0.99f);
-			TestTrue(TEXT("FOV punch"), Hit.FieldOfView < FCombatCameraRules::DefaultFieldOfView);
+			const FVector Caster = FVector::ZeroVector;
+			const FVector Target(1000.0f, 0.0f, 0.0f);
+			const FVector Look = Hit.End.GetRotation().GetForwardVector();
+			TestTrue(TEXT("side-on: looks across the caster-target line"), FMath::Abs(Look.X) < 0.5f);
+			TestTrue(TEXT("three-quarter front: on the caster's side of the middle"), Hit.End.GetLocation().X < 500.0f);
+			TestTrue(TEXT("low"), Hit.End.GetLocation().Z < 100.0f);
+			TestTrue(TEXT("caster on screen"), CameraFraming::IsOnScreen(Hit.End, Hit.FieldOfView, CameraFraming::DEFAULT_ASPECT, Caster));
+			TestTrue(TEXT("target on screen"), CameraFraming::IsOnScreen(Hit.End, Hit.FieldOfView, CameraFraming::DEFAULT_ASPECT, Target));
+			FCameraShotContext Close = Context({FVector(150.0f, 0.0f, 0.0f)});
+			const FCameraShot Melee = FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Close, FSkillCameraTuning());
+			TestTrue(TEXT("melee distance: both on screen"),
+					 CameraFraming::IsOnScreen(Melee.End, Melee.FieldOfView, CameraFraming::DEFAULT_ASPECT, Caster)
+						 && CameraFraming::IsOnScreen(Melee.End, Melee.FieldOfView, CameraFraming::DEFAULT_ASPECT, FVector(150.0f, 0.0f, 0.0f)));
+			const float Punch = FCombatCameraRules::DefaultFieldOfView - Hit.FieldOfView;
+			TestTrue(TEXT("a small FOV punch (10 degrees or less)"), Punch > 0.0f && Punch <= 10.0f);
+			TestTrue(TEXT("no big shake on a normal hit"), Hit.ShakeScale <= 0.5f);
 			TestTrue(TEXT("a shake"), Hit.ShakeScale > 0.0f);
 			FCameraShotContext CritContext = Context();
 			CritContext.bCritical = true;
@@ -416,6 +455,22 @@ void FCombatCameraSpec::Define()
 			const FCameraShot Far = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread,
 				Context({FVector(1000.0f, -600.0f, 0.0f), FVector(1000.0f, 600.0f, 0.0f)}), FSkillCameraTuning());
 			TestTrue(TEXT("wider spread: further back"), Far.End.GetLocation().X < Close.End.GetLocation().X);
+		});
+
+		It("holds a spread still for the whole effect: no move after the pull-out, no shake, no punch (B-403, R8)", [this, Context]()
+		{
+			const TArray<FVector> Targets = {FVector(1000.0f, -600.0f, 0.0f), FVector(1000.0f, 600.0f, 0.0f)};
+			FCameraShotContext CritContext = Context(Targets);
+			CritContext.bCritical = true;
+			const FCameraShot Spread = FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread, CritContext, FSkillCameraTuning());
+			TestTrue(TEXT("one transform: nothing to blend"), Spread.Start.Equals(Spread.End));
+			TestTrue(TEXT("held long after its blend"), FCombatCameraRules::BlendShot(Spread, 10.0f).Equals(Spread.End));
+			TestEqual(TEXT("no shake, even on a crit"), Spread.ShakeScale, 0.0f);
+			TestEqual(TEXT("no FOV punch"), Spread.FieldOfView, FCombatCameraRules::DefaultFieldOfView);
+			for (const FVector &Target : Targets)
+			{
+				TestTrue(TEXT("every target on screen"), CameraFraming::IsOnScreen(Spread.End, Spread.FieldOfView, CameraFraming::DEFAULT_ASPECT, Target));
+			}
 		});
 
 		It("follows the projectile on the Cast shot, or holds on the target", [this, Context]()

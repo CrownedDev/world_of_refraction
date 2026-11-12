@@ -37,8 +37,8 @@ namespace CameraFraming
 	/** B-398 (debug text): the rule-of-thirds cell a screen point is in, e.g. "lower-left (-0.44, -0.61)". */
 	WORLD_OF_REFRACTION_API FString GetThirdsCell(const FVector2D &Screen);
 
-	/** The points a moment must show: wind-up and cast the caster and every target, an impact its first target, a
-	 *  spread every target. */
+	/** The points a moment must show: wind-up and cast the caster and every target, an impact the caster and its
+	 *  first target (B-403), a spread every target. */
 	WORLD_OF_REFRACTION_API TArray<FVector> GetRequiredPoints(ECameraShotMoment Moment, const FCameraShotContext &Context);
 
 	/** No blocking hit on the camera channel (characters ignore it) between From and To, ignoring Ignored. True without
