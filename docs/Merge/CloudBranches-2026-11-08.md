@@ -384,3 +384,14 @@ The trial branch `integration/cloud-2026-11-09` now also has current dev and row
 - **B-406b after B-391** (`CombatPlayerController.cpp/.h`, `InputMap.md`): B-406b's branch (from dev) still has the old `CombatMenuKeys::FBinding` / `GetBindings` list that B-391 replaced with `GetMenuKeys`. Keep B-391's version and add only B-406b's skip-key constants, action, binding and functions. InputMap: B-391 / B-170e / B-400 rows plus the skip row.
 - **B-170g with B-170e** (docs): `docs/Rules/04-effects-and-turns.md` take B-170g's rows; `ActionPips.md` one specs line listing B-170c..g.
 - **B-391c with B-170e** (`BattleHUDWidget.cpp`): card rows are B-391c's buildup and gear lines, then B-170e's actions line; the debug string keeps both. Other files: keep both include sets.
+
+## Update, 2026-11-12: six rows built into dev
+
+- **Now in dev (desktop, built, full suite green):** row 74 (B-173), 81 (B-397), 85 (B-394), 86 (B-392, **save v32**), 99 (B-170d), plus the desktop's own B-170i (Crown's Reflex regain rework, Q-170i). Dev is at `22158fd7`.
+- **Saves:** dev is now at 32. Next in order: B-393 (33), then B-398 (34). No renumbering.
+- **Trial branch `integration/cloud-2026-11-09c`** has dev merged in (`e0c32389`). Code merged with no conflicts. Docs were resolved as below, and the real merges will meet the same:
+  - **Backlog / PIE README:** row union by job id. Take dev's row where it says "in dev"; otherwise keep the cloud branch's row.
+  - **B-170g after B-170i** (`docs/Rules/04-effects-and-turns.md`): keep B-170g's action-pips layout, but ET-18's regain must read B-170i's rule ("1 + one per whole step of Reflex value", Q-170i), not the old "1 (2 or 3 at Reflex thresholds)". Git won't flag the row inside B-170g's table. ET-29: dev's (B-173).
+  - **B-170e/f/g after B-170i** (`ActionPips.md`): keep both changelog lines, in order d, e, f, g, i.
+  - **B-170f's AI spec after B-170i:** "Hero's bank is the regain" expects a regain of 1 (`AI_PIPS_REGAIN`). That holds under B-170i only while the test hero has less Reflex value than one step (15 × Body). If it fails on the build, read the regain from `GetActionRegain()` instead of the constant.
+- **Stacked rows on B-170d** (B-170f, then B-170g): their base is now in dev, so they merge straight onto dev.
