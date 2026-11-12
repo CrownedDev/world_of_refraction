@@ -11,6 +11,8 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "GameFramework/Actor.h"
+#include "UI/Combat/Battle/BattleHUDButton.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRLog.h"
@@ -34,6 +36,14 @@ void UBattleMenuRowRelay::HandleClicked()
 	if (UBattleCommandMenuWidget *Owner = Menu.Get())
 	{
 		Owner->PressRow(RowIndex);
+	}
+}
+
+void UBattleMenuRowRelay::HandleHovered()
+{
+	if (UBattleCommandMenuWidget *Owner = Menu.Get())
+	{
+		Owner->HoverRow(RowIndex);
 	}
 }
 
@@ -121,10 +131,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 
 		for (int32 Index = 0; Index < MAX_ROWS; ++Index)
 		{
-			UButton *Button = WidgetTree->ConstructWidget<UButton>(UButton::StaticClass());
-			// Not focusable: a focused button would take A / Enter / Space as its own click, so the menu keys never
-			// reached Enhanced Input after one mouse click (review).
-			Button->InitIsFocusable(false);
+			UButton *Button = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass());
 			UTextBlock *Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 			FSlateFontInfo RowFont = Label->GetFont();
 			RowFont.Size = BattleCommandMenuStyle::RowFontSize;
@@ -138,6 +145,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 			Relay->RowIndex = Index;
 			Relay->Menu = this;
 			Button->OnClicked.AddDynamic(Relay, &UBattleMenuRowRelay::HandleClicked);
+			Button->OnHovered.AddDynamic(Relay, &UBattleMenuRowRelay::HandleHovered); // B-400b
 			RowButtons.Add(Button);
 			RowTexts.Add(Label);
 			RowRelays.Add(Relay);
@@ -211,6 +219,27 @@ void UBattleCommandMenuWidget::PressRow(int32 RowIndex)
 	{
 		Menu->HandleSelection(Pressed);
 	}
+}
+
+void UBattleCommandMenuWidget::HoverRow(int32 RowIndex)
+{
+	AActor *Target = GetRowTarget(RowIndex);
+	UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	if (Target && Menu && Rows[RowIndex].bEnabled)
+	{
+		Menu->HighlightTarget(Target); // ignored unless its open picker offers this target
+	}
+}
+
+AActor *UBattleCommandMenuWidget::GetRowTarget(int32 RowIndex) const
+{
+	if (!Rows.IsValidIndex(RowIndex))
+	{
+		return nullptr;
+	}
+	// A per-actor target button; a group confirm carries Targets instead (as UCombatCommandButtonWidget, B-400).
+	const FPieMenuButtonData &Row = Rows[RowIndex];
+	return Row.Category == EPieMenuCategory::Target && Row.Targets.IsEmpty() ? Cast<AActor>(Row.DataReference) : nullptr;
 }
 
 void UBattleCommandMenuWidget::PushToWidgets()

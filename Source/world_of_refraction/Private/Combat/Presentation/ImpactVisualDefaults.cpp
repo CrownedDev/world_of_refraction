@@ -36,6 +36,12 @@ FString UImpactVisualDefaults::GetDefaultsString() const
 	{
 		Out += FString::Printf(TEXT("\n  %s: %s"), *UEnum::GetValueAsString(Row.Key), Row.Value.IsNull() ? TEXT("(none)") : *Row.Value.GetAssetName());
 	}
+	Out += FString::Printf(TEXT("\n  Cast: Generic preference %s, %d adapter type(s)"),
+						   *UEnum::GetDisplayValueAsText(GenericCastVFXPreference).ToString(), AdapterCastVFX.Num());
+	for (const TPair<EAdapterForm, TSoftObjectPtr<UNiagaraSystem>> &Row : AdapterCastVFX)
+	{
+		Out += FString::Printf(TEXT("\n  %s cast: %s"), *UEnum::GetDisplayValueAsText(Row.Key).ToString(), Row.Value.IsNull() ? TEXT("(none)") : *Row.Value.GetAssetName());
+	}
 	return Out;
 }
 

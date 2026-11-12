@@ -4,6 +4,7 @@
 #include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
+#include "Combat/Camera/CombatCameraTypes.h" // ETurnViewStyle (B-398)
 #include "Character/CharacterData.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/CombatCharacter.h"
@@ -469,11 +470,12 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: %s"), Copy ? TEXT("the copy holds no run") : TEXT("no checkpoint copy to host from"));
 		return false;
 	}
-	// This player's own wallet and look stay its own (Q-234b (2)).
+	// This player's own wallet, look and settings stay its own (Q-234b (2); settings B-398).
 	if (SaveGame)
 	{
 		Copy->Data.Wallet = SaveGame->Data.Wallet;
 		Copy->Data.Forms = SaveGame->Data.Forms;
+		Copy->Data.Settings = SaveGame->Data.Settings;
 	}
 	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
 	UPoolSubsystem *Pool = GI->GetSubsystem<UPoolSubsystem>();
@@ -675,6 +677,27 @@ const FWoRSaveData &USaveSubsystem::GetData() const
 	return SaveGame->Data;
 }
 
+ETurnViewStyle USaveSubsystem::GetTurnViewStyle() const
+{
+	const uint8 Saved = SaveGame->Data.Settings.TurnViewStyle;
+	return Saved <= static_cast<uint8>(ETurnViewStyle::Tactical) ? static_cast<ETurnViewStyle>(Saved) : ETurnViewStyle::CentredWide;
+}
+
+void USaveSubsystem::SetTurnViewStyle(ETurnViewStyle Style)
+{
+	SaveGame->Data.Settings.TurnViewStyle = static_cast<uint8>(Style);
+}
+
+bool USaveSubsystem::IsEndTurnButtonHidden() const
+{
+	return SaveGame->Data.Settings.bHideEndTurnButton;
+}
+
+void USaveSubsystem::SetEndTurnButtonHidden(bool bHidden)
+{
+	SaveGame->Data.Settings.bHideEndTurnButton = bHidden;
+}
+
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;
@@ -715,6 +738,9 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.RunRing = Member.RunRing;
 		Out.MemberId = Member.MemberId; // B-360b: the pool's keys for a copy name this id
 		Out.bKeyedByMember = Member.bKeyedByMember;
+		Out.GuardStyle = Member.GuardStyle; // B-392 (D-170)
+		Out.GuardWeaponId = Member.GuardWeaponId;
+		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -993,6 +1019,9 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.RunRing = In.RunRing;
 		Member.MemberId = In.MemberId; // B-360b (RestoreLocalParty mints one when invalid)
 		Member.bKeyedByMember = In.bKeyedByMember;
+		Member.GuardStyle = In.GuardStyle; // B-392 (D-170)
+		Member.GuardWeaponId = In.GuardWeaponId;
+		Member.ParryElementPriority = In.ParryElementPriority; // B-393 (D-170)
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();

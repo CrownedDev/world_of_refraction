@@ -819,6 +819,34 @@ bool UPartySessionSubsystem::SetMemberBrokenDarkness(int32 SlotIndex, bool bBrok
 	return true;
 }
 
+bool UPartySessionSubsystem::SetMemberGuard(int32 SlotIndex, EGuardStyle Style, const FGuid &GuardWeaponId)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	FPartyMember &Member = Party->Members[SlotIndex];
+	Member.GuardStyle = Style;
+	Member.GuardWeaponId = GuardWeaponId;
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d guard %s (B-392)"), SlotIndex,
+		   *StaticEnum<EGuardStyle>()->GetNameStringByValue(static_cast<int64>(Style)));
+	return true;
+}
+
+bool UPartySessionSubsystem::SetMemberParryPriority(int32 SlotIndex, EParryElementPriority Priority)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	Party->Members[SlotIndex].ParryElementPriority = Priority;
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d parry colour priority %s (B-393)"), SlotIndex,
+		   *StaticEnum<EParryElementPriority>()->GetNameStringByValue(static_cast<int64>(Priority)));
+	return true;
+}
+
 bool UPartySessionSubsystem::IsMemberAISeat(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();

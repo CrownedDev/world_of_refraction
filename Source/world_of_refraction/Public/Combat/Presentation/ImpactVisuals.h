@@ -8,6 +8,8 @@
 //   3. the defence outcome is the defender's cosmetic slot (UCosmeticsData): Guard a spark, Perfect Guard the flash
 //      UDefenseSystem::PlayPerfectGuardFeedback plays, Dodge a whiff (a cosmetic can swap it, e.g. a transmutation
 //      circle when you land a parry; the parked skins / cosmetics work).
+//      B-393 (D-170): a landed parry's visuals are ParryVisuals' (the weapon guard's spark, the guard's parry-effect
+//      cosmetic tinted by its element); SpawnForImpact hands Guard / Perfect Guard to it. Choose still names the spark.
 // A projectile carries the skill's Impact entry and plays it on arrival, so a projectile's Hit or Crit adds nothing
 // here. TODO: a projectile's crit with a CritImpact entry still shows the Impact entry.
 // Spawned at the target's HitPoint socket, the actor location if it has none.

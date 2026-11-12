@@ -31,7 +31,9 @@
 #include "Infusion/InfusionConstants.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
+#include "Misc/ScopeExit.h"
 #include "WoRGameNames.h"
+#include "Combat/Actions/ActionPipsText.h"
 
 namespace
 {
@@ -192,6 +194,7 @@ void UCombatCommandMenuSubsystem::HandleActionExecuted(AActor *Actor, const FAct
 
 void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 {
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); }; // B-399, B-400
     if (!Actor)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] OpenForActor: null actor"));
@@ -235,6 +238,8 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 
 void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &ButtonData)
 {
+    // B-399: a sub-menu or a picker opened. B-400: then the picker's highlight (first target on open, none on close).
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); };
     // A greyed button (D-083 broken source, empty pool) does nothing, whichever widget sent it.
     if (!bIsOpen || !ButtonData.bEnabled)
     {
@@ -398,6 +403,12 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         SubmitConfirmedAction(ButtonData);
         break;
 
+    case EPieMenuCategory::EndTurn:
+        // B-170e: the same path as any pick (a co-op client's goes to the server, B-229); the orchestrator ends the
+        // turn at once (EndTurnByChoice), and SubmitConfirmedAction closes the menu once the turn has moved on.
+        SubmitConfirmedAction(ButtonData);
+        break;
+
     // === SWITCH ACTIONS ===
     case EPieMenuCategory::SwitchWeapon:
         ExecuteSwitchWeapon();
@@ -455,6 +466,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
 void UCombatCommandMenuSubsystem::HandleBack()
 {
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); }; // B-399: cancel steps back; B-400
     if (!bIsOpen)
     {
         return;
@@ -504,11 +516,104 @@ void UCombatCommandMenuSubsystem::Close()
     bIsOpen = false;
     CurrentDepth = ECombatMenuDepth::Closed;
     ActiveSubmenuSource = EPieMenuCategory::None;
+    RefreshTargetHighlight(); // B-400: the highlight clears while CurrentActor still names whose menu it was
     UnbindBDAbsorptionDelegate();
     CurrentActor.Reset();
     OnCommandMenuClosed.Broadcast();
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Closed"));
+}
+
+void UCombatCommandMenuSubsystem::BroadcastMenuDepthIfChanged()
+{
+    if (!bIsOpen)
+    {
+        return; // closed for the action: the camera holds until the next open says where it is
+    }
+    const int32 Depth = CommandMenuRules::CameraDepthFor(CurrentDepth, DepthBeforeTargetSelection);
+    if (Depth == BroadcastMenuDepth)
+    {
+        return; // a redraw, an infusion step or a target cycle: the camera holds (study R3)
+    }
+    BroadcastMenuDepth = Depth;
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Menu depth %d for %s"), Depth, *GetNameSafe(CurrentActor.Get()));
+    OnMenuDepthChanged.Broadcast(CurrentActor.Get(), Depth);
+}
+
+// ==================== TARGET HIGHLIGHT (B-400) ====================
+
+bool UCombatCommandMenuSubsystem::IsSingleTargetPickerOpen() const
+{
+    // The per-actor picker (RebuildCurrentPicker's BuildTargetButtons branch); Self and All confirm a group.
+    return bIsOpen && CurrentDepth == ECombatMenuDepth::TargetSelection && ResolvedTargetType != ETargetType::Self &&
+           ResolvedTargetCount != ETargetCount::All;
+}
+
+int32 UCombatCommandMenuSubsystem::IndexOfHighlightTarget(const AActor *Target) const
+{
+    return Target ? HighlightTargets.IndexOfByPredicate([Target](const TWeakObjectPtr<AActor> &Entry) { return Entry.Get() == Target; })
+                  : INDEX_NONE;
+}
+
+void UCombatCommandMenuSubsystem::RefreshTargetHighlight()
+{
+    HighlightTargets.Reset();
+    if (IsSingleTargetPickerOpen())
+    {
+        for (AActor *Target : ResolveTargets(ResolvedTargetType))
+        {
+            HighlightTargets.Add(Target);
+        }
+    }
+    AActor *Keep = HighlightedTarget.Get();
+    if (!Keep || IndexOfHighlightTarget(Keep) == INDEX_NONE)
+    {
+        Keep = HighlightTargets.IsEmpty() ? nullptr : HighlightTargets[0].Get();
+    }
+    SetHighlightedTarget(Keep);
+}
+
+void UCombatCommandMenuSubsystem::SetHighlightedTarget(AActor *Target)
+{
+    if (HighlightedTarget.Get() == Target)
+    {
+        return; // a redraw (an infusion step) or a hover on the target already highlighted
+    }
+    HighlightedTarget = Target;
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Highlighted target %s (%d to pick from) for %s"), *GetNameSafe(Target),
+           HighlightTargets.Num(), *GetNameSafe(CurrentActor.Get()));
+    OnTargetHighlighted.Broadcast(CurrentActor.Get(), Target, HighlightTargets.Num());
+}
+
+void UCombatCommandMenuSubsystem::HighlightTarget(AActor *Target)
+{
+    if (Target && IsSingleTargetPickerOpen() && IndexOfHighlightTarget(Target) != INDEX_NONE)
+    {
+        SetHighlightedTarget(Target);
+    }
+}
+
+void UCombatCommandMenuSubsystem::CycleHighlightedTarget(int32 Direction)
+{
+    if (!IsSingleTargetPickerOpen())
+    {
+        return;
+    }
+    // A target that died while the picker is open stays in the list until it rebuilds: skip it.
+    int32 Index = IndexOfHighlightTarget(HighlightedTarget.Get());
+    for (int32 Step = 0; Step < HighlightTargets.Num(); ++Step)
+    {
+        Index = CommandMenuRules::CycleIndex(Index, Direction, HighlightTargets.Num());
+        if (Index == INDEX_NONE)
+        {
+            return;
+        }
+        if (AActor *Next = HighlightTargets[Index].Get(); IsValid(Next))
+        {
+            SetHighlightedTarget(Next);
+            return;
+        }
+    }
 }
 
 // ==================== CAPABILITIES / BD LIVE REFRESH ====================
@@ -660,6 +765,9 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     Buttons.Add(CreateMoveRowButton(/*bForward*/ true));
     Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
     Buttons.Add(CreateDefendButton());
+    // B-170e; a stunned actor's menu stays Attack + Defend (D-001). The player's setting can hide it (Crown, 2026-11-12).
+    if (ActionPipsText::ShouldShowEndTurnButton(this))
+        Buttons.Add(CreateEndTurnButton());
     Buttons.Add(CreateFleeButton());
     // OBSOLETE (B-346): no "Let AI Play" button; seats are fixed for the fight (Q-21-audit, PA-13).
     // The switch stays for debug (wor.Combat.SwitchControl).
@@ -677,6 +785,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateAttackButton() const
     Button.Description = FText::FromString(CurrentCapabilities.ActiveWeaponName);
     Button.Category = EPieMenuCategory::Attack;
     Button.bEnabled = true;
+    ShowActionCost(Button); // B-170e
     return Button;
 }
 
@@ -803,7 +912,47 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateDefendButton() const
     Button.DisplayName = FText::FromString(TEXT("Defend"));
     Button.Category = EPieMenuCategory::Defend;
     Button.bEnabled = true;
+    if (ActionPipsText::IsActionPipsFight(this))
+    {
+        Button.Description = ActionPipsText::GetDefendEndsTurnText(); // B-170e (Q-170c): Defend ends the turn
+    }
     return Button;
+}
+
+FPieMenuButtonData UCombatCommandMenuSubsystem::CreateEndTurnButton() const
+{
+    FPieMenuButtonData Button;
+    Button.ButtonID = TEXT("EndTurn");
+    Button.DisplayName = WoRGameNames::GetEndTurnVerb();
+    Button.Description = ActionPipsText::GetEndTurnDescription();
+    Button.Category = EPieMenuCategory::EndTurn;
+    Button.bEnabled = true;
+    return Button;
+}
+
+void UCombatCommandMenuSubsystem::ShowActionCost(FPieMenuButtonData &Button) const
+{
+    if (!ActionPipsText::IsActionPipsFight(this))
+    {
+        return;
+    }
+    const UCharacterDataComponent *CDC = CurrentActor.IsValid() ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!CDC)
+    {
+        return;
+    }
+    // The cost of the action this button submits (FAction::GetActionCost, B-170c), so the label and the pay agree.
+    const int32 Cost = BuildActionFromButton(Button).GetActionCost();
+    Button.DisplayName = ActionPipsText::WithCost(Button.DisplayName, Cost);
+    const FText Reason = ActionPipsText::GetCostRefusedReason(Cost, CDC->CurrentActions, CDC->GetMaxActions());
+    if (Reason.IsEmpty() || !Button.bEnabled)
+    {
+        return;
+    }
+    const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
+    Button.Description = Greyed.Description;
+    Button.ButtonTint = Greyed.ButtonTint;
+    Button.bEnabled = false;
 }
 
 FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
@@ -937,6 +1086,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilityButtonsFrom(
             i);
 
         Button.bEnabled = true;
+        ShowActionCost(Button); // B-170e
         Buttons.Add(Button);
     }
 
@@ -972,6 +1122,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
                 ItemIndex);
 
             Button.bEnabled = true;
+            ShowActionCost(Button); // B-170e
             Buttons.Add(Button);
         }
     }
@@ -1111,6 +1262,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
             Button.ButtonTint = Greyed.ButtonTint;
             Button.bEnabled = false;
         }
+        ShowActionCost(Button); // B-170e: after D-083, so a broken source keeps its own reason
         Buttons.Add(Button);
         Index++;
     }
@@ -1947,6 +2099,9 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     }
     case EPieMenuCategory::Defend:
         Action.ActionType = EActionType::Defend;
+        break;
+    case EPieMenuCategory::EndTurn:
+        Action.ActionType = EActionType::EndTurn; // B-170e
         break;
     case EPieMenuCategory::Flee:
         Action.ActionType = EActionType::Flee;
