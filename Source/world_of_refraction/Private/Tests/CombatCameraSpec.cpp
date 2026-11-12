@@ -9,6 +9,7 @@
 #include "Misc/AutomationTest.h"
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "Combat/Camera/CameraFramingChecks.h"
+#include "Combat/Camera/BossFraming.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "WoRTestWorld.h"
@@ -330,6 +331,29 @@ void FCombatCameraSpec::Define()
 
 	Describe("target cut with several enemies (B-400, study R3 / §9, Q-400)", [this]()
 	{
+		It("re-aims from the boss-height turn view it is given, and Over the Shoulder's front shot ignores it (B-400 x B-405)", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, TurnTestThreeEnemies());
+			const FVector Feet = TurnTestThreeEnemies()[0];
+			for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder})
+			{
+				const FTransform Base = FCombatCameraRules::ComputeTurnView(Style, Frame, CommandMenuRules::MAIN_MENU_DEPTH);
+				const FTransform Low = FBossFramingRules::ApplyHeight(Base, EEnemyCameraHeight::Low, Style, Frame);
+				const FTransform FromBase = FCombatCameraRules::ComputeTargetView(Style, Frame, Feet, TARGET_TEST_PERSON_HEIGHT,
+																				   CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
+				const FTransform FromLow = FCombatCameraRules::ComputeTargetViewFrom(Style, Frame, Low, Feet, TARGET_TEST_PERSON_HEIGHT, TARGET_TEST_SEVERAL);
+				const FString Name = UEnum::GetValueAsString(Style);
+				if (Style == ETurnViewStyle::OverTheShoulder)
+				{
+					TestTrue(FString::Printf(TEXT("%s: the front shot is the same"), *Name), FromLow.Equals(FromBase));
+					continue;
+				}
+				TestTrue(FString::Printf(TEXT("%s: the re-aim stands where the low turn view stands"), *Name),
+						 FromLow.GetLocation().Equals(Low.GetLocation()));
+				TestTrue(FString::Printf(TEXT("%s: the boss height is really lower"), *Name), Low.GetLocation().Z < Base.GetLocation().Z);
+			}
+		});
+
 		It("keeps each target's feet, head and HP bar on screen, in every style, for several positions and sizes", [this]()
 		{
 			const TArray<FVector> Enemies = TurnTestThreeEnemies();
