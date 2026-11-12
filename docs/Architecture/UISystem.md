@@ -36,7 +36,7 @@ This doc covers three current widgets:
   shown past each `GetCrackPositions` point); party cards add "Status x / y", a "weapon · ring" line and a loadout
   hover tooltip (`BattleHUDView::ReadGearNames`; refreshed on `ULoadoutComponent::OnLoadoutChanged` /
   `OnActiveWeaponChanged`; party card frames take the mouse for it). A 0 hit on Broken Darkness floats "Negated"
-  (`DamageNumberView::SHOW_ABSORB_CUE`, Q-391c).
+  (`DamageNumberView::SHOW_NEGATED_CUE`, Q-391c).
 - `UBattleCommandMenuWidget`: a view of `UCombatCommandMenuSubsystem` (`OnCommandMenuReady` / `Closed`), a pool
   of 16 rows built once, each row's key hint from `ACombatPlayerController::GetMenuKeys`
   (`BattleHUDView::AssignMenuKeys`); a click goes to `HandleSelection` through `UBattleMenuRowRelay`.
