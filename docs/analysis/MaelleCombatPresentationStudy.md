@@ -310,3 +310,37 @@ Labels below: **[confirms]** = the new fights back a Part 1 rule; **[changes]** 
 - The timed-press picture frame may belong to one hero's skills only.
 - In-game names of the party members and the class panel's mechanics aren't needed for our rules and weren't confirmed.
 
+## 14. Per-swing timing (re-step at 0.1–0.2 s, 2026-11-12)
+
+The 1 s steps above give whole actions only. Re-stepped the same video (480p, frames drawn from the player, seeks checked to land on the asked time) around one hero melee skill and one enemy swing, for the showcase animation picks (`ShowcaseAnimAnalysis.md`). 45 frames: 24 on Maelle's skill, 12 on 5:41–5:46.5 (Maelle's counter and a reset, no enemy swing in it), 9 on the parried enemy swing. Accurate to about ±0.1 s.
+
+**Maelle melee skill (timed-press skill, several hits), 5:33.8–5:36.6**
+
+| Phase | Time | Length | What's seen |
+|---|---|---|---|
+| Confirm + rush in | 5:33.8–5:34.0 | 0.2 s | blur rush; she arrives beside the enemy |
+| Wind-up | 5:34.2–5:34.9 | ~0.7 s | sword drawn back and up; purple charge on the blade; the gold timed-press frame appears at 5:34.2 and its ring closes at 5:34.9 |
+| First contact | 5:35.0–5:35.1 | ~0.1 s | downward slash through the target |
+| Impact hold | 5:35.1–5:35.3 | ~0.3 s | orange-purple burst fills the frame; no visible freeze |
+| Further hits | 5:35.4–5:35.8 | ~0.4 s | 2–3 more slashes with trails; damage number up at 5:35.4 |
+| Follow-through | 5:35.8–5:36.0 | ~0.2 s | last slash carries through, blade low |
+| Recovery | 5:36.0–5:36.4 | ~0.4 s | steps back, sword lowered |
+| Cut to wide | 5:36.6 | — | wide reset shot (R12) |
+
+Confirm to first contact **~1.2 s**; first contact to recovery end **~1.4 s**; the whole skill ~2.8 s before the wide cut. Camera: a mid-wide shot from behind and left during the wind-up, the same angle through the hits (no cut at contact), then a cut to wide.
+
+**Enemy swing, parried (Painted Maelle), 5:38.0–5:39.5**
+
+| Phase | Time | Length | What's seen |
+|---|---|---|---|
+| Wind-up / step in | 5:38.0–5:38.6 | ~0.6 s | sword held back, steps toward the defender; ability banner on screen |
+| Contact (parry) | 5:38.7 | — | lunging slash, white-gold arc, blue flash at the blade |
+| Feedback hold | 5:38.9–5:39.0 | ~0.3 s | "PERFECT" + white streak; the camera cuts to a closer side angle **after** contact, not during the swing |
+| Recovery into next | 5:39.0–5:39.5 | ~0.5 s | attacker pulls back; counter number at 5:39.5 |
+
+**What this means for our picks (fixed position, in place):**
+- E33's wind-up reads at **~0.6–0.7 s**, with a visible tell (charge glow or banner) the whole time. Our light hit can be shorter, but a defendable enemy swing should keep a **~0.6 s** readable wind-up. That fits `DefenseInputWindow` 0.5 s plus `MinDefenseReadSeconds` 0.75 s.
+- Contact is one sharp moment (~0.1 s), followed by a **~0.3 s** effect hold. The hold is VFX and the number, not a freeze (F1 stays at ~40 ms).
+- Recovery is **~0.4–0.5 s**, then the camera goes wide. A clip whose recovery runs much past ~0.6 s will feel slow next to E33.
+- E33's rush in (0.2 s) has no match for us: our attacks play in place, so compare from the wind-up on.
+
