@@ -4,7 +4,8 @@
 //   - IA_Interact -> the nearest in-range interactable (trial door, merchant, recruit, map
 //     feature) -> Interact() (HubInteract; moved here from AExplorationPlayerController).
 //   - OnPossess -> UPartySessionSubsystem::EnsureLocalParty (creates the solo Trial Party on
-//     first possession, rebinds the leader after every level change).
+//     first possession, rebinds the leader after every level change), then gives the pawn its
+//     UFieldMovementComponent (B-214a). IA_Field_MovementSkill -> the pawn's active field skill.
 //
 // The Blueprint still owns its BeginPlay: the input mapping context and the party display.
 // Editor step (docs/PIE/B-158.md): delete the BP's IA_Interact and EnsureLocalParty nodes,
@@ -83,6 +84,16 @@ protected:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultInteractAction;
 
+	/** B-214a: uses the possessed pawn's active field skill (double-tap sprint). Leave empty to use
+	 *  DefaultFieldMovementSkillAction. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
+	TObjectPtr<UInputAction> FieldMovementSkillAction;
+
+	/** IA_Field_MovementSkill, set in Config/DefaultGame.ini once B-214g makes the asset; until then
+	 *  wor.Field.Activate stands in. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
+	TSoftObjectPtr<UInputAction> DefaultFieldMovementSkillAction;
+
 	/** Leader pawn class for the lazily created Trial Party. Null = the possessed pawn's class,
 	 *  then PartySessionSubsystem's DefaultSoloPawnClass. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Party")
@@ -106,4 +117,8 @@ private:
 	EHubMode CurrentMode = EHubMode::Hub;
 
 	void HandleInteractPressed(const FInputActionValue &Value);
+	void HandleFieldMovementSkill(const FInputActionValue &Value);
+
+	/** B-214a: gives the field pawn its UFieldMovementComponent (once) and its party record's field skill. */
+	void EnsureFieldMovement(APawn *InPawn) const;
 };

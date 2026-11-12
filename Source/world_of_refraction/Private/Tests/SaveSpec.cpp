@@ -105,6 +105,8 @@ void FSaveSpec::Define()
 		Party->Members[1].GuardStyle = EGuardStyle::Unarmed;
 		Party->Members[1].GuardWeaponId = SavedGuardWeapon;
 		Party->Members[1].ParryElementPriority = EParryElementPriority::Magic; // B-393
+		Party->Members[1].FieldSkill.Source = EFieldSkillSource::Ring; // B-214a
+		Party->Members[1].FieldSkill.Type = EFieldMovementType::EnhancedSprint;
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -142,6 +144,9 @@ void FSaveSpec::Define()
 		TestTrue(TEXT("The parry colour priority survives save / load (B-393)"),
 				 Back.ParryElementPriority == EParryElementPriority::Magic &&
 					 Restored->Members[0].ParryElementPriority == EParryElementPriority::Weapon);
+		TestTrue(TEXT("The active field skill survives save / load (B-214a)"),
+				 Back.FieldSkill.Source == EFieldSkillSource::Ring && Back.FieldSkill.Type == EFieldMovementType::EnhancedSprint &&
+					 Restored->Members[0].FieldSkill == FFieldSkillChoice());
 		TestEqual(TEXT("The run's strain goes with a saved run"), Back.RunStrain, SAVED_RUN_STRAIN);
 		TestEqual(TEXT("... and not without one"), USaveSubsystem::CaptureParty(Party, false).Members[1].RunStrain, 0.0f);
 		TestTrue(TEXT("... while Broken Darkness is kept outside the run too"), USaveSubsystem::CaptureParty(Party, false).Members[1].bBrokenDarkness);
