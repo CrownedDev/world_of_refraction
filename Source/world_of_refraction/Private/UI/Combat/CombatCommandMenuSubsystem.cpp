@@ -33,6 +33,7 @@
 #include "Engine/GameInstance.h"
 #include "Misc/ScopeExit.h"
 #include "WoRGameNames.h"
+#include "Combat/Actions/ActionPipsText.h"
 
 namespace
 {
@@ -402,6 +403,12 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         SubmitConfirmedAction(ButtonData);
         break;
 
+    case EPieMenuCategory::EndTurn:
+        // B-170e: the same path as any pick (a co-op client's goes to the server, B-229); the orchestrator ends the
+        // turn at once (EndTurnByChoice), and SubmitConfirmedAction closes the menu once the turn has moved on.
+        SubmitConfirmedAction(ButtonData);
+        break;
+
     // === SWITCH ACTIONS ===
     case EPieMenuCategory::SwitchWeapon:
         ExecuteSwitchWeapon();
@@ -758,6 +765,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     Buttons.Add(CreateMoveRowButton(/*bForward*/ true));
     Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
     Buttons.Add(CreateDefendButton());
+    if (ActionPipsText::IsActionPipsFight(this)) // B-170e; a stunned actor's menu stays Attack + Defend (D-001)
+        Buttons.Add(CreateEndTurnButton());
     Buttons.Add(CreateFleeButton());
     // OBSOLETE (B-346): no "Let AI Play" button; seats are fixed for the fight (Q-21-audit, PA-13).
     // The switch stays for debug (wor.Combat.SwitchControl).
@@ -775,6 +784,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateAttackButton() const
     Button.Description = FText::FromString(CurrentCapabilities.ActiveWeaponName);
     Button.Category = EPieMenuCategory::Attack;
     Button.bEnabled = true;
+    ShowActionCost(Button); // B-170e
     return Button;
 }
 
@@ -901,7 +911,47 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateDefendButton() const
     Button.DisplayName = FText::FromString(TEXT("Defend"));
     Button.Category = EPieMenuCategory::Defend;
     Button.bEnabled = true;
+    if (ActionPipsText::IsActionPipsFight(this))
+    {
+        Button.Description = ActionPipsText::GetDefendEndsTurnText(); // B-170e (Q-170c): Defend ends the turn
+    }
     return Button;
+}
+
+FPieMenuButtonData UCombatCommandMenuSubsystem::CreateEndTurnButton() const
+{
+    FPieMenuButtonData Button;
+    Button.ButtonID = TEXT("EndTurn");
+    Button.DisplayName = WoRGameNames::GetEndTurnVerb();
+    Button.Description = ActionPipsText::GetEndTurnDescription();
+    Button.Category = EPieMenuCategory::EndTurn;
+    Button.bEnabled = true;
+    return Button;
+}
+
+void UCombatCommandMenuSubsystem::ShowActionCost(FPieMenuButtonData &Button) const
+{
+    if (!ActionPipsText::IsActionPipsFight(this))
+    {
+        return;
+    }
+    const UCharacterDataComponent *CDC = CurrentActor.IsValid() ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!CDC)
+    {
+        return;
+    }
+    // The cost of the action this button submits (FAction::GetActionCost, B-170c), so the label and the pay agree.
+    const int32 Cost = BuildActionFromButton(Button).GetActionCost();
+    Button.DisplayName = ActionPipsText::WithCost(Button.DisplayName, Cost);
+    const FText Reason = ActionPipsText::GetCostRefusedReason(Cost, CDC->CurrentActions, CDC->GetMaxActions());
+    if (Reason.IsEmpty() || !Button.bEnabled)
+    {
+        return;
+    }
+    const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
+    Button.Description = Greyed.Description;
+    Button.ButtonTint = Greyed.ButtonTint;
+    Button.bEnabled = false;
 }
 
 FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
@@ -1035,6 +1085,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilityButtonsFrom(
             i);
 
         Button.bEnabled = true;
+        ShowActionCost(Button); // B-170e
         Buttons.Add(Button);
     }
 
@@ -1070,6 +1121,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
                 ItemIndex);
 
             Button.bEnabled = true;
+            ShowActionCost(Button); // B-170e
             Buttons.Add(Button);
         }
     }
@@ -1209,6 +1261,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
             Button.ButtonTint = Greyed.ButtonTint;
             Button.bEnabled = false;
         }
+        ShowActionCost(Button); // B-170e: after D-083, so a broken source keeps its own reason
         Buttons.Add(Button);
         Index++;
     }
@@ -2045,6 +2098,9 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     }
     case EPieMenuCategory::Defend:
         Action.ActionType = EActionType::Defend;
+        break;
+    case EPieMenuCategory::EndTurn:
+        Action.ActionType = EActionType::EndTurn; // B-170e
         break;
     case EPieMenuCategory::Flee:
         Action.ActionType = EActionType::Flee;

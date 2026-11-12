@@ -62,7 +62,8 @@ namespace CommandMenuRules
 	}
 
 	/** B-391 (Q-391): a category key that works on the main menu only (one key per category, two presses to act,
-	 *  FeelGuide 13). Defend and the infusion keys keep their own rules (B-093). */
+	 *  FeelGuide 13). Defend and the infusion keys keep their own rules (B-093). B-170e: End Turn too (its button shows
+	 *  only in an action-pips fight, so its key does nothing otherwise). */
 	inline bool IsMainMenuKey(EPieMenuCategory Key)
 	{
 		switch (Key)
@@ -74,6 +75,7 @@ namespace CommandMenuRules
 		case EPieMenuCategory::Flee:
 		case EPieMenuCategory::SwitchWeapon:
 		case EPieMenuCategory::ChangeRing:
+		case EPieMenuCategory::EndTurn:
 			return true;
 		default:
 			return false;
@@ -357,6 +359,12 @@ private:
     void GreyIfTurnSwitchUsed(FPieMenuButtonData &Button) const;
     FPieMenuButtonData CreateSwitchRingButton() const;
     FPieMenuButtonData CreateDefendButton() const;
+    /** B-170e (ActionPips.md §3.5): "End Turn", on the main menu of an action-pips fight only. */
+    FPieMenuButtonData CreateEndTurnButton() const;
+    /** B-170e: in an action-pips fight, adds the action cost to an Attack, Ability, Spell or Item button's label
+     *  ("Fireball (2 actions)") and greys it with the reason when the current actor can't pay it now or ever
+     *  (ActionPipsText::GetCostRefusedReason). A button already greyed keeps its own reason. Nothing otherwise. */
+    void ShowActionCost(FPieMenuButtonData &Button) const;
 
     // ==================== SUBMENU BUILDERS ====================
 

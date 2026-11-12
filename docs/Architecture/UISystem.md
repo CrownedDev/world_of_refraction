@@ -33,6 +33,13 @@ This doc covers three current widgets:
 At 0 it builds the old WBP panels, strip and menu described below (the fallback until Crown's PIE pass).
 The main-menu category keys (Attack, Skills, Spells, Items, Flee, switches; Q-391) press their button through
 `UCombatCommandMenuSubsystem::PressMenuKey` with either HUD. `wor.UI.Print` prints both new widgets.
+**Action pips (B-170e, Q-170e2; only when the fight runs `wor.Turns.ActionPips` 1, `ActionPipsText::IsActionPipsFight`):**
+party cards get "Actions ●●○ 2 · Max 3 (+75/100)" under EP (`ActionPipsText::MakeActionsLine`), bound to each party
+character's `OnActionsChanged` and refreshed at turn start; the subsystem adds an **End Turn** button
+(`EPieMenuCategory::EndTurn` → `EActionType::EndTurn` through `SubmitConfirmedAction`, key `IA_Combat_MenuEndTurn`
+Backspace / View, main menu only) and `ShowActionCost` labels every Attack / ability / spell / item button with its cost
+and greys it with `ActionPipsText::GetCostRefusedReason`. Both HUDs draw the subsystem's buttons; only the new one has
+the pips line.
 
 **Not covered here:** the hub shop UI (`UShopWindowWidget` /
 `UShopRowWidget` and their `WBP_ShopWindow` / `WBP_StockRow` / `WBP_CartRow`
@@ -359,3 +366,4 @@ controlled actor.
 | 2026-11-09 | B-396: `UCombatHUD::GetHUDStateString` (`wor.UI.Print`) prints each HUD widget's in-viewport, visibility, opacity, drawn position and size, and the game viewport size (Crown's invisible-HUD report). `UTrialGateWidget::Open` sets the gate focusable before UIOnly focuses it. | fix/B-396-combat-hud-visibility |
 | 2026-11-09 | B-391 (Q-391): new plain C++ battle HUD behind `wor.UI.NewHUD` (default 1; 0 = the old WBP HUD): `UBattleHUDWidget` (party / enemy cards, turn order, status chips and a view-all panel), `UBattleCommandMenuWidget` (the subsystem's buttons with key hints), `BattleHUDView` text helpers; main-menu category keys through `PressMenuKey` (`ACombatPlayerController::GetMenuKeys`); `wor.UI.Print` prints both widgets. Spec `WoR.UI.BattleHUD`. Damage numbers: B-391b. | feature/B-391-battle-hud-cloud (UNBUILT) |
 | 2026-11-12 | B-391 desktop build (`feature/B-391-battle-hud`): `UBattleHUDButton` (`UI/Combat/Battle/BattleHUDButton.h`), a never-focusable `UButton` for the menu rows and the Statuses button (`UButton::InitIsFocusable` is protected in 5.8); the category keys act only when `UCombatHUD::WantsNewHUD()` (the old menu has its own A / B). |
+| 2026-11-09 | B-170e (Q-170e2): action pips on the new HUD behind `wor.Turns.ActionPips`: party-card pips and Max Actions line (`ActionPipsText`, `OnActionsChanged`), End Turn button and key (Backspace / View), action costs on every skill / spell / item, greyed with the reason; Defend's tooltip; `wor.UI.Print` shows `actionPips` and the lines. Specs `WoR.Combat.ActionPipsText`, BattleHUD / CommandMenu.Keys cases. | feature/B-170e-action-pips-ui-cloud (UNBUILT) |
