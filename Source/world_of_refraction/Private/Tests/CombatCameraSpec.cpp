@@ -816,6 +816,35 @@ void FCombatCameraSpec::Define()
 			TestTrue(TEXT("its boss data"), Phases->GetBossData() == Data);
 		});
 	});
+
+	Describe("no reset between actions (B-401, study R4)", [this]()
+	{
+		It("sends the second action of a turn back to the same turn transform, in one short blend", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, {TURN_TEST_ONE_ENEMY});
+			for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+			{
+				const FTurnChangePlan TurnStart = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, Style, Frame);
+				const FSameTurnReturnPlan Return = FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::Turn, Style, Frame);
+				const FString Name = UEnum::GetValueAsString(Style);
+				TestTrue(Name + TEXT(": a return"), Return.bReturn);
+				TestTrue(Name + TEXT(": the turn start's own transform"), Return.TurnView.Equals(TurnStart.TurnView, TURN_TEST_LOCATION_TOLERANCE));
+				TestTrue(Name + TEXT(": a blend, not a cut"), Return.BlendSeconds > 0.0f);
+				TestTrue(Name + TEXT(": shorter than the handover from wide"), Return.BlendSeconds < TurnStart.HandoverBlendSeconds);
+			}
+		});
+
+		It("leaves the camera alone before any action, on an enemy's watch view and with movement off", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			TestFalse(TEXT("asked again without acting (a refused pick)"),
+					  FCombatCameraRules::PlanSameTurnReturn(false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame).bReturn);
+			TestFalse(TEXT("an enemy's turn"),
+					  FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame).bReturn);
+			TestFalse(TEXT("movement off: the static view"),
+					  FCombatCameraRules::PlanSameTurnReturn(true, ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame).bReturn);
+		});
+	});
 }
 
 BEGIN_DEFINE_SPEC(FCombatCameraDirectorSpec, "WoR.Combat.Camera.Director",
@@ -933,6 +962,58 @@ void FCombatCameraDirectorSpec::Define()
 		Executor->OnActionStarted.Broadcast(SecondHero, FAction(), 0);
 		TestEqual(TEXT("a second action of the turn adds none"), Director->GetHandoverCount(), 4);
 		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
+		Director->EndCombat();
+	});
+
+	It("returns to the same hero's turn view between actions of one turn, with no wide beat (B-401, study R4)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("the turn start's own ask is no return"), Director->GetSameTurnReturnCount(), 0);
+
+		// Two actions in one turn (B-170c): asked again after each.
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("asked again after an action: a return"), Director->GetSameTurnReturnCount(), 1);
+		TestFalse(TEXT("no wide beat between actions of one turn"), Director->IsHandoverPending());
+		TestEqual(TEXT("no handover between actions of one turn"), Director->GetHandoverCount(), 1);
+		TestEqual(TEXT("the turn view again"), Director->GetCurrentMode(), ECombatCameraMode::Turn);
+		Orchestrator->OnActionRequested.Broadcast(Hero); // a refused pick asked again
+		TestEqual(TEXT("no action since the last ask: none"), Director->GetSameTurnReturnCount(), 1);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("a third action's ask: a return"), Director->GetSameTurnReturnCount(), 2);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(SecondHero); // not the actor the camera follows
+		TestEqual(TEXT("another actor asked after Hero acted: no return"), Director->GetSameTurnReturnCount(), 2);
+		TestTrue(TEXT("still following Hero"), Director->GetViewedActor() == Hero);
+
+		// Only a turn change does the full move.
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestTrue(TEXT("hero -> hero after acting: the wide beat"), Director->IsHandoverPending());
+		Orchestrator->OnActionRequested.Broadcast(SecondHero);
+		TestEqual(TEXT("a new turn's ask is no return"), Director->GetSameTurnReturnCount(), 2);
+
+		// Movement off: the static view stays.
+		Director->SetCameraMovementOff(true);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 3);
+		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Orchestrator->OnActionRequested.Broadcast(Hero);
+		TestEqual(TEXT("movement off: no return"), Director->GetSameTurnReturnCount(), 2);
+		TestEqual(TEXT("movement off: static"), Director->GetCurrentMode(), ECombatCameraMode::Static);
+		Director->SetCameraMovementOff(false);
+		Director->EndCombat();
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		TestEqual(TEXT("a new fight counts from zero"), Director->GetSameTurnReturnCount(), 0);
 		Director->EndCombat();
 	});
 
