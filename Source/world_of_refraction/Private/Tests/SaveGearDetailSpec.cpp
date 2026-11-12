@@ -54,7 +54,7 @@ END_DEFINE_SPEC(FSaveGearDetailSpec)
 
 void FSaveGearDetailSpec::Define()
 {
-	It("brings a rolled weapon back with the same asset, crystal, spells, rolls and GUID", [this]()
+	It("brings a rolled weapon back with the same asset, crystal, rolls and GUID, and no spells (B-098)", [this]()
 	{
 		FWoRTestWorld Before;
 		FWoRTestWorld After;
@@ -93,7 +93,7 @@ void FSaveGearDetailSpec::Define()
 		TestTrue(TEXT("A crystal is attached"), Back.AttachedItem.Kind == EAttachedItemKind::Crystal);
 		TestTrue(TEXT("The same crystal"), Back.AttachedItem.Crystal.Id == GEAR_DETAIL_CRYSTAL);
 		TestEqual(TEXT("With its wear"), Back.AttachedItem.Crystal.CurrentDurability, GEAR_DETAIL_WEAR);
-		TestTrue(TEXT("The same spell on it"), Back.AssignedSpells.Num() == 1 && Back.AssignedSpells[0] == Spell);
+		TestEqual(TEXT("B-098 (Q-098): the weapon's spell is not saved"), Back.AssignedSpells.Num(), 0);
 		TestTrue(TEXT("The same stone in the stone socket"), Back.StoneSocket.IsAugmentStone() && Back.StoneSocket.Crystal.Id == GEAR_DETAIL_STONE);
 		TestTrue(TEXT("The same skill picks, slot 1 left to the built-in"),
 				 Back.SkillPicks.Num() == 2 && Back.SkillPicks[0] == nullptr && Back.SkillPicks[1] == Picked);
@@ -103,7 +103,7 @@ void FSaveGearDetailSpec::Define()
 		TestTrue(TEXT("The same roll pools"), Back.StatPool == GEAR_DETAIL_STAT_POOL && Back.StatMaxPool == GEAR_DETAIL_STAT_MAX_POOL);
 	});
 
-	It("brings a ring back with its crystal and rolls", [this]()
+	It("brings a ring back with its crystal, rolls and spells, empty spell slots in place", [this]()
 	{
 		FWoRTestWorld Before;
 		FWoRTestWorld After;
@@ -116,6 +116,8 @@ void FSaveGearDetailSpec::Define()
 		Entry.AttachedItem.Kind = EAttachedItemKind::Crystal;
 		Entry.AttachedItem.Crystal.Id = GEAR_DETAIL_CRYSTAL;
 		Entry.StatBonus.BonusRawDamage = GEAR_DETAIL_RAW_DAMAGE;
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Entry.AssignedSpells = {nullptr, Spell};
 		Pool->AddRingToPool(Entry);
 
 		const UPoolSubsystem *Restored = GearDetailRoundTrip(*this, *Pool, After);
@@ -124,9 +126,11 @@ void FSaveGearDetailSpec::Define()
 		TestEqual(TEXT("Same GUID"), Back.PersistentID, Entry.PersistentID);
 		TestTrue(TEXT("The same crystal"), Back.AttachedItem.Crystal.Id == GEAR_DETAIL_CRYSTAL);
 		TestEqual(TEXT("The same roll"), Back.StatBonus.BonusRawDamage, GEAR_DETAIL_RAW_DAMAGE);
+		TestTrue(TEXT("The empty first spell slot stays empty"),
+				 Back.AssignedSpells.Num() == 2 && Back.AssignedSpells[0] == nullptr && Back.AssignedSpells[1] == Spell);
 	});
 
-	It("brings back an attached evolution and keeps empty spell slots in place", [this]()
+	It("brings back a weapon's attached evolution, without the weapon's spells (B-098)", [this]()
 	{
 		FWoRTestWorld Before;
 		FWoRTestWorld After;
@@ -151,8 +155,7 @@ void FSaveGearDetailSpec::Define()
 		TestTrue(TEXT("The same evolution"), Back.AttachedItem.IsEvolution() && Back.AttachedItem.Evolution.Item == Evolution);
 		TestEqual(TEXT("Its instance"), Back.AttachedItem.Evolution.InstanceID, Entry.AttachedItem.Evolution.InstanceID);
 		TestEqual(TEXT("Its wear"), Back.AttachedItem.Evolution.CurrentDurability, GEAR_DETAIL_WEAR);
-		TestTrue(TEXT("The empty first slot stays empty"),
-				 Back.AssignedSpells.Num() == 2 && Back.AssignedSpells[0] == nullptr && Back.AssignedSpells[1] == Spell);
+		TestEqual(TEXT("B-098 (Q-098): no weapon spell comes back"), Back.AssignedSpells.Num(), 0);
 	});
 
 	It("saves weapons and adapters in one gear list, and still loads a v4 save's two lists (B-308)", [this]()

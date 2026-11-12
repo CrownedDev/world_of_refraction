@@ -379,6 +379,8 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	FSavedAssetRef EvolutionItem;
 
+	/** B-098 (Q-098, save v37): this and the two spell fields below are written for an adapter only; a weapon gives
+	 *  no spells (D-027), so its spells are not saved. */
 	UPROPERTY()
 	TArray<FSavedAssetRef> AssignedSpells;
 
