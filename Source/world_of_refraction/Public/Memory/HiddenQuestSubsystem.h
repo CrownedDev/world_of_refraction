@@ -34,6 +34,8 @@ struct FHiddenQuestProgress
 	bool bFinished = false;
 	/** Times the step in progress was met this run; reset at run end. */
 	int32 RunCount = 0;
+	/** Q-397 (Crown): when this player found it, counting up (higher = newer); the journal lists newest first. */
+	int32 FoundOrder = 0;
 };
 
 /** B-388: a started quest as the journal shows it (B-397: a found hidden quest too). */
@@ -45,6 +47,8 @@ struct FVisibleQuest
 	/** The step in progress's goal only (later steps and the end memory never); empty once finished. */
 	FText Goal;
 	bool bFinished = false;
+	/** Q-397: FHiddenQuestProgress::FoundOrder (higher = found later). */
+	int32 FoundOrder = 0;
 };
 
 UCLASS()
@@ -89,7 +93,8 @@ public:
 	FString GetQuestsString() const;
 
 	/** B-388: this player's started quests: main first, then side, then (B-397) found hidden ones; unfinished before
-	 *  finished; by id. Not const: a quest restored from the save is found by gathering the quest assets. */
+	 *  finished; newest found first (Q-397), then by id. Not const: a quest restored from the save is found by gathering
+	 *  the quest assets. */
 	TArray<FVisibleQuest> GetVisibleQuests();
 
 	/** B-397: the last private quest notice this player was shown (debug and specs; empty before any). */
@@ -134,6 +139,9 @@ private:
 	int32 RegainCurses(UCurseSubsystem &Curses, const FWoRConditionContext &Context, const TArray<UHiddenQuestData *> &Quests);
 
 	TMap<FName, FHiddenQuestProgress> Progress;
+
+	/** Q-397: the next quest found gets this FoundOrder (Restore sets it past the save's newest). */
+	int32 NextFoundOrder = 1;
 
 	/** Q-377: started since the last CheckEvent; those wait for the next event. */
 	TSet<FName> JustStarted;

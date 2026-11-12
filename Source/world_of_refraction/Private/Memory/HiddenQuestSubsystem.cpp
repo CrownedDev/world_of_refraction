@@ -138,7 +138,7 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 	{
 		return false;
 	}
-	Progress.Add(Quest->GetQuestId());
+	Progress.Add(Quest->GetQuestId()).FoundOrder = NextFoundOrder++; // Q-397: the journal lists newest first
 	KnownQuests.Add(Quest->GetQuestId(), const_cast<UHiddenQuestData *>(Quest)); // B-388: the journal shows its title and goal
 	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
 	ReportToHost(); // B-377b: a client's host checks its steps
@@ -513,6 +513,7 @@ FSavedHiddenQuests UHiddenQuestSubsystem::Capture() const
 		Out.QuestId = Entry.Key;
 		Out.StepsDone = Entry.Value.StepsDone;
 		Out.bFinished = Entry.Value.bFinished;
+		Out.FoundOrder = Entry.Value.FoundOrder;
 	}
 	return Saved;
 }
@@ -520,6 +521,7 @@ FSavedHiddenQuests UHiddenQuestSubsystem::Capture() const
 void UHiddenQuestSubsystem::Restore(const FSavedHiddenQuests &Saved)
 {
 	Progress.Reset();
+	NextFoundOrder = 1;
 	for (const FSavedQuestProgress &In : Saved.Quests)
 	{
 		if (!In.QuestId.IsNone())
@@ -527,6 +529,8 @@ void UHiddenQuestSubsystem::Restore(const FSavedHiddenQuests &Saved)
 			FHiddenQuestProgress &Entry = Progress.Add(In.QuestId);
 			Entry.StepsDone = FMath::Max(In.StepsDone, 0);
 			Entry.bFinished = In.bFinished;
+			Entry.FoundOrder = FMath::Max(In.FoundOrder, 0);
+			NextFoundOrder = FMath::Max(NextFoundOrder, Entry.FoundOrder + 1); // a quest found after loading is the newest
 		}
 	}
 }
@@ -545,8 +549,7 @@ void UHiddenQuestSubsystem::ShowNotice(const FText &Notice)
 
 namespace HiddenQuestJournal
 {
-	/** B-397: the journal's order of kinds: main, side, then found hidden quests. */
-	/** The journal lists main quests first, then side, then hidden (Q-397). */
+	/** The journal lists main quests first, then side, then hidden (B-397, Q-397); newest found first within each. */
 	constexpr int32 JOURNAL_RANK_MAIN = 0;
 	constexpr int32 JOURNAL_RANK_SIDE = 1;
 	constexpr int32 JOURNAL_RANK_HIDDEN = 2;
@@ -590,6 +593,7 @@ TArray<FVisibleQuest> UHiddenQuestSubsystem::GetVisibleQuests()
 		Row.Kind = Quest->Kind;
 		Row.Title = Quest->GetDisplayTitle();
 		Row.bFinished = Entry.Value.bFinished;
+		Row.FoundOrder = Entry.Value.FoundOrder;
 		Row.Goal = Row.bFinished ? FText::GetEmpty() : Quest->GetGoalAfter(Entry.Value.StepsDone);
 	}
 	Out.Sort([](const FVisibleQuest &A, const FVisibleQuest &B)
@@ -601,6 +605,10 @@ TArray<FVisibleQuest> UHiddenQuestSubsystem::GetVisibleQuests()
 		if (A.bFinished != B.bFinished)
 		{
 			return !A.bFinished;
+		}
+		if (A.FoundOrder != B.FoundOrder)
+		{
+			return A.FoundOrder > B.FoundOrder; // Q-397 (Crown): the newest found first
 		}
 		return A.QuestId.LexicalLess(B.QuestId);
 	});
