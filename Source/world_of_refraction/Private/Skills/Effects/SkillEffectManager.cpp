@@ -8,6 +8,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/CombatPresentationComponent.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
@@ -2889,6 +2890,12 @@ void USkillEffectManager::BroadcastHealing(AActor *Healer, AActor *Recipient, in
 	if (Executor && Amount > 0)
 	{
 		Executor->OnHealingDone.Broadcast(Healer, Recipient, Amount);
+	}
+	// B-391b: every machine's green heal number (the server sends; a guest's effect events don't fire).
+	UCombatPresentationComponent *Presentation = Amount > 0 ? UCombatPresentationComponent::Find(Recipient) : nullptr;
+	if (Presentation)
+	{
+		Presentation->SendHeal(Amount);
 	}
 }
 

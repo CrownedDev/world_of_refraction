@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-391b](B-391b.md) | `feature/B-391b-hud-pieces` (in dev, built 2026-11-12) | Damage numbers on the new HUD: element colour (Physical white), size / brightness by resistance, immune grey, heals green, the same on host and client; the Broken Darkness card's absorb and overload | Pending |
 | [B-400b](B-400b.md) | `feature/B-400b-new-hud-target-highlight` (in dev, built 2026-11-12) | New HUD's target rows: hovering an enemy's row in the new battle HUD's picker highlights it, and the B-400 target view follows | Pending |
 | [B-170e](B-170e.md) | `feature/B-170e-action-pips-ui` (in dev, built 2026-11-12) | Action pips 5: with `wor.Turns.ActionPips 1`, party cards show "Actions ●●○ 2 · Max 3 (+75/100)" live; the menu has End Turn (Backspace / View) and every skill / spell / item shows its cost, greyed with the reason when it can't be paid; switch off = unchanged | Pending |
 | [B-406](B-406.md) | `feature/B-406-boss-cinematics` (in dev, built 2026-11-12) | Boss cinematics on trial: a boss's opening plays before turn 1 and a phase's cinematic on that phase, the HUD hidden and the fight waiting; empty fields change nothing; an enemy's named attack opens on a front shot; `wor.Camera.BossCinematic` | Pending |

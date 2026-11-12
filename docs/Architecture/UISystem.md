@@ -26,6 +26,10 @@ This doc covers three current widgets:
   else the TurnManager), and a Statuses button that opens every status in full. `Initialise` binds and fills
   plain-data state before `AddToViewport`; `RebuildWidget` builds one card per combatant once; delegates only
   rewrite texts (no Tick, no widgets recreated).
+  B-391b: floating damage numbers from each card character's `UCombatPresentationComponent::OnHitDetailShown`
+  (the server's hits and heals, on every machine), styled by `DamageNumberView` (Q-111 / Q-391b), from a pool of
+  16 text blocks built once and stepped by one timer that stops when none are live; a Broken Darkness card's EP
+  line is "Absorb x / y" with its overload. Debug: `wor.UI.DamageNumber <amount> [type|Heal] [mult]`.
 - `UBattleCommandMenuWidget`: a view of `UCombatCommandMenuSubsystem` (`OnCommandMenuReady` / `Closed`), a pool
   of 16 rows built once, each row's key hint from `ACombatPlayerController::GetMenuKeys`
   (`BattleHUDView::AssignMenuKeys`); a click goes to `HandleSelection` through `UBattleMenuRowRelay`.
@@ -369,3 +373,5 @@ controlled actor.
 | 2026-11-12 | B-170e (Crown, 2026-11-12): the End Turn row has no key (it comes later); the main menu hides it when the player set `wor.UI.HideEndTurn 1` (`ActionPipsText::ShouldShowEndTurnButton`, saved in `FSavedSettings`). | feature/B-170e-action-pips-ui-cloud |
 | 2026-11-12 | B-391 desktop build (`feature/B-391-battle-hud`): `UBattleHUDButton` (`UI/Combat/Battle/BattleHUDButton.h`), a never-focusable `UButton` for the menu rows and the Statuses button (`UButton::InitIsFocusable` is protected in 5.8); the category keys act only when `UCombatHUD::WantsNewHUD()` (the old menu has its own A / B). |
 | 2026-11-09 | B-400b: `UBattleCommandMenuWidget` rows bind `OnHovered` (`UBattleMenuRowRelay::HandleHovered`); `HoverRow` highlights a per-actor target row's enemy (`UCombatCommandMenuSubsystem::HighlightTarget`, B-400's camera follows); `GetRowTarget` for debug / specs. Rows stay non-focusable (B-391). | `feature/B-400b-new-hud-target-highlight` (built 2026-11-12) |
+| 2026-11-09 | B-391b (Q-391b): damage numbers. `UCombatPresentationComponent` hits carry `FCombatHitShown` (element multiplier, damage type, heal; `Multicast_ShowHit` RPC changed, new `OnHitDetailShown`, `SendHeal` from `USkillEffectManager::BroadcastHealing`); `DamageNumberView` (colour by damage type, Physical white; size / brightness by multiplier; immune grey; heals green); `UBattleHUDWidget` floats them from a pooled set of text blocks on one timer (no Tick) and shows a Broken Darkness card's "Absorb x / y, overload z%" (`BattleHUDView::FormatAbsorbLine` / `GetOverloadColour`). `wor.UI.DamageNumber`; specs `WoR.UI.DamageNumber`, `WoR.UI.BattleHUD`, `WoR.Net.Presentation`. Buildup bar, weapon name, durability header: B-391c. | feature/B-391b-hud-pieces-cloud (UNBUILT) |
+| 2026-11-12 | B-391b built on the desktop (`feature/B-391b-hud-pieces`): merged with B-170e's action-pips card code (both kept: the absorb line and tint, then the actions line). Full suite 1802/0; wor-reviewer no must-fix. Left: Teardown skips the number timer clear when unbound (no numbers can start unbound); a mid-fight summon gets no card or numbers (B-391c); a widget rebuild would orphan the number text blocks, as the cards. | `feature/B-391b-hud-pieces` |
