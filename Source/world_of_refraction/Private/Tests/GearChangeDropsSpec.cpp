@@ -5,6 +5,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Loadout/WeaponSpellRules.h"
 #include "WoRTestWorld.h"
 #include "PartsDroppedRecorder.h"
 #include "Currency/CurrencyComponent.h"
@@ -45,10 +46,15 @@ BEGIN_DEFINE_SPEC(FGearChangeDropsSpec, "WoR.Loadout.GearChangeDrops",
 	{
 		return Inventory->SavedLoadouts[LoadoutIndex].PrimaryWeapon.AssignedSpells.Contains(FireBolt);
 	}
+	/** B-098: these cases prove the old weapon-spell path, kept until the sweep (wor.Loadout.WeaponSpells 1). */
+	TUniquePtr<WeaponSpellRules::FScopedWeaponSpells> OldWeaponSpells;
 END_DEFINE_SPEC(FGearChangeDropsSpec)
 
 void FGearChangeDropsSpec::Define()
 {
+	BeforeEach([this]() { OldWeaponSpells = MakeUnique<WeaponSpellRules::FScopedWeaponSpells>(true); });
+	AfterEach([this]() { OldWeaponSpells.Reset(); });
+
 	BeforeEach([this]()
 	{
 		TestWorld = MakeUnique<FWoRTestWorld>();

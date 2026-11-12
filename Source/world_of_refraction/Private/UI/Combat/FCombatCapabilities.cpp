@@ -2,6 +2,7 @@
 // World of Refraction - Combat UI
 
 #include "UI/Combat/FCombatCapabilities.h"
+#include "Loadout/WeaponSpellRules.h"
 #include "Loadout/LoadoutComponent.h"
 #include "WoRLog.h"
 #include "Loadout/FCombatLoadout.h"
@@ -63,7 +64,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
         // Crystal spells on active weapon. D-083: a broken crystal's spells stay listed,
         // greyed out (BlockedSpellReasons below).
-        if (ActiveWeapon->WeaponEntry.AttachedItem.IsSpellSource())
+        // B-098 (D-027): weapons give no spells (WeaponSpellRules); the crystal keys the abilities' element instead.
+        if (WeaponSpellRules::WeaponsGiveSpells() && ActiveWeapon->WeaponEntry.AttachedItem.IsSpellSource())
         {
             // B-351d desktop review: once the crystal's one list is edited, it is what combat offers.
             Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.bSpellSlotsActive ? ActiveWeapon->GetAllSpells()

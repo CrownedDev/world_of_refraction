@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Loadout/LoadoutRules.h"
+#include "Loadout/WeaponSpellRules.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -193,6 +194,7 @@ void FLoadoutRulesSpec::Define()
 				Ring.RingEntry.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
 			}
 
+			WeaponSpellRules::FScopedWeaponSpells OldWeaponSpells(true); // B-098: the old weapon-spell path, until the sweep
 			TestEqual(FString::Printf(TEXT("weapon lists the evolution's count: got %d"), Weapon.GetAllSpells().Num()), Weapon.GetAllSpells().Num(), FCount);
 			TestEqual(FString::Printf(TEXT("ring lists the evolution's count: got %d"), Ring.GetAllSpells().Num()), Ring.GetAllSpells().Num(), FCount);
 			TestEqual(FString::Printf(TEXT("ring offers the evolution's count to fill: got %d"), Ring.GetCustomizableSpellCount()), Ring.GetCustomizableSpellCount(), FCount);

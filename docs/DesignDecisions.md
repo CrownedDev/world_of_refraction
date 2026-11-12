@@ -698,6 +698,17 @@ The queue of questions only Crown can answer.
 - **Difficulty / leave early / boss bonus** apply on top, as before (B-073, B-187).
 **Answer:** the default, by the reference-backed default (2026-11-12). Crown may change the cap, the stacking or where it counts.
 **Notes for Claude:** applied in `RunRewards::SumPayoutBonusPercent` / `PayoutMultiplierForBonus`, `UTrialRunSubsystem::RefreshPayoutMultiplier`, called from `ACombatOrchestrator::FinishCombat`. No evolution asset sets it yet (an editor step).
+### Q-098 — Weapons stop giving spells: what happens to the spells weapons already hold
+**Status:** ANSWERED (reference-backed default, 2026-11-12) · **Raised:** 2026-11-12 (B-098, cloud) · **Blocks:** —
+**Question:** D-027 says weapons never give spells. Weapon crystals already offer spells today (Resonate Weapon), and weapons in assets and saves hold assigned / picked spells. Are those spells deleted, moved, or kept unread? Does the player get anything back?
+**Context:** reads: `FWeaponLoadoutEntry::GetAllSpells` / `GetSpellSlots` / `ReplaceSpell`, `FCombatCapabilities::BuildFrom` (Resonate Weapon), `ULoadoutComponent::GetWeaponResonateSpells`. Data: `FWeaponInventoryEntry::AssignedSpells` / `SpellPicks` / `bSpellSlotsActive`, `FWeaponLoadoutEntry::AssignedSpells`, saved in `FSavedGear` / `FSavedLoadout`. The crystal already keys the weapon's abilities' element (B-080).
+**Recommendation (default):**
+- **Kept unread, not deleted:** the rule switches every read off (`WeaponSpellRules`, `wor.Loadout.WeaponSpells` 0); the fields stay in data and saves, so old saves load and nothing is lost before Crown's PIE. The fields, the switch and the old-path specs go in one sweep (Sweep row 48). No save version change.
+- **Nothing to refund:** spells are learned per character (B-316b) and stay learned; the player can put them on an adapter or evolution, which still give spells. The weapon crystal's job becomes the abilities' element (infusion source, B-080).
+- **The menu:** Resonate Weapon shows only for augment-stone abilities.
+- Reference: Final Fantasy IX and Final Fantasy Tactics moved spells off weapons onto the character's own learned list without taking anything away (equipment teaches, the character keeps); Monster Hunter's elemental weapons add element to attacks rather than spells, the role D-027 gives a weapon crystal.
+**Answer:** the default, by the reference-backed default (2026-11-12). Crown may ask to move the held spells somewhere automatically instead.
+**Notes for Claude:** survey command `wor.Loadout.ListWeaponSpells` (owned weapons still holding spells). Loadout validation (`LoadoutRules.cpp:193-223`, the clean-up in `LoadoutComponent.cpp:1477`) still checks weapon spells and can clear an unlearned or mismatched one: the only way the kept data still changes; harmless (it was never offered) and swept with the fields. `TryAssignWeaponSpell` refuses while the switch is off. `CreateAndConfigureLoadout` still writes spells onto a weapon-primary loadout (no C++ caller; unread now): drop that branch in the sweep.
 
 ## Parked
 
