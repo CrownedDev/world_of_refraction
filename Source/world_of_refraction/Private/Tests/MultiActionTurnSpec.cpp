@@ -301,6 +301,25 @@ void FMultiActionTurnSpec::Define()
 			TestEqual(TEXT("What was above Max is lost; Max stays banked"), ActionsOf(Hero), MULTI_ACTION_MAX);
 		});
 
+		It("keeps a bank above Max through the other side's turn end, and trims it at the owner's own (Q-170f3, Crown)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			{
+				return;
+			}
+			DataOf(Foe)->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_REGAIN + MULTI_ACTION_BONUS, /*bMayPassMax=*/true);
+			TestEqual(TEXT("Foe holds bonus actions above Max during Hero's turn"), ActionsOf(Foe), MULTI_ACTION_MAX + MULTI_ACTION_BONUS);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			if (!TestTrue(TEXT("Foe's turn"), Orchestrator->GetCurrentActor() == Foe))
+			{
+				return;
+			}
+			TestEqual(TEXT("Hero's turn end leaves Foe's bonus for Foe's own turn"), ActionsOf(Foe), MULTI_ACTION_MAX + MULTI_ACTION_BONUS);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			TestTrue(TEXT("Hero's turn again"), Orchestrator->GetCurrentActor() == Hero);
+			TestEqual(TEXT("Foe's own turn end trims the unused bonus to Max"), ActionsOf(Foe), MULTI_ACTION_MAX);
+		});
+
 		It("ends the turn on Defend, which costs nothing", [this]()
 		{
 			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
