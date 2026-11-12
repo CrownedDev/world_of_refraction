@@ -29,6 +29,7 @@ struct FCarriedGearState;
 struct FCarriedAbsorptionState;
 enum class EGuardStyle : uint8;
 enum class EParryElementPriority : uint8;
+struct FFieldSkillChoice;
 
 /** Broadcasts on any composition change: initial creation, invite success,
  *  dismiss success. Consumers should re-read UParty state on fire — the delegate
@@ -216,6 +217,10 @@ public:
 	/** B-393 (D-170): stores which element colours a member's landed-parry effect (ULoadoutComponent::
 	 *  SetParryElementPriority writes through). False for an invalid slot. */
 	bool SetMemberParryPriority(int32 SlotIndex, EParryElementPriority Priority);
+
+	/** B-214a (D-099): stores a member's active field skill (UFieldMovementComponent::SetActiveFieldSkill validates and
+	 *  writes through). False for an invalid slot. */
+	bool SetMemberFieldSkill(int32 SlotIndex, const FFieldSkillChoice &Choice);
 
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")

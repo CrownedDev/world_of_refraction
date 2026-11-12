@@ -847,6 +847,19 @@ bool UPartySessionSubsystem::SetMemberParryPriority(int32 SlotIndex, EParryEleme
 	return true;
 }
 
+bool UPartySessionSubsystem::SetMemberFieldSkill(int32 SlotIndex, const FFieldSkillChoice &Choice)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	Party->Members[SlotIndex].FieldSkill = Choice;
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d field skill %s %s (B-214a)"), SlotIndex,
+		   *FieldSkillRules::SourceName(Choice.Source), *FieldSkillRules::TypeName(Choice.Type));
+	return true;
+}
+
 bool UPartySessionSubsystem::IsMemberAISeat(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();
