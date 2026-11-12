@@ -70,9 +70,21 @@ public:
 	// you land a parry; the parked skins / cosmetics work). Hit / Crit visuals are the skill's (ImpactVisuals.h).
 	// TODO: art; empty plays nothing.
 
-	/** A normal Guard's steel spark (a Perfect Guard plays PerfectGuardFlashVFX instead). */
+	/** A normal Guard's steel spark (a Perfect Guard plays PerfectGuardFlashVFX instead). B-393 (D-170): the weapon
+	 *  guard's default spark only; the unarmed guard has none (ParryVisuals). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defence Visuals")
 	TSoftObjectPtr<UNiagaraSystem> GuardSparkVFX;
+
+	/** B-393 (D-170): the parry-effect cosmetic (e.g. a magic circle) a landed parry plays with the weapon guard, on top
+	 *  of the spark, coloured by the element behind it (the CoreColor / EdgeColor user parameters). With no element
+	 *  behind it, it doesn't play. Empty: the spark only. TODO: art (AssetAudit: NS_Magic_Circle1_*). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defence Visuals")
+	TSoftObjectPtr<UNiagaraSystem> WeaponGuardParryEffectVFX;
+
+	/** B-393 (D-170): the unarmed guard's parry-effect cosmetic, coloured the same way. With no element behind it, the
+	 *  unarmed guard shows nothing. TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defence Visuals")
+	TSoftObjectPtr<UNiagaraSystem> UnarmedGuardParryEffectVFX;
 
 	/** A successful Dodge's small whiff; empty plays nothing. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defence Visuals")

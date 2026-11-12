@@ -7,6 +7,7 @@
 // - A cinematic window ends at least MIN_DEFENSE_READ_SECONDS before the first defendable moment (§4, D-162):
 //   CinematicWindowFits. Windows come with B-370; until then no montage carries one.
 // The chain RitualCastMontage → SkillMontage → ReturnMontage is read as one timeline, at the skill's BaseAnimSpeed.
+// - B-407: a skill's own CameraSequence longer than the signature cap warns (a player or team cast is cut there).
 // Debug: wor.Presentation.Validate (NotifyValidationDebug.cpp) prints every offending skill asset.
 
 #pragma once
@@ -66,7 +67,15 @@ namespace NotifyValidation
 	/** CheckMarks on the skill's chain. Empty for a skill with no SkillMontage (the montage-less path). */
 	WORLD_OF_REFRACTION_API TArray<FString> CheckSkill(const USkillDataBase &Skill);
 
+	/** B-407 (FeelGuide 9): a warning line when a skill's own CameraSequence of SequenceSeconds is longer than the
+	 *  signature cap (SignatureCameraCap) and the skill is not a boss's; empty otherwise. */
+	WORLD_OF_REFRACTION_API TArray<FString> CheckSignatureSeconds(float SequenceSeconds, bool bBossSkill);
+
+	/** CheckSignatureSeconds on the skill's CameraSequence (loads it). Empty for a skill with none. */
+	WORLD_OF_REFRACTION_API TArray<FString> CheckSignatureSequence(const USkillDataBase &Skill, bool bBossSkill);
+
 	/** Every skill asset's problems, one line each, after a first line counting the assets scanned. Loads every
-	 *  USkillDataBase asset: editor / test only. */
+	 *  USkillDataBase asset: editor / test only. B-407: a skill a UBossData phase adds counts as a boss's skill
+	 *  (not warned about a long sequence); every other skill as a player or team skill. */
 	WORLD_OF_REFRACTION_API FString GetValidationReportString();
 }

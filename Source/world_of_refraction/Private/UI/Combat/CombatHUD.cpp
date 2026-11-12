@@ -5,7 +5,10 @@
 #include "UI/Combat/TurnOrderStripWidget.h"
 #include "UI/Combat/CommandMenu/CombatCommandMenuWidget.h"
 #include "UI/Combat/DefensePromptWidget.h"
+#include "UI/Combat/Battle/BattleCommandMenuWidget.h"
+#include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "Blueprint/UserWidget.h"
+#include "HAL/IConsoleManager.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
@@ -30,6 +33,19 @@ namespace CombatHUDLayout
     constexpr int32 PromptZOrder = 30;
 }
 
+namespace
+{
+    TAutoConsoleVariable<int32> CVarNewHUD(
+        TEXT("wor.UI.NewHUD"), 1,
+        TEXT("B-391: 1 = the new plain C++ battle HUD (cards, turn order, statuses, command menu); 0 = the old WBP panels, "
+             "turn strip and menu (fallback until Crown's PIE). Read when a fight's HUD is built."));
+}
+
+bool UCombatHUD::WantsNewHUD()
+{
+    return CVarNewHUD.GetValueOnGameThread() != 0;
+}
+
 void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
 {
     if (bBuilt)
@@ -43,6 +59,65 @@ void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty
         return;
     }
 
+    bUsingNewHUD = WantsNewHUD();
+    if (bUsingNewHUD)
+    {
+        BuildNewHUD(PC, LocalParty, OpposingParty);
+    }
+    else
+    {
+        BuildOldHUD(PC, LocalParty, OpposingParty);
+    }
+
+    // The new HUD needs no WBP: the native prompt builds its own text (B-391).
+    UClass *PromptClass = bUsingNewHUD || DefensePromptClass.IsNull() ? UDefensePromptWidget::StaticClass()
+                                                                      : DefensePromptClass.LoadSynchronous();
+    if (PromptClass)
+    {
+        DefensePrompt = CreateWidget<UDefensePromptWidget>(PC, PromptClass);
+        if (DefensePrompt)
+        {
+            DefensePrompt->AddToViewport(CombatHUDLayout::PromptZOrder);
+            PlaceInViewport(DefensePrompt, CombatHUDLayout::DefensePromptAnchor, FVector2D::ZeroVector);
+            DefensePrompt->InitialiseForCombat();
+        }
+    }
+
+    bBuilt = true;
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatHUD] Built (%s HUD): %d panel(s), strip=%s, menu=%s, battleHUD=%s, battleMenu=%s, prompt=%s"),
+           bUsingNewHUD ? TEXT("new") : TEXT("old"),
+           Panels.Num(),
+           TurnOrderStrip ? TEXT("yes") : TEXT("no"),
+           CommandMenu ? TEXT("yes") : TEXT("no"),
+           BattleHUD ? TEXT("yes") : TEXT("no"),
+           BattleMenu ? TEXT("yes") : TEXT("no"),
+           DefensePrompt ? TEXT("yes") : TEXT("no"));
+}
+
+void UCombatHUD::BuildNewHUD(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
+{
+    // Full screen; Initialise before AddToViewport so the widget builds one card per combatant once.
+    BattleHUD = CreateWidget<UBattleHUDWidget>(PC, UBattleHUDWidget::StaticClass());
+    if (BattleHUD)
+    {
+        BattleHUD->Initialise(LocalParty, OpposingParty);
+        BattleHUD->AddToViewport(CombatHUDLayout::PanelZOrder);
+    }
+
+    BattleMenu = CreateWidget<UBattleCommandMenuWidget>(PC, UBattleCommandMenuWidget::StaticClass());
+    if (BattleMenu)
+    {
+        BattleMenu->AddToViewport(CombatHUDLayout::MenuZOrder);
+        PlaceInViewport(BattleMenu, CombatHUDLayout::CommandMenuAnchor,
+                        FVector2D(-CombatHUDLayout::ScreenMargin, -CombatHUDLayout::ScreenMargin));
+        // Replays an already-open menu, so turn 1 (fired inside InitializeCombat) is not missed.
+        BattleMenu->Initialise();
+    }
+}
+
+void UCombatHUD::BuildOldHUD(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
+{
     if (UClass *PanelClass = ResolvePanelClass())
     {
         BuildPartyPanels(PC, PanelClass, LocalParty, /*bIsLocalParty=*/true);
@@ -83,31 +158,61 @@ void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty
         UE_LOG(LogWoRUI, Error, TEXT("[CombatHUD] CommandMenuClass unresolved ('%s'): set it in Config/DefaultGame.ini"),
                *CommandMenuClass.ToString());
     }
+}
 
-    UClass *PromptClass = DefensePromptClass.IsNull() ? UDefensePromptWidget::StaticClass()
-                                                      : DefensePromptClass.LoadSynchronous();
-    if (PromptClass)
+TArray<UUserWidget *> UCombatHUD::GetAllWidgets() const
+{
+    TArray<UUserWidget *> Widgets;
+    for (UCharacterPanelWidget *Panel : Panels)
     {
-        DefensePrompt = CreateWidget<UDefensePromptWidget>(PC, PromptClass);
-        if (DefensePrompt)
+        Widgets.Add(Panel);
+    }
+    Widgets.Add(TurnOrderStrip);
+    Widgets.Add(CommandMenu);
+    Widgets.Add(DefensePrompt);
+    Widgets.Add(BattleHUD); // B-391's new HUD: hidden for a boss cinematic too (B-406)
+    Widgets.Add(BattleMenu);
+    Widgets.RemoveAll([](const UUserWidget *Widget) { return Widget == nullptr; });
+    return Widgets;
+}
+
+void UCombatHUD::SetHiddenForCinematic(bool bHidden)
+{
+    if (bHidden == bHiddenForCinematic)
+    {
+        return;
+    }
+    bHiddenForCinematic = bHidden;
+    if (bHidden)
+    {
+        VisibilityBeforeCinematic.Reset();
+        for (UUserWidget *Widget : GetAllWidgets())
         {
-            DefensePrompt->AddToViewport(CombatHUDLayout::PromptZOrder);
-            PlaceInViewport(DefensePrompt, CombatHUDLayout::DefensePromptAnchor, FVector2D::ZeroVector);
-            DefensePrompt->InitialiseForCombat();
+            VisibilityBeforeCinematic.Add(Widget, Widget->GetVisibility());
+            Widget->SetVisibility(ESlateVisibility::Collapsed);
         }
     }
-
-    bBuilt = true;
-
-    UE_LOG(LogTemp, Log, TEXT("[CombatHUD] Built: %d panel(s), strip=%s, menu=%s, prompt=%s"),
-           Panels.Num(),
-           TurnOrderStrip ? TEXT("yes") : TEXT("no"),
-           CommandMenu ? TEXT("yes") : TEXT("no"),
-           DefensePrompt ? TEXT("yes") : TEXT("no"));
+    else
+    {
+        // Review fix: a widget that set its own visibility meanwhile (the defence prompt for an action still playing
+        // under the cinematic, the new menu's refresh) keeps it; only the ones still collapsed by the hide come back.
+        for (const TPair<TWeakObjectPtr<UUserWidget>, ESlateVisibility> &Entry : VisibilityBeforeCinematic)
+        {
+            UUserWidget *Widget = Entry.Key.Get();
+            if (Widget && Widget->GetVisibility() == ESlateVisibility::Collapsed)
+            {
+                Widget->SetVisibility(Entry.Value);
+            }
+        }
+        VisibilityBeforeCinematic.Reset();
+    }
+    UE_LOG(LogWoRUI, Log, TEXT("[CombatHUD] %s for a boss cinematic"), bHidden ? TEXT("Hidden") : TEXT("Shown"));
 }
 
 void UCombatHUD::Teardown()
 {
+    bHiddenForCinematic = false; // B-406
+    VisibilityBeforeCinematic.Reset();
     for (UCharacterPanelWidget *Panel : Panels)
     {
         if (Panel)
@@ -139,6 +244,20 @@ void UCombatHUD::Teardown()
         DefensePrompt = nullptr;
     }
 
+    if (BattleHUD)
+    {
+        BattleHUD->Teardown();
+        BattleHUD->RemoveFromParent();
+        BattleHUD = nullptr;
+    }
+
+    if (BattleMenu)
+    {
+        BattleMenu->Teardown();
+        BattleMenu->RemoveFromParent();
+        BattleMenu = nullptr;
+    }
+
     if (bBuilt)
     {
         UE_LOG(LogTemp, Log, TEXT("[CombatHUD] Torn down"));
@@ -167,7 +286,8 @@ namespace
 
 FString UCombatHUD::GetHUDStateString() const
 {
-    FString Out = FString::Printf(TEXT("[CombatHUD] built=%s panels=%d\n"), bBuilt ? TEXT("yes") : TEXT("no"), Panels.Num());
+    FString Out = FString::Printf(TEXT("[CombatHUD] built=%s hud=%s (wor.UI.NewHUD %d) panels=%d\n"), bBuilt ? TEXT("yes") : TEXT("no"),
+                                  bUsingNewHUD ? TEXT("new") : TEXT("old"), WantsNewHUD() ? 1 : 0, Panels.Num());
     const UWorld *World = GetWorld();
     if (const UGameViewportClient *Viewport = World ? World->GetGameViewport() : nullptr)
     {
@@ -187,6 +307,16 @@ FString UCombatHUD::GetHUDStateString() const
     }
     Out += FString::Printf(TEXT("  strip: %s\n  menu: %s\n  prompt: %s"), *DescribeOnScreen(TurnOrderStrip),
                            *DescribeOnScreen(CommandMenu), *DescribeOnScreen(DefensePrompt));
+    // B-391: the new battle HUD, where it was drawn and what it shows.
+    Out += FString::Printf(TEXT("\n  battleHUD: %s\n  battleMenu: %s"), *DescribeOnScreen(BattleHUD), *DescribeOnScreen(BattleMenu));
+    if (BattleHUD)
+    {
+        Out += TEXT("\n") + BattleHUD->GetBattleHUDString();
+    }
+    if (BattleMenu)
+    {
+        Out += TEXT("\n") + BattleMenu->GetCommandMenuString();
+    }
     return Out;
 }
 

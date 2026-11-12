@@ -31,6 +31,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCommandMenuReady,
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCommandMenuClosed);
 
+/** B-399 (study R2): the open menu's depth changed (CommandMenuRules::CameraDepthFor); Actor is whose menu it is.
+ *  Closing the menu sends nothing (the camera holds for the action); the next open sends its depth if it differs. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCommandMenuDepthChanged, AActor *, Actor, int32, MenuDepth);
+
+/** B-400 (study R3 / §9): the single-target picker's highlighted target changed. Actor is whose menu it is; Target is
+ *  null when the picker closes (cancel, confirm or the menu closing); TargetCount is how many it can pick from. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnCommandMenuTargetHighlighted, AActor *, Actor, AActor *, Target, int32, TargetCount);
+
 // ==================== MENU DEPTH ====================
 
 enum class ECombatMenuDepth : uint8
@@ -51,6 +59,82 @@ namespace CommandMenuRules
 	inline bool OpensHere(bool bAIControlled, bool bHasRunState, bool bCommandedHere)
 	{
 		return !bAIControlled && (!bHasRunState || bCommandedHere);
+	}
+
+	/** B-391 (Q-391): a category key that works on the main menu only (one key per category, two presses to act,
+	 *  FeelGuide 13). Defend and the infusion keys keep their own rules (B-093). B-170e: End Turn too (its button shows
+	 *  only in an action-pips fight, so its key does nothing otherwise). */
+	inline bool IsMainMenuKey(EPieMenuCategory Key)
+	{
+		switch (Key)
+		{
+		case EPieMenuCategory::Attack:
+		case EPieMenuCategory::Abilities:
+		case EPieMenuCategory::Refractions:
+		case EPieMenuCategory::Items:
+		case EPieMenuCategory::Flee:
+		case EPieMenuCategory::SwitchWeapon:
+		case EPieMenuCategory::ChangeRing:
+		case EPieMenuCategory::EndTurn:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** B-391 (Q-391): whether a key presses a button. The Skills key (Abilities) also presses a weapon resonance, and
+	 *  the Spells key (Refractions) a breakthrough or a ring resonance, so each class's skills and spells share a key. */
+	inline bool KeyPressesButton(EPieMenuCategory Key, EPieMenuCategory Button)
+	{
+		if (Key == Button)
+		{
+			return true;
+		}
+		if (Key == EPieMenuCategory::Abilities)
+		{
+			return Button == EPieMenuCategory::ResonateWeapon;
+		}
+		if (Key == EPieMenuCategory::Refractions)
+		{
+			return Button == EPieMenuCategory::Breakthrough || Button == EPieMenuCategory::ResonateRing;
+		}
+		return false;
+	}
+	/** B-399: the main menu (or a closed menu) and a sub-menu (Skills / Items / a spell source), as the camera sees
+	 *  them (UCombatCameraDirector steps one closer for a sub-menu). */
+	constexpr int32 MAIN_MENU_DEPTH = 0;
+	constexpr int32 SUBMENU_DEPTH = 1;
+
+	/** B-399 (study R2, R3, Q-399): the menu depth the camera follows. A target picker keeps the depth it was opened
+	 *  from (Attack's picker the main menu's, a skill's the sub-menu's), so picking a target never moves the camera. */
+	inline int32 CameraDepthFor(ECombatMenuDepth Depth, ECombatMenuDepth DepthBeforeTargets)
+	{
+		switch (Depth)
+		{
+		case ECombatMenuDepth::Submenu:
+			return SUBMENU_DEPTH;
+		case ECombatMenuDepth::TargetCategory:
+		case ECombatMenuDepth::TargetSelection:
+			return DepthBeforeTargets == ECombatMenuDepth::Submenu ? SUBMENU_DEPTH : MAIN_MENU_DEPTH;
+		default:
+			return MAIN_MENU_DEPTH;
+		}
+	}
+
+	/** B-400: the index one step from Current in Direction's sign through Count entries, wrapping at both ends; the
+	 *  first entry for an index out of range, INDEX_NONE for no entries. Direction 0 keeps Current. */
+	inline int32 CycleIndex(int32 Current, int32 Direction, int32 Count)
+	{
+		if (Count <= 0)
+		{
+			return INDEX_NONE;
+		}
+		if (Current < 0 || Current >= Count)
+		{
+			return 0;
+		}
+		const int32 Step = FMath::Sign(Direction);
+		return (Current + Step + Count) % Count;
 	}
 }
 
@@ -95,7 +179,9 @@ public:
     /** B-093: a key press for a menu button (Defend, CycleSource, CycleLevel). Presses the
      *  button the menu would show for it now, through HandleSelection, so the key obeys every
      *  rule the button does: Defend from the main menu or a submenu, the infusion keys in the
-     *  target picker when it offers them. False (nothing done) when there's no such button. */
+     *  target picker when it offers them. False (nothing done) when there's no such button.
+     *  B-391: the category keys (CommandMenuRules::IsMainMenuKey) press their main-menu button, from the main menu
+     *  only (CommandMenuRules::KeyPressesButton: the first enabled match in menu order). */
     bool PressMenuKey(EPieMenuCategory Category);
 
     /** Call when the turn ends or combat closes the menu. */
@@ -109,6 +195,37 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
     FOnCommandMenuClosed OnCommandMenuClosed;
+
+    /** B-399: once per menu-depth change (CommandMenuRules::CameraDepthFor), never for a redraw or a scroll. The
+     *  combat camera listens (whichever HUD draws the menu). */
+    UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
+    FOnCommandMenuDepthChanged OnMenuDepthChanged;
+
+    /** B-399: the depth last broadcast on OnMenuDepthChanged. */
+    int32 GetCameraMenuDepth() const { return BroadcastMenuDepth; }
+
+    // ==================== TARGET HIGHLIGHT (B-400) ====================
+
+    /** B-400: once per change of the single-target picker's highlighted target (the first valid target when it opens;
+     *  null when it closes). The combat camera listens; a world marker can too. */
+    UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
+    FOnCommandMenuTargetHighlighted OnTargetHighlighted;
+
+    /** B-400: highlight Target in the open single-target picker (a target button's hover or focus). Nothing for a
+     *  target the picker doesn't offer. Confirm is unchanged: the pressed button's target is the one picked. */
+    UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
+    void HighlightTarget(AActor *Target);
+
+    /** B-400: highlight the next (Direction > 0) or previous (< 0) target, wrapping (wor.Camera.TargetCycle). */
+    UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
+    void CycleHighlightedTarget(int32 Direction);
+
+    /** B-400: the highlighted target, or null when no single-target picker is open. */
+    UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
+    AActor *GetHighlightedTarget() const { return HighlightedTarget.Get(); }
+
+    /** B-400: how many targets the open single-target picker offers (0 when none is open). */
+    int32 GetHighlightTargetCount() const { return HighlightTargets.Num(); }
 
     // ==================== STATE QUERIES ====================
 
@@ -195,6 +312,22 @@ private:
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 
+    /** B-399: while the menu is open, broadcasts OnMenuDepthChanged when the camera depth differs from the last one
+     *  sent. Runs at the end of every call that can change the depth (OpenForActor, HandleSelection, HandleBack). */
+    void BroadcastMenuDepthIfChanged();
+    int32 BroadcastMenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
+
+    /** B-400: the single-target picker is open (per-actor buttons: not Self, not a group). */
+    bool IsSingleTargetPickerOpen() const;
+    /** B-400: re-reads the picker's targets and keeps the highlight on one of them (the first when it isn't), or
+     *  clears it when no single-target picker is open. Runs next to BroadcastMenuDepthIfChanged and in Close. */
+    void RefreshTargetHighlight();
+    /** B-400: sets the highlight and broadcasts OnTargetHighlighted when it changed. */
+    void SetHighlightedTarget(AActor *Target);
+    int32 IndexOfHighlightTarget(const AActor *Target) const;
+    TArray<TWeakObjectPtr<AActor>> HighlightTargets;
+    TWeakObjectPtr<AActor> HighlightedTarget;
+
     /** BrokenDarknessManager of the actor whose menu is open — bound to
      *  OnAlignmentChanged for live BD spell-pool refresh. */
     TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
@@ -226,6 +359,12 @@ private:
     void GreyIfTurnSwitchUsed(FPieMenuButtonData &Button) const;
     FPieMenuButtonData CreateSwitchRingButton() const;
     FPieMenuButtonData CreateDefendButton() const;
+    /** B-170e (ActionPips.md §3.5): "End Turn", on the main menu of an action-pips fight only. */
+    FPieMenuButtonData CreateEndTurnButton() const;
+    /** B-170e: in an action-pips fight, adds the action cost to an Attack, Ability, Spell or Item button's label
+     *  ("Fireball (2 actions)") and greys it with the reason when the current actor can't pay it now or ever
+     *  (ActionPipsText::GetCostRefusedReason). A button already greyed keeps its own reason. Nothing otherwise. */
+    void ShowActionCost(FPieMenuButtonData &Button) const;
 
     // ==================== SUBMENU BUILDERS ====================
 

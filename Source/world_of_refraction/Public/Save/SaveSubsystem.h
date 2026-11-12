@@ -10,6 +10,8 @@
 // (UPoolSubsystem). The wallet also rides here across OpenLevel: the PlayerState banks it at
 // EndPlay and takes it back at BeginPlay. Gold rides along too (B-178), in memory only: it is a
 // run currency, never written to the slot, and cleared when a run starts and ends.
+// B-398: the player's settings (FSavedSettings: the turn view; B-170e: End Turn button hidden), set in memory at once
+// and written with the next save.
 // Debug: wor.Save.Print, wor.Save.Now, wor.Save.Delete (SaveDebug.cpp).
 
 #pragma once
@@ -27,6 +29,7 @@ class UPoolSubsystem;
 class UCurrencyComponent;
 class UTrialRunSubsystem;
 struct FActorsInitializedParams;
+enum class ETurnViewStyle : uint8;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API USaveSubsystem : public UGameInstanceSubsystem
@@ -82,6 +85,18 @@ public:
 
 	const FWoRSaveData &GetData() const;
 	bool IsBoundToPlayer() const;
+
+	// ==================== SETTINGS (B-398) ====================
+
+	/** The player's turn-view setting (default Centred Wide, D-074); an unknown saved value reads as the default. */
+	ETurnViewStyle GetTurnViewStyle() const;
+	/** Kept in memory at once (it survives a fight restart and level loads); written to disk with the next save. */
+	void SetTurnViewStyle(ETurnViewStyle Style);
+
+	/** B-170e (Crown, 2026-11-12): the player hides the End Turn button (default shown). Kept in memory at once; written
+	 *  with the next save. */
+	bool IsEndTurnButtonHidden() const;
+	void SetEndTurnButtonHidden(bool bHidden);
 
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 

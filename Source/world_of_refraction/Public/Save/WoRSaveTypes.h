@@ -151,6 +151,19 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	bool bKeyedByMember = false;
 
+	/** B-392 (D-170, save v32): the member's chosen guard and the weapon it put away (FPartyMember::GuardStyle /
+	 *  GuardWeaponId). */
+	UPROPERTY()
+	EGuardStyle GuardStyle = EGuardStyle::Weapon;
+
+	UPROPERTY()
+	FGuid GuardWeaponId;
+
+	/** B-393 (D-170, save v33): which element colours the member's landed-parry effect
+	 *  (FPartyMember::ParryElementPriority). */
+	UPROPERTY()
+	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 
@@ -777,6 +790,24 @@ struct WORLD_OF_REFRACTION_API FSavedJournal
 	TArray<FName> PlayedConversations;
 };
 
+/** B-398: the player's own settings (the settings save, D-024's screen later). They stay this player's on a host
+ *  hand-over (USaveSubsystem::AdoptCheckpoint). Enums are kept as their byte; readers fall back to the default on an
+ *  unknown value. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedSettings
+{
+	GENERATED_BODY()
+
+	/** ETurnViewStyle; 0 = Centred Wide, the default (D-074). */
+	UPROPERTY()
+	uint8 TurnViewStyle = 0;
+
+	/** B-170e (Crown, 2026-11-12): hide the End Turn button; false = shown, the default. Named so an older save, which
+	 *  has no such field, reads the default: no save version bump. */
+	UPROPERTY()
+	bool bHideEndTurnButton = false;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -809,4 +840,7 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedJournal Journal; // B-377b
+
+	UPROPERTY()
+	FSavedSettings Settings; // B-398
 };

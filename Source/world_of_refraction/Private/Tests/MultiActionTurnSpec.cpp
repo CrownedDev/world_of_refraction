@@ -232,6 +232,18 @@ void FMultiActionTurnSpec::Define()
 			TestTrue(TEXT("No cost refusal outside an action-pips fight"),
 					 Orchestrator->GetActionCostRefusedReason(Hero, AbilityOn(Foe, NewAbility(MULTI_ACTION_COST_ABOVE_MAX))).IsEmpty());
 		});
+
+		It("refuses End Turn outside an action-pips fight (B-170e review)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_OFF))
+			{
+				return;
+			}
+			const int32 TurnCountBefore = TurnManager->GetTurnCount();
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn)); // logs a refusal warning
+			TestTrue(TEXT("Still Hero's turn (asked again)"), Orchestrator->GetCurrentActor() == Hero);
+			TestEqual(TEXT("No turn ended"), TurnManager->GetTurnCount(), TurnCountBefore);
+		});
 	});
 
 	Describe("With the switch on (wor.Turns.ActionPips 1)", [this]()
