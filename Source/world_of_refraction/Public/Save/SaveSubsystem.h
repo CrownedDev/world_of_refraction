@@ -65,6 +65,12 @@ public:
 	/** B-234b: playing a run handed over from the old host's copy (AdoptCheckpoint). */
 	bool IsPlayingHostCopy() const { return bPlayingHostCopy; }
 
+	/** B-234d debug: the slot the handed-over copy is saved back to (empty when none). */
+	const FString &GetAdoptedSlotName() const { return AdoptedSlotName; }
+
+	/** B-234d debug: the handed-over run ended and its return to this player's own save waits for the hub. */
+	bool IsOwnSaveReturnWaiting() const { return OwnSaveReturnHandle.IsValid(); }
+
 	/** B-234d (Q-234d): the handed-over run ended (UTrialRunSubsystem::ExitTrial, after its exit save). Writes this
 	 *  player's own slot at once (BuildOwnSaveFrom; memory is not touched), so a quit or crash before the hub keeps the
 	 *  run's gains. When the hub's world is up (the run's members have pushed their last loadouts into the pool by then,
