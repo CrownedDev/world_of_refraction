@@ -1,7 +1,7 @@
 // ActionPipsSpec.cpp
 // B-170a (ActionPips.md §2, §3.1; Q-170, Q-170g, Q-170h): the banked actions on the character. Max Actions
-// = 2 + one per whole 100 action points (progress shown), Reflex sets the regain (1 / 2 / 3 at 0.5 / 0.8
-// of its window range), the regain never fills past Max, a gain may pass Max when it says so, a fight
+// = 2 + one per whole 100 action points (progress shown), Reflex sets the regain (B-170i, Q-170i: 1 + one per
+// whole step of Reflex value, Body levels cancel, Body boosts count), the regain never fills past Max, a gain may pass Max when it says so, a fight
 // starts with the regain capped at Max, and OnActionsChanged reports each change. Nothing reads the bank
 // for turns yet (B-170b / B-170c).
 
@@ -14,6 +14,10 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionPipsRules.h"
 #include "Combat/CombatConstants.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/SkillEffectManager.h"
 #include "UObject/UnrealType.h"
 
 namespace
@@ -33,6 +37,13 @@ namespace
 	/** "Regain 2 (Reflex 18.0 / 30.0)": value 18 with a step of 15. */
 	constexpr float ACTION_PIPS_REGAIN_PROGRESS_VALUE = 18.0f;
 	constexpr float ACTION_PIPS_REGAIN_STEP_SHOWN = 15.0f;
+	/** A regain of 3, for the bank rules (a plain number, not a Reflex threshold). */
+	constexpr int32 ACTION_PIPS_REGAIN_THREE = 3;
+	/** B-170i: Reflex points under one step alone, and a +50% Body buff that lifts them past it (11 x 1.5 = 16.5). */
+	constexpr int32 ACTION_PIPS_REFLEX_UNDER_STEP = 11;
+	constexpr float ACTION_PIPS_BODY_BUFF_PERCENT = 50.0f;
+	constexpr int32 ACTION_PIPS_BODY_BUFF_ID = 17001;
+	constexpr int32 ACTION_PIPS_BODY_BUFF_TURNS = 3;
 }
 
 BEGIN_DEFINE_SPEC(FActionPipsSpec, "WoR.Combat.ActionPips",
@@ -109,7 +120,7 @@ void FActionPipsSpec::Define()
 
 		It("never fills past Max, and adds nothing at or above it", [this]()
 		{
-			TestEqual(TEXT("1 + 3 stops at Max 2"), ActionPipsRules::BankAfterRegain(1, ACTIONS_REGAIN_AT_THRESHOLD_3, MAX_ACTIONS_BASE),
+			TestEqual(TEXT("1 + 3 stops at Max 2"), ActionPipsRules::BankAfterRegain(1, ACTION_PIPS_REGAIN_THREE, MAX_ACTIONS_BASE),
 					  MAX_ACTIONS_BASE);
 			TestEqual(TEXT("At Max"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), MAX_ACTIONS_BASE);
 			TestEqual(TEXT("Over Max stays"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE + 2, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE),
@@ -119,7 +130,7 @@ void FActionPipsSpec::Define()
 		It("starts a fight with the regain, capped at Max", [this]()
 		{
 			TestEqual(TEXT("Regain 1"), ActionPipsRules::ActionsAtFightStart(ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), ACTIONS_REGAIN_BASE);
-			TestEqual(TEXT("Regain 3, Max 2"), ActionPipsRules::ActionsAtFightStart(ACTIONS_REGAIN_AT_THRESHOLD_3, MAX_ACTIONS_BASE),
+			TestEqual(TEXT("Regain 3, Max 2"), ActionPipsRules::ActionsAtFightStart(ACTION_PIPS_REGAIN_THREE, MAX_ACTIONS_BASE),
 					  MAX_ACTIONS_BASE);
 		});
 	});
@@ -183,6 +194,27 @@ void FActionPipsSpec::Define()
 				TestTrue(TEXT("The step grows with Body"), Char->GetRegainReflexStep() > REGAIN_STEP);
 				TestEqual(FString::Printf(TEXT("%d points"), Points), Char->GetActionRegain(), AtBodyZero);
 			}
+		});
+
+		It("counts an external Body boost in the Reflex value but not in the step", [this]()
+		{
+			// The pillar layers sit behind the loadout (ApplyEvolutionPillarModifier), so this combatant carries one.
+			UCharacterData *GearedData = FWoRTestWorld::NewCharacterData();
+			ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(GearedData, NewObject<UWeaponData>(GetTransientPackage()));
+			AActor *Geared = Loadout ? Loadout->GetOwner() : nullptr;
+			UCharacterDataComponent *GearedChar = Geared ? Geared->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			USkillEffectManager *SEM = TestWorld->GetSubsystem<USkillEffectManager>();
+			if (!TestNotNull(TEXT("Geared combatant"), GearedChar) || !TestNotNull(TEXT("Skill effect manager"), SEM)) return;
+			GearedData->Reflex = ACTION_PIPS_REFLEX_UNDER_STEP;
+			const float StepBefore = GearedChar->GetRegainReflexStep();
+			TestEqual(TEXT("Under one step alone"), GearedChar->GetActionRegain(), ACTIONS_REGAIN_BASE);
+
+			SEM->ApplyEffect(Geared,
+							 FActiveSkillEffect::CreateBuff(TEXT("Regain Body buff"), ACTION_PIPS_BODY_BUFF_ID, ESkillEffectType::BodyBuff,
+															ACTION_PIPS_BODY_BUFF_PERCENT, ACTION_PIPS_BODY_BUFF_TURNS),
+							 Geared);
+			TestEqual(TEXT("The step is unchanged"), GearedChar->GetRegainReflexStep(), StepBefore);
+			TestEqual(TEXT("The Body buff lifts it past one step"), GearedChar->GetActionRegain(), ACTIONS_REGAIN_BASE + 1);
 		});
 
 		It("starts a fight with the regain capped at Max, and regains up to Max only", [this]()

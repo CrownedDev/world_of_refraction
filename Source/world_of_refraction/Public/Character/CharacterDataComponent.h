@@ -466,7 +466,7 @@ public:
     UPROPERTY(Transient)
     int32 DebugActionPoints = 0;
 
-    /** OBSOLETE (B-170i): the regain no longer reads it; kept until PIE (the debug line still prints it).
+    /** OBSOLETE (B-170i): nothing reads it since the regain moved to the Reflex value; kept until PIE.
      *  Reflex's share of its window range, 0..1, read as the defense window reads it: the stat term
      *  (CalculateReflexWindowBonus) x its gear factor (ReflexWindowGearFactor), over WINDOW_CAP_SECONDS. */
     UFUNCTION(BlueprintPure, Category = "Combat|Actions")

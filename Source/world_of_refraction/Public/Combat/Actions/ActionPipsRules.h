@@ -126,7 +126,8 @@ namespace ActionPipsRules
 		{
 			return ActionPipsConstants::ACTIONS_REGAIN_BASE;
 		}
-		const int32 Steps = FMath::FloorToInt(FMath::Max(0.0f, ReflexValue) / Step);
+		// The tolerance keeps an exact multiple reached through a Body boost (15 x 1.1 over 15 x 1.0...) on its step.
+		const int32 Steps = FMath::FloorToInt(FMath::Max(0.0f, ReflexValue) / Step + KINDA_SMALL_NUMBER);
 		return FMath::Clamp(ActionPipsConstants::ACTIONS_REGAIN_BASE + Steps, ActionPipsConstants::ACTIONS_REGAIN_BASE,
 							ActionPipsConstants::MAX_ACTIONS_CAP);
 	}
