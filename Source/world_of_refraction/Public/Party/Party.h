@@ -18,6 +18,7 @@
 #include "AI/EAIDifficulty.h"
 #include "Combat/Defense/EGuardStyle.h"
 #include "Combat/Defense/EParryElementPriority.h"
+#include "Field/FieldSkillTypes.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -183,6 +184,12 @@ struct FPartyMember
 	 *  SetParryElementPriority; stored by UPartySessionSubsystem::SetMemberParryPriority. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
+
+	/** B-214a (D-099): the member's active field skill (a source and a movement type), its persistent home; the map
+	 *  pawn's UFieldMovementComponent reads and writes it. Saved (FSavedPartyMember, v36). Written by
+	 *  UPartySessionSubsystem::SetMemberFieldSkill. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	FFieldSkillChoice FieldSkill;
 
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
