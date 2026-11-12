@@ -684,7 +684,7 @@ The queue of questions only Crown can answer.
 - **The menu:** Resonate Weapon shows only for augment-stone abilities.
 - Reference: Final Fantasy IX and Final Fantasy Tactics moved spells off weapons onto the character's own learned list without taking anything away (equipment teaches, the character keeps); Monster Hunter's elemental weapons add element to attacks rather than spells, the role D-027 gives a weapon crystal.
 **Answer:** the default, by the reference-backed default (2026-11-12). Crown may ask to move the held spells somewhere automatically instead.
-**Notes for Claude:** survey command `wor.Loadout.ListWeaponSpells` (owned weapons still holding spells). `CreateAndConfigureLoadout` still writes spells onto a weapon-primary loadout (no C++ caller; unread now): drop that branch in the sweep.
+**Notes for Claude:** survey command `wor.Loadout.ListWeaponSpells` (owned weapons still holding spells). Loadout validation (`LoadoutRules.cpp:193-223`, the clean-up in `LoadoutComponent.cpp:1477`) still checks weapon spells and can clear an unlearned or mismatched one: the only way the kept data still changes; harmless (it was never offered) and swept with the fields. `TryAssignWeaponSpell` refuses while the switch is off. `CreateAndConfigureLoadout` still writes spells onto a weapon-primary loadout (no C++ caller; unread now): drop that branch in the sweep.
 
 ## Parked
 
