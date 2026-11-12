@@ -674,6 +674,18 @@ The queue of questions only Crown can answer.
 **Answer:** as above, by the reference-backed default (2026-11-12). Crown may change the close behaviour or the notices. **Flag answered (Crown, 2026-11-12):** the end memory a hidden quest earns is masked too: "New memory found. Open the journal to view it." (a main or side quest's end memory still reads "New memory: <title>"). `wor.Quest.Print` (debug) still names everything.
 **Notes for Claude:** placeholder UI: one "Reveal Hidden Quest <n>" button per masked quest under the Quests page text (`UMemoryJournalWidget::RevealQuest` / `Close`); no key, so no InputMap row. The real CommonUI journal puts Reveal on the entry itself (D-024). Text is placeholder `LOCTEXT` (`HiddenQuestNotice`, `MemoryJournal` namespace). PIE `docs/PIE/Q-397b.md`.
 
+### Q-098 — Weapons stop giving spells: what happens to the spells weapons already hold
+**Status:** ANSWERED (reference-backed default, 2026-11-12) · **Raised:** 2026-11-12 (B-098, cloud) · **Blocks:** —
+**Question:** D-027 says weapons never give spells. Weapon crystals already offer spells today (Resonate Weapon), and weapons in assets and saves hold assigned / picked spells. Are those spells deleted, moved, or kept unread? Does the player get anything back?
+**Context:** reads: `FWeaponLoadoutEntry::GetAllSpells` / `GetSpellSlots` / `ReplaceSpell`, `FCombatCapabilities::BuildFrom` (Resonate Weapon), `ULoadoutComponent::GetWeaponResonateSpells`. Data: `FWeaponInventoryEntry::AssignedSpells` / `SpellPicks` / `bSpellSlotsActive`, `FWeaponLoadoutEntry::AssignedSpells`, saved in `FSavedGear` / `FSavedLoadout`. The crystal already keys the weapon's abilities' element (B-080).
+**Recommendation (default):**
+- **Kept unread, not deleted:** the rule switches every read off (`WeaponSpellRules`, `wor.Loadout.WeaponSpells` 0); the fields stay in data and saves, so old saves load and nothing is lost before Crown's PIE. The fields, the switch and the old-path specs go in one sweep (Sweep row 48). No save version change.
+- **Nothing to refund:** spells are learned per character (B-316b) and stay learned; the player can put them on an adapter or evolution, which still give spells. The weapon crystal's job becomes the abilities' element (infusion source, B-080).
+- **The menu:** Resonate Weapon shows only for augment-stone abilities.
+- Reference: Final Fantasy IX and Final Fantasy Tactics moved spells off weapons onto the character's own learned list without taking anything away (equipment teaches, the character keeps); Monster Hunter's elemental weapons add element to attacks rather than spells, the role D-027 gives a weapon crystal.
+**Answer:** the default, by the reference-backed default (2026-11-12). Crown may ask to move the held spells somewhere automatically instead.
+**Notes for Claude:** survey command `wor.Loadout.ListWeaponSpells` (owned weapons still holding spells). `CreateAndConfigureLoadout` still writes spells onto a weapon-primary loadout (no C++ caller; unread now): drop that branch in the sweep.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
