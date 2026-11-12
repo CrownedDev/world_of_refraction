@@ -53,8 +53,9 @@ Immutable design-time data. Key groups of fields:
   `RingSwitchMontage` (Resonator-gated), `InfusionDisplay`,
   `EquippedWeatherVariant`.
 
-Class helpers: `IsGeneric/IsCaster/IsResonator`, `CanUseSpells`,
-`CanUseAbilities`, `HasInnateElement`, `UsesRings`, `CanDualWield`, `ShouldUseAI`,
+Class helpers: `IsGeneric/IsCaster/IsResonator`, `CanUseSpells` and
+`CanUseAbilities` (OBSOLETE, B-097: D-027 has no class gate; deprecated for Blueprints,
+deleted in the sweep), `HasInnateElement`, `UsesRings`, `CanDualWield`, `ShouldUseAI`,
 and `GetElement()` (Caster returns `InnateElement`, all others return `Generic`).
 On the component side, **`UCharacterDataComponent::GetDisplayElement()`** *(sweep-5,
 BlueprintPure)* is the UI-facing variant: returns `BrokenDarkness` whenever
@@ -367,3 +368,4 @@ bar repaints (no client-side state mutation — the server already cleared
 | 2026-11-03 | B-265: `EWorldPillar` moved to `Character/EWorldPillar.h` (same UENUM, same path `/Script/world_of_refraction.EWorldPillar`, no redirect); `CharacterDataComponent.h` includes it. Headers including `CharacterDataComponent.h`: 6 before, 3 after (`CombatControl.h` and two test headers); `LoadoutComponent.h` (90 includers) no longer brings it, nor `LoadoutComponent.h` via `ActionExecutor.h`. | chore/B-265-build-time |
 | 2026-11-03 | B-330 (D-123): pillars only. A pillar level grants no sub-stat points; `GetSubStatBudget` / `IsWithinSubStatBudget` (93 at every level, Q-330); the pool constants and `GetTotalPool` / `GetPointsRemaining` / `IsValidDistribution` flagged OBSOLETE (`GetTotalPool` stays the enemy caliber). Spec `WoR.WorldStat.PillarsOnly`. UNBUILT (cloud). | feature/B-330-pillars-only |
 | 2026-11-04 | B-331r (D-151): B-331's merge reverted as a new commit (`git revert -m 1 61e8a26d`): `UCharacterData::Speed`, `GetTotalSpeed`, the one window factor and `WoR.Stats.OneSpeed` are gone; Action Speed (Body) narrows the attack windows and Spell Speed (Mind) the spell windows, as before. The Water break slows both 30% (`BreakTable`), Ice slows action speed (D-029). Reviewer (Sonnet) on the desktop: no must-fix (the seven B-331 files match their pre-B-331 state exactly; no later commit depended on them; WATER_BREAK_SPEED_SLOW_PERCENT predates B-331 (B-063); ED-35 / SB-29 / D-123 / Q-331 consistent); the README and Backlog rows marked reverted as it asked. Merged into dev. | fix/B-331r-revert-one-speed |
+| 2026-11-12 | B-097 (D-027): class gates retired. `CharacterClassHelpers::CanUseAbilities` / `CanUseSpells` deleted (no caller); `UCharacterData::CanUseSpells` / `CanUseAbilities` flagged OBSOLETE with `DeprecatedFunction` until the sweep's Blueprint check (Sweep row 47). Spec `WoR.Character.ClassSlotsNotGates`. No behaviour change. | `feature/B-097-class-gates-cleanup-cloud` (in dev, built 2026-11-12) |
