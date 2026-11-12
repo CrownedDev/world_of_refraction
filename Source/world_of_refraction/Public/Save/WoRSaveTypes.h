@@ -802,8 +802,8 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	UPROPERTY()
 	uint8 TurnViewStyle = 0;
 
-	/** B-170e (Crown, 2026-11-12): hide the End Turn button; false = shown, the default. Named so an older save, which
-	 *  has no such field, reads the default: no save version bump. */
+	/** B-170e (Crown, 2026-11-12): hide the End Turn button; false = shown, the default. An older save has no such field
+	 *  and reads false, which is the default: no save version bump. */
 	UPROPERTY()
 	bool bHideEndTurnButton = false;
 };
