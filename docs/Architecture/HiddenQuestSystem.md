@@ -1,7 +1,7 @@
 # Hidden Quest System
 
 ## Overview
-Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-100) are multi-step quests found like hidden memories. A start memory begins one; its steps are condition sets done in order; the last step unlocks an end memory, which carries the quest's rewards. How a quest starts is never shown. **D-171 (Crown, 2026-11-09; B-397, unbuilt):** once found, the player is told privately ("Hidden quest discovered: <title>") and the journal shows the current step's goal only; later steps and the end memory stay hidden until reached or earned.
+Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-100) are multi-step quests found like hidden memories. A start memory begins one; its steps are condition sets done in order; the last step unlocks an end memory, which carries the quest's rewards. How a quest starts is never shown. **D-171 (Crown, 2026-11-09; B-397):** once found, the player is told privately ("Hidden quest discovered: <title>") and the journal shows the current step's goal only; later steps and the end memory stay hidden until reached or earned.
 
 ## Architecture
 - `UHiddenQuestData` (`Memory/HiddenQuestData.h`, primary data asset, AlwaysCook): `QuestId`, `Starts` (`FHiddenQuestStart`: a memory and the depth it must have for the player; None = any), `Steps` (`FHiddenQuestStep`: an `FWoRConditionSet`, `TimesInOneRun`, a designer note), `EndMemory`. Debug: `GetQuestString`, `PrintQuest` button. B-397: `GetDisplayTitle` / `GetGoalAfter` give placeholder text for a hidden quest's missing Title / Goal; `IsDataValid` warns for each.
@@ -23,7 +23,7 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 - A load replaces any progress started before it; a mid-run reload loses the step in progress's count (by design: it resets at run end anyway).
 - The quest list is gathered once per game instance: an asset added during a session is seen next session.
 - Quest content is Crown's.
-- B-397 unbuilt: until it merges, dev's hidden quests still use the placeholder notices (remove this line when it does). "Quest complete" on a hidden quest's finish is a reference-backed default (it names only the title).
+- "Quest complete" on a hidden quest's finish, the placeholder title and goal text, and the journal order (main, side, hidden) are reference-backed defaults (Q-397). The finish notice is replaced at once by the "New memory" notice (one on-screen slot).
 
 ## Changelog
 | Date | Change | Branch |
@@ -35,4 +35,4 @@ Hidden quests (MemoryCatalogue §3.6; Shangri-La Frontier's Unique Scenarios, D-
 | 2026-11-08 | B-377b: co-op friends' quests (report, host check on their part, step met / start RPCs); `CountStepMet`; the host's own quests read its own part. | `feature/B-377b-coop-quests-journal-save-cloud` (in dev) |
 | 2026-11-08 | B-381 activations (Crown, MemoryCatalogue §3.11): `FWornItemState` per worn item (`MemoryConditions::GetWornStates`: weapons, adapter, apparel; socket element, evolution, stone, tier, upgrade level), the `WornItemState` condition reading `FWoRConditionContext::BoundItem`, set by `StartGearQuests` per item. | `feature/B-381-gear-quests-cloud` (in dev) |
 | 2026-11-09 | D-171 recorded: a found hidden quest shows its current step's goal (job B-397); docs only. | `docs/D-171-hidden-quest-steps` |
-| 2026-11-09 | B-397 (D-171): "Hidden quest discovered: <title>" private notice (`ShowNotice`, `GetLastNotice`); found hidden quests in `GetVisibleQuests` after main and side with the current goal only; step done notices name the next goal; placeholder title / goal and `IsDataValid` warnings; `wor.Quest.Print` shows every quest's goal and the last notice. | `feature/B-397-hidden-quests-shown-cloud` (UNBUILT) |
+| 2026-11-09 | B-397 (D-171): "Hidden quest discovered: <title>" private notice (`ShowNotice`, `GetLastNotice`); found hidden quests in `GetVisibleQuests` after main and side with the current goal only; step done notices name the next goal; placeholder title / goal and `IsDataValid` warnings; `wor.Quest.Print` shows every quest's goal and the last notice. | `feature/B-397-hidden-quests-shown` (in dev, built 2026-11-12) |
