@@ -29,6 +29,7 @@
 #include "Equipment/Crystals/EvolutionPlacement.h"
 #include "Inventory/EInventoryChangeType.h"
 #include "Combat/Defense/EGuardStyle.h"
+#include "Combat/Defense/EParryElementPriority.h"
 #include "LoadoutComponent.generated.h"
 
 struct FBrokenCrystalPayload;
@@ -540,6 +541,17 @@ public:
     static EGuardStyle ResolveGuardStyle(bool bWeaponInHand, const FGuid &ActiveWeaponId, EGuardStyle Chosen,
                                          const FGuid &ChosenWithWeaponId);
 
+    /** B-393 (D-170, Q-393): which element colours this character's landed-parry effect when the weapon guard has two
+     *  sources (the weapon's crystal, or its own magic). A rostered member's lives on its party record (saved); any
+     *  other pawn keeps its own, default Weapon. Looks only. Resolved by ParryVisuals. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    EParryElementPriority GetParryElementPriority() const;
+
+    /** B-393: choose the parry colour priority (the loadout screen's setting, D-024; wor.Guard.SetParryPriority until
+     *  then). */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Defense")
+    void SetParryElementPriority(EParryElementPriority Priority);
+
     /** Get unarmed stance */
     UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
     UStanceData *GetUnarmedStance() const;
@@ -893,6 +905,9 @@ private:
      *  on FPartyMember::GuardStyle / GuardWeaponId. */
     EGuardStyle LocalGuardStyle = EGuardStyle::Weapon;
     FGuid LocalGuardWeaponId;
+
+    /** B-393: the parry colour priority of a pawn with no party record (FPartyMember::ParryElementPriority otherwise). */
+    EParryElementPriority LocalParryElementPriority = EParryElementPriority::Weapon;
 
     /** B-392: the party record of a pawn stamped with its member id, else null (the head-start rule, B-348b). */
     const FPartyMember *FindGuardRecord() const;
