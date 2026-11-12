@@ -50,6 +50,9 @@ namespace InventoryConstants
      *  a hub vendor). One item type (crystal type and tier) per slot. */
     constexpr int32 ITEM_SLOTS_START = 10;
 
+    /** B-239 (Q-239): the most item slots one character's pouch can be upgraded to at the hub vendor. TODO: tune. */
+    constexpr int32 ITEM_SLOTS_MAX = 20;
+
     /** B-203 (Q-203): how many of one item type a slot holds. // TODO: tune, per item once items say. */
     constexpr int32 ITEM_STACK_MAX = 10;
 
