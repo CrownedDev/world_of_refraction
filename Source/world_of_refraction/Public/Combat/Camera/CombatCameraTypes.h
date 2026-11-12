@@ -26,7 +26,9 @@ enum class ECombatCameraMode : uint8
 	Static UMETA(DisplayName = "Static"),
 	/** B-370 (D-162), B-402: your character is targeted: a low side-on shot of it and the attacker (several: a wide
 	 *  side-on shot of them all). */
-	Defence UMETA(DisplayName = "Defence")
+	Defence UMETA(DisplayName = "Defence"),
+	/** B-405 (R14): the last enemy fell; the kill shot holds before the fight ends. */
+	KillShot UMETA(DisplayName = "Kill shot")
 };
 
 /** Turn-view setting (D-074 (2)): centred-wide is the default. */
