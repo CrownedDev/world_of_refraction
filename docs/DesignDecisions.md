@@ -265,6 +265,19 @@ The queue of questions only Crown can answer.
 - **Extra Turn's regain** stays as B-170c built it (Q-170c2: a bonus turn regains like any turn); nothing changes here.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170d (`UCharacterDataComponent` waiting changes, `BreakTable::ActionPipsRows`, `UItemExecutor::ExecuteBonusTurnEffect`).
 
+### Q-170i — Action pips: the Reflex regain, Crown's rework
+**Status:** ANSWERED (Crown's ruling, 2026-11-12; the build details below by the reference-backed default, Crown vetoes) · **Raised:** 2026-11-12 (B-170i) · **Blocks:** —
+**Question:** The regain was 1 / 2 / 3 at Reflex window-share thresholds (Q-170). Crown reworked it: how is it built?
+**Crown's ruling (2026-11-12):** **Reflex value** = the character's Reflex points, each at its own worth (a higher gear tier makes a point worth more), × the Body multiplier **including** external Body boosts. **Step** per +1 regain = `REGAIN_STEP` × the character's **natural** Body multiplier (own Body level only). **Regain = 1 + ⌊value ÷ step⌋**, never filling the bank past Max Actions. Levelling Body cancels out; only Reflex investment, point worth and external Body boosts raise it. Progress is shown ("Regain 2 (Reflex 4.1 / 6.0)"). The defence window keeps its own Reflex formula.
+**Build details (reference-backed default):**
+- **`REGAIN_STEP` = 15** (`// TODO: tune`): about a sixth of the 93-point stat budget, so a light Reflex build (~15 points) regains 2 and a focused one (~30) regains 3, as Crown asked.
+- **The points** are the character's own `Reflex` plus the gear's `BonusReflex`. Gear points already carry their tier's worth: that is where the per-point tier conversion lives (`GetActiveStatBonus`, TierPowerScaling 3c).
+- **External Body boosts** are everything `GetEvolutionModifiedBody` adds over the natural pillar: a slotted crystal's Body, gear Body percents, Body buffs and the run's over-cap points.
+- **Reflex stones and Reflex buffs (percent) don't change the regain.** They are percent lifts on the window, not Reflex points, and the ruling names only points, their worth and Body boosts. They still widen the defence window.
+- **The regain stops at the Max Actions safety cap (5)**, so the text never shows a regain no bank could hold. A negative value (cursed gear) gives the base 1.
+- **The progress line** is a debug string in `wor.Actions.Print` until the battle HUD (B-170e) shows it as FText.
+**Answer:** Crown's ruling, with the build details by the reference-backed default (2026-11-12). Built in B-170i (`ActionPipsRules::RegainForReflexValue`, `UCharacterDataComponent::GetRegainReflexValue` / `GetRegainReflexStep`).
+
 ### Q-170b — Action pips: what a skill costs
 **Status:** ANSWERED (Crown, 2026-11-09) · **Raised:** 2026-11-09 (B-170, D-088) · **Blocks:** — (B-170c)
 **Question:** D-088's discussion tried costs by tier (1/1/1/2/2/2/3, then F 1 … S 7), then dropped them. With banked actions confirmed, what does an act cost?
