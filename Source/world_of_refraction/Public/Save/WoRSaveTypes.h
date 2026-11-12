@@ -151,6 +151,14 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	bool bKeyedByMember = false;
 
+	/** B-392 (D-170, save v32): the member's chosen guard and the weapon it put away (FPartyMember::GuardStyle /
+	 *  GuardWeaponId). */
+	UPROPERTY()
+	EGuardStyle GuardStyle = EGuardStyle::Weapon;
+
+	UPROPERTY()
+	FGuid GuardWeaponId;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 

@@ -92,8 +92,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage *SheatheMontage = nullptr;
 
-    /** Weapon-specific parry animation (used when the active weapon's
-     *  FWeaponLoadoutEntry::bUseWeaponParryAnimation is true) */
+    /** B-392 (D-170): the weapon guard, this weapon type's own Guard animation (not customisable). Plays on every Guard
+     *  while the wielder's guard is Weapon (ULoadoutComponent::GetGuardMontage); empty: the unarmed guard plays. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage *ParryMontage = nullptr;
 
