@@ -174,6 +174,10 @@ int32 FWeaponLoadoutEntry::GetSpellSlotCap() const
 
 int32 FWeaponLoadoutEntry::GetSpellsOverCap() const
 {
+    if (!WeaponSpellRules::WeaponsGiveSpells())
+    {
+        return 0; // B-098: nothing is listed, so nothing is over the cap
+    }
     return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
 }
 
@@ -199,7 +203,7 @@ bool FWeaponLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
 
 bool FWeaponLoadoutEntry::RestoreSpell(int32 Slot)
 {
-    if (!SkillSlotList::Restore(WeaponEntry.SpellPicks, Slot))
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !SkillSlotList::Restore(WeaponEntry.SpellPicks, Slot))
     {
         return false;
     }

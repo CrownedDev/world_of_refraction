@@ -35,15 +35,26 @@ bool WeaponSpellRules::WeaponsGiveSpells()
 	return CVarLoadoutWeaponSpells.GetValueOnGameThread() != 0;
 }
 
+namespace
+{
+	/** Writes at the variable's own priority (at least code), as BalanceSimRunner's SimPriority: a value typed in the
+	 *  editor console (SetByConsole outranks SetByCode) must not make the scope's write and restore silently fail. */
+	EConsoleVariableFlags WeaponSpellsWritePriority()
+	{
+		const uint32 Current = static_cast<uint32>(CVarLoadoutWeaponSpells->GetFlags()) & ECVF_SetByMask;
+		return static_cast<EConsoleVariableFlags>(FMath::Max<uint32>(Current, ECVF_SetByCode));
+	}
+}
+
 WeaponSpellRules::FScopedWeaponSpells::FScopedWeaponSpells(bool bWeaponsGiveSpells)
 	: Previous(CVarLoadoutWeaponSpells.GetValueOnGameThread())
 {
-	CVarLoadoutWeaponSpells->Set(bWeaponsGiveSpells ? 1 : 0, ECVF_SetByCode);
+	CVarLoadoutWeaponSpells->Set(bWeaponsGiveSpells ? 1 : 0, WeaponSpellsWritePriority());
 }
 
 WeaponSpellRules::FScopedWeaponSpells::~FScopedWeaponSpells()
 {
-	CVarLoadoutWeaponSpells->Set(Previous, ECVF_SetByCode);
+	CVarLoadoutWeaponSpells->Set(Previous, WeaponSpellsWritePriority());
 }
 
 static FAutoConsoleCommandWithWorld GLoadoutListWeaponSpellsCommand(
