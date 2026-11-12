@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/WeaponSpellRules.h"
 #include "Combat/TurnRotation.h" // B-170c: switching is free with action pips
 #include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
 #include "Memory/CurseSubsystem.h"
@@ -1761,6 +1762,11 @@ bool ULoadoutComponent::TryAssignWeaponAbility(int32 LoadoutIndex, UAbilityData 
 
 bool ULoadoutComponent::TryAssignWeaponSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
 {
+    if (!WeaponSpellRules::WeaponsGiveSpells())
+    {
+        OutRefusal = LOCTEXT("WeaponsGiveNoSpells", "Weapons don't hold spells. Put it on an adapter or evolution."); // B-098 (D-027)
+        return false;
+    }
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
                             [Spell](const FCombatLoadout &Loadout, ECharacterClass)
                             {
@@ -3107,8 +3113,8 @@ TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
         return Result;
     }
 
-    // Only evolved weapons have resonate spells
-    if (!WeaponEntry->WeaponEntry.IsEvolved())
+    // Only evolved weapons have resonate spells; none since D-027 (B-098, WeaponSpellRules)
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry->WeaponEntry.IsEvolved())
     {
         return Result;
     }
@@ -3502,7 +3508,10 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
 
     // B-204 (Q-204): the primary, then the secondary weapon (FCombatLoadout::GetAllSpells lists both);
     // the first that holds the spell is the one the cast channels (FindSpellCatalystHolder's order).
-    for (const FWeaponLoadoutEntry *Weapon : {GetPrimaryWeaponLoadout(), GetSecondaryWeaponLoadout()})
+    // B-098 (D-027): weapons give no spells, so no weapon crystal channels (or greys out) one.
+    for (const FWeaponLoadoutEntry *Weapon : WeaponSpellRules::WeaponsGiveSpells()
+                                                 ? TArray<const FWeaponLoadoutEntry *>{GetPrimaryWeaponLoadout(), GetSecondaryWeaponLoadout()}
+                                                 : TArray<const FWeaponLoadoutEntry *>())
     {
         // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
         // same crystal, so they grey out with it too.

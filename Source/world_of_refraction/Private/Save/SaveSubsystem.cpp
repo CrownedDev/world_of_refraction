@@ -125,16 +125,19 @@ namespace
 			}
 			Gear.bSkillSlotsActive = Entry.bSkillSlotsActive;
 		}
-		// One ref per spell slot, an empty slot as an unset ref, so slot positions survive.
-		for (const USpellData *Spell : Entry.AssignedSpells)
+		else // B-098 (D-027, Q-098 Crown: deleted): a weapon's spells are not saved; only an adapter's are
 		{
-			Gear.AssignedSpells.Add(FSavedAssetRef::Make(Spell));
+			// One ref per spell slot, an empty slot as an unset ref, so slot positions survive.
+			for (const USpellData *Spell : Entry.AssignedSpells)
+			{
+				Gear.AssignedSpells.Add(FSavedAssetRef::Make(Spell));
+			}
+			for (const USpellData *Pick : Entry.SpellPicks) // B-351d (D-145), one ref per slot
+			{
+				Gear.SpellPicks.Add(FSavedAssetRef::Make(Pick));
+			}
+			Gear.bSpellSlotsActive = Entry.bSpellSlotsActive;
 		}
-		for (const USpellData *Pick : Entry.SpellPicks) // B-351d (D-145), one ref per slot
-		{
-			Gear.SpellPicks.Add(FSavedAssetRef::Make(Pick));
-		}
-		Gear.bSpellSlotsActive = Entry.bSpellSlotsActive;
 		Gear.StatBonus = Entry.StatBonus;
 		Gear.ResistanceBonus = Entry.ResistanceBonus;
 		Gear.StatPool = Entry.StatPool;
@@ -165,22 +168,29 @@ namespace
 				Entry.SkillPicks.Add(Ref.IsSet() ? Ref.ResolveAs<UAbilityData>() : nullptr);
 			}
 			Entry.bSkillSlotsActive = Gear.bSkillSlotsActive;
+			// B-098 (D-027, Q-098 Crown: deleted): a loaded weapon holds no spells, not even its asset's defaults.
+			Entry.AssignedSpells.Reset();
+			Entry.SpellPicks.Reset();
+			Entry.bSpellSlotsActive = false;
 		}
-		Entry.SpellPicks.Reset();
-		for (const FSavedAssetRef &Ref : Gear.SpellPicks) // B-351d (D-145); a gone spell leaves its slot to the built-in
+		else // an adapter's spells
 		{
-			Entry.SpellPicks.Add(Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr);
-		}
-		Entry.bSpellSlotsActive = Gear.bSpellSlotsActive;
-		Entry.AssignedSpells.Reset();
-		for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
-		{
-			USpellData *Spell = Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr;
-			if (Ref.IsSet() && !Spell)
+			Entry.SpellPicks.Reset();
+			for (const FSavedAssetRef &Ref : Gear.SpellPicks) // B-351d (D-145); a gone spell leaves its slot to the built-in
 			{
-				UE_LOG(LogWoR, Warning, TEXT("[Save] A saved gear spell %s is gone: its slot stays empty"), *Ref.Path.ToString());
+				Entry.SpellPicks.Add(Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr);
 			}
-			Entry.AssignedSpells.Add(Spell);
+			Entry.bSpellSlotsActive = Gear.bSpellSlotsActive;
+			Entry.AssignedSpells.Reset();
+			for (const FSavedAssetRef &Ref : Gear.AssignedSpells)
+			{
+				USpellData *Spell = Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr;
+				if (Ref.IsSet() && !Spell)
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[Save] A saved gear spell %s is gone: its slot stays empty"), *Ref.Path.ToString());
+				}
+				Entry.AssignedSpells.Add(Spell);
+			}
 		}
 		Entry.StatBonus = Gear.StatBonus;
 		Entry.ResistanceBonus = Gear.ResistanceBonus;

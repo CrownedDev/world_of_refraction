@@ -6,6 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Loadout/WeaponSpellRules.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/FCrystalAttachment.h"
 #include "Equipment/Rings/RingData.h"
@@ -39,10 +40,15 @@ BEGIN_DEFINE_SPEC(FSpellSlotListSpec, "WoR.Loadout.SpellSlotList", EAutomationTe
 		Socket.Crystal = FCrystalAttachment(SPELL_SLOT_TEST_GEM, SPELL_SLOT_TEST_DURABILITY);
 		return Socket;
 	}
+	/** B-098: these cases prove the old weapon-spell path, kept until the sweep (wor.Loadout.WeaponSpells 1). */
+	TUniquePtr<WeaponSpellRules::FScopedWeaponSpells> OldWeaponSpells;
 END_DEFINE_SPEC(FSpellSlotListSpec)
 
 void FSpellSlotListSpec::Define()
 {
+	BeforeEach([this]() { OldWeaponSpells = MakeUnique<WeaponSpellRules::FScopedWeaponSpells>(true); });
+	AfterEach([this]() { OldWeaponSpells.Reset(); });
+
 	BeforeEach([this]()
 	{
 		BuiltIn = NewObject<USpellData>(GetTransientPackage());

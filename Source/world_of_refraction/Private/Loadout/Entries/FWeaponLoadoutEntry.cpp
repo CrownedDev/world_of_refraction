@@ -10,6 +10,7 @@
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Loadout/SkillSlotList.h"
+#include "Loadout/WeaponSpellRules.h"
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
@@ -41,7 +42,15 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
 int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
 {
     // The stone socket, else an authored stone still sitting in the element socket (pre-B-351 shape).
-    return SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.GetStoneAttachment());
+    const int32 TierAndStoneSlots = SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.GetStoneAttachment());
+    // B-098 (Q-098, Crown 2026-11-12): a weapon's spell slots became ability slots. The attached gem / evolution adds
+    // what were its spell slots while it is attached, broken or not (no ceiling: any other attachment adds none).
+    // TODO: B-410 — these slots take only None, Generic or the crystal's element once abilities carry an element.
+    constexpr int32 NO_SPELL_SOURCE_SLOTS = 0;
+    const int32 ConvertedSpellSlots = WeaponSpellRules::WeaponsGiveSpells()
+                                          ? 0
+                                          : CrystalEffectTable::ResolveSpellSlotCap(WeaponEntry.GetAttachedItem(), NO_SPELL_SOURCE_SLOTS);
+    return TierAndStoneSlots + ConvertedSpellSlots;
 }
 
 FString FWeaponLoadoutEntry::GetSkillSlotString() const
@@ -148,6 +157,10 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
 {
+    if (!WeaponSpellRules::WeaponsGiveSpells())
+    {
+        return TArray<USpellData *>(); // B-098 (D-027): weapons give no spells; the data stays, unread
+    }
     TArray<USpellData *> Result = GetAllSpellsUncapped();
     if (Result.Num() > GetSpellSlotCap())
     {
@@ -169,12 +182,16 @@ int32 FWeaponLoadoutEntry::GetSpellSlotCap() const
 
 int32 FWeaponLoadoutEntry::GetSpellsOverCap() const
 {
+    if (!WeaponSpellRules::WeaponsGiveSpells())
+    {
+        return 0; // B-098: nothing is listed, so nothing is over the cap
+    }
     return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
 }
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetSpellSlots() const
 {
-    if (!WeaponEntry.AttachedItem.CanProvideSpells())
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry.AttachedItem.CanProvideSpells())
     {
         return TArray<USpellData *>();
     }
@@ -183,7 +200,8 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetSpellSlots() const
 
 bool FWeaponLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
 {
-    if (!WeaponEntry.AttachedItem.CanProvideSpells() || Slot >= GetSpellSlotCap() || !SkillSlotList::Replace(WeaponEntry.SpellPicks, Slot, Spell))
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry.AttachedItem.CanProvideSpells() || Slot >= GetSpellSlotCap() ||
+        !SkillSlotList::Replace(WeaponEntry.SpellPicks, Slot, Spell))
     {
         return false;
     }
@@ -193,7 +211,7 @@ bool FWeaponLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
 
 bool FWeaponLoadoutEntry::RestoreSpell(int32 Slot)
 {
-    if (!SkillSlotList::Restore(WeaponEntry.SpellPicks, Slot))
+    if (!WeaponSpellRules::WeaponsGiveSpells() || !SkillSlotList::Restore(WeaponEntry.SpellPicks, Slot))
     {
         return false;
     }
