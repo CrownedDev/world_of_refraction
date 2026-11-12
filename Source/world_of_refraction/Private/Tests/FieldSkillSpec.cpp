@@ -13,12 +13,15 @@
 #include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Hub/HubMovementLibrary.h"
 
 namespace
 {
 	constexpr int32 FIELD_SPEC_START_EP = 3;
 	constexpr float FIELD_SPEC_SPEED_TOLERANCE = 0.01f;
+	constexpr float FIELD_SPEC_SPRINT_SPEED = 1000.0f;
+	constexpr float FIELD_SPEC_WALK_SPEED = 500.0f;
 }
 
 BEGIN_DEFINE_SPEC(FFieldSkillSpec, "WoR.Field.Skills",
@@ -47,6 +50,12 @@ BEGIN_DEFINE_SPEC(FFieldSkillSpec, "WoR.Field.Skills",
 		CharComp->CurrentEP = FIELD_SPEC_START_EP;
 		Field = FWoRTestWorld::AddComponent<UFieldMovementComponent>(Pawn);
 		return Field != nullptr;
+	}
+
+	/** The pawn's ground speed: a sprint, or standing still. The spec never ticks, so it holds. */
+	void SetSprinting(bool bSprinting) const
+	{
+		Pawn->GetCharacterMovement()->Velocity = bSprinting ? FVector(FIELD_SPEC_SPRINT_SPEED, 0.0f, 0.0f) : FVector::ZeroVector;
 	}
 END_DEFINE_SPEC(FFieldSkillSpec)
 
@@ -108,6 +117,7 @@ void FFieldSkillSpec::Define()
 			{
 				return;
 			}
+			SetSprinting(true);
 			TestTrue(TEXT("picked"), Field->SetActiveFieldSkill(EFieldSkillSource::Innate, EFieldMovementType::EnhancedSprint) == EFieldSkillRefusal::None);
 			TestTrue(TEXT("started"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None && Field->IsEnhancedSprintActive());
 			TestEqual(TEXT("the first second is paid up front"), CharComp->CurrentEP, FIELD_SPEC_START_EP - FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND);
@@ -119,6 +129,25 @@ void FFieldSkillSpec::Define()
 			TestFalse(TEXT("off at 0 EP"), Field->IsEnhancedSprintActive());
 			TestEqual(TEXT("normal sprint again"), Field->GetSprintSpeedMultiplier(), FieldSkillRules::NO_SPRINT_BOOST);
 			TestTrue(TEXT("no EP, no restart"), Field->ActivateFieldSkill() == EFieldSkillRefusal::NotEnoughEP);
+		});
+
+		It("charges nothing while the character stands or walks, and stays on (Q-214a, Crown)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnFieldCharacter(ECharacterClass::Caster, ESpellElement::Fire)))
+			{
+				return;
+			}
+			TestFalse(TEXT("walking is not a sprint"), FieldSkillRules::IsMovingAtSprintSpeed(FIELD_SPEC_WALK_SPEED));
+			TestTrue(TEXT("the slowest sprint is"), FieldSkillRules::IsMovingAtSprintSpeed(UHubMovementLibrary::GetSprintSpeedMin()));
+			SetSprinting(false);
+			Field->SetActiveFieldSkill(EFieldSkillSource::Innate, EFieldMovementType::EnhancedSprint);
+			TestTrue(TEXT("started standing"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None && Field->IsEnhancedSprintActive());
+			Field->DrainEnhancedSprint();
+			TestEqual(TEXT("nothing paid standing still"), CharComp->CurrentEP, FIELD_SPEC_START_EP);
+			TestTrue(TEXT("still on"), Field->IsEnhancedSprintActive());
+			SetSprinting(true);
+			Field->DrainEnhancedSprint();
+			TestEqual(TEXT("a sprinting second is paid"), CharComp->CurrentEP, FIELD_SPEC_START_EP - FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND);
 		});
 
 		It("toggles Enhanced Sprint off on a second use and speeds up the sprint while on", [this]()
