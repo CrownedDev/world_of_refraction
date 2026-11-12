@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/FCrystalAttachment.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -70,6 +71,33 @@ void FWeaponsNoSpellsSpec::Define()
 
 		WeaponSpellRules::FScopedWeaponSpells OldPath(true);
 		TestTrue(TEXT("the old path lists them again"), Weapon.GetAllSpells().Contains(CrystalSpell));
+	});
+
+	It("turns the gem's spell slots into ability slots, broken or not (Q-098, Crown)", [this]()
+	{
+		FWeaponLoadoutEntry Weapon;
+		Weapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		const int32 TierSlots = Weapon.GetSkillSlotCount();
+		const int32 GemSlots = CrystalEffectTable::GetAttachmentSlotsForTier(WEAPONS_NO_SPELLS_TEST_GEM);
+		TestTrue(TEXT("the test gem has spell slots"), GemSlots > 0);
+
+		Weapon.WeaponEntry.AttachedItem = WeaponsNoSpellsTestGem();
+		TestEqual(TEXT("the gem's spell slots are ability slots"), Weapon.GetSkillSlotCount(), TierSlots + GemSlots);
+		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+		const int32 LastSlot = Weapon.GetSkillSlotCount() - 1;
+		TestTrue(TEXT("an ability goes in the last converted slot"), Weapon.ReplaceSkill(LastSlot, Ability));
+		TestTrue(TEXT("and is offered"), Weapon.GetSkillSlotAbilities().Contains(Ability));
+
+		Weapon.WeaponEntry.AttachedItem.Crystal.CurrentDurability = 0;
+		TestEqual(TEXT("a broken gem keeps them"), Weapon.GetSkillSlotCount(), TierSlots + GemSlots);
+
+		{
+			WeaponSpellRules::FScopedWeaponSpells OldPath(true);
+			TestEqual(TEXT("the old path keeps them as spell slots"), Weapon.GetSkillSlotCount(), TierSlots);
+		}
+
+		Weapon.WeaponEntry.AttachedItem = FRuntimeAttachedItem();
+		TestEqual(TEXT("no gem, no extra slots"), Weapon.GetSkillSlotCount(), TierSlots);
 	});
 
 	Describe("in a loadout", [this]()
