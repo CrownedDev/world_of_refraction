@@ -52,6 +52,8 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
   - enemy actions play sequences too
   - a death at turn start leaves the view where it was
 - The Defence view (B-402) holds one angle per enemy action; cutting between side angles inside a long combo is not built (Q-402). Its side assumes a right-handed weapon (`WeaponSideSign`).
+- No Defence mode: it is to be play-tested first (design §2).
+- B-407: a player or team skill's own `CameraSequence` is cut back at `SignatureCameraCap::MaxSignatureSeconds` (2 s, `TODO: tune`); enemy casters' sequences run to their end. The validator counts only skills a `UBossData` phase adds as a boss's (Q-407).
 - Arming a delayed skill also broadcasts `OnActionStarted`. Once templates exist, a ritual's cinematic may play at arm time and again when it fires. Check this in B-157.
 
 ## Changelog
@@ -73,3 +75,4 @@ Built in B-156 (code only). The template sequences and the rig tuning are B-157.
 | 2026-11-12 | B-405 built on the desktop (`feature/B-405-boss-framing-kill-shots`): `ECombatCameraMode` keeps B-402's Defence, then KillShot; `ACombatOrchestrator`'s mid-turn win (action pips) now tries `StartKillShotHold` too. |
 | 2026-11-12 | B-398 built on the desktop (`feature/B-398-turn-view-setting`, save v34): `GetCameraStateString` carries B-398's layout and B-405's boss framing; `GetTurnLayoutString` applies `FBossFramingRules::ApplyHeight` like the real turn view. Against a boss, Over the Shoulder goes low too (Q-398 note). |
 | 2026-11-12 | B-403 built on the desktop (`feature/B-403-shot-pattern-tuning`): `CameraFramingChecks.h` keeps B-398's thirds helpers; `SteadyForDefence` also drops a melee rush's motion blur while the viewer defends, so the director neither blurs nor cuts to the rush start (the dropped count includes it). The shot cameras are spawned plain `ACameraActor`s, so clearing the blur override loses no authored setting. |
+| 2026-11-09 | B-407 (study R7, FeelGuide 9, Q-407): `SignatureCameraCap` (`MaxSignatureSeconds` 2.0, `IsOverCap`, `GetCutSeconds`, `GetSequenceSeconds`); `PlaySequence` sets `SignatureCapTimer` for a player or team caster's sequence over the cap, and `HandleSignatureCapReached` cuts back to the turn view (`StopSequence` clears the timer); `NotifyValidation::CheckSignatureSeconds` / `CheckSignatureSequence` warn in `wor.Presentation.Validate` unless a `UBossData` phase adds the skill; debug `wor.Camera.SignatureCap`; spec `WoR.Combat.Camera.SignatureCap`. | `feature/B-407-short-signature-cameras-cloud` (UNBUILT) |

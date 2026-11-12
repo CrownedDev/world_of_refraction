@@ -5,6 +5,9 @@
 #include "Animation/AnimMontage.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Combat/Camera/SignatureCameraCap.h"
+#include "Combat/Boss/BossData.h"
+#include "LevelSequence.h"
 #if WITH_EDITOR
 #include "AssetRegistry/AssetRegistryModule.h"
 #endif
@@ -155,6 +158,25 @@ namespace NotifyValidation
 		return CheckMarks(ReadSkillMarks(Skill), Arrays);
 	}
 
+	TArray<FString> CheckSignatureSeconds(float SequenceSeconds, bool bBossSkill)
+	{
+		if (bBossSkill || !SignatureCameraCap::IsOverCap(SequenceSeconds))
+		{
+			return {};
+		}
+		return {FString::Printf(TEXT("warning: CameraSequence is %.2fs, over the %.2fs signature cap: a player or team cast cuts back there (FeelGuide 9; fine if only enemies use it)"),
+								SequenceSeconds, SignatureCameraCap::MaxSignatureSeconds)};
+	}
+
+	TArray<FString> CheckSignatureSequence(const USkillDataBase &Skill, bool bBossSkill)
+	{
+		if (Skill.CameraSequence.IsNull())
+		{
+			return {};
+		}
+		return CheckSignatureSeconds(SignatureCameraCap::GetSequenceSeconds(Skill.CameraSequence.LoadSynchronous()), bBossSkill);
+	}
+
 	FString GetValidationReportString()
 	{
 #if !WITH_EDITOR
@@ -165,6 +187,24 @@ namespace NotifyValidation
 		TArray<FAssetData> Assets;
 		Registry.GetAssetsByClass(USkillDataBase::StaticClass()->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
 
+		// B-407: the skills a boss phase adds are a boss's; their sequences are not capped.
+		TSet<const USkillDataBase *> BossSkills;
+		TArray<FAssetData> BossAssets;
+		Registry.GetAssetsByClass(UBossData::StaticClass()->GetClassPathName(), BossAssets, /*bSearchSubClasses=*/true);
+		for (const FAssetData &BossAsset : BossAssets)
+		{
+			if (const UBossData *Boss = Cast<UBossData>(BossAsset.GetAsset()))
+			{
+				for (const FBossPhase &Phase : Boss->Phases)
+				{
+					for (const USkillDataBase *Added : Phase.AddedSkills)
+					{
+						BossSkills.Add(Added);
+					}
+				}
+			}
+		}
+
 		FString Out = FString::Printf(TEXT("%d skill assets scanned\n"), Assets.Num());
 		for (const FAssetData &Asset : Assets)
 		{
@@ -173,7 +213,9 @@ namespace NotifyValidation
 			{
 				continue;
 			}
-			for (const FString &Problem : CheckSkill(*Skill))
+			TArray<FString> Problems = CheckSkill(*Skill);
+			Problems.Append(CheckSignatureSequence(*Skill, BossSkills.Contains(Skill)));
+			for (const FString &Problem : Problems)
 			{
 				Out += FString::Printf(TEXT("%s: %s\n"), *Asset.GetObjectPathString(), *Problem);
 			}
