@@ -854,6 +854,7 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		for (AActor *Actor : {Hero, Foe, SecondFoe})
 		{
 			MenuCameraTestAddLoadout(Actor);
@@ -864,6 +865,7 @@ void FCombatCameraDirectorSpec::Define()
 		ON_SCOPE_EXIT
 		{
 			Menu->ClearCombatOrchestrator();
+			Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
 			if (Orchestrator->GetCombatState() != ECombatState::Idle)
 			{
 				Orchestrator->ForceEndCombat(ECombatState::Victory);
