@@ -765,7 +765,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     Buttons.Add(CreateMoveRowButton(/*bForward*/ true));
     Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
     Buttons.Add(CreateDefendButton());
-    if (ActionPipsText::IsActionPipsFight(this)) // B-170e; a stunned actor's menu stays Attack + Defend (D-001)
+    // B-170e; a stunned actor's menu stays Attack + Defend (D-001). The player's setting can hide it (Crown, 2026-11-12).
+    if (ActionPipsText::ShouldShowEndTurnButton(this))
         Buttons.Add(CreateEndTurnButton());
     Buttons.Add(CreateFleeButton());
     // OBSOLETE (B-346): no "Let AI Play" button; seats are fixed for the fight (Q-21-audit, PA-13).

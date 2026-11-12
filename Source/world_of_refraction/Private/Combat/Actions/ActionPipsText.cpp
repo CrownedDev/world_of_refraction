@@ -6,7 +6,9 @@
 #include "Combat/TurnManager.h"
 #include "Combat/TurnRotation.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Save/SaveSubsystem.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "ActionPips"
@@ -106,6 +108,18 @@ bool ActionPipsText::IsActionPipsFight(const UObject *Context)
 	}
 	const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(Context);
 	return TurnManager && TurnManager->IsRotationMode();
+}
+
+bool ActionPipsText::ShouldShowEndTurnButton(const UObject *Context)
+{
+	if (!IsActionPipsFight(Context))
+	{
+		return false;
+	}
+	const UWorld *World = Context ? Context->GetWorld() : nullptr;
+	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	const USaveSubsystem *Save = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+	return !Save || !Save->IsEndTurnButtonHidden();
 }
 
 #undef LOCTEXT_NAMESPACE

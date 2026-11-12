@@ -58,4 +58,9 @@ namespace ActionPipsText
 	 *  which runs no TurnManager, the wor.Turns.ActionPips switch as it is now.
 	 *  TODO: replicate the fight's mode on the turn state so a client never reads a changed switch mid-fight. */
 	WORLD_OF_REFRACTION_API bool IsActionPipsFight(const UObject *Context);
+
+	/** B-170e (Crown, 2026-11-12): the main menu shows End Turn in an action-pips fight unless this machine's player
+	 *  hid it (USaveSubsystem::IsEndTurnButtonHidden, default shown). Hidden, the turn still ends at 0 actions and on
+	 *  Defend. */
+	WORLD_OF_REFRACTION_API bool ShouldShowEndTurnButton(const UObject *Context);
 }
