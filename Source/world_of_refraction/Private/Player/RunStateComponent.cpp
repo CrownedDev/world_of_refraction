@@ -616,7 +616,7 @@ void URunStateComponent::HandleLogout(AGameModeBase *GameMode, AController *Exit
 
 void URunStateComponent::HandlePlayerLeft(APlayerState *Leaver)
 {
-	const AWoRPlayerState *WoRLeaver = Cast<AWoRPlayerState>(Leaver);
+	AWoRPlayerState *WoRLeaver = Cast<AWoRPlayerState>(Leaver);
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !WoRLeaver)
 	{
 		return;
@@ -628,8 +628,10 @@ void URunStateComponent::HandlePlayerLeft(APlayerState *Leaver)
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	const bool bFighting = PartySession && PartySession->IsFightRunning();
-	for (const FGuid &MemberId : WoRLeaver->GetClaimedMembers())
+	const TArray<FGuid> LeaverMembers = WoRLeaver->GetClaimedMembers();
+	for (const FGuid &MemberId : LeaverMembers)
 	{
+		WoRLeaver->ReleaseMember(MemberId); // it is going: nobody claims the member (the host commands it until it turns AI)
 		if (!HeldFor.IsEmpty())
 		{
 			HeldSeats.Add(MemberId, HeldFor);
@@ -652,7 +654,7 @@ void URunStateComponent::HandlePlayerLeft(APlayerState *Leaver)
 		}
 	}
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d (%s) left: %d member(s) to the AI%s"), LeaverId, *WoRLeaver->GetPlayerName(),
-		   WoRLeaver->GetClaimedMembers().Num(), bFighting ? TEXT(" when this fight ends (the host commands them until then)") : TEXT(""));
+		   LeaverMembers.Num(), bFighting ? TEXT(" when this fight ends (the host commands them until then)") : TEXT(""));
 	RefreshRoster();
 }
 

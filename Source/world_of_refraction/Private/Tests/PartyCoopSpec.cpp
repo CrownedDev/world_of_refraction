@@ -3,6 +3,8 @@
 // member's gear and pouch go to the host; no free AI seat means the party is full and the join is refused.
 // B-360b (D-150 point 2): a character already in the party joins again as a separate copy: its own member id,
 // its own pool key, its own claim; a battle pawn finds its slot by the id stamped on it; the save keeps both.
+// B-233b (Q-233b): in a run a new friend is seated only at a rest spot; a friend who leaves drops out to an AI seat
+// held for it, and takes it back (its member and gear) when seated again.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -24,12 +26,25 @@
 #include "Character/CharacterDataComponent.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveTypes.h"
+#include "Trial/TrialData.h"
+#include "Trial/TrialRunSubsystem.h"
+#include "OnlineSubsystemTypes.h" // FUniqueNetIdString (B-233b: test players' ids)
 
 namespace
 {
 	constexpr int32 COOP_TEST_HOST_ID = 1;
 	constexpr int32 COOP_TEST_JOINER_ID = 2;
 	constexpr int32 COOP_TEST_STACK = 3;
+	constexpr int32 COOP_TEST_REJOINER_ID = 3;
+	constexpr int32 COOP_TEST_RUN_SEED = 233;
+	const FString COOP_TEST_FRIEND_NET_ID(TEXT("friend-a"));
+	const FName COOP_TEST_NET_TYPE(TEXT("NULL"));
+
+	void LogInCoopPlayer(APlayerState *Player, const FString &Id)
+	{
+		const FUniqueNetIdRef NetId = FUniqueNetIdString::Create(Id, COOP_TEST_NET_TYPE);
+		Player->SetUniqueId(FUniqueNetIdRepl(NetId));
+	}
 	const FCrystalId COOP_TEST_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	FPartyMember CoopMember(UCharacterData *Character, bool bAISeat)
@@ -110,6 +125,85 @@ void FPartyCoopSpec::Define()
 		Host = Joiner = nullptr;
 		Leader = AIMember = Guest = nullptr;
 		TestWorld.Reset();
+	});
+
+	It("seats a joiner outside a run, or in a run only at a rest spot, unless it takes back its own seat (B-233b)", [this]()
+	{
+		TestTrue(TEXT("outside a run"), RunJoinRules::CanSeatJoiner(false, false, false));
+		TestFalse(TEXT("in a run, away from a rest spot"), RunJoinRules::CanSeatJoiner(true, false, false));
+		TestTrue(TEXT("in a run, at a rest spot"), RunJoinRules::CanSeatJoiner(true, true, false));
+		TestTrue(TEXT("in a run, its own held seat"), RunJoinRules::CanSeatJoiner(true, false, true));
+	});
+
+	It("refuses to seat a new friend mid-run away from a rest spot, and seats it at one (B-233b)", [this]()
+	{
+		UTrialRunSubsystem *Trial = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!Run || !PartySession || !Joiner || !TestNotNull(TEXT("trial run"), Trial)) return;
+		Trial->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), COOP_TEST_RUN_SEED, 0, ETrialDifficulty::Medium, {}, {}, {});
+		TestTrue(TEXT("a run is on"), Trial->IsRunActive());
+		TestTrue(TEXT("the request is taken"), Run->RequestJoin(Joiner, Guest, TSoftClassPtr<ACombatCharacter>()));
+		TestFalse(TEXT("closed away from a rest spot"), Run->CanSeatNewJoinerNow());
+		TestFalse(TEXT("the host can't seat it yet"), Run->AcceptJoin(COOP_TEST_JOINER_ID, 1));
+		TestEqual(TEXT("the request still waits"), Run->GetJoinRequests().Num(), 1);
+		Trial->SetAtRestSpot(true);
+		TestTrue(TEXT("open at a rest spot"), Run->CanSeatNewJoinerNow());
+		TestTrue(TEXT("seated at the rest spot"), Run->AcceptJoin(COOP_TEST_JOINER_ID, 1));
+		Trial->RestoreRun(nullptr, 0, 0, ETrialDifficulty::Medium, {}, {}, {});
+	});
+
+	It("drops a leaving friend's member to an AI seat held for it; it takes it back with its gear (B-233b)", [this]()
+	{
+		if (!Run || !PartySession || !Pool || !Joiner) return;
+		LogInCoopPlayer(Joiner, COOP_TEST_FRIEND_NET_ID);
+		TestTrue(TEXT("the friend asks"), Run->RequestJoin(Joiner, Guest, TSoftClassPtr<ACombatCharacter>()));
+		TestTrue(TEXT("and is seated (no run: anywhere)"), Run->AcceptJoin(COOP_TEST_JOINER_ID, 1));
+		const UParty *Party = PartySession->GetLocalParty();
+		if (!TestTrue(TEXT("slot 1 is the friend's"), Party && Party->Members.IsValidIndex(1) && Party->Members[1].CharacterData == Guest)) return;
+		const FGuid FriendMember = Party->Members[1].MemberId;
+		const FName GuestKey = UPoolSubsystem::GetCharacterKey(Guest);
+		FWeaponInventoryEntry Sword;
+		Sword.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Sword.PersistentID = FGuid::NewGuid();
+		Pool->AddWeaponToPool(Sword);
+		Pool->SetGearOwner(Sword.PersistentID, GuestKey);
+
+		Run->HandlePlayerLeft(Joiner);
+		TestTrue(TEXT("its member is an AI seat now"), Party->Members[1].bAISeat);
+		TestEqual(TEXT("the same member"), Party->Members[1].MemberId, FriendMember);
+		TestEqual(TEXT("held for the friend"), Run->GetHeldFor(FriendMember), COOP_TEST_FRIEND_NET_ID);
+		TestTrue(TEXT("a free AI seat again"), Run->GetFreeAISeats() == TArray<int32>({1}));
+
+		AWoRPlayerState *Rejoiner = SpawnPlayer(COOP_TEST_REJOINER_ID);
+		if (!TestNotNull(TEXT("rejoiner"), Rejoiner)) return;
+		LogInCoopPlayer(Rejoiner, COOP_TEST_FRIEND_NET_ID);
+		TestTrue(TEXT("the friend asks again"), Run->RequestJoin(Rejoiner, Guest, TSoftClassPtr<ACombatCharacter>()));
+		TestTrue(TEXT("and takes its seat back"), Run->AcceptJoin(COOP_TEST_REJOINER_ID, 1));
+		TestFalse(TEXT("no AI seat"), Party->Members[1].bAISeat);
+		TestEqual(TEXT("the same member, no swap"), Party->Members[1].MemberId, FriendMember);
+		TestTrue(TEXT("it commands it"), Rejoiner->ClaimsMember(FriendMember));
+		TestTrue(TEXT("the hold is gone"), Run->GetHeldFor(FriendMember).IsEmpty());
+		TestEqual(TEXT("its sword stayed its own (not the host's)"), Pool->GetGearOwner(Sword.PersistentID), GuestKey);
+	});
+
+	It("gives a held seat to another player as a normal AI seat, and forgets the hold (B-233b)", [this]()
+	{
+		if (!Run || !PartySession || !Joiner) return;
+		LogInCoopPlayer(Joiner, COOP_TEST_FRIEND_NET_ID);
+		Run->RequestJoin(Joiner, Guest, TSoftClassPtr<ACombatCharacter>());
+		Run->AcceptJoin(COOP_TEST_JOINER_ID, 1);
+		const UParty *Party = PartySession->GetLocalParty();
+		if (!Party || !Party->Members.IsValidIndex(1)) return;
+		const FGuid FriendMember = Party->Members[1].MemberId;
+		Run->HandlePlayerLeft(Joiner);
+
+		AWoRPlayerState *Other = SpawnPlayer(COOP_TEST_REJOINER_ID);
+		if (!TestNotNull(TEXT("other player"), Other)) return;
+		LogInCoopPlayer(Other, TEXT("friend-b"));
+		UCharacterData *OtherCharacter = FWoRTestWorld::NewCharacterData();
+		TestTrue(TEXT("another friend asks"), Run->RequestJoin(Other, OtherCharacter, TSoftClassPtr<ACombatCharacter>()));
+		TestTrue(TEXT("and takes the seat"), Run->AcceptJoin(COOP_TEST_REJOINER_ID, 1));
+		TestTrue(TEXT("its character now"), Party->Members[1].CharacterData == OtherCharacter);
+		TestTrue(TEXT("the old hold is gone"), Run->GetHeldFor(FriendMember).IsEmpty());
 	});
 
 	It("holds at most three members (D-150)", [this]()
