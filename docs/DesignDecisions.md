@@ -655,6 +655,13 @@ The queue of questions only Crown can answer.
 - **Where not:** camera movement off (the static view stays, R15); a signature sequence or Defence hand-off still playing (its end shows the turn view, as before); enemy turns (the AI acts once a turn until B-170f; the menu event is player-only).
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-401.md`).
 
+### Q-397b — Hidden quests masked by default (screen-share spoilers)
+**Status:** ANSWERED (Crown, 2026-11-12; the mask-again-on-close and notice parts by the reference-backed default, Crown vetoes) · **Raised:** 2026-11-12 (Crown, through the desktop operator) · **Blocks:** —
+**Crown (2026-11-12):** hidden quests are masked by default so screen-sharing does not spoil them. In the journal each found hidden quest shows as "Hidden Quest 1", "Hidden Quest 2", … numbered in found order; its name and step stay masked until the player presses **Reveal** on that entry.
+**Recommendation (reference-backed default):** Discord's spoiler tag: the text is covered until clicked, and the reveal lasts only while it is open. So: (1) a revealed quest is **masked again when the journal closes**; (2) a hidden quest's **notices are masked** too: "Hidden quest found. Open the journal to view it." on discovery, and, built the same way, "Hidden quest updated. …" on a step and "Hidden quest complete. …" on its finish (B-397 had named the quest and its next goal in those). A mask number counts every found hidden quest, finished ones too (a finished one reads "Hidden Quest <n>: done"), so a number never changes.
+**Answer:** as above, by the reference-backed default (2026-11-12). Crown may change the close behaviour or the notices. **Not masked (flag):** the end memory's "New memory: <title>" notice after a hidden quest finishes (a memory-system notice, unchanged); `wor.Quest.Print` (debug) still names everything.
+**Notes for Claude:** placeholder UI: one "Reveal Hidden Quest <n>" button per masked quest under the Quests page text (`UMemoryJournalWidget::RevealQuest` / `Close`); no key, so no InputMap row. The real CommonUI journal puts Reveal on the entry itself (D-024). Text is placeholder `LOCTEXT` (`HiddenQuestNotice`, `MemoryJournal` namespace). PIE `docs/PIE/Q-397b.md`.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
