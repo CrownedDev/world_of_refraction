@@ -1,0 +1,36 @@
+# Field movement (field skills)
+
+## Overview
+B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free sprint. Everyone has the normal dash; each character has one **active field skill** (a source, then a movement type) that a double tap of sprint uses. The source's element styles the skill and sets its strength. B-214a builds the core: the dash, the per-character choice (saved), and **Enhanced Sprint** (a faster sprint by element, paid in EP per second). Unlocks (B-214b), the other moves (B-214c..e), the field attack (B-214f), the input assets (B-214g) and evolutions (B-214h) follow.
+
+## Architecture
+- `FieldSkillTypes.h` (`Field/`): `EFieldMovementType` (11 types, append only: saved as a byte), `EFieldSkillSource` (Innate / Weapon / Ring), `EFieldSkillRefusal`, `FFieldSkillChoice` (default Innate + Dash).
+- `FieldSkillRules` (pure, `Private/Field/FieldSkillRules.cpp`): `CheckPick` (Dash for anyone; every other type needs an elemental source, i.e. not Generic / None; unbuilt types refused), `CheckEnhancedSprintStart` (the pick rule again, then one second's EP), `GetEnhancedSprintMultiplier` (Lightning ×1.5, Wind ×1.4, other elements ×1.25, non-element ×1), constants (dash 1 s cooldown, 1800 cm/s; 1 EP per second). All numbers `// TODO: tune` (Q-214a).
+- `UFieldMovementComponent` (`Field/FieldMovementComponent.h`): on the map pawn, replicated.
+  - `Dash()`: `LaunchCharacter` along the ground velocity (else facing); free; refused on cooldown or on a non-character pawn.
+  - `SetActiveFieldSkill(Source, Type)` / `GetActiveFieldSkill()`: the choice's home is the party record (`FPartyMember::FieldSkill`, written by `UPartySessionSubsystem::SetMemberFieldSkill`; only a pawn stamped with its member id, B-348b's rule); a pawn with no record keeps it on the component. `ActiveChoice` is the replicated mirror for the owning client (`RefreshFromRecord` after possess). Changing the choice stops Enhanced Sprint.
+  - `GetSourceElement(Source)`: Innate = `UCharacterData::GetElement` (a Caster's element, Generic otherwise); Weapon = the crystal in the weapon in hand (None when empty or broken); Ring = a Resonator's active adapter, another class's primary ring (as the parry colour reads it, B-393).
+  - `ActivateFieldSkill()`: Dash dashes; Enhanced Sprint toggles; other types refused (not built yet).
+  - Enhanced Sprint: on start the first second is paid (`UCharacterDataComponent::ServerSpendEnergy`), then a looping 1 s timer (`DrainEnhancedSprint`) charges again; below one charge it turns off. `bEnhancedSprintActive` and its element replicate; `OnRep_EnhancedSprintActive` re-reads the sprint speed when the pawn is sprinting and broadcasts `OnEnhancedSprintChanged`.
+  - Client calls (`Dash`, `ActivateFieldSkill`, `SetActiveFieldSkill`) go to the server by Server RPC; the server spends the EP and owns the record.
+- `UHubMovementLibrary::ComputeHubSprintSpeed` (the pawn Blueprint's sprint press) multiplies by `GetSprintSpeedMultiplier`; `GetSprintSpeedMin` tells the component whether the pawn is sprinting.
+- Save v36: `FSavedPartyMember::FieldSkillSource` / `FieldSkillType`.
+
+## Integration Points
+- `AWoRHubController::OnPossess` (server) adds the component after `EnsureLocalParty` and calls `RefreshFromRecord`; fights open their own level, so the pawn (and the drain timer) ends there.
+- Input: `IA_Field_MovementSkill` through the config soft pointer `DefaultFieldMovementSkillAction` (as `IA_Interact`), bound to `Triggered` (the asset's own trigger does the double tap). Unset until B-214g makes the asset.
+- Debug (`Debug/Field/FieldMovementDebug`): `wor.Field.Print` (every field pawn: choice, source element, pick result, sprint on / off and multiplier, EP, dash cooldown, record), `wor.Field.Activate` (the double tap's stand-in), `wor.Field.Dash`, `wor.Field.Set <Innate|Weapon|Ring> <Type>` (placeholder until B-214b's picker).
+- Spec `WoR.Field.Skills`; `WoR.Save` checks the save round trip.
+
+## Known Limitations / TODOs
+- A crystal source doesn't wear yet (B-214 row: crystal sources wear).
+- No unlock check: any built type with an elemental source can be picked (B-214b).
+- Enhanced Sprint drains while on even standing still (Q-214a (2)); no wall-run yet (B-214c).
+- Co-op: a guest's dash launches on its own machine and on the server (not a predicted saved move), so a small correction is possible. `MaxWalkSpeed` doesn't replicate: the server and the guest each re-apply the sprint speed when Enhanced Sprint toggles (`OnRep`), so for a moment they can differ; the pawn Blueprint's sprint press must also run on the server for the two to agree (PIE check, review 2026-11-12).
+- Enhanced Sprint stops when its source loses the element it started with (gear change, broken crystal), checked each drain second.
+- No HUD cue for Enhanced Sprint (binds `OnEnhancedSprintChanged` later).
+
+## Changelog
+| Date | Change | Branch |
+|---|---|---|
+| 2026-11-12 | Created. B-214a: `UFieldMovementComponent` (dash, active field skill, Enhanced Sprint), `FieldSkillRules`, `FPartyMember::FieldSkill` (save v36), the hub controller's possess hook and `IA_Field_MovementSkill` binding, `wor.Field.*`, spec `WoR.Field.Skills`. | `feature/B-214a-field-skills-core` |

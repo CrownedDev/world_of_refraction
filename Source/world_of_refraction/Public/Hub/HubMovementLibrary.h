@@ -25,4 +25,7 @@ public:
      *  null or has no CharacterDataComponent. */
     UFUNCTION(BlueprintCallable, Category = "Hub|Movement")
     static float ComputeHubSprintSpeed(APawn *Pawn);
+
+    /** The slowest sprint (multiplier 1.0, no Enhanced Sprint): a MaxWalkSpeed at or above it means the pawn is sprinting. */
+    static float GetSprintSpeedMin();
 };

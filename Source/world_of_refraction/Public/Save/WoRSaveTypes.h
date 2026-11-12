@@ -164,6 +164,13 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
 
+	/** B-214a (D-099, save v36): the member's active field skill (FPartyMember::FieldSkill). */
+	UPROPERTY()
+	EFieldSkillSource FieldSkillSource = EFieldSkillSource::Innate;
+
+	UPROPERTY()
+	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 
