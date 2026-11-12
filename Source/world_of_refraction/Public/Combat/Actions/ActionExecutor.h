@@ -40,8 +40,6 @@ class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
 class UItemExecutor;
-class UWeaponManager;
-class URingManager;
 class UDefenseSystem;
 class UBrokenDarknessManager;
 struct FHybridSpellColorData;
@@ -342,7 +340,7 @@ public:
 	 * before the action actually fires. Source routing:
 	 *   None / Item       → no cost
 	 *   Raw / Innate      → HP cost via UInfusionCostHelper
-	 *   ActiveRing/Secondary → ring crystal wear via URingManager
+	 *   ActiveRing/Secondary → ring crystal wear
 	 *   WeaponCrystal     → TODO Phase 4d
 	 *   Evolution         → TODO Phase 6 (HP + self-status)
 	 *
@@ -434,14 +432,6 @@ public:
 	/** Get the SkillEffectManager */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	USkillEffectManager *GetSkillEffectManager() const;
-
-	/** Get the RingManager. OBSOLETE (B-024): no C++ caller left (ring queries go to the
-	 *  actor's ULoadoutComponent); kept for Blueprints until URingManager is removed (B-154). */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
-	URingManager *GetRingManager() const;
-
-	/** Get the WeaponManager. OBSOLETE (B-024): no caller left; removed with it (B-154). */
-	UWeaponManager *GetWeaponManager() const;
 
 	/** Get the DamageCalculator subsystem */
 	UDamageCalculator *GetDamageCalculator() const;
@@ -972,14 +962,6 @@ private:
 	/** Cached reference to ItemExecutor */
 	UPROPERTY()
 	UItemExecutor *ItemExecutorRef = nullptr;
-
-	/** Cached reference to WeaponManager */
-	UPROPERTY()
-	UWeaponManager *WeaponManagerRef = nullptr;
-
-	/** Cached reference to RingManager */
-	UPROPERTY()
-	URingManager *RingManagerRef = nullptr;
 
 	/** Get ItemExecutor subsystem */
 	UItemExecutor *GetItemExecutor() const;
