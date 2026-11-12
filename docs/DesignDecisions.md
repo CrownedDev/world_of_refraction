@@ -683,7 +683,7 @@ The queue of questions only Crown can answer.
 - **Price:** hub Gold (`ECurrencyType::Prisms`, D-159 naming), **200 + 100 per slot already bought** for that pouch (200, 300, 400, …), **cap 20 slots** (all `TODO: tune`). Reference: Breath of the Wild's Hestu, one NPC who sells each extra slot for a rising price (well liked; the rising cost keeps it a long-term goal); Monster Hunter's and Diablo III's stash expansions likewise cost more each step.
 - **Where:** the **Spiritualist** (crystals and stones, which are what a pouch carries). Until the real CommonUI vendor screen exists the placeholder opens with `wor.UI.ItemSlots`; hub only (refused during a run, like the other hub services).
 **Answer:** the default, by the reference-backed default (2026-11-12). Crown may change the vendor or the numbers.
-**Notes for Claude:** `Inventory/ItemSlotUpgrade.h/.cpp`, `UPoolSubsystem::AddItemSlot`, `UItemSlotUpgradeWidget`. Co-op: the purchase runs on the buying player's own machine (pool and wallet as the other placeholder hub services do).
+**Notes for Claude:** `Inventory/ItemSlotUpgrade.h/.cpp`, `UPoolSubsystem::AddItemSlot`, `UItemSlotUpgradeWidget`. Co-op: a client can't buy yet (wallets change with server authority only; its purchase is refused, `TODO(co-op)` in `ItemSlotUpgrade::TryBuy`): the host and solo players can. A server RPC comes with the real vendor screen.
 
 ## Parked
 
