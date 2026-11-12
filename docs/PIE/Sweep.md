@@ -381,8 +381,8 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-337d](B-337d.md) | Skill-effect conditions check through the shared conditions (HP / EP percent) | Pending | REVIEW (in dev) | [ ] |
 | [B-366e](B-366e.md) | Gear repair costs the currency of the place | Pending | REVIEW (in dev) | [ ] |
 | [B-367](B-367.md) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending | REVIEW (in dev) | [ ] |
-
 | [B-239](B-239.md) | Buy +1 item slot per character at the hub (`wor.UI.ItemSlots`) | Pending | REVIEW (`feature/B-239-item-slot-upgrades-cloud`, UNBUILT) | [ ] |
+
 ---
 
 ## Swept
