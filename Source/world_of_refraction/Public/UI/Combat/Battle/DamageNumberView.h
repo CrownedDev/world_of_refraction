@@ -5,7 +5,8 @@
 // - size and brightness: the element multiplier (weak bigger, brighter, a glow; resisted smaller, dimmer);
 // - immune (a multiplier at or below 0): grey and small;
 // - heals: green "+N".
-// - B-391c (Q-391c): a hit a Broken Darkness character took fully (0 damage) reads "Absorbed", behind SHOW_ABSORB_CUE.
+// - B-391c (Q-391c): a hit a Broken Darkness character took fully (0 damage) reads "Negated", behind SHOW_NEGATED_CUE
+//   (Crown, 2026-11-12: not "Absorbed", which reads as Broken Darkness's energy absorption).
 // No "Weak" / "Resist" words or icons (rules 02, FeelGuide 5): the player reads weakness from the number.
 
 #pragma once
@@ -21,8 +22,8 @@ enum class EDamageNumberTier : uint8
 	Resisted,
 	Immune,
 	Heal,
-	/** B-391c: a 0-damage hit on a Broken Darkness character (the "Absorbed" cue). */
-	Absorbed
+	/** B-391c: a 0-damage hit on a Broken Darkness character (the "Negated" cue, Crown 2026-11-12). */
+	Negated
 };
 
 /** Everything a damage number's text block needs. */
@@ -95,21 +96,21 @@ namespace DamageNumberView
 	/** False for a hit that took nothing (a fully negated or buildup-only hit), unless the target is immune. */
 	WORLD_OF_REFRACTION_API bool ShouldShow(const FCombatHitShown &Hit);
 
-	// ---- B-391c (Q-391c): the Broken Darkness absorb cue ----
+	// ---- B-391c (Q-391c): the Broken Darkness "Negated" cue ----
 
-	/** Q-391c: a hit a Broken Darkness character took fully shows "Absorbed" instead of nothing. Crown may veto: false
-	 *  brings back B-391b's "no number for a 0". */
-	constexpr bool SHOW_ABSORB_CUE = true;
-	constexpr float ABSORBED_SCALE = 0.75f; // a word, smaller than a number (TODO: tune)
+	/** Q-391c (Crown, 2026-11-12): a hit a Broken Darkness character took fully shows "Negated" instead of nothing; on
+	 *  by default. False brings back B-391b's "no number for a 0". */
+	constexpr bool SHOW_NEGATED_CUE = true;
+	constexpr float NEGATED_SCALE = 0.75f; // a word, smaller than a number (TODO: tune)
 
 	/** A damage hit (not a heal, not immune) that took nothing, on a target in Broken Darkness form. The hit event
 	 *  doesn't say why it took 0; on Broken Darkness that is its block absorbing the energy. */
-	WORLD_OF_REFRACTION_API bool IsAbsorbedHit(const FCombatHitShown &Hit, bool bTargetBrokenDarkness);
+	WORLD_OF_REFRACTION_API bool IsNegatedHit(const FCombatHitShown &Hit, bool bTargetBrokenDarkness);
 
-	WORLD_OF_REFRACTION_API FText GetAbsorbedLabel();
+	WORLD_OF_REFRACTION_API FText GetNegatedLabel();
 
-	/** "Absorbed" in the hit's colour (the element Broken Darkness took in), smaller than a number, no glow. */
-	WORLD_OF_REFRACTION_API FDamageNumberStyle MakeAbsorbedStyle(const FCombatHitShown &Hit);
+	/** "Negated" in the hit's colour (the element Broken Darkness took in), smaller than a number, no glow. */
+	WORLD_OF_REFRACTION_API FDamageNumberStyle MakeNegatedStyle(const FCombatHitShown &Hit);
 
 	/** How far up a number of this age has drifted (Slate units, positive = up). */
 	WORLD_OF_REFRACTION_API float GetRiseOffset(float AgeSeconds);

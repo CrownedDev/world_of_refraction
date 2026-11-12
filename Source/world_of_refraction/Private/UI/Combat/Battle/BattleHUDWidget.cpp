@@ -841,11 +841,11 @@ int32 UBattleHUDWidget::GetLiveDamageNumberCount() const
 void UBattleHUDWidget::ShowDamageNumber(AActor *Target, const FCombatHitShown &Hit)
 {
 	UWorld *World = GetWorld();
-	// B-391c (Q-391c): a hit Broken Darkness took fully reads "Absorbed" rather than nothing.
+	// B-391c (Q-391c): a hit Broken Darkness took fully reads "Negated" rather than nothing (Crown, 2026-11-12).
 	const UCharacterDataComponent *TargetData = Target ? Target->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	const bool bAbsorbed = DamageNumberView::SHOW_ABSORB_CUE &&
-						   DamageNumberView::IsAbsorbedHit(Hit, TargetData && TargetData->IsBrokenDarkness());
-	if (!Target || !World || (!bAbsorbed && !DamageNumberView::ShouldShow(Hit)))
+	const bool bNegated = DamageNumberView::SHOW_NEGATED_CUE &&
+						   DamageNumberView::IsNegatedHit(Hit, TargetData && TargetData->IsBrokenDarkness());
+	if (!Target || !World || (!bNegated && !DamageNumberView::ShouldShow(Hit)))
 	{
 		return;
 	}
@@ -881,7 +881,7 @@ void UBattleHUDWidget::ShowDamageNumber(AActor *Target, const FCombatHitShown &H
 	FBattleDamageNumber &Number = DamageNumbers[SlotIndex];
 	Number.Target = Target;
 	Number.Hit = Hit;
-	Number.Style = bAbsorbed ? DamageNumberView::MakeAbsorbedStyle(Hit) : DamageNumberView::MakeStyle(Hit);
+	Number.Style = bNegated ? DamageNumberView::MakeNegatedStyle(Hit) : DamageNumberView::MakeStyle(Hit);
 	Number.WorldPoint = Target->GetActorLocation() + FVector(0.0f, 0.0f, Target->GetSimpleCollisionHalfHeight());
 	Number.SpawnTime = World->GetTimeSeconds();
 	Number.StackIndex = DamageNumberView::NextStackIndex(LiveStackIndices);
