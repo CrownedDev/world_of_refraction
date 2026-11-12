@@ -648,7 +648,9 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 		return TEXT("layout: no turn view");
 	}
 	const FCombatCameraFrame Frame = BuildFrame(Actor);
-	const FTransform View = FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame);
+	// The real turn view: B-405's fight height on top (a boss fight is low and looks up).
+	const FTransform View = FBossFramingRules::ApplyHeight(FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame),
+														   GetFightCameraHeight(), TurnViewStyle, Frame);
 	auto Describe = [&View](const FVector &Point)
 	{
 		FVector2D Screen;
