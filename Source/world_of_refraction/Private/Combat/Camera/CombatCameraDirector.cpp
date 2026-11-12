@@ -605,9 +605,9 @@ void UCombatCameraDirector::HandleActionRequested(AActor *Actor)
 	{
 		return; // a turn start's ask, a refused pick asked again, or not the actor the camera follows
 	}
-	if (PlayingSequence || DefenceHandOffTimer.IsValid())
+	if (PlayingSequence || DefenceHandOffTimer.IsValid() || IsBossCinematicPlaying() || CurrentMode == ECombatCameraMode::KillShot)
 	{
-		return; // a cinematic keeps the view; its end shows the turn view (HandleSequenceFinished), as before
+		return; // a cinematic or a kill shot keeps the view; its end shows the turn view, as before
 	}
 	const UWorld *World = GetWorld();
 	if (IsShotPlaying() && World && World->GetTimerManager().IsTimerActive(ShotTimer))
@@ -1253,7 +1253,8 @@ void UCombatCameraDirector::StepShot()
 		SetShotMotionBlur(CameraActor, 0.0f);			// B-403: the rush is over
 		// B-401: the same hero was asked again while this shot moved; the return plays now that it is seen.
 		AActor *Returning = ViewedActor.Get();
-		if (bSameTurnReturnPending && bInCombat && Returning && !PlayingSequence && !DefenceHandOffTimer.IsValid())
+		if (bSameTurnReturnPending && bInCombat && Returning && !PlayingSequence && !DefenceHandOffTimer.IsValid() &&
+			!IsBossCinematicPlaying() && CurrentMode != ECombatCameraMode::KillShot)
 		{
 			bSameTurnReturnPending = false;
 			ReturnToTurnView(Returning);

@@ -100,11 +100,21 @@ BEGIN_DEFINE_SPEC(FBattleHUDSpec, "WoR.UI.BattleHUD",
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
 
+	/** The test world, made once per case, so a case can set the save before StartDuel. False if setup failed. */
+	bool CreateTestWorld()
+	{
+		if (TestWorld)
+		{
+			return true;
+		}
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		return TestTrue(TEXT("Test world created"), TestWorld->Create());
+	}
+
 	/** Both sides player-controlled, so each turn opens the menu. False if setup failed. */
 	bool StartDuel()
 	{
-		TestWorld = MakeUnique<FWoRTestWorld>();
-		if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+		if (!CreateTestWorld())
 		{
 			return false;
 		}
@@ -550,7 +560,7 @@ void FBattleHUDSpec::Define()
 		It("shows the party's action pips live and an End Turn row in an action-pips fight (B-170e)", [this]()
 		{
 			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_ON);
-			USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+			USaveSubsystem *Save = CreateTestWorld() ? TestWorld->GetSubsystem<USaveSubsystem>() : nullptr;
 			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !TestNotNull(TEXT("the save"), Save))
 			{
 				return;
