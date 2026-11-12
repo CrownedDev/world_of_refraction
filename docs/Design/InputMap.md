@@ -39,6 +39,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Dodge (timed) | (editor context) | (editor context) | (editor) | Built: one Dodge (D-135, B-343: the `DodgeLeftAction` binding; no left / right split, no Parry). CC to fill from the editor; removing `IA_Parry` and `IA_DodgeRight` is an editor step. Co-op: as Guard (B-229) |
 | Menu confirm / back | Enter / Esc | A (Cross) / B (Circle) | CommonUI Click / Back | Built (B-103) for the old HUD. **New battle HUD (B-391, `wor.UI.NewHUD 1`):** picking is a mouse click and Back is a menu row; a gamepad can't pick inside a submenu yet (Q-391). Co-op: a client's confirmed pick, with its infusion source and level, goes to the server (`Server_SubmitMenuPick`, B-229); back stays local |
 | Move the target highlight (camera follows, B-400) | Arrow keys (menu focus) / mouse hover over a target button | D-pad / left stick (menu focus) | CommonUI navigation (no new input action) | Built (B-400): focus or hover on a target button calls `HighlightTarget`; debug `wor.Camera.TargetCycle` |
+| Skip boss cinematic (opening, phase change) | Tab | Menu (Options) | `IA_Combat_SkipCinematic` | Built (B-406b, Q-406b): press, in the code-built menu-keys context; does nothing unless a boss cinematic plays. Tab: no row here uses it (not Space, the usual dodge key and Slate's Accept; not Enter / Esc / Backspace / 1–7). The key doesn't consume input, so **PIE must confirm** the editor combat context puts no Guard / Dodge / pause on Tab or Menu (`docs/PIE/B-406b.md`). Co-op: ends this machine's view only; the server's hold ends on its own end or its cap |
 
 ## Notes
 
@@ -58,3 +59,4 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | 2026-11-12 | B-170e (Crown, 2026-11-12): End Turn's key removed; **a key for End Turn comes later** and gets its row here when it lands. The End Turn button stays (and a setting can hide it) | feature/B-170e-action-pips-ui-cloud |
 | 2026-11-09 | B-400: menu focus / hover on a target button now moves the target highlight (and the camera); no new key or input action | feature/B-400-target-cut-cloud |
 | 2026-11-09 | B-400b: in the new battle HUD (B-391), hovering a target row moves the target highlight; its rows stay non-focusable, so keys still pick | feature/B-400b-new-hud-target-highlight |
+| 2026-11-09 | B-406b: Skip boss cinematic (Tab / Menu), `IA_Combat_SkipCinematic` (review: moved off Space) | feature/B-406b-boss-cinematic-skip |
