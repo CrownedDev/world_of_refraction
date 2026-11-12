@@ -57,8 +57,8 @@ public:
 	bool bSwitchFreeAtOwnTurnStartEffect = false;
 
 	/** Binds every step's signal. Energy is recorded as the trigger's payout only when
-	 *  bEnergyIsTrigger, and only its first change (the turn-start Energy refill, B-173, comes later in the step);
-	 *  BrokenDarkness may be null. */
+	 *  bEnergyIsTrigger. Every Energy change is recorded, so the turn-start refill (B-173, later in the step) adds a
+	 *  second entry; specs read the trigger's place with FirstIndexOf. BrokenDarkness may be null. */
 	void Listen(AActor *Actor, int32 InOwnTurnStartEffectId, int32 InAlwaysOnEffectId, bool bEnergyIsTrigger,
 				ACombatOrchestrator *Orchestrator, USkillEffectManager *Effects, UStatusBuildupManager *Buildup,
 				UBrokenDarknessManager *BrokenDarkness)
