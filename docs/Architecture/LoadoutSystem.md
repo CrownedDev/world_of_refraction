@@ -309,7 +309,9 @@ While in combat, callers query the component:
   pawn writes through to `FPartyMember::GuardStyle` / `GuardWeaponId`, saved v32) and `GetGuardMontage`,
   the one resolver `UDefenseSystem::PlayDefenseAnimation` plays on every Guard: the weapon's
   `ParryMontage`, else the character's `BlockMontage`. Looks only. Debug: `wor.Guard.Print` /
-  `wor.Guard.Set` (`Debug/Combat/GuardDebug`).
+  `wor.Guard.Set` (`Debug/Combat/GuardDebug`). Co-op (B-392b): on a guest, `SetGuardStyle` and
+  `SetParryElementPriority` also send `AWoRPlayerState::ServerSetGuard` / `ServerSetParryPriority`; the host
+  applies them to its copy of the fighter when that player commands it (`CommandsFighter`).
 - **Parry colour priority (B-393, D-170)** — `GetParryElementPriority` / `SetParryElementPriority`
   (`EParryElementPriority` Weapon / Magic, default Weapon; a stamped party pawn writes through to
   `FPartyMember::ParryElementPriority`, saved v33): which element colours a landed parry's effect when
@@ -534,3 +536,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-09 | B-357e (D-147): `ULoadoutComponent::GetCharacterSlotEvolution` (the Place Character entry of `GatherAttachedEvolutions`); every remaining reader of the character slot's evolution reads it (infusion source, wear, Reality check, seat stats and Amp, broken Breakthrough, capabilities, quest conditions, combat tier, debug prints); the slot's writes stay on `FCombatLoadout::PrimaryEvolution`. `GetActivePrimaryEvolutionCrystal` / `Attachment` OBSOLETE (no C++ reader). `FSkillEffect::IsLastingPassive` shared by `SwapEquipmentEffects` and `GetGearEvolutionPassivesForAction`. No play change. | refactor/B-357e-evolution-readers (in dev) |
 | 2026-11-09 | B-392 (D-170, Q-392): two guards. `EGuardStyle`; `ULoadoutComponent::GetGuardStyle` / `SetGuardStyle` / `GetGuardMontage` / `ResolveGuardStyle`; the setting on `FPartyMember` (saved, `FSavedPartyMember`, save v32); every Guard plays `GetGuardMontage`; `FWeaponLoadoutEntry::bUseWeaponParryAnimation` OBSOLETE; `wor.Guard.Print` / `wor.Guard.Set`; spec `WoR.Defense.TwoGuards`. | feature/B-392-two-guards (in dev, built 2026-11-12) |
 | 2026-11-09 | B-393 (D-170 corrected, Q-393): the parry colour priority. `EParryElementPriority`; `ULoadoutComponent::GetParryElementPriority` / `SetParryElementPriority`; on `FPartyMember` (saved, `FSavedPartyMember`, save v33); `UPartySessionSubsystem::SetMemberParryPriority`; `wor.Guard.Print` adds the parry pick, `wor.Guard.SetParryPriority`. | feature/B-393-parry-vfx (in dev, built 2026-11-12) |
+| 2026-11-12 | B-392b (Crown, Q5 = B): a co-op guest's guard and parry colour priority reach the host: `AWoRPlayerState::ServerSetGuard` / `ServerSetParryPriority` (Reliable; enum checked; refused unless `CommandsFighter`: the member id stamped on the pawn, else its character) call the setters on the host's pawn, which write its party record; the guest's setters send them when `NM_Client`. D-103 TODOs cleared. Spec `WoR.Defense.TwoGuards` (co-op). | `fix/B-392b-guest-guard-sync` |
