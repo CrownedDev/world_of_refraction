@@ -1111,6 +1111,11 @@ void ACombatOrchestrator::OnActionCompleted()
 		if (MidTurnWinState != ECombatState::InProgress)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met mid-turn: %d"), (int32)MidTurnWinState);
+			// B-405: a mid-turn win holds on its kill shot too.
+			if (MidTurnWinState == ECombatState::Victory && StartKillShotHold())
+			{
+				return;
+			}
 			FinishCombat(MidTurnWinState, /*bTurnManagerEnded=*/false);
 			return;
 		}
