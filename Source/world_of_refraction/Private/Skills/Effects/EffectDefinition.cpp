@@ -70,11 +70,20 @@ EDataValidationResult UEffectDefinition::IsDataValid(FDataValidationContext &Con
             const FString TypeName = UEnum::GetValueAsString(Payload.EffectType);
             if (SkillEffectClassification::IsRetired(Payload.EffectType))
             {
-                // D-056: the generic Speed Buff / Debuff do nothing; turn order reads the Turn Speed family.
+                // D-056: the generic Speed Buff / Debuff do nothing.
                 Context.AddError(FText::FromString(FString::Printf(
-                    TEXT("Effect %d uses %s, which is retired (D-056) and does nothing. Use TurnSpeedBuff / TurnSpeedDebuff."),
+                    TEXT("Effect %d uses %s, which is retired (D-056) and does nothing. Pick a current type."),
                     i, *TypeName)));
                 Result = EDataValidationResult::Invalid;
+            }
+            else if (SkillEffectClassification::IsTurnSpeedFamily(Payload.EffectType))
+            {
+                // B-170g (Q-170h, Q-170g2): retired with action pips. A warning, not an error, while the speed timeline
+                // still reads it (wor.Turns.ActionPips 0); B-170h deletes the reads.
+                Context.AddWarning(FText::FromString(FString::Printf(
+                    TEXT("Effect %d uses %s: Turn Speed is retired with action pips (B-170) and does nothing once they're on. "
+                         "Use Gain / Lose Action or Max Actions Up / Down instead."),
+                    i, *TypeName)));
             }
             else if (SkillEffectClassification::HasNoReader(Payload.EffectType))
             {

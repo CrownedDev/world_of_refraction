@@ -88,7 +88,9 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusResistance = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
+    /** OBSOLETE (B-170h): Turn Speed is retired with action pips (B-170g, Q-170h); read only at wor.Turns.ActionPips 0.
+     *  Gear and evolution validation warn on an authored value; kept so saved assets load. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21", DisplayName = "Bonus Turn Speed (retired)"))
     int32 BonusTurnSpeed = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))

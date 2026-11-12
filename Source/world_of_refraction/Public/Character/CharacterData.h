@@ -243,7 +243,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 Resistance = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
+	/** OBSOLETE (B-170h): Turn Speed is retired with action pips (B-170g, Q-170h): read only by the speed timeline at
+	 *  wor.Turns.ActionPips 0; validation warns when it is set. Kept so saved assets load. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0", DisplayName = "Turn Speed (retired)"))
 	int32 TurnSpeed = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
@@ -418,6 +420,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalResistance() const { return Resistance; }
 
+	// OBSOLETE (B-170h): retired with action pips (B-170g); see TurnSpeed.
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalTurnSpeed() const { return TurnSpeed; }
 
@@ -639,6 +642,7 @@ public:
 	 *  owns the math; the caller picks WHICH Spirit. The turn-order path
 	 *  (TurnManager::CacheActorStats) passes the component's pillar-MODIFIED Spirit;
 	 *  CalculateTurnSpeed below passes raw GetEffectiveSpirit(). */
+	// OBSOLETE (B-170h): the speed timeline's formula, read only at wor.Turns.ActionPips 0 (B-170g).
 	float CalculateTurnSpeedWithSpirit(float SpiritValue) const
 	{
 		return FMath::Min(CombatConstants::TURN_SPEED_BASE + (SpiritValue * GetTotalTurnSpeed() * CombatConstants::TURN_SPEED_PER_POINT), CombatConstants::TURN_SPEED_CAP);
