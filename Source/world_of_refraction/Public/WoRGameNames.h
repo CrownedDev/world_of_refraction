@@ -32,9 +32,21 @@ namespace WoRGameNames
     /** "Damage Over Time", "Skip Turn", ... Element-specific names ("Burn") stay in SkillEffectDisplayNames. */
     WORLD_OF_REFRACTION_API FText GetSkillEffectTypeName(ESkillEffectType EffectType);
 
-    /** B-248 (DRY audit A8): an element's status-break name (its bar-cap trigger, BarCapTriggerResolver), e.g.
-     *  Fire "Burn", Water "Frozen" (D-090). Empty for an element with no flavour name (the trigger's name shows). */
+    /** B-248 (DRY audit A8): an element's status-break name (its bar-cap trigger, BarCapTriggerResolver). Q-064a2
+     *  (Crown, 2026-11-12): every break is "<Element> Break" ("Fire Break", "Water Break"), no special names. Empty for
+     *  Generic, Reality and None (no element break; the trigger's name shows). */
     WORLD_OF_REFRACTION_API FText GetElementBreakName(ESpellElement Element);
+
+    /** Q-064a2 (Crown, 2026-11-12): every damage over time is "<Element> DoT" ("Fire DoT"). Empty for Generic (a
+     *  physical DoT keeps its own name), Reality and None. */
+    WORLD_OF_REFRACTION_API FText GetElementDoTName(ESpellElement Element);
+
+    /** Q-064a2: "{0} Break" / "{0} DoT" around an element's name-table entry (D-061 / D-062). */
+    WORLD_OF_REFRACTION_API FText FormatBreakName(const FText &ElementName);
+    WORLD_OF_REFRACTION_API FText FormatDoTName(const FText &ElementName);
+
+    /** "Ice": Ice is a damage type, not an ESpellElement (D-029, B-064a), so its name-table entry lives here. */
+    WORLD_OF_REFRACTION_API FText GetIceName();
 
     /** "Generic", "Refractor" (code: Caster), "Resonator". */
     WORLD_OF_REFRACTION_API FText GetCharacterClassName(ECharacterClass CharacterClass);

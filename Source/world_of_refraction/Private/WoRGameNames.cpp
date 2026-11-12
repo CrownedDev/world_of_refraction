@@ -287,7 +287,7 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
         return LOCTEXT("ESkillEffectType_NegateElementTotal", "Ward (in total)");
     // B-064a: Ice's status break. TODO: Crown — the name is lore (Q-064a2); a placeholder until then.
     case ESkillEffectType::IceBreak:
-        return LOCTEXT("ESkillEffectType_IceBreak", "Ice break");
+        return FormatBreakName(GetIceName()); // Q-064a2 (Crown, 2026-11-12): "Ice Break"
     // B-170d (Q-170f, Q-170g): the action effects.
     case ESkillEffectType::GainActions:
         return LOCTEXT("ESkillEffectType_GainActions", "Gain Action");
@@ -530,30 +530,40 @@ FText GetAdapterFormName(EAdapterForm Form)
 }
 } // namespace WoRGameNames
 
+namespace
+{
+    /** The elements whose break and DoT are named after them (Q-064a2): every element but Generic (inherit / physical),
+     *  Reality (D-095: players never see its name) and None. */
+    bool HasElementEffectNames(ESpellElement Element)
+    {
+        return Element != ESpellElement::Generic && Element != ESpellElement::Reality && Element != ESpellElement::None;
+    }
+}
+
+FText WoRGameNames::FormatBreakName(const FText &ElementName)
+{
+    return FText::Format(LOCTEXT("ElementBreakFormat", "{0} Break"), ElementName);
+}
+
+FText WoRGameNames::FormatDoTName(const FText &ElementName)
+{
+    return FText::Format(LOCTEXT("ElementDoTFormat", "{0} DoT"), ElementName);
+}
+
+FText WoRGameNames::GetIceName()
+{
+    return LOCTEXT("DamageType_Ice", "Ice");
+}
+
 FText WoRGameNames::GetElementBreakName(ESpellElement Element)
 {
-    // Today's flavour words, each on the trigger that fires for its element (B-248).
-    switch (Element)
-    {
-    case ESpellElement::Fire:
-        return LOCTEXT("ElementBreak_Fire", "Burn");
-    case ESpellElement::Water:
-        return LOCTEXT("ElementBreak_Water", "Frozen");
-    case ESpellElement::Earth:
-        return LOCTEXT("ElementBreak_Earth", "Softened");
-    case ESpellElement::Wind:
-        return LOCTEXT("ElementBreak_Wind", "Tripped");
-    case ESpellElement::Lightning:
-        return LOCTEXT("ElementBreak_Lightning", "Stunned");
-    case ESpellElement::Light:
-        return LOCTEXT("ElementBreak_Light", "Dimmed");
-    case ESpellElement::Darkness:
-        return LOCTEXT("ElementBreak_Darkness", "Silenced");
-    case ESpellElement::Void:
-        return LOCTEXT("ElementBreak_Void", "Voided");
-    default:
-        return FText::GetEmpty();
-    }
+    // Q-064a2 (Crown, 2026-11-12): "<Element> Break", each on the trigger that fires for its element (B-248).
+    return HasElementEffectNames(Element) ? FormatBreakName(GetElementName(Element)) : FText::GetEmpty();
+}
+
+FText WoRGameNames::GetElementDoTName(ESpellElement Element)
+{
+    return HasElementEffectNames(Element) ? FormatDoTName(GetElementName(Element)) : FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE
