@@ -20,6 +20,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Player/InputPriorities.h"
 #include "ExplorationPlayerController.generated.h"
 
 class UInputAction;
@@ -61,7 +62,7 @@ protected:
     TObjectPtr<UInputMappingContext> ExplorationMappingContext;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
-    int32 ExplorationMappingPriority = 0;
+    int32 ExplorationMappingPriority = WoRInputPriority::EXPLORATION;
 
     /** Leader pawn class for the lazily created Trial Party. Null = the
      *  possessed pawn's class, then PartySessionSubsystem's DefaultSoloPawnClass. */
