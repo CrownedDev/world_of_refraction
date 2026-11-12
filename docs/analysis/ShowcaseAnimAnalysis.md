@@ -14,6 +14,19 @@ Root drift, airborne time (both feet over 25 cm off the floor) and the start and
 
 **Notify rules used** (from code): `UCombatNotify` families Impact / Cast / VFX / SFX, named `<Family><Index>` (`Impact0`); B-368 wants Impact `0..HitCount-1` in time order; a `Cinematic Window` (B-370) must end ≥ 0.75 s before the first Impact minus its telegraph lead; the defence window needs **no notify** (a guard / dodge counts if pressed up to `DefenseInputWindow` 0.5 s before each Impact); hit-stop (~40 ms, FeelGuide 4), hit VFX choice (Q-369) and camera punch are code, driven by the Impact notify. No recovery / cancel notify exists today: a montage blend-out time is proposed instead.
 
+### Interrupt notify (Crown's proposal, 2026-11-12; not built)
+
+**What Crown asked for:** a strike notify that lands the hit and, at that frame, cancels or staggers the **target's** charge, cast or ritual.
+
+**How it fits what exists:**
+- Today's "interrupt" runs the other way: a defender's **Perfect Guard on an interrupt point** (`bInterruptable` on a hit or cast entry) ends the **attacker's** skill (D-161, ED-37c, `GuardRules.h:46`, `ActionExecutor::InterruptAsyncAction`). The new one is the attacker's hit stopping the target. Keep the names apart: suggested **"Interrupt"** for the new notify and keep calling the old one an **"interrupt point"**.
+- In this turn-based game a target is never mid-swing during your turn. What it can have in progress is an **armed ritual** (a deferred spell waiting for its Execution turn, ET-16). Infusion "charge" (ED-10) is picked with the action, not held. So in practice the Interrupt hits a ritual (and any future boss charge-up).
+- **Conflict to decide (Crown):** SB-36 says a ritual armed before a stun **still goes off**. An Interrupt that cancels rituals changes that. Options: cancel the ritual; delay it a turn; or weaken it (drop its charge level). Not decided here.
+- **Shape (proposal for the Code Writer's job):** keep it an **Impact** notify so the hit count, B-368's `0..HitCount-1` order and the outcome VFX all stay as they are. Either a flag on the notify (label `Interrupt<N>` in the montage editor, still counted as `Impact<N>`) or a flag on the skill's hit entry N, the way `bInterruptable` already lives on hit entries. The hit entry is the better home (data, per skill, readable by the AI); the label is an authoring aid.
+- **Defence:** it lands only if the hit lands; a successful Guard or Dodge on that impact cancels the interrupt (same rule as any on-hit effect, to confirm).
+
+**Where it goes:** not on light hits (it would make the cheapest action the ritual answer). Best fits: the **crippling strike** (stagger is its job) and the **heavy hit** (an overhead break). Proposed per skill as each is analysed.
+
 ## All sword and shield in-place attacks (DSAS V1 / V2), screened
 
 Root drift is 0 on every clip (truly in place). "Stand" = pelvis 93 cm, the normal standing pose; 76 = the low guard stance of the V1 thrusts; lower start values are combo pieces that begin from the previous piece's end pose.
@@ -51,6 +64,12 @@ Root drift is 0 on every clip (truly in place). "Stand" = pelvis 93 cm, the norm
 | V2 `ComboAttack03_02` | 0.65 | – | 66 / 93 | 0.20 | short cut (combo middle) |
 | V2 `ComboAttack03_03` | 1.20 | – | 76 / 93 | 0.50 | forward rising thrust |
 
+**Flip and jump check (added after Crown's note, 2026-11-12).** The hand alone can miss a flip, so every clip was also checked by its torso: the angle of the pelvis-to-head line from vertical, whether the head ever drops below the pelvis, and both feet's height. (Pelvis Euler rotations wrap round ±180° on these clips, so they were not used.)
+- **Upside down:** only V2 `ComboAttack01_01` (torso 122° from vertical at 0.75 s, head 35 cm *below* the pelvis): the backflip.
+- **Deep leans (over 60°), no flip:** `Slash1`, `Combo3_03`, `Combo5_01`, `Combo5_02`, `Combo5_03`.
+- **Everything else** stays within 57°; V2 `ComboAttack02_01` peaks at 34° with the head always ≥ 55 cm above the pelvis, feet never above 57 cm, no airborne frame. The full chain `ComboAttack02_IP` (3.03 s, 02_01 → 02_04 joined) has no flip either.
+- Root rotation is 0 on every clip (no turn baked into the root).
+
 **Skeleton check (intake rule, SkillPresentationPipeline §2):** V1 clips use `SK_Manny_DSAS1`, V2 clips `SK_Manny_DSAS2`, the pack's own skeletons. Confirm they play on our showcase character's skeleton (retarget or compatible skeleton) before the montage is built.
 
 ## Light hit (Destruction)
@@ -59,7 +78,9 @@ Root drift is 0 on every clip (truly in place). "Stand" = pelvis 93 cm, the norm
 
 ### Pick: V2 `Anim_SAS_V2_ComboAttack02_01_IP` ★
 
-`/Game/CombatMasterAnimBundle/Animations/DSAS_V2/Manny_UE5/InPlace/Attack/Combo/Anim_SAS_V2_ComboAttack02_01_IP`
+`/Game/CombatMasterAnimBundle/Animations/DSAS_V2/Manny_UE5/InPlace/Attack/Combo/Anim_SAS_V2_ComboAttack02_01_IP` (1.225 s, 49 frames, imported from `Anim_SAS_V2_ComboAttack02_01_IP.FBX`)
+
+**Crown saw a backflip (2026-11-12).** The bone data shows none in this clip (flip check above). The clip that does backflip is `ComboAttack01_01`, which was open in the editor beside it. Please re-open this exact path to confirm by eye; if it still flips on screen, the preview is showing another asset or mesh, and the pick moves to runner-up 1.
 
 **The motion:** the sword rises overhead and is held there (a clear tell), then the right foot steps forward and the blade comes down diagonally in front, ending low; a short hold, then the feet step back to stand. One blow, straight at the target.
 
@@ -91,7 +112,7 @@ Root drift 0; the pelvis drops 31 cm in the lunge and comes back; starts and end
 | Defence window | — | — | none to place: code opens it 0.5 s before `Impact0` |
 | Blend-out (montage setting, not a notify) | 0.95–1.225 | 38–49 | 0.25 s blend back to idle; the next action can start from 0.95 s |
 
-`HitCount` 1, so only `Impact0` (B-368 passes).
+`HitCount` 1, so only `Impact0` (B-368 passes). Interrupt: **none proposed** on the light hit; if Crown wants one, it replaces `Impact0` at the same frame (0.40 s, f16).
 
 **Skill that fits the motion:** a **single-target, one-hit downward chop**: low cost, small flinch on the target, no area. The overhead tell and one clean blade-down are its identity. If an enemy uses it, the defender sees only 0.4 s from the first move to contact (less than E33's ~0.7 s), so either keep the telegraph above or play it at ~0.85 speed for enemies (`TODO:` a design call, not taken here).
 
@@ -137,3 +158,4 @@ Feel: a long, readable coil (0.55 s, close to E33's 0.7) and then a whip-fast sw
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-12 | Created: method, screen of all DSAS in-place attacks, light hit pick (V2 ComboAttack02_01) with runners-up | docs/showcase-anim-analysis |
+| 2026-11-12 | Crown's notes: flip and jump check by torso tilt (only ComboAttack01_01 flips; the pick has none), Interrupt notify proposal (fit, SB-36 conflict, placement) | docs/showcase-anim-analysis |
