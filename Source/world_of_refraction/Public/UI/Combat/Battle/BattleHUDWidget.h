@@ -11,8 +11,8 @@
 // - B-391c: a status buildup bar on every card (UStatusBuildupManager::OnStatusBuildupChanged; on a client the
 //   replicated UStatusBarStateComponent), tinted as the old panel, with Q-111 A's cracks past half (a fixed set of
 //   marks built once, shown as the bar fills); party cards add "Status x / y", a gear line (weapon · ring) and a hover
-//   tooltip with the loadout, from the ULoadoutComponent; a 0-damage hit on Broken Darkness reads "Absorbed"
-//   (DamageNumberView::SHOW_ABSORB_CUE, Q-391c). Combatants that join mid-fight get no card or numbers: nothing
+//   tooltip with the loadout, from the ULoadoutComponent; a 0-damage hit on Broken Darkness reads "Negated"
+//   (DamageNumberView::SHOW_NEGATED_CUE, Q-391c). Combatants that join mid-fight get no card or numbers: nothing
 //   announces a join today (no summons exist; UISystem.md Known Limitations).
 // The command menu is its own widget (UBattleCommandMenuWidget). CommonUI replaces both later (D-024).
 //
