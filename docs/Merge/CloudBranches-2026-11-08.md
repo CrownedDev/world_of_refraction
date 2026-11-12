@@ -473,3 +473,7 @@ Crown answered eight questions. Each answer is a new commit on its open branch, 
 - **Now in dev (desktop, built):** B-400b, B-170f, B-391b, B-406b, B-170g, B-391c (`64edcdda`). Every camera, HUD and action-pips row from the cloud is now in dev.
 - **Trial branch `integration/cloud-2026-11-12`:** correction, my 15:10 dev merge was **not pushed**. Another cloud session (`session_018ndzbAw3WAj3U9rMM5QQR5`) is maintaining this branch too: since 14:04 it has merged dev at `8179c9fc`, Crown's 2026-11-12 answer fixes (`fix/B-064a-crown-answer-cloud`, `fix/B-392-crown-answer-cloud`, `fix/B-403-crown-answer-cloud`), and Q-032d / Q-406b confirmations. To avoid two writers on one branch, this writer leaves the trial branch to that session. Method for its next dev merge: take dev's copy of every file no open branch touches (a merged row is built in dev), then add the open branches' rows and lines to the five shared docs.
 - **Still open:** B-042g2 (row 77, after its PIE gate), B-234d (row 108), B-032d (row 109), then the PIE-gated cleanups C1 to C7. Their remaining conflicts with dev are in docs only (Backlog, PIE README, DesignDecisions, the CombatOrchestrator changelog, the 2026-11-09 session note). Take dev's copy and add the branch's own rows and lines.
+
+## Update, 2026-11-12 (16:00)
+
+- **Now in dev:** B-234d (row 108, `bc6505f7`). **Still open:** B-042g2 (row 77, after its PIE gate), B-032d (row 109), and C1 to C7.
