@@ -382,6 +382,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-366e](B-366e.md) | Gear repair costs the currency of the place | Pending | REVIEW (in dev) | [ ] |
 | [B-367](B-367.md) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending | REVIEW (in dev) | [ ] |
 
+| [B-096](B-096.md) | Evolutions' Run Payout Bonus Percent raises the run-end payout (adds up, cap x2.0) | Pending | REVIEW (`feature/B-096-payout-passives-cloud`, UNBUILT) | [ ] |
 ---
 
 ## Swept
