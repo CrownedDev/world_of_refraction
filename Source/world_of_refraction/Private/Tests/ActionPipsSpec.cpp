@@ -23,11 +23,16 @@ namespace
 	constexpr int32 ACTION_PIPS_ONE_AND_THREE_QUARTERS = 175;
 	constexpr int32 ACTION_PIPS_THREE_QUARTERS = 75;
 	constexpr int32 ACTION_PIPS_FAR_PAST_CAP = 10000;
-	/** Far past the Reflex window cap, so the share is 1. */
+	/** Far past every regain step, so the regain is at the cap. */
 	constexpr int32 ACTION_PIPS_HUGE_REFLEX = 100000;
-	/** Between the two regain thresholds. */
-	constexpr float ACTION_PIPS_MID_SHARE = 0.65f;
 	constexpr float ACTION_PIPS_JUST_UNDER = 0.01f;
+	/** B-170i: a light Reflex build (one step and a bit) and a focused one (two steps and a bit), at Body level 0. */
+	constexpr int32 ACTION_PIPS_LIGHT_REFLEX = 16;
+	constexpr int32 ACTION_PIPS_FOCUSED_REFLEX = 31;
+	constexpr int32 ACTION_PIPS_HIGH_BODY_LEVEL = 7;
+	/** "Regain 2 (Reflex 18.0 / 30.0)": value 18 with a step of 15. */
+	constexpr float ACTION_PIPS_REGAIN_PROGRESS_VALUE = 18.0f;
+	constexpr float ACTION_PIPS_REGAIN_STEP_SHOWN = 15.0f;
 }
 
 BEGIN_DEFINE_SPEC(FActionPipsSpec, "WoR.Combat.ActionPips",
@@ -35,13 +40,6 @@ BEGIN_DEFINE_SPEC(FActionPipsSpec, "WoR.Combat.ActionPips",
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	UCharacterData *Data = nullptr;
 	UCharacterDataComponent *Char = nullptr;
-
-	/** Reflex points that put the share at ShareWanted (the stat term alone; no gear on this combatant). */
-	int32 ReflexPointsForShare(float ShareWanted) const
-	{
-		const float PerPoint = Data->GetEffectiveBody() * CombatConstants::REFLEX_WINDOW_PER_POINT;
-		return PerPoint > KINDA_SMALL_NUMBER ? FMath::RoundToInt(ShareWanted * CombatConstants::WINDOW_CAP_SECONDS / PerPoint) : 0;
-	}
 END_DEFINE_SPEC(FActionPipsSpec)
 
 void FActionPipsSpec::Define()
@@ -85,16 +83,28 @@ void FActionPipsSpec::Define()
 
 	Describe("Regain from Reflex", [this]()
 	{
-		It("is 1, then 2 at threshold 2, then 3 at threshold 3", [this]()
+		It("is 1 + one per whole step of Reflex value, at most the Max Actions cap (B-170i)", [this]()
 		{
-			TestEqual(TEXT("No Reflex"), ActionPipsRules::RegainForReflexShare(0.0f), ACTIONS_REGAIN_BASE);
-			TestEqual(TEXT("Just under 2"), ActionPipsRules::RegainForReflexShare(ACTIONS_REGAIN_REFLEX_THRESHOLD_2 - ACTION_PIPS_JUST_UNDER),
+			TestEqual(TEXT("No Reflex"), ActionPipsRules::RegainForReflexValue(0.0f, REGAIN_STEP), ACTIONS_REGAIN_BASE);
+			TestEqual(TEXT("Just under one step"),
+					  ActionPipsRules::RegainForReflexValue(REGAIN_STEP - ACTION_PIPS_JUST_UNDER, REGAIN_STEP), ACTIONS_REGAIN_BASE);
+			TestEqual(TEXT("One step"), ActionPipsRules::RegainForReflexValue(REGAIN_STEP, REGAIN_STEP), ACTIONS_REGAIN_BASE + 1);
+			TestEqual(TEXT("Just under two steps"),
+					  ActionPipsRules::RegainForReflexValue(2.0f * REGAIN_STEP - ACTION_PIPS_JUST_UNDER, REGAIN_STEP), ACTIONS_REGAIN_BASE + 1);
+			TestEqual(TEXT("Two steps"), ActionPipsRules::RegainForReflexValue(2.0f * REGAIN_STEP, REGAIN_STEP), ACTIONS_REGAIN_BASE + 2);
+			TestEqual(TEXT("Huge Reflex stops at the cap"), ActionPipsRules::RegainForReflexValue(ACTION_PIPS_HUGE_REFLEX, REGAIN_STEP),
+					  MAX_ACTIONS_CAP);
+			TestEqual(TEXT("A negative value is the base"), ActionPipsRules::RegainForReflexValue(-REGAIN_STEP, REGAIN_STEP),
 					  ACTIONS_REGAIN_BASE);
-			TestEqual(TEXT("At 2"), ActionPipsRules::RegainForReflexShare(ACTIONS_REGAIN_REFLEX_THRESHOLD_2), ACTIONS_REGAIN_AT_THRESHOLD_2);
-			TestEqual(TEXT("Just under 3"), ActionPipsRules::RegainForReflexShare(ACTIONS_REGAIN_REFLEX_THRESHOLD_3 - ACTION_PIPS_JUST_UNDER),
-					  ACTIONS_REGAIN_AT_THRESHOLD_2);
-			TestEqual(TEXT("At 3"), ActionPipsRules::RegainForReflexShare(ACTIONS_REGAIN_REFLEX_THRESHOLD_3), ACTIONS_REGAIN_AT_THRESHOLD_3);
-			TestEqual(TEXT("Full"), ActionPipsRules::RegainForReflexShare(1.0f), ACTIONS_REGAIN_AT_THRESHOLD_3);
+			TestEqual(TEXT("A step of 0 is the base"), ActionPipsRules::RegainForReflexValue(REGAIN_STEP, 0.0f), ACTIONS_REGAIN_BASE);
+		});
+
+		It("shows the progress to the next regain, and none at the cap", [this]()
+		{
+			TestEqual(TEXT("Progress"), ActionPipsRules::RegainString(ACTION_PIPS_REGAIN_PROGRESS_VALUE, ACTION_PIPS_REGAIN_STEP_SHOWN),
+					  FString(TEXT("Regain 2 (Reflex 18.0 / 30.0)")));
+			TestEqual(TEXT("At the cap"), ActionPipsRules::RegainString(ACTION_PIPS_HUGE_REFLEX, REGAIN_STEP),
+					  FString::Printf(TEXT("Regain %d"), MAX_ACTIONS_CAP));
 		});
 
 		It("never fills past Max, and adds nothing at or above it", [this]()
@@ -149,20 +159,30 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("Progress"), Char->GetActionPointProgress(), ACTION_PIPS_THREE_QUARTERS);
 		});
 
-		It("regains 1 with no Reflex, 2 between the thresholds and 3 at full Reflex", [this]()
+		It("regains 1 with no Reflex, 2 with a light Reflex build and 3 with a focused one (B-170i)", [this]()
 		{
 			if (!Char) return;
 			TestEqual(TEXT("No Reflex"), Char->GetActionRegain(), ACTIONS_REGAIN_BASE);
 
-			Data->Reflex = ReflexPointsForShare(ACTION_PIPS_MID_SHARE);
-			const float MidShare = Char->GetReflexRegainShare();
-			TestTrue(TEXT("Mid share between the thresholds"),
-					 MidShare >= ACTIONS_REGAIN_REFLEX_THRESHOLD_2 && MidShare < ACTIONS_REGAIN_REFLEX_THRESHOLD_3);
-			TestEqual(TEXT("Mid Reflex"), Char->GetActionRegain(), ACTIONS_REGAIN_AT_THRESHOLD_2);
+			Data->Reflex = ACTION_PIPS_LIGHT_REFLEX;
+			TestEqual(TEXT("Light Reflex"), Char->GetActionRegain(), ACTIONS_REGAIN_BASE + 1);
 
-			Data->Reflex = ACTION_PIPS_HUGE_REFLEX;
-			TestTrue(TEXT("Share at or past threshold 3"), Char->GetReflexRegainShare() >= ACTIONS_REGAIN_REFLEX_THRESHOLD_3);
-			TestEqual(TEXT("Full Reflex"), Char->GetActionRegain(), ACTIONS_REGAIN_AT_THRESHOLD_3);
+			Data->Reflex = ACTION_PIPS_FOCUSED_REFLEX;
+			TestEqual(TEXT("Focused Reflex"), Char->GetActionRegain(), ACTIONS_REGAIN_BASE + 2);
+		});
+
+		It("gives the same regain for the same Reflex points at any Body level (levelling Body cancels out)", [this]()
+		{
+			if (!Char) return;
+			for (const int32 Points : {ACTION_PIPS_LIGHT_REFLEX - 2, ACTION_PIPS_LIGHT_REFLEX, ACTION_PIPS_FOCUSED_REFLEX})
+			{
+				Data->Reflex = Points;
+				Char->LiveWorldBody = 0;
+				const int32 AtBodyZero = Char->GetActionRegain();
+				Char->LiveWorldBody = ACTION_PIPS_HIGH_BODY_LEVEL;
+				TestTrue(TEXT("The step grows with Body"), Char->GetRegainReflexStep() > REGAIN_STEP);
+				TestEqual(FString::Printf(TEXT("%d points"), Points), Char->GetActionRegain(), AtBodyZero);
+			}
 		});
 
 		It("starts a fight with the regain capped at Max, and regains up to Max only", [this]()
@@ -170,7 +190,7 @@ void FActionPipsSpec::Define()
 			if (!Char) return;
 			Data->Reflex = ACTION_PIPS_HUGE_REFLEX;
 			Char->ResetActionsForFight();
-			TestEqual(TEXT("Regain 3 capped at Max 2"), Char->CurrentActions, MAX_ACTIONS_BASE);
+			TestEqual(TEXT("The capped regain, capped again at Max 2"), Char->CurrentActions, MAX_ACTIONS_BASE);
 
 			TestTrue(TEXT("Spent 2"), Char->SpendActions(MAX_ACTIONS_BASE));
 			Data->Reflex = 0;
