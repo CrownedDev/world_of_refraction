@@ -55,6 +55,9 @@ TArray<FVector> CameraFraming::GetRequiredPoints(ECameraShotMoment Moment, const
 		Points.Add(Context.Caster);
 		Points.Append(Context.Targets);
 		break;
+	case ECameraShotMoment::NamedAttack:
+		Points.Add(Context.Caster); // B-406: the front shot frames the enemy alone; its targets are behind the camera
+		break;
 	case ECameraShotMoment::Impact:
 		// B-403 (R6): the impact is a two-shot: the caster and the first target.
 		Points.Add(Context.Caster);

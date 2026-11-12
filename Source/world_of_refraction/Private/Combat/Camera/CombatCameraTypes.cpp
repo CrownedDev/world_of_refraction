@@ -70,6 +70,13 @@ namespace CombatCameraShots
 	constexpr float CloseScale = 0.75f;
 	constexpr float WideScale = 1.4f;
 	constexpr float BlendEaseExponent = 2.0f;
+	// B-406 (study R9): the named-attack front shot, a medium shot of the enemy from in front, pushing in.
+	constexpr float NamedAttackStartFront = 520.0f;
+	constexpr float NamedAttackEndFront = 380.0f;
+	constexpr float NamedAttackSide = 60.0f;
+	constexpr float NamedAttackHeight = 110.0f;
+	constexpr float NamedAttackLookHeight = 90.0f;
+	constexpr float NamedAttackSeconds = 1.0f;
 }
 
 namespace CombatCameraTargetView
@@ -508,6 +515,16 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 		Shot.ShakeScale = (Context.bCritical ? CritShake : ImpactShake) * Tuning.ShakeScale;
 		break;
 	}
+	case ECameraShotMoment::NamedAttack:
+	{
+		// In front of the caster (between it and its targets), a little to the tuned side, looking back at it.
+		const FVector LookAt = Context.Caster + FVector::UpVector * NamedAttackLookHeight * Scale;
+		const FVector Offset = Right * NamedAttackSide * SideSign * Scale + FVector::UpVector * NamedAttackHeight * Scale;
+		Shot.Start = LookFrom(Context.Caster + Forward * NamedAttackStartFront * Scale + Offset, LookAt);
+		Shot.End = LookFrom(Context.Caster + Forward * NamedAttackEndFront * Scale + Offset, LookAt);
+		Shot.BlendSeconds = NamedAttackSeconds;
+		break;
+	}
 	case ECameraShotMoment::Spread:
 	default:
 	{
@@ -527,6 +544,16 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 	}
 	}
 	return Shot;
+}
+
+ECameraShotMoment FCombatCameraRules::OpeningMomentFor(const FSkillCameraTuning &Tuning, bool bCasterIsEnemy)
+{
+	return Tuning.bNamedAttack && bCasterIsEnemy ? ECameraShotMoment::NamedAttack : ECameraShotMoment::WindUp;
+}
+
+bool FCombatCameraRules::ShouldPlayBossCinematic(bool bHasSequence, bool bHasLocalViewer, ESkillCinematics Setting, bool bMovementOff)
+{
+	return bHasSequence && bHasLocalViewer && ShouldPlayCinematic(Setting, bMovementOff, false, true);
 }
 
 FTransform FCombatCameraRules::BlendShot(const FCameraShot &Shot, float Alpha)

@@ -1,6 +1,7 @@
 // CombatCameraSpec.cpp
 // Combat camera rules (B-156, Design/CombatCamera.md): the mode the viewer sees, the template a
 // skill falls back to, and where each mode puts the camera. B-370: the cinematic window and the Defence view.
+// B-406: boss cinematics (opening before turn 1, phase change) with the HUD broadcast, and the named-attack shot.
 // B-398: the turn-view setting's layouts and its save. B-399: the menu-depth step and the menu driving it.
 // B-400: the target view (target cut with several enemies), the highlight's cycling, and the director following it.
 
@@ -23,6 +24,9 @@
 #include "GameFramework/PlayerController.h"
 #include "Misc/ScopeExit.h"
 #include "LevelSequence.h"
+#include "Combat/Boss/BossData.h"
+#include "Combat/Boss/BossPhaseComponent.h"
+#include "BossCinematicRecorder.h"
 
 namespace
 {
@@ -724,6 +728,57 @@ void FCombatCameraSpec::Define()
 			TestFalse(TEXT("no skill: nothing"), FCombatCameraRules::UsesShotPatterns(nullptr));
 		});
 	});
+
+	Describe("boss cinematics and named attacks (B-406)", [this]()
+	{
+		It("plays a boss cinematic only with a sequence, a local viewer and cinematics on", [this]()
+		{
+			using R = FCombatCameraRules;
+			TestFalse(TEXT("empty field: nothing"), R::ShouldPlayBossCinematic(false, true, ESkillCinematics::FollowCameraMovement, false));
+			TestFalse(TEXT("no viewer (headless): nothing"), R::ShouldPlayBossCinematic(true, false, ESkillCinematics::FollowCameraMovement, false));
+			TestTrue(TEXT("set and watched: plays"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::FollowCameraMovement, false));
+			TestFalse(TEXT("camera movement off: skipped by default (D-078)"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::FollowCameraMovement, true));
+			TestTrue(TEXT("cinematics forced on: plays"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::On, true));
+			TestFalse(TEXT("cinematics off: nothing"), R::ShouldPlayBossCinematic(true, true, ESkillCinematics::Off, false));
+			TestTrue(TEXT("a cap so a broken sequence can't hang the fight"), R::BossCinematicMaxSeconds > 0.0f);
+		});
+
+		It("opens an enemy's named attack on the front shot, every other skill on the wind-up", [this]()
+		{
+			FSkillCameraTuning Named;
+			Named.bNamedAttack = true;
+			TestEqual(TEXT("enemy, named"), FCombatCameraRules::OpeningMomentFor(Named, true), ECameraShotMoment::NamedAttack);
+			TestEqual(TEXT("party member, named"), FCombatCameraRules::OpeningMomentFor(Named, false), ECameraShotMoment::WindUp);
+			TestEqual(TEXT("enemy, not named"), FCombatCameraRules::OpeningMomentFor(FSkillCameraTuning(), true), ECameraShotMoment::WindUp);
+		});
+
+		It("frames the named attack from in front of the enemy, looking back at it, pushing in", [this]()
+		{
+			FCameraShotContext Context;
+			Context.Targets = {FVector(1000.0f, 0.0f, 0.0f)};
+			const FCameraShot Shot = FCombatCameraRules::ComputeShot(ECameraShotMoment::NamedAttack, Context, FSkillCameraTuning());
+			TestTrue(TEXT("in front of the caster, toward its targets"), Shot.End.GetLocation().X > 0.0f);
+			TestTrue(TEXT("short of the targets"), Shot.Start.GetLocation().X < 1000.0f);
+			TestTrue(TEXT("looks back at the caster"), Shot.End.GetRotation().GetForwardVector().X < 0.0f);
+			TestTrue(TEXT("pushes in"), Shot.End.GetLocation().X < Shot.Start.GetLocation().X);
+			TestTrue(TEXT("over time"), Shot.BlendSeconds > 0.0f);
+			TestEqual(TEXT("no shake"), Shot.ShakeScale, 0.0f);
+		});
+
+		It("keeps each phase's cinematic with its phase", [this]()
+		{
+			UBossData *Data = NewObject<UBossData>(GetTransientPackage());
+			FBossPhase First;
+			First.CinematicSequence = TSoftObjectPtr<ULevelSequence>(FSoftObjectPath(TEXT("/Game/Test/LS_BossPhaseTest.LS_BossPhaseTest")));
+			Data->Phases = {First, FBossPhase()};
+			UBossPhaseComponent *Phases = NewObject<UBossPhaseComponent>(GetTransientPackage());
+			Phases->Setup(Data);
+			TestFalse(TEXT("phase 0: its sequence"), Phases->GetPhaseCinematic(0).IsNull());
+			TestTrue(TEXT("phase 1: empty"), Phases->GetPhaseCinematic(1).IsNull());
+			TestTrue(TEXT("out of range: empty"), Phases->GetPhaseCinematic(2).IsNull());
+			TestTrue(TEXT("its boss data"), Phases->GetBossData() == Data);
+		});
+	});
 }
 
 BEGIN_DEFINE_SPEC(FCombatCameraDirectorSpec, "WoR.Combat.Camera.Director",
@@ -732,6 +787,19 @@ TUniquePtr<FWoRTestWorld> TestWorld;
 ACombatOrchestrator *Orchestrator = nullptr;
 AActor *Hero = nullptr;
 AActor *Foe = nullptr;
+
+/** B-406: makes Foe a boss with one phase (and Opening as its opening sequence, empty by default). */
+UBossPhaseComponent *MakeFoeABoss(const TSoftObjectPtr<ULevelSequence> &Opening = TSoftObjectPtr<ULevelSequence>())
+{
+	UBossData *Data = NewObject<UBossData>(GetTransientPackage());
+	Data->OpeningSequence = Opening;
+	Data->Phases.Add(FBossPhase());
+	UBossPhaseComponent *Phases = NewObject<UBossPhaseComponent>(Foe);
+	Foe->AddInstanceComponent(Phases);
+	Phases->RegisterComponent();
+	Phases->Setup(Data);
+	return Phases;
+}
 END_DEFINE_SPEC(FCombatCameraDirectorSpec)
 
 void FCombatCameraDirectorSpec::Define()
@@ -934,6 +1002,100 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("movement off: the static view holds (R15)"), Director->GetTargetMoveCount(), 4);
 		Menu->HandleBack();
 		Director->SetCameraMovementOff(false);
+	});
+
+	Describe("boss cinematics (B-406)", [this]()
+	{
+		It("plays nothing for a boss with empty fields: turn 1 starts at once", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			MakeFoeABoss();
+			UBossCinematicRecorder *Recorder = NewObject<UBossCinematicRecorder>();
+			Recorder->Listen(Director);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestFalse(TEXT("nothing plays"), Director->IsBossCinematicPlaying());
+			TestNotNull(TEXT("turn 1 started"), Director->GetViewedActor());
+			TestEqual(TEXT("no HUD broadcast"), Recorder->HudHidden.Num(), 0);
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("starts at once with an opening set but no viewer (headless)", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			MakeFoeABoss(TSoftObjectPtr<ULevelSequence>(FSoftObjectPath(TEXT("/Game/Test/LS_BossOpeningTest.LS_BossOpeningTest"))));
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestFalse(TEXT("nothing plays without a viewer"), Director->IsBossCinematicPlaying());
+			TestNotNull(TEXT("turn 1 started"), Director->GetViewedActor());
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("runs an opening before the first turn, the HUD hidden, then starts turn 1", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			MakeFoeABoss();
+			Director->BossCinematicPreviewSeconds = 1.0f; // the sequence-free hold: a headless world has no viewer
+			UBossCinematicRecorder *Recorder = NewObject<UBossCinematicRecorder>();
+			Recorder->Listen(Director);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestEqual(TEXT("the opening plays"), Director->GetBossCinematicKind(), EBossCinematicKind::Opening);
+			TestNull(TEXT("no turn yet"), Director->GetViewedActor());
+			TestTrue(TEXT("the fight waits"), Orchestrator->IsWaitingForAsyncAction());
+			TestTrue(TEXT("HUD hidden"), Recorder->HudHidden.Num() == 1 && Recorder->HudHidden[0]);
+
+			Director->FinishBossCinematic();
+			TestFalse(TEXT("ended"), Director->IsBossCinematicPlaying());
+			TestTrue(TEXT("HUD back"), Recorder->HudHidden.Num() == 2 && !Recorder->HudHidden[1]);
+			TestTrue(TEXT("finished: Opening"), Recorder->Finished.Num() == 1 && Recorder->Finished[0] == EBossCinematicKind::Opening);
+			TestNotNull(TEXT("turn 1 started after it"), Director->GetViewedActor());
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("plays a phase cinematic on the phase event, the HUD hidden around it", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			UBossPhaseComponent *Phases = MakeFoeABoss();
+			UBossCinematicRecorder *Recorder = NewObject<UBossCinematicRecorder>();
+			Recorder->Listen(Director);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			Director->BossCinematicPreviewSeconds = 1.0f; // after the start: no opening hold
+			Phases->EnterNextPhase();
+			TestEqual(TEXT("the phase cinematic plays"), Director->GetBossCinematicKind(), EBossCinematicKind::Phase);
+			TestTrue(TEXT("HUD hidden"), Recorder->HudHidden.Num() == 1 && Recorder->HudHidden[0]);
+			Director->FinishBossCinematic();
+			TestTrue(TEXT("HUD back"), Recorder->HudHidden.Num() == 2 && !Recorder->HudHidden[1]);
+			TestTrue(TEXT("finished: Phase"), Recorder->Finished.Num() == 1 && Recorder->Finished[0] == EBossCinematicKind::Phase);
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
+
+		It("never plays one for a normal enemy", [this]()
+		{
+			UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+			if (!TestTrue(TEXT("setup"), Director && Hero && Foe))
+			{
+				return;
+			}
+			Director->BossCinematicPreviewSeconds = 1.0f;
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestFalse(TEXT("no opening"), Director->IsBossCinematicPlaying());
+			TestFalse(TEXT("no preview either"), Director->PreviewBossCinematic(EBossCinematicKind::Phase, 0));
+			Orchestrator->ForceEndCombat(ECombatState::Victory);
+		});
 	});
 }
 

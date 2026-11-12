@@ -11,6 +11,7 @@
 #include "WoRTestWorld.h"
 #include "Memory/HiddenQuestData.h"
 #include "Memory/HiddenQuestSubsystem.h"
+#include "Memory/MemoryConditions.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "UI/Hub/MemoryJournalWidget.h"
