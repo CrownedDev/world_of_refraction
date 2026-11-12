@@ -335,7 +335,7 @@ The queue of questions only Crown can answer.
 **Answer:** all eight as recommended, by the reference-backed default (2026-11-09). Crown: judge the trial on one boss in PIE (`docs/PIE/B-406.md`).
 
 ### Q-406b — Boss cinematics, the rest: skip key, ritual hold, hero shot, CommonUI
-**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-406b, from Q-406 (6) and (8)) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-09 (B-406b, from Q-406 (6) and (8)) · **Blocks:** —
 **Question:** (1) which key skips a boss cinematic, and how; (2) in co-op, does a client's skip end only its view or ask the server; (3) is an Execution (ritual fire) turn held by a phase cinematic; (4) a front hero shot on every boss turn; (5) the CommonUI HUD's binding.
 **Options / Recommendation:** skippable cutscenes are standard practice and widely expected (Expedition 33 lets you skip its cutscenes; most console RPGs skip on Start / Options, PC on Space or Esc). `docs/Design/InputMap.md` defaults:
 1. **Tab (keyboard) / Menu, Options (gamepad), on press**, action `IA_Combat_SkipCinematic` (unique, D-063), built in code in the B-093 menu-keys context like `IA_Combat_Menu*`. No confirm and no hold: a skip costs nothing in play. Not Space (review): it is the most common dodge key and Slate's Accept, and the skip doesn't consume input, so mashing it could also dodge or confirm. **Checked:** no `InputMap.md` row and no code uses Tab or Menu in combat (Enter / Esc / Backspace / 1–7 avoided). **Not checked:** the editor combat context (Guard / Dodge, any pause), which can't be read here; PIE must confirm neither skip key is on it (`docs/PIE/B-406b.md` step 1), else move the skip key (one InputMap row). It calls `UCombatCameraDirector::FinishBossCinematic` (via `ACombatPlayerController::SkipBossCinematic`), which ends it exactly as its end or the cap does: HUD back, then turn 1 or the held request.
@@ -344,6 +344,7 @@ The queue of questions only Crown can answer.
 4. **Not built yet (B-406c).** Q3 reads "bosses and big attacks"; B-406 built it for flagged named attacks only. Whether every boss turn earns a hero shot is for Crown's B-406 trial (`docs/PIE/B-406.md` step 11). If it does, the hook is `UCombatCameraDirector::HandleActorTurnStarted` (a boss's turn start, a ~1 s front shot like `ECameraShotMoment::NamedAttack`), or `FCombatCameraRules::OpeningMomentFor` for every boss skill.
 5. **Waits on the CommonUI screens (D-024; B-406c)**, which don't exist yet. `UCombatCameraDirector::OnCinematicHudHidden(bool)` stays the contract: the native `UCombatHUD` binds it today; the CommonUI battle HUD binds the same delegate when it lands.
 **Answer:** all five as recommended, by the reference-backed default (2026-11-09). Crown: check the skip in PIE (`docs/PIE/B-406b.md`); judge (4) with the B-406 trial.
+**Answer: Crown, 2026-11-12:** **kept.** The skip is on **Tab / Menu** (press, no hold), local; a ritual fire waits for a phase cinematic; (4) and (5) stay with B-406c. Confirmed as built.
 
 ## Parked
 
