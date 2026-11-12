@@ -107,6 +107,7 @@ These rows join the sweep once their branch merges.
 |---|---|---|---|---|---|
 | 44 | The 3-points-per-level sub-stat pool: `StatConstants::POINTS_PER_WORLD_STAT_LEVEL`, `MAX_SUBSTAT_POINTS_PER_PILLAR`, `INITIAL_STAT_BUDGET`; `UCharacterData::GetTotalPool` (as a pool), `GetPointsRemaining`, `IsValidDistribution` (B-330, D-123). Before deleting, the enemy caliber and the Broken Darkness EP aura range need their own constants | `GetSubStatBudget` / `IsWithinSubStatBudget` | [B-330](B-330.md) | `feature/B-330-pillars-only` | [ ] |
 | 45 | Per-instance random rolls (B-335, D-127): `RerollSubstats` / `RerollPillars` / `RerollResistance`, their call sites and `UEquipmentRollDebug`; the `StatBonus` / `ResistanceBonus` instance fields and the `MaxPool` save fields stay (authored bonuses use them) | Tier + quality (`TierOnInstance.md`) | B-335's PIE file | `chore/B-335-per-instance-rolls-obsolete` | [ ] |
+| 47 | `UCharacterData::CanUseSpells` / `CanUseAbilities` (BlueprintPure, `DeprecatedFunction`) — `Public/Character/CharacterData.h` (B-097, D-027). The C++ `CharacterClassHelpers` copies are already deleted (no caller) | Slots, not class gates: `FCombatCapabilities::BuildFrom` | [B-097](B-097.md) + Blueprint check: Find in Blueprints "Can Use Spells" / "Can Use Abilities" (no hits; or no deprecation warning on compile) | `feature/B-097-class-gates-cleanup-cloud` | [ ] |
 
 ---
 
@@ -383,6 +384,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-367](B-367.md) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending | REVIEW (in dev) | [ ] |
 | [B-096](B-096.md) | Evolutions' Run Payout Bonus Percent raises the run-end payout (adds up, cap x2.0) | Pending | REVIEW (in dev, `feature/B-096-payout-passives`) | [ ] |
 | [B-129](B-129.md) | Mapping-context priorities named (`WoRInputPriority`); no change in play | Pending | REVIEW (in dev, `feature/B-129-input-priorities`) | [ ] |
+| [B-097](B-097.md) | Class gates retired (D-027): helpers deleted, two Blueprint functions flagged; no behaviour change | Pending | REVIEW (`feature/B-097-class-gates-cleanup-cloud`, UNBUILT) | [ ] |
 
 ---
 
