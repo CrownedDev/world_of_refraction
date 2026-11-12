@@ -5,6 +5,8 @@
 // - enemy cards top-right: name, HP bar (no numbers, Q-391), status chips;
 // - turn order down the left edge: the current actor, then the next turns (bonus turns marked);
 // - a Statuses button (top centre) opening one panel with every status in full (FeelGuide 5).
+// - B-170e: in an action-pips fight (wor.Turns.ActionPips 1), each party card's action pips and Max Actions line
+//   ("Actions ●●○ 2 · Max 3 (+75/100)", ActionPipsText), live from OnActionsChanged. At 0 the cards are as before.
 // The command menu is its own widget (UBattleCommandMenuWidget). CommonUI replaces both later (D-024).
 //
 // Created once per fight: Initialise (binds, fills the state) BEFORE AddToViewport, so RebuildWidget builds one card
@@ -46,6 +48,8 @@ struct FBattleHUDCard
 	FText Name;
 	FText HPLine;
 	FText EPLine;
+	/** B-170e: "Actions ●●○ 2 · Max 3 (+75/100)"; party cards in an action-pips fight only. */
+	FText ActionsLine;
 	FText StatusLine;
 
 	UPROPERTY()
@@ -62,6 +66,9 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> EPText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> ActionsText;
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> StatusText;
@@ -85,6 +92,8 @@ public:
 	const TArray<FBattleHUDCard> &GetCards() const { return Cards; }
 	const TArray<FText> &GetTurnLines() const { return TurnLines; }
 	const FText &GetStatusPanelText() const { return StatusPanelText; }
+	/** B-170e: true when this fight banks actions (read once in Initialise), so party cards show pips. */
+	bool IsShowingActions() const { return bShowActions; }
 	bool IsStatusPanelOpen() const { return bStatusPanelOpen; }
 
 	/** Open or close the view-all status panel (the Statuses button toggles it). */
@@ -138,6 +147,7 @@ private:
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
 	bool bBound = false;
+	bool bShowActions = false;
 	int32 CurrentTurnNumber = 1;
 
 	TWeakObjectPtr<USkillEffectManager> BoundEffects;

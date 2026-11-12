@@ -5,9 +5,11 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionPipsRules.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
+#include "Save/SaveSubsystem.h"
 #include "WoRLog.h"
 
 namespace
@@ -54,6 +56,32 @@ namespace
 		TEXT("wor.Actions.Reset"),
 		TEXT("DEBUG: set every combatant to its fight-start actions (the regain, capped at Max)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UActionPipsDebug::ResetActionsForFight(World); }));
+
+	FAutoConsoleCommandWithWorldAndArgs GHideEndTurnCmd(
+		TEXT("wor.UI.HideEndTurn"),
+		TEXT("PLACEHOLDER setting (B-170e, Crown 2026-11-12, until the D-024 settings screen): 1 = hide the End Turn button, ")
+			TEXT("0 = show it (default). Saved; the next main menu reads it. With no argument, prints it."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+		{
+			UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+			USaveSubsystem *Save = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+			if (!Save)
+			{
+				UE_LOG(LogWoRCombat, Warning, TEXT("[ActionPipsDebug] wor.UI.HideEndTurn: no save subsystem."));
+				return;
+			}
+			if (Args.Num() > 0)
+			{
+				if (!Args[0].IsNumeric())
+				{
+					UE_LOG(LogWoRCombat, Warning, TEXT("[ActionPipsDebug] Usage: wor.UI.HideEndTurn <0|1>"));
+					return;
+				}
+				Save->SetEndTurnButtonHidden(FCString::Atoi(*Args[0]) != 0);
+			}
+			UE_LOG(LogWoRCombat, Display, TEXT("[ActionPipsDebug] End Turn button: %s (saved with the next save; the next main menu reads it)"),
+				   Save->IsEndTurnButtonHidden() ? TEXT("hidden") : TEXT("shown"));
+		}));
 }
 
 FString UActionPipsDebug::GetActionsString(AActor *Actor)

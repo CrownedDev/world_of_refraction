@@ -9,6 +9,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionPipsRules.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/TurnRotation.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
 #include "Combat/Defense/DefenseSystem.h"
@@ -738,6 +739,13 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	if (Action.ActionType == EActionType::EndTurn)
 	{
+		// B-170e review: End Turn exists only in an action-pips fight (a co-op client with its own switch at 1 must
+		// not pass a turn in a normal fight).
+		if (!IsActionPipsFight())
+		{
+			UE_LOG(LogWoRCombat, Warning, TEXT("[CombatOrchestrator] End Turn refused: not an action-pips fight"));
+			return false;
+		}
 		EndTurnByChoice();
 		return true;
 	}
@@ -897,6 +905,12 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 
 	if (Action.ActionType == EActionType::EndTurn)
 	{
+		if (!IsActionPipsFight()) // B-170e review, as SubmitAction: the turn is asked for again
+		{
+			OutInvalidReason = TEXT("End Turn refused: not an action-pips fight");
+			UE_LOG(LogWoRCombat, Warning, TEXT("[CombatOrchestrator] %s"), *OutInvalidReason);
+			return false;
+		}
 		EndTurnByChoice();
 		return true;
 	}
@@ -1362,16 +1376,8 @@ FText ACombatOrchestrator::GetActionCostRefusedReason(AActor *Actor, const FActi
 	{
 		return FText::GetEmpty();
 	}
-	const int32 Cost = Action.GetActionCost();
-	if (ActionPipsRules::IsCostAboveMax(Cost, CharComp->GetMaxActions()))
-	{
-		return NSLOCTEXT("CombatOrchestrator", "ActionCostAboveMax", "Costs more actions than you can hold.");
-	}
-	if (!ActionPipsRules::CanAfford(Cost, CharComp->CurrentActions))
-	{
-		return FText::Format(NSLOCTEXT("CombatOrchestrator", "ActionCostNeeds", "Needs {0} {0}|plural(one=action,other=actions)."), Cost);
-	}
-	return FText::GetEmpty();
+	// B-170e: the same text the command menu greys a button with (ActionPipsText).
+	return ActionPipsText::GetCostRefusedReason(Action.GetActionCost(), CharComp->CurrentActions, CharComp->GetMaxActions());
 }
 
 bool ACombatOrchestrator::PayActionCost(const FAction &Action, FString &OutRefusedReason)
