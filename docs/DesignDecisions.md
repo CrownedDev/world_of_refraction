@@ -507,6 +507,17 @@ The queue of questions only Crown can answer.
 - The menu still opens at turn start (`OnActionRequested`), during the beat; holding it until the handover is a HUD change for B-105.
 **Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-404.md`).
 
+### Q-401 — No reset between actions: how the camera comes back for a hero's next action
+**Status:** ANSWERED (reference-backed default, 2026-11-09) · **Raised:** 2026-11-09 (B-401, study R4) · **Blocks:** —
+**Question:** with several actions per turn (B-170c), what does the camera do between two actions of one hero's turn: when does it come back, to what, how fast, and where does it not?
+**Context:** B-170c's orchestrator asks the same actor again (`OnActionRequested`) after each action while actions are left; `OnActorTurnStarted` fires once per turn (Q-170c2). Shot patterns (B-371) hold their last shot until something else takes the view; B-404 puts a wide beat only between turns of different actors.
+**Recommendation (default):**
+- **When:** at the re-ask after an action, i.e. when the hero's menu opens again; not at the turn start's own ask, not when a refused pick is asked again. The signal is the existing `OnActionRequested`, no new event.
+- **To what:** the **same** turn view of the same hero (the transform the turn started on, in the player's turn-view style). No wide beat and no handover between actions; only a turn change does the full move (B-404). Reference: Expedition 33 settles straight back behind the same hero between that hero's moves and only goes wide at the handover (study R4, §9 "Party handover").
+- **How fast:** one **0.35 s** blend from where the last shot ended (`TODO: tune`), shorter than the handover (0.5 s) since the camera is already close; reference: the same clips, the menu is back almost at once, and FeelGuide's pace rule.
+- **Where not:** camera movement off (the static view stays, R15); a signature sequence or Defence hand-off still playing (its end shows the turn view, as before); enemy turns (the AI acts once a turn until B-170f; the menu event is player-only).
+**Answer:** the default, by the reference-backed default (2026-11-09). Crown judges the feel in PIE (`docs/PIE/B-401.md`).
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
