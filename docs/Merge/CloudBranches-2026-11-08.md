@@ -477,3 +477,13 @@ Crown answered eight questions. Each answer is a new commit on its open branch, 
 ## Update, 2026-11-12 (16:00)
 
 - **Now in dev:** B-234d (row 108, `bc6505f7`). **Still open:** B-042g2 (row 77, after its PIE gate), B-032d (row 109), and C1 to C7.
+
+## Update, 2026-11-12 (17:00)
+
+- **Now in dev (`cfdda382`):** B-032d (row 109), Crown's answer fixes (B-064a, B-392, B-403), B-170e's review fixes, plus the desktop's own work since 16:00:
+  - B-170j and Q-170f3 (action costs 1 to 3, Max Actions hard cap 5)
+  - Q-397 newest-first, with **save v35**
+  - Q-397b hidden-quest mask
+  - B-392b guest guard sync
+  - B-280 docs
+- **Still open:** B-042g2 (row 77, after its PIE gate) and C1 to C7. All of them wait on Crown's PIE gates.
