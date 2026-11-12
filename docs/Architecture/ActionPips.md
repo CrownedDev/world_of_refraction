@@ -37,10 +37,12 @@ D-088 as confirmed by Crown (2026-11-09): turns go round in a fixed rotation, an
 - `wor.Actions.Print`: each combatant's `actions N / Max M (from points: Max P (+x/100), effects ±E) | points (layers) | Regain R (Reflex value / next) | waiting (+1 next turn, …)`, then the current turn's spends (B-170c, `ACombatOrchestrator::GetTurnSpendsString`).
 - `wor.Actions.AddPoints <N>`: debug action points on every combatant.
 - `wor.Actions.Reset`: every combatant to its fight-start bank.
+- `wor.Data.ListTurnSpeed` (B-170g, `Debug/Character/TurnSpeedRetireDebug.h`): every asset that still authors the retired Turn Speed family, and what (the list B-170h works from).
 
 Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.MultiAction` (`Private/Tests/MultiActionTurnSpec.cpp`, B-170c), `WoR.Combat.ActionEffects` (`Private/Tests/ActionEffectsSpec.cpp`, B-170d).
 - `wor.UI.Print` (B-170e): the battle HUD's `actionPips=on/off` and each party card's actions line.
 Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.MultiAction` (`Private/Tests/MultiActionTurnSpec.cpp`, B-170c), `WoR.Combat.ActionPipsText` (`Private/Tests/ActionPipsTextSpec.cpp`, B-170e); the UI cases in `WoR.UI.BattleHUD` and `WoR.UI.CommandMenu.Keys` (B-170e).
+Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.MultiAction` (`Private/Tests/MultiActionTurnSpec.cpp`, B-170c), `WoR.Combat.ActionEffects` (`Private/Tests/ActionEffectsSpec.cpp`, B-170d), `WoR.Data.TurnSpeedRetire` (`Private/Tests/TurnSpeedRetireSpec.cpp`, B-170g).
 
 ## Known Limitations / TODOs
 
@@ -52,6 +54,7 @@ Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.
 - The turn-start skip at 0 can't happen in play before B-170d's waiting losses; it is logged, not shown (B-170e shows the empty pips, not a "No actions" banner).
 - A co-op client reads `wor.Turns.ActionPips` for the fight's mode (no TurnManager there); replicate the mode on the turn state (TODO in `ActionPipsText::IsActionPipsFight`).
 - The old WBP HUD (`wor.UI.NewHUD 0`) gets the End Turn button and cost labels (same subsystem buttons) but no pips line.
+- Turn Speed is retired for new authoring only (B-170g, Q-170g2): validation **warns** on its effect types, skill scaling, character points and gear / evolution bonuses while the speed timeline still reads them at 0; gear rolls still roll it. B-170h deletes the reads (`OBSOLETE (B-170h)` flags: `ESkillEffectType` Turn Speed entries, `ESubStat::TurnSpeed`, `EItemEffectType::BuffTurnSpeed`, `UCharacterData::TurnSpeed` and its getters, `FEquipmentStatBonus::BonusTurnSpeed`, the GAS `TurnSpeed` attribute) and makes the warnings errors.
 - Not listed in CLAUDE.md's "Existing documents" (that file is edited only by Crown's sessions); add it there.
 
 ## Changelog
@@ -69,3 +72,4 @@ Specs: `WoR.Combat.ActionPips` (`Private/Tests/ActionPipsSpec.cpp`), `WoR.Turns.
 | 2026-11-09 | B-170e: placeholder UI on B-391's HUD: `ActionPipsText` (pips, Max line, cost label and reasons; the orchestrator's refusal uses it), party-card pips line from `OnActionsChanged`, End Turn button and key (Backspace / View), costs on every skill / spell / item and greyed with the reason, Defend's tooltip; build choices Q-170e2. | `feature/B-170e-action-pips-ui-cloud` (UNBUILT, on B-391) |
 | 2026-11-09 | B-170d: effects on the bank. The four action effect types (Gain / Lose Action now or at the Nth turn start, Max Actions Up / Down), waiting changes on `UCharacterDataComponent` (`AddWaitingActionChange`, `ApplyWaitingActionChanges`, `ClearWaitingActionChanges`, per fight), `GetMaxActions` with the Max effects and `MAX_ACTIONS_FLOOR`; the action-pips break rows (Ice −1 now, Wind −1 next turn); Emerald's ally ladder; authored Value passed through the action executor unscaled; `EffectDefinition` validation warnings; `wor.Actions.Print` shows the live Max and waiting changes; `ActionEffectsSpec`. Build choices Q-170d2. | `feature/B-170d-action-effects-cloud` (UNBUILT) |
 | 2026-11-09 | B-170f: the AI plays the bank. Asked again while it has actions (`ACombatOrchestrator::CanContinueTurn`), it spends or banks (`AI/AIActionPips.h` `DecideSpendOrBank`, End Turn), skips picks the bank can't pay, values the action effects and Emerald's new rule; `AIActionPipsSpec`. Build choices Q-170f2. | `feature/B-170f-ai-actions-cloud` (UNBUILT) |
+| 2026-11-09 | B-170g: Turn Speed retired for new authoring, nothing removed. `SkillEffectClassification::IsTurnSpeedFamily`; `IsDataValid` warnings on Turn Speed effects (`UEffectDefinition`), skill `StatScaling` (`USkillDataBase`), character points (`UCharacterData`), gear and evolution `BonusTurnSpeed`; "(retired)" Details names; OBSOLETE (B-170h) flags; `wor.Data.ListTurnSpeed`; `TurnSpeedRetireSpec`; rules pages fold in the action-pips rows. Build choices Q-170g2. No play change. | `feature/B-170g-turn-speed-retire-cloud` (UNBUILT) |
