@@ -89,6 +89,8 @@ enum class ESkillEffectType : uint8
     ResistanceDebuff UMETA(DisplayName = "Resistance Debuff"),
     SpellSizeBuff UMETA(DisplayName = "Spell Size Buff"),
     SpellSizeDebuff UMETA(DisplayName = "Spell Size Debuff"),
+    // OBSOLETE (B-170h): the Turn Speed family is retired with action pips (B-170g, Q-170h). Still read by the speed
+    // timeline while wor.Turns.ActionPips is 0; validation warns on new authoring. Kept (append-only).
     TurnSpeedBuff UMETA(DisplayName = "Turn Speed Buff"),
     TurnSpeedDebuff UMETA(DisplayName = "Turn Speed Debuff"),
     LuckBuff UMETA(DisplayName = "Luck Buff"),
@@ -153,6 +155,7 @@ enum class ESkillEffectType : uint8
     ModifyCritChance UMETA(DisplayName = "Crit Chance Up"),
     ModifyCritDamage UMETA(DisplayName = "Crit Damage Up"),
     ModifyEnergyCost UMETA(DisplayName = "Energy Cost Down"),
+    // OBSOLETE (B-170h): retired with action pips like TurnSpeedBuff / TurnSpeedDebuff (B-170g). Kept (append-only).
     ModifyTurnSpeed UMETA(DisplayName = "Turn Speed Up"),
     ModifyStatusResist UMETA(DisplayName = "Status Resist Up"),
 
@@ -196,7 +199,8 @@ enum class ESkillEffectType : uint8
     CleanseAllies UMETA(DisplayName = "Cleanse Allies"),
 
     // Special Mechanics
-    ExtraAction UMETA(DisplayName = "Extra Action"),
+    // B-170d (Q-170f): shown as Extra Turn (a whole bonus turn, as built); the member keeps its serialized name.
+    ExtraAction UMETA(DisplayName = "Extra Turn"),
     GuaranteedCrit UMETA(DisplayName = "Guaranteed Crit"),
     IgnoreDefense UMETA(DisplayName = "Ignore Defense"),
     DoubleHit UMETA(DisplayName = "Double Hit"),
@@ -293,7 +297,17 @@ enum class ESkillEffectType : uint8
     // B-064a (D-029, D-090): what a full Ice bar fires (ElementTable's Ice row). Its BreakTable row applies Water's
     // Action Speed + Spell Speed slow and deals a share of the holder's max HP; the trigger itself is never stored.
     // Appended, so saved values don't move.
-    IceBreak UMETA(DisplayName = "Ice Break (slow + damage)")
+    IceBreak UMETA(DisplayName = "Ice Break (slow + damage)"),
+
+    // B-170d (ActionPips.md §3.4, Q-170g): effects that give or take banked actions (wor.Turns.ActionPips). Appended, so
+    // saved values don't move. Gain / Lose: Value = actions; Duration 0 = now, N = at the holder's Nth turn start from
+    // now (1 = their next turn); never stored as a lasting effect (UCharacterDataComponent's waiting action changes).
+    // A gain may pass Max Actions (Q-170g). Max Actions Buff / Debuff: Value = whole actions for Duration holder turns
+    // (D-051), read by UCharacterDataComponent::GetMaxActions.
+    GainActions UMETA(DisplayName = "Gain Action"),
+    LoseActions UMETA(DisplayName = "Lose Action"),
+    MaxActionsBuff UMETA(DisplayName = "Max Actions Up"),
+    MaxActionsDebuff UMETA(DisplayName = "Max Actions Down")
 };
 
 /**
@@ -328,6 +342,20 @@ namespace SkillEffectClassification
     inline bool IsNegatePool(ESkillEffectType Type)
     {
         return Type == ESkillEffectType::NegateDamageTotal || Type == ESkillEffectType::NegateElementTotal;
+    }
+
+    /** B-170d: a Gain / Lose Action payload: changes the holder's banked actions, now or at a later turn start; never a
+     *  lasting effect (USkillEffectManager::ApplyEffect hands a timed one to the holder's waiting action changes). */
+    inline bool IsActionChange(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::GainActions || Type == ESkillEffectType::LoseActions;
+    }
+
+    /** B-170d: a type whose authored Value counts whole actions (the four action effects). Read as Value, never
+     *  Magnitude, and never scaled (a tier-gap multiplier would make a fraction of an action). */
+    inline bool CountsWholeActions(ESkillEffectType Type)
+    {
+        return IsActionChange(Type) || Type == ESkillEffectType::MaxActionsBuff || Type == ESkillEffectType::MaxActionsDebuff;
     }
 
     /** B-268: a legacy type with the same meaning as today's is stored as today's type, once, when applied. */
@@ -376,6 +404,14 @@ namespace SkillEffectClassification
     inline bool IsRetired(ESkillEffectType Type)
     {
         return Type == ESkillEffectType::SpeedBuff || Type == ESkillEffectType::SpeedDebuff;
+    }
+
+    /** B-170g (ActionPips.md §3.4, Q-170h): the Turn Speed effect family, retired with action pips. The speed timeline
+     *  still reads it while wor.Turns.ActionPips is 0, so validation only warns (Q-170g2); B-170h deletes the reads. */
+    inline bool IsTurnSpeedFamily(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::TurnSpeedBuff || Type == ESkillEffectType::TurnSpeedDebuff
+               || Type == ESkillEffectType::ModifyTurnSpeed;
     }
 
     /** D-054 (and Q-267 for the cost): the sign says the direction. On an ally it's a buff (faster turns, a
@@ -459,6 +495,9 @@ namespace SkillEffectClassification
         case ESkillEffectType::NegateElemental:
         case ESkillEffectType::NegateDamageTotal:
         case ESkillEffectType::NegateElementTotal:
+        // B-170d: more actions, or a higher Max, help the holder.
+        case ESkillEffectType::GainActions:
+        case ESkillEffectType::MaxActionsBuff:
             return true;
         default:
             // Sign-aware types (see IsSignAware): +magnitude is a buff, exactly 0 is neither.
@@ -513,6 +552,9 @@ namespace SkillEffectClassification
         case ESkillEffectType::ApplyDOTOnHit:
         // sweep-4: status-bar manipulation debuff (builds target's gauge)
         case ESkillEffectType::StatusIncrease:
+        // B-170d: fewer actions, or a lower Max, hurt the holder.
+        case ESkillEffectType::LoseActions:
+        case ESkillEffectType::MaxActionsDebuff:
             return true;
         default:
             // Sign-aware types (see IsSignAware): -magnitude is a debuff.

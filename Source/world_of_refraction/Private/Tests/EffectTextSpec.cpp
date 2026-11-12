@@ -300,6 +300,29 @@ void FEffectTextSpec::Define()
 					  FString(TEXT("heal 2 Allies for 4")));
 		});
 
+		It("word the action effects, and show Extra Action as Extra Turn (B-170d)", [this]()
+		{
+			constexpr int32 ONE_ACTION = 1;
+			constexpr int32 TWO_ACTIONS = 2;
+			constexpr int32 NEXT_TURN = 1;
+			constexpr int32 TWO_TURNS = 2;
+			TestEqual(TEXT("Gain now"), Body(Pay(ESkillEffectType::GainActions, ETargetType::Self, ONE_ACTION)), FString(TEXT("gain 1 action")));
+			TestEqual(TEXT("Gain next turn"), Body(Pay(ESkillEffectType::GainActions, ETargetType::Ally, TWO_ACTIONS, 0.0f, NEXT_TURN)),
+					  FString(TEXT("give an Ally 2 actions at the start of their next turn")));
+			TestEqual(TEXT("Gain later"), Body(Pay(ESkillEffectType::GainActions, ETargetType::Self, ONE_ACTION, 0.0f, TWO_TURNS)),
+					  FString(TEXT("gain 1 action in 2 turns")));
+			TestEqual(TEXT("Lose next turn"), Body(Pay(ESkillEffectType::LoseActions, ETargetType::Enemy, ONE_ACTION, 0.0f, NEXT_TURN)),
+					  FString(TEXT("an Enemy loses 1 action at the start of their next turn")));
+			TestEqual(TEXT("Lose now, self"), Body(Pay(ESkillEffectType::LoseActions, ETargetType::Self, ONE_ACTION)), FString(TEXT("lose 1 action")));
+			TestEqual(TEXT("Max up"), Body(Pay(ESkillEffectType::MaxActionsBuff, ETargetType::Self, ONE_ACTION, 0.0f, TWO_TURNS)),
+					  FString(TEXT("+1 Max Actions for 2 turns")));
+			TestEqual(TEXT("Max down"), Body(Pay(ESkillEffectType::MaxActionsDebuff, ETargetType::Enemy, ONE_ACTION, 0.0f, TWO_TURNS)),
+					  FString(TEXT("give an Enemy -1 Max Actions for 2 turns")));
+			TestEqual(TEXT("Extra Turn's line"), Body(Pay(ESkillEffectType::ExtraAction, ETargetType::Self, 0)), FString(TEXT("take an extra turn")));
+			TestEqual(TEXT("Extra Turn's name"), WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::ExtraAction).ToString(),
+					  FString(TEXT("Extra Turn")));
+		});
+
 		It("have a sentence for every effect kind", [this]()
 		{
 			const UEnum *Enum = StaticEnum<ESkillEffectType>();

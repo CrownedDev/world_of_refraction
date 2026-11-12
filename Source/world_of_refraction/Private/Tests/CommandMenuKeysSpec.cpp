@@ -2,24 +2,34 @@
 // B-093: the Defend and infusion keys press the menu's own buttons, so they work exactly where
 // the buttons are: Defend from the action menu on your turn, the infusion keys only in a target
 // picker that offers them. Driven through a real orchestrator on two player actors.
+// B-170e: a main-menu End Turn press reaches the End Turn button, which shows only with wor.Turns.ActionPips 1 and
+// unless the player hid it (Crown, 2026-11-12); End Turn has no bound key yet.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
 #include "Infusion/InfusionVFXComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Character/CharacterDataComponent.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
+#include "Save/SaveSubsystem.h"
+#include "Misc/ScopeExit.h"
 
 namespace
 {
 	constexpr int32 MENU_KEYS_SETTLE_FRAMES = 3;
 	/** Infusion levels 0, 1, 2 (UInfusionVFXComponent::CycleInfusionLevel). */
 	constexpr int32 MENU_KEYS_INFUSION_LEVELS = 3;
+	/** B-170e: the action pips switch, as MultiActionTurnSpec. */
+	const TCHAR *const MENU_KEYS_PIPS_SWITCH = TEXT("wor.Turns.ActionPips");
+	constexpr int32 MENU_KEYS_PIPS_ON = 1;
+	constexpr int32 MENU_KEYS_PIPS_OFF = 0;
 
 	void MenuKeysAddLoadout(AActor *Actor)
 	{
@@ -36,6 +46,17 @@ BEGIN_DEFINE_SPEC(FCommandMenuKeysSpec, "WoR.UI.CommandMenu.Keys",
 	UCombatCommandMenuSubsystem *Menu = nullptr;
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
+	IConsoleVariable *PipsSwitch = nullptr;
+	int32 PipsSwitchBefore = MENU_KEYS_PIPS_OFF;
+
+	/** B-170e: set the action pips switch before StartDuel (the fight reads it at start); AfterEach restores it. */
+	void SetPipsSwitch(int32 Value)
+	{
+		if (PipsSwitch)
+		{
+			PipsSwitch->Set(Value, ECVF_SetByConsole);
+		}
+	}
 
 	/** Both sides player-controlled, so each turn opens the menu. False if setup failed. */
 	bool StartDuel()
@@ -69,6 +90,8 @@ void FCommandMenuKeysSpec::Define()
 		Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
 		TestNotNull(TEXT("Orchestrator"), Orchestrator);
 		TestNotNull(TEXT("CommandMenu"), Menu);
+		PipsSwitch = IConsoleManager::Get().FindConsoleVariable(MENU_KEYS_PIPS_SWITCH);
+		PipsSwitchBefore = PipsSwitch ? PipsSwitch->GetInt() : MENU_KEYS_PIPS_OFF;
 	});
 
 	AfterEach([this]()
@@ -86,6 +109,8 @@ void FCommandMenuKeysSpec::Define()
 		Menu = nullptr;
 		Hero = Foe = nullptr;
 		TestWorld.Reset();
+		SetPipsSwitch(PipsSwitchBefore);
+		PipsSwitch = nullptr;
 	});
 
 	It("defends from the main menu and ends the turn", [this]()
@@ -208,12 +233,151 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
 
-	It("lists the three menu keys", [this]()
+	It("matches each category key to its class's buttons (B-391)", [this]()
+	{
+		TestTrue(TEXT("Skills key presses Abilities"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Abilities, EPieMenuCategory::Abilities));
+		TestTrue(TEXT("Skills key presses a weapon resonance"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Abilities, EPieMenuCategory::ResonateWeapon));
+		TestTrue(TEXT("Spells key presses a ring resonance"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Refractions, EPieMenuCategory::ResonateRing));
+		TestTrue(TEXT("Spells key presses a breakthrough"),
+				 CommandMenuRules::KeyPressesButton(EPieMenuCategory::Refractions, EPieMenuCategory::Breakthrough));
+		TestFalse(TEXT("Attack key never presses Items"),
+				  CommandMenuRules::KeyPressesButton(EPieMenuCategory::Attack, EPieMenuCategory::Items));
+		TestTrue(TEXT("Attack is a main-menu key"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Attack));
+		TestTrue(TEXT("End Turn is a main-menu key (B-170e)"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::EndTurn));
+		TestFalse(TEXT("Defend keeps its own rule"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Defend));
+	});
+
+	It("ignores a category key whose button the menu doesn't offer (B-391)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		// The duel's bare loadout has no weapon, so no Attack button and no abilities.
+		TestFalse(TEXT("Attack key"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestFalse(TEXT("Skills key"), Menu->PressMenuKey(EPieMenuCategory::Abilities));
+		TestTrue(TEXT("Still on the main menu"), Menu->IsAtMainMenu());
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("ignores the category keys outside the main menu (B-391)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		FPieMenuButtonData Ability;
+		Ability.Category = EPieMenuCategory::Ability;
+		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
+		Menu->HandleSelection(Ability);
+
+		TestFalse(TEXT("Items key"), Menu->PressMenuKey(EPieMenuCategory::Items));
+		TestFalse(TEXT("Flee key"), Menu->PressMenuKey(EPieMenuCategory::Flee));
+		TestTrue(TEXT("Still picking"), Menu->IsOpen() && !Menu->IsAtMainMenu());
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("lists the menu keys", [this]()
 	{
 		const FString Keys = ACombatPlayerController::GetMenuKeysString();
 		TestTrue(TEXT("Defend"), Keys.Contains(TEXT("IA_Combat_MenuDefend")));
 		TestTrue(TEXT("Source"), Keys.Contains(TEXT("IA_Combat_MenuInfusionSource")));
 		TestTrue(TEXT("Level"), Keys.Contains(TEXT("IA_Combat_MenuInfusionLevel")));
+		TestTrue(TEXT("Attack (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuAttack")));
+		TestTrue(TEXT("Skills (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuSkills")));
+		TestFalse(TEXT("End Turn has no key yet (Crown, 2026-11-12)"), Keys.Contains(TEXT("IA_Combat_MenuEndTurn")));
+	});
+
+	It("has no End Turn button with the action pips switch off (B-170e)", [this]()
+	{
+		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch))
+		{
+			return;
+		}
+		SetPipsSwitch(MENU_KEYS_PIPS_OFF);
+		if (!StartDuel())
+		{
+			return;
+		}
+		TestFalse(TEXT("End Turn press finds no button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("has no End Turn button when the player hid it, and the turn goes on (B-170e, Crown 2026-11-12)", [this]()
+	{
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch) || !TestNotNull(TEXT("the save"), Save))
+		{
+			return;
+		}
+		const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+		ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+		Save->SetEndTurnButtonHidden(true);
+		SetPipsSwitch(MENU_KEYS_PIPS_ON);
+		if (!StartDuel() || !TestTrue(TEXT("an action-pips fight"), Orchestrator->IsActionPipsFight()))
+		{
+			return;
+		}
+		TestFalse(TEXT("End Turn press finds no button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+		TestTrue(TEXT("Defend is still there"), Menu->PressMenuKey(EPieMenuCategory::Defend));
+	});
+
+	It("ends the turn from the End Turn button and banks the actions (B-170e)", [this]()
+	{
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch) || !TestNotNull(TEXT("the save"), Save))
+		{
+			return;
+		}
+		const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+		ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+		Save->SetEndTurnButtonHidden(false); // shown, the default, whatever a loaded slot held
+		SetPipsSwitch(MENU_KEYS_PIPS_ON);
+		if (!StartDuel() || !TestTrue(TEXT("an action-pips fight"), Orchestrator->IsActionPipsFight()))
+		{
+			return;
+		}
+		const UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		const int32 ActionsBefore = HeroData ? HeroData->CurrentActions : INDEX_NONE;
+		TestTrue(TEXT("End Turn press reached the button"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestTrue(TEXT("The turn moved on"), Orchestrator->GetCurrentActor() == Foe);
+		TestEqual(TEXT("Nothing was spent: the actions stay banked"), HeroData ? HeroData->CurrentActions : INDEX_NONE, ActionsBefore);
+	});
+
+	It("ignores an End Turn press outside the main menu (B-170e)", [this]()
+	{
+		if (!TestNotNull(TEXT("the switch exists"), PipsSwitch))
+		{
+			return;
+		}
+		SetPipsSwitch(MENU_KEYS_PIPS_ON);
+		if (!StartDuel())
+		{
+			return;
+		}
+		FPieMenuButtonData Abilities;
+		Abilities.Category = EPieMenuCategory::Abilities;
+		Menu->HandleSelection(Abilities);
+		TestFalse(TEXT("End Turn press in a submenu"), Menu->PressMenuKey(EPieMenuCategory::EndTurn));
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("gives every menu key a unique action name and a keyboard key (D-063, B-391)", [this]()
+	{
+		TSet<FName> Names;
+		for (const FCombatMenuKey &Key : ACombatPlayerController::GetMenuKeys())
+		{
+			TestFalse(FString::Printf(TEXT("%s is unique"), *Key.ActionName.ToString()), Names.Contains(Key.ActionName));
+			Names.Add(Key.ActionName);
+			TestTrue(FString::Printf(TEXT("%s has a keyboard key"), *Key.ActionName.ToString()), Key.Keyboard.IsValid());
+			const bool bKnownRule = Key.Category == EPieMenuCategory::Defend || Key.Category == EPieMenuCategory::CycleSource ||
+									Key.Category == EPieMenuCategory::CycleLevel || CommandMenuRules::IsMainMenuKey(Key.Category);
+			TestTrue(FString::Printf(TEXT("%s presses a category PressMenuKey knows"), *Key.ActionName.ToString()), bKnownRule);
+		}
 	});
 }
 

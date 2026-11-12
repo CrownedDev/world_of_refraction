@@ -6,6 +6,8 @@
 // Progress lives in UHiddenQuestSubsystem. Debug: PrintQuest in the Details panel; wor.Quest.Print.
 // B-388 (MemoryCatalogue §3.12 / §3.13, Crown 2026-11-08): the same data is a main or side quest when Kind says so:
 // visible, in the journal with its Title and the current step's Goal shown (hidden ones stay unhinted, D-100).
+// B-397 (D-171, Crown 2026-11-09): a hidden quest's start stays unhinted; once found it is shown to its player like the
+// others (its Title, the current step's Goal only; later steps and the end memory stay hidden until reached).
 
 #pragma once
 
@@ -13,6 +15,11 @@
 #include "Conditions/WoRCondition.h"
 #include "Engine/DataAsset.h"
 #include "Memory/MemoryData.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include "HiddenQuestData.generated.h"
 
 /** B-388: what kind of quest a quest asset is. Append only (assets store it). */
@@ -53,8 +60,8 @@ struct WORLD_OF_REFRACTION_API FHiddenQuestStep
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest", meta = (ClampMin = 1))
 	int32 TimesInOneRun = 1;
 
-	/** B-388: a main or side quest's goal while this step is in progress (shown in the journal). Unused for a hidden
-	 *  quest. TODO(Crown): content. */
+	/** B-388: the goal shown in the journal while this step is in progress. B-397 (D-171): a found hidden quest shows
+	 *  it too (validation warns when a hidden quest's step has none). TODO(Crown): content. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
 	FText Goal;
 
@@ -82,7 +89,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
 	EQuestKind Kind = EQuestKind::Hidden;
 
-	/** B-388: a main or side quest's name in the journal and its notices. TODO(Crown): content. */
+	/** B-388: the quest's name in the journal and its notices (B-397: a found hidden quest's too; validation warns when
+	 *  a hidden quest has none). TODO(Crown): content. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quest")
 	FText Title;
 
@@ -101,10 +109,11 @@ public:
 	/** B-388: a main or side quest (shown in the journal). */
 	bool IsVisible() const { return Kind != EQuestKind::Hidden; }
 
-	/** B-388: the shown name (Title, else the quest id). */
+	/** B-388: the shown name (Title, else the quest id). B-397: a hidden quest with no Title shows placeholder text. */
 	FText GetDisplayTitle() const;
 
-	/** B-388: the goal of the step in progress after StepsDone steps (empty when finished or past the last). */
+	/** B-388: the goal of the step in progress after StepsDone steps (empty when finished or past the last).
+	 *  B-397: a hidden quest's step with no Goal shows placeholder text. */
 	FText GetGoalAfter(int32 StepsDone) const;
 
 	/** Memory, got at Depth for the player, is one of Starts. */
@@ -121,4 +130,9 @@ public:
 
 	UFUNCTION(CallInEditor, Category = "Debug")
 	void PrintQuest() const;
+
+#if WITH_EDITOR
+	/** B-397 (D-171): a hidden quest is shown once found, so it warns (never errors) for a missing Title or step Goal. */
+	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+#endif
 };

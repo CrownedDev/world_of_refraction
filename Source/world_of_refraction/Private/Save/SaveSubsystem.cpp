@@ -4,6 +4,7 @@
 #include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
+#include "Combat/Camera/CombatCameraTypes.h" // ETurnViewStyle (B-398)
 #include "Character/CharacterData.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/CombatCharacter.h"
@@ -36,6 +37,7 @@
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Inventory/ItemTier.h" // TierHelpers (B-234d: the run's upgrade memory)
 #include "WoRLog.h"
 #include <type_traits> // std::is_same_v (B-351), as InventoryComponent.cpp does
 
@@ -374,6 +376,7 @@ void USaveSubsystem::Deinitialize()
 	GI->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
 	GI->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	FWorldDelegates::OnWorldInitializedActors.Remove(OwnSaveReturnHandle); // B-234d
 	Super::Deinitialize();
 }
 
@@ -469,11 +472,12 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: %s"), Copy ? TEXT("the copy holds no run") : TEXT("no checkpoint copy to host from"));
 		return false;
 	}
-	// This player's own wallet and look stay its own (Q-234b (2)).
+	// This player's own wallet, look and settings stay its own (Q-234b (2); settings B-398).
 	if (SaveGame)
 	{
 		Copy->Data.Wallet = SaveGame->Data.Wallet;
 		Copy->Data.Forms = SaveGame->Data.Forms;
+		Copy->Data.Settings = SaveGame->Data.Settings;
 	}
 	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
 	UPoolSubsystem *Pool = GI->GetSubsystem<UPoolSubsystem>();
@@ -484,17 +488,159 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 	}
 	PartySession->ForgetLocalParty();
 	const bool bParty = Copy->Data.Party.bHasParty && RestoreParty(Copy->Data.Party, *PartySession);
-	// The old host's gear joins the pool for this session (party gear points into it); never written to this
-	// player's own slot. TODO: B-234c: a pool reset so the hub after the run shows only this player's own armoury.
+	// The old host's gear joins the pool until the run ends (party gear points into it); never written to this
+	// player's own slot. B-234d: the run's end gives this player its own pool back (ReturnToOwnSave).
 	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *Pool);
 	SaveGame = Copy;
 	bPlayingHostCopy = true;
 	AdoptedSlotName = SlotName;
+	AdoptedUpgradeMemory = Copy->Data.Pool.UpgradeMemory; // B-234d review: what the run raises is told apart from this
 	PendingRun = Copy->Data.Run;
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
 	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
 	UE_LOG(LogWoR, Display, TEXT("[Save] Hand-over: hosting from the copy (party %s, %d pool entries); the run resumes in the next hub"),
 		   bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries);
+	return true;
+}
+
+TMap<FName, EItemTier> USaveSubsystem::MergeRunUpgradeMemory(const TMap<FName, EItemTier> &Own, const TMap<FName, EItemTier> &AtHandOver,
+															 const TMap<FName, EItemTier> &Played)
+{
+	TMap<FName, EItemTier> Merged = Own;
+	for (const TPair<FName, EItemTier> &Entry : Played)
+	{
+		const EItemTier *Before = AtHandOver.Find(Entry.Key);
+		if (Before && TierHelpers::GetTierValue(Entry.Value) <= TierHelpers::GetTierValue(*Before))
+		{
+			continue; // the old host's memory, not raised in this run
+		}
+		EItemTier &Kept = Merged.FindOrAdd(Entry.Key, Entry.Value);
+		if (TierHelpers::GetTierValue(Entry.Value) > TierHelpers::GetTierValue(Kept))
+		{
+			Kept = Entry.Value;
+		}
+	}
+	return Merged;
+}
+
+UWoRSaveGame *USaveSubsystem::LoadOwnSaveGame(const FString &SlotName) const
+{
+	const UGameInstance *GI = GetGameInstance();
+	const ULocalPlayer *Local = GI ? GI->GetFirstGamePlayer() : nullptr;
+	const int32 UserIndex = Local ? Local->GetPlatformUserIndex() : 0;
+	const bool bOwnExists = UGameplayStatics::DoesSaveGameExist(SlotName, UserIndex);
+	UWoRSaveGame *Own = bOwnExists ? Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex))
+								   : Cast<UWoRSaveGame>(UGameplayStatics::CreateSaveGameObject(UWoRSaveGame::StaticClass()));
+	if (!Own)
+	{
+		UE_LOG(LogWoR, Error, TEXT("[Save] Handed-over run's end: this player's own save '%s' could not be read"), *SlotName);
+		return nullptr;
+	}
+	// The version check and migrations (D-060) and bound to this player, as AdoptCheckpointFrom does. No own save (or
+	// one the version check wiped) gives this player a fresh party and pool, as a first start does.
+	Own->InitializeSaveGame(Local, SlotName, /*bWasLoaded=*/bOwnExists);
+	return Own;
+}
+
+bool USaveSubsystem::BuildOwnSaveFrom(const FString &SlotName, FWoRSaveData &OutData) const
+{
+	const UWoRSaveGame *Own = bPlayingHostCopy ? LoadOwnSaveGame(SlotName) : nullptr;
+	if (!Own)
+	{
+		return false;
+	}
+	// Q-234d: only the party, the pool and the run came from the old host's copy. The rest (wallet with the run's
+	// payout, forms, journal, quests, curses, counters) was this player's own all along, and the exit save has just
+	// captured it, so it stays as played. The run is over. Review (D-097): the upgrade memory the run raised is kept.
+	OutData = SaveGame->Data;
+	OutData.Party = Own->Data.Party;
+	OutData.Pool = Own->Data.Pool;
+	OutData.Pool.UpgradeMemory = MergeRunUpgradeMemory(Own->Data.Pool.UpgradeMemory, AdoptedUpgradeMemory, SaveGame->Data.Pool.UpgradeMemory);
+	OutData.Run = FSavedRun();
+	return true;
+}
+
+void USaveSubsystem::EndHandedOverRun()
+{
+	if (!bPlayingHostCopy)
+	{
+		return;
+	}
+	// Review (save safety): the own slot is written now, so a quit or crash before the hub keeps the run's gains (the
+	// exit save and the shutdown save still go to the copy's slot). Memory is not touched until the hub.
+	UWoRSaveGame *Own = LoadOwnSaveGame(SLOT_NAME);
+	bool bWritten = false;
+	if (Own && BuildOwnSaveFrom(SLOT_NAME, Own->Data) && Own->GetLocalPlayer() && !bWritesStopped)
+	{
+		bWritten = Own->SaveGameToSlotForLocalPlayer();
+	}
+	// The in-memory return waits: the run's members still stand in this level and push their loadouts into the pool
+	// as it goes.
+	FWorldDelegates::OnWorldInitializedActors.Remove(OwnSaveReturnHandle);
+	OwnSaveReturnHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleOwnSaveReturnWorld);
+	UE_LOG(LogWoR, Display, TEXT("[Save] Handed-over run ended: own save written %s; this player's own party and pool come back in the hub"),
+		   bWritten ? TEXT("yes") : TEXT("no"));
+}
+
+void USaveSubsystem::CancelHandedOverRunEnd()
+{
+	if (!OwnSaveReturnHandle.IsValid())
+	{
+		return;
+	}
+	FWorldDelegates::OnWorldInitializedActors.Remove(OwnSaveReturnHandle);
+	OwnSaveReturnHandle.Reset();
+	UE_LOG(LogWoR, Warning, TEXT("[Save] The travel to the hub was refused: still playing the copy this session (the own save is written; a restart loads it)"));
+}
+
+void USaveSubsystem::HandleOwnSaveReturnWorld(const FActorsInitializedParams &Params)
+{
+	if (!Params.World || !Params.World->IsGameWorld() || Params.World->GetGameInstance() != GetGameInstance())
+	{
+		return;
+	}
+	// Review: only the hub (ExitTrial's destination), never a transition map or a level reached some other way.
+	const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+	if (!TrialRun || !TrialRun->IsHubWorld(Params.World))
+	{
+		UE_LOG(LogWoR, Verbose, TEXT("[Save] %s is not the hub: the handed-over run's return keeps waiting"), *Params.World->GetMapName());
+		return;
+	}
+	FWorldDelegates::OnWorldInitializedActors.Remove(OwnSaveReturnHandle);
+	OwnSaveReturnHandle.Reset();
+	ReturnToOwnSave(); // before the level's BeginPlay builds the party from it
+}
+
+bool USaveSubsystem::ReturnToOwnSave()
+{
+	return ReturnToOwnSaveFrom(SLOT_NAME);
+}
+
+bool USaveSubsystem::ReturnToOwnSaveFrom(const FString &SlotName)
+{
+	UGameInstance *GI = GetGameInstance();
+	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	UWoRSaveGame *Own = bPlayingHostCopy && PartySession && Pool ? LoadOwnSaveGame(SlotName) : nullptr;
+	if (!Own || !BuildOwnSaveFrom(SlotName, Own->Data))
+	{
+		return false;
+	}
+
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	WorldActorsInitializedHandle.Reset();
+	PendingRun = FSavedRun();
+	PartySession->ForgetLocalParty();
+	const bool bParty = Own->Data.Party.bHasParty && RestoreParty(Own->Data.Party, *PartySession);
+	Pool->ResetStore();
+	const int32 PoolEntries = RestorePool(Own->Data.Pool, *Pool);
+	SaveGame = Own;
+	bPlayingHostCopy = false;
+	AdoptedSlotName.Reset();
+	AdoptedUpgradeMemory.Reset();
+	const bool bWritten = WriteSlot(/*bAsync=*/false);
+	UE_LOG(LogWoR, Display, TEXT("[Save] Handed-over run over: back to this player's own save (party %s, %d pool entries; written %s)"),
+		   bParty ? TEXT("restored") : TEXT("fresh"), PoolEntries, bWritten ? TEXT("yes") : TEXT("no"));
 	return true;
 }
 
@@ -675,6 +821,27 @@ const FWoRSaveData &USaveSubsystem::GetData() const
 	return SaveGame->Data;
 }
 
+ETurnViewStyle USaveSubsystem::GetTurnViewStyle() const
+{
+	const uint8 Saved = SaveGame->Data.Settings.TurnViewStyle;
+	return Saved <= static_cast<uint8>(ETurnViewStyle::Tactical) ? static_cast<ETurnViewStyle>(Saved) : ETurnViewStyle::CentredWide;
+}
+
+void USaveSubsystem::SetTurnViewStyle(ETurnViewStyle Style)
+{
+	SaveGame->Data.Settings.TurnViewStyle = static_cast<uint8>(Style);
+}
+
+bool USaveSubsystem::IsEndTurnButtonHidden() const
+{
+	return SaveGame->Data.Settings.bHideEndTurnButton;
+}
+
+void USaveSubsystem::SetEndTurnButtonHidden(bool bHidden)
+{
+	SaveGame->Data.Settings.bHideEndTurnButton = bHidden;
+}
+
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;
@@ -715,6 +882,9 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.RunRing = Member.RunRing;
 		Out.MemberId = Member.MemberId; // B-360b: the pool's keys for a copy name this id
 		Out.bKeyedByMember = Member.bKeyedByMember;
+		Out.GuardStyle = Member.GuardStyle; // B-392 (D-170)
+		Out.GuardWeaponId = Member.GuardWeaponId;
+		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -993,6 +1163,9 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.RunRing = In.RunRing;
 		Member.MemberId = In.MemberId; // B-360b (RestoreLocalParty mints one when invalid)
 		Member.bKeyedByMember = In.bKeyedByMember;
+		Member.GuardStyle = In.GuardStyle; // B-392 (D-170)
+		Member.GuardWeaponId = In.GuardWeaponId;
+		Member.ParryElementPriority = In.ParryElementPriority; // B-393 (D-170)
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();

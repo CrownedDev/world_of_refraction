@@ -572,6 +572,35 @@ void UPoolSubsystem::RestoreSharedGear(const TMap<FGuid, FName> &InWearers, cons
     BankedCharacters = TSet<FName>(InBanked);
 }
 
+void UPoolSubsystem::ResetStore()
+{
+    const int32 GearBefore = OwnedWeapons.Num() + OwnedRings.Num() + OwnedEvolutions.Num() + OwnedApparel.Num();
+    OwnedWeapons.Reset();
+    OwnedRings.Reset();
+    OwnedEvolutions.Reset();
+    OwnedApparel.Reset();
+    WeaponIndex.Reset();
+    AdapterIndex.Reset();
+    EvolutionIndex.Reset();
+    MarkGearIndexDirty();
+    OwnedSpells.Reset();
+    OwnedAbilities.Reset();
+    Crystals.Reset();
+    Stones.Reset();
+    Wearers.Reset();
+    BankedCharacters.Reset();
+    GearOwners.Reset();
+    CustomLoadouts.Reset();
+    CharacterSkills.Reset();
+    Clashes.Reset();
+    Pouches.Reset();
+    BankedItemCharacters.Reset();
+    DiscardRunLayer();
+    UpgradeMemory.Reset();
+    bPopulated = false;
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Store emptied for a reload (%d gear piece(s) dropped)"), GearBefore);
+}
+
 // ==================== CUSTOM LOADOUTS ====================
 
 void UPoolSubsystem::SetCustomLoadouts(FName CharacterKey, const TArray<FSavedLoadout> &Loadouts)

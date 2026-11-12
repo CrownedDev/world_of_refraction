@@ -167,6 +167,11 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_BeginPlannedHandOver();
 
+	/** B-234d (server): this player's place in the join order (AWoRGameState::UpdateHostOrder gives it once;
+	 *  WoRHostSuccession::NO_JOIN_SEQUENCE until then). CopyProperties carries it across a seamless travel. */
+	int32 GetJoinSequence() const { return JoinSequence; }
+	void SetJoinSequence(int32 InJoinSequence) { JoinSequence = InJoinSequence; }
+
 private:
 	/** B-234: one chunk of the host's save; the last one of a checkpoint writes the copy to WoRCheckpoint::SLOT_NAME. */
 	UFUNCTION(Client, Reliable)
@@ -176,6 +181,10 @@ private:
 	int32 KeptCheckpointId = INDEX_NONE;
 	int32 KeptCheckpointBytes = 0;
 	FDateTime KeptCheckpointTime;
+
+	/** B-234d: server only, never replicated (clients read the order from AWoRGameState::HostOrder). INDEX_NONE is
+	 *  WoRHostSuccession::NO_JOIN_SEQUENCE. */
+	int32 JoinSequence = INDEX_NONE;
 
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
 	bool IsLocalPlayerWallet() const;

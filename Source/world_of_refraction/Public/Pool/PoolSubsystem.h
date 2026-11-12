@@ -310,6 +310,11 @@ public:
     /** B-090: a pool restored from a save counts as populated, so the authored seed can't add a second copy. */
     void MarkPopulated() { bPopulated = true; }
 
+    /** B-234d (Q-234d): empties the whole store (gear, skills, items, pouches, custom loadouts, owners and wearers, the
+     *  run layer and the upgrade memory) and marks it unpopulated, so a save can be restored into it alone
+     *  (USaveSubsystem::ReturnToOwnSave after a handed-over run). Only between levels: no member holds a drawn copy. */
+    void ResetStore();
+
     // ==================== SHARED GEAR (B-091, D-020, Q-091) ====================
     // One armoury for the party. Each party member's inventory holds a copy of every piece
     // (UInventoryComponent::DrawSharedGear); a piece is worn by one member at a time, the one whose

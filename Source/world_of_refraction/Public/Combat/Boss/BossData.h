@@ -18,6 +18,7 @@
 class UCharacterData;
 class UEffectDefinition;
 class UEquipmentDataBase;
+class ULevelSequence;
 class UMemoryData;
 class USkillDataBase;
 
@@ -106,6 +107,11 @@ struct WORLD_OF_REFRACTION_API FBossPhase
 	/** TODO: needs the enemy loadout to take skills mid-fight; logged when reached. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Changes")
 	TArray<TObjectPtr<USkillDataBase>> AddedSkills;
+
+	/** B-406 (FeelGuide 9, on trial): a HUD-free cinematic played when this phase is reached (bindings: "Boss", "Party").
+	 *  Empty: none. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cinematic")
+	TSoftObjectPtr<ULevelSequence> CinematicSequence;
 };
 
 /** OBSOLETE (B-355): FWoRCondition (CharacterInParty / GearEquipped / Hidden); read across on load.
@@ -213,6 +219,11 @@ public:
 	 *  conditions and triggers after these. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss")
 	TArray<FBossRule> Rules;
+
+	/** B-406 (FeelGuide 9, on trial): a HUD-free cinematic before the first turn (bindings: "Boss", "Party"); turn 1
+	 *  waits for it. Empty: none. Phase cinematics are on each phase (FBossPhase::CinematicSequence). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cinematic")
+	TSoftObjectPtr<ULevelSequence> OpeningSequence;
 
 	/** The authored phases, else the style's preset. */
 	TArray<FBossPhase> GetPhasesToUse() const;

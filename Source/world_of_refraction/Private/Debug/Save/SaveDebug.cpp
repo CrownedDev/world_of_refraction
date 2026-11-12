@@ -101,4 +101,7 @@ void USaveDebug::PrintSaveState(const UObject *WorldContextObject)
 	}
 	UE_LOG(LogWoR, Display, TEXT("[SaveDebug] Slot '%s' (%s)\n%s"), USaveSubsystem::SLOT_NAME,
 		   Save->IsBoundToPlayer() ? TEXT("on disk") : TEXT("in memory only"), *GetSaveString(Save->GetData()));
+	UE_LOG(LogWoR, Display, TEXT("[SaveDebug] Hand-over: playing host copy %s (slot '%s'), return to own save waiting %s"),
+		   Save->IsPlayingHostCopy() ? TEXT("yes") : TEXT("no"), *Save->GetAdoptedSlotName(),
+		   Save->IsOwnSaveReturnWaiting() ? TEXT("yes") : TEXT("no"));
 }

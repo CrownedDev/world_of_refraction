@@ -13,6 +13,7 @@
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Actions/EActionType.h"
+#include "Combat/Camera/BossFraming.h"
 #include <Combat/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -224,6 +225,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	EItemTier EnemyTier = EItemTier::F_Tier;
 
+	/** B-405 (study R13): as an enemy, how high the turn-view camera sits against it. By rank (the default): a boss or
+	 *  mini-boss low and looking up, others at eye level. Set Low for a tall normal enemy, EyeLevel for a small boss. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
+	EEnemyCameraHeight EnemyCameraHeight = EEnemyCameraHeight::ByRank;
+
 	/** Widens the real-time defense input window (more Reflex = more lead-in time to
 	 *  land a parry/dodge). Scales ON TOP of UDefenseSystem::DefenseInputWindow — see
 	 *  CalculateReflexWindowBonus. Does NOT affect ActionSpeed (animation pacing). */
@@ -237,7 +243,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 Resistance = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
+	/** OBSOLETE (B-170h): Turn Speed is retired with action pips (B-170g, Q-170h): read only by the speed timeline at
+	 *  wor.Turns.ActionPips 0; validation warns when it is set. Kept so saved assets load. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0", DisplayName = "Turn Speed (retired)"))
 	int32 TurnSpeed = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
@@ -412,6 +420,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalResistance() const { return Resistance; }
 
+	// OBSOLETE (B-170h): retired with action pips (B-170g); see TurnSpeed.
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalTurnSpeed() const { return TurnSpeed; }
 
@@ -633,6 +642,7 @@ public:
 	 *  owns the math; the caller picks WHICH Spirit. The turn-order path
 	 *  (TurnManager::CacheActorStats) passes the component's pillar-MODIFIED Spirit;
 	 *  CalculateTurnSpeed below passes raw GetEffectiveSpirit(). */
+	// OBSOLETE (B-170h): the speed timeline's formula, read only at wor.Turns.ActionPips 0 (B-170g).
 	float CalculateTurnSpeedWithSpirit(float SpiritValue) const
 	{
 		return FMath::Min(CombatConstants::TURN_SPEED_BASE + (SpiritValue * GetTotalTurnSpeed() * CombatConstants::TURN_SPEED_PER_POINT), CombatConstants::TURN_SPEED_CAP);

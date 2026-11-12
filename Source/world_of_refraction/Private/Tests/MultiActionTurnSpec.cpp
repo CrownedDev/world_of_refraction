@@ -2,8 +2,8 @@
 // B-170c (ActionPips.md §1, §3.3, Q-170b, Q-170c): with wor.Turns.ActionPips 1 a turn spends banked actions.
 // Each skill, spell or item costs its ActionCost; the turn goes on until the bank is 0, End Turn or Defend;
 // a cost above Max Actions is refused, one above the bank waits; arming a ritual spends its cost and the turn
-// goes on; switching is free. The turn-start and turn-end steps run once per turn. At 0 one action ends the
-// turn, as built. Driven through a real ACombatOrchestrator on bare 1v1 combatants (both player-driven, so
+// goes on; switching is free; bonus actions above Max are lost at turn end (Q-170f2). The turn-start and turn-end
+// steps run once per turn. At 0 one action ends the turn, as built. Driven through a real ACombatOrchestrator on bare 1v1 combatants (both player-driven, so
 // nothing acts on its own). The "0 actions at turn start skips the turn" cases need B-170d's waiting losses
 // (nothing can empty a bank at turn start before them); they land with ActionEffectsSpec.
 
@@ -36,6 +36,8 @@ namespace
 	constexpr int32 MULTI_ACTION_COST_ONE = 1;
 	constexpr int32 MULTI_ACTION_COST_TWO = 2;
 	constexpr int32 MULTI_ACTION_COST_ABOVE_MAX = 3;
+	/** Q-170f2: bonus actions given past Max (an Emerald, a Gain Action effect). */
+	constexpr int32 MULTI_ACTION_BONUS = 2;
 	constexpr int32 MULTI_ACTION_RITUAL_DELAY = 1;
 	/** Turns of preview to search for the armed ritual's Execution turn. */
 	constexpr int32 MULTI_ACTION_PREVIEW_TURNS = 6;
@@ -230,6 +232,18 @@ void FMultiActionTurnSpec::Define()
 			TestTrue(TEXT("No cost refusal outside an action-pips fight"),
 					 Orchestrator->GetActionCostRefusedReason(Hero, AbilityOn(Foe, NewAbility(MULTI_ACTION_COST_ABOVE_MAX))).IsEmpty());
 		});
+
+		It("refuses End Turn outside an action-pips fight (B-170e review)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_OFF))
+			{
+				return;
+			}
+			const int32 TurnCountBefore = TurnManager->GetTurnCount();
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn)); // logs a refusal warning
+			TestTrue(TEXT("Still Hero's turn (asked again)"), Orchestrator->GetCurrentActor() == Hero);
+			TestEqual(TEXT("No turn ended"), TurnManager->GetTurnCount(), TurnCountBefore);
+		});
 	});
 
 	Describe("With the switch on (wor.Turns.ActionPips 1)", [this]()
@@ -269,6 +283,22 @@ void FMultiActionTurnSpec::Define()
 			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
 			TestTrue(TEXT("End Turn ended it: Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
 			TestEqual(TEXT("The action left stays banked"), ActionsOf(Hero), MULTI_ACTION_MAX - MULTI_ACTION_COST_ONE);
+		});
+
+		It("loses a bonus above Max at turn end, and banks the rest up to Max (Q-170f2)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			{
+				return;
+			}
+			DataOf(Hero)->GainActions(MULTI_ACTION_BONUS, /*bMayPassMax=*/true);
+			TestEqual(TEXT("The bonus passes Max for this turn"), ActionsOf(Hero), MULTI_ACTION_MAX + MULTI_ACTION_BONUS);
+			SubmitAndSettle(AbilityOn(Foe, NewAbility(MULTI_ACTION_COST_ONE)));
+			TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+			TestEqual(TEXT("One spent, still above Max"), ActionsOf(Hero), MULTI_ACTION_MAX + MULTI_ACTION_BONUS - MULTI_ACTION_COST_ONE);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			TestTrue(TEXT("End Turn ended it: Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
+			TestEqual(TEXT("What was above Max is lost; Max stays banked"), ActionsOf(Hero), MULTI_ACTION_MAX);
 		});
 
 		It("ends the turn on Defend, which costs nothing", [this]()

@@ -147,6 +147,8 @@ public:
 	FGameplayAttributeData Resistance;
 	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Stats, Resistance)
 
+	// OBSOLETE (B-170h): the GAS mirror of the retired Turn Speed (B-170g, ActionPips.md §3.4); its sync, GEs and
+	// debug lines go with the speed timeline.
 	UPROPERTY(BlueprintReadOnly, Category = "SubStats", ReplicatedUsing = OnRep_TurnSpeed)
 	FGameplayAttributeData TurnSpeed;
 	WOR_ATTRIBUTE_ACCESSORS(UWoRAttributeSet_Stats, TurnSpeed)

@@ -15,6 +15,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "InputActionValue.h"
+#include "InputCoreTypes.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Combat/Actions/CombatPickRequest.h"
 #include "Combat/Defense/EDefenseType.h"
@@ -23,6 +24,7 @@
 
 class UInputMappingContext;
 class UInputAction;
+struct FInputActionInstance;
 class UDefenseSystem;
 class ACombatOrchestrator;
 
@@ -66,6 +68,17 @@ struct FCombatInputRecord
 	/** Arrived by Server RPC (a client's input), not from this machine. */
 	bool bFromClient = false;
 	double ServerTime = 0.0;
+};
+
+/** B-093 / B-391: one combat menu key, built in code with fixed keys (D-063; one row each in docs/Design/InputMap.md).
+ *  It presses the menu button of its category (UCombatCommandMenuSubsystem::PressMenuKey). */
+struct FCombatMenuKey
+{
+	FName ActionName;
+	EPieMenuCategory Category = EPieMenuCategory::None;
+	FKey Keyboard;
+	/** EKeys::Invalid: keyboard only. */
+	FKey Gamepad;
 };
 
 UCLASS()
@@ -122,7 +135,19 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> InfusionLevelAction;
 
-	/** Creates the menu-key actions and their mapping context once. */
+	/** B-391: the main-menu category keys (Attack, Skills, Spells, Items, Flee, switches); CategoryKeyCategories[i] is
+	 *  what CategoryKeyActions[i] presses. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputAction>> CategoryKeyActions;
+
+	TArray<EPieMenuCategory> CategoryKeyCategories;
+
+
+	/** B-406b (Q-406b): skips a boss cinematic on this machine (Tab / Menu). */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> SkipCinematicAction;
+
+	/** Creates the menu-key actions (and the cinematic skip) and their mapping context once. */
 	void BuildMenuKeys();
 
 	// ========================================
@@ -135,6 +160,10 @@ protected:
 	void OnDefend(const FInputActionValue &Value);
 	void OnInfusion(const FInputActionValue &Value);
 	void OnInfusionLevel(const FInputActionValue &Value);
+	void OnSkipCinematic(const FInputActionValue &Value);
+
+	/** B-391: any category key; the pressed action says which category. */
+	void OnCategoryKey(const FInputActionInstance &Instance);
 
 	/** Routes a menu key to the command menu; only the local player's keys count. */
 	void PressMenuKey(EPieMenuCategory Category);
@@ -142,6 +171,13 @@ protected:
 public:
 	/** Debug: each menu key's action, keyboard key and gamepad button. */
 	static FString GetMenuKeysString();
+
+	/** B-391: every combat menu key (the HUD's command menu prints their hints from this one list). */
+	static const TArray<FCombatMenuKey> &GetMenuKeys();
+	/** B-406b (Q-406b): ends the boss cinematic playing in WorldContext's fight on this machine (the director's
+	 *  FinishBossCinematic: HUD back, then turn 1 or the held request goes on). True if one was playing. Local only:
+	 *  on a co-op client it ends the local view, and the server's hold ends on its own end or the cap. */
+	static bool SkipBossCinematic(const UObject *WorldContext);
 
 	// ========================================
 	// CO-OP INPUT ROUTING (B-229)
