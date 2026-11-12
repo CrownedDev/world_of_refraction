@@ -56,24 +56,54 @@ void AWoRGameState::RemovePlayerState(APlayerState *PlayerState)
 	Super::RemovePlayerState(PlayerState);
 }
 
-void AWoRGameState::UpdateHostOrder(const APlayerState *PlayerState, bool bJoined)
+namespace
 {
-	// Server only: clients take the order the host sends. An AI's or a not-yet-logged-in player's id is empty.
-	if (!HasAuthority() || !PlayerState || PlayerState->IsABot() || !PlayerState->GetUniqueId().IsValid())
+	/** A player that belongs in the join order: a logged-in human (an AI's or a not-yet-logged-in player's id is empty). */
+	bool IsOrderedPlayer(const APlayerState *Player)
+	{
+		return Player && !Player->IsABot() && Player->GetUniqueId().IsValid();
+	}
+
+	int32 JoinPlaceOf(const APlayerState *Player)
+	{
+		const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+		return WoRPlayer ? WoRPlayer->GetJoinSequence() : WoRHostSuccession::NO_JOIN_SEQUENCE;
+	}
+}
+
+void AWoRGameState::UpdateHostOrder(APlayerState *PlayerState, bool bJoined)
+{
+	// Server only: clients take the order the host sends.
+	if (!HasAuthority() || !IsOrderedPlayer(PlayerState))
 	{
 		return;
 	}
-	// TODO: B-234c (review): a new level's GameState rebuilds the order as the players arrive; after a seamless travel
-	// that is usually the old order, but two joiners could swap. Carry the previous level's order over if PIE shows it.
-	const FString Id = PlayerState->GetUniqueId().ToString();
-	if (bJoined)
+	// B-234d: a joining player gets its place once; it stays on its PlayerState (CopyProperties carries it across a
+	// seamless travel). The order is rebuilt from the places, so a new level's GameState, which re-adds the travelled
+	// players in any order (and briefly holds a player's old and new PlayerState), still lists them as they joined.
+	AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(PlayerState);
+	if (bJoined && WoRPlayer && WoRPlayer->GetJoinSequence() == WoRHostSuccession::NO_JOIN_SEQUENCE)
 	{
-		HostOrder.AddUnique(Id);
+		TArray<int32> Held;
+		for (const APlayerState *Player : PlayerArray)
+		{
+			Held.Add(JoinPlaceOf(Player));
+		}
+		WoRPlayer->SetJoinSequence(WoRHostSuccession::NextJoinSequence(Held));
 	}
-	else
+	TArray<TPair<FString, int32>> Players;
+	for (const APlayerState *Player : PlayerArray)
 	{
-		HostOrder.Remove(Id);
+		if (IsOrderedPlayer(Player) && (bJoined || Player != PlayerState))
+		{
+			Players.Emplace(Player->GetUniqueId().ToString(), JoinPlaceOf(Player));
+		}
 	}
+	if (bJoined && !PlayerArray.Contains(PlayerState))
+	{
+		Players.Emplace(PlayerState->GetUniqueId().ToString(), JoinPlaceOf(PlayerState));
+	}
+	HostOrder = WoRHostSuccession::OrderByJoinSequence(MoveTemp(Players));
 	if (GetNetMode() != NM_Standalone) // desktop review: a solo world (the default map mid hand-over) keeps the known order
 	{
 		OnRep_HostOrder(); // the host keeps its own copy too
@@ -98,7 +128,8 @@ FString AWoRGameState::GetDebugString() const
 								  static_cast<int32>(NetMode), PlayerArray.Num());
 	for (const APlayerState *Player : PlayerArray)
 	{
-		Out += FString::Printf(TEXT("\n  %s (%s)"), Player ? *Player->GetPlayerName() : TEXT("null"), *GetNameSafe(Player));
+		Out += FString::Printf(TEXT("\n  %s (%s), join place %d"), Player ? *Player->GetPlayerName() : TEXT("null"), *GetNameSafe(Player),
+							   JoinPlaceOf(Player)); // B-234d
 	}
 	Out += FString::Printf(TEXT("\nJoin order (B-234b): %s"), *FString::Join(HostOrder, TEXT(", ")));
 	if (TurnState)
