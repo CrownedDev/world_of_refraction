@@ -7,6 +7,8 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionStructs.h"
+#include "Combat/Defense/DefenseSystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Character/CharacterDataComponent.h"
@@ -51,6 +53,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 {
 	EndCombat();
 	bInCombat = true;
+	DefencePunchesDropped = 0;
 	LocalCombatants.Append(LocalParty);
 	OpposingCombatants.Append(OpposingParty);
 
@@ -549,20 +552,45 @@ void UCombatCameraDirector::ShowDefenceView()
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371
 		Viewer->SetViewTargetWithBlend(CameraActor, CombatCameraTiming::DefenceBlendSeconds);
 	}
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defence view: %d defender(s) against %s"), Defenders.Num(), *GetNameSafe(Attacker));
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defence view (%s): %d defender(s) against %s"),
+		   Defenders.Num() > 1 ? TEXT("wide side-on") : TEXT("side-on two-shot"), Defenders.Num(), *GetNameSafe(Attacker));
+}
+
+bool UCombatCameraDirector::IsViewerDefending() const
+{
+	if (CurrentMode == ECombatCameraMode::Defence || DefenceHandOffTimer.IsValid())
+	{
+		return true;
+	}
+	const UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(this);
+	if (!Defense)
+	{
+		return false;
+	}
+	for (AActor *Actor : LocalCombatants)
+	{
+		if (IsValid(Actor) && IsViewersCharacter(Actor) && Defense->IsDefenseWindowOpen(Actor))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 FString UCombatCameraDirector::GetCinematicWindowString() const
 {
+	// B-402: whether shots are held still, and how many punches that has held back this fight.
+	const FString Steady = FString::Printf(TEXT(" | defending %s, %d punch(es) dropped"), IsViewerDefending() ? TEXT("yes (steady)") : TEXT("no"),
+										   DefencePunchesDropped);
 	if (!bHasLastWindow)
 	{
-		return TEXT("window: none (nothing placed and nothing to defend, or no action yet)");
+		return TEXT("window: none (nothing placed and nothing to defend, or no action yet)") + Steady;
 	}
 	const FString Defendable = LastWindowTiming.bHasDefendable ? FString::Printf(TEXT("%.2f s"), LastWindowTiming.FirstDefendable) : TEXT("none");
 	const TCHAR *Source = LastWindowTiming.bHasAuthoredWindow ? TEXT("placed") : LastWindowTiming.bHasWindUpEnd ? TEXT("wind-up end") : TEXT("read time only");
-	return FString::Printf(TEXT("window ends %.2f s (%s; first defendable %s; read %.2f s) -> %s%s"), LastWindowEnd, Source, *Defendable,
+	return FString::Printf(TEXT("window ends %.2f s (%s; first defendable %s; read %.2f s) -> %s%s%s"), LastWindowEnd, Source, *Defendable,
 						   FCombatCameraRules::MinDefenseReadSeconds, *UEnum::GetValueAsString(LastHandOffMode),
-						   DefenceHandOffTimer.IsValid() ? TEXT(", pending") : TEXT(""));
+						   DefenceHandOffTimer.IsValid() ? TEXT(", pending") : TEXT(""), *Steady);
 }
 
 bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill)
@@ -646,7 +674,14 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	}
 	ShotCamera = Camera;
 	ShotMoment = Moment;
-	ActiveShot = Shot;
+	// B-402 (R10, R11): no shake and no FOV punch while the viewer defends; a held punch is dropped, not replayed (Q-402).
+	const bool bDefending = IsViewerDefending();
+	if (bDefending && (Shot.ShakeScale > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
+	{
+		++DefencePunchesDropped;
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] %s shot held steady: the viewer is defending"), *UEnum::GetValueAsString(Moment));
+	}
+	ActiveShot = FCombatCameraRules::SteadyForDefence(Shot, bDefending);
 	ShotElapsed = 0.0f;
 	ACameraActor *Existing = Camera->GetCameraActor();
 	const bool bAlreadyViewed = Existing && Viewer->GetViewTarget() == Existing;
