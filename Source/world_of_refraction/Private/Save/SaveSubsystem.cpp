@@ -832,6 +832,16 @@ void USaveSubsystem::SetTurnViewStyle(ETurnViewStyle Style)
 	SaveGame->Data.Settings.TurnViewStyle = static_cast<uint8>(Style);
 }
 
+bool USaveSubsystem::IsEndTurnButtonHidden() const
+{
+	return SaveGame->Data.Settings.bHideEndTurnButton;
+}
+
+void USaveSubsystem::SetEndTurnButtonHidden(bool bHidden)
+{
+	SaveGame->Data.Settings.bHideEndTurnButton = bHidden;
+}
+
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;
