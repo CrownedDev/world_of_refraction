@@ -25,6 +25,8 @@
 #include "Character/CharacterDataComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRPlayerState.h" // B-392b: a guest's guard settings go to the host
+#include "GameFramework/PlayerController.h"
 #include "Character/CosmeticsData.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Skills/Definitions/ElementHelpers.h"
@@ -4238,10 +4240,23 @@ EGuardStyle ULoadoutComponent::GetGuardStyle() const
                              Record ? Record->GuardWeaponId : LocalGuardWeaponId);
 }
 
+namespace LoadoutGuardSync
+{
+    /** B-392b: on a co-op guest, its own player state, which tells the host (the host plays the guard and picks the
+     *  parry visual); null on the host or alone. */
+    AWoRPlayerState *GetGuestToTellHost(const UWorld *World)
+    {
+        if (!World || World->GetNetMode() != NM_Client)
+        {
+            return nullptr;
+        }
+        const APlayerController *PC = World->GetFirstPlayerController();
+        return PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+    }
+}
+
 bool ULoadoutComponent::SetGuardStyle(EGuardStyle Style)
 {
-    // TODO: co-op (D-103): UParty is not replicated; a guest's choice made on its machine never reaches the host,
-    // which picks the guard montage. Route it through a server RPC with the party record's replication.
     const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
     if (Style == EGuardStyle::Unarmed && !WeaponEntry)
     {
@@ -4268,6 +4283,10 @@ bool ULoadoutComponent::SetGuardStyle(EGuardStyle Style)
             PartySession->SetMemberGuard(PartySession->GetMemberSlotOf(CharComp), Style, GuardWeaponId);
         }
     }
+    if (AWoRPlayerState *Guest = LoadoutGuardSync::GetGuestToTellHost(GetWorld()))
+    {
+        Guest->ServerSetGuard(GetOwner(), Style); // B-392b (D-103): the host applies it to its copy and its record
+    }
     UE_LOG(LogWoRLoadout, Log, TEXT("%s: guard set to %s (B-392)"), *GetNameSafe(GetOwner()),
            *StaticEnum<EGuardStyle>()->GetNameStringByValue(static_cast<int64>(Style)));
     return true;
@@ -4281,7 +4300,6 @@ EParryElementPriority ULoadoutComponent::GetParryElementPriority() const
 
 void ULoadoutComponent::SetParryElementPriority(EParryElementPriority Priority)
 {
-    // TODO: co-op (D-103): as SetGuardStyle, a guest's choice stays on its machine until the party record replicates.
     LocalParryElementPriority = Priority;
     if (FindGuardRecord())
     {
@@ -4291,6 +4309,10 @@ void ULoadoutComponent::SetParryElementPriority(EParryElementPriority Priority)
         {
             PartySession->SetMemberParryPriority(PartySession->GetMemberSlotOf(CharComp), Priority);
         }
+    }
+    if (AWoRPlayerState *Guest = LoadoutGuardSync::GetGuestToTellHost(GetWorld()))
+    {
+        Guest->ServerSetParryPriority(GetOwner(), Priority); // B-392b (D-103): the host picks the parry visual
     }
     UE_LOG(LogWoRLoadout, Log, TEXT("%s: parry colour priority set to %s (B-393)"), *GetNameSafe(GetOwner()),
            *StaticEnum<EParryElementPriority>()->GetNameStringByValue(static_cast<int64>(Priority)));

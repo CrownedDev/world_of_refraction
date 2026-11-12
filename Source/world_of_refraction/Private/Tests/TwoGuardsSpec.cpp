@@ -3,6 +3,8 @@
 // one it guards with the weapon (the weapon's ParryMontage) unless it chose Unarmed for that weapon; equipping another
 // weapon brings the weapon guard back (Q-392). A weapon with no guard montage yet falls back to the unarmed one. The
 // guard is looks only: the defense window is the same in both.
+// B-392b: a co-op guest's guard and parry colour priority reach the host (ServerSetGuard / ServerSetParryPriority) and
+// apply to its copy of the fighter, only from the player who commands that fighter.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,6 +14,9 @@
 #include "Character/CosmeticsData.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/EGuardStyle.h"
+#include "Combat/Defense/EParryElementPriority.h"
+#include "Character/CharacterDataComponent.h"
+#include "Player/WoRPlayerState.h"
 #include "Equipment/Weapons/WeaponData.h"
 
 namespace
@@ -135,6 +140,51 @@ void FTwoGuardsSpec::Define()
 			EquipAnotherWeapon(nullptr);
 			TestTrue(TEXT("still the weapon guard"), Loadout->GetGuardStyle() == EGuardStyle::Weapon);
 			TestTrue(TEXT("plays the body guard"), Loadout->GetGuardMontage() == BodyGuard);
+		});
+	});
+
+	Describe("co-op (B-392b)", [this]()
+	{
+		It("the host applies a guest's guard and parry priority to the guest's own fighter only", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnGuard(TWO_GUARDS_WEAPON_IN_HAND))) return;
+			AActor *Fighter = Loadout->GetOwner();
+			UCharacterDataComponent *CharComp = Fighter->FindComponentByClass<UCharacterDataComponent>();
+			UWorld *World = TestWorld->GetWorld();
+			AWoRPlayerState *Guest = World->SpawnActor<AWoRPlayerState>();
+			AWoRPlayerState *Other = World->SpawnActor<AWoRPlayerState>();
+			if (!TestNotNull(TEXT("character data"), CharComp) || !TestNotNull(TEXT("guest"), Guest) || !TestNotNull(TEXT("other"), Other)) return;
+			CharComp->PartyMemberId = FGuid::NewGuid(); // the guest's member, as stamped on the host's pawn
+			Guest->ClaimMember(CharComp->PartyMemberId);
+			TestTrue(TEXT("the guest commands it"), Guest->CommandsFighter(Fighter));
+			TestFalse(TEXT("the other player does not"), Other->CommandsFighter(Fighter));
+
+			Other->ServerSetGuard(Fighter, EGuardStyle::Unarmed); // runs here: the test world is the host
+			TestTrue(TEXT("another player's guard is refused"), Loadout->GetGuardStyle() == EGuardStyle::Weapon);
+			Guest->ServerSetGuard(Fighter, EGuardStyle::Unarmed);
+			TestTrue(TEXT("the guest's own reaches the host"), Loadout->GetGuardStyle() == EGuardStyle::Unarmed);
+			TestTrue(TEXT("and plays the body guard"), Loadout->GetGuardMontage() == BodyGuard);
+			Guest->ServerSetGuard(Fighter, EGuardStyle::Weapon);
+			TestTrue(TEXT("and back to the weapon guard"), Loadout->GetGuardStyle() == EGuardStyle::Weapon);
+
+			TestTrue(TEXT("parry priority starts at Weapon"), Loadout->GetParryElementPriority() == EParryElementPriority::Weapon);
+			Other->ServerSetParryPriority(Fighter, EParryElementPriority::Magic);
+			TestTrue(TEXT("another player's priority is refused"), Loadout->GetParryElementPriority() == EParryElementPriority::Weapon);
+			Guest->ServerSetParryPriority(Fighter, EParryElementPriority::Magic);
+			TestTrue(TEXT("the guest's priority reaches the host"), Loadout->GetParryElementPriority() == EParryElementPriority::Magic);
+			Guest->ServerSetGuard(nullptr, EGuardStyle::Unarmed); // a fighter that did not replicate: refused, no crash
+		});
+
+		It("a pawn with no member id is commanded by the player who claims its character", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnGuard(TWO_GUARDS_WEAPON_IN_HAND))) return;
+			AActor *Fighter = Loadout->GetOwner();
+			const UCharacterDataComponent *CharComp = Fighter->FindComponentByClass<UCharacterDataComponent>();
+			AWoRPlayerState *Guest = TestWorld->GetWorld()->SpawnActor<AWoRPlayerState>();
+			if (!TestNotNull(TEXT("character data"), CharComp) || !TestNotNull(TEXT("guest"), Guest)) return;
+			TestFalse(TEXT("not before the claim"), Guest->CommandsFighter(Fighter));
+			Guest->ClaimCharacter(CharComp->CharacterData);
+			TestTrue(TEXT("its character's player"), Guest->CommandsFighter(Fighter));
 		});
 	});
 

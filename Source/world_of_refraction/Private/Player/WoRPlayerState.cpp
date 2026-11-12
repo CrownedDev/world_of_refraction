@@ -24,6 +24,7 @@
 #include "Save/SaveSubsystem.h"
 #include "Save/CoopCheckpoint.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loadout/LoadoutComponent.h" // B-392b
 #include "Engine/LocalPlayer.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
@@ -502,6 +503,59 @@ void AWoRPlayerState::ServerRecruit_Implementation(AActor *RecruitOwner)
 		return;
 	}
 	Recruit->InviteForClient();
+}
+
+bool AWoRPlayerState::CommandsFighter(const AActor *Fighter) const
+{
+	const UCharacterDataComponent *CharComp = Fighter ? Fighter->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (!CharComp)
+	{
+		return false;
+	}
+	return CharComp->PartyMemberId.IsValid() ? ClaimsMember(CharComp->PartyMemberId) : ClaimsCharacter(CharComp->CharacterData);
+}
+
+namespace WoRGuardSync
+{
+	/** B-392b: the host's copy of Fighter's loadout when Player commands it; null (logged) otherwise. */
+	ULoadoutComponent *FindCommandedLoadout(const AWoRPlayerState &Player, AActor *Fighter, const TCHAR *What)
+	{
+		ULoadoutComponent *Loadout = Fighter ? Fighter->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		if (!Loadout || !Player.CommandsFighter(Fighter))
+		{
+			// Review: a fighter that does not replicate arrives here as null.
+			UE_LOG(LogWoR, Warning, TEXT("[Guard] %s's %s for %s refused: %s"), *Player.GetPlayerName(), What, *GetNameSafe(Fighter),
+				   !Fighter ? TEXT("the fighter did not reach the server (not replicated?)") : !Loadout ? TEXT("no loadout") : TEXT("not their fighter"));
+			return nullptr;
+		}
+		return Loadout;
+	}
+}
+
+void AWoRPlayerState::ServerSetGuard_Implementation(AActor *Fighter, EGuardStyle Style)
+{
+	if (!StaticEnum<EGuardStyle>()->IsValidEnumValue(static_cast<int64>(Style)))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Guard] %s sent an unknown guard (%d)"), *GetPlayerName(), static_cast<int32>(Style));
+		return;
+	}
+	if (ULoadoutComponent *Loadout = WoRGuardSync::FindCommandedLoadout(*this, Fighter, TEXT("guard")))
+	{
+		Loadout->SetGuardStyle(Style); // the host's own rules (a weapon in hand, its id) decide; it writes the host's record
+	}
+}
+
+void AWoRPlayerState::ServerSetParryPriority_Implementation(AActor *Fighter, EParryElementPriority Priority)
+{
+	if (!StaticEnum<EParryElementPriority>()->IsValidEnumValue(static_cast<int64>(Priority)))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Guard] %s sent an unknown parry priority (%d)"), *GetPlayerName(), static_cast<int32>(Priority));
+		return;
+	}
+	if (ULoadoutComponent *Loadout = WoRGuardSync::FindCommandedLoadout(*this, Fighter, TEXT("parry priority")))
+	{
+		Loadout->SetParryElementPriority(Priority);
+	}
 }
 void AWoRPlayerState::SendCheckpoint(int32 CheckpointId, const TArray<uint8> &Compressed, int32 UncompressedSize)
 {

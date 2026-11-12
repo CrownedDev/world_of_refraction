@@ -16,6 +16,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/Forms/CharacterFormData.h"
+#include "Combat/Defense/EGuardStyle.h" // B-392b
+#include "Combat/Defense/EParryElementPriority.h" // B-392b
 #include "Save/CoopCheckpoint.h"
 #include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
 #include "Save/WoRSaveTypes.h" // FSavedQuestProgress (B-377b)
@@ -80,6 +82,19 @@ public:
 	 *  host's UPartyInteractionComponent::InviteForClient runs it, invites only). */
 	UFUNCTION(Server, Reliable)
 	void ServerRecruit(AActor *RecruitOwner);
+
+	/** B-392b (Q-392 / Q-393): a guest chose the guard or the parry colour priority for Fighter. The host plays the
+	 *  guard and picks the parry visual, so it applies the choice to its own copy of that pawn (which writes its party
+	 *  record), only when this player commands Fighter. Sent by ULoadoutComponent::SetGuardStyle /
+	 *  SetParryElementPriority on a client. */
+	UFUNCTION(Server, Reliable)
+	void ServerSetGuard(AActor *Fighter, EGuardStyle Style);
+	UFUNCTION(Server, Reliable)
+	void ServerSetParryPriority(AActor *Fighter, EParryElementPriority Priority);
+
+	/** B-392b: this player commands Fighter: its party member (the id stamped on the pawn), or for a pawn with no member
+	 *  id, its character. */
+	bool CommandsFighter(const AActor *Fighter) const;
 	/** B-235b: a map feature's message for this player alone (a Prism pickup), shown on their own screen. */
 	UFUNCTION(Client, Reliable)
 	void Client_ShowFeatureMessage(const FText &Message);
