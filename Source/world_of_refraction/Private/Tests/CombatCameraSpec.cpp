@@ -1,6 +1,7 @@
 // CombatCameraSpec.cpp
 // Combat camera rules (B-156, Design/CombatCamera.md): the mode the viewer sees, the template a
 // skill falls back to, and where each mode puts the camera. B-370: the cinematic window and the Defence view.
+// B-398: the turn-view setting's layouts and its save.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -13,6 +14,8 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/Camera/CombatCameraComponent.h"
+#include "Combat/Camera/CameraFramingChecks.h"
+#include "Save/SaveSubsystem.h"
 #include "LevelSequence.h"
 
 namespace
@@ -26,6 +29,45 @@ namespace
 		Frame.EnemyCentre = FVector(1000.0f, 0.0f, 0.0f);
 		Frame.ArenaCentre = FVector(500.0f, 0.0f, 0.0f);
 		return Frame;
+	}
+
+	// B-398: turn-view layouts. One enemy ahead; three in a shallow arc; a second party member beside the first; a
+	// closer enemy. Screen positions run -1..1 (CameraFraming::ProjectToScreen).
+	const FVector TURN_TEST_ONE_ENEMY(1000.0f, 0.0f, 0.0f);
+	const FVector TURN_TEST_SIDE_MEMBER(0.0f, -250.0f, 0.0f);
+	const FVector TURN_TEST_NEAR_ENEMY(600.0f, 0.0f, 0.0f);
+	constexpr float TURN_TEST_LAYOUT_TOLERANCE = 0.01f;
+	/** B-156's centred-wide turn view for CombatCameraTestFrame: 650 back, 320 up. B-398 must not move it. */
+	const FVector TURN_TEST_CENTRED_WIDE_LOCATION(-650.0f, 0.0f, 320.0f);
+	constexpr float TURN_TEST_LOCATION_TOLERANCE = 0.1f;
+	/** A byte past the last ETurnViewStyle (a save from a later build). */
+	constexpr uint8 TURN_TEST_UNKNOWN_STYLE = 7;
+
+	TArray<FVector> TurnTestThreeEnemies()
+	{
+		return {FVector(900.0f, -300.0f, 0.0f), FVector(1100.0f, 0.0f, 0.0f), FVector(900.0f, 300.0f, 0.0f)};
+	}
+
+	/** The acting character at Focus, the enemy centre over Enemies; the party faces +X, as BuildFrame frames it. */
+	FCombatCameraFrame TurnViewTestFrame(const FVector &Focus, const TArray<FVector> &Enemies)
+	{
+		FCombatCameraFrame Frame;
+		Frame.Focus = Focus;
+		Frame.TowardEnemies = FVector::ForwardVector;
+		for (const FVector &Enemy : Enemies)
+		{
+			Frame.EnemyCentre += Enemy;
+		}
+		Frame.EnemyCentre /= FMath::Max(1, Enemies.Num());
+		Frame.ArenaCentre = (Focus + Frame.EnemyCentre) * 0.5f;
+		return Frame;
+	}
+
+	FVector2D ProjectInTurnView(const FTransform &View, const FVector &Point)
+	{
+		FVector2D Screen(TNumericLimits<float>::Max(), TNumericLimits<float>::Max()); // stays off screen if behind
+		CameraFraming::ProjectToScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Point, Screen);
+		return Screen;
 	}
 }
 
@@ -137,6 +179,65 @@ void FCombatCameraSpec::Define()
 			Frame.Focus = FVector(0.0f, 400.0f, 0.0f);
 			const FVector Second = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::Tactical, Frame).GetLocation();
 			TestTrue(TEXT("same place"), First.Equals(Second));
+		});
+	});
+
+	Describe("the turn-view setting (B-398, study R1)", [this]()
+	{
+		It("over the shoulder puts the hero in the lower-left third and the enemy centre in the middle band, 1 or 3 enemies", [this]()
+		{
+			const TArray<FVector> Three = TurnTestThreeEnemies();
+			const FCombatCameraFrame Frames[] = {TurnViewTestFrame(FVector::ZeroVector, {TURN_TEST_ONE_ENEMY}),
+												 TurnViewTestFrame(FVector::ZeroVector, Three)};
+			for (const FCombatCameraFrame &Frame : Frames)
+			{
+				const FTransform View = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::OverTheShoulder, Frame);
+				const FVector2D Hero = ProjectInTurnView(View, Frame.Focus);
+				const FVector2D Centre = ProjectInTurnView(View, Frame.EnemyCentre);
+				const FString Where = FString::Printf(TEXT("hero %s, enemy centre %s"), *CameraFraming::GetThirdsCell(Hero), *CameraFraming::GetThirdsCell(Centre));
+				TestTrue(FString::Printf(TEXT("hero on screen (%s)"), *Where),
+						 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Frame.Focus));
+				TestTrue(FString::Printf(TEXT("hero in the left third (%s)"), *Where), Hero.X < -CameraFraming::THIRD_LINE);
+				TestTrue(FString::Printf(TEXT("hero in the lower third (%s)"), *Where), Hero.Y < -CameraFraming::THIRD_LINE);
+				TestTrue(FString::Printf(TEXT("enemy centre in the middle band (%s)"), *Where),
+						 FMath::Abs(Centre.X) <= CameraFraming::THIRD_LINE && FMath::Abs(Centre.Y) <= CameraFraming::THIRD_LINE);
+			}
+			const FTransform ThreeView = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::OverTheShoulder, Frames[1]);
+			for (const FVector &Enemy : Three)
+			{
+				TestTrue(TEXT("every one of three enemies on screen"),
+						 CameraFraming::IsOnScreen(ThreeView, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Enemy));
+			}
+		});
+
+		It("gives every party member the same over-the-shoulder layout, at any range", [this]()
+		{
+			const FCombatCameraFrame First = TurnViewTestFrame(FVector::ZeroVector, {TURN_TEST_ONE_ENEMY});
+			const FCombatCameraFrame Beside = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, TurnTestThreeEnemies());
+			const FCombatCameraFrame Near = TurnViewTestFrame(FVector::ZeroVector, {TURN_TEST_NEAR_ENEMY});
+			const FVector2D FirstHero = ProjectInTurnView(FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, First), First.Focus);
+			const FVector2D BesideHero = ProjectInTurnView(FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Beside), Beside.Focus);
+			const FVector2D NearHero = ProjectInTurnView(FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Near), Near.Focus);
+			TestTrue(TEXT("a member beside the first, same spot"), FirstHero.Equals(BesideHero, TURN_TEST_LAYOUT_TOLERANCE));
+			TestTrue(TEXT("a closer enemy, same spot"), FirstHero.Equals(NearHero, TURN_TEST_LAYOUT_TOLERANCE));
+		});
+
+		It("keeps the centred-wide turn view where B-156 put it", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTransform View = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			TestTrue(TEXT("same place"), View.GetLocation().Equals(TURN_TEST_CENTRED_WIDE_LOCATION, TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("ComputeView's turn is ComputeTurnView"),
+					 View.Equals(FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame)));
+		});
+
+		It("names the setting and each style for the player", [this]()
+		{
+			TestFalse(TEXT("setting name"), FCombatCameraRules::GetTurnViewSettingName().IsEmpty());
+			const FText Wide = FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle::CentredWide);
+			const FText Shoulder = FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle::OverTheShoulder);
+			TestFalse(TEXT("named"), Wide.IsEmpty() || Shoulder.IsEmpty());
+			TestFalse(TEXT("distinct"), Wide.EqualTo(Shoulder));
 		});
 	});
 
@@ -411,6 +512,44 @@ void FCombatCameraDirectorSpec::Define()
 		TestFalse(TEXT("out of combat"), Director->IsInCombat());
 		TestEqual(TEXT("no cameras left"), Director->GetCameraCount(), 0);
 		TestNull(TEXT("hero's camera removed"), Hero->FindComponentByClass<UCombatCameraComponent>());
+	});
+
+	It("keeps the turn-view setting across a fight restart and on a new orchestrator (B-398, saved)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestTrue(TEXT("setup"), Director && Save && Hero && Foe))
+		{
+			return;
+		}
+		Save->SetTurnViewStyle(ETurnViewStyle::CentredWide); // the default (D-074), whatever a loaded slot held
+
+		Orchestrator->StartCombat({Hero}, {Foe});
+		TestEqual(TEXT("the first fight starts Centred Wide"), Director->GetTurnViewStyle(), ETurnViewStyle::CentredWide);
+		Director->SetTurnViewStyle(ETurnViewStyle::OverTheShoulder);
+		TestEqual(TEXT("the choice is in the save"), Save->GetTurnViewStyle(), ETurnViewStyle::OverTheShoulder);
+		Orchestrator->ForceEndCombat(ECombatState::Victory);
+
+		// The restart: what StartCombat calls, on a director whose own field was reset.
+		Director->TurnViewStyle = ETurnViewStyle::CentredWide;
+		Director->BeginCombat({Hero}, {Foe}, nullptr);
+		TestEqual(TEXT("a restarted fight keeps it"), Director->GetTurnViewStyle(), ETurnViewStyle::OverTheShoulder);
+		Director->EndCombat();
+
+		// A new level's orchestrator (its director has never been set).
+		ACombatOrchestrator *Next = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		UCombatCameraDirector *NextDirector = Next ? Next->GetCameraDirector() : nullptr;
+		if (!TestNotNull(TEXT("second orchestrator"), NextDirector))
+		{
+			return;
+		}
+		NextDirector->BeginCombat({Hero}, {Foe}, nullptr);
+		TestEqual(TEXT("a new orchestrator starts with it"), NextDirector->GetTurnViewStyle(), ETurnViewStyle::OverTheShoulder);
+		NextDirector->EndCombat();
+
+		Save->SetTurnViewStyle(static_cast<ETurnViewStyle>(TURN_TEST_UNKNOWN_STYLE));
+		TestEqual(TEXT("an unknown saved value reads as the default"), Save->GetTurnViewStyle(), ETurnViewStyle::CentredWide);
+		Save->SetTurnViewStyle(ETurnViewStyle::CentredWide);
 	});
 }
 

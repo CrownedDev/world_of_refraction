@@ -31,7 +31,8 @@ enum class ECombatCameraMode : uint8
 	KillShot UMETA(DisplayName = "Kill shot")
 };
 
-/** Turn-view setting (D-074 (2)): centred-wide is the default. */
+/** Turn-view setting (D-074 (2)): centred-wide is the default. B-398: a player setting, saved (FSavedSettings);
+ *  its player-facing names are FCombatCameraRules::GetTurnViewStyleName. */
 UENUM(BlueprintType)
 enum class ETurnViewStyle : uint8
 {
@@ -192,8 +193,19 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static ECameraTemplateKind TemplateKindFor(const USkillDataBase *Skill, EActionType ActionType);
 
 	/** Camera transform for a mode. Action has no transform of its own (the sequence owns the view). Defence uses
-	 *  ComputeDefenceView. */
+	 *  ComputeDefenceView. Turn is ComputeTurnView. */
 	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame);
+
+	/** B-398 (study R1): the turn view for each turn-view setting; the one place a turn view is framed.
+	 *  CentredWide: behind and above the character, facing the enemy centre (D-074 default).
+	 *  OverTheShoulder: the acting character in the lower-left third, back to the camera, the enemy centre in the
+	 *  middle of the frame; scaled to the character's distance from the enemy centre, so every party member at any
+	 *  range gets the same layout. Tactical: side-on, both teams in view. */
+	static FTransform ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame);
+
+	/** B-398 (D-061 / D-062): the setting's player-facing name, and each style's. */
+	static FText GetTurnViewSettingName();
+	static FText GetTurnViewStyleName(ETurnViewStyle Style);
 
 	/** B-370: the cinematic window's moments read from a skill's montages, as the runner plays them: the ritual and
 	 *  skill legs at PlayRate (BaseAnimSpeed × the caster's speed stat), the return leg at 1.0; a deferred fire

@@ -27,6 +27,16 @@ namespace CameraFraming
 	 *  view of FovDegrees, keeping Margin free at the edges. False behind the camera. */
 	WORLD_OF_REFRACTION_API bool IsOnScreen(const FTransform &Camera, float FovDegrees, float Aspect, const FVector &Point, float Margin = SCREEN_MARGIN);
 
+	/** B-398: where the rule-of-thirds lines sit on the screen, from -1 to 1: the middle band is within ±THIRD_LINE. */
+	constexpr float THIRD_LINE = 1.0f / 3.0f;
+
+	/** B-398: where Point lands on the view (IsOnScreen's projection): X from -1 (left edge) to 1 (right edge), Y from
+	 *  -1 (bottom) to 1 (top); beyond ±1 is off screen. False behind the camera. */
+	WORLD_OF_REFRACTION_API bool ProjectToScreen(const FTransform &Camera, float FovDegrees, float Aspect, const FVector &Point, FVector2D &OutScreen);
+
+	/** B-398 (debug text): the rule-of-thirds cell a screen point is in, e.g. "lower-left (-0.44, -0.61)". */
+	WORLD_OF_REFRACTION_API FString GetThirdsCell(const FVector2D &Screen);
+
 	/** The points a moment must show: wind-up and cast the caster and every target, an impact its first target, a
 	 *  spread every target. */
 	WORLD_OF_REFRACTION_API TArray<FVector> GetRequiredPoints(ECameraShotMoment Moment, const FCameraShotContext &Context);

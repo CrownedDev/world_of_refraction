@@ -4,6 +4,7 @@
 #include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
+#include "Combat/Camera/CombatCameraTypes.h" // ETurnViewStyle (B-398)
 #include "Character/CharacterData.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/CombatCharacter.h"
@@ -469,11 +470,12 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 		UE_LOG(LogWoR, Warning, TEXT("[Save] Hand-over: %s"), Copy ? TEXT("the copy holds no run") : TEXT("no checkpoint copy to host from"));
 		return false;
 	}
-	// This player's own wallet and look stay its own (Q-234b (2)).
+	// This player's own wallet, look and settings stay its own (Q-234b (2); settings B-398).
 	if (SaveGame)
 	{
 		Copy->Data.Wallet = SaveGame->Data.Wallet;
 		Copy->Data.Forms = SaveGame->Data.Forms;
+		Copy->Data.Settings = SaveGame->Data.Settings;
 	}
 	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
 	UPoolSubsystem *Pool = GI->GetSubsystem<UPoolSubsystem>();
@@ -673,6 +675,17 @@ void USaveSubsystem::ClearRunGold(UWorld *World)
 const FWoRSaveData &USaveSubsystem::GetData() const
 {
 	return SaveGame->Data;
+}
+
+ETurnViewStyle USaveSubsystem::GetTurnViewStyle() const
+{
+	const uint8 Saved = SaveGame->Data.Settings.TurnViewStyle;
+	return Saved <= static_cast<uint8>(ETurnViewStyle::Tactical) ? static_cast<ETurnViewStyle>(Saved) : ETurnViewStyle::CentredWide;
+}
+
+void USaveSubsystem::SetTurnViewStyle(ETurnViewStyle Style)
+{
+	SaveGame->Data.Settings.TurnViewStyle = static_cast<uint8>(Style);
 }
 
 bool USaveSubsystem::IsBoundToPlayer() const

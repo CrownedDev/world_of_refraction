@@ -11,9 +11,14 @@ namespace CombatCameraOffsets
 	// TODO: tune in PIE (B-157 camera rig pass). Distances in cm.
 	constexpr float CentredWideBack = 650.0f;
 	constexpr float CentredWideHeight = 320.0f;
-	constexpr float ShoulderBack = 260.0f;
-	constexpr float ShoulderHeight = 130.0f;
-	constexpr float ShoulderSide = 90.0f;
+	// B-398 (R1): over-the-shoulder offsets as parts of the character-to-enemy-centre distance, so the layout (character
+	// lower-left third, enemy centre in the middle) holds at any range. TODO: tune in PIE.
+	constexpr float ShoulderBackPerRange = 0.35f;
+	constexpr float ShoulderSidePerRange = 0.25f;
+	constexpr float ShoulderHeightPerRange = 0.2f;
+	/** The shortest range the offsets scale from, so a close enemy doesn't put the camera inside the character.
+	 *  TODO: tune in PIE. */
+	constexpr float ShoulderMinRange = 500.0f;
 	constexpr float TacticalSide = 1400.0f;
 	constexpr float TacticalHeight = 550.0f;
 	constexpr float NotYourTurnBack = 1300.0f;
@@ -99,26 +104,11 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 {
 	using namespace CombatCameraOffsets;
 	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
-	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
 
 	switch (Mode)
 	{
 	case ECombatCameraMode::Turn:
-		switch (Style)
-		{
-		case ETurnViewStyle::OverTheShoulder:
-			return LookFrom(Frame.Focus - Forward * ShoulderBack + Right * ShoulderSide + FVector::UpVector * ShoulderHeight,
-							Frame.EnemyCentre);
-		case ETurnViewStyle::Tactical:
-		{
-			const FVector Middle = (Frame.Focus + Frame.EnemyCentre) * 0.5f;
-			return LookFrom(Middle + Right * TacticalSide + FVector::UpVector * TacticalHeight, Middle);
-		}
-		case ETurnViewStyle::CentredWide:
-		default:
-			return LookFrom(Frame.Focus - Forward * CentredWideBack + FVector::UpVector * CentredWideHeight,
-							Frame.EnemyCentre);
-		}
+		return ComputeTurnView(Style, Frame);
 	case ECombatCameraMode::NotYourTurn:
 		return LookFrom(Frame.Focus - Forward * NotYourTurnBack + FVector::UpVector * NotYourTurnHeight, Frame.ArenaCentre);
 	case ECombatCameraMode::Static:
@@ -129,6 +119,59 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 		return LookFrom(Frame.Focus - Forward * CentredWideBack + FVector::UpVector * CentredWideHeight, Frame.EnemyCentre);
 	}
 }
+
+FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame)
+{
+	using namespace CombatCameraOffsets;
+	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
+
+	switch (Style)
+	{
+	case ETurnViewStyle::OverTheShoulder:
+	{
+		// Aimed along this character's own line to the enemy centre (not the party's), and scaled by its length, so the
+		// character lands in the same screen spot whoever acts. Behind and right of it: it sits left, below the aim.
+		const FVector ToEnemies = Frame.EnemyCentre - Frame.Focus;
+		const FVector Aim = ToEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, Forward);
+		const FVector AimRight = FVector::CrossProduct(FVector::UpVector, Aim);
+		const float Range = FMath::Max(static_cast<float>(ToEnemies.Size2D()), ShoulderMinRange);
+		const FVector Offset = -Aim * ShoulderBackPerRange + AimRight * ShoulderSidePerRange + FVector::UpVector * ShoulderHeightPerRange;
+		return LookFrom(Frame.Focus + Offset * Range, Frame.EnemyCentre);
+	}
+	case ETurnViewStyle::Tactical:
+	{
+		const FVector Middle = (Frame.Focus + Frame.EnemyCentre) * 0.5f;
+		return LookFrom(Middle + Right * TacticalSide + FVector::UpVector * TacticalHeight, Middle);
+	}
+	case ETurnViewStyle::CentredWide:
+	default:
+		return LookFrom(Frame.Focus - Forward * CentredWideBack + FVector::UpVector * CentredWideHeight, Frame.EnemyCentre);
+	}
+}
+
+#define LOCTEXT_NAMESPACE "CombatCameraSettings"
+
+FText FCombatCameraRules::GetTurnViewSettingName()
+{
+	return LOCTEXT("TurnViewSetting", "Turn View");
+}
+
+FText FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle Style)
+{
+	switch (Style)
+	{
+	case ETurnViewStyle::OverTheShoulder:
+		return LOCTEXT("TurnViewOverTheShoulder", "Over the Shoulder");
+	case ETurnViewStyle::Tactical:
+		return LOCTEXT("TurnViewTactical", "Tactical");
+	case ETurnViewStyle::CentredWide:
+	default:
+		return LOCTEXT("TurnViewCentredWide", "Centred Wide");
+	}
+}
+
+#undef LOCTEXT_NAMESPACE
 
 FCinematicWindowTiming FCombatCameraRules::ReadWindowTiming(const USkillDataBase *Skill, float PlayRate, bool bSkipRitualLeg)
 {
