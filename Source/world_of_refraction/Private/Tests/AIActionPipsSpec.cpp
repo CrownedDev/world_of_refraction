@@ -34,9 +34,9 @@ namespace
 	constexpr float AI_PIPS_THINK_LIVE = 1.0f;
 	constexpr float AI_PIPS_THINK_NOW = 0.0f;
 
-	/** A default character: regain 1, Max 2. */
-	constexpr int32 AI_PIPS_REGAIN = 1;
-	constexpr int32 AI_PIPS_MAX = 2;
+	/** A default character (no Reflex points, so B-170i's regain is the base; no action points): regain 1, Max 2. */
+	constexpr int32 AI_PIPS_REGAIN = ActionPipsConstants::ACTIONS_REGAIN_BASE;
+	constexpr int32 AI_PIPS_MAX = ActionPipsConstants::MAX_ACTIONS_BASE;
 	constexpr int32 AI_PIPS_COST_ONE = 1;
 	constexpr int32 AI_PIPS_COST_TWO = 2;
 	constexpr int32 AI_PIPS_COST_ABOVE_MAX = 3;
@@ -320,7 +320,7 @@ void FAIActionPipsSpec::Define()
 	{
 		It("skips a pick the bank can't pay, holds one within Max, never one above it", [this]()
 		{
-			if (!StartFight(AI_PIPS_ON) || !TestEqual(TEXT("Hero's bank is the regain"), DataOf(Hero)->CurrentActions, AI_PIPS_REGAIN))
+			if (!StartFight(AI_PIPS_ON) || !TestEqual(TEXT("Hero's bank is the regain"), DataOf(Hero)->CurrentActions, DataOf(Hero)->GetActionRegain()))
 			{
 				return;
 			}
@@ -341,6 +341,8 @@ void FAIActionPipsSpec::Define()
 			UAbilityData *Pricey = NewRooted<UAbilityData>();
 			Pricey->Name = TEXT("AI pips pricey skill");
 			Pricey->ActionCost = AI_PIPS_COST_TWO;
+			Pricey->BaseDamage = AI_PIPS_STRIKE_DAMAGE; // a pick worth something: a 0-score pick is never held
+			Pricey->HitCount = AI_PIPS_STRIKE_HITS;
 			const TArray<USkillDataBase *> Candidates{Pricey};
 			float BestScore = 0.0f;
 			float UnaffordableBest = 0.0f;
