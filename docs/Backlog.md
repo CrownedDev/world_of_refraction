@@ -644,3 +644,5 @@ Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109
 ## Later (not scheduled)
 - Co-op: replicated combat state, intent RPCs, `ServerTravel`, arena as streamed level instance (`ArchitectureReview_2026-10.md` §1.6, §1.9).
 - Real-time field abilities (movement, first strike) on GAS (`GASMigration.md`).
+- IDEA: gear with active effects (an action-costing ability on gear). Crown, 2026-11-12, another day.
+- IDEA: gear that gives extra actions now and then (e.g. +1 every 3 turns) instead of every turn. Crown, 2026-11-12.
