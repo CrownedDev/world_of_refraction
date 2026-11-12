@@ -490,6 +490,16 @@ FText GetYourselfWord()
     return LOCTEXT("Yourself", "yourself");
 }
 
+FText GetActionsWord()
+{
+    return LOCTEXT("Actions", "Actions");
+}
+
+FText GetEndTurnVerb()
+{
+    return LOCTEXT("VerbEndTurn", "End Turn");
+}
+
 FText GetInventoryVerbName(EInventoryVerb Verb)
 {
     return GetInventoryVerbName(Verb, ECurrencyType::Gold);

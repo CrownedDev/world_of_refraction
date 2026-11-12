@@ -1,6 +1,6 @@
 // ActionEffectsSpec.cpp
 // B-170d (ActionPips.md §1, §3.4; Q-170f, Q-170g, Q-170d2): effects that give or take banked actions.
-// - Gain / Lose Action now (Duration 0) change the bank at once; a gain may pass Max and stays banked; a loss stops at 0.
+// - Gain / Lose Action now (Duration 0) change the bank at once; a gain may pass Max (for that turn, Q-170f2); a loss stops at 0.
 // - Timed ones (Duration N) wait on the holder and land at its Nth turn start: gains first, then losses.
 // - The "+1 now, -1 next turn" pair (Divinity: Original Sin 2's Adrenaline).
 // - Max Actions Buff / Debuff move Max for their span, never below the floor; the regain adds nothing over Max.
@@ -120,7 +120,7 @@ void FActionEffectsSpec::Define()
 
 	Describe("Gain and Lose Action", [this]()
 	{
-		It("change the bank now: a gain passes Max and stays banked, a loss stops at 0", [this]()
+		It("change the bank now: a gain passes Max for the turn, a loss stops at 0", [this]()
 		{
 			if (!Effects || !SpawnPair()) return;
 			Apply(ESkillEffectType::GainActions, MAX_ACTIONS_BASE, ACTION_EFFECTS_NOW);

@@ -1,7 +1,8 @@
 // ActionPipsSpec.cpp
 // B-170a (ActionPips.md §2, §3.1; Q-170, Q-170g, Q-170h): the banked actions on the character. Max Actions
 // = 2 + one per whole 100 action points (progress shown), Reflex sets the regain (B-170i, Q-170i: 1 + one per
-// whole step of Reflex value, Body levels cancel, Body boosts count), the regain never fills past Max, a gain may pass Max when it says so, a fight
+// whole step of Reflex value, Body levels cancel, Body boosts count), the regain never fills past Max, a gain may pass
+// Max when it says so and the extra is lost at turn end (Q-170f2), a fight
 // starts with the regain capped at Max, and OnActionsChanged reports each change. Nothing reads the bank
 // for turns yet (B-170b / B-170c).
 
@@ -123,8 +124,34 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("1 + 3 stops at Max 2"), ActionPipsRules::BankAfterRegain(1, ACTION_PIPS_REGAIN_THREE, MAX_ACTIONS_BASE),
 					  MAX_ACTIONS_BASE);
 			TestEqual(TEXT("At Max"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), MAX_ACTIONS_BASE);
-			TestEqual(TEXT("Over Max stays"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE + 2, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE),
+			TestEqual(TEXT("Over Max: the regain adds nothing"), ActionPipsRules::BankAfterRegain(MAX_ACTIONS_BASE + 2, ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE),
 					  MAX_ACTIONS_BASE + 2);
+		});
+
+		It("loses bonus actions above Max at turn end and keeps the bank up to Max (Q-170f2)", [this]()
+		{
+			TestEqual(TEXT("Above Max: trimmed to Max"), ActionPipsRules::BankAtTurnEnd(MAX_ACTIONS_BASE + 2, MAX_ACTIONS_BASE), MAX_ACTIONS_BASE);
+			TestEqual(TEXT("At Max: kept"), ActionPipsRules::BankAtTurnEnd(MAX_ACTIONS_BASE, MAX_ACTIONS_BASE), MAX_ACTIONS_BASE);
+			TestEqual(TEXT("Below Max: carries over"), ActionPipsRules::BankAtTurnEnd(ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), ACTIONS_REGAIN_BASE);
+		});
+
+		It("caps bonus actions MAX_BONUS_ACTIONS past Max, and never trims a bank already over it (Q-170j, Crown)", [this]()
+		{
+			TestEqual(TEXT("A big gain stops 4 past Max"), ActionPipsRules::BankAfterGain(MAX_ACTIONS_CAP, MAX_ACTIONS_CAP, MAX_ACTIONS_CAP, /*bMayPassMax=*/true),
+					  MAX_ACTIONS_CAP + MAX_BONUS_ACTIONS);
+			TestEqual(TEXT("At most 9 actions"), MAX_ACTIONS_CAP + MAX_BONUS_ACTIONS, ACTION_COST_MAX * SKILLS_PER_TURN_MAX);
+			TestEqual(TEXT("A bank already past the ceiling keeps what it has"),
+					  ActionPipsRules::BankAfterGain(MAX_ACTIONS_BASE + MAX_BONUS_ACTIONS + 1, 1, MAX_ACTIONS_BASE, /*bMayPassMax=*/true),
+					  MAX_ACTIONS_BASE + MAX_BONUS_ACTIONS + 1);
+		});
+
+		It("keeps an action cost within 1..3 and allows three skills a turn (Q-170j, Crown)", [this]()
+		{
+			TestEqual(TEXT("A large skill costs 3"), ActionPipsRules::ClampActionCost(ACTION_COST_MAX + 2), ACTION_COST_MAX);
+			TestEqual(TEXT("At least 1"), ActionPipsRules::ClampActionCost(0), ACTION_COST_MIN);
+			TestEqual(TEXT("A medium skill stays 2"), ActionPipsRules::ClampActionCost(ACTION_COST_MIN + 1), ACTION_COST_MIN + 1);
+			TestTrue(TEXT("Two used: one more"), ActionPipsRules::HasSkillsLeftThisTurn(SKILLS_PER_TURN_MAX - 1));
+			TestFalse(TEXT("Three used: the turn ends"), ActionPipsRules::HasSkillsLeftThisTurn(SKILLS_PER_TURN_MAX));
 		});
 
 		It("starts a fight with the regain, capped at Max", [this]()
@@ -245,7 +272,7 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("Never below 0"), Char->CurrentActions, 0);
 		});
 
-		It("gains up to Max, or past it when the gain may pass, and the extra stays banked", [this]()
+		It("gains up to Max, or past it when the gain may pass, and loses the extra at turn end", [this]()
 		{
 			if (!Char) return;
 			Char->GainActions(MAX_ACTIONS_CAP, /*bMayPassMax=*/false);
@@ -256,6 +283,11 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("A capped gain never trims"), Char->CurrentActions, MAX_ACTIONS_BASE + 1);
 			Char->RegainActions();
 			TestEqual(TEXT("Regain adds nothing over Max"), Char->CurrentActions, MAX_ACTIONS_BASE + 1);
+			Char->ExpireActionsAboveMax();
+			TestEqual(TEXT("Turn end: the bonus above Max is lost"), Char->CurrentActions, MAX_ACTIONS_BASE);
+			Char->SpendActions(1);
+			Char->ExpireActionsAboveMax();
+			TestEqual(TEXT("Turn end: a bank below Max carries over"), Char->CurrentActions, MAX_ACTIONS_BASE - 1);
 		});
 
 		It("broadcasts OnActionsChanged with the bank and Max on each change, and not when nothing changes", [this]()

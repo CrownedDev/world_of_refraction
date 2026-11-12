@@ -636,7 +636,8 @@ private:
 	/** B-406: turn 1 (TurnManager InitializeCombat) and the HUD; after a boss's opening cinematic when it has one. */
 	void BeginFirstTurn(int32 OpeningTeam);
 
-	/** B-406: a boss cinematic ended: turn 1 starts (opening) or the held action request goes out (phase). */
+	/** B-406: a boss cinematic ended: turn 1 starts (opening) or the held action request goes out (phase); B-406b: a
+	 *  held Execution turn fires its ritual. */
 	UFUNCTION()
 	void HandleBossCinematicFinished(EBossCinematicKind Kind);
 
@@ -654,7 +655,8 @@ private:
 	bool bWaitingForAsyncAction = false;
 
 	/** B-406: waiting (with bWaitingForAsyncAction) on a boss cinematic: the opening before turn 1 (with the team that
-	 *  opens), or a phase cinematic before the next action request (no defence timing until the HUD is back). */
+	 *  opens), or a phase cinematic before the next action request or, on an Execution turn, the ritual fire (B-406b)
+	 *  (no defence timing until the HUD is back). */
 	bool bHoldingForBossOpening = false;
 	bool bHoldingForBossCinematic = false;
 	int32 PendingOpeningTeam = INDEX_NONE;
@@ -680,12 +682,17 @@ private:
 	 *  cost and sets bTurnContinuesAfterAction. Outside one, pays nothing and the turn ends after it (as built). */
 	bool PayActionCost(const FAction &Action, FString &OutRefusedReason);
 
-	/** B-170c: after an action, whether Actor is asked again: alive, not on an Execution turn, player-driven
-	 *  (the AI spends one action a turn until B-170f), not stunned, actions left. */
+	/** B-170c: after an action, whether Actor is asked again: alive, not on an Execution turn, not Void-broken
+	 *  (its random turn is one action), not stunned, actions left, fewer than SKILLS_PER_TURN_MAX skills used
+	 *  (Q-170j). B-170f: the AI is asked again too, and banks by choosing End Turn. */
 	bool CanContinueTurn(AActor *Actor) const;
 
-	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left stay banked. */
+	/** B-170c (Q-170c): End Turn: the turn ends now and the actions left up to Max stay banked (Q-170f2). */
 	void EndTurnByChoice();
+
+	/** Q-170f2 (Crown, 2026-11-12): at the end of Actor's own turn in an action-pips fight, its bonus actions above
+	 *  Max are lost (UCharacterDataComponent::ExpireActionsAboveMax). Not on an Execution turn. */
+	void ExpireBonusActionsAtTurnEnd(AActor *Actor);
 
 	/** Armed deferred activations (W-B). Keyed by an orchestrator-owned PayloadId
 	 *  handed to TurnManager::ScheduleExecutionTurn at arm; looked up by the same

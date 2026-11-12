@@ -253,6 +253,7 @@ void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
     DOREPLIFETIME(UCharacterDataComponent, MaxHP);
     DOREPLIFETIME(UCharacterDataComponent, MaxEP);
     DOREPLIFETIME(UCharacterDataComponent, CurrentActions); // B-170a: co-op clients read the bank as they read EP
+    DOREPLIFETIME(UCharacterDataComponent, SkillsUsedThisTurn); // Q-170j: the HUD's "Skills 2/3"
     // B-131: the server picks the template when it spawns the pawn; a client needs it for names and panels.
     DOREPLIFETIME(UCharacterDataComponent, CharacterData); // also a template set after spawn (recruit, swap)
     DOREPLIFETIME(UCharacterDataComponent, PartyMemberId); // B-360b: a client tells two copies apart by it
@@ -603,6 +604,11 @@ void UCharacterDataComponent::OnRep_CurrentEP()
 }
 
 void UCharacterDataComponent::OnRep_CurrentActions()
+{
+    OnActionsChanged.Broadcast(CurrentActions, GetMaxActions());
+}
+
+void UCharacterDataComponent::OnRep_SkillsUsedThisTurn()
 {
     OnActionsChanged.Broadcast(CurrentActions, GetMaxActions());
 }
@@ -1646,6 +1652,7 @@ void UCharacterDataComponent::ResetActionsForFight()
         return;
     }
     ClearWaitingActionChanges(); // B-170d: nothing waits across fights
+    ResetSkillsUsedThisTurn();
     SetCurrentActions(ActionPipsRules::ActionsAtFightStart(GetActionRegain(), GetMaxActions()));
 }
 
@@ -1667,6 +1674,26 @@ void UCharacterDataComponent::GainActions(int32 Amount, bool bMayPassMax)
     SetCurrentActions(ActionPipsRules::BankAfterGain(CurrentActions, Amount, GetMaxActions(), bMayPassMax));
 }
 
+void UCharacterDataComponent::NoteSkillUsed()
+{
+    if (!HasServerAuthority())
+    {
+        return;
+    }
+    ++SkillsUsedThisTurn;
+    OnActionsChanged.Broadcast(CurrentActions, GetMaxActions());
+}
+
+void UCharacterDataComponent::ResetSkillsUsedThisTurn()
+{
+    if (!HasServerAuthority() || SkillsUsedThisTurn == 0)
+    {
+        return;
+    }
+    SkillsUsedThisTurn = 0;
+    OnActionsChanged.Broadcast(CurrentActions, GetMaxActions());
+}
+
 bool UCharacterDataComponent::SpendActions(int32 Amount)
 {
     if (!HasServerAuthority() || Amount <= 0 || Amount > CurrentActions)
@@ -1684,6 +1711,22 @@ void UCharacterDataComponent::LoseActions(int32 Amount)
         return;
     }
     SetCurrentActions(FMath::Max(0, CurrentActions - Amount));
+}
+
+void UCharacterDataComponent::ExpireActionsAboveMax()
+{
+    if (!HasServerAuthority())
+    {
+        return;
+    }
+    const int32 MaxActions = GetMaxActions();
+    const int32 Kept = ActionPipsRules::BankAtTurnEnd(CurrentActions, MaxActions);
+    if (Kept < CurrentActions)
+    {
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[CharacterData] %s: %d bonus action(s) above Max %d lost at turn end"),
+               *GetNameSafe(GetOwner()), CurrentActions - Kept, MaxActions);
+    }
+    SetCurrentActions(Kept);
 }
 
 void UCharacterDataComponent::SetCurrentActions(int32 NewActions)

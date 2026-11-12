@@ -44,8 +44,10 @@ public:
 	virtual void RemovePlayerState(APlayerState *PlayerState) override;
 
 	/** B-234b (server): HostOrder gains PlayerState's id (once) or loses it; the host's hand-over subsystem hears it.
-	 *  AddPlayerState comes before a joining player's id is set, so AWoRPlayerState::OnSetUniqueId calls this too. */
-	void UpdateHostOrder(const APlayerState *PlayerState, bool bJoined);
+	 *  AddPlayerState comes before a joining player's id is set, so AWoRPlayerState::OnSetUniqueId calls this too.
+	 *  B-234d: a joining player is given its join place (AWoRPlayerState::SetJoinSequence) if it has none, and the
+	 *  order is rebuilt from every player's place, so it survives a seamless travel. */
+	void UpdateHostOrder(APlayerState *PlayerState, bool bJoined);
 
 	/** B-187e (Q-187e changed by Crown, 2026-11-08), server: Starter asks to revive the last rest spot's mini-boss. Every
 	 *  player outside battle votes (Starter's start is its yes); unanimous yes revives (WoRRestSpot::ReviveMiniBoss).

@@ -4,10 +4,19 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/CombatConstants.h"
 #include "Combat/CombatPlayerController.h"
 #include "Combat/TurnManager.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Actor.h"
+#include "Infusion/ElementColors.h"
+#include "Infusion/HybridSpellColors.h"
+#include "Loadout/Entries/FRingLoadoutEntry.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Loadout/LoadoutComponent.h"
 #include "Player/TurnStateComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
@@ -19,6 +28,12 @@ namespace
 {
 	/** "xN" shows from this many stacks. */
 	constexpr int32 MIN_STACKS_SHOWN = 2;
+
+	// B-391b: the old panel's overload tints (CharacterPanelWidget::RefreshEnergyBar).
+	const FLinearColor OVERLOAD_NONE_COLOUR = FLinearColor::White;
+	const FLinearColor OVERLOAD_YELLOW_COLOUR = FLinearColor::Yellow;
+	const FLinearColor OVERLOAD_ORANGE_COLOUR(1.0f, 0.5f, 0.0f);
+	const FLinearColor OVERLOAD_RED_COLOUR = FLinearColor::Red;
 }
 
 TArray<FBattleTurnSlot> BattleHUDView::MakeTurnStrip(AActor *Current, bool bCurrentBonus, int32 TurnNumber,
@@ -95,6 +110,45 @@ FText BattleHUDView::GetHPLabel()
 FText BattleHUDView::GetEPLabel()
 {
 	return LOCTEXT("EP", "EP");
+}
+
+FText BattleHUDView::GetAbsorbLabel()
+{
+	return LOCTEXT("Absorb", "Absorb");
+}
+
+bool BattleHUDView::IsOverloaded(int32 Current, int32 Max)
+{
+	return Max > 0 && Current > Max;
+}
+
+FText BattleHUDView::FormatAbsorbLine(int32 Current, int32 Max)
+{
+	const FText Pool = FormatPool(GetAbsorbLabel(), Current, Max);
+	if (!IsOverloaded(Current, Max))
+	{
+		return Pool;
+	}
+	const double Ratio = static_cast<double>(Current) / static_cast<double>(Max);
+	return FText::Format(LOCTEXT("AbsorbOverload", "{0}, overload {1}"), Pool, FText::AsPercent(Ratio));
+}
+
+FLinearColor BattleHUDView::GetOverloadColour(int32 Current, int32 Max)
+{
+	if (!IsOverloaded(Current, Max))
+	{
+		return OVERLOAD_NONE_COLOUR;
+	}
+	const float Ratio = static_cast<float>(Current) / static_cast<float>(Max);
+	if (Ratio > CombatConstants::OVERLOAD_RED_THRESHOLD)
+	{
+		return OVERLOAD_RED_COLOUR;
+	}
+	if (Ratio > CombatConstants::OVERLOAD_ORANGE_THRESHOLD)
+	{
+		return OVERLOAD_ORANGE_COLOUR;
+	}
+	return Ratio > CombatConstants::OVERLOAD_YELLOW_THRESHOLD ? OVERLOAD_YELLOW_COLOUR : OVERLOAD_NONE_COLOUR;
 }
 
 FText BattleHUDView::GetCombatantName(const AActor *Actor)
@@ -197,6 +251,172 @@ TArray<int32> BattleHUDView::AssignMenuKeys(const TArray<EPieMenuCategory> &Cate
 		}
 	}
 	return KeyForRow;
+}
+
+// ========================================
+// B-391c: STATUS BUILDUP BAR
+// ========================================
+
+float BattleHUDView::BuildupFraction(float Current, float Max)
+{
+	return Max > 0.0f ? FMath::Clamp(Current / Max, 0.0f, 1.0f) : 0.0f;
+}
+
+TArray<float> BattleHUDView::GetCrackPositions()
+{
+	TArray<float> Positions;
+	const float Spacing = (1.0f - CRACK_START_FRACTION) / static_cast<float>(CRACK_COUNT);
+	for (int32 Index = 0; Index < CRACK_COUNT; ++Index)
+	{
+		Positions.Add(CRACK_START_FRACTION + Spacing * static_cast<float>(Index));
+	}
+	return Positions;
+}
+
+int32 BattleHUDView::CountCracksShown(float Fraction)
+{
+	int32 Shown = 0;
+	for (const float Position : GetCrackPositions())
+	{
+		Shown += Fraction >= Position ? 1 : 0;
+	}
+	return Shown;
+}
+
+FText BattleHUDView::GetStatusLabel()
+{
+	return LOCTEXT("Status", "Status");
+}
+
+FText BattleHUDView::FormatBuildupLine(float Current, float Max)
+{
+	return FormatPool(GetStatusLabel(), FMath::TruncToInt(Current), FMath::TruncToInt(Max));
+}
+
+FLinearColor BattleHUDView::GetBuildupColour(ESpellElement PendingElement, bool bSourceInBrokenDarkness)
+{
+	// As CharacterPanelWidget::ApplyStatusBarTint: physical-only hits keep the neutral colour, never darkened.
+	if (PendingElement == ESpellElement::None || PendingElement == ESpellElement::Generic || !bSourceInBrokenDarkness)
+	{
+		return ElementColors::GetColorForElement(PendingElement);
+	}
+	return UHybridSpellColors::GetHybridSpellColors(PendingElement).BlendedColor;
+}
+
+// ========================================
+// B-391c: GEAR LINE AND TOOLTIP
+// ========================================
+
+FBattleGearNames BattleHUDView::ReadGearNames(const AActor *Actor)
+{
+	FBattleGearNames Gear;
+	const ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	if (!Loadout)
+	{
+		return Gear;
+	}
+	Gear.LoadoutName = Loadout->GetActiveLoadout().LoadoutName;
+	if (const UWeaponData *Weapon = Loadout->GetActiveWeapon())
+	{
+		Gear.WeaponName = Weapon->Name;
+	}
+	const URingData *Ring = Loadout->GetActiveRing(); // a Resonator's active ring; everyone else's is the primary one
+	if (!Ring)
+	{
+		Ring = Loadout->GetPrimaryRing();
+	}
+	if (Ring)
+	{
+		Gear.RingName = Ring->Name;
+	}
+	return Gear;
+}
+
+FText BattleHUDView::FormatGearLine(const FBattleGearNames &Gear)
+{
+	if (!Gear.WeaponName.IsEmpty() && !Gear.RingName.IsEmpty())
+	{
+		return FText::Format(LOCTEXT("GearBoth", "{0} · {1}"), FText::FromString(Gear.WeaponName), FText::FromString(Gear.RingName));
+	}
+	if (!Gear.WeaponName.IsEmpty())
+	{
+		return FText::FromString(Gear.WeaponName); // authored name (data asset)
+	}
+	return Gear.RingName.IsEmpty() ? FText::GetEmpty() : FText::FromString(Gear.RingName);
+}
+
+FText BattleHUDView::FormatGearTooltip(const FBattleGearNames &Gear)
+{
+	const auto OrNone = [](const FString &Name) { return Name.IsEmpty() ? LOCTEXT("GearNone", "none") : FText::FromString(Name); };
+	return FText::Format(LOCTEXT("GearTooltip", "Loadout: {0}\nWeapon: {1}\nRing: {2}"), OrNone(Gear.LoadoutName),
+						 OrNone(Gear.WeaponName), OrNone(Gear.RingName));
+}
+
+// ========================================
+// B-391c: DURABILITY HEADER (ported from UDurabilityHeaderWidget::RefreshForActor)
+// ========================================
+
+namespace
+{
+	bool BattleHUDIsUsableRing(const FRingLoadoutEntry &Entry)
+	{
+		return Entry.IsValid() && !Entry.RingEntry.AttachedItem.IsEmpty() && !Entry.RingEntry.AttachedItem.IsBroken();
+	}
+}
+
+FBattleDurability BattleHUDView::ReadDurability(const AActor *Actor)
+{
+	FBattleDurability Durability;
+	const ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	if (!Loadout)
+	{
+		return Durability;
+	}
+	const FCombatLoadout &Active = Loadout->GetActiveLoadout();
+	Durability.bHasRing = Active.RingLoadout.ContainsByPredicate(BattleHUDIsUsableRing) ||
+						  (Active.HasPrimaryRing() && BattleHUDIsUsableRing(Active.PrimaryRing));
+	if (Durability.bHasRing)
+	{
+		// Difference from the old header: it read GetActiveRing only, which answers for a Resonator alone since B-304,
+		// so a Generic / Caster ring showed "AD:0/0". Their ring is the primary one.
+		URingData *Ring = Loadout->GetActiveRing();
+		if (!Ring)
+		{
+			Ring = Loadout->GetPrimaryRing();
+		}
+		const FRuntimeAttachedItem Attachment = Ring ? Loadout->GetCrystalEntryByHolder(Ring) : FRuntimeAttachedItem();
+		if (!Attachment.IsEmpty())
+		{
+			Durability.RingCurrent = Attachment.GetCurrentDurability();
+			Durability.RingMax = Attachment.GetMaxDurability();
+		}
+	}
+	// The weapon's runtime attachment: the asset-side entry carries no durability (as the old header).
+	if (UWeaponData *Weapon = Loadout->GetActiveWeapon())
+	{
+		const FRuntimeAttachedItem Attachment = Loadout->GetCrystalEntryByHolder(Weapon);
+		Durability.bHasWeapon = !Attachment.IsEmpty() && !Attachment.IsBroken();
+		if (Durability.bHasWeapon)
+		{
+			Durability.WeaponCurrent = Attachment.GetCurrentDurability();
+			Durability.WeaponMax = Attachment.GetMaxDurability();
+		}
+	}
+	return Durability;
+}
+
+TArray<FText> BattleHUDView::MakeDurabilityLines(const FBattleDurability &Durability)
+{
+	TArray<FText> Lines;
+	if (Durability.bHasRing)
+	{
+		Lines.Add(FormatPool(LOCTEXT("RingDurability", "AD"), Durability.RingCurrent, Durability.RingMax));
+	}
+	if (Durability.bHasWeapon)
+	{
+		Lines.Add(FormatPool(LOCTEXT("WeaponDurability", "WD"), Durability.WeaponCurrent, Durability.WeaponMax));
+	}
+	return Lines;
 }
 
 #undef LOCTEXT_NAMESPACE

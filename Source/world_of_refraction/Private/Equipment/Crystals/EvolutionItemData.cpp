@@ -468,6 +468,14 @@ EDataValidationResult UEvolutionItemData::IsDataValid(FDataValidationContext &Co
     WarnPillarOutOfRange(TEXT("BonusBodyModifierPercent"),   BaseStatBonus.BonusBodyModifierPercent);
     WarnPillarOutOfRange(TEXT("BonusSpiritModifierPercent"), BaseStatBonus.BonusSpiritModifierPercent);
 
+    // B-170g (Q-170h, Q-170g2): Turn Speed is retired with action pips; a warning while the speed timeline still reads it.
+    if (BaseStatBonus.BonusTurnSpeed != 0)
+    {
+        Context.AddWarning(FText::FromString(FString::Printf(
+            TEXT("BaseStatBonus.BonusTurnSpeed = %d: Turn Speed is retired with action pips (B-170) and does nothing once they are on."),
+            BaseStatBonus.BonusTurnSpeed)));
+    }
+
     return Result;
 }
 #endif
