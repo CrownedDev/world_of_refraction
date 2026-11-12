@@ -6,7 +6,7 @@
 // B-170e: with wor.Turns.ActionPips 1 the party cards show the pips line live and the menu an End Turn row; at 0 neither.
 // B-391b: the Broken Darkness absorb line and overload tint; damage numbers pool, stack and drop a 0.
 // B-391c: the status buildup bar (fill, cracks, line, tint), the party gear line and tooltip, the durability header
-// and the "Absorbed" cue; on the duel, a card's buildup follows a hit's buildup.
+// and the "Negated" cue; on the duel, a card's buildup follows a hit's buildup.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -279,25 +279,25 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("weapon alone takes the first line"), Weapon.Num() == 1 && Weapon[0].ToString() == TEXT("WD 2 / 4"));
 		});
 
-		It("reads Absorbed only for a hit Broken Darkness took fully (B-391c, Q-391c)", [this]()
+		It("reads Negated only for a hit Broken Darkness took fully (B-391c, Q-391c)", [this]()
 		{
 			FCombatHitShown Nothing;
 			Nothing.DamageType = EWoRDamageType::Fire;
-			TestTrue(TEXT("0 on Broken Darkness"), DamageNumberView::IsAbsorbedHit(Nothing, /*bTargetBrokenDarkness=*/true));
-			TestFalse(TEXT("0 on anyone else"), DamageNumberView::IsAbsorbedHit(Nothing, false));
+			TestTrue(TEXT("0 on Broken Darkness"), DamageNumberView::IsNegatedHit(Nothing, /*bTargetBrokenDarkness=*/true));
+			TestFalse(TEXT("0 on anyone else"), DamageNumberView::IsNegatedHit(Nothing, false));
 			FCombatHitShown Landed = Nothing;
 			Landed.Amount = BATTLE_HUD_NUMBER;
-			TestFalse(TEXT("a hit that took HP"), DamageNumberView::IsAbsorbedHit(Landed, true));
+			TestFalse(TEXT("a hit that took HP"), DamageNumberView::IsNegatedHit(Landed, true));
 			FCombatHitShown Heal = Nothing;
 			Heal.bHeal = true;
-			TestFalse(TEXT("a heal"), DamageNumberView::IsAbsorbedHit(Heal, true));
+			TestFalse(TEXT("a heal"), DamageNumberView::IsNegatedHit(Heal, true));
 			FCombatHitShown Immune = Nothing;
 			Immune.ElementMultiplier = DamageNumberView::IMMUNE_MULTIPLIER;
-			TestFalse(TEXT("immune keeps its grey number"), DamageNumberView::IsAbsorbedHit(Immune, true));
+			TestFalse(TEXT("immune keeps its grey number"), DamageNumberView::IsNegatedHit(Immune, true));
 
-			const FDamageNumberStyle Style = DamageNumberView::MakeAbsorbedStyle(Nothing);
-			TestTrue(TEXT("the Absorbed tier"), Style.Tier == EDamageNumberTier::Absorbed);
-			TestEqual(TEXT("the word"), Style.Text.ToString(), DamageNumberView::GetAbsorbedLabel().ToString());
+			const FDamageNumberStyle Style = DamageNumberView::MakeNegatedStyle(Nothing);
+			TestTrue(TEXT("the Negated tier"), Style.Tier == EDamageNumberTier::Negated);
+			TestEqual(TEXT("the word"), Style.Text.ToString(), DamageNumberView::GetNegatedLabel().ToString());
 			TestTrue(TEXT("in the hit's colour"), Style.Colour.Equals(DamageNumberView::GetDamageTypeColour(EWoRDamageType::Fire)));
 		});
 
@@ -428,7 +428,7 @@ void FBattleHUDSpec::Define()
 			HUD->Teardown();
 		});
 
-		It("names a party card's gear, and floats Absorbed over a Broken Darkness hit that took nothing (B-391c)", [this]()
+		It("names a party card's gear, and floats Negated over a Broken Darkness hit that took nothing (B-391c)", [this]()
 		{
 			if (!StartDuel())
 			{
@@ -463,10 +463,10 @@ void FBattleHUDSpec::Define()
 				return;
 			}
 			HUD->ShowDamageNumber(Foe, Nothing);
-			const FBattleDamageNumber *Absorbed = HUD->GetDamageNumbers().FindByPredicate(
+			const FBattleDamageNumber *Negated = HUD->GetDamageNumbers().FindByPredicate(
 				[](const FBattleDamageNumber &Number) { return Number.bLive; });
-			TestTrue(TEXT("Absorbed floats"), DamageNumberView::SHOW_ABSORB_CUE == (Absorbed != nullptr));
-			TestTrue(TEXT("styled Absorbed"), !Absorbed || Absorbed->Style.Tier == EDamageNumberTier::Absorbed);
+			TestTrue(TEXT("Negated floats"), DamageNumberView::SHOW_NEGATED_CUE == (Negated != nullptr));
+			TestTrue(TEXT("styled Negated"), !Negated || Negated->Style.Tier == EDamageNumberTier::Negated);
 			HUD->Teardown();
 		});
 
