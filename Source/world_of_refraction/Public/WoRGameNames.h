@@ -29,7 +29,7 @@ namespace WoRGameNames
     /** "Fire", "Reality", ... Empty only for a value with no case (a bug the spec catches). */
     WORLD_OF_REFRACTION_API FText GetElementName(ESpellElement Element);
 
-    /** "Damage Over Time", "Skip Turn", ... Element-specific names ("Burn") stay in SkillEffectDisplayNames. */
+    /** "Damage Over Time", "Skip Turn", ... Element-specific names ("Fire DoT", "Rooted") stay in SkillEffectDisplayNames. */
     WORLD_OF_REFRACTION_API FText GetSkillEffectTypeName(ESkillEffectType EffectType);
 
     /** B-248 (DRY audit A8): an element's status-break name (its bar-cap trigger, BarCapTriggerResolver). Q-064a2

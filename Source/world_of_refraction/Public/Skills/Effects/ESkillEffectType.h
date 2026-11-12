@@ -12,7 +12,7 @@
 /**
  * Unified status effect types - ELEMENT AGNOSTIC
  * Effects are generic mechanics, elements provide display names
- * Example: DOT + Fire = "Burn", DOT + Lightning = "Shocked"
+ * Example: DOT + Fire = "Fire DoT", DOT + Lightning = "Lightning DoT" (Q-064a2)
  *
  * MIGRATION NOTE: Replaces both old ESkillEffectType (13 values) and ESkillEffectType (55+ values)
  */

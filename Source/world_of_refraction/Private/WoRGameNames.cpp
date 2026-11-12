@@ -285,7 +285,7 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
         return LOCTEXT("ESkillEffectType_NegateDamageTotal", "Barrier (in total)");
     case ESkillEffectType::NegateElementTotal:
         return LOCTEXT("ESkillEffectType_NegateElementTotal", "Ward (in total)");
-    // B-064a: Ice's status break. TODO: Crown — the name is lore (Q-064a2); a placeholder until then.
+    // B-064a: Ice's status break, named by Crown's rule (Q-064a2).
     case ESkillEffectType::IceBreak:
         return FormatBreakName(GetIceName()); // Q-064a2 (Crown, 2026-11-12): "Ice Break"
     // B-170d (Q-170f, Q-170g): the action effects.
