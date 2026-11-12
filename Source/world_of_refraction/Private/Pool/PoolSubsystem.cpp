@@ -839,6 +839,19 @@ bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId
     return true;
 }
 
+bool UPoolSubsystem::AddItemSlot(FName CharacterKey)
+{
+    if (CharacterKey.IsNone() || GetItemSlotCount(CharacterKey) >= InventoryConstants::ITEM_SLOTS_MAX)
+    {
+        return false;
+    }
+    FPoolPouch &Pouch = FindOrAddPouch(CharacterKey);
+    ++Pouch.SlotCount;
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s's pouch now has %d item slots"), *FPaths::GetBaseFilename(CharacterKey.ToString()), Pouch.SlotCount);
+    OnPoolItemsChanged.Broadcast();
+    return true;
+}
+
 void UPoolSubsystem::RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked)
 {
     Pouches = InPouches;

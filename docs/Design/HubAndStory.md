@@ -23,7 +23,7 @@
 ## 3. The hub: the Void Realm
 
 - **One fixed hub**, Nightreign's Roundtable model: solo prep between runs, with co-op matchmaking at trial launch (`Resources_Design.md`). The hub itself doesn't change as you progress.
-- **Service NPCs are V in different forms** (outfit or prop per role): Blacksmith (weapons), Jeweler (rings), Stone Smith, Spiritualist (evolutions, fusion), ability and spell shops, the loadout vendor (D-048). Every service also works in runs (D-047). Lost-soul NPCs may come later.
+- **Service NPCs are V in different forms** (outfit or prop per role): Blacksmith (weapons and augment stones; the Stone Smith merged into it, D-173), Jeweler (rings, item slots: Q-239), Spiritualist (evolutions, fusion), ability and spell shops, the loadout vendor (D-048). Every service also works in runs (D-047). Lost-soul NPCs may come later.
 - **Gates** to the trials, each showing its variation and difficulty (`RunStructure.md` §3).
 
 ## 4. How the story unfolds
@@ -51,3 +51,4 @@ Steam's AI disclosure covers AI-written story and dialogue that ships (D-061 not
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created from D-079 | docs/hub-story |
+| 2026-11-12 | §3 services: the Stone Smith merges into the Blacksmith (D-173, Crown); the Jeweler sells item slots (Q-239, Crown) | feature/B-239-item-slot-upgrades |

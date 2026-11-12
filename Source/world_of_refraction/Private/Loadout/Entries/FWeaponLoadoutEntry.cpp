@@ -45,7 +45,7 @@ int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
     const int32 TierAndStoneSlots = SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.GetStoneAttachment());
     // B-098 (Q-098, Crown 2026-11-12): a weapon's spell slots became ability slots. The attached gem / evolution adds
     // what were its spell slots while it is attached, broken or not (no ceiling: any other attachment adds none).
-    // TODO: B-409 — these slots take only None, Generic or the crystal's element once abilities carry an element.
+    // TODO: B-410 — these slots take only None, Generic or the crystal's element once abilities carry an element.
     constexpr int32 NO_SPELL_SOURCE_SLOTS = 0;
     const int32 ConvertedSpellSlots = WeaponSpellRules::WeaponsGiveSpells()
                                           ? 0
