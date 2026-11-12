@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-129](B-129.md) | `feature/B-129-input-priorities-cloud` (UNBUILT) | Mapping-context priorities named; hub and combat input unchanged | Pending |
 | [B-233b](B-233b.md) | `feature/B-233b-invites-drop-in` (in dev, built 2026-11-12) | 2-player: the invite screen; in a run friends are seated only at a rest spot; a leaving friend's character turns AI held for it and it takes it back with its gear; a mid-fight leave | Pending |
 | [B-392b](B-392b.md) | `fix/B-392b-guest-guard-sync` (in dev, built 2026-11-12) | A co-op guest's guard and parry colour priority reach the host (2-player) | Pending |
 | [Q-397b](Q-397b.md) | `feature/Q-397b-hidden-quest-mask` (in dev, built 2026-11-12) | Found hidden quests masked as "Hidden Quest <n>" until revealed, masked again on close; masked notices | Pending |

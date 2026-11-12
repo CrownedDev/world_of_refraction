@@ -381,6 +381,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-337d](B-337d.md) | Skill-effect conditions check through the shared conditions (HP / EP percent) | Pending | REVIEW (in dev) | [ ] |
 | [B-366e](B-366e.md) | Gear repair costs the currency of the place | Pending | REVIEW (in dev) | [ ] |
 | [B-367](B-367.md) | Only a Perfect Guard / Perfect Dodge stops an interrupt point; Flawless Parry at an interrupt | Pending | REVIEW (in dev) | [ ] |
+| [B-129](B-129.md) | Mapping-context priorities named (`WoRInputPriority`); no change in play | Pending | REVIEW (`feature/B-129-input-priorities-cloud`, UNBUILT) | [ ] |
 
 ---
 
