@@ -35,7 +35,6 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Flee (main menu only) | 5 | D-pad Down | `IA_Combat_MenuFlee` | Built (B-391, Q-391) |
 | Switch weapon (main menu only) | 6 | D-pad Left | `IA_Combat_MenuSwitchWeapon` | Built (B-391, Q-391) |
 | Change ring (main menu only) | 7 | D-pad Right | `IA_Combat_MenuChangeRing` | Built (B-391, Q-391) |
-| End Turn (main menu only; shows with `wor.Turns.ActionPips 1`): ends the turn, the actions left stay banked | Backspace | View (Touchpad) | `IA_Combat_MenuEndTurn` | Written, unbuilt (B-170e, Q-170e2; `feature/B-170e-action-pips-ui-cloud`). Proposed default: Backspace is XCOM 2's End Turn key; View is the one gamepad button combat doesn't use. Code-built like the other menu keys (no `IA_` asset) |
 | Guard (timed; Perfect Guard) | (editor context) | (editor context) | (editor) | Built: CC to fill from the editor. Co-op: a client's press goes to the server (`Server_SubmitDefenseInput`, B-229) |
 | Dodge (timed) | (editor context) | (editor context) | (editor) | Built: one Dodge (D-135, B-343: the `DodgeLeftAction` binding; no left / right split, no Parry). CC to fill from the editor; removing `IA_Parry` and `IA_DodgeRight` is an editor step. Co-op: as Guard (B-229) |
 | Menu confirm / back | Enter / Esc | A (Cross) / B (Circle) | CommonUI Click / Back | Built (B-103) for the old HUD. **New battle HUD (B-391, `wor.UI.NewHUD 1`):** picking is a mouse click and Back is a menu row; a gamepad can't pick inside a submenu yet (Q-391). Co-op: a client's confirmed pick, with its infusion source and level, goes to the server (`Server_SubmitMenuPick`, B-229); back stays local |
@@ -56,4 +55,5 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | 2026-11-03 | B-343 (D-135): only Guard and Dodge; Parry and Dodge Right no longer bound | chore/B-343-guard-dodge-only |
 | 2026-11-09 | B-391 (Q-391): main-menu category keys (Attack, Skills, Spells, Items, Flee, switches); the new battle HUD's menu shows each row's key | feature/B-391-battle-hud-cloud |
 | 2026-11-09 | B-170e (Q-170e2): End Turn on Backspace / View, main menu only, in an action-pips fight | feature/B-170e-action-pips-ui-cloud |
+| 2026-11-12 | B-170e (Crown, 2026-11-12): End Turn's key removed; **a key for End Turn comes later** and gets its row here when it lands. The End Turn button stays (and a setting can hide it) | feature/B-170e-action-pips-ui-cloud |
 | 2026-11-09 | B-400: menu focus / hover on a target button now moves the target highlight (and the camera); no new key or input action | feature/B-400-target-cut-cloud |
