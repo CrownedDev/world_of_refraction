@@ -95,6 +95,11 @@ namespace
 		TEXT("wor.Camera.SkipAfterHit"),
 		TEXT("DEBUG: 1 = cut a cinematic once its caster's first hit lands, 0 = run to its end (default)."),
 		[](UCombatCameraDirector &Director, int32 Value) { Director.SetSkipCinematicAfterHit(Value != 0); });
+
+	FAutoConsoleCommandWithWorldAndArgs GCombatCameraKillShotCmd = MakeCameraSettingCmd(
+		TEXT("wor.Camera.KillShot"),
+		TEXT("DEBUG (B-405): preview a kill shot on the first enemy, then back to the turn view. 0 = Normal (wide, darkened), 1 = Boss (close, break-apart; nobody hidden)."),
+		[](UCombatCameraDirector &Director, int32 Value) { Director.PreviewKillShot(Value != 0 ? EKillShotKind::Boss : EKillShotKind::Normal); });
 }
 
 FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Director)
@@ -103,7 +108,7 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 	{
 		return TEXT("No combat camera (no combat orchestrator in this world)");
 	}
-	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s"),
+	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s | %s"),
 						   Director->IsInCombat() ? TEXT("In combat") : TEXT("Not in combat"),
 						   *UEnum::GetValueAsString(Director->GetCurrentMode()),
 						   *GetNameSafe(Director->GetViewedActor()),
@@ -115,7 +120,8 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 						   Director->GetPlayingSequence() ? *Director->GetPlayingSequence()->GetName() : TEXT("none"),
 						   *Director->GetShotString(), // B-371
 						   Director->GetCameraCount(),
-						   *Director->GetCinematicWindowString()); // B-370
+						   *Director->GetCinematicWindowString(), // B-370
+						   *Director->GetBossFramingString()); // B-405
 }
 
 UCombatCameraDirector *UCombatCameraDebug::FindDirector(const UObject *WorldContextObject)
