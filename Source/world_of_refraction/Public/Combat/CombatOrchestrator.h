@@ -10,6 +10,7 @@
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/Encounter/EFirstStrike.h"
 #include "Combat/Grid/ECombatRow.h"
+#include "Combat/Camera/CombatCameraTypes.h"
 #include "AI/AIDecisionManager.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
@@ -397,6 +398,13 @@ public:
 	 *  without one uses the fight's rank. */
 	void SetEnemyRank(const AActor *Enemy, EEncounterRank Rank) { EnemyRanks.Add(Enemy, Rank); }
 
+	/** B-405: Enemy's own rank (SetEnemyRank), else the fight's. Read by the camera (boss height, kill shot). */
+	EEncounterRank GetEnemyRank(const AActor *Enemy) const
+	{
+		const EEncounterRank *OwnRank = EnemyRanks.Find(Enemy);
+		return OwnRank ? *OwnRank : EncounterRank;
+	}
+
 	/** B-187b: Enemy's tier steps (a revived mini-boss's team, Q-187b) for its level drop; set by the battle mode at
 	 *  spawn, as SetEnemyRank. 0 when unset. */
 	void SetEnemyTierSteps(const AActor *Enemy, int32 Steps) { EnemyTierSteps.Add(Enemy, FMath::Max(0, Steps)); }
@@ -601,6 +609,17 @@ private:
 
 	FTimerHandle AutoAdvanceTimerHandle;
 
+	// B-405 (R14): the kill shot's hold between the last enemy's death and the end of a won fight.
+	FTimerHandle KillShotHoldTimer;
+	TWeakObjectPtr<AActor> LastEnemyDown;
+
+	/** B-405: plays the kill shot on the last enemy down and sets the hold timer. False when no kill shot shows (no
+	 *  viewer, as in headless tests): the caller ends the fight at once, as before. */
+	bool StartKillShotHold();
+	/** B-405: the hold is over: the won fight ends (rewards, return to the world). */
+	void FinishKillShotHold();
+	bool IsHoldingKillShot() const;
+
 	UPROPERTY()
 	UAIDecisionManager *AIDecisionManagerRef = nullptr;
 
@@ -614,6 +633,17 @@ private:
 
 	void TeardownCombatHUD();
 
+	/** B-406: turn 1 (TurnManager InitializeCombat) and the HUD; after a boss's opening cinematic when it has one. */
+	void BeginFirstTurn(int32 OpeningTeam);
+
+	/** B-406: a boss cinematic ended: turn 1 starts (opening) or the held action request goes out (phase). */
+	UFUNCTION()
+	void HandleBossCinematicFinished(EBossCinematicKind Kind);
+
+	/** B-406: the camera director hides / shows the whole combat HUD around a boss cinematic. */
+	UFUNCTION()
+	void HandleCinematicHudHidden(bool bHudHidden);
+
 	/** Shared end-of-combat cleanup for ALL three end paths (win in OnActionCompleted,
 	 *  TurnManager-driven HandleCombatEnded, ForceEndCombat): timers, TurnManager +
 	 *  per-actor OnDied unbinds, weather, effects, status bars, loadout battle state,
@@ -622,6 +652,12 @@ private:
 
 	/** Track if we're waiting for async action to complete */
 	bool bWaitingForAsyncAction = false;
+
+	/** B-406: waiting (with bWaitingForAsyncAction) on a boss cinematic: the opening before turn 1 (with the team that
+	 *  opens), or a phase cinematic before the next action request (no defence timing until the HUD is back). */
+	bool bHoldingForBossOpening = false;
+	bool bHoldingForBossCinematic = false;
+	int32 PendingOpeningTeam = INDEX_NONE;
 
 	/** B-170c (Q-170c): the action just paid for leaves the turn open (a skill, spell, item, ritual arming or
 	 *  switch in an action-pips fight). Read and cleared by OnActionCompleted, so every other way there (Defend,

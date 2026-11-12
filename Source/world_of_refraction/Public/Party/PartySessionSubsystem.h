@@ -27,6 +27,8 @@ class UParty;
 struct FPartyMember;
 struct FCarriedGearState;
 struct FCarriedAbsorptionState;
+enum class EGuardStyle : uint8;
+enum class EParryElementPriority : uint8;
 
 /** Broadcasts on any composition change: initial creation, invite success,
  *  dismiss success. Consumers should re-read UParty state on fire — the delegate
@@ -206,6 +208,14 @@ public:
 	/** B-348c: banks a member's Broken Darkness state and the run's strain (at a fight's end). False for an invalid
 	 *  slot. */
 	bool SetMemberBrokenDarkness(int32 SlotIndex, bool bBrokenDarkness, float RunStrain);
+
+	/** B-392 (D-170): stores a member's chosen guard and the weapon it put away (ULoadoutComponent::SetGuardStyle
+	 *  validates and writes through). False for an invalid slot. */
+	bool SetMemberGuard(int32 SlotIndex, EGuardStyle Style, const FGuid &GuardWeaponId);
+
+	/** B-393 (D-170): stores which element colours a member's landed-parry effect (ULoadoutComponent::
+	 *  SetParryElementPriority writes through). False for an invalid slot. */
+	bool SetMemberParryPriority(int32 SlotIndex, EParryElementPriority Priority);
 
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")

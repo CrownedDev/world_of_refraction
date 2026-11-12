@@ -56,6 +56,7 @@
 #include "Player/RunStateComponent.h" // B-232: the seat rotation
 #include "Party/PartySessionSubsystem.h"
 #include "HAL/IConsoleManager.h"
+#include "Combat/Mechanics/TurnStartEnergy.h"
 #include "WoRLog.h"
 
 namespace CombatOwnedGearSync
@@ -269,6 +270,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		{
 			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 			{
+				CharComp->ClearWaitingActionChanges(); // B-170d (D-064): per fight, whatever the switch
 				CharComp->OnDied.AddUniqueDynamic(this, &ACombatOrchestrator::OnCombatantDied);
 			}
 		}
@@ -277,6 +279,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	CurrentTurnNumber = 0;
 	CurrentActor = nullptr;
 	bWaitingForAsyncAction = false;
+	bHoldingForBossOpening = false; // B-406
+	bHoldingForBossCinematic = false;
 	bTurnContinuesAfterAction = false;
 	ActorsPastFirstTurn.Reset();
 	TurnSpends.Reset();
@@ -372,6 +376,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	// Cameras before InitializeCombat: the first turn is dispatched inside it.
 	if (CameraDirector)
 	{
+		CameraDirector->OnBossCinematicFinished.AddUniqueDynamic(this, &ACombatOrchestrator::HandleBossCinematicFinished); // B-406
+		CameraDirector->OnCinematicHudHidden.AddUniqueDynamic(this, &ACombatOrchestrator::HandleCinematicHudHidden);
 		CameraDirector->BeginCombat(LocalParty, OpposingParty, ActionExecutorRef);
 	}
 
@@ -395,13 +401,66 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 	const int32 OpeningTeam = FightFirstStrike == EFirstStrike::Party   ? TurnManagerTeams::LOCAL_TEAM_INDEX
 							: FightFirstStrike == EFirstStrike::Enemy ? TurnManagerTeams::OPPOSING_TEAM_INDEX
 																 : INDEX_NONE;
-	TurnManagerRef->InitializeCombat(LocalParty, OpposingParty, OpeningTeam);
+	// B-406 (FeelGuide 9, on trial): a boss's opening cinematic plays first; turn 1 waits for it (nothing is
+	// submitted meanwhile: the async-action wait). No boss, no sequence or no viewer: turn 1 starts now.
+	// The hold is set before the play: a sequence that finishes inside Play() still finds it (review fix).
+	PendingOpeningTeam = OpeningTeam;
+	const bool bWasWaitingForAsyncAction = bWaitingForAsyncAction;
+	bHoldingForBossOpening = true;
+	bWaitingForAsyncAction = true;
+	if (CameraDirector && CameraDirector->PlayBossOpening())
+	{
+		if (bHoldingForBossOpening)
+		{
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] Turn 1 waits for the boss's opening cinematic"));
+		}
+		return;
+	}
+	bHoldingForBossOpening = false;
+	bWaitingForAsyncAction = bWasWaitingForAsyncAction;
+	BeginFirstTurn(OpeningTeam);
+}
+
+void ACombatOrchestrator::BeginFirstTurn(int32 OpeningTeam)
+{
+	TurnManagerRef->InitializeCombat(LocalPartyCombatants, OpposingPartyCombatants, OpeningTeam);
 
 	// Turn 1 can resolve the whole combat inside InitializeCombat (state back to Idle,
 	// teams emptied) — don't build UI for a fight that's already over.
 	if (CombatState == ECombatState::InProgress)
 	{
 		OnCombatStartedUI(LocalPartyCombatants, OpposingPartyCombatants);
+	}
+}
+
+void ACombatOrchestrator::HandleBossCinematicFinished(EBossCinematicKind Kind)
+{
+	const bool bOpening = bHoldingForBossOpening;
+	const bool bHeldRequest = bHoldingForBossCinematic;
+	bHoldingForBossOpening = false;
+	bHoldingForBossCinematic = false;
+	if (CombatState != ECombatState::InProgress || (!bOpening && !bHeldRequest))
+	{
+		return; // a preview, or a cinematic that ended while an action was still running: nothing was held
+	}
+	bWaitingForAsyncAction = false;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s cinematic ended: %s"), *UEnum::GetValueAsString(Kind),
+		   bOpening ? TEXT("turn 1 starts") : TEXT("the held action request goes out"));
+	if (bOpening)
+	{
+		BeginFirstTurn(PendingOpeningTeam);
+	}
+	else if (CurrentActor)
+	{
+		RequestActionFromActor(CurrentActor);
+	}
+}
+
+void ACombatOrchestrator::HandleCinematicHudHidden(bool bHudHidden)
+{
+	if (CombatHUD)
+	{
+		CombatHUD->SetHiddenForCinematic(bHudHidden);
 	}
 }
 
@@ -503,6 +562,18 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 		OnLevelDropsReady.Broadcast(LevelDrops);
 	}
 
+	// B-170d (D-064): no waiting action change outlives its fight, whatever the switch.
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+	{
+		for (AActor *Actor : *Team)
+		{
+			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+			{
+				CharComp->ClearWaitingActionChanges();
+			}
+		}
+	}
+
 	// BEFORE the team arrays empty — it walks them for per-actor unbinds.
 	ReleaseCombatResources();
 
@@ -522,7 +593,9 @@ void ACombatOrchestrator::ReleaseCombatResources()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+		World->GetTimerManager().ClearTimer(KillShotHoldTimer); // B-405: a forced end during the hold
 	}
+	LastEnemyDown.Reset();
 
 	UnbindTurnManagerEvents();
 
@@ -1089,6 +1162,13 @@ void ACombatOrchestrator::OnActionCompleted()
 		return;
 	}
 
+	// B-405: the fight is won and its kill shot is holding; the hold's end finishes it.
+	if (IsHoldingKillShot())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] OnActionCompleted ignored - the kill shot is holding"));
+		return;
+	}
+
 	// Clear auto-advance timer if it was running
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
@@ -1102,6 +1182,11 @@ void ACombatOrchestrator::OnActionCompleted()
 		if (MidTurnWinState != ECombatState::InProgress)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met mid-turn: %d"), (int32)MidTurnWinState);
+			// B-405: a mid-turn win holds on its kill shot too.
+			if (MidTurnWinState == ECombatState::Victory && StartKillShotHold())
+			{
+				return;
+			}
 			FinishCombat(MidTurnWinState, /*bTurnManagerEnded=*/false);
 			return;
 		}
@@ -1119,12 +1204,53 @@ void ACombatOrchestrator::OnActionCompleted()
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met: %d"), (int32)WinState);
 
+		// B-405 (R14): a win holds on its kill shot before the fight ends and its rewards show (FeelGuide 6).
+		if (WinState == ECombatState::Victory && StartKillShotHold())
+		{
+			return;
+		}
 		FinishCombat(WinState, /*bTurnManagerEnded=*/false);
 		return;
 	}
 
 	// Advance to next turn
 	TurnManagerRef->AdvanceToNextTurn();
+}
+
+bool ACombatOrchestrator::StartKillShotHold()
+{
+	AActor *Victim = LastEnemyDown.Get();
+	UWorld *World = GetWorld();
+	if (!CameraDirector || !Victim || !World)
+	{
+		return false;
+	}
+	const float HoldSeconds = CameraDirector->PlayKillShot(Victim, GetEnemyRank(Victim));
+	if (HoldSeconds <= 0.0f)
+	{
+		return false;
+	}
+	// The fight is won: nothing else may start during the hold (actions, flee, control switches, menu picks all refuse
+	// on this flag, as during BeginFlee). FinishCombat clears it.
+	bWaitingForAsyncAction = true;
+	World->GetTimerManager().SetTimer(KillShotHoldTimer, this, &ACombatOrchestrator::FinishKillShotHold, HoldSeconds, false);
+	return true;
+}
+
+void ACombatOrchestrator::FinishKillShotHold()
+{
+	KillShotHoldTimer.Invalidate();
+	if (CombatState != ECombatState::InProgress)
+	{
+		return; // ended another way during the hold (a forced end)
+	}
+	FinishCombat(ECombatState::Victory, /*bTurnManagerEnded=*/false);
+}
+
+bool ACombatOrchestrator::IsHoldingKillShot() const
+{
+	const UWorld *World = GetWorld();
+	return World && World->GetTimerManager().IsTimerActive(KillShotHoldTimer);
 }
 
 // ========================================
@@ -1233,7 +1359,8 @@ bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
 	{
 		ActorsPastFirstTurn.Add(Actor);
 	}
-	// (2) TODO: B-170d: waiting next-turn gains and losses (Wind, a delayed Emerald gain) land here, before the check.
+	// (2) B-170d: waiting gains and losses (Lose Action next turn, Wind's break, a delayed Emerald gain) land here.
+	CharComp->ApplyWaitingActionChanges();
 	// (3) Only then the check.
 	return CharComp->CurrentActions > 0;
 }
@@ -1450,6 +1577,7 @@ void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
 	{
 		return;
 	}
+	LastEnemyDown = Victim; // B-405: the last one down gets the kill shot
 	const UCharacterDataComponent *VictimComp = Victim->FindComponentByClass<UCharacterDataComponent>();
 	const UCharacterData *VictimData = VictimComp ? VictimComp->CharacterData : nullptr;
 	if (!VictimData)
@@ -1630,6 +1758,9 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 		BuildupManager->ProcessStatusBarDecay(Actor);
 	}
 
+	// D-089 (B-173): Energy refills at the start of each of the holder's turns, after the turn-start payouts.
+	TurnStartEnergy::Apply(Actor);
+
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
 		   *Actor->GetName());
 }
@@ -1660,6 +1791,15 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] RequestActionFromActor called with null actor"));
+		return;
+	}
+
+	// B-406: a boss phase cinematic holds the next action (no menu, no AI, no defence timing) until the HUD is back.
+	if (CameraDirector && CameraDirector->IsBossCinematicPlaying())
+	{
+		bHoldingForBossCinematic = true;
+		bWaitingForAsyncAction = true;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s's action waits for the boss cinematic"), *Actor->GetName());
 		return;
 	}
 

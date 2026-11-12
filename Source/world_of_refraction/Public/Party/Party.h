@@ -16,6 +16,8 @@
 #include "Combat/Grid/ECombatRow.h"
 #include "Loadout/CarriedGearState.h"
 #include "AI/EAIDifficulty.h"
+#include "Combat/Defense/EGuardStyle.h"
+#include "Combat/Defense/EParryElementPriority.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -164,6 +166,23 @@ struct FPartyMember
 	 *  gear and pouch never change key when another copy leaves. */
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bKeyedByMember = false;
+
+	/** B-392 (D-170, Q-392): the member's chosen guard, its persistent home; the battle pawn's ULoadoutComponent reads
+	 *  and writes it (GetGuardStyle / SetGuardStyle). Saved (FSavedPartyMember, v32). Written by
+	 *  UPartySessionSubsystem::SetMemberGuard. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	EGuardStyle GuardStyle = EGuardStyle::Weapon;
+
+	/** B-392: the owned weapon (its PersistentID) put away when Unarmed was chosen. Unarmed holds only while that
+	 *  weapon is in hand: equipping another weapon brings the weapon guard back (D-170). */
+	UPROPERTY()
+	FGuid GuardWeaponId;
+
+	/** B-393 (D-170, Q-393): which element colours this member's landed-parry effect when the weapon guard has two
+	 *  sources. Saved (FSavedPartyMember, v33). Read and written through ULoadoutComponent::GetParryElementPriority /
+	 *  SetParryElementPriority; stored by UPartySessionSubsystem::SetMemberParryPriority. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
 
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 

@@ -360,6 +360,13 @@ namespace CombatConstants
     constexpr float BLOCK_BUILDUP_MULTIPLIER = 0.5f; // Block: 50% buildup through
     constexpr float PARRY_BUILDUP_MULTIPLIER = 0.0f; // Perfect Guard: no buildup through (Q-168b, like its 0 damage)
 
+    // ==================== TURN-START ENERGY (B-173) ====================
+    // Energy refill (D-089, changed 2026-11-09): at the start of each of the holder's turns it gains this share of
+    // its Max EP, at least TURN_START_EP_MIN while Max EP > 0. Broken Darkness gains none (its absorption is its EP).
+    // TODO: tune
+    constexpr float TURN_START_EP_SHARE_OF_MAX = 0.10f;
+    constexpr int32 TURN_START_EP_MIN = 1;
+
     // ==================== SPELL DATA ====================
     // Status bar system
     // Status Effect Thresholds
@@ -382,6 +389,13 @@ namespace CombatConstants
     constexpr float ICE_BREAK_SPEED_SLOW_PERCENT = 30.0f;
     // TODO: tune — Ice break: damage dealt once on landing, share of the holder's max HP; it can kill, as Reality's (Q-064a).
     constexpr float ICE_BREAK_DAMAGE_MAX_HP_FRACTION = 0.10f;
+    // B-170d (Q-170e), read only with wor.Turns.ActionPips 1 (BreakTable::ActionPipsRows):
+    // TODO: tune — Ice break: actions removed at once from the holder's bank (never below 0).
+    constexpr int32 ICE_BREAK_ACTIONS_LOST = 1;
+    // TODO: tune — Wind break: actions removed at the holder's next turn start (D-090's placeholder -1).
+    constexpr int32 WIND_BREAK_ACTIONS_LOST = 1;
+    // TODO: tune — Wind break: Action Speed slow, percent; starts at Water's (Q-170e).
+    constexpr float WIND_BREAK_ACTION_SPEED_SLOW_PERCENT = WATER_BREAK_SPEED_SLOW_PERCENT;
     // TODO: tune — Broken Darkness break: EP drained at the holder's turn start, fraction of max EP.
     constexpr float BD_BREAK_EP_DRAIN_FRACTION = 0.25f;
     // TODO: tune — Light break: crit chance down, percent; 100 = no crits while it lasts (D-030).

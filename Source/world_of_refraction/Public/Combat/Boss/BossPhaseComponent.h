@@ -55,6 +55,15 @@ public:
 	/** The boss's status bar broke: raises its status resistance, may reach a phase. */
 	void RecordStatusBreak();
 
+	/** B-406: the cinematic of the phase at PhaseIndex (as OnBossPhaseReached gives it), empty for none or out of range. */
+	TSoftObjectPtr<ULevelSequence> GetPhaseCinematic(int32 PhaseIndex) const
+	{
+		return Phases.IsValidIndex(PhaseIndex) ? Phases[PhaseIndex].CinematicSequence : TSoftObjectPtr<ULevelSequence>();
+	}
+
+	/** B-406: the boss data Setup took (the opening cinematic), or null. */
+	const UBossData *GetBossData() const { return BossData; }
+
 	int32 GetReachedPhaseCount() const { return ReachedPhaseCount; }
 	int32 GetPhaseCount() const { return Phases.Num(); }
 	int32 GetStatusBreakCount() const { return StatusBreakCount; }
