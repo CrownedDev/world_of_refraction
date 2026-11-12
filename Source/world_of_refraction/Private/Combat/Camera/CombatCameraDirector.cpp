@@ -764,7 +764,7 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	ShotMoment = Moment;
 	// B-402 (R10, R11): no shake and no FOV punch while the viewer defends; a held punch is dropped, not replayed (Q-402).
 	const bool bDefending = IsViewerDefending();
-	if (bDefending && (Shot.ShakeScale > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
+	if (bDefending && (Shot.ShakeScale > 0.0f || Shot.MotionBlur > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
 	{
 		++DefencePunchesDropped;
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] %s shot held steady: the viewer is defending"), *UEnum::GetValueAsString(Moment));
