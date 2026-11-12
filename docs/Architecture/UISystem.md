@@ -30,9 +30,19 @@ This doc covers three current widgets:
   (the server's hits and heals, on every machine), styled by `DamageNumberView` (Q-111 / Q-391b), from a pool of
   16 text blocks built once and stepped by one timer that stops when none are live; a Broken Darkness card's EP
   line is "Absorb x / y" with its overload. Debug: `wor.UI.DamageNumber <amount> [type|Heal] [mult]`.
+  B-391c: every card has a status buildup bar under its HP bar, fed as the old panel's (`UStatusBuildupManager::
+  OnStatusBuildupChanged` on the server, the replicated `UStatusBarStateComponent::OnBarChanged` on a guest), tinted
+  by `BattleHUDView::GetBuildupColour`, with Q-111 A's cracks (a row of `CRACK_COUNT` marks over the bar, built once,
+  shown past each `GetCrackPositions` point); party cards add "Status x / y", a "weapon · ring" line and a loadout
+  hover tooltip (`BattleHUDView::ReadGearNames`; refreshed on `ULoadoutComponent::OnLoadoutChanged` /
+  `OnActiveWeaponChanged`; party card frames take the mouse for it). A 0 hit on Broken Darkness floats "Negated"
+  (`DamageNumberView::SHOW_NEGATED_CUE`, Q-391c).
 - `UBattleCommandMenuWidget`: a view of `UCombatCommandMenuSubsystem` (`OnCommandMenuReady` / `Closed`), a pool
   of 16 rows built once, each row's key hint from `ACombatPlayerController::GetMenuKeys`
   (`BattleHUDView::AssignMenuKeys`); a click goes to `HandleSelection` through `UBattleMenuRowRelay`.
+  B-391c: under the title, the old `UDurabilityHeaderWidget`'s line ("AD x / y", "WD x / y";
+  `BattleHUDView::ReadDurability` / `MakeDurabilityLines`), refreshed per menu open and on `UCrystalManager`'s
+  `OnCrystalDurabilityChanged` / `OnCrystalBroken` for the acting character.
 - the native `UDefensePromptWidget`.
 At 0 it builds the old WBP panels, strip and menu described below (the fallback until Crown's PIE pass).
 The main-menu category keys (Attack, Skills, Spells, Items, Flee, switches; Q-391) press their button through
@@ -305,8 +315,24 @@ controlled actor.
 ## Known Limitations / TODOs
 
 - **New battle HUD (B-391):** placeholder looks (text chips, no icons); picking inside a submenu or a target list
-  is a click (gamepad navigation there comes with CommonUI, D-024); no damage numbers and no Broken Darkness
-  absorption line yet (B-391b). The old WBP widgets stay until Crown's PIE pass of B-391.
+  is a click (gamepad navigation there comes with CommonUI, D-024); damage numbers and the Broken Darkness
+  absorption line came in B-391b, the buildup bar, gear and durability header in B-391c. The old WBP widgets stay
+  until Crown's PIE pass of B-391.
+- **No cards or numbers for combatants that join mid-fight (B-391c).** The new HUD binds the combatants
+  `UCombatHUD` passes at fight start. Nothing in the code adds a combatant mid-fight or announces one (no summon
+  system; no orchestrator or TurnManager join event), so there is nothing to bind to. When summons land, they need a
+  join event, and the HUD a spare card pool built once (TransBuffer rule).
+- **Buildup bar (B-391c):** it cracks (Q-111 A) but doesn't shatter or show shards during a break yet (art pass).
+  Its seed at Initialise has no attacker, so a bar part-filled by Broken Darkness before the HUD exists shows the
+  plain element colour until the next hit. Gear and the durability header follow server-side loadout and crystal
+  events, as the old HUD: a guest refreshes them on its next menu open.
+- **"Negated" is inferred (B-391c):** `FCombatHitShown` doesn't say why a hit took 0; any 0 hit on a Broken
+  Darkness target reads "Negated" (a ward stopping a whole hit included).
+- **Two Broken Darkness checks (B-391c review):** the "Negated" cue reads the target's
+  `UCharacterDataComponent::IsBrokenDarkness()` (replicated flag); the buildup tint reads the attacker's
+  `UBrokenDarknessManager::IsInBDForm()` (the manager's flag, as the old panel's `ApplyStatusBarTint`). Each matches
+  its old source, but they can disagree for a born-in-BD character before the manager mirrors the flag
+  (`InitializeBornBrokenDarkness`), or on a client if the manager's flag isn't replicated.
 
 - No literal `// TODO`, `// FIXME`, or `// HACK` markers exist in the four files
   documented.
@@ -375,3 +401,6 @@ controlled actor.
 | 2026-11-09 | B-400b: `UBattleCommandMenuWidget` rows bind `OnHovered` (`UBattleMenuRowRelay::HandleHovered`); `HoverRow` highlights a per-actor target row's enemy (`UCombatCommandMenuSubsystem::HighlightTarget`, B-400's camera follows); `GetRowTarget` for debug / specs. Rows stay non-focusable (B-391). | `feature/B-400b-new-hud-target-highlight` (built 2026-11-12) |
 | 2026-11-09 | B-391b (Q-391b): damage numbers. `UCombatPresentationComponent` hits carry `FCombatHitShown` (element multiplier, damage type, heal; `Multicast_ShowHit` RPC changed, new `OnHitDetailShown`, `SendHeal` from `USkillEffectManager::BroadcastHealing`); `DamageNumberView` (colour by damage type, Physical white; size / brightness by multiplier; immune grey; heals green); `UBattleHUDWidget` floats them from a pooled set of text blocks on one timer (no Tick) and shows a Broken Darkness card's "Absorb x / y, overload z%" (`BattleHUDView::FormatAbsorbLine` / `GetOverloadColour`). `wor.UI.DamageNumber`; specs `WoR.UI.DamageNumber`, `WoR.UI.BattleHUD`, `WoR.Net.Presentation`. Buildup bar, weapon name, durability header: B-391c. | feature/B-391b-hud-pieces-cloud (UNBUILT) |
 | 2026-11-12 | B-391b built on the desktop (`feature/B-391b-hud-pieces`): merged with B-170e's action-pips card code (both kept: the absorb line and tint, then the actions line). Full suite 1802/0; wor-reviewer no must-fix. Left: Teardown skips the number timer clear when unbound (no numbers can start unbound); a mid-fight summon gets no card or numbers (B-391c); a widget rebuild would orphan the number text blocks, as the cards. | `feature/B-391b-hud-pieces` |
+| 2026-11-09 | B-391c (Q-391c): the new HUD gets the old HUD's missing pieces. `UBattleHUDWidget`: a status buildup bar on every card (manager / replicated bar, old-panel tint, Q-111 A cracks past half; "Status x / y" on party cards), a party "weapon · ring" line and loadout hover tooltip (party card frames now hit-testable), "Absorbed" over a 0 hit on Broken Darkness (`DamageNumberView::SHOW_ABSORB_CUE`, new `EDamageNumberTier::Absorbed`). `UBattleCommandMenuWidget`: the durability header ("AD" / "WD", old slot rule; a Generic / Caster ring reads its primary ring). Helpers in `BattleHUDView` (buildup, cracks, gear, durability). `wor.UI.Print` prints them; spec `WoR.UI.BattleHUD`. Mid-fight joiners: a known limitation (no join event exists). | feature/B-391c-hud-pieces-2-cloud (UNBUILT) |
+| 2026-11-12 | B-391c (Crown, Q-391c): the 0-hit cue on Broken Darkness reads **"Negated"**, not "Absorbed" (which reads as Broken Darkness's absorption); on by default. Names follow: `EDamageNumberTier::Negated`, `SHOW_NEGATED_CUE`, `NEGATED_SCALE`, `IsNegatedHit`, `GetNegatedLabel`, `MakeNegatedStyle`. | feature/B-391c-hud-pieces-2-cloud |
+| 2026-11-12 | B-391c built on the desktop (`feature/B-391c-hud-pieces-2`): merged with B-391b's numbers and B-170e's pips (card rows: buildup, gear, then actions; debug string both). Full suite 1820/0; wor-reviewer no code must-fix. PIE: party card frames are hit-testable for the tooltip; check they don't block mouse picking near the party column. | `feature/B-391c-hud-pieces-2` |

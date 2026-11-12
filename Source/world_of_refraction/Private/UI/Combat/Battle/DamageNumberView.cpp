@@ -117,6 +117,30 @@ bool DamageNumberView::ShouldShow(const FCombatHitShown &Hit)
 	return Hit.Amount > 0 || (!Hit.bHeal && Hit.ElementMultiplier <= IMMUNE_MULTIPLIER);
 }
 
+bool DamageNumberView::IsNegatedHit(const FCombatHitShown &Hit, bool bTargetBrokenDarkness)
+{
+	return bTargetBrokenDarkness && !Hit.bHeal && Hit.Amount <= 0 && Hit.ElementMultiplier > IMMUNE_MULTIPLIER;
+}
+
+FText DamageNumberView::GetNegatedLabel()
+{
+	return LOCTEXT("Negated", "Negated"); // Crown, 2026-11-12 (Q-391c): not "Absorbed"
+}
+
+FDamageNumberStyle DamageNumberView::MakeNegatedStyle(const FCombatHitShown &Hit)
+{
+	FDamageNumberStyle Style;
+	Style.Tier = EDamageNumberTier::Negated;
+	Style.Text = GetNegatedLabel();
+	Style.Colour = GetDamageTypeColour(Hit.DamageType);
+	Style.Scale = NEGATED_SCALE;
+	Style.OutlineColour = ElementColors::NeedsTextOutline(ElementTable::For(Hit.DamageType).Element) ? ElementColors::TextOutline
+																									  : OUTLINE_COLOUR;
+	Style.OutlineSize = OUTLINE_SIZE;
+	Style.FontSize = FMath::Max(1, FMath::RoundToInt(BASE_FONT_SIZE * Style.Scale));
+	return Style;
+}
+
 int32 DamageNumberView::NextStackIndex(const TArray<int32> &LiveStackIndices)
 {
 	int32 Highest = INDEX_NONE;
@@ -144,8 +168,8 @@ float DamageNumberView::GetOpacity(float AgeSeconds)
 
 FString DamageNumberView::DescribeStyle(const FCombatHitShown &Hit, const FDamageNumberStyle &Style)
 {
-	static const TCHAR *TierNames[] = {TEXT("weak"), TEXT("neutral"), TEXT("resisted"), TEXT("immune"), TEXT("heal")};
-	static_assert(UE_ARRAY_COUNT(TierNames) == static_cast<int32>(EDamageNumberTier::Heal) + 1, "one name per tier");
+	static const TCHAR *TierNames[] = {TEXT("weak"), TEXT("neutral"), TEXT("resisted"), TEXT("immune"), TEXT("heal"), TEXT("negated")};
+	static_assert(UE_ARRAY_COUNT(TierNames) == static_cast<int32>(EDamageNumberTier::Negated) + 1, "one name per tier");
 	const int32 TierIndex = static_cast<int32>(Style.Tier);
 	return FString::Printf(TEXT("%s %.2fx %s%s: '%s' size %d bright %.2f%s colour %s"),
 						   Hit.bHeal ? TEXT("heal") : *UEnum::GetDisplayValueAsText(Hit.DamageType).ToString(), Hit.ElementMultiplier,

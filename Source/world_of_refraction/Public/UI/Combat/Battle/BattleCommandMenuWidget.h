@@ -6,11 +6,15 @@
 //
 // Added straight to the viewport by UCombatHUD (wor.UI.NewHUD 1). A fixed pool of rows is built once in
 // RebuildWidget; each broadcast only rewrites texts and shows / hides rows (TransBuffer rule). No Tick.
+// B-391c: a durability header above the rows, as the old UDurabilityHeaderWidget: the acting character's ring ("AD")
+// and weapon crystal ("WD") durability (BattleHUDView::ReadDurability), refreshed on each menu open and on
+// UCrystalManager's durability and break events for that character.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Equipment/Crystals/FBrokenCrystalPayload.h" // UFUNCTION handler parameter type
 #include "UI/Combat/PieMenuButtonData.h"
 #include "BattleCommandMenuWidget.generated.h"
 
@@ -19,6 +23,7 @@ class UButton;
 class UTextBlock;
 class UCombatCommandMenuSubsystem;
 class UBattleCommandMenuWidget;
+class UCrystalManager;
 
 /** Routes one row button's click (UButton::OnClicked has no parameters) to its menu with the row's index. */
 UCLASS()
@@ -73,6 +78,9 @@ public:
 	const FText &GetTitle() const { return Title; }
 	const TArray<FText> &GetRowLabels() const { return RowLabels; }
 
+	/** B-391c: the durability header's lines for the acting character ("AD 3 / 5", "WD 2 / 4"); empty for none. */
+	const TArray<FText> &GetDurabilityLines() const { return DurabilityLines; }
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -85,6 +93,15 @@ private:
 	UFUNCTION()
 	void HandleMenuClosed();
 
+	UFUNCTION()
+	void HandleCrystalDurabilityChanged(AActor *Actor, UObject *Holder, int32 NewDurability, int32 MaxDurability);
+
+	UFUNCTION()
+	void HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload);
+
+	/** B-391c: re-read the header for the menu's current actor (empty when none). */
+	void RefreshDurability();
+
 	void PushToWidgets();
 
 	TArray<FPieMenuButtonData> Rows;
@@ -94,9 +111,14 @@ private:
 	bool bBound = false;
 
 	TWeakObjectPtr<UCombatCommandMenuSubsystem> BoundMenu;
+	TWeakObjectPtr<UCrystalManager> BoundCrystals;
+	TArray<FText> DurabilityLines;
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> TitleText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> DurabilityText;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UButton>> RowButtons;
