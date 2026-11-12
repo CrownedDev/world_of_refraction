@@ -3,24 +3,36 @@
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "Combat/Camera/CombatCameraComponent.h"
 #include "Combat/Camera/CameraFramingChecks.h"
+#include "Combat/Camera/SignatureCameraCap.h"
 #include "HAL/IConsoleManager.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionStructs.h"
+#include "Combat/Defense/DefenseSystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Boss/BossData.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Engine/LocalPlayer.h"
+#include "Character/CharacterData.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Save/SaveSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Engine/Engine.h"
 #include "TimerManager.h"
 #include "WoRLog.h"
 
@@ -37,6 +49,14 @@ namespace CombatCameraTiming
 	// B-406: how long wor.Camera.BossCinematic holds for an empty field when BossCinematicPreviewSeconds is 0.
 	// TODO: tune (debug only).
 	constexpr float BossCinematicPreviewDefaultSeconds = 3.0f;
+	// B-399 (study R2): the sub-menu step in, and back out on cancel. TODO: tune in PIE (study estimate ~0.3 s).
+	constexpr float MenuStepSeconds = 0.3f;
+}
+
+namespace CombatCameraTargetShape
+{
+	/** B-400: the height a target without collision bounds is framed at, in cm. TODO: tune in PIE. */
+	constexpr float DefaultTargetHeight = 180.0f;
 }
 
 namespace
@@ -44,6 +64,14 @@ namespace
 	const USkillDataBase *GetActionSkill(const FAction &Action)
 	{
 		return Action.ActionType == EActionType::Spell ? static_cast<const USkillDataBase *>(Action.SpellData) : Action.SkillData;
+	}
+
+	/** B-398: the player's settings live in the save; looked up each time, never cached across PIE. */
+	USaveSubsystem *FindSaveSubsystem(const UActorComponent *Component)
+	{
+		const UWorld *World = Component ? Component->GetWorld() : nullptr;
+		UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+		return GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
 	}
 }
 
@@ -59,7 +87,12 @@ namespace CombatCameraBindings
 void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty, UActionExecutor *Executor)
 {
 	EndCombat();
+	if (const USaveSubsystem *Save = FindSaveSubsystem(this))
+	{
+		TurnViewStyle = Save->GetTurnViewStyle(); // B-398: the player's setting, whichever orchestrator runs the fight
+	}
 	bInCombat = true;
+	DefencePunchesDropped = 0;
 	LocalCombatants.Append(LocalParty);
 	OpposingCombatants.Append(OpposingParty);
 
@@ -103,12 +136,25 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 		Executor->OnProjectileLaunched.AddUniqueDynamic(this, &UCombatCameraDirector::HandleProjectileLaunched);
 		BoundExecutor = Executor;
 	}
+	// B-399: the command menu's depth, whichever HUD draws it. Looked up per fight, not cached across PIE.
+	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
+	MenuStepCount = 0;
+	HighlightedTarget.Reset(); // B-400
+	HighlightTargetCount = 0;
+	bTargetViewShowing = false;
+	TargetMoveCount = 0;
+	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
+	{
+		Menu->OnMenuDepthChanged.AddUniqueDynamic(this, &UCombatCameraDirector::HandleMenuDepthChanged);
+		Menu->OnTargetHighlighted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleTargetHighlighted); // B-400
+		BoundMenu = Menu;
+	}
 
 	if (APlayerController *Viewer = GetViewer())
 	{
 		ViewTargetBeforeCombat = Viewer->GetViewTarget();
 	}
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Fight started: %d cameras"), Cameras.Num());
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Fight started: %d cameras, turn view %s"), Cameras.Num(), *UEnum::GetValueAsString(TurnViewStyle));
 }
 
 void UCombatCameraDirector::EndCombat()
@@ -128,6 +174,22 @@ void UCombatCameraDirector::EndCombat()
 		}
 	}
 	BoundBossPhases.Reset();
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BreakApartTimer); // B-405
+		World->GetTimerManager().ClearTimer(KillShotPreviewTimer);
+	}
+	// B-405: undo what a kill shot left on its victim (debug levels reuse the pawns): the darkened look and the hidden boss.
+	if (AActor *Victim = KillShotVictim.Get())
+	{
+		const UCombatCameraComponent *Camera = Victim->FindComponentByClass<UCombatCameraComponent>();
+		if (ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr)
+		{
+			SetDarkened(CameraActor->GetCameraComponent(), false);
+		}
+		Victim->SetActorHiddenInGame(false);
+	}
+	KillShotVictim.Reset();
 	StopSequence();
 	StopShotPattern();
 
@@ -142,6 +204,16 @@ void UCombatCameraDirector::EndCombat()
 		Executor->OnProjectileLaunched.RemoveDynamic(this, &UCombatCameraDirector::HandleProjectileLaunched);
 	}
 	BoundExecutor.Reset();
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
+	{
+		Menu->OnMenuDepthChanged.RemoveDynamic(this, &UCombatCameraDirector::HandleMenuDepthChanged);
+		Menu->OnTargetHighlighted.RemoveDynamic(this, &UCombatCameraDirector::HandleTargetHighlighted);
+	}
+	BoundMenu.Reset();
+	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
+	HighlightedTarget.Reset(); // B-400
+	HighlightTargetCount = 0;
+	bTargetViewShowing = false;
 
 	if (APlayerController *Viewer = GetViewer())
 	{
@@ -172,9 +244,15 @@ void UCombatCameraDirector::EndCombat()
 void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 {
 	TurnViewStyle = NewStyle;
+	if (USaveSubsystem *Save = FindSaveSubsystem(this))
+	{
+		Save->SetTurnViewStyle(NewStyle); // B-398: kept for the next fight; on disk with the next save
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Turn view: %s"), *FCombatCameraRules::GetTurnViewStyleName(NewStyle).ToString());
 	if (bInCombat && !PlayingSequence && !IsShotPlaying())
 	{
 		ShowTurnView();
+		ReapplyHighlightedTarget(); // B-400: an open picker keeps its target view
 	}
 }
 
@@ -190,6 +268,7 @@ void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 	if (bInCombat && !PlayingSequence && !IsShotPlaying())
 	{
 		ShowTurnView();
+		ReapplyHighlightedTarget(); // B-400: an open picker keeps its target view
 	}
 }
 
@@ -235,6 +314,9 @@ void UCombatCameraDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumber)
 {
 	ViewedActor = Actor;
+	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: a new turn opens on the main menu's view
+	HighlightedTarget.Reset(); // B-400: a new turn has no picker open
+	HighlightTargetCount = 0;
 	ClearDefenceHandOff();
 	if (IsBossCinematicPlaying())
 	{
@@ -244,6 +326,192 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 	ShowTurnView();
 }
 
+void UCombatCameraDirector::HandleMenuDepthChanged(AActor *Actor, int32 NewDepth)
+{
+	if (!bInCombat)
+	{
+		return;
+	}
+	if (Actor != ViewedActor.Get())
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Menu depth %d for %s, not the viewed %s: ignored"), NewDepth,
+			   *GetNameSafe(Actor), *GetNameSafe(ViewedActor.Get()));
+		return;
+	}
+	SetMenuDepth(NewDepth);
+}
+
+void UCombatCameraDirector::SetMenuDepth(int32 NewDepth)
+{
+	const int32 Depth = FMath::Clamp(NewDepth, 0, FCombatCameraRules::MaxMenuDepth);
+	if (Depth == MenuDepth)
+	{
+		return;
+	}
+	MenuDepth = Depth;
+	// Movement off (Static), a cinematic, a held shot or someone else's turn: the depth is kept, nothing moves (R3, R15).
+	const bool bTurnViewShowing = CurrentMode == ECombatCameraMode::Turn && !PlayingSequence && !IsShotPlaying();
+	if (!bInCombat || !bTurnViewShowing)
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Menu depth %d: camera holds (mode %s)"), Depth, *UEnum::GetValueAsString(CurrentMode));
+		return;
+	}
+	StepTurnViewForMenu();
+}
+
+void UCombatCameraDirector::StepTurnViewForMenu()
+{
+	AActor *Actor = ViewedActor.Get();
+	if (!Actor || !MoveTurnCamera(GetTurnViewWithHeight(BuildFrame(Actor)), CombatCameraTiming::MenuStepSeconds))
+	{
+		return;
+	}
+	bTargetViewShowing = false; // B-400: a depth step (wor.Camera.MenuDepth) lands on the turn view
+	++MenuStepCount;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Menu depth %d: %s (%.2f s, move %d)"), MenuDepth,
+		   MenuDepth > CommandMenuRules::MAIN_MENU_DEPTH ? TEXT("one step closer") : TEXT("back to the turn view"),
+		   CombatCameraTiming::MenuStepSeconds, MenuStepCount);
+}
+
+bool UCombatCameraDirector::MoveTurnCamera(const FTransform &End, float Seconds)
+{
+	AActor *Actor = ViewedActor.Get();
+	UCombatCameraComponent *Camera = Actor ? Actor->FindComponentByClass<UCombatCameraComponent>() : nullptr;
+	ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr;
+	UWorld *World = GetWorld();
+	if (!CameraActor || !World)
+	{
+		return false;
+	}
+	// The shot timer's move (StepShot), on the turn camera, from where it is now. No pattern is playing (ShotCaster
+	// stays empty), so the next turn view or shot clears it as it clears any shot.
+	World->GetTimerManager().ClearTimer(ShotTimer);
+	if (Seconds <= 0.0f)
+	{
+		CameraActor->SetActorTransform(End); // a cut (B-400, study §12)
+		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
+		return true;
+	}
+	ShotCamera = Camera;
+	ShotMoment = ECameraShotMoment::WindUp;
+	ShotProjectile.Reset();
+	ActiveShot = FCameraShot();
+	ActiveShot.Start = CameraActor->GetActorTransform();
+	ActiveShot.End = End;
+	ActiveShot.BlendSeconds = Seconds;
+	ActiveShot.FieldOfView = FCombatCameraRules::DefaultFieldOfView;
+	ShotElapsed = 0.0f;
+	World->GetTimerManager().SetTimer(ShotTimer, this, &UCombatCameraDirector::StepShot, CombatCameraTiming::ShotStepSeconds, true);
+	return true;
+}
+
+void UCombatCameraDirector::HandleTargetHighlighted(AActor *Actor, AActor *Target, int32 TargetCount)
+{
+	if (!bInCombat)
+	{
+		return;
+	}
+	if (Actor != ViewedActor.Get())
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Target %s highlighted for %s, not the viewed %s: ignored"), *GetNameSafe(Target),
+			   *GetNameSafe(Actor), *GetNameSafe(ViewedActor.Get()));
+		return;
+	}
+	SetHighlightedTarget(Target, TargetCount);
+}
+
+void UCombatCameraDirector::ReapplyHighlightedTarget()
+{
+	if (AActor *Target = HighlightedTarget.Get())
+	{
+		SetHighlightedTarget(Target, HighlightTargetCount);
+	}
+}
+
+void UCombatCameraDirector::SetHighlightedTarget(AActor *Target, int32 TargetCount)
+{
+	HighlightedTarget = Target;
+	HighlightTargetCount = Target ? TargetCount : 0;
+	AActor *Actor = ViewedActor.Get();
+	// Movement off (Static), a cinematic, a held shot or someone else's turn: nothing moves (R3, R15).
+	const bool bTurnViewShowing = bInCombat && Actor && CurrentMode == ECombatCameraMode::Turn && !PlayingSequence && !IsShotPlaying();
+	if (!bTurnViewShowing)
+	{
+		bTargetViewShowing = false;
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Target %s: camera holds (mode %s)"), *GetNameSafe(Target), *UEnum::GetValueAsString(CurrentMode));
+		return;
+	}
+	const float Seconds = FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle);
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	if (Target && TargetCount >= FCombatCameraRules::MinTargetsForTargetView)
+	{
+		FVector Feet;
+		float Height = 0.0f;
+		GetTargetShape(Target, Feet, Height);
+		if (MoveTurnCamera(FCombatCameraRules::ComputeTargetViewFrom(TurnViewStyle, Frame, GetTurnViewWithHeight(Frame), Feet, Height, TargetCount), Seconds))
+		{
+			bTargetViewShowing = true;
+			++TargetMoveCount;
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Target view: %s of %d (%s, move %d)"), *Target->GetName(), TargetCount,
+				   Seconds > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount);
+		}
+		return;
+	}
+	if (!bTargetViewShowing)
+	{
+		return; // one target (no move, study R3), or the picker closed with no target view showing
+	}
+	bTargetViewShowing = false;
+	if (MoveTurnCamera(GetTurnViewWithHeight(Frame), Seconds))
+	{
+		++TargetMoveCount;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Target picker closed: back to the turn view (move %d)"), TargetMoveCount);
+	}
+}
+
+void UCombatCameraDirector::CutBackFromTargetView()
+{
+	if (!bTargetViewShowing)
+	{
+		return;
+	}
+	bTargetViewShowing = false;
+	if (AActor *Actor = ViewedActor.Get())
+	{
+		MoveTurnCamera(GetTurnViewWithHeight(BuildFrame(Actor)), 0.0f);
+	}
+}
+
+void UCombatCameraDirector::GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight)
+{
+	OutFeet = Target ? Target->GetActorLocation() : FVector::ZeroVector;
+	OutHeight = CombatCameraTargetShape::DefaultTargetHeight;
+	if (!Target)
+	{
+		return;
+	}
+	FVector Origin;
+	FVector Extent;
+	Target->GetActorBounds(true, Origin, Extent); // colliding only: a character's capsule
+	if (Extent.Z > UE_KINDA_SMALL_NUMBER)
+	{
+		OutFeet = FVector(Origin.X, Origin.Y, Origin.Z - Extent.Z);
+		OutHeight = static_cast<float>(Extent.Z * 2.0);
+	}
+}
+
+FString UCombatCameraDirector::GetTargetViewString() const
+{
+	const AActor *Target = HighlightedTarget.Get();
+	if (!Target)
+	{
+		return FString::Printf(TEXT("target view: none (%d moves)"), TargetMoveCount);
+	}
+	return FString::Printf(TEXT("target view: %s of %d (%s, %s, %d moves)"), *Target->GetName(), HighlightTargetCount,
+						   bTargetViewShowing ? TEXT("showing") : TEXT("held"),
+						   FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle) > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount);
+}
+
 void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
 {
 	if (!bInCombat)
@@ -251,11 +519,13 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		return;
 	}
 	ClearDefenceHandOff();
+	CutBackFromTargetView(); // B-400: confirm cuts from the target view; the action's camera goes on as before
 	// An Execution turn (a ritual firing) has no turn-start broadcast: frame whoever acts.
 	const bool bNewActor = Executor && Executor != ViewedActor.Get();
 	if (bNewActor)
 	{
 		ViewedActor = Executor;
+		MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: another actor's menu step never carries over
 	}
 	if (IsBossCinematicPlaying())
 	{
@@ -345,6 +615,7 @@ void UCombatCameraDirector::ShowTurnView()
 		return; // B-406: its end shows the turn view
 	}
 	StopShotPattern(); // B-371: the end of a pattern blends back to the turn view
+	bTargetViewShowing = false; // B-400
 	AActor *Actor = ViewedActor.Get();
 	APlayerController *Viewer = GetViewer();
 	UCombatCameraComponent *Camera = Actor ? Actor->FindComponentByClass<UCombatCameraComponent>() : nullptr;
@@ -353,7 +624,12 @@ void UCombatCameraDirector::ShowTurnView()
 		return;
 	}
 	CurrentMode = FCombatCameraRules::SelectMode(IsViewersCharacter(Actor), false, bCameraMovementOff);
-	const FTransform View = FCombatCameraRules::ComputeView(CurrentMode, TurnViewStyle, BuildFrame(Actor));
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	FTransform View = FCombatCameraRules::ComputeView(CurrentMode, TurnViewStyle, Frame, MenuDepth); // B-399
+	if (CurrentMode == ECombatCameraMode::Turn)
+	{
+		View = FBossFramingRules::ApplyHeight(View, GetFightCameraHeight(), TurnViewStyle, Frame); // B-405 (R13)
+	}
 	if (ACameraActor *CameraActor = Camera->ShowView(CurrentMode, View))
 	{
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371: undo a punch
@@ -409,10 +685,73 @@ void UCombatCameraDirector::PlaySequence(ULevelSequence *Sequence, AActor *Caste
 	Player->Play();
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Playing %s (caster %s, %d targets)"),
 		   *Sequence->GetName(), *GetNameSafe(Caster), ValidTargets.Num());
+
+	// B-407 (R7, FeelGuide 9): a player or team signature sequence is cut back at the cap; an enemy's runs to its end.
+	LastSignatureName = Sequence->GetName();
+	LastSignatureCaster = GetNameSafe(Caster);
+	LastSignatureSeconds = SignatureCameraCap::GetSequenceSeconds(Sequence);
+	bLastSignatureEnemy = OpposingCombatants.Contains(Caster);
+	LastSignatureCutSeconds = SignatureCameraCap::GetCutSeconds(LastSignatureSeconds, bLastSignatureEnemy);
+	bLastSignatureCut = false;
+	bLastSignatureStoppedEarly = false;
+	UWorld *World = GetWorld();
+	if (LastSignatureCutSeconds > 0.0f && World && PlayingSequence) // review: a sequence that finished inside Play() has nothing to cut
+	{
+		World->GetTimerManager().SetTimer(SignatureCapTimer, this, &UCombatCameraDirector::HandleSignatureCapReached, LastSignatureCutSeconds, false);
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s is %.2f s: cutting back at the %.2f s signature cap"),
+			   *LastSignatureName, LastSignatureSeconds, LastSignatureCutSeconds);
+	}
+}
+
+void UCombatCameraDirector::HandleSignatureCapReached()
+{
+	SignatureCapTimer.Invalidate();
+	if (!PlayingSequence)
+	{
+		return;
+	}
+	bLastSignatureCut = true;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s reached the signature cap: cutting back"), *PlayingSequence->GetName());
+	// As HandleSequenceFinished, but from a timer, not the player's own OnFinished, so the actor can go now.
+	StopSequence();
+	if (bInCombat && !DefenceHandOffTimer.IsValid())
+	{
+		ShowTurnView();
+	}
+}
+
+FString UCombatCameraDirector::GetSignatureCapString() const
+{
+	const FString Cap = FString::Printf(TEXT("cap %.2f s"), SignatureCameraCap::MaxSignatureSeconds);
+	if (LastSignatureName.IsEmpty())
+	{
+		return Cap + TEXT(" | no signature sequence played yet");
+	}
+	FString Outcome;
+	if (bLastSignatureEnemy)
+	{
+		Outcome = TEXT("enemy caster: not capped");
+	}
+	else if (LastSignatureCutSeconds <= 0.0f)
+	{
+		Outcome = TEXT("within the cap");
+	}
+	else
+	{
+		Outcome = FString::Printf(TEXT("%s at %.2f s"), bLastSignatureCut ? TEXT("cut") : (bLastSignatureStoppedEarly ? TEXT("stopped before the cap") : TEXT("to be cut")), LastSignatureCutSeconds);
+	}
+	return FString::Printf(TEXT("%s | last %s %.2f s by %s: %s"), *Cap, *LastSignatureName, LastSignatureSeconds, *LastSignatureCaster, *Outcome);
 }
 
 void UCombatCameraDirector::StopSequence(bool bDeferDestroy)
 {
+	if (UWorld *World = GetWorld())
+	{
+		// B-407: a capped sequence stopped before its cap (a hit, the next turn, a hand-off) says so in the debug line.
+		bLastSignatureStoppedEarly = bLastSignatureStoppedEarly || World->GetTimerManager().IsTimerActive(SignatureCapTimer);
+		World->GetTimerManager().ClearTimer(SignatureCapTimer); // B-407
+	}
+	SignatureCapTimer.Invalidate();
 	if (SequencePlayer)
 	{
 		SequencePlayer->OnFinished.RemoveAll(this);
@@ -480,7 +819,13 @@ APlayerController *UCombatCameraDirector::GetViewer() const
 {
 	// Same viewer the combat HUD uses (UCombatHUD). TODO: co-op/PvP (D-065).
 	UWorld *World = GetWorld();
-	return World ? World->GetFirstPlayerController() : nullptr;
+	// The local player's controller: on a dedicated server there is none, so no server-side camera or kill-shot hold
+	// (GetFirstPlayerController would return a remote client's controller there).
+	if (APlayerController *TestViewer = ViewerForTests.Get())
+	{
+		return TestViewer;
+	}
+	return World && GEngine ? GEngine->GetFirstLocalPlayerController(World) : nullptr;
 }
 
 bool UCombatCameraDirector::ScheduleDefenceHandOff(AActor *Executor, const FAction &Action)
@@ -593,20 +938,72 @@ void UCombatCameraDirector::ShowDefenceView()
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371
 		Viewer->SetViewTargetWithBlend(CameraActor, CombatCameraTiming::DefenceBlendSeconds);
 	}
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defence view: %d defender(s) against %s"), Defenders.Num(), *GetNameSafe(Attacker));
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defence view (%s): %d defender(s) against %s"),
+		   Defenders.Num() > 1 ? TEXT("wide side-on") : TEXT("side-on two-shot"), Defenders.Num(), *GetNameSafe(Attacker));
+}
+
+bool UCombatCameraDirector::IsViewerDefending() const
+{
+	if (CurrentMode == ECombatCameraMode::Defence || DefenceHandOffTimer.IsValid())
+	{
+		return true;
+	}
+	const UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(this);
+	if (!Defense)
+	{
+		return false;
+	}
+	for (AActor *Actor : LocalCombatants)
+	{
+		if (IsValid(Actor) && IsViewersCharacter(Actor) && Defense->IsDefenseWindowOpen(Actor))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 FString UCombatCameraDirector::GetCinematicWindowString() const
 {
+	// B-402: whether shots are held still, and how many punches that has held back this fight.
+	const FString Steady = FString::Printf(TEXT(" | defending %s, %d punch(es) dropped"), IsViewerDefending() ? TEXT("yes (steady)") : TEXT("no"),
+										   DefencePunchesDropped);
 	if (!bHasLastWindow)
 	{
-		return TEXT("window: none (nothing placed and nothing to defend, or no action yet)");
+		return TEXT("window: none (nothing placed and nothing to defend, or no action yet)") + Steady;
 	}
 	const FString Defendable = LastWindowTiming.bHasDefendable ? FString::Printf(TEXT("%.2f s"), LastWindowTiming.FirstDefendable) : TEXT("none");
 	const TCHAR *Source = LastWindowTiming.bHasAuthoredWindow ? TEXT("placed") : LastWindowTiming.bHasWindUpEnd ? TEXT("wind-up end") : TEXT("read time only");
-	return FString::Printf(TEXT("window ends %.2f s (%s; first defendable %s; read %.2f s) -> %s%s"), LastWindowEnd, Source, *Defendable,
+	return FString::Printf(TEXT("window ends %.2f s (%s; first defendable %s; read %.2f s) -> %s%s%s"), LastWindowEnd, Source, *Defendable,
 						   FCombatCameraRules::MinDefenseReadSeconds, *UEnum::GetValueAsString(LastHandOffMode),
-						   DefenceHandOffTimer.IsValid() ? TEXT(", pending") : TEXT(""));
+						   DefenceHandOffTimer.IsValid() ? TEXT(", pending") : TEXT(""), *Steady);
+}
+
+FTransform UCombatCameraDirector::GetTurnViewWithHeight(const FCombatCameraFrame &Frame) const
+{
+	return FBossFramingRules::ApplyHeight(FCombatCameraRules::ComputeTurnView(TurnViewStyle, Frame, MenuDepth), GetFightCameraHeight(),
+										  TurnViewStyle, Frame);
+}
+
+FString UCombatCameraDirector::GetTurnLayoutString() const
+{
+	AActor *Actor = ViewedActor.Get();
+	if (!bInCombat || !Actor)
+	{
+		return TEXT("layout: no turn view");
+	}
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	// The real turn view: B-405's fight height on top (a boss fight is low and looks up).
+	const FTransform View = GetTurnViewWithHeight(Frame); // B-399, B-405
+	auto Describe = [&View](const FVector &Point)
+	{
+		FVector2D Screen;
+		return CameraFraming::ProjectToScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Point, Screen)
+				   ? CameraFraming::GetThirdsCell(Screen)
+				   : FString(TEXT("behind the camera"));
+	};
+	return FString::Printf(TEXT("layout %s, menu depth %d (%d menu moves): %s %s, enemy centre %s"), *UEnum::GetValueAsString(TurnViewStyle),
+						   MenuDepth, MenuStepCount, *Actor->GetName(), *Describe(Frame.Focus), *Describe(Frame.EnemyCentre));
 }
 
 bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill)
@@ -658,6 +1055,21 @@ namespace
 {
 	TAutoConsoleVariable<int32> CVarCheckFraming(TEXT("wor.Camera.CheckFraming"), 0,
 												 TEXT("B-372: 1 logs each code-built shot's framing (points on screen, clear sight, camera clear)."));
+
+	/** B-403: a shot's motion blur on its camera while it moves; 0 hands the blur back to the project's own. */
+	void SetShotMotionBlur(ACameraActor *CameraActor, float Amount)
+	{
+		if (!CameraActor || !CameraActor->GetCameraComponent())
+		{
+			return;
+		}
+		FPostProcessSettings &PostProcess = CameraActor->GetCameraComponent()->PostProcessSettings;
+		PostProcess.bOverride_MotionBlurAmount = Amount > 0.0f;
+		if (Amount > 0.0f)
+		{
+			PostProcess.MotionBlurAmount = Amount;
+		}
+	}
 }
 
 bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShotMoment Moment, const FCameraShot &Shot)
@@ -690,15 +1102,28 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer);
 	}
+	if (ShotCamera.IsValid() && ShotCamera.Get() != Camera)
+	{
+		SetShotMotionBlur(ShotCamera->GetCameraActor(), 0.0f); // B-403: the rush's blur stays on the camera it left
+	}
 	ShotCamera = Camera;
 	ShotMoment = Moment;
-	ActiveShot = Shot;
+	// B-402 (R10, R11): no shake and no FOV punch while the viewer defends; a held punch is dropped, not replayed (Q-402).
+	const bool bDefending = IsViewerDefending();
+	if (bDefending && (Shot.ShakeScale > 0.0f || Shot.MotionBlur > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
+	{
+		++DefencePunchesDropped;
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] %s shot held steady: the viewer is defending"), *UEnum::GetValueAsString(Moment));
+	}
+	ActiveShot = FCombatCameraRules::SteadyForDefence(Shot, bDefending);
 	ShotElapsed = 0.0f;
 	ACameraActor *Existing = Camera->GetCameraActor();
 	const bool bAlreadyViewed = Existing && Viewer->GetViewTarget() == Existing;
-	if (bAlreadyViewed)
+	// Move from where the camera is (no jump), except the melee rush (B-403, R5): it cuts to its own start, 420 cm back,
+	// and pushes in from there, so it reads the same whatever the turn view was.
+	if (bAlreadyViewed && ActiveShot.MotionBlur <= 0.0f)
 	{
-		ActiveShot.Start = Existing->GetActorTransform(); // move from where the camera is: no jump
+		ActiveShot.Start = Existing->GetActorTransform();
 	}
 	ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::Action, ActiveShot.Start);
 	if (!CameraActor)
@@ -706,6 +1131,7 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 		return false;
 	}
 	CameraActor->GetCameraComponent()->SetFieldOfView(ActiveShot.FieldOfView);
+	SetShotMotionBlur(CameraActor, ActiveShot.MotionBlur); // B-403 (R5): the melee rush
 	const bool bMoves = !ActiveShot.Start.Equals(ActiveShot.End) || ShotProjectile.IsValid();
 	if (!bAlreadyViewed)
 	{
@@ -743,6 +1169,7 @@ void UCombatCameraDirector::StepShot()
 	if (Alpha >= 1.0f && !bFollowing)
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer); // the shot holds where it ended
+		SetShotMotionBlur(CameraActor, 0.0f);			// B-403: the rush is over
 	}
 }
 
@@ -751,6 +1178,10 @@ void UCombatCameraDirector::StopShotPattern()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer);
+	}
+	if (UCombatCameraComponent *Camera = ShotCamera.Get())
+	{
+		SetShotMotionBlur(Camera->GetCameraActor(), 0.0f); // B-403: the turn and Defence views never blur
 	}
 	ShotCaster.Reset();
 	ShotTargets.Reset();
@@ -781,6 +1212,7 @@ FCameraShotContext UCombatCameraDirector::BuildShotContext(bool bCritical) const
 	}
 	Context.bRanged = bShotRanged;
 	Context.bCritical = bCritical;
+	Context.bAllowRush = !bCameraMovementOff; // B-403 (R15)
 	return Context;
 }
 
@@ -791,9 +1223,163 @@ FString UCombatCameraDirector::GetShotString() const
 		return TEXT("shot: none");
 	}
 	const UCombatCameraComponent *Camera = ShotCamera.Get();
-	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f%s)"), *UEnum::GetValueAsString(ShotMoment),
+	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f, blur %.2f over %.2f s%s)"), *UEnum::GetValueAsString(ShotMoment),
 						   *GetNameSafe(ShotCaster.Get()), Camera ? *GetNameSafe(Camera->GetOwner()) : TEXT("no"),
-						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""));
+						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ActiveShot.MotionBlur, ActiveShot.BlendSeconds,
+						   ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""));
+}
+
+EEnemyCameraHeight UCombatCameraDirector::GetFightCameraHeight() const
+{
+	const ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner());
+	TArray<EEnemyCameraHeight> Heights;
+	for (const AActor *Enemy : OpposingCombatants)
+	{
+		if (!IsValid(Enemy))
+		{
+			continue;
+		}
+		const UCharacterDataComponent *Data = Enemy->FindComponentByClass<UCharacterDataComponent>();
+		if (Data && !Data->bIsAlive)
+		{
+			continue; // the boss fell: its minions are framed at their own height
+		}
+		const EEnemyCameraHeight Authored = Data && Data->CharacterData ? Data->CharacterData->EnemyCameraHeight : EEnemyCameraHeight::ByRank;
+		const EEncounterRank Rank = Orchestrator ? Orchestrator->GetEnemyRank(Enemy) : EEncounterRank::Normal;
+		Heights.Add(FBossFramingRules::ResolveHeight(Authored, Rank));
+	}
+	return FBossFramingRules::FightHeight(Heights);
+}
+
+float UCombatCameraDirector::PlayKillShot(AActor *Victim, EEncounterRank Rank)
+{
+	if (!bInCombat || !ShowKillShot(Victim, FBossFramingRules::KillShotFor(Rank), true))
+	{
+		return 0.0f;
+	}
+	const float Hold = FBossFramingRules::KillShotSeconds(LastKillShot);
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Kill shot %s on %s (rank %s): holding %.1f s before the fight ends"),
+		   *UEnum::GetValueAsString(LastKillShot), *GetNameSafe(Victim), *UEnum::GetValueAsString(Rank), Hold);
+	return Hold;
+}
+
+void UCombatCameraDirector::PreviewKillShot(EKillShotKind Kind)
+{
+	AActor *Enemy = nullptr;
+	for (AActor *Opposing : OpposingCombatants)
+	{
+		if (IsValid(Opposing))
+		{
+			Enemy = Opposing;
+			break;
+		}
+	}
+	UWorld *World = GetWorld();
+	if (!bInCombat || !World || !ShowKillShot(Enemy, Kind, false))
+	{
+		UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] Kill shot preview: not in a fight, or no viewer or camera."));
+		return;
+	}
+	World->GetTimerManager().SetTimer(KillShotPreviewTimer, this, &UCombatCameraDirector::EndKillShotPreview, FBossFramingRules::KillShotSeconds(Kind), false);
+}
+
+bool UCombatCameraDirector::ShowKillShot(AActor *Victim, EKillShotKind Kind, bool bHideOnBreakApart)
+{
+	APlayerController *Viewer = GetViewer();
+	UCombatCameraComponent *Camera = IsValid(Victim) ? Victim->FindComponentByClass<UCombatCameraComponent>() : nullptr;
+	if (!Viewer || !Camera)
+	{
+		return false;
+	}
+	ClearDefenceHandOff();
+	StopSequence();
+	StopShotPattern();
+	const FCombatCameraFrame Frame = BuildFrame(Victim);
+	// Camera movement off (D-078): the one static view holds instead; the hold and the look stay.
+	const FTransform View = bCameraMovementOff ? FCombatCameraRules::ComputeView(ECombatCameraMode::Static, TurnViewStyle, Frame)
+											   : FBossFramingRules::ComputeKillShot(Kind, Frame, Victim->GetActorLocation());
+	ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::KillShot, View);
+	if (!CameraActor)
+	{
+		return false;
+	}
+	KillShotVictim = Victim;
+	LastKillShot = Kind;
+	bHasLastKillShot = true;
+	bKillShotHidesVictim = bHideOnBreakApart;
+	CurrentMode = ECombatCameraMode::KillShot;
+	CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
+	SetDarkened(CameraActor->GetCameraComponent(), FBossFramingRules::DarkensView(Kind));
+	Viewer->SetViewTargetWithBlend(CameraActor, bCameraMovementOff ? 0.0f : FBossFramingRules::KillShotBlendSeconds);
+	if (FBossFramingRules::BreaksApart(Kind))
+	{
+		if (UWorld *World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(BreakApartTimer, this, &UCombatCameraDirector::BreakApart, FBossFramingRules::BreakApartDelaySeconds, false);
+		}
+	}
+	return true;
+}
+
+void UCombatCameraDirector::BreakApart()
+{
+	AActor *Victim = KillShotVictim.Get();
+	if (!bInCombat || !Victim)
+	{
+		return;
+	}
+	// TODO: B-140 async loading. Loaded once per boss kill; a sync load here is a short hitch at most.
+	UNiagaraSystem *Effect = BreakApartEffect.IsNull() ? nullptr : BreakApartEffect.LoadSynchronous();
+	if (!Effect)
+	{
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's kill shot: no BreakApartEffect set, so it stays as it fell"), *GetNameSafe(Victim));
+		return;
+	}
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(Victim, Effect, Victim->GetActorLocation(), Victim->GetActorRotation());
+	if (bKillShotHidesVictim)
+	{
+		Victim->SetActorHiddenInGame(true); // it broke apart; the fight ends within the hold
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s breaks apart (%s)%s"), *GetNameSafe(Victim), *Effect->GetName(),
+		   bKillShotHidesVictim ? TEXT("") : TEXT(", preview: not hidden"));
+}
+
+void UCombatCameraDirector::EndKillShotPreview()
+{
+	if (const AActor *Victim = KillShotVictim.Get())
+	{
+		const UCombatCameraComponent *Camera = Victim->FindComponentByClass<UCombatCameraComponent>();
+		if (ACameraActor *CameraActor = Camera ? Camera->GetCameraActor() : nullptr)
+		{
+			SetDarkened(CameraActor->GetCameraComponent(), false);
+		}
+	}
+	KillShotVictim.Reset();
+	if (bInCombat && CurrentMode == ECombatCameraMode::KillShot)
+	{
+		ShowTurnView(); // a turn that started meanwhile already moved the view
+	}
+}
+
+void UCombatCameraDirector::SetDarkened(UCameraComponent *Camera, bool bDarkened)
+{
+	if (!Camera)
+	{
+		return;
+	}
+	const float Saturation = bDarkened ? FBossFramingRules::DarkenedSaturation : 1.0f;
+	Camera->PostProcessSettings.bOverride_ColorSaturation = bDarkened;
+	Camera->PostProcessSettings.ColorSaturation = FVector4(Saturation, Saturation, Saturation, 1.0f);
+	Camera->PostProcessSettings.bOverride_VignetteIntensity = bDarkened;
+	Camera->PostProcessSettings.VignetteIntensity = FBossFramingRules::DarkenedVignette;
+}
+
+FString UCombatCameraDirector::GetBossFramingString() const
+{
+	const FString KillShot = bHasLastKillShot
+								 ? FString::Printf(TEXT("kill shot %s on %s"), *UEnum::GetValueAsString(LastKillShot), *GetNameSafe(KillShotVictim.Get()))
+								 : FString(TEXT("kill shot none"));
+	return FString::Printf(TEXT("height %s | %s"), bInCombat ? *UEnum::GetValueAsString(GetFightCameraHeight()) : TEXT("-"), *KillShot);
 }
 
 // ========================================

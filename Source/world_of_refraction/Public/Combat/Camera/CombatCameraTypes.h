@@ -24,11 +24,15 @@ enum class ECombatCameraMode : uint8
 	NotYourTurn UMETA(DisplayName = "Not Your Turn"),
 	/** Camera movement off: one fixed wide view. */
 	Static UMETA(DisplayName = "Static"),
-	/** B-370 (D-162): your character is targeted: behind it, the attacker in front (several: frame them all). */
-	Defence UMETA(DisplayName = "Defence")
+	/** B-370 (D-162), B-402: your character is targeted: a low side-on shot of it and the attacker (several: a wide
+	 *  side-on shot of them all). */
+	Defence UMETA(DisplayName = "Defence"),
+	/** B-405 (R14): the last enemy fell; the kill shot holds before the fight ends. */
+	KillShot UMETA(DisplayName = "Kill shot")
 };
 
-/** Turn-view setting (D-074 (2)): centred-wide is the default. */
+/** Turn-view setting (D-074 (2)): centred-wide is the default. B-398: a player setting, saved (FSavedSettings);
+ *  its player-facing names are FCombatCameraRules::GetTurnViewStyleName. */
 UENUM(BlueprintType)
 enum class ETurnViewStyle : uint8
 {
@@ -142,6 +146,8 @@ struct WORLD_OF_REFRACTION_API FCameraShotContext
 	/** A spell or ranged skill (the Default style frames it wide). */
 	bool bRanged = false;
 	bool bCritical = false;
+	/** B-403 (study R5, R15): a melee wind-up may rush in. Off while camera movement is off: the slow push instead. */
+	bool bAllowRush = true;
 };
 
 /** B-371: one code-built shot: the camera moves from Start to End over BlendSeconds (a push-in when they differ). */
@@ -153,6 +159,8 @@ struct WORLD_OF_REFRACTION_API FCameraShot
 	float FieldOfView = 90.0f;
 	/** The shake to play with it (0 = none). */
 	float ShakeScale = 0.0f;
+	/** B-403: the camera's motion-blur amount while the shot moves (0 = the project's own blur). */
+	float MotionBlur = 0.0f;
 };
 
 /** Where the fight is, from the camera's point of view. */
@@ -207,8 +215,48 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static ECameraTemplateKind TemplateKindFor(const USkillDataBase *Skill, EActionType ActionType);
 
 	/** Camera transform for a mode. Action has no transform of its own (the sequence owns the view). Defence uses
-	 *  ComputeDefenceView. */
-	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame);
+	 *  ComputeDefenceView. Turn is ComputeTurnView (MenuDepth is read only there). */
+	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth = 0);
+
+	/** B-399: the deepest menu step the turn view takes (a sub-menu); deeper menus hold it. */
+	static constexpr int32 MaxMenuDepth = 1;
+
+	/** B-398 (study R1): the turn view for each turn-view setting; the one place a turn view is framed.
+	 *  CentredWide: behind and above the character, facing the enemy centre (D-074 default).
+	 *  OverTheShoulder: the acting character in the lower-left third, back to the camera, the enemy centre in the
+	 *  middle of the frame; scaled to the character's distance from the enemy centre, so every party member at any
+	 *  range gets the same layout. Tactical: side-on, both teams in view.
+	 *  B-399 (study R2): MenuDepth 1 (a sub-menu is open, UCombatCommandMenuSubsystem::OnMenuDepthChanged) steps the
+	 *  camera in toward the character and lower, aimed at the same point; 0 is the base view; clamped to
+	 *  0..MaxMenuDepth. */
+	static FTransform ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth = 0);
+
+	/** B-400 (study R3 as changed in §9): the fewest valid targets for which the single-target picker moves the
+	 *  camera; with one, the camera holds on the turn view. */
+	static constexpr int32 MinTargetsForTargetView = 2;
+
+	/** B-400 (study R3 / §9, Q-400): the view while the single-target picker highlights a target whose feet are at
+	 *  TargetFeet, TargetHeight tall. Fewer than MinTargetsForTargetView targets: ComputeTurnView(Style, Frame,
+	 *  MenuDepth), unchanged. OverTheShoulder: a front medium shot of the target (its whole body and the HP bar above
+	 *  it in frame), from the side of the fight it faces. CentredWide / Tactical: the turn view from the same place,
+	 *  re-aimed part of the way toward the target. */
+	static FTransform ComputeTargetView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FVector &TargetFeet, float TargetHeight,
+										int32 MenuDepth, int32 TargetCount);
+	/** ComputeTargetView from a given turn view (the director passes its turn view with B-405's boss height, so a
+	 *  re-aim keeps that height and the way back doesn't jump). */
+	static FTransform ComputeTargetViewFrom(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FTransform &TurnView,
+											const FVector &TargetFeet, float TargetHeight, int32 TargetCount);
+
+	/** B-400: the move to, between and back from target views: 0 (a cut) for OverTheShoulder (study §12: one cut per
+	 *  press); a very short re-aim blend for the other styles (§9: a setting, not a rule). */
+	static float GetTargetViewBlendSeconds(ETurnViewStyle Style);
+
+	/** B-400: the point above a target's head that its HP bar needs in frame. */
+	static FVector GetTargetHealthBarPoint(const FVector &TargetFeet, float TargetHeight);
+
+	/** B-398 (D-061 / D-062): the setting's player-facing name, and each style's. */
+	static FText GetTurnViewSettingName();
+	static FText GetTurnViewStyleName(ETurnViewStyle Style);
 
 	/** B-370: the cinematic window's moments read from a skill's montages, as the runner plays them: the ritual and
 	 *  skill legs at PlayRate (BaseAnimSpeed × the caster's speed stat), the return leg at 1.0; a deferred fire
@@ -224,9 +272,15 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  character is targeted: Defence. Anyone else keeps a playing cinematic (Action) or watches (NotYourTurn). */
 	static ECombatCameraMode SelectHandOffMode(bool bViewerDefends, bool bSequencePlaying, bool bMovementOff);
 
-	/** B-370: behind and beside the defenders' centre, facing the attacker; pulled back further the wider the
-	 *  defenders stand, so several targeted characters are all in frame (Q-370 (3)). */
+	/** B-402 (study R10, R10b; Q2, Q-402): a low side-on shot of the defenders and the attacker, from the attacker's
+	 *  weapon side, swung a little behind the defenders so they sit nearer. One defender: a two-shot. Several: a wider
+	 *  shot. Either way the camera stands back far enough that every defender and the attacker project inside the
+	 *  frame at DefaultFieldOfView. */
 	static FTransform ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker);
+
+	/** B-402 (R10, R11; Q-402): a shot shown while the viewer defends keeps still: no shake, no FOV punch and no melee
+	 *  rush blur (B-403). A held punch is dropped, not replayed; the next shot after the combo plays its own as usual. */
+	static FCameraShot SteadyForDefence(const FCameraShot &Shot, bool bViewerDefending);
 
 	/** The field of view every view but an impact punch uses. */
 	static constexpr float DefaultFieldOfView = 90.0f;
@@ -238,8 +292,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);
 
 	/** B-371 (SkillPresentationPipeline.md §5): the code-built shot for Moment. Wind-up: over the caster's shoulder
-	 *  (Tuning.Side), pushing in. Cast: holds on the caster, or looks at the projectile. Impact: frames the first
-	 *  target with a FOV punch and a shake, larger on a crit. Spread: pulls back until every target is in frame.
+	 *  (Tuning.Side), pushing in: slowly for a spell or ranged skill, a short fast rush with motion blur for a melee
+	 *  one (B-403, R5). Cast: holds on the caster, or looks at the projectile. Impact (B-403, R6): a low side-on /
+	 *  three-quarter-front two-shot of the caster and the first target, a small FOV punch and a light shake, larger
+	 *  on a crit. Spread (B-403, R8): pulls back until every target is in frame and holds still (no shake, no punch).
 	 *  Distances scale by Tuning.DistanceScale, Close / Wide by Tuning.Style; the shake by Tuning.ShakeScale. */
 	static FCameraShot ComputeShot(ECameraShotMoment Moment, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
 

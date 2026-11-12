@@ -11,6 +11,7 @@
 #include "Components/ActorComponent.h"
 #include "Engine/TimerHandle.h"
 #include "Combat/Camera/CombatCameraTypes.h"
+#include "Combat/Camera/BossFraming.h"
 #include "CombatCameraDirector.generated.h"
 
 class UCombatCameraComponent;
@@ -21,6 +22,9 @@ class ALevelSequenceActor;
 class APlayerController;
 class UCameraShakeBase;
 class UBossPhaseComponent;
+class UNiagaraSystem;
+class UCameraComponent;
+class UCombatCommandMenuSubsystem;
 struct FAction;
 
 /** B-406: the whole combat HUD hides (true) for a boss cinematic and comes back (false) when it ends. */
@@ -41,11 +45,39 @@ public:
 	void EndCombat();
 
 	// TODO: settings menu (D-024 CommonUI). For now: Details panel or wor.Camera.Style / wor.Camera.MovementOff.
+	/** B-398: also the player's saved setting (USaveSubsystem), so it holds for the next fight. */
 	void SetTurnViewStyle(ETurnViewStyle NewStyle);
 	void SetCameraMovementOff(bool bOff);
 	void SetSkillCinematics(ESkillCinematics NewSetting);
 	void SetEnemySkillCinematics(bool bOn);
 	void SetSkipCinematicAfterHit(bool bSkip);
+
+	/** B-399 (study R2, R3): the command menu's depth (0 main, 1 a sub-menu; UCombatCommandMenuSubsystem::
+	 *  OnMenuDepthChanged, or wor.Camera.MenuDepth). On the viewer's own turn view, one short blend to the turn view
+	 *  for that depth; then the camera holds still until the depth changes again. Static, a cinematic or a held shot:
+	 *  the depth is kept and nothing moves. */
+	void SetMenuDepth(int32 NewDepth);
+
+	/** Headless specs only: a controller with no local player (so no HUD is built for it) to view through. In play the
+	 *  viewer is always the local player (B-405 review). */
+	void SetViewerForTests(APlayerController *Viewer) { ViewerForTests = Viewer; }
+	int32 GetMenuDepth() const { return MenuDepth; }
+	/** B-399 (debug, specs): the menu-depth camera moves this fight. */
+	int32 GetMenuStepCount() const { return MenuStepCount; }
+
+	/** B-400 (study R3 / §9, Q-400): the command menu's highlighted target (UCombatCommandMenuSubsystem::
+	 *  OnTargetHighlighted). On the viewer's own turn view with at least MinTargetsForTargetView targets: the target
+	 *  view (ComputeTargetView; Over-the-Shoulder cuts, the others re-aim briefly). Null (the picker closed) while a
+	 *  target view shows: back to the turn view at the menu's depth. Static, a cinematic or a held shot: nothing moves. */
+	void SetHighlightedTarget(AActor *Target, int32 TargetCount);
+	/** B-400: shows the highlighted target's view again after a turn-view reset (a setting changed with the picker open). */
+	void ReapplyHighlightedTarget();
+	AActor *GetHighlightedTarget() const { return HighlightedTarget.Get(); }
+	bool IsTargetViewShowing() const { return bTargetViewShowing; }
+	/** B-400 (debug, specs): the target-view camera moves this fight (to a target, between targets and back). */
+	int32 GetTargetMoveCount() const { return TargetMoveCount; }
+	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (cut, 4 moves)" or "target view: none". */
+	FString GetTargetViewString() const;
 
 	bool IsInCombat() const { return bInCombat; }
 	ETurnViewStyle GetTurnViewStyle() const { return TurnViewStyle; }
@@ -59,9 +91,14 @@ public:
 	 *  defendable 2.00 s) -> Defence, pending". */
 	FString GetCinematicWindowString() const;
 
-	/** Turn-view style (D-074 (2)). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
+	/** Turn-view style (D-074 (2)). B-398: each fight starts from the player's saved setting (USaveSubsystem); this
+	 *  value is used only where there is no save subsystem. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera|Settings", meta = (ToolTip = "Set by the player's saved setting at each fight start (wor.Camera.Style); not editable here"))
 	ETurnViewStyle TurnViewStyle = ETurnViewStyle::CentredWide;
+
+	/** B-398 (wor.Camera): where the viewed character and the enemy centre land in its turn view, e.g. "layout
+	 *  OverTheShoulder: Hero_1 lower-left (-0.44, -0.61), enemy centre middle-centre (0.00, 0.00)". */
+	FString GetTurnLayoutString() const;
 
 	/** Motion-sickness setting: one static wide view. Also skips cinematics unless SkillCinematics is On. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|Settings")
@@ -93,6 +130,26 @@ public:
 	/** B-371 (wor.Camera): the shot pattern now playing, e.g. "shot: Impact on Goblin (fov 82, shake 0.60)". */
 	FString GetShotString() const;
 
+	/** B-405 (R14, Q-405): the last enemy fell. Shows the kill shot for Rank on Victim's camera (Normal: wide and
+	 *  darkened; Boss: close and low, then BreakApartEffect and the enemy hidden). Returns how long to hold before the
+	 *  fight ends; 0 when nothing shows (no viewer, as in headless tests), so the fight ends at once as before. */
+	float PlayKillShot(AActor *Victim, EEncounterRank Rank);
+
+	/** B-405 (wor.Camera.KillShot): Kind on the first enemy, for its length, then back to the turn view. The
+	 *  break-apart effect plays but nobody is hidden. */
+	void PreviewKillShot(EKillShotKind Kind);
+
+	/** B-405 (wor.Camera): the turn view's height and the last kill shot, e.g. "height Low | kill shot Boss on Boss_1". */
+	FString GetBossFramingString() const;
+
+	/** B-405 (R14): the effect a boss breaks apart into in its kill shot (D-057: soft). Empty: the boss stays as it fell.
+	 *  TODO: a Niagara system (editor step); a per-boss effect on UBossData if bosses need their own. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera|KillShot")
+	TSoftObjectPtr<UNiagaraSystem> BreakApartEffect;
+
+	/** B-407 (wor.Camera.SignatureCap): the cap and the last signature sequence, e.g. "cap 2.00 s | last LS_Nova
+	 *  4.00 s by Hero: cut at 2.00 s". */
+	FString GetSignatureCapString() const;
 	/** B-406: plays the first opposing boss's opening cinematic (UBossData::OpeningSequence). True: it plays, and turn 1
 	 *  waits for OnBossCinematicFinished. False (no boss, field empty, no local viewer, cinematics off): nothing plays. */
 	bool PlayBossOpening();
@@ -158,6 +215,27 @@ private:
 	void StopBossSequence(bool bDeferDestroy);
 	UBossPhaseComponent *FindFirstBoss() const;
 	bool HasLocalViewer() const;
+	/** B-399: the command menu's depth changed; only the viewed character's menu moves the camera. */
+	UFUNCTION()
+	void HandleMenuDepthChanged(AActor *Actor, int32 NewDepth);
+
+	/** B-399: blends the viewed character's turn camera to the turn view for MenuDepth on the shot timer (StepShot). */
+	void StepTurnViewForMenu();
+
+	/** B-400: the highlighted target changed; only the viewed character's menu moves the camera. */
+	UFUNCTION()
+	void HandleTargetHighlighted(AActor *Actor, AActor *Target, int32 TargetCount);
+
+	/** B-399 / B-400: moves the viewed character's turn camera to End: a cut when Seconds is 0, else a blend on the
+	 *  shot timer (StepShot), from where the camera is. False when there's no camera to move. */
+	bool MoveTurnCamera(const FTransform &End, float Seconds);
+
+	/** B-400: the turn view at MenuDepth, by a cut, when a target view shows (confirm: the action's shots start from
+	 *  the turn view, as before B-400). */
+	void CutBackFromTargetView();
+
+	/** B-400: the target's feet and height from its collision bounds (a default height without any). */
+	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
 
 	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
 	 *  could not (no camera or no viewer): nothing is left playing. */
@@ -175,8 +253,11 @@ private:
 	bool ScheduleDefenceHandOff(AActor *Executor, const FAction &Action);
 	void HandleCinematicWindowEnd();
 	void ClearDefenceHandOff();
-	/** Behind the viewer's targeted characters, the attacker in front. */
+	/** B-402: a low side-on shot of the viewer's targeted characters and the attacker (several: a wide one). */
 	void ShowDefenceView();
+	/** B-402 (R10, R11): one of the viewer's characters is defending: the Defence hand-off is pending or showing, or
+	 *  one of them has a defense window open. Shots then play without shake or FOV punch. */
+	bool IsViewerDefending() const;
 
 	/** After a settings change: cuts a playing cinematic the settings now skip. */
 	void StopCinematicIfNowSkipped();
@@ -187,7 +268,18 @@ private:
 	void PlaySequence(ULevelSequence *Sequence, AActor *Caster, const TArray<AActor *> &Targets);
 	/** bDeferDestroy: called from the player's own OnFinished, so the actor goes next tick. */
 	void StopSequence(bool bDeferDestroy = false);
+	/** B-407: a player or team signature sequence reached the cap; cut back as if it had finished. */
+	void HandleSignatureCapReached();
 	FCombatCameraFrame BuildFrame(AActor *Focus) const;
+	/** B-405: the turn view's height from the living enemies' data and ranks (FBossFramingRules::FightHeight). */
+	EEnemyCameraHeight GetFightCameraHeight() const;
+	/** B-399 / B-400 merge: the turn view at the menu depth with B-405's fight height on top; every turn-view move uses it. */
+	FTransform GetTurnViewWithHeight(const FCombatCameraFrame &Frame) const;
+	/** B-405: the kill shot's view, look and break-apart timer. False when there is no viewer or camera. */
+	bool ShowKillShot(AActor *Victim, EKillShotKind Kind, bool bHideOnBreakApart);
+	void BreakApart();
+	void EndKillShotPreview();
+	static void SetDarkened(UCameraComponent *Camera, bool bDarkened);
 	bool IsViewersCharacter(const AActor *Actor) const;
 	APlayerController *GetViewer() const;
 
@@ -213,6 +305,17 @@ private:
 	TWeakObjectPtr<AActor> ViewedActor;
 	TWeakObjectPtr<AActor> SequenceCaster;
 	uint64 SequenceStartFrame = 0;
+
+	// B-407: the signature cap's cut timer and the last sequence it judged (for wor.Camera.SignatureCap).
+	FTimerHandle SignatureCapTimer;
+	FString LastSignatureName;
+	FString LastSignatureCaster;
+	float LastSignatureSeconds = 0.0f;
+	float LastSignatureCutSeconds = 0.0f;
+	bool bLastSignatureEnemy = false;
+	bool bLastSignatureCut = false;
+	/** B-407: the last capped sequence was stopped before its cap (debug only). */
+	bool bLastSignatureStoppedEarly = false;
 	TWeakObjectPtr<AActor> ViewTargetBeforeCombat;
 	ECombatCameraMode CurrentMode = ECombatCameraMode::None;
 	bool bInCombat = false;
@@ -225,6 +328,8 @@ private:
 	float LastWindowEnd = 0.0f;
 	FCinematicWindowTiming LastWindowTiming;
 	ECombatCameraMode LastHandOffMode = ECombatCameraMode::None;
+	/** B-402 (wor.Camera): shakes / FOV punches dropped this fight because the viewer was defending. */
+	int32 DefencePunchesDropped = 0;
 
 	// B-371: the shot pattern of the current action.
 	TWeakObjectPtr<AActor> ShotCaster;
@@ -254,4 +359,22 @@ private:
 	FString BossCinematicName;
 	FTimerHandle BossCinematicCapTimer;
 	TArray<TWeakObjectPtr<UBossPhaseComponent>> BoundBossPhases;
+	// B-405: the kill shot now showing (or the last one, for wor.Camera).
+	TWeakObjectPtr<AActor> KillShotVictim;
+	EKillShotKind LastKillShot = EKillShotKind::Normal;
+	bool bHasLastKillShot = false;
+	bool bKillShotHidesVictim = false;
+	FTimerHandle BreakApartTimer;
+	FTimerHandle KillShotPreviewTimer;
+	// B-399: the command menu's depth (calm menus).
+	TWeakObjectPtr<UCombatCommandMenuSubsystem> BoundMenu;
+	TWeakObjectPtr<APlayerController> ViewerForTests;
+	int32 MenuDepth = 0;
+	int32 MenuStepCount = 0;
+
+	// B-400: the target picker's highlight (target cut).
+	TWeakObjectPtr<AActor> HighlightedTarget;
+	int32 HighlightTargetCount = 0;
+	bool bTargetViewShowing = false;
+	int32 TargetMoveCount = 0;
 };

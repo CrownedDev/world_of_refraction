@@ -5,7 +5,11 @@
 #include "Combat/CombatOrchestrator.h"
 #include "LevelSequence.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Save/SaveSubsystem.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -25,18 +29,36 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GCombatCameraStyleCmd(
 		TEXT("wor.Camera.Style"),
-		TEXT("DEBUG: turn-view style. 0 = centred-wide (default), 1 = over-the-shoulder, 2 = tactical side-on."),
+		TEXT("PLACEHOLDER setting (B-398, until the D-024 settings screen): turn view. 0 = centred-wide (default), 1 = over-the-shoulder, ")
+			TEXT("2 = tactical side-on. Saved; works in a fight or outside one (the next fight starts with it)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
 			{
-				UCombatCameraDirector *Director = UCombatCameraDebug::FindDirector(World);
 				const int32 Style = Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 0;
-				if (!Director || Style < 0 || Style > static_cast<int32>(ETurnViewStyle::Tactical))
+				if (Style < 0 || Style > static_cast<int32>(ETurnViewStyle::Tactical))
 				{
-					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.Style: no combat orchestrator, or style not 0-2."));
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.Style: style not 0-2."));
 					return;
 				}
-				Director->SetTurnViewStyle(static_cast<ETurnViewStyle>(Style));
+				const ETurnViewStyle NewStyle = static_cast<ETurnViewStyle>(Style);
+				UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+				USaveSubsystem *Save = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+				if (UCombatCameraDirector *Director = UCombatCameraDebug::FindDirector(World))
+				{
+					Director->SetTurnViewStyle(NewStyle); // saves it too
+				}
+				else if (Save)
+				{
+					Save->SetTurnViewStyle(NewStyle); // B-398: outside a fight; the next fight starts with it
+				}
+				else
+				{
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.Style: no combat orchestrator and no save."));
+					return;
+				}
+				UE_LOG(LogWoRCombat, Display, TEXT("[CombatCamera] %s: %s (saved setting: %s)"), *FCombatCameraRules::GetTurnViewSettingName().ToString(),
+					   *FCombatCameraRules::GetTurnViewStyleName(NewStyle).ToString(),
+					   Save ? *FCombatCameraRules::GetTurnViewStyleName(Save->GetTurnViewStyle()).ToString() : TEXT("no save"));
 				UCombatCameraDebug::PrintCameraState(World);
 			}));
 
@@ -129,6 +151,95 @@ namespace
 				}
 				UCombatCameraDebug::PrintCameraState(World);
 			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GCombatCameraKillShotCmd = MakeCameraSettingCmd(
+		TEXT("wor.Camera.KillShot"),
+		TEXT("DEBUG (B-405): preview a kill shot on the first enemy, then back to the turn view. 0 = Normal (wide, darkened), 1 = Boss (close, break-apart; nobody hidden)."),
+		[](UCombatCameraDirector &Director, int32 Value) { Director.PreviewKillShot(Value != 0 ? EKillShotKind::Boss : EKillShotKind::Normal); });
+}
+
+namespace
+{
+	/** B-403: the sample fight wor.Camera.ShotPreview frames: caster at the origin, a target ahead on +X (melee
+	 *  distance) and a second one beside it for the spread. */
+	const FVector SHOT_PREVIEW_TARGET(800.0f, 0.0f, 0.0f);
+	const FVector SHOT_PREVIEW_SECOND_TARGET(800.0f, 300.0f, 0.0f);
+
+	FString DescribePreviewShot(const TCHAR *Label, const FCameraShot &Shot)
+	{
+		return FString::Printf(TEXT("%s: %s -> %s over %.2f s | fov %.0f | shake %.2f | blur %.2f"), Label,
+							   *Shot.Start.GetLocation().ToCompactString(), *Shot.End.GetLocation().ToCompactString(),
+							   Shot.BlendSeconds, Shot.FieldOfView, Shot.ShakeScale, Shot.MotionBlur);
+	}
+
+	/** B-403: every code-built shot for the sample fight with default tuning, one line each. */
+	FString GetCameraShotPreviewString()
+	{
+		FCameraShotContext Melee;
+		Melee.Targets.Add(SHOT_PREVIEW_TARGET);
+		FCameraShotContext Ranged = Melee;
+		Ranged.bRanged = true;
+		FCameraShotContext Crit = Melee;
+		Crit.bCritical = true;
+		FCameraShotContext Spread = Melee;
+		Spread.Targets.Add(SHOT_PREVIEW_SECOND_TARGET);
+		const FSkillCameraTuning Tuning;
+		struct FPreviewEntry
+		{
+			const TCHAR *Label;
+			FCameraShot Shot;
+		};
+		const FPreviewEntry Shots[] = {
+			{TEXT("melee wind-up (rush)"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Melee, Tuning)},
+			{TEXT("spell wind-up"), FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Ranged, Tuning)},
+			{TEXT("cast"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, Ranged, Tuning)},
+			{TEXT("impact"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Melee, Tuning)},
+			{TEXT("impact, crit"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Impact, Crit, Tuning)},
+			{TEXT("spread (holds)"), FCombatCameraRules::ComputeShot(ECameraShotMoment::Spread, Spread, Tuning)}};
+		TArray<FString> Lines;
+		for (const FPreviewEntry &Entry : Shots)
+		{
+			Lines.Add(DescribePreviewShot(Entry.Label, Entry.Shot));
+		}
+		return FString::Join(Lines, TEXT("\n"));
+	}
+
+	FAutoConsoleCommand GCombatCameraShotPreviewCmd(
+		TEXT("wor.Camera.ShotPreview"),
+		TEXT("DEBUG (B-403): print every code-built shot for a sample fight (caster at the origin, a target 800 cm ahead): start, end, blend, FOV, shake, motion blur. No fight needed."),
+		FConsoleCommandDelegate::CreateLambda(
+			[]()
+			{
+				const FString Preview = GetCameraShotPreviewString();
+				UE_LOG(LogWoRCombat, Display, TEXT("[CombatCamera] Shot preview:\n%s"), *Preview);
+				if (GEngine)
+				{
+					GEngine->AddOnScreenDebugMessage(INDEX_NONE, COMBAT_CAMERA_SCREEN_SECONDS, FColor::Cyan, Preview);
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GCombatCameraMenuDepthCmd = MakeCameraSettingCmd(
+		TEXT("wor.Camera.MenuDepth"),
+		TEXT("DEBUG (B-399): what the command menu sends. 1 = a sub-menu is open (one step closer and lower), 0 = the main menu. ")
+			TEXT("Moves only on your own turn view; wor.Camera.Print shows the depth and the menu moves this fight."),
+		[](UCombatCameraDirector &Director, int32 Value) { Director.SetMenuDepth(Value); });
+
+	FAutoConsoleCommandWithWorldAndArgs GCombatCameraTargetCycleCmd(
+		TEXT("wor.Camera.TargetCycle"),
+		TEXT("DEBUG (B-400): in an open single-target picker, highlight the next target (1, the default) or the previous one (-1), ")
+			TEXT("as hovering or focusing its button does. With 2+ targets the camera cuts (Over-the-Shoulder) or re-aims to it."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				UCombatCommandMenuSubsystem *Menu = World ? WoRFight::Get<UCombatCommandMenuSubsystem>(World) : nullptr;
+				if (!Menu || !Menu->GetHighlightedTarget())
+				{
+					UE_LOG(LogWoRCombat, Warning, TEXT("[CombatCamera] wor.Camera.TargetCycle: no single-target picker open."));
+					return;
+				}
+				Menu->CycleHighlightedTarget(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 1);
+				UCombatCameraDebug::PrintCameraState(World);
+			}));
 }
 
 FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Director)
@@ -137,11 +248,13 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 	{
 		return TEXT("No combat camera (no combat orchestrator in this world)");
 	}
-	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s | %s"),
+	return FString::Printf(TEXT("%s | mode %s | viewing %s | style %s | %s | %s | movement %s | cinematics %s, enemy %s, skip after hit %s | sequence %s | %s | %d cameras | %s | %s | %s"),
 						   Director->IsInCombat() ? TEXT("In combat") : TEXT("Not in combat"),
 						   *UEnum::GetValueAsString(Director->GetCurrentMode()),
 						   *GetNameSafe(Director->GetViewedActor()),
 						   *UEnum::GetValueAsString(Director->GetTurnViewStyle()),
+						   *Director->GetTurnLayoutString(), // B-398
+						   *Director->GetTargetViewString(), // B-400
 						   Director->IsCameraMovementOff() ? TEXT("off") : TEXT("on"),
 						   *UEnum::GetValueAsString(Director->SkillCinematics),
 						   Director->bEnemySkillCinematics ? TEXT("on") : TEXT("off"),
@@ -150,6 +263,7 @@ FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Di
 						   *Director->GetShotString(), // B-371
 						   Director->GetCameraCount(),
 						   *Director->GetCinematicWindowString(), // B-370
+						   *Director->GetBossFramingString(), // B-405
 						   *Director->GetBossCinematicString()); // B-406
 }
 

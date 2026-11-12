@@ -87,6 +87,28 @@ EDataValidationResult UEffectDefinition::IsDataValid(FDataValidationContext &Con
                     TEXT("Effect %d uses legacy %s; it works as %s. Pick that type instead."), i, *TypeName,
                     *UEnum::GetValueAsString(SkillEffectClassification::ResolveLegacyAlias(Payload.EffectType)))));
             }
+            else if (SkillEffectClassification::CountsWholeActions(Payload.EffectType))
+            {
+                // B-170d (Q-170d2): the action effects count whole actions in Value; Duration is the timing (Gain / Lose:
+                // 0 = now, N = the Nth turn start) or the span (Max Actions); a permanent one is refused at runtime.
+                if (Payload.Value <= 0)
+                {
+                    Context.AddWarning(FText::FromString(FString::Printf(
+                        TEXT("Effect %d (%s) needs a positive Value (whole actions)%s; it does nothing as authored."), i, *TypeName,
+                        Payload.Magnitude > 0.0f ? TEXT(": Magnitude is not read for action effects") : TEXT(""))));
+                }
+                if (Payload.bPermanent)
+                {
+                    Context.AddWarning(FText::FromString(FString::Printf(
+                        TEXT("Effect %d (%s) is Permanent; action effects can't be permanent and are refused when applied."), i, *TypeName)));
+                }
+                const bool bMaxActions = !SkillEffectClassification::IsActionChange(Payload.EffectType);
+                if (bMaxActions && !Payload.bPermanent && Payload.Duration <= 0)
+                {
+                    Context.AddWarning(FText::FromString(FString::Printf(
+                        TEXT("Effect %d (%s) has Duration 0; a Max Actions change needs the turns it lasts."), i, *TypeName)));
+                }
+            }
         }
     }
 
