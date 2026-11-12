@@ -193,7 +193,7 @@ void UCombatCommandMenuSubsystem::HandleActionExecuted(AActor *Actor, const FAct
 
 void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 {
-    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); }; // B-399, B-400
     if (!Actor)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] OpenForActor: null actor"));
@@ -237,7 +237,8 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 
 void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &ButtonData)
 {
-    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399: a sub-menu or a picker opened
+    // B-399: a sub-menu or a picker opened. B-400: then the picker's highlight (first target on open, none on close).
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); };
     // A greyed button (D-083 broken source, empty pool) does nothing, whichever widget sent it.
     if (!bIsOpen || !ButtonData.bEnabled)
     {
@@ -458,7 +459,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
 void UCombatCommandMenuSubsystem::HandleBack()
 {
-    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); }; // B-399: cancel steps the camera back
+    ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); }; // B-399: cancel steps back; B-400
     if (!bIsOpen)
     {
         return;
@@ -508,6 +509,7 @@ void UCombatCommandMenuSubsystem::Close()
     bIsOpen = false;
     CurrentDepth = ECombatMenuDepth::Closed;
     ActiveSubmenuSource = EPieMenuCategory::None;
+    RefreshTargetHighlight(); // B-400: the highlight clears while CurrentActor still names whose menu it was
     UnbindBDAbsorptionDelegate();
     CurrentActor.Reset();
     OnCommandMenuClosed.Broadcast();
@@ -529,6 +531,82 @@ void UCombatCommandMenuSubsystem::BroadcastMenuDepthIfChanged()
     BroadcastMenuDepth = Depth;
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Menu depth %d for %s"), Depth, *GetNameSafe(CurrentActor.Get()));
     OnMenuDepthChanged.Broadcast(CurrentActor.Get(), Depth);
+}
+
+// ==================== TARGET HIGHLIGHT (B-400) ====================
+
+bool UCombatCommandMenuSubsystem::IsSingleTargetPickerOpen() const
+{
+    // The per-actor picker (RebuildCurrentPicker's BuildTargetButtons branch); Self and All confirm a group.
+    return bIsOpen && CurrentDepth == ECombatMenuDepth::TargetSelection && ResolvedTargetType != ETargetType::Self &&
+           ResolvedTargetCount != ETargetCount::All;
+}
+
+int32 UCombatCommandMenuSubsystem::IndexOfHighlightTarget(const AActor *Target) const
+{
+    return Target ? HighlightTargets.IndexOfByPredicate([Target](const TWeakObjectPtr<AActor> &Entry) { return Entry.Get() == Target; })
+                  : INDEX_NONE;
+}
+
+void UCombatCommandMenuSubsystem::RefreshTargetHighlight()
+{
+    HighlightTargets.Reset();
+    if (IsSingleTargetPickerOpen())
+    {
+        for (AActor *Target : ResolveTargets(ResolvedTargetType))
+        {
+            HighlightTargets.Add(Target);
+        }
+    }
+    AActor *Keep = HighlightedTarget.Get();
+    if (!Keep || IndexOfHighlightTarget(Keep) == INDEX_NONE)
+    {
+        Keep = HighlightTargets.IsEmpty() ? nullptr : HighlightTargets[0].Get();
+    }
+    SetHighlightedTarget(Keep);
+}
+
+void UCombatCommandMenuSubsystem::SetHighlightedTarget(AActor *Target)
+{
+    if (HighlightedTarget.Get() == Target)
+    {
+        return; // a redraw (an infusion step) or a hover on the target already highlighted
+    }
+    HighlightedTarget = Target;
+    UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Highlighted target %s (%d to pick from) for %s"), *GetNameSafe(Target),
+           HighlightTargets.Num(), *GetNameSafe(CurrentActor.Get()));
+    OnTargetHighlighted.Broadcast(CurrentActor.Get(), Target, HighlightTargets.Num());
+}
+
+void UCombatCommandMenuSubsystem::HighlightTarget(AActor *Target)
+{
+    if (Target && IsSingleTargetPickerOpen() && IndexOfHighlightTarget(Target) != INDEX_NONE)
+    {
+        SetHighlightedTarget(Target);
+    }
+}
+
+void UCombatCommandMenuSubsystem::CycleHighlightedTarget(int32 Direction)
+{
+    if (!IsSingleTargetPickerOpen())
+    {
+        return;
+    }
+    // A target that died while the picker is open stays in the list until it rebuilds: skip it.
+    int32 Index = IndexOfHighlightTarget(HighlightedTarget.Get());
+    for (int32 Step = 0; Step < HighlightTargets.Num(); ++Step)
+    {
+        Index = CommandMenuRules::CycleIndex(Index, Direction, HighlightTargets.Num());
+        if (Index == INDEX_NONE)
+        {
+            return;
+        }
+        if (AActor *Next = HighlightTargets[Index].Get(); IsValid(Next))
+        {
+            SetHighlightedTarget(Next);
+            return;
+        }
+    }
 }
 
 // ==================== CAPABILITIES / BD LIVE REFRESH ====================
