@@ -241,7 +241,7 @@ The queue of questions only Crown can answer.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-170b (`Combat/TurnRotation.h`, `UTurnManager`).
 
 ### Q-032d — Per-impact defense for every spell shape: what an impact is, and what lands the leftovers
-**Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-032d) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-12) · **Raised:** 2026-11-09 (B-032d) · **Blocks:** —
 **Question:** B-032d widens per-impact defense (Q-031 B) from one-entry, HitCount-1 spells to every spell shape. What counts as one impact of a multi-entry or multi-hit spell, how is the damage cut, and what lands impacts that never get their own moment?
 **Context:** `ActionExecutor.cpp` `ExecuteSpellAsync` (the shape gate), `ResolveSpellArrival`, `ApplyDamageAfterDefense`, `OnAsyncActionTimeout`, the Skill-end reconcile. `RealTimeDefenseRework.md` §8a already gives a spell's expected impacts as its arrivals summed over the cast entries; HitCount is the melee hit-frame count. The deckbuilder has no real-time defense (no rule to borrow).
 **Recommendation (reference-backed default):**
@@ -256,6 +256,7 @@ The queue of questions only Crown can answer.
 - **Behind `wor.Combat.PerImpactDefense`, default 1**; 0 is the lumped path, to compare in PIE until B-032b deletes it.
 - Not changed: an interruptable cast entry only interrupts when it is the target's one impact (multi-entry spells never could); the spell-ending Flawless Parry tally counts per impact as for melee.
 **Answer:** the recommendation, by the reference-backed default (2026-11-09). Built in B-032d (`SpellImpactPlan`, `UActionExecutor::ApplyRemainingImpacts`, `LandFallbackImpacts`).
+**Answer: Crown, 2026-11-12:** **kept.** One defence window per spell impact (one arrival), and per-hit effects (Lifesteal, Burn, Double Hit, crit rolls, the minimum-damage floor, reflect) count arrivals, not HitCount. Confirmed as built.
 
 ### Q-170c2 — Action pips part 3: how several actions per turn are built
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-09; Crown vetoes) · **Raised:** 2026-11-09 (B-170c) · **Blocks:** —
