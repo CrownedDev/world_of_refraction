@@ -88,9 +88,12 @@ void FActionPipsTextSpec::Define()
 			TestEqual(TEXT("2 of 2"), ActionPipsText::MakePips(PIPS_TEXT_TWO, PIPS_TEXT_TWO).ToString(), FString(TEXT("●●")));
 		});
 
-		It("shows a bank past Max as all filled (Q-170g)", [this]()
+		It("draws actions past Max as bonus pips, apart from the bank (Q-170f3, Crown)", [this]()
 		{
-			TestEqual(TEXT("4 with Max 3"), ActionPipsText::MakePips(PIPS_TEXT_FOUR, PIPS_TEXT_THREE).ToString(), FString(TEXT("●●●●")));
+			TestEqual(TEXT("4 with Max 3"), ActionPipsText::MakePips(PIPS_TEXT_FOUR, PIPS_TEXT_THREE).ToString(), FString(TEXT("●●●◆")));
+			TestEqual(TEXT("4 with a lowered Max 2"), ActionPipsText::MakePips(PIPS_TEXT_FOUR, PIPS_TEXT_TWO).ToString(), FString(TEXT("●●◆◆")));
+			TestEqual(TEXT("bonus count"), ActionPipsText::GetBonusActions(PIPS_TEXT_FOUR, PIPS_TEXT_TWO), PIPS_TEXT_TWO);
+			TestEqual(TEXT("no bonus at Max"), ActionPipsText::GetBonusActions(PIPS_TEXT_TWO, PIPS_TEXT_TWO), PIPS_TEXT_NONE);
 		});
 
 		It("draws nothing past the display bound", [this]()
@@ -119,6 +122,12 @@ void FActionPipsTextSpec::Define()
 		{
 			TestEqual(TEXT("the line"), ActionPipsText::MakeActionsLine(PIPS_TEXT_TWO, PIPS_TEXT_THREE, PIPS_TEXT_PROGRESS).ToString(),
 					  FString::Printf(TEXT("Actions ●●○ 2 · Max 3 (+75/%d)"), ActionPipsConstants::ACTION_POINTS_PER_ACTION));
+		});
+
+		It("says bonus actions must be used this turn (Q-170f3, Crown)", [this]()
+		{
+			TestEqual(TEXT("the line"), ActionPipsText::MakeActionsLine(PIPS_TEXT_FOUR, PIPS_TEXT_THREE, PIPS_TEXT_PROGRESS).ToString(),
+					  FString::Printf(TEXT("Actions ●●●◆ 4 · Max 3 (+75/%d) · 1 bonus: use this turn"), ActionPipsConstants::ACTION_POINTS_PER_ACTION));
 		});
 
 		It("keeps the number when there are too many pips to draw", [this]()
