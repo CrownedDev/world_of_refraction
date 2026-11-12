@@ -103,8 +103,7 @@ bool UPoolSubsystem::TakeOnRun(const FGuid &GearID)
     Mark.bOnRun = true;
     if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(GearID))
     {
-        Mark.HomeAttached = Weapon->AttachedItem;
-        Mark.HomeSpells = Weapon->AssignedSpells;
+        Mark.HomeAttached = Weapon->AttachedItem; // B-098 (Q-098): a weapon's spells are deleted, so none are marked
     }
     else if (const FRingInventoryEntry *Adapter = FindRingInPool(GearID))
     {
@@ -224,11 +223,11 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
         // A home piece: copies, since each update can move the arrays the pointers point into.
         if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(ID))
         {
-            if (RunLayerAttachmentDiffers(Weapon->AttachedItem, Mark.HomeAttached) || Weapon->AssignedSpells != Mark.HomeSpells)
+            // B-098 (Q-098): only the attachment goes home; a weapon's spells are not tracked (deleted).
+            if (RunLayerAttachmentDiffers(Weapon->AttachedItem, Mark.HomeAttached))
             {
                 FWeaponInventoryEntry Home = *Weapon;
                 Home.AttachedItem = Mark.HomeAttached;
-                Home.AssignedSpells = Mark.HomeSpells;
                 UpdateWeapon(Home);
                 ++Result.Restored;
             }
