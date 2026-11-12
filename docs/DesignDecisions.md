@@ -388,7 +388,7 @@ The queue of questions only Crown can answer.
 - **The sources:** the weapon's crystal counts **only for the weapon guard** (the unarmed guard has put the weapon away); the character's own magic is a Refractor's element, else its adapter's crystal (a Resonator's active adapter; another class's primary adapter). None, Generic and a broken crystal give no colour, so a weapon with no crystal sparks only and the unarmed guard shows nothing.
 - **The priority setting** (`EParryElementPriority`: Weapon / Magic) is per party member, beside the guard (`FPartyMember::ParryElementPriority`, saved, **save v33**), read through the loadout. It decides only when both sources have an element; the other fills in when the first has none. **Default Weapon:** the thing that parried colours it. Set from the console for now (`wor.Guard.SetParryPriority`), from the loadout screen later (D-024); no player-facing label yet (D-062, as Q-392).
 - Reference: Sekiro's deflect is one readable spark for every weapon (widely praised for clarity), and Elden Ring's weapon buffs (fire, lightning, holy) colour the weapon you hold, so the element shows on the thing in use. Here the spark stays the same and the element tint on the parry effect carries the identity, coming first from what parried.
-**Answer:** the default, by the reference-backed default (2026-11-09).
+**Answer:** the default, by the reference-backed default (2026-11-09). **Known (desktop review, 2026-11-12):** as with the guard (Q-392), a co-op guest's priority stays on its own machine; the host picks the visual, so a guest's character uses the default (Weapon) until the setting goes through a server call (TODO in `ULoadoutComponent::SetParryElementPriority`, D-103).
 
 ## Parked
 
