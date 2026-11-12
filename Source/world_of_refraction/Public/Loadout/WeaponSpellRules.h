@@ -16,4 +16,17 @@ namespace WeaponSpellRules
 {
 	/** D-027: false (weapons give no spells) unless wor.Loadout.WeaponSpells is 1 (the old behaviour, PIE only). */
 	WORLD_OF_REFRACTION_API bool WeaponsGiveSpells();
+
+	/** Specs of the old path (spell slot lists, broken weapon crystals): sets wor.Loadout.WeaponSpells for the scope's
+	 *  life and puts the earlier value back. Goes with the old path in the sweep. */
+	struct WORLD_OF_REFRACTION_API FScopedWeaponSpells
+	{
+		explicit FScopedWeaponSpells(bool bWeaponsGiveSpells);
+		~FScopedWeaponSpells();
+		FScopedWeaponSpells(const FScopedWeaponSpells &) = delete;
+		FScopedWeaponSpells &operator=(const FScopedWeaponSpells &) = delete;
+
+	private:
+		int32 Previous = 0;
+	};
 }

@@ -35,6 +35,17 @@ bool WeaponSpellRules::WeaponsGiveSpells()
 	return CVarLoadoutWeaponSpells.GetValueOnGameThread() != 0;
 }
 
+WeaponSpellRules::FScopedWeaponSpells::FScopedWeaponSpells(bool bWeaponsGiveSpells)
+	: Previous(CVarLoadoutWeaponSpells.GetValueOnGameThread())
+{
+	CVarLoadoutWeaponSpells->Set(bWeaponsGiveSpells ? 1 : 0, ECVF_SetByCode);
+}
+
+WeaponSpellRules::FScopedWeaponSpells::~FScopedWeaponSpells()
+{
+	CVarLoadoutWeaponSpells->Set(Previous, ECVF_SetByCode);
+}
+
 static FAutoConsoleCommandWithWorld GLoadoutListWeaponSpellsCommand(
 	TEXT("wor.Loadout.ListWeaponSpells"),
 	TEXT("B-098 survey: every owned weapon that still holds spells (assigned or picked). Since D-027 they are not offered."),
