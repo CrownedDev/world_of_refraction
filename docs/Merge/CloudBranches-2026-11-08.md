@@ -431,3 +431,21 @@ The trial branch `integration/cloud-2026-11-09` now also has current dev and row
   - **Docs:** `docs/Rules/04-effects-and-turns.md` must not be resolved by a line union, because the old and new action-pips rows both survive. Use the trial's file. Also watch for a partial second copy of Q-391 in `DesignDecisions.md`.
 - B-170f, B-170g, B-234d, B-032d and every C-row merged with docs-only conflicts. No symbol a C-row deletes is used by code that dev added since (only comments name `URingManager` / `UWeaponManager`).
 - UNBUILT: braces and parens balance in every resolved file, and there are no conflict markers or duplicate Backlog / PIE / Q rows. The desktop build is the real check.
+
+## Update, 2026-11-12 (afternoon): B-401 and B-170e in dev
+
+- **Now in dev (desktop, built):** B-401 (with the boss-height return as this plan asked) and B-170e (with Crown's hide-End-Turn setting, Q-170e2). Dev is at `8179c9fc`.
+- **Trial branch `integration/cloud-2026-11-12`** has dev merged in (`727cb03e`). Code merged with no conflicts, docs only. Watch for a second, older copy of Q-170e2 in `DesignDecisions.md`: keep dev's (Crown's answer).
+- **Still open:** 16 cloud branches, in this order:
+  1. B-042g2 (PIE-gated)
+  2. B-400b
+  3. B-170f
+  4. B-391b
+  5. B-406b
+  6. B-170g
+  7. B-391c
+  8. B-234d
+  9. B-032d
+  10. C1 to C7
+
+  The midday rules for each still hold.
