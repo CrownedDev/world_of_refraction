@@ -10,6 +10,9 @@ Moved here once applied. Newest first.
 
 | ID | Decision | Date | Applied in |
 |---|---|---|---|
+| D-114 | **[VRoid]** V uses Manny/Quinn + the B-143 void material; VRoid builds only the named characters. No V template: each named character starts from VRoid's base body, proportions kept consistent across the cast by one shared slider preset (saved after Amethyst). Every character's default face is a straight, neutral expression; every VRM expression (happy, angry, sad, surprised, relaxed, blink, mouth shapes) stays in the export for Unreal to drive | 2026-11-02 | B-280 (`chore/B-280-vroid-pipeline`; `CharacterPipeline.md` step 1) |
+| D-113 | **[VRoid]** Characters are built and exported **nude** (VRoid body, face, hair, colours; every outfit slot cleared); clothing is separate cosmetic pieces later. Where clothing comes from (Blender, a UE pack, a commission, or VRoid/BOOTH textures with commercial terms checked) is decided another day: first make the characters exist | 2026-11-02 | B-280 (`chore/B-280-vroid-pipeline`) |
+| D-112 | **[VRoid]** VRoid is driven through the VRoid MCP: Crown installs VRoid Studio 2.14.0 (the latest), BepInEx 6 IL2CPP be.788 and brainrom/vroid-studio-mcp v1.0.0, chosen after the Terms flag on reverse engineering (`CharacterPipeline.md` Licensing). VRM export stays in VRoid's own window | 2026-11-02 | B-280 (`chore/B-280-vroid-pipeline`) |
 | D-075 | A fight that ends mid-action: the unfinished action pays no infusion HP cost; its defense windows are dropped | 2026-10-26 | B-030 (`UActionExecutor::ResetForCombat`; TODO removed in `chore/apply-D-073-D-075-D-076`) |
 | D-040 | A Refractor's innate spells always work, whatever it wears (already the code) | 2026-10-26 | `chore/apply-D-034-041` (Rules 01 CL-C2) |
 | D-034 | Crit damage ceiling with gear is x2.5 (the code); docs fixed | 2026-10-26 | `chore/apply-D-034-041` (docs); comments in B-147 |
