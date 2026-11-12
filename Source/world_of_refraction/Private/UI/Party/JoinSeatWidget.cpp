@@ -163,6 +163,11 @@ void UJoinSeatWidget::Refresh()
 										 FText::FromString(Waiting[Index].Character ? Waiting[Index].Character->Name : TEXT("?")));
 		Requests = Index == 0 ? Line : FText::Format(LOCTEXT("TwoLines", "{0}\n{1}"), Requests, Line);
 	}
+	if (!Run->CanSeatNewJoinerNow())
+	{
+		// B-233b (Q-233b): a friend who left can take its own seat back anywhere; a new one waits for a rest spot.
+		Requests = FText::Format(LOCTEXT("SeatClosed", "{0}\nIn a run, new friends are seated at a rest spot"), Requests);
+	}
 	RequestsText->SetText(Requests);
 
 	const bool bAnyRequest = Run->GetJoinRequests().Num() > 0;
@@ -172,8 +177,10 @@ void UJoinSeatWidget::Refresh()
 		const FText Name = Party->Members.IsValidIndex(SlotIndex) && Party->Members[SlotIndex].CharacterData
 							   ? FText::FromString(Party->Members[SlotIndex].CharacterData->Name)
 							   : LOCTEXT("EmptySlot", "empty");
-		SeatTexts[SlotIndex]->SetText(bSeat ? FText::Format(LOCTEXT("GiveSeat", "Give slot {0} ({1}, AI seat) to the first request"), SlotIndex, Name)
-											: FText::Format(LOCTEXT("NotASeat", "Slot {0} ({1}): not an AI seat"), SlotIndex, Name));
+		const bool bHeld = bSeat && !Run->GetHeldFor(Party->Members[SlotIndex].MemberId).IsEmpty();
+		SeatTexts[SlotIndex]->SetText(bHeld   ? FText::Format(LOCTEXT("GiveHeldSeat", "Give slot {0} ({1}, AI seat held for the friend who left) to the first request"), SlotIndex, Name)
+									  : bSeat ? FText::Format(LOCTEXT("GiveSeat", "Give slot {0} ({1}, AI seat) to the first request"), SlotIndex, Name)
+											  : FText::Format(LOCTEXT("NotASeat", "Slot {0} ({1}): not an AI seat"), SlotIndex, Name));
 		SeatButtons[SlotIndex]->SetIsEnabled(bSeat && bAnyRequest);
 	}
 }

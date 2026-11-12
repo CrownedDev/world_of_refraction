@@ -22,6 +22,7 @@
 #include "Online/HostSuccession.h"
 #include "UI/Hub/InventoryWidget.h"
 #include "UI/Hub/LevelDropWidget.h"
+#include "UI/Party/InviteWidget.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "RestSpotWidget"
@@ -117,6 +118,8 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		VoteNoButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleVoteNoClicked);
 		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host (the next player hosts; you rejoin)"));
 		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
+		InviteButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Invite", "Invite and seat friends"));
+		InviteButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInviteClicked);
 		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"));
 		LeaveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
@@ -196,6 +199,12 @@ void URestSpotWidget::Refresh()
 		const UWorld *World = GetWorld();
 		const bool bCanHandOver = HandOver && World && WoRHostSuccession::CanHandOverFrom(World->GetNetMode(), HandOver->GetKnownOrder().Num());
 		HandOverButton->SetVisibility(bCanHandOver ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (InviteButton)
+	{
+		// B-233b: the host (or a solo player, who can host from the invite screen) invites; a client can't.
+		const UWorld *World = GetWorld();
+		InviteButton->SetVisibility(World && World->GetNetMode() != NM_Client ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	// B-187b: only at a mini-boss's rest spot that can still be revived.
 	// B-187e: a client shows what the host said (SetHostRevive).
@@ -355,6 +364,13 @@ void URestSpotWidget::HandleHandOverClicked()
 	{
 		HandOver->BeginPlannedHandOver(World);
 	}
+}
+
+void URestSpotWidget::HandleInviteClicked()
+{
+	APlayerController *PC = GetOwningPlayer();
+	CloseMenu(); // not StepAway: the party stays at the rest spot while friends are seated
+	UInviteWidget::Open(PC);
 }
 
 void URestSpotWidget::HandleCloseClicked()
