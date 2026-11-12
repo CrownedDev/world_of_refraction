@@ -45,11 +45,11 @@ int32 FAction::GetActionCost() const
 	switch (ActionType)
 	{
 	case EActionType::Spell:
-		return SpellData ? SpellData->ActionCost : ActionPipsConstants::ACTION_COST_DEFAULT;
+		return ActionPipsRules::ClampActionCost(SpellData ? SpellData->ActionCost : ActionPipsConstants::ACTION_COST_DEFAULT); // Q-170j
 	case EActionType::Ability:
-		return SkillData ? SkillData->ActionCost : ActionPipsConstants::ACTION_COST_DEFAULT;
+		return ActionPipsRules::ClampActionCost(SkillData ? SkillData->ActionCost : ActionPipsConstants::ACTION_COST_DEFAULT); // Q-170j
 	case EActionType::Item:
-		return CrystalEffectTable::GetActionCost(ItemData);
+		return ActionPipsRules::ClampActionCost(CrystalEffectTable::GetActionCost(ItemData)); // Q-170j
 	default:
 		return 0; // Defend, End Turn, Switch Weapon, Flee (Q-170c)
 	}

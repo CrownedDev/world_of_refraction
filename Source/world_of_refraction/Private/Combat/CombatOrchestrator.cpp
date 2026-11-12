@@ -1370,6 +1370,7 @@ bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
 	{
 		ActorsPastFirstTurn.Add(Actor);
 	}
+	CharComp->ResetSkillsUsedThisTurn(); // Q-170j: the per-turn skill limit counts this turn only
 	// (2) B-170d: waiting gains and losses (Lose Action next turn, Wind's break, a delayed Emerald gain) land here.
 	CharComp->ApplyWaitingActionChanges();
 	// (3) Only then the check.
@@ -1411,6 +1412,10 @@ bool ACombatOrchestrator::PayActionCost(const FAction &Action, FString &OutRefus
 		OutRefusedReason = TEXT("the actions could not be spent"); // the check above passed, so only a client copy lands here
 		return false;
 	}
+	if (Cost > 0 && CharComp)
+	{
+		CharComp->NoteSkillUsed(); // Q-170j: End Turn, Defend and switching cost nothing and don't count
+	}
 	TurnSpends.Add(FString::Printf(TEXT("%s -%d"), *Action.GetActionName(), Cost));
 	// Q-170c: Defend ends the turn; Flee ends the fight; a ritual's fire is its own Execution turn.
 	const bool bEndsTurn = Action.ActionType == EActionType::Defend || Action.ActionType == EActionType::Flee || Action.bIsDeferredFire;
@@ -1440,6 +1445,12 @@ bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
 		return false; // a stun leaves one action (Attack or Defend, D-001), not a bank of them (Q-170c2)
 	}
 	const UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (CharComp && !ActionPipsRules::HasSkillsLeftThisTurn(CharComp->SkillsUsedThisTurn))
+	{
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatOrchestrator] %s used %d skills: the turn ends, %d action(s) stay banked"),
+			   *Actor->GetName(), CharComp->SkillsUsedThisTurn, CharComp->CurrentActions);
+		return false; // Q-170j (Crown, 2026-11-12): at most SKILLS_PER_TURN_MAX per turn
+	}
 	return CharComp && CharComp->CurrentActions > 0;
 }
 
@@ -1452,6 +1463,7 @@ void ACombatOrchestrator::ExpireBonusActionsAtTurnEnd(AActor *Actor)
 	if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 	{
 		CharComp->ExpireActionsAboveMax();
+		CharComp->ResetSkillsUsedThisTurn(); // Q-170j: the HUD's "Skills n/3" shows only during the holder's turn
 	}
 }
 
@@ -1471,9 +1483,10 @@ FString ACombatOrchestrator::GetTurnSpendsString() const
 		return TEXT("one action per turn (wor.Turns.ActionPips 0 at fight start)");
 	}
 	const UCharacterDataComponent *CharComp = CurrentActor ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	return FString::Printf(TEXT("%s's turn: %s (%d left)"), *GetNameSafe(CurrentActor),
+	return FString::Printf(TEXT("%s's turn: %s (%d left, skills %d/%d)"), *GetNameSafe(CurrentActor),
 						   TurnSpends.Num() > 0 ? *FString::Join(TurnSpends, TEXT(", ")) : TEXT("nothing spent"),
-						   CharComp ? CharComp->CurrentActions : 0);
+						   CharComp ? CharComp->CurrentActions : 0, CharComp ? CharComp->SkillsUsedThisTurn : 0,
+						   ActionPipsConstants::SKILLS_PER_TURN_MAX);
 }
 
 void ACombatOrchestrator::HandleActionDeferredArmed(AActor *Caster, const FAction &Action, int32 DelayTurns)

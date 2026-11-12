@@ -84,14 +84,21 @@ FText ActionPipsText::MakeMaxActionsText(int32 MaxActions, int32 ActionPointProg
 						 FText::AsNumber(FMath::Max(0, ActionPointProgress)), FText::AsNumber(ActionPipsConstants::ACTION_POINTS_PER_ACTION));
 }
 
-FText ActionPipsText::MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress)
+FText ActionPipsText::MakeSkillsUsedText(int32 SkillsUsed)
+{
+	return FText::Format(LOCTEXT("SkillsUsed", "Skills {0}/{1}"), FText::AsNumber(FMath::Max(0, SkillsUsed)),
+						 FText::AsNumber(ActionPipsConstants::SKILLS_PER_TURN_MAX));
+}
+
+FText ActionPipsText::MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress, int32 SkillsUsed)
 {
 	const FText Pips = MakePips(CurrentActions, MaxActions);
 	const FText MaxText = MakeMaxActionsText(MaxActions, ActionPointProgress);
 	const FText Count = FText::AsNumber(FMath::Max(0, CurrentActions));
-	const FText Line = Pips.IsEmpty()
+	const FText BaseLine = Pips.IsEmpty()
 						   ? FText::Format(LOCTEXT("ActionsLineNoPips", "{0} {1} · {2}"), WoRGameNames::GetActionsWord(), Count, MaxText)
 						   : FText::Format(LOCTEXT("ActionsLine", "{0} {1} {2} · {3}"), WoRGameNames::GetActionsWord(), Pips, Count, MaxText);
+	const FText Line = SkillsUsed > 0 ? FText::Format(LOCTEXT("ActionsLineSkills", "{0} · {1}"), BaseLine, MakeSkillsUsedText(SkillsUsed)) : BaseLine;
 	const int32 Bonus = GetBonusActions(CurrentActions, MaxActions);
 	if (Bonus == 0)
 	{

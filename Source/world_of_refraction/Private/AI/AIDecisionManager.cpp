@@ -2028,7 +2028,7 @@ bool UAIDecisionManager::TryActionPipsEmerald(AActor *AIActor, const FCrystalId 
 {
     const UCharacterDataComponent *Own = AIActor ? AIActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     const UCharacterDataComponent *Foe = BestTarget ? BestTarget->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-    if (!Own || !Foe || !ActionPipsRules::CanAfford(CrystalEffectTable::GetActionCost(EmeraldId), Own->CurrentActions))
+    if (!Own || !Foe || !ActionPipsRules::CanAfford(ActionPipsRules::ClampActionCost(CrystalEffectTable::GetActionCost(EmeraldId)), Own->CurrentActions))
     {
         return false;
     }

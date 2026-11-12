@@ -14,6 +14,7 @@
 #include "WoRTestWorld.h"
 #include "ActionExecutedRecorder.h"
 #include "TurnStartOrderRecorder.h"
+#include "Combat/Actions/ActionPipsRules.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/TurnManager.h"
 #include "Character/CharacterDataComponent.h"
@@ -355,6 +356,37 @@ void FMultiActionTurnSpec::Define()
 			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
 			TestTrue(TEXT("Hero's turn again"), Orchestrator->GetCurrentActor() == Hero);
 			TestEqual(TEXT("Foe's own turn end trims to the lowered Max"), ActionsOf(Foe), LoweredMax);
+		});
+
+		It("ends the turn after three skills with actions left, which stay banked (Q-170j, Crown)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			{
+				return;
+			}
+			const int32 Bank = ActionPipsConstants::SKILLS_PER_TURN_MAX + 1;
+			DataOf(Hero)->GainActions(Bank - MULTI_ACTION_REGAIN, /*bMayPassMax=*/true);
+			if (!TestEqual(TEXT("Hero holds one more action than the skill limit"), ActionsOf(Hero), Bank))
+			{
+				return;
+			}
+			UAbilityData *Ability = NewAbility(MULTI_ACTION_COST_ONE);
+			for (int32 Used = 1; Used < ActionPipsConstants::SKILLS_PER_TURN_MAX; ++Used)
+			{
+				SubmitAndSettle(AbilityOn(Foe, Ability));
+				TestTrue(TEXT("Still Hero's turn below the limit"), Orchestrator->GetCurrentActor() == Hero);
+				TestEqual(TEXT("The skill is counted"), DataOf(Hero)->SkillsUsedThisTurn, Used);
+			}
+			SubmitAndSettle(AbilityOn(Foe, Ability));
+			TestTrue(TEXT("The third skill ends the turn: Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
+			TestEqual(TEXT("The action left stays banked"), ActionsOf(Hero), Bank - ActionPipsConstants::SKILLS_PER_TURN_MAX);
+			TestEqual(TEXT("The count clears at the turn's end"), DataOf(Hero)->SkillsUsedThisTurn, 0);
+		});
+
+		It("reads a cost above 3 as 3 (Q-170j, Crown)", [this]()
+		{
+			TestEqual(TEXT("cost 5 plays as 3"), AbilityOn(nullptr, NewAbility(ActionPipsConstants::ACTION_COST_MAX + 2)).GetActionCost(),
+					  ActionPipsConstants::ACTION_COST_MAX);
 		});
 
 		It("ends the turn on Defend, which costs nothing", [this]()

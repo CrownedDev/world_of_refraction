@@ -16,8 +16,18 @@ namespace ActionPipsConstants
 	constexpr int32 MAX_ACTIONS_BASE = 2; // TODO: tune
 	/** Action points per extra Max Action; only whole blocks count (Crown, Q-170). */
 	constexpr int32 ACTION_POINTS_PER_ACTION = 100; // TODO: tune
-	/** A safety ceiling on Max Actions, not a design limit; raise it if gear needs more (Q-170). */
-	constexpr int32 MAX_ACTIONS_CAP = 5; // TODO: tune
+	/** Q-170j (Crown, 2026-11-12): the hard cap on Max Actions, buffs included: Max = min(2 + whole action points
+	 *  / 100, 5). Five small skills, or one large and one medium. Bonus actions above Max are capped separately. */
+	constexpr int32 MAX_ACTIONS_CAP = 5;
+	/** Q-170j (Crown): bonus actions above Max (an S-tier Emerald, a Gain Action) stop this far past Max, so a bank
+	 *  never passes 5 + 4 = 9 (three large skills). */
+	constexpr int32 MAX_BONUS_ACTIONS = 4;
+	/** Q-170j (Crown): a skill's action cost is 1 (small), 2 (medium) or 3 (large). */
+	constexpr int32 ACTION_COST_MIN = 1;
+	constexpr int32 ACTION_COST_MAX = 3;
+	/** Q-170j (Crown): at most this many actions that cost actions per turn; End Turn, Defend and weapon
+	 *  switching don't count. The turn ends at the limit; the actions left stay banked (within the caps). */
+	constexpr int32 SKILLS_PER_TURN_MAX = 3;
 
 	/** Actions regained per turn below the first Reflex threshold (Crown, Q-170). */
 	constexpr int32 ACTIONS_REGAIN_BASE = 1; // TODO: tune
@@ -178,7 +188,21 @@ namespace ActionPipsRules
 	inline int32 BankAfterGain(int32 Current, int32 Amount, int32 MaxActions, bool bMayPassMax)
 	{
 		const int32 Raised = Current + FMath::Max(0, Amount);
-		return bMayPassMax ? Raised : FMath::Max(Current, FMath::Min(Raised, MaxActions));
+		// Q-170j (Crown): a gain past Max stops MAX_BONUS_ACTIONS above it; neither cap trims a bank already over it.
+		const int32 Ceiling = bMayPassMax ? MaxActions + ActionPipsConstants::MAX_BONUS_ACTIONS : MaxActions;
+		return FMath::Max(Current, FMath::Min(Raised, Ceiling));
+	}
+
+	/** Q-170j (Crown): a skill, spell or item's action cost, kept within ACTION_COST_MIN..ACTION_COST_MAX. */
+	inline int32 ClampActionCost(int32 ActionCost)
+	{
+		return FMath::Clamp(ActionCost, ActionPipsConstants::ACTION_COST_MIN, ActionPipsConstants::ACTION_COST_MAX);
+	}
+
+	/** Q-170j (Crown): the turn may go on after SkillsUsed actions that cost actions (SKILLS_PER_TURN_MAX). */
+	inline bool HasSkillsLeftThisTurn(int32 SkillsUsed)
+	{
+		return SkillsUsed < ActionPipsConstants::SKILLS_PER_TURN_MAX;
 	}
 
 	/** The bank when the holder's turn ends: bonus actions above Max are lost, banked actions up to Max carry over
