@@ -11,9 +11,59 @@ _spec.loader.exec_module(v)
 F = v.F
 GLYPH = {"Y": (240, 200, 70), "X": (90, 140, 240), "A": (110, 200, 110)}
 STEELY, VOID = (150, 160, 175), (166, 75, 240)
+ROSE_LOW, BG = (255, 143, 180), (16, 18, 25)
 GARRICK = ("Garrick", "Generic:", (("Sera", .22, "18/84"), ("Bram", .9, "87/97")))
 BRAM = ("Bram", "Resonator:", (("Garrick", .8, "67/84"), ("Sera", .22, "18/84")))
 SKILL_HINTS = ["D-pad up/down  More skills", "Y / X / A  Use skill", "R1  Defend      B  Back"]
+
+
+def vbar(d, x, y, w, h, frac, col, text=None, ghost=0.0, ghost_col=None, size=17):
+    """A bar with its value centred inside. ghost < 0: the chunk a hit would remove (drawn at the end of the fill);
+    ghost > 0: what it would add (drawn after the fill). In game the ghost pulses."""
+    d.rectangle((x, y, x + w, y + h), fill=(42, 45, 53))
+    keep = max(0.0, frac + min(ghost, 0.0))
+    d.rectangle((x, y, x + int(w * keep), y + h), fill=col)
+    if ghost:
+        a, b = (keep, frac) if ghost < 0 else (frac, min(1.0, frac + ghost))
+        d.rectangle((x + int(w * a), y, x + int(w * b), y + h), fill=ghost_col or (255, 235, 240), outline=(255, 255, 255))
+        for sx in range(x + int(w * a) + 4, x + int(w * b), 6):  # hatch, so it reads as "not yet"
+            d.line((sx, y + h, sx + 4, y), fill=(60, 60, 70))
+    if text:
+        tw = d.textlength(text, font=F(size, True))
+        d.rounded_rectangle((x + (w - tw) / 2 - 6, y + 1, x + (w + tw) / 2 + 6, y + h - 1), 4, fill=BG)  # readable over the stripes
+        d.text((x + (w - tw) / 2, y + (h - size) / 2 - 3), text, font=F(size, True), fill=(255, 255, 255), stroke_width=2, stroke_fill=(16, 18, 25))
+
+
+BURN = (229, 72, 58)
+
+
+def base(name="Sera", cls="Darkness Refractor:", allies=(("Garrick", .8, "67/84"), ("Bram", .9, "87/97")), hp_cost=0.0, ep_cost=0.0):
+    """refine_v2's frame, with the cards redrawn: values inside the bars, the tier beside the name, a status-buildup
+    bar on every card. hp_cost / ep_cost: what the picked infusion would cost, ghosted on the character's own bars."""
+    im, d = v.base(name, cls, allies)
+    v.cut(d, (20, 548, 400, 704), v.PANEL, v.CYAN)
+    d.text((38, 552), name, font=F(28, True), fill=v.TXT)
+    d.text((38 + d.textlength(name + " ", font=F(28, True)), 552), "(C)", font=F(28, True), fill=v.DIM)
+    vbar(d, 38, 592, 344, 24, .22, ROSE_LOW, "18/84", ghost=-hp_cost)
+    vbar(d, 38, 620, 344, 24, .75, v.EP, "30/40", ghost=-ep_cost)
+    vbar(d, 38, 648, 344, 18, .4, BURN, "40/100", size=13)
+    # The class and the status icons, as one line centred on the card (sized so the longest class fits).
+    line = cls.rstrip(":") + ":"
+    line_w = int(d.textlength(line, font=F(17, True)))
+    left = 20 + (380 - (line_w + 10 + 3 * 30 - 6)) // 2
+    d.text((left, 673), line, font=F(17, True), fill=v.DIM)
+    for i, (s_, col) in enumerate([("B", (229, 72, 58)), ("S", (166, 75, 240)), ("D", (58, 123, 234))]):
+        x = left + line_w + 10 + i * 30
+        d.rectangle((x, 673, x + 24, 697), fill=col)
+        d.text((x + 6, 673), s_, font=F(17, True), fill=(255, 255, 255))
+    for i, (n, hp, val) in enumerate(allies):
+        x = 420 + i * 250
+        d.rectangle((x - 2, 644, x + 234, 708), fill=BG)
+        v.cut(d, (x, 646, x + 230, 704), v.PANEL, v.STEEL, 10)
+        d.text((x + 12, 647), n + " (C)", font=F(18, True), fill=v.DIM)
+        vbar(d, x + 12, 672, 206, 18, hp, v.ROSE, val, size=13)
+        vbar(d, x + 12, 692, 206, 7, .3, BURN)
+    return im, d
 
 
 def save(im, name):
@@ -21,7 +71,7 @@ def save(im, name):
 
 
 # ---- Main menu: Attack / Skills / Items above the active card. Defend and Back are corner hints.
-im, d = v.base()
+im, d = base()
 for i, (label, g) in enumerate([("Attack", "A"), ("Skills", "X"), ("Items", "Y")]):
     y = 362 + i * 60
     v.cut(d, (20, y, 280, y + 52), v.TEAL if i == 0 else v.PLATE, v.CYAN if i == 0 else v.STEEL)
@@ -34,7 +84,7 @@ save(im, "1_main_menu.png")
 
 # ---- Skills: the kind row on top, the selected kind's row under it (schools, sources, adapters, weapon types), cards below.
 def skills(name, who, kinds, kind_lit, under, under_lit, under_word, title, page, rows):
-    im, d = v.base(*who)
+    im, d = base(*who)
     v.tabs(d, 20, 150 if under else 190, kinds, kind_lit)
     if under:
         v.tabs(d, 20, 190, under, under_lit)
@@ -71,26 +121,40 @@ skills("5_resonate.png", BRAM, ["Abilities", "Breakthrough", "Resonate"], 2, ["S
 
 
 # ---- Target picker with the infusion strip.
-def marker(d, enemy, hp, card=True):
+FIRE_UI = (229, 72, 58)
+
+
+def marker(d, enemy, hp, card=True, hp_max=600, dmg=.12, build=.35, add=.2, build_col=FIRE_UI):
+    """The target marker. The hit's preview is ON the bars: the HP chunk it would remove and the status
+    buildup it would add, ghosted, updating live with the infusion element and level. Values sit inside the bars."""
     x, y, r, name = enemy
-    if card:  # the one target: name, HP, rank, tier
-        v.cut(d, (x - 170, y - r - 138, x + 170, y - r - 44), v.PANEL, v.CYAN)
-        d.text((x - 152, y - r - 134), name, font=F(26, True), fill=v.TXT)
-        d.text((x + 70, y - r - 128), "412/600", font=F(20, True), fill=v.TXT)
-        d.text((x - 152, y - r - 98), "Rank 2 · Tier C", font=F(18), fill=v.DIM)
-        v.bar(d, x - 152, y - r - 68, 304, hp, v.ROSE, 12)
-    else:  # one of many: name and HP bar only
-        d.text((x - 70, y - r - 76), name, font=F(18, True), fill=v.TXT)
-        v.bar(d, x - 70, y - r - 50, 140, hp, v.ROSE, 8)
+    hp_text = "%d/%d" % (round(hp * hp_max), hp_max)
+    if card:  # the one target: name, rank, tier, HP, status buildup
+        v.cut(d, (x - 170, y - r - 166, x + 170, y - r - 44), v.PANEL, v.CYAN)
+        d.text((x - 152, y - r - 162), name, font=F(26, True), fill=v.TXT)
+        vbar(d, x - 152, y - r - 124, 304, 24, hp, v.ROSE, hp_text, ghost=-dmg)
+        vbar(d, x - 152, y - r - 97, 304, 20, build, build_col, "%d/100" % round(build * 100), ghost=add,
+             ghost_col=tuple(min(255, c + 90) for c in build_col), size=13)
+        rank = "Rank 2 · Tier C"  # centred at the bottom, under the bars
+        d.text((x - d.textlength(rank, font=F(18)) / 2, y - r - 74), rank, font=F(18), fill=v.DIM)
+    else:  # one of many: name, HP and buildup bars
+        d.text((x - 70, y - r - 92), name, font=F(18, True), fill=v.TXT)
+        vbar(d, x - 70, y - r - 66, 140, 18, hp, v.ROSE, hp_text, ghost=-dmg, size=13)
+        vbar(d, x - 70, y - r - 46, 140, 8, build, build_col, ghost=add, ghost_col=tuple(min(255, c + 90) for c in build_col))
     d.polygon([(x, y - r - 8), (x - 18, y - r - 36), (x + 18, y - r - 36)], fill=v.CYAN)
 
 
 ROW_WIDTH = 590  # inside the strip
 
 
-def row(d, x, y, labels, lit):
+def wear_col(left):
+    return (110, 200, 110) if left > .5 else v.WARN if left > .25 else v.KILL
+
+
+def row(d, x, y, labels, lit, wear=None):
     """A tab row that never overflows: it shows the window of tabs around the lit one and counts the hidden
-    ones at each end ("< 2", "1 >"). Cycling moves the window; it wraps at the ends."""
+    ones at each end ("< 2", "1 >"). Cycling moves the window; it wraps at the ends.
+    wear: {label: [durability left, one per source behind that element]}, drawn as small bars inside the tab."""
     width = lambda t: int(d.textlength(t, font=F(18, True))) + 34
     first, last = lit, lit + 1
     used = width(labels[lit])
@@ -107,30 +171,34 @@ def row(d, x, y, labels, lit):
     if first > 0:
         d.text((x, y + 4), "< %d" % first, font=F(17, True), fill=v.CYAN)
         x += 44
-    v.tabs(d, x, y, labels[first:last], lit - first, h=32)
+    v.tabs(d, x, y, labels[first:last], lit - first, h=46 if wear else 32)
+    tx = x
+    for lab in labels[first:last] if wear else []:
+        for i, left in enumerate(wear.get(lab, [])):  # one durability bar per source
+            bx = tx + 14 + i * 40
+            d.rectangle((bx, y + 32, bx + 34, y + 39), fill=(42, 45, 53))
+            d.rectangle((bx, y + 32, bx + int(34 * left), y + 39), fill=wear_col(left))
+        tx += width(lab)
     if last < len(labels):
         d.text((x + used + 4, y + 4), "%d >" % (len(labels) - last), font=F(17, True), fill=v.CYAN)
 
 
-def strip(d, heading, sources, lit, level, readout, warn=None, warn_col=v.WARN, weapons=None, weapon_lit=0, via=None):
-    """Same tab rows as the skill menu: [weapon types, Attack only], infusion sources, levels. No labels.
-    A fixed source is a single lit tab. No infusion at all (items, a stunned character): pass sources=None."""
-    rows = ([weapons] if weapons else []) + ([sources, ["—", "I", "II"]] if sources else [])
-    lits = ([weapon_lit] if weapons else []) + ([lit, level] if sources else [])
+def strip(d, heading, sources, lit, level, readout=None, warn=None, warn_col=v.WARN, weapons=None, weapon_lit=0, wear=None):
+    """Same tab rows as the skill menu: [weapon types, Attack only], infusion elements, levels. No labels.
+    A fixed source is a single lit tab. No infusion at all (items, a stunned character): pass sources=None.
+    wear: the durability left on each source behind an element tab (see row)."""
+    rows = ([(weapons, weapon_lit, None)] if weapons else []) + ([(sources, lit, wear), (["—", "I", "II"], level, None)] if sources else [])
     bottom = 536
-    top = bottom - 50 - 40 * len(rows) - (32 if sources else 0) - (30 if warn else 0) - (28 if via else 0)
+    top = bottom - 50 - sum(54 if w else 40 for _, _, w in rows) - (32 if readout else 0) - (30 if warn else 0)
     v.cut(d, (20, top, 640, bottom), v.PANEL, v.CYAN)
     d.text((36, top + 6), heading, font=F(22, True), fill=v.TXT)
     y = top + 44
-    for labels, on in zip(rows, lits):
-        row(d, 36, y, labels, on)
-        y += 40
-    if sources:
+    for labels, on, w in rows:
+        row(d, 36, y, labels, on, w)
+        y += 54 if w else 40
+    if readout:
         d.text((36, y + 2), readout, font=F(18, True), fill=v.EP)
         y += 32
-    if via:  # which source pays for the picked element
-        d.text((36, y), via, font=F(17), fill=v.DIM)
-        y += 28
     if warn:
         d.text((36, y), warn, font=F(18, True), fill=warn_col)
 
@@ -140,55 +208,54 @@ TARGET = "< >  Target      A  Confirm"
 FOOT = "R1  Defend      B  Back"
 
 # The source row shows ELEMENTS (None, Raw, then each element the character can infuse); duplicates collapse.
-# A small "via" line names the source that pays. Normal Attack, a two-weapon Generic: Lightning comes from the
+# Each element tab carries the durability left on the source(s) behind it. Normal Attack, a two-weapon Generic: Lightning comes from the
 # Hammer's crystal, so picking it switches to the Hammer (free) and the weapon row follows.
-im, d = v.base(*GARRICK)
-marker(d, v.ENEMIES[1], .68)
-strip(d, "Attack  ·  choose a target", ["None", "Raw", "Fire", "Lightning"], 3, 1, "x1.15 damage · 0 EP",
-      weapons=["Sword", "Hammer"], weapon_lit=1, via="via Hammer crystal  ·  wear")
+im, d = base(*GARRICK)
+marker(d, v.ENEMIES[1], .68, dmg=.07, build=.35, add=.12, build_col=(242, 162, 58))
+strip(d, "Attack  ·  choose a target", ["None", "Raw", "Fire", "Lightning"], 3, 1,
+      weapons=["Sword", "Hammer"], weapon_lit=1, wear={"Fire": [.8], "Lightning": [.62]})
 v.hints(d, ["D-pad up/down  Weapon"] + INFUSE + [TARGET, FOOT])
 save(im, "6_target_attack_weapon.png")
 
 # A spell is origin-bound: its element is a single lit tab, only the level changes.
-im, d = v.base()
-marker(d, v.ENEMIES[1], .68)
-strip(d, "Shade Lance  ·  choose a target", ["Darkness"], 0, 2, "x1.30 damage · size x2.0 · 12 EP", "Level II backlash:  -11 HP",
-      via="via Innate  ·  12 EP")
+im, d = base(hp_cost=11 / 84, ep_cost=12 / 40)  # the EP cost and the backlash, ghosted on Sera's own bars
+marker(d, v.ENEMIES[1], .68, dmg=.16, build=.35, add=.18, build_col=(167, 155, 194))
+strip(d, "Shade Lance  ·  choose a target", ["Darkness"], 0, 2, "Size x2.0", "Level II backlash:  -11 HP")
 v.hints(d, ["L1  Infusion level", TARGET, FOOT])
 save(im, "7_target_spell_fixed_source.png")
 
 # A Resonator's ability: weapon crystal (Fire), Storm / Ember / Tide Ring (Lightning, Fire, Water), evolution (Void).
 # Two sources give Fire: one tab marked x2. The action uses both, each pays its own cost, and the hit gains
-# status buildup per extra source (Crown's rule; built as its own job). The via line lists every source and cost.
+# status buildup per extra source (Crown's rule; built as its own job). The tab shows both sources' durability.
 ELEMENTS = ["None", "Raw", "Fire ×2", "Lightning", "Water", "Void"]
-im, d = v.base(*BRAM)
-marker(d, v.ENEMIES[1], .68)
-strip(d, "Cleave  ·  choose a target", ELEMENTS, 2, 2, "x1.30 damage · +25% status buildup", "Level II:  crystal wear, may break",
-      via="via Sword crystal + Ember Ring  ·  wear on both  ·  0 EP")
+WEAR = {"Fire ×2": [.8, .22], "Lightning": [.9], "Water": [.55]}
+im, d = base(*BRAM)
+marker(d, v.ENEMIES[1], .68, dmg=.13, build=.35, add=.30)
+strip(d, "Cleave  ·  choose a target", ELEMENTS, 2, 2, None, "Level II:  crystal wear, may break", wear=WEAR)
 v.hints(d, INFUSE + [TARGET, FOOT])
 save(im, "8_target_ability_shared_element.png")
 
-# The evolution's element counts like any other; it pays EP, and HP at level II.
-im, d = v.base(*BRAM)
-marker(d, v.ENEMIES[1], .68)
-strip(d, "Cleave  ·  choose a target", ELEMENTS, 5, 2, "x1.30 damage · 10 EP", "Level II backlash:  -9 HP", via="via Evolution  ·  10 EP")
+# The evolution's element counts like any other; it pays EP, and HP at level II: both ghosted on Bram's own bars.
+im, d = base(*BRAM, hp_cost=9 / 84, ep_cost=10 / 40)
+marker(d, v.ENEMIES[1], .68, dmg=.13, build=.35, add=.22, build_col=(166, 75, 240))
+strip(d, "Cleave  ·  choose a target", ELEMENTS, 5, 2, None, "Level II backlash:  -9 HP", wear=WEAR)
 v.hints(d, INFUSE + [TARGET, FOOT])
 save(im, "8b_target_ability_evolution_element.png")
 
 # All enemies / all allies / self: nothing to choose, so the wording is "confirm" and everything in range is marked.
 # An evolution spell of a Broken Darkness / Reality character is the one spell with two sources.
-im, d = v.base()
-for enemy, hp in zip(v.ENEMIES, (.9, .68, .4)):
-    marker(d, enemy, hp, card=False)
-strip(d, "Eclipse  ·  all enemies  ·  confirm", ["Void", "Darkness"], 0, 2, "x1.30 damage · size x2.0 · 16 EP",
-      "Level II backlash:  -24 HP  ·  this would kill you", v.KILL, via="via Evolution  ·  16 EP")
+im, d = base(hp_cost=24 / 84, ep_cost=16 / 40)
+for enemy, hp, hp_max in zip(v.ENEMIES, (.9, .68, .4), (180, 600, 180)):
+    marker(d, enemy, hp, card=False, hp_max=hp_max, dmg=.3 if hp_max == 180 else .14, build=.2, add=.25, build_col=(166, 75, 240))
+strip(d, "Eclipse  ·  all enemies  ·  confirm", ["Void", "Darkness"], 0, 2, "Size x2.0",
+      "Level II backlash:  -24 HP  ·  this would kill you", v.KILL)
 v.hints(d, INFUSE + ["A  Confirm", FOOT])
 save(im, "9_target_all_enemies_confirm.png")
 
 # No infusion (an item, a broken-adapter spell, a stunned character): no rows at all.
-im, d = v.base()
-marker(d, v.ENEMIES[1], .68)
-strip(d, "Fire Bomb  ·  choose a target", None, 0, 0, "")
+im, d = base()
+marker(d, v.ENEMIES[1], .68, dmg=.1, build=.35, add=.15)
+strip(d, "Fire Bomb  ·  choose a target", None, 0, 0)
 v.hints(d, [TARGET, FOOT])
 save(im, "10_target_no_infusion.png")
 print("ok")
