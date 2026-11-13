@@ -86,6 +86,7 @@ void UFieldMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		// A pawn that outlives this component gets its gravity and air control back.
 		SetGliding(false);
 		SetWallRunning(false);
+		StopFlight();
 	}
 	if (UWorld *World = GetWorld())
 	{
