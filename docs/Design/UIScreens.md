@@ -85,7 +85,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 4. [x] Rest spot, level up, extract, revive vote (`run/rest_spot`)
 5. [x] After a fight, wipe, run over, run end (`run/run_end`)
 6. [x] Settings (`menus/settings`)
-7. [ ] Trial gate (`run/gate`)
+7. [x] Trial gate (`run/gate`)
 8. [ ] Shop and the vendor services (`hub/vendors`)
 9. [ ] Journal (`menus/journal`)
 10. [ ] Party and co-op (`menus/party`, `coop/`)
@@ -156,6 +156,14 @@ One block per mocked screen: the images, why the layout, the references.
 - **Controls** is a read-only key list for now (fixed keys, D-063), by section (Field, Battle, Menus) and by device. Rebinding slots into the same rows later.
 - **Proposed, not in code yet** (drawn so the page isn't empty; each needs Crown's yes): text size, camera movement in fights (the motion-sickness switch of D-078), screen shake, hold to confirm dangerous actions, element letters on colours (colour-blind aid), subtitles, tutorial callouts, "AI finishes my turn when I idle" (`SetLetAIFinish`).
 
+### 21. Trial gate (`run/gate/`)
+
+- `1_gate_variation.png` (solo, choosing), `2_gate_ready_coop.png` (co-op, on Enter).
+- **Three steps, top to bottom, one screen:** Variation (big cards: the boss and a line each, because this is the story choice; one not yet reached shows as "???"), Difficulty (Easy / Medium / Hard with exactly what changes: enemy damage x0.8 / x1.0 / x1.2, payout x0.75 / x1.0 / x1.5, `TrialGate.cpp:26-36`), then Enter the trial. On the right, **who is going in**: each member, class, Combat Tier, and who plays them (You, a friend's name, AI and its level).
+  *Ref:* Hades' Pact of Punishment (what each step changes, and the reward, on one screen); Nightreign's expedition select (target boss + party on one screen); Expedition 33 states that difficulty changes enemy damage, not HP, which this game copies (Q-293c).
+- **Said once, here:** a run is 30–45 minutes, can't be saved, and is left by extracting (pillar 5, D-172); wipes allowed 5 (3 at the boss).
+- X opens Party and Y Loadout without leaving the gate, so a last change doesn't mean walking back.
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -199,6 +207,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 5. **Words for the end screens** (#26, #27): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
 6. **World-stat draft** (#30, pick 3 of 5): nothing listens to it today and levelling now happens at rest spots (B-363). Not mocked; say if it's still wanted.
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
+8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
 
 ## Changelog
 
