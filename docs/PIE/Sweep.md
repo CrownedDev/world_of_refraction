@@ -36,8 +36,8 @@
 
 | # | Flag (`file:line`) | Replaced by | PIE check that proves it | Delete job | Result |
 |---|---|---|---|---|---|
-| 12 | `UCombatOrchestrator::SubmitAction` (sync router) — `Public/Combat/CombatOrchestrator.h:170` (B-031) | `SubmitActionAsync` | [B-031](B-031.md) (rituals fire; debug actions work) + a spec covering `CombatOrchestratorTestActor` (D-067) | B-165 | [ ] |
-| 13 | `CombatOrchestratorTestActor` (legacy test actor, the last `SubmitAction` caller) | Headless specs (D-066 / D-067) | As row 12 | B-165 | [ ] |
+| 12 | `UCombatOrchestrator::SubmitAction` (sync router) — `Public/Combat/CombatOrchestrator.h:170` (B-031) | `SubmitActionAsync` | [B-031](B-031.md) (rituals fire; debug actions work) + a spec covering `CombatOrchestratorTestActor` (D-067: `WoR.Combat.OrchestratorActions`, in dev) + Blueprint check: no `Submit Action` node (it is BlueprintCallable) | B-165 | [ ] |
+| 13 | `CombatOrchestratorTestActor` (legacy test actor, the last `SubmitAction` caller) | Headless specs (D-066 / D-067) | As row 12 + the editor step of [B-350](B-350.md): `BP_CombatOrchestratorTestActor` and `BP_Test_CombatOrchestrator` deleted | B-165 | [ ] |
 | 14 | `OnWorldStatDraftReady` — `CombatOrchestrator.h:291` (B-223) | `OnLevelDropsReady` (level drops, D-102) | [B-223](B-223.md) / [B-223b](B-223b.md) (win, place the level drop) | sweep | [ ] |
 | 15 | `PendingWorldStatPool` — `CombatOrchestrator.h:537` (B-223) | Level drops rolled on a win (`TrialGate::RollLevelDrops`) | [B-223](B-223.md) | sweep | [ ] |
 | 16 | Test-asset fallback in the debug commands (`wor.Debug.AllowTestAssetFallback`) — `Private/Debug/Combat/CombatOrchestratorDebug.cpp:55`, `:484`, `:557`, `:865`, `:1025` (B-118) | A logged error when the actor has no skill | [B-118](B-118.md) (debug commands with the CVar off) | sweep | [ ] |

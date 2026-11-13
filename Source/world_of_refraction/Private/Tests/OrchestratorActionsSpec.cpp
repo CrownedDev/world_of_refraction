@@ -16,6 +16,7 @@
 #include "ActionExecutedRecorder.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -51,6 +52,7 @@ BEGIN_DEFINE_SPEC(FOrchestratorActionsSpec, "WoR.Combat.OrchestratorActions",
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	ACombatOrchestrator *Orchestrator = nullptr;
 	USpellData *Spell = nullptr;
+	UAbilityData *Strike = nullptr;
 	AActor *Hero = nullptr;
 	TArray<AActor *> Foes;
 	TStrongObjectPtr<UActionExecutedRecorder> Recorder;
@@ -189,6 +191,11 @@ void FOrchestratorActionsSpec::Define()
 			Spell->RemoveFromRoot();
 			Spell = nullptr;
 		}
+		if (Strike)
+		{
+			Strike->RemoveFromRoot();
+			Strike = nullptr;
+		}
 	});
 
 	Describe("a spell", [this]()
@@ -223,7 +230,10 @@ void FOrchestratorActionsSpec::Define()
 			{
 				return;
 			}
+			TestTrue(TEXT("Succeeded"), Result->bSuccess);
 			TestTrue(TEXT("Energy was spent"), Result->EnergySpent > 0);
+			TestEqual(TEXT("The energy reported is the spell's cost for this caster"), Result->EnergySpent,
+					  Spell->CalculateEnergyCost(StatsOf(Hero)->CharacterData));
 			TestEqual(TEXT("The caster lost what was reported"), ORCHESTRATOR_ACTIONS_START_EP - StatsOf(Hero)->CurrentEP, Result->EnergySpent);
 		});
 
@@ -239,6 +249,42 @@ void FOrchestratorActionsSpec::Define()
 			{
 				return;
 			}
+			int32 TotalTaken = 0;
+			for (const AActor *Foe : Foes)
+			{
+				TestTrue(TEXT("Each target lost HP"), DamageTaken(Foe) > 0);
+				TotalTaken += DamageTaken(Foe);
+			}
+			TestEqual(TEXT("Three affected targets"), Result->AffectedTargets.Num(), ORCHESTRATOR_ACTIONS_THREE_FOES);
+			TestEqual(TEXT("The reported damage is the HP lost over all three"), Result->TotalDamageDealt, TotalTaken);
+		});
+	});
+
+	Describe("an attack", [this]()
+	{
+		It("on three targets hits and counts each (Test_MultiTargetAction)", [this]()
+		{
+			Strike = NewObject<UAbilityData>(GetTransientPackage());
+			Strike->Name = TEXT("Montage-less Strike");
+			Strike->BaseDamage = ORCHESTRATOR_ACTIONS_SPELL_DAMAGE;
+			Strike->ExecutionType = EAbilityExecutionType::Melee;
+			Strike->TargetCount = ETargetCount::All;
+			Strike->bIsAttack = true;
+			Strike->AddToRoot();
+			if (!TestTrue(TEXT("The fight starts on the hero's turn"), StartFight(ORCHESTRATOR_ACTIONS_THREE_FOES)))
+			{
+				return;
+			}
+			FAction Attack;
+			Attack.ActionType = EActionType::Ability; // attacks dispatch as Ability (SkillData + bIsAttack)
+			Attack.SkillData = Strike;
+			Attack.Targets = Foes;
+			const FActionResult *Result = Submit(Attack);
+			if (!TestNotNull(TEXT("The action is reported"), Result))
+			{
+				return;
+			}
+			TestTrue(TEXT("Succeeded"), Result->bSuccess);
 			int32 TotalTaken = 0;
 			for (const AActor *Foe : Foes)
 			{
