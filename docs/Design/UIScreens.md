@@ -234,7 +234,8 @@ One block per mocked screen: the images, why the layout, the references.
 
 ### Second pass: the rest
 
-- **New game** (`front/new_game/1_new_game.png`): the two decided choices on one screen, Body (Manny / Quinn, with a preview) and Class (Generic, Refractor, Resonator, each with its identity in one line and its budget, D-110), then Begin. *Ref:* Elden Ring's and Hades II's short starts; Mortal Shell has no creator at all (Crown's model). The heading and how the opening leads here are Crown's.
+- **New game** (`front/new_game/`: `1_new_game.png`, `2_new_game_fire_refractor.png`, `3_new_game_generic.png`): Body (Manny / Quinn, with a preview), Class (Generic, Refractor, Resonator, each with its identity in one line and its budget, D-110), then Begin. **Refractor adds the element choice (Crown, 2026-11-13):** the nine elements sit under the class description in the side panel, in the game's order; the panel's title, colour and text follow the pick ("Darkness Refractor", "Fire Refractor"), with one line saying what that element's full status bar does (Rules SB-19 to SB-28), and the button reads "Begin as Darkness Refractor". A class with no innate element shows no element row. *Ref:* Elden Ring's and Hades II's short starts; Mortal Shell has no creator at all (Crown's model); Pokémon's starter pick shows the choice and what it means on one screen. The heading and how the opening leads here are Crown's.
+  **PNGs to re-render:** `1_new_game.png` in git is the older image and `2_`, `3_` are not in git (this session can't push LFS). Run `front/new_game/make.py` and commit the three PNGs. The review page has the new ones.
 - **Credits** (`front/credits/1_credits.png`): a centred scroll over the title backdrop; hold A to speed up, B to leave. *Ref:* the standard (Hades, Expedition 33).
 - **Blacksmith · Dismantle** (`hub/vendors/5_blacksmith_dismantle.png`): a member's gear with what each piece gives; a piece in a loadout is greyed with the code's reason ("It's in a loadout. Take it off first").
 - **Spiritualist · Merge** (`hub/vendors/6_merge_crystals.png`): pick the crystal, pick the tier to make; the panel shows what it uses, what it makes, the change that comes back and the price (`MergeCrystals`, ER-28). Merge sits with the Spiritualist because crystals are theirs in the vendor names; say if the Blacksmith should have it. *Ref:* Diablo's gem combining, Monster Hunter's melding: choose the result, see the cost.
@@ -297,6 +298,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 11. **Title and loading words** (#9, #12, lore): the logo and key art, and which descriptions appear on loading screens (any item or character, or only ones you've met?).
 12. **New game** (#11, lore): the choice itself is decided (Manny or Quinn, and class; `CharacterForms.md`). How it's presented isn't mocked: it is the opening scene (HubAndStory §4), yours.
 15. **Forms list** (#19, lore): do characters you haven't met show as "???" (as drawn) or not at all? And the form names shown are placeholders.
+16. **Refractor elements at the start** (#11): are all nine open to a new Refractor, or are some (Void, Reality, Broken Darkness) earned later? All nine are drawn. The one-line element descriptions are plain-words versions of the status rules; reword as you like.
 13. **Who speaks** (#20, lore): the service NPCs are V in different forms and who V is stays hidden (HubAndStory §2, §3). Does the talk box name them by role ("Blacksmith"), as V, or with no name? The mockup uses the role.
 14. **Recruiting with a full party** (#29): the party cap is 3. If you meet a recruit with three members, is the offer refused, or does someone step out? The mockup shows only the case with room.
 
@@ -318,6 +320,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-13 | New game: element choices under the Refractor description, title and text follow the element (Crown) | docs/ui-screens-all |
 | 2026-11-13 | Second pass (the screens left), 49 images in all, the review page link | docs/ui-screens-all |
 | 2026-11-13 | 14 mock sets (42 images as `make.py` scripts), mockup notes, proposed input rows, 15 questions, summary | docs/ui-screens-all |
 | 2026-11-13 | Created: 34 screens from `dev`'s code (the cloud features are already merged), mock order, shared menu controls, proposed input rows | docs/ui-screens-all |
