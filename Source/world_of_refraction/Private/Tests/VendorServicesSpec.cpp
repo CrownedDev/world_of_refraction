@@ -15,6 +15,7 @@
 #include "Currency/EconomyYield.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -176,6 +177,43 @@ void FVendorServicesSpec::Define()
 		Pool->EndRunLayer();
 		TestTrue(TEXT("back home it may be dismantled"),
 				 WoRVendorServices::GetRefusal(World(), EMerchantType::Blacksmith, EVendorService::Dismantle, Key(), Row.GetValue()).IsEmpty());
+	});
+
+	It("sells one of a pouch stack and leaves the rest carried", [this]()
+	{
+		if (!Inventory) return;
+		const FCrystalId Gem(ECrystalType::Garnet, EItemTier::F_Tier);
+		const int32 Carried = 3;
+		Pool->CarryOrStore(Key(), Gem, Carried);
+		TOptional<WoRVendorServices::FVendorRow> Stack;
+		for (const WoRVendorServices::FVendorRow &Row : WoRVendorServices::GatherRows(World(), EMerchantType::Jeweler, EVendorService::Sell, Key()))
+		{
+			if (!Row.IsGear() && Row.Item == Gem)
+			{
+				Stack = Row;
+			}
+		}
+		if (!TestTrue(TEXT("the pouch stack is listed"), Stack.IsSet())) return;
+		const int32 Before = Wallet()->GetBalance(ECurrencyType::Prisms);
+		TestTrue(TEXT("one sold"), WoRVendorServices::Run(World(), EMerchantType::Jeweler, EVendorService::Sell, Key(), Stack.GetValue(), 1).IsEmpty());
+		TestEqual(TEXT("the rest is still carried"), Pool->GetCarriedCount(Key(), Gem), Carried - 1);
+		TestEqual(TEXT("paid for one"), Wallet()->GetBalance(ECurrencyType::Prisms), Before + UEconomyService::GetSellPriceForTier(Gem.Tier));
+	});
+
+	It("dismantles an evolution at the Spiritualist, and only there", [this]()
+	{
+		if (!Inventory) return;
+		UEvolutionInventoryComponent *Evolutions = Inventory->GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->ItemName = TEXT("Vendor evolution");
+		if (!TestTrue(TEXT("evolution owned"), Evolutions && Evolutions->AddInstance(Evolution))) return;
+		TestEqual(TEXT("the Blacksmith lists no evolution"),
+				  WoRVendorServices::GatherRows(World(), EMerchantType::Blacksmith, EVendorService::Dismantle, Key())
+					  .FilterByPredicate([](const WoRVendorServices::FVendorRow &Row) { return Row.IsEvolution(); }).Num(), 0);
+		const TArray<WoRVendorServices::FVendorRow> Rows = WoRVendorServices::GatherRows(World(), EMerchantType::Spiritualist, EVendorService::Dismantle, Key());
+		if (!TestTrue(TEXT("the Spiritualist lists it, and nothing else"), Rows.Num() == 1 && Rows[0].IsEvolution())) return;
+		TestTrue(TEXT("dismantled"), WoRVendorServices::Run(World(), EMerchantType::Spiritualist, EVendorService::Dismantle, Key(), Rows[0], 1).IsEmpty());
+		TestEqual(TEXT("gone"), Evolutions->Num(), 0);
 	});
 
 	It("refuses a loadout's primary for both services, with the reason", [this]()

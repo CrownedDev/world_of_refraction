@@ -16,6 +16,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -45,6 +46,14 @@ namespace VendorServicesBuild
 	{
 		return FText::Format(LOCTEXT("Amount", "{0} {1}"), FText::AsNumber(Amount), WoRGameNames::GetCurrencyName(Currency));
 	}
+}
+
+bool WoRVendorServices::IsInRun(const UWorld *World)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	return (Pool && Pool->IsRunLayerActive()) || (Run && Run->IsRunActive());
 }
 
 bool WoRVendorServices::Offers(EMerchantType Vendor, EVendorService Service)
@@ -132,13 +141,18 @@ FText WoRVendorServices::GetRefusal(UWorld *World, EMerchantType Vendor, EVendor
 	{
 		return LOCTEXT("NotHere", "That character isn't here to do it");
 	}
-	if (Service == EVendorService::Dismantle && Pool->IsRunLayerActive())
+	if (Service == EVendorService::Dismantle && IsInRun(World))
 	{
 		return LOCTEXT("DismantleInHub", "Dismantling is done in the hub, not during a run"); // D-193
 	}
 	if (Row.IsEvolution() != VendorServicesBuild::TakesEvolutions(Vendor, Service))
 	{
 		return FText::Format(LOCTEXT("WrongVendor", "The {0} doesn't take that"), WoRGameNames::GetMerchantTypeName(Vendor));
+	}
+	if (Row.IsEvolution() && Inventory->IsEvolutionInUse(Row.EvolutionID))
+	{
+		// A loadout's primary, or attached to a weapon, an adapter or worn apparel: it would be torn out unasked.
+		return LOCTEXT("EvolutionInUse", "It's in use (a loadout's primary, or attached to gear). Take it off first");
 	}
 	if (Row.IsGear())
 	{
@@ -175,10 +189,25 @@ FText WoRVendorServices::GetConfirmText(UWorld *World, EVendorService Service, F
 	const FText Ask = Service == EVendorService::Sell
 						  ? FText::Format(LOCTEXT("ConfirmSell", "Sell {0} for {1}?"), Row.Label, Pay)
 						  : FText::Format(LOCTEXT("ConfirmDismantle", "Dismantle {0} for {1}? It is gone until you find it again."), Row.Label, Pay);
-	// D-016: a worn piece leaves its loadouts too, so it says so first.
-	const UInventoryComponent *Inventory = Row.IsGear() ? WoRGive::FindMemberInventory(World, Member) : nullptr;
-	const FText Worn = Inventory ? UEconomyService::GetDismantleWarning(Inventory->GetOwner(), Row.GearID) : FText::GetEmpty();
-	return Worn.IsEmpty() ? Ask : FText::Format(LOCTEXT("ConfirmWorn", "{0} {1}"), Worn, Ask);
+	if (!Row.IsGear())
+	{
+		return Ask;
+	}
+	// What sits in the piece goes with it, and (D-016) a worn piece leaves its loadouts: both are said first.
+	const UPoolSubsystem *Pool = VendorServicesBuild::PoolOf(World);
+	const FWeaponInventoryEntry *Weapon = Pool ? Pool->FindWeaponInPool(Row.GearID) : nullptr;
+	const FRingInventoryEntry *Adapter = Pool && !Weapon ? Pool->FindRingInPool(Row.GearID) : nullptr;
+	const bool bHoldsSomething = Weapon   ? !Weapon->AttachedItem.IsEmpty() || !Weapon->StoneSocket.IsEmpty()
+								 : Adapter ? !Adapter->AttachedItem.IsEmpty() || !Adapter->StoneSocket.IsEmpty()
+										   : false;
+	const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+	FText Warning = Inventory ? UEconomyService::GetDismantleWarning(Inventory->GetOwner(), Row.GearID) : FText::GetEmpty();
+	if (bHoldsSomething)
+	{
+		const FText GoesToo = LOCTEXT("SocketsGoToo", "What is socketed in it goes with it.");
+		Warning = Warning.IsEmpty() ? GoesToo : FText::Format(LOCTEXT("TwoWarnings", "{0} {1}"), Warning, GoesToo);
+	}
+	return Warning.IsEmpty() ? Ask : FText::Format(LOCTEXT("ConfirmWorn", "{0} {1}"), Warning, Ask);
 }
 
 FText WoRVendorServices::Run(UWorld *World, EMerchantType Vendor, EVendorService Service, FName Member, const FVendorRow &Row, int32 Count)

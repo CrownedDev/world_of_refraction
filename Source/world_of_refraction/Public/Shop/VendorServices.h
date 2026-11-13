@@ -40,6 +40,9 @@ namespace WoRVendorServices
 		bool IsEvolution() const { return EvolutionID.IsValid(); }
 	};
 
+	/** A trial run is under way (its gear layer is open or the run is active): dismantling is refused then (D-193). */
+	WORLD_OF_REFRACTION_API bool IsInRun(const UWorld *World);
+
 	/** D-193: whether Vendor does Service at all. */
 	WORLD_OF_REFRACTION_API bool Offers(EMerchantType Vendor, EVendorService Service);
 
