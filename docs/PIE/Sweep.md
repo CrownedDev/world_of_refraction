@@ -45,8 +45,6 @@
 | # | Flag (`file:line`) | Replaced by | PIE check that proves it | Delete job | Result |
 |---|---|---|---|---|---|
 | 20 | Old loadout fields, entries and wrappers (pre-unified slots) | The unified slots (B-301..B-308) | PIE of B-301..B-308 | B-309b (not a delete yet: the slots must become the stored truth first) | [ ] |
-| 22 | `URingManager` — `Public/Equipment/Rings/RingManager.h:20`, `Private/Equipment/Rings/RingManager.cpp:2`; `UActionExecutor::GetRingManager` — `ActionExecutor.h:381` (B-024) | `ULoadoutComponent` ring queries and `HandleCrystalBroken` | [B-024](B-024.md) + Blueprint check: no caller | B-154 | [ ] |
-| 23 | `UWeaponManager` — `Public/Equipment/Weapons/WeaponManager.h:19`; `UActionExecutor::GetWeaponManager` — `ActionExecutor.h:386` (B-024) | `ULoadoutComponent::GetActiveWeapon / GetCurrentAttack` | [B-024](B-024.md) + Blueprint check | B-154 | [ ] |
 | 24 | `CrystalBreakDismantleEvolution`, the Evolution case and `CrystalBreakDestroyPrimaryEvolution` — `Private/Equipment/Durability/CrystalBreak.cpp:55`, `:127`, `:174` (Q-159) | Evolutions are never lost to wear | [B-159](B-159.md) (break a crystal next to an evolution: the evolution stays) | sweep | [ ] |
 | 25 | `UInventoryComponent::MaxSavedLoadouts` — `Public/Inventory/InventoryComponent.h:126` (B-311) | `PoolConstants::MAX_CUSTOM_LOADOUTS` (D-111) | [B-311](B-311.md) | sweep | [ ] |
 
@@ -405,6 +403,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-214e](B-214e.md) | Field skills part 5 (Q-214e): Teleport (Void only), Phase step, Mark and recall, Super launch (then a glide), Regroup (not during a fight); by console until the keys come (B-214g) | Pending | REVIEW (in dev, `feature/B-214e-advanced-moves`) | [ ] |
 | [B-032b](B-032b.md) | The lumped spell defense path, `wor.Combat.PerImpactDefense`, `EnsureResultResolved` and `ProcessMultiHit` deleted (D-204); no play change; two data checks | Pending | REVIEW (in dev, `refactor/B-032b-lumped-path-delete`) | [ ] |
 | [B-153](B-153.md) | The loadout component's own `CharacterClass` field deleted (D-204): every class's command menu and ring cycling work as before | Pending | REVIEW (in dev, `chore/B-153-loadout-class-field`) | [ ] |
+| [B-154](B-154.md) | The ring and weapon managers deleted (D-204): ring queries, ring switching and the broken-crystal ring switch work as before | Pending | REVIEW (in dev, `chore/B-154-ring-weapon-managers`) | [ ] |
 | [B-456a](B-456a.md) | The vendor screen, piece 1 (D-193): tabs, rows, Sell and Dismantle; the placeholder `wor.UI.Vendor` (`UVendorServiceWidget`) goes after this passes | Pending | REVIEW (in dev, `feature/B-456-vendor-screen`) | [ ] |
 | [B-456b](B-456b.md) | The vendor screen, piece 2 (D-193, Q-456b): Buy, the cart, "Buying for"; talking to a vendor opens it. The old shop window goes after this passes: `UShopWindowWidget`, `UShopRowWidget`, `WBP_ShopWindow` and its rows, the window path and modal bracket in `UMerchantShopSubsystem` (`ShopWindowClass`), `wor.Shop.BuyFor` | Pending | REVIEW (in dev, `feature/B-456b-vendor-buy`) | [ ] |
 | [B-456c](B-456c.md) | The vendor screen, piece 3 (D-193): the Jeweler's Item slots tab. The placeholder goes after this passes: `UItemSlotUpgradeWidget` (`wor.UI.ItemSlots`) | Pending | REVIEW (in dev, `feature/B-456c-item-slots`) | [ ] |
@@ -426,3 +425,4 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | 2026-11-14 | 19: `PrimarySlotCost` (deleted under the D-204 waiver, no PIE tick; B-309) | `chore/B-309-old-loadout-path` |
 | 2026-11-14 | 12, 13: `SubmitAction` (the old sync router) and `CombatOrchestratorTestActor` (deleted under the D-204 waiver, no PIE tick, after Find in Blueprints found no `Submit Action` node and the two test Blueprints were deleted; B-165) | `chore/B-165-delete-submit-action-2` |
 | 2026-11-14 | 21: `ULoadoutComponent::CharacterClass` (deleted under the D-204 waiver, no PIE tick, after Find in Blueprints found no read or write; B-153) | `chore/B-153-loadout-class-field` |
+| 2026-11-14 | 22, 23: `URingManager`, `UWeaponManager` and the executor's getters (deleted under the D-204 waiver, no PIE tick, after Find in Blueprints found no use; B-154) | `chore/B-154-ring-weapon-managers` |
