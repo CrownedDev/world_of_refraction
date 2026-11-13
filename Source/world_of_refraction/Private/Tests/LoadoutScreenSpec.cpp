@@ -14,8 +14,11 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Loadout/LoadoutRules.h"
+#include "Blueprint/UserWidget.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/Menus/LoadoutScreenWidget.h"
 #include "WoRGameNames.h"
+#include "WoRTestWorld.h"
 
 namespace
 {
@@ -182,6 +185,28 @@ void FLoadoutScreenSpec::Define()
 			TestFalse(*FString::Printf(TEXT("%s has a letter"), *Tiers->GetNameStringByIndex(Index)),
 					  WoRGameNames::GetTierLetter(static_cast<EItemTier>(Tiers->GetValueByIndex(Index))).IsEmpty());
 		}
+	});
+
+	It("opens with no party, says so, and closes on Back (the screen, headless)", [this]()
+	{
+		FWoRTestWorld TestWorld;
+		if (!TestTrue(TEXT("world"), TestWorld.Create()))
+		{
+			return;
+		}
+		ULoadoutScreenWidget *Screen = CreateWidget<ULoadoutScreenWidget>(TestWorld.GetWorld(), ULoadoutScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen created"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		TestTrue(TEXT("activated"), Screen->IsActivated());
+		TestFalse(TEXT("no party: the page says why it is empty"), Screen->GetPage().Refusal.IsEmpty());
+		Screen->MoveSelection(1);
+		Screen->MoveMember(1);
+		TestEqual(TEXT("nothing to move to"), Screen->GetSelectedRow(), 0);
+		Screen->PressBack();
+		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
 	});
 
 	It("titles a loadout with its place among the saved ones", [this]()
