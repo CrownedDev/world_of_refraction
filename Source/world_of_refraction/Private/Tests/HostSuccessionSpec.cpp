@@ -104,6 +104,29 @@ void FHostSuccessionSpec::Define()
 		UGameplayStatics::DeleteGameInSlot(SUCCESSION_TEST_SLOT, SUCCESSION_TEST_USER);
 	});
 
+	It("re-keys a handed-over run's records for the new host (B-428)", [this]()
+	{
+		const FName Chest(TEXT("ChestA"));
+		const FName OldHostsChest(*(Chest.ToString() + TEXT("@") + SUCCESSION_TEST_HOST));
+		const FName NewHostsChest(*(TEXT("ChestB@") + SUCCESSION_TEST_SECOND));
+		const FName ThirdsChest(*(TEXT("ChestC@") + SUCCESSION_TEST_THIRD));
+		FSavedRun Run;
+		Run.FoundFeatures.Add(Chest, FText());
+		Run.FoundFeatures.Add(NewHostsChest, FText());
+		Run.FoundFeatures.Add(ThirdsChest, FText());
+		USaveSubsystem::RekeyRunForNewHost(Run, SUCCESSION_TEST_HOST, SUCCESSION_TEST_SECOND);
+		TestTrue(TEXT("the old host's chest stays theirs"), Run.FoundFeatures.Contains(OldHostsChest));
+		TestFalse(TEXT("not the new host's"), Run.FoundFeatures.Contains(Chest));
+		TestTrue(TEXT("the new host's own chest is plain now"), Run.FoundFeatures.Contains(FName(TEXT("ChestB"))));
+		TestTrue(TEXT("another player's is unchanged"), Run.FoundFeatures.Contains(ThirdsChest));
+		TestEqual(TEXT("nothing lost"), Run.FoundFeatures.Num(), 3);
+
+		FSavedRun Untouched;
+		Untouched.FoundFeatures.Add(Chest, FText());
+		USaveSubsystem::RekeyRunForNewHost(Untouched, FString(), SUCCESSION_TEST_SECOND);
+		TestTrue(TEXT("no old host key: unchanged"), Untouched.FoundFeatures.Contains(Chest));
+	});
+
 	It("picks the next player in join order after the old host", [this]()
 	{
 		const TArray<FString> Order = {SUCCESSION_TEST_HOST, SUCCESSION_TEST_SECOND, SUCCESSION_TEST_THIRD};
