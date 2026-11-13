@@ -32,6 +32,9 @@
 #include "Memory/HiddenCounterSubsystem.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Trial/TrialMapFeature.h"
+#include "Memory/MemorySpot.h"
+#include "Memory/MemoryFragment.h"
+#include "EngineUtils.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -105,7 +108,8 @@ void AWoRPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
 	const UGameInstance *GI = GetGameInstance();
-	if (const USaveSubsystem *Save = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
+	// B-425: only an authority wallet takes its save here; a guest reports its save to the host (ClientInitialize).
+	if (const USaveSubsystem *Save = GI && HasAuthority() && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
 		Save->ApplyWalletTo(Wallet);
 	}
@@ -134,6 +138,10 @@ void AWoRPlayerState::ClientInitialize(AController *Controller)
 			}
 		}
 		ServerReportJournal(MemoryIds);
+		if (const USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
+		{
+			ServerReportWallet(Save->GetData().Wallet, Save->GetCarriedGold()); // B-425
+		}
 		if (const UHiddenQuestSubsystem *Quests = GI->GetSubsystem<UHiddenQuestSubsystem>())
 		{
 			ServerReportQuests(Quests->Capture().Quests); // B-377b
@@ -157,7 +165,8 @@ void AWoRPlayerState::FollowLocalForm()
 void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	const UGameInstance *GI = GetGameInstance();
-	if (USaveSubsystem *Save = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
+	// B-425: a guest's wallet is the host's mirror; banking it would overwrite the guest's own save.
+	if (USaveSubsystem *Save = GI && HasAuthority() && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
 		Save->BankWallet(Wallet);
 	}
@@ -176,6 +185,7 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (AWoRPlayerState *NextPlace = Cast<AWoRPlayerState>(PlayerState))
 	{
 		NextPlace->SetJoinSequence(JoinSequence);
+		NextPlace->bReportedWalletApplied = bReportedWalletApplied; // B-425: a travel's re-report is not applied again
 	}
 	Super::CopyProperties(PlayerState);
 	AWoRPlayerState *Next = Cast<AWoRPlayerState>(PlayerState);
@@ -730,6 +740,26 @@ void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &Me
 		   Taken < MemoryIds.Num() ? TEXT(", the rest dropped (over the cap)") : TEXT(""));
 }
 
+void AWoRPlayerState::ServerReportWallet_Implementation(const FSavedWallet &Saved, int32 CarriedGold)
+{
+	if (bReportedWalletApplied || !Wallet)
+	{
+		UE_LOG(LogWoR, Verbose, TEXT("[Wallet] %s's wallet report ignored: %s (B-425)"), *GetPlayerName(),
+			   Wallet ? TEXT("already applied") : TEXT("no wallet"));
+		return;
+	}
+	bReportedWalletApplied = true;
+	USaveSubsystem::ApplyWallet(Saved, Wallet);
+	// The carried run Gold, as USaveSubsystem::ApplyWalletTo tops it up for the host.
+	const int32 MissingGold = CarriedGold - Wallet->GetBalance(ECurrencyType::Gold);
+	if (MissingGold > 0)
+	{
+		Wallet->Add(ECurrencyType::Gold, MissingGold);
+	}
+	UE_LOG(LogWoR, Log, TEXT("[Wallet] %s's saved wallet applied on the host: %d balance(s), %d carried Gold (B-425)"),
+		   *GetPlayerName(), Saved.Balances.Num(), FMath::Max(0, CarriedGold));
+}
+
 void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuestProgress> &Quests)
 {
 	ReportedQuests.Reset();
@@ -776,6 +806,42 @@ void AWoRPlayerState::Client_StartQuest_Implementation(UHiddenQuestData *Quest)
 	}
 }
 
+namespace
+{
+	/** B-433 review: how near a map spot or fragment the reporting pawn must be on the host. A distance, not the trigger
+	 *  overlap: the client's reliable report can arrive before its last move does. */
+	constexpr float MEMORY_REPORT_REACH_CM = 600.0f; // TODO: tune
+
+	/** B-433 (server): Pawn is near some map spot or fragment. Any of them, not only the one holding Memory: a spot or
+	 *  fragment event also unlocks the other memories whose conditions it meets (MemoryConditions). */
+	bool IsPawnAtMemoryPlace(const APawn *Pawn)
+	{
+		const UWorld *World = Pawn ? Pawn->GetWorld() : nullptr;
+		if (!World)
+		{
+			return false;
+		}
+		const FVector Where = Pawn->GetActorLocation();
+		const auto IsNear = [&Where](const AActor *Place)
+		{ return FVector::Dist(Where, Place->GetActorLocation()) <= MEMORY_REPORT_REACH_CM; };
+		for (TActorIterator<AMemorySpot> Spot(World); Spot; ++Spot)
+		{
+			if (IsNear(*Spot))
+			{
+				return true;
+			}
+		}
+		for (TActorIterator<AMemoryFragment> Fragment(World); Fragment; ++Fragment)
+		{
+			if (IsNear(*Fragment))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
 {
 	if (!Memory)
@@ -787,6 +853,14 @@ void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: none of their characters has it"), *GetPlayerName(),
 			   *Memory->GetMemoryId().ToString());
+		return;
+	}
+	// B-433: a find at a map spot or fragment needs the player's pawn there, so a report from out of reach unlocks nothing.
+	// TODO: the other sources (bound gear, a quest's end) are trusted as reported, co-op only (WithValidation later).
+	if ((Source == EMemorySource::MapSpot || Source == EMemorySource::Fragment) && !IsPawnAtMemoryPlace(GetPawn()))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: their pawn isn't near a memory spot or fragment"),
+			   *GetPlayerName(), *Memory->GetMemoryId().ToString());
 		return;
 	}
 	AddMemoryId(Memory->GetMemoryId());

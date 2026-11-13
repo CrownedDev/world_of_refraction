@@ -127,6 +127,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<UTextBlock> RepairGearText;
 
+	/** B-427: the repair button, greyed out when the wallet has no authority (a co-op guest). */
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> RepairGearButton;
+
 	/** B-091 (Q-091): shared gear another member wears, taken out of a loadout. */
 	UPROPERTY()
 	TObjectPtr<UTextBlock> GearClashText;

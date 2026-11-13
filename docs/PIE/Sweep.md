@@ -388,6 +388,13 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-097](B-097.md) | Class gates retired (D-027): helpers deleted, two Blueprint functions flagged; no behaviour change | Pending | REVIEW (in dev, `feature/B-097-class-gates-cleanup-cloud`) | [ ] |
 | [B-098](B-098.md) | Weapons give no spells (D-027); weapon spells not saved (save v37); gem spell slots become ability slots | Pending | REVIEW (in dev, `feature/B-098-weapons-no-spells-cloud`) | [ ] |
 | [B-239](B-239.md) | Buy +1 item slot per character at the hub (`wor.UI.ItemSlots`) | Pending | REVIEW (in dev, `feature/B-239-item-slot-upgrades`) | [ ] |
+| [B-434](B-434.md) | A checkpoint copy claiming over 40 chunks is refused (2-player: the checkpoint still arrives) | Pending | REVIEW (in dev, `fix/B-434-checkpoint-chunk-limit`) | [ ] |
+| [B-429](B-429.md) | A refused item costs no action (refused at validation); items still work | Pending | REVIEW (in dev, `fix/B-429-refused-item-validate`) | [ ] |
+| [B-427](B-427.md) | A guest's shop Confirm and repair greyed out with the reason (2-player) | Pending | REVIEW (in dev, `fix/B-427-guest-buy-greyed`) | [ ] |
+| [B-432](B-432.md) | Buy-for-member checks the receiver's room only | Pending | REVIEW (in dev, `fix/B-432-buy-for-capacity`) | [ ] |
+| [B-426](B-426.md) | Run Gold cleared for every player, not only the host (2-player) | Pending | REVIEW (in dev, `fix/B-426-clear-run-gold-all`) | [ ] |
+| [B-425](B-425.md) | A co-op guest's saved wallet reaches the host once and is never overwritten by the host's copy (2-player) | Pending | REVIEW (in dev, `fix/B-425-guest-wallet`) | [ ] |
+| [B-433](B-433.md) | A guest's map-spot or fragment memory find needs its character near a spot or fragment (2-player) | Pending | REVIEW (in dev, `fix/B-433-memory-report-reach`) | [ ] |
 
 ---
 
