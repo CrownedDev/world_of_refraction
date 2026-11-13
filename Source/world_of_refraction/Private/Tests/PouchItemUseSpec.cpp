@@ -4,7 +4,8 @@
 // storage, not the preset's item slots). No tier cap on what a member carries or uses (B-354, D-143 retired the
 // D-072 bands); stones are slot-only and never listed.
 // B-313b: a member's crystal inventory reads its pouch (never the old mirror); the item-slot rules skip a pouch
-// member's preset picks, which hold no supply.
+// member's preset picks, which hold no supply. B-429: ValidateAction refuses an item the pouch can't supply, so the
+// orchestrator spends no action and notes nothing for it.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -123,6 +124,18 @@ void FPouchItemUseSpec::Define()
 		Inventory = nullptr;
 		Members.Empty();
 		TestWorld.Reset();
+	});
+
+	It("refuses an item the pouch can't supply at validation, before any cost (B-429)", [this]()
+	{
+		if (!Pool) return;
+		FAction Item;
+		Item.ActionType = EActionType::Item;
+		Item.Targets.Add(Target);
+		Item.ItemData = POUCH_USE_GARNET;
+		TestTrue(TEXT("A carried Garnet is valid"), Actions->ValidateAction(User, Item).bIsValid);
+		Item.ItemData = POUCH_USE_SAPPHIRE;
+		TestFalse(TEXT("A Sapphire the pouch doesn't hold is refused"), Actions->ValidateAction(User, Item).bIsValid);
 	});
 
 	It("spends one item from the user's pouch and nothing else", [this]()
