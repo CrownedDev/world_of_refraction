@@ -32,6 +32,9 @@
 #include "Memory/HiddenCounterSubsystem.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Trial/TrialMapFeature.h"
+#include "Memory/MemorySpot.h"
+#include "Memory/MemoryFragment.h"
+#include "EngineUtils.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -803,6 +806,42 @@ void AWoRPlayerState::Client_StartQuest_Implementation(UHiddenQuestData *Quest)
 	}
 }
 
+namespace
+{
+	/** B-433 review: how near a map spot or fragment the reporting pawn must be on the host. A distance, not the trigger
+	 *  overlap: the client's reliable report can arrive before its last move does. */
+	constexpr float MEMORY_REPORT_REACH_CM = 600.0f; // TODO: tune
+
+	/** B-433 (server): Pawn is near some map spot or fragment. Any of them, not only the one holding Memory: a spot or
+	 *  fragment event also unlocks the other memories whose conditions it meets (MemoryConditions). */
+	bool IsPawnAtMemoryPlace(const APawn *Pawn)
+	{
+		const UWorld *World = Pawn ? Pawn->GetWorld() : nullptr;
+		if (!World)
+		{
+			return false;
+		}
+		const FVector Where = Pawn->GetActorLocation();
+		const auto IsNear = [&Where](const AActor *Place)
+		{ return FVector::Dist(Where, Place->GetActorLocation()) <= MEMORY_REPORT_REACH_CM; };
+		for (TActorIterator<AMemorySpot> Spot(World); Spot; ++Spot)
+		{
+			if (IsNear(*Spot))
+			{
+				return true;
+			}
+		}
+		for (TActorIterator<AMemoryFragment> Fragment(World); Fragment; ++Fragment)
+		{
+			if (IsNear(*Fragment))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
 {
 	if (!Memory)
@@ -814,6 +853,14 @@ void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: none of their characters has it"), *GetPlayerName(),
 			   *Memory->GetMemoryId().ToString());
+		return;
+	}
+	// B-433: a find at a map spot or fragment needs the player's pawn there, so a report from out of reach unlocks nothing.
+	// TODO: the other sources (bound gear, a quest's end) are trusted as reported, co-op only (WithValidation later).
+	if ((Source == EMemorySource::MapSpot || Source == EMemorySource::Fragment) && !IsPawnAtMemoryPlace(GetPawn()))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: their pawn isn't near a memory spot or fragment"),
+			   *GetPlayerName(), *Memory->GetMemoryId().ToString());
 		return;
 	}
 	AddMemoryId(Memory->GetMemoryId());
