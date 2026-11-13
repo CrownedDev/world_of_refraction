@@ -187,7 +187,7 @@ One block per mocked screen: the images, why the layout, the references.
 
 ### 6. Journal (`menus/journal/`)
 
-- `1_quests.png`, `2_secret_quest.png`, `3_memories.png`. Lore and Conversations use the Memories layout (a list, a reader).
+- `1_quests.png`, `2a_secret_quest_hidden.png`, `2b_secret_quest_shown.png`, `3_memories.png`. Lore and Conversations use the Memories layout (a list, a reader).
 - **Pages:** Quests, Memories, Lore, Conversations (the placeholder's four, HubAndStory §4). "Talk to V" is not a journal page here: V is someone you talk to in the hub (#20).
 - **Quests:** one list with the kind on each row in the code's words and colours (Main gold, Side grey, Hidden violet), a filter row, and the steps on the right: done ones ticked, the current one lit. A lets you **track** one quest; its step shows on the trial HUD and the pause menu.
   *Ref:* The Witcher 3's and Expedition 33's journals (list left, steps right, one tracked quest).
@@ -360,7 +360,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
-| 2026-11-14 | Mockups: HP and EP bars are a darker red and a darker blue (kit `bar()`); "Hidden quest" drawn as "Secret quest" (`2_hidden_quest.png` is now `2_secret_quest.png`); inventory lists Take only on the Chest tab; vendor tabs; new game images re-rendered from its script | docs/ui-screens-redraw |
+| 2026-11-14 | Mockups: HP and EP bars are a darker red and a darker blue (kit `bar()`); "Hidden quest" drawn as "Secret quest" (`2_hidden_quest.png` is now `2a_secret_quest_hidden.png`, `2b_secret_quest_shown.png`); inventory lists Take only on the Chest tab; vendor tabs; new game images re-rendered from its script | docs/ui-screens-redraw |
 | 2026-11-14 | Mockups redrawn for Crown's answers (D-177 to D-179, D-182 to D-189, D-191, D-192): the Gate (`1_gate_variation.png` is now `1_gate_trial.png`), rest spot, run end, NPC talk, recruit card, inventory verbs, "Spirit of {character}" | docs/ui-screens-redraw |
 | 2026-11-14 | The Gate (D-191, D-192): "Trial" not "Variation", a vertical list, "???" with the unlock condition, no boss names, no AI level text; one hub gate, every gate open to everyone | docs/ui-screens-answers-4 |
 | 2026-11-14 | Crown's answers on the wipe and end-of-run screens (D-187 no enemy rank shown, D-188 words and layout, D-189 what each ending pays) and settings (D-190: approved with all eight proposed settings) | feature/B-440-loadout-screen |

@@ -1,4 +1,4 @@
-"""Journal (UIScreens.md #6): Quests (Main, Side, Secret; a secret quest is masked until you reveal it, and shows only
+"""Journal (UIScreens.md #6): Quests (Main, Side, Secret; a secret quest is hidden until you show it, and shows only
 its current step: D-171, Q-397b), Memories, Lore, Conversations. Titles and texts are placeholders: the words are
 Crown's. Run: python make.py"""
 import os
@@ -45,7 +45,7 @@ tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 0, h=30, size=15)
 quest_row(d, 188, "Main", "The Cinder Oath", "Beat the mini-boss in the ash fields without using items.", focus=True, tracked=True)
 quest_row(d, 258, "Side", "A Blade Reforged", "Bring a B-tier sword to the Blacksmith.")
 quest_row(d, 328, "Secret", "Ash on the Anvil", "Wear the Ashen Blade into the Ember Trial.")
-quest_row(d, 398, "Secret", "Secret Quest 2", "masked  ·  A to reveal", masked=True)
+quest_row(d, 398, "Secret", "Secret Quest 2", "hidden  ·  A to show")
 quest_row(d, 468, "Side", "First Steps", "done", done=True)
 panel(d, (590, 146, 1232, 654), focus=True)
 text(d, (612, 158), "The Cinder Oath", 26, True)
@@ -58,22 +58,36 @@ text(d, (612, y + 46), "Shown when the quest is done.", 15, fill=DIM)
 footer(d, [("A", "Track"), ("Y", "Filter"), ("B", "Back")])
 save(im, OUT, "1_quests.png")
 
-# ---- 2: a secret quest, revealed. Only the current step; no later steps, no reward, no hint of the end memory.
-im, d = canvas()
-header(d, 0)
-tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 3, h=30, size=15)
-quest_row(d, 188, "Secret", "Ash on the Anvil", "Wear the Ashen Blade into the Ember Trial.", focus=True)
-quest_row(d, 258, "Secret", "Secret Quest 2", "masked  ·  A to reveal", masked=True)
-text(d, (48, 340), "Secret quests are masked when the journal opens,", 14, fill=OFF)
-text(d, (48, 360), "so a shared screen doesn't spoil them.", 14, fill=OFF)
-panel(d, (590, 146, 1232, 654), focus=True)
-text(d, (612, 158), "Ash on the Anvil", 26, True)
-text(d, (612, 196), "Secret quest  ·  only you see this", 15, True, ELEMENT["Void"])
-y = steps(d, 612, 236, [("done", "(found)"), ("now", "Wear the Ashen Blade into the Ember Trial.")])
-d.line((612, y + 6, 1212, y + 6), fill=STEEL)
-wrap(d, (612, y + 20), "What comes next stays hidden until you reach it.", 600, 15, DIM)
-footer(d, [("A", "Track"), ("X", "Mask again"), ("B", "Back")])
-save(im, OUT, "2_secret_quest.png")
+# ---- 2: a secret quest, in both states. Hidden (as the journal opens, so a shared screen doesn't spoil it): only a
+#         numbered stand-in name; A shows it. Shown: only the current step; no later steps, no reward, no hint of the
+#         end memory; X hides it again.
+def secret(name, shown):
+    im, d = canvas()
+    header(d, 0)
+    tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 3, h=30, size=15)
+    if shown:
+        quest_row(d, 188, "Secret", "Ash on the Anvil", "Wear the Ashen Blade into the Ember Trial.", focus=True)
+    else:
+        quest_row(d, 188, "Secret", "Secret Quest 1", "hidden  ·  A to show", focus=True)
+    quest_row(d, 258, "Secret", "Secret Quest 2", "hidden  ·  A to show")
+    text(d, (48, 340), "Secret quests are hidden when the journal opens,", 14, fill=OFF)
+    text(d, (48, 360), "so a shared screen doesn't spoil them.", 14, fill=OFF)
+    panel(d, (590, 146, 1232, 654), focus=True)
+    text(d, (612, 158), "Ash on the Anvil" if shown else "Secret Quest 1", 26, True)
+    text(d, (612, 196), "Secret quest", 15, True, ELEMENT["Void"])
+    if shown:
+        y = steps(d, 612, 236, [("done", "(found)"), ("now", "Wear the Ashen Blade into the Ember Trial.")])
+        d.line((612, y + 6, 1212, y + 6), fill=STEEL)
+        wrap(d, (612, y + 20), "What comes next stays hidden until you reach it.", 600, 15, DIM)
+        footer(d, [("A", "Track"), ("X", "Hide"), ("B", "Back")])
+    else:
+        text(d, (612, 236), "Hidden.", 16, True, DIM)
+        footer(d, [("A", "Show"), ("B", "Back")])
+    save(im, OUT, name)
+
+
+secret("2a_secret_quest_hidden.png", False)
+secret("2b_secret_quest_shown.png", True)
 
 # ---- 3: Memories: by character; a memory is a short scene you can replay. Not-yet-found ones are not listed at all.
 im, d = canvas()

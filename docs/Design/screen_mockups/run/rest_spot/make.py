@@ -19,10 +19,8 @@ def dim(im, k=0.55):
 
 
 def vbar(d, x, y, w, frac, col, value, h=20):
-    """A bar with its value centred inside, on a dark backing (D-185; the battle HUD's style)."""
+    """A bar with its value centred inside: plain white text on the darker bar (D-185; the battle HUD's style)."""
     bar(d, x, y, w, frac, col, h)
-    tw = d.textlength(value, font=F(13, True))
-    d.rounded_rectangle((x + (w - tw) / 2 - 6, y + 1, x + (w + tw) / 2 + 6, y + h - 1), 4, fill=BG)
     text(d, (x + w / 2, y + h / 2), value, 13, True, anchor="mm")
 
 
