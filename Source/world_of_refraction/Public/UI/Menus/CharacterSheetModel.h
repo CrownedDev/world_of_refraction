@@ -40,6 +40,8 @@ struct FCharacterSheetResistance
 	float Fraction = 0.0f;
 	/** The element's line; None for All, Physical and Spell. */
 	ESpellElement Element = ESpellElement::None;
+	/** The share at which this line can't go further (its bar is full there). */
+	float Cap = 1.0f;
 };
 
 struct FCharacterSheetCurse

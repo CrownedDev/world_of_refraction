@@ -39,8 +39,6 @@ namespace CharacterSheetStyle
 	constexpr float ResistMidlineWidth = 2.0f;
 	constexpr float ResistValueWidth = 105.0f;
 	constexpr float ResistLineGap = 21.0f;
-	/** The share at which a half bar is full: the damage step's cap on a type's resistance. TODO: read the cap's constant */
-	constexpr float ResistBarFullAt = 0.5f;
 	constexpr int32 StatsPerPillar = 4;
 	constexpr int32 PillarCount = 3;
 	constexpr int32 MaxCurses = 3;
@@ -402,8 +400,9 @@ void UCharacterSheetWidget::Refresh()
 		const bool bNothing = FMath::IsNearlyZero(Line.Fraction);
 		Widgets.Label->SetText(Line.Label);
 		Widgets.Label->SetColorAndOpacity(FSlateColor(bNothing ? DimColor : TextColor));
-		Widgets.WeakBar->SetPercent(FMath::Clamp(-Line.Fraction / ResistBarFullAt, 0.0f, 1.0f));
-		Widgets.ResistBar->SetPercent(FMath::Clamp(Line.Fraction / ResistBarFullAt, 0.0f, 1.0f));
+		const float BarFullAt = FMath::Max(Line.Cap, UE_KINDA_SMALL_NUMBER);
+		Widgets.WeakBar->SetPercent(FMath::Clamp(-Line.Fraction / BarFullAt, 0.0f, 1.0f));
+		Widgets.ResistBar->SetPercent(FMath::Clamp(Line.Fraction / BarFullAt, 0.0f, 1.0f));
 		Widgets.Value->SetText(WoRCharacterSheet::FormatPercent(Line.Fraction, /*bSigned=*/true));
 		Widgets.Value->SetColorAndOpacity(FSlateColor(bNothing ? OffColor : Line.Fraction > 0.0f ? GoodColor : LowHPColor));
 	}
