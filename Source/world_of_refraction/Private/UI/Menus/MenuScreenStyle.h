@@ -8,7 +8,10 @@
 
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateColorBrush.h"
+#include "Components/Border.h"
 #include "Components/HorizontalBox.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
@@ -24,6 +27,10 @@ namespace WoRMenuStyle
 	constexpr float LineGap = 9.0f;
 	constexpr float SectionGap = 18.0f;
 	constexpr float WordGap = 9.0f;
+	constexpr float TabPaddingX = 21.0f;
+	constexpr float TabPaddingY = 9.0f;
+	constexpr float TabGap = 9.0f;
+	constexpr float BarWithValueHeight = 30.0f;
 
 	constexpr int32 TitleFontSize = 38;
 	constexpr int32 SubtitleFontSize = 20;
@@ -45,6 +52,7 @@ namespace WoRMenuStyle
 	inline const FLinearColor LowHPColor = FLinearColor::FromSRGBColor(FColor(255, 143, 180));
 	inline const FLinearColor EPColor = FLinearColor::FromSRGBColor(FColor(111, 214, 228));
 	inline const FLinearColor WarnColor = FLinearColor::FromSRGBColor(FColor(242, 162, 58));
+	inline const FLinearColor GoodColor = FLinearColor::FromSRGBColor(FColor(110, 200, 110));
 	inline const FLinearColor ValueBackingColor = FLinearColor::FromSRGBColor(FColor(16, 18, 25, 170));
 
 	inline const FName BoldTypeface(TEXT("Bold"));
@@ -129,6 +137,43 @@ namespace WoRMenuStyle
 		UVerticalBoxSlot *BoxSlot = Column->AddChildToVerticalBox(Child);
 		BoxSlot->SetPadding(Padding);
 		return BoxSlot;
+	}
+
+	/** A bar with its value centred inside it on a dark backing, as on the battle HUD's cards (D-185). Size it
+	 *  with MakeSized: it must be tall enough for the value (BarWithValueHeight). */
+	inline UWidget *MakeBarWithValue(UWidgetTree *Tree, const FLinearColor &FillColor, UProgressBar *&OutBar, UTextBlock *&OutValue)
+	{
+		OutBar = MakeBar(Tree, FillColor);
+		OutValue = MakeText(Tree, SmallFontSize, TextColor, true);
+		UBorder *Backing = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Backing->SetBrushColor(ValueBackingColor);
+		Backing->SetPadding(FMargin(WordGap, 0.0f));
+		Backing->SetContent(OutValue);
+		UOverlay *BarWithValue = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		BarWithValue->AddChildToOverlay(OutBar)->SetHorizontalAlignment(HAlign_Fill);
+		UOverlaySlot *BackingSlot = BarWithValue->AddChildToOverlay(Backing);
+		BackingSlot->SetHorizontalAlignment(HAlign_Center);
+		BackingSlot->SetVerticalAlignment(VAlign_Center);
+		return BarWithValue;
+	}
+
+	/** A tab: a plate with a bold label (lit by the screen when it is the shown one). */
+	inline UBorder *MakeTab(UWidgetTree *Tree, UTextBlock *&OutLabel)
+	{
+		UBorder *Tab = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Tab->SetBrushColor(PlateColor);
+		Tab->SetPadding(FMargin(TabPaddingX, TabPaddingY));
+		OutLabel = MakeText(Tree, RowFontSize, DimColor, true);
+		Tab->SetContent(OutLabel);
+		return Tab;
+	}
+
+	/** The small key label beside a tab row: "LT", "RB". */
+	inline UTextBlock *MakeKeyLabel(UWidgetTree *Tree, const FText &Label)
+	{
+		UTextBlock *Text = MakeText(Tree, SmallFontSize, CyanColor, true);
+		Text->SetText(Label);
+		return Text;
 	}
 
 	inline void SetShown(UWidget *Widget, bool bShown)
