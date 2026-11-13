@@ -45,7 +45,7 @@ tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 0, h=30, size=15)
 quest_row(d, 188, "Main", "The Cinder Oath", "Beat the mini-boss in the ash fields without using items.", focus=True, tracked=True)
 quest_row(d, 258, "Side", "A Blade Reforged", "Bring a B-tier sword to the Blacksmith.")
 quest_row(d, 328, "Secret", "Ash on the Anvil", "Wear the Ashen Blade into the Ember Trial.")
-quest_row(d, 398, "Secret", "Secret Quest 2", "hidden  ·  A to show")
+quest_row(d, 398, "Secret", "Secret Quest 2", "hidden  ·  X to show")
 quest_row(d, 468, "Side", "First Steps", "done", done=True)
 panel(d, (590, 146, 1232, 654), focus=True)
 text(d, (612, 158), "The Cinder Oath", 26, True)
@@ -59,7 +59,7 @@ footer(d, [("A", "Track"), ("Y", "Filter"), ("B", "Back")])
 save(im, OUT, "1_quests.png")
 
 # ---- 2: a secret quest, in both states. Hidden (as the journal opens, so a shared screen doesn't spoil it): only a
-#         numbered stand-in name; A shows it. Shown: only the current step; no later steps, no reward, no hint of the
+#         numbered stand-in name; X shows it (one toggle button). Shown: only the current step; no later steps, no reward, no hint of the
 #         end memory; X hides it again.
 def secret(name, shown):
     im, d = canvas()
@@ -68,8 +68,8 @@ def secret(name, shown):
     if shown:
         quest_row(d, 188, "Secret", "Ash on the Anvil", "Wear the Ashen Blade into the Ember Trial.", focus=True)
     else:
-        quest_row(d, 188, "Secret", "Secret Quest 1", "hidden  ·  A to show", focus=True)
-    quest_row(d, 258, "Secret", "Secret Quest 2", "hidden  ·  A to show")
+        quest_row(d, 188, "Secret", "Secret Quest 1", "hidden  ·  X to show", focus=True)
+    quest_row(d, 258, "Secret", "Secret Quest 2", "hidden  ·  X to show")
     text(d, (48, 340), "Secret quests are hidden when the journal opens,", 14, fill=OFF)
     text(d, (48, 360), "so a shared screen doesn't spoil them.", 14, fill=OFF)
     panel(d, (590, 146, 1232, 654), focus=True)
@@ -79,10 +79,10 @@ def secret(name, shown):
         y = steps(d, 612, 236, [("done", "(found)"), ("now", "Wear the Ashen Blade into the Ember Trial.")])
         d.line((612, y + 6, 1212, y + 6), fill=STEEL)
         wrap(d, (612, y + 20), "What comes next stays hidden until you reach it.", 600, 15, DIM)
-        footer(d, [("A", "Track"), ("X", "Hide"), ("B", "Back")])
+        footer(d, [("A", "Select"), ("X", "Hide"), ("B", "Back")])
     else:
         text(d, (612, 236), "Hidden.", 16, True, DIM)
-        footer(d, [("A", "Show"), ("B", "Back")])
+        footer(d, [("A", "Select"), ("X", "Show"), ("B", "Back")])
     save(im, OUT, name)
 
 
