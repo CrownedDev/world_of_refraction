@@ -1,9 +1,12 @@
 // BattleHUDWidget.h
 // PLACEHOLDER UI (B-391, VisualGameplayPlan step 1, Q-391): the new battle HUD, plain C++ (no .uasset), built for
 // today's systems. One full-screen widget added straight to the viewport by UCombatHUD (wor.UI.NewHUD 1):
-// - party cards bottom-left: name, HP bar and "HP x / y", "EP x / y" (hidden for a Resonator with no EP use), status chips;
-// - enemy cards top-right: name, HP bar (no numbers, Q-391), status chips;
-// - turn order down the left edge: the current actor, then the next turns (bonus turns marked);
+// - party cards along the bottom from the left (B-436a): the featured card (the party member acting, else the last one
+//   that acted) is full: name, HP bar and "HP x / y", "EP x / y" (hidden for a Resonator with no EP use), status
+//   chips; the others sit to its right as compact cards (name, HP bar, "HP x / y"). The command menu stacks above the
+//   featured card (GetCommandMenuOffset);
+// - turn order top-right: the current actor, then the next turns (bonus turns marked);
+// - enemy cards under the turn order: name, HP bar (no numbers, Q-391), status chips;
 // - a Statuses button (top centre) opening one panel with every status in full (FeelGuide 5);
 // - B-391b: floating damage numbers at each card character's hit point (UCombatPresentationComponent::OnHitDetailShown,
 //   so every machine shows the server's numbers), styled by DamageNumberView; a Broken Darkness card's EP line is its
@@ -40,6 +43,7 @@ class UCanvasPanel;
 class UCharacterDataComponent;
 class ULoadoutComponent;
 class UProgressBar;
+class USizeBox;
 class USkillEffectManager;
 class UStatusBarStateComponent;
 class UStatusBuildupManager;
@@ -117,6 +121,14 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> GearText;
+
+	/** B-436a: sets the card's width (full or compact). */
+	UPROPERTY()
+	TObjectPtr<USizeBox> WidthBox;
+
+	/** B-436a: the buildup bar's row, hidden on a compact card. */
+	UPROPERTY()
+	TObjectPtr<UWidget> BuildupRow;
 };
 
 /** B-391b: one pooled floating damage number. */
@@ -170,6 +182,13 @@ public:
 	int32 GetLiveDamageNumberCount() const;
 	const TArray<FBattleDamageNumber> &GetDamageNumbers() const { return DamageNumbers; }
 
+	/** B-436a: the party card shown in full: the party member acting, else the last one that acted, else the first.
+	 *  INDEX_NONE with no party card. */
+	int32 GetFeaturedCardIndex() const;
+
+	/** B-436a: where UCombatHUD puts the command menu, from the bottom-left corner: just above the featured card. */
+	static FVector2D GetCommandMenuOffset();
+
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeConstruct() override;
@@ -177,7 +196,10 @@ protected:
 
 private:
 	void AddCard(AActor *Actor, bool bParty);
+	/** Column null (B-436a, party cards): the caller places Card.Frame itself. */
 	void BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Column);
+	/** B-436a: the featured card at the bottom-left corner, the compact ones in a row to its right. Moves slots only. */
+	void LayoutPartyCards();
 
 	void BuildBuildupWidgets(FBattleHUDCard &Card, UVerticalBox *Rows);
 
@@ -244,6 +266,8 @@ private:
 	bool bBound = false;
 	bool bShowActions = false;
 	int32 CurrentTurnNumber = 1;
+	/** B-436a: the last party card that acted (GetFeaturedCardIndex falls back to the first party card). */
+	int32 LastActingPartyCard = INDEX_NONE;
 
 	TWeakObjectPtr<USkillEffectManager> BoundEffects;
 	TWeakObjectPtr<UTurnStateComponent> BoundTurnState;

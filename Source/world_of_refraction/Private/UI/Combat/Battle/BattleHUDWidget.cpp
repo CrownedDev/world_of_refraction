@@ -65,12 +65,17 @@ namespace BattleHUDStyle
 	const FLinearColor PartyHPColor(0.75f, 0.1f, 0.1f);
 	const FLinearColor EnemyHPColor(0.55f, 0.1f, 0.1f);
 
-	const FVector2D TurnStripAnchor(0.0f, 0.0f);    // left edge, top (Expedition 33's turn column)
-	const FVector2D EnemyAnchor(1.0f, 0.0f);        // top-right
-	const FVector2D PartyAnchor(0.0f, 1.0f);        // bottom-left (the command menu is bottom-right)
+	// B-436a layout (docs/Design/BattleHUDRefinePlan.md piece 1).
+	const FVector2D RightColumnAnchor(1.0f, 0.0f);  // top-right: the turn order, the enemy cards under it
+	const FVector2D PartyAnchor(0.0f, 1.0f);        // bottom-left: the featured card, compact cards to its right
 	const FVector2D StatusButtonAnchor(0.5f, 0.0f); // top centre
 	const FVector2D StatusPanelAnchor(0.5f, 0.5f);  // centre
-	constexpr float TurnStripTopOffset = 24.0f;
+	constexpr float CompactCardWidth = 190.0f;
+	constexpr float CardGap = 8.0f;
+	constexpr float RightColumnGap = 16.0f; // between the turn order and the enemy cards
+	// shortcut: the command menu sits a fixed height above the bottom margin, not the featured card's real height;
+	// measure the card if its lines ever outgrow this. TODO: PIE-tune.
+	constexpr float FeaturedCardReserve = 220.0f;
 
 	// B-391b: a damage number's text is centred on its point and sits above it.
 	const FVector2D DamageNumberAlignment(0.5f, 1.0f);
@@ -377,28 +382,37 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		Canvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		WidgetTree->RootWidget = Canvas;
 
-		// Turn order: the left edge, top.
+		// B-436a: the right-hand column, top: the turn order, the enemy cards under it. Nothing in it takes a click.
+		UVerticalBox *RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
+		RightColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
 		UVerticalBox *TurnColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TurnOrder"));
-		TurnColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
 		BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::NameFontSize)->SetText(LOCTEXT("TurnOrderTitle", "Turn order"));
 		for (int32 Index = 0; Index <= BattleHUDView::UPCOMING_TURNS_SHOWN; ++Index)
 		{
 			TurnTexts.Add(BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::TurnFontSize));
 		}
-		BattleHUDBuild::Place(Canvas, TurnColumn, BattleHUDStyle::TurnStripAnchor,
-							  BattleHUDBuild::Inset(BattleHUDStyle::TurnStripAnchor) + FVector2D(0.0f, BattleHUDStyle::TurnStripTopOffset));
-
-		// One column per side; one card per combatant, made here once.
-		UVerticalBox *PartyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Party"));
 		UVerticalBox *EnemyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Enemies"));
-		PartyColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible); // B-391c: a party card takes a hover (its tooltip)
-		EnemyColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
+		if (UVerticalBoxSlot *TurnSlot = RightColumn->AddChildToVerticalBox(TurnColumn))
+		{
+			TurnSlot->SetHorizontalAlignment(HAlign_Right);
+			TurnSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::RightColumnGap));
+		}
+		if (UVerticalBoxSlot *EnemySlot = RightColumn->AddChildToVerticalBox(EnemyColumn))
+		{
+			EnemySlot->SetHorizontalAlignment(HAlign_Right);
+		}
+		BattleHUDBuild::Place(Canvas, RightColumn, BattleHUDStyle::RightColumnAnchor, BattleHUDBuild::Inset(BattleHUDStyle::RightColumnAnchor));
+
+		// One card per combatant, made here once. A party card sits on the canvas itself, so LayoutPartyCards can move
+		// it (the featured card to the corner) without re-parenting anything.
 		for (FBattleHUDCard &Card : Cards)
 		{
-			BuildCardWidgets(Card, Card.bParty ? PartyColumn : EnemyColumn);
+			BuildCardWidgets(Card, Card.bParty ? nullptr : EnemyColumn);
+			if (Card.bParty)
+			{
+				BattleHUDBuild::Place(Canvas, Card.Frame, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
+			}
 		}
-		BattleHUDBuild::Place(Canvas, PartyColumn, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
-		BattleHUDBuild::Place(Canvas, EnemyColumn, BattleHUDStyle::EnemyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::EnemyAnchor));
 
 		// The one button that shows every status (FeelGuide 5).
 		UButton *StatusButton = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass(), TEXT("StatusesButton")); // not focusable: keeps A / Enter for the command menu
@@ -435,12 +449,16 @@ void UBattleHUDWidget::BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Colu
 	{
 		Card.Frame->SetToolTipText(Card.GearTooltip); // Initialise's RefreshGear ran before the widgets existed
 	}
-	if (UVerticalBoxSlot *ColumnSlot = Column->AddChildToVerticalBox(Card.Frame))
+	if (Column)
 	{
-		ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
+		if (UVerticalBoxSlot *ColumnSlot = Column->AddChildToVerticalBox(Card.Frame))
+		{
+			ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
+		}
 	}
 	USizeBox *Width = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 	Width->SetWidthOverride(BattleHUDStyle::CardWidth);
+	Card.WidthBox = Width;
 	Card.Frame->SetContent(Width);
 	UVerticalBox *Rows = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Width->AddChild(Rows);
@@ -463,12 +481,11 @@ void UBattleHUDWidget::BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Colu
 	{
 		Card.HPText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 		Card.EPText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
-		Card.EPText->SetVisibility(Card.bShowEP ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		Card.BuildupText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 		Card.GearText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 		Card.GearText->SetColorAndOpacity(FSlateColor(BattleHUDStyle::GearColor));
 		Card.ActionsText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize); // B-170e
-		Card.ActionsText->SetVisibility(bShowActions ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		// Which lines show (EP, actions, compact or full) is PushToWidgets' call (B-436a); NativeConstruct runs it.
 	}
 	Card.StatusText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 }
@@ -526,6 +543,7 @@ void UBattleHUDWidget::BuildBuildupWidgets(FBattleHUDCard &Card, UVerticalBox *R
 	}
 	AddGap(1.0f - PreviousPosition);
 
+	Card.BuildupRow = BarSize;
 	if (UVerticalBoxSlot *BuildupSlot = Rows->AddChildToVerticalBox(BarSize))
 	{
 		BuildupSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
@@ -623,11 +641,59 @@ void UBattleHUDWidget::RefreshTurnStrip()
 						   : Card && !Card->bParty ? BattleHUDStyle::EnemyColor
 												  : BattleHUDStyle::TextColor);
 	}
-	for (FBattleHUDCard &Card : Cards)
+	for (int32 Index = 0; Index < Cards.Num(); ++Index)
 	{
+		FBattleHUDCard &Card = Cards[Index];
 		Card.bActing = Acting && Card.Actor.Get() == Acting;
+		if (Card.bActing && Card.bParty)
+		{
+			LastActingPartyCard = Index; // B-436a: stays featured through the enemies' turns
+		}
 	}
 	PushToWidgets();
+}
+
+int32 UBattleHUDWidget::GetFeaturedCardIndex() const
+{
+	if (Cards.IsValidIndex(LastActingPartyCard))
+	{
+		return LastActingPartyCard;
+	}
+	return Cards.IndexOfByPredicate([](const FBattleHUDCard &Card) { return Card.bParty; });
+}
+
+FVector2D UBattleHUDWidget::GetCommandMenuOffset()
+{
+	return FVector2D(BattleHUDStyle::ScreenMargin,
+					 -(BattleHUDStyle::ScreenMargin + BattleHUDStyle::FeaturedCardReserve + BattleHUDStyle::CardGap));
+}
+
+void UBattleHUDWidget::LayoutPartyCards()
+{
+	const int32 Featured = GetFeaturedCardIndex();
+	const float FullCardOuterWidth = BattleHUDStyle::CardWidth + 2.0f * BattleHUDStyle::CardPadding;
+	const float CompactCardOuterWidth = BattleHUDStyle::CompactCardWidth + 2.0f * BattleHUDStyle::CardPadding;
+	const FVector2D Corner = BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor);
+	float CompactX = Corner.X + FullCardOuterWidth + BattleHUDStyle::CardGap;
+	for (int32 Index = 0; Index < Cards.Num(); ++Index)
+	{
+		const FBattleHUDCard &Card = Cards[Index];
+		UCanvasPanelSlot *CardSlot = Card.bParty && Card.Frame ? Cast<UCanvasPanelSlot>(Card.Frame->Slot) : nullptr;
+		if (!CardSlot)
+		{
+			continue;
+		}
+		const bool bFeatured = Index == Featured;
+		if (Card.WidthBox)
+		{
+			Card.WidthBox->SetWidthOverride(bFeatured ? BattleHUDStyle::CardWidth : BattleHUDStyle::CompactCardWidth);
+		}
+		CardSlot->SetPosition(FVector2D(bFeatured ? Corner.X : CompactX, Corner.Y));
+		if (!bFeatured)
+		{
+			CompactX += CompactCardOuterWidth + BattleHUDStyle::CardGap;
+		}
+	}
 }
 
 void UBattleHUDWidget::RefreshGear()
@@ -676,8 +742,25 @@ void UBattleHUDWidget::SetStatusPanelOpen(bool bOpen)
 
 void UBattleHUDWidget::PushToWidgets()
 {
-	for (const FBattleHUDCard &Card : Cards)
+	const int32 Featured = GetFeaturedCardIndex();
+	const auto ShowIf = [](UWidget *Widget, bool bShow)
 	{
+		if (Widget)
+		{
+			Widget->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		}
+	};
+	for (int32 CardIndex = 0; CardIndex < Cards.Num(); ++CardIndex)
+	{
+		const FBattleHUDCard &Card = Cards[CardIndex];
+		// B-436a: a party card that isn't the featured one is compact: name, HP bar and HP line only. Enemy cards are
+		// unchanged (bar, buildup bar, statuses).
+		const bool bFull = !Card.bParty || CardIndex == Featured;
+		ShowIf(Card.EPText, bFull && Card.bShowEP);
+		ShowIf(Card.BuildupRow, bFull);
+		ShowIf(Card.BuildupText, bFull);
+		ShowIf(Card.ActionsText, bFull && bShowActions);
+		ShowIf(Card.StatusText, bFull);
 		const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Card.Name) : Card.Name;
 		BattleHUDBuild::SetTextSafe(Card.NameText, Name);
 		if (Card.NameText)
@@ -716,9 +799,10 @@ void UBattleHUDWidget::PushToWidgets()
 		BattleHUDBuild::SetTextSafe(Card.GearText, Card.GearLine);
 		if (Card.GearText)
 		{
-			Card.GearText->SetVisibility(Card.GearLine.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+			Card.GearText->SetVisibility(bFull && !Card.GearLine.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		}
 	}
+	LayoutPartyCards();
 	for (int32 Index = 0; Index < TurnTexts.Num(); ++Index)
 	{
 		UTextBlock *Text = TurnTexts[Index];
@@ -729,7 +813,8 @@ void UBattleHUDWidget::PushToWidgets()
 		const bool bUsed = TurnLines.IsValidIndex(Index);
 		Text->SetText(bUsed ? TurnLines[Index] : FText::GetEmpty());
 		Text->SetColorAndOpacity(FSlateColor(bUsed ? TurnLineColors[Index] : BattleHUDStyle::TextColor));
-		Text->SetVisibility(bUsed ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		// Hidden, not Collapsed: the enemy cards sit under the strip (B-436a) and must not jump as it shortens.
+		Text->SetVisibility(bUsed ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 	}
 	BattleHUDBuild::SetTextSafe(StatusPanelBody, StatusPanelText);
 	if (StatusPanel)
@@ -1009,6 +1094,8 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s actionPips=%s"), bBound ? TEXT("yes") : TEXT("no"),
 								  Cards.Num(), CurrentTurnNumber, bStatusPanelOpen ? TEXT("open") : TEXT("closed"),
 								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"), bShowActions ? TEXT("on") : TEXT("off"));
+	const int32 Featured = GetFeaturedCardIndex();
+	const FBattleHUDCard *FeaturedCard = Cards.IsValidIndex(Featured) ? &Cards[Featured] : nullptr;
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		Out += FString::Printf(TEXT("\n  %s %s%s%s | %s | %s | %s | %s, %d crack(s)"), Card.bParty ? TEXT("party") : TEXT("enemy"),
@@ -1019,6 +1106,7 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 		if (Card.bParty) // B-391c
 		{
 			Out += FString::Printf(TEXT(" | gear: %s"), Card.GearLine.IsEmpty() ? TEXT("none") : *Card.GearLine.ToString());
+			Out += &Card == FeaturedCard ? TEXT(" | featured (full card)") : TEXT(" | compact"); // B-436a
 		}
 		if (Card.bParty && bShowActions)
 		{
