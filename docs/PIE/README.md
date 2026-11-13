@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-214d](B-214d.md) | `feature/B-214d-flight-cloud` (cloud, **unbuilt**, carries B-214b and B-214c) | Field skills part 4: flight (EP each second, hover when still, a ceiling above the take-off, `Zone.NoFly` volumes), each limit liftable (`wor.Field.FlightLimits`). Editor step: tag a volume `Zone.NoFly` | Pending |
 | [B-214c](B-214c.md) | `feature/B-214c-ground-air-moves-cloud` (cloud, **unbuilt**, carries B-214b) | Field skills part 3: glide (in the air, slow fall), high jump with one double jump per airtime, air dash (Lightning blinks), wall-run during Enhanced Sprint | Pending |
 | [B-214b](B-214b.md) | `feature/B-214b-field-unlocks-cloud` (cloud, **unbuilt**) | Field skills part 2: a movement type unlocks for an element when that element's aura spell reaches rank 3 / 7 (account-wide, kept once reached, saved); Enhanced Sprint is now locked until then; the placeholder picker from the party screen (Field skill...) or `wor.UI.FieldSkill`. Editor step: mark an aura spell | Pending |
 | [B-152](B-152.md) | `chore/B-152-delete-stone-wrappers` (in dev, built 2026-11-14) | The unreachable stat-stone consumable wrappers are deleted (D-204): every stat stone still buffs an ally and debuffs an enemy; Amber and Opal as before | Pending |
