@@ -561,6 +561,17 @@ The queue of questions only Crown can answer.
 ~~**A**, by the reference-backed default (2026-11-14).~~
 **Notes for Claude:** abilities and attacks built in B-435; spells are **B-435b**.
 
+### Q-435b — Spell stacking: only when infused? and a Broken Darkness evolution in the stack
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-13; Crown vetoes) · **Raised:** 2026-11-13 (B-435b, cloud) · **Blocks:** —
+**Question:** (1) Q-435 B says spells stack; does an uninfused (L0) cast stack too, so every normal cast of a free ring spell by a same-element Caster costs the innate's EP? (2) A Broken Darkness character's evolution, stacked on a spell, is free at the EP layer (its cost is wear, which only its own origin path charges): does it still join?
+**Context:** D-174 / ED-51: "an infused action uses every same-element source". Abilities stack only when infused (B-435). Crown's Q-435 B example: "a free adapter spell starts costing innate EP when innate shares the element".
+**Options / as built:**
+- (1) **A** only an infused spell (L1 / L2) stacks, as abilities: an L0 cast keeps its one origin and its old cost. **B** every cast stacks.
+- (2) **A** it joins (+25% buildup) and pays at commit through the evolution source's own commit path (L2 HP); no EP, as when it is the origin. **B** it doesn't join.
+**Recommendation:** A, A. (1) The ruling's own words are "an infused action"; Final Fantasy XIV's and Expedition 33's resource-boosted casts are opt-in, so a plain cast never costs more than it shows; one rule for spells and abilities is easier to learn. Crown's example still holds for every infused cast. (2) Keeps BD's evolution rule (wear, not EP) unchanged rather than inventing a second price.
+**Answer:** **A, A**, by the reference-backed default (2026-11-13).
+**Notes for Claude:** built in B-435b. Follows from it: a BD caster who picks Innate on an evolution spell now hits with their own element (Darkness), not the evolution's (Q-435 B's "their own element"). Left: the battle menu's ring and weapon spell lists lock the source, so a BD / Reality caster can't yet pick Innate on those from the UI (only the Breakthrough list cycles sources); a UI follow-up.
+
 ### Q-402 — Side-on Defence view: which side, how wide, and what "no shake" covers
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-402, cloud) · **Blocks:** —
 **Question:** Crown's Q2 (2026-11-09) made the Defence view a low side-on two-shot, steady, no shake (study R10, R10b, R11). Still open: (1) which side of the fight the camera stands on; (2) how a wide shot for several targets differs from the two-shot; (3) when shake and the FOV punch are held, and what happens to them afterwards.
