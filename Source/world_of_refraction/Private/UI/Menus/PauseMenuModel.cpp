@@ -29,13 +29,13 @@
 
 namespace
 {
-	const UTrialRunSubsystem *FindRun(const UWorld *World)
+	const UTrialRunSubsystem *FindPauseMenuRun(const UWorld *World)
 	{
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		return GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	}
 
-	const UCurrencyComponent *FindLocalWallet(const UWorld *World)
+	const UCurrencyComponent *FindPauseMenuWallet(const UWorld *World)
 	{
 		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
 		if (!PC)
@@ -50,7 +50,7 @@ namespace
 		return Player ? Player->GetWallet() : nullptr;
 	}
 
-	FPauseMenuPage MakePage(EPauseMenuPage Page, const FText &Label, const FText &Preview, const FText &Refusal = FText::GetEmpty())
+	FPauseMenuPage MakePauseMenuPage(EPauseMenuPage Page, const FText &Label, const FText &Preview, const FText &Refusal = FText::GetEmpty())
 	{
 		FPauseMenuPage Row;
 		Row.Page = Page;
@@ -68,20 +68,20 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun)
 	const FText GuestCantQuit = LOCTEXT("GuestCantQuit", "Only the host can end the run.");
 
 	TArray<FPauseMenuPage> Pages;
-	Pages.Add(MakePage(EPauseMenuPage::Resume, LOCTEXT("Resume", "Resume"), LOCTEXT("ResumePreview", "Back to the game.")));
-	Pages.Add(MakePage(EPauseMenuPage::Loadout, LOCTEXT("Loadout", "Loadout"),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Resume, LOCTEXT("Resume", "Resume"), LOCTEXT("ResumePreview", "Back to the game.")));
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Loadout, LOCTEXT("Loadout", "Loadout"),
 					   LOCTEXT("LoadoutPreview", "Weapons, adapters and apparel, their sockets, and your saved loadouts."), NotBuilt));
-	Pages.Add(MakePage(EPauseMenuPage::Inventory, LOCTEXT("Inventory", "Inventory"),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Inventory, LOCTEXT("Inventory", "Inventory"),
 					   LOCTEXT("InventoryPreview", "Each character's gear and pouch, and the home chest.")));
-	Pages.Add(MakePage(EPauseMenuPage::Character, LOCTEXT("Character", "Character"),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Character, LOCTEXT("Character", "Character"),
 					   LOCTEXT("CharacterPreview", "Pillars, substats and resistances."), NotBuilt));
-	Pages.Add(MakePage(EPauseMenuPage::Party, LOCTEXT("Party", "Party"),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Party, LOCTEXT("Party", "Party"),
 					   LOCTEXT("PartyPreview", "Who plays each member, and where they start a fight.")));
-	Pages.Add(MakePage(EPauseMenuPage::Journal, LOCTEXT("Journal", "Journal"),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Journal, LOCTEXT("Journal", "Journal"),
 					   LOCTEXT("JournalPreview", "Quests, memories, lore and conversations.")));
-	Pages.Add(MakePage(EPauseMenuPage::Settings, LOCTEXT("Settings", "Settings"),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Settings, LOCTEXT("Settings", "Settings"),
 					   LOCTEXT("SettingsPreview", "Controls, camera, display, audio and accessibility."), NotBuilt));
-	Pages.Add(MakePage(EPauseMenuPage::Quit, LOCTEXT("Quit", "Quit to title"), GetQuitWarning(bInRun),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Quit, LOCTEXT("Quit", "Quit to title"), GetQuitWarning(bInRun),
 					   bInRun && !bCanEndRun ? GuestCantQuit : FText::GetEmpty()));
 	return Pages;
 }
@@ -100,20 +100,20 @@ FText WoRPauseMenu::GetExtractNote()
 
 bool WoRPauseMenu::IsInRun(const UWorld *World)
 {
-	const UTrialRunSubsystem *Run = FindRun(World);
+	const UTrialRunSubsystem *Run = FindPauseMenuRun(World);
 	return Run && Run->IsRunActive();
 }
 
 FPauseMenuHeader WoRPauseMenu::BuildHeader(const UWorld *World)
 {
 	FPauseMenuHeader Header;
-	const UCurrencyComponent *Wallet = FindLocalWallet(World);
+	const UCurrencyComponent *Wallet = FindPauseMenuWallet(World);
 	const auto AddBalance = [&Header, Wallet](ECurrencyType Currency)
 	{
 		Header.Chips.Add({FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0), WoRGameNames::GetCurrencyName(Currency)});
 	};
 
-	const UTrialRunSubsystem *Run = FindRun(World);
+	const UTrialRunSubsystem *Run = FindPauseMenuRun(World);
 	if (!Run || !Run->IsRunActive())
 	{
 		Header.Title = LOCTEXT("HubTitle", "Void Realm");
