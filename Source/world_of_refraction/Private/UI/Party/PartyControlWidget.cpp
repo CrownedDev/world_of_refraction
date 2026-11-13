@@ -23,6 +23,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Player/WoRPlayerState.h"
 #include "Pool/PoolSubsystem.h"
+#include "UI/Field/FieldSkillPickerWidget.h"
 #include "Currency/CurrencyTypes.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -169,6 +170,10 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		{
 			ClashSlot->SetPadding(FMargin(PartyControlStyle::RowPadding));
 		}
+
+		UButton *FieldSkillButton = nullptr;
+		PartyControlBuild::AddButton(WidgetTree, Box, FieldSkillButton)->SetText(LOCTEXT("FieldSkill", "Field skill..."));
+		FieldSkillButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleFieldSkillClicked);
 
 		UButton *CloseButton = nullptr;
 		PartyControlBuild::AddButton(WidgetTree, Box, CloseButton)->SetText(LOCTEXT("Close", "Close"));
@@ -433,6 +438,13 @@ void UPartyControlWidget::HandleRepairGearClicked()
 		UE_LOG(LogWoR, Display, TEXT("[PartyControl] Repair: nothing repaired (nothing worn, or not enough money)"));
 	}
 	Refresh(); // a repair changes no party membership, so OnPartyChanged doesn't fire
+}
+
+void UPartyControlWidget::HandleFieldSkillClicked()
+{
+	APlayerController *PC = GetOwningPlayer();
+	HandleCloseClicked();
+	UFieldSkillPickerWidget::Open(PC);
 }
 
 void UPartyControlWidget::HandleCloseClicked()

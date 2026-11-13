@@ -82,6 +82,10 @@ private:
 	UFUNCTION()
 	void HandleRepairGearClicked();
 
+	/** B-214b: closes this screen and opens the field skill picker (UFieldSkillPickerWidget). */
+	UFUNCTION()
+	void HandleFieldSkillClicked();
+
 	UFUNCTION()
 	void HandleCloseClicked();
 

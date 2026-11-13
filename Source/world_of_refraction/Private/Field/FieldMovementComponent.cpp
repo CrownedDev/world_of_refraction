@@ -5,8 +5,10 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/ECharacterClass.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Engine/World.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Field/FieldSkillUnlockSubsystem.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Hub/HubMovementLibrary.h"
@@ -21,6 +23,25 @@
 namespace FieldMovementLog
 {
 	const TCHAR *const TAG = TEXT("[FieldMovement]");
+}
+
+namespace
+{
+	/** B-214b: has the account unlocked Type for Element? bScanStore first records the store's spells (a pick reads
+	 *  ranks reached since the last scan). No unlock subsystem: only what needs no unlock. */
+	bool IsFieldTypeUnlocked(const UObject *Context, EFieldMovementType Type, ESpellElement Element, bool bScanStore)
+	{
+		UFieldSkillUnlockSubsystem *Unlocks = WoRFight::Get<UFieldSkillUnlockSubsystem>(Context);
+		if (!Unlocks)
+		{
+			return !FieldSkillRules::NeedsUnlock(Type);
+		}
+		if (bScanStore)
+		{
+			Unlocks->RecordFromPool();
+		}
+		return Unlocks->IsUnlocked(Type, Element);
+	}
 }
 
 UFieldMovementComponent::UFieldMovementComponent()
@@ -118,7 +139,9 @@ ESpellElement UFieldMovementComponent::GetSourceElement(EFieldSkillSource Source
 
 EFieldSkillRefusal UFieldMovementComponent::SetActiveFieldSkill(EFieldSkillSource Source, EFieldMovementType Type)
 {
-	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckPick(Type, GetSourceElement(Source));
+	const ESpellElement SourceElement = GetSourceElement(Source);
+	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckPick(Type, SourceElement,
+																  IsFieldTypeUnlocked(this, Type, SourceElement, true));
 	if (Refusal != EFieldSkillRefusal::None)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: %s %s refused (%s)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
@@ -239,7 +262,8 @@ EFieldSkillRefusal UFieldMovementComponent::StartEnhancedSprint()
 {
 	UCharacterDataComponent *CharComp = GetCharacterData();
 	const ESpellElement Element = GetSourceElement(GetActiveFieldSkill().Source);
-	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckEnhancedSprintStart(Element, CharComp ? CharComp->CurrentEP : 0);
+	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckEnhancedSprintStart(
+		Element, CharComp ? CharComp->CurrentEP : 0, IsFieldTypeUnlocked(this, EFieldMovementType::EnhancedSprint, Element, false));
 	if (Refusal != EFieldSkillRefusal::None)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: Enhanced Sprint refused (%s, %s, EP %d)"), FieldMovementLog::TAG,
@@ -349,7 +373,8 @@ FString UFieldMovementComponent::GetFieldStateString() const
 						   *GetNameSafe(GetOwner()), *FieldSkillRules::SourceName(Choice.Source),
 						   *FieldSkillRules::TypeName(Choice.Type),
 						   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(SourceElement)),
-						   *FieldSkillRules::RefusalName(FieldSkillRules::CheckPick(Choice.Type, SourceElement)),
+						   *FieldSkillRules::RefusalName(FieldSkillRules::CheckPick(
+							   Choice.Type, SourceElement, IsFieldTypeUnlocked(this, Choice.Type, SourceElement, false))),
 						   bEnhancedSprintActive ? TEXT("ON") : TEXT("off"), GetSprintSpeedMultiplier(),
 						   IsMovingAtSprintSpeed() ? TEXT("moving at sprint speed (draining)") : TEXT("not sprinting (no drain)"),
 						   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0,

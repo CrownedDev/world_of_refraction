@@ -30,6 +30,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "UObject/UObjectIterator.h"
+#include "Field/FieldSkillUnlockSubsystem.h"
 #include "Memory/CurseSubsystem.h"
 #include "Memory/HiddenCounterSubsystem.h"
 #include "Memory/HiddenQuestSubsystem.h"
@@ -437,6 +438,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	GI->GetSubsystem<UHiddenQuestSubsystem>()->Restore(Data.HiddenQuests); // B-377
 	GI->GetSubsystem<UCurseSubsystem>()->Restore(Data.Curses); // B-378
 	GI->GetSubsystem<UHiddenCounterSubsystem>()->Restore(Data.Counters); // B-379
+	GI->GetSubsystem<UFieldSkillUnlockSubsystem>()->Restore(Data.FieldUnlocks); // B-214b: after the store, which it scans
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -796,6 +798,7 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	Data.HiddenQuests = GI->GetSubsystem<UHiddenQuestSubsystem>()->Capture(); // B-377: steps done, kept across runs
 	Data.Curses = GI->GetSubsystem<UCurseSubsystem>()->Capture(); // B-378: held across runs until removed
 	Data.Counters = GI->GetSubsystem<UHiddenCounterSubsystem>()->Capture(); // B-379: counting across runs
+	Data.FieldUnlocks = GI->GetSubsystem<UFieldSkillUnlockSubsystem>()->Capture(); // B-214b: account-wide
 	// B-425: a co-op guest's wallet is the host's mirror; banking it would overwrite the guest's own balances.
 	const UCurrencyComponent *Wallet = FindLocalWallet(World);
 	if (Wallet && WoRAuthority::HasAuthority(Wallet->GetOwner()))

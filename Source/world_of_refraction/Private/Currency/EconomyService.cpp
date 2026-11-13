@@ -33,6 +33,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
+#include "Field/FieldSkillUnlockSubsystem.h"
 #include "Memory/MemoryConditions.h"
 #include "Memory/MemoryUnlock.h"
 #include "Pool/PoolSubsystem.h" // B-314: home pieces on the run can't be sold or dismantled
@@ -1902,8 +1903,17 @@ bool UEconomyService::LevelUpSpell(AActor *Owner, const USpellData *Spell)
     }
 
     // Spells level on SKILL essence, §3 category split; + ½ Elemental when the spell has an element (Q-333).
-    return TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence,
-                           Spell && EconomyYield::SpellHasElement(Spell->Element));
+    if (!TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence,
+                         Spell && EconomyYield::SpellHasElement(Spell->Element)))
+    {
+        return false;
+    }
+    // B-214b: an aura spell's new rank may unlock a field skill for the account.
+    if (UFieldSkillUnlockSubsystem *Unlocks = Owner->GetGameInstance() ? Owner->GetGameInstance()->GetSubsystem<UFieldSkillUnlockSubsystem>() : nullptr)
+    {
+        Unlocks->RecordSpellTier(Spell, Instance->Tier);
+    }
+    return true;
 }
 
 bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)

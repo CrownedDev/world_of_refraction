@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Field/FieldSkillTypes.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/SpellSchool.h"
@@ -65,6 +66,12 @@ public:
         return bDealsIce && CastElement == ESpellElement::Water ? EWoRDamageType::Ice
                                                                                                     : EWoRDamageType::None;
     }
+
+    /** B-214b (FieldAbilities "Movement -> aura"): the aura this spell is, if any. An elemental variant (Element a real
+     *  element) unlocks the movement types of its aura for its element once any character ranks it high enough
+     *  (UFieldSkillUnlockSubsystem). None for every other spell. TODO: Crown marks the aura spells (Crown's table). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EFieldAura FieldAura = EFieldAura::None;
 
     /** Authored school (D-163: one of six). Read GetSchool(). The default stays Conjuration: changing it would
      *  silently re-tag every asset saved at the default (B-374). */

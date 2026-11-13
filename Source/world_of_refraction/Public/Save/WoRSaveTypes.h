@@ -824,6 +824,33 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	bool bHideEndTurnButton = false;
 };
 
+/** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedFieldAuraRank
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	uint8 Aura = 0;
+
+	UPROPERTY()
+	uint8 Element = 0;
+
+	UPROPERTY()
+	int32 Rank = 0;
+};
+
+/** B-214b: the account's field skill unlocks (UFieldSkillUnlockSubsystem). Added with no version bump: an older 38
+ *  loads none, which is right (nothing was unlocked before). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedFieldUnlocks
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FSavedFieldAuraRank> Ranks;
+};
+
 /** Everything one save slot holds. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FWoRSaveData
@@ -859,6 +886,9 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedSettings Settings; // B-398
+
+	UPROPERTY()
+	FSavedFieldUnlocks FieldUnlocks; // B-214b
 
 	/** B-467: time played, in seconds, for the title's Continue line. Added with no version bump: an older 38 loads 0. */
 	UPROPERTY()
