@@ -395,6 +395,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-426](B-426.md) | Run Gold cleared for every player, not only the host (2-player) | Pending | REVIEW (in dev, `fix/B-426-clear-run-gold-all`) | [ ] |
 | [B-425](B-425.md) | A co-op guest's saved wallet reaches the host once and is never overwritten by the host's copy (2-player) | Pending | REVIEW (in dev, `fix/B-425-guest-wallet`) | [ ] |
 | [B-433](B-433.md) | A guest's map-spot or fragment memory find needs its character near a spot or fragment (2-player) | Pending | REVIEW (in dev, `fix/B-433-memory-report-reach`) | [ ] |
+| [B-428](B-428.md) | Host hand-over chest records follow their player; a leaver's dropped Prisms split among the rest (3-player) | Pending | REVIEW (in dev, `fix/B-428-handover-rekey`) | [ ] |
 
 ---
 
