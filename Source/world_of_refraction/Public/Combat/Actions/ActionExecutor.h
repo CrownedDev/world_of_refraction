@@ -573,6 +573,7 @@ private:
 	EItemTier ResolveActionTier(AActor *Actor, const FAction &Action) const;
 	friend class FActionTierSpec;
 	friend class FInfusionCostSpec; // B-334: reads PendingInfusionHPCost after ApplyCommitCosts
+	friend class FInterruptAbortSpec; // B-431: builds the pending defenses and drives the interrupt abort
 
 	/** The tier of the channel the action is used THROUGH: attack/ability →
 	 *  active weapon; spell → the catalyst crystal per Action.SpellSource

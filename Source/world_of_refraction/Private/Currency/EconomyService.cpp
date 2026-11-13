@@ -1168,14 +1168,17 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     // The goods pass through the payer: its own copy of one is no duplicate for it to resolve (the receiver's is).
     UInventoryComponent *PayerInv = Payer->FindComponentByClass<UInventoryComponent>();
     const bool bWasQuiet = PayerInv && PayerInv->bSuppressDuplicateNotice;
+    const bool bWasPassing = PayerInv && PayerInv->bPassingGearThrough;
     if (PayerInv)
     {
         PayerInv->bSuppressDuplicateNotice = true;
+        PayerInv->bPassingGearThrough = true; // B-432: the payer's own room doesn't refuse the receiver's gear
     }
     const bool bBought = PurchaseImpl(Payer, Items, ForKey); // B-316b: skills are learned by ForKey
     if (PayerInv)
     {
         PayerInv->bSuppressDuplicateNotice = bWasQuiet;
+        PayerInv->bPassingGearThrough = bWasPassing;
     }
     if (!bBought)
     {
@@ -1193,7 +1196,9 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s stays with the payer: %s"), *ID.ToString(), *Refusal.ToString());
+            // B-432: the payer's room wasn't checked, so the payer may now be over its armoury limit until it gives or dismantles.
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s stays with the payer (who may now be over its armoury limit): %s"),
+                   *ID.ToString(), *Refusal.ToString());
         }
     }
     // Crystals and stones the purchase put in the payer's pouch move to the receiver's, as many as fit.
@@ -1348,12 +1353,14 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     }
 
     // ---- Cumulative capacity: fresh purchases are bare, so each costs its BASE slot ----
-    if (WeaponDemand > 0 && Inv->GetRemainingWeaponCapacity() < WeaponDemand * InventoryConstants::WEAPON_BASE_SLOT_COST)
+    // B-432: gear bought for another member only passes through the payer; PurchaseFor checked the receiver's room.
+    const bool bGearForReceiver = !SkillReceiver.IsNone();
+    if (!bGearForReceiver && WeaponDemand > 0 && Inv->GetRemainingWeaponCapacity() < WeaponDemand * InventoryConstants::WEAPON_BASE_SLOT_COST)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s weapon capacity short (need %d slots) — aborting."), *Owner->GetName(), WeaponDemand);
         return false;
     }
-    if (RingDemand > 0 && Inv->GetRemainingRingCapacity() < RingDemand * InventoryConstants::RING_BASE_SLOT_COST)
+    if (!bGearForReceiver && RingDemand > 0 && Inv->GetRemainingRingCapacity() < RingDemand * InventoryConstants::RING_BASE_SLOT_COST)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s ring capacity short (need %d slots) — aborting."), *Owner->GetName(), RingDemand);
         return false;

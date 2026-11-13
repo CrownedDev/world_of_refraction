@@ -21,6 +21,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
 #include "WoRAuthority.h"
+#include "GameFramework/GameStateBase.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/StatStone.h"
@@ -818,8 +819,23 @@ void USaveSubsystem::ApplyWalletTo(UCurrencyComponent *Wallet) const
 void USaveSubsystem::ClearRunGold(UWorld *World)
 {
 	CarriedGold = 0;
-	// The live wallet too: its PlayerState banks it again at EndPlay, during the level change.
-	if (UCurrencyComponent *Wallet = FindLocalWallet(World))
+	// The live wallets too: the local one is banked again at EndPlay, during the level change. B-426: every player's
+	// (as DefeatRules::ApplyWipe walks them), so a co-op guest doesn't carry run Gold into the next run.
+	TArray<UCurrencyComponent *, TInlineAllocator<4>> Wallets;
+	if (UCurrencyComponent *Local = FindLocalWallet(World))
+	{
+		Wallets.Add(Local);
+	}
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	for (APlayerState *Player : GameState ? GameState->PlayerArray : TArray<TObjectPtr<APlayerState>>())
+	{
+		const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+		if (UCurrencyComponent *Wallet = WoRPlayer ? WoRPlayer->GetWallet() : nullptr)
+		{
+			Wallets.AddUnique(Wallet);
+		}
+	}
+	for (UCurrencyComponent *Wallet : Wallets)
 	{
 		const int32 Gold = Wallet->GetBalance(ECurrencyType::Gold);
 		if (Gold > 0)
