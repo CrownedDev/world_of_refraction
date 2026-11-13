@@ -41,7 +41,8 @@ def steps(d, x, y, items):
 # ---- 1: Quests: Main and Side list every step reached; the focused one can be tracked (shows on the trial HUD).
 im, d = canvas()
 header(d, 0)
-tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 0, h=30, size=15)
+x = tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 0, h=30, size=15, lead="LT")
+text(d, (x + 4, 151), "RT", 15, True, CYAN)
 quest_row(d, 188, "Main", "The Cinder Oath", "Beat the mini-boss in the ash fields without using items.", focus=True, tracked=True)
 quest_row(d, 258, "Side", "A Blade Reforged", "Bring a B-tier sword to the Blacksmith.")
 quest_row(d, 328, "Secret", "Ash on the Anvil", "Wear the Ashen Blade into the Ember Trial.")
@@ -55,7 +56,7 @@ y = steps(d, 612, 236, [("done", "Enter the Ember Trial."), ("done", "Find the W
 d.line((612, y + 6, 1212, y + 6), fill=STEEL)
 text(d, (612, y + 20), "Reward", 15, True, DIM)
 text(d, (612, y + 46), "Shown when the quest is done.", 15, fill=DIM)
-footer(d, [("A", "Track"), ("Y", "Filter"), ("B", "Back")])
+footer(d, [("A", "Track"), ("Y", "Hide all"), ("B", "Back")])
 save(im, OUT, "1_quests.png")
 
 # ---- 2: a secret quest, in both states. Hidden (as the journal opens, so a shared screen doesn't spoil it): only a
@@ -64,7 +65,8 @@ save(im, OUT, "1_quests.png")
 def secret(name, shown):
     im, d = canvas()
     header(d, 0)
-    tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 3, h=30, size=15)
+    x = tabs(d, 48, 146, ["All", "Main", "Side", "Secret"], 3, h=30, size=15, lead="LT")
+    text(d, (x + 4, 151), "RT", 15, True, CYAN)
     if shown:
         quest_row(d, 188, "Secret", "Ash on the Anvil", "Wear the Ashen Blade into the Ember Trial.", focus=True)
     else:
