@@ -775,6 +775,18 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-463 — The journal screen: what it does where the mockup needs things the game doesn't have yet
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-463, D-181, D-196, D-198, D-199) · **Blocks:** —
+**Question:** the journal's look and its secret quest rules are decided (`UIScreens.md` #6, D-198, D-199). Six things the mockups show need data or screens that don't exist yet. (1) A "Track" on a quest: nothing stores a tracked quest or shows it on a HUD. (2) A ready conversation says "talk to Garrick in the Void Realm", but NPC talk isn't built (B-471), and today conversations are played in the placeholder journal. (3) "Talk to V" is not a journal page any more, and V's hub talk isn't built either. (4) Memories show a NEW mark, a replay window and where they were found; lore shows its kind and place: none of that is recorded. (5) A finished quest's reward: rewards have no player-facing words. (6) Which characters get a Memories sub-tab.
+**Answer**, by the reference-backed default (Crown may change any):
+- **(1) Track is left out of this job** (no hint is shown for it); **B-463b** builds it: one tracked quest, saved, its step on the game menu and the trial HUD. The Witcher 3 and Expedition 33 track one quest at a time (`UIScreens.md` #6).
+- **(2) A ready conversation is played in the journal for now:** A plays it one line at a time; with the last line it moves to **Played**, where the whole talk can be re-read. So nothing that works today stops working. When NPC talk exists (B-471) the talk is played by talking to the character, as Expedition 33's camp talks are, and the journal's A becomes "Show where".
+- **(3) The hub's journal station still opens the old placeholder journal**, because it is the only place V's lines can be heard until B-471. The game menu's Journal opens the new screen.
+- **(4) Memories and lore show what the game records:** the title, whose memory it is, and the text; newest first; "3 found". No NEW mark, no replay, no place or kind until those are recorded (B-463c).
+- **(5) An unfinished quest says "Reward: shown when the quest is done"; a finished one shows no reward line** until rewards have words to show (B-463c).
+- **(6) Memories has "Everyone" and one sub-tab per character who has a found memory**, by name. A character with none isn't listed, so the tabs never tell you who you haven't met or what you haven't found (pillar 10; the "???" rule of D-181).
+**Notes for Claude:** the steps' tick and arrow are plain marks until the icons come with the art pass. The reader's text scrolls on the right stick and Page Up / Down (`InputMap.md`).
+
 ### Q-467 — The title screen: where it lives, what Continue and New Game do before the new game screen
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-467, D-202) · **Blocks:** —
 **Question:** the title's look and rows are decided (D-202, `UIScreens.md` #9, #10). Five things the code needed are not. (1) There is no title map: where does the title sit? (2) What does Continue do? (3) What does New Game do after the hold, before the new game screen (B-469) exists? (4) Join a friend and Credits have no screen yet (B-459, B-470). (5) The Continue line shows hours, and the save has never counted time.

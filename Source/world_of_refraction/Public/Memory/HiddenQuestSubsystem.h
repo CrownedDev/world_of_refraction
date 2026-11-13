@@ -49,6 +49,9 @@ struct FVisibleQuest
 	FText Title;
 	/** The step in progress's goal only (later steps and the end memory never); empty once finished. */
 	FText Goal;
+	/** D-199: the goals of the steps already done, oldest first (every step once finished). None for a hidden quest
+	 *  (D-171: its current step only). */
+	TArray<FText> DoneGoals;
 	bool bFinished = false;
 	/** Q-397: FHiddenQuestProgress::FoundOrder (higher = found later). */
 	int32 FoundOrder = 0;

@@ -62,6 +62,11 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Shop: put the focused line in the cart / take one back | Enter, Space, Right, D, left click / Left, A, right click | A (Cross), D-pad right, stick right / D-pad left, stick left | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab; Q-456b) |
 | Shop: buy the cart | X, click "Purchase" | X (Square) | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab): `WoRMenuStyle::IsToggleKey` |
 | Shop: who it is bought for ("Buying for") | R, Z / C, click the line | Y (Triangle), LT / RT | none (the screen's keys; `UIScreens.md` proposes `IA_UI_Action2`) | Built (B-456b, vendor screen, Buy tab): `WoRMenuStyle::IsSecondActionKey` |
+| Journal: quest filter, memory character, Ready / Played (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys) | Built (B-463, journal screen; D-198): `WoRMenuStyle::IsSubTabPrevKey` / `NextKey` |
+| Journal: show / hide the focused secret quest | X | X (Square) | none (the screen's keys) | Built (B-463, D-198): `WoRMenuStyle::IsToggleKey`; the hint reads Show or Hide |
+| Journal: hide every shown secret quest ("Hide all") | R | Y (Triangle) | none (the screen's keys) | Built (B-463, D-198): `WoRMenuStyle::IsSecondActionKey`, the Quests page only |
+| Journal: play a ready conversation's next line | Enter, Space, left click | A (Cross) | none | Built (B-463, Q-463): until NPC talk (B-471) |
+| Journal: scroll the reader's text | Page Up / Page Down, mouse wheel | Right stick up / down | none (the screen's keys) | Built (B-463) |
 | Back / close | Esc, Backspace | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu) |
 
 ## Mapping contexts (B-129)
@@ -104,3 +109,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-470: the credits: hold Select to scroll faster, Back leaves; read by the screen itself | feature/B-470-credits-screen |
 | 2026-11-14 | B-456c: the vendor screen's Item slots tab uses Confirm (A asks, the second A buys) and Back; no new key | feature/B-456c-item-slots |
 | 2026-11-14 | B-456b: the vendor screen's Buy tab: A / Right adds the focused line to the cart, Left takes one back, X buys the cart, R / Y (or LT / RT) changes who it is bought for; read by the screen itself | feature/B-456b-vendor-buy |
+| 2026-11-14 | B-463: the journal screen: LT / RT (Z / C) for its sub-tabs, X shows or hides the focused secret quest, Y (R) hides them all, A plays a ready conversation, the right stick or Page Up / Down scrolls the reader; read by the screen itself | feature/B-463-journal-screen |
