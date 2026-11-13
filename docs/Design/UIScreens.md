@@ -5,6 +5,7 @@
 **The battle HUD is done** (`BattleHUDRefinePlan.md`, B-436) and is not in this list.
 **Look:** the battle HUD's theme, used loosely (Crown via the brain, 2026-11-13): dark stone panels, one cut corner, **cyan = focus**, tab rows, coloured face-button glyphs, hints at the bottom right. Each screen is laid out for its own job. Final art comes from the Hidris art pass (`UI_Theme.md`); these mockups are layout, information and controls only.
 **Mockups:** `screen_mockups/<area>/<screen>/` (one `make.py` each, run `python make.py`; shared kit `screen_mockups/_kit/wor_ui.py`; DejaVu stands in for Spectral SC and Lato).
+**PNGs not committed yet:** the cloud session that drew them couldn't reach GitHub's LFS host (`lfs.github.com` blocked by its network policy), and PNG is LFS-tracked. To get the images, run each `make.py` (Python 3 + Pillow; output lands next to it), then commit the PNGs from a machine with LFS access. A personal cloud environment `world_of_refraction` that allows the LFS hosts now exists for later sessions.
 
 ## How to read the table
 
@@ -78,7 +79,7 @@
 
 Highest priority first. Ticked = mocked on this branch (folder in brackets).
 
-1. [ ] Pause / game menu (`menus/pause`)
+1. [x] Pause / game menu (`menus/pause`)
 2. [ ] Loadout and skills (`menus/loadout`)
 3. [ ] Inventory and pouch (`menus/inventory`)
 4. [ ] Rest spot, level up, extract, revive vote (`run/rest_spot`)
@@ -91,6 +92,19 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 11. [ ] Title and save notices (`front/title`)
 12. [ ] Character sheet (`menus/character`)
 13. [ ] Hub HUD, prompt, loading, NPC talk (`hub/hud`)
+
+## Mockup notes
+
+One block per mocked screen: the images, why the layout, the references.
+
+### 1. Pause / game menu (`menus/pause/`)
+
+- `1_pause_trial.png`: in a trial. `2_pause_hub.png`: in the hub.
+- **Layout:** page list on the left, the party on the right of it (HP, EP, Mind / Body / Spirit, Combat Tier), one side panel that previews the focused page (the tracked quest; the loadout). Opening the menu is one press and every page is one more.
+  *Ref:* Expedition 33's main menu keeps the party in view beside a short page list; Persona 5's pause shows the party's HP / SP on the same screen as the pages, so you check the party without opening anything.
+- **Top line is the place:** in a trial, the run's state (Prisms, Gear Essence, **wipes left "3 of 5"**: FeelGuide 7's five-wipe rule); in the hub, Gold and essences. Hades shows the run's money and Death Defiances the same way, on the pause screen.
+- **No "Leave the trial" here:** you leave only by extracting at a rest spot (RunStructure §6, D-172); the side panel says so.
+- Pages (code names): Resume, Loadout, Inventory, Character, Party, Journal, Settings, Quit to title.
 
 ## Shared menu controls
 
@@ -127,6 +141,8 @@ Screen-specific rows are added below as each screen is mocked.
 ## Open questions for Crown
 
 Collected as screens are drawn; lore and story questions are listed, not answered.
+
+1. **Quit to title in the middle of a run** (pause, #1): there are no saved runs (D-172). Does quitting count as extracting (reduced payout), as a loss, or is it refused until you extract? *Suggested:* ask first ("Quitting now ends the run: you keep what extracting would give"), like Hades' "flee the run" (it ends the run and keeps what you earned).
 
 ## Changelog
 
