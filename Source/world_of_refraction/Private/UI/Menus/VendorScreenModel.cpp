@@ -221,7 +221,8 @@ namespace VendorScreenBuild
 	{
 		return Tiles.FindByPredicate([&Row](const FInventoryScreenTile &Tile)
 		{
-			return Row.IsGear() ? Tile.Row.GearID == Row.GearID : !Tile.Row.IsGear() && Tile.Row.Item == Row.Item;
+			// IsStack, not "not gear": the Gear tab's evolution and apparel tiles carry no row (B-461).
+			return Row.IsGear() ? Tile.Row.GearID == Row.GearID : Tile.IsStack() && Tile.Row.Item == Row.Item;
 		});
 	}
 }

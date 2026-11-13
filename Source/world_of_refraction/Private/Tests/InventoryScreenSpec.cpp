@@ -12,8 +12,10 @@
 #include "Character/CharacterData.h"
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
+#include "Equipment/Apparel/ApparelData.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/InventoryConstants.h"
@@ -91,6 +93,11 @@ BEGIN_DEFINE_SPEC(FInventoryScreenSpec, "WoR.UI.InventoryScreen", EAutomationTes
 	static int32 FindGear(const FInventoryScreenPage &Page, const FGuid &GearID)
 	{
 		return Page.Tiles.IndexOfByPredicate([&GearID](const FInventoryScreenTile &Tile) { return Tile.Row.GearID == GearID; });
+	}
+
+	static const FInventoryScreenTile *FindKind(const FInventoryScreenPage &Page, EInventoryScreenKind Kind)
+	{
+		return Page.Tiles.FindByPredicate([Kind](const FInventoryScreenTile &Tile) { return Tile.Kind == Kind; });
 	}
 
 	TArray<FInventoryScreenVerb> VerbsOf(EInventoryScreenTab Tab, const FInventoryScreenTile &Tile) const
@@ -298,6 +305,107 @@ void FInventoryScreenSpec::Define()
 		TestFalse(TEXT("a full pouch is refused with a reason"), Receivers[0].Refusal.IsEmpty());
 		const FInventoryScreenVerb *Give = FindVerb(VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]), EInventoryVerb::Give);
 		TestTrue(TEXT("so Give is greyed: no one can take it"), Give && !Give->Refusal.IsEmpty());
+	});
+
+	It("lists the member's evolutions and apparel on the Gear tab, their verbs refused (B-461, Q-323)", [this]()
+	{
+		if (!IsReady()) return;
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->ItemName = TEXT("Screen evolution");
+		TestTrue(TEXT("the evolution is added"), Inventories[SCREEN_MEMBER]->AddEvolutionInstance(Evolution));
+		UApparelData *Coat = NewObject<UApparelData>(GetTransientPackage());
+		Pool->AddApparelToPool(FApparelEntry::CreateFromApparel(Coat), KeyOf(SCREEN_MEMBER));
+
+		const FInventoryScreenPage Gear = PageOf(EInventoryScreenTab::Gear);
+		const FInventoryScreenTile *EvolutionTile = FindKind(Gear, EInventoryScreenKind::Evolution);
+		const FInventoryScreenTile *ApparelTile = FindKind(Gear, EInventoryScreenKind::Apparel);
+		if (!TestNotNull(TEXT("an evolution tile"), EvolutionTile) || !TestNotNull(TEXT("an apparel tile"), ApparelTile)) return;
+		TestEqual(TEXT("the evolution is named"), EvolutionTile->Name.ToString(), FString(TEXT("Screen evolution")));
+		TestFalse(TEXT("neither is a stack"), EvolutionTile->IsStack() || ApparelTile->IsStack());
+		for (const FInventoryScreenTile *Tile : {EvolutionTile, ApparelTile})
+		{
+			const TArray<FInventoryScreenVerb> Verbs = VerbsOf(EInventoryScreenTab::Gear, *Tile);
+			TestTrue(TEXT("its verbs are listed"), Verbs.Num() > 0);
+			TestFalse(TEXT("and every one says why it can't run"),
+					  Verbs.ContainsByPredicate([](const FInventoryScreenVerb &Verb) { return Verb.Refusal.IsEmpty(); }));
+		}
+		const FInventoryScreenPage Others = WoRInventoryScreen::BuildPage(World(), KeyOf(SCREEN_RECEIVER), EInventoryScreenTab::Gear);
+		TestNull(TEXT("the other member doesn't list the evolution"), FindKind(Others, EInventoryScreenKind::Evolution));
+		TestNull(TEXT("nor the apparel"), FindKind(Others, EInventoryScreenKind::Apparel));
+		TestNull(TEXT("the chest holds no evolution"), FindKind(PageOf(EInventoryScreenTab::Chest), EInventoryScreenKind::Evolution));
+	});
+
+	It("gives each tab its own filter row and shows only the filter's kind (B-461, Q-461)", [this]()
+	{
+		if (!IsReady()) return;
+		TestFalse(TEXT("the Gear tab has no Crystals filter"), WoRInventoryScreen::GetFilters(EInventoryScreenTab::Gear).Contains(EInventoryScreenFilter::Crystals));
+		TestTrue(TEXT("the Chest has one"), WoRInventoryScreen::GetFilters(EInventoryScreenTab::Chest).Contains(EInventoryScreenFilter::Crystals));
+		TestFalse(TEXT("and no Evolutions filter"), WoRInventoryScreen::GetFilters(EInventoryScreenTab::Chest).Contains(EInventoryScreenFilter::Evolutions));
+		TestTrue(TEXT("the Pouch has no filter row"), WoRInventoryScreen::GetFilters(EInventoryScreenTab::Pouch).IsEmpty());
+
+		AddDagger();
+		const FName Member = KeyOf(SCREEN_MEMBER);
+		const FInventoryScreenPage Weapons = WoRInventoryScreen::BuildPage(World(), Member, EInventoryScreenTab::Gear, EInventoryScreenFilter::Weapons);
+		TestEqual(TEXT("Weapons lists both weapons"), Weapons.Tiles.Num(), 2);
+		const FInventoryScreenPage Evolutions = WoRInventoryScreen::BuildPage(World(), Member, EInventoryScreenTab::Gear, EInventoryScreenFilter::Evolutions);
+		TestTrue(TEXT("Evolutions lists nothing"), Evolutions.Tiles.IsEmpty());
+		TestFalse(TEXT("and says so"), Evolutions.EmptyNote.IsEmpty());
+	});
+
+	It("sorts by tier, highest first, and by name (B-461)", [this]()
+	{
+		if (!IsReady()) return;
+		const FName Member = KeyOf(SCREEN_MEMBER);
+		Pool->CarryOrStore(Member, FCrystalId(ECrystalType::Sapphire, EItemTier::F_Tier), 1);
+		Pool->CarryOrStore(Member, FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier), 1);
+		const FInventoryScreenPage AsFound = PageOf(EInventoryScreenTab::Pouch);
+		const FInventoryScreenPage ByTier =
+			WoRInventoryScreen::BuildPage(World(), Member, EInventoryScreenTab::Pouch, EInventoryScreenFilter::All, EInventoryScreenSort::Tier);
+		const FInventoryScreenPage ByName =
+			WoRInventoryScreen::BuildPage(World(), Member, EInventoryScreenTab::Pouch, EInventoryScreenFilter::All, EInventoryScreenSort::Name);
+		if (!TestEqual(TEXT("two stacks"), AsFound.Tiles.Num(), 2) || !TestEqual(TEXT("by tier too"), ByTier.Tiles.Num(), 2) ||
+			!TestEqual(TEXT("and by name"), ByName.Tiles.Num(), 2)) return;
+		TestTrue(TEXT("as found: the F Sapphire first"), AsFound.Tiles[0].TierValue == EItemTier::F_Tier);
+		TestTrue(TEXT("by tier: the S stack first"), ByTier.Tiles[0].TierValue == EItemTier::S_Tier);
+		TestTrue(TEXT("by name: in A to Z order"), ByName.Tiles[0].Name.CompareTo(ByName.Tiles[1].Name) <= 0);
+		TestTrue(TEXT("Y comes back round to the first sort"),
+				 WoRInventoryScreen::GetNextSort(WoRInventoryScreen::GetNextSort(WoRInventoryScreen::GetNextSort(EInventoryScreenSort::Kind))) ==
+					 EInventoryScreenSort::Kind);
+	});
+
+	It("reaches the filter row with Up, filters with Right, returns with Back, sorts with Y (the screen, headless)", [this]()
+	{
+		if (!IsReady()) return;
+		AddDagger();
+		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
+		UInventoryScreenWidget *Screen = CreateWidget<UInventoryScreenWidget>(World(), UInventoryScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		Screen->ActivateWidget();
+		Screen->MoveTile(0, -1);
+		TestTrue(TEXT("Up off the top row lands on the filters"), Screen->GetFocus() == EInventoryScreenFocus::Filters);
+		Screen->MoveFilter(-1);
+		TestTrue(TEXT("Left of All stays on All"), Screen->GetFilter() == EInventoryScreenFilter::All);
+		Screen->MoveFilter(1);
+		TestTrue(TEXT("Right shows Weapons"), Screen->GetFilter() == EInventoryScreenFilter::Weapons);
+		TestEqual(TEXT("only the weapons"), Screen->GetPage().Tiles.Num(), 2);
+		Screen->PressBack();
+		TestTrue(TEXT("Back returns to the tiles"), Screen->GetFocus() == EInventoryScreenFocus::Grid);
+		TestTrue(TEXT("with the screen still open"), Screen->IsActivated());
+		TestTrue(TEXT("and the filter kept"), Screen->GetFilter() == EInventoryScreenFilter::Weapons);
+
+		Screen->Confirm();
+		Screen->CycleSort();
+		TestTrue(TEXT("Y does nothing under an open verb menu"),
+				 Screen->GetSort() == EInventoryScreenSort::Kind && Screen->GetFocus() == EInventoryScreenFocus::Verbs);
+		Screen->PressBack();
+		Screen->CycleSort();
+		TestTrue(TEXT("on the tiles Y sorts by tier"), Screen->GetSort() == EInventoryScreenSort::Tier);
+
+		Screen->MoveTab(1);
+		TestTrue(TEXT("a new tab starts unfiltered"), Screen->GetFilter() == EInventoryScreenFilter::All);
+		TestTrue(TEXT("and keeps the sort"), Screen->GetSort() == EInventoryScreenSort::Tier);
+		Screen->MoveTile(0, -1);
+		TestTrue(TEXT("the Pouch has no filter row to reach"), Screen->GetFocus() == EInventoryScreenFocus::Grid);
 	});
 
 	It("gives, stores and steps back one level at a time (the screen, headless)", [this]()

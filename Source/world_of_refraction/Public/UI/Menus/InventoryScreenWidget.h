@@ -7,7 +7,9 @@
 // of tiles (the pouch also draws its empty and its Jeweler-locked slots). Right: the focused tile's details and
 // its verb menu; Give opens "Give to" in the menu's place. X switches a stack verb between one and the whole stack.
 // What it shows and does comes from WoRInventoryScreen (InventoryScreenModel.h), which the specs read.
-// Not built yet: the gear filter row, Sort, evolutions and apparel tiles, icons (a letter stands in).
+// B-461 (Q-461): a filter row over the Gear and Chest tiles (Up from the top row of tiles reaches it, Left / Right
+// picks, Down returns), Sort on Y / R, evolution and apparel tiles on the Gear tab, the place name top right.
+// Not built yet: icons (a letter stands in).
 
 #pragma once
 
@@ -23,10 +25,11 @@ class UTextBlock;
 class UUniformGridPanel;
 class UWidget;
 
-/** Where the keys act: the tile grid, the focused tile's verb menu, or "Give to". */
+/** Where the keys act: the tile grid, the filter row above it, the focused tile's verb menu, or "Give to". */
 enum class EInventoryScreenFocus : uint8
 {
 	Grid,
+	Filters,
 	Verbs,
 	Receivers
 };
@@ -43,8 +46,15 @@ public:
 	static UInventoryScreenWidget *Open(APlayerController *PC);
 
 	// What the keys and the mouse do (the specs call these too).
-	/** Moves the focused tile by columns and rows; stays put at an edge. */
+	/** Moves the focused tile by columns and rows; stays put at an edge. Up off the top row lands on the filter
+	 *  row, when the tab has one. */
 	void MoveTile(int32 DeltaColumn, int32 DeltaRow);
+	/** The next / previous filter of the row; stays put at an edge. */
+	void MoveFilter(int32 Delta);
+	/** Shows the tab's Index-th filter, from the first tile. */
+	void SelectFilter(int32 Index);
+	/** Y: the next sort (as found, by tier, by name); ignored while a verb menu or "Give to" is open. */
+	void CycleSort();
 	void SelectTile(int32 Index, bool bScrollIntoView = true);
 	/** The next / previous tab or character; wraps, and returns the keys to the grid. */
 	void MoveTab(int32 Delta);
@@ -59,6 +69,8 @@ public:
 	void PressBack() { HandleBackAction(); }
 
 	EInventoryScreenTab GetTab() const { return Tab; }
+	EInventoryScreenFilter GetFilter() const { return Filter; }
+	EInventoryScreenSort GetSort() const { return Sort; }
 	int32 GetMemberIndex() const { return MemberIndex; }
 	int32 GetSelectedTile() const { return SelectedTile; }
 	EInventoryScreenFocus GetFocus() const { return Focus; }
@@ -109,6 +121,8 @@ private:
 	void RunVerb(EInventoryVerb Verb, const FInventoryScreenReceiver *Receiver);
 	FName MemberKey() const;
 	const FInventoryScreenTile *FocusedTile() const;
+	/** The keys are on the verb menu or on "Give to". */
+	bool IsChoosing() const { return Focus == EInventoryScreenFocus::Verbs || Focus == EInventoryScreenFocus::Receivers; }
 	int32 ChoiceCount() const;
 	int32 FindTileUnder(const FPointerEvent &MouseEvent) const;
 	int32 FindChoiceUnder(const FPointerEvent &MouseEvent) const;
@@ -117,7 +131,11 @@ private:
 	FInventoryScreenPage Page;
 	TArray<FInventoryScreenVerb> Verbs;
 	TArray<FInventoryScreenReceiver> Receivers;
+	/** The shown tab's filter row; empty when it has none (the Pouch). */
+	TArray<EInventoryScreenFilter> Filters;
 	EInventoryScreenTab Tab = EInventoryScreenTab::Gear;
+	EInventoryScreenFilter Filter = EInventoryScreenFilter::All;
+	EInventoryScreenSort Sort = EInventoryScreenSort::Kind;
 	EInventoryScreenFocus Focus = EInventoryScreenFocus::Grid;
 	int32 MemberIndex = 0;
 	int32 SelectedTile = 0;
@@ -134,6 +152,16 @@ private:
 	TArray<TObjectPtr<UBorder>> PageTabs;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> PageTabLabels;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> FilterTabs;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> FilterTabLabels;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> FilterRow;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> PlaceText;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SortText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> HeadingText;
 	UPROPERTY(Transient)

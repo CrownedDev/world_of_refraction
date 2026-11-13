@@ -12,6 +12,7 @@
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -97,6 +98,9 @@ void UInventoryScreenWidget::BuildTree()
 		AddToRow(MemberRow, MemberTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
 	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	PlaceText = MakeText(WidgetTree, LineFontSize, DimColor);
+	PlaceText->SetJustification(ETextJustify::Right);
+	AddToRow(MemberRow, PlaceText)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	AddToColumn(Main, MemberRow);
 
 	UHorizontalBox *PageRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -117,6 +121,21 @@ void UInventoryScreenWidget::BuildTree()
 	AddToColumn(Main, Body, FMargin(0.0f, SectionGap, 0.0f, SectionGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	UVerticalBox *GridColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	UHorizontalBox *FilterBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	int32 LongestFilterRow = 0;
+	for (const EInventoryScreenTab PageTab : WoRInventoryScreen::GetTabs())
+	{
+		LongestFilterRow = FMath::Max(LongestFilterRow, WoRInventoryScreen::GetFilters(PageTab).Num());
+	}
+	for (int32 Index = 0; Index < LongestFilterRow; ++Index)
+	{
+		UTextBlock *Label = nullptr;
+		FilterTabs.Add(MakeTab(WidgetTree, Label));
+		FilterTabLabels.Add(Label);
+		AddToRow(FilterBox, FilterTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
+	}
+	FilterRow = FilterBox;
+	AddToColumn(GridColumn, FilterRow, FMargin(TileGap, 0.0f, 0.0f, LineGap));
 	HeadingText = MakeText(WidgetTree, LineFontSize, DimColor, true);
 	EmptyText = MakeText(WidgetTree, LineFontSize, DimColor);
 	AddToColumn(GridColumn, HeadingText, FMargin(TileGap, 0.0f, 0.0f, LineGap));
@@ -126,9 +145,13 @@ void UInventoryScreenWidget::BuildTree()
 	TileGrid->SetSlotPadding(FMargin(TileGap));
 	TileScroll->AddChild(TileGrid);
 	AddToColumn(GridColumn, TileScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	UHorizontalBox *LegendRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	UTextBlock *Legend = MakeText(WidgetTree, SmallFontSize, DimColor);
-	Legend->SetText(LOCTEXT("Legend", "E  worn in a loadout"));
-	AddToColumn(GridColumn, Legend, FMargin(TileGap, LineGap, 0.0f, 0.0f));
+	Legend->SetText(LOCTEXT("Legend", "E  worn in a loadout, or in use"));
+	AddToRow(LegendRow, Legend)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	SortText = MakeText(WidgetTree, SmallFontSize, CyanColor);
+	AddToRow(LegendRow, SortText);
+	AddToColumn(GridColumn, LegendRow, FMargin(TileGap, LineGap, TileGap, 0.0f));
 	AddToRow(Body, MakeSized(WidgetTree, GridWidth, 0.0f, GridColumn), FMargin(0.0f), VAlign_Fill);
 
 	UBorder *Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
@@ -166,7 +189,7 @@ void UInventoryScreenWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Tab        A / Enter  Choose        X  Whole stack        B / Esc  Back"));
+	Hints->SetText(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Tab        A / Enter  Choose        X  Whole stack        Y / R  Sort        B / Esc  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -234,8 +257,10 @@ UInventoryScreenWidget::FChoiceWidgets UInventoryScreenWidget::BuildChoice(UVert
 void UInventoryScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
-	// Every open starts on the first tab's first tile, with nothing pending.
+	// Every open starts on the first tab's first tile, unfiltered and unsorted, with nothing pending.
 	Tab = EInventoryScreenTab::Gear;
+	Filter = EInventoryScreenFilter::All;
+	Sort = EInventoryScreenSort::Kind;
 	Focus = EInventoryScreenFocus::Grid;
 	SelectedTile = 0;
 	Status = FText::GetEmpty();
@@ -249,6 +274,12 @@ bool UInventoryScreenWidget::NativeOnHandleBackAction()
 	if (Focus == EInventoryScreenFocus::Grid)
 	{
 		return Super::NativeOnHandleBackAction();
+	}
+	if (Focus == EInventoryScreenFocus::Filters)
+	{
+		Focus = EInventoryScreenFocus::Grid;
+		RefreshSelection();
+		return true;
 	}
 	// Out of "Give to" the keys land back on Give, the line that opened it.
 	const bool bFromGiveTo = Focus == EInventoryScreenFocus::Receivers;
@@ -285,8 +316,32 @@ void UInventoryScreenWidget::RefreshData()
 	UWorld *World = GetWorld();
 	Members = WoRLoadoutScreen::BuildMembers(World);
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
-	Page = WoRInventoryScreen::BuildPage(World, MemberKey(), Tab);
+	Filters = WoRInventoryScreen::GetFilters(Tab);
+	if (!Filters.Contains(Filter))
+	{
+		Filter = EInventoryScreenFilter::All; // each tab has its own row
+	}
+	Page = WoRInventoryScreen::BuildPage(World, MemberKey(), Tab, Filter, Sort);
 	SelectedTile = Page.Tiles.Num() > 0 ? FMath::Clamp(SelectedTile, 0, Page.Tiles.Num() - 1) : 0;
+
+	SetShown(FilterRow, !Filters.IsEmpty());
+	for (int32 Index = 0; Index < FilterTabs.Num(); ++Index)
+	{
+		const bool bShown = Filters.IsValidIndex(Index);
+		SetShown(FilterTabs[Index], bShown);
+		if (bShown)
+		{
+			FilterTabLabels[Index]->SetText(WoRInventoryScreen::GetFilterName(Filters[Index]));
+			FilterTabs[Index]->SetBrushColor(Filters[Index] == Filter ? FocusColor : PlateColor);
+			FilterTabLabels[Index]->SetColorAndOpacity(FSlateColor(Filters[Index] == Filter ? TextColor : DimColor));
+		}
+	}
+	if (PlaceText && SortText)
+	{
+		const FPauseMenuHeader Place = WoRPauseMenu::BuildHeader(World); // the game menu's words for where you are
+		PlaceText->SetText(FText::Format(LOCTEXT("Place", "{0} · {1}"), Place.Title, Place.Subtitle));
+		SortText->SetText(FText::Format(LOCTEXT("SortLine", "Sort: {0}"), WoRInventoryScreen::GetSortName(Sort)));
+	}
 
 	for (int32 Index = 0; Index < MemberTabs.Num(); ++Index)
 	{
@@ -335,7 +390,7 @@ void UInventoryScreenWidget::RefreshData()
 		Widgets.Mark->SetColorAndOpacity(FSlateColor(MarkColor(Tile.Element)));
 		Widgets.Worn->SetText(bLocked ? LOCTEXT("LockedSlot", "Jeweler") : Tile.bWorn ? LOCTEXT("WornMark", "E") : FText::GetEmpty());
 		Widgets.Worn->SetColorAndOpacity(FSlateColor(bLocked ? OffColor : CyanColor));
-		Widgets.Count->SetText(bTile && !Tile.Row.IsGear() ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Tile.Row.Count)) : FText::GetEmpty());
+		Widgets.Count->SetText(bTile && Tile.IsStack() ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Tile.Row.Count)) : FText::GetEmpty());
 	}
 }
 
@@ -349,19 +404,21 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 	Verbs = Focused ? WoRInventoryScreen::BuildVerbs(World, MemberKey(), Tab, Tile) : TArray<FInventoryScreenVerb>();
 	Receivers = Focused && Focus == EInventoryScreenFocus::Receivers ? WoRInventoryScreen::BuildReceivers(World, MemberKey(), Tile)
 																	   : TArray<FInventoryScreenReceiver>();
-	if (ChoiceCount() == 0)
+	if ((IsChoosing() && ChoiceCount() == 0) || (Focus == EInventoryScreenFocus::Filters && Filters.IsEmpty()))
 	{
 		Focus = EInventoryScreenFocus::Grid; // nothing to choose from: the keys go back to the tiles
 	}
 	Choice = ChoiceCount() > 0 ? FMath::Clamp(Choice, 0, ChoiceCount() - 1) : 0;
 
+	// With the keys on the filter row no tile is lit: the lit filter is where they are.
+	const bool bTileLit = Focus != EInventoryScreenFocus::Filters;
 	for (int32 Index = 0; Index < TileWidgets.Num(); ++Index)
 	{
 		if (UBorder *Frame = TileWidgets[Index].Frame.Get())
 		{
 			const bool bTile = Page.Tiles.IsValidIndex(Index);
 			const bool bLocked = !bTile && Index >= Page.Slots;
-			Frame->SetBrushColor(bTile && Index == SelectedTile ? FocusColor : bTile ? PlateColor : bLocked ? PanelColor : TrackColor);
+			Frame->SetBrushColor(bTile && bTileLit && Index == SelectedTile ? FocusColor : bTile ? PlateColor : bLocked ? PanelColor : TrackColor);
 		}
 	}
 	if (!DetailName)
@@ -399,7 +456,7 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 		const FText Label = bGiving ? Receivers[Index].Name : Verbs[Index].Name;
 		const FText Note = bGiving ? Receivers[Index].Note : FText::GetEmpty();
 		const FText Reason = bGiving ? Receivers[Index].Refusal : Verbs[Index].Refusal;
-		const bool bLit = Focus != EInventoryScreenFocus::Grid && Index == Choice;
+		const bool bLit = IsChoosing() && Index == Choice;
 		Widgets.Frame->SetBrushColor(bLit ? FocusColor : PlateColor);
 		Widgets.Label->SetText(Label);
 		Widgets.Label->SetColorAndOpacity(FSlateColor(Reason.IsEmpty() ? TextColor : OffColor));
@@ -408,7 +465,7 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 		Widgets.Reason->SetText(Reason);
 		SetShown(Widgets.Reason.Get(), !Reason.IsEmpty());
 	}
-	const bool bStack = Focused && !Tile.Row.IsGear();
+	const bool bStack = Focused && Tile.IsStack();
 	SetShown(WholeStackText, bStack);
 	WholeStackText->SetText(bWholeStack ? LOCTEXT("WholeStackOn", "X  Whole stack: on") : LOCTEXT("WholeStackOff", "X  Whole stack: off (one at a time)"));
 	StatusText->SetText(Status);
@@ -428,12 +485,54 @@ void UInventoryScreenWidget::MoveTile(int32 DeltaColumn, int32 DeltaRow)
 {
 	using namespace InventoryScreenStyle;
 
+	if (DeltaRow < 0 && !Filters.IsEmpty() && (SelectedTile < Columns || Page.Tiles.IsEmpty()))
+	{
+		Focus = EInventoryScreenFocus::Filters; // up off the top row of tiles
+		Status = FText::GetEmpty();
+		RefreshSelection();
+		return;
+	}
 	const int32 Column = SelectedTile % Columns + DeltaColumn;
 	const int32 Target = SelectedTile + DeltaColumn + DeltaRow * Columns;
 	if (Column >= 0 && Column < Columns)
 	{
 		SelectTile(Target);
 	}
+}
+
+void UInventoryScreenWidget::MoveFilter(int32 Delta)
+{
+	SelectFilter(Filters.IndexOfByKey(Filter) + Delta);
+}
+
+void UInventoryScreenWidget::SelectFilter(int32 Index)
+{
+	if (!Filters.IsValidIndex(Index) || Filters[Index] == Filter)
+	{
+		return;
+	}
+	Filter = Filters[Index];
+	if (IsChoosing())
+	{
+		Focus = EInventoryScreenFocus::Grid; // the tile the menu was open on may be gone
+	}
+	SelectedTile = 0;
+	Status = FText::GetEmpty();
+	RefreshData();
+	RefreshSelection();
+}
+
+void UInventoryScreenWidget::CycleSort()
+{
+	if (IsChoosing())
+	{
+		return; // not under an open verb menu: the tiles would move away from it
+	}
+	Sort = WoRInventoryScreen::GetNextSort(Sort);
+	SelectedTile = 0;
+	Status = FText::GetEmpty();
+	RefreshData();
+	RefreshSelection();
 }
 
 void UInventoryScreenWidget::SelectTile(int32 Index, bool bScrollIntoView)
@@ -452,6 +551,7 @@ void UInventoryScreenWidget::MoveTab(int32 Delta)
 	const TArray<EInventoryScreenTab> &Tabs = WoRInventoryScreen::GetTabs();
 	const int32 Index = ((Tabs.IndexOfByKey(Tab) + Delta) % Tabs.Num() + Tabs.Num()) % Tabs.Num();
 	Tab = Tabs[Index];
+	Filter = EInventoryScreenFilter::All;
 	Focus = EInventoryScreenFocus::Grid;
 	SelectedTile = 0;
 	Status = FText::GetEmpty();
@@ -475,7 +575,7 @@ void UInventoryScreenWidget::MoveMember(int32 Delta)
 
 void UInventoryScreenWidget::MoveChoice(int32 Delta)
 {
-	if (Focus != EInventoryScreenFocus::Grid && ChoiceCount() > 0)
+	if (IsChoosing() && ChoiceCount() > 0)
 	{
 		Choice = ((Choice + Delta) % ChoiceCount() + ChoiceCount()) % ChoiceCount();
 		RefreshSelection();
@@ -484,12 +584,20 @@ void UInventoryScreenWidget::MoveChoice(int32 Delta)
 
 void UInventoryScreenWidget::Confirm()
 {
+	if (Focus == EInventoryScreenFocus::Filters)
+	{
+		Focus = EInventoryScreenFocus::Grid; // the filter is already shown: A goes down to its tiles
+		RefreshSelection();
+		return;
+	}
 	if (!FocusedTile())
 	{
 		return;
 	}
 	switch (Focus)
 	{
+	case EInventoryScreenFocus::Filters:
+		break;
 	case EInventoryScreenFocus::Grid:
 	{
 		// Onto the first verb that can run (else the first, which says why it can't).
@@ -565,7 +673,7 @@ void UInventoryScreenWidget::RunVerb(EInventoryVerb Verb, const FInventoryScreen
 	}
 	else
 	{
-		const FText What = Tile.Row.IsGear() ? Tile.Name : FText::Format(LOCTEXT("CountAndName", "{0} x {1}"), FText::AsNumber(Count), Tile.Name);
+		const FText What = !Tile.IsStack() ? Tile.Name : FText::Format(LOCTEXT("CountAndName", "{0} x {1}"), FText::AsNumber(Count), Tile.Name);
 		switch (Verb)
 		{
 		case EInventoryVerb::Give:
@@ -596,17 +704,33 @@ FReply UInventoryScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	using namespace WoRMenuStyle;
 	const FKey Key = InKeyEvent.GetKey();
 	const bool bGrid = Focus == EInventoryScreenFocus::Grid;
+	const bool bFilters = Focus == EInventoryScreenFocus::Filters;
 	if (IsUpKey(Key) || IsDownKey(Key))
 	{
 		const int32 Delta = IsDownKey(Key) ? 1 : -1;
-		bGrid ? MoveTile(0, Delta) : MoveChoice(Delta);
+		if (bFilters)
+		{
+			if (Delta > 0)
+			{
+				Confirm(); // down off the filter row: back to the tiles
+			}
+		}
+		else
+		{
+			bGrid ? MoveTile(0, Delta) : MoveChoice(Delta);
+		}
 		return FReply::Handled();
 	}
 	if (IsLeftKey(Key) || IsRightKey(Key))
 	{
-		if (bGrid)
+		const int32 Delta = IsRightKey(Key) ? 1 : -1;
+		if (bFilters)
 		{
-			MoveTile(IsRightKey(Key) ? 1 : -1, 0);
+			MoveFilter(Delta);
+		}
+		else if (bGrid)
+		{
+			MoveTile(Delta, 0);
 		}
 		return FReply::Handled();
 	}
@@ -622,6 +746,11 @@ FReply UInventoryScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	if (IsToggleKey(Key))
 	{
 		ToggleWholeStack();
+		return FReply::Handled();
+	}
+	if (IsSecondActionKey(Key))
+	{
+		CycleSort();
 		return FReply::Handled();
 	}
 	if (IsTabPrevKey(Key) || IsTabNextKey(Key))
@@ -680,13 +809,10 @@ FReply UInventoryScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, co
 	if (!InMouseEvent.GetCursorDelta().IsZero())
 	{
 		const int32 OverChoice = FindChoiceUnder(InMouseEvent);
-		if (Focus == EInventoryScreenFocus::Grid)
+		if (!IsChoosing())
 		{
-			const int32 OverTile = FindTileUnder(InMouseEvent);
-			if (OverTile != SelectedTile)
-			{
-				SelectTile(OverTile, /*bScrollIntoView=*/false); // the grid mustn't move under the cursor
-			}
+			// SelectTile ignores the tile already lit and a cursor over no tile.
+			SelectTile(FindTileUnder(InMouseEvent), /*bScrollIntoView=*/false); // the grid mustn't move under the cursor
 		}
 		else if (OverChoice != INDEX_NONE && OverChoice != Choice)
 		{
@@ -727,11 +853,19 @@ FReply UInventoryScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 			return FReply::Handled();
 		}
 	}
+	for (int32 Index = 0; Index < FilterTabs.Num() && Index < Filters.Num(); ++Index)
+	{
+		if (FilterTabs[Index] && FilterTabs[Index]->GetCachedGeometry().IsUnderLocation(Position))
+		{
+			SelectFilter(Index);
+			return FReply::Handled();
+		}
+	}
 	const int32 OverChoice = FindChoiceUnder(InMouseEvent);
 	if (OverChoice != INDEX_NONE)
 	{
 		// A click on a line chooses it, as moving onto it and pressing A does.
-		if (Focus == EInventoryScreenFocus::Grid)
+		if (!IsChoosing())
 		{
 			Focus = EInventoryScreenFocus::Verbs;
 		}

@@ -59,6 +59,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
 | Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen; B-456a, vendor screen: sell or dismantle one, or the whole stack): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
+| Inventory: sort the tiles (Kind, Tier, Name) | R | Y (Triangle) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_Action2`) | Built (B-461, inventory screen; Q-461): `WoRMenuStyle::IsSecondActionKey` |
+| Inventory: the filter row (Gear and Chest tabs) | Up from the top row of tiles, then Left / Right; Down, Enter or Esc back to the tiles; click a filter | D-pad or left stick up, then left / right; down, A or B back | none | Built (B-461, inventory screen; Q-461) |
 | Shop: put the focused line in the cart / take one back | Enter, Space, Right, D, left click / Left, A, right click | A (Cross), D-pad right, stick right / D-pad left, stick left | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab; Q-456b) |
 | Shop: buy the cart | X, click "Purchase" | X (Square) | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab): `WoRMenuStyle::IsToggleKey` |
 | Shop: who it is bought for ("Buying for") | R, Z / C, click the line | Y (Triangle), LT / RT | none (the screen's keys; `UIScreens.md` proposes `IA_UI_Action2`) | Built (B-456b, vendor screen, Buy tab): `WoRMenuStyle::IsSecondActionKey` |

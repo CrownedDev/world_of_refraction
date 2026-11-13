@@ -333,7 +333,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 |---|---|---|---|---|
 | Pause / game menu | 1 | `menus/pause` | B-439 (built, in dev; `PIE/B-439.md`) | Quit in a run loses everything (D-176) |
 | Loadout and skills | 2, 3 | `menus/loadout` | B-440 (piece B-440a built, in dev; `PIE/B-440a.md`) | Stone socket stays, two equal weapon slots (D-180) |
-| Inventory and pouch | 4 | `menus/inventory` | B-441 (built, in dev; `PIE/B-441.md`), B-461 (filter row, Sort, evolution and apparel tiles) | Verbs Give, Store, Take (D-177); Take is listed only at storage (D-195); no chest during a run (Q-441) |
+| Inventory and pouch | 4 | `menus/inventory` | B-441 (built, in dev; `PIE/B-441.md`), B-461 (filter row, Sort, evolution and apparel tiles, place name: built, in dev; `PIE/B-461.md`) | Verbs Give, Store, Take (D-177); Take is listed only at storage (D-195); no chest during a run (Q-441); each tab's filters are what it can hold, Sort is Kind / Tier / Name (Q-461) |
 | Character sheet | 5 | `menus/character` | B-442 (built, in dev; `PIE/B-442.md`) | The fight's own numbers (Q-442) |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 (built, in dev; `PIE/B-443.md`) | |
 | Party | 7 | `menus/party` | B-458 | No AI level text; the row is "Invite" (D-200) |
