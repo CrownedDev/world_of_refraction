@@ -517,9 +517,6 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 	TArray<FSavedAssetRef> PrimaryAbilities;
 
 	UPROPERTY()
-	TArray<FSavedAssetRef> PrimaryStoneAbilities;
-
-	UPROPERTY()
 	TArray<FSavedAssetRef> EvolutionSpells;
 
 	/** ESecondarySlotType. */
@@ -534,9 +531,6 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	TArray<FSavedAssetRef> SecondaryAbilities;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> SecondaryStoneAbilities;
 
 	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
 	UPROPERTY()

@@ -275,13 +275,11 @@ FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
 		break;
 	}
 	Saved.PrimaryAbilities = SaveLoadoutRefs(Loadout.PrimaryWeaponAbilities);
-	Saved.PrimaryStoneAbilities = SaveLoadoutRefs(Loadout.PrimaryAugmentStoneAbilities);
 	Saved.EvolutionSpells = SaveLoadoutSpellRefs(Loadout.EvolutionSpells);
 	Saved.SecondarySlotType = static_cast<uint8>(Loadout.SecondarySlotType);
 	Saved.SecondaryWeapon = FSavedAssetRef::Make(Loadout.SecondaryWeapon);
 	Saved.SecondaryInstance = Loadout.SecondaryWeaponInstance;
 	Saved.SecondaryAbilities = SaveLoadoutRefs(Loadout.SecondaryWeaponAbilities);
-	Saved.SecondaryStoneAbilities = SaveLoadoutRefs(Loadout.SecondaryAugmentStoneAbilities);
 	for (const FResonatorRingSlot &Slot : Loadout.EquippedRings)
 	{
 		if (Slot.Ring)
@@ -322,13 +320,11 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 	Loadout.PrimaryRingInstance = Loadout.PrimaryRing ? Saved.PrimaryInstance : FGuid();
 	Loadout.PrimaryEvolutionInstance = Loadout.PrimaryEvolution ? Saved.PrimaryInstance : FGuid();
 	Loadout.PrimaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.PrimaryAbilities);
-	Loadout.PrimaryAugmentStoneAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.PrimaryStoneAbilities);
 	Loadout.EvolutionSpells = RestoreLoadoutSpellRefs(Saved.EvolutionSpells);
 	Loadout.SecondarySlotType = static_cast<ESecondarySlotType>(Saved.SecondarySlotType);
 	Loadout.SecondaryWeapon = Saved.SecondaryWeapon.ResolveAs<UWeaponData>();
 	Loadout.SecondaryWeaponInstance = Saved.SecondaryInstance;
 	Loadout.SecondaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.SecondaryAbilities);
-	Loadout.SecondaryAugmentStoneAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.SecondaryStoneAbilities);
 	for (int32 Index = 0; Index < Saved.Adapters.Num(); ++Index)
 	{
 		if (URingData *Ring = Saved.Adapters[Index].ResolveAs<URingData>())
