@@ -6,6 +6,10 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
+#include "Equipment/Crystals/CrystalType.h"
+#include "Equipment/Weapons/EWeaponType.h"
+#include "Equipment/Weapons/EWeaponWieldMode.h"
+#include "Inventory/ItemTier.h"
 #include "Memory/HiddenQuestData.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
@@ -574,6 +578,138 @@ FText WoRGameNames::GetElementBreakName(ESpellElement Element)
 FText WoRGameNames::GetElementDoTName(ESpellElement Element)
 {
     return HasElementEffectNames(Element) ? FormatDoTName(GetElementName(Element)) : FText::GetEmpty();
+}
+
+FText WoRGameNames::GetCrystalTypeName(ECrystalType Type)
+{
+    switch (Type)
+    {
+    case ECrystalType::Garnet:
+        return LOCTEXT("ECrystalType_Garnet", "Garnet");
+    case ECrystalType::Sapphire:
+        return LOCTEXT("ECrystalType_Sapphire", "Sapphire");
+    case ECrystalType::Citrine:
+        return LOCTEXT("ECrystalType_Citrine", "Citrine");
+    case ECrystalType::Emerald:
+        return LOCTEXT("ECrystalType_Emerald", "Emerald");
+    case ECrystalType::Amber:
+        return LOCTEXT("ECrystalType_Amber", "Amber");
+    case ECrystalType::Opal:
+        return LOCTEXT("ECrystalType_Opal", "Opal");
+    case ECrystalType::Onyx:
+        return LOCTEXT("ECrystalType_Onyx", "Onyx");
+    case ECrystalType::Amethyst:
+        return LOCTEXT("ECrystalType_Amethyst", "Amethyst");
+    case ECrystalType::Iolite:
+        return LOCTEXT("ECrystalType_Iolite", "Iolite");
+    case ECrystalType::Quartz:
+        return LOCTEXT("ECrystalType_Quartz", "Quartz");
+    case ECrystalType::DamageStone:
+        return LOCTEXT("ECrystalType_DamageStone", "Damage Stone");
+    case ECrystalType::HealingStone:
+        return LOCTEXT("ECrystalType_HealingStone", "Healing Stone");
+    case ECrystalType::MaxHPStone:
+        return LOCTEXT("ECrystalType_MaxHPStone", "Max HP Stone");
+    case ECrystalType::MaxEPStone:
+        return LOCTEXT("ECrystalType_MaxEPStone", "Max EP Stone");
+    case ECrystalType::DurabilityStone:
+        return LOCTEXT("ECrystalType_DurabilityStone", "Durability Stone");
+    case ECrystalType::StatStone:
+        return LOCTEXT("ECrystalType_StatStone", "Stat Stone");
+    // Retired single-stat kinds (B-353): still named, since an old asset can hold one until it is normalized.
+    case ECrystalType::DefenseStone:
+        return LOCTEXT("ECrystalType_DefenseStone", "Defense Stone");
+    case ECrystalType::CritStone:
+        return LOCTEXT("ECrystalType_CritStone", "Crit Stone");
+    case ECrystalType::TurnSpeedStone:
+        return LOCTEXT("ECrystalType_TurnSpeedStone", "Turn Speed Stone");
+    case ECrystalType::StatusStone:
+        return LOCTEXT("ECrystalType_StatusStone", "Status Stone");
+    case ECrystalType::EfficiencyStone:
+        return LOCTEXT("ECrystalType_EfficiencyStone", "Efficiency Stone");
+    case ECrystalType::SpellDamageStone:
+        return LOCTEXT("ECrystalType_SpellDamageStone", "Spell Damage Stone");
+    case ECrystalType::ResistanceStone:
+        return LOCTEXT("ECrystalType_ResistanceStone", "Resistance Stone");
+    case ECrystalType::SpellSpeedStone:
+        return LOCTEXT("ECrystalType_SpellSpeedStone", "Spell Speed Stone");
+    case ECrystalType::ActionSpeedStone:
+        return LOCTEXT("ECrystalType_ActionSpeedStone", "Action Speed Stone");
+    case ECrystalType::LuckStone:
+        return LOCTEXT("ECrystalType_LuckStone", "Luck Stone");
+    case ECrystalType::ReflexStone:
+        return LOCTEXT("ECrystalType_ReflexStone", "Reflex Stone");
+    default:
+        return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetWeaponTypeName(EWeaponType Type)
+{
+    switch (Type)
+    {
+    case EWeaponType::Sword:
+        return LOCTEXT("EWeaponType_Sword", "Sword");
+    case EWeaponType::Greatsword:
+        return LOCTEXT("EWeaponType_Greatsword", "Greatsword");
+    case EWeaponType::Spear:
+        return LOCTEXT("EWeaponType_Spear", "Spear");
+    case EWeaponType::Staff:
+        return LOCTEXT("EWeaponType_Staff", "Staff");
+    case EWeaponType::Dagger:
+        return LOCTEXT("EWeaponType_Dagger", "Dagger");
+    case EWeaponType::Axe:
+        return LOCTEXT("EWeaponType_Axe", "Axe");
+    case EWeaponType::Hammer:
+        return LOCTEXT("EWeaponType_Hammer", "Hammer");
+    case EWeaponType::Bow:
+        return LOCTEXT("EWeaponType_Bow", "Bow");
+    case EWeaponType::Gauntlets:
+        return LOCTEXT("EWeaponType_Gauntlets", "Gauntlets");
+    case EWeaponType::Scythe:
+        return LOCTEXT("EWeaponType_Scythe", "Scythe");
+    case EWeaponType::Gun:
+        return LOCTEXT("EWeaponType_Gun", "Gun");
+    default:
+        return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)
+{
+    switch (Mode)
+    {
+    case EWeaponWieldMode::Dual:
+        return LOCTEXT("EWeaponWieldMode_Dual", "dual");
+    case EWeaponWieldMode::OffHandShield:
+        return LOCTEXT("EWeaponWieldMode_OffHandShield", "with shield");
+    case EWeaponWieldMode::Single:
+    default:
+        return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetTierLetter(EItemTier Tier)
+{
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return LOCTEXT("EItemTier_F", "F");
+    case EItemTier::E_Tier:
+        return LOCTEXT("EItemTier_E", "E");
+    case EItemTier::D_Tier:
+        return LOCTEXT("EItemTier_D", "D");
+    case EItemTier::C_Tier:
+        return LOCTEXT("EItemTier_C", "C");
+    case EItemTier::B_Tier:
+        return LOCTEXT("EItemTier_B", "B");
+    case EItemTier::A_Tier:
+        return LOCTEXT("EItemTier_A", "A");
+    case EItemTier::S_Tier:
+        return LOCTEXT("EItemTier_S", "S");
+    default:
+        return FText::GetEmpty();
+    }
 }
 
 #undef LOCTEXT_NAMESPACE

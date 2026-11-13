@@ -23,6 +23,10 @@ enum class EEssenceType : uint8;
 enum class EInventoryVerb : uint8;
 enum class ECurrencyType : uint8;
 enum class EQuestKind : uint8;
+enum class ECrystalType : uint8;
+enum class EWeaponType : uint8;
+enum class EWeaponWieldMode : uint8;
+enum class EItemTier : uint8;
 
 namespace WoRGameNames
 {
@@ -96,4 +100,17 @@ namespace WoRGameNames
 
     /** B-388: "Hidden" (never shown to players, D-100), "Main", "Side". */
     WORLD_OF_REFRACTION_API FText GetQuestKindName(EQuestKind Kind);
+
+    /** B-440a: a crystal's or stone's kind: "Garnet", "Quartz", "Damage Stone", "Stat Stone". Empty for None.
+     *  The FString table (ItemIdentity::GetTypeName) stays for logs and the old widgets. */
+    WORLD_OF_REFRACTION_API FText GetCrystalTypeName(ECrystalType Type);
+
+    /** B-440a: "Sword", "Greatsword", "Gauntlets". */
+    WORLD_OF_REFRACTION_API FText GetWeaponTypeName(EWeaponType Type);
+
+    /** B-440a (D-180): how a weapon is held, for its kind line: "dual", "with shield". Empty for a single weapon. */
+    WORLD_OF_REFRACTION_API FText GetWieldModeName(EWeaponWieldMode Mode);
+
+    /** B-440a: a tier's letter, "F" to "S". */
+    WORLD_OF_REFRACTION_API FText GetTierLetter(EItemTier Tier);
 }
