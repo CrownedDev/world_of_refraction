@@ -20,6 +20,8 @@ namespace
 	constexpr int32 FIELD_SET_TYPE_ARG = 1;
 	constexpr int32 FIELD_UNLOCK_TYPE_ARG = 0;
 	constexpr int32 FIELD_UNLOCK_ELEMENT_ARG = 1;
+	constexpr int32 FIELD_FLIGHT_LIMITS_ARG = 0;
+	constexpr int32 FIELD_FLY_VERTICAL_ARG = 0;
 
 	/** The first player's pawn's field movement (the leader on the map). */
 	UFieldMovementComponent *PlayerFieldMovement(UWorld *World)
@@ -133,6 +135,53 @@ namespace
 				const bool bUnlocked = Unlocks->UnlockForDebug(static_cast<EFieldMovementType>(Type), static_cast<ESpellElement>(Element));
 				Report(FString::Printf(TEXT("Unlock %s %s: %s"), *Args[FIELD_UNLOCK_TYPE_ARG], *Args[FIELD_UNLOCK_ELEMENT_ARG],
 									   bUnlocked ? TEXT("unlocked") : TEXT("refused (that element can't unlock it)")));
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GFieldFlightLimitsCmd(
+		TEXT("wor.Field.FlightLimits"),
+		TEXT("DEBUG (B-214d): wor.Field.FlightLimits <None|Unlimited|NoCeiling|IgnoreNoFly|All> - lifts the player's "
+			 "character's flight limits as an effect would (unlimited EP, no height ceiling, no-fly zones ignored). Run it "
+			 "on the host: the limits are the server's."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				const FString Mode = Args.IsValidIndex(FIELD_FLIGHT_LIMITS_ARG) ? Args[FIELD_FLIGHT_LIMITS_ARG] : FString();
+				const bool bAll = Mode == TEXT("All");
+				FFieldFlightLimits Limits;
+				Limits.bUnlimitedEP = bAll || Mode == TEXT("Unlimited");
+				Limits.bNoCeiling = bAll || Mode == TEXT("NoCeiling");
+				Limits.bIgnoreNoFly = bAll || Mode == TEXT("IgnoreNoFly");
+				if (!bAll && Mode != TEXT("None") && !Limits.bUnlimitedEP && !Limits.bNoCeiling && !Limits.bIgnoreNoFly)
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[FieldMovementDebug] Usage: wor.Field.FlightLimits <None|Unlimited|NoCeiling|IgnoreNoFly|All>"));
+					return;
+				}
+				if (UFieldMovementComponent *FieldMovement = PlayerFieldMovement(World))
+				{
+					FieldMovement->SetFlightLimits(Limits);
+					Report(FString::Printf(TEXT("FlightLimits %s | %s"), *Mode, *FieldMovement->GetFieldStateString()));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GFieldFlyVerticalCmd(
+		TEXT("wor.Field.FlyVertical"),
+		TEXT("DEBUG (B-214d, until B-214g's fly up / down keys): wor.Field.FlyVertical <1|-1> - pushes the flying player's "
+			 "character up or down."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				const float Direction = Args.IsValidIndex(FIELD_FLY_VERTICAL_ARG) ? FCString::Atof(*Args[FIELD_FLY_VERTICAL_ARG]) : 0.0f;
+				if (FMath::IsNearlyZero(Direction))
+				{
+					UE_LOG(LogWoR, Warning, TEXT("[FieldMovementDebug] Usage: wor.Field.FlyVertical <1|-1>"));
+					return;
+				}
+				if (UFieldMovementComponent *FieldMovement = PlayerFieldMovement(World))
+				{
+					FieldMovement->NudgeFlightVertical(Direction);
+					Report(FString::Printf(TEXT("FlyVertical %s | flying %s"), *Args[FIELD_FLY_VERTICAL_ARG],
+										   FieldMovement->IsFlying() ? TEXT("yes") : TEXT("no (nothing done)")));
+				}
 			}));
 }
 

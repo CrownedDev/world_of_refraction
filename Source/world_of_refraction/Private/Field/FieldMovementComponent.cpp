@@ -58,6 +58,8 @@ void UFieldMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME(UFieldMovementComponent, EnhancedSprintElement);
 	DOREPLIFETIME(UFieldMovementComponent, bGliding);
 	DOREPLIFETIME(UFieldMovementComponent, bWallRunning);
+	DOREPLIFETIME(UFieldMovementComponent, bFlying);
+	DOREPLIFETIME_CONDITION(UFieldMovementComponent, FlightLimits, COND_OwnerOnly);
 }
 
 void UFieldMovementComponent::BeginPlay()
@@ -69,6 +71,8 @@ void UFieldMovementComponent::BeginPlay()
 		{
 			BaseGravityScale = Movement->GravityScale;
 			BaseAirControl = Movement->AirControl;
+			BaseMaxFlySpeed = Movement->MaxFlySpeed;
+			BaseBrakingFlying = Movement->BrakingDecelerationFlying;
 			bHasBaseMovement = true;
 		}
 		Character->LandedDelegate.AddUniqueDynamic(this, &UFieldMovementComponent::HandleLanded); // B-214c
@@ -82,11 +86,13 @@ void UFieldMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		// A pawn that outlives this component gets its gravity and air control back.
 		SetGliding(false);
 		SetWallRunning(false);
+		StopFlight();
 	}
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DrainTimer);
 		World->GetTimerManager().ClearTimer(MoveStepTimer);
+		World->GetTimerManager().ClearTimer(FlightDrainTimer);
 	}
 	if (ACharacter *Character = Cast<ACharacter>(GetOwner()))
 	{
@@ -192,6 +198,7 @@ EFieldSkillRefusal UFieldMovementComponent::SetActiveFieldSkill(EFieldSkillSourc
 			StopEnhancedSprint();
 		}
 		SetGliding(false); // B-214c
+		StopFlight();      // B-214d
 	}
 	ActiveChoice = Choice;
 	const UCharacterDataComponent *CharComp = GetCharacterData();
@@ -284,6 +291,8 @@ EFieldSkillRefusal UFieldMovementComponent::ActivateFieldSkill()
 		return HighJump();
 	case EFieldMovementType::AirDash:
 		return AirDash();
+	case EFieldMovementType::Flight: // B-214d
+		return ToggleFlight();
 	default:
 		UE_LOG(LogWoR, Log, TEXT("%s %s: %s isn't built yet (B-214d..e)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
 			   *FieldSkillRules::TypeName(Choice.Type));
@@ -433,5 +442,9 @@ FString UFieldMovementComponent::GetFieldStateString() const
 						   IsDashReady() ? TEXT("ready") : TEXT("cooling"), FindRecord() ? TEXT("yes") : TEXT("no"))
 		+ FString::Printf(TEXT(" | glide %s | wall-run %s | air jump %s, air dash %s"), // B-214c
 						  bGliding ? TEXT("ON") : TEXT("off"), bWallRunning ? TEXT("ON") : TEXT("off"),
-						  bAirJumpUsed ? TEXT("used") : TEXT("ready"), bAirDashUsed ? TEXT("used") : TEXT("ready"));
+						  bAirJumpUsed ? TEXT("used") : TEXT("ready"), bAirDashUsed ? TEXT("used") : TEXT("ready"))
+		+ FString::Printf(TEXT(" | flight %s (limits: EP %s, ceiling %s, no-fly %s; in no-fly %s)"), // B-214d
+						  bFlying ? TEXT("ON") : TEXT("off"), FlightLimits.bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),
+						  FlightLimits.bNoCeiling ? TEXT("none") : TEXT("on"), FlightLimits.bIgnoreNoFly ? TEXT("ignored") : TEXT("on"),
+						  IsInNoFlyZone() ? TEXT("yes") : TEXT("no"));
 }

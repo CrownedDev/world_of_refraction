@@ -8,6 +8,8 @@
 //     (Q-214a, Crown), off at 0 EP or on a second double-tap. UHubMovementLibrary::ComputeHubSprintSpeed reads GetSprintSpeedMultiplier.
 // B-214c (moves in FieldMovementMoves.cpp): Glide (a slow fall, toggled in the air), High jump (and one double jump per
 // airtime), Air dash (once per airtime along the aim; Lightning blinks), and wall-run while Enhanced Sprint is on.
+// B-214d (FieldMovementFlight.cpp): Flight, toggled; EP per second (hovering when still), a height ceiling above the
+// take-off ground and Zone.NoFly volumes, each liftable by effects (FFieldFlightLimits).
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
 
 #pragma once
@@ -99,6 +101,40 @@ public:
 	/** One wall-run step with the wall test given (StepMoves traces for it). Public for the spec. */
 	void ApplyWallRunStep(bool bWallBeside, const FVector &WallNormal);
 
+	// ---- B-214d: flight ----
+
+	/** Flight on (paid one second, outside a no-fly zone) or off (it falls). */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal ToggleFlight();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsFlying() const { return bFlying; }
+
+	/** What effects lift (unlimited flight, no ceiling, no-fly ignored). Server. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	void SetFlightLimits(const FFieldFlightLimits &NewLimits);
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldFlightLimits GetFlightLimits() const { return FlightLimits; }
+
+	/** Up (+1) or down (-1) while flying: movement input along the world's up. B-214g binds it to keys
+	 *  (IA_Field_FlyUp / IA_Field_FlyDown, InputMap rows with that job); the pawn's own move input stays flat. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	void AddFlightVerticalInput(float Value);
+
+	/** Debug (wor.Field.FlyVertical, until the keys): a vertical push while flying. Server. */
+	void NudgeFlightVertical(float Direction);
+
+	/** Inside a volume tagged Zone.NoFly. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsInNoFlyZone() const;
+
+	/** One flight EP charge (the drain timer's step; public for the spec). Lands it below one charge. */
+	void DrainFlight();
+
+	/** One flight step: out of a no-fly zone and under the ceiling (StepMoves calls it; public for the spec). */
+	void ApplyFlightStep();
+
 	/** Server: copies the party record's choice into the replicated mirror (after the leader is rebound). */
 	void RefreshFromRecord();
 
@@ -128,6 +164,14 @@ private:
 
 	UFUNCTION()
 	void OnRep_AirMoveState();
+
+	UFUNCTION()
+	void OnRep_Flying();
+
+	void StopFlight();
+
+	/** Flying movement on / off with the base speed and braking put back (server, and the owning client by OnRep). */
+	void ApplyFlightMode();
 
 	UFUNCTION()
 	void HandleLanded(const FHitResult &Hit);
@@ -187,6 +231,17 @@ private:
 	bool bHasBaseMovement = false;
 
 	FTimerHandle MoveStepTimer;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Flying)
+	bool bFlying = false;
+
+	UPROPERTY(Replicated)
+	FFieldFlightLimits FlightLimits;
+	/** The ground under the take-off: the ceiling counts from it (FieldSkillRules::GetFlightCeilingZ). */
+	double FlightTakeOffGroundZ = 0.0;
+	float BaseMaxFlySpeed = 0.0f;
+	float BaseBrakingFlying = 0.0f;
+	FTimerHandle FlightDrainTimer;
 
 	double LastDashTime = -FieldSkillRules::DASH_COOLDOWN_SECONDS;
 	FTimerHandle DrainTimer;

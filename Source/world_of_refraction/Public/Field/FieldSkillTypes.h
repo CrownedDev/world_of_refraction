@@ -13,7 +13,7 @@
 #include "FieldSkillTypes.generated.h"
 
 /** The 11 movement types (FieldAbilities "Movement types", Crown 2026-10-27). B-214a builds Dash and Enhanced Sprint,
- *  B-214c Glide, High jump and Air dash; the rest are refused as not built until their slice (B-214d..e). Append only: saved as a byte (FSavedPartyMember). */
+ *  B-214c Glide, High jump and Air dash, B-214d Flight; the rest are refused as not built until their slice (B-214e). Append only: saved as a byte (FSavedPartyMember). */
 UENUM(BlueprintType)
 enum class EFieldMovementType : uint8
 {
@@ -52,7 +52,8 @@ enum class EFieldSkillRefusal : uint8
 	NotUnlocked,          // B-214b: no aura spell of the source's element has reached the rank yet
 	NeedsAir,             // B-214c: glide and air dash start only in the air
 	AlreadyUsedInAir,     // B-214c: the double jump or air dash was used since the last landing
-	NotActiveSkill        // B-214c: a move other than the character's active field skill was called
+	NotActiveSkill,       // B-214c: a move other than the character's active field skill was called
+	NoFlyZone             // B-214d: inside a Zone.NoFly volume
 };
 
 /** B-214b (FieldAbilities "Movement -> aura"): the three elemental enhancements whose spells unlock movement types. A
@@ -65,6 +66,30 @@ enum class EFieldAura : uint8
 	Elemental,
 	Enhancement,
 	Manipulation
+};
+
+/** B-214d (FieldAbilities choice 4, Crown 2026-10-27): what lifts flight's limits. Set by effects (an evolution's
+ *  unlimited flight, B-214h; one character's unlimited energy later) through UFieldMovementComponent::SetFlightLimits. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FFieldFlightLimits
+{
+	GENERATED_BODY()
+
+	/** Flight costs no EP. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	bool bUnlimitedEP = false;
+
+	/** No height ceiling. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	bool bNoCeiling = false;
+
+	/** Zone.NoFly volumes don't stop it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	bool bIgnoreNoFly = false;
+
+	/** Raises the ceiling (cm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field", meta = (ClampMin = 0))
+	float ExtraCeiling = 0.0f;
 };
 
 /** A character's active field skill. Its home is FPartyMember::FieldSkill (saved, v36). */
@@ -130,6 +155,26 @@ namespace FieldSkillRules
 	/** How often a running glide or Enhanced Sprint steps (glide's fall cap, the wall-run check). */
 	constexpr float MOVE_STEP_INTERVAL = 0.05f;
 
+	// ---- B-214d: flight (FieldAbilities choice 4; numbers TODO: tune, Q-214d) ----
+
+	constexpr int32 FLIGHT_EP_PER_SECOND = 2;
+	constexpr float FLIGHT_DRAIN_INTERVAL = 1.0f;
+	constexpr float FLIGHT_MAX_HEIGHT = 1500.0f;          // cm above the ground at take-off
+	constexpr float FLIGHT_SPEED = 900.0f;                // cm/s (MaxFlySpeed)
+	constexpr float FLIGHT_HOVER_BRAKING = 4000.0f;       // cm/s^2: stops quickly with no input, so it hovers
+	constexpr float FLIGHT_GROUND_TRACE_DISTANCE = 10000.0f;
+	constexpr float FLIGHT_TAKEOFF_LIFT_SPEED = 600.0f;   // cm/s up on take-off, so it leaves the ground
+	constexpr float FLIGHT_VERTICAL_NUDGE_SPEED = 500.0f; // cm/s for wor.Field.FlyVertical (until B-214g's keys)
+	constexpr float FLIGHT_CEILING_SNAP_MARGIN = 100.0f;  // cm over the ceiling before it is put back (else its rise stops)
+	/** The actor tag that makes a volume a no-fly zone (boss arenas, some secrets). */
+	inline constexpr const TCHAR *NO_FLY_ZONE_TAG = TEXT("Zone.NoFly"); // TCHAR, not FName: no FName at static init
+
+	/** Flight may start: outside a no-fly zone (unless lifted) with one second's EP (unless unlimited). */
+	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckFlightStart(bool bInNoFlyZone, int32 CurrentEP, const FFieldFlightLimits &Limits);
+
+	/** The highest the flyer may go (world Z); no limit when lifted. */
+	WORLD_OF_REFRACTION_API double GetFlightCeilingZ(double TakeOffGroundZ, const FFieldFlightLimits &Limits);
+
 	/** Glide may start: in the air with its EP. */
 	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckGlideStart(bool bFalling, int32 CurrentEP);
 
@@ -149,7 +194,7 @@ namespace FieldSkillRules
 	/** A real element: not Generic ("inherit") and not None. */
 	WORLD_OF_REFRACTION_API bool IsElemental(ESpellElement Element);
 
-	/** B-214a builds Dash and Enhanced Sprint; B-214c Glide, High jump and Air dash. */
+	/** B-214a builds Dash and Enhanced Sprint; B-214c Glide, High jump and Air dash; B-214d Flight. */
 	WORLD_OF_REFRACTION_API bool IsBuilt(EFieldMovementType Type);
 
 	/** Every type but the normal dash needs an elemental source (a Generic can't fly without one, FieldAbilities). */
