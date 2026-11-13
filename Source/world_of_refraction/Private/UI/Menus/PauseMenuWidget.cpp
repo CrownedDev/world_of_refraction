@@ -2,7 +2,6 @@
 
 #include "UI/Menus/PauseMenuWidget.h"
 
-#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Brushes/SlateColorBrush.h"
 #include "Components/Border.h"
@@ -22,9 +21,10 @@
 #include "Player/WoRHubController.h"
 #include "TimerManager.h"
 #include "UI/Hub/InventoryWidget.h"
+#include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Hub/MemoryJournalWidget.h"
+#include "UI/Menus/LoadoutScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
-#include "UI/Party/PartyDisplayWidget.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -32,9 +32,8 @@
 
 namespace PauseMenuStyle
 {
-	// The mockup (screen_mockups/menus/pause, 1280x720) at 1080p: Slate units, DPI-scaled.
-	// TODO: the Hidris art pass replaces the flat colours and fonts (UI_Theme.md).
-	constexpr float ScreenPadding = 72.0f;
+	// This screen's own layout (screen_mockups/menus/pause, 1280x720, at 1080p); the shared look is WoRMenuStyle.
+	using namespace WoRMenuStyle;
 	constexpr float PageWidth = 423.0f;
 	constexpr float RowHeight = 72.0f;
 	constexpr float RowGap = 12.0f;
@@ -48,132 +47,18 @@ namespace PauseMenuStyle
 	constexpr float BarHeight = 30.0f; // tall enough to hold its value
 	constexpr float HoldBarHeight = 15.0f;
 	constexpr float BarLabelWidth = 51.0f;
-	constexpr float LineGap = 9.0f;
 	constexpr float PillarLabelWidth = 105.0f;
 	constexpr float PanelGap = 60.0f;
 	constexpr float PanelWidth = 408.0f;
 	constexpr float PanelPadding = 27.0f;
 	constexpr float PanelInnerWidth = PanelWidth - PanelPadding - PanelPadding;
-	constexpr float SectionGap = 18.0f;
 	constexpr float NoteGap = 27.0f;
 	constexpr float ChipGap = 36.0f;
 	constexpr float ChipTopInset = 15.0f;
-	constexpr float WordGap = 9.0f;
-
-	constexpr int32 TitleFontSize = 38;
-	constexpr int32 SubtitleFontSize = 20;
-	constexpr int32 RowFontSize = 22;
-	constexpr int32 NameFontSize = 29;
-	constexpr int32 LineFontSize = 19;
-	constexpr int32 SmallFontSize = 17;
 
 	constexpr float LowHPFraction = 0.3f;
 	constexpr float HoldTickSeconds = 0.03f;
 	constexpr int32 MaxChips = 3;
-
-	// The mockup kit's tokens (screen_mockups/_kit/wor_ui.py).
-	const FLinearColor ScreenColor = FLinearColor::FromSRGBColor(FColor(16, 18, 25, 240));
-	const FLinearColor PanelColor = FLinearColor::FromSRGBColor(FColor(20, 22, 28));
-	const FLinearColor PlateColor = FLinearColor::FromSRGBColor(FColor(46, 46, 46));
-	const FLinearColor TrackColor = FLinearColor::FromSRGBColor(FColor(42, 45, 53));
-	const FLinearColor FocusColor = FLinearColor::FromSRGBColor(FColor(51, 127, 141));
-	const FLinearColor TextColor = FLinearColor::FromSRGBColor(FColor(238, 241, 245));
-	const FLinearColor DimColor = FLinearColor::FromSRGBColor(FColor(169, 175, 184));
-	const FLinearColor OffColor = FLinearColor::FromSRGBColor(FColor(107, 112, 120));
-	const FLinearColor HPColor = FLinearColor::FromSRGBColor(FColor(224, 64, 127));
-	const FLinearColor LowHPColor = FLinearColor::FromSRGBColor(FColor(255, 143, 180));
-	const FLinearColor EPColor = FLinearColor::FromSRGBColor(FColor(111, 214, 228));
-	const FLinearColor WarnColor = FLinearColor::FromSRGBColor(FColor(242, 162, 58));
-	const FLinearColor ValueBackingColor = FLinearColor::FromSRGBColor(FColor(16, 18, 25, 170));
-
-	const FName BoldTypeface(TEXT("Bold"));
-
-	// Menu keys (InputMap.md, Menus). The Menu button that opened the screen closes it too.
-	bool IsUpKey(const FKey &Key)
-	{
-		return Key == EKeys::Up || Key == EKeys::W || Key == EKeys::Gamepad_DPad_Up || Key == EKeys::Gamepad_LeftStick_Up;
-	}
-	bool IsDownKey(const FKey &Key)
-	{
-		return Key == EKeys::Down || Key == EKeys::S || Key == EKeys::Gamepad_DPad_Down || Key == EKeys::Gamepad_LeftStick_Down;
-	}
-	bool IsConfirmKey(const FKey &Key)
-	{
-		return Key == EKeys::Enter || Key == EKeys::SpaceBar || Key == EKeys::Gamepad_FaceButton_Bottom;
-	}
-	bool IsBackKey(const FKey &Key)
-	{
-		return Key == EKeys::Escape || Key == EKeys::BackSpace || Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Gamepad_Special_Right;
-	}
-
-	UTextBlock *MakeText(UWidgetTree *Tree, int32 FontSize, const FLinearColor &Color, bool bBold = false)
-	{
-		UTextBlock *Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		FSlateFontInfo Font = Text->GetFont();
-		Font.Size = FontSize;
-		if (bBold)
-		{
-			Font.TypefaceFontName = BoldTypeface;
-		}
-		Text->SetFont(Font);
-		Text->SetColorAndOpacity(FSlateColor(Color));
-		return Text;
-	}
-
-	UTextBlock *MakeWrappedText(UWidgetTree *Tree, int32 FontSize, const FLinearColor &Color, bool bBold = false)
-	{
-		UTextBlock *Text = MakeText(Tree, FontSize, Color, bBold);
-		Text->SetAutoWrapText(true);
-		return Text;
-	}
-
-	UProgressBar *MakeBar(UWidgetTree *Tree, const FLinearColor &FillColor)
-	{
-		UProgressBar *Bar = Tree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass());
-		FProgressBarStyle Style = Bar->GetWidgetStyle();
-		Style.BackgroundImage = FSlateColorBrush(TrackColor);
-		Style.FillImage = FSlateColorBrush(FLinearColor::White);
-		Bar->SetWidgetStyle(Style);
-		Bar->SetFillColorAndOpacity(FillColor);
-		return Bar;
-	}
-
-	/** Content in a box of a fixed width (and height, when above zero). */
-	USizeBox *MakeSized(UWidgetTree *Tree, float Width, float Height, UWidget *Content)
-	{
-		USizeBox *Box = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		Box->SetWidthOverride(Width);
-		if (Height > 0.0f)
-		{
-			Box->SetHeightOverride(Height);
-		}
-		Box->AddChild(Content);
-		return Box;
-	}
-
-	UHorizontalBoxSlot *AddToRow(UHorizontalBox *Row, UWidget *Child, const FMargin &Padding = FMargin(0.0f),
-								 EVerticalAlignment VAlign = VAlign_Center)
-	{
-		UHorizontalBoxSlot *BoxSlot = Row->AddChildToHorizontalBox(Child);
-		BoxSlot->SetPadding(Padding);
-		BoxSlot->SetVerticalAlignment(VAlign);
-		return BoxSlot;
-	}
-
-	UVerticalBoxSlot *AddToColumn(UVerticalBox *Column, UWidget *Child, const FMargin &Padding = FMargin(0.0f))
-	{
-		UVerticalBoxSlot *BoxSlot = Column->AddChildToVerticalBox(Child);
-		BoxSlot->SetPadding(Padding);
-		return BoxSlot;
-	}
-
-	void SetShown(UWidget *Widget, bool bShown)
-	{
-		if (Widget)
-		{
-			Widget->SetVisibility(bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
-		}
-	}
 }
 
 UPauseMenuWidget::UPauseMenuWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -195,7 +80,15 @@ UPauseMenuWidget *UPauseMenuWidget::Open(APlayerController *PC)
 	{
 		return nullptr; // one screen at a time: the menu is up already, or another screen is
 	}
-	return Cast<UPauseMenuWidget>(Root->PushToMenu(UPauseMenuWidget::StaticClass()));
+	UPauseMenuWidget *Menu = Cast<UPauseMenuWidget>(Root->PushToMenu(UPauseMenuWidget::StaticClass()));
+	if (Menu)
+	{
+		// The stack may hand back a pooled instance, and may activate it only after its transition: a fresh
+		// open starts on Resume either way.
+		Menu->SelectedIndex = 0;
+		Menu->RefreshSelection();
+	}
+	return Menu;
 }
 
 TSharedRef<SWidget> UPauseMenuWidget::RebuildWidget()
@@ -367,11 +260,11 @@ UPauseMenuWidget::FMemberCard UPauseMenuWidget::BuildMemberCard(UVerticalBox *In
 void UPauseMenuWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
-	SelectedIndex = 0;
+	// The selection is kept: coming back from a page (the loadout screen) lands on that page's row. Open resets it.
 	bConfirmingQuit = false;
 	RefreshData();
+	SelectedIndex = Pages.IsValidIndex(SelectedIndex) ? SelectedIndex : 0;
 	RefreshSelection();
-	SetPartyStripHidden(true);
 	UE_LOG(LogWoRUI, Log, TEXT("[PauseMenu] Opened (%s)"), bInRun ? TEXT("in a run") : TEXT("hub"));
 }
 
@@ -379,7 +272,6 @@ void UPauseMenuWidget::NativeOnDeactivated()
 {
 	StopQuitHold();
 	bConfirmingQuit = false;
-	SetPartyStripHidden(false);
 	Super::NativeOnDeactivated();
 }
 
@@ -524,6 +416,9 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 	case EPauseMenuPage::Resume:
 		DeactivateWidget();
 		break;
+	case EPauseMenuPage::Loadout:
+		ULoadoutScreenWidget::Open(GetOwningPlayer()); // over this menu: Back returns here
+		break;
 	case EPauseMenuPage::Inventory:
 	case EPauseMenuPage::Party:
 	case EPauseMenuPage::Journal:
@@ -540,7 +435,7 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 			RefreshSelection();
 		}
 		break;
-	default: // Loadout, Character, Settings: refused by the model until their screens land
+	default: // Character, Settings: refused by the model until their screens land
 		break;
 	}
 }
@@ -721,33 +616,6 @@ void UPauseMenuWidget::NativeOnRemovedFromFocusPath(const FFocusEvent &InFocusEv
 	// With focus gone the key-up never arrives, so the hold must not run on to the end by itself.
 	StopQuitHold();
 	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
-}
-
-void UPauseMenuWidget::SetPartyStripHidden(bool bHidden)
-{
-	if (!bHidden)
-	{
-		for (const TPair<TWeakObjectPtr<UWidget>, ESlateVisibility> &Hidden : HiddenStrips)
-		{
-			if (UWidget *Strip = Hidden.Key.Get())
-			{
-				Strip->SetVisibility(Hidden.Value);
-			}
-		}
-		HiddenStrips.Reset();
-		return;
-	}
-	if (HiddenStrips.Num() > 0 || !GetWorld())
-	{
-		return;
-	}
-	TArray<UUserWidget *> Strips;
-	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, Strips, UPartyDisplayWidget::StaticClass(), /*TopLevelOnly=*/false);
-	for (UUserWidget *Strip : Strips)
-	{
-		HiddenStrips.Emplace(Strip, Strip->GetVisibility());
-		Strip->SetVisibility(ESlateVisibility::Collapsed);
-	}
 }
 
 #if !UE_BUILD_SHIPPING

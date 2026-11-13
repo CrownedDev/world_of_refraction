@@ -51,6 +51,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Move up / down a list | Up / Down, W / S, mouse over a row | D-pad, left stick | none (the screen's keys) | Built (B-439, game menu) |
 | Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
 | Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks |
+| Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
 | Back / close | Esc, Backspace | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu) |
 
 ## Mapping contexts (B-129)
@@ -85,3 +86,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-09 | B-406b: Skip boss cinematic (Tab / Menu), `IA_Combat_SkipCinematic` (review: moved off Space) | feature/B-406b-boss-cinematic-skip |
 | 2026-11-12 | B-129: mapping-context priorities named (`WoRInputPriority`: exploration 0, combat 0, combat menu keys 1) and listed under "Mapping contexts"; no key or priority changes | feature/B-129-input-priorities-cloud |
 | 2026-11-14 | B-439: the game menu opens on `IA_ToggleMenu` (bound in C++); new **Menus** section: move, select, hold to confirm, back, read by the screen itself | feature/B-439-pause-menu |
+| 2026-11-14 | B-440a: previous / next character on LT / RT (Z / C) in the loadout screen, read by the screen itself | feature/B-440-loadout-screen |

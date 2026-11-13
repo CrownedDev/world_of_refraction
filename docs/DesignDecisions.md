@@ -758,6 +758,21 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default. Before the first public build every save version bump already wipes older saves (D-060), and Crown chose the same for weapon spells (Q-098: deleted, no refund). Live games refund removed items (Warframe and Destiny 2 hand back currency for sunset or removed gear) only because players own those saves; B is the path once there are public saves. Crown may change it.
 **Notes for Claude:** B-437 bumps `WoRSaveVersion::LATEST`; no loader code for the old type.
 
+### Q-451 — What counts as a run's "upgrades"?
+**Status:** OPEN · **Raised:** 2026-11-14 (D-189, B-451) · **Blocks:** — (B-451 builds with the reading below unless Crown says otherwise)
+**Question:** D-189 keeps "the run's upgrades" on extracting or beating the boss and drops them when the party runs out of wipes. Which things are upgrades?
+**Context:** what a run can leave behind today, besides the currency payout: the **gear upgrade levels** it raised (the upgrade memory, D-097); **items found** in it (to home storage); **memories** found; **quest steps** done (hidden quest steps stay, B-377); the run's **pillar levels** always end with the run (D-102).
+**Options:** **A** upgrades = the gear upgrade levels and the items found; memories and quest steps are story records and are kept whatever the ending · **B** everything the run gave (A plus memories and quest steps) is lost when the party runs out of wipes ("their story ended") · **C** only the gear upgrade levels.
+**Recommendation (my reading):** **A**. D-188 lists "upgrades, memories, quests" as separate things in the payout line, so upgrades are not the memories or quests; and losing a found memory would break the journal's "found is found" (pillar 10). Crown's "their story ended" may mean B: this touches the story, so it is Crown's to say.
+**Answer (Crown):** _write here_
+
+### Q-450 — Does the rest menu's "Revive boss" stay?
+**Status:** OPEN · **Raised:** 2026-11-14 (D-187, B-450) · **Blocks:** — (B-450 leaves this one label alone until answered)
+**Question:** D-187 says no enemy rank is shown to the player; D-182 (the same day) names the rest menu's row "Revive boss". Keep it, or reword?
+**Options:** **A** keep "Revive boss" (it names what you just beat, after the fact, so nothing is spoiled) · **B** name the opponent ("Revive the Ash Warden") · **C** a rank-free word ("Revive the guardian").
+**Recommendation:** **B**: Elden Ring and Hades name the foe itself and never its rank, and D-187 already asks for the opponent's name on the wipe card. A stays until Crown answers.
+**Answer (Crown):** _write here_
+
 ### Q-439 — The game menu: pausing, what a quit run takes, quitting with no title screen
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439, D-176) · **Blocks:** — (B-439b for point 2)
 **Question:** (1) does opening the game menu pause the world? (2) "Quitting loses everything" (D-176): what is taken? (3) there is no title screen yet: what does "Quit to title" do?
@@ -772,6 +787,38 @@ The queue of questions only Crown can answer.
 
 ### D-P01 — Move Broken Darkness onto GAS?
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
+
+---
+
+### D-190 — Settings: approved as drawn, with all eight proposed settings
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-452, B-453
+**Answer (Crown):** (UIScreens question 7) the settings screen is **approved as drawn**, with **all eight proposed settings**: text size; camera movement in fights (the motion-sickness switch, D-078); screen shake; hold to confirm dangerous actions; element letters on colours; subtitles; tutorial tips; "AI finishes my turn when I idle". **Difficulty is chosen only at the gate**, not in settings.
+**Notes for Claude:** **B-452** builds the screen with the settings the code already has; **B-453** adds the eight, one at a time.
+
+---
+
+### D-189 — What each ending of a run pays
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session; the last of three notes that day, which replaced the two before it) · **Raised:** 2026-11-13 · **Blocks:** B-451
+**Answer (Crown):** (changes RunStructure §6 and Q-187's "falling pays in full")
+- **Beating the boss:** the full payout, and the run's upgrades.
+- **Extracting:** half (`RunRewards::LEAVE_EARLY_SHARE`), and the run's upgrades.
+- **Running out of wipes:** **25% of the run's currencies and no upgrades** ("their story ended").
+- **Quitting:** everything is lost (D-176).
+**Notes for Claude:** today running out of wipes pays the tally in full and keeps everything (`UTrialRunSubsystem::ExitTrial`); **B-451** changes it. What "upgrades" covers is **Q-451**.
+
+---
+
+### D-188 — Wipe and end-of-run screens: the words and the layout
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the mockups are redrawn first)
+**Answer (Crown):** (part of UIScreens question 5) "The party has fallen" reads **"Your possibilities end here"**. The end-of-run screen has **no Kept / Lost columns** (obvious to the player). Its payout **lists what the run gave** (upgrades, memories, quests and so on) as **one centred line of text at the bottom**. Its button reads **"Return"** (not "Return to the Void Realm").
+**Notes for Claude:** the other end-screen words ("Get up", "Trial cleared", "The trial ends") stay stand-ins until Crown names them. No build job yet.
+
+---
+
+### D-187 — No enemy rank is ever shown to the player
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-450
+**Answer (Crown):** never label an enemy **"mini-boss"** (or any rank: Normal, Elite, Mini-boss, Boss) to the player: it sets expectations and spoils the encounter. The **wipe card names the opponent that dealt the last blow** instead. The battle's **enemy target card drops "Rank"** and shows the tier only.
+**Notes for Claude:** **B-450** sweeps the player-facing strings. The battle HUD mockups (`BattleHUDRefinePlan.md`, the UI Designer's) still draw Rank on the target card: tell their owner. The rest menu's "Revive boss" (D-182) names a rank in Crown's own words: **Q-450**.
 
 ---
 

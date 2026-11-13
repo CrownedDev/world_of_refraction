@@ -92,8 +92,6 @@ private:
 	void StopQuitHold();
 	void TickQuitHold();
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
-	/** The old party strip would draw over this menu (the root layout sits under it); hidden while it's open. */
-	void SetPartyStripHidden(bool bHidden);
 
 	TArray<FPauseMenuPage> Pages;
 	bool bInRun = false;
@@ -128,5 +126,4 @@ private:
 	TObjectPtr<UTextBlock> ExtractNote;
 
 	TArray<FMemberCard> MemberCards;
-	TArray<TPair<TWeakObjectPtr<UWidget>, ESlateVisibility>> HiddenStrips;
 };
