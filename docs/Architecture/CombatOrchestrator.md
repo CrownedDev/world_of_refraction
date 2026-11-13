@@ -98,27 +98,7 @@ Key internal state fields:
 
 ### Action submission
 
-`SubmitAction(FAction)` (synchronous-capable path):
-1. Guards: combat in progress, `CurrentActor` set, `ActionExecutor` available, not
-   already waiting on an async action.
-2. Validates via `ActionExecutor::ValidateAction`.
-3. Decides if the action needs async execution (`bRequiresAsync`, `CombatOrchestrator.cpp:373-412`):
-   - Spell with a `Projectile` delivery type — checked per-entry across `SpellData->CastArray`
-     when populated (any `Projectile` cast entry → async), otherwise the loose
-     `SpellData->DeliveryType` is the empty-`CastArray` fallback. `AOE` and `Instant` stay sync;
-     the former `Homing` and `Beam` delivery types no longer exist (a beam is now a burst of
-     `Projectile` cast entries).
-   - Attack or Ability that has any montage to play — `SkillMontage`, `RitualCastMontage`, or
-     `ReturnMontage` non-null. This replaced the old `ApproachData != nullptr` / `RequiresApproach()`
-     gate: warp replaced the movement system, so the *presence of an animation* (not movement)
-     decides async.
-4. Async path: sets `bWaitingForAsyncAction`, calls
-   `ActionExecutor::ExecuteActionAsync` with `HandleAsyncActionCompleted` as the
-   completion callback.
-5. Sync path: `ActionExecutor::ExecuteAction`, broadcasts `OnActionExecuted`, then
-   calls `OnActionCompleted()`.
-
-`SubmitActionAsync(FAction)` — always uses the async `ExecuteActionAsync` path.
+`SubmitActionAsync(FAction)` — the only way in (B-165 deleted the old sync `SubmitAction`): `ExecuteActionAsync`, with `HandleAsyncActionCompleted` as the completion callback.
 
 `HandleAsyncActionCompleted(FActionResult)` — clears `bWaitingForAsyncAction`,
 broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
@@ -213,7 +193,7 @@ broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
 `IsActionPipsFight()` is the TurnManager's latched rotation mode; at 0 none of this runs and a turn is one action, as built.
 - **Fight start:** `StartCombat` calls `ResetActionsForFight` on every combatant before `InitializeCombat` dispatches turn 1.
 - **Turn start:** after the start-of-turn effects and the death check, `BeginTurnActions` runs (1) the regain (`RegainActions`; not on a combatant's first turn, tracked in `ActorsPastFirstTurn`), (2) the waiting action changes (`ApplyWaitingActionChanges`, B-170d: Lose Action next turn, Wind's break, a delayed Emerald gain; gains before losses), (3) the check. 0 actions = the turn is skipped through `OnActionCompleted` (no prompt, no `OnActorTurnStarted`).
-- **Each action:** `PayActionCost` (in `SubmitAction` and `StartActionAsync`, after the executor's validation) refuses with `GetActionCostRefusedReason` (cost above Max: "Costs more actions than you can hold."; above the bank: "Needs N actions.") or spends `FAction::GetActionCost()` and sets `bTurnContinuesAfterAction` (not for Defend, Flee or a ritual's fire). `ValidateAction` adds the same refusal for the menu.
+- **Each action:** `PayActionCost` (in `StartActionAsync`, after the executor's validation) refuses with `GetActionCostRefusedReason` (cost above Max: "Costs more actions than you can hold."; above the bank: "Needs N actions.") or spends `FAction::GetActionCost()` and sets `bTurnContinuesAfterAction` (not for Defend, Flee or a ritual's fire). `ValidateAction` adds the same refusal for the menu.
 - **After it:** `OnActionCompleted` reads and clears the flag; when set and `CanContinueTurn` (alive, not an Execution turn, not Void-broken, not stunned, actions left; B-170f: an AI-played turn too, the AI banks by choosing End Turn) it runs the win check and asks again; the turn-start and turn-end steps are skipped, so they run once per turn. Every other way in ends the turn.
 - **End Turn:** `EActionType::EndTurn` goes to `EndTurnByChoice` in either submit path (the rest stays banked).
 - **Debug:** `GetTurnSpendsString` ("Hero's turn: Ability -1, End Turn (1 left)"), printed by `wor.Actions.Print`.
@@ -386,3 +366,4 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-11-09 | B-032d (Q-032d): per-impact defense for every spell shape behind `wor.Combat.PerImpactDefense` (default 1). `SpellImpactPlan` (new: impacts per target = arrivals summed over the cast entries, `ImpactBaseSlice`, `wor.Combat.PrintSpellImpacts`); the shape gate in `ExecuteSpellAsync` re-opens every offensive spell's windows count-based (B-032's one-entry HitCount-1 path unchanged); `UActionExecutor::ApplyRemainingImpacts` lands a count-based window's leftover impacts one by one at its close (failsafe, timeout, reconcile) instead of the lumped tail; `ReconcileDefenseWindowsAtAnimationEnd` / `LandFallbackImpacts` land an ability's un-notified impacts at Skill-end through `RouteImpactFrame`; `OnAsyncActionTimeout` iterates a copy; a montage-less spell dispatches every cast entry. Spec `WoR.Combat.PerImpactDefense`. Unbuilt (cloud pre-write). | `feature/B-032d-per-impact-defense-cloud` (UNBUILT) |
 | 2026-11-12 | B-032d built on the desktop (`feature/B-032d-per-impact-defense`): docs-only merge conflicts; full suite 1846/0, `WoR.Combat+Turns+Defense` 347/0 after the review fix; wor-reviewer no must-fix. Review fix: `OnActionAnimationEnded` (Skill) compares the action serial after `ReconcileDefenseWindowsAtAnimationEnd`, so a fallback impact that finishes the action can't queue a Return leg on the next one. | `feature/B-032d-per-impact-defense` |
 | 2026-11-14 | B-032b: the lumped spell defense path is deleted. `ApplyDamageAfterDefense` always lands the window's remaining impacts one by one (`ApplyRemainingImpacts`), so a support spell of several hits (timer close) lands them at the close; `wor.Combat.PerImpactDefense` and `SpellImpactPlan::IsPerImpactDefenseOn` are gone (`GetPlanString` lost its flag), as are `ApplyOneImpact`'s `bDamageIsPerImpact`, the projectile orphan window, `EnsureResultResolved` and `ProcessMultiHit`. Full suite 2019/0. | refactor/B-032b-lumped-path-delete |
+| 2026-11-14 | B-165: the old sync router `SubmitAction` and the legacy `ACombatOrchestratorTestActor` (its last caller) are deleted (D-204 waiver; no Blueprint node, the two test Blueprints deleted first). `SubmitActionAsync` is the only way in; `WoR.Combat.OrchestratorActions` covers what the actor tested. | chore/B-165-delete-submit-action-2 |
