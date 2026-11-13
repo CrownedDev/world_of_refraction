@@ -634,6 +634,57 @@ bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConv
     return Chosen.bRing ? DismantleRing(Owner, Chosen.WeakerID) : DismantleWeapon(Owner, Chosen.WeakerID);
 }
 
+bool UEconomyService::SellGear(AActor *Owner, FGuid PersistentID)
+{
+    const TCHAR *Verb = TEXT("SellGear");
+    if (!EconomyMayAct(Owner, Verb))
+    {
+        return false;
+    }
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, Verb, Inv, Currency))
+    {
+        return false;
+    }
+    // The duplicate convert's removal and payout (Q-319: half the tier's buy price), for any owned piece.
+    const bool bRing = Inv->Rings.ContainsByPredicate([&PersistentID](const FRingInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    return bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, PersistentID)
+                 : ConvertOwnedGearToGold<FWeaponInventoryEntry>(Owner, *Inv, *Currency, PersistentID);
+}
+
+bool UEconomyService::SellCrystal(AActor *Owner, const FCrystalId &Id, int32 Count)
+{
+    const TCHAR *Verb = TEXT("SellCrystal");
+    if (Count <= 0 || !EconomyMayAct(Owner, Verb))
+    {
+        return false;
+    }
+    UCrystalInventoryComponent *CrystalInv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    UInventoryComponent *Inv = nullptr;
+    if (!EconomyFindComponents(Owner, Verb, CrystalInv, Currency, Inv))
+    {
+        return false;
+    }
+    if (CrystalInv->GetCount(Id) < Count)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: %s has fewer than %d %s"), Verb, *Owner->GetName(), Count, *ItemIdentity::GetDisplayName(Id));
+        return false;
+    }
+    // REMOVE FIRST, as DismantleCrystal: a failed removal must never pay.
+    const int32 Removed = Inv->RemoveCrystal(Id, Count);
+    if (Removed <= 0)
+    {
+        return false;
+    }
+    const ECurrencyType Pays = GetPlaceCurrency(Owner);
+    const int32 Paid = GetSellPriceForTier(Id.Tier) * Removed;
+    Currency->Add(Pays, Paid);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Sold %dx %s -> %d %s"), Removed, *ItemIdentity::GetDisplayName(Id), Paid, *UEnum::GetValueAsString(Pays));
+    return true;
+}
+
 #define LOCTEXT_NAMESPACE "EconomyService"
 
 FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid PersistentID)
