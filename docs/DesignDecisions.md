@@ -805,8 +805,8 @@ The queue of questions only Crown can answer.
 
 ### D-198 — Secret quests: no "only you see this"; one Show / Hide toggle on X
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-457 (the placeholder journal's texts)
-**Answer (Crown):** (changes Q-397b's reveal) a secret quest has **no "only you see this" line**. Showing and hiding it is **one toggle on X**; its hint flips between **"Show"** and **"Hide"**. **A stays Select.**
-**Notes for Claude:** the journal screen gets the X toggle and its `InputMap.md` row when it is built; B-457 changes the placeholder journal's words.
+**Answer (Crown):** (changes Q-397b's reveal) a secret quest has **no "only you see this" line**. Showing and hiding it is **one toggle on X**; its hint flips between **"Show"** and **"Hide"**. **A stays Select.** **Y is "Hide all"**: it hides every shown secret quest at once (added the same day).
+**Notes for Claude:** the journal screen gets the X toggle, Y "Hide all" and their `InputMap.md` rows when it is built; B-457 changes the placeholder journal's words.
 
 ---
 
