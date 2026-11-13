@@ -4,7 +4,7 @@
 //
 // The title is the main menu (no "press any button"): Continue first, with where the save is (place, party, time
 // played), then New Game, Join a friend, Settings, Credits, Quit. One save per player, so no slot screen. A row whose
-// screen isn't built yet (Join a friend, B-459; Credits, B-470) stays listed and says so.
+// screen isn't built yet (Join a friend, B-459) stays listed and says so. Credits opens UCreditsScreenWidget (B-470).
 // Debug: wor.UI.PrintTitle logs GetTitleScreenString.
 
 #pragma once

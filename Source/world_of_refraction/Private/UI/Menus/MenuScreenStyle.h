@@ -40,6 +40,9 @@ namespace WoRMenuStyle
 	constexpr int32 SmallFontSize = 17;
 
 	inline const FLinearColor ScreenColor = FLinearColor::FromSRGBColor(FColor(16, 18, 25, 240));
+	/** The front screens (title, credits): nothing of the level shows through.
+	 *  TODO: the nebula and the hexagon vortex replace the flat colour (D-202, B-467b). */
+	inline const FLinearColor FrontBackdropColor = FLinearColor::FromSRGBColor(FColor(11, 7, 20));
 	inline const FLinearColor PanelColor = FLinearColor::FromSRGBColor(FColor(20, 22, 28));
 	inline const FLinearColor PlateColor = FLinearColor::FromSRGBColor(FColor(46, 46, 46));
 	inline const FLinearColor TrackColor = FLinearColor::FromSRGBColor(FColor(42, 45, 53));

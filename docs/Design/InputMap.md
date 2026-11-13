@@ -52,6 +52,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
 | Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks |
 | Hold to confirm (New Game over a save, the title) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-467): 2 seconds, after New Game asks; letting go early does nothing, B cancels |
+| Credits: scroll faster | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-470): five times faster while held; B / Esc leaves |
 | Previous / next page (the top tab row) | Q / E, click a tab | LB / RB (L1 / R1) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_TabPrev` / `Next`) | Built (B-452, settings screen) |
 | Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
 | Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
@@ -100,5 +101,6 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-452: previous / next page on LB / RB (Q / E) and change a setting on Left / Right (A / D) in the settings screen, read by the screen itself | feature/B-452-settings-screen |
 | 2026-11-14 | B-456d: the vendor screen's Repair tab: A repairs the focused piece, X repairs everything (each asks first); Curses: A clears; Merge: Left / Right picks the tier to make, A merges; read by the screen itself | feature/B-456d-spiritualist-services |
 | 2026-11-14 | B-467: the title screen: Up / Down and Select as every menu; New Game over a save is a 2-second hold of Select; Back closes a panel, never the title; read by the screen itself | feature/B-467-title-screen |
+| 2026-11-14 | B-470: the credits: hold Select to scroll faster, Back leaves; read by the screen itself | feature/B-470-credits-screen |
 | 2026-11-14 | B-456c: the vendor screen's Item slots tab uses Confirm (A asks, the second A buys) and Back; no new key | feature/B-456c-item-slots |
 | 2026-11-14 | B-456b: the vendor screen's Buy tab: A / Right adds the focused line to the cart, Left takes one back, X buys the cart, R / Y (or LT / RT) changes who it is bought for; read by the screen itself | feature/B-456b-vendor-buy |
