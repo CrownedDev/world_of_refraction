@@ -132,8 +132,8 @@ private:
 	UFUNCTION()
 	void HandleLanded(const FHitResult &Hit);
 
-	/** The active choice may still be used (its source's element now, the unlock): CheckPick again. */
-	EFieldSkillRefusal CheckActiveChoiceStillPickable() const;
+	/** Type is the active choice and may still be used (its source's element now, the unlock): CheckPick again. */
+	EFieldSkillRefusal CheckActiveChoiceStillPickable(EFieldMovementType Type) const;
 
 	/** Glide's fall cap and the wall-run check, every MOVE_STEP_INTERVAL while gliding or Enhanced Sprint is on. */
 	void StepMoves();

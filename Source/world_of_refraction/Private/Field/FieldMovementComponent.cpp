@@ -290,9 +290,13 @@ void UFieldMovementComponent::ServerActivateFieldSkill_Implementation()
 	ActivateFieldSkill();
 }
 
-EFieldSkillRefusal UFieldMovementComponent::CheckActiveChoiceStillPickable() const
+EFieldSkillRefusal UFieldMovementComponent::CheckActiveChoiceStillPickable(EFieldMovementType Type) const
 {
 	const FFieldSkillChoice Choice = GetActiveFieldSkill();
+	if (Choice.Type != Type)
+	{
+		return EFieldSkillRefusal::NotActiveSkill;
+	}
 	const ESpellElement Element = GetSourceElement(Choice.Source);
 	return FieldSkillRules::CheckPick(Choice.Type, Element, IsFieldTypeUnlocked(this, Choice.Type, Element, false));
 }

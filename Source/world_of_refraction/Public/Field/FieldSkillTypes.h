@@ -51,7 +51,8 @@ enum class EFieldSkillRefusal : uint8
 	NoMovement,           // the pawn isn't a character (no movement to dash with)
 	NotUnlocked,          // B-214b: no aura spell of the source's element has reached the rank yet
 	NeedsAir,             // B-214c: glide and air dash start only in the air
-	AlreadyUsedInAir      // B-214c: the double jump or air dash was used since the last landing
+	AlreadyUsedInAir,     // B-214c: the double jump or air dash was used since the last landing
+	NotActiveSkill        // B-214c: a move other than the character's active field skill was called
 };
 
 /** B-214b (FieldAbilities "Movement -> aura"): the three elemental enhancements whose spells unlock movement types. A
