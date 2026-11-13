@@ -26,6 +26,8 @@ namespace JournalScreenStyle
 	constexpr float PanelPadding = 30.0f;
 	constexpr float StepMarkWidth = 36.0f;
 	constexpr float ReaderScrollStep = 120.0f;
+	/** Between two hints on the bottom line (as the settings screen's). */
+	const TCHAR *const HintGap = TEXT("        ");
 	// The quest kinds' colours (UIScreens #6: Main gold, Side grey, Secret violet). TODO: UI_Theme.md's shades.
 	inline const FLinearColor MainQuestColor = FLinearColor::FromSRGBColor(FColor(232, 200, 96));
 	inline const FLinearColor SecretQuestColor = FLinearColor::FromSRGBColor(FColor(168, 77, 245));
@@ -218,7 +220,10 @@ void UJournalScreenWidget::NativeOnActivated()
 
 void UJournalScreenWidget::NativeOnDeactivated()
 {
-	State = FJournalState(); // Q-397b: a shown secret quest is hidden again once the journal closes
+	// Q-397b: a shown secret quest is hidden again once the journal closes; the rows are refilled so no text block
+	// keeps its name while the screen leaves.
+	State = FJournalState();
+	Refresh(/*bScrollIntoView=*/false);
 	Super::NativeOnDeactivated();
 }
 
@@ -375,7 +380,7 @@ FText UJournalScreenWidget::GetHints() const
 		Parts.Add(LOCTEXT("HintHideAll", "Y  Hide all"));
 	}
 	Parts.Add(LOCTEXT("HintBack", "B / Esc  Back"));
-	return FText::Join(FText::AsCultureInvariant(TEXT("        ")), Parts);
+	return FText::Join(FText::AsCultureInvariant(JournalScreenStyle::HintGap), Parts);
 }
 
 void UJournalScreenWidget::MovePage(int32 Delta)
@@ -421,9 +426,17 @@ void UJournalScreenWidget::SelectRow(int32 Index)
 void UJournalScreenWidget::PressSelect()
 {
 	const FJournalRow *Row = GetFocusedRow();
+	const FName TalkId = Row ? Row->Id : NAME_None;
 	if (Row && WoRJournalScreen::PlayNextLine(GetGameInstance(), *Row, State, ObjectPtrDecay(Story)))
 	{
 		Refresh();
+		// Starting a talk lets the one read before it leave Ready, so the rows may have moved up: stay on this talk.
+		const int32 NewIndex = View.Rows.IndexOfByPredicate([TalkId](const FJournalRow &Other) { return Other.Id == TalkId; });
+		if (NewIndex != INDEX_NONE && NewIndex != SelectedRow)
+		{
+			SelectedRow = NewIndex;
+			Refresh();
+		}
 		if (ReaderScroll)
 		{
 			ReaderScroll->ScrollToEnd(); // the new line is the last one
@@ -555,13 +568,19 @@ FReply UJournalScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry
 	const int32 Tab = FindUnder(PageTabs, InMouseEvent);
 	if (Tab != INDEX_NONE)
 	{
-		MovePage(Tab - static_cast<int32>(Page));
+		if (Tab != static_cast<int32>(Page)) // a click on the lit tab changes nothing
+		{
+			MovePage(Tab - static_cast<int32>(Page));
+		}
 		return FReply::Handled();
 	}
 	const int32 FilterTab = FindUnder(FilterTabs, InMouseEvent);
 	if (View.Filters.IsValidIndex(FilterTab))
 	{
-		MoveFilter(FilterTab - Filter);
+		if (FilterTab != Filter)
+		{
+			MoveFilter(FilterTab - Filter);
+		}
 		return FReply::Handled();
 	}
 	const int32 Row = FindRowUnder(InMouseEvent);

@@ -298,6 +298,40 @@ void FJournalScreenSpec::Define()
 		TestTrue(TEXT("the debug text names it"), WoRJournalScreen::GetJournalString(Game(), Story).Contains(TEXT("JournalTalkSpec")));
 	});
 
+	It("stays on the talk being played when the one read before it leaves Ready (the screen, headless)", [this]()
+	{
+		FStoryConversation Second = Story[0]->Conversations[0];
+		Second.ConversationId = TEXT("JournalScreenSpecTalkTwo");
+		Second.Title = FText::FromString(TEXT("JournalTalkTwoSpec"));
+		Story[0]->Conversations.Add(Second);
+		FStoryConversation Third = Second;
+		Third.ConversationId = TEXT("JournalScreenSpecTalkThree");
+		Third.Title = FText::FromString(TEXT("JournalTalkThreeSpec"));
+		Story[0]->Conversations.Add(Third);
+		Journal->RecordMemory(NewJournalMemory(JOURNAL_SCREEN_TEST_MEMORY_ID.ToString()), EMemorySource::Fragment);
+		UJournalScreenWidget *Screen = CreateWidget<UJournalScreenWidget>(TestWorld->GetWorld(), UJournalScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen created"), Screen))
+		{
+			return;
+		}
+		Screen->SetStory(Story);
+		Screen->ActivateWidget();
+		Screen->MovePage(-1);
+		if (!TestEqual(TEXT("three ready talks"), Screen->GetView().Rows.Num(), 3))
+		{
+			return;
+		}
+		Screen->PressSelect();
+		Screen->PressSelect();
+		TestTrue(TEXT("the first talk is read to its end and stays in the list"),
+				 Screen->GetView().Rows.Num() == 3 && Screen->GetFocusedRow()->SelectVerb.IsEmpty());
+		Screen->MoveSelection(1);
+		Screen->PressSelect();
+		TestEqual(TEXT("the first talk left Ready"), Screen->GetView().Rows.Num(), 2);
+		TestEqual(TEXT("still on the second talk"), Screen->GetFocusedRow()->Title.ToString(), FString(TEXT("JournalTalkTwoSpec")));
+		TestEqual(TEXT("with its first line out"), Screen->GetFocusedRow()->Body.ToString(), FString(TEXT("Talk line one.")));
+	});
+
 	It("opens on Quests, wraps its pages and sub-tabs, and forgets shown secret quests on closing (the screen, headless)", [this]()
 	{
 		Start(NewJournalQuest(TEXT("ScreenMainSpec"), EQuestKind::Main));
