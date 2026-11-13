@@ -393,6 +393,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-427](B-427.md) | A guest's shop Confirm and repair greyed out with the reason (2-player) | Pending | REVIEW (in dev, `fix/B-427-guest-buy-greyed`) | [ ] |
 | [B-432](B-432.md) | Buy-for-member checks the receiver's room only | Pending | REVIEW (in dev, `fix/B-432-buy-for-capacity`) | [ ] |
 | [B-426](B-426.md) | Run Gold cleared for every player, not only the host (2-player) | Pending | REVIEW (in dev, `fix/B-426-clear-run-gold-all`) | [ ] |
+| [B-425](B-425.md) | A co-op guest's saved wallet reaches the host once and is never overwritten by the host's copy (2-player) | Pending | REVIEW (in dev, `fix/B-425-guest-wallet`) | [ ] |
 
 ---
 
