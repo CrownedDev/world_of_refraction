@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-424](B-424.md) | `feature/B-424-light-hit-airburst` (built 2026-11-13; not in dev yet) | Light hit: dash with a stretched hop, strike, hop back; camera rush timed to the hop, cut when too fast; front- and back-row target | Pending |
+| [B-424](B-424.md) | `feature/B-424-light-hit-airburst` (in dev, built 2026-11-13) | Light hit: dash with a stretched hop (burst time `wor.Combat.ApproachBurstSeconds`, 0.45 s), strike, hop back; camera rush timed to the hop, cut when too fast | Partly passed 2026-11-13 (front row, dash speed 0.45 s, no orb); 7 back row open |
 | [B-096](B-096.md) | `feature/B-096-payout-passives` (in dev, built 2026-11-12) | An evolution's Run Payout Bonus Percent raises the run-end payout; bonuses add up, cap x2.0, read at each fight's end | Pending |
 | [B-129](B-129.md) | `feature/B-129-input-priorities` (in dev, built 2026-11-12) | Mapping-context priorities named; hub and combat input unchanged | Pending |
 | [B-214a](B-214a.md) | `feature/B-214a-field-skills-core` + `fix/B-214a2-drain-while-moving` (in dev, built 2026-11-12) | Field skills part 1: the dash, the active field skill per character (saved), Enhanced Sprint by element with EP per second only while sprinting (check 5b, Crown's Q-214a answer; console until B-214g's keys); a 2-player check | Pending |
