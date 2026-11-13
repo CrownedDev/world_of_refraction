@@ -177,6 +177,9 @@ private:
 	/** Write the slot as it stands (sync or async). False without a player or after DeleteSave. */
 	bool WriteSlot(bool bAsync);
 	void CaptureInto(UWorld *World);
+	/** B-467: the time since the last call goes to the current slot's PlaySeconds (before a capture, and before the
+	 *  slot changes). */
+	void AddPlayTime();
 
 	/** B-208: the first game world is up; resume the loaded run if it is the hub (Q-208). */
 	void HandleWorldActorsInitialized(const FActorsInitializedParams &Params);

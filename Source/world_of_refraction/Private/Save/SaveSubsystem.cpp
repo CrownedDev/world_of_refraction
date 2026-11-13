@@ -417,6 +417,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 		UE_LOG(LogWoR, Error, TEXT("[Save] Could not load or create slot '%s'"), SLOT_NAME);
 		return;
 	}
+	AddPlayTime(); // the clock starts again for the loaded slot
 	SaveGame = Loaded;
 	if (!Loaded->WasLoaded())
 	{
@@ -550,6 +551,7 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName, const FString 
 	// The old host's gear joins the pool until the run ends (party gear points into it); never written to this
 	// player's own slot. B-234d: the run's end gives this player its own pool back (ReturnToOwnSave).
 	const int32 PoolEntries = RestorePool(Copy->Data.Pool, *Pool);
+	AddPlayTime(); // time played so far stays with this player's own save
 	SaveGame = Copy;
 	bPlayingHostCopy = true;
 	AdoptedSlotName = SlotName;
@@ -617,6 +619,9 @@ bool USaveSubsystem::BuildOwnSaveFrom(const FString &SlotName, FWoRSaveData &Out
 	OutData.Pool = Own->Data.Pool;
 	OutData.Pool.UpgradeMemory = MergeRunUpgradeMemory(Own->Data.Pool.UpgradeMemory, AdoptedUpgradeMemory, SaveGame->Data.Pool.UpgradeMemory);
 	OutData.Run = FSavedRun();
+	// shortcut: the copy's play time is the old host's, so the own save keeps its own; the handed-over run's time is
+	// not added to it. Upgrade if the title's hours must count a taken-over run.
+	OutData.PlaySeconds = Own->Data.PlaySeconds;
 	return true;
 }
 
@@ -694,6 +699,7 @@ bool USaveSubsystem::ReturnToOwnSaveFrom(const FString &SlotName)
 	const bool bParty = Own->Data.Party.bHasParty && RestoreParty(Own->Data.Party, *PartySession);
 	Pool->ResetStore();
 	const int32 PoolEntries = RestorePool(Own->Data.Pool, *Pool);
+	AddPlayTime(); // the handed-over run's time stays with the copy
 	SaveGame = Own;
 	bPlayingHostCopy = false;
 	AdoptedSlotName.Reset();
@@ -763,9 +769,7 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 {
 	UGameInstance *GI = GetGameInstance();
 	FWoRSaveData &Data = SaveGame->Data;
-	const double Now = FPlatformTime::Seconds();
-	Data.PlaySeconds += Now - PlayClock;
-	PlayClock = Now;
+	AddPlayTime();
 	// A level that never builds a party keeps the saved one.
 	const UTrialRunSubsystem *TrialRun = GI->GetSubsystem<UTrialRunSubsystem>();
 	// A loaded run not yet resumed is still a run: its vitals and recruits stay with it.
@@ -930,7 +934,15 @@ bool USaveSubsystem::IsBoundToPlayer() const
 
 bool USaveSubsystem::HasSave() const
 {
-	return SaveGame && SaveGame->GetSavedDataVersion() != SaveGame->GetInvalidDataVersion();
+	// Bound first: the placeholder object made before a player joins has version 0, not the invalid one.
+	return IsBoundToPlayer() && SaveGame->GetSavedDataVersion() != SaveGame->GetInvalidDataVersion();
+}
+
+void USaveSubsystem::AddPlayTime()
+{
+	const double Now = FPlatformTime::Seconds();
+	SaveGame->Data.PlaySeconds += Now - PlayClock;
+	PlayClock = Now;
 }
 
 bool USaveSubsystem::WasWiped() const
