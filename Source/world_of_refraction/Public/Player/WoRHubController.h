@@ -157,18 +157,20 @@ private:
 
 	EHubMode CurrentMode = EHubMode::Hub;
 
+	/** B-214g: the field attack's press (real time, for its hold); a release with no press (focus loss) does nothing. */
+	double FieldAttackPressTime = 0.0;
+	bool bFieldAttackPressed = false;
+
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);
 	void HandleFieldAttackStarted(const FInputActionValue &Value);
 	void HandleFieldAttackCompleted(const FInputActionValue &Value);
+	void HandleFieldAttackCanceled(const FInputActionValue &Value);
 	void HandleFieldSwitchSource(const FInputActionValue &Value);
 	void HandleFieldFlyVertical(const FInputActionValue &Value);
 
 	/** The possessed pawn's field movement, or null. */
 	UFieldMovementComponent *GetFieldMovement() const;
-
-	/** B-214g: when the field attack was pressed (its hold). */
-	double FieldAttackPressTime = 0.0;
 	void HandleToggleMenu(const FInputActionValue &Value);
 
 	/** B-214a: gives the field pawn its UFieldMovementComponent (once) and its party record's field skill. */

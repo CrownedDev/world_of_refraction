@@ -135,6 +135,7 @@ void AWoRHubController::SetupInputComponent()
 	{
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldAttackStarted);
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldAttackCompleted);
+		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldAttackCanceled);
 	}
 	if (LoadFieldAction(FieldSwitchSourceAction, DefaultFieldSwitchSourceAction))
 	{
@@ -232,16 +233,27 @@ UFieldMovementComponent *AWoRHubController::GetFieldMovement() const
 
 void AWoRHubController::HandleFieldAttackStarted(const FInputActionValue & /*Value*/)
 {
-	FieldAttackPressTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	FieldAttackPressTime = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+	bFieldAttackPressed = true;
 }
 
 void AWoRHubController::HandleFieldAttackCompleted(const FInputActionValue & /*Value*/)
 {
+	if (!bFieldAttackPressed)
+	{
+		return; // a release with no press of ours (focus loss, a menu took the mapping)
+	}
+	bFieldAttackPressed = false;
 	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
 	{
-		const double Pressed = GetWorld() ? GetWorld()->GetTimeSeconds() - FieldAttackPressTime : 0.0;
+		const double Pressed = GetWorld() ? GetWorld()->GetRealTimeSeconds() - FieldAttackPressTime : 0.0;
 		FieldMovement->FieldAttack(FieldSkillRules::IsFieldAttackHeld(Pressed));
 	}
+}
+
+void AWoRHubController::HandleFieldAttackCanceled(const FInputActionValue & /*Value*/)
+{
+	bFieldAttackPressed = false;
 }
 
 void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Value*/)
