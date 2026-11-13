@@ -251,20 +251,15 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         return false;
     }
 
-    // Scope guard: item-crystals + stones only. Evolution crystals are structurally unrepresentable
-    // as FCrystalId (no ECrystalType::Evolution — they live in the separate UEvolutionItemData
-    // system), so they can NEVER reach this pool. The only invalid Type here is None.
-    if (Type == ECrystalType::None)
+    // Every check (type, floor, components, authority, enough crystals, money, room for the output) and the
+    // lowest-first selection are GetMergeRefusal's, so the vendor screen's greyed rows can't disagree with this.
+    FCrystalMergePlan Plan;
+    const FText Refusal = GetMergeRefusal(Owner, Type, TargetTier, &Plan);
+    if (!Refusal.IsEmpty())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s passed Type None — rejected"),
-               *Owner->GetName());
-        return false;
-    }
-    // F is the floor — nothing below it to merge from, so it can't be a merge TARGET.
-    if (TargetTier == EItemTier::F_Tier)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s F_Tier cannot be a merge target"),
-               *Owner->GetName());
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s, %s to %s refused: %s"), *Owner->GetName(),
+               *StaticEnum<ECrystalType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type)),
+               *TierHelpers::GetTierName(TargetTier), *Refusal.ToString());
         return false;
     }
 
@@ -277,69 +272,12 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
         return false;
     }
 
-    const int32 TargetValue = EconomyYield::GetCrystalValue(TargetTier);
-    const int32 MoneyCost = EconomyYield::GetMergeCostForTier(TargetTier);
-    // B-366d (Q-366 extended): the money cost is paid in the currency of the place (hub or run).
-    const ECurrencyType Pays = GetPlaceCurrency(Owner);
+    const int32 MoneyCost = Plan.Price;
+    const ECurrencyType Pays = Plan.Pays; // B-366d (Q-366 extended): the currency of the place (hub or run)
     const FString PaysName = WoRGameNames::GetCurrencyName(Pays).ToString(); // the player-facing name (D-159)
     const int32 TargetTierIndex = TierHelpers::GetTierValue(TargetTier); // tiers [0, TargetTierIndex) are mergeable
     const FCrystalId OutputId(Type, TargetTier);
-
-    // Per-tier owned counts below the target (synthesize each {Type, tier} key — the pool is keyed
-    // by exact FCrystalId, so we query per tier rather than enumerate). Indexed by tier value.
-    auto CountAt = [&](int32 TierIndex) -> int32
-    {
-        const FCrystalId Key(Type, TierHelpers::GetTierFromValue(TierIndex));
-        return CrystalInv->GetCount(Key); // gem/stone dispatched inside the component
-    };
-
-    // GATHER: total available value across tiers strictly BELOW the target (this Type, this pool).
-    int32 AvailableValue = 0;
-    for (int32 t = 0; t < TargetTierIndex; ++t)
-    {
-        AvailableValue += CountAt(t) * EconomyYield::GetCrystalValue(TierHelpers::GetTierFromValue(t));
-    }
-    if (AvailableValue < TargetValue)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[EconomyService] MergeCrystals: %s has %d/%d %s value below %s — insufficient"),
-               *Owner->GetName(), AvailableValue, TargetValue,
-               *StaticEnum<ECrystalType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type)),
-               *TierHelpers::GetTierName(TargetTier));
-        return false;
-    }
-    if (!Currency->CanAfford(Pays, MoneyCost))
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s cannot afford %d %s for %s %s"),
-               *Owner->GetName(), MoneyCost, *PaysName,
-               *TierHelpers::GetTierName(TargetTier), *ItemIdentity::GetDisplayName(OutputId));
-        return false;
-    }
-    // Output is at a DIFFERENT tier than the inputs, so removing inputs won't free its per-tier cap
-    // — pre-check (the cap is per tier, so the lower-tier consumes don't open the target tier).
-    const bool bCanAddOutput = CrystalInv->CanAddCount(OutputId, 1);
-    if (!bCanAddOutput)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s target %s at cap — rejected"),
-               *Owner->GetName(), *ItemIdentity::GetDisplayName(OutputId));
-        return false;
-    }
-
-    // SELECT lowest-first: take whole crystals from the bottom up until running value >= target
-    // (minimal-meets-or-exceeds); the overshoot comes back as change below (ER-28).
-    int32 ConsumeCounts[7] = {0, 0, 0, 0, 0, 0, 0}; // by tier value (F..S); only [0, TargetTierIndex) used
-    int32 Accumulated = 0;
-    for (int32 t = 0; t < TargetTierIndex && Accumulated < TargetValue; ++t)
-    {
-        const int32 Count = CountAt(t);
-        const int32 Value = EconomyYield::GetCrystalValue(TierHelpers::GetTierFromValue(t));
-        for (int32 i = 0; i < Count && Accumulated < TargetValue; ++i)
-        {
-            ++ConsumeCounts[t];
-            Accumulated += Value;
-        }
-    }
-    // AvailableValue >= TargetValue (checked) guarantees Accumulated reached the target here.
+    const int32 *ConsumeCounts = Plan.Uses;
 
     // Flatten the consumed inputs into a flat FCrystalId set (one entry per consumed crystal; the
     // primitive tallies duplicates). The component dispatches gem/stone per Id. Reused verbatim for
@@ -361,9 +299,11 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     // ER-28: the overshoot comes back as the fewest same-Type crystals below the target. Added with
     // the output in one call, so change that doesn't fit (a full tier) refunds the whole merge.
     TArray<FCrystalId> Outputs = {OutputId};
-    for (const EItemTier ChangeTier : EconomyYield::GetMergeChange(Accumulated - TargetValue, TargetTier))
+    int32 ChangeValue = 0;
+    for (const EItemTier ChangeTier : Plan.Change)
     {
         Outputs.Add(FCrystalId(Type, ChangeTier));
+        ChangeValue += EconomyYield::GetCrystalValue(ChangeTier);
     }
 
     // ---- Produce 1 of the target tier (same Type, same pool); refund EVERYTHING on add-failure ----
@@ -394,9 +334,70 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
 
     UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (+%d change crystal(s), %d value back) for %d %s"),
-           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, Accumulated - TargetValue, MoneyCost,
+           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId), Outputs.Num() - 1, ChangeValue, MoneyCost,
            *PaysName);
     return true;
+}
+
+FText UEconomyService::GetMergeRefusal(AActor *Owner, ECrystalType Type, EItemTier TargetTier, FCrystalMergePlan *OutPlan)
+{
+    FCrystalMergePlan Plan;
+    Plan.Price = EconomyYield::GetMergeCostForTier(TargetTier);
+    Plan.Pays = GetPlaceCurrency(Owner); // B-366d (Q-366 extended)
+    if (OutPlan)
+    {
+        *OutPlan = Plan;
+    }
+    // Item crystals and stones only (an evolution is no FCrystalId); F is the floor, nothing below it to merge from.
+    if (!Owner || Type == ECrystalType::None || TargetTier == EItemTier::F_Tier)
+    {
+        return NSLOCTEXT("EconomyService", "MergeNotPossible", "That can't be merged.");
+    }
+    const UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
+    const UCurrencyComponent *Currency = CurrencyWallet::FindFor(Owner);
+    if (!CrystalInv || !Currency || !Owner->FindComponentByClass<UInventoryComponent>())
+    {
+        return NSLOCTEXT("EconomyService", "MergeUnavailable", "That can't be merged here.");
+    }
+    if (!WoRAuthority::HasAuthority(Owner))
+    {
+        return NSLOCTEXT("EconomyService", "RefusedHostOnly", "Only the host can buy for now.");
+    }
+
+    // Lowest first: whole crystals from the bottom up until the target's value is met (minimal-meets-or-exceeds);
+    // the overshoot comes back as change (ER-28).
+    const int32 TargetValue = EconomyYield::GetCrystalValue(TargetTier);
+    int32 Accumulated = 0;
+    for (int32 t = 0; t < TierHelpers::GetTierValue(TargetTier) && Accumulated < TargetValue; ++t)
+    {
+        const EItemTier Tier = TierHelpers::GetTierFromValue(t);
+        const int32 Value = EconomyYield::GetCrystalValue(Tier);
+        for (int32 Count = CrystalInv->GetCount(FCrystalId(Type, Tier)); Count > 0 && Accumulated < TargetValue; --Count)
+        {
+            ++Plan.Uses[t];
+            Accumulated += Value;
+        }
+    }
+    if (Accumulated < TargetValue)
+    {
+        return FText::Format(NSLOCTEXT("EconomyService", "MergeTooFew", "Not enough {0}."), WoRGameNames::GetCrystalTypeName(Type));
+    }
+    Plan.Change = EconomyYield::GetMergeChange(Accumulated - TargetValue, TargetTier);
+    if (OutPlan)
+    {
+        *OutPlan = Plan;
+    }
+    if (!Currency->CanAfford(Plan.Pays, Plan.Price))
+    {
+        return FText::Format(NSLOCTEXT("EconomyService", "RefusedCantAfford", "Not enough {0}."), WoRGameNames::GetCurrencyName(Plan.Pays));
+    }
+    // The output is a tier the inputs don't free, so its cap is checked first (the change's only on the add, Q-177).
+    if (!CrystalInv->CanAddCount(FCrystalId(Type, TargetTier), 1))
+    {
+        return FText::Format(NSLOCTEXT("EconomyService", "MergeNoRoom", "No room for another {0} ({1})."), WoRGameNames::GetCrystalTypeName(Type),
+                             WoRGameNames::GetTierLetter(TargetTier));
+    }
+    return FText::GetEmpty();
 }
 
 // ==================== OWNED WEAPON / ADAPTER VERBS (B-252b) ====================

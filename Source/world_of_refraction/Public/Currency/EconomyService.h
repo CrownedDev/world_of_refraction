@@ -27,6 +27,18 @@ class USpellData;
 class UAbilityData;
 class UWeaponData;
 
+/** B-456d: what a crystal merge would use, give back and cost (UEconomyService::GetMergeRefusal). */
+struct FCrystalMergePlan
+{
+    static constexpr int32 TIER_COUNT = static_cast<int32>(EItemTier::S_Tier) + 1;
+    /** How many of each tier below the target are used, by tier value (F first), lowest first (§4.5). */
+    int32 Uses[TIER_COUNT] = {};
+    /** The overshoot, as the fewest crystals of the same type below the target (ER-28). */
+    TArray<EItemTier> Change;
+    int32 Price = 0;
+    ECurrencyType Pays = ECurrencyType::Prisms;
+};
+
 namespace PurchaseCostBalances
 {
     /** B-333: the balances a purchase can charge, in display order. */
@@ -139,6 +151,12 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier);
+
+    /** B-456d: why MergeCrystals(Owner, Type, TargetTier) would be refused, in words for the player; empty when it
+     *  would go through (the one refusal it can't foresee is change that doesn't fit, found on the add and refunded).
+     *  The merge runs these same checks. OutPlan: what it would use, give back and cost (Uses only once the crystals
+     *  are enough). Not checked here: a fight under way (MergeCrystals refuses it first). */
+    static FText GetMergeRefusal(AActor *Owner, ECrystalType Type, EItemTier TargetTier, FCrystalMergePlan *OutPlan = nullptr);
 
     /**
      * Dismantle the owned WEAPON instance identified by PersistentID, granting GEAR essence
