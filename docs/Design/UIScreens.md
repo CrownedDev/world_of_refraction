@@ -1,6 +1,6 @@
 # UI Screens — every screen outside the battle HUD
 
-**Status:** design (2026-11-13), docs and mockups only, no widgets. Branch `docs/ui-screens-all`.
+**Status:** layouts approved for now by Crown (2026-11-13); final art from the Hidris pass. Docs and mockups only, no widgets. Branch `docs/ui-screens-all`.
 **Replaces** the screen list in `UI_ScreenInventory.md` (2026-10-25), which is out of date; that file keeps its asset shopping list.
 **The battle HUD is done** (`BattleHUDRefinePlan.md`, B-436) and is not in this list.
 **Look:** the battle HUD's theme, used loosely (Crown via the brain, 2026-11-13): dark stone panels, one cut corner, **cyan = focus**, tab rows, coloured face-button glyphs, hints at the bottom right. Each screen is laid out for its own job. Final art comes from the Hidris art pass (`UI_Theme.md`); these mockups are layout, information and controls only.
@@ -304,6 +304,8 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 ## Summary (2026-11-13)
 
+**Layouts approved for now by Crown (2026-11-13); final art from the Hidris pass.** The open questions below stay listed for Crown.
+
 **Review page (all images, private to Crown):** https://claude.ai/artifact/CX3ECucBuxgmJ3c2SnMvZC — one section per screen group, each image with its layout note and the game it's based on, and the 15 questions at the end (lore ones marked "Crown's call").
 
 **Done:** `UIScreens.md` (34 screens with code, state and priority) and **49 images in 15 mock sets**, each backed by named games: pause menu; loadout and skills; inventory and pouch; rest spot (menu, level up, revive vote, extract); after a fight, wipe, run end; settings (control model: Shortcuts / Omni D-pad); trial gate; vendors (shop, dismantle, item slots, repair, curses, merge); journal (quests, hidden quests, memories, lore, conversations); party and co-op (invite, join request, hand-over, host left); title, new game, save notices, loading, credits; character sheet; hub HUD, NPC talk, recruit card; skins.
@@ -314,7 +316,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 **For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
 
-**Open questions for Crown:** the 15 above. Lore ones (yours alone): 5, 8, 10, 11, 12, 13, 15. Design ones with a suggestion: 1, 2, 3, 4, 7, 9, 14. Settled: 6.
+**Open questions for Crown:** the 16 above (16 is a design one). Lore ones (yours alone): 5, 8, 10, 11, 12, 13, 15. Design ones with a suggestion: 1, 2, 3, 4, 7, 9, 14. Settled: 6.
 
 ## Changelog
 
