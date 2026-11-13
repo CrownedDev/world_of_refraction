@@ -221,7 +221,7 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
         return false;
     }
 
-    // B-333 (D-125): a gem pays Elemental, a stat stone Pillar, an ability stone Skill.
+    // B-333 (D-125): a gem pays Elemental, a stone Pillar.
     const ECurrencyType Essence = EconomyYield::GetCrystalEssence(Id.Type);
 
     // REMOVE FIRST — a failed/partial removal must never grant phantom essence.
@@ -891,34 +891,6 @@ namespace
         }
         return Prisms;
     }
-
-    /** True when the attachment can grant augment-stone abilities: any augment
-     *  stone, or a fusion carrying an AbilityStone half (half A is stone-only by
-     *  authoring convention; half B only when authored as a stone). Pricing-side
-     *  mirror of FWeaponLoadoutEntry::GetAugmentStoneAbilities, but tighter — the
-     *  runtime gate passes any fusion and lets the slot cap resolve to 0, while
-     *  pricing must not charge for abilities the attachment cannot grant. */
-    bool HasAbilityStoneAttachment(const UEquipmentDataBase *Eq)
-    {
-        const FAttachedItem &Attached = Eq->AttachedItem;
-        switch (Attached.Kind)
-        {
-        case EAttachedItemKind::AugmentStone:
-            return true;
-        case EAttachedItemKind::Fusion:
-            if constexpr (FusionRules::RETIRED)
-            {
-                return false; // B-352 (D-141): no fusion attaches
-            }
-            else
-            {
-                return Attached.FusionHalfAType == ECrystalType::AbilityStone || // OBSOLETE (B-352)
-                       (!Attached.bFusionHalfBIsCrystal && Attached.FusionHalfBType == ECrystalType::AbilityStone);
-            }
-        default:
-            return false;
-        }
-    }
 }
 
 FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
@@ -929,7 +901,7 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         if (E.IsCrystalEntry())
         {
             // B-333 (D-125, Q-333): Prisms + its own essence at tier, per unit — a gem (Quartz too)
-            // Elemental, a stat stone Pillar, an ability stone Skill.
+            // Elemental, a stone Pillar.
             const int32 Units = FMath::Max(1, E.Count);
             Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * Units;
             Cost.AddEssence(EconomyYield::GetCrystalEssence(E.Crystal.Type),
@@ -947,18 +919,14 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
             // Equipment pricing: Prisms base by tier + attachment surcharge + bundled
             // skills (3l), all per-unit (quality = C placeholder until shop-roll).
             // PresetAbilities always price — they're baked into what you're buying.
-            // Gem-side DefaultSpells / stone-side DefaultAbilities price only when the
-            // attachment actually grants them. WeaponAttack is the weapon's identity,
-            // never priced.
+            // Gem-side DefaultSpells price only when the attachment actually grants them
+            // (B-437, D-175: no stone grants abilities, so DefaultAbilities are not priced).
+            // WeaponAttack is the weapon's identity, never priced.
             int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W) +
                             BundledSkillsPrisms(W->PresetAbilities);
             if (W->AttachedItem.Kind == EAttachedItemKind::Crystal)
             {
                 PerUnit += BundledSkillsPrisms(W->DefaultSpells);
-            }
-            if (HasAbilityStoneAttachment(W))
-            {
-                PerUnit += BundledSkillsPrisms(W->DefaultAbilities);
             }
             Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
