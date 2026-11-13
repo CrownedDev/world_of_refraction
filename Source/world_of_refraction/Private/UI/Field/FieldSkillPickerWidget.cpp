@@ -124,6 +124,20 @@ namespace FieldSkillPickerBuild
 			return LOCTEXT("RefusedNoMovement", "this character can't move that way");
 		case EFieldSkillRefusal::NotUnlocked:
 			return LOCTEXT("RefusedLocked", "not unlocked for this element");
+		case EFieldSkillRefusal::NeedsAir:
+			return LOCTEXT("RefusedNeedsAir", "only in the air");
+		case EFieldSkillRefusal::AlreadyUsedInAir:
+			return LOCTEXT("RefusedUsedInAir", "already used before landing");
+		case EFieldSkillRefusal::NotActiveSkill:
+			return LOCTEXT("RefusedNotActive", "not the active field skill");
+		case EFieldSkillRefusal::NoFlyZone:
+			return LOCTEXT("RefusedNoFly", "no flying here");
+		case EFieldSkillRefusal::InFight:
+			return LOCTEXT("RefusedInFight", "not during a fight");
+		case EFieldSkillRefusal::NoTarget:
+			return LOCTEXT("RefusedNoTarget", "no party member to go to");
+		case EFieldSkillRefusal::Blocked:
+			return LOCTEXT("RefusedBlocked", "no room there");
 		default:
 			return FText::GetEmpty();
 		}

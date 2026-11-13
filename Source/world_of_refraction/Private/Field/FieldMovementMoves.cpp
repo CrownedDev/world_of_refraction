@@ -155,10 +155,12 @@ void UFieldMovementComponent::NotifyLanded()
 {
 	bAirJumpUsed = false;
 	bAirDashUsed = false;
+	bSuperLaunchGlidePending = false; // B-214e: landed before the top
 	bWallRunSpent = false;
 	WallRunSeconds = 0.0f;
 	SetGliding(false);
 	SetWallRunning(false);
+	UpdateMoveStepTimer(); // the step timer may have run only for the super launch
 }
 
 void UFieldMovementComponent::HandleLanded(const FHitResult &Hit)
@@ -210,6 +212,11 @@ void UFieldMovementComponent::StepMoves()
 	{
 		ApplyFlightStep(); // B-214d
 	}
+	if (bSuperLaunchGlidePending && Movement->IsFalling() && Movement->Velocity.Z <= 0.0)
+	{
+		bSuperLaunchGlidePending = false; // B-214e: the top of the launch: a free glide down
+		SetGliding(true);
+	}
 	if (bGliding && !Movement->IsFalling())
 	{
 		SetGliding(false); // out of the air without a landing event (water, a teleport, a scripted mode)
@@ -244,7 +251,7 @@ void UFieldMovementComponent::UpdateMoveStepTimer()
 		return;
 	}
 	FTimerManager &Timers = World->GetTimerManager();
-	const bool bNeeded = bGliding || bEnhancedSprintActive || bFlying;
+	const bool bNeeded = bGliding || bEnhancedSprintActive || bFlying || bSuperLaunchGlidePending;
 	if (bNeeded && !Timers.IsTimerActive(MoveStepTimer))
 	{
 		Timers.SetTimer(MoveStepTimer, this, &UFieldMovementComponent::StepMoves, FieldSkillRules::MOVE_STEP_INTERVAL, true);

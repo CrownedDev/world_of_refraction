@@ -13,7 +13,7 @@
 #include "FieldSkillTypes.generated.h"
 
 /** The 11 movement types (FieldAbilities "Movement types", Crown 2026-10-27). B-214a builds Dash and Enhanced Sprint,
- *  B-214c Glide, High jump and Air dash, B-214d Flight; the rest are refused as not built until their slice (B-214e). Append only: saved as a byte (FSavedPartyMember). */
+ *  B-214c Glide, High jump and Air dash, B-214d Flight, B-214e the rest (all built). Append only: saved as a byte (FSavedPartyMember). */
 UENUM(BlueprintType)
 enum class EFieldMovementType : uint8
 {
@@ -53,7 +53,10 @@ enum class EFieldSkillRefusal : uint8
 	NeedsAir,             // B-214c: glide and air dash start only in the air
 	AlreadyUsedInAir,     // B-214c: the double jump or air dash was used since the last landing
 	NotActiveSkill,       // B-214c: a move other than the character's active field skill was called
-	NoFlyZone             // B-214d: inside a Zone.NoFly volume
+	NoFlyZone,            // B-214d: inside a Zone.NoFly volume
+	InFight,              // B-214e: Regroup isn't used in or into a fight
+	NoTarget,             // B-214e: Regroup with no other party member on the map
+	Blocked               // B-214e: no room at the destination
 };
 
 /** B-214b (FieldAbilities "Movement -> aura"): the three elemental enhancements whose spells unlock movement types. A
@@ -175,6 +178,35 @@ namespace FieldSkillRules
 	/** The highest the flyer may go (world Z); no limit when lifted. */
 	WORLD_OF_REFRACTION_API double GetFlightCeilingZ(double TakeOffGroundZ, const FFieldFlightLimits &Limits);
 
+	// ---- B-214e: advanced moves (FieldAbilities; numbers TODO: tune, Q-214e) ----
+
+	constexpr int32 TELEPORT_EP_COST = 3;
+	constexpr float TELEPORT_DISTANCE = 1500.0f;      // cm along the aim, stopping short of a wall (Void only)
+	constexpr float TELEPORT_COOLDOWN_SECONDS = 2.0f;
+	constexpr float TELEPORT_MIN_DISTANCE = 100.0f;   // cm: a shorter move (a wall right ahead) is Blocked, not paid
+	constexpr int32 PHASE_STEP_EP_COST = 2;
+	constexpr float PHASE_STEP_DISTANCE = 400.0f;     // cm ahead, through what's in between (thin walls, bars)
+	constexpr float PHASE_STEP_COOLDOWN_SECONDS = 1.0f;
+	constexpr int32 RECALL_EP_COST = 3;               // placing the mark is free
+	constexpr float RECALL_COOLDOWN_SECONDS = 1.0f;
+	constexpr int32 SUPER_LAUNCH_EP_COST = 3;
+	constexpr float SUPER_LAUNCH_SPEED = 2500.0f;     // cm/s up, then a free glide from the top
+	constexpr float SUPER_LAUNCH_COOLDOWN_SECONDS = 2.0f;
+	constexpr int32 REGROUP_EP_COST = 3;
+	constexpr float REGROUP_OFFSET = 150.0f;          // cm behind the party member
+	constexpr float REGROUP_COOLDOWN_SECONDS = 5.0f;
+	constexpr float NO_COOLDOWN_SECONDS = 0.0f;
+
+	/** The EP a B-214e move costs (the recall's, for Mark and recall). 0 for other types. */
+	WORLD_OF_REFRACTION_API int32 GetAdvancedMoveEPCost(EFieldMovementType Type);
+
+	/** Its cooldown in seconds. NO_COOLDOWN_SECONDS for other types. */
+	WORLD_OF_REFRACTION_API float GetAdvancedMoveCooldown(EFieldMovementType Type);
+
+	/** A B-214e move may be used: Regroup not in a fight, off cooldown, with its EP. */
+	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckAdvancedMove(EFieldMovementType Type, int32 CurrentEP,
+																double SecondsSinceLastUse, bool bInFight);
+
 	/** Glide may start: in the air with its EP. */
 	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckGlideStart(bool bFalling, int32 CurrentEP);
 
@@ -194,7 +226,7 @@ namespace FieldSkillRules
 	/** A real element: not Generic ("inherit") and not None. */
 	WORLD_OF_REFRACTION_API bool IsElemental(ESpellElement Element);
 
-	/** B-214a builds Dash and Enhanced Sprint; B-214c Glide, High jump and Air dash; B-214d Flight. */
+	/** B-214a builds Dash and Enhanced Sprint; B-214c Glide, High jump and Air dash; B-214d Flight; B-214e the rest. */
 	WORLD_OF_REFRACTION_API bool IsBuilt(EFieldMovementType Type);
 
 	/** Every type but the normal dash needs an elemental source (a Generic can't fly without one, FieldAbilities). */

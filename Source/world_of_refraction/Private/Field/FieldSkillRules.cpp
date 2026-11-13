@@ -11,9 +11,7 @@ namespace FieldSkillRules
 
 	bool IsBuilt(EFieldMovementType Type)
 	{
-		return Type == EFieldMovementType::Dash || Type == EFieldMovementType::EnhancedSprint ||
-			   Type == EFieldMovementType::Glide || Type == EFieldMovementType::HighJump || Type == EFieldMovementType::AirDash ||
-			   Type == EFieldMovementType::Flight;
+		return StaticEnum<EFieldMovementType>()->IsValidEnumValue(static_cast<int64>(Type)); // B-214e: every type
 	}
 
 	bool NeedsElementalSource(EFieldMovementType Type)
@@ -122,6 +120,57 @@ namespace FieldSkillRules
 			}
 		}
 		return true;
+	}
+
+	int32 GetAdvancedMoveEPCost(EFieldMovementType Type)
+	{
+		switch (Type)
+		{
+		case EFieldMovementType::Teleport:
+			return TELEPORT_EP_COST;
+		case EFieldMovementType::PhaseStep:
+			return PHASE_STEP_EP_COST;
+		case EFieldMovementType::MarkAndRecall:
+			return RECALL_EP_COST;
+		case EFieldMovementType::SuperLaunch:
+			return SUPER_LAUNCH_EP_COST;
+		case EFieldMovementType::Regroup:
+			return REGROUP_EP_COST;
+		default:
+			return 0;
+		}
+	}
+
+	float GetAdvancedMoveCooldown(EFieldMovementType Type)
+	{
+		switch (Type)
+		{
+		case EFieldMovementType::Teleport:
+			return TELEPORT_COOLDOWN_SECONDS;
+		case EFieldMovementType::PhaseStep:
+			return PHASE_STEP_COOLDOWN_SECONDS;
+		case EFieldMovementType::MarkAndRecall:
+			return RECALL_COOLDOWN_SECONDS;
+		case EFieldMovementType::SuperLaunch:
+			return SUPER_LAUNCH_COOLDOWN_SECONDS;
+		case EFieldMovementType::Regroup:
+			return REGROUP_COOLDOWN_SECONDS;
+		default:
+			return NO_COOLDOWN_SECONDS;
+		}
+	}
+
+	EFieldSkillRefusal CheckAdvancedMove(EFieldMovementType Type, int32 CurrentEP, double SecondsSinceLastUse, bool bInFight)
+	{
+		if (Type == EFieldMovementType::Regroup && bInFight)
+		{
+			return EFieldSkillRefusal::InFight;
+		}
+		if (SecondsSinceLastUse < GetAdvancedMoveCooldown(Type))
+		{
+			return EFieldSkillRefusal::OnCooldown;
+		}
+		return CurrentEP < GetAdvancedMoveEPCost(Type) ? EFieldSkillRefusal::NotEnoughEP : EFieldSkillRefusal::None;
 	}
 
 	EFieldSkillRefusal CheckFlightStart(bool bInNoFlyZone, int32 CurrentEP, const FFieldFlightLimits &Limits)
