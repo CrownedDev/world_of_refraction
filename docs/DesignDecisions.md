@@ -828,12 +828,26 @@ The queue of questions only Crown can answer.
 **Recommendation:** **B**: Elden Ring and Hades name the foe itself and never its rank, and D-187 already asks for the opponent's name on the wipe card. A stays until Crown answers.
 **Answer (Crown):** _write here_
 
+### Q-439b — A quit run's found items: how they are counted
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439b, Q-439 point 2) · **Blocks:** —
+**Question:** a quit run takes back the items found in it (Q-439 point 2: Escape from Tarkov and Dark and Darker take what you picked up in a failed raid). Nothing marks one crystal as "found", so how is it counted?
+**Answer**, by the default (Crown may change any):
+- **Per kind, for the whole party:** the game counts each item kind when the run begins (every pouch and storage); on a quit, what is held above that count is taken back. What was owned before always stays in number.
+- **An item used or sold in the run is not charged again:** use one owned potion and find one, and the quit takes nothing (you end with what you began with).
+- **Pouches pay first, then storage.** So where an owned item sits can change: if your pouch was full and the find went to storage, the quit takes one from the pouch and the stored one stays.
+- **A recruit's starting items are not finds** (D-097: items are never thrown away): after a quit they are in storage, as after any run end.
+- **A save from before this build** has no count, so a run resumed from it treats everything held at the resume as owned.
+- **Not covered:** a co-op guest's own pouch (only the host can quit; the guest's items are on the guest's machine).
+**Notes for Claude:** `UPoolSubsystem::TakeRunFoundItems`, `GetRunStartItems` (`Pool/PoolRunLayer.cpp`); rules ER-65b. An exact "who found what" needs a count per pouch (the `shortcut:` comment there).
+
+---
+
 ### Q-439 — The game menu: pausing, what a quit run takes, quitting with no title screen
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439, D-176) · **Blocks:** — (B-439b for point 2)
 **Question:** (1) does opening the game menu pause the world? (2) "Quitting loses everything" (D-176): what is taken? (3) there is no title screen yet: what does "Quit to title" do?
 **Answer**, by the reference-backed default (Crown may change any):
 - **(1) Nothing pauses**, solo or co-op. Elden Ring, Nightreign and Monster Hunter keep the world running in menus because they are online games, and this one is co-op (D-103); the CommonUI base already states that no screen pauses. A solo-only pause (Persona 5, Expedition 33) can come later if wanted.
-- **(2) The run's whole payout is lost** (the tally, the boss's Mentor Tokens), on top of what every run end already takes (the run's Prisms, run-only gear, the run's pillar levels). Extraction games (Escape from Tarkov, Dark and Darker) also take **what you picked up** in a failed raid; here that is the pouch items found in the run, and nothing records which those are yet, so **they are kept for now**: job **B-439b**.
+- **(2) The run's whole payout is lost** (the tally, the boss's Mentor Tokens), on top of what every run end already takes (the run's Prisms, run-only gear, the run's pillar levels). Extraction games (Escape from Tarkov, Dark and Darker) also take **what you picked up** in a failed raid; here that is the pouch items found in the run, and nothing records which those are yet, so **they are kept for now**: job **B-439b**. **Built (B-439b, 2026-11-14):** the pool counts each item kind when the run begins, and a quit takes back what is held above that count (whole party, pouches first, then storage).
 - **(3) In a run, Quit ends the run and returns to the hub** (with nothing). **Outside a run, it saves and closes the game.** Both go to the title screen once it exists (UIScreens #9).
 - **A co-op guest can't quit the host's run** from this menu ("Only the host can end the run"); a guest leaves through the rest menu's Leave (ER-09e).
 **Notes for Claude:** `UTrialRunSubsystem::AbandonRun`, `WoRPauseMenu::Quit`. Rules ER-65b.

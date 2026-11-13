@@ -180,6 +180,10 @@ void UTrialRunSubsystem::ExitTrial()
     // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
+        if (bAbandoned)
+        {
+            Pool->TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176): a quit run also loses the items found in it
+        }
         Pool->EndRunLayer();
     }
     // B-377: a hidden quest's step in progress starts its count again next run; steps done stay (MemoryCatalogue §3.6).

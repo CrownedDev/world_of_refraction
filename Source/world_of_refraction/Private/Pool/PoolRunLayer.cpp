@@ -8,6 +8,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "HAL/IConsoleManager.h"
@@ -54,6 +55,7 @@ void UPoolSubsystem::BeginRunLayer()
         DiscardRunLayer();
     }
     RunMarks.Reset();
+    RunStartItems = CountHeldItems(); // B-439b
     bRunLayerActive = true;
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer open"));
 }
@@ -65,12 +67,16 @@ void UPoolSubsystem::DiscardRunLayer()
         UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer discarded: %d mark(s) dropped, nothing put back"), RunMarks.Num());
     }
     RunMarks.Reset();
+    RunStartItems.Reset();
     bRunLayerActive = false;
 }
 
 int32 UPoolSubsystem::RestoreRunLayer(const TMap<FGuid, FPoolRunMark> &SavedMarks)
 {
     RunMarks.Reset();
+    // B-439b: a save from before the counts were kept has none, so what is held now stands in (the save's restore
+    // replaces it with the saved counts, RestoreRunStartItems).
+    RunStartItems = CountHeldItems();
     bRunLayerActive = true;
     int32 Dropped = 0;
     for (const TPair<FGuid, FPoolRunMark> &Saved : SavedMarks)
@@ -202,6 +208,7 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
     // Closed before any change is heard: a listener that pushes a piece back mid-way finds no open layer to mark it in.
     const TMap<FGuid, FPoolRunMark> Marks = MoveTemp(RunMarks);
     RunMarks.Reset();
+    RunStartItems.Reset(); // B-439b
     bRunLayerActive = false;
 
     for (const TPair<FGuid, FPoolRunMark> &Pair : Marks)
@@ -259,6 +266,62 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer closed: %d home piece(s) back to their home state, %d run-only piece(s) dropped, %d tier(s) remembered"),
            Result.Restored, Result.Dropped, Result.Remembered);
     return Result;
+}
+
+TMap<FCrystalId, int32> UPoolSubsystem::CountHeldItems() const
+{
+    TMap<FCrystalId, int32> Held;
+    for (const TMap<FCrystalId, int32> *Stacks : {&Crystals, &Stones})
+    {
+        for (const TPair<FCrystalId, int32> &Stack : *Stacks)
+        {
+            Held.FindOrAdd(Stack.Key) += Stack.Value;
+        }
+    }
+    for (const TPair<FName, FPoolPouch> &Pouch : Pouches)
+    {
+        for (const TPair<FCrystalId, int32> &Stack : Pouch.Value.Stacks)
+        {
+            Held.FindOrAdd(Stack.Key) += Stack.Value;
+        }
+    }
+    return Held;
+}
+
+int32 UPoolSubsystem::TakeRunFoundItems()
+{
+    if (!bRunLayerActive)
+    {
+        return 0;
+    }
+    // shortcut: counted for the whole party, so which pouch loses a found item is by pouch order, not by who found
+    // it; keep a count per pouch if that ever matters.
+    TArray<FName> PouchKeys;
+    Pouches.GetKeys(PouchKeys); // a copy: TakeCarried's broadcast reaches listeners
+    int32 Taken = 0;
+    bool bStorageChanged = false;
+    for (const TPair<FCrystalId, int32> &Held : CountHeldItems())
+    {
+        int32 Found = Held.Value - RunStartItems.FindRef(Held.Key);
+        for (int32 Index = 0; Index < PouchKeys.Num() && Found > 0; ++Index)
+        {
+            const int32 FromPouch = TakeCarried(PouchKeys[Index], Held.Key, Found);
+            Found -= FromPouch;
+            Taken += FromPouch;
+        }
+        if (Found > 0)
+        {
+            const int32 FromStorage = TakeStored(Held.Key, Found);
+            Taken += FromStorage;
+            bStorageChanged |= FromStorage > 0;
+        }
+    }
+    if (bStorageChanged)
+    {
+        OnPoolItemsChanged.Broadcast();
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: the run was quit, %d item(s) found in it are taken back (D-176)"), Taken);
+    return Taken;
 }
 
 FName UPoolSubsystem::GetDefinitionKey(const UObject *Definition)
@@ -374,6 +437,15 @@ FString UPoolSubsystem::GetRunLayerString() const
         if (Pair.Value.bRunOnly)
         {
             Out += FString::Printf(TEXT("\n  run-only: %s %s (dropped at run end)"), *NameOf(Pair.Key), *Pair.Key.ToString());
+        }
+    }
+    // B-439b: what a quit would take back now.
+    for (const TPair<FCrystalId, int32> &Held : CountHeldItems())
+    {
+        const int32 Found = bRunLayerActive ? Held.Value - RunStartItems.FindRef(Held.Key) : 0;
+        if (Found > 0)
+        {
+            Out += TEXT("\n") + FString::Printf(TEXT("  found in the run: %d %s (taken back if the run is quit)"), Found, *ItemIdentity::GetDisplayName(Held.Key));
         }
     }
     for (const TPair<FName, EItemTier> &Remembered : UpgradeMemory)
