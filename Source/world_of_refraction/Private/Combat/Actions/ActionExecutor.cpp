@@ -1323,8 +1323,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// 6-4: the live spell status multiplier — per-mode, stat-scaled (L0 → ×1.0). Logged here and
 	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
-	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp) *
-							 InfusionConstants::SameElementBuildupMultiplier(GetSameElementSourceCount(Caster, Action)); // B-435 (D-174)
+	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
 		   Action.SpellInfusionLevel,
@@ -4751,16 +4750,32 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 
 TArray<EInfusionSourceOption> UActionExecutor::GetSameElementInfusionSources(AActor *Actor, const FAction &Action) const
 {
+	// The stack resolved at commit, before its wear, while this action executes (a gem worn to 0 still counts).
+	if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInfusionStackResolved &&
+		CurrentExecutionContext->Executor.Get() == Actor &&
+		CurrentExecutionContext->Action.ActionType == Action.ActionType &&
+		CurrentExecutionContext->Action.SelectedSource == Action.SelectedSource)
+	{
+		return CurrentExecutionContext->InfusionStack;
+	}
+	return ResolveSameElementInfusionSources(Actor, Action);
+}
+
+TArray<EInfusionSourceOption> UActionExecutor::ResolveSameElementInfusionSources(AActor *Actor, const FAction &Action) const
+{
 	TArray<EInfusionSourceOption> Sources;
 	const EInfusionSourceOption Picked = Action.SelectedSource;
-	if (!Actor || Action.GetChargeLevel() <= 0 || Picked == EInfusionSourceOption::None || Picked == EInfusionSourceOption::Raw)
+	// Q-435: a spell is origin-bound to one source (GetAllowedInfusionSourcesForSpell), so only abilities and attacks stack.
+	if (!Actor || Action.ActionType != EActionType::Ability || Action.GetChargeLevel() <= 0 ||
+		Picked == EInfusionSourceOption::None || Picked == EInfusionSourceOption::Raw)
 	{
 		return Sources;
 	}
 
-	// D-174: a Generic (inherit) source counts as the character's innate element.
+	// D-174: a Generic (inherit) source counts as the character's innate element; a Generic character gives it none.
 	const UCharacterData *Data = GetCharacterData(Actor);
-	const ESpellElement CharacterElement = Data ? Data->InnateElement : ESpellElement::None;
+	const ESpellElement CharacterElement =
+		Data && Data->InnateElement != ESpellElement::Generic ? Data->InnateElement : ESpellElement::None;
 	const auto ElementOf = [this, Actor, CharacterElement](EInfusionSourceOption Option)
 	{
 		const ESpellElement Element = ResolveInfusionSource(Actor, Option).Element;
@@ -4801,6 +4816,45 @@ TArray<EInfusionSourceOption> UActionExecutor::GetSameElementInfusionSources(AAc
 int32 UActionExecutor::GetSameElementSourceCount(AActor *Actor, const FAction &Action) const
 {
 	return GetSameElementInfusionSources(Actor, Action).Num();
+}
+
+int32 UActionExecutor::CountHPPayingInfusionSources(AActor *Actor, const FAction &Action) const
+{
+	// Mirrors ApplySourceCommitCost's HP routing: Raw always, Innate on a spell only, Evolution.
+	const bool bIsSpell = Action.ActionType == EActionType::Spell;
+	const auto PaysHP = [bIsSpell](EInfusionSourceOption Source)
+	{
+		return Source == EInfusionSourceOption::Raw || Source == EInfusionSourceOption::Evolution ||
+			   (Source == EInfusionSourceOption::Innate && bIsSpell);
+	};
+	TArray<EInfusionSourceOption> Sources = GetSameElementInfusionSources(Actor, Action);
+	if (Sources.Num() == 0)
+	{
+		Sources.Add(Action.SelectedSource); // no stack: the picked source alone
+	}
+	int32 Count = 0;
+	for (const EInfusionSourceOption Source : Sources)
+	{
+		Count += PaysHP(Source) ? 1 : 0;
+	}
+	return Count;
+}
+
+FString UActionExecutor::GetSameElementStackString(AActor *Actor, const FAction &Action) const
+{
+	const TArray<EInfusionSourceOption> Sources = GetSameElementInfusionSources(Actor, Action);
+	if (Sources.Num() == 0)
+	{
+		return TEXT("no same-element stack");
+	}
+	TArray<FString> Names;
+	for (const EInfusionSourceOption Source : Sources)
+	{
+		Names.Add(UEnum::GetValueAsString(Source));
+	}
+	return FString::Printf(TEXT("%s x%d: %s (buildup x%.2f)"),
+						   *UEnum::GetValueAsString(GetElementForSourceOption(Actor, Sources[0])), Sources.Num(),
+						   *FString::Join(Names, TEXT(", ")), InfusionConstants::SameElementBuildupMultiplier(Sources.Num()));
 }
 
 ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USpellData *Spell) const

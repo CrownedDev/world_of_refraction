@@ -282,15 +282,24 @@ public:
 	 *  attachment readers read it, and availability for the adapter and the weapon, so the broken rule is stated once. */
 	FInfusionSourceView ResolveInfusionSource(AActor *Actor, EInfusionSourceOption Option) const;
 
-	/** B-435 (D-174, ED-51): every source an infused action uses: the picked source first, then each other available
-	 *  source of the character's that shares its element (a Generic source counts as the character's innate element;
-	 *  a broken source has no element, CL-24, so it never counts). Empty when the action is uninfused or its source
-	 *  pushes no element (None / Raw). The count drives the buildup bonus and the battle UI's element xN. */
+	/** B-435 (D-174, ED-51): every source an infused ability or attack uses: the picked source first, then each other
+	 *  available source of the character's that shares its element (a Generic source counts as the character's innate
+	 *  element, none when that is Generic too; a broken source has no element, CL-24, so it never counts). Empty when
+	 *  the action is uninfused, its source pushes no element (None / Raw), or it is a spell (origin-bound, one source:
+	 *  Q-435). While the action executes, the stack resolved at commit is returned (FActionExecutionContext). The count
+	 *  drives the buildup bonus and the battle UI's element xN. */
 	TArray<EInfusionSourceOption> GetSameElementInfusionSources(AActor *Actor, const FAction &Action) const;
 
 	/** B-435: how many sources an infused action uses (GetSameElementInfusionSources' count); 0 when uninfused. */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	int32 GetSameElementSourceCount(AActor *Actor, const FAction &Action) const;
+
+	/** B-435: how many of the action's sources pay the L2 HP backlash (Raw, Innate on a spell, Evolution), the picked
+	 *  one and every stacked one; for the AI's lethal check (each pays the same HP, ApplyCommitCosts sums them). */
+	int32 CountHPPayingInfusionSources(AActor *Actor, const FAction &Action) const;
+
+	/** B-435 debug: the action's same-element stack, e.g. "Fire x2: Innate, WeaponCrystal (buildup x1.25)". */
+	FString GetSameElementStackString(AActor *Actor, const FAction &Action) const;
 
 	/**
 	 *  Resolve a spell's effective CAST element (Cluster 3 — the Generic-inherit step).
@@ -580,15 +589,16 @@ private:
 	/** The EP one source pays for Action (CalculateActionEnergyCost's body, before same-element stacking). */
 	int32 CalculateSourceEnergyCost(AActor *Actor, const FAction &Action) const;
 
-	/** The EP a stacked (not picked) same-element source adds: Innate and Evolution pay the action's EP as if it
+	/** B-435: the stack resolved fresh from the loadout (GetSameElementInfusionSources reads the commit-time copy first). */
+	TArray<EInfusionSourceOption> ResolveSameElementInfusionSources(AActor *Actor, const FAction &Action) const;
+
+	/** The EP a stacked (not picked) same-element source adds: Innate and Evolution pay the ability's EP as if it
 	 *  were routed through them; crystal sources pay wear at commit instead, so 0. */
 	int32 CalculateStackedSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const;
 
-	/** One source's commit cost (wear, or the L2 HP backlash returned for the caller to defer). bStackedSource: the
-	 *  source is an extra same-element one, so its own wear applies even on a spell (the picked evolution spell's wear
-	 *  is paid by ExecuteSpellAsync's hook). */
+	/** One source's commit cost (wear, or the L2 HP backlash returned for the caller to defer). */
 	int32 ApplySourceCommitCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,
-								int32 PreEffInfusedEP, bool bLevelPaysHP, bool bStackedSource);
+								int32 PreEffInfusedEP, bool bLevelPaysHP);
 
 	// ==================== TIER-GAP RESOLUTION (D9) ====================
 

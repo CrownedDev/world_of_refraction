@@ -499,6 +499,11 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  damage). 0 when the action pays no infusion HP. */
 	int32 PendingInfusionHPCost = 0;
 
+	/** B-435 (D-174): the same-element sources this action uses, resolved once at commit (ApplyCommitCosts) before any
+	 *  wear, so a gem worn to 0 by its own commit wear still counts for this action's EP spend and buildup. */
+	TArray<EInfusionSourceOption> InfusionStack;
+	bool bInfusionStackResolved = false;
+
 	/** Per-hit damage percent table (length HitCount, sums to 100), resolved
 	 *  once in FinalizeDamageInputs from the skill's DamageSplit (D1). Stash
 	 *  only for now — the fused-montage runner (Stage 12) consumes it; the
