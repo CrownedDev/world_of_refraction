@@ -51,6 +51,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Move up / down a list | Up / Down, W / S, mouse over a row | D-pad, left stick | none (the screen's keys) | Built (B-439, game menu) |
 | Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
 | Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks |
+| Previous / next page (the top tab row) | Q / E, click a tab | LB / RB (L1 / R1) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_TabPrev` / `Next`) | Built (B-452, settings screen) |
+| Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
 | Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
 | Back / close | Esc, Backspace | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu) |
 
@@ -88,3 +90,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-439: the game menu opens on `IA_ToggleMenu` (bound in C++); new **Menus** section: move, select, hold to confirm, back, read by the screen itself | feature/B-439-pause-menu |
 | 2026-11-14 | B-440a: previous / next character on LT / RT (Z / C) in the loadout screen, read by the screen itself | feature/B-440-loadout-screen |
 | 2026-11-14 | B-443: the hub HUD prompt shows the Interact key (E / X); no new key | feature/B-443-hub-hud |
+| 2026-11-14 | B-452: previous / next page on LB / RB (Q / E) and change a setting on Left / Right (A / D) in the settings screen, read by the screen itself | feature/B-452-settings-screen |

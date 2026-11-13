@@ -27,7 +27,7 @@
 | 5 | **Character sheet** | Class, element, Mind / Body / Spirit, substats, resistances by type (D-168: All, Physical, Spell, each element), Max Actions | `UCharacterDataComponent`; resistance scopes (`ResistanceSystem.md`) | Real, C++ (B-442): `UCharacterSheetWidget` `Public/UI/Menus/CharacterSheetWidget.h`; waits for Crown's PIE pass | P2 |
 | 6 | **Journal** | Pages: Memories, Lore, Quests (Main, Side, Hidden), Conversations, Talk to V. A hidden quest appears only once found and shows only its current step (D-171) | `UMemoryJournalSubsystem` `Public/Memory/MemoryJournalSubsystem.h:64-87`; `UHiddenQuestSubsystem::GetVisibleQuests` `Public/Memory/HiddenQuestSubsystem.h:100`; `EQuestKind` `HiddenQuestData.h:27` | Placeholder `UMemoryJournalWidget` `Public/UI/Hub/MemoryJournalWidget.h:40` (`wor.Journal.Open`, hub `AHubJournalStation`) | P2 |
 | 7 | **Party** | Order the party (up to 3), who plays each member (you, a friend, AI and its difficulty), start cell, field skill, guard style | `UPartySessionSubsystem` `Public/Party/PartySessionSubsystem.h:146-252` | Placeholder `UPartyControlWidget` `Public/UI/Party/PartyControlWidget.h:24` (`wor.UI.PartyControl`); hub strip `UPartyDisplayWidget` (Real) | P2 |
-| 8 | **Settings** | Gameplay (**control model: Shortcuts / Omni D-pad**, Turn View, hide End Turn, hide corner hints, skip boss cinematics), camera, display, audio, controls (key list), accessibility | Saved in `FSavedSettings` `Public/Save/WoRSaveTypes.h:821`; `USaveSubsystem::SetTurnViewStyle` / `SetEndTurnButtonHidden` `Public/Save/SaveSubsystem.h:127-134`; turn-view names `CombatCameraTypes.cpp:264-277`; control model is B-436l (a console variable until this screen) | Console (`wor.Camera.Style`, `wor.UI.HideEndTurn`) | P1 |
+| 8 | **Settings** | Gameplay (**control model: Shortcuts / Omni D-pad**, Turn View, hide End Turn, hide corner hints, skip boss cinematics), camera, display, audio, controls (key list), accessibility | Saved in `FSavedSettings` `Public/Save/WoRSaveTypes.h:821`; `USaveSubsystem::SetTurnViewStyle` / `SetEndTurnButtonHidden` `Public/Save/SaveSubsystem.h:127-134`; turn-view names `CombatCameraTypes.cpp:264-277`; control model is B-436l (a console variable until this screen) | Real, C++ (B-452): `USettingsScreenWidget` `Public/UI/Menus/SettingsScreenWidget.h` (Turn View and End Turn button; the rest B-453, B-436l); waits for Crown's PIE pass | P1 |
 
 ### Front end
 
@@ -335,7 +335,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Character sheet | 5 | `menus/character` | B-442 (built, in dev; `PIE/B-442.md`) | The fight's own numbers (Q-442) |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 (built, in dev; `PIE/B-443.md`) | |
 | Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456 (after B-445) | One shop screen, services as tabs; who does what: D-193 |
-| Settings | 8 | `menus/settings` | B-452 (the screen), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
+| Settings | 8 | `menus/settings` | B-452 (the screen: built, in dev; `PIE/B-452.md`), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
 
 Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178), the recruit card (#29, D-179), the rest spot and level up (#22, #23; D-182, D-183).
