@@ -6,12 +6,15 @@
 // (the shared home chest: stored gear and stacks). One verb menu on a tile: Give and Store, and Take only on the
 // Chest tab (D-195). A verb that can't run is listed with the reason (WoRInventoryVerbs::GetRefusal), never hidden.
 // The rules and the moves are WoRInventoryVerbs' (Inventory/InventoryVerbs.h).
+// B-461 (Q-461): the Gear tab also lists the member's evolutions and apparel (no verbs run on them yet, Q-323); a
+// filter row over the Gear and Chest tabs (only the kinds the tab can hold); a sort (as found, by tier, by name).
 // Debug: wor.UI.PrintInventory logs GetInventoryScreenString (every party member's three tabs).
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Inventory/InventoryVerbs.h"
+#include "Inventory/ItemTier.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 
@@ -22,19 +25,54 @@ enum class EInventoryScreenTab : uint8
 	Chest
 };
 
-/** One tile of the grid: what the verbs act on (Row) and how it reads. */
+/** What a tile is: the filter row and the verbs read it. */
+enum class EInventoryScreenKind : uint8
+{
+	Weapon,
+	Adapter,
+	/** A crystal or stone stack. */
+	Stack,
+	Evolution,
+	Apparel
+};
+
+enum class EInventoryScreenFilter : uint8
+{
+	All,
+	Weapons,
+	Adapters,
+	/** Crystal and stone stacks. */
+	Crystals,
+	Evolutions,
+	Apparel
+};
+
+enum class EInventoryScreenSort : uint8
+{
+	/** As the tab lists them: by kind, in the order found. */
+	Kind,
+	/** Highest tier first. */
+	Tier,
+	Name
+};
+
+/** One tile of the grid: what the verbs act on (Row; empty for an evolution or apparel) and how it reads. */
 struct FInventoryScreenTile
 {
 	WoRInventoryVerbs::FInventoryRow Row;
+	EInventoryScreenKind Kind = EInventoryScreenKind::Weapon;
+	EItemTier TierValue = EItemTier::F_Tier;
 	FText Name;
 	FText Tier;
 	/** "Weapon · Sword", "Crystal · Fire", "Stone". */
 	FText KindLine;
-	/** The letter on the tile until there are icons: W, A, C, S. */
+	/** The letter on the tile until there are icons: W, A, C, S, Ev, Ap. */
 	FText Mark;
 	ESpellElement Element = ESpellElement::None;
-	/** Gear a loadout of this member wears (the tile's "E"). */
+	/** Gear or apparel a loadout of this member wears, or an evolution in use (the tile's "E"). */
 	bool bWorn = false;
+
+	bool IsStack() const { return Kind == EInventoryScreenKind::Stack; }
 	TArray<FLoadoutScreenDetail> Details;
 	/** What the thing does, or a rule worth saying; may be empty. */
 	FText Note;
@@ -75,13 +113,24 @@ namespace WoRInventoryScreen
 	WORLD_OF_REFRACTION_API const TArray<EInventoryScreenTab> &GetTabs();
 	WORLD_OF_REFRACTION_API FText GetTabName(EInventoryScreenTab Tab);
 
-	WORLD_OF_REFRACTION_API FInventoryScreenPage BuildPage(UWorld *World, FName Member, EInventoryScreenTab Tab);
+	/** The filter row of a tab: All and the kinds the tab can hold. Empty for the Pouch (stacks only). */
+	WORLD_OF_REFRACTION_API TArray<EInventoryScreenFilter> GetFilters(EInventoryScreenTab Tab);
+	WORLD_OF_REFRACTION_API FText GetFilterName(EInventoryScreenFilter Filter);
+	WORLD_OF_REFRACTION_API FText GetSortName(EInventoryScreenSort Sort);
+	/** The sort Y steps to; wraps. */
+	WORLD_OF_REFRACTION_API EInventoryScreenSort GetNextSort(EInventoryScreenSort Sort);
+
+	/** The tab's tiles that pass Filter, in Sort's order. */
+	WORLD_OF_REFRACTION_API FInventoryScreenPage BuildPage(UWorld *World, FName Member, EInventoryScreenTab Tab,
+														   EInventoryScreenFilter Filter = EInventoryScreenFilter::All,
+														   EInventoryScreenSort Sort = EInventoryScreenSort::Kind);
 
 	/** A crystal or stone stack's tile (Row.Item, Row.Count), as the Pouch tab words it; a vendor's stock reads the same (B-456b). */
 	WORLD_OF_REFRACTION_API FInventoryScreenTile BuildStackTile(const WoRInventoryVerbs::FInventoryRow &Row);
 
 	/** Give and Store; Take too on the Chest tab, and nowhere else (D-195). Give is refused only when no other
-	 *  member can receive the tile (the reason is the first member's). */
+	 *  member can receive the tile (the reason is the first member's). An evolution or apparel tile lists them
+	 *  refused: nothing moves those yet (Q-323). */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenVerb> BuildVerbs(UWorld *World, FName Member, EInventoryScreenTab Tab, const FInventoryScreenTile &Tile);
 
 	/** The other party members, for Give. */

@@ -4,8 +4,11 @@
 
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Equipment/Apparel/ApparelData.h"
 #include "Equipment/Crystals/CrystalDescription.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/StatStone.h"
 #include "HAL/IConsoleManager.h"
@@ -27,6 +30,98 @@ namespace InventoryScreenBuild
 		return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
 	}
 
+	/** "Crystal · Fire"; the kind alone with no element. */
+	FText KindWithElement(const FText &Kind, ESpellElement Element)
+	{
+		return Element == ESpellElement::None ? Kind
+											   : FText::Format(LOCTEXT("KindAndElement", "{0} · {1}"), Kind, WoRGameNames::GetElementName(Element));
+	}
+
+	FInventoryScreenTile MakeEvolutionTile(const FEvolutionInventoryEntry &Entry, const UInventoryComponent &Inventory)
+	{
+		FInventoryScreenTile Tile;
+		Tile.Kind = EInventoryScreenKind::Evolution;
+		Tile.TierValue = Entry.Tier;
+		Tile.Name = FText::FromString(Entry.Item->ItemName);
+		Tile.Tier = WoRGameNames::GetTierLetter(Entry.Tier);
+		Tile.Mark = LOCTEXT("MarkEvolution", "Ev");
+		Tile.Element = Entry.Item->GetAssociatedElement();
+		Tile.KindLine = KindWithElement(LOCTEXT("KindEvolution", "Evolution"), Tile.Element);
+		Tile.bWorn = Inventory.IsEvolutionInUse(Entry.InstanceID);
+		Tile.Details.Add({LOCTEXT("DetailDurability", "Durability"), FText::Format(LOCTEXT("DurabilityOfMax", "{0} / {1}"),
+																					 FText::AsNumber(Entry.CurrentDurability),
+																					 FText::AsNumber(Entry.Item->MaxDurability))});
+		Tile.Note = FText::FromString(Entry.Item->Description);
+		return Tile;
+	}
+
+	FInventoryScreenTile MakeApparelTile(const FApparelEntry &Entry, const UInventoryComponent &Inventory)
+	{
+		FInventoryScreenTile Tile;
+		Tile.Kind = EInventoryScreenKind::Apparel;
+		Tile.TierValue = Entry.Tier;
+		Tile.Name = FText::FromString(Entry.Apparel->GetDisplayName());
+		Tile.Tier = WoRGameNames::GetTierLetter(Entry.Tier);
+		Tile.Mark = LOCTEXT("MarkApparel", "Ap");
+		Tile.Element = Entry.GetElement();
+		Tile.KindLine = KindWithElement(LOCTEXT("KindApparel", "Apparel"), Tile.Element);
+		Tile.bWorn = Inventory.SavedLoadouts.ContainsByPredicate([&Entry](const FCombatLoadout &Loadout)
+		{
+			return Loadout.Apparel.ContainsByPredicate([&Entry](const FApparelEntry &Worn) { return Worn.PersistentID == Entry.PersistentID; });
+		});
+		if (Tile.bWorn)
+		{
+			Tile.Note = LOCTEXT("NoteWorn", "Worn in a loadout.");
+		}
+		return Tile;
+	}
+
+	/** The member's evolutions (its spawned store, as the Spiritualist lists them) and its apparel (the pool's, by owner). */
+	void AddEvolutionAndApparelTiles(const UPoolSubsystem &Pool, const UInventoryComponent *Inventory, FName Member, TArray<FInventoryScreenTile> &Tiles)
+	{
+		const AActor *Owner = Inventory ? Inventory->GetOwner() : nullptr;
+		if (!Owner)
+		{
+			return; // the member isn't in this level
+		}
+		if (const UEvolutionInventoryComponent *Evolutions = Owner->FindComponentByClass<UEvolutionInventoryComponent>())
+		{
+			for (const FEvolutionInventoryEntry &Entry : Evolutions->Entries)
+			{
+				if (Entry.Item)
+				{
+					Tiles.Add(MakeEvolutionTile(Entry, *Inventory));
+				}
+			}
+		}
+		for (const FApparelEntry &Entry : Pool.GetOwnedApparel())
+		{
+			if (Entry.Apparel && Pool.GetGearOwner(Entry.PersistentID) == Member)
+			{
+				Tiles.Add(MakeApparelTile(Entry, *Inventory));
+			}
+		}
+	}
+
+	bool PassesFilter(const FInventoryScreenTile &Tile, EInventoryScreenFilter Filter)
+	{
+		switch (Filter)
+		{
+		case EInventoryScreenFilter::Weapons:
+			return Tile.Kind == EInventoryScreenKind::Weapon;
+		case EInventoryScreenFilter::Adapters:
+			return Tile.Kind == EInventoryScreenKind::Adapter;
+		case EInventoryScreenFilter::Crystals:
+			return Tile.Kind == EInventoryScreenKind::Stack;
+		case EInventoryScreenFilter::Evolutions:
+			return Tile.Kind == EInventoryScreenKind::Evolution;
+		case EInventoryScreenFilter::Apparel:
+			return Tile.Kind == EInventoryScreenKind::Apparel;
+		default:
+			return true;
+		}
+	}
+
 	FInventoryScreenTile MakeGearTile(const UPoolSubsystem &Pool, const UInventoryComponent *Inventory, const WoRInventoryVerbs::FInventoryRow &Row)
 	{
 		const FWeaponInventoryEntry *Weapon = Pool.FindWeaponInPool(Row.GearID);
@@ -44,6 +139,8 @@ namespace InventoryScreenBuild
 
 		FInventoryScreenTile Tile;
 		Tile.Row = Row;
+		Tile.Kind = Weapon ? EInventoryScreenKind::Weapon : EInventoryScreenKind::Adapter;
+		Tile.TierValue = Weapon ? Weapon->Tier : Adapter ? Adapter->Tier : EItemTier::F_Tier;
 		Tile.Name = Gear.Name.IsEmpty() ? Row.Label : Gear.Name;
 		Tile.Tier = Gear.Tier;
 		Tile.KindLine = Gear.KindLine;
@@ -72,14 +169,13 @@ namespace InventoryScreenBuild
 
 		FInventoryScreenTile Tile;
 		Tile.Row = Row;
+		Tile.Kind = EInventoryScreenKind::Stack;
+		Tile.TierValue = Id.Tier;
 		Tile.Name = WoRGameNames::GetCrystalTypeName(Id.Type);
 		Tile.Tier = WoRGameNames::GetTierLetter(Id.Tier);
 		Tile.Element = ItemIdentity::GetElement(Row.Item);
 		Tile.Mark = bStone ? LOCTEXT("MarkStone", "S") : LOCTEXT("MarkCrystal", "C");
-		const FText Kind = bStone ? LOCTEXT("KindStone", "Stone") : LOCTEXT("KindCrystal", "Crystal");
-		Tile.KindLine = Tile.Element == ESpellElement::None
-							? Kind
-							: FText::Format(LOCTEXT("KindAndElement", "{0} · {1}"), Kind, WoRGameNames::GetElementName(Tile.Element));
+		Tile.KindLine = KindWithElement(bStone ? LOCTEXT("KindStone", "Stone") : LOCTEXT("KindCrystal", "Crystal"), Tile.Element);
 		if (Row.bInChest)
 		{
 			Tile.Details.Add({LOCTEXT("DetailStored", "Stored"), FText::AsNumber(Row.Count)});
@@ -145,7 +241,71 @@ FInventoryScreenTile WoRInventoryScreen::BuildStackTile(const WoRInventoryVerbs:
 	return InventoryScreenBuild::MakeStackTile(Row);
 }
 
-FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, EInventoryScreenTab Tab)
+TArray<EInventoryScreenFilter> WoRInventoryScreen::GetFilters(EInventoryScreenTab Tab)
+{
+	// Q-461: only the kinds the tab can hold. Stacks are carried in the pouch, so the Gear tab has no Crystals;
+	// evolutions and apparel aren't stored yet (Q-323), so the Chest has neither.
+	switch (Tab)
+	{
+	case EInventoryScreenTab::Gear:
+		return {EInventoryScreenFilter::All, EInventoryScreenFilter::Weapons, EInventoryScreenFilter::Adapters, EInventoryScreenFilter::Evolutions,
+				EInventoryScreenFilter::Apparel};
+	case EInventoryScreenTab::Chest:
+		return {EInventoryScreenFilter::All, EInventoryScreenFilter::Weapons, EInventoryScreenFilter::Adapters, EInventoryScreenFilter::Crystals};
+	default:
+		return {};
+	}
+}
+
+FText WoRInventoryScreen::GetFilterName(EInventoryScreenFilter Filter)
+{
+	switch (Filter)
+	{
+	case EInventoryScreenFilter::All:
+		return LOCTEXT("FilterAll", "All");
+	case EInventoryScreenFilter::Weapons:
+		return LOCTEXT("FilterWeapons", "Weapons");
+	case EInventoryScreenFilter::Adapters:
+		return LOCTEXT("FilterAdapters", "Adapters");
+	case EInventoryScreenFilter::Crystals:
+		return LOCTEXT("FilterCrystals", "Crystals");
+	case EInventoryScreenFilter::Evolutions:
+		return LOCTEXT("FilterEvolutions", "Evolutions");
+	case EInventoryScreenFilter::Apparel:
+		return LOCTEXT("FilterApparel", "Apparel");
+	}
+	return FText::GetEmpty();
+}
+
+FText WoRInventoryScreen::GetSortName(EInventoryScreenSort Sort)
+{
+	switch (Sort)
+	{
+	case EInventoryScreenSort::Kind:
+		return LOCTEXT("SortKind", "Kind");
+	case EInventoryScreenSort::Tier:
+		return LOCTEXT("SortTier", "Tier");
+	case EInventoryScreenSort::Name:
+		return LOCTEXT("SortName", "Name");
+	}
+	return FText::GetEmpty();
+}
+
+EInventoryScreenSort WoRInventoryScreen::GetNextSort(EInventoryScreenSort Sort)
+{
+	switch (Sort)
+	{
+	case EInventoryScreenSort::Kind:
+		return EInventoryScreenSort::Tier;
+	case EInventoryScreenSort::Tier:
+		return EInventoryScreenSort::Name;
+	default:
+		return EInventoryScreenSort::Kind;
+	}
+}
+
+FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, EInventoryScreenTab Tab, EInventoryScreenFilter Filter,
+												   EInventoryScreenSort Sort)
 {
 	using namespace InventoryScreenBuild;
 
@@ -164,10 +324,23 @@ FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, 
 			Page.Tiles.Add(Row.IsGear() ? MakeGearTile(*Pool, Inventory, Row) : MakeStackTile(Row));
 		}
 	}
+	if (Tab == EInventoryScreenTab::Gear)
+	{
+		AddEvolutionAndApparelTiles(*Pool, Inventory, Member, Page.Tiles);
+	}
+	Page.Tiles.RemoveAll([Filter](const FInventoryScreenTile &Tile) { return !PassesFilter(Tile, Filter); });
+	if (Sort == EInventoryScreenSort::Tier)
+	{
+		Page.Tiles.StableSort([](const FInventoryScreenTile &A, const FInventoryScreenTile &B) { return A.TierValue > B.TierValue; });
+	}
+	else if (Sort == EInventoryScreenSort::Name)
+	{
+		Page.Tiles.StableSort([](const FInventoryScreenTile &A, const FInventoryScreenTile &B) { return A.Name.CompareTo(B.Name) < 0; });
+	}
 	switch (Tab)
 	{
 	case EInventoryScreenTab::Gear:
-		Page.EmptyNote = LOCTEXT("EmptyGear", "No weapons or adapters.");
+		Page.EmptyNote = LOCTEXT("EmptyGear", "No gear.");
 		break;
 	case EInventoryScreenTab::Pouch:
 	{
@@ -187,11 +360,19 @@ FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, 
 	{
 		Page.EmptyNote = FText::GetEmpty();
 	}
+	else if (Filter != EInventoryScreenFilter::All)
+	{
+		Page.EmptyNote = LOCTEXT("EmptyFilter", "Nothing of this kind here.");
+	}
 	return Page;
 }
 
 TArray<FInventoryScreenVerb> WoRInventoryScreen::BuildVerbs(UWorld *World, FName Member, EInventoryScreenTab Tab, const FInventoryScreenTile &Tile)
 {
+	// Q-323: nothing gives or stores an evolution or apparel yet, so their verbs are listed with that reason.
+	const FText NotYet = Tile.Kind == EInventoryScreenKind::Evolution ? LOCTEXT("EvolutionNoVerbs", "Evolutions can't be given or stored yet")
+						 : Tile.Kind == EInventoryScreenKind::Apparel ? LOCTEXT("ApparelNoVerbs", "Apparel can't be given or stored yet")
+																		 : FText::GetEmpty();
 	TArray<FInventoryScreenVerb> Verbs;
 	for (const EInventoryVerb Verb : WoRInventoryVerbs::GetAllVerbs())
 	{
@@ -202,8 +383,9 @@ TArray<FInventoryScreenVerb> WoRInventoryScreen::BuildVerbs(UWorld *World, FName
 		FInventoryScreenVerb &Line = Verbs.AddDefaulted_GetRef();
 		Line.Verb = Verb;
 		Line.Name = WoRInventoryVerbs::GetVerbName(World, Verb);
-		Line.Refusal = Verb == EInventoryVerb::Give ? InventoryScreenBuild::GetGiveRefusal(World, Member, Tile)
-													: WoRInventoryVerbs::GetRefusal(World, Verb, Member, NAME_None, Tile.Row);
+		Line.Refusal = !NotYet.IsEmpty()				  ? NotYet
+					   : Verb == EInventoryVerb::Give ? InventoryScreenBuild::GetGiveRefusal(World, Member, Tile)
+													  : WoRInventoryVerbs::GetRefusal(World, Verb, Member, NAME_None, Tile.Row);
 	}
 	return Verbs;
 }
@@ -222,7 +404,7 @@ TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *Worl
 		Receiver.Key = Other.Key;
 		Receiver.Name = Other.Name;
 		Receiver.Refusal = WoRInventoryVerbs::GetRefusal(World, EInventoryVerb::Give, Member, Other.Key, Tile.Row);
-		if (Tile.Row.IsGear() || !Pool)
+		if (!Tile.IsStack() || !Pool)
 		{
 			continue;
 		}
@@ -252,7 +434,7 @@ TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *Worl
 int32 WoRInventoryScreen::GetMoveCount(const UWorld *World, EInventoryVerb Verb, FName Member, FName Receiver, const FInventoryScreenTile &Tile,
 									   bool bWholeStack)
 {
-	if (Tile.Row.IsGear() || !bWholeStack)
+	if (!Tile.IsStack() || !bWholeStack)
 	{
 		return 1;
 	}
@@ -284,7 +466,7 @@ FString WoRInventoryScreen::GetInventoryScreenString(UWorld *World)
 					Verbs.Add(Verb.Refusal.IsEmpty() ? Verb.Name.ToString() : FString::Printf(TEXT("%s (no: %s)"), *Verb.Name.ToString(), *Verb.Refusal.ToString()));
 				}
 				Out += FString::Printf(TEXT("\n    %s (%s)%s%s, %s: %s"), *Tile.Name.ToString(), *Tile.Tier.ToString(),
-									   Tile.Row.IsGear() ? TEXT("") : *FString::Printf(TEXT(" x%d"), Tile.Row.Count), Tile.bWorn ? TEXT(" [E]") : TEXT(""),
+									   Tile.IsStack() ? *FString::Printf(TEXT(" x%d"), Tile.Row.Count) : TEXT(""), Tile.bWorn ? TEXT(" [E]") : TEXT(""),
 									   *Tile.KindLine.ToString(), *FString::Join(Verbs, TEXT(", ")));
 			}
 		}
