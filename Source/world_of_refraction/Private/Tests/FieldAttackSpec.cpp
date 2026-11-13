@@ -70,6 +70,8 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("Generic carries no element"), FieldSkillRules::MakeFieldStrike(ESpellElement::Generic, EPhysicalDamageType::Impact, false).Element == ESpellElement::None);
 			TestTrue(TEXT("Innate -> Weapon"), FieldSkillRules::NextSource(EFieldSkillSource::Innate) == EFieldSkillSource::Weapon);
 			TestTrue(TEXT("Ring -> Innate"), FieldSkillRules::NextSource(EFieldSkillSource::Ring) == EFieldSkillSource::Innate);
+			TestFalse(TEXT("a tap isn't held (B-214g)"), FieldSkillRules::IsFieldAttackHeld(0.0));
+			TestTrue(TEXT("held from the threshold"), FieldSkillRules::IsFieldAttackHeld(FieldSkillRules::FIELD_ATTACK_HOLD_SECONDS));
 		});
 	});
 
