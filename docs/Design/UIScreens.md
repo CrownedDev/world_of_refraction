@@ -83,7 +83,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 2. [x] Loadout and skills (`menus/loadout`)
 3. [x] Inventory and pouch (`menus/inventory`)
 4. [x] Rest spot, level up, extract, revive vote (`run/rest_spot`)
-5. [ ] After a fight, wipe, run over, run end (`run/run_end`)
+5. [x] After a fight, wipe, run over, run end (`run/run_end`)
 6. [ ] Settings (`menus/settings`)
 7. [ ] Trial gate (`run/gate`)
 8. [ ] Shop and the vendor services (`hub/vendors`)
@@ -136,6 +136,16 @@ One block per mocked screen: the images, why the layout, the references.
 - **Revive vote** (co-op): one panel for everyone, names and answers, "2 of 3 said yes"; everyone outside a fight must agree (the code's rule). A / X answer. *Ref:* Monster Hunter's and Deep Rock Galactic's ready checks: every name with its answer, no chat needed.
 - **Extract confirm:** RunStructure §6's sentence, then two columns, earned so far and what you get (half, `LEAVE_EARLY_SHARE`), then what's kept and lost. *Ref:* Hades and Nightreign show the run's tally before you commit to ending it.
 
+### 25–28. After a fight, a wipe, the end of a run (`run/run_end/`)
+
+- `1_reward_popups.png`, `2_wipe.png`, `3_trial_cleared.png`, `4_run_over.png`.
+- **No results screen after a fight** (FeelGuide 6): popups stack on the right, stay a few seconds and fade; none needs a press. One popup per thing, colour = kind (Prisms grey, a drop in its element colour, a banked level cyan, a memory gold, a hidden quest violet and marked "only you see this", D-171). The words are the code's notices ("New memory: …", "Hidden quest discovered: …"). The small **trial HUD** (#28) sits bottom left: Prisms, wipes left, the tracked quest step.
+  *Ref:* Expedition 33 returns you to the world with fading pickups; Elden Ring's item popups; Hades' boon and resource toasts.
+- **A wipe** is one plain card: what each member lost (pillar points: up to 1 to a normal enemy, 2 to a mini-boss, 0 to the main boss), where you wake, "the enemy is still there", wipes as five pips. One button, "Get up". *Ref:* Hades' short death beat, Elden Ring's respawn at the last grace: fast back to play (pillar 3, second chances).
+- **The end of a run is the one full-screen tally:** the payout with its share ("Full payout x1.0"; extracting shows x0.5), the run in four numbers, and **Kept / Lost** side by side, so the rule is taught every time. "Trial cleared" (gold) and "The trial ends" (rose) are the same screen; falling pays in full (RunStructure §6).
+  *Ref:* Hades' and Nightreign's end-of-run summaries; Slay the Spire's run tally.
+- **Needs code:** nothing announces a run end, a wipe or a level-up today (no delegate), and `UCombatResultsWidget` only prints VICTORY / DEFEAT. A builder adds those signals first.
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -176,6 +186,8 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 2. **Stone sockets** (loadout, #2): drawn because the code has them (D-141), but the battle HUD plan says you're considering removing augment stones. If they go, each gear row loses its second socket and nothing else changes.
 3. **Main hand / off hand** (loadout, #2): the code has two equal weapon slots and a wield mode per weapon, not hand slots. The mockup follows the code; say if you want hand slots shown.
 4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
+5. **Words for the end screens** (#26, #27): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
+6. **World-stat draft** (#30, pick 3 of 5): nothing listens to it today and levelling now happens at rest spots (B-363). Not mocked; say if it's still wanted.
 
 ## Changelog
 
