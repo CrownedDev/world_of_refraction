@@ -775,6 +775,17 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-467 — The title screen: where it lives, what Continue and New Game do before the new game screen
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-467, D-202) · **Blocks:** —
+**Question:** the title's look and rows are decided (D-202, `UIScreens.md` #9, #10). Five things the code needed are not. (1) There is no title map: where does the title sit? (2) What does Continue do? (3) What does New Game do after the hold, before the new game screen (B-469) exists? (4) Join a friend and Credits have no screen yet (B-459, B-470). (5) The Continue line shows hours, and the save has never counted time.
+**Answer**, by the reference-backed default (Crown may change any):
+- **(1) The title sits over the first level, once per launch; no title map.** Hades opens its menu over the live House scene and Hollow Knight's title is a screen over the game, not a separate place. It needs no new map or game mode. In the editor's PIE it does not open by itself (it would be in the way of every test): `wor.UI.Title` opens it.
+- **(2) Continue closes the title.** The save is already loaded when the first level starts, and a saved run resumes from the hub by itself (Q-208), so the level under the title is where the save is.
+- **(3) After the 2-second hold the save is deleted, and the new game begins the next time the game starts.** Starting it at once needs the party, pool, journal, quests and forms in memory reset, which is the new game screen's job (B-469, its row now says so). The screen says so in plain words. Nothing is written for the rest of that session, so the old game can't come back.
+- **(4) Join a friend and Credits are listed and say they aren't built yet**, as the settings screen does for rows not built (B-452).
+- **(5) The save counts time played from now on** (`FWoRSaveData::PlaySeconds`, no version bump: older saves start at 0). Under an hour it reads in minutes. Hollow Knight's and Elden Ring's Continue show the save's place and time (`UIScreens.md`).
+**Notes for Claude:** B-467b is the backdrop's editor step. B-469 owns the fresh start in place.
+
 ### Q-456d — The Spiritualist's tabs: one piece or everything, whose curses, Merge's layout
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-456d, D-193) · **Blocks:** —
 **Question:** the approved mockups for Repair, Curses and Merge differ from the code in four places. (1) Repair shows "A Repair this" and "X Repair all", but the paid repair is all or nothing (ER-37). (2) Repair lists unworn pieces with "—". (3) Curses says "Sera holds it", but curses are held by the player, not by one character. (4) Merge has two columns (the crystal, then the tier to make).
