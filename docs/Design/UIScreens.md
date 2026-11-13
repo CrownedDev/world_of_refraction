@@ -291,7 +291,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 ## Summary (2026-11-13)
 
-**Done:** `UIScreens.md` (34 screens with code, state and priority) and **14 mock sets, 38 images**, each backed by named games: pause menu; loadout and skills; inventory and pouch; rest spot (menu, level up, revive vote, extract); after a fight, wipe, run end; settings (control model: Shortcuts / Omni D-pad); trial gate; vendors (shop, item slots, repair, curses); journal (quests, hidden quests, memories); party and co-op (invite, join request, host left); title, save notices, loading; character sheet; hub HUD, NPC talk, recruit card; skins.
+**Done:** `UIScreens.md` (34 screens with code, state and priority) and **14 mock sets, 42 images**, each backed by named games: pause menu; loadout and skills; inventory and pouch; rest spot (menu, level up, revive vote, extract); after a fight, wipe, run end; settings (control model: Shortcuts / Omni D-pad); trial gate; vendors (shop, item slots, repair, curses); journal (quests, hidden quests, memories); party and co-op (invite, join request, host left); title, save notices, loading; character sheet; hub HUD, NPC talk, recruit card; skins.
 
 **Left:** the five items under "Not mocked, on purpose" above. Lore and Conversations pages of the journal reuse the Memories layout and have no image of their own.
 
@@ -305,5 +305,5 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 | Date | Change | Branch |
 |---|---|---|
-| 2026-11-13 | 14 mock sets (38 images as `make.py` scripts), mockup notes, proposed input rows, 15 questions, summary | docs/ui-screens-all |
+| 2026-11-13 | 14 mock sets (42 images as `make.py` scripts), mockup notes, proposed input rows, 15 questions, summary | docs/ui-screens-all |
 | 2026-11-13 | Created: 34 screens from `dev`'s code (the cloud features are already merged), mock order, shared menu controls, proposed input rows | docs/ui-screens-all |
