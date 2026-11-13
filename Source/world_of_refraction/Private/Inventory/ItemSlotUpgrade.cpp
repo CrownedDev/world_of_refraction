@@ -39,42 +39,46 @@ bool ItemSlotUpgrade::IsAvailableHere(const UObject *Context)
 	return !(Run && Run->IsRunActive());
 }
 
-bool ItemSlotUpgrade::TryBuy(const UObject *Context, UPoolSubsystem &Pool, FName CharacterKey, UCurrencyComponent *Wallet,
-							 FText &OutRefusal)
+FText ItemSlotUpgrade::GetRefusal(const UObject *Context, const UPoolSubsystem &Pool, FName CharacterKey, const UCurrencyComponent *Wallet)
 {
 	if (CharacterKey.IsNone())
 	{
-		OutRefusal = LOCTEXT("NoCharacter", "Choose a character first.");
-		return false;
+		return LOCTEXT("NoCharacter", "Choose a character first.");
 	}
 	if (!IsAvailableHere(Context))
 	{
-		OutRefusal = LOCTEXT("InRun", "Item slots are sold in the hub, not during a run.");
-		return false;
+		return LOCTEXT("InRun", "Item slots are sold in the hub, not during a run.");
 	}
 	const int32 Slots = Pool.GetItemSlotCount(CharacterKey);
-	const int32 Price = GetPrice(Slots);
 	if (!CanGrow(Slots))
 	{
-		OutRefusal = LOCTEXT("Full", "This pouch has every slot it can hold.");
-		return false;
+		return LOCTEXT("Full", "This pouch has every slot it can hold.");
 	}
 	if (!Wallet)
 	{
-		OutRefusal = LOCTEXT("NoWallet", "No wallet to pay from.");
-		return false;
+		return LOCTEXT("NoWallet", "No wallet to pay from.");
 	}
 	if (!WoRAuthority::HasAuthority(Wallet->GetOwner()))
 	{
 		// Q-239 (Crown): host-only in co-op; a guest's own purchase would need a server RPC.
-		OutRefusal = LOCTEXT("HostOnly", "Only the host can buy item slots.");
-		return false;
+		return LOCTEXT("HostOnly", "Only the host can buy item slots.");
 	}
-	if (!Wallet->CanAfford(GetCurrency(), Price))
+	if (!Wallet->CanAfford(GetCurrency(), GetPrice(Slots)))
 	{
-		OutRefusal = FText::Format(LOCTEXT("TooPoor", "You need {0} {1}."), FText::AsNumber(Price), WoRGameNames::GetCurrencyName(GetCurrency()));
+		return FText::Format(LOCTEXT("TooPoor", "You need {0} {1}."), FText::AsNumber(GetPrice(Slots)), WoRGameNames::GetCurrencyName(GetCurrency()));
+	}
+	return FText::GetEmpty();
+}
+
+bool ItemSlotUpgrade::TryBuy(const UObject *Context, UPoolSubsystem &Pool, FName CharacterKey, UCurrencyComponent *Wallet,
+							 FText &OutRefusal)
+{
+	OutRefusal = GetRefusal(Context, Pool, CharacterKey, Wallet);
+	if (!OutRefusal.IsEmpty())
+	{
 		return false;
 	}
+	const int32 Price = GetPrice(Pool.GetItemSlotCount(CharacterKey));
 	if (!Wallet->Spend(GetCurrency(), Price))
 	{
 		OutRefusal = LOCTEXT("SpendFailed", "The payment failed.");

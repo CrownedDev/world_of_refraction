@@ -35,8 +35,12 @@ namespace ItemSlotUpgrade
 	/** The hub service only: false while a trial run is on (a world with no run subsystem counts as the hub). */
 	WORLD_OF_REFRACTION_API bool IsAvailableHere(const UObject *Context);
 
-	/** Buys one slot for CharacterKey's pouch from Wallet: checks the hub, the cap, authority (host-only in co-op,
-	 *  Q-239) and the price, spends, adds the slot. False with OutRefusal (player-facing) when refused; nothing is spent then. */
+	/** Why TryBuy would refuse (player-facing): no character, a run is on, the pouch is full, no wallet, not the host
+	 *  (Q-239), or the price. Empty when it would go through. */
+	WORLD_OF_REFRACTION_API FText GetRefusal(const UObject *Context, const UPoolSubsystem &Pool, FName CharacterKey, const UCurrencyComponent *Wallet);
+
+	/** Buys one slot for CharacterKey's pouch from Wallet: GetRefusal's checks, then spends and adds the slot. False
+	 *  with OutRefusal (player-facing) when refused; nothing is spent then. */
 	WORLD_OF_REFRACTION_API bool TryBuy(const UObject *Context, UPoolSubsystem &Pool, FName CharacterKey, UCurrencyComponent *Wallet,
 										FText &OutRefusal);
 
