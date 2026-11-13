@@ -95,12 +95,6 @@ TArray<FString> FSavedLoadout::GetValidationErrorsLegacy() const
                 Errors.Add(FString::Printf(TEXT("Secondary weapon has too many abilities (%d/%d)"),
                                            SecondaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
             }
-
-            if (SecondaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
-            {
-                Errors.Add(FString::Printf(TEXT("Secondary weapon has too many augment stone abilities (%d/%d)"),
-                                           SecondaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES));
-            }
         }
     }
 
@@ -198,12 +192,6 @@ TArray<FString> FSavedLoadout::GetValidationErrorsLegacy() const
             Errors.Add(FString::Printf(TEXT("Primary weapon has too many abilities (%d/%d)"),
                                        PrimaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
         }
-
-        if (PrimaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
-        {
-            Errors.Add(FString::Printf(TEXT("Primary weapon has too many augment stone abilities (%d/%d)"),
-                                       PrimaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES));
-        }
     }
 
     if (PrimarySlotType == EPrimarySlotType::Evolution &&
@@ -297,13 +285,11 @@ TArray<UAbilityData *> FSavedLoadout::GetAllAbilities() const
     if (PrimarySlotType == EPrimarySlotType::Weapon)
     {
         Result.Append(PrimaryWeaponAbilities);
-        Result.Append(PrimaryAugmentStoneAbilities);
     }
 
     if (RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon)
     {
         Result.Append(SecondaryWeaponAbilities);
-        Result.Append(SecondaryAugmentStoneAbilities);
     }
 
     return Result;

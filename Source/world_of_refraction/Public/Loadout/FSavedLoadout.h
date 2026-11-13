@@ -234,12 +234,6 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryWeaponAbilities;
 
-    /** Per-loadout override for the augment stone's extra abilities (base = weapon DefaultAbilities).
-     *  Only meaningful when the primary weapon has a augment stone attached. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
-              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
-    TArray<UAbilityData *> PrimaryAugmentStoneAbilities;
-
     /** Evolution spells (player-found world drops with RequiredEvolutionCrystal validation). FSpellRef
      *  pairs each with its owned-instance identity (ii-a); inflation copies .Spell out to the runtime. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
@@ -270,13 +264,6 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> SecondaryWeaponAbilities;
-
-    /** Per-loadout override for the secondary weapon's augment-stone extra abilities
-     *  (base = weapon DefaultAbilities). Generic only; meaningful only when the
-     *  secondary weapon has a augment stone attached. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
-    TArray<UAbilityData *> SecondaryAugmentStoneAbilities;
 
     // ==================== ITEMS ====================
 
