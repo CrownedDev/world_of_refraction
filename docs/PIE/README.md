@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-426](B-426.md) | `fix/B-426-clear-run-gold-all` (in dev, built 2026-11-14) | 2-player: the guest's run Gold is 0 after a run and at the next run's start, like the host's | Pending |
 | [B-432](B-432.md) | `fix/B-432-buy-for-capacity` (in dev, built 2026-11-14) | Buying a weapon or ring for another member checks only the receiver's room, not the buyer's | Pending |
 | [B-427](B-427.md) | `fix/B-427-guest-buy-greyed` (in dev, built 2026-11-14) | 2-player: a guest's shop Confirm and party repair are greyed out with "Only the host can buy for now"; the host buys and repairs as before | Pending |
 | [B-429](B-429.md) | `fix/B-429-refused-item-validate` (in dev, built 2026-11-14) | An item the pouch can't supply is refused before the action is paid; items still work and cost one action | Pending |
