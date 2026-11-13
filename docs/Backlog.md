@@ -635,6 +635,7 @@ Runs alongside the phases above. **Per screen group:** mockup (CC, no editor nee
 | B-107 | Mockup **results + loot + retry** (44–46), then repeat B-102→B-106 for them | CC | M | B-102 | As B-101 | TODO |
 | B-108 | Mockup **pause + settings + confirm dialog** (17, 43, 6, 8), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | TODO |
 | B-109 | Mockup **hub HUD + shop + party** (10–13), then repeat B-102→B-106 | CC | M | B-102 | As B-101 | TODO |
+| B-435 | **Battle HUD refinement** (Crown, 2026-11-13; plan and pieces in `Design/BattleHUDRefinePlan.md`, mockups `screen_mockups/combat/hud/refine_v3f/`): the placeholder battle HUD (B-391) made easier to play: layout, active card, in-world target marker, skill cards on face buttons with kind rows, B always Back, Defend on R1, infusion on L1 with its strip, Shortcuts / Omni D-pad controls. One piece at a time, Crown's PIE review between pieces | CC | L | B-391, B-424 | Every piece in the plan passes Crown's PIE review | IN PROGRESS (feature/battle-hud-refine: piece 1, layout) |
 
 Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109 is approved.
 
