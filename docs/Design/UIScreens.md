@@ -86,7 +86,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 5. [x] After a fight, wipe, run over, run end (`run/run_end`)
 6. [x] Settings (`menus/settings`)
 7. [x] Trial gate (`run/gate`)
-8. [ ] Shop and the vendor services (`hub/vendors`)
+8. [x] Shop and the vendor services (`hub/vendors`)
 9. [ ] Journal (`menus/journal`)
 10. [ ] Party and co-op (`menus/party`, `coop/`)
 11. [ ] Title and save notices (`front/title`)
@@ -164,6 +164,16 @@ One block per mocked screen: the images, why the layout, the references.
 - **Said once, here:** a run is 30–45 minutes, can't be saved, and is left by extracting (pillar 5, D-172); wipes allowed 5 (3 at the boss).
 - X opens Party and Y Loadout without leaving the gate, so a last change doesn't mean walking back.
 
+### 15–18. Vendors (`hub/vendors/`)
+
+- `1_shop_buy.png` (Blacksmith, Buy), `2_jeweler_item_slots.png`, `3_spiritualist_repair.png`, `4_spiritualist_curses.png`.
+- **One shop screen for every vendor; each vendor's services are extra tabs on it** (LB / RB): Blacksmith = Buy, Sell, Dismantle, Merge; Jeweler = Buy, Sell, Item slots; Spiritualist = Buy, Sell, Repair, Curses. So the placeholder service widgets (`UItemSlotUpgradeWidget`, `UCurseClearWidget`) and the console-only repair and merge fold into the vendor who offers them. Dismantle and Merge reuse the inventory's confirm (mock 3).
+  *Ref:* Hades' House Contractor and Elden Ring's Roundtable smith: the service is a tab on the person who does it. Monster Hunter's smithy keeps forge and upgrade on one NPC.
+- **Buy:** stock on the left, the focused item with a compare line ("+14 vs Garrick's sword"), **Buying for ‹ Garrick ›** (D-111 buy-for) and the cart with totals on the right. A row that can't be bought stays visible with its reason ("Garrick already owns one": one copy per character, D-115). Prices are in **Gold** in the hub and **Prisms** in a run (the same screen; D-047: every service also works in runs).
+- **Item slots:** one row per member with 20 pips, the price rising per slot (200 + 100 each, `ItemSlotUpgrade.h:20-23`).
+- **Repair:** the quote is the screen: every worn piece with its wear bar and price, "Repair all" with the total (`GearRepair`'s quote-then-pay). Broken shows in red with what it costs you in a fight.
+- **Curses:** each curse held, who holds it, what it does (the curse's own `Title` and `Description`; placeholders drawn, the words are lore), the price, and the code's line "It is cleared. It may come back."
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -208,6 +218,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 6. **World-stat draft** (#30, pick 3 of 5): nothing listens to it today and levelling now happens at rest spots (B-363). Not mocked; say if it's still wanted.
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
 8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
+9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
 
 ## Changelog
 
