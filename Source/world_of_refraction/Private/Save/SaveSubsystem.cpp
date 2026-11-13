@@ -457,12 +457,46 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	}
 }
 
-bool USaveSubsystem::AdoptCheckpoint()
+bool USaveSubsystem::AdoptCheckpoint(const FString &OldHostKey, const FString &NewHostKey)
 {
-	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME);
+	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME, OldHostKey, NewHostKey);
 }
 
-bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
+void USaveSubsystem::RekeyRunForNewHost(FSavedRun &Run, const FString &OldHostKey, const FString &NewHostKey)
+{
+	if (OldHostKey.IsEmpty() || NewHostKey.IsEmpty() || OldHostKey == NewHostKey)
+	{
+		return;
+	}
+	const FString PlayerSeparator = TEXT("@"); // ATrialMapFeature::GetFeatureIdFor's "<id>@<player key>"
+	const FString NewHostSuffix = PlayerSeparator + NewHostKey;
+	TMap<FName, FText> Rekeyed;
+	int32 OldHostRecords = 0;
+	int32 NewHostRecords = 0;
+	for (const TPair<FName, FText> &Found : Run.FoundFeatures)
+	{
+		const FString Key = Found.Key.ToString();
+		if (!Key.Contains(PlayerSeparator))
+		{
+			Rekeyed.Add(FName(*(Key + PlayerSeparator + OldHostKey)), Found.Value);
+			++OldHostRecords;
+		}
+		else if (Key.EndsWith(NewHostSuffix))
+		{
+			Rekeyed.Add(FName(*Key.LeftChop(NewHostSuffix.Len())), Found.Value);
+			++NewHostRecords;
+		}
+		else
+		{
+			Rekeyed.Add(Found.Key, Found.Value);
+		}
+	}
+	Run.FoundFeatures = MoveTemp(Rekeyed);
+	UE_LOG(LogWoR, Log, TEXT("[Save] Hand-over re-key (B-428): %d of the old host's record(s) kept as theirs, %d of the new host's now plain"),
+		   OldHostRecords, NewHostRecords);
+}
+
+bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName, const FString &OldHostKey, const FString &NewHostKey)
 {
 	UGameInstance *GI = GetGameInstance();
 	const ULocalPlayer *Local = GI ? GI->GetFirstGamePlayer() : nullptr;
@@ -505,6 +539,7 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 	bPlayingHostCopy = true;
 	AdoptedSlotName = SlotName;
 	AdoptedUpgradeMemory = Copy->Data.Pool.UpgradeMemory; // B-234d review: what the run raises is told apart from this
+	RekeyRunForNewHost(Copy->Data.Run, OldHostKey, NewHostKey); // B-428 (a)
 	PendingRun = Copy->Data.Run;
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
 	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
