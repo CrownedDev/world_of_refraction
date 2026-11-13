@@ -612,6 +612,11 @@ TArray<FVisibleQuest> UHiddenQuestSubsystem::GetVisibleQuests()
 		Row.bFinished = Entry.Value.bFinished;
 		Row.FoundOrder = Entry.Value.FoundOrder;
 		Row.Goal = Row.bFinished ? FText::GetEmpty() : Quest->GetGoalAfter(Entry.Value.StepsDone);
+		const int32 StepsReached = Quest->IsVisible() ? FMath::Min(Entry.Value.StepsDone, Quest->Steps.Num()) : 0;
+		for (int32 StepIndex = 0; StepIndex < StepsReached; ++StepIndex)
+		{
+			Row.DoneGoals.Add(Quest->Steps[StepIndex].Goal);
+		}
 	}
 	Out.Sort([](const FVisibleQuest &A, const FVisibleQuest &B)
 	{
