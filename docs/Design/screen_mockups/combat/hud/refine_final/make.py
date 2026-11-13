@@ -12,6 +12,9 @@ F = v.F
 GLYPH = {"Y": (240, 200, 70), "X": (90, 140, 240), "A": (110, 200, 110)}
 STEELY, VOID = (150, 160, 175), (166, 75, 240)
 ROSE_LOW, BG = (255, 143, 180), (16, 18, 25)
+# HP and EP bars: a darker red and a darker blue, so the white value reads clearly (white on each is over 5:1);
+# low HP is a hotter pink-red (apart from Burn's orange). Same colours as the menu mockups' kit.
+BAR = {v.ROSE: (168, 36, 60), ROSE_LOW: (214, 48, 96), v.EP: (36, 92, 170)}
 GARRICK = ("Garrick", "Generic:", (("Sera", .22, "18/84"), ("Bram", .9, "87/97")))
 BRAM = ("Bram", "Resonator:", (("Garrick", .8, "67/84"), ("Sera", .22, "18/84")))
 SKILL_HINTS = ["D-pad up/down  More skills", "Y / X / A  Use skill", "R1  Defend      B  Back"]
@@ -20,8 +23,9 @@ SKILL_HINTS = ["D-pad up/down  More skills", "Y / X / A  Use skill", "R1  Defend
 def vbar(d, x, y, w, h, frac, col, text=None, ghost=0.0, ghost_col=None, size=17):
     """A bar with its value centred inside. ghost < 0: the chunk a hit would remove (drawn at the end of the fill);
     ghost > 0: what it would add (drawn after the fill). In game the ghost pulses."""
+    col = BAR.get(col, col)
     d.rectangle((x, y, x + w, y + h), fill=(42, 45, 53))
-    keep = max(0.0, frac + min(ghost, 0.0))
+    keep =max(0.0, frac + min(ghost, 0.0))
     d.rectangle((x, y, x + int(w * keep), y + h), fill=col)
     if ghost:
         a, b = (keep, frac) if ghost < 0 else (frac, min(1.0, frac + ghost))
