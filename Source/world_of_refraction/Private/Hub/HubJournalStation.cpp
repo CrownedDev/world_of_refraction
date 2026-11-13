@@ -18,6 +18,11 @@ void AHubJournalStation::Interact(APawn *Pawn)
 	}
 }
 
+FInteractPrompt AHubJournalStation::GetPrompt() const
+{
+	return FInteractPrompt(EInteractVerb::Open, LOCTEXT("JournalPromptName", "Journal"));
+}
+
 FString AHubJournalStation::GetHintText() const
 {
 	return LOCTEXT("JournalHint", "Press E: memory journal, V, conversations").ToString();

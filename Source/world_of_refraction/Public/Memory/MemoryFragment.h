@@ -20,6 +20,7 @@ public:
 	AMemoryFragment();
 
 	virtual void Interact(APawn *Pawn) override;
+	virtual FInteractPrompt GetPrompt() const override;
 
 	UMemoryData *GetMemory() const { return Memory; }
 

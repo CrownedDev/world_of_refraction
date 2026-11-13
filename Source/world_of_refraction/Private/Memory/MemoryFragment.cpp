@@ -70,6 +70,11 @@ void AMemoryFragment::Interact(APawn * /*Pawn*/)
 	RemoveFromMap();
 }
 
+FInteractPrompt AMemoryFragment::GetPrompt() const
+{
+	return IsTaken() ? FInteractPrompt() : FInteractPrompt(EInteractVerb::PickUp, LOCTEXT("FragmentPromptName", "Memory fragment"));
+}
+
 FString AMemoryFragment::GetHintText() const
 {
 	return IsTaken()
