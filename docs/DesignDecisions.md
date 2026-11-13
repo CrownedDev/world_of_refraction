@@ -552,13 +552,14 @@ The queue of questions only Crown can answer.
 **Answer: Crown, 2026-11-12:** all six kept, with one change: the cue text is **"Negated", not "Absorbed"** ("Absorbed" reads as Broken Darkness's energy absorption); **on by default**. `LOCTEXT("Negated", "Negated")` in `DamageNumberView::GetNegatedLabel`; the code names follow the word (`EDamageNumberTier::Negated`, `SHOW_NEGATED_CUE`, `NEGATED_SCALE`, `IsNegatedHit`, `MakeNegatedStyle`).
 
 ### Q-435 — Same-element stacking: spells too, or abilities and attacks only?
-**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-14 (B-435, cloud) · **Blocks:** —
+**Status:** ANSWERED (Crown, 2026-11-14; replaces the reference-backed default A) · **Raised:** 2026-11-14 (B-435, cloud) · **Blocks:** —
 **Question:** D-174 says "an infused action uses every same-element source". A spell is origin-bound to one source (`GetAllowedInfusionSourcesForSpell`, D-110), and the battle HUD plan shows a spell's one lit source tab. Should a spell also stack (a free ring or weapon-crystal spell would then pay a stacked innate's full spell EP, and HP at L2)?
 **Context:** `UActionExecutor::ResolveSameElementInfusionSources` (`ActionExecutor.cpp`); cost in `ActionExecutorCosts.cpp`.
 **Options:** **A** abilities and attacks stack; spells keep their one origin source (as built). **B** spells stack too: every same-element source pays its own cost on a spell as well.
 **Recommendation:** A. It keeps this game's own ruling (a spell is bound to where it is slotted, D-110) and the HUD plan's one lit tab. With B, a ring spell that costs 0 EP today would quietly start costing a full innate spell's EP. No outside game was found that settles this exact case, so the recommendation rests on the existing ruling.
-**Answer:** **A**, by the reference-backed default (2026-11-14). Crown may change it (B is one condition in `ResolveSameElementInfusionSources` plus the spell cost paths).
-**Notes for Claude:** built in B-435.
+**Answer:** **B** (Crown, 2026-11-14; replaces the default A): spells stack too, under D-174's rule: a spell stays locked to its origin source's element (adapter, weapon crystal, innate or evolution); every other source the character has with that element joins the cast, each paying its own cost (so a free adapter spell starts costing innate EP when innate shares the element), and each extra source adds +25% buildup, same cap. **Exception:** a Reality or Broken Darkness character may infuse a spell with their own element **or** its source element; whichever they pick, the same stacking applies.
+~~**A**, by the reference-backed default (2026-11-14).~~
+**Notes for Claude:** abilities and attacks built in B-435; spells are **B-435b**.
 
 ### Q-402 — Side-on Defence view: which side, how wide, and what "no shake" covers
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-402, cloud) · **Blocks:** —
@@ -775,6 +776,7 @@ The queue of questions only Crown can answer.
 **Status:** DECIDED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (B-435)
 **Answer (Crown):** when **two or more** of a character's infusion sources share an element (innate, weapon crystal, adapter, evolution), an infused action uses **all of them**. **Each source pays its own cost** (crystal wear for a crystal source; EP for innate / evolution, plus the HP backlash at level II, ED-30 / ED-32). The hit gets **+25% status buildup per extra source**, capped at **+50%** (`// TODO: tune`). The battle UI shows the element **once, marked ×N**.
 **Notes for Claude:** built in **B-435** (rules ED-51). Today an action takes one source (`UActionExecutor::ResolveInfusionSource`); the damage band and size stay the picked level's (only buildup grows). Two named constants: `SAME_ELEMENT_BUILDUP_PER_EXTRA_SOURCE` (0.25) and `SAME_ELEMENT_BUILDUP_BONUS_CAP` (0.50). A Generic (inherit) source counts as the character's element; a broken source gives no element (CL-24), so it doesn't stack.
+**Spells (Crown, 2026-11-14, Q-435 B):** spells stack too: a spell stays locked to its origin source's element (adapter, weapon crystal, innate or evolution); every other source the character has with that element joins the cast, each paying its own cost (so a free adapter spell starts costing innate EP when innate shares the element), and each extra source adds +25% buildup, same cap. **Exception:** a Reality or Broken Darkness character may infuse a spell with their own element **or** its source element; whichever they pick, the same stacking applies. Built in B-435b.
 
 ---
 
