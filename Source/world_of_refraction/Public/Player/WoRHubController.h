@@ -23,6 +23,7 @@ class UCommonActivatableWidget;
 class UInputAction;
 class UWoRRootLayout;
 struct FInputActionValue;
+class UFieldMovementComponent;
 
 /** Which non-combat context this controller is driving.
  *
@@ -99,6 +100,29 @@ protected:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultFieldMovementSkillAction;
 
+	/** B-214g: the field attack (press, release; held past FieldSkillRules::FIELD_ATTACK_HOLD_SECONDS is the held
+	 *  attack). Leave empty to use DefaultFieldAttackAction (IA_Field_Attack). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
+	TObjectPtr<UInputAction> FieldAttackAction;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
+	TSoftObjectPtr<UInputAction> DefaultFieldAttackAction;
+
+	/** B-214g: steps the field attack's source. Leave empty to use DefaultFieldSwitchSourceAction (IA_Field_SwitchSource). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
+	TObjectPtr<UInputAction> FieldSwitchSourceAction;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
+	TSoftObjectPtr<UInputAction> DefaultFieldSwitchSourceAction;
+
+	/** B-214g: fly up (+) / down (-) while flying, a 1D axis. Leave empty to use DefaultFieldFlyVerticalAction
+	 *  (IA_Field_FlyVertical). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
+	TObjectPtr<UInputAction> FieldFlyVerticalAction;
+
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
+	TSoftObjectPtr<UInputAction> DefaultFieldFlyVerticalAction;
+
 	/** B-439: opens the game menu. Leave empty to use DefaultToggleMenuAction. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
 	TObjectPtr<UInputAction> ToggleMenuAction;
@@ -135,6 +159,16 @@ private:
 
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);
+	void HandleFieldAttackStarted(const FInputActionValue &Value);
+	void HandleFieldAttackCompleted(const FInputActionValue &Value);
+	void HandleFieldSwitchSource(const FInputActionValue &Value);
+	void HandleFieldFlyVertical(const FInputActionValue &Value);
+
+	/** The possessed pawn's field movement, or null. */
+	UFieldMovementComponent *GetFieldMovement() const;
+
+	/** B-214g: when the field attack was pressed (its hold). */
+	double FieldAttackPressTime = 0.0;
 	void HandleToggleMenu(const FInputActionValue &Value);
 
 	/** B-214a: gives the field pawn its UFieldMovementComponent (once) and its party record's field skill. */
