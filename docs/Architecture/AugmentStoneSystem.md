@@ -66,7 +66,7 @@ Each stat stone is one row in `StoneRowTable::ROWS` (`Equipment/Crystals/StoneRo
 - `GetStoneBasePercent`: a stone with a row gets the shared curve.
 - `ItemIdentity::GetItemEffectType`: the consumable's item effect.
 
-`UItemExecutor::UseItem` sends every standard row straight to `ApplyStoneBuffEffect`: the ally gets Buff, the enemy Debuff, at the stone curve for `AUGMENT_STONE_CONSUMABLE_DURATION`. ResistanceStone (signed `ModifyStatusResist`) and the gems keep their own handlers. The old per-stone `Execute*BuffEffect` wrappers are unreachable and flagged OBSOLETE, to be deleted after PIE (B-152). Adding a stat stone means a new `ECrystalType`, a new `EItemEffectType` and one row.
+`UItemExecutor::UseItem` sends every standard row straight to `ApplyStoneBuffEffect`: the ally gets Buff, the enemy Debuff, at the stone curve for `AUGMENT_STONE_CONSUMABLE_DURATION`. ResistanceStone (signed `ModifyStatusResist`) and the gems keep their own handlers. The old per-stone `Execute*BuffEffect` wrappers were deleted in B-152. Adding a stat stone means a new `ECrystalType`, a new `EItemEffectType` and one row.
 
 Debug: `wor.Stones.Print` (`UStoneRowDebug`). Tests: `WoR.Items.Stones` (every stone × tier × ally/enemy).
 

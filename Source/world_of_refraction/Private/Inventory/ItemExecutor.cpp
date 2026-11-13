@@ -560,8 +560,8 @@ void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FC
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Amber: buff an ally's defense, or debuff an enemy's. (B-152: the DefenseStone consumable goes through
-	// ApplyStoneBuffEffect from its stone row, B-021, so this is Amber's alone.)
+	// Amber only: buff an ally's defense, or debuff an enemy's. The DefenseStone consumable goes through
+	// ApplyStoneBuffEffect from its stone row.
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -593,8 +593,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 {
 	// Opal (crit pass): ally → a GUARANTEED-CRIT window (force-crit primitive) + a small crit-damage rider;
 	// enemy → STRIP an active guaranteed-crit window (pure dispel — the counter to a self-applied
-	// window, no debuff, no damage). B-152: the CritStone consumable's crit-chance branch went (unreachable since
-	// B-021: CritStone is a standard stone row, BuffCritDamage).
+	// window, no debuff, no damage). Opal only: the CritStone consumable is a standard stone row (BuffCritDamage).
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{

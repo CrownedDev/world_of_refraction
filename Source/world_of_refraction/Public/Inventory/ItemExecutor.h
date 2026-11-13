@@ -150,7 +150,7 @@ private:
 	 *  StoneRowTable row for every standard stat stone (B-021). ResistanceStone (sign-encoded)
 	 *  and the gems keep their own handlers.
 	 *
-	 *  B-152: the per-stone wrappers B-021 made unreachable are gone; every standard stat stone goes through here. */
+	 *  Every standard stat stone goes through here. */
 	void ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,
 							   ESkillEffectType BuffType, ESkillEffectType DebuffType,
 							   const FString &DisplaySuffix, FItemUseResult &OutResult);
@@ -164,7 +164,7 @@ private:
 	/** Amber - Defense buff */
 	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
-	/** Opal - Crit chance buff (+ S-tier reveals) */
+	/** Opal - ally: a guaranteed-crit window plus a small crit-damage rider; enemy: strips an active window */
 	void ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Onyx - Silence */
