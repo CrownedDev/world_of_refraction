@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-214c](B-214c.md) | `feature/B-214c-ground-air-moves-cloud` (cloud, **unbuilt**, carries B-214b) | Field skills part 3: glide (in the air, slow fall), high jump with one double jump per airtime, air dash (Lightning blinks), wall-run during Enhanced Sprint | Pending |
+| [B-214c](B-214c.md) | `feature/B-214c-ground-air-moves` (in dev, built 2026-11-14) | Field skills part 3: glide (in the air, slow fall), high jump with one double jump per airtime, air dash (Lightning blinks), wall-run during Enhanced Sprint | Pending |
 | [B-214b](B-214b.md) | `feature/B-214b-field-unlocks` (in dev, built 2026-11-14) | Field skills part 2: a movement type unlocks for an element when that element's aura spell reaches rank 3 / 7 (account-wide, kept once reached, saved); Enhanced Sprint is now locked until then; the placeholder picker from the party screen (Field skill...) or `wor.UI.FieldSkill`. Editor step: mark an aura spell | Pending |
 | [B-309](B-309.md) | `chore/B-309-old-loadout-path` (in dev, built 2026-11-14) | Unified loadout 9 (D-204): the unused `PrimarySlotCost` is deleted, no play change; one editor step (Find in Blueprints for `Do Weapon Stats Apply`); the old loadout fields are B-309b | Pending |
 | [B-172](B-172.md) | `chore/B-172-delete-legacy-validators` (in dev, built 2026-11-14) | The legacy loadout validators and `wor.Loadout.CompareRules` are deleted (D-204); `wor.Loadout.PrintFindings` prints the live findings instead; one editor step (Find in Blueprints for `Compare Loadout Rules`) | Pending |
