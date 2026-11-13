@@ -106,7 +106,7 @@ TSharedRef<SWidget> UMemoryJournalWidget::RebuildWidget()
 		MemoryJournalBuild::AddRow(Box, TitleText);
 		BodyText = MemoryJournalBuild::MakeText(WidgetTree);
 		MemoryJournalBuild::AddRow(Box, BodyText);
-		// Q-397b: the Reveal buttons (filled per page). This widget is built in C++ and added to the viewport, not
+		// Q-397b, D-198: the Show / Hide buttons (filled per page). This widget is built in C++ and added to the viewport, not
 		// placed in a designer widget, so refilling this box is safe (the TransBuffer gotcha does not apply).
 		RevealBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RevealRows"));
 		MemoryJournalBuild::AddRow(Box, RevealBox);
@@ -157,7 +157,7 @@ void UMemoryJournalWidget::SetPage(const FText &NewTitle, const FText &NewBody)
 	}
 	if (Page != EPage::Quests)
 	{
-		MaskedQuests.Reset(); // Reveal buttons belong to the Quests page only
+		SecretQuests.Reset(); // the Show / Hide buttons belong to the Quests page only
 	}
 	RebuildRevealButtons();
 }
@@ -170,14 +170,16 @@ void UMemoryJournalWidget::RebuildRevealButtons()
 		return;
 	}
 	RevealBox->ClearChildren();
-	for (const FMaskedQuest &Masked : MaskedQuests)
+	for (const FSecretQuestRow &Secret : SecretQuests)
 	{
 		UJournalRevealAction *Action = NewObject<UJournalRevealAction>(this);
-		Action->QuestId = Masked.QuestId;
+		Action->QuestId = Secret.QuestId;
 		Action->Journal = this;
 		RevealActions.Add(Action);
-		MemoryJournalBuild::AddButton(WidgetTree, RevealBox, FText::Format(LOCTEXT("RevealButton", "Reveal {0}"), Masked.MaskedName))
-			->OnClicked.AddDynamic(Action, &UJournalRevealAction::HandleClicked);
+		// D-198: one toggle; its label flips between Show and Hide.
+		const FText Label = Secret.bShown ? FText::Format(LOCTEXT("HideButton", "Hide {0}"), Secret.MaskedName)
+										  : FText::Format(LOCTEXT("ShowButton", "Show {0}"), Secret.MaskedName);
+		MemoryJournalBuild::AddButton(WidgetTree, RevealBox, Label)->OnClicked.AddDynamic(Action, &UJournalRevealAction::HandleClicked);
 	}
 }
 
@@ -185,18 +187,26 @@ void UJournalRevealAction::HandleClicked()
 {
 	if (UMemoryJournalWidget *Widget = Journal.Get())
 	{
-		Widget->RevealQuest(QuestId);
+		Widget->ToggleQuestShown(QuestId);
 	}
 }
 
-bool UMemoryJournalWidget::RevealQuest(FName QuestId)
+bool UMemoryJournalWidget::ToggleQuestShown(FName QuestId)
 {
-	if (!MaskedQuests.ContainsByPredicate([QuestId](const FMaskedQuest &Masked) { return Masked.QuestId == QuestId; }))
+	if (!SecretQuests.ContainsByPredicate([QuestId](const FSecretQuestRow &Secret) { return Secret.QuestId == QuestId; }))
 	{
 		return false;
 	}
-	RevealedQuests.Add(QuestId);
-	UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] %s revealed until the journal closes"), *QuestId.ToString());
+	const bool bNowShown = !RevealedQuests.Contains(QuestId);
+	if (bNowShown)
+	{
+		RevealedQuests.Add(QuestId);
+	}
+	else
+	{
+		RevealedQuests.Remove(QuestId);
+	}
+	UE_LOG(LogWoR, Log, TEXT("[MemoryJournal] %s %s"), *QuestId.ToString(), bNowShown ? TEXT("shown until the journal closes") : TEXT("hidden again"));
 	ShowQuestsPage();
 	return true;
 }
@@ -204,9 +214,12 @@ bool UMemoryJournalWidget::RevealQuest(FName QuestId)
 TArray<FName> UMemoryJournalWidget::GetMaskedQuestIds() const
 {
 	TArray<FName> Ids;
-	for (const FMaskedQuest &Masked : MaskedQuests)
+	for (const FSecretQuestRow &Secret : SecretQuests)
 	{
-		Ids.Add(Masked.QuestId);
+		if (!Secret.bShown)
+		{
+			Ids.Add(Secret.QuestId);
+		}
 	}
 	return Ids;
 }
@@ -344,7 +357,7 @@ void UMemoryJournalWidget::ShowQuestsPage()
 	const UGameInstance *GameInstance = GetGameInstance();
 	UHiddenQuestSubsystem *Quests = GameInstance ? GameInstance->GetSubsystem<UHiddenQuestSubsystem>() : nullptr;
 	const TArray<FVisibleQuest> Visible = Quests ? Quests->GetVisibleQuests() : TArray<FVisibleQuest>();
-	MaskedQuests.Reset();
+	SecretQuests.Reset();
 	if (Visible.IsEmpty())
 	{
 		SetPage(LOCTEXT("QuestsTitle", "Quests"), LOCTEXT("NoQuests", "No quests yet."));
@@ -371,13 +384,17 @@ void UMemoryJournalWidget::ShowQuestsPage()
 	{
 		const FText Kind = WoRGameNames::GetQuestKindName(Quest.Kind); // D-062: a shared game word
 		const int32 *MaskNumber = MaskNumbers.Find(Quest.QuestId);
-		if (MaskNumber && !RevealedQuests.Contains(Quest.QuestId))
+		if (MaskNumber)
 		{
-			const FText MaskedName = FText::Format(LOCTEXT("MaskedQuestName", "Hidden Quest {0}"), FText::AsNumber(*MaskNumber));
-			MaskedQuests.Add({Quest.QuestId, MaskedName});
-			Lines.Add(Quest.bFinished ? FText::Format(LOCTEXT("MaskedQuestDoneRow", "- [{0}] {1}: done"), Kind, MaskedName)
-									  : FText::Format(LOCTEXT("MaskedQuestRow", "- [{0}] {1}: masked"), Kind, MaskedName));
-			continue;
+			const bool bShown = RevealedQuests.Contains(Quest.QuestId);
+			const FText MaskedName = FText::Format(LOCTEXT("MaskedQuestName", "Secret Quest {0}"), FText::AsNumber(*MaskNumber)); // D-196
+			SecretQuests.Add({Quest.QuestId, MaskedName, bShown});
+			if (!bShown)
+			{
+				Lines.Add(Quest.bFinished ? FText::Format(LOCTEXT("MaskedQuestDoneRow", "- [{0}] {1}: done"), Kind, MaskedName)
+										  : FText::Format(LOCTEXT("MaskedQuestRow", "- [{0}] {1}: masked"), Kind, MaskedName));
+				continue;
+			}
 		}
 		Lines.Add(Quest.bFinished ? FText::Format(LOCTEXT("QuestDoneRow", "- [{0}] {1}: done"), Kind, Quest.Title)
 								  : FText::Format(LOCTEXT("QuestRow", "- [{0}] {1}: {2}"), Kind, Quest.Title, Quest.Goal));
@@ -415,7 +432,7 @@ void UMemoryJournalWidget::HandleCloseClicked()
 void UMemoryJournalWidget::Close()
 {
 	RevealedQuests.Reset(); // Q-397b: masked again next time (a spoiler tag)
-	MaskedQuests.Reset();
+	SecretQuests.Reset();
 	RebuildRevealButtons();
 	if (APlayerController *PC = GetOwningPlayer())
 	{
