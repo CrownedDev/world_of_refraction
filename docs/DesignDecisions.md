@@ -796,6 +796,27 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-199 — Quests show only the steps you have reached
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the journal mockup is redrawn first)
+**Answer (Crown):** (part of UIScreens question 10) a quest shows **only the steps you have reached**. Later steps are **not shown at all** (no "…"). This applies to **Main and Side quests**, as it already does to secret quests (D-171).
+**Notes for Claude:** the journal screen's job builds it so. No build job yet.
+
+---
+
+### D-198 — Secret quests: no "only you see this"; one Show / Hide toggle on X
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-457 (the placeholder journal's texts)
+**Answer (Crown):** (changes Q-397b's reveal) a secret quest has **no "only you see this" line**. Showing and hiding it is **one toggle on X**; its hint flips between **"Show"** and **"Hide"**. **A stays Select.**
+**Notes for Claude:** the journal screen gets the X toggle and its `InputMap.md` row when it is built; B-457 changes the placeholder journal's words.
+
+---
+
+### D-197 — Bar values are plain white text, no backing box
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the battle HUD's bars: the UI Designer's)
+**Answer (Crown):** (changes D-185's "on a dark backing") the numbers inside HP and EP bars are **plain white text with no dark backing box**. It applies to the built battle HUD too.
+**Notes for Claude:** done for the menu screens (`WoRMenuStyle::MakeBarWithValue`); the bars are the darker red and blue of D-194 so white reads, and a low HP bar is a brighter red white still reads on. The battle HUD's bars are on the UI Designer's branch: tell its owner.
+
+---
+
 ### D-196 — "Hidden quest" is "Secret quest" to the player
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-457
 **Answer (Crown):** the player-facing name **"Hidden quest" becomes "Secret quest"**. Text only: the code names can stay.
