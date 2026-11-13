@@ -130,6 +130,11 @@ int32 APrismDropPickup::CountIn(const UWorld *World)
 	return Count;
 }
 
+FInteractPrompt APrismDropPickup::GetPrompt() const
+{
+	return FInteractPrompt(EInteractVerb::PickUp, WoRGameNames::GetCurrencyName(ECurrencyType::Gold)); // shown as Prisms (D-159)
+}
+
 FString APrismDropPickup::GetHintText() const
 {
 	const UTrialRunSubsystem *Run = GetTrialRun();

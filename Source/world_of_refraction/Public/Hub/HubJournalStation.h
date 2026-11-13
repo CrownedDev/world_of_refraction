@@ -15,6 +15,7 @@ class WORLD_OF_REFRACTION_API AHubJournalStation : public ATrialMapFeature
 
 public:
 	virtual void Interact(APawn *Pawn) override;
+	virtual FInteractPrompt GetPrompt() const override;
 
 protected:
 	virtual FString GetHintText() const override;

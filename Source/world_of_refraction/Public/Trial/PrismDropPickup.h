@@ -22,6 +22,7 @@ public:
 	APrismDropPickup();
 
 	virtual void Interact(APawn *Pawn) override;
+	virtual FInteractPrompt GetPrompt() const override;
 
 	/** Takes Pawn's player's own drop into their wallet (B-235; null: the local player's, as before) and removes the
 	 *  pickup once no player's drop is left. False when there was nothing of theirs to take. */
