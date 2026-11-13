@@ -331,7 +331,7 @@ void UPauseMenuWidget::RefreshData()
 		Card.Tier->SetText(Member.Tier.IsEmpty() ? FText::GetEmpty() : FText::Format(LOCTEXT("TierBesideName", "({0})"), Member.Tier));
 		Card.ClassLine->SetText(Member.ClassLine);
 		Card.HPBar->SetPercent(HPFraction);
-		Card.HPBar->SetFillColorAndOpacity(HPFraction < PauseMenuStyle::LowHPFraction ? PauseMenuStyle::LowHPColor : PauseMenuStyle::HPColor);
+		Card.HPBar->SetFillColorAndOpacity(HPFraction < PauseMenuStyle::LowHPFraction ? PauseMenuStyle::LowHPBarColor : PauseMenuStyle::HPColor);
 		Card.HPValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Member.HP), FText::AsNumber(Member.MaxHP)));
 		Card.EPBar->SetPercent(Member.MaxEP > 0 ? static_cast<float>(Member.EP) / Member.MaxEP : 0.0f);
 		Card.EPValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Member.EP), FText::AsNumber(Member.MaxEP)));
