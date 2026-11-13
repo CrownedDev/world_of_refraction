@@ -11,6 +11,7 @@
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "Party/PartySessionSubsystem.h"
+#include "UI/Menus/PauseMenuWidget.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -98,6 +99,33 @@ void AWoRHubController::SetupInputComponent()
 			   TEXT("[WoRHubController] No field movement skill action yet (B-214g makes IA_Field_MovementSkill); "
 					"wor.Field.Activate stands in"));
 	}
+
+	if (!ToggleMenuAction && !DefaultToggleMenuAction.IsNull())
+	{
+		ToggleMenuAction = DefaultToggleMenuAction.LoadSynchronous();
+	}
+	if (ToggleMenuAction)
+	{
+		EnhancedInput->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &AWoRHubController::HandleToggleMenu);
+	}
+	else
+	{
+		UE_LOG(LogWoR, Warning,
+			   TEXT("[WoRHubController] No menu action: set DefaultToggleMenuAction in Config/DefaultGame.ini (now '%s'); "
+					"wor.UI.Pause stands in (B-439)"),
+			   *DefaultToggleMenuAction.ToString());
+	}
+}
+
+void AWoRHubController::HandleToggleMenu(const FInputActionValue & /*Value*/)
+{
+	OpenGameMenu();
+}
+
+void AWoRHubController::OpenGameMenu()
+{
+	// Opening only: with the menu up, game input is off, so the menu's own Back / Menu key closes it.
+	UPauseMenuWidget::Open(this);
 }
 
 void AWoRHubController::OnPossess(APawn *InPawn)
