@@ -459,6 +459,19 @@ The queue of questions only Crown can answer.
 **Answer:** **A, A**, by the reference-backed default (2026-11-13). Replaces Q-214d's `IA_Field_FlyUp` / `IA_Field_FlyDown` note and Q-214f(3)'s "the asset's hold trigger".
 **Notes for Claude:** built in B-214g (`AWoRHubController`). Space is also `IA_Field_Jump` (proposed): a jump does nothing in Flying mode, so both firing is harmless.
 
+### Q-214h — Field skills part 8: what an evolution's movement bonus and augment are
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-13; Crown vetoes) · **Raised:** 2026-11-13 (B-214h, cloud) · **Blocks:** —
+**Question:** (1) Which evolution counts? (2) How big is the always-on bonus? (3) What is "its augment of the field skill"? (4) A broken evolution?
+**Context:** FieldAbilities choice 2 (Crown, 2026-10-27): evolutions give both a small always-on movement bonus (+10-20% sprint, `// TODO: tune`) and an augment of the active movement skill; Kingdom Hearts 2's forms. Choice 4: "an evolution might give unlimited flight".
+**Options / as built:**
+- (1) **A** the evolution on the character's own slot (`GetCharacterSlotEvolution`, the one that counts as the character's, B-357e).
+- (2) **A** +15% sprint by default, per evolution asset (`FieldSprintBonusPercent`, 0-100).
+- (3) **A** two parts, per evolution asset: the field skill's EP costs less (25% by default, each cost at least 1; Enhanced Sprint's drain and every move and flight), and flight limits it lifts (`FieldFlightLimits`: unlimited flight, no ceiling, no-fly ignored, extra ceiling; none by default). **B** a new movement type per evolution.
+- (4) **A** a broken evolution gives nothing (as its other passives).
+**Recommendation:** A, A, A, A. Kingdom Hearts 2's forms level "growth abilities" that make the movement you already have better everywhere (Quick Run, High Jump, Aerial Dodge, Glide), not new buttons; a cheaper field skill and lifted flight limits are that for this game, and the ruling names unlimited flight. +15% is the middle of Crown's +10-20%.
+**Answer:** **A, A, A, A**, by the reference-backed default (2026-11-13). **Every existing evolution asset now gives +15% sprint and -25% field EP** (the defaults); Crown changes them per asset.
+**Notes for Claude:** built in B-214h (`UEvolutionItemData` Field fields, `UFieldMovementComponent::GetSeatedEvolution` / `GetFieldEPCost` / `GetEffectiveFlightLimits`, `FieldSkillRules::GetEvolutionSprintMultiplier` / `ApplyFieldEPDiscount` / `CombineFlightLimits`). The start checks still ask for the full EP (a discounted move can be refused when the discounted cost is affordable but the full one isn't); the bonus reaches the sprint the next time the pawn starts sprinting.
+
 ### Q-233b — Sessions part 2: when a friend can drop in, what happens when one leaves, and invites before EOS
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-12; Crown vetoes) · **Raised:** 2026-11-12 (B-233b) · **Blocks:** —
 **Question:** (1) Mid-run, when can the host seat a friend who joined? (2) What happens to a friend's character when it leaves (quits or loses its connection), in and out of a fight, and if it comes back? (3) How are friends invited before EOS exists?
