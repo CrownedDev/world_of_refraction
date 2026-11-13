@@ -79,8 +79,8 @@ namespace PoolAccessors
 
     EItemBucket GetBucket(const FCrystalId &Id)
     {
-        // Locked 2-bucket split: gems are Crystal; everything non-gem (stat stones +
-        // AbilityStone) folds into AugmentStone.
+        // Locked 2-bucket split: gems are Crystal; everything non-gem (the stones)
+        // folds into AugmentStone.
         return CrystalTypeHelpers::IsGemType(Id.Type) ? EItemBucket::Crystal : EItemBucket::AugmentStone;
     }
 

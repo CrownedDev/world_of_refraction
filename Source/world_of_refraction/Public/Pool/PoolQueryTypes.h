@@ -24,7 +24,7 @@
  * EItemBucket — the locked 2-bucket BROWSE classification for the Items category. A
  * presentation grouping over the one crystal pile (storage stays the two TMaps — this is
  * NOT a storage split). Classified from ECrystalType via CrystalTypeHelpers: gems → Crystal;
- * everything non-gem (stat stones + AbilityStone) → AugmentStone (Ability folds in here).
+ * everything non-gem (the stones) → AugmentStone.
  */
 UENUM(BlueprintType)
 enum class EItemBucket : uint8
