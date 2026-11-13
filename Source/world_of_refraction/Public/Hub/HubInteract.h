@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Hub/InteractPrompt.h"
 
 class APawn;
 
@@ -18,6 +19,11 @@ namespace HubInteract
         FString Label;
         float DistSquared = TNumericLimits<float>::Max();
         TFunction<void()> Interact;
+        /** B-443: what the floating prompt says (None: no prompt), where the thing stands, and whether it is a
+         *  vendor (the hub HUD shows the money near one). */
+        FInteractPrompt Prompt;
+        FVector Location = FVector::ZeroVector;
+        bool bVendor = false;
     };
 
     /** Every interactable in range of the pawn, nearest first. Empty without a pawn. */

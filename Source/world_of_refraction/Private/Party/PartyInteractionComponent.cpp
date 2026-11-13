@@ -223,6 +223,18 @@ UPartySessionSubsystem *UPartyInteractionComponent::GetPartySession() const
 	return GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 }
 
+FInteractPrompt UPartyInteractionComponent::GetPrompt() const
+{
+	UCharacterData *OwnerData = GetOwnerCharacterData();
+	if (!OwnerData)
+	{
+		return FInteractPrompt();
+	}
+	const UPartySessionSubsystem *PartySession = GetPartySession();
+	const bool bIsMember = PartySession && PartySession->GetMemberSlotByData(OwnerData) != INDEX_NONE;
+	return FInteractPrompt(bIsMember ? EInteractVerb::Dismiss : EInteractVerb::Invite, FText::FromString(OwnerData->Name));
+}
+
 FString UPartyInteractionComponent::GetHintText() const
 {
 	UCharacterData *OwnerData = GetOwnerCharacterData();

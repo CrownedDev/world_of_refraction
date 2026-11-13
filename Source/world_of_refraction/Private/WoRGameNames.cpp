@@ -8,6 +8,7 @@
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
 #include "Equipment/Crystals/CrystalType.h"
+#include "Hub/InteractPrompt.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
 #include "Inventory/ItemTier.h"
@@ -685,6 +686,36 @@ FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)
     case EWeaponWieldMode::OffHandShield:
         return LOCTEXT("EWeaponWieldMode_OffHandShield", "with shield");
     case EWeaponWieldMode::Single:
+    default:
+        return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetInteractVerbName(EInteractVerb Verb)
+{
+    switch (Verb)
+    {
+    case EInteractVerb::Talk:
+        return LOCTEXT("EInteractVerb_Talk", "Talk");
+    case EInteractVerb::Enter:
+        return LOCTEXT("EInteractVerb_Enter", "Enter");
+    case EInteractVerb::Return:
+        return LOCTEXT("EInteractVerb_Return", "Return");
+    case EInteractVerb::Invite:
+        return LOCTEXT("EInteractVerb_Invite", "Invite");
+    case EInteractVerb::Dismiss:
+        return LOCTEXT("EInteractVerb_Dismiss", "Dismiss");
+    case EInteractVerb::Open:
+        return LOCTEXT("EInteractVerb_Open", "Open");
+    case EInteractVerb::Read:
+        return LOCTEXT("EInteractVerb_Read", "Read");
+    case EInteractVerb::Challenge:
+        return LOCTEXT("EInteractVerb_Challenge", "Challenge");
+    case EInteractVerb::PickUp:
+        return LOCTEXT("EInteractVerb_PickUp", "Pick up");
+    case EInteractVerb::Rest:
+        return LOCTEXT("EInteractVerb_Rest", "Rest");
+    case EInteractVerb::None:
     default:
         return FText::GetEmpty();
     }

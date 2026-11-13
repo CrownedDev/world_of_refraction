@@ -19,6 +19,7 @@
 
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
+#include "Hub/InteractPrompt.h"
 #include "PartyInteractionComponent.generated.h"
 
 class UCharacterData;
@@ -68,6 +69,9 @@ public:
 	 *  the trigger sphere itself, no distance parameter. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	static UPartyInteractionComponent *FindNearestInRange(APawn *Pawn);
+
+	/** B-443: the floating prompt: "Invite" or "Dismiss" and the character's name; None without character data. */
+	FInteractPrompt GetPrompt() const;
 
 	/** True while a player pawn stands inside the interaction trigger. */
 	UFUNCTION(BlueprintPure, Category = "Party")

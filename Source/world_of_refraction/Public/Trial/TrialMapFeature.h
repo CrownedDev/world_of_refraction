@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "AI/EAIDifficulty.h"
 #include "GameFramework/Actor.h"
+#include "Hub/InteractPrompt.h"
 #include "GameplayTagContainer.h"
 #include "TrialMapFeature.generated.h"
 
@@ -27,6 +28,10 @@ public:
 
 	/** Use the feature (the controller's interact key). */
 	virtual void Interact(APawn *Pawn) PURE_VIRTUAL(ATrialMapFeature::Interact, );
+
+	/** B-443: what the floating prompt says while the player stands in range. None by default: a feature says
+	 *  nothing unless it means to (a memory spot stays unannounced). */
+	virtual FInteractPrompt GetPrompt() const { return FInteractPrompt(); }
 
 	/** The nearest feature whose trigger Pawn stands in, or null. */
 	static ATrialMapFeature *FindNearestInRange(APawn *Pawn);
@@ -92,9 +97,13 @@ class WORLD_OF_REFRACTION_API ATrialChest : public ATrialMapFeature
 
 public:
 	virtual void Interact(APawn *Pawn) override;
+	virtual FInteractPrompt GetPrompt() const override;
 
 	/** The pool this chest rolls: its own when set, else the zone it stands in (AEnemyZone). */
 	FGameplayTag GetLootPool() const;
+
+	/** This machine's player has opened it this run (a client reads its own copy's record). */
+	bool IsOpenedForLocalPlayer() const;
 
 protected:
 	virtual FString GetHintText() const override;
@@ -114,6 +123,7 @@ public:
 	ATrialLoreObject();
 
 	virtual void Interact(APawn *Pawn) override;
+	virtual FInteractPrompt GetPrompt() const override;
 
 protected:
 	virtual FString GetHintText() const override;
@@ -135,6 +145,7 @@ class WORLD_OF_REFRACTION_API ABossArenaTrigger : public ATrialMapFeature
 
 public:
 	virtual void Interact(APawn *Pawn) override;
+	virtual FInteractPrompt GetPrompt() const override;
 
 	/** The boss this arena fights now, or null. */
 	UCharacterData *GetBoss() const;

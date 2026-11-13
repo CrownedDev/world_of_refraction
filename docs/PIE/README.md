@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-443](B-443.md) | `feature/B-443-hub-hud` (in dev, built 2026-11-14) | The hub HUD (D-181): a floating interact prompt (key, verb, what) above what you face, and the money top right only near a vendor or just after it changed. Hub and trial map | Pending |
 | [B-442](B-442.md) | `feature/B-442-character-sheet` (in dev, built 2026-11-14) | The character sheet (D-181), from the game menu's Character page: HP and EP in their bars, Max Actions, curses; the pillars with their sub-stats; resistance by damage type as bars from the middle. Read only | Pending |
 | [B-440a](B-440a.md) | `feature/B-440-loadout-screen` (in dev, built 2026-11-14) | The loadout screen, piece 1 (D-181): the gear page, read only: character tabs, budget pips, a row per weapon, adapter and apparel piece with its sockets and cost, the detail panel with the cost sum. Opens from the game menu's Loadout page | Pending |
 | [B-439](B-439.md) | `feature/B-439-pause-menu` (in dev, built 2026-11-14) | The game menu on the Menu button, hub and trial map (D-181): the place and its money, eight pages, the party, a side panel; Inventory, Party and Journal open their old placeholders; Quit asks, then a 2 second hold, and a quit run loses everything (D-176). Editor step first: delete the Blueprint's `IA_ToggleMenu` nodes | Pending |

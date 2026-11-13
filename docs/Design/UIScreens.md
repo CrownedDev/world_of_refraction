@@ -43,7 +43,7 @@
 
 | # | Screen | What the player does | Code it talks to | Today | Pri |
 |---|---|---|---|---|---|
-| 14 | **Hub HUD and interact prompt** | Gold / currencies on change, party strip, "E Talk / Rest / Enter" prompt | `UCurrencyComponent::OnCurrencyChanged` `Public/Currency/CurrencyComponent.h:118`; `UPartyDisplayWidget` | Party strip Real; prompts are debug text | P2 |
+| 14 | **Hub HUD and interact prompt** | Gold / currencies on change, party strip, "E Talk / Rest / Enter" prompt | `UCurrencyComponent::OnCurrencyChanged` `Public/Currency/CurrencyComponent.h:118`; `UPartyDisplayWidget` | Party strip Real; prompt and money chip Real, C++ (B-443): `UHubHUDWidget` `Public/UI/Hub/HubHUDWidget.h`; waits for Crown's PIE pass (the old debug hints stay until then) | P2 |
 | 15 | **Shop (every vendor)** | Buy (for yourself or another member, D-111), sell, cart; the vendor's tabs add its services | `UMerchantShopSubsystem::OpenForMerchant` `Public/Shop/MerchantShopSubsystem.h:36`; `UEconomyService::Purchase` / `PurchaseFor` `Public/Currency/EconomyService.h:262-273`; vendors `EMerchantType` `Public/Merchant/MerchantData.h:26-35` | Real `UShopWindowWidget` `Public/UI/Shop/ShopWindowWidget.h:54` (old UMG modal, not CommonUI) | P2 |
 | 16 | **Blacksmith services** | Weapons and augment stones (Stone Smith merged in, D-173): dismantle, merge | `DismantleWeapon` `EconomyService.h:151`; `MergeCrystals` :141 | Console (`wor.Economy.Merge`) | P2 |
 | 17 | **Jeweler services** | Adapters; **buy item slots** (+1 pouch slot per character) | `ItemSlotUpgrade::TryBuy` `Public/Inventory/ItemSlotUpgrade.h:40` | Placeholder `UItemSlotUpgradeWidget` `Public/UI/Hub/ItemSlotUpgradeWidget.h:21` (`wor.UI.ItemSlots`) | P2 |
@@ -192,6 +192,7 @@ One block per mocked screen: the images, why the layout, the references.
 - **Pages:** Quests, Memories, Lore, Conversations (the placeholder's four, HubAndStory §4). "Talk to V" is not a journal page here: V is someone you talk to in the hub (#20).
 - **Quests:** one list with the kind on each row in the code's words and colours (Main gold, Side grey, Hidden violet), a filter row, and the steps on the right: done ones ticked, the current one lit. A lets you **track** one quest; its step shows on the trial HUD and the pause menu.
   *Ref:* The Witcher 3's and Expedition 33's journals (list left, steps right, one tracked quest).
+- **Changed by Crown (2026-11-13, D-196, D-198, D-199):** the player-facing name is **"Secret quest"**. A secret quest has **no "only you see this" line**. Showing and hiding it is **one toggle on X** whose hint flips between **"Show"** and **"Hide"**; A stays Select. **Every quest (Main and Side too) shows only the steps you have reached**: later steps are not shown at all, not even as "…". The journal images are redrawn to match; the notes below describe the first draft.
 - **Hidden quests follow D-171 and Q-397b exactly:** never listed until found; then listed as "Hidden Quest 2", **masked until you press A to reveal** (so a shared screen or stream doesn't spoil it), X masks it again; revealed, it shows **only the current step**: no later steps, no reward, "only you see this". *Ref:* Shangri-La Frontier's Unique Scenarios (Crown's model); Elden Ring's "no quest log" secrecy for the unfound part.
 - **Memories:** by character (LT / RT), newest first with a NEW mark, a replay window and the text; unfound memories are not listed and not counted ("3 found", never "3 of 12": pillar 10).
 - **Rewards stay hidden until earned** on every quest kind ("Shown when the quest is done").
@@ -311,7 +312,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
    **Partly answered (Crown, 2026-11-13, D-191):** a locked trial shows as "???" with its unlock condition; no boss name on the gate; the word is "Trial". The trial names and lines stay Crown's.
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
    **Answered (Crown, 2026-11-13, D-177):** vendors **do buy items** (Sell). Dismantle and Convert-to-gold are not in the inventory; they happen only at the relevant vendor. The inventory's verbs are Give, Store, Take.
-10. **Journal words** (#6, lore): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
+10. **Journal words** (#6, lore) (**partly answered, D-199:** quests show only the steps reached, nothing for later ones; the titles and texts stay Crown's): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
 11. **Title and loading words** (#9, #12, lore): the logo and key art, and which descriptions appear on loading screens (any item or character, or only ones you've met?).
 12. **New game** (#11, lore): the choice itself is decided (Manny or Quinn, and class; `CharacterForms.md`). How it's presented isn't mocked: it is the opening scene (HubAndStory §4), yours.
 15. **Forms list** (#19, lore): do characters you haven't met show as "???" (as drawn) or not at all? And the form names shown are placeholders.
@@ -332,7 +333,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Loadout and skills | 2, 3 | `menus/loadout` | B-440 (piece B-440a built, in dev; `PIE/B-440a.md`) | Stone socket stays, two equal weapon slots (D-180) |
 | Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177); Take is listed only at storage (D-195) |
 | Character sheet | 5 | `menus/character` | B-442 (built, in dev; `PIE/B-442.md`) | The fight's own numbers (Q-442) |
-| Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 | |
+| Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 (built, in dev; `PIE/B-443.md`) | |
 | Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456 (after B-445) | One shop screen, services as tabs; who does what: D-193 |
 | Settings | 8 | `menus/settings` | B-452 (the screen), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
@@ -361,6 +362,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | The hub HUD's prompt and money chip are built (B-443). Crown: bar values are plain white, no backing (D-197); secret quests: no "only you see this", one Show / Hide toggle on X (D-198); quests show only the steps reached (D-199) | feature/B-443-hub-hud |
 | 2026-11-14 | The character sheet is built (B-442). Crown: Take is listed only at storage (D-195); HP and EP bars darker (D-194); "Hidden quest" reads "Secret quest" (D-196) | feature/B-442-character-sheet |
 | 2026-11-14 | Vendors approved (D-193): one shop screen with service tabs; who dismantles what; dismantling hub-only; Merge at the Spiritualist | feature/B-442-character-sheet |
 | 2026-11-14 | The Gate (D-191, D-192): "Trial" not "Variation", a vertical list, "???" with the unlock condition, no boss names, no AI level text; one hub gate, every gate open to everyone | docs/ui-screens-answers-4 |

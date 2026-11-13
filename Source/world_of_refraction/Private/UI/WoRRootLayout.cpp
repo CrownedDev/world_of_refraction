@@ -5,6 +5,7 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "CommonActivatableWidget.h"
 #include "Input/CommonUIActionRouterBase.h"
+#include "UI/Hub/HubHUDWidget.h"
 #include "UI/Party/PartyDisplayWidget.h"
 #include "WoRLog.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
@@ -123,12 +124,16 @@ void UWoRRootLayout::SetPartyStripHidden(bool bHidden)
 	{
 		return;
 	}
-	TArray<UUserWidget *> Strips;
-	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, Strips, UPartyDisplayWidget::StaticClass(), /*TopLevelOnly=*/false);
-	for (UUserWidget *Strip : Strips)
+	// The viewport HUD that sits above this layout: the old party strip and the hub HUD (B-443).
+	for (const TSubclassOf<UUserWidget> HudClass : {TSubclassOf<UUserWidget>(UPartyDisplayWidget::StaticClass()), TSubclassOf<UUserWidget>(UHubHUDWidget::StaticClass())})
 	{
-		HiddenStrips.Emplace(Strip, Strip->GetVisibility());
-		Strip->SetVisibility(ESlateVisibility::Collapsed);
+		TArray<UUserWidget *> Strips;
+		UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, Strips, HudClass, /*TopLevelOnly=*/false);
+		for (UUserWidget *Strip : Strips)
+		{
+			HiddenStrips.Emplace(Strip, Strip->GetVisibility());
+			Strip->SetVisibility(ESlateVisibility::Collapsed);
+		}
 	}
 }
 

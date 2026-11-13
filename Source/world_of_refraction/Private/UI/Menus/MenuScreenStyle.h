@@ -53,9 +53,10 @@ namespace WoRMenuStyle
 	inline const FLinearColor HPColor = FLinearColor::FromSRGBColor(FColor(168, 36, 60));
 	inline const FLinearColor LowHPColor = FLinearColor::FromSRGBColor(FColor(255, 143, 180));
 	inline const FLinearColor EPColor = FLinearColor::FromSRGBColor(FColor(38, 110, 168));
+	/** An HP bar that is low: a brighter red, still dark enough for the white value on it (D-197). */
+	inline const FLinearColor LowHPBarColor = FLinearColor::FromSRGBColor(FColor(204, 52, 52));
 	inline const FLinearColor WarnColor = FLinearColor::FromSRGBColor(FColor(242, 162, 58));
 	inline const FLinearColor GoodColor = FLinearColor::FromSRGBColor(FColor(110, 200, 110));
-	inline const FLinearColor ValueBackingColor = FLinearColor::FromSRGBColor(FColor(16, 18, 25, 170));
 
 	inline const FName BoldTypeface(TEXT("Bold"));
 
@@ -141,21 +142,17 @@ namespace WoRMenuStyle
 		return BoxSlot;
 	}
 
-	/** A bar with its value centred inside it on a dark backing, as on the battle HUD's cards (D-185). Size it
-	 *  with MakeSized: it must be tall enough for the value (BarWithValueHeight). */
+	/** A bar with its value centred inside it as plain white text, no backing box (D-185, D-197); the bars are
+	 *  dark enough for it to read (D-194). Size it with MakeSized: tall enough for the value (BarWithValueHeight). */
 	inline UWidget *MakeBarWithValue(UWidgetTree *Tree, const FLinearColor &FillColor, UProgressBar *&OutBar, UTextBlock *&OutValue)
 	{
 		OutBar = MakeBar(Tree, FillColor);
-		OutValue = MakeText(Tree, SmallFontSize, TextColor, true);
-		UBorder *Backing = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Backing->SetBrushColor(ValueBackingColor);
-		Backing->SetPadding(FMargin(WordGap, 0.0f));
-		Backing->SetContent(OutValue);
+		OutValue = MakeText(Tree, SmallFontSize, FLinearColor::White, true);
 		UOverlay *BarWithValue = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		BarWithValue->AddChildToOverlay(OutBar)->SetHorizontalAlignment(HAlign_Fill);
-		UOverlaySlot *BackingSlot = BarWithValue->AddChildToOverlay(Backing);
-		BackingSlot->SetHorizontalAlignment(HAlign_Center);
-		BackingSlot->SetVerticalAlignment(VAlign_Center);
+		UOverlaySlot *ValueSlot = BarWithValue->AddChildToOverlay(OutValue);
+		ValueSlot->SetHorizontalAlignment(HAlign_Center);
+		ValueSlot->SetVerticalAlignment(VAlign_Center);
 		return BarWithValue;
 	}
 

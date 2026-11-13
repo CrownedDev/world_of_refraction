@@ -11,6 +11,7 @@
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "Party/PartySessionSubsystem.h"
+#include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
@@ -25,11 +26,25 @@ namespace WoRHubControllerConstants
 	 *  layering deterministic across level loads. Below the existing HUD for now —
 	 *  the strip stays on top until it moves into GameLayer. */
 	constexpr int32 ROOT_LAYOUT_ZORDER = -10;
+
+	/** B-443: with the rest of the viewport HUD (the party strip, ZOrder 0), above the root layout; the layout
+	 *  hides both while a menu screen is up. */
+	constexpr int32 HUB_HUD_ZORDER = 0;
 }
 
 void AWoRHubController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// B-443: the interact prompt and the money chip, for this machine's player only.
+	if (IsLocalController())
+	{
+		HubHUD = CreateWidget<UHubHUDWidget>(this, UHubHUDWidget::StaticClass());
+		if (HubHUD)
+		{
+			HubHUD->AddToViewport(WoRHubControllerConstants::HUB_HUD_ZORDER);
+		}
+	}
 
 	// Root layout only. The Blueprint's BeginPlay runs after this and still owns
 	// the mapping context and the WBP_PartyDisplay creation. Interact and

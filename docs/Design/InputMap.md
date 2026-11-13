@@ -16,7 +16,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Aim (free aim for field spells / attacks) | Right mouse (hold) | LT (L2) (hold) | `IA_Field_Aim` | Proposed |
 | Field command menu (D-099) | Q | Y (Triangle) | `IA_Field_CommandMenu` | Proposed |
 | Switch field source (innate / weapon / ring) | R | LB (L1) | `IA_Field_SwitchSource` | Proposed (matches combat infusion source) |
-| Interact (doors, merchants, recruits, fragments, rest spots) | E | X (Square) | `IA_Interact` | Built (gamepad key: check editor) |
+| Interact (doors, merchants, recruits, fragments, rest spots; the hub HUD's prompt shows this key, B-443) | E | X (Square) | `IA_Interact` | Built (gamepad key: check editor) |
 | Menu / pause | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439: opens the game menu, see Menus; keys: check editor) |
 | Map | M | View (Touchpad) | `IA_Field_Map` | Proposed |
 | Journal (memories, lore) | J | D-pad Up | `IA_Field_Journal` | Proposed |
@@ -87,3 +87,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-12 | B-129: mapping-context priorities named (`WoRInputPriority`: exploration 0, combat 0, combat menu keys 1) and listed under "Mapping contexts"; no key or priority changes | feature/B-129-input-priorities-cloud |
 | 2026-11-14 | B-439: the game menu opens on `IA_ToggleMenu` (bound in C++); new **Menus** section: move, select, hold to confirm, back, read by the screen itself | feature/B-439-pause-menu |
 | 2026-11-14 | B-440a: previous / next character on LT / RT (Z / C) in the loadout screen, read by the screen itself | feature/B-440-loadout-screen |
+| 2026-11-14 | B-443: the hub HUD prompt shows the Interact key (E / X); no new key | feature/B-443-hub-hud |

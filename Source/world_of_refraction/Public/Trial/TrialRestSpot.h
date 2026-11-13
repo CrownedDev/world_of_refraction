@@ -63,6 +63,7 @@ class WORLD_OF_REFRACTION_API ATrialRestSpot : public ATrialMapFeature
 public:
 	/** Rests the party and opens the rest menu for the pressing player. */
 	virtual void Interact(APawn *Pawn) override;
+	virtual FInteractPrompt GetPrompt() const override { return FInteractPrompt(EInteractVerb::Rest); }
 
 	/** B-187b: a rest spot where the beaten mini-boss EncounterId stood (its id is the encounter's, so the menu can
 	 *  revive it). Null when the spawn fails. */

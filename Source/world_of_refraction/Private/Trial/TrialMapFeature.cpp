@@ -227,7 +227,7 @@ void ATrialChest::Interact(APawn *Pawn)
 	RefreshHint();
 }
 
-FString ATrialChest::GetHintText() const
+bool ATrialChest::IsOpenedForLocalPlayer() const
 {
 	// B-232d: the run state's copy, so a client's hint follows the run. Merge B-232d + B-235c: a client reads its own
 	// copy's key ("<id>@<player key>", as GetFeatureIdFor records it on the host), not the host's.
@@ -237,9 +237,18 @@ FString ATrialChest::GetHintText() const
 	{
 		OwnKey = FName(*FString::Printf(TEXT("%s@%s"), *GetFeatureId().ToString(), *WoRDefeat::PlayerDropKey(LocalPC->PlayerState)));
 	}
-	const bool bOpened = URunStateComponent::HasFoundFeature(this, OwnKey);
-	return (bOpened ? LOCTEXT("ChestOpenedHint", "Opened chest") : LOCTEXT("ChestHint", "Press E to open the chest"))
+	return URunStateComponent::HasFoundFeature(this, OwnKey);
+}
+
+FString ATrialChest::GetHintText() const
+{
+	return (IsOpenedForLocalPlayer() ? LOCTEXT("ChestOpenedHint", "Opened chest") : LOCTEXT("ChestHint", "Press E to open the chest"))
 		.ToString();
+}
+
+FInteractPrompt ATrialChest::GetPrompt() const
+{
+	return IsOpenedForLocalPlayer() ? FInteractPrompt() : FInteractPrompt(EInteractVerb::Open, LOCTEXT("ChestPromptName", "Chest"));
 }
 
 // ==================== LORE ====================
@@ -270,6 +279,11 @@ void ATrialLoreObject::Interact(APawn * /*Pawn*/)
 FString ATrialLoreObject::GetHintText() const
 {
 	return FText::Format(LOCTEXT("LoreHint", "Press E to read: {0}"), Title).ToString();
+}
+
+FInteractPrompt ATrialLoreObject::GetPrompt() const
+{
+	return FInteractPrompt(EInteractVerb::Read, Title);
 }
 
 // ==================== BOSS ARENA ====================
@@ -331,6 +345,15 @@ FString ABossArenaTrigger::GetHintText() const
 	const UCharacterData *Boss = GetBoss();
 	return Boss ? FText::Format(LOCTEXT("BossHint", "Press E to challenge {0} (boss fight)"), FText::FromString(Boss->Name)).ToString()
 				: LOCTEXT("BossMissingHint", "No boss is waiting here").ToString();
+}
+
+FInteractPrompt ABossArenaTrigger::GetPrompt() const
+{
+	const UTrialRunSubsystem *TrialRun = GetTrialRun();
+	const bool bBeaten = TrialRun && TrialRun->IsEncounterBeaten(GetFeatureId());
+	// D-187: no rank word; the opponent's own name says who waits here.
+	const UCharacterData *Boss = GetBoss();
+	return bBeaten || !Boss ? FInteractPrompt() : FInteractPrompt(EInteractVerb::Challenge, FText::FromString(Boss->Name));
 }
 
 #undef LOCTEXT_NAMESPACE
