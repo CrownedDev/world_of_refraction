@@ -9,6 +9,9 @@
 // B-456c: Item slots. The model: a row per member's pouch with the next slot's price, a pouch the wallet can't pay or
 // that is full greyed with the reason. The screen: A asks, the second A buys one slot for the focused member. The
 // purchase's own rules are WoR.Inventory.ItemSlotUpgrade.
+// B-456d: the Spiritualist's Repair, Curses and Merge. Each lists its rows with the price and the service's own
+// refusal; A asks, the second A does it; Repair's X repairs everything; Merge's Left / Right picks the tier. The
+// services' own rules are WoR.Equipment.GearRepair, WoR.Memory.Curse and the crystal merge spec.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -19,7 +22,12 @@
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
+#include "Currency/EconomyYield.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
+#include "Equipment/Durability/GearRepair.h"
+#include "Loadout/CarriedGearState.h"
+#include "Memory/CurseData.h"
+#include "Memory/CurseSubsystem.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
@@ -42,6 +50,10 @@ namespace
 	constexpr int32 VENDOR_SCREEN_SPEAR_ROW = 0;
 	constexpr int32 VENDOR_SCREEN_GEM_ROW = 1;
 	constexpr int32 VENDOR_SCREEN_STOCK_ROWS = 2;
+	/** B-456d: a worn gem's durability, the merge test's F gems (worth one D), and a held curse. */
+	constexpr int32 VENDOR_SCREEN_WORN = 1;
+	constexpr int32 VENDOR_SCREEN_MERGE_F_COUNT = 4;
+	const FName VENDOR_SCREEN_CURSE(TEXT("Curse_VendorScreenSpec"));
 }
 
 BEGIN_DEFINE_SPEC(FVendorScreenSpec, "WoR.UI.VendorScreen", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -192,18 +204,12 @@ void FVendorScreenSpec::Define()
 		{
 			TestFalse(TEXT("every tab is named"), WoRVendorScreen::GetTabName(Tab).IsEmpty());
 		}
-		TestTrue(TEXT("Buy, Sell and Dismantle are built"), WoRVendorScreen::IsBuilt(EVendorScreenTab::Buy) && WoRVendorScreen::IsBuilt(EVendorScreenTab::Sell) &&
-																 WoRVendorScreen::IsBuilt(EVendorScreenTab::Dismantle));
-		TestTrue(TEXT("Item slots is built"), WoRVendorScreen::IsBuilt(EVendorScreenTab::ItemSlots));
-		if (!Inventory) return;
+		// B-456d: every tab D-193 names is built.
 		for (const EVendorScreenTab Tab : Spiritualist)
 		{
-			if (!WoRVendorScreen::IsBuilt(Tab))
-			{
-				const FVendorScreenPage Page = WoRVendorScreen::BuildPage(World(), EMerchantType::Spiritualist, Tab, Key());
-				TestTrue(TEXT("a tab that isn't built lists nothing and says so"), Page.Rows.IsEmpty() && !Page.EmptyNote.IsEmpty());
-			}
+			TestTrue(TEXT("every Spiritualist tab is built"), WoRVendorScreen::IsBuilt(Tab));
 		}
+		TestTrue(TEXT("Item slots is built"), WoRVendorScreen::IsBuilt(EVendorScreenTab::ItemSlots));
 	});
 
 	It("lists what the member can sell with its pay, and the loadout's primary greyed with the reason", [this]()
@@ -441,6 +447,110 @@ void FVendorScreenSpec::Define()
 		TestFalse(TEXT("a pouch the wallet can't pay asks nothing"), Screen->IsConfirming());
 		TestFalse(TEXT("the row is refused"), Screen->GetPage().Rows[0].Refusal.IsEmpty());
 		TestEqual(TEXT("and says why"), Screen->GetStatus().ToString(), Screen->GetPage().Rows[0].Refusal.ToString());
+	});
+
+	It("Repair: lists each worn piece with its price; A asks and the second A repairs it; X asks and the second X repairs the rest", [this]()
+	{
+		if (!Inventory) return;
+		FCarriedGearState &Gear = Party->Members[0].CarriedGear;
+		Gear.bCarried = true;
+		for (const int32 Durability : {VENDOR_SCREEN_WORN, 0})
+		{
+			FCarriedAttachment &Carried = Gear.Attachments.AddDefaulted_GetRef();
+			Carried.Attached.Kind = EAttachedItemKind::Crystal;
+			Carried.Attached.Crystal = FCrystalAttachment(VENDOR_SCREEN_GEM, Durability);
+		}
+		const int32 WornCost = GearRepair::GetRepairCost(Gear.Attachments[0].Attached);
+		const int32 AllCost = GearRepair::GetPartyRepairCost(*Party);
+		Wallet()->Spend(ECurrencyType::Prisms, Money());
+
+		FVendorScreenPage Page = WoRVendorScreen::BuildRepairPage(World(), Payer());
+		if (!TestEqual(TEXT("a row per worn piece"), Page.Rows.Num(), 2)) return;
+		TestTrue(TEXT("the broken one says so"), Page.Rows[1].bStateIsBad && !Page.Rows[1].State.IsEmpty());
+		TestFalse(TEXT("an empty wallet is refused with the reason"), Page.Rows[0].Refusal.IsEmpty());
+		TestFalse(TEXT("so is repairing everything"), Page.AllRefusal.IsEmpty());
+
+		Fund();
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Repair, EMerchantType::Spiritualist);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		TestTrue(TEXT("on Repair"), Screen->GetTab() == EVendorScreenTab::Repair);
+		const int32 Before = Money();
+		Screen->SelectRow(0);
+		Screen->Confirm();
+		TestTrue(TEXT("the first A asks"), Screen->IsConfirming());
+		TestEqual(TEXT("nothing spent yet"), Money(), Before);
+		Screen->Confirm();
+		TestEqual(TEXT("the worn piece paid for"), Money(), Before - WornCost);
+		TestEqual(TEXT("and at full"), Gear.Attachments[0].Attached.GetCurrentDurability(), Gear.Attachments[0].Attached.GetMaxDurability());
+		TestEqual(TEXT("one row left"), Screen->GetPage().Rows.Num(), 1);
+
+		Screen->PressRepairAll();
+		TestTrue(TEXT("the first X asks"), Screen->IsConfirmingAll());
+		Screen->PressBack();
+		TestFalse(TEXT("Back cancels it"), Screen->IsConfirmingAll());
+		Screen->PressRepairAll();
+		Screen->PressRepairAll();
+		TestEqual(TEXT("the rest paid for"), Money(), Before - AllCost);
+		TestEqual(TEXT("nothing left to repair"), GearRepair::GetPartyRepairCost(*Party), 0);
+		TestTrue(TEXT("no rows left"), Screen->GetPage().Rows.IsEmpty());
+	});
+
+	It("Curses: lists each held curse with its price; A asks and the second A clears it", [this]()
+	{
+		if (!Inventory) return;
+		UCurseSubsystem *Curses = TestWorld->GetSubsystem<UCurseSubsystem>();
+		if (!TestNotNull(TEXT("curses"), Curses)) return;
+		Curses->SetCurseAssets({}); // no asset: priced as the defaults (Q-390)
+		Curses->AddCurse(VENDOR_SCREEN_CURSE);
+		FVendorScreenPage Page = WoRVendorScreen::BuildCursesPage(World(), Payer());
+		if (!TestEqual(TEXT("a row per held curse"), Page.Rows.Num(), 1)) return;
+		TestFalse(TEXT("an empty wallet is refused with the reason"), Page.Rows[0].Refusal.IsEmpty());
+		TestFalse(TEXT("and still shows the price"), Page.Rows[0].Pay.IsEmpty());
+
+		const UCurseData *Priced = GetDefault<UCurseData>();
+		Wallet()->Add(Priced->GetClearCurrency(), Priced->GetClearPrice());
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Curses, EMerchantType::Spiritualist);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		Screen->Confirm();
+		TestTrue(TEXT("the first A asks"), Screen->IsConfirming());
+		TestTrue(TEXT("still held"), Curses->HasCurse(VENDOR_SCREEN_CURSE));
+		Screen->Confirm();
+		TestFalse(TEXT("the second A clears it"), Curses->HasCurse(VENDOR_SCREEN_CURSE));
+		TestEqual(TEXT("for its price"), Wallet()->GetBalance(Priced->GetClearCurrency()), 0);
+		TestTrue(TEXT("no rows left"), Screen->GetPage().Rows.IsEmpty());
+	});
+
+	It("Merge: a row per crystal kind at the highest tier it makes; Left / Right picks the tier; the second A merges", [this]()
+	{
+		if (!Inventory) return;
+		Pool->CarryOrStore(Key(), VENDOR_SCREEN_GEM, VENDOR_SCREEN_MERGE_F_COUNT); // four F make one D (§4.5)
+		FVendorScreenPage Page = WoRVendorScreen::BuildMergePage(World(), Key(), {});
+		if (!TestEqual(TEXT("a row per crystal kind"), Page.Rows.Num(), 1)) return;
+		TestTrue(TEXT("aims at the highest tier it can make"), Page.Rows[0].Row.Item == FCrystalId(VENDOR_SCREEN_GEM.Type, EItemTier::D_Tier));
+		TestEqual(TEXT("uses, makes, change back"), Page.Rows[0].Details.Num(), 3);
+		Wallet()->Spend(ECurrencyType::Prisms, Money());
+		Page = WoRVendorScreen::BuildMergePage(World(), Key(), {});
+		TestFalse(TEXT("an empty wallet is refused with the reason"), Page.Rows[0].Refusal.IsEmpty());
+		TestTrue(TEXT("the same reason the merge gives"),
+				 Page.Rows[0].Refusal.EqualTo(UEconomyService::GetMergeRefusal(Payer(), VENDOR_SCREEN_GEM.Type, EItemTier::D_Tier)));
+
+		Fund();
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Merge, EMerchantType::Spiritualist);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		Screen->MoveMergeTarget(-1);
+		TestTrue(TEXT("Left: one tier down"), Screen->GetPage().Rows[0].Row.Item.Tier == EItemTier::E_Tier);
+		Screen->MoveMergeTarget(-1);
+		TestTrue(TEXT("past E it wraps to S"), Screen->GetPage().Rows[0].Row.Item.Tier == EItemTier::S_Tier);
+		TestFalse(TEXT("S is out of reach, with the reason"), Screen->GetPage().Rows[0].Refusal.IsEmpty());
+		Screen->MoveMergeTarget(1);
+		const int32 Before = Money();
+		Screen->Confirm();
+		TestTrue(TEXT("the first A asks"), Screen->IsConfirming());
+		Screen->Confirm();
+		const FCrystalId MadeE(VENDOR_SCREEN_GEM.Type, EItemTier::E_Tier);
+		TestEqual(TEXT("one E made"), Pool->GetCarriedCount(Key(), MadeE), 1);
+		TestEqual(TEXT("two F used"), Pool->GetCarriedCount(Key(), VENDOR_SCREEN_GEM), VENDOR_SCREEN_MERGE_F_COUNT - 2);
+		TestEqual(TEXT("for the merge's price"), Money(), Before - EconomyYield::GetMergeCostForTier(EItemTier::E_Tier));
 	});
 }
 
