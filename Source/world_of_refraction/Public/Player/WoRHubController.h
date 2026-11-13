@@ -127,6 +127,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UWoRRootLayout> RootLayout;
 
+	/** B-443: the interact prompt and the money chip (a viewport widget; local player only). */
+	UPROPERTY(Transient)
+	TObjectPtr<class UHubHUDWidget> HubHUD;
+
 	EHubMode CurrentMode = EHubMode::Hub;
 
 	void HandleInteractPressed(const FInputActionValue &Value);
