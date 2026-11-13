@@ -758,6 +758,16 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default. Before the first public build every save version bump already wipes older saves (D-060), and Crown chose the same for weapon spells (Q-098: deleted, no refund). Live games refund removed items (Warframe and Destiny 2 hand back currency for sunset or removed gear) only because players own those saves; B is the path once there are public saves. Crown may change it.
 **Notes for Claude:** B-437 bumps `WoRSaveVersion::LATEST`; no loader code for the old type.
 
+### Q-439 — The game menu: pausing, what a quit run takes, quitting with no title screen
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439, D-176) · **Blocks:** — (B-439b for point 2)
+**Question:** (1) does opening the game menu pause the world? (2) "Quitting loses everything" (D-176): what is taken? (3) there is no title screen yet: what does "Quit to title" do?
+**Answer**, by the reference-backed default (Crown may change any):
+- **(1) Nothing pauses**, solo or co-op. Elden Ring, Nightreign and Monster Hunter keep the world running in menus because they are online games, and this one is co-op (D-103); the CommonUI base already states that no screen pauses. A solo-only pause (Persona 5, Expedition 33) can come later if wanted.
+- **(2) The run's whole payout is lost** (the tally, the boss's Mentor Tokens), on top of what every run end already takes (the run's Prisms, run-only gear, the run's pillar levels). Extraction games (Escape from Tarkov, Dark and Darker) also take **what you picked up** in a failed raid; here that is the pouch items found in the run, and nothing records which those are yet, so **they are kept for now**: job **B-439b**.
+- **(3) In a run, Quit ends the run and returns to the hub** (with nothing). **Outside a run, it saves and closes the game.** Both go to the title screen once it exists (UIScreens #9).
+- **A co-op guest can't quit the host's run** from this menu ("Only the host can end the run"); a guest leaves through the rest menu's Leave (ER-09e).
+**Notes for Claude:** `UTrialRunSubsystem::AbandonRun`, `WoRPauseMenu::Quit`. Rules ER-65b.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
@@ -803,7 +813,7 @@ The queue of questions only Crown can answer.
 ### D-176 — Quitting in the middle of a run loses everything
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-439
 **Answer (Crown):** (UIScreens question 1; adds to D-172) **quitting a run loses everything** from that run. The **only way out with loot is extracting** at a designated point or NPC. Quit needs a **strong confirm**.
-**Notes for Claude:** the pause menu's Quit to title (B-439) says so and asks for a hold before it quits. Extracting still pays `RunRewards::LEAVE_EARLY_SHARE`; falling still pays in full (RunStructure §6).
+**Notes for Claude:** built in **B-439** (`UTrialRunSubsystem::AbandonRun`; what is taken and what isn't yet: **Q-439**). The pause menu's Quit to title says so and asks for a hold before it quits. Extracting still pays `RunRewards::LEAVE_EARLY_SHARE`; falling still pays in full (RunStructure §6).
 
 ---
 
