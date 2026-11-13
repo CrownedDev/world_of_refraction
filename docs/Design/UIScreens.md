@@ -149,6 +149,7 @@ One block per mocked screen: the images, why the layout, the references.
 - `1_reward_popups.png`, `2_wipe.png`, `3_trial_cleared.png`, `4_run_over.png`.
 - **No results screen after a fight** (FeelGuide 6): popups stack on the right, stay a few seconds and fade; none needs a press. One popup per thing, colour = kind (Prisms grey, a drop in its element colour, a banked level cyan, a memory gold, a hidden quest violet and marked "only you see this", D-171). The words are the code's notices ("New memory: …", "Hidden quest discovered: …"). The small **trial HUD** (#28) sits bottom left: Prisms, wipes left, the tracked quest step.
   *Ref:* Expedition 33 returns you to the world with fading pickups; Elden Ring's item popups; Hades' boon and resource toasts.
+- **Changed by Crown (2026-11-13, D-187, D-188, D-189):** **no enemy rank is ever shown to the player** ("mini-boss", "Elite", "Boss": it sets expectations and spoils the encounter): the wipe card **names the opponent that dealt the last blow**. "The party has fallen" reads **"Your possibilities end here"**. The end-of-run screen has **no Kept / Lost columns**; the payout **lists what the run gave** (upgrades, memories, quests and so on) as **one centred line at the bottom**; its button reads **"Return"**. **What each ending pays (D-189):** the boss beaten: full; extracting: half plus the run's upgrades; out of wipes: 25% of the run's currencies and no upgrades; quitting: nothing. The four images are redrawn to match; the notes below describe the first draft.
 - **A wipe** is one plain card: what each member lost (pillar points: up to 1 to a normal enemy, 2 to a mini-boss, 0 to the main boss), where you wake, "the enemy is still there", wipes as five pips. One button, "Get up". *Ref:* Hades' short death beat, Elden Ring's respawn at the last grace: fast back to play (pillar 3, second chances).
 - **The end of a run is the one full-screen tally:** the payout with its share ("Full payout x1.0"; extracting shows x0.5), the run in four numbers, and **Kept / Lost** side by side, so the rule is taught every time. "Trial cleared" (gold) and "The trial ends" (rose) are the same screen; falling pays in full (RunStructure §6).
   *Ref:* Hades' and Nightreign's end-of-run summaries; Slay the Spire's run tally.
@@ -162,7 +163,8 @@ One block per mocked screen: the images, why the layout, the references.
 - **Battle menu controls: Shortcuts / Omni D-pad** (BattleHUDRefinePlan decision 10) is the **first row of Gameplay and is repeated on Accessibility**, with a small card per model listing what each button does, the picked one lit. Default: Shortcuts.
 - **The code's settings, by their code names:** Turn View (Centred Wide default, Over the Shoulder, Tactical: B-398), End Turn button on / off (B-170e), button hints in the corner (HUD plan decision 7), boss cinematics.
 - **Controls** is a read-only key list for now (fixed keys, D-063), by section (Field, Battle, Menus) and by device. Rebinding slots into the same rows later.
-- **Proposed, not in code yet** (drawn so the page isn't empty; each needs Crown's yes): text size, camera movement in fights (the motion-sickness switch of D-078), screen shake, hold to confirm dangerous actions, element letters on colours (colour-blind aid), subtitles, tutorial callouts, "AI finishes my turn when I idle" (`SetLetAIFinish`).
+- **Approved as drawn, with all eight proposed settings (Crown, 2026-11-13, D-190).** Difficulty is chosen only at the gate, not here.
+- **Proposed, not in code yet** (drawn so the page isn't empty; all approved, D-190): text size, camera movement in fights (the motion-sickness switch of D-078), screen shake, hold to confirm dangerous actions, element letters on colours (colour-blind aid), subtitles, tutorial callouts, "AI finishes my turn when I idle" (`SetLetAIFinish`).
 
 ### 21. Trial gate (`run/gate/`)
 
@@ -299,9 +301,10 @@ Collected as screens are drawn; lore and story questions are listed, not answere
    **Answered (Crown, 2026-11-13, D-180):** keep two equal weapon slots, the wield mode in the kind line. A shield weapon stands in the shield stance by default (B-446).
 4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
    **Answered (Crown, 2026-11-13, D-183):** keep the level screen simple: it does **not** list affected skills (the Skills page shows whether requirements are met). No buying a point at the rest spot.
-5. **Words for the end screens** (#26, #27): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
+5. **Words for the end screens** (#26, #27) (**partly answered, D-188:** "Your possibilities end here" and "Return"; the other words stay stand-ins): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
 6. ~~World-stat draft~~ Settled by the code: it is marked OBSOLETE, replaced by level drops (B-223, D-102). Not mocked.
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
+   **Answered (Crown, 2026-11-13, D-190):** all eight proposed settings; difficulty only at the gate.
 8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
    **Answered (Crown, 2026-11-13, D-177):** vendors **do buy items** (Sell). Dismantle and Convert-to-gold are not in the inventory; they happen only at the relevant vendor. The inventory's verbs are Give, Store, Take.
@@ -327,6 +330,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177) |
 | Character sheet | 5 | `menus/character` | B-442 | |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 | |
+| Settings | 8 | `menus/settings` | B-452 (the screen), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
 
 Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178), the recruit card (#29, D-179), the rest spot and level up (#22, #23; D-182, D-183).
@@ -347,12 +351,13 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 **For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
 
-**Open questions for Crown:** the 16 above (16 is a design one). **Answered (2026-11-13):** 1, 2, 3, 4, 9, 13, 14, 15 (D-176 to D-185). Still open: lore 5, 8, 10, 11, 12; design 7, 16. Settled: 6.
+**Open questions for Crown:** the 16 above (16 is a design one). **Answered (2026-11-13):** 1, 2, 3, 4, 9, 13, 14, 15 (D-176 to D-185). **Answered since:** 7 (D-190), part of 5 (D-188). Still open: lore 5 (the rest), 8, 10, 11, 12; design 16. Settled: 6.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | Crown's answers on the wipe and end-of-run screens (D-187 no enemy rank shown, D-188 words and layout, D-189 what each ending pays) and settings (D-190: approved with all eight proposed settings) | feature/B-440-loadout-screen |
 | 2026-11-14 | Extracting (D-186): "Leave Trial" is "Extract", only at a boss's rest spot; the half share stays | docs/ui-screens-answers-3 |
 | 2026-11-14 | Crown's rest spot and level-up answers (D-182, D-183), "Skins" is "Spirit of {character}" (D-184), values inside every menu party bar (D-185); question 4 answered | docs/ui-screens-answers-2 |
 | 2026-11-13 | Crown's answers to questions 1, 2, 3, 9, 13, 14, 15 and the NPC talk choices (D-176 to D-181); six screens approved as drawn, build jobs B-439 to B-444 | docs/ui-screens-answers |

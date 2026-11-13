@@ -61,9 +61,10 @@ Any lord can enter any trial (D-032 part 8). The trial reacts to who's in the pa
 
 | How it ends | Payout |
 |---|---|
-| Beat the boss | Full |
-| Die | Full |
-| Leave at a rest spot | Reduced (*tune*); the confirm screen says "full rewards only for beating the boss or falling in battle" |
+| Beat the boss | Full, plus the run's upgrades |
+| Extract (a boss's rest spot or the extracting NPC, D-186) | Half (`LEAVE_EARLY_SHARE`), plus the run's upgrades |
+| Run out of wipes | **25% of the run's currencies, no upgrades** (D-189; was full: B-451 changes the code) |
+| Quit from the game menu | Nothing (D-176) |
 
 - **Gold:** earned per fight won, spent at vendors, lost at run end.
 - **Prisms and in-run upgrade materials:** tallied during the run, **paid at run end** (D-006). A payout multiplier exists for future passives (B-096).
