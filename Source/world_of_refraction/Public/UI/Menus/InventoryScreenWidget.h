@@ -53,7 +53,7 @@ public:
 	void MoveFilter(int32 Delta);
 	/** Shows the tab's Index-th filter, from the first tile. */
 	void SelectFilter(int32 Index);
-	/** Y: the next sort (as found, by tier, by name). */
+	/** Y: the next sort (as found, by tier, by name); ignored while a verb menu or "Give to" is open. */
 	void CycleSort();
 	void SelectTile(int32 Index, bool bScrollIntoView = true);
 	/** The next / previous tab or character; wraps, and returns the keys to the grid. */

@@ -37,8 +37,6 @@ namespace InventoryScreenStyle
 	constexpr int32 MaxDetailLines = 6;
 	/** The verb menu has at most three lines (Give, Store, Take); "Give to" at most the rest of the party. */
 	constexpr int32 MaxChoices = 3;
-	/** The longest filter row (the Gear tab's: All, Weapons, Adapters, Evolutions, Apparel). */
-	constexpr int32 MaxFilters = 5;
 
 	FLinearColor MarkColor(ESpellElement Element)
 	{
@@ -124,7 +122,12 @@ void UInventoryScreenWidget::BuildTree()
 
 	UVerticalBox *GridColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UHorizontalBox *FilterBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	for (int32 Index = 0; Index < MaxFilters; ++Index)
+	int32 LongestFilterRow = 0;
+	for (const EInventoryScreenTab PageTab : WoRInventoryScreen::GetTabs())
+	{
+		LongestFilterRow = FMath::Max(LongestFilterRow, WoRInventoryScreen::GetFilters(PageTab).Num());
+	}
+	for (int32 Index = 0; Index < LongestFilterRow; ++Index)
 	{
 		UTextBlock *Label = nullptr;
 		FilterTabs.Add(MakeTab(WidgetTree, Label));
@@ -521,11 +524,11 @@ void UInventoryScreenWidget::SelectFilter(int32 Index)
 
 void UInventoryScreenWidget::CycleSort()
 {
-	Sort = WoRInventoryScreen::GetNextSort(Sort);
 	if (IsChoosing())
 	{
-		Focus = EInventoryScreenFocus::Grid; // the tiles move under the open menu
+		return; // not under an open verb menu: the tiles would move away from it
 	}
+	Sort = WoRInventoryScreen::GetNextSort(Sort);
 	SelectedTile = 0;
 	Status = FText::GetEmpty();
 	RefreshData();

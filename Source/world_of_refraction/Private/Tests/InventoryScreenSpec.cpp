@@ -395,8 +395,11 @@ void FInventoryScreenSpec::Define()
 
 		Screen->Confirm();
 		Screen->CycleSort();
-		TestTrue(TEXT("Y sorts by tier"), Screen->GetSort() == EInventoryScreenSort::Tier);
-		TestTrue(TEXT("and closes the open verb menu"), Screen->GetFocus() == EInventoryScreenFocus::Grid);
+		TestTrue(TEXT("Y does nothing under an open verb menu"),
+				 Screen->GetSort() == EInventoryScreenSort::Kind && Screen->GetFocus() == EInventoryScreenFocus::Verbs);
+		Screen->PressBack();
+		Screen->CycleSort();
+		TestTrue(TEXT("on the tiles Y sorts by tier"), Screen->GetSort() == EInventoryScreenSort::Tier);
 
 		Screen->MoveTab(1);
 		TestTrue(TEXT("a new tab starts unfiltered"), Screen->GetFilter() == EInventoryScreenFilter::All);

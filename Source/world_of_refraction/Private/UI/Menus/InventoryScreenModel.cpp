@@ -42,6 +42,7 @@ namespace InventoryScreenBuild
 		FInventoryScreenTile Tile;
 		Tile.Kind = EInventoryScreenKind::Evolution;
 		Tile.TierValue = Entry.Tier;
+		// TODO: D-061: the evolution asset's name and description (and an apparel's name) are FString fields.
 		Tile.Name = FText::FromString(Entry.Item->ItemName);
 		Tile.Tier = WoRGameNames::GetTierLetter(Entry.Tier);
 		Tile.Mark = LOCTEXT("MarkEvolution", "Ev");
