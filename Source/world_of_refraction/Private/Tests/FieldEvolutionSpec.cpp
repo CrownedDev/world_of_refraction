@@ -7,6 +7,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
@@ -21,6 +22,7 @@ namespace FieldEvolutionSpecValues
 	constexpr int32 BASE_COST = 4;
 	constexpr float TOLERANCE = 0.001f;
 	constexpr float EXTRA_CEILING = 200.0f;
+	constexpr float SPRINT_MULTIPLIER = 1.2f; // +20%
 }
 
 BEGIN_DEFINE_SPEC(FFieldEvolutionSpec, "WoR.Field.Evolution",
@@ -77,7 +79,7 @@ void FFieldEvolutionSpec::Define()
 		It("turn a bonus into a multiplier, discount EP to at least 1, and combine flight limits", [this]()
 		{
 			using namespace FieldEvolutionSpecValues;
-			TestEqual(TEXT("+20%"), FieldSkillRules::GetEvolutionSprintMultiplier(SPRINT_BONUS_PERCENT), 1.2f, TOLERANCE);
+			TestEqual(TEXT("+20%"), FieldSkillRules::GetEvolutionSprintMultiplier(SPRINT_BONUS_PERCENT), SPRINT_MULTIPLIER, TOLERANCE);
 			TestEqual(TEXT("none"), FieldSkillRules::GetEvolutionSprintMultiplier(0.0f), FieldSkillRules::NO_SPRINT_BOOST, TOLERANCE);
 			TestEqual(TEXT("half of 4"), FieldSkillRules::ApplyFieldEPDiscount(BASE_COST, EP_DISCOUNT_PERCENT), BASE_COST / 2);
 			TestEqual(TEXT("never below 1"), FieldSkillRules::ApplyFieldEPDiscount(1, EP_DISCOUNT_PERCENT), FieldSkillRules::MIN_FIELD_EP_COST);
@@ -113,6 +115,12 @@ void FFieldEvolutionSpec::Define()
 			TestEqual(TEXT("an evolved character sprints faster"), Field->GetSprintSpeedMultiplier(),
 					  FieldSkillRules::GetEvolutionSprintMultiplier(SPRINT_BONUS_PERCENT), TOLERANCE);
 			TestEqual(TEXT("the augment: cheaper field skills"), Field->GetFieldEPCost(BASE_COST), BASE_COST / 2);
+			UCharacterDataComponent *CharComp = Field->GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+			if (TestNotNull(TEXT("character data"), CharComp))
+			{
+				CharComp->CurrentEP = BASE_COST / 2;
+				TestTrue(TEXT("the discounted cost is enough for a full-cost check"), Field->GetEPForCostCheck(BASE_COST) >= BASE_COST);
+			}
 			TestTrue(TEXT("the augment: unlimited flight"), Field->GetEffectiveFlightLimits().bUnlimitedEP);
 
 			Active->PrimaryEvolution.CurrentDurability = 0; // breakable by default: worn to 0 is broken

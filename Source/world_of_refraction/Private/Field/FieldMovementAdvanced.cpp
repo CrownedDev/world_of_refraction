@@ -44,8 +44,8 @@ EFieldSkillRefusal UFieldMovementComponent::UseAdvancedMove(EFieldMovementType T
 	{
 		const double *LastUse = LastAdvancedUseTime.Find(Type);
 		const double SinceLastUse = LastUse ? GetWorld()->GetTimeSeconds() - *LastUse : TNumericLimits<double>::Max();
-		const UCharacterDataComponent *CharComp = GetCharacterData();
-		Refusal = FieldSkillRules::CheckAdvancedMove(Type, CharComp ? CharComp->CurrentEP : 0, SinceLastUse, IsFightRunning());
+		Refusal = FieldSkillRules::CheckAdvancedMove(Type, GetEPForCostCheck(FieldSkillRules::GetAdvancedMoveEPCost(Type)),
+													 SinceLastUse, IsFightRunning());
 	}
 	if (Refusal == EFieldSkillRefusal::None)
 	{

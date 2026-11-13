@@ -58,8 +58,8 @@ EFieldSkillRefusal UFieldMovementComponent::ToggleFlight()
 	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable(EFieldMovementType::Flight);
 	if (Refusal == EFieldSkillRefusal::None)
 	{
-		const UCharacterDataComponent *CharComp = GetCharacterData();
-		Refusal = FieldSkillRules::CheckFlightStart(IsInNoFlyZone(), CharComp ? CharComp->CurrentEP : 0, GetEffectiveFlightLimits());
+		Refusal = FieldSkillRules::CheckFlightStart(IsInNoFlyZone(), GetEPForCostCheck(FieldSkillRules::FLIGHT_EP_PER_SECOND),
+													GetEffectiveFlightLimits());
 	}
 	if (Refusal != EFieldSkillRefusal::None)
 	{
