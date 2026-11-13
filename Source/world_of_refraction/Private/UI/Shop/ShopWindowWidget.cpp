@@ -1,6 +1,7 @@
 // ShopWindowWidget.cpp
 
 #include "UI/Shop/ShopWindowWidget.h"
+#include "WoRAuthority.h"
 
 #include "Components/Button.h"
 #include "Components/HorizontalBox.h"
@@ -602,7 +603,14 @@ void UShopWindowWidget::RefreshTotals()
     if (ConfirmButton)
     {
         // All-green requirement — identical math to the row coloring above.
-        ConfirmButton->SetIsEnabled(Currency && Cart.Num() > 0 && CanAffordCost(*Currency, Cost, Place));
+        // B-427: a co-op guest's wallet is the host's mirror, so its purchase is refused; say so instead of failing.
+        // TODO: a purchase RPC so guests can buy (with the co-op screens).
+        const bool bHostOnly = Currency && !WoRAuthority::HasAuthority(Currency->GetOwner());
+        ConfirmButton->SetIsEnabled(Currency && !bHostOnly && Cart.Num() > 0 && CanAffordCost(*Currency, Cost, Place));
+        if (bHostOnly && Cart.Num() > 0)
+        {
+            ShowToast(NSLOCTEXT("Shop", "HostOnlyBuy", "Only the host can buy for now"));
+        }
     }
 }
 
