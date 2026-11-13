@@ -21,6 +21,7 @@
 #include "Save/CoopCheckpoint.h"
 #include "Memory/MemoryJournalSubsystem.h" // EMemorySource (B-235d)
 #include "Save/WoRSaveTypes.h" // FSavedQuestProgress (B-377b)
+#include "Currency/CurrencyTypes.h" // ECurrencyType (B-438)
 #include "WoRPlayerState.generated.h"
 
 class UCurrencyComponent;
@@ -225,6 +226,14 @@ private:
 	/** B-438: client only: the host applied this player's saved wallet (a Client_BankWallet arrived), so the mirror is
 	 *  this player's real wallet and is banked at leave. */
 	bool bHostWalletConfirmed = false;
+
+	/** B-438 review: client only: the mirror changed (replication) since the last snapshot, so at leave it is newer than
+	 *  the snapshot already banked. Without it, a leave keeps the snapshot (the mirror may not have caught up yet). */
+	bool bMirrorNewerThanSnapshot = false;
+
+	/** B-438 review (client): the replicated wallet changed after a snapshot. */
+	UFUNCTION()
+	void HandleMirrorChanged(ECurrencyType Currency, uint8 SubKey, int32 NewBalance);
 
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
 	bool IsLocalPlayerWallet() const;

@@ -164,7 +164,7 @@ void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	const UGameInstance *GI = GetGameInstance();
 	// B-425: a guest's wallet is the host's mirror; banking it would overwrite the guest's own save. B-438: once the host
 	// confirmed it applied the guest's save (Client_BankWallet), the mirror is the guest's real wallet and is banked.
-	const bool bMayBank = HasAuthority() || bHostWalletConfirmed;
+	const bool bMayBank = HasAuthority() || (bHostWalletConfirmed && bMirrorNewerThanSnapshot);
 	if (USaveSubsystem *Save = GI && bMayBank && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
 		Save->BankWallet(Wallet);
@@ -745,6 +745,7 @@ void AWoRPlayerState::ServerReportWallet_Implementation(const FSavedWallet &Save
 	{
 		UE_LOG(LogWoR, Verbose, TEXT("[Wallet] %s's wallet report ignored: %s (B-425)"), *GetPlayerName(),
 			   Wallet ? TEXT("already applied") : TEXT("no wallet"));
+		SendWalletToOwner(); // B-438 review: after a seamless travel the new client PlayerState is confirmed again
 		return;
 	}
 	bReportedWalletApplied = true;
@@ -767,12 +768,26 @@ void AWoRPlayerState::SendWalletToOwner()
 	{
 		return;
 	}
-	Client_BankWallet(USaveSubsystem::CaptureWallet(Wallet), Wallet->GetBalance(ECurrencyType::Gold));
+	// B-438 review: run Gold only while a run is on (B-178: it is lost when the run ends), so none reaches a solo game.
+	const UGameInstance *GI = GetGameInstance();
+	const UTrialRunSubsystem *TrialRun = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const int32 RunGold = TrialRun && TrialRun->IsRunActive() ? Wallet->GetBalance(ECurrencyType::Gold) : 0;
+	Client_BankWallet(USaveSubsystem::CaptureWallet(Wallet), RunGold);
+}
+
+void AWoRPlayerState::HandleMirrorChanged(ECurrencyType /*Currency*/, uint8 /*SubKey*/, int32 /*NewBalance*/)
+{
+	bMirrorNewerThanSnapshot = true;
 }
 
 void AWoRPlayerState::Client_BankWallet_Implementation(const FSavedWallet &Saved, int32 RunGold)
 {
 	bHostWalletConfirmed = true;
+	bMirrorNewerThanSnapshot = false; // the snapshot is the newest until the mirror changes again
+	if (Wallet)
+	{
+		Wallet->OnCurrencyChanged.AddUniqueDynamic(this, &AWoRPlayerState::HandleMirrorChanged);
+	}
 	const UGameInstance *GI = GetGameInstance();
 	if (USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
