@@ -111,6 +111,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     RunTally = FRunPayout(); // B-073
     bAtRestSpot = false; // B-363
     bLeavingEarly = false; // B-187
+    bAbandoned = false; // B-439
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     OtherPlayerDrops.Reset(); // B-235
     DropEncounters.Reset();
@@ -206,7 +207,7 @@ void UTrialRunSubsystem::ExitTrial()
     PayRunEnd(GetGameInstance()->GetWorld());
 
     // B-361b (D-154, Q-361b): a finished co-op run (its boss beaten) pays every player; leaving early pays nothing.
-    if (bRunBossBeaten)
+    if (bRunBossBeaten && !bAbandoned) // B-439 (D-176): a run that was quit pays nothing
     {
         WoRMentorTokens::PayPlayersTogether(GetGameInstance()->GetWorld(), MentorTokenRules::PER_COOP_RUN, TEXT("a co-op run finished"));
     }
@@ -230,6 +231,7 @@ void UTrialRunSubsystem::ExitTrial()
     RunTally = FRunPayout(); // B-073
     bAtRestSpot = false; // B-363
     bLeavingEarly = false; // B-187
+    bAbandoned = false; // B-439
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     OtherPlayerDrops.Reset(); // B-235
     DropEncounters.Reset();
@@ -1034,6 +1036,23 @@ void UTrialRunSubsystem::LeaveRunEarly()
     ExitTrialNextTick();
 }
 
+void UTrialRunSubsystem::AbandonRun()
+{
+    if (!IsRunActive() || bAbandoned)
+    {
+        return;
+    }
+    if (HubLevel.IsNull())
+    {
+        // As LeaveRunEarly: the run can't end without a hub, so nothing is taken either.
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Can't quit the run: no HubLevel (DefaultGame.ini)"));
+        return;
+    }
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] The run is quit: %s is lost, the end pays nothing (D-176)"), *RunRewards::GetPayoutString(GetRunEndPayout()));
+    bAbandoned = true;
+    ExitTrialNextTick();
+}
+
 int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
 {
     const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
@@ -1066,6 +1085,10 @@ float UTrialRunSubsystem::RefreshPayoutMultiplier(const TArray<AActor *> &Fighte
 
 FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
 {
+    if (bAbandoned)
+    {
+        return FRunPayout(); // B-439 (D-176): quitting loses everything
+    }
     // B-187 (Q-187): leaving at a rest spot pays the leave share, with no boss bonus (full rewards only for beating
     // the boss or falling in battle).
     const float Multiplier = bLeavingEarly ? PayoutMultiplier * RunRewards::LEAVE_EARLY_SHARE : PayoutMultiplier;
