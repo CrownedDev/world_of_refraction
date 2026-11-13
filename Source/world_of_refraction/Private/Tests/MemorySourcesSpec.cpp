@@ -19,6 +19,7 @@
 #include "Memory/MemorySpot.h"
 #include "Memory/MemoryUnlock.h"
 #include "Player/WoRPlayerState.h"
+#include "GameFramework/Pawn.h"
 #include "Reaction/ReactionTrigger.h"
 #include "Trial/TrialRunSubsystem.h"
 
@@ -258,6 +259,26 @@ void FMemorySourcesSpec::Define()
 		TestFalse(TEXT("So is a fragment's"), Player->HasMemoryId(Memory->GetMemoryId()));
 		Player->ServerReportFoundMemory(Memory, EMemorySource::BoundGear);
 		TestTrue(TEXT("A bound-gear find has no place to check: noted"), Player->HasMemoryId(Memory->GetMemoryId()));
+	});
+
+	It("accepts a client's map-spot find when its pawn stands at the spot (B-433)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		AMemorySpot *Spot = World ? World->SpawnActor<AMemorySpot>(FVector::ZeroVector, FRotator::ZeroRotator) : nullptr;
+		AWoRPlayerState *Player = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
+		APawn *Pawn = World ? World->SpawnActor<APawn>(FVector::ZeroVector, FRotator::ZeroRotator) : nullptr;
+		if (!TestTrue(TEXT("Spot, player and pawn"), Spot && Player && Pawn))
+		{
+			return;
+		}
+		Spot->Memory = Memory;
+		Pawn->SetPlayerState(Player);
+		if (!TestTrue(TEXT("The player has the pawn"), Player->GetPawn() == Pawn))
+		{
+			return;
+		}
+		Player->ServerReportFoundMemory(Memory, EMemorySource::MapSpot);
+		TestTrue(TEXT("A find at the spot is noted"), Player->HasMemoryId(Memory->GetMemoryId()));
 	});
 
 	It("is for a character it lists above None, or for everyone when it lists no one (B-235d)", [this]()
