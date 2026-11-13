@@ -35,7 +35,7 @@ ABILITIES = [
     ("X", "Whirl", "8 EP", STEELY, "Slash · 1 hit · all enemies", "Medium damage to the front row."),
     ("A", "Guard Break", "5 EP", STEELY, "Impact · 1 hit · one enemy", "Lowers the target's defence for 2 turns."),
 ]
-# Abilities also holds the crystal's extra slots and the augment stone's abilities, so it can run past 2 pages.
+# Abilities is the weapon's own six plus the crystal's extra slots, so it can run past 2 pages (no augment-stone slots).
 screen("a_abilities_two_weapons.png", GARRICK, ["Sword", "Hammer"], 0, ["Abilities"], 0, "Abilities · Sword", "1/3", ABILITIES, "Weapon")
 screen("a_abilities_one_weapon.png", GARRICK, [], 0, ["Abilities", "Resonate (A)"], 0, "Abilities", "1/3", ABILITIES, "")
 
