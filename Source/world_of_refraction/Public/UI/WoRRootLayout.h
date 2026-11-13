@@ -103,4 +103,9 @@ protected:
 
 private:
 	TFunction<void()> WhenAllClosed;
+
+	/** B-440a (was the game menu's, B-439): the old party strip is a viewport widget above this layout, so it
+	 *  would draw over any menu screen; hidden while the menu or modal layer shows one, then put back as it was. */
+	void SetPartyStripHidden(bool bHidden);
+	TArray<TPair<TWeakObjectPtr<UWidget>, ESlateVisibility>> HiddenStrips;
 };

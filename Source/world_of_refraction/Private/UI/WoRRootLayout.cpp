@@ -2,8 +2,10 @@
 
 #include "UI/WoRRootLayout.h"
 
+#include "Blueprint/WidgetBlueprintLibrary.h"
 #include "CommonActivatableWidget.h"
 #include "Input/CommonUIActionRouterBase.h"
+#include "UI/Party/PartyDisplayWidget.h"
 #include "WoRLog.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
@@ -103,9 +105,38 @@ bool UWoRRootLayout::HasActiveScreen() const
 	return false;
 }
 
+void UWoRRootLayout::SetPartyStripHidden(bool bHidden)
+{
+	if (!bHidden)
+	{
+		for (const TPair<TWeakObjectPtr<UWidget>, ESlateVisibility> &Hidden : HiddenStrips)
+		{
+			if (UWidget *Strip = Hidden.Key.Get())
+			{
+				Strip->SetVisibility(Hidden.Value);
+			}
+		}
+		HiddenStrips.Reset();
+		return;
+	}
+	if (HiddenStrips.Num() > 0 || !GetWorld())
+	{
+		return;
+	}
+	TArray<UUserWidget *> Strips;
+	UWidgetBlueprintLibrary::GetAllWidgetsOfClass(this, Strips, UPartyDisplayWidget::StaticClass(), /*TopLevelOnly=*/false);
+	for (UUserWidget *Strip : Strips)
+	{
+		HiddenStrips.Emplace(Strip, Strip->GetVisibility());
+		Strip->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
 void UWoRRootLayout::HandleDisplayedWidgetChanged(UCommonActivatableWidget *Displayed)
 {
-	if (Displayed || HasActiveScreen())
+	const bool bAnyScreen = Displayed || HasActiveScreen();
+	SetPartyStripHidden(bAnyScreen);
+	if (bAnyScreen)
 	{
 		return;
 	}
