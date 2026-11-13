@@ -9,7 +9,9 @@
 #include "Trial/RunRewards.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Blueprint/UserWidget.h"
 #include "UI/Menus/PauseMenuModel.h"
+#include "UI/Menus/PauseMenuWidget.h"
 #include "WoRTestWorld.h"
 
 namespace
@@ -26,6 +28,17 @@ BEGIN_DEFINE_SPEC(FPauseMenuSpec, "WoR.UI.PauseMenu", EAutomationTestFlags_Appli
 	void StartRun()
 	{
 		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), PAUSE_TEST_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, {}, {});
+	}
+
+	UPauseMenuWidget *OpenMenu()
+	{
+		UPauseMenuWidget *Menu = CreateWidget<UPauseMenuWidget>(TestWorld->GetWorld(), UPauseMenuWidget::StaticClass());
+		if (TestNotNull(TEXT("menu created"), Menu))
+		{
+			Menu->ActivateWidget();
+			TestTrue(TEXT("activated"), Menu->IsActivated());
+		}
+		return Menu;
 	}
 END_DEFINE_SPEC(FPauseMenuSpec)
 
@@ -114,6 +127,87 @@ void FPauseMenuSpec::Define()
 		{
 			TestTrue(TEXT("the end pays nothing"), Run->GetRunEndPayout().IsEmpty());
 		}
+	});
+
+	// The screen, headless: no widget tree is built, so these check what the keys do, not what is drawn.
+	Describe("the screen", [this]()
+	{
+		It("starts on Resume, wraps at both ends, and Resume closes it", [this]()
+		{
+			UPauseMenuWidget *Menu = OpenMenu();
+			if (!Menu)
+			{
+				return;
+			}
+			TestEqual(TEXT("starts on Resume"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Resume));
+			Menu->MoveSelection(-1);
+			TestEqual(TEXT("up from the top: Quit"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Quit));
+			Menu->MoveSelection(1);
+			TestEqual(TEXT("down from the bottom: Resume"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Resume));
+			Menu->PressSelected();
+			TestFalse(TEXT("Resume closes the menu"), Menu->IsActivated());
+		});
+
+		It("keeps the menu open on a page that isn't built yet", [this]()
+		{
+			UPauseMenuWidget *Menu = OpenMenu();
+			if (!Menu)
+			{
+				return;
+			}
+			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Loadout));
+			Menu->PressSelected();
+			TestTrue(TEXT("still open"), Menu->IsActivated());
+			TestFalse(TEXT("no quit question"), Menu->IsConfirmingQuit());
+		});
+
+		It("asks before quitting, holds only from the second press, and stops when let go (D-176)", [this]()
+		{
+			UPauseMenuWidget *Menu = OpenMenu();
+			if (!Menu)
+			{
+				return;
+			}
+			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Quit));
+			Menu->PressSelected();
+			TestTrue(TEXT("first press: the question"), Menu->IsConfirmingQuit());
+			TestFalse(TEXT("no hold yet"), Menu->IsHoldingQuit());
+			Menu->ReleaseSelected();
+			Menu->PressSelected();
+			TestTrue(TEXT("second press: the hold starts"), Menu->IsHoldingQuit());
+			Menu->ReleaseSelected();
+			TestFalse(TEXT("let go: the hold stops"), Menu->IsHoldingQuit());
+			TestTrue(TEXT("the menu is still open"), Menu->IsActivated());
+		});
+
+		It("leaves the quit question on Back, then closes on the next Back", [this]()
+		{
+			UPauseMenuWidget *Menu = OpenMenu();
+			if (!Menu)
+			{
+				return;
+			}
+			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Quit));
+			Menu->PressSelected();
+			Menu->PressBack();
+			TestFalse(TEXT("Back leaves the question"), Menu->IsConfirmingQuit());
+			TestTrue(TEXT("and keeps the menu"), Menu->IsActivated());
+			Menu->PressBack();
+			TestFalse(TEXT("Back again closes it"), Menu->IsActivated());
+		});
+
+		It("drops the quit question when the selection moves", [this]()
+		{
+			UPauseMenuWidget *Menu = OpenMenu();
+			if (!Menu)
+			{
+				return;
+			}
+			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Quit));
+			Menu->PressSelected();
+			Menu->MoveSelection(-1);
+			TestFalse(TEXT("moved away: no question"), Menu->IsConfirmingQuit());
+		});
 	});
 }
 
