@@ -13,8 +13,12 @@
 // cart. The cart is its own panel: each line with who it is for, the total and what is left after.
 // Item slots (B-456c, mockup 2_jeweler_item_slots.png): a row per party member (no character tabs), the pouch's slots
 // as pips and the next one's price; A asks, the second A buys one slot.
+// The Spiritualist (B-456d, mockups 3_spiritualist_repair.png, 4_spiritualist_curses.png, 6_merge_crystals.png):
+// Repair lists each worn piece of the party's gear (A asks, the second A repairs it; X asks to repair everything);
+// Curses lists the player's curses (A asks, the second A clears it); Merge lists the member's crystal kinds (LT / RT),
+// Left / Right picks the tier to make, A asks, the second A merges.
 // What it shows comes from WoRVendorScreen (VendorScreenModel.h), which the specs read.
-// Not built yet: Repair, Curses, Merge (listed, and say so); icons.
+// Not built: icons; Merge's two columns (one list with the tier on Left / Right instead).
 
 #pragma once
 
@@ -63,6 +67,10 @@ public:
 	void RemoveFocusedFromCart();
 	/** Buy: buys the cart. */
 	void Purchase();
+	/** Repair (B-456d): the first press asks to repair everything (or says why it can't), the second does it. */
+	void PressRepairAll();
+	/** Merge (B-456d): the focused crystal's tier to make, one up (Delta 1) or down, E to S, wrapping. */
+	void MoveMergeTarget(int32 Delta);
 	/** Cancels a pending confirm, then closes. */
 	void PressBack() { HandleBackAction(); }
 
@@ -71,6 +79,7 @@ public:
 	int32 GetMemberIndex() const { return MemberIndex; }
 	int32 GetSelectedRow() const { return SelectedRow; }
 	bool IsConfirming() const { return bConfirming; }
+	bool IsConfirmingAll() const { return bConfirmingAll; }
 	bool IsWholeStack() const { return bWholeStack; }
 	const FVendorScreenPage &GetPage() const { return Page; }
 	const TArray<FVendorCartLine> &GetCart() const { return Cart; }
@@ -113,8 +122,19 @@ private:
 	void RefreshCart();
 	bool IsBuy() const { return GetTab() == EVendorScreenTab::Buy; }
 	bool IsItemSlots() const { return GetTab() == EVendorScreenTab::ItemSlots; }
-	/** Sell and Dismantle act on one character's things; Buy says who it is for in the panel, Item slots in its rows. */
-	bool HasMemberTabs() const { return !IsBuy() && !IsItemSlots(); }
+	/** Repair, Curses, Merge (B-456d): the WoRVendorScreen::RunService tabs. */
+	bool IsSpiritualistService() const
+	{
+		return GetTab() == EVendorScreenTab::Repair || GetTab() == EVendorScreenTab::Curses || GetTab() == EVendorScreenTab::Merge;
+	}
+	/** Sell, Dismantle and Merge act on one character's things; Buy says who it is for in the panel, Item slots and
+	 *  Repair in their rows, and curses are the player's. */
+	bool HasMemberTabs() const
+	{
+		return GetTab() == EVendorScreenTab::Sell || GetTab() == EVendorScreenTab::Dismantle || GetTab() == EVendorScreenTab::Merge;
+	}
+	/** Repair: X asks to repair everything, the second X (or A) does it. */
+	void DoRepairAll();
 	FName MemberKey() const;
 	const FVendorScreenRow *FocusedRow() const;
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
@@ -127,7 +147,11 @@ private:
 	int32 MemberIndex = 0;
 	int32 SelectedRow = 0;
 	bool bConfirming = false;
+	/** Repair: "Repair everything?" is asked. */
+	bool bConfirmingAll = false;
 	bool bWholeStack = false;
+	/** Merge: the tier picked for each crystal kind (a kind not in it aims at the highest it can make). */
+	TMap<ECrystalType, EItemTier> MergeTargets;
 	FText Status;
 	bool bStatusIsRefusal = false;
 	/** Buy: whose stock (held, so the stock lines the page and the cart point at stay loaded), whose wallet, and
