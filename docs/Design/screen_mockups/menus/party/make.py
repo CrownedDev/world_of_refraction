@@ -53,8 +53,8 @@ text(d, (684, 597), "no session", 15, fill=OFF, anchor="rm")
 panel(d, (730, 130, 1232, 622), focus=True)
 grid(d, 780, 196, focus_cell=(0, 1))
 d.line((750, 440, 1212, 440), fill=STEEL)
-text(d, (750, 454), "Garrick · AI seat", 18, True)
-for i, (lab, val) in enumerate([("AI level", "Medium"), ("Guard", "Weapon guard"), ("If a friend joins", "they can take this seat")]):
+text(d, (750, 454), "Garrick", 18, True)
+for i, (lab, val) in enumerate([("Guard", "Weapon guard"), ("If a friend joins", "they can take this seat")]):
     text(d, (750, 488 + i * 28), lab, 15, fill=DIM)
     text(d, (1212, 488 + i * 28), val, 15, True, anchor="ra")
 wrap(d, (750, 580), "The leader can't be given to the AI.", 460, 14, DIM)
