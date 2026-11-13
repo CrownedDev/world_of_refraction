@@ -758,6 +758,17 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default. Before the first public build every save version bump already wipes older saves (D-060), and Crown chose the same for weapon spells (Q-098: deleted, no refund). Live games refund removed items (Warframe and Destiny 2 hand back currency for sunset or removed gear) only because players own those saves; B is the path once there are public saves. Crown may change it.
 **Notes for Claude:** B-437 bumps `WoRSaveVersion::LATEST`; no loader code for the old type.
 
+### Q-445 — Selling: what a vendor pays, and which vendor buys what
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-445, D-177, D-193) · **Blocks:** —
+**Question:** vendors now buy items (D-177). (1) What does a sale pay? (2) Does each vendor buy only its own kind of thing? (3) What happens to "Convert to Gold"? (4) Are evolutions sold?
+**Answer**, by the reference-backed default (Crown may change any):
+- **(1) Half the tier's buy price, in the currency of the place** (Gold in the hub, Prisms in a run): F 12, E 25, D 50, C 100, B 200, A 400, S 800. It is the price the duplicate's "Convert to Gold" already paid (Q-319), so one rule covers both. Selling back at about half is the genre's habit (Diablo, Skyrim, Final Fantasy shops), and Hades and Slay the Spire sell back at a fixed share too.
+- **(2) Any of the three vendors buys anything that can be sold.** Elden Ring, Persona 5 and Expedition 33 let any shop buy any item; a "wrong shop" refusal only adds walking. Dismantling is the service that is split by vendor (D-193).
+- **(3) Convert has no tab:** it is read as replaced by Sell (the same price, the same result). The duplicate screen's Convert button stays until the vendor screen (B-456).
+- **(4) Evolutions are not sold yet.** They have no tier buy price to halve; the Spiritualist dismantles them. A sale price for them is a later question.
+- **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
+**Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
+
 ### Q-442 — The character sheet: which number does a sub-stat row show?
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-442) · **Blocks:** —
 **Question:** the mockup's sub-stat numbers were drawn as examples. Does a row show the stat's **points**, or the **value the fight uses**?
