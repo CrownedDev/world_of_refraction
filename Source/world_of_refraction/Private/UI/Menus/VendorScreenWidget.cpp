@@ -6,6 +6,7 @@
 #include "Components/ScrollBox.h"
 #include "Components/ScrollBoxSlot.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 #include "Infusion/ElementColors.h"
 #include "Party/Party.h"
@@ -52,7 +53,7 @@ UVendorScreenWidget::UVendorScreenWidget(const FObjectInitializer &ObjectInitial
 	SetIsFocusable(true); // the screen takes the keys itself; its rows and tabs are plain borders
 }
 
-UVendorScreenWidget *UVendorScreenWidget::Open(APlayerController *PC, EMerchantType InVendor)
+UVendorScreenWidget *UVendorScreenWidget::Open(APlayerController *PC, EMerchantType InVendor, const UMerchantData *InMerchant)
 {
 	AWoRHubController *Hub = Cast<AWoRHubController>(PC);
 	UWoRRootLayout *Root = Hub ? Hub->GetRootLayout() : nullptr;
@@ -69,7 +70,7 @@ UVendorScreenWidget *UVendorScreenWidget::Open(APlayerController *PC, EMerchantT
 	UVendorScreenWidget *Screen = Cast<UVendorScreenWidget>(Root->PushToMenu(UVendorScreenWidget::StaticClass()));
 	if (Screen)
 	{
-		Screen->SetVendor(InVendor);
+		Screen->SetVendor(InVendor, InMerchant, PC->GetPawn());
 	}
 	return Screen;
 }
@@ -130,6 +131,7 @@ void UVendorScreenWidget::BuildTree()
 	}
 	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(Main, MemberRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	MemberTabRow = MemberRow;
 
 	// The rows, and the focused row's details.
 	UHorizontalBox *Body = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -149,11 +151,19 @@ void UVendorScreenWidget::BuildTree()
 	Panel->SetContent(PanelColumn);
 	DetailTitle = MakeWrappedText(WidgetTree, NameFontSize, TextColor, true);
 	AddToColumn(PanelColumn, DetailTitle, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
-	UTextBlock *YouGet = MakeText(WidgetTree, LineFontSize, DimColor);
-	YouGet->SetText(LOCTEXT("YouGet", "You get"));
-	AddToColumn(PanelColumn, YouGet);
-	DetailPay = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	PayLabel = MakeText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(PanelColumn, PayLabel);
+	DetailPay = MakeWrappedText(WidgetTree, RowFontSize, TextColor, true);
 	AddToColumn(PanelColumn, DetailPay, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	// Buy: what the thing is, and who it is bought for.
+	DetailLines = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(PanelColumn, DetailLines, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	BuyForButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	BuyForButton->SetBrushColor(PlateColor);
+	BuyForButton->SetPadding(FMargin(RowPadding));
+	BuyForText = MakeText(WidgetTree, LineFontSize, TextColor);
+	BuyForButton->SetContent(BuyForText);
+	AddToColumn(PanelColumn, BuyForButton, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	ConfirmText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 	AddToColumn(PanelColumn, ConfirmText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	ConfirmHint = MakeText(WidgetTree, LineFontSize, CyanColor, true);
@@ -166,7 +176,33 @@ void UVendorScreenWidget::BuildTree()
 	StatusText = MakeWrappedText(WidgetTree, LineFontSize, GoodColor);
 	AddToColumn(PanelColumn, StatusText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	DetailPanel = MakeSized(WidgetTree, PanelWidth, 0.0f, Panel);
-	AddToRow(Body, DetailPanel, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
+
+	// Buy: the cart, under the details.
+	UBorder *CartFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	CartFrame->SetBrushColor(PanelColor);
+	CartFrame->SetPadding(FMargin(PanelPadding));
+	UVerticalBox *CartColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	CartFrame->SetContent(CartColumn);
+	UTextBlock *CartHeading = MakeText(WidgetTree, RowFontSize, DimColor, true);
+	CartHeading->SetText(LOCTEXT("CartHeading", "Cart"));
+	AddToColumn(CartColumn, CartHeading, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	CartLinesText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+	AddToColumn(CartColumn, CartLinesText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	CartTotalText = MakeWrappedText(WidgetTree, LineFontSize, TextColor, true);
+	AddToColumn(CartColumn, CartTotalText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	PurchaseButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	PurchaseButton->SetPadding(FMargin(RowPadding));
+	PurchaseButton->SetHorizontalAlignment(HAlign_Center);
+	PurchaseText = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	PurchaseText->SetText(LOCTEXT("Purchase", "X  Purchase"));
+	PurchaseButton->SetContent(PurchaseText);
+	AddToColumn(CartColumn, PurchaseButton);
+	CartPanel = MakeSized(WidgetTree, PanelWidth, 0.0f, CartFrame);
+
+	UVerticalBox *Side = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	AddToColumn(Side, DetailPanel);
+	AddToColumn(Side, CartPanel, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
+	AddToRow(Body, Side, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
 	HintsText = MakeText(WidgetTree, LineFontSize, DimColor);
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
@@ -218,9 +254,11 @@ void UVendorScreenWidget::NativeOnActivated()
 	ResetState();
 }
 
-void UVendorScreenWidget::SetVendor(EMerchantType InVendor)
+void UVendorScreenWidget::SetVendor(EMerchantType InVendor, const UMerchantData *InMerchant, AActor *InPayer)
 {
 	Vendor = InVendor;
+	Merchant = InMerchant ? InMerchant : WoRVendorScreen::FindMerchant(GetWorld(), InVendor);
+	Payer = InPayer ? InPayer : GetOwningPlayerPawn();
 	ResetState();
 	UE_LOG(LogWoRUI, Log, TEXT("[VendorScreen] Showing the %s (%d member(s))"), *WoRGameNames::GetMerchantTypeName(Vendor).ToString(), Members.Num());
 }
@@ -233,6 +271,7 @@ void UVendorScreenWidget::ResetState()
 	SelectedRow = 0;
 	bConfirming = false;
 	bWholeStack = false; // the stack holds a pooled screen: nothing carries over from the last open
+	Cart.Reset();
 	Status = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
@@ -271,13 +310,16 @@ void UVendorScreenWidget::RefreshData()
 	UWorld *World = GetWorld();
 	Members = WoRLoadoutScreen::BuildMembers(World);
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
-	Page = WoRVendorScreen::BuildPage(World, Vendor, GetTab(), MemberKey());
+	const bool bBuy = IsBuy();
+	Page = bBuy ? WoRVendorScreen::BuildBuyPage(World, Merchant.Get(), Payer.Get(), MemberKey(), Cart) : WoRVendorScreen::BuildPage(World, Vendor, GetTab(), MemberKey());
 	SelectedRow = Page.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, Page.Rows.Num() - 1) : 0;
 
 	if (!TitleText || !RowScroll)
 	{
 		return; // headless: no tree
 	}
+	RefreshCart();
+	SetShown(MemberTabRow, !bBuy); // Buy says who it is for in the panel ("Buying for")
 	TitleText->SetText(WoRGameNames::GetMerchantTypeName(Vendor));
 	VendorLineText->SetText(WoRVendorScreen::GetVendorLine(Vendor));
 	TArray<FText> Chips;
@@ -312,9 +354,9 @@ void UVendorScreenWidget::RefreshData()
 	}
 	EmptyText->SetText(Page.EmptyNote);
 	SetShown(EmptyText, !Page.EmptyNote.IsEmpty());
-	HintsText->SetText(FText::Format(
-		LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
-		WoRVendorScreen::GetTabName(GetTab())));
+	HintsText->SetText(bBuy ? LOCTEXT("HintsBuy", "LB / RB  Service        A / Enter  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave")
+							: FText::Format(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
+											WoRVendorScreen::GetTabName(GetTab())));
 
 	while (RowWidgets.Num() < Page.Rows.Num())
 	{
@@ -338,8 +380,10 @@ void UVendorScreenWidget::RefreshData()
 		Widgets.Sub->SetText(bRefused ? Row.Refusal : Row.KindLine);
 		Widgets.Sub->SetColorAndOpacity(FSlateColor(bRefused ? WarnColor : DimColor));
 		Widgets.Tier->SetText(Row.Tier);
-		Widgets.Count->SetText(Row.Row.Count > 1 ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Row.Row.Count)) : FText::GetEmpty());
-		Widgets.Pay->SetText(bRefused ? FText::GetEmpty() : Row.Pay);
+		// Sell and Dismantle: the stack's size. Buy: how many the cart holds, and a refused line still shows its price.
+		Widgets.Count->SetText(Row.Row.Count > (bBuy ? 0 : 1) ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Row.Row.Count)) : FText::GetEmpty());
+		Widgets.Pay->SetText(bRefused && !bBuy ? FText::GetEmpty() : Row.PayMoney.IsEmpty() ? Row.Pay : FText::Format(LOCTEXT("PayAndMore", "{0} +"), Row.PayMoney));
+		Widgets.Pay->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
 	}
 }
 
@@ -364,19 +408,49 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 		return; // headless: no tree
 	}
 	SetShown(DetailPanel, Focused != nullptr || !Status.IsEmpty());
+	const bool bBuy = IsBuy();
 	const FVendorScreenRow Row = Focused ? *Focused : FVendorScreenRow();
-	const int32 Count = WoRVendorScreen::GetTakeCount(Row, bWholeStack);
+	const int32 Count = bBuy ? 1 : WoRVendorScreen::GetTakeCount(Row, bWholeStack); // Buy's Row.Count is the cart's, not a stack
 	const FText What = Row.Tier.IsEmpty() ? Row.Name : FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Row.Name, Row.Tier);
-	DetailTitle->SetText(Focused ? FText::Format(LOCTEXT("DetailTitle", "{0} {1}"), WoRVendorScreen::GetTabName(GetTab()), What) : FText::GetEmpty());
+	DetailTitle->SetText(!Focused ? FText::GetEmpty() : bBuy ? What : FText::Format(LOCTEXT("DetailTitle", "{0} {1}"), WoRVendorScreen::GetTabName(GetTab()), What));
+	PayLabel->SetText(bBuy ? LOCTEXT("Price", "Price") : LOCTEXT("YouGet", "You get"));
+	SetShown(PayLabel, Focused != nullptr);
 	DetailPay->SetText(!Row.Refusal.IsEmpty() ? Row.Refusal : Count > 1 ? FText::Format(LOCTEXT("PayEach", "{0} each, for {1}"), Row.Pay, FText::AsNumber(Count)) : Row.Pay);
 	DetailPay->SetColorAndOpacity(FSlateColor(Row.Refusal.IsEmpty() ? TextColor : WarnColor));
+
+	// Buy: what the thing is and does, and who it is bought for.
+	TArray<FText> Lines;
+	if (bBuy && Focused)
+	{
+		if (!Row.Refusal.IsEmpty())
+		{
+			Lines.Add(Row.Pay); // the reason took the price's place
+		}
+		Lines.Add(Row.KindLine);
+		for (const FLoadoutScreenDetail &Detail : Row.Details)
+		{
+			Lines.Add(FText::Format(LOCTEXT("DetailLine", "{0}:  {1}"), Detail.Label, Detail.Value));
+		}
+		if (!Row.Note.IsEmpty())
+		{
+			Lines.Add(Row.Note);
+		}
+	}
+	DetailLines->SetText(FText::Join(FText::FromString(TEXT("\n")), Lines));
+	SetShown(DetailLines, !Lines.IsEmpty());
+	const bool bBuyFor = bBuy && Members.IsValidIndex(MemberIndex);
+	SetShown(BuyForButton, bBuyFor);
+	if (bBuyFor)
+	{
+		BuyForText->SetText(FText::Format(LOCTEXT("BuyingFor", "R / Y  Buying for:  {0}"), Members[MemberIndex].Name));
+	}
 
 	EVendorService Service;
 	const bool bAsking = bConfirming && Focused && WoRVendorScreen::GetService(GetTab(), Service);
 	ConfirmText->SetText(bAsking ? WoRVendorServices::GetConfirmText(GetWorld(), Service, MemberKey(), Row.Row) : FText::GetEmpty());
 	SetShown(ConfirmText, bAsking);
 	SetShown(ConfirmHint, bAsking);
-	const bool bStack = Focused && Row.Row.Count > 1;
+	const bool bStack = Focused && !bBuy && Row.Row.Count > 1;
 	SetShown(WholeStackText, bStack);
 	WholeStackText->SetText(bWholeStack ? FText::Format(LOCTEXT("WholeStackOn", "X  Whole stack: on (all {0})"), FText::AsNumber(Row.Row.Count))
 										: LOCTEXT("WholeStackOff", "X  Whole stack: off (one at a time)"));
@@ -393,6 +467,74 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 			RowScroll->ScrollWidgetIntoView(RowFrame, /*AnimateScroll=*/false);
 		}
 	}
+}
+
+void UVendorScreenWidget::RefreshCart()
+{
+	using namespace VendorScreenStyle;
+
+	if (!CartPanel)
+	{
+		return; // headless: no tree
+	}
+	SetShown(CartPanel, IsBuy());
+	UWorld *World = GetWorld();
+	TArray<FText> Lines;
+	for (const FVendorCartLine &Line : Cart)
+	{
+		Lines.Add(WoRVendorScreen::GetCartLineText(World, Line));
+	}
+	CartLinesText->SetText(Cart.IsEmpty() ? LOCTEXT("CartNothing", "Nothing yet.") : FText::Join(FText::FromString(TEXT("\n")), Lines));
+	CartLinesText->SetColorAndOpacity(FSlateColor(Cart.IsEmpty() ? OffColor : TextColor));
+
+	const FVendorCartSummary Summary = WoRVendorScreen::BuildCartSummary(World, Payer.Get(), Cart);
+	const bool bCanBuy = !Cart.IsEmpty() && Summary.Refusal.IsEmpty();
+	CartTotalText->SetText(Summary.Refusal.IsEmpty() ? FText::Format(LOCTEXT("CartTotal", "Total:  {0}\nAfter purchase:  {1}"), Summary.Total, Summary.After)
+													 : FText::Format(LOCTEXT("CartTotalShort", "Total:  {0}\n{1}"), Summary.Total, Summary.Refusal));
+	CartTotalText->SetColorAndOpacity(FSlateColor(Summary.Refusal.IsEmpty() ? TextColor : WarnColor));
+	SetShown(CartTotalText, !Cart.IsEmpty());
+	PurchaseButton->SetBrushColor(bCanBuy ? FocusColor : PlateColor);
+	PurchaseText->SetColorAndOpacity(FSlateColor(bCanBuy ? TextColor : OffColor));
+}
+
+void UVendorScreenWidget::AddFocusedToCart()
+{
+	const FVendorScreenRow *Focused = FocusedRow();
+	if (!IsBuy() || !Focused || !Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	const FVendorScreenRow Row = *Focused; // a copy: the page is rebuilt below
+	Status = WoRVendorScreen::AddToCart(Payer.Get(), Row, Members[MemberIndex], Cart);
+	bStatusIsRefusal = !Status.IsEmpty();
+	RefreshData();
+	RefreshSelection(/*bScrollIntoView=*/false);
+}
+
+void UVendorScreenWidget::RemoveFocusedFromCart()
+{
+	const FVendorScreenRow *Focused = FocusedRow();
+	if (IsBuy() && Focused && WoRVendorScreen::RemoveFromCart(*Focused, MemberKey(), Cart))
+	{
+		Status = FText::GetEmpty();
+		RefreshData();
+		RefreshSelection(/*bScrollIntoView=*/false);
+	}
+}
+
+void UVendorScreenWidget::Purchase()
+{
+	if (!IsBuy())
+	{
+		return;
+	}
+	const FText Total = WoRVendorScreen::BuildCartSummary(GetWorld(), Payer.Get(), Cart).Total;
+	const FText Failure = WoRVendorScreen::PurchaseCart(GetWorld(), Payer.Get(), Cart);
+	bStatusIsRefusal = !Failure.IsEmpty();
+	Status = bStatusIsRefusal ? Failure : FText::Format(LOCTEXT("DoneBuy", "Bought for {0}."), Total);
+	UE_LOG(LogWoRUI, Log, TEXT("[VendorScreen] Purchase: %s"), *Status.ToString());
+	RefreshData();
+	RefreshSelection(/*bScrollIntoView=*/false);
 }
 
 void UVendorScreenWidget::MoveRow(int32 Delta)
@@ -432,7 +574,7 @@ void UVendorScreenWidget::MoveMember(int32 Delta)
 		return;
 	}
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
-	SelectedRow = 0;
+	SelectedRow = IsBuy() ? SelectedRow : 0; // Buy: the stock is the same list, whoever it is bought for
 	bConfirming = false;
 	Status = FText::GetEmpty();
 	RefreshData();
@@ -441,6 +583,11 @@ void UVendorScreenWidget::MoveMember(int32 Delta)
 
 void UVendorScreenWidget::Confirm()
 {
+	if (IsBuy())
+	{
+		AddFocusedToCart(); // nothing is spent until Purchase: the cart is the question
+		return;
+	}
 	const FVendorScreenRow *Focused = FocusedRow();
 	EVendorService Service;
 	if (!Focused || !WoRVendorScreen::GetService(GetTab(), Service))
@@ -504,6 +651,13 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 		MoveRow(IsDownKey(Key) ? 1 : -1);
 		return FReply::Handled();
 	}
+	const bool bBuy = IsBuy();
+	if (bBuy && (IsLeftKey(Key) || IsRightKey(Key)))
+	{
+		// Buy: Right adds one more of the focused line (as A), Left takes one back; held, they repeat.
+		IsRightKey(Key) ? AddFocusedToCart() : RemoveFocusedFromCart();
+		return FReply::Handled();
+	}
 	if (InKeyEvent.IsRepeat())
 	{
 		return FReply::Handled(); // the keys below act once per press
@@ -515,7 +669,12 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 	}
 	if (IsToggleKey(Key))
 	{
-		ToggleWholeStack();
+		bBuy ? Purchase() : ToggleWholeStack();
+		return FReply::Handled();
+	}
+	if (bBuy && IsSecondActionKey(Key))
+	{
+		MoveMember(1); // "Buying for"
 		return FReply::Handled();
 	}
 	if (IsTabPrevKey(Key) || IsTabNextKey(Key))
@@ -567,11 +726,28 @@ FReply UVendorScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const
 
 FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
+	const bool bBuy = IsBuy();
+	if (bBuy && InMouseEvent.GetEffectingButton() == EKeys::RightMouseButton && FindRowUnder(InMouseEvent) != INDEX_NONE)
+	{
+		SelectRow(FindRowUnder(InMouseEvent), /*bScrollIntoView=*/false);
+		RemoveFocusedFromCart(); // as Left
+		return FReply::Handled();
+	}
 	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
 	const FVector2D Position = InMouseEvent.GetScreenSpacePosition();
+	if (bBuy && PurchaseButton && PurchaseButton->GetCachedGeometry().IsUnderLocation(Position))
+	{
+		Purchase();
+		return FReply::Handled();
+	}
+	if (bBuy && BuyForButton && BuyForButton->GetCachedGeometry().IsUnderLocation(Position))
+	{
+		MoveMember(1);
+		return FReply::Handled();
+	}
 	for (int32 Index = 0; Index < ServiceTabs.Num() && Index < Tabs.Num(); ++Index)
 	{
 		if (ServiceTabs[Index] && ServiceTabs[Index]->GetCachedGeometry().IsUnderLocation(Position))
@@ -583,7 +759,8 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 			return FReply::Handled();
 		}
 	}
-	for (int32 Index = 0; Index < MemberTabs.Num() && Index < Members.Num(); ++Index)
+	// Buy hides the character tabs; a hidden tab keeps the place it last had.
+	for (int32 Index = 0; !bBuy && Index < MemberTabs.Num() && Index < Members.Num(); ++Index)
 	{
 		if (MemberTabs[Index] && MemberTabs[Index]->GetCachedGeometry().IsUnderLocation(Position))
 		{

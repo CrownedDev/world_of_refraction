@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "Merchant/MerchantData.h"
+#include "UI/Menus/VendorScreenWidget.h"
 
 void UMerchantShopSubsystem::OpenForMerchant(UMerchantData *Merchant, APawn *Instigator)
 {
@@ -35,6 +36,15 @@ void UMerchantShopSubsystem::OpenForMerchant(UMerchantData *Merchant, APawn *Ins
            *UEnum::GetDisplayValueAsText(Merchant->MerchantType).ToString(),
            *Instigator->GetName());
 
+    // B-456b (D-193, UIScreens #15): the vendor screen, on the root layout's menu layer (CommonUI: nothing pauses, Q-439,
+    // so there is no modal bracket to unwind).
+    if (UVendorScreenWidget::Open(PC, Merchant->MerchantType, Merchant))
+    {
+        return;
+    }
+
+    // OBSOLETE (B-456b): the old shop window, reached only when the vendor screen can't open (no root layout). It and
+    // UShopWindowWidget go after the PIE pass.
     // NO_UI_YET (3a): the WBP lands in 3b. Skip the widget AND the modal bracket —
     // pausing with no window (and no Close button) would soft-lock the hub.
     UClass *WidgetClass = ShopWindowClass.LoadSynchronous();
