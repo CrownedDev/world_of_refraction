@@ -108,7 +108,8 @@ void AWoRPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
 	const UGameInstance *GI = GetGameInstance();
-	if (const USaveSubsystem *Save = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
+	// B-425: only an authority wallet takes its save here; a guest reports its save to the host (ClientInitialize).
+	if (const USaveSubsystem *Save = GI && HasAuthority() && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
 		Save->ApplyWalletTo(Wallet);
 	}
@@ -137,6 +138,10 @@ void AWoRPlayerState::ClientInitialize(AController *Controller)
 			}
 		}
 		ServerReportJournal(MemoryIds);
+		if (const USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
+		{
+			ServerReportWallet(Save->GetData().Wallet, Save->GetCarriedGold()); // B-425
+		}
 		if (const UHiddenQuestSubsystem *Quests = GI->GetSubsystem<UHiddenQuestSubsystem>())
 		{
 			ServerReportQuests(Quests->Capture().Quests); // B-377b
@@ -160,7 +165,8 @@ void AWoRPlayerState::FollowLocalForm()
 void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	const UGameInstance *GI = GetGameInstance();
-	if (USaveSubsystem *Save = GI && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
+	// B-425: a guest's wallet is the host's mirror; banking it would overwrite the guest's own save.
+	if (USaveSubsystem *Save = GI && HasAuthority() && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
 		Save->BankWallet(Wallet);
 	}
@@ -179,6 +185,7 @@ void AWoRPlayerState::CopyProperties(APlayerState *PlayerState)
 	if (AWoRPlayerState *NextPlace = Cast<AWoRPlayerState>(PlayerState))
 	{
 		NextPlace->SetJoinSequence(JoinSequence);
+		NextPlace->bReportedWalletApplied = bReportedWalletApplied; // B-425: a travel's re-report is not applied again
 	}
 	Super::CopyProperties(PlayerState);
 	AWoRPlayerState *Next = Cast<AWoRPlayerState>(PlayerState);
@@ -731,6 +738,26 @@ void AWoRPlayerState::ServerReportJournal_Implementation(const TArray<FName> &Me
 	}
 	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s reported %d memory(ies) in their journal (B-235e)%s"), *GetPlayerName(), Taken,
 		   Taken < MemoryIds.Num() ? TEXT(", the rest dropped (over the cap)") : TEXT(""));
+}
+
+void AWoRPlayerState::ServerReportWallet_Implementation(const FSavedWallet &Saved, int32 CarriedGold)
+{
+	if (bReportedWalletApplied || !Wallet)
+	{
+		UE_LOG(LogWoR, Verbose, TEXT("[Wallet] %s's wallet report ignored: %s (B-425)"), *GetPlayerName(),
+			   Wallet ? TEXT("already applied") : TEXT("no wallet"));
+		return;
+	}
+	bReportedWalletApplied = true;
+	USaveSubsystem::ApplyWallet(Saved, Wallet);
+	// The carried run Gold, as USaveSubsystem::ApplyWalletTo tops it up for the host.
+	const int32 MissingGold = CarriedGold - Wallet->GetBalance(ECurrencyType::Gold);
+	if (MissingGold > 0)
+	{
+		Wallet->Add(ECurrencyType::Gold, MissingGold);
+	}
+	UE_LOG(LogWoR, Log, TEXT("[Wallet] %s's saved wallet applied on the host: %d balance(s), %d carried Gold (B-425)"),
+		   *GetPlayerName(), Saved.Balances.Num(), FMath::Max(0, CarriedGold));
 }
 
 void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuestProgress> &Quests)

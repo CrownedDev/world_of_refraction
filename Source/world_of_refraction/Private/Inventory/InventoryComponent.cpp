@@ -860,6 +860,11 @@ bool UInventoryComponent::CanAddWeapon(UWeaponData *Weapon) const
         return false;
     }
 
+    if (bPassingGearThrough)
+    {
+        return true; // B-432: bought for another member, handed on at once
+    }
+
     // Base weapon costs 1 slot
     int32 Cost = InventoryConstants::WEAPON_BASE_SLOT_COST;
     return GetRemainingWeaponCapacity() >= Cost;
@@ -2451,6 +2456,11 @@ bool UInventoryComponent::CanAddRing(URingData *Ring) const
     if (!Ring)
     {
         return false;
+    }
+
+    if (bPassingGearThrough)
+    {
+        return true; // B-432: bought for another member, handed on at once
     }
 
     // Base ring costs 1 slot
