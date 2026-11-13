@@ -8,6 +8,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Player/WoRHubController.h"
 #include "Save/SaveSubsystem.h"
+#include "UI/Menus/CreditsScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/SettingsScreenWidget.h"
 #include "UI/WoRRootLayout.h"
@@ -38,8 +39,6 @@ namespace TitleScreenStyle
 	/** UIScreens #9: New Game over a save needs A held this long (Destiny 2's dismantle, Elden Ring's delete). */
 	constexpr float HOLD_TO_START_OVER_SECONDS = 2.0f;
 	constexpr float MaxHoldStepSeconds = 0.1f;
-	// TODO: the nebula and the hexagon vortex replace the flat backdrop (D-202, an editor step).
-	inline const FLinearColor BackdropColor = FLinearColor::FromSRGBColor(FColor(11, 7, 20));
 	inline const FLinearColor DimLayerColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
 	/** "Your save was reset": the mockup's amber title. */
 	inline const FLinearColor NoticeTitleColor = WarnColor;
@@ -96,7 +95,7 @@ void UTitleScreenWidget::BuildTree()
 	WidgetTree->RootWidget = Root;
 
 	UBorder *Screen = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Screen"));
-	Screen->SetBrushColor(BackdropColor);
+	Screen->SetBrushColor(FrontBackdropColor);
 	Screen->SetPadding(FMargin(ScreenPaddingX, ScreenPadding));
 	UOverlaySlot *ScreenSlot = Root->AddChildToOverlay(Screen);
 	ScreenSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -338,6 +337,9 @@ void UTitleScreenWidget::Confirm()
 		break;
 	case ETitleScreenRow::Settings:
 		USettingsScreenWidget::Open(GetOwningPlayer());
+		break;
+	case ETitleScreenRow::Credits:
+		UCreditsScreenWidget::Open(GetOwningPlayer());
 		break;
 	case ETitleScreenRow::Quit:
 		UE_LOG(LogWoRUI, Log, TEXT("[Title] Quit"));

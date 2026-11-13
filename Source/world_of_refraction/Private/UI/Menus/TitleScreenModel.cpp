@@ -38,9 +38,7 @@ TArray<FTitleScreenRow> WoRTitleScreen::BuildRows(const FTitleSaveSummary &Save)
 	Rows.Add({ETitleScreenRow::JoinFriend, LOCTEXT("JoinFriend", "Join a friend"), FText::GetEmpty(),
 			  LOCTEXT("JoinNotBuilt", "Joining from here comes with the co-op screens.")});
 	Rows.Add({ETitleScreenRow::Settings, LOCTEXT("Settings", "Settings")});
-	// TODO: B-470 builds the credits.
-	Rows.Add({ETitleScreenRow::Credits, LOCTEXT("Credits", "Credits"), FText::GetEmpty(),
-			  LOCTEXT("CreditsNotBuilt", "The credits aren't on this screen yet.")});
+	Rows.Add({ETitleScreenRow::Credits, LOCTEXT("Credits", "Credits")});
 	Rows.Add({ETitleScreenRow::Quit, LOCTEXT("Quit", "Quit")});
 	return Rows;
 }

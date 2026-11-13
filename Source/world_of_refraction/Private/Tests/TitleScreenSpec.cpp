@@ -43,8 +43,7 @@ void FTitleScreenSpec::Define()
 		{
 			TestFalse(TEXT("named"), Row.Label.IsEmpty());
 			TestTrue(TEXT("no Continue"), Row.Id != ETitleScreenRow::Continue);
-			const bool bNotBuilt = Row.Id == ETitleScreenRow::JoinFriend || Row.Id == ETitleScreenRow::Credits;
-			TestEqual(TEXT("only Join a friend and Credits are refused"), Row.CanUse(), !bNotBuilt);
+			TestEqual(TEXT("only Join a friend is refused"), Row.CanUse(), Row.Id != ETitleScreenRow::JoinFriend);
 		}
 	});
 
