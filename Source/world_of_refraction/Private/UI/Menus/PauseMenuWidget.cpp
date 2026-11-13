@@ -22,7 +22,7 @@
 #include "TimerManager.h"
 #include "UI/Menus/InventoryScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
-#include "UI/Hub/MemoryJournalWidget.h"
+#include "UI/Menus/JournalScreenWidget.h"
 #include "UI/Menus/CharacterSheetWidget.h"
 #include "UI/Menus/SettingsScreenWidget.h"
 #include "UI/Menus/LoadoutScreenWidget.h"
@@ -421,8 +421,10 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 	case EPauseMenuPage::Inventory:
 		UInventoryScreenWidget::Open(GetOwningPlayer());
 		break;
-	case EPauseMenuPage::Party:
 	case EPauseMenuPage::Journal:
+		UJournalScreenWidget::Open(GetOwningPlayer());
+		break;
+	case EPauseMenuPage::Party:
 		OpenPlaceholder(Page.Page);
 		break;
 	case EPauseMenuPage::Quit:
@@ -451,14 +453,11 @@ void UPauseMenuWidget::OpenPlaceholder(EPauseMenuPage Page)
 		{
 			return;
 		}
-		// TODO: the party (B-458) and journal screens replace these viewport placeholders.
+		// TODO: the party screen (B-458) replaces this viewport placeholder.
 		switch (Page)
 		{
 		case EPauseMenuPage::Party:
 			UPartyControlWidget::Open(PC);
-			break;
-		case EPauseMenuPage::Journal:
-			UMemoryJournalWidget::Open(PC);
 			break;
 		default:
 			break;
