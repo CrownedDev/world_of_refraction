@@ -123,7 +123,7 @@ void FFieldMovesSpec::Define()
 			TestTrue(TEXT("glide"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None && Field->IsGliding());
 			TestEqual(TEXT("paid once"), CharComp->CurrentEP, FieldMovesSpecValues::START_EP - FieldSkillRules::GLIDE_EP_COST);
 			TestEqual(TEXT("slow gravity"), Movement()->GravityScale, FieldSkillRules::GLIDE_GRAVITY_SCALE, FieldMovesSpecValues::TOLERANCE);
-			TestEqual(TEXT("fall capped"), Movement()->Velocity.Z, -FieldSkillRules::GLIDE_MAX_FALL_SPEED, FieldMovesSpecValues::TOLERANCE);
+			TestEqual(TEXT("fall capped"), static_cast<float>(Movement()->Velocity.Z), -FieldSkillRules::GLIDE_MAX_FALL_SPEED, FieldMovesSpecValues::TOLERANCE);
 			Field->NotifyLanded();
 			TestFalse(TEXT("off on landing"), Field->IsGliding());
 			TestEqual(TEXT("gravity back"), Movement()->GravityScale, BaseGravity, FieldMovesSpecValues::TOLERANCE);
@@ -137,13 +137,17 @@ void FFieldMovesSpec::Define()
 			}
 			SetInAir(false);
 			TestTrue(TEXT("high jump"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None);
-			TestEqual(TEXT("launched up"), Movement()->PendingLaunchVelocity.Z, FieldSkillRules::HIGH_JUMP_SPEED, FieldMovesSpecValues::TOLERANCE);
+			TestEqual(TEXT("launched up"), static_cast<float>(Movement()->PendingLaunchVelocity.Z), FieldSkillRules::HIGH_JUMP_SPEED, FieldMovesSpecValues::TOLERANCE);
 			SetInAir(true);
 			TestTrue(TEXT("double jump"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None);
-			TestEqual(TEXT("double jump speed"), Movement()->PendingLaunchVelocity.Z, FieldSkillRules::DOUBLE_JUMP_SPEED, FieldMovesSpecValues::TOLERANCE);
+			TestEqual(TEXT("double jump speed"), static_cast<float>(Movement()->PendingLaunchVelocity.Z), FieldSkillRules::DOUBLE_JUMP_SPEED, FieldMovesSpecValues::TOLERANCE);
 			TestTrue(TEXT("no third"), Field->ActivateFieldSkill() == EFieldSkillRefusal::AlreadyUsedInAir);
 			TestEqual(TEXT("two jumps paid"), CharComp->CurrentEP, FieldMovesSpecValues::START_EP - 2 * FieldSkillRules::HIGH_JUMP_EP_COST);
 			Field->NotifyLanded();
+			SetInAir(false);
+			TestTrue(TEXT("a high jump after landing"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None);
+			TestEqual(TEXT("high jump speed"), static_cast<float>(Movement()->PendingLaunchVelocity.Z), FieldSkillRules::HIGH_JUMP_SPEED, FieldMovesSpecValues::TOLERANCE);
+			SetInAir(true);
 			TestTrue(TEXT("the double jump is back"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None);
 		});
 
@@ -157,8 +161,9 @@ void FFieldMovesSpec::Define()
 			TestTrue(TEXT("not on the ground"), Field->ActivateFieldSkill() == EFieldSkillRefusal::NeedsAir);
 			SetInAir(true);
 			TestTrue(TEXT("air dash"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None);
-			TestEqual(TEXT("dash speed"), Movement()->PendingLaunchVelocity.Size(), FieldSkillRules::AIR_DASH_SPEED, FieldMovesSpecValues::TOLERANCE);
+			TestEqual(TEXT("dash speed"), static_cast<float>(Movement()->PendingLaunchVelocity.Size()), FieldSkillRules::AIR_DASH_SPEED, FieldMovesSpecValues::TOLERANCE);
 			TestTrue(TEXT("once per airtime"), Field->ActivateFieldSkill() == EFieldSkillRefusal::AlreadyUsedInAir);
+			TestTrue(TEXT("another move than the picked one is refused"), Field->HighJump() == EFieldSkillRefusal::NotActiveSkill);
 			TestEqual(TEXT("paid"), CharComp->CurrentEP, FieldMovesSpecValues::START_EP - FieldSkillRules::AIR_DASH_EP_COST);
 		});
 
@@ -172,7 +177,7 @@ void FFieldMovesSpec::Define()
 			const FVector Start = Pawn->GetActorLocation();
 			TestTrue(TEXT("air dash"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None);
 			const float Expected = FieldSkillRules::AIR_DASH_BLINK_COUNT * FieldSkillRules::AIR_DASH_BLINK_DISTANCE;
-			TestEqual(TEXT("moved the blinks' distance (empty world)"), FVector::Dist(Start, Pawn->GetActorLocation()), Expected, 1.0f);
+			TestEqual(TEXT("moved the blinks' distance (empty world)"), static_cast<float>(FVector::Dist(Start, Pawn->GetActorLocation())), Expected, 1.0f);
 		});
 
 		It("holds a wall-run during Enhanced Sprint and ends it off the wall, once per airtime", [this]()
@@ -187,7 +192,7 @@ void FFieldMovesSpec::Define()
 			Movement()->Velocity = FVector(FieldMovesSpecValues::SPRINT_SPEED, 0.0f, -FieldMovesSpecValues::FALL_SPEED);
 			Field->ApplyWallRunStep(true, FVector(0.0f, 1.0f, 0.0f));
 			TestTrue(TEXT("wall-running"), Field->IsWallRunning());
-			TestEqual(TEXT("height held"), Movement()->Velocity.Z, 0.0f, FieldMovesSpecValues::TOLERANCE);
+			TestEqual(TEXT("height held"), static_cast<float>(Movement()->Velocity.Z), 0.0f, FieldMovesSpecValues::TOLERANCE);
 			TestEqual(TEXT("no gravity"), Movement()->GravityScale, FieldSkillRules::WALL_RUN_GRAVITY_SCALE, FieldMovesSpecValues::TOLERANCE);
 			Field->ApplyWallRunStep(false, FVector::ZeroVector);
 			TestFalse(TEXT("off the wall"), Field->IsWallRunning());

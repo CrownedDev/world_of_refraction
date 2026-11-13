@@ -56,7 +56,7 @@ EFieldSkillRefusal UFieldMovementComponent::ToggleGlide()
 		SetGliding(false);
 		return EFieldSkillRefusal::None;
 	}
-	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable();
+	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable(EFieldMovementType::Glide);
 	if (Refusal == EFieldSkillRefusal::None)
 	{
 		const UCharacterDataComponent *CharComp = GetCharacterData();
@@ -83,7 +83,7 @@ EFieldSkillRefusal UFieldMovementComponent::HighJump()
 		return EFieldSkillRefusal::NoMovement;
 	}
 	const bool bOnGround = Movement->IsMovingOnGround();
-	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable();
+	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable(EFieldMovementType::HighJump);
 	if (Refusal == EFieldSkillRefusal::None)
 	{
 		const UCharacterDataComponent *CharComp = GetCharacterData();
@@ -113,7 +113,7 @@ EFieldSkillRefusal UFieldMovementComponent::AirDash()
 	{
 		return EFieldSkillRefusal::NoMovement;
 	}
-	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable();
+	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable(EFieldMovementType::AirDash);
 	if (Refusal == EFieldSkillRefusal::None)
 	{
 		const UCharacterDataComponent *CharComp = GetCharacterData();
@@ -193,7 +193,7 @@ void UFieldMovementComponent::ApplyWallRunStep(bool bWallBeside, const FVector &
 	}
 	WallRunSeconds += FieldSkillRules::MOVE_STEP_INTERVAL;
 	// Along the wall at the same speed, height held.
-	const float Speed = Movement->Velocity.Size2D();
+	const FVector::FReal Speed = Movement->Velocity.Size2D();
 	const FVector Along = FVector::VectorPlaneProject(FVector(Movement->Velocity.X, Movement->Velocity.Y, 0.0f), WallNormal).GetSafeNormal2D();
 	Movement->Velocity = Along * Speed;
 }
@@ -206,9 +206,13 @@ void UFieldMovementComponent::StepMoves()
 	{
 		return;
 	}
+	if (bGliding && !Movement->IsFalling())
+	{
+		SetGliding(false); // out of the air without a landing event (water, a teleport, a scripted mode)
+	}
 	if (bGliding)
 	{
-		Movement->Velocity.Z = FMath::Max(Movement->Velocity.Z, -FieldSkillRules::GLIDE_MAX_FALL_SPEED);
+		Movement->Velocity.Z = FMath::Max<FVector::FReal>(Movement->Velocity.Z, -FieldSkillRules::GLIDE_MAX_FALL_SPEED);
 	}
 	if (bEnhancedSprintActive && Movement->IsFalling())
 	{
