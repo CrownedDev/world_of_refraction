@@ -135,7 +135,7 @@ def marker(d, enemy, hp, card=True, hp_max=600, dmg=.12, build=.35, add=.2, buil
         vbar(d, x - 152, y - r - 124, 304, 24, hp, v.ROSE, hp_text, ghost=-dmg)
         vbar(d, x - 152, y - r - 97, 304, 20, build, build_col, "%d/100" % round(build * 100), ghost=add,
              ghost_col=tuple(min(255, c + 90) for c in build_col), size=13)
-        rank = "Rank 2 · Tier C"  # centred at the bottom, under the bars
+        rank = "Tier C"  # no rank; centred at the bottom, under the bars
         d.text((x - d.textlength(rank, font=F(18)) / 2, y - r - 74), rank, font=F(18), fill=v.DIM)
     else:  # one of many: name, HP and buildup bars
         d.text((x - 70, y - r - 92), name, font=F(18, True), fill=v.TXT)
