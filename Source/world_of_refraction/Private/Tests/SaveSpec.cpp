@@ -11,6 +11,8 @@
 #include "Character/CharacterData.h"
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
+#include "Player/WoRGameState.h"
+#include "Player/WoRPlayerState.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -214,6 +216,33 @@ void FSaveSpec::Define()
 		UCurrencyComponent *AfterRun = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
 		Save->ApplyWalletTo(AfterRun);
 		TestEqual(TEXT("No Gold after the run"), AfterRun->GetBalance(ECurrencyType::Gold), 0);
+	});
+
+	It("clears every player's run Gold when a run starts or ends, not only player 0's (B-426)", [this]()
+	{
+		FWoRTestWorld World;
+		if (!TestTrue(TEXT("World"), World.Create()))
+		{
+			return;
+		}
+		UWorld *Level = World.GetWorld();
+		USaveSubsystem *Save = World.GetSubsystem<USaveSubsystem>();
+		AWoRGameState *GameState = Level->SpawnActor<AWoRGameState>();
+		AWoRPlayerState *Host = Level->SpawnActor<AWoRPlayerState>();
+		AWoRPlayerState *Guest = Level->SpawnActor<AWoRPlayerState>();
+		if (!TestTrue(TEXT("Save, game state and two players"), Save && GameState && Host && Guest))
+		{
+			return;
+		}
+		Level->SetGameState(GameState);
+		GameState->AddPlayerState(Host);
+		GameState->AddPlayerState(Guest);
+		Host->GetWallet()->Add(ECurrencyType::Gold, GOLD);
+		Guest->GetWallet()->Add(ECurrencyType::Gold, GOLD);
+
+		Save->ClearRunGold(Level);
+		TestEqual(TEXT("The host's Gold"), Host->GetWallet()->GetBalance(ECurrencyType::Gold), 0);
+		TestEqual(TEXT("The guest's Gold"), Guest->GetWallet()->GetBalance(ECurrencyType::Gold), 0);
 	});
 
 	It("brings the pool's items back with the same ids and tiers", [this]()
