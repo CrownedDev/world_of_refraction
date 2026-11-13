@@ -178,6 +178,7 @@ One block per mocked screen: the images, why the layout, the references.
 ### 15–18. Vendors (`hub/vendors/`)
 
 - `1_shop_buy.png` (Blacksmith, Buy), `2_jeweler_item_slots.png`, `3_spiritualist_repair.png`, `4_spiritualist_curses.png`.
+- **Approved by Crown (2026-11-13, D-193), with the tabs set:** one shop screen, services as tabs, and vendors buy (the Sell tab stays). **Blacksmith:** Buy, Sell, Dismantle (gear and crystals). **Jeweler:** Buy, Sell, Item slots. **Spiritualist:** Buy, Sell, Repair, Curses, Dismantle (evolutions), Merge. **Dismantling is hub-only** (never during a run), and a dismantled item is gone until you find it again (no ban, no restore). Merge (the crystal tier-up) is the Spiritualist's, not the Blacksmith's.
 - **One shop screen for every vendor; each vendor's services are extra tabs on it** (LB / RB): Blacksmith = Buy, Sell, Dismantle, Merge; Jeweler = Buy, Sell, Item slots; Spiritualist = Buy, Sell, Repair, Curses. So the placeholder service widgets (`UItemSlotUpgradeWidget`, `UCurseClearWidget`) and the console-only repair and merge fold into the vendor who offers them. Dismantle and Merge reuse the inventory's confirm (mock 3).
   *Ref:* Hades' House Contractor and Elden Ring's Roundtable smith: the service is a tab on the person who does it. Monster Hunter's smithy keeps forge and upgrade on one NPC.
 - **Buy:** stock on the left, the focused item with a compare line ("+14 vs Garrick's sword"), **Buying for ‹ Garrick ›** (D-111 buy-for) and the cart with totals on the right. A row that can't be bought stays visible with its reason ("Garrick already owns one": one copy per character, D-115). Prices are in **Gold** in the hub and **Prisms** in a run (the same screen; D-047: every service also works in runs).
@@ -332,6 +333,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177) |
 | Character sheet | 5 | `menus/character` | B-442 | |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 | |
+| Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456 (after B-445) | One shop screen, services as tabs; who does what: D-193 |
 | Settings | 8 | `menus/settings` | B-452 (the screen), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
 
@@ -359,6 +361,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | Vendors approved (D-193): one shop screen with service tabs; who dismantles what; dismantling hub-only; Merge at the Spiritualist | feature/B-442-character-sheet |
 | 2026-11-14 | The Gate (D-191, D-192): "Trial" not "Variation", a vertical list, "???" with the unlock condition, no boss names, no AI level text; one hub gate, every gate open to everyone | docs/ui-screens-answers-4 |
 | 2026-11-14 | Crown's answers on the wipe and end-of-run screens (D-187 no enemy rank shown, D-188 words and layout, D-189 what each ending pays) and settings (D-190: approved with all eight proposed settings) | feature/B-440-loadout-screen |
 | 2026-11-14 | Extracting (D-186): "Leave Trial" is "Extract", only at a boss's rest spot; the half share stays | docs/ui-screens-answers-3 |

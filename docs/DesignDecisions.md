@@ -790,6 +790,18 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-193 — Vendors: one shop screen with service tabs; who dismantles what
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-445, B-456
+**Answer (Crown):** (settles Q-445's "which vendor" and the mockup's Merge question; goes with D-177)
+- The vendor screen is **approved**: **one shop screen, services as tabs**. Vendors **buy** (the Sell tab stays).
+- **Blacksmith:** Buy, Sell, **Dismantle** (gear and crystals).
+- **Jeweler:** Buy, Sell, Item slots.
+- **Spiritualist:** Buy, Sell, Repair, Curses, **Dismantle (evolutions)**, **Merge** (`MergeCrystals`, the tier-up; it stays).
+- **Dismantling is hub-only**, never during a run. A dismantled item is **gone until you find it again**: no ban, no restore.
+**Notes for Claude:** "Convert" (D-131's verb) has no tab: read as replaced by Sell; say if a Convert tab is wanted. Today dismantling is an inventory verb and is refused in a run only for home gear (`WoRInventoryVerbs::GetRefusal`); **B-445** moves it and makes it hub-only; **B-456** builds the screen.
+
+---
+
 ### D-192 — One gate in the hub; every gate is open to everyone
 **Status:** ANSWERED (reference-backed default chosen by the desktop operator session, 2026-11-13; Crown was told and may veto) · **Raised:** 2026-11-13 · **Blocks:** — (the Gate mockup is redrawn first)
 **Answer:** gates are **not tied to a class**: all gates (the **Stone Gate**, the **Silver Gate**, and the **crystal-named gates**) are available to everyone (Crown). **There is one gate in the hub**: interacting opens the Gate screen, where you pick **which gate, then the trial, then the difficulty**. The hub gate's **VFX takes the colour of your last trial's gate** (the default).
