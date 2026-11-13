@@ -368,6 +368,7 @@ void USaveSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 	Collection.InitializeDependency<UTrialRunSubsystem>();
 
 	SaveGame = NewObject<UWoRSaveGame>(this);
+	PlayClock = FPlatformTime::Seconds();
 	UGameInstance *GI = GetGameInstance();
 	LocalPlayerAddedHandle = GI->OnLocalPlayerAddedEvent.AddUObject(this, &USaveSubsystem::HandleLocalPlayerAdded);
 	LocalPlayerRemovedHandle = GI->OnLocalPlayerRemovedEvent.AddUObject(this, &USaveSubsystem::HandleLocalPlayerRemoved);
@@ -762,6 +763,9 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 {
 	UGameInstance *GI = GetGameInstance();
 	FWoRSaveData &Data = SaveGame->Data;
+	const double Now = FPlatformTime::Seconds();
+	Data.PlaySeconds += Now - PlayClock;
+	PlayClock = Now;
 	// A level that never builds a party keeps the saved one.
 	const UTrialRunSubsystem *TrialRun = GI->GetSubsystem<UTrialRunSubsystem>();
 	// A loaded run not yet resumed is still a run: its vitals and recruits stay with it.
@@ -840,6 +844,7 @@ void USaveSubsystem::DeleteSave()
 	const int32 UserIndex = Player ? Player->GetPlatformUserIndex() : 0;
 	UGameplayStatics::DeleteGameInSlot(SLOT_NAME, UserIndex);
 	SaveGame->ResetToDefault();
+	PlayClock = FPlatformTime::Seconds();
 	bWritesStopped = true;
 	UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' deleted; no automatic saves until the next start (or wor.Save.Now)"), SLOT_NAME);
 }
@@ -921,6 +926,26 @@ void USaveSubsystem::SetEndTurnButtonHidden(bool bHidden)
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;
+}
+
+bool USaveSubsystem::HasSave() const
+{
+	return SaveGame && SaveGame->GetSavedDataVersion() != SaveGame->GetInvalidDataVersion();
+}
+
+bool USaveSubsystem::WasWiped() const
+{
+	return SaveGame && SaveGame->WasWiped();
+}
+
+int32 USaveSubsystem::GetWipedFromVersion() const
+{
+	return SaveGame ? SaveGame->GetWipedFromVersion() : 0;
+}
+
+double USaveSubsystem::GetPlaySeconds() const
+{
+	return SaveGame ? SaveGame->Data.PlaySeconds + (FPlatformTime::Seconds() - PlayClock) : 0.0;
 }
 
 // ==================== CAPTURE ====================

@@ -129,6 +129,16 @@ public:
 	const FWoRSaveData &GetData() const;
 	bool IsBoundToPlayer() const;
 
+	// ==================== TITLE (B-467) ====================
+
+	/** A save was loaded or written (a fresh, wiped or deleted slot has none). */
+	bool HasSave() const;
+	/** The last load threw an out-of-date save away (D-060), and the version it had. */
+	bool WasWiped() const;
+	int32 GetWipedFromVersion() const;
+	/** Time played: the saved total and this session's time not saved yet. */
+	double GetPlaySeconds() const;
+
 	// ==================== SETTINGS (B-398) ====================
 
 	/** The player's turn-view setting (default Centred Wide, D-074); an unknown saved value reads as the default. */
@@ -195,6 +205,8 @@ private:
 
 	/** Set by DeleteSave: automatic saves stop for the rest of the session. */
 	bool bWritesStopped = false;
+	/** B-467: FPlatformTime::Seconds when play time was last added to the save data. */
+	double PlayClock = 0.0;
 
 	/** B-234b: set by AdoptCheckpoint; WriteSlot writes the copy's slot instead of this player's own. Stays set while the
 	 *  handed-over run lasts (Q-234b (2)): the game in memory holds the old host's party and armoury, so this player's
