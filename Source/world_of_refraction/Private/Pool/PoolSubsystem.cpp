@@ -832,6 +832,11 @@ bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId
     for (const TPair<FCrystalId, int32> &Pair : Items)
     {
         CarryOrStore(CharacterKey, Pair.Key, Pair.Value);
+        if (bRunLayerActive && Pair.Value > 0)
+        {
+            // B-439b (D-097): starting items banked mid-run are the character's own, not a run find: a quit keeps them.
+            RunStartItems.FindOrAdd(StatStone::Normalize(Pair.Key)) += Pair.Value;
+        }
     }
     const FPoolPouch &Pouch = GetPouch(CharacterKey);
     UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting items: %d of %d pouch slot(s) in use"),

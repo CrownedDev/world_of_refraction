@@ -536,6 +536,15 @@ public:
      *  with its tier remembered per definition. Every change fires OnPoolGearChanged. No-op when no layer is open. */
     FPoolRunEndResult EndRunLayer();
 
+    /** B-439b (Q-439 point 2, D-176): how many of each item the party held (every pouch and storage) when the run
+     *  began. Starting items banked during the run count as held from the start (D-097). Saved with the run. */
+    const TMap<FCrystalId, int32> &GetRunStartItems() const { return RunStartItems; }
+    /** A resumed run's saved counts (RestoreRunLayer counts what is held now until this is called). */
+    void RestoreRunStartItems(const TMap<FCrystalId, int32> &Saved) { RunStartItems = Saved; }
+    /** A quit run (UTrialRunSubsystem::ExitTrial, before EndRunLayer): of each item, what is held above the run's start
+     *  count leaves, from the pouches first, then storage. Returns how many left. No-op when no layer is open. */
+    int32 TakeRunFoundItems();
+
     /** The key upgrade memory knows a gear definition by (its asset path), as GetCharacterKey does for characters. */
     static FName GetDefinitionKey(const UObject *Definition);
     /** The tier Definition reached in an earlier run; false when none is remembered. */
@@ -699,6 +708,12 @@ private:
     /** Gear ID -> its run mark, while a run is open. */
     UPROPERTY()
     TMap<FGuid, FPoolRunMark> RunMarks;
+
+    /** B-439b: item -> how many were held when the run began (GetRunStartItems). */
+    TMap<FCrystalId, int32> RunStartItems;
+
+    /** Every item held now, by kind: storage and every pouch. */
+    TMap<FCrystalId, int32> CountHeldItems() const;
 
     /** Gear definition key (GetDefinitionKey) -> the highest tier a run-only copy of it reached (D-097). */
     UPROPERTY()
