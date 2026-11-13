@@ -32,6 +32,8 @@ namespace VendorScreenStyle
 	constexpr float PanelPadding = 30.0f;
 	/** The Spiritualist has the most services (D-193). */
 	constexpr int32 MaxServiceTabs = 6;
+	/** Between two money chips on the top line. */
+	const TCHAR *const ChipGap = TEXT("        ");
 
 	FLinearColor MarkColor(ESpellElement Element)
 	{
@@ -214,21 +216,23 @@ void UVendorScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	ResetState();
-	UE_LOG(LogWoRUI, Log, TEXT("[VendorScreen] Opened (%s, %d member(s))"), *WoRGameNames::GetMerchantTypeName(Vendor).ToString(), Members.Num());
 }
 
 void UVendorScreenWidget::SetVendor(EMerchantType InVendor)
 {
 	Vendor = InVendor;
 	ResetState();
+	UE_LOG(LogWoRUI, Log, TEXT("[VendorScreen] Showing the %s (%d member(s))"), *WoRGameNames::GetMerchantTypeName(Vendor).ToString(), Members.Num());
 }
 
 void UVendorScreenWidget::ResetState()
 {
 	Tabs = WoRVendorScreen::GetTabs(Vendor);
 	TabIndex = FMath::Max(0, Tabs.IndexOfByPredicate([](EVendorScreenTab Tab) { return WoRVendorScreen::IsBuilt(Tab); }));
+	MemberIndex = 0;
 	SelectedRow = 0;
 	bConfirming = false;
+	bWholeStack = false; // the stack holds a pooled screen: nothing carries over from the last open
 	Status = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
@@ -281,7 +285,7 @@ void UVendorScreenWidget::RefreshData()
 	{
 		Chips.Add(FText::Format(LOCTEXT("Chip", "{0} {1}"), Chip.Value, Chip.Label));
 	}
-	ChipsText->SetText(FText::Join(FText::FromString(TEXT("        ")), Chips));
+	ChipsText->SetText(FText::Join(FText::FromString(ChipGap), Chips));
 
 	for (int32 Index = 0; Index < ServiceTabs.Num(); ++Index)
 	{
@@ -487,6 +491,7 @@ void UVendorScreenWidget::Confirm()
 void UVendorScreenWidget::ToggleWholeStack()
 {
 	bWholeStack = !bWholeStack;
+	bConfirming = false; // the question was about the other amount: ask again
 	RefreshSelection(/*bScrollIntoView=*/false);
 }
 

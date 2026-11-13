@@ -224,7 +224,9 @@ void FVendorScreenSpec::Define()
 		TestEqual(TEXT("paid for one"), Money(), Before + Price);
 
 		Screen->SelectRow(FindStack(Screen->GetPage(), VENDOR_SCREEN_GEM));
+		Screen->Confirm();
 		Screen->ToggleWholeStack();
+		TestFalse(TEXT("X after the question drops it: the amount changed"), Screen->IsConfirming());
 		Screen->Confirm();
 		Screen->Confirm();
 		TestEqual(TEXT("the rest sold"), Pool->GetCarriedCount(Key(), VENDOR_SCREEN_GEM), 0);
