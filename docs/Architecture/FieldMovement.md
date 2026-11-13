@@ -25,7 +25,7 @@ B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free s
 
 ## Integration Points
 - `AWoRHubController::OnPossess` (server) adds the component after `EnsureLocalParty` and calls `RefreshFromRecord`; fights open their own level, so the pawn (and the drain timer) ends there.
-- Input: `IA_Field_MovementSkill` through the config soft pointer `DefaultFieldMovementSkillAction` (as `IA_Interact`), bound to `Triggered` (the asset's own trigger does the double tap). Unset until B-214g makes the asset.
+- Input: `IA_Field_MovementSkill` through the config soft pointer `DefaultFieldMovementSkillAction` (as `IA_Interact`), bound to `Triggered` (the asset's own trigger does the double tap). B-214g binds `IA_Field_Attack` (Started stamps the press, Completed calls `FieldAttack(held)`, held at 0.4 s), `IA_Field_SwitchSource` (Started) and `IA_Field_FlyVertical` (1D axis → `AddFlightVerticalInput`) the same way (`DefaultField*Action`). The assets are B-214g's editor step; the ini lines are commented until then.
 - Debug (`Debug/Field/FieldMovementDebug`): B-214b adds `wor.Field.Unlocks` (aura ranks and unlocked types) and `wor.Field.Unlock <Type> <Element>`; `wor.Field.Print` (every field pawn: choice, source element, pick result, sprint on / off and multiplier, EP, dash cooldown, record), `wor.Field.Activate` (the double tap's stand-in), `wor.Field.Dash`, `wor.Field.Set <Innate|Weapon|Ring> <Type>` (placeholder until B-214b's picker).
 - Spec `WoR.Field.Skills`; `WoR.Save` checks the save round trip.
 
@@ -50,3 +50,4 @@ B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free s
 | 2026-11-13 | B-214d: flight (EP each second, hover, ceiling above the take-off ground, `Zone.NoFly` volumes, `FFieldFlightLimits` lifting each), `wor.Field.FlightLimits`, spec `WoR.Field.Flight`. Unbuilt (cloud). | `feature/B-214d-flight-cloud` |
 | 2026-11-13 | B-214e: teleport, phase step, mark and recall, super launch, regroup (`FieldMovementAdvanced.cpp`, `CheckAdvancedMove`); every type built; spec `WoR.Field.Advanced`. Unbuilt (cloud). | `feature/B-214e-advanced-moves-cloud` |
 | 2026-11-13 | B-214f: the field attack (`FieldMovementAttack.cpp`), `UEncounterComponent::StrikeFromField`, `FFieldStrike` carried into the fight, `ABattleGameMode::ApplyFieldStrike`, `wor.Field.Attack` / `wor.Field.SwitchSource`, spec `WoR.Field.Attack`. Unbuilt (cloud). | `feature/B-214f-field-attack-cloud` |
+| 2026-11-13 | B-214g (code side): the hub controller binds the field attack, its source switch and fly up / down; InputMap rows; ini lines commented until the editor step makes the assets. Unbuilt (cloud). | `feature/B-214g-field-inputs-cloud` |
