@@ -9,16 +9,22 @@
 #include "Trial/TrialDoor.h"
 #include "Trial/TrialMapFeature.h"
 #include "GameFramework/Pawn.h"
+#include "Merchant/MerchantData.h"
+#include "Trial/TrialData.h"
+#include "WoRGameNames.h"
 
 namespace HubInteract
 {
     namespace
     {
         void AddCandidate(TArray<FInteractCandidate> &Candidates, const FString &Label, const FVector &From,
-                          const AActor *Target, TFunction<void()> Interact)
+                          const AActor *Target, TFunction<void()> Interact, const FInteractPrompt &Prompt, bool bVendor = false)
         {
             FInteractCandidate Candidate;
             Candidate.Label = Label;
+            Candidate.Prompt = Prompt;
+            Candidate.Location = Target ? Target->GetActorLocation() : From;
+            Candidate.bVendor = bVendor;
             Candidate.DistSquared = Target ? FVector::DistSquared(From, Target->GetActorLocation())
                                            : TNumericLimits<float>::Max();
             Candidate.Interact = MoveTemp(Interact);
@@ -38,18 +44,22 @@ namespace HubInteract
         if (ATrialDoor *Door = ATrialDoor::FindNearestInRange(Pawn))
         {
             AddCandidate(Candidates, FString::Printf(TEXT("Door %s"), *Door->GetName()), PawnLocation, Door,
-                         [Door]() { Door->Interact(); });
+                         [Door]() { Door->Interact(); },
+                         Door->Trial ? FInteractPrompt(EInteractVerb::Enter, Door->Trial->Name) : FInteractPrompt(EInteractVerb::Return));
         }
         if (AMerchantInteractable *Merchant = AMerchantInteractable::FindNearestInRange(Pawn))
         {
             AddCandidate(Candidates, FString::Printf(TEXT("Merchant %s"), *Merchant->GetName()), PawnLocation, Merchant,
-                         [Merchant]() { Merchant->Interact(); });
+                         [Merchant]() { Merchant->Interact(); },
+                         // D-178: a vendor is named by role ("Blacksmith").
+                         Merchant->Merchant ? FInteractPrompt(EInteractVerb::Talk, WoRGameNames::GetMerchantTypeName(Merchant->Merchant->MerchantType)) : FInteractPrompt(),
+                         /*bVendor=*/true);
         }
         if (UPartyInteractionComponent *Recruit = UPartyInteractionComponent::FindNearestInRange(Pawn))
         {
             const AActor *Owner = Recruit->GetOwner();
             AddCandidate(Candidates, FString::Printf(TEXT("Recruit %s"), Owner ? *Owner->GetName() : TEXT("?")),
-                         PawnLocation, Owner, [Recruit]() { Recruit->Interact(); });
+                         PawnLocation, Owner, [Recruit]() { Recruit->Interact(); }, Recruit->GetPrompt());
         }
         if (ATrialMapFeature *Feature = ATrialMapFeature::FindNearestInRange(Pawn))
         {
@@ -68,7 +78,8 @@ namespace HubInteract
                                  return;
                              }
                              Feature->Interact(Pawn);
-                         });
+                         },
+                         Feature->GetPrompt());
         }
 
         Candidates.Sort([](const FInteractCandidate &A, const FInteractCandidate &B)
