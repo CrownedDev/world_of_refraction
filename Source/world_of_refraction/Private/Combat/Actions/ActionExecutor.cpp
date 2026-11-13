@@ -4750,11 +4750,15 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 
 TArray<EInfusionSourceOption> UActionExecutor::GetSameElementInfusionSources(AActor *Actor, const FAction &Action) const
 {
-	// The stack resolved at commit, before its wear, while this action executes (a gem worn to 0 still counts).
+	// The stack resolved at commit, before its wear, while this action executes (a gem worn to 0 still counts). Only
+	// for this same action: another skill or level of the same actor resolves fresh. // TODO: a deferred fire re-resolves
+	// (its commit ran at arm), so a gem worn to 0 at arm gives no bonus at fire.
 	if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInfusionStackResolved &&
 		CurrentExecutionContext->Executor.Get() == Actor &&
 		CurrentExecutionContext->Action.ActionType == Action.ActionType &&
-		CurrentExecutionContext->Action.SelectedSource == Action.SelectedSource)
+		CurrentExecutionContext->Action.SelectedSource == Action.SelectedSource &&
+		CurrentExecutionContext->Action.SkillData == Action.SkillData &&
+		CurrentExecutionContext->Action.GetChargeLevel() == Action.GetChargeLevel())
 	{
 		return CurrentExecutionContext->InfusionStack;
 	}
