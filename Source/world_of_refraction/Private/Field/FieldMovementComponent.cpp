@@ -323,7 +323,8 @@ EFieldSkillRefusal UFieldMovementComponent::StartEnhancedSprint()
 	UCharacterDataComponent *CharComp = GetCharacterData();
 	const ESpellElement Element = GetSourceElement(GetActiveFieldSkill().Source);
 	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckEnhancedSprintStart(
-		Element, CharComp ? CharComp->CurrentEP : 0, IsFieldTypeUnlocked(this, EFieldMovementType::EnhancedSprint, Element, false));
+		Element, GetEPForCostCheck(FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND),
+		IsFieldTypeUnlocked(this, EFieldMovementType::EnhancedSprint, Element, false));
 	if (Refusal != EFieldSkillRefusal::None)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: Enhanced Sprint refused (%s, %s, EP %d)"), FieldMovementLog::TAG,
@@ -423,7 +424,11 @@ float UFieldMovementComponent::GetSprintSpeedMultiplier() const
 
 const UEvolutionItemData *UFieldMovementComponent::GetSeatedEvolution() const
 {
-	const ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	if (!CachedLoadout.IsValid() && GetOwner())
+	{
+		CachedLoadout = GetOwner()->FindComponentByClass<ULoadoutComponent>();
+	}
+	const ULoadoutComponent *Loadout = CachedLoadout.Get();
 	if (!Loadout)
 	{
 		return nullptr;
@@ -436,6 +441,13 @@ int32 UFieldMovementComponent::GetFieldEPCost(int32 BaseCost) const
 {
 	const UEvolutionItemData *Evolution = GetSeatedEvolution();
 	return FieldSkillRules::ApplyFieldEPDiscount(BaseCost, Evolution ? Evolution->FieldSkillEPDiscountPercent : 0.0f);
+}
+
+int32 UFieldMovementComponent::GetEPForCostCheck(int32 BaseCost) const
+{
+	const UCharacterDataComponent *CharComp = GetCharacterData();
+	const int32 EP = CharComp ? CharComp->CurrentEP : 0;
+	return EP >= GetFieldEPCost(BaseCost) ? FMath::Max(EP, BaseCost) : EP;
 }
 
 FFieldFlightLimits UFieldMovementComponent::GetEffectiveFlightLimits() const
@@ -452,6 +464,14 @@ void UFieldMovementComponent::ReapplySprintSpeed() const
 	{
 		Movement->MaxWalkSpeed = UHubMovementLibrary::ComputeHubSprintSpeed(Character);
 	}
+}
+
+FString UFieldMovementComponent::GetEvolutionStateString() const
+{
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return Evolution ? FString::Printf(TEXT(" | evolution %s (sprint +%.0f%%, field EP -%.0f%%)"), *Evolution->ItemName,
+									   Evolution->FieldSprintBonusPercent, Evolution->FieldSkillEPDiscountPercent)
+					 : FString(TEXT(" | evolution none"));
 }
 
 FString UFieldMovementComponent::GetFieldStateString() const
@@ -480,8 +500,5 @@ FString UFieldMovementComponent::GetFieldStateString() const
 						  bFlying ? TEXT("ON") : TEXT("off"), GetEffectiveFlightLimits().bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),
 						  GetEffectiveFlightLimits().bNoCeiling ? TEXT("none") : TEXT("on"),
 						  GetEffectiveFlightLimits().bIgnoreNoFly ? TEXT("ignored") : TEXT("on"), IsInNoFlyZone() ? TEXT("yes") : TEXT("no"))
-		+ FString::Printf(TEXT(" | evolution %s (sprint +%.0f%%, field EP -%.0f%%)"), // B-214h
-						  GetSeatedEvolution() ? *GetSeatedEvolution()->ItemName : TEXT("none"),
-						  GetSeatedEvolution() ? GetSeatedEvolution()->FieldSprintBonusPercent : 0.0f,
-						  GetSeatedEvolution() ? GetSeatedEvolution()->FieldSkillEPDiscountPercent : 0.0f);
+		+ GetEvolutionStateString();
 }

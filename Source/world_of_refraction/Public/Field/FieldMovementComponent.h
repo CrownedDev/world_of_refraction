@@ -182,6 +182,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	int32 GetFieldEPCost(int32 BaseCost) const;
 
+	/** The EP to show a start check for a BaseCost move: enough when the discounted cost is affordable (the checks
+	 *  compare against the full cost), else the real EP. */
+	int32 GetEPForCostCheck(int32 BaseCost) const;
+
+	/** " | evolution <name> (sprint +15%, field EP -25%)" for the debug line. */
+	FString GetEvolutionStateString() const;
+
 	/** Flight's limits: the ones effects set (SetFlightLimits) and the seated evolution's, combined. */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	FFieldFlightLimits GetEffectiveFlightLimits() const;
@@ -333,4 +340,5 @@ private:
 	double LastDashTime = -FieldSkillRules::DASH_COOLDOWN_SECONDS;
 	FTimerHandle DrainTimer;
 	mutable TWeakObjectPtr<UCharacterDataComponent> CachedCharacterData;
+	mutable TWeakObjectPtr<class ULoadoutComponent> CachedLoadout; // B-214h: the seated evolution's lookup
 };

@@ -60,8 +60,7 @@ EFieldSkillRefusal UFieldMovementComponent::ToggleGlide()
 	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable(EFieldMovementType::Glide);
 	if (Refusal == EFieldSkillRefusal::None)
 	{
-		const UCharacterDataComponent *CharComp = GetCharacterData();
-		Refusal = FieldSkillRules::CheckGlideStart(Movement->IsFalling(), CharComp ? CharComp->CurrentEP : 0);
+		Refusal = FieldSkillRules::CheckGlideStart(Movement->IsFalling(), GetEPForCostCheck(FieldSkillRules::GLIDE_EP_COST));
 	}
 	if (Refusal != EFieldSkillRefusal::None)
 	{
@@ -87,8 +86,7 @@ EFieldSkillRefusal UFieldMovementComponent::HighJump()
 	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable(EFieldMovementType::HighJump);
 	if (Refusal == EFieldSkillRefusal::None)
 	{
-		const UCharacterDataComponent *CharComp = GetCharacterData();
-		Refusal = FieldSkillRules::CheckJump(bOnGround, bAirJumpUsed, CharComp ? CharComp->CurrentEP : 0);
+		Refusal = FieldSkillRules::CheckJump(bOnGround, bAirJumpUsed, GetEPForCostCheck(FieldSkillRules::HIGH_JUMP_EP_COST));
 	}
 	if (Refusal != EFieldSkillRefusal::None)
 	{
@@ -117,8 +115,7 @@ EFieldSkillRefusal UFieldMovementComponent::AirDash()
 	EFieldSkillRefusal Refusal = CheckActiveChoiceStillPickable(EFieldMovementType::AirDash);
 	if (Refusal == EFieldSkillRefusal::None)
 	{
-		const UCharacterDataComponent *CharComp = GetCharacterData();
-		Refusal = FieldSkillRules::CheckAirDash(Movement->IsFalling(), bAirDashUsed, CharComp ? CharComp->CurrentEP : 0);
+		Refusal = FieldSkillRules::CheckAirDash(Movement->IsFalling(), bAirDashUsed, GetEPForCostCheck(FieldSkillRules::AIR_DASH_EP_COST));
 	}
 	if (Refusal != EFieldSkillRefusal::None)
 	{
