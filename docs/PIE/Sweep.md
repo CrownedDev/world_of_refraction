@@ -390,6 +390,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-239](B-239.md) | Buy +1 item slot per character at the hub (`wor.UI.ItemSlots`) | Pending | REVIEW (in dev, `feature/B-239-item-slot-upgrades`) | [ ] |
 | [B-434](B-434.md) | A checkpoint copy claiming over 40 chunks is refused (2-player: the checkpoint still arrives) | Pending | REVIEW (in dev, `fix/B-434-checkpoint-chunk-limit`) | [ ] |
 | [B-429](B-429.md) | A refused item costs no action (refused at validation); items still work | Pending | REVIEW (in dev, `fix/B-429-refused-item-validate`) | [ ] |
+| [B-427](B-427.md) | A guest's shop Confirm and repair greyed out with the reason (2-player) | Pending | REVIEW (in dev, `fix/B-427-guest-buy-greyed`) | [ ] |
 
 ---
 
