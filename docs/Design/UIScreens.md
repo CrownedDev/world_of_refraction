@@ -48,7 +48,7 @@
 | 16 | **Blacksmith services** | Weapons and augment stones (Stone Smith merged in, D-173): dismantle, merge | `DismantleWeapon` `EconomyService.h:151`; `MergeCrystals` :141 | Console (`wor.Economy.Merge`) | P2 |
 | 17 | **Jeweler services** | Adapters; **buy item slots** (+1 pouch slot per character) | `ItemSlotUpgrade::TryBuy` `Public/Inventory/ItemSlotUpgrade.h:40` | Placeholder `UItemSlotUpgradeWidget` `Public/UI/Hub/ItemSlotUpgradeWidget.h:21` (`wor.UI.ItemSlots`) | P2 |
 | 18 | **Spiritualist services** | Evolutions, crystals, **repair** (quote then pay), remove an evolution, **clear a curse** | `GearRepair::RepairParty` `Public/Equipment/Durability/GearRepair.h:45`; `RemovePrimaryEvolution` `EconomyService.h:206`; `UCurseSubsystem::PayToClearCurse` `Public/Memory/CurseSubsystem.h:42` | Curse: Placeholder `UCurseClearWidget` `Public/UI/Hub/CurseClearWidget.h:18` (`wor.UI.ClearCurse`); repair: Console | P2 |
-| 19 | **Skins (forms)** | Form meters, reveal at 100%, wear a skin; hub and rest spots only | `UCharacterFormSubsystem::TryWearForm` `Public/Character/Forms/CharacterFormSubsystem.h:58` | Placeholder `UCharacterFormWidget` `Public/UI/Hub/CharacterFormWidget.h:20` (`wor.UI.Forms`) | P3 |
+| 19 | **Spirit of {character}** (was "Skins"; forms, D-184) | Form meters, reveal at 100%, wear a form; hub and rest spots only | `UCharacterFormSubsystem::TryWearForm` `Public/Character/Forms/CharacterFormSubsystem.h:58` | Placeholder `UCharacterFormWidget` `Public/UI/Hub/CharacterFormWidget.h:20` (`wor.UI.Forms`) | P3 |
 | 20 | **NPC talk (V, characters)** | Speaker, line, choices; V's lines and character conversations | `UStoryLinesData` `Public/Story/StoryLinesData.h` | Journal only | P3 (the words are Crown's) |
 
 ### Run (trial)
@@ -56,8 +56,8 @@
 | # | Screen | What the player does | Code it talks to | Today | Pri |
 |---|---|---|---|---|---|
 | 21 | **Trial gate** | Pick the variation and the difficulty (Easy / Medium / Hard: enemy damage and payout); see who's going; Enter | `UTrialRunSubsystem::SetGateChoice` `Public/Trial/TrialRunSubsystem.h:77`; `ETrialDifficulty` `Public/Trial/TrialGate.h:19` | Placeholder `UTrialGateWidget` `Public/UI/Trial/TrialGateWidget.h:20` (from `ATrialDoor`) | P1 |
-| 22 | **Rest spot** | Rested (heal, revive); Level up; Inventory / Loadout; Revive the mini-boss (co-op: a vote); Invite; Hand over host; Leave the trial (extract, reduced payout) | `WoRRestSpot::Rest` / `LeaveRun` `Public/Trial/TrialRestSpot.h:25-41`; `AWoRGameState::StartReviveVote` / `CastReviveVote` `Public/Player/WoRGameState.h:55-66`; `GetRunEndPayout` `TrialRunSubsystem.h:280` | Placeholder `URestSpotWidget` `Public/UI/Hub/RestSpotWidget.h:18` (`wor.Trial.Rest`, `wor.Trial.Vote`) | P1 |
-| 23 | **Level up (place levels)** | Place each banked pillar level on Mind / Body / Spirit, per member; buy a point | `WoRLevelDrops::TryPlaceLevel` / `TryBuyPoint` `Public/Trial/LevelDropPlacement.h:40-48` | Placeholder `ULevelDropWidget` `Public/UI/Hub/LevelDropWidget.h:20` (`wor.UI.LevelDrop`) | P1 |
+| 22 | **Rest spot** | Rested (heal, revive); Level up (pending levels as "+1"); Inventory / Loadout; **Revive boss** (co-op: a vote); **Invite**; Hand over host; **Leave Trial** (extract, reduced payout); a currency strip top right (D-182) | `WoRRestSpot::Rest` / `LeaveRun` `Public/Trial/TrialRestSpot.h:25-41`; `AWoRGameState::StartReviveVote` / `CastReviveVote` `Public/Player/WoRGameState.h:55-66`; `GetRunEndPayout` `TrialRunSubsystem.h:280` | Placeholder `URestSpotWidget` `Public/UI/Hub/RestSpotWidget.h:18` (`wor.Trial.Rest`, `wor.Trial.Vote`) | P1 |
+| 23 | **Level up (place levels)** | Place each banked pillar level on Mind / Body / Spirit, per member. **No buying a point here** (D-183: points are bought only from NPCs found in the trial) | `WoRLevelDrops::TryPlaceLevel` / `TryBuyPoint` `Public/Trial/LevelDropPlacement.h:40-48` | Placeholder `ULevelDropWidget` `Public/UI/Hub/LevelDropWidget.h:20` (`wor.UI.LevelDrop`) | P1 |
 | 24 | **Extract confirm** | "Full rewards only for beating the boss or falling in battle" (RunStructure §6); shows earned so far and the cut | `GetLeaveConfirmText` `TrialRestSpot.h:41` | Inside the rest placeholder | P1 |
 | 25 | **Reward popups (after a fight)** | No results screen (FeelGuide 6): popups fade on their own; level-ups, rare drops, memories, quests | `OnCombatResultReady` `Public/Combat/CombatOrchestrator.h:98`; `OnLevelDropsReady` :109; `OnMemoryRecorded` `MemoryJournalSubsystem.h:34`; quest notices `HiddenQuestSubsystem.cpp:35-64` | `UCombatResultsWidget` (VICTORY / DEFEAT text only) | P1 |
 | 26 | **Wipe and run over** | A wipe: pillar points lost, back at the last rest spot, wipes left (FeelGuide 7). Run over: the payout, what you keep and lose | `RecordWipe` `TrialRunSubsystem.h:313`; `DefeatRules` `Public/Trial/DefeatRules.h`; `FRunPayout` `Public/Trial/RunRewards.h:21` | Console (`wor.Trial.PrintLosses`, `wor.Trial.PrintRewards`) | P1 |
@@ -136,6 +136,7 @@ One block per mocked screen: the images, why the layout, the references.
 ### 22–24, 34. Rest spot (`run/rest_spot/`)
 
 - `1_rest_menu.png`, `2_level_up.png`, `3_revive_vote.png` (co-op), `4_extract_confirm.png`.
+- **Changed by Crown (2026-11-13, D-182, D-183, D-185):** the rest menu's labels are short: **"Revive boss", "Invite", "Leave Trial"**. The **"Earned so far" panel is gone**; a **currency strip sits top right** with Gear Essence, Skill Essence, Elemental Essence, Gold and Prisms (GE, SE, EE, G, P; Prisms were missing from the mock). **Pending levels read "+1" / "+2"** on the Level up row and per character (not "1 to place"). **Level up is simple:** three pillar rows, **no list of affected skills** (the Skills page already shows whether requirements are met), **no "X buy a point"** and no "or buy one with Prisms" (points are bought only from NPCs found in the trial). On the party panel **HP and EP values sit centred inside their own bars** on a dark backing, as on the battle HUD. The four images are redrawn to match; the notes below describe the first draft.
 - **Resting needs no button:** arriving restores the party, then the menu opens with "The party is restored." and "Earned so far" always in view. The list is the placeholder's, in the same words: Level up, Loadout, Inventory, Skins, Revive the mini-boss (1 of 3), Invite and seat friends, Hand over host (co-op only), Leave the trial.
   *Ref:* Elden Ring's Site of Grace and Expedition 33's expedition flags: sit, you're healed, one short list. Dark Souls II's Bonfire Ascetic for the revive (RunStructure §4).
 - **Level up:** one member at a time on LT / RT (the tab shows how many each has to place). Three big pillar rows; the side panel says **what the level changes for this character's own skills**. A pillar level gives no flat stats in this game (Rules CL-37); it meets skill requirements (under one, the skill is x0.6) and raises the requirement boost (CL-39), so that is what's shown. Buy a point is X, priced in Prisms.
@@ -230,7 +231,9 @@ One block per mocked screen: the images, why the layout, the references.
   **Changed by Crown (D-179, 2026-11-13):** "Played by" reads **NPC** or **Player**. With a full party the recruit asks **which NPC steps out** (or decline); a real player is never swapped out, and if every other slot is a player the offer is refused. `3_recruit_card.png` gets the full-party case.
   *Ref:* Fire Emblem's recruit cards; Baldur's Gate 3's "join the party" prompt.
 
-### 19. Skins / forms (`hub/skins/`)
+### 19. Spirit of {character} (was Skins / forms) (`hub/skins/`)
+
+- **Renamed by Crown (2026-11-13, D-184):** the screen and its menu rows read **"Spirit of {character}"** ("Spirit of Sera"), not "Skins".
 
 - `1_forms.png`. A list of forms with each character's **meter** (the placeholder's "{name}: {n}%"), "your own form" always first, unmet characters as "???". The side panel shows the form, the code's line ("Locked. Wear their pieces in fights you win to fill the meter."), which of their pieces you own or wear (unknown ones as "?"), and what a form does (looks and bound gear, no stats). Y switches the base body (Quinn / Manny).
   *Ref:* Mortal Shell's shells (Crown's model, `CharacterForms.md`); Hades' keepsake and Monster Hunter's mastery meters (visible progress after every fight).
@@ -295,6 +298,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 3. **Main hand / off hand** (loadout, #2): the code has two equal weapon slots and a wield mode per weapon, not hand slots. The mockup follows the code; say if you want hand slots shown.
    **Answered (Crown, 2026-11-13, D-180):** keep two equal weapon slots, the wield mode in the kind line. A shield weapon stands in the shield stance by default (B-446).
 4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
+   **Answered (Crown, 2026-11-13, D-183):** keep the level screen simple: it does **not** list affected skills (the Skills page shows whether requirements are met). No buying a point at the rest spot.
 5. **Words for the end screens** (#26, #27): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
 6. ~~World-stat draft~~ Settled by the code: it is marked OBSOLETE, replaced by level drops (B-223, D-102). Not mocked.
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
@@ -323,9 +327,11 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177) |
 | Character sheet | 5 | `menus/character` | B-442 | |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 | |
-| Skins / forms | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
+| Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
 
-Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178) and the recruit card (#29, D-179).
+Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178), the recruit card (#29, D-179), the rest spot and level up (#22, #23; D-182, D-183).
+
+**Every menu's party bars (D-185):** HP and EP values sit centred inside their own bars on a dark backing, as on the battle HUD's cards. The pause menu is built that way (B-439).
 
 ## Summary (2026-11-13)
 
@@ -341,12 +347,13 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178) 
 
 **For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
 
-**Open questions for Crown:** the 16 above (16 is a design one). **Answered (2026-11-13):** 1, 2, 3, 9, 13, 14, 15 (D-176 to D-181). Still open: lore 5, 8, 10, 11, 12; design 4, 7, 16. Settled: 6.
+**Open questions for Crown:** the 16 above (16 is a design one). **Answered (2026-11-13):** 1, 2, 3, 4, 9, 13, 14, 15 (D-176 to D-185). Still open: lore 5, 8, 10, 11, 12; design 7, 16. Settled: 6.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | Crown's rest spot and level-up answers (D-182, D-183), "Skins" is "Spirit of {character}" (D-184), values inside every menu party bar (D-185); question 4 answered | docs/ui-screens-answers-2 |
 | 2026-11-13 | Crown's answers to questions 1, 2, 3, 9, 13, 14, 15 and the NPC talk choices (D-176 to D-181); six screens approved as drawn, build jobs B-439 to B-444 | docs/ui-screens-answers |
 | 2026-11-13 | New game: element choices under the Refractor description, title and text follow the element (Crown) | docs/ui-screens-all |
 | 2026-11-13 | Second pass (the screens left), 49 images in all, the review page link | docs/ui-screens-all |
