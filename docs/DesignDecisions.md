@@ -813,6 +813,21 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-203 — Loading screen: a spinning nebula and something the player has already met
+**Status:** ANSWERED (Crown, 2026-11-14, via the desktop operator session) · **Raised:** 2026-11-14 · **Blocks:** B-468
+**Answer (Crown):** the loading screen shows a **spinning nebula** behind **one item or character the player has already met, with its description**. Never one they haven't met.
+**Notes for Claude:** **B-468**. "Met" reads from what the save already records (found items, met characters, the journal's found list); the words are the item's or character's own description. Mockup `front/title/4_loading.png` on `docs/ui-screens-redraw`.
+
+### D-202 — Title screen: "WORLD OF REFRACTION", "TALES OF THE VOID"
+**Status:** ANSWERED (Crown, 2026-11-14, via the desktop operator session) · **Raised:** 2026-11-14 · **Blocks:** B-467
+**Answer (Crown):** the title reads **"WORLD OF REFRACTION"** with the subtitle **"TALES OF THE VOID"**. The backdrop is **the deckbuilder's nebula with a spinning vortex cut to a hexagon** (a flipbook under a hexagon mask). The menu layout is **ours** (Continue first, New Game, Join a friend, Settings, Credits, Quit; `UIScreens.md` #9).
+**Notes for Claude:** **B-467**. The art's sources and licences are in `SourceArt/UI/Title/CREDITS.md` (on `docs/ui-screens-redraw`); the flipbook and mask are an editor step (unreal-mcp). Mockups `front/title/`.
+
+### D-201 — The UI accent is violet
+**Status:** ANSWERED (Crown, 2026-11-14, via the desktop operator session) · **Raised:** 2026-11-14 · **Blocks:** B-462
+**Answer (Crown):** the one UI accent is **violet** (`#5B3A99`, light `#CDB8FF`), **game-wide**, replacing teal / cyan for the focused and the selected state. Colours only: the shapes stay. The screens already built switch to it.
+**Notes for Claude:** **B-462** changes `WoRMenuStyle::FocusColor` / `CyanColor` (`MenuScreenStyle.h`) and any screen that sets its own; `UI_Theme.md` (on `docs/ui-screens-redraw`) has the rule and the states. The battle HUD's colours are the UI Designer's (B-436).
+
 ### D-200 — Party and co-op screens approved; AI members show no level; the row is "Invite"
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-458, B-459
 **Answer (Crown):** the **party** and **co-op** screens (`UIScreens.md` #7, #31 to #33) are **approved**. An **AI member shows no level text anywhere** (the party menu too, as at the Gate, D-191). The row "Invite and seat friends" reads **"Invite"**.
