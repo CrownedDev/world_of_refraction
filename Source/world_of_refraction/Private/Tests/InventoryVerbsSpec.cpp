@@ -160,10 +160,13 @@ void FInventoryVerbsSpec::Define()
 		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
 		if (!TestTrue(TEXT("the dagger is listed as the member's"), Own.IsSet())) return;
 		const TArray<EInventoryVerb> Verbs = VerbsOf(Own.GetValue());
-		TestTrue(TEXT("own gear: Give, Store, Dismantle"), Verbs.Contains(EInventoryVerb::Give) && Verbs.Contains(EInventoryVerb::Store) &&
-															   Verbs.Contains(EInventoryVerb::Dismantle));
+		TestTrue(TEXT("own gear: Give, Store"), Verbs.Contains(EInventoryVerb::Give) && Verbs.Contains(EInventoryVerb::Store));
 		TestFalse(TEXT("own gear: no Take"), Verbs.Contains(EInventoryVerb::Take));
-		TestFalse(TEXT("not a duplicate: no Convert"), Verbs.Contains(EInventoryVerb::Convert));
+		// B-445 (D-177): Dismantle and Convert are a vendor's now (VendorServicesSpec).
+		TestFalse(TEXT("no Dismantle in the inventory"), Verbs.Contains(EInventoryVerb::Dismantle));
+		TestFalse(TEXT("no Convert in the inventory"), Verbs.Contains(EInventoryVerb::Convert));
+		TestFalse(TEXT("Dismantle is refused here, with where it went"), RunOn(EInventoryVerb::Dismantle, Own.GetValue()).IsEmpty());
+		TestNotNull(TEXT("and the dagger is still owned"), Pool->FindWeaponInPool(DaggerID));
 		TestFalse(TEXT("a verb that doesn't apply is refused"), RunOn(EInventoryVerb::Take, Own.GetValue()).IsEmpty());
 		TestTrue(TEXT("and changes nothing"), Pool->GetGearOwner(DaggerID) == KeyOf(VERBS_MEMBER));
 	});
@@ -211,38 +214,6 @@ void FInventoryVerbsSpec::Define()
 		TestEqual(TEXT("one carried"), Pool->GetCarriedCount(KeyOf(VERBS_MEMBER), VERBS_GEM), VERBS_ONE);
 	});
 
-	It("Dismantle takes a weapon apart", [this]()
-	{
-		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
-		const FGuid DaggerID = AddDagger();
-		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
-		if (!TestTrue(TEXT("listed"), Own.IsSet())) return;
-		TestTrue(TEXT("dismantled"), RunOn(EInventoryVerb::Dismantle, Own.GetValue()).IsEmpty());
-		TestNull(TEXT("gone from the store"), Pool->FindWeaponInPool(DaggerID));
-	});
-
-	It("Convert turns a duplicate's weaker copy into Gold", [this]()
-	{
-		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
-		UInventoryComponent *Inventory = Inventories[VERBS_MEMBER];
-		Inventory->AddWeapon(Sword); // a second sword: the newer copy is the weaker on a tie (D-115)
-		const TArray<FDuplicateGearPair> Pairs = Inventory->FindDuplicateGear();
-		if (!TestEqual(TEXT("one duplicate"), Pairs.Num(), 1)) return;
-		const TOptional<WoRInventoryVerbs::FInventoryRow> Weaker = GearRow(Pairs[0].WeakerID);
-		if (!TestTrue(TEXT("the weaker copy is listed"), Weaker.IsSet())) return;
-		TestTrue(TEXT("Convert applies to it"),
-				 VerbsOf(Weaker.GetValue()).Contains(EInventoryVerb::Convert));
-		// B-366b (Q-366): at home it pays the hub currency, and the texts say so.
-		const FString HubName = WoRGameNames::GetCurrencyName(ECurrencyType::Prisms).ToString();
-		TestTrue(TEXT("the confirm text names the hub currency"),
-				 WoRInventoryVerbs::GetConfirmText(World(), EInventoryVerb::Convert, KeyOf(VERBS_MEMBER), Weaker.GetValue()).ToString().Contains(HubName));
-		TestEqual(TEXT("the button names the hub currency"), WoRInventoryVerbs::GetVerbName(World(), EInventoryVerb::Convert).ToString(),
-				  FString::Printf(TEXT("Convert to %s"), *HubName));
-		TestTrue(TEXT("converted"), RunOn(EInventoryVerb::Convert, Weaker.GetValue()).IsEmpty());
-		TestNull(TEXT("the weaker copy is gone"), Pool->FindWeaponInPool(Pairs[0].WeakerID));
-		TestNotNull(TEXT("the kept copy stays"), Pool->FindWeaponInPool(Pairs[0].KeptID));
-	});
-
 	It("refuses Store and Give on the worn primary, with the reason", [this]()
 	{
 		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
@@ -272,19 +243,6 @@ void FInventoryVerbsSpec::Define()
 		TestTrue(TEXT("still the member's"), Pool->GetGearOwner(DaggerID) == KeyOf(VERBS_MEMBER));
 	});
 
-	It("hides and refuses Dismantle on a home piece during a run", [this]()
-	{
-		if (!Pool || Inventories.Num() < VERBS_PARTY_SIZE || Inventories.Contains(nullptr)) return;
-		const FGuid DaggerID = AddDagger();
-		Pool->BeginRunLayer();
-		const TOptional<WoRInventoryVerbs::FInventoryRow> Own = GearRow(DaggerID);
-		if (!TestTrue(TEXT("listed"), Own.IsSet())) return;
-		TestFalse(TEXT("no Dismantle during a run"), VerbsOf(Own.GetValue()).Contains(EInventoryVerb::Dismantle));
-		TestFalse(TEXT("refused with a reason"), RunOn(EInventoryVerb::Dismantle, Own.GetValue()).IsEmpty());
-		TestNotNull(TEXT("still in the store"), Pool->FindWeaponInPool(DaggerID));
-		Pool->EndRunLayer();
-		TestTrue(TEXT("after the run it may go"), VerbsOf(Own.GetValue()).Contains(EInventoryVerb::Dismantle));
-	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
