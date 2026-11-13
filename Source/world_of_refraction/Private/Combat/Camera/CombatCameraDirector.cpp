@@ -8,6 +8,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionStructs.h"
+#include "Combat/Actions/ApproachWarp.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Skills/Definitions/SkillDataBase.h"
@@ -1087,6 +1088,33 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 						   MenuDepth, MenuStepCount, *Actor->GetName(), *Describe(Frame.Focus), *Describe(Frame.EnemyCentre));
 }
 
+namespace
+{
+	/** B-424 (air-burst dash): a melee rush timed to the skill montage's approach burst, framed at the striking spot.
+	 *  Unchanged without an approach window, or with a ritual lead-in (its own timing comes first). */
+	FCameraShot TimeRushToApproach(const FCameraShot &Rush, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning,
+								   const AActor *Caster, const AActor *Target, const USkillDataBase *Skill)
+	{
+		if (!Caster || !Target || !Skill || !Skill->SkillMontage || Skill->RitualCastMontage)
+		{
+			return Rush;
+		}
+		const FVector Strike = ApproachWarp::GetStrikePosition(Caster->GetActorLocation(), Target->GetActorLocation(), Skill->ExecutionRange);
+		// TODO: B-424: the action's play rate (Action Speed); the camera reads the montage at 1.0.
+		const FApproachBurst Burst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(Caster->GetActorLocation(), Strike)), 1.0f,
+													  ApproachWarp::GetApproachBurstSeconds());
+		if (!Burst.bHasWindow)
+		{
+			return Rush;
+		}
+		FCameraShotContext AtStrike = Context;
+		AtStrike.Caster = Strike;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Rush timed to %s's approach: %s"), *Caster->GetName(), *Burst.ToString());
+		return FCombatCameraRules::FollowApproachBurst(Rush, FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, AtStrike, Tuning),
+													  Burst.WindowStart, Burst.WindowEnd, Burst.bUseCameraCut);
+	}
+}
+
 bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill)
 {
 	StopSequence();
@@ -1110,7 +1138,13 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	ShotStartFrame = GFrameCounter;
 	// B-406: an enemy's named attack opens on a front shot of the enemy, everything else on the wind-up.
 	const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(ShotTuning, OpposingCombatants.Contains(Caster));
-	if (!PlayShot(Camera, Opening, FCombatCameraRules::ComputeShot(Opening, BuildShotContext(false), ShotTuning)))
+	const FCameraShotContext Context = BuildShotContext(false);
+	FCameraShot OpeningShot = FCombatCameraRules::ComputeShot(Opening, Context, ShotTuning);
+	if (Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f) // B-403: the melee rush
+	{
+		OpeningShot = TimeRushToApproach(OpeningShot, Context, ShotTuning, Caster, ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get(), Skill);
+	}
+	if (!PlayShot(Camera, Opening, OpeningShot))
 	{
 		StopShotPattern(); // review fix: no viewer or camera, nothing left half-playing
 		return false;
@@ -1245,7 +1279,13 @@ void UCombatCameraDirector::StepShot()
 	{
 		ActiveShot.End = FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, BuildShotContext(false), ShotTuning).End;
 	}
-	const float Alpha = ShotElapsed / FMath::Max(ActiveShot.BlendSeconds, CombatCameraTiming::ShotStepSeconds);
+	const float Moving = ShotElapsed - ActiveShot.DelaySeconds;
+	if (Moving < 0.0f)
+	{
+		return; // B-424: holds at its start until the approach's burst
+	}
+	// B-424 review: a zero blend is a cut, not a one-step ease.
+	const float Alpha = ActiveShot.BlendSeconds > 0.0f ? Moving / FMath::Max(ActiveShot.BlendSeconds, CombatCameraTiming::ShotStepSeconds) : 1.0f;
 	CameraActor->SetActorTransform(FCombatCameraRules::BlendShot(ActiveShot, Alpha));
 	if (Alpha >= 1.0f && !bFollowing)
 	{

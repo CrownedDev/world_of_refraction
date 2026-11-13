@@ -25,6 +25,8 @@
 #include "TimerManager.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "Trial/TrialRestSpot.h"
+#include "Trial/BattleGameMode.h"
+#include "GameFramework/GameStateBase.h"
 
 namespace EncounterConstants
 {
@@ -61,6 +63,15 @@ void UEncounterComponent::BeginPlay()
 	if (!Owner || !Owner->GetRootComponent())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[EncounterComponent] Owner has no root component - no trigger created"));
+		return;
+	}
+
+	// The battle stage spawns the same enemy Blueprints: a melee dash into the trigger opened a new encounter there
+	// (the arena orb in the fight, B-424 PIE). The game state carries the mode class to clients too.
+	const AGameStateBase *GameState = GetWorld()->GetGameState();
+	if (GameState && GameState->GameModeClass && GameState->GameModeClass->IsChildOf(ABattleGameMode::StaticClass()))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[EncounterComponent] %s is in a battle - no encounter trigger"), *Owner->GetName());
 		return;
 	}
 

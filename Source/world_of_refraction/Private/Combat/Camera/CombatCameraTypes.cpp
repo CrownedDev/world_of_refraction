@@ -565,6 +565,24 @@ FTransform FCombatCameraRules::BlendShot(const FCameraShot &Shot, float Alpha)
 	return Out;
 }
 
+FCameraShot FCombatCameraRules::FollowApproachBurst(const FCameraShot &Rush, const FCameraShot &WindUpAtStrike, float WindowStart, float WindowEnd,
+													 bool bCut)
+{
+	FCameraShot Out = Rush;
+	Out.End = WindUpAtStrike.End;
+	if (bCut)
+	{
+		Out.Start = Rush.End; // no blur: the director keeps the view it has until the cut
+		Out.MotionBlur = 0.0f;
+		Out.DelaySeconds = FMath::Max(WindowEnd, 0.0f);
+		Out.BlendSeconds = 0.0f;
+		return Out;
+	}
+	Out.DelaySeconds = FMath::Max(WindowStart, 0.0f);
+	Out.BlendSeconds = FMath::Max(WindowEnd - WindowStart, 0.0f);
+	return Out;
+}
+
 namespace CombatCameraTurnChange
 {
 	// B-404 (Q-404, study §9: Expedition 33 goes wide, then blends to the next hero within about 0.5 s).

@@ -161,6 +161,8 @@ struct WORLD_OF_REFRACTION_API FCameraShot
 	float ShakeScale = 0.0f;
 	/** B-403: the camera's motion-blur amount while the shot moves (0 = the project's own blur). */
 	float MotionBlur = 0.0f;
+	/** B-424: the camera holds at Start this long before it moves (a rush timed to an approach's burst). */
+	float DelaySeconds = 0.0f;
 };
 
 /** Where the fight is, from the camera's point of view. */
@@ -325,6 +327,12 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 
 	/** B-371: the camera at Alpha (0 to 1, clamped) along Shot, eased in and out. */
 	static FTransform BlendShot(const FCameraShot &Shot, float Alpha);
+
+	/** B-424 (air-burst dash): the melee rush timed to the approach's burst window [WindowStart, WindowEnd] (s). The
+	 *  camera holds on the rush's start until the burst, then rushes along it to WindUpAtStrike's end (the wind-up
+	 *  framed at the striking spot). bCut (a burst too fast to follow): no rush, the view holds and cuts to that
+	 *  framing as the burst ends, so the travel is never followed on screen. */
+	static FCameraShot FollowApproachBurst(const FCameraShot &Rush, const FCameraShot &WindUpAtStrike, float WindowStart, float WindowEnd, bool bCut);
 
 	/** B-404 (study R12, R16, Q-404): the camera's way into a new turn. A wide beat (the NotYourTurn wide, framed
 	 *  from the new actor's side) plays only between turns: someone acted since the last turn start, the turn passes

@@ -7,6 +7,10 @@
 #include "Combat/Presentation/CastVisuals.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
+#include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
+#include "TimerManager.h"
 #include "WoRLog.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -72,8 +76,61 @@
 #include "Combat/CombatControl.h"
 #include "Combat/Tuning/CombatTuningData.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
+#include "Combat/Actions/ApproachWarp.h"
 
 // ==================== FUSED-MONTAGE RUNNER (Stage 12) ====================
+
+namespace
+{
+	/** B-424: one line per warped leg: how far the warp takes the actor and how fast its burst moves (air-burst dash). */
+	FApproachBurst LogWarpBurst(const AActor *Actor, const UAnimMontage *Montage, float PlayRate, const TCHAR *Leg, float BurstSeconds = 0.0f)
+	{
+		const UMotionWarpingComponent *Warp = Actor ? Actor->FindComponentByClass<UMotionWarpingComponent>() : nullptr;
+		const FMotionWarpingTarget *Target = Warp ? Warp->FindWarpTarget(CombatConstants::WARP_TARGET_NAME) : nullptr;
+		if (!Target || !Montage)
+		{
+			return FApproachBurst();
+		}
+		const float Distance = static_cast<float>(FVector::Dist2D(Actor->GetActorLocation(), Target->GetLocation()));
+		const FApproachBurst Burst = ApproachWarp::Measure(Montage, Distance, PlayRate, BurstSeconds);
+		if (Burst.bHasWindow)
+		{
+			UE_LOG(LogWoRCombat, Log, TEXT("[Warp] %s %s %s: %s"), *Actor->GetName(), Leg, *Montage->GetName(), *Burst.ToString());
+		}
+		return Burst;
+	}
+
+	/** B-424: slows the montage inside the warp window so the hop lasts the burst time, then puts the play rate back.
+	 *  shortcut: the server's copy only (co-op clients see the clip's own hop), until the presentation sends rate changes.
+	 *  TODO: B-424: telegraph leads (PlayActionMontageOnActor) don't count the stretch; fine while no warped montage has one. */
+	void StretchHop(AActor *Actor, UAnimMontage *Montage, float PlayRate, const FApproachBurst &Burst)
+	{
+		const ACharacter *Character = Cast<ACharacter>(Actor);
+		UAnimInstance *Anim = Character && Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr;
+		if (!Burst.bHasWindow || !Anim || FMath::IsNearlyEqual(Burst.HopRateScale, 1.0f))
+		{
+			return;
+		}
+		TWeakObjectPtr<UAnimInstance> WeakAnim(Anim);
+		TWeakObjectPtr<UAnimMontage> WeakMontage(Montage);
+		auto SetRateAfter = [&](float Seconds, float Rate)
+		{
+			FTimerHandle Handle; // one-shot; a montage that stopped meanwhile ignores the rate
+			Actor->GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakAnim, WeakMontage, Rate]()
+			{
+				// Only the montage still playing: a null montage would change whatever montage is active.
+				UAnimInstance *Instance = WeakAnim.Get();
+				UAnimMontage *Playing = WeakMontage.Get();
+				if (Instance && Playing && Instance->Montage_IsPlaying(Playing))
+				{
+					Instance->Montage_SetPlayRate(Playing, Rate);
+				}
+			}), FMath::Max(Seconds, UE_KINDA_SMALL_NUMBER), false);
+		};
+		SetRateAfter(Burst.WindowStart, PlayRate * Burst.HopRateScale);
+		SetRateAfter(Burst.WindowEnd, PlayRate);
+	}
+}
 
 void UActionExecutor::BindCombatNotify(AActor *Actor)
 {
@@ -182,7 +239,9 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, USkillDataBase *Skill)
 	CurrentChainMontage = Skill->SkillMontage; // tracked-leg identity (return-skip guard)
 	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlaySkill %s"),
 		   Skill->SkillMontage ? *Skill->SkillMontage->GetName() : TEXT("None"));
+	const FApproachBurst Burst = LogWarpBurst(Actor, Skill->SkillMontage, PendingMontagePlayRate, TEXT("approach"), ApproachWarp::GetApproachBurstSeconds());
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
+	StretchHop(Actor, Skill->SkillMontage, PendingMontagePlayRate, Burst);
 }
 
 void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
@@ -221,6 +280,7 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
 
 	CurrentChainMontage = Skill->ReturnMontage; // tracked-leg identity (return-skip guard)
 	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
+	LogWarpBurst(Actor, Skill->ReturnMontage, 1.0f, TEXT("return"));
 	PlayActionMontageOnActor(Actor, Skill->ReturnMontage, 1.0f);
 }
 
