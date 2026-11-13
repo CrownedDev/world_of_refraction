@@ -2,6 +2,7 @@
 // B-209 (D-100): every memory source unlocks into the run and the journal, noting the source: a
 // boss or mini-boss beaten, a reaction that fired, a special spot reached, a bound item's memory by
 // its upgrade level and/or trigger conditions (both when both are set). Each once.
+// B-433: a client's map-spot or fragment find from out of reach is refused on the host.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -17,6 +18,7 @@
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemorySpot.h"
 #include "Memory/MemoryUnlock.h"
+#include "Player/WoRPlayerState.h"
 #include "Reaction/ReactionTrigger.h"
 #include "Trial/TrialRunSubsystem.h"
 
@@ -237,6 +239,25 @@ void FMemorySourcesSpec::Define()
 		TestTrue(TEXT("From a map spot"), InRunAndJournalFrom(EMemorySource::MapSpot));
 		TestTrue(TEXT("Recorded as found"), TrialRun->HasFound(Spot->GetFeatureId()));
 		TestFalse(TEXT("Spent for the run"), Spot->Reach());
+	});
+
+	It("refuses a client's map-spot find from out of reach, and keeps other sources as reported (B-433)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		AMemorySpot *Spot = World ? World->SpawnActor<AMemorySpot>(FVector::ZeroVector, FRotator::ZeroRotator) : nullptr;
+		AWoRPlayerState *Player = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
+		if (!TestTrue(TEXT("Spot and player"), Spot && Player))
+		{
+			return;
+		}
+		Spot->Memory = Memory;
+		// Standalone has authority, so the Server RPC runs here at once. The player has no pawn: nowhere near the spot.
+		Player->ServerReportFoundMemory(Memory, EMemorySource::MapSpot);
+		TestFalse(TEXT("A map-spot find from out of reach is refused"), Player->HasMemoryId(Memory->GetMemoryId()));
+		Player->ServerReportFoundMemory(Memory, EMemorySource::Fragment);
+		TestFalse(TEXT("So is a fragment's"), Player->HasMemoryId(Memory->GetMemoryId()));
+		Player->ServerReportFoundMemory(Memory, EMemorySource::BoundGear);
+		TestTrue(TEXT("A bound-gear find has no place to check: noted"), Player->HasMemoryId(Memory->GetMemoryId()));
 	});
 
 	It("is for a character it lists above None, or for everyone when it lists no one (B-235d)", [this]()

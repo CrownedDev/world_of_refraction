@@ -32,6 +32,9 @@
 #include "Memory/HiddenCounterSubsystem.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Trial/TrialMapFeature.h"
+#include "Memory/MemorySpot.h"
+#include "Memory/MemoryFragment.h"
+#include "EngineUtils.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -776,6 +779,34 @@ void AWoRPlayerState::Client_StartQuest_Implementation(UHiddenQuestData *Quest)
 	}
 }
 
+namespace
+{
+	/** B-433 (server): Pawn stands in the trigger of a map spot or fragment that holds Memory. */
+	bool IsPawnAtMemoryPlace(const APawn *Pawn, const UMemoryData *Memory)
+	{
+		const UWorld *World = Pawn ? Pawn->GetWorld() : nullptr;
+		if (!World || !Memory)
+		{
+			return false;
+		}
+		for (TActorIterator<AMemorySpot> Spot(World); Spot; ++Spot)
+		{
+			if (Spot->Memory == Memory && Spot->IsWithinReach(Pawn))
+			{
+				return true;
+			}
+		}
+		for (TActorIterator<AMemoryFragment> Fragment(World); Fragment; ++Fragment)
+		{
+			if (Fragment->GetMemory() == Memory && Fragment->IsWithinReach(Pawn))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+}
+
 void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory, EMemorySource Source)
 {
 	if (!Memory)
@@ -787,6 +818,14 @@ void AWoRPlayerState::ServerReportFoundMemory_Implementation(UMemoryData *Memory
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: none of their characters has it"), *GetPlayerName(),
 			   *Memory->GetMemoryId().ToString());
+		return;
+	}
+	// B-433: a find at a map spot or fragment needs the player's pawn there, so a report from out of reach unlocks nothing.
+	// TODO: the other sources (bound gear, a quest's end) are trusted as reported, co-op only (WithValidation later).
+	if ((Source == EMemorySource::MapSpot || Source == EMemorySource::Fragment) && !IsPawnAtMemoryPlace(GetPawn(), Memory))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[MemoryUnlock] %s's find of %s refused: their pawn isn't at its spot or fragment"),
+			   *GetPlayerName(), *Memory->GetMemoryId().ToString());
 		return;
 	}
 	AddMemoryId(Memory->GetMemoryId());
