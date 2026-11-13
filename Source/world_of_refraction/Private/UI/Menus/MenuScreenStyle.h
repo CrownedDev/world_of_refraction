@@ -77,6 +77,17 @@ namespace WoRMenuStyle
 	{
 		return Key == EKeys::Escape || Key == EKeys::BackSpace || Key == EKeys::Gamepad_FaceButton_Right || Key == EKeys::Gamepad_Special_Right;
 	}
+	inline bool IsLeftKey(const FKey &Key)
+	{
+		return Key == EKeys::Left || Key == EKeys::A || Key == EKeys::Gamepad_DPad_Left || Key == EKeys::Gamepad_LeftStick_Left;
+	}
+	inline bool IsRightKey(const FKey &Key)
+	{
+		return Key == EKeys::Right || Key == EKeys::D || Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right;
+	}
+	/** Page tabs, the top row (UIScreens, shared menu controls): LB / RB, Q / E. */
+	inline bool IsTabPrevKey(const FKey &Key) { return Key == EKeys::Q || Key == EKeys::Gamepad_LeftShoulder; }
+	inline bool IsTabNextKey(const FKey &Key) { return Key == EKeys::E || Key == EKeys::Gamepad_RightShoulder; }
 	/** Sub-tabs, e.g. a character (UIScreens, shared menu controls): LT / RT, Z / C. */
 	inline bool IsSubTabPrevKey(const FKey &Key) { return Key == EKeys::Z || Key == EKeys::Gamepad_LeftTrigger; }
 	inline bool IsSubTabNextKey(const FKey &Key) { return Key == EKeys::C || Key == EKeys::Gamepad_RightTrigger; }
