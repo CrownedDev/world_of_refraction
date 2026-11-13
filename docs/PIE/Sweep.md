@@ -25,7 +25,7 @@
 | 3 | Per-impact parry reflect, unreachable since B-168 — `ActionExecutor.cpp:2002` | No defense reflects (D-087); reflect effects deal pure damage | [B-168](B-168.md) (Guard / Perfect Guard on a multi-hit: no reflect damage) | sweep | [ ] |
 | 4 | Lumped parry reflect, unreachable since B-168 — `Private/Combat/Defense/DefenseSystem.cpp:162` | As row 3 | [B-168](B-168.md) (Perfect Guard on a spell: no reflect) | sweep | [ ] |
 | 5 | `UActionExecutor::ProcessMultiHit` — `ActionExecutor.h:365`, `ActionExecutor.h:812` (B-167) | The per-impact path (`ResolveImpactDefense` → `ApplyOneImpact`) | [B-167](B-167.md) (multi-hit abilities still land every hit) | sweep | [ ] |
-| 6 | `UActionExecutor::DoWeaponStatsApply` — `ActionExecutor.cpp:4339` (B-307) | `ResolveInfusionSource` (one resolver) | [B-307](B-307.md) | B-309 | [ ] |
+| 6 | `UActionExecutor::DoWeaponStatsApply` — `ActionExecutor.cpp:4339` (B-307) | `ResolveInfusionSource` (one resolver) | [B-307](B-307.md) + Blueprint check: no `Do Weapon Stats Apply` node (it is BlueprintPure; [B-309](B-309.md) check 1) | B-309 (the rest of it is done) | [ ] |
 | 7 | `FCombatHitResult::bWasBlocked / bWasParried / bWasDodged` — `Public/Combat/Actions/ActionStructs.h:537` (B-277) | `EDefenseType` on the hit result | [B-277](B-277.md) + Blueprint check: no reads of the three flags | sweep | [ ] |
 | 8 | `GuardRules::ImpactAnimationOverride` — `Public/Combat/Defense/GuardRules.h:30` (B-202) | Every Guard plays the block montage; `PlaysPerfectGuardFeedback` | [B-202](B-202.md) (Guard and Perfect Guard animations) | sweep | [ ] |
 | 9 | `ULoadoutComponent::GetParryMontage` — `Public/Loadout/LoadoutComponent.h:490` (B-202) | `GetBlockMontage` | [B-202](B-202.md) + Blueprint check: no caller | sweep | [ ] |
@@ -36,8 +36,8 @@
 
 | # | Flag (`file:line`) | Replaced by | PIE check that proves it | Delete job | Result |
 |---|---|---|---|---|---|
-| 12 | `UCombatOrchestrator::SubmitAction` (sync router) — `Public/Combat/CombatOrchestrator.h:170` (B-031) | `SubmitActionAsync` | [B-031](B-031.md) (rituals fire; debug actions work) + a spec covering `CombatOrchestratorTestActor` (D-067) | B-165 | [ ] |
-| 13 | `CombatOrchestratorTestActor` (legacy test actor, the last `SubmitAction` caller) | Headless specs (D-066 / D-067) | As row 12 | B-165 | [ ] |
+| 12 | `UCombatOrchestrator::SubmitAction` (sync router) — `Public/Combat/CombatOrchestrator.h:170` (B-031) | `SubmitActionAsync` | [B-031](B-031.md) (rituals fire; debug actions work) + a spec covering `CombatOrchestratorTestActor` (D-067: `WoR.Combat.OrchestratorActions`, in dev) + Blueprint check: no `Submit Action` node (it is BlueprintCallable) | B-165 | [ ] |
+| 13 | `CombatOrchestratorTestActor` (legacy test actor, the last `SubmitAction` caller) | Headless specs (D-066 / D-067) | As row 12 + the editor step of [B-350](B-350.md): `BP_CombatOrchestratorTestActor` and `BP_Test_CombatOrchestrator` deleted | B-165 | [ ] |
 | 14 | `OnWorldStatDraftReady` — `CombatOrchestrator.h:291` (B-223) | `OnLevelDropsReady` (level drops, D-102) | [B-223](B-223.md) / [B-223b](B-223b.md) (win, place the level drop) | sweep | [ ] |
 | 15 | `PendingWorldStatPool` — `CombatOrchestrator.h:537` (B-223) | Level drops rolled on a win (`TrialGate::RollLevelDrops`) | [B-223](B-223.md) | sweep | [ ] |
 | 16 | Test-asset fallback in the debug commands (`wor.Debug.AllowTestAssetFallback`) — `Private/Debug/Combat/CombatOrchestratorDebug.cpp:55`, `:484`, `:557`, `:865`, `:1025` (B-118) | A logged error when the actor has no skill | [B-118](B-118.md) (debug commands with the CVar off) | sweep | [ ] |
@@ -46,10 +46,7 @@
 
 | # | Flag (`file:line`) | Replaced by | PIE check that proves it | Delete job | Result |
 |---|---|---|---|---|---|
-| 17 | `ULoadoutComponent::GetValidationErrorsLegacy` / `CollectInvalidSlotFindingsLegacy` — `Private/Loadout/LoadoutComponent.cpp:623`, `:1004`, `Public/Loadout/LoadoutComponent.h:240` (B-028) | The one validator (B-028), then `FLoadoutRules` (B-303) | [B-028](B-028.md) (`wor.Loadout.CompareRules` shows only the D-073 changes) | B-172 → B-309 | [ ] |
-| 18 | `FSavedLoadout::GetValidationErrorsLegacy` — `Private/Loadout/FSavedLoadout.cpp:43`, `Public/Loadout/FSavedLoadout.h:302` (B-028) | As row 17 | [B-028](B-028.md) | B-172 → B-309 | [ ] |
-| 19 | `PrimarySlotCost` — `Private/Loadout/LoadoutRules.cpp:228` (B-303) | `FLoadoutRules::SlotCost` over the unified slots | [B-303](B-303.md) | B-309 | [ ] |
-| 20 | Old loadout fields, entries and wrappers (pre-unified slots) | The unified slots (B-301..B-308) | PIE of B-301..B-308 | B-309 | [ ] |
+| 20 | Old loadout fields, entries and wrappers (pre-unified slots) | The unified slots (B-301..B-308) | PIE of B-301..B-308 | B-309b (not a delete yet: the slots must become the stored truth first) | [ ] |
 | 21 | `ULoadoutComponent::CharacterClass` — `Public/Loadout/LoadoutComponent.h:116` (B-022); the spec line `Private/Tests/LoadoutGetterSpec.cpp:77` | `GetCharacterClass()` over `CharacterData` | [B-022](B-022.md) + Blueprint check: no read/write of the field | B-153 | [ ] |
 | 22 | `URingManager` — `Public/Equipment/Rings/RingManager.h:20`, `Private/Equipment/Rings/RingManager.cpp:2`; `UActionExecutor::GetRingManager` — `ActionExecutor.h:381` (B-024) | `ULoadoutComponent` ring queries and `HandleCrystalBroken` | [B-024](B-024.md) + Blueprint check: no caller | B-154 | [ ] |
 | 23 | `UWeaponManager` — `Public/Equipment/Weapons/WeaponManager.h:19`; `UActionExecutor::GetWeaponManager` — `ActionExecutor.h:386` (B-024) | `ULoadoutComponent::GetActiveWeapon / GetCurrentAttack` | [B-024](B-024.md) + Blueprint check | B-154 | [ ] |
@@ -403,6 +400,10 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-445](B-445.md) | Selling and dismantling at the vendors (D-177, D-193): placeholder `wor.UI.Vendor`; the inventory's verbs are Give, Store, Take | Pending | REVIEW (in dev, `feature/B-445-vendor-dismantle-sell`) | [ ] |
 | [B-461](B-461.md) | The inventory screen, piece 2 (Q-461): the filter row, Sort, evolution and apparel tiles, the place name | Pending | REVIEW (in dev, `feature/B-461-inventory-piece-2`) | [ ] |
 | [B-152](B-152.md) | The stat-stone consumable wrappers deleted (D-204): every stat stone, Amber and Opal work as before | Pending | REVIEW (in dev, `chore/B-152-delete-stone-wrappers`) | [ ] |
+| [B-172](B-172.md) | The legacy loadout validators deleted (D-204): validation and fight start as before; `wor.Loadout.PrintFindings`; editor step: Find in Blueprints for `Compare Loadout Rules` | Pending | REVIEW (in dev, `chore/B-172-delete-legacy-validators`) | [ ] |
+| [B-309](B-309.md) | Unified loadout 9: `PrimarySlotCost` deleted (D-204), no play change; editor step: Find in Blueprints for `Do Weapon Stats Apply` | Pending | REVIEW (in dev, `chore/B-309-old-loadout-path`) | [ ] |
+| [B-214b](B-214b.md) | Field skills part 2 (Q-214b): unlocks by aura spell rank (account-wide, saved), the placeholder picker `wor.UI.FieldSkill`; editor step first: mark an aura spell (`Field Aura`) | Pending | REVIEW (in dev, `feature/B-214b-field-unlocks`) | [ ] |
+| [B-214c](B-214c.md) | Field skills part 3 (Q-214c): glide, high / double jump, air dash (Lightning blinks), wall-run; by console until the keys come (B-214g) | Pending | REVIEW (in dev, `feature/B-214c-ground-air-moves`) | [ ] |
 | [B-456a](B-456a.md) | The vendor screen, piece 1 (D-193): tabs, rows, Sell and Dismantle; the placeholder `wor.UI.Vendor` (`UVendorServiceWidget`) goes after this passes | Pending | REVIEW (in dev, `feature/B-456-vendor-screen`) | [ ] |
 | [B-456b](B-456b.md) | The vendor screen, piece 2 (D-193, Q-456b): Buy, the cart, "Buying for"; talking to a vendor opens it. The old shop window goes after this passes: `UShopWindowWidget`, `UShopRowWidget`, `WBP_ShopWindow` and its rows, the window path and modal bracket in `UMerchantShopSubsystem` (`ShopWindowClass`), `wor.Shop.BuyFor` | Pending | REVIEW (in dev, `feature/B-456b-vendor-buy`) | [ ] |
 | [B-456c](B-456c.md) | The vendor screen, piece 3 (D-193): the Jeweler's Item slots tab. The placeholder goes after this passes: `UItemSlotUpgradeWidget` (`wor.UI.ItemSlots`) | Pending | REVIEW (in dev, `feature/B-456c-item-slots`) | [ ] |
@@ -420,3 +421,5 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | Date | Rows | Branch |
 |---|---|---|
 | 2026-11-14 | 30: the stat-stone consumable wrappers (deleted under the D-204 waiver, no PIE tick; B-152) | `chore/B-152-delete-stone-wrappers` |
+| 2026-11-14 | 17, 18: the `*Legacy` loadout validators and `wor.Loadout.CompareRules` (deleted under the D-204 waiver, no PIE tick; B-172) | `chore/B-172-delete-legacy-validators` |
+| 2026-11-14 | 19: `PrimarySlotCost` (deleted under the D-204 waiver, no PIE tick; B-309) | `chore/B-309-old-loadout-path` |
