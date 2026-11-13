@@ -5,7 +5,7 @@
 **The battle HUD is done** (`BattleHUDRefinePlan.md`, B-436) and is not in this list.
 **Look:** the battle HUD's theme, used loosely (Crown via the brain, 2026-11-13): dark stone panels, one cut corner, **cyan = focus**, tab rows, coloured face-button glyphs, hints at the bottom right. Each screen is laid out for its own job. Final art comes from the Hidris art pass (`UI_Theme.md`); these mockups are layout, information and controls only.
 **Mockups:** `screen_mockups/<area>/<screen>/` (one `make.py` each, run `python make.py`; shared kit `screen_mockups/_kit/wor_ui.py`; DejaVu stands in for Spectral SC and Lato).
-**PNGs not committed yet:** the cloud session that drew them couldn't reach GitHub's LFS host (`lfs.github.com` blocked by its network policy), and PNG is LFS-tracked. To get the images, run each `make.py` (Python 3 + Pillow; output lands next to it), then commit the PNGs from a machine with LFS access. A personal cloud environment `world_of_refraction` that allows the LFS hosts now exists for later sessions.
+**PNGs:** committed through LFS from a machine that can reach it; a cloud session on the Default environment can't push them (`lfs.github.com` is blocked there; the `world_of_refraction` environment allows it).
 
 ## How to read the table
 
@@ -308,7 +308,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 **Left:** nothing to mock. The world-stat draft is obsolete in code (question 6).
 
-**PNGs are not in git** (this session can't reach the LFS host; agreed with the brain, 2026-11-13). The review page carries them; each `make.py` redraws them.
+**PNGs are in git** (LFS), rendered from the `make.py` scripts and committed from a machine with LFS access (commit 29f36679c). Re-run a `make.py` and commit its PNGs the same way after any change.
 
 **For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
 
