@@ -81,7 +81,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 
 1. [x] Pause / game menu (`menus/pause`)
 2. [x] Loadout and skills (`menus/loadout`)
-3. [ ] Inventory and pouch (`menus/inventory`)
+3. [x] Inventory and pouch (`menus/inventory`)
 4. [ ] Rest spot, level up, extract, revive vote (`run/rest_spot`)
 5. [ ] After a fight, wipe, run over, run end (`run/run_end`)
 6. [ ] Settings (`menus/settings`)
@@ -116,6 +116,15 @@ One block per mocked screen: the images, why the layout, the references.
 - **Weapons show as two equal slots, one ACTIVE** (D-110: no primary / secondary difference). The brief's "main hand / off hand" isn't a slot in the code: a shield or second blade is the weapon's wield mode (`EWeaponWieldMode.h:32`), shown in its kind line when it has one.
 - **Refusals show in place:** the S-tier crystal row is greyed with its reason ("S-tier: one per loadout", `MAX_EQUIPPED_S_TIER_CRYSTALS`), not hidden (UI_Theme §5: disabled stays focusable to show why).
 - **Skills page** (Refractor): innate spells by school (only schools you hold a spell in), 6 per school, a points bar (24, tier = points F 1 to S 7, less the pillar discount; `SpellPoolConstants.h`). Generic and Resonator use the same page for each weapon's abilities and each adapter's spells.
+
+### 4. Inventory and pouch (`menus/inventory/`)
+
+- `1_gear.png` (Gear tab, verb menu on a weaker duplicate), `2_pouch_give.png` (Pouch tab at a rest spot, Give to another member), `3_dismantle_confirm.png`.
+- **One screen, three tabs** (Gear, Pouch, Chest) and **one verb menu** on A: Give, Store, Take, Dismantle, Convert (D-131). A verb that doesn't apply is **greyed with the code's own reason under it** ("Home chest: in the hub only"), never hidden (`WoRInventoryVerbs::GetRefusal`).
+  *Ref:* Baldur's Gate 3's camp chest and per-character inventories (D-117 is modelled on it); Elden Ring's item menu opens one short verb list on the item.
+- **Icon grid, not a list:** gear and items are visual and many; a grid shows 12 at a glance (Diablo IV, BG3). E marks gear a loadout wears. Filter row for gear kinds.
+- **Pouch:** 10 slots to start, the Jeweler's extra ones drawn as locked "Jeweler" slots up to 20, stacks of 10 (`InventoryConstants.h:51-57`). Give asks who receives and shows their room; X toggles the whole stack (the placeholder's "Whole stack" toggle).
+- **Dismantle** is one confirm with what you get and lose, and "can't be undone" (D-016's warning, `GetDismantleWarning`). The placeholder's "press again to confirm" becomes this dialog.
 
 ## Shared menu controls
 
