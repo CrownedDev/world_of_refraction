@@ -62,10 +62,7 @@ namespace LightHitMontageBuilder
 		}
 		Montage->SetCompositeLength(Position);
 
-		FCompositeSection Section;
-		Section.SectionName = TEXT("Default");
-		Section.SetTime(0.0f);
-		Montage->CompositeSections.Add(Section);
+		Montage->AddAnimCompositeSection(TEXT("Default"), 0.0f);
 		Montage->AnimNotifyTracks.Add(FAnimNotifyTrack(NOTIFY_TRACK, FLinearColor::White));
 		return Montage;
 	}
@@ -94,6 +91,7 @@ namespace LightHitMontageBuilder
 		Event.NotifyName = FName(*State->GetNotifyName());
 		Event.SetDuration(End - Start);
 		Event.EndLink.Link(Montage, Event.EndLink.GetTime());
+		Event.EndTriggerTimeOffset = GetTriggerTimeOffsetForType(Montage->CalculateOffsetForNotify(Event.EndLink.GetTime()));
 	}
 
 	void AddCombatNotify(UAnimMontage *Montage, float Time, ECombatNotifyFamily Family)

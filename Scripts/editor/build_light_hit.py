@@ -33,10 +33,12 @@ for name, source in ROOT_MOTION_COPIES.items():
     if EAL.does_asset_exist(path):
         continue
     clip = EAL.duplicate_asset(source, path)
+    if clip is None:
+        raise RuntimeError("could not copy " + source)
     clip.set_editor_property("enable_root_motion", True)
     save(path)
 
-if not EAL.does_asset_exist(APPROACH_MONTAGE):
+if not (EAL.does_asset_exist(APPROACH_MONTAGE) and EAL.does_asset_exist(RETURN_MONTAGE)):
     unreal.SystemLibrary.execute_console_command(None, "wor.Editor.BuildLightHitMontages")
     save(APPROACH_MONTAGE)
     save(RETURN_MONTAGE)
@@ -44,6 +46,8 @@ if not EAL.does_asset_exist(APPROACH_MONTAGE):
 if not EAL.does_asset_exist(SKILL):
     skill = EAL.duplicate_asset(SKILL_TEMPLATE, SKILL)
     skill.set_editor_property("name", "Light Hit")
+    skill.set_editor_property("execution_type", unreal.AbilityExecutionType.MELEE)  # the template is Ranged: no approach range
+    skill.set_editor_property("physical_damage_type", unreal.PhysicalDamageType.SLASH)  # the template has none (validation error)
     skill.set_editor_property("skill_montage", EAL.load_asset(APPROACH_MONTAGE))
     skill.set_editor_property("return_montage", EAL.load_asset(RETURN_MONTAGE))
     save(SKILL)
