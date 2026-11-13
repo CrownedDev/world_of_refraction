@@ -29,7 +29,7 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
     EAttachedItemKind Kind = EAttachedItemKind::None;
 
     /** Crystal sub-type. Visible for Crystal (Garnet…Quartz) and AugmentStone
-     *  (DamageStone vs AbilityStone) — lets the designer pick the stone variant. */
+     *  (DamageStone, StatStone, ...) — lets the designer pick the stone variant. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::AugmentStone", EditConditionHides,
                       GetRestrictedEnumValues = "GetRestrictedCrystalTypes"))
