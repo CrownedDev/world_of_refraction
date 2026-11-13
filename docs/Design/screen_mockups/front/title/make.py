@@ -6,6 +6,7 @@ import sys
 from PIL import Image, ImageDraw
 
 OUT = os.path.dirname(os.path.abspath(__file__))
+os.environ.setdefault("WOR_ACCENT", "violet")  # the front end is drawn with the proposed violet focus colour
 sys.path.insert(0, os.path.join(OUT, "..", "..", "_kit"))
 from wor_ui import *  # noqa: E402,F401
 
@@ -59,10 +60,12 @@ def backdrop(at=9.0):
 def title_screen(at=9.0):
     """Title / main menu. Continue is first and focused when a save exists; its line says where you are."""
     im, d = backdrop(at)
-    spaced(d, (72, 112), "WORLD OF REFRACTION", serif(40), INK, 5)
+    mid = int(72 + spaced(d, (72, 112), "WORLD OF REFRACTION", serif(40), INK, 5) - 5) // 2  # the title's centre line
     rule = RULE.resize((440, int(RULE.height * 440 / RULE.width)), Image.LANCZOS)
-    im.paste(rule, (72, 168), rule)
-    spaced(d, (72, 212), "STORIES OF THE VOID", F(17), (222, 224, 236), 7)
+    im.paste(rule, (mid - 220, 168), rule)
+    sub, f = "TALES OF THE VOID", F(17)
+    w = sum(d.textlength(ch, font=f) + 7 for ch in sub) - 7
+    spaced(d, (mid - w / 2, 212), sub, f, (222, 224, 236), 7)
     items = [("Continue", "Void Realm · Sera, Garrick, Bram · 14 h"), ("New Game", None), ("Join a friend", None),
              ("Settings", None), ("Credits", None), ("Quit", None)]
     for i, (lab, sub) in enumerate(items):

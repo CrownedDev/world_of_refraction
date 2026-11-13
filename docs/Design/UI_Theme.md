@@ -27,6 +27,7 @@ V1 stacked = V2 normal (checked by compositing). So V1 is the toolkit, V2 the lo
 | Steel | `#8C9098` | Frames, rules (deckbuilder) |
 | Platinum | `#D6DEEC` | Tier, premium (deckbuilder) |
 | Teal deep / Teal / Crystal | `#06595C` / `#337F8D` / `#9FECF5` | **Focus**: Hidris's selected state. The one UI accent. |
+| **Proposed (2026-11-14, not approved):** Violet / Violet light | `#5B3A99` / `#CDB8FF` | A focus colour that sits on the title's purple nebula, where the teal clashes (Crown). Drawn on `screen_mockups/front/title/1_title.png` and, game-wide, `run/rest_spot/1_rest_menu_violet.png` (the kit's `WOR_ACCENT=violet`). White text on the fill is about 8:1. Insight from the deckbuilder, whose navigation buttons are purple; no asset of its is used. **Costs if approved:** Hidris's selected plates are cyan and would need a violet tint or redraw; and violet is already the Void element and the Secret quest colour, so focus would share a hue with them |
 | Text / secondary / disabled | `#EEF1F5` / `#A9AFB8` / `#6B7078` | All pass 4.5:1 on Stone 800 except disabled (by design) |
 | HP / HP low / EP | `#E8ECF2` / `#F07A5A` / `#6FD6E4` | Bars stay neutral so element colour stays meaningful |
 
