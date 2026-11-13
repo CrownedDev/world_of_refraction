@@ -538,6 +538,11 @@ public:
      *  handed on, so no duplicate notice fires here (the receiver's own fires when it already owns one). */
     bool bSuppressDuplicateNotice = false;
 
+    /** B-432: set while this member buys for another (UEconomyService::PurchaseFor): the weapon or ring only passes
+     *  through on its way to the receiver (whose room PurchaseFor checked first), so this member's own capacity doesn't
+     *  refuse it (CanAddWeapon / CanAddRing). */
+    bool bPassingGearThrough = false;
+
     /** B-319 (D-115): every weaker copy of an owned weapon or ring, each paired with the copy that stays. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Duplicates")
     TArray<FDuplicateGearPair> FindDuplicateGear() const;
