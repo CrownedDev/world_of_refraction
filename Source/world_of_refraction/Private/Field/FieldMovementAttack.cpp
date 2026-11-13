@@ -93,6 +93,5 @@ EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
 
 void UFieldMovementComponent::ServerFieldAttack_Implementation(bool bHeld)
 {
-	LastFieldAttackTime = -FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS; // the client already timed it
-	FieldAttack(bHeld);
+	FieldAttack(bHeld); // the server keeps its own cooldown
 }
