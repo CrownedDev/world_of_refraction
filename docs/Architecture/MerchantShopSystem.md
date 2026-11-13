@@ -59,7 +59,9 @@ Prices are NOT authored — pricing is tier-keyed via `EconomyYield` at purchase
 ### The five authored merchants (`Content/Data/Pool/Merchant/`)
 
 All stock is Count=1 per line; every merchant also stocks all 12 crystals
-(9 gems + DamageStone + AbilityStone + Quartz) at E-tier:
+(9 gems + DamageStone + AbilityStone + Quartz) at E-tier. **B-437 (D-175): the Ability Stone
+is removed from the code; its stock line on each merchant now loads as an empty line (the
+`AbilityStone` → `None` redirect) until the editor step deletes it, leaving 11 crystals:**
 
 | Asset | Enum type | Stock |
 |---|---|---|
@@ -221,3 +223,4 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 | 2026-11-03 | B-269: the shop's cost lines (detail, row) and wallet-totals labels read essence names from `WoRGameNames::GetEssenceName` (Generic = Quartz Essence, D-105; Reality = Unknown Essence, D-095) instead of the raw enum identifiers. The row cost line is still a built FString (TODO B-127). | fix/B-269-essence-names |
 | 2026-11-04 | B-366c (D-002 notes, ER-21): a purchase pays its money line in the currency of the place. `PurchaseCostBalances::PaidFrom(Listed, Place)` (`Currency/EconomyService.h`) maps the listed Prisms line to `UEconomyService::GetPlaceCurrency`; `PurchaseImpl` checks, spends and refunds through it (buy-for too); `UShopWindowWidget::GetCostLineText(Cost, Place)`, the totals labels / wallet cells, Confirm and `GetShopString` follow it. Spec `WoR.Economy.RoundTrip`. | feature/B-366c-shop-place-currency |
 | 2026-11-12 | D-173 (Crown): the Stone Smith merges into the Blacksmith (docs; code and data in B-409). Q-239 (Crown): the Jeweler sells item slots (B-239's placeholder `wor.UI.ItemSlots`; the Jeweler's merchant name lists them) | feature/B-239-item-slot-upgrades |
+| 2026-11-14 | B-437 (D-175): the Ability Stone is removed from the code. Each authored merchant's Ability Stone stock line loads as an empty line (enum redirect to `None`; an empty line prices at 0 and a purchase of it is refused) until the editor step deletes it. | feature/B-437-remove-ability-stone |
