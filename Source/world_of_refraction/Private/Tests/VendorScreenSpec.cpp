@@ -3,6 +3,9 @@
 // row's words and pay, a refused row listed with its reason. The screen, headless: it opens on the first built
 // tab, A asks first and the second A runs the service, Back cancels the question, a refused row says why, and X
 // takes the whole stack. The services' own rules are WoR.Shop.VendorServices.
+// B-456b: Buy. The model: the vendor's stock with its cost, an empty line skipped, a line the wallet can't pay greyed
+// with the reason. The screen: it opens on Buy, A puts a line in the cart, Left takes it back, X buys the cart, and
+// R / Y changes who it is bought for. The purchase's own rules are WoR.Economy.BuyFor.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -18,6 +21,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Merchant/MerchantData.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
@@ -28,6 +32,11 @@ namespace
 {
 	constexpr int32 VENDOR_SCREEN_GEM_COUNT = 3;
 	const FCrystalId VENDOR_SCREEN_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
+	constexpr int32 VENDOR_SCREEN_WALLET = 100000;
+	/** The test vendor's shelf: the spear, the gems, and an empty line (skipped). */
+	constexpr int32 VENDOR_SCREEN_SPEAR_ROW = 0;
+	constexpr int32 VENDOR_SCREEN_GEM_ROW = 1;
+	constexpr int32 VENDOR_SCREEN_STOCK_ROWS = 2;
 }
 
 BEGIN_DEFINE_SPEC(FVendorScreenSpec, "WoR.UI.VendorScreen", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -35,12 +44,58 @@ BEGIN_DEFINE_SPEC(FVendorScreenSpec, "WoR.UI.VendorScreen", EAutomationTestFlags
 	UPoolSubsystem *Pool = nullptr;
 	UWeaponData *Sword = nullptr;
 	UWeaponData *Dagger = nullptr;
+	UWeaponData *Spear = nullptr;
+	UMerchantData *Merchant = nullptr;
+	UParty *Party = nullptr;
 	UCharacterData *Member = nullptr;
 	UInventoryComponent *Inventory = nullptr;
 
 	FName Key() const { return UPoolSubsystem::GetCharacterKey(Member); }
 	UWorld *World() const { return TestWorld->GetWorld(); }
-	int32 Money() const { return Inventory->GetOwner()->FindComponentByClass<UCurrencyComponent>()->GetBalance(ECurrencyType::Prisms); }
+	AActor *Payer() const { return Inventory->GetOwner(); }
+	UCurrencyComponent *Wallet() const { return Payer()->FindComponentByClass<UCurrencyComponent>(); }
+	int32 Money() const { return Wallet()->GetBalance(ECurrencyType::Prisms); }
+
+	/** Money and essence for anything on the test vendor's shelf. */
+	void Fund()
+	{
+		Wallet()->Add(ECurrencyType::Prisms, VENDOR_SCREEN_WALLET);
+		Wallet()->Add(ECurrencyType::ElementalEssence, VENDOR_SCREEN_WALLET);
+	}
+
+	/** A party member as each level spawns it: the sword as its loadout's primary. */
+	UInventoryComponent *AddMember(const TCHAR *Name, UCharacterData *&OutData)
+	{
+		OutData = FWoRTestWorld::NewCharacterData();
+		OutData->Name = Name;
+		FPartyMember &PartyMember = Party->Members.AddDefaulted_GetRef();
+		PartyMember.PawnClass = ACombatCharacter::StaticClass();
+		PartyMember.CharacterData = OutData;
+		AActor *Actor = TestWorld->SpawnCombatant(OutData);
+		if (!Actor)
+		{
+			return nullptr;
+		}
+		FWoRTestWorld::AddComponent<UCrystalInventoryComponent>(Actor);
+		FWoRTestWorld::AddComponent<UEvolutionInventoryComponent>(Actor);
+		FWoRTestWorld::AddComponent<UCurrencyComponent>(Actor);
+		UInventoryComponent *Added = FWoRTestWorld::AddComponent<UInventoryComponent>(Actor);
+		FWoRTestWorld::AddComponent<ULoadoutComponent>(Actor);
+		Added->AddWeapon(Sword);
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		Added->SavedLoadouts = {Loadout};
+		Added->ActiveLoadoutIndex = 0;
+		Added->LinkLoadoutsToOwned();
+		Added->DrawSharedGear();
+		return Added;
+	}
+
+	bool Owns(FName Owner, const UWeaponData *Weapon) const
+	{
+		return Pool->GetOwnedGearOf(Owner).Weapons.ContainsByPredicate([Weapon](const FWeaponInventoryEntry *E) { return E->Weapon == Weapon; });
+	}
 
 	FGuid IdOf(const UWeaponData *Weapon) const
 	{
@@ -58,14 +113,18 @@ BEGIN_DEFINE_SPEC(FVendorScreenSpec, "WoR.UI.VendorScreen", EAutomationTestFlags
 		return Page.Rows.IndexOfByPredicate([&Item](const FVendorScreenRow &Row) { return !Row.Row.IsGear() && Row.Row.Item == Item; });
 	}
 
-	/** The Blacksmith's screen, as wor.UI.VendorScreen opens it. */
-	UVendorScreenWidget *OpenScreen()
+	/** The Blacksmith's screen, as talking to the test vendor opens it, moved to Tab. */
+	UVendorScreenWidget *OpenScreen(EVendorScreenTab Tab = EVendorScreenTab::Sell)
 	{
 		UVendorScreenWidget *Screen = CreateWidget<UVendorScreenWidget>(World(), UVendorScreenWidget::StaticClass());
 		if (Screen)
 		{
 			Screen->ActivateWidget();
-			Screen->SetVendor(EMerchantType::Blacksmith);
+			Screen->SetVendor(EMerchantType::Blacksmith, Merchant, Payer());
+			for (int32 Step = 0; Step < WoRVendorScreen::GetTabs(EMerchantType::Blacksmith).Num() && Screen->GetTab() != Tab; ++Step)
+			{
+				Screen->MoveTab(1);
+			}
 		}
 		return Screen;
 	}
@@ -82,32 +141,22 @@ void FVendorScreenSpec::Define()
 		Sword->Name = TEXT("Screen sword");
 		Dagger = NewObject<UWeaponData>(GetTransientPackage());
 		Dagger->Name = TEXT("Screen dagger");
+		Spear = NewObject<UWeaponData>(GetTransientPackage());
+		Spear->Name = TEXT("Screen spear");
+		Merchant = NewObject<UMerchantData>(GetTransientPackage());
+		Merchant->MerchantType = EMerchantType::Blacksmith;
+		Merchant->Stock.SetNum(VENDOR_SCREEN_STOCK_ROWS + 1); // the last line stays empty
+		Merchant->Stock[VENDOR_SCREEN_SPEAR_ROW].Asset = Spear;
+		Merchant->Stock[VENDOR_SCREEN_GEM_ROW].Crystal = VENDOR_SCREEN_GEM;
+		Merchant->Stock[VENDOR_SCREEN_GEM_ROW].Count = VENDOR_SCREEN_GEM_COUNT;
 		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
-		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
+		Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
 		if (!TestNotNull(TEXT("Party"), Party) || !TestNotNull(TEXT("Pool"), Pool)) return;
 		Party->Members.Empty();
-		Member = FWoRTestWorld::NewCharacterData();
-		Member->Name = TEXT("Screen member");
-		FPartyMember &PartyMember = Party->Members.AddDefaulted_GetRef();
-		PartyMember.PawnClass = ACombatCharacter::StaticClass();
-		PartyMember.CharacterData = Member;
 
-		// As each level spawns a party member: the sword as its loadout's primary, the dagger spare.
-		AActor *Actor = TestWorld->SpawnCombatant(Member);
-		if (!TestNotNull(TEXT("member actor"), Actor)) return;
-		FWoRTestWorld::AddComponent<UCrystalInventoryComponent>(Actor);
-		FWoRTestWorld::AddComponent<UEvolutionInventoryComponent>(Actor);
-		FWoRTestWorld::AddComponent<UCurrencyComponent>(Actor);
-		Inventory = FWoRTestWorld::AddComponent<UInventoryComponent>(Actor);
-		FWoRTestWorld::AddComponent<ULoadoutComponent>(Actor);
-		Inventory->AddWeapon(Sword);
-		FCombatLoadout Loadout;
-		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
-		Loadout.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(Sword);
-		Inventory->SavedLoadouts = {Loadout};
-		Inventory->ActiveLoadoutIndex = 0;
-		Inventory->LinkLoadoutsToOwned();
-		Inventory->DrawSharedGear();
+		// The sword is the member's primary, the dagger spare.
+		Inventory = AddMember(TEXT("Screen member"), Member);
+		if (!TestNotNull(TEXT("member actor"), Inventory)) return;
 		Inventory->AddWeapon(Dagger);
 	});
 	AfterEach([this]()
@@ -115,6 +164,9 @@ void FVendorScreenSpec::Define()
 		Pool = nullptr;
 		Sword = nullptr;
 		Dagger = nullptr;
+		Spear = nullptr;
+		Merchant = nullptr;
+		Party = nullptr;
 		Member = nullptr;
 		Inventory = nullptr;
 		TestWorld.Reset();
@@ -129,12 +181,14 @@ void FVendorScreenSpec::Define()
 		TestTrue(TEXT("Blacksmith"), WoRVendorScreen::GetTabs(EMerchantType::Blacksmith) == Blacksmith);
 		TestTrue(TEXT("Jeweler"), WoRVendorScreen::GetTabs(EMerchantType::Jeweler) == Jeweler);
 		TestTrue(TEXT("Spiritualist"), WoRVendorScreen::GetTabs(EMerchantType::Spiritualist) == Spiritualist);
-		TestTrue(TEXT("the Combat Master has no shop screen"), WoRVendorScreen::GetTabs(EMerchantType::CombatMaster).IsEmpty());
+		TestTrue(TEXT("a vendor D-193 doesn't name has Buy alone"),
+				 WoRVendorScreen::GetTabs(EMerchantType::CombatMaster) == TArray<EVendorScreenTab>({EVendorScreenTab::Buy}));
 		for (const EVendorScreenTab Tab : Spiritualist)
 		{
 			TestFalse(TEXT("every tab is named"), WoRVendorScreen::GetTabName(Tab).IsEmpty());
 		}
-		TestTrue(TEXT("Sell and Dismantle are built"), WoRVendorScreen::IsBuilt(EVendorScreenTab::Sell) && WoRVendorScreen::IsBuilt(EVendorScreenTab::Dismantle));
+		TestTrue(TEXT("Buy, Sell and Dismantle are built"), WoRVendorScreen::IsBuilt(EVendorScreenTab::Buy) && WoRVendorScreen::IsBuilt(EVendorScreenTab::Sell) &&
+																 WoRVendorScreen::IsBuilt(EVendorScreenTab::Dismantle));
 		if (!Inventory) return;
 		for (const EVendorScreenTab Tab : Spiritualist)
 		{
@@ -162,12 +216,12 @@ void FVendorScreenSpec::Define()
 				  WoRVendorScreen::BuildPage(World(), EMerchantType::Blacksmith, EVendorScreenTab::Dismantle, Key()).Rule.IsEmpty());
 	});
 
-	It("opens on the first built tab; A asks, Back cancels, and the second A sells", [this]()
+	It("Sell: A asks, Back cancels, and the second A sells", [this]()
 	{
 		if (!Inventory) return;
 		UVendorScreenWidget *Screen = OpenScreen();
 		if (!TestNotNull(TEXT("screen created"), Screen)) return;
-		TestTrue(TEXT("opens on Sell while Buy isn't built"), Screen->GetTab() == EVendorScreenTab::Sell);
+		TestTrue(TEXT("RB from Buy is Sell"), Screen->GetTab() == EVendorScreenTab::Sell);
 		const FGuid DaggerID = IdOf(Dagger);
 		const int32 Before = Money();
 		Screen->SelectRow(FindGear(Screen->GetPage(), DaggerID));
@@ -231,6 +285,93 @@ void FVendorScreenSpec::Define()
 		Screen->Confirm();
 		TestEqual(TEXT("the rest sold"), Pool->GetCarriedCount(Key(), VENDOR_SCREEN_GEM), 0);
 		TestEqual(TEXT("paid for all"), Money(), Before + Price * VENDOR_SCREEN_GEM_COUNT);
+	});
+
+	It("Buy lists the vendor's stock with its cost, skips an empty line, and greys what the wallet can't pay", [this]()
+	{
+		if (!Inventory) return;
+		Wallet()->Spend(ECurrencyType::Prisms, Money());
+		const FVendorScreenPage Poor = WoRVendorScreen::BuildBuyPage(World(), Merchant, Payer(), Key(), {});
+		if (!TestEqual(TEXT("the spear and the gems; the empty line is skipped"), Poor.Rows.Num(), VENDOR_SCREEN_STOCK_ROWS)) return;
+		const FVendorScreenRow &SpearRow = Poor.Rows[VENDOR_SCREEN_SPEAR_ROW];
+		TestEqual(TEXT("named as the loadout screen names it"), SpearRow.Name.ToString(), FString(TEXT("Screen spear")));
+		TestFalse(TEXT("a kind line"), SpearRow.KindLine.IsEmpty());
+		TestFalse(TEXT("what it costs"), SpearRow.Pay.IsEmpty());
+		TestTrue(TEXT("money alone: no second price for the row"), SpearRow.PayMoney.IsEmpty());
+		TestFalse(TEXT("an empty wallet is refused, with the reason"), SpearRow.Refusal.IsEmpty());
+		TestFalse(TEXT("gems cost an essence too: the row shows the money alone"), Poor.Rows[VENDOR_SCREEN_GEM_ROW].PayMoney.IsEmpty());
+
+		Fund();
+		const FVendorScreenPage Rich = WoRVendorScreen::BuildBuyPage(World(), Merchant, Payer(), Key(), {});
+		TestTrue(TEXT("with money both can be bought"),
+				 Rich.Rows[VENDOR_SCREEN_SPEAR_ROW].Refusal.IsEmpty() && Rich.Rows[VENDOR_SCREEN_GEM_ROW].Refusal.IsEmpty());
+		TestFalse(TEXT("no vendor: nothing for sale, and it says so"), WoRVendorScreen::BuildBuyPage(World(), nullptr, Payer(), Key(), {}).EmptyNote.IsEmpty());
+	});
+
+	It("Buy: opens on it; A puts the focused line in the cart, Left takes it back, and X buys the cart", [this]()
+	{
+		if (!Inventory) return;
+		Fund();
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Buy);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		TestTrue(TEXT("opens on Buy"), Screen->GetTab() == EVendorScreenTab::Buy);
+		const int32 Before = Money();
+		Screen->SelectRow(VENDOR_SCREEN_SPEAR_ROW);
+		Screen->Confirm();
+		Screen->Confirm();
+		if (!TestEqual(TEXT("two presses on one line: one cart line"), Screen->GetCart().Num(), 1)) return;
+		TestEqual(TEXT("of two"), Screen->GetCart()[0].Stock.Count, 2);
+		TestEqual(TEXT("the row says how many the cart holds"), Screen->GetPage().Rows[VENDOR_SCREEN_SPEAR_ROW].Row.Count, 2);
+		TestEqual(TEXT("bought for the payer: the cart says yourself"), Screen->GetCart()[0].ForName.ToString(), FString(TEXT("yourself")));
+		Screen->RemoveFocusedFromCart();
+		TestEqual(TEXT("Left takes one back"), Screen->GetCart()[0].Stock.Count, 1);
+		TestEqual(TEXT("nothing spent yet"), Money(), Before);
+		TestFalse(TEXT("nor owned"), Owns(Key(), Spear));
+
+		Screen->Purchase();
+		TestTrue(TEXT("X buys: the cart is empty"), Screen->GetCart().IsEmpty());
+		TestTrue(TEXT("paid"), Money() < Before);
+		TestTrue(TEXT("the spear is the member's"), Owns(Key(), Spear));
+		TestFalse(TEXT("the screen says what happened"), Screen->GetStatus().IsEmpty());
+	});
+
+	It("Buy: a line the wallet can't pay says why and stays out of the cart; X on an empty cart buys nothing", [this]()
+	{
+		if (!Inventory) return;
+		Wallet()->Spend(ECurrencyType::Prisms, Money());
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Buy);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		Screen->SelectRow(VENDOR_SCREEN_SPEAR_ROW);
+		Screen->Confirm();
+		TestTrue(TEXT("nothing in the cart"), Screen->GetCart().IsEmpty());
+		TestEqual(TEXT("the reason is said"), Screen->GetStatus().ToString(), Screen->GetPage().Rows[VENDOR_SCREEN_SPEAR_ROW].Refusal.ToString());
+		Screen->Purchase();
+		TestFalse(TEXT("still not owned"), Owns(Key(), Spear));
+	});
+
+	It("Buy: R / Y changes who it is bought for; the cart names them and the weapon becomes theirs", [this]()
+	{
+		if (!Inventory) return;
+		UCharacterData *Friend = nullptr;
+		if (!TestNotNull(TEXT("a second member"), AddMember(TEXT("Screen friend"), Friend))) return;
+		const FName FriendKey = UPoolSubsystem::GetCharacterKey(Friend);
+		Fund();
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Buy);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		Screen->SelectRow(VENDOR_SCREEN_GEM_ROW);
+		Screen->MoveMember(1);
+		TestEqual(TEXT("buying for the second member"), Screen->GetMemberIndex(), 1);
+		TestEqual(TEXT("the focused line stays put"), Screen->GetSelectedRow(), static_cast<int32>(VENDOR_SCREEN_GEM_ROW));
+		Screen->SelectRow(VENDOR_SCREEN_SPEAR_ROW);
+		Screen->Confirm();
+		if (!TestEqual(TEXT("in the cart"), Screen->GetCart().Num(), 1)) return;
+		TestEqual(TEXT("the cart says who it is for"), Screen->GetCart()[0].ForName.ToString(), FString(TEXT("Screen friend")));
+		const int32 Before = Money();
+		Screen->Purchase();
+		TestTrue(TEXT("bought"), Screen->GetCart().IsEmpty());
+		TestTrue(TEXT("the payer's wallet paid"), Money() < Before);
+		TestTrue(TEXT("the spear is the friend's"), Owns(FriendKey, Spear));
+		TestFalse(TEXT("not the payer's"), Owns(Key(), Spear));
 	});
 }
 

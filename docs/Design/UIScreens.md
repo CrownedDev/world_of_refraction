@@ -44,7 +44,7 @@
 | # | Screen | What the player does | Code it talks to | Today | Pri |
 |---|---|---|---|---|---|
 | 14 | **Hub HUD and interact prompt** | Gold / currencies on change, party strip, "E Talk / Rest / Enter" prompt | `UCurrencyComponent::OnCurrencyChanged` `Public/Currency/CurrencyComponent.h:118`; `UPartyDisplayWidget` | Party strip Real; prompt and money chip Real, C++ (B-443): `UHubHUDWidget` `Public/UI/Hub/HubHUDWidget.h`; waits for Crown's PIE pass (the old debug hints stay until then) | P2 |
-| 15 | **Shop (every vendor)** | Buy (for yourself or another member, D-111), sell, cart; the vendor's tabs add its services | `UMerchantShopSubsystem::OpenForMerchant` `Public/Shop/MerchantShopSubsystem.h:36`; `UEconomyService::Purchase` / `PurchaseFor` `Public/Currency/EconomyService.h:262-273`; vendors `EMerchantType` `Public/Merchant/MerchantData.h:26-35` | Real `UShopWindowWidget` `Public/UI/Shop/ShopWindowWidget.h:54` (old UMG modal, not CommonUI) | P2 |
+| 15 | **Shop (every vendor)** | Buy (for yourself or another member, D-111), sell, cart; the vendor's tabs add its services | `UMerchantShopSubsystem::OpenForMerchant` `Public/Shop/MerchantShopSubsystem.h:36`; `UEconomyService::Purchase` / `PurchaseFor` `Public/Currency/EconomyService.h:262-273`; vendors `EMerchantType` `Public/Merchant/MerchantData.h:26-35` | Real, C++ (B-456a, B-456b): `UVendorScreenWidget` `Public/UI/Menus/VendorScreenWidget.h`, which talking to a vendor opens; waits for Crown's PIE pass (the old `UShopWindowWidget` stays as the fallback until then) | P2 |
 | 16 | **Blacksmith services** | Weapons and augment stones (Stone Smith merged in, D-173): dismantle, merge | `DismantleWeapon` `EconomyService.h:151`; `MergeCrystals` :141 | Console (`wor.Economy.Merge`) | P2 |
 | 17 | **Jeweler services** | Adapters; **buy item slots** (+1 pouch slot per character) | `ItemSlotUpgrade::TryBuy` `Public/Inventory/ItemSlotUpgrade.h:40` | Placeholder `UItemSlotUpgradeWidget` `Public/UI/Hub/ItemSlotUpgradeWidget.h:21` (`wor.UI.ItemSlots`) | P2 |
 | 18 | **Spiritualist services** | Evolutions, crystals, **repair** (quote then pay), remove an evolution, **clear a curse** | `GearRepair::RepairParty` `Public/Equipment/Durability/GearRepair.h:45`; `RemovePrimaryEvolution` `EconomyService.h:206`; `UCurseSubsystem::PayToClearCurse` `Public/Memory/CurseSubsystem.h:42` | Curse: Placeholder `UCurseClearWidget` `Public/UI/Hub/CurseClearWidget.h:18` (`wor.UI.ClearCurse`); repair: Console | P2 |
@@ -338,7 +338,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 (built, in dev; `PIE/B-443.md`) | |
 | Party | 7 | `menus/party` | B-458 | No AI level text; the row is "Invite" (D-200) |
 | Co-op session (invite, join request, host hand-over) | 31 to 33 | `coop/session` | B-459 (after B-458) | D-200 |
-| Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456a (built, in dev: the screen, Sell, Dismantle; `PIE/B-456a.md`), B-456b Buy, B-456c Item slots, B-456d Repair, Curses, Merge | One shop screen, services as tabs; who does what: D-193 |
+| Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456a (built, in dev: the screen, Sell, Dismantle; `PIE/B-456a.md`), B-456b (built, in dev: Buy, the cart, "Buying for"; talking to a vendor opens the screen; `PIE/B-456b.md`), B-456c Item slots, B-456d Repair, Curses, Merge | One shop screen, services as tabs; who does what: D-193 |
 | Settings | 8 | `menus/settings` | B-452 (the screen: built, in dev; `PIE/B-452.md`), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
 
@@ -366,6 +366,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | The vendor screen's Buy tab is built (B-456b): the stock, the cart, "Buying for"; talking to any vendor opens the screen (Q-456b) | feature/B-456b-vendor-buy |
 | 2026-11-14 | The vendor screen's first piece is built (B-456a): the screen with each vendor's tabs, Sell and Dismantle; Buy and the other services follow (B-456b to B-456d) | feature/B-456-vendor-screen |
 | 2026-11-14 | The hub HUD's prompt and money chip are built (B-443). Crown: bar values are plain white, no backing (D-197); secret quests: no "only you see this", one Show / Hide toggle on X (D-198); quests show only the steps reached (D-199) | feature/B-443-hub-hud |
 | 2026-11-14 | The character sheet is built (B-442). Crown: Take is listed only at storage (D-195); HP and EP bars darker (D-194); "Hidden quest" reads "Secret quest" (D-196) | feature/B-442-character-sheet |

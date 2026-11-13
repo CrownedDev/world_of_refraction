@@ -1,15 +1,18 @@
 // VendorScreenWidget.h
-// B-456a (D-193, D-181, UIScreens #15 to #18, mockups screen_mockups/hub/vendors/): the vendor screen. A CommonUI
-// screen on the root layout's menu layer, opened by wor.UI.VendorScreen <vendor> until Buy is built (B-456b), when
-// talking to the vendor opens it. Replaces the placeholder UVendorServiceWidget (wor.UI.Vendor), kept until the
-// PIE pass.
+// B-456a, B-456b (D-193, D-181, UIScreens #15 to #18, mockups screen_mockups/hub/vendors/): the vendor screen. A
+// CommonUI screen on the root layout's menu layer. Talking to a vendor opens it (UMerchantShopSubsystem); so does
+// wor.UI.VendorScreen <vendor>. Replaces the old shop window (UShopWindowWidget) and the placeholder
+// UVendorServiceWidget (wor.UI.Vendor), both kept until the PIE pass.
 //
 // Top: the vendor, the money, its service tabs (LB / RB) and the character tabs (LT / RT). Left: what the service
 // takes from that character, one row each, a refused row greyed with its reason. Right: the focused row, what it
 // gives and, after the first A, what is confirmed (D-016: ask first, the second A does it). X switches a stack
 // between one and the whole stack.
+// Buy (B-456b, mockup 1_shop_buy.png): the rows are the vendor's stock; the character tabs give way to "Buying for"
+// (R / Y, or LT / RT). A (or Right) puts the focused line in the cart for that member, Left takes it back, X buys the
+// cart. The cart is its own panel: each line with who it is for, the total and what is left after.
 // What it shows comes from WoRVendorScreen (VendorScreenModel.h), which the specs read.
-// Not built yet: Buy, Item slots, Repair, Curses, Merge (listed, and say so); icons.
+// Not built yet: Item slots, Repair, Curses, Merge (listed, and say so); icons.
 
 #pragma once
 
@@ -19,8 +22,10 @@
 #include "UI/WoRActivatableWidget.h"
 #include "VendorScreenWidget.generated.h"
 
+class AActor;
 class APlayerController;
 class UBorder;
+class UMerchantData;
 class UScrollBox;
 class UTextBlock;
 class UWidget;
@@ -33,11 +38,13 @@ class WORLD_OF_REFRACTION_API UVendorScreenWidget : public UWoRActivatableWidget
 public:
 	UVendorScreenWidget(const FObjectInitializer &ObjectInitializer);
 
-	/** Pushes the screen onto PC's root layout, showing Vendor. */
-	static UVendorScreenWidget *Open(APlayerController *PC, EMerchantType Vendor);
+	/** Pushes the screen onto PC's root layout, showing Vendor. Merchant stocks the Buy tab (null: the vendor of
+	 *  that kind in the level); PC's pawn pays. */
+	static UVendorScreenWidget *Open(APlayerController *PC, EMerchantType Vendor, const UMerchantData *Merchant = nullptr);
 
-	/** Shows Vendor's tabs, on its first built one, with nothing pending. */
-	void SetVendor(EMerchantType InVendor);
+	/** Shows Vendor's tabs, on its first built one, with nothing pending and an empty cart. InMerchant and InPayer
+	 *  as Open's (null: the owning player's pawn). */
+	void SetVendor(EMerchantType InVendor, const UMerchantData *InMerchant = nullptr, AActor *InPayer = nullptr);
 
 	// What the keys and the mouse do (the specs call these too).
 	void MoveRow(int32 Delta);
@@ -48,6 +55,12 @@ public:
 	/** First press: asks (a refused row says its reason instead). Second press: runs the service. */
 	void Confirm();
 	void ToggleWholeStack();
+	/** Buy: the focused stock line into the cart for the member bought for (a refused line says why), or one press's
+	 *  worth of it back out. */
+	void AddFocusedToCart();
+	void RemoveFocusedFromCart();
+	/** Buy: buys the cart. */
+	void Purchase();
 	/** Cancels a pending confirm, then closes. */
 	void PressBack() { HandleBackAction(); }
 
@@ -58,6 +71,7 @@ public:
 	bool IsConfirming() const { return bConfirming; }
 	bool IsWholeStack() const { return bWholeStack; }
 	const FVendorScreenPage &GetPage() const { return Page; }
+	const TArray<FVendorCartLine> &GetCart() const { return Cart; }
 	const FText &GetStatus() const { return Status; }
 
 protected:
@@ -90,6 +104,9 @@ private:
 	void RefreshData();
 	/** The focused row's colour and the detail panel. */
 	void RefreshSelection(bool bScrollIntoView = true);
+	/** The cart's lines, total and whether it can be bought. */
+	void RefreshCart();
+	bool IsBuy() const { return GetTab() == EVendorScreenTab::Buy; }
 	FName MemberKey() const;
 	const FVendorScreenRow *FocusedRow() const;
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
@@ -105,6 +122,12 @@ private:
 	bool bWholeStack = false;
 	FText Status;
 	bool bStatusIsRefusal = false;
+	/** Buy: whose stock (held, so the stock lines the page and the cart point at stay loaded), whose wallet, and
+	 *  what is picked so far. */
+	UPROPERTY(Transient)
+	TObjectPtr<const UMerchantData> Merchant;
+	TWeakObjectPtr<AActor> Payer;
+	TArray<FVendorCartLine> Cart;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> TitleText;
@@ -129,7 +152,27 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailTitle;
 	UPROPERTY(Transient)
+	TObjectPtr<UWidget> MemberTabRow;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> PayLabel;
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailPay;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> DetailLines;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> BuyForButton;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BuyForText;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> CartPanel;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CartLinesText;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CartTotalText;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> PurchaseButton;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> PurchaseText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ConfirmText;
 	UPROPERTY(Transient)

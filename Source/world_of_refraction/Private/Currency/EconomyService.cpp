@@ -1039,8 +1039,30 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
     return Cost;
 }
 
+/** B-456b: one refused purchase check, inside a function with OutRefusal and bCheckOnly. A purchase that was tried logs
+ *  it; one that was only asked about (GetPurchaseRefusal) hands Why back unlogged, so a shop's greyed rows don't fill
+ *  the log. */
+#define WOR_REFUSE_PURCHASE(Why, Format, ...)                 \
+    {                                                         \
+        if (OutRefusal)                                       \
+        {                                                     \
+            *OutRefusal = Why;                                \
+        }                                                     \
+        if (!bCheckOnly)                                      \
+        {                                                     \
+            UE_LOG(LogTemp, Warning, Format, ##__VA_ARGS__);  \
+        }                                                     \
+        return false;                                         \
+    }
+
 namespace
 {
+    /** B-456b: the refusals more than one purchase check gives. */
+    FText PurchaseRefusalNoRoomForGear() { return NSLOCTEXT("EconomyService", "RefusedNoGearRoom", "No room for more gear."); }
+    FText PurchaseRefusalUnavailable() { return NSLOCTEXT("EconomyService", "RefusedUnavailable", "This can't be bought right now."); }
+    FText PurchaseRefusalKnown() { return NSLOCTEXT("EconomyService", "RefusedKnown", "Already known."); }
+    FText PurchaseRefusalInCart() { return NSLOCTEXT("EconomyService", "RefusedInCart", "Already in the cart."); }
+
     /** B-316: the local party member with Key, or null. */
     const FPartyMember *BuyForMemberOf(const AActor *Payer, FName Key)
     {
@@ -1055,7 +1077,7 @@ namespace
 
     /** B-316: the receiver's armoury and pouch can take the whole cart (the purchase's own checks read the payer). Logs
      *  the first shortfall. */
-    bool BuyForReceiverHasRoom(const UPoolSubsystem &Pool, FName ForKey, const TArray<FMerchantStockEntry> &Items)
+    bool BuyForReceiverHasRoom(const UPoolSubsystem &Pool, FName ForKey, const TArray<FMerchantStockEntry> &Items, FText *OutRefusal, bool bCheckOnly)
     {
         int32 WeaponCost = 0;
         int32 AdapterCost = 0;
@@ -1087,8 +1109,8 @@ namespace
         }
         if (WeaponCost > InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS || AdapterCost > InventoryConstants::MAX_RING_INVENTORY_SLOTS)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s has no room for the gear - refused, nothing spent"), *ForKey.ToString());
-            return false;
+            WOR_REFUSE_PURCHASE(PurchaseRefusalNoRoomForGear(), TEXT("[EconomyService] PurchaseFor: %s has no room for the gear - refused, nothing spent"),
+                                *ForKey.ToString());
         }
         // One item type per slot (D-097): each new type needs a free slot, and each type's stack its room.
         int32 NewSlots = 0;
@@ -1097,15 +1119,15 @@ namespace
             NewSlots += Pool.GetCarriedCount(ForKey, Demand.Key) > 0 ? 0 : 1;
             if (Pool.GetCarryRoom(ForKey, Demand.Key) < Demand.Value)
             {
-                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s's pouch can't take %d %s - refused, nothing spent"),
-                       *ForKey.ToString(), Demand.Value, *ItemIdentity::GetDisplayName(Demand.Key));
-                return false;
+                WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedPouchRoom", "Their pouch can't take that many."),
+                                    TEXT("[EconomyService] PurchaseFor: %s's pouch can't take %d %s - refused, nothing spent"), *ForKey.ToString(),
+                                    Demand.Value, *ItemIdentity::GetDisplayName(Demand.Key));
             }
         }
         if (Pool.GetUsedItemSlots(ForKey) + NewSlots > Pool.GetItemSlotCount(ForKey))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s's pouch has too few free slots - refused, nothing spent"), *ForKey.ToString());
-            return false;
+            WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedPouchSlots", "Their pouch has no free slot."),
+                                TEXT("[EconomyService] PurchaseFor: %s's pouch has too few free slots - refused, nothing spent"), *ForKey.ToString());
         }
         return true;
     }
@@ -1128,11 +1150,44 @@ namespace
 
 bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items)
 {
+    return PurchaseForImpl(Payer, ForKey, Items, nullptr, /*bCheckOnly=*/false);
+}
+
+FText UEconomyService::GetPurchaseRefusal(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items)
+{
+    FText Refusal;
+    if (!PurchaseForImpl(Payer, ForKey, Items, &Refusal, /*bCheckOnly=*/true) && Refusal.IsEmpty())
+    {
+        Refusal = PurchaseRefusalUnavailable(); // a refusal with no words of its own (a missing component, an empty line)
+    }
+    return Refusal;
+}
+
+FText UEconomyService::GetAffordRefusal(AActor *Owner, const FPurchaseCost &Cost)
+{
+    // B-333: the money line always (a zero-money cart is refused, as before); each essence only when charged.
+    // B-366c: the money line is paid in the currency of the place (hub or run).
+    const UCurrencyComponent *Currency = CurrencyWallet::FindFor(Owner);
+    const ECurrencyType Place = GetPlaceCurrency(Owner);
+    for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
+    {
+        const int32 Amount = Cost.Get(Balance);
+        const ECurrencyType Paid = PurchaseCostBalances::PaidFrom(Balance, Place);
+        if ((Balance == ECurrencyType::Prisms || Amount > 0) && (!Currency || !Currency->CanAfford(Paid, Amount)))
+        {
+            return FText::Format(NSLOCTEXT("EconomyService", "RefusedCantAfford", "Not enough {0}."), WoRGameNames::GetCurrencyName(Paid));
+        }
+    }
+    return FText::GetEmpty();
+}
+
+bool UEconomyService::PurchaseForImpl(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items, FText *OutRefusal, bool bCheckOnly)
+{
     const UCharacterDataComponent *PayerChar = Payer ? Payer->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     const FName PayerKey = UPoolSubsystem::GetCharacterKey(PayerChar);
     if (ForKey.IsNone() || ForKey == PayerKey)
     {
-        return Purchase(Payer, Items);
+        return PurchaseImpl(Payer, Items, NAME_None, OutRefusal, bCheckOnly);
     }
     UWorld *World = Payer ? Payer->GetWorld() : nullptr;
     const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
@@ -1140,36 +1195,35 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     const FPartyMember *Receiver = BuyForMemberOf(Payer, ForKey);
     if (PayerKey.IsNone())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s has no character (no UCharacterDataComponent), so it can't hand goods to another member - refused"),
-               *GetNameSafe(Payer));
-        return false;
+        WOR_REFUSE_PURCHASE(PurchaseRefusalUnavailable(),
+                            TEXT("[EconomyService] PurchaseFor: %s has no character (no UCharacterDataComponent), so it can't hand goods to another member - refused"),
+                            *GetNameSafe(Payer));
     }
     if (!Pool || !Receiver)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s is not a party member the payer can buy for - refused"), *ForKey.ToString());
-        return false;
+        WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedNotInParty", "They aren't in your party."),
+                            TEXT("[EconomyService] PurchaseFor: %s is not a party member the payer can buy for - refused"), *ForKey.ToString());
     }
     for (const FMerchantStockEntry &Entry : Items)
     {
         const UPrimaryDataAsset *Asset = Entry.IsAssetEntry() ? Entry.Asset.Get() : nullptr;
         if (Cast<UEvolutionItemData>(Asset))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't be bought for another character yet (no evolution give, Q-323) - refused"),
-                   *GetNameSafe(Asset));
-            return false;
+            WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedEvolutionForOther", "An evolution can only be bought for yourself."),
+                                TEXT("[EconomyService] PurchaseFor: %s can't be bought for another character yet (no evolution give, Q-323) - refused"),
+                                *GetNameSafe(Asset));
         }
         const bool bSkill = Cast<USpellData>(Asset) || Cast<UAbilityData>(Asset);
         if (bSkill && !Pool->HasBankedSkills(ForKey))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s can't learn %s for keeps (not drawn yet, Q-316b) - refused"),
-                   *ForKey.ToString(), *GetNameSafe(Asset));
-            return false;
+            WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedSkillsNotBanked", "They can't learn skills for keeps yet."),
+                                TEXT("[EconomyService] PurchaseFor: %s can't learn %s for keeps (not drawn yet, Q-316b) - refused"), *ForKey.ToString(),
+                                *GetNameSafe(Asset));
         }
         if (Receiver->bRunOnly && (Cast<UWeaponData>(Asset) || Cast<URingData>(Asset)))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s is only here for the run and can't own gear (Q-321) - refused"),
-                   *ForKey.ToString());
-            return false;
+            WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedRunOnlyGear", "They are only here for the run and can't own gear."),
+                                TEXT("[EconomyService] PurchaseFor: %s is only here for the run and can't own gear (Q-321) - refused"), *ForKey.ToString());
         }
     }
 
@@ -1177,9 +1231,13 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
     const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
     const FName ForPouch = PartySession ? PartySession->GetPouchKey(ForKey) : ForKey;
     const FName PayerPouch = PartySession ? PartySession->GetPouchKey(PayerKey) : PayerKey;
-    if (!BuyForReceiverHasRoom(*Pool, ForPouch, Items))
+    if (!BuyForReceiverHasRoom(*Pool, ForPouch, Items, OutRefusal, bCheckOnly))
     {
         return false;
+    }
+    if (bCheckOnly)
+    {
+        return PurchaseImpl(Payer, Items, ForKey, OutRefusal, bCheckOnly); // B-316b: the skills are checked against ForKey's
     }
 
     const TSet<FGuid> GearBefore = BuyForGearIDs(*Pool);
@@ -1258,9 +1316,31 @@ bool UEconomyService::Purchase(AActor *Owner, const TArray<FMerchantStockEntry> 
     return PurchaseImpl(Owner, Items, NAME_None);
 }
 
-bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEntry> &Items, FName SkillReceiver)
+bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEntry> &Items, FName SkillReceiver, FText *OutRefusal, bool bCheckOnly)
 {
-    if (Items.Num() == 0 || !EconomyMayAct(Owner, TEXT("Purchase")))
+    if (Items.Num() == 0)
+    {
+        return false;
+    }
+    if (bCheckOnly)
+    {
+        // Asked about, not tried: the gate's own refusals log (and the fight one goes on screen), so the authority is
+        // read here instead. A fight is left to the purchase itself (no shop opens in one).
+        if (!WoRAuthority::HasAuthority(Owner))
+        {
+            if (OutRefusal && Owner)
+            {
+                // B-427: a co-op guest's wallet is the host's mirror. TODO: a purchase RPC so guests can buy.
+                *OutRefusal = NSLOCTEXT("EconomyService", "RefusedHostOnly", "Only the host can buy for now.");
+            }
+            return false;
+        }
+        if (!Owner->FindComponentByClass<UInventoryComponent>() || !CurrencyWallet::FindFor(Owner))
+        {
+            return false; // EconomyFindComponents below would log the missing one on every ask
+        }
+    }
+    else if (!EconomyMayAct(Owner, TEXT("Purchase")))
     {
         return false;
     }
@@ -1337,8 +1417,8 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
         {
             if (SpellLearner.HasSpell(S) || CartSpells.Contains(S))
             {
-                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: spell %s already owned or duplicated in cart — aborting."), *S->GetName());
-                return false;
+                WOR_REFUSE_PURCHASE(SpellLearner.HasSpell(S) ? PurchaseRefusalKnown() : PurchaseRefusalInCart(),
+                                    TEXT("[EconomyService] Purchase: spell %s already owned or duplicated in cart — aborting."), *S->GetName());
             }
             CartSpells.Add(S);
             SpellDemand += 1;
@@ -1347,8 +1427,8 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
         {
             if (AbilityLearner.HasAbility(A) || CartAbilities.Contains(A))
             {
-                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: ability %s already owned or duplicated in cart — aborting."), *A->GetName());
-                return false;
+                WOR_REFUSE_PURCHASE(AbilityLearner.HasAbility(A) ? PurchaseRefusalKnown() : PurchaseRefusalInCart(),
+                                    TEXT("[EconomyService] Purchase: ability %s already owned or duplicated in cart — aborting."), *A->GetName());
             }
             CartAbilities.Add(A);
             AbilityDemand += 1;
@@ -1366,9 +1446,9 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
 
     if (!SkillReceiver.IsNone() && !ReceiverPool && SpellDemand + AbilityDemand > 0)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s's skills aren't in the store, so the cart's skills can't be learned by it - aborting."),
-               *SkillReceiver.ToString());
-        return false;
+        WOR_REFUSE_PURCHASE(PurchaseRefusalUnavailable(),
+                            TEXT("[EconomyService] Purchase: %s's skills aren't in the store, so the cart's skills can't be learned by it - aborting."),
+                            *SkillReceiver.ToString());
     }
 
     // ---- Cumulative capacity: fresh purchases are bare, so each costs its BASE slot ----
@@ -1376,69 +1456,65 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     const bool bGearForReceiver = !SkillReceiver.IsNone();
     if (!bGearForReceiver && WeaponDemand > 0 && Inv->GetRemainingWeaponCapacity() < WeaponDemand * InventoryConstants::WEAPON_BASE_SLOT_COST)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s weapon capacity short (need %d slots) — aborting."), *Owner->GetName(), WeaponDemand);
-        return false;
+        WOR_REFUSE_PURCHASE(PurchaseRefusalNoRoomForGear(), TEXT("[EconomyService] Purchase: %s weapon capacity short (need %d slots) — aborting."),
+                            *Owner->GetName(), WeaponDemand);
     }
     if (!bGearForReceiver && RingDemand > 0 && Inv->GetRemainingRingCapacity() < RingDemand * InventoryConstants::RING_BASE_SLOT_COST)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s ring capacity short (need %d slots) — aborting."), *Owner->GetName(), RingDemand);
-        return false;
+        WOR_REFUSE_PURCHASE(PurchaseRefusalNoRoomForGear(), TEXT("[EconomyService] Purchase: %s ring capacity short (need %d slots) — aborting."),
+                            *Owner->GetName(), RingDemand);
     }
     if (SpellDemand > 0 && SpellLearner.GetRemainingCapacity() < SpellDemand)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s spell capacity short (need %d) — aborting."), *Owner->GetName(), SpellDemand);
-        return false;
+        WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedSpellRoom", "No room for another spell."),
+                            TEXT("[EconomyService] Purchase: %s spell capacity short (need %d) — aborting."), *Owner->GetName(), SpellDemand);
     }
     if (AbilityDemand > 0 && AbilityLearner.GetRemainingCapacity() < AbilityDemand)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s ability capacity short (need %d) — aborting."), *Owner->GetName(), AbilityDemand);
-        return false;
+        WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedAbilityRoom", "No room for another ability."),
+                            TEXT("[EconomyService] Purchase: %s ability capacity short (need %d) — aborting."), *Owner->GetName(), AbilityDemand);
     }
     if (EvolutionDemand > 0)
     {
         if (!EvolutionInv)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s missing EvolutionInventoryComponent for evolution stock — aborting."), *Owner->GetName());
-            return false;
+            WOR_REFUSE_PURCHASE(PurchaseRefusalUnavailable(),
+                                TEXT("[EconomyService] Purchase: %s missing EvolutionInventoryComponent for evolution stock — aborting."), *Owner->GetName());
         }
         if (InventoryConstants::MAX_EVOLUTION_ITEMS - EvolutionInv->CountRunEvolutions() < EvolutionDemand)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s evolution cap short (need %d) — aborting."), *Owner->GetName(), EvolutionDemand);
-            return false;
+            WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedEvolutionRoom", "No room for another evolution."),
+                                TEXT("[EconomyService] Purchase: %s evolution cap short (need %d) — aborting."), *Owner->GetName(), EvolutionDemand);
         }
     }
     if (CrystalDemand.Num() > 0)
     {
         if (!CrystalInv)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s missing CrystalInventoryComponent for crystal stock — aborting."), *Owner->GetName());
-            return false;
+            WOR_REFUSE_PURCHASE(PurchaseRefusalUnavailable(),
+                                TEXT("[EconomyService] Purchase: %s missing CrystalInventoryComponent for crystal stock — aborting."), *Owner->GetName());
         }
         for (const TPair<FCrystalId, int32> &Pair : CrystalDemand)
         {
             if (!CrystalInv->CanAddCount(Pair.Key, Pair.Value))
             {
-                UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s crystal cap short for %s (need %d) — aborting."),
-                       *Owner->GetName(), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
-                return false;
+                WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedCrystalRoom", "No room for that many."),
+                                    TEXT("[EconomyService] Purchase: %s crystal cap short for %s (need %d) — aborting."), *Owner->GetName(),
+                                    *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
             }
         }
     }
 
     // ============ AFFORDABILITY — every currency once, spend nothing if any is short ============
-    // B-333: the money line always (a zero-money cart is refused, as before); each essence only when charged.
-    // B-366c: the money line is paid in the currency of the place (hub or run).
     const ECurrencyType Place = GetPlaceCurrency(Owner);
-    for (const ECurrencyType Balance : PurchaseCostBalances::CHARGED)
+    if (const FText CantAfford = GetAffordRefusal(Owner, Cost); !CantAfford.IsEmpty())
     {
-        const int32 Amount = Cost.Get(Balance);
-        const ECurrencyType Paid = PurchaseCostBalances::PaidFrom(Balance, Place);
-        if ((Balance == ECurrencyType::Prisms || Amount > 0) && !Currency->CanAfford(Paid, Amount))
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] Purchase: %s cannot afford %d %s — aborting."), *Owner->GetName(),
-                   Amount, *WoRGameNames::GetCurrencyName(Paid).ToString());
-            return false;
-        }
+        WOR_REFUSE_PURCHASE(CantAfford, TEXT("[EconomyService] Purchase: %s can't pay for the cart (%s) — aborting."), *Owner->GetName(),
+                            *CantAfford.ToString());
+    }
+    if (bCheckOnly)
+    {
+        return true; // B-456b: every check passed; spend and grant nothing
     }
 
     // ============ SPEND — every currency once (all pre-cleared above) ============
@@ -2115,3 +2191,5 @@ namespace
             }));
 }
 #endif // !UE_BUILD_SHIPPING
+
+#undef WOR_REFUSE_PURCHASE

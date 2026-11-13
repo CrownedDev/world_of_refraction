@@ -246,6 +246,23 @@ void FBuyForSpec::Define()
 		Pool->EndRunLayer();
 		TestNull(TEXT("gone when the run ends"), ReceiversBought());
 	});
+
+	It("says why a purchase would be refused, and nothing when it would go through, without spending or granting (B-456b)", [this]()
+	{
+		if (!Pool || !Economy || Inventories.Contains(nullptr) || !TestNotNull(TEXT("Wallet"), Wallet())) return;
+		const int32 Before = Wallet()->GetBalance(ECurrencyType::Prisms);
+		TestTrue(TEXT("a cart that would go through has no refusal"), Economy->GetPurchaseRefusal(Payer(), KeyOf(BUY_FOR_RECEIVER), WeaponAndGems()).IsEmpty());
+		TestEqual(TEXT("asking spends nothing"), Wallet()->GetBalance(ECurrencyType::Prisms), Before);
+		TestEqual(TEXT("and grants nothing"), CountOfAsset(*Pool, Bought), 0);
+		TestFalse(TEXT("someone outside the party is refused in words"),
+				  Economy->GetPurchaseRefusal(Payer(), FName(TEXT("NotInTheParty")), WeaponAndGems()).IsEmpty());
+		Wallet()->Spend(ECurrencyType::Prisms, Before);
+		const FText Short = Economy->GetPurchaseRefusal(Payer(), KeyOf(BUY_FOR_PAYER), WeaponOnly());
+		TestFalse(TEXT("an empty wallet is refused in words"), Short.IsEmpty());
+		TestEqual(TEXT("the same words the wallet check gives"), Short.ToString(),
+				  UEconomyService::GetAffordRefusal(Payer(), Economy->PreviewCartCost(WeaponOnly())).ToString());
+		TestFalse(TEXT("and the purchase itself agrees"), Economy->PurchaseFor(Payer(), KeyOf(BUY_FOR_PAYER), WeaponOnly()));
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

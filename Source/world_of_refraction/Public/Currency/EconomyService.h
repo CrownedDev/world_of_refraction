@@ -285,6 +285,14 @@ public:
      *  aren't in the store yet (never drawn). */
     bool PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items);
 
+    /** B-456b: why PurchaseFor(Payer, ForKey, Items) would be refused, in words for the player; empty when it would go
+     *  through. The purchase's own checks, run without spending, granting or logging (a shop screen asks per row). */
+    FText GetPurchaseRefusal(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items);
+
+    /** B-456b: "Not enough Gold." for the first balance of Owner's wallet that can't pay Cost, as a purchase checks it
+     *  (the money line in the place's currency, each essence only when charged); empty when the wallet pays all of it. */
+    static FText GetAffordRefusal(AActor *Owner, const FPurchaseCost &Cost);
+
     /** Price a cart WITHOUT purchasing — the exact per-currency totals Purchase would charge
      *  (same shared builder, so shop-UI display and the charge can never drift). Empty/unknown
      *  entries price at 0 (Purchase itself rejects them); spell/ability/evolution Count is
@@ -400,8 +408,12 @@ public:
 
 private:
     /** Purchase's body. B-316b: SkillReceiver (a character key, none = Owner) is who learns the cart's spells and
-     *  abilities: its skills in the store are checked and changed instead of Owner's. */
-    bool PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEntry> &Items, FName SkillReceiver);
+     *  abilities: its skills in the store are checked and changed instead of Owner's.
+     *  B-456b: OutRefusal (may be null) takes the reason for the player; bCheckOnly stops after the checks. */
+    bool PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEntry> &Items, FName SkillReceiver, FText *OutRefusal = nullptr, bool bCheckOnly = false);
+
+    /** PurchaseFor's body, with PurchaseImpl's two extras. */
+    bool PurchaseForImpl(AActor *Payer, FName ForKey, const TArray<FMerchantStockEntry> &Items, FText *OutRefusal, bool bCheckOnly);
 
     /** B-252b: one body each for the weapon / ring (adapter) verbs; TEntry is FWeaponInventoryEntry or
      *  FRingInventoryEntry. Verb names the public call in the logs and the authority / component checks. */

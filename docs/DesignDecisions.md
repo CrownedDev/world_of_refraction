@@ -775,6 +775,16 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-456b — The Buy tab: which vendors use it, how the cart is bought, how a line is taken back
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-456b, D-193) · **Blocks:** —
+**Question:** D-193 names the tabs of three vendors, and the Buy mockup shows a cart. (1) What do the other vendors (Combat Master, Spell Shop) open? (2) Does Purchase ask first (D-016)? (3) The mockup has no key to take a line back out of the cart: which? (4) A cart can hold lines for different members, but a purchase is made for one member at a time.
+**Answer**, by the reference-backed default (Crown may change any):
+- **(1) Every vendor opens the same screen;** a vendor D-193 doesn't name has the Buy tab alone. `UIScreens.md` #15 already calls the shop "every vendor", and one shop screen for every merchant is the genre's habit (Elden Ring's merchants, Expedition 33).
+- **(2) X buys the cart at once.** The cart with its total and "After purchase" is the question. Baldur's Gate 3 and Divinity: Original Sin 2 trade a whole offer on one button with no second confirm. D-016's ask-first stays on Sell and Dismantle, which act on a single row.
+- **(3) Left takes one back; Right (or A) adds one.** Left / right for quantity is the common shop control (the buy-quantity step in Elden Ring and Monster Hunter). Mouse: right-click a row.
+- **(4) One member's lines are bought together, all or nothing; the members one after the other.** The whole cart's cost is checked against the wallet first, so a later member is refused only if something else is in the way (no room); the screen then says who and why, and what was bought before stays bought.
+**Notes for Claude:** `WoRVendorScreen::GetTabs`, `AddToCart`, `RemoveFromCart`, `PurchaseCart` (`UI/Menus/VendorScreenModel.h`); the refusal words are the purchase's own (`UEconomyService::GetPurchaseRefusal`). Leaving the screen drops the cart with no warning. Rules ER-54.
+
 ### Q-442 — The character sheet: which number does a sub-stat row show?
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-442) · **Blocks:** —
 **Question:** the mockup's sub-stat numbers were drawn as examples. Does a row show the stat's **points**, or the **value the fight uses**?
