@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-172](B-172.md) | `chore/B-172-delete-legacy-validators` (in dev, built 2026-11-14) | The legacy loadout validators and `wor.Loadout.CompareRules` are deleted (D-204); `wor.Loadout.PrintFindings` prints the live findings instead; one editor step (Find in Blueprints for `Compare Loadout Rules`) | Pending |
 | [B-152](B-152.md) | `chore/B-152-delete-stone-wrappers` (in dev, built 2026-11-14) | The unreachable stat-stone consumable wrappers are deleted (D-204): every stat stone still buffs an ally and debuffs an enemy; Amber and Opal as before | Pending |
 | [B-461](B-461.md) | `feature/B-461-inventory-piece-2` (in dev, built 2026-11-14) | The inventory screen, piece 2 (D-181, Q-461): a filter row over the Gear and Chest tiles (Up from the top row reaches it), Sort on Y (Kind, Tier, Name), evolution and apparel tiles on the Gear tab (their verbs greyed, Q-323), the place name top right | Pending |
 | [B-463](B-463.md) | `feature/B-463-journal-screen` (in dev, built 2026-11-14) | The journal screen (D-181, D-196, D-198, D-199), from the game menu's Journal page: Quests (the steps reached only; All / Main / Side / Secret on LT / RT; X shows or hides a secret quest, Y hides them all), Memories by character, Lore, Conversations (played here for now, Q-463) | Pending |

@@ -41,6 +41,16 @@ namespace
 				ULoadoutRulesDebug::CompareLoadoutSlots(World);
 			}));
 
+	// B-172: what wor.Loadout.CompareRules still gave the PIE sheets once the legacy validators went: the live findings.
+	FAutoConsoleCommandWithWorld GPrintLoadoutFindingsCmd(
+		TEXT("wor.Loadout.PrintFindings"),
+		TEXT("DEBUG: per character, what the loadout rules (FLoadoutRules) report on its active loadout, or 'none'."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				ULoadoutRulesDebug::CompareLoadoutRules(World);
+			}));
+
 	// B-312 (Q-312): each member's gear copies against its view of the pool store; silence means the views are ready.
 	FAutoConsoleCommandWithWorld GCompareStoreCmd(
 		TEXT("wor.Inventory.CompareStore"),
@@ -491,6 +501,29 @@ FString ULoadoutRulesDebug::GetCompareSlotsString(const ULoadoutComponent *Loado
 	return FString::Printf(TEXT("%s slots %d: weapon %s = %s, adapter %s = %s | %s"), *GetNameSafe(Owner), Active.Slots.Num(),
 						   *GetNameSafe(OldWeapon), *GetNameSafe(NewWeapon), *GetNameSafe(OldAdapter), *GetNameSafe(NewAdapter),
 						   bMatch ? TEXT("match") : TEXT("DIFF"));
+}
+
+void ULoadoutRulesDebug::CompareLoadoutRules(const UObject *WorldContextObject)
+{
+	UWorld *World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
+	if (!World)
+	{
+		return;
+	}
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		const ULoadoutComponent *Loadout = It->FindComponentByClass<ULoadoutComponent>();
+		UInventoryComponent *Inventory = It->FindComponentByClass<UInventoryComponent>();
+		if (!Loadout || !Inventory)
+		{
+			continue;
+		}
+		const TArray<FString> Findings = Loadout->GetValidationErrors(Inventory->ActiveLoadoutIndex, Inventory);
+		const FString Line = FString::Printf(TEXT("%s loadout %d: %d finding(s): %s"), *GetNameSafe(*It), Inventory->ActiveLoadoutIndex,
+											 Findings.Num(), Findings.Num() > 0 ? *FString::Join(Findings, TEXT("; ")) : TEXT("none"));
+		UE_LOG(LogWoRLoadout, Display, TEXT("[LoadoutRules] %s"), *Line);
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
+	}
 }
 
 void ULoadoutRulesDebug::CompareLoadoutSlots(const UObject *WorldContextObject)
