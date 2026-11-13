@@ -60,6 +60,7 @@ protected:
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonUp(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent &InFocusEvent) override;
 
 private:
 	/** One party card's widgets, built once and refilled each time the menu opens (never rebuilt: TransBuffer). */

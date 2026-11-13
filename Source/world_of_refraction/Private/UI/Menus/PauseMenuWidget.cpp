@@ -8,6 +8,8 @@
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
@@ -42,14 +44,18 @@ namespace PauseMenuStyle
 	constexpr float CardWidth = 780.0f;
 	constexpr float CardPadding = 24.0f;
 	constexpr float CardGap = 21.0f;
-	constexpr float BarWidth = 255.0f;
-	constexpr float BarHeight = 15.0f;
+	constexpr float BarWidth = 330.0f;
+	constexpr float BarHeight = 30.0f; // tall enough to hold its value
+	constexpr float HoldBarHeight = 15.0f;
 	constexpr float BarLabelWidth = 51.0f;
 	constexpr float LineGap = 9.0f;
 	constexpr float PillarLabelWidth = 105.0f;
 	constexpr float PanelGap = 60.0f;
 	constexpr float PanelWidth = 408.0f;
 	constexpr float PanelPadding = 27.0f;
+	constexpr float PanelInnerWidth = PanelWidth - PanelPadding - PanelPadding;
+	constexpr float SectionGap = 18.0f;
+	constexpr float NoteGap = 27.0f;
 	constexpr float ChipGap = 36.0f;
 	constexpr float ChipTopInset = 15.0f;
 	constexpr float WordGap = 9.0f;
@@ -78,6 +84,7 @@ namespace PauseMenuStyle
 	const FLinearColor LowHPColor = FLinearColor::FromSRGBColor(FColor(255, 143, 180));
 	const FLinearColor EPColor = FLinearColor::FromSRGBColor(FColor(111, 214, 228));
 	const FLinearColor WarnColor = FLinearColor::FromSRGBColor(FColor(242, 162, 58));
+	const FLinearColor ValueBackingColor = FLinearColor::FromSRGBColor(FColor(16, 18, 25, 170));
 
 	const FName BoldTypeface(TEXT("Bold"));
 
@@ -272,9 +279,9 @@ void UPauseMenuWidget::BuildTree()
 	AddToColumn(PanelBox, PanelHeading);
 	AddToColumn(PanelBox, PanelBody, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 	AddToColumn(PanelBox, PanelRefusal, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToColumn(PanelBox, HoldHint, FMargin(0.0f, LineGap * 2.0f, 0.0f, 0.0f));
-	AddToColumn(PanelBox, MakeSized(WidgetTree, PanelWidth - PanelPadding * 2.0f, BarHeight, HoldBar), FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToColumn(PanelBox, ExtractNote, FMargin(0.0f, LineGap * 3.0f, 0.0f, 0.0f));
+	AddToColumn(PanelBox, HoldHint, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
+	AddToColumn(PanelBox, MakeSized(WidgetTree, PanelInnerWidth, HoldBarHeight, HoldBar), FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	AddToColumn(PanelBox, ExtractNote, FMargin(0.0f, NoteGap, 0.0f, 0.0f));
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
 	// Bottom right: the hints.
@@ -300,7 +307,7 @@ UPauseMenuWidget::FMemberCard UPauseMenuWidget::BuildMemberCard(UVerticalBox *In
 	UTextBlock *Name = MakeText(WidgetTree, NameFontSize, TextColor, true);
 	UTextBlock *Tier = MakeText(WidgetTree, LineFontSize, DimColor, true);
 	AddToRow(NameRow, Name);
-	AddToRow(NameRow, Tier, FMargin(WordGap * 2.0f, 0.0f, 0.0f, 0.0f));
+	AddToRow(NameRow, Tier, FMargin(SectionGap, 0.0f, 0.0f, 0.0f));
 	UTextBlock *ClassLine = MakeText(WidgetTree, LineFontSize, DimColor);
 	AddToColumn(Who, NameRow);
 	AddToColumn(Who, ClassLine);
@@ -310,10 +317,19 @@ UPauseMenuWidget::FMemberCard UPauseMenuWidget::BuildMemberCard(UVerticalBox *In
 		UTextBlock *LabelText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
 		LabelText->SetText(Label);
 		UProgressBar *Bar = MakeBar(WidgetTree, Color);
-		UTextBlock *Value = MakeText(WidgetTree, LineFontSize, TextColor, true);
+		// The value sits centred inside its bar on a dark backing, as on the battle HUD's cards (Crown, 2026-11-13).
+		UTextBlock *Value = MakeText(WidgetTree, SmallFontSize, TextColor, true);
+		UBorder *Backing = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Backing->SetBrushColor(ValueBackingColor);
+		Backing->SetPadding(FMargin(WordGap, 0.0f));
+		Backing->SetContent(Value);
+		UOverlay *BarWithValue = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		BarWithValue->AddChildToOverlay(Bar)->SetHorizontalAlignment(HAlign_Fill);
+		UOverlaySlot *BackingSlot = BarWithValue->AddChildToOverlay(Backing);
+		BackingSlot->SetHorizontalAlignment(HAlign_Center);
+		BackingSlot->SetVerticalAlignment(VAlign_Center);
 		AddToRow(Row, MakeSized(WidgetTree, BarLabelWidth, 0.0f, LabelText));
-		AddToRow(Row, MakeSized(WidgetTree, BarWidth, BarHeight, Bar));
-		AddToRow(Row, Value, FMargin(WordGap * 2.0f, 0.0f, 0.0f, 0.0f));
+		AddToRow(Row, MakeSized(WidgetTree, BarWidth, BarHeight, BarWithValue));
 		AddToColumn(Who, Row, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 		OutBar = Bar;
 		OutValue = Value;
@@ -332,7 +348,7 @@ UPauseMenuWidget::FMemberCard UPauseMenuWidget::BuildMemberCard(UVerticalBox *In
 		UTextBlock *Value = MakeText(WidgetTree, LineFontSize, TextColor, true);
 		AddToRow(Row, MakeSized(WidgetTree, PillarLabelWidth, 0.0f, LabelText));
 		AddToRow(Row, Value);
-		AddToColumn(Pillars, Row, FMargin(0.0f, 0.0f, 0.0f, LineGap * 2.0f));
+		AddToColumn(Pillars, Row, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 		OutValue = Value;
 	};
 	AddPillar(LOCTEXT("Mind", "Mind"), Card.Mind);
@@ -427,7 +443,8 @@ void UPauseMenuWidget::RefreshData()
 		const float HPFraction = Member.MaxHP > 0 ? static_cast<float>(Member.HP) / Member.MaxHP : 0.0f;
 		const FText ValueFormat = LOCTEXT("VitalValue", "{0}/{1}");
 		Card.Name->SetText(Member.Name);
-		Card.Tier->SetText(Member.Tier);
+		// The tier beside the name, "Garrick (C)", as on the battle HUD's cards.
+		Card.Tier->SetText(Member.Tier.IsEmpty() ? FText::GetEmpty() : FText::Format(LOCTEXT("TierBesideName", "({0})"), Member.Tier));
 		Card.ClassLine->SetText(Member.ClassLine);
 		Card.HPBar->SetPercent(HPFraction);
 		Card.HPBar->SetFillColorAndOpacity(HPFraction < PauseMenuStyle::LowHPFraction ? PauseMenuStyle::LowHPColor : PauseMenuStyle::HPColor);
@@ -668,8 +685,8 @@ int32 UPauseMenuWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 
 FReply UPauseMenuWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
-	// Only a moving mouse picks a row, so a resting cursor doesn't fight the keys.
-	if (!InMouseEvent.GetCursorDelta().IsZero())
+	// Only a moving mouse picks a row, so a resting cursor doesn't fight the keys; a quit hold keeps its row.
+	if (!InMouseEvent.GetCursorDelta().IsZero() && !IsHoldingQuit())
 	{
 		SelectIndex(FindRowUnder(InMouseEvent));
 	}
@@ -691,12 +708,19 @@ FReply UPauseMenuWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, co
 
 FReply UPauseMenuWidget::NativeOnMouseButtonUp(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && IsHoldingQuit())
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		ReleaseSelected();
-		return FReply::Handled().ReleaseMouseCapture();
+		return FReply::Handled().ReleaseMouseCapture(); // always: a hold that already stopped must not keep the capture
 	}
 	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);
+}
+
+void UPauseMenuWidget::NativeOnRemovedFromFocusPath(const FFocusEvent &InFocusEvent)
+{
+	// With focus gone the key-up never arrives, so the hold must not run on to the end by itself.
+	StopQuitHold();
+	Super::NativeOnRemovedFromFocusPath(InFocusEvent);
 }
 
 void UPauseMenuWidget::SetPartyStripHidden(bool bHidden)

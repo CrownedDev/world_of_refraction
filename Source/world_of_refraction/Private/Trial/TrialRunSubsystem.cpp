@@ -1042,6 +1042,12 @@ void UTrialRunSubsystem::AbandonRun()
     {
         return;
     }
+    const UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+    if (World && World->GetNetMode() == NM_Client)
+    {
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Only the host can quit the run (a guest leaves from the rest menu)"));
+        return;
+    }
     if (HubLevel.IsNull())
     {
         // As LeaveRunEarly: the run can't end without a hub, so nothing is taken either.
