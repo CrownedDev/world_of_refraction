@@ -12,7 +12,8 @@ namespace FieldSkillRules
 	bool IsBuilt(EFieldMovementType Type)
 	{
 		return Type == EFieldMovementType::Dash || Type == EFieldMovementType::EnhancedSprint ||
-			   Type == EFieldMovementType::Glide || Type == EFieldMovementType::HighJump || Type == EFieldMovementType::AirDash;
+			   Type == EFieldMovementType::Glide || Type == EFieldMovementType::HighJump || Type == EFieldMovementType::AirDash ||
+			   Type == EFieldMovementType::Flight;
 	}
 
 	bool NeedsElementalSource(EFieldMovementType Type)
@@ -121,6 +122,20 @@ namespace FieldSkillRules
 			}
 		}
 		return true;
+	}
+
+	EFieldSkillRefusal CheckFlightStart(bool bInNoFlyZone, int32 CurrentEP, const FFieldFlightLimits &Limits)
+	{
+		if (bInNoFlyZone && !Limits.bIgnoreNoFly)
+		{
+			return EFieldSkillRefusal::NoFlyZone;
+		}
+		return !Limits.bUnlimitedEP && CurrentEP < FLIGHT_EP_PER_SECOND ? EFieldSkillRefusal::NotEnoughEP : EFieldSkillRefusal::None;
+	}
+
+	double GetFlightCeilingZ(double TakeOffGroundZ, const FFieldFlightLimits &Limits)
+	{
+		return Limits.bNoCeiling ? TNumericLimits<double>::Max() : TakeOffGroundZ + FLIGHT_MAX_HEIGHT + Limits.ExtraCeiling;
 	}
 
 	EFieldSkillRefusal CheckGlideStart(bool bFalling, int32 CurrentEP)
