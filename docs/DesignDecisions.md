@@ -748,6 +748,13 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-174 — Same-element infusion stacking
+**Status:** DECIDED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (B-435)
+**Answer (Crown):** when **two or more** of a character's infusion sources share an element (innate, weapon crystal, adapter, evolution), an infused action uses **all of them**. **Each source pays its own cost** (crystal wear for a crystal source; EP for innate / evolution, plus the HP backlash at level II, ED-30 / ED-32). The hit gets **+25% status buildup per extra source**, capped at **+50%** (`// TODO: tune`). The battle UI shows the element **once, marked ×N**.
+**Notes for Claude:** built in **B-435** (rules ED-51). Today an action takes one source (`UActionExecutor::ResolveInfusionSource`); the damage band and size stay the picked level's (only buildup grows). Two named constants: `SAME_ELEMENT_BUILDUP_PER_EXTRA_SOURCE` (0.25) and `SAME_ELEMENT_BUILDUP_BONUS_CAP` (0.50). A Generic (inherit) source counts as the character's element; a broken source gives no element (CL-24), so it doesn't stack.
+
+---
+
 ### D-173 — The Stone Smith merges into the Blacksmith
 **Status:** DECIDED (Crown, 2026-11-12, via the desktop operator session) · **Raised:** 2026-11-12 · **Blocks:** — (B-410)
 **Answer (Crown):** there is **no separate Stone Smith**: the **Blacksmith** is one NPC who sells and handles **weapons and augment stones**. Changes B-195's / D-048's service list (seven services become six).
