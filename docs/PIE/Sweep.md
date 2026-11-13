@@ -398,6 +398,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-428](B-428.md) | Host hand-over chest records follow their player; a leaver's dropped Prisms split among the rest (3-player) | Pending | REVIEW (in dev, `fix/B-428-handover-rekey`) | [ ] |
 | [B-435](B-435.md) | Same-element infusion sources stack: each pays its cost, buildup +25% per extra up to +50%; spells don't (Q-435) | Pending | REVIEW (in dev, `feature/B-435-same-element-stacking`) | [ ] |
 | [B-437](B-437.md) | The Ability Stone is removed (D-175): no stone adds ability slots, save v38 wipes older saves; editor step B-437b | Pending | REVIEW (in dev, `feature/B-437-remove-ability-stone`) | [ ] |
+| [B-439](B-439.md) | The game menu (D-181): pages, party, side panel; a quit run loses everything (D-176); editor step: delete the Blueprint's `IA_ToggleMenu` nodes | Pending | REVIEW (in dev, `feature/B-439-pause-menu`) | [ ] |
 
 ---
 

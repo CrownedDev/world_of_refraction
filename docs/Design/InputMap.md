@@ -17,7 +17,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Field command menu (D-099) | Q | Y (Triangle) | `IA_Field_CommandMenu` | Proposed |
 | Switch field source (innate / weapon / ring) | R | LB (L1) | `IA_Field_SwitchSource` | Proposed (matches combat infusion source) |
 | Interact (doors, merchants, recruits, fragments, rest spots) | E | X (Square) | `IA_Interact` | Built (gamepad key: check editor) |
-| Menu / pause | Esc | Menu (Options) | `IA_ToggleMenu` | Built (keys: check editor) |
+| Menu / pause | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439: opens the game menu, see Menus; keys: check editor) |
 | Map | M | View (Touchpad) | `IA_Field_Map` | Proposed |
 | Journal (memories, lore) | J | D-pad Up | `IA_Field_Journal` | Proposed |
 
@@ -40,6 +40,18 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Menu confirm / back | Enter / Esc | A (Cross) / B (Circle) | CommonUI Click / Back | Built (B-103) for the old HUD. **New battle HUD (B-391, `wor.UI.NewHUD 1`):** picking is a mouse click and Back is a menu row; a gamepad can't pick inside a submenu yet (Q-391). Co-op: a client's confirmed pick, with its infusion source and level, goes to the server (`Server_SubmitMenuPick`, B-229); back stays local |
 | Move the target highlight (camera follows, B-400) | Arrow keys (menu focus) / mouse hover over a target button | D-pad / left stick (menu focus) | CommonUI navigation (no new input action) | Built (B-400): focus or hover on a target button calls `HighlightTarget`; debug `wor.Camera.TargetCycle` |
 | Skip boss cinematic (opening, phase change) | Tab | Menu (Options) | `IA_Combat_SkipCinematic` | Built (B-406b, Q-406b): press, in the code-built menu-keys context; does nothing unless a boss cinematic plays. Tab: no row here uses it (not Space, the usual dodge key and Slate's Accept; not Enter / Esc / Backspace / 1–7). The key doesn't consume input, so **PIE must confirm** the editor combat context puts no Guard / Dodge / pause on Tab or Menu (`docs/PIE/B-406b.md`). Co-op: ends this machine's view only; the server's hold ends on its own end or its cap |
+
+## Menus (CommonUI screens)
+
+Fixed keys read by the screen itself while it's open (game input is off then), so they need no input action or mapping context yet. `UIScreens.md` proposes the shared set (tabs, sub-tabs, screen actions) for the screens to come; each gets its row here when it's built.
+
+| Action | Keyboard / mouse | Gamepad | Input action | State |
+|---|---|---|---|---|
+| Open the game menu | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439): `AWoRHubController::OpenGameMenu`, hub and trial map (not in a battle). Console: `wor.UI.Pause`. In the editor Esc ends PIE, so use the gamepad or the console |
+| Move up / down a list | Up / Down, W / S, mouse over a row | D-pad, left stick | none (the screen's keys) | Built (B-439, game menu) |
+| Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
+| Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks |
+| Back / close | Esc, Backspace | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu) |
 
 ## Mapping contexts (B-129)
 
@@ -72,3 +84,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-09 | B-400b: in the new battle HUD (B-391), hovering a target row moves the target highlight; its rows stay non-focusable, so keys still pick | feature/B-400b-new-hud-target-highlight |
 | 2026-11-09 | B-406b: Skip boss cinematic (Tab / Menu), `IA_Combat_SkipCinematic` (review: moved off Space) | feature/B-406b-boss-cinematic-skip |
 | 2026-11-12 | B-129: mapping-context priorities named (`WoRInputPriority`: exploration 0, combat 0, combat menu keys 1) and listed under "Mapping contexts"; no key or priority changes | feature/B-129-input-priorities-cloud |
+| 2026-11-14 | B-439: the game menu opens on `IA_ToggleMenu` (bound in C++); new **Menus** section: move, select, hold to confirm, back, read by the screen itself | feature/B-439-pause-menu |

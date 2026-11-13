@@ -299,6 +299,11 @@ public:
     void LeaveRunEarly();
     bool IsLeavingEarly() const { return bLeavingEarly; }
 
+    /** B-439 (D-176): the party quits the run (the game menu's Quit): the end pays nothing, the boss's Mentor Tokens
+     *  included, then back to the hub next tick. Once per run; server only (a guest can't end the host's run). */
+    void AbandonRun();
+    bool IsAbandoned() const { return bAbandoned; }
+
     /** B-073: the save puts a resumed run's tally back. */
     void RestoreRunTally(const FRunPayout &Tally) { RunTally = Tally; }
 
@@ -540,6 +545,8 @@ private:
     float PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     /** B-187: the party chose to leave at a rest spot (the run's end pays the leave share). */
     bool bLeavingEarly = false;
+    /** B-439 (D-176): the party quit the run (its end pays nothing). */
+    bool bAbandoned = false;
 
     /** B-362: run state like BeatenEncounters (cleared on trial entry and exit; saved with the run in FSavedRun). */
     int32 RunWipes = 0;

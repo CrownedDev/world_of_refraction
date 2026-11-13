@@ -3,6 +3,7 @@
 #include "UI/WoRRootLayout.h"
 
 #include "CommonActivatableWidget.h"
+#include "Input/CommonUIActionRouterBase.h"
 #include "WoRLog.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
@@ -75,6 +76,70 @@ void UWoRRootLayout::PopLayer(EWoRUILayer Layer)
 	// resolves to it and fails to compile with an accessibility error that reads
 	// nothing like the actual problem. Dereference deliberately.
 	Stack->RemoveWidget(*Active);
+}
+
+void UWoRRootLayout::NativeOnInitialized()
+{
+	Super::NativeOnInitialized();
+	// Menu and modal only: the game layer is the HUD's (it will state its own Game config when it moves there).
+	for (UCommonActivatableWidgetStack *Stack : {MenuLayer, ModalLayer})
+	{
+		if (Stack)
+		{
+			Stack->OnDisplayedWidgetChanged().AddUObject(this, &UWoRRootLayout::HandleDisplayedWidgetChanged);
+		}
+	}
+}
+
+bool UWoRRootLayout::HasActiveScreen() const
+{
+	for (const UCommonActivatableWidgetStack *Stack : {MenuLayer, ModalLayer})
+	{
+		if (Stack && Stack->GetActiveWidget())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UWoRRootLayout::HandleDisplayedWidgetChanged(UCommonActivatableWidget *Displayed)
+{
+	if (Displayed || HasActiveScreen())
+	{
+		return;
+	}
+	if (UCommonUIActionRouterBase *Router = UCommonUIActionRouterBase::Get(*this))
+	{
+		Router->SetActiveUIInputConfig(FUIInputConfig(ECommonInputMode::Game, EMouseCaptureMode::CapturePermanently), this);
+		UE_LOG(LogWoRUI, Log, TEXT("[WoRRootLayout] Every screen closed: input back to the game"));
+	}
+	if (WhenAllClosed)
+	{
+		const TFunction<void()> Action = MoveTemp(WhenAllClosed);
+		WhenAllClosed = nullptr;
+		Action();
+	}
+}
+
+void UWoRRootLayout::RunWhenAllClosed(TFunction<void()> Action)
+{
+	if (!HasActiveScreen())
+	{
+		Action();
+		return;
+	}
+	if (WhenAllClosed)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[WoRRootLayout] RunWhenAllClosed: an action was already waiting and is dropped"));
+	}
+	WhenAllClosed = MoveTemp(Action);
+}
+
+void UWoRRootLayout::NativeDestruct()
+{
+	WhenAllClosed = nullptr; // a waiting action dies with the layout
+	Super::NativeDestruct();
 }
 
 FString UWoRRootLayout::GetRootLayoutString() const

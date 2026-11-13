@@ -62,6 +62,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Hub|UI")
 	UWoRRootLayout *GetRootLayout() const { return RootLayout; }
 
+	/** B-439: opens the game menu (UPauseMenuWidget) on the menu layer; nothing when a screen is already up.
+	 *  IA_ToggleMenu calls it; also callable from BP / console (wor.UI.Pause). */
+	UFUNCTION(BlueprintCallable, Category = "Hub|UI")
+	void OpenGameMenu();
+
 	/** B-158: interact with the nearest in-range door / merchant / recruit / map feature.
 	 *  Also callable from BP / console. */
 	UFUNCTION(BlueprintCallable, Category = "Hub|Interaction")
@@ -94,6 +99,14 @@ protected:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultFieldMovementSkillAction;
 
+	/** B-439: opens the game menu. Leave empty to use DefaultToggleMenuAction. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
+	TObjectPtr<UInputAction> ToggleMenuAction;
+
+	/** IA_ToggleMenu, set in Config/DefaultGame.ini; loaded when ToggleMenuAction is empty. */
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
+	TSoftObjectPtr<UInputAction> DefaultToggleMenuAction;
+
 	/** Leader pawn class for the lazily created Trial Party. Null = the possessed pawn's class,
 	 *  then PartySessionSubsystem's DefaultSoloPawnClass. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Party")
@@ -118,6 +131,7 @@ private:
 
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);
+	void HandleToggleMenu(const FInputActionValue &Value);
 
 	/** B-214a: gives the field pawn its UFieldMovementComponent (once) and its party record's field skill. */
 	void EnsureFieldMovement(APawn *InPawn) const;

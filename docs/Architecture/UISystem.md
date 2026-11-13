@@ -312,7 +312,27 @@ controlled actor.
   `WBP_TurnOrderSlot`, `WBP_DefensePrompt`) provide layout and implement the
   `BlueprintImplementableEvent` / `BlueprintNativeEvent` hooks.
 
+## Menu screens (CommonUI, from `Design/UIScreens.md`)
+
+The screens outside the battle HUD are CommonUI screens (`UWoRActivatableWidget`) pushed onto `UWoRRootLayout`'s menu layer, built in C++ from the approved mockups, one job each (D-181). Each has a **model** with no widget in it (what it shows, what each choice does) that the headless specs read, and a **widget** that draws it.
+
+### The game menu (B-439, UIScreens #1)
+
+- **Model:** `WoRPauseMenu` (`UI/Menus/PauseMenuModel.h`): `BuildPages` (the eight pages, each with its side-panel text and, when it can't open, why), `BuildHeader` (the hub's Gold and essences, or a run's Prisms, Gear Essence and wipes left), `BuildParty` (name, class line, HP, EP, pillars, Combat Tier when spawned), `GetQuitWarning`, `Quit`.
+- **Widget:** `UPauseMenuWidget` (`UI/Menus/PauseMenuWidget.h`). One selection, moved by keys or the mouse; rows are plain borders and the screen itself takes the keys (`InputMap.md`, Menus). Party cards are built once and refilled on each open.
+- **Opening:** `IA_ToggleMenu` → `AWoRHubController::OpenGameMenu` → `UPauseMenuWidget::Open` (refused while any screen is up). Console `wor.UI.Pause`. Hub and trial map; a battle runs on another controller.
+- **Pages without a CommonUI screen yet:** Inventory, Party and Journal close the menu and open their old viewport placeholders; Loadout, Character and Settings stay focusable and say they aren't built (B-440, B-442).
+- **Quit (D-176):** the first press asks, then a 2 second hold (`QUIT_HOLD_SECONDS`). In a run: `UTrialRunSubsystem::AbandonRun` (the end pays nothing, no Mentor Tokens; back to the hub). Outside one: saves and closes the game until the title screen exists. A co-op guest in a run is refused (only the host ends it).
+- **Nothing pauses** (Q-439).
+- **Debug:** `wor.UI.PrintPause` (`GetPauseMenuString`: header, pages, party).
+
+### Root layout: input back to the game (B-439)
+
+CommonUI keeps the last screen's Menu input config once every screen has closed, which blocks game input. `UWoRRootLayout` listens to its stacks (`OnDisplayedWidgetChanged`) and sets the Game config when none shows a screen. `RunWhenAllClosed(Action)` runs one action at that point: an old viewport widget that sets its own input mode must open only after the stack has let the closed screen go (its transition), or the hand-back would undo it.
+
 ## Known Limitations / TODOs
+
+- **Game menu (B-439):** flat colours and the default font until the Hidris art pass; no portraits, no tracked quest or loadout preview in the side panel (those screens aren't built); `BP_HubPlayerController` still has its own `IA_ToggleMenu` nodes until the editor step in `docs/PIE/B-439.md`; the old party strip is hidden while the menu is open (the root layout sits under it). Pouch items found in a run are not taken back when the run is quit (Q-439).
 
 - **New battle HUD (B-391):** placeholder looks (text chips, no icons); picking inside a submenu or a target list
   is a click (gamepad navigation there comes with CommonUI, D-024); damage numbers and the Broken Darkness
@@ -406,3 +426,4 @@ controlled actor.
 | 2026-11-12 | B-391c built on the desktop (`feature/B-391c-hud-pieces-2`): merged with B-391b's numbers and B-170e's pips (card rows: buildup, gear, then actions; debug string both). Full suite 1820/0; wor-reviewer no code must-fix. PIE: party card frames are hit-testable for the tooltip; check they don't block mouse picking near the party column. | `feature/B-391c-hud-pieces-2` |
 | 2026-11-12 | B-129: input mapping-context priorities named in `Public/Player/InputPriorities.h` (`WoRInputPriority::EXPLORATION` / `COMBAT` / `COMBAT_MENU_KEYS`); `ACombatPlayerController` and `AExplorationPlayerController` use them (`CombatMenuKeys::CONTEXT_PRIORITY` removed). Same values; InputMap.md "Mapping contexts". Spec `WoR.Input.Priorities`. | `feature/B-129-input-priorities` (built 2026-11-12) |
 | 2026-11-13 | B-424 PIE fix: `UCombatHUD::PlaceInViewport` sets the position before the anchor and alignment (UE 5.8's `SetPositionInViewport` resets the anchors to the top-left, which put the battle menu off screen; the old HUD's panels, strip and menu are placed the same way). `BuildNewHUD` sets game-and-UI input with the cursor shown, since the new menu picks inside a submenu by click (Q-391). | `feature/B-424-light-hit-airburst` |
+| 2026-11-14 | B-439 (D-181, D-176): the game menu. `WoRPauseMenu` (model: pages, header, party, quit) and `UPauseMenuWidget` (CommonUI screen built in C++ from the mockup) under `UI/Menus/`; `AWoRHubController` binds `IA_ToggleMenu` to `OpenGameMenu`; `UWoRRootLayout` hands input back to the game when every screen has closed and gains `HasActiveScreen` / `RunWhenAllClosed`; `UTrialRunSubsystem::AbandonRun` (a quit run pays nothing). Spec `WoR.UI.PauseMenu` (10 cases). New section "Menu screens" | feature/B-439-pause-menu |

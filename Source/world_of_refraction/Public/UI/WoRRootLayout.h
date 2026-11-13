@@ -70,7 +70,22 @@ public:
 	/** Debug: each layer's widget count and active widget. */
 	FString GetRootLayoutString() const;
 
+	/** True while the menu or the modal layer shows a screen (the game layer is the HUD's and doesn't count). */
+	bool HasActiveScreen() const;
+
+	/** B-439: runs Action once no layer shows a screen (now, if none does): a stack lets go of a closed screen
+	 *  only after its transition, and an old viewport widget that sets its own input mode must open after that.
+	 *  One waiting action; a new one replaces it. */
+	void RunWhenAllClosed(TFunction<void()> Action);
+
 protected:
+	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
+
+	/** B-439: CommonUI keeps the last screen's Menu input config when every screen has closed, which blocks
+	 *  game input; when no layer shows a screen any more, input goes back to the game. */
+	void HandleDisplayedWidgetChanged(UCommonActivatableWidget *Displayed);
+
 	/** Persistent gameplay HUD layer. Present but EMPTY for now — the existing
 	 *  viewport-added HUD (party strip, combat panels) moves here in a later
 	 *  cluster, not this one. */
@@ -85,4 +100,7 @@ protected:
 	 *  TODO: add a ModalLayer stack to the root layout WBP (editor), above MenuLayer. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UCommonActivatableWidgetStack *ModalLayer;
+
+private:
+	TFunction<void()> WhenAllClosed;
 };
