@@ -88,8 +88,10 @@ void UWoRSaveGame::HandlePostLoad()
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' is version %d, below the minimum %d: wiped (D-060)"),
 			   *GetSaveSlotName(), LoadedDataVersion, WoRSaveVersion::MIN_SUPPORTED);
+		const int32 OldVersion = LoadedDataVersion; // ResetToDefault clears it
 		ResetToDefault();
 		bWiped = true;
+		WipedFromVersion = OldVersion;
 	}
 }
 

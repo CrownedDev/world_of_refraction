@@ -850,4 +850,8 @@ struct WORLD_OF_REFRACTION_API FWoRSaveData
 
 	UPROPERTY()
 	FSavedSettings Settings; // B-398
+
+	/** B-467: time played, in seconds, for the title's Continue line. Added with no version bump: an older 38 loads 0. */
+	UPROPERTY()
+	double PlaySeconds = 0.0;
 };

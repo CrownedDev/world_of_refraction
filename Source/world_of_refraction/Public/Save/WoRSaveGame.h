@@ -33,8 +33,12 @@ public:
 
 	/** True when the last load threw an out-of-date save away. */
 	bool WasWiped() const { return bWiped; }
+	/** B-467: the version the wiped save had (the title's "Your save was reset" notice); 0 when nothing was wiped. */
+	int32 GetWipedFromVersion() const { return WipedFromVersion; }
 
 private:
 	UPROPERTY(Transient)
 	bool bWiped = false;
+	UPROPERTY(Transient)
+	int32 WipedFromVersion = 0;
 };
