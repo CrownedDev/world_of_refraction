@@ -88,7 +88,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 7. [x] Trial gate (`run/gate`)
 8. [x] Shop and the vendor services (`hub/vendors`)
 9. [x] Journal (`menus/journal`)
-10. [ ] Party and co-op (`menus/party`, `coop/`)
+10. [x] Party and co-op (`menus/party`, `coop/session`)
 11. [ ] Title and save notices (`front/title`)
 12. [ ] Character sheet (`menus/character`)
 13. [ ] Hub HUD, prompt, loading, NPC talk (`hub/hud`)
@@ -184,6 +184,16 @@ One block per mocked screen: the images, why the layout, the references.
 - **Memories:** by character (LT / RT), newest first with a NEW mark, a replay window and the text; unfound memories are not listed and not counted ("3 found", never "3 of 12": pillar 10).
 - **Rewards stay hidden until earned** on every quest kind ("Shown when the quest is done").
 
+### 7, 31–33. Party and co-op (`menus/party/`, `coop/session/`)
+
+- `menus/party/1_party.png`; `coop/session/1_invite.png`, `2_join_request.png`, `3_host_lost.png`. The revive vote is with the rest spot (mock 4).
+- **Party:** three member rows with **Played by** (You (leader), AI seat and its level, or a friend's name), the start row and field skill; under them "When your fighters fall" (Let AI finish / Take over) and "Invite and seat friends". The side panel is the **3 × 3 starting grid** seen from above (Back / Middle / Front Row, enemies to the right); X moves the focused member on it. Words are `PartyControlWidget.cpp`'s. Field skill names in the image are made up.
+  *Ref:* Final Fantasy XIV's and Baldur's Gate 3's party panels (who controls whom at a glance); Darkest Dungeon's formation row; Expedition 33 has no grid, so the grid picture follows Fire Emblem / Darkest Dungeon's "see the line-up before the fight".
+- **Invite:** friends on the left with their state, the three seats on the right; a friend brings their own character and takes an AI seat (D-150); in a run they're seated at a rest spot (the code's line). *Ref:* Nightreign's and Monster Hunter's lobby cards.
+- **Join request** is a **small card in the corner of the host's screen, not a full screen**, so it never interrupts play: hold View to answer, then pick the seat or refuse. *Ref:* Elden Ring's summon notices, Deep Rock Galactic's join prompt.
+- **Host left:** one calm notice for everyone with the hand-over's steps as pips and "Your run, gear and progress are kept" (`HostSuccession::GetStep`). A planned hand-over from the rest menu shows the same card titled "Handing over host". *Ref:* Monster Hunter's host migration notice.
+- **Needs code:** nothing announces a host loss to the UI today.
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -214,7 +224,14 @@ Every menu uses the same buttons, so nothing has to be learned twice (Expedition
 | Screen second action | R | Y (Triangle) | `IA_UI_Action2` | all |
 | Details | V | R3 | `IA_UI_Details` | all |
 
-Screen-specific rows are added below as each screen is mocked.
+Screen-specific rows:
+
+| Action | Keyboard / mouse | Gamepad | Input action | Screen |
+|---|---|---|---|---|
+| Answer a notice (join request, vote) from the world | Hold N | Hold View (Touchpad) | `IA_UI_AnswerNotice` | 32, 34 |
+| Open the journal from a popup ("New memory") | J (exists, proposed) | D-pad Up | `IA_Field_Journal` | 25 |
+
+Hold View would share the button with Map (`IA_Field_Map`, a tap): tap = map, hold = answer. If that's unwanted, the notice can wait in the pause menu instead.
 
 ## Open questions for Crown
 
