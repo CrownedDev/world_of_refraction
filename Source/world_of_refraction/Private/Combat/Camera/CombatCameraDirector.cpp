@@ -1283,7 +1283,8 @@ void UCombatCameraDirector::StepShot()
 	{
 		return; // B-424: holds at its start until the approach's burst
 	}
-	const float Alpha = Moving / FMath::Max(ActiveShot.BlendSeconds, CombatCameraTiming::ShotStepSeconds);
+	// B-424 review: a zero blend is a cut, not a one-step ease.
+	const float Alpha = ActiveShot.BlendSeconds > 0.0f ? Moving / FMath::Max(ActiveShot.BlendSeconds, CombatCameraTiming::ShotStepSeconds) : 1.0f;
 	CameraActor->SetActorTransform(FCombatCameraRules::BlendShot(ActiveShot, Alpha));
 	if (Alpha >= 1.0f && !bFollowing)
 	{

@@ -52,11 +52,12 @@ namespace ApproachWarp
 		{
 			return FApproachBurst();
 		}
+		const FName WarpTargetName(CombatConstants::WARP_TARGET_NAME);
 		for (const FAnimNotifyEvent &Event : Montage->Notifies)
 		{
 			const UAnimNotifyState_MotionWarping *WarpState = Cast<UAnimNotifyState_MotionWarping>(Event.NotifyStateClass);
 			const URootMotionModifier_Warp *Warp = WarpState ? Cast<URootMotionModifier_Warp>(WarpState->RootMotionModifier) : nullptr;
-			if (!Warp || Warp->WarpTargetName != FName(CombatConstants::WARP_TARGET_NAME))
+			if (!Warp || Warp->WarpTargetName != WarpTargetName)
 			{
 				continue;
 			}
