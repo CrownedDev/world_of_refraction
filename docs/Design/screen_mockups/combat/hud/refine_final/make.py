@@ -183,16 +183,21 @@ def row(d, x, y, labels, lit, wear=None):
         d.text((x + used + 4, y + 4), "%d >" % (len(labels) - last), font=F(17, True), fill=v.CYAN)
 
 
-def strip(d, heading, sources, lit, level, readout=None, warn=None, warn_col=v.WARN, weapons=None, weapon_lit=0, wear=None):
+def strip(d, kind, heading, sources, lit, level, readout=None, warn=None, warn_col=v.WARN, weapons=None, weapon_lit=0, wear=None):
     """Same tab rows as the skill menu: [weapon types, Attack only], infusion elements, levels. No labels.
     A fixed source is a single lit tab. No infusion at all (items, a stunned character): pass sources=None.
     wear: the durability left on each source behind an element tab (see row)."""
     rows = ([(weapons, weapon_lit, None)] if weapons else []) + ([(sources, lit, wear), (["—", "I", "II"], level, None)] if sources else [])
     bottom = 536
-    top = bottom - 50 - sum(54 if w else 40 for _, _, w in rows) - (32 if readout else 0) - (30 if warn else 0)
-    v.cut(d, (20, top, 640, bottom), v.PANEL, v.CYAN)
-    d.text((36, top + 6), heading, font=F(22, True), fill=v.TXT)
-    y = top + 44
+    top = bottom - 90 - sum(54 if w else 40 for _, _, w in rows) - (32 if readout else 0) - (30 if warn else 0)
+    # The frame is as wide as its content: the heading, the widest row, the readout and the warning.
+    tab_w = lambda labels: sum(int(d.textlength(t, font=F(18, True))) + 34 for t in labels)
+    inner = max([int(d.textlength(heading, font=F(22, True)))] + [min(ROW_WIDTH, tab_w(labels)) for labels, _, _ in rows]
+                + [int(d.textlength(t, font=F(18, True))) for t in (readout, warn) if t])
+    v.cut(d, (20, top, 20 + inner + 32, bottom), v.PANEL, v.CYAN)
+    v.tabs(d, 36, top + 8, [kind], 0, h=32)  # the category, as in the menu's kind row
+    d.text((36, top + 46), heading, font=F(22, True), fill=v.TXT)
+    y = top + 84
     for labels, on, w in rows:
         row(d, 36, y, labels, on, w)
         y += 54 if w else 40
@@ -212,7 +217,7 @@ FOOT = "R1  Defend      B  Back"
 # Hammer's crystal, so picking it switches to the Hammer (free) and the weapon row follows.
 im, d = base(*GARRICK)
 marker(d, v.ENEMIES[1], .68, dmg=.07, build=.35, add=.12, build_col=(242, 162, 58))
-strip(d, "Attack  ·  choose a target", ["None", "Raw", "Fire", "Lightning"], 3, 1,
+strip(d, "Attack", "Attack  ·  choose a target", ["None", "Raw", "Fire", "Lightning"], 3, 1,
       weapons=["Sword", "Hammer"], weapon_lit=1, wear={"Fire": [.8], "Lightning": [.62]})
 v.hints(d, ["D-pad up/down  Weapon"] + INFUSE + [TARGET, FOOT])
 save(im, "6_target_attack_weapon.png")
@@ -220,7 +225,7 @@ save(im, "6_target_attack_weapon.png")
 # A spell is origin-bound: its element is a single lit tab, only the level changes.
 im, d = base(hp_cost=11 / 84, ep_cost=12 / 40)  # the EP cost and the backlash, ghosted on Sera's own bars
 marker(d, v.ENEMIES[1], .68, dmg=.16, build=.35, add=.18, build_col=(167, 155, 194))
-strip(d, "Shade Lance  ·  choose a target", ["Darkness"], 0, 2, "Size x2.0", "Level II backlash:  -11 HP")
+strip(d, "Refractions", "Shade Lance  ·  choose a target", ["Darkness"], 0, 2, "Size x2.0", "Level II backlash:  -11 HP")
 v.hints(d, ["L1  Infusion level", TARGET, FOOT])
 save(im, "7_target_spell_fixed_source.png")
 
@@ -231,14 +236,14 @@ ELEMENTS = ["None", "Raw", "Fire ×2", "Lightning", "Water", "Void"]
 WEAR = {"Fire ×2": [.8, .22], "Lightning": [.9], "Water": [.55]}
 im, d = base(*BRAM)
 marker(d, v.ENEMIES[1], .68, dmg=.13, build=.35, add=.30)
-strip(d, "Cleave  ·  choose a target", ELEMENTS, 2, 2, None, "Level II:  crystal wear, may break", wear=WEAR)
+strip(d, "Abilities", "Cleave  ·  choose a target", ELEMENTS, 2, 2, None, "Level II:  crystal wear, may break", wear=WEAR)
 v.hints(d, INFUSE + [TARGET, FOOT])
 save(im, "8_target_ability_shared_element.png")
 
 # The evolution's element counts like any other; it pays EP, and HP at level II: both ghosted on Bram's own bars.
 im, d = base(*BRAM, hp_cost=9 / 84, ep_cost=10 / 40)
 marker(d, v.ENEMIES[1], .68, dmg=.13, build=.35, add=.22, build_col=(166, 75, 240))
-strip(d, "Cleave  ·  choose a target", ELEMENTS, 5, 2, None, "Level II backlash:  -9 HP", wear=WEAR)
+strip(d, "Abilities", "Cleave  ·  choose a target", ELEMENTS, 5, 2, None, "Level II backlash:  -9 HP", wear=WEAR)
 v.hints(d, INFUSE + [TARGET, FOOT])
 save(im, "8b_target_ability_evolution_element.png")
 
@@ -247,7 +252,7 @@ save(im, "8b_target_ability_evolution_element.png")
 im, d = base(hp_cost=24 / 84, ep_cost=16 / 40)
 for enemy, hp, hp_max in zip(v.ENEMIES, (.9, .68, .4), (180, 600, 180)):
     marker(d, enemy, hp, card=False, hp_max=hp_max, dmg=.3 if hp_max == 180 else .14, build=.2, add=.25, build_col=(166, 75, 240))
-strip(d, "Eclipse  ·  all enemies  ·  confirm", ["Void", "Darkness"], 0, 2, "Size x2.0",
+strip(d, "Breakthrough", "Eclipse  ·  all enemies  ·  confirm", ["Void", "Darkness"], 0, 2, "Size x2.0",
       "Level II backlash:  -24 HP  ·  this would kill you", v.KILL)
 v.hints(d, INFUSE + ["A  Confirm", FOOT])
 save(im, "9_target_all_enemies_confirm.png")
@@ -255,7 +260,7 @@ save(im, "9_target_all_enemies_confirm.png")
 # No infusion (an item, a broken-adapter spell, a stunned character): no rows at all.
 im, d = base()
 marker(d, v.ENEMIES[1], .68, dmg=.1, build=.35, add=.15)
-strip(d, "Fire Bomb  ·  choose a target", None, 0, 0)
+strip(d, "Items", "Fire Bomb  ·  choose a target", None, 0, 0)
 v.hints(d, [TARGET, FOOT])
 save(im, "10_target_no_infusion.png")
 print("ok")
