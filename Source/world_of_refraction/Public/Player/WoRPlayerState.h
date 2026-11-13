@@ -144,6 +144,13 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerReportJournal(const TArray<FName> &MemoryIds);
 
+	/** B-425: a client sends its own banked wallet and carried run Gold to the host once on joining, as the host's
+	 *  BeginPlay does for itself (a guest's wallet has no authority, so its own Add is refused). The host applies it once
+	 *  per player; CopyProperties carries that across a seamless travel so a later report can't refill spent balances.
+	 *  TODO: trusted co-op only: no WithValidation (add it before public matchmaking). */
+	UFUNCTION(Server, Reliable)
+	void ServerReportWallet(const FSavedWallet &Saved, int32 CarriedGold);
+
 	/** B-377b: a client's hidden quest progress, for the host to check its steps (sent on joining and on each change). */
 	UFUNCTION(Server, Reliable)
 	void ServerReportQuests(const TArray<FSavedQuestProgress> &Quests);
@@ -200,6 +207,9 @@ private:
 	/** B-234d: server only, never replicated (clients read the order from AWoRGameState::HostOrder). INDEX_NONE is
 	 *  WoRHostSuccession::NO_JOIN_SEQUENCE. */
 	int32 JoinSequence = INDEX_NONE;
+
+	/** B-425: server only: this player's saved wallet has been applied (ServerReportWallet), carried by CopyProperties. */
+	bool bReportedWalletApplied = false;
 
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
 	bool IsLocalPlayerWallet() const;
