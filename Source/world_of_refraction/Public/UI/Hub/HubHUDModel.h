@@ -1,0 +1,62 @@
+// HubHUDModel.h
+// B-443 (D-181, UIScreens #14, mockup screen_mockups/hub/hud/1_hub_hud_prompt.png): what the hub and trial-map
+// HUD shows, with no widget in it, so the specs read it headless. UHubHUDWidget draws it.
+//
+// Two things beside the party strip (which exists): the floating interact prompt by what the player faces
+// (key + verb + what: "X Talk Blacksmith"), and the money chip, shown only near a vendor or just after the
+// balance changed.
+// Debug: wor.UI.PrintHubHUD logs GetHubHUDString.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Hub/InteractPrompt.h"
+
+class APawn;
+class UWorld;
+enum class ECurrencyType : uint8;
+
+struct FHubHUDPrompt
+{
+	/** False: nothing in reach has a prompt. */
+	bool bShown = false;
+	/** "Talk", "Rest". */
+	FText Verb;
+	/** "Blacksmith"; may be empty. */
+	FText What;
+	/** Where the thing stands; the prompt floats above it. */
+	FVector WorldLocation = FVector::ZeroVector;
+	/** The nearest thing in reach is a vendor (the money shows). */
+	bool bNearVendor = false;
+};
+
+struct FHubHUDMoney
+{
+	ECurrencyType Currency = ECurrencyType(0);
+	FText Value;
+	FText Label;
+};
+
+namespace WoRHubHUD
+{
+	/** How long the money stays up after it changed. TODO: tune */
+	inline constexpr float MONEY_SHOWN_SECONDS = 4.0f;
+
+	/** How far above the thing's origin the prompt floats. TODO: tune per interactable (a head height) */
+	inline constexpr float PROMPT_HEIGHT_CM = 110.0f;
+
+	/** The prompt for the nearest thing in Pawn's reach. A nearest thing with no prompt (a memory spot) shows none,
+	 *  and doesn't fall through to a farther one: the key would act on the nearest. */
+	WORLD_OF_REFRACTION_API FHubHUDPrompt BuildPrompt(APawn *Pawn);
+
+	/** The interact key's label for the device in use: "X" on a gamepad, "E" on the keyboard (InputMap.md). */
+	WORLD_OF_REFRACTION_API FText GetInteractKeyLabel(bool bGamepad);
+
+	/** The money the place spends: Gold in the hub, Prisms in a run (D-159). */
+	WORLD_OF_REFRACTION_API FHubHUDMoney BuildMoney(const UWorld *World);
+
+	/** The money shows near a vendor, or for MONEY_SHOWN_SECONDS after it changed. */
+	WORLD_OF_REFRACTION_API bool ShouldShowMoney(bool bNearVendor, float SecondsSinceChange);
+
+	WORLD_OF_REFRACTION_API FString GetHubHUDString(const UWorld *World);
+}
