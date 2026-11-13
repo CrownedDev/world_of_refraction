@@ -80,7 +80,7 @@
 Highest priority first. Ticked = mocked on this branch (folder in brackets).
 
 1. [x] Pause / game menu (`menus/pause`)
-2. [ ] Loadout and skills (`menus/loadout`)
+2. [x] Loadout and skills (`menus/loadout`)
 3. [ ] Inventory and pouch (`menus/inventory`)
 4. [ ] Rest spot, level up, extract, revive vote (`run/rest_spot`)
 5. [ ] After a fight, wipe, run over, run end (`run/run_end`)
@@ -105,6 +105,17 @@ One block per mocked screen: the images, why the layout, the references.
 - **Top line is the place:** in a trial, the run's state (Prisms, Gear Essence, **wipes left "3 of 5"**: FeelGuide 7's five-wipe rule); in the hub, Gold and essences. Hades shows the run's money and Death Defiances the same way, on the pause screen.
 - **No "Leave the trial" here:** you leave only by extracting at a rest spot (RunStructure §6, D-172); the side panel says so.
 - Pages (code names): Resume, Loadout, Inventory, Character, Party, Journal, Settings, Quit to title.
+
+### 2–3. Loadout and skills (`menus/loadout/`)
+
+- `1_gear_generic.png` (Garrick: two weapons, one active, an adapter, two apparel), `2_socket_picker.png` (a crystal for an empty socket), `3_skills_refractor.png` (Sera's innate spells), `4_gear_resonator.png` (Bram: one weapon, any number of adapters).
+- **Layout:** the character on LT / RT, the page (Gear, Skills) on LB / RB, the saved loadout name top right (Y opens the five saved ones, D-111). Slots on the left, one detail panel on the right that always shows the focused thing's **cost sum** ("Weapon 1 + Crystal 1 = 2").
+  *Ref:* Expedition 33's Pictos / Lumina screen: a points budget always on screen, each piece showing its cost, so trying a build is fast. Diablo IV and Elden Ring show the compare panel next to the list.
+- **Budget** as pips (Generic and Resonator 5, Refractor 3); picking something shows the new total in amber before you confirm. Costs are the code's: weapon 1, adapter 0, crystal or stone +1, evolution on gear +2, evolution alone 3 (`LoadoutConstants.h:38-44`).
+- **Each gear slot shows its two sockets** (crystal or evolution; stone, D-141). **Apparel** has its own two slots under a heading, marked "outside budget", with its one socket (D-164).
+- **Weapons show as two equal slots, one ACTIVE** (D-110: no primary / secondary difference). The brief's "main hand / off hand" isn't a slot in the code: a shield or second blade is the weapon's wield mode (`EWeaponWieldMode.h:32`), shown in its kind line when it has one.
+- **Refusals show in place:** the S-tier crystal row is greyed with its reason ("S-tier: one per loadout", `MAX_EQUIPPED_S_TIER_CRYSTALS`), not hidden (UI_Theme §5: disabled stays focusable to show why).
+- **Skills page** (Refractor): innate spells by school (only schools you hold a spell in), 6 per school, a points bar (24, tier = points F 1 to S 7, less the pillar discount; `SpellPoolConstants.h`). Generic and Resonator use the same page for each weapon's abilities and each adapter's spells.
 
 ## Shared menu controls
 
@@ -142,7 +153,9 @@ Screen-specific rows are added below as each screen is mocked.
 
 Collected as screens are drawn; lore and story questions are listed, not answered.
 
-1. **Quit to title in the middle of a run** (pause, #1): there are no saved runs (D-172). Does quitting count as extracting (reduced payout), as a loss, or is it refused until you extract? *Suggested:* ask first ("Quitting now ends the run: you keep what extracting would give"), like Hades' "flee the run" (it ends the run and keeps what you earned).
+1. **Quit to title in the middle of a run** (pause, #1): there are no saved runs (D-172). Does quitting count as extracting (reduced payout), as a loss, or is it refused until you extract? *Suggested:* ask first ("Quitting now ends the run: you keep what extracting would give"), like Hades, whose pause menu "Give Up" ends the run as if you fell, after a confirm.
+2. **Stone sockets** (loadout, #2): drawn because the code has them (D-141), but the battle HUD plan says you're considering removing augment stones. If they go, each gear row loses its second socket and nothing else changes.
+3. **Main hand / off hand** (loadout, #2): the code has two equal weapon slots and a wield mode per weapon, not hand slots. The mockup follows the code; say if you want hand slots shown.
 
 ## Changelog
 
