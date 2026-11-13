@@ -287,6 +287,13 @@ void UShopWindowWidget::SetMerchant(UMerchantData *Merchant, APawn *PurchaserPaw
     RefreshStockList();
     RefreshCartList();
     RefreshTotals();
+
+    // B-427: said once when the shop opens (RefreshTotals runs on every wallet change, and a guest's mirror changes often).
+    const UCurrencyComponent *OpenedWallet = PurchaserCurrency.Get();
+    if (OpenedWallet && !WoRAuthority::HasAuthority(OpenedWallet->GetOwner()))
+    {
+        ShowToast(NSLOCTEXT("Shop", "HostOnlyBuy", "Only the host can buy for now"));
+    }
 }
 
 void UShopWindowWidget::AddToCart(const FMerchantStockEntry &Entry)
@@ -607,10 +614,6 @@ void UShopWindowWidget::RefreshTotals()
         // TODO: a purchase RPC so guests can buy (with the co-op screens).
         const bool bHostOnly = Currency && !WoRAuthority::HasAuthority(Currency->GetOwner());
         ConfirmButton->SetIsEnabled(Currency && !bHostOnly && Cart.Num() > 0 && CanAffordCost(*Currency, Cost, Place));
-        if (bHostOnly && Cart.Num() > 0)
-        {
-            ShowToast(NSLOCTEXT("Shop", "HostOnlyBuy", "Only the host can buy for now"));
-        }
     }
 }
 
