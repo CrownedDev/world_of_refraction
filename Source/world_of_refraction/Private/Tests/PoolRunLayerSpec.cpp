@@ -39,6 +39,11 @@ namespace
 	constexpr EItemTier RUN_LAYER_FOUND_TIER = EItemTier::F_Tier;
 	constexpr EItemTier RUN_LAYER_UPGRADED_TIER = EItemTier::C_Tier;
 	constexpr EItemTier RUN_LAYER_LOWER_TIER = EItemTier::E_Tier;
+	// B-439b: items carried and stored before the run, found in it, and used in it.
+	constexpr int32 RUN_LAYER_ITEMS_CARRIED = 2;
+	constexpr int32 RUN_LAYER_ITEMS_STORED = 4;
+	constexpr int32 RUN_LAYER_ITEMS_FOUND = 3;
+	constexpr int32 RUN_LAYER_ITEMS_USED = 1;
 	const FCrystalId RUN_LAYER_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	FRuntimeAttachedItem RunLayerGem(int32 Durability)
@@ -278,6 +283,55 @@ void FPoolRunLayerSpec::Define()
 		TestTrue(TEXT("the store's copy arrives upgraded"), InStore && InStore->Tier == RUN_LAYER_UPGRADED_TIER);
 		TestTrue(TEXT("the member's copy agrees"), MemberCopy && MemberCopy->Tier == RUN_LAYER_UPGRADED_TIER);
 		TestEqual(TEXT("one instance"), CountInStore(*Pool, SecondDagger), 1);
+		Pool->EndRunLayer();
+	});
+
+	It("takes back what a quit run found, from the pouches then storage, and keeps what was held before (B-439b, D-176)", [this]()
+	{
+		if (!Pool) return;
+		const FName Key = UPoolSubsystem::GetCharacterKey(Member);
+		const FCrystalId Owned(ECrystalType::Emerald, EItemTier::D_Tier);
+		const FCrystalId FoundOnly(ECrystalType::Emerald, EItemTier::F_Tier);
+		Pool->CarryOrStore(Key, Owned, RUN_LAYER_ITEMS_CARRIED);
+		Pool->AddCrystalToPool(Owned, RUN_LAYER_ITEMS_STORED);
+		TestEqual(TEXT("no run: nothing to take"), Pool->TakeRunFoundItems(), 0);
+
+		Pool->BeginRunLayer();
+		Pool->CarryOrStore(Key, Owned, RUN_LAYER_ITEMS_FOUND); // a find of a kind already owned
+		const int32 Overflow = Pool->CarryOrStore(Key, FoundOnly, InventoryConstants::ITEM_STACK_MAX + RUN_LAYER_ITEMS_FOUND);
+		TestEqual(TEXT("a find that didn't fit went to storage"), Overflow, RUN_LAYER_ITEMS_FOUND);
+		Pool->TakeCarried(Key, Owned, RUN_LAYER_ITEMS_USED); // used in the run
+		TestTrue(TEXT("the print names the finds"), Pool->GetRunLayerString().Contains(TEXT("found in the run")));
+
+		const int32 Taken = Pool->TakeRunFoundItems();
+		TestEqual(TEXT("the finds left, less the one used"), Taken,
+				  RUN_LAYER_ITEMS_FOUND - RUN_LAYER_ITEMS_USED + InventoryConstants::ITEM_STACK_MAX + RUN_LAYER_ITEMS_FOUND);
+		TestEqual(TEXT("the owned kind is carried as before the run"), Pool->GetCarriedCount(Key, Owned), RUN_LAYER_ITEMS_CARRIED);
+		TestEqual(TEXT("and stored as before (the pouch pays first)"), Pool->GetStoredCount(Owned), RUN_LAYER_ITEMS_STORED);
+		TestEqual(TEXT("the found kind left the pouch"), Pool->GetCarriedCount(Key, FoundOnly), 0);
+		TestEqual(TEXT("and storage"), Pool->GetStoredCount(FoundOnly), 0);
+		TestEqual(TEXT("a second quit takes nothing more"), Pool->TakeRunFoundItems(), 0);
+		Pool->EndRunLayer();
+	});
+
+	It("keeps a finished run's finds, and starting items banked mid-run survive a quit (B-439b, D-097)", [this]()
+	{
+		if (!Pool) return;
+		const FName Key = UPoolSubsystem::GetCharacterKey(Member);
+		const FCrystalId Find(ECrystalType::Emerald, EItemTier::D_Tier);
+		Pool->BeginRunLayer();
+		Pool->CarryOrStore(Key, Find, RUN_LAYER_ITEMS_FOUND);
+		Pool->EndRunLayer(); // extracted, wiped or won: nothing is taken
+		TestEqual(TEXT("the find is kept"), Pool->GetCarriedCount(Key, Find), RUN_LAYER_ITEMS_FOUND);
+		TestEqual(TEXT("the run is over: nothing to take"), Pool->TakeRunFoundItems(), 0);
+
+		Pool->BeginRunLayer();
+		const FName Recruit(TEXT("RunLayerRecruit"));
+		TMap<FCrystalId, int32> Starting;
+		Starting.Add(Find, RUN_LAYER_ITEMS_CARRIED);
+		TestTrue(TEXT("a recruit's starting items banked in the run"), Pool->BankStartingItems(Recruit, Starting));
+		TestEqual(TEXT("a quit takes none of them"), Pool->TakeRunFoundItems(), 0);
+		TestEqual(TEXT("the recruit still carries them"), Pool->GetCarriedCount(Recruit, Find), RUN_LAYER_ITEMS_CARRIED);
 		Pool->EndRunLayer();
 	});
 

@@ -25,6 +25,7 @@ namespace
 	constexpr int32 RUN_SAVE_WORN_DURABILITY = 3;
 	constexpr EItemTier RUN_SAVE_FOUND_TIER = EItemTier::C_Tier;
 	constexpr EItemTier RUN_SAVE_REMEMBERED_TIER = EItemTier::B_Tier;
+	constexpr int32 RUN_SAVE_FOUND_ITEMS = 2;
 	const FCrystalId RUN_SAVE_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	FWeaponInventoryEntry RunSaveEntry(UWeaponData *Weapon, int32 GemDurability)
@@ -92,6 +93,9 @@ void FRunLayerSaveSpec::Define()
 		Found.Tier = RUN_SAVE_FOUND_TIER;
 		Pool->UpdateWeapon(Found);
 		TestTrue(TEXT("The dagger is a run find"), Pool->MarkRunOnly(Found.PersistentID));
+		// B-439b: an item found before the save is still a find after it.
+		const FCrystalId FoundItem(ECrystalType::Emerald, EItemTier::D_Tier);
+		Pool->AddCrystalToPool(FoundItem, RUN_SAVE_FOUND_ITEMS);
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -108,6 +112,10 @@ void FRunLayerSaveSpec::Define()
 		TestTrue(TEXT("The sword is still on the run"), PoolAfter->IsOnRun(Home.PersistentID));
 		EItemTier Remembered = EItemTier::F_Tier;
 		TestTrue(TEXT("The memory survived"), PoolAfter->FindRememberedTier(Axe, Remembered) && Remembered == RUN_SAVE_REMEMBERED_TIER);
+		TestTrue(TEXT("The run's start counts are saved (B-439b)"), Loaded->Data.Run.bHasRunStartItems);
+		TestEqual(TEXT("The item found before the save is in the store"), PoolAfter->GetStoredCount(FoundItem), RUN_SAVE_FOUND_ITEMS);
+		TestEqual(TEXT("A quit after the resume still takes it"), PoolAfter->TakeRunFoundItems(), RUN_SAVE_FOUND_ITEMS);
+		TestEqual(TEXT("It is gone"), PoolAfter->GetStoredCount(FoundItem), 0);
 
 		PoolAfter->EndRunLayer();
 		TestNull(TEXT("The dagger is gone at run end"), PoolAfter->FindWeaponInPool(Found.PersistentID));
