@@ -64,8 +64,8 @@ public:
 	 *  records are re-keyed for the new host (RekeyRunForNewHost). */
 	bool AdoptCheckpointFrom(const FString &SlotName, const FString &OldHostKey = FString(), const FString &NewHostKey = FString());
 
-	/** B-428 (a, Q-428): a handed-over run's found-feature records (opened chests, spent spots): the old host's plain
-	 *  keys become "<id>@<OldHostKey>" (so the new host doesn't inherit them, and nobody loots its chests twice) and the
+	/** B-428 (a, Q-428): a handed-over run's opened-chest records (the only per-player features; fragments, spots and
+	 *  lore keep their shared keys): the old host's plain keys become "<id>@<OldHostKey>" (so the new host doesn't inherit them, and nobody loots its chests twice) and the
 	 *  new host's "<id>@<NewHostKey>" become plain (its own, as a host's are). Other players' keys stay. Nothing when
 	 *  either key is empty or they are the same. Pure, spec-tested. */
 	static void RekeyRunForNewHost(FSavedRun &Run, const FString &OldHostKey, const FString &NewHostKey);

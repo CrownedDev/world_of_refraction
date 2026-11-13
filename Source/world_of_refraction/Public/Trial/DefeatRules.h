@@ -140,7 +140,7 @@ namespace WoRDefeat
 	WORLD_OF_REFRACTION_API int32 SplitLeaverDrop(UWorld *World, const APlayerState *Leaver);
 
 	/** B-235b: the drops of the players here now: the local player's plus each other present player's. A player who
-	 *  left keeps their drop recorded for the run (it waits if they come back) but no longer keeps the pickup up. */
+	 *  left has had their drop split among the rest (B-428, SplitLeaverDrop), so it no longer keeps the pickup up. */
 	WORLD_OF_REFRACTION_API int32 GetPresentDroppedPrisms(const UWorld *World);
 
 	/** Debug: the run's wipe and main-boss-loss counts against their limits, the dropped Prisms and their spot, and

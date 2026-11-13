@@ -1,6 +1,7 @@
 // SaveSubsystem.cpp
 
 #include "Save/SaveSubsystem.h"
+#include "Misc/PackageName.h"
 #include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
@@ -462,6 +463,12 @@ bool USaveSubsystem::AdoptCheckpoint(const FString &OldHostKey, const FString &N
 	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME, OldHostKey, NewHostKey);
 }
 
+namespace
+{
+	/** B-428 review: a per-player feature's object name holds this (ATrialChest and its Blueprints, ContentNaming). */
+	const TCHAR *const PERSONAL_FEATURE_NAME_MARK = TEXT("Chest");
+}
+
 void USaveSubsystem::RekeyRunForNewHost(FSavedRun &Run, const FString &OldHostKey, const FString &NewHostKey)
 {
 	if (OldHostKey.IsEmpty() || NewHostKey.IsEmpty() || OldHostKey == NewHostKey)
@@ -476,7 +483,16 @@ void USaveSubsystem::RekeyRunForNewHost(FSavedRun &Run, const FString &OldHostKe
 	for (const TPair<FName, FText> &Found : Run.FoundFeatures)
 	{
 		const FString Key = Found.Key.ToString();
-		if (!Key.Contains(PlayerSeparator))
+		// Review: only chests are per-player (B-235c); fragments, spots and lore keep shared plain keys, which stay.
+		// The chests aren't loaded at adoption (the run resumes in the hub), so the feature path's object name tells.
+		// TODO: a per-player flag on the record if a personal feature ever isn't a chest.
+		const FString ObjectName = FPackageName::ObjectPathToObjectName(Key.Contains(PlayerSeparator) ? Key.Left(Key.Find(PlayerSeparator)) : Key);
+		const bool bPersonal = ObjectName.Contains(PERSONAL_FEATURE_NAME_MARK, ESearchCase::IgnoreCase);
+		if (!bPersonal)
+		{
+			Rekeyed.Add(Found.Key, Found.Value);
+		}
+		else if (!Key.Contains(PlayerSeparator))
 		{
 			Rekeyed.Add(FName(*(Key + PlayerSeparator + OldHostKey)), Found.Value);
 			++OldHostRecords;

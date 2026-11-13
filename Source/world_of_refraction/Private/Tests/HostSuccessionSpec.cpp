@@ -114,12 +114,15 @@ void FHostSuccessionSpec::Define()
 		Run.FoundFeatures.Add(Chest, FText());
 		Run.FoundFeatures.Add(NewHostsChest, FText());
 		Run.FoundFeatures.Add(ThirdsChest, FText());
+		const FName SharedFragment(TEXT("/Game/Trial.Trial:PersistentLevel.BP_MemoryFragment_C_1"));
+		Run.FoundFeatures.Add(SharedFragment, FText());
 		USaveSubsystem::RekeyRunForNewHost(Run, SUCCESSION_TEST_HOST, SUCCESSION_TEST_SECOND);
+		TestTrue(TEXT("a shared fragment keeps its plain key (review)"), Run.FoundFeatures.Contains(SharedFragment));
 		TestTrue(TEXT("the old host's chest stays theirs"), Run.FoundFeatures.Contains(OldHostsChest));
 		TestFalse(TEXT("not the new host's"), Run.FoundFeatures.Contains(Chest));
 		TestTrue(TEXT("the new host's own chest is plain now"), Run.FoundFeatures.Contains(FName(TEXT("ChestB"))));
 		TestTrue(TEXT("another player's is unchanged"), Run.FoundFeatures.Contains(ThirdsChest));
-		TestEqual(TEXT("nothing lost"), Run.FoundFeatures.Num(), 3);
+		TestEqual(TEXT("nothing lost"), Run.FoundFeatures.Num(), 4);
 
 		FSavedRun Untouched;
 		Untouched.FoundFeatures.Add(Chest, FText());
