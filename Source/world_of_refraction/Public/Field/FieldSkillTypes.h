@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/Damage/EPhysicalDamageType.h"
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Templates/Function.h"
@@ -93,6 +94,33 @@ struct WORLD_OF_REFRACTION_API FFieldFlightLimits
 	/** Raises the ceiling (cm). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field", meta = (ClampMin = 0))
 	float ExtraCeiling = 0.0f;
+};
+
+/** B-214f (Metaphor: ReFantazio's field strike): what a field hit carries into the fight it starts: the party strikes
+ *  first, and every enemy of the struck team takes this status buildup at the start. Carried across the level change by
+ *  UTrialRunSubsystem (as the first strike is). */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FFieldStrike
+{
+	GENERATED_BODY()
+
+	/** The attack source's element; None for a source with no element (the hit is physical only). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	ESpellElement Element = ESpellElement::None;
+
+	/** The weapon in hand's attack type (Slash / Pierce / Impact); None with no weapon. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	EPhysicalDamageType Physical = EPhysicalDamageType::None;
+
+	/** Held with a Water source: the hit deals Ice (D-029's Water-deals-Ice rule). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	bool bIce = false;
+
+	/** Buildup each enemy takes at the start; 0 = no field strike. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Field")
+	float Buildup = 0.0f;
+
+	bool IsSet() const { return Buildup > 0.0f; }
 };
 
 /** A character's active field skill. Its home is FPartyMember::FieldSkill (saved, v36). */
@@ -206,6 +234,21 @@ namespace FieldSkillRules
 	/** A B-214e move may be used: Regroup not in a fight, off cooldown, with its EP. */
 	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckAdvancedMove(EFieldMovementType Type, int32 CurrentEP,
 																double SecondsSinceLastUse, bool bInFight);
+
+	// ---- B-214f: the field attack (Q-214f; numbers TODO: tune) ----
+
+	constexpr float FIELD_ATTACK_RANGE = 200.0f;          // cm ahead
+	constexpr float FIELD_ATTACK_RADIUS = 80.0f;          // cm, the swept sphere
+	constexpr float FIELD_ATTACK_COOLDOWN_SECONDS = 0.6f;
+	constexpr float FIELD_STRIKE_BUILDUP = 25.0f;         // status buildup each enemy takes at the start
+	constexpr int32 FIELD_ATTACK_SOURCE_COUNT = 3;        // Innate, Weapon, Ring (EFieldSkillSource)
+
+	/** The strike a field hit carries: the element if it is a real one, the weapon's physical type, Ice when held with
+	 *  a Water source, FIELD_STRIKE_BUILDUP. */
+	WORLD_OF_REFRACTION_API FFieldStrike MakeFieldStrike(ESpellElement SourceElement, EPhysicalDamageType Physical, bool bHeld);
+
+	/** The next field attack source: Innate -> Weapon -> Ring -> Innate. */
+	WORLD_OF_REFRACTION_API EFieldSkillSource NextSource(EFieldSkillSource Source);
 
 	/** Glide may start: in the air with its EP. */
 	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckGlideStart(bool bFalling, int32 CurrentEP);
