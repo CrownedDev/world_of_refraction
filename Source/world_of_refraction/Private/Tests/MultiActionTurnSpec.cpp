@@ -5,7 +5,8 @@
 // goes on; switching is free; bonus actions above Max are lost at turn end (Q-170f2). The turn-start and turn-end
 // steps run once per turn. At 0 one action ends the turn, as built. Driven through a real ACombatOrchestrator on bare 1v1 combatants (both player-driven, so
 // nothing acts on its own). The "0 actions at turn start skips the turn" cases need B-170d's waiting losses
-// (nothing can empty a bank at turn start before them); they land with ActionEffectsSpec.
+// (nothing can empty a bank at turn start before them); they land with ActionEffectsSpec. B-430: a kill shot with
+// actions still banked wins the fight at once and asks for no second action.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -45,6 +46,9 @@ namespace
 	constexpr int32 MULTI_ACTION_MAX_DOWN_TURNS = 3;
 	constexpr int32 MULTI_ACTION_MAX_DOWN_ID = 9170;
 	constexpr int32 MULTI_ACTION_RITUAL_DELAY = 1;
+	/** B-430: a hit far above the foe's 1 HP, so the first action kills it. */
+	constexpr int32 MULTI_ACTION_KILL_DAMAGE = 100000;
+	constexpr int32 MULTI_ACTION_FOE_LAST_HP = 1;
 	/** Turns of preview to search for the armed ritual's Execution turn. */
 	constexpr int32 MULTI_ACTION_PREVIEW_TURNS = 6;
 }
@@ -276,6 +280,30 @@ void FMultiActionTurnSpec::Define()
 			TestTrue(TEXT("At 0 the turn ended: Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
 			TestEqual(TEXT("One turn ended"), TurnManager->GetTurnCount(), TurnCountBefore + 1);
 			TestTrue(TEXT("wor.Actions.Print names Foe's turn now"), Orchestrator->GetTurnSpendsString().Contains(Foe->GetName()));
+		});
+
+		It("wins at once when the first of two banked actions kills the only enemy (B-430)", [this]()
+		{
+			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			{
+				return;
+			}
+			UCharacterDataComponent *FoeData = DataOf(Foe);
+			if (!TestNotNull(TEXT("Foe data"), FoeData))
+			{
+				return;
+			}
+			FoeData->CurrentHP = MULTI_ACTION_FOE_LAST_HP;
+			UAbilityData *Killer = NewAbility(MULTI_ACTION_COST_ONE);
+			Killer->BaseDamage = MULTI_ACTION_KILL_DAMAGE;
+
+			SubmitAndSettle(AbilityOn(Foe, Killer));
+			TestFalse(TEXT("The foe is down"), FoeData->bIsAlive);
+			TestEqual(TEXT("Hero acted once"), CountHeroActions(EActionType::Ability), 1);
+			TestEqual(TEXT("A banked action is left"), ActionsOf(Hero), MULTI_ACTION_MAX - MULTI_ACTION_COST_ONE);
+			TestEqual(TEXT("Victory (no kill-shot hold headless: no camera director)"), Orchestrator->GetCombatState(),
+					  ECombatState::Victory);
+			TestEqual(TEXT("No second action was asked for"), CountSteps(ETurnStartStep::ActionRequested), 0);
 		});
 
 		It("ends the turn on End Turn and banks the rest", [this]()
