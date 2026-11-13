@@ -796,6 +796,13 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-200 — Party and co-op screens approved; AI members show no level; the row is "Invite"
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-458, B-459
+**Answer (Crown):** the **party** and **co-op** screens (`UIScreens.md` #7, #31 to #33) are **approved**. An **AI member shows no level text anywhere** (the party menu too, as at the Gate, D-191). The row "Invite and seat friends" reads **"Invite"**.
+**Notes for Claude:** **B-458** builds the party screen, **B-459** the co-op session screens (invite, join request, host hand-over and host lost). The placeholder `UPartyControlWidget` still shows the AI level and the long row name until then.
+
+---
+
 ### D-199 — Quests show only the steps you have reached
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the journal mockup is redrawn first)
 **Answer (Crown):** (part of UIScreens question 10) a quest shows **only the steps you have reached**. Later steps are **not shown at all** (no "…"). This applies to **Main and Side quests**, as it already does to secret quests (D-171).

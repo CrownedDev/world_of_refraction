@@ -200,6 +200,7 @@ One block per mocked screen: the images, why the layout, the references.
 ### 7, 31–33. Party and co-op (`menus/party/`, `coop/session/`)
 
 - `menus/party/1_party.png`; `coop/session/1_invite.png`, `2_join_request.png`, `3_host_lost.png`. The revive vote is with the rest spot (mock 4).
+- **Approved by Crown (2026-11-13, D-200):** the party and co-op screens. Two changes: an **AI member shows no level text anywhere** (as at the Gate), and the row "Invite and seat friends" reads **"Invite"**.
 - **Party:** three member rows with **Played by** (You (leader), AI seat and its level, or a friend's name), the start row and field skill; under them "When your fighters fall" (Let AI finish / Take over) and "Invite and seat friends". The side panel is the **3 × 3 starting grid** seen from above (Back / Middle / Front Row, enemies to the right); X moves the focused member on it. Words are `PartyControlWidget.cpp`'s. Field skill names in the image are made up.
   *Ref:* Final Fantasy XIV's and Baldur's Gate 3's party panels (who controls whom at a glance); Darkest Dungeon's formation row; Expedition 33 has no grid, so the grid picture follows Fire Emblem / Darkest Dungeon's "see the line-up before the fight".
 - **Invite:** friends on the left with their state, the three seats on the right; a friend brings their own character and takes an AI seat (D-150); in a run they're seated at a rest spot (the code's line). *Ref:* Nightreign's and Monster Hunter's lobby cards.
@@ -334,6 +335,8 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177); Take is listed only at storage (D-195) |
 | Character sheet | 5 | `menus/character` | B-442 (built, in dev; `PIE/B-442.md`) | The fight's own numbers (Q-442) |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 (built, in dev; `PIE/B-443.md`) | |
+| Party | 7 | `menus/party` | B-458 | No AI level text; the row is "Invite" (D-200) |
+| Co-op session (invite, join request, host hand-over) | 31 to 33 | `coop/session` | B-459 (after B-458) | D-200 |
 | Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456 (after B-445) | One shop screen, services as tabs; who does what: D-193 |
 | Settings | 8 | `menus/settings` | B-452 (the screen: built, in dev; `PIE/B-452.md`), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
