@@ -79,6 +79,10 @@ EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
 	const FFieldStrike Strike = GetFieldStrike(bHeld);
 	for (const FHitResult &Hit : Hits)
 	{
+		if (!Hit.bBlockingHit)
+		{
+			continue; // an overlap (an encounter's trigger sphere reaches far past the body): only bodies count
+		}
 		AActor *Struck = Hit.GetActor();
 		UEncounterComponent *Encounter = Struck ? Struck->FindComponentByClass<UEncounterComponent>() : nullptr;
 		if (Encounter && Encounter->StrikeFromField(Owner, Strike))
