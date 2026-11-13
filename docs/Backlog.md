@@ -663,5 +663,6 @@ Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109
 - Real-time field abilities (movement, first strike) on GAS (`GASMigration.md`).
 - IDEA: gear with active effects (an action-costing ability on gear). Crown, 2026-11-12, another day.
 - IDEA: gear that gives extra actions now and then (e.g. +1 every 3 turns) instead of every turn. Crown, 2026-11-12.
+- IDEA: **dash speed scales with the speed stat**: the clip's own 0.24 s air-burst is the dash at max speed; a starting character's is slower (`wor.Combat.ApproachBurstSeconds`, base ~0.45 s until Crown picks), and the speed stat shortens it toward 0.24 s (B-424). No stat scaling yet. Crown, 2026-11-13.
 - IDEA: **approach cosmetic**: the player picks their dash-to-target style (the shared approach a melee skill plays before its strike, B-424). Crown, 2026-11-13.
 - IDEA: skills with **all-in-one travel** (an attack clip with its own approach, e.g. a dash attack or a leap) play that instead of the shared approach. Crown, 2026-11-13.

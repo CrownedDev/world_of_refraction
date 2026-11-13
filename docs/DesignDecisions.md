@@ -720,6 +720,7 @@ The queue of questions only Crown can answer.
 - **Too fast: hold, then cut** as the burst ends, at **3,500 cm/s** (`ApproachWarp::CAMERA_CUT_BURST_SPEED`, `TODO: tune`): those games cut rather than follow a long leap; the travel is never chased on screen.
 - **A ritual lead-in keeps the old rush** (its own timing comes first); the camera reads the montage at play rate 1.0 for now (`TODO`: the action's Action Speed).
 **Answer:** as the recommendation (reference-backed default; CLAUDE.md "Approve by default, Crown vetoes"). Crown changes it after the B-424 PIE pass if it reads wrong.
+**Crown's PIE (2026-11-13):** smooth, but too fast for a starting character; 0.24 s is the dash at max speed. The burst time is now `wor.Combat.ApproachBurstSeconds` (default 0.45 s, the hop slowed inside the window to fit; 0 = the clip's own); the rush and the cut read it. Crown picks the base from 0.35 / 0.45 / 0.55; speed-stat scaling is an IDEA row.
 **Notes for Claude:** `Combat/Actions/ApproachWarp.h/.cpp`, `wor.Debug.ApproachWarp <MontagePath> [cm] [rate]`, the `[Warp]` and `[CombatCamera] Rush timed` log lines.
 
 ### Q-239 — Item slot upgrades: whose pouch, which vendor, what price
