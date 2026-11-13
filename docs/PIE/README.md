@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-309](B-309.md) | `chore/B-309-old-loadout-path` (in dev, built 2026-11-14) | Unified loadout 9 (D-204): the unused `PrimarySlotCost` is deleted, no play change; one editor step (Find in Blueprints for `Do Weapon Stats Apply`); the old loadout fields are B-309b | Pending |
 | [B-172](B-172.md) | `chore/B-172-delete-legacy-validators` (in dev, built 2026-11-14) | The legacy loadout validators and `wor.Loadout.CompareRules` are deleted (D-204); `wor.Loadout.PrintFindings` prints the live findings instead; one editor step (Find in Blueprints for `Compare Loadout Rules`) | Pending |
 | [B-152](B-152.md) | `chore/B-152-delete-stone-wrappers` (in dev, built 2026-11-14) | The unreachable stat-stone consumable wrappers are deleted (D-204): every stat stone still buffs an ally and debuffs an enemy; Amber and Opal as before | Pending |
 | [B-461](B-461.md) | `feature/B-461-inventory-piece-2` (in dev, built 2026-11-14) | The inventory screen, piece 2 (D-181, Q-461): a filter row over the Gear and Chest tiles (Up from the top row reaches it), Sort on Y (Kind, Tier, Name), evolution and apparel tiles on the Gear tab (their verbs greyed, Q-323), the place name top right | Pending |
