@@ -27,10 +27,9 @@ namespace FieldSkillPickerStyle
 	constexpr int32 FontSize = 22;
 	constexpr float RowPadding = 6.0f;
 	constexpr int32 ZOrder = 55;
-	constexpr int32 SourceCount = 3; // Innate, Weapon, Ring
 }
 
-namespace
+namespace FieldSkillPickerBuild
 {
 	UTextBlock *NewLabel(UWidgetTree *Tree)
 	{
@@ -81,7 +80,53 @@ namespace
 
 	FText TypeName(EFieldMovementType Type)
 	{
-		return StaticEnum<EFieldMovementType>()->GetDisplayNameTextByValue(static_cast<int64>(Type));
+		switch (Type)
+		{
+		case EFieldMovementType::Dash:
+			return LOCTEXT("TypeDash", "Dash");
+		case EFieldMovementType::EnhancedSprint:
+			return LOCTEXT("TypeEnhancedSprint", "Enhanced Sprint");
+		case EFieldMovementType::Glide:
+			return LOCTEXT("TypeGlide", "Glide");
+		case EFieldMovementType::Flight:
+			return LOCTEXT("TypeFlight", "Flight");
+		case EFieldMovementType::Teleport:
+			return LOCTEXT("TypeTeleport", "Teleport");
+		case EFieldMovementType::HighJump:
+			return LOCTEXT("TypeHighJump", "High Jump");
+		case EFieldMovementType::AirDash:
+			return LOCTEXT("TypeAirDash", "Air Dash");
+		case EFieldMovementType::SuperLaunch:
+			return LOCTEXT("TypeSuperLaunch", "Super Launch");
+		case EFieldMovementType::PhaseStep:
+			return LOCTEXT("TypePhaseStep", "Phase Step");
+		case EFieldMovementType::MarkAndRecall:
+			return LOCTEXT("TypeMarkAndRecall", "Mark and Recall");
+		case EFieldMovementType::Regroup:
+			return LOCTEXT("TypeRegroup", "Regroup");
+		}
+		return FText::GetEmpty();
+	}
+
+	FText RefusalReason(EFieldSkillRefusal Refusal)
+	{
+		switch (Refusal)
+		{
+		case EFieldSkillRefusal::NotBuiltYet:
+			return LOCTEXT("RefusedNotBuilt", "not built yet");
+		case EFieldSkillRefusal::NeedsElementalSource:
+			return LOCTEXT("RefusedNoElement", "this source has no element");
+		case EFieldSkillRefusal::NotEnoughEP:
+			return LOCTEXT("RefusedEP", "not enough EP");
+		case EFieldSkillRefusal::OnCooldown:
+			return LOCTEXT("RefusedCooldown", "not ready yet");
+		case EFieldSkillRefusal::NoMovement:
+			return LOCTEXT("RefusedNoMovement", "this character can't move that way");
+		case EFieldSkillRefusal::NotUnlocked:
+			return LOCTEXT("RefusedLocked", "not unlocked for this element");
+		default:
+			return FText::GetEmpty();
+		}
 	}
 }
 
@@ -118,17 +163,17 @@ TSharedRef<SWidget> UFieldSkillPickerWidget::RebuildWidget()
 		Overlay->SetContent(Box);
 
 		UButton *SourceButton = nullptr;
-		SourceText = AddButton(WidgetTree, Box, SourceButton);
+		SourceText = FieldSkillPickerBuild::AddButton(WidgetTree, Box, SourceButton);
 		SourceButton->OnClicked.AddDynamic(this, &UFieldSkillPickerWidget::HandleSourceClicked);
 
 		UButton *TypeButton = nullptr;
-		TypeText = AddButton(WidgetTree, Box, TypeButton);
+		TypeText = FieldSkillPickerBuild::AddButton(WidgetTree, Box, TypeButton);
 		TypeButton->OnClicked.AddDynamic(this, &UFieldSkillPickerWidget::HandleTypeClicked);
 
-		StatusText = AddText(WidgetTree, Box);
+		StatusText = FieldSkillPickerBuild::AddText(WidgetTree, Box);
 
 		UButton *CloseButton = nullptr;
-		AddButton(WidgetTree, Box, CloseButton)->SetText(LOCTEXT("Close", "Close"));
+		FieldSkillPickerBuild::AddButton(WidgetTree, Box, CloseButton)->SetText(LOCTEXT("Close", "Close"));
 		CloseButton->OnClicked.AddDynamic(this, &UFieldSkillPickerWidget::HandleCloseClicked);
 	}
 	return Super::RebuildWidget();
@@ -176,7 +221,8 @@ TArray<EFieldMovementType> UFieldSkillPickerWidget::GetPickableTypes() const
 
 void UFieldSkillPickerWidget::HandleSourceClicked()
 {
-	ShownSource = static_cast<EFieldSkillSource>((static_cast<int32>(ShownSource) + 1) % FieldSkillPickerStyle::SourceCount);
+	const int32 SourceCount = StaticEnum<EFieldSkillSource>()->NumEnums() - 1; // the last entry is the generated _MAX
+	ShownSource = static_cast<EFieldSkillSource>((static_cast<int32>(ShownSource) + 1) % SourceCount);
 	LastRefusal = EFieldSkillRefusal::None;
 	Refresh();
 }
@@ -209,6 +255,10 @@ void UFieldSkillPickerWidget::HandleCloseClicked()
 
 void UFieldSkillPickerWidget::Refresh()
 {
+	if (!SourceText || !TypeText || !StatusText)
+	{
+		return; // not built yet (RebuildWidget)
+	}
 	const UFieldMovementComponent *FieldMovement = GetFieldMovement();
 	if (!FieldMovement)
 	{
@@ -218,24 +268,24 @@ void UFieldSkillPickerWidget::Refresh()
 		return;
 	}
 	const ESpellElement Element = FieldMovement->GetSourceElement(ShownSource);
-	SourceText->SetText(FText::Format(LOCTEXT("SourceRow", "Source: {0} ({1})"), SourceName(ShownSource),
+	SourceText->SetText(FText::Format(LOCTEXT("SourceRow", "Source: {0} ({1})"), FieldSkillPickerBuild::SourceName(ShownSource),
 									  FieldSkillRules::IsElemental(Element) ? WoRGameNames::GetElementName(Element)
 																			  : LOCTEXT("NoElement", "no element")));
 
 	const FFieldSkillChoice Current = FieldMovement->GetActiveFieldSkill();
 	TypeText->SetText(FText::Format(LOCTEXT("TypeRow", "Movement: {0} from {1} (click for the next unlocked)"),
-									TypeName(Current.Type), SourceName(Current.Source)));
+									FieldSkillPickerBuild::TypeName(Current.Type), FieldSkillPickerBuild::SourceName(Current.Source)));
 
 	TArray<FText> Names;
 	for (const EFieldMovementType Type : GetPickableTypes())
 	{
-		Names.Add(TypeName(Type));
+		Names.Add(FieldSkillPickerBuild::TypeName(Type));
 	}
 	const FText Unlocked = FText::Join(LOCTEXT("ListSeparator", ", "), Names);
 	StatusText->SetText(LastRefusal == EFieldSkillRefusal::None
 							? FText::Format(LOCTEXT("UnlockedRow", "Unlocked for this source: {0}"), Unlocked)
 							: FText::Format(LOCTEXT("RefusedRow", "Refused ({0}). Unlocked for this source: {1}"),
-											FText::FromString(FieldSkillRules::RefusalName(LastRefusal)), Unlocked));
+											FieldSkillPickerBuild::RefusalReason(LastRefusal), Unlocked));
 }
 
 FString UFieldSkillPickerWidget::GetPickerString() const

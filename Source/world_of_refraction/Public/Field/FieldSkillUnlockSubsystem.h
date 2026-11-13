@@ -27,6 +27,7 @@ class WORLD_OF_REFRACTION_API UFieldSkillUnlockSubsystem : public UGameInstanceS
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
+	virtual void Deinitialize() override;
 
 	/** Records Spell at Tier when it's an aura spell of a real element. True when it raised a rank; each type that
 	 *  became unlocked is logged and broadcast. */
@@ -64,11 +65,17 @@ private:
 	UFUNCTION()
 	void HandlePoolSkillsChanged(FName CharacterKey);
 
-	/** Sets the rank if higher; logs and broadcasts the types it unlocked. True when it rose. */
+	/** Sets the rank if higher; logs the types it unlocked and queues them for BroadcastPendingUnlocks. True when it rose. */
 	bool RaiseRank(EFieldAura Aura, ESpellElement Element, int32 Rank);
+
+	/** Broadcasts OnFieldSkillUnlocked for every queued unlock (each public entry point calls it once, at its end). */
+	void BroadcastPendingUnlocks();
 
 	static uint16 MakeKey(EFieldAura Aura, ESpellElement Element);
 
 	/** MakeKey(Aura, Element) -> best rank reached. */
 	TMap<uint16, int32> BestRanks;
+
+	/** Types unlocked by RaiseRank, not yet broadcast. */
+	TArray<TPair<EFieldMovementType, ESpellElement>> PendingUnlocks;
 };

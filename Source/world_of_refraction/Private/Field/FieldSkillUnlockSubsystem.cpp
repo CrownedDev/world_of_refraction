@@ -31,6 +31,26 @@ void UFieldSkillUnlockSubsystem::Initialize(FSubsystemCollectionBase &Collection
 	}
 }
 
+void UFieldSkillUnlockSubsystem::Deinitialize()
+{
+	if (UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
+	{
+		Pool->OnPoolSkillsChanged.RemoveDynamic(this, &UFieldSkillUnlockSubsystem::HandlePoolSkillsChanged);
+	}
+	Super::Deinitialize();
+}
+
+void UFieldSkillUnlockSubsystem::BroadcastPendingUnlocks()
+{
+	// After the caller's loop: a listener may change the store's skills, which the scan iterates.
+	const TArray<TPair<EFieldMovementType, ESpellElement>> Unlocked = MoveTemp(PendingUnlocks);
+	PendingUnlocks.Reset();
+	for (const TPair<EFieldMovementType, ESpellElement> &Unlock : Unlocked)
+	{
+		OnFieldSkillUnlocked.Broadcast(Unlock.Key, Unlock.Value);
+	}
+}
+
 uint16 UFieldSkillUnlockSubsystem::MakeKey(EFieldAura Aura, ESpellElement Element)
 {
 	return static_cast<uint16>((static_cast<uint16>(Aura) << ELEMENT_KEY_BITS) | static_cast<uint16>(Element));
@@ -79,7 +99,7 @@ bool UFieldSkillUnlockSubsystem::RaiseRank(EFieldAura Aura, ESpellElement Elemen
 		{
 			UE_LOG(LogWoR, Log, TEXT("%s %s %s unlocked for every %s source"), FieldUnlockLog::TAG, *ElementName(Element),
 				   *FieldSkillRules::TypeName(Type), *ElementName(Element));
-			OnFieldSkillUnlocked.Broadcast(Type, Element);
+			PendingUnlocks.Emplace(Type, Element);
 		}
 	}
 	return true;
@@ -87,7 +107,9 @@ bool UFieldSkillUnlockSubsystem::RaiseRank(EFieldAura Aura, ESpellElement Elemen
 
 bool UFieldSkillUnlockSubsystem::RecordSpellTier(const USpellData *Spell, EItemTier Tier)
 {
-	return Spell && RaiseRank(Spell->FieldAura, Spell->Element, FieldSkillRules::TierToRank(Tier));
+	const bool bRaised = Spell && RaiseRank(Spell->FieldAura, Spell->Element, FieldSkillRules::TierToRank(Tier));
+	BroadcastPendingUnlocks();
+	return bRaised;
 }
 
 int32 UFieldSkillUnlockSubsystem::RecordFromPool()
@@ -102,13 +124,14 @@ int32 UFieldSkillUnlockSubsystem::RecordFromPool()
 	{
 		for (const FSpellInstance &Instance : Character.Value.Spells)
 		{
-			Raised += RecordSpellTier(Instance.Spell, Instance.Tier) ? 1 : 0;
+			Raised += Instance.Spell && RaiseRank(Instance.Spell->FieldAura, Instance.Spell->Element, FieldSkillRules::TierToRank(Instance.Tier)) ? 1 : 0;
 		}
 	}
 	for (const FSpellInstance &Instance : Pool->GetOwnedSpells())
 	{
-		Raised += RecordSpellTier(Instance.Spell, Instance.Tier) ? 1 : 0;
+		Raised += Instance.Spell && RaiseRank(Instance.Spell->FieldAura, Instance.Spell->Element, FieldSkillRules::TierToRank(Instance.Tier)) ? 1 : 0;
 	}
+	BroadcastPendingUnlocks();
 	return Raised;
 }
 
@@ -131,6 +154,7 @@ bool UFieldSkillUnlockSubsystem::UnlockForDebug(EFieldMovementType Type, ESpellE
 	{
 		RaiseRank(Aura, Element, FieldSkillRules::GetUnlockRank(Type));
 	}
+	BroadcastPendingUnlocks();
 	return IsUnlocked(Type, Element);
 }
 
