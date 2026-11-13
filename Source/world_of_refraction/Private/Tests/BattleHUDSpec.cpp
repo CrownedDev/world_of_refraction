@@ -371,6 +371,32 @@ void FBattleHUDSpec::Define()
 			HUD->Teardown();
 		});
 
+		It("shows a party card in full, never an enemy card (B-436a)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestNotNull(TEXT("battle HUD widget"), HUD))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			// Whoever acts first, the one party card is the featured one: an enemy's turn never takes it.
+			TestEqual(TEXT("the featured card is the party card"), HUD->GetFeaturedCardIndex(), 0);
+			TestTrue(TEXT("wor.UI.Print shows it"), HUD->GetBattleHUDString().Contains(TEXT("featured (full card)")));
+			HUD->Teardown();
+
+			UBattleHUDWidget *EnemiesOnly = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (TestNotNull(TEXT("second battle HUD widget"), EnemiesOnly))
+			{
+				EnemiesOnly->Initialise({}, {Foe});
+				TestEqual(TEXT("no party card: nothing featured"), EnemiesOnly->GetFeaturedCardIndex(), static_cast<int32>(INDEX_NONE));
+				EnemiesOnly->Teardown();
+			}
+		});
+
 		It("floats a damage number over a hit character, stacks a second, and drops a hit that took nothing (B-391b)", [this]()
 		{
 			if (!StartDuel())

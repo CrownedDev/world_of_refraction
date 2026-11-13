@@ -20,10 +20,13 @@ This doc covers three current widgets:
 
 **New battle HUD (B-391, `wor.UI.NewHUD` 1, the default; in dev, built 2026-11-12).**
 `UCombatHUD::Build` reads the cvar at each fight. At 1 it builds, with no WBP:
-- `UBattleHUDWidget` (`UI/Combat/Battle/`): one full-screen plain C++ widget. Party cards bottom-left
-  (name, HP bar, "HP x / y", "EP x / y", status chips), enemy cards top-right (name, HP bar without numbers,
-  status chips), the turn order down the left edge (`BattleHUDView::ReadTurnStrip`: the replicated turn state,
-  else the TurnManager), and a Statuses button that opens every status in full. `Initialise` binds and fills
+- `UBattleHUDWidget` (`UI/Combat/Battle/`): one full-screen plain C++ widget. Party cards along the bottom from
+  the left (B-436a): the **featured** card (the party member acting, else the last one that acted;
+  `GetFeaturedCardIndex`) is full (name, HP bar, "HP x / y", "EP x / y", status chips), the others sit to its
+  right as compact cards (name, HP bar, HP line); the command menu stacks above the featured card
+  (`GetCommandMenuOffset`). Top-right: the turn order (`BattleHUDView::ReadTurnStrip`: the replicated turn state,
+  else the TurnManager) with the enemy cards under it (name, HP bar without numbers, status chips). A Statuses
+  button opens every status in full. `Initialise` binds and fills
   plain-data state before `AddToViewport`; `RebuildWidget` builds one card per combatant once; delegates only
   rewrite texts (no Tick, no widgets recreated).
   B-391b: floating damage numbers from each card character's `UCombatPresentationComponent::OnHitDetailShown`
@@ -406,3 +409,4 @@ controlled actor.
 | 2026-11-12 | B-391c built on the desktop (`feature/B-391c-hud-pieces-2`): merged with B-391b's numbers and B-170e's pips (card rows: buildup, gear, then actions; debug string both). Full suite 1820/0; wor-reviewer no code must-fix. PIE: party card frames are hit-testable for the tooltip; check they don't block mouse picking near the party column. | `feature/B-391c-hud-pieces-2` |
 | 2026-11-12 | B-129: input mapping-context priorities named in `Public/Player/InputPriorities.h` (`WoRInputPriority::EXPLORATION` / `COMBAT` / `COMBAT_MENU_KEYS`); `ACombatPlayerController` and `AExplorationPlayerController` use them (`CombatMenuKeys::CONTEXT_PRIORITY` removed). Same values; InputMap.md "Mapping contexts". Spec `WoR.Input.Priorities`. | `feature/B-129-input-priorities` (built 2026-11-12) |
 | 2026-11-13 | B-424 PIE fix: `UCombatHUD::PlaceInViewport` sets the position before the anchor and alignment (UE 5.8's `SetPositionInViewport` resets the anchors to the top-left, which put the battle menu off screen; the old HUD's panels, strip and menu are placed the same way). `BuildNewHUD` sets game-and-UI input with the cursor shown, since the new menu picks inside a submenu by click (Q-391). | `feature/B-424-light-hit-airburst` |
+| 2026-11-13 | B-436a piece 1 (layout, `Design/BattleHUDRefinePlan.md`): the new battle HUD's party cards sit on the canvas itself along the bottom from the left; the featured card (acting party member, else the last that acted) is full and the others compact (name, HP bar, HP line), moved by canvas slot only (`LayoutPartyCards`, nothing re-parented or recreated). The turn order moved top-right with the enemy cards under it; the command menu moved bottom-left above the featured card (`UBattleHUDWidget::GetCommandMenuOffset`, a fixed reserve: `FeaturedCardReserve`, TODO PIE-tune). `wor.UI.Print` marks each party card featured or compact. Spec `WoR.UI.BattleHUD`. Known limitation: an idle party member's status chips show only in the Statuses panel. | `feature/battle-hud-refine` |
