@@ -28,6 +28,7 @@ enum class EWeaponType : uint8;
 enum class EWeaponWieldMode : uint8;
 enum class EItemTier : uint8;
 enum class ESubStat : uint8;
+enum class EInteractVerb : uint8;
 
 namespace WoRGameNames
 {
@@ -114,6 +115,9 @@ namespace WoRGameNames
 
     /** B-440a: a tier's letter, "F" to "S". */
     WORLD_OF_REFRACTION_API FText GetTierLetter(EItemTier Tier);
+
+    /** B-443: the interact prompt's verbs: "Talk", "Enter", "Pick up". Empty for None. */
+    WORLD_OF_REFRACTION_API FText GetInteractVerbName(EInteractVerb Verb);
 
     /** B-442: a sub-stat's name: "Spell Damage", "Defence", "Status Multiplier". Empty for None. */
     WORLD_OF_REFRACTION_API FText GetSubStatName(ESubStat Stat);
