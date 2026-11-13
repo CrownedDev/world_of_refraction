@@ -7,6 +7,10 @@
 #include "Combat/Presentation/CastVisuals.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
+#include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
+#include "TimerManager.h"
 #include "WoRLog.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
@@ -79,20 +83,48 @@
 namespace
 {
 	/** B-424: one line per warped leg: how far the warp takes the actor and how fast its burst moves (air-burst dash). */
-	void LogWarpBurst(const AActor *Actor, const UAnimMontage *Montage, float PlayRate, const TCHAR *Leg)
+	FApproachBurst LogWarpBurst(const AActor *Actor, const UAnimMontage *Montage, float PlayRate, const TCHAR *Leg, float BurstSeconds = 0.0f)
 	{
 		const UMotionWarpingComponent *Warp = Actor ? Actor->FindComponentByClass<UMotionWarpingComponent>() : nullptr;
 		const FMotionWarpingTarget *Target = Warp ? Warp->FindWarpTarget(CombatConstants::WARP_TARGET_NAME) : nullptr;
 		if (!Target || !Montage)
 		{
-			return;
+			return FApproachBurst();
 		}
 		const float Distance = static_cast<float>(FVector::Dist2D(Actor->GetActorLocation(), Target->GetLocation()));
-		const FApproachBurst Burst = ApproachWarp::Measure(Montage, Distance, PlayRate);
+		const FApproachBurst Burst = ApproachWarp::Measure(Montage, Distance, PlayRate, BurstSeconds);
 		if (Burst.bHasWindow)
 		{
 			UE_LOG(LogWoRCombat, Log, TEXT("[Warp] %s %s %s: %s"), *Actor->GetName(), Leg, *Montage->GetName(), *Burst.ToString());
 		}
+		return Burst;
+	}
+
+	/** B-424: slows the montage inside the warp window so the hop lasts the burst time, then puts the play rate back.
+	 *  shortcut: the server's copy only (co-op clients see the clip's own hop), until the presentation sends rate changes. */
+	void StretchHop(AActor *Actor, UAnimMontage *Montage, float PlayRate, const FApproachBurst &Burst)
+	{
+		const ACharacter *Character = Cast<ACharacter>(Actor);
+		UAnimInstance *Anim = Character && Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr;
+		if (!Burst.bHasWindow || !Anim || FMath::IsNearlyEqual(Burst.HopRateScale, 1.0f))
+		{
+			return;
+		}
+		TWeakObjectPtr<UAnimInstance> WeakAnim(Anim);
+		TWeakObjectPtr<UAnimMontage> WeakMontage(Montage);
+		auto SetRateAfter = [&](float Seconds, float Rate)
+		{
+			FTimerHandle Handle; // one-shot; a montage that stopped meanwhile ignores the rate
+			Actor->GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakAnim, WeakMontage, Rate]()
+			{
+				if (UAnimInstance *Instance = WeakAnim.Get())
+				{
+					Instance->Montage_SetPlayRate(WeakMontage.Get(), Rate);
+				}
+			}), FMath::Max(Seconds, UE_KINDA_SMALL_NUMBER), false);
+		};
+		SetRateAfter(Burst.WindowStart, PlayRate * Burst.HopRateScale);
+		SetRateAfter(Burst.WindowEnd, PlayRate);
 	}
 }
 
@@ -203,8 +235,9 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, USkillDataBase *Skill)
 	CurrentChainMontage = Skill->SkillMontage; // tracked-leg identity (return-skip guard)
 	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlaySkill %s"),
 		   Skill->SkillMontage ? *Skill->SkillMontage->GetName() : TEXT("None"));
-	LogWarpBurst(Actor, Skill->SkillMontage, PendingMontagePlayRate, TEXT("approach"));
+	const FApproachBurst Burst = LogWarpBurst(Actor, Skill->SkillMontage, PendingMontagePlayRate, TEXT("approach"), ApproachWarp::GetApproachBurstSeconds());
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
+	StretchHop(Actor, Skill->SkillMontage, PendingMontagePlayRate, Burst);
 }
 
 void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)

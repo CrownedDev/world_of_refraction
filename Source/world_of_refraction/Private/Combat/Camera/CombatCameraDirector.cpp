@@ -1101,7 +1101,8 @@ namespace
 		}
 		const FVector Strike = ApproachWarp::GetStrikePosition(Caster->GetActorLocation(), Target->GetActorLocation(), Skill->ExecutionRange);
 		// TODO: B-424: the action's play rate (Action Speed); the camera reads the montage at 1.0.
-		const FApproachBurst Burst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(Caster->GetActorLocation(), Strike)), 1.0f);
+		const FApproachBurst Burst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(Caster->GetActorLocation(), Strike)), 1.0f,
+													  ApproachWarp::GetApproachBurstSeconds());
 		if (!Burst.bHasWindow)
 		{
 			return Rush;
