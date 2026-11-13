@@ -1179,6 +1179,15 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 		{
 			Saved.RunMarks.Add(SaveRunMark(Mark.Key, Mark.Value));
 		}
+		Saved.bHasRunStartItems = true; // B-439b
+		for (const TPair<FCrystalId, int32> &Stack : Pool->GetRunStartItems())
+		{
+			FSavedCrystalStack &Out = Saved.RunStartItems.AddDefaulted_GetRef();
+			Out.Type = static_cast<uint8>(Stack.Key.Type);
+			Out.Tier = Stack.Key.Tier;
+			Out.StoneStat = static_cast<uint8>(Stack.Key.StoneStat);
+			Out.Count = Stack.Value;
+		}
 	}
 	return Saved;
 }
@@ -1246,6 +1255,19 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 			Marks.Add(In.GearID, RestoreRunMark(In));
 		}
 		Pool->RestoreRunLayer(Marks);
+		if (Saved.bHasRunStartItems) // B-439b: else RestoreRunLayer's own count (what is held now) stands
+		{
+			TMap<FCrystalId, int32> StartItems;
+			for (const FSavedCrystalStack &Stack : Saved.RunStartItems)
+			{
+				if (Stack.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
+				{
+					StartItems.FindOrAdd(StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier,
+																		 static_cast<ESubStat>(Stack.StoneStat)))) += Stack.Count;
+				}
+			}
+			Pool->RestoreRunStartItems(StartItems);
+		}
 	}
 	return true;
 }

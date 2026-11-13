@@ -185,6 +185,28 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	FCarriedAbsorptionState CarriedAbsorption;
 };
 
+/** A counted crystal stack. Gem or stone follows from the type (UPoolSubsystem::AddCrystalToPool). Above FSavedRun,
+ *  which holds some (B-439b). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCrystalStack
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	uint8 Type = 0;
+
+	UPROPERTY()
+	EItemTier Tier = EItemTier::F_Tier;
+
+	UPROPERTY()
+	int32 Count = 0;
+
+	/** B-353 (D-142): a StatStone's sub-stat (ESubStat); ESubStat::None otherwise (and for a stack saved before the
+	 *  field existed, so a gem never reads back with a sub-stat). */
+	UPROPERTY()
+	uint8 StoneStat = static_cast<uint8>(ESubStat::None);
+};
+
 /** B-314b (Q-314, save v15): one piece's run mark (UPoolSubsystem's FPoolRunMark) and its home state, pointers as refs. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRunMark
@@ -304,6 +326,14 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 
 	UPROPERTY()
 	TArray<FSavedRunMark> RunMarks;
+
+	/** B-439b (no version bump: a save without it keeps what the resumed run holds as its start): the items held when
+	 *  the run began (UPoolSubsystem::GetRunStartItems), so a resumed run that is quit still loses its finds. */
+	UPROPERTY()
+	bool bHasRunStartItems = false;
+
+	UPROPERTY()
+	TArray<FSavedCrystalStack> RunStartItems;
 };
 
 USTRUCT()
@@ -436,27 +466,6 @@ struct WORLD_OF_REFRACTION_API FSavedOwnedItem
 	/** B-124: weapons and rings only. */
 	UPROPERTY()
 	FSavedGearDetail Gear;
-};
-
-/** A counted crystal stack. Gem or stone follows from the type (UPoolSubsystem::AddCrystalToPool). */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedCrystalStack
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	uint8 Type = 0;
-
-	UPROPERTY()
-	EItemTier Tier = EItemTier::F_Tier;
-
-	UPROPERTY()
-	int32 Count = 0;
-
-	/** B-353 (D-142): a StatStone's sub-stat (ESubStat); ESubStat::None otherwise (and for a stack saved before the
-	 *  field existed, so a gem never reads back with a sub-stat). */
-	UPROPERTY()
-	uint8 StoneStat = static_cast<uint8>(ESubStat::None);
 };
 
 /** B-091: a piece of shared gear and the character wearing it (UPoolSubsystem::GetCharacterKey). */
