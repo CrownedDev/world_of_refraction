@@ -1,7 +1,8 @@
 // InfusionSameElementStackSpec.cpp
 // B-435 (D-174, ED-51): an infused action uses every one of the character's sources that shares its element.
 // Status buildup grows +25% per extra source, capped at +50%; each source pays its own cost once (a crystal
-// source pays wear, not EP; a stacked innate pays its EP); a different-element or broken source isn't used.
+// source pays wear, not EP; a stacked innate pays its EP); a different-element or broken source isn't used. Only
+// abilities and attacks stack (Q-435: a spell is origin-bound to one source). The stack is fixed at commit.
 // Expectations are literals, so a changed number fails here on purpose.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -18,6 +19,7 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {
@@ -150,6 +152,35 @@ void FInfusionSameElementStackSpec::Define()
 		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_INTACT);
 		TestEqual(TEXT("Uninfused"), Executor->GetSameElementSourceCount(Caster, AbilityAction(EInfusionSourceOption::Innate, 0)), 0);
 		TestEqual(TEXT("Raw"), Executor->GetSameElementSourceCount(Caster, AbilityAction(EInfusionSourceOption::Raw, STACK_TEST_L1)), 0);
+	});
+
+	It("doesn't stack a spell, which is origin-bound to one source (Q-435)", [this]()
+	{
+		if (!Executor) return;
+		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_INTACT);
+		FAction Spell;
+		Spell.ActionType = EActionType::Spell;
+		Spell.SpellData = NewObject<USpellData>(GetTransientPackage());
+		Spell.SpellSource = ESpellSource::Innate;
+		Spell.SelectedSource = EInfusionSourceOption::Innate;
+		Spell.SpellInfusionLevel = STACK_TEST_L1;
+		Spell.Targets.Add(Caster);
+		TestEqual(TEXT("An innate spell beside a Fire gem"), Executor->GetSameElementSourceCount(Caster, Spell), 0);
+	});
+
+	It("keeps the stack resolved at commit when the commit's wear breaks the gem", [this]()
+	{
+		if (!Executor) return;
+		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_INTACT);
+		const FAction Innate = AbilityAction(EInfusionSourceOption::Innate, STACK_TEST_L1);
+		Executor->CurrentExecutionContext.Emplace();
+		Executor->CurrentExecutionContext->Executor = Caster;
+		Executor->CurrentExecutionContext->Action = Innate;
+		Executor->ApplyCommitCosts(Caster, Innate);
+		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_BROKEN); // as if the commit wore it to 0
+		TestEqual(TEXT("Still two sources for this action"), Executor->GetSameElementSourceCount(Caster, Innate), 2);
+		Executor->CurrentExecutionContext.Reset();
+		TestEqual(TEXT("The next action sees the broken gem"), Executor->GetSameElementSourceCount(Caster, Innate), 1);
 	});
 
 	It("charges each source's own cost once: the gem pays wear, not EP; a stacked innate pays its EP", [this]()
