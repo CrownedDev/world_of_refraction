@@ -12,8 +12,8 @@
 #include "Templates/Function.h"
 #include "FieldSkillTypes.generated.h"
 
-/** The 11 movement types (FieldAbilities "Movement types", Crown 2026-10-27). B-214a builds Dash and Enhanced Sprint;
- *  the rest are refused as not built until their slice (B-214c..e). Append only: saved as a byte (FSavedPartyMember). */
+/** The 11 movement types (FieldAbilities "Movement types", Crown 2026-10-27). B-214a builds Dash and Enhanced Sprint,
+ *  B-214c Glide, High jump and Air dash; the rest are refused as not built until their slice (B-214d..e). Append only: saved as a byte (FSavedPartyMember). */
 UENUM(BlueprintType)
 enum class EFieldMovementType : uint8
 {
@@ -49,7 +49,9 @@ enum class EFieldSkillRefusal : uint8
 	NotEnoughEP,
 	OnCooldown,
 	NoMovement,           // the pawn isn't a character (no movement to dash with)
-	NotUnlocked           // B-214b: no aura spell of the source's element has reached the rank yet
+	NotUnlocked,          // B-214b: no aura spell of the source's element has reached the rank yet
+	NeedsAir,             // B-214c: glide and air dash start only in the air
+	AlreadyUsedInAir      // B-214c: the double jump or air dash was used since the last landing
 };
 
 /** B-214b (FieldAbilities "Movement -> aura"): the three elemental enhancements whose spells unlock movement types. A
@@ -99,10 +101,54 @@ namespace FieldSkillRules
 	constexpr float ENHANCED_SPRINT_OTHER_MULTIPLIER = 1.25f;    // TODO: tune
 	constexpr float NO_SPRINT_BOOST = 1.0f;
 
+	// ---- B-214c: ground and air moves (FieldAbilities; all numbers TODO: tune, Q-214c) ----
+
+	/** Glide: a slow fall while on (double tap in the air), off on a second tap or on landing; paid once at the start. */
+	constexpr int32 GLIDE_EP_COST = 1;
+	constexpr float GLIDE_GRAVITY_SCALE = 0.15f;
+	constexpr float GLIDE_MAX_FALL_SPEED = 250.0f; // cm/s
+	constexpr float GLIDE_AIR_CONTROL = 0.8f;
+
+	/** High jump from the ground; once in the air, one double jump until landing. Each paid. */
+	constexpr int32 HIGH_JUMP_EP_COST = 1;
+	constexpr float HIGH_JUMP_SPEED = 1200.0f;   // cm/s up
+	constexpr float DOUBLE_JUMP_SPEED = 900.0f;  // cm/s up
+
+	/** Air dash: once per airtime, along the aim (the camera, else facing); Lightning's is a chain of blinks. */
+	constexpr int32 AIR_DASH_EP_COST = 2;
+	constexpr float AIR_DASH_SPEED = 2000.0f;          // cm/s
+	constexpr int32 AIR_DASH_BLINK_COUNT = 3;
+	constexpr float AIR_DASH_BLINK_DISTANCE = 250.0f;  // cm per blink
+
+	/** Wall-run: during Enhanced Sprint, off the ground at sprint speed beside a wall; holds height along the wall for
+	 *  a while, once per airtime (Prototype / Warframe parkour). Free: Enhanced Sprint's drain pays for it. */
+	constexpr float WALL_RUN_TRACE_DISTANCE = 80.0f; // cm to each side
+	constexpr float WALL_RUN_GRAVITY_SCALE = 0.0f;
+	constexpr float WALL_RUN_MAX_SECONDS = 1.5f;
+
+	/** How often a running glide or Enhanced Sprint steps (glide's fall cap, the wall-run check). */
+	constexpr float MOVE_STEP_INTERVAL = 0.05f;
+
+	/** Glide may start: in the air with its EP. */
+	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckGlideStart(bool bFalling, int32 CurrentEP);
+
+	/** High jump on the ground; in the air the one double jump. */
+	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckJump(bool bOnGround, bool bAirJumpUsed, int32 CurrentEP);
+
+	/** Air dash: in the air, once per airtime. */
+	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckAirDash(bool bFalling, bool bAirDashUsed, int32 CurrentEP);
+
+	/** A wall-run step may hold: Enhanced Sprint on, in the air, at sprint speed, a wall beside, time left. */
+	WORLD_OF_REFRACTION_API bool CanWallRun(bool bEnhancedSprintActive, bool bFalling, float GroundSpeed, bool bWallBeside,
+											float SecondsOnWall);
+
+	/** Lightning's air dash is a chain of short blinks (FieldAbilities element styles). */
+	WORLD_OF_REFRACTION_API bool IsBlinkAirDash(ESpellElement Element);
+
 	/** A real element: not Generic ("inherit") and not None. */
 	WORLD_OF_REFRACTION_API bool IsElemental(ESpellElement Element);
 
-	/** B-214a builds Dash and Enhanced Sprint. */
+	/** B-214a builds Dash and Enhanced Sprint; B-214c Glide, High jump and Air dash. */
 	WORLD_OF_REFRACTION_API bool IsBuilt(EFieldMovementType Type);
 
 	/** Every type but the normal dash needs an elemental source (a Generic can't fly without one, FieldAbilities). */

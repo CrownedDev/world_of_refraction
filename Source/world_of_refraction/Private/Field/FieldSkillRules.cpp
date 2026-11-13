@@ -11,7 +11,8 @@ namespace FieldSkillRules
 
 	bool IsBuilt(EFieldMovementType Type)
 	{
-		return Type == EFieldMovementType::Dash || Type == EFieldMovementType::EnhancedSprint;
+		return Type == EFieldMovementType::Dash || Type == EFieldMovementType::EnhancedSprint ||
+			   Type == EFieldMovementType::Glide || Type == EFieldMovementType::HighJump || Type == EFieldMovementType::AirDash;
 	}
 
 	bool NeedsElementalSource(EFieldMovementType Type)
@@ -120,6 +121,48 @@ namespace FieldSkillRules
 			}
 		}
 		return true;
+	}
+
+	EFieldSkillRefusal CheckGlideStart(bool bFalling, int32 CurrentEP)
+	{
+		if (!bFalling)
+		{
+			return EFieldSkillRefusal::NeedsAir;
+		}
+		return CurrentEP < GLIDE_EP_COST ? EFieldSkillRefusal::NotEnoughEP : EFieldSkillRefusal::None;
+	}
+
+	EFieldSkillRefusal CheckJump(bool bOnGround, bool bAirJumpUsed, int32 CurrentEP)
+	{
+		if (!bOnGround && bAirJumpUsed)
+		{
+			return EFieldSkillRefusal::AlreadyUsedInAir;
+		}
+		return CurrentEP < HIGH_JUMP_EP_COST ? EFieldSkillRefusal::NotEnoughEP : EFieldSkillRefusal::None;
+	}
+
+	EFieldSkillRefusal CheckAirDash(bool bFalling, bool bAirDashUsed, int32 CurrentEP)
+	{
+		if (!bFalling)
+		{
+			return EFieldSkillRefusal::NeedsAir;
+		}
+		if (bAirDashUsed)
+		{
+			return EFieldSkillRefusal::AlreadyUsedInAir;
+		}
+		return CurrentEP < AIR_DASH_EP_COST ? EFieldSkillRefusal::NotEnoughEP : EFieldSkillRefusal::None;
+	}
+
+	bool CanWallRun(bool bEnhancedSprintActive, bool bFalling, float GroundSpeed, bool bWallBeside, float SecondsOnWall)
+	{
+		return bEnhancedSprintActive && bFalling && IsMovingAtSprintSpeed(GroundSpeed) && bWallBeside &&
+			   SecondsOnWall < WALL_RUN_MAX_SECONDS;
+	}
+
+	bool IsBlinkAirDash(ESpellElement Element)
+	{
+		return Element == ESpellElement::Lightning;
 	}
 
 	bool IsMovingAtSprintSpeed(float GroundSpeed)
