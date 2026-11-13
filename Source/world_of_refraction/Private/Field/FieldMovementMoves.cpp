@@ -206,6 +206,10 @@ void UFieldMovementComponent::StepMoves()
 	{
 		return;
 	}
+	if (bFlying)
+	{
+		ApplyFlightStep(); // B-214d
+	}
 	if (bGliding && !Movement->IsFalling())
 	{
 		SetGliding(false); // out of the air without a landing event (water, a teleport, a scripted mode)
@@ -240,7 +244,7 @@ void UFieldMovementComponent::UpdateMoveStepTimer()
 		return;
 	}
 	FTimerManager &Timers = World->GetTimerManager();
-	const bool bNeeded = bGliding || bEnhancedSprintActive;
+	const bool bNeeded = bGliding || bEnhancedSprintActive || bFlying;
 	if (bNeeded && !Timers.IsTimerActive(MoveStepTimer))
 	{
 		Timers.SetTimer(MoveStepTimer, this, &UFieldMovementComponent::StepMoves, FieldSkillRules::MOVE_STEP_INTERVAL, true);

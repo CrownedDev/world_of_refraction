@@ -164,7 +164,7 @@ namespace FieldSkillRules
 	constexpr float FLIGHT_HOVER_BRAKING = 4000.0f;       // cm/s^2: stops quickly with no input, so it hovers
 	constexpr float FLIGHT_GROUND_TRACE_DISTANCE = 10000.0f;
 	/** The actor tag that makes a volume a no-fly zone (boss arenas, some secrets). */
-	inline const TCHAR *const NO_FLY_ZONE_TAG = TEXT("Zone.NoFly");
+	inline constexpr const TCHAR *NO_FLY_ZONE_TAG = TEXT("Zone.NoFly"); // TCHAR, not FName: no FName at static init
 
 	/** Flight may start: outside a no-fly zone (unless lifted) with one second's EP (unless unlimited). */
 	WORLD_OF_REFRACTION_API EFieldSkillRefusal CheckFlightStart(bool bInNoFlyZone, int32 CurrentEP, const FFieldFlightLimits &Limits);
