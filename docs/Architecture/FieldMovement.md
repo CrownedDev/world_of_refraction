@@ -15,16 +15,20 @@ B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free s
   - Client calls (`Dash`, `ActivateFieldSkill`, `SetActiveFieldSkill`) go to the server by Server RPC; the server spends the EP and owns the record.
 - `UHubMovementLibrary::ComputeHubSprintSpeed` (the pawn Blueprint's sprint press) multiplies by `GetSprintSpeedMultiplier`; `GetSprintSpeedMin` tells the component whether the pawn is sprinting.
 - Save v36: `FSavedPartyMember::FieldSkillSource` / `FieldSkillType`.
+- **Unlocks (B-214b, Q-214b):** `EFieldAura` (Elemental / Enhancement / Manipulation) marks an aura spell (`USpellData::FieldAura`; its element is the variant). `FieldSkillRules`: `GetUnlockAuras` (FieldAbilities' movement → aura table), `GetUnlockRank` (3 = D tier for Dash, Enhanced Sprint, Glide, High jump, Air dash; 7 = S tier for the rest), `CanElementUnlock` (a real element; Teleport Void only), `IsUnlockedByRanks`, `TierToRank`. `CheckPick` / `CheckEnhancedSprintStart` take `bUnlocked` and refuse `NotUnlocked`; the dash never needs one.
+- `UFieldSkillUnlockSubsystem` (GameInstance, account-wide): the best rank per aura and element (ranks only rise). Fed by `UEconomyService::LevelUpSpell`, the store's `OnPoolSkillsChanged`, and `RecordFromPool` (on load, on a pick, when the picker opens). `IsUnlocked`, `GetUnlockedTypes`, `OnFieldSkillUnlocked`. Saved as `FWoRSaveData::FieldUnlocks` (`FSavedFieldUnlocks`, no version bump: an older 38 loads none).
+- `UFieldSkillPickerWidget` (placeholder, `UI/Field/`): the player's character's source, then the next unlocked type; from the party screen's "Field skill..." or `wor.UI.FieldSkill`.
 
 ## Integration Points
 - `AWoRHubController::OnPossess` (server) adds the component after `EnsureLocalParty` and calls `RefreshFromRecord`; fights open their own level, so the pawn (and the drain timer) ends there.
 - Input: `IA_Field_MovementSkill` through the config soft pointer `DefaultFieldMovementSkillAction` (as `IA_Interact`), bound to `Triggered` (the asset's own trigger does the double tap). Unset until B-214g makes the asset.
-- Debug (`Debug/Field/FieldMovementDebug`): `wor.Field.Print` (every field pawn: choice, source element, pick result, sprint on / off and multiplier, EP, dash cooldown, record), `wor.Field.Activate` (the double tap's stand-in), `wor.Field.Dash`, `wor.Field.Set <Innate|Weapon|Ring> <Type>` (placeholder until B-214b's picker).
+- Debug (`Debug/Field/FieldMovementDebug`): B-214b adds `wor.Field.Unlocks` (aura ranks and unlocked types) and `wor.Field.Unlock <Type> <Element>`; `wor.Field.Print` (every field pawn: choice, source element, pick result, sprint on / off and multiplier, EP, dash cooldown, record), `wor.Field.Activate` (the double tap's stand-in), `wor.Field.Dash`, `wor.Field.Set <Innate|Weapon|Ring> <Type>` (placeholder until B-214b's picker).
 - Spec `WoR.Field.Skills`; `WoR.Save` checks the save round trip.
 
 ## Known Limitations / TODOs
 - A crystal source doesn't wear yet (B-214 row: crystal sources wear).
-- No unlock check: any built type with an elemental source can be picked (B-214b).
+- Unlocks are per machine: in co-op the host checks a guest's pick and Enhanced Sprint against the host's unlocks (`TODO` for co-op accounts). The aura spells aren't marked yet (Crown's table, editor step), so only `wor.Field.Unlock` unlocks anything until then.
+- The picker edits the map pawn only (the leader); a member picks when it leads.
 - The drain samples the speed once a second, so a second is charged or free by the speed at that moment. No wall-run yet (B-214c).
 - Co-op: a guest's dash launches on its own machine and on the server (not a predicted saved move), so a small correction is possible. `MaxWalkSpeed` doesn't replicate: the server and the guest each re-apply the sprint speed when Enhanced Sprint toggles (`OnRep`), so for a moment they can differ; the pawn Blueprint's sprint press must also run on the server for the two to agree (PIE check, review 2026-11-12).
 - Enhanced Sprint stops when its source loses the element it started with (gear change, broken crystal), checked each drain second.
@@ -35,3 +39,4 @@ B-214 (D-099, `Design/FieldAbilities.md`): movement on the map beyond the free s
 |---|---|---|
 | 2026-11-12 | Created. B-214a: `UFieldMovementComponent` (dash, active field skill, Enhanced Sprint), `FieldSkillRules`, `FPartyMember::FieldSkill` (save v36), the hub controller's possess hook and `IA_Field_MovementSkill` binding, `wor.Field.*`, spec `WoR.Field.Skills`. | `feature/B-214a-field-skills-core` |
 | 2026-11-12 | B-214a2 (Crown's Q-214a answer): Enhanced Sprint charges only while the pawn moves at sprint speed (`FieldSkillRules::IsMovingAtSprintSpeed`, ground speed > 600 cm/s); `wor.Field.Print` says whether it drains. | `fix/B-214a2-drain-while-moving` |
+| 2026-11-13 | B-214b: unlocks. `EFieldAura`, `USpellData::FieldAura`, the unlock rules in `FieldSkillRules`, `UFieldSkillUnlockSubsystem` (saved, no bump), `LevelUpSpell` records the rank, the placeholder picker `UFieldSkillPickerWidget` (party screen, `wor.UI.FieldSkill`), `wor.Field.Unlocks` / `wor.Field.Unlock`. Enhanced Sprint is locked until unlocked. Unbuilt (cloud). | `feature/B-214b-field-unlocks-cloud` |
