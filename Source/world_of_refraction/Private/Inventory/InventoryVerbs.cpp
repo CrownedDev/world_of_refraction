@@ -156,7 +156,17 @@ namespace WoRInventoryVerbs
 		}
 		if (Row.bInChest != (Verb == EInventoryVerb::Take))
 		{
-			return Row.bInChest ? LOCTEXT("TakeFirst", "Take it from the chest first") : LOCTEXT("TakeIsForChest", "Only things in the chest can be taken");
+			if (Row.bInChest)
+			{
+				return Verb == EInventoryVerb::Store ? LOCTEXT("AlreadyStored", "It's already in the chest") : LOCTEXT("TakeFirst", "Take it from the chest first");
+			}
+			return LOCTEXT("TakeIsForChest", "Only things in the chest can be taken");
+		}
+		// B-441 (Q-441): no chest during a run, for stacks too. For gear it is the chest's own rule
+		// (WoRGive::TryPutInChest / TryTakeFromChest, Q-347), said before the press.
+		if (Verb != EInventoryVerb::Give && Pool->IsRunLayerActive())
+		{
+			return LOCTEXT("ChestAtHome", "The chest stays at home until the run ends");
 		}
 		const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
 		const bool bPrimary = Row.IsGear() && Inventory && Inventory->IsPrimaryInAnyLoadout(Row.GearID);
@@ -183,6 +193,11 @@ namespace WoRInventoryVerbs
 			}
 			return FText::GetEmpty();
 		case EInventoryVerb::Take:
+			// B-441: MoveToCarried's own check, said before the press.
+			if (!Row.IsGear() && Pool->GetCarryRoom(WoRGive::GetPouchKey(World, Member), Row.Item) <= 0)
+			{
+				return LOCTEXT("PouchFull", "No room in the pouch");
+			}
 			return FText::GetEmpty();
 		case EInventoryVerb::Dismantle:
 		case EInventoryVerb::Convert:

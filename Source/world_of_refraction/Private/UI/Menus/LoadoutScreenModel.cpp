@@ -168,6 +168,11 @@ namespace LoadoutScreenBuild
 	}
 }
 
+FLoadoutScreenRow WoRLoadoutScreen::BuildGearRow(const FLoadoutSlot &Slot)
+{
+	return Slot.Gear.Asset ? LoadoutScreenBuild::MakeGearRow(Slot) : FLoadoutScreenRow();
+}
+
 TArray<FLoadoutScreenMember> WoRLoadoutScreen::BuildMembers(const UWorld *World)
 {
 	TArray<FLoadoutScreenMember> Members;

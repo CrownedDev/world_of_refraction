@@ -758,6 +758,12 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default. Before the first public build every save version bump already wipes older saves (D-060), and Crown chose the same for weapon spells (Q-098: deleted, no refund). Live games refund removed items (Warframe and Destiny 2 hand back currency for sunset or removed gear) only because players own those saves; B is the path once there are public saves. Crown may change it.
 **Notes for Claude:** B-437 bumps `WoRSaveVersion::LATEST`; no loader code for the old type.
 
+### Q-441 — Can the home chest be used during a run?
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-441) · **Blocks:** —
+**Question:** the code refused putting **gear** in the chest or taking it out during a run (Q-347), but let **pouch stacks** go to storage and back. The approved inventory mockup greys Store at a rest spot with "Home chest: in the hub only". Which is it?
+**Answer**, by the reference-backed default (Crown may change it): **the chest can't be used during a run, for stacks too.** Store and Take are greyed with "The chest stays at home until the run ends"; Give between members still works. It is what the approved mockup draws and what Q-347 already says for gear ("a run has only what it brought"); extraction games keep the stash at home (Escape from Tarkov, Dark and Darker), and Diablo's stash is in town only. What a run finds still goes to the pouch, else to storage (Q-322): that is unchanged.
+**Notes for Claude:** `WoRInventoryVerbs::GetRefusal`. The old `wor.UI.Storage` placeholder (`UStorageWidget`) still moves stacks in a run; it goes with the D-124 sweep.
+
 ### Q-445 — Selling: what a vendor pays, and which vendor buys what
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-445, D-177, D-193) · **Blocks:** —
 **Question:** vendors now buy items (D-177). (1) What does a sale pay? (2) Does each vendor buy only its own kind of thing? (3) What happens to "Convert to Gold"? (4) Are evolutions sold?

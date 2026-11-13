@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-441](B-441.md) | `feature/B-441-inventory-screen` (in dev, built 2026-11-14) | The inventory screen (D-181, D-177, D-195), from the game menu's Inventory page: Gear / Pouch / Chest tabs, a tile grid, the verb menu Give and Store (Take on the Chest tab only), "Give to", X for the whole stack; no chest during a run (Q-441) |
 | [B-445](B-445.md) | `feature/B-445-vendor-dismantle-sell` (in dev, built 2026-11-14) | Selling and dismantling are done at the vendors (D-177, D-193): the inventory's verbs are Give, Store, Take; placeholder `wor.UI.Vendor Blacksmith` (Sell, Dismantle), `Jeweler` (Sell), `Spiritualist` (Sell, Dismantle of evolutions); a sale pays half the tier's buy price (Q-445); dismantling is hub-only |
 | [B-452](B-452.md) | `feature/B-452-settings-screen` (in dev, built 2026-11-14) | The settings screen (D-190), from the game menu's Settings page: six pages, Turn View and the End Turn button work, the other approved rows are listed as not built yet, Controls is a read-only key list | Pending |
 | [B-443](B-443.md) | `feature/B-443-hub-hud` (in dev, built 2026-11-14) | The hub HUD (D-181): a floating interact prompt (key, verb, what) above what you face, and the money top right only near a vendor or just after it changed. Hub and trial map | Pending |

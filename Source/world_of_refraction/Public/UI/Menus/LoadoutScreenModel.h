@@ -13,6 +13,7 @@
 
 class UWorld;
 struct FCombatLoadout;
+struct FLoadoutSlot;
 
 enum class ELoadoutScreenRowKind : uint8
 {
@@ -93,6 +94,10 @@ namespace WoRLoadoutScreen
 
 	/** The gear page of a party member's active loadout, read from its spawned inventory. */
 	WORLD_OF_REFRACTION_API FLoadoutScreenPage BuildGearPage(UWorld *World, const FLoadoutScreenMember &Member);
+
+	/** One weapon's or adapter's row (name, tier, kind line, sockets, details), as the gear page lists it. The
+	 *  inventory screen describes an owned piece with it (B-441). */
+	WORLD_OF_REFRACTION_API FLoadoutScreenRow BuildGearRow(const FLoadoutSlot &Slot);
 
 	/** "Bruiser (2 of 5)". */
 	WORLD_OF_REFRACTION_API FText FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count);

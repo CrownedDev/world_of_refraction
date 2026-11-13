@@ -85,6 +85,8 @@ namespace WoRMenuStyle
 	{
 		return Key == EKeys::Right || Key == EKeys::D || Key == EKeys::Gamepad_DPad_Right || Key == EKeys::Gamepad_LeftStick_Right;
 	}
+	/** A screen's own switch (the inventory's "Whole stack"): X on both. */
+	inline bool IsToggleKey(const FKey &Key) { return Key == EKeys::X || Key == EKeys::Gamepad_FaceButton_Left; }
 	/** Page tabs, the top row (UIScreens, shared menu controls): LB / RB, Q / E. */
 	inline bool IsTabPrevKey(const FKey &Key) { return Key == EKeys::Q || Key == EKeys::Gamepad_LeftShoulder; }
 	inline bool IsTabNextKey(const FKey &Key) { return Key == EKeys::E || Key == EKeys::Gamepad_RightShoulder; }
