@@ -13,6 +13,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
+#include "UI/Menus/TitleScreenWidget.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -70,6 +71,12 @@ void AWoRHubController::BeginPlay()
 	UE_LOG(LogTemp, Log, TEXT("[WoRHubController] Root layout %s created (mode %s, ZOrder %d)"),
 		   *RootLayoutClass->GetName(), *UEnum::GetValueAsString(CurrentMode),
 		   WoRHubControllerConstants::ROOT_LAYOUT_ZORDER);
+
+	// B-467: the game opens on the title. Not in the editor's PIE (wor.UI.Title opens it there).
+	if (!GIsEditor)
+	{
+		UTitleScreenWidget::OpenAtLaunch(this);
+	}
 }
 
 void AWoRHubController::SetupInputComponent()
