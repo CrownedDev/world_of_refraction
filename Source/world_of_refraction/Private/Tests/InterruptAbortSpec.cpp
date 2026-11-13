@@ -13,6 +13,7 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/EDefenseType.h"
+#include "Combat/Defense/FlawlessParry.h"
 
 namespace
 {
@@ -39,7 +40,16 @@ BEGIN_DEFINE_SPEC(FInterruptAbortSpec, "WoR.Defense.InterruptAbort",
 		Ctx.bResolvedPerfect = bPerfect;
 		Ctx.bResolvedLuckDodge = bLuckDodge;
 		Ctx.bResultResolved = true;
-		Ctx.FlawlessTally.AddHit(bSuccess && bPerfect && !bLuckDodge, INTERRUPT_TEST_HITS);
+		// As the executor counts a hit for the Flawless Parry: a Perfect Guard that wasn't a luck dodge.
+		Ctx.FlawlessTally.AddHit(FlawlessParry::IsPerfectHit(Type, bSuccess, bPerfect) && !bLuckDodge, INTERRUPT_TEST_HITS);
+	}
+
+	/** Defender's window is open but the hit isn't resolved yet (as an opened defense window leaves it). */
+	void Pending(AActor *Defender)
+	{
+		FPendingDefenseContext &Ctx = Executor->CurrentExecutionContext->PendingDefenses.FindOrAdd(Defender);
+		Ctx.Attacker = Attacker;
+		Ctx.bResultResolved = false;
 	}
 
 	void StartAttack()
@@ -90,6 +100,7 @@ void FInterruptAbortSpec::Define()
 	{
 		if (!Executor) return;
 		StartAttack();
+		Pending(Second);
 		Resolve(First, EDefenseType::Block, true, true);
 		TestFalse(TEXT("The second defender hasn't resolved yet"), Executor->AllInterruptSucceeded());
 		Resolve(Second, EDefenseType::Block, true, false);
@@ -101,8 +112,8 @@ void FInterruptAbortSpec::Define()
 		if (!Executor) return;
 		StartAttack();
 		Resolve(First, EDefenseType::Block, true, true);
-		Resolve(Second, EDefenseType::Dodge, true, true, /*bLuckDodge*/ true);
-		TestFalse(TEXT("A luck dodge stops nothing"), Executor->AllInterruptSucceeded());
+		Resolve(Second, EDefenseType::Block, true, true, /*bLuckDodge*/ true);
+		TestFalse(TEXT("A luck-dodge success stops nothing, even on a Guard"), Executor->AllInterruptSucceeded());
 		Resolve(Second, EDefenseType::Dodge, true, true);
 		TestFalse(TEXT("A Perfect Dodge isn't a Perfect Guard (B-367b)"), Executor->AllInterruptSucceeded());
 	});
