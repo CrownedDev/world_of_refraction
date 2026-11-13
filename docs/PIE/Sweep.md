@@ -64,7 +64,6 @@
 | 27 | `IsWornByOtherMember`, `IsWornByOtherMemberOf`, `GetSelectableWeapons/Rings` — `InventoryComponent.h:302` (B-321) | Gear owners (`GetGearOwner`) | [B-321](B-321.md) | B-317 | [ ] |
 | 28 | `FPoolGearClash` — `Public/Pool/PoolSubsystem.h:99`; wearers and `NoteClashes` / `GetClashes` — `PoolSubsystem.h:267`, `:275` (B-321) | Gear owners | [B-321](B-321.md) | B-317 | [ ] |
 | 29 | The old gear copies and sync; the pool's per-member stores (D-122) | The gear store (B-312..B-316) | [B-312](B-312.md) and the store PIE files | B-317 | [ ] |
-| 30 | Stat-stone consumable wrappers (`ExecuteRawDamage...MaxEPBuffEffect`, the DefenseStone and CritStone branches) — `Public/Inventory/ItemExecutor.h:153` (B-021) | The stone row table (`ApplyStoneBuffEffect`) | [B-021](B-021.md) (use each stone kind) | B-152 | [ ] |
 | 31 | Fusions (B-352, D-141): `FusionRules::RETIRED` and the discarded `if constexpr` bodies — `Private/Inventory/InventoryComponent.cpp` (`AttachFusionToGear`), `Private/Equipment/EquipmentDataBase.cpp` (`IsDataValid` fusion checks), `Private/Equipment/FRuntimeAttachedItem.cpp` (`FromAttachedItem` fusion mapping, fusion bonus); `FFusionId.h`, `FFusionAttachment.h`, `CrystalEffectTable.h` fusion rows, `CrystalTypeHelpers.h` (`IsElementalFusion`, `IsAugmentedFusion`, `IsValidFusionPair`), `EAttachedItemKind::Fusion` (enum value stays, append-only), `FAttachedItem.h` flat fusion fields, `FBrokenCrystalPayload.h` fusion payload; fusion wear / repair in `CrystalBreak.cpp` and `GearRepair.cpp`; fusion pricing in `EconomyService.cpp`; `CrystalManager.cpp`, `ActionExecutor.cpp`, `LoadoutComponent.cpp`, `RingData.cpp` fusion branches; D-077's fusion counting line in `LoadoutRules.cpp`; specs `RingFusionStoneSpec.cpp`, the fusion cases in `GearAttachSpec.cpp`, `ResistanceSeamSpec.cpp`, `CrystalBreakSpec.cpp`, `LoadoutRulesSpec.cpp` | Nothing: fusions are gone (crystals and evolutions in the element socket, stones in the stone socket, B-351) | [B-352](B-352.md) | sweep | [ ] |
 
 ## Effects, status and resistance
@@ -403,6 +402,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-441](B-441.md) | The inventory screen (D-181, D-177, D-195): tabs, tiles, Give / Store / Take, Give to; the old `wor.UI.Inventory` goes after this passes | Pending | REVIEW (in dev, `feature/B-441-inventory-screen`) | [ ] |
 | [B-445](B-445.md) | Selling and dismantling at the vendors (D-177, D-193): placeholder `wor.UI.Vendor`; the inventory's verbs are Give, Store, Take | Pending | REVIEW (in dev, `feature/B-445-vendor-dismantle-sell`) | [ ] |
 | [B-461](B-461.md) | The inventory screen, piece 2 (Q-461): the filter row, Sort, evolution and apparel tiles, the place name | Pending | REVIEW (in dev, `feature/B-461-inventory-piece-2`) | [ ] |
+| [B-152](B-152.md) | The stat-stone consumable wrappers deleted (D-204): every stat stone, Amber and Opal work as before | Pending | REVIEW (in dev, `chore/B-152-delete-stone-wrappers`) | [ ] |
 | [B-456a](B-456a.md) | The vendor screen, piece 1 (D-193): tabs, rows, Sell and Dismantle; the placeholder `wor.UI.Vendor` (`UVendorServiceWidget`) goes after this passes | Pending | REVIEW (in dev, `feature/B-456-vendor-screen`) | [ ] |
 | [B-456b](B-456b.md) | The vendor screen, piece 2 (D-193, Q-456b): Buy, the cart, "Buying for"; talking to a vendor opens it. The old shop window goes after this passes: `UShopWindowWidget`, `UShopRowWidget`, `WBP_ShopWindow` and its rows, the window path and modal bracket in `UMerchantShopSubsystem` (`ShopWindowClass`), `wor.Shop.BuyFor` | Pending | REVIEW (in dev, `feature/B-456b-vendor-buy`) | [ ] |
 | [B-456c](B-456c.md) | The vendor screen, piece 3 (D-193): the Jeweler's Item slots tab. The placeholder goes after this passes: `UItemSlotUpgradeWidget` (`wor.UI.ItemSlots`) | Pending | REVIEW (in dev, `feature/B-456c-item-slots`) | [ ] |
@@ -419,4 +419,4 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 
 | Date | Rows | Branch |
 |---|---|---|
-| | | |
+| 2026-11-14 | 30: the stat-stone consumable wrappers (deleted under the D-204 waiver, no PIE tick; B-152) | `chore/B-152-delete-stone-wrappers` |

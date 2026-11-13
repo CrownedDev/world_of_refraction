@@ -150,12 +150,7 @@ private:
 	 *  StoneRowTable row for every standard stat stone (B-021). ResistanceStone (sign-encoded)
 	 *  and the gems keep their own handlers.
 	 *
-	 *  OBSOLETE (B-021): UseItem no longer reaches the stat-stone wrappers below
-	 *  (ExecuteRawDamage/SpellDamage/SpellSpeed/ActionSpeed/CritDamage/Luck/Reflex/TurnSpeedStone/
-	 *  Status/Efficiency/MaxHP/MaxEP), nor ExecuteDefenseBuffEffect's DefenseStone branch (Amber
-	 *  still uses it), nor ExecuteCritBuffEffect's CritStone crit-chance branch (unreachable since
-	 *  CritStone moved to BuffCritDamage; Opal still uses the function). Delete them after Crown's
-	 *  PIE pass of B-021 (B-152). */
+	 *  Every standard stat stone goes through here. */
 	void ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,
 							   ESkillEffectType BuffType, ESkillEffectType DebuffType,
 							   const FString &DisplaySuffix, FItemUseResult &OutResult);
@@ -163,61 +158,14 @@ private:
 	/** Emerald - grant the target a delayed bonus turn (tier-scaled delay; S=0 immediate) */
 	void ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
-	/** Damage stone - self-buff raw (physical) damage % for a fixed duration */
-	void ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** Spell-damage stone - directional spell (magical) damage % for a fixed duration */
-	void ExecuteSpellDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
 	/** Resistance stone - directional blanket status-resist (ModifyStatusResist; enemy side amplifies) */
 	void ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** Spell-speed stone - directional cast-montage speed (SpellSpeedBuff/Debuff; visual until the defense rework) */
-	void ExecuteSpellSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** Action-speed stone - directional ability/attack-montage speed (ActionSpeedBuff/Debuff; visual until the defense rework) */
-	void ExecuteActionSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Amber - Defense buff */
 	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
-	/** Opal - Crit chance buff (+ S-tier reveals) */
+	/** Opal - ally: a guaranteed-crit window plus a small crit-damage rider; enemy: strips an active window */
 	void ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** CritStone consumable - directional crit-DAMAGE: ally ModifyCritDamage buff / enemy CritDamageDebuff. */
-	void ExecuteCritDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** LuckStone consumable - directional Luck buff (ally) / debuff (enemy); lifts all luck consumers. */
-	void ExecuteLuckBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** ReflexStone consumable - directional Reflex buff (ally) / debuff (enemy); widens/narrows the
-	 *  defense input window via the B-5 window read (ReflexBuff - ReflexDebuff). */
-	void ExecuteReflexBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** TurnSpeedStone - directional turn-speed buff (ally) / debuff (enemy) at the
-	 *  stone's 3-15 magnitude. Pure stat; no turn mechanic (separate from Emerald's
-	 *  ExecuteBonusTurnEffect). */
-	void ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** StatusStone - directional StatusMultiplier buff (ally) / debuff (enemy) at the
-	 *  stone's 3-15 magnitude. Transient effect (Step-5b layer), separate from the
-	 *  attached form's base-stat getter. */
-	void ExecuteStatusBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** EfficiencyStone - directional Efficiency buff (ally) / debuff (enemy) at the
-	 *  stone's 3-15 magnitude. Transient EfficiencyBuff/Debuff (H0) folded into the
-	 *  unified getter, so it reaches BD drain / EP cost / durability automatically. */
-	void ExecuteEfficiencyBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** MaxHPStone - directional MaxHP buff (ally) / debuff (enemy) at the stone's 3-15
-	 *  magnitude. Transient MaxHPBuff/Debuff (P2a) folded into RecomputeMaxPools and the
-	 *  P2b subscribe trigger recomputes the pool — no per-consumer pool wiring here. */
-	void ExecuteMaxHPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
-
-	/** MaxEPStone - directional MaxEnergy buff (ally) / debuff (enemy) at the stone's
-	 *  3-15 magnitude. Transient MaxEnergyBuff/Debuff folded into RecomputeMaxPools via
-	 *  the P2b trigger. */
-	void ExecuteMaxEPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Onyx - Silence */
 	void ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
