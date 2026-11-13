@@ -32,7 +32,7 @@ enum class EItemEffectType : uint8
     StatusClear UMETA(DisplayName = "Status Clear (Quartz bar clear)"),
     Repair UMETA(DisplayName = "Weapon Repair"),
     // Appended (=12). No consumable effect — used by attach-only crystals like
-    // AbilityStone so UseItem's dispatch finds no case and falls to the default
+    // DurabilityStone so UseItem's dispatch finds no case and falls to the default
     // "not a usable consumable" arm. Runtime-derived only (never serialized),
     // so the append needs no CoreRedirect.
     None UMETA(DisplayName = "None (no consumable effect)"),

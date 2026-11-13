@@ -132,7 +132,9 @@ public:
               meta = (TitleProperty = "Name", EditCondition = "!IsAugmentStoneAttached", EditConditionHides))
     TArray<USpellData *> DefaultSpells;
 
-    /** Default abilities seeded onto a augment-stone-attached weapon's ability slots.
+    /** OBSOLETE (B-437, D-175): nothing reads this since no stone grants abilities; delete in the D-124 sweep,
+     *  after the editor step clears any authored values.
+     *  Default abilities seeded onto a augment-stone-attached weapon's ability slots.
      *  Parallels DefaultSpells; only meaningful when the attachment is a augment stone,
      *  so the editor shows it only then. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
