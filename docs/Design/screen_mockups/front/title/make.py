@@ -6,7 +6,6 @@ import sys
 from PIL import Image, ImageDraw
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-os.environ.setdefault("WOR_ACCENT", "violet")  # the front end is drawn with the proposed violet focus colour
 sys.path.insert(0, os.path.join(OUT, "..", "..", "_kit"))
 from wor_ui import *  # noqa: E402,F401
 

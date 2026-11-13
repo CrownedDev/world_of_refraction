@@ -42,11 +42,9 @@ def T(size):
 # ---- UI_Theme.md tokens (same values as refine_v2)
 BG, PANEL, PLATE, STEEL = (16, 18, 25), (20, 22, 28), (46, 46, 46), (140, 144, 152)
 TRACK = (42, 45, 53)
-TEAL, CYAN, TXT, DIM, OFF = (51, 127, 141), (159, 236, 245), (238, 241, 245), (169, 175, 184), (107, 112, 120)
-# Proposed focus accent to sit on the purple nebula (UI_Theme.md section 3, "Proposed"): WOR_ACCENT=violet swaps the
-# teal focus plate and the cyan accent for a violet pair, so any set can be drawn with it for comparison.
-if os.environ.get("WOR_ACCENT") == "violet":
-    TEAL, CYAN = (91, 58, 153), (205, 184, 255)
+# The focus accent is violet (Crown, 2026-11-14; UI_Theme.md section 3): it sits on the purple nebula. The names stay
+# TEAL (the focus plate) and CYAN (its edge and accent text) so the scripts need no change; colours only.
+TEAL, CYAN, TXT, DIM, OFF = (91, 58, 153), (205, 184, 255), (238, 241, 245), (169, 175, 184), (107, 112, 120)
 ROSE, ROSE_LOW, EP = (224, 64, 127), (255, 143, 180), (111, 214, 228)
 WARN, KILL, GOOD = (242, 162, 58), (255, 70, 70), (110, 200, 110)
 GOLD = (232, 201, 121)

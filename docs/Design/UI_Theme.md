@@ -26,12 +26,11 @@ V1 stacked = V2 normal (checked by compositing). So V1 is the toolkit, V2 the lo
 | Plate dark / mid / edge | `#2E2E2E` / `#6A6A6A` / `#DCDCDC` | Hidris's grey plate (sampled from V2) |
 | Steel | `#8C9098` | Frames, rules (deckbuilder) |
 | Platinum | `#D6DEEC` | Tier, premium (deckbuilder) |
-| Teal deep / Teal / Crystal | `#06595C` / `#337F8D` / `#9FECF5` | **Focus**: Hidris's selected state. The one UI accent. |
-| **Proposed (2026-11-14, not approved):** Violet / Violet light | `#5B3A99` / `#CDB8FF` | A focus colour that sits on the title's purple nebula, where the teal clashes (Crown). Drawn on `screen_mockups/front/title/1_title.png` and, game-wide, `run/rest_spot/1_rest_menu_violet.png` (the kit's `WOR_ACCENT=violet`). White text on the fill is about 8:1. Insight from the deckbuilder, whose navigation buttons are purple; no asset of its is used. **Costs if approved:** Hidris's selected plates are cyan and would need a violet tint or redraw; and violet is already the Void element and the Secret quest colour, so focus would share a hue with them |
+| Violet / Violet light | `#5B3A99` / `#CDB8FF` | **Focus**: the selected state and the one UI accent (Crown, 2026-11-14; colours only, the button shapes stay). It sits on the title's purple nebula, where the old teal clashed. White text on the fill is about 8:1. Hidris's selected plates are drawn cyan and need a violet tint or redraw. Violet is also the Void element and the Secret quest colour, so focus shares a hue with them. Was Teal deep / Teal / Crystal `#06595C` / `#337F8D` / `#9FECF5` |
 | Text / secondary / disabled | `#EEF1F5` / `#A9AFB8` / `#6B7078` | All pass 4.5:1 on Stone 800 except disabled (by design) |
 | HP / HP low / EP | `#E8ECF2` / `#F07A5A` / `#6FD6E4` | Bars stay neutral so element colour stays meaningful |
 
-Rule (deckbuilder §1, Hades' "colour is information"): chrome is grey-steel; **cyan = focus**; **element colour only where the element matters** (skills, status bars, portrait gem, proc banner).
+Rule (deckbuilder §1, Hades' "colour is information"): chrome is grey-steel; **violet = focus** (was cyan); **element colour only where the element matters** (skills, status bars, portrait gem, proc banner).
 
 ## 3. Element accents (UI display values)
 
@@ -54,10 +53,10 @@ Updating `ElementColors.h` to match is a separate code job (`UI_ScreenInventory.
 | State | Look |
 |---|---|
 | Normal | V2 grey plate |
-| Focus / hover | V2 cyan plate. Gamepad focus and mouse hover are one state (CommonUI, pillar 9). |
-| Pressed | Cyan plate 20% darker, 2 px down, 80 ms |
+| Focus / hover | V2 plate tinted violet. Gamepad focus and mouse hover are one state (CommonUI, pillar 9). |
+| Pressed | Violet plate 20% darker, 2 px down, 80 ms |
 | Disabled | Grey plate at 45%, no gloss, grey text; still focusable to show why |
-| Selected (toggle on) | Grey plate + V1 stroke tinted cyan (infusion source, chosen target) |
+| Selected (toggle on) | Grey plate + V1 stroke tinted violet (infusion source, chosen target) |
 
 Focus must be **bright**, never dark: Expedition 33 players complained its black selection highlight was hard to see ([Steam discussion](https://steamcommunity.com/app/1903340/discussions/0/592896433808511656)). Metaphor's director: each menu has its own look but must stay "simple, practical, and usable" ([Kotaku](https://kotaku.com/-metaphor-refantazio-persona-5-menu-ui-hashino-1851667088)); Hidris's set fits that.
 
