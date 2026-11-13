@@ -48,9 +48,11 @@ namespace WoRMenuStyle
 	inline const FLinearColor TextColor = FLinearColor::FromSRGBColor(FColor(238, 241, 245));
 	inline const FLinearColor DimColor = FLinearColor::FromSRGBColor(FColor(169, 175, 184));
 	inline const FLinearColor OffColor = FLinearColor::FromSRGBColor(FColor(107, 112, 120));
-	inline const FLinearColor HPColor = FLinearColor::FromSRGBColor(FColor(224, 64, 127));
+	// D-194 (Crown, 2026-11-13): HP and EP bars are a darker red and a darker blue, so the numbers on them read.
+	// TODO: take the exact shades from UI_Theme.md once the UI Designer sets them (the battle HUD uses the same).
+	inline const FLinearColor HPColor = FLinearColor::FromSRGBColor(FColor(168, 36, 60));
 	inline const FLinearColor LowHPColor = FLinearColor::FromSRGBColor(FColor(255, 143, 180));
-	inline const FLinearColor EPColor = FLinearColor::FromSRGBColor(FColor(111, 214, 228));
+	inline const FLinearColor EPColor = FLinearColor::FromSRGBColor(FColor(38, 110, 168));
 	inline const FLinearColor WarnColor = FLinearColor::FromSRGBColor(FColor(242, 162, 58));
 	inline const FLinearColor GoodColor = FLinearColor::FromSRGBColor(FColor(110, 200, 110));
 	inline const FLinearColor ValueBackingColor = FLinearColor::FromSRGBColor(FColor(16, 18, 25, 170));
