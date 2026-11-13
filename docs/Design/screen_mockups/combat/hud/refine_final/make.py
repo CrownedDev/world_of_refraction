@@ -25,16 +25,17 @@ def vbar(d, x, y, w, h, frac, col, text=None, ghost=0.0, ghost_col=None, size=17
     ghost > 0: what it would add (drawn after the fill). In game the ghost pulses."""
     col = BAR.get(col, col)
     d.rectangle((x, y, x + w, y + h), fill=(42, 45, 53))
-    keep =max(0.0, frac + min(ghost, 0.0))
+    keep = max(0.0, frac + min(ghost, 0.0))
     d.rectangle((x, y, x + int(w * keep), y + h), fill=col)
     if ghost:
         a, b = (keep, frac) if ghost < 0 else (frac, min(1.0, frac + ghost))
-        d.rectangle((x + int(w * a), y, x + int(w * b), y + h), fill=ghost_col or (255, 235, 240), outline=(255, 255, 255))
-        for sx in range(x + int(w * a) + 4, x + int(w * b), 6):  # hatch, so it reads as "not yet"
-            d.line((sx, y + h, sx + 4, y), fill=(60, 60, 70))
+        # A dimmed fill with light stripes (reads as "not yet"), dark enough that the plain white value stays readable.
+        dim = tuple((c + t) // 2 for c, t in zip(col, (42, 45, 53)))
+        d.rectangle((x + int(w * a), y, x + int(w * b), y + h), fill=dim)
+        for sx in range(x + int(w * a) + 2, x + int(w * b) - 3, 8):
+            d.line((sx, y + h, sx + 4, y), fill=ghost_col or (255, 235, 240))
     if text:
         tw = d.textlength(text, font=F(size, True))
-        d.rounded_rectangle((x + (w - tw) / 2 - 6, y + 1, x + (w + tw) / 2 + 6, y + h - 1), 4, fill=BG)  # readable over the stripes
         d.text((x + (w - tw) / 2, y + (h - size) / 2 - 3), text, font=F(size, True), fill=(255, 255, 255), stroke_width=2, stroke_fill=(16, 18, 25))
 
 
