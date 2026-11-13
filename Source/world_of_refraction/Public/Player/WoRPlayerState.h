@@ -151,6 +151,17 @@ public:
 	UFUNCTION(Server, Reliable)
 	void ServerReportWallet(const FSavedWallet &Saved, int32 CarriedGold);
 
+	/** B-438 (split from B-425, Q-438): the host sends this guest its live balances and run Gold, which the guest writes
+	 *  to its own save (USaveSubsystem::BankWalletSnapshot). Sent once the guest's report is applied and at every host
+	 *  save, so what a guest earns or spends in co-op is kept. It also tells the guest its mirror is now its real wallet,
+	 *  so it banks it at leave too. */
+	UFUNCTION(Client, Reliable)
+	void Client_BankWallet(const FSavedWallet &Saved, int32 RunGold);
+
+	/** B-438 (server): sends a remote player its wallet (Client_BankWallet), once its saved wallet was applied here.
+	 *  Nothing for the host's own player or before the report. */
+	void SendWalletToOwner();
+
 	/** B-377b: a client's hidden quest progress, for the host to check its steps (sent on joining and on each change). */
 	UFUNCTION(Server, Reliable)
 	void ServerReportQuests(const TArray<FSavedQuestProgress> &Quests);
@@ -210,6 +221,10 @@ private:
 
 	/** B-425: server only: this player's saved wallet has been applied (ServerReportWallet), carried by CopyProperties. */
 	bool bReportedWalletApplied = false;
+
+	/** B-438: client only: the host applied this player's saved wallet (a Client_BankWallet arrived), so the mirror is
+	 *  this player's real wallet and is banked at leave. */
+	bool bHostWalletConfirmed = false;
 
 	/** Only the local player's wallet is banked (an AI or remote PlayerState has none to keep). */
 	bool IsLocalPlayerWallet() const;

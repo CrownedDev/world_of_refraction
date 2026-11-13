@@ -162,8 +162,10 @@ void AWoRPlayerState::FollowLocalForm()
 void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	const UGameInstance *GI = GetGameInstance();
-	// B-425: a guest's wallet is the host's mirror; banking it would overwrite the guest's own save.
-	if (USaveSubsystem *Save = GI && HasAuthority() && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
+	// B-425: a guest's wallet is the host's mirror; banking it would overwrite the guest's own save. B-438: once the host
+	// confirmed it applied the guest's save (Client_BankWallet), the mirror is the guest's real wallet and is banked.
+	const bool bMayBank = HasAuthority() || bHostWalletConfirmed;
+	if (USaveSubsystem *Save = GI && bMayBank && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
 		Save->BankWallet(Wallet);
 	}
@@ -753,8 +755,29 @@ void AWoRPlayerState::ServerReportWallet_Implementation(const FSavedWallet &Save
 	{
 		Wallet->Add(ECurrencyType::Gold, MissingGold);
 	}
+	SendWalletToOwner(); // B-438: confirms it to the guest at once
 	UE_LOG(LogWoR, Log, TEXT("[Wallet] %s's saved wallet applied on the host: %d balance(s), %d carried Gold (B-425)"),
 		   *GetPlayerName(), Saved.Balances.Num(), FMath::Max(0, CarriedGold));
+}
+
+void AWoRPlayerState::SendWalletToOwner()
+{
+	const APlayerController *PC = Cast<APlayerController>(GetOwner());
+	if (!HasAuthority() || !bReportedWalletApplied || !Wallet || !PC || PC->IsLocalController())
+	{
+		return;
+	}
+	Client_BankWallet(USaveSubsystem::CaptureWallet(Wallet), Wallet->GetBalance(ECurrencyType::Gold));
+}
+
+void AWoRPlayerState::Client_BankWallet_Implementation(const FSavedWallet &Saved, int32 RunGold)
+{
+	bHostWalletConfirmed = true;
+	const UGameInstance *GI = GetGameInstance();
+	if (USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
+	{
+		Save->BankWalletSnapshot(Saved, RunGold);
+	}
 }
 
 void AWoRPlayerState::ServerReportQuests_Implementation(const TArray<FSavedQuestProgress> &Quests)
