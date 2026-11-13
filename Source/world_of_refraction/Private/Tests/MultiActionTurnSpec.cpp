@@ -301,8 +301,8 @@ void FMultiActionTurnSpec::Define()
 			TestFalse(TEXT("The foe is down"), FoeData->bIsAlive);
 			TestEqual(TEXT("Hero acted once"), CountHeroActions(EActionType::Ability), 1);
 			TestEqual(TEXT("A banked action is left"), ActionsOf(Hero), MULTI_ACTION_MAX - MULTI_ACTION_COST_ONE);
-			TestEqual(TEXT("Victory (no kill-shot hold headless: no camera director)"), Orchestrator->GetCombatState(),
-					  ECombatState::Victory);
+			TestTrue(TEXT("Victory (no kill-shot hold headless: no camera director)"),
+					 Orchestrator->GetCombatState() == ECombatState::Victory);
 			TestEqual(TEXT("No second action was asked for"), CountSteps(ETurnStartStep::ActionRequested), 0);
 		});
 
