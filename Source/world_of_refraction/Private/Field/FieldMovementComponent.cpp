@@ -7,6 +7,7 @@
 #include "Character/ECharacterClass.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Engine/World.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Field/FieldSkillUnlockSubsystem.h"
 #include "GameFramework/Character.h"
@@ -350,7 +351,8 @@ void UFieldMovementComponent::DrainEnhancedSprint()
 		StopEnhancedSprint();
 		return;
 	}
-	if (CharComp->CurrentEP < FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND)
+	const int32 Cost = GetFieldEPCost(FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND); // B-214h: an evolution's discount
+	if (CharComp->CurrentEP < Cost)
 	{
 		StopEnhancedSprint();
 		return;
@@ -366,8 +368,8 @@ void UFieldMovementComponent::DrainEnhancedSprint()
 	{
 		return; // Q-214a (Crown): standing, walking or stopping to talk costs nothing; it stays on
 	}
-	CharComp->ServerSpendEnergy(FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND);
-	if (CharComp->CurrentEP < FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND)
+	CharComp->ServerSpendEnergy(Cost);
+	if (CharComp->CurrentEP < Cost)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: Enhanced Sprint out of EP"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()));
 		StopEnhancedSprint();
@@ -413,7 +415,33 @@ void UFieldMovementComponent::OnRep_EnhancedSprintActive()
 
 float UFieldMovementComponent::GetSprintSpeedMultiplier() const
 {
-	return bEnhancedSprintActive ? FieldSkillRules::GetEnhancedSprintMultiplier(EnhancedSprintElement) : FieldSkillRules::NO_SPRINT_BOOST;
+	const float SkillMultiplier = bEnhancedSprintActive ? FieldSkillRules::GetEnhancedSprintMultiplier(EnhancedSprintElement)
+														: FieldSkillRules::NO_SPRINT_BOOST;
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return SkillMultiplier * FieldSkillRules::GetEvolutionSprintMultiplier(Evolution ? Evolution->FieldSprintBonusPercent : 0.0f);
+}
+
+const UEvolutionItemData *UFieldMovementComponent::GetSeatedEvolution() const
+{
+	const ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	if (!Loadout)
+	{
+		return nullptr;
+	}
+	const FEvolutionAttachment Seat = Loadout->GetCharacterSlotEvolution();
+	return Seat.Item && !Seat.IsBroken() ? Seat.Item : nullptr;
+}
+
+int32 UFieldMovementComponent::GetFieldEPCost(int32 BaseCost) const
+{
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return FieldSkillRules::ApplyFieldEPDiscount(BaseCost, Evolution ? Evolution->FieldSkillEPDiscountPercent : 0.0f);
+}
+
+FFieldFlightLimits UFieldMovementComponent::GetEffectiveFlightLimits() const
+{
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return Evolution ? FieldSkillRules::CombineFlightLimits(FlightLimits, Evolution->FieldFlightLimits) : FlightLimits;
 }
 
 void UFieldMovementComponent::ReapplySprintSpeed() const
@@ -449,7 +477,11 @@ FString UFieldMovementComponent::GetFieldStateString() const
 						  *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(GetFieldAttackPhysicalType())))
 		+ FString::Printf(TEXT(" | recall mark %s"), bHasRecallMark ? *RecallMark.ToCompactString() : TEXT("none")) // B-214e
 		+ FString::Printf(TEXT(" | flight %s (limits: EP %s, ceiling %s, no-fly %s; in no-fly %s)"), // B-214d
-						  bFlying ? TEXT("ON") : TEXT("off"), FlightLimits.bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),
-						  FlightLimits.bNoCeiling ? TEXT("none") : TEXT("on"), FlightLimits.bIgnoreNoFly ? TEXT("ignored") : TEXT("on"),
-						  IsInNoFlyZone() ? TEXT("yes") : TEXT("no"));
+						  bFlying ? TEXT("ON") : TEXT("off"), GetEffectiveFlightLimits().bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),
+						  GetEffectiveFlightLimits().bNoCeiling ? TEXT("none") : TEXT("on"),
+						  GetEffectiveFlightLimits().bIgnoreNoFly ? TEXT("ignored") : TEXT("on"), IsInNoFlyZone() ? TEXT("yes") : TEXT("no"))
+		+ FString::Printf(TEXT(" | evolution %s (sprint +%.0f%%, field EP -%.0f%%)"), // B-214h
+						  GetSeatedEvolution() ? *GetSeatedEvolution()->ItemName : TEXT("none"),
+						  GetSeatedEvolution() ? GetSeatedEvolution()->FieldSprintBonusPercent : 0.0f,
+						  GetSeatedEvolution() ? GetSeatedEvolution()->FieldSkillEPDiscountPercent : 0.0f);
 }
