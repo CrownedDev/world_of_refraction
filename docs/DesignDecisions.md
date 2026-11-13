@@ -765,6 +765,48 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-181 — UI screens approved as drawn; unmet forms show "???"
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-439, B-440, B-441, B-442, B-443, B-444
+**Answer (Crown):** these mockups in `Design/UIScreens.md` are **approved as drawn**: the pause menu, loadout and skills, inventory (with D-177's verb change), the character sheet, the hub HUD, skins / forms. On the forms list a character you haven't met shows as **"???"** (UIScreens question 15).
+**Notes for Claude:** one build job per screen (B-439 to B-444), built one at a time on the CommonUI root (`UWoRRootLayout::PushMenu`), the pause menu first. Final art is the Hidris pass; these are layout, information and controls.
+
+---
+
+### D-180 — Loadout screen: the stone socket stays, two equal weapon slots, a shield weapon stands in the shield stance
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-440, B-446
+**Answer (Crown):** (UIScreens questions 2, 3) the **other augment stones stay** (only the Ability Stone went, D-175), so each gear row keeps its stone socket. Weapons stay **two equal slots** with the wield mode in the kind line (no main hand / off hand slots, D-110). A **shield weapon uses the shield stance as its default idle**.
+**Notes for Claude:** the idle stance comes from the shown weapon's `WeaponStance` (`LoadoutComponent.cpp:3064`), so the stance is data: **B-446** checks and sets it on the sword-and-shield weapons in the editor.
+
+---
+
+### D-179 — Recruiting: "played by" NPC or Player; with a full party an NPC steps out
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the recruit card's mockup is redrawn first)
+**Answer (Crown):** (UIScreens question 14) the recruit card's "played by" reads **NPC** or **Player**. If the party is full and is **only you and NPCs**, the recruit asks **which NPC steps out** (or decline). A **real player is never swapped out**; if every other slot is a player, the offer is **refused**.
+**Notes for Claude:** today `UPartySessionSubsystem::InviteRunMember` (`PartySessionSubsystem.h:146`) has no step-out path; the job that builds the recruit card adds it. No job yet.
+
+---
+
+### D-178 — NPC talk: short top-level actions, topics under Talk, the box shows the role
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the NPC talk mockup is redrawn first)
+**Answer (Crown):** (UIScreens question 13) an NPC's top-level choices are **short actions: Shop, Talk, Leave**. "Show me your weapons" becomes **Shop**. Topics sit **under Talk** by a short name ("About the Ember Trials" becomes **Trials**), and **new dialogue lines also sit under Talk**. The talk box names the speaker by **role** ("Blacksmith").
+**Notes for Claude:** no job yet; the job that builds the talk screen (UIScreens #20) follows this.
+
+---
+
+### D-177 — Inventory verbs are Give, Store, Take; Dismantle and Convert happen at the vendor; vendors buy items
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-441, B-445
+**Answer (Crown):** (UIScreens question 9; **changes D-131**) the inventory has **no Dismantle and no Convert-to-gold**. Those happen **only at the relevant NPC**. **Vendors do buy items** (selling). The inventory's verbs are **Give, Store, Take**.
+**Notes for Claude:** D-131's one inventory screen keeps its three verbs. **B-445** moves Dismantle and Convert out of `WoRInventoryVerbs` (`InventoryVerbs.h:58-65`) to the vendor screens and adds selling (`UEconomyService` only buys today); which vendor takes which, and the sell price, are that job's questions.
+
+---
+
+### D-176 — Quitting in the middle of a run loses everything
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-439
+**Answer (Crown):** (UIScreens question 1; adds to D-172) **quitting a run loses everything** from that run. The **only way out with loot is extracting** at a designated point or NPC. Quit needs a **strong confirm**.
+**Notes for Claude:** the pause menu's Quit to title (B-439) says so and asks for a hold before it quits. Extracting still pays `RunRewards::LEAVE_EARLY_SHARE`; falling still pays in full (RunStructure §6).
+
+---
+
 ### D-175 — The Ability Stone is retired
 **Status:** DECIDED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (B-437)
 **Answer (Crown):** the **Ability Stone** is removed from the game; every other augment stone stays. A weapon's ability slots come only from **the weapon's tier** (F 1 … S 6) **plus the attached crystal's extra slots** (B-098 / B-410). An augment stone no longer adds slots, so a weapon holds **at most 12 abilities** (S tier 6 + an S gem's 6).

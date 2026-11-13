@@ -1,6 +1,6 @@
 # UI Screens — every screen outside the battle HUD
 
-**Status:** layouts approved for now by Crown (2026-11-13); final art from the Hidris pass. Docs and mockups only, no widgets. Branch `docs/ui-screens-all`.
+**Status:** layouts approved for now by Crown (2026-11-13); final art from the Hidris pass. Crown approves the screens one by one; the approved ones and their build jobs are in **Approved screens** below. Branch `docs/ui-screens-all`, merged into `dev`.
 **Replaces** the screen list in `UI_ScreenInventory.md` (2026-10-25), which is out of date; that file keeps its asset shopping list.
 **The battle HUD is done** (`BattleHUDRefinePlan.md`, B-436) and is not in this list.
 **Look:** the battle HUD's theme, used loosely (Crown via the brain, 2026-11-13): dark stone panels, one cut corner, **cyan = focus**, tab rows, coloured face-button glyphs, hints at the bottom right. Each screen is laid out for its own job. Final art comes from the Hidris art pass (`UI_Theme.md`); these mockups are layout, information and controls only.
@@ -23,7 +23,7 @@
 | 1 | **Pause / game menu** | Opens with Menu / Esc. Tabs into every menu below; Resume, Settings, Quit to title. In a trial it also shows the run (Prisms, wipes left) | `IA_ToggleMenu` (InputMap, built); CommonUI stacks `UWoRRootLayout::PushMenu` `Public/UI/WoRRootLayout.h:57` | None | P1 |
 | 2 | **Loadout (gear)** | Per character: weapons (Generic 2, one active), adapters, the Refractor's one item, 2 apparel slots; sockets on each (crystal or evolution; stone); the budget meter; up to 5 saved loadouts | `ULoadoutComponent` `Public/Loadout/LoadoutComponent.h:141-286` (Create/Duplicate/Rename/SetActive, `ValidateLoadout` :214, `GetValidationErrors` :218); costs `Public/Loadout/LoadoutConstants.h:31-47`; attach `UInventoryComponent::Attach*` `Public/Inventory/InventoryComponent.h:335-449`; apparel `FApparelEntry.h:70-84`, `UPoolSubsystem::AttachToApparel` `Public/Pool/PoolSubsystem.h:222` | Console (`wor.Loadout.*`, `LoadoutRulesDebug.cpp:36-458`; apparel `:217`, `:260`) | P1 |
 | 3 | **Skills (loadout page)** | Pick which abilities and spells each item gives; the Refractor's innate spells; see school, element, cost | `TryAssignWeaponAbility` / `TryAssignWeaponSpell` / `TryAssignRingSpell` / `TryAssignInnateSpell` `LoadoutComponent.h:270-280` | Console (`wor.Loadout.ReplaceSkill`) | P1 |
-| 4 | **Inventory and pouch** | Per character: gear and pouch; the shared home chest. Verbs Give, Store, Take, Dismantle, Convert (D-131) | `WoRInventoryVerbs` `Public/Inventory/InventoryVerbs.h:58-65`; `WoRGive` `Public/Inventory/GearGive.h:30-63` | Placeholder `UInventoryWidget` `Public/UI/Hub/InventoryWidget.h:21` (`wor.UI.Inventory`); old `UStorageWidget`, `UGiveWidget`, `UDismantleWidget`, `UDuplicateGearWidget` are OBSOLETE | P1 |
+| 4 | **Inventory and pouch** | Per character: gear and pouch; the shared home chest. Verbs **Give, Store, Take** (D-177: Dismantle and Convert moved to the vendors; changes D-131) | `WoRInventoryVerbs` `Public/Inventory/InventoryVerbs.h:58-65`; `WoRGive` `Public/Inventory/GearGive.h:30-63` | Placeholder `UInventoryWidget` `Public/UI/Hub/InventoryWidget.h:21` (`wor.UI.Inventory`); old `UStorageWidget`, `UGiveWidget`, `UDismantleWidget`, `UDuplicateGearWidget` are OBSOLETE | P1 |
 | 5 | **Character sheet** | Class, element, Mind / Body / Spirit, substats, resistances by type (D-168: All, Physical, Spell, each element), Max Actions | `UCharacterDataComponent`; resistance scopes (`ResistanceSystem.md`) | None | P2 |
 | 6 | **Journal** | Pages: Memories, Lore, Quests (Main, Side, Hidden), Conversations, Talk to V. A hidden quest appears only once found and shows only its current step (D-171) | `UMemoryJournalSubsystem` `Public/Memory/MemoryJournalSubsystem.h:64-87`; `UHiddenQuestSubsystem::GetVisibleQuests` `Public/Memory/HiddenQuestSubsystem.h:100`; `EQuestKind` `HiddenQuestData.h:27` | Placeholder `UMemoryJournalWidget` `Public/UI/Hub/MemoryJournalWidget.h:40` (`wor.Journal.Open`, hub `AHubJournalStation`) | P2 |
 | 7 | **Party** | Order the party (up to 3), who plays each member (you, a friend, AI and its difficulty), start cell, field skill, guard style | `UPartySessionSubsystem` `Public/Party/PartySessionSubsystem.h:146-252` | Placeholder `UPartyControlWidget` `Public/UI/Party/PartyControlWidget.h:24` (`wor.UI.PartyControl`); hub strip `UPartyDisplayWidget` (Real) | P2 |
@@ -126,7 +126,8 @@ One block per mocked screen: the images, why the layout, the references.
 ### 4. Inventory and pouch (`menus/inventory/`)
 
 - `1_gear.png` (Gear tab, verb menu on a weaker duplicate), `2_pouch_give.png` (Pouch tab at a rest spot, Give to another member), `3_dismantle_confirm.png`.
-- **One screen, three tabs** (Gear, Pouch, Chest) and **one verb menu** on A: Give, Store, Take, Dismantle, Convert (D-131). A verb that doesn't apply is **greyed with the code's own reason under it** ("Home chest: in the hub only"), never hidden (`WoRInventoryVerbs::GetRefusal`).
+- **Changed by Crown (D-177, 2026-11-13):** the verb menu is **Give, Store, Take** only. Dismantle and Convert-to-gold happen at the vendor who does them, and vendors buy items (Sell). `3_dismantle_confirm.png` is the vendor's confirm now (mock 8), and the verb list in `1_gear.png` is redrawn without the two.
+- **One screen, three tabs** (Gear, Pouch, Chest) and **one verb menu** on A: Give, Store, Take (D-177; was five verbs, D-131). A verb that doesn't apply is **greyed with the code's own reason under it** ("Home chest: in the hub only"), never hidden (`WoRInventoryVerbs::GetRefusal`).
   *Ref:* Baldur's Gate 3's camp chest and per-character inventories (D-117 is modelled on it); Elden Ring's item menu opens one short verb list on the item.
 - **Icon grid, not a list:** gear and items are visual and many; a grid shows 12 at a glance (Diablo IV, BG3). E marks gear a loadout wears. Filter row for gear kinds.
 - **Pouch:** 10 slots to start, the Jeweler's extra ones drawn as locked "Jeweler" slots up to 20, stacks of 10 (`InventoryConstants.h:51-57`). Give asks who receives and shows their room; X toggles the whole stack (the placeholder's "Whole stack" toggle).
@@ -222,9 +223,11 @@ One block per mocked screen: the images, why the layout, the references.
 - `1_hub_hud_prompt.png`, `2_npc_talk.png`, `3_recruit_card.png`.
 - **Hub HUD is nearly empty** (pillar 1, immersion): the party strip bottom left, a floating **interact prompt** by what you face (key + verb + what: "X Talk · Blacksmith"; the same prompt does "Rest", "Enter", "Open"), and the money chip only near a vendor or when it changes.
   *Ref:* Expedition 33's and Elden Ring's clean exploration screens; Hades' House shows currencies only where they matter.
-- **Talking:** the speaker's name and line in one box at the bottom, choices stacked on the right, the world left visible; a choice unlocked by a memory is marked NEW; Y opens the log. A vendor's first choice opens their shop (mock 8).
+- **Talking:** the speaker's **role** ("Blacksmith", D-178) and line in one box at the bottom, choices stacked on the right, the world left visible; Y opens the log.
+  **Changed by Crown (D-178, 2026-11-13):** the top-level choices are short actions: **Shop, Talk, Leave**. "Show me your weapons" is **Shop**; topics sit under **Talk** by a short name ("About the Ember Trials" is **Trials**), and a new line is marked NEW under Talk, not at the top level. `2_npc_talk.png` is redrawn to match.
   *Ref:* Hades' short lines with NEW-dialogue marks; Expedition 33's camp conversations; Persona 5's log on a button.
 - **Recruit card** (a character met in a trial): who they are (class, pillars, Combat Tier), the rule in one line (joins for this run only, uses what your party carries: D-026, B-361), who plays them, and Invite for this run.
+  **Changed by Crown (D-179, 2026-11-13):** "Played by" reads **NPC** or **Player**. With a full party the recruit asks **which NPC steps out** (or decline); a real player is never swapped out, and if every other slot is a player the offer is refused. `3_recruit_card.png` gets the full-party case.
   *Ref:* Fire Emblem's recruit cards; Baldur's Gate 3's "join the party" prompt.
 
 ### 19. Skins / forms (`hub/skins/`)
@@ -286,21 +289,43 @@ Hold View would share the button with Map (`IA_Field_Map`, a tap): tap = map, ho
 Collected as screens are drawn; lore and story questions are listed, not answered.
 
 1. **Quit to title in the middle of a run** (pause, #1): there are no saved runs (D-172). Does quitting count as extracting (reduced payout), as a loss, or is it refused until you extract? *Suggested:* ask first ("Quitting now ends the run: you keep what extracting would give"), like Hades, whose pause menu "Give Up" ends the run as if you fell, after a confirm.
+   **Answered (Crown, 2026-11-13, D-176):** quitting **loses everything** from the run. The only way out with loot is extracting at a designated point or NPC. Quit needs a strong confirm.
 2. **Stone sockets** (loadout, #2): drawn because the code has them (D-141), but the battle HUD plan says you're considering removing augment stones. If they go, each gear row loses its second socket and nothing else changes.
+   **Answered (Crown, 2026-11-13, D-180):** the other augment stones stay; only the Ability Stone was removed (D-175, B-437). The socket stays as drawn.
 3. **Main hand / off hand** (loadout, #2): the code has two equal weapon slots and a wield mode per weapon, not hand slots. The mockup follows the code; say if you want hand slots shown.
+   **Answered (Crown, 2026-11-13, D-180):** keep two equal weapon slots, the wield mode in the kind line. A shield weapon stands in the shield stance by default (B-446).
 4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
 5. **Words for the end screens** (#26, #27): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
 6. ~~World-stat draft~~ Settled by the code: it is marked OBSOLETE, replaced by level drops (B-223, D-102). Not mocked.
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
 8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
+   **Answered (Crown, 2026-11-13, D-177):** vendors **do buy items** (Sell). Dismantle and Convert-to-gold are not in the inventory; they happen only at the relevant vendor. The inventory's verbs are Give, Store, Take.
 10. **Journal words** (#6, lore): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
 11. **Title and loading words** (#9, #12, lore): the logo and key art, and which descriptions appear on loading screens (any item or character, or only ones you've met?).
 12. **New game** (#11, lore): the choice itself is decided (Manny or Quinn, and class; `CharacterForms.md`). How it's presented isn't mocked: it is the opening scene (HubAndStory §4), yours.
 15. **Forms list** (#19, lore): do characters you haven't met show as "???" (as drawn) or not at all? And the form names shown are placeholders.
+    **Answered (Crown, 2026-11-13, D-181):** unmet characters show as "???", as drawn.
 16. **Refractor elements at the start** (#11): are all nine open to a new Refractor, or are some (Void, Reality, Broken Darkness) earned later? All nine are drawn. The one-line element descriptions are plain-words versions of the status rules; reword as you like.
 13. **Who speaks** (#20, lore): the service NPCs are V in different forms and who V is stays hidden (HubAndStory §2, §3). Does the talk box name them by role ("Blacksmith"), as V, or with no name? The mockup uses the role.
+    **Answered (Crown, 2026-11-13, D-178):** the talk box shows the **role** ("Blacksmith").
 14. **Recruiting with a full party** (#29): the party cap is 3. If you meet a recruit with three members, is the offer refused, or does someone step out? The mockup shows only the case with room.
+    **Answered (Crown, 2026-11-13, D-179):** if the party is only you and NPCs, the recruit asks which NPC steps out (or decline). A real player is never swapped out; if every other slot is a player, the offer is refused.
+
+## Approved screens (Crown, 2026-11-13)
+
+Approved as drawn, one build job each; built one at a time on the CommonUI root (`UWoRRootLayout::PushMenu`), the pause menu first.
+
+| Screen | # | Mock set | Job | Note |
+|---|---|---|---|---|
+| Pause / game menu | 1 | `menus/pause` | B-439 | Quit in a run loses everything (D-176) |
+| Loadout and skills | 2, 3 | `menus/loadout` | B-440 | Stone socket stays, two equal weapon slots (D-180) |
+| Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177) |
+| Character sheet | 5 | `menus/character` | B-442 | |
+| Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 | |
+| Skins / forms | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
+
+Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178) and the recruit card (#29, D-179).
 
 ## Summary (2026-11-13)
 
@@ -316,12 +341,13 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 **For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
 
-**Open questions for Crown:** the 16 above (16 is a design one). Lore ones (yours alone): 5, 8, 10, 11, 12, 13, 15. Design ones with a suggestion: 1, 2, 3, 4, 7, 9, 14. Settled: 6.
+**Open questions for Crown:** the 16 above (16 is a design one). **Answered (2026-11-13):** 1, 2, 3, 9, 13, 14, 15 (D-176 to D-181). Still open: lore 5, 8, 10, 11, 12; design 4, 7, 16. Settled: 6.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-13 | Crown's answers to questions 1, 2, 3, 9, 13, 14, 15 and the NPC talk choices (D-176 to D-181); six screens approved as drawn, build jobs B-439 to B-444 | docs/ui-screens-answers |
 | 2026-11-13 | New game: element choices under the Refractor description, title and text follow the element (Crown) | docs/ui-screens-all |
 | 2026-11-13 | Second pass (the screens left), 49 images in all, the review page link | docs/ui-screens-all |
 | 2026-11-13 | 14 mock sets (42 images as `make.py` scripts), mockup notes, proposed input rows, 15 questions, summary | docs/ui-screens-all |
