@@ -157,7 +157,10 @@ void FFieldAdvancedSpec::Define()
 				return;
 			}
 			TestTrue(TEXT("launched"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None);
-			TestEqual(TEXT("up"), static_cast<float>(Pawn->GetCharacterMovement()->PendingLaunchVelocity.Z), FieldSkillRules::SUPER_LAUNCH_SPEED, FieldAdvancedSpecValues::TOLERANCE);
+			// Rising at once (no pending launch), so the glide can only start at the top.
+			TestEqual(TEXT("up"), static_cast<float>(Pawn->GetCharacterMovement()->Velocity.Z), FieldSkillRules::SUPER_LAUNCH_SPEED, FieldAdvancedSpecValues::TOLERANCE);
+			TestTrue(TEXT("in the air"), Pawn->GetCharacterMovement()->MovementMode == MOVE_Falling);
+			TestFalse(TEXT("not gliding yet"), Field->IsGliding());
 		});
 
 		It("regroups behind the other party member, and refuses with no one there", [this]()

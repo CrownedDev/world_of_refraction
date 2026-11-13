@@ -127,12 +127,17 @@ EFieldSkillRefusal UFieldMovementComponent::DoRecall(ACharacter &Character)
 
 EFieldSkillRefusal UFieldMovementComponent::DoSuperLaunch(ACharacter &Character)
 {
-	if (Character.GetCharacterMovement()->MovementMode == MOVE_None)
+	UCharacterMovementComponent *Movement = Character.GetCharacterMovement();
+	if (Movement->MovementMode == MOVE_None)
 	{
-		return EFieldSkillRefusal::Blocked; // a launch is ignored with no movement mode
+		return EFieldSkillRefusal::Blocked; // nothing moves the pawn with no movement mode
 	}
+	StopFlight();
 	SetGliding(false);
-	Character.LaunchCharacter(FVector(0.0f, 0.0f, FieldSkillRules::SUPER_LAUNCH_SPEED), false, true);
+	// As a jump does, not LaunchCharacter: a pending launch only lands on the pawn's next move, so a pawn already
+	// falling would start the glide before it rose.
+	Movement->Velocity.Z = FieldSkillRules::SUPER_LAUNCH_SPEED;
+	Movement->SetMovementMode(MOVE_Falling);
 	bSuperLaunchGlidePending = true;
 	UpdateMoveStepTimer();
 	return EFieldSkillRefusal::None;

@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-214e](B-214e.md) | `feature/B-214e-advanced-moves-cloud` (cloud, **unbuilt**, carries B-214b to B-214d) | Field skills part 5: Teleport (Void only), Phase step, Mark and recall, Super launch (then a glide), Regroup (to the farthest party member; not in a fight) | Pending |
+| [B-214e](B-214e.md) | `feature/B-214e-advanced-moves` (in dev, built 2026-11-14) | Field skills part 5: Teleport (Void only), Phase step, Mark and recall, Super launch (then a glide), Regroup (to the farthest party member; not in a fight) | Pending |
 | [B-214d](B-214d.md) | `feature/B-214d-flight` (in dev, built 2026-11-14) | Field skills part 4: flight (EP each second, hover when still, a ceiling above the take-off, `Zone.NoFly` volumes), each limit liftable (`wor.Field.FlightLimits`). Editor step: tag a volume `Zone.NoFly` | Pending |
 | [B-214c](B-214c.md) | `feature/B-214c-ground-air-moves` (in dev, built 2026-11-14) | Field skills part 3: glide (in the air, slow fall), high jump with one double jump per airtime, air dash (Lightning blinks), wall-run during Enhanced Sprint | Pending |
 | [B-214b](B-214b.md) | `feature/B-214b-field-unlocks` (in dev, built 2026-11-14) | Field skills part 2: a movement type unlocks for an element when that element's aura spell reaches rank 3 / 7 (account-wide, kept once reached, saved); Enhanced Sprint is now locked until then; the placeholder picker from the party screen (Field skill...) or `wor.UI.FieldSkill`. Editor step: mark an aura spell | Pending |
