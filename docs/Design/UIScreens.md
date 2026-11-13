@@ -90,7 +90,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 9. [x] Journal (`menus/journal`)
 10. [x] Party and co-op (`menus/party`, `coop/session`)
 11. [x] Title, save notices, loading (`front/title`)
-12. [ ] Character sheet (`menus/character`)
+12. [x] Character sheet (`menus/character`)
 13. [ ] Hub HUD, prompt, loading, NPC talk (`hub/hud`)
 
 ## Mockup notes
@@ -203,6 +203,13 @@ One block per mocked screen: the images, why the layout, the references.
 - **New Game with a save present** says what is replaced and needs a 2-second hold. *Ref:* Hades' and Elden Ring's delete confirms; hold-to-confirm is the standard for destructive actions (Destiny 2's dismantle).
 - **Saving:** no save prompt in play. The game autosaves; a small crystal mark with "Saving…" shows bottom left while it writes (drawn on the loading image). *Ref:* the standard autosave icon (Elden Ring, Hades). There are no saved runs (D-172), so there is no "save and quit" in a trial.
 - **Loading** (hub ↔ trial only, FeelGuide 10): one item or character with its description to read. *Ref:* Elden Ring's and Dark Souls' item-lore loading screens.
+
+### 5. Character sheet (`menus/character/`)
+
+- `1_character_sheet.png`. Three columns: who they are (HP, EP, **Max Actions** with action-point progress and the regain per turn, curses held), **pillars with their substats grouped under them** (the grouping of Rules CL-39), and **resistance by damage type** (D-168): All, Physical, Spell, then each element, as a bar from the middle (green right = resists, rose left = weak).
+  *Ref:* Elden Ring's status screen (attributes left, defences by damage type right); Expedition 33's attribute page; Diablo IV's "where it comes from" breakdown, here on R3.
+- Body's "Defence" and the Resistance column's "All" are the same number (D-168 makes Defence the All line). When that rename lands in code, the Body row can read "Resistance (All)".
+- Only your own characters' weaknesses are shown; enemy weaknesses are never listed anywhere (FeelGuide 5).
 
 ## Shared menu controls
 
