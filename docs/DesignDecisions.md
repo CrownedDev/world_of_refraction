@@ -790,6 +790,25 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-192 — One gate in the hub; every gate is open to everyone
+**Status:** ANSWERED (reference-backed default chosen by the desktop operator session, 2026-11-13; Crown was told and may veto) · **Raised:** 2026-11-13 · **Blocks:** — (the Gate mockup is redrawn first)
+**Answer:** gates are **not tied to a class**: all gates (the **Stone Gate**, the **Silver Gate**, and the **crystal-named gates**) are available to everyone (Crown). **There is one gate in the hub**: interacting opens the Gate screen, where you pick **which gate, then the trial, then the difficulty**. The hub gate's **VFX takes the colour of your last trial's gate** (the default).
+**Notes for Claude:** read against today's code: a **gate** is what the code calls a trial (`UTrialData`), and a **trial** is what it calls a variation (`FTrialVariation`); say if that mapping is wrong. Today each `ATrialDoor` opens one `UTrialData`. No build job yet.
+
+---
+
+### D-191 — The Gate screen: trials in a list, locked ones as "???", no boss names
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the Gate mockup is redrawn first)
+**Answer (Crown):** (part of UIScreens question 8)
+- The screen is **the Gate**. The player-facing word is **"Trial", not "Variation"**.
+- The trials are a **vertical list** (there will be more than three), not three big cards.
+- A row shows **only the trial's name and its line**: the gate **never names a trial's boss** (it spoils the surprise).
+- A **locked trial shows as "???" with its unlock condition** (for example the quest that unlocks it) and gets its real name once unlocked.
+- An **AI member's "who plays them" shows nothing** (no "AI · Medium" level text).
+**Notes for Claude:** the placeholder `UTrialGateWidget` and `TrialGate` still say "variation"; the job that builds the Gate screen renames the player-facing words (the code names stay). No build job yet.
+
+---
+
 ### D-190 — Settings: approved as drawn, with all eight proposed settings
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-452, B-453
 **Answer (Crown):** (UIScreens question 7) the settings screen is **approved as drawn**, with **all eight proposed settings**: text size; camera movement in fights (the motion-sickness switch, D-078); screen shake; hold to confirm dangerous actions; element letters on colours; subtitles; tutorial tips; "AI finishes my turn when I idle". **Difficulty is chosen only at the gate**, not in settings.

@@ -55,7 +55,7 @@
 
 | # | Screen | What the player does | Code it talks to | Today | Pri |
 |---|---|---|---|---|---|
-| 21 | **Trial gate** | Pick the variation and the difficulty (Easy / Medium / Hard: enemy damage and payout); see who's going; Enter | `UTrialRunSubsystem::SetGateChoice` `Public/Trial/TrialRunSubsystem.h:77`; `ETrialDifficulty` `Public/Trial/TrialGate.h:19` | Placeholder `UTrialGateWidget` `Public/UI/Trial/TrialGateWidget.h:20` (from `ATrialDoor`) | P1 |
+| 21 | **The Gate** (was "Trial gate"; D-191, D-192) | Pick the gate, then the **trial** (the code's "variation") and the difficulty (Easy / Medium / Hard: enemy damage and payout); see who's going; Enter | `UTrialRunSubsystem::SetGateChoice` `Public/Trial/TrialRunSubsystem.h:77`; `ETrialDifficulty` `Public/Trial/TrialGate.h:19` | Placeholder `UTrialGateWidget` `Public/UI/Trial/TrialGateWidget.h:20` (from `ATrialDoor`) | P1 |
 | 22 | **Rest spot** | Rested (heal, revive); Level up (pending levels as "+1"); Inventory / Loadout; **Revive boss** (co-op: a vote); **Invite**; Hand over host; **Extract** (only at a boss's rest spot, D-186; half payout); a currency strip top right (D-182) | `WoRRestSpot::Rest` / `LeaveRun` `Public/Trial/TrialRestSpot.h:25-41`; `AWoRGameState::StartReviveVote` / `CastReviveVote` `Public/Player/WoRGameState.h:55-66`; `GetRunEndPayout` `TrialRunSubsystem.h:280` | Placeholder `URestSpotWidget` `Public/UI/Hub/RestSpotWidget.h:18` (`wor.Trial.Rest`, `wor.Trial.Vote`) | P1 |
 | 23 | **Level up (place levels)** | Place each banked pillar level on Mind / Body / Spirit, per member. **No buying a point here** (D-183: points are bought only from NPCs found in the trial) | `WoRLevelDrops::TryPlaceLevel` / `TryBuyPoint` `Public/Trial/LevelDropPlacement.h:40-48` | Placeholder `ULevelDropWidget` `Public/UI/Hub/LevelDropWidget.h:20` (`wor.UI.LevelDrop`) | P1 |
 | 24 | **Extract confirm** | "Full rewards only for beating the boss or falling in battle" (RunStructure §6); shows earned so far and the cut | `GetLeaveConfirmText` `TrialRestSpot.h:41` | Inside the rest placeholder | P1 |
@@ -169,6 +169,7 @@ One block per mocked screen: the images, why the layout, the references.
 ### 21. Trial gate (`run/gate/`)
 
 - `1_gate_variation.png` (solo, choosing), `2_gate_ready_coop.png` (co-op, on Enter).
+- **Changed by Crown (2026-11-13, D-191, D-192):** the screen is **the Gate**. The player-facing word is **"Trial", not "Variation"**. The trials are a **vertical list** (there will be more than three), not three big cards; each row shows **only the trial's name and its line, never its boss** (it spoils the surprise). A **locked trial shows as "???" with its unlock condition** (for example the quest that unlocks it) and gets its real name once unlocked. An **AI member's "who plays them" shows nothing** (no "AI · Medium"). **Gates are not tied to a class:** every gate (the Stone Gate, the Silver Gate, the crystal-named gates) is open to everyone; **there is one gate in the hub**, and interacting opens this screen, where you pick the gate, then the trial, then the difficulty; the hub gate's glow takes the colour of your last trial's gate (default, Crown can veto). The two images are redrawn to match; the notes below describe the first draft.
 - **Three steps, top to bottom, one screen:** Variation (big cards: the boss and a line each, because this is the story choice; one not yet reached shows as "???"), Difficulty (Easy / Medium / Hard with exactly what changes: enemy damage x0.8 / x1.0 / x1.2, payout x0.75 / x1.0 / x1.5, `TrialGate.cpp:26-36`), then Enter the trial. On the right, **who is going in**: each member, class, Combat Tier, and who plays them (You, a friend's name, AI and its level).
   *Ref:* Hades' Pact of Punishment (what each step changes, and the reward, on one screen); Nightreign's expedition select (target boss + party on one screen); Expedition 33 states that difficulty changes enemy damage, not HP, which this game copies (Q-293c).
 - **Said once, here:** a run is 30–45 minutes, can't be saved, and is left by extracting (pillar 5, D-172); wipes allowed 5 (3 at the boss).
@@ -306,6 +307,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
    **Answered (Crown, 2026-11-13, D-190):** all eight proposed settings; difficulty only at the gate.
 8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
+   **Partly answered (Crown, 2026-11-13, D-191):** a locked trial shows as "???" with its unlock condition; no boss name on the gate; the word is "Trial". The trial names and lines stay Crown's.
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
    **Answered (Crown, 2026-11-13, D-177):** vendors **do buy items** (Sell). Dismantle and Convert-to-gold are not in the inventory; they happen only at the relevant vendor. The inventory's verbs are Give, Store, Take.
 10. **Journal words** (#6, lore): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
@@ -351,12 +353,13 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 **For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
 
-**Open questions for Crown:** the 16 above (16 is a design one). **Answered (2026-11-13):** 1, 2, 3, 4, 9, 13, 14, 15 (D-176 to D-185). **Answered since:** 7 (D-190), part of 5 (D-188). Still open: lore 5 (the rest), 8, 10, 11, 12; design 16. Settled: 6.
+**Open questions for Crown:** the 16 above (16 is a design one). **Answered (2026-11-13):** 1, 2, 3, 4, 9, 13, 14, 15 (D-176 to D-185). **Answered since:** 7 (D-190), part of 5 (D-188), part of 8 (D-191). Still open: lore 5 (the rest), 8, 10, 11, 12; design 16. Settled: 6.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | The Gate (D-191, D-192): "Trial" not "Variation", a vertical list, "???" with the unlock condition, no boss names, no AI level text; one hub gate, every gate open to everyone | docs/ui-screens-answers-4 |
 | 2026-11-14 | Crown's answers on the wipe and end-of-run screens (D-187 no enemy rank shown, D-188 words and layout, D-189 what each ending pays) and settings (D-190: approved with all eight proposed settings) | feature/B-440-loadout-screen |
 | 2026-11-14 | Extracting (D-186): "Leave Trial" is "Extract", only at a boss's rest spot; the half share stays | docs/ui-screens-answers-3 |
 | 2026-11-14 | Crown's rest spot and level-up answers (D-182, D-183), "Skins" is "Spirit of {character}" (D-184), values inside every menu party bar (D-185); question 4 answered | docs/ui-screens-answers-2 |
