@@ -242,6 +242,7 @@ namespace FieldSkillRules
 	constexpr float FIELD_ATTACK_COOLDOWN_SECONDS = 0.6f;
 	constexpr float FIELD_STRIKE_BUILDUP = 25.0f;         // status buildup each enemy takes at the start
 	constexpr int32 FIELD_ATTACK_SOURCE_COUNT = 3;        // Innate, Weapon, Ring (EFieldSkillSource)
+	static_assert(static_cast<int32>(EFieldSkillSource::Ring) + 1 == FIELD_ATTACK_SOURCE_COUNT, "A new field source: update the count");
 
 	/** The strike a field hit carries: the element if it is a real one, the weapon's physical type, Ice when held with
 	 *  a Water source, FIELD_STRIKE_BUILDUP. */

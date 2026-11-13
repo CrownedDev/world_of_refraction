@@ -13,6 +13,8 @@
 #include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
 #include "GameFramework/Character.h"
+#include "Skills/Effects/StatusBuildupManager.h"
+#include "Trial/BattleGameMode.h"
 
 BEGIN_DEFINE_SPEC(FFieldAttackSpec, "WoR.Field.Attack",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -87,6 +89,24 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("innate now"), Field->GetFieldAttackSource() == EFieldSkillSource::Innate);
 			const FFieldStrike Held = Field->GetFieldStrike(true);
 			TestTrue(TEXT("held innate Water is Ice"), Held.Element == ESpellElement::Water && Held.bIce);
+		});
+
+		It("gives every enemy of the fight the strike's buildup, and nothing for an empty strike", [this]()
+		{
+			UStatusBuildupManager *Buildup = TestWorld->GetSubsystem<UStatusBuildupManager>();
+			AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *FirstEnemy = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+			AActor *SecondEnemy = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), true);
+			if (!TestTrue(TEXT("set up"), Buildup && Hero && FirstEnemy && SecondEnemy))
+			{
+				return;
+			}
+			const TArray<AActor *> Enemies = {FirstEnemy, SecondEnemy};
+			TestEqual(TEXT("an empty strike: no one"), ABattleGameMode::ApplyFieldStrikeTo(*Buildup, Hero, Enemies, FFieldStrike()), 0);
+			const FFieldStrike Strike = FieldSkillRules::MakeFieldStrike(ESpellElement::Fire, EPhysicalDamageType::Slash, false);
+			TestEqual(TEXT("both enemies"), ABattleGameMode::ApplyFieldStrikeTo(*Buildup, Hero, Enemies, Strike), Enemies.Num());
+			TestTrue(TEXT("the first has buildup"), Buildup->GetStatusBarBuildup(FirstEnemy) > 0.0f);
+			TestTrue(TEXT("the second too"), Buildup->GetStatusBarBuildup(SecondEnemy) > 0.0f);
 		});
 
 		It("swings at nothing, then waits out the cooldown", [this]()
