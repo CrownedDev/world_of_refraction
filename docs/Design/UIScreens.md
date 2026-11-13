@@ -302,19 +302,22 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 
 ## Summary (2026-11-13)
 
-**Done:** `UIScreens.md` (34 screens with code, state and priority) and **14 mock sets, 42 images**, each backed by named games: pause menu; loadout and skills; inventory and pouch; rest spot (menu, level up, revive vote, extract); after a fight, wipe, run end; settings (control model: Shortcuts / Omni D-pad); trial gate; vendors (shop, item slots, repair, curses); journal (quests, hidden quests, memories); party and co-op (invite, join request, host left); title, save notices, loading; character sheet; hub HUD, NPC talk, recruit card; skins.
+**Review page (all images, private to Crown):** https://claude.ai/artifact/CX3ECucBuxgmJ3c2SnMvZC — one section per screen group, each image with its layout note and the game it's based on, and the 15 questions at the end (lore ones marked "Crown's call").
 
-**Left:** the five items under "Not mocked, on purpose" above. Lore and Conversations pages of the journal reuse the Memories layout and have no image of their own.
+**Done:** `UIScreens.md` (34 screens with code, state and priority) and **49 images in 15 mock sets**, each backed by named games: pause menu; loadout and skills; inventory and pouch; rest spot (menu, level up, revive vote, extract); after a fight, wipe, run end; settings (control model: Shortcuts / Omni D-pad); trial gate; vendors (shop, dismantle, item slots, repair, curses, merge); journal (quests, hidden quests, memories, lore, conversations); party and co-op (invite, join request, hand-over, host left); title, new game, save notices, loading, credits; character sheet; hub HUD, NPC talk, recruit card; skins.
 
-**Blocked:** the PNGs are not in git (this session can't reach the LFS host). Each `make.py` draws them; a session on the `world_of_refraction` cloud environment, or Crown's PC, can run them and commit the images.
+**Left:** nothing to mock. The world-stat draft is obsolete in code (question 6).
+
+**PNGs are not in git** (this session can't reach the LFS host; agreed with the brain, 2026-11-13). The review page carries them; each `make.py` redraws them.
 
 **For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
 
-**Open questions for Crown:** the 15 above. Lore ones (yours alone): 5, 8, 10, 11, 12, 13, 15. Design ones with a suggestion: 1, 2, 3, 4, 6, 7, 9, 14.
+**Open questions for Crown:** the 15 above. Lore ones (yours alone): 5, 8, 10, 11, 12, 13, 15. Design ones with a suggestion: 1, 2, 3, 4, 7, 9, 14. Settled: 6.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-13 | Second pass (the screens left), 49 images in all, the review page link | docs/ui-screens-all |
 | 2026-11-13 | 14 mock sets (42 images as `make.py` scripts), mockup notes, proposed input rows, 15 questions, summary | docs/ui-screens-all |
 | 2026-11-13 | Created: 34 screens from `dev`'s code (the cloud features are already merged), mock order, shared menu controls, proposed input rows | docs/ui-screens-all |
