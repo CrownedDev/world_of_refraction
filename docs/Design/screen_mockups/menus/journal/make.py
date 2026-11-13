@@ -99,4 +99,52 @@ wrap(d, (612, 486), "The memory's text goes here: a few lines of the scene, in t
 wrap(d, (612, 560), "Unlocked: a new conversation with Sera.", 600, 15, CYAN)
 footer(d, [("A", "Replay"), ("B", "Back")])
 save(im, OUT, "3_memories.png")
+# ---- 4: Lore: things read or heard in the world (lore objects, logged dialogue), by where they were found. A reader, no scene.
+im, d = canvas()
+header(d, 2)
+x = tabs(d, 48, 146, ["Everything", "Void Realm", "Ember Trial"], 2, h=30, size=15, lead="LT")
+text(d, (x + 4, 151), "RT", 15, True, CYAN)
+for i, (n, kind, new) in enumerate([("A scorched ledger", "Note", True), ("The Warden's order", "Note", False),
+                                     ("Two voices at the gate", "Overheard", False), ("Ashen Blade", "Item description", False)]):
+    y = 188 + i * 70
+    cut(d, (48, y, 560, y + 62), TEAL if i == 0 else PLATE, CYAN if i == 0 else STEEL, 8)
+    text(d, (68, y + 8), n, 19, True)
+    text(d, (68, y + 36), kind, 14, fill=TXT if i == 0 else DIM)
+    if new:
+        text(d, (544, y + 12), "NEW", 13, True, CYAN, anchor="ra")
+panel(d, (590, 146, 1232, 654), focus=True)
+text(d, (612, 158), "A scorched ledger", 24, True)
+text(d, (612, 194), "Note  ·  Ember Trial, Present  ·  found by Garrick", 15, fill=DIM)
+y = wrap(d, (612, 236), "The note's text goes here, set like a page: a comfortable line length, room for a few paragraphs, and it scrolls "
+         "with the right stick when it runs long.", 580, 17, gap=9)
+wrap(d, (612, y + 14), "A second paragraph of placeholder text so the reader's rhythm can be judged.", 580, 17, gap=9)
+footer(d, [("RS", "Scroll"), ("B", "Back")])
+save(im, OUT, "4_lore.png")
+
+# ---- 5: Conversations: talks between characters that memories unlocked (Expedition 33's camp). Ready ones are played
+#         in the hub; played ones can be re-read here as a script.
+im, d = canvas()
+header(d, 3)
+tabs(d, 48, 146, ["Ready  2", "Played"], 0, h=30, size=15)
+for i, (a, b, ea, eb, where) in enumerate([("Sera", "Garrick", "Darkness", "Generic", "after: The Smith's Promise"),
+                                           ("Bram", "V", "Fire", "Void", "after: A Cold Forge")]):
+    y = 188 + i * 78
+    cut(d, (48, y, 560, y + 70), TEAL if i == 0 else PLATE, CYAN if i == 0 else STEEL, 8)
+    d.ellipse((64, y + 19, 96, y + 51), fill=ELEMENT[ea])
+    d.ellipse((88, y + 19, 120, y + 51), fill=ELEMENT[eb], outline=BG, width=3)
+    text(d, (136, y + 10), a + " and " + b, 19, True)
+    text(d, (136, y + 40), where, 14, fill=TXT if i == 0 else DIM)
+    text(d, (544, y + 12), "NEW", 13, True, CYAN, anchor="ra")
+text(d, (48, 356), "New talks unlock as memories return.", 14, fill=OFF)
+panel(d, (590, 146, 1232, 654), focus=True)
+text(d, (612, 158), "Sera and Garrick", 24, True)
+text(d, (612, 194), "Ready  ·  talk to Garrick in the Void Realm", 15, True, CYAN)
+wrap(d, (612, 240), "Unlocked by the memory The Smith's Promise.", 580, 16)
+d.line((612, 290, 1212, 290), fill=STEEL)
+text(d, (612, 304), "Once played, the talk is kept here to re-read:", 14, fill=DIM)
+for i, (who, line) in enumerate([("Sera", "First line of the talk, as a script."), ("Garrick", "The answer."), ("Sera", "…")]):
+    text(d, (612, 340 + i * 34), who, 15, True, OFF)
+    text(d, (712, 340 + i * 34), line, 15, fill=OFF)
+footer(d, [("A", "Show where"), ("B", "Back")])
+save(im, OUT, "5_conversations.png")
 print("ok")

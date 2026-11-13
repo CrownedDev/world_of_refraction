@@ -138,4 +138,55 @@ wrap(d, (810, 256), "It is cleared. It may come back.", 400, 16)
 wrap(d, (810, 300), "Curses can be cleared in the hub, not during a run.", 400, 14, DIM)
 footer(d, [("A", "Clear"), ("B", "Leave")])
 save(im, OUT, "4_spiritualist_curses.png")
+# ---- 5: Blacksmith · Dismantle: the party's unworn gear with what each gives; the confirm is the inventory's (mock 3).
+im, d = canvas("world")
+header(d, "Blacksmith", "weapons, augment stones", ["Buy", "Sell", "Dismantle", "Merge"], 2)
+x = tabs(d, 48, 156, ["Sera", "Garrick", "Bram"], 1, h=30, size=15, lead="LT")
+text(d, (x + 4, 161), "RT", 15, True, CYAN)
+rows = [("Ashen Blade", "Sword · a weaker copy", "Fire", "D", "12 Gear Essence", None),
+        ("Gale Spear", "Spear", "Wind", "C", "18 Gear Essence", None),
+        ("Quarry Maul", "Hammer", "Earth", "C", "", "It's in a loadout. Take it off first"),
+        ("Edge Stone", "Augment stone", "Generic", "C", "9 Gear Essence", None)]
+for i, (n, kind, el, t, gives, why) in enumerate(rows):
+    y = 198 + i * 66
+    cut(d, (48, y, 760, y + 58), TEAL if i == 0 else PLATE, CYAN if i == 0 else STEEL, 8)
+    icon(d, (58, y + 6, 104, y + 52), ELEMENT[el])
+    text(d, (118, y + 6), n, 18, True, OFF if why else TXT)
+    text(d, (118, y + 32), why or kind, 14, fill=WARN if why else (TXT if i == 0 else DIM))
+    tier_badge(d, 500, y + 29, t, 12)
+    text(d, (744, y + 29), gives, 16, True, anchor="rm")
+panel(d, (790, 198, 1232, 460), focus=True)
+text(d, (810, 210), "Dismantle Ashen Blade (D)", 20, True)
+text(d, (810, 250), "You get", 15, fill=DIM)
+chip(d, 810, 276, "Gear Essence", "12", STEEL)
+chip(d, 1000, 276, "Fire Essence", "2", ELEMENT["Fire"])
+wrap(d, (810, 330), "You lose the sword and its upgrade level. This can't be undone.", 400, 15)
+wrap(d, (810, 400), "Garrick keeps the better copy (B).", 400, 14, DIM)
+footer(d, [("A", "Dismantle"), ("B", "Leave")])
+save(im, OUT, "5_blacksmith_dismantle.png")
+
+# ---- 6: Merge crystals: pick the crystal type and the tier you want; the screen works out what it uses and the change.
+im, d = canvas("world")
+header(d, "Spiritualist", "evolutions, crystals, repairs", ["Buy", "Sell", "Repair", "Curses", "Merge"], 4)
+text(d, (48, 160), "Crystal", 16, True, DIM)
+for i, (n, el, own) in enumerate([("Garnet", "Fire", "F x4 · E x2 · D x1"), ("Citrine", "Earth", "F x1"), ("Sapphire", "Water", "E x3 · C x1")]):
+    y = 188 + i * 62
+    row(d, (48, y, 440, y + 54), n, focus=(i == 0), sub=own, dot=ELEMENT[el], size=18)
+text(d, (470, 160), "Make", 16, True, DIM)
+for i, (t, ok, note) in enumerate([("E", True, ""), ("D", True, ""), ("C", True, "uses all below C"), ("B", False, "not enough Garnet")]):
+    y = 188 + i * 62
+    cut(d, (470, y, 760, y + 54), TEAL if i == 2 else PLATE, CYAN if i == 2 else STEEL, 8)
+    tier_badge(d, 500, y + 27, t, 13)
+    text(d, (526, y + 27), "Garnet", 17, True, TXT if ok else OFF, anchor="lm")
+    text(d, (746, y + 27), note, 13, fill=WARN if not ok else (TXT if i == 2 else DIM), anchor="rm")
+panel(d, (790, 160, 1232, 480), focus=True)
+text(d, (810, 172), "Merge into Garnet (C)", 20, True)
+for i, (lab, val, col) in enumerate([("Uses", "F x4, E x2, D x1", TXT), ("Makes", "C x1", GOOD), ("Change back", "E x1", TXT), ("Price", "60 Gold", GOLD)]):
+    text(d, (810, 216 + i * 32), lab, 15, fill=DIM)
+    text(d, (1212, 214 + i * 32), val, 17, True, col, anchor="ra")
+wrap(d, (810, 360), "Anything over the target comes back as the fewest crystals of the same kind.", 400, 14, DIM)
+cut(d, (810, 420, 1212, 464), TEAL, CYAN, 8)
+text(d, (1011, 442), "A   Merge", 17, True, anchor="mm")
+footer(d, [("A", "Merge"), ("B", "Leave")])
+save(im, OUT, "6_merge_crystals.png")
 print("ok")

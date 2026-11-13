@@ -95,7 +95,9 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 
 14. [x] Skins / forms (`hub/skins`)
 
-**Not mocked, on purpose:** New game (#11: the choice is Manny or Quinn plus class, `CharacterForms.md` §1; how it's presented is the opening, Crown's), Credits (#13: a scroll), World-stat draft (#30: question 6), Blacksmith Dismantle / Merge tabs (#16: they reuse the inventory confirm, mock 3) and the planned hand-over card (#33: same card as host-left, mock 10).
+15. [x] The rest (2026-11-13, second pass): New game (`front/new_game`), Credits (`front/credits`), Blacksmith Dismantle and Spiritualist Merge tabs (`hub/vendors` 5, 6), planned host hand-over (`coop/session` 4), journal Lore and Conversations (`menus/journal` 4, 5).
+
+**Not mocked:** the World-stat draft (#30). The code marks it OBSOLETE: level drops replaced it (`CombatOrchestrator.h:296-300`, B-223, D-102), and mock 4's Level up is that screen.
 
 ## Mockup notes
 
@@ -230,6 +232,15 @@ One block per mocked screen: the images, why the layout, the references.
 - `1_forms.png`. A list of forms with each character's **meter** (the placeholder's "{name}: {n}%"), "your own form" always first, unmet characters as "???". The side panel shows the form, the code's line ("Locked. Wear their pieces in fights you win to fill the meter."), which of their pieces you own or wear (unknown ones as "?"), and what a form does (looks and bound gear, no stats). Y switches the base body (Quinn / Manny).
   *Ref:* Mortal Shell's shells (Crown's model, `CharacterForms.md`); Hades' keepsake and Monster Hunter's mastery meters (visible progress after every fight).
 
+### Second pass: the rest
+
+- **New game** (`front/new_game/1_new_game.png`): the two decided choices on one screen, Body (Manny / Quinn, with a preview) and Class (Generic, Refractor, Resonator, each with its identity in one line and its budget, D-110), then Begin. *Ref:* Elden Ring's and Hades II's short starts; Mortal Shell has no creator at all (Crown's model). The heading and how the opening leads here are Crown's.
+- **Credits** (`front/credits/1_credits.png`): a centred scroll over the title backdrop; hold A to speed up, B to leave. *Ref:* the standard (Hades, Expedition 33).
+- **Blacksmith · Dismantle** (`hub/vendors/5_blacksmith_dismantle.png`): a member's gear with what each piece gives; a piece in a loadout is greyed with the code's reason ("It's in a loadout. Take it off first").
+- **Spiritualist · Merge** (`hub/vendors/6_merge_crystals.png`): pick the crystal, pick the tier to make; the panel shows what it uses, what it makes, the change that comes back and the price (`MergeCrystals`, ER-28). Merge sits with the Spiritualist because crystals are theirs in the vendor names; say if the Blacksmith should have it. *Ref:* Diablo's gem combining, Monster Hunter's melding: choose the result, see the cost.
+- **Planned hand-over** (`coop/session/4_planned_handover.png`): a confirm naming the next host, then the host-left progress card.
+- **Journal · Lore** (`menus/journal/4_lore.png`): by place; a page-like reader with no scene window. **Conversations** (`5_conversations.png`): Ready and Played; a ready talk says who to speak to in the hub (A shows where), a played one is kept as a script. *Ref:* Expedition 33's camp talks, Hades' codex, Mass Effect's codex reader.
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -278,7 +289,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 3. **Main hand / off hand** (loadout, #2): the code has two equal weapon slots and a wield mode per weapon, not hand slots. The mockup follows the code; say if you want hand slots shown.
 4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
 5. **Words for the end screens** (#26, #27): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
-6. **World-stat draft** (#30, pick 3 of 5): nothing listens to it today and levelling now happens at rest spots (B-363). Not mocked; say if it's still wanted.
+6. ~~World-stat draft~~ Settled by the code: it is marked OBSOLETE, replaced by level drops (B-223, D-102). Not mocked.
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
 8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?

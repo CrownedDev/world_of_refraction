@@ -70,4 +70,18 @@ text(d, (640, 386), "Reopening the trial for everyone…", 15, fill=DIM, anchor=
 text(d, (640, 430), "Your run, gear and progress are kept.", 15, fill=GOOD, anchor="ma")
 footer(d, [("B", "Leave to the Void Realm")])
 save(im, OUT, "3_host_lost.png")
+# ---- 4: a planned hand-over (rest menu: "Hand over host"): the host confirms, then everyone sees the same progress card.
+im, d = canvas("world")
+im, d = dim(im, 0.7)
+panel(d, (340, 200, 940, 500), focus=True)
+text(d, (640, 226), "Hand over host?", 28, True, anchor="ma")
+wrap(d, (380, 280), "The next player hosts and you rejoin as a guest. The trial reopens for everyone; the run, gear and progress are kept.",
+     520, 16)
+text(d, (380, 372), "Next host", 15, fill=DIM)
+text(d, (900, 370), "Kestrel", 18, True, CYAN, anchor="ra")
+text(d, (380, 404), "Takes about", 15, fill=DIM)
+text(d, (900, 404), "a short reload for everyone", 15, True, anchor="ra")
+text(d, (380, 446), "Only at a rest spot, outside a fight.", 14, fill=OFF)
+footer(d, [("A", "Hand over"), ("B", "Stay host")])
+save(im, OUT, "4_planned_handover.png")
 print("ok")
