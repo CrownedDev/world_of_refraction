@@ -1,7 +1,7 @@
 // FFusionId.h
 // Design-time identity for a Fusion attachment (EAttachedItemKind::Fusion): two
 // crystal-identity halves plus the sub-stat the fusion bonus targets. Every valid
-// fusion is stat-stone + one contributor (stat-stone / AbilityStone / gem crystal);
+// fusion is stat-stone + one contributor (stat-stone / gem crystal);
 // the half/pair rules are enforced by author-time validation (CrystalTypeHelpers
 // IsValidFusionPair / IsElementalFusion), not by editor grey-out.
 //
@@ -34,7 +34,7 @@ struct WORLD_OF_REFRACTION_API FFusionId
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fusion")
     FCrystalId HalfA;
 
-    /** Second fusion half — a crystal identity. Stat-stone, AbilityStone, or a gem
+    /** Second fusion half — a crystal identity. Stat-stone or a gem
      *  crystal (the at-most-one-crystal rule is enforced in validation). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fusion")
     FCrystalId HalfB;

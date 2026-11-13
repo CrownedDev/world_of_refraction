@@ -53,7 +53,7 @@ namespace StoneRowTable
 		{ECrystalType::ReflexStone, ESubStat::Reflex, IE::BuffReflex, SE::ReflexBuff, SE::ReflexDebuff, TEXT("Reflex"), true},
 	};
 
-	/** The stat stone's row, or nullptr for anything else (gems, AbilityStone, DurabilityStone, HealingStone). */
+	/** The stat stone's row, or nullptr for anything else (gems, DurabilityStone, HealingStone). */
 	inline const FStoneRow *Find(ECrystalType Type)
 	{
 		for (const FStoneRow &Row : ROWS)

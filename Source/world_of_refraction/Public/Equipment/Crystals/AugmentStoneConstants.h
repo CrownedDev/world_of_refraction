@@ -28,7 +28,7 @@ namespace AugmentStoneConstants
      *  Amber (defense) — exactly 2× STONE_BASE_PERCENT. */
     constexpr float STAT_CRYSTAL_BUFF_PERCENT[7] = {6, 10, 14, 18, 22, 26, 30};
 
-    /** Skill-slot curve: AbilityStone -> ability slots, gem crystal -> spell slots.
+    /** Skill-slot curve: a gem crystal's slots (a stone grants none, D-175).
      *  Also keys container-native slots (weapon abilities / ring + evolution spells)
      *  via SlotsForContainerTier. Linear F->A, then S holds at 6 (A and S share 6 —
      *  S leads on power, not slot quantity): F=1, E=2, D=3, C=4, B=5, A=6, S=6. */
