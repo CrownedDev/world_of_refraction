@@ -15,7 +15,7 @@
 namespace
 {
 	const EItemTier STAT_STONE_TEST_TIERS[] = {EItemTier::F_Tier, EItemTier::C_Tier, EItemTier::S_Tier};
-	const ECrystalType STONE_TEST_KEPT[] = {ECrystalType::DamageStone, ECrystalType::AbilityStone, ECrystalType::HealingStone,
+	const ECrystalType STONE_TEST_KEPT[] = {ECrystalType::DamageStone, ECrystalType::HealingStone,
 											ECrystalType::MaxHPStone, ECrystalType::MaxEPStone};
 	constexpr int32 STONE_TEST_STACK = 2;
 	/** D-142: Defense, Crit, Turn Speed, Status, Efficiency, Spell Damage, Resistance, Spell / Action Speed, Luck, Reflex. */
@@ -90,7 +90,7 @@ void FStatStoneSpec::Define()
 		}
 	});
 
-	It("keeps the Damage, Ability, Healing and pool stones as they are", [this]()
+	It("keeps the Damage, Healing and pool stones as they are", [this]()
 	{
 		for (const ECrystalType Kept : STONE_TEST_KEPT)
 		{

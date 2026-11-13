@@ -35,7 +35,7 @@ namespace
 	const FCrystalId GEAR_TEST_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	const FCrystalId GEAR_TEST_OTHER_GEM(ECrystalType::Sapphire, EItemTier::F_Tier);
 	const FCrystalId GEAR_TEST_STAT_STONE(ECrystalType::DamageStone, EItemTier::F_Tier);
-	const FCrystalId GEAR_TEST_ABILITY_STONE(ECrystalType::AbilityStone, EItemTier::F_Tier);
+	const FCrystalId GEAR_TEST_OTHER_STONE(ECrystalType::MaxHPStone, EItemTier::F_Tier);
 	constexpr int32 GEAR_TEST_STACK = 3;
 	constexpr int32 GEAR_TEST_EVO_MAX_DURABILITY = 100;
 	constexpr int32 GEAR_TEST_EVO_AFTER_REMOVAL = 90; // 10% removal wear
@@ -92,7 +92,7 @@ void FGearAttachSpec::Define()
 		TestTrue(TEXT("ring added"), Inventory->AddRing(NewObject<URingData>(GetTransientPackage())));
 		WeaponId = Inventory->Weapons.Num() > 0 ? Inventory->Weapons[0].PersistentID : FGuid();
 		RingId = Inventory->Rings.Num() > 0 ? Inventory->Rings[0].PersistentID : FGuid();
-		for (const FCrystalId &Id : {GEAR_TEST_GEM, GEAR_TEST_OTHER_GEM, GEAR_TEST_STAT_STONE, GEAR_TEST_ABILITY_STONE})
+		for (const FCrystalId &Id : {GEAR_TEST_GEM, GEAR_TEST_OTHER_GEM, GEAR_TEST_STAT_STONE, GEAR_TEST_OTHER_STONE})
 		{
 			TestTrue(TEXT("crystals added"), Inventory->AddCrystal(Id, GEAR_TEST_STACK));
 		}
@@ -157,7 +157,7 @@ void FGearAttachSpec::Define()
 		It("fuses nothing on a weapon or a ring and debits no half", [this]()
 		{
 			const FFusionId Elemental = GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_GEM);
-			const FFusionId Augmented = GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_ABILITY_STONE);
+			const FFusionId Augmented = GearTestFusion(GEAR_TEST_STAT_STONE, GEAR_TEST_OTHER_STONE);
 			TestFalse(TEXT("weapon refuses an elemental fusion"), Inventory->AttachFusionToWeapon(WeaponId, Elemental));
 			TestFalse(TEXT("ring refuses an elemental fusion"), Inventory->AttachFusionToRing(RingId, Elemental));
 			TestFalse(TEXT("weapon refuses an augmented fusion"), Inventory->AttachFusionToWeapon(WeaponId, Augmented));
@@ -165,7 +165,7 @@ void FGearAttachSpec::Define()
 			TestTrue(TEXT("ring still empty"), Inventory->Rings[0].AttachedItem.IsEmpty());
 			TestEqual(TEXT("no stone debited"), Crystals->GetCount(GEAR_TEST_STAT_STONE), GEAR_TEST_STACK);
 			TestEqual(TEXT("no gem debited"), Crystals->GetCount(GEAR_TEST_GEM), GEAR_TEST_STACK);
-			TestEqual(TEXT("no ability stone debited"), Crystals->GetCount(GEAR_TEST_ABILITY_STONE), GEAR_TEST_STACK);
+			TestEqual(TEXT("no second stone debited"), Crystals->GetCount(GEAR_TEST_OTHER_STONE), GEAR_TEST_STACK);
 		});
 
 		It("leaves the socket empty for an authored fusion (nothing bought with one)", [this]()
