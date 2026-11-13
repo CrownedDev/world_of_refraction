@@ -11,7 +11,7 @@
 /** B-397: shown in place of a hidden quest's text not written yet. TODO(Crown): content. */
 namespace HiddenQuestPlaceholder
 {
-	static FText Title() { return LOCTEXT("UntitledHiddenQuest", "Unnamed hidden quest"); }
+	static FText Title() { return LOCTEXT("UntitledHiddenQuest", "Unnamed secret quest"); }
 	static FText Goal() { return LOCTEXT("UnwrittenGoal", "The way on is not yet clear."); }
 }
 

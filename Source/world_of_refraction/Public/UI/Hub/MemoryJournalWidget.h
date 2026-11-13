@@ -22,7 +22,7 @@ class UTextBlock;
 class UVerticalBox;
 struct FStoryConversation;
 
-/** Q-397b: one Reveal button's quest (a button's click carries no data). */
+/** Q-397b, D-198: one Show / Hide button's quest (a button's click carries no data). */
 UCLASS()
 class UJournalRevealAction : public UObject
 {
@@ -53,15 +53,17 @@ public:
 	void ShowJournalPage();
 
 	/** B-388: the started main and side quests, each with its current goal (or done). Q-397b: a found hidden quest is
-	 *  masked as "Hidden Quest <n>" (n in found order, oldest 1) with a Reveal button, so a shared screen spoils nothing. */
+	 *  masked as "Secret Quest <n>" (D-196; n in found order, oldest 1) with a Show / Hide button (D-198), so a shared
+	 *  screen spoils nothing. */
 	void ShowQuestsPage();
 
-	/** Q-397b: shows a masked hidden quest's title and goal until the journal closes (a spoiler tag). False when QuestId
-	 *  is not masked on the Quests page now. */
-	bool RevealQuest(FName QuestId);
+	/** D-198 (changes Q-397b's reveal): one toggle. Shows a masked secret quest's title and goal, or masks a shown one
+	 *  again; a shown one stays shown until the journal closes. False when QuestId is not a secret quest on the Quests
+	 *  page now. */
+	bool ToggleQuestShown(FName QuestId);
 	bool IsQuestRevealed(FName QuestId) const { return RevealedQuests.Contains(QuestId); }
 
-	/** Q-397b: the hidden quests masked on the Quests page now (each has a Reveal button). */
+	/** Q-397b: the secret quests masked on the Quests page now (each one's button reads "Show"). */
 	TArray<FName> GetMaskedQuestIds() const;
 
 	/** Closes the journal; every revealed hidden quest is masked again (Q-397b). */
@@ -137,17 +139,18 @@ private:
 	UPROPERTY()
 	TObjectPtr<UTextBlock> BodyText;
 
-	/** Q-397b: a masked hidden quest on the Quests page. */
-	struct FMaskedQuest
+	/** Q-397b: a secret quest on the Quests page, masked or shown. */
+	struct FSecretQuestRow
 	{
 		FName QuestId;
 		FText MaskedName;
+		bool bShown = false;
 	};
-	TArray<FMaskedQuest> MaskedQuests;
-	/** Revealed while this journal is open; cleared on Close. */
+	TArray<FSecretQuestRow> SecretQuests;
+	/** Shown while this journal is open; cleared on Close. */
 	TSet<FName> RevealedQuests;
 
-	/** One Reveal button per masked quest, under the page text (built only when the widget is). */
+	/** One Show / Hide button per secret quest (D-198), under the page text (built only when the widget is). */
 	void RebuildRevealButtons();
 
 	UPROPERTY()

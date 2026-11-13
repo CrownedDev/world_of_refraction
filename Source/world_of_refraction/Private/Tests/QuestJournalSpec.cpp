@@ -151,7 +151,7 @@ void FQuestJournalSpec::Define()
 
 		Journal->RecordMemory(Finder, EMemorySource::Fragment); // its memory starts it
 		TestEqual(TEXT("the private notice is masked (Q-397b)"), Quests->GetLastNotice().ToString(),
-				  FString(TEXT("Hidden quest found. Open the journal to view it.")));
+				  FString(TEXT("Secret quest found. Open the journal to view it.")));
 		TArray<FVisibleQuest> Visible = Quests->GetVisibleQuests();
 		if (!TestEqual(TEXT("found: listed too"), Visible.Num(), 3))
 		{
@@ -168,8 +168,10 @@ void FQuestJournalSpec::Define()
 		}
 		Widget->ShowQuestsPage();
 		FString Body = Widget->GetBody().ToString();
-		TestTrue(TEXT("masked on the page (Q-397b)"), Body.Contains(TEXT("Hidden Quest 1: masked")) && !Body.Contains(TEXT("FoundHiddenSpec")));
-		TestTrue(TEXT("revealed by its button"), Widget->RevealQuest(Hidden->GetQuestId()));
+		TestTrue(TEXT("masked on the page (Q-397b), under its player-facing kind (D-196)"),
+				 Body.Contains(TEXT("[Secret] Secret Quest 1: masked")) && !Body.Contains(TEXT("FoundHiddenSpec")));
+		TestFalse(TEXT("no player-facing \"Hidden\" on the page (D-196)"), Body.Contains(TEXT("Hidden")));
+		TestTrue(TEXT("shown by its button"), Widget->ToggleQuestShown(Hidden->GetQuestId()));
 		Body = Widget->GetBody().ToString();
 		TestTrue(TEXT("the page shows its current goal"), Body.Contains(TEXT("FoundHiddenSpec goal 1")));
 		TestFalse(TEXT("not its later step"), Body.Contains(TEXT("FoundHiddenSpec goal 2")));
@@ -178,7 +180,7 @@ void FQuestJournalSpec::Define()
 		Quests->CheckEvent(FMemoryEvent(), {Hidden}); // the start's own event (Q-377)
 		Quests->CheckEvent(AtQuestSpot(), {Hidden});
 		TestEqual(TEXT("step done: a masked notice (Q-397b)"), Quests->GetLastNotice().ToString(),
-				  FString(TEXT("Hidden quest updated. Open the journal to view it.")));
+				  FString(TEXT("Secret quest updated. Open the journal to view it.")));
 		Visible = Quests->GetVisibleQuests();
 		TestEqual(TEXT("step done: the next goal"), Visible.Last().Goal.ToString(), FString(TEXT("FoundHiddenSpec goal 2")));
 		Widget->ShowQuestsPage();
@@ -193,7 +195,7 @@ void FQuestJournalSpec::Define()
 		TestTrue(TEXT("listed as done, no goal"), Visible.Last().Kind == EQuestKind::Hidden && Visible.Last().bFinished && Visible.Last().Goal.IsEmpty());
 	});
 
-	It("masks each found hidden quest as Hidden Quest <n> until revealed, and masks it again when the journal closes (Q-397b)", [this]()
+	It("masks each found hidden quest as Secret Quest <n>, one Show / Hide toggle each, masked again when the journal closes (Q-397b, D-196, D-198)", [this]()
 	{
 		UMemoryJournalWidget *Widget = Quests ? CreateWidget<UMemoryJournalWidget>(TestWorld->GetWorld(), UMemoryJournalWidget::StaticClass()) : nullptr;
 		if (!TestNotNull(TEXT("journal widget"), Widget))
@@ -211,34 +213,40 @@ void FQuestJournalSpec::Define()
 		FString Body = Widget->GetBody().ToString();
 		TestTrue(TEXT("a side quest is never masked"), Body.Contains(TEXT("MaskSideSpec goal 1")));
 		TestTrue(TEXT("numbered in found order, newest listed first"),
-				 Body.Contains(TEXT("Hidden Quest 2: masked")) && Body.Contains(TEXT("Hidden Quest 1: masked")) &&
-					 Body.Find(TEXT("Hidden Quest 2")) < Body.Find(TEXT("Hidden Quest 1")));
+				 Body.Contains(TEXT("Secret Quest 2: masked")) && Body.Contains(TEXT("Secret Quest 1: masked")) &&
+					 Body.Find(TEXT("Secret Quest 2")) < Body.Find(TEXT("Secret Quest 1")));
 		TestFalse(TEXT("no hidden name or goal on the page"), Body.Contains(TEXT("MaskOlderSpec")) || Body.Contains(TEXT("MaskNewerSpec")));
-		TestEqual(TEXT("a Reveal button for each"), Widget->GetMaskedQuestIds().Num(), 2);
-		TestFalse(TEXT("a side quest has no Reveal"), Widget->RevealQuest(TEXT("MaskSideSpec")));
+		TestEqual(TEXT("a Show button for each"), Widget->GetMaskedQuestIds().Num(), 2);
+		TestFalse(TEXT("a side quest has no toggle"), Widget->ToggleQuestShown(TEXT("MaskSideSpec")));
 
-		TestTrue(TEXT("reveal the older one"), Widget->RevealQuest(Older->GetQuestId()));
+		TestTrue(TEXT("show the older one"), Widget->ToggleQuestShown(Older->GetQuestId()));
 		Body = Widget->GetBody().ToString();
 		TestTrue(TEXT("its name and goal show"), Body.Contains(TEXT("MaskOlderSpec: MaskOlderSpec goal 1")));
-		TestTrue(TEXT("the other stays masked"), Body.Contains(TEXT("Hidden Quest 2: masked")) && !Body.Contains(TEXT("MaskNewerSpec")));
-		TestTrue(TEXT("one Reveal button left"), Widget->GetMaskedQuestIds() == TArray<FName>({Newer->GetQuestId()}));
+		TestTrue(TEXT("the other stays masked"), Body.Contains(TEXT("Secret Quest 2: masked")) && !Body.Contains(TEXT("MaskNewerSpec")));
+		TestTrue(TEXT("one Show button left"), Widget->GetMaskedQuestIds() == TArray<FName>({Newer->GetQuestId()}));
 		Widget->ShowJournalPage();
 		Widget->ShowQuestsPage();
-		TestTrue(TEXT("still revealed while the journal is open"), Widget->GetBody().ToString().Contains(TEXT("MaskOlderSpec goal 1")));
+		TestTrue(TEXT("still shown while the journal is open"), Widget->GetBody().ToString().Contains(TEXT("MaskOlderSpec goal 1")));
+
+		TestTrue(TEXT("the same toggle hides it again (D-198)"), Widget->ToggleQuestShown(Older->GetQuestId()));
+		Body = Widget->GetBody().ToString();
+		TestTrue(TEXT("masked again by the toggle"), Body.Contains(TEXT("Secret Quest 1: masked")) && !Body.Contains(TEXT("MaskOlderSpec")));
+		TestEqual(TEXT("both read Show again"), Widget->GetMaskedQuestIds().Num(), 2);
+		TestTrue(TEXT("and shows it once more"), Widget->ToggleQuestShown(Older->GetQuestId()));
 
 		Widget->Close();
 		TestFalse(TEXT("closing forgets the reveal"), Widget->IsQuestRevealed(Older->GetQuestId()));
 		Widget->ShowQuestsPage();
 		Body = Widget->GetBody().ToString();
-		TestTrue(TEXT("masked again next time"), Body.Contains(TEXT("Hidden Quest 1: masked")) && !Body.Contains(TEXT("MaskOlderSpec")));
+		TestTrue(TEXT("masked again next time"), Body.Contains(TEXT("Secret Quest 1: masked")) && !Body.Contains(TEXT("MaskOlderSpec")));
 
 		Quests->CheckEvent(FMemoryEvent(), {Older}); // the start's own event (Q-377)
 		Quests->CheckEvent(AtQuestSpot(), {Older});
-		TestEqual(TEXT("a masked step notice"), Quests->GetLastNotice().ToString(), FString(TEXT("Hidden quest updated. Open the journal to view it.")));
+		TestEqual(TEXT("a masked step notice"), Quests->GetLastNotice().ToString(), FString(TEXT("Secret quest updated. Open the journal to view it.")));
 		Quests->CheckEvent(AtQuestSpot(), {Older});
 		TestTrue(TEXT("finished"), Quests->IsFinished(Older->GetQuestId()));
 		Widget->ShowQuestsPage();
-		TestTrue(TEXT("a finished one keeps its mask number"), Widget->GetBody().ToString().Contains(TEXT("Hidden Quest 1: done")));
+		TestTrue(TEXT("a finished one keeps its mask number"), Widget->GetBody().ToString().Contains(TEXT("Secret Quest 1: done")));
 	});
 
 	It("lists the newest found quest first within each group, and keeps that order through a save (Q-397)", [this]()

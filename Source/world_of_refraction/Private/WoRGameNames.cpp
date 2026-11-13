@@ -362,7 +362,7 @@ FText GetQuestKindName(EQuestKind Kind)
     switch (Kind)
     {
     case EQuestKind::Hidden:
-        return LOCTEXT("EQuestKind_Hidden", "Hidden");
+        return LOCTEXT("EQuestKind_Hidden", "Secret");
     case EQuestKind::Main:
         return LOCTEXT("EQuestKind_Main", "Main");
     case EQuestKind::Side:

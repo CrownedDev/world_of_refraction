@@ -101,7 +101,7 @@ namespace WoRGameNames
      *  "Skill Essence", "Elemental Essence", "Pillar Essence". */
     WORLD_OF_REFRACTION_API FText GetCurrencyName(ECurrencyType Currency);
 
-    /** B-388: "Hidden" (never shown to players, D-100), "Main", "Side". */
+    /** B-388: "Secret" (the Hidden kind's player-facing name, D-196), "Main", "Side". */
     WORLD_OF_REFRACTION_API FText GetQuestKindName(EQuestKind Kind);
 
     /** B-440a: a crystal's or stone's kind: "Garnet", "Quartz", "Damage Stone", "Stat Stone". Empty for None.

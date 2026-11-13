@@ -10,8 +10,9 @@
 // B-397 (D-171): a hidden quest's start is never hinted; once started, this player alone is told ("Hidden quest
 // discovered: <title>") and it lists in their journal with the current step's goal, like main and side quests. Each
 // machine keeps its own player's quests and notices, so in co-op each player sees only their own.
-// Q-397b (Crown): a hidden quest's notices are masked ("Hidden quest found. Open the journal to view it."), and the
-// journal masks it as "Hidden Quest <n>" until revealed (UMemoryJournalWidget::RevealQuest).
+// Q-397b (Crown): a hidden quest's notices are masked ("Secret quest found. Open the journal to view it."), and the
+// journal masks it as "Secret Quest <n>" until shown (UMemoryJournalWidget::ToggleQuestShown). D-196: the player reads
+// "Secret quest" everywhere; the code names stay "Hidden".
 
 #pragma once
 

@@ -29,18 +29,19 @@ namespace HiddenQuestNotice
 {
 	// Q-397b (Crown, 2026-11-12; replaces B-397's "Hidden quest discovered: <title>" and its named step / finish
 	// notices): a hidden quest's notices are masked, never naming it or its goal, so a shared screen spoils nothing; the
-	// journal shows it as "Hidden Quest <n>" until the player reveals it. TODO: Crown's text (placeholders).
+	// journal shows it as "Secret Quest <n>" until the player shows it (D-196: "Secret" to the player, the code names
+	// stay). TODO: Crown's text (placeholders).
 	static FText HiddenFound()
 	{
-		return LOCTEXT("HiddenFoundMasked", "Hidden quest found. Open the journal to view it.");
+		return LOCTEXT("HiddenFoundMasked", "Secret quest found. Open the journal to view it.");
 	}
 	static FText HiddenStepDone()
 	{
-		return LOCTEXT("HiddenStepDoneMasked", "Hidden quest updated. Open the journal to view it.");
+		return LOCTEXT("HiddenStepDoneMasked", "Secret quest updated. Open the journal to view it.");
 	}
 	static FText HiddenFinished()
 	{
-		return LOCTEXT("HiddenFinishedMasked", "Hidden quest complete. Open the journal to view it.");
+		return LOCTEXT("HiddenFinishedMasked", "Secret quest complete. Open the journal to view it.");
 	}
 	// Crown (2026-11-12, Q-397b flag): the end memory a hidden quest earns is not named on screen either.
 	static FText HiddenNewMemory()
