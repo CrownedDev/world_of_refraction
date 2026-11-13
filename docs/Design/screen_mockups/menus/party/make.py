@@ -9,8 +9,8 @@ sys.path.insert(0, os.path.join(OUT, "..", "..", "_kit"))
 from wor_ui import *  # noqa: E402,F401
 
 PARTY = [("Sera", "Darkness Refractor", "Darkness", "C", "You (leader)", (2, 1)),
-         ("Garrick", "Generic", "Generic", "B", "AI seat · Medium", (0, 1)),
-         ("Bram", "Resonator", "Fire", "C", "AI seat · Medium", (1, 0))]
+         ("Garrick", "Generic", "Generic", "B", "", (0, 1)),
+         ("Bram", "Resonator", "Fire", "C", "", (1, 0))]
 ROWS = ["Front Row", "Middle Row", "Back Row"]
 
 
@@ -48,7 +48,7 @@ cut(d, (48, 512, 700, 562), PLATE, STEEL, 8)
 text(d, (66, 537), "When your fighters fall", 17, True, anchor="lm")
 text(d, (684, 537), "Let AI finish", 17, True, DIM, anchor="rm")
 cut(d, (48, 572, 700, 622), PLATE, STEEL, 8)
-text(d, (66, 597), "Invite and seat friends", 17, True, anchor="lm")
+text(d, (66, 597), "Invite", 17, True, anchor="lm")
 text(d, (684, 597), "no session", 15, fill=OFF, anchor="rm")
 panel(d, (730, 130, 1232, 622), focus=True)
 grid(d, 780, 196, focus_cell=(0, 1))
