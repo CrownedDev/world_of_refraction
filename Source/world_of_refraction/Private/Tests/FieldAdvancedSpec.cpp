@@ -109,10 +109,7 @@ void FFieldAdvancedSpec::Define()
 	{
 		It("teleports only for Void, along the aim, then waits out the cooldown", [this]()
 		{
-			TestFalse(TEXT("Fire can't pick Teleport"), SpawnWithSkill(ESpellElement::Fire, EFieldMovementType::Teleport));
-			TestWorld.Reset();
-			TestWorld = MakeUnique<FWoRTestWorld>();
-			TestWorld->Create();
+			TestFalse(TEXT("Fire can't unlock Teleport"), FieldSkillRules::CanElementUnlock(EFieldMovementType::Teleport, ESpellElement::Fire));
 			if (!TestTrue(TEXT("Void picks it"), SpawnWithSkill(ESpellElement::Void, EFieldMovementType::Teleport)))
 			{
 				return;

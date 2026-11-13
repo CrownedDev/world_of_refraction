@@ -93,14 +93,13 @@ void FFieldSkillSpec::Define()
 
 	Describe("the rules", [this]()
 	{
-		It("let anyone pick the dash, Enhanced Sprint only with an elemental source, and nothing unbuilt", [this]()
+		It("let anyone pick the dash, Enhanced Sprint only with an elemental source, and only once unlocked", [this]()
 		{
 			TestTrue(TEXT("dash with no element, never unlocked"), FieldSkillRules::CheckPick(EFieldMovementType::Dash, ESpellElement::None, false) == EFieldSkillRefusal::None);
 			TestTrue(TEXT("Enhanced Sprint, Generic"), FieldSkillRules::CheckPick(EFieldMovementType::EnhancedSprint, ESpellElement::Generic, true) == EFieldSkillRefusal::NeedsElementalSource);
 			TestTrue(TEXT("Enhanced Sprint, None"), FieldSkillRules::CheckPick(EFieldMovementType::EnhancedSprint, ESpellElement::None, true) == EFieldSkillRefusal::NeedsElementalSource);
 			TestTrue(TEXT("Enhanced Sprint, Fire, unlocked"), FieldSkillRules::CheckPick(EFieldMovementType::EnhancedSprint, ESpellElement::Fire, true) == EFieldSkillRefusal::None);
 			TestTrue(TEXT("Enhanced Sprint, Fire, locked"), FieldSkillRules::CheckPick(EFieldMovementType::EnhancedSprint, ESpellElement::Fire, false) == EFieldSkillRefusal::NotUnlocked);
-			TestTrue(TEXT("Super launch waits for its slice"), FieldSkillRules::CheckPick(EFieldMovementType::SuperLaunch, ESpellElement::Wind, true) == EFieldSkillRefusal::NotBuiltYet);
 			TestTrue(TEXT("no EP, no start"), FieldSkillRules::CheckEnhancedSprintStart(ESpellElement::Fire, 0, true) == EFieldSkillRefusal::NotEnoughEP);
 			TestTrue(TEXT("locked, no start"), FieldSkillRules::CheckEnhancedSprintStart(ESpellElement::Fire, FIELD_SPEC_START_EP, false) == EFieldSkillRefusal::NotUnlocked);
 		});
