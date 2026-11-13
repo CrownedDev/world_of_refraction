@@ -87,7 +87,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 6. [x] Settings (`menus/settings`)
 7. [x] Trial gate (`run/gate`)
 8. [x] Shop and the vendor services (`hub/vendors`)
-9. [ ] Journal (`menus/journal`)
+9. [x] Journal (`menus/journal`)
 10. [ ] Party and co-op (`menus/party`, `coop/`)
 11. [ ] Title and save notices (`front/title`)
 12. [ ] Character sheet (`menus/character`)
@@ -174,6 +174,16 @@ One block per mocked screen: the images, why the layout, the references.
 - **Repair:** the quote is the screen: every worn piece with its wear bar and price, "Repair all" with the total (`GearRepair`'s quote-then-pay). Broken shows in red with what it costs you in a fight.
 - **Curses:** each curse held, who holds it, what it does (the curse's own `Title` and `Description`; placeholders drawn, the words are lore), the price, and the code's line "It is cleared. It may come back."
 
+### 6. Journal (`menus/journal/`)
+
+- `1_quests.png`, `2_hidden_quest.png`, `3_memories.png`. Lore and Conversations use the Memories layout (a list, a reader).
+- **Pages:** Quests, Memories, Lore, Conversations (the placeholder's four, HubAndStory §4). "Talk to V" is not a journal page here: V is someone you talk to in the hub (#20).
+- **Quests:** one list with the kind on each row in the code's words and colours (Main gold, Side grey, Hidden violet), a filter row, and the steps on the right: done ones ticked, the current one lit. A lets you **track** one quest; its step shows on the trial HUD and the pause menu.
+  *Ref:* The Witcher 3's and Expedition 33's journals (list left, steps right, one tracked quest).
+- **Hidden quests follow D-171 and Q-397b exactly:** never listed until found; then listed as "Hidden Quest 2", **masked until you press A to reveal** (so a shared screen or stream doesn't spoil it), X masks it again; revealed, it shows **only the current step**: no later steps, no reward, "only you see this". *Ref:* Shangri-La Frontier's Unique Scenarios (Crown's model); Elden Ring's "no quest log" secrecy for the unfound part.
+- **Memories:** by character (LT / RT), newest first with a NEW mark, a replay window and the text; unfound memories are not listed and not counted ("3 found", never "3 of 12": pillar 10).
+- **Rewards stay hidden until earned** on every quest kind ("Shown when the quest is done").
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -219,6 +229,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
 8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
+10. **Journal words** (#6, lore): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
 
 ## Changelog
 
