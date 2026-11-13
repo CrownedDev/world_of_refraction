@@ -321,10 +321,21 @@ The screens outside the battle HUD are CommonUI screens (`UWoRActivatableWidget`
 - **Model:** `WoRPauseMenu` (`UI/Menus/PauseMenuModel.h`): `BuildPages` (the eight pages, each with its side-panel text and, when it can't open, why), `BuildHeader` (the hub's Gold and essences, or a run's Prisms, Gear Essence and wipes left), `BuildParty` (name, class line, HP, EP, pillars, Combat Tier when spawned), `GetQuitWarning`, `Quit`.
 - **Widget:** `UPauseMenuWidget` (`UI/Menus/PauseMenuWidget.h`). One selection, moved by keys or the mouse; rows are plain borders and the screen itself takes the keys (`InputMap.md`, Menus). Party cards are built once and refilled on each open.
 - **Opening:** `IA_ToggleMenu` → `AWoRHubController::OpenGameMenu` → `UPauseMenuWidget::Open` (refused while any screen is up). Console `wor.UI.Pause`. Hub and trial map; a battle runs on another controller.
-- **Pages without a CommonUI screen yet:** Inventory, Party and Journal close the menu and open their old viewport placeholders; Loadout, Character and Settings stay focusable and say they aren't built (B-440, B-442).
+- **Loadout** pushes the loadout screen over the menu (B-440a); Back returns to the menu on that row.
+- **Pages without a CommonUI screen yet:** Inventory, Party and Journal close the menu and open their old viewport placeholders; Character and Settings stay focusable and say they aren't built (B-442).
 - **Quit (D-176):** the first press asks, then a 2 second hold (`QUIT_HOLD_SECONDS`). In a run: `UTrialRunSubsystem::AbandonRun` (the end pays nothing, no Mentor Tokens; back to the hub). Outside one: saves and closes the game until the title screen exists. A co-op guest in a run is refused (only the host ends it).
 - **Nothing pauses** (Q-439).
 - **Debug:** `wor.UI.PrintPause` (`GetPauseMenuString`: header, pages, party).
+
+### The loadout screen (B-440, UIScreens #2, #3)
+
+Built in pieces, one at a time with Crown's PIE review between: **B-440a the gear page, read only (built)**, B-440b change gear, B-440c the socket picker, B-440d the Skills page, B-440e saved loadouts.
+
+- **Model:** `WoRLoadoutScreen` (`UI/Menus/LoadoutScreenModel.h`): `BuildMembers` (the character tabs) and `BuildGearPage`: the evolution seat, each weapon and adapter the fight reads (`FCombatLoadout::RebuildSlotsFromLegacy`, so never stale), then apparel. Each row has its name, kind line (the wield mode in it, D-180), tier, sockets (crystal or evolution; stone), cost (`FLoadoutRules::SlotCost`) spelled as frame + attachment (Q-357), detail lines and a note; the page has the class's budget (`LoadoutClassTable`), what is spent, and the saved loadout's title. A member that isn't spawned in the level has no page, with the reason.
+- **Widget:** `ULoadoutScreenWidget` (`UI/Menus/LoadoutScreenWidget.h`): character tabs (LT / RT), page tabs, budget pips, the rows in a scroll box (made as a page first needs them, refilled after), the detail panel. Opened by the game menu's Loadout page or `wor.UI.Loadout`.
+- **Names:** `WoRGameNames::GetCrystalTypeName`, `GetWeaponTypeName`, `GetWieldModeName`, `GetTierLetter` (D-062); the `FString` tables stay for logs and the old widgets.
+- **Shared look:** `Private/UI/Menus/MenuScreenStyle.h` (`WoRMenuStyle`): the colours, font sizes, menu keys and small builders every C++-built menu screen uses.
+- **Debug:** `wor.UI.PrintLoadout` (`GetLoadoutScreenString`: every member's rows, sockets and costs).
 
 ### Root layout: input back to the game (B-439)
 
@@ -332,7 +343,8 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 
 ## Known Limitations / TODOs
 
-- **Game menu (B-439):** flat colours and the default font until the Hidris art pass; no portraits, no tracked quest or loadout preview in the side panel (those screens aren't built); `BP_HubPlayerController` still has its own `IA_ToggleMenu` nodes until the editor step in `docs/PIE/B-439.md`; the old party strip is hidden while the menu is open (the root layout sits under it). Pouch items found in a run are not taken back when the run is quit (Q-439).
+- **Loadout screen (B-440a):** read only until B-440b; no icons; no Scaling line in the detail panel; the Skills tab is off (B-440d). The cost shown is the code's `SlotCost`, which counts the crystal / evolution socket and not the stone socket.
+- **Game menu (B-439):** flat colours and the default font until the Hidris art pass; no portraits, no tracked quest or loadout preview in the side panel; `BP_HubPlayerController` still has its own `IA_ToggleMenu` nodes until the editor step in `docs/PIE/B-439.md`; the old party strip is hidden while any menu screen is up (the root layout sits under it, and hides it: `UWoRRootLayout::SetPartyStripHidden`). Pouch items found in a run are not taken back when the run is quit (Q-439).
 
 - **New battle HUD (B-391):** placeholder looks (text chips, no icons); picking inside a submenu or a target list
   is a click (gamepad navigation there comes with CommonUI, D-024); damage numbers and the Broken Darkness
@@ -427,3 +439,4 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 | 2026-11-12 | B-129: input mapping-context priorities named in `Public/Player/InputPriorities.h` (`WoRInputPriority::EXPLORATION` / `COMBAT` / `COMBAT_MENU_KEYS`); `ACombatPlayerController` and `AExplorationPlayerController` use them (`CombatMenuKeys::CONTEXT_PRIORITY` removed). Same values; InputMap.md "Mapping contexts". Spec `WoR.Input.Priorities`. | `feature/B-129-input-priorities` (built 2026-11-12) |
 | 2026-11-13 | B-424 PIE fix: `UCombatHUD::PlaceInViewport` sets the position before the anchor and alignment (UE 5.8's `SetPositionInViewport` resets the anchors to the top-left, which put the battle menu off screen; the old HUD's panels, strip and menu are placed the same way). `BuildNewHUD` sets game-and-UI input with the cursor shown, since the new menu picks inside a submenu by click (Q-391). | `feature/B-424-light-hit-airburst` |
 | 2026-11-14 | B-439 (D-181, D-176): the game menu. `WoRPauseMenu` (model: pages, header, party, quit) and `UPauseMenuWidget` (CommonUI screen built in C++ from the mockup) under `UI/Menus/`; `AWoRHubController` binds `IA_ToggleMenu` to `OpenGameMenu`; `UWoRRootLayout` hands input back to the game when every screen has closed and gains `HasActiveScreen` / `RunWhenAllClosed`; `UTrialRunSubsystem::AbandonRun` (a quit run pays nothing). Spec `WoR.UI.PauseMenu` (10 cases). New section "Menu screens" | feature/B-439-pause-menu |
+| 2026-11-14 | B-440a (D-181, D-180): the loadout screen, gear page, read only. `WoRLoadoutScreen` (model) and `ULoadoutScreenWidget` under `UI/Menus/`; name tables `GetCrystalTypeName`, `GetWeaponTypeName`, `GetWieldModeName`, `GetTierLetter`; `MenuScreenStyle.h` shares the menu look; the game menu Loadout page opens it and keeps its selection on return; `UWoRRootLayout` hides the old party strip while any menu screen is up. Spec `WoR.UI.LoadoutScreen` (8 cases) | feature/B-440-loadout-screen |

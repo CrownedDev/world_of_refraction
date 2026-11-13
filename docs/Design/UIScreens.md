@@ -323,7 +323,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Screen | # | Mock set | Job | Note |
 |---|---|---|---|---|
 | Pause / game menu | 1 | `menus/pause` | B-439 (built, in dev; `PIE/B-439.md`) | Quit in a run loses everything (D-176) |
-| Loadout and skills | 2, 3 | `menus/loadout` | B-440 | Stone socket stays, two equal weapon slots (D-180) |
+| Loadout and skills | 2, 3 | `menus/loadout` | B-440 (piece B-440a built, in dev; `PIE/B-440a.md`) | Stone socket stays, two equal weapon slots (D-180) |
 | Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177) |
 | Character sheet | 5 | `menus/character` | B-442 | |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 | |
