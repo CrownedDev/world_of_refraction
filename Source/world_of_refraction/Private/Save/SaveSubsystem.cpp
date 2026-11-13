@@ -20,6 +20,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
+#include "WoRAuthority.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/StatStone.h"
@@ -739,7 +740,9 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	Data.HiddenQuests = GI->GetSubsystem<UHiddenQuestSubsystem>()->Capture(); // B-377: steps done, kept across runs
 	Data.Curses = GI->GetSubsystem<UCurseSubsystem>()->Capture(); // B-378: held across runs until removed
 	Data.Counters = GI->GetSubsystem<UHiddenCounterSubsystem>()->Capture(); // B-379: counting across runs
-	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
+	// B-425: a co-op guest's wallet is the host's mirror; banking it would overwrite the guest's own balances.
+	const UCurrencyComponent *Wallet = FindLocalWallet(World);
+	if (Wallet && WoRAuthority::HasAuthority(Wallet->GetOwner()))
 	{
 		BankWallet(Wallet);
 	}

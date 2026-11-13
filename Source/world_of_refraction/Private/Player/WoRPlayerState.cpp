@@ -741,7 +741,8 @@ void AWoRPlayerState::ServerReportWallet_Implementation(const FSavedWallet &Save
 {
 	if (bReportedWalletApplied || !Wallet)
 	{
-		UE_LOG(LogWoR, Verbose, TEXT("[Wallet] %s re-reported their wallet; already applied (B-425)"), *GetPlayerName());
+		UE_LOG(LogWoR, Verbose, TEXT("[Wallet] %s's wallet report ignored: %s (B-425)"), *GetPlayerName(),
+			   Wallet ? TEXT("already applied") : TEXT("no wallet"));
 		return;
 	}
 	bReportedWalletApplied = true;
