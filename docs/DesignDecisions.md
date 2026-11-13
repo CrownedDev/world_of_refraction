@@ -882,6 +882,25 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-205 — The old CommonUI mockup-plan jobs are retired: the new screens replace them
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** —
+**Answer (Crown):** the old CommonUI mockup-plan jobs are replaced by the new screens (`UIScreens.md`, D-181). **Retired:** B-104, B-105, B-106, B-107, B-108, B-109. B-125 (settings save split) and B-128 (button glyphs) are kept where the new screens still need the piece.
+**What covers each (Claude):**
+- **B-104** (kit import, fonts, CommonUI styles): each screen's own art step: the battle HUD's (B-436, the UI Designer) and the title backdrop (B-467b). **The menus' art pass (fonts, plates; `UI_Theme.md`) has no job yet.**
+- **B-105** (combat HUD on CommonUI): **B-436** (the battle HUD refinement, B-436a to B-436l). Its damage-number rule (Q-111: colour is the element, size and brightness the resistance, no labels) and its FText rule (D-061) still stand.
+- **B-106** (retire the old combat widgets): the D-124 sweep, after the PIE pass of B-436.
+- **B-107** (results, loot, retry): **B-465**.
+- **B-108** (pause, settings, confirm dialog): **B-439** (game menu), **B-452** and **B-453** (settings); the confirm is asked in place on each screen (the vendor screen's "A asks, the second A does it", B-456).
+- **B-109** (hub HUD, shop, party): **B-443**, **B-456**, **B-458**.
+- **B-294b** (element markers) did not only wait on B-105: **kept**, now on the battle HUD's widgets (B-436); its on / off setting is B-453's "element letters on colours".
+- **B-125** (settings save split): **folded into B-453**. The per-player half exists (the save is a `ULocalPlayerSaveGame`; B-452 saves its two settings there); the per-machine half (`UGameUserSettings`: display, audio) is built with the first Display or Audio row.
+- **B-128** (button glyphs): **kept as its own job**, no longer waiting on B-104: every new screen shows keys as letters (`WoRMenuStyle::MakeKeyLabel`, the hint lines, the hub prompt's key chip), and no single screen job owns that.
+
+### D-204 — Crown waives the PIE gate for ten delete jobs
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** —
+**Answer (Crown):** "for 10 lets just assume they work and approve the deletions". The ten jobs blocked only on Crown's PIE are unblocked: **B-152, B-153, B-154, B-172, B-165, B-032b, B-309, B-317, B-170h, B-238b**. The jobs they waited on count as passed **for this purpose only**: those jobs stay `REVIEW` and keep their PIE sheets (D-128).
+**Notes for Claude:** this changes "delete only after PIE" (`CLAUDE.md`, D-124) for these ten and for nothing else: every other held deletion in `PIE/Sweep.md` still waits. Each job still needs the build, the full tests and the reviewer. A deletion that breaks a test, or that a spec still relies on, is fixed or reported as a blocker, not forced: B-165 needs its D-067 spec first; B-032b is not a pure deletion; B-153 and B-154 need their Blueprint check in the editor; B-238b is not a deletion (its open question is answered by the reference-backed default when it is built).
+
 ### D-203 — Loading screen: a spinning nebula and something the player has already met
 **Status:** ANSWERED (Crown, 2026-11-14, via the desktop operator session) · **Raised:** 2026-11-14 · **Blocks:** B-468
 **Answer (Crown):** the loading screen shows a **spinning nebula** behind **one item or character the player has already met, with its description**. Never one they haven't met.
