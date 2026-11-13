@@ -18,6 +18,7 @@
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
 #include "Equipment/Durability/GearRepair.h"
+#include "WoRAuthority.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Player/WoRPlayerState.h"
@@ -158,6 +159,7 @@ TSharedRef<SWidget> UPartyControlWidget::RebuildWidget()
 		UButton *RepairButton = nullptr;
 		RepairGearText = PartyControlBuild::AddButton(WidgetTree, Box, RepairButton);
 		RepairButton->OnClicked.AddDynamic(this, &UPartyControlWidget::HandleRepairGearClicked);
+		RepairGearButton = RepairButton; // B-427: greyed out for a co-op guest
 
 		GearClashText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("GearClashes"));
 		FSlateFontInfo ClashFont = GearClashText->GetFont();
@@ -263,10 +265,26 @@ void UPartyControlWidget::Refresh()
 
 	if (RepairGearText)
 	{
+		// B-427: a guest's wallet is the host's mirror, so its repair would be refused; grey it out and say why.
+		// TODO: a repair RPC so guests can pay (with the co-op screens).
+		const AWoRPlayerState *Payer = GetOwningPlayerState<AWoRPlayerState>();
+		const UCurrencyComponent *Wallet = Payer ? Payer->GetWallet() : nullptr;
+		const bool bHostOnly = Wallet && !WoRAuthority::HasAuthority(Wallet->GetOwner());
 		const int32 RepairGold = Party ? GearRepair::GetPartyRepairCost(*Party) : 0;
-		RepairGearText->SetText(RepairGold > 0
-									? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} {1})"), RepairGold, WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(this)))
-									: LOCTEXT("NothingToRepair", "Rest: no gear to repair"));
+		if (bHostOnly)
+		{
+			RepairGearText->SetText(LOCTEXT("RepairHostOnly", "Rest: repair gear (only the host can buy for now)"));
+		}
+		else
+		{
+			RepairGearText->SetText(RepairGold > 0
+										? FText::Format(LOCTEXT("RepairGear", "Rest: repair gear ({0} {1})"), RepairGold, WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(this)))
+										: LOCTEXT("NothingToRepair", "Rest: no gear to repair"));
+		}
+		if (RepairGearButton)
+		{
+			RepairGearButton->SetIsEnabled(!bHostOnly);
+		}
 	}
 
 	if (GearClashText)
