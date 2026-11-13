@@ -1,6 +1,9 @@
 // BattleGameMode.cpp
 
 #include "Trial/BattleGameMode.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "Combat/Damage/WoRHitKind.h"
+#include "Skills/Effects/StatusBuildupManager.h"
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -363,6 +366,34 @@ void ABattleGameMode::BootstrapCombat()
     WatchFightUsage(true);
     FightTriggers->Watch(true);
     SpawnedOrchestrator->StartCombat(LocalParty, OpposingParty, TrialRun->GetPendingDifficulty());
+    ApplyFieldStrike(*TrialRun, LocalParty, OpposingParty); // B-214f
+}
+
+void ABattleGameMode::ApplyFieldStrike(UTrialRunSubsystem &TrialRun, const TArray<AActor *> &LocalParty,
+                                       const TArray<AActor *> &OpposingParty)
+{
+    // B-214f (Q-214f): a field hit started this fight. The party already strikes first (the pending first strike);
+    // here every enemy of the struck team takes the hit's buildup, as if hit by the party's first member.
+    const FFieldStrike Strike = TrialRun.GetPendingFieldStrike();
+    TrialRun.SetPendingFieldStrike(FFieldStrike());
+    UStatusBuildupManager *Buildup = WoRFight::Get<UStatusBuildupManager>(this);
+    const bool bCarriesSomething = Strike.Element != ESpellElement::None || Strike.Physical != EPhysicalDamageType::None;
+    if (!Strike.IsSet() || !bCarriesSomething || !Buildup || LocalParty.Num() == 0)
+    {
+        return;
+    }
+    const FWoRHitKind Hit = FWoRHitKind::FromPair(Strike.Element, Strike.Physical, Strike.bIce ? EWoRDamageType::Ice : EWoRDamageType::None);
+    int32 Struck = 0;
+    for (AActor *Enemy : OpposingParty)
+    {
+        if (Enemy && Buildup->AddStatusBuildupForHit(LocalParty[0], Enemy, Strike.Buildup, Hit))
+        {
+            ++Struck;
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Field strike: %s%s / %s buildup %.0f on %d of %d enemies"),
+           *UEnum::GetValueAsString(Strike.Element), Strike.bIce ? TEXT(" (Ice)") : TEXT(""),
+           *UEnum::GetValueAsString(Strike.Physical), Strike.Buildup, Struck, OpposingParty.Num());
 }
 
 APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId)
