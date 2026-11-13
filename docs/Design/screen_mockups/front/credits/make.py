@@ -13,7 +13,7 @@ for i in range(9):
 d.text((320, 90), "World of Refraction", font=T(30), fill=TXT, anchor="ma")
 y = 170
 for head, names in [("Created by", ["Crown"]), ("UI art", ["Hidris"]), ("Fonts", ["Spectral SC, Lato (SIL Open Font License)"]),
-                    ("Assets", ["from CREDITS.md, one line each"]), ("Built with", ["Unreal Engine"])]:
+                    ("Assets", ["HD Spell VFX: ARCLIGHT · godboyhappy", "Classic Fantasy RPG UI Kit · PONETI"]), ("Built with", ["Unreal Engine"])]:
     text(d, (320, y), head, 14, True, CYAN, anchor="ma")
     y += 26
     for n in names:
