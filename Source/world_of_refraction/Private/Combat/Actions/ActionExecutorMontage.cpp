@@ -492,7 +492,7 @@ void UActionExecutor::ResolveImpactFrame(int32 Index)
 					: FDefenseDifficultyTriple();
 			ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
 			StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
-			ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
+			ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index);
 		}
 		// Hybrid B2 interrupt: if THIS impact was authored interruptable and EVERY targeted defender
 		// parried/dodged it, abort the rest of the attack. Checked HERE — after all defenders resolved

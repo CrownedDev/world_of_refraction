@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-032b](B-032b.md) | `refactor/B-032b-lumped-path-delete` (in dev, built 2026-11-14) | The old lumped spell defense path and `wor.Combat.PerImpactDefense` are deleted, no play change; a support spell of several hits lands them at its window's close; two data checks (`wor.Combat.PrintSpellImpacts`, Cast notifies) | Pending |
 | [B-214e](B-214e.md) | `feature/B-214e-advanced-moves` (in dev, built 2026-11-14) | Field skills part 5: Teleport (Void only), Phase step, Mark and recall, Super launch (then a glide), Regroup (to the farthest party member; not in a fight) | Pending |
 | [B-214d](B-214d.md) | `feature/B-214d-flight` (in dev, built 2026-11-14) | Field skills part 4: flight (EP each second, hover when still, a ceiling above the take-off, `Zone.NoFly` volumes), each limit liftable (`wor.Field.FlightLimits`). Editor step: tag a volume `Zone.NoFly` | Pending |
 | [B-214c](B-214c.md) | `feature/B-214c-ground-air-moves` (in dev, built 2026-11-14) | Field skills part 3: glide (in the air, slow fall), high jump with one double jump per airtime, air dash (Lightning blinks), wall-run during Enhanced Sprint | Pending |
