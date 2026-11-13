@@ -189,15 +189,16 @@ def strip(d, kind, heading, sources, lit, level, readout=None, warn=None, warn_c
     wear: the durability left on each source behind an element tab (see row)."""
     rows = ([(weapons, weapon_lit, None)] if weapons else []) + ([(sources, lit, wear), (["—", "I", "II"], level, None)] if sources else [])
     bottom = 536
-    top = bottom - 90 - sum(54 if w else 40 for _, _, w in rows) - (32 if readout else 0) - (30 if warn else 0)
+    if not heading.startswith(kind):  # the category leads the title line; "Attack" is not repeated
+        heading = kind + "  ·  " + heading
+    top = bottom - 50 - sum(54 if w else 40 for _, _, w in rows) - (32 if readout else 0) - (30 if warn else 0)
     # The frame is as wide as its content: the heading, the widest row, the readout and the warning.
     tab_w = lambda labels: sum(int(d.textlength(t, font=F(18, True))) + 34 for t in labels)
     inner = max([int(d.textlength(heading, font=F(22, True)))] + [min(ROW_WIDTH, tab_w(labels)) for labels, _, _ in rows]
                 + [int(d.textlength(t, font=F(18, True))) for t in (readout, warn) if t])
     v.cut(d, (20, top, 20 + inner + 32, bottom), v.PANEL, v.CYAN)
-    v.tabs(d, 36, top + 8, [kind], 0, h=32)  # the category, as in the menu's kind row
-    d.text((36, top + 46), heading, font=F(22, True), fill=v.TXT)
-    y = top + 84
+    d.text((36, top + 6), heading, font=F(22, True), fill=v.TXT)
+    y = top + 44
     for labels, on, w in rows:
         row(d, 36, y, labels, on, w)
         y += 54 if w else 40
@@ -260,7 +261,7 @@ save(im, "9_target_all_enemies_confirm.png")
 # No infusion (an item, a broken-adapter spell, a stunned character): no rows at all.
 im, d = base()
 marker(d, v.ENEMIES[1], .68, dmg=.1, build=.35, add=.15)
-strip(d, "Items", "Fire Bomb  ·  choose a target", None, 0, 0)
+strip(d, "Item", "Fire Bomb  ·  choose a target", None, 0, 0)
 v.hints(d, [TARGET, FOOT])
 save(im, "10_target_no_infusion.png")
 print("ok")
