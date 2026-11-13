@@ -21,6 +21,10 @@ namespace FieldFlightSpecValues
 	constexpr int32 START_EP = 5; // two seconds and a bit
 	constexpr float ABOVE_CEILING = 500.0f;
 	constexpr float TOLERANCE = 1.0f;
+	constexpr int32 PLENTY_OF_EP = 10;
+	constexpr float EXTRA_CEILING = 300.0f;
+	constexpr double TAKEOFF_GROUND_Z = 100.0;
+	constexpr double NO_CEILING_ABOVE = 1.0e30;
 }
 
 BEGIN_DEFINE_SPEC(FFieldFlightSpec, "WoR.Field.Flight",
@@ -79,14 +83,14 @@ void FFieldFlightSpec::Define()
 			Lifted.bIgnoreNoFly = true;
 			Lifted.bUnlimitedEP = true;
 			Lifted.bNoCeiling = true;
-			TestTrue(TEXT("no-fly"), FieldSkillRules::CheckFlightStart(true, 10, None) == EFieldSkillRefusal::NoFlyZone);
+			TestTrue(TEXT("no-fly"), FieldSkillRules::CheckFlightStart(true, FieldFlightSpecValues::PLENTY_OF_EP, None) == EFieldSkillRefusal::NoFlyZone);
 			TestTrue(TEXT("no EP"), FieldSkillRules::CheckFlightStart(false, 0, None) == EFieldSkillRefusal::NotEnoughEP);
 			TestTrue(TEXT("lifted"), FieldSkillRules::CheckFlightStart(true, 0, Lifted) == EFieldSkillRefusal::None);
-			TestEqual(TEXT("ceiling above the ground"), FieldSkillRules::GetFlightCeilingZ(100.0, None), 100.0 + FieldSkillRules::FLIGHT_MAX_HEIGHT);
+			TestEqual(TEXT("ceiling above the ground"), FieldSkillRules::GetFlightCeilingZ(FieldFlightSpecValues::TAKEOFF_GROUND_Z, None), FieldFlightSpecValues::TAKEOFF_GROUND_Z + FieldSkillRules::FLIGHT_MAX_HEIGHT);
 			FFieldFlightLimits Raised;
-			Raised.ExtraCeiling = 300.0f;
-			TestEqual(TEXT("raised"), FieldSkillRules::GetFlightCeilingZ(0.0, Raised), static_cast<double>(FieldSkillRules::FLIGHT_MAX_HEIGHT + 300.0f));
-			TestTrue(TEXT("no ceiling"), FieldSkillRules::GetFlightCeilingZ(0.0, Lifted) > 1.0e30);
+			Raised.ExtraCeiling = FieldFlightSpecValues::EXTRA_CEILING;
+			TestEqual(TEXT("raised"), FieldSkillRules::GetFlightCeilingZ(0.0, Raised), static_cast<double>(FieldSkillRules::FLIGHT_MAX_HEIGHT + FieldFlightSpecValues::EXTRA_CEILING));
+			TestTrue(TEXT("no ceiling"), FieldSkillRules::GetFlightCeilingZ(0.0, Lifted) > FieldFlightSpecValues::NO_CEILING_ABOVE);
 		});
 	});
 
@@ -100,6 +104,7 @@ void FFieldFlightSpec::Define()
 			}
 			TestTrue(TEXT("flying"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None && Field->IsFlying());
 			TestTrue(TEXT("flying mode"), Pawn->GetCharacterMovement()->MovementMode == MOVE_Flying);
+			TestEqual(TEXT("lifted off"), static_cast<float>(Pawn->GetCharacterMovement()->PendingLaunchVelocity.Z), FieldSkillRules::FLIGHT_TAKEOFF_LIFT_SPEED, FieldFlightSpecValues::TOLERANCE);
 			TestEqual(TEXT("first second paid"), CharComp->CurrentEP, FieldFlightSpecValues::START_EP - FieldSkillRules::FLIGHT_EP_PER_SECOND);
 			Field->DrainFlight();
 			TestTrue(TEXT("still flying"), Field->IsFlying());
@@ -156,6 +161,18 @@ void FFieldFlightSpec::Define()
 			Field->ActivateFieldSkill();
 			Field->SetActiveFieldSkill(EFieldSkillSource::Innate, EFieldMovementType::Dash);
 			TestFalse(TEXT("off on a new pick"), Field->IsFlying());
+		});
+
+		It("ends when something else takes the movement out of flying", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnFlyer()))
+			{
+				return;
+			}
+			Field->ActivateFieldSkill();
+			Pawn->GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+			Field->ApplyFlightStep();
+			TestFalse(TEXT("off"), Field->IsFlying());
 		});
 	});
 }

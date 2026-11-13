@@ -82,6 +82,7 @@ EFieldSkillRefusal UFieldMovementComponent::ToggleFlight()
 	DrainFlight(); // the first second is paid up front, as Enhanced Sprint's
 	if (bFlying)
 	{
+		Character->LaunchCharacter(FVector(0.0f, 0.0f, FieldSkillRules::FLIGHT_TAKEOFF_LIFT_SPEED), false, true);
 		GetWorld()->GetTimerManager().SetTimer(FlightDrainTimer, this, &UFieldMovementComponent::DrainFlight,
 											   FieldSkillRules::FLIGHT_DRAIN_INTERVAL, true);
 		UpdateMoveStepTimer();
@@ -97,15 +98,15 @@ void UFieldMovementComponent::DrainFlight()
 	{
 		return;
 	}
-	if (!SpendFieldEP(FieldSkillRules::FLIGHT_EP_PER_SECOND))
-	{
-		UE_LOG(LogWoR, Log, TEXT("%s %s: flight out of EP"), FieldFlightLog::TAG, *GetNameSafe(GetOwner()));
-		StopFlight();
-		return;
-	}
 	if (CheckActiveChoiceStillPickable(EFieldMovementType::Flight) != EFieldSkillRefusal::None)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: flight lost its source"), FieldFlightLog::TAG, *GetNameSafe(GetOwner()));
+		StopFlight();
+		return;
+	}
+	if (!SpendFieldEP(FieldSkillRules::FLIGHT_EP_PER_SECOND))
+	{
+		UE_LOG(LogWoR, Log, TEXT("%s %s: flight out of EP"), FieldFlightLog::TAG, *GetNameSafe(GetOwner()));
 		StopFlight();
 	}
 }
@@ -114,6 +115,14 @@ void UFieldMovementComponent::ApplyFlightStep()
 {
 	if (!bFlying)
 	{
+		return;
+	}
+	const ACharacter *Flyer = Cast<ACharacter>(GetOwner());
+	if (Flyer && Flyer->GetCharacterMovement() && Flyer->GetCharacterMovement()->MovementMode != MOVE_Flying)
+	{
+		// Something else took the movement (water, a script): flight ends rather than draining for nothing.
+		UE_LOG(LogWoR, Log, TEXT("%s %s: no longer in flying mode"), FieldFlightLog::TAG, *GetNameSafe(GetOwner()));
+		StopFlight();
 		return;
 	}
 	if (!FlightLimits.bIgnoreNoFly && IsInNoFlyZone())
@@ -131,11 +140,35 @@ void UFieldMovementComponent::ApplyFlightStep()
 	}
 	const double CeilingZ = FieldSkillRules::GetFlightCeilingZ(FlightTakeOffGroundZ, FlightLimits);
 	FVector Location = Owner->GetActorLocation();
-	if (Location.Z > CeilingZ)
+	if (Location.Z < CeilingZ)
+	{
+		return;
+	}
+	// At the ceiling the rise stops (the owning client's own move may overshoot a little); only well over it is the
+	// pawn put back, so a co-op guest isn't pulled back every step.
+	Movement->Velocity.Z = FMath::Min<FVector::FReal>(Movement->Velocity.Z, 0.0);
+	if (Location.Z > CeilingZ + FieldSkillRules::FLIGHT_CEILING_SNAP_MARGIN)
 	{
 		Location.Z = CeilingZ;
 		Owner->SetActorLocation(Location, true);
-		Movement->Velocity.Z = FMath::Min<FVector::FReal>(Movement->Velocity.Z, 0.0);
+	}
+}
+
+void UFieldMovementComponent::AddFlightVerticalInput(float Value)
+{
+	APawn *Pawn = Cast<APawn>(GetOwner());
+	if (bFlying && Pawn && !FMath::IsNearlyZero(Value))
+	{
+		Pawn->AddMovementInput(FVector::UpVector, Value);
+	}
+}
+
+void UFieldMovementComponent::NudgeFlightVertical(float Direction)
+{
+	ACharacter *Character = Cast<ACharacter>(GetOwner());
+	if (bFlying && Character && HasAuthority())
+	{
+		Character->LaunchCharacter(FVector(0.0f, 0.0f, FMath::Sign(Direction) * FieldSkillRules::FLIGHT_VERTICAL_NUDGE_SPEED), false, true);
 	}
 }
 
