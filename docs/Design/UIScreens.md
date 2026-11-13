@@ -89,7 +89,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 8. [x] Shop and the vendor services (`hub/vendors`)
 9. [x] Journal (`menus/journal`)
 10. [x] Party and co-op (`menus/party`, `coop/session`)
-11. [ ] Title and save notices (`front/title`)
+11. [x] Title, save notices, loading (`front/title`)
 12. [ ] Character sheet (`menus/character`)
 13. [ ] Hub HUD, prompt, loading, NPC talk (`hub/hud`)
 
@@ -194,6 +194,16 @@ One block per mocked screen: the images, why the layout, the references.
 - **Host left:** one calm notice for everyone with the hand-over's steps as pips and "Your run, gear and progress are kept" (`HostSuccession::GetStep`). A planned hand-over from the rest menu shows the same card titled "Handing over host". *Ref:* Monster Hunter's host migration notice.
 - **Needs code:** nothing announces a host loss to the UI today.
 
+### 9, 10, 12. Title, save notices, loading (`front/title/`)
+
+- `1_title.png`, `2_save_reset_notice.png`, `3_new_game_confirm.png`, `4_loading.png`.
+- **Title = main menu, no "press any button" step:** the list is there at once, **Continue first** with one line saying where you are (place, party, hours). New Game, Join a friend, Settings, Credits, Quit. One save per player in the code, so **no slot screen**.
+  *Ref:* Hades and Expedition 33 open straight onto Continue; Hollow Knight's and Elden Ring's Continue shows the save's place and time.
+- **"Your save was reset"** (D-060): shown once on the title when an old save was wiped, with both version numbers and one button. Today the wipe is silent (`WasWiped()` is never read).
+- **New Game with a save present** says what is replaced and needs a 2-second hold. *Ref:* Hades' and Elden Ring's delete confirms; hold-to-confirm is the standard for destructive actions (Destiny 2's dismantle).
+- **Saving:** no save prompt in play. The game autosaves; a small crystal mark with "Saving…" shows bottom left while it writes (drawn on the loading image). *Ref:* the standard autosave icon (Elden Ring, Hades). There are no saved runs (D-172), so there is no "save and quit" in a trial.
+- **Loading** (hub ↔ trial only, FeelGuide 10): one item or character with its description to read. *Ref:* Elden Ring's and Dark Souls' item-lore loading screens.
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -247,6 +257,8 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 8. **Gate words and locks** (#21, lore): the variation names (Past, Present, Future are the doc's examples), each variation's one-line teaser and boss name, and **whether an unreached variation shows as "???" or is hidden**. Yours to decide.
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
 10. **Journal words** (#6, lore): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
+11. **Title and loading words** (#9, #12, lore): the logo and key art, and which descriptions appear on loading screens (any item or character, or only ones you've met?).
+12. **New game** (#11, lore): who the player starts as and how they're introduced isn't mocked; it depends on the opening (HubAndStory §4).
 
 ## Changelog
 
