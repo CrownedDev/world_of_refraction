@@ -50,7 +50,7 @@ namespace
 	};
 
 	/** Stones that are not stat stones: no stat, no base percent. */
-	const ECrystalType NON_STAT_STONES[] = {ECrystalType::AbilityStone, ECrystalType::DurabilityStone, ECrystalType::HealingStone};
+	const ECrystalType NON_STAT_STONES[] = {ECrystalType::DurabilityStone, ECrystalType::HealingStone};
 
 	const EItemTier STONE_TEST_TIERS[] = {EItemTier::F_Tier, EItemTier::E_Tier, EItemTier::D_Tier, EItemTier::C_Tier,
 										  EItemTier::B_Tier, EItemTier::A_Tier, EItemTier::S_Tier};
