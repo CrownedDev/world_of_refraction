@@ -114,7 +114,7 @@ int32 WoRCheckpoint::SendToClients(UWorld *World, USaveGame *Save)
 
 bool FCoopCheckpointAssembler::Add(int32 InCheckpointId, int32 ChunkIndex, int32 ChunkCount, const TArray<uint8> &Chunk)
 {
-	// B-434: a count over MAX_CHUNKS is never sent (SendToRemotePlayers refuses it), so a bigger one is refused before
+	// B-434: a count over MAX_CHUNKS is never sent (SendToClients refuses it), so a bigger one is refused before
 	// it sizes the chunk arrays.
 	if (ChunkCount <= 0 || ChunkCount > WoRCheckpoint::MAX_CHUNKS || ChunkIndex < 0 || ChunkIndex >= ChunkCount)
 	{
