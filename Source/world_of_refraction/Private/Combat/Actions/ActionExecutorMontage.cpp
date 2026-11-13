@@ -101,7 +101,8 @@ namespace
 	}
 
 	/** B-424: slows the montage inside the warp window so the hop lasts the burst time, then puts the play rate back.
-	 *  shortcut: the server's copy only (co-op clients see the clip's own hop), until the presentation sends rate changes. */
+	 *  shortcut: the server's copy only (co-op clients see the clip's own hop), until the presentation sends rate changes.
+	 *  TODO: B-424: telegraph leads (PlayActionMontageOnActor) don't count the stretch; fine while no warped montage has one. */
 	void StretchHop(AActor *Actor, UAnimMontage *Montage, float PlayRate, const FApproachBurst &Burst)
 	{
 		const ACharacter *Character = Cast<ACharacter>(Actor);
@@ -117,9 +118,12 @@ namespace
 			FTimerHandle Handle; // one-shot; a montage that stopped meanwhile ignores the rate
 			Actor->GetWorldTimerManager().SetTimer(Handle, FTimerDelegate::CreateLambda([WeakAnim, WeakMontage, Rate]()
 			{
-				if (UAnimInstance *Instance = WeakAnim.Get())
+				// Only the montage still playing: a null montage would change whatever montage is active.
+				UAnimInstance *Instance = WeakAnim.Get();
+				UAnimMontage *Playing = WeakMontage.Get();
+				if (Instance && Playing && Instance->Montage_IsPlaying(Playing))
 				{
-					Instance->Montage_SetPlayRate(WeakMontage.Get(), Rate);
+					Instance->Montage_SetPlayRate(Playing, Rate);
 				}
 			}), FMath::Max(Seconds, UE_KINDA_SMALL_NUMBER), false);
 		};

@@ -60,7 +60,6 @@ namespace ApproachWarp
 		Burst.TravelAfter = TravelAfter;
 		Burst.WarpDistance = WarpDistance;
 		Burst.BurstDistance = FMath::Max(WarpDistance - TravelBefore - TravelAfter, 0.0f);
-		const float Seconds = Burst.GetWindowSeconds();
 		Burst.BurstSpeed = Seconds > 0.0f ? Burst.BurstDistance / Seconds : 0.0f;
 		Burst.bUseCameraCut = Burst.bHasWindow && Burst.BurstSpeed > CAMERA_CUT_BURST_SPEED;
 		return Burst;
