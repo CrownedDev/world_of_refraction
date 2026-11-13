@@ -551,6 +551,15 @@ The queue of questions only Crown can answer.
 **Answer:** all six, by the reference-backed default (2026-11-09). Crown may change any; the absorb cue is one switch.
 **Answer: Crown, 2026-11-12:** all six kept, with one change: the cue text is **"Negated", not "Absorbed"** ("Absorbed" reads as Broken Darkness's energy absorption); **on by default**. `LOCTEXT("Negated", "Negated")` in `DamageNumberView::GetNegatedLabel`; the code names follow the word (`EDamageNumberTier::Negated`, `SHOW_NEGATED_CUE`, `NEGATED_SCALE`, `IsNegatedHit`, `MakeNegatedStyle`).
 
+### Q-435 — Same-element stacking: spells too, or abilities and attacks only?
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-14 (B-435, cloud) · **Blocks:** —
+**Question:** D-174 says "an infused action uses every same-element source". A spell is origin-bound to one source (`GetAllowedInfusionSourcesForSpell`, D-110), and the battle HUD plan shows a spell's one lit source tab. Should a spell also stack (a free ring or weapon-crystal spell would then pay a stacked innate's full spell EP, and HP at L2)?
+**Context:** `UActionExecutor::ResolveSameElementInfusionSources` (`ActionExecutor.cpp`); cost in `ActionExecutorCosts.cpp`.
+**Options:** **A** abilities and attacks stack; spells keep their one origin source (as built). **B** spells stack too: every same-element source pays its own cost on a spell as well.
+**Recommendation:** A. It keeps this game's own ruling (a spell is bound to where it is slotted, D-110) and the HUD plan's one lit tab. With B, a ring spell that costs 0 EP today would quietly start costing a full innate spell's EP. No outside game was found that settles this exact case, so the recommendation rests on the existing ruling.
+**Answer:** **A**, by the reference-backed default (2026-11-14). Crown may change it (B is one condition in `ResolveSameElementInfusionSources` plus the spell cost paths).
+**Notes for Claude:** built in B-435.
+
 ### Q-402 — Side-on Defence view: which side, how wide, and what "no shake" covers
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-402, cloud) · **Blocks:** —
 **Question:** Crown's Q2 (2026-11-09) made the Defence view a low side-on two-shot, steady, no shake (study R10, R10b, R11). Still open: (1) which side of the fight the camera stands on; (2) how a wide shot for several targets differs from the two-shot; (3) when shake and the FOV punch are held, and what happens to them afterwards.

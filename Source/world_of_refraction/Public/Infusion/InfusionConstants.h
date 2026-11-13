@@ -109,4 +109,21 @@ namespace InfusionConstants
 	{
 		return Level >= HP_COST_MIN_LEVEL;
 	}
+
+	// ==================== SAME-ELEMENT STACKING (D-174, ED-51) ====================
+	// B-435: an infused action uses every one of the character's sources that shares its element; each pays its
+	// own cost and status buildup grows per extra source (damage band and size stay the picked level's).
+
+	/** Extra status buildup per same-element source beyond the first (+25%). */
+	constexpr float SAME_ELEMENT_BUILDUP_PER_EXTRA_SOURCE = 0.25f; // TODO: tune
+
+	/** Cap on the same-element buildup bonus (+50%). */
+	constexpr float SAME_ELEMENT_BUILDUP_BONUS_CAP = 0.50f; // TODO: tune
+
+	/** Status buildup multiplier for SourceCount same-element sources: x1.0 for 0 or 1, +25% per extra, capped at +50%. */
+	inline float SameElementBuildupMultiplier(int32 SourceCount)
+	{
+		const int32 ExtraSources = FMath::Max(0, SourceCount - 1);
+		return 1.0f + FMath::Min(ExtraSources * SAME_ELEMENT_BUILDUP_PER_EXTRA_SOURCE, SAME_ELEMENT_BUILDUP_BONUS_CAP);
+	}
 }

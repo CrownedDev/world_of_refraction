@@ -74,6 +74,31 @@
 
 int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const
 {
+	// B-435 (D-174): each same-element source pays its own cost. The picked source pays as before; a stacked
+	// Innate or Evolution source adds its EP (crystal sources pay wear at commit). Preview == spend still holds:
+	// ExecuteAbilityAsync and validation both read this (the spend reads the stack resolved at commit).
+	int32 Cost = CalculateSourceEnergyCost(Actor, Action);
+	const TArray<EInfusionSourceOption> Stack = GetSameElementInfusionSources(Actor, Action);
+	for (int32 Index = 1; Index < Stack.Num(); ++Index)
+	{
+		Cost += CalculateStackedSourceEnergyCost(Actor, Action, Stack[Index]);
+	}
+	return Cost;
+}
+
+int32 UActionExecutor::CalculateStackedSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const
+{
+	if (Source != EInfusionSourceOption::Innate && Source != EInfusionSourceOption::Evolution)
+	{
+		return 0;
+	}
+	FAction AsSource = Action; // only abilities stack (Q-435), so the source alone sets the EP
+	AsSource.SelectedSource = Source;
+	return CalculateSourceEnergyCost(Actor, AsSource);
+}
+
+int32 UActionExecutor::CalculateSourceEnergyCost(AActor *Actor, const FAction &Action) const
+{
 	// D8: a deferred fire already paid its full cost at ARM — the fire-time
 	// resubmission is cost-free. Dormant until 8c sets the flag.
 	if (Action.bIsDeferredFire)
@@ -351,8 +376,34 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 	}
 
+	// B-435 (D-174): the picked source and every stacked same-element source each pay their own cost; the HP
+	// backlashes add up and are deferred to finalize together. The stack is resolved before any wear and kept on the
+	// context, so a gem this commit wears to 0 still counts for the EP spend and the buildup.
+	const TArray<EInfusionSourceOption> Stack = ResolveSameElementInfusionSources(Actor, Action);
+	if (CurrentExecutionContext.IsSet())
+	{
+		CurrentExecutionContext->InfusionStack = Stack;
+		CurrentExecutionContext->bInfusionStackResolved = true;
+	}
+	int32 PendingHP = ApplySourceCommitCost(Actor, Action, Action.SelectedSource, Level, PreEffInfusedEP, bLevelPaysHP);
+	for (int32 Index = 1; Index < Stack.Num(); ++Index)
+	{
+		PendingHP += ApplySourceCommitCost(Actor, Action, Stack[Index], Level, PreEffInfusedEP, bLevelPaysHP);
+	}
+	if (CurrentExecutionContext.IsSet() && PendingHP > 0)
+	{
+		CurrentExecutionContext->PendingInfusionHPCost = PendingHP;
+	}
+}
+
+int32 UActionExecutor::ApplySourceCommitCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,
+											 int32 PreEffInfusedEP, bool bLevelPaysHP)
+{
+	const bool bIsSpellAction = (Action.ActionType == EActionType::Spell);
+	int32 HPCost = 0;
+
 	// Route by source
-	switch (Action.SelectedSource)
+	switch (Source)
 	{
 	case EInfusionSourceOption::None:
 		// No source means no infusion cost path. Should not normally reach here
@@ -369,13 +420,11 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// dropped, the EP surcharge (6-2-2) still applies. Cost is DEFERRED to
 		// FinalizeAsyncAction via PendingInfusionHPCost so a lethal cost lands after
 		// the infused effect resolves.
-		if (CurrentExecutionContext.IsSet())
 		{
-			const bool bInnateAbilityNoHP =
-				(Action.SelectedSource == EInfusionSourceOption::Innate) && !bIsSpellAction;
+			const bool bInnateAbilityNoHP = (Source == EInfusionSourceOption::Innate) && !bIsSpellAction;
 			if (!bInnateAbilityNoHP && bLevelPaysHP)
 			{
-				CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
+				HPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
 			}
 		}
 		break;
@@ -385,7 +434,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	{
 		// Ring sources pay durability wear on the ring's slotted crystal: the active ring (Resonator) or the
 		// primary-slot ring (Generic / Caster). B-245 (DRY audit A3): one wear path for both.
-		const bool bActiveRing = Action.SelectedSource == EInfusionSourceOption::ActiveRing;
+		const bool bActiveRing = Source == EInfusionSourceOption::ActiveRing;
 		ULoadoutComponent *RingLoadout = GetLoadoutComponent(Actor);
 		URingData *Ring = RingLoadout ? (bActiveRing ? RingLoadout->GetActiveRing() : RingLoadout->GetPrimaryRing()) : nullptr;
 		if (!Ring)
@@ -473,31 +522,26 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// Self-status build is logged as intent — actual application pending the
 		// element-to-status mapping system (separate workstream).
 
-		// 1. Resolve evolution element from active weapon's runtime attachment
-		//    for logging; needed by the future status-build wiring.
+		// 1. Resolve the evolution from the character seat, the one path the resolver and the wear read (B-357e;
+		//    B-435: it used to read the weapon's attachment, so a seated evolution paid no HP).
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		const FWeaponLoadoutEntry *ActiveWeaponLoadout = LC ? LC->GetActiveWeaponLoadout() : nullptr;
-		UEvolutionItemData *WeaponCrystal = nullptr;
-		if (ActiveWeaponLoadout && ActiveWeaponLoadout->WeaponEntry.AttachedItem.IsEvolution())
-		{
-			WeaponCrystal = ActiveWeaponLoadout->WeaponEntry.AttachedItem.Evolution.Item;
-		}
-		if (!WeaponCrystal)
+		const FEvolutionAttachment Seat = LC ? LC->GetCharacterSlotEvolution() : FEvolutionAttachment();
+		if (!Seat.Item)
 		{
 			UE_LOG(LogTemp, Warning,
-				   TEXT("[ActionExecutor] %s: Evolution infusion but weapon is not evolved or no slotted crystal"),
+				   TEXT("[ActionExecutor] %s: Evolution infusion but no evolution in the character seat"),
 				   *Actor->GetName());
 			break;
 		}
 
-		const ESpellElement EvolutionElement = WeaponCrystal->GetAssociatedElement();
+		const ESpellElement EvolutionElement = Seat.Item->GetAssociatedElement();
 
 		// 2. HP cost — same EP-based formula as Innate/Raw. Computed now
 		//    (commit-time HP) but DEFERRED to FinalizeAsyncAction via
 		//    PendingInfusionHPCost so a lethal backlash lands after the action.
-		if (CurrentExecutionContext.IsSet() && bLevelPaysHP)
+		if (bLevelPaysHP)
 		{
-			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
+			HPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
 		}
 
 		// 3. Self-status build (logged intent, not yet applied — pending element-to-status mapping)
@@ -514,7 +558,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		//    unconditional charge here would double-bill an evolution-source
 		//    spell. Tier: the action's own (ResolveActionTier, Q-245). The
 		//    BD/Reality breakable gate lives inside ProcessPostCastEvolutionWear.
-		if (Action.ActionType != EActionType::Spell)
+		if (!bIsSpellAction)
 		{
 			// B-245 (Q-245): the action's own tier, as tier-gap damage reads it.
 			const EItemTier ActionTier = ResolveActionTier(Actor, Action);
@@ -534,9 +578,10 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	default:
 		UE_LOG(LogTemp, Warning,
 			   TEXT("[ActionExecutor] %s: Unknown infusion source %d at L%d"),
-			   *Actor->GetName(), static_cast<int32>(Action.SelectedSource), Level);
+			   *Actor->GetName(), static_cast<int32>(Source), Level);
 		break;
 	}
+	return HPCost;
 }
 
 void UActionExecutor::ApplyPendingInfusionHPCost(AActor *Actor)

@@ -2520,21 +2520,22 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
         return Level;
     }
 
-    // Only Raw, Innate-on-SPELL, and Evolution pay HP (innate-on-ability pays none; crystal sources
-    // pay durability). Mirrors ActionExecutor::ApplyCommitCosts' HP-cost routing.
-    const bool bHPPaying =
-        (Source == EInfusionSourceOption::Raw) ||
-        (Source == EInfusionSourceOption::Innate && bIsSpell) ||
-        (Source == EInfusionSourceOption::Evolution);
-    if (!bHPPaying)
-    {
-        return Level;
-    }
-
     UActionExecutor *ActionExec = GetActionExecutor();
     if (!ActionExec || !Comp)
     {
         return Level; // can't compute — fail open, matching CanAfford*'s convention (null is unreachable in combat)
+    }
+
+    // Only Raw, Innate-on-SPELL, and Evolution pay HP (innate-on-ability pays none; crystal sources pay durability),
+    // the picked source and every stacked same-element one (B-435, D-174: each pays the same HP, summed at commit).
+    FAction Infused = Action;
+    Infused.SelectedSource = Source;
+    Infused.SpellInfusionLevel = Level;
+    Infused.AbilityInfusionLevel = Level;
+    const int32 HPSources = ActionExec->CountHPPayingInfusionSources(Attacker, Infused);
+    if (HPSources <= 0)
+    {
+        return Level;
     }
 
     // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
@@ -2555,7 +2556,7 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
     {
         const int32 PreEffEP = FMath::RoundToInt(
             BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * PowerMult * TierGapCostMult);
-        if (UInfusionCostHelper::WouldKill(Attacker, PreEffEP))
+        if (UInfusionCostHelper::WouldKill(Attacker, PreEffEP * HPSources))
         {
             Level--;
         }
