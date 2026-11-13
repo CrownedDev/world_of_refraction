@@ -34,7 +34,7 @@ y = toast(d, y, "Victory", "+180 Prisms")
 y = toast(d, y, "Found", "Garnet (B) · crystal", ELEMENT["Fire"])
 y = toast(d, y, "Level banked", "Garrick +1 · place it at a rest spot", CYAN)
 y = toast(d, y, "New memory", "The Smith's Promise", GOLD, tag="J  Journal")
-y = toast(d, y, "Hidden quest discovered", "Ash on the Anvil", ELEMENT["Void"], tag="only you see this")
+y = toast(d, y, "Secret quest discovered", "Ash on the Anvil", ELEMENT["Void"], tag="only you see this")
 panel(d, (48, 600, 460, 690))  # the small trial HUD (#28): run money, wipes left
 x = chip(d, 64, 612, "Prisms", "1,420", EP)
 chip(d, x, 612, "wipes left", "3 of 5", WARN)

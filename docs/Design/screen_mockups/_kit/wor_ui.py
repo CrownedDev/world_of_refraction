@@ -80,7 +80,14 @@ def panel(d, box, focus=False, c=14):
     cut(d, box, PANEL, CYAN if focus else STEEL, c)
 
 
+# HP and EP bars are a darker red and a darker blue than the text colours, so a white value inside reads clearly
+# (white on each is over 5:1). Low HP is an orange-red. bar() swaps them in; text and chips keep ROSE / EP.
+HP_BAR, HP_LOW_BAR, EP_BAR = (168, 36, 60), (200, 60, 40), (36, 92, 170)
+_BAR = {ROSE: HP_BAR, ROSE_LOW: HP_LOW_BAR, EP: EP_BAR}
+
+
 def bar(d, x, y, w, frac, col, h=14):
+    col = _BAR.get(col, col)
     d.rectangle((x, y, x + w, y + h), fill=TRACK)
     d.rectangle((x, y, x + int(w * max(0, min(1, frac))), y + h), fill=col)
 

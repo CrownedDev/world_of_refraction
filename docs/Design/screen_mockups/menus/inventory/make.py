@@ -81,7 +81,7 @@ text(d, (48, 520), "E  worn in a loadout", 15, fill=DIM)
 detail(d, "Ashen Blade", "D", "Sword · Fire · a second copy (weaker)",
        [("Power", "28"), ("Durability", "100 / 100"), ("Abilities", "Cleave, Whirl +1")],
        "You own a better Ashen Blade (B). A vendor buys or dismantles the weaker copy (one copy per character, D-115).")
-verbs(d, 750, 410, [("Give", None), ("Store", None), ("Take", "For items in the home chest")], 0)
+verbs(d, 750, 410, [("Give", None), ("Store", None)], 0)  # Take is listed only on the Chest tab
 footer(d, [("A", "Choose"), ("Y", "Sort"), ("B", "Back")])
 save(im, OUT, "1_gear.png")
 
