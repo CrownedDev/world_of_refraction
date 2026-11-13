@@ -172,7 +172,7 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Heading(LOCTEXT("SectionMenus", "Menus")));
 	Rows.Add(Key(LOCTEXT("KeyMenuMove", "Move"), LOCTEXT("KeyMenuMoveKB", "Arrows, W / S"), LOCTEXT("KeyMenuMovePad", "D-pad, left stick")));
 	Rows.Add(Key(LOCTEXT("KeyMenuSelect", "Select"), LOCTEXT("KeyMenuSelectKB", "Enter, Space"), LOCTEXT("KeyMenuSelectPad", "A")));
-	Rows.Add(Key(LOCTEXT("KeyMenuBack", "Back"), LOCTEXT("KeyMenuBackKB", "Esc, Backspace"), LOCTEXT("KeyMenuBackPad", "B")));
+	Rows.Add(Key(LOCTEXT("KeyMenuBack", "Back"), LOCTEXT("KeyMenuBackKB", "Esc, Backspace"), LOCTEXT("KeyMenuBackPad", "B, Menu")));
 	Rows.Add(Key(LOCTEXT("KeyMenuPage", "Previous / next page"), LOCTEXT("KeyMenuPageKB", "Q / E"), LOCTEXT("KeyMenuPagePad", "LB / RB")));
 	Rows.Add(Key(LOCTEXT("KeyMenuCharacter", "Previous / next character"), LOCTEXT("KeyMenuCharacterKB", "Z / C"), LOCTEXT("KeyMenuCharacterPad", "LT / RT")));
 	Rows.Add(Key(LOCTEXT("KeyMenuChange", "Change a setting"), LOCTEXT("KeyMenuChangeKB", "Left / Right, A / D"), LOCTEXT("KeyMenuChangePad", "D-pad left / right")));
@@ -206,9 +206,11 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 
 void WoRSettingsScreen::SaveChanges(UWorld *World)
 {
-	if (USaveSubsystem *Save = SettingsScreenBuild::FindSave(World))
+	// A full save, as a rest spot's: the settings ride in the one save file (FSavedSettings).
+	USaveSubsystem *Save = SettingsScreenBuild::FindSave(World);
+	if (Save && !Save->SaveNow(World, /*bAsync=*/true))
 	{
-		Save->SaveNow(World, /*bAsync=*/true);
+		UE_LOG(LogWoRUI, Warning, TEXT("[Settings] Not written: no local player owns the save slot yet. The change holds until the game closes."));
 	}
 }
 

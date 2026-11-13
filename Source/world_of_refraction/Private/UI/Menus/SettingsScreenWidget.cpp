@@ -154,6 +154,9 @@ void USettingsScreenWidget::BuildTree()
 void USettingsScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
+	// The stack may hand back a pooled instance: every open starts on the first page.
+	Page = ESettingsPage::Gameplay;
+	SelectedRow = 0;
 	bChanged = false;
 	Refresh();
 	UE_LOG(LogWoRUI, Log, TEXT("[Settings] Opened"));
@@ -205,7 +208,11 @@ void USettingsScreenWidget::Refresh()
 		RowValues[Index]->SetText(bFocused && Row.CanChange() ? FText::Format(LOCTEXT("FocusedValue", "‹  {0}  ›"), Row.Value) : Row.Value);
 		RowValues[Index]->SetColorAndOpacity(FSlateColor(bFocused ? TextColor : DimColor));
 	}
-	SetShown(KeyList, Page == ESettingsPage::Controls);
+	if (KeyList)
+	{
+		// Visible, not SelfHitTestInvisible: the scroll box itself has to take the mouse wheel.
+		KeyList->SetVisibility(Page == ESettingsPage::Controls ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
 
 	if (!PanelHeading)
 	{
@@ -348,7 +355,7 @@ FReply USettingsScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometr
 		return FReply::Handled();
 	}
 	const int32 Row = FindUnder(RowBoxes, InMouseEvent);
-	if (Row != INDEX_NONE)
+	if (Rows.IsValidIndex(Row)) // a hidden row keeps its old place on screen
 	{
 		SelectRow(Row);
 		ChangeSelected(1);
