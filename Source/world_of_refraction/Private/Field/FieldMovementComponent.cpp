@@ -56,6 +56,23 @@ void UFieldMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME_CONDITION(UFieldMovementComponent, ActiveChoice, COND_OwnerOnly);
 	DOREPLIFETIME(UFieldMovementComponent, bEnhancedSprintActive);
 	DOREPLIFETIME(UFieldMovementComponent, EnhancedSprintElement);
+	DOREPLIFETIME(UFieldMovementComponent, bGliding);
+	DOREPLIFETIME(UFieldMovementComponent, bWallRunning);
+}
+
+void UFieldMovementComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	if (ACharacter *Character = Cast<ACharacter>(GetOwner()))
+	{
+		if (const UCharacterMovementComponent *Movement = Character->GetCharacterMovement())
+		{
+			BaseGravityScale = Movement->GravityScale;
+			BaseAirControl = Movement->AirControl;
+			bHasBaseMovement = true;
+		}
+		Character->LandedDelegate.AddUniqueDynamic(this, &UFieldMovementComponent::HandleLanded); // B-214c
+	}
 }
 
 void UFieldMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -63,6 +80,11 @@ void UFieldMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DrainTimer);
+		World->GetTimerManager().ClearTimer(MoveStepTimer);
+	}
+	if (ACharacter *Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->LandedDelegate.RemoveDynamic(this, &UFieldMovementComponent::HandleLanded);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -157,9 +179,13 @@ EFieldSkillRefusal UFieldMovementComponent::SetActiveFieldSkill(EFieldSkillSourc
 	FFieldSkillChoice Choice;
 	Choice.Source = Source;
 	Choice.Type = Type;
-	if (Choice != GetActiveFieldSkill() && bEnhancedSprintActive)
+	if (Choice != GetActiveFieldSkill())
 	{
-		StopEnhancedSprint();
+		if (bEnhancedSprintActive)
+		{
+			StopEnhancedSprint();
+		}
+		SetGliding(false); // B-214c
 	}
 	ActiveChoice = Choice;
 	const UCharacterDataComponent *CharComp = GetCharacterData();
@@ -246,8 +272,14 @@ EFieldSkillRefusal UFieldMovementComponent::ActivateFieldSkill()
 			return EFieldSkillRefusal::None;
 		}
 		return StartEnhancedSprint();
+	case EFieldMovementType::Glide: // B-214c
+		return ToggleGlide();
+	case EFieldMovementType::HighJump:
+		return HighJump();
+	case EFieldMovementType::AirDash:
+		return AirDash();
 	default:
-		UE_LOG(LogWoR, Log, TEXT("%s %s: %s isn't built yet (B-214c..e)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
+		UE_LOG(LogWoR, Log, TEXT("%s %s: %s isn't built yet (B-214d..e)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
 			   *FieldSkillRules::TypeName(Choice.Type));
 		return EFieldSkillRefusal::NotBuiltYet;
 	}
@@ -256,6 +288,13 @@ EFieldSkillRefusal UFieldMovementComponent::ActivateFieldSkill()
 void UFieldMovementComponent::ServerActivateFieldSkill_Implementation()
 {
 	ActivateFieldSkill();
+}
+
+EFieldSkillRefusal UFieldMovementComponent::CheckActiveChoiceStillPickable() const
+{
+	const FFieldSkillChoice Choice = GetActiveFieldSkill();
+	const ESpellElement Element = GetSourceElement(Choice.Source);
+	return FieldSkillRules::CheckPick(Choice.Type, Element, IsFieldTypeUnlocked(this, Choice.Type, Element, false));
 }
 
 EFieldSkillRefusal UFieldMovementComponent::StartEnhancedSprint()
@@ -278,6 +317,7 @@ EFieldSkillRefusal UFieldMovementComponent::StartEnhancedSprint()
 	{
 		GetWorld()->GetTimerManager().SetTimer(DrainTimer, this, &UFieldMovementComponent::DrainEnhancedSprint,
 											   FieldSkillRules::ENHANCED_SPRINT_DRAIN_INTERVAL, true);
+		UpdateMoveStepTimer(); // B-214c: the wall-run check
 	}
 	return EFieldSkillRefusal::None;
 }
@@ -333,6 +373,8 @@ void UFieldMovementComponent::StopEnhancedSprint()
 	{
 		SetEnhancedSprintActive(false);
 	}
+	SetWallRunning(false); // B-214c: a wall-run is part of Enhanced Sprint
+	UpdateMoveStepTimer();
 }
 
 void UFieldMovementComponent::SetEnhancedSprintActive(bool bActive)
@@ -378,5 +420,8 @@ FString UFieldMovementComponent::GetFieldStateString() const
 						   bEnhancedSprintActive ? TEXT("ON") : TEXT("off"), GetSprintSpeedMultiplier(),
 						   IsMovingAtSprintSpeed() ? TEXT("moving at sprint speed (draining)") : TEXT("not sprinting (no drain)"),
 						   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0,
-						   IsDashReady() ? TEXT("ready") : TEXT("cooling"), FindRecord() ? TEXT("yes") : TEXT("no"));
+						   IsDashReady() ? TEXT("ready") : TEXT("cooling"), FindRecord() ? TEXT("yes") : TEXT("no"))
+		+ FString::Printf(TEXT(" | glide %s | wall-run %s | air jump %s, air dash %s"), // B-214c
+						  bGliding ? TEXT("ON") : TEXT("off"), bWallRunning ? TEXT("ON") : TEXT("off"),
+						  bAirJumpUsed ? TEXT("used") : TEXT("ready"), bAirDashUsed ? TEXT("used") : TEXT("ready"));
 }

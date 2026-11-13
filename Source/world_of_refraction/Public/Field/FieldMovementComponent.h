@@ -6,12 +6,15 @@
 //     a pawn with no record keeps it here. Double-tap sprint (IA_Field_MovementSkill) or wor.Field.Activate uses it.
 //   - Enhanced Sprint: a faster sprint while on (by the source's element), EP per second while moving at sprint speed
 //     (Q-214a, Crown), off at 0 EP or on a second double-tap. UHubMovementLibrary::ComputeHubSprintSpeed reads GetSprintSpeedMultiplier.
+// B-214c (moves in FieldMovementMoves.cpp): Glide (a slow fall, toggled in the air), High jump (and one double jump per
+// airtime), Air dash (once per airtime along the aim; Lightning blinks), and wall-run while Enhanced Sprint is on.
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/HitResult.h"
 #include "Engine/TimerHandle.h"
 #include "Field/FieldSkillTypes.h"
 #include "FieldMovementComponent.generated.h"
@@ -70,6 +73,32 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	bool IsMovingAtSprintSpeed() const;
 
+	// ---- B-214c: ground and air moves ----
+
+	/** Glide on (in the air, paid once) or off. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal ToggleGlide();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsGliding() const { return bGliding; }
+
+	/** A high jump from the ground, or the one double jump in the air. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal HighJump();
+
+	/** The air dash along the aim (Lightning: blinks), once per airtime. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal AirDash();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsWallRunning() const { return bWallRunning; }
+
+	/** Landing: the double jump, air dash and wall-run come back; glide and wall-run end. Public for the spec. */
+	void NotifyLanded();
+
+	/** One wall-run step with the wall test given (StepMoves traces for it). Public for the spec. */
+	void ApplyWallRunStep(bool bWallBeside, const FVector &WallNormal);
+
 	/** Server: copies the party record's choice into the replicated mirror (after the leader is rebound). */
 	void RefreshFromRecord();
 
@@ -81,6 +110,7 @@ public:
 
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
+	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
@@ -95,6 +125,28 @@ private:
 
 	UFUNCTION()
 	void OnRep_EnhancedSprintActive();
+
+	UFUNCTION()
+	void OnRep_AirMoveState();
+
+	UFUNCTION()
+	void HandleLanded(const FHitResult &Hit);
+
+	/** The active choice may still be used (its source's element now, the unlock): CheckPick again. */
+	EFieldSkillRefusal CheckActiveChoiceStillPickable() const;
+
+	/** Glide's fall cap and the wall-run check, every MOVE_STEP_INTERVAL while gliding or Enhanced Sprint is on. */
+	void StepMoves();
+	void UpdateMoveStepTimer();
+
+	/** Gravity and air control for the glide / wall-run state (server, and the owning client by OnRep). */
+	void ApplyAirMoveState();
+
+	void SetGliding(bool bOn);
+	void SetWallRunning(bool bOn);
+
+	/** True when the pawn has its EP: spends it (server). */
+	bool SpendFieldEP(int32 Amount);
 
 	EFieldSkillRefusal StartEnhancedSprint();
 	void SetEnhancedSprintActive(bool bActive);
@@ -116,6 +168,25 @@ private:
 	/** The element Enhanced Sprint started with (its speed); replicated so the client's sprint speed matches. */
 	UPROPERTY(Replicated)
 	ESpellElement EnhancedSprintElement = ESpellElement::None;
+
+	UPROPERTY(ReplicatedUsing = OnRep_AirMoveState)
+	bool bGliding = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_AirMoveState)
+	bool bWallRunning = false;
+
+	/** Server: used since the last landing. */
+	bool bAirJumpUsed = false;
+	bool bAirDashUsed = false;
+	bool bWallRunSpent = false;
+	float WallRunSeconds = 0.0f;
+
+	/** The movement's own gravity and air control, put back when glide / wall-run end (read at BeginPlay). */
+	float BaseGravityScale = 1.0f;
+	float BaseAirControl = 0.0f;
+	bool bHasBaseMovement = false;
+
+	FTimerHandle MoveStepTimer;
 
 	double LastDashTime = -FieldSkillRules::DASH_COOLDOWN_SECONDS;
 	FTimerHandle DrainTimer;
