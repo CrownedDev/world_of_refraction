@@ -250,8 +250,10 @@ bool UInventoryScreenWidget::NativeOnHandleBackAction()
 	{
 		return Super::NativeOnHandleBackAction();
 	}
-	Focus = Focus == EInventoryScreenFocus::Receivers ? EInventoryScreenFocus::Verbs : EInventoryScreenFocus::Grid;
-	Choice = 0;
+	// Out of "Give to" the keys land back on Give, the line that opened it.
+	const bool bFromGiveTo = Focus == EInventoryScreenFocus::Receivers;
+	Focus = bFromGiveTo ? EInventoryScreenFocus::Verbs : EInventoryScreenFocus::Grid;
+	Choice = bFromGiveTo ? FMath::Max(0, Verbs.IndexOfByPredicate([](const FInventoryScreenVerb &Verb) { return Verb.Verb == EInventoryVerb::Give; })) : 0;
 	RefreshSelection();
 	return true;
 }
@@ -553,8 +555,9 @@ void UInventoryScreenWidget::RunVerb(EInventoryVerb Verb, const FInventoryScreen
 		return;
 	}
 	const FInventoryScreenTile Tile = *Focused;
-	const int32 Count = WoRInventoryScreen::GetMoveCount(Tile, bWholeStack);
-	const FText Refusal = WoRInventoryVerbs::Run(GetWorld(), Verb, MemberKey(), Receiver ? Receiver->Key : NAME_None, Tile.Row, Count);
+	const FName ReceiverKey = Receiver ? Receiver->Key : NAME_None;
+	const int32 Count = WoRInventoryScreen::GetMoveCount(GetWorld(), Verb, MemberKey(), ReceiverKey, Tile, bWholeStack);
+	const FText Refusal = WoRInventoryVerbs::Run(GetWorld(), Verb, MemberKey(), ReceiverKey, Tile.Row, Count);
 	bStatusIsRefusal = !Refusal.IsEmpty();
 	if (bStatusIsRefusal)
 	{
@@ -705,7 +708,10 @@ FReply UInventoryScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 	{
 		if (MemberTabs[Index] && MemberTabs[Index]->GetCachedGeometry().IsUnderLocation(Position))
 		{
-			MoveMember(Index - MemberIndex);
+			if (Index != MemberIndex) // a click on the shown tab changes nothing
+			{
+				MoveMember(Index - MemberIndex);
+			}
 			return FReply::Handled();
 		}
 	}
@@ -714,7 +720,10 @@ FReply UInventoryScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 	{
 		if (PageTabs[Index] && PageTabs[Index]->GetCachedGeometry().IsUnderLocation(Position))
 		{
-			MoveTab(Index - Tabs.IndexOfByKey(Tab));
+			if (Tabs[Index] != Tab)
+			{
+				MoveTab(Index - Tabs.IndexOfByKey(Tab));
+			}
 			return FReply::Handled();
 		}
 	}

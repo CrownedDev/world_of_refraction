@@ -213,6 +213,16 @@ void FInventoryScreenSpec::Define()
 		if (!TestNotNull(TEXT("Store is still listed"), RunStore)) return;
 		TestFalse(TEXT("refused in a run"), RunStore->Refusal.IsEmpty());
 		TestFalse(TEXT("for the chest's own reason"), RunStore->Refusal.EqualTo(AtHome));
+
+		// Q-441: a pouch stack isn't stored during a run either, and the press itself is refused.
+		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
+		const FInventoryScreenPage Pouch = PageOf(EInventoryScreenTab::Pouch);
+		if (!TestEqual(TEXT("one stack carried"), Pouch.Tiles.Num(), 1)) return;
+		const FInventoryScreenVerb *StackStore = FindVerb(VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]), EInventoryVerb::Store);
+		TestTrue(TEXT("a stack's Store is greyed in a run"), StackStore && !StackStore->Refusal.IsEmpty());
+		TestFalse(TEXT("and Run refuses it"),
+				  WoRInventoryVerbs::Run(World(), EInventoryVerb::Store, KeyOf(SCREEN_MEMBER), NAME_None, Pouch.Tiles[0].Row, 1).IsEmpty());
+		TestEqual(TEXT("nothing left the pouch"), Pool->GetCarriedCount(KeyOf(SCREEN_MEMBER), SCREEN_GEM), SCREEN_GEM_COUNT);
 	});
 
 	It("draws the pouch's slots and counts its stacks", [this]()
@@ -225,8 +235,42 @@ void FInventoryScreenSpec::Define()
 		TestEqual(TEXT("the slots it starts with"), Pouch.Slots, InventoryConstants::ITEM_SLOTS_START);
 		TestEqual(TEXT("the rest are the Jeweler's"), Pouch.LockedSlots, InventoryConstants::ITEM_SLOTS_MAX - InventoryConstants::ITEM_SLOTS_START);
 		TestFalse(TEXT("a heading with the slot count"), Pouch.Heading.IsEmpty());
-		TestEqual(TEXT("one at a time"), WoRInventoryScreen::GetMoveCount(Pouch.Tiles[0], /*bWholeStack=*/false), 1);
-		TestEqual(TEXT("or the whole stack"), WoRInventoryScreen::GetMoveCount(Pouch.Tiles[0], /*bWholeStack=*/true), SCREEN_GEM_COUNT);
+		const FName Giver = KeyOf(SCREEN_MEMBER);
+		const FName Receiver = KeyOf(SCREEN_RECEIVER);
+		TestEqual(TEXT("one at a time"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Store, Giver, NAME_None, Pouch.Tiles[0], /*bWholeStack=*/false), 1);
+		TestEqual(TEXT("or the whole stack"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Store, Giver, NAME_None, Pouch.Tiles[0], /*bWholeStack=*/true),
+				  SCREEN_GEM_COUNT);
+
+		// A whole-stack Give moves what fits the receiver's stack, not more.
+		Pool->CarryOrStore(Receiver, SCREEN_GEM, InventoryConstants::ITEM_STACK_MAX - 1);
+		TestEqual(TEXT("only what fits is given"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Give, Giver, Receiver, Pouch.Tiles[0], /*bWholeStack=*/true), 1);
+	});
+
+	It("greys Take when the pouch has no room for the stack", [this]()
+	{
+		if (!IsReady()) return;
+		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
+		const FInventoryScreenPage Pouch = PageOf(EInventoryScreenTab::Pouch);
+		if (!TestEqual(TEXT("one stack carried"), Pouch.Tiles.Num(), 1)) return;
+		TestTrue(TEXT("stored"), WoRInventoryVerbs::Run(World(), EInventoryVerb::Store, KeyOf(SCREEN_MEMBER), NAME_None, Pouch.Tiles[0].Row, SCREEN_GEM_COUNT).IsEmpty());
+		FInventoryScreenPage Chest = PageOf(EInventoryScreenTab::Chest);
+		int32 Stored = Chest.Tiles.IndexOfByPredicate([](const FInventoryScreenTile &Tile) { return !Tile.Row.IsGear() && Tile.Row.Item == SCREEN_GEM; });
+		if (!TestTrue(TEXT("the stack is on the Chest tab"), Stored != INDEX_NONE)) return;
+		const FInventoryScreenVerb *Take = FindVerb(VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]), EInventoryVerb::Take);
+		TestTrue(TEXT("Take can run with room"), Take && Take->Refusal.IsEmpty());
+
+		for (const ECrystalType Kind : SCREEN_FILLER_KINDS)
+		{
+			for (const EItemTier Tier : SCREEN_TIERS)
+			{
+				Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), FCrystalId(Kind, Tier), 1);
+			}
+		}
+		Chest = PageOf(EInventoryScreenTab::Chest);
+		Stored = Chest.Tiles.IndexOfByPredicate([](const FInventoryScreenTile &Tile) { return !Tile.Row.IsGear() && Tile.Row.Item == SCREEN_GEM; });
+		if (!TestTrue(TEXT("still on the Chest tab"), Stored != INDEX_NONE)) return;
+		Take = FindVerb(VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]), EInventoryVerb::Take);
+		TestTrue(TEXT("a full pouch greys Take with the reason"), Take && !Take->Refusal.IsEmpty());
 	});
 
 	It("says who has room in Give to, and refuses a full pouch", [this]()
