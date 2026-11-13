@@ -63,8 +63,6 @@ namespace
 
 TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun)
 {
-	// TODO: B-452 (Settings) takes this refusal away when it lands.
-	const FText NotBuilt = LOCTEXT("NotBuilt", "This screen isn't built yet.");
 	const FText GuestCantQuit = LOCTEXT("GuestCantQuit", "Only the host can end the run.");
 
 	TArray<FPauseMenuPage> Pages;
@@ -80,7 +78,7 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun)
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Journal, LOCTEXT("Journal", "Journal"),
 					   LOCTEXT("JournalPreview", "Quests, memories, lore and conversations.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Settings, LOCTEXT("Settings", "Settings"),
-					   LOCTEXT("SettingsPreview", "Controls, camera, display, audio and accessibility."), NotBuilt));
+					   LOCTEXT("SettingsPreview", "Controls, camera, display, audio and accessibility.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Quit, LOCTEXT("Quit", "Quit to title"), GetQuitWarning(bInRun),
 					   bInRun && !bCanEndRun ? GuestCantQuit : FText::GetEmpty()));
 	return Pages;

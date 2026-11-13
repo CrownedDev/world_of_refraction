@@ -74,7 +74,7 @@ void FPauseMenuSpec::Define()
 		TestTrue(TEXT("Quit opens"), Pages[static_cast<int32>(EPauseMenuPage::Quit)].CanOpen());
 		TestTrue(TEXT("Loadout opens (B-440a)"), Pages[static_cast<int32>(EPauseMenuPage::Loadout)].CanOpen());
 		TestTrue(TEXT("Character opens (B-442)"), Pages[static_cast<int32>(EPauseMenuPage::Character)].CanOpen());
-		TestFalse(TEXT("Settings says why it can't open yet"), Pages[static_cast<int32>(EPauseMenuPage::Settings)].CanOpen());
+		TestTrue(TEXT("Settings opens (B-452)"), Pages[static_cast<int32>(EPauseMenuPage::Settings)].CanOpen());
 	});
 
 	It("refuses Quit to a guest in a run, and only then", [this]()
@@ -148,19 +148,6 @@ void FPauseMenuSpec::Define()
 			TestEqual(TEXT("down from the bottom: Resume"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Resume));
 			Menu->PressSelected();
 			TestFalse(TEXT("Resume closes the menu"), Menu->IsActivated());
-		});
-
-		It("keeps the menu open on a page that isn't built yet", [this]()
-		{
-			UPauseMenuWidget *Menu = OpenMenu();
-			if (!Menu)
-			{
-				return;
-			}
-			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Settings));
-			Menu->PressSelected();
-			TestTrue(TEXT("still open"), Menu->IsActivated());
-			TestFalse(TEXT("no quit question"), Menu->IsConfirmingQuit());
 		});
 
 		It("asks before quitting, holds only from the second press, and stops when let go (D-176)", [this]()

@@ -24,6 +24,7 @@
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Hub/MemoryJournalWidget.h"
 #include "UI/Menus/CharacterSheetWidget.h"
+#include "UI/Menus/SettingsScreenWidget.h"
 #include "UI/Menus/LoadoutScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
 #include "UI/WoRRootLayout.h"
@@ -414,6 +415,9 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 	case EPauseMenuPage::Character:
 		UCharacterSheetWidget::Open(GetOwningPlayer());
 		break;
+	case EPauseMenuPage::Settings:
+		USettingsScreenWidget::Open(GetOwningPlayer());
+		break;
 	case EPauseMenuPage::Inventory:
 	case EPauseMenuPage::Party:
 	case EPauseMenuPage::Journal:
@@ -430,7 +434,7 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 			RefreshSelection();
 		}
 		break;
-	default: // Settings: refused by the model until its screen lands
+	default:
 		break;
 	}
 }
