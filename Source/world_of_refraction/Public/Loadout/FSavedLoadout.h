@@ -296,9 +296,6 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     TArray<FString> GetValidationErrors(TOptional<bool> bCharacterIsBrokenDarkness = TOptional<bool>(), int32 SpellDiscount = 0,
                                        bool bCheckSpellBudget = true) const;
 
-    // OBSOLETE (B-028): the pre-merge editor check, kept for comparison until Crown's PIE pass.
-    TArray<FString> GetValidationErrorsLegacy() const;
-
     /** Quick check if loadout has any internal errors */
     bool HasValidationErrors() const;
 

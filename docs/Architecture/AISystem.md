@@ -80,7 +80,7 @@ All tunable values are `constexpr` in this namespace:
 ### Turn decision flow
 
 1. **`RequestDecision(AIActor)`** — stores `PendingActor`, computes a difficulty-based thinking delay via `CalculateThinkingDelay` (random within the difficulty's range), and schedules `ExecuteDecision` on `ThinkingTimerHandle`.
-2. **`ExecuteDecision`** — captures the actor locally and clears `PendingActor` **before** submitting (submission can synchronously advance the turn). It validates that the actor is still the orchestrator's current actor — if the turn moved on while thinking, the decision is dropped. Otherwise it calls `BuildAction` and `CurrentCombat->SubmitAction`.
+2. **`ExecuteDecision`** — captures the actor locally and clears `PendingActor` **before** submitting (submission can synchronously advance the turn). It validates that the actor is still the orchestrator's current actor — if the turn moved on while thinking, the decision is dropped. Otherwise it calls `BuildAction` and `CurrentCombat->SubmitActionAsync`.
 3. **`BuildAction`** — fetches `ULoadoutComponent` and `UCharacterDataComponent`, gets living enemies via `CurrentCombat->GetLivingEnemies`. With no enemies it defends. **Easy** difficulty picks a random action type and random target with simplified data population. **Medium/Hard/Expert** delegate to `BuildAction_Smart`.
 
 ### Smart decision branches (`BuildAction_Smart`)
@@ -150,7 +150,7 @@ AI defense is synthesized **per impact** — there is no window-level timer or s
 
 ### Subsystems / components it depends on
 
-- `ACombatOrchestrator` — `GetCurrentActor`, `GetLivingEnemies`, `GetCombatDifficulty`, `SubmitAction`.
+- `ACombatOrchestrator` — `GetCurrentActor`, `GetLivingEnemies`, `GetCombatDifficulty`, `SubmitActionAsync`.
 - `UActionExecutor` — `ComputeActionStatModifiers`, `CalculateActionEnergyCost` (energy-cost and stat-modifier source of truth).
 - `UDamageCalculator` — `CalculateDamage`, `CalculateAttackDamage`, `GetCriticalChance`.
 - `UDefenseSystem` — `SubmitDefenseInput`. (The size-based `CanDodgeAttack` dependency was removed — dodge is timing-only.)
