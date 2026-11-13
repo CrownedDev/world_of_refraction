@@ -722,6 +722,13 @@ The queue of questions only Crown can answer.
 **Answer (Crown, 2026-11-12):** the **Jeweler** sells pouch slots, not the Spiritualist (the placeholder and the Jeweler's merchant name say so). Currency and price curve as the default: hub Gold (`ECurrencyType::Prisms`), 200 +100 per slot, cap 20; host-only in co-op for now.
 **Notes for Claude:** `Inventory/ItemSlotUpgrade.h/.cpp`, `UPoolSubsystem::AddItemSlot`, `UItemSlotUpgradeWidget`. Co-op: **host-only (Crown)**: `ItemSlotUpgrade::TryBuy` refuses a wallet without authority ("Only the host can buy item slots.") and the placeholder greys out Buy for a guest. Not spec-covered (headless specs are standalone, so always authority): PIE check 10.
 
+### Q-428 — A player who leaves a run: what happens to the Prisms they dropped
+**Status:** ANSWERED (Crown, 2026-11-13) · **Raised:** 2026-11-13 (audit, B-428) · **Blocks:** —
+**Question:** each player drops their own run Prisms on a wipe (ER-12b). If a player leaves the run without extracting, including a host whose leaving hands hosting to a friend, what happens to the Prisms they dropped on the map?
+**Options:** **A** split them equally among the players still in the run · B they stay on the map for no one · C they go with the leaver.
+**Answer:** **A** (Crown 2026-11-13). The leaver's dropped Prisms are split equally into the remaining players' wallets (the remainder to the host) and the drop is removed. Reference: Deep Rock Galactic's team minerals are shared by the whole team, so nothing gathered is lost when someone drops out.
+**Notes for Claude:** built in B-428 (b), next to the hand-over re-key (a). Rules PA-37i.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
