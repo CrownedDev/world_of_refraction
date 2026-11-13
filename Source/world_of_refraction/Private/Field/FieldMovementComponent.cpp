@@ -82,6 +82,13 @@ void UFieldMovementComponent::BeginPlay()
 
 void UFieldMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (HasAuthority())
+	{
+		// A pawn that outlives this component gets its gravity and air control back.
+		SetGliding(false);
+		SetWallRunning(false);
+		StopFlight();
+	}
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DrainTimer);
