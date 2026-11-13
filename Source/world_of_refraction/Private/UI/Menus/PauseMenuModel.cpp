@@ -63,7 +63,7 @@ namespace
 
 TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun)
 {
-	// TODO: B-442 (Character) and the Settings screen take this refusal away as they land.
+	// TODO: B-452 (Settings) takes this refusal away when it lands.
 	const FText NotBuilt = LOCTEXT("NotBuilt", "This screen isn't built yet.");
 	const FText GuestCantQuit = LOCTEXT("GuestCantQuit", "Only the host can end the run.");
 
@@ -74,7 +74,7 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun)
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Inventory, LOCTEXT("Inventory", "Inventory"),
 					   LOCTEXT("InventoryPreview", "Each character's gear and pouch, and the home chest.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Character, LOCTEXT("Character", "Character"),
-					   LOCTEXT("CharacterPreview", "Pillars, substats and resistances."), NotBuilt));
+					   LOCTEXT("CharacterPreview", "Pillars, substats and resistances.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Party, LOCTEXT("Party", "Party"),
 					   LOCTEXT("PartyPreview", "Who plays each member, and where they start a fight.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Journal, LOCTEXT("Journal", "Journal"),

@@ -29,9 +29,6 @@ namespace LoadoutScreenStyle
 	constexpr float PanelWidth = 753.0f;
 	constexpr float PanelPadding = 30.0f;
 	constexpr float DetailLabelWidth = 225.0f;
-	constexpr float TabPaddingX = 21.0f;
-	constexpr float TabPaddingY = 9.0f;
-	constexpr float TabGap = 9.0f;
 	constexpr float PipWidth = 51.0f;
 	constexpr float PipHeight = 36.0f;
 	constexpr float LoadoutBoxWidth = 708.0f;
@@ -39,24 +36,6 @@ namespace LoadoutScreenStyle
 	constexpr int32 SocketsPerRow = 2;
 	constexpr int32 MaxDetailLines = 6;
 	constexpr int32 MaxBudgetPips = LoadoutConstants::LOADOUT_TOTAL_BUDGET;
-
-	UBorder *MakeTab(UWidgetTree *Tree, UTextBlock *&OutLabel)
-	{
-		UBorder *Tab = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Tab->SetBrushColor(PlateColor);
-		Tab->SetPadding(FMargin(TabPaddingX, TabPaddingY));
-		OutLabel = MakeText(Tree, RowFontSize, DimColor, true);
-		Tab->SetContent(OutLabel);
-		return Tab;
-	}
-
-	/** The small dim key label beside a tab row: "LT", "RB". */
-	UTextBlock *MakeKeyLabel(UWidgetTree *Tree, const FText &Label)
-	{
-		UTextBlock *Text = MakeText(Tree, SmallFontSize, CyanColor, true);
-		Text->SetText(Label);
-		return Text;
-	}
 }
 
 ULoadoutScreenWidget::ULoadoutScreenWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)

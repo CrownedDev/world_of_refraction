@@ -758,6 +758,12 @@ The queue of questions only Crown can answer.
 **Answer:** **A**, by the reference-backed default. Before the first public build every save version bump already wipes older saves (D-060), and Crown chose the same for weapon spells (Q-098: deleted, no refund). Live games refund removed items (Warframe and Destiny 2 hand back currency for sunset or removed gear) only because players own those saves; B is the path once there are public saves. Crown may change it.
 **Notes for Claude:** B-437 bumps `WoRSaveVersion::LATEST`; no loader code for the old type.
 
+### Q-442 — The character sheet: which number does a sub-stat row show?
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-442) · **Blocks:** —
+**Question:** the mockup's sub-stat numbers were drawn as examples. Does a row show the stat's **points**, or the **value the fight uses**?
+**Answer**, by the reference-backed default (Crown may change it): **the value the fight uses right now**, gear and stones included, in its own unit: a stat that multiplies reads **"x1.48"**, a stat that is a share reads **"9%"**. Elden Ring's status screen shows the derived numbers (attack power, defence, resistances) beside the attributes, and Expedition 33's attribute page shows what each point gives; players read those, not raw points. **Luck** reads as a multiplier ("x1.00"): in code it is a score its users scale, not a chance. **Curses** are held by the player, not by one member, so every sheet lists them. Each resistance bar is full at its own cap (75% for All, 50% for the others).
+**Notes for Claude:** one table in `CharacterSheetModel.cpp` (`MIND_STATS`, `BODY_STATS`, `SPIRIT_STATS`). "Where it comes from" (the layers) is the R3 view, not built yet.
+
 ### Q-451 — What counts as a run's "upgrades"?
 **Status:** OPEN · **Raised:** 2026-11-14 (D-189, B-451) · **Blocks:** — (B-451 builds with the reading below unless Crown says otherwise)
 **Question:** D-189 keeps "the run's upgrades" on extracting or beating the boss and drops them when the party runs out of wipes. Which things are upgrades?
@@ -787,6 +793,39 @@ The queue of questions only Crown can answer.
 
 ### D-P01 — Move Broken Darkness onto GAS?
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
+
+---
+
+### D-196 — "Hidden quest" is "Secret quest" to the player
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-457
+**Answer (Crown):** the player-facing name **"Hidden quest" becomes "Secret quest"**. Text only: the code names can stay.
+**Notes for Claude:** **B-457** changes the texts (`GetQuestKindName`, the discovery notices, the journal).
+
+---
+
+### D-195 — Inventory: Take is listed only at storage
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-441
+**Answer (Crown):** the **Take** verb appears **only when at storage** (the Chest tab). Elsewhere it **isn't listed at all**: the one exception to "a verb that doesn't apply is greyed with its reason".
+**Notes for Claude:** B-441 builds it so; `WoRInventoryVerbs::GetVerbsFor` already decides which verbs a row offers.
+
+---
+
+### D-194 — HP and EP bars: a darker red and a darker blue
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the battle HUD's bars: the UI Designer's)
+**Answer (Crown):** HP and EP bars use a **darker red** and a **darker blue**, so the numbers on them read. A UI theme colour change: it applies to the built battle HUD too.
+**Notes for Claude:** done for the menu screens in `MenuScreenStyle.h` (`HPColor`, `EPColor`; first shades, to be replaced by the theme's once `UI_Theme.md` sets them). The battle HUD's bars are on the UI Designer's branch: tell its owner.
+
+---
+
+### D-193 — Vendors: one shop screen with service tabs; who dismantles what
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-445, B-456
+**Answer (Crown):** (settles Q-445's "which vendor" and the mockup's Merge question; goes with D-177)
+- The vendor screen is **approved**: **one shop screen, services as tabs**. Vendors **buy** (the Sell tab stays).
+- **Blacksmith:** Buy, Sell, **Dismantle** (gear and crystals).
+- **Jeweler:** Buy, Sell, Item slots.
+- **Spiritualist:** Buy, Sell, Repair, Curses, **Dismantle (evolutions)**, **Merge** (`MergeCrystals`, the tier-up; it stays).
+- **Dismantling is hub-only**, never during a run. A dismantled item is **gone until you find it again**: no ban, no restore.
+**Notes for Claude:** "Convert" (D-131's verb) has no tab: read as replaced by Sell; say if a Convert tab is wanted. Today dismantling is an inventory verb and is refused in a run only for home gear (`WoRInventoryVerbs::GetRefusal`); **B-445** moves it and makes it hub-only; **B-456** builds the screen.
 
 ---
 

@@ -23,6 +23,7 @@
 #include "UI/Hub/InventoryWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Hub/MemoryJournalWidget.h"
+#include "UI/Menus/CharacterSheetWidget.h"
 #include "UI/Menus/LoadoutScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
 #include "UI/WoRRootLayout.h"
@@ -44,7 +45,7 @@ namespace PauseMenuStyle
 	constexpr float CardPadding = 24.0f;
 	constexpr float CardGap = 21.0f;
 	constexpr float BarWidth = 330.0f;
-	constexpr float BarHeight = 30.0f; // tall enough to hold its value
+	constexpr float BarHeight = BarWithValueHeight;
 	constexpr float HoldBarHeight = 15.0f;
 	constexpr float BarLabelWidth = 51.0f;
 	constexpr float PillarLabelWidth = 105.0f;
@@ -209,18 +210,9 @@ UPauseMenuWidget::FMemberCard UPauseMenuWidget::BuildMemberCard(UVerticalBox *In
 		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UTextBlock *LabelText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
 		LabelText->SetText(Label);
-		UProgressBar *Bar = MakeBar(WidgetTree, Color);
-		// The value sits centred inside its bar on a dark backing, as on the battle HUD's cards (Crown, 2026-11-13).
-		UTextBlock *Value = MakeText(WidgetTree, SmallFontSize, TextColor, true);
-		UBorder *Backing = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Backing->SetBrushColor(ValueBackingColor);
-		Backing->SetPadding(FMargin(WordGap, 0.0f));
-		Backing->SetContent(Value);
-		UOverlay *BarWithValue = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-		BarWithValue->AddChildToOverlay(Bar)->SetHorizontalAlignment(HAlign_Fill);
-		UOverlaySlot *BackingSlot = BarWithValue->AddChildToOverlay(Backing);
-		BackingSlot->SetHorizontalAlignment(HAlign_Center);
-		BackingSlot->SetVerticalAlignment(VAlign_Center);
+		UProgressBar *Bar = nullptr;
+		UTextBlock *Value = nullptr;
+		UWidget *BarWithValue = MakeBarWithValue(WidgetTree, Color, Bar, Value);
 		AddToRow(Row, MakeSized(WidgetTree, BarLabelWidth, 0.0f, LabelText));
 		AddToRow(Row, MakeSized(WidgetTree, BarWidth, BarHeight, BarWithValue));
 		AddToColumn(Who, Row, FMargin(0.0f, LineGap, 0.0f, 0.0f));
@@ -419,6 +411,9 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 	case EPauseMenuPage::Loadout:
 		ULoadoutScreenWidget::Open(GetOwningPlayer()); // over this menu: Back returns here
 		break;
+	case EPauseMenuPage::Character:
+		UCharacterSheetWidget::Open(GetOwningPlayer());
+		break;
 	case EPauseMenuPage::Inventory:
 	case EPauseMenuPage::Party:
 	case EPauseMenuPage::Journal:
@@ -435,7 +430,7 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 			RefreshSelection();
 		}
 		break;
-	default: // Character, Settings: refused by the model until their screens land
+	default: // Settings: refused by the model until its screen lands
 		break;
 	}
 }

@@ -24,7 +24,7 @@
 | 2 | **Loadout (gear)** | Per character: weapons (Generic 2, one active), adapters, the Refractor's one item, 2 apparel slots; sockets on each (crystal or evolution; stone); the budget meter; up to 5 saved loadouts | `ULoadoutComponent` `Public/Loadout/LoadoutComponent.h:141-286` (Create/Duplicate/Rename/SetActive, `ValidateLoadout` :214, `GetValidationErrors` :218); costs `Public/Loadout/LoadoutConstants.h:31-47`; attach `UInventoryComponent::Attach*` `Public/Inventory/InventoryComponent.h:335-449`; apparel `FApparelEntry.h:70-84`, `UPoolSubsystem::AttachToApparel` `Public/Pool/PoolSubsystem.h:222` | Console (`wor.Loadout.*`, `LoadoutRulesDebug.cpp:36-458`; apparel `:217`, `:260`) | P1 |
 | 3 | **Skills (loadout page)** | Pick which abilities and spells each item gives; the Refractor's innate spells; see school, element, cost | `TryAssignWeaponAbility` / `TryAssignWeaponSpell` / `TryAssignRingSpell` / `TryAssignInnateSpell` `LoadoutComponent.h:270-280` | Console (`wor.Loadout.ReplaceSkill`) | P1 |
 | 4 | **Inventory and pouch** | Per character: gear and pouch; the shared home chest. Verbs **Give, Store, Take** (D-177: Dismantle and Convert moved to the vendors; changes D-131) | `WoRInventoryVerbs` `Public/Inventory/InventoryVerbs.h:58-65`; `WoRGive` `Public/Inventory/GearGive.h:30-63` | Placeholder `UInventoryWidget` `Public/UI/Hub/InventoryWidget.h:21` (`wor.UI.Inventory`); old `UStorageWidget`, `UGiveWidget`, `UDismantleWidget`, `UDuplicateGearWidget` are OBSOLETE | P1 |
-| 5 | **Character sheet** | Class, element, Mind / Body / Spirit, substats, resistances by type (D-168: All, Physical, Spell, each element), Max Actions | `UCharacterDataComponent`; resistance scopes (`ResistanceSystem.md`) | None | P2 |
+| 5 | **Character sheet** | Class, element, Mind / Body / Spirit, substats, resistances by type (D-168: All, Physical, Spell, each element), Max Actions | `UCharacterDataComponent`; resistance scopes (`ResistanceSystem.md`) | Real, C++ (B-442): `UCharacterSheetWidget` `Public/UI/Menus/CharacterSheetWidget.h`; waits for Crown's PIE pass | P2 |
 | 6 | **Journal** | Pages: Memories, Lore, Quests (Main, Side, Hidden), Conversations, Talk to V. A hidden quest appears only once found and shows only its current step (D-171) | `UMemoryJournalSubsystem` `Public/Memory/MemoryJournalSubsystem.h:64-87`; `UHiddenQuestSubsystem::GetVisibleQuests` `Public/Memory/HiddenQuestSubsystem.h:100`; `EQuestKind` `HiddenQuestData.h:27` | Placeholder `UMemoryJournalWidget` `Public/UI/Hub/MemoryJournalWidget.h:40` (`wor.Journal.Open`, hub `AHubJournalStation`) | P2 |
 | 7 | **Party** | Order the party (up to 3), who plays each member (you, a friend, AI and its difficulty), start cell, field skill, guard style | `UPartySessionSubsystem` `Public/Party/PartySessionSubsystem.h:146-252` | Placeholder `UPartyControlWidget` `Public/UI/Party/PartyControlWidget.h:24` (`wor.UI.PartyControl`); hub strip `UPartyDisplayWidget` (Real) | P2 |
 | 8 | **Settings** | Gameplay (**control model: Shortcuts / Omni D-pad**, Turn View, hide End Turn, hide corner hints, skip boss cinematics), camera, display, audio, controls (key list), accessibility | Saved in `FSavedSettings` `Public/Save/WoRSaveTypes.h:821`; `USaveSubsystem::SetTurnViewStyle` / `SetEndTurnButtonHidden` `Public/Save/SaveSubsystem.h:127-134`; turn-view names `CombatCameraTypes.cpp:264-277`; control model is B-436l (a console variable until this screen) | Console (`wor.Camera.Style`, `wor.UI.HideEndTurn`) | P1 |
@@ -178,6 +178,7 @@ One block per mocked screen: the images, why the layout, the references.
 ### 15–18. Vendors (`hub/vendors/`)
 
 - `1_shop_buy.png` (Blacksmith, Buy), `2_jeweler_item_slots.png`, `3_spiritualist_repair.png`, `4_spiritualist_curses.png`.
+- **Approved by Crown (2026-11-13, D-193), with the tabs set:** one shop screen, services as tabs, and vendors buy (the Sell tab stays). **Blacksmith:** Buy, Sell, Dismantle (gear and crystals). **Jeweler:** Buy, Sell, Item slots. **Spiritualist:** Buy, Sell, Repair, Curses, Dismantle (evolutions), Merge. **Dismantling is hub-only** (never during a run), and a dismantled item is gone until you find it again (no ban, no restore). Merge (the crystal tier-up) is the Spiritualist's, not the Blacksmith's.
 - **One shop screen for every vendor; each vendor's services are extra tabs on it** (LB / RB): Blacksmith = Buy, Sell, Dismantle, Merge; Jeweler = Buy, Sell, Item slots; Spiritualist = Buy, Sell, Repair, Curses. So the placeholder service widgets (`UItemSlotUpgradeWidget`, `UCurseClearWidget`) and the console-only repair and merge fold into the vendor who offers them. Dismantle and Merge reuse the inventory's confirm (mock 3).
   *Ref:* Hades' House Contractor and Elden Ring's Roundtable smith: the service is a tab on the person who does it. Monster Hunter's smithy keeps forge and upgrade on one NPC.
 - **Buy:** stock on the left, the focused item with a compare line ("+14 vs Garrick's sword"), **Buying for ‹ Garrick ›** (D-111 buy-for) and the cart with totals on the right. A row that can't be bought stays visible with its reason ("Garrick already owns one": one copy per character, D-115). Prices are in **Gold** in the hub and **Prisms** in a run (the same screen; D-047: every service also works in runs).
@@ -329,9 +330,10 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 |---|---|---|---|---|
 | Pause / game menu | 1 | `menus/pause` | B-439 (built, in dev; `PIE/B-439.md`) | Quit in a run loses everything (D-176) |
 | Loadout and skills | 2, 3 | `menus/loadout` | B-440 (piece B-440a built, in dev; `PIE/B-440a.md`) | Stone socket stays, two equal weapon slots (D-180) |
-| Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177) |
-| Character sheet | 5 | `menus/character` | B-442 | |
+| Inventory and pouch | 4 | `menus/inventory` | B-441 | Verbs Give, Store, Take (D-177); Take is listed only at storage (D-195) |
+| Character sheet | 5 | `menus/character` | B-442 (built, in dev; `PIE/B-442.md`) | The fight's own numbers (Q-442) |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 | |
+| Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456 (after B-445) | One shop screen, services as tabs; who does what: D-193 |
 | Settings | 8 | `menus/settings` | B-452 (the screen), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
 
@@ -359,6 +361,8 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | The character sheet is built (B-442). Crown: Take is listed only at storage (D-195); HP and EP bars darker (D-194); "Hidden quest" reads "Secret quest" (D-196) | feature/B-442-character-sheet |
+| 2026-11-14 | Vendors approved (D-193): one shop screen with service tabs; who dismantles what; dismantling hub-only; Merge at the Spiritualist | feature/B-442-character-sheet |
 | 2026-11-14 | The Gate (D-191, D-192): "Trial" not "Variation", a vertical list, "???" with the unlock condition, no boss names, no AI level text; one hub gate, every gate open to everyone | docs/ui-screens-answers-4 |
 | 2026-11-14 | Crown's answers on the wipe and end-of-run screens (D-187 no enemy rank shown, D-188 words and layout, D-189 what each ending pays) and settings (D-190: approved with all eight proposed settings) | feature/B-440-loadout-screen |
 | 2026-11-14 | Extracting (D-186): "Leave Trial" is "Extract", only at a boss's rest spot; the half share stays | docs/ui-screens-answers-3 |

@@ -3,6 +3,7 @@
 
 #include "WoRGameNames.h"
 #include "Inventory/InventoryVerbs.h"
+#include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
@@ -684,6 +685,39 @@ FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)
     case EWeaponWieldMode::OffHandShield:
         return LOCTEXT("EWeaponWieldMode_OffHandShield", "with shield");
     case EWeaponWieldMode::Single:
+    default:
+        return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetSubStatName(ESubStat Stat)
+{
+    switch (Stat)
+    {
+    case ESubStat::Efficiency:
+        return LOCTEXT("ESubStat_Efficiency", "Efficiency");
+    case ESubStat::SpellDamage:
+        return LOCTEXT("ESubStat_SpellDamage", "Spell Damage");
+    case ESubStat::StatusMultiplier:
+        return LOCTEXT("ESubStat_StatusMultiplier", "Status Multiplier");
+    case ESubStat::CritDamage:
+        return LOCTEXT("ESubStat_CritDamage", "Crit Damage");
+    case ESubStat::SpellSpeed:
+        return LOCTEXT("ESubStat_SpellSpeed", "Spell Speed");
+    case ESubStat::Defense:
+        return LOCTEXT("ESubStat_Defense", "Defence");
+    case ESubStat::ActionSpeed:
+        return LOCTEXT("ESubStat_ActionSpeed", "Action Speed");
+    case ESubStat::RawDamage:
+        return LOCTEXT("ESubStat_RawDamage", "Raw Damage");
+    case ESubStat::Resistance:
+        return LOCTEXT("ESubStat_Resistance", "Resistance");
+    case ESubStat::TurnSpeed: // OBSOLETE (B-170h): retired; named for an old asset's text only
+        return LOCTEXT("ESubStat_TurnSpeed", "Turn Speed");
+    case ESubStat::Luck:
+        return LOCTEXT("ESubStat_Luck", "Luck");
+    case ESubStat::Reflex:
+        return LOCTEXT("ESubStat_Reflex", "Reflex");
     default:
         return FText::GetEmpty();
     }
