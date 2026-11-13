@@ -105,7 +105,7 @@ public:
     static bool IsOutOfCombat(const AActor *Owner, const TCHAR *Op);
 
     /**
-     * Dismantle Count crystals/stones of Id from Owner's inventory, granting its essence (B-333: gem Elemental, stat stone Pillar, ability stone Skill) per
+     * Dismantle Count crystals/stones of Id from Owner's inventory, granting its essence (B-333: gem Elemental, stone Pillar) per
      * EconomyYield. Server-authoritative. The pool (gem vs stone) is dispatched by Id.Type inside
      * the component — there is no item/refined axis anymore (the gem-merge collapsed it).
      *

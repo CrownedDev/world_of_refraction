@@ -33,7 +33,7 @@ enum class ECurrencyType : uint8
     Diamond,      // persistent; account-wide premium (routing wired later)
     EssenceTyped, // OBSOLETE (B-333): the 14 typed essences retire (D-125). Nothing earns or spends it now; delete in the sweep (D-124).
     GearEssence,  // persistent; per-character; single scalar (levels weapons + rings)
-    SkillEssence, // persistent; per-character; single scalar (spells, abilities, ability stones) — appended
+    SkillEssence, // persistent; per-character; single scalar (spells, abilities) — appended
     ElementalEssence, // B-333 (D-125): persistent scalar; pays for anything with an element (Quartz folds in) — appended
     PillarEssence,    // B-333 (D-125): persistent scalar; pays for stat stones — appended
     MentorTokens      // B-361b (D-154): persistent scalar, the player's own; earned playing together, spent teaching — appended
