@@ -11,8 +11,9 @@ weapon it is fused into:
   consumable (a temporary self-buff).
 - **`AbilityStone`** — grants a tier-scaled number of **ability slots** on the
   weapon. Attach-only (it has no consumable effect). **Retired (D-175, Crown
-  2026-11-13); removed in code by B-437.** Until then everything below about it
-  describes code that is going away.
+  2026-11-13); removed from the code in B-437.** Everything below about it
+  (`AbilityStone`, the stone-ability list, its fusion rows) is history: none of
+  that code exists any more.
 
 The defining design constraint is that stones and gems share **one identity
 type** (`ECrystalType` / `FCrystalId`) and **one attachment slot**
@@ -848,3 +849,4 @@ hard guarantee survives; only the editor affordance degrades.
 | 2026-11-04 | B-353 built and tested on the desktop after B-351 / B-352 (save v13): the branch's `StatStoneSpec` constants renamed (`STAT_STONE_TEST_*`: a unity-build clash with `StoneRowSpec`); the B-348 legacy pouch block it had edited is gone. Reviewer (Sonnet) on the desktop: three must-fixes applied (the pool never normalised an old stone id, so seeded / recruit / loadout-slot stones could not be found or used; a saved stack's sub-stat defaulted to 0, a real sub-stat, instead of None, so an older v13 save read every gem back with a wrong key; a stat stone used on a Broken Darkness character granted energy); should-fixes applied (Normalize clears a stray sub-stat, an authored StatStone without a stone row is a validation error, explicit includes, spec cases); 294 green + validation 0 new after them. Pre-existing gap noted: Luck, Reflex and Healing stones also grant Broken Darkness energy (not in the early-out), untouched. Merged into dev. | feature/B-353-stat-stone |
 | 2026-11-04 | B-353b: `CrystalEffectTable::GetBrokenDarknessEnergyPercent` returns 0 for every stone kind through `IsAugmentStoneType` (the kind list had missed Luck, Reflex and Healing); a gem grants tier energy as before. Reviewer (Sonnet) on the desktop: no must-fix (IsAugmentStoneType names every stone kind; HealingStone is consume-only; the spec's enum walk is right); changelog lines added to BrokenDarkness.md and ItemSystem.md on its advice. | fix/B-353b-bd-stone-energy |
 | 2026-11-13 | D-175 (Crown): the Ability Stone is retired; no augment stone adds ability slots (a weapon's slots are its tier plus its crystal's, at most 12). Code removal and the save bump are B-437 (Q-437: older saves wiped). Docs only, branch docs/retire-ability-stone. |
+| 2026-11-14 | B-437 (D-175, Q-437): the Ability Stone is removed from the code. `ECrystalType::AbilityStone` is deleted (the values after `DamageStone` move down one; assets store the name, and `DefaultEngine.ini` redirects an old `AbilityStone` to `None`); `CrystalEffectTable::AbilityStoneSlotIdentity` goes and `GetAttachmentSlotsForTier` is a gem's only; `IsStatStone` is every augment stone; the stone-ability list (`AssignedAugmentStoneAbilities`, `GetAugmentStoneAbilities`, the saved lists, the Resonate Weapon ability branch) is deleted; save v38 wipes older saves. `UEquipmentDataBase::DefaultAbilities` has no reader left (OBSOLETE). Open editor step: the five merchants' Ability Stone stock lines and any asset still holding one. | feature/B-437-remove-ability-stone |
