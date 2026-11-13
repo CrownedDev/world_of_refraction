@@ -168,14 +168,6 @@ public:
 	// ========================================
 
 	/**
-	 * OBSOLETE (B-031): the old sync router. Nothing in the game calls it any more; only
-	 * CombatOrchestratorTestActor does. Delete it with that actor once Crown's PIE pass on
-	 * B-031 is in (D-067). Use SubmitActionAsync.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Combat|Action", meta = (DeprecatedFunction, DeprecationMessage = "Use SubmitActionAsync (B-031)."))
-	bool SubmitAction(const FAction &Action);
-
-	/**
 	 * Submit action asynchronously (for defense windows, animations)
 	 * Turn ends when async execution completes
 	 */
