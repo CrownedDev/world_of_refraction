@@ -327,6 +327,14 @@ The screens outside the battle HUD are CommonUI screens (`UWoRActivatableWidget`
 - **Nothing pauses** (Q-439).
 - **Debug:** `wor.UI.PrintPause` (`GetPauseMenuString`: header, pages, party).
 
+### The character sheet (B-442, UIScreens #5)
+
+- **Model:** `WoRCharacterSheet` (`UI/Menus/CharacterSheetModel.h`): `BuildPage(World, MemberIndex)`: who they are (the game menu's party read), Max Actions with action-point progress and regain, `BuildPillars` (Mind, Body, Spirit with their sub-stats in the grouping of CL-39), `BuildResistances` (D-168: All = the Defence line, Physical, Spell, then each element), the curses held (held by the player, so on every sheet). A member that isn't spawned has no stats, with the reason.
+- **The numbers (Q-442):** each sub-stat is the value the fight uses now, read from the fight's own getters where the stat has one (they are GAS-aware) and from `GetStatLayers(...).Compose()` otherwise; a multiplier reads "x1.48", a share "9%". Each resistance line carries its cap (Defence's ceiling; `WoRDamageMath::ELEMENT_DAMAGE_RESIST_CAP` for the scope and element lines) and its bar is full there.
+- **Widget:** `UCharacterSheetWidget` (`UI/Menus/CharacterSheetWidget.h`): character tabs (LT / RT), three panels built once and refilled. Opened by the game menu's Character page or `wor.UI.Sheet`.
+- **Names:** `WoRGameNames::GetSubStatName`.
+- **Debug:** `wor.UI.PrintSheet` (`GetCharacterSheetString`).
+
 ### The loadout screen (B-440, UIScreens #2, #3)
 
 Built in pieces, one at a time with Crown's PIE review between: **B-440a the gear page, read only (built)**, B-440b change gear, B-440c the socket picker, B-440d the Skills page, B-440e saved loadouts.
@@ -343,6 +351,7 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 
 ## Known Limitations / TODOs
 
+- **Character sheet (B-442):** no portrait; no "where it comes from" (R3) and no jump to the loadout (Y) yet; the scope line and the element line add up under one cap in a fight but are shown as separate lines; Spirit's "Resistance" sub-stat (status buildup) shares its word with the damage panel's title.
 - **Loadout screen (B-440a):** read only until B-440b; no icons; no Scaling line in the detail panel; the Skills tab is off (B-440d). The cost shown is the code's `SlotCost`, which counts the crystal / evolution socket and not the stone socket.
 - **Game menu (B-439):** flat colours and the default font until the Hidris art pass; no portraits, no tracked quest or loadout preview in the side panel; `BP_HubPlayerController` still has its own `IA_ToggleMenu` nodes until the editor step in `docs/PIE/B-439.md`; the old party strip is hidden while any menu screen is up (the root layout sits under it, and hides it: `UWoRRootLayout::SetPartyStripHidden`). Pouch items found in a run are not taken back when the run is quit (Q-439).
 
@@ -440,3 +449,4 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 | 2026-11-13 | B-424 PIE fix: `UCombatHUD::PlaceInViewport` sets the position before the anchor and alignment (UE 5.8's `SetPositionInViewport` resets the anchors to the top-left, which put the battle menu off screen; the old HUD's panels, strip and menu are placed the same way). `BuildNewHUD` sets game-and-UI input with the cursor shown, since the new menu picks inside a submenu by click (Q-391). | `feature/B-424-light-hit-airburst` |
 | 2026-11-14 | B-439 (D-181, D-176): the game menu. `WoRPauseMenu` (model: pages, header, party, quit) and `UPauseMenuWidget` (CommonUI screen built in C++ from the mockup) under `UI/Menus/`; `AWoRHubController` binds `IA_ToggleMenu` to `OpenGameMenu`; `UWoRRootLayout` hands input back to the game when every screen has closed and gains `HasActiveScreen` / `RunWhenAllClosed`; `UTrialRunSubsystem::AbandonRun` (a quit run pays nothing). Spec `WoR.UI.PauseMenu` (10 cases). New section "Menu screens" | feature/B-439-pause-menu |
 | 2026-11-14 | B-440a (D-181, D-180): the loadout screen, gear page, read only. `WoRLoadoutScreen` (model) and `ULoadoutScreenWidget` under `UI/Menus/`; name tables `GetCrystalTypeName`, `GetWeaponTypeName`, `GetWieldModeName`, `GetTierLetter`; `MenuScreenStyle.h` shares the menu look; the game menu Loadout page opens it and keeps its selection on return; `UWoRRootLayout` hides the old party strip while any menu screen is up. Spec `WoR.UI.LoadoutScreen` (9 cases) | feature/B-440-loadout-screen |
+| 2026-11-14 | B-442 (D-181): the character sheet. `WoRCharacterSheet` (model) and `UCharacterSheetWidget` under `UI/Menus/`; `WoRGameNames::GetSubStatName`; the bar with its value inside, tabs and key labels move to `MenuScreenStyle.h`; HP and EP bars darker (D-194); the game menu Character page opens it. Spec `WoR.UI.CharacterSheet` (5 cases) | feature/B-442-character-sheet |
