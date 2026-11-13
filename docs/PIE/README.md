@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-428](B-428.md) | `fix/B-428-handover-rekey` (in dev, built 2026-11-14) | 3-player: after a host hand-over, opened chests stay with the player who opened them (no duplicate loot, the new host not blocked); a leaver's dropped Prisms are split among the players still there (Q-428) | Pending |
 | [B-433](B-433.md) | `fix/B-433-memory-report-reach` (in dev, built 2026-11-14) | 2-player: a guest's memory spot and fragment finds still unlock (the host now checks the guest's character is within 600 cm of a spot or fragment) | Pending |
 | [B-425](B-425.md) | `fix/B-425-guest-wallet` (in dev, built 2026-11-14) | 2-player: a guest's saved balances reach the host on joining, survive travel, and the guest's own save is not overwritten on leaving | Pending |
 | [B-426](B-426.md) | `fix/B-426-clear-run-gold-all` (in dev, built 2026-11-14) | 2-player: the guest's run Gold is 0 after a run and at the next run's start, like the host's | Pending |

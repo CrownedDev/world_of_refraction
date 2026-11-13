@@ -27,6 +27,7 @@
 #include "Player/WoRPlayerState.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Trial/DefeatRules.h"
 #include "WoRLog.h"
 
 bool RunJoinRules::CanSeatJoiner(bool bInRun, bool bHostAtRestSpot, bool bOwnHeldSeat)
@@ -633,6 +634,7 @@ void URunStateComponent::HandlePlayerLeft(APlayerState *Leaver)
 		return;
 	}
 	const int32 LeaverId = WoRLeaver->GetPlayerId();
+	WoRDefeat::SplitLeaverDrop(GetWorld(), WoRLeaver); // B-428 (b, Q-428): their dropped Prisms go to the players still here
 	JoinRequests.RemoveAll([LeaverId](const FRunJoinRequest &R) { return R.PlayerId == LeaverId; });
 	const FString HeldFor = WoRLeaver->GetUniqueId().IsValid() ? WoRLeaver->GetUniqueId().ToString() : FString();
 	const UWorld *World = GetWorld();

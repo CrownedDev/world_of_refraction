@@ -1,6 +1,7 @@
 // SaveSubsystem.cpp
 
 #include "Save/SaveSubsystem.h"
+#include "Misc/PackageName.h"
 #include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
@@ -459,12 +460,61 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	}
 }
 
-bool USaveSubsystem::AdoptCheckpoint()
+bool USaveSubsystem::AdoptCheckpoint(const FString &OldHostKey, const FString &NewHostKey)
 {
-	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME);
+	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME, OldHostKey, NewHostKey);
 }
 
-bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
+namespace
+{
+	/** B-428 review: a per-player feature's object name holds this (ATrialChest and its Blueprints, ContentNaming). */
+	const TCHAR *const PERSONAL_FEATURE_NAME_MARK = TEXT("Chest");
+}
+
+void USaveSubsystem::RekeyRunForNewHost(FSavedRun &Run, const FString &OldHostKey, const FString &NewHostKey)
+{
+	if (OldHostKey.IsEmpty() || NewHostKey.IsEmpty() || OldHostKey == NewHostKey)
+	{
+		return;
+	}
+	const FString PlayerSeparator = TEXT("@"); // ATrialMapFeature::GetFeatureIdFor's "<id>@<player key>"
+	const FString NewHostSuffix = PlayerSeparator + NewHostKey;
+	TMap<FName, FText> Rekeyed;
+	int32 OldHostRecords = 0;
+	int32 NewHostRecords = 0;
+	for (const TPair<FName, FText> &Found : Run.FoundFeatures)
+	{
+		const FString Key = Found.Key.ToString();
+		// Review: only chests are per-player (B-235c); fragments, spots and lore keep shared plain keys, which stay.
+		// The chests aren't loaded at adoption (the run resumes in the hub), so the feature path's object name tells.
+		// TODO: a per-player flag on the record if a personal feature ever isn't a chest.
+		const FString ObjectName = FPackageName::ObjectPathToObjectName(Key.Contains(PlayerSeparator) ? Key.Left(Key.Find(PlayerSeparator)) : Key);
+		const bool bPersonal = ObjectName.Contains(PERSONAL_FEATURE_NAME_MARK, ESearchCase::IgnoreCase);
+		if (!bPersonal)
+		{
+			Rekeyed.Add(Found.Key, Found.Value);
+		}
+		else if (!Key.Contains(PlayerSeparator))
+		{
+			Rekeyed.Add(FName(*(Key + PlayerSeparator + OldHostKey)), Found.Value);
+			++OldHostRecords;
+		}
+		else if (Key.EndsWith(NewHostSuffix))
+		{
+			Rekeyed.Add(FName(*Key.LeftChop(NewHostSuffix.Len())), Found.Value);
+			++NewHostRecords;
+		}
+		else
+		{
+			Rekeyed.Add(Found.Key, Found.Value);
+		}
+	}
+	Run.FoundFeatures = MoveTemp(Rekeyed);
+	UE_LOG(LogWoR, Log, TEXT("[Save] Hand-over re-key (B-428): %d of the old host's record(s) kept as theirs, %d of the new host's now plain"),
+		   OldHostRecords, NewHostRecords);
+}
+
+bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName, const FString &OldHostKey, const FString &NewHostKey)
 {
 	UGameInstance *GI = GetGameInstance();
 	const ULocalPlayer *Local = GI ? GI->GetFirstGamePlayer() : nullptr;
@@ -507,6 +557,7 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 	bPlayingHostCopy = true;
 	AdoptedSlotName = SlotName;
 	AdoptedUpgradeMemory = Copy->Data.Pool.UpgradeMemory; // B-234d review: what the run raises is told apart from this
+	RekeyRunForNewHost(Copy->Data.Run, OldHostKey, NewHostKey); // B-428 (a)
 	PendingRun = Copy->Data.Run;
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
 	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);

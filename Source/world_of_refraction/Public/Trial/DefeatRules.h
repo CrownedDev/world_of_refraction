@@ -130,8 +130,17 @@ namespace WoRDefeat
 	/** B-235: a player's key for their own drop: their unique net id, else their player id. */
 	WORLD_OF_REFRACTION_API FString PlayerDropKey(const APlayerState *Player);
 
+	/** B-428 (b, Q-428 = A): one player's share of a leaver's Amount split equally among Players (> 0): Amount / Players,
+	 *  plus the remainder for the host. 0 when nobody is left. */
+	WORLD_OF_REFRACTION_API int32 LeaverDropShare(int32 Amount, int32 Players, bool bHost);
+
+	/** B-428 (b, Q-428 = A; server): Leaver left the run without extracting. Their dropped Prisms (Gold) are split
+	 *  equally into the remaining players' wallets, the remainder to the host, and their drop is removed. Returns the
+	 *  amount handed out (0: no run, no drop, or nobody left). Rules PA-37i. */
+	WORLD_OF_REFRACTION_API int32 SplitLeaverDrop(UWorld *World, const APlayerState *Leaver);
+
 	/** B-235b: the drops of the players here now: the local player's plus each other present player's. A player who
-	 *  left keeps their drop recorded for the run (it waits if they come back) but no longer keeps the pickup up. */
+	 *  left has had their drop split among the rest (B-428, SplitLeaverDrop), so it no longer keeps the pickup up. */
 	WORLD_OF_REFRACTION_API int32 GetPresentDroppedPrisms(const UWorld *World);
 
 	/** Debug: the run's wipe and main-boss-loss counts against their limits, the dropped Prisms and their spot, and

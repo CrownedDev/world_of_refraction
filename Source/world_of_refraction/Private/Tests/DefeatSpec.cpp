@@ -26,6 +26,8 @@
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Player/WoRGameState.h"
+#include "Player/WoRPlayerState.h"
 
 namespace
 {
@@ -43,6 +45,11 @@ namespace
 	const FVector DEFEAT_FALL_SPOT(1200.0f, -300.0f, 90.0f);
 	const FVector DEFEAT_LATER_FALL_SPOT(-800.0f, 450.0f, 90.0f);
 	constexpr float DEFEAT_SPOT_TOLERANCE = 1.0f;
+	/** B-428 (b): 11 Prisms between two players: 5 each, the odd one to the host. */
+	constexpr int32 DEFEAT_LEAVER_DROP = 11;
+	constexpr int32 DEFEAT_LEAVER_SHARE = 5;
+	constexpr int32 DEFEAT_LEAVER_HOST_SHARE = 6;
+	constexpr int32 DEFEAT_STAYING_PLAYERS = 2;
 }
 
 BEGIN_DEFINE_SPEC(FDefeatSpec, "WoR.Trial.Defeat", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -129,6 +136,41 @@ void FDefeatSpec::Define()
 		TestEqual(TEXT("the poor member kept all"), Run->GetRunEarnedLevels(DEFEAT_POOR_KEY, EWorldPillar::Body), DEFEAT_POOR_MEMBER_BODY);
 		TestEqual(TEXT("three wipes"), Run->GetRunWipes(), 3);
 		TestEqual(TEXT("one boss loss"), Run->GetRunMainBossLosses(), 1);
+	});
+
+	It("splits a leaver's share equally, the remainder to the host (B-428, Q-428)", [this]()
+	{
+		TestEqual(TEXT("a player's share"), WoRDefeat::LeaverDropShare(DEFEAT_LEAVER_DROP, DEFEAT_STAYING_PLAYERS, false), DEFEAT_LEAVER_SHARE);
+		TestEqual(TEXT("the host's share"), WoRDefeat::LeaverDropShare(DEFEAT_LEAVER_DROP, DEFEAT_STAYING_PLAYERS, true), DEFEAT_LEAVER_HOST_SHARE);
+		TestEqual(TEXT("nobody left"), WoRDefeat::LeaverDropShare(DEFEAT_LEAVER_DROP, 0, true), 0);
+	});
+
+	It("hands a leaver's dropped Prisms to the players still in the run and removes the drop (B-428, Q-428)", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		UWorld *World = TestWorld->GetWorld();
+		AWoRGameState *GameState = World->SpawnActor<AWoRGameState>();
+		TArray<AWoRPlayerState *> Players;
+		for (int32 Index = 0; Index <= DEFEAT_STAYING_PLAYERS; ++Index)
+		{
+			Players.Add(World->SpawnActor<AWoRPlayerState>());
+		}
+		if (!TestTrue(TEXT("game state and players"), GameState && !Players.Contains(nullptr))) return;
+		World->SetGameState(GameState);
+		for (int32 Index = 0; Index < Players.Num(); ++Index)
+		{
+			Players[Index]->SetPlayerId(Index + 1); // distinct drop keys (no net ids headless)
+			GameState->AddPlayerState(Players[Index]);
+		}
+		AWoRPlayerState *Leaver = Players.Last();
+		Run->DropPrismsForPlayer(WoRDefeat::PlayerDropKey(Leaver), DEFEAT_LEAVER_DROP);
+
+		TestEqual(TEXT("all of it handed out"), WoRDefeat::SplitLeaverDrop(World, Leaver), DEFEAT_LEAVER_DROP);
+		TestEqual(TEXT("the first player takes the remainder (no local host headless)"),
+				  Players[0]->GetWallet()->GetBalance(ECurrencyType::Gold), DEFEAT_LEAVER_HOST_SHARE);
+		TestEqual(TEXT("the other an equal share"), Players[1]->GetWallet()->GetBalance(ECurrencyType::Gold), DEFEAT_LEAVER_SHARE);
+		TestEqual(TEXT("the leaver gets none"), Leaver->GetWallet()->GetBalance(ECurrencyType::Gold), 0);
+		TestEqual(TEXT("the drop is gone"), Run->GetDroppedPrismsForPlayer(WoRDefeat::PlayerDropKey(Leaver)), 0);
 	});
 
 	It("places one pickup at the fall spot holding the whole balance (B-362c)", [this]()
