@@ -43,8 +43,10 @@ namespace WoRMenuStyle
 	inline const FLinearColor PanelColor = FLinearColor::FromSRGBColor(FColor(20, 22, 28));
 	inline const FLinearColor PlateColor = FLinearColor::FromSRGBColor(FColor(46, 46, 46));
 	inline const FLinearColor TrackColor = FLinearColor::FromSRGBColor(FColor(42, 45, 53));
-	inline const FLinearColor FocusColor = FLinearColor::FromSRGBColor(FColor(51, 127, 141));
-	inline const FLinearColor CyanColor = FLinearColor::FromSRGBColor(FColor(159, 236, 245));
+	// D-201 (Crown): the accent is violet (#5B3A99, the focused row and tab) and violet light (#CDB8FF, key labels and
+	// marks); was teal. CyanColor keeps its name so every screen reads it unchanged.
+	inline const FLinearColor FocusColor = FLinearColor::FromSRGBColor(FColor(0x5B, 0x3A, 0x99));
+	inline const FLinearColor CyanColor = FLinearColor::FromSRGBColor(FColor(0xCD, 0xB8, 0xFF));
 	inline const FLinearColor TextColor = FLinearColor::FromSRGBColor(FColor(238, 241, 245));
 	inline const FLinearColor DimColor = FLinearColor::FromSRGBColor(FColor(169, 175, 184));
 	inline const FLinearColor OffColor = FLinearColor::FromSRGBColor(FColor(107, 112, 120));
