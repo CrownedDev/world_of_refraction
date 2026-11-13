@@ -79,10 +79,10 @@ def secret(name, shown):
         y = steps(d, 612, 236, [("done", "(found)"), ("now", "Wear the Ashen Blade into the Ember Trial.")])
         d.line((612, y + 6, 1212, y + 6), fill=STEEL)
         wrap(d, (612, y + 20), "What comes next stays hidden until you reach it.", 600, 15, DIM)
-        footer(d, [("A", "Select"), ("X", "Hide"), ("B", "Back")])
+        footer(d, [("A", "Select"), ("X", "Hide"), ("Y", "Hide all"), ("B", "Back")])
     else:
         text(d, (612, 236), "Hidden.", 16, True, DIM)
-        footer(d, [("A", "Select"), ("X", "Show"), ("B", "Back")])
+        footer(d, [("A", "Select"), ("X", "Show"), ("Y", "Hide all"), ("B", "Back")])
     save(im, OUT, name)
 
 
