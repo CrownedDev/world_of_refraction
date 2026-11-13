@@ -77,6 +77,9 @@ namespace WoRInventoryScreen
 
 	WORLD_OF_REFRACTION_API FInventoryScreenPage BuildPage(UWorld *World, FName Member, EInventoryScreenTab Tab);
 
+	/** A crystal or stone stack's tile (Row.Item, Row.Count), as the Pouch tab words it; a vendor's stock reads the same (B-456b). */
+	WORLD_OF_REFRACTION_API FInventoryScreenTile BuildStackTile(const WoRInventoryVerbs::FInventoryRow &Row);
+
 	/** Give and Store; Take too on the Chest tab, and nowhere else (D-195). Give is refused only when no other
 	 *  member can receive the tile (the reason is the first member's). */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenVerb> BuildVerbs(UWorld *World, FName Member, EInventoryScreenTab Tab, const FInventoryScreenTile &Tile);

@@ -140,6 +140,11 @@ FText WoRInventoryScreen::GetTabName(EInventoryScreenTab Tab)
 	return FText::GetEmpty();
 }
 
+FInventoryScreenTile WoRInventoryScreen::BuildStackTile(const WoRInventoryVerbs::FInventoryRow &Row)
+{
+	return InventoryScreenBuild::MakeStackTile(Row);
+}
+
 FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, EInventoryScreenTab Tab)
 {
 	using namespace InventoryScreenBuild;
