@@ -685,6 +685,8 @@ void UVendorScreenWidget::MoveMember(int32 Delta)
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
 	SelectedRow = IsBuy() ? SelectedRow : 0; // Buy: the stock is the same list, whoever it is bought for
 	bConfirming = false;
+	bConfirmingAll = false;
+	MergeTargets.Reset(); // another member's crystals: each kind starts again at the highest it can make
 	Status = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();

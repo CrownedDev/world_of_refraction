@@ -357,6 +357,22 @@ static FAutoConsoleCommandWithWorldAndArgs GCurseClearCommand(
 		UE_LOG(LogWoR, Display, TEXT("[Curse] %s: %s"), *Args[0], bCleared ? TEXT("cleared") : TEXT("not held"));
 	}));
 
+static FAutoConsoleCommandWithWorldAndArgs GCurseAddCommand(
+	TEXT("wor.Curse.Add"),
+	TEXT("DEBUG (B-456d): hold a curse, as a memory's Curse reward gives it (wor.Curse.Add <curse id>); to check the Spiritualist's Curses tab."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+	{
+		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+		UCurseSubsystem *Curses = GameInstance ? GameInstance->GetSubsystem<UCurseSubsystem>() : nullptr;
+		if (!Curses || Args.IsEmpty())
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[Curse] usage: wor.Curse.Add <curse id>"));
+			return;
+		}
+		const bool bAdded = Curses->AddCurse(FName(*Args[0]));
+		UE_LOG(LogWoR, Display, TEXT("[Curse] %s: %s"), *Args[0], bAdded ? TEXT("now held") : TEXT("already held"));
+	}));
+
 static FAutoConsoleCommandWithWorld GCursePrintCommand(
 	TEXT("wor.Curse.Print"),
 	TEXT("B-378: the curses this player holds."),
