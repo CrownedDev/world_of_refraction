@@ -1,5 +1,5 @@
 // VendorScreenWidget.h
-// B-456a, B-456b (D-193, D-181, UIScreens #15 to #18, mockups screen_mockups/hub/vendors/): the vendor screen. A
+// B-456a to B-456c (D-193, D-181, UIScreens #15 to #18, mockups screen_mockups/hub/vendors/): the vendor screen. A
 // CommonUI screen on the root layout's menu layer. Talking to a vendor opens it (UMerchantShopSubsystem); so does
 // wor.UI.VendorScreen <vendor>. Replaces the old shop window (UShopWindowWidget) and the placeholder
 // UVendorServiceWidget (wor.UI.Vendor), both kept until the PIE pass.
@@ -11,8 +11,10 @@
 // Buy (B-456b, mockup 1_shop_buy.png): the rows are the vendor's stock; the character tabs give way to "Buying for"
 // (R / Y, or LT / RT). A (or Right) puts the focused line in the cart for that member, Left takes it back, X buys the
 // cart. The cart is its own panel: each line with who it is for, the total and what is left after.
+// Item slots (B-456c, mockup 2_jeweler_item_slots.png): a row per party member (no character tabs), the pouch's slots
+// as pips and the next one's price; A asks, the second A buys one slot.
 // What it shows comes from WoRVendorScreen (VendorScreenModel.h), which the specs read.
-// Not built yet: Item slots, Repair, Curses, Merge (listed, and say so); icons.
+// Not built yet: Repair, Curses, Merge (listed, and say so); icons.
 
 #pragma once
 
@@ -52,7 +54,7 @@ public:
 	/** The next / previous service or character; wraps, and drops a pending confirm. */
 	void MoveTab(int32 Delta);
 	void MoveMember(int32 Delta);
-	/** First press: asks (a refused row says its reason instead). Second press: runs the service. */
+	/** First press: asks (a refused row says its reason instead). Second press: runs the service, or buys the slot. */
 	void Confirm();
 	void ToggleWholeStack();
 	/** Buy: the focused stock line into the cart for the member bought for (a refused line says why), or one press's
@@ -91,6 +93,9 @@ private:
 		TWeakObjectPtr<UBorder> ElementMark;
 		TWeakObjectPtr<UTextBlock> Name;
 		TWeakObjectPtr<UTextBlock> Sub;
+		/** Item slots: one mark per slot the pouch can have, lit for each it has. */
+		TWeakObjectPtr<UWidget> PipRow;
+		TArray<TWeakObjectPtr<UBorder>> Pips;
 		TWeakObjectPtr<UTextBlock> Tier;
 		TWeakObjectPtr<UTextBlock> Count;
 		TWeakObjectPtr<UTextBlock> Pay;
@@ -107,6 +112,9 @@ private:
 	/** The cart's lines, total and whether it can be bought. */
 	void RefreshCart();
 	bool IsBuy() const { return GetTab() == EVendorScreenTab::Buy; }
+	bool IsItemSlots() const { return GetTab() == EVendorScreenTab::ItemSlots; }
+	/** Sell and Dismantle act on one character's things; Buy says who it is for in the panel, Item slots in its rows. */
+	bool HasMemberTabs() const { return !IsBuy() && !IsItemSlots(); }
 	FName MemberKey() const;
 	const FVendorScreenRow *FocusedRow() const;
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
