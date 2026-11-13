@@ -72,8 +72,29 @@
 #include "Combat/CombatControl.h"
 #include "Combat/Tuning/CombatTuningData.h"
 #include "GAS/Abilities/WoRSkillAbilities.h"
+#include "Combat/Actions/ApproachWarp.h"
 
 // ==================== FUSED-MONTAGE RUNNER (Stage 12) ====================
+
+namespace
+{
+	/** B-424: one line per warped leg: how far the warp takes the actor and how fast its burst moves (air-burst dash). */
+	void LogWarpBurst(const AActor *Actor, const UAnimMontage *Montage, float PlayRate, const TCHAR *Leg)
+	{
+		const UMotionWarpingComponent *Warp = Actor ? Actor->FindComponentByClass<UMotionWarpingComponent>() : nullptr;
+		const FMotionWarpingTarget *Target = Warp ? Warp->FindWarpTarget(CombatConstants::WARP_TARGET_NAME) : nullptr;
+		if (!Target || !Montage)
+		{
+			return;
+		}
+		const float Distance = static_cast<float>(FVector::Dist2D(Actor->GetActorLocation(), Target->GetLocation()));
+		const FApproachBurst Burst = ApproachWarp::Measure(Montage, Distance, PlayRate);
+		if (Burst.bHasWindow)
+		{
+			UE_LOG(LogWoRCombat, Log, TEXT("[Warp] %s %s %s: %s"), *Actor->GetName(), Leg, *Montage->GetName(), *Burst.ToString());
+		}
+	}
+}
 
 void UActionExecutor::BindCombatNotify(AActor *Actor)
 {
@@ -182,6 +203,7 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, USkillDataBase *Skill)
 	CurrentChainMontage = Skill->SkillMontage; // tracked-leg identity (return-skip guard)
 	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlaySkill %s"),
 		   Skill->SkillMontage ? *Skill->SkillMontage->GetName() : TEXT("None"));
+	LogWarpBurst(Actor, Skill->SkillMontage, PendingMontagePlayRate, TEXT("approach"));
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
 }
 
@@ -221,6 +243,7 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
 
 	CurrentChainMontage = Skill->ReturnMontage; // tracked-leg identity (return-skip guard)
 	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
+	LogWarpBurst(Actor, Skill->ReturnMontage, 1.0f, TEXT("return"));
 	PlayActionMontageOnActor(Actor, Skill->ReturnMontage, 1.0f);
 }
 

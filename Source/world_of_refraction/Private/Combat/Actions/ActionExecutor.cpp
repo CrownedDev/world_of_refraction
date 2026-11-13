@@ -2,6 +2,7 @@
 
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/SpellImpactPlan.h"
+#include "Combat/Actions/ApproachWarp.h"
 #include "Combat/CombatPresentationComponent.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "GAS/WoRTurnEffectTracker.h"
@@ -5200,8 +5201,7 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 				DirToTarget.Normalize();
 
 				const float StrikeRange = GetExecutionRange(Action);
-				FVector WarpLoc = TargetLoc - (DirToTarget * StrikeRange);
-				WarpLoc.Z = CasterLoc.Z;
+				const FVector WarpLoc = ApproachWarp::GetStrikePosition(CasterLoc, TargetLoc, StrikeRange); // B-424: shared with the camera
 				const FRotator WarpRot = DirToTarget.IsNearlyZero()
 											 ? Actor->GetActorRotation()
 											 : DirToTarget.Rotation();
