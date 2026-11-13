@@ -98,7 +98,9 @@ void UCreditsScreenWidget::BuildTree()
 	Tail->SetSize(FVector2D(1.0f, TailHeight));
 	Column->AddChildToVerticalBox(Tail);
 	Scroll->AddChild(Column);
-	AddToColumn(Main, MakeSized(WidgetTree, ColumnWidth, 0.0f, Scroll))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	UVerticalBoxSlot *ScrollSlot = AddToColumn(Main, MakeSized(WidgetTree, ColumnWidth, 0.0f, Scroll));
+	ScrollSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	ScrollSlot->SetHorizontalAlignment(HAlign_Left); // not stretched: the column keeps its width, in the left half
 
 	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
 	Hints->SetText(LOCTEXT("Hints", "A  Hold: faster        B / Esc  Back"));
@@ -172,7 +174,11 @@ FReply UCreditsScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 	const FKey Key = InKeyEvent.GetKey();
 	if (IsConfirmKey(Key))
 	{
-		SetFaster(true);
+		// A fresh press only: the Enter that opened the credits, still held, doesn't start them fast.
+		if (!InKeyEvent.IsRepeat())
+		{
+			SetFaster(true);
+		}
 		return FReply::Handled();
 	}
 	if (IsBackKey(Key))
