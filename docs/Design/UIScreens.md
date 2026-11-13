@@ -93,6 +93,10 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 12. [x] Character sheet (`menus/character`)
 13. [x] Hub HUD, prompt, NPC talk, recruit card (`hub/hud`; loading is with mock 11)
 
+14. [x] Skins / forms (`hub/skins`)
+
+**Not mocked, on purpose:** New game (#11: the choice is Manny or Quinn plus class, `CharacterForms.md` §1; how it's presented is the opening, Crown's), Credits (#13: a scroll), World-stat draft (#30: question 6), Blacksmith Dismantle / Merge tabs (#16: they reuse the inventory confirm, mock 3) and the planned hand-over card (#33: same card as host-left, mock 10).
+
 ## Mockup notes
 
 One block per mocked screen: the images, why the layout, the references.
@@ -221,6 +225,11 @@ One block per mocked screen: the images, why the layout, the references.
 - **Recruit card** (a character met in a trial): who they are (class, pillars, Combat Tier), the rule in one line (joins for this run only, uses what your party carries: D-026, B-361), who plays them, and Invite for this run.
   *Ref:* Fire Emblem's recruit cards; Baldur's Gate 3's "join the party" prompt.
 
+### 19. Skins / forms (`hub/skins/`)
+
+- `1_forms.png`. A list of forms with each character's **meter** (the placeholder's "{name}: {n}%"), "your own form" always first, unmet characters as "???". The side panel shows the form, the code's line ("Locked. Wear their pieces in fights you win to fill the meter."), which of their pieces you own or wear (unknown ones as "?"), and what a form does (looks and bound gear, no stats). Y switches the base body (Quinn / Manny).
+  *Ref:* Mortal Shell's shells (Crown's model, `CharacterForms.md`); Hades' keepsake and Monster Hunter's mastery meters (visible progress after every fight).
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -275,12 +284,26 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 9. **Selling** (#15): the mockup has a Sell tab, but the code only buys, dismantles and converts. Do vendors buy things back, or is Dismantle / Convert the only way to turn gear into currency?
 10. **Journal words** (#6, lore): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
 11. **Title and loading words** (#9, #12, lore): the logo and key art, and which descriptions appear on loading screens (any item or character, or only ones you've met?).
-12. **New game** (#11, lore): who the player starts as and how they're introduced isn't mocked; it depends on the opening (HubAndStory §4).
+12. **New game** (#11, lore): the choice itself is decided (Manny or Quinn, and class; `CharacterForms.md`). How it's presented isn't mocked: it is the opening scene (HubAndStory §4), yours.
+15. **Forms list** (#19, lore): do characters you haven't met show as "???" (as drawn) or not at all? And the form names shown are placeholders.
 13. **Who speaks** (#20, lore): the service NPCs are V in different forms and who V is stays hidden (HubAndStory §2, §3). Does the talk box name them by role ("Blacksmith"), as V, or with no name? The mockup uses the role.
 14. **Recruiting with a full party** (#29): the party cap is 3. If you meet a recruit with three members, is the offer refused, or does someone step out? The mockup shows only the case with room.
+
+## Summary (2026-11-13)
+
+**Done:** `UIScreens.md` (34 screens with code, state and priority) and **14 mock sets, 38 images**, each backed by named games: pause menu; loadout and skills; inventory and pouch; rest spot (menu, level up, revive vote, extract); after a fight, wipe, run end; settings (control model: Shortcuts / Omni D-pad); trial gate; vendors (shop, item slots, repair, curses); journal (quests, hidden quests, memories); party and co-op (invite, join request, host left); title, save notices, loading; character sheet; hub HUD, NPC talk, recruit card; skins.
+
+**Left:** the five items under "Not mocked, on purpose" above. Lore and Conversations pages of the journal reuse the Memories layout and have no image of their own.
+
+**Blocked:** the PNGs are not in git (this session can't reach the LFS host). Each `make.py` draws them; a session on the `world_of_refraction` cloud environment, or Crown's PC, can run them and commit the images.
+
+**For builders, found on the way:** nothing announces a run end, a wipe, a level-up, a reset save or a lost host, so those screens need a signal first. `ECurrencyType_Prisms` printing "Gold" is the D-159 swap, not a bug.
+
+**Open questions for Crown:** the 15 above. Lore ones (yours alone): 5, 8, 10, 11, 12, 13, 15. Design ones with a suggestion: 1, 2, 3, 4, 6, 7, 9, 14.
 
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-13 | 14 mock sets (38 images as `make.py` scripts), mockup notes, proposed input rows, 15 questions, summary | docs/ui-screens-all |
 | 2026-11-13 | Created: 34 screens from `dev`'s code (the cloud features are already merged), mock order, shared menu controls, proposed input rows | docs/ui-screens-all |
