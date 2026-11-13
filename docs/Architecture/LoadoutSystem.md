@@ -113,7 +113,7 @@ Notable behavior:
   "any-element" crystal sources via `ElementHelpers::IsAnySpellSource`). Note:
   this method validates `WeaponEntry.AssignedSpells`, not the entry's own
   `AssignedSpells` field.
-- **Stone-ability slots** — when an `AbilityStone` is attached, the weapon gains
+- **Stone-ability slots** (retired by D-175; removed in B-437) — when an `AbilityStone` is attached, the weapon gains
   a tier-scaled pool of extra ability slots, filled from
   `AssignedAugmentStoneAbilities` (distinct from the weapon's own
   `PresetAbilities`/`AssignedAbilities`):
@@ -541,3 +541,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-09 | B-393 (D-170 corrected, Q-393): the parry colour priority. `EParryElementPriority`; `ULoadoutComponent::GetParryElementPriority` / `SetParryElementPriority`; on `FPartyMember` (saved, `FSavedPartyMember`, save v33); `UPartySessionSubsystem::SetMemberParryPriority`; `wor.Guard.Print` adds the parry pick, `wor.Guard.SetParryPriority`. | feature/B-393-parry-vfx (in dev, built 2026-11-12) |
 | 2026-11-12 | B-392b (Crown, Q5 = B): a co-op guest's guard and parry colour priority reach the host: `AWoRPlayerState::ServerSetGuard` / `ServerSetParryPriority` (Reliable; enum checked; refused unless `CommandsFighter`: the member id stamped on the pawn, else its character) call the setters on the host's pawn, which write its party record; the guest's setters send them when `NM_Client`. D-103 TODOs cleared. Spec `WoR.Defense.TwoGuards` (co-op). | `fix/B-392b-guest-guard-sync` |
 | 2026-11-12 | B-098 (D-027, Q-098): weapons give no spells. `Loadout/WeaponSpellRules` (`wor.Loadout.WeaponSpells` 0; `FScopedWeaponSpells` for the old path's specs; `wor.Loadout.ListWeaponSpells` survey) gates `FWeaponLoadoutEntry::GetAllSpells` / `GetSpellSlots` / `ReplaceSpell`, `FCombatCapabilities::BuildFrom` (Resonate Weapon spells) and `GetWeaponResonateSpells`. Merge (Q-098, Crown): a weapon's spells are no longer saved or loaded (`SaveSubsystem` gear detail; adapters unchanged; save v37), and `FWeaponLoadoutEntry::GetSkillSlotCount` adds the attached gem / evolution's spell-slot count as ability slots (broken or not; the old path off). Element limit on those slots: B-410; deleting the switch and old code: B-411 (Sweep row 48). Specs `WoR.Loadout.WeaponsNoSpells`, `WoR.Save.GearDetail`. | `feature/B-098-weapons-no-spells-cloud` (in dev) |
+| 2026-11-13 | D-175 (Crown): the Ability Stone is retired; a weapon's ability slots are its tier plus the attached crystal's extra slots (B-098 / B-410), at most 12. The stone-ability list goes in B-437. Docs only, branch docs/retire-ability-stone. |
