@@ -282,6 +282,16 @@ public:
 	 *  attachment readers read it, and availability for the adapter and the weapon, so the broken rule is stated once. */
 	FInfusionSourceView ResolveInfusionSource(AActor *Actor, EInfusionSourceOption Option) const;
 
+	/** B-435 (D-174, ED-51): every source an infused action uses: the picked source first, then each other available
+	 *  source of the character's that shares its element (a Generic source counts as the character's innate element;
+	 *  a broken source has no element, CL-24, so it never counts). Empty when the action is uninfused or its source
+	 *  pushes no element (None / Raw). The count drives the buildup bonus and the battle UI's element xN. */
+	TArray<EInfusionSourceOption> GetSameElementInfusionSources(AActor *Actor, const FAction &Action) const;
+
+	/** B-435: how many sources an infused action uses (GetSameElementInfusionSources' count); 0 when uninfused. */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	int32 GetSameElementSourceCount(AActor *Actor, const FAction &Action) const;
+
 	/**
 	 *  Resolve a spell's effective CAST element (Cluster 3 — the Generic-inherit step).
 	 *  - Non-Generic spells (incl. None) pass through unchanged — only Generic is polymorphic.
@@ -565,6 +575,21 @@ public:
 	void DebugForceResetAsync();
 
 private:
+	// ==================== SAME-ELEMENT STACKING COSTS (B-435, D-174) ====================
+
+	/** The EP one source pays for Action (CalculateActionEnergyCost's body, before same-element stacking). */
+	int32 CalculateSourceEnergyCost(AActor *Actor, const FAction &Action) const;
+
+	/** The EP a stacked (not picked) same-element source adds: Innate and Evolution pay the action's EP as if it
+	 *  were routed through them; crystal sources pay wear at commit instead, so 0. */
+	int32 CalculateStackedSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const;
+
+	/** One source's commit cost (wear, or the L2 HP backlash returned for the caller to defer). bStackedSource: the
+	 *  source is an extra same-element one, so its own wear applies even on a spell (the picked evolution spell's wear
+	 *  is paid by ExecuteSpellAsync's hook). */
+	int32 ApplySourceCommitCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,
+								int32 PreEffInfusedEP, bool bLevelPaysHP, bool bStackedSource);
+
 	// ==================== TIER-GAP RESOLUTION (D9) ====================
 
 	/** The action's own tier: a spell's, an ability's or attack's own (the skill's), the weapon's only when no
@@ -573,6 +598,7 @@ private:
 	EItemTier ResolveActionTier(AActor *Actor, const FAction &Action) const;
 	friend class FActionTierSpec;
 	friend class FInfusionCostSpec; // B-334: reads PendingInfusionHPCost after ApplyCommitCosts
+	friend class FInfusionSameElementStackSpec; // B-435: reads PendingInfusionHPCost after ApplyCommitCosts
 
 	/** The tier of the channel the action is used THROUGH: attack/ability →
 	 *  active weapon; spell → the catalyst crystal per Action.SpellSource

@@ -1323,7 +1323,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// 6-4: the live spell status multiplier — per-mode, stat-scaled (L0 → ×1.0). Logged here and
 	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
-	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp);
+	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp) *
+							 InfusionConstants::SameElementBuildupMultiplier(GetSameElementSourceCount(Caster, Action)); // B-435 (D-174)
 
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
 		   Action.SpellInfusionLevel,
@@ -1600,7 +1601,8 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	{
 		// 6-4: scale ability status by the per-mode stat-scaled charge multiplier (L0 → ×1.0,
 		// uninfused unchanged; L>0 → the mode's status bonus). Same getter as the damage path.
-		const float StatusMult = GetChargeStatusMultiplier(Action.AbilityInfusionLevel, AbilityMode, UserComp);
+		const float StatusMult = GetChargeStatusMultiplier(Action.AbilityInfusionLevel, AbilityMode, UserComp) *
+								 InfusionConstants::SameElementBuildupMultiplier(GetSameElementSourceCount(User, Action)); // B-435 (D-174)
 		// Own-tier power scales status buildup too (everything but effects).
 		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
 		// same ladder/direction as damage — reuse the shared damage accessor.
@@ -4745,6 +4747,60 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 
 	}
 	return View;
+}
+
+TArray<EInfusionSourceOption> UActionExecutor::GetSameElementInfusionSources(AActor *Actor, const FAction &Action) const
+{
+	TArray<EInfusionSourceOption> Sources;
+	const EInfusionSourceOption Picked = Action.SelectedSource;
+	if (!Actor || Action.GetChargeLevel() <= 0 || Picked == EInfusionSourceOption::None || Picked == EInfusionSourceOption::Raw)
+	{
+		return Sources;
+	}
+
+	// D-174: a Generic (inherit) source counts as the character's innate element.
+	const UCharacterData *Data = GetCharacterData(Actor);
+	const ESpellElement CharacterElement = Data ? Data->InnateElement : ESpellElement::None;
+	const auto ElementOf = [this, Actor, CharacterElement](EInfusionSourceOption Option)
+	{
+		const ESpellElement Element = ResolveInfusionSource(Actor, Option).Element;
+		return Element == ESpellElement::Generic ? CharacterElement : Element;
+	};
+	// Both adapter options name the one adapter in use (D-110), so they are one source.
+	const auto IsAdapter = [](EInfusionSourceOption Option)
+	{ return Option == EInfusionSourceOption::ActiveRing || Option == EInfusionSourceOption::PrimaryRing; };
+
+	const ESpellElement StackElement = ElementOf(Picked);
+	if (StackElement == ESpellElement::None)
+	{
+		return Sources; // CL-24: a broken or empty source pushes no element, so nothing stacks with it
+	}
+
+	Sources.Add(Picked);
+	for (const EInfusionSourceOption Option : GetAvailableInfusionSources(Actor))
+	{
+		const bool bSameSeat = Option == Picked || (IsAdapter(Option) && IsAdapter(Picked));
+		if (bSameSeat || Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw)
+		{
+			continue;
+		}
+		if (ElementOf(Option) == StackElement)
+		{
+			Sources.Add(Option);
+		}
+	}
+
+	if (Sources.Num() > 1)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s: %d same-element (%s) infusion sources stack (D-174)"),
+			   *Actor->GetName(), Sources.Num(), *UEnum::GetValueAsString(StackElement));
+	}
+	return Sources;
+}
+
+int32 UActionExecutor::GetSameElementSourceCount(AActor *Actor, const FAction &Action) const
+{
+	return GetSameElementInfusionSources(Actor, Action).Num();
 }
 
 ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USpellData *Spell) const
