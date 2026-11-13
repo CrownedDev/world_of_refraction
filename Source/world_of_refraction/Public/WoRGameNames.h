@@ -29,6 +29,7 @@ enum class EWeaponWieldMode : uint8;
 enum class EItemTier : uint8;
 enum class ESubStat : uint8;
 enum class EInteractVerb : uint8;
+enum class EVendorService : uint8;
 
 namespace WoRGameNames
 {
@@ -115,6 +116,9 @@ namespace WoRGameNames
 
     /** B-440a: a tier's letter, "F" to "S". */
     WORLD_OF_REFRACTION_API FText GetTierLetter(EItemTier Tier);
+
+    /** B-445: a vendor's services beside Buy: "Sell", "Dismantle". */
+    WORLD_OF_REFRACTION_API FText GetVendorServiceName(EVendorService Service);
 
     /** B-443: the interact prompt's verbs: "Talk", "Enter", "Pick up". Empty for None. */
     WORLD_OF_REFRACTION_API FText GetInteractVerbName(EInteractVerb Verb);
