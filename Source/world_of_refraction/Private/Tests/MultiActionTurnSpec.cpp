@@ -14,6 +14,7 @@
 #include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "ActionExecutedRecorder.h"
+#include "CombatResultRecorder.h"
 #include "TurnStartOrderRecorder.h"
 #include "Combat/Actions/ActionPipsRules.h"
 #include "Combat/CombatOrchestrator.h"
@@ -296,14 +297,19 @@ void FMultiActionTurnSpec::Define()
 			FoeData->CurrentHP = MULTI_ACTION_FOE_LAST_HP;
 			UAbilityData *Killer = NewAbility(MULTI_ACTION_COST_ONE);
 			Killer->BaseDamage = MULTI_ACTION_KILL_DAMAGE;
+			// FinishCombat ends on Idle, so the result broadcast is what says how the fight ended.
+			UCombatResultRecorder *Results = NewObject<UCombatResultRecorder>();
+			Results->AddToRoot();
+			Results->Listen(Orchestrator);
 
 			SubmitAndSettle(AbilityOn(Foe, Killer));
 			TestFalse(TEXT("The foe is down"), FoeData->bIsAlive);
 			TestEqual(TEXT("Hero acted once"), CountHeroActions(EActionType::Ability), 1);
 			TestEqual(TEXT("A banked action is left"), ActionsOf(Hero), MULTI_ACTION_MAX - MULTI_ACTION_COST_ONE);
-			TestTrue(TEXT("Victory (no kill-shot hold headless: no camera director)"),
-					 Orchestrator->GetCombatState() == ECombatState::Victory);
+			TestTrue(TEXT("The fight ended once, in Victory (no kill-shot hold headless: no camera director)"),
+					 Results->EndStates.Num() == 1 && Results->EndStates[0] == ECombatState::Victory);
 			TestEqual(TEXT("No second action was asked for"), CountSteps(ETurnStartStep::ActionRequested), 0);
+			Results->RemoveFromRoot();
 		});
 
 		It("ends the turn on End Turn and banks the rest", [this]()
