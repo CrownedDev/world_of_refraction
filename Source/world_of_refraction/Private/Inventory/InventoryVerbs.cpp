@@ -77,8 +77,8 @@ namespace WoRInventoryVerbs
 {
 	const TArray<EInventoryVerb> &GetAllVerbs()
 	{
-		static const TArray<EInventoryVerb> Verbs = {EInventoryVerb::Give, EInventoryVerb::Store, EInventoryVerb::Take,
-													 EInventoryVerb::Dismantle, EInventoryVerb::Convert};
+		// B-445 (D-177): Give, Store, Take. Dismantle and Convert left the inventory for the vendors (WoRVendorServices).
+		static const TArray<EInventoryVerb> Verbs = {EInventoryVerb::Give, EInventoryVerb::Store, EInventoryVerb::Take};
 		return Verbs;
 	}
 
@@ -148,6 +148,11 @@ namespace WoRInventoryVerbs
 		if (!Pool || Member.IsNone())
 		{
 			return LOCTEXT("NoStore", "No character's store to act on");
+		}
+		if (Verb == EInventoryVerb::Dismantle || Verb == EInventoryVerb::Convert)
+		{
+			// OBSOLETE (B-445, D-177): the two verbs and their code below stay until the vendor path passes PIE (D-124 sweep).
+			return LOCTEXT("AtAVendor", "That is done at a vendor now");
 		}
 		if (Row.bInChest != (Verb == EInventoryVerb::Take))
 		{

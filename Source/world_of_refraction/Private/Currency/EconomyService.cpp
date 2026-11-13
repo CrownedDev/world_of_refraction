@@ -556,11 +556,11 @@ namespace
     /** Q-319: a duplicate converts for half its tier's buy price (the merge-cost rule's half). */
     constexpr int32 DUPLICATE_GOLD_DIVISOR = 2;
 
-    /** B-319: the weaker copy out of the loadouts and the owned list, then Gold. */
+    /** B-319: the weaker copy out of the loadouts and the owned list, then Gold. B-445: a vendor's sale is the same
+     *  removal and payout; Verb names the caller in the log. */
     template <class TEntry>
-    bool ConvertOwnedGearToGold(AActor *Owner, UInventoryComponent &Inv, UCurrencyComponent &Currency, const FGuid &PersistentID)
+    bool ConvertOwnedGearToGold(AActor *Owner, UInventoryComponent &Inv, UCurrencyComponent &Currency, const FGuid &PersistentID, const TCHAR *Verb)
     {
-        const TCHAR *Verb = TEXT("ResolveDuplicate");
         const TEntry *Entry = FindOwnedGearForVerb<TEntry>(Owner, Inv, PersistentID, Verb);
         if (!Entry || EconomyRefusesPrimary(Inv, PersistentID, Verb) || EconomyRefusesOnRun(Owner, PersistentID, Verb))
         {
@@ -575,7 +575,7 @@ namespace
             return false;
         }
         Currency.Add(Pays, Gold);
-        UE_LOG(LogTemp, Log, TEXT("[EconomyService] Duplicate %s (GUID %s) -> %d %s"), OwnedGearOps<TEntry>::Noun, *PersistentID.ToString(), Gold,
+        UE_LOG(LogTemp, Log, TEXT("[EconomyService] %s: %s (GUID %s) -> %d %s"), Verb, OwnedGearOps<TEntry>::Noun, *PersistentID.ToString(), Gold,
                *UEnum::GetValueAsString(Pays));
         return true;
     }
@@ -628,10 +628,61 @@ bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConv
     }
     if (bConvertToGold)
     {
-        return Chosen.bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID)
-                            : ConvertOwnedGearToGold<FWeaponInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID);
+        return Chosen.bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID, Verb)
+                            : ConvertOwnedGearToGold<FWeaponInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID, Verb);
     }
     return Chosen.bRing ? DismantleRing(Owner, Chosen.WeakerID) : DismantleWeapon(Owner, Chosen.WeakerID);
+}
+
+bool UEconomyService::SellGear(AActor *Owner, FGuid PersistentID)
+{
+    const TCHAR *Verb = TEXT("SellGear");
+    if (!EconomyMayAct(Owner, Verb))
+    {
+        return false;
+    }
+    UInventoryComponent *Inv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    if (!EconomyFindComponents(Owner, Verb, Inv, Currency))
+    {
+        return false;
+    }
+    // The duplicate convert's removal and payout (Q-319: half the tier's buy price), for any owned piece.
+    const bool bRing = Inv->Rings.ContainsByPredicate([&PersistentID](const FRingInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    return bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, PersistentID, Verb)
+                 : ConvertOwnedGearToGold<FWeaponInventoryEntry>(Owner, *Inv, *Currency, PersistentID, Verb);
+}
+
+bool UEconomyService::SellCrystal(AActor *Owner, const FCrystalId &Id, int32 Count)
+{
+    const TCHAR *Verb = TEXT("SellCrystal");
+    if (Count <= 0 || !EconomyMayAct(Owner, Verb))
+    {
+        return false;
+    }
+    UCrystalInventoryComponent *CrystalInv = nullptr;
+    UCurrencyComponent *Currency = nullptr;
+    UInventoryComponent *Inv = nullptr;
+    if (!EconomyFindComponents(Owner, Verb, CrystalInv, Currency, Inv))
+    {
+        return false;
+    }
+    if (CrystalInv->GetCount(Id) < Count)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s: %s has fewer than %d %s"), Verb, *Owner->GetName(), Count, *ItemIdentity::GetDisplayName(Id));
+        return false;
+    }
+    // REMOVE FIRST, as DismantleCrystal: a failed removal must never pay.
+    const int32 Removed = Inv->RemoveCrystal(Id, Count);
+    if (Removed <= 0)
+    {
+        return false;
+    }
+    const ECurrencyType Pays = GetPlaceCurrency(Owner);
+    const int32 Paid = GetSellPriceForTier(Id.Tier) * Removed;
+    Currency->Add(Pays, Paid);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Sold %dx %s -> %d %s"), Removed, *ItemIdentity::GetDisplayName(Id), Paid, *UEnum::GetValueAsString(Pays));
+    return true;
 }
 
 #define LOCTEXT_NAMESPACE "EconomyService"

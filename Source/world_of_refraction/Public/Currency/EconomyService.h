@@ -174,6 +174,21 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy")
     static int32 GetDuplicateGoldForTier(EItemTier Tier);
 
+    // ==================== SELLING (B-445, D-177, Q-445) ====================
+
+    /** What a vendor pays for one item of this tier: half its buy price, the duplicate convert's rule (Q-319). */
+    UFUNCTION(BlueprintPure, Category = "Economy")
+    static int32 GetSellPriceForTier(EItemTier Tier) { return GetDuplicateGoldForTier(Tier); }
+
+    /** A vendor buys the owned weapon or adapter PersistentID: it leaves every loadout and the owned list, then the
+     *  place's currency is paid (GetPlaceCurrency). Refused as a dismantle is: a loadout's primary, a home piece
+     *  during a run, in a fight, no authority. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool SellGear(AActor *Owner, FGuid PersistentID);
+
+    /** A vendor buys Count of the owned crystal or stone Id. Remove-then-pay, as DismantleCrystal. */
+    bool SellCrystal(AActor *Owner, const FCrystalId &Id, int32 Count = 1);
+
     /** B-366b (Q-366, the shop rule ER-21; shops still charge the hub currency everywhere, ER-21's Conflict): the
      *  currency money earned here pays in: the run currency
      *  (ECurrencyType::Gold, shown as Prisms, D-159) while a trial run is under way, else the hub currency

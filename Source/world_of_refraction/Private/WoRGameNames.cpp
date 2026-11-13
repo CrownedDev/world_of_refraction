@@ -14,6 +14,7 @@
 #include "Inventory/ItemTier.h"
 #include "Memory/HiddenQuestData.h"
 #include "Merchant/MerchantData.h"
+#include "Shop/VendorServices.h"
 #include "Skills/Definitions/SpellSchool.h"
 
 #define LOCTEXT_NAMESPACE "WoRGameNames"
@@ -686,6 +687,19 @@ FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)
     case EWeaponWieldMode::OffHandShield:
         return LOCTEXT("EWeaponWieldMode_OffHandShield", "with shield");
     case EWeaponWieldMode::Single:
+    default:
+        return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetVendorServiceName(EVendorService Service)
+{
+    switch (Service)
+    {
+    case EVendorService::Sell:
+        return LOCTEXT("EVendorService_Sell", "Sell");
+    case EVendorService::Dismantle:
+        return LOCTEXT("EVendorService_Dismantle", "Dismantle");
     default:
         return FText::GetEmpty();
     }
