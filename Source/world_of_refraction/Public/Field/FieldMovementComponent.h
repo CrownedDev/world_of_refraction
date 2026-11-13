@@ -117,6 +117,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	FFieldFlightLimits GetFlightLimits() const { return FlightLimits; }
 
+	/** Up (+1) or down (-1) while flying: movement input along the world's up. B-214g binds it to keys
+	 *  (IA_Field_FlyUp / IA_Field_FlyDown, InputMap rows with that job); the pawn's own move input stays flat. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	void AddFlightVerticalInput(float Value);
+
+	/** Debug (wor.Field.FlyVertical, until the keys): a vertical push while flying. Server. */
+	void NudgeFlightVertical(float Direction);
+
 	/** Inside a volume tagged Zone.NoFly. */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	bool IsInNoFlyZone() const;
@@ -227,6 +235,7 @@ private:
 	UPROPERTY(ReplicatedUsing = OnRep_Flying)
 	bool bFlying = false;
 
+	UPROPERTY(Replicated)
 	FFieldFlightLimits FlightLimits;
 	/** The ground under the take-off: the ceiling counts from it (FieldSkillRules::GetFlightCeilingZ). */
 	double FlightTakeOffGroundZ = 0.0;

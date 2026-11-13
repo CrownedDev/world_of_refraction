@@ -163,6 +163,9 @@ namespace FieldSkillRules
 	constexpr float FLIGHT_SPEED = 900.0f;                // cm/s (MaxFlySpeed)
 	constexpr float FLIGHT_HOVER_BRAKING = 4000.0f;       // cm/s^2: stops quickly with no input, so it hovers
 	constexpr float FLIGHT_GROUND_TRACE_DISTANCE = 10000.0f;
+	constexpr float FLIGHT_TAKEOFF_LIFT_SPEED = 600.0f;   // cm/s up on take-off, so it leaves the ground
+	constexpr float FLIGHT_VERTICAL_NUDGE_SPEED = 500.0f; // cm/s for wor.Field.FlyVertical (until B-214g's keys)
+	constexpr float FLIGHT_CEILING_SNAP_MARGIN = 100.0f;  // cm over the ceiling before it is put back (else its rise stops)
 	/** The actor tag that makes a volume a no-fly zone (boss arenas, some secrets). */
 	inline constexpr const TCHAR *NO_FLY_ZONE_TAG = TEXT("Zone.NoFly"); // TCHAR, not FName: no FName at static init
 
