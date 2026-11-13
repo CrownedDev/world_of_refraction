@@ -4,6 +4,8 @@
 
 **Nothing is DONE without Crown's PIE (D-128, Crown, 2026-11-03).** A job stays `REVIEW` in `Backlog.md` until Crown's PIE pass ticks it in **Waiting on Crown's PIE** below; only then does its row move to `DONE`. That list is kept running: a job that adds a `docs/PIE/B-xxx.md` row to Pending in `README.md`, or sets its Backlog row to `REVIEW`, adds its row there in the same change, and a PIE pass ticks it.
 
+**Waived for ten jobs (D-204, Crown, 2026-11-13):** "for 10 lets just assume they work and approve the deletions". The rows whose delete job is **B-152, B-153, B-154, B-172, B-165, B-032b, B-309, B-317 or B-170h** may be deleted without the PIE tick (B-238b, the tenth, is not a delete). Each still needs the build, the full tests and the reviewer, and the Blueprint check where one is listed. Every other row still waits for Crown's PIE.
+
 **How to run a sweep:**
 1. Build `dev`, open the editor.
 2. For each system below, run the named PIE check (the linked `B-xxx.md` file; only the rows it names) and the **Blueprint check** where one is listed (Reference Viewer / Find in Blueprints on the named function or field: no hits).
