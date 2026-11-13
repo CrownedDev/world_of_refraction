@@ -441,7 +441,7 @@ private:
     int32 DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const;
 
     /** Decide the infusion SOURCE for a SPELL (origin-bound): the first allowed source from
-     *  GetAllowedInfusionSourcesForSpell, Evolution preferred for the BD/Reality {Evolution, Innate}
+     *  GetAllowedInfusionSourcesForSpell, Evolution preferred, else the origin (first) over a BD/Reality Innate (B-435b)
      *  case. Returns None for Item / non-infusable (empty binding). Shared by BuildAction (sets
      *  SelectedSource) and DecideSpellInfusionLevel (source-aware prediction) so they never drift. */
     EInfusionSourceOption DecideSpellInfusionSource(AActor *Attacker, USpellData *Spell) const;

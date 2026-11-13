@@ -286,13 +286,13 @@ public:
 	/** B-435 (D-174, ED-51): every source an infused ability or attack uses: the picked source first, then each other
 	 *  available source of the character's that shares its element (a Generic source counts as the character's innate
 	 *  element, none when that is Generic too; a broken source has no element, CL-24, so it never counts). Empty when
-	 *  the action is uninfused or its source pushes no element (None / Raw). B-435b (Q-435 B): a spell stacks at any
-	 *  charge level on its cast element, the origin first (or Innate when a BD / Reality caster picked their own
-	 *  element). While the action executes, the stack resolved at commit is returned (FActionExecutionContext). The count
+	 *  the action is uninfused or its source pushes no element (None / Raw). B-435b (Q-435 B, Q-435b): an infused spell
+	 *  stacks on its cast element, the origin first (or Innate when a BD / Reality caster picked their own element); a
+	 *  non-elemental spell doesn't. While the action executes, the stack resolved at commit is returned (FActionExecutionContext). The count
 	 *  drives the buildup bonus and the battle UI's element xN. */
 	TArray<EInfusionSourceOption> GetSameElementInfusionSources(AActor *Actor, const FAction &Action) const;
 
-	/** B-435: how many sources an infused action uses (GetSameElementInfusionSources' count); 0 when uninfused. */
+	/** B-435: how many sources an infused action (ability, attack or, B-435b, spell) uses; 0 when uninfused. */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	int32 GetSameElementSourceCount(AActor *Actor, const FAction &Action) const;
 
@@ -599,7 +599,8 @@ private:
 	int32 CalculateStackedSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const;
 
 	/** B-435b: the EP a spell costs cast from Source (Innate / Evolution pay the spell's EP; a ring or weapon crystal is
-	 *  free), for each source in a spell's same-element stack. */
+	 *  free; a Broken Darkness evolution is free at the EP layer, as when it is the origin), for each source in a spell's
+	 *  same-element stack. */
 	int32 CalculateSpellSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const;
 
 	/** One source's commit cost (wear, or the L2 HP backlash returned for the caller to defer). */

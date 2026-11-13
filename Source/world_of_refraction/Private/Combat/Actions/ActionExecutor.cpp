@@ -4780,6 +4780,7 @@ TArray<EInfusionSourceOption> UActionExecutor::GetSameElementInfusionSources(AAc
 		CurrentExecutionContext->Action.ActionType == Action.ActionType &&
 		CurrentExecutionContext->Action.SelectedSource == Action.SelectedSource &&
 		CurrentExecutionContext->Action.SkillData == Action.SkillData &&
+		CurrentExecutionContext->Action.SpellData == Action.SpellData && // B-435b: spells stack too
 		CurrentExecutionContext->Action.GetChargeLevel() == Action.GetChargeLevel())
 	{
 		return CurrentExecutionContext->InfusionStack;
@@ -4795,30 +4796,28 @@ TArray<EInfusionSourceOption> UActionExecutor::ResolveSameElementInfusionSources
 		return Sources;
 	}
 	EInfusionSourceOption Picked = Action.SelectedSource;
-	ESpellElement SpellElement = ESpellElement::None;
-	if (Action.ActionType == EActionType::Spell)
+	const bool bSpell = Action.ActionType == EActionType::Spell;
+	// Q-435b: like an ability, a spell stacks only when infused (D-174 / ED-51: "an infused action").
+	if ((!bSpell && Action.ActionType != EActionType::Ability) || Action.GetChargeLevel() <= 0 ||
+		Picked == EInfusionSourceOption::None || Picked == EInfusionSourceOption::Raw)
 	{
-		// B-435b (Q-435 B, Crown 2026-11-14): a spell keeps its origin's element at any charge level, and every other
-		// source of that element joins the cast. The picked source is the origin, unless a BD / Reality caster picked
-		// Innate (their own element; GetAllowedInfusionSourcesForSpell allows it), and then the stack keys on that.
+		return Sources;
+	}
+	TOptional<ESpellElement> SpellElement; // set for a spell cast on its origin's element
+	if (bSpell)
+	{
+		// B-435b (Q-435 B, Crown 2026-11-14): a spell keeps its origin's element and every other source of that
+		// element joins the cast. The picked source is the origin, unless a BD / Reality caster picked Innate (their
+		// own element; GetAllowedInfusionSourcesForSpell allows it), and then the stack keys on that.
 		const TArray<EInfusionSourceOption> Allowed = GetAllowedInfusionSourcesForSpell(Actor, Action.SpellData);
-		if (Allowed.Num() == 0)
-		{
-			return Sources; // an item spell, a broken ring's spell: no source, nothing stacks
-		}
 		if (!Allowed.Contains(Picked))
 		{
-			Picked = Allowed[0];
+			return Sources; // an item spell, a broken ring's spell, a source its origin doesn't allow: nothing stacks
 		}
 		if (Picked == Allowed[0])
 		{
 			SpellElement = ResolveSpellCastElement(Actor, Action.SpellData);
 		}
-	}
-	else if (Action.ActionType != EActionType::Ability || Action.GetChargeLevel() <= 0 ||
-			 Picked == EInfusionSourceOption::None || Picked == EInfusionSourceOption::Raw)
-	{
-		return Sources;
 	}
 
 	// D-174: a Generic (inherit) source counts as the character's innate element; a Generic character gives it none.
@@ -4834,8 +4833,10 @@ TArray<EInfusionSourceOption> UActionExecutor::ResolveSameElementInfusionSources
 	const auto IsAdapter = [](EInfusionSourceOption Option)
 	{ return Option == EInfusionSourceOption::ActiveRing || Option == EInfusionSourceOption::PrimaryRing; };
 
-	const ESpellElement CastElement = SpellElement == ESpellElement::Generic ? CharacterElement : SpellElement;
-	const ESpellElement StackElement = CastElement != ESpellElement::None ? CastElement : ElementOf(Picked);
+	// A spell on its origin stacks on its cast element (a non-elemental spell: None, so nothing stacks).
+	const ESpellElement StackElement = !SpellElement.IsSet()						   ? ElementOf(Picked)
+									   : SpellElement.GetValue() == ESpellElement::Generic ? CharacterElement
+																						   : SpellElement.GetValue();
 	if (StackElement == ESpellElement::None)
 	{
 		return Sources; // CL-24: a broken or empty source pushes no element, so nothing stacks with it
