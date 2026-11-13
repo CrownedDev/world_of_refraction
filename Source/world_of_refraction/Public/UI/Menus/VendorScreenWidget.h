@@ -122,8 +122,10 @@ private:
 	bool bWholeStack = false;
 	FText Status;
 	bool bStatusIsRefusal = false;
-	/** Buy: whose stock, whose wallet, and what is picked so far. */
-	TWeakObjectPtr<const UMerchantData> Merchant;
+	/** Buy: whose stock (held, so the stock lines the page and the cart point at stay loaded), whose wallet, and
+	 *  what is picked so far. */
+	UPROPERTY(Transient)
+	TObjectPtr<const UMerchantData> Merchant;
 	TWeakObjectPtr<AActor> Payer;
 	TArray<FVendorCartLine> Cart;
 

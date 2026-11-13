@@ -1335,6 +1335,10 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
             }
             return false;
         }
+        if (!Owner->FindComponentByClass<UInventoryComponent>() || !CurrencyWallet::FindFor(Owner))
+        {
+            return false; // EconomyFindComponents below would log the missing one on every ask
+        }
     }
     else if (!EconomyMayAct(Owner, TEXT("Purchase")))
     {

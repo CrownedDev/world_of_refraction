@@ -354,7 +354,7 @@ void UVendorScreenWidget::RefreshData()
 	}
 	EmptyText->SetText(Page.EmptyNote);
 	SetShown(EmptyText, !Page.EmptyNote.IsEmpty());
-	HintsText->SetText(bBuy ? LOCTEXT("HintsBuy", "LB / RB  Service        A / Enter  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave")
+	HintsText->SetText(bBuy ? LOCTEXT("HintsBuy", "LB / RB  Service        Enter / Right  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave")
 							: FText::Format(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
 											WoRVendorScreen::GetTabName(GetTab())));
 
@@ -743,7 +743,8 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 		Purchase();
 		return FReply::Handled();
 	}
-	if (bBuy && BuyForButton && BuyForButton->GetCachedGeometry().IsUnderLocation(Position))
+	// The line sits in the detail panel: hidden with it, it keeps the place it last had.
+	if (bBuy && BuyForButton && DetailPanel && DetailPanel->IsVisible() && BuyForButton->GetCachedGeometry().IsUnderLocation(Position))
 	{
 		MoveMember(1);
 		return FReply::Handled();
