@@ -267,7 +267,8 @@ public:
 	TArray<EInfusionSourceOption> GetAvailableInfusionSources(AActor *Actor) const;
 
 	/** The allowed infusion source(s) for a SPELL, by its origin (1:1 via ResolveSpellSource),
-	 *  with the BD/Reality exception that an Evolution spell may ALSO use Innate. Single source of
+	 *  with the BD/Reality exception that any spell may ALSO use Innate (their own element; B-435b, it was the
+	 *  Evolution origin only). The origin comes first. Single source of
 	 *  truth for the spell origin->source binding (consumed by the AI and, later, validation).
 	 *  SPELL-only — abilities are not origin-bound. Item-origin / null / unresolvable -> empty
 	 *  (not infusable). Plain C++ (not BlueprintPure): a rule helper for AI + validation. */
@@ -285,8 +286,9 @@ public:
 	/** B-435 (D-174, ED-51): every source an infused ability or attack uses: the picked source first, then each other
 	 *  available source of the character's that shares its element (a Generic source counts as the character's innate
 	 *  element, none when that is Generic too; a broken source has no element, CL-24, so it never counts). Empty when
-	 *  the action is uninfused, its source pushes no element (None / Raw), or it is a spell (origin-bound, one source:
-	 *  Q-435). While the action executes, the stack resolved at commit is returned (FActionExecutionContext). The count
+	 *  the action is uninfused or its source pushes no element (None / Raw). B-435b (Q-435 B): a spell stacks at any
+	 *  charge level on its cast element, the origin first (or Innate when a BD / Reality caster picked their own
+	 *  element). While the action executes, the stack resolved at commit is returned (FActionExecutionContext). The count
 	 *  drives the buildup bonus and the battle UI's element xN. */
 	TArray<EInfusionSourceOption> GetSameElementInfusionSources(AActor *Actor, const FAction &Action) const;
 
@@ -595,6 +597,10 @@ private:
 	/** The EP a stacked (not picked) same-element source adds: Innate and Evolution pay the ability's EP as if it
 	 *  were routed through them; crystal sources pay wear at commit instead, so 0. */
 	int32 CalculateStackedSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const;
+
+	/** B-435b: the EP a spell costs cast from Source (Innate / Evolution pay the spell's EP; a ring or weapon crystal is
+	 *  free), for each source in a spell's same-element stack. */
+	int32 CalculateSpellSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const;
 
 	/** One source's commit cost (wear, or the L2 HP backlash returned for the caller to defer). */
 	int32 ApplySourceCommitCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,

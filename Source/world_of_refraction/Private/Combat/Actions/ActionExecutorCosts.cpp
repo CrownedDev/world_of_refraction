@@ -77,13 +77,49 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	// B-435 (D-174): each same-element source pays its own cost. The picked source pays as before; a stacked
 	// Innate or Evolution source adds its EP (crystal sources pay wear at commit). Preview == spend still holds:
 	// ExecuteAbilityAsync and validation both read this (the spend reads the stack resolved at commit).
-	int32 Cost = CalculateSourceEnergyCost(Actor, Action);
 	const TArray<EInfusionSourceOption> Stack = GetSameElementInfusionSources(Actor, Action);
+	if (Action.ActionType == EActionType::Spell && Stack.Num() > 0)
+	{
+		// B-435b: a spell's stack, its picked source first, each paying the spell's EP as cast from that source (a
+		// ring or weapon-crystal source is free; a stacked Innate or Evolution pays even when the origin is free).
+		int32 SpellCost = 0;
+		for (const EInfusionSourceOption Source : Stack)
+		{
+			SpellCost += CalculateSpellSourceEnergyCost(Actor, Action, Source);
+		}
+		return SpellCost;
+	}
+	int32 Cost = CalculateSourceEnergyCost(Actor, Action);
 	for (int32 Index = 1; Index < Stack.Num(); ++Index)
 	{
 		Cost += CalculateStackedSourceEnergyCost(Actor, Action, Stack[Index]);
 	}
 	return Cost;
+}
+
+int32 UActionExecutor::CalculateSpellSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const
+{
+	FAction AsSource = Action;
+	AsSource.SelectedSource = Source;
+	switch (Source)
+	{
+	case EInfusionSourceOption::Innate:
+		AsSource.SpellSource = ESpellSource::Innate;
+		break;
+	case EInfusionSourceOption::Evolution:
+		AsSource.SpellSource = ESpellSource::Evolution;
+		break;
+	case EInfusionSourceOption::ActiveRing:
+	case EInfusionSourceOption::PrimaryRing:
+		AsSource.SpellSource = ESpellSource::RingCrystal;
+		break;
+	case EInfusionSourceOption::WeaponCrystal:
+		AsSource.SpellSource = ESpellSource::WeaponCrystal;
+		break;
+	default:
+		break; // Raw / None: the spell's own origin prices it
+	}
+	return CalculateSourceEnergyCost(Actor, AsSource);
 }
 
 int32 UActionExecutor::CalculateStackedSourceEnergyCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source) const
@@ -92,7 +128,7 @@ int32 UActionExecutor::CalculateStackedSourceEnergyCost(AActor *Actor, const FAc
 	{
 		return 0;
 	}
-	FAction AsSource = Action; // only abilities stack (Q-435), so the source alone sets the EP
+	FAction AsSource = Action; // an ability's stacked source: the source alone sets the EP (spells: CalculateSpellSourceEnergyCost)
 	AsSource.SelectedSource = Source;
 	return CalculateSourceEnergyCost(Actor, AsSource);
 }
