@@ -80,6 +80,8 @@ void FCoopCheckpointSpec::Define()
 		FCoopCheckpointAssembler Assembler;
 		TestFalse(TEXT("index past the count"), Assembler.Add(1, 3, 2, CheckpointTestBytes(1)));
 		TestFalse(TEXT("no chunks"), Assembler.Add(1, 0, 0, CheckpointTestBytes(1)));
+		TestFalse(TEXT("a count over MAX_CHUNKS (B-434)"), Assembler.Add(1, 0, WoRCheckpoint::MAX_CHUNKS + 1, CheckpointTestBytes(1)));
+		TestEqual(TEXT("and nothing was started for it"), Assembler.GetCheckpointId(), static_cast<int32>(INDEX_NONE));
 		Assembler.Add(2, 0, 3, CheckpointTestBytes(1));
 		TestFalse(TEXT("same id, another count"), Assembler.Add(2, 1, 2, CheckpointTestBytes(1)));
 		TestEqual(TEXT("one chunk in"), Assembler.GetReceivedCount(), 1);

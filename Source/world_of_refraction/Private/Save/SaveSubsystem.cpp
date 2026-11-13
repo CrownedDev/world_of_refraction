@@ -1,6 +1,7 @@
 // SaveSubsystem.cpp
 
 #include "Save/SaveSubsystem.h"
+#include "Misc/PackageName.h"
 #include "Save/CoopCheckpoint.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
@@ -20,6 +21,8 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
+#include "WoRAuthority.h"
+#include "GameFramework/GameStateBase.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/StatStone.h"
@@ -457,12 +460,61 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	}
 }
 
-bool USaveSubsystem::AdoptCheckpoint()
+bool USaveSubsystem::AdoptCheckpoint(const FString &OldHostKey, const FString &NewHostKey)
 {
-	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME);
+	return AdoptCheckpointFrom(WoRCheckpoint::SLOT_NAME, OldHostKey, NewHostKey);
 }
 
-bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
+namespace
+{
+	/** B-428 review: a per-player feature's object name holds this (ATrialChest and its Blueprints, ContentNaming). */
+	const TCHAR *const PERSONAL_FEATURE_NAME_MARK = TEXT("Chest");
+}
+
+void USaveSubsystem::RekeyRunForNewHost(FSavedRun &Run, const FString &OldHostKey, const FString &NewHostKey)
+{
+	if (OldHostKey.IsEmpty() || NewHostKey.IsEmpty() || OldHostKey == NewHostKey)
+	{
+		return;
+	}
+	const FString PlayerSeparator = TEXT("@"); // ATrialMapFeature::GetFeatureIdFor's "<id>@<player key>"
+	const FString NewHostSuffix = PlayerSeparator + NewHostKey;
+	TMap<FName, FText> Rekeyed;
+	int32 OldHostRecords = 0;
+	int32 NewHostRecords = 0;
+	for (const TPair<FName, FText> &Found : Run.FoundFeatures)
+	{
+		const FString Key = Found.Key.ToString();
+		// Review: only chests are per-player (B-235c); fragments, spots and lore keep shared plain keys, which stay.
+		// The chests aren't loaded at adoption (the run resumes in the hub), so the feature path's object name tells.
+		// TODO: a per-player flag on the record if a personal feature ever isn't a chest.
+		const FString ObjectName = FPackageName::ObjectPathToObjectName(Key.Contains(PlayerSeparator) ? Key.Left(Key.Find(PlayerSeparator)) : Key);
+		const bool bPersonal = ObjectName.Contains(PERSONAL_FEATURE_NAME_MARK, ESearchCase::IgnoreCase);
+		if (!bPersonal)
+		{
+			Rekeyed.Add(Found.Key, Found.Value);
+		}
+		else if (!Key.Contains(PlayerSeparator))
+		{
+			Rekeyed.Add(FName(*(Key + PlayerSeparator + OldHostKey)), Found.Value);
+			++OldHostRecords;
+		}
+		else if (Key.EndsWith(NewHostSuffix))
+		{
+			Rekeyed.Add(FName(*Key.LeftChop(NewHostSuffix.Len())), Found.Value);
+			++NewHostRecords;
+		}
+		else
+		{
+			Rekeyed.Add(Found.Key, Found.Value);
+		}
+	}
+	Run.FoundFeatures = MoveTemp(Rekeyed);
+	UE_LOG(LogWoR, Log, TEXT("[Save] Hand-over re-key (B-428): %d of the old host's record(s) kept as theirs, %d of the new host's now plain"),
+		   OldHostRecords, NewHostRecords);
+}
+
+bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName, const FString &OldHostKey, const FString &NewHostKey)
 {
 	UGameInstance *GI = GetGameInstance();
 	const ULocalPlayer *Local = GI ? GI->GetFirstGamePlayer() : nullptr;
@@ -505,6 +557,7 @@ bool USaveSubsystem::AdoptCheckpointFrom(const FString &SlotName)
 	bPlayingHostCopy = true;
 	AdoptedSlotName = SlotName;
 	AdoptedUpgradeMemory = Copy->Data.Pool.UpgradeMemory; // B-234d review: what the run raises is told apart from this
+	RekeyRunForNewHost(Copy->Data.Run, OldHostKey, NewHostKey); // B-428 (a)
 	PendingRun = Copy->Data.Run;
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
 	WorldActorsInitializedHandle = FWorldDelegates::OnWorldInitializedActors.AddUObject(this, &USaveSubsystem::HandleWorldActorsInitialized);
@@ -739,7 +792,9 @@ void USaveSubsystem::CaptureInto(UWorld *World)
 	Data.HiddenQuests = GI->GetSubsystem<UHiddenQuestSubsystem>()->Capture(); // B-377: steps done, kept across runs
 	Data.Curses = GI->GetSubsystem<UCurseSubsystem>()->Capture(); // B-378: held across runs until removed
 	Data.Counters = GI->GetSubsystem<UHiddenCounterSubsystem>()->Capture(); // B-379: counting across runs
-	if (const UCurrencyComponent *Wallet = FindLocalWallet(World))
+	// B-425: a co-op guest's wallet is the host's mirror; banking it would overwrite the guest's own balances.
+	const UCurrencyComponent *Wallet = FindLocalWallet(World);
+	if (Wallet && WoRAuthority::HasAuthority(Wallet->GetOwner()))
 	{
 		BankWallet(Wallet);
 	}
@@ -815,8 +870,23 @@ void USaveSubsystem::ApplyWalletTo(UCurrencyComponent *Wallet) const
 void USaveSubsystem::ClearRunGold(UWorld *World)
 {
 	CarriedGold = 0;
-	// The live wallet too: its PlayerState banks it again at EndPlay, during the level change.
-	if (UCurrencyComponent *Wallet = FindLocalWallet(World))
+	// The live wallets too: the local one is banked again at EndPlay, during the level change. B-426: every player's
+	// (as DefeatRules::ApplyWipe walks them), so a co-op guest doesn't carry run Gold into the next run.
+	TArray<UCurrencyComponent *, TInlineAllocator<4>> Wallets;
+	if (UCurrencyComponent *Local = FindLocalWallet(World))
+	{
+		Wallets.Add(Local);
+	}
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	for (APlayerState *Player : GameState ? GameState->PlayerArray : TArray<TObjectPtr<APlayerState>>())
+	{
+		const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+		if (UCurrencyComponent *Wallet = WoRPlayer ? WoRPlayer->GetWallet() : nullptr)
+		{
+			Wallets.AddUnique(Wallet);
+		}
+	}
+	for (UCurrencyComponent *Wallet : Wallets)
 	{
 		const int32 Gold = Wallet->GetBalance(ECurrencyType::Gold);
 		if (Gold > 0)

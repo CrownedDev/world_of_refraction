@@ -2,7 +2,8 @@
 // B-151 (D-046): one wallet per player. Every member of the player's party spends from and
 // earns into the wallet on the leader's AWoRPlayerState; an actor with no player behind it
 // keeps its own component. B-132: the leader is found again after OpenLevel through its local
-// player, and a leader who isn't player 0 still gets the party's money.
+// player, and a leader who isn't player 0 still gets the party's money. B-425: a guest's reported save is applied once
+// on the host (a travel's re-report doesn't refill what was spent).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -19,12 +20,14 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
+#include "Save/WoRSaveTypes.h"
 
 namespace
 {
 	constexpr int32 WALLET_TEST_PRISMS = 100;
 	constexpr int32 WALLET_TEST_SPEND = 30;
 	constexpr int32 WALLET_TEST_ESSENCE = 12;
+	constexpr int32 WALLET_TEST_CARRIED_GOLD = 40;
 }
 
 BEGIN_DEFINE_SPEC(FPlayerWalletSpec, "WoR.Economy.PlayerWallet",
@@ -146,6 +149,29 @@ void FPlayerWalletSpec::Define()
 		if (!PlayerWallet) return;
 		CurrencyWallet::FindFor(Ally)->Add(ECurrencyType::ElementalEssence, WALLET_TEST_ESSENCE); // B-333b: the seven balances
 		TestEqual(TEXT("seen by the hero"), CurrencyWallet::FindFor(Hero)->GetBalance(ECurrencyType::ElementalEssence), WALLET_TEST_ESSENCE);
+	});
+
+	It("applies a guest's reported wallet once, so a re-report after travel doesn't refill it (B-425)", [this]()
+	{
+		if (!PlayerWallet) return;
+		AWoRPlayerState *Guest = Cast<AWoRPlayerState>(PlayerWallet->GetOwner());
+		if (!TestNotNull(TEXT("the wallet's player state"), Guest)) return;
+		FSavedWallet Saved;
+		Saved.bHasWallet = true;
+		FSavedBalance Prisms;
+		Prisms.Currency = static_cast<uint8>(ECurrencyType::Prisms);
+		Prisms.Amount = WALLET_TEST_PRISMS;
+		Saved.Balances.Add(Prisms);
+
+		// Standalone has authority, so the Server RPC runs here at once.
+		Guest->ServerReportWallet(Saved, WALLET_TEST_CARRIED_GOLD);
+		TestEqual(TEXT("the saved balance arrives"), PlayerWallet->GetBalance(ECurrencyType::Prisms), WALLET_TEST_PRISMS);
+		TestEqual(TEXT("the carried Gold arrives"), PlayerWallet->GetBalance(ECurrencyType::Gold), WALLET_TEST_CARRIED_GOLD);
+
+		TestTrue(TEXT("spent in co-op"), PlayerWallet->Spend(ECurrencyType::Prisms, WALLET_TEST_SPEND));
+		Guest->ServerReportWallet(Saved, WALLET_TEST_CARRIED_GOLD);
+		TestEqual(TEXT("a second report changes nothing"), PlayerWallet->GetBalance(ECurrencyType::Prisms),
+				  WALLET_TEST_PRISMS - WALLET_TEST_SPEND);
 	});
 
 	It("keeps an actor with no player behind it on its own wallet", [this]()

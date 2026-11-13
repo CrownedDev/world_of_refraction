@@ -57,10 +57,18 @@ public:
 	 *  (EndHandedOverRun), and its run waits for the next hub world to resume (the last checkpoint). This player's own
 	 *  wallet and forms stay. From now on saves go to the copy's slot (and to the others), never this player's own
 	 *  slot: a restart comes back to its own save. False without a copy holding a run. */
-	bool AdoptCheckpoint();
+	bool AdoptCheckpoint(const FString &OldHostKey = FString(), const FString &NewHostKey = FString());
 
-	/** AdoptCheckpoint from SlotName (specs use their own slot, never the real copy). Its saves then go to SlotName. */
-	bool AdoptCheckpointFrom(const FString &SlotName);
+	/** AdoptCheckpoint from SlotName (specs use their own slot, never the real copy). Its saves then go to SlotName.
+	 *  B-428 (a): with both keys (WoRDefeat::PlayerDropKey's form, as the join order holds them), the run's per-player
+	 *  records are re-keyed for the new host (RekeyRunForNewHost). */
+	bool AdoptCheckpointFrom(const FString &SlotName, const FString &OldHostKey = FString(), const FString &NewHostKey = FString());
+
+	/** B-428 (a, Q-428): a handed-over run's opened-chest records (the only per-player features; fragments, spots and
+	 *  lore keep their shared keys): the old host's plain keys become "<id>@<OldHostKey>" (so the new host doesn't inherit them, and nobody loots its chests twice) and the
+	 *  new host's "<id>@<NewHostKey>" become plain (its own, as a host's are). Other players' keys stay. Nothing when
+	 *  either key is empty or they are the same. Pure, spec-tested. */
+	static void RekeyRunForNewHost(FSavedRun &Run, const FString &OldHostKey, const FString &NewHostKey);
 
 	/** B-234b: playing a run handed over from the old host's copy (AdoptCheckpoint). */
 	bool IsPlayingHostCopy() const { return bPlayingHostCopy; }

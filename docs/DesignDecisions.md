@@ -750,10 +750,24 @@ The queue of questions only Crown can answer.
 **Answer:** **A** (Crown 2026-11-13). The leaver's dropped Prisms are split equally into the remaining players' wallets (the remainder to the host) and the drop is removed. Reference: Deep Rock Galactic's team minerals are shared by the whole team, so nothing gathered is lost when someone drops out.
 **Notes for Claude:** built in B-428 (b), next to the hand-over re-key (a). Rules PA-37i.
 
+### Q-437 — Ability Stones in an old save when the stone is removed
+**Status:** ANSWERED (reference-backed default, 2026-11-13) · **Raised:** 2026-11-13 (D-175, B-437) · **Blocks:** —
+**Question:** B-437 removes the Ability Stone type. What happens to Ability Stones (owned, socketed, in a loadout) in a save made before it?
+**Options:** **A** dropped: the save version is bumped and an older save is wiped (D-060), no migration · B refunded: each stone turns into its dismantle essence (Skill essence at its tier, ER-31) on load.
+**Answer:** **A**, by the reference-backed default. Before the first public build every save version bump already wipes older saves (D-060), and Crown chose the same for weapon spells (Q-098: deleted, no refund). Live games refund removed items (Warframe and Destiny 2 hand back currency for sunset or removed gear) only because players own those saves; B is the path once there are public saves. Crown may change it.
+**Notes for Claude:** B-437 bumps `WoRSaveVersion::LATEST`; no loader code for the old type.
+
 ## Parked
 
 ### D-P01 — Move Broken Darkness onto GAS?
 **Status:** PARKED until after GAS stage 3 (`GASMigration.md`, decision 1: option C). Only with a zero-difference `wor.CompareBD`.
+
+---
+
+### D-175 — The Ability Stone is retired
+**Status:** DECIDED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (B-437)
+**Answer (Crown):** the **Ability Stone** is removed from the game; every other augment stone stays. A weapon's ability slots come only from **the weapon's tier** (F 1 … S 6) **plus the attached crystal's extra slots** (B-098 / B-410). An augment stone no longer adds slots, so a weapon holds **at most 12 abilities** (S tier 6 + an S gem's 6).
+**Notes for Claude:** removed in code by **B-437**; old saves per **Q-437**. Supersedes the Ability Stone part of D-145 and Q-351b (its slots by tier) and its essence line in ER-05 / ER-31. Rules CL-20, CL-31.
 
 ---
 

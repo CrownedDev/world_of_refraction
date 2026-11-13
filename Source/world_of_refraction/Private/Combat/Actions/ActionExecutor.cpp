@@ -261,6 +261,17 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 		return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
 	}
 
+	// B-429: an item the member's pouch can't supply is refused here, before the orchestrator pays the action cost and
+	// notes the skill used (ExecuteItem refuses it again later, too late for both).
+	if (Action.ActionType == EActionType::Item)
+	{
+		const ULoadoutComponent *ItemLoadout = GetLoadoutComponent(Actor);
+		if (ItemLoadout && ItemLoadout->UsesPouchItems() && !ItemLoadout->CanUseCarriedItem(Action.ItemData))
+		{
+			return FActionValidationResult(false, TEXT("Item not in the pouch"));
+		}
+	}
+
 	// Class / source gates (requirements never refuse, D-041)
 	UCharacterData *CharData = GetCharacterData(Actor);
 	if (CharData)

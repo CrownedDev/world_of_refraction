@@ -223,7 +223,8 @@ void UWoRHostHandOverSubsystem::HandleSessionCreated(bool bSucceeded)
 	}
 	// Review: adopt only now that hosting works, so a failed host never leaves this player in the old host's game.
 	USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
-	const bool bAdopted = Save && Save->AdoptCheckpoint();
+	// B-428 (a): the run's per-player records follow the hosts (the join order's ids are WoRDefeat::PlayerDropKey's form).
+	const bool bAdopted = Save && Save->AdoptCheckpoint(OldHost, GetLocalPlayerId());
 	Step = EHostHandOverStep::None; // done: a later lost host starts a new hand-over
 	UE_LOG(LogWoR, Display, TEXT("[HandOver] %s"), bAdopted ? TEXT("Hosting from the checkpoint copy; the run resumes at its last checkpoint")
 															: TEXT("Hosting, but no checkpoint copy with a run was kept: the run doesn't resume"));

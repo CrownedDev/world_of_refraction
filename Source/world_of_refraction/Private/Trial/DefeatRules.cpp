@@ -124,6 +124,58 @@ namespace WoRDefeat
 		return Player->GetUniqueId().IsValid() ? Player->GetUniqueId().ToString() : FString::FromInt(Player->GetPlayerId());
 	}
 
+	int32 LeaverDropShare(int32 Amount, int32 Players, bool bHost)
+	{
+		if (Amount <= 0 || Players <= 0)
+		{
+			return 0;
+		}
+		return Amount / Players + (bHost ? Amount % Players : 0);
+	}
+
+	int32 SplitLeaverDrop(UWorld *World, const APlayerState *Leaver)
+	{
+		UTrialRunSubsystem *Run = DefeatRun(World);
+		const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+		const FString LeaverKey = PlayerDropKey(Leaver);
+		if (!Run || !Run->IsRunActive() || !GameState || LeaverKey.IsEmpty() || Run->GetDroppedPrismsForPlayer(LeaverKey) <= 0)
+		{
+			return 0;
+		}
+		TArray<UCurrencyComponent *> Remaining;
+		for (const APlayerState *Player : GameState->PlayerArray)
+		{
+			const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+			UCurrencyComponent *Wallet = WoRPlayer && Player != Leaver ? WoRPlayer->GetWallet() : nullptr;
+			if (Wallet)
+			{
+				Remaining.AddUnique(Wallet);
+			}
+		}
+		if (Remaining.Num() == 0)
+		{
+			return 0; // nobody left to share it: the drop stays for the run
+		}
+		const int32 Amount = Run->TakeDropForPlayer(LeaverKey);
+		UCurrencyComponent *HostWallet = DefeatLocalWallet(World);
+		if (!Remaining.Contains(HostWallet))
+		{
+			HostWallet = Remaining[0]; // no local host wallet (a dedicated server): the first player takes the remainder
+		}
+		int32 HandedOut = 0;
+		for (UCurrencyComponent *Wallet : Remaining)
+		{
+			const int32 Share = LeaverDropShare(Amount, Remaining.Num(), Wallet == HostWallet);
+			if (Share > 0 && Wallet->Add(ECurrencyType::Gold, Share))
+			{
+				HandedOut += Share;
+			}
+		}
+		UE_LOG(LogTemp, Log, TEXT("[Defeat] Player %s left the run: their %d dropped Prism(s) split among %d player(s) (Q-428)"),
+			   *LeaverKey, Amount, Remaining.Num());
+		return HandedOut;
+	}
+
 	int32 GetPresentDroppedPrisms(const UWorld *World)
 	{
 		const UTrialRunSubsystem *Run = DefeatRun(World);
