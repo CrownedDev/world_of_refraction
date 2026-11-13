@@ -20,6 +20,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
+#include "GameFramework/GameStateBase.h"
 #include "WoRAuthority.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -760,6 +761,15 @@ bool USaveSubsystem::SaveNow(UWorld *World, bool bAsync)
 	if (bWritten)
 	{
 		WoRCheckpoint::SendToClients(World, SaveGame); // B-234: every other player keeps the host's checkpoint (review: only a written one)
+		// B-438 (Q-438): at each host save, every guest writes its own wallet to its own save.
+		const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+		for (APlayerState *Player : GameState ? GameState->PlayerArray : TArray<TObjectPtr<APlayerState>>())
+		{
+			if (AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player))
+			{
+				WoRPlayer->SendWalletToOwner(); // nothing for the host's own player
+			}
+		}
 	}
 	return bWritten;
 }
@@ -803,6 +813,15 @@ void USaveSubsystem::BankWallet(const UCurrencyComponent *Wallet)
 		SaveGame->Data.Wallet = CaptureWallet(Wallet);
 		CarriedGold = Wallet->GetBalance(ECurrencyType::Gold);
 	}
+}
+
+void USaveSubsystem::BankWalletSnapshot(const FSavedWallet &Saved, int32 RunGold)
+{
+	SaveGame->Data.Wallet = Saved;
+	CarriedGold = FMath::Max(0, RunGold);
+	const bool bWritten = WriteSlot(/*bAsync=*/true);
+	UE_LOG(LogWoR, Log, TEXT("[Save] The host's snapshot of this player's wallet banked (B-438): %d balance(s), %d run Gold; written %s"),
+		   Saved.Balances.Num(), CarriedGold, bWritten ? TEXT("yes") : TEXT("no"));
 }
 
 void USaveSubsystem::ApplyWalletTo(UCurrencyComponent *Wallet) const

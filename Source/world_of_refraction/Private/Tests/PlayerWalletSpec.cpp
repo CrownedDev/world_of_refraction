@@ -3,7 +3,8 @@
 // earns into the wallet on the leader's AWoRPlayerState; an actor with no player behind it
 // keeps its own component. B-132: the leader is found again after OpenLevel through its local
 // player, and a leader who isn't player 0 still gets the party's money. B-425: a guest's reported save is applied once
-// on the host (a travel's re-report doesn't refill what was spent).
+// on the host (a travel's re-report doesn't refill what was spent). B-438: the host's snapshot of a guest's wallet
+// becomes the guest's own banked balances and carried Gold.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -21,6 +22,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
 #include "Save/WoRSaveTypes.h"
+#include "Save/SaveSubsystem.h"
 
 namespace
 {
@@ -172,6 +174,24 @@ void FPlayerWalletSpec::Define()
 		Guest->ServerReportWallet(Saved, WALLET_TEST_CARRIED_GOLD);
 		TestEqual(TEXT("a second report changes nothing"), PlayerWallet->GetBalance(ECurrencyType::Prisms),
 				  WALLET_TEST_PRISMS - WALLET_TEST_SPEND);
+	});
+
+	It("banks the host's snapshot of the guest's wallet into the guest's own save data (B-438)", [this]()
+	{
+		if (!PlayerWallet) return;
+		AWoRPlayerState *Guest = Cast<AWoRPlayerState>(PlayerWallet->GetOwner());
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestNotNull(TEXT("the wallet's player state"), Guest) || !TestNotNull(TEXT("Save"), Save)) return;
+		TestTrue(TEXT("earned in co-op"), PlayerWallet->Add(ECurrencyType::Prisms, WALLET_TEST_PRISMS));
+		TestTrue(TEXT("spent in co-op"), PlayerWallet->Spend(ECurrencyType::Prisms, WALLET_TEST_SPEND));
+		TestTrue(TEXT("run Gold"), PlayerWallet->Add(ECurrencyType::Gold, WALLET_TEST_CARRIED_GOLD));
+
+		// Standalone: the Client RPC runs here at once, as the guest would run it.
+		Guest->Client_BankWallet(USaveSubsystem::CaptureWallet(PlayerWallet), PlayerWallet->GetBalance(ECurrencyType::Gold));
+		const FSavedBalance *Prisms = Save->GetData().Wallet.Balances.FindByPredicate([](const FSavedBalance &Balance)
+		{ return Balance.Currency == static_cast<uint8>(ECurrencyType::Prisms); });
+		TestTrue(TEXT("the guest's save holds what it has now"), Prisms && Prisms->Amount == WALLET_TEST_PRISMS - WALLET_TEST_SPEND);
+		TestEqual(TEXT("and its run Gold is carried"), Save->GetCarriedGold(), WALLET_TEST_CARRIED_GOLD);
 	});
 
 	It("keeps an actor with no player behind it on its own wallet", [this]()

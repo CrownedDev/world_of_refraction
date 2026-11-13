@@ -110,6 +110,10 @@ public:
 	/** PlayerState EndPlay: bank the wallet's persistent balances and carry its run Gold. */
 	void BankWallet(const UCurrencyComponent *Wallet);
 
+	/** B-438 (client): the host's snapshot of this guest's wallet (AWoRPlayerState::Client_BankWallet) becomes this
+	 *  player's banked balances and carried Gold, and its own save is written. Never the host's copy of anything else. */
+	void BankWalletSnapshot(const FSavedWallet &Saved, int32 RunGold);
+
 	/** PlayerState BeginPlay: give a fresh wallet the banked balances and the carried Gold. */
 	void ApplyWalletTo(UCurrencyComponent *Wallet) const;
 
