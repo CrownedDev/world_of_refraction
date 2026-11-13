@@ -84,8 +84,10 @@ namespace WoRInventoryScreen
 	/** The other party members, for Give. */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenReceiver> BuildReceivers(UWorld *World, FName Member, const FInventoryScreenTile &Tile);
 
-	/** How many of a stack a verb moves: all of it with the whole-stack toggle on, else one. Gear: one. */
-	WORLD_OF_REFRACTION_API int32 GetMoveCount(const FInventoryScreenTile &Tile, bool bWholeStack);
+	/** How many of a stack Verb moves: all of it with the whole-stack toggle on, else one; never more than fits the
+	 *  pouch it goes to (Take: Member's; Give: Receiver's), so a big stack moves what fits. Gear: one. */
+	WORLD_OF_REFRACTION_API int32 GetMoveCount(const UWorld *World, EInventoryVerb Verb, FName Member, FName Receiver, const FInventoryScreenTile &Tile,
+											   bool bWholeStack);
 
 	WORLD_OF_REFRACTION_API FString GetInventoryScreenString(UWorld *World);
 }

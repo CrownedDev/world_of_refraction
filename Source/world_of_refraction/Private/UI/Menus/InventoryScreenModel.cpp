@@ -244,9 +244,21 @@ TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *Worl
 	return Receivers;
 }
 
-int32 WoRInventoryScreen::GetMoveCount(const FInventoryScreenTile &Tile, bool bWholeStack)
+int32 WoRInventoryScreen::GetMoveCount(const UWorld *World, EInventoryVerb Verb, FName Member, FName Receiver, const FInventoryScreenTile &Tile,
+									   bool bWholeStack)
 {
-	return !Tile.Row.IsGear() && bWholeStack ? FMath::Max(1, Tile.Row.Count) : 1;
+	if (Tile.Row.IsGear() || !bWholeStack)
+	{
+		return 1;
+	}
+	int32 Count = Tile.Row.Count;
+	const UPoolSubsystem *Pool = InventoryScreenBuild::PoolOf(World);
+	const FName Into = Verb == EInventoryVerb::Take ? Member : Verb == EInventoryVerb::Give ? Receiver : NAME_None;
+	if (Pool && !Into.IsNone())
+	{
+		Count = FMath::Min(Count, Pool->GetCarryRoom(WoRGive::GetPouchKey(World, Into), Tile.Row.Item));
+	}
+	return FMath::Max(1, Count);
 }
 
 FString WoRInventoryScreen::GetInventoryScreenString(UWorld *World)
