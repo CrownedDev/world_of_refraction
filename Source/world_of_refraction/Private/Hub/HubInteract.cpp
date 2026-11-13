@@ -53,7 +53,7 @@ namespace HubInteract
                          [Merchant]() { Merchant->Interact(); },
                          // D-178: a vendor is named by role ("Blacksmith").
                          Merchant->Merchant ? FInteractPrompt(EInteractVerb::Talk, WoRGameNames::GetMerchantTypeName(Merchant->Merchant->MerchantType)) : FInteractPrompt(),
-                         /*bVendor=*/true);
+                         /*bVendor=*/Merchant->Merchant != nullptr);
         }
         if (UPartyInteractionComponent *Recruit = UPartyInteractionComponent::FindNearestInRange(Pawn))
         {

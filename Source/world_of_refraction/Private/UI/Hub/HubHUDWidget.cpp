@@ -121,10 +121,6 @@ void UHubHUDWidget::NativeDestruct()
 
 void UHubHUDWidget::BindWallet()
 {
-	if (BoundWallet.IsValid())
-	{
-		return;
-	}
 	// As the game menu reads it: the pawn's wallet, else the player state's.
 	UCurrencyComponent *Wallet = CurrencyWallet::FindFor(GetOwningPlayerPawn());
 	if (!Wallet)
@@ -132,11 +128,20 @@ void UHubHUDWidget::BindWallet()
 		const AWoRPlayerState *Player = GetOwningPlayerState<AWoRPlayerState>();
 		Wallet = Player ? Player->GetWallet() : nullptr;
 	}
+	if (Wallet == BoundWallet.Get())
+	{
+		return;
+	}
+	// The wallet in use changed (the HUD is made before the pawn is possessed): follow it.
+	if (UCurrencyComponent *Old = BoundWallet.Get())
+	{
+		Old->OnCurrencyChanged.RemoveDynamic(this, &UHubHUDWidget::HandleCurrencyChanged);
+	}
 	if (Wallet)
 	{
 		Wallet->OnCurrencyChanged.AddUniqueDynamic(this, &UHubHUDWidget::HandleCurrencyChanged);
-		BoundWallet = Wallet;
 	}
+	BoundWallet = Wallet;
 }
 
 void UHubHUDWidget::HandleCurrencyChanged(ECurrencyType Currency, uint8 /*SubKey*/, int32 /*NewBalance*/)
