@@ -2,7 +2,7 @@
 // B-435 (D-174, ED-51): an infused action uses every one of the character's sources that shares its element.
 // Status buildup grows +25% per extra source, capped at +50%; each source pays its own cost once (a crystal
 // source pays wear, not EP; a stacked innate pays its EP); a different-element or broken source isn't used. The stack
-// is fixed at commit. B-435b (Q-435 B): spells stack too, on their origin's element at any charge level; a BD / Reality
+// is fixed at commit. B-435b (Q-435 B, Q-435b): an infused spell stacks too, on its origin's element; a BD / Reality
 // caster may pick their own element instead.
 // Expectations are literals, so a changed number fails here on purpose.
 
@@ -203,7 +203,7 @@ void FInfusionSameElementStackSpec::Define()
 		TestEqual(TEXT("Raw"), Executor->GetSameElementSourceCount(Caster, AbilityAction(EInfusionSourceOption::Raw, STACK_TEST_L1)), 0);
 	});
 
-	It("stacks an innate spell with a same-element gem at any charge level; the gem adds no EP (B-435b)", [this]()
+	It("stacks an infused innate spell with a same-element gem; the gem adds no EP (B-435b)", [this]()
 	{
 		if (!Executor) return;
 		USpellData *Spell = FireSpell();
@@ -214,8 +214,8 @@ void FInfusionSameElementStackSpec::Define()
 		TestEqual(TEXT("alone: one source"), Executor->GetSameElementSourceCount(Caster, Cast), 1);
 		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_INTACT);
 		TestEqual(TEXT("with a Fire gem: two"), Executor->GetSameElementSourceCount(Caster, Cast), 2);
-		TestEqual(TEXT("uninfused too"), Executor->GetSameElementSourceCount(
-			Caster, SpellAction(Spell, ESpellSource::Innate, EInfusionSourceOption::None, 0)), 2);
+		TestEqual(TEXT("uninfused: no stack (Q-435b)"), Executor->GetSameElementSourceCount(
+			Caster, SpellAction(Spell, ESpellSource::Innate, EInfusionSourceOption::None, 0)), 0);
 		TestEqual(TEXT("the gem adds no EP"), Executor->CalculateActionEnergyCost(Caster, Cast), InnateEP);
 	});
 
@@ -232,6 +232,17 @@ void FInfusionSameElementStackSpec::Define()
 		SetInnateElement(ESpellElement::Water);
 		TestEqual(TEXT("a Water innate doesn't join"), Executor->GetSameElementSourceCount(Caster, Cast), 1);
 		TestEqual(TEXT("so the ring spell is free again"), Executor->CalculateActionEnergyCost(Caster, Cast), 0);
+	});
+
+	It("stacks nothing for a non-elemental spell, even on an elemental ring", [this]()
+	{
+		if (!Executor) return;
+		USpellData *Spell = FireSpell();
+		Spell->Element = ESpellElement::None;
+		SetPrimaryRing(STACK_TEST_FIRE_GEM, Spell);
+		const FAction Cast = SpellAction(Spell, ESpellSource::RingCrystal, EInfusionSourceOption::PrimaryRing, STACK_TEST_L1);
+		TestEqual(TEXT("no stack"), Executor->GetSameElementSourceCount(Caster, Cast), 0);
+		TestEqual(TEXT("and still free"), Executor->CalculateActionEnergyCost(Caster, Cast), 0);
 	});
 
 	It("lets a Reality caster stack on their own element or the spell's source element", [this]()

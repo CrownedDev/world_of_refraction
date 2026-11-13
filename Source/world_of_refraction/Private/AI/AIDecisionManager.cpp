@@ -2464,7 +2464,7 @@ EInfusionSourceOption UAIDecisionManager::DecideSpellInfusionSource(AActor *Atta
         return EInfusionSourceOption::None; // Item / non-infusable -> no source
     }
 
-    // Spells are 1:1 origin-bound; the BD/Reality evolution case returns {Evolution, Innate} —
+    // Spells are origin-bound; a BD/Reality caster also gets Innate on any origin (B-435b), listed after the origin —
     // prefer Evolution this stage (richer BD/Reality choice deferred).
     return Allowed.Contains(EInfusionSourceOption::Evolution)
                ? EInfusionSourceOption::Evolution
