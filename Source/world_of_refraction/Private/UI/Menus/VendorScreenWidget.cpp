@@ -29,8 +29,9 @@ namespace VendorScreenStyle
 	constexpr float TierWidth = 60.0f;
 	constexpr float CountWidth = 75.0f;
 	constexpr float PayWidth = 300.0f;
-	constexpr float PipSize = 24.0f;
-	constexpr float PipGap = 8.0f;
+	// 20 marks must fit the row's words column (the list less the tier, count and pay columns: about 580).
+	constexpr float PipSize = 20.0f;
+	constexpr float PipGap = 7.0f;
 	constexpr float PanelGap = 45.0f;
 	constexpr float PanelWidth = 664.0f;
 	constexpr float PanelPadding = 30.0f;
