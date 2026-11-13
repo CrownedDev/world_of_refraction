@@ -183,6 +183,7 @@ namespace FieldSkillRules
 	constexpr int32 TELEPORT_EP_COST = 3;
 	constexpr float TELEPORT_DISTANCE = 1500.0f;      // cm along the aim, stopping short of a wall (Void only)
 	constexpr float TELEPORT_COOLDOWN_SECONDS = 2.0f;
+	constexpr float TELEPORT_MIN_DISTANCE = 100.0f;   // cm: a shorter move (a wall right ahead) is Blocked, not paid
 	constexpr int32 PHASE_STEP_EP_COST = 2;
 	constexpr float PHASE_STEP_DISTANCE = 400.0f;     // cm ahead, through what's in between (thin walls, bars)
 	constexpr float PHASE_STEP_COOLDOWN_SECONDS = 1.0f;

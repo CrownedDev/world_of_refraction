@@ -60,6 +60,7 @@ void UFieldMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME(UFieldMovementComponent, bWallRunning);
 	DOREPLIFETIME(UFieldMovementComponent, bFlying);
 	DOREPLIFETIME_CONDITION(UFieldMovementComponent, FlightLimits, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UFieldMovementComponent, bHasRecallMark, COND_OwnerOnly);
 }
 
 void UFieldMovementComponent::BeginPlay()

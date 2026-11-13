@@ -187,7 +187,8 @@ private:
 	EFieldSkillRefusal DoSuperLaunch(ACharacter &Character);
 	EFieldSkillRefusal DoRegroup(ACharacter &Character);
 
-	/** The other party member's field pawn farthest away (Regroup's target), or null. */
+	/** The farthest other party member's field pawn (a pawn stamped with a party member id, or player-controlled), or
+	 *  null: Regroup's target. */
 	AActor *FindRegroupTarget() const;
 
 	/** A fight is running (UPartySessionSubsystem::IsFightRunning). */
@@ -267,6 +268,7 @@ private:
 	FTimerHandle FlightDrainTimer;
 
 	/** B-214e, server: Mark and recall's mark (one at a time, this level only). */
+	UPROPERTY(Replicated)
 	bool bHasRecallMark = false;
 	FVector RecallMark = FVector::ZeroVector;
 
