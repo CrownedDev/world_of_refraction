@@ -8,6 +8,11 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("v3b", os.path.join(OUT, "..", "refine_v3b", "make.py"))
 v = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(v)
+# The focus accent is violet (Crown, 2026-11-14; UI_Theme.md section 3), colours only. Set on both helper modules,
+# since v3b's and v2's drawing functions read their own globals.
+import sys  # noqa: E402
+for _m in (v, sys.modules["make"]):
+    _m.TEAL, _m.CYAN = (91, 58, 153), (205, 184, 255)
 F = v.F
 GLYPH = {"Y": (240, 200, 70), "X": (90, 140, 240), "A": (110, 200, 110)}
 STEELY, VOID = (150, 160, 175), (166, 75, 240)
