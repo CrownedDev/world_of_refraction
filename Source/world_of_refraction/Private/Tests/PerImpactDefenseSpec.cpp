@@ -454,7 +454,7 @@ void FPerImpactDefenseSpec::Define()
 
 	Describe("casts", [this]()
 	{
-		It("opens one defense per impact for a 2-hit spell (none on the lumped path)", [this]()
+		It("opens one defense per impact for a 2-hit spell", [this]()
 		{
 			Spell = MakeTwoHitSpell();
 			const FCastOutcome PerImpact = RunCast(Spell);

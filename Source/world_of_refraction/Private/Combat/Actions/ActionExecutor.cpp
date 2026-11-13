@@ -1766,9 +1766,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	// Count-based close now covers attacks AND abilities (step 1 of the attack/ability
 	// merge): both play montages that can carry Impact notifies (the impact counter that
 	// drives the close). Abilities WITHOUT authored Impact notifies degrade gracefully —
-	// ImpactsLanded stays 0, the reconcile/failsafe tail closes the window and applies the
-	// full lumped result (byte-identical to today). Spells keep the timer close
-	// (bManualClose=false) — projectile/AOE migrate to the counter at Stage 6.
+	// ImpactsLanded stays 0, and LandFallbackImpacts lands them at the animation's end. Spells
+	// open with the timer close here; the spell dispatch re-opens offensive ones count-based.
 	// ExpectedImpacts>0 doubles as the "this window is count-based" sentinel read by the
 	// Impact-notify handler; 0 leaves the window on its normal timer.
 	// Attack collapsed into Ability (Cluster 3) — count-based close is the not-Spell / bPerImpact gate.
@@ -3815,8 +3814,7 @@ void UActionExecutor::ResolveAOEEffect(
 		return;
 	}
 
-	// No converted count-based window: unconverted multi-entry AOE keeps the action-start lumped
-	// window, which resolves it via OnDefenseWindowClosed (lumped-retire is B-032). A missing
+	// No count-based window: a support spell's hits land at its window's close. A missing
 	// DefenseSystem is a setup error (Q-031 = A): no undefended damage.
 	if (!DefenseSys)
 	{
@@ -3907,9 +3905,8 @@ void UActionExecutor::ResolveInstantSpellEffect(
 		return;
 	}
 
-	// No converted count-based window: unconverted multi-entry Instant keeps the action-start lumped
-	// window, which resolves it via OnDefenseWindowClosed. A missing DefenseSystem is a setup error
-	// (Q-031 = A): no undefended damage.
+	// No count-based window: a support spell's hits land at its window's close. A missing
+	// DefenseSystem is a setup error (Q-031 = A): no undefended damage.
 	if (!DefenseSys)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - Instant damage not applied"));
@@ -4269,7 +4266,7 @@ void UActionExecutor::ResumeBurstTimer(float Interval)
 bool UActionExecutor::CanResolveSpellArrival(AActor *Target) const
 {
 	// Must mirror ResolveSpellArrival's early-outs exactly: the ability counts an arrival as taken before resolving
-	// it, so a check only ResolveSpellArrival made would drop that arrival instead of sending it to the lumped path.
+	// it, so a check only ResolveSpellArrival made would drop that arrival instead of leaving it to the caller.
 	if (!Target || !GetDefenseSystem() || !CurrentExecutionContext.IsSet())
 	{
 		return false;
@@ -4280,7 +4277,7 @@ bool UActionExecutor::CanResolveSpellArrival(AActor *Target) const
 
 bool UActionExecutor::RouteProjectileArrival(AActor *Target, int32 CastEntryIndex)
 {
-	// Only an arrival the per-impact path takes goes to the ability; a lumped one stays with the caller.
+	// Only an arrival the per-impact path takes goes to the ability; any other stays with the caller.
 	if (CanResolveSpellArrival(Target) &&
 		WoRSkillAbilities::SendProjectileEvent(GetExecutingActor(), WoRTags::Event_Combat_Projectile_Arrived, Target, CastEntryIndex))
 	{

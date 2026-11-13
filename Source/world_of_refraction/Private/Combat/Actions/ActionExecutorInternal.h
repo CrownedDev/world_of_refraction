@@ -31,8 +31,8 @@ inline void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHit
 
 // Shared reconciliation (Stage 1): mark the action's animation finished and force-close
 // every count-based (ExpectedImpacts>0, melee) defense window — the "animation done" half
-// of the "later of (impacts-done, animation-done)" close. Damage is lumped at
-// CloseDefenseWindow (Stage 2 splits per-impact), so reconcile == close: complete counts
+// of the "later of (impacts-done, animation-done)" close. The close lands any impact still
+// expected (ApplyRemainingImpacts), so reconcile == close: complete counts
 // close normally; incomplete ones (fewer/missing Impact notifies, or an interrupted montage)
 // reconcile here instead of hanging on the 8s failsafe. Called from BOTH the clean Skill-end
 // branch and FinishMontageChain (which the interrupted path routes through, skipping Skill-end).

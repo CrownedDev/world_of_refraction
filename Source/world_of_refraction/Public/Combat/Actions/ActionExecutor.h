@@ -877,9 +877,8 @@ private:
 	/** Get CharacterData template from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 
-	/** Apply damage after defense resolution. Stage 2: applies only the UNDRAINED TAIL
-	 *  [ImpactsLanded, HitCount) — melee drained the rest per-impact-frame; non-melee
-	 *  (ImpactsLanded==0) applies all, the unchanged lumped path. */
+	/** Apply damage after defense resolution: the impacts [ImpactsLanded, HitCount) not yet landed at their own
+	 *  moments, one by one (ApplyRemainingImpacts). */
 	void ApplyDamageAfterDefense(
 		AActor *Attacker,
 		AActor *Target,
@@ -1416,7 +1415,7 @@ protected:
 
 	/** A projectile landing on Target: to the caster's skill ability when one runs the action and waits for its
 	 *  projectiles (WoRSkillAbilities::SendProjectileEvent), else ResolveProjectileArrival. False when Target has
-	 *  no converted window (the caller keeps its lumped path). */
+	 *  no count-based window (a support spell's hits land at its window's close). */
 	bool RouteProjectileArrival(AActor *Target, int32 CastEntryIndex);
 
 	/** One projectile landing, resolved per impact (ResolveSpellArrival). The ability's arrival task calls it. */
@@ -1434,7 +1433,7 @@ protected:
 	// ==================== FLIGHTLESS SPELL RESOLUTIONS THROUGH THE ABILITY (B-043e, Q-043e) ====================
 
 	/** B-043e: the old SpawnAOEEffect body, unchanged: ground VFX, then this defender's per-impact resolve
-	 *  (ResolveSpellArrival) or the lumped window's. */
+	 *  (ResolveSpellArrival), or nothing for a support spell (its window's close lands it). */
 	void ResolveAOEEffect(AActor *Caster, AActor *Target, USkillDataBase *Skill, ESpellElement InElement,
 						  float FinalImpactRadius, float FinalVisualScale, int32 FinalDamage, bool bIsBrokenDarkness,
 						  const FSkillCastEntry *Entry, int32 CastEntryIndex);
