@@ -188,6 +188,33 @@ namespace FieldSkillRules
 		return static_cast<EFieldSkillSource>((static_cast<int32>(Source) + 1) % FIELD_ATTACK_SOURCE_COUNT);
 	}
 
+	float GetEvolutionSprintMultiplier(float BonusPercent)
+	{
+		constexpr float PERCENT = 100.0f;
+		return NO_SPRINT_BOOST + FMath::Max(BonusPercent, 0.0f) / PERCENT;
+	}
+
+	int32 ApplyFieldEPDiscount(int32 BaseCost, float DiscountPercent)
+	{
+		constexpr float PERCENT = 100.0f;
+		if (BaseCost <= 0)
+		{
+			return BaseCost;
+		}
+		const float Kept = FMath::Clamp(PERCENT - DiscountPercent, 0.0f, PERCENT) / PERCENT;
+		return FMath::Max(MIN_FIELD_EP_COST, FMath::RoundToInt(BaseCost * Kept));
+	}
+
+	FFieldFlightLimits CombineFlightLimits(const FFieldFlightLimits &A, const FFieldFlightLimits &B)
+	{
+		FFieldFlightLimits Combined;
+		Combined.bUnlimitedEP = A.bUnlimitedEP || B.bUnlimitedEP;
+		Combined.bNoCeiling = A.bNoCeiling || B.bNoCeiling;
+		Combined.bIgnoreNoFly = A.bIgnoreNoFly || B.bIgnoreNoFly;
+		Combined.ExtraCeiling = A.ExtraCeiling + B.ExtraCeiling;
+		return Combined;
+	}
+
 	EFieldSkillRefusal CheckFlightStart(bool bInNoFlyZone, int32 CurrentEP, const FFieldFlightLimits &Limits)
 	{
 		if (bInNoFlyZone && !Limits.bIgnoreNoFly)
