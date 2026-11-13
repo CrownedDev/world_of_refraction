@@ -775,6 +775,18 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-186 — Extracting: "Extract", only at a boss's rest spot (and a trial NPC)
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-448, B-449
+**Answer (Crown):** (adds to D-172, D-176; renames D-182's "Leave Trial")
+- The rest menu's "Leave Trial" is named **"Extract"**.
+- **Only rest spots at bosses are extract points.** A rest spot out in the wild has no Extract option.
+- There is **also an NPC in the trial who can extract the party** (design note; its job comes later).
+- **Payout:** the current half share (`RunRewards::LEAVE_EARLY_SHARE`) stays the default unless Crown changes it.
+- **Idea, not to build now:** an Evolution with a **field skill that extracts the party** (e.g. a void teleport). In the Backlog's Later list.
+**Notes for Claude:** "a rest spot at a boss" is read as the rest spot a beaten mini-boss leaves (ER-09c); beating the main boss ends the run by itself. Today every rest spot's menu offers "Leave the trial" (`WoRRestSpot::LeaveRun`): **B-448** renames it and limits it; **B-449** is the NPC. Rules ER-65c.
+
+---
+
 ### D-185 — Menu party bars: HP and EP values sit inside their bars
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (every menu screen with a party panel)
 **Answer (Crown):** on the rest spot's party panel and **every menu's party bars**, the HP and EP values sit **centred inside their own bars**, on a dark backing, the same style as the approved battle HUD (`BattleHUDRefinePlan.md`, piece 2), not one number off to the right.
@@ -799,7 +811,7 @@ The queue of questions only Crown can answer.
 ### D-182 — Rest spot screen: short labels, a currency strip, pending levels as "+1"
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the rest spot mockup is redrawn first)
 **Answer (Crown):** the rest menu's labels are short: **"Revive boss", "Invite", "Leave Trial"**. The **"Earned so far" panel is dropped**; instead a **currency strip top right** shows **Gear Essence, Skill Essence, Elemental Essence, Gold and Prisms** (GE, SE, EE, G, P; Prisms must show). **Pending levels show as "+1" / "+2"** (not "1 to place"), on the Level up row and per character.
-**Notes for Claude:** "the third essence" is read as Elemental Essence (`ECurrencyType::ElementalEssence`); say if it should be Pillar Essence. No build job yet for the rest spot screen.
+**Notes for Claude:** "Leave Trial" was renamed **"Extract"** the same day (D-186). "The third essence" is read as Elemental Essence (`ECurrencyType::ElementalEssence`); say if it should be Pillar Essence. No build job yet for the rest spot screen.
 
 ---
 
