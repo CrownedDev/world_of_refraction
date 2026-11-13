@@ -84,7 +84,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 3. [x] Inventory and pouch (`menus/inventory`)
 4. [x] Rest spot, level up, extract, revive vote (`run/rest_spot`)
 5. [x] After a fight, wipe, run over, run end (`run/run_end`)
-6. [ ] Settings (`menus/settings`)
+6. [x] Settings (`menus/settings`)
 7. [ ] Trial gate (`run/gate`)
 8. [ ] Shop and the vendor services (`hub/vendors`)
 9. [ ] Journal (`menus/journal`)
@@ -146,6 +146,16 @@ One block per mocked screen: the images, why the layout, the references.
   *Ref:* Hades' and Nightreign's end-of-run summaries; Slay the Spire's run tally.
 - **Needs code:** nothing announces a run end, a wipe or a level-up today (no delegate), and `UCombatResultsWidget` only prints VICTORY / DEFEAT. A builder adds those signals first.
 
+### 8. Settings (`menus/settings/`)
+
+- `1_gameplay_control_model.png`, `2_controls.png`, `3_accessibility.png`.
+- **Pages on LB / RB:** Gameplay, Camera, Display, Audio, Controls, Accessibility. Rows on the left, and a side panel that **explains the focused setting** in plain words.
+  *Ref:* The Last of Us Part II and God of War Ragnarök explain every option beside it and are the most praised settings menus for it; Expedition 33 and Persona 5 use the same bumper-paged layout.
+- **Battle menu controls: Shortcuts / Omni D-pad** (BattleHUDRefinePlan decision 10) is the **first row of Gameplay and is repeated on Accessibility**, with a small card per model listing what each button does, the picked one lit. Default: Shortcuts.
+- **The code's settings, by their code names:** Turn View (Centred Wide default, Over the Shoulder, Tactical: B-398), End Turn button on / off (B-170e), button hints in the corner (HUD plan decision 7), boss cinematics.
+- **Controls** is a read-only key list for now (fixed keys, D-063), by section (Field, Battle, Menus) and by device. Rebinding slots into the same rows later.
+- **Proposed, not in code yet** (drawn so the page isn't empty; each needs Crown's yes): text size, camera movement in fights (the motion-sickness switch of D-078), screen shake, hold to confirm dangerous actions, element letters on colours (colour-blind aid), subtitles, tutorial callouts, "AI finishes my turn when I idle" (`SetLetAIFinish`).
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -188,6 +198,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
 5. **Words for the end screens** (#26, #27): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
 6. **World-stat draft** (#30, pick 3 of 5): nothing listens to it today and levelling now happens at rest spots (B-363). Not mocked; say if it's still wanted.
+7. **Settings not in code** (#8): which of the proposed rows do you want (text size, screen shake, hold to confirm, element letters on colours, subtitles)? And is **difficulty** only chosen at the gate, or also a setting?
 
 ## Changelog
 
