@@ -40,6 +40,9 @@ public:
 	 *  GetClearCurrency; a curse with no asset prices as the asset defaults), then ClearCurse. Short of it, or not
 	 *  held, or the spend refused (no server authority): nothing changes and OutRefusal says why. */
 	bool PayToClearCurse(FName CurseId, class UCurrencyComponent *Wallet, FText &OutRefusal);
+	/** B-456d: why PayToClearCurse would refuse, in words for the player; empty when it would go through. The clear
+	 *  runs these same checks (the hub-only rule is the caller's, UCurseClearWidget::CanClearHere). */
+	FText GetClearRefusal(FName CurseId, const class UCurrencyComponent *Wallet) const;
 	/** The curse's asset (by CurseId), or null when none is authored. */
 	const class UCurseData *FindCurseAsset(FName CurseId) const;
 	bool HasCurse(FName CurseId) const { return HeldCurses.Contains(CurseId); }

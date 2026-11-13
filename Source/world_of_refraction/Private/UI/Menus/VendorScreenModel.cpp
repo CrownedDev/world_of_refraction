@@ -9,7 +9,12 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "Equipment/Crystals/CrystalInventoryComponent.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/EquipmentDataBase.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Pawn.h"
@@ -19,12 +24,18 @@
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/InventoryConstants.h"
 #include "Inventory/ItemSlotUpgrade.h"
+#include "Loadout/CarriedGearState.h"
 #include "Loadout/FLoadoutSlot.h"
+#include "Memory/CurseData.h"
+#include "Memory/CurseSubsystem.h"
 #include "Merchant/MerchantInteractable.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Hub/CurseClearWidget.h"
 #include "UI/Menus/InventoryScreenModel.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -265,8 +276,7 @@ bool WoRVendorScreen::GetService(EVendorScreenTab Tab, EVendorService &OutServic
 
 bool WoRVendorScreen::IsBuilt(EVendorScreenTab Tab)
 {
-	EVendorService Service;
-	return Tab == EVendorScreenTab::Buy || Tab == EVendorScreenTab::ItemSlots || GetService(Tab, Service); // TODO: B-456d: the Spiritualist's services
+	return true; // B-456d: every tab D-193 names is on the screen
 }
 
 FText WoRVendorScreen::GetVendorLine(EMerchantType Vendor)
@@ -295,6 +305,18 @@ FVendorScreenPage WoRVendorScreen::BuildPage(UWorld *World, EMerchantType Vendor
 	if (Tab == EVendorScreenTab::ItemSlots)
 	{
 		return BuildItemSlotsPage(World, nullptr); // no one to pay: every row says so
+	}
+	if (Tab == EVendorScreenTab::Repair)
+	{
+		return BuildRepairPage(World, nullptr);
+	}
+	if (Tab == EVendorScreenTab::Curses)
+	{
+		return BuildCursesPage(World, nullptr);
+	}
+	if (Tab == EVendorScreenTab::Merge)
+	{
+		return BuildMergePage(World, Member, {});
 	}
 	if (!GetService(Tab, Service))
 	{
@@ -421,6 +443,352 @@ FText WoRVendorScreen::BuyItemSlot(UWorld *World, AActor *Payer, const FVendorSc
 	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
 	FText Refusal = LOCTEXT("PurchaseFailed", "The purchase didn't go through.");
 	return Pool && ItemSlotUpgrade::TryBuy(World, *Pool, Row.Member, CurrencyWallet::FindFor(Payer), Refusal) ? FText::GetEmpty() : Refusal;
+}
+
+namespace VendorScreenSpiritualist
+{
+	UParty *PartyOf(const UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		return PartySession ? PartySession->GetLocalParty() : nullptr;
+	}
+
+	UCurseSubsystem *CursesOf(const UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		return GI ? GI->GetSubsystem<UCurseSubsystem>() : nullptr;
+	}
+
+	FText MoneyText(int32 Amount, const UObject *Context)
+	{
+		return FText::Format(LOCTEXT("Amount", "{0} {1}"), FText::AsNumber(Amount), WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(Context)));
+	}
+
+	FText MemberName(const UWorld *World, const FPartyMember &Member)
+	{
+		const FName Key = UPoolSubsystem::GetCharacterKey(Member);
+		for (const FLoadoutScreenMember &Shown : WoRLoadoutScreen::BuildMembers(World))
+		{
+			if (Shown.Key == Key)
+			{
+				return Shown.Name;
+			}
+		}
+		return FText::FromName(Key);
+	}
+
+	/** A repair row's piece: its name, tier and element, and how worn it is. */
+	void DescribePiece(const FCarriedGearState &Gear, const GearRepair::FWornPiece &Piece, FVendorScreenRow &Line, int32 &OutCurrent, int32 &OutMax)
+	{
+		if (Piece.AttachmentIndex == INDEX_NONE)
+		{
+			const FEvolutionAttachment &Evolution = Gear.PrimaryEvolution;
+			// TODO: evolution names are FString assets; FText with B-127 (D-061).
+			Line.Name = FText::FromString(Evolution.Item ? Evolution.Item->ItemName : FString());
+			Line.Tier = WoRGameNames::GetTierLetter(Evolution.Tier);
+			Line.Element = Evolution.Item ? Evolution.Item->GetAssociatedElement() : ESpellElement::None;
+			OutCurrent = Evolution.CurrentDurability;
+			OutMax = Evolution.Item ? Evolution.Item->MaxDurability : 0;
+			return;
+		}
+		const FCarriedAttachment &Carried = Gear.Attachments[Piece.AttachmentIndex];
+		const FRuntimeAttachedItem &Attached = Carried.Attached;
+		if (Attached.IsEvolution())
+		{
+			Line.Name = FText::FromString(Attached.Evolution.Item ? Attached.Evolution.Item->ItemName : FString());
+			Line.Tier = WoRGameNames::GetTierLetter(Attached.Evolution.Tier);
+		}
+		else if (Attached.IsFusion())
+		{
+			const FCrystalId &A = Attached.Fusion.Id.HalfA;
+			const FCrystalId &B = Attached.Fusion.Id.HalfB;
+			Line.Name = FText::Format(LOCTEXT("FusionName", "{0} + {1}"), WoRGameNames::GetCrystalTypeName(A.Type), WoRGameNames::GetCrystalTypeName(B.Type));
+			Line.Tier = WoRGameNames::GetTierLetter(FMath::Max(A.Tier, B.Tier));
+		}
+		else
+		{
+			Line.Name = WoRGameNames::GetCrystalTypeName(Attached.Crystal.Id.Type);
+			Line.Tier = WoRGameNames::GetTierLetter(Attached.Crystal.Id.Tier);
+		}
+		Line.Element = Attached.GetElement();
+		OutCurrent = Attached.GetCurrentDurability();
+		OutMax = Attached.GetMaxDurability();
+	}
+
+	/** "F x4 · E x2 · D x1": what Inventory holds of Type, lowest tier first. */
+	FText HoldingsText(const UCrystalInventoryComponent &Inventory, ECrystalType Type)
+	{
+		TArray<FText> Parts;
+		for (int32 Tier = 0; Tier < FCrystalMergePlan::TIER_COUNT; ++Tier)
+		{
+			if (const int32 Count = Inventory.GetCount(FCrystalId(Type, TierHelpers::GetTierFromValue(Tier))))
+			{
+				Parts.Add(FText::Format(LOCTEXT("TierCount", "{0} x{1}"), WoRGameNames::GetTierLetter(TierHelpers::GetTierFromValue(Tier)), FText::AsNumber(Count)));
+			}
+		}
+		return FText::Join(LOCTEXT("HoldingsSeparator", " · "), Parts);
+	}
+
+	/** "F x4, E x2" for the plan's uses; "nothing" for none. */
+	FText TiersText(const TArray<EItemTier> &Tiers)
+	{
+		TMap<EItemTier, int32> Counts;
+		for (const EItemTier Tier : Tiers)
+		{
+			++Counts.FindOrAdd(Tier);
+		}
+		Counts.KeySort([](EItemTier A, EItemTier B) { return A < B; });
+		TArray<FText> Parts;
+		for (const TPair<EItemTier, int32> &Count : Counts)
+		{
+			Parts.Add(FText::Format(LOCTEXT("TierCount", "{0} x{1}"), WoRGameNames::GetTierLetter(Count.Key), FText::AsNumber(Count.Value)));
+		}
+		return Parts.IsEmpty() ? LOCTEXT("Nothing", "nothing") : FText::Join(LOCTEXT("TiersSeparator", ", "), Parts);
+	}
+
+	TArray<EItemTier> UsesOf(const FCrystalMergePlan &Plan)
+	{
+		TArray<EItemTier> Uses;
+		for (int32 Tier = 0; Tier < FCrystalMergePlan::TIER_COUNT; ++Tier)
+		{
+			for (int32 Count = 0; Count < Plan.Uses[Tier]; ++Count)
+			{
+				Uses.Add(TierHelpers::GetTierFromValue(Tier));
+			}
+		}
+		return Uses;
+	}
+
+	/** The highest tier Owner holds enough Type for (its plan uses something), else E. */
+	EItemTier DefaultMergeTarget(AActor *Owner, ECrystalType Type)
+	{
+		EItemTier Best = EItemTier::E_Tier;
+		for (int32 Tier = TierHelpers::GetTierValue(EItemTier::E_Tier); Tier < FCrystalMergePlan::TIER_COUNT; ++Tier)
+		{
+			FCrystalMergePlan Plan;
+			UEconomyService::GetMergeRefusal(Owner, Type, TierHelpers::GetTierFromValue(Tier), &Plan);
+			if (!UsesOf(Plan).IsEmpty())
+			{
+				Best = TierHelpers::GetTierFromValue(Tier);
+			}
+		}
+		return Best;
+	}
+
+	AActor *MemberOwner(UWorld *World, FName Member)
+	{
+		const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+		return Inventory ? Inventory->GetOwner() : nullptr;
+	}
+}
+
+FVendorScreenPage WoRVendorScreen::BuildRepairPage(UWorld *World, AActor *Payer)
+{
+	using namespace VendorScreenSpiritualist;
+
+	FVendorScreenPage Page;
+	const UParty *Party = PartyOf(World);
+	const UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Payer);
+	for (const GearRepair::FWornPiece &Piece : Party ? GearRepair::GatherWornPieces(*Party) : TArray<GearRepair::FWornPiece>())
+	{
+		const FCarriedGearState &Gear = Party->Members[Piece.MemberIndex].CarriedGear;
+		FVendorScreenRow &Line = Page.Rows.AddDefaulted_GetRef();
+		Line.Piece = Piece;
+		int32 Current = 0;
+		int32 Max = 0;
+		DescribePiece(Gear, Piece, Line, Current, Max);
+		const UEquipmentDataBase *Holder = Piece.AttachmentIndex == INDEX_NONE ? nullptr : Cast<UEquipmentDataBase>(Gear.Attachments[Piece.AttachmentIndex].Holder);
+		const FText Where = Holder ? FText::FromString(Holder->GetDisplayName()) : LOCTEXT("PrimarySeat", "Evolution seat");
+		Line.KindLine = FText::Format(LOCTEXT("OwnerAndHolder", "{0} · {1}"), MemberName(World, Party->Members[Piece.MemberIndex]), Where);
+		Line.bStateIsBad = Current <= 0;
+		Line.State = Line.bStateIsBad ? LOCTEXT("Broken", "broken") : FText::AsPercent(Max > 0 ? static_cast<double>(Current) / Max : 0.0);
+		Line.Pay = MoneyText(Piece.Cost, World);
+		Line.Details.Add({LOCTEXT("DetailDurability", "Durability"), FText::Format(LOCTEXT("DurabilityOf", "{0} of {1}"), FText::AsNumber(Current), FText::AsNumber(Max))});
+		Line.Refusal = GearRepair::GetRefusal(Wallet, Piece.Cost);
+	}
+	if (Page.Rows.IsEmpty())
+	{
+		Page.EmptyNote = LOCTEXT("EmptyRepair", "Nothing is worn.");
+	}
+	const int32 AllCost = Party ? GearRepair::GetPartyRepairCost(*Party) : 0;
+	Page.AllPay = MoneyText(AllCost, World);
+	Page.AllRefusal = GearRepair::GetRefusal(Wallet, AllCost);
+	Page.Rule = LOCTEXT("RuleRepair", "Gear wears in a trial's fights. A repair brings it back to full; when the run ends it comes back whole anyway.");
+	return Page;
+}
+
+FVendorScreenPage WoRVendorScreen::BuildCursesPage(UWorld *World, AActor *Payer)
+{
+	using namespace VendorScreenSpiritualist;
+
+	FVendorScreenPage Page;
+	const UCurseSubsystem *Curses = CursesOf(World);
+	TArray<FName> Held = Curses ? Curses->GetHeldCurses().Array() : TArray<FName>();
+	Held.Sort([](const FName &A, const FName &B) { return A.LexicalLess(B); });
+	const bool bHere = UCurseClearWidget::CanClearHere(World);
+	const UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Payer);
+	for (const FName CurseId : Held)
+	{
+		const UCurseData *Curse = Curses->FindCurseAsset(CurseId);
+		const UCurseData *Priced = Curse ? Curse : GetDefault<UCurseData>(); // Q-390: no asset prices as the defaults
+		FVendorScreenRow &Line = Page.Rows.AddDefaulted_GetRef();
+		Line.CurseId = CurseId;
+		Line.Name = Curse && !Curse->Title.IsEmpty() ? Curse->Title : FText::FromName(CurseId);
+		Line.Tier = WoRGameNames::GetTierLetter(Priced->Tier);
+		Line.KindLine = Curse && !Curse->Description.IsEmpty() ? Curse->Description : LOCTEXT("CurseHeld", "A curse you hold");
+		Line.Pay = FText::Format(LOCTEXT("Amount", "{0} {1}"), FText::AsNumber(Priced->GetClearPrice()), WoRGameNames::GetCurrencyName(Priced->GetClearCurrency()));
+		Line.Note = LOCTEXT("CurseNote", "It is cleared. It may come back.");
+		Line.Refusal = bHere ? Curses->GetClearRefusal(CurseId, Wallet) : LOCTEXT("CursesInRun", "Curses can be cleared in the hub, not during a run.");
+	}
+	if (Page.Rows.IsEmpty())
+	{
+		Page.EmptyNote = LOCTEXT("EmptyCurses", "You hold no curses.");
+	}
+	Page.Rule = LOCTEXT("RuleCurses", "Curses can be cleared in the hub, not during a run.");
+	return Page;
+}
+
+EItemTier WoRVendorScreen::StepMergeTarget(EItemTier Current, int32 Delta)
+{
+	const int32 First = TierHelpers::GetTierValue(EItemTier::E_Tier); // F is the floor, never a target
+	const int32 Count = FCrystalMergePlan::TIER_COUNT - First;
+	const int32 Index = FMath::Clamp(TierHelpers::GetTierValue(Current), First, FCrystalMergePlan::TIER_COUNT - 1) - First;
+	return TierHelpers::GetTierFromValue(First + ((Index + Delta) % Count + Count) % Count);
+}
+
+FVendorScreenPage WoRVendorScreen::BuildMergePage(UWorld *World, FName Member, const TMap<ECrystalType, EItemTier> &Targets)
+{
+	using namespace VendorScreenSpiritualist;
+
+	FVendorScreenPage Page;
+	AActor *Owner = MemberOwner(World, Member);
+	const UCrystalInventoryComponent *Crystals = Owner ? Owner->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+	TArray<ECrystalType> Kinds;
+	for (const WoRInventoryVerbs::FInventoryRow &Owned : Crystals ? WoRInventoryVerbs::GatherRows(World, Member) : TArray<WoRInventoryVerbs::FInventoryRow>())
+	{
+		// A stat stone keeps its sub-stat apart from its type, so it isn't merged here; chest stacks aren't the member's.
+		if (!Owned.IsGear() && !Owned.bInChest && Owned.Item.Type != ECrystalType::None && !CrystalTypeHelpers::IsStatStone(Owned.Item.Type))
+		{
+			Kinds.AddUnique(Owned.Item.Type);
+		}
+	}
+	for (const ECrystalType Type : Kinds)
+	{
+		const EItemTier *Chosen = Targets.Find(Type);
+		const EItemTier Target = Chosen ? *Chosen : DefaultMergeTarget(Owner, Type);
+		FCrystalMergePlan Plan;
+		FVendorScreenRow &Line = Page.Rows.AddDefaulted_GetRef();
+		Line.Refusal = UEconomyService::GetMergeRefusal(Owner, Type, Target, &Plan);
+		Line.Row.Item = FCrystalId(Type, Target);
+		Line.Name = WoRGameNames::GetCrystalTypeName(Type);
+		Line.Tier = WoRGameNames::GetTierLetter(Target);
+		Line.KindLine = HoldingsText(*Crystals, Type);
+		Line.Element = ItemIdentity::GetElement(Line.Row.Item);
+		Line.Pay = FText::Format(LOCTEXT("Amount", "{0} {1}"), FText::AsNumber(Plan.Price), WoRGameNames::GetCurrencyName(Plan.Pays));
+		const TArray<EItemTier> Uses = UsesOf(Plan);
+		if (!Uses.IsEmpty())
+		{
+			Line.Details.Add({LOCTEXT("DetailUses", "Uses"), TiersText(Uses)});
+			Line.Details.Add({LOCTEXT("DetailMakes", "Makes"), TiersText({Target})});
+			Line.Details.Add({LOCTEXT("DetailChange", "Change back"), TiersText(Plan.Change)});
+		}
+	}
+	if (Page.Rows.IsEmpty())
+	{
+		Page.EmptyNote = LOCTEXT("EmptyMerge", "No crystals of theirs to merge.");
+	}
+	Page.Intro = LOCTEXT("IntroMerge", "Left / Right picks the tier to make.");
+	Page.Rule = LOCTEXT("RuleMerge", "Anything over the target comes back as the fewest crystals of the same kind.");
+	return Page;
+}
+
+FText WoRVendorScreen::GetConfirmText(EVendorScreenTab Tab, const FVendorScreenRow &Row)
+{
+	switch (Tab)
+	{
+	case EVendorScreenTab::Repair:
+		return FText::Format(LOCTEXT("ConfirmRepair", "Repair {0} for {1}?"), Row.Name, Row.Pay);
+	case EVendorScreenTab::Curses:
+		return FText::Format(LOCTEXT("ConfirmCurse", "Clear {0} for {1}? It may come back."), Row.Name, Row.Pay);
+	case EVendorScreenTab::Merge:
+		return FText::Format(LOCTEXT("ConfirmMerge", "Merge into {0} ({1}) for {2}?"), Row.Name, Row.Tier, Row.Pay);
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+FText WoRVendorScreen::RunService(UWorld *World, AActor *Payer, FName Member, EVendorScreenTab Tab, const FVendorScreenRow &Row)
+{
+	using namespace VendorScreenSpiritualist;
+
+	if (!Row.Refusal.IsEmpty())
+	{
+		return Row.Refusal;
+	}
+	const FText Failed = LOCTEXT("ServiceDidntGoThrough", "It didn't go through.");
+	if (Tab == EVendorScreenTab::Repair)
+	{
+		UParty *Party = PartyOf(World);
+		UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Payer);
+		int32 Spent = 0;
+		return Party && Wallet && GearRepair::RepairPiece(*Party, Row.Piece, *Wallet, Spent) ? FText::GetEmpty() : Failed;
+	}
+	if (Tab == EVendorScreenTab::Curses)
+	{
+		UCurseSubsystem *Curses = CursesOf(World);
+		if (!Curses || !UCurseClearWidget::CanClearHere(World))
+		{
+			return LOCTEXT("CursesInRun", "Curses can be cleared in the hub, not during a run.");
+		}
+		FText Refusal;
+		return Curses->PayToClearCurse(Row.CurseId, CurrencyWallet::FindFor(Payer), Refusal) ? FText::GetEmpty() : Refusal;
+	}
+	if (Tab == EVendorScreenTab::Merge)
+	{
+		AActor *Owner = MemberOwner(World, Member);
+		UEconomyService *Economy = VendorScreenBuild::EconomyOf(World);
+		const FText Refusal = UEconomyService::GetMergeRefusal(Owner, Row.Row.Item.Type, Row.Row.Item.Tier);
+		if (!Refusal.IsEmpty())
+		{
+			return Refusal;
+		}
+		return Economy && Economy->MergeCrystals(Owner, Row.Row.Item.Type, Row.Row.Item.Tier) ? FText::GetEmpty() : Failed;
+	}
+	return Failed;
+}
+
+FText WoRVendorScreen::GetDoneText(EVendorScreenTab Tab, const FVendorScreenRow &Row)
+{
+	switch (Tab)
+	{
+	case EVendorScreenTab::Repair:
+		return FText::Format(LOCTEXT("DoneRepair", "{0} is repaired."), Row.Name);
+	case EVendorScreenTab::Curses:
+		return FText::Format(LOCTEXT("DoneCurse", "{0} is cleared. It may come back."), Row.Name);
+	case EVendorScreenTab::Merge:
+		return FText::Format(LOCTEXT("DoneMerge", "Made {0} ({1})."), Row.Name, Row.Tier);
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+FText WoRVendorScreen::GetRepairAllConfirmText(const FVendorScreenPage &Page)
+{
+	return FText::Format(LOCTEXT("ConfirmRepairAll", "Repair everything for {0}?"), Page.AllPay);
+}
+
+FText WoRVendorScreen::RepairAll(UWorld *World, AActor *Payer)
+{
+	UParty *Party = VendorScreenSpiritualist::PartyOf(World);
+	UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Payer);
+	const FText Refusal = GearRepair::GetRefusal(Wallet, Party ? GearRepair::GetPartyRepairCost(*Party) : 0);
+	if (!Refusal.IsEmpty())
+	{
+		return Refusal;
+	}
+	int32 Spent = 0;
+	return GearRepair::RepairParty(*Party, *Wallet, Spent) ? FText::GetEmpty() : LOCTEXT("ServiceDidntGoThrough", "It didn't go through.");
 }
 
 FText WoRVendorScreen::AddToCart(AActor *Payer, const FVendorScreenRow &Row, const FLoadoutScreenMember &Member, TArray<FVendorCartLine> &Cart)
@@ -582,9 +950,12 @@ FString WoRVendorScreen::GetVendorScreenString(UWorld *World, EMerchantType Vend
 									   Row.Refusal.IsEmpty() ? *Row.Pay.ToString() : *FString::Printf(TEXT("no: %s"), *Row.Refusal.ToString()));
 			}
 		};
-		if (Tab == EVendorScreenTab::ItemSlots)
+		if (Tab == EVendorScreenTab::ItemSlots || Tab == EVendorScreenTab::Repair || Tab == EVendorScreenTab::Curses)
 		{
-			AddRows(LOCTEXT("WholeParty", "the party"), BuildItemSlotsPage(World, Payer)); // its rows are the members
+			// Their rows name the members, or (curses) are the player's.
+			AddRows(LOCTEXT("WholeParty", "the party"), Tab == EVendorScreenTab::ItemSlots ? BuildItemSlotsPage(World, Payer)
+														: Tab == EVendorScreenTab::Repair  ? BuildRepairPage(World, Payer)
+																						   : BuildCursesPage(World, Payer));
 			continue;
 		}
 		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
@@ -598,7 +969,7 @@ FString WoRVendorScreen::GetVendorScreenString(UWorld *World, EMerchantType Vend
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GVendorScreenPrintCommand(
 	TEXT("wor.UI.PrintVendor"),
-	TEXT("DEBUG (B-456a to B-456c): what the vendor screen would show for the Blacksmith, the Jeweler and the Spiritualist: tabs, rows (Buy: the stock of the vendor in this level; Item slots: each member's pouch), pay or refusal."),
+	TEXT("DEBUG (B-456a to B-456d): what the vendor screen would show for the Blacksmith, the Jeweler and the Spiritualist: tabs, rows (Buy: the stock of the vendor in this level; Item slots: each member's pouch; Repair: each worn piece; Curses: each held curse; Merge: each crystal kind at its default tier), pay or refusal."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;

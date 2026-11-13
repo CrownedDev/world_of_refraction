@@ -33,8 +33,24 @@ namespace GearRepair
 	WORLD_OF_REFRACTION_API int32 GetRepairCost(const FRuntimeAttachedItem &Item);
 	WORLD_OF_REFRACTION_API int32 GetRepairCost(const FEvolutionAttachment &Evolution);
 
+	/** B-456d: one worn piece of the party's carried gear, as the Spiritualist's Repair tab lists it. */
+	struct FWornPiece
+	{
+		int32 MemberIndex = INDEX_NONE;
+		/** Its place in the member's CarriedGear.Attachments; INDEX_NONE is the primary evolution. */
+		int32 AttachmentIndex = INDEX_NONE;
+		int32 Cost = 0;
+	};
+
+	/** Every carried piece a repair charges for (GetRepairCost above 0), in member order. */
+	WORLD_OF_REFRACTION_API TArray<FWornPiece> GatherWornPieces(const UParty &Party);
+
 	/** Gold to repair every member's carried gear. */
 	WORLD_OF_REFRACTION_API int32 GetPartyRepairCost(const UParty &Party);
+
+	/** B-456d: why Wallet can't pay Cost for a repair, in words for the player; empty when it can. The payment's
+	 *  own checks (RepairParty and RepairPiece run them), so a greyed row can't disagree with the repair. */
+	WORLD_OF_REFRACTION_API FText GetRefusal(const UCurrencyComponent *Wallet, int32 Cost);
 
 	/** Debug: each member's worn items with tier, durability and cost, then the total. */
 	WORLD_OF_REFRACTION_API FString GetRepairQuoteString(const UParty &Party);
@@ -43,4 +59,8 @@ namespace GearRepair
 	 *  currency of the place (UEconomyService::GetPlaceCurrency: hub money at home, run money in a run). False
 	 *  (nothing paid or repaired) when there is nothing to repair or that balance can't afford it. */
 	WORLD_OF_REFRACTION_API bool RepairParty(UParty &Party, UCurrencyComponent &Wallet, int32 &OutGoldSpent);
+
+	/** B-456d: pays for and repairs the one piece, as RepairParty does all of them; its price is read fresh. False
+	 *  (nothing paid or repaired) when it isn't worn any more or GetRefusal refuses. */
+	WORLD_OF_REFRACTION_API bool RepairPiece(UParty &Party, const FWornPiece &Piece, UCurrencyComponent &Wallet, int32 &OutGoldSpent);
 }

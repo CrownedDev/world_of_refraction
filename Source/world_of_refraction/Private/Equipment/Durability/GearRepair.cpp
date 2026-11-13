@@ -13,8 +13,11 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
+#include "WoRAuthority.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
+
+#define LOCTEXT_NAMESPACE "GearRepair"
 
 namespace
 {
@@ -203,6 +206,86 @@ int32 GearRepair::GetPartyRepairCost(const UParty &Party)
 	return Gold;
 }
 
+TArray<GearRepair::FWornPiece> GearRepair::GatherWornPieces(const UParty &Party)
+{
+	TArray<FWornPiece> Pieces;
+	for (int32 MemberIndex = 0; MemberIndex < Party.Members.Num(); ++MemberIndex)
+	{
+		const FCarriedGearState &Gear = Party.Members[MemberIndex].CarriedGear;
+		if (!Gear.bCarried)
+		{
+			continue;
+		}
+		for (int32 Index = 0; Index < Gear.Attachments.Num(); ++Index)
+		{
+			if (const int32 Cost = GetRepairCost(Gear.Attachments[Index].Attached))
+			{
+				Pieces.Add({MemberIndex, Index, Cost});
+			}
+		}
+		if (const int32 Cost = Gear.bHasPrimaryEvolution ? GetRepairCost(Gear.PrimaryEvolution) : 0)
+		{
+			Pieces.Add({MemberIndex, INDEX_NONE, Cost});
+		}
+	}
+	return Pieces;
+}
+
+FText GearRepair::GetRefusal(const UCurrencyComponent *Wallet, int32 Cost)
+{
+	if (Cost <= 0)
+	{
+		return LOCTEXT("NothingWorn", "Nothing here is worn.");
+	}
+	if (!Wallet)
+	{
+		return LOCTEXT("NoWallet", "No wallet to pay from.");
+	}
+	if (!WoRAuthority::HasAuthority(Wallet->GetOwner()))
+	{
+		return LOCTEXT("HostOnly", "Only the host can buy for now."); // B-427: a guest's wallet is the host's mirror
+	}
+	const ECurrencyType Pays = UEconomyService::GetPlaceCurrency(Wallet->GetOwner()); // B-366e (Q-366 extended)
+	if (!Wallet->CanAfford(Pays, Cost))
+	{
+		return FText::Format(LOCTEXT("TooPoor", "Not enough {0}."), WoRGameNames::GetCurrencyName(Pays));
+	}
+	return FText::GetEmpty();
+}
+
+bool GearRepair::RepairPiece(UParty &Party, const FWornPiece &Piece, UCurrencyComponent &Wallet, int32 &OutGoldSpent)
+{
+	OutGoldSpent = 0;
+	if (!Party.Members.IsValidIndex(Piece.MemberIndex) || !UEconomyService::IsOutOfCombat(Wallet.GetOwner(), TEXT("RepairPiece")))
+	{
+		return false;
+	}
+	FCarriedGearState &Gear = Party.Members[Piece.MemberIndex].CarriedGear;
+	const bool bEvolution = Piece.AttachmentIndex == INDEX_NONE;
+	if (!Gear.bCarried || (bEvolution ? !Gear.bHasPrimaryEvolution : !Gear.Attachments.IsValidIndex(Piece.AttachmentIndex)))
+	{
+		return false;
+	}
+	const int32 Cost = bEvolution ? GetRepairCost(Gear.PrimaryEvolution) : GetRepairCost(Gear.Attachments[Piece.AttachmentIndex].Attached);
+	const ECurrencyType Pays = UEconomyService::GetPlaceCurrency(Wallet.GetOwner());
+	if (!GetRefusal(&Wallet, Cost).IsEmpty() || !Wallet.Spend(Pays, Cost))
+	{
+		return false;
+	}
+	OutGoldSpent = Cost;
+	if (bEvolution)
+	{
+		Gear.PrimaryEvolution.RepairBetweenCombats(EvolutionMax(Gear.PrimaryEvolution));
+	}
+	else
+	{
+		FRuntimeAttachedItem &Attached = Gear.Attachments[Piece.AttachmentIndex].Attached;
+		Attached.RepairBetweenCombats(Attached.GetMaxDurability());
+	}
+	UE_LOG(LogWoR, Log, TEXT("[GearRepair] Repaired one piece (member %d) for %d %s"), Piece.MemberIndex, Cost, *WoRGameNames::GetCurrencyName(Pays).ToString());
+	return true;
+}
+
 bool GearRepair::RepairParty(UParty &Party, UCurrencyComponent &Wallet, int32 &OutGoldSpent)
 {
 	OutGoldSpent = 0;
@@ -212,7 +295,7 @@ bool GearRepair::RepairParty(UParty &Party, UCurrencyComponent &Wallet, int32 &O
 	}
 	const int32 Cost = GetPartyRepairCost(Party);
 	const ECurrencyType Pays = UEconomyService::GetPlaceCurrency(Wallet.GetOwner()); // B-366e (Q-366 extended)
-	if (Cost <= 0 || !Wallet.Spend(Pays, Cost))
+	if (!GetRefusal(&Wallet, Cost).IsEmpty() || !Wallet.Spend(Pays, Cost))
 	{
 		return false;
 	}
@@ -221,3 +304,5 @@ bool GearRepair::RepairParty(UParty &Party, UCurrencyComponent &Wallet, int32 &O
 	UE_LOG(LogWoR, Log, TEXT("[GearRepair] Repaired %d item(s) for %d %s"), Repaired, Cost, *WoRGameNames::GetCurrencyName(Pays).ToString());
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

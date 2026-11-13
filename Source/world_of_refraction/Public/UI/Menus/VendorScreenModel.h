@@ -6,13 +6,15 @@
 // Item slots; Spiritualist: Buy, Sell, Repair, Curses, Dismantle, Merge. Every other vendor: Buy (UIScreens #15, "every
 // vendor"). Built so far: Sell and Dismantle, whose rules and moves are WoRVendorServices' (Shop/VendorServices.h), and
 // Buy (B-456b): the vendor's stock, a cart with who each line is for, bought through UEconomyService::PurchaseFor;
-// Item slots (B-456c): a row per member's pouch, bought through ItemSlotUpgrade.
+// Item slots (B-456c): a row per member's pouch, bought through ItemSlotUpgrade. The Spiritualist's Repair, Curses and
+// Merge (B-456d), on GearRepair, UCurseSubsystem's paid clear and UEconomyService::MergeCrystals.
 // A tab that isn't built yet is listed and says so. A row that can't be taken is listed with the reason, never hidden.
 // Debug: wor.UI.PrintVendor logs GetVendorScreenString (each vendor's tabs and the party's rows).
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/Durability/GearRepair.h"
 #include "Shop/VendorServices.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "UI/Menus/LoadoutScreenModel.h"
@@ -57,6 +59,12 @@ struct FVendorScreenRow
 	FName Member;
 	int32 Slots = 0;
 	int32 SlotsMax = 0;
+	/** Repair: the worn piece ("35%" or "broken" in State). Curses: the curse. Merge: Row.Item is the kind and the
+	 *  tier to make. */
+	GearRepair::FWornPiece Piece;
+	FText State;
+	bool bStateIsBad = false;
+	FName CurseId;
 };
 
 struct FVendorScreenPage
@@ -68,6 +76,9 @@ struct FVendorScreenPage
 	FText Intro;
 	/** A rule of the service worth saying under the details; may be empty. */
 	FText Rule;
+	/** Repair: what repairing everything costs, and why it can't be done (empty when it can). */
+	FText AllPay;
+	FText AllRefusal;
 };
 
 /** One line of the Buy tab's cart: a stock line (its Count the units wanted) and who it is bought for. */
@@ -141,6 +152,39 @@ namespace WoRVendorScreen
 
 	/** Buys the row's member one slot with Payer's wallet (ItemSlotUpgrade::TryBuy). Empty on success; else the reason. */
 	WORLD_OF_REFRACTION_API FText BuyItemSlot(UWorld *World, AActor *Payer, const FVendorScreenRow &Row);
+
+	/** B-456d: the Spiritualist's Repair tab (mockup 3_spiritualist_repair.png). A row per worn piece of the party's
+	 *  carried gear (GearRepair), with its owner, what it sits in, how worn and the price; a row Payer's wallet can't
+	 *  pay greyed with the repair's own reason. AllPay / AllRefusal: repairing everything. */
+	WORLD_OF_REFRACTION_API FVendorScreenPage BuildRepairPage(UWorld *World, AActor *Payer);
+
+	/** B-456d: the Curses tab (mockup 4_spiritualist_curses.png). A row per curse the player holds, with its clear
+	 *  price; greyed with the clear's own reason (and during a run, the hub-only rule). */
+	WORLD_OF_REFRACTION_API FVendorScreenPage BuildCursesPage(UWorld *World, AActor *Payer);
+
+	/** B-456d: the Merge tab (mockup 6_merge_crystals.png). A row per crystal kind Member holds, aiming at Targets' tier
+	 *  for it (else the highest it can make): what it uses, makes, gives back and costs; greyed with the merge's own
+	 *  reason (UEconomyService::GetMergeRefusal). */
+	WORLD_OF_REFRACTION_API FVendorScreenPage BuildMergePage(UWorld *World, FName Member, const TMap<ECrystalType, EItemTier> &Targets);
+
+	/** A merge's next (Delta 1) or previous target tier, E to S, wrapping. */
+	WORLD_OF_REFRACTION_API EItemTier StepMergeTarget(EItemTier Current, int32 Delta);
+
+	/** Repair, Curses, Merge: the question the first A asks ("Repair Garnet for 40 Gold?"). */
+	WORLD_OF_REFRACTION_API FText GetConfirmText(EVendorScreenTab Tab, const FVendorScreenRow &Row);
+
+	/** Repair, Curses, Merge: does the row's service, Payer paying (Merge: Member's own crystals and wallet). Empty on
+	 *  success; else the reason. */
+	WORLD_OF_REFRACTION_API FText RunService(UWorld *World, AActor *Payer, FName Member, EVendorScreenTab Tab, const FVendorScreenRow &Row);
+
+	/** Repair, Curses, Merge: what is said once it is done ("Garnet is repaired."). */
+	WORLD_OF_REFRACTION_API FText GetDoneText(EVendorScreenTab Tab, const FVendorScreenRow &Row);
+
+	/** Repair: "Repair everything for 90 Gold?" */
+	WORLD_OF_REFRACTION_API FText GetRepairAllConfirmText(const FVendorScreenPage &Page);
+
+	/** Repair: repairs every worn piece with Payer's wallet (GearRepair::RepairParty). Empty on success; else the reason. */
+	WORLD_OF_REFRACTION_API FText RepairAll(UWorld *World, AActor *Payer);
 
 	/** The vendor of this kind standing in World (its stock is the Buy tab's), or null. */
 	WORLD_OF_REFRACTION_API const UMerchantData *FindMerchant(const UWorld *World, EMerchantType Vendor);

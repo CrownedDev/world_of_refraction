@@ -338,7 +338,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 (built, in dev; `PIE/B-443.md`) | |
 | Party | 7 | `menus/party` | B-458 | No AI level text; the row is "Invite" (D-200) |
 | Co-op session (invite, join request, host hand-over) | 31 to 33 | `coop/session` | B-459 (after B-458) | D-200 |
-| Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456a (built, in dev: the screen, Sell, Dismantle; `PIE/B-456a.md`), B-456b (built, in dev: Buy, the cart, "Buying for"; talking to a vendor opens the screen; `PIE/B-456b.md`), B-456c (built, in dev: the Jeweler's Item slots; `PIE/B-456c.md`), B-456d Repair, Curses, Merge | One shop screen, services as tabs; who does what: D-193 |
+| Vendors (shop and services) | 15 to 18 | `hub/vendors` | B-456a (built, in dev: the screen, Sell, Dismantle; `PIE/B-456a.md`), B-456b (built, in dev: Buy, the cart, "Buying for"; talking to a vendor opens the screen; `PIE/B-456b.md`), B-456c (built, in dev: the Jeweler's Item slots; `PIE/B-456c.md`), B-456d (built, in dev: the Spiritualist's Repair, Curses, Merge; `PIE/B-456d.md`) | One shop screen, services as tabs; who does what: D-193 |
 | Settings | 8 | `menus/settings` | B-452 (the screen: built, in dev; `PIE/B-452.md`), B-453 (the eight new settings) | Approved with all eight proposed settings (D-190) |
 | Spirit of {character} (was Skins / forms) | 19 | `hub/skins` | B-444 | Unmet characters "???" (D-181) |
 
@@ -366,6 +366,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | The Spiritualist's tabs are built (B-456d): Repair (one piece on A, everything on X), Curses (clear a held curse), Merge (one list, the tier on Left / Right; Q-456d); every vendor tab works | feature/B-456d-spiritualist-services |
 | 2026-11-14 | The vendor screen's Item slots tab is built (B-456c): a row per party member, the pouch's slots as marks, the next slot's price; A asks, the second A buys | feature/B-456c-item-slots |
 | 2026-11-14 | The vendor screen's Buy tab is built (B-456b): the stock, the cart, "Buying for"; talking to any vendor opens the screen (Q-456b) | feature/B-456b-vendor-buy |
 | 2026-11-14 | The vendor screen's first piece is built (B-456a): the screen with each vendor's tabs, Sell and Dismantle; Buy and the other services follow (B-456b to B-456d) | feature/B-456-vendor-screen |

@@ -775,6 +775,17 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-456d — The Spiritualist's tabs: one piece or everything, whose curses, Merge's layout
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-456d, D-193) · **Blocks:** —
+**Question:** the approved mockups for Repair, Curses and Merge differ from the code in four places. (1) Repair shows "A Repair this" and "X Repair all", but the paid repair is all or nothing (ER-37). (2) Repair lists unworn pieces with "—". (3) Curses says "Sera holds it", but curses are held by the player, not by one character. (4) Merge has two columns (the crystal, then the tier to make).
+**Answer**, by the reference-backed default (Crown may change any):
+- **(1) A repairs one piece, X repairs everything; both ask first (D-016).** Per-item repair beside "repair all" is the long-standing habit of RPG blacksmiths (Diablo II and III, Dragon Age: Origins), and it is what the approved mockup draws. The price of each piece is unchanged (its tier times its missing share).
+- **(2) Only worn pieces are listed.** Nothing to do on an unworn one; Diablo's repair lists only what needs it.
+- **(3) The tab lists the player's curses**, with the curse's own text in the row. Curses are the player's (ER-12i, Q-442).
+- **(4) One list; Left / Right picks the tier to make, starting at the highest the crystals reach.** Same choice and panel as drawn (uses, makes, change back, price), one column fewer for a pad: Monster Hunter's melding and Diablo's gem cube pick the result in one list.
+- **Co-op:** only the host can pay (a guest's rows are grey with "Only the host can buy for now."), as the shop and the item slots (B-427, Q-239).
+**Notes for Claude:** `WoRVendorScreen::BuildRepairPage`, `BuildCursesPage`, `BuildMergePage`, `RunService`, `RepairAll` (`UI/Menus/VendorScreenModel.h`); the refusals are the services' own (`GearRepair::GetRefusal`, `UCurseSubsystem::GetClearRefusal`, `UEconomyService::GetMergeRefusal`). Rules ER-37, ER-28.
+
 ### Q-456b — The Buy tab: which vendors use it, how the cart is bought, how a line is taken back
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-456b, D-193) · **Blocks:** —
 **Question:** D-193 names the tabs of three vendors, and the Buy mockup shows a cart. (1) What do the other vendors (Combat Master, Spell Shop) open? (2) Does Purchase ask first (D-016)? (3) The mockup has no key to take a line back out of the cart: which? (4) A cart can hold lines for different members, but a purchase is made for one member at a time.

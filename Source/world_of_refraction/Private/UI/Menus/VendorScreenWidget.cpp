@@ -283,7 +283,9 @@ void UVendorScreenWidget::ResetState()
 	MemberIndex = 0;
 	SelectedRow = 0;
 	bConfirming = false;
+	bConfirmingAll = false;
 	bWholeStack = false; // the stack holds a pooled screen: nothing carries over from the last open
+	MergeTargets.Reset();
 	Cart.Reset();
 	Status = FText::GetEmpty();
 	RefreshData();
@@ -292,11 +294,12 @@ void UVendorScreenWidget::ResetState()
 
 bool UVendorScreenWidget::NativeOnHandleBackAction()
 {
-	if (!bConfirming)
+	if (!bConfirming && !bConfirmingAll)
 	{
 		return Super::NativeOnHandleBackAction();
 	}
 	bConfirming = false;
+	bConfirmingAll = false;
 	RefreshSelection();
 	return true;
 }
@@ -324,10 +327,28 @@ void UVendorScreenWidget::RefreshData()
 	Members = WoRLoadoutScreen::BuildMembers(World);
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	const bool bBuy = IsBuy();
-	const bool bSlots = IsItemSlots();
-	Page = bBuy		? WoRVendorScreen::BuildBuyPage(World, Merchant.Get(), Payer.Get(), MemberKey(), Cart)
-		   : bSlots ? WoRVendorScreen::BuildItemSlotsPage(World, Payer.Get())
-					: WoRVendorScreen::BuildPage(World, Vendor, GetTab(), MemberKey());
+	const bool bMerge = GetTab() == EVendorScreenTab::Merge; // its Row.Item is the target, not a stack
+	switch (GetTab())
+	{
+	case EVendorScreenTab::Buy:
+		Page = WoRVendorScreen::BuildBuyPage(World, Merchant.Get(), Payer.Get(), MemberKey(), Cart);
+		break;
+	case EVendorScreenTab::ItemSlots:
+		Page = WoRVendorScreen::BuildItemSlotsPage(World, Payer.Get());
+		break;
+	case EVendorScreenTab::Repair:
+		Page = WoRVendorScreen::BuildRepairPage(World, Payer.Get());
+		break;
+	case EVendorScreenTab::Curses:
+		Page = WoRVendorScreen::BuildCursesPage(World, Payer.Get());
+		break;
+	case EVendorScreenTab::Merge:
+		Page = WoRVendorScreen::BuildMergePage(World, MemberKey(), MergeTargets);
+		break;
+	default:
+		Page = WoRVendorScreen::BuildPage(World, Vendor, GetTab(), MemberKey());
+		break;
+	}
 	SelectedRow = Page.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, Page.Rows.Num() - 1) : 0;
 
 	if (!TitleText || !RowScroll)
@@ -371,10 +392,30 @@ void UVendorScreenWidget::RefreshData()
 	const FText AboveRows = Page.EmptyNote.IsEmpty() ? Page.Intro : Page.EmptyNote;
 	EmptyText->SetText(AboveRows);
 	SetShown(EmptyText, !AboveRows.IsEmpty());
-	HintsText->SetText(bBuy		? LOCTEXT("HintsBuy", "LB / RB  Service        Enter / Right  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave")
-					   : bSlots ? LOCTEXT("HintsItemSlots", "LB / RB  Service        A / Enter  Buy        B / Esc  Leave")
-								: FText::Format(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
-											WoRVendorScreen::GetTabName(GetTab())));
+	FText Hints;
+	switch (GetTab())
+	{
+	case EVendorScreenTab::Buy:
+		Hints = LOCTEXT("HintsBuy", "LB / RB  Service        Enter / Right  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave");
+		break;
+	case EVendorScreenTab::ItemSlots:
+		Hints = LOCTEXT("HintsItemSlots", "LB / RB  Service        A / Enter  Buy        B / Esc  Leave");
+		break;
+	case EVendorScreenTab::Repair:
+		Hints = LOCTEXT("HintsRepair", "LB / RB  Service        A / Enter  Repair this        X  Repair all        B / Esc  Leave");
+		break;
+	case EVendorScreenTab::Curses:
+		Hints = LOCTEXT("HintsCurses", "LB / RB  Service        A / Enter  Clear        B / Esc  Leave");
+		break;
+	case EVendorScreenTab::Merge:
+		Hints = LOCTEXT("HintsMerge", "LT / RT  Character        LB / RB  Service        Left / Right  Tier        A / Enter  Merge        B / Esc  Leave");
+		break;
+	default:
+		Hints = FText::Format(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
+							  WoRVendorScreen::GetTabName(GetTab()));
+		break;
+	}
+	HintsText->SetText(Hints);
 
 	while (RowWidgets.Num() < Page.Rows.Num())
 	{
@@ -407,7 +448,11 @@ void UVendorScreenWidget::RefreshData()
 		}
 		Widgets.Tier->SetText(Row.Tier);
 		// Sell and Dismantle: the stack's size. Buy: how many the cart holds, and a refused line still shows its price.
-		Widgets.Count->SetText(Row.Row.Count > (bBuy ? 0 : 1) ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Row.Row.Count)) : FText::GetEmpty());
+		// Repair: how worn the piece is.
+		Widgets.Count->SetText(!Row.State.IsEmpty()						  ? Row.State
+							   : Row.Row.Count > (bBuy ? 0 : 1) && !bMerge ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Row.Row.Count))
+																		   : FText::GetEmpty());
+		Widgets.Count->SetColorAndOpacity(FSlateColor(Row.bStateIsBad ? WarnColor : CyanColor));
 		Widgets.Pay->SetText(bRefused && HasMemberTabs() ? FText::GetEmpty() : Row.PayMoney.IsEmpty() ? Row.Pay : FText::Format(LOCTEXT("PayAndMore", "{0} +"), Row.PayMoney));
 		Widgets.Pay->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
 	}
@@ -433,26 +478,43 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	{
 		return; // headless: no tree
 	}
-	SetShown(DetailPanel, Focused != nullptr || !Status.IsEmpty());
+	SetShown(DetailPanel, Focused != nullptr || !Status.IsEmpty() || bConfirmingAll);
 	const bool bBuy = IsBuy();
 	const bool bSlots = IsItemSlots();
+	const bool bSpirit = IsSpiritualistService();
 	const FVendorScreenRow Row = Focused ? *Focused : FVendorScreenRow();
-	const int32 Count = bBuy ? 1 : WoRVendorScreen::GetTakeCount(Row, bWholeStack); // Buy's Row.Count is the cart's, not a stack
+	const int32 Count = bBuy || bSpirit ? 1 : WoRVendorScreen::GetTakeCount(Row, bWholeStack); // Buy's Row.Count is the cart's, not a stack
 	const FText What = Row.Tier.IsEmpty() ? Row.Name : FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Row.Name, Row.Tier);
-	DetailTitle->SetText(!Focused ? FText::GetEmpty()
-						 : bBuy	  ? What
-						 : bSlots ? LOCTEXT("DetailItemSlot", "Buy one item slot")
-								  : FText::Format(LOCTEXT("DetailTitle", "{0} {1}"), WoRVendorScreen::GetTabName(GetTab()), What));
-	PayLabel->SetText(bBuy || bSlots ? LOCTEXT("Price", "Price") : LOCTEXT("YouGet", "You get"));
+	FText Title;
+	switch (GetTab())
+	{
+	case EVendorScreenTab::Buy:
+		Title = What;
+		break;
+	case EVendorScreenTab::ItemSlots:
+		Title = LOCTEXT("DetailItemSlot", "Buy one item slot");
+		break;
+	case EVendorScreenTab::Curses:
+		Title = FText::Format(LOCTEXT("DetailCurse", "Clear {0}"), Row.Name);
+		break;
+	case EVendorScreenTab::Merge:
+		Title = FText::Format(LOCTEXT("DetailMerge", "Merge into {0}"), What);
+		break;
+	default:
+		Title = FText::Format(LOCTEXT("DetailTitle", "{0} {1}"), WoRVendorScreen::GetTabName(GetTab()), What);
+		break;
+	}
+	DetailTitle->SetText(Focused ? Title : FText::GetEmpty());
+	PayLabel->SetText(bBuy || bSlots || bSpirit ? LOCTEXT("Price", "Price") : LOCTEXT("YouGet", "You get"));
 	SetShown(PayLabel, Focused != nullptr);
 	DetailPay->SetText(!Row.Refusal.IsEmpty() ? Row.Refusal : Count > 1 ? FText::Format(LOCTEXT("PayEach", "{0} each, for {1}"), Row.Pay, FText::AsNumber(Count)) : Row.Pay);
 	DetailPay->SetColorAndOpacity(FSlateColor(Row.Refusal.IsEmpty() ? TextColor : WarnColor));
 
 	// Buy: what the thing is and does, and who it is bought for. Item slots: the pouch now and after.
 	TArray<FText> Lines;
-	if ((bBuy || bSlots) && Focused)
+	if ((bBuy || bSlots || bSpirit) && Focused)
 	{
-		if (bBuy && !Row.Refusal.IsEmpty())
+		if ((bBuy || bSpirit) && !Row.Refusal.IsEmpty())
 		{
 			Lines.Add(Row.Pay); // the reason took the price's place
 		}
@@ -476,16 +538,29 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	}
 
 	EVendorService Service = EVendorService::Sell;
-	const bool bAsking = bConfirming && Focused && (bSlots || WoRVendorScreen::GetService(GetTab(), Service));
-	ConfirmText->SetText(!bAsking ? FText::GetEmpty()
-						 : bSlots ? WoRVendorScreen::GetItemSlotConfirmText(Row)
-								  : WoRVendorServices::GetConfirmText(GetWorld(), Service, MemberKey(), Row.Row));
+	const bool bService = WoRVendorScreen::GetService(GetTab(), Service);
+	const bool bAsking = bConfirmingAll || (bConfirming && Focused && (bSlots || bSpirit || bService));
+	ConfirmText->SetText(!bAsking		  ? FText::GetEmpty()
+						 : bConfirmingAll ? WoRVendorScreen::GetRepairAllConfirmText(Page)
+						 : bSlots		  ? WoRVendorScreen::GetItemSlotConfirmText(Row)
+						 : bSpirit		  ? WoRVendorScreen::GetConfirmText(GetTab(), Row)
+										  : WoRVendorServices::GetConfirmText(GetWorld(), Service, MemberKey(), Row.Row));
 	SetShown(ConfirmText, bAsking);
 	SetShown(ConfirmHint, bAsking);
-	const bool bStack = Focused && HasMemberTabs() && Row.Row.Count > 1;
-	SetShown(WholeStackText, bStack);
-	WholeStackText->SetText(bWholeStack ? FText::Format(LOCTEXT("WholeStackOn", "X  Whole stack: on (all {0})"), FText::AsNumber(Row.Row.Count))
-										: LOCTEXT("WholeStackOff", "X  Whole stack: off (one at a time)"));
+	// Sell and Dismantle: the whole-stack toggle. Repair: X repairs everything.
+	const bool bRepair = GetTab() == EVendorScreenTab::Repair;
+	const bool bStack = Focused && bService && Row.Row.Count > 1;
+	SetShown(WholeStackText, bStack || (bRepair && !Page.Rows.IsEmpty()));
+	if (bRepair)
+	{
+		WholeStackText->SetText(Page.AllRefusal.IsEmpty() ? FText::Format(LOCTEXT("RepairAllLine", "X  Repair all:  {0}"), Page.AllPay)
+														  : FText::Format(LOCTEXT("RepairAllRefused", "X  Repair all:  {0} ({1})"), Page.AllPay, Page.AllRefusal));
+	}
+	else
+	{
+		WholeStackText->SetText(bWholeStack ? FText::Format(LOCTEXT("WholeStackOn", "X  Whole stack: on (all {0})"), FText::AsNumber(Row.Row.Count))
+											: LOCTEXT("WholeStackOff", "X  Whole stack: off (one at a time)"));
+	}
 	RuleText->SetText(Page.Rule);
 	SetShown(RuleText, !Page.Rule.IsEmpty());
 	StatusText->SetText(Status);
@@ -580,6 +655,7 @@ void UVendorScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 	{
 		SelectedRow = Index;
 		bConfirming = false;
+		bConfirmingAll = false;
 		Status = FText::GetEmpty();
 		RefreshSelection(bScrollIntoView);
 	}
@@ -594,6 +670,7 @@ void UVendorScreenWidget::MoveTab(int32 Delta)
 	TabIndex = ((TabIndex + Delta) % Tabs.Num() + Tabs.Num()) % Tabs.Num();
 	SelectedRow = 0;
 	bConfirming = false;
+	bConfirmingAll = false;
 	Status = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
@@ -601,13 +678,15 @@ void UVendorScreenWidget::MoveTab(int32 Delta)
 
 void UVendorScreenWidget::MoveMember(int32 Delta)
 {
-	if (Members.Num() < 2 || IsItemSlots())
+	if (Members.Num() < 2 || (!HasMemberTabs() && !IsBuy()))
 	{
-		return; // Item slots: the rows are the members
+		return; // Item slots and Repair: the rows name the members; curses are the player's
 	}
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
 	SelectedRow = IsBuy() ? SelectedRow : 0; // Buy: the stock is the same list, whoever it is bought for
 	bConfirming = false;
+	bConfirmingAll = false;
+	MergeTargets.Reset(); // another member's crystals: each kind starts again at the highest it can make
 	Status = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
@@ -620,10 +699,16 @@ void UVendorScreenWidget::Confirm()
 		AddFocusedToCart(); // nothing is spent until Purchase: the cart is the question
 		return;
 	}
+	if (bConfirmingAll)
+	{
+		DoRepairAll(); // A answers "Repair everything?" as the second X does
+		return;
+	}
 	const FVendorScreenRow *Focused = FocusedRow();
 	const bool bSlots = IsItemSlots();
+	const bool bSpirit = IsSpiritualistService();
 	EVendorService Service = EVendorService::Sell;
-	if (!Focused || (!bSlots && !WoRVendorScreen::GetService(GetTab(), Service)))
+	if (!Focused || (!bSlots && !bSpirit && !WoRVendorScreen::GetService(GetTab(), Service)))
 	{
 		return;
 	}
@@ -646,12 +731,17 @@ void UVendorScreenWidget::Confirm()
 	}
 	bConfirming = false;
 	const int32 Count = WoRVendorScreen::GetTakeCount(Row, bWholeStack);
-	const FText Failure = bSlots ? WoRVendorScreen::BuyItemSlot(GetWorld(), Payer.Get(), Row)
-								 : WoRVendorServices::Run(GetWorld(), Vendor, Service, MemberKey(), Row.Row, Count);
+	const FText Failure = bSlots	? WoRVendorScreen::BuyItemSlot(GetWorld(), Payer.Get(), Row)
+						  : bSpirit ? WoRVendorScreen::RunService(GetWorld(), Payer.Get(), MemberKey(), GetTab(), Row)
+									: WoRVendorServices::Run(GetWorld(), Vendor, Service, MemberKey(), Row.Row, Count);
 	bStatusIsRefusal = !Failure.IsEmpty();
 	if (bStatusIsRefusal)
 	{
 		Status = Failure;
+	}
+	else if (bSpirit)
+	{
+		Status = WoRVendorScreen::GetDoneText(GetTab(), Row);
 	}
 	else if (bSlots)
 	{
@@ -673,9 +763,61 @@ void UVendorScreenWidget::Confirm()
 	RefreshSelection();
 }
 
+void UVendorScreenWidget::PressRepairAll()
+{
+	if (GetTab() != EVendorScreenTab::Repair)
+	{
+		return;
+	}
+	if (bConfirmingAll)
+	{
+		DoRepairAll();
+		return;
+	}
+	bConfirming = false;
+	if (!Page.AllRefusal.IsEmpty())
+	{
+		Status = Page.AllRefusal;
+		bStatusIsRefusal = true;
+	}
+	else
+	{
+		bConfirmingAll = true; // D-016: ask first; the second press does it
+		Status = FText::GetEmpty();
+	}
+	RefreshSelection(/*bScrollIntoView=*/false);
+}
+
+void UVendorScreenWidget::DoRepairAll()
+{
+	bConfirmingAll = false;
+	const FText AllPay = Page.AllPay;
+	const FText Failure = WoRVendorScreen::RepairAll(GetWorld(), Payer.Get());
+	bStatusIsRefusal = !Failure.IsEmpty();
+	Status = bStatusIsRefusal ? Failure : FText::Format(LOCTEXT("DoneRepairAll", "Everything is repaired, for {0}."), AllPay);
+	UE_LOG(LogWoRUI, Log, TEXT("[VendorScreen] Repair all: %s"), *Status.ToString());
+	RefreshData();
+	RefreshSelection();
+}
+
+void UVendorScreenWidget::MoveMergeTarget(int32 Delta)
+{
+	const FVendorScreenRow *Focused = FocusedRow();
+	if (GetTab() != EVendorScreenTab::Merge || !Focused)
+	{
+		return;
+	}
+	MergeTargets.Add(Focused->Row.Item.Type, WoRVendorScreen::StepMergeTarget(Focused->Row.Item.Tier, Delta));
+	bConfirming = false; // the question was about the other tier: ask again
+	Status = FText::GetEmpty();
+	RefreshData();
+	RefreshSelection(/*bScrollIntoView=*/false);
+}
+
 void UVendorScreenWidget::ToggleWholeStack()
 {
-	if (!HasMemberTabs())
+	EVendorService Service;
+	if (!WoRVendorScreen::GetService(GetTab(), Service))
 	{
 		return; // nothing here is a stack
 	}
@@ -700,6 +842,11 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 		IsRightKey(Key) ? AddFocusedToCart() : RemoveFocusedFromCart();
 		return FReply::Handled();
 	}
+	if (GetTab() == EVendorScreenTab::Merge && (IsLeftKey(Key) || IsRightKey(Key)))
+	{
+		MoveMergeTarget(IsRightKey(Key) ? 1 : -1); // the tier to make
+		return FReply::Handled();
+	}
 	if (InKeyEvent.IsRepeat())
 	{
 		return FReply::Handled(); // the keys below act once per press
@@ -711,7 +858,18 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 	}
 	if (IsToggleKey(Key))
 	{
-		bBuy ? Purchase() : ToggleWholeStack();
+		if (bBuy)
+		{
+			Purchase();
+		}
+		else if (GetTab() == EVendorScreenTab::Repair)
+		{
+			PressRepairAll();
+		}
+		else
+		{
+			ToggleWholeStack();
+		}
 		return FReply::Handled();
 	}
 	if (bBuy && IsSecondActionKey(Key))
@@ -828,7 +986,7 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorldAndArgs GVendorScreenOpenCommand(
 	TEXT("wor.UI.VendorScreen"),
-	TEXT("B-456a to B-456c: open the vendor screen. Usage: wor.UI.VendorScreen [Blacksmith|Jeweler|Spiritualist] (default Blacksmith)."),
+	TEXT("B-456a to B-456d: open the vendor screen. Usage: wor.UI.VendorScreen [Blacksmith|Jeweler|Spiritualist] (default Blacksmith)."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
 	{
 		EMerchantType Vendor = EMerchantType::Blacksmith;

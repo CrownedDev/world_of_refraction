@@ -13,6 +13,7 @@
 #include "Party/Party.h"
 #include "Currency/CurrencyComponent.h"
 #include "Party/PartySessionSubsystem.h"
+#include "WoRAuthority.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -75,29 +76,44 @@ bool UCurseSubsystem::ClearCurse(FName CurseId)
 	return true;
 }
 
-bool UCurseSubsystem::PayToClearCurse(FName CurseId, UCurrencyComponent *Wallet, FText &OutRefusal)
+FText UCurseSubsystem::GetClearRefusal(FName CurseId, const UCurrencyComponent *Wallet) const
 {
 	if (!HasCurse(CurseId))
 	{
-		OutRefusal = LOCTEXT("NotHeld", "You don't hold that curse.");
-		return false;
+		return LOCTEXT("NotHeld", "You don't hold that curse.");
 	}
 	if (!EnsureCurseAssetsGathered())
 	{
 		// Review: the asset (its tier) isn't known yet; never price an S-tier curse at the defaults.
-		OutRefusal = LOCTEXT("StillLoading", "The curse records are still loading. Try again in a moment.");
+		return LOCTEXT("StillLoading", "The curse records are still loading. Try again in a moment.");
+	}
+	const UCurseData *Curse = FindCurseAsset(CurseId);
+	const UCurseData *Priced = Curse ? Curse : GetDefault<UCurseData>(); // Q-390: no asset prices as the defaults
+	const ECurrencyType Currency = Priced->GetClearCurrency();
+	const int32 Price = Priced->GetClearPrice();
+	if (Wallet && !WoRAuthority::HasAuthority(Wallet->GetOwner()))
+	{
+		return LOCTEXT("HostOnly", "Only the host can buy for now."); // B-427: a guest's wallet is the host's mirror
+	}
+	if (!Wallet || !Wallet->CanAfford(Currency, Price))
+	{
+		return FText::Format(LOCTEXT("Short", "Clearing it costs {0} {1}; you have {2}."), FText::AsNumber(Price),
+							 WoRGameNames::GetCurrencyName(Currency), FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0));
+	}
+	return FText::GetEmpty();
+}
+
+bool UCurseSubsystem::PayToClearCurse(FName CurseId, UCurrencyComponent *Wallet, FText &OutRefusal)
+{
+	OutRefusal = GetClearRefusal(CurseId, Wallet);
+	if (!OutRefusal.IsEmpty())
+	{
 		return false;
 	}
 	const UCurseData *Curse = FindCurseAsset(CurseId);
 	const UCurseData *Priced = Curse ? Curse : GetDefault<UCurseData>(); // Q-390: no asset prices as the defaults
 	const ECurrencyType Currency = Priced->GetClearCurrency();
 	const int32 Price = Priced->GetClearPrice();
-	if (!Wallet || !Wallet->CanAfford(Currency, Price))
-	{
-		OutRefusal = FText::Format(LOCTEXT("Short", "Clearing it costs {0} {1}; you have {2}."), FText::AsNumber(Price),
-								   WoRGameNames::GetCurrencyName(Currency), FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0));
-		return false;
-	}
 	if (!Wallet->Spend(Currency, Price))
 	{
 		OutRefusal = LOCTEXT("SpendRefused", "The payment didn't go through.");
@@ -339,6 +355,22 @@ static FAutoConsoleCommandWithWorldAndArgs GCurseClearCommand(
 		}
 		const bool bCleared = Curses->ClearCurse(FName(*Args[0]));
 		UE_LOG(LogWoR, Display, TEXT("[Curse] %s: %s"), *Args[0], bCleared ? TEXT("cleared") : TEXT("not held"));
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs GCurseAddCommand(
+	TEXT("wor.Curse.Add"),
+	TEXT("DEBUG (B-456d): hold a curse, as a memory's Curse reward gives it (wor.Curse.Add <curse id>); to check the Spiritualist's Curses tab."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+	{
+		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+		UCurseSubsystem *Curses = GameInstance ? GameInstance->GetSubsystem<UCurseSubsystem>() : nullptr;
+		if (!Curses || Args.IsEmpty())
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[Curse] usage: wor.Curse.Add <curse id>"));
+			return;
+		}
+		const bool bAdded = Curses->AddCurse(FName(*Args[0]));
+		UE_LOG(LogWoR, Display, TEXT("[Curse] %s: %s"), *Args[0], bAdded ? TEXT("now held") : TEXT("already held"));
 	}));
 
 static FAutoConsoleCommandWithWorld GCursePrintCommand(
