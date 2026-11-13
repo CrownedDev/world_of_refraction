@@ -1,7 +1,7 @@
 // LoadoutRulesDebug.h
 // Debug utilities for the one loadout rule set (FLoadoutRules, B-028). Console:
-// wor.Loadout.CompareRules prints, per character in the world, what the merged pre-fight check
-// reports that the old one didn't (and the reverse). Additive inspection only.
+// wor.Loadout.CompareSlots prints the unified slot mirror against the old getters.
+// wor.Loadout.PrintFindings prints what the rules report on each character's active loadout.
 // wor.Loadout.TryAbility <name> tries a learned ability as a pick on each character's active
 // loadout (B-159: refused with a reason, or assigned) until the loadout screen exists.
 
@@ -19,10 +19,10 @@ class WORLD_OF_REFRACTION_API ULoadoutRulesDebug : public UBlueprintFunctionLibr
 	GENERATED_BODY()
 
 public:
-	/** e.g. "Hero_1 loadout 0: 3 findings (old 1) | new: Ability 'Cleave' requires weapon type ... | gone: none". */
-	static FString GetCompareRulesString(const ULoadoutComponent *Loadout);
-
-	/** Logs GetCompareRulesString for every character in the world and shows it on screen. */
+	/** Logs what the loadout rules report on every character's active loadout and shows it on screen
+	 *  (wor.Loadout.PrintFindings), e.g. "Hero_1 loadout 0: 1 finding(s): Ability 'Cleave' requires weapon type Spear".
+	 *  TODO: the name is from the old-against-new comparison (B-028); rename to PrintLoadoutFindings once the editor's
+	 *  Find in Blueprints shows no "Compare Loadout Rules" node (B-172 kept it so no Blueprint can break). */
 	UFUNCTION(BlueprintCallable, Category = "Debug|Loadout", meta = (WorldContext = "WorldContextObject"))
 	static void CompareLoadoutRules(const UObject *WorldContextObject);
 
