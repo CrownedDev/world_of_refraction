@@ -91,7 +91,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 10. [x] Party and co-op (`menus/party`, `coop/session`)
 11. [x] Title, save notices, loading (`front/title`)
 12. [x] Character sheet (`menus/character`)
-13. [ ] Hub HUD, prompt, loading, NPC talk (`hub/hud`)
+13. [x] Hub HUD, prompt, NPC talk, recruit card (`hub/hud`; loading is with mock 11)
 
 ## Mockup notes
 
@@ -211,6 +211,16 @@ One block per mocked screen: the images, why the layout, the references.
 - Body's "Defence" and the Resistance column's "All" are the same number (D-168 makes Defence the All line). When that rename lands in code, the Body row can read "Resistance (All)".
 - Only your own characters' weaknesses are shown; enemy weaknesses are never listed anywhere (FeelGuide 5).
 
+### 14, 20, 29. Hub HUD, NPC talk, recruit card (`hub/hud/`)
+
+- `1_hub_hud_prompt.png`, `2_npc_talk.png`, `3_recruit_card.png`.
+- **Hub HUD is nearly empty** (pillar 1, immersion): the party strip bottom left, a floating **interact prompt** by what you face (key + verb + what: "X Talk · Blacksmith"; the same prompt does "Rest", "Enter", "Open"), and the money chip only near a vendor or when it changes.
+  *Ref:* Expedition 33's and Elden Ring's clean exploration screens; Hades' House shows currencies only where they matter.
+- **Talking:** the speaker's name and line in one box at the bottom, choices stacked on the right, the world left visible; a choice unlocked by a memory is marked NEW; Y opens the log. A vendor's first choice opens their shop (mock 8).
+  *Ref:* Hades' short lines with NEW-dialogue marks; Expedition 33's camp conversations; Persona 5's log on a button.
+- **Recruit card** (a character met in a trial): who they are (class, pillars, Combat Tier), the rule in one line (joins for this run only, uses what your party carries: D-026, B-361), who plays them, and Invite for this run.
+  *Ref:* Fire Emblem's recruit cards; Baldur's Gate 3's "join the party" prompt.
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -266,6 +276,8 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 10. **Journal words** (#6, lore): quest titles, step texts, memory texts and whether Main / Side quests show their later steps as "…" or nothing. All placeholder text in the mockups is made up.
 11. **Title and loading words** (#9, #12, lore): the logo and key art, and which descriptions appear on loading screens (any item or character, or only ones you've met?).
 12. **New game** (#11, lore): who the player starts as and how they're introduced isn't mocked; it depends on the opening (HubAndStory §4).
+13. **Who speaks** (#20, lore): the service NPCs are V in different forms and who V is stays hidden (HubAndStory §2, §3). Does the talk box name them by role ("Blacksmith"), as V, or with no name? The mockup uses the role.
+14. **Recruiting with a full party** (#29): the party cap is 3. If you meet a recruit with three members, is the offer refused, or does someone step out? The mockup shows only the case with room.
 
 ## Changelog
 
