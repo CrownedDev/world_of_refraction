@@ -10,6 +10,7 @@
 // airtime), Air dash (once per airtime along the aim; Lightning blinks), and wall-run while Enhanced Sprint is on.
 // B-214d (FieldMovementFlight.cpp): Flight, toggled; EP per second (hovering when still), a height ceiling above the
 // take-off ground and Zone.NoFly volumes, each liftable by effects (FFieldFlightLimits).
+// B-214e (FieldMovementAdvanced.cpp): Teleport (Void), Phase step, Mark and recall, Super launch, Regroup.
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
 
 #pragma once
@@ -135,6 +136,16 @@ public:
 	/** One flight step: out of a no-fly zone and under the ceiling (StepMoves calls it; public for the spec). */
 	void ApplyFlightStep();
 
+	// ---- B-214e: advanced moves ----
+
+	/** Uses Type if it is the active field skill: Teleport, PhaseStep, MarkAndRecall (mark, then recall), SuperLaunch,
+	 *  Regroup. Server; a client uses ActivateFieldSkill. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal UseAdvancedMove(EFieldMovementType Type);
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool HasRecallMark() const { return bHasRecallMark; }
+
 	/** Server: copies the party record's choice into the replicated mirror (after the leader is rebound). */
 	void RefreshFromRecord();
 
@@ -169,6 +180,18 @@ private:
 	void OnRep_Flying();
 
 	void StopFlight();
+
+	EFieldSkillRefusal DoTeleport(ACharacter &Character);
+	EFieldSkillRefusal DoPhaseStep(ACharacter &Character);
+	EFieldSkillRefusal DoRecall(ACharacter &Character);
+	EFieldSkillRefusal DoSuperLaunch(ACharacter &Character);
+	EFieldSkillRefusal DoRegroup(ACharacter &Character);
+
+	/** The other party member's field pawn farthest away (Regroup's target), or null. */
+	AActor *FindRegroupTarget() const;
+
+	/** A fight is running (UPartySessionSubsystem::IsFightRunning). */
+	bool IsFightRunning() const;
 
 	/** Flying movement on / off with the base speed and braking put back (server, and the owning client by OnRep). */
 	void ApplyFlightMode();
@@ -242,6 +265,16 @@ private:
 	float BaseMaxFlySpeed = 0.0f;
 	float BaseBrakingFlying = 0.0f;
 	FTimerHandle FlightDrainTimer;
+
+	/** B-214e, server: Mark and recall's mark (one at a time, this level only). */
+	bool bHasRecallMark = false;
+	FVector RecallMark = FVector::ZeroVector;
+
+	/** Super launch glides from the top of its rise (no glide EP). */
+	bool bSuperLaunchGlidePending = false;
+
+	/** When each advanced move was last used (its cooldown). */
+	TMap<EFieldMovementType, double> LastAdvancedUseTime;
 
 	double LastDashTime = -FieldSkillRules::DASH_COOLDOWN_SECONDS;
 	FTimerHandle DrainTimer;

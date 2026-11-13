@@ -286,6 +286,12 @@ EFieldSkillRefusal UFieldMovementComponent::ActivateFieldSkill()
 		return AirDash();
 	case EFieldMovementType::Flight: // B-214d
 		return ToggleFlight();
+	case EFieldMovementType::Teleport: // B-214e
+	case EFieldMovementType::PhaseStep:
+	case EFieldMovementType::MarkAndRecall:
+	case EFieldMovementType::SuperLaunch:
+	case EFieldMovementType::Regroup:
+		return UseAdvancedMove(Choice.Type);
 	default:
 		UE_LOG(LogWoR, Log, TEXT("%s %s: %s isn't built yet (B-214d..e)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
 			   *FieldSkillRules::TypeName(Choice.Type));
@@ -436,6 +442,7 @@ FString UFieldMovementComponent::GetFieldStateString() const
 		+ FString::Printf(TEXT(" | glide %s | wall-run %s | air jump %s, air dash %s"), // B-214c
 						  bGliding ? TEXT("ON") : TEXT("off"), bWallRunning ? TEXT("ON") : TEXT("off"),
 						  bAirJumpUsed ? TEXT("used") : TEXT("ready"), bAirDashUsed ? TEXT("used") : TEXT("ready"))
+		+ FString::Printf(TEXT(" | recall mark %s"), bHasRecallMark ? *RecallMark.ToCompactString() : TEXT("none")) // B-214e
 		+ FString::Printf(TEXT(" | flight %s (limits: EP %s, ceiling %s, no-fly %s; in no-fly %s)"), // B-214d
 						  bFlying ? TEXT("ON") : TEXT("off"), FlightLimits.bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),
 						  FlightLimits.bNoCeiling ? TEXT("none") : TEXT("on"), FlightLimits.bIgnoreNoFly ? TEXT("ignored") : TEXT("on"),
