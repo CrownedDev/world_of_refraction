@@ -96,12 +96,12 @@ void FHiddenQuestSpec::Define()
 		TestTrue(TEXT("set for Deep: a Deep one does"), ForDeep->StartsFrom(DeepOnly, EMemoryDepth::Deep));
 	});
 
-	It("notifies a masked \"Hidden quest found\" when its memory starts it, with placeholders for unwritten text (B-397, Q-397b)", [this]()
+	It("notifies a masked \"Secret quest found\" (D-196) when its memory starts it, with placeholders for unwritten text (B-397, Q-397b)", [this]()
 	{
 		TestTrue(TEXT("no notice before"), Quests->GetLastNotice().IsEmpty());
 		Journal->RecordMemory(StartMemory, EMemorySource::Fragment);
 		const FString Notice = Quests->GetLastNotice().ToString();
-		TestEqual(TEXT("the masked discovery notice (Q-397b)"), Notice, FString(TEXT("Hidden quest found. Open the journal to view it.")));
+		TestEqual(TEXT("the masked discovery notice (Q-397b)"), Notice, FString(TEXT("Secret quest found. Open the journal to view it.")));
 		TestFalse(TEXT("it never names the quest"), Notice.Contains(Quest->GetDisplayTitle().ToString()));
 		TestFalse(TEXT("no Title: a placeholder, not the quest id"), Notice.Contains(Quest->GetQuestId().ToString()));
 		TestFalse(TEXT("no Goal: a placeholder goal"), Quest->GetGoalAfter(0).IsEmpty());
