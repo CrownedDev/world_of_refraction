@@ -135,14 +135,6 @@ namespace
 									 Abilities, LoadoutConstants::MAX_WEAPON_ABILITIES),
 					 LoadoutAbilityOverflowIndex::ABILITIES);
 		}
-		const int32 AugmentAbilities = CountAssigned(Weapon.AssignedAugmentStoneAbilities);
-		if (AugmentAbilities > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
-		{
-			Sink.Add(ELoadoutSlotType::AbilityOverflow, WeaponIndex, true,
-					 FString::Printf(TEXT("%s weapon has too many augment stone abilities (%d/%d)"), Label,
-									 AugmentAbilities, LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES),
-					 LoadoutAbilityOverflowIndex::AUGMENT_STONE_ABILITIES);
-		}
 	}
 
 	/** B-304 (D-110): one check for both of a Generic's weapon slots: ownership, spells (element and cap) and ability
