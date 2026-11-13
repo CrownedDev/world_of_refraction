@@ -81,7 +81,8 @@ void UWoRRootLayout::PopLayer(EWoRUILayer Layer)
 void UWoRRootLayout::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-	for (UCommonActivatableWidgetStack *Stack : {GameLayer, MenuLayer, ModalLayer})
+	// Menu and modal only: the game layer is the HUD's (it will state its own Game config when it moves there).
+	for (UCommonActivatableWidgetStack *Stack : {MenuLayer, ModalLayer})
 	{
 		if (Stack)
 		{
@@ -92,7 +93,7 @@ void UWoRRootLayout::NativeOnInitialized()
 
 bool UWoRRootLayout::HasActiveScreen() const
 {
-	for (const UCommonActivatableWidgetStack *Stack : {GameLayer, MenuLayer, ModalLayer})
+	for (const UCommonActivatableWidgetStack *Stack : {MenuLayer, ModalLayer})
 	{
 		if (Stack && Stack->GetActiveWidget())
 		{
@@ -128,7 +129,17 @@ void UWoRRootLayout::RunWhenAllClosed(TFunction<void()> Action)
 		Action();
 		return;
 	}
+	if (WhenAllClosed)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[WoRRootLayout] RunWhenAllClosed: an action was already waiting and is dropped"));
+	}
 	WhenAllClosed = MoveTemp(Action);
+}
+
+void UWoRRootLayout::NativeDestruct()
+{
+	WhenAllClosed = nullptr; // a waiting action dies with the layout
+	Super::NativeDestruct();
 }
 
 FString UWoRRootLayout::GetRootLayoutString() const

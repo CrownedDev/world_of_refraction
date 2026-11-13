@@ -70,7 +70,7 @@ public:
 	/** Debug: each layer's widget count and active widget. */
 	FString GetRootLayoutString() const;
 
-	/** True while any layer shows a screen. */
+	/** True while the menu or the modal layer shows a screen (the game layer is the HUD's and doesn't count). */
 	bool HasActiveScreen() const;
 
 	/** B-439: runs Action once no layer shows a screen (now, if none does): a stack lets go of a closed screen
@@ -80,6 +80,7 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	virtual void NativeDestruct() override;
 
 	/** B-439: CommonUI keeps the last screen's Menu input config when every screen has closed, which blocks
 	 *  game input; when no layer shows a screen any more, input goes back to the game. */
