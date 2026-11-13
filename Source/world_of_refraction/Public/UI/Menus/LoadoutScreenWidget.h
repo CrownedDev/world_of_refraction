@@ -35,7 +35,7 @@ public:
 
 	// What the keys and the mouse do (the specs call these too).
 	void MoveSelection(int32 Delta);
-	void SelectRow(int32 Index);
+	void SelectRow(int32 Index, bool bScrollIntoView = true);
 	/** The next / previous character; wraps. */
 	void MoveMember(int32 Delta);
 	void PressBack() { HandleBackAction(); }
@@ -73,7 +73,7 @@ private:
 	/** The members and the shown member's page, read fresh from the model. */
 	void RefreshData();
 	/** The focused row's colour and the detail panel. */
-	void RefreshSelection();
+	void RefreshSelection(bool bScrollIntoView = true);
 	void FillRow(const FRowWidgets &Widgets, const FLoadoutScreenRow &Row, bool bHeading) const;
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
 	int32 FindMemberTabUnder(const FPointerEvent &MouseEvent) const;

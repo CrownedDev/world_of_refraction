@@ -199,11 +199,12 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 	FLoadoutScreenPage Page;
 	Page.Budget = LoadoutClassTable::Get(Class).Budget;
 
-	if (Mirror.IsEvolutionLoadout() && Mirror.PrimaryEvolution.Item)
+	// The seat counts whenever the slot is an evolution's, item or not, as the budget check charges it (NonAdapterCost).
+	if (Mirror.IsEvolutionLoadout())
 	{
 		FLoadoutScreenRow Seat;
 		Seat.Kind = ELoadoutScreenRowKind::EvolutionSeat;
-		Seat.Name = FText::FromString(Mirror.PrimaryEvolution.Item->ItemName);
+		Seat.Name = Mirror.PrimaryEvolution.Item ? FText::FromString(Mirror.PrimaryEvolution.Item->ItemName) : LOCTEXT("EvolutionMissing", "Evolution (missing)");
 		Seat.KindLine = LOCTEXT("KindEvolution", "Evolution");
 		Seat.Tier = WoRGameNames::GetTierLetter(Mirror.PrimaryEvolution.Tier);
 		Seat.Cost = LoadoutConstants::EVOLUTION_ALONE_SLOT_COST;

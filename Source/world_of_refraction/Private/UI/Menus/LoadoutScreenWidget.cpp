@@ -362,7 +362,7 @@ void ULoadoutScreenWidget::FillRow(const FRowWidgets &Widgets, const FLoadoutScr
 	Widgets.Cost->SetColorAndOpacity(FSlateColor(Row.bCountsToBudget ? TextColor : DimColor));
 }
 
-void ULoadoutScreenWidget::RefreshSelection()
+void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 {
 	using namespace LoadoutScreenStyle;
 
@@ -394,7 +394,7 @@ void ULoadoutScreenWidget::RefreshSelection()
 	}
 	DetailCostLine->SetText(Row.CostLine);
 	DetailNote->SetText(Row.Note);
-	if (RowList && RowWidgets.IsValidIndex(SelectedRow))
+	if (bScrollIntoView && RowList && RowWidgets.IsValidIndex(SelectedRow))
 	{
 		if (UWidget *RowRoot = RowWidgets[SelectedRow].Root.Get())
 		{
@@ -411,12 +411,12 @@ void ULoadoutScreenWidget::MoveSelection(int32 Delta)
 	}
 }
 
-void ULoadoutScreenWidget::SelectRow(int32 Index)
+void ULoadoutScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 {
 	if (Page.Rows.IsValidIndex(Index) && Index != SelectedRow)
 	{
 		SelectedRow = Index;
-		RefreshSelection();
+		RefreshSelection(bScrollIntoView);
 	}
 }
 
@@ -468,6 +468,11 @@ FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 
 int32 ULoadoutScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 {
+	// A row scrolled out of view keeps its geometry past the list's edge: only the list's own area counts.
+	if (!RowList || !RowList->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+	{
+		return INDEX_NONE;
+	}
 	for (int32 Index = 0; Index < RowWidgets.Num() && Index < Page.Rows.Num(); ++Index)
 	{
 		const UBorder *Frame = RowWidgets[Index].Frame.Get();
@@ -496,7 +501,7 @@ FReply ULoadoutScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, cons
 	// Only a moving mouse picks a row, so a resting cursor doesn't fight the keys.
 	if (!InMouseEvent.GetCursorDelta().IsZero())
 	{
-		SelectRow(FindRowUnder(InMouseEvent));
+		SelectRow(FindRowUnder(InMouseEvent), /*bScrollIntoView=*/false); // the list mustn't move under the cursor
 	}
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
