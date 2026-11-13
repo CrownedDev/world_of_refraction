@@ -28,6 +28,8 @@ namespace
 	const FName SOURCES_TEST_MEMORY_NAME(TEXT("Memory_SourcesSpec"));
 	constexpr int32 SOURCES_TEST_UPGRADE_LEVEL = 2;
 	constexpr int32 SOURCES_TEST_ONE_LEVEL = 1;
+	/** B-433: a spot well past the host's reach check (600 cm) from a pawn at the origin. */
+	const FVector SOURCES_TEST_FAR_SPOT(10000.0, 0.0, 0.0);
 
 	/** Tier steps above Base (clamped to S). */
 	EItemTier SourcesTestTierAbove(EItemTier Base, int32 Steps)
@@ -279,6 +281,27 @@ void FMemorySourcesSpec::Define()
 		}
 		Player->ServerReportFoundMemory(Memory, EMemorySource::MapSpot);
 		TestTrue(TEXT("A find at the spot is noted"), Player->HasMemoryId(Memory->GetMemoryId()));
+	});
+
+	It("refuses a client's map-spot find when its pawn is far from every spot (B-433)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		AMemorySpot *Spot = World ? World->SpawnActor<AMemorySpot>(SOURCES_TEST_FAR_SPOT, FRotator::ZeroRotator) : nullptr;
+		AWoRPlayerState *Player = World ? World->SpawnActor<AWoRPlayerState>() : nullptr;
+		APawn *Pawn = World ? World->SpawnActor<APawn>(FVector::ZeroVector, FRotator::ZeroRotator) : nullptr;
+		if (!TestTrue(TEXT("Spot, player and pawn"), Spot && Player && Pawn))
+		{
+			return;
+		}
+		Spot->Memory = Memory;
+		Pawn->SetPlayerState(Player);
+		if (!TestTrue(TEXT("The pawn is the player's, and the spot is far from it"),
+					  Player->GetPawn() == Pawn && FVector::Dist(Pawn->GetActorLocation(), Spot->GetActorLocation()) >= SOURCES_TEST_FAR_SPOT.X))
+		{
+			return;
+		}
+		Player->ServerReportFoundMemory(Memory, EMemorySource::MapSpot);
+		TestFalse(TEXT("A find with the pawn out of reach is refused"), Player->HasMemoryId(Memory->GetMemoryId()));
 	});
 
 	It("is for a character it lists above None, or for everyone when it lists no one (B-235d)", [this]()
