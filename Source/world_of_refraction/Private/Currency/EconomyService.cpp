@@ -1196,7 +1196,9 @@ bool UEconomyService::PurchaseFor(AActor *Payer, FName ForKey, const TArray<FMer
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s stays with the payer: %s"), *ID.ToString(), *Refusal.ToString());
+            // B-432: the payer's room wasn't checked, so the payer may now be over its armoury limit until it gives or dismantles.
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseFor: %s stays with the payer (who may now be over its armoury limit): %s"),
+                   *ID.ToString(), *Refusal.ToString());
         }
     }
     // Crystals and stones the purchase put in the payer's pouch move to the receiver's, as many as fit.
