@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-437](B-437.md) | `feature/B-437-remove-ability-stone` (in dev, built 2026-11-14, save v38) | The Ability Stone is gone (D-175): no stone adds ability slots (tier plus crystal, 12 at most), old saves are wiped, none for sale; the merchants' empty stock line waits for the editor step (B-437b) | Pending |
 | [B-435](B-435.md) | `feature/B-435-same-element-stacking` (in dev, built 2026-11-14) | Same-element infusion stacking (D-174): every same-element source joins an infused ability or attack, each pays its own cost, buildup +25% per extra source up to +50%; spells don't stack (Q-435); a seated evolution now pays its level-2 HP | Pending |
 | [B-428](B-428.md) | `fix/B-428-handover-rekey` (in dev, built 2026-11-14) | 3-player: after a host hand-over, opened chests stay with the player who opened them (no duplicate loot, the new host not blocked); a leaver's dropped Prisms are split among the players still there (Q-428) | Pending |
 | [B-433](B-433.md) | `fix/B-433-memory-report-reach` (in dev, built 2026-11-14) | 2-player: a guest's memory spot and fragment finds still unlock (the host now checks the guest's character is within 600 cm of a spot or fragment) | Pending |

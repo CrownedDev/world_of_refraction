@@ -75,15 +75,11 @@ namespace ItemIdentity
             return EItemEffectType::Cleanse;
         case ECrystalType::Quartz:
             return EItemEffectType::StatusClear;
-        case ECrystalType::AbilityStone:
-            // Attach-only — no consumable effect, so UseItem dispatch finds no
-            // case and falls to its "not a usable consumable" default arm.
-            return EItemEffectType::None;
         case ECrystalType::DurabilityStone:
             // Attach-only — durability is a fusion-attachment property, not a transient
-            // combat buff, so there is no meaningful consumable form. Like AbilityStone,
-            // returns None: UseItem dispatch finds no case and falls to its "not a usable
-            // consumable" default arm. No Execute…Effect handler, no new EItemEffectType.
+            // combat buff, so there is no meaningful consumable form. Returns None: UseItem
+            // dispatch finds no case and falls to its "not a usable consumable" default arm.
+            // No Execute…Effect handler, no new EItemEffectType.
             return EItemEffectType::None;
         case ECrystalType::HealingStone:
             // Consume-only instant heal (any target) — routes to ExecuteHealingStoneEffect.
@@ -164,8 +160,6 @@ namespace ItemIdentity
             return TEXT("Quartz");
         case ECrystalType::DamageStone:
             return TEXT("DamageStone");
-        case ECrystalType::AbilityStone:
-            return TEXT("AbilityStone");
         case ECrystalType::DefenseStone:
             return TEXT("DefenseStone");
         case ECrystalType::CritStone:

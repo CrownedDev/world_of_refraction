@@ -261,7 +261,7 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
     case EAttachedItemKind::AugmentStone:
         Result.Kind = EAttachedItemKind::AugmentStone;
         // Identity carrier is the Crystal slot; read the authored sub-type
-        // (DamageStone or AbilityStone) + tier, mirroring the Crystal case. No
+        // (DamageStone, StatStone, ...) + tier, mirroring the Crystal case. No
         // durability — a augment stone never wears, so seed 0 (do NOT call
         // GetMaxDurability, which is tier-based and nonzero).
         Result.Crystal.Id = FCrystalId(Source.CrystalType, Source.CrystalTier);

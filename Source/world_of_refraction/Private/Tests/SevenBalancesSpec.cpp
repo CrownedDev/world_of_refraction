@@ -1,7 +1,7 @@
 // SevenBalancesSpec.cpp
 // B-333 (D-125): seven balances — Gold, Prisms, Diamond, Gear / Skill / Elemental / Pillar Essence.
-// Elemental pays for anything with an element, Pillar for stat stones, Skill for spells, abilities and
-// ability stones; a spell costs Skill + Elemental, a non-elemental ability Skill only; gear levels on Gear.
+// Elemental pays for anything with an element, Pillar for stones, Skill for spells and abilities
+// (B-437, D-175: no ability stone); a spell costs Skill + Elemental, a non-elemental ability Skill only; gear levels on Gear.
 // Q-333: a crystal's buy price adds its essence at tier; a None spell is Skill only; the upgrade co-cost
 // is half Elemental on items with an element. The save version bump is pinned in SaveSpec.
 
@@ -128,16 +128,14 @@ void FSevenBalancesSpec::Define()
 		TestEqual(TEXT("No Pillar"), Cost.PillarEssence, 0);
 	});
 
-	It("prices a stat stone in Pillar essence, and an ability stone in Skill", [this]()
+	It("prices a stone in Pillar essence, never Skill", [this]()
 	{
 		if (!Economy) return;
 		const FPurchaseCost Stone = CostOfCrystal(SEVEN_BALANCES_STAT_STONE);
 		TestEqual(TEXT("Stat stone: Pillar"), Stone.PillarEssence, SEVEN_BALANCES_ESSENCE_D);
 		TestEqual(TEXT("Stat stone: no Elemental"), Stone.ElementalEssence, 0);
 		TestEqual(TEXT("Stat stone: Prisms at tier"), Stone.Prisms, EconomyYield::GetPrismsBaseForTier(SEVEN_BALANCES_TIER));
-		const FPurchaseCost AbilityStone = CostOfCrystal(ECrystalType::AbilityStone);
-		TestEqual(TEXT("Ability stone: Skill"), AbilityStone.SkillEssence, SEVEN_BALANCES_ESSENCE_D);
-		TestEqual(TEXT("Ability stone: no Pillar"), AbilityStone.PillarEssence, 0);
+		TestEqual(TEXT("Stat stone: no Skill"), Stone.SkillEssence, 0);
 	});
 
 	It("prices elemental items in Elemental essence: a gem, Quartz, an evolution", [this]()

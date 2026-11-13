@@ -334,21 +334,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         break;
 
     case EPieMenuCategory::ResonateWeapon:
-        if (CurrentCapabilities.bHasAugmentStoneAbilities)
-        {
-            // Augment stone: list augment-stone abilities as Ability buttons under the
-            // same Resonate Weapon branch. Leaf buttons carry EPieMenuCategory::Ability
-            // so they exit via the ability action path — no spell source. ActiveSubmenuSource
-            // is deliberately left unset (the ability path never reads it).
-            CurrentDepth = ECombatMenuDepth::Submenu;
-            ActiveSubmenuType = EPieMenuCategory::ResonateWeapon;
-            OnCommandMenuReady.Broadcast(
-                BuildAbilityButtonsFrom(CurrentCapabilities.AugmentStoneAbilities));
-        }
-        else
-        {
-            OpenSpellSubmenu(EPieMenuCategory::ResonateWeapon);
-        }
+        OpenSpellSubmenu(EPieMenuCategory::ResonateWeapon);
         break;
 
     case EPieMenuCategory::Refractions:
@@ -661,12 +647,8 @@ void UCombatCommandMenuSubsystem::RebroadcastCurrentView()
             OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
             break;
         case EPieMenuCategory::ResonateWeapon:
-            if (CurrentCapabilities.bHasAugmentStoneAbilities)
-                OnCommandMenuReady.Broadcast(
-                    BuildAbilityButtonsFrom(CurrentCapabilities.AugmentStoneAbilities));
-            else
-                OnCommandMenuReady.Broadcast(
-                    BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(EPieMenuCategory::ResonateWeapon)));
+            OnCommandMenuReady.Broadcast(
+                BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(EPieMenuCategory::ResonateWeapon)));
             break;
 
         case EPieMenuCategory::Refractions:
@@ -748,7 +730,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateAttackButton());
     if (CurrentCapabilities.bCanUseAbilities)
         Buttons.Add(CreateAbilitiesButton());
-    if (CurrentCapabilities.bHasWeaponCrystal || CurrentCapabilities.bHasAugmentStoneAbilities)
+    if (CurrentCapabilities.bHasWeaponCrystal)
         Buttons.Add(CreateResonateWeaponButton());
     if (CurrentCapabilities.bHasRefractions)
         Buttons.Add(CreateRefractionsButton());
@@ -806,19 +788,9 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateWeaponButton() con
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("ResonateWeapon");
     Button.DisplayName = FText::FromString(TEXT("Resonate (W)"));
-    if (CurrentCapabilities.bHasAugmentStoneAbilities && !CurrentCapabilities.bHasWeaponCrystal)
-    {
-        // Augment stone (ability mode): count is abilities, not spells. A augment stone has
-        // no spell-element color, so leave the default (neutral) tint.
-        Button.Description = FText::FromString(
-            FString::Printf(TEXT("%d extra abilities"), CurrentCapabilities.AugmentStoneAbilities.Num()));
-    }
-    else
-    {
-        Button.Description = FText::FromString(
-            FString::Printf(TEXT("%d spells"), CurrentCapabilities.WeaponCrystalSpells.Num()));
-        Button.ButtonTint = CurrentCapabilities.WeaponCrystalColor;
-    }
+    Button.Description = FText::FromString(
+        FString::Printf(TEXT("%d spells"), CurrentCapabilities.WeaponCrystalSpells.Num()));
+    Button.ButtonTint = CurrentCapabilities.WeaponCrystalColor;
     Button.Category = EPieMenuCategory::ResonateWeapon;
     Button.bEnabled = true;
     return Button;

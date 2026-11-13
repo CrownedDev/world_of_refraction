@@ -27,12 +27,10 @@ enum class ECrystalType : uint8
     Iolite UMETA(DisplayName = "Iolite (Reality - Cleanse)"),
     Quartz UMETA(DisplayName = "Quartz (None - Status Clear)"),
     DamageStone UMETA(DisplayName = "Damage Stone"),
-    // Appended after DamageStone; augment-stone sub-type that grants ability
-    // slots. Attach-only (never a consumable). Do NOT reorder/insert above —
-    // value is the serialized .uasset/SaveGame identity.
-    AbilityStone UMETA(DisplayName = "Ability Stone"),
-    // Appended after AbilityStone; augment-stone sub-type that buffs Defense.
-    // Same append-only serialized-identity rule — do NOT reorder/insert above.
+    // B-437 (D-175): the Ability Stone sat here and is removed, so every value below moved down one; the save
+    // version rose with it (Q-437: older saves wiped) and assets store the name, not the number.
+    // Appended after DamageStone; augment-stone sub-type that buffs Defense. Append-only: do NOT reorder or
+    // insert above — the value is the serialized save identity.
     DefenseStone UMETA(DisplayName = "Defense Stone"),
     // Appended after DefenseStone; stat-stone sub-types (Crit, TurnSpeed, Status,
     // Efficiency). Same append-only serialized-identity rule — do NOT reorder/insert above.
@@ -86,7 +84,8 @@ enum class ECrystalType : uint8
     // B-353 (D-142): the one stat stone; FCrystalId::StoneStat says which sub-stat it amplifies. Appended (append-only).
     // RETIRED (B-353, D-142): the single-stat kinds DefenseStone, CritStone, TurnSpeedStone, StatusStone,
     // EfficiencyStone, SpellDamageStone, ResistanceStone, SpellSpeedStone, ActionSpeedStone, LuckStone and ReflexStone.
-    // Their values stay (saves and assets store them); StatStone::Normalize maps them to StatStone on load.
-    // Damage, Ability and Healing stones stay, and so do the pool stones (Max HP / Max EP, no sub-stat; Q-353).
+    // Their names stay (assets store the name; a save stores the number, and B-437's shift came with a save wipe);
+    // StatStone::Normalize maps them to StatStone on load.
+    // Damage and Healing stones stay, and so do the pool stones (Max HP / Max EP, no sub-stat; Q-353).
     StatStone UMETA(DisplayName = "Stat Stone")
 };

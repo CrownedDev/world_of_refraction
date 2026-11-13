@@ -1571,9 +1571,8 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             FWeaponLoadoutEntry &Weapon = Finding.SlotIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON
                 ? Loadout.SecondaryWeapon
                 : Loadout.PrimaryWeapon;
-            const bool bAugment = Finding.SubIndex == LoadoutAbilityOverflowIndex::AUGMENT_STONE_ABILITIES;
-            TArray<UAbilityData *> &Abilities = bAugment ? Weapon.AssignedAugmentStoneAbilities : Weapon.AssignedAbilities;
-            const int32 Cap = bAugment ? LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES : LoadoutConstants::MAX_WEAPON_ABILITIES;
+            TArray<UAbilityData *> &Abilities = Weapon.AssignedAbilities;
+            const int32 Cap = LoadoutConstants::MAX_WEAPON_ABILITIES;
             Abilities.Remove(nullptr);
             TArray<FString> Removed;
             for (int32 i = Cap; i < Abilities.Num(); ++i)

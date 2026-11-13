@@ -34,14 +34,14 @@ namespace CrystalTypeHelpers
         return ESpellElement::None; // a stone, or an unknown crystal type
     }
 
-    /** True for augment-stone sub-types (DamageStone, AbilityStone, DefenseStone,
+    /** True for augment-stone sub-types (DamageStone, DefenseStone,
      *  CritStone, TurnSpeedStone, StatusStone, EfficiencyStone) — the attach-only
-     *  stones that grant raw damage / ability slots / a stat. Single source of truth
+     *  stones that grant raw damage / a stat. Single source of truth
      *  for the gem/stone split; the editor dropdown filter, IsGemType, and the
      *  IsDataValid backstop all key off this. */
     inline bool IsAugmentStoneType(ECrystalType Type)
     {
-        return Type == ECrystalType::DamageStone || Type == ECrystalType::AbilityStone ||
+        return Type == ECrystalType::DamageStone ||
                Type == ECrystalType::DefenseStone || Type == ECrystalType::CritStone ||
                Type == ECrystalType::TurnSpeedStone || Type == ECrystalType::StatusStone ||
                Type == ECrystalType::EfficiencyStone || Type == ECrystalType::MaxHPStone ||
@@ -60,11 +60,10 @@ namespace CrystalTypeHelpers
         return Type != ECrystalType::None && !IsAugmentStoneType(Type);
     }
 
-    /** True for stat-granting augment stones — every augment stone EXCEPT AbilityStone
-     *  (which grants ability slots, not a stat). A valid fusion needs at least one. */
+    /** Every augment stone, since the Ability Stone retired (B-437, D-175). */
     inline bool IsStatStone(ECrystalType Type)
     {
-        return IsAugmentStoneType(Type) && Type != ECrystalType::AbilityStone;
+        return IsAugmentStoneType(Type);
     }
 
     // OBSOLETE (B-352, D-141; delete in the D-124 sweep): the fusion-pair predicates below — keyed on the two half
@@ -85,13 +84,13 @@ namespace CrystalTypeHelpers
     }
 
     /** OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusions retire, nothing calls this in play.
-     *  The old rule: a fusion pair was valid iff each half was a stat-stone, AbilityStone, or gem (never
-     *  None — and evolution is unrepresentable as a half) AND at least one half was a stat-stone, which
-     *  rejected every banned pair (crystal+crystal, AbilityStone+AbilityStone, AbilityStone+crystal). */
+     *  The old rule: a fusion pair was valid iff each half was a stone or gem (never
+     *  None — and evolution is unrepresentable as a half) AND at least one half was a stone, which
+     *  rejected crystal+crystal. */
     inline bool IsValidFusionPair(ECrystalType HalfAType, ECrystalType HalfBType)
     {
         auto IsAllowedHalf = [](ECrystalType T)
-        { return IsStatStone(T) || T == ECrystalType::AbilityStone || IsGemType(T); };
+        { return IsStatStone(T) || IsGemType(T); };
         return IsAllowedHalf(HalfAType) && IsAllowedHalf(HalfBType) &&
                (IsStatStone(HalfAType) || IsStatStone(HalfBType));
     }

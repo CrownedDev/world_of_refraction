@@ -41,8 +41,7 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
 
 int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
 {
-    // The stone socket, else an authored stone still sitting in the element socket (pre-B-351 shape).
-    const int32 TierAndStoneSlots = SkillSlotList::SlotCount(WeaponEntry.Tier, WeaponEntry.GetStoneAttachment());
+    const int32 TierSlots = CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier); // D-175: a stone adds none
     // B-098 (Q-098, Crown 2026-11-12): a weapon's spell slots became ability slots. The attached gem / evolution adds
     // what were its spell slots while it is attached, broken or not (no ceiling: any other attachment adds none).
     // TODO: B-410 — these slots take only None, Generic or the crystal's element once abilities carry an element.
@@ -50,7 +49,7 @@ int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
     const int32 ConvertedSpellSlots = WeaponSpellRules::WeaponsGiveSpells()
                                           ? 0
                                           : CrystalEffectTable::ResolveSpellSlotCap(WeaponEntry.GetAttachedItem(), NO_SPELL_SOURCE_SLOTS);
-    return TierAndStoneSlots + ConvertedSpellSlots;
+    return TierSlots + ConvertedSpellSlots;
 }
 
 FString FWeaponLoadoutEntry::GetSkillSlotString() const
@@ -302,73 +301,6 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetCustomizableAbilities() const
     return AssignedAbilities;
 }
 
-TArray<UAbilityData *> FWeaponLoadoutEntry::GetAugmentStoneAbilities() const
-{
-    // Augment-stone abilities exist only while a augment stone is attached — gate the
-    // way GetAllSpells gates spells on a spell-capable attachment.
-    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetStoneAttachment(); // B-351: the stone socket
-    // A direct augment stone, OR a fusion carrying an AbilityStone half, can grant
-    // augment-stone abilities. The slot cap (below) resolves to 0 when there is no
-    // AbilityStone identity, so a non-AbilityStone attachment still yields nothing.
-    if (!Attachment.IsAugmentStone() && !Attachment.IsFusion())
-    {
-        return TArray<UAbilityData *>();
-    }
-
-    // Base layer: the weapon asset's DefaultAbilities — same role PresetAbilities
-    // plays in GetAllAbilities (read live from the asset, not a seeded array).
-    const TArray<UAbilityData *> Defaults = WeaponEntry.Weapon
-                                                ? WeaponEntry.Weapon->DefaultAbilities
-                                                : TArray<UAbilityData *>();
-
-    // Locked attachments ignore overrides entirely — defaults only. Mirrors
-    // GetAllAbilities's bAbilitiesLocked short-circuit, but keyed on the generic
-    // bLockSkills (the lock for whatever skills the attachment provides).
-    if (WeaponEntry.Weapon && WeaponEntry.Weapon->bLockSkills)
-    {
-        return Defaults;
-    }
-
-    // Sequential override merge: AssignedAugmentStoneAbilities replace default slots
-    // in order; non-null entries beyond the default count are appended.
-    TArray<UAbilityData *> Result;
-    int32 OverrideIndex = 0;
-
-    for (int32 i = 0; i < Defaults.Num(); ++i)
-    {
-        if (OverrideIndex < AssignedAugmentStoneAbilities.Num() && AssignedAugmentStoneAbilities[OverrideIndex])
-        {
-            Result.Add(AssignedAugmentStoneAbilities[OverrideIndex]);
-            ++OverrideIndex;
-        }
-        else
-        {
-            Result.Add(Defaults[i]);
-        }
-    }
-
-    while (OverrideIndex < AssignedAugmentStoneAbilities.Num())
-    {
-        if (AssignedAugmentStoneAbilities[OverrideIndex])
-        {
-            Result.Add(AssignedAugmentStoneAbilities[OverrideIndex]);
-        }
-        ++OverrideIndex;
-    }
-
-    // Per-tier slot cap from the attachment's ABILITY identity — its own Id for a
-    // direct augment stone, or the AbilityStone half for a fusion. DamageStone /
-    // no-AbilityStone-half -> 0, so only an AbilityStone grants slots.
-    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(
-        CrystalEffectTable::AbilityStoneSlotIdentity(Attachment));
-    if (Result.Num() > SlotLimit)
-    {
-        Result.SetNum(SlotLimit);
-    }
-
-    return Result;
-}
-
 bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbilities) const
 {
     if (!WeaponEntry.Weapon)
@@ -419,69 +351,6 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
     return true;
 }
 
-bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection &OwnedAbilities) const
-{
-    if (!WeaponEntry.Weapon)
-    {
-        return true; // No weapon = nothing to validate
-    }
-
-    // Augment-stone abilities are orphaned without an attached augment stone or a
-    // fusion (which may carry an AbilityStone half) — valid only when none are
-    // assigned. The slot cap below rejects any beyond the AbilityStone identity's
-    // tier (0 when there is no AbilityStone half).
-    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetStoneAttachment(); // B-351: the stone socket
-    if (!Attachment.IsAugmentStone() && !Attachment.IsFusion())
-    {
-        return AssignedAugmentStoneAbilities.Num() == 0;
-    }
-
-    EWeaponType WeaponType = WeaponEntry.Weapon->WeaponType;
-
-    for (UAbilityData *Ability : AssignedAugmentStoneAbilities)
-    {
-        if (!Ability)
-        {
-            continue; // Empty slots are OK
-        }
-
-        // Belt (step 6a): a basic attack (bIsAttack) can't be slotted as an ability.
-        if (Ability->IsAttack())
-        {
-            return false;
-        }
-
-        // Check ownership
-        if (!OwnedAbilities.HasAbility(Ability))
-        {
-            return false;
-        }
-
-        // Check weapon type match
-        if (Ability->RequiredWeaponType != WeaponType)
-        {
-            return false;
-        }
-
-        // Wield-mode gate: abilities may require a specific off-hand configuration.
-        if (!Ability->AllowsWieldMode(WeaponEntry.Weapon->WieldMode))
-        {
-            return false;
-        }
-    }
-
-    // Check count — per-tier slot cap from the attachment's ABILITY identity (own Id
-    // for a direct augment stone, the AbilityStone half for a fusion; 0 otherwise).
-    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(
-        CrystalEffectTable::AbilityStoneSlotIdentity(Attachment));
-    if (AssignedAugmentStoneAbilities.Num() > SlotLimit)
-    {
-        return false;
-    }
-
-    return true;
-}
-
 bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) const
 {
     // A augment stone grants no spells; its Generic element must not be read as a
@@ -520,5 +389,4 @@ void FWeaponLoadoutEntry::InitializeFromWeapon()
     // AssignedAbilities is a pure override list — it starts empty.
     // Preset abilities are merged in at query time by GetAllAbilities().
     AssignedAbilities.Empty();
-    AssignedAugmentStoneAbilities.Empty();
 }

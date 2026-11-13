@@ -38,7 +38,7 @@ ring assets. Key fields and members:
   (`CrystalType` + `CrystalTier`); `Evolution` carries a `UEvolutionItemData*`
   pointer; `None` is the empty default. Determines the equipment's element via
   `GetCrystalElement()` (a `AugmentStone` is non-elemental — see note below).
-  The `AugmentStone` family (`DamageStone` / `AbilityStone`) is documented in
+  The `AugmentStone` family (`DamageStone`, `StatStone`, ...) is documented in
   `AugmentStoneSystem.md`.
   - `DefaultSpells` (`TArray<USpellData*>`): default spells copied to the
     inventory entry when obtained; lost if the crystal is removed. Hidden in the
@@ -312,7 +312,7 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
    that `DefaultSpells.Num()` does not exceed `GetMaxSpells()`, and the
    **attachment Kind/type backstop**: `Kind==Crystal` requires a gem
    `CrystalType` (Garnet..Quartz) and `Kind==AugmentStone` requires a stone
-   `CrystalType` (DamageStone / AbilityStone) — either mismatch is a hard error
+   `CrystalType` (DamageStone, StatStone, ...) — either mismatch is a hard error
    (`CrystalTypeHelpers::IsGemType` / `IsAugmentStoneType`). Subclasses add their
    own validation (e.g. `URingData` **hard-rejects any `AugmentStone` on a ring** —
    weapon stones are weapon-only; `UAbilityData`, `USpellData`, and `URingData` each
@@ -432,3 +432,4 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-11-03 | B-224: the pillar soft cap is the `PillarCurve` tuning ladder (`WoRWeaponPower::GetPillarCurve`, C++ fallback `CombatBaseline::CodePillarCurve`); `GetReferencePower` / `GetReferenceRequirement` give a tier's reference Power (F 40 .. S 192) and main-pillar requirement (F0 E1 D2 C3 B5 A6 S7) as authoring guides, shown by `wor.Weapon.Print`; `WEAPON_REQ_FACTOR_MIN` 0.25 -> 0.5 (`WeaponReqFactorMin` in data): at most half the weapon part is lost under a requirement. Unbuilt (cloud). | feature/B-224-combat-numbers |
 | 2026-11-03 | B-326 (D-119, Q-326): an unmet weapon requirement is one flat x0.6 on the weapon part with no pillar scaling (`REQUIREMENT_UNMET_DAMAGE_FACTOR`, `GetWeaponPart`); abilities and spells under their own requirement take the same on the skill part (`UActionExecutor::GetSkillRequirementFactor`). The ladder floor is obsolete. Unbuilt (cloud). | chore/B-326-flat-requirement-penalty |
 | 2026-11-04 | B-351 (D-145): one skill-slot list per weapon (`FWeaponInventoryEntry::SkillPicks`, `bSkillSlotsActive`; `FWeaponLoadoutEntry::GetSkillSlots` / `ReplaceSkill` / `RestoreSkill` / `GetSkillSlotAbilities`): built-ins pre-fill, a pick replaces one and is restorable, the list goes live per weapon on its first edit; the old `AssignedAbilities` / `AssignedAugmentStoneAbilities` merge is OBSOLETE (deleted in B-351b). Saved on the gear instance (v13). | feature/B-351-two-sockets |
+| 2026-11-14 | B-437 (D-175): a weapon's stone-ability list is deleted and no stone adds ability slots (tier plus crystal, 12 at most). `UEquipmentDataBase::DefaultAbilities` ("Extra Abilities", shown with a stone attached) has no reader left: OBSOLETE, kept until the editor step clears authored values. | feature/B-437-remove-ability-stone |

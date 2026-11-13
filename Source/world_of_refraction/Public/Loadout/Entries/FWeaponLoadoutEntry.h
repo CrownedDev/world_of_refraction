@@ -39,13 +39,6 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
     TArray<UAbilityData *> AssignedAbilities;
 
-    /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): an Ability Stone adds slots to the one list instead.
-     *  Assigned augment-stone abilities (max 6). Separate channel from
-     *  AssignedAbilities — surfaced under the Resonate Weapon menu, valid only
-     *  while a augment stone is attached. Does not touch the main Abilities grid. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
-    TArray<UAbilityData *> AssignedAugmentStoneAbilities;
-
     /** Assigned spells (max 6, only valid if weapon has crystal).
      *  Sequential override list — see GetAllSpells(). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
@@ -83,7 +76,8 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
 
     // ==================== ONE SKILL-SLOT LIST (B-351, D-145) ====================
 
-    /** Slots on this weapon: its tier's count (F 1 .. S 6) plus an Ability Stone's slots. */
+    /** Slots on this weapon: its tier's count (F 1 .. S 6) plus the attached crystal's (B-098); a stone adds none
+     *  (D-175), so 12 at most. */
     int32 GetSkillSlotCount() const;
 
     /** The list slot by slot (null = an empty slot): the pick, else the built-in at that position. */
@@ -111,11 +105,6 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
 
     /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): the position merge. Get all abilities (locked + customizable) */
     TArray<UAbilityData *> GetAllAbilities() const;
-
-    /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): the separate stone list.
-     *  Get assigned augment-stone abilities (Resonate Weapon menu). Empty unless a
-     *  augment stone is attached. No preset merge — augment stones are asset-less. */
-    TArray<UAbilityData *> GetAugmentStoneAbilities() const;
 
     /** Get only the locked/preset abilities */
     TArray<UAbilityData *> GetLockedAbilities() const;
@@ -172,10 +161,6 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Validate abilities match weapon type and are owned */
     bool ValidateAbilities(const struct FAbilityCollection &OwnedAbilities) const;
 
-    /** Validate augment-stone abilities match weapon type and are owned. With no
-     *  augment stone attached, valid only when none are assigned. */
-    bool ValidateAugmentStoneAbilities(const struct FAbilityCollection &OwnedAbilities) const;
-
     /** Validate spells match crystal element and are owned */
     bool ValidateSpells(const struct FSpellCollection &OwnedSpells) const;
 
@@ -195,7 +180,6 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     {
         WeaponEntry = FWeaponInventoryEntry();
         AssignedAbilities.Empty();
-        AssignedAugmentStoneAbilities.Empty();
         AssignedSpells.Empty();
         OverrideAttack = nullptr;
         bUseWeaponParryAnimation = true;

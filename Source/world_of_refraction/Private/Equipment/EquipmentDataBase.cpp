@@ -402,7 +402,7 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
         && !CrystalTypeHelpers::IsAugmentStoneType(AttachedItem.CrystalType))
     {
         Context.AddError(FText::FromString(TEXT(
-            "Augment stone attachment requires a stone CrystalType (DamageStone / AbilityStone) — a gem is not valid here")));
+            "Augment stone attachment requires a stone CrystalType (DamageStone, StatStone, ...) — a gem is not valid here")));
         Result = EDataValidationResult::Invalid;
     }
 
@@ -420,7 +420,7 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
         {
             Context.AddError(FText::FromString(TEXT(
                 "Invalid fusion halves — a fusion needs at least one stat-stone and at most one crystal "
-                "(no crystal+crystal, no AbilityStone+AbilityStone, no AbilityStone+crystal)")));
+                "(no crystal+crystal)")));
             Result = EDataValidationResult::Invalid;
         }
         // Half B kind/type consistency backstop (mirrors the CrystalType/Kind backstop

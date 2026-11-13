@@ -57,7 +57,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                ActiveWeapon->WeaponEntry.HasCrystal());
         Out.bCanAttack = true;
         Out.ActiveWeaponName = ActiveWeapon->WeaponEntry.Weapon->Name;
-        // B-351 (D-145): the weapon's one skill-slot list (built-ins, picks and Ability Stone slots), or the pre-D-145
+        // B-351 (D-145): the weapon's one skill-slot list (built-ins and picks), or the pre-D-145
         // lists until the player first edits it.
         Out.WeaponAbilities = ActiveWeapon->GetSkillSlotAbilities();
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
@@ -74,13 +74,6 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             Out.WeaponCrystalColor = GetElementColorFn(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
         }
-
-        // Augment-stone abilities — parallel to the crystal-spell branch above and
-        // mutually exclusive with it (one attachment slot). GetAugmentStoneAbilities
-        // returns empty unless a augment stone is attached, so no extra guard.
-        Out.AugmentStoneAbilities = ActiveWeapon->WeaponEntry.bSkillSlotsActive ? TArray<UAbilityData *>()
-                                                                                : ActiveWeapon->GetAugmentStoneAbilities();
-        Out.bHasAugmentStoneAbilities = Out.AugmentStoneAbilities.Num() > 0;
     }
 
     // ==================== REFRACTIONS (Caster innate) ====================
@@ -235,13 +228,13 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Loadout.PrimaryWeapon.IsValid() &&
         Loadout.SecondaryWeapon.IsValid();
 
-    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d AugmentStoneAbilities=%d BrokenSourceSpells=%d"),
+    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d BrokenSourceSpells=%d"),
            *UEnum::GetValueAsString(CharClass),
            Out.bCanAttack, Out.bCanUseAbilities, Out.bHasWeaponCrystal,
            Out.bHasRefractions, Out.bHasBreakthrough,
            Out.bHasPrimaryRing, Out.bHasRingLoadout,
            Out.bCanSwitchWeapon, Out.bCanSwitchRing,
-           Out.bHasAugmentStoneAbilities, Out.BlockedSpellReasons.Num());
+           Out.BlockedSpellReasons.Num());
 
     return Out;
 }

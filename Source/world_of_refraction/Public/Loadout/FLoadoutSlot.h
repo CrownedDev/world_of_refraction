@@ -41,12 +41,9 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	FGearInstance Gear;
 
-	/** Weapon only: the slot's chosen abilities and augment-stone abilities. */
+	/** Weapon only: the slot's chosen abilities. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	TArray<TObjectPtr<UAbilityData>> AssignedAbilities;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Slot")
-	TArray<TObjectPtr<UAbilityData>> AssignedAugmentStoneAbilities;
 
 	/** Weapon only: today's loadout-level spell overrides (weapon spells go with B-098). */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
@@ -69,7 +66,6 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 		Slot.Gear = FGearInstance::FromWeaponEntry(Entry.WeaponEntry);
 		Slot.GearID = Slot.Gear.PersistentID;
 		Slot.AssignedAbilities.Append(Entry.AssignedAbilities);
-		Slot.AssignedAugmentStoneAbilities.Append(Entry.AssignedAugmentStoneAbilities);
 		Slot.SpellOverrides.Append(Entry.AssignedSpells);
 		Slot.OverrideAttack = Entry.OverrideAttack;
 		return Slot;

@@ -87,7 +87,7 @@ price at 0 (Purchase itself rejects them).
 | Spell (any element) | base + `50 × Σ scaling-grade` surcharge | **B-333:** Skill @ tier + Elemental @ tier (Generic counts; a None spell Skill only, Q-333); no pillar | clamped 1 |
 | Ability | base | Skill @ tier (abilities carry no element) | clamped 1 |
 | Evolution | **2× base** (premium item class; multiplier lives in `BuildCartCost`, not the shared tier-base helper, so a future merge-cost reuse can't double it) | **B-333:** Elemental @ tier + ½ that again | clamped 1 |
-| Crystal / stone | base by `Crystal.Tier` × Count | **B-333 (Q-333):** its essence @ tier × Count — gem / Quartz Elemental, stat stone Pillar, ability stone Skill (`EconomyYield::GetCrystalEssence`) | honoured |
+| Crystal / stone | base by `Crystal.Tier` × Count | **B-333 (Q-333):** its essence @ tier × Count — gem / Quartz Elemental, stone Pillar (`EconomyYield::GetCrystalEssence`; the ability stone is removed, B-437) | honoured |
 
 **Attached-item surcharge** (anonymous-namespace `AttachmentPrisms`, keyed on
 `FAttachedItem::Kind`): crystal/stone → its tier base; evolution → **2×** the evolution's tier
@@ -99,10 +99,8 @@ fusion → **1.5×** the summed half-tier bases (rounded).
 **`GetPrismsBaseForTier(Tier) / 3 + 10`** (integer floor; E skill = 26), Prisms-only — bundled
 skills never charge essence. Gates: weapon `PresetAbilities` **always** (baked into the weapon);
 weapon/ring `DefaultSpells` only when a gem crystal is attached (`Kind == Crystal` — not
-stone/evolution/fusion); weapon `DefaultAbilities` only when `HasAbilityStoneAttachment`
-(augment stone, or a fusion carrying an AbilityStone half — deliberately **tighter** than the
-runtime `GetAugmentStoneAbilities` gate, which passes any fusion and lets the slot cap resolve
-to 0; pricing must not charge for abilities the attachment can't grant). `WeaponAttack` is
+stone/evolution/fusion); weapon `DefaultAbilities` are never priced (B-437, D-175: no stone
+grants abilities; before that, a weapon with any stone attached priced them). `WeaponAttack` is
 never priced — weapon identity, not added value. Drives the Themed-Ring price row
 (`Resources_Design.md` §5.1c): themed rings at E = 126 (1 spell) / 152 (2 spells).
 
@@ -143,7 +141,7 @@ All inline; named PIE-tunable constants in `EconomyYield::Constants`.
 | `GetMergeCostForTier(EItemTier)` | merge Prisms cost = `GetPrismsBaseForTier/2` |
 | `GetCrystalValue(EItemTier)` | merge F-unit value (F1 E2 D4 C8 B16 A32 **S96**) |
 | `RollQuality(float NormalizedLuck = 0)` | weighted drop quality (§11 curve F26…S4, Luck-tilted around C) |
-| `ResolveEssenceType(const FCrystalId&)` | gem→element, AbilityStone→Ability, stat-stone→pillar (via the fold) |
+| `ResolveEssenceType(const FCrystalId&)` | gem→element, stone→pillar (via the fold) |
 | `ElementToEssenceType(ESpellElement)` | element → `EEssenceType` (1:1 by name; Generic/None→Generic) |
 | `SubStatToPillarEssence(ESubStat)` | sub-stat → Mind/Body/Spirit essence (StatusMultiplier is Spirit) |
 | `ScalingGradeToItemTier` / `GetScalingGradeNumber(EScalingTier)` | spell scaling-grade → tier / 1..7 number |
@@ -229,3 +227,4 @@ and the two essence scalars `ElementalEssence` / `PillarEssence` (B-333, D-125; 
 | 2026-11-08 | B-187e (Q-187e changed by Crown): reviving a mini-boss is a unanimous vote of every player outside battle (`Trial/ReviveVote.h` rules; `AWoRGameState` runs a replicated `FReviveVote` with a timeout; `AWoRPlayerState::ServerReviveMiniBoss` / `ServerCastReviveVote`; rest-menu vote buttons and `wor.Trial.Vote` placeholder; `wor.Trial.ReviveVote` debug). Solo revives at once. B-187d (Q-187d changed): only the presser's characters rest (`WoRRestSpot::RestsMember`). | `feature/B-187e-client-rest-menu-cloud` |
 | 2026-11-12 | B-096 (Q-096): payout passives. `UEvolutionItemData::RunPayoutBonusPercent`; `RunRewards::SumPayoutBonusPercent` (worn, not broken) and `PayoutMultiplierForBonus` (adds up, `MAX_PAYOUT_MULTIPLIER` 2.0); `UTrialRunSubsystem::RefreshPayoutMultiplier` from `ACombatOrchestrator::FinishCombat` (win or loss) feeds B-073's multiplier. Spec `WoR.Trial.RunPayoutPassives`. Limitation: the multiplier is not saved (a resumed run reads x1.0 until its next fight). | `feature/B-096-payout-passives` (built 2026-11-12) |
 | 2026-11-14 | B-432: buying for another member skips the payer's weapon / ring room (`PurchaseImpl` pre-check, and `UInventoryComponent::bPassingGearThrough` in `CanAddWeapon` / `CanAddRing` while `PurchaseFor` passes the gear through); the receiver's room is still checked first. Written by the cloud; built and tested on the desktop 2026-11-14, merged into dev. | fix/B-432-buy-for-capacity |
+| 2026-11-14 | B-437 (D-175): no ability stone. `GetCrystalEssence` and the obsolete `ResolveEssenceType` lose its line (a stone pays Pillar); `HasAbilityStoneAttachment` is deleted, so a weapon's `DefaultAbilities` are never priced (a weapon with a stone attached used to price them). Spec: `WoR.Currency.SevenBalances` (a stone pays Pillar, no Skill). | feature/B-437-remove-ability-stone |

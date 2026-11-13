@@ -99,7 +99,6 @@ namespace LoadoutAbilityOverflowIndex
 	constexpr int32 PRIMARY_WEAPON = 0;
 	constexpr int32 SECONDARY_WEAPON = 1;
 	constexpr int32 ABILITIES = 0;
-	constexpr int32 AUGMENT_STONE_ABILITIES = 1;
 }
 
 /** What the rules can check for this loadout. An unset function means "not checked". */

@@ -375,7 +375,6 @@ FSavedLoadout FCombatLoadout::ToSavedLoadout(ECharacterClass CharacterClass) con
     Saved.PrimaryWeapon = PrimaryWeapon.WeaponEntry.Weapon;
     Saved.PrimaryWeaponInstance = PrimaryWeapon.WeaponEntry.PersistentID;
     Saved.PrimaryWeaponAbilities = PrimaryWeapon.AssignedAbilities;
-    Saved.PrimaryAugmentStoneAbilities = PrimaryWeapon.AssignedAugmentStoneAbilities;
     Saved.PrimaryRing = PrimaryRing.RingEntry.Ring;
     Saved.PrimaryRingInstance = PrimaryRing.RingEntry.PersistentID;
     Saved.PrimaryEvolution = PrimaryEvolution.Item;
@@ -385,7 +384,6 @@ FSavedLoadout FCombatLoadout::ToSavedLoadout(ECharacterClass CharacterClass) con
     Saved.SecondaryWeapon = SecondaryWeapon.WeaponEntry.Weapon;
     Saved.SecondaryWeaponInstance = SecondaryWeapon.WeaponEntry.PersistentID;
     Saved.SecondaryWeaponAbilities = SecondaryWeapon.AssignedAbilities;
-    Saved.SecondaryAugmentStoneAbilities = SecondaryWeapon.AssignedAugmentStoneAbilities;
     for (const FRingLoadoutEntry &Ring : RingLoadout)
     {
         FResonatorRingSlot &Slot = Saved.EquippedRings.AddDefaulted_GetRef();
@@ -456,7 +454,6 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 SavedLoadout.PrimaryWeapon, SavedLoadout.PrimaryWeaponInstance, TEXT("PrimaryWeapon"));
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = SavedLoadout.PrimaryWeaponAbilities;
-            Result.PrimaryWeapon.AssignedAugmentStoneAbilities = SavedLoadout.PrimaryAugmentStoneAbilities;
 
             FString CrystalDesc = TEXT("none");
             if (Result.PrimaryWeapon.WeaponEntry.HasCrystal())
@@ -567,7 +564,6 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 SavedLoadout.SecondaryWeapon, SavedLoadout.SecondaryWeaponInstance, TEXT("SecondaryWeapon"));
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = SavedLoadout.SecondaryWeaponAbilities;
-            Result.SecondaryWeapon.AssignedAugmentStoneAbilities = SavedLoadout.SecondaryAugmentStoneAbilities;
         }
     }
 

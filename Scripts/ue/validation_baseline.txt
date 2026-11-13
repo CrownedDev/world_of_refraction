@@ -4,6 +4,11 @@ Data/Characters/Data/DA_Test_Inventory: Loadout[0] 'loadout0': 2 of the item's o
 Data/Characters/Data/DA_Test_Inventory: Loadout[0] 'loadout0': Too many S-tier crystals equipped: 3 (max 1)
 Data/Characters/Data/Generic/Inventory/DA_Inventory_Generic: Loadout[0] 'loadout0': 2 of the item's own spells are over the holder's spell cap (1)
 Data/Characters/Data/Generic/Inventory/DA_Inventory_Generic: Loadout[0] 'loadout0': Too many S-tier crystals equipped: 3 (max 1)
+Data/Pool/Merchant/DA_Merchant_Blacksmith: Stock[28]: empty — set Asset or Crystal.
+Data/Pool/Merchant/DA_Merchant_CombatMaster: Stock[154]: empty — set Asset or Crystal.
+Data/Pool/Merchant/DA_Merchant_Evolutionist: Stock[37]: empty — set Asset or Crystal.
+Data/Pool/Merchant/DA_Merchant_Jewler: Stock[20]: empty — set Asset or Crystal.
+Data/Pool/Merchant/DA_Merchant_Refractor: Stock[25]: empty — set Asset or Crystal.
 Data/Skills/Weapons/DualAxe/Attack/DA_DualAxe_Attack: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
 Data/Skills/Weapons/SwordAndShield/Attack/Attack1/DA_SAS_Attack_F: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.
 Data/Skills/Weapons/SwordAndShield/Attack/Attack1/DA_SAS_Attack_S: PhysicalDamageType must be set (not None) for a basic attack or damage-dealing ability.

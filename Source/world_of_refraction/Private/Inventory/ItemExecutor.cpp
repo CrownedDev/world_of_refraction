@@ -53,8 +53,8 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] %s using %s on %s"),
 		   *User->GetName(), *ItemIdentity::GetDisplayName(Id), *Target->GetName());
 
-	// Execute based on effect type. AbilityStone maps to EItemEffectType::None
-	// (attach-only) — no case matches, so it falls to the default failure arm.
+	// Execute based on effect type. An attach-only stone maps to EItemEffectType::None
+	// — no case matches, so it falls to the default failure arm.
 	EItemEffectType EffectType = ItemIdentity::GetItemEffectType(Id);
 
 	// Standard stat-stone consumables (B-021): ally gets the row's Buff, enemy its Debuff.

@@ -56,7 +56,7 @@ point on equipment is a discriminated union, not a pointer:
   durability and a `FGuid` for evolution identity.
 
 The `AugmentStone` Kind is the **augment-stone family** — now the full stat-stone
-set (`DamageStone`, `AbilityStone`, `DefenseStone`, `CritStone`, `TurnSpeedStone`,
+set (`DamageStone`, `DefenseStone`, `CritStone`, `TurnSpeedStone`,
 `StatusStone`, `EfficiencyStone`, `MaxHPStone`, `MaxEPStone`, `SpellDamageStone`,
 `ResistanceStone`, `SpellSpeedStone`, `ActionSpeedStone`, `DurabilityStone`,
 `LuckStone`, `ReflexStone`) — a second attachment family sharing this slot and the
@@ -138,7 +138,7 @@ buff-vs-debuff (Amber, Opal) or cleanse-vs-strip (Iolite).
 
 `ECrystalType` is a **single unified enum** (`CrystalType.h`): `None` + the ten gem
 crystals below (`Garnet … Quartz`) + the **augment-stone family** (`DamageStone`,
-`AbilityStone`, `DefenseStone`, `CritStone`, `TurnSpeedStone`, `StatusStone`,
+`DefenseStone`, `CritStone`, `TurnSpeedStone`, `StatusStone`,
 `EfficiencyStone`, `MaxHPStone`, `MaxEPStone`, `SpellDamageStone`, `ResistanceStone`,
 `SpellSpeedStone`, `ActionSpeedStone`, `DurabilityStone`, `LuckStone`, `ReflexStone`)
 — ~26 named values. The stones share the enum and `FCrystalId` identity but are
@@ -166,8 +166,8 @@ ten gems.
 Cleanse, Gamble, StatusClear, Repair, None`. `ItemIdentity::GetItemEffectType()` maps each
 `CrystalType` to one of these. `StatusClear` (Quartz) replaced the removed `Transform` value
 — a redirect maps old `Transform` data to `StatusClear`. `DamageStone` maps to
-`BuffRawDamage`; **`AbilityStone` maps to `None`** (attach-only — `UseItem` finds no handler
-and rejects it as a non-usable consumable).
+`BuffRawDamage`; **`DurabilityStone` maps to `None`** (attach-only — `UseItem` finds no handler
+and rejects it as a non-usable consumable). The `AbilityStone` is removed (D-175, B-437).
 
 ### EItemTier
 
@@ -395,3 +395,4 @@ removed with the transform system.
 | 2026-11-04 | B-353b: GetBrokenDarknessEnergyPercent returns 0 for every stone kind (IsAugmentStoneType), tier energy for a gem; the kind list that missed Luck, Reflex and Healing is gone. | fix/B-353b-bd-stone-energy |
 | 2026-11-12 | B-239 (D-097, Q-239): item slot upgrades. `InventoryConstants::ITEM_SLOTS_MAX` 20; `UPoolSubsystem::AddItemSlot` (+1 slot in one character's pouch, saved with it); `Inventory/ItemSlotUpgrade` (price 200 + 100 per slot bought in hub Gold, hub only, `TryBuy`); placeholder `UItemSlotUpgradeWidget` (`wor.UI.ItemSlots`). Spec `WoR.Inventory.ItemSlotUpgrade`. | `feature/B-239-item-slot-upgrades` (built 2026-11-12; Crown: the Jeweler sells it) |
 | 2026-11-14 | B-429: `UActionExecutor::ValidateAction` refuses an item the member's pouch can't supply (`UsesPouchItems` + `CanUseCarriedItem`), so the orchestrator spends no action and notes nothing for it. Spec in `WoR.Pool.PouchItemUse`. Written by the cloud; built and tested on the desktop 2026-11-14, merged into dev. | fix/B-429-refused-item-validate |
+| 2026-11-14 | B-437 (D-175): `ECrystalType::AbilityStone` is deleted, with its `ItemIdentity` effect / name cases and its `CrystalDescription` text. The enum values after `DamageStone` move down one (save v38 wipes older saves; assets store the name; `DefaultEngine.ini` redirects an old `AbilityStone` to `None`). | feature/B-437-remove-ability-stone |

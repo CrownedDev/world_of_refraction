@@ -369,17 +369,13 @@ namespace EconomyYield
 
     /** OBSOLETE (B-333): typed essences retire (D-125); use GetCrystalEssence. Delete in the sweep (D-124).
      *  Which typed essence a crystal/stone yields when dismantled. Gems → element essence;
-     *  AbilityStone → Ability; other (stat) stones → pillar essence via the sub-stat fold.
+     *  stones → pillar essence via the sub-stat fold.
      *  Variant does NOT affect type or amount. */
     inline EEssenceType ResolveEssenceType(const FCrystalId &Id)
     {
         if (CrystalTypeHelpers::IsGemType(Id.Type))
         {
             return ElementToEssenceType(ItemIdentity::GetElement(Id));
-        }
-        if (Id.Type == ECrystalType::AbilityStone)
-        {
-            return EEssenceType::Ability;
         }
         if (CrystalTypeHelpers::IsStatStone(Id.Type))
         {
@@ -394,14 +390,10 @@ namespace EconomyYield
     // ── B-333 (D-125): the seven balances ──────────────────────────────────────────────
 
     /** The essence a crystal or stone is bought with and dismantles into: a gem (Quartz too — it
-     *  folds into Elemental) Elemental, an ability stone Skill, any other (stat) stone Pillar.
+     *  folds into Elemental) Elemental, a stone Pillar.
      *  None / an unclassified type → Elemental + a warning (a real crystal always classifies). */
     inline ECurrencyType GetCrystalEssence(ECrystalType Type)
     {
-        if (Type == ECrystalType::AbilityStone)
-        {
-            return ECurrencyType::SkillEssence;
-        }
         if (CrystalTypeHelpers::IsStatStone(Type))
         {
             return ECurrencyType::PillarEssence;

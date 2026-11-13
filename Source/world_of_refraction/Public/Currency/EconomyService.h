@@ -105,7 +105,7 @@ public:
     static bool IsOutOfCombat(const AActor *Owner, const TCHAR *Op);
 
     /**
-     * Dismantle Count crystals/stones of Id from Owner's inventory, granting its essence (B-333: gem Elemental, stat stone Pillar, ability stone Skill) per
+     * Dismantle Count crystals/stones of Id from Owner's inventory, granting its essence (B-333: gem Elemental, stone Pillar) per
      * EconomyYield. Server-authoritative. The pool (gem vs stone) is dispatched by Id.Type inside
      * the component — there is no item/refined axis anymore (the gem-merge collapsed it).
      *
@@ -238,17 +238,15 @@ public:
      *                     Bundled skills (3l): each non-null skill prices at its tier base / 3
      *                     + 10, Prisms-only (no essence) — weapon PresetAbilities always;
      *                     weapon/ring DefaultSpells only when a gem crystal is attached
-     *                     (Kind == Crystal); weapon DefaultAbilities only when the attachment
-     *                     can grant stone abilities (augment stone, or fusion with an
-     *                     AbilityStone half). WeaponAttack is never priced (weapon identity).
+     *                     (Kind == Crystal). WeaponAttack is never priced (weapon identity).
      *                     [quality is the C placeholder until shop-roll]
      *   B-333 (D-125, Q-333): essence @ tier is the TYPED_ESSENCE_BUY row.
      *   - Spell         : Prisms base + 50×Σ scaling-grade + Skill @ tier + Elemental @ tier (any
      *                     element but None; Generic counts — Quartz folded into Elemental).
      *   - Ability       : Prisms base + Skill @ tier (abilities carry no element).
      *   - Evolution     : 2× Prisms base (premium item class) + Elemental @ tier + ½ that again.
-     *   - Crystal       : (Prisms base + its essence @ tier) × Count — a gem Elemental, a stat
-     *                     stone Pillar, an ability stone Skill (EconomyYield::GetCrystalEssence).
+     *   - Crystal       : (Prisms base + its essence @ tier) × Count — a gem Elemental, a
+     *                     stone Pillar (EconomyYield::GetCrystalEssence).
      *
      * Count is honoured for weapons / rings / crystals; clamped to 1 for spells / abilities /
      * evolutions (spells/abilities can't be owned twice; evolution is per-instance). Buying a

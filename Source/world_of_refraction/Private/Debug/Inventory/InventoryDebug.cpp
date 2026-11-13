@@ -245,7 +245,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             {
                 // Display the INSTANCE (leveled) tier from the entry, not the base asset (W->Tier).
                 const EItemTier WTier = Active.PrimaryWeapon.WeaponEntry.Tier;
-                const int32 AbilityCap = Active.PrimaryWeapon.GetSkillSlotCount(); // B-351c: the tier plus an Ability Stone's slots
+                const int32 AbilityCap = Active.PrimaryWeapon.GetSkillSlotCount(); // B-351c: the tier's slots plus the crystal's (D-175: a stone adds none)
                 const int32 SpellCap = CrystalEffectTable::ResolveSpellSlotCap( // TODO: B-351d: the crystals' spell slot list
                     Active.PrimaryWeapon.WeaponEntry.GetAttachedItem(),
                     CrystalEffectTable::SlotsForContainerTier(WTier));
