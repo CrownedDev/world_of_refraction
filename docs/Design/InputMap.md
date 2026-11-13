@@ -54,6 +54,9 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Previous / next page (the top tab row) | Q / E, click a tab | LB / RB (L1 / R1) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_TabPrev` / `Next`) | Built (B-452, settings screen) |
 | Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
 | Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
+| Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
+| Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
+| Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
 | Back / close | Esc, Backspace | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu) |
 
 ## Mapping contexts (B-129)
