@@ -19,6 +19,8 @@ namespace
 	constexpr float FRONT_ROW_DISTANCE = 700.0f;
 	constexpr float BACK_ROW_DISTANCE = 1100.0f;
 	constexpr float FAST_PLAY_RATE = 1.2f;
+	/** wor.Combat.ApproachBurstSeconds' default: a starting character's dash (Crown's B-424 PIE: 0.24 s is max speed). */
+	constexpr float SLOWER_BURST_SECONDS = 0.45f;
 	constexpr float TOLERANCE = 0.01f;
 }
 
@@ -57,6 +59,18 @@ void FApproachWarpSpec::Define()
 			const FApproachBurst Burst = ApproachWarp::MakeBurst(DASH_WINDOW_START, DASH_WINDOW_END, DASH_TRAVEL_BEFORE, DASH_TRAVEL_AFTER, 100.0f, 1.0f);
 			TestEqual(TEXT("no burst"), Burst.BurstDistance, 0.0f);
 			TestFalse(TEXT("no cut"), Burst.bUseCameraCut);
+		});
+
+		It("stretches the window to the burst time by slowing the hop (wor.Combat.ApproachBurstSeconds)", [this]()
+		{
+			const FApproachBurst Burst = ApproachWarp::MakeBurst(DASH_WINDOW_START, DASH_WINDOW_END, DASH_TRAVEL_BEFORE, DASH_TRAVEL_AFTER,
+																 FRONT_ROW_DISTANCE, 1.0f, SLOWER_BURST_SECONDS);
+			TestEqual(TEXT("starts with the hop"), Burst.WindowStart, DASH_WINDOW_START, TOLERANCE);
+			TestEqual(TEXT("lasts the burst time"), Burst.GetWindowSeconds(), SLOWER_BURST_SECONDS, TOLERANCE);
+			TestEqual(TEXT("hop slowed to fit"), Burst.HopRateScale, (DASH_WINDOW_END - DASH_WINDOW_START) / SLOWER_BURST_SECONDS, TOLERANCE);
+			TestEqual(TEXT("slower burst"), Burst.BurstSpeed, Burst.BurstDistance / SLOWER_BURST_SECONDS, TOLERANCE);
+			TestEqual(TEXT("0 keeps the clip's own hop"),
+					  ApproachWarp::MakeBurst(DASH_WINDOW_START, DASH_WINDOW_END, 0.0f, 0.0f, FRONT_ROW_DISTANCE, 1.0f, 0.0f).HopRateScale, 1.0f, TOLERANCE);
 		});
 
 		It("has no window for an empty range, nor without a montage", [this]()

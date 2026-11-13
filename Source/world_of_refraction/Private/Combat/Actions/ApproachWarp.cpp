@@ -5,6 +5,7 @@
 #include "Animation/AnimMontage.h"
 #include "AnimNotifyState_MotionWarping.h"
 #include "Combat/CombatConstants.h"
+#include "HAL/IConsoleManager.h"
 #include "MotionWarpingComponent.h"
 #include "RootMotionModifier.h"
 
@@ -14,9 +15,20 @@ FString FApproachBurst::ToString() const
 	{
 		return TEXT("no warp window");
 	}
-	return FString::Printf(TEXT("warp %.0f cm: clip %.0f before + %.0f after, burst %.0f cm in %.2f s (%.2f-%.2f) = %.0f cm/s%s"),
-						   WarpDistance, TravelBefore, TravelAfter, BurstDistance, GetWindowSeconds(), WindowStart, WindowEnd, BurstSpeed,
-						   bUseCameraCut ? TEXT(", camera cut") : TEXT(""));
+	return FString::Printf(TEXT("warp %.0f cm: clip %.0f before + %.0f after, burst %.0f cm in %.2f s (%.2f-%.2f, hop x%.2f) = %.0f cm/s%s"),
+						   WarpDistance, TravelBefore, TravelAfter, BurstDistance, GetWindowSeconds(), WindowStart, WindowEnd, HopRateScale,
+						   BurstSpeed, bUseCameraCut ? TEXT(", camera cut") : TEXT(""));
+}
+
+namespace
+{
+	// TODO: Crown picks the base (B-424 PIE: 0.24 s, the clip's own hop, read as max speed; try 0.35 / 0.45 / 0.55).
+	constexpr float DEFAULT_APPROACH_BURST_SECONDS = 0.45f;
+
+	TAutoConsoleVariable<float> CVarApproachBurstSeconds(
+		TEXT("wor.Combat.ApproachBurstSeconds"), DEFAULT_APPROACH_BURST_SECONDS,
+		TEXT("B-424: how long a melee approach's air-burst dash lasts, in seconds; the hop is slowed to fit and the camera "
+			 "rush follows. 0 = the clip's own hop (0.24 s). Read per action, so it can be changed mid-fight."));
 }
 
 namespace ApproachWarp
@@ -29,13 +41,21 @@ namespace ApproachWarp
 		return Strike;
 	}
 
-	FApproachBurst MakeBurst(float Start, float End, float TravelBefore, float TravelAfter, float WarpDistance, float PlayRate)
+	float GetApproachBurstSeconds()
+	{
+		return FMath::Max(CVarApproachBurstSeconds.GetValueOnGameThread(), 0.0f);
+	}
+
+	FApproachBurst MakeBurst(float Start, float End, float TravelBefore, float TravelAfter, float WarpDistance, float PlayRate, float BurstSeconds)
 	{
 		const float Rate = FMath::Max(PlayRate, UE_KINDA_SMALL_NUMBER);
 		FApproachBurst Burst;
 		Burst.bHasWindow = End > Start;
 		Burst.WindowStart = Start / Rate;
-		Burst.WindowEnd = End / Rate;
+		const float ClipSeconds = FMath::Max(End - Start, 0.0f) / Rate;
+		const float Seconds = Burst.bHasWindow && BurstSeconds > 0.0f ? BurstSeconds : ClipSeconds;
+		Burst.WindowEnd = Burst.WindowStart + Seconds;
+		Burst.HopRateScale = Seconds > 0.0f ? ClipSeconds / Seconds : 1.0f;
 		Burst.TravelBefore = TravelBefore;
 		Burst.TravelAfter = TravelAfter;
 		Burst.WarpDistance = WarpDistance;
@@ -46,7 +66,7 @@ namespace ApproachWarp
 		return Burst;
 	}
 
-	FApproachBurst Measure(const UAnimMontage *Montage, float WarpDistance, float PlayRate)
+	FApproachBurst Measure(const UAnimMontage *Montage, float WarpDistance, float PlayRate, float BurstSeconds)
 	{
 		if (!Montage)
 		{
@@ -68,7 +88,7 @@ namespace ApproachWarp
 			const float After = Warp->bSubtractRemainingRootMotion
 									? static_cast<float>(UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Montage, End, Montage->GetPlayLength()).GetTranslation().Size2D())
 									: 0.0f;
-			return MakeBurst(Start, End, Before, After, WarpDistance, PlayRate);
+			return MakeBurst(Start, End, Before, After, WarpDistance, PlayRate, BurstSeconds);
 		}
 		return FApproachBurst();
 	}

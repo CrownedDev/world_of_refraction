@@ -13,9 +13,11 @@ struct WORLD_OF_REFRACTION_API FApproachBurst
 {
 	/** The montage has a Motion Warping window on WarpTarget. Without one nothing below is meaningful. */
 	bool bHasWindow = false;
-	/** The window, in seconds of real time (montage time over the play rate). */
+	/** The window, in seconds of real time: it starts at montage time over the play rate and lasts the burst time. */
 	float WindowStart = 0.0f;
 	float WindowEnd = 0.0f;
+	/** The play-rate multiplier inside the window that stretches the clip's hop to the burst time (1 = the clip's own). */
+	float HopRateScale = 1.0f;
 	/** The clip's own travel before the window, and after it when the notify subtracts it (cm, flat). */
 	float TravelBefore = 0.0f;
 	float TravelAfter = 0.0f;
@@ -39,9 +41,14 @@ namespace ApproachWarp
 	/** The striking spot: Range short of Target on the line from Caster, at Caster's height (W1's approach formula). */
 	WORLD_OF_REFRACTION_API FVector GetStrikePosition(const FVector &Caster, const FVector &Target, float Range);
 
-	/** The burst for a window [Start, End] (montage seconds) at PlayRate, given the clip's travel around it. Pure. */
-	WORLD_OF_REFRACTION_API FApproachBurst MakeBurst(float Start, float End, float TravelBefore, float TravelAfter, float WarpDistance, float PlayRate);
+	/** wor.Combat.ApproachBurstSeconds: how long the approach's burst lasts (real seconds), tunable live in PIE. */
+	WORLD_OF_REFRACTION_API float GetApproachBurstSeconds();
+
+	/** The burst for a window [Start, End] (montage seconds) at PlayRate, given the clip's travel around it. BurstSeconds > 0
+	 *  stretches (or squeezes) the window to that many real seconds by slowing the clip inside it; 0 keeps the clip's own. Pure. */
+	WORLD_OF_REFRACTION_API FApproachBurst MakeBurst(float Start, float End, float TravelBefore, float TravelAfter, float WarpDistance, float PlayRate,
+													 float BurstSeconds = 0.0f);
 
 	/** Reads Montage's first WarpTarget window and its root motion, for a leg of WarpDistance cm. No window: bHasWindow false. */
-	WORLD_OF_REFRACTION_API FApproachBurst Measure(const UAnimMontage *Montage, float WarpDistance, float PlayRate);
+	WORLD_OF_REFRACTION_API FApproachBurst Measure(const UAnimMontage *Montage, float WarpDistance, float PlayRate, float BurstSeconds = 0.0f);
 }
