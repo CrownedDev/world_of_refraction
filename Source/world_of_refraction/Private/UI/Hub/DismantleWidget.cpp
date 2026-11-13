@@ -17,6 +17,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
+#include "Shop/VendorServices.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "Dismantle"
@@ -270,6 +271,12 @@ static FAutoConsoleCommandWithWorld GDismantleUICommand(
 	FConsoleCommandWithWorldDelegate::CreateLambda(
 		[](UWorld *World)
 		{
+			// B-445 (D-193): dismantling is hub-only and a vendor's now; this old screen stays out of a run.
+			if (WoRVendorServices::IsInRun(World))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[Dismantle] Dismantling is done in the hub, at a vendor (wor.UI.Vendor Blacksmith), not during a run"));
+				return;
+			}
 			if (!UDismantleWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
 			{
 				UE_LOG(LogTemp, Warning, TEXT("[Dismantle] wor.UI.Dismantle: no player controller"));

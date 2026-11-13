@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/ItemTier.h"
+#include "Shop/VendorServices.h"
 
 #include "Currency/CurrencyTypes.h"
 #include "WoRGameNames.h"
@@ -199,6 +200,13 @@ void UDuplicateGearWidget::Resolve(bool bConvertToGold)
 	}
 	const FDuplicateGearPair &Pair = Pairs[SelectedIndex];
 	const FText Name = DuplicateGearBuild::DescribeCopy(*Inv, Pair.WeakerID, Pair.bRing);
+	// B-445 (D-193): dismantling is hub-only; in a run the copy can still be converted.
+	if (!bConvertToGold && WoRVendorServices::IsInRun(GetWorld()))
+	{
+		StatusText = LOCTEXT("DismantleInHub", "Dismantling is done in the hub, not during a run");
+		Refresh();
+		return;
+	}
 	const bool bDone = Economy->ResolveDuplicate(DuplicateGearBuild::OwnerOf(this), Pair.WeakerID, bConvertToGold);
 	StatusText = !bDone ? FText::Format(LOCTEXT("Failed", "Couldn't resolve {0}"), Name)
 			   : bConvertToGold ? FText::Format(LOCTEXT("ToGold", "{0} converted to {1}"), Name, WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(this)))
