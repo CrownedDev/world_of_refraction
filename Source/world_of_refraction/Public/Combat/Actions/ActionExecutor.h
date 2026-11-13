@@ -437,8 +437,7 @@ public:
 	 *
 	 * Status: production applicator for all async damage (Phase B) and for spell
 	 * + async-attack buildup (Phase C1, C3). Sync Spell/Ability/Attack paths and
-	 * ApplySpellStatusBuildup were removed in Phase D. ApplyDamage wraps it (B-032);
-	 * ProcessMultiHit is OBSOLETE (no callers).
+	 * ApplySpellStatusBuildup were removed in Phase D. ApplyDamage wraps it (B-032).
 	 *
 	 * Single-hit by contract — multi-hit looping stays in the per-impact
 	 * defense path (ResolveImpactDefense -> ApplyOneImpact). Routes damage through UDamageCalculator and buildup through
@@ -887,15 +886,6 @@ private:
 		const FPendingDefenseContext &Context,
 		const FDefenseResult &DefenseResult);
 
-	/** OBSOLETE (Stage 3): superseded by ResolveImpactDefense, which resolves a fresh
-	 *  per-impact defense (split-then-reduce + match-and-consume) instead of locking one
-	 *  action-level result at the first impact. Retained un-deleted until the per-impact
-	 *  path is PIE-verified; no live callers remain.
-	 *
-	 *  Stage 2: lazily compute + stash the single action-level defense result for a
-	 *  defender (idempotent), via the public DefenseSystem API. */
-	void EnsureResultResolved(AActor *Defender);
-
 	/** Stage 3: resolve ONE impact's defense for a defender. Split-then-reduce — slice
 	 *  BaseDamage by ResolvedDamageSplit[ImpactIndex] FIRST, then CalculateDefenseResult on
 	 *  that slice against the impact's match-and-consumed input (MatchAndConsumeInput at
@@ -908,28 +898,24 @@ private:
 	 *  "Lucky dodge!" when it fires. Call only for a hit that would land. */
 	bool TryLuckDodge(AActor *Defender) const;
 
-	/** Stage 2/3: apply ONE impact's damage and accumulate into PartialResult. Shared by the
-	 *  per-impact-frame path and the close-time undrained tail.
-	 *  @param bDamageIsPerImpact true (melee per-impact frame): ResolvedFinalDamage is already
-	 *         this impact's reduced slice (ResolveImpactDefense) — apply it directly. false
-	 *         (non-melee close-time tail, default): ResolvedFinalDamage is the full reduced
-	 *         total — slice it by ResolvedDamageSplit[ImpactIndex] here (legacy lumped path). */
-	/** B-369: bProjectileArrival: the projectile already played the skill's Impact entry (ImpactVisuals). */
-	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false,
+	/** Apply ONE impact's damage (Context.ResolvedFinalDamage, already this impact's reduced slice) and accumulate
+	 *  into PartialResult. Shared by the impact moments and the close's remaining impacts (ApplyRemainingImpacts).
+	 *  B-369: bProjectileArrival: the projectile already played the skill's Impact entry (ImpactVisuals). */
+	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex,
 						bool bProjectileArrival = false);
 
 	/** One spell arrival (an AOE or Instant cast moment, or a projectile landing) on Target's count-based
 	 *  window: resolve its defense per-impact, apply it, run the choke tally, and close after the last
-	 *  arrival. False when Target has no converted window (the caller keeps its lumped / setup-error
-	 *  path). Interrupts use InterruptCaster / InterruptSkill, or the window's attacker and the running
+	 *  arrival. False when Target has no count-based window (a support spell's hits land at its window's
+	 *  close). Interrupts use InterruptCaster / InterruptSkill, or the window's attacker and the running
 	 *  skill when null (B-032). */
 	bool ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, AActor *InterruptCaster,
 							 USkillDataBase *InterruptSkill, const TCHAR *ArrivalLabel, bool bProjectileArrival = false);
 
-	/** B-032d (Q-032d): a count-based window closed (its last impact, the animation's end, the 8s failsafe, the
-	 *  action timeout) with impacts [ImpactsLanded, HitCount) still to land: each lands on its own, its slice
-	 *  (SpellImpactPlan::ImpactBaseSlice) reduced by the close's outcome share. Replaces the lumped tail for these
-	 *  windows under wor.Combat.PerImpactDefense. Ctx is the caller's copy. */
+	/** B-032d (Q-032d): a window closed (its last impact, the animation's end, the 8s failsafe, the action timeout,
+	 *  or a timer-close window's timer) with impacts [ImpactsLanded, HitCount) still to land: each lands on its own,
+	 *  its slice (SpellImpactPlan::ImpactBaseSlice) reduced by the close's outcome share (B-032b: the only tail).
+	 *  Ctx is the caller's copy. */
 	void ApplyRemainingImpacts(AActor *Attacker, AActor *Target, FPendingDefenseContext &Ctx, const FDefenseResult &CloseResult);
 
 	/** B-032d: the skill animation ended. Lands an ability's missing impacts (LandFallbackImpacts), then closes the
@@ -937,21 +923,9 @@ private:
 	void ReconcileDefenseWindowsAtAnimationEnd();
 
 	/** B-032d: an ability whose montage carried fewer Impact notifies than its HitCount (or none) lands each missing
-	 *  impact now through RouteImpactFrame: its own defense resolve, AI press and interrupt check, as a notify would.
-	 *  Off with wor.Combat.PerImpactDefense 0 (the close-time tail lands them, lumped). */
+	 *  impact now through RouteImpactFrame: its own defense resolve, AI press and interrupt check, as a notify would. */
 	void LandFallbackImpacts();
 	friend class FPerImpactDefenseSpec; // B-032d: drives the animation-end fallback headless
-
-	/** Handle multi-hit abilities. OBSOLETE (B-167): its only caller was the no-DefenseSystem
-	 *  fallback; remove after Crown's PIE pass of B-167 / B-032. */
-	int32 ProcessMultiHit(
-		AActor *Attacker,
-		AActor *Target,
-		int32 DamagePerHit,
-		int32 HitCount,
-		ESpellElement Element,
-		bool bCanCrit,
-		FActionResult &OutResult);
 
 	/** Spend energy from actor */
 	bool SpendEnergy(AActor *Actor, int32 Amount);

@@ -8,7 +8,6 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Actions/ActionStructs.h"
-#include "Combat/Actions/SpellImpactPlan.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Definitions/SkillDataBase.h"
 
@@ -40,8 +39,8 @@ inline void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHit
 // Idempotent: by the time FinishMontageChain runs on the normal path, Skill-end already drained
 // the count-based entries, so this is a no-op. Collect-then-close: CloseDefenseWindow
 // re-entrantly removes the PendingDefenses entry, so we must not close mid-iteration.
-// B-032d (wor.Combat.PerImpactDefense): a SPELL window is left open: its projectiles may still be flying, and its
-// arrivals (or the 8s failsafe / action timeout, landing the rest per impact) close it.
+// B-032d: a SPELL window is left open: its projectiles may still be flying, and its arrivals (or the 8s failsafe /
+// action timeout, landing the rest per impact) close it.
 inline void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecContext, UDefenseSystem *DefenseSys)
 {
 	ExecContext.bAnimationFinished = true;
@@ -50,11 +49,10 @@ inline void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecConte
 		return;
 	}
 
-	const bool bKeepSpellWindows = SpellImpactPlan::IsPerImpactDefenseOn();
 	TArray<AActor *> DefendersToClose;
 	for (auto &Pair : ExecContext.PendingDefenses)
 	{
-		const bool bLeftForArrivals = bKeepSpellWindows && Pair.Value.ActionType == EActionType::Spell;
+		const bool bLeftForArrivals = Pair.Value.ActionType == EActionType::Spell;
 		if (Pair.Value.ExpectedImpacts > 0 && !bLeftForArrivals)
 		{
 			if (AActor *Defender = Pair.Key.Get())
