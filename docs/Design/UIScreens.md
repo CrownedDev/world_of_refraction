@@ -168,7 +168,7 @@ One block per mocked screen: the images, why the layout, the references.
 
 ### 21. Trial gate (`run/gate/`)
 
-- `1_gate_variation.png` (solo, choosing), `2_gate_ready_coop.png` (co-op, on Enter).
+- `1_gate_trial.png` (solo, choosing), `2_gate_ready_coop.png` (co-op, on Enter).
 - **Changed by Crown (2026-11-13, D-191, D-192):** the screen is **the Gate**. The player-facing word is **"Trial", not "Variation"**. The trials are a **vertical list** (there will be more than three), not three big cards; each row shows **only the trial's name and its line, never its boss** (it spoils the surprise). A **locked trial shows as "???" with its unlock condition** (for example the quest that unlocks it) and gets its real name once unlocked. An **AI member's "who plays them" shows nothing** (no "AI · Medium"). **Gates are not tied to a class:** every gate (the Stone Gate, the Silver Gate, the crystal-named gates) is open to everyone; **there is one gate in the hub**, and interacting opens this screen, where you pick the gate, then the trial, then the difficulty; the hub gate's glow takes the colour of your last trial's gate (default, Crown can veto). The two images are redrawn to match; the notes below describe the first draft.
 - **Three steps, top to bottom, one screen:** Variation (big cards: the boss and a line each, because this is the story choice; one not yet reached shows as "???"), Difficulty (Easy / Medium / Hard with exactly what changes: enemy damage x0.8 / x1.0 / x1.2, payout x0.75 / x1.0 / x1.5, `TrialGate.cpp:26-36`), then Enter the trial. On the right, **who is going in**: each member, class, Combat Tier, and who plays them (You, a friend's name, AI and its level).
   *Ref:* Hades' Pact of Punishment (what each step changes, and the reward, on one screen); Nightreign's expedition select (target boss + party on one screen); Expedition 33 states that difficulty changes enemy damage, not HP, which this game copies (Q-293c).
@@ -359,6 +359,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | Mockups redrawn for Crown's answers (D-177 to D-179, D-182 to D-189, D-191, D-192): the Gate (`1_gate_variation.png` is now `1_gate_trial.png`), rest spot, run end, NPC talk, recruit card, inventory verbs, "Spirit of {character}" | docs/ui-screens-redraw |
 | 2026-11-14 | The Gate (D-191, D-192): "Trial" not "Variation", a vertical list, "???" with the unlock condition, no boss names, no AI level text; one hub gate, every gate open to everyone | docs/ui-screens-answers-4 |
 | 2026-11-14 | Crown's answers on the wipe and end-of-run screens (D-187 no enemy rank shown, D-188 words and layout, D-189 what each ending pays) and settings (D-190: approved with all eight proposed settings) | feature/B-440-loadout-screen |
 | 2026-11-14 | Extracting (D-186): "Leave Trial" is "Extract", only at a boss's rest spot; the half share stays | docs/ui-screens-answers-3 |

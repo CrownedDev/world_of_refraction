@@ -1,4 +1,4 @@
-"""Skins / forms (UIScreens.md #19; CharacterForms.md): each authored character's meter fills as you win fights wearing
+"""Spirit of {character} (was Skins / Forms; D-184. UIScreens.md #19; CharacterForms.md): each authored character's meter fills as you win fights wearing
 their pieces; at 100% the skin unlocks and their loadout is revealed. Hub and rest spots only.
 Words from CharacterFormWidget.cpp. Character and piece names are placeholders. Run: python make.py"""
 import os
@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(OUT, "..", "..", "_kit"))
 from wor_ui import *  # noqa: E402,F401
 
 im, d = canvas()
-title(d, "Forms", "Wearing: your own form (base body Quinn)")
+title(d, "Spirit of Sera", "Wearing: your own form (base body Quinn)")
 FORMS = [("your own form", "None", 100, True), ("Garnet Lord", "Fire", 100, False), ("Amethyst Prisma", "Void", 64, False),
          ("Onyx Lord", "Darkness", 12, False), ("???", "None", 0, False)]
 for i, (n, el, pct, worn) in enumerate(FORMS):
