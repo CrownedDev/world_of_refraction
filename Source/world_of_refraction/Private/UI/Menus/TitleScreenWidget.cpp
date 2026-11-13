@@ -37,6 +37,7 @@ namespace TitleScreenStyle
 	constexpr int32 MaxRows = 6;
 	/** UIScreens #9: New Game over a save needs A held this long (Destiny 2's dismantle, Elden Ring's delete). */
 	constexpr float HOLD_TO_START_OVER_SECONDS = 2.0f;
+	constexpr float MaxHoldStepSeconds = 0.1f;
 	// TODO: the nebula and the hexagon vortex replace the flat backdrop (D-202, an editor step).
 	inline const FLinearColor BackdropColor = FLinearColor::FromSRGBColor(FColor(11, 7, 20));
 	inline const FLinearColor DimLayerColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
@@ -186,7 +187,7 @@ void UTitleScreenWidget::BuildTree()
 	CantUndo->SetText(LOCTEXT("CantUndo", "This can't be undone."));
 	UTextBlock *HoldHint = MakeText(WidgetTree, SmallFontSize, DimColor);
 	HoldHint->SetText(FText::Format(LOCTEXT("HoldHint", "Hold A for {0} seconds to confirm."), FMath::RoundToInt32(HOLD_TO_START_OVER_SECONDS)));
-	HoldBar = MakeBar(WidgetTree, FocusColor);
+	HoldBar = MakeBar(WidgetTree, WarnColor); // as the game menu's quit hold
 	AddToColumn(Hold, CantUndo);
 	AddToColumn(Hold, HoldHint, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToColumn(Hold, MakeSized(WidgetTree, PanelWidth - PanelPadding * 2.0f, HoldBarHeight, HoldBar), FMargin(0.0f, LineGap, 0.0f, 0.0f));
@@ -390,7 +391,7 @@ void UTitleScreenWidget::UpdateHold(float DeltaSeconds)
 	{
 		return;
 	}
-	HeldSeconds += DeltaSeconds;
+	HeldSeconds += FMath::Min(DeltaSeconds, MaxHoldStepSeconds); // a hitch can't finish the hold by itself
 	if (HoldBar)
 	{
 		HoldBar->SetPercent(FMath::Min(HeldSeconds / HOLD_TO_START_OVER_SECONDS, 1.0f));
@@ -459,6 +460,12 @@ FReply UTitleScreenWidget::NativeOnKeyUp(const FGeometry &InGeometry, const FKey
 		return FReply::Handled();
 	}
 	return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
+}
+
+void UTitleScreenWidget::NativeOnFocusLost(const FFocusEvent &InFocusEvent)
+{
+	StopHold(); // no key-up arrives once the keys go elsewhere: the hold must not finish by itself
+	Super::NativeOnFocusLost(InFocusEvent);
 }
 
 bool UTitleScreenWidget::NativeOnHandleBackAction()

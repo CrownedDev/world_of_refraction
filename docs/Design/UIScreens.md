@@ -33,7 +33,7 @@
 
 | # | Screen | What the player does | Code it talks to | Today | Pri |
 |---|---|---|---|---|---|
-| 9 | **Title / main menu** | Press any button; Continue, New Game, Join a friend, Settings, Credits, Quit | `USaveSubsystem` (one slot per local player, `Public/Save/WoRSaveGame.h:2`, so no slot screen) | None | P2 |
+| 9 | **Title / main menu** | Press any button; Continue, New Game, Join a friend, Settings, Credits, Quit | `USaveSubsystem` (one slot per local player, `Public/Save/WoRSaveGame.h:2`, so no slot screen) | Built (B-467, in dev: `UTitleScreenWidget`, `PIE/B-467.md`; the backdrop is B-467b, Join a friend B-459, Credits B-470) | P2 |
 | 10 | **Save notices** | Autosave icon; the one-time "your old save was reset" warning (D-060) | `UWoRSaveGame::WasWiped` `Public/Save/WoRSaveGame.h:35` (never shown today) | None | P2 |
 | 11 | **New game: first character** | Pick your character (the lords / templates), class reads from it | `DA_Character_*`; `ECharacterClass` | None | P3 (lore: who you start as is Crown's) |
 | 12 | **Loading screen** | Only for hub ↔ trial (FeelGuide 10): an item or character description and a slow crystal turn | none (no loading-screen code) | None | P3 |
@@ -367,6 +367,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-14 | The Spiritualist's tabs are built (B-456d): Repair (one piece on A, everything on X), Curses (clear a held curse), Merge (one list, the tier on Left / Right; Q-456d); every vendor tab works | feature/B-456d-spiritualist-services |
+| 2026-11-14 | The title screen is built (B-467): the rows, Continue's line, New Game's hold, the "save was reset" notice (Q-467); the backdrop art is B-467b | feature/B-467-title-screen |
 | 2026-11-14 | The vendor screen's Item slots tab is built (B-456c): a row per party member, the pouch's slots as marks, the next slot's price; A asks, the second A buys | feature/B-456c-item-slots |
 | 2026-11-14 | The vendor screen's Buy tab is built (B-456b): the stock, the cart, "Buying for"; talking to any vendor opens the screen (Q-456b) | feature/B-456b-vendor-buy |
 | 2026-11-14 | The vendor screen's first piece is built (B-456a): the screen with each vendor's tabs, Sell and Dismantle; Buy and the other services follow (B-456b to B-456d) | feature/B-456-vendor-screen |
