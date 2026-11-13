@@ -82,7 +82,7 @@ Highest priority first. Ticked = mocked on this branch (folder in brackets).
 1. [x] Pause / game menu (`menus/pause`)
 2. [x] Loadout and skills (`menus/loadout`)
 3. [x] Inventory and pouch (`menus/inventory`)
-4. [ ] Rest spot, level up, extract, revive vote (`run/rest_spot`)
+4. [x] Rest spot, level up, extract, revive vote (`run/rest_spot`)
 5. [ ] After a fight, wipe, run over, run end (`run/run_end`)
 6. [ ] Settings (`menus/settings`)
 7. [ ] Trial gate (`run/gate`)
@@ -126,6 +126,16 @@ One block per mocked screen: the images, why the layout, the references.
 - **Pouch:** 10 slots to start, the Jeweler's extra ones drawn as locked "Jeweler" slots up to 20, stacks of 10 (`InventoryConstants.h:51-57`). Give asks who receives and shows their room; X toggles the whole stack (the placeholder's "Whole stack" toggle).
 - **Dismantle** is one confirm with what you get and lose, and "can't be undone" (D-016's warning, `GetDismantleWarning`). The placeholder's "press again to confirm" becomes this dialog.
 
+### 22–24, 34. Rest spot (`run/rest_spot/`)
+
+- `1_rest_menu.png`, `2_level_up.png`, `3_revive_vote.png` (co-op), `4_extract_confirm.png`.
+- **Resting needs no button:** arriving restores the party, then the menu opens with "The party is restored." and "Earned so far" always in view. The list is the placeholder's, in the same words: Level up, Loadout, Inventory, Skins, Revive the mini-boss (1 of 3), Invite and seat friends, Hand over host (co-op only), Leave the trial.
+  *Ref:* Elden Ring's Site of Grace and Expedition 33's expedition flags: sit, you're healed, one short list. Dark Souls II's Bonfire Ascetic for the revive (RunStructure §4).
+- **Level up:** one member at a time on LT / RT (the tab shows how many each has to place). Three big pillar rows; the side panel says **what the level changes for this character's own skills**. A pillar level gives no flat stats in this game (Rules CL-37); it meets skill requirements (under one, the skill is x0.6) and raises the requirement boost (CL-39), so that is what's shown. Buy a point is X, priced in Prisms.
+  *Ref:* Elden Ring's level-up screen previews every change before you confirm; Expedition 33's attribute screen does the same per attribute.
+- **Revive vote** (co-op): one panel for everyone, names and answers, "2 of 3 said yes"; everyone outside a fight must agree (the code's rule). A / X answer. *Ref:* Monster Hunter's and Deep Rock Galactic's ready checks: every name with its answer, no chat needed.
+- **Extract confirm:** RunStructure §6's sentence, then two columns, earned so far and what you get (half, `LEAVE_EARLY_SHARE`), then what's kept and lost. *Ref:* Hades and Nightreign show the run's tally before you commit to ending it.
+
 ## Shared menu controls
 
 Every menu uses the same buttons, so nothing has to be learned twice (Expedition 33, Persona 5 and Elden Ring all keep one tab / confirm / back set across menus). Gamepad first (pillar 9); mouse clicks every tab and hint.
@@ -165,6 +175,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
 1. **Quit to title in the middle of a run** (pause, #1): there are no saved runs (D-172). Does quitting count as extracting (reduced payout), as a loss, or is it refused until you extract? *Suggested:* ask first ("Quitting now ends the run: you keep what extracting would give"), like Hades, whose pause menu "Give Up" ends the run as if you fell, after a confirm.
 2. **Stone sockets** (loadout, #2): drawn because the code has them (D-141), but the battle HUD plan says you're considering removing augment stones. If they go, each gear row loses its second socket and nothing else changes.
 3. **Main hand / off hand** (loadout, #2): the code has two equal weapon slots and a wield mode per weapon, not hand slots. The mockup follows the code; say if you want hand slots shown.
+4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
 
 ## Changelog
 
