@@ -22,7 +22,7 @@ FString FApproachBurst::ToString() const
 
 namespace
 {
-	// TODO: Crown picks the base (B-424 PIE: 0.24 s, the clip's own hop, read as max speed; try 0.35 / 0.45 / 0.55).
+	// Crown's B-424 PIE: 0.45 s is a starting character's dash; the clip's own 0.24 s is max speed (speed-stat scaling: IDEA row).
 	constexpr float DEFAULT_APPROACH_BURST_SECONDS = 0.45f;
 
 	TAutoConsoleVariable<float> CVarApproachBurstSeconds(
