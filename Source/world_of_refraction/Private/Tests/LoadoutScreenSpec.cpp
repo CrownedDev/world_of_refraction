@@ -143,6 +143,20 @@ void FLoadoutScreenSpec::Define()
 		TestEqual(TEXT("spent is the rows' costs"), Page.Spent, Page.Rows[0].Cost + Page.Rows[1].Cost + Page.Rows[2].Cost);
 	});
 
+	It("charges the evolution seat whenever the slot is an evolution's, as the budget check does", [this]()
+	{
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Evolution; // no item: a stale seat still takes its budget
+		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
+		if (TestEqual(TEXT("the seat row"), Page.FirstApparelRow, 1))
+		{
+			TestTrue(TEXT("an evolution seat"), Page.Rows[LOADOUT_SCREEN_TEST_FIRST].Kind == ELoadoutScreenRowKind::EvolutionSeat);
+			TestFalse(TEXT("named even when the item is missing"), Page.Rows[LOADOUT_SCREEN_TEST_FIRST].Name.IsEmpty());
+		}
+		TestEqual(TEXT("spent as NonAdapterCost charges it"), Page.Spent, FLoadoutRules::NonAdapterCost(Loadout, ECharacterClass::Generic));
+		TestEqual(TEXT("an evolution alone"), Page.Spent, LoadoutConstants::EVOLUTION_ALONE_SLOT_COST);
+	});
+
 	It("shows apparel outside the budget and fills the rest with empty slots", [this]()
 	{
 		FCombatLoadout Loadout = TwoWeapons();
