@@ -84,7 +84,8 @@ enum class ECrystalType : uint8
     // B-353 (D-142): the one stat stone; FCrystalId::StoneStat says which sub-stat it amplifies. Appended (append-only).
     // RETIRED (B-353, D-142): the single-stat kinds DefenseStone, CritStone, TurnSpeedStone, StatusStone,
     // EfficiencyStone, SpellDamageStone, ResistanceStone, SpellSpeedStone, ActionSpeedStone, LuckStone and ReflexStone.
-    // Their values stay (saves and assets store them); StatStone::Normalize maps them to StatStone on load.
+    // Their names stay (assets store the name; a save stores the number, and B-437's shift came with a save wipe);
+    // StatStone::Normalize maps them to StatStone on load.
     // Damage and Healing stones stay, and so do the pool stones (Max HP / Max EP, no sub-stat; Q-353).
     StatStone UMETA(DisplayName = "Stat Stone")
 };
