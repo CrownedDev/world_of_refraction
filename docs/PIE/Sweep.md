@@ -400,6 +400,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-437](B-437.md) | The Ability Stone is removed (D-175): no stone adds ability slots, save v38 wipes older saves; editor step B-437b | Pending | REVIEW (in dev, `feature/B-437-remove-ability-stone`) | [ ] |
 | [B-441](B-441.md) | The inventory screen (D-181, D-177, D-195): tabs, tiles, Give / Store / Take, Give to; the old `wor.UI.Inventory` goes after this passes | Pending | REVIEW (in dev, `feature/B-441-inventory-screen`) | [ ] |
 | [B-445](B-445.md) | Selling and dismantling at the vendors (D-177, D-193): placeholder `wor.UI.Vendor`; the inventory's verbs are Give, Store, Take | Pending | REVIEW (in dev, `feature/B-445-vendor-dismantle-sell`) | [ ] |
+| [B-456a](B-456a.md) | The vendor screen, piece 1 (D-193): tabs, rows, Sell and Dismantle; the placeholder `wor.UI.Vendor` (`UVendorServiceWidget`) goes after this passes | Pending | REVIEW (in dev, `feature/B-456-vendor-screen`) | [ ] |
 | [B-452](B-452.md) | The settings screen (D-190): pages, Turn View and End Turn button, the key list | Pending | REVIEW (in dev, `feature/B-452-settings-screen`) | [ ] |
 | [B-443](B-443.md) | The hub HUD (D-181): interact prompt and money chip; the old debug hints go after this passes | Pending | REVIEW (in dev, `feature/B-443-hub-hud`) | [ ] |
 | [B-442](B-442.md) | The character sheet (D-181): pillars, sub-stats, resistance by damage type | Pending | REVIEW (in dev, `feature/B-442-character-sheet`) | [ ] |
