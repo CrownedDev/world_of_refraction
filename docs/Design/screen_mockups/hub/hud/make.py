@@ -46,15 +46,22 @@ d.ellipse((614, 200, 666, 252), fill=(10, 11, 16))
 panel(d, (160, 520, 1120, 660), focus=True)
 text(d, (184, 532), "Blacksmith", 22, True, CYAN)
 wrap(d, (184, 572), "The speaker's line goes here, one or two sentences at a time, so it reads at a glance.", 900, 19)
-for i, (c, f) in enumerate([("Show me your weapons.", True), ("About the Ember Trial…", False), ("(a new line, after a memory)", False), ("Leave.", False)]):
-    y = 300 + i * 50
-    row(d, (760, y, 1120, y + 42), c, f, size=16)
-    if i == 2:
-        text(d, (1106, y + 21), "NEW", 12, True, CYAN, anchor="rm")
+# D-178: the top choices are short actions (Shop, Talk, Leave); topics and new lines sit under Talk.
+for i, c in enumerate(["Shop", "Talk", "Leave"]):
+    y = 350 + i * 50
+    row(d, (940, y, 1120, y + 42), c, False, right=">" if i == 1 else None, size=16)
+    if i == 1:
+        cut(d, (940, y, 1120, y + 42), None, CYAN, 8)  # Talk is open: its topics are to the left
+        text(d, (1040, y + 21), "NEW", 12, True, CYAN, anchor="rm")
+for i, (c, new) in enumerate([("Trials", False), ("(a new line, after a memory)", True)]):
+    y = 400 + i * 50
+    row(d, (600, y, 930, y + 42), c, i == 0, size=16)
+    if new:
+        text(d, (916, y + 21), "NEW", 12, True, CYAN, anchor="rm")
 footer(d, [("A", "Choose"), ("Y", "Log"), ("B", "Leave")], y=694)
 save(im, OUT, "2_npc_talk.png")
 
-# ---- 3: a character met in the trial: a card with who they are, then Invite for this run.
+# ---- 3: a character met in the trial: a card with who they are, then Invite for this run. Played by: NPC or Player (D-179).
 im, d = canvas("world")
 d.rectangle((600, 250, 680, 520), fill=(10, 11, 16))
 d.ellipse((614, 200, 666, 252), fill=(10, 11, 16))
@@ -68,7 +75,7 @@ wrap(d, (780, 292), "Joins for this run only, with no gear of their own: they us
 text(d, (780, 360), "Your party", 15, True, DIM)
 text(d, (1212, 360), "2 of 3 · room for one", 15, True, GOOD, anchor="ra")
 text(d, (780, 390), "Played by", 15, fill=DIM)
-text(d, (1212, 388), "‹  AI seat · Medium  ›", 17, True, CYAN, anchor="ra")
+text(d, (1212, 388), "‹  NPC  ›", 17, True, CYAN, anchor="ra")
 cut(d, (780, 490, 1212, 540), TEAL, CYAN, 8)
 text(d, (996, 515), "Invite for this run", 18, True, anchor="mm")
 party_strip(d)

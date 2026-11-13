@@ -42,7 +42,9 @@ def T(size):
 # ---- UI_Theme.md tokens (same values as refine_v2)
 BG, PANEL, PLATE, STEEL = (16, 18, 25), (20, 22, 28), (46, 46, 46), (140, 144, 152)
 TRACK = (42, 45, 53)
-TEAL, CYAN, TXT, DIM, OFF = (51, 127, 141), (159, 236, 245), (238, 241, 245), (169, 175, 184), (107, 112, 120)
+# The focus accent is violet (Crown, 2026-11-14; UI_Theme.md section 3): it sits on the purple nebula. The names stay
+# TEAL (the focus plate) and CYAN (its edge and accent text) so the scripts need no change; colours only.
+TEAL, CYAN, TXT, DIM, OFF = (91, 58, 153), (205, 184, 255), (238, 241, 245), (169, 175, 184), (107, 112, 120)
 ROSE, ROSE_LOW, EP = (224, 64, 127), (255, 143, 180), (111, 214, 228)
 WARN, KILL, GOOD = (242, 162, 58), (255, 70, 70), (110, 200, 110)
 GOLD = (232, 201, 121)
@@ -80,7 +82,14 @@ def panel(d, box, focus=False, c=14):
     cut(d, box, PANEL, CYAN if focus else STEEL, c)
 
 
+# HP and EP bars are a darker red and a darker blue than the text colours, so a white value inside reads clearly
+# (white on each is over 5:1). Low HP is a hotter pink-red. bar() swaps them in; text and chips keep ROSE / EP.
+HP_BAR, HP_LOW_BAR, EP_BAR = (168, 36, 60), (214, 48, 96), (36, 92, 170)
+_BAR = {ROSE: HP_BAR, ROSE_LOW: HP_LOW_BAR, EP: EP_BAR}
+
+
 def bar(d, x, y, w, frac, col, h=14):
+    col = _BAR.get(col, col)
     d.rectangle((x, y, x + w, y + h), fill=TRACK)
     d.rectangle((x, y, x + int(w * max(0, min(1, frac))), y + h), fill=col)
 

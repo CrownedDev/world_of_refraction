@@ -1,5 +1,5 @@
 """Inventory and pouch (UIScreens.md #4): one screen, three tabs (Gear, Pouch, Chest), one verb menu
-(Give, Store, Take, Dismantle, Convert: D-131, WoRInventoryVerbs). Run: python make.py"""
+(Give, Store, Take only: D-177; Dismantle and Convert happen at the vendor). Run: python make.py"""
 import os
 import sys
 
@@ -80,8 +80,8 @@ grid(d, GEAR, 3, size=96)
 text(d, (48, 520), "E  worn in a loadout", 15, fill=DIM)
 detail(d, "Ashen Blade", "D", "Sword · Fire · a second copy (weaker)",
        [("Power", "28"), ("Durability", "100 / 100"), ("Abilities", "Cleave, Whirl +1")],
-       "You own a better Ashen Blade (B). The weaker copy can convert to Gold or be dismantled (one copy per character, D-115).")
-verbs(d, 750, 410, [("Give", None), ("Store", None), ("Dismantle", None), ("Convert to 140 Gold", None)], 3)
+       "You own a better Ashen Blade (B). A vendor buys or dismantles the weaker copy (one copy per character, D-115).")
+verbs(d, 750, 410, [("Give", None), ("Store", None)], 0)  # Take is listed only on the Chest tab
 footer(d, [("A", "Choose"), ("Y", "Sort"), ("B", "Back")])
 save(im, OUT, "1_gear.png")
 
@@ -105,7 +105,7 @@ text(d, (446, 590), "X  Whole stack: on", 15, fill=CYAN)
 footer(d, [("A", "Give"), ("X", "Whole stack"), ("B", "Back")])
 save(im, OUT, "2_pouch_give.png")
 
-# ---- 3: Dismantle: one confirm with what you get and what you lose (D-016's warning text, GetDismantleWarning).
+# ---- 3: Dismantle (the vendor's confirm since D-177; kept as drawn): one confirm with what you get and what you lose (D-016's warning text, GetDismantleWarning).
 im, d = canvas()
 header(d, 1, 0)
 tabs(d, 48, 128, ["All", "Weapons", "Adapters", "Crystals", "Evolutions", "Apparel"], 2, h=30, size=15)
