@@ -59,7 +59,7 @@ EFieldSkillRefusal UFieldMovementComponent::ToggleFlight()
 	if (Refusal == EFieldSkillRefusal::None)
 	{
 		const UCharacterDataComponent *CharComp = GetCharacterData();
-		Refusal = FieldSkillRules::CheckFlightStart(IsInNoFlyZone(), CharComp ? CharComp->CurrentEP : 0, FlightLimits);
+		Refusal = FieldSkillRules::CheckFlightStart(IsInNoFlyZone(), CharComp ? CharComp->CurrentEP : 0, GetEffectiveFlightLimits());
 	}
 	if (Refusal != EFieldSkillRefusal::None)
 	{
@@ -87,14 +87,14 @@ EFieldSkillRefusal UFieldMovementComponent::ToggleFlight()
 											   FieldSkillRules::FLIGHT_DRAIN_INTERVAL, true);
 		UpdateMoveStepTimer();
 		UE_LOG(LogWoR, Log, TEXT("%s %s: flight on (ceiling %s)"), FieldFlightLog::TAG, *GetNameSafe(Character),
-			   FlightLimits.bNoCeiling ? TEXT("none") : *FString::Printf(TEXT("%.0f"), FieldSkillRules::GetFlightCeilingZ(FlightTakeOffGroundZ, FlightLimits)));
+			   GetEffectiveFlightLimits().bNoCeiling ? TEXT("none") : *FString::Printf(TEXT("%.0f"), FieldSkillRules::GetFlightCeilingZ(FlightTakeOffGroundZ, GetEffectiveFlightLimits())));
 	}
 	return EFieldSkillRefusal::None;
 }
 
 void UFieldMovementComponent::DrainFlight()
 {
-	if (!bFlying || FlightLimits.bUnlimitedEP)
+	if (!bFlying || GetEffectiveFlightLimits().bUnlimitedEP)
 	{
 		return;
 	}
@@ -125,7 +125,8 @@ void UFieldMovementComponent::ApplyFlightStep()
 		StopFlight();
 		return;
 	}
-	if (!FlightLimits.bIgnoreNoFly && IsInNoFlyZone())
+	const FFieldFlightLimits Limits = GetEffectiveFlightLimits(); // B-214h: effects' and the evolution's
+	if (!Limits.bIgnoreNoFly && IsInNoFlyZone())
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: entered a no-fly zone"), FieldFlightLog::TAG, *GetNameSafe(GetOwner()));
 		StopFlight();
@@ -134,11 +135,11 @@ void UFieldMovementComponent::ApplyFlightStep()
 	AActor *Owner = GetOwner();
 	ACharacter *Character = Cast<ACharacter>(Owner);
 	UCharacterMovementComponent *Movement = Character ? Character->GetCharacterMovement() : nullptr;
-	if (!Movement || FlightLimits.bNoCeiling)
+	if (!Movement || Limits.bNoCeiling)
 	{
 		return;
 	}
-	const double CeilingZ = FieldSkillRules::GetFlightCeilingZ(FlightTakeOffGroundZ, FlightLimits);
+	const double CeilingZ = FieldSkillRules::GetFlightCeilingZ(FlightTakeOffGroundZ, Limits);
 	FVector Location = Owner->GetActorLocation();
 	if (Location.Z < CeilingZ)
 	{

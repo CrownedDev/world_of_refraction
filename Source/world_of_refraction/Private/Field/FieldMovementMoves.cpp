@@ -36,11 +36,12 @@ namespace FieldMovesHelpers
 bool UFieldMovementComponent::SpendFieldEP(int32 Amount)
 {
 	UCharacterDataComponent *CharComp = GetCharacterData();
-	if (!CharComp || CharComp->CurrentEP < Amount)
+	const int32 Cost = GetFieldEPCost(Amount); // B-214h: the seated evolution's discount
+	if (!CharComp || CharComp->CurrentEP < Cost)
 	{
 		return false;
 	}
-	CharComp->ServerSpendEnergy(Amount);
+	CharComp->ServerSpendEnergy(Cost);
 	return true;
 }
 
