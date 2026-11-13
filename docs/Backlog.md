@@ -593,7 +593,7 @@ Paths under `Source/world_of_refraction/`; line numbers from `origin/dev` 49038f
 | B-431 | **(Should, test) D-161 interrupt abort spec.** Two defenders: one Perfect Guard means no abort; two mean an abort plus one Flawless Parry broadcast each; also cover the `ChokeExpectedCount` check. File: `Private/Combat/Actions/ActionExecutor.cpp:2767-2902` | CC | S | — | The new spec passes (or the bug it finds gets its own row) | TODO |
 | B-432 | **(Nice) Buy-for-member checks the payer's weapon / ring capacity.** File: `Private/Currency/EconomyService.cpp:1351-1360`. **Fix:** skip those checks when the receiver is set | CC | S | — | Spec: buying for a member with room succeeds although the payer is full | TODO |
 | B-433 | **(Nice) `ServerReportFoundMemory` has no reach check:** a memory with no `CharacterDepth` unlocks for everyone. File: `Private/Player/WoRPlayerState.cpp:779-807`. **Fix:** require the pawn to be in reach of the memory's spot or fragment | CC | S | — | Spec or 2-player PIE: a report from out of reach is refused with a log line | TODO |
-| B-434 | **(Nice) `FCoopCheckpointAssembler::Add` never checks `ChunkCount` against `WoRCheckpoint::MAX_CHUNKS`.** File: `Private/Save/CoopCheckpoint.cpp:118-133`. **Fix:** refuse counts over it | CC | S | — | Spec: an over-limit chunk count is refused | TODO |
+| B-434 | **(Nice) `FCoopCheckpointAssembler::Add` never checks `ChunkCount` against `WoRCheckpoint::MAX_CHUNKS`.** File: `Private/Save/CoopCheckpoint.cpp:118-133`. **Fix:** refuse counts over it | CC | S | — | Spec: an over-limit chunk count is refused | REVIEW (in dev): `fix/B-434-checkpoint-chunk-limit`; spec in CoopCheckpointSpec; built and tested 2026-11-14 |
 
 ## Phase 5 — Gear
 
