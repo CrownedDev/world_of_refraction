@@ -51,6 +51,8 @@ BEGIN_DEFINE_SPEC(FFieldAdvancedSpec, "WoR.Field.Advanced",
 		OutCharComp->RegisterComponent();
 		OutCharComp->MaxEP = FieldAdvancedSpecValues::START_EP;
 		OutCharComp->CurrentEP = FieldAdvancedSpecValues::START_EP;
+		OutCharComp->PartyMemberId = FGuid::NewGuid(); // a party member's pawn (Regroup's target)
+		Spawned->GetCharacterMovement()->SetMovementMode(MOVE_Walking); // no controller: else MOVE_None ignores a launch
 		FWoRTestWorld::AddComponent<UFieldMovementComponent>(Spawned);
 		return Spawned;
 	}

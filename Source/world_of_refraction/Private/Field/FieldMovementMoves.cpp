@@ -160,6 +160,7 @@ void UFieldMovementComponent::NotifyLanded()
 	WallRunSeconds = 0.0f;
 	SetGliding(false);
 	SetWallRunning(false);
+	UpdateMoveStepTimer(); // the step timer may have run only for the super launch
 }
 
 void UFieldMovementComponent::HandleLanded(const FHitResult &Hit)

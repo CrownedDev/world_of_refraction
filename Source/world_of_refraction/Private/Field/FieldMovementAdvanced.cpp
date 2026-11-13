@@ -94,10 +94,16 @@ EFieldSkillRefusal UFieldMovementComponent::UseAdvancedMove(EFieldMovementType T
 
 EFieldSkillRefusal UFieldMovementComponent::DoTeleport(ACharacter &Character)
 {
-	const FVector Aim = (Character.GetController() ? Character.GetControlRotation().Vector() : Character.GetActorForwardVector()).GetSafeNormal();
+	// Level with the ground: a third-person camera looks a little down, which would sweep into the floor at once.
+	const FVector Aim = (Character.GetController() ? Character.GetControlRotation().Vector() : Character.GetActorForwardVector()).GetSafeNormal2D();
 	const FVector Start = Character.GetActorLocation();
 	Character.SetActorLocation(Start + Aim * FieldSkillRules::TELEPORT_DISTANCE, true); // swept: stops short of a wall
-	return Character.GetActorLocation().Equals(Start) ? EFieldSkillRefusal::Blocked : EFieldSkillRefusal::None;
+	if (FVector::Dist(Start, Character.GetActorLocation()) < FieldSkillRules::TELEPORT_MIN_DISTANCE)
+	{
+		Character.SetActorLocation(Start); // a wall right ahead: no move, not paid
+		return EFieldSkillRefusal::Blocked;
+	}
+	return EFieldSkillRefusal::None;
 }
 
 EFieldSkillRefusal UFieldMovementComponent::DoPhaseStep(ACharacter &Character)
@@ -121,6 +127,10 @@ EFieldSkillRefusal UFieldMovementComponent::DoRecall(ACharacter &Character)
 
 EFieldSkillRefusal UFieldMovementComponent::DoSuperLaunch(ACharacter &Character)
 {
+	if (Character.GetCharacterMovement()->MovementMode == MOVE_None)
+	{
+		return EFieldSkillRefusal::Blocked; // a launch is ignored with no movement mode
+	}
 	SetGliding(false);
 	Character.LaunchCharacter(FVector(0.0f, 0.0f, FieldSkillRules::SUPER_LAUNCH_SPEED), false, true);
 	bSuperLaunchGlidePending = true;
@@ -139,6 +149,12 @@ AActor *UFieldMovementComponent::FindRegroupTarget() const
 		if (It->IsTemplate() || It->GetWorld() != GetWorld() || !Other || Other == Owner)
 		{
 			continue;
+		}
+		const APawn *OtherPawn = Cast<APawn>(Other);
+		const UCharacterDataComponent *OtherData = Other->FindComponentByClass<UCharacterDataComponent>();
+		if (!(OtherPawn && OtherPawn->IsPlayerControlled()) && !(OtherData && OtherData->PartyMemberId.IsValid()))
+		{
+			continue; // not a party member's pawn
 		}
 		const double DistSq = FVector::DistSquared(Owner->GetActorLocation(), Other->GetActorLocation());
 		if (DistSq > FarthestDistSq)
