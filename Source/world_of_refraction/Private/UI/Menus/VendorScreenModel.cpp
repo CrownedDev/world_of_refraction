@@ -17,6 +17,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/GearGive.h"
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/InventoryConstants.h"
+#include "Inventory/ItemSlotUpgrade.h"
 #include "Loadout/FLoadoutSlot.h"
 #include "Merchant/MerchantInteractable.h"
 #include "Pool/PoolSubsystem.h"
@@ -264,7 +266,7 @@ bool WoRVendorScreen::GetService(EVendorScreenTab Tab, EVendorService &OutServic
 bool WoRVendorScreen::IsBuilt(EVendorScreenTab Tab)
 {
 	EVendorService Service;
-	return Tab == EVendorScreenTab::Buy || GetService(Tab, Service); // TODO: B-456c, B-456d: the Jeweler's and the Spiritualist's services
+	return Tab == EVendorScreenTab::Buy || Tab == EVendorScreenTab::ItemSlots || GetService(Tab, Service); // TODO: B-456d: the Spiritualist's services
 }
 
 FText WoRVendorScreen::GetVendorLine(EMerchantType Vendor)
@@ -289,6 +291,10 @@ FVendorScreenPage WoRVendorScreen::BuildPage(UWorld *World, EMerchantType Vendor
 	if (Tab == EVendorScreenTab::Buy)
 	{
 		return BuildBuyPage(World, nullptr, nullptr, Member, {}); // no vendor to stock it: "Nothing for sale."
+	}
+	if (Tab == EVendorScreenTab::ItemSlots)
+	{
+		return BuildItemSlotsPage(World, nullptr); // no one to pay: every row says so
 	}
 	if (!GetService(Tab, Service))
 	{
@@ -360,6 +366,61 @@ FVendorScreenPage WoRVendorScreen::BuildBuyPage(UWorld *World, const UMerchantDa
 		Page.EmptyNote = LOCTEXT("EmptyBuy", "Nothing for sale.");
 	}
 	return Page;
+}
+
+FVendorScreenPage WoRVendorScreen::BuildItemSlotsPage(UWorld *World, AActor *Payer)
+{
+	FVendorScreenPage Page;
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	const UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Payer);
+	const auto PriceText = [](int32 SlotCount)
+	{
+		return FText::Format(LOCTEXT("Amount", "{0} {1}"), FText::AsNumber(ItemSlotUpgrade::GetPrice(SlotCount)),
+							 WoRGameNames::GetCurrencyName(ItemSlotUpgrade::GetCurrency()));
+	};
+	for (const FLoadoutScreenMember &Member : Pool ? WoRLoadoutScreen::BuildMembers(World) : TArray<FLoadoutScreenMember>())
+	{
+		FVendorScreenRow &Line = Page.Rows.AddDefaulted_GetRef();
+		Line.Member = Member.Key;
+		Line.Name = Member.Name;
+		Line.Slots = Pool->GetItemSlotCount(Member.Key);
+		Line.SlotsMax = InventoryConstants::ITEM_SLOTS_MAX;
+		Line.KindLine = FText::Format(LOCTEXT("SlotsOf", "{0} of {1}"), FText::AsNumber(Line.Slots), FText::AsNumber(Line.SlotsMax));
+		Line.Refusal = ItemSlotUpgrade::GetRefusal(World, *Pool, Member.Key, Wallet);
+		if (!ItemSlotUpgrade::CanGrow(Line.Slots))
+		{
+			Line.Pay = LOCTEXT("SlotsFull", "full");
+			continue;
+		}
+		Line.Pay = PriceText(Line.Slots);
+		Line.Note = FText::Format(LOCTEXT("SlotsAfter", "{0}'s pouch will hold {1} kinds of item."), Member.Name, FText::AsNumber(Line.Slots + 1));
+		if (ItemSlotUpgrade::CanGrow(Line.Slots + 1))
+		{
+			Line.Details.Add({LOCTEXT("DetailNextSlot", "Next slot after this"), PriceText(Line.Slots + 1)});
+		}
+	}
+	if (Page.Rows.IsEmpty())
+	{
+		Page.EmptyNote = LOCTEXT("EmptyItemSlots", "No one in the party to buy a slot for.");
+	}
+	Page.Intro = FText::Format(LOCTEXT("IntroItemSlots", "Each slot lets a character's pouch hold one more kind of item ({0} to start, {1} at most)."),
+							   FText::AsNumber(InventoryConstants::ITEM_SLOTS_START), FText::AsNumber(InventoryConstants::ITEM_SLOTS_MAX));
+	Page.Rule = LOCTEXT("RuleItemSlots", "Item slots are sold in the hub, not during a run.");
+	return Page;
+}
+
+FText WoRVendorScreen::GetItemSlotConfirmText(const FVendorScreenRow &Row)
+{
+	return FText::Format(LOCTEXT("ConfirmItemSlot", "Buy an item slot for {0} for {1}?"), Row.Name, Row.Pay);
+}
+
+FText WoRVendorScreen::BuyItemSlot(UWorld *World, AActor *Payer, const FVendorScreenRow &Row)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	FText Refusal = LOCTEXT("PurchaseFailed", "The purchase didn't go through.");
+	return Pool && ItemSlotUpgrade::TryBuy(World, *Pool, Row.Member, CurrencyWallet::FindFor(Payer), Refusal) ? FText::GetEmpty() : Refusal;
 }
 
 FText WoRVendorScreen::AddToCart(AActor *Payer, const FVendorScreenRow &Row, const FLoadoutScreenMember &Member, TArray<FVendorCartLine> &Cart)
@@ -512,15 +573,23 @@ FString WoRVendorScreen::GetVendorScreenString(UWorld *World, EMerchantType Vend
 			Out += FString::Printf(TEXT("\n  %s: not built yet"), *GetTabName(Tab).ToString());
 			continue;
 		}
-		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
+		const auto AddRows = [&Out, Tab](const FText &Whose, const FVendorScreenPage &Page)
 		{
-			const FVendorScreenPage Page = Tab == EVendorScreenTab::Buy ? BuildBuyPage(World, Merchant, Payer, Member.Key, {}) : BuildPage(World, Vendor, Tab, Member.Key);
-			Out += FString::Printf(TEXT("\n  %s, %s: %s"), *GetTabName(Tab).ToString(), *Member.Name.ToString(), *Page.EmptyNote.ToString());
+			Out += FString::Printf(TEXT("\n  %s, %s: %s"), *GetTabName(Tab).ToString(), *Whose.ToString(), *Page.EmptyNote.ToString());
 			for (const FVendorScreenRow &Row : Page.Rows)
 			{
 				Out += FString::Printf(TEXT("\n    %s (%s) x%d, %s: %s"), *Row.Name.ToString(), *Row.Tier.ToString(), Row.Row.Count, *Row.KindLine.ToString(),
 									   Row.Refusal.IsEmpty() ? *Row.Pay.ToString() : *FString::Printf(TEXT("no: %s"), *Row.Refusal.ToString()));
 			}
+		};
+		if (Tab == EVendorScreenTab::ItemSlots)
+		{
+			AddRows(LOCTEXT("WholeParty", "the party"), BuildItemSlotsPage(World, Payer)); // its rows are the members
+			continue;
+		}
+		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
+		{
+			AddRows(Member.Name, Tab == EVendorScreenTab::Buy ? BuildBuyPage(World, Merchant, Payer, Member.Key, {}) : BuildPage(World, Vendor, Tab, Member.Key));
 		}
 	}
 	return Out;
@@ -529,7 +598,7 @@ FString WoRVendorScreen::GetVendorScreenString(UWorld *World, EMerchantType Vend
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GVendorScreenPrintCommand(
 	TEXT("wor.UI.PrintVendor"),
-	TEXT("DEBUG (B-456a, B-456b): what the vendor screen would show for the Blacksmith, the Jeweler and the Spiritualist: tabs, rows (Buy: the stock of the vendor in this level), pay or refusal."),
+	TEXT("DEBUG (B-456a to B-456c): what the vendor screen would show for the Blacksmith, the Jeweler and the Spiritualist: tabs, rows (Buy: the stock of the vendor in this level; Item slots: each member's pouch), pay or refusal."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;

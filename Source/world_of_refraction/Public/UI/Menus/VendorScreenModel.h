@@ -5,7 +5,8 @@
 // One shop screen, each vendor's services as tabs (D-193): Blacksmith: Buy, Sell, Dismantle; Jeweler: Buy, Sell,
 // Item slots; Spiritualist: Buy, Sell, Repair, Curses, Dismantle, Merge. Every other vendor: Buy (UIScreens #15, "every
 // vendor"). Built so far: Sell and Dismantle, whose rules and moves are WoRVendorServices' (Shop/VendorServices.h), and
-// Buy (B-456b): the vendor's stock, a cart with who each line is for, bought through UEconomyService::PurchaseFor.
+// Buy (B-456b): the vendor's stock, a cart with who each line is for, bought through UEconomyService::PurchaseFor;
+// Item slots (B-456c): a row per member's pouch, bought through ItemSlotUpgrade.
 // A tab that isn't built yet is listed and says so. A row that can't be taken is listed with the reason, never hidden.
 // Debug: wor.UI.PrintVendor logs GetVendorScreenString (each vendor's tabs and the party's rows).
 
@@ -52,6 +53,10 @@ struct FVendorScreenRow
 	FText Note;
 	/** Why the service can't take it (shown in the kind line's place, the row greyed); empty when it can. */
 	FText Refusal;
+	/** Item slots: whose pouch the row is, the slots it has and the most it can have (the row's pips). */
+	FName Member;
+	int32 Slots = 0;
+	int32 SlotsMax = 0;
 };
 
 struct FVendorScreenPage
@@ -59,6 +64,8 @@ struct FVendorScreenPage
 	TArray<FVendorScreenRow> Rows;
 	/** Why the tab has no rows (nothing to take, or the tab isn't built yet); empty when it has rows. */
 	FText EmptyNote;
+	/** What the tab is for, said above its rows; may be empty. */
+	FText Intro;
 	/** A rule of the service worth saying under the details; may be empty. */
 	FText Rule;
 };
@@ -99,7 +106,8 @@ namespace WoRVendorScreen
 	/** What the vendor deals in, under its name: "weapons, augment stones". */
 	WORLD_OF_REFRACTION_API FText GetVendorLine(EMerchantType Vendor);
 
-	/** A Sell or Dismantle tab's page (or a tab that isn't built yet). Buy is BuildBuyPage. */
+	/** A Sell or Dismantle tab's page (or a tab that isn't built yet). Buy is BuildBuyPage, Item slots
+	 *  BuildItemSlotsPage (here: with no one to pay). */
 	WORLD_OF_REFRACTION_API FVendorScreenPage BuildPage(UWorld *World, EMerchantType Vendor, EVendorScreenTab Tab, FName Member);
 
 	/** B-456b: the Buy tab. Merchant's stock (this run's roll at a trial vendor), each line with its cost; a line
@@ -123,6 +131,16 @@ namespace WoRVendorScreen
 	/** Buys Cart with Payer's wallet, one receiver's lines at a time (UEconomyService::PurchaseFor); what is bought
 	 *  leaves Cart. Empty on success; else the reason, the lines not bought still in Cart. */
 	WORLD_OF_REFRACTION_API FText PurchaseCart(UWorld *World, AActor *Payer, TArray<FVendorCartLine> &Cart);
+
+	/** B-456c: the Jeweler's Item slots tab (mockup 2_jeweler_item_slots.png). A row per party member: the pouch's
+	 *  slots and the next one's price; a row Payer's wallet can't buy is greyed with ItemSlotUpgrade's own reason. */
+	WORLD_OF_REFRACTION_API FVendorScreenPage BuildItemSlotsPage(UWorld *World, AActor *Payer);
+
+	/** "Buy an item slot for Sera for 300 Gold?" */
+	WORLD_OF_REFRACTION_API FText GetItemSlotConfirmText(const FVendorScreenRow &Row);
+
+	/** Buys the row's member one slot with Payer's wallet (ItemSlotUpgrade::TryBuy). Empty on success; else the reason. */
+	WORLD_OF_REFRACTION_API FText BuyItemSlot(UWorld *World, AActor *Payer, const FVendorScreenRow &Row);
 
 	/** The vendor of this kind standing in World (its stock is the Buy tab's), or null. */
 	WORLD_OF_REFRACTION_API const UMerchantData *FindMerchant(const UWorld *World, EMerchantType Vendor);
