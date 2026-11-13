@@ -630,8 +630,8 @@ namespace CrystalEffectTable
         return AugmentStoneConstants::STONE_BASE_PERCENT[i];
     }
 
-    /** The sub-stat a stone amplifies. ESubStat::None for non-stat-stones
-     *  (AbilityStone and any non-stone). Consumed by GetAttachedStonePercent and
+    /** The sub-stat a stone amplifies. ESubStat::None for a stone with no sub-stat
+     *  and for any non-stone. Consumed by GetAttachedStonePercent and
      *  the per-read-site stat-stone hooks. */
     inline ESubStat StoneTargetStat(ECrystalType Type)
     {
@@ -737,15 +737,14 @@ namespace CrystalEffectTable
         return GetStoneBasePercent(ECrystalType::DamageStone, Id.Tier);
     }
 
-    /** Skill-slots an attachment grants at its tier — one shared per-tier curve:
-     *    AbilityStone -> ability slots,  gem crystal (IsGemType) -> spell slots.
+    /** Skill-slots a gem crystal (IsGemType) grants at its tier:
      *    F=1, E=2, D=3, C=4, B=5, A=6, S=6  (ATTACHMENT_SLOTS)
-     *  DamageStone -> 0 (grants no slots). Evolution / none -> 0 here; an
+     *  Any stone -> 0 (D-175: a stone grants no slots). Evolution / none -> 0 here; an
      *  evolution attachment holds spells by its instance tier (SlotsForContainerTier,
      *  resolved in ResolveSpellSlotCap, Q-147), not this type-keyed table. */
     inline int32 GetAttachmentSlotsForTier(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::AbilityStone || CrystalTypeHelpers::IsGemType(Id.Type))
+        if (CrystalTypeHelpers::IsGemType(Id.Type))
         {
             const int32 i = TierHelpers::GetTierValue(Id.Tier);
             if (i < 0 || i >= 7)
@@ -754,7 +753,7 @@ namespace CrystalEffectTable
             }
             return AugmentStoneConstants::ATTACHMENT_SLOTS[i];
         }
-        // DamageStone and every other type grant no slots.
+        // Stones and every other type grant no slots.
         return 0;
     }
 
@@ -796,30 +795,5 @@ namespace CrystalEffectTable
             return SlotsForContainerTier(Attachment.Evolution.Tier);
         }
         return FlatCeiling;
-    }
-
-    /** The FCrystalId whose tier keys an attachment's AUGMENT-STONE ability-slot cap:
-     *  a direct augment stone's own Id, or a fusion's AbilityStone half (the only
-     *  ability-granting fusion half — other pairs are banned by validation). Returns
-     *  a default (None) Id otherwise, for which GetAttachmentSlotsForTier yields 0.
-     *  The ability analog of ResolveSpellSlotCap's gem-half resolution. */
-    inline FCrystalId AbilityStoneSlotIdentity(const FRuntimeAttachedItem &Att)
-    {
-        if (Att.IsAugmentStone())
-        {
-            return Att.Crystal.Id;
-        }
-        if (Att.IsFusion())
-        {
-            if (Att.Fusion.Id.HalfA.Type == ECrystalType::AbilityStone)
-            {
-                return Att.Fusion.Id.HalfA;
-            }
-            if (Att.Fusion.Id.HalfB.Type == ECrystalType::AbilityStone)
-            {
-                return Att.Fusion.Id.HalfB;
-            }
-        }
-        return FCrystalId();
     }
 }
