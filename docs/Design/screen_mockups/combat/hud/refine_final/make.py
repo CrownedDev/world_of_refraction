@@ -1,4 +1,4 @@
-"""Battle-HUD mockups, the final set for Crown's review (B-435): main menu, one image per skill kind,
+"""Battle-HUD mockups, the final set for Crown's review (B-436): main menu, one image per skill kind,
 and the target / infusion views. Flat layout only (Windows fonts, plain shapes), not the Hidris art.
 Reuses refine_v3b's helpers (loading it redraws v3b and v2). Run: python make.py"""
 import importlib.util
