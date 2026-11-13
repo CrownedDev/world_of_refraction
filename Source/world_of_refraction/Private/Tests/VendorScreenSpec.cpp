@@ -6,6 +6,9 @@
 // B-456b: Buy. The model: the vendor's stock with its cost, an empty line skipped, a line the wallet can't pay greyed
 // with the reason. The screen: it opens on Buy, A puts a line in the cart, Left takes it back, X buys the cart, and
 // R / Y changes who it is bought for. The purchase's own rules are WoR.Economy.BuyFor.
+// B-456c: Item slots. The model: a row per member's pouch with the next slot's price, a pouch the wallet can't pay or
+// that is full greyed with the reason. The screen: A asks, the second A buys one slot for the focused member. The
+// purchase's own rules are WoR.Inventory.ItemSlotUpgrade.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -20,6 +23,8 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/InventoryConstants.h"
+#include "Inventory/ItemSlotUpgrade.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Merchant/MerchantData.h"
 #include "Party/Party.h"
@@ -113,15 +118,15 @@ BEGIN_DEFINE_SPEC(FVendorScreenSpec, "WoR.UI.VendorScreen", EAutomationTestFlags
 		return Page.Rows.IndexOfByPredicate([&Item](const FVendorScreenRow &Row) { return !Row.Row.IsGear() && Row.Row.Item == Item; });
 	}
 
-	/** The Blacksmith's screen, as talking to the test vendor opens it, moved to Tab. */
-	UVendorScreenWidget *OpenScreen(EVendorScreenTab Tab = EVendorScreenTab::Sell)
+	/** Vendor's screen, as talking to the test vendor opens it, moved to Tab. */
+	UVendorScreenWidget *OpenScreen(EVendorScreenTab Tab = EVendorScreenTab::Sell, EMerchantType Vendor = EMerchantType::Blacksmith)
 	{
 		UVendorScreenWidget *Screen = CreateWidget<UVendorScreenWidget>(World(), UVendorScreenWidget::StaticClass());
 		if (Screen)
 		{
 			Screen->ActivateWidget();
-			Screen->SetVendor(EMerchantType::Blacksmith, Merchant, Payer());
-			for (int32 Step = 0; Step < WoRVendorScreen::GetTabs(EMerchantType::Blacksmith).Num() && Screen->GetTab() != Tab; ++Step)
+			Screen->SetVendor(Vendor, Merchant, Payer());
+			for (int32 Step = 0; Step < WoRVendorScreen::GetTabs(Vendor).Num() && Screen->GetTab() != Tab; ++Step)
 			{
 				Screen->MoveTab(1);
 			}
@@ -189,6 +194,7 @@ void FVendorScreenSpec::Define()
 		}
 		TestTrue(TEXT("Buy, Sell and Dismantle are built"), WoRVendorScreen::IsBuilt(EVendorScreenTab::Buy) && WoRVendorScreen::IsBuilt(EVendorScreenTab::Sell) &&
 																 WoRVendorScreen::IsBuilt(EVendorScreenTab::Dismantle));
+		TestTrue(TEXT("Item slots is built"), WoRVendorScreen::IsBuilt(EVendorScreenTab::ItemSlots));
 		if (!Inventory) return;
 		for (const EVendorScreenTab Tab : Spiritualist)
 		{
@@ -372,6 +378,69 @@ void FVendorScreenSpec::Define()
 		TestTrue(TEXT("the payer's wallet paid"), Money() < Before);
 		TestTrue(TEXT("the spear is the friend's"), Owns(FriendKey, Spear));
 		TestFalse(TEXT("not the payer's"), Owns(Key(), Spear));
+	});
+
+	It("Item slots lists each member's pouch with the next slot's price, and greys one the wallet can't pay or that is full", [this]()
+	{
+		if (!Inventory) return;
+		FVendorScreenPage Page = WoRVendorScreen::BuildItemSlotsPage(World(), Payer());
+		if (!TestEqual(TEXT("a row per member"), Page.Rows.Num(), 1)) return;
+		TestEqual(TEXT("the row is the member's"), Page.Rows[0].Member, Key());
+		TestEqual(TEXT("the pouch's slots"), Page.Rows[0].Slots, InventoryConstants::ITEM_SLOTS_START);
+		TestEqual(TEXT("the most it can have"), Page.Rows[0].SlotsMax, InventoryConstants::ITEM_SLOTS_MAX);
+		TestFalse(TEXT("an empty wallet is refused with the reason"), Page.Rows[0].Refusal.IsEmpty());
+		TestFalse(TEXT("and still shows the price"), Page.Rows[0].Pay.IsEmpty());
+		TestFalse(TEXT("the tab says what a slot is"), Page.Intro.IsEmpty());
+
+		Fund();
+		Page = WoRVendorScreen::BuildItemSlotsPage(World(), Payer());
+		TestTrue(TEXT("a funded wallet can buy"), Page.Rows[0].Refusal.IsEmpty());
+		TestEqual(TEXT("the slot after this one is priced too"), Page.Rows[0].Details.Num(), 1);
+		TestFalse(TEXT("what the pouch will hold"), Page.Rows[0].Note.IsEmpty());
+
+		while (Pool->AddItemSlot(Key())) {}
+		Page = WoRVendorScreen::BuildItemSlotsPage(World(), Payer());
+		TestEqual(TEXT("a full pouch"), Page.Rows[0].Slots, InventoryConstants::ITEM_SLOTS_MAX);
+		TestFalse(TEXT("is refused with the reason"), Page.Rows[0].Refusal.IsEmpty());
+		TestTrue(TEXT("and prices no further slot"), Page.Rows[0].Details.IsEmpty());
+	});
+
+	It("Item slots: A asks, Back cancels, and the second A buys one slot for the focused member", [this]()
+	{
+		if (!Inventory) return;
+		UCharacterData *Friend = nullptr;
+		if (!TestNotNull(TEXT("a second member"), AddMember(TEXT("Screen friend"), Friend))) return;
+		const FName FriendKey = UPoolSubsystem::GetCharacterKey(Friend);
+		Fund();
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::ItemSlots, EMerchantType::Jeweler);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		TestTrue(TEXT("on Item slots"), Screen->GetTab() == EVendorScreenTab::ItemSlots);
+		if (!TestEqual(TEXT("a row per member"), Screen->GetPage().Rows.Num(), 2)) return;
+		Screen->MoveMember(1);
+		TestEqual(TEXT("the rows are the members: no character tab to change"), Screen->GetMemberIndex(), 0);
+
+		const int32 Before = Money();
+		Screen->SelectRow(1);
+		Screen->Confirm();
+		TestTrue(TEXT("the first A asks"), Screen->IsConfirming());
+		TestEqual(TEXT("nothing spent yet"), Money(), Before);
+		Screen->PressBack();
+		TestFalse(TEXT("Back cancels the question"), Screen->IsConfirming());
+		Screen->Confirm();
+		Screen->Confirm();
+		TestEqual(TEXT("the friend's pouch has one more slot"), Pool->GetItemSlotCount(FriendKey), InventoryConstants::ITEM_SLOTS_START + 1);
+		TestEqual(TEXT("the member's pouch is as it was"), Pool->GetItemSlotCount(Key()), InventoryConstants::ITEM_SLOTS_START);
+		TestEqual(TEXT("the payer's wallet paid the price"), Money(), Before - ItemSlotUpgrade::GetPrice(InventoryConstants::ITEM_SLOTS_START));
+		TestEqual(TEXT("the row shows the new slot"), Screen->GetPage().Rows[1].Slots, InventoryConstants::ITEM_SLOTS_START + 1);
+		TestFalse(TEXT("the screen says what happened"), Screen->GetStatus().IsEmpty());
+
+		Wallet()->Spend(ECurrencyType::Prisms, Money());
+		Screen->MoveTab(1);
+		Screen->MoveTab(-1); // back on Item slots, read fresh
+		Screen->Confirm();
+		TestFalse(TEXT("a pouch the wallet can't pay asks nothing"), Screen->IsConfirming());
+		TestFalse(TEXT("the row is refused"), Screen->GetPage().Rows[0].Refusal.IsEmpty());
+		TestEqual(TEXT("and says why"), Screen->GetStatus().ToString(), Screen->GetPage().Rows[0].Refusal.ToString());
 	});
 }
 

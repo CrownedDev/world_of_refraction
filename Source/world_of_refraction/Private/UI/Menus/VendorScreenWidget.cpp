@@ -9,6 +9,7 @@
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
 #include "Infusion/ElementColors.h"
+#include "Inventory/InventoryConstants.h"
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/MenuScreenStyle.h"
@@ -28,6 +29,8 @@ namespace VendorScreenStyle
 	constexpr float TierWidth = 60.0f;
 	constexpr float CountWidth = 75.0f;
 	constexpr float PayWidth = 300.0f;
+	constexpr float PipSize = 24.0f;
+	constexpr float PipGap = 8.0f;
 	constexpr float PanelGap = 45.0f;
 	constexpr float PanelWidth = 664.0f;
 	constexpr float PanelPadding = 30.0f;
@@ -225,6 +228,15 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	UTextBlock *Sub = MakeText(WidgetTree, SmallFontSize, DimColor);
 	AddToColumn(Words, Name);
 	AddToColumn(Words, Sub);
+	UHorizontalBox *PipRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	for (int32 Index = 0; Index < InventoryConstants::ITEM_SLOTS_MAX; ++Index)
+	{
+		UBorder *Pip = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		AddToRow(PipRow, MakeSized(WidgetTree, PipSize, PipSize, Pip), FMargin(0.0f, 0.0f, PipGap, 0.0f));
+		Widgets.Pips.Add(Pip);
+	}
+	AddToColumn(Words, PipRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	Widgets.PipRow = PipRow;
 	AddToRow(Line, Words)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	UTextBlock *Tier = MakeText(WidgetTree, LineFontSize, DimColor, true);
 	AddToRow(Line, MakeSized(WidgetTree, TierWidth, 0.0f, Tier));
@@ -311,7 +323,10 @@ void UVendorScreenWidget::RefreshData()
 	Members = WoRLoadoutScreen::BuildMembers(World);
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	const bool bBuy = IsBuy();
-	Page = bBuy ? WoRVendorScreen::BuildBuyPage(World, Merchant.Get(), Payer.Get(), MemberKey(), Cart) : WoRVendorScreen::BuildPage(World, Vendor, GetTab(), MemberKey());
+	const bool bSlots = IsItemSlots();
+	Page = bBuy		? WoRVendorScreen::BuildBuyPage(World, Merchant.Get(), Payer.Get(), MemberKey(), Cart)
+		   : bSlots ? WoRVendorScreen::BuildItemSlotsPage(World, Payer.Get())
+					: WoRVendorScreen::BuildPage(World, Vendor, GetTab(), MemberKey());
 	SelectedRow = Page.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, Page.Rows.Num() - 1) : 0;
 
 	if (!TitleText || !RowScroll)
@@ -319,7 +334,7 @@ void UVendorScreenWidget::RefreshData()
 		return; // headless: no tree
 	}
 	RefreshCart();
-	SetShown(MemberTabRow, !bBuy); // Buy says who it is for in the panel ("Buying for")
+	SetShown(MemberTabRow, HasMemberTabs());
 	TitleText->SetText(WoRGameNames::GetMerchantTypeName(Vendor));
 	VendorLineText->SetText(WoRVendorScreen::GetVendorLine(Vendor));
 	TArray<FText> Chips;
@@ -352,10 +367,12 @@ void UVendorScreenWidget::RefreshData()
 			MemberTabLabels[Index]->SetColorAndOpacity(FSlateColor(Index == MemberIndex ? TextColor : DimColor));
 		}
 	}
-	EmptyText->SetText(Page.EmptyNote);
-	SetShown(EmptyText, !Page.EmptyNote.IsEmpty());
-	HintsText->SetText(bBuy ? LOCTEXT("HintsBuy", "LB / RB  Service        Enter / Right  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave")
-							: FText::Format(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
+	const FText AboveRows = Page.EmptyNote.IsEmpty() ? Page.Intro : Page.EmptyNote;
+	EmptyText->SetText(AboveRows);
+	SetShown(EmptyText, !AboveRows.IsEmpty());
+	HintsText->SetText(bBuy		? LOCTEXT("HintsBuy", "LB / RB  Service        Enter / Right  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave")
+					   : bSlots ? LOCTEXT("HintsItemSlots", "LB / RB  Service        A / Enter  Buy        B / Esc  Leave")
+								: FText::Format(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
 											WoRVendorScreen::GetTabName(GetTab())));
 
 	while (RowWidgets.Num() < Page.Rows.Num())
@@ -367,8 +384,8 @@ void UVendorScreenWidget::RefreshData()
 		const FRowWidgets &Widgets = RowWidgets[Index];
 		const bool bShown = Page.Rows.IsValidIndex(Index);
 		SetShown(Widgets.Frame.Get(), bShown);
-		if (!bShown || !Widgets.ElementMark.IsValid() || !Widgets.Name.IsValid() || !Widgets.Sub.IsValid() || !Widgets.Tier.IsValid() ||
-			!Widgets.Count.IsValid() || !Widgets.Pay.IsValid())
+		if (!bShown || !Widgets.ElementMark.IsValid() || !Widgets.Name.IsValid() || !Widgets.Sub.IsValid() || !Widgets.PipRow.IsValid() ||
+			!Widgets.Tier.IsValid() || !Widgets.Count.IsValid() || !Widgets.Pay.IsValid())
 		{
 			continue;
 		}
@@ -379,10 +396,18 @@ void UVendorScreenWidget::RefreshData()
 		Widgets.Name->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
 		Widgets.Sub->SetText(bRefused ? Row.Refusal : Row.KindLine);
 		Widgets.Sub->SetColorAndOpacity(FSlateColor(bRefused ? WarnColor : DimColor));
+		SetShown(Widgets.PipRow.Get(), Row.SlotsMax > 0);
+		for (int32 Pip = 0; Pip < Widgets.Pips.Num(); ++Pip)
+		{
+			if (UBorder *Mark = Widgets.Pips[Pip].Get())
+			{
+				Mark->SetBrushColor(Pip < Row.Slots ? CyanColor : Pip < Row.SlotsMax ? TrackColor : FLinearColor::Transparent);
+			}
+		}
 		Widgets.Tier->SetText(Row.Tier);
 		// Sell and Dismantle: the stack's size. Buy: how many the cart holds, and a refused line still shows its price.
 		Widgets.Count->SetText(Row.Row.Count > (bBuy ? 0 : 1) ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Row.Row.Count)) : FText::GetEmpty());
-		Widgets.Pay->SetText(bRefused && !bBuy ? FText::GetEmpty() : Row.PayMoney.IsEmpty() ? Row.Pay : FText::Format(LOCTEXT("PayAndMore", "{0} +"), Row.PayMoney));
+		Widgets.Pay->SetText(bRefused && HasMemberTabs() ? FText::GetEmpty() : Row.PayMoney.IsEmpty() ? Row.Pay : FText::Format(LOCTEXT("PayAndMore", "{0} +"), Row.PayMoney));
 		Widgets.Pay->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
 	}
 }
@@ -409,20 +434,24 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	}
 	SetShown(DetailPanel, Focused != nullptr || !Status.IsEmpty());
 	const bool bBuy = IsBuy();
+	const bool bSlots = IsItemSlots();
 	const FVendorScreenRow Row = Focused ? *Focused : FVendorScreenRow();
 	const int32 Count = bBuy ? 1 : WoRVendorScreen::GetTakeCount(Row, bWholeStack); // Buy's Row.Count is the cart's, not a stack
 	const FText What = Row.Tier.IsEmpty() ? Row.Name : FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Row.Name, Row.Tier);
-	DetailTitle->SetText(!Focused ? FText::GetEmpty() : bBuy ? What : FText::Format(LOCTEXT("DetailTitle", "{0} {1}"), WoRVendorScreen::GetTabName(GetTab()), What));
-	PayLabel->SetText(bBuy ? LOCTEXT("Price", "Price") : LOCTEXT("YouGet", "You get"));
+	DetailTitle->SetText(!Focused ? FText::GetEmpty()
+						 : bBuy	  ? What
+						 : bSlots ? LOCTEXT("DetailItemSlot", "Buy one item slot")
+								  : FText::Format(LOCTEXT("DetailTitle", "{0} {1}"), WoRVendorScreen::GetTabName(GetTab()), What));
+	PayLabel->SetText(bBuy || bSlots ? LOCTEXT("Price", "Price") : LOCTEXT("YouGet", "You get"));
 	SetShown(PayLabel, Focused != nullptr);
 	DetailPay->SetText(!Row.Refusal.IsEmpty() ? Row.Refusal : Count > 1 ? FText::Format(LOCTEXT("PayEach", "{0} each, for {1}"), Row.Pay, FText::AsNumber(Count)) : Row.Pay);
 	DetailPay->SetColorAndOpacity(FSlateColor(Row.Refusal.IsEmpty() ? TextColor : WarnColor));
 
-	// Buy: what the thing is and does, and who it is bought for.
+	// Buy: what the thing is and does, and who it is bought for. Item slots: the pouch now and after.
 	TArray<FText> Lines;
-	if (bBuy && Focused)
+	if ((bBuy || bSlots) && Focused)
 	{
-		if (!Row.Refusal.IsEmpty())
+		if (bBuy && !Row.Refusal.IsEmpty())
 		{
 			Lines.Add(Row.Pay); // the reason took the price's place
 		}
@@ -445,12 +474,14 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 		BuyForText->SetText(FText::Format(LOCTEXT("BuyingFor", "R / Y  Buying for:  {0}"), Members[MemberIndex].Name));
 	}
 
-	EVendorService Service;
-	const bool bAsking = bConfirming && Focused && WoRVendorScreen::GetService(GetTab(), Service);
-	ConfirmText->SetText(bAsking ? WoRVendorServices::GetConfirmText(GetWorld(), Service, MemberKey(), Row.Row) : FText::GetEmpty());
+	EVendorService Service = EVendorService::Sell;
+	const bool bAsking = bConfirming && Focused && (bSlots || WoRVendorScreen::GetService(GetTab(), Service));
+	ConfirmText->SetText(!bAsking ? FText::GetEmpty()
+						 : bSlots ? WoRVendorScreen::GetItemSlotConfirmText(Row)
+								  : WoRVendorServices::GetConfirmText(GetWorld(), Service, MemberKey(), Row.Row));
 	SetShown(ConfirmText, bAsking);
 	SetShown(ConfirmHint, bAsking);
-	const bool bStack = Focused && !bBuy && Row.Row.Count > 1;
+	const bool bStack = Focused && HasMemberTabs() && Row.Row.Count > 1;
 	SetShown(WholeStackText, bStack);
 	WholeStackText->SetText(bWholeStack ? FText::Format(LOCTEXT("WholeStackOn", "X  Whole stack: on (all {0})"), FText::AsNumber(Row.Row.Count))
 										: LOCTEXT("WholeStackOff", "X  Whole stack: off (one at a time)"));
@@ -569,9 +600,9 @@ void UVendorScreenWidget::MoveTab(int32 Delta)
 
 void UVendorScreenWidget::MoveMember(int32 Delta)
 {
-	if (Members.Num() < 2)
+	if (Members.Num() < 2 || IsItemSlots())
 	{
-		return;
+		return; // Item slots: the rows are the members
 	}
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
 	SelectedRow = IsBuy() ? SelectedRow : 0; // Buy: the stock is the same list, whoever it is bought for
@@ -589,8 +620,9 @@ void UVendorScreenWidget::Confirm()
 		return;
 	}
 	const FVendorScreenRow *Focused = FocusedRow();
-	EVendorService Service;
-	if (!Focused || !WoRVendorScreen::GetService(GetTab(), Service))
+	const bool bSlots = IsItemSlots();
+	EVendorService Service = EVendorService::Sell;
+	if (!Focused || (!bSlots && !WoRVendorScreen::GetService(GetTab(), Service)))
 	{
 		return;
 	}
@@ -613,11 +645,16 @@ void UVendorScreenWidget::Confirm()
 	}
 	bConfirming = false;
 	const int32 Count = WoRVendorScreen::GetTakeCount(Row, bWholeStack);
-	const FText Failure = WoRVendorServices::Run(GetWorld(), Vendor, Service, MemberKey(), Row.Row, Count);
+	const FText Failure = bSlots ? WoRVendorScreen::BuyItemSlot(GetWorld(), Payer.Get(), Row)
+								 : WoRVendorServices::Run(GetWorld(), Vendor, Service, MemberKey(), Row.Row, Count);
 	bStatusIsRefusal = !Failure.IsEmpty();
 	if (bStatusIsRefusal)
 	{
 		Status = Failure;
+	}
+	else if (bSlots)
+	{
+		Status = FText::Format(LOCTEXT("DoneItemSlot", "{0}'s pouch now holds {1} kinds of item."), Row.Name, FText::AsNumber(Row.Slots + 1));
 	}
 	else if (Count > 1)
 	{
@@ -637,6 +674,10 @@ void UVendorScreenWidget::Confirm()
 
 void UVendorScreenWidget::ToggleWholeStack()
 {
+	if (!HasMemberTabs())
+	{
+		return; // nothing here is a stack
+	}
 	bWholeStack = !bWholeStack;
 	bConfirming = false; // the question was about the other amount: ask again
 	RefreshSelection(/*bScrollIntoView=*/false);
@@ -760,8 +801,8 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 			return FReply::Handled();
 		}
 	}
-	// Buy hides the character tabs; a hidden tab keeps the place it last had.
-	for (int32 Index = 0; !bBuy && Index < MemberTabs.Num() && Index < Members.Num(); ++Index)
+	// Buy and Item slots hide the character tabs; a hidden tab keeps the place it last had.
+	for (int32 Index = 0; HasMemberTabs() && Index < MemberTabs.Num() && Index < Members.Num(); ++Index)
 	{
 		if (MemberTabs[Index] && MemberTabs[Index]->GetCachedGeometry().IsUnderLocation(Position))
 		{
@@ -786,7 +827,7 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorldAndArgs GVendorScreenOpenCommand(
 	TEXT("wor.UI.VendorScreen"),
-	TEXT("B-456a: open the vendor screen. Usage: wor.UI.VendorScreen [Blacksmith|Jeweler|Spiritualist] (default Blacksmith)."),
+	TEXT("B-456a to B-456c: open the vendor screen. Usage: wor.UI.VendorScreen [Blacksmith|Jeweler|Spiritualist] (default Blacksmith)."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
 	{
 		EMerchantType Vendor = EMerchantType::Blacksmith;
