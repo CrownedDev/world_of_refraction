@@ -775,6 +775,34 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-185 — Menu party bars: HP and EP values sit inside their bars
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (every menu screen with a party panel)
+**Answer (Crown):** on the rest spot's party panel and **every menu's party bars**, the HP and EP values sit **centred inside their own bars**, on a dark backing, the same style as the approved battle HUD (`BattleHUDRefinePlan.md`, piece 2), not one number off to the right.
+**Notes for Claude:** the pause menu is built this way (B-439, `UPauseMenuWidget::BuildMemberCard`); later screens copy it.
+
+---
+
+### D-184 — "Skins" is "Spirit of {character}"
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-444
+**Answer (Crown):** the forms screen and its menu rows are named **"Spirit of {character}"** ("Spirit of Sera"), not "Skins".
+**Notes for Claude:** B-444 builds the screen under this name; the placeholder `UCharacterFormWidget` and the rest menu's "Skins" row are renamed with it. Player-facing name only: the code's "form" names stay.
+
+---
+
+### D-183 — Level up at a rest spot: simple, and no buying points there
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-447
+**Answer (Crown):** (UIScreens question 4; **changes D-156**) pillar points are **bought only from NPCs found in the trial**, not at the rest spot: the level-up screen has **no "buy a point"** and no "or buy one with Prisms" line. The screen stays **simple**: it does **not list the skills a level affects** (the Skills page already shows whether requirements are met).
+**Notes for Claude:** today the rest spot's level screen buys points (`ULevelDropWidget` → `WoRLevelDrops::TryBuyPoint`, B-363). **B-447** takes the buy off that screen and gives it to a trial NPC; `TryBuyPoint` and its rising price stay.
+
+---
+
+### D-182 — Rest spot screen: short labels, a currency strip, pending levels as "+1"
+**Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** — (the rest spot mockup is redrawn first)
+**Answer (Crown):** the rest menu's labels are short: **"Revive boss", "Invite", "Leave Trial"**. The **"Earned so far" panel is dropped**; instead a **currency strip top right** shows **Gear Essence, Skill Essence, Elemental Essence, Gold and Prisms** (GE, SE, EE, G, P; Prisms must show). **Pending levels show as "+1" / "+2"** (not "1 to place"), on the Level up row and per character.
+**Notes for Claude:** "the third essence" is read as Elemental Essence (`ECurrencyType::ElementalEssence`); say if it should be Pillar Essence. No build job yet for the rest spot screen.
+
+---
+
 ### D-181 — UI screens approved as drawn; unmet forms show "???"
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** B-439, B-440, B-441, B-442, B-443, B-444
 **Answer (Crown):** these mockups in `Design/UIScreens.md` are **approved as drawn**: the pause menu, loadout and skills, inventory (with D-177's verb change), the character sheet, the hub HUD, skins / forms. On the forms list a character you haven't met shows as **"???"** (UIScreens question 15).
