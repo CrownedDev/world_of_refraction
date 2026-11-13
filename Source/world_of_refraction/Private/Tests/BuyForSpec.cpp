@@ -4,6 +4,7 @@
 // take yet (an evolution, Q-323; a spell is bought for another member since B-316b) or a receiver outside the party is
 // refused with nothing spent. Review fixes: a receiver with no
 // room is refused before paying; a payer who owns a copy gets no duplicate prompt; gear bought in a run stays run-only.
+// B-432: a payer whose own armoury is full still buys for a receiver with room (the gear only passes through).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -206,6 +207,20 @@ void FBuyForSpec::Define()
 		TestFalse(TEXT("a full receiver is refused"), Economy->PurchaseFor(Payer(), KeyOf(BUY_FOR_RECEIVER), WeaponOnly()));
 		TestEqual(TEXT("nothing spent"), Wallet()->GetBalance(ECurrencyType::Prisms), BUY_FOR_WALLET_PRISMS);
 		TestEqual(TEXT("nothing bought"), CountOfAsset(*Pool, Bought), 0);
+	});
+
+	It("buys for a receiver with room although the payer's own armoury is full (B-432)", [this]()
+	{
+		if (!Pool || !Economy || Inventories.Contains(nullptr) || !TestNotNull(TEXT("Wallet"), Wallet())) return;
+		UInventoryComponent *PayerInventory = Inventories[BUY_FOR_PAYER];
+		while (PayerInventory->CanAddWeapon(Sword))
+		{
+			PayerInventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage()));
+		}
+		TestTrue(TEXT("bought for the receiver"), Economy->PurchaseFor(Payer(), KeyOf(BUY_FOR_RECEIVER), WeaponOnly()));
+		TestNotNull(TEXT("the receiver owns it"), ReceiversBought());
+		TestFalse(TEXT("the payer is still full"), PayerInventory->CanAddWeapon(Sword));
+		TestFalse(TEXT("and still refuses gear for itself"), Economy->PurchaseFor(Payer(), KeyOf(BUY_FOR_PAYER), WeaponOnly()));
 	});
 
 	It("gives a payer who owns a copy no duplicate prompt; the receiver gets the piece", [this]()
