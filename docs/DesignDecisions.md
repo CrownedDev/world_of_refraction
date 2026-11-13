@@ -551,6 +551,14 @@ The queue of questions only Crown can answer.
 **Answer:** all six, by the reference-backed default (2026-11-09). Crown may change any; the absorb cue is one switch.
 **Answer: Crown, 2026-11-12:** all six kept, with one change: the cue text is **"Negated", not "Absorbed"** ("Absorbed" reads as Broken Darkness's energy absorption); **on by default**. `LOCTEXT("Negated", "Negated")` in `DamageNumberView::GetNegatedLabel`; the code names follow the word (`EDamageNumberTier::Negated`, `SHOW_NEGATED_CUE`, `NEGATED_SCALE`, `IsNegatedHit`, `MakeNegatedStyle`).
 
+### Q-438 — When a co-op guest's wallet is written back to its own save
+**Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-14 (B-438, cloud) · **Blocks:** —
+**Question:** B-425 stopped a guest from saving the host's copy of its wallet. When should what the guest earns or spends in co-op reach the guest's own save, and does run Gold travel too?
+**Options:** **A** at every host save (rest spots, fights won, run exit) and when the guest leaves; balances and run Gold. **B** only when the guest leaves. **C** only at the run's end.
+**Recommendation:** A. Diablo III and Borderlands 3 save each co-op player's own character and currency to that player's own profile as they play, so a dropped connection loses little; players expect a co-op session's loot to be theirs. Leave-only (B) loses everything on a crash or a dropped connection. Run Gold travels so a guest who drops and rejoins mid-run keeps its run money (B-425's report restores it).
+**Answer:** **A**, by the reference-backed default (2026-11-14). Crown may change it.
+**Notes for Claude:** built in B-438.
+
 ### Q-402 — Side-on Defence view: which side, how wide, and what "no shake" covers
 **Status:** ANSWERED (approved by the reference-backed default) · **Raised:** 2026-11-09 (B-402, cloud) · **Blocks:** —
 **Question:** Crown's Q2 (2026-11-09) made the Defence view a low side-on two-shot, steady, no shake (study R10, R10b, R11). Still open: (1) which side of the fight the camera stands on; (2) how a wide shot for several targets differs from the two-shot; (3) when shake and the FOV punch are held, and what happens to them afterwards.
