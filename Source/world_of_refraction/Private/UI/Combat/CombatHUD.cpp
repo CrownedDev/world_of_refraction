@@ -114,6 +114,14 @@ void UCombatHUD::BuildNewHUD(APlayerController *PC, const TArray<AActor *> &Loca
         // Replays an already-open menu, so turn 1 (fired inside InitializeCombat) is not missed.
         BattleMenu->Initialise();
     }
+
+    // The new menu picks inside a submenu by click (Q-391), so the fight needs a cursor; game-and-UI keeps the
+    // category keys working. The battle level's controller is fresh per fight, so nothing is restored.
+    FInputModeGameAndUI InputMode;
+    InputMode.SetHideCursorDuringCapture(false);
+    InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+    PC->SetInputMode(InputMode);
+    PC->SetShowMouseCursor(true);
 }
 
 void UCombatHUD::BuildOldHUD(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
@@ -371,7 +379,8 @@ void UCombatHUD::PlaceInViewport(UUserWidget *Widget, const FVector2D &Anchor, c
     {
         return;
     }
+    // Position first: UE's SetPositionInViewport resets the anchors to the top-left (B-424 PIE: the menu sat off screen).
+    Widget->SetPositionInViewport(Offset, /*bRemoveDPIScale=*/false);
     Widget->SetAnchorsInViewport(FAnchors(Anchor.X, Anchor.Y));
     Widget->SetAlignmentInViewport(Anchor);
-    Widget->SetPositionInViewport(Offset, /*bRemoveDPIScale=*/false);
 }
