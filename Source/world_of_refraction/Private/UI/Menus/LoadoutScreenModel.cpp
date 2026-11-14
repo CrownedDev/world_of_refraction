@@ -354,17 +354,7 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 		{
 			continue;
 		}
-		FLoadoutScreenRow Row;
-		Row.Kind = ELoadoutScreenRowKind::Apparel;
-		Row.Name = FText::FromString(Entry.Apparel->GetDisplayName());
-		Row.KindLine = LOCTEXT("KindApparel", "Apparel");
-		Row.Tier = WoRGameNames::GetTierLetter(Entry.Tier);
-		Row.Sockets.Add(MakeSocket(Entry.AttachedItem, LOCTEXT("SocketCrystal", "Crystal")));
-		Row.bCountsToBudget = false;
-		Row.CostLine = OutsideBudget;
-		const ESpellElement Element = Entry.GetElement();
-		AddDetail(Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
-		Page.Rows.Add(MoveTemp(Row));
+		Page.Rows.Add(BuildApparelRow(Entry));
 		++ApparelShown;
 	}
 	for (; ApparelShown < ApparelRules::MAX_APPAREL_SLOTS; ++ApparelShown)
@@ -377,6 +367,24 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 		Page.Rows.Add(MoveTemp(Row));
 	}
 	return Page;
+}
+
+FLoadoutScreenRow WoRLoadoutScreen::BuildApparelRow(const FApparelEntry &Entry)
+{
+	using namespace LoadoutScreenBuild;
+
+	FLoadoutScreenRow Row;
+	Row.Kind = ELoadoutScreenRowKind::Apparel;
+	Row.Name = Entry.Apparel ? FText::FromString(Entry.Apparel->GetDisplayName()) : FText::GetEmpty();
+	Row.KindLine = LOCTEXT("KindApparel", "Apparel");
+	Row.Tier = WoRGameNames::GetTierLetter(Entry.Tier);
+	Row.GearID = Entry.PersistentID; // B-440f: the owned piece, so a change or take-off finds it
+	Row.Sockets.Add(MakeSocket(Entry.AttachedItem, LOCTEXT("SocketCrystal", "Crystal")));
+	Row.bCountsToBudget = false;
+	Row.CostLine = LOCTEXT("OutsideBudget", "Outside budget");
+	const ESpellElement Element = Entry.GetElement();
+	AddDetail(Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
+	return Row;
 }
 
 FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(UWorld *World, const FLoadoutScreenMember &Member)

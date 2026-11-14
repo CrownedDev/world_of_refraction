@@ -19,6 +19,7 @@ class UInventoryComponent;
 class ULoadoutComponent;
 class USkillDataBase;
 class UWorld;
+struct FApparelEntry;
 struct FCombatLoadout;
 struct FLoadoutSlot;
 struct FEvolutionInventoryEntry;
@@ -164,6 +165,9 @@ namespace WoRLoadoutScreen
 	/** One weapon's or adapter's row (name, tier, kind line, sockets, details), as the gear page lists it. The
 	 *  inventory screen describes an owned piece with it (B-441). */
 	WORLD_OF_REFRACTION_API FLoadoutScreenRow BuildGearRow(const FLoadoutSlot &Slot);
+
+	/** B-440f: an apparel piece as a gear row (its socket, tier, element; outside the budget); GearID is its owned id. */
+	WORLD_OF_REFRACTION_API FLoadoutScreenRow BuildApparelRow(const FApparelEntry &Entry);
 
 	/** B-440b: what can take Row's place: "put in hand" first when Row is the weapon not in hand, then every owned
 	 *  weapon or adapter the place takes that isn't in this loadout, each with the budget after it. Refused lines stay:
