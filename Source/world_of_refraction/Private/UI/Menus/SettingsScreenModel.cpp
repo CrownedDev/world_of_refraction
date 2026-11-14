@@ -116,8 +116,12 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 	{
 		Rows.Add(BattleControlsRow()); // repeated here on purpose: people look for it in both places
 		Rows.Add(NotBuilt(ESettingId::TextSize, LOCTEXT("TextSize", "Text size"), LOCTEXT("TextSizeExplain", "Makes the text in menus and in fights larger.")));
-		Rows.Add(NotBuilt(ESettingId::FightCameraMovement, LOCTEXT("FightCameraMovement", "Camera movement in fights"),
-						  LOCTEXT("FightCameraMovementExplain", "Off keeps the camera still during attacks, for anyone the movement makes unwell.")));
+		FSettingsRow Movement; // B-453b (D-190, D-078)
+		Movement.Id = ESettingId::FightCameraMovement;
+		Movement.Label = LOCTEXT("FightCameraMovement", "Camera movement in fights");
+		Movement.Value = OnOff(!Save || !Save->IsFightCameraMovementOff());
+		Movement.Explanation = LOCTEXT("FightCameraMovementExplain", "Off keeps the camera still during attacks, for anyone the movement makes unwell.");
+		Rows.Add(Movement);
 		FSettingsRow Shake; // B-453a (D-190)
 		Shake.Id = ESettingId::ScreenShake;
 		Shake.Label = FCombatCameraRules::GetScreenShakeSettingName();
@@ -203,6 +207,9 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 	}
 	case ESettingId::EndTurnButton:
 		Save->SetEndTurnButtonHidden(!Save->IsEndTurnButtonHidden());
+		return true;
+	case ESettingId::FightCameraMovement: // B-453b: the next fight reads it (UCombatCameraDirector::BeginCombat)
+		Save->SetFightCameraMovementOff(!Save->IsFightCameraMovementOff());
 		return true;
 	case ESettingId::ScreenShake: // B-453a: Full, Reduced, Off, wrapping either way
 	{
