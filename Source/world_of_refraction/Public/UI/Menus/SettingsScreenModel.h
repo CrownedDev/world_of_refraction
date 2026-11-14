@@ -3,7 +3,7 @@
 // what changing a row does, with no widget in it, so the specs read it headless. USettingsScreenWidget draws it.
 //
 // Pages: Gameplay, Camera, Display, Audio, Controls (a read-only key list: fixed keys, D-063), Accessibility.
-// Every approved row is listed. The ones the code has work (Turn View, End Turn button, AI finishes my turn);
+// Every approved row is listed. The ones the code has work (Turn View, End Turn button, screen shake: B-453a);
 // the rest stay focusable and say they aren't built (B-453 adds them one at a time; the battle control model is
 // B-436l). Difficulty is chosen at the Gate, not here (D-190).
 // Debug: wor.UI.PrintSettings logs GetSettingsString.

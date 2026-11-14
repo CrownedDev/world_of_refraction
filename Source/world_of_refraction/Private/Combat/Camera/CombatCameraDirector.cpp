@@ -1252,9 +1252,12 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	{
 		Viewer->SetViewTargetWithBlend(CameraActor, bMoves ? CombatCameraTiming::ShotCutSeconds : ActiveShot.BlendSeconds);
 	}
-	if (ImpactShake && ActiveShot.ShakeScale > 0.0f && Viewer->PlayerCameraManager)
+	// B-453a (D-190): the player's screen shake setting scales the shot's shake (Off plays none).
+	const USaveSubsystem *ShakeSave = FindSaveSubsystem(this);
+	const float ShakeScale = ActiveShot.ShakeScale * FCombatCameraRules::GetScreenShakeScale(ShakeSave ? ShakeSave->GetScreenShakeLevel() : EScreenShakeLevel::Full);
+	if (ImpactShake && ShakeScale > 0.0f && Viewer->PlayerCameraManager)
 	{
-		Viewer->PlayerCameraManager->StartCameraShake(ImpactShake, ActiveShot.ShakeScale);
+		Viewer->PlayerCameraManager->StartCameraShake(ImpactShake, ShakeScale);
 	}
 	if (bMoves && World)
 	{

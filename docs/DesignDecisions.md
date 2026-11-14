@@ -930,6 +930,11 @@ The queue of questions only Crown can answer.
 - **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
+### Q-453a — The screen shake setting: how many steps
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453a, D-190) · **Blocks:** —
+**Question:** D-190 approves "screen shake" but not its values.
+**Answer**, by the reference-backed default (Crown may change it): **Full (default), Reduced (half), Off.** The Last of Us Part II's camera shake slider and Celeste's / Hades' screen shake options are among the most praised accessibility settings; three steps fit a left / right row. Only the camera shake is scaled: a shot's field-of-view punch and motion blur are camera movement, which B-453b's switch covers.
+
 ### Q-440d — The Skills page: how it is reached, which lists it shows, what X does
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440d, D-181, D-145) · **Blocks:** —
 **Question:** the mockup draws a Refractor's innate spells by school but not how the page and its lists are reached, what the other classes see, what Change lists, or what X does to a slot.

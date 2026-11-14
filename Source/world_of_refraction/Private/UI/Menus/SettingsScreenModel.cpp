@@ -118,7 +118,12 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Rows.Add(NotBuilt(ESettingId::TextSize, LOCTEXT("TextSize", "Text size"), LOCTEXT("TextSizeExplain", "Makes the text in menus and in fights larger.")));
 		Rows.Add(NotBuilt(ESettingId::FightCameraMovement, LOCTEXT("FightCameraMovement", "Camera movement in fights"),
 						  LOCTEXT("FightCameraMovementExplain", "Off keeps the camera still during attacks, for anyone the movement makes unwell.")));
-		Rows.Add(NotBuilt(ESettingId::ScreenShake, LOCTEXT("ScreenShake", "Screen shake"), LOCTEXT("ScreenShakeExplain", "How much the screen shakes on heavy hits.")));
+		FSettingsRow Shake; // B-453a (D-190)
+		Shake.Id = ESettingId::ScreenShake;
+		Shake.Label = FCombatCameraRules::GetScreenShakeSettingName();
+		Shake.Value = FCombatCameraRules::GetScreenShakeLevelName(Save ? Save->GetScreenShakeLevel() : EScreenShakeLevel::Full);
+		Shake.Explanation = LOCTEXT("ScreenShakeExplain", "How much the screen shakes on heavy hits: full, reduced to half, or off.");
+		Rows.Add(Shake);
 		Rows.Add(NotBuilt(ESettingId::HoldToConfirm, LOCTEXT("HoldToConfirm", "Hold to confirm dangerous actions"),
 						  LOCTEXT("HoldToConfirmExplain", "Asks you to hold the button, not press it, before something that can't be undone.")));
 		Rows.Add(NotBuilt(ESettingId::ElementLetters, LOCTEXT("ElementLetters", "Element letters on colours"),
@@ -199,6 +204,14 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 	case ESettingId::EndTurnButton:
 		Save->SetEndTurnButtonHidden(!Save->IsEndTurnButtonHidden());
 		return true;
+	case ESettingId::ScreenShake: // B-453a: Full, Reduced, Off, wrapping either way
+	{
+		const int32 LevelCount = static_cast<int32>(StaticEnum<EScreenShakeLevel>()->NumEnums()) - 1; // the last is _MAX
+		const int32 Current = static_cast<int32>(Save->GetScreenShakeLevel());
+		const int32 Step = Direction < 0 ? -1 : 1;
+		Save->SetScreenShakeLevel(static_cast<EScreenShakeLevel>(((Current + Step) % LevelCount + LevelCount) % LevelCount));
+		return true;
+	}
 	default: // not built yet (BuildRows says so)
 		return false;
 	}

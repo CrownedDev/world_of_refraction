@@ -41,6 +41,16 @@ enum class ETurnViewStyle : uint8
 	Tactical UMETA(DisplayName = "Tactical side-on")
 };
 
+/** B-453a (D-190): how much the screen shakes on heavy hits, a player setting (FSavedSettings::ScreenShake); Full is the
+ *  default. Its names and scales are FCombatCameraRules::GetScreenShakeLevelName / GetScreenShakeScale. */
+UENUM(BlueprintType)
+enum class EScreenShakeLevel : uint8
+{
+	Full,
+	Reduced,
+	Off
+};
+
 /** Template sequence a skill without its own sequence uses (D-074 (1)). */
 UENUM(BlueprintType)
 enum class ECameraTemplateKind : uint8
@@ -283,6 +293,11 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** B-398 (D-061 / D-062): the setting's player-facing name, and each style's. */
 	static FText GetTurnViewSettingName();
 	static FText GetTurnViewStyleName(ETurnViewStyle Style);
+
+	/** B-453a (D-190): the screen shake setting's name, each level's, and the factor a shot's ShakeScale is played at. */
+	static FText GetScreenShakeSettingName();
+	static FText GetScreenShakeLevelName(EScreenShakeLevel Level);
+	static float GetScreenShakeScale(EScreenShakeLevel Level);
 
 	/** B-370: the cinematic window's moments read from a skill's montages, as the runner plays them: the ritual and
 	 *  skill legs at PlayRate (BaseAnimSpeed × the caster's speed stat), the return leg at 1.0; a deferred fire

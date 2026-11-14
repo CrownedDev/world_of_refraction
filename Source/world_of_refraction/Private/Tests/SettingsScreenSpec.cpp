@@ -21,6 +21,8 @@ namespace
 	constexpr int32 SETTINGS_TEST_TURN_VIEW_ROW = 1;
 	constexpr int32 SETTINGS_TEST_END_TURN_ROW = 2;
 	constexpr int32 SETTINGS_TEST_UNBUILT_ROW = 0;
+	/** B-453a: Accessibility's rows: battle controls, text size, camera movement, then screen shake. */
+	constexpr int32 SETTINGS_TEST_SCREEN_SHAKE_ROW = 3;
 }
 
 BEGIN_DEFINE_SPEC(FSettingsScreenSpec, "WoR.UI.Settings", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -93,6 +95,36 @@ void FSettingsScreenSpec::Define()
 		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::EndTurnButton, 1));
 		TestEqual(TEXT("the setting flipped"), Save->IsEndTurnButtonHidden(), !bHiddenBefore);
 		TestNotEqual(TEXT("the row reads the other value"), Gameplay()[SETTINGS_TEST_END_TURN_ROW].Value.ToString(), Before);
+	});
+
+	It("steps the screen shake Full, Reduced, Off and round, and the fight camera scales by it (B-453a)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Before = WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility);
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Before.IsValidIndex(SETTINGS_TEST_SCREEN_SHAKE_ROW)))
+		{
+			return;
+		}
+		const FSettingsRow &Row = Before[SETTINGS_TEST_SCREEN_SHAKE_ROW];
+		TestTrue(TEXT("the screen shake row"), Row.Id == ESettingId::ScreenShake);
+		TestTrue(TEXT("it can change"), Row.CanChange());
+		Save->SetScreenShakeLevel(EScreenShakeLevel::Full);
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::ScreenShake, 1));
+		TestTrue(TEXT("reduced"), Save->GetScreenShakeLevel() == EScreenShakeLevel::Reduced);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::ScreenShake, 1);
+		TestTrue(TEXT("off"), Save->GetScreenShakeLevel() == EScreenShakeLevel::Off);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::ScreenShake, 1);
+		TestTrue(TEXT("round to full"), Save->GetScreenShakeLevel() == EScreenShakeLevel::Full);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::ScreenShake, -1);
+		TestTrue(TEXT("back to off"), Save->GetScreenShakeLevel() == EScreenShakeLevel::Off);
+		TestEqual(TEXT("the row reads it"), WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility)[SETTINGS_TEST_SCREEN_SHAKE_ROW].Value.ToString(),
+				  FCombatCameraRules::GetScreenShakeLevelName(EScreenShakeLevel::Off).ToString());
+		TestEqual(TEXT("off shakes nothing"), FCombatCameraRules::GetScreenShakeScale(EScreenShakeLevel::Off), 0.0f);
+		TestEqual(TEXT("full plays the shot's shake"), FCombatCameraRules::GetScreenShakeScale(EScreenShakeLevel::Full), 1.0f);
+		const float Reduced = FCombatCameraRules::GetScreenShakeScale(EScreenShakeLevel::Reduced);
+		TestTrue(TEXT("reduced is less, not none"), Reduced > 0.0f && Reduced < 1.0f);
+		Save->SetScreenShakeLevel(EScreenShakeLevel::Full); // the test world's save is shared; leave the default
 	});
 
 	It("says a setting isn't built yet, and doesn't change it", [this]()

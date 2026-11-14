@@ -1017,6 +1017,17 @@ void USaveSubsystem::SetSwitchToSkillWeapon(bool bOn)
 	SaveGame->Data.Settings.bSwitchToSkillWeapon = bOn;
 }
 
+EScreenShakeLevel USaveSubsystem::GetScreenShakeLevel() const
+{
+	const uint8 Saved = SaveGame->Data.Settings.ScreenShake;
+	return Saved <= static_cast<uint8>(EScreenShakeLevel::Off) ? static_cast<EScreenShakeLevel>(Saved) : EScreenShakeLevel::Full;
+}
+
+void USaveSubsystem::SetScreenShakeLevel(EScreenShakeLevel Level)
+{
+	SaveGame->Data.Settings.ScreenShake = static_cast<uint8>(Level);
+}
+
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;

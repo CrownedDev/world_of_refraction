@@ -31,6 +31,7 @@ class UTrialRunSubsystem;
 struct FActorsInitializedParams;
 struct FPartyMember;
 enum class ETurnViewStyle : uint8;
+enum class EScreenShakeLevel : uint8;
 enum class EPlayerBaseForm : uint8;
 
 UCLASS()
@@ -164,6 +165,10 @@ public:
 	 *  next save. Debug: wor.Settings.SwitchToSkillWeapon. */
 	bool IsSwitchToSkillWeaponOn() const;
 	void SetSwitchToSkillWeapon(bool bOn);
+	/** B-453a (D-190): how much the screen shakes on heavy hits (default Full); an unknown saved value reads as Full.
+	 *  Kept in memory at once; written with the next save. */
+	EScreenShakeLevel GetScreenShakeLevel() const;
+	void SetScreenShakeLevel(EScreenShakeLevel Level);
 
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 

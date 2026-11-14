@@ -867,6 +867,10 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	 *  (no save version bump). */
 	UPROPERTY()
 	bool bSwitchToSkillWeapon = true;
+	/** B-453a (D-190): EScreenShakeLevel; 0 = Full, the default. An older save has no such field and reads 0, the
+	 *  default: no save version bump (as B-170e). */
+	UPROPERTY()
+	uint8 ScreenShake = 0;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
