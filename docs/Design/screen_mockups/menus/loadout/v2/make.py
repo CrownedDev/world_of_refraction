@@ -107,23 +107,6 @@ def add_frame(d, y, left, total, focus=False):
     return y + 54
 
 
-def innate(d, y, element, used, schools):
-    """A Refractor's innate spell pool, the star of its tab: element, the 24-point budget, spells per school (6 cap)."""
-    panel(d, (L, y, LR, 654), focus=False)
-    icon(d, (L + 14, y + 14, L + 62, y + 62), ELEMENT[element])
-    text(d, (L + 74, y + 12), "Innate spells", 20, True)
-    text(d, (L + 74, y + 40), "Element: " + element, 14, fill=DIM)
-    text(d, (LR - 14, y + 16), "%d of 24" % used, 18, True, anchor="ra")
-    text(d, (LR - 14, y + 40), "points", 12, fill=DIM, anchor="ra")
-    for i, (school, n, names) in enumerate(schools):
-        sy = y + 76 + i * 28
-        text(d, (L + 14, sy), school, 15, True, TXT if n else OFF)
-        for p in range(6):
-            px = L + 146 + p * 16
-            cut(d, (px, sy + 3, px + 12, sy + 16), ELEMENT[element] if p < n else TRACK, None, 2)
-        text(d, (L + 256, sy + 1), fit(d, names, 13, False, LR - L - 270), 13, fill=DIM)
-
-
 def item_rows(d, x0, x1, y, rows, focus, step=55):
     """List rows: (name, el, tier, sub, right, state); state None, "worn" or a reason it can't go in (greyed)."""
     for i, (n, el, t, sub, right, state) in enumerate(rows):
@@ -290,24 +273,20 @@ for i, (k, lab, on) in enumerate([("A", "Attach", True), ("B", "Not now", False)
     text(d, (bx + 80, 429), k + "  " + lab, 15, True, anchor="mm")
 save(im, OUT, "2a_add_gear_evolution.png")
 
-# ---- 3: Sera (Refractor): one entry, 2 cells; the innate spell pool is the star. Her one entry is full, so no frame.
+# ---- 3: Sera (Refractor): one entry, 2 cells; the entry is full, so no frame. Innate spells live on the Skills tab.
 im, d = canvas()
 header(d, 0, 0, "Pyre  ·  1 of 5")
 used_line(d, 1, 2, note="1 entry")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Staff", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1, focus=True)
-innate(d, y + 4, "Fire", 18, [
-    ("Destruction", 3, "Flame Lance, Ember, Scorch"), ("Conjuration", 0, ""),
-    ("Enhancement", 1, "Kindle"), ("Restoration", 2, "Warm Light, Cauterise"),
-    ("Impairment", 1, "Smoulder"), ("Manipulation", 0, "")])
-choices(d, "Her one entry  ·  2 cells", [
+choices(d, "One entry  ·  2 cells", [
     ("Cinder Staff", "Fire", "C", "Staff · Garnet", "1 cell", "worn"),
     ("Tidal Pike", "Water", "C", "Spear · Sapphire", "1 cell", None),
     ("Ember Ring", "Fire", "B", "Adapter · evolution", "2 cells", None),
     ("Pyre Pike", "Fire", "A", "", "", "Evolution + stone: needs 3 cells, 2 here"),
-    ("Twin Fangs", "Wind", "C", "", "", "Twin only: needs two, she holds one item")], 1, [
+    ("Twin Fangs", "Wind", "C", "", "", "Twin only: needs two, one item here")], 1, [
     ("Cells", "1 of 2", "1 of 2", None), ("Power", "28", "34", True),
-    ("Elements she casts", "Fire", "Fire, Water", True), ("Innate spells", "18 points", "18 points", None)])
+    ("Elements cast", "Fire", "Fire, Water", True)])
 footer(d, FOOT)
 save(im, OUT, "3_weapons_refractor.png")
 
@@ -326,7 +305,7 @@ choices(d, "Rings you could add  ·  1/5 left", [
     ("Frost Ring", "Water", "D", "Ring · empty", "0 cells", None),
     ("Pyre Ring", "Fire", "B", "", "", "Evolved: needs 2 cells, 1 left"),
     ("Ember Ring", "Fire", "C", "", "", "Already an entry"),
-    ("Cinder Fists", "None", "C", "", "", "A weapon: his one weapon entry is used")], 0, [
+    ("Cinder Fists", "None", "C", "", "", "A weapon: the one weapon entry is used")], 0, [
     ("Cells", "4 of 5", "5 of 5", None), ("Rings", "3 of 5", "4 of 5", None),
     ("Spell elements", "3", "4 (+ Wind)", True)])
 footer(d, [("A", "Equip"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
