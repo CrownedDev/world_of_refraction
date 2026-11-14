@@ -4,6 +4,7 @@
 
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
+#include "UI/Hub/HubHUDModel.h"
 #include "UI/Hub/MemoryJournalWidget.h"
 #include "WoRLog.h"
 
@@ -25,7 +26,7 @@ FInteractPrompt AHubJournalStation::GetPrompt() const
 
 FString AHubJournalStation::GetHintText() const
 {
-	return LOCTEXT("JournalHint", "Press E: memory journal, V, conversations").ToString();
+	return WoRHubHUD::FormatPromptLine(GetPrompt()).ToString(); // B-491 (D-213): "E  Open · Journal"
 }
 
 #undef LOCTEXT_NAMESPACE
