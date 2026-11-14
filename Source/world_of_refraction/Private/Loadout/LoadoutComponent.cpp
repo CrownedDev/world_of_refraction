@@ -4008,12 +4008,14 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     // B-380 (D-164): every apparel piece worn adds its HP and Defence lines, tier-scaled like gear, and its Amp lines
     // raw (B-386, through AddScaled);
     // outside the budget, so it sits beside whatever ForEachContributingGear visits.
+    FEquipmentStatBonus ApparelBonusLines; // B-475 (D-208): flat, added after the tier-scaled sum
     for (const FApparelEntry &Piece : Loadout.Apparel)
     {
         if (Piece.Apparel)
         {
             AddScaled(Piece.GetStatLines(), Piece.Tier);
             AddSocketCrystalAmp(Piece.AttachedItem); // B-387
+            ApparelBonusLines.Accumulate(Piece.GetBonusLineStats());
         }
     }
 
@@ -4031,6 +4033,9 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     Combined.BonusResistance       = FMath::RoundToInt(AccResistance);
     Combined.BonusTurnSpeed        = FMath::RoundToInt(AccTurnSpeed);
     Combined.BonusLuck             = FMath::RoundToInt(AccLuck);
+
+    // B-475 (D-208): each apparel piece's rolled line, flat, as its text says ("+2 Luck" at every tier; a pillar's +5%).
+    Combined.Accumulate(ApparelBonusLines);
 
     // B-378b (MemoryCatalogue §3.8, review): the player's held curses weaken their own party characters, flat (added
     // after the tier-scaled sum, so a retuned tier ladder never scales them).

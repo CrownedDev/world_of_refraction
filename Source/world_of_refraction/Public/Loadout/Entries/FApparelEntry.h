@@ -63,8 +63,11 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 	 *  resistance like a crystal; it powers no skill); null otherwise. */
 	const UEvolutionItemData *GetEvolution() const;
 
-	/** The asset's HP, Defence and Amp lines plus the instance roll's (Amp: B-386), plus the rolled bonus line (B-475). */
+	/** The asset's HP, Defence and Amp lines plus the instance roll's (nothing else counts; Amp: B-386). */
 	FEquipmentStatBonus GetStatLines() const;
+
+	/** B-475 (D-208): the rolled bonus line as stats. Added flat (never tier-scaled), so "+2 Luck" is +2 at every tier. */
+	FEquipmentStatBonus GetBonusLineStats() const;
 
 	/** D-164 (Crown): the asset's resistance, plus ApparelRules::CRYSTAL_ELEMENT_RESISTANCE to its crystal's element. */
 	FResistanceBonus GetResistance() const;
