@@ -31,6 +31,9 @@ namespace HubHUDStyle
 	const FAnchors TopLeft(0.0f, 0.0f);
 	const FAnchors TopRight(1.0f, 0.0f);
 	const FVector2D TopRightAlignment(1.0f, 0.0f);
+	/** B-463b: the tracked quest's line sits under the money chip's place, top right. TODO: tune with the trial HUD (B-465) */
+	constexpr float QuestLineTop = 135.0f;
+	constexpr float QuestLineWidth = 540.0f;
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -89,8 +92,22 @@ void UHubHUDWidget::BuildTree()
 		MoneySlot->SetAutoSize(true);
 	}
 
+	QuestBox = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	QuestBox->SetBrushColor(PanelColor);
+	QuestBox->SetPadding(FMargin(ChipPaddingX, ChipPaddingY));
+	QuestText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+	QuestBox->SetContent(MakeSized(WidgetTree, QuestLineWidth, 0.0f, QuestText));
+	if (UCanvasPanelSlot *QuestSlot = Canvas->AddChildToCanvas(QuestBox))
+	{
+		QuestSlot->SetAnchors(TopRight);
+		QuestSlot->SetAlignment(TopRightAlignment);
+		QuestSlot->SetPosition(FVector2D(-ScreenMargin, QuestLineTop));
+		QuestSlot->SetAutoSize(true);
+	}
+
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
+	SetShown(QuestBox, false);
 }
 
 void UHubHUDWidget::NativeConstruct()
@@ -168,6 +185,9 @@ void UHubHUDWidget::Refresh()
 	{
 		return; // headless: no tree
 	}
+	const FText Quest = WoRHubHUD::BuildQuestLine(World);
+	SetShown(QuestBox, !Quest.IsEmpty());
+	QuestText->SetText(Quest);
 	SetShown(MoneyBox, bMoneyShown);
 	if (bMoneyShown)
 	{

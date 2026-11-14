@@ -70,6 +70,11 @@ private:
 	TObjectPtr<UTextBlock> MoneyValue;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MoneyLabel;
+	/** B-463b: the tracked quest's step, in a run. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> QuestBox;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> QuestText;
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;
 };
