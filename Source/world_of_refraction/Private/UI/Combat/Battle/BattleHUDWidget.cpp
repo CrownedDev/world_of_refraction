@@ -3,6 +3,7 @@
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 
 #include "Save/SaveSubsystem.h"
+#include "WoRGameNames.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/WidgetTree.h"
@@ -663,6 +664,14 @@ void UBattleHUDWidget::SetCardBuildup(FBattleHUDCard &Card, float Current, float
 	Card.CracksShown = BattleHUDView::CountCracksShown(Card.BuildupFraction);
 	Card.BuildupColour = BattleHUDView::GetBuildupColour(PendingElement, Source && UBrokenDarknessManager::IsInBDForm(Source));
 	Card.BuildupLine = BattleHUDView::FormatBuildupLine(Current, Max);
+	// B-453f (D-190): the bar's colour says the pending element; with element letters on, the line says it too.
+	const UWorld *World = GetWorld();
+	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	const FText Letter = PendingElement == ESpellElement::Generic ? FText::GetEmpty() : WoRGameNames::GetElementLetter(PendingElement);
+	if (Save && Save->IsElementLettersOn() && !Letter.IsEmpty())
+	{
+		Card.BuildupLine = FText::Format(LOCTEXT("BuildupWithLetter", "{0} {1}"), Card.BuildupLine, Letter);
+	}
 }
 
 void UBattleHUDWidget::SetStatusPanelOpen(bool bOpen)
