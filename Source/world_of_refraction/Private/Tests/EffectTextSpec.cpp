@@ -267,7 +267,6 @@ void FEffectTextSpec::Define()
 	{
 		It("read as the deckbuilder's verbs", [this]()
 		{
-			const FWoRActionPipsSwitchScope SpeedTimeline(WOR_TEST_SPEED_TIMELINE); // B-170h: the old timeline's Delay wording
 			TestEqual(TEXT("DoT"), Body(Pay(ESkillEffectType::DOT, ETargetType::Enemy, 3, 0.0f, 2, ESpellElement::Fire)),
 					  FString(TEXT("deal 3 Fire damage to an Enemy each turn for 2 turns")));
 			TestEqual(TEXT("DoT at self"), Body(Pay(ESkillEffectType::DOT, ETargetType::Self, 3, 0.0f, 2)),
@@ -281,10 +280,10 @@ void FEffectTextSpec::Define()
 			TestEqual(TEXT("Element-keyed stat"), Body(Pay(ESkillEffectType::StatusMultiplierBuff, ETargetType::Self, 0, 0.25f, 0, ESpellElement::Lightning)),
 					  FString(TEXT("gain +25% Lightning Status Multiplier")));
 			TestEqual(TEXT("Drain"), Body(Pay(ESkillEffectType::DrainEnergy, ETargetType::Enemy, 2)), FString(TEXT("drain 2 Energy from an Enemy")));
-			TestEqual(TEXT("Delay, plural"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 1, ESpellElement::None, ETargetCount::All)),
-					  FString(TEXT("delay all Enemies' next turns")));
-			TestEqual(TEXT("Delay, singular"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 2)),
-					  FString(TEXT("delay an Enemy's next turn")));
+			// B-170h2: Wind's break reads as actions lost (the old "delay ... next turn" went with the speed timeline).
+			TestTrue(TEXT("Wind, plural"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 1, ESpellElement::None, ETargetCount::All))
+											   .StartsWith(TEXT("slow all Enemies' actions and take")));
+			TestTrue(TEXT("Wind, singular"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 2)).StartsWith(TEXT("slow an Enemy's actions and take")));
 			TestEqual(TEXT("Fronted"), Body(Pay(ESkillEffectType::ReduceDamageTaken, ETargetType::Ally, 0, 0.2f, 0, ESpellElement::None, ETargetCount::All)),
 					  FString(TEXT("all Allies take 20% less damage")));
 			TestEqual(TEXT("One extra turn"), Body(Pay(ESkillEffectType::ExtraAction, ETargetType::Self, 2)), FString(TEXT("take an extra turn")));
