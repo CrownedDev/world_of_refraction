@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Trial/GateScreenWidget.h"
 #include "UI/Trial/TrialGateWidget.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -101,9 +102,10 @@ void ATrialDoor::Interact()
 
     if (Trial)
     {
-        // B-183: the door asks for the variation and difficulty first; the panel enters the trial.
-        // No local player (a bot at the door) enters with the defaults.
-        if (!UTrialGateWidget::Open(Cast<APlayerController>(Pawn->GetController()), Trial))
+        // B-466 (D-192): the Gate screen picks the gate, the trial and the difficulty, and enters. Without a root
+        // layout the B-183 placeholder asks instead; no local player (a bot at the door) enters with the defaults.
+        APlayerController *PC = Cast<APlayerController>(Pawn->GetController());
+        if (!UGateScreenWidget::Open(PC, Trial) && !UTrialGateWidget::Open(PC, Trial))
         {
             TrialRun->SetGateChoice(Trial->Variations.IsEmpty() ? INDEX_NONE : 0, TrialGate::DEFAULT_DIFFICULTY);
             TrialRun->EnterTrial(Trial);
