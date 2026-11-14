@@ -3261,10 +3261,11 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// Generate element-aware display name: a capped bar is a break, "<Element> Break" (Q-064a2)
 	Effect.EffectName = SkillEffectDisplayNames::GetBreakDisplayName(StatusType, Element);
 
-	// B-274 (S8): what the capped bar applies, its size and timing come from the break table. B-170d (Q-170e): an
-	// action-pips fight reads its own Water, Wind and Ice rows (the fight's latched mode, so play is unchanged at 0).
+	// B-274 (S8): what the capped bar applies, its size and timing come from the break table. B-170d (Q-170e): a fight
+	// reads its own Water, Wind and Ice rows (B-170h2: every fight banks actions). Outside a fight (specs) the base rows.
+	// TODO: B-170h2b: fold the action-pips rows into the base rows and drop the flag.
 	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
-	const bool bActionPipsFight = TurnManager && TurnManager->IsRotationMode();
+	const bool bActionPipsFight = TurnManager && TurnManager->IsCombatActive();
 	const FBreakRow *Row = BreakTable::For(StatusType, bActionPipsFight);
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	if (Row && Row->SizeKind == EBreakSize::OneShotShareOfMaxHP)
