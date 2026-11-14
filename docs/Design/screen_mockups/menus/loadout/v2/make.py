@@ -76,8 +76,6 @@ def evo_line(d, y, name, el, focus=False):
     cut(d, (L, y, LR, y + 40), TEAL if focus else PLATE, CYAN if focus else STEEL, 6)
     socket_icon(d, (L + 8, y + 6, L + 36, y + 34), ("evolution", el) if name else None)
     text(d, (L + 46, y + 10), name or "—", 15, True, TXT if name else OFF)
-    if name:
-        text(d, (LR - 12, y + 20), "2", 18, True, anchor="rm")
     return y + 50
 
 
@@ -91,9 +89,8 @@ def entry(d, y, title, pieces, sockets, cost, active=False, focus=False, h=62):
     title = " + ".join(p[0] for p in pieces)  # names only; types and stats live in X Details
     text(d, (tx, y + h / 2 - 10), title, 16, True)
     for i, s in enumerate(sockets):
-        sx = LR - 130 + i * 44
+        sx = LR - 94 + i * 44  # no cell number: the filled sockets show the cost
         socket_icon(d, (sx, y + 13, sx + 36, y + 49), s)
-    text(d, (LR - 14, y + h / 2), str(cost), 20, True, anchor="rm")
     if active:
         tw = int(d.textlength("ACTIVE", font=F(10, True))) + 10
         tx2 = tx + int(d.textlength(title, font=F(16, True))) + 10
