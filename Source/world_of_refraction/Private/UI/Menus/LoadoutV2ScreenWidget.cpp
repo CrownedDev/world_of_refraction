@@ -1900,7 +1900,8 @@ void ULoadoutV2ScreenWidget::BuildApparelItems()
 		SocketLine.Name = LOCTEXT("ApparelSocketLine", "Crystal socket");
 		const bool bEmpty = Row->Sockets.IsEmpty() || Row->Sockets[0].bEmpty;
 		SocketLine.Line = bEmpty ? LOCTEXT("ApparelSocketEmpty", "Empty: pick a gem or an evolution") : Row->Sockets[0].Name;
-		SocketLine.Refusal = bEmpty ? FText::GetEmpty() : LOCTEXT("ApparelSocketFull", "Taking it off comes later");
+		// B-476e (CL-50b): a full socket's line takes it off (A says what happens, A again does it).
+		SocketLine.Line = bEmpty ? SocketLine.Line : FText::FormatNamed(LOCTEXT("ApparelSocketFullLine", "{What} \u00B7 {Confirm} Take off"), TEXT("What"), Row->Sockets[0].Name);
 		SocketLine.bOpensSocket = true;
 		SocketLine.Socket.Row = *Row; // the box and Compare describe the piece whose socket it is
 	}
@@ -1920,6 +1921,31 @@ void ULoadoutV2ScreenWidget::PickApparelSocket(const FLoadoutScreenRow &Place, c
 	{
 		Message = Item.Refusal; // greyed with its reason
 		RefreshView();
+		return;
+	}
+	const bool bSocketFull = !Place.Sockets.IsEmpty() && !Place.Sockets[0].bEmpty;
+	if (Item.bOpensSocket && bSocketFull)
+	{
+		// CL-50b: the crystal goes back to storage (an evolution stays owned); said first, done on the second A.
+		if (!bRemoveArmed)
+		{
+			FText Refusal;
+			Message = WoRLoadoutScreen::GetTakeOffSocketWarning(Place, LoadoutScreenSockets::CRYSTAL, Refusal);
+			bRemoveArmed = Refusal.IsEmpty();
+			if (!Refusal.IsEmpty())
+			{
+				Message = Refusal;
+			}
+			RefreshView();
+			return;
+		}
+		bRemoveArmed = false;
+		Message = WoRLoadoutScreen::TakeOffSocket(GetWorld(), Members[MemberIndex], Place, LoadoutScreenSockets::CRYSTAL);
+		if (Message.IsEmpty())
+		{
+			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: %s's socket emptied"), *Members[MemberIndex].Name.ToString(), *Place.Name.ToString());
+		}
+		RefreshData();
 		return;
 	}
 	if (Item.bOpensSocket)
