@@ -877,6 +877,15 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-440c — The socket picker: how a socket is reached, what it lists, what taking a gem off costs
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440c, D-181, D-141, CL-28b) · **Blocks:** —
+**Question:** the mockup draws the picker for an empty crystal socket but not how the D-pad reaches a socket, what fills a filled one, or how taking a socketed gem off is shown when the code destroys it (CL-28b, the debit model).
+**Answer**, by the reference-backed default (Crown may change any):
+- **Left / Right moves across the lit row: the row, its crystal socket, its stone socket.** Diablo IV's and Path of Exile's item screens reach sockets the same way, with no new button. A on the row still changes the piece (B-440b); A on an empty socket opens the socket picker.
+- **The crystal socket lists the gems the member carries (highest tier first) and its owned evolutions; the stone socket lists carried stones.** Each line shows what it adds to the budget; over the budget, a second S-tier ("S-tier: one per loadout") and an evolution in use stay greyed with the reason (the mockup; UI_Theme §5).
+- **A filled socket is emptied first (X); there is no swap in one step.** Taking off follows the existing rule: a gem and the stone come off together and are used up (CL-28b), an evolution goes back with wear. **The first X says exactly that; the second X does it.** A press-again confirm is how Diablo IV's salvage and Elden Ring's discard ask before something is lost, and it needs no new key. Whether taking a gem off should give it back is Crown's to change (a rule change, not this screen's).
+- **Apparel's socket** comes with the apparel picker, **B-440f**.
+
 ### Q-440b — Changing gear on the loadout screen: what the picker offers, what X does to the first slot
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440b, D-181, D-116) · **Blocks:** —
 **Question:** the mockup shows A Change and X Unequip but not what Change lists, what X does to the one slot every loadout must keep (D-116), or what happens in a fight.
