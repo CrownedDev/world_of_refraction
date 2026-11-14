@@ -25,7 +25,6 @@ namespace
 	constexpr int32 MENU_KEYS_SETTLE_FRAMES = 3;
 	/** Infusion levels 0, 1, 2 (UInfusionVFXComponent::CycleInfusionLevel). */
 	constexpr int32 MENU_KEYS_INFUSION_LEVELS = 3;
-	/** B-170e: the action pips switch, as MultiActionTurnSpec. */
 
 	void MenuKeysAddLoadout(AActor *Actor)
 	{
