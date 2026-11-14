@@ -72,6 +72,8 @@ enum class EHostHandOverStep : uint8
 	GaveUp
 };
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnHostHandOverStepChanged, EHostHandOverStep);
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UWoRHostHandOverSubsystem : public UGameInstanceSubsystem
 {
@@ -87,6 +89,17 @@ public:
 	const TArray<FString> &GetKnownOrder() const { return KnownOrder; }
 	EHostHandOverStep GetStep() const { return Step; }
 	const FString &GetNextHost() const { return NextHost; }
+	/** B-459a: the hand-over was planned (the host chose it at a rest spot), not a drop. */
+	bool IsPlanned() const { return bPlanned; }
+	/** B-459a: how many times this machine has looked for the new host's session. */
+	int32 GetRejoinTries() const { return RejoinTries; }
+
+	/** B-459a (the lost-host signal): the step changed, or a search for the new host began. The host-lost card listens. */
+	FOnHostHandOverStepChanged OnStepChanged;
+
+	/** B-459a: stop looking for the new host (the card's B). Only while rejoining or after giving up, and not while this
+	 *  machine still has to leave or take over; the step goes back to None. */
+	void StopWaiting();
 
 	/** This machine's own player id, as the host's order spells it (the local player's unique net id). */
 	FString GetLocalPlayerId() const;
@@ -119,8 +132,11 @@ private:
 	void HandleSessionJoined(bool bSucceeded);
 	void FinishRejoin();
 	void StartRejoinTimer();
+	/** Every step change goes through here, so OnStepChanged fires. */
+	void SetStep(EHostHandOverStep NewStep);
 
 	TArray<FString> KnownOrder;
+	bool bPlanned = false;
 	FString OldHost;
 	FString NextHost;
 	EHostHandOverStep Step = EHostHandOverStep::None;
