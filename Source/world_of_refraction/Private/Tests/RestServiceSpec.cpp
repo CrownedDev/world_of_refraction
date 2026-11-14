@@ -8,6 +8,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Merchant/MerchantData.h"
 #include "Party/Party.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
@@ -75,6 +76,21 @@ void FRestServiceSpec::Define()
 		TestTrue(TEXT("plain: Rest"), WoRHubHUD::FormatPromptLine(Plain->GetPrompt()).ToString().EndsWith(TEXT("Rest")));
 		TestTrue(TEXT("anvil: Rest · Anvil"), WoRHubHUD::FormatPromptLine(Anvil->GetPrompt()).ToString().EndsWith(TEXT("Rest · Anvil")));
 		TestTrue(TEXT("listed by the debug string"), WoRRestSpot::GetRestSpotsString(World).Contains(TEXT("Blacksmith")));
+
+		const ATrialRestSpot *Tree = SpawnRestSpot(World, ERestService::Spiritualist);
+		if (!TestNotNull(TEXT("tree"), Tree)) return;
+		TestTrue(TEXT("tree: Rest · Ritual tree"), WoRHubHUD::FormatPromptLine(Tree->GetPrompt()).ToString().EndsWith(TEXT("Rest · Ritual tree")));
+	});
+
+	It("makes an anvil the Blacksmith and a ritual tree the Spiritualist; a shrine and V have no shop", [this]()
+	{
+		EMerchantType Vendor = EMerchantType::Jeweler;
+		TestTrue(TEXT("anvil"), WoRRestSpot::GetServiceVendor(ERestService::Blacksmith, Vendor) && Vendor == EMerchantType::Blacksmith);
+		TestTrue(TEXT("tree"), WoRRestSpot::GetServiceVendor(ERestService::Spiritualist, Vendor) && Vendor == EMerchantType::Spiritualist);
+		for (const ERestService NoShop : {ERestService::None, ERestService::PillarShrine, ERestService::Extract})
+		{
+			TestFalse(TEXT("no shop"), WoRRestSpot::GetServiceVendor(NoShop, Vendor));
+		}
 	});
 
 	It("gives a mini-boss's rest spot no service, whatever is set", [this]()
