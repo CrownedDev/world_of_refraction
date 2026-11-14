@@ -74,6 +74,12 @@ namespace InventoryScreenBuild
 		{
 			Tile.Note = LOCTEXT("NoteWorn", "Worn in a loadout.");
 		}
+		// B-475 (D-208): the piece's rolled bonus line, so two copies can be told apart and compared.
+		const FText Bonus = ApparelBonusLine::GetText(Entry.BonusLine);
+		if (!Bonus.IsEmpty())
+		{
+			Tile.Details.Add({LOCTEXT("DetailBonusLine", "Bonus"), Bonus});
+		}
 		return Tile;
 	}
 

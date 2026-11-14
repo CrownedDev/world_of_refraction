@@ -369,6 +369,7 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 		Row.CostLine = OutsideBudget;
 		const ESpellElement Element = Entry.GetElement();
 		AddDetail(Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
+		AddDetail(Row, LOCTEXT("DetailBonusLine", "Bonus"), ApparelBonusLine::GetText(Entry.BonusLine)); // B-475 (D-208)
 		Page.Rows.Add(MoveTemp(Row));
 		++ApparelShown;
 	}
