@@ -931,7 +931,7 @@ The queue of questions only Crown can answer.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
 ### Q-440e — Saved loadouts on the loadout screen: keys, names, lore ones
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440e, D-111) · **Blocks:** —
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-440e, D-111) · **Blocks:** —
 **Question:** UIScreens #2 says Y opens the five saved loadouts, but not what each key does there, what a new one is called, or what happens to a lore (the character's own) loadout.
 **Answer**, by the reference-backed default (Crown may change any):
 - **Y opens the list; in it A uses the lit loadout and goes back to its page, X duplicates it, Y renames it, B closes.** The last line, "New loadout", makes an empty one while there is room. Destiny 2's loadouts screen and Diablo IV's wardrobe both open from one button with use / save / rename on face buttons, widely used and liked for switching builds quickly.
