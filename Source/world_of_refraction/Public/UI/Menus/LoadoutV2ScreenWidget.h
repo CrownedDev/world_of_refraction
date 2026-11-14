@@ -22,6 +22,7 @@
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
 #include "UI/Menus/LoadoutSavedModel.h"
+#include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
 #include "UI/WoRActivatableWidget.h"
@@ -53,13 +54,20 @@ enum class ELoadoutV2Mode : uint8
 	/** The focused slot's list of pieces. */
 	WindowItems,
 	/** "Attach ... to ...? Uses 2 cells": A Attach, B Not now. */
-	WindowAsk
+	WindowAsk,
+	/** B-476d, the Skills tab: its entries (the tab's top level). */
+	SkillEntries,
+	/** The focused entry's skill slots. */
+	SkillRows,
+	/** The picker for a slot. */
+	SkillPicker
 };
 
-/** B-440f: the tab LB / RB shows (Skills comes with B-476d). */
+/** B-440f: the tab LB / RB shows. B-476d: Weapons | Skills | Apparel, in that order (Cosmetics later). */
 enum class ELoadoutV2Tab : uint8
 {
 	Weapons,
+	Skills,
 	Apparel
 };
 
@@ -115,8 +123,13 @@ public:
 	// What the keys do (the specs call these too).
 	void MoveSelection(int32 Delta);
 	void MoveMember(int32 Delta);
-	/** B-440f, LB / RB: the other tab (Weapons, Apparel); on the list only. */
-	void SwitchTab();
+	/** B-440f, LB / RB: the next tab (Delta > 0) or the one before; from a tab's top level only. B-476d: Weapons |
+	 *  Skills | Apparel in a ring. */
+	void SwitchTab(int32 Delta = 1);
+	bool IsOnSkillsTab() const { return Mode == ELoadoutV2Mode::SkillEntries || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker; }
+	const FLoadoutV2SkillsPage &GetSkillsPage() const { return SkillsPage; }
+	const TArray<FLoadoutV2SkillRowRef> &GetSkillRows() const { return SkillRows; }
+	const TArray<FLoadoutScreenChoice> &GetSkillChoices() const { return SkillChoices; }
 	/** A: Edit an entry, Equip on the Add weapon frame; in Options, select; in the window, open a slot's list, Pick or
 	 *  Remove; when asked, Attach. */
 	void PressA();
@@ -188,6 +201,21 @@ private:
 
 	// Options.
 	void SelectOption();
+
+	// B-476d, the Skills tab.
+	void RefreshSkills();
+	/** The focused slot's Skills page row (rows and picker); null elsewhere. */
+	const FLoadoutScreenRow *GetFocusedSkillRow() const;
+	void PutPickedSkill();
+	/** Debug: the Skills tab as shown (WoRLoadoutV2Skills::GetSkillsString), logged when the tab opens. */
+	void LogSkillsTab() const;
+	FLoadoutV2SkillsPage SkillsPage;
+	/** The entry whose slots are open (SkillRows, SkillPicker). */
+	int32 SkillEntry = 0;
+	TArray<FLoadoutV2SkillRowRef> SkillRows;
+	/** The slot the picker is for. */
+	int32 SkillRowSelected = 0;
+	TArray<FLoadoutScreenChoice> SkillChoices;
 
 	// B-440f: the Apparel tab.
 	int32 GetWornApparelCount() const;
