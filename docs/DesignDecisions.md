@@ -1088,6 +1088,15 @@ The queue of questions only Crown can answer.
 - **Begin starts the game in place:** everything in memory goes back to a new game's, the party is the picked lord alone, the slot is written with it, and the hub opens with the player as the picked character. The title's New Game opens the screen with no save too (nothing to lose there).
 - **Left out:** the body previews (grey boxes until an editor step), the mouse, and the heading and opening (Crown's; "placeholder heading" stays).
 
+### Q-476d — The Skills tab: where Innate spells sit, the evolution, the tab order and X
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476d, UIScreens #2-3) · **Blocks:** —
+**Question:** the mockup shows a Refractor's Innate spells as an entry and the tabs Weapons | Skills | Apparel | Cosmetics on LB / RB; where does Innate spells sit, does the character's evolution get an entry, how do LB / RB turn now that there are three built tabs, and what does X do on the Skills tab?
+**Answer**, by the reference-backed default (Crown may change any):
+- **Innate spells is one entry, after the gear entries**, its slots the school rows on points (the mockup's `7_skills_refractor.png`). Persona 5 and Expedition 33 list a character's own skills after the equipped gear's.
+- **The character's evolution has no Skills entry:** it adds no skill slots (its passives show on the Weapons tab).
+- **LB / RB turn Weapons | Skills | Apparel in a ring** (RB right, LB left; Cosmetics joins later), as Elden Ring's and Expedition 33's bumper-paged menus wrap around. This changes B-440f's "either key turns" (two tabs).
+- **X switches a skill's full and short effect text, shared with the Weapons tab's view** (B-479c: the screen remembers the view); the box beside the list stands in for the mockup's open-in-place row (the B-479c layout).
+
 ### Q-476c — Loadout v2's Add gear window: where sockets live, Remove all gear, the remembered view
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476c) · **Blocks:** —
 **Question:** building the rest of the v2 Weapons tab raised five small points the mockups don't settle.

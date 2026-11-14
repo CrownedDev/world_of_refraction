@@ -16,6 +16,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-440f](B-440f.md) | `feature/B-440f-loadout-apparel-v2` (in dev, built 2026-11-14) | Loadout v2: the Apparel tab (LB / RB): worn pieces, Add apparel, A Pick / Remove | Pending |
+| [B-476d](B-476d.md) | `feature/B-476d-skills-tab-on-dev-cloud` (cloud, UNBUILT; from dev) | The v2 loadout screen's Skills tab between Weapons and Apparel: entries, slots with filled/total, the picker, what a skill does | Pending |
 | [B-440e](B-440e.md) | `feature/B-440e-saved-loadouts-v2` (in dev, built 2026-11-14) | Loadout v2: Options > Saved loadouts: use, new, duplicate, rename; the loadout's name top right | Pending |
 | [B-476c](B-476c.md) | `feature/B-476c-loadout-v2-rest-cloud` (cloud, UNBUILT; includes B-476b) | Loadout v2: list and details box, X Simple / Full, the Add gear window for new and edited entries (kinds, hands, sockets, adapter, evolution ask), L3 Set active, Y Options | Pending |
 | [B-476b](B-476b.md) | `feature/B-476b-loadout-v2-weapons-tab-cloud` (cloud, UNBUILT) | Loadout v2: the Weapons tab and Add weapon (Main hand, Compare, Confirm) | Pending |
