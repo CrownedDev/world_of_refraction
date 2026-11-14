@@ -18,6 +18,10 @@
 // B-482: each character and each tab is a framed chip (WoRMenuStyle::FChipRow), the current one filled, Skills and
 // Cosmetics greyed with "later"; the details box is hidden when it has nothing to say (the Add weapon / Add apparel
 // frames). Mouse: a click on a chip goes there, on a line focuses it (again: A); hovering lights a chip or a line.
+// B-485 (mockups menus/loadout/icons): icons from UWoRIconTable: a weapon-type icon at a row's start, its two sockets
+// as badges after the name (instead of "(Garnet)"), a tier badge by a piece's name, an icon beside an effect line and
+// a socket line in the box, element and tier badges on the crystal lines of Add gear. Each icon carries its name as a
+// tooltip; where the table has no icon (or there is no table yet) the text of before stays.
 // Not yet (B-476d): the Skills tab, the apparel socket and Compare, then replacing ULoadoutScreenWidget on the game menu.
 
 #pragma once
@@ -34,6 +38,9 @@
 class APlayerController;
 class UBorder;
 class UEditableTextBox;
+class UHorizontalBox;
+class UImage;
+class UTexture2D;
 class UInventoryComponent;
 class ULoadoutComponent;
 class UTextBlock;
@@ -110,6 +117,8 @@ struct FLoadoutV2WindowItem
 	FWeaponInventoryEntry Weapon;
 	FRingInventoryEntry Adapter;
 	FEvolutionInventoryEntry Evolution;
+	/** B-485: a socket line's tier as a letter, written after the name when there is no tier badge to show. */
+	FText TierText;
 	/** A socket line (today's socket picker's choice for the entry's row); B-440f: or an apparel line (the piece as
 	 *  WoRLoadoutApparel::BuildApparelChoices lists it, or the worn one on the EQUIPPED line). */
 	FLoadoutScreenChoice Socket;
@@ -188,6 +197,18 @@ private:
 	int32 GetLineCount() const;
 	FText GetLineName(int32 Line) const;
 	FText GetLineDetail(int32 Line) const;
+	/** B-485: a list line's icons: the weapon type at its start, its socket badges and a tier badge after its name. */
+	struct FLineIcons
+	{
+		FLoadoutV2Icon Type;
+		FLoadoutV2Icon Socket1;
+		FLoadoutV2Icon Socket2;
+		bool bHasTier = false;
+		EItemTier Tier = EItemTier::F_Tier;
+	};
+	FLineIcons GetLineIcons(int32 Line) const;
+	/** B-485: the icon table's texture for Icon; null when it has none (the text stays). */
+	static UTexture2D *FindIcon(const FLoadoutV2Icon &Icon);
 	/** B-484: the row's tag, in its own space at the right end: ACTIVE on the weapon in hand, EQUIPPED / PICKED in a
 	 *  slot's list. */
 	FText GetLineTag(int32 Line) const;
@@ -324,6 +345,15 @@ private:
 	TArray<TObjectPtr<UTextBlock>> LineDetails;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> LineTags;
+	// B-485: a row's icons (made with the row, hidden until the icon table has a texture for them).
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> LineTypeIcons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> LineSocket1Icons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> LineSocket2Icons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> LineTierIcons;
 	/** The details box (or, in the window, the slots) on the right. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BoxTitleText;
@@ -331,4 +361,11 @@ private:
 	TObjectPtr<UVerticalBox> BoxLines;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> BoxTexts;
+	// B-485: a box line is a row: its icon, its text, a tier badge.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UHorizontalBox>> BoxRows;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> BoxIcons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> BoxTierIcons;
 };
