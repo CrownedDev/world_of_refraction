@@ -1,6 +1,6 @@
 // LoadoutV2ScreenWidget.h
 // B-476b (D-206, D-209, D-210; UIScreens.md #2, mockups menus/loadout/v2), first part: the v2 loadout screen's Weapons
-// tab, built beside today's ULoadoutScreenWidget (which stays until Crown's PIE pass). LT / RT the character; the
+// tab. B-488 (Crown): this is the loadout screen; the first one (ULoadoutScreenWidget) is retired. LT / RT the character; the
 // list of entries (names only, the two sockets, ACTIVE on the weapon in hand) with the Add weapon frame at the bottom
 // ("1/5 left"); "Cells used 4 of 5" at the top. Opened by wor.UI.LoadoutV2.
 //
@@ -25,7 +25,7 @@
 // B-476d: the Skills tab between Weapons and Apparel (LB / RB turn the three in a ring): the entries (WoRLoadoutV2Skills)
 // with filled / total; A opens an entry's slots, A on a slot the picker, A puts the pick in (today's Skills page
 // change); X / V the full or short skill text; the box says what the highlighted skill does.
-// Not yet (B-476d): the apparel socket and Compare, then replacing ULoadoutScreenWidget on the game menu.
+// B-488: on a skill's slot Y / R takes the skill out (the first screen's X). Not yet (B-476d): the apparel socket and Compare.
 
 #pragma once
 
