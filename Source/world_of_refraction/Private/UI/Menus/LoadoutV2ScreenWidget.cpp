@@ -31,6 +31,8 @@ bool ULoadoutV2ScreenWidget::bSimpleView = false;
 
 namespace LoadoutV2ScreenStyle
 {
+	/** B-476e: in a worn piece's apparel picker, the Crystal socket line comes right after the worn piece. */
+	constexpr int32 APPAREL_SOCKET_LINE = 1;
 	// This screen's own layout (mockups menus/loadout/v2, 1280x720, at 1080p); the shared look is WoRMenuStyle.
 	using namespace WoRMenuStyle;
 	constexpr float ListWidth = 840.0f;
@@ -879,7 +881,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	}
 
 	FText Compare;
-	if (Mode == ELoadoutV2Mode::ApparelItems && bComparing && Items.IsValidIndex(Selected))
+	if (Mode == ELoadoutV2Mode::ApparelItems && bComparing && Items.IsValidIndex(Selected) && !bApparelSocket) // a socket pick has nothing worn beside it
 	{
 		Compare = BuildEquippedCompare(); // B-476e: apparel against the piece worn in this place
 	}
@@ -1415,7 +1417,7 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		if (bApparelSocket)
 		{
 			bApparelSocket = false; // B-476e: back to the pieces, on the socket line
-			Selected = 1;
+			Selected = LoadoutV2ScreenStyle::APPAREL_SOCKET_LINE;
 			RefreshData();
 			return true;
 		}
@@ -1646,6 +1648,7 @@ void ULoadoutV2ScreenWidget::BuildApparelItems()
 		SocketLine.Line = bEmpty ? LOCTEXT("ApparelSocketEmpty", "Empty: pick a gem or an evolution") : Row->Sockets[0].Name;
 		SocketLine.Refusal = bEmpty ? FText::GetEmpty() : LOCTEXT("ApparelSocketFull", "Taking it off comes later");
 		SocketLine.bOpensSocket = true;
+		SocketLine.Socket.Row = *Row; // the box and Compare describe the piece whose socket it is
 	}
 	for (const FLoadoutScreenChoice &Choice : WoRLoadoutApparel::BuildApparelChoices(GetWorld(), Members[MemberIndex], *Row))
 	{

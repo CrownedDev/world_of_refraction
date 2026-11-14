@@ -2323,9 +2323,9 @@ bool UInventoryComponent::AttachCrystalToRing(FGuid RingPersistentID, FCrystalId
     return AttachCrystalToGear(Rings, RingPersistentID, Id, TEXT("AttachCrystalToRing"));
 }
 
-namespace InventoryApparelSocket
+namespace
 {
-	/** The store and the owned piece whose socket is empty, or null (with the reason logged). */
+	/** B-476e: the store and the owned piece whose socket is empty, or null (with the reason logged). */
 	UPoolSubsystem *FindEmptyApparelSocket(const UInventoryComponent &Inventory, const FGuid &ApparelID, const TCHAR *Op)
 	{
 		const UWorld *World = Inventory.GetWorld();
@@ -2353,7 +2353,7 @@ bool UInventoryComponent::AttachCrystalToApparel(FGuid ApparelPersistentID, FCry
 	{
 		return false;
 	}
-	UPoolSubsystem *Pool = InventoryApparelSocket::FindEmptyApparelSocket(*this, ApparelPersistentID, Op);
+	UPoolSubsystem *Pool = FindEmptyApparelSocket(*this, ApparelPersistentID, Op);
 	const FRuntimeAttachedItem Attachment = MakeCrystalAttachment(Id, /*bIsStone=*/!CrystalTypeHelpers::IsGemType(Id.Type));
 	if (!Pool || !ApparelRules::CanSocket(Attachment))
 	{
@@ -2388,7 +2388,7 @@ bool UInventoryComponent::AttachEvolutionToApparel(FGuid ApparelPersistentID, FG
 		UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: evolution %s not owned, or in use"), Op, *EvoInstanceID.ToString());
 		return false;
 	}
-	UPoolSubsystem *Pool = InventoryApparelSocket::FindEmptyApparelSocket(*this, ApparelPersistentID, Op);
+	UPoolSubsystem *Pool = FindEmptyApparelSocket(*this, ApparelPersistentID, Op);
 	if (!Pool || !Pool->AttachToApparel(ApparelPersistentID, MakeEvolutionAttachment(*Entry, EvoInstanceID)))
 	{
 		return false;

@@ -1095,6 +1095,7 @@ The queue of questions only Crown can answer.
 - **The EQUIPPED piece beside the highlighted one, each in the words its list line already uses** (an adapter's or crystal's effect line, an evolution's name and element, an apparel piece's HP / Defence / Amp), and for a crystal, stone or evolution the **cells after** the pick (D-206). Diablo IV and Elden Ring set the worn item's lines beside the highlighted one in the same words the list uses.
 - **The equipped line itself says it is the one equipped**; an empty place says "Nothing equipped here".
 - Weapons keep their own Compare (power, cells change, built-ins gained and lost).
+- **The apparel socket (B-476e): a gem in apparel doesn't count toward "one S-tier crystal per loadout"**, and costs no cells: apparel sits outside the loadout's budget (D-164). Only the loadout's gear counts, as Path of Exile's and Diablo IV's per-slot caps apply to the gear they name. Taking a crystal off apparel comes with its own step (CL-28b: a gem is destroyed, an evolution comes back with wear).
 
 — The Skills tab: where Innate spells sit, the evolution, the tab order and X
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476d, UIScreens #2-3) · **Blocks:** —
