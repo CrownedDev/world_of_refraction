@@ -3,8 +3,8 @@
 // fallen revived); from here the player opens the inventory, or leaves the trial for a reduced payout after a
 // confirm. Plain buttons built in C++ (like ULevelDropWidget); opened by ATrialRestSpot or wor.Trial.Rest. Replaced by
 // the CommonUI screen (D-024). B-233b: the host invites and seats friends from here (drop-in happens at rest spots).
-// B-502 (D-214): the menu carries the rest point's service: Blacksmith at an anvil, a line at a shrine (it sells
-// pillar points this run, under Level up, or it is quiet), Extract at V's.
+// B-502 (D-214): the menu carries the rest point's service: Blacksmith at an anvil, Spiritualist at a ritual tree,
+// a line at a shrine (it sells pillar points this run, under Level up, or it is quiet), Extract at V's.
 
 #pragma once
 
@@ -81,7 +81,7 @@ private:
 	UFUNCTION()
 	void HandleInviteClicked();
 
-	/** B-502 (D-214): the rest point's service that has a screen of its own (the blacksmith at an anvil). */
+	/** B-502 (D-214): the rest point's vendor (the Blacksmith at an anvil, the Spiritualist at a ritual tree). */
 	UFUNCTION()
 	void HandleServiceClicked();
 
