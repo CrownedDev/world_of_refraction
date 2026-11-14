@@ -1011,15 +1011,17 @@ void UTrialRunSubsystem::TravelTo(const TSoftObjectPtr<UWorld> &Level)
     UGameplayStatics::OpenLevelBySoftObjectPtr(GetGameInstance(), Level);
 }
 
-void UTrialRunSubsystem::RecordFightReward(UWorld *World, EEncounterRank Rank)
+int32 UTrialRunSubsystem::RecordFightReward(UWorld *World, EEncounterRank Rank)
 {
     if (!IsRunActive())
     {
-        return; // a fight outside a run pays nothing
+        return 0; // a fight outside a run pays nothing
     }
-    RunRewards::PayWinToPlayers(World, RunRewards::WinRunPrisms(Rank, TrialDifficulty));
+    const int32 WinPrisms = RunRewards::WinRunPrisms(Rank, TrialDifficulty);
+    RunRewards::PayWinToPlayers(World, WinPrisms);
     RunTally += RunRewards::FightTally(Rank);
     UE_LOG(LogWoR, Log, TEXT("[TrialRun] Run tally now %s"), *RunRewards::GetPayoutString(RunTally));
+    return WinPrisms;
 }
 
 void UTrialRunSubsystem::RecordChestReward()

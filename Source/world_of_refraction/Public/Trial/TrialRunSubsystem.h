@@ -272,7 +272,8 @@ public:
     // ==================== B-073: REWARDS ====================
 
     /** B-073 (server): a fight won: run Prisms to every player now, and the rank's share into the run's tally. */
-    void RecordFightReward(UWorld *World, EEncounterRank Rank);
+    /** B-465b: returns the run Prisms the win paid each player (0 outside a run), for its popup. */
+    int32 RecordFightReward(UWorld *World, EEncounterRank Rank);
 
     /** B-073: a chest opened: its share into the run's tally. */
     void RecordChestReward();

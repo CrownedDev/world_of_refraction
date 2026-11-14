@@ -43,7 +43,6 @@
 #include "UI/Trial/RunEndCardWidget.h"
 #include "UI/Trial/RunEndModel.h"
 #include "UI/Trial/RewardNotices.h"
-#include "Trial/RunRewards.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
@@ -571,10 +570,10 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         if (UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
         {
             // B-073 (D-006): a win pays run Prisms now and adds to the run's tally (by the fight's rank).
-            TrialRun->RecordFightReward(GetWorld(), TrialRun->GetPendingRank());
             // B-465b (UIScreens #25): no results screen after a win; the win and what it paid come back as a popup.
-            WoRRewardNotice::Post(this, WoRRewardNotice::MakeWin(
-                                            TrialRun->IsRunActive() ? RunRewards::WinRunPrisms(TrialRun->GetPendingRank(), TrialRun->GetTrialDifficulty()) : 0));
+            // TODO: B-465b co-op: this posts on the host only; a guest needs it through its player state.
+            const int32 WinPrisms = TrialRun->RecordFightReward(GetWorld(), TrialRun->GetPendingRank());
+            WoRRewardNotice::Post(this, WoRRewardNotice::MakeWin(WinPrisms));
             TrialRun->MarkPendingEncounterBeaten();
             // B-362c (D-160 changed): a win no longer recovers the dropped Prisms; the pickup on the map does
             // (APrismDropPickup). WoRDefeat::RecoverPrisms is OBSOLETE.
