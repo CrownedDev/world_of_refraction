@@ -48,7 +48,13 @@ void WoRBattleTransitionDebug::PlayPreview(const TArray<FString> &Args, UWorld *
 		return;
 	}
 	const float HoldSeconds = Args.Num() > 0 ? FCString::Atof(*Args[0]) : DEFAULT_PREVIEW_HOLD_SECONDS;
+	const bool bWasIdle = Transition->GetClock().State == BattleTransition::EState::Idle;
 	Transition->PlayAtScreen(FVector2D(0.5, 0.5));
+	if (!bWasIdle || Transition->GetClock().State != BattleTransition::EState::Playing)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[BattleTransition] Preview not started: %s"), *GetStateString(Transition));
+		return; // one is already running, or there is no view: don't arm a release for it
+	}
 	FTimerHandle ReleaseTimer;
 	World->GetTimerManager().SetTimer(ReleaseTimer, FTimerDelegate::CreateUObject(Transition, &UBattleTransitionSubsystem::Release),
 									  FMath::Max(HoldSeconds, UE_KINDA_SMALL_NUMBER), false);

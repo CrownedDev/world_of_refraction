@@ -12,6 +12,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
+#include "Slate/DeferredCleanupSlateBrush.h"
 #include "UnrealClient.h"
 #include "Widgets/Images/SImage.h"
 #include "WoRLog.h"
@@ -23,6 +24,9 @@ namespace
 
 	/** The crack starts at least this far in from a screen edge (UV), so there are shards on every side of it. */
 	constexpr double HIT_EDGE_MARGIN = 0.15;
+
+	/** A seamless travel that hasn't reached its map this long after it started is taken as lost. */
+	constexpr double MAX_FROZEN_SECONDS = 120.0;
 }
 
 UBattleTransitionSubsystem *UBattleTransitionSubsystem::Get(const UObject *WorldContext)
@@ -136,10 +140,43 @@ void UBattleTransitionSubsystem::Cancel()
 	{
 		Actor->Destroy();
 	}
+	EndRun();
+}
+
+void UBattleTransitionSubsystem::EndRun()
+{
 	Shards = nullptr;
 	RemovePicture();
 	Frame = nullptr;
 	Clock.Reset();
+	FTSTicker::RemoveTicker(WatchHandle);
+	WatchHandle.Reset();
+}
+
+bool UBattleTransitionSubsystem::WatchTravel(float /*DeltaSeconds*/)
+{
+	switch (Clock.State)
+	{
+	case BattleTransition::EState::Frozen:
+		if (FPlatformTime::Seconds() - FrozenAtSeconds < MAX_FROZEN_SECONDS)
+		{
+			return true;
+		}
+		UE_LOG(LogWoR, Warning, TEXT("[BattleTransition] No map arrived %.0fs after the map change - dropped"), MAX_FROZEN_SECONDS);
+		break;
+	case BattleTransition::EState::Arriving:
+	case BattleTransition::EState::Releasing:
+		if (Shards.IsValid())
+		{
+			return true;
+		}
+		UE_LOG(LogWoR, Warning, TEXT("[BattleTransition] The rebuilt shards were lost - dropped"));
+		break;
+	default:
+		return false; // not in a map change: nothing to watch
+	}
+	Cancel();
+	return false;
 }
 
 bool UBattleTransitionSubsystem::TickShards(ABattleTransitionShards &Caller, float DeltaSeconds)
@@ -151,9 +188,7 @@ bool UBattleTransitionSubsystem::TickShards(ABattleTransitionShards &Caller, flo
 	if (Clock.Advance(DeltaSeconds, *Data))
 	{
 		UE_LOG(LogWoR, Log, TEXT("[BattleTransition] Finished"));
-		Shards = nullptr;
-		RemovePicture();
-		Frame = nullptr;
+		EndRun();
 		return false;
 	}
 	Caller.ApplyClock(Clock.Elapsed, Clock.ReleaseElapsed);
@@ -192,6 +227,8 @@ void UBattleTransitionSubsystem::FreezeForTravel()
 		Cancel(); // the map changed during a blow-away: nothing left worth carrying over
 		return;
 	}
+	FrozenAtSeconds = FPlatformTime::Seconds();
+	WatchHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UBattleTransitionSubsystem::WatchTravel));
 	ShowPicture();
 	if (ABattleTransitionShards *Actor = Shards.Get())
 	{
@@ -226,8 +263,12 @@ void UBattleTransitionSubsystem::HandlePostLoadMap(UWorld *World)
 	UE_LOG(LogWoR, Log, TEXT("[BattleTransition] Arrived in %s - %d shards rebuilt behind the picture"), *World->GetName(), GetShardCount());
 }
 
-void UBattleTransitionSubsystem::HandleTravelFailure(UWorld * /*World*/, ETravelFailure::Type /*FailureType*/, const FString &Reason)
+void UBattleTransitionSubsystem::HandleTravelFailure(UWorld *World, ETravelFailure::Type /*FailureType*/, const FString &Reason)
 {
+	if (World && World->GetGameInstance() != GetGameInstance())
+	{
+		return; // another game instance's travel (a second PIE window)
+	}
 	if (Clock.State != BattleTransition::EState::Idle)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[BattleTransition] Travel failed (%s) - dropped"), *Reason);
@@ -262,29 +303,33 @@ void UBattleTransitionSubsystem::ShowPicture()
 	TArray<FColor> Pixels;
 	if (!Viewport || !GetViewportScreenShot(Viewport, Pixels))
 	{
+		UE_LOG(LogWoR, Warning, TEXT("[BattleTransition] Couldn't read the viewport - no held picture over the map change"));
 		return;
 	}
-	const FIntPoint Size = Viewport->GetSizeXY();
+	// The read gives the viewport's render target, which is not always the viewport's own size.
+	const FIntPoint Size = Viewport->GetRenderTargetTextureSizeXY();
 	if (Pixels.Num() == 0 || Pixels.Num() != Size.X * Size.Y)
 	{
+		UE_LOG(LogWoR, Warning, TEXT("[BattleTransition] Viewport read %d pixels for %dx%d - no held picture over the map change"),
+			   Pixels.Num(), Size.X, Size.Y);
 		return;
 	}
 	for (FColor &Pixel : Pixels)
 	{
 		Pixel.A = 255; // the viewport's alpha is not coverage
 	}
-	Picture = UTexture2D::CreateTransient(Size.X, Size.Y, PF_B8G8R8A8, NAME_None,
-										  TConstArrayView64<uint8>(reinterpret_cast<const uint8 *>(Pixels.GetData()), Pixels.Num() * sizeof(FColor)));
+	UTexture2D *Picture = UTexture2D::CreateTransient(
+		Size.X, Size.Y, PF_B8G8R8A8, NAME_None,
+		TConstArrayView64<uint8>(reinterpret_cast<const uint8 *>(Pixels.GetData()), Pixels.Num() * sizeof(FColor)));
 	if (!Picture)
 	{
 		return;
 	}
-	PictureBrush = FSlateBrush();
-	PictureBrush.SetResourceObject(Picture);
-	PictureBrush.SetImageSize(FVector2f(static_cast<float>(Size.X), static_cast<float>(Size.Y)));
+	// The brush keeps the texture alive and is owned by the widget, so neither can outlive the other.
+	const TSharedRef<FDeferredCleanupSlateBrush> Brush = FDeferredCleanupSlateBrush::CreateBrush(Picture);
 	const TWeakObjectPtr<const UBattleTransitionSubsystem> WeakThis(this);
 	PictureWidget = SNew(SImage)
-						.Image(&PictureBrush)
+						.Image_Lambda([Brush]() { return Brush->GetSlateBrush(); })
 						.Visibility(EVisibility::HitTestInvisible)
 						.ColorAndOpacity(TAttribute<FSlateColor>::CreateLambda([WeakThis]()
 						{
@@ -303,8 +348,6 @@ void UBattleTransitionSubsystem::RemovePicture()
 		}
 		PictureWidget.Reset();
 	}
-	PictureBrush = FSlateBrush();
-	Picture = nullptr;
 }
 
 float UBattleTransitionSubsystem::GetPictureAlpha() const

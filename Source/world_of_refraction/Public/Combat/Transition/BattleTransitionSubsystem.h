@@ -16,8 +16,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "Engine/EngineBaseTypes.h"
-#include "Styling/SlateBrush.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/Transition/BattleTransitionMath.h"
 #include "BattleTransitionSubsystem.generated.h"
@@ -25,7 +25,6 @@
 class ABattleTransitionShards;
 class SWidget;
 class UBattleTransitionData;
-class UTexture2D;
 class UTextureRenderTarget2D;
 struct FWorldContext;
 
@@ -71,6 +70,14 @@ private:
 	/** The map is about to change: keep the last frame as a picture over the viewport and stop the clock. */
 	void FreezeForTravel();
 
+	/** Runs every frame from the map change to the end, on the core ticker (no world to tick in between).
+	 *  Drops the transition if the new map never comes or the rebuilt shards are lost, so the held picture
+	 *  can never stay on screen. False = stop watching. */
+	bool WatchTravel(float DeltaSeconds);
+
+	/** Clears everything a run holds, back to Idle. */
+	void EndRun();
+
 	bool SpawnShards(UWorld &World, bool bCaptureFrame);
 	void ShowPicture();
 	void RemovePicture();
@@ -83,13 +90,13 @@ private:
 	UPROPERTY()
 	TObjectPtr<UTextureRenderTarget2D> Frame;
 
-	/** The frame just before the map change, drawn over the viewport. */
-	UPROPERTY()
-	TObjectPtr<UTexture2D> Picture;
-
 	TWeakObjectPtr<ABattleTransitionShards> Shards;
+
+	/** The frame just before the map change, drawn over the viewport. The widget owns its brush and texture. */
 	TSharedPtr<SWidget> PictureWidget;
-	FSlateBrush PictureBrush;
+
+	FTSTicker::FDelegateHandle WatchHandle;
+	double FrozenAtSeconds = 0.0;
 
 	BattleTransition::FClock Clock;
 	int32 Seed = 0;
