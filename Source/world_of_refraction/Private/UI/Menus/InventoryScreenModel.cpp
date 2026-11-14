@@ -1,6 +1,8 @@
 // InventoryScreenModel.cpp
 
 #include "UI/Menus/InventoryScreenModel.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "UI/WoRIconTable.h"
 
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -48,6 +50,10 @@ namespace InventoryScreenBuild
 		Tile.Mark = LOCTEXT("MarkEvolution", "Ev");
 		Tile.Element = Entry.Item->GetAssociatedElement();
 		Tile.KindLine = KindWithElement(LOCTEXT("KindEvolution", "Evolution"), Tile.Element);
+		Tile.Icon.Kind = EWoRIconKind::Element; // B-487: its element's diamond, and a tier badge
+		Tile.Icon.Element = Tile.Element;
+		Tile.Icon.Name = Tile.Name;
+		Tile.bTierBadge = true;
 		Tile.bWorn = Inventory.IsEvolutionInUse(Entry.InstanceID);
 		Tile.Details.Add({LOCTEXT("DetailDurability", "Durability"), FText::Format(LOCTEXT("DurabilityOfMax", "{0} / {1}"),
 																					 FText::AsNumber(Entry.CurrentDurability),
@@ -152,6 +158,12 @@ namespace InventoryScreenBuild
 		Tile.Tier = Gear.Tier;
 		Tile.KindLine = Gear.KindLine;
 		Tile.Mark = Weapon ? LOCTEXT("MarkWeapon", "W") : LOCTEXT("MarkAdapter", "A");
+		if (Weapon && Weapon->Weapon)
+		{
+			Tile.Icon.Kind = EWoRIconKind::WeaponType; // B-487
+			Tile.Icon.WeaponType = Weapon->Weapon->WeaponType;
+			Tile.Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->Weapon->WeaponType);
+		}
 		Tile.Element = Slot.Gear.AttachedItem.GetElement();
 		Tile.bWorn = !Row.bInChest && Inventory && !Inventory->GetLoadoutsUsing(Row.GearID).IsEmpty();
 		Tile.Details = Gear.Details;
@@ -193,6 +205,13 @@ namespace InventoryScreenBuild
 																		 FText::AsNumber(InventoryConstants::ITEM_STACK_MAX))});
 		}
 		Tile.Note = CrystalDescription::GetItemEffectText(Row.Item); // B-460
+		// B-487: a crystal is its element's diamond (Ice has none of its own: it is keyed Water), a stone the stone;
+		// its tier is a badge; its effect sentence gets the effect's icon.
+		Tile.Icon.Kind = bStone ? EWoRIconKind::Stone : EWoRIconKind::Element;
+		Tile.Icon.Element = Tile.Element;
+		Tile.Icon.Name = Tile.Name;
+		Tile.bTierBadge = true;
+		Tile.EffectIcon = WoRIcons::MakeItemEffectIcon(Row.Item);
 		return Tile;
 	}
 

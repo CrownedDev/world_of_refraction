@@ -123,6 +123,15 @@ namespace VendorScreenBuild
 							 FText::FromString(Worn->GetDisplayName()));
 	}
 
+	/** B-487: a row for the thing an inventory tile shows takes the tile's icons. */
+	void CopyIcons(const FInventoryScreenTile &Tile, FVendorScreenRow &Line)
+	{
+		Line.Icon = Tile.Icon;
+		Line.bTierBadge = Tile.bTierBadge;
+		Line.TierValue = Tile.TierValue;
+		Line.EffectIcon = Tile.EffectIcon;
+	}
+
 	/** How a stock line reads, in the words the loadout and inventory screens use for the same thing. */
 	FVendorScreenRow MakeStockRow(UWorld *World, const FMerchantStockEntry &Entry, FName Member)
 	{
@@ -140,6 +149,7 @@ namespace VendorScreenBuild
 			Line.KindLine = Tile.KindLine;
 			Line.Element = Tile.Element;
 			Line.Note = Tile.Note;
+			CopyIcons(Tile, Line); // B-487
 		}
 		else if (const USkillDataBase *Skill = Cast<USkillDataBase>(Asset))
 		{
@@ -157,6 +167,11 @@ namespace VendorScreenBuild
 			Line.Tier = WoRGameNames::GetTierLetter(Evolution->Tier);
 			Line.Element = Evolution->GetAssociatedElement();
 			Line.KindLine = KindWithElement(LOCTEXT("KindEvolution", "Evolution"), Line.Element);
+			Line.Icon.Kind = EWoRIconKind::Element; // B-487: its element's diamond, and a tier badge
+			Line.Icon.Element = Line.Element;
+			Line.Icon.Name = Line.Name;
+			Line.bTierBadge = true;
+			Line.TierValue = Evolution->Tier;
 			Line.Note = FText::FromString(Evolution->Description);
 		}
 		else
@@ -187,6 +202,12 @@ namespace VendorScreenBuild
 			Line.KindLine = Gear.KindLine;
 			Line.Element = Slot.Gear.AttachedItem.GetElement();
 			Line.Details = Gear.Details;
+			if (Weapon)
+			{
+				Line.Icon.Kind = EWoRIconKind::WeaponType; // B-487
+				Line.Icon.WeaponType = Weapon->WeaponType;
+				Line.Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+			}
 			const FText Compared = Weapon ? ComparePower(World, *Weapon, Member) : FText::GetEmpty();
 			if (!Compared.IsEmpty())
 			{
@@ -338,6 +359,7 @@ FVendorScreenPage WoRVendorScreen::BuildPage(UWorld *World, EMerchantType Vendor
 			Line.Tier = Tile->Tier;
 			Line.KindLine = Tile->KindLine;
 			Line.Element = Tile->Element;
+			VendorScreenBuild::CopyIcons(*Tile, Line); // B-487
 		}
 		Line.Pay = WoRVendorServices::GetPayText(World, Service, Row);
 		Line.Refusal = WoRVendorServices::GetRefusal(World, Vendor, Service, Member, Row);

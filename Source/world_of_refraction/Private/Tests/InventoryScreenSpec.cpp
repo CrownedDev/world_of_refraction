@@ -25,6 +25,7 @@
 #include "Pool/PoolSubsystem.h"
 #include "UI/Menus/InventoryScreenModel.h"
 #include "UI/Menus/InventoryScreenWidget.h"
+#include "UI/WoRIconTable.h"
 
 namespace
 {
@@ -163,6 +164,8 @@ void FInventoryScreenSpec::Define()
 		TestFalse(TEXT("the spare dagger is not"), Gear.Tiles[DaggerTile].bWorn);
 		TestEqual(TEXT("named"), Gear.Tiles[DaggerTile].Name.ToString(), FString(TEXT("Screen dagger")));
 		TestFalse(TEXT("a kind line"), Gear.Tiles[DaggerTile].KindLine.IsEmpty());
+		TestTrue(TEXT("a weapon tile asks for its weapon-type icon, and no tier badge (B-487)"),
+				 Gear.Tiles[DaggerTile].Icon.Kind == EWoRIconKind::WeaponType && !Gear.Tiles[DaggerTile].Icon.Name.IsEmpty() && !Gear.Tiles[DaggerTile].bTierBadge);
 		TestTrue(TEXT("the pouch tab holds no gear"), PageOf(EInventoryScreenTab::Pouch).Tiles.IsEmpty());
 		TestFalse(TEXT("an empty tab says so"), PageOf(EInventoryScreenTab::Chest).EmptyNote.IsEmpty());
 	});
@@ -450,6 +453,22 @@ void FInventoryScreenSpec::Define()
 
 		Screen->PressBack();
 		TestFalse(TEXT("Back on the tiles closes it"), Screen->IsActivated());
+	});
+
+	It("gives a crystal tile its element's diamond, a tier badge and its effect's icon (B-487)", [this]()
+	{
+		WoRInventoryVerbs::FInventoryRow Garnet;
+		Garnet.Item = FCrystalId(ECrystalType::Garnet, EItemTier::C_Tier);
+		Garnet.Count = 1;
+		const FInventoryScreenTile Tile = WoRInventoryScreen::BuildStackTile(Garnet);
+		TestTrue(TEXT("the element diamond, named for its tooltip"), Tile.Icon.Kind == EWoRIconKind::Element && Tile.Icon.Element == Tile.Element && !Tile.Icon.Name.IsEmpty());
+		TestTrue(TEXT("a real element"), Tile.Element != ESpellElement::None);
+		TestTrue(TEXT("its tier as a badge"), Tile.bTierBadge && Tile.TierValue == EItemTier::C_Tier);
+		TestTrue(TEXT("its effect sentence gets the burn's icon"), !Tile.Note.IsEmpty() && Tile.EffectIcon.Kind == EWoRIconKind::Effect && Tile.EffectIcon.EffectType == ESkillEffectType::DOT);
+		if (!UWoRIconTable::GetActive()) // before the icons are imported (B-486)
+		{
+			TestNull(TEXT("with no icon table the tile keeps its letter"), WoRIcons::Find(Tile.Icon));
+		}
 	});
 }
 

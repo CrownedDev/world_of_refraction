@@ -15,10 +15,12 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Durability/GearRepair.h"
+#include "Inventory/ItemTier.h"
 #include "Shop/VendorServices.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/PauseMenuModel.h"
+#include "UI/WoRIcon.h"
 
 class AActor;
 class UMerchantData;
@@ -53,6 +55,13 @@ struct FVendorScreenRow
 	/** Buy: the detail panel's lines ("Power" / "42") and what the thing does. */
 	TArray<FLoadoutScreenDetail> Details;
 	FText Note;
+	/** B-487: the row's icon (a weapon's type, a crystal's or evolution's element diamond, a stone), its tier as a badge
+	 *  (TierValue; crystals, stones, evolutions) and the icon beside Note when Note is an item's effect. The widget asks
+	 *  the icon table; with no icon the words stay. */
+	FWoRIcon Icon;
+	bool bTierBadge = false;
+	EItemTier TierValue = EItemTier::F_Tier;
+	FWoRIcon EffectIcon;
 	/** Why the service can't take it (shown in the kind line's place, the row greyed); empty when it can. */
 	FText Refusal;
 	/** Item slots: whose pouch the row is, the slots it has and the most it can have (the row's pips). */
