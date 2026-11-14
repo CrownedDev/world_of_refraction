@@ -59,6 +59,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
 | Loadout: change the lit gear row (opens the picker); in the picker, put the lit piece in | Enter, Space, left click | A (Cross) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsConfirmKey`; B / Esc closes the picker |
 | Loadout: unequip the lit gear row | X | X (Square) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsToggleKey` |
+| Loadout: on an apparel row, pick an owned apparel piece (the picker; A again wears it) or take the row's piece off | Enter, Space, left click; X | A (Cross); X (Square) | none (the screen's keys) | Built (B-440f, loadout screen): `WoRMenuStyle::IsConfirmKey` / `IsToggleKey`, the same keys as a gear row; one X takes it off (it stays owned) |
 | Loadout: move across the lit row to its sockets (row, crystal socket, stone socket); X on a socket asks, X again takes it off | Left / Right, A / D | D-pad left / right, left stick | none (the screen's keys) | Built (B-440c, loadout screen): `WoRMenuStyle::IsLeftKey` / `IsRightKey` |
 | Loadout: the Gear / Skills page | Q / E | LB / RB (L1 / R1) | none (the screen's keys) | Built (B-440d, loadout screen): `WoRMenuStyle::IsTabPrevKey` / `IsTabNextKey`; two pages, either key turns |
 | Loadout, Skills page: the lit list (a school, a weapon, an adapter); A puts a learned skill in the lit slot, X takes it out | Left / Right, A / D; Enter; X | D-pad left / right, left stick; A (Cross); X (Square) | none (the screen's keys) | Built (B-440d, Q-440d) |
@@ -150,3 +151,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-469: the new game screen: Up / Down the parts and the class, Left / Right the body and the element grid, A next part or Begin, B back to the title; read by the screen itself | feature/B-469-new-game-screen |
 | 2026-11-14 | Loadout v2 mockup: D-pad Left / Right between the list and the details box on the Weapons and Apparel tabs (B-479c) | docs/B-479c-weapons-layout |
 | 2026-11-14 | Loadout v2 mockup: X Details and the list / box moves removed (details always shown); X switches full / simple view (B-479c) | docs/B-479c-weapons-layout |
+| 2026-11-14 | Loadout screen: A / X on an apparel row pick an owned piece / take it off (B-440f) | feature/B-440f-loadout-apparel-cloud |
