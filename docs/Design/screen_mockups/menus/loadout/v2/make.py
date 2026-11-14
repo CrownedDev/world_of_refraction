@@ -1,13 +1,15 @@
-"""Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209). Three columns, as FF7 Rebirth's and Expedition 33's equip
-screens: what is EQUIPPED on the left, a character frame in the middle (the live 3D model in the current gear; a
+"""Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209 / D-210). Three columns, as FF7 Rebirth's and Expedition 33's
+equip screens: what is EQUIPPED on the left, a character frame in the middle (the live 3D model in the current gear; a
 placeholder here), and what can go in the focused piece or socket on the right, with a compare (ups green, downs red).
 Items that can't go in stay listed, greyed, with the reason. Details on R3. Tabs Weapons | Apparel | Skills on LB / RB.
-Costs (D-206): a weapon or adapter itself 0; a crystal 1, an augment stone 1, an evolution 2 (in the crystal socket);
-an evolution alone 2. Budgets: Generic 5 (rows of 3 and 2), Resonator 5 (one weapon, at most 5 adapters), Refractor 2
-(one item). D-209: each Generic row holds weapon SETS (one weapon, or two one-handed weapons; a shield later), at most
-one adapter per loadout in either row. A confirmed set shows as its own column; a row shows its free cells as a number
-(no empty cells), and "Add gear" opens a window that builds a valid set. Apparel: 2 slots, HP / Defence / Amp + one
-rolled bonus line (D-208; a pillar line is % of the pillar's value). Stat values are placeholders. Run: python make.py"""
+D-210: the Weapons tab is a list of ENTRIES. It starts with one empty frame, "Add gear"; the Add gear window asks weapon
+or adapter, then Main hand, Off hand, Augment socket 1, Augment socket 2. The sockets belong to the entry (a dual pair
+shares them): a crystal (or evolution) + a stone, or two stones (the same stat stacks). Confirming makes one entry and
+a new empty frame shows the cells left ("3/5 left"), until the class limit or the cells run out. Generic: 2 weapon
+entries + 1 adapter entry; Resonator: 1 weapon entry + up to 5 adapter entries; Refractor: 1 entry. Evolutions: a
+Resonator only on adapters, a Generic only on weapons. Costs (D-206): gear 0, crystal 1, stone 1, evolution 2.
+Dual wield: two weapons of the same type that can dual wield (D-209). Apparel: 2 slots, HP / Defence / Amp + one rolled
+bonus line (D-208). Stat values are placeholders. Run: python make.py"""
 import os
 import sys
 
@@ -22,7 +24,6 @@ L, LR = 48, 480            # left column
 MID_L, MID_R = 500, 772     # character frame
 LIST_X = 792                # right column
 TOP = 134
-FREE_W = 92                 # the row's free-cells box and Add gear button
 
 
 def fit(d, s, size, bold, w):
@@ -40,86 +41,51 @@ def header(d, who, page, loadout):
     text(d, (1232, 66), "Y  Saved loadouts", 15, fill=CYAN, anchor="ra")
 
 
-def used_line(d, used, total, preview=None):
+def used_line(d, used, total, preview=None, note=""):
     text(d, (L, TOP), "Cells used", 17, True, DIM)
     if preview is None or preview == used:
         text(d, (L + 110, TOP), "%d of %d" % (used, total), 18, True)
     else:
         text(d, (L + 110, TOP), "%d → %d of %d" % (used, preview, total), 18, True, WARN if preview > used else GOOD)
+    text(d, (LR, TOP + 3), note, 13, fill=DIM, anchor="ra")
 
 
-def card(d, box, title, pieces, cost, active, focus):
-    """One confirmed set (or adapter) as a column. pieces: (name, el, sockets); sockets = element colours or None.
-    focus: None, "card" or a piece index."""
-    x0, y0, x1, y1 = box
+def entry(d, y, title, pieces, sockets, cost, active=False, focus=None, h=64):
+    """One confirmed entry. pieces: (name, el) for the main and off hand; sockets: two (name, el, kind) or None for empty.
+    focus: "entry" or a socket index (0 / 1)."""
     on = focus is not None
-    cut(d, box, PLATE, CYAN if (on or active) else STEEL, 8)
-    compact = x1 - x0 < 120
-    text(d, (x0 + 8, y0 + 6), fit(d, title, 13, True, x1 - x0 - 16), 13, True, CYAN if on else DIM)
-    py = y0 + 26
-    for i, (name, el, socks) in enumerate(pieces):
-        pf = focus == i
-        ph = 46 if compact else 34
-        if pf:
-            cut(d, (x0 + 4, py - 2, x1 - 4, py + ph - 4), TEAL, CYAN, 5)
-        icon(d, (x0 + 8, py, x0 + 34, py + 26), ELEMENT[el])
-        if compact:
-            text(d, (x0 + 40, py + 1), "", 1)
-            for j, s in enumerate(socks):
-                sx = x0 + 40 + j * 18
-                icon(d, (sx, py + 6, sx + 14, py + 20), s, empty=s is None)
-            text(d, (x0 + 8, py + 29), fit(d, name, 11, True, x1 - x0 - 14), 11, True)
-        else:
-            alone = len(pieces) == 1  # room under the name: sockets go there, the name gets the width
-            text(d, (x0 + 42, py + (0 if alone else 5)), fit(d, name, 13, True, x1 - x0 - (50 if alone else 92)), 13, True)
-            for j, s in enumerate(socks):
-                sx = (x0 + 42 if alone else x1 - 46) + j * 19
-                sy = py + 20 if alone else py + 6
-                icon(d, (sx, sy, sx + 15, sy + 15), s, empty=s is None)
-        py += ph
-    text(d, (x1 - 8, y1 - 6), "%d cell%s" % (cost, "" if cost == 1 else "s"), 12, True, TXT, anchor="rd")
+    cut(d, (L, y, LR, y + h), TEAL if focus == "entry" else PLATE, CYAN if (on or active) else STEEL, 8)
+    for i, (n, el) in enumerate(pieces):
+        icon(d, (L + 8 + i * 22, y + 10 + i * 8, L + 40 + i * 22, y + 42 + i * 8), ELEMENT[el])
+    tx = L + 20 + 22 * len(pieces) + 20
+    text(d, (tx, y + 10), fit(d, title, 15, True, 150), 15, True)
+    text(d, (tx, y + 34), fit(d, " · ".join(p[0] for p in pieces), 12, False, LR - tx - 180), 12,
+         fill=TXT if focus == "entry" else DIM)
+    for i, s in enumerate(sockets):
+        sx = LR - 176 + i * 78
+        if focus == i:
+            cut(d, (sx - 4, y + 6, sx + 72, y + h - 6), TEAL, CYAN, 6)
+        icon(d, (sx, y + 12, sx + 22, y + 34), ELEMENT[s[1]] if s else None, empty=s is None)
+        text(d, (sx, y + 38), fit(d, s[0] if s else "empty", 11, True, 72), 11, True, TXT if s or focus == i else OFF)
+        text(d, (sx + 26, y + 16), (s[2] if s else "socket %d" % (i + 1)), 10, fill=DIM)
+    text(d, (LR - 12, y + h / 2), str(cost), 18, True, anchor="rm")
     if active:
         tw = int(d.textlength("ACTIVE", font=F(10, True))) + 10
-        cut(d, (x1 - tw - 6, y0 - 8, x1 - 6, y0 + 7), BG, CYAN, 4)
-        text(d, (x1 - 6 - tw / 2, y0 - 6), "ACTIVE", 10, True, CYAN, anchor="ma")
+        cut(d, (L + 160 - tw, y - 8, L + 160, y + 7), BG, CYAN, 4)
+        text(d, (L + 160 - tw / 2, y - 6), "ACTIVE", 10, True, CYAN, anchor="ma")
+    return y + h + 10
 
 
-def set_row(d, y, label, total, sets, focus=None, add=True, h=128):
-    """A row: its sets as columns, then the free cells as a number and the Add gear button. sets: (title, pieces, cost,
-    active, width). focus: (set index, piece index or "card"), or "add"."""
-    text(d, (L, y), label, 14, True, DIM)
-    y += 22
-    cut(d, (L, y, LR, y + h), BG, STEEL, 10)
-    x = L + 8
-    for i, (t, pieces, cost, active, w) in enumerate(sets):
-        f = focus[1] if isinstance(focus, tuple) and focus[0] == i else None
-        card(d, (x, y + 10, x + w, y + h - 8), t, pieces, cost, active, f)
-        x += w + 8
-    free = total - sum(s[2] for s in sets)
-    fx = LR - FREE_W - 8
-    text(d, (fx + FREE_W / 2, y + 8), str(free), 30, True, TXT if free else OFF, anchor="ma")
-    text(d, (fx + FREE_W / 2, y + 46), "free of %d" % total, 12, fill=DIM, anchor="ma")
-    if add:
-        on = focus == "add"
-        cut(d, (fx, y + h - 50, fx + FREE_W, y + h - 10), TEAL if on else PLATE, CYAN if on else STEEL, 6)
-        text(d, (fx + FREE_W / 2, y + h - 30), "+ Add gear", 13, True, TXT, anchor="mm")
+def add_frame(d, y, left, total, sub, focus=False, done=False):
+    """The empty frame after the entries: Add gear, with the cells left."""
+    cut(d, (L, y, LR, y + 56), TEAL if focus else BG, CYAN if focus else OFF, 8)
+    if done:
+        text(d, (L + 16, y + 9), "Loadout full", 16, True, OFF)
     else:
-        text(d, (fx + FREE_W / 2, y + h - 30), "one item", 12, fill=DIM, anchor="mm")
-    return y + h + 12
-
-
-def sockets_strip(d, y, owner, socks, focus=None):
-    """The focused piece's sockets, large: (kind, name, el). focus: socket index."""
-    cut(d, (L, y, LR, y + 64), BG, STEEL, 8)
-    text(d, (L + 12, y + 6), owner + "'s sockets", 13, True, DIM)
-    for i, (kind, name, el) in enumerate(socks):
-        sx = L + 12 + i * 208
-        if focus == i:
-            cut(d, (sx - 4, y + 24, sx + 196, y + 60), TEAL, CYAN, 6)
-        icon(d, (sx, y + 28, sx + 28, y + 56), ELEMENT[el] if name else None, empty=not name)
-        text(d, (sx + 36, y + 27), name or "empty", 14, True, TXT if name or focus == i else OFF)
-        text(d, (sx + 36, y + 44), kind, 12, fill=TXT if focus == i else DIM)
-    return y + 76
+        text(d, (L + 16, y + 9), "+  Add gear", 16, True, TXT if focus else DIM)
+    text(d, (LR - 14, y + 9), "%d/%d left" % (left, total), 16, True, CYAN if left else OFF, anchor="ra")
+    text(d, (L + 16, y + 33), sub, 12, fill=TXT if focus else DIM)
+    return y + 68
 
 
 def seat(d, y, name, el):
@@ -172,7 +138,7 @@ def item_rows(d, x0, x1, y, rows, focus, step=55):
         icon(d, (x0 + 8, y + 7, x0 + 44, y + 43), ELEMENT[el])
         text(d, (x0 + 54, y + 5), n, 16, True, OFF if greyed else TXT)
         tier_badge(d, x0 + 54 + int(d.textlength(n, font=F(16, True))) + 15, y + 14, t, 10)
-        text(d, (x0 + 54, y + 28), fit(d, state if greyed else sub, 12, False, x1 - x0 - 140), 12,
+        text(d, (x0 + 54, y + 28), fit(d, state if greyed else sub, 12, False, x1 - x0 - 120), 12,
              fill=WARN if greyed else (TXT if f else DIM))
         if state == "worn":
             text(d, (x1 - 12, y + 8), "ON NOW", 11, True, CYAN, anchor="ra")
@@ -200,38 +166,51 @@ def choices(d, heading, rows, focus, compare):
 
 
 FOOT = [("A", "Equip"), ("X", "Unequip"), ("R3", "Details"), ("B", "Back")]
-FIRE, EARTH, WATER, LIGHTNING = (ELEMENT[e] for e in ("Fire", "Earth", "Water", "Lightning"))
-
-# The Generic's tab: a dual set (two one-handed swords) in the Primary; a hammer and the one adapter in the Secondary.
-DUAL = ("Sword + Sword", [("Ashen Blade", "Fire", [FIRE, None]), ("Cinder Edge", "None", [None, None])], 1, True, 224)
-HAMMER = ("Hammer", [("Quarry Maul", "Earth", [EARTH, None])], 1, False, 156)
-RING = ("Adapter", [("Storm Ring", "Lightning", [LIGHTNING, None])], 1, False, 156)
 GEAR_G = "Ashen Blade + Cinder Edge · Iron Coat"
+DUAL = ("Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")],
+        [("Garnet", "Fire", "crystal"), ("Whetstone", "None", "stone")], 2)
+HAMMER = ("Hammer", [("Quarry Maul", "Earth")], [("Ironstone", "Earth", "stone"), ("Ironstone", "Earth", "stone")], 2)
 
+# ---- 1: Garrick (Generic) at the start: one empty frame, Add gear. The right side says what an entry is.
+im, d = canvas()
+header(d, 1, 0, "New loadout  ·  3 of 5")
+used_line(d, 0, 5, note="2 weapon entries · 1 adapter entry")
+y = add_frame(d, 168, 5, 5, "A weapon or an adapter", focus=True)
+seat(d, y, "Ironheart", "Earth")
+frame(d, "Garrick", "Generic", "Iron Coat")
+panel(d, (LIST_X, TOP, 1232, 654), focus=True)
+text(d, (LIST_X + 16, TOP + 10), "Add gear", 18, True)
+y = TOP + 44
+for head, body in [
+        ("An entry", "A main hand and an off hand (a twin of the same type, or empty), and two augment sockets."),
+        ("The two sockets", "Shared by the entry: a crystal or an evolution, plus a stone; or two stones. Two of the "
+                            "same stone stack."),
+        ("Garrick, a Generic", "Two weapon entries and one adapter entry, in 5 cells. Evolutions go on weapons only."),
+        ("Cells", "Gear is free. A crystal or a stone fills 1 cell, an evolution 2.")]:
+    text(d, (LIST_X + 16, y), head, 15, True, CYAN)
+    y = wrap(d, (LIST_X + 16, y + 22), body, 404, 14, TXT) + 16
+footer(d, [("A", "Add gear"), ("R3", "Details"), ("B", "Back")])
+save(im, OUT, "1_weapons_generic_start.png")
 
-def generic_rows(d, focus_p=None, focus_s=None, dual=DUAL):
-    y = set_row(d, 172, "Primary  ·  3 cells  ·  sets", 3, [dual], focus_p)
-    return set_row(d, y, "Secondary  ·  2 cells  ·  sets", 2, [HAMMER, RING], focus_s)
-
-
-# ---- 1: Garrick (Generic): the off-hand sword of his dual set is focused; the right lists one-handed weapons.
+# ---- 1a: two weapon entries and the "1/5 left" frame (only the adapter entry is left). The dual entry's socket 2 is
+#          focused: socket 1 holds a crystal, so socket 2 takes a stone; a second Whetstone would stack.
 im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
-used_line(d, 3, 5, preview=4)
-y = generic_rows(d, focus_p=(0, 1))
-y = sockets_strip(d, y, "Cinder Edge", [("Crystal", None, None), ("Stone", None, None)])
+used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
+y = entry(d, 172, *DUAL, active=True, focus=1)
+y = entry(d, y, *HAMMER)
+y = add_frame(d, y, 1, 5, "An adapter (the weapon entries are full)")
 seat(d, y, "Ironheart", "Earth")
 frame(d, "Garrick", "Generic", GEAR_G)
-choices(d, "Off hand  ·  swords that pair", [
-    ("Cinder Edge", "None", "C", "Sword · dual wield", "0 cells", "worn"),
-    ("Frost Fang", "Water", "C", "Sword · Sapphire", "1 cell", None),
-    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a sword"),
-    ("Greatblade", "None", "B", "", "", "Can't be dual wielded"),
-    ("Night Scythe", "Darkness", "A", "", "", "Can't be dual wielded")], 1, [
-    ("Cells", "3 of 5", "4 of 5", None), ("Primary free", "2", "1", None), ("Power", "42 + 30", "42 + 34", True),
-    ("Elements", "Fire", "Fire, Water", True), ("Abilities", "Cleave, Whirl…", "+ Frost Bite…", True)])
+choices(d, "Socket 2  ·  a stone (socket 1 holds a crystal)", [
+    ("Whetstone", "None", "C", "Stone · Power +4%", "", "worn"),
+    ("Whetstone", "None", "B", "Stone · Power +6%", "1 cell", None),
+    ("Keenstone", "Wind", "C", "Stone · Crit Rate +4%", "1 cell", None),
+    ("Sapphire", "Water", "D", "", "", "Socket 1 holds a crystal: this one takes a stone"),
+    ("Phoenix", "Fire", "B", "", "", "Socket 1 holds a crystal: no evolution here")], 1, [
+    ("Cells", "4 of 5", "4 of 5", None), ("Power", "+4%", "+6%", True), ("Applies to", "both swords", "both swords", None)])
 footer(d, FOOT)
-save(im, OUT, "1_weapons_generic.png")
+save(im, OUT, "1a_weapons_generic_entries.png")
 
 
 def window(base, title, free, hints):
@@ -247,91 +226,65 @@ def window(base, title, free, hints):
 
 
 def build_slot(d, y, label, name, el, sub, focus=False, x0=146, x1=560):
-    """A piece of the set being built; name None = still to pick."""
+    """A piece of the entry being built; name None = still to pick."""
     text(d, (x0, y), label, 13, True, DIM)
     y += 20
-    cut(d, (x0, y, x1, y + 52), TEAL if focus else (PLATE if name else BG), CYAN if focus else (STEEL if name else OFF), 8)
-    icon(d, (x0 + 10, y + 8, x0 + 46, y + 44), ELEMENT[el] if name else None, empty=not name)
-    text(d, (x0 + 56, y + 7), name or ("choosing…" if focus else "—"), 16, True, TXT if name or focus else OFF)
-    text(d, (x0 + 56, y + 29), sub, 12, fill=TXT if focus else DIM)
-    return y + 64
+    cut(d, (x0, y, x1, y + 50), TEAL if focus else (PLATE if name else BG), CYAN if focus else (STEEL if name else OFF), 8)
+    icon(d, (x0 + 10, y + 7, x0 + 46, y + 43), ELEMENT[el] if name else None, empty=not name)
+    text(d, (x0 + 56, y + 6), name or ("choosing…" if focus else "—"), 16, True, TXT if name or focus else OFF)
+    text(d, (x0 + 56, y + 28), sub, 12, fill=TXT if focus else DIM)
+    return y + 60
 
 
-# ---- 1a: Add gear on an empty Primary: building a dual set. The main sword and its evolution are picked; the off hand
-#          is being picked. Pieces that don't fit stay listed, greyed, with the reason.
+# ---- 1b: the Add gear window for a weapon entry: weapon picked over adapter; the main and off hand are set; socket 1
+#          (crystal or evolution, or a stone) is focused. Socket 2 then takes a stone.
 base, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
-used_line(d, 2, 5)
-y = set_row(d, 172, "Primary  ·  3 cells  ·  sets", 3, [], "add")
-set_row(d, y, "Secondary  ·  2 cells  ·  sets", 2, [HAMMER, RING])
-frame(d, "Garrick", "Generic", "Quarry Maul · Iron Coat")
-im, d = window(base, "Add gear  ·  Primary", "3 free",
-               [("A", "Pick"), ("X", "Remove piece"), ("Y", "Confirm set"), ("B", "Cancel")])
-text(d, (146, 128), "A set: one weapon, or a dual-wield pair of one type.", 13, fill=DIM)
-y = build_slot(d, 156, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · dual wield · its stance leads")
-y = build_slot(d, y, "Main hand socket", "Phoenix", "Fire", "Evolution · 2 cells")
-y = build_slot(d, y, "Off hand", None, None, "A sword that dual wields, or leave it empty", focus=True)
-y = build_slot(d, y, "Off hand socket", None, None, "Crystal, stone or evolution")
-cut(d, (146, y + 6, 560, y + 50), BG, STEEL, 8)
-text(d, (160, y + 16), "Sword + Sword", 16, True)
-text(d, (546, y + 16), "2 cells  ·  1 free left", 15, True, CYAN, anchor="ra")
-text(d, (590, 156 - 28), "Off hand  ·  swords that pair", 15, True, DIM)
+used_line(d, 0, 5)
+add_frame(d, 172, 5, 5, "A weapon or an adapter", focus=True)
+frame(d, "Garrick", "Generic", "Iron Coat")
+im, d = window(base, "Add gear", "5/5 left",
+               [("A", "Pick"), ("X", "Remove"), ("Y", "Confirm entry"), ("B", "Cancel")])
+for i, (lab, on) in enumerate([("Weapon", True), ("Adapter", False)]):
+    bx = 146 + i * 128
+    cut(d, (bx, 128, bx + 120, 160), TEAL if on else PLATE, CYAN if on else STEEL, 6)
+    text(d, (bx + 60, 144), lab, 15, True, anchor="mm")
+text(d, (412, 136), "asked first", 12, fill=DIM)
+y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · single or dual")
+y = build_slot(d, y, "Off hand  ·  a sword that pairs, or empty", "Cinder Edge", "None", "Sword · single or dual")
+y = build_slot(d, y, "Augment socket 1", None, None, "A crystal or an evolution, or a stone", focus=True)
+y = build_slot(d, y, "Augment socket 2", None, None, "A stone (or a crystal if socket 1 has a stone)")
+cut(d, (146, y + 2, 560, y + 42), BG, STEEL, 8)
+text(d, (160, y + 12), "Sword + Sword", 16, True)
+text(d, (546, y + 12), "0 cells so far", 15, True, CYAN, anchor="ra")
+text(d, (590, 128), "Augment socket 1  ·  shared by both swords", 15, True, DIM)
 item_rows(d, 590, 1134, 156, [
-    ("Cinder Edge", "None", "C", "Sword · dual wield", "0 cells", None),
-    ("Frost Fang", "Water", "C", "Sword · Sapphire", "1 cell", None),
-    ("Tempest Sabre", "Lightning", "A", "", "", "Evolved: needs 2 cells, 1 free"),
-    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a sword"),
-    ("Quarry Maul", "Earth", "C", "", "", "Can't be dual wielded"),
-    ("Storm Ring", "Lightning", "C", "", "", "An adapter: one per loadout, already in Secondary"),
-    ("Ashen Blade", "Fire", "B", "", "", "Already the main hand")], 0)
-save(im, OUT, "1a_add_gear_dual.png")
+    ("Garnet", "Fire", "B", "Crystal · Fire", "1 cell", None),
+    ("Phoenix", "Fire", "B", "Evolution · its passives at infusion 2", "2 cells", None),
+    ("Whetstone", "None", "C", "Stone · Power +4%", "1 cell", None),
+    ("Sapphire", "Water", "D", "Crystal · Water", "1 cell", None),
+    ("Onyx", "Darkness", "S", "", "", "S-tier: one per loadout (on Iron Coat)"),
+    ("Ironheart", "Earth", "A", "", "", "In Garrick's own evolution seat")], 0)
+text(d, (590, 500), "The sword pair shares these two sockets: each weapon gives its", 13, fill=DIM)
+text(d, (590, 520), "abilities and stats, the sockets count once.", 13, fill=DIM)
+save(im, OUT, "1b_add_gear_weapon.png")
 
-# ---- 1c: Add gear for an adapter, in the Secondary (Quarry Maul there, 1 free; no adapter yet in this loadout).
-#          Left: a ready-made adapter. Right: an empty adapter plus the crystal to put in it.
-base, d = canvas()
-header(d, 1, 0, "Bruiser  ·  2 of 5")
-used_line(d, 2, 5)
-y = set_row(d, 172, "Primary  ·  3 cells  ·  sets", 3, [DUAL])
-set_row(d, y, "Secondary  ·  2 cells  ·  sets", 2, [HAMMER], "add")
-frame(d, "Garrick", "Generic", GEAR_G)
-im, d = window(base, "Add gear  ·  Secondary  ·  adapter", "1 free",
-               [("A", "Pick"), ("LB", "Ready-made"), ("RB", "Empty + crystal"), ("Y", "Confirm"), ("B", "Cancel")])
-text(d, (146, 128), "One adapter per loadout. It casts its spells; its crystal sets their element.", 13, fill=DIM)
-cut(d, (140, 150, 620, 616), BG, STEEL, 10)
-text(d, (156, 160), "Ready-made", 17, True)
-text(d, (604, 162), "with its crystal", 12, fill=DIM, anchor="ra")
-item_rows(d, 150, 610, 190, [
-    ("Ember Ring", "Fire", "C", "Ring · Garnet", "1 cell", None),
-    ("Storm Ring", "Lightning", "C", "Ring · Amber", "1 cell", None),
-    ("Tide Ring", "Water", "B", "Ring · Sapphire + stone", "", "Needs 2 cells, 1 free"),
-    ("Pyre Ring", "Fire", "B", "Ring · evolved", "", "Evolved: needs 2 cells, 1 free")], None)
-cut(d, (636, 150, 1144, 616), BG, CYAN, 10)
-text(d, (652, 160), "Empty + crystal", 17, True, CYAN)
-y = build_slot(d, 190, "Adapter", "Plain Ring", "None", "Empty ring · 0 cells", x0=652, x1=1128)
-text(d, (652, y), "Crystal for it", 13, True, DIM)
-item_rows(d, 646, 1134, y + 20, [
-    ("Garnet", "Fire", "B", "Fire crystal", "+1 cell", None),
-    ("Sapphire", "Water", "D", "Water crystal", "+1 cell", None),
-    ("Onyx", "Darkness", "S", "", "", "S-tier: one per loadout (on Iron Coat)")], 1)
-text(d, (652, 588), "Plain Ring + Sapphire  ·  1 cell  ·  0 free left", 14, True, TXT)
-save(im, OUT, "1c_add_gear_adapter.png")
-
-# ---- 2: Sera (Refractor): one item, 2 cells; the gear small, the innate spell pool the star.
+# ---- 2: Sera (Refractor): one entry, 2 cells; the innate spell pool is the star. Her evolution may go on a weapon or an
+#         adapter.
 im, d = canvas()
 header(d, 0, 0, "Pyre  ·  1 of 5")
-used_line(d, 1, 2)
-y = set_row(d, 172, "Gear  ·  2 cells  ·  one item", 2,
-            [("Staff", [("Cinder Staff", "Fire", [FIRE, None])], 1, False, 224)], (0, 0), add=False, h=96)
+used_line(d, 1, 2, note="1 entry")
+y = entry(d, 172, "Staff", [("Cinder Staff", "Fire")], [("Garnet", "Fire", "crystal"), None], 1, focus="entry")
 y = seat(d, y, None, None)
 innate(d, y + 4, "Fire", 18, [
     ("Destruction", 3, "Flame Lance, Ember, Scorch"), ("Conjuration", 0, ""),
     ("Enhancement", 1, "Kindle"), ("Restoration", 2, "Warm Light, Cauterise"),
     ("Impairment", 1, "Smoulder"), ("Manipulation", 0, "")])
 frame(d, "Sera", "Refractor  ·  Fire", "Cinder Staff · Ember Cloak")
-choices(d, "Fits the gear slot  ·  2 cells", [
+choices(d, "Her one entry  ·  2 cells", [
     ("Cinder Staff", "Fire", "C", "Staff · Garnet", "1 cell", "worn"),
     ("Tidal Pike", "Water", "C", "Spear · Sapphire", "1 cell", None),
-    ("Ember Ring", "Fire", "B", "Adapter · evolved", "2 cells", None),
+    ("Ember Ring", "Fire", "B", "Adapter · evolution", "2 cells", None),
     ("Phoenix Heart", "Fire", "B", "Evolution on its own", "2 cells", None),
     ("Pyre Pike", "Fire", "A", "", "", "Evolution + stone: needs 3 cells, 2 here"),
     ("Twin Fangs", "Wind", "C", "", "", "Twin only: needs two, she holds one item")], 1, [
@@ -340,47 +293,28 @@ choices(d, "Fits the gear slot  ·  2 cells", [
 footer(d, FOOT)
 save(im, OUT, "2_weapons_refractor.png")
 
-# ---- 3: Bram (Resonator): one row of 5 cells: the weapon, then up to 5 rings; he casts the active ring.
+# ---- 3: Bram (Resonator): one weapon entry and his ring entries (up to 5), then the frame with the cells left. His
+#         weapon's socket 1 is focused: an evolution is greyed, Resonators put evolutions on adapters only.
 im, d = canvas()
 header(d, 2, 0, "Ember Rings  ·  1 of 5")
-used_line(d, 4, 5)
-y = set_row(d, 172, "Weapon, then rings  ·  5 cells  ·  up to 5 rings", 5, [
-    ("Fists", [("Cinder Fists", "None", [None, None])], 0, False, 72),
-    ("Ring", [("Ember Ring", "Fire", [FIRE, None])], 1, True, 72),
-    ("Ring", [("Storm Ring", "Lightning", [LIGHTNING, None])], 1, False, 72),
-    ("Ring", [("Tide Ring", "Water", [WATER, None])], 2, False, 76)], (1, 0), h=110)
-y = sockets_strip(d, y, "Ember Ring", [("Crystal", "Garnet", "Fire"), ("Stone", None, None)])
+used_line(d, 4, 5, preview=5, note="1 weapon entry · 3 of 5 rings")
+y = entry(d, 172, "Fists", [("Cinder Fists", "None")], [None, None], 0, focus=0, h=58)
+y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("Garnet", "Fire", "crystal"), None], 1, active=True, h=58)
+y = entry(d, y, "Ring", [("Storm Ring", "Lightning")], [("Amber", "Lightning", "crystal"), None], 1, h=58)
+y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("Tidal", "Water", "evolution"), None], 2, h=58)
+y = add_frame(d, y, 1, 5, "A ring (2 more at most)")
 seat(d, y, "Emberheart", "Fire")
 frame(d, "Bram", "Resonator", "Cinder Fists · Ember Ring")
-choices(d, "Rings  ·  6 owned", [
-    ("Ember Ring", "Fire", "C", "Ring · Garnet", "1 cell", "worn"),
-    ("Gale Band", "Wind", "C", "Ring · Emerald", "1 cell", None),
-    ("Frost Ring", "Water", "D", "Ring · empty", "0 cells", None),
-    ("Pyre Ring", "Fire", "B", "Ring · evolved", "2 cells", None),
-    ("Storm Ring", "Lightning", "C", "", "", "Already in the row")], 1, [
-    ("Cells", "4 of 5", "4 of 5", None), ("Spells", "Flame Lance…", "Gust, Updraft…", None),
-    ("Durability", "64 / 80", "80 / 80", True)])
-footer(d, FOOT)
-save(im, OUT, "3_weapons_resonator.png")
-
-# ---- 4: a crystal socket focused (the dual set's off-hand sword, empty): the crystals that fit; a crystal adds a cell.
-im, d = canvas()
-header(d, 1, 0, "Bruiser  ·  2 of 5")
-used_line(d, 3, 5, preview=4)
-y = generic_rows(d, focus_p=(0, 1))
-y = sockets_strip(d, y, "Cinder Edge", [("Crystal", None, None), ("Stone", None, None)], focus=0)
-seat(d, y, "Ironheart", "Earth")
-frame(d, "Garrick", "Generic", GEAR_G)
-choices(d, "Crystals that fit  ·  14 owned", [
-    ("Garnet", "Fire", "B", "Fire crystal", "+1 cell", None),
-    ("Citrine", "Earth", "C", "Earth crystal", "+1 cell", None),
-    ("Sapphire", "Water", "D", "Water crystal", "+1 cell", None),
-    ("Onyx", "Darkness", "S", "", "", "S-tier: one per loadout (on Iron Coat)"),
-    ("Quartz", "None", "E", "Crystal", "+1 cell", None)], 0, [
-    ("Cells", "3 of 5", "4 of 5", None), ("Primary free", "2", "1", None),
-    ("Elemental abilities", "off", "on", True), ("Fire sources", "1", "2 (they stack)", True)])
+choices(d, "Cinder Fists  ·  augment socket 1", [
+    ("Ironstone", "Earth", "C", "Stone · Defence +5%", "1 cell", None),
+    ("Garnet", "Fire", "B", "Crystal · Fire", "1 cell", None),
+    ("Keenstone", "Wind", "C", "Stone · Crit Rate +4%", "1 cell", None),
+    ("Phoenix", "Fire", "B", "", "", "Resonators put evolutions on adapters only"),
+    ("Onyx", "Darkness", "S", "", "", "S-tier: one per loadout (on his coat)")], 1, [
+    ("Cells", "4 of 5", "5 of 5", None), ("Element", "none", "Fire", None),
+    ("Elemental abilities", "off", "on", True), ("Fire sources", "1 (ring)", "2", True)])
 footer(d, [("A", "Socket"), ("X", "Empty it"), ("R3", "Details"), ("B", "Back")])
-save(im, OUT, "4_crystal_socket.png")
+save(im, OUT, "3_weapons_resonator.png")
 
 
 def apparel(d, y, name, el, lines, bonus, sock, focus=False):
@@ -393,7 +327,7 @@ def apparel(d, y, name, el, lines, bonus, sock, focus=False):
     text(d, (L + 44, y + 80), (sock[0] or "empty") + "  ·  Crystal / evolution", 13, fill=DIM)
 
 
-# ---- 5: Apparel tab: two slots, no budget. Each piece: HP / Defence / Amp + one rolled bonus (a sub-stat, or a pillar
+# ---- 4: Apparel tab: two slots, no budget. Each piece: HP / Defence / Amp + one rolled bonus (a sub-stat, or a pillar
 #         as a % of its value, never points, so it never meets a skill requirement).
 im, d = canvas()
 header(d, 1, 1, "Bruiser  ·  2 of 5")
@@ -410,5 +344,5 @@ choices(d, "Apparel that fits  ·  5 owned", [
     ("HP", "40", "30", False), ("Defence", "14", "10", False), ("Amp", "+2", "+4", True),
     ("Body", "+5%", "—", False), ("Crit Damage", "—", "+6%", True), ("Resistance", "Darkness", "Fire", None)])
 footer(d, FOOT)
-save(im, OUT, "5_apparel.png")
+save(im, OUT, "4_apparel.png")
 print("ok")
