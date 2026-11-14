@@ -224,9 +224,9 @@ void UAIDecisionManager::ExecuteDecision()
         PickNotes.bScored = false; // the fallback is a pick by need
     }
 
-    // B-170f (ActionPips.md §3.6): in an action-pips fight the AI is asked once per action and spends the pick or
-    // banks the rest (End Turn). A stunned or Void-broken turn plays its one action (Q-170c2).
-    if (!bStunned && !bRandomAction && IsActionPipsFight())
+    // B-170f (ActionPips.md §3.6): the AI is asked once per action and spends the pick or banks the rest (End Turn).
+    // A stunned or Void-broken turn plays its one action (Q-170c2).
+    if (!bStunned && !bRandomAction && CurrentCombat)
     {
         const FAISpendOrBankDecision Decision = DecideSpendOrBank(Actor, Action);
         LastSpendOrBankString = FString::Printf(TEXT("%s: %s"), *Actor->GetName(), *Decision.ToString());
@@ -1745,7 +1745,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                 {
                     const int32 AttackDamage = EstimateSkillDamage(AIActor, BestTarget, AttackAbility);
                     if (CanPayActionsOrHold(AIActor, MakeSkillAction(AIActor, nullptr, AttackAbility).GetActionCost(),
-                                            static_cast<float>(AttackDamage))) // B-170f: true outside an action-pips fight
+                                            static_cast<float>(AttackDamage))) // B-170f: true outside a fight
                     {
                         Score = FMath::Max(Score, AttackDamage);
                     }
@@ -1782,9 +1782,9 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
     }
 
-    // B-170f (Q-170f): in an action-pips fight the Emerald takes a foe's turn or gives the AI actions.
-    const bool bActionPips = IsActionPipsFight();
-    if (bActionPips && GetDifficultyFor(AIActor) != EAIDifficulty::Easy)
+    // B-170f (Q-170f): the Emerald takes a foe's turn or gives the AI actions. B-170h2: the old timeline's bonus-turn
+    // Emerald valuation went with it.
+    if (CurrentCombat && GetDifficultyFor(AIActor) != EAIDifficulty::Easy)
     {
         bool bFoundEmerald = false;
         const FCrystalId EmeraldId = FindBonusTurnItem(Loadout, bFoundEmerald);
@@ -1792,70 +1792,6 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         if (bFoundEmerald && TryActionPipsEmerald(AIActor, EmeraldId, BestTarget, static_cast<float>(BestScore), Emerald))
         {
             return Emerald;
-        }
-    }
-
-    // ===== Emerald (bonus-turn item) valuation — Medium+ only =====
-    // Slots in HERE because this is the only point where BestScore (best AFFORDABLE
-    // action this turn, in HP-damage units) and the chosen BestTarget both exist.
-    // Every Emerald score below is in the SAME HP-damage units as BestScore.
-    // B-170f: the bonus-turn Emerald only; an action-pips fight values it above.
-    if (!bActionPips && GetDifficultyFor(AIActor) != EAIDifficulty::Easy)
-    {
-        bool bFoundEmerald = false;
-        const FCrystalId EmeraldId = FindBonusTurnItem(Loadout, bFoundEmerald);
-        if (bFoundEmerald)
-        {
-            const int32 EmeraldDelay = CrystalEffectTable::GetEmeraldBonusTurnDelay(EmeraldId);
-
-            // --- ENEMY-TARGET: force a guaranteed one-tick-lethal DoT kill now, before
-            //     the target's team gets turns to heal/cleanse it away. ---
-            const float LethalPerTick = GetLethalDoTPerTick(BestTarget);          // GATE 1
-            const bool bAlreadyKillable = CanKillTarget(AIActor, BestTarget, BestScore); // GATE 2
-            if (LethalPerTick > 0.0f && !bAlreadyKillable)
-            {
-                // Target's best expected damage against the AI — its per-turn threat,
-                // natively in the same HP-damage units as ActionScores (no scale factor).
-                const float ThreatPerTurnHP =
-                    static_cast<float>(EstimateBestDamage(BestTarget, AIActor));
-                const int32 ExposureTurns = GetRescueExposureTurns(AIActor, BestTarget);
-                const float EmeraldEnemyScore =
-                    GetCurrentHP(BestTarget) * Tuning.AIKillSecureFactor +
-                    ThreatPerTurnHP * ExposureTurns -
-                    ThreatPerTurnHP * Tuning.AIFreeActionFactor;
-
-                if (EmeraldEnemyScore > BestScore)
-                {
-                    FAction Emerald;
-                    Emerald.ActionType = EActionType::Item;
-                    Emerald.ItemData = EmeraldId;
-                    Emerald.Targets.Add(BestTarget);
-                    return Emerald;
-                }
-            }
-
-            // --- SELF-TARGET: EP-starved — hold a stronger action for the bonus turn. ---
-            // OBSOLETE (B-341): under the one bonus-turn rule EmeraldDelay is 0, so no EP regens before the
-            // bonus turn and ProjectedEP never reaches an unaffordable cost: this branch cannot fire. Kept
-            // until PIE; the D-124 sweep deletes it (an EP-starved AI has no reason to self-Emerald now).
-            if (UnaffordableBest > BestScore * Tuning.AIStarveMargin)
-            {
-                const int32 ProjectedEP =
-                    GetCurrentEP(AIActor) + AIConstants::ESTIMATED_EP_REGEN_PER_TURN * EmeraldDelay;
-                if (ProjectedEP >= UnaffordableBestCost)
-                {
-                    const float DelayDiscount = 1.0f / (1.0f + Tuning.AIDelayDecay * EmeraldDelay);
-                    const float EmeraldSelfScore = UnaffordableBest * DelayDiscount - BestScore;
-                    if (EmeraldSelfScore > BestScore)
-                    {
-                        FAction Emerald;
-                        Emerald.ActionType = EActionType::Item;
-                        Emerald.ItemData = EmeraldId;
-                        Emerald.Targets.Add(AIActor);
-                        return Emerald;
-                    }
-                }
-            }
         }
     }
 
@@ -1886,7 +1822,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             const int32 AttackDamage = EstimateSkillDamage(AIActor, Action.Targets[0], AttackAbility);
             if (AttackDamage > BestAttackDamage &&
                 CanPayActionsOrHold(AIActor, MakeSkillAction(AIActor, nullptr, AttackAbility).GetActionCost(),
-                                    static_cast<float>(AttackDamage))) // B-170f: true outside an action-pips fight
+                                    static_cast<float>(AttackDamage))) // B-170f: true outside a fight
             {
                 BestAttackDamage = AttackDamage;
                 BestAttack = Attack;
@@ -1894,7 +1830,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
 
         Action.SkillData = BestAttack;
-        if (!BestAttack && bActionPips)
+        if (!BestAttack && CurrentCombat)
         {
             Action.ActionType = EActionType::Defend; // B-170f: no attack the bank can pay
         }
@@ -1932,16 +1868,11 @@ void UAIDecisionManager::ResetActedThisTurn()
     LastActedTurn = INDEX_NONE;
 }
 
-bool UAIDecisionManager::IsActionPipsFight() const
-{
-    return CurrentCombat && CurrentCombat->IsActionPipsFight();
-}
-
 bool UAIDecisionManager::CanPayActionsOrHold(AActor *Actor, int32 ActionCost, float Score)
 {
-    if (!IsActionPipsFight())
+    if (!CurrentCombat)
     {
-        return true;
+        return true; // scored outside a fight (a spec, a debug print): nothing banked to check
     }
     const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     if (!CharComp)
@@ -1989,7 +1920,7 @@ float UAIDecisionManager::GetActionWorth(AActor *Unit, AActor *Victim)
 
 float UAIDecisionManager::ScoreActionEffects(AActor *Attacker, AActor *Target, USkillDataBase *Skill)
 {
-    if (!Attacker || !Target || !Skill || !IsActionPipsFight())
+    if (!Attacker || !Target || !Skill || !CurrentCombat)
     {
         return 0.0f;
     }

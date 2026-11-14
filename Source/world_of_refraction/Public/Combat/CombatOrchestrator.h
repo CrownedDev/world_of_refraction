@@ -343,12 +343,8 @@ public:
 	// ACTION PIPS (B-170c, ActionPips.md §3.3)
 	// ========================================
 
-	/** True when this fight runs banked actions: wor.Turns.ActionPips was 1 when it started (the TurnManager's
-	 *  latched mode). False = one action per turn, as built. */
-	bool IsActionPipsFight() const;
-
 	/** Q-170b: why Actor can't pay Action's action cost now: above its Max Actions ("Costs more actions than you
-	 *  can hold.") or above its bank ("Needs 2 actions."). Empty when it can, or outside an action-pips fight.
+	 *  can hold.") or above its bank ("Needs 2 actions."). Empty when it can.
 	 *  The menu greys a skill with it (B-170e); the submit paths refuse with it. */
 	UFUNCTION(BlueprintPure, Category = "Combat|Actions")
 	FText GetActionCostRefusedReason(AActor *Actor, const FAction &Action) const;

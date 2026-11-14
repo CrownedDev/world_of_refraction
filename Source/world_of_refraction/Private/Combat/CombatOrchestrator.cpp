@@ -381,18 +381,14 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &LocalParty, const 
 		CameraDirector->BeginCombat(LocalParty, OpposingParty, ActionExecutorRef);
 	}
 
-	// B-170c (Q-170): the fight-start bank, set before turn 1 is dispatched inside InitializeCombat. The switch is
-	// read here as InitializeCombat latches it a moment later (the same call), so the two never disagree.
-	if (TurnRotation::IsActionPipsOn())
+	// B-170c (Q-170): the fight-start bank, set before turn 1 is dispatched inside InitializeCombat.
+	for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
 	{
-		for (const TArray<AActor *> *Team : {&LocalPartyCombatants, &OpposingPartyCombatants})
+		for (AActor *Actor : *Team)
 		{
-			for (AActor *Actor : *Team)
+			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 			{
-				if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
-				{
-					CharComp->ResetActionsForFight();
-				}
+				CharComp->ResetActionsForFight();
 			}
 		}
 	}
@@ -770,12 +766,6 @@ bool ACombatOrchestrator::StartActionAsync(const FAction &Action, FString &OutIn
 
 	if (Action.ActionType == EActionType::EndTurn)
 	{
-		if (!IsActionPipsFight()) // B-170e review: the turn is asked for again
-		{
-			OutInvalidReason = TEXT("End Turn refused: not an action-pips fight");
-			UE_LOG(LogWoRCombat, Warning, TEXT("[CombatOrchestrator] %s"), *OutInvalidReason);
-			return false;
-		}
 		EndTurnByChoice();
 		return true;
 	}
@@ -1189,7 +1179,7 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 	}
 
 	// B-170c (D-088, ActionPips.md §1): no actions, no turn. The turn-end step still runs, then the rotation moves on.
-	if (IsActionPipsFight() && !BeginTurnActions(CurrentActor))
+	if (!BeginTurnActions(CurrentActor))
 	{
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s has no actions: turn skipped"), *CurrentActor->GetName());
 		// TODO: B-170e: show "No actions" on the HUD (an FText in the shared turn words, D-062).
@@ -1208,11 +1198,6 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 // ========================================
 // ACTION PIPS (B-170c, ActionPips.md §3.3)
 // ========================================
-
-bool ACombatOrchestrator::IsActionPipsFight() const
-{
-	return TurnManagerRef && TurnManagerRef->IsRotationMode();
-}
 
 bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
 {
@@ -1239,10 +1224,6 @@ bool ACombatOrchestrator::BeginTurnActions(AActor *Actor)
 
 FText ACombatOrchestrator::GetActionCostRefusedReason(AActor *Actor, const FAction &Action) const
 {
-	if (!IsActionPipsFight())
-	{
-		return FText::GetEmpty();
-	}
 	const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	if (!CharComp)
 	{
@@ -1255,10 +1236,6 @@ FText ACombatOrchestrator::GetActionCostRefusedReason(AActor *Actor, const FActi
 bool ACombatOrchestrator::PayActionCost(const FAction &Action, FString &OutRefusedReason)
 {
 	bTurnContinuesAfterAction = false;
-	if (!IsActionPipsFight())
-	{
-		return true; // one action per turn, as built
-	}
 	const FText Refusal = GetActionCostRefusedReason(CurrentActor, Action);
 	if (!Refusal.IsEmpty())
 	{
@@ -1316,7 +1293,7 @@ bool ACombatOrchestrator::CanContinueTurn(AActor *Actor) const
 
 void ACombatOrchestrator::ExpireBonusActionsAtTurnEnd(AActor *Actor)
 {
-	if (!IsActionPipsFight() || (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution))
+	if (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution)
 	{
 		return;
 	}
@@ -1338,10 +1315,6 @@ void ACombatOrchestrator::EndTurnByChoice()
 
 FString ACombatOrchestrator::GetTurnSpendsString() const
 {
-	if (!IsActionPipsFight())
-	{
-		return TEXT("one action per turn (wor.Turns.ActionPips 0 at fight start)");
-	}
 	const UCharacterDataComponent *CharComp = CurrentActor ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	return FString::Printf(TEXT("%s's turn: %s (%d left, skills %d/%d)"), *GetNameSafe(CurrentActor),
 						   TurnSpends.Num() > 0 ? *FString::Join(TurnSpends, TEXT(", ")) : TEXT("nothing spent"),
