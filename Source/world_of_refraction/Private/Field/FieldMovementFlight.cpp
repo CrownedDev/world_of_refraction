@@ -82,7 +82,8 @@ EFieldSkillRefusal UFieldMovementComponent::ToggleFlight()
 	DrainFlight(); // the first second is paid up front, as Enhanced Sprint's
 	if (bFlying)
 	{
-		Character->LaunchCharacter(FVector(0.0f, 0.0f, FieldSkillRules::FLIGHT_TAKEOFF_LIFT_SPEED), false, true);
+		// Not LaunchCharacter: a pending launch puts the pawn in falling mode, which would end the flight.
+		Movement->Velocity.Z = FieldSkillRules::FLIGHT_TAKEOFF_LIFT_SPEED;
 		GetWorld()->GetTimerManager().SetTimer(FlightDrainTimer, this, &UFieldMovementComponent::DrainFlight,
 											   FieldSkillRules::FLIGHT_DRAIN_INTERVAL, true);
 		UpdateMoveStepTimer();
@@ -167,9 +168,10 @@ void UFieldMovementComponent::AddFlightVerticalInput(float Value)
 void UFieldMovementComponent::NudgeFlightVertical(float Direction)
 {
 	ACharacter *Character = Cast<ACharacter>(GetOwner());
-	if (bFlying && Character && HasAuthority())
+	UCharacterMovementComponent *Movement = Character ? Character->GetCharacterMovement() : nullptr;
+	if (bFlying && Movement && HasAuthority())
 	{
-		Character->LaunchCharacter(FVector(0.0f, 0.0f, FMath::Sign(Direction) * FieldSkillRules::FLIGHT_VERTICAL_NUDGE_SPEED), false, true);
+		Movement->Velocity.Z = FMath::Sign(Direction) * FieldSkillRules::FLIGHT_VERTICAL_NUDGE_SPEED;
 	}
 }
 

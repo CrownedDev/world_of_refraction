@@ -48,7 +48,7 @@ Owner key: **GS** = a GameState component; **Actor** = a component on the combat
 
 ### Stateless (no move needed)
 
-`UEconomyService`, `UDamageCalculator`, `UItemExecutor`, `UWeaponManager`, `URingManager`, `UCrystalManager`: only cached pointers to other subsystems or config. They keep working as services. `UEconomyService` (`Private/Currency/EconomyService.cpp:1533-1630`) does look up player 0 (see #4).
+`UEconomyService`, `UDamageCalculator`, `UItemExecutor`, `UCrystalManager` (`UWeaponManager` / `URingManager` deleted by B-154; the loadout component answers): only cached pointers to other subsystems or config. They keep working as services. `UEconomyService` (`Private/Currency/EconomyService.cpp:1533-1630`) does look up player 0 (see #4).
 
 ## What breaks first
 

@@ -18,24 +18,9 @@ namespace
 	/** The B-032 shape: one cast entry, one asset hit. */
 	constexpr int32 SINGLE_CAST_ENTRY = 1;
 	constexpr int32 SINGLE_HIT = 1;
-	/** Absorbs even-fraction float error (100/3 = 33.333332) so an exact share doesn't floor one short; the same
-	 *  epsilon as ApplyOneImpact's lumped slice, so both paths cut a hit the same way. */
+	/** Absorbs even-fraction float error (100/3 = 33.333332) so an exact share doesn't floor one short (the old
+	 *  lumped slice's epsilon, so a hit is cut as it was). */
 	constexpr float SPLIT_FLOOR_EPSILON = 0.01f;
-
-	/** B-032d (Q-032d): per-impact defense for every spell shape. On by default; 0 keeps the lumped path for
-	 *  comparison until B-032b deletes it. */
-	TAutoConsoleVariable<bool> CVarCombatPerImpactDefense(
-		TEXT("wor.Combat.PerImpactDefense"),
-		true,
-		TEXT("1 = every offensive spell (several cast entries, or a hit count above 1) defends per impact, spell windows ")
-		TEXT("stay open past the cast animation for their arrivals, an ability's impacts with no Impact notify land as ")
-		TEXT("fallback impacts when its animation ends, and a window that closes early or times out lands its remaining ")
-		TEXT("impacts one by one (B-032d). 0 = those keep the lumped path."));
-}
-
-bool SpellImpactPlan::IsPerImpactDefenseOn()
-{
-	return CVarCombatPerImpactDefense.GetValueOnGameThread();
 }
 
 int32 SpellImpactPlan::CastEntryOfImpact(const USpellData &Spell, int32 ImpactIndex)
@@ -95,14 +80,14 @@ int32 SpellImpactPlan::ImpactBaseSlice(int32 BaseDamage, int32 ImpactCount, cons
 	return (BaseDamage / Count) + EvenRemainder;
 }
 
-FString SpellImpactPlan::GetPlanString(const USpellData &Spell, bool bPerImpactDefenseOn)
+FString SpellImpactPlan::GetPlanString(const USpellData &Spell)
 {
 	const FSpellImpactPlan Plan = Make(Spell);
-	const bool bPerImpact = IsSingleEntrySingleHit(Spell) || (bPerImpactDefenseOn && IsWidened(Spell));
+	const bool bPerImpact = IsSingleEntrySingleHit(Spell) || IsWidened(Spell);
 	return FString::Printf(TEXT("%s: %d impact(s) per target (%d cast entries, HitCount %d, %s), %s%s"),
 						   *Spell.Name, Plan.ImpactsPerTarget, Spell.CastArray.Num(), Plan.AuthoredHitCount,
 						   Plan.bUsesDamageSplit ? TEXT("DamageSplit") : TEXT("even split: HitCount does not match"),
-						   bPerImpact ? TEXT("per impact") : TEXT("lumped"),
+						   bPerImpact ? TEXT("per impact") : TEXT("at the window's close"),
 						   Plan.bOffensive ? TEXT("") : TEXT(" (support)"));
 }
 
@@ -110,11 +95,10 @@ namespace
 {
 	FAutoConsoleCommand PrintSpellImpactsCommand(
 		TEXT("wor.Combat.PrintSpellImpacts"),
-		TEXT("B-032d: logs every loaded spell's impact plan (impacts per target, split, per impact or lumped) under ")
-		TEXT("the current wor.Combat.PerImpactDefense."),
+		TEXT("B-032d: logs every loaded spell's impact plan (impacts per target, split, per impact or at the ")
+		TEXT("window's close for a support spell)."),
 		FConsoleCommandDelegate::CreateLambda([]()
 		{
-			const bool bOn = SpellImpactPlan::IsPerImpactDefenseOn();
 			int32 Listed = 0;
 			for (TObjectIterator<USpellData> It; It; ++It)
 			{
@@ -122,9 +106,9 @@ namespace
 				{
 					continue;
 				}
-				UE_LOG(LogWoRCombat, Log, TEXT("[SpellImpacts] %s"), *SpellImpactPlan::GetPlanString(**It, bOn));
+				UE_LOG(LogWoRCombat, Log, TEXT("[SpellImpacts] %s"), *SpellImpactPlan::GetPlanString(**It));
 				++Listed;
 			}
-			UE_LOG(LogWoRCombat, Log, TEXT("[SpellImpacts] %d loaded spell(s), wor.Combat.PerImpactDefense %d"), Listed, bOn ? 1 : 0);
+			UE_LOG(LogWoRCombat, Log, TEXT("[SpellImpacts] %d loaded spell(s)"), Listed);
 		}));
 }

@@ -31,21 +31,18 @@
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Inventory/ItemExecutor.h"
-#include "Equipment/Weapons/WeaponManager.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
 #include "EngineUtils.h"
 #include "TimerManager.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/WeaponPower.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Combat/Defense/DefenseSystem.h"
@@ -93,12 +90,6 @@ namespace
 		false,
 		TEXT("1 = a skill with no montage lands each impact (or releases its spell) at once, through the same defense ")
 		TEXT("code as a montage. 0 = it waits for the defense failsafe (lands undefended)."));
-
-	/** B-032d (Q-032d): wor.Combat.PerImpactDefense, defined with the rules in SpellImpactPlan.cpp. */
-	bool UsesPerImpactDefense()
-	{
-		return SpellImpactPlan::IsPerImpactDefenseOn();
-	}
 
 	/** The AI reaction-delay seed a spell window re-opens with, the same as its lumped open. */
 	constexpr float SPELL_WINDOW_REACTION_SEED_SECONDS = 0.3f;
@@ -1458,8 +1449,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// entry's Count, one per AOE / Instant entry, summed over the cast entries: SpellImpactPlan), closed by the last
 	// arrival (ResolveSpellArrival) with the 8s failsafe covering cast + flight. Done HERE (action start), NOT at
 	// dispatch: the cast-time window would otherwise auto-close at 0.3s before the SpellRelease notify fires.
-	// B-032 converts one cast entry with HitCount 1 (unchanged); wor.Combat.PerImpactDefense adds every other
-	// offensive shape (several entries, HitCount above 1, no entries).
+	// B-032 converts one cast entry with HitCount 1; B-032d every other offensive shape (several entries, HitCount
+	// above 1, no entries). A support spell of several hits keeps its timer close and lands them there.
 	//
 	// Damage: window BaseDamage stays the FULL FinalDamage and the runtime Ctx.HitCount = the impact count. When
 	// HitCount equals it, the ResolvedDamageSplit table (sized Spell->HitCount) gives each impact the same slice the
@@ -1470,13 +1461,13 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// so REMOVE the pending context first (that close becomes a no-op), re-open count-based, then restore it — the
 	// per-impact arrivals become the ONLY apply.
 	const bool bSingleEntrySingleHit = SpellImpactPlan::IsSingleEntrySingleHit(*Spell);
-	const bool bWidenedPerImpact = !bSingleEntrySingleHit && UsesPerImpactDefense() && SpellImpactPlan::IsWidened(*Spell);
+	const bool bWidenedPerImpact = !bSingleEntrySingleHit && SpellImpactPlan::IsWidened(*Spell);
 	if (bSingleEntrySingleHit || bWidenedPerImpact)
 	{
 		const FSpellImpactPlan Plan = SpellImpactPlan::Make(*Spell);
 		if (bWidenedPerImpact)
 		{
-			UE_LOG(LogWoRCombat, Log, TEXT("[PerImpact] %s"), *SpellImpactPlan::GetPlanString(*Spell, /*bPerImpactDefenseOn=*/true));
+			UE_LOG(LogWoRCombat, Log, TEXT("[PerImpact] %s"), *SpellImpactPlan::GetPlanString(*Spell));
 			if (!Plan.bUsesDamageSplit && Plan.AuthoredHitCount > 1)
 			{
 				UE_LOG(LogWoRCombat, Warning, TEXT("[PerImpact] %s has HitCount %d but lands %d impact(s) per target: the damage splits evenly (match HitCount to the arrivals to use its DamageSplit)"),
@@ -1772,9 +1763,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	// Count-based close now covers attacks AND abilities (step 1 of the attack/ability
 	// merge): both play montages that can carry Impact notifies (the impact counter that
 	// drives the close). Abilities WITHOUT authored Impact notifies degrade gracefully —
-	// ImpactsLanded stays 0, the reconcile/failsafe tail closes the window and applies the
-	// full lumped result (byte-identical to today). Spells keep the timer close
-	// (bManualClose=false) — projectile/AOE migrate to the counter at Stage 6.
+	// ImpactsLanded stays 0, and LandFallbackImpacts lands them at the animation's end. Spells
+	// open with the timer close here; the spell dispatch re-opens offensive ones count-based.
 	// ExpectedImpacts>0 doubles as the "this window is count-based" sentinel read by the
 	// Impact-notify handler; 0 leaves the window on its normal timer.
 	// Attack collapsed into Ability (Cluster 3) — count-based close is the not-Spell / bPerImpact gate.
@@ -1897,51 +1887,6 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 	CheckAndFinalizeAsyncAction();
 }
 
-// OBSOLETE (Stage 3): superseded by ResolveImpactDefense — no live callers. The Stage 2
-// model locked ONE action-level result at the first impact; Stage 3 resolves a fresh
-// per-impact defense (split-then-reduce + per-impact match-and-consume). Kept un-deleted
-// until the per-impact path is PIE-verified, per the incremental-removal rule.
-void UActionExecutor::EnsureResultResolved(AActor *Defender)
-{
-	// Stage 2 ordering crux: the FDefenseResult is normally computed at CLOSE
-	// (DefenseSystem::CloseDefenseWindow), but per-impact apply needs it at the FIRST
-	// impact — before Skill-end. Compute it here from the current defense state via the
-	// public DefenseSystem API (no DefenseSystem change) and STASH it on the context.
-	// Idempotent: the single action-level result is LOCKED at the first impact and reused
-	// by every later impact (per-impact defense INPUT is Stage 3 — a defender must commit
-	// before the first impact for it to count this stage).
-	if (!CurrentExecutionContext.IsSet() || !Defender)
-	{
-		return;
-	}
-	FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
-	if (!Ctx || Ctx->bResultResolved)
-	{
-		return;
-	}
-	UDefenseSystem *DefenseSys = GetDefenseSystem();
-	if (!DefenseSys)
-	{
-		return;
-	}
-
-	const FDefenseState State = DefenseSys->GetDefenseState(Defender);
-	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
-		State.BaseDamage,
-		State.DefenseChosen,
-		State.bInputReceived);
-
-	Ctx->ResolvedDefenseType = Result.DefenseType;
-	Ctx->ResolvedFinalDamage = Result.FinalDamage;
-	Ctx->ResolvedGuardFactor = State.BaseDamage > 0 ? static_cast<float>(Result.FinalDamage) / State.BaseDamage : 1.0f; // B-293d
-	Ctx->bResolvedSuccess = Result.bSuccess;
-	Ctx->bResultResolved = true;
-
-	UE_LOG(LogTemp, Verbose, TEXT("[Stage2] Defense result resolved for %s — Type: %d, ReducedTotal: %d, Success: %s"),
-		   *Defender->GetName(), static_cast<int32>(Result.DefenseType), Result.FinalDamage,
-		   Result.bSuccess ? TEXT("yes") : TEXT("no"));
-}
-
 void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime, const FDefenseDifficultyTriple &ImpactDifficulty)
 {
 	// Stage 3 per-impact resolution (replaces EnsureResultResolved at the impact frame).
@@ -2039,9 +1984,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	}
 
 	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the
-	// full total). ApplyOneImpact reads it directly when bDamageIsPerImpact=true. bResultResolved
-	// stays true so the non-melee tail in ApplyDamageAfterDefense knows melee already resolved;
-	// for melee the tail is empty (ImpactsLanded==HitCount) so the overwrite is harmless.
+	// full total), which ApplyOneImpact applies as it is.
 	Ctx->ResolvedDefenseType = Result.DefenseType;
 	Ctx->ResolvedFinalDamage = Result.FinalDamage;
 	Ctx->ResolvedGuardFactor = BaseSlice > 0 ? static_cast<float>(Result.FinalDamage) / BaseSlice : 1.0f; // B-293d
@@ -2131,7 +2074,7 @@ bool UActionExecutor::TryLuckDodge(AActor *Defender) const
 	return true;
 }
 
-void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact,
+void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex,
 									 bool bProjectileArrival)
 {
 	if (!CurrentExecutionContext.IsSet() || !Target)
@@ -2166,20 +2109,10 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 		return;
 	}
 
-	// Per-impact damage. Stage 3 (bDamageIsPerImpact): ResolvedFinalDamage is ALREADY this
-	// impact's reduced slice (ResolveImpactDefense split-then-reduced it) — apply directly.
-	// Legacy lumped tail (bDamageIsPerImpact=false): ResolvedFinalDamage is the full reduced
-	// total — slice it here by the D1 DamageSplit table (even fractions when un-authored).
-	// FloorToInt + 0.01 epsilon reproduces the legacy FinalDamage/HitCount truncation and
-	// absorbs even-fraction float error (100/3 = 33.333332) so exact quotients don't floor
-	// one short. Size-mismatched table → legacy even split.
+	// ResolvedFinalDamage is already this impact's reduced slice (ResolveImpactDefense or ApplyRemainingImpacts).
 	const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
 	const bool bUseSplit = (Split.Num() == HitCount) && Split.IsValidIndex(ImpactIndex);
-	const int32 ImpactDamage = bDamageIsPerImpact
-								   ? Context.ResolvedFinalDamage
-								   : (bUseSplit
-										  ? FMath::FloorToInt(Context.ResolvedFinalDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
-										  : (Context.ResolvedFinalDamage / HitCount));
+	const int32 ImpactDamage = Context.ResolvedFinalDamage;
 
 	// Status now distributes per-hit (parallel to damage), not all on hit 0 — each impact applies its
 	// SHARE by the SAME fraction the damage slice uses above (Split[i]/100 when authored, else 1/HitCount).
@@ -2276,49 +2209,10 @@ void UActionExecutor::ApplyDamageAfterDefense(
 	FPendingDefenseContext Ctx = Context;
 	Ctx.bTakeDamageOutcomePending = false; // B-042j3: the tail resolves no defense of its own; no stale deferred outcome
 
-	// B-032d: a count-based window (per-impact spell or ability) lands what it still expects one impact at a time.
-	// The lumped tail below re-slices ResolvedFinalDamage, which after an earlier per-impact arrival holds only that
-	// impact's slice; so it stays for the timer-close windows only (B-032b deletes it).
-	if (UsesPerImpactDefense() && Ctx.ExpectedImpacts > 0)
-	{
-		ApplyRemainingImpacts(Attacker, Target, Ctx, DefenseResult);
-		return;
-	}
-
-	// CONSISTENCY: melee resolved + drained every impact per-frame (ResolveImpactDefense) →
-	// ImpactsLanded==HitCount → the tail loop below is empty, so this stash is never read for
-	// melee. Non-melee (no frames fired, bResultResolved=false) stashes from the close result
-	// here — the unchanged lumped path that ApplyOneImpact slices (bDamageIsPerImpact=false).
-	if (!Ctx.bResultResolved)
-	{
-		Ctx.ResolvedDefenseType = DefenseResult.DefenseType;
-		Ctx.ResolvedFinalDamage = DefenseResult.FinalDamage;
-		Ctx.ResolvedGuardFactor = Ctx.BaseDamage > 0 ? static_cast<float>(DefenseResult.FinalDamage) / Ctx.BaseDamage : 1.0f; // B-293d
-		Ctx.bResolvedSuccess = DefenseResult.bSuccess;
-		Ctx.bResultResolved = true;
-	}
-
-	// Apply only the UNDRAINED TAIL [ImpactsLanded, HitCount). Melee: all impacts drained
-	// per-frame → ImpactsLanded==HitCount → tail empty (no double-apply). Non-melee:
-	// ImpactsLanded==0 → tail = all → unchanged lumped behavior at the timer close.
-	const int32 HitCount = FMath::Max(1, Ctx.HitCount);
-	for (int32 i = Ctx.ImpactsLanded; i < HitCount; ++i)
-	{
-		if (!IsTargetAlive(Target))
-		{
-			break; // death stops the tail (mirror the per-impact death guard)
-		}
-		ApplyOneImpact(Attacker, Target, Ctx, i);
-	}
-
-	// Defense-outcome telemetry (preserved; now logs the tail range applied here).
-	if (Ctx.bResolvedSuccess)
-	{
-		UE_LOG(LogTemp, Verbose,
-			   TEXT("[ApplyDamageAfterDefense] %s defended via %d — tail [%d, %d)"),
-			   *Target->GetName(), static_cast<int32>(Ctx.ResolvedDefenseType),
-			   Ctx.ImpactsLanded, HitCount);
-	}
+	// Whatever the window still expects lands one impact at a time (B-032d; B-032b retired the lumped tail). A
+	// count-based window (an ability, an offensive spell) has landed its earlier impacts at their own moments; a
+	// timer-close one (a support spell of several hits) lands every hit here, the same slices the lumped tail cut.
+	ApplyRemainingImpacts(Attacker, Target, Ctx, DefenseResult);
 }
 
 void UActionExecutor::ApplyRemainingImpacts(AActor *Attacker, AActor *Target, FPendingDefenseContext &Ctx, const FDefenseResult &CloseResult)
@@ -2364,7 +2258,7 @@ void UActionExecutor::ApplyRemainingImpacts(AActor *Attacker, AActor *Target, FP
 		}
 		const int32 Slice = SpellImpactPlan::ImpactBaseSlice(Ctx.BaseDamage, ImpactCount, CurrentExecutionContext->ResolvedDamageSplit, Index);
 		Ctx.ResolvedFinalDamage = FMath::RoundToInt(Slice * CloseShare);
-		ApplyOneImpact(Attacker, Target, Ctx, Index, /*bDamageIsPerImpact=*/true);
+		ApplyOneImpact(Attacker, Target, Ctx, Index);
 	}
 }
 
@@ -2663,8 +2557,7 @@ void UActionExecutor::OnAsyncActionTimeout()
 	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Async action timed out with %d pending defenses"),
 		   CurrentExecutionContext->GetPendingCount());
 
-	// Apply full damage to any remaining targets: a count-based window lands its remaining impacts one by one
-	// (B-032d, ApplyRemainingImpacts), a timer-close one its lumped tail. Over a copy: a kill's OnTargetKilled
+	// Apply full damage to any remaining targets, their remaining impacts one by one (ApplyRemainingImpacts). Over a copy: a kill's OnTargetKilled
 	// listeners may change PendingDefenses, and a ranged-for over a changing TMap asserts.
 	TArray<FPendingDefenseContext> Remaining;
 	CurrentExecutionContext->PendingDefenses.GenerateValueArray(Remaining);
@@ -3508,40 +3401,6 @@ UCharacterData *UActionExecutor::GetCharacterData(AActor *Actor) const
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-int32 UActionExecutor::ProcessMultiHit(
-	AActor *Attacker,
-	AActor *Target,
-	int32 DamagePerHit,
-	int32 HitCount,
-	ESpellElement Element,
-	bool bCanCrit,
-	FActionResult &OutResult)
-{
-	int32 TotalDamage = 0;
-
-	for (int32 i = 0; i < HitCount; i++)
-	{
-		// Each hit can independently crit
-		FCombatHitResult HitResult = ApplyDamage(
-			Attacker, Target, DamagePerHit, Element, bCanCrit);
-
-		TotalDamage += HitResult.DamageDealt;
-
-		if (HitResult.bWasCritical)
-		{
-			OutResult.bWasCritical = true;
-		}
-
-		// Stop if target died
-		if (HitResult.bTargetDied)
-		{
-			break;
-		}
-	}
-
-	return TotalDamage;
-}
-
 bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 {
 	if (Amount <= 0)
@@ -3952,8 +3811,7 @@ void UActionExecutor::ResolveAOEEffect(
 		return;
 	}
 
-	// No converted count-based window: unconverted multi-entry AOE keeps the action-start lumped
-	// window, which resolves it via OnDefenseWindowClosed (lumped-retire is B-032). A missing
+	// No count-based window: a support spell's hits land at its window's close. A missing
 	// DefenseSystem is a setup error (Q-031 = A): no undefended damage.
 	if (!DefenseSys)
 	{
@@ -4044,9 +3902,8 @@ void UActionExecutor::ResolveInstantSpellEffect(
 		return;
 	}
 
-	// No converted count-based window: unconverted multi-entry Instant keeps the action-start lumped
-	// window, which resolves it via OnDefenseWindowClosed. A missing DefenseSystem is a setup error
-	// (Q-031 = A): no undefended damage.
+	// No count-based window: a support spell's hits land at its window's close. A missing
+	// DefenseSystem is a setup error (Q-031 = A): no undefended damage.
 	if (!DefenseSys)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - Instant damage not applied"));
@@ -4323,7 +4180,7 @@ bool UActionExecutor::ResolveSpellArrival(AActor *Target, int32 CastEntryIndex, 
 		{
 			CurrentExecutionContext->ChokeFlawless.Add(Target);
 		}
-		ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true, bProjectileArrival);
+		ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, bProjectileArrival);
 		// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
 		// resolved AND all perfectly defended this choke point (D-161).
 		if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
@@ -4365,13 +4222,9 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 		return;
 	}
 
-	// Unconverted (lumped) path — barrage/beam, or no pending context. Preserve the legacy orphan
-	// behavior (the lumped cast-time window resolves these); cluster 6 retires the lumped path.
-	if (DefenseSys)
-	{
-		DefenseSys->OpenDefenseWindow(nullptr, Target, ImpactRadius, Damage, 0.3f);
-	}
-	else
+	// No count-based window (B-032b retired the lumped orphan window): a support spell's hits land at its window's
+	// close, and an arrival on someone the action didn't target lands nothing.
+	if (!DefenseSys)
 	{
 		// Q-031 = A: a setup error, not a game state; no undefended damage fallback.
 		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] DefenseSystem missing - projectile damage not applied"));
@@ -4410,7 +4263,7 @@ void UActionExecutor::ResumeBurstTimer(float Interval)
 bool UActionExecutor::CanResolveSpellArrival(AActor *Target) const
 {
 	// Must mirror ResolveSpellArrival's early-outs exactly: the ability counts an arrival as taken before resolving
-	// it, so a check only ResolveSpellArrival made would drop that arrival instead of sending it to the lumped path.
+	// it, so a check only ResolveSpellArrival made would drop that arrival instead of leaving it to the caller.
 	if (!Target || !GetDefenseSystem() || !CurrentExecutionContext.IsSet())
 	{
 		return false;
@@ -4421,7 +4274,7 @@ bool UActionExecutor::CanResolveSpellArrival(AActor *Target) const
 
 bool UActionExecutor::RouteProjectileArrival(AActor *Target, int32 CastEntryIndex)
 {
-	// Only an arrival the per-impact path takes goes to the ability; a lumped one stays with the caller.
+	// Only an arrival the per-impact path takes goes to the ability; any other stays with the caller.
 	if (CanResolveSpellArrival(Target) &&
 		WoRSkillAbilities::SendProjectileEvent(GetExecutingActor(), WoRTags::Event_Combat_Projectile_Arrived, Target, CastEntryIndex))
 	{
@@ -4544,19 +4397,6 @@ UItemExecutor *UActionExecutor::GetItemExecutor() const
 		}
 	}
 	return ItemExecutorRef;
-}
-
-UWeaponManager *UActionExecutor::GetWeaponManager() const
-{
-	if (!WeaponManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UActionExecutor *>(this)->WeaponManagerRef =
-				GI->GetSubsystem<UWeaponManager>();
-		}
-	}
-	return WeaponManagerRef;
 }
 
 TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActor *Actor) const
@@ -5157,23 +4997,6 @@ void UActionExecutor::ProcessForbiddenElementCast(AActor *Actor, ESpellElement E
 }
 
 // ========================================
-// RING MANAGER GETTER
-// ========================================
-
-URingManager *UActionExecutor::GetRingManager() const
-{
-	if (!RingManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UActionExecutor *>(this)->RingManagerRef =
-				GI->GetSubsystem<URingManager>();
-		}
-	}
-	return RingManagerRef;
-}
-
-// ========================================
 // DEBUG
 // ========================================
 
@@ -5188,8 +5011,7 @@ ULoadoutComponent *UActionExecutor::GetLoadoutComponent(AActor *Actor) const
 
 const FWeaponInventoryEntry *UActionExecutor::ResolveActiveWeaponEntry(AActor *Actor) const
 {
-	// Mirrors WeaponManager::GetActiveWeapon(Actor) resolution: that delegates to
-	// LoadoutComponent::GetActiveWeapon(), which selects the SAME loadout entry as
+	// Mirrors LoadoutComponent::GetActiveWeapon() resolution, which selects the SAME loadout entry as
 	// GetActiveWeaponLoadout() (identical Generic dual-weapon bShowPrimary toggle and
 	// ring/evolution-primary fallbacks). Returning the entry instead of the asset gives
 	// callers the instance .Tier. Null entry → caller keeps its asset-tier fallback.
@@ -5448,7 +5270,7 @@ void UActionExecutor::ResolveMontagelessAction(const FAction &Action)
 		}
 		// B-032d: with no montage there are no Cast notifies, so the later cast entries go out now too, in order;
 		// each of their arrivals is one of the target's per-impact impacts.
-		for (int32 EntryIndex = 1; UsesPerImpactDefense() && !ThisActionGone() && PendingSpellCaster && PendingSpellData &&
+		for (int32 EntryIndex = 1; !ThisActionGone() && PendingSpellCaster && PendingSpellData &&
 								   PendingSpellData->CastArray.IsValidIndex(EntryIndex);
 			 ++EntryIndex)
 		{
@@ -5493,7 +5315,7 @@ void UActionExecutor::ReconcileDefenseWindowsAtAnimationEnd()
 
 void UActionExecutor::LandFallbackImpacts()
 {
-	if (!UsesPerImpactDefense() || !CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress ||
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress ||
 		CurrentExecutionContext->Action.ActionType != EActionType::Ability)
 	{
 		return; // spells land their impacts at their arrivals; a window they never reach closes per impact (ApplyRemainingImpacts)

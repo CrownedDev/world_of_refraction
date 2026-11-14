@@ -19,4 +19,4 @@
 | 0 | Save the Saved Loadout asset (or run Data Validation on it) | A validation error per extra spell: "Spell '<name>' is over the holder's spell cap (1)" | [ ] |
 | 1 | Remove spells until there is 1, and validate again | No spell cap error | [ ] |
 | 2 | Start a fight with the over-cap loadout | The invalid spells are cleared at load (as other invalid loadout parts are); the fight lists only what the evolution holds | [ ] |
-| 3 | Note: `GetCompareRulesString` (loadout rules debug) | Over-cap loadouts now show as a new finding against the legacy check; expected | [ ] |
+| 3 | With an over-cap loadout, type `wor.Loadout.PrintFindings` (it replaced the old-against-new comparison, B-172) | The over-cap spells are listed as a finding | [ ] |

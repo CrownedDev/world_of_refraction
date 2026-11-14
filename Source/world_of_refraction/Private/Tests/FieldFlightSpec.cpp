@@ -104,7 +104,11 @@ void FFieldFlightSpec::Define()
 			}
 			TestTrue(TEXT("flying"), Field->ActivateFieldSkill() == EFieldSkillRefusal::None && Field->IsFlying());
 			TestTrue(TEXT("flying mode"), Pawn->GetCharacterMovement()->MovementMode == MOVE_Flying);
-			TestEqual(TEXT("lifted off"), static_cast<float>(Pawn->GetCharacterMovement()->PendingLaunchVelocity.Z), FieldSkillRules::FLIGHT_TAKEOFF_LIFT_SPEED, FieldFlightSpecValues::TOLERANCE);
+			TestEqual(TEXT("lifted off"), static_cast<float>(Pawn->GetCharacterMovement()->Velocity.Z), FieldSkillRules::FLIGHT_TAKEOFF_LIFT_SPEED, FieldFlightSpecValues::TOLERANCE);
+			Field->NudgeFlightVertical(-1.0f);
+			TestEqual(TEXT("pushed down"), static_cast<float>(Pawn->GetCharacterMovement()->Velocity.Z), -FieldSkillRules::FLIGHT_VERTICAL_NUDGE_SPEED, FieldFlightSpecValues::TOLERANCE);
+			// A pending launch would drop the pawn into falling mode on its next move, ending the flight.
+			TestTrue(TEXT("no pending launch"), Pawn->GetCharacterMovement()->PendingLaunchVelocity.IsZero());
 			TestEqual(TEXT("first second paid"), CharComp->CurrentEP, FieldFlightSpecValues::START_EP - FieldSkillRules::FLIGHT_EP_PER_SECOND);
 			Field->DrainFlight();
 			TestTrue(TEXT("still flying"), Field->IsFlying());
