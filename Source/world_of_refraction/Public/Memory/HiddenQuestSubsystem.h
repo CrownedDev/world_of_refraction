@@ -103,6 +103,14 @@ public:
 	 *  the quest assets. */
 	TArray<FVisibleQuest> GetVisibleQuests();
 
+	/** B-463b (UIScreens #6): tracks QuestId, one at a time; NAME_None stops tracking. Refused (false) for a quest not
+	 *  started, finished, or hidden (D-198: a secret quest's step would show on a shared screen). */
+	bool TrackQuest(FName QuestId);
+	/** The tracked quest; NAME_None for none (or once it finished). */
+	FName GetTrackedQuest() const { return TrackedQuest; }
+	/** "Title: current goal" for the game menu and the trial HUD; empty when nothing is tracked. */
+	FText GetTrackedLine();
+
 	/** B-397: the last private quest notice this player was shown (debug and specs; empty before any). */
 	const FText &GetLastNotice() const { return LastNotice; }
 
@@ -145,6 +153,9 @@ private:
 	int32 RegainCurses(UCurseSubsystem &Curses, const FWoRConditionContext &Context, const TArray<UHiddenQuestData *> &Quests);
 
 	TMap<FName, FHiddenQuestProgress> Progress;
+
+	/** B-463b: the one tracked quest (saved). */
+	FName TrackedQuest;
 
 	/** Q-397: the next quest found gets this FoundOrder (Restore sets it past the save's newest). */
 	int32 NextFoundOrder = 1;

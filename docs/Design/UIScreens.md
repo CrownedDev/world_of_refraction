@@ -62,7 +62,7 @@
 | 25 | **Reward popups (after a fight)** | No results screen (FeelGuide 6): popups fade on their own; level-ups, rare drops, memories, quests | `OnCombatResultReady` `Public/Combat/CombatOrchestrator.h:98`; `OnLevelDropsReady` :109; `OnMemoryRecorded` `MemoryJournalSubsystem.h:34`; quest notices `HiddenQuestSubsystem.cpp:35-64` | `UCombatResultsWidget` (VICTORY / DEFEAT text only) | P1 |
 | 26 | **Wipe and run over** | A wipe: pillar points lost, back at the last rest spot, wipes left (FeelGuide 7). Run over: the payout, what you keep and lose | `RecordWipe` `TrialRunSubsystem.h:313`; `DefeatRules` `Public/Trial/DefeatRules.h`; `FRunPayout` `Public/Trial/RunRewards.h:21` | Console (`wor.Trial.PrintLosses`, `wor.Trial.PrintRewards`) | P1 |
 | 27 | **Run end (boss beaten / extracted)** | The payout tally, then back to the hub | `GetRunEndPayout` | None (needs a run-end delegate) | P1 |
-| 28 | **Trial HUD** | Small: Prisms, wipes left, party HP; a quest step line when tracked | `GetRunTally` `TrialRunSubsystem.h:277` | None | P2 |
+| 28 | **Trial HUD** | Small: Prisms, wipes left, party HP; a quest step line when tracked | `GetRunTally` `TrialRunSubsystem.h:277`; `UHiddenQuestSubsystem::GetTrackedLine` | The tracked quest's line only (B-463b), top right on the trial map's `UHubHUDWidget`; the rest is B-465 | P2 |
 | 29 | **Recruit card** | A character met in the trial: who they are, Invite for this run | `UPartySessionSubsystem::InviteRunMember` `PartySessionSubsystem.h:146` | Console (`wor.Party.RecruitForRun`) | P2 |
 | 30 | **World-stat draft** | Pick 3 of 5 | `OnWorldStatDraftReady` `CombatOrchestrator.h:106` | None (nothing listens; may be retired by levelling at rest spots, B-363) | P3, ask |
 

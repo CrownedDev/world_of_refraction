@@ -55,6 +55,9 @@ private:
 	/** World seconds when the place's money last changed; negative: not yet. */
 	float MoneyChangedAtSeconds = -1.0f;
 	FTimerHandle RefreshTimer;
+	/** B-463b: the tracked quest's line, read less often than the prompt (it builds the quest list). */
+	FTimerHandle QuestTimer;
+	void RefreshQuestLine();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> PromptBox;
@@ -70,6 +73,11 @@ private:
 	TObjectPtr<UTextBlock> MoneyValue;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MoneyLabel;
+	/** B-463b: the tracked quest's step, in a run. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> QuestBox;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> QuestText;
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;
 };

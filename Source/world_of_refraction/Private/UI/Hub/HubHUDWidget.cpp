@@ -31,6 +31,11 @@ namespace HubHUDStyle
 	const FAnchors TopLeft(0.0f, 0.0f);
 	const FAnchors TopRight(1.0f, 0.0f);
 	const FVector2D TopRightAlignment(1.0f, 0.0f);
+	/** B-463b: the tracked quest's line sits under the money chip's place, top right. TODO: tune with the trial HUD (B-465) */
+	constexpr float QuestLineTop = 135.0f;
+	constexpr float QuestLineWidth = 540.0f;
+	/** A step changes on an event, not every frame: a second is soon enough. */
+	constexpr float QuestRefreshSeconds = 1.0f;
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -89,8 +94,22 @@ void UHubHUDWidget::BuildTree()
 		MoneySlot->SetAutoSize(true);
 	}
 
+	QuestBox = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	QuestBox->SetBrushColor(PanelColor);
+	QuestBox->SetPadding(FMargin(ChipPaddingX, ChipPaddingY));
+	QuestText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+	QuestBox->SetContent(MakeSized(WidgetTree, QuestLineWidth, 0.0f, QuestText));
+	if (UCanvasPanelSlot *QuestSlot = Canvas->AddChildToCanvas(QuestBox))
+	{
+		QuestSlot->SetAnchors(TopRight);
+		QuestSlot->SetAlignment(TopRightAlignment);
+		QuestSlot->SetPosition(FVector2D(-ScreenMargin, QuestLineTop));
+		QuestSlot->SetAutoSize(true);
+	}
+
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
+	SetShown(QuestBox, false);
 }
 
 void UHubHUDWidget::NativeConstruct()
@@ -101,8 +120,11 @@ void UHubHUDWidget::NativeConstruct()
 	{
 		World->GetTimerManager().SetTimer(RefreshTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::Refresh),
 										  HubHUDStyle::RefreshSeconds, /*bLoop=*/true);
+		World->GetTimerManager().SetTimer(QuestTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::RefreshQuestLine),
+										  HubHUDStyle::QuestRefreshSeconds, /*bLoop=*/true);
 	}
 	Refresh();
+	RefreshQuestLine();
 }
 
 void UHubHUDWidget::NativeDestruct()
@@ -110,6 +132,7 @@ void UHubHUDWidget::NativeDestruct()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RefreshTimer);
+		World->GetTimerManager().ClearTimer(QuestTimer);
 	}
 	if (UCurrencyComponent *Wallet = BoundWallet.Get())
 	{
@@ -184,6 +207,20 @@ void UHubHUDWidget::Refresh()
 		SetShown(PromptWhat, !Prompt.What.IsEmpty());
 	}
 	PlacePrompt();
+}
+
+void UHubHUDWidget::RefreshQuestLine()
+{
+	if (!QuestBox || !QuestText)
+	{
+		return; // headless: no tree
+	}
+	const FText Quest = WoRHubHUD::BuildQuestLine(GetWorld());
+	WoRMenuStyle::SetShown(QuestBox, !Quest.IsEmpty());
+	if (!Quest.EqualTo(QuestText->GetText()))
+	{
+		QuestText->SetText(Quest);
+	}
 }
 
 void UHubHUDWidget::PlacePrompt()

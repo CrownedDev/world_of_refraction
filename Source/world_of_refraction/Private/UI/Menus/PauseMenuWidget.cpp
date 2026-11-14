@@ -291,7 +291,7 @@ void UPauseMenuWidget::RefreshData()
 	const UWorld *World = GetWorld();
 	const FPauseMenuHeader Header = WoRPauseMenu::BuildHeader(World);
 	bInRun = Header.bInRun;
-	Pages = WoRPauseMenu::BuildPages(bInRun, !World || World->GetNetMode() != NM_Client);
+	Pages = WoRPauseMenu::BuildPages(bInRun, !World || World->GetNetMode() != NM_Client, WoRPauseMenu::GetTrackedLine(World));
 
 	if (TitleText && SubtitleText)
 	{

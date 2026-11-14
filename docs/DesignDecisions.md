@@ -983,6 +983,15 @@ The queue of questions only Crown can answer.
 - **(6) Memories has "Everyone" and one sub-tab per character who has a found memory**, by name. A character with none isn't listed, so the tabs never tell you who you haven't met or what you haven't found (pillar 10; the "???" rule of D-181).
 **Notes for Claude:** the steps' tick and arrow are plain marks until the icons come with the art pass. The reader's text scrolls on the right stick and Page Up / Down (`InputMap.md`).
 
+### Q-463b — Tracking a quest: which quests, where it shows
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-463b, Q-463 point 1) · **Blocks:** —
+**Question:** the journal mockup has a Track; what can be tracked, and where does it show before the trial HUD (B-465) exists?
+**Answer**, by the reference-backed default (Crown may change any):
+- **One quest at a time, an unfinished main or side quest; A tracks it, A again stops.** Tracking another moves the track. The Witcher 3 and Expedition 33 track one quest at a time.
+- **A secret quest can't be tracked:** its step would show on a shared screen, which D-198 masks.
+- **It shows as "{quest}: {current step}"** in the game menu's Journal preview and top right in a trial (the hub shows none), and is saved. It goes when the quest finishes.
+- **No marker in the world** for the step (none of the steps has a place to point at yet).
+
 ### Q-467 — The title screen: where it lives, what Continue and New Game do before the new game screen
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-467, D-202) · **Blocks:** —
 **Question:** the title's look and rows are decided (D-202, `UIScreens.md` #9, #10). Five things the code needed are not. (1) There is no title map: where does the title sit? (2) What does Continue do? (3) What does New Game do after the hold, before the new game screen (B-469) exists? (4) Join a friend and Credits have no screen yet (B-459, B-470). (5) The Continue line shows hours, and the save has never counted time.

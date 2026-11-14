@@ -71,8 +71,12 @@ namespace WoRPauseMenu
 	/** D-176: Quit asks for a hold this long (the mockups' destructive confirm). TODO: tune */
 	inline constexpr float QUIT_HOLD_SECONDS = 2.0f;
 
-	/** The eight pages. bCanEndRun: false for a co-op guest in a run (only the host ends it). */
-	WORLD_OF_REFRACTION_API TArray<FPauseMenuPage> BuildPages(bool bInRun, bool bCanEndRun);
+	/** The eight pages. bCanEndRun: false for a co-op guest in a run (only the host ends it). TrackedLine (B-463b): the
+	 *  tracked quest's step, the Journal row's preview when not empty. */
+	WORLD_OF_REFRACTION_API TArray<FPauseMenuPage> BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine = FText::GetEmpty());
+
+	/** B-463b: the tracked quest's "Title: current goal"; empty when nothing is tracked. */
+	WORLD_OF_REFRACTION_API FText GetTrackedLine(const UWorld *World);
 
 	/** What Quit's confirm says: in a run, that everything from it is lost (D-176). */
 	WORLD_OF_REFRACTION_API FText GetQuitWarning(bool bInRun);

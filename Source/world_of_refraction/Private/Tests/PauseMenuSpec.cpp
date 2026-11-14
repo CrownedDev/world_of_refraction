@@ -70,6 +70,10 @@ void FPauseMenuSpec::Define()
 			TestFalse(TEXT("previewed"), Pages[Index].Preview.IsEmpty());
 		}
 		TestTrue(TEXT("Resume opens"), Pages[static_cast<int32>(EPauseMenuPage::Resume)].CanOpen());
+		const FText Tracked = FText::FromString(TEXT("A quest: its step"));
+		TestEqual(TEXT("B-463b: the Journal row previews the tracked quest"),
+				  WoRPauseMenu::BuildPages(false, true, Tracked)[static_cast<int32>(EPauseMenuPage::Journal)].Preview.ToString(),
+				  FString(TEXT("Tracking: A quest: its step")));
 		TestTrue(TEXT("Inventory opens (its placeholder)"), Pages[static_cast<int32>(EPauseMenuPage::Inventory)].CanOpen());
 		TestTrue(TEXT("Quit opens"), Pages[static_cast<int32>(EPauseMenuPage::Quit)].CanOpen());
 		TestTrue(TEXT("Loadout opens (B-440a)"), Pages[static_cast<int32>(EPauseMenuPage::Loadout)].CanOpen());

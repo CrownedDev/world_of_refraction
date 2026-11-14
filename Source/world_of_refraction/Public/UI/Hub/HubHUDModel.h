@@ -58,5 +58,8 @@ namespace WoRHubHUD
 	/** The money shows near a vendor, or for MONEY_SHOWN_SECONDS after it changed. */
 	WORLD_OF_REFRACTION_API bool ShouldShowMoney(bool bNearVendor, float SecondsSinceChange);
 
+	/** B-463b (UIScreens #28): in a run, the tracked quest's "Title: current goal"; empty in the hub or with none. */
+	WORLD_OF_REFRACTION_API FText BuildQuestLine(const UWorld *World);
+
 	WORLD_OF_REFRACTION_API FString GetHubHUDString(const UWorld *World);
 }

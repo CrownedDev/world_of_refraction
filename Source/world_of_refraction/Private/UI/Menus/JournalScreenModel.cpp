@@ -76,7 +76,7 @@ namespace JournalScreenBuild
 		return Numbers;
 	}
 
-	FJournalRow MakeQuestRow(const FVisibleQuest &Quest, const int32 *MaskNumber, bool bShown)
+	FJournalRow MakeQuestRow(const FVisibleQuest &Quest, const int32 *MaskNumber, bool bShown, bool bTracked)
 	{
 		const FText Done = LOCTEXT("QuestDone", "done");
 		FJournalRow Row;
@@ -99,6 +99,15 @@ namespace JournalScreenBuild
 		}
 		Row.Title = Quest.Title;
 		Row.Subtitle = Quest.bFinished ? Done : Quest.Goal;
+		if (!MaskNumber && !Quest.bFinished)
+		{
+			// B-463b: A tracks one quest (not a secret one: its step would show on a shared screen, D-198).
+			Row.SelectVerb = bTracked ? LOCTEXT("Untrack", "Stop tracking") : LOCTEXT("Track", "Track");
+			if (bTracked)
+			{
+				Row.Kicker = FText::Format(LOCTEXT("TrackedKicker", "{0} quest · tracked"), Row.Tag);
+			}
+		}
 		if (MaskNumber)
 		{
 			// D-171: a secret quest shows that it was found and its current step, nothing else.
@@ -136,7 +145,8 @@ namespace JournalScreenBuild
 		{
 			if (KeepsQuest(Kept, Quest.Kind))
 			{
-				View.Rows.Add(MakeQuestRow(Quest, MaskNumbers.Find(Quest.QuestId), State.ShownSecrets.Contains(Quest.QuestId)));
+				View.Rows.Add(MakeQuestRow(Quest, MaskNumbers.Find(Quest.QuestId), State.ShownSecrets.Contains(Quest.QuestId),
+										   Quests->GetTrackedQuest() == Quest.QuestId));
 			}
 		}
 		if (View.Rows.IsEmpty())
@@ -394,6 +404,16 @@ bool WoRJournalScreen::PlayNextLine(UGameInstance *GameInstance, const FJournalR
 		return true;
 	}
 	return false;
+}
+
+bool WoRJournalScreen::ToggleTrack(UGameInstance *GameInstance, const FJournalRow &Row)
+{
+	UHiddenQuestSubsystem *Quests = JournalScreenBuild::Find<UHiddenQuestSubsystem>(GameInstance);
+	if (!Quests || !Row.bQuest || Row.SelectVerb.IsEmpty())
+	{
+		return false;
+	}
+	return Quests->TrackQuest(Quests->GetTrackedQuest() == Row.Id ? NAME_None : Row.Id);
 }
 
 FString WoRJournalScreen::GetJournalString(UGameInstance *GameInstance, const TArray<UStoryLinesData *> &Story)
