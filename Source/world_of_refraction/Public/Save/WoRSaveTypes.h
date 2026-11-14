@@ -15,6 +15,7 @@
 #include "Loadout/CarriedGearState.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
+#include "Equipment/Apparel/ApparelBonusLine.h"
 #include "Combat/Actions/ActionStatModifiers.h" // ESubStat::None (B-353)
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "WoRSaveTypes.generated.h"
@@ -439,6 +440,10 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 
 	UPROPERTY()
 	int32 ResistanceMaxPool = 0;
+
+	/** B-475 (D-208): an apparel piece's rolled bonus line. Added with no version bump: an older save loads none. */
+	UPROPERTY()
+	FApparelBonusLine ApparelBonusLine;
 };
 
 /** An owned gear or skill instance. InstanceID is the weapon/ring PersistentID or the

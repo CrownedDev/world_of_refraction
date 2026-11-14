@@ -10,6 +10,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/Apparel/ApparelBonusLine.h"
 #include "Equipment/FResistanceBonus.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Inventory/ItemQuality.h"
@@ -47,6 +48,11 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Apparel")
 	FEquipmentStatBonus StatBonus;
 
+	/** B-475 (D-208): the one rolled bonus line (a sub-stat or a pillar's percent), rolled when the piece is first owned
+	 *  (UPoolSubsystem::AddApparelToPool). None for an authored, never-owned copy. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Apparel")
+	FApparelBonusLine BonusLine;
+
 	/** A new entry for Apparel at its authored tier. */
 	static FApparelEntry CreateFromApparel(UApparelData *InApparel);
 
@@ -59,6 +65,9 @@ struct WORLD_OF_REFRACTION_API FApparelEntry
 
 	/** The asset's HP, Defence and Amp lines plus the instance roll's (nothing else counts; Amp: B-386). */
 	FEquipmentStatBonus GetStatLines() const;
+
+	/** B-475 (D-208): the rolled bonus line as stats. Added flat (never tier-scaled), so "+2 Luck" is +2 at every tier. */
+	FEquipmentStatBonus GetBonusLineStats() const;
 
 	/** D-164 (Crown): the asset's resistance, plus ApparelRules::CRYSTAL_ELEMENT_RESISTANCE to its crystal's element. */
 	FResistanceBonus GetResistance() const;

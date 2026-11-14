@@ -4,6 +4,7 @@
 #include "WoRGameNames.h"
 #include "Inventory/InventoryVerbs.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "Character/EWorldPillar.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
@@ -819,6 +820,20 @@ FText WoRGameNames::GetTierLetter(EItemTier Tier)
         return LOCTEXT("EItemTier_S", "S");
     default:
         return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetPillarName(EWorldPillar Pillar)
+{
+    switch (Pillar)
+    {
+    case EWorldPillar::Mind:
+        return LOCTEXT("EWorldPillar_Mind", "Mind");
+    case EWorldPillar::Body:
+        return LOCTEXT("EWorldPillar_Body", "Body");
+    case EWorldPillar::Spirit:
+    default:
+        return LOCTEXT("EWorldPillar_Spirit", "Spirit");
     }
 }
 

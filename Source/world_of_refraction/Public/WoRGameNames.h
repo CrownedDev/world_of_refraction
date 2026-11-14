@@ -29,6 +29,7 @@ enum class EWeaponType : uint8;
 enum class EWeaponWieldMode : uint8;
 enum class EItemTier : uint8;
 enum class ESubStat : uint8;
+enum class EWorldPillar : uint8;
 enum class EInteractVerb : uint8;
 enum class EVendorService : uint8;
 
@@ -129,4 +130,7 @@ namespace WoRGameNames
 
     /** B-442: a sub-stat's name: "Spell Damage", "Defence", "Status Multiplier". Empty for None. */
     WORLD_OF_REFRACTION_API FText GetSubStatName(ESubStat Stat);
+
+    /** B-475: a pillar's name: "Mind", "Body", "Spirit". */
+    WORLD_OF_REFRACTION_API FText GetPillarName(EWorldPillar Pillar);
 }

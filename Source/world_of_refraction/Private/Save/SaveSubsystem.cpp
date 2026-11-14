@@ -1153,6 +1153,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		Item.Gear.EvolutionItem = FSavedAssetRef::Make(E.AttachedItem.Evolution.Item);
 		Item.Gear.Attached.Evolution.Item = nullptr;
 		Item.Gear.StatBonus = E.StatBonus;
+		Item.Gear.ApparelBonusLine = E.BonusLine; // B-475
 	}
 	for (const FEvolutionInventoryEntry &E : Pool.GetOwnedEvolutions())
 	{
@@ -1468,6 +1469,7 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 				Entry.AttachedItem = FRuntimeAttachedItem();
 			}
 			Entry.StatBonus = In.Gear.StatBonus;
+			Entry.BonusLine = In.Gear.ApparelBonusLine; // B-475: kept (an id is set, so the pool rolls none)
 			Pool.AddApparelToPool(Entry);
 			++Restored;
 		}
