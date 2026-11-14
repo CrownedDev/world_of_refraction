@@ -1003,6 +1003,18 @@ The queue of questions only Crown can answer.
 - **A finished quest ends "Reward: {names}."**: items and skills by name, a curse given ("the curse {name}") or lifted ("{name} lifted"); titles are left out until titles exist. An unfinished one keeps "Reward: shown when the quest is done." (Mass Effect and Expedition 33 show a quest's reward once it is earned.)
 - **Left out:** the memory replay window (waits for memory scenes); "found by {friend}" on lore.
 
+### Q-466 — The Gate: what's built before the art and co-op steps
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-466, D-191, D-192) · **Blocks:** —
+**Question:** the Gate's look and rules are decided (D-191, D-192). What do the gates, the locks and the parts with no data yet do?
+**Answer**, by the reference-backed default (Crown may change any):
+- **D-192's mapping holds:** a gate is a `UTrialData`, a trial is one of its variations. **The gates are every trial asset with a map**, in a fixed order; the door's own gate opens lit. Any trial door in the hub opens the same Gate.
+- **A trial is locked by a quest:** each trial can name a quest (Unlock Quest Id) and the line shown while locked (Unlock Hint, Crown's words); it opens when that quest is finished. Locks of other kinds ("after clearing Past on Hard") wait until the game records clears. Hades' and Hollow Knight's locked doors say what opens them; D-191 asks for the same.
+- **A gate with no trials asks for the difficulty only** (as the door did before).
+- **Order of choice:** A on a trial picks it and moves to the difficulty, A there moves to Enter (the mockup's "gate, then trial, then difficulty"); Left / Right change the difficulty from any row, as a settings row does.
+- **X opens the party screen, Y the loadout**, over the Gate (Back returns), as drawn.
+- **Left out until their data exists:** the Party Combat Tier line (the hub has no fighters to read a tier from), "{friend} is ready" in co-op (no ready step), and the hub gate's glow colour (an editor / VFX step).
+- **The run line** reads "To leave a trial with your rewards, extract at a rest spot." The mockup's "can't be saved" is left out: a run in progress is saved and resumes from the hub (Q-208).
+
 ### Q-467 — The title screen: where it lives, what Continue and New Game do before the new game screen
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-467, D-202) · **Blocks:** —
 **Question:** the title's look and rows are decided (D-202, `UIScreens.md` #9, #10). Five things the code needed are not. (1) There is no title map: where does the title sit? (2) What does Continue do? (3) What does New Game do after the hold, before the new game screen (B-469) exists? (4) Join a friend and Credits have no screen yet (B-459, B-470). (5) The Continue line shows hours, and the save has never counted time.
