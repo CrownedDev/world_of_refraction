@@ -748,7 +748,10 @@ namespace LoadoutScreenBuild
 
 	bool HasSocket(const FLoadoutScreenRow &Row, int32 Socket)
 	{
-		return (Row.Kind == ELoadoutScreenRowKind::Weapon || Row.Kind == ELoadoutScreenRowKind::Adapter) && Row.GearID.IsValid() && Row.Sockets.IsValidIndex(Socket);
+		// B-476e: a worn apparel piece has the one crystal socket (D-164).
+		const bool bApparelCrystal = Row.Kind == ELoadoutScreenRowKind::Apparel && Socket == LoadoutScreenSockets::CRYSTAL;
+		return (Row.Kind == ELoadoutScreenRowKind::Weapon || Row.Kind == ELoadoutScreenRowKind::Adapter || bApparelCrystal) && Row.GearID.IsValid() &&
+			   Row.Sockets.IsValidIndex(Socket);
 	}
 }
 
@@ -903,6 +906,12 @@ FText WoRLoadoutScreen::ApplySocketChoice(UWorld *World, const FLoadoutScreenMem
 	{
 		return LOCTEXT("RefuseSocketFull", "Take what's in this socket off first.");
 	}
+	if (Row.Kind == ELoadoutScreenRowKind::Apparel) // B-476e: through the store, so every worn copy follows
+	{
+		const bool bSocketed = Choice.EvolutionID.IsValid() ? Inventory->AttachEvolutionToApparel(Row.GearID, Choice.EvolutionID)
+															: Inventory->AttachCrystalToApparel(Row.GearID, Choice.Crystal);
+		return bSocketed ? FText::GetEmpty() : LOCTEXT("RefuseSocketAttach", "It couldn't be socketed (the Output Log says why).");
+	}
 	const bool bAdapter = Row.Kind == ELoadoutScreenRowKind::Adapter;
 	const bool bDone = Choice.EvolutionID.IsValid()
 						   ? (bAdapter ? Inventory->AttachEvolutionToRing(Row.GearID, Choice.EvolutionID) : Inventory->AttachEvolutionToWeapon(Row.GearID, Choice.EvolutionID))
@@ -916,6 +925,12 @@ FText WoRLoadoutScreen::GetTakeOffSocketWarning(const FLoadoutScreenRow &Row, in
 	if (!LoadoutScreenBuild::HasSocket(Row, Socket) || Row.Sockets[Socket].bEmpty)
 	{
 		OutRefusal = LOCTEXT("RefuseSocketEmpty", "Nothing in this socket.");
+		return FText::GetEmpty();
+	}
+	if (Row.Kind == ELoadoutScreenRowKind::Apparel)
+	{
+		// TODO: B-476e: taking a crystal off apparel (CL-28b: destroyed; an evolution back with some wear).
+		OutRefusal = LOCTEXT("RefuseApparelSocketOff", "Taking a crystal off apparel comes later.");
 		return FText::GetEmpty();
 	}
 	const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
