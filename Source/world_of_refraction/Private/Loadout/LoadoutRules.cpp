@@ -514,18 +514,31 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 	return MoveTemp(Sink.Findings);
 }
 
+int32 FLoadoutRules::AttachmentCost(const FRuntimeAttachedItem &Attached)
+{
+	switch (Attached.Kind)
+	{
+	case EAttachedItemKind::None:
+		return 0;
+	case EAttachedItemKind::Evolution:
+		return LoadoutConstants::LOADOUT_EVOLUTION_COST;
+	case EAttachedItemKind::AugmentStone:
+		return LoadoutConstants::LOADOUT_STONE_COST;
+	case EAttachedItemKind::Crystal:
+	case EAttachedItemKind::Fusion:
+	default:
+		return LoadoutConstants::LOADOUT_CRYSTAL_COST;
+	}
+}
+
 int32 FLoadoutRules::SlotCost(const FLoadoutSlot &Slot)
 {
 	if (Slot.IsEmpty())
 	{
 		return 0;
 	}
-	const bool bEvolved = Slot.Gear.AttachedItem.IsEvolution();
-	if (Slot.Kind() == EGearKind::Adapter)
-	{
-		return InventoryConstants::GetRingSlotCost(bEvolved);
-	}
-	return Slot.Gear.HasAttachment() ? InventoryConstants::GetWeaponSlotCost(true, bEvolved) : InventoryConstants::WEAPON_BASE_SLOT_COST;
+	// D-206: the gear itself is free (LOADOUT_GEAR_COST); each socket's contents cost.
+	return LoadoutConstants::LOADOUT_GEAR_COST + AttachmentCost(Slot.Gear.AttachedItem) + AttachmentCost(Slot.Gear.StoneSocket);
 }
 
 int32 FLoadoutRules::NonAdapterCost(const FCombatLoadout &Loadout, ECharacterClass Class)
@@ -579,18 +592,22 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 		Finding.Reason = Reason;
 	};
 
-	// The Resonator's budget finding keeps its shape and words (ClearInvalidSlots drops adapters for it). B-357 review:
-	// a Generic can exceed its 5 now (two evolved weapons, or an evolution alone + an evolved weapon, cost 6; a saved
-	// loadout from the budget-6 days), so its finding is cleared by dropping the secondary weapon. A Refractor's single
-	// item never exceeds 3, so its finding stays a diagnostic.
+	// The Resonator's budget finding keeps its shape and words (ClearInvalidSlots drops adapters for it). A Generic's
+	// is cleared by dropping the secondary weapon (a saved loadout from before D-206 could carry more). B-472 (D-206):
+	// a Refractor's one item can go over 2 only with a stone beside an evolution, so its finding drops that stone.
 	const bool bResonator = Class == ECharacterClass::Resonator;
 	const bool bGenericSecondary = Class == ECharacterClass::Generic && Mirror.SecondarySlotType == ESecondarySlotType::Weapon &&
 								   Mirror.SecondaryWeapon.IsValid();
+	const bool bRefractorStone = Class == ECharacterClass::Caster && Mirror.Slots.ContainsByPredicate([](const FLoadoutSlot &Slot)
+																									 { return !Slot.IsEmpty() && !Slot.Gear.StoneSocket.IsEmpty(); });
 	const int32 TotalCost = GearCost + AdapterCost;
 	if (TotalCost > Limits.Budget)
 	{
-		const ELoadoutSlotType Clears = bResonator ? ELoadoutSlotType::RingOverflow : bGenericSecondary ? ELoadoutSlotType::SecondaryWeapon : ELoadoutSlotType::None;
-		Add(Clears, bResonator || bGenericSecondary,
+		const ELoadoutSlotType Clears = bResonator		   ? ELoadoutSlotType::RingOverflow
+										: bGenericSecondary ? ELoadoutSlotType::SecondaryWeapon
+										: bRefractorStone	? ELoadoutSlotType::PrimaryStone
+															: ELoadoutSlotType::None;
+		Add(Clears, Clears != ELoadoutSlotType::None,
 			FString::Printf(TEXT("Loadout exceeds budget: primary (cost %d) + adapters (cost %d) = %d, max is %d"), GearCost,
 							AdapterCost, TotalCost, Limits.Budget));
 	}
@@ -605,7 +622,9 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 	}
 	if (Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && Adapters > Limits.MaxAdapters)
 	{
-		Add(ELoadoutSlotType::None, false, FString::Printf(TEXT("Too many adapters for the class (%d/%d)"), Adapters, Limits.MaxAdapters));
+		// B-472 (D-206): a Resonator's extra adapters are dropped like its over-budget ones (RingOverflow).
+		Add(bResonator ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bResonator,
+			FString::Printf(TEXT("Too many adapters for the class (%d/%d)"), Adapters, Limits.MaxAdapters));
 	}
 	return Findings;
 }
