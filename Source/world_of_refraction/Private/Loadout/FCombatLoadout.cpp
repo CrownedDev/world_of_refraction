@@ -587,7 +587,8 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
 
     // ==================== RESONATOR RINGS ====================
 
-    if (SavedLoadout.RequiredClass == ECharacterClass::Resonator)
+    // B-480 (D-210): a Generic's adapter entry rides the same list (one at most; the loadout check drops more).
+    if (SavedLoadout.RequiredClass == ECharacterClass::Resonator || SavedLoadout.RequiredClass == ECharacterClass::Generic)
     {
         for (const FResonatorRingSlot &Slot : SavedLoadout.EquippedRings)
         {
@@ -693,7 +694,9 @@ namespace
         {
             Visit(ELegacySlotOrigin::SecondaryWeapon, INDEX_NONE, &Loadout.SecondaryWeapon, nullptr);
         }
-        if (CharacterClass == ECharacterClass::Resonator)
+        // B-480 (D-210): a Generic's adapter entry beside its two weapons sits in the adapter loadout too (one at most,
+        // the loadout check drops more).
+        if (CharacterClass == ECharacterClass::Resonator || CharacterClass == ECharacterClass::Generic)
         {
             for (int32 RingIndex = 0; RingIndex < Loadout.RingLoadout.Num(); ++RingIndex)
             {
@@ -732,6 +735,11 @@ namespace
         Loadout.ActiveAdapterSlot = CharacterClass == ECharacterClass::Resonator
                                         ? FindSlotByOrigin(Loadout, ELegacySlotOrigin::RingLoadout, Loadout.ActiveRingIndex)
                                         : FindSlotByOrigin(Loadout, ELegacySlotOrigin::PrimaryRing);
+        if (bGeneric && Loadout.ActiveAdapterSlot == INDEX_NONE)
+        {
+            // B-480 (D-210): a Generic's adapter entry beside two weapons (the first one in the adapter loadout).
+            Loadout.ActiveAdapterSlot = Loadout.Slots.IndexOfByPredicate([](const FLoadoutSlot &Slot) { return Slot.LegacyOrigin == ELegacySlotOrigin::RingLoadout; });
+        }
     }
 }
 

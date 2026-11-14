@@ -400,7 +400,7 @@ namespace
 		{
 			CountEntry(Secondary.AttachedItem, Secondary.StoneSocket);
 		}
-		if (Class == ECharacterClass::Resonator)
+		if (Class == ECharacterClass::Resonator || Class == ECharacterClass::Generic) // B-480: a Generic's adapter entry
 		{
 			for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
 			{
@@ -472,9 +472,46 @@ namespace
 	}
 }
 
+namespace
+{
+	/** B-480 (D-210): where an evolution may sit on gear: a Resonator only on adapters (its weapon never), a Generic
+	 *  only on weapons (its adapter never), a Refractor on either. Cleared by taking the evolution off (it goes back to
+	 *  the inventory: an evolution on gear is a reference, never consumed). */
+	void CheckEvolutionPlacement(FFindingSink &Sink, const FCombatLoadout &Loadout, ECharacterClass Class)
+	{
+		if (Class == ECharacterClass::Resonator)
+		{
+			const bool bWeaponPrimary = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None;
+			if (bWeaponPrimary && Loadout.PrimaryWeapon.IsValid() && Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.IsEvolution())
+			{
+				Sink.Add(ELoadoutSlotType::GearEvolution, LoadoutGearEvolutionIndex::PRIMARY_WEAPON, true,
+						 TEXT("A Resonator can't put an evolution on a weapon (only on adapters)"));
+			}
+			return;
+		}
+		if (Class != ECharacterClass::Generic)
+		{
+			return;
+		}
+		if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid() && Loadout.PrimaryRing.RingEntry.AttachedItem.IsEvolution())
+		{
+			Sink.Add(ELoadoutSlotType::GearEvolution, LoadoutGearEvolutionIndex::PRIMARY_RING, true,
+					 TEXT("A Generic can't put an evolution on an adapter (only on weapons)"));
+		}
+		for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
+		{
+			if (Loadout.RingLoadout[i].IsValid() && Loadout.RingLoadout[i].RingEntry.AttachedItem.IsEvolution())
+			{
+				Sink.Add(ELoadoutSlotType::GearEvolution, i, true, TEXT("A Generic can't put an evolution on an adapter (only on weapons)"));
+			}
+		}
+	}
+}
+
 TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout &Loadout, const FLoadoutRuleContext &Context)
 {
 	FFindingSink Sink;
+	CheckEvolutionPlacement(Sink, Loadout, Context.CharacterClass); // B-480 (D-210)
 
 	if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
 	{
@@ -514,7 +551,8 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectFindings(const FCombatLoadout 
 		CheckWeapon(Sink, Loadout.SecondaryWeapon, Context, /*bSecondary=*/true);
 	}
 
-	if (Context.CharacterClass == ECharacterClass::Resonator)
+	// B-480 (D-210): a Generic's adapter entry sits in the adapter loadout too.
+	if (Context.CharacterClass == ECharacterClass::Resonator || Context.CharacterClass == ECharacterClass::Generic)
 	{
 		for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
 		{
@@ -628,12 +666,17 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 	const bool bResonator = Class == ECharacterClass::Resonator;
 	const bool bGenericSecondary = Class == ECharacterClass::Generic && Mirror.SecondarySlotType == ESecondarySlotType::Weapon &&
 								   Mirror.SecondaryWeapon.IsValid();
+	// B-480 (D-210): a Generic's adapter entry in the adapter loadout is dropped first (RingOverflow), before a weapon.
+	const bool bGenericAdapterEntry = Class == ECharacterClass::Generic && Mirror.Slots.ContainsByPredicate([](const FLoadoutSlot &Slot)
+																										   { return Slot.LegacyOrigin == ELegacySlotOrigin::RingLoadout; });
+	const bool bDropsAdapters = bResonator || bGenericAdapterEntry;
 	const bool bRefractorStone = Class == ECharacterClass::Caster && Mirror.Slots.ContainsByPredicate([](const FLoadoutSlot &Slot)
 																									 { return !Slot.IsEmpty() && !Slot.Gear.StoneSocket.IsEmpty(); });
 	const int32 TotalCost = GearCost + AdapterCost;
 	if (TotalCost > Limits.Budget)
 	{
-		const ELoadoutSlotType Clears = bResonator		   ? ELoadoutSlotType::RingOverflow
+		// A Generic's adapter entry goes first only when it costs something (dropping a free one changes nothing).
+		const ELoadoutSlotType Clears = bResonator || (bGenericAdapterEntry && AdapterCost > 0) ? ELoadoutSlotType::RingOverflow
 										: bGenericSecondary ? ELoadoutSlotType::SecondaryWeapon
 										: bRefractorStone	? ELoadoutSlotType::PrimaryStone
 															: ELoadoutSlotType::None;
@@ -654,8 +697,8 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 	{
 		// B-472 (D-206): a Resonator's extra adapters are dropped like its over-budget ones (RingOverflow; one clear
 		// drops both, so the count finding is clearable only when the budget one isn't already there).
-		const bool bBudgetClears = bResonator && TotalCost > Limits.Budget;
-		Add(bResonator ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bResonator && !bBudgetClears,
+		const bool bBudgetClears = bDropsAdapters && TotalCost > Limits.Budget;
+		Add(bDropsAdapters ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bDropsAdapters && !bBudgetClears,
 			FString::Printf(TEXT("Too many adapters for the class (%d/%d)"), Adapters, Limits.MaxAdapters));
 	}
 	return Findings;

@@ -1045,6 +1045,14 @@ The queue of questions only Crown can answer.
 - **The sockets are the main hand's**: an off hand's own crystal or stone is not read (D-210: the sockets belong to the entry). An off hand that is no longer owned leaves its main hand alone; a main hand that goes takes the set with it.
 - **A bad pair is cleared to its main hand alone** by the loadout check (a sword with a dagger, a single-only weapon, a pair on a Resonator or Refractor). A dual-only weapon on its own is dropped like an unowned one (D-116 refills the primary).
 
+### Q-480 — Entries in the code before the Add gear window
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-480) · **Blocks:** —
+**Question:** D-210 sets the entries. Where does the code keep a Generic's adapter beside two weapons, and what does the loadout check do with a loadout that breaks a D-210 rule (an old save, an authored loadout)?
+**Answer**, by the reference-backed default (Crown may change any):
+- **A Generic's adapter entry sits in the same adapter list as a Resonator's** (one at most), so the save needs no new field; with no adapter primary it is the Generic's adapter in use.
+- **A broken rule is fixed at the next check, not refused silently:** a second adapter on a Generic is dropped (its adapter entry first, then a weapon if still over the budget); an evolution on a Resonator's weapon or a Generic's adapter is taken off and goes back to the inventory free (an evolution on gear is never consumed). Each drop says "Removed: ..." as the other loadout drops do (D-116 style).
+- **Two stones:** a stone goes in the stone socket first, then in an empty crystal socket. The screen offers a stone for the crystal socket only once the stone socket holds one, so what the screen shows is where the stone lands. Path of Exile's sockets take any gem colour the socket allows and its players stack the same support twice for more; stacking two of one stat here follows that.
+
 ### Q-456d — The Spiritualist's tabs: one piece or everything, whose curses, Merge's layout
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-456d, D-193) · **Blocks:** —
 **Question:** the approved mockups for Repair, Curses and Merge differ from the code in four places. (1) Repair shows "A Repair this" and "X Repair all", but the paid repair is all or nothing (ER-37). (2) Repair lists unworn pieces with "—". (3) Curses says "Sera holds it", but curses are held by the player, not by one character. (4) Merge has two columns (the crystal, then the tier to make).

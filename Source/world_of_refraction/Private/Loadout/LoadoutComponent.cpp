@@ -888,6 +888,13 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
 
             int32 RunningTotal = PrimaryCost;
             int32 AdapterCount = 0;
+            // B-480 (D-210): a Generic's adapter primary is kept and counts first; its adapter entry is what goes.
+            if (GetCharacterClass() != ECharacterClass::Resonator && Loadout.PrimarySlotType == EPrimarySlotType::Ring &&
+                Loadout.PrimaryRing.IsValid())
+            {
+                RunningTotal += FLoadoutRules::SlotCost(FLoadoutSlot::FromRingLoadoutEntry(Loadout.PrimaryRing));
+                ++AdapterCount;
+            }
             int32 TruncateFromIndex = INDEX_NONE;
             for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
             {
@@ -916,6 +923,21 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             (Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon : Loadout.PrimaryWeapon).OffHandEntry =
                 FWeaponInventoryEntry();
             break;
+        case ELoadoutSlotType::GearEvolution:
+        {
+            // B-480 (D-210): the evolution comes off the gear its class may not evolve; it is a reference, so it is
+            // free again in the inventory once the owned piece is written.
+            FRuntimeAttachedItem *Socket = Finding.SlotIndex == LoadoutGearEvolutionIndex::PRIMARY_WEAPON ? &Loadout.PrimaryWeapon.WeaponEntry.AttachedItem
+                                           : Finding.SlotIndex == LoadoutGearEvolutionIndex::PRIMARY_RING ? &Loadout.PrimaryRing.RingEntry.AttachedItem
+                                           : Loadout.RingLoadout.IsValidIndex(Finding.SlotIndex)          ? &Loadout.RingLoadout[Finding.SlotIndex].RingEntry.AttachedItem
+                                                                                                          : nullptr;
+            if (Socket && Socket->IsEvolution())
+            {
+                *Socket = FRuntimeAttachedItem();
+                Inv->WriteLoadoutToOwned(Index);
+            }
+            break;
+        }
         case ELoadoutSlotType::PrimaryStone:
         {
             // B-472 (D-206): a Refractor over 2 drops its one item's augment stone; Q-159 = A: it goes back to the
@@ -2122,17 +2144,22 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     }
 
     // Primary ring (Generic / Caster) — runtime entry
-    if (const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout())
+    const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout();
+    if (PrimaryRingLoadout)
     {
         AddAttachment(PrimaryRingLoadout->RingEntry.AttachedItem,
                       PrimaryRingLoadout->RingEntry.Ring, PrimaryRingLoadout->RingEntry.PersistentID);
     }
 
-    // Resonator ring loadout — every ring in the array, runtime entry
+    // Resonator ring loadout — every ring in the array, runtime entry. B-480: a Generic's adapter entry can be the
+    // primary ring above (its adapter in use), so it is listed once.
     const FCombatLoadout &ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
-        AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring, Entry.RingEntry.PersistentID);
+        if (&Entry != PrimaryRingLoadout)
+        {
+            AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring, Entry.RingEntry.PersistentID);
+        }
     }
 
     // Evolution crystal slot — no inventory entry, evolution IS the crystal.

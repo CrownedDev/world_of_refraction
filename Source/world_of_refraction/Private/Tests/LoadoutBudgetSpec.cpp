@@ -48,7 +48,7 @@ namespace
 	/** A weapon with a crystal (1) fills the budget with this many crystal adapters (1 each). */
 	constexpr int32 LOADOUT_BUDGET_TEST_RINGS_TO_FILL = 4;
 
-	/** Far more rings than any count cap would allow, all on a Generic / Refractor (CL-12). */
+	/** Far more rings than any count cap would allow (CL-12). */
 	constexpr int32 LOADOUT_BUDGET_TEST_MANY_RINGS = 8;
 
 	/** A-tier spells (6 points each) that exactly fill the innate budget of 24. */
@@ -203,13 +203,13 @@ void FLoadoutBudgetSpec::Define()
 			TestTrue(TEXT("a 6th adapter is refused by the count, not the budget"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
 		});
 
-		It("is never checked for a Generic or a Refractor (CL-12)", [this]()
+		It("drops a Generic's adapters past its one entry, and never reads a Refractor's (CL-12, D-210)", [this]()
 		{
 			FCombatLoadout Loadout = LoadoutBudgetWeaponPrimary(ELoadoutBudgetTestWeapon::Evolution);
 			LoadoutBudgetAddRings(Loadout, LOADOUT_BUDGET_TEST_MANY_RINGS, /*bEvolved=*/true);
 			TestTrue(TEXT("the same loadout is over budget for a Resonator"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Resonator));
-			TestFalse(TEXT("Generic: not checked"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Generic));
-			TestFalse(TEXT("Refractor: not checked"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Caster));
+			TestTrue(TEXT("Generic: its adapter entries past one are dropped (B-480)"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Generic));
+			TestFalse(TEXT("Refractor: not read"), LoadoutBudgetOverBudget(Loadout, ECharacterClass::Caster));
 		});
 	});
 
