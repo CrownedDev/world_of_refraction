@@ -168,7 +168,8 @@ void UPauseMenuWidget::BuildTree()
 	PanelHeading = MakeText(WidgetTree, RowFontSize, TextColor, true);
 	PanelBody = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 	PanelRefusal = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
-	HoldHint = MakeWrappedText(WidgetTree, LineFontSize, WarnColor, true);
+	HoldHint = MakeHintText(WidgetTree, LineFontSize, WarnColor, true);
+	HoldHint->SetAutoWrapText(true);
 	// The hold / press hint is set in RefreshSelection (B-453c: it follows the setting).
 	HoldBar = MakeBar(WidgetTree, WarnColor);
 	ExtractNote = MakeWrappedText(WidgetTree, SmallFontSize, OffColor);
@@ -182,8 +183,8 @@ void UPauseMenuWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
 	// Bottom right: the hints.
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "A / Enter  Select        B / Esc  Resume"));
+	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Select        {Back}  Resume"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -361,8 +362,8 @@ void UPauseMenuWidget::RefreshSelection()
 	PanelRefusal->SetText(Page.Refusal);
 	PauseMenuStyle::SetShown(PanelRefusal, !Page.CanOpen());
 	const bool bHold = IsHoldToConfirmOn(); // B-453c (D-190)
-	HoldHint->SetText(bHold ? LOCTEXT("HoldHint", "Hold A or Enter to quit. B or Esc goes back.")
-							: LOCTEXT("PressHint", "Press A or Enter again to quit. B or Esc goes back."));
+	WoRKeyHints::SetHint(HoldHint, bHold ? LOCTEXT("HoldHint", "Hold {Confirm} to quit. {Back} goes back.")
+							: LOCTEXT("PressHint", "Press {Confirm} again to quit. {Back} goes back."));
 	PauseMenuStyle::SetShown(HoldHint, bConfirmingQuit);
 	PauseMenuStyle::SetShown(HoldBar, bConfirmingQuit && bHold);
 }

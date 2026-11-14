@@ -201,7 +201,7 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Heading(LOCTEXT("SectionMenus", "Menus")));
 	Rows.Add(Key(LOCTEXT("KeyMenuMove", "Move"), LOCTEXT("KeyMenuMoveKB", "Arrows, W / S"), LOCTEXT("KeyMenuMovePad", "D-pad, left stick")));
 	Rows.Add(Key(LOCTEXT("KeyMenuSelect", "Select"), LOCTEXT("KeyMenuSelectKB", "Enter, Space"), LOCTEXT("KeyMenuSelectPad", "A")));
-	Rows.Add(Key(LOCTEXT("KeyMenuBack", "Back"), LOCTEXT("KeyMenuBackKB", "Esc, Backspace"), LOCTEXT("KeyMenuBackPad", "B, Menu")));
+	Rows.Add(Key(LOCTEXT("KeyMenuBack", "Back"), LOCTEXT("KeyMenuBackKB", "Backspace, Esc"), LOCTEXT("KeyMenuBackPad", "B, Menu")));
 	Rows.Add(Key(LOCTEXT("KeyMenuPage", "Previous / next page"), LOCTEXT("KeyMenuPageKB", "Q / E"), LOCTEXT("KeyMenuPagePad", "LB / RB")));
 	Rows.Add(Key(LOCTEXT("KeyMenuCharacter", "Previous / next character"), LOCTEXT("KeyMenuCharacterKB", "Z / C"), LOCTEXT("KeyMenuCharacterPad", "LT / RT")));
 	Rows.Add(Key(LOCTEXT("KeyMenuChange", "Change a setting"), LOCTEXT("KeyMenuChangeKB", "Left / Right, A / D"), LOCTEXT("KeyMenuChangePad", "D-pad left / right")));
