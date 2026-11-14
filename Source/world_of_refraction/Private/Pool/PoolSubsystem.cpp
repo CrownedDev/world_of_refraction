@@ -149,6 +149,13 @@ FGuid UPoolSubsystem::AddApparelToPool(const FApparelEntry &Entry, FName OwnerKe
     if (!Owned.PersistentID.IsValid())
     {
         Owned.PersistentID = FGuid::NewGuid(); // B-380b: owned from here
+        // B-475 (D-208): a new piece (the drop) rolls its one bonus line; a loaded piece keeps its saved one.
+        if (!Owned.BonusLine.IsSet())
+        {
+            Owned.BonusLine = ApparelBonusLine::RollFor(Owned.PersistentID);
+            UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s rolled its bonus line: %s"), *GetNameSafe(Owned.Apparel.Get()),
+                   *ApparelBonusLine::GetText(Owned.BonusLine).ToString());
+        }
     }
     if (!OwnerKey.IsNone())
     {
