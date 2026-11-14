@@ -562,7 +562,7 @@ def skills_g(opened=None):
               active=True)
     entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
     panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-    text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  5 slots (main hand B)", 16, True, DIM)
+    text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge", 16, True, DIM)
     skill_rows(d, SKILLS_G, 3, top=TOP + 40, opened=opened)
     footer(d, FOOT_SKILLS)
     return im
@@ -600,7 +600,7 @@ text(d, (L + 54, 189), "Innate spells", 16, True)
 text(d, (LR - 14, 199), "18 of 24", 16, True, anchor="rm")
 entry(d, 238, "", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1)
 panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-text(d, (LIST_X + 18, TOP + 10), "Innate spells  ·  Fire  ·  18 of 24 points", 16, True, DIM)
+text(d, (LIST_X + 18, TOP + 10), "Innate spells", 16, True, DIM)
 y = TOP + 44
 for i, (school, spells) in enumerate([
         ("Destruction", ["Flame Lance", "Ember", "Scorch"]), ("Conjuration", []), ("Enhancement", ["Kindle"]),
