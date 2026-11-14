@@ -61,6 +61,7 @@ void UFieldMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME(UFieldMovementComponent, bFlying);
 	DOREPLIFETIME_CONDITION(UFieldMovementComponent, FlightLimits, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(UFieldMovementComponent, bHasRecallMark, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UFieldMovementComponent, FieldAttackSource, COND_OwnerOnly);
 }
 
 void UFieldMovementComponent::BeginPlay()
@@ -450,6 +451,9 @@ FString UFieldMovementComponent::GetFieldStateString() const
 		+ FString::Printf(TEXT(" | glide %s | wall-run %s | air jump %s, air dash %s"), // B-214c
 						  bGliding ? TEXT("ON") : TEXT("off"), bWallRunning ? TEXT("ON") : TEXT("off"),
 						  bAirJumpUsed ? TEXT("used") : TEXT("ready"), bAirDashUsed ? TEXT("used") : TEXT("ready"))
+		+ FString::Printf(TEXT(" | attack source %s (%s, %s)"), *FieldSkillRules::SourceName(FieldAttackSource), // B-214f
+						  *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(GetSourceElement(FieldAttackSource))),
+						  *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(GetFieldAttackPhysicalType())))
 		+ FString::Printf(TEXT(" | recall mark %s"), bHasRecallMark ? *RecallMark.ToCompactString() : TEXT("none")) // B-214e
 		+ FString::Printf(TEXT(" | flight %s (limits: EP %s, ceiling %s, no-fly %s; in no-fly %s)"), // B-214d
 						  bFlying ? TEXT("ON") : TEXT("off"), FlightLimits.bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),

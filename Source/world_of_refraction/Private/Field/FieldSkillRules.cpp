@@ -173,6 +173,21 @@ namespace FieldSkillRules
 		return CurrentEP < GetAdvancedMoveEPCost(Type) ? EFieldSkillRefusal::NotEnoughEP : EFieldSkillRefusal::None;
 	}
 
+	FFieldStrike MakeFieldStrike(ESpellElement SourceElement, EPhysicalDamageType Physical, bool bHeld)
+	{
+		FFieldStrike Strike;
+		Strike.Element = IsElemental(SourceElement) ? SourceElement : ESpellElement::None;
+		Strike.Physical = Physical;
+		Strike.bIce = bHeld && Strike.Element == ESpellElement::Water;
+		Strike.Buildup = FIELD_STRIKE_BUILDUP;
+		return Strike;
+	}
+
+	EFieldSkillSource NextSource(EFieldSkillSource Source)
+	{
+		return static_cast<EFieldSkillSource>((static_cast<int32>(Source) + 1) % FIELD_ATTACK_SOURCE_COUNT);
+	}
+
 	EFieldSkillRefusal CheckFlightStart(bool bInNoFlyZone, int32 CurrentEP, const FFieldFlightLimits &Limits)
 	{
 		if (bInNoFlyZone && !Limits.bIgnoreNoFly)

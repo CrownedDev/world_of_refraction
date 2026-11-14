@@ -233,6 +233,10 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 	const FVector TeamFacing = TeamVelocity.IsNearlyZero() ? GetOwner()->GetActorForwardVector() : TeamVelocity;
 	PendingFirstStrike = JudgeFirstStrike(GetOwner()->GetActorLocation(), TeamFacing, OtherActor->GetActorLocation(),
 										  OtherActor->GetActorForwardVector(), NoticeHalfAngleDegrees);
+	if (PendingFieldStrike.IsSet())
+	{
+		PendingFirstStrike = EFirstStrike::Party; // B-214f: a field hit always strikes first
+	}
 	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s: first strike %s"), *GetOwner()->GetName(),
 		   *UEnum::GetValueAsString(PendingFirstStrike));
 	SpawnArenaSphere(ArenaCenter);
@@ -422,6 +426,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 	TrialRun->SetPendingEncounterSources(CaughtIds);
 	TrialRun->SetPendingEnemyRanks(MemberRanks);
 	TrialRun->SetPendingFirstStrike(PendingFirstStrike);
+	TrialRun->SetPendingFieldStrike(PendingFieldStrike); // B-214f
 	// B-186: the zone where the fight starts sets the enemies' strength and loot pool.
 	TrialRun->SetPendingZone(AEnemyZone::FindZoneAt(GetWorld(), ArenaCenter));
 	TrialRun->EnterEncounter(ActiveTrial, BattlePartyData, OpposingPartyData, FightDifficulty, FightRank);
@@ -432,6 +437,7 @@ void UEncounterComponent::OnJoinWindowExpired()
 		TrialRun->SetPendingMiniBossSources({});
 		TrialRun->SetPendingEnemyRanks({});
 		TrialRun->SetPendingFirstStrike(EFirstStrike::None);
+		TrialRun->SetPendingFieldStrike(FFieldStrike());
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
 		RearmEncounter();
 	}
@@ -445,7 +451,27 @@ void UEncounterComponent::RearmEncounter()
 	}
 	PendingBattleParty.Reset();
 	PendingFirstStrike = EFirstStrike::None;
+	PendingFieldStrike = FFieldStrike();
 	bTriggered = false;
+}
+
+bool UEncounterComponent::StrikeFromField(AActor *Attacker, const FFieldStrike &Strike)
+{
+	if (bTriggered || !Attacker)
+	{
+		return false;
+	}
+	PendingFieldStrike = Strike;
+	HandleOverlap(nullptr, Attacker, nullptr, INDEX_NONE, false, FHitResult()); // the same engagement as walking in
+	if (!bTriggered)
+	{
+		PendingFieldStrike = FFieldStrike(); // refused: not a party pawn, or another window is open
+		return false;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s struck on the field by %s: %s%s, %s, buildup %.0f"),
+		   *GetOwner()->GetName(), *Attacker->GetName(), *UEnum::GetValueAsString(Strike.Element),
+		   Strike.bIce ? TEXT(" (Ice)") : TEXT(""), *UEnum::GetValueAsString(Strike.Physical), Strike.Buildup);
+	return true;
 }
 
 EAIDifficulty UEncounterComponent::GetFightAIDifficulty(ETrialDifficulty TrialDifficulty) const

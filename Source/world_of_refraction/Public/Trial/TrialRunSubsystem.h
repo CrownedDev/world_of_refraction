@@ -31,6 +31,7 @@
 #include "Character/EWorldPillar.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/Encounter/EFirstStrike.h"
+#include "Field/FieldSkillTypes.h"
 #include "Combat/Encounter/EnemyZone.h"
 #include "Trial/TrialGate.h"
 #include "Trial/RunRewards.h"
@@ -421,6 +422,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
     EFirstStrike GetPendingFirstStrike() const { return PendingFirstStrike; }
 
+    /** B-214f: a field hit's buildup for the pending fight (unset = none). Call before EnterEncounter. */
+    void SetPendingFieldStrike(const FFieldStrike &Strike) { PendingFieldStrike = Strike; }
+
+    const FFieldStrike &GetPendingFieldStrike() const { return PendingFieldStrike; }
+
     /** B-186: the map zone the pending fight started in. Call before EnterEncounter. */
     void SetPendingZone(const FEncounterZoneInfo &Zone) { PendingZone = Zone; }
 
@@ -484,6 +490,9 @@ private:
 
     /** B-185: carried across the OpenLevel like PendingRank; moves with it for co-op (D-065). */
     EFirstStrike PendingFirstStrike = EFirstStrike::None;
+
+    /** B-214f: carried across the OpenLevel like PendingFirstStrike (D-065). */
+    FFieldStrike PendingFieldStrike;
 
     /** B-186: carried across the OpenLevel like PendingRank (D-065). */
     FEncounterZoneInfo PendingZone;

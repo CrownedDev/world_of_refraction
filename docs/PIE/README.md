@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-214f](B-214f.md) | `feature/B-214f-field-attack` (in dev, built 2026-11-14) | Field skills part 6: the field attack: striking an enemy on the map starts the fight with the party first and the hit's buildup on every enemy (held Water = Ice); the attack source switches | Pending |
 | [B-154](B-154.md) | `chore/B-154-ring-weapon-managers` (in dev, built 2026-11-14) | `URingManager` / `UWeaponManager` (OBSOLETE forwarders) deleted (D-204); ring and weapon queries on the loadout component; no play change | Pending |
 | [B-153](B-153.md) | `chore/B-153-loadout-class-field` (in dev, built 2026-11-14) | The OBSOLETE `ULoadoutComponent::CharacterClass` field deleted (D-204); the class comes from CharacterData; no play change | Pending |
 | [B-032b](B-032b.md) | `refactor/B-032b-lumped-path-delete` (in dev, built 2026-11-14) | The old lumped spell defense path and `wor.Combat.PerImpactDefense` are deleted, no play change; a support spell of several hits lands them at its window's close; two data checks (`wor.Combat.PrintSpellImpacts`, Cast notifies) | Pending |

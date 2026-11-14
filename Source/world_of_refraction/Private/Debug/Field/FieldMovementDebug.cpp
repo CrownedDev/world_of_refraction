@@ -22,6 +22,7 @@ namespace
 	constexpr int32 FIELD_UNLOCK_ELEMENT_ARG = 1;
 	constexpr int32 FIELD_FLIGHT_LIMITS_ARG = 0;
 	constexpr int32 FIELD_FLY_VERTICAL_ARG = 0;
+	constexpr int32 FIELD_ATTACK_HOLD_ARG = 0;
 
 	/** The first player's pawn's field movement (the leader on the map). */
 	UFieldMovementComponent *PlayerFieldMovement(UWorld *World)
@@ -181,6 +182,37 @@ namespace
 					FieldMovement->NudgeFlightVertical(Direction);
 					Report(FString::Printf(TEXT("FlyVertical %s | flying %s"), *Args[FIELD_FLY_VERTICAL_ARG],
 										   FieldMovement->IsFlying() ? TEXT("yes") : TEXT("no (nothing done)")));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorldAndArgs GFieldAttackCmd(
+		TEXT("wor.Field.Attack"),
+		TEXT("DEBUG (B-214f, until B-214g's IA_Field_Attack): wor.Field.Attack [Hold] - the player's character swings; an "
+			 "enemy struck starts the fight with first strike and the hit's buildup. Hold: the held attack (Water = Ice)."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				const bool bHeld = Args.IsValidIndex(FIELD_ATTACK_HOLD_ARG) && Args[FIELD_ATTACK_HOLD_ARG] == TEXT("Hold");
+				if (UFieldMovementComponent *FieldMovement = PlayerFieldMovement(World))
+				{
+					const FFieldStrike Strike = FieldMovement->GetFieldStrike(bHeld);
+					const EFieldSkillRefusal Refusal = FieldMovement->FieldAttack(bHeld);
+					Report(FString::Printf(TEXT("Attack%s: %s | strike %s%s, %s, buildup %.0f"), bHeld ? TEXT(" (held)") : TEXT(""),
+										   *FieldSkillRules::RefusalName(Refusal), *UEnum::GetValueAsString(Strike.Element),
+										   Strike.bIce ? TEXT(" (Ice)") : TEXT(""), *UEnum::GetValueAsString(Strike.Physical), Strike.Buildup));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorld GFieldSwitchSourceCmd(
+		TEXT("wor.Field.SwitchSource"),
+		TEXT("DEBUG (B-214f, until B-214g's IA_Field_SwitchSource): the field attack's source steps Innate -> Weapon -> Ring."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (UFieldMovementComponent *FieldMovement = PlayerFieldMovement(World))
+				{
+					FieldMovement->SwitchFieldAttackSource();
+					Report(FieldMovement->GetFieldStateString());
 				}
 			}));
 }

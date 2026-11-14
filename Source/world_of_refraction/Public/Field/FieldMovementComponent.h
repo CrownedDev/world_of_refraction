@@ -11,6 +11,8 @@
 // B-214d (FieldMovementFlight.cpp): Flight, toggled; EP per second (hovering when still), a height ceiling above the
 // take-off ground and Zone.NoFly volumes, each liftable by effects (FFieldFlightLimits).
 // B-214e (FieldMovementAdvanced.cpp): Teleport (Void), Phase step, Mark and recall, Super launch, Regroup.
+// B-214f (FieldMovementAttack.cpp): the field attack: a swing ahead; hitting an encounter starts its fight with first
+// strike and the hit's buildup (element of the switchable attack source, the weapon's physical type, Ice held with Water).
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
 
 #pragma once
@@ -146,6 +148,28 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	bool HasRecallMark() const { return bHasRecallMark; }
 
+	// ---- B-214f: the field attack ----
+
+	/** A swing ahead (bHeld: the attack was held). Striking an encounter starts its fight (UEncounterComponent::
+	 *  StrikeFromField); a miss is just a swing. Refused on cooldown. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal FieldAttack(bool bHeld);
+
+	/** The field attack's source: Innate -> Weapon -> Ring (IA_Field_SwitchSource). */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	void SwitchFieldAttackSource();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	EFieldSkillSource GetFieldAttackSource() const { return FieldAttackSource; }
+
+	/** The weapon in hand's attack type (its WeaponAttack's), None with no weapon. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	EPhysicalDamageType GetFieldAttackPhysicalType() const;
+
+	/** What a field hit now would carry (FieldSkillRules::MakeFieldStrike). */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldStrike GetFieldStrike(bool bHeld) const;
+
 	/** Server: copies the party record's choice into the replicated mirror (after the leader is rebound). */
 	void RefreshFromRecord();
 
@@ -166,6 +190,12 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerActivateFieldSkill();
+
+	UFUNCTION(Server, Reliable)
+	void ServerFieldAttack(bool bHeld);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSwitchFieldAttackSource();
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetActiveFieldSkill(EFieldSkillSource Source, EFieldMovementType Type);
@@ -274,6 +304,12 @@ private:
 
 	/** Super launch glides from the top of its rise (no glide EP). */
 	bool bSuperLaunchGlidePending = false;
+
+	/** B-214f: the field attack's source (the weapon by default: the hit is a weapon swing). */
+	UPROPERTY(Replicated)
+	EFieldSkillSource FieldAttackSource = EFieldSkillSource::Weapon;
+
+	double LastFieldAttackTime = -FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
 
 	/** When each advanced move was last used (its cooldown). */
 	TMap<EFieldMovementType, double> LastAdvancedUseTime;

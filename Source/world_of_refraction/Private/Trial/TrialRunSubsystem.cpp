@@ -125,6 +125,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
+    PendingFieldStrike = FFieldStrike(); // B-214f
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
     PendingEnemyTierSteps.Reset();
@@ -249,6 +250,7 @@ void UTrialRunSubsystem::ExitTrial()
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
+    PendingFieldStrike = FFieldStrike(); // B-214f
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
     PendingEnemyTierSteps.Reset();
@@ -344,6 +346,7 @@ void UTrialRunSubsystem::ExitEncounter()
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
+    PendingFieldStrike = FFieldStrike(); // B-214f
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
     PendingEnemyTierSteps.Reset();
@@ -806,6 +809,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     PendingEncounterSources.Reset();
     PendingEnemyRanks.Reset();
     PendingFirstStrike = EFirstStrike::None;
+    PendingFieldStrike = FFieldStrike(); // B-214f
     PendingZone = FEncounterZoneInfo();
     PendingTierSteps = 0; // B-187b
     PendingEnemyTierSteps.Reset();
