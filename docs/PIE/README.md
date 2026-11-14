@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-453c](B-453c.md) | `feature/B-453c-hold-to-confirm-cloud` (cloud, UNBUILT) | Settings: hold to confirm on / off (off: a second press quits or starts over) | Pending |
 | [B-453b](B-453b.md) | `feature/B-453b-fight-camera-movement-cloud` (cloud, UNBUILT) | Settings: camera movement in fights off / on, saved, read when a fight begins | Pending |
 | [B-453a](B-453a.md) | `feature/B-453a-screen-shake-cloud` (cloud, UNBUILT) | Settings: screen shake Full / Reduced / Off, saved, scales the fight camera's shake | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |
