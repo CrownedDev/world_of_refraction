@@ -270,6 +270,10 @@ private:
 	/** What the mouse is over, shown lit; true when it changed. */
 	bool SetHovered(int32 MemberChip, int32 TabChip, int32 Line);
 
+	/** B-476e: X Compare for any piece list (adapters, evolutions, sockets, apparel): the EQUIPPED line beside the
+	 *  highlighted one, each in its own words. */
+	FText BuildEquippedCompare() const;
+
 	/** B-476d: shows NewTab at its top level (the Skills tab's entries, else the list). */
 	void ShowTab(ELoadoutV2Tab NewTab);
 
