@@ -180,8 +180,10 @@ private:
 	/** The asset for QuestId among KnownQuests (null when not seen). */
 	const UHiddenQuestData *FindKnownQuest(FName QuestId) const;
 
-	/** B-397: shows Notice on this machine's screen only (this player's own) and keeps it as LastNotice. */
-	void ShowNotice(const FText &Notice);
+	/** B-397: shows Notice on this machine's screen only (this player's own) and keeps it as LastNotice. B-465b: as a
+	 *  reward popup too, bSecret masked and marked "only you see this"; MemoryTitle: a visible quest's end memory, shown
+	 *  as a gold memory popup by that title. */
+	void ShowNotice(const FText &Notice, bool bSecret, const FText &MemoryTitle = FText::GetEmpty());
 
 	FText LastNotice;
 };

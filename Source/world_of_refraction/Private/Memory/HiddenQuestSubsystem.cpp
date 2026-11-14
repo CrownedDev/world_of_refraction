@@ -20,6 +20,7 @@
 #include "Trial/TrialMapFeature.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "WoRLog.h"
+#include "UI/Trial/RewardNotices.h"
 
 #define LOCTEXT_NAMESPACE "HiddenQuest"
 
@@ -157,7 +158,7 @@ bool UHiddenQuestSubsystem::StartQuest(const UHiddenQuestData *Quest)
 	KnownQuests.Add(Quest->GetQuestId(), const_cast<UHiddenQuestData *>(Quest)); // B-388: the journal shows its title and goal
 	JustStarted.Add(Quest->GetQuestId()); // Q-377: the event that started it does not also do its first step
 	ReportToHost(); // B-377b: a client's host checks its steps
-	ShowNotice(Quest->IsVisible() ? HiddenQuestNotice::VisibleStarted(*Quest) : HiddenQuestNotice::HiddenFound());
+	ShowNotice(Quest->IsVisible() ? HiddenQuestNotice::VisibleStarted(*Quest) : HiddenQuestNotice::HiddenFound(), !Quest->IsVisible());
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s started (%d step(s))"), *Quest->GetQuestId().ToString(), Quest->Steps.Num());
 	if (Quest->Steps.IsEmpty())
 	{
@@ -231,7 +232,7 @@ bool UHiddenQuestSubsystem::CountStepMet(const UHiddenQuestData &Quest)
 	else
 	{
 		// B-388: the next goal; a hidden quest's notice is masked (Q-397b): its goal shows in the journal once revealed.
-		ShowNotice(Quest.IsVisible() ? HiddenQuestNotice::VisibleStepDone(Quest, Entry->StepsDone) : HiddenQuestNotice::HiddenStepDone());
+		ShowNotice(Quest.IsVisible() ? HiddenQuestNotice::VisibleStepDone(Quest, Entry->StepsDone) : HiddenQuestNotice::HiddenStepDone(), !Quest.IsVisible());
 	}
 	ReportToHost();
 	return true;
@@ -477,7 +478,7 @@ void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
 		TrackedQuest = NAME_None; // B-463b: a finished quest has no step to follow
 	}
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s finished"), *Quest.GetQuestId().ToString());
-	ShowNotice(Quest.IsVisible() ? HiddenQuestNotice::VisibleFinished(Quest) : HiddenQuestNotice::HiddenFinished()); // B-388; Q-397b masked
+	ShowNotice(Quest.IsVisible() ? HiddenQuestNotice::VisibleFinished(Quest) : HiddenQuestNotice::HiddenFinished(), !Quest.IsVisible()); // B-388; Q-397b masked
 	if (!Quest.EndMemory)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[HiddenQuest] %s has no end memory"), *Quest.GetQuestId().ToString());
@@ -495,7 +496,8 @@ void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
 	{
 		// Only once earned (D-171); a hidden quest's end memory is masked too (Q-397b, Crown 2026-11-12).
 		ShowNotice(Quest.IsVisible() ? FText::Format(LOCTEXT("QuestEnded", "New memory: {0}"), Quest.EndMemory->Title)
-									 : HiddenQuestNotice::HiddenNewMemory());
+									 : HiddenQuestNotice::HiddenNewMemory(),
+				   !Quest.IsVisible(), Quest.IsVisible() ? Quest.EndMemory->Title : FText::GetEmpty());
 	}
 }
 
@@ -605,10 +607,13 @@ const UHiddenQuestData *UHiddenQuestSubsystem::FindKnownQuest(FName QuestId) con
 	return Found ? Found->Get() : nullptr;
 }
 
-void UHiddenQuestSubsystem::ShowNotice(const FText &Notice)
+void UHiddenQuestSubsystem::ShowNotice(const FText &Notice, bool bSecret, const FText &MemoryTitle)
 {
 	LastNotice = Notice;
-	ATrialMapFeature::ShowMessage(Notice); // this machine's screen: a co-op friend's quests run (and notify) on theirs
+	// B-465b: this machine's popups (a co-op friend's quests run, and notify, on theirs). A secret quest's end memory
+	// stays masked (Q-397b): the secret quest popup, not a named memory.
+	WoRRewardNotice::Post(this, !MemoryTitle.IsEmpty() && !bSecret ? WoRRewardNotice::MakeMemory(MemoryTitle) : WoRRewardNotice::MakeQuest(Notice, bSecret));
+	ATrialMapFeature::ShowMessage(Notice); // OBSOLETE once the popups pass PIE: the debug line
 }
 
 namespace HiddenQuestJournal
