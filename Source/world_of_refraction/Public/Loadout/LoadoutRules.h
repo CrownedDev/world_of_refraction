@@ -59,7 +59,10 @@ enum class ELoadoutSlotType : uint8
 	AbilityOverflow,
 	ItemSlot,
 	UtilityCrystalTierCap,
-	EquippedSTierCrystal
+	EquippedSTierCrystal,
+	// B-410 (Q-098): a pick in a gem ability slot whose element the gem doesn't take. SlotIndex is the slot in the
+	// weapon's one skill list, SubIndex SECONDARY_WEAPON for a Generic's secondary; cleared by restoring the slot.
+	WeaponGemSkill
 };
 
 /** One actionable validation finding, produced by FLoadoutRules — the structured
