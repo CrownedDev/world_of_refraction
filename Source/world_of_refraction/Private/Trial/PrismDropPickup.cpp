@@ -12,6 +12,7 @@
 #include "GameFramework/PlayerStart.h"
 #include "Trial/DefeatRules.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Hub/HubHUDModel.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -141,13 +142,13 @@ FString APrismDropPickup::GetHintText() const
 	// B-235 (review): the hint shows this machine's player's own drop. Another player's drop (or a client, whose run
 	// holds no drops) gets the hint without an amount.
 	const int32 Amount = Run ? Run->GetDroppedPrisms() : 0;
-	if (Amount <= 0)
+	// B-491 (D-213): the prompt's own line: "E  Pick up · Prisms", or with this player's amount "E  Pick up · 120 Prisms".
+	FInteractPrompt Prompt = GetPrompt();
+	if (Amount > 0)
 	{
-		return FText::Format(LOCTEXT("HintNoAmount", "Press E to pick up dropped {0}"),
-							 WoRGameNames::GetCurrencyName(ECurrencyType::Gold)).ToString();
+		Prompt.What = FText::Format(LOCTEXT("HintAmount", "{0} {1}"), FText::AsNumber(Amount), Prompt.What);
 	}
-	return FText::Format(LOCTEXT("Hint", "Press E to pick up your {0} {1}"), FText::AsNumber(Amount),
-						 WoRGameNames::GetCurrencyName(ECurrencyType::Gold)).ToString();
+	return WoRHubHUD::FormatPromptLine(Prompt).ToString();
 }
 
 void APrismDropPickup::OnPickupBeginOverlap(UPrimitiveComponent * /*OverlappedComponent*/, AActor *OtherActor,
