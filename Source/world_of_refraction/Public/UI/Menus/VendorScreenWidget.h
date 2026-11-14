@@ -31,6 +31,7 @@
 class AActor;
 class APlayerController;
 class UBorder;
+class UImage;
 class UMerchantData;
 class UScrollBox;
 class UTextBlock;
@@ -108,6 +109,9 @@ private:
 		TWeakObjectPtr<UTextBlock> Tier;
 		TWeakObjectPtr<UTextBlock> Count;
 		TWeakObjectPtr<UTextBlock> Pay;
+		/** B-487: the row's icon before its name, and its tier badge in the tier letter's place. */
+		TWeakObjectPtr<UImage> Icon;
+		TWeakObjectPtr<UImage> TierBadge;
 	};
 
 	void BuildTree();
@@ -191,6 +195,13 @@ private:
 	TObjectPtr<UTextBlock> DetailPay;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailLines;
+	// B-487: the thing's effect sentence beside its effect icon (shown when the icon table has that icon).
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> DetailEffectRow;
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> DetailEffectIcon;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> DetailEffectText;
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> BuyForButton;
 	UPROPERTY(Transient)

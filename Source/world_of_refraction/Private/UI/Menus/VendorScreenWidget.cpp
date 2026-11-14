@@ -13,6 +13,7 @@
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/WoRIconTable.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -27,6 +28,9 @@ namespace VendorScreenStyle
 	constexpr float RowPadding = 15.0f;
 	constexpr float ElementMarkWidth = 9.0f;
 	constexpr float TierWidth = 60.0f;
+	// B-487: icon sizes.
+	constexpr float RowIconSize = 36.0f;
+	constexpr float TierBadgeSize = 28.0f;
 	constexpr float CountWidth = 75.0f;
 	constexpr float PayWidth = 300.0f;
 	// 20 marks must fit the row's words column (the list less the tier, count and pay columns: about 580).
@@ -162,6 +166,15 @@ void UVendorScreenWidget::BuildTree()
 	// Buy: what the thing is, and who it is bought for.
 	DetailLines = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 	AddToColumn(PanelColumn, DetailLines, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	// B-487: the thing's effect sentence beside its effect icon.
+	DetailEffectIcon = MakeIcon(WidgetTree, TierBadgeSize);
+	DetailEffectText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
+	UHorizontalBox *EffectRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	AddToRow(EffectRow, DetailEffectIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
+	AddToRow(EffectRow, DetailEffectText, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	DetailEffectRow = EffectRow;
+	AddToColumn(PanelColumn, EffectRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	SetShown(DetailEffectRow, false);
 	BuyForButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	BuyForButton->SetBrushColor(PlateColor);
 	BuyForButton->SetPadding(FMargin(RowPadding));
@@ -224,6 +237,8 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 
 	UBorder *ElementMark = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	AddToRow(Line, MakeSized(WidgetTree, ElementMarkWidth, 0.0f, ElementMark), FMargin(0.0f, 0.0f, RowPadding, 0.0f), VAlign_Fill);
+	UImage *Icon = MakeIcon(WidgetTree, RowIconSize); // B-487: a weapon's type, a crystal's element diamond
+	AddToRow(Line, Icon, FMargin(0.0f, 0.0f, RowPadding, 0.0f), VAlign_Center);
 	UVerticalBox *Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UTextBlock *Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
 	UTextBlock *Sub = MakeText(WidgetTree, SmallFontSize, DimColor);
@@ -240,7 +255,11 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	Widgets.PipRow = PipRow;
 	AddToRow(Line, Words)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	UTextBlock *Tier = MakeText(WidgetTree, LineFontSize, DimColor, true);
-	AddToRow(Line, MakeSized(WidgetTree, TierWidth, 0.0f, Tier));
+	UImage *TierBadge = MakeIcon(WidgetTree, TierBadgeSize); // B-487: in the tier letter's place when the icon table has it
+	UHorizontalBox *TierCell = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	AddToRow(TierCell, TierBadge);
+	AddToRow(TierCell, Tier);
+	AddToRow(Line, MakeSized(WidgetTree, TierWidth, 0.0f, TierCell));
 	UTextBlock *Count = MakeText(WidgetTree, LineFontSize, CyanColor, true);
 	AddToRow(Line, MakeSized(WidgetTree, CountWidth, 0.0f, Count));
 	UTextBlock *Pay = MakeText(WidgetTree, RowFontSize, TextColor, true);
@@ -258,6 +277,8 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	Widgets.Tier = Tier;
 	Widgets.Count = Count;
 	Widgets.Pay = Pay;
+	Widgets.Icon = Icon;
+	Widgets.TierBadge = TierBadge;
 	return Widgets;
 }
 
@@ -446,7 +467,11 @@ void UVendorScreenWidget::RefreshData()
 				Mark->SetBrushColor(Pip < Row.Slots ? CyanColor : Pip < Row.SlotsMax ? TrackColor : FLinearColor::Transparent);
 			}
 		}
-		Widgets.Tier->SetText(Row.Tier);
+		// B-487: the row's icon, and its tier as a badge when the icon table has it (else the letter, as before).
+		SetIcon(Widgets.Icon.Get(), WoRIcons::Find(Row.Icon), Row.Icon.Name);
+		const bool bTierBadge = SetIcon(Widgets.TierBadge.Get(), Row.bTierBadge ? WoRIcons::GetTierBadge(Row.TierValue) : nullptr,
+										FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Row.Tier));
+		Widgets.Tier->SetText(bTierBadge ? FText::GetEmpty() : Row.Tier);
 		// Sell and Dismantle: the stack's size. Buy: how many the cart holds, and a refused line still shows its price.
 		// Repair: how worn the piece is.
 		Widgets.Count->SetText(!Row.State.IsEmpty()						  ? Row.State
@@ -512,6 +537,9 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 
 	// Buy: what the thing is and does, and who it is bought for. Item slots: the pouch now and after.
 	TArray<FText> Lines;
+	// B-487: with an effect icon in the icon table, the effect sentence gets its own line beside it; else it stays the
+	// last of the lines, as before.
+	UTexture2D *EffectIcon = (bBuy || bSlots || bSpirit) && Focused && !Row.Note.IsEmpty() ? WoRIcons::Find(Row.EffectIcon) : nullptr;
 	if ((bBuy || bSlots || bSpirit) && Focused)
 	{
 		if ((bBuy || bSpirit) && !Row.Refusal.IsEmpty())
@@ -523,13 +551,16 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 		{
 			Lines.Add(FText::Format(LOCTEXT("DetailLine", "{0}:  {1}"), Detail.Label, Detail.Value));
 		}
-		if (!Row.Note.IsEmpty())
+		if (!Row.Note.IsEmpty() && !EffectIcon)
 		{
 			Lines.Add(Row.Note);
 		}
 	}
 	DetailLines->SetText(FText::Join(FText::FromString(TEXT("\n")), Lines));
 	SetShown(DetailLines, !Lines.IsEmpty());
+	SetIcon(DetailEffectIcon, EffectIcon, Row.EffectIcon.Name);
+	DetailEffectText->SetText(EffectIcon ? Row.Note : FText::GetEmpty());
+	SetShown(DetailEffectRow, EffectIcon != nullptr);
 	const bool bBuyFor = bBuy && Members.IsValidIndex(MemberIndex);
 	SetShown(BuyForButton, bBuyFor);
 	if (bBuyFor)

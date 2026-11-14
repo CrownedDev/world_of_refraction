@@ -3,6 +3,7 @@
 #include "UI/WoRIconTable.h"
 
 #include "Engine/Texture2D.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
@@ -201,6 +202,94 @@ UTexture2D *WoRIcons::GetEffectKind(ESkillEffectType Type, ESpellElement Element
 {
 	const UWoRIconTable *Table = UWoRIconTable::GetActive();
 	return Table ? Table->GetEffectKind(Type, Element) : nullptr;
+}
+
+UTexture2D *WoRIcons::Find(const FWoRIcon &Icon)
+{
+	switch (Icon.Kind)
+	{
+	case EWoRIconKind::WeaponType:
+		return GetWeaponType(Icon.WeaponType);
+	case EWoRIconKind::Element:
+		return GetElementBadge(Icon.Element);
+	case EWoRIconKind::EmptySocket:
+		return GetEmptySocket();
+	case EWoRIconKind::Stone:
+		return GetStoneSocket();
+	case EWoRIconKind::Effect:
+		return GetEffectKind(Icon.EffectType, Icon.Element);
+	case EWoRIconKind::None:
+	default:
+		return nullptr;
+	}
+}
+
+ESkillEffectType WoRIcons::GetItemEffectKind(EItemEffectType Type)
+{
+	switch (Type)
+	{
+	case EItemEffectType::Damage:
+		return ESkillEffectType::DOT; // the damage crystal (Garnet) burns
+	case EItemEffectType::Healing:
+		return ESkillEffectType::Heal;
+	case EItemEffectType::RestoreHealth:
+		return ESkillEffectType::HealthRestore;
+	case EItemEffectType::EnergyRestore:
+		return ESkillEffectType::EnergyRestore;
+	case EItemEffectType::DefyDeath:
+		return ESkillEffectType::LastStand;
+	case EItemEffectType::GrantBonusTurn:
+		return ESkillEffectType::ExtraAction;
+	case EItemEffectType::Silence:
+		return ESkillEffectType::Silenced;
+	case EItemEffectType::Cleanse:
+	case EItemEffectType::StatusClear:
+		return ESkillEffectType::Cleanse;
+	case EItemEffectType::Gamble:
+		return ESkillEffectType::RandomSkill;
+	case EItemEffectType::BuffRawDamage:
+		return ESkillEffectType::RawDamageBuff;
+	case EItemEffectType::BuffDefense:
+		return ESkillEffectType::DefenseBuff;
+	case EItemEffectType::BuffCrit:
+		return ESkillEffectType::CritChanceBuff;
+	case EItemEffectType::BuffStatusMultiplier:
+		return ESkillEffectType::StatusMultiplierBuff;
+	case EItemEffectType::BuffEfficiency:
+		return ESkillEffectType::EfficiencyBuff;
+	case EItemEffectType::BuffMaxHP:
+		return ESkillEffectType::MaxHPBuff;
+	case EItemEffectType::BuffMaxEP:
+		return ESkillEffectType::MaxEnergyBuff;
+	case EItemEffectType::BuffSpellDamage:
+		return ESkillEffectType::SpellDamageBuff;
+	case EItemEffectType::BuffResistance:
+		return ESkillEffectType::ResistanceBuff;
+	case EItemEffectType::BuffSpellSpeed:
+		return ESkillEffectType::SpellSpeedBuff;
+	case EItemEffectType::BuffActionSpeed:
+		return ESkillEffectType::ActionSpeedBuff;
+	case EItemEffectType::BuffLuck:
+		return ESkillEffectType::LuckBuff;
+	case EItemEffectType::BuffReflex:
+		return ESkillEffectType::ReflexBuff;
+	default:
+		return ESkillEffectType::None; // Repair, a crit-damage buff, the retired Turn Speed buff, None: no icon kind
+	}
+}
+
+FWoRIcon WoRIcons::MakeItemEffectIcon(const FCrystalId &Item)
+{
+	FWoRIcon Icon;
+	const ESkillEffectType Kind = GetItemEffectKind(ItemIdentity::GetItemEffectType(Item));
+	if (Kind != ESkillEffectType::None)
+	{
+		Icon.Kind = EWoRIconKind::Effect;
+		Icon.EffectType = Kind;
+		Icon.Element = ItemIdentity::GetElement(Item);
+		Icon.Name = StaticEnum<ESkillEffectType>()->GetDisplayNameTextByValue(static_cast<int64>(Kind));
+	}
+	return Icon;
 }
 
 void WoRIcons::SetActiveForTests(const UWoRIconTable *Table)

@@ -509,22 +509,7 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 
 UTexture2D *ULoadoutV2ScreenWidget::FindIcon(const FLoadoutV2Icon &Icon)
 {
-	switch (Icon.Kind)
-	{
-	case ELoadoutV2IconKind::WeaponType:
-		return WoRIcons::GetWeaponType(Icon.WeaponType);
-	case ELoadoutV2IconKind::Element:
-		return WoRIcons::GetElementBadge(Icon.Element);
-	case ELoadoutV2IconKind::EmptySocket:
-		return WoRIcons::GetEmptySocket();
-	case ELoadoutV2IconKind::Stone:
-		return WoRIcons::GetStoneSocket();
-	case ELoadoutV2IconKind::Effect:
-		return WoRIcons::GetEffectKind(Icon.EffectType, Icon.Element);
-	case ELoadoutV2IconKind::None:
-	default:
-		return nullptr;
-	}
+	return WoRIcons::Find(Icon); // B-487: the shared lookup
 }
 
 ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Line) const

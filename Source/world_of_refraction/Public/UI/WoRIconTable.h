@@ -17,9 +17,12 @@
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "UI/WoRIcon.h"
 #include "WoRIconTable.generated.h"
 
 class UTexture2D;
+struct FCrystalId;
+enum class EItemEffectType : uint8;
 
 /** An effect kind's icon: one for any element, and its variants in an element's colour ("Fire Amp", "Water resistance"). */
 USTRUCT(BlueprintType)
@@ -89,6 +92,16 @@ namespace WoRIcons
 	WORLD_OF_REFRACTION_API UTexture2D *GetTierBadge(EItemTier Tier);
 	WORLD_OF_REFRACTION_API UTexture2D *GetWeaponType(EWeaponType Type);
 	WORLD_OF_REFRACTION_API UTexture2D *GetEffectKind(ESkillEffectType Type, ESpellElement Element = ESpellElement::None);
+
+	/** B-487: the texture for what Icon stands for; null for none (the caller keeps its text). */
+	WORLD_OF_REFRACTION_API UTexture2D *Find(const FWoRIcon &Icon);
+
+	/** B-487: the effect kind an item's use counts as, for the icon beside its effect sentence (a Garnet's burn is
+	 *  damage over time, a Sapphire's is the last stand); None for a use with no icon kind. */
+	WORLD_OF_REFRACTION_API ESkillEffectType GetItemEffectKind(EItemEffectType Type);
+
+	/** B-487: the icon of a crystal's or stone's effect: its kind, in the item's element. */
+	WORLD_OF_REFRACTION_API FWoRIcon MakeItemEffectIcon(const FCrystalId &Item);
 
 	/** Specs: use Table as the active one (null: back to the asset). */
 	WORLD_OF_REFRACTION_API void SetActiveForTests(const UWoRIconTable *Table);

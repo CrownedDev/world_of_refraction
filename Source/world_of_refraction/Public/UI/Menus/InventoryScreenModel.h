@@ -17,6 +17,7 @@
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/WoRIcon.h"
 
 enum class EInventoryScreenTab : uint8
 {
@@ -76,6 +77,12 @@ struct FInventoryScreenTile
 	TArray<FLoadoutScreenDetail> Details;
 	/** What the thing does, or a rule worth saying; may be empty. */
 	FText Note;
+	/** B-487: the tile's icon in place of its letter (a weapon's type, a crystal's or evolution's element diamond, a
+	 *  stone), whether its tier shows as a badge (crystals, stones, evolutions), and the icon beside Note when Note is
+	 *  an item's effect. The widget asks the icon table; with no icon the letter and the words stay. */
+	FWoRIcon Icon;
+	bool bTierBadge = false;
+	FWoRIcon EffectIcon;
 };
 
 struct FInventoryScreenPage

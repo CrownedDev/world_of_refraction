@@ -20,6 +20,7 @@
 
 class APlayerController;
 class UBorder;
+class UImage;
 class UScrollBox;
 class UTextBlock;
 class UUniformGridPanel;
@@ -99,6 +100,9 @@ private:
 		TWeakObjectPtr<UTextBlock> Mark;
 		TWeakObjectPtr<UTextBlock> Worn;
 		TWeakObjectPtr<UTextBlock> Count;
+		/** B-487: the tile's icon in the letter's place, and its tier badge (hidden until the icon table has them). */
+		TWeakObjectPtr<UImage> Icon;
+		TWeakObjectPtr<UImage> TierBadge;
 	};
 
 	/** One line of the verb menu or of "Give to". */
@@ -180,6 +184,15 @@ private:
 	TArray<TObjectPtr<UTextBlock>> DetailValues;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailNote;
+	// B-487: the focused thing's icon before its name, its tier badge after it, and its effect's icon beside the note.
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> DetailIcon;
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> DetailTierBadge;
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> DetailEffectIcon;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> DetailNoteRow;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> ChoiceHeading;
 	UPROPERTY(Transient)
