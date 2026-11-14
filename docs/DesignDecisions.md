@@ -877,6 +877,15 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-465b — Reward popups: how many, how long, in what order
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-465b, UIScreens #25, FeelGuide 6) · **Blocks:** —
+**Question:** the mockup shows popups stacking and fading; how many at once, for how long, in what order, and what happens to them while a menu is open?
+**Answer**, by the reference-backed default (Crown may change any):
+- **Up to 5 on screen, each for about 5 seconds, fading over its last second; the rest wait their turn** (at most 16 wait; past that the oldest goes). Hades' boon and resource toasts and Elden Ring's item pickups stay a few seconds, stack a handful and never need a press; both are praised for not stopping play.
+- **A batch shows the win first, then levels, memories, quests, secret quests** (the order of what matters most to least, as Expedition 33's post-fight pickups list currency first).
+- **While a menu is open the popups hide with the HUD and keep counting down.** Elden Ring and Hades keep pickups behind menus too.
+- **A win shows no results screen at all**: the old screen's VICTORY, turns and survivors lines go (FeelGuide 6).
+
 ### Q-459b — Play together: friend status, seats and the session row
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-459b, D-200, D-181) · **Blocks:** —
 **Question:** the mockup shows each friend's presence (online, in another game, offline) and portraits by the seats; the friends list the code reads gives names only, and LAN has no list.
