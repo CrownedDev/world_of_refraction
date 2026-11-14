@@ -11,9 +11,8 @@
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/MenuScreenStyle.h"
-#include "UI/Party/InviteWidget.h"
+#include "UI/Coop/InviteScreenWidget.h"
 #include "UI/WoRRootLayout.h"
-#include "Widgets/CommonActivatableWidgetContainer.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -342,18 +341,7 @@ void UPartyScreenWidget::PressChange()
 {
 	if (IsInviteRow(SelectedRow))
 	{
-		// TODO: B-459, the co-op Invite screen. The placeholder sets its own input mode, so it opens only once the
-		// root layout has closed every menu (as the pause menu's placeholders did).
-		const TWeakObjectPtr<APlayerController> WeakPC = GetOwningPlayer();
-		const AWoRHubController *Hub = Cast<AWoRHubController>(WeakPC.Get());
-		if (UWoRRootLayout *Root = Hub ? Hub->GetRootLayout() : nullptr)
-		{
-			Root->RunWhenAllClosed([WeakPC]() { UInviteWidget::Open(WeakPC.Get()); });
-			if (UCommonActivatableWidgetStack *Menus = Root->GetLayerStack(EWoRUILayer::Menu))
-			{
-				Menus->ClearWidgets(); // this screen and the game menu under it
-			}
-		}
+		UInviteScreenWidget::Open(GetOwningPlayer()); // B-459b, over this screen: Back returns here
 		return;
 	}
 	Message = WoRPartyScreen::ToggleSeat(GetWorld(), SelectedRow);

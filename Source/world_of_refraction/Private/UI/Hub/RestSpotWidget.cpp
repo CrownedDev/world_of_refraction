@@ -21,6 +21,7 @@
 #include "Trial/TrialRunSubsystem.h"
 #include "Online/HostSuccession.h"
 #include "UI/Coop/HandOverConfirmWidget.h"
+#include "UI/Coop/InviteScreenWidget.h"
 #include "UI/Hub/InventoryWidget.h"
 #include "UI/Hub/LevelDropWidget.h"
 #include "UI/Party/InviteWidget.h"
@@ -373,7 +374,11 @@ void URestSpotWidget::HandleInviteClicked()
 {
 	APlayerController *PC = GetOwningPlayer();
 	CloseMenu(); // not StepAway: the party stays at the rest spot while friends are seated
-	UInviteWidget::Open(PC);
+	// B-459b: Play together; the old placeholder only where that screen can't open (no root layout).
+	if (!UInviteScreenWidget::Open(PC))
+	{
+		UInviteWidget::Open(PC);
+	}
 }
 
 void URestSpotWidget::HandleCloseClicked()
