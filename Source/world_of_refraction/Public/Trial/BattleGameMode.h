@@ -20,6 +20,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "GameFramework/GameModeBase.h"
 #include "Memory/MemoryConditions.h"
+#include "Trial/DefeatRules.h"
 #include "BattleGameMode.generated.h"
 
 class UCharacterData;
@@ -121,6 +122,16 @@ private:
     /** B-362 (per fight, D-064): this fight's wipe ended the run (3 main-boss losses or 5 wipes), so ReturnToTrial
      *  leaves for the hub, not the trial. */
     bool bWipeEndsRun = false;
+
+    /** B-450 (D-187, per fight): the name of the last opponent that felled a party member (the wipe card names it). */
+    FText LastBlowBy;
+
+public:
+    /** B-450: this fight's wipe result (empty until a wipe), for the wipe card (B-465). */
+    const WoRDefeat::FWipeResult &GetLastWipeResult() const { return LastWipeResult; }
+
+private:
+    WoRDefeat::FWipeResult LastWipeResult;
 
     /** B-209 (Q-209d): a party member's skill and Breakthrough use count toward memory conditions. */
     UFUNCTION()

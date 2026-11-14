@@ -614,7 +614,8 @@ void ABattleGameMode::ApplyWipe()
         }
     }
     // TODO(D-103 co-op): GetLocalParty is the server's side; every player's members should pay once co-op fights land.
-    bWipeEndsRun = WoRDefeat::ApplyWipe(GetWorld(), TrialRun->GetPendingRank(), MemberKeys).bRunEnds;
+    LastWipeResult = WoRDefeat::ApplyWipe(GetWorld(), TrialRun->GetPendingRank(), MemberKeys, LastBlowBy);
+    bWipeEndsRun = LastWipeResult.bRunEnds;
     // Save the loss now: the next save point is leaving the results screen, and quitting there would undo the wipe.
     if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
     {
@@ -676,6 +677,15 @@ void ABattleGameMode::HandleTargetKilled(AActor *Killer, AActor *Victim)
     {
         MemoryConditions::RecordKill(FightUsage.FindOrAdd(Killer), Killer);
         AddHiddenCount(Killer, HiddenCounters::KILLS); // B-379
+    }
+    // B-450 (D-187): the last party member's fall names who felled it; an unknown or own-side blow names no one.
+    if (PartyStartHP.Contains(Victim))
+    {
+        const bool bByFoe = Killer && !PartyStartHP.Contains(Killer);
+        const UCharacterDataComponent *KillerData = bByFoe ? Killer->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        LastBlowBy = !bByFoe ? FText::GetEmpty()
+                     : KillerData && KillerData->CharacterData ? FText::FromString(KillerData->CharacterData->Name)
+                                                               : FText::FromString(Killer->GetName());
     }
 }
 

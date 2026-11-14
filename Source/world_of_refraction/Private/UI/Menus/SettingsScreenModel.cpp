@@ -106,7 +106,7 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Rows.Add(NotBuilt(ESettingId::CornerHints, LOCTEXT("CornerHints", "Button hints in the corner"),
 						  LOCTEXT("CornerHintsExplain", "Shows which button does what, in the corner of the screen.")));
 		Rows.Add(NotBuilt(ESettingId::BossCinematics, LOCTEXT("BossCinematics", "Boss cinematics"),
-						  LOCTEXT("BossCinematicsExplain", "Plays the short scene when a boss appears or changes phase. They can always be skipped.")));
+						  LOCTEXT("BossCinematicsExplain", "Plays the short scene when a great foe appears or changes phase. They can always be skipped.")));
 		Rows.Add(NotBuilt(ESettingId::AIFinishesTurn, LOCTEXT("AIFinishesTurn", "AI finishes my turn when I idle"),
 						  LOCTEXT("AIFinishesTurnExplain", "If you don't act for a while, the AI plays the rest of your turn.")));
 		Rows.Add(NotBuilt(ESettingId::TutorialTips, LOCTEXT("TutorialTips", "Tutorial tips"),
@@ -167,7 +167,7 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Key(LOCTEXT("KeyDefend", "Defend"), LOCTEXT("KeyDefendKB", "G"), LOCTEXT("KeyDefendPad", "Y")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionSource", "Infusion source"), LOCTEXT("KeyInfusionSourceKB", "R"), LOCTEXT("KeyInfusionSourcePad", "LB")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionLevel", "Infusion level"), LOCTEXT("KeyInfusionLevelKB", "T"), LOCTEXT("KeyInfusionLevelPad", "RB")));
-	Rows.Add(Key(LOCTEXT("KeySkipCinematic", "Skip a boss cinematic"), LOCTEXT("KeySkipCinematicKB", "Tab"), LOCTEXT("KeySkipCinematicPad", "Menu")));
+	Rows.Add(Key(LOCTEXT("KeySkipCinematic", "Skip a cinematic"), LOCTEXT("KeySkipCinematicKB", "Tab"), LOCTEXT("KeySkipCinematicPad", "Menu")));
 
 	Rows.Add(Heading(LOCTEXT("SectionMenus", "Menus")));
 	Rows.Add(Key(LOCTEXT("KeyMenuMove", "Move"), LOCTEXT("KeyMenuMoveKB", "Arrows, W / S"), LOCTEXT("KeyMenuMovePad", "D-pad, left stick")));

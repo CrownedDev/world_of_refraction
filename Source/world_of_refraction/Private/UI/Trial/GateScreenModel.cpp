@@ -105,10 +105,10 @@ FGateScreenPage WoRGateScreen::BuildPage(UWorld *World, const TArray<UTrialData 
 		Row.ClassName = Member.ClassName;
 		Row.PlayedBy = Member.bAISeat ? FText::GetEmpty() : LOCTEXT("You", "You"); // D-191: an AI seat shows nothing
 	}
-	Page.WipesLine = FText::Format(LOCTEXT("WipesLine", "{0}  ({1} at the boss)"), FText::AsNumber(DefeatRules::MAX_WIPES_PER_RUN),
+	Page.WipesLine = FText::Format(LOCTEXT("WipesLine", "{0}  ({1} in the final fight)"), FText::AsNumber(DefeatRules::MAX_WIPES_PER_RUN),
 								   FText::AsNumber(DefeatRules::MAX_MAIN_BOSS_LOSSES_PER_RUN));
 	Page.DifficultyNote = LOCTEXT("DifficultyNote", "Enemies hit harder and fight smarter; they don't get more HP. You can't change this once inside.");
-	Page.RunNote = LOCTEXT("RunNote", "To leave a trial with your rewards, extract at a rest spot.");
+	Page.RunNote = LOCTEXT("RunNote", "To leave a trial with your rewards, extract at a rest spot left where a great foe fell.");
 	return Page;
 }
 
