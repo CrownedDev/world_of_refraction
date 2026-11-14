@@ -46,6 +46,7 @@ struct FMerchantStockEntry;
 class UTrialData;
 class UWorld;
 struct FActorsInitializedParams;
+enum class ERunEnding : uint8;
 
 namespace MiniBossRevival
 {
@@ -288,6 +289,11 @@ public:
      *  the tally so it can't be paid twice. Returns how many players were paid. */
     int32 PayRunEnd(UWorld *World);
 
+    /** B-465c (D-189): how the active run is ending, read at its end: quit, extracted (left at a rest spot), out of
+     *  wipes (or the third main-boss loss), else the boss beaten. False when none of these holds (no run, or the exit
+     *  taken without the boss): the end shows no run-end page. */
+    bool GetRunEnding(ERunEnding &OutEnding) const;
+
     /** B-073 / B-096: the payout multiplier (passives raise it); BASE 1.0. */
     float GetRunPayoutMultiplier() const { return PayoutMultiplier; } // not GetPayoutMultiplier: that is the difficulty's
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
@@ -466,6 +472,9 @@ private:
      *  (World->ServerTravel; the game modes set bUseSeamlessTravel); standalone keeps OpenLevel. A client
      *  doesn't travel on its own (it follows the server; its inputs reach the server with B-229). */
     void TravelTo(const TSoftObjectPtr<UWorld> &Level);
+
+    /** B-465c: the run-end page for this end (GetRunEnding), left on URewardNoticeSubsystem for the hub. */
+    void AnnounceRunEnd();
 
     /** The map ExitTrial returns to — authored in DefaultGame.ini. */
     UPROPERTY(Config)

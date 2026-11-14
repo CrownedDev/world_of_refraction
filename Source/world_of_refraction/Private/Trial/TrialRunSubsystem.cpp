@@ -7,6 +7,8 @@
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "Trial/DefeatRules.h"
+#include "UI/Trial/RewardNotices.h"
+#include "UI/Trial/RunEndModel.h"
 #include "WoRLog.h"
 
 #include "Character/CharacterData.h"
@@ -212,6 +214,8 @@ void UTrialRunSubsystem::ExitTrial()
         Save->ClearRunGold(GetGameInstance()->GetWorld());
     }
 
+    // B-465c (D-187, D-189): what the end pays, read before it pays, is the page the hub shows on arrival.
+    AnnounceRunEnd();
     // B-073 (D-006): the run's tally is paid now, win or lose, to every player in full (D-103).
     PayRunEnd(GetGameInstance()->GetWorld());
 
@@ -1078,6 +1082,52 @@ int32 UTrialRunSubsystem::PayRunEnd(UWorld *World)
     const int32 Paid = RunRewards::PayRunEndToPlayers(World, GetRunEndPayout());
     RunTally = FRunPayout();
     return Paid;
+}
+
+bool UTrialRunSubsystem::GetRunEnding(ERunEnding &OutEnding) const
+{
+    if (!IsRunActive())
+    {
+        return false;
+    }
+    if (bAbandoned)
+    {
+        OutEnding = ERunEnding::Quit;
+    }
+    else if (bLeavingEarly)
+    {
+        OutEnding = ERunEnding::Extracted;
+    }
+    else if (DefeatRules::RunEnds(RunWipes, RunMainBossLosses))
+    {
+        OutEnding = ERunEnding::OutOfWipes;
+    }
+    else if (bRunBossBeaten)
+    {
+        OutEnding = ERunEnding::BossBeaten;
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+void UTrialRunSubsystem::AnnounceRunEnd()
+{
+    ERunEnding Ending = ERunEnding::BossBeaten;
+    if (!GetRunEnding(Ending))
+    {
+        return;
+    }
+    URewardNoticeSubsystem *Notices = GetGameInstance()->GetSubsystem<URewardNoticeSubsystem>();
+    if (!Notices)
+    {
+        return;
+    }
+    const FRunEndPage Page = WoRRunEnd::BuildRunEnd(Ending, GetRunEndPayout(), RunMemories.Num());
+    Notices->SetRunEnd(Page);
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Run end for the hub: %s"), *WoRRunEnd::GetRunEndString(Page));
 }
 
 float UTrialRunSubsystem::RefreshPayoutMultiplier(const TArray<AActor *> &Fighters)
