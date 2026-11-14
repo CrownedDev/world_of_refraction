@@ -1269,10 +1269,11 @@ FText ULoadoutV2ScreenWidget::BuildEquippedCompare() const
 	{
 		return FText::GetEmpty();
 	}
-	// What a line is, in its own words: its line, else (an apparel piece) its HP / Defence / Amp details.
-	const auto Summary = [](const FLoadoutV2WindowItem &Item)
+	// What a line is, in its own words: an apparel piece by its HP / Defence / Amp details, anything else by its line.
+	const bool bApparel = Mode == ELoadoutV2Mode::ApparelItems;
+	const auto Summary = [bApparel](const FLoadoutV2WindowItem &Item)
 	{
-		if (!Item.Line.IsEmpty())
+		if (!bApparel || Item.Socket.Row.Details.IsEmpty())
 		{
 			return Item.Line;
 		}
