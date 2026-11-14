@@ -2144,17 +2144,22 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     }
 
     // Primary ring (Generic / Caster) — runtime entry
-    if (const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout())
+    const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout();
+    if (PrimaryRingLoadout)
     {
         AddAttachment(PrimaryRingLoadout->RingEntry.AttachedItem,
                       PrimaryRingLoadout->RingEntry.Ring, PrimaryRingLoadout->RingEntry.PersistentID);
     }
 
-    // Resonator ring loadout — every ring in the array, runtime entry
+    // Resonator ring loadout — every ring in the array, runtime entry. B-480: a Generic's adapter entry can be the
+    // primary ring above (its adapter in use), so it is listed once.
     const FCombatLoadout &ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
-        AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring, Entry.RingEntry.PersistentID);
+        if (&Entry != PrimaryRingLoadout)
+        {
+            AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring, Entry.RingEntry.PersistentID);
+        }
     }
 
     // Evolution crystal slot — no inventory entry, evolution IS the crystal.

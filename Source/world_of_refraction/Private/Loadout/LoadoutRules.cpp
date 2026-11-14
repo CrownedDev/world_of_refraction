@@ -675,7 +675,8 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 	const int32 TotalCost = GearCost + AdapterCost;
 	if (TotalCost > Limits.Budget)
 	{
-		const ELoadoutSlotType Clears = bDropsAdapters	   ? ELoadoutSlotType::RingOverflow
+		// A Generic's adapter entry goes first only when it costs something (dropping a free one changes nothing).
+		const ELoadoutSlotType Clears = bResonator || (bGenericAdapterEntry && AdapterCost > 0) ? ELoadoutSlotType::RingOverflow
 										: bGenericSecondary ? ELoadoutSlotType::SecondaryWeapon
 										: bRefractorStone	? ELoadoutSlotType::PrimaryStone
 															: ELoadoutSlotType::None;

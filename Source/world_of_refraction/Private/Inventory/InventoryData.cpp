@@ -255,7 +255,8 @@ void UInventoryData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
             Loadout.BDSpellPools.Empty();
         }
 
-        if (Loadout.RequiredClass != ECharacterClass::Resonator)
+        // B-480 (D-210): a Generic keeps its adapter entry beside its weapons; only a Refractor has none.
+        if (Loadout.RequiredClass == ECharacterClass::Caster)
         {
             Loadout.EquippedRings.Empty();
         }
