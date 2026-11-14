@@ -871,6 +871,11 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	 *  default: no save version bump (as B-170e). */
 	UPROPERTY()
 	uint8 ScreenShake = 0;
+
+	/** B-453b (D-190, D-078): camera movement in fights off (the motion-sickness switch: one still view, no cinematics
+	 *  when they follow the movement); false = moving, the default. An older save reads false: no bump. */
+	UPROPERTY()
+	bool bFightCameraStill = false;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */

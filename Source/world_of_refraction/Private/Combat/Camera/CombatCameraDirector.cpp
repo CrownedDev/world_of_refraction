@@ -91,6 +91,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	if (const USaveSubsystem *Save = FindSaveSubsystem(this))
 	{
 		TurnViewStyle = Save->GetTurnViewStyle(); // B-398: the player's setting, whichever orchestrator runs the fight
+		bCameraMovementOff = Save->IsFightCameraMovementOff(); // B-453b (D-190, D-078): the motion-sickness switch
 	}
 	bInCombat = true;
 	bActedSinceTurnStart = false; // B-404
@@ -275,6 +276,10 @@ void UCombatCameraDirector::SetTurnViewStyle(ETurnViewStyle NewStyle)
 void UCombatCameraDirector::SetCameraMovementOff(bool bOff)
 {
 	bCameraMovementOff = bOff;
+	if (USaveSubsystem *Save = FindSaveSubsystem(this))
+	{
+		Save->SetFightCameraMovementOff(bOff); // B-453b: kept for the next fight; on disk with the next save
+	}
 	if (bOff)
 	{
 		ClearDefenceHandOff(); // B-370: the static view stays (D-078)

@@ -1028,6 +1028,16 @@ void USaveSubsystem::SetScreenShakeLevel(EScreenShakeLevel Level)
 	SaveGame->Data.Settings.ScreenShake = static_cast<uint8>(Level);
 }
 
+bool USaveSubsystem::IsFightCameraMovementOff() const
+{
+	return SaveGame->Data.Settings.bFightCameraStill;
+}
+
+void USaveSubsystem::SetFightCameraMovementOff(bool bOff)
+{
+	SaveGame->Data.Settings.bFightCameraStill = bOff;
+}
+
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;

@@ -23,6 +23,8 @@ namespace
 	constexpr int32 SETTINGS_TEST_UNBUILT_ROW = 0;
 	/** B-453a: Accessibility's rows: battle controls, text size, camera movement, then screen shake. */
 	constexpr int32 SETTINGS_TEST_SCREEN_SHAKE_ROW = 3;
+	/** B-453b: camera movement in fights, the row before it. */
+	constexpr int32 SETTINGS_TEST_CAMERA_MOVEMENT_ROW = 2;
 }
 
 BEGIN_DEFINE_SPEC(FSettingsScreenSpec, "WoR.UI.Settings", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -125,6 +127,26 @@ void FSettingsScreenSpec::Define()
 		const float Reduced = FCombatCameraRules::GetScreenShakeScale(EScreenShakeLevel::Reduced);
 		TestTrue(TEXT("reduced is less, not none"), Reduced > 0.0f && Reduced < 1.0f);
 		Save->SetScreenShakeLevel(EScreenShakeLevel::Full); // the test world's save is shared; leave the default
+	});
+
+	It("switches camera movement in fights off and on, and the row follows (B-453b)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility);
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_CAMERA_MOVEMENT_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the camera movement row"), Rows[SETTINGS_TEST_CAMERA_MOVEMENT_ROW].Id == ESettingId::FightCameraMovement);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_CAMERA_MOVEMENT_ROW].CanChange());
+		Save->SetFightCameraMovementOff(false);
+		const FString On = WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility)[SETTINGS_TEST_CAMERA_MOVEMENT_ROW].Value.ToString();
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::FightCameraMovement, 1));
+		TestTrue(TEXT("off"), Save->IsFightCameraMovementOff());
+		TestNotEqual(TEXT("the row reads off"), WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility)[SETTINGS_TEST_CAMERA_MOVEMENT_ROW].Value.ToString(), On);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::FightCameraMovement, -1);
+		TestFalse(TEXT("on again"), Save->IsFightCameraMovementOff());
 	});
 
 	It("says a setting isn't built yet, and doesn't change it", [this]()

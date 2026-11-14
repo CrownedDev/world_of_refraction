@@ -170,6 +170,11 @@ public:
 	EScreenShakeLevel GetScreenShakeLevel() const;
 	void SetScreenShakeLevel(EScreenShakeLevel Level);
 
+	/** B-453b (D-190, D-078): camera movement in fights is off (default on). Kept in memory at once; written with the
+	 *  next save. UCombatCameraDirector reads it when a fight begins. */
+	bool IsFightCameraMovementOff() const;
+	void SetFightCameraMovementOff(bool bOff);
+
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 
 	/** bKeepVitals false saves no carried HP/EP, crystal wear or absorption: outside a run, a reload
