@@ -770,11 +770,13 @@ FText WoRGameNames::GetInteractVerbName(EInteractVerb Verb)
 
 FText WoRGameNames::GetRestServiceName(ERestService Service)
 {
-    // Placeholder words until the art names the objects (D-214: an anvil; a shrine; V himself or his mirror).
+    // Placeholder words until the art names the objects (D-214: an anvil; a ritual tree; a shrine; V himself or his mirror).
     switch (Service)
     {
     case ERestService::Blacksmith:
         return LOCTEXT("ERestService_Blacksmith", "Anvil");
+    case ERestService::Spiritualist:
+        return LOCTEXT("ERestService_Spiritualist", "Ritual tree");
     case ERestService::PillarShrine:
         return LOCTEXT("ERestService_PillarShrine", "Shrine");
     case ERestService::Extract:

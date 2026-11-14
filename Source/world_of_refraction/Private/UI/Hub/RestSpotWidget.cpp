@@ -115,8 +115,8 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		LevelUpButton->SetVisibility(bMenuOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Inventory", "Inventory"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInventoryClicked);
-		// B-502 (D-214): the anvil's blacksmith (the vendor's own name, D-178).
-		ServiceButton = RestSpotStyle::AddButton(WidgetTree, Box, WoRGameNames::GetMerchantTypeName(EMerchantType::Blacksmith));
+		// B-502 (D-214): a vendor rest point's shop (Refresh names it: the anvil's Blacksmith, the ritual tree's Spiritualist).
+		ServiceButton = RestSpotStyle::AddButton(WidgetTree, Box, FText::GetEmpty());
 		ServiceButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleServiceClicked);
 		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
@@ -203,7 +203,14 @@ void URestSpotWidget::Refresh()
 	}
 	if (ServiceButton)
 	{
-		ServiceButton->SetVisibility(Service == ERestService::Blacksmith ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		// An anvil's Blacksmith, a ritual tree's Spiritualist: the row carries the vendor's own name (D-178).
+		EMerchantType Vendor = EMerchantType::Blacksmith;
+		const bool bIsVendor = WoRRestSpot::GetServiceVendor(Service, Vendor);
+		ServiceButton->SetVisibility(bIsVendor ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (UTextBlock *ServiceLabel = bIsVendor ? Cast<UTextBlock>(ServiceButton->GetChildAt(0)) : nullptr)
+		{
+			ServiceLabel->SetText(WoRGameNames::GetMerchantTypeName(Vendor));
+		}
 	}
 	if (UTextBlock *LeaveLabel = LeaveButton ? Cast<UTextBlock>(LeaveButton->GetChildAt(0)) : nullptr)
 	{
@@ -379,7 +386,8 @@ void URestSpotWidget::HandleServiceClicked()
 	UGameInstance *GI = GetGameInstance();
 	WoRRestSpot::StepAway(GetWorld()); // as the inventory: the rest spot's levelling ends with its menu
 	CloseMenu();
-	if (!PC || !Here || Here->GetService() != ERestService::Blacksmith)
+	EMerchantType Vendor = EMerchantType::Blacksmith;
+	if (!PC || !Here || !WoRRestSpot::GetServiceVendor(Here->GetService(), Vendor))
 	{
 		return;
 	}
@@ -392,7 +400,7 @@ void URestSpotWidget::HandleServiceClicked()
 	}
 	else
 	{
-		UVendorScreenWidget::Open(PC, EMerchantType::Blacksmith);
+		UVendorScreenWidget::Open(PC, Vendor);
 	}
 }
 
