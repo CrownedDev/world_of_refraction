@@ -293,16 +293,19 @@ void ULoadoutScreenWidget::RefreshList()
 	if (HintsText)
 	{
 		HintsText->SetText(bPicking ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
-									: LOCTEXT("Hints", "A  Change        X  Unequip        LT / RT  Character        B / Esc  Back"));
+									: LOCTEXT("Hints", "A  Change        X  Unequip        Left / Right  Sockets        LT / RT  Character        B / Esc  Back"));
 	}
 	if (RefusalText && PickerTitle)
 	{
 		const FText Shown = Message.IsEmpty() ? Page.Refusal : Message;
 		RefusalText->SetText(Shown);
 		SetShown(RefusalText, !Shown.IsEmpty());
-		const FText RowName = Page.Rows.IsValidIndex(SelectedRow) ? Page.Rows[SelectedRow].Name : FText::GetEmpty();
-		PickerTitle->SetText(Choices.Num() > 0 ? FText::Format(LOCTEXT("PickerTitle", "In place of {0}:"), RowName)
-											   : LOCTEXT("PickerNothing", "Nothing you own fits here."));
+		const bool bHasRow = Page.Rows.IsValidIndex(SelectedRow);
+		const FText RowName = bHasRow ? Page.Rows[SelectedRow].Name : FText::GetEmpty();
+		const FText SocketName = bHasRow && Page.Rows[SelectedRow].Sockets.IsValidIndex(SelectedSocket) ? Page.Rows[SelectedRow].Sockets[SelectedSocket].Label : FText::GetEmpty();
+		PickerTitle->SetText(Choices.Num() == 0 ? LOCTEXT("PickerNothing", "Nothing you own fits here.")
+							 : bPickingSocket   ? FText::Format(LOCTEXT("PickerSocketTitle", "{0} · {1} socket:"), RowName, SocketName)
+												: FText::Format(LOCTEXT("PickerTitle", "In place of {0}:"), RowName));
 		SetShown(PickerTitle, bPicking);
 	}
 	RefreshBudget();
@@ -400,6 +403,14 @@ void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 		{
 			Frame->SetBrushColor(Index == Lit ? FocusColor : PlateColor);
 		}
+		for (int32 Socket = 0; Socket < RowWidgets[Index].SocketLabels.Num(); ++Socket)
+		{
+			if (UTextBlock *Label = RowWidgets[Index].SocketLabels[Socket].Get())
+			{
+				const bool bLitSocket = !bPicking && Index == Lit && Socket == SelectedSocket;
+				Label->SetColorAndOpacity(FSlateColor(bLitSocket ? CyanColor : DimColor)); // B-440c: the lit socket
+			}
+		}
 	}
 	RefreshBudget();
 	if (!DetailName)
@@ -423,7 +434,13 @@ void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 		}
 	}
 	DetailCostLine->SetText(Row.CostLine);
-	DetailNote->SetText(!Choice ? Row.Note
+	const bool bSocketLit = !bPicking && Row.Sockets.IsValidIndex(SelectedSocket);
+	const FText SocketNote = bSocketLit ? FText::Format(LOCTEXT("SocketNote", "{0} socket: {1}."), Row.Sockets[SelectedSocket].Label,
+														Row.Sockets[SelectedSocket].bEmpty ? LOCTEXT("SocketNoteEmpty", "empty, A fills it")
+																						   : Row.Sockets[SelectedSocket].Name)
+										: FText::GetEmpty();
+	DetailNote->SetText(bSocketLit ? SocketNote
+				: !Choice ? Row.Note
 				: !Choice->Refusal.IsEmpty() ? Choice->Refusal
 											  : FText::Format(LOCTEXT("BudgetAfter", "Budget after: {0} of {1}."), FText::AsNumber(Choice->NewSpent),
 															  FText::AsNumber(Page.Budget)));
@@ -453,6 +470,11 @@ void ULoadoutScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 		return;
 	}
 	(bPicking ? SelectedChoice : SelectedRow) = Index;
+	if (!bPicking)
+	{
+		SelectedSocket = INDEX_NONE; // a new row is lit as a whole
+	}
+	bTakeOffArmed = false;
 	if (!Message.IsEmpty())
 	{
 		Message = FText::GetEmpty(); // a refusal belongs to the line it was about
@@ -469,7 +491,10 @@ void ULoadoutScreenWidget::MoveMember(int32 Delta)
 	}
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
 	SelectedRow = 0;
+	SelectedSocket = INDEX_NONE;
 	bPicking = false;
+	bPickingSocket = false;
+	bTakeOffArmed = false;
 	Message = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
@@ -482,6 +507,22 @@ void ULoadoutScreenWidget::PressChange()
 		return;
 	}
 	const FLoadoutScreenRow &Row = Page.Rows[SelectedRow];
+	if (!bPicking && Row.Sockets.IsValidIndex(SelectedSocket))
+	{
+		// B-440c: a filled socket is emptied first (X), since taking a gem off destroys it (Q-440c).
+		Message = Row.Sockets[SelectedSocket].bEmpty ? FText::GetEmpty() : LOCTEXT("SocketTakeOffFirst", "Take what's in this socket off first (X).");
+		if (Message.IsEmpty())
+		{
+			Choices = WoRLoadoutScreen::BuildSocketChoices(GetWorld(), Members[MemberIndex], Row, SelectedSocket);
+			const int32 FirstAllowed = Choices.IndexOfByPredicate([](const FLoadoutScreenChoice &Choice) { return Choice.Refusal.IsEmpty(); });
+			SelectedChoice = FMath::Max(0, FirstAllowed);
+			bPicking = true;
+			bPickingSocket = true;
+		}
+		RefreshList();
+		RefreshSelection();
+		return;
+	}
 	if (!bPicking)
 	{
 		if (Row.Place == ELoadoutScreenPlace::None)
@@ -503,7 +544,8 @@ void ULoadoutScreenWidget::PressChange()
 	{
 		return;
 	}
-	Message = WoRLoadoutScreen::ApplyGearChoice(GetWorld(), Members[MemberIndex], Row, Choices[SelectedChoice]);
+	Message = bPickingSocket ? WoRLoadoutScreen::ApplySocketChoice(GetWorld(), Members[MemberIndex], Row, SelectedSocket, Choices[SelectedChoice])
+							 : WoRLoadoutScreen::ApplyGearChoice(GetWorld(), Members[MemberIndex], Row, Choices[SelectedChoice]);
 	if (Message.IsEmpty())
 	{
 		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutScreen] %s: %s put in place of %s"), *Members[MemberIndex].Name.ToString(),
@@ -521,6 +563,24 @@ void ULoadoutScreenWidget::PressUnequip()
 	{
 		return;
 	}
+	if (Page.Rows[SelectedRow].Sockets.IsValidIndex(SelectedSocket))
+	{
+		if (!bTakeOffArmed)
+		{
+			// Q-440c: the first X says what comes off; the second does it.
+			FText Refusal;
+			const FText Warning = WoRLoadoutScreen::GetTakeOffSocketWarning(Page.Rows[SelectedRow], SelectedSocket, Refusal);
+			bTakeOffArmed = !Warning.IsEmpty();
+			Message = bTakeOffArmed ? Warning : Refusal;
+			RefreshList();
+			return;
+		}
+		bTakeOffArmed = false;
+		Message = WoRLoadoutScreen::TakeOffSocket(GetWorld(), Members[MemberIndex], Page.Rows[SelectedRow], SelectedSocket);
+		RefreshData();
+		RefreshSelection();
+		return;
+	}
 	Message = Page.Rows[SelectedRow].Place == ELoadoutScreenPlace::None
 				  ? LOCTEXT("ApparelNotYet", "Apparel can't be changed here yet.")
 				  : WoRLoadoutScreen::UnequipRow(GetWorld(), Members[MemberIndex], Page.Rows[SelectedRow]);
@@ -528,9 +588,28 @@ void ULoadoutScreenWidget::PressUnequip()
 	RefreshSelection();
 }
 
+void ULoadoutScreenWidget::MoveSocket(int32 Delta)
+{
+	if (bPicking || !Page.Rows.IsValidIndex(SelectedRow))
+	{
+		return;
+	}
+	const FLoadoutScreenRow &Row = Page.Rows[SelectedRow];
+	const bool bHasSockets = (Row.Kind == ELoadoutScreenRowKind::Weapon || Row.Kind == ELoadoutScreenRowKind::Adapter) && Row.GearID.IsValid();
+	// The row itself, then each socket (apparel's socket is B-440f's).
+	const int32 Stops = bHasSockets ? Row.Sockets.Num() + 1 : 1;
+	const int32 Stop = ((SelectedSocket + 1 + Delta) % Stops + Stops) % Stops;
+	SelectedSocket = Stop - 1;
+	bTakeOffArmed = false;
+	Message = FText::GetEmpty();
+	RefreshList();
+	RefreshSelection(false);
+}
+
 void ULoadoutScreenWidget::ClosePicker()
 {
 	bPicking = false;
+	bPickingSocket = false;
 	Choices.Reset();
 	SelectedChoice = 0;
 	RefreshData(); // the page after the change, if one went in
@@ -568,6 +647,11 @@ FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 		{
 			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
 		}
+		return FReply::Handled();
+	}
+	if (IsLeftKey(Key) || IsRightKey(Key))
+	{
+		MoveSocket(IsRightKey(Key) ? 1 : -1);
 		return FReply::Handled();
 	}
 	if (IsConfirmKey(Key) || IsToggleKey(Key))
