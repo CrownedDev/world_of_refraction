@@ -26,10 +26,6 @@ struct WORLD_OF_REFRACTION_API FSpellImpactPlan
 
 namespace SpellImpactPlan
 {
-	/** wor.Combat.PerImpactDefense (default 1): B-032d's widened spell gate, the fallback impacts, the per-impact close,
-	 *  and spell windows left open past the animation's end. 0 = the lumped path, for comparison until B-032b. */
-	WORLD_OF_REFRACTION_API bool IsPerImpactDefenseOn();
-
 	/** Arrivals on each target from one cast entry: a projectile entry's Count (at least 1), else 1. */
 	WORLD_OF_REFRACTION_API int32 ArrivalsOf(const FSkillCastEntry &Entry);
 
@@ -39,7 +35,7 @@ namespace SpellImpactPlan
 	/** The shape B-032 already resolved per impact: exactly one cast entry and HitCount 1. */
 	WORLD_OF_REFRACTION_API bool IsSingleEntrySingleHit(const USpellData &Spell);
 
-	/** The shapes B-032d adds (wor.Combat.PerImpactDefense): an offensive spell that is not single-entry single-hit. */
+	/** The shapes B-032d adds: an offensive spell that is not single-entry single-hit. */
 	WORLD_OF_REFRACTION_API bool IsWidened(const USpellData &Spell);
 
 	/** The cast entry an impact ordinal belongs to, counting each entry's arrivals in CastArray order (a burst's
@@ -51,6 +47,7 @@ namespace SpellImpactPlan
 	 *  formula ResolveImpactDefense and the per-impact close tail both use. */
 	WORLD_OF_REFRACTION_API int32 ImpactBaseSlice(int32 BaseDamage, int32 ImpactCount, const TArray<float> &SplitPercents, int32 ImpactIndex);
 
-	/** "Name: N impacts per target (E cast entries, HitCount H, split), per impact | lumped" for logs and the console. */
-	WORLD_OF_REFRACTION_API FString GetPlanString(const USpellData &Spell, bool bPerImpactDefenseOn);
+	/** "Name: N impacts per target (E cast entries, HitCount H, split), per impact | at the window's close" for logs
+	 *  and the console. */
+	WORLD_OF_REFRACTION_API FString GetPlanString(const USpellData &Spell);
 }

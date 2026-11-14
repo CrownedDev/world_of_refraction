@@ -29,19 +29,16 @@
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Inventory/ItemExecutor.h"
-#include "Equipment/Weapons/WeaponManager.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
 #include "TimerManager.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
-#include "Equipment/Rings/RingManager.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Combat/Defense/DefenseSystem.h"
@@ -492,7 +489,7 @@ void UActionExecutor::ResolveImpactFrame(int32 Index)
 					: FDefenseDifficultyTriple();
 			ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
 			StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
-			ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
+			ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index);
 		}
 		// Hybrid B2 interrupt: if THIS impact was authored interruptable and EVERY targeted defender
 		// parried/dodged it, abort the rest of the attack. Checked HERE — after all defenders resolved

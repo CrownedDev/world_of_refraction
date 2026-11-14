@@ -1,7 +1,7 @@
 // DurabilityHeaderWidget.h
 // Read-only header at the top of the combat command menu.
 // Shows the active character's durability resources (ring, weapon).
-// Updates per-cast via RingManager / WeaponManager delegates.
+// Updates per-cast via UCrystalManager delegates.
 
 #pragma once
 

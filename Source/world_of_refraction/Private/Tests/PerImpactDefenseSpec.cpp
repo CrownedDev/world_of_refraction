@@ -1,9 +1,9 @@
 // PerImpactDefenseSpec.cpp
-// B-032d (Q-032d): per-impact defense for every spell shape (wor.Combat.PerImpactDefense). A spell's impacts are its
+// B-032d (Q-032d): per-impact defense for every spell shape (the only path since B-032b). A spell's impacts are its
 // arrivals on each target, summed over its cast entries (SpellImpactPlan); each one is defended on its own, so a
 // guard on the first impact leaves the second untouched. A window that times out lands its impacts one by one, an
 // ability whose animation ends before its Impact notifies lands the rest as fallback impacts, and when nothing is
-// defended a multi-hit spell deals the same hits as the lumped path did. A spell's window stays open past the cast
+// defended a support spell of several hits (timer close) lands the same hits at its close. A spell's window stays open past the cast
 // animation for projectiles still flying. Cast headless as in WoR.GAS.Abilities
 // (montage-less skills, wor.Combat.InstantImpacts 1); the foe is player-driven, so no defense is rolled for it.
 // Through the running ability (wor.Abilities.UseGAS 1) every arrival is still taken exactly once (B-043d/e).
@@ -259,12 +259,11 @@ BEGIN_DEFINE_SPEC(FPerImpactDefenseSpec, "WoR.Combat.PerImpactDefense",
 		return true;
 	}
 
-	/** Hero uses Skill on the foe at one wor.Combat.PerImpactDefense value, until the turn moves on. */
-	FCastOutcome RunCast(USkillDataBase *Skill, bool bPerImpact, ECastTwist Twist = ECastTwist::None, float Range = PER_IMPACT_SPEC_DUEL_RANGE,
+	/** Hero uses Skill on the foe, until the turn moves on. */
+	FCastOutcome RunCast(USkillDataBase *Skill, ECastTwist Twist = ECastTwist::None, float Range = PER_IMPACT_SPEC_DUEL_RANGE,
 						 bool bThroughAbility = false)
 	{
 		FCastOutcome Outcome;
-		SetPerImpactSpecCVar(TEXT("wor.Combat.PerImpactDefense"), bPerImpact ? 1 : 0);
 		AActor *Hero = nullptr;
 		AActor *Foe = nullptr;
 		if (!Skill || !StartDuel(Range, Hero, Foe, bThroughAbility))
@@ -369,7 +368,6 @@ void FPerImpactDefenseSpec::Define()
 	AfterEach([this]()
 	{
 		WoRSkillAbilities::SetUsesAbilities(false);
-		SetPerImpactSpecCVar(TEXT("wor.Combat.PerImpactDefense"), 1);
 		SetPerImpactSpecCVar(TEXT("wor.Combat.InstantImpacts"), 0);
 		SetPerImpactSpecCVar(TEXT("wor.Battle.Seed"), 0);
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
@@ -456,25 +454,23 @@ void FPerImpactDefenseSpec::Define()
 
 	Describe("casts", [this]()
 	{
-		It("opens one defense per impact for a 2-hit spell (none on the lumped path)", [this]()
+		It("opens one defense per impact for a 2-hit spell", [this]()
 		{
 			Spell = MakeTwoHitSpell();
-			const FCastOutcome PerImpact = RunCast(Spell, /*bPerImpact*/ true);
-			const FCastOutcome Lumped = RunCast(Spell, /*bPerImpact*/ false);
-			if (!TestCastLanded(TEXT("Per impact"), PerImpact) || !TestCastLanded(TEXT("Lumped"), Lumped))
+			const FCastOutcome PerImpact = RunCast(Spell);
+			if (!TestCastLanded(TEXT("Per impact"), PerImpact))
 			{
 				return;
 			}
 			TestEqual(TEXT("Two impacts defended, in order"), PerImpact.DefendedImpacts, TArray<int32>({0, 1}));
 			TestEqual(TEXT("Two hits"), PerImpact.Hits.Num(), PER_IMPACT_SPEC_TWO_IMPACTS);
-			TestEqual(TEXT("The lumped path resolves no impact on its own"), Lumped.DefendedImpacts.Num(), 0);
 			TestTrue(TEXT("The turn moved on"), PerImpact.bTurnMovedOn);
 		});
 
 		It("opens one defense per impact for a 2-entry spell", [this]()
 		{
 			Spell = MakeSpell({MakeCastEntry(ESpellDeliveryType::AOE), MakeCastEntry(ESpellDeliveryType::AOE)}, /*HitCount*/ 1);
-			const FCastOutcome PerImpact = RunCast(Spell, /*bPerImpact*/ true);
+			const FCastOutcome PerImpact = RunCast(Spell);
 			if (!TestCastLanded(TEXT("Per impact"), PerImpact))
 			{
 				return;
@@ -487,8 +483,8 @@ void FPerImpactDefenseSpec::Define()
 		It("lets a guard on impact 1 leave impact 2 untouched", [this]()
 		{
 			Spell = MakeTwoHitSpell();
-			const FCastOutcome Plain = RunCast(Spell, /*bPerImpact*/ true, ECastTwist::None, PER_IMPACT_SPEC_CLOSE_RANGE);
-			const FCastOutcome Guarded = RunCast(Spell, /*bPerImpact*/ true, ECastTwist::GuardAtCast, PER_IMPACT_SPEC_CLOSE_RANGE);
+			const FCastOutcome Plain = RunCast(Spell, ECastTwist::None, PER_IMPACT_SPEC_CLOSE_RANGE);
+			const FCastOutcome Guarded = RunCast(Spell, ECastTwist::GuardAtCast, PER_IMPACT_SPEC_CLOSE_RANGE);
 			if (!TestCastLanded(TEXT("Plain"), Plain) || !TestCastLanded(TEXT("Guarded"), Guarded) ||
 				!TestEqual(TEXT("Two impacts resolved"), Guarded.Defenses.Num(), PER_IMPACT_SPEC_TWO_IMPACTS))
 			{
@@ -506,8 +502,8 @@ void FPerImpactDefenseSpec::Define()
 		It("lands each impact when the action times out", [this]()
 		{
 			Spell = MakeTwoHitSpell();
-			const FCastOutcome Arrived = RunCast(Spell, /*bPerImpact*/ true);
-			const FCastOutcome TimedOut = RunCast(Spell, /*bPerImpact*/ true, ECastTwist::ShootDown);
+			const FCastOutcome Arrived = RunCast(Spell);
+			const FCastOutcome TimedOut = RunCast(Spell, ECastTwist::ShootDown);
 			if (!TestCastLanded(TEXT("Arrived"), Arrived) || !TestCastLanded(TEXT("Timed out"), TimedOut))
 			{
 				return;
@@ -521,8 +517,8 @@ void FPerImpactDefenseSpec::Define()
 		It("keeps a spell's window open past the cast animation for projectiles still flying", [this]()
 		{
 			Spell = MakeTwoHitSpell();
-			const FCastOutcome Arrived = RunCast(Spell, /*bPerImpact*/ true);
-			const FCastOutcome EndedEarly = RunCast(Spell, /*bPerImpact*/ true, ECastTwist::AnimationEndsInFlight);
+			const FCastOutcome Arrived = RunCast(Spell);
+			const FCastOutcome EndedEarly = RunCast(Spell, ECastTwist::AnimationEndsInFlight);
 			if (!TestCastLanded(TEXT("Arrived"), Arrived) || !TestCastLanded(TEXT("Animation ended in flight"), EndedEarly))
 			{
 				return;
@@ -539,8 +535,8 @@ void FPerImpactDefenseSpec::Define()
 				Spell = bTwoEntries ? MakeSpell({MakeCastEntry(ESpellDeliveryType::AOE), MakeCastEntry(ESpellDeliveryType::AOE)}, /*HitCount*/ 1)
 									: MakeTwoHitSpell();
 				const TCHAR *Shape = bTwoEntries ? TEXT("2-entry AOE") : TEXT("2-hit burst");
-				const FCastOutcome OldPath = RunCast(Spell, /*bPerImpact*/ true);
-				const FCastOutcome ThroughAbility = RunCast(Spell, /*bPerImpact*/ true, ECastTwist::None, PER_IMPACT_SPEC_DUEL_RANGE, /*bThroughAbility*/ true);
+				const FCastOutcome OldPath = RunCast(Spell);
+				const FCastOutcome ThroughAbility = RunCast(Spell, ECastTwist::None, PER_IMPACT_SPEC_DUEL_RANGE, /*bThroughAbility*/ true);
 				Spell->RemoveFromRoot();
 				Spell = nullptr;
 				if (!TestCastLanded(Shape, OldPath) || !TestCastLanded(Shape, ThroughAbility))
@@ -554,17 +550,19 @@ void FPerImpactDefenseSpec::Define()
 			}
 		});
 
-		It("deals the same hits as the lumped path when nothing is defended", [this]()
+		It("lands a 2-hit support spell's hits at its window's close, the same hits as the per-impact cast (B-032b)", [this]()
 		{
 			Spell = MakeTwoHitSpell();
-			const FCastOutcome PerImpact = RunCast(Spell, /*bPerImpact*/ true);
-			const FCastOutcome Lumped = RunCast(Spell, /*bPerImpact*/ false);
-			if (!TestCastLanded(TEXT("Per impact"), PerImpact) || !TestCastLanded(TEXT("Lumped"), Lumped))
+			const FCastOutcome PerImpact = RunCast(Spell);
+			Spell->TargetType = ETargetType::Ally; // not widened: its window keeps the timer close
+			const FCastOutcome AtClose = RunCast(Spell);
+			if (!TestCastLanded(TEXT("Per impact"), PerImpact) || !TestCastLanded(TEXT("At the close"), AtClose))
 			{
 				return;
 			}
-			TestEqual(TEXT("Same hits, one by one"), PerImpact.Hits, Lumped.Hits);
-			TestEqual(TEXT("Same total"), PerImpact.FoeDamage, Lumped.FoeDamage);
+			TestEqual(TEXT("No impact resolved on its own"), AtClose.DefendedImpacts.Num(), 0);
+			TestEqual(TEXT("Same hits, one by one"), AtClose.Hits, PerImpact.Hits);
+			TestEqual(TEXT("Same total"), AtClose.FoeDamage, PerImpact.FoeDamage);
 		});
 	});
 
@@ -574,7 +572,7 @@ void FPerImpactDefenseSpec::Define()
 		{
 			Strike->HitCount = PER_IMPACT_SPEC_TWO_IMPACTS;
 			// Each impact at once (InstantImpacts 1), as notifies would land them.
-			const FCastOutcome Notified = RunCast(Strike, /*bPerImpact*/ true, ECastTwist::None, PER_IMPACT_SPEC_SAME_SPOT);
+			const FCastOutcome Notified = RunCast(Strike, ECastTwist::None, PER_IMPACT_SPEC_SAME_SPOT);
 
 			// No montage and no instant impacts: nothing lands until the animation-end reconcile.
 			SetPerImpactSpecCVar(TEXT("wor.Combat.InstantImpacts"), 0);

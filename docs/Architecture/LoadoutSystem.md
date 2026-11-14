@@ -35,7 +35,7 @@ Key fields:
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `CharacterClass` | `ECharacterClass` | Determines loadout rules; defaults to `Generic`. Set from `CharacterData` during initialization. |
+| `GetCharacterClass()` | `ECharacterClass` | Determines loadout rules: the owner's `CharacterData` class, `Generic` without one (a getter, not a field, since B-153). |
 | `bIsReadyForBattle` | `bool` | Set true by `PrepareForBattle`; gates `UseItem`. |
 
 `SavedLoadouts` (`TArray<FCombatLoadout>`, `UPROPERTY()`-tagged for GC), `MaxSavedLoadouts` and `ActiveLoadoutIndex` live on **`UInventoryComponent`**, not on `ULoadoutComponent` — the loadout component is a thin facade that reads them through `GetInventoryComponent()` on every accessor.
@@ -220,7 +220,7 @@ struct stored inline on `UInventoryData`), `GetAllAbilities`, `GetAllSpells`,
    characters get an empty inventory and one fallback empty `"Default"`
    loadout (soft-fail).
 2. `ULoadoutComponent::InitializeFromCharacterData(CharacterData)` runs after.
-   It sets `CharacterClass` from `CharacterData->CharacterClass`. If the
+   The class is read from `CharacterData` through `GetCharacterClass()`. If the
    inventory's `SavedLoadouts` is empty (legacy soft-fail), it seeds one empty
    `FCombatLoadout` initialized for the class.
 
@@ -529,3 +529,7 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-11-13 | D-175 (Crown): the Ability Stone is retired; a weapon's ability slots are its tier plus the attached crystal's extra slots (B-098 / B-410), at most 12. The stone-ability list goes in B-437. Docs only, branch docs/retire-ability-stone. |
 | 2026-11-14 | B-437 (D-175): the stone-ability list is deleted: `FWeaponLoadoutEntry::AssignedAugmentStoneAbilities`, `GetAugmentStoneAbilities`, `ValidateAugmentStoneAbilities`, `FLoadoutSlot`'s copy, `FSavedLoadout::PrimaryAugmentStoneAbilities` / `SecondaryAugmentStoneAbilities`, the saved `PrimaryStoneAbilities` / `SecondaryStoneAbilities` (save v38, older saves wiped, Q-437), `MAX_AUGMENTSTONE_ABILITIES`, the stone-ability overflow finding, and `FCombatCapabilities`' stone abilities with the Resonate Weapon ability branch. `SkillSlotList::SlotCount` goes: `GetSkillSlotCount` is the tier's slots plus the crystal's (12 at most). Spec: `WoR.Loadout.SkillSlotList` (no stone kind adds a slot; S weapon + S gem = 12). | feature/B-437-remove-ability-stone |
 | 2026-11-14 | B-439b (Q-439 point 2, D-176): a quit run takes back the items found in it. The run layer keeps `RunStartItems` (each item kind's count over every pouch and storage, taken in `BeginRunLayer`; `GetRunStartItems`, `RestoreRunStartItems`); `UPoolSubsystem::TakeRunFoundItems` removes what is held above it (pouches first, then storage) and `UTrialRunSubsystem::ExitTrial` calls it before `EndRunLayer` when the run was abandoned. Starting items banked mid-run are added to the start counts (`BankStartingItems`, D-097). Saved with the run (`FSavedRun::bHasRunStartItems`, `RunStartItems`; no version bump: a save without them takes what the resumed run holds as its start). `wor.Run.PrintKept` lists the finds. Specs `WoR.Pool.RunLayer` (2 cases), `WoR.Save.RunLayer` | fix/B-439b-quit-takes-pouch-finds |
+| 2026-11-14 | B-172 (D-204: Crown waived the PIE gate of B-028): the legacy validators are deleted (`ULoadoutComponent::GetValidationErrorsLegacy`, `CollectInvalidSlotFindingsLegacy`, `FSavedLoadout::GetValidationErrorsLegacy`) with `wor.Loadout.CompareRules`; `FLoadoutRules` is the only check. `wor.Loadout.PrintFindings` prints each character's live findings; `ULoadoutRulesDebug::CompareLoadoutRules` (BlueprintCallable) is kept under its old name, printing the same, until the editor shows no Blueprint calls it. | chore/B-172-delete-legacy-validators |
+| 2026-11-14 | B-309 (D-204): `PrimarySlotCost` (`LoadoutRules.cpp`, OBSOLETE since B-303) is deleted; `FLoadoutRules::SlotCost` over the unified slots is the budget. The old loadout fields are not deletable yet (the slots are still a mirror of them, and the save and the screens write them): B-309b. `UActionExecutor::DoWeaponStatsApply` waits for the editor's Blueprint check. | chore/B-309-old-loadout-path |
+| 2026-11-14 | B-153 (D-204; no Blueprint reads it, Find in Blueprints): the OBSOLETE `ULoadoutComponent::CharacterClass` UPROPERTY is removed with its sync in `InitializeFromCharacterData`; `GetCharacterClass()` is the only class read (the owner's CharacterData, `Generic` without one); `WoR.Loadout.Getters` drops its synced-field check. | `feature/B-153-loadout-class-field-delete-cloud` (UNBUILT; after Crown's PIE of B-022) |
+| 2026-11-14 | B-154 (D-204; no Blueprint use, Find in Blueprints): `URingManager` and `UWeaponManager` (the OBSOLETE B-024 forwarders) are deleted, with `UActionExecutor::GetRingManager` / `GetWeaponManager` and their cached refs; ring and weapon queries are only on `ULoadoutComponent`. Full suite green on the desktop. | chore/B-154-ring-weapon-managers |

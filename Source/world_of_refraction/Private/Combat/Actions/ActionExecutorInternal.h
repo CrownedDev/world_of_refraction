@@ -8,7 +8,6 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Actions/ActionStructs.h"
-#include "Combat/Actions/SpellImpactPlan.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Definitions/SkillDataBase.h"
 
@@ -32,16 +31,16 @@ inline void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHit
 
 // Shared reconciliation (Stage 1): mark the action's animation finished and force-close
 // every count-based (ExpectedImpacts>0, melee) defense window — the "animation done" half
-// of the "later of (impacts-done, animation-done)" close. Damage is lumped at
-// CloseDefenseWindow (Stage 2 splits per-impact), so reconcile == close: complete counts
+// of the "later of (impacts-done, animation-done)" close. The close lands any impact still
+// expected (ApplyRemainingImpacts), so reconcile == close: complete counts
 // close normally; incomplete ones (fewer/missing Impact notifies, or an interrupted montage)
 // reconcile here instead of hanging on the 8s failsafe. Called from BOTH the clean Skill-end
 // branch and FinishMontageChain (which the interrupted path routes through, skipping Skill-end).
 // Idempotent: by the time FinishMontageChain runs on the normal path, Skill-end already drained
 // the count-based entries, so this is a no-op. Collect-then-close: CloseDefenseWindow
 // re-entrantly removes the PendingDefenses entry, so we must not close mid-iteration.
-// B-032d (wor.Combat.PerImpactDefense): a SPELL window is left open: its projectiles may still be flying, and its
-// arrivals (or the 8s failsafe / action timeout, landing the rest per impact) close it.
+// B-032d: a SPELL window is left open: its projectiles may still be flying, and its arrivals (or the 8s failsafe /
+// action timeout, landing the rest per impact) close it.
 inline void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecContext, UDefenseSystem *DefenseSys)
 {
 	ExecContext.bAnimationFinished = true;
@@ -50,11 +49,10 @@ inline void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecConte
 		return;
 	}
 
-	const bool bKeepSpellWindows = SpellImpactPlan::IsPerImpactDefenseOn();
 	TArray<AActor *> DefendersToClose;
 	for (auto &Pair : ExecContext.PendingDefenses)
 	{
-		const bool bLeftForArrivals = bKeepSpellWindows && Pair.Value.ActionType == EActionType::Spell;
+		const bool bLeftForArrivals = Pair.Value.ActionType == EActionType::Spell;
 		if (Pair.Value.ExpectedImpacts > 0 && !bLeftForArrivals)
 		{
 			if (AActor *Defender = Pair.Key.Get())
