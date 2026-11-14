@@ -36,6 +36,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-453c](B-453c.md) | `feature/B-453c-hold-to-confirm-cloud` (cloud, UNBUILT) | Settings: hold to confirm on / off (off: a second press quits or starts over) | Pending |
 | [B-453b](B-453b.md) | `feature/B-453b-fight-camera-movement-cloud` (cloud, UNBUILT) | Settings: camera movement in fights off / on, saved, read when a fight begins | Pending |
 | [B-453a](B-453a.md) | `feature/B-453a-screen-shake-cloud` (cloud, UNBUILT) | Settings: screen shake Full / Reduced / Off, saved, scales the fight camera's shake | Pending |
+| [B-410](B-410.md) | `feature/B-410-gem-slot-element-cloud` (cloud, UNBUILT) | A gem's ability slots take only abilities with no element, Generic, or the gem's element; a wrong one is refused with the reason | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |
 | [B-170h](B-170h.md) | `refactor/B-170h-flip-default` (in dev, built 2026-11-14) | Action pips on by default: every fight alternates sides with banked actions and End Turn, no console command; `wor.Turns.ActionPips 0` still gives the old timeline until B-170h2 | Pending |
 | [B-317](B-317.md) | `chore/B-317-store-old-copies` (in dev, built 2026-11-14) | Store 6, first part: a member's crystal inventory keeps no copy of its pouch; the post-fight hand-back is gone; list the enemies with authored item slots (for B-317c) | Pending |
