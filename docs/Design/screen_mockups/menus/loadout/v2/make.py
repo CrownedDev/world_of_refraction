@@ -169,7 +169,7 @@ def choices(d, heading, rows, focus, compare):
 FOOT = [("A", "Edit"), ("X", "Details"), ("Y", "Options"), ("B", "Back")]
 
 # ---- 1: Garrick (Generic): his evolution, two weapon entries and the Add weapon frame (1/5 left; the adapter entry
-#         is the one left). The dual entry is focused; the right lists swords that could take its place.
+#         is the one left). The dual entry is focused (A Edit; on the Add weapon frame A reads Equip); the right lists swords that could take its place.
 im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
 used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
@@ -253,7 +253,7 @@ def screen_g(focus_add=True):
 
 # ---- 2: the Add gear window, Weapon: main and off hand set, socket 1 focused. X Remove takes a piece out here.
 im, d = window(screen_g(), "Add gear", "3/5 left",
-               [("A", "Pick"), ("X", "Remove"), ("Y", "Confirm"), ("View", "Help"), ("B", "Cancel")])
+               [("A", "Pick"), ("X", "Remove"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 0)
 y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · single or dual")
 y = build_slot(d, y, "Off hand  ·  a sword that pairs, or empty", "Cinder Edge", "None", "Sword · single or dual")
@@ -274,7 +274,7 @@ save(im, OUT, "2_add_gear_weapon.png")
 
 # ---- 2a: the Add gear window, Evolution: one per character, on the character, 2 cells; confirming asks first.
 im, d = window(screen_g(), "Add gear", "3/5 left",
-               [("A", "Pick"), ("X", "Remove"), ("Y", "Confirm"), ("View", "Help"), ("B", "Cancel")])
+               [("A", "Pick"), ("X", "Remove"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 2)
 build_slot(d, 172, "Garrick's evolution  ·  one per character", "Ironheart", ("evolution", "Earth"), "Evolution · Earth · 2 cells",
            focus=True)
@@ -320,19 +320,19 @@ header(d, 2, 0, "Ember Rings  ·  1 of 5")
 used_line(d, 4, 5, note="1 weapon entry · 3 of 5 rings")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Fists", [("Cinder Fists", "None")], [None, None], 0, h=56)
-y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, focus=True, h=56)
+y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, h=56)
 y = entry(d, y, "Ring", [("Storm Ring", "Lightning")], [("crystal", "Lightning"), None], 1, h=56)
 y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("evolution", "Water"), None], 2, h=56)
-add_frame(d, y, 1, 5)
-choices(d, "Rings that fit this entry  ·  A Edit to change it", [
-    ("Ember Ring", "Fire", "C", "Ring · casts Fire spells", "", "worn"),
-    ("Gale Band", "Wind", "C", "Ring · casts Wind spells", "", None),
-    ("Frost Ring", "Water", "D", "Ring · casts Water spells", "", None),
-    ("Storm Ring", "Lightning", "C", "", "", "Already an entry"),
-    ("Cinder Fists", "None", "C", "", "", "A weapon: his one weapon entry is used")], 1, [
-    ("Spells", "Flame Lance…", "Gust, Updraft…", None), ("Durability", "64 / 80", "80 / 80", True),
-    ("Element", "Fire (crystal)", "Fire (crystal)", None)])
-footer(d, FOOT)
+add_frame(d, y, 1, 5, focus=True)
+choices(d, "Rings you could add  ·  1/5 left", [
+    ("Gale Band", "Wind", "C", "Ring · Emerald", "1 cell", None),
+    ("Frost Ring", "Water", "D", "Ring · empty", "0 cells", None),
+    ("Pyre Ring", "Fire", "B", "", "", "Evolved: needs 2 cells, 1 left"),
+    ("Ember Ring", "Fire", "C", "", "", "Already an entry"),
+    ("Cinder Fists", "None", "C", "", "", "A weapon: his one weapon entry is used")], 0, [
+    ("Cells", "4 of 5", "5 of 5", None), ("Rings", "3 of 5", "4 of 5", None),
+    ("Spell elements", "3", "4 (+ Wind)", True)])
+footer(d, [("A", "Equip"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "4_weapons_resonator.png")
 
 
