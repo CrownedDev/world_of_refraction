@@ -2,6 +2,7 @@
 // Weapon loadout entry implementation
 
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
+#include "Loadout/WeaponSetRules.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -41,7 +42,8 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
 
 int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
 {
-    const int32 TierSlots = CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier); // D-175: a stone adds none
+    // D-175: a stone adds none. B-477 (D-211): a pair's slots are the average of its two tiers', rounded down.
+    const int32 TierSlots = WeaponSetRules::GetSetTierSlots(*this);
     // B-098 (Q-098, Crown 2026-11-12): a weapon's spell slots became ability slots. The attached gem / evolution adds
     // what were its spell slots while it is attached, broken or not (no ceiling: any other attachment adds none).
     // TODO: B-410 — these slots take only None, Generic or the crystal's element once abilities carry an element.
@@ -54,7 +56,7 @@ int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
 
 FString FWeaponLoadoutEntry::GetSkillSlotString() const
 {
-    const TArray<UAbilityData *> BuiltIns = WeaponEntry.Weapon ? WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
+    const TArray<UAbilityData *> BuiltIns = WeaponSetRules::GetSetBuiltIns(*this); // B-477: a pair's built-ins pre-fill both
     const TArray<UAbilityData *> Slots = GetSkillSlots();
     FString Out = FString::Printf(TEXT("%s skill slots: %d (%s)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num(),
                                   WeaponEntry.bSkillSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old lists play"));
@@ -71,7 +73,8 @@ FString FWeaponLoadoutEntry::GetSkillSlotString() const
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlots() const
 {
-    const TArray<UAbilityData *> BuiltIns = WeaponEntry.Weapon ? WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
+    // B-477 (D-210): one merged list for a pair: both weapons' built-ins pre-fill it, the main hand's first.
+    const TArray<UAbilityData *> BuiltIns = WeaponSetRules::GetSetBuiltIns(*this);
     return SkillSlotList::Resolve(BuiltIns, WeaponEntry.SkillPicks, GetSkillSlotCount());
 }
 

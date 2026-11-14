@@ -34,6 +34,12 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     FWeaponInventoryEntry WeaponEntry;
 
+    /** B-477 (D-209, D-210): the off hand of a weapon set (dual wield), empty for a weapon alone. The entry's sockets
+     *  are the main hand's (WeaponEntry's) and serve the pair; this weapon's own sockets are not read. Which pairs are
+     *  allowed: WeaponSetRules::CheckPair. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    FWeaponInventoryEntry OffHandEntry;
+
     /** OBSOLETE (B-351, D-145; delete in the D-124 sweep): the position-merge override list. Read only while the
      *  weapon's one skill-slot list is not active (WeaponEntry.bSkillSlotsActive). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
@@ -62,6 +68,12 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     bool IsValid() const
     {
         return WeaponEntry.IsValid();
+    }
+
+    /** B-477: this set holds a second weapon (dual wield). */
+    bool HasOffHand() const
+    {
+        return WeaponEntry.IsValid() && OffHandEntry.IsValid();
     }
 
     /** Check if weapon can have spells (has crystal or evolution) */
@@ -179,6 +191,7 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     void Clear()
     {
         WeaponEntry = FWeaponInventoryEntry();
+        OffHandEntry = FWeaponInventoryEntry();
         AssignedAbilities.Empty();
         AssignedSpells.Empty();
         OverrideAttack = nullptr;
