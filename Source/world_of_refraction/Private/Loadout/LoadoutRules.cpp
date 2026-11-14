@@ -622,8 +622,10 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 	}
 	if (Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && Adapters > Limits.MaxAdapters)
 	{
-		// B-472 (D-206): a Resonator's extra adapters are dropped like its over-budget ones (RingOverflow).
-		Add(bResonator ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bResonator,
+		// B-472 (D-206): a Resonator's extra adapters are dropped like its over-budget ones (RingOverflow; one clear
+		// drops both, so the count finding is clearable only when the budget one isn't already there).
+		const bool bBudgetClears = bResonator && TotalCost > Limits.Budget;
+		Add(bResonator ? ELoadoutSlotType::RingOverflow : ELoadoutSlotType::None, bResonator && !bBudgetClears,
 			FString::Printf(TEXT("Too many adapters for the class (%d/%d)"), Adapters, Limits.MaxAdapters));
 	}
 	return Findings;
