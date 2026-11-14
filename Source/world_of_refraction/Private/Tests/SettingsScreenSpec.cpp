@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "Blueprint/UserWidget.h"
 #include "Combat/Camera/CombatCameraTypes.h"
+#include "Combat/CombatOrchestrator.h"
 #include "Save/SaveSubsystem.h"
 #include "UI/Menus/SettingsScreenModel.h"
 #include "UI/Menus/SettingsScreenWidget.h"
@@ -31,6 +32,8 @@ namespace
 	constexpr int32 SETTINGS_TEST_HOLD_TO_CONFIRM_ROW = 4;
 	/** B-453d: text size, the first row after the battle controls. */
 	constexpr int32 SETTINGS_TEST_TEXT_SIZE_ROW = 1;
+	/** B-453e: Gameplay's "AI finishes my turn when I idle", after the boss cinematics row. */
+	constexpr int32 SETTINGS_TEST_AI_FINISHES_ROW = 5;
 }
 
 BEGIN_DEFINE_SPEC(FSettingsScreenSpec, "WoR.UI.Settings", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -196,6 +199,26 @@ void FSettingsScreenSpec::Define()
 		TestTrue(TEXT("round to normal"), Save->GetTextSizeLevel() == ETextSizeLevel::Normal);
 		TestEqual(TEXT("the scale is back"), GetDefault<UUserInterfaceSettings>()->ApplicationScale, NormalScale);
 		// The test world's save subsystem restores the project's own scale when the world goes (WoRTextSize::Restore).
+	});
+
+	It("turns 'AI finishes my turn when I idle' on and off; off is the default (B-453e)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = Gameplay();
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_AI_FINISHES_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the AI finishes row"), Rows[SETTINGS_TEST_AI_FINISHES_ROW].Id == ESettingId::AIFinishesTurn);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_AI_FINISHES_ROW].CanChange());
+		TestFalse(TEXT("off by default"), FSavedSettings().bAIFinishesIdleTurn);
+		TestTrue(TEXT("a real wait"), ACombatOrchestrator::GetIdleTurnSeconds() > 0.0f);
+		Save->SetAIFinishesIdleTurnOn(false);
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::AIFinishesTurn, 1));
+		TestTrue(TEXT("on"), Save->IsAIFinishesIdleTurnOn());
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::AIFinishesTurn, 1);
+		TestFalse(TEXT("off again"), Save->IsAIFinishesIdleTurnOn());
 	});
 
 	It("says a setting isn't built yet, and doesn't change it", [this]()

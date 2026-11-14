@@ -186,6 +186,11 @@ public:
 	ETextSizeLevel GetTextSizeLevel() const;
 	void SetTextSizeLevel(ETextSizeLevel Level);
 
+	/** B-453e (D-190): the AI plays the rest of a player turn left idle (ACombatOrchestrator::GetIdleTurnSeconds);
+	 *  off by default. Kept in memory at once; written with the next save. */
+	bool IsAIFinishesIdleTurnOn() const;
+	void SetAIFinishesIdleTurnOn(bool bOn);
+
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 
 	/** bKeepVitals false saves no carried HP/EP, crystal wear or absorption: outside a run, a reload

@@ -930,6 +930,14 @@ The queue of questions only Crown can answer.
 - **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
+### Q-453e — "AI finishes my turn when I idle": how long, how much, and co-op
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453e, D-190) · **Blocks:** —
+**Question:** how long is "idle", does the AI take one action or the turn, and what happens to the next turn and to co-op guests?
+**Answer**, by the reference-backed default (Crown may change any):
+- **30 seconds with no choice in the battle menu** (any selection, Back or target change restarts it), **off by default**. Final Fantasy XIV and Dota 2 hand an idle player's turn or hero to the AI after a grace period, and turn timers in online tactics (Hearthstone's 75 s, Into the Breach has none) sit in that range; 30 s is generous for a single-player turn.
+- **The AI plays the rest of that turn** (its remaining action pips), **then the next turn is the player's again**, unlike "Let AI Play", which hands the member over for good.
+- **Co-op guests later:** the host can't see a guest's menu input yet, so the clock runs only in a game with no guests (TODO in `ACombatOrchestrator::StartIdleTurnClock`).
+
 ### Q-453d — Text size: what grows, and by how much
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453d, D-190) · **Blocks:** —
 **Question:** D-190 approves "text size" but not its steps or whether only the text grows.

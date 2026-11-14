@@ -353,6 +353,8 @@ private:
      *  D-026: "Let AI Play" for a non-leader party member on its turn. */
     FPieMenuButtonData CreateHandToAIButton() const;
     bool CanHandToAI() const;
+    /** B-453e (D-190): tells the orchestrator the player is still choosing (its idle clock starts again). */
+    void NoteTurnActivity() const;
     /** D-096 placeholder: "Step Forward" / "Step Back", greyed with the reason. */
     FPieMenuButtonData CreateMoveRowButton(bool bForward) const;
     /** ET-19: greys a switch button, with the reason, once the turn's free switch is used. */

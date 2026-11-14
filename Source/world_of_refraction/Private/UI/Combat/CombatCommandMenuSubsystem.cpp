@@ -239,6 +239,7 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
 
 void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &ButtonData)
 {
+    NoteTurnActivity(); // B-453e: the player is choosing
     // B-399: a sub-menu or a picker opened. B-400: then the picker's highlight (first target on open, none on close).
     ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); };
     // A greyed button (D-083 broken source, empty pool) does nothing, whichever widget sent it.
@@ -453,6 +454,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
 void UCombatCommandMenuSubsystem::HandleBack()
 {
+    NoteTurnActivity(); // B-453e
     ON_SCOPE_EXIT { BroadcastMenuDepthIfChanged(); RefreshTargetHighlight(); }; // B-399: cancel steps back; B-400
     if (!bIsOpen)
     {
@@ -582,6 +584,7 @@ void UCombatCommandMenuSubsystem::HighlightTarget(AActor *Target)
 
 void UCombatCommandMenuSubsystem::CycleHighlightedTarget(int32 Direction)
 {
+    NoteTurnActivity(); // B-453e
     if (!IsSingleTargetPickerOpen())
     {
         return;
@@ -947,6 +950,14 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
         Button.bEnabled = false;
     }
     return Button;
+}
+
+void UCombatCommandMenuSubsystem::NoteTurnActivity() const
+{
+    if (ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get())
+    {
+        Orchestrator->NoteTurnActivity(); // B-453e: the idle clock starts again
+    }
 }
 
 bool UCombatCommandMenuSubsystem::CanHandToAI() const

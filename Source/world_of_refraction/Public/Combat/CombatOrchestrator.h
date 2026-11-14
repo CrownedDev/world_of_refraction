@@ -216,6 +216,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsActorAIControlled(AActor *Actor) const;
 
+	/** B-453e (D-190): the player did something in the battle menu: the idle clock for their turn starts again. */
+	void NoteTurnActivity();
+
+	/** B-453e: the AI plays the rest of Actor's turn because its player idled ("AI finishes my turn when I idle"). */
+	bool IsAIFinishingIdleTurn(const AActor *Actor) const { return Actor && IdleTakenActor.Get() == Actor; }
+
+	/** B-453e: a player turn waits this long for a choice before the AI takes it (with the setting on). */
+	static float GetIdleTurnSeconds();
+
 	/** D-042 placeholder until enemies have authored cells (Q-149): a Refractor (Caster) starts in the
 	 *  Back row, anyone else in the Front row. */
 	static ECombatRow GetPlaceholderEnemyStartRow(const AActor *Enemy);
@@ -600,6 +609,15 @@ private:
 	UActionExecutor *ActionExecutorRef;
 
 	FTimerHandle AutoAdvanceTimerHandle;
+
+	/** B-453e (D-190): the idle clock on a player's action, and whose turn the AI took over after it ran out (until the
+	 *  next turn starts). */
+	FTimerHandle IdleTurnTimer;
+	TWeakObjectPtr<AActor> IdleClockActor;
+	TWeakObjectPtr<AActor> IdleTakenActor;
+	void StartIdleTurnClock(AActor *Actor);
+	void StopIdleTurnClock();
+	void HandleIdleTurnTimeout();
 
 	// B-405 (R14): the kill shot's hold between the last enemy's death and the end of a won fight.
 	FTimerHandle KillShotHoldTimer;

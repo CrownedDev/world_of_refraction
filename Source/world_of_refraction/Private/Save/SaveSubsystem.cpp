@@ -1057,6 +1057,16 @@ ETextSizeLevel USaveSubsystem::GetTextSizeLevel() const
 	return Saved <= static_cast<uint8>(ETextSizeLevel::Larger) ? static_cast<ETextSizeLevel>(Saved) : ETextSizeLevel::Normal;
 }
 
+bool USaveSubsystem::IsAIFinishesIdleTurnOn() const
+{
+	return SaveGame->Data.Settings.bAIFinishesIdleTurn;
+}
+
+void USaveSubsystem::SetAIFinishesIdleTurnOn(bool bOn)
+{
+	SaveGame->Data.Settings.bAIFinishesIdleTurn = bOn;
+}
+
 void USaveSubsystem::SetTextSizeLevel(ETextSizeLevel Level)
 {
 	SaveGame->Data.Settings.TextSize = static_cast<uint8>(Level);

@@ -885,6 +885,10 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	/** B-453d (D-190): ETextSizeLevel; 0 = Normal, the default. An older save reads 0: no bump. */
 	UPROPERTY()
 	uint8 TextSize = 0;
+
+	/** B-453e (D-190): "AI finishes my turn when I idle"; false = off, the default. An older save reads false: no bump. */
+	UPROPERTY()
+	bool bAIFinishesIdleTurn = false;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
