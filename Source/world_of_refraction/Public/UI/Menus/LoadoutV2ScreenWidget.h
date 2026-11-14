@@ -10,11 +10,15 @@
 // Off hand, Augment socket 1 and 2; an Adapter; the Evolution) each open a list: A Pick, A Remove on the EQUIPPED line,
 // X Compare (weapons), Y Confirm, B back. An evolution asks "Attach ... ? Uses 2 cells" first. L3 / 6 sets the focused
 // weapon entry active; Y Options (Set active, Saved loadouts, Remove all gear, Help, Cosmetics shortcuts).
+// B-440e (D-111): Options' Saved loadouts opens the saved list (WoRLoadoutSaved): A uses the lit one (or makes a new one
+// on the last line), X duplicates it, Y renames it in a name box (Enter keeps, Esc drops); B goes back to Options.
 // Not yet (B-476d): the Skills and Apparel tabs on LB / RB, then replacing ULoadoutScreenWidget on the game menu.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Types/SlateEnums.h"
+#include "UI/Menus/LoadoutSavedModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
 #include "UI/WoRActivatableWidget.h"
@@ -22,6 +26,7 @@
 
 class APlayerController;
 class UBorder;
+class UEditableTextBox;
 class UInventoryComponent;
 class ULoadoutComponent;
 class UTextBlock;
@@ -34,6 +39,8 @@ enum class ELoadoutV2Mode : uint8
 	List,
 	/** Y Options. */
 	Options,
+	/** B-440e: Options' Saved loadouts list. */
+	Saved,
 	/** The Add gear window's first question: Weapon / Adapter / Evolution. */
 	WindowKind,
 	/** The window's slots (Main hand, Off hand, sockets...). */
@@ -98,13 +105,15 @@ public:
 	/** A: Edit an entry, Equip on the Add weapon frame; in Options, select; in the window, open a slot's list, Pick or
 	 *  Remove; when asked, Attach. */
 	void PressA();
-	/** X: on the list, the full / simple view; in the window's list, Compare. */
+	/** X: on the list, the full / simple view; in the window's list, Compare; in the saved list, Duplicate. */
 	void PressCompare();
-	/** Y: on the list, Options; in the window, Confirm. */
+	/** Y: on the list, Options; in the window, Confirm; in the saved list, Rename (opens the name box). */
 	void PressConfirm();
 	/** L3 / 6: the focused weapon entry becomes the one in hand (D-207). */
 	void PressSetActive();
-	/** B, Esc: one step back (the ask, the list, the window, Options), else closes the screen. */
+	/** B-440e: what Enter in the name box does (the specs call it too). */
+	void CommitRename(const FText &NewName);
+	/** B, Esc: one step back (the name box, the saved list, the ask, the list, the window, Options), else closes the screen. */
 	void PressBack() { HandleBackAction(); }
 
 	const FLoadoutV2WeaponsPage &GetPage() const { return Page; }
@@ -115,6 +124,8 @@ public:
 	const TArray<FLoadoutV2DetailLine> &GetDetails() const { return Details; }
 	int32 GetSelected() const { return Selected; }
 	const FText &GetMessage() const { return Message; }
+	const FLoadoutSavedList &GetSavedList() const { return Saved; }
+	bool IsRenaming() const { return bRenaming; }
 	static bool IsSimpleView() { return bSimpleView; }
 
 protected:
@@ -161,6 +172,16 @@ private:
 	// Options.
 	void SelectOption();
 
+	// B-440e: the saved loadouts list.
+	void OpenSaved();
+	/** A: uses the lit loadout (back to the list, now of that loadout), or makes a new one on the last line. */
+	void UseSaved();
+	void DuplicateSaved();
+	void StartRename();
+	void CancelRename();
+	UFUNCTION()
+	void HandleNameCommitted(const FText &Text, ETextCommit::Type CommitMethod);
+
 	// The drafts and lists below hold raw pointers to the gear's data assets (weapons, adapters, evolutions), as today's
 	// screen does: those are loaded assets the inventory keeps, read again on every RefreshData.
 	TArray<FLoadoutScreenMember> Members;
@@ -172,6 +193,8 @@ private:
 	/** The list's line when Options or the window opened (back to it after). */
 	int32 ListSelected = 0;
 	FText Message;
+	/** B-440e: the loadout in use, shown top right before the cells (UIScreens #2). */
+	FText LoadoutName;
 
 	TArray<FLoadoutV2KindChoice> Kinds;
 	/** The window edits this entry (A Edit); a new entry when false. */
@@ -188,6 +211,9 @@ private:
 	bool bRemoveArmed = false;
 	/** Options' Remove all gear asked; A again does it. */
 	bool bRemoveAllArmed = false;
+	FLoadoutSavedList Saved;
+	/** B-440e: the name box is open for the lit saved loadout. */
+	bool bRenaming = false;
 	/** Remembered while the game runs (UIScreens B-479c: the screen remembers the view). */
 	static bool bSimpleView;
 
@@ -199,6 +225,9 @@ private:
 	TObjectPtr<UTextBlock> CellsText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> TitleText;
+	/** B-440e: the saved loadout's new name; shown only while renaming (placeholder until the CommonUI screen, D-024). */
+	UPROPERTY(Transient)
+	TObjectPtr<UEditableTextBox> NameBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CompareText;
 	UPROPERTY(Transient)

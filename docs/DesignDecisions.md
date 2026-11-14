@@ -974,6 +974,16 @@ The queue of questions only Crown can answer.
 - **X takes a skill out in one press:** nothing is lost (an innate spell stays learned; a replaced built-in comes back), so no second press as for gems (Q-440c). X on a weapon's own built-in is refused: Change puts another in its place.
 - **Left for later:** the lists as tab plates (a text line now), R3 Details, a mouse click on a list or page tab, a Broken Darkness Refractor's element pools (its rule check still applies).
 
+### Q-440e — Saved loadouts on the loadout screen: keys, names, lore ones
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-440e, D-111) · **Blocks:** —
+**Question:** UIScreens #2 says the five saved loadouts open from the loadout screen, but not what each key does there, what a new one is called, or what happens to a lore (the character's own) loadout.
+**Answer**, by the reference-backed default (Crown may change any):
+- **On the v2 screen the list opens from Y Options, "Saved loadouts"** (UIScreens #2, B-479; the first build put it on Y of the old screen, which v2 uses for Options). **In it A uses the lit loadout and goes back to its entries, X duplicates it, Y renames it, B goes back to Options.** The last line, "New loadout", makes an empty one while there is room. Destiny 2's loadouts screen and Diablo IV's wardrobe both keep use / save / rename on face buttons, widely used and liked for switching builds quickly.
+- **A new loadout is "Loadout N"** (the first free number); a copy is "<name> copy". Names are trimmed and at most 24 letters (`WoRLoadoutSaved::MAX_LOADOUT_NAME_LENGTH`), like Destiny 2's short loadout names.
+- **A lore loadout can be used and duplicated but not renamed** (it is read only, D-111); the copy is the player's own (B-311). Lore ones don't count toward the five.
+- **No delete here** (not in the job; `ULoadoutComponent::DeleteLoadout` exists): a full list says to rename or change one.
+- **Two loadouts may share a name** (Destiny 2 allows it too); only a new one's "Loadout N" skips names in use.
+
 ### Q-440c — The socket picker: how a socket is reached, what it lists, what taking a gem off costs
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440c, D-181, D-141, CL-28b) · **Blocks:** —
 **Question:** the mockup draws the picker for an empty crystal socket but not how the D-pad reaches a socket, what fills a filled one, or how taking a socketed gem off is shown when the code destroys it (CL-28b, the debit model).
