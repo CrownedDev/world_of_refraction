@@ -102,8 +102,8 @@ void UInviteScreenWidget::BuildTree()
 	}
 	AddToRow(Body, MakeSized(WidgetTree, SeatsWidth, 0.0f, SeatsColumn), FMargin(ColumnGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "A  Invite / Host        X  Friends / Seats        B / Esc  Back"));
+	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Invite / Host        {Toggle}  Friends / Seats        {Back}  Back"));
 	AddToColumn(Main, Hints, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
 }
 

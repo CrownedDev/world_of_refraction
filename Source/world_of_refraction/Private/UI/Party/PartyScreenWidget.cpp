@@ -118,8 +118,8 @@ void UPartyScreenWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	// TODO: B-458, "Y Swap order" (mockup) waits on a party reorder (Q-458).
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "A  Change        X  Move on grid        B / Esc  Back"));
+	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Change        {Toggle}  Move on grid        {Back}  Back"));
 	AddToColumn(Main, Hints, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
 }
 

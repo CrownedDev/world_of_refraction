@@ -97,7 +97,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Journal: play a ready conversation's next line | Enter, Space, left click | A (Cross) | none | Built (B-463, Q-463): until NPC talk (B-471) |
 | Journal: track / stop tracking the focused quest | Enter, Space, left click | A (Cross) | none | Built (B-463b, Q-463b): an unfinished main or side quest; the hint reads Track or Stop tracking |
 | Journal: scroll the reader's text | Page Up / Page Down, mouse wheel | Right stick up / down | none (the screen's keys) | Built (B-463) |
-| Back / close | Esc, Backspace | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu) |
+| Back / close | **Backspace** (the key every footer names, B-481), Esc | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu; B-481: every code-built menu takes both through `WoRMenuStyle::IsBackKey`; Esc ends PIE in the editor, so the footer says "Backspace  Back"). A focused text box (the v2 loadout's name box) keeps Backspace for typing; Enter keeps the name, Esc drops it. In a fight Backspace is End Turn (B-170e): no menu screen is open there |
+| Key hints (every code-built menu's footer, tab key labels, hold hints, the hub prompt): the keys named are the device's in use | any keyboard key or mouse input: keyboard names (Enter, Backspace, X, R, Q / E, Z / C, 6) | any gamepad input: button names (A, B, X, Y, LB / RB, LT / RT, L3) | none (CommonUI's input type, `UCommonInputSubsystem`) | Built (B-481): `WoRKeyHints` (`UI/WoRKeyHintText.h`): a hint is a pattern (`{Confirm}  Select        {Back}  Back`), `WoRMenuStyle::MakeHintText` + `WoRKeyHints::SetHint`; switches live. `wor.UI.KeyHints.Print` |
 
 ## Mapping contexts (B-129)
 
@@ -162,5 +163,6 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | Loadout v2 Weapons tab, rest (B-476c): X / V Simple / Full, L3 / 6 Set active, Y Options, the Add gear window's kind / slot / list keys and the evolution's ask | feature/B-476c-loadout-v2-rest-cloud |
 | 2026-11-14 | Loadout v2, Options > Saved loadouts: A use / new, X duplicate, Y / R rename, B back to Options (B-440e) | feature/B-440e-saved-loadouts-v2 |
 | 2026-11-14 | Loadout v2: LB / RB (Q / E) the Weapons / Apparel tab; Apparel: A opens the pieces, A Pick / Remove, B back (B-440f) | feature/B-440f-loadout-apparel-v2 |
+| 2026-11-14 | Menu key hints follow the device in use (gamepad buttons or keyboard keys, live); the keyboard footer names Backspace for Back, Esc still works (B-481) | feature/B-481-device-key-hints |
 | 2026-11-14 | Recruit card: Up / Down choose, A invite, B not now (B-471b) | feature/B-471b-talk-recruit-screens-cloud |
 | 2026-11-14 | Hold to confirm (Quit, New Game over a save): a press instead when the Hold to confirm setting is off (B-453c) | feature/B-453c-hold-to-confirm-cloud |

@@ -102,8 +102,8 @@ void UCreditsScreenWidget::BuildTree()
 	ScrollSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	ScrollSlot->SetHorizontalAlignment(HAlign_Left); // not stretched: the column keeps its width, in the left half
 
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "A  Hold: faster        B / Esc  Back"));
+	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Hold: faster        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 

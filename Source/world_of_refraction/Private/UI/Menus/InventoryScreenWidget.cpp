@@ -89,7 +89,7 @@ void UInventoryScreenWidget::BuildTree()
 
 	// Top: the character tabs, then the Gear / Pouch / Chest tabs.
 	UHorizontalBox *MemberRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "LT")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
 	{
 		UTextBlock *Label = nullptr;
@@ -97,14 +97,14 @@ void UInventoryScreenWidget::BuildTree()
 		MemberTabLabels.Add(Label);
 		AddToRow(MemberRow, MemberTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	PlaceText = MakeText(WidgetTree, LineFontSize, DimColor);
 	PlaceText->SetJustification(ETextJustify::Right);
 	AddToRow(MemberRow, PlaceText)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	AddToColumn(Main, MemberRow);
 
 	UHorizontalBox *PageRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "LB")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "{TabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (const EInventoryScreenTab PageTab : WoRInventoryScreen::GetTabs())
 	{
 		UTextBlock *Label = nullptr;
@@ -113,7 +113,7 @@ void UInventoryScreenWidget::BuildTree()
 		Label->SetText(WoRInventoryScreen::GetTabName(PageTab));
 		AddToRow(PageRow, PageTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "RB")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "{TabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(Main, PageRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	// The tiles, and the focused tile's details and verbs.
@@ -182,14 +182,14 @@ void UInventoryScreenWidget::BuildTree()
 	{
 		ChoiceWidgets.Add(BuildChoice(PanelColumn));
 	}
-	WholeStackText = MakeText(WidgetTree, LineFontSize, CyanColor);
+	WholeStackText = MakeHintText(WidgetTree, LineFontSize, CyanColor);
 	AddToColumn(PanelColumn, WholeStackText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 	StatusText = MakeWrappedText(WidgetTree, LineFontSize, GoodColor);
 	AddToColumn(PanelColumn, StatusText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Tab        A / Enter  Choose        X  Whole stack        Y / R  Sort        B / Esc  Back"));
+	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{SubTabs}  Character        {Tabs}  Tab        {Confirm}  Choose        {Toggle}  Whole stack        {Second}  Sort        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -467,7 +467,7 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 	}
 	const bool bStack = Focused && Tile.IsStack();
 	SetShown(WholeStackText, bStack);
-	WholeStackText->SetText(bWholeStack ? LOCTEXT("WholeStackOn", "X  Whole stack: on") : LOCTEXT("WholeStackOff", "X  Whole stack: off (one at a time)"));
+	WoRKeyHints::SetHint(WholeStackText, bWholeStack ? LOCTEXT("WholeStackOn", "{Toggle}  Whole stack: on") : LOCTEXT("WholeStackOff", "{Toggle}  Whole stack: off (one at a time)"));
 	StatusText->SetText(Status);
 	StatusText->SetColorAndOpacity(FSlateColor(bStatusIsRefusal ? WarnColor : GoodColor));
 	SetShown(StatusText, !Status.IsEmpty());

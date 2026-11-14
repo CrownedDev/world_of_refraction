@@ -100,7 +100,8 @@ TSharedRef<SWidget> UJoinRequestCardWidget::RebuildWidget()
 		ReplaceText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 		NoteText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
 		MessageText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
-		HintText = MakeWrappedText(WidgetTree, LineFontSize, CyanColor);
+		HintText = MakeHintText(WidgetTree, LineFontSize, CyanColor); // B-481: Card.Hints is a key-hint pattern
+		HintText->SetAutoWrapText(true);
 		AddToColumn(Column, ReplaceText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 		AddToColumn(Column, NoteText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 		AddToColumn(Column, MessageText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
@@ -140,7 +141,7 @@ void UJoinRequestCardWidget::Refresh(const FJoinRequestCard &InCard, bool bInFoc
 	ReplaceText->SetText(Card.ReplaceLine);
 	NoteText->SetText(Card.Note);
 	WoRMenuStyle::SetShown(NoteText, !Card.Note.IsEmpty());
-	HintText->SetText(Card.Hints);
+	WoRKeyHints::SetHint(HintText, Card.Hints);
 	// Not answering: mouse clicks go through to the game.
 	SetVisibility(bFocused ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
 	RefreshSelection();

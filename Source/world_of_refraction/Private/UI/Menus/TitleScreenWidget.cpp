@@ -148,7 +148,7 @@ void UTitleScreenWidget::BuildTree()
 
 	UVerticalBox *Spacer = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	AddToColumn(Main, Spacer)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	HintsText = MakeText(WidgetTree, LineFontSize, DimColor);
+	HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 
 	// Over everything: the dimmed screen and one centred panel (the reset notice, or New Game's confirm).
@@ -192,8 +192,8 @@ void UTitleScreenWidget::BuildTree()
 	UVerticalBox *Hold = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UTextBlock *CantUndo = MakeText(WidgetTree, LineFontSize, WarnColor, true);
 	CantUndo->SetText(LOCTEXT("CantUndo", "This can't be undone."));
-	UTextBlock *HoldHint = MakeText(WidgetTree, SmallFontSize, DimColor);
-	HoldHint->SetText(FText::Format(LOCTEXT("HoldHint", "Hold A for {0} seconds to confirm."), FMath::RoundToInt32(HOLD_TO_START_OVER_SECONDS)));
+	UTextBlock *HoldHint = MakeHintText(WidgetTree, SmallFontSize, DimColor);
+	WoRKeyHints::SetHint(HoldHint, FText::FormatNamed(LOCTEXT("HoldHint", "Hold {Confirm} for {Seconds} seconds to confirm."), TEXT("Seconds"), FMath::RoundToInt32(HOLD_TO_START_OVER_SECONDS)));
 	HoldBar = MakeBar(WidgetTree, WarnColor); // as the game menu's quit hold
 	AddToColumn(Hold, CantUndo);
 	AddToColumn(Hold, HoldHint, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
@@ -271,7 +271,7 @@ void UTitleScreenWidget::Refresh()
 		PanelBody->SetText(LOCTEXT("ResetBody", "This build can't read saves from the older version, so the game starts fresh. This can happen until the first public release; after that, saves are always carried forward."));
 		OldVersionText->SetText(WoRTitleScreen::GetOldVersionText(Saves ? Saves->GetWipedFromVersion() : 0));
 		NeededVersionText->SetText(WoRTitleScreen::GetNeededVersionText());
-		HintsText->SetText(LOCTEXT("ResetHints", "A  Start fresh"));
+		WoRKeyHints::SetHint(HintsText, LOCTEXT("ResetHints", "{Confirm}  Start fresh"));
 	}
 	else if (Panel == ETitlePanel::NewGameConfirm)
 	{
@@ -279,11 +279,11 @@ void UTitleScreenWidget::Refresh()
 		PanelTitle->SetColorAndOpacity(FSlateColor(TextColor));
 		PanelBody->SetText(WoRTitleScreen::GetNewGameWarning(Save));
 		HoldBar->SetPercent(HeldSeconds / HOLD_TO_START_OVER_SECONDS);
-		HintsText->SetText(bHold ? LOCTEXT("ConfirmHints", "A  Hold: start over        B  Cancel") : LOCTEXT("ConfirmPressHints", "A  Start over        B  Cancel"));
+		WoRKeyHints::SetHint(HintsText, bHold ? LOCTEXT("ConfirmHints", "{Confirm}  Hold: start over        {Back}  Cancel") : LOCTEXT("ConfirmPressHints", "{Confirm}  Start over        {Back}  Cancel"));
 	}
 	else
 	{
-		HintsText->SetText(LOCTEXT("Hints", "Up / Down  Choose        A  Select"));
+		WoRKeyHints::SetHint(HintsText, LOCTEXT("Hints", "Up / Down  Choose        {Confirm}  Select"));
 	}
 }
 

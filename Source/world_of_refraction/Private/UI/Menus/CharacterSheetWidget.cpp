@@ -112,7 +112,7 @@ void UCharacterSheetWidget::BuildTree()
 	Screen->SetContent(Main);
 
 	UHorizontalBox *MemberRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "LT")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
 	{
 		UTextBlock *Label = nullptr;
@@ -120,7 +120,7 @@ void UCharacterSheetWidget::BuildTree()
 		MemberTabLabels.Add(Label);
 		AddToRow(MemberRow, MemberTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(Main, MemberRow);
 
 	RefusalText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
@@ -133,8 +133,8 @@ void UCharacterSheetWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, ResistanceWidth, 0.0f, BuildResistancePanel()), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	// Bottom right: the hints. TODO: "R3 Where it comes from" and "Y Loadout" when those are built.
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "LT / RT  Character        B / Esc  Back"));
+	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{SubTabs}  Character        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 

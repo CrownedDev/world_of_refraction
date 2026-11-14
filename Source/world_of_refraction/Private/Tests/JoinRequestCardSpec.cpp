@@ -17,6 +17,7 @@
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
 #include "UI/Coop/JoinRequestModel.h"
+#include "UI/WoRKeyHintText.h"
 
 namespace
 {
@@ -80,14 +81,15 @@ void FJoinRequestCardSpec::Define()
 		TestTrue(TEXT("with which character"), Card.WithLine.ToString().StartsWith(TEXT("with Vael · ")));
 		TestEqual(TEXT("the seat replaced"), Card.ReplaceLine.ToString(), FString(TEXT("Vael replaces the seat's character for this run.")));
 		TestTrue(TEXT("nothing in the way"), Card.Note.IsEmpty());
-		TestTrue(TEXT("not answering: says how to"), Card.Hints.ToString().StartsWith(TEXT("Hold View")));
+		TestTrue(TEXT("not answering: says how to"), WoRKeyHints::Format(Card.Hints, true).ToString().StartsWith(TEXT("Hold View"))); // B-481: Hints is a key-hint pattern
 
 		const FJoinRequestCard Answering = WoRJoinRequestCard::BuildCard(JOIN_CARD_TEST_JOINER_ID, FString(), Vael, OneSeat(),
 																		 JOIN_CARD_TEST_TWO_MORE, false, false, true);
 		TestTrue(TEXT("no name: by id"), Answering.Title.ToString().Contains(TEXT("2")));
 		TestTrue(TEXT("a closed seat says so"), Answering.Note.ToString().Contains(TEXT("rest spot")));
 		TestTrue(TEXT("and how many more wait"), Answering.Note.ToString().Contains(TEXT("2 more waiting")));
-		TestTrue(TEXT("answering: the keys"), Answering.Hints.ToString().StartsWith(TEXT("A")));
+		TestTrue(TEXT("answering: the gamepad keys"), WoRKeyHints::Format(Answering.Hints, true).ToString().StartsWith(TEXT("A  ")));
+		TestTrue(TEXT("answering: the keyboard keys"), WoRKeyHints::Format(Answering.Hints, false).ToString().StartsWith(TEXT("Enter  ")));
 
 		const FJoinRequestCard InFight = WoRJoinRequestCard::BuildCard(JOIN_CARD_TEST_JOINER_ID, TEXT("Kestrel"), Vael, OneSeat(), 0, false, true, false);
 		TestTrue(TEXT("a fight says to wait (not the rest spot)"), InFight.Note.ToString().Contains(TEXT("fight")) && !InFight.Note.ToString().Contains(TEXT("rest spot")));

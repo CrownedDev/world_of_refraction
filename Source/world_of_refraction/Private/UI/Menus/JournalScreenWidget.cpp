@@ -99,7 +99,7 @@ void UJournalScreenWidget::BuildTree()
 	AddToColumn(Main, Title);
 
 	UHorizontalBox *TabRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "LB")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "{TabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < WoRJournalScreen::PAGE_COUNT; ++Index)
 	{
 		UTextBlock *Label = nullptr;
@@ -108,7 +108,7 @@ void UJournalScreenWidget::BuildTree()
 		Label->SetText(WoRJournalScreen::GetPageName(static_cast<EJournalPage>(Index)));
 		AddToRow(TabRow, PageTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "RB")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "{TabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(Main, TabRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	UHorizontalBox *Body = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -117,10 +117,10 @@ void UJournalScreenWidget::BuildTree()
 	// Left: the sub-tabs, the list, the line under it.
 	UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	FilterRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(FilterRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "LT")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(FilterRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	FilterTabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToRow(FilterRow, FilterTabBox);
-	AddToRow(FilterRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(FilterRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(ListColumn, FilterRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	RowScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	AddToColumn(ListColumn, RowScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -148,7 +148,7 @@ void UJournalScreenWidget::BuildTree()
 	AddToColumn(PanelColumn, ReaderNote, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, Panel, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
-	HintText = MakeText(WidgetTree, LineFontSize, DimColor);
+	HintText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
 	AddToColumn(Main, HintText)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -306,7 +306,7 @@ void UJournalScreenWidget::Refresh(bool bScrollIntoView)
 	SetShown(ListNote, !View.ListNote.IsEmpty());
 
 	RefreshReader();
-	HintText->SetText(GetHints());
+	WoRKeyHints::SetHint(HintText, GetHints());
 
 	if (bScrollIntoView && RowWidgets.IsValidIndex(SelectedRow))
 	{
@@ -363,27 +363,27 @@ void UJournalScreenWidget::RefreshReader()
 FText UJournalScreenWidget::GetHints() const
 {
 	TArray<FText> Parts;
-	Parts.Add(LOCTEXT("HintPage", "LB / RB  Page"));
+	Parts.Add(LOCTEXT("HintPage", "{Tabs}  Page"));
 	if (View.Filters.Num() > 1)
 	{
-		Parts.Add(LOCTEXT("HintFilter", "LT / RT  Filter"));
+		Parts.Add(LOCTEXT("HintFilter", "{SubTabs}  Filter"));
 	}
 	if (const FJournalRow *Row = GetFocusedRow())
 	{
 		if (!Row->SelectVerb.IsEmpty())
 		{
-			Parts.Add(FText::Format(LOCTEXT("HintSelect", "A  {0}"), Row->SelectVerb));
+			Parts.Add(FText::FormatNamed(LOCTEXT("HintSelect", "{Confirm}  {Verb}"), TEXT("Verb"), Row->SelectVerb));
 		}
 		if (Row->IsSecret())
 		{
-			Parts.Add(FText::Format(LOCTEXT("HintToggle", "X  {0}"), Row->ToggleVerb)); // D-198: Show or Hide
+			Parts.Add(FText::FormatNamed(LOCTEXT("HintToggle", "{Toggle}  {Verb}"), TEXT("Verb"), Row->ToggleVerb)); // D-198: Show or Hide
 		}
 	}
 	if (Page == EJournalPage::Quests)
 	{
-		Parts.Add(LOCTEXT("HintHideAll", "Y  Hide all"));
+		Parts.Add(LOCTEXT("HintHideAll", "{Second}  Hide all"));
 	}
-	Parts.Add(LOCTEXT("HintBack", "B / Esc  Back"));
+	Parts.Add(LOCTEXT("HintBack", "{Back}  Back"));
 	return FText::Join(FText::AsCultureInvariant(JournalScreenStyle::HintGap), Parts);
 }
 

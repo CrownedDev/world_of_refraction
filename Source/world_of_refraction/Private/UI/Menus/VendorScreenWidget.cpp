@@ -113,7 +113,7 @@ void UVendorScreenWidget::BuildTree()
 
 	// The service tabs, then the character tabs.
 	UHorizontalBox *ServiceRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(ServiceRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "LB")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(ServiceRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "{TabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < MaxServiceTabs; ++Index)
 	{
 		UTextBlock *Label = nullptr;
@@ -121,11 +121,11 @@ void UVendorScreenWidget::BuildTree()
 		ServiceTabLabels.Add(Label);
 		AddToRow(ServiceRow, ServiceTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(ServiceRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "RB")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(ServiceRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "{TabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(Main, ServiceRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	UHorizontalBox *MemberRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "LT")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
 	{
 		UTextBlock *Label = nullptr;
@@ -133,7 +133,7 @@ void UVendorScreenWidget::BuildTree()
 		MemberTabLabels.Add(Label);
 		AddToRow(MemberRow, MemberTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(Main, MemberRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 	MemberTabRow = MemberRow;
 
@@ -165,15 +165,15 @@ void UVendorScreenWidget::BuildTree()
 	BuyForButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	BuyForButton->SetBrushColor(PlateColor);
 	BuyForButton->SetPadding(FMargin(RowPadding));
-	BuyForText = MakeText(WidgetTree, LineFontSize, TextColor);
+	BuyForText = MakeHintText(WidgetTree, LineFontSize, TextColor);
 	BuyForButton->SetContent(BuyForText);
 	AddToColumn(PanelColumn, BuyForButton, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	ConfirmText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 	AddToColumn(PanelColumn, ConfirmText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
-	ConfirmHint = MakeText(WidgetTree, LineFontSize, CyanColor, true);
-	ConfirmHint->SetText(LOCTEXT("ConfirmHint", "A / Enter  Confirm        B / Esc  Cancel"));
+	ConfirmHint = MakeHintText(WidgetTree, LineFontSize, CyanColor, true);
+	WoRKeyHints::SetHint(ConfirmHint, LOCTEXT("ConfirmHint", "{Confirm}  Confirm        {Back}  Cancel"));
 	AddToColumn(PanelColumn, ConfirmHint, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
-	WholeStackText = MakeText(WidgetTree, LineFontSize, CyanColor);
+	WholeStackText = MakeHintText(WidgetTree, LineFontSize, CyanColor);
 	AddToColumn(PanelColumn, WholeStackText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	RuleText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 	AddToColumn(PanelColumn, RuleText);
@@ -197,8 +197,8 @@ void UVendorScreenWidget::BuildTree()
 	PurchaseButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	PurchaseButton->SetPadding(FMargin(RowPadding));
 	PurchaseButton->SetHorizontalAlignment(HAlign_Center);
-	PurchaseText = MakeText(WidgetTree, RowFontSize, TextColor, true);
-	PurchaseText->SetText(LOCTEXT("Purchase", "X  Purchase"));
+	PurchaseText = MakeHintText(WidgetTree, RowFontSize, TextColor, true);
+	WoRKeyHints::SetHint(PurchaseText, LOCTEXT("Purchase", "{Toggle}  Purchase"));
 	PurchaseButton->SetContent(PurchaseText);
 	AddToColumn(CartColumn, PurchaseButton);
 	CartPanel = MakeSized(WidgetTree, PanelWidth, 0.0f, CartFrame);
@@ -208,7 +208,7 @@ void UVendorScreenWidget::BuildTree()
 	AddToColumn(Side, CartPanel, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, Side, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
-	HintsText = MakeText(WidgetTree, LineFontSize, DimColor);
+	HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -396,26 +396,26 @@ void UVendorScreenWidget::RefreshData()
 	switch (GetTab())
 	{
 	case EVendorScreenTab::Buy:
-		Hints = LOCTEXT("HintsBuy", "LB / RB  Service        Enter / Right  Add        Left  Take back        R / Y  Buying for        X  Purchase        B / Esc  Leave");
+		Hints = LOCTEXT("HintsBuy", "{Tabs}  Service        {Confirm} / Right  Add        Left  Take back        {Second}  Buying for        {Toggle}  Purchase        {Back}  Leave");
 		break;
 	case EVendorScreenTab::ItemSlots:
-		Hints = LOCTEXT("HintsItemSlots", "LB / RB  Service        A / Enter  Buy        B / Esc  Leave");
+		Hints = LOCTEXT("HintsItemSlots", "{Tabs}  Service        {Confirm}  Buy        {Back}  Leave");
 		break;
 	case EVendorScreenTab::Repair:
-		Hints = LOCTEXT("HintsRepair", "LB / RB  Service        A / Enter  Repair this        X  Repair all        B / Esc  Leave");
+		Hints = LOCTEXT("HintsRepair", "{Tabs}  Service        {Confirm}  Repair this        {Toggle}  Repair all        {Back}  Leave");
 		break;
 	case EVendorScreenTab::Curses:
-		Hints = LOCTEXT("HintsCurses", "LB / RB  Service        A / Enter  Clear        B / Esc  Leave");
+		Hints = LOCTEXT("HintsCurses", "{Tabs}  Service        {Confirm}  Clear        {Back}  Leave");
 		break;
 	case EVendorScreenTab::Merge:
-		Hints = LOCTEXT("HintsMerge", "LT / RT  Character        LB / RB  Service        Left / Right  Tier        A / Enter  Merge        B / Esc  Leave");
+		Hints = LOCTEXT("HintsMerge", "{SubTabs}  Character        {Tabs}  Service        Left / Right  Tier        {Confirm}  Merge        {Back}  Leave");
 		break;
 	default:
-		Hints = FText::Format(LOCTEXT("Hints", "LT / RT  Character        LB / RB  Service        A / Enter  {0}        X  Whole stack        B / Esc  Leave"),
+		Hints = FText::FormatNamed(LOCTEXT("Hints", "{SubTabs}  Character        {Tabs}  Service        {Confirm}  {Verb}        {Toggle}  Whole stack        {Back}  Leave"), TEXT("Verb"),
 							  WoRVendorScreen::GetTabName(GetTab()));
 		break;
 	}
-	HintsText->SetText(Hints);
+	WoRKeyHints::SetHint(HintsText, Hints);
 
 	while (RowWidgets.Num() < Page.Rows.Num())
 	{
@@ -534,7 +534,7 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	SetShown(BuyForButton, bBuyFor);
 	if (bBuyFor)
 	{
-		BuyForText->SetText(FText::Format(LOCTEXT("BuyingFor", "R / Y  Buying for:  {0}"), Members[MemberIndex].Name));
+		WoRKeyHints::SetHint(BuyForText, FText::FormatNamed(LOCTEXT("BuyingFor", "{Second}  Buying for:  {Who}"), TEXT("Who"), Members[MemberIndex].Name));
 	}
 
 	EVendorService Service = EVendorService::Sell;
@@ -553,13 +553,13 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	SetShown(WholeStackText, bStack || (bRepair && !Page.Rows.IsEmpty()));
 	if (bRepair)
 	{
-		WholeStackText->SetText(Page.AllRefusal.IsEmpty() ? FText::Format(LOCTEXT("RepairAllLine", "X  Repair all:  {0}"), Page.AllPay)
-														  : FText::Format(LOCTEXT("RepairAllRefused", "X  Repair all:  {0} ({1})"), Page.AllPay, Page.AllRefusal));
+		WoRKeyHints::SetHint(WholeStackText, Page.AllRefusal.IsEmpty() ? FText::FormatNamed(LOCTEXT("RepairAllLine", "{Toggle}  Repair all:  {Pay}"), TEXT("Pay"), Page.AllPay)
+														  : FText::FormatNamed(LOCTEXT("RepairAllRefused", "{Toggle}  Repair all:  {Pay} ({Why})"), TEXT("Pay"), Page.AllPay, TEXT("Why"), Page.AllRefusal));
 	}
 	else
 	{
-		WholeStackText->SetText(bWholeStack ? FText::Format(LOCTEXT("WholeStackOn", "X  Whole stack: on (all {0})"), FText::AsNumber(Row.Row.Count))
-											: LOCTEXT("WholeStackOff", "X  Whole stack: off (one at a time)"));
+		WoRKeyHints::SetHint(WholeStackText, bWholeStack ? FText::FormatNamed(LOCTEXT("WholeStackOn", "{Toggle}  Whole stack: on (all {Count})"), TEXT("Count"), FText::AsNumber(Row.Row.Count))
+											: LOCTEXT("WholeStackOff", "{Toggle}  Whole stack: off (one at a time)"));
 	}
 	RuleText->SetText(Page.Rule);
 	SetShown(RuleText, !Page.Rule.IsEmpty());

@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-481](B-481.md) | `feature/B-481-device-key-hints` (in dev, built 2026-11-14) | Menu footers name the keys of the device in use, live; keyboard Back is Backspace | Pending |
 | [B-440f](B-440f.md) | `feature/B-440f-loadout-apparel-v2` (in dev, built 2026-11-14) | Loadout v2: the Apparel tab (LB / RB): worn pieces, Add apparel, A Pick / Remove | Pending |
 | [B-440e](B-440e.md) | `feature/B-440e-saved-loadouts-v2` (in dev, built 2026-11-14) | Loadout v2: Options > Saved loadouts: use, new, duplicate, rename; the loadout's name top right | Pending |
 | [B-476c](B-476c.md) | `feature/B-476c-loadout-v2-rest-cloud` (cloud, UNBUILT; includes B-476b) | Loadout v2: list and details box, X Simple / Full, the Add gear window for new and edited entries (kinds, hands, sockets, adapter, evolution ask), L3 Set active, Y Options | Pending |

@@ -83,7 +83,7 @@ void ULoadoutScreenWidget::BuildTree()
 	AddToRow(Header, TabsColumn, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	UHorizontalBox *MemberRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "LT")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
 	{
 		UTextBlock *Label = nullptr;
@@ -91,11 +91,11 @@ void ULoadoutScreenWidget::BuildTree()
 		MemberTabLabels.Add(Label);
 		AddToRow(MemberRow, MemberTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(TabsColumn, MemberRow);
 
 	UHorizontalBox *PageRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "LB")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "{TabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (const FText &PageName : {LOCTEXT("PageGear", "Gear"), LOCTEXT("PageSkills", "Skills")})
 	{
 		UTextBlock *Label = nullptr;
@@ -104,7 +104,7 @@ void ULoadoutScreenWidget::BuildTree()
 		Label->SetText(PageName);
 		AddToRow(PageRow, PageTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
-	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "RB")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "{TabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(TabsColumn, PageRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	UHorizontalBox *BudgetRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -176,7 +176,7 @@ void ULoadoutScreenWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	// Bottom right: the hints.
-	HintsText = MakeText(WidgetTree, LineFontSize, DimColor);
+	HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -325,9 +325,9 @@ void ULoadoutScreenWidget::RefreshList()
 
 	if (HintsText)
 	{
-		HintsText->SetText(bPicking		 ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
-						   : bSkillsPage ? LOCTEXT("HintsSkills", "A  Change        X  Remove        Left / Right  Lists        LB / RB  Page        LT / RT  Character        B / Esc  Back")
-										 : LOCTEXT("Hints", "A  Change        X  Unequip        L3 / 6  Set active        Left / Right  Sockets        LB / RB  Page        LT / RT  Character        B / Esc  Back"));
+		WoRKeyHints::SetHint(HintsText, bPicking		 ? LOCTEXT("HintsPicking", "{Confirm}  Put in        {Back}  Cancel")
+						   : bSkillsPage ? LOCTEXT("HintsSkills", "{Confirm}  Change        {Toggle}  Remove        Left / Right  Lists        {Tabs}  Page        {SubTabs}  Character        {Back}  Back")
+										 : LOCTEXT("Hints", "{Confirm}  Change        {Toggle}  Unequip        {SetActive}  Set active        Left / Right  Sockets        {Tabs}  Page        {SubTabs}  Character        {Back}  Back"));
 	}
 	if (RefusalText && PickerTitle)
 	{

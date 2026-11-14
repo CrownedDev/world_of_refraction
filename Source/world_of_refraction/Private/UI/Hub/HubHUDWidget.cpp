@@ -3,7 +3,6 @@
 #include "UI/Hub/HubHUDWidget.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
-#include "CommonInputSubsystem.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Currency/CurrencyComponent.h"
@@ -200,8 +199,7 @@ void UHubHUDWidget::Refresh()
 	}
 	if (Prompt.bShown)
 	{
-		const UCommonInputSubsystem *Input = UCommonInputSubsystem::Get(GetOwningLocalPlayer());
-		PromptKey->SetText(WoRHubHUD::GetInteractKeyLabel(Input && Input->GetCurrentInputType() == ECommonInputType::Gamepad));
+		PromptKey->SetText(WoRHubHUD::GetInteractKeyLabel(WoRKeyHints::IsGamepad(this))); // B-481: the shared device check
 		PromptVerb->SetText(Prompt.Verb);
 		PromptWhat->SetText(Prompt.What);
 		SetShown(PromptWhat, !Prompt.What.IsEmpty());
