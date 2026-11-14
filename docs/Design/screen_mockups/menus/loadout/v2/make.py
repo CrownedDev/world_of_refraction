@@ -4,7 +4,7 @@ in the focused slot or socket on the right, always in view, with a compare (ups 
 in stay listed, greyed, with the reason. Details on R3. Tabs Weapons | Apparel | Skills on LB / RB.
 Weapons tab: the budget IS the slots. Each budget point is one cell, an item fills as many cells as it costs (bare
 weapon 1, weapon with crystal or stone 2, evolved weapon 3, adapter 1, evolved adapter 2, evolution alone 3; CL-10).
-Generic: Primary row 3 cells + Secondary row 2 (CL-03); Refractor: one row of 3 + its innate spell pool shown big
+Generic: Primary row 3 cells + Secondary row 2 (a weapon or a ring; 2 items in all); Refractor: one row of 3 + its innate spell pool shown big
 (CL-04, CL-34, CL-42); Resonator: one row of 5, the weapon first, then rings, the active ring marked (CL-05). Each
 shows the character's own evolution seat. Apparel: 2 slots, HP / Defence / Amp + one rolled bonus line (CL-50); a
 pillar bonus raises the pillar's value ("+5% Body"), not its points. Stat values are placeholders. Run: python make.py"""
@@ -176,7 +176,7 @@ im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
 used_line(d, 4, 5, preview=3)
 y = cells(d, 168, 3, [("Ashen Blade", "Fire", 2, [FIRE, None], True)], "Primary  ·  weapon, adapter or evolution", focus=0)
-y = cells(d, y, 2, [("Quarry Maul", "Earth", 2, [EARTH, None], False)], "Secondary  ·  a weapon or nothing")
+y = cells(d, y, 2, [("Quarry Maul", "Earth", 2, [EARTH, None], False)], "Secondary  ·  a weapon or a ring")
 y = sockets_strip(d, y, "Ashen Blade", [("Crystal", "Garnet", "Fire"), ("Stone", None, None)])
 seat(d, y, "Ironheart", "Earth")
 frame(d, "Garrick", "Generic", "Ashen Blade · Quarry Maul · Iron Coat")
@@ -190,6 +190,26 @@ choices(d, "Fits the primary  ·  3 cells", [
     ("Element", "Fire (Garnet)", "none", None), ("Abilities", "Cleave, Whirl…", "Pierce, Sweep…", None)])
 footer(d, FOOT)
 save(im, OUT, "1_weapons_generic.png")
+
+# ---- 1b: Garrick's Secondary focused: it takes a weapon or a ring (Crown, 2026-11-14), so rings are listed beside weapons.
+im, d = canvas()
+header(d, 1, 0, "Bruiser  ·  2 of 5")
+used_line(d, 4, 5, preview=3)
+y = cells(d, 168, 3, [("Ashen Blade", "Fire", 2, [FIRE, None], True)], "Primary  ·  weapon, adapter or evolution")
+y = cells(d, y, 2, [("Quarry Maul", "Earth", 2, [EARTH, None], False)], "Secondary  ·  a weapon or a ring", focus=0)
+y = sockets_strip(d, y, "Quarry Maul", [("Crystal", "Citrine", "Earth"), ("Stone", None, None)])
+seat(d, y, "Ironheart", "Earth")
+frame(d, "Garrick", "Generic", "Ashen Blade · Quarry Maul · Iron Coat")
+choices(d, "Fits the secondary  ·  2 cells", [
+    ("Quarry Maul", "Earth", "C", "Hammer · Citrine", "2 cells", "worn"),
+    ("Storm Ring", "Lightning", "C", "Ring · casts its spells", "1 cell", None),
+    ("Gale Spear", "Wind", "C", "Spear", "1 cell", None),
+    ("Stormbreaker", "Lightning", "A", "", "", "Evolved: needs 3 cells, the secondary has 2"),
+    ("Ashen Blade", "Fire", "B", "", "", "In the primary slot")], 1, [
+    ("Cells", "4 of 5", "3 of 5", True), ("Off-hand", "Quarry Maul", "Storm Ring", None),
+    ("Spells", "none", "Spark…", True), ("Weapon switch", "on", "off", None)])
+footer(d, FOOT)
+save(im, OUT, "1b_weapons_generic_secondary.png")
 
 # ---- 2: Sera (Refractor): one row of 3 cells, the gear small; the innate spell pool is the star.
 im, d = canvas()
@@ -239,7 +259,7 @@ im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
 used_line(d, 3, 5, preview=4)
 y = cells(d, 168, 3, [("Ashen Blade", "Fire", 2, [FIRE, None], True)], "Primary  ·  weapon, adapter or evolution")
-y = cells(d, y, 2, [("Quarry Maul", "Earth", 1, [None, None], False)], "Secondary  ·  a weapon or nothing", focus=0)
+y = cells(d, y, 2, [("Quarry Maul", "Earth", 1, [None, None], False)], "Secondary  ·  a weapon or a ring", focus=0)
 y = sockets_strip(d, y, "Quarry Maul", [("Crystal", None, None), ("Stone", None, None)], focus=0)
 seat(d, y, "Ironheart", "Earth")
 frame(d, "Garrick", "Generic", "Ashen Blade · Quarry Maul · Iron Coat")
