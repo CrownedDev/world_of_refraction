@@ -20,7 +20,8 @@ public class world_of_refraction : ModuleRules
 		// stage 2's attribute sets and ability system component on (B-041).
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "Niagara", "UMG", "MotionWarping", "NetCore", "GameplayTags", "AIModule", "CommonUI", "CommonInput", "LevelSequence", "MovieScene", "GameplayAbilities", "GameplayTasks" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { "AssetRegistry" });
+		// ProceduralMeshComponent: the battle transition's shards are cut at runtime (B-500).
+		PrivateDependencyModuleNames.AddRange(new string[] { "AssetRegistry", "ProceduralMeshComponent" });
 
 		// Uncomment if you are using Slate UI
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
