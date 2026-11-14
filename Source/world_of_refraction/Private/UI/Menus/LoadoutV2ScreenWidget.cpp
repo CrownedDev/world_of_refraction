@@ -956,6 +956,7 @@ void ULoadoutV2ScreenWidget::MoveMember(int32 Delta)
 		return;
 	}
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
+	bRemoveArmed = false; // B-476e
 	Selected = 0;
 	Message = FText::GetEmpty();
 	RefreshData();
@@ -1115,6 +1116,7 @@ void ULoadoutV2ScreenWidget::SwitchTab(int32 Delta)
 void ULoadoutV2ScreenWidget::ShowTab(ELoadoutV2Tab NewTab)
 {
 	Tab = NewTab;
+	bRemoveArmed = false;
 	Mode = Tab == ELoadoutV2Tab::Skills ? ELoadoutV2Mode::SkillEntries : ELoadoutV2Mode::List; // the tab's top level
 	Selected = 0;
 	Message = FText::GetEmpty();
@@ -1414,6 +1416,7 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		RefreshData();
 		return true;
 	case ELoadoutV2Mode::ApparelItems:
+		bRemoveArmed = false; // B-476e: an armed take-off never outlives the picker
 		if (bApparelSocket)
 		{
 			bApparelSocket = false; // B-476e: back to the pieces, on the socket line
@@ -1602,6 +1605,7 @@ void ULoadoutV2ScreenWidget::OpenApparelItems()
 	PickedSocket = INDEX_NONE;
 	bComparing = false; // B-476e
 	bApparelSocket = false;
+	bRemoveArmed = false;
 	Message = FText::GetEmpty();
 	RefreshData();
 	if (Items.IsEmpty())
