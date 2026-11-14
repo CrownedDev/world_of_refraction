@@ -287,7 +287,7 @@ void UNpcTalkWidget::PressA()
 		if (UMemoryJournalSubsystem *Journal = GetJournal())
 		{
 			WoRNpcTalk::Hear(*Journal, Topic);
-			UE_LOG(LogWoRUI, Log, TEXT("[NpcTalk] V line %s heard"), *Topic.LineId.ToString());
+			UE_LOG(LogWoRUI, Log, TEXT("[NpcTalk] %s %s heard"), Topic.bConversation ? TEXT("Conversation") : TEXT("V line"), *Topic.LineId.ToString());
 		}
 		Refresh(); // the next line may unlock, the NEW mark goes
 		return;

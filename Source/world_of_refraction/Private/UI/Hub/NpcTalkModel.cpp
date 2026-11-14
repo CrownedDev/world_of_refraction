@@ -86,7 +86,7 @@ FNpcTalkPage WoRNpcTalk::BuildForCharacter(const UCharacterData *Character, cons
 	// TODO: B-127: the character's Name becomes FText on the asset.
 	Page.Role = Character ? FText::FromString(Character->Name) : FText::GetEmpty();
 	// TODO: each character's greeting is Crown's to write (lore); a neutral placeholder until then.
-	Page.Greeting = LOCTEXT("CharacterGreetingPlaceholder", "…");
+	Page.Greeting = LOCTEXT("CharacterGreetingPlaceholder", "\u2026");
 	Page.Choices = {ENpcTalkChoice::Talk, ENpcTalkChoice::Leave};
 	if (!Journal || !Character)
 	{
