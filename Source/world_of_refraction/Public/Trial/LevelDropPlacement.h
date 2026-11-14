@@ -1,6 +1,7 @@
 // LevelDropPlacement.h
 // B-223 (D-102): the player places a dropped pillar level on a party member's chosen pillar. B-363 (D-156): only at a
-// rest spot, where a point can also be bought for run Prisms (TryBuyPoint). Dropped levels
+// rest spot. A point can also be bought for run Prisms (TryBuyPoint; B-447, D-183: from the trial NPC who sells them
+// this run, WoRTrialNPC, not at the rest spot). Dropped levels
 // wait in the trial run (UTrialRunSubsystem::GetUnspentLevels); placing one raises that member's live level
 // (a spawned member at once, else at its next spawn), clamped at 7 (B-222). Placeholder screen:
 // wor.UI.LevelDrop (ULevelDropWidget). Debug: wor.WorldStat.Print.
