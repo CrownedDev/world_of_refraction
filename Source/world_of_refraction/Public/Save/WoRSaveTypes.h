@@ -842,6 +842,11 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	 *  and reads false, which is the default: no save version bump. */
 	UPROPERTY()
 	bool bHideEndTurnButton = false;
+
+	/** B-453a (D-190): EScreenShakeLevel; 0 = Full, the default. An older save has no such field and reads 0, the
+	 *  default: no save version bump (as B-170e). */
+	UPROPERTY()
+	uint8 ScreenShake = 0;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
