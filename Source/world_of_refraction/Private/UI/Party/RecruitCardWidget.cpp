@@ -113,8 +113,8 @@ TSharedRef<SWidget> URecruitCardWidget::RebuildWidget()
 		CardSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		CardSlot->SetHorizontalAlignment(HAlign_Center);
 		CardSlot->SetVerticalAlignment(VAlign_Center);
-		UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-		Hints->SetText(LOCTEXT("Hints", "Up / Down  Choose        A  Invite        B / Esc  Not now"));
+		UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+		WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "Up / Down  Choose        {Confirm}  Invite        {Back}  Not now"));
 		AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 	}
 	return Super::RebuildWidget();

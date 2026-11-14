@@ -124,10 +124,10 @@ void UGateScreenWidget::BuildTree()
 	AddToColumn(Main, Subtitle, FMargin(0.0f, LineGap, 0.0f, SectionGap));
 
 	UHorizontalBox *TabRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("PrevGateKey", "LB")), FMargin(0.0f, 0.0f, TabGap, 0.0f), VAlign_Center);
+	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("PrevGateKey", "{TabPrev}")), FMargin(0.0f, 0.0f, TabGap, 0.0f), VAlign_Center);
 	GateTabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToRow(TabRow, GateTabBox);
-	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("NextGateKey", "RB")), FMargin(TabGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	AddToRow(TabRow, MakeKeyLabel(WidgetTree, LOCTEXT("NextGateKey", "{TabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	AddToColumn(Main, TabRow, FMargin(0.0f, 0.0f, 0.0f, HeaderGap));
 
 	UHorizontalBox *Body = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -204,8 +204,8 @@ void UGateScreenWidget::BuildTree()
 	AddToColumn(Right, MakeSized(WidgetTree, PanelWidth, EnterHeight, EnterFrame), FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Right), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "X  Party        Y  Loadout        A  Select        B / Esc  Cancel"));
+	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Toggle}  Party        {Second}  Loadout        {Confirm}  Select        {Back}  Cancel"));
 	AddToColumn(Main, Hints, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
 }
 
