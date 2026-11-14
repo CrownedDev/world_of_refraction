@@ -18,6 +18,7 @@
 #include "UI/Party/RecruitCardWidget.h"
 #include "Player/WoRInteract.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Hub/HubHUDModel.h"
 
 namespace PartyInteractionConstants
 {
@@ -307,11 +308,7 @@ FString UPartyInteractionComponent::GetHintText() const
 							   GetOwner() ? *GetOwner()->GetName() : TEXT("<null>"));
 	}
 
-	const UPartySessionSubsystem *PartySession = GetPartySession();
-	const bool bIsMember = PartySession && PartySession->GetMemberSlotByData(OwnerData) != INDEX_NONE;
-	return FString::Printf(TEXT("Press E to %s %s"),
-						   bIsMember ? TEXT("dismiss") : TEXT("invite"),
-						   *OwnerData->Name);
+	return WoRHubHUD::FormatPromptLine(GetPrompt()).ToString(); // B-491 (D-213): "E  Invite · <name>" / "E  Dismiss · <name>"
 }
 
 bool UPartyInteractionComponent::IsWithinReach(const APawn *Pawn) const

@@ -14,6 +14,7 @@
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
+#include "UI/Hub/HubHUDModel.h"
 #include "WoRGameNames.h"
 
 namespace MerchantInteractableConstants
@@ -194,8 +195,7 @@ void AMerchantInteractable::OnTriggerEndOverlap(UPrimitiveComponent * /*Overlapp
 
 FString AMerchantInteractable::GetHintText() const
 {
-    const FString MerchantLabel = Merchant
-                                      ? WoRGameNames::GetMerchantTypeName(Merchant->MerchantType).ToString()
-                                      : FString::Printf(TEXT("%s (no Merchant assigned)"), *GetName());
-    return FString::Printf(TEXT("Press E — %s"), *MerchantLabel);
+    // B-491 (D-213): the prompt's line ("E  Talk · Blacksmith"), as HubInteract's prompt for a merchant.
+    return Merchant ? WoRHubHUD::FormatPromptLine(FInteractPrompt(EInteractVerb::Talk, WoRGameNames::GetMerchantTypeName(Merchant->MerchantType))).ToString()
+                    : FString::Printf(TEXT("%s (no Merchant assigned)"), *GetName());
 }
