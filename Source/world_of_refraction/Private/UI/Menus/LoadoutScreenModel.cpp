@@ -929,9 +929,11 @@ FText WoRLoadoutScreen::GetTakeOffSocketWarning(const FLoadoutScreenRow &Row, in
 	}
 	if (Row.Kind == ELoadoutScreenRowKind::Apparel)
 	{
-		// TODO: B-476e: taking a crystal off apparel (CL-28b: destroyed; an evolution back with some wear).
-		OutRefusal = LOCTEXT("RefuseApparelSocketOff", "Taking a crystal off apparel comes later.");
-		return FText::GetEmpty();
+		// B-476e (CL-50b): unlike a weapon's (CL-28b), an apparel socket gives its crystal back to storage.
+		const FLoadoutScreenSocket &Socketed = Row.Sockets[Socket];
+		// FormatNamed leaves {Confirm} for the key hint text to fill (WoRKeyHints).
+		return Socketed.bEvolution ? FText::FormatNamed(LOCTEXT("WarnApparelEvolutionOff", "{Confirm} again: {What} comes out (it stays yours)."), TEXT("What"), Socketed.Name)
+								   : FText::FormatNamed(LOCTEXT("WarnApparelCrystalOff", "{Confirm} again: {What} goes back to storage."), TEXT("What"), Socketed.Name);
 	}
 	const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
 	if (Crystal.bEvolution)
@@ -958,6 +960,10 @@ FText WoRLoadoutScreen::TakeOffSocket(UWorld *World, const FLoadoutScreenMember 
 	if (GetTakeOffSocketWarning(Row, Socket, Refusal).IsEmpty())
 	{
 		return Refusal;
+	}
+	if (Row.Kind == ELoadoutScreenRowKind::Apparel)
+	{
+		return Inventory->DetachFromApparel(Row.GearID) ? FText::GetEmpty() : LOCTEXT("RefuseSocketRemove", "It couldn't be taken off (the Output Log says why).");
 	}
 	const bool bAdapter = Row.Kind == ELoadoutScreenRowKind::Adapter;
 	bool bDone = false;
