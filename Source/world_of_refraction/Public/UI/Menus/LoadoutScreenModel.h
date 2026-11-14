@@ -15,6 +15,9 @@
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Skills/Definitions/ESpellElement.h"
 
+class UInventoryComponent;
+class ULoadoutComponent;
+class USkillDataBase;
 class UWorld;
 struct FCombatLoadout;
 struct FLoadoutSlot;
@@ -31,7 +34,10 @@ enum class ELoadoutScreenRowKind : uint8
 	Apparel,
 	EmptyApparel,
 	/** A free weapon or adapter place (B-440b): A fills it. */
-	EmptyGear
+	EmptyGear,
+	/** B-440d, the Skills page: a filled skill or spell slot, and an empty one. */
+	Skill,
+	EmptySkill
 };
 
 /** The loadout place a gear row fills (B-440b): A Change and X Unequip act on it. */
@@ -95,6 +101,11 @@ struct FLoadoutScreenRow
 	int32 AdapterIndex = INDEX_NONE;
 	/** The owned piece in the place; invalid for an evolution seat or an empty place. */
 	FGuid GearID;
+	/** B-440d, a Skills page row: its slot in the list (an innate spell's index, a weapon's or adapter's slot), the skill
+	 *  in it (null for an empty slot), and whether the player put it there (X brings back what it replaced). */
+	int32 SkillSlot = INDEX_NONE;
+	USkillDataBase *Skill = nullptr;
+	bool bPick = false;
 };
 
 /** One line of the gear picker (B-440b): an owned piece for the row's place, or "put in hand". */
@@ -205,6 +216,13 @@ namespace WoRLoadoutScreen
 
 	/** Empties Row's Socket on the owned piece. Empty on success; else the reason. */
 	WORLD_OF_REFRACTION_API FText TakeOffSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket);
+
+	/** The weapon or adapter in Row's place of Loadout (at most one is set; neither for an empty place). */
+	WORLD_OF_REFRACTION_API void FindRowGear(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, FWeaponLoadoutEntry *&OutWeapon,
+											 FRingLoadoutEntry *&OutAdapter);
+
+	/** The member's spawned loadout component, with its inventory; null when the member isn't in this level. */
+	WORLD_OF_REFRACTION_API ULoadoutComponent *FindMemberLoadout(UWorld *World, const FLoadoutScreenMember &Member, UInventoryComponent *&OutInventory);
 
 	/** "Bruiser (2 of 5)". */
 	WORLD_OF_REFRACTION_API FText FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count);
