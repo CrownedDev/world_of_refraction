@@ -140,8 +140,19 @@ bool WoRRestSpot::CanExtractHere(const UWorld *World)
 	{
 		return false;
 	}
-	const ATrialRestSpot *Spot = FindLastRestSpot(World);
+	const ATrialRestSpot *Spot = FindRestingSpot(World);
 	return Run->IsBeatenMiniBoss(Run->GetLastRestSpot()) || (Spot && Spot->GetService() == ERestService::Extract); // B-502: V's rest point
+}
+
+const ATrialRestSpot *WoRRestSpot::FindRestingSpot(const UWorld *World)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const ATrialRestSpot *Spot = Run && Run->IsAtRestSpot() ? FindLastRestSpot(World) : nullptr;
+	// The last rest spot is the whole party's (a guest's rest moves it): the host's own pawn must stand in this one.
+	const APlayerController *Host = Spot ? World->GetFirstPlayerController() : nullptr;
+	const APawn *HostPawn = Host ? Host->GetPawn() : nullptr;
+	return Spot && (!HostPawn || Spot->IsWithinReach(HostPawn)) ? Spot : nullptr;
 }
 
 const ATrialRestSpot *WoRRestSpot::FindLastRestSpot(const UWorld *World)
@@ -193,7 +204,7 @@ const ATrialRestSpot *WoRRestSpot::FindAwakeShrine(const UWorld *World)
 
 bool WoRRestSpot::SellsPointsHere(const UWorld *World)
 {
-	const ATrialRestSpot *Spot = FindLastRestSpot(World);
+	const ATrialRestSpot *Spot = FindRestingSpot(World);
 	return Spot && Spot == FindAwakeShrine(World);
 }
 

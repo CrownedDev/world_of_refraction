@@ -41,6 +41,13 @@ BEGIN_DEFINE_SPEC(FRestServiceSpec, "WoR.Trial.RestService", EAutomationTestFlag
 	{
 		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), REST_SERVICE_TEST_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, {}, {});
 	}
+
+	/** What a host's press does to the run (WoRRestSpot::Rest), without a party to heal. */
+	void RestAt(const ATrialRestSpot *Spot)
+	{
+		Run->NoteRestSpotUsed(Spot->GetRestSpotId());
+		Run->SetAtRestSpot(true);
+	}
 END_DEFINE_SPEC(FRestServiceSpec)
 
 void FRestServiceSpec::Define()
@@ -96,14 +103,20 @@ void FRestServiceSpec::Define()
 
 		TestFalse(TEXT("not rested anywhere yet: no points here"), WoRRestSpot::SellsPointsHere(World));
 		const ATrialRestSpot *Quiet = Awake == First ? Second : First;
-		Run->NoteRestSpotUsed(Quiet->GetRestSpotId());
+		RestAt(Quiet);
 		TestFalse(TEXT("a quiet shrine sells none"), WoRRestSpot::SellsPointsHere(World));
 		TestTrue(TEXT("and refuses the buy"), WoRRestSpot::TryBuyPointHere(World, FPartyMember()).ToString().Contains(TEXT("No pillar points")));
-		Run->NoteRestSpotUsed(Anvil->GetRestSpotId());
+		RestAt(Anvil);
 		TestFalse(TEXT("the anvil sells none"), WoRRestSpot::SellsPointsHere(World));
-		Run->NoteRestSpotUsed(Awake->GetRestSpotId());
+		RestAt(Awake);
 		TestTrue(TEXT("this run's shrine sells them"), WoRRestSpot::SellsPointsHere(World));
 		TestTrue(TEXT("the debug string names it"), WoRRestSpot::GetRestSpotsString(World).Contains(TEXT("sells points this run")));
+
+		// Review: the last rest spot stays the shrine after the party walks on; the points don't.
+		WoRRestSpot::StepAway(World);
+		TestTrue(TEXT("still the last rest spot"), WoRRestSpot::FindLastRestSpot(World) == Awake);
+		TestFalse(TEXT("stepped away: no points"), WoRRestSpot::SellsPointsHere(World));
+		TestTrue(TEXT("and the buy is refused"), WoRRestSpot::TryBuyPointHere(World, FPartyMember()).ToString().Contains(TEXT("No pillar points")));
 	});
 
 	It("picks the shrine from the run's seed, inside the shrines placed; a lone shrine always sells", [this]()
@@ -130,10 +143,12 @@ void FRestServiceSpec::Define()
 		TestFalse(TEXT("no run: no Extract"), WoRRestSpot::CanExtractHere(World));
 
 		StartRun();
-		Run->NoteRestSpotUsed(Plain->GetRestSpotId());
+		RestAt(Plain);
 		TestFalse(TEXT("a plain rest spot: no Extract (B-448)"), WoRRestSpot::CanExtractHere(World));
-		Run->NoteRestSpotUsed(V->GetRestSpotId());
+		RestAt(V);
 		TestTrue(TEXT("V's rest point: Extract"), WoRRestSpot::CanExtractHere(World));
+		WoRRestSpot::StepAway(World);
+		TestFalse(TEXT("stepped away from V: no Extract"), WoRRestSpot::CanExtractHere(World));
 		TestTrue(TEXT("the prompt names V"), WoRHubHUD::FormatPromptLine(V->GetPrompt()).ToString().EndsWith(TEXT("Rest · V")));
 	});
 }

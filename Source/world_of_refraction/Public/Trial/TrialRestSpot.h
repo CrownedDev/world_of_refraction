@@ -38,11 +38,16 @@ enum class ERestService : uint8
 
 namespace WoRRestSpot
 {
-	// B-502 (D-214): the services. "Here" is the placed rest spot the party last rested at (the run's last rest spot).
+	// B-502 (D-214): the services. "Here" is the placed rest spot the host is resting at now (FindRestingSpot).
 
 	/** The placed rest spot the party last rested at; null outside a run, or when that was a mini-boss's spot that is
-	 *  gone or the console's rest. */
+	 *  gone or the console's rest. It stays set after the party walks on (a wipe returns there, D-155). */
 	WORLD_OF_REFRACTION_API const ATrialRestSpot *FindLastRestSpot(const UWorld *World);
+
+	/** The placed rest spot the host is resting at now: the last one rested at, while that rest lasts (its menu or
+	 *  level screen is open: UTrialRunSubsystem::IsAtRestSpot) and the host's pawn still stands in it. Null once the
+	 *  host steps away, and while only a guest rested somewhere else. A service is offered only here. */
+	WORLD_OF_REFRACTION_API const ATrialRestSpot *FindRestingSpot(const UWorld *World);
 
 	/** Which of Count shrines sells pillar points this run (0 with fewer than two). The seed alone decides. */
 	WORLD_OF_REFRACTION_API int32 PickShrineIndex(int32 RunSeed, int32 Count);
@@ -51,7 +56,7 @@ namespace WoRRestSpot
 	 *  the same one as the host (the run's seed is on the GameState). */
 	WORLD_OF_REFRACTION_API const ATrialRestSpot *FindAwakeShrine(const UWorld *World);
 
-	/** The party last rested at this run's shrine. */
+	/** The host is resting at this run's shrine (FindRestingSpot). */
 	WORLD_OF_REFRACTION_API bool SellsPointsHere(const UWorld *World);
 
 	/** Buys Member one pillar point here (WoRLevelDrops::TryBuyPoint: its price and refusals). Empty on success, else
@@ -72,7 +77,7 @@ namespace WoRRestSpot
 											 const TArray<const AWoRPlayerState *> &Players);
 
 	/** B-448 (D-186): the party may extract here: the run's last rest spot is one a beaten boss left (ER-09c), or
-	 *  (B-502, D-214) V's rest point. Any other rest spot in the wild has no Extract. */
+	 *  (B-502, D-214) the host is resting at V's rest point (FindRestingSpot). Any other rest spot has no Extract. */
 	WORLD_OF_REFRACTION_API bool CanExtractHere(const UWorld *World);
 
 	/** Extracts here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False outside a run
