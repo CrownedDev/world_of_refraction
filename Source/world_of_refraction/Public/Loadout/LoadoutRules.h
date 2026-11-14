@@ -66,7 +66,10 @@ enum class ELoadoutSlotType : uint8
 	PrimaryStone,
 	// B-477 (D-209): a weapon set's off hand that may not be there (a pair WeaponSetRules::CheckPair refuses, or a set on
 	// a class other than Generic); cleared by emptying the off hand. SubIndex SECONDARY_WEAPON for the secondary set.
-	OffHandWeapon
+	OffHandWeapon,
+	// B-480 (D-210): an evolution on gear its class may not put one on (a Resonator's weapon, a Generic's adapter);
+	// cleared by taking the evolution off. SlotIndex: LoadoutGearEvolutionIndex, or the adapter loadout's index.
+	GearEvolution
 };
 
 /** One actionable validation finding, produced by FLoadoutRules — the structured
@@ -106,6 +109,14 @@ namespace LoadoutAbilityOverflowIndex
 	constexpr int32 PRIMARY_WEAPON = 0;
 	constexpr int32 SECONDARY_WEAPON = 1;
 	constexpr int32 ABILITIES = 0;
+}
+
+/** SlotIndex of a GearEvolution finding: the primary weapon, the primary adapter, or (0 and up) the adapter loadout's
+ *  index. */
+namespace LoadoutGearEvolutionIndex
+{
+	constexpr int32 PRIMARY_WEAPON = -1;
+	constexpr int32 PRIMARY_RING = -2;
 }
 
 /** What the rules can check for this loadout. An unset function means "not checked". */
