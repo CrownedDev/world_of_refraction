@@ -228,6 +228,14 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Loadout.PrimaryWeapon.IsValid() &&
         Loadout.SecondaryWeapon.IsValid();
 
+    // B-474 (D-207): the other weapon's skills, for the menu to offer while the player's setting is on.
+    if (Out.bCanSwitchWeapon)
+    {
+        Out.OtherWeaponAbilities = LC->GetOtherWeaponSkills();
+        const FWeaponLoadoutEntry &Other = Loadout.bShowPrimary ? Loadout.SecondaryWeapon : Loadout.PrimaryWeapon;
+        Out.OtherWeaponName = Other.WeaponEntry.Weapon ? Other.WeaponEntry.Weapon->Name : FString();
+    }
+
     UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d BrokenSourceSpells=%d"),
            *UEnum::GetValueAsString(CharClass),
            Out.bCanAttack, Out.bCanUseAbilities, Out.bHasWeaponCrystal,

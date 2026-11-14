@@ -297,7 +297,9 @@ namespace
 		if (Pick.ActionType == EActionType::Ability && Pick.SkillData)
 		{
 			const USkillDataBase *Skill = Pick.SkillData.Get();
-			return Loadout->GetAvailableAbilities().ContainsByPredicate([Skill](const UAbilityData *Each) { return Each == Skill; }) ||
+			// B-474 (D-207): the other weapon's skills are offered too (the executor switches to that weapon).
+			const auto Lists = [Skill](const TArray<UAbilityData *> &Abilities) { return Abilities.ContainsByPredicate([Skill](const UAbilityData *Each) { return Each == Skill; }); };
+			return Lists(Loadout->GetAvailableAbilities()) || Lists(Loadout->GetOtherWeaponSkills()) ||
 				   Loadout->GetAllWeaponAttacks().Contains(const_cast<USkillDataBase *>(Skill));
 		}
 		return true; // Defend, items (the executor checks the pouch), a basic attack with no skill
@@ -693,7 +695,8 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 		{TEXT("IA_Combat_MenuSpells"), EPieMenuCategory::Refractions, EKeys::Three, EKeys::Gamepad_FaceButton_Right},
 		{TEXT("IA_Combat_MenuItems"), EPieMenuCategory::Items, EKeys::Four, EKeys::Gamepad_DPad_Up},
 		{TEXT("IA_Combat_MenuFlee"), EPieMenuCategory::Flee, EKeys::Five, EKeys::Gamepad_DPad_Down},
-		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_DPad_Left},
+		// B-474 (D-207): Switch Weapon moved from D-pad Left to L3 (D-pad Left is free).
+		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_LeftThumbstick},
 		{TEXT("IA_Combat_MenuChangeRing"), EPieMenuCategory::ChangeRing, EKeys::Seven, EKeys::Gamepad_DPad_Right},
 		// B-170e (Crown, 2026-11-12): End Turn has no key yet; it comes later, with its InputMap.md row. The menu already
 		// takes it as a main-menu key (CommandMenuRules::IsMainMenuKey, PressMenuKey(EPieMenuCategory::EndTurn)).

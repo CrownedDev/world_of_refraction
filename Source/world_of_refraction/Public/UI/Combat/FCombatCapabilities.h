@@ -93,6 +93,15 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Abilities")
     TArray<UAbilityData *> WeaponAbilities;
 
+    /** B-474 (D-207): the skill list of the weapon not in hand (a Generic with two weapon entries). The menu offers it
+     *  while "Switch to the weapon of the skill you use" is on; using one switches to that weapon. */
+    UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Abilities")
+    TArray<UAbilityData *> OtherWeaponAbilities;
+
+    /** The weapon not in hand's name, for the other weapon's skill buttons. */
+    UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Display")
+    FString OtherWeaponName;
+
     // ==================== ITEM POOL ====================
 
     /** Usable items in the active loadout's item slots (CrystalId only —
