@@ -818,7 +818,7 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	case ELoadoutV2Mode::SkillEntries:
 		return LOCTEXT("HintsSkillEntries", "{Confirm}  Slots        {Tabs}  Tab        {SubTabs}  Character        {Back}  Back");
 	case ELoadoutV2Mode::SkillRows:
-		return LOCTEXT("HintsSkillRows", "{Confirm}  Change        {Toggle}  {ViewName}        {Back}  Back"); // X as on the Weapons tab
+		return LOCTEXT("HintsSkillRows", "{Confirm}  Change        {Toggle}  {ViewName}        {Second}  Take out        {Back}  Back"); // X as on the Weapons tab
 	case ELoadoutV2Mode::SkillPicker:
 		return LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Toggle}  {ViewName}        {Back}  Cancel");
 	case ELoadoutV2Mode::ApparelItems:
@@ -1538,6 +1538,20 @@ void ULoadoutV2ScreenWidget::PressConfirm()
 	if (Mode == ELoadoutV2Mode::WindowSlots || Mode == ELoadoutV2Mode::WindowItems)
 	{
 		ConfirmWindow();
+		return;
+	}
+	if (Mode == ELoadoutV2Mode::SkillRows)
+	{
+		// B-488: the first screen's X on a skill, kept: the lit slot's skill comes out. Nothing is lost (an innate spell
+		// stays learned; a replaced built-in comes back, Q-440d), so one press.
+		const FLoadoutScreenRow *Row = SkillRows.IsValidIndex(Selected) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Selected]) : nullptr;
+		if (Row && Row->Skill && Members.IsValidIndex(MemberIndex))
+		{
+			const FLoadoutSkillTab SkillTab = SkillsPage.Source.Tabs[SkillRows[Selected].Tab];
+			const FLoadoutScreenRow SlotRow = *Row;
+			Message = WoRLoadoutSkills::ApplySkill(GetWorld(), Members[MemberIndex], SkillTab, SlotRow, nullptr);
+			RefreshData();
+		}
 		return;
 	}
 	if (Mode == ELoadoutV2Mode::Saved)
@@ -2592,7 +2606,7 @@ void ULoadoutV2ScreenWidget::CloseWindow()
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GLoadoutV2OpenCommand(
 	TEXT("wor.UI.LoadoutV2"),
-	TEXT("B-476b/c: open the v2 loadout screen (beside today's wor.UI.Loadout): A Edit / Equip, X Simple / Full, L3 / 6 Set active, Y Options; "
+	TEXT("B-476b/c: open the loadout screen, as the game menu's Loadout page does: A Edit / Equip, X Simple / Full, L3 / 6 Set active, Y Options; "
 		 "in the Add gear window A Pick / Remove, X Compare, Y Confirm."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
