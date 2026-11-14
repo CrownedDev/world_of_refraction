@@ -32,6 +32,7 @@ struct FActorsInitializedParams;
 struct FPartyMember;
 enum class ETurnViewStyle : uint8;
 enum class EScreenShakeLevel : uint8;
+enum class ETextSizeLevel : uint8;
 enum class EPlayerBaseForm : uint8;
 
 UCLASS()
@@ -175,6 +176,11 @@ public:
 	 *  (default) or, off, a press on its confirm. Kept in memory at once; written with the next save. */
 	bool IsHoldToConfirmOn() const;
 	void SetHoldToConfirmOn(bool bOn);
+
+	/** B-453d (D-190): the text size (default Normal); an unknown saved value reads as Normal. Set applies it at once
+	 *  (WoRTextSize::Apply); the load applies the saved one. Written with the next save. */
+	ETextSizeLevel GetTextSizeLevel() const;
+	void SetTextSizeLevel(ETextSizeLevel Level);
 
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 

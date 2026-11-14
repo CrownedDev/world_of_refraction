@@ -6,6 +6,7 @@
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Save/WoRSaveGame.h"
 #include "Combat/Camera/CombatCameraTypes.h" // ETurnViewStyle (B-398)
+#include "UI/Settings/TextSizeSetting.h" // B-453d
 #include "Character/CharacterData.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/CombatCharacter.h"
@@ -383,6 +384,7 @@ void USaveSubsystem::Deinitialize()
 {
 	// No save here: the subsystems deinitialise in creation order, so the party may already be
 	// gone. The shutdown save runs when the local player is removed, before any of them.
+	WoRTextSize::Apply(ETextSizeLevel::Normal); // B-453d: the project's own scale back (the editor keeps it across PIE)
 	UGameInstance *GI = GetGameInstance();
 	GI->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
 	GI->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);
@@ -439,6 +441,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	GI->GetSubsystem<UCurseSubsystem>()->Restore(Data.Curses); // B-378
 	GI->GetSubsystem<UHiddenCounterSubsystem>()->Restore(Data.Counters); // B-379
 	GI->GetSubsystem<UFieldSkillUnlockSubsystem>()->Restore(Data.FieldUnlocks); // B-214b: after the store, which it scans
+	WoRTextSize::Apply(GetTextSizeLevel()); // B-453d: the player's text size from the start
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -1028,6 +1031,18 @@ bool USaveSubsystem::IsHoldToConfirmOn() const
 void USaveSubsystem::SetHoldToConfirmOn(bool bOn)
 {
 	SaveGame->Data.Settings.bPressToConfirm = !bOn;
+}
+
+ETextSizeLevel USaveSubsystem::GetTextSizeLevel() const
+{
+	const uint8 Saved = SaveGame->Data.Settings.TextSize;
+	return Saved <= static_cast<uint8>(ETextSizeLevel::Larger) ? static_cast<ETextSizeLevel>(Saved) : ETextSizeLevel::Normal;
+}
+
+void USaveSubsystem::SetTextSizeLevel(ETextSizeLevel Level)
+{
+	SaveGame->Data.Settings.TextSize = static_cast<uint8>(Level);
+	WoRTextSize::Apply(Level);
 }
 
 bool USaveSubsystem::IsBoundToPlayer() const
