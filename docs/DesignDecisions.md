@@ -1063,10 +1063,10 @@ The queue of questions only Crown can answer.
 **Answer (Crown):**
 - **No Primary / Secondary rows.** The Weapons tab starts with one empty frame, **"Add gear"**; the Add gear window has **Main hand, Off hand, Augment socket 1, Augment socket 2**. Confirming makes one **entry**, and a new empty frame shows the cells left ("3/5 left"). Repeat until the class limit or the cells run out.
 - **The sockets belong to the entry**, not to each weapon: a dual pair shares them. A dual entry gives **both weapons' abilities and stats plus its sockets** (replaces D-209's "both crystals' stats").
-- **The two augment sockets take a crystal (or an evolution) and a stone, or two stones.** Costs as D-206: crystal 1, stone 1, evolution 2.
+- **The two augment sockets take a crystal (or an evolution) and a stone, or two stones** (two of the same stat stack; the player chooses, Crown). Costs as D-206: crystal 1, stone 1, evolution 2.
 - **Entries per class:** **Generic: at most 2 weapon entries and 1 adapter entry** (evolved weapons allowed). **Resonator:** 1 weapon entry and adapter entries (at most 5, D-206). **Refractor:** 1 entry.
 - **Where evolutions may go:** a **Resonator can't put an evolution on a weapon** (only on adapters); a **Generic can't put an evolution on an adapter** (only on weapons); a **Refractor may do either** (its one entry). The character's own evolution seat is unchanged.
-**Defaults (reference-backed, Crown may change):** the two stones must be **different stats** (no stacking one stat; Monster Hunter's decorations reward a mix); the window asks **weapon or adapter** first; Switch Weapon cycles a Generic's two weapon entries (as Switch Adapter cycles).
+**Defaults (reference-backed, Crown may change):** the window asks **weapon or adapter** first; Switch Weapon cycles a Generic's two weapon entries (as Switch Adapter cycles).
 
 ### D-209 — Generic weapon sets: dual wield, shields, and the Add gear window
 **Status:** ANSWERED (Crown, 2026-11-14; changes D-206's Generic "3 items at most" and CL-23) · **Raised:** 2026-11-14 · **Blocks:** B-476, B-477, B-478
