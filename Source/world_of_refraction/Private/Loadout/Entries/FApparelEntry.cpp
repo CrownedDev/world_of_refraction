@@ -33,6 +33,7 @@ FEquipmentStatBonus FApparelEntry::GetStatLines() const
 	Lines.BonusMaxHP += StatBonus.BonusMaxHP;
 	Lines.BonusDefense += StatBonus.BonusDefense;
 	Lines.Amp.Accumulate(StatBonus.Amp); // B-386
+	ApparelBonusLine::AddTo(BonusLine, Lines); // B-475 (D-208)
 	return Lines;
 }
 
