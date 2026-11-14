@@ -263,8 +263,8 @@ namespace LoadoutV2Build
 			Piece->Icon.Kind = ELoadoutV2IconKind::WeaponType; // B-485
 			Piece->Icon.WeaponType = Weapon->WeaponType;
 			Piece->Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+			Piece->TypeName = Piece->Icon.Name; // B-487b: no "Type" row
 		}
-		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), WoRGameNames::GetWeaponTypeName(Weapon->WeaponType));
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailPower", "Power"), Weapon->Power > 0 ? FText::AsNumber(Weapon->Power) : FText::GetEmpty());
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailScaling", "Scaling"), ScalingLine(Weapon->StatScaling));
 		AddEffects(Lines, Weapon, bSimple);
@@ -272,14 +272,16 @@ namespace LoadoutV2Build
 
 	void AddSockets(TArray<FLoadoutV2DetailLine> &Lines, const FRuntimeAttachedItem &Socket1, const FRuntimeAttachedItem &Socket2)
 	{
-		// B-485: each socket line carries its badge.
-		if (FLoadoutV2DetailLine *First = AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket1, 1), AttachmentLine(Socket1)))
+		// B-485: each socket line carries its badge; B-487b: and the tier of what it holds.
+		const FRuntimeAttachedItem *Sockets[] = {&Socket1, &Socket2};
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Sockets); ++Index)
 		{
-			First->Icon = WoRLoadoutV2::MakeSocketIcon(Socket1);
-		}
-		if (FLoadoutV2DetailLine *Second = AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket2, 2), AttachmentLine(Socket2)))
-		{
-			Second->Icon = WoRLoadoutV2::MakeSocketIcon(Socket2);
+			const FRuntimeAttachedItem &Socket = *Sockets[Index];
+			if (FLoadoutV2DetailLine *Line = AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket, Index + 1), AttachmentLine(Socket)))
+			{
+				Line->Icon = WoRLoadoutV2::MakeSocketIcon(Socket);
+				Line->bHasTier = WoRLoadoutV2::GetAttachmentTier(Socket, Line->Tier);
+			}
 		}
 	}
 
@@ -312,8 +314,11 @@ namespace LoadoutV2Build
 	{
 		if (const URingData *Adapter = Owned.Ring)
 		{
-			SetTier(AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier)), Adapter->Tier);
-			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), WoRGameNames::GetAdapterFormName(Adapter->Form));
+			if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier)))
+			{
+				SetTier(Piece, Adapter->Tier);
+				Piece->TypeName = WoRGameNames::GetAdapterFormName(Adapter->Form); // B-487b: no "Type" row
+			}
 			AddEffects(Lines, Adapter, bSimple);
 		}
 		AddSockets(Lines, Owned.AttachedItem, Owned.StoneSocket);
@@ -1059,13 +1064,13 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAttachmentDetails(const FRuntime
 	{
 		SetTier(Piece, Tier);
 		Piece->Icon = MakeSocketIcon(Item); // B-485: its element badge (or the stone's)
+		constexpr int32 FILLED_SOCKET = 1; // SocketWord numbers only an empty socket; this one is filled
+		Piece->TypeName = SocketWord(Item, FILLED_SOCKET); // B-487b: "Crystal", "Stone", "Evolution"; no "Type" row
 	}
 	const ESpellElement Element = Item.GetElement();
 	AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
 	if (!bSimple)
 	{
-		constexpr int32 FILLED_SOCKET = 1; // SocketWord numbers only an empty socket; this one is filled
-		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), SocketWord(Item, FILLED_SOCKET));
 		const int32 Cells = Item.IsEvolution()		? LoadoutConstants::LOADOUT_EVOLUTION_COST
 							: Item.IsAugmentStone() ? LoadoutConstants::LOADOUT_STONE_COST
 													: LoadoutConstants::LOADOUT_CRYSTAL_COST;
@@ -1080,8 +1085,9 @@ FString WoRLoadoutV2::GetDetailsString(const TArray<FLoadoutV2DetailLine> &Lines
 	FString Out;
 	for (const FLoadoutV2DetailLine &Line : Lines)
 	{
-		Out += FString::Printf(TEXT("\n  %s%s%s%s"), *FString::ChrN(Line.Depth * LoadoutV2Build::DEBUG_INDENT_SPACES, TEXT(' ')), *Line.Label.ToString(),
-							   Line.Label.IsEmpty() || Line.Value.IsEmpty() ? TEXT("") : TEXT(": "), *Line.Value.ToString());
+		Out += FString::Printf(TEXT("\n  %s%s%s%s%s"), *FString::ChrN(Line.Depth * LoadoutV2Build::DEBUG_INDENT_SPACES, TEXT(' ')), *Line.Label.ToString(),
+							   Line.Label.IsEmpty() || Line.Value.IsEmpty() ? TEXT("") : TEXT(": "), *Line.Value.ToString(),
+							   Line.TypeName.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" [%s]"), *Line.TypeName.ToString()));
 	}
 	return Out;
 }
