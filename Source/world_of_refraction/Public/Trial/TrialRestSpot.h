@@ -29,8 +29,12 @@ namespace WoRRestSpot
 	WORLD_OF_REFRACTION_API bool RestsMember(const FPartyMember &Member, const AWoRPlayerState *Presser, bool bPresserIsHost,
 											 const TArray<const AWoRPlayerState *> &Players);
 
-	/** Leaves the run here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False
-	 *  outside a run. */
+	/** B-448 (D-186): the party may extract here: the run's last rest spot is one a beaten boss left (ER-09c). A rest
+	 *  spot in the wild has no Extract. */
+	WORLD_OF_REFRACTION_API bool CanExtractHere(const UWorld *World);
+
+	/** Extracts here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False outside a run,
+	 *  on a client, or (B-448, D-186) at a rest spot no beaten boss left. */
 	WORLD_OF_REFRACTION_API bool LeaveRun(UWorld *World);
 
 	/** B-363 review: the player walks away from the rest spot (its menu or level screen closed): pillar points can't
