@@ -3,6 +3,7 @@
 #include "UI/Menus/SettingsScreenModel.h"
 
 #include "Combat/Camera/CombatCameraTypes.h"
+#include "UI/Settings/TextSizeSetting.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -115,7 +116,12 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 	else if (Page == ESettingsPage::Accessibility)
 	{
 		Rows.Add(BattleControlsRow()); // repeated here on purpose: people look for it in both places
-		Rows.Add(NotBuilt(ESettingId::TextSize, LOCTEXT("TextSize", "Text size"), LOCTEXT("TextSizeExplain", "Makes the text in menus and in fights larger.")));
+		FSettingsRow Text; // B-453d (D-190)
+		Text.Id = ESettingId::TextSize;
+		Text.Label = WoRTextSize::GetSettingName();
+		Text.Value = WoRTextSize::GetLevelName(Save ? Save->GetTextSizeLevel() : ETextSizeLevel::Normal);
+		Text.Explanation = LOCTEXT("TextSizeExplain", "Makes the text in menus and in fights larger: the whole screen's text and panels grow together.");
+		Rows.Add(Text);
 		FSettingsRow Movement; // B-453b (D-190, D-078)
 		Movement.Id = ESettingId::FightCameraMovement;
 		Movement.Label = LOCTEXT("FightCameraMovement", "Camera movement in fights");
@@ -215,6 +221,14 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 	case ESettingId::FightCameraMovement: // B-453b: the next fight reads it (UCombatCameraDirector::BeginCombat)
 		Save->SetFightCameraMovementOff(!Save->IsFightCameraMovementOff());
 		return true;
+	case ESettingId::TextSize: // B-453d: Normal, Large, Larger, wrapping either way; applied at once
+	{
+		const int32 LevelCount = static_cast<int32>(StaticEnum<ETextSizeLevel>()->NumEnums()) - 1; // the last is _MAX
+		const int32 Current = static_cast<int32>(Save->GetTextSizeLevel());
+		const int32 Step = Direction < 0 ? -1 : 1;
+		Save->SetTextSizeLevel(static_cast<ETextSizeLevel>(((Current + Step) % LevelCount + LevelCount) % LevelCount));
+		return true;
+	}
 	case ESettingId::HoldToConfirm: // B-453c
 		Save->SetHoldToConfirmOn(!Save->IsHoldToConfirmOn());
 		return true;

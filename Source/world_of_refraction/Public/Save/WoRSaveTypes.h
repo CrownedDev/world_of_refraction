@@ -881,6 +881,10 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	 *  default. An older save reads false: no bump. */
 	UPROPERTY()
 	bool bPressToConfirm = false;
+
+	/** B-453d (D-190): ETextSizeLevel; 0 = Normal, the default. An older save reads 0: no bump. */
+	UPROPERTY()
+	uint8 TextSize = 0;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
