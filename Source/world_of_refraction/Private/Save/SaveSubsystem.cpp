@@ -384,7 +384,7 @@ void USaveSubsystem::Deinitialize()
 {
 	// No save here: the subsystems deinitialise in creation order, so the party may already be
 	// gone. The shutdown save runs when the local player is removed, before any of them.
-	WoRTextSize::Restore(); // B-453d: the project's own scale back (the editor keeps it across PIE)
+	WoRTextSize::Restore(this); // B-453d: the project's own scale back (the editor keeps it across PIE)
 	UGameInstance *GI = GetGameInstance();
 	GI->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
 	GI->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);
@@ -441,7 +441,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	GI->GetSubsystem<UCurseSubsystem>()->Restore(Data.Curses); // B-378
 	GI->GetSubsystem<UHiddenCounterSubsystem>()->Restore(Data.Counters); // B-379
 	GI->GetSubsystem<UFieldSkillUnlockSubsystem>()->Restore(Data.FieldUnlocks); // B-214b: after the store, which it scans
-	WoRTextSize::Apply(GetTextSizeLevel()); // B-453d: the player's text size from the start
+	WoRTextSize::Apply(GetTextSizeLevel(), this); // B-453d: the player's text size from the start
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
@@ -1042,7 +1042,7 @@ ETextSizeLevel USaveSubsystem::GetTextSizeLevel() const
 void USaveSubsystem::SetTextSizeLevel(ETextSizeLevel Level)
 {
 	SaveGame->Data.Settings.TextSize = static_cast<uint8>(Level);
-	WoRTextSize::Apply(Level);
+	WoRTextSize::Apply(Level, this);
 }
 
 bool USaveSubsystem::IsBoundToPlayer() const

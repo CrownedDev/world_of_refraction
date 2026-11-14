@@ -24,10 +24,12 @@ namespace WoRTextSize
 	WORLD_OF_REFRACTION_API FText GetLevelName(ETextSizeLevel Level);
 	/** The UI scale for Level (Normal 1). */
 	WORLD_OF_REFRACTION_API float GetScale(ETextSizeLevel Level);
-	/** Sets the game viewport's UI scale for Level: the project's own scale times GetScale(Level). */
-	WORLD_OF_REFRACTION_API void Apply(ETextSizeLevel Level);
-	/** Puts the project's own scale back (the game instance ends; the editor keeps the setting across PIE). */
-	WORLD_OF_REFRACTION_API void Restore();
+	/** Sets the game viewport's UI scale for Level: the project's own scale times GetScale(Level). Owner (a game
+	 *  instance's save subsystem) is counted until its Restore. */
+	WORLD_OF_REFRACTION_API void Apply(ETextSizeLevel Level, const UObject *Owner);
+	/** Owner is done (its game instance ends); the last one puts the project's own scale back (the editor keeps the
+	 *  setting across PIE). Debug: wor.UI.TextSize. */
+	WORLD_OF_REFRACTION_API void Restore(const UObject *Owner);
 	/** Debug: the level and the scale in use now. */
 	WORLD_OF_REFRACTION_API FString GetTextSizeString(ETextSizeLevel Level);
 }

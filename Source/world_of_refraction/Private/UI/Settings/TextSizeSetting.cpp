@@ -2,7 +2,11 @@
 
 #include "UI/Settings/TextSizeSetting.h"
 
+#include "Engine/GameInstance.h"
 #include "Engine/UserInterfaceSettings.h"
+#include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
+#include "Save/SaveSubsystem.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "WoRTextSize"
@@ -48,25 +52,29 @@ float WoRTextSize::GetScale(ETextSizeLevel Level)
 	}
 }
 
-namespace TextSizeState
+namespace
 {
-	/** The project's own ApplicationScale, read before the first change, so the levels multiply it and Restore puts
-	 *  it back exactly. */
-	TOptional<float> ProjectScale;
+	/** The project's own ApplicationScale, read before the first change, so the levels multiply it and the last
+	 *  Restore puts it back exactly. */
+	TOptional<float> GProjectTextScale;
+	/** Who has applied a level and not restored yet (each game instance's save subsystem, PIE clients included): the
+	 *  scale is one per process, so it goes back only when the last one ends. */
+	TSet<const UObject *> GTextScaleOwners;
 }
 
-void WoRTextSize::Apply(ETextSizeLevel Level)
+void WoRTextSize::Apply(ETextSizeLevel Level, const UObject *Owner)
 {
 	UUserInterfaceSettings *Settings = GetMutableDefault<UUserInterfaceSettings>();
 	if (!Settings)
 	{
 		return;
 	}
-	if (!TextSizeState::ProjectScale.IsSet())
+	if (!GProjectTextScale.IsSet())
 	{
-		TextSizeState::ProjectScale = Settings->ApplicationScale;
+		GProjectTextScale = Settings->ApplicationScale;
 	}
-	const float Scale = TextSizeState::ProjectScale.GetValue() * GetScale(Level);
+	GTextScaleOwners.Add(Owner);
+	const float Scale = GProjectTextScale.GetValue() * GetScale(Level);
 	if (!FMath::IsNearlyEqual(Settings->ApplicationScale, Scale))
 	{
 		Settings->ApplicationScale = Scale; // read by the game viewport's DPI scale every frame
@@ -74,14 +82,18 @@ void WoRTextSize::Apply(ETextSizeLevel Level)
 	}
 }
 
-void WoRTextSize::Restore()
+void WoRTextSize::Restore(const UObject *Owner)
 {
-	UUserInterfaceSettings *Settings = GetMutableDefault<UUserInterfaceSettings>();
-	if (Settings && TextSizeState::ProjectScale.IsSet())
+	GTextScaleOwners.Remove(Owner);
+	if (GTextScaleOwners.Num() > 0 || !GProjectTextScale.IsSet())
 	{
-		Settings->ApplicationScale = TextSizeState::ProjectScale.GetValue();
+		return; // another game instance still shows its own level
 	}
-	TextSizeState::ProjectScale.Reset();
+	if (UUserInterfaceSettings *Settings = GetMutableDefault<UUserInterfaceSettings>())
+	{
+		Settings->ApplicationScale = GProjectTextScale.GetValue();
+	}
+	GProjectTextScale.Reset();
 }
 
 FString WoRTextSize::GetTextSizeString(ETextSizeLevel Level)
@@ -90,5 +102,18 @@ FString WoRTextSize::GetTextSizeString(ETextSizeLevel Level)
 	return FString::Printf(TEXT("text size %s (scale %.2f; UI application scale now %.2f)"), *GetLevelName(Level).ToString(), GetScale(Level),
 						   Settings ? Settings->ApplicationScale : 0.0f);
 }
+
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommandWithWorld GTextSizePrintCommand(
+	TEXT("wor.UI.TextSize"),
+	TEXT("B-453d: print the saved text size, its scale and the UI application scale in use."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
+		UE_LOG(LogWoRUI, Display, TEXT("[TextSize] %s (%d game instance(s) applying)"),
+			   *WoRTextSize::GetTextSizeString(Save ? Save->GetTextSizeLevel() : ETextSizeLevel::Normal), GTextScaleOwners.Num());
+	}));
+#endif
 
 #undef LOCTEXT_NAMESPACE
