@@ -25,6 +25,7 @@
 
 class UCharacterData;
 class UCombatResultsWidget;
+class URunEndCardWidget;
 class UFightTriggers;
 class UStatusBuildupManager;
 struct FFieldStrike;
@@ -98,8 +99,22 @@ private:
     UFUNCTION()
     void HandleResultsContinue();
 
-    /** Show the results screen; false if it couldn't be created (caller returns immediately). */
+    /** Show the results screen; false if it couldn't be created (caller returns immediately). B-465: a wipe shows the
+     *  wipe card instead (ShowWipeCard). */
     bool ShowResults(const FCombatResult &Result);
+
+    /** B-465 (D-187, D-188): the wipe card over the battle; false when it couldn't be made. */
+    bool ShowWipeCard();
+
+    /** B-465: "Get up": back to the trial, or, when the wipe ended the run, on to the run-end page. */
+    UFUNCTION()
+    void HandleWipeCardContinue();
+
+    /** B-465 (D-189): the run-end page's "Return": to the hub. */
+    UFUNCTION()
+    void HandleRunEndContinue();
+
+    void CloseRunEndCard();
 
     void ReturnToTrial();
 
@@ -163,6 +178,10 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UCombatResultsWidget> ResultsWidget;
+
+    /** B-465: the wipe card, then the run-end page when the wipe ended the run. */
+    UPROPERTY(Transient)
+    TObjectPtr<URunEndCardWidget> RunEndCard;
 
     /** Per fight (D-064, B-212): reactions and boss triggers waiting for their mid-fight moment. */
     UPROPERTY(Transient)

@@ -40,6 +40,8 @@
 #include "Save/SaveSubsystem.h"
 #include "Currency/MentorTokens.h"
 #include "UI/Combat/CombatResultsWidget.h"
+#include "UI/Trial/RunEndCardWidget.h"
+#include "UI/Trial/RunEndModel.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
@@ -790,6 +792,11 @@ bool ABattleGameMode::ShowResults(const FCombatResult &Result)
     {
         return false;
     }
+    // B-465 (D-187, D-188): a wipe is read on its own card, not the old DEFEAT line.
+    if (Result.FinalState == ECombatState::Defeat && ShowWipeCard())
+    {
+        return true;
+    }
 
     UClass *WidgetClass = ResultsWidgetClass.IsNull() ? UCombatResultsWidget::StaticClass()
                                                       : ResultsWidgetClass.LoadSynchronous();
@@ -829,6 +836,55 @@ void ABattleGameMode::HandleResultsContinue()
         ResultsWidget = nullptr;
     }
     ReturnToTrial();
+}
+
+bool ABattleGameMode::ShowWipeCard()
+{
+    RunEndCard = URunEndCardWidget::AddToPlayer(GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr);
+    if (!RunEndCard)
+    {
+        return false;
+    }
+    const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+    FTransform RestStand;
+    const bool bRested = TrialRun && TrialRun->GetRestStand(RestStand);
+    RunEndCard->ShowWipe(WoRRunEnd::BuildWipeCard(LastWipeResult, bRested));
+    RunEndCard->OnContinue.AddDynamic(this, &ABattleGameMode::HandleWipeCardContinue);
+    return true;
+}
+
+void ABattleGameMode::HandleWipeCardContinue()
+{
+    if (RunEndCard)
+    {
+        RunEndCard->OnContinue.RemoveDynamic(this, &ABattleGameMode::HandleWipeCardContinue);
+    }
+    // B-465 (D-189): the wipe ended the run: the run-end page says what it pays before the hub.
+    if (bWipeEndsRun && RunEndCard)
+    {
+        const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+        RunEndCard->ShowRunEnd(WoRRunEnd::BuildRunEnd(ERunEnding::OutOfWipes, TrialRun ? TrialRun->GetRunEndPayout() : FRunPayout()));
+        RunEndCard->OnContinue.AddDynamic(this, &ABattleGameMode::HandleRunEndContinue);
+        return;
+    }
+    CloseRunEndCard();
+    ReturnToTrial();
+}
+
+void ABattleGameMode::HandleRunEndContinue()
+{
+    CloseRunEndCard();
+    ReturnToTrial();
+}
+
+void ABattleGameMode::CloseRunEndCard()
+{
+    if (RunEndCard)
+    {
+        RunEndCard->OnContinue.RemoveAll(this);
+        RunEndCard->RemoveFromParent();
+        RunEndCard = nullptr;
+    }
 }
 
 void ABattleGameMode::ReturnToTrial()
