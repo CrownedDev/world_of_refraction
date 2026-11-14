@@ -340,6 +340,10 @@ bool WoRLoadoutSkills::PutSkill(FCombatLoadout &Loadout, const FLoadoutSkillTab 
 	if (Tab.List == ELoadoutSkillList::WeaponSkills && Weapon)
 	{
 		UAbilityData *Ability = Cast<UAbilityData>(Skill);
+		if (Ability && !Weapon->CanHoldSkill(Row.SkillSlot, Ability, &OutRefusal)) // B-410: the gem's element
+		{
+			return false;
+		}
 		bDone = Skill ? Ability && Weapon->ReplaceSkill(Row.SkillSlot, Ability) : Weapon->RestoreSkill(Row.SkillSlot);
 	}
 	else if (Tab.List == ELoadoutSkillList::AdapterSpells && Adapter)
