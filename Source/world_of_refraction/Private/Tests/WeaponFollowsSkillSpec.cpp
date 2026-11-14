@@ -108,6 +108,15 @@ void FWeaponFollowsSkillSpec::Define()
 			TestTrue(TEXT("and now the sword's skill is the other one"), Loadout->GetOtherWeaponSkills().Contains(SwordSkill));
 		});
 
+		It("undoes the switch when the skill's action is refused", [this]()
+		{
+			if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
+			TestTrue(TEXT("switched"), Loadout->SwitchToWeaponOfSkill(HammerSkill));
+			Loadout->RevertSkillWeaponSwitch();
+			TestTrue(TEXT("the sword is back in hand"), Loadout->GetActiveWeapon() == Sword);
+			TestTrue(TEXT("the turn's switch is unused"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
+		});
+
 		It("switches nothing for the weapon in hand's own skill or a skill neither has", [this]()
 		{
 			if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
