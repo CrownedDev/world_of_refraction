@@ -2895,6 +2895,13 @@ bool ULoadoutComponent::SwitchToWeaponOfSkill(const USkillDataBase *Skill)
     return bSwitched;
 }
 
+void ULoadoutComponent::RevertSkillWeaponSwitch()
+{
+    ToggleEquipment();
+    bUsedTurnSwitch = false;
+    UE_LOG(LogWoRLoadout, Log, TEXT("[LoadoutComponent] %s: the skill's action was refused - the weapon switch is undone"), *GetNameSafe(GetOwner()));
+}
+
 bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
 {
     return TrySwitchSlotTo(EGearKind::Adapter, NewRingIndex, OutReason);

@@ -649,6 +649,10 @@ public:
      *  switched. The action executor calls it before an ability runs, so the hit uses its own weapon. */
     bool SwitchToWeaponOfSkill(const USkillDataBase *Skill);
 
+    /** B-474: undoes a SwitchToWeaponOfSkill that returned true when the action is then refused: the other weapon back
+     *  in hand and the turn's switch unused again. */
+    void RevertSkillWeaponSwitch();
+
     /** The turn's free ring switch to NewRingIndex (the same rules as TrySwitchActiveSlot). */
     bool TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason);
 
