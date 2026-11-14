@@ -146,8 +146,12 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Hold.Value = OnOff(!Save || Save->IsHoldToConfirmOn());
 		Hold.Explanation = LOCTEXT("HoldToConfirmExplain", "Asks you to hold the button, not press it, before something that can't be undone. Off: a second press confirms.");
 		Rows.Add(Hold);
-		Rows.Add(NotBuilt(ESettingId::ElementLetters, LOCTEXT("ElementLetters", "Element letters on colours"),
-						  LOCTEXT("ElementLettersExplain", "Adds a letter to each element's colour, so elements can be told apart without colour.")));
+		FSettingsRow Letters; // B-453f (D-190)
+		Letters.Id = ESettingId::ElementLetters;
+		Letters.Label = LOCTEXT("ElementLetters", "Element letters on colours");
+		Letters.Value = OnOff(Save && Save->IsElementLettersOn());
+		Letters.Explanation = LOCTEXT("ElementLettersExplain", "Adds a letter to each element's colour, so elements can be told apart without colour: damage numbers read \"120 Fi\" and the status line names the element.");
+		Rows.Add(Letters);
 		Rows.Add(NotBuilt(ESettingId::Subtitles, LOCTEXT("Subtitles", "Subtitles"), LOCTEXT("SubtitlesExplain", "Shows spoken lines as text.")));
 	}
 	return Rows;
@@ -229,6 +233,9 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 		return true;
 	case ESettingId::AIFinishesTurn: // B-453e: the next player turn reads it
 		Save->SetAIFinishesIdleTurnOn(!Save->IsAIFinishesIdleTurnOn());
+		return true;
+	case ESettingId::ElementLetters: // B-453f: the next number or status line reads it
+		Save->SetElementLettersOn(!Save->IsElementLettersOn());
 		return true;
 	case ESettingId::TextSize: // B-453d: Normal, Large, Larger, wrapping either way; applied at once
 	{
