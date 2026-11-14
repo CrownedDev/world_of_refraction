@@ -35,7 +35,7 @@ void FRunEndModelSpec::Define()
 		TestEqual(TEXT("D-188's title"), Card.Title.ToString(), FString(TEXT("Your possibilities end here")));
 		TestTrue(TEXT("the foe by name"), Card.LastBlowLine.ToString().Contains(TEXT("Kael")));
 		TestTrue(TEXT("the drop and the earlier one, the wake, the enemy"), Card.Lines.Num() == 4);
-		TestTrue(TEXT("the drop counted"), Card.Lines[0].ToString().Contains(FString::FromInt(RUN_END_TEST_DROPPED)));
+		TestTrue(TEXT("the drop counted"), Card.Lines[0].ToString().Contains(FText::AsNumber(RUN_END_TEST_DROPPED).ToString()));
 		TestEqual(TEXT("wipes used"), Card.WipesUsed, RUN_END_TEST_WIPES);
 		TestEqual(TEXT("of 5"), Card.WipesMax, DefeatRules::MAX_WIPES_PER_RUN);
 		TestEqual(TEXT("one button"), Card.ButtonText.ToString(), FString(TEXT("Get up")));
@@ -58,14 +58,14 @@ void FRunEndModelSpec::Define()
 		TestTrue(TEXT("cleared"), Cleared.bCleared);
 		TestEqual(TEXT("Trial cleared"), Cleared.Title.ToString(), FString(TEXT("Trial cleared")));
 		TestTrue(TEXT("both currencies on one line"),
-				 Cleared.PayoutLine.ToString().Contains(FString::FromInt(RUN_END_TEST_GOLD)) && Cleared.PayoutLine.ToString().Contains(FString::FromInt(RUN_END_TEST_GEAR)));
+				 Cleared.PayoutLine.ToString().Contains(FText::AsNumber(RUN_END_TEST_GOLD).ToString()) && Cleared.PayoutLine.ToString().Contains(FText::AsNumber(RUN_END_TEST_GEAR).ToString()));
 		TestEqual(TEXT("Return"), Cleared.ButtonText.ToString(), FString(TEXT("Return")));
 
 		const FRunEndPage Wiped = WoRRunEnd::BuildRunEnd(ERunEnding::OutOfWipes, Payout);
 		TestFalse(TEXT("not cleared"), Wiped.bCleared);
 		TestNotEqual(TEXT("its own share"), Wiped.ShareLine.ToString(), Cleared.ShareLine.ToString());
 		const FRunEndPage Quit = WoRRunEnd::BuildRunEnd(ERunEnding::Quit, Payout);
-		TestFalse(TEXT("a quit lists no payout"), Quit.PayoutLine.ToString().Contains(FString::FromInt(RUN_END_TEST_GOLD)));
+		TestFalse(TEXT("a quit lists no payout"), Quit.PayoutLine.ToString().Contains(FText::AsNumber(RUN_END_TEST_GOLD).ToString()));
 		TestFalse(TEXT("an empty payout says so"), WoRRunEnd::FormatPayoutLine(FRunPayout()).IsEmpty());
 	});
 }
