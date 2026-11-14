@@ -5,7 +5,13 @@
 // here for a reduced payout ("full rewards only for beating the boss or falling in battle"). B-187b: a beaten
 // mini-boss leaves one where it stood, whose menu can revive it one tier stronger (Q-187b). Placing pillar levels
 // here is B-363.
-// Debug: wor.Trial.Rest (rests the party anywhere in a run, as the spot "ConsoleRest", and opens the menu).
+// B-502 (D-214, Q-502): a placed rest spot is also a service (ERestService): an anvil is the blacksmith, a shrine
+// sells pillar points (one of the placed shrines each run, the same one for the whole run), V extracts the party.
+// Resting and the service open from the same press: the rest menu carries the service. A rest spot a beaten
+// mini-boss left is unchanged and has no service.
+// Debug: wor.Trial.Rest (rests the party anywhere in a run, as the spot "ConsoleRest", and opens the menu);
+// wor.Trial.PrintRestSpots; wor.Trial.SetRestService <none|anvil|shrine|v> (the nearest rest spot, for a PIE check
+// before the services are set in the maps).
 
 #pragma once
 
@@ -13,12 +19,48 @@
 #include "Trial/TrialMapFeature.h"
 #include "TrialRestSpot.generated.h"
 
+class ATrialRestSpot;
+class UCurrencyComponent;
+class UMerchantData;
 class UWorld;
 class AWoRPlayerState;
 struct FPartyMember;
 
+/** B-502 (D-214): what a placed rest point also is. */
+UENUM(BlueprintType)
+enum class ERestService : uint8
+{
+	None UMETA(DisplayName = "None (rest only)"),
+	Blacksmith UMETA(DisplayName = "Blacksmith (an anvil)"),
+	PillarShrine UMETA(DisplayName = "Pillar shrine (one of the shrines sells points each run)"),
+	Extract UMETA(DisplayName = "Extract (V, or V's mirror)")
+};
+
 namespace WoRRestSpot
 {
+	// B-502 (D-214): the services. "Here" is the placed rest spot the party last rested at (the run's last rest spot).
+
+	/** The placed rest spot the party last rested at; null outside a run, or when that was a mini-boss's spot that is
+	 *  gone or the console's rest. */
+	WORLD_OF_REFRACTION_API const ATrialRestSpot *FindLastRestSpot(const UWorld *World);
+
+	/** Which of Count shrines sells pillar points this run (0 with fewer than two). The seed alone decides. */
+	WORLD_OF_REFRACTION_API int32 PickShrineIndex(int32 RunSeed, int32 Count);
+
+	/** The shrine in World that sells pillar points this run; null outside a run or with none placed. A guest finds
+	 *  the same one as the host (the run's seed is on the GameState). */
+	WORLD_OF_REFRACTION_API const ATrialRestSpot *FindAwakeShrine(const UWorld *World);
+
+	/** The party last rested at this run's shrine. */
+	WORLD_OF_REFRACTION_API bool SellsPointsHere(const UWorld *World);
+
+	/** Buys Member one pillar point here (WoRLevelDrops::TryBuyPoint: its price and refusals). Empty on success, else
+	 *  why not (not at this run's shrine; a client: the run is the host's). */
+	WORLD_OF_REFRACTION_API FText TryBuyPointHere(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet = nullptr);
+
+	/** Every rest spot placed in World: its service, where it stands, which shrine sells this run. */
+	WORLD_OF_REFRACTION_API FString GetRestSpotsString(const UWorld *World);
+
 	/** Rests at RestSpotId: the presser's characters back to full (the fallen revived), the run's last rest spot. Returns
 	 *  how many were revived; INDEX_NONE outside a run. Q-187d (Crown, 2026-11-08): only the characters Presser
 	 *  commands rest (RestsMember); a null Presser (console, specs) rests the whole party. */
@@ -29,13 +71,13 @@ namespace WoRRestSpot
 	WORLD_OF_REFRACTION_API bool RestsMember(const FPartyMember &Member, const AWoRPlayerState *Presser, bool bPresserIsHost,
 											 const TArray<const AWoRPlayerState *> &Players);
 
-	/** B-448 (D-186): the party may extract here: the run's last rest spot is one a beaten boss left (ER-09c). A rest
-	 *  spot in the wild has no Extract. */
+	/** B-448 (D-186): the party may extract here: the run's last rest spot is one a beaten boss left (ER-09c), or
+	 *  (B-502, D-214) V's rest point. Any other rest spot in the wild has no Extract. */
 	WORLD_OF_REFRACTION_API bool CanExtractHere(const UWorld *World);
 
 	/** Extracts here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False outside a run
-	 *  (a client has none: the run lives on the host), on a client, or (B-448, D-186) at a rest spot no beaten mini-boss
-	 *  left. A rest spot's id is its mini-boss's encounter id (ATrialRestSpot::GetRestSpotId), which this relies on. */
+	 *  (a client has none: the run lives on the host), on a client, or (B-448, D-186) where CanExtractHere is false.
+	 *  A mini-boss rest spot's id is its encounter id (ATrialRestSpot::GetRestSpotId), which this relies on. */
 	WORLD_OF_REFRACTION_API bool LeaveRun(UWorld *World);
 
 	/** B-363 review: the player walks away from the rest spot (its menu or level screen closed): pillar points can't
@@ -68,7 +110,15 @@ class WORLD_OF_REFRACTION_API ATrialRestSpot : public ATrialMapFeature
 public:
 	/** Rests the party and opens the rest menu for the pressing player. */
 	virtual void Interact(APawn *Pawn) override;
-	virtual FInteractPrompt GetPrompt() const override { return FInteractPrompt(EInteractVerb::Rest); }
+	/** "Rest", or "Rest · Anvil" at a service. */
+	virtual FInteractPrompt GetPrompt() const override;
+
+	/** B-502: this spot's service. A mini-boss's rest spot has none, whatever was set. */
+	ERestService GetService() const { return MiniBossEncounterId.IsNone() ? Service : ERestService::None; }
+	/** For a spawned spot (the debug command, the specs). Placed ones set it in the Details panel. */
+	void SetService(ERestService InService);
+	/** The stock of a Blacksmith rest point's Buy tab; null when none is set. */
+	UMerchantData *GetServiceMerchant() const { return ServiceMerchant; }
 
 	/** B-187b: a rest spot where the beaten mini-boss EncounterId stood (its id is the encounter's, so the menu can
 	 *  revive it). Null when the spawn fails. */
@@ -79,6 +129,15 @@ public:
 
 protected:
 	virtual FString GetHintText() const override;
+
+	/** B-502 (D-214): what this rest point also is. Ignored on a mini-boss's rest spot. */
+	UPROPERTY(EditInstanceOnly, Category = "Rest Spot")
+	ERestService Service = ERestService::None;
+
+	/** A Blacksmith rest point's stock (a blacksmith's merchant asset). In a trial its Buy tab shows the run's
+	 *  rolled part of that list (ER-18). */
+	UPROPERTY(EditInstanceOnly, Category = "Rest Spot", meta = (EditCondition = "Service == ERestService::Blacksmith"))
+	TObjectPtr<UMerchantData> ServiceMerchant;
 
 private:
 	/** B-187b: set when this spot marks a beaten mini-boss (SpawnForMiniBoss). */

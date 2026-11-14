@@ -5,6 +5,11 @@
 #include "Player/WoRPlayerState.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
+#include "Merchant/MerchantData.h"
+#include "Player/RunStateComponent.h"
+#include "Trial/LevelDropPlacement.h"
+#include "WoRGameNames.h"
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -20,6 +25,13 @@
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "TrialRestSpot"
+
+namespace RestSpotConstants
+{
+	/** Mixed into the run's seed so the shrine's pick isn't the same roll as anything else the seed decides. The
+	 *  text is B-447's, so a run keeps its pick across the move from NPCs to shrines. */
+	const TCHAR *const SHRINE_SALT = TEXT("PillarPointSeller");
+}
 
 bool WoRRestSpot::RestsMember(const FPartyMember &Member, const AWoRPlayerState *Presser, bool bPresserIsHost,
 							  const TArray<const AWoRPlayerState *> &Players)
@@ -124,7 +136,98 @@ bool WoRRestSpot::CanExtractHere(const UWorld *World)
 {
 	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	return Run && Run->IsRunActive() && Run->IsBeatenMiniBoss(Run->GetLastRestSpot());
+	if (!Run || !Run->IsRunActive())
+	{
+		return false;
+	}
+	const ATrialRestSpot *Spot = FindLastRestSpot(World);
+	return Run->IsBeatenMiniBoss(Run->GetLastRestSpot()) || (Spot && Spot->GetService() == ERestService::Extract); // B-502: V's rest point
+}
+
+const ATrialRestSpot *WoRRestSpot::FindLastRestSpot(const UWorld *World)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const FName LastId = Run && Run->IsRunActive() ? Run->GetLastRestSpot() : NAME_None;
+	if (LastId.IsNone())
+	{
+		return nullptr;
+	}
+	for (TActorIterator<ATrialRestSpot> It(World); It; ++It)
+	{
+		if (It->GetRestSpotId() == LastId)
+		{
+			return *It;
+		}
+	}
+	return nullptr;
+}
+
+int32 WoRRestSpot::PickShrineIndex(int32 RunSeed, int32 Count)
+{
+	// The seed alone decides, so the pick holds for the whole run (and a reloaded level) and changes between runs.
+	return Count > 1 ? static_cast<int32>(HashCombine(GetTypeHash(RunSeed), FCrc::StrCrc32(RestSpotConstants::SHRINE_SALT)) % static_cast<uint32>(Count)) : 0;
+}
+
+const ATrialRestSpot *WoRRestSpot::FindAwakeShrine(const UWorld *World)
+{
+	// The run's seed as this machine knows it (the GameState's copy on a guest): a guest sees the same shrine as
+	// the host, and is refused the buy itself (TryBuyPointHere).
+	const int32 RunSeed = World && URunStateComponent::GetActiveTrial(World) ? URunStateComponent::GetRunSeed(World) : 0;
+	if (RunSeed == 0) // as UTrialRunSubsystem::IsRunActive: no trial, or no seed yet
+	{
+		return nullptr;
+	}
+	TArray<const ATrialRestSpot *> Shrines;
+	for (TActorIterator<ATrialRestSpot> It(World); It; ++It)
+	{
+		if (It->GetService() == ERestService::PillarShrine)
+		{
+			Shrines.Add(*It);
+		}
+	}
+	// By id, as text: the same order every time the level loads (an FName's own order changes between launches).
+	Shrines.Sort([](const ATrialRestSpot &A, const ATrialRestSpot &B) { return A.GetRestSpotId().ToString() < B.GetRestSpotId().ToString(); });
+	return Shrines.IsEmpty() ? nullptr : Shrines[PickShrineIndex(RunSeed, Shrines.Num())];
+}
+
+bool WoRRestSpot::SellsPointsHere(const UWorld *World)
+{
+	const ATrialRestSpot *Spot = FindLastRestSpot(World);
+	return Spot && Spot == FindAwakeShrine(World);
+}
+
+FText WoRRestSpot::TryBuyPointHere(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet)
+{
+	if (!World || World->GetNetMode() == NM_Client)
+	{
+		return LOCTEXT("HostBuys", "Only the host can buy for now."); // the run's points and prices live on the host
+	}
+	if (!SellsPointsHere(World))
+	{
+		return LOCTEXT("NoPointsHere", "No pillar points are sold here.");
+	}
+	return WoRLevelDrops::TryBuyPoint(World, Member, Wallet);
+}
+
+FString WoRRestSpot::GetRestSpotsString(const UWorld *World)
+{
+	TArray<FString> Lines;
+	if (World)
+	{
+		const ATrialRestSpot *Shrine = FindAwakeShrine(World);
+		const ATrialRestSpot *Last = FindLastRestSpot(World);
+		for (TActorIterator<ATrialRestSpot> It(World); It; ++It)
+		{
+			Lines.Add(FString::Printf(TEXT("%s: %s%s%s at %s"), *It->GetRestSpotId().ToString(),
+									  *StaticEnum<ERestService>()->GetNameStringByValue(static_cast<int64>(It->GetService())),
+									  *It == Shrine ? TEXT(" (sells points this run)") : TEXT(""), *It == Last ? TEXT(" (last rested here)") : TEXT(""),
+									  *It->GetActorLocation().ToCompactString()));
+		}
+	}
+	return FString::Printf(TEXT("[RestSpot] %d placed: %s; extract here: %s; points sold here: %s"), Lines.Num(),
+						   Lines.IsEmpty() ? TEXT("none") : *FString::Join(Lines, TEXT(" | ")), CanExtractHere(World) ? TEXT("yes") : TEXT("no"),
+						   SellsPointsHere(World) ? TEXT("yes") : TEXT("no"));
 }
 
 bool WoRRestSpot::LeaveRun(UWorld *World)
@@ -137,7 +240,7 @@ bool WoRRestSpot::LeaveRun(UWorld *World)
 	}
 	if (!CanExtractHere(World))
 	{
-		UE_LOG(LogWoR, Log, TEXT("[RestSpot] Extract refused: rest spot %s is not one a beaten boss left (D-186)"), *Run->GetLastRestSpot().ToString());
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] Extract refused: rest spot %s is not one a beaten boss left (D-186) nor V's (D-214)"), *Run->GetLastRestSpot().ToString());
 		return false;
 	}
 	Run->LeaveRunEarly();
@@ -203,6 +306,59 @@ FString ATrialRestSpot::GetHintText() const
 {
 	return WoRHubHUD::FormatPromptLine(GetPrompt()).ToString(); // B-491 (D-213): "E  Rest"
 }
+
+FInteractPrompt ATrialRestSpot::GetPrompt() const
+{
+	return FInteractPrompt(EInteractVerb::Rest, WoRGameNames::GetRestServiceName(GetService())); // B-502: "Rest · Anvil"
+}
+
+void ATrialRestSpot::SetService(ERestService InService)
+{
+	Service = InService;
+	RefreshHint();
+}
+
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommandWithWorld GTrialPrintRestSpotsCommand(
+	TEXT("wor.Trial.PrintRestSpots"),
+	TEXT("B-502: the rest spots placed in this level (service, where, which shrine sells points this run) and what the last rested one offers."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		UE_LOG(LogWoR, Display, TEXT("%s"), *WoRRestSpot::GetRestSpotsString(World));
+	}));
+
+static FAutoConsoleCommandWithWorldAndArgs GTrialSetRestServiceCommand(
+	TEXT("wor.Trial.SetRestService"),
+	TEXT("B-502 DEBUG: wor.Trial.SetRestService <none|anvil|shrine|v>: gives the rest spot nearest the player that service, for a PIE "
+		 "check before the services are set in the trial maps. Not saved; the host's machine only."),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+	{
+		static const TMap<FString, ERestService> Names = {{TEXT("none"), ERestService::None}, {TEXT("anvil"), ERestService::Blacksmith},
+														  {TEXT("shrine"), ERestService::PillarShrine}, {TEXT("v"), ERestService::Extract}};
+		const ERestService *Wanted = Args.Num() > 0 ? Names.Find(Args[0].ToLower()) : nullptr;
+		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+		const APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+		ATrialRestSpot *Nearest = nullptr;
+		if (Wanted && Pawn)
+		{
+			for (TActorIterator<ATrialRestSpot> It(World); It; ++It)
+			{
+				if (!Nearest || FVector::DistSquared(It->GetActorLocation(), Pawn->GetActorLocation()) <
+									FVector::DistSquared(Nearest->GetActorLocation(), Pawn->GetActorLocation()))
+				{
+					Nearest = *It;
+				}
+			}
+		}
+		if (!Nearest)
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[RestSpot] wor.Trial.SetRestService <none|anvil|shrine|v>: needs a service, a pawn and a rest spot in the level"));
+			return;
+		}
+		Nearest->SetService(*Wanted);
+		UE_LOG(LogWoR, Display, TEXT("%s"), *WoRRestSpot::GetRestSpotsString(World));
+	}));
+#endif
 
 static FAutoConsoleCommandWithWorld GTrialRestCommand(
 	TEXT("wor.Trial.Rest"),
