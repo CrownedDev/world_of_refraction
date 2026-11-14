@@ -9,6 +9,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Character/CharacterData.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Merchant/MerchantData.h"
@@ -106,6 +107,41 @@ void FNpcTalkSpec::Define()
 		TestFalse(TEXT("nothing NEW"), Page.bTalkHasNew);
 		TestEqual(TEXT("two in the log"), Page.Log.Num(), 2);
 	});
+	It("gives a hub character its name and its own conversations, NEW until played (B-471d)", [this]()
+	{
+		if (!Journal)
+		{
+			return;
+		}
+		UCharacterData *Kael = NewObject<UCharacterData>(GetTransientPackage());
+		Kael->Name = TEXT("Kael");
+		UCharacterData *Other = NewObject<UCharacterData>(GetTransientPackage());
+		UStoryLinesData *Story = NewObject<UStoryLinesData>(GetTransientPackage());
+		FStoryConversation Theirs;
+		Theirs.ConversationId = TEXT("NpcTalkKaelTalk");
+		Theirs.Speakers.Add(Kael);
+		Theirs.Lines = {FText::FromString(TEXT("Kael: placeholder one.")), FText::FromString(TEXT("V: placeholder two."))};
+		FStoryConversation NotTheirs;
+		NotTheirs.ConversationId = TEXT("NpcTalkOtherTalk");
+		NotTheirs.Speakers.Add(Other);
+		Story->Conversations = {Theirs, NotTheirs};
+
+		FNpcTalkPage Page = WoRNpcTalk::BuildForCharacter(Kael, {Story}, Journal);
+		TestEqual(TEXT("by name"), Page.Role.ToString(), FString(TEXT("Kael")));
+		TestFalse(TEXT("no Shop"), Page.Choices.Contains(ENpcTalkChoice::Shop));
+		if (!TestEqual(TEXT("only their conversation"), Page.Topics.Num(), 1))
+		{
+			return;
+		}
+		TestTrue(TEXT("NEW, a conversation"), Page.Topics[0].bNew && Page.Topics[0].bConversation && Page.bTalkHasNew);
+		TestTrue(TEXT("every line said"), Page.Topics[0].Line.ToString().Contains(TEXT("two")));
+		WoRNpcTalk::Hear(*Journal, Page.Topics[0]);
+		TestTrue(TEXT("played in the journal"), Journal->HasPlayedConversation(TEXT("NpcTalkKaelTalk")));
+		Page = WoRNpcTalk::BuildForCharacter(Kael, {Story}, Journal);
+		TestTrue(TEXT("kept to hear again, not NEW"), Page.Topics.Num() == 1 && !Page.Topics[0].bNew && !Page.bTalkHasNew);
+		TestEqual(TEXT("in the log"), Page.Log.Num(), 1);
+	});
+
 	It("walks the box: Talk on the NEW line, hear it, the log and back, B back then Leave (B-471c)", [this]()
 	{
 		if (!Journal)
