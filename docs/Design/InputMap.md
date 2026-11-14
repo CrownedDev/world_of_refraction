@@ -80,6 +80,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Journal: show / hide the focused secret quest | X | X (Square) | none (the screen's keys) | Built (B-463, D-198): `WoRMenuStyle::IsToggleKey`; the hint reads Show or Hide |
 | Journal: hide every shown secret quest ("Hide all") | R | Y (Triangle) | none (the screen's keys) | Built (B-463, D-198): `WoRMenuStyle::IsSecondActionKey`, the Quests page only |
 | Journal: play a ready conversation's next line | Enter, Space, left click | A (Cross) | none | Built (B-463, Q-463): until NPC talk (B-471) |
+| Journal: track / stop tracking the focused quest | Enter, Space, left click | A (Cross) | none | Built (B-463b, Q-463b): an unfinished main or side quest; the hint reads Track or Stop tracking |
 | Journal: scroll the reader's text | Page Up / Page Down, mouse wheel | Right stick up / down | none (the screen's keys) | Built (B-463) |
 | Back / close | Esc, Backspace | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu) |
 
@@ -123,6 +124,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-459a: B stops waiting on the host-lost card; A / B on Hand over host? | feature/B-459-coop-session-screens |
 | 2026-11-14 | B-459b: A invites or hosts, X switches lists, on Play together | feature/B-459b-invite-screen |
 | 2026-11-14 | B-459c: hold View / Tab to answer the join request card (`IA_Coop_AnswerJoinRequest`, new context `JOIN_REQUEST_CARD`); then A gives, X refuses, B lets go | feature/B-459c-join-request-card |
+| 2026-11-14 | B-463b: A tracks the focused quest in the journal | feature/B-463b-track-quest |
 | 2026-11-14 | B-440d: LB / RB to the loadout screen's Skills page; Left / Right picks its list; A / X put a skill in and take it out | feature/B-440d-loadout-skills-page |
 | 2026-11-14 | B-440c: Left / Right to a gear row's sockets, X twice to take a socket off, in the loadout screen | feature/B-440c-loadout-socket-picker |
 | 2026-11-14 | B-443: the hub HUD prompt shows the Interact key (E / X); no new key | feature/B-443-hub-hud |
