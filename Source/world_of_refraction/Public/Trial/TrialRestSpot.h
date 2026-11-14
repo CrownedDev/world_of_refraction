@@ -33,8 +33,9 @@ namespace WoRRestSpot
 	 *  spot in the wild has no Extract. */
 	WORLD_OF_REFRACTION_API bool CanExtractHere(const UWorld *World);
 
-	/** Extracts here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False outside a run,
-	 *  on a client, or (B-448, D-186) at a rest spot no beaten boss left. */
+	/** Extracts here: the run's end pays the tally at RunRewards::LEAVE_EARLY_SHARE, then the hub. False outside a run
+	 *  (a client has none: the run lives on the host), on a client, or (B-448, D-186) at a rest spot no beaten mini-boss
+	 *  left. A rest spot's id is its mini-boss's encounter id (ATrialRestSpot::GetRestSpotId), which this relies on. */
 	WORLD_OF_REFRACTION_API bool LeaveRun(UWorld *World);
 
 	/** B-363 review: the player walks away from the rest spot (its menu or level screen closed): pillar points can't

@@ -172,18 +172,23 @@ void URestSpotWidget::Refresh()
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	// B-187d / B-187e: on a client the run lives on the host: no earnings here; Leave leaves the session (Q-187e).
 	const bool bOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
+	// B-448 (D-186): a host extracts only where a beaten foe left the rest spot; elsewhere no Extract, no payout line.
+	const bool bCanLeave = bOnClient || WoRRestSpot::CanExtractHere(GetWorld());
+	if (!bCanLeave)
+	{
+		bConfirmingLeave = false;
+	}
 	if (UTextBlock *LeaveLabel = LeaveButton ? Cast<UTextBlock>(LeaveButton->GetChildAt(0)) : nullptr)
 	{
 		LeaveLabel->SetText(bOnClient ? LOCTEXT("LeaveSession", "Leave the session") : LOCTEXT("Extract", "Extract"));
 	}
 	if (LeaveButton)
 	{
-		// B-448 (D-186): only a rest spot a beaten boss left has Extract; a client always has Leave the session.
-		LeaveButton->SetVisibility(bOnClient || WoRRestSpot::CanExtractHere(GetWorld()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		LeaveButton->SetVisibility(bCanLeave ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (PayoutText)
 	{
-		PayoutText->SetVisibility(bOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		PayoutText->SetVisibility(bOnClient || !bCanLeave ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		const FRunPayout Earned = Run ? Run->GetRunEndPayout() : FRunPayout();
 		PayoutText->SetText(FText::Format(LOCTEXT("Earned", "Earned so far: {0} Gold, {1} Gear Essence, {2} Skill Essence (leaving now pays {3}%)."),
 										  FText::AsNumber(Earned.HubGold), FText::AsNumber(Earned.GearEssence), FText::AsNumber(Earned.SkillEssence),

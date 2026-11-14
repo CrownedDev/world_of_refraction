@@ -96,13 +96,13 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, co
 FText WoRPauseMenu::GetQuitWarning(bool bInRun)
 {
 	return bInRun ? LOCTEXT("QuitWarningRun", "Quitting now ends the run and you lose everything from it: its Prisms, its rewards, all of it. "
-													   "The only way out with your rewards is to extract at the rest spot a beaten boss leaves.")
+													   "The only way out with your rewards is to extract at a rest spot left where a great foe fell.")
 				  : LOCTEXT("QuitWarningHub", "There is no title screen yet, so this saves and closes the game.");
 }
 
 FText WoRPauseMenu::GetExtractNote()
 {
-	return LOCTEXT("ExtractNote", "To leave the trial with your rewards, extract at the rest spot a beaten boss leaves.");
+	return LOCTEXT("ExtractNote", "To leave the trial with your rewards, extract at a rest spot left where a great foe fell.");
 }
 
 bool WoRPauseMenu::IsInRun(const UWorld *World)
