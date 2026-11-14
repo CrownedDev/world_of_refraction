@@ -1036,6 +1036,16 @@ The queue of questions only Crown can answer.
 - **Begin starts the game in place:** everything in memory goes back to a new game's, the party is the picked lord alone, the slot is written with it, and the hub opens with the player as the picked character. The title's New Game opens the screen with no save too (nothing to lose there).
 - **Left out:** the body previews (grey boxes until an editor step), the mouse, and the heading and opening (Crown's; "placeholder heading" stays).
 
+### Q-476c — Loadout v2's Add gear window: where sockets live, Remove all gear, the remembered view
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476c) · **Blocks:** —
+**Question:** building the rest of the v2 Weapons tab raised five small points the mockups don't settle.
+**Answer**, by the reference-backed default (Crown may change any):
+- **Sockets stay on the piece they are in.** Swapping an entry's main hand (or adapter) brings the new piece's own sockets; the old crystal stays on the old weapon, nothing is destroyed. Path of Exile and Diablo IV keep socketed gems in the item when you swap gear, and players rely on it to keep builds on spare weapons.
+- **A socket change goes in at once** (A Pick, Y Confirm on that socket's list), through today's socket rules: the pouch pays, a full socket is emptied first and the gem and stone come off together and are used up (CL-28b), said first, A again to do it. The window's other slots (main hand, off hand, adapter, evolution) go in together on Y Confirm. A new entry's sockets are its piece's own; A Edit on the entry changes them once it is in.
+- **Remove all gear keeps the first entry** (D-116: every loadout keeps a weapon or adapter there); everything else comes out, sockets stay on their pieces. It asks first (A twice), as the mockup's "Asks first".
+- **The full / simple view is remembered while the game runs**, not saved across launches yet (TODO with the settings save). Expedition 33 and Persona 5 keep a menu's sort and view for the session.
+- **The layout follows UIScreens' B-479c** (list left, box right, X Simple / Full), approved after B-476b drew the full-width B-479b list; B-476b's list is replaced here.
+
 ### Q-477 — Weapon sets: what the first code part decides
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-477) · **Blocks:** —
 **Question:** D-209 to D-211 set the sets' rules. Four smaller points the code needs before the screen (B-476) and the editor step (B-478) land.
