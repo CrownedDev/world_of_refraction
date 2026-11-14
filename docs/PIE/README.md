@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-482b](B-482b.md) | `fix/B-482b-loadout-v2-entry-rows` (in dev, built 2026-11-14) | Loadout v2: rows read "Name (Crystal)", ACTIVE at the right end, no "later", the loadout title inside the margin | Pending |
 | [B-482](B-482.md) | `feature/B-482-loadout-v2-chips-mouse` (in dev, built 2026-11-14) | Loadout v2: character and tab chips, the box hidden on the Add frames, the mouse (click chips and lines, hover) | Pending |
 | [B-481](B-481.md) | `feature/B-481-device-key-hints` (in dev, built 2026-11-14) | Menu footers name the keys of the device in use, live; keyboard Back is Backspace | Pending |
 | [B-440f](B-440f.md) | `feature/B-440f-loadout-apparel-v2` (in dev, built 2026-11-14) | Loadout v2: the Apparel tab (LB / RB): worn pieces, Add apparel, A Pick / Remove | Pending |

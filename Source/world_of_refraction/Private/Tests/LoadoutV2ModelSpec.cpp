@@ -12,6 +12,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/FCrystalAttachment.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/FCombatLoadout.h"
@@ -330,6 +332,48 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("power shown"), Full.ContainsByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Value.ToString() == TEXT("50"); }));
 		const TArray<FLoadoutV2DetailLine> Simple = WoRLoadoutV2::BuildEntryDetails(Loadout, Entry, true);
 		TestTrue(TEXT("the simple view is shorter"), Simple.Num() < Full.Num());
+	});
+
+	It("names what the socket holds the same on the row and in the box; nothing for an empty socket (B-482b)", [this]()
+	{
+		constexpr int32 SOCKET_TEST_DURABILITY = 5;
+		FCombatLoadout Loadout;
+		FText Refusal;
+		FLoadoutV2Draft WithGem = LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Ashen Blade"), EWeaponType::Sword));
+		WithGem.Socket1.Kind = EAttachedItemKind::Crystal;
+		WithGem.Socket1.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), SOCKET_TEST_DURABILITY);
+		TestTrue(TEXT("the sword with a Garnet goes in"), WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, WithGem, Refusal));
+		TestTrue(TEXT("a bare hammer goes in"),
+				 WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Quarry Maul"), EWeaponType::Hammer)), Refusal));
+		const FLoadoutV2WeaponsPage Page = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic);
+		if (!TestEqual(TEXT("two entries"), Page.Entries.Num(), 2))
+		{
+			return;
+		}
+		const FString RowName = Page.Entries[0].SocketName.ToString();
+		TestFalse(TEXT("the row names the gem"), RowName.IsEmpty());
+		TestTrue(TEXT("the icon agrees: a crystal"), Page.Entries[0].Sockets[0] == ELoadoutV2SocketIcon::Crystal);
+		const TArray<FLoadoutV2DetailLine> Box = WoRLoadoutV2::BuildEntryDetails(Loadout, Page.Entries[0], false);
+		const FLoadoutV2DetailLine *SocketLine = Box.FindByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Kind == ELoadoutV2DetailKind::Socket; });
+		if (TestNotNull(TEXT("the box's first socket line"), SocketLine))
+		{
+			TestTrue(TEXT("the box names the same gem"), SocketLine->Value.ToString().StartsWith(RowName));
+		}
+		TestTrue(TEXT("an empty socket: no name on the row"), Page.Entries[1].SocketName.IsEmpty());
+		TestTrue(TEXT("and an empty icon"), Page.Entries[1].Sockets[0] == ELoadoutV2SocketIcon::Empty);
+
+		// An evolution whose item is gone: the row still names it, as the box does.
+		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem = FRuntimeAttachedItem();
+		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution;
+		const FLoadoutV2WeaponsPage Lost = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic);
+		if (TestTrue(TEXT("still an entry"), Lost.Entries.Num() > 0))
+		{
+			const FString LostName = Lost.Entries[0].SocketName.ToString();
+			TestFalse(TEXT("an evolution with no item still has a name on the row"), LostName.IsEmpty());
+			const TArray<FLoadoutV2DetailLine> LostBox = WoRLoadoutV2::BuildEntryDetails(Loadout, Lost.Entries[0], false);
+			const FLoadoutV2DetailLine *LostLine = LostBox.FindByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Kind == ELoadoutV2DetailKind::Socket; });
+			TestTrue(TEXT("and the box says the same"), LostLine && LostLine->Value.ToString().StartsWith(LostName));
+		}
 	});
 }
 
