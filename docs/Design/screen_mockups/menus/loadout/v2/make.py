@@ -225,7 +225,7 @@ frame(d, "Garrick", "Generic", GEAR_G)
 choices(d, "Off hand  ·  swords that pair", [
     ("Cinder Edge", "None", "C", "Sword · dual wield", "0 cells", "worn"),
     ("Frost Fang", "Water", "C", "Sword · Sapphire", "1 cell", None),
-    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a dagger"),
+    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a sword"),
     ("Greatblade", "None", "B", "", "", "Can't be dual wielded"),
     ("Night Scythe", "Darkness", "A", "", "", "Can't be dual wielded")], 1, [
     ("Cells", "3 of 5", "4 of 5", None), ("Primary free", "2", "1", None), ("Power", "42 + 30", "42 + 34", True),
@@ -280,7 +280,7 @@ item_rows(d, 590, 1134, 156, [
     ("Cinder Edge", "None", "C", "Sword · dual wield", "0 cells", None),
     ("Frost Fang", "Water", "C", "Sword · Sapphire", "1 cell", None),
     ("Tempest Sabre", "Lightning", "A", "", "", "Evolved: needs 2 cells, 1 free"),
-    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a dagger"),
+    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a sword"),
     ("Quarry Maul", "Earth", "C", "", "", "Can't be dual wielded"),
     ("Storm Ring", "Lightning", "C", "", "", "An adapter: one per loadout, already in Secondary"),
     ("Ashen Blade", "Fire", "B", "", "", "Already the main hand")], 0)
@@ -333,7 +333,8 @@ choices(d, "Fits the gear slot  ·  2 cells", [
     ("Tidal Pike", "Water", "C", "Spear · Sapphire", "1 cell", None),
     ("Ember Ring", "Fire", "B", "Adapter · evolved", "2 cells", None),
     ("Phoenix Heart", "Fire", "B", "Evolution on its own", "2 cells", None),
-    ("Pyre Pike", "Fire", "A", "", "", "Evolution + stone: needs 3 cells, 2 here")], 1, [
+    ("Pyre Pike", "Fire", "A", "", "", "Evolution + stone: needs 3 cells, 2 here"),
+    ("Twin Fangs", "Wind", "C", "", "", "Twin only: needs two, she holds one item")], 1, [
     ("Cells", "1 of 2", "1 of 2", None), ("Power", "28", "34", True),
     ("Elements she casts", "Fire", "Fire, Water", True), ("Innate spells", "18 points", "18 points", None)])
 footer(d, FOOT)
