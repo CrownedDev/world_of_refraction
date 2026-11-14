@@ -295,6 +295,7 @@ void FStatusBreakSpec::Define()
 
 		It("of Wind pushes the holder's next turn back one place, once per attacker", [this]()
 		{
+			const FWoRActionPipsSwitchScope SpeedTimeline(WOR_TEST_SPEED_TIMELINE); // B-170h: the old timeline's Wind row
 			if (!EffectManager || !TurnManager) return;
 			AActor *Local = Spawn();
 			AActor *Opposing = Spawn();

@@ -28,8 +28,8 @@ namespace TurnRotationConstants
 
 namespace TurnRotation
 {
-	/** wor.Turns.ActionPips (default 0): 1 = the fixed rotation and banked actions (B-170), 0 = the Turn
-	 *  Speed timeline as built. UTurnManager reads it once per fight, at InitializeCombat. */
+	/** wor.Turns.ActionPips (default 1 since B-170h): 1 = the fixed rotation and banked actions (B-170), 0 = the old Turn
+	 *  Speed timeline until B-170h2 deletes it. UTurnManager reads it once per fight, at InitializeCombat. */
 	WORLD_OF_REFRACTION_API bool IsActionPipsOn();
 }
 
