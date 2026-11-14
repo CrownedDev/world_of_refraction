@@ -29,6 +29,7 @@ namespace GateScreenStyle
 	constexpr float RowGap = 9.0f;
 	constexpr float RowPadding = 24.0f;
 	constexpr float CardHeight = 120.0f;
+	constexpr float CardPadding = 12.0f;
 	constexpr float CardGap = 6.0f;
 	constexpr float PanelGap = 60.0f;
 	constexpr float PanelWidth = 680.0f;
@@ -148,7 +149,7 @@ void UGateScreenWidget::BuildTree()
 	{
 		FRowWidgets Card;
 		UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Frame->SetPadding(FMargin(RowPadding * 0.5f));
+		Frame->SetPadding(FMargin(CardPadding));
 		UVerticalBox *Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Frame->SetContent(Words);
 		Card.Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
@@ -256,14 +257,7 @@ UGateScreenWidget::FRowWidgets UGateScreenWidget::BuildMemberRow(UVerticalBox *C
 void UGateScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
-	if (Gates.IsEmpty())
-	{
-		SetGates(WoRGateScreen::GatherGates(), nullptr); // wor.UI.Gate, or a push without Open
-	}
-	else
-	{
-		Refresh();
-	}
+	Refresh(); // Open fills the gates right after the push (SetGates); a return from Party or Loadout re-reads the party
 }
 
 UWidget *UGateScreenWidget::NativeGetDesiredFocusTarget() const
@@ -423,6 +417,7 @@ void UGateScreenWidget::PressSelect()
 	Message = WoRGateScreen::Enter(GetGameInstance(), GetGate(), ChosenTrial, Difficulty);
 	if (Message.IsEmpty())
 	{
+		// GetEnterRefusal already checked the level and the trial, so EnterTrial opens the map.
 		DeactivateWidget(); // the level change takes the rest
 		return;
 	}
