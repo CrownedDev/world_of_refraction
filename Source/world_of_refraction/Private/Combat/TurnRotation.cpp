@@ -5,17 +5,9 @@
 #include "Combat/TurnRotation.h"
 #include "Combat/TurnManager.h"
 #include "Character/CharacterDataComponent.h"
-#include "HAL/IConsoleManager.h"
 
 namespace
 {
-	TAutoConsoleVariable<int32> CVarTurnsActionPips(
-		TEXT("wor.Turns.ActionPips"),
-		1,
-		TEXT("B-170: 1 (the default since B-170h) = fixed turn rotation and banked actions (ActionPips.md); 0 = the old Turn Speed timeline, until B-170h2 deletes it. ")
-		TEXT("Read when a fight starts, so set it before the fight."),
-		ECVF_Default);
-
 	constexpr int32 TURN_ROTATION_SIDE_COUNT = TurnRotationConstants::SIDE_COUNT;
 
 	bool IsTurnRotationSide(int32 Team)
@@ -75,11 +67,6 @@ namespace
 		}
 		return NextAfter != INDEX_NONE ? NextAfter : Lowest;
 	}
-}
-
-bool TurnRotation::IsActionPipsOn()
-{
-	return CVarTurnsActionPips.GetValueOnGameThread() != 0;
 }
 
 void FTurnRotation::Reset(int32 OpeningTeam)
