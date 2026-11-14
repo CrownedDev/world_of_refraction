@@ -15,6 +15,9 @@
 // B-440f (D-164): LB / RB turns to the Apparel tab, which works like Weapons: the worn pieces, an Add apparel frame
 // ("1/2 left"), the focused piece in the box. A opens the owned pieces for that place (WoRLoadoutApparel): A Pick, or
 // A Remove on the EQUIPPED line. Apparel is outside the cells.
+// B-482: each character and each tab is a framed chip (WoRMenuStyle::FChipRow), the current one filled, Skills and
+// Cosmetics greyed with "later"; the details box is hidden when it has nothing to say (the Add weapon / Add apparel
+// frames). Mouse: a click on a chip goes there, on a line focuses it (again: A); hovering lights a chip or a line.
 // Not yet (B-476d): the Skills tab, the apparel socket and Compare, then replacing ULoadoutScreenWidget on the game menu.
 
 #pragma once
@@ -24,6 +27,7 @@
 #include "UI/Menus/LoadoutSavedModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
+#include "UI/Menus/MenuChipRow.h"
 #include "UI/WoRActivatableWidget.h"
 #include "LoadoutV2ScreenWidget.generated.h"
 
@@ -126,6 +130,13 @@ public:
 	void PressConfirm();
 	/** L3 / 6: the focused weapon entry becomes the one in hand (D-207). */
 	void PressSetActive();
+	// B-482: what a mouse click does (the specs call these too).
+	/** A tab chip: goes to that tab; a greyed one (Skills, Cosmetics) only says it comes later. On the list only. */
+	void ClickTabChip(int32 Chip);
+	/** A character chip: shows that character. On the list only. */
+	void ClickMemberChip(int32 Chip);
+	/** A list line: focuses it; on the focused one it does A. */
+	void ClickLine(int32 Line);
 	/** B-440e: what Enter in the name box does (the specs call it too). */
 	void CommitRename(const FText &NewName);
 	/** B, Esc: one step back (the name box, the saved list, the ask, the list, the window, Options), else closes the screen. */
@@ -150,6 +161,9 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
 	virtual bool NativeOnHandleBackAction() override;
 
 private:
@@ -188,6 +202,12 @@ private:
 
 	// Options.
 	void SelectOption();
+
+	// B-482: the mouse.
+	/** The shown list line under ScreenPosition; INDEX_NONE for none. */
+	int32 FindLineUnder(const FVector2D &ScreenPosition) const;
+	/** What the mouse is over, shown lit; true when it changed. */
+	bool SetHovered(int32 MemberChip, int32 TabChip, int32 Line);
 
 	// B-440f: the Apparel tab.
 	int32 GetWornApparelCount() const;
@@ -246,12 +266,21 @@ private:
 	/** Remembered while the game runs (UIScreens B-479c: the screen remembers the view). */
 	static bool bSimpleView;
 
+	/** B-482: the character chips and the tab chips, and what the mouse is over (INDEX_NONE: nothing). */
+	WoRMenuStyle::FChipRow MemberChips;
+	WoRMenuStyle::FChipRow TabChips;
+	int32 HoveredMemberChip = INDEX_NONE;
+	int32 HoveredTabChip = INDEX_NONE;
+	int32 HoveredLine = INDEX_NONE;
+
+	/** The loadout in use, top right ("Bruiser (2 of 5)"). */
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> MemberText;
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> TabsText;
+	TObjectPtr<UTextBlock> LoadoutNameText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> CellsText;
+	/** B-482: the details box's frame, hidden when the box has nothing to say. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> DetailsBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> TitleText;
 	/** B-440e: the saved loadout's new name; shown only while renaming (placeholder until the CommonUI screen, D-024). */
