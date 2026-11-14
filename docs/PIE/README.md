@@ -23,10 +23,6 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-483](B-483.md) | `feature/B-483-key-caps-section-frames` (in dev, built 2026-11-14) | Footers draw keys as caps (coloured circles on a gamepad), each hint clickable, in every menu; loadout v2 section frames | Pending |
 | [B-482b](B-482b.md) | `fix/B-482b-loadout-v2-entry-rows` (in dev, built 2026-11-14) | Loadout v2: rows read "Name (Crystal)", ACTIVE at the right end, no "later", the loadout title inside the margin | Pending |
 | [B-482](B-482.md) | `feature/B-482-loadout-v2-chips-mouse` (in dev, built 2026-11-14) | Loadout v2: character and tab chips, the box hidden on the Add frames, the mouse (click chips and lines, hover) | Pending |
-| [B-476d](B-476d.md) | `feature/B-476d-loadout-v2-skills-tab` (in dev, built 2026-11-14; reuses the cloud's `feature/B-476d-skills-tab-v3-cloud`) | The v2 loadout screen's Skills tab between Weapons and Apparel: entries drawn as on Weapons (icons, socket badges, ACTIVE) with filled/total, slots, the picker, what a skill does in the B-487b box | Pending |
-| [B-488](B-488.md) | `chore/B-488-retire-old-loadout-screen` (in dev, built 2026-11-14) | The first loadout screen is gone: the game menu's Loadout page and the gate's loadout key open the v2 screen; Y / R takes a skill out of its slot | Pending |
-| [B-491](B-491.md) | `chore/B-491-player-text-audit` (in dev, built 2026-11-14) | The player-text audit applied (D-213): Equipped / Damaged, no debug words, one word per thing, Leave / Enter, prompts as "E  Open · Chest" | Pending |
-| [B-449](B-449.md) | `feature/B-449-v-extracts-the-party` (in dev, built 2026-11-14) | V, a trial NPC: Talk, Extract, a confirm, then the run ends at the half share; `wor.Trial.SpawnV` until V is placed (editor step) | Pending |
 | [B-447](B-447.md) | `feature/B-447-pillar-points-from-trial-npc` (in dev, built 2026-11-14) | Pillar points are bought from the trial NPC who sells them this run (found by talking; the same for the whole run), not at the rest spot; `wor.Trial.SpawnNPC` until the NPCs are placed (editor step) | Pending |
 | [B-481](B-481.md) | `feature/B-481-device-key-hints` (in dev, built 2026-11-14) | Menu footers name the keys of the device in use, live; keyboard Back is Backspace | Pending |
 | [B-440f](B-440f.md) | `feature/B-440f-loadout-apparel-v2` (in dev, built 2026-11-14) | Loadout v2: the Apparel tab (LB / RB): worn pieces, Add apparel, A Pick / Remove | Pending |
@@ -560,6 +556,10 @@ Move rows to **Done** when every check passes.
 ## Done
 | Job | Tested | Notes |
 |---|---|---|
+| [B-476d](B-476d.md) | 2026-11-14 | Checked in PIE, looked good (Crown) |
+| [B-488](B-488.md) | 2026-11-14 | Checked in PIE, looked good (Crown) |
+| [B-491](B-491.md) | 2026-11-14 | Checked in PIE, looked good (Crown) |
+| [B-449](B-449.md) | 2026-11-14 | Checked in PIE, looked good (Crown) |
 | [B-026](B-026.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-027](B-027.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
 | [B-029](B-029.md) | 2026-10-26 | General play-through, nothing looked wrong (Crown) |
