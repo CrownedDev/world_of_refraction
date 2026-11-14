@@ -108,14 +108,14 @@ void FLoadoutApparelSpec::Define()
 		}
 		Screen->ActivateWidget();
 		TestTrue(TEXT("opens on Weapons"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
-		Screen->SwitchTab();
+		Screen->SwitchTab(-1); // LB: Weapons | Skills | Apparel in a ring (B-476d)
 		TestTrue(TEXT("the Apparel tab"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
 		TestTrue(TEXT("no character: no apparel places"), Screen->GetApparelRows().IsEmpty());
 		Screen->PressA();
 		TestTrue(TEXT("nothing to pick from"), Screen->GetMode() == ELoadoutV2Mode::List && Screen->GetItems().IsEmpty());
 		Screen->PressSetActive();
 		TestFalse(TEXT("Set active says why not here"), Screen->GetMessage().IsEmpty());
-		Screen->SwitchTab();
+		Screen->SwitchTab(1); // RB
 		TestTrue(TEXT("back on Weapons"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
 		Screen->PressBack();
 		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
