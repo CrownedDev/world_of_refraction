@@ -58,6 +58,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Combat/Mechanics/TurnStartEnergy.h"
 #include "WoRLog.h"
+#include "UI/Trial/RewardNotices.h"
 
 namespace CombatOwnedGearSync
 {
@@ -572,6 +573,7 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s) across the party"), LevelDrops);
 		OnLevelDropsReady.Broadcast(LevelDrops);
+		WoRRewardNotice::Post(this, WoRRewardNotice::MakeLevels(LevelDrops)); // B-465b: a popup back on the field
 	}
 
 	// B-170d (D-064): no waiting action change outlives its fight, whatever the switch.

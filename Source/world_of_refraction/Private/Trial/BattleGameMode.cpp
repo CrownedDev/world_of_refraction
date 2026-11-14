@@ -42,6 +42,8 @@
 #include "UI/Combat/CombatResultsWidget.h"
 #include "UI/Trial/RunEndCardWidget.h"
 #include "UI/Trial/RunEndModel.h"
+#include "UI/Trial/RewardNotices.h"
+#include "Trial/RunRewards.h"
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
@@ -570,6 +572,9 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         {
             // B-073 (D-006): a win pays run Prisms now and adds to the run's tally (by the fight's rank).
             TrialRun->RecordFightReward(GetWorld(), TrialRun->GetPendingRank());
+            // B-465b (UIScreens #25): no results screen after a win; the win and what it paid come back as a popup.
+            WoRRewardNotice::Post(this, WoRRewardNotice::MakeWin(
+                                            TrialRun->IsRunActive() ? RunRewards::WinRunPrisms(TrialRun->GetPendingRank(), TrialRun->GetTrialDifficulty()) : 0));
             TrialRun->MarkPendingEncounterBeaten();
             // B-362c (D-160 changed): a win no longer recovers the dropped Prisms; the pickup on the map does
             // (APrismDropPickup). WoRDefeat::RecoverPrisms is OBSOLETE.
@@ -789,6 +794,11 @@ bool ABattleGameMode::ShowResults(const FCombatResult &Result)
 {
     APlayerController *PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
     if (!PC)
+    {
+        return false;
+    }
+    // B-465b (UIScreens #25, FeelGuide 6): a win shows no results screen; its popups wait for the field.
+    if (Result.FinalState == ECombatState::Victory)
     {
         return false;
     }
