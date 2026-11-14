@@ -1,9 +1,10 @@
 // TrialNPCWidget.h
 // PLACEHOLDER UI (B-449, Backlog rule 4): a trial NPC's talk panel. Its name, then what it offers as plain buttons
 // built in C++ (like URestSpotWidget). V: Extract, which asks first (the rest spot's own confirm text and "what you
-// earned" line), then ends the run at the half share. B-447: the NPC who sells pillar points this run also shows a
-// party member (Next member steps through them) and "Buy a point" with its price. An NPC with neither says it has
-// nothing to offer. Opened by ATrialNPC::Interact. Replaced by the CommonUI screen (D-024).
+// earned" line), then ends the run at the half share. Any other NPC says it has nothing to offer. Opened by
+// ATrialNPC::Interact.
+// OBSOLETE (B-502, D-214): the services are rest points now (the seller's rows moved to the rest spot's Level up
+// screen); this panel goes with ATrialNPC after Crown's PIE pass of B-502.
 
 #pragma once
 
@@ -15,7 +16,6 @@ class APlayerController;
 class ATrialNPC;
 class UButton;
 class UTextBlock;
-struct FPartyMember;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UTrialNPCWidget : public UUserWidget
@@ -43,26 +43,6 @@ private:
 	void HandleConfirmExtractClicked();
 	UFUNCTION()
 	void HandleCloseClicked();
-
-	// B-447: the run's seller offers "Buy a point" for the shown party member (WoRTrialNPC::TryBuyPointAt).
-	UFUNCTION()
-	void HandleNextMemberClicked();
-	UFUNCTION()
-	void HandleBuyClicked();
-	/** The local party's members (as the level screen lists them); pointers into the live party. */
-	TArray<const FPartyMember *> GatherMembers() const;
-
-	int32 MemberIndex = 0;
-	FText BuyStatus;
-
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> MemberText;
-	UPROPERTY(Transient)
-	TObjectPtr<UButton> NextMemberButton;
-	UPROPERTY(Transient)
-	TObjectPtr<UButton> BuyButton;
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> BuyStatusText;
 
 	TWeakObjectPtr<ATrialNPC> NPC;
 

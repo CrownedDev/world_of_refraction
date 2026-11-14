@@ -8,17 +8,11 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
-#include "Character/CharacterData.h"
-#include "Currency/CurrencyTypes.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
-#include "Party/Party.h"
-#include "Party/PartySessionSubsystem.h"
-#include "Trial/LevelDropPlacement.h"
 #include "Trial/TrialNPC.h"
 #include "Trial/TrialRestSpot.h"
-#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "TrialNPCWidget"
@@ -99,13 +93,6 @@ TSharedRef<SWidget> UTrialNPCWidget::RebuildWidget()
 		ConfirmText = TrialNPCStyle::AddText(WidgetTree, Box);
 		ConfirmButton = TrialNPCStyle::AddButton(WidgetTree, Box, LOCTEXT("ConfirmExtract", "Leave"));
 		ConfirmButton->OnClicked.AddDynamic(this, &UTrialNPCWidget::HandleConfirmExtractClicked);
-		// B-447: the seller's rows.
-		MemberText = TrialNPCStyle::AddText(WidgetTree, Box);
-		NextMemberButton = TrialNPCStyle::AddButton(WidgetTree, Box, LOCTEXT("NextMember", "Next member"));
-		NextMemberButton->OnClicked.AddDynamic(this, &UTrialNPCWidget::HandleNextMemberClicked);
-		BuyButton = TrialNPCStyle::AddButton(WidgetTree, Box, LOCTEXT("Buy", "Buy a point"));
-		BuyButton->OnClicked.AddDynamic(this, &UTrialNPCWidget::HandleBuyClicked);
-		BuyStatusText = TrialNPCStyle::AddText(WidgetTree, Box);
 		TrialNPCStyle::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &UTrialNPCWidget::HandleCloseClicked);
 	}
 	return Super::RebuildWidget();
@@ -131,33 +118,10 @@ void UTrialNPCWidget::Refresh()
 	{
 		NameText->SetText(Who ? Who->GetDisplayName() : FText::GetEmpty());
 	}
-	// B-447: this run's seller shows a member and the price of that member's next point.
-	const bool bSells = Who && WoRTrialNPC::FindPointSeller(GetWorld()) == Who;
-	const TArray<const FPartyMember *> Members = bSells ? GatherMembers() : TArray<const FPartyMember *>();
-	MemberIndex = Members.IsEmpty() ? 0 : MemberIndex % Members.Num();
-	const FPartyMember *Member = Members.IsValidIndex(MemberIndex) ? Members[MemberIndex] : nullptr;
-	const ESlateVisibility SellRows = bSells && Member ? ESlateVisibility::Visible : ESlateVisibility::Collapsed;
-	if (MemberText && NextMemberButton && BuyButton && BuyStatusText)
-	{
-		MemberText->SetVisibility(SellRows);
-		NextMemberButton->SetVisibility(Members.Num() > 1 ? SellRows : ESlateVisibility::Collapsed);
-		BuyButton->SetVisibility(SellRows);
-		BuyStatusText->SetVisibility(BuyStatus.IsEmpty() ? ESlateVisibility::Collapsed : SellRows);
-		BuyStatusText->SetText(BuyStatus);
-		if (Member)
-		{
-			MemberText->SetText(FText::Format(LOCTEXT("PointsFor", "Pillar points for {0} (placed at a rest spot)"), FText::FromString(Member->CharacterData->Name)));
-			if (UTextBlock *BuyLabel = Cast<UTextBlock>(BuyButton->GetChildAt(0)))
-			{
-				BuyLabel->SetText(FText::Format(LOCTEXT("BuyPrice", "Buy a point ({0} {1})"), FText::AsNumber(WoRLevelDrops::GetPointPrice(GetWorld(), *Member)),
-												WoRGameNames::GetCurrencyName(ECurrencyType::Gold))); // the run currency (shown as Prisms, D-159)
-			}
-		}
-	}
 	if (NoteText)
 	{
 		// Why the offer is greyed (a client, no run), or that this character has nothing to offer.
-		const FText Note = bOffersExtract ? Refusal : bSells ? FText::GetEmpty() : LOCTEXT("NothingOffered", "Nothing to offer right now.");
+		const FText Note = bOffersExtract ? Refusal : LOCTEXT("NothingOffered", "Nothing to offer right now.");
 		NoteText->SetText(Note);
 		NoteText->SetVisibility(Note.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	}
@@ -204,45 +168,6 @@ void UTrialNPCWidget::HandleCloseClicked()
 	CloseMenu();
 }
 
-TArray<const FPartyMember *> UTrialNPCWidget::GatherMembers() const
-{
-	TArray<const FPartyMember *> Members;
-	const UGameInstance *GI = GetGameInstance();
-	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
-	{
-		for (const FPartyMember &Member : Party->Members)
-		{
-			if (Member.CharacterData)
-			{
-				Members.Add(&Member);
-			}
-		}
-	}
-	return Members;
-}
-
-void UTrialNPCWidget::HandleNextMemberClicked()
-{
-	++MemberIndex; // Refresh wraps it
-	BuyStatus = FText::GetEmpty();
-	Refresh();
-}
-
-void UTrialNPCWidget::HandleBuyClicked()
-{
-	const TArray<const FPartyMember *> Members = GatherMembers();
-	const ATrialNPC *Who = NPC.Get();
-	if (!Who || !Members.IsValidIndex(MemberIndex))
-	{
-		return;
-	}
-	const FPartyMember &Member = *Members[MemberIndex];
-	const FText Refusal = WoRTrialNPC::TryBuyPointAt(GetWorld(), *Who, Member);
-	BuyStatus = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Bought", "{0}: +1 point to place"), FText::FromString(Member.CharacterData->Name)) : Refusal;
-	Refresh();
-}
-
 void UTrialNPCWidget::CloseMenu()
 {
 	if (APlayerController *PC = GetOwningPlayer())
@@ -257,10 +182,9 @@ FString UTrialNPCWidget::GetTrialNPCWidgetString() const
 {
 	const ATrialNPC *Who = NPC.Get();
 	const FText Refusal = WoRTrialNPC::GetExtractRefusal(GetWorld());
-	return FString::Printf(TEXT("Talk panel: %s; Extract: %s%s; pillar points: %s"), Who ? *Who->GetDisplayName().ToString() : TEXT("(gone)"),
+	return FString::Printf(TEXT("Talk panel: %s; Extract: %s%s"), Who ? *Who->GetDisplayName().ToString() : TEXT("(gone)"),
 						   !Who || !Who->ExtractsParty() ? TEXT("not offered") : Refusal.IsEmpty() ? TEXT("offered") : *Refusal.ToString(),
-						   bConfirmingExtract ? TEXT(" (asking)") : TEXT(""),
-						   Who && WoRTrialNPC::FindPointSeller(GetWorld()) == Who ? TEXT("sold here this run") : TEXT("not sold here"));
+						   bConfirmingExtract ? TEXT(" (asking)") : TEXT(""));
 }
 
 #undef LOCTEXT_NAMESPACE
