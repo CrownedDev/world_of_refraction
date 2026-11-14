@@ -79,8 +79,12 @@ public:
 	FRecruitCard BuildRecruitCard() const;
 
 	/** B-471 (D-179): with a full party in a run, this character joins in place of the NPC at StepOutSlot (host only).
-	 *  The card's widget calls it (B-471b); until then wor.Party.RecruitInPlaceOf. */
+	 *  The card's widget calls it (URecruitCardWidget, B-471b); also wor.Party.RecruitInPlaceOf. */
 	bool InviteInPlaceOf(int32 StepOutSlot);
+
+	/** B-471b: this character joins for the run (the recruit card's "Invite for this run"; host only). False when it
+	 *  can't (already in the party, no run, a full party). */
+	bool InviteForRun();
 
 	/** True while a player pawn stands inside the interaction trigger. */
 	UFUNCTION(BlueprintPure, Category = "Party")
