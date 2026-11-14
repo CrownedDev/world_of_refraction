@@ -1,6 +1,6 @@
 // LoadoutScreenSpec.cpp
 // B-440a (D-181, D-180): the loadout screen's gear page model. One row per weapon and adapter with its two sockets
-// and its cost as "frame + attachment", the weapon in hand marked only when there are two, the budget by class,
+// and its cost (D-206, B-472: only what is inside costs), the weapon in hand marked only when there are two, the budget by class,
 // apparel outside the budget with its empty slots, and the name tables the rows read. The screen is the PIE sheet.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -100,10 +100,11 @@ void FLoadoutScreenSpec::Define()
 		TestTrue(TEXT("the stone socket is empty (D-180: it stays)"), Sword.Sockets[LOADOUT_SCREEN_TEST_SECOND].bEmpty);
 		TestTrue(TEXT("the bare hammer's sockets are empty"), Hammer.Sockets[LOADOUT_SCREEN_TEST_FIRST].bEmpty);
 
-		TestEqual(TEXT("weapon + crystal"), Sword.Cost, LoadoutConstants::WEAPON_FRAME_COST + LoadoutConstants::CRYSTAL_ATTACHMENT_COST);
-		TestEqual(TEXT("bare weapon"), Hammer.Cost, LoadoutConstants::WEAPON_FRAME_COST);
-		TestTrue(TEXT("the sum is spelled out"), Sword.CostLine.ToString().Contains(TEXT("+")));
-		TestFalse(TEXT("a bare weapon has no sum"), Hammer.CostLine.ToString().Contains(TEXT("+")));
+		TestEqual(TEXT("weapon + crystal: only the crystal costs (D-206)"), Sword.Cost, LoadoutConstants::LOADOUT_CRYSTAL_COST);
+		TestEqual(TEXT("bare weapon: free (D-206)"), Hammer.Cost, LoadoutConstants::LOADOUT_GEAR_COST);
+		TestTrue(TEXT("the line names only what is inside"), Sword.CostLine.ToString().Contains(TEXT("Crystal")) && !Sword.CostLine.ToString().Contains(TEXT("Weapon")));
+		TestFalse(TEXT("one thing inside: no sum"), Sword.CostLine.ToString().Contains(TEXT("+")));
+		TestTrue(TEXT("a bare weapon says it is free"), Hammer.CostLine.ToString() == TEXT("Free"));
 		TestEqual(TEXT("spent"), Page.Spent, Sword.Cost + Hammer.Cost);
 		TestEqual(TEXT("the Generic's budget"), Page.Budget, LoadoutClassTable::GENERIC.Budget);
 	});
@@ -276,7 +277,7 @@ void FLoadoutScreenSpec::Define()
 	It("offers the owned gear a place takes, with the budget after it, and keeps refused lines (B-440b)", [this]()
 	{
 		FCombatLoadout Loadout;
-		Loadout.PrimarySlotType = EPrimarySlotType::Evolution; // the seat: 3 of the Generic's 5
+		Loadout.PrimarySlotType = EPrimarySlotType::Evolution; // the seat: 2 of the Generic's 5 (D-206)
 		const FLoadoutScreenPage Before = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
 		const FLoadoutScreenRow *Free = FindRow(Before, ELoadoutScreenRowKind::EmptyGear);
 		if (!TestNotNull(TEXT("the free weapon place"), Free))
@@ -294,9 +295,11 @@ void FLoadoutScreenSpec::Define()
 		{
 			return;
 		}
-		TestEqual(TEXT("bare: seat 3 + weapon 1"), Choices[0].NewSpent, LoadoutConstants::EVOLUTION_ALONE_SLOT_COST + LoadoutConstants::WEAPON_FRAME_COST);
+		TestEqual(TEXT("bare: seat 2 + weapon 0 (D-206)"), Choices[0].NewSpent, LoadoutConstants::EVOLUTION_ALONE_SLOT_COST + LoadoutConstants::LOADOUT_GEAR_COST);
 		TestTrue(TEXT("it fits"), Choices[0].Refusal.IsEmpty());
-		TestTrue(TEXT("an evolved weapon is over the budget"), Choices[1].NewSpent > Before.Budget && !Choices[1].Refusal.IsEmpty());
+		TestEqual(TEXT("evolved: seat 2 + evolution 2 (D-206)"), Choices[1].NewSpent,
+				  LoadoutConstants::EVOLUTION_ALONE_SLOT_COST + LoadoutConstants::LOADOUT_EVOLUTION_COST);
+		TestTrue(TEXT("an evolved weapon fits now (D-206)"), Choices[1].Refusal.IsEmpty());
 		TestFalse(TEXT("another member wears the third"), Choices[2].Refusal.IsEmpty());
 	});
 
@@ -334,7 +337,7 @@ void FLoadoutScreenSpec::Define()
 
 	It("offers carried gems, stones and owned evolutions for an empty socket, with the budget after and the refusals (B-440c)", [this]()
 	{
-		FCombatLoadout Loadout = TwoWeapons(); // sword + Garnet (2) and a bare hammer (1): 3 of 5
+		FCombatLoadout Loadout = TwoWeapons(); // sword + Garnet (1) and a bare hammer (0): 1 of 5 (D-206)
 		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier); // the one S-tier
 		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
 		const FLoadoutScreenRow &Hammer = Page.Rows[LOADOUT_SCREEN_TEST_SECOND];
@@ -357,7 +360,7 @@ void FLoadoutScreenSpec::Define()
 		TestTrue(TEXT("the S gem first"), Crystal[0].Crystal == Onyx);
 		TestFalse(TEXT("a second S-tier is refused (one per loadout)"), Crystal[0].Refusal.IsEmpty());
 		TestTrue(TEXT("then the C gem"), Crystal[1].Crystal == Citrine);
-		TestEqual(TEXT("a gem on the bare hammer: 3 + 1"), Crystal[1].NewSpent, Page.Spent + LoadoutConstants::CRYSTAL_ATTACHMENT_COST);
+		TestEqual(TEXT("a gem on the bare hammer: 1 + 1"), Crystal[1].NewSpent, Page.Spent + LoadoutConstants::LOADOUT_CRYSTAL_COST);
 		TestTrue(TEXT("it fits"), Crystal[1].Refusal.IsEmpty());
 		TestTrue(TEXT("an evolution"), Crystal[2].EvolutionID == Free.InstanceID && Crystal[2].Refusal.IsEmpty());
 		TestFalse(TEXT("one in use is refused"), Crystal[3].Refusal.IsEmpty());
@@ -368,6 +371,28 @@ void FLoadoutScreenSpec::Define()
 		TestEqual(TEXT("a filled socket offers nothing"),
 				  WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_FIRST], LoadoutScreenSockets::CRYSTAL,
 													   Carried, {Free}, {}).Num(), 0);
+	});
+
+	It("refuses a stone that takes a full Generic over 5, and names the stone in the cost line (B-472, D-206)", [this]()
+	{
+		FCombatLoadout Loadout = TwoWeapons();
+		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution; // 2
+		Loadout.PrimaryWeapon.WeaponEntry.StoneSocket.Kind = EAttachedItemKind::AugmentStone; // + 1
+		Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution; // 2: 5 of 5
+		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
+		TestEqual(TEXT("two evolved weapons and a stone: 5"), Page.Spent, LoadoutConstants::LOADOUT_TOTAL_BUDGET);
+		const FString SwordLine = Page.Rows[LOADOUT_SCREEN_TEST_FIRST].CostLine.ToString();
+		TestTrue(TEXT("evolution + stone spelled out"), SwordLine.Contains(TEXT("Evolution")) && SwordLine.Contains(TEXT("Stone")) && SwordLine.Contains(TEXT("=")));
+
+		const FCrystalId Stone(ECrystalType::DamageStone, EItemTier::F_Tier);
+		const TMap<FCrystalId, int32> Carried = {{Stone, 1}};
+		const TArray<FLoadoutScreenChoice> Stones = WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_SECOND],
+																						LoadoutScreenSockets::STONE, Carried, TArray<FEvolutionInventoryEntry>(), TSet<FGuid>());
+		if (TestEqual(TEXT("the stone is listed"), Stones.Num(), 1))
+		{
+			TestEqual(TEXT("a stone costs 1 (D-206)"), Stones[0].NewSpent, Page.Spent + LoadoutConstants::LOADOUT_STONE_COST);
+			TestFalse(TEXT("over 5: refused, still listed"), Stones[0].Refusal.IsEmpty());
+		}
 	});
 
 	It("says what X takes off a socket before it does it (B-440c, Q-440c)", [this]()
