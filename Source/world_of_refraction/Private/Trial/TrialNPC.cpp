@@ -8,6 +8,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Player/RunStateComponent.h"
 #include "Trial/LevelDropPlacement.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/HubHUDModel.h"
@@ -84,9 +85,10 @@ int32 WoRTrialNPC::PickSellerIndex(int32 RunSeed, int32 Count)
 
 const ATrialNPC *WoRTrialNPC::FindPointSeller(const UWorld *World)
 {
-	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
-	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	if (!Run || !Run->IsRunActive())
+	// The run's seed as this machine knows it (the GameState's copy on a guest, review): a guest sees the same seller
+	// as the host, and is refused the buy itself (TryBuyPointAt).
+	const int32 RunSeed = World && URunStateComponent::GetActiveTrial(World) ? URunStateComponent::GetRunSeed(World) : 0;
+	if (RunSeed == 0) // as UTrialRunSubsystem::IsRunActive: no trial, or no seed yet
 	{
 		return nullptr;
 	}
@@ -97,7 +99,7 @@ const ATrialNPC *WoRTrialNPC::FindPointSeller(const UWorld *World)
 	}
 	// By id, as text: the same order every time the level loads (an FName's own order changes between launches).
 	Placed.Sort([](const ATrialNPC &A, const ATrialNPC &B) { return A.GetFeatureId().ToString() < B.GetFeatureId().ToString(); });
-	return Placed.IsEmpty() ? nullptr : Placed[PickSellerIndex(Run->GetRunSeed(), Placed.Num())];
+	return Placed.IsEmpty() ? nullptr : Placed[PickSellerIndex(RunSeed, Placed.Num())];
 }
 
 FText WoRTrialNPC::TryBuyPointAt(UWorld *World, const ATrialNPC &NPC, const FPartyMember &Member, UCurrencyComponent *Wallet)
