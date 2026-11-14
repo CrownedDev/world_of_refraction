@@ -414,6 +414,10 @@ public:
      *  is in use anywhere). */
     bool AttachEvolutionToApparel(FGuid ApparelPersistentID, FGuid EvoInstanceID);
 
+    /** B-476e (CL-50b): empties an owned apparel piece's socket: a crystal goes back to storage (one of its type and
+     *  tier), an evolution stays owned. False when the piece isn't owned or the socket is already empty. */
+    bool DetachFromApparel(FGuid ApparelPersistentID);
+
     /** Fuse two crystal halves directly onto the owned ring (by PersistentID). Ring counterpart of
      *  AttachFusionToWeapon, with the inline ring-guard (URingData::IsDataValid:40-44): rings accept
      *  only ELEMENTAL fusions (one gem half); augmented fusions (two stones) are weapon-only and are
