@@ -222,12 +222,12 @@ y = generic_rows(d, focus_p=(0, 1))
 y = sockets_strip(d, y, "Cinder Edge", [("Crystal", None, None), ("Stone", None, None)])
 seat(d, y, "Ironheart", "Earth")
 frame(d, "Garrick", "Generic", GEAR_G)
-choices(d, "Off hand  ·  one-handed weapons", [
-    ("Cinder Edge", "None", "C", "Sword · one-handed", "0 cells", "worn"),
+choices(d, "Off hand  ·  swords that pair", [
+    ("Cinder Edge", "None", "C", "Sword · dual wield", "0 cells", "worn"),
     ("Frost Fang", "Water", "C", "Sword · Sapphire", "1 cell", None),
-    ("Gale Dagger", "Wind", "D", "Dagger · one-handed", "0 cells", None),
-    ("Quarry Maul", "Earth", "C", "", "", "Two-handed: can't pair"),
-    ("Night Scythe", "Darkness", "A", "", "", "Two-handed: can't pair")], 1, [
+    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a dagger"),
+    ("Greatblade", "None", "B", "", "", "Can't be dual wielded"),
+    ("Night Scythe", "Darkness", "A", "", "", "Can't be dual wielded")], 1, [
     ("Cells", "3 of 5", "4 of 5", None), ("Primary free", "2", "1", None), ("Power", "42 + 30", "42 + 34", True),
     ("Elements", "Fire", "Fire, Water", True), ("Abilities", "Cleave, Whirl…", "+ Frost Bite…", True)])
 footer(d, FOOT)
@@ -267,21 +267,21 @@ set_row(d, y, "Secondary  ·  2 cells  ·  sets", 2, [HAMMER, RING])
 frame(d, "Garrick", "Generic", "Quarry Maul · Iron Coat")
 im, d = window(base, "Add gear  ·  Primary", "3 free",
                [("A", "Pick"), ("X", "Remove piece"), ("Y", "Confirm set"), ("B", "Cancel")])
-text(d, (146, 128), "A set: one weapon, or two one-handed ones (a shield later).", 13, fill=DIM)
-y = build_slot(d, 156, "Main hand", "Ashen Blade", "Fire", "Sword · one-handed")
+text(d, (146, 128), "A set: one weapon, or a dual-wield pair of one type.", 13, fill=DIM)
+y = build_slot(d, 156, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · dual wield · its stance leads")
 y = build_slot(d, y, "Main hand socket", "Phoenix", "Fire", "Evolution · 2 cells")
-y = build_slot(d, y, "Off hand", None, None, "One-handed weapon, or leave it empty", focus=True)
+y = build_slot(d, y, "Off hand", None, None, "A sword that dual wields, or leave it empty", focus=True)
 y = build_slot(d, y, "Off hand socket", None, None, "Crystal, stone or evolution")
 cut(d, (146, y + 6, 560, y + 50), BG, STEEL, 8)
 text(d, (160, y + 16), "Sword + Sword", 16, True)
 text(d, (546, y + 16), "2 cells  ·  1 free left", 15, True, CYAN, anchor="ra")
-text(d, (590, 128), "Off hand  ·  one-handed weapons", 15, True, DIM)
+text(d, (590, 156 - 28), "Off hand  ·  swords that pair", 15, True, DIM)
 item_rows(d, 590, 1134, 156, [
-    ("Cinder Edge", "None", "C", "Sword · one-handed", "0 cells", None),
+    ("Cinder Edge", "None", "C", "Sword · dual wield", "0 cells", None),
     ("Frost Fang", "Water", "C", "Sword · Sapphire", "1 cell", None),
-    ("Gale Dagger", "Wind", "D", "Dagger · one-handed", "0 cells", None),
-    ("Stormbreaker", "Lightning", "A", "", "", "Evolved: needs 2 cells, 1 free"),
-    ("Quarry Maul", "Earth", "C", "", "", "Two-handed: can't pair"),
+    ("Tempest Sabre", "Lightning", "A", "", "", "Evolved: needs 2 cells, 1 free"),
+    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a dagger"),
+    ("Quarry Maul", "Earth", "C", "", "", "Can't be dual wielded"),
     ("Storm Ring", "Lightning", "C", "", "", "An adapter: one per loadout, already in Secondary"),
     ("Ashen Blade", "Fire", "B", "", "", "Already the main hand")], 0)
 save(im, OUT, "1a_add_gear_dual.png")
