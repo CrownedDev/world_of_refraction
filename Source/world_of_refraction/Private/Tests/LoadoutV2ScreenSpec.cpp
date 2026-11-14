@@ -1,6 +1,8 @@
 // LoadoutV2ScreenSpec.cpp
 // B-476b: the v2 loadout screen, headless. With no party it says so, offers no line, opens no window and Confirm
 // does nothing; Back closes it. (Its lines come from WoRLoadoutV2, which WoR.UI.LoadoutV2 covers.)
+// B-476c: X switches the full / simple view and the screen remembers it; Y opens no Options and L3 sets nothing
+// active without a character; A on nothing opens no window.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -37,6 +39,42 @@ void FLoadoutV2ScreenSpec::Define()
 		TestEqual(TEXT("nothing to move to"), Screen->GetSelected(), 0);
 		Screen->PressBack();
 		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
+	});
+
+	It("switches the full / simple view and remembers it; Options and Set active need a character (B-476c)", [this]()
+	{
+		FWoRTestWorld TestWorld;
+		if (!TestTrue(TEXT("world"), TestWorld.Create()))
+		{
+			return;
+		}
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(TestWorld.GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen))
+		{
+			return;
+		}
+		const bool bWasSimple = ULoadoutV2ScreenWidget::IsSimpleView();
+		Screen->ActivateWidget();
+		Screen->PressCompare();
+		TestNotEqual(TEXT("X switches the view"), ULoadoutV2ScreenWidget::IsSimpleView(), bWasSimple);
+		ULoadoutV2ScreenWidget *Again = CreateWidget<ULoadoutV2ScreenWidget>(TestWorld.GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("a second screen"), Again))
+		{
+			Screen->PressCompare(); // back as it was
+			return;
+		}
+		Again->ActivateWidget();
+		TestNotEqual(TEXT("a new screen keeps it"), ULoadoutV2ScreenWidget::IsSimpleView(), bWasSimple);
+		Again->PressCompare(); // back as it was, for the next test
+		TestEqual(TEXT("X again switches back"), ULoadoutV2ScreenWidget::IsSimpleView(), bWasSimple);
+
+		Screen->PressConfirm();
+		TestTrue(TEXT("no Options without a character"), Screen->GetMode() == ELoadoutV2Mode::List);
+		Screen->PressSetActive();
+		TestFalse(TEXT("Set active says why"), Screen->GetMessage().IsEmpty());
+		TestTrue(TEXT("no details"), Screen->GetDetails().IsEmpty());
+		Screen->PressBack();
+		Again->PressBack();
 	});
 }
 

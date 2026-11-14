@@ -4,6 +4,9 @@
 // the Add weapon frame's "n/5 left" show the cells. The Add gear window's draft is refused in the game's words (a pair
 // of two types, a twin-only weapon alone, an evolution where the class can't put one, no free entry, over the cells)
 // and goes into the next free place; Compare sets built-ins gained beside lost.
+// B-476c: the first question (Weapon / Adapter / Evolution) greys a kind with no free place; the Adapter and Evolution
+// lists; an entry edited in its place (a new off hand, a twin-only main hand left alone refused), taken out (the first
+// entry stays, D-116; a Generic's second weapon moves up), Remove all gear; the details box, full and simple.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -195,6 +198,138 @@ void FLoadoutV2ModelSpec::Define()
 		{
 			TestFalse(TEXT("a Refractor's one entry is taken: refused with the reason"), Refractor[0].Refusal.IsEmpty());
 		}
+	});
+	It("asks Weapon / Adapter / Evolution, greying a kind with no free place (B-476c)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("A"), EWeaponType::Sword)), Refusal);
+		const TArray<FLoadoutV2KindChoice> Kinds = WoRLoadoutV2::BuildAddKinds(Loadout, ECharacterClass::Generic);
+		if (!TestEqual(TEXT("three kinds"), Kinds.Num(), 3))
+		{
+			return;
+		}
+		TestTrue(TEXT("a second weapon fits"), Kinds[0].Refusal.IsEmpty());
+		TestTrue(TEXT("an adapter fits"), Kinds[1].Refusal.IsEmpty());
+		TestFalse(TEXT("the evolution needs the first entry free"), Kinds[2].Refusal.IsEmpty());
+
+		FCombatLoadout Refractor;
+		WoRLoadoutV2::ApplyDraft(Refractor, ECharacterClass::Caster, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Staff"), EWeaponType::Staff)), Refusal);
+		for (const FLoadoutV2KindChoice &Kind : WoRLoadoutV2::BuildAddKinds(Refractor, ECharacterClass::Caster))
+		{
+			TestFalse(TEXT("a Refractor's one entry is taken: every kind refused"), Kind.Refusal.IsEmpty());
+		}
+	});
+
+	It("lists adapters the loadout doesn't hold and evolutions, one in use refused (B-476c)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Resonator, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("A"), EWeaponType::Sword)), Refusal);
+		const FRingInventoryEntry Worn = LoadoutV2TestAdapter();
+		FLoadoutV2Draft WornDraft;
+		WornDraft.Kind = ELoadoutV2DraftKind::Adapter;
+		WornDraft.Adapter = Worn;
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Resonator, WornDraft, Refusal);
+		const FRingInventoryEntry Spare = LoadoutV2TestAdapter();
+		const TArray<FLoadoutV2PieceChoice> Adapters = WoRLoadoutV2::BuildAdapterChoices(Loadout, ECharacterClass::Resonator, {Worn, Spare});
+		if (TestEqual(TEXT("only the spare"), Adapters.Num(), 1))
+		{
+			TestEqual(TEXT("the spare ring"), Adapters[0].Adapter.PersistentID, Spare.PersistentID);
+			TestTrue(TEXT("a Resonator has room"), Adapters[0].Refusal.IsEmpty());
+		}
+
+		FEvolutionInventoryEntry Free;
+		Free.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Free.InstanceID = FGuid::NewGuid();
+		FEvolutionInventoryEntry Busy = Free;
+		Busy.InstanceID = FGuid::NewGuid();
+		FCombatLoadout Empty;
+		const TArray<FLoadoutV2PieceChoice> Evolutions = WoRLoadoutV2::BuildEvolutionChoices(Empty, ECharacterClass::Generic, {Free, Busy}, {Busy.InstanceID});
+		if (TestEqual(TEXT("both listed"), Evolutions.Num(), 2))
+		{
+			TestTrue(TEXT("the free one fits"), Evolutions[0].Refusal.IsEmpty());
+			TestEqual(TEXT("it uses 2 cells"), Evolutions[0].CellsAfter, LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST);
+			TestFalse(TEXT("the one in use is greyed"), Evolutions[1].Refusal.IsEmpty());
+		}
+	});
+
+	It("edits an entry in its place: an off hand added, a twin-only main hand left alone refused (B-476c)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		const FWeaponInventoryEntry Twin = LoadoutV2TestWeapon(TEXT("Twin"), EWeaponType::Sword, EWeaponHandling::DualOnly);
+		const FWeaponInventoryEntry Blade = LoadoutV2TestWeapon(TEXT("Blade"), EWeaponType::Sword);
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(Blade), Refusal);
+		const FLoadoutV2Entry Entry = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[0];
+		FLoadoutV2Draft Draft = WoRLoadoutV2::DraftFromEntry(Loadout, Entry);
+		TestEqual(TEXT("the draft holds the entry's main hand"), Draft.MainHand.PersistentID, Blade.PersistentID);
+		Draft.OffHand = Twin;
+		int32 Cells = 0;
+		TestTrue(TEXT("two swords pair"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Entry, Draft, Cells).IsEmpty());
+		TestTrue(TEXT("it goes in"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Entry, Draft, Refusal));
+		TestEqual(TEXT("one entry, now a pair"), WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[0].Name.ToString(),
+				  FString(TEXT("Blade + Twin")));
+
+		FLoadoutV2Draft TwinAlone = WoRLoadoutV2::DraftFromEntry(Loadout, Entry);
+		TwinAlone.MainHand = Twin;
+		TwinAlone.OffHand = FWeaponInventoryEntry();
+		TestFalse(TEXT("the twin alone is refused"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Entry, TwinAlone, Cells).IsEmpty());
+
+		FLoadoutV2Draft Adapter;
+		Adapter.Kind = ELoadoutV2DraftKind::Adapter;
+		Adapter.Adapter = LoadoutV2TestAdapter();
+		TestFalse(TEXT("an adapter can't take a weapon entry's place"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Entry, Adapter, Refusal));
+	});
+
+	It("takes an entry out, keeping the first (D-116), and removes all gear but the first (B-476c)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("First"), EWeaponType::Sword)), Refusal);
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Second"), EWeaponType::Hammer)), Refusal);
+		FLoadoutV2Draft Adapter;
+		Adapter.Kind = ELoadoutV2DraftKind::Adapter;
+		Adapter.Adapter = LoadoutV2TestAdapter();
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, Adapter, Refusal);
+
+		FCombatLoadout Copy = Loadout;
+		const FLoadoutV2Entry First = WoRLoadoutV2::BuildWeaponsPage(Copy, ECharacterClass::Generic).Entries[0];
+		TestTrue(TEXT("the first goes: the second moves up"), WoRLoadoutV2::RemoveEntry(Copy, ECharacterClass::Generic, First, Refusal));
+		TestEqual(TEXT("the second is first now"), Copy.PrimaryWeapon.WeaponEntry.Weapon ? Copy.PrimaryWeapon.WeaponEntry.Weapon->GetDisplayName() : FString(),
+				  FString(TEXT("Second")));
+		const FLoadoutV2Entry Last = WoRLoadoutV2::BuildWeaponsPage(Copy, ECharacterClass::Generic).Entries[0];
+		FCombatLoadout Alone = Copy;
+		Alone.RingLoadout.Reset();
+		TestFalse(TEXT("the only weapon entry stays"), WoRLoadoutV2::RemoveEntry(Alone, ECharacterClass::Generic, Last, Refusal));
+		TestFalse(TEXT("with the reason"), Refusal.IsEmpty());
+
+		TestEqual(TEXT("Remove all gear: the second weapon and the adapter"), WoRLoadoutV2::RemoveAllGear(Loadout, ECharacterClass::Generic), 2);
+		TestEqual(TEXT("one entry left"), WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries.Num(), 1);
+	});
+
+	It("builds the details box: the piece, its stats, sockets and skill slots; the simple view drops the built-ins (B-476c)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		FWeaponInventoryEntry Maul = LoadoutV2TestWeapon(TEXT("Quarry Maul"), EWeaponType::Hammer);
+		Maul.Weapon->Power = 50;
+		Maul.Weapon->PresetAbilities = {NewObject<UAbilityData>(GetTransientPackage())};
+		FLoadoutV2Draft Draft = LoadoutV2WeaponDraft(Maul);
+		Draft.Socket2 = LoadoutV2TestStone();
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, Draft, Refusal);
+		const FLoadoutV2Entry Entry = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[0];
+		const TArray<FLoadoutV2DetailLine> Full = WoRLoadoutV2::BuildEntryDetails(Loadout, Entry, false);
+		const auto Count = [](const TArray<FLoadoutV2DetailLine> &Lines, ELoadoutV2DetailKind Kind)
+		{
+			return Lines.FilterByPredicate([Kind](const FLoadoutV2DetailLine &Line) { return Line.Kind == Kind; }).Num();
+		};
+		TestEqual(TEXT("one piece"), Count(Full, ELoadoutV2DetailKind::Piece), 1);
+		TestEqual(TEXT("two sockets"), Count(Full, ELoadoutV2DetailKind::Socket), 2);
+		TestEqual(TEXT("the skill slots"), Count(Full, ELoadoutV2DetailKind::SkillSlots), 1);
+		TestTrue(TEXT("power shown"), Full.ContainsByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Value.ToString() == TEXT("50"); }));
+		const TArray<FLoadoutV2DetailLine> Simple = WoRLoadoutV2::BuildEntryDetails(Loadout, Entry, true);
+		TestTrue(TEXT("the simple view is shorter"), Simple.Num() < Full.Num());
 	});
 }
 
