@@ -11,6 +11,7 @@
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Equipment/GearSockets.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -141,7 +142,7 @@ void FTwoSocketsSpec::Define()
 		Authored.Crystal.Id = SOCKET_TEST_STONE;
 		Inventory->Weapons[0].AttachedItem = Authored;
 		TestTrue(TEXT("second stone taken"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
-		TestTrue(TEXT("in the stone socket"), Inventory->Weapons[0].StoneSocket.Crystal.Id == SOCKET_TEST_OTHER_STONE);
+		TestTrue(TEXT("in the stone socket"), Inventory->Weapons[0].StoneSocket.Crystal.Id == StatStone::Normalize(SOCKET_TEST_OTHER_STONE));
 		TestFalse(TEXT("a gem has no room now"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_GEM));
 	});
 
@@ -152,7 +153,7 @@ void FTwoSocketsSpec::Define()
 		TestTrue(TEXT("second stone"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
 		TestTrue(TEXT("the first in the stone socket"), Inventory->Weapons[0].StoneSocket.Crystal.Id == SOCKET_TEST_STONE);
 		TestTrue(TEXT("the second in the crystal socket"),
-				 Inventory->Weapons[0].AttachedItem.IsAugmentStone() && Inventory->Weapons[0].AttachedItem.Crystal.Id == SOCKET_TEST_OTHER_STONE);
+				 Inventory->Weapons[0].AttachedItem.IsAugmentStone() && Inventory->Weapons[0].AttachedItem.Crystal.Id == StatStone::Normalize(SOCKET_TEST_OTHER_STONE)); // B-353: attach stores the StatStone form
 		TestFalse(TEXT("a third is refused"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_STONE));
 		TestFalse(TEXT("so is a gem"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_GEM));
 	});
