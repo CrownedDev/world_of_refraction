@@ -1,7 +1,7 @@
 // LoadoutSavedSpec.cpp
 // B-440e (D-111): the loadout screen's saved loadouts. The list (active and lore marked, a New line while there is
 // room), using one, making a new one, duplicating (a lore one gives a copy of the player's own) and renaming (a lore
-// one keeps its name; empty and too-long names refused). The screen's Y list, headless, with no party.
+// one keeps its name; empty and too-long names refused). The v2 screen (Options, Saved loadouts), headless, with no party.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -13,7 +13,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Pool/PoolSubsystem.h"
 #include "UI/Menus/LoadoutSavedModel.h"
-#include "UI/Menus/LoadoutScreenWidget.h"
+#include "UI/Menus/LoadoutV2ScreenWidget.h"
 
 namespace
 {
@@ -160,21 +160,22 @@ void FLoadoutSavedSpec::Define()
 		});
 	});
 
-	It("on the screen with no party, Y opens nothing and Back still closes (headless)", [this]()
+	It("on the v2 screen with no party, Options opens no saved list and Back still closes (headless)", [this]()
 	{
 		FWoRTestWorld World;
 		if (!TestTrue(TEXT("world"), World.Create()))
 		{
 			return;
 		}
-		ULoadoutScreenWidget *Screen = CreateWidget<ULoadoutScreenWidget>(World.GetWorld(), ULoadoutScreenWidget::StaticClass());
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World.GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
 		if (!TestNotNull(TEXT("screen"), Screen))
 		{
 			return;
 		}
 		Screen->ActivateWidget();
-		Screen->PressSavedLoadouts();
-		TestFalse(TEXT("no member: no list"), Screen->IsSavedList());
+		Screen->PressConfirm(); // Y Options: nothing without a character, so no Saved loadouts line to pick
+		Screen->PressA();
+		TestTrue(TEXT("no member: no list"), Screen->GetMode() == ELoadoutV2Mode::List && Screen->GetSavedList().Rows.IsEmpty());
 		Screen->CommitRename(FText::FromString(TEXT("Nothing")));
 		TestFalse(TEXT("nothing to rename"), Screen->IsRenaming());
 		Screen->PressBack();

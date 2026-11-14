@@ -2,7 +2,9 @@
 
 #include "UI/Menus/LoadoutV2ScreenWidget.h"
 
+#include "Algo/IndexOf.h"
 #include "Components/Border.h"
+#include "Components/EditableTextBox.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -143,6 +145,12 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 
 		TitleText = MakeText(WidgetTree, LineFontSize, DimColor, true);
 		AddToColumn(Main, TitleText, FMargin(0.0f, SectionGap, 0.0f, LineGap));
+		// B-440e: the saved loadout's new name; shown only while renaming.
+		NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("LoadoutNameBox"));
+		NameBox->SetHintText(LOCTEXT("NameHint", "Loadout name"));
+		NameBox->OnTextCommitted.AddDynamic(this, &ULoadoutV2ScreenWidget::HandleNameCommitted);
+		AddToColumn(Main, MakeSized(WidgetTree, ListWidth, 0.0f, NameBox), FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		SetShown(NameBox, false);
 
 		// B-476c (UIScreens B-479c): the list on the left, the box on the right.
 		UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -184,6 +192,8 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 	bComparing = false;
 	bRemoveArmed = false;
 	bRemoveAllArmed = false;
+	bRenaming = false;
+	WoRMenuStyle::SetShown(NameBox, false);
 	RefreshData();
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page));
 }
@@ -230,12 +240,17 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		{
 			BuildItems();
 		}
+		else if (Mode == ELoadoutV2Mode::Saved)
+		{
+			Saved = WoRLoadoutSaved::BuildList(*Inventory);
+		}
 	}
 	else
 	{
 		Kinds.Reset();
 		Items.Reset();
-		if (IsAdding())
+		Saved = FLoadoutSavedList();
+		if (IsAdding() || Mode == ELoadoutV2Mode::Saved)
 		{
 			Mode = ELoadoutV2Mode::List; // the member left: nothing to edit
 		}
@@ -279,6 +294,8 @@ int32 ULoadoutV2ScreenWidget::GetLineCount() const
 	{
 	case ELoadoutV2Mode::Options:
 		return LoadoutV2ScreenStyle::OptionCount;
+	case ELoadoutV2Mode::Saved:
+		return Saved.Rows.Num();
 	case ELoadoutV2Mode::WindowKind:
 		return Kinds.Num();
 	case ELoadoutV2Mode::WindowSlots:
@@ -312,6 +329,8 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		default:
 			return LOCTEXT("OptionCosmetics", "Cosmetics shortcuts");
 		}
+	case ELoadoutV2Mode::Saved:
+		return Saved.Rows.IsValidIndex(Line) ? Saved.Rows[Line].Name : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowKind:
 		return Kinds.IsValidIndex(Line) ? Kinds[Line].Name : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowSlots:
@@ -353,8 +372,7 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 					   ? FText::Format(LOCTEXT("OptionSetActiveLine", "{0} becomes the active weapon (L3)"), Entry->Name)
 					   : LOCTEXT("OptionSetActiveOff", "Focus a weapon entry that isn't active");
 		case ELoadoutV2Option::SavedLoadouts:
-			// TODO: B-440e: the five saved loadouts (load, save, rename) open from here.
-			return LOCTEXT("OptionSavedLine", "Load, save or rename (not here yet)");
+			return LOCTEXT("OptionSavedList", "Use another, make a new one, duplicate or rename"); // B-440e
 		case ELoadoutV2Option::RemoveAllGear:
 			return bRemoveAllArmed ? LOCTEXT("OptionRemoveAllArmed", "A again: every entry but the first comes out")
 								   : LOCTEXT("OptionRemoveAllLine", "Asks first");
@@ -365,6 +383,8 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 			return LOCTEXT("OptionCosmeticsLine", "Later");
 		}
 	}
+	case ELoadoutV2Mode::Saved:
+		return Saved.Rows.IsValidIndex(Line) ? Saved.Rows[Line].Note : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowKind:
 		return Kinds.IsValidIndex(Line) ? Kinds[Line].Refusal : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowSlots:
@@ -401,7 +421,7 @@ bool ULoadoutV2ScreenWidget::IsLineRefused(int32 Line) const
 		const ELoadoutV2Option Option = OptionOrder[Line];
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
 		const bool bSetActive = Option == ELoadoutV2Option::SetActive && Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive;
-		return Option == ELoadoutV2Option::SavedLoadouts || Option == ELoadoutV2Option::CosmeticsShortcuts || (Option == ELoadoutV2Option::SetActive && !bSetActive);
+		return Option == ELoadoutV2Option::CosmeticsShortcuts || (Option == ELoadoutV2Option::SetActive && !bSetActive);
 	}
 	case ELoadoutV2Mode::WindowKind:
 		return Kinds.IsValidIndex(Line) && !Kinds[Line].Refusal.IsEmpty();
@@ -423,6 +443,10 @@ FText ULoadoutV2ScreenWidget::GetTitle() const
 	{
 		return LOCTEXT("TitleOptions", "Options");
 	}
+	if (Mode == ELoadoutV2Mode::Saved)
+	{
+		return FText::Format(LOCTEXT("TitleSaved", "Saved loadouts ({0} of {1} of your own)"), FText::AsNumber(Saved.CustomCount), FText::AsNumber(Saved.MaxCustom));
+	}
 	const FText Window = bEditing ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), EditEntry.Name) : LOCTEXT("TitleAdd", "Add gear");
 	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
 	{
@@ -437,6 +461,14 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	{
 	case ELoadoutV2Mode::Options:
 		return LOCTEXT("HintsOptions", "A  Select        B / Esc  Close");
+	case ELoadoutV2Mode::Saved:
+		if (bRenaming)
+		{
+			return LOCTEXT("HintsRenaming", "Enter  Keep the name        Esc  Cancel");
+		}
+		return Saved.Rows.IsValidIndex(Selected) && Saved.Rows[Selected].IsNewLine()
+				   ? LOCTEXT("HintsSavedNew", "A  New loadout        B / Esc  Back")
+				   : LOCTEXT("HintsSaved", "A  Use        X  Duplicate        Y  Rename        B / Esc  Back");
 	case ELoadoutV2Mode::WindowKind:
 		return LOCTEXT("HintsKind", "A  Pick        B / Esc  Cancel");
 	case ELoadoutV2Mode::WindowSlots:
@@ -661,6 +693,9 @@ void ULoadoutV2ScreenWidget::PressA()
 	case ELoadoutV2Mode::Options:
 		SelectOption();
 		return;
+	case ELoadoutV2Mode::Saved:
+		UseSaved();
+		return;
 	case ELoadoutV2Mode::WindowKind:
 		if (!Kinds.IsValidIndex(Selected))
 		{
@@ -727,6 +762,11 @@ void ULoadoutV2ScreenWidget::PressCompare()
 	{
 		bComparing = !bComparing;
 		RefreshView();
+		return;
+	}
+	if (Mode == ELoadoutV2Mode::Saved)
+	{
+		DuplicateSaved();
 	}
 }
 
@@ -749,6 +789,11 @@ void ULoadoutV2ScreenWidget::PressConfirm()
 	if (Mode == ELoadoutV2Mode::WindowSlots || Mode == ELoadoutV2Mode::WindowItems)
 	{
 		ConfirmWindow();
+		return;
+	}
+	if (Mode == ELoadoutV2Mode::Saved)
+	{
+		StartRename();
 	}
 }
 
@@ -787,6 +832,11 @@ void ULoadoutV2ScreenWidget::PressSetActive()
 bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 {
 	Message = FText::GetEmpty();
+	if (bRenaming)
+	{
+		CancelRename(); // B-440e
+		return true;
+	}
 	switch (Mode)
 	{
 	case ELoadoutV2Mode::Options:
@@ -794,6 +844,11 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		Selected = ListSelected;
 		bRemoveAllArmed = false;
 		RefreshData();
+		return true;
+	case ELoadoutV2Mode::Saved:
+		Mode = ELoadoutV2Mode::Options; // one step back, on the Saved loadouts line
+		Selected = FMath::Max(0, static_cast<int32>(Algo::IndexOf(LoadoutV2ScreenStyle::OptionOrder, ELoadoutV2Option::SavedLoadouts)));
+		RefreshView();
 		return true;
 	case ELoadoutV2Mode::WindowAsk:
 		Mode = ELoadoutV2Mode::WindowItems; // Not now: the pick stays
@@ -822,6 +877,10 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 {
 	using namespace WoRMenuStyle;
 	const FKey Key = InKeyEvent.GetKey();
+	if (bRenaming)
+	{
+		return Super::NativeOnKeyDown(InGeometry, InKeyEvent); // B-440e: typing a name; the box keeps Enter and Esc
+	}
 	if (IsUpKey(Key) || IsDownKey(Key))
 	{
 		MoveSelection(IsDownKey(Key) ? 1 : -1);
@@ -929,12 +988,139 @@ void ULoadoutV2ScreenWidget::SelectOption()
 		RefreshView();
 		return;
 	case ELoadoutV2Option::SavedLoadouts:
+		OpenSaved();
+		return;
 	case ELoadoutV2Option::CosmeticsShortcuts:
 	default:
 		Message = LOCTEXT("OptionNotYet", "Not here yet.");
 		RefreshView();
 		return;
 	}
+}
+
+// ==================== SAVED LOADOUTS (B-440e) ====================
+
+void ULoadoutV2ScreenWidget::OpenSaved()
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if (!FindActive(Loadout, Inventory, Active))
+	{
+		Message = LOCTEXT("MemberNotHere", "This character isn't here.");
+		RefreshView();
+		return;
+	}
+	Mode = ELoadoutV2Mode::Saved;
+	Selected = FMath::Max(0, Inventory->ActiveLoadoutIndex); // the one in use lit
+	Message = FText::GetEmpty();
+	RefreshData();
+}
+
+void ULoadoutV2ScreenWidget::UseSaved()
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if (!Saved.Rows.IsValidIndex(Selected) || !FindActive(Loadout, Inventory, Active))
+	{
+		return;
+	}
+	const FLoadoutSavedRow Row = Saved.Rows[Selected];
+	if (Row.IsNewLine())
+	{
+		int32 NewIndex = INDEX_NONE;
+		Message = WoRLoadoutSaved::CreateNew(*Loadout, *Inventory, NewIndex);
+		Selected = NewIndex != INDEX_NONE ? NewIndex : Selected; // the new one lit, ready for Y
+		RefreshData();
+		return;
+	}
+	Message = WoRLoadoutSaved::SetActive(*Loadout, *Inventory, Row.LoadoutIndex);
+	if (Message.IsEmpty())
+	{
+		Message = FText::Format(LOCTEXT("SavedNowUsed", "{0} is now in use."), Row.Name);
+		Mode = ELoadoutV2Mode::List; // back to the entries, now of that loadout
+		Selected = 0;
+		ListSelected = 0;
+	}
+	RefreshData();
+}
+
+void ULoadoutV2ScreenWidget::DuplicateSaved()
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if (!Saved.Rows.IsValidIndex(Selected) || Saved.Rows[Selected].IsNewLine() || !FindActive(Loadout, Inventory, Active))
+	{
+		return;
+	}
+	int32 NewIndex = INDEX_NONE;
+	Message = WoRLoadoutSaved::Duplicate(*Loadout, *Inventory, Saved.Rows[Selected].LoadoutIndex, NewIndex);
+	Selected = NewIndex != INDEX_NONE ? NewIndex : Selected;
+	RefreshData();
+}
+
+void ULoadoutV2ScreenWidget::StartRename()
+{
+	if (bRenaming || !Saved.Rows.IsValidIndex(Selected))
+	{
+		return;
+	}
+	if (Saved.Rows[Selected].IsNewLine())
+	{
+		Message = LOCTEXT("RenameNewLine", "Make the loadout first (A), then name it.");
+		RefreshView();
+		return;
+	}
+	bRenaming = true;
+	Message = FText::GetEmpty();
+	if (NameBox)
+	{
+		NameBox->SetText(Saved.Rows[Selected].Name);
+		NameBox->SetVisibility(ESlateVisibility::Visible); // not SetShown: the box takes clicks and the keys
+		NameBox->SetKeyboardFocus();
+	}
+	RefreshView();
+}
+
+void ULoadoutV2ScreenWidget::CommitRename(const FText &NewName)
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if (bRenaming && Saved.Rows.IsValidIndex(Selected) && FindActive(Loadout, Inventory, Active))
+	{
+		Message = WoRLoadoutSaved::Rename(*Loadout, *Inventory, Saved.Rows[Selected].LoadoutIndex, NewName);
+	}
+	CancelRename(); // closes the box; the message stays
+}
+
+void ULoadoutV2ScreenWidget::CancelRename()
+{
+	if (!bRenaming)
+	{
+		return;
+	}
+	bRenaming = false;
+	if (NameBox)
+	{
+		WoRMenuStyle::SetShown(NameBox, false);
+		if (UWidget *Target = GetDesiredFocusTarget())
+		{
+			Target->SetFocus(); // the keys come back to the screen
+		}
+	}
+	RefreshData();
+}
+
+void ULoadoutV2ScreenWidget::HandleNameCommitted(const FText &Text, ETextCommit::Type CommitMethod)
+{
+	if (!bRenaming)
+	{
+		return; // hiding the box moves its focus away, which commits again
+	}
+	CommitMethod == ETextCommit::OnEnter ? CommitRename(Text) : CancelRename();
 }
 
 // ==================== THE ADD GEAR WINDOW ====================
@@ -1563,6 +1749,22 @@ static FAutoConsoleCommandWithWorld GLoadoutV2OpenCommand(
 		if (!ULoadoutV2ScreenWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
 		{
 			UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] wor.UI.LoadoutV2: not opened (no hub controller with a root layout)"));
+		}
+	}));
+
+static FAutoConsoleCommandWithWorld GLoadoutSavedPrintCommand(
+	TEXT("wor.UI.LoadoutSaved.Print"),
+	TEXT("B-440e: print each party member's saved loadouts as the v2 loadout screen's Options > Saved loadouts list shows them."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
+		{
+			ULoadoutComponent *Loadout = nullptr;
+			UInventoryComponent *Inventory = nullptr;
+			if (WoRLoadoutSaved::FindComponents(World, Member, Loadout, Inventory))
+			{
+				UE_LOG(LogWoRUI, Display, TEXT("[LoadoutSaved] %s"), *WoRLoadoutSaved::GetSavedListString(*Inventory));
+			}
 		}
 	}));
 #endif
