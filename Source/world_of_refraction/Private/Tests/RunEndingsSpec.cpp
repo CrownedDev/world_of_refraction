@@ -62,7 +62,26 @@ void FRunEndingsSpec::Define()
 		const FRunPayout WipedOut = Run->GetRunEndPayout();
 		TestEqual(TEXT("a quarter of the Gold"), WipedOut.HubGold, Expected.HubGold);
 		TestEqual(TEXT("a quarter of the Gear Essence"), WipedOut.GearEssence, Expected.GearEssence);
-		TestTrue(TEXT("less than the full tally"), Full.HubGold == 0 || WipedOut.HubGold < Full.HubGold);
+		TestTrue(TEXT("the run had a tally"), Full.HubGold > 0);
+		TestTrue(TEXT("less than the full tally"), WipedOut.HubGold < Full.HubGold);
+		TestTrue(TEXT("a lost run"), Run->IsRunLost());
+	});
+
+	It("remembers a found piece's upgrade level after a run that keeps its upgrades (the control)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pool"), Pool)) return;
+		UWeaponData *Dagger = NewObject<UWeaponData>(GetTransientPackage());
+		Pool->BeginRunLayer();
+		FWeaponInventoryEntry Found = FWeaponInventoryEntry::CreateFromWeapon(Dagger);
+		Found.PersistentID = FGuid::NewGuid();
+		Pool->UpdateWeapon(Found);
+		Pool->MarkRunOnly(Found.PersistentID);
+		Found.Tier = RUN_ENDINGS_UPGRADED_TIER;
+		Pool->UpdateWeapon(Found);
+		TestEqual(TEXT("remembered"), Pool->EndRunLayer(/*bKeepUpgrades=*/true).Remembered, 1);
+		EItemTier Remembered = EItemTier::F_Tier;
+		TestTrue(TEXT("at the upgraded tier"), Pool->FindRememberedTier(Dagger, Remembered) && Remembered == RUN_ENDINGS_UPGRADED_TIER);
 	});
 
 	It("keeps no upgrade levels from a run out of wipes (Q-451 reading A)", [this]()
