@@ -19,6 +19,7 @@
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "UI/WoRIcon.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 
@@ -54,30 +55,10 @@ enum class ELoadoutV2Place : uint8
 	Seat
 };
 
-/** B-485: what an icon stands for. The widget asks the icon table (UWoRIconTable) for it; where the table has no
- *  such icon, the text the icon replaces stays. */
-enum class ELoadoutV2IconKind : uint8
-{
-	None,
-	WeaponType,
-	/** A crystal or an evolution in a socket: its element's badge. */
-	Element,
-	EmptySocket,
-	/** An augment stone in a socket. */
-	Stone,
-	/** An effect line: by the effect's type. */
-	Effect
-};
-
-struct FLoadoutV2Icon
-{
-	ELoadoutV2IconKind Kind = ELoadoutV2IconKind::None;
-	EWeaponType WeaponType = EWeaponType::Sword;
-	ESpellElement Element = ESpellElement::None;
-	ESkillEffectType EffectType = ESkillEffectType::None;
-	/** The icon in words (its tooltip): "Sword", "Garnet", "Empty socket". */
-	FText Name;
-};
+/** B-485: what an icon stands for (B-487: the shared FWoRIcon, UI/WoRIcon.h). The widget asks the icon table for it;
+ *  where the table has no such icon, the text the icon replaces stays. */
+using ELoadoutV2IconKind = EWoRIconKind;
+using FLoadoutV2Icon = FWoRIcon;
 
 struct FLoadoutV2Entry
 {

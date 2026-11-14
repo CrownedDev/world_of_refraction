@@ -6,6 +6,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "Engine/Texture2D.h"
+#include "Equipment/Crystals/FCrystalId.h"
+#include "Inventory/ItemEffectType.h"
 #include "UI/WoRIconTable.h"
 
 BEGIN_DEFINE_SPEC(FIconTableSpec, "WoR.UI.IconTable", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -64,6 +66,38 @@ void FIconTableSpec::Define()
 		TestTrue(TEXT("what is missing is named"), Report.Contains(TEXT("missing:")) && Report.Contains(TEXT("Water")));
 		TestTrue(TEXT("the stone socket is missing"), Report.Contains(TEXT("Stone socket: missing")));
 		TestFalse(TEXT("the empty socket is not"), Report.Contains(TEXT("Empty socket: missing")));
+	});
+
+	It("finds the texture for what an icon stands for, and maps an item's effect to its icon kind (B-487)", [this]()
+	{
+		WoRIcons::SetActiveForTests(Table);
+		FWoRIcon Fire;
+		Fire.Kind = EWoRIconKind::Element;
+		Fire.Element = ESpellElement::Fire;
+		TestTrue(TEXT("an element's diamond"), WoRIcons::Find(Fire) == Texture);
+		FWoRIcon Sword;
+		Sword.Kind = EWoRIconKind::WeaponType;
+		Sword.WeaponType = EWeaponType::Sword;
+		TestTrue(TEXT("a weapon type"), WoRIcons::Find(Sword) == Texture);
+		FWoRIcon Burn;
+		Burn.Kind = EWoRIconKind::Effect;
+		Burn.EffectType = ESkillEffectType::DOT;
+		Burn.Element = ESpellElement::Fire;
+		TestTrue(TEXT("an effect, in its element's colour"), WoRIcons::Find(Burn) == ElementTexture);
+		FWoRIcon Empty;
+		Empty.Kind = EWoRIconKind::EmptySocket;
+		TestTrue(TEXT("the empty socket"), WoRIcons::Find(Empty) == Texture);
+		FWoRIcon Stone;
+		Stone.Kind = EWoRIconKind::Stone;
+		TestNull(TEXT("a stone has no icon here"), WoRIcons::Find(Stone));
+		TestNull(TEXT("nothing stands for nothing"), WoRIcons::Find(FWoRIcon()));
+
+		TestTrue(TEXT("a damage crystal burns"), WoRIcons::GetItemEffectKind(EItemEffectType::Damage) == ESkillEffectType::DOT);
+		TestTrue(TEXT("defy death is the last stand"), WoRIcons::GetItemEffectKind(EItemEffectType::DefyDeath) == ESkillEffectType::LastStand);
+		TestTrue(TEXT("a repair has no icon kind"), WoRIcons::GetItemEffectKind(EItemEffectType::Repair) == ESkillEffectType::None);
+		const FWoRIcon GarnetEffect = WoRIcons::MakeItemEffectIcon(FCrystalId(ECrystalType::Garnet, EItemTier::C_Tier));
+		TestTrue(TEXT("a Garnet's effect icon: damage over time, with a name for its tooltip"),
+				 GarnetEffect.Kind == EWoRIconKind::Effect && GarnetEffect.EffectType == ESkillEffectType::DOT && !GarnetEffect.Name.IsEmpty());
 	});
 
 	It("gives the active table's icons, and none with no table", [this]()
