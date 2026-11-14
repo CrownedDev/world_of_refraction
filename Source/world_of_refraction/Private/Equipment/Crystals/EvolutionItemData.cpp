@@ -300,7 +300,7 @@ FString UEvolutionItemData::GenerateDescription() const
     // CrystalDescription::GetItemEffectText, evolution crystals through
     // UEvolutionItemData::GetEvolutionEffectText. Neither is composed into
     // Description here.
-    return CrystalDescription::GetCrystalText(FCrystalId{CrystalType, Tier});
+    return CrystalDescription::GetCrystalText(FCrystalId{CrystalType, Tier}).ToString(); // the asset's authored Description field
 }
 
 FString UEvolutionItemData::GetEvolutionEffectText() const

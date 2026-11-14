@@ -88,7 +88,7 @@ namespace
             {
                 Lines.Add(FString::Printf(TEXT("Element: %s"), *WoRGameNames::GetElementName(CrystalElement).ToString()));
             }
-            Lines.Add(FString::Printf(TEXT("Effect: %s"), *CrystalDescription::GetItemEffectText(E.Crystal)));
+            Lines.Add(FString::Printf(TEXT("Effect: %s"), *CrystalDescription::GetItemEffectText(E.Crystal).ToString()));
         }
         else if (const UWeaponData *W = Cast<UWeaponData>(E.Asset))
         {

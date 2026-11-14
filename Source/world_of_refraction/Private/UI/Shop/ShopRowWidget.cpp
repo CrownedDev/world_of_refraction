@@ -99,7 +99,7 @@ FText UShopRowWidget::DescriptionFor(const FMerchantStockEntry &E)
     {
         // Tier-flavor sentence only — the mechanical effect surfaces as a NAME in the
         // detail panel's stats block, never as numbers (3e rule).
-        return FText::FromString(CrystalDescription::GetCrystalText(E.Crystal));
+        return CrystalDescription::GetCrystalText(E.Crystal); // B-460: FText already
     }
     if (const UEquipmentDataBase *Equipment = Cast<UEquipmentDataBase>(E.Asset)) // weapon + ring
     {
