@@ -480,6 +480,31 @@ bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> Paw
 	return true;
 }
 
+namespace
+{
+	/** A run-only member leaves: what it wore is free again, its clash lines go, its pouch (a save from before B-361)
+	 *  goes to storage and its skills stay with the host (B-361, D-152). Shared by the run's end and a step-out (B-471). */
+	void ReleaseRunMember(const FPartyMember &Member, UPoolSubsystem &Pool, FName HostKey)
+	{
+		const FName Key = UPoolSubsystem::GetCharacterKey(Member);
+		TArray<FGuid> Worn;
+		for (const TPair<FGuid, FName> &Pair : Pool.GetWearers())
+		{
+			if (Pair.Value == Key)
+			{
+				Worn.Add(Pair.Key);
+			}
+		}
+		for (const FGuid &GearID : Worn)
+		{
+			Pool.ReleaseWearer(GearID);
+		}
+		Pool.NoteClashes(Key, {});
+		Pool.ReleasePouch(Key);
+		Pool.HandOverSkills(Key, HostKey);
+	}
+}
+
 bool UPartySessionSubsystem::IsPlayerSlot(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();
@@ -513,13 +538,27 @@ bool UPartySessionSubsystem::InviteRunMemberInPlaceOf(TSoftClassPtr<ACombatChara
 		UE_LOG(LogTemp, Warning, TEXT("[PartySession] %s can't take slot %d: only an NPC steps out (D-179)"), Data ? *Data->Name : TEXT("<none>"), StepOutSlot);
 		return false;
 	}
-	const FString Leaving = Party->Members[StepOutSlot].CharacterData ? Party->Members[StepOutSlot].CharacterData->Name : FString();
-	if (!DismissMember(StepOutSlot))
+	if (StepOutSlot == 0)
 	{
+		return false; // the leader never steps out (IsPlayerSlot says so too)
+	}
+	// Taken out quietly, then the recruit joins (one OnPartyChanged, from the invite); a refused invite puts it back.
+	UParty *MutableParty = GetLocalParty();
+	const FPartyMember Leaving = MutableParty->Members[StepOutSlot];
+	MutableParty->Members.RemoveAt(StepOutSlot);
+	if (!InviteRunMember(PawnClass, Data))
+	{
+		MutableParty->Members.Insert(Leaving, StepOutSlot);
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] %s's invite was refused: %s stays (D-179)"), *Data->Name,
+			   Leaving.CharacterData ? *Leaving.CharacterData->Name : TEXT("?"));
 		return false;
 	}
-	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s steps out for %s (D-179)"), *Leaving, *Data->Name);
-	return InviteRunMember(PawnClass, Data);
+	if (UPoolSubsystem *Pool = Leaving.bRunOnly ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
+	{
+		ReleaseRunMember(Leaving, *Pool, GetHostKey()); // as the run's end does for a run-only member
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s steps out for %s (D-179)"), Leaving.CharacterData ? *Leaving.CharacterData->Name : TEXT("?"), *Data->Name);
+	return true;
 }
 
 int32 UPartySessionSubsystem::DismissRunMembers()
@@ -528,30 +567,12 @@ int32 UPartySessionSubsystem::DismissRunMembers()
 	if (UPoolSubsystem *Pool = Party ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr)
 	{
 		const FName HostKey = GetHostKey();
-		// What a leaver wore is free again, and its clash lines go with it. B-361 (D-152): its skills stay with the
-		// host; a pouch of its own (a save from before B-361) goes to storage.
 		for (const FPartyMember &Member : Party->Members)
 		{
-			if (!Member.bRunOnly)
+			if (Member.bRunOnly)
 			{
-				continue;
+				ReleaseRunMember(Member, *Pool, HostKey); // B-471: shared with a step-out
 			}
-			const FName Key = UPoolSubsystem::GetCharacterKey(Member);
-			TArray<FGuid> Worn;
-			for (const TPair<FGuid, FName> &Pair : Pool->GetWearers())
-			{
-				if (Pair.Value == Key)
-				{
-					Worn.Add(Pair.Key);
-				}
-			}
-			for (const FGuid &GearID : Worn)
-			{
-				Pool->ReleaseWearer(GearID);
-			}
-			Pool->NoteClashes(Key, {});
-			Pool->ReleasePouch(Key);
-			Pool->HandOverSkills(Key, HostKey);
 		}
 	}
 	const int32 Left = Party ? Party->Members.RemoveAll([](const FPartyMember &Member) { return Member.bRunOnly; }) : 0;
