@@ -106,7 +106,7 @@ void FGameNamesSpec::Define()
 	It("uses the player-facing word, not the code name", [this]()
 	{
 		TestEqual(TEXT("DOT"), WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::DOT).ToString(),
-				  FString(TEXT("Damage Over Time")));
+				  FString(TEXT("DoT")));
 		TestEqual(TEXT("SkipTurn"), WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::SkipTurn).ToString(),
 				  FString(TEXT("Skip Turn")));
 		TestEqual(TEXT("Caster"), WoRGameNames::GetCharacterClassName(ECharacterClass::Caster).ToString(), FString(TEXT("Refractor")));

@@ -309,7 +309,7 @@ void UPartyScreenWidget::RefreshSelection()
 	PanelName->SetText(Member.Name);
 	PanelGuard->SetText(FText::Format(LOCTEXT("Guard", "Guard: {0}"), Member.GuardLine));
 	PanelSeat->SetText(Member.bLeader ? LOCTEXT("LeaderNote", "The leader can't be given to the AI.")
-										: LOCTEXT("SeatNote", "If a friend joins: they can take this seat."));
+										: LOCTEXT("SeatNote", "Open to a friend."));
 	if (RowList && RowWidgets.IsValidIndex(SelectedRow) && RowWidgets[SelectedRow].Frame.IsValid())
 	{
 		RowList->ScrollWidgetIntoView(RowWidgets[SelectedRow].Frame.Get(), /*AnimateScroll=*/false);

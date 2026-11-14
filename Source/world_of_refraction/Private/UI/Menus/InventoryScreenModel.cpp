@@ -79,7 +79,7 @@ namespace InventoryScreenBuild
 		});
 		if (Tile.bWorn)
 		{
-			Tile.Note = LOCTEXT("NoteWorn", "Worn in a loadout.");
+			Tile.Note = LOCTEXT("NoteWorn", "Equipped.");
 		}
 		// B-475 (D-208): the piece's rolled bonus line, so two copies can be told apart and compared.
 		const FText Bonus = ApparelBonusLine::GetText(Entry.BonusLine);
@@ -182,7 +182,7 @@ namespace InventoryScreenBuild
 		}
 		if (Tile.bWorn)
 		{
-			Tile.Note = LOCTEXT("NoteWorn", "Worn in a loadout.");
+			Tile.Note = LOCTEXT("NoteWorn", "Equipped.");
 		}
 		return Tile;
 	}
@@ -383,7 +383,7 @@ FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, 
 		break;
 	}
 	case EInventoryScreenTab::Chest:
-		Page.Heading = LOCTEXT("ChestHeading", "Home chest");
+		Page.Heading = LOCTEXT("ChestHeading", "Chest");
 		Page.EmptyNote = LOCTEXT("EmptyChest", "The chest is empty.");
 		break;
 	}
@@ -452,7 +452,7 @@ TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *Worl
 		}
 		if (Pouch == WoRGive::GetPouchKey(World, Member))
 		{
-			Receiver.Refusal = LOCTEXT("SamePouch", "They carry the same pouch");
+			Receiver.Refusal = LOCTEXT("SamePouch", "They share a pouch.");
 		}
 		else if (bFull)
 		{

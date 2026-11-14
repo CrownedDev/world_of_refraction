@@ -464,7 +464,7 @@ FText WoRVendorScreen::BuyItemSlot(UWorld *World, AActor *Payer, const FVendorSc
 {
 	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
-	FText Refusal = LOCTEXT("PurchaseFailed", "The purchase didn't go through.");
+	FText Refusal = LOCTEXT("PurchaseFailed", "Couldn't buy that.");
 	return Pool && ItemSlotUpgrade::TryBuy(World, *Pool, Row.Member, CurrencyWallet::FindFor(Payer), Refusal) ? FText::GetEmpty() : Refusal;
 }
 
@@ -632,12 +632,12 @@ FVendorScreenPage WoRVendorScreen::BuildRepairPage(UWorld *World, AActor *Payer)
 	}
 	if (Page.Rows.IsEmpty())
 	{
-		Page.EmptyNote = LOCTEXT("EmptyRepair", "Nothing is worn.");
+		Page.EmptyNote = LOCTEXT("EmptyRepair", "Nothing needs repair.");
 	}
 	const int32 AllCost = Party ? GearRepair::GetPartyRepairCost(*Party) : 0;
 	Page.AllPay = MoneyText(AllCost, World);
 	Page.AllRefusal = GearRepair::GetRefusal(Wallet, AllCost);
-	Page.Rule = LOCTEXT("RuleRepair", "Gear wears in a trial's fights. A repair brings it back to full; when the run ends it comes back whole anyway.");
+	Page.Rule = LOCTEXT("RuleRepair", "Gear wears in fights. Repair restores it; it's restored anyway when the run ends.");
 	return Page;
 }
 
@@ -721,7 +721,6 @@ FVendorScreenPage WoRVendorScreen::BuildMergePage(UWorld *World, FName Member, c
 	{
 		Page.EmptyNote = LOCTEXT("EmptyMerge", "No crystals of theirs to merge.");
 	}
-	Page.Intro = LOCTEXT("IntroMerge", "Left / Right picks the tier to make.");
 	Page.Rule = LOCTEXT("RuleMerge", "Anything over the target comes back as the fewest crystals of the same kind.");
 	return Page;
 }
@@ -749,7 +748,7 @@ FText WoRVendorScreen::RunService(UWorld *World, AActor *Payer, FName Member, EV
 	{
 		return Row.Refusal;
 	}
-	const FText Failed = LOCTEXT("ServiceDidntGoThrough", "It didn't go through.");
+	const FText Failed = LOCTEXT("ServiceDidntGoThrough", "Couldn't do that.");
 	if (Tab == EVendorScreenTab::Repair)
 	{
 		UParty *Party = PartyOf(World);
@@ -811,7 +810,7 @@ FText WoRVendorScreen::RepairAll(UWorld *World, AActor *Payer)
 		return Refusal;
 	}
 	int32 Spent = 0;
-	return GearRepair::RepairParty(*Party, *Wallet, Spent) ? FText::GetEmpty() : LOCTEXT("ServiceDidntGoThrough", "It didn't go through.");
+	return GearRepair::RepairParty(*Party, *Wallet, Spent) ? FText::GetEmpty() : LOCTEXT("ServiceDidntGoThrough", "Couldn't do that.");
 }
 
 FText WoRVendorScreen::AddToCart(AActor *Payer, const FVendorScreenRow &Row, const FLoadoutScreenMember &Member, TArray<FVendorCartLine> &Cart)
@@ -911,7 +910,7 @@ FText WoRVendorScreen::PurchaseCart(UWorld *World, AActor *Payer, TArray<FVendor
 		FText Refusal = Economy->GetPurchaseRefusal(Payer, For, Theirs);
 		if (Refusal.IsEmpty() && !Economy->PurchaseFor(Payer, For, Theirs))
 		{
-			Refusal = LOCTEXT("PurchaseFailed", "The purchase didn't go through.");
+			Refusal = LOCTEXT("PurchaseFailed", "Couldn't buy that.");
 		}
 		if (!Refusal.IsEmpty())
 		{

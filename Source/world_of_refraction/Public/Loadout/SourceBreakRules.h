@@ -19,16 +19,16 @@ namespace SourceBreakRules
 
 	inline FText BrokenWeaponCrystalReason()
 	{
-		return NSLOCTEXT("SourceBreak", "BrokenWeaponCrystal", "Source broken: the weapon's crystal is broken.");
+		return NSLOCTEXT("SourceBreak", "BrokenWeaponCrystal", "Crystal broken.");
 	}
 
 	inline FText BrokenEvolutionReason()
 	{
-		return NSLOCTEXT("SourceBreak", "BrokenEvolution", "Source broken: the evolution crystal is broken.");
+		return NSLOCTEXT("SourceBreak", "BrokenEvolution", "Evolution broken.");
 	}
 
 	inline FText BrokenRingCrystalReason()
 	{
-		return NSLOCTEXT("SourceBreak", "BrokenAdapterCrystal", "Source broken: this adapter casts F-tier spells only.");
+		return NSLOCTEXT("SourceBreak", "BrokenAdapterCrystal", "Adapter broken: F-tier spells only.");
 	}
 }

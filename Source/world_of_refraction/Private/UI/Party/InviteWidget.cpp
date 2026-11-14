@@ -108,7 +108,7 @@ TSharedRef<SWidget> UInviteWidget::RebuildWidget()
 		InviteButton = InviteBuild::AddButton(WidgetTree, Box, FText::GetEmpty(), &InviteText);
 		InviteLabel = InviteText;
 		InviteButton->OnClicked.AddDynamic(this, &UInviteWidget::HandleInviteClicked);
-		HostButton = InviteBuild::AddButton(WidgetTree, Box, LOCTEXT("Host", "Host a session (this level reopens for friends)"));
+		HostButton = InviteBuild::AddButton(WidgetTree, Box, LOCTEXT("Host", "Host"));
 		HostButton->OnClicked.AddDynamic(this, &UInviteWidget::HandleHostClicked);
 		InviteBuild::AddButton(WidgetTree, Box, LOCTEXT("Seat", "Seat a friend who joined"))->OnClicked.AddDynamic(this, &UInviteWidget::HandleSeatClicked);
 		InviteBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &UInviteWidget::HandleCloseClicked);
@@ -157,12 +157,12 @@ void UInviteWidget::Refresh()
 	PickedFriend = Names.IsEmpty() ? 0 : FMath::Clamp(PickedFriend, 0, Names.Num() - 1);
 	if (Names.IsEmpty())
 	{
-		FriendsText->SetText(LOCTEXT("NoFriends", "No friends list here (LAN): a friend on your network uses wor.Session.Find, then wor.Session.Join <n>"));
+		FriendsText->SetText(LOCTEXT("NoFriends", "No friends list on a local network. Friends nearby can find your session."));
 		InviteLabel->SetText(LOCTEXT("InviteNone", "Invite (no friend picked)"));
 		InviteButton->SetIsEnabled(false);
 		return;
 	}
-	FriendsText->SetText(FText::Format(LOCTEXT("FriendCount", "{0} friend(s); picked {1} of {0}"), Names.Num(), PickedFriend + 1));
+	FriendsText->SetText(FText::Format(LOCTEXT("FriendCount", "{1} of {0}"), Names.Num(), PickedFriend + 1));
 	InviteLabel->SetText(FText::Format(LOCTEXT("InviteName", "Invite {0}"), FText::FromString(Names[PickedFriend])));
 	InviteButton->SetIsEnabled(bHosting);
 }

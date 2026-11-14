@@ -147,26 +147,26 @@ namespace WoRInventoryVerbs
 		const UPoolSubsystem *Pool = InventoryVerbsPoolOf(World);
 		if (!Pool || Member.IsNone())
 		{
-			return LOCTEXT("NoStore", "No character's store to act on");
+			return LOCTEXT("NoStore", "No character's store to act on.");
 		}
 		if (Verb == EInventoryVerb::Dismantle || Verb == EInventoryVerb::Convert)
 		{
 			// OBSOLETE (B-445, D-177): the two verbs and their code below stay until the vendor path passes PIE (D-124 sweep).
-			return LOCTEXT("AtAVendor", "That is done at a vendor now");
+			return LOCTEXT("AtAVendor", "That is done at a vendor now.");
 		}
 		if (Row.bInChest != (Verb == EInventoryVerb::Take))
 		{
 			if (Row.bInChest)
 			{
-				return Verb == EInventoryVerb::Store ? LOCTEXT("AlreadyStored", "It's already in the chest") : LOCTEXT("TakeFirst", "Take it from the chest first");
+				return Verb == EInventoryVerb::Store ? LOCTEXT("AlreadyStored", "It's already in the chest.") : LOCTEXT("TakeFirst", "Take it from the chest first.");
 			}
-			return LOCTEXT("TakeIsForChest", "Only things in the chest can be taken");
+			return LOCTEXT("TakeIsForChest", "Only things in the chest can be taken.");
 		}
 		// B-441 (Q-441): no chest during a run, for stacks too. For gear it is the chest's own rule
 		// (WoRGive::TryPutInChest / TryTakeFromChest, Q-347), said before the press.
 		if (Verb != EInventoryVerb::Give && Pool->IsRunLayerActive())
 		{
-			return LOCTEXT("ChestAtHome", "The chest stays at home until the run ends");
+			return LOCTEXT("ChestAtHome", "The chest stays at home until the run ends.");
 		}
 		const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
 		const bool bPrimary = Row.IsGear() && Inventory && Inventory->IsPrimaryInAnyLoadout(Row.GearID);
@@ -175,28 +175,28 @@ namespace WoRInventoryVerbs
 		case EInventoryVerb::Give:
 			if (Receiver.IsNone() || Receiver == Member)
 			{
-				return LOCTEXT("GiveSelf", "Choose another character to give to");
+				return LOCTEXT("GiveSelf", "Choose another character to give to.");
 			}
 			if (Row.IsGear() && InventoryVerbsIsRunOnly(World, Receiver))
 			{
-				return LOCTEXT("GiveRecruit", "That character is only here for the run and can't own gear");
+				return LOCTEXT("GiveRecruit", "That character is only here for the run and can't own gear.");
 			}
 			if (bPrimary)
 			{
-				return LOCTEXT("GivePrimary", "This is a loadout's primary. Swap in another primary first");
+				return LOCTEXT("GivePrimary", "Every loadout needs a weapon or adapter. Put another in first.");
 			}
 			return FText::GetEmpty();
 		case EInventoryVerb::Store:
 			if (Row.IsGear() && Inventory && !Inventory->GetLoadoutsUsing(Row.GearID).IsEmpty())
 			{
-				return LOCTEXT("StoreWorn", "It's in a loadout. Take it off first");
+				return LOCTEXT("StoreWorn", "Equipped. Unequip it first.");
 			}
 			return FText::GetEmpty();
 		case EInventoryVerb::Take:
 			// B-441: MoveToCarried's own check, said before the press.
 			if (!Row.IsGear() && Pool->GetCarryRoom(WoRGive::GetPouchKey(World, Member), Row.Item) <= 0)
 			{
-				return LOCTEXT("PouchFull", "No room in the pouch");
+				return LOCTEXT("PouchFull", "No room in the pouch.");
 			}
 			return FText::GetEmpty();
 		case EInventoryVerb::Dismantle:
@@ -205,20 +205,20 @@ namespace WoRInventoryVerbs
 		}
 		if (!Inventory)
 		{
-			return LOCTEXT("NotHere", "That character isn't here to do it");
+			return LOCTEXT("NotHere", "That character isn't here to do it.");
 		}
 		if (Verb == EInventoryVerb::Convert && (!Row.IsGear() || !InventoryVerbsIsWeakerCopy(Inventory, Row.GearID)))
 		{
-			return FText::Format(LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to {0}"),
+			return FText::Format(LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to {0}."),
 								 WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(World)));
 		}
 		if (Row.IsGear() && Pool->IsRunLayerActive() && !Pool->IsRunOnly(Row.GearID))
 		{
-			return LOCTEXT("HomeOnRun", "Gear from home can't go during a run; it comes back when the run ends");
+			return LOCTEXT("HomeOnRun", "Gear from home can't go during a run; it comes back when the run ends.");
 		}
 		if (bPrimary)
 		{
-			return LOCTEXT("PrimaryStays", "This is a loadout's primary. Swap in another primary first");
+			return LOCTEXT("PrimaryStays", "Every loadout needs a weapon or adapter. Put another in first.");
 		}
 		return FText::GetEmpty();
 	}
@@ -271,13 +271,13 @@ namespace WoRInventoryVerbs
 			{
 				return WoRGive::TryPutInChest(World, Member, Row.GearID);
 			}
-			return Pool->MoveToStorage(WoRGive::GetPouchKey(World, Member), Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("StoreFailed", "Couldn't store that");
+			return Pool->MoveToStorage(WoRGive::GetPouchKey(World, Member), Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("StoreFailed", "Couldn't store that.");
 		case EInventoryVerb::Take:
 			if (Row.IsGear())
 			{
 				return WoRGive::TryTakeFromChest(World, Member, Row.GearID);
 			}
-			return Pool->MoveToCarried(WoRGive::GetPouchKey(World, Member), Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("PouchFull", "No room in the pouch");
+			return Pool->MoveToCarried(WoRGive::GetPouchKey(World, Member), Row.Item, Moving) ? FText::GetEmpty() : LOCTEXT("PouchFull", "No room in the pouch.");
 		case EInventoryVerb::Dismantle:
 		case EInventoryVerb::Convert:
 			break;
@@ -289,7 +289,7 @@ namespace WoRInventoryVerbs
 		AActor *Owner = Inventory ? Inventory->GetOwner() : nullptr;
 		if (!Owner || !Economy)
 		{
-			return LOCTEXT("NotHere", "That character isn't here to do it");
+			return LOCTEXT("NotHere", "That character isn't here to do it.");
 		}
 		bool bDone = false;
 		if (Verb == EInventoryVerb::Convert)
@@ -305,7 +305,7 @@ namespace WoRInventoryVerbs
 			bDone = Pool->FindRingInPool(Row.GearID) ? Economy->DismantleRing(Owner, Row.GearID) : Economy->DismantleWeapon(Owner, Row.GearID);
 		}
 		// A refusal the checks above don't foresee (e.g. during a fight) is logged by the economy with its reason.
-		return bDone ? FText::GetEmpty() : FText::Format(LOCTEXT("VerbFailed", "Couldn't {0} {1} (see the log)"), GetVerbName(World, Verb), Row.Label);
+		return bDone ? FText::GetEmpty() : FText::Format(LOCTEXT("VerbFailed", "Couldn't {0} {1}."), GetVerbName(World, Verb), Row.Label);
 	}
 
 	FString GetRowsString(UWorld *World, FName Member, FName Receiver)

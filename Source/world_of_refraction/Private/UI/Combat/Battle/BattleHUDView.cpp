@@ -114,7 +114,7 @@ FText BattleHUDView::GetEPLabel()
 
 FText BattleHUDView::GetAbsorbLabel()
 {
-	return LOCTEXT("Absorb", "Absorb");
+	return LOCTEXT("Absorb", "Barrier");
 }
 
 bool BattleHUDView::IsOverloaded(int32 Current, int32 Max)
@@ -130,7 +130,7 @@ FText BattleHUDView::FormatAbsorbLine(int32 Current, int32 Max)
 		return Pool;
 	}
 	const double Ratio = static_cast<double>(Current) / static_cast<double>(Max);
-	return FText::Format(LOCTEXT("AbsorbOverload", "{0}, overload {1}"), Pool, FText::AsPercent(Ratio));
+	return FText::Format(LOCTEXT("AbsorbOverload", "{0} (+{1})"), Pool, FText::AsPercent(Ratio));
 }
 
 FLinearColor BattleHUDView::GetOverloadColour(int32 Current, int32 Max)
@@ -348,7 +348,7 @@ FText BattleHUDView::FormatGearLine(const FBattleGearNames &Gear)
 FText BattleHUDView::FormatGearTooltip(const FBattleGearNames &Gear)
 {
 	const auto OrNone = [](const FString &Name) { return Name.IsEmpty() ? LOCTEXT("GearNone", "none") : FText::FromString(Name); };
-	return FText::Format(LOCTEXT("GearTooltip", "Loadout: {0}\nWeapon: {1}\nRing: {2}"), OrNone(Gear.LoadoutName),
+	return FText::Format(LOCTEXT("GearTooltip", "Loadout: {0}\nWeapon: {1}\nAdapter: {2}"), OrNone(Gear.LoadoutName),
 						 OrNone(Gear.WeaponName), OrNone(Gear.RingName));
 }
 

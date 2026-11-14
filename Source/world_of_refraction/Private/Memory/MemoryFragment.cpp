@@ -10,6 +10,7 @@
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryUnlock.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Hub/HubHUDModel.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "MemoryFragment"
@@ -77,9 +78,7 @@ FInteractPrompt AMemoryFragment::GetPrompt() const
 
 FString AMemoryFragment::GetHintText() const
 {
-	return IsTaken()
-			   ? FString()
-			   : LOCTEXT("FragmentHint", "Press E to pick up the memory fragment").ToString();
+	return WoRHubHUD::FormatPromptLine(GetPrompt()).ToString(); // B-491 (D-213): "E  Pick up · Memory fragment"; none once taken
 }
 
 void AMemoryFragment::RefreshFromRun()

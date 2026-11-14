@@ -36,7 +36,7 @@ FText CharacterFormSwitch::GetRefusalText(EFormSwitchRefusal Refusal)
     case EFormSwitchRefusal::Locked:
         return LOCTEXT("RefusedLocked", "That form isn't unlocked yet.");
     case EFormSwitchRefusal::InFight:
-        return LOCTEXT("RefusedInFight", "You can't change form in a fight.");
+        return LOCTEXT("RefusedInFight", "Not during a fight.");
     case EFormSwitchRefusal::NotAtSwitchSpot:
         return LOCTEXT("RefusedNotAtSpot", "Change form in the hub or at a rest spot.");
     default:

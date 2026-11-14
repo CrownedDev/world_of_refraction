@@ -13,6 +13,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Hub/HubHUDModel.h"
 #include "UI/Trial/GateScreenWidget.h"
 #include "UI/Trial/TrialGateWidget.h"
 #include "UObject/ConstructorHelpers.h"
@@ -151,7 +152,6 @@ void ATrialDoor::OnTriggerEndOverlap(UPrimitiveComponent * /*OverlappedComponent
 
 FString ATrialDoor::GetHintText() const
 {
-    return Trial
-               ? FString::Printf(TEXT("Press E — Enter %s"), *Trial->Name.ToString())
-               : FString(TEXT("Press E — Return to Hub"));
+    // B-491 (D-213): the prompt's line ("E  Enter · <trial>", "E  Return"), as HubInteract's prompt for a door.
+    return WoRHubHUD::FormatPromptLine(Trial ? FInteractPrompt(EInteractVerb::Enter, Trial->Name) : FInteractPrompt(EInteractVerb::Return)).ToString();
 }

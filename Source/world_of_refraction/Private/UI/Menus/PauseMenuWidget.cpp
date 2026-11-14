@@ -184,7 +184,7 @@ void UPauseMenuWidget::BuildTree()
 
 	// Bottom right: the hints.
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Select        {Back}  Resume"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Select        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -362,7 +362,7 @@ void UPauseMenuWidget::RefreshSelection()
 	PanelRefusal->SetText(Page.Refusal);
 	PauseMenuStyle::SetShown(PanelRefusal, !Page.CanOpen());
 	const bool bHold = IsHoldToConfirmOn(); // B-453c (D-190)
-	WoRKeyHints::SetHint(HoldHint, bHold ? LOCTEXT("HoldHint", "Hold {Confirm} to quit. {Back} goes back.")
+	WoRKeyHints::SetHint(HoldHint, bHold ? LOCTEXT("HoldHint", "Hold {Confirm} to quit.")
 							: LOCTEXT("PressHint", "Press {Confirm} again to quit. {Back} goes back."));
 	PauseMenuStyle::SetShown(HoldHint, bConfirmingQuit);
 	PauseMenuStyle::SetShown(HoldBar, bConfirmingQuit && bHold);

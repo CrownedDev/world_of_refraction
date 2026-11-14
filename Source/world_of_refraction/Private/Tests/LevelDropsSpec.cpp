@@ -265,7 +265,7 @@ void FLevelDropsSpec::Define()
 		}
 		TestFalse(TEXT("a 4th over-cap point is refused by the run"), Run->AddRunOverCap(KeyOf(Member), EWorldPillar::Mind));
 		const FText Refusal = WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member));
-		TestTrue(TEXT("all full: buying refused for that"), Refusal.ToString().Contains(TEXT("over-cap")));
+		TestTrue(TEXT("all full: buying refused for that"), Refusal.ToString().Contains(TEXT("extra")));
 	});
 
 	It("outside a run a drop can't be placed and a level isn't kept in the run", [this]()

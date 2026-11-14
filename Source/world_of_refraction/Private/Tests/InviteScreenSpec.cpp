@@ -42,8 +42,8 @@ void FInviteScreenSpec::Define()
 		TestEqual(TEXT("hosting: stop"), Hosting.SessionAction.ToString(), FString(TEXT("Stop hosting")));
 
 		const FInviteScreenPage Lan = WoRInviteScreen::BuildPage({}, {}, false, {});
-		TestEqual(TEXT("not hosting: host"), Lan.SessionAction.ToString(), FString(TEXT("Host a session")));
-		TestTrue(TEXT("no list: how a friend finds the session"), Lan.FriendsNote.ToString().Contains(TEXT("wor.Session.Find")));
+		TestEqual(TEXT("not hosting: host"), Lan.SessionAction.ToString(), FString(TEXT("Host")));
+		TestTrue(TEXT("no list: how a friend finds the session"), Lan.FriendsNote.ToString().Contains(TEXT("find your session")));
 	});
 
 	It("shows the local party's seats and refuses an invite before hosting", [this]()

@@ -211,7 +211,7 @@ void UVendorScreenWidget::BuildTree()
 	PurchaseButton->SetPadding(FMargin(RowPadding));
 	PurchaseButton->SetHorizontalAlignment(HAlign_Center);
 	PurchaseText = MakeHintText(WidgetTree, RowFontSize, TextColor, true);
-	WoRKeyHints::SetHint(PurchaseText, LOCTEXT("Purchase", "{Toggle}  Purchase"));
+	WoRKeyHints::SetHint(PurchaseText, LOCTEXT("Purchase", "{Toggle}  Buy"));
 	PurchaseButton->SetContent(PurchaseText);
 	AddToColumn(CartColumn, PurchaseButton);
 	CartPanel = MakeSized(WidgetTree, PanelWidth, 0.0f, CartFrame);
@@ -417,7 +417,7 @@ void UVendorScreenWidget::RefreshData()
 	switch (GetTab())
 	{
 	case EVendorScreenTab::Buy:
-		Hints = LOCTEXT("HintsBuy", "{Tabs}  Service        {Confirm} / Right  Add        Left  Take back        {Second}  Buying for        {Toggle}  Purchase        {Back}  Leave");
+		Hints = LOCTEXT("HintsBuy", "{Tabs}  Service        {Confirm} / Right  Add        Left  Remove        {Second}  For        {Toggle}  Buy        {Back}  Leave");
 		break;
 	case EVendorScreenTab::ItemSlots:
 		Hints = LOCTEXT("HintsItemSlots", "{Tabs}  Service        {Confirm}  Buy        {Back}  Leave");
@@ -517,7 +517,7 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 		Title = What;
 		break;
 	case EVendorScreenTab::ItemSlots:
-		Title = LOCTEXT("DetailItemSlot", "Buy one item slot");
+		Title = LOCTEXT("DetailItemSlot", "Buy slot");
 		break;
 	case EVendorScreenTab::Curses:
 		Title = FText::Format(LOCTEXT("DetailCurse", "Clear {0}"), Row.Name);
@@ -565,7 +565,7 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	SetShown(BuyForButton, bBuyFor);
 	if (bBuyFor)
 	{
-		WoRKeyHints::SetHint(BuyForText, FText::FormatNamed(LOCTEXT("BuyingFor", "{Second}  Buying for:  {Who}"), TEXT("Who"), Members[MemberIndex].Name));
+		WoRKeyHints::SetHint(BuyForText, FText::FormatNamed(LOCTEXT("BuyingFor", "{Second}  For:  {Who}"), TEXT("Who"), Members[MemberIndex].Name));
 	}
 
 	EVendorService Service = EVendorService::Sell;
@@ -776,7 +776,7 @@ void UVendorScreenWidget::Confirm()
 	}
 	else if (bSlots)
 	{
-		Status = FText::Format(LOCTEXT("DoneItemSlot", "{0}'s pouch now holds {1} kinds of item."), Row.Name, FText::AsNumber(Row.Slots + 1));
+		Status = FText::Format(LOCTEXT("DoneItemSlot", "Pouch: {1} slots."), Row.Name, FText::AsNumber(Row.Slots + 1));
 	}
 	else if (Count > 1)
 	{
@@ -825,7 +825,7 @@ void UVendorScreenWidget::DoRepairAll()
 	const FText AllPay = Page.AllPay;
 	const FText Failure = WoRVendorScreen::RepairAll(GetWorld(), Payer.Get());
 	bStatusIsRefusal = !Failure.IsEmpty();
-	Status = bStatusIsRefusal ? Failure : FText::Format(LOCTEXT("DoneRepairAll", "Everything is repaired, for {0}."), AllPay);
+	Status = bStatusIsRefusal ? Failure : FText::Format(LOCTEXT("DoneRepairAll", "All repaired for {0}."), AllPay);
 	UE_LOG(LogWoRUI, Log, TEXT("[VendorScreen] Repair all: %s"), *Status.ToString());
 	RefreshData();
 	RefreshSelection();

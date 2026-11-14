@@ -9,6 +9,7 @@
 #include "Equipment/Rings/EAdapterForm.h"
 #include "Equipment/Rings/RingData.h"
 #include "Merchant/MerchantData.h"
+#include "UI/Menus/VendorScreenModel.h"
 
 BEGIN_DEFINE_SPEC(FAdapterNamesSpec, "WoR.Loadout.AdapterNames", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 END_DEFINE_SPEC(FAdapterNamesSpec)
@@ -39,8 +40,9 @@ void FAdapterNamesSpec::Define()
 
 	It("has the Jeweler sell adapters", [this]()
 	{
-		TestTrue(TEXT("Jeweler wares"),
-				 WoRGameNames::GetMerchantTypeName(EMerchantType::Jeweler).ToString().Contains(TEXT("adapters")));
+		// B-491 (D-213): the vendor's name is the name alone; its wares are the line under it on the vendor screen.
+		TestTrue(TEXT("Jeweler wares"), WoRVendorScreen::GetVendorLine(EMerchantType::Jeweler).ToString().Contains(TEXT("adapters")));
+		TestEqual(TEXT("the name has no note"), WoRGameNames::GetMerchantTypeName(EMerchantType::Jeweler).ToString(), FString(TEXT("Jeweler")));
 	});
 }
 

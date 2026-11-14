@@ -25,6 +25,7 @@
 #include "Trial/TrialGate.h"
 #include "Trial/TrialLoot.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Hub/HubHUDModel.h"
 #include "UObject/ConstructorHelpers.h"
 #include "WoRLog.h"
 
@@ -202,7 +203,7 @@ void ATrialChest::Interact(APawn *Pawn)
 	{
 		UE_LOG(LogWoR, Warning, TEXT("[TrialChest] %s - loot pool '%s' has no items; opened empty"), *GetName(),
 			   *Pool.ToString());
-		TrialRun->RecordFound(PlayerFeatureId, LOCTEXT("ChestEmpty", "An empty chest"));
+		TrialRun->RecordFound(PlayerFeatureId, LOCTEXT("ChestEmpty", "The chest is empty."));
 		ShowMessageTo(Pawn, LOCTEXT("ChestEmptyMessage", "The chest is empty."));
 		RefreshHint();
 		return;
@@ -222,7 +223,7 @@ void ATrialChest::Interact(APawn *Pawn)
 	{
 		TrialRun->RecordChestReward(); // B-073 (D-094): chests add more to the run's tally
 	}
-	TrialRun->RecordFound(PlayerFeatureId, FText::Format(LOCTEXT("ChestFound", "Chest: {0}"), ItemName));
+	TrialRun->RecordFound(PlayerFeatureId, FText::Format(LOCTEXT("ChestFound", "Found {0}."), ItemName));
 	ShowMessageTo(Pawn, FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
 	RefreshHint();
 }
@@ -242,8 +243,9 @@ bool ATrialChest::IsOpenedForLocalPlayer() const
 
 FString ATrialChest::GetHintText() const
 {
-	return (IsOpenedForLocalPlayer() ? LOCTEXT("ChestOpenedHint", "Opened chest") : LOCTEXT("ChestHint", "Press E to open the chest"))
-		.ToString();
+	// B-491 (D-213): the prompt's own line ("E  Open · Chest"). shortcut: this on-screen hint shows the keyboard key
+	// only (it has no widget to ask about the device); the floating prompt (B-443) shows the pad's, and replaces it.
+	return (IsOpenedForLocalPlayer() ? LOCTEXT("ChestOpenedHint", "Opened chest") : WoRHubHUD::FormatPromptLine(GetPrompt())).ToString();
 }
 
 FInteractPrompt ATrialChest::GetPrompt() const
@@ -278,7 +280,7 @@ void ATrialLoreObject::Interact(APawn * /*Pawn*/)
 
 FString ATrialLoreObject::GetHintText() const
 {
-	return FText::Format(LOCTEXT("LoreHint", "Press E to read: {0}"), Title).ToString();
+	return WoRHubHUD::FormatPromptLine(GetPrompt()).ToString();
 }
 
 FInteractPrompt ATrialLoreObject::GetPrompt() const
@@ -314,7 +316,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 			   !Boss				 ? TEXT("no boss (no variation boss and no FallbackBoss)")
 			   : BattleParty.Num() == 0 ? TEXT("no living party")
 										: TEXT("no active trial (enter through the trial door)"));
-		ShowMessage(LOCTEXT("ArenaFightNotStarted", "The fight can't start (see the Output Log)."));
+		ShowMessage(LOCTEXT("ArenaFightNotStarted", "The fight can't start."));
 		return;
 	}
 
@@ -331,7 +333,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 	{
 		TrialRun->SetPendingEncounterSources({});
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
-		ShowMessage(LOCTEXT("ArenaFightNotStarted", "The fight can't start (see the Output Log)."));
+		ShowMessage(LOCTEXT("ArenaFightNotStarted", "The fight can't start."));
 	}
 }
 
@@ -346,8 +348,7 @@ FString ABossArenaTrigger::GetHintText() const
 					  : LOCTEXT("ArenaBeatenNoName", "Beaten").ToString();
 	}
 	const UCharacterData *Boss = GetBoss();
-	return Boss ? FText::Format(LOCTEXT("ArenaHint", "Press E to challenge {0}"), FText::FromString(Boss->Name)).ToString()
-				: LOCTEXT("ArenaEmptyHint", "No one is waiting here").ToString();
+	return Boss ? WoRHubHUD::FormatPromptLine(GetPrompt()).ToString() : LOCTEXT("ArenaEmptyHint", "No one is waiting here").ToString();
 }
 
 FInteractPrompt ABossArenaTrigger::GetPrompt() const

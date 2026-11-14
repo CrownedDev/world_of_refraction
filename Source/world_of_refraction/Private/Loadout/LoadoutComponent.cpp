@@ -1153,7 +1153,7 @@ namespace
 
     FText NoPrimaryWeaponText()
     {
-        return LOCTEXT("PickNoWeapon", "No primary weapon is equipped.");
+        return LOCTEXT("PickNoWeapon", "No weapon equipped.");
     }
 
     template <class TPart>
@@ -1199,7 +1199,7 @@ bool ULoadoutComponent::TryAssignRingSpell(int32 LoadoutIndex, USpellData *Spell
     return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
                             [Spell](const FCombatLoadout &Loadout, ECharacterClass CharacterClass)
                             {
-                                return RefuseUnlessFree(UsesPrimaryRing(Loadout, CharacterClass), LOCTEXT("PickNoAdapter", "No primary adapter is equipped."),
+                                return RefuseUnlessFree(UsesPrimaryRing(Loadout, CharacterClass), LOCTEXT("PickNoAdapter", "No adapter equipped."),
                                                         Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell);
                             },
                             [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryRing.RingEntry.AssignedSpells, Spell); }, OutRefusal);
@@ -1219,7 +1219,7 @@ bool ULoadoutComponent::TryChangeGear(int32 LoadoutIndex, TFunctionRef<void(FCom
     const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
     if (TurnManager && TurnManager->IsCombatActive())
     {
-        OutRefusal = LOCTEXT("GearInFight", "Gear can't be changed during a fight.");
+        OutRefusal = LOCTEXT("GearInFight", "Not during a fight.");
         return false;
     }
     const FActiveWeaponChangeScope ActiveWeaponScope(*this);

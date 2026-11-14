@@ -158,7 +158,7 @@ FText WoRVendorServices::GetRefusal(UWorld *World, EMerchantType Vendor, EVendor
 	{
 		if (Inventory->IsPrimaryInAnyLoadout(Row.GearID))
 		{
-			return LOCTEXT("PrimaryStays", "This is a loadout's primary. Swap in another primary first");
+			return LOCTEXT("PrimaryStays", "Every loadout needs a weapon or adapter. Put another in first.");
 		}
 		if (Pool->IsRunLayerActive() && !Pool->IsRunOnly(Row.GearID))
 		{
@@ -245,7 +245,7 @@ FText WoRVendorServices::Run(UWorld *World, EMerchantType Vendor, EVendorService
 	}
 	// A refusal the checks above don't foresee (in a fight, an evolution in use) is logged by the economy with its reason.
 	return bDone ? FText::GetEmpty()
-				 : FText::Format(LOCTEXT("ServiceFailed", "Couldn't {0} {1} (see the log)"), WoRGameNames::GetVendorServiceName(Service), Row.Label);
+				 : FText::Format(LOCTEXT("ServiceFailed", "Couldn't {0} {1}."), WoRGameNames::GetVendorServiceName(Service), Row.Label);
 }
 
 FString WoRVendorServices::GetRowsString(UWorld *World, EMerchantType Vendor, FName Member)

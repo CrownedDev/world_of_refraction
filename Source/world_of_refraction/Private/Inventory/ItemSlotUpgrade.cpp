@@ -56,16 +56,16 @@ FText ItemSlotUpgrade::GetRefusal(const UObject *Context, const UPoolSubsystem &
 	}
 	if (!Wallet)
 	{
-		return LOCTEXT("NoWallet", "No wallet to pay from.");
+		return LOCTEXT("NoWallet", "Can't pay right now.");
 	}
 	if (!WoRAuthority::HasAuthority(Wallet->GetOwner()))
 	{
 		// Q-239 (Crown): host-only in co-op; a guest's own purchase would need a server RPC.
-		return LOCTEXT("HostOnly", "Only the host can buy item slots.");
+		return LOCTEXT("HostOnly", "Only the host can buy for now.");
 	}
 	if (!Wallet->CanAfford(GetCurrency(), GetPrice(Slots)))
 	{
-		return FText::Format(LOCTEXT("TooPoor", "You need {0} {1}."), FText::AsNumber(GetPrice(Slots)), WoRGameNames::GetCurrencyName(GetCurrency()));
+		return FText::Format(LOCTEXT("TooPoor", "Not enough {1}."), FText::AsNumber(GetPrice(Slots)), WoRGameNames::GetCurrencyName(GetCurrency()));
 	}
 	return FText::GetEmpty();
 }
@@ -81,7 +81,7 @@ bool ItemSlotUpgrade::TryBuy(const UObject *Context, UPoolSubsystem &Pool, FName
 	const int32 Price = GetPrice(Pool.GetItemSlotCount(CharacterKey));
 	if (!Wallet->Spend(GetCurrency(), Price))
 	{
-		OutRefusal = LOCTEXT("SpendFailed", "The payment failed.");
+		OutRefusal = LOCTEXT("SpendFailed", "Couldn't buy that.");
 		return false;
 	}
 	if (!Pool.AddItemSlot(CharacterKey))

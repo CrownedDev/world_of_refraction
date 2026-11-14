@@ -178,8 +178,8 @@ void UJoinSeatWidget::Refresh()
 							   ? FText::FromString(Party->Members[SlotIndex].CharacterData->Name)
 							   : LOCTEXT("EmptySlot", "empty");
 		const bool bHeld = bSeat && !Run->GetHeldFor(Party->Members[SlotIndex].MemberId).IsEmpty();
-		SeatTexts[SlotIndex]->SetText(bHeld   ? FText::Format(LOCTEXT("GiveHeldSeat", "Give slot {0} ({1}, AI seat held for the friend who left) to the first request"), SlotIndex, Name)
-									  : bSeat ? FText::Format(LOCTEXT("GiveSeat", "Give slot {0} ({1}, AI seat) to the first request"), SlotIndex, Name)
+		SeatTexts[SlotIndex]->SetText(bHeld   ? FText::Format(LOCTEXT("GiveHeldSeat", "Give slot {0}"), SlotIndex, Name)
+									  : bSeat ? FText::Format(LOCTEXT("GiveSeat", "Give slot {0}"), SlotIndex, Name)
 											  : FText::Format(LOCTEXT("NotASeat", "Slot {0} ({1}): not an AI seat"), SlotIndex, Name));
 		SeatButtons[SlotIndex]->SetIsEnabled(bSeat && bAnyRequest);
 	}

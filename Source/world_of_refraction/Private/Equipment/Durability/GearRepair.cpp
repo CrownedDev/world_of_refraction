@@ -235,11 +235,11 @@ FText GearRepair::GetRefusal(const UCurrencyComponent *Wallet, int32 Cost)
 {
 	if (Cost <= 0)
 	{
-		return LOCTEXT("NothingWorn", "Nothing here is worn.");
+		return LOCTEXT("NothingWorn", "Nothing needs repair.");
 	}
 	if (!Wallet)
 	{
-		return LOCTEXT("NoWallet", "No wallet to pay from.");
+		return LOCTEXT("NoWallet", "Can't pay right now.");
 	}
 	if (!WoRAuthority::HasAuthority(Wallet->GetOwner()))
 	{

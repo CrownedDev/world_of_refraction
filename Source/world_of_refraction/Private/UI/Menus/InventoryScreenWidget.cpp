@@ -152,7 +152,7 @@ void UInventoryScreenWidget::BuildTree()
 	AddToColumn(GridColumn, TileScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	UHorizontalBox *LegendRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	UTextBlock *Legend = MakeText(WidgetTree, SmallFontSize, DimColor);
-	Legend->SetText(LOCTEXT("Legend", "E  worn in a loadout, or in use"));
+	Legend->SetText(LOCTEXT("Legend", "E  Equipped"));
 	AddToRow(LegendRow, Legend)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	SortText = MakeText(WidgetTree, SmallFontSize, CyanColor);
 	AddToRow(LegendRow, SortText);
@@ -213,7 +213,7 @@ void UInventoryScreenWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{SubTabs}  Character        {Tabs}  Tab        {Confirm}  Choose        {Toggle}  Whole stack        {Second}  Sort        {Back}  Back"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{SubTabs}  Character        {Tabs}  Tab        {Confirm}  Select        {Toggle}  Whole stack        {Second}  Sort        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 

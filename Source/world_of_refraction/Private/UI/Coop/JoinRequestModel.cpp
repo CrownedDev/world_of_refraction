@@ -77,7 +77,7 @@ FJoinRequestCard WoRJoinRequestCard::BuildCard(int32 PlayerId, const FString &Pl
 	TArray<FText> Notes;
 	if (bInFight)
 	{
-		Notes.Add(LOCTEXT("InFight", "Seats are fixed during a fight: answer when it ends."));
+		Notes.Add(LOCTEXT("InFight", "Not during a fight."));
 	}
 	else if (!bSeatOpen)
 	{
@@ -90,7 +90,7 @@ FJoinRequestCard WoRJoinRequestCard::BuildCard(int32 PlayerId, const FString &Pl
 	}
 	Card.Note = FText::Join(FText::FromString(TEXT("  ")), Notes);
 	Card.Hints = bFocused ? LOCTEXT("HintsFocused", "{Confirm}  Give this seat    {Toggle}  Refuse    {Back}  Close")
-						  : LOCTEXT("HintsIdle", "Hold {ViewButton} to answer  ·  then  {Confirm}  Give this seat    {Toggle}  Refuse");
+						  : LOCTEXT("HintsIdle", "Hold {ViewButton} to answer");
 	return Card;
 }
 
@@ -129,7 +129,7 @@ FText WoRJoinRequestCard::Give(UWorld *World, int32 PlayerId, int32 Slot)
 	const UPartySessionSubsystem *PartySession = PartySessionOf(World);
 	if (PartySession && PartySession->IsFightRunning())
 	{
-		return LOCTEXT("GiveInFight", "Seats are fixed during a fight: answer when it ends.");
+		return LOCTEXT("GiveInFight", "Not during a fight.");
 	}
 	if (Run->AcceptJoin(PlayerId, Slot))
 	{

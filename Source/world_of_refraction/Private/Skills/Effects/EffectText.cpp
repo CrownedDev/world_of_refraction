@@ -182,13 +182,13 @@ namespace
         case ESkillEffectType::SpellSpeedBuff: case ESkillEffectType::SpellSpeedDebuff:
             OutStat = LOCTEXT("Stat_SpellSpeed", "Spell Speed"); return true;
         case ESkillEffectType::DefenseBuff: case ESkillEffectType::DefenseDebuff:
-            OutStat = LOCTEXT("Stat_Defense", "Defense"); return true;
+            OutStat = LOCTEXT("Stat_Defense", "Defence"); return true;
         case ESkillEffectType::ActionSpeedBuff: case ESkillEffectType::ActionSpeedDebuff:
             OutStat = LOCTEXT("Stat_ActionSpeed", "Action Speed"); return true;
         case ESkillEffectType::RawDamageBuff: case ESkillEffectType::RawDamageDebuff:
             OutStat = LOCTEXT("Stat_RawDamage", "Raw Damage"); return true;
         case ESkillEffectType::MaxEnergyBuff: case ESkillEffectType::MaxEnergyDebuff:
-            OutStat = LOCTEXT("Stat_MaxEnergy", "Max Energy"); return true;
+            OutStat = LOCTEXT("Stat_MaxEnergy", "Max EP"); return true;
         case ESkillEffectType::MaxHPBuff: case ESkillEffectType::MaxHPDebuff:
             OutStat = LOCTEXT("Stat_MaxHP", "Max HP"); return true;
         case ESkillEffectType::ResistanceBuff: case ESkillEffectType::ResistanceDebuff:
@@ -208,7 +208,7 @@ namespace
         case ESkillEffectType::SpeedBuff: case ESkillEffectType::SpeedDebuff:
             OutStat = LOCTEXT("Stat_Speed", "Speed"); return true;
         case ESkillEffectType::EnergyDebuff:
-            OutStat = LOCTEXT("Stat_Energy", "Energy"); return true;
+            OutStat = LOCTEXT("Stat_Energy", "EP"); return true;
         case ESkillEffectType::ModifyStatusResist:
             OutStat = LOCTEXT("Stat_StatusResistance", "Status Resistance"); return true;
         case ESkillEffectType::HealingReceivedBuff:
@@ -299,14 +299,14 @@ namespace
         {
         case ESkillTrigger::OnCrit: return LOCTEXT("Trig_OnCrit", "On Critical Hit");
         case ESkillTrigger::OnHit: return LOCTEXT("Trig_OnHit", "On Hit");
-        case ESkillTrigger::OnTakeDamage: return LOCTEXT("Trig_OnTakeDamage", "On Damage Received");
-        case ESkillTrigger::OnBattleStart: return LOCTEXT("Trig_OnBattleStart", "At the start of the fight");
+        case ESkillTrigger::OnTakeDamage: return LOCTEXT("Trig_OnTakeDamage", "When Hit");
+        case ESkillTrigger::OnBattleStart: return LOCTEXT("Trig_OnBattleStart", "At battle start");
         case ESkillTrigger::OnTurnStart: return LOCTEXT("Trig_OnTurnStart", "At the start of your turn");
         case ESkillTrigger::OnTurnEnd: return LOCTEXT("Trig_OnTurnEnd", "At the end of your turn");
         case ESkillTrigger::OnKill: return LOCTEXT("Trig_OnKill", "When you defeat an Enemy");
         case ESkillTrigger::OnStatusApplied: return LOCTEXT("Trig_OnStatusApplied", "When you inflict a status");
         case ESkillTrigger::OnStatusReceived: return LOCTEXT("Trig_OnStatusReceived", "When you receive a status");
-        case ESkillTrigger::OnSpellCast: return LOCTEXT("Trig_OnSpellCast", "When you cast a Refraction");
+        case ESkillTrigger::OnSpellCast: return LOCTEXT("Trig_OnSpellCast", "When you cast a spell");
         case ESkillTrigger::OnAbilityUsed: return LOCTEXT("Trig_OnAbilityUsed", "When you use an Ability");
         case ESkillTrigger::OnDodge: return LOCTEXT("Trig_OnDodge", "On Dodge");
         case ESkillTrigger::OnPerfectDodge: return LOCTEXT("Trig_OnPerfectDodge", "On Perfect Dodge");
@@ -331,10 +331,10 @@ namespace
         case ESkillTrigger::OnTakeDamage: return LOCTEXT("TrigV_OnTakeDamage", "takes damage");
         case ESkillTrigger::OnTurnStart: return LOCTEXT("TrigV_OnTurnStart", "starts a turn");
         case ESkillTrigger::OnTurnEnd: return LOCTEXT("TrigV_OnTurnEnd", "ends a turn");
-        case ESkillTrigger::OnKill: return LOCTEXT("TrigV_OnKill", "defeats an opponent");
+        case ESkillTrigger::OnKill: return LOCTEXT("TrigV_OnKill", "defeats an Enemy");
         case ESkillTrigger::OnStatusApplied: return LOCTEXT("TrigV_OnStatusApplied", "inflicts a status");
         case ESkillTrigger::OnStatusReceived: return LOCTEXT("TrigV_OnStatusReceived", "receives a status");
-        case ESkillTrigger::OnSpellCast: return LOCTEXT("TrigV_OnSpellCast", "casts a Refraction");
+        case ESkillTrigger::OnSpellCast: return LOCTEXT("TrigV_OnSpellCast", "casts a spell");
         case ESkillTrigger::OnAbilityUsed: return LOCTEXT("TrigV_OnAbilityUsed", "uses an Ability");
         case ESkillTrigger::OnDodge: return LOCTEXT("TrigV_OnDodge", "dodges");
         case ESkillTrigger::OnPerfectDodge: return LOCTEXT("TrigV_OnPerfectDodge", "lands a Perfect Dodge");
@@ -353,8 +353,8 @@ namespace
     {
         switch (Subject)
         {
-        case ECondSubject::SelfTeam: return LOCTEXT("Who_SelfTeam", "a Team Member");
-        case ECondSubject::Target: return LOCTEXT("Who_Target", "the attacked Enemy");
+        case ECondSubject::SelfTeam: return LOCTEXT("Who_SelfTeam", "an Ally");
+        case ECondSubject::Target: return LOCTEXT("Who_Target", "the target");
         case ECondSubject::TargetTeam: return LOCTEXT("Who_TargetTeam", "an Enemy");
         default: return LOCTEXT("Who_Self", "you");
         }
@@ -364,8 +364,8 @@ namespace
     {
         switch (Subject)
         {
-        case ECondSubject::SelfTeam: return LOCTEXT("Whose_SelfTeam", "a Team Member's");
-        case ECondSubject::Target: return LOCTEXT("Whose_Target", "the attacked Enemy's");
+        case ECondSubject::SelfTeam: return LOCTEXT("Whose_SelfTeam", "an Ally's");
+        case ECondSubject::Target: return LOCTEXT("Whose_Target", "the target's");
         case ECondSubject::TargetTeam: return LOCTEXT("Whose_TargetTeam", "an Enemy's");
         default: return LOCTEXT("Whose_Self", "your");
         }
@@ -390,8 +390,8 @@ namespace
         {
         case ESkillTrigger::OnHPBelowThreshold: return FText::Format(LOCTEXT("State_HPBelow", "{0} HP is below {1}"), Whose, Threshold);
         case ESkillTrigger::OnHPAboveThreshold: return FText::Format(LOCTEXT("State_HPAbove", "{0} HP is above {1}"), Whose, Threshold);
-        case ESkillTrigger::OnEnergyBelowThreshold: return FText::Format(LOCTEXT("State_EnergyBelow", "{0} Energy is below {1}"), Whose, Threshold);
-        case ESkillTrigger::OnEnergyAboveThreshold: return FText::Format(LOCTEXT("State_EnergyAbove", "{0} Energy is above {1}"), Whose, Threshold);
+        case ESkillTrigger::OnEnergyBelowThreshold: return FText::Format(LOCTEXT("State_EnergyBelow", "{0} EP is below {1}"), Whose, Threshold);
+        case ESkillTrigger::OnEnergyAboveThreshold: return FText::Format(LOCTEXT("State_EnergyAbove", "{0} EP is above {1}"), Whose, Threshold);
         default: return FText::GetEmpty();
         }
     }
@@ -702,18 +702,18 @@ namespace EffectText
         case ESkillEffectType::EnergyRestore:
             if (bDrain)
             {
-                return Side.bSelf ? FText::Format(LOCTEXT("EnergyDrain_Self", "gain Energy equal to {0} of the damage dealt"), DrainShare)
-                                  : FText::Format(LOCTEXT("EnergyDrain_Other", "give {0} Energy equal to {1} of the damage dealt"), Side.Noun, DrainShare);
+                return Side.bSelf ? FText::Format(LOCTEXT("EnergyDrain_Self", "gain EP equal to {0} of the damage dealt"), DrainShare)
+                                  : FText::Format(LOCTEXT("EnergyDrain_Other", "give {0} EP equal to {1} of the damage dealt"), Side.Noun, DrainShare);
             }
-            return Side.bSelf ? FText::Format(LOCTEXT("Energy_Self", "gain {0} Energy{1}"), Amount(P), EachTurnSpan(P))
-                              : FText::Format(LOCTEXT("Energy_Other", "give {0} {1} Energy{2}"), Side.Noun, Amount(P), EachTurnSpan(P));
+            return Side.bSelf ? FText::Format(LOCTEXT("Energy_Self", "gain {0} EP{1}"), Amount(P), EachTurnSpan(P))
+                              : FText::Format(LOCTEXT("Energy_Other", "give {0} {1} EP{2}"), Side.Noun, Amount(P), EachTurnSpan(P));
         case ESkillEffectType::RestoreEnergyPercent:
-            return Side.bSelf ? FText::Format(LOCTEXT("EnergyPct_Self", "gain {0} of your max Energy{1}"), Amount(P), EachTurnSpan(P))
-                              : FText::Format(LOCTEXT("EnergyPct_Other", "give {0} {1} of their max Energy{2}"), Side.Noun, Amount(P), EachTurnSpan(P));
+            return Side.bSelf ? FText::Format(LOCTEXT("EnergyPct_Self", "gain {0} of your max EP{1}"), Amount(P), EachTurnSpan(P))
+                              : FText::Format(LOCTEXT("EnergyPct_Other", "give {0} {1} of their max EP{2}"), Side.Noun, Amount(P), EachTurnSpan(P));
         case ESkillEffectType::EnergyDrain:
         case ESkillEffectType::DrainEnergy:
-            return Side.bSelf ? FText::Format(LOCTEXT("DrainEnergy_Self", "lose {0} Energy{1}"), Amount(P), EachTurnSpan(P))
-                              : FText::Format(LOCTEXT("DrainEnergy_Other", "drain {0} Energy from {1}{2}"), Amount(P), Side.Noun, EachTurnSpan(P));
+            return Side.bSelf ? FText::Format(LOCTEXT("DrainEnergy_Self", "lose {0} EP{1}"), Amount(P), EachTurnSpan(P))
+                              : FText::Format(LOCTEXT("DrainEnergy_Other", "drain {0} EP from {1}{2}"), Amount(P), Side.Noun, EachTurnSpan(P));
         case ESkillEffectType::DrainHP:
             return Side.bSelf ? FText::Format(LOCTEXT("DrainHP_Self", "lose {0} HP{1}"), Amount(P), EachTurnSpan(P))
                               : FText::Format(LOCTEXT("DrainHP_Other", "drain {0} HP from {1}{2}"), Amount(P), Side.Noun, EachTurnSpan(P));
@@ -770,12 +770,12 @@ namespace EffectText
             {
                 return ImmunityBody(P, Side, Element);
             }
-            return FText::Format(LOCTEXT("DOTOnHit", "inflict {0} damage over time on {1}{2}"), Element,
+            return FText::Format(LOCTEXT("DOTOnHit", "inflict {0} DoT on {1}{2}"), Element,
                                  Side.bSelf ? LOCTEXT("Yourself", "yourself") : Side.Noun, Span(P));
         }
 
         // ---- immunities ----
-        case ESkillEffectType::GrantDOTImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_DOT", "damage over time"));
+        case ESkillEffectType::GrantDOTImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_DOT", "DoT"));
         case ESkillEffectType::GrantStunImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_Stun", "Stun"));
         case ESkillEffectType::GrantSilenceImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_Silence", "Silence"));
         case ESkillEffectType::GrantAllStatusImmunity: return ImmunityBody(P, Side, LOCTEXT("Immune_All", "every status"));
@@ -794,7 +794,7 @@ namespace EffectText
         {
             const FText Which = P.EffectType == ESkillEffectType::RemoveSpeedDebuff ? LOCTEXT("Stat_Speed", "Speed")
                                 : P.EffectType == ESkillEffectType::RemoveDamageDebuff ? LOCTEXT("Stat_Damage", "Damage")
-                                                                                        : LOCTEXT("Stat_Defense", "Defense");
+                                                                                        : LOCTEXT("Stat_Defense", "Defence");
             return Side.bSelf ? FText::Format(LOCTEXT("RemoveDebuff_Self", "remove {0} debuffs"), Which)
                               : FText::Format(LOCTEXT("RemoveDebuff_Other", "remove {0} debuffs from {1}"), Which, Side.Noun);
         }
@@ -807,7 +807,7 @@ namespace EffectText
         case ESkillEffectType::ReflectSpellDamage:
         {
             const FText Scope = ReflectScopePrefix(P.Element);
-            return ReflectBody(P, Side, Scope.IsEmpty() ? LOCTEXT("Kind_Refraction", "Refraction ") : Scope);
+            return ReflectBody(P, Side, Scope.IsEmpty() ? LOCTEXT("Kind_Refraction", "Spell ") : Scope);
         }
         case ESkillEffectType::AbsorbDamage:
             return Side.bSelf ? FText::Format(LOCTEXT("Absorb_Self", "negate the next {0} damage you take{1}"), Amount(P), Span(P))
@@ -879,7 +879,7 @@ namespace EffectText
             return FText::Format(LOCTEXT("DoubleHit", "{0} next attack hits twice"),
                                  Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive);
         case ESkillEffectType::IgnoreDefense:
-            return FText::Format(LOCTEXT("IgnoreDefense", "{0} attacks ignore {1} Defense{2}"),
+            return FText::Format(LOCTEXT("IgnoreDefense", "{0} attacks ignore {1} Defence{2}"),
                                  Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive, IgnoreDefenseAmount(P), Span(P));
         case ESkillEffectType::SpellCostBuff:
         case ESkillEffectType::SpellCostDebuff:
@@ -888,8 +888,8 @@ namespace EffectText
             // The cost multiplier applies to Refractions and Abilities alike.
             const FText Whose = Side.bSelf ? LOCTEXT("Whose_Self", "your") : Side.Possessive;
             return IsCostCut(P)
-                       ? FText::Format(LOCTEXT("Cost_Less", "{0} Refractions and Abilities cost {1} less{2}"), Whose, Amount(P), Span(P))
-                       : FText::Format(LOCTEXT("Cost_More", "{0} Refractions and Abilities cost {1} more{2}"), Whose, Amount(P), Span(P));
+                       ? FText::Format(LOCTEXT("Cost_Less", "{0} skills cost {1} less{2}"), Whose, Amount(P), Span(P))
+                       : FText::Format(LOCTEXT("Cost_More", "{0} skills cost {1} more{2}"), Whose, Amount(P), Span(P));
         }
 
         // ---- status bars and rows ----

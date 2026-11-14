@@ -63,7 +63,7 @@ FInviteScreenPage WoRInviteScreen::BuildPage(const TArray<FString> &FriendNames,
 	Page.Title = LOCTEXT("Title", "Play together");
 	Page.bHosting = bHosting;
 	Page.Subtitle = bHosting ? LOCTEXT("Hosting", "You host a session: friends can join")
-							 : LOCTEXT("NotHosting", "No session: host one so friends can join");
+							 : LOCTEXT("NotHosting", "Not hosting");
 	for (int32 Index = 0; Index < FriendNames.Num(); ++Index)
 	{
 		FInviteFriendRow &Row = Page.Friends.AddDefaulted_GetRef();
@@ -73,10 +73,10 @@ FInviteScreenPage WoRInviteScreen::BuildPage(const TArray<FString> &FriendNames,
 	}
 	const FText HowSeating = LOCTEXT("HowSeating", "A friend brings their own character and takes an AI seat.\nIn a run, new friends are seated at a rest spot.");
 	Page.FriendsNote = FriendNames.IsEmpty()
-						   ? FText::Format(LOCTEXT("NoFriends", "No friends list here (a local network game): a friend on your network finds your session with wor.Session.Find.\n{0}"), HowSeating)
+						   ? FText::Format(LOCTEXT("NoFriends", "No friends list on a local network. Friends nearby can find your session.\n{0}"), HowSeating)
 						   : HowSeating;
 	Page.Seats = MoveTemp(Seats);
-	Page.SessionAction = bHosting ? LOCTEXT("StopHosting", "Stop hosting") : LOCTEXT("Host", "Host a session");
+	Page.SessionAction = bHosting ? LOCTEXT("StopHosting", "Stop hosting") : LOCTEXT("Host", "Host");
 	return Page;
 }
 

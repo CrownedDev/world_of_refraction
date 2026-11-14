@@ -49,7 +49,7 @@ FPartyScreenPage WoRPartyScreen::BuildPage(const UParty *Party, bool bHosting)
 		Row.Row = Member.PreferredRow;
 		Row.Column = Row.bHasCell ? FMath::Clamp(Member.PreferredColumn, 0, CombatGridConstants::GRID_COLUMNS - 1) : 0;
 		Row.StartLine = Row.bHasCell ? FText::Format(LOCTEXT("Starts", "Starts: {0}"), WoRGameNames::GetCombatRowName(Member.PreferredRow))
-									 : LOCTEXT("StartsAuto", "Starts: placed for you");
+									 : LOCTEXT("StartsAuto", "Starts: Auto");
 		Row.FieldSkillLine = FText::Format(LOCTEXT("FieldSkill", "Field skill: {0}"), WoRGameNames::GetFieldMovementName(Member.FieldSkill.Type));
 		Row.GuardLine = Member.GuardStyle == EGuardStyle::Unarmed ? LOCTEXT("UnarmedGuard", "Unarmed guard") : LOCTEXT("WeaponGuard", "Weapon guard");
 	}
@@ -85,7 +85,7 @@ FText WoRPartyScreen::ToggleSeat(UWorld *World, int32 SlotIndex)
 	}
 	if (PartySession->IsFightRunning())
 	{
-		return LOCTEXT("FightRunning", "Seats are fixed while a fight runs.");
+		return LOCTEXT("FightRunning", "Not during a fight.");
 	}
 	if (!PartySession->SetMemberAISeat(SlotIndex, !PartySession->IsMemberAISeat(SlotIndex)))
 	{

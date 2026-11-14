@@ -194,27 +194,27 @@ namespace WoRGive
 		UPoolSubsystem *Pool = PoolOf(World);
 		if (!Pool)
 		{
-			return LOCTEXT("NoPool", "No armoury to give from");
+			return LOCTEXT("NoPool", "Nothing to give.");
 		}
 		if (FromKey.IsNone() || ToKey.IsNone() || FromKey == ToKey)
 		{
-			return LOCTEXT("SameCharacter", "Choose another character to give to");
+			return LOCTEXT("SameCharacter", "Choose another character to give to.");
 		}
 		if (Pool->FindEvolutionInPool(GearID))
 		{
-			return LOCTEXT("NoEvolutions", "Evolutions can't be given yet");
+			return LOCTEXT("NoEvolutions", "Evolutions can't be given yet.");
 		}
 		if (!Pool->FindWeaponInPool(GearID) && !Pool->FindRingInPool(GearID))
 		{
-			return LOCTEXT("NotGear", "That isn't a weapon or adapter");
+			return LOCTEXT("NotGear", "That isn't a weapon or adapter.");
 		}
 		if (Pool->GetGearOwner(GearID) != FromKey)
 		{
-			return FText::Format(LOCTEXT("NotTheirs", "{0} doesn't own that"), NameOf(World, FromKey));
+			return FText::Format(LOCTEXT("NotTheirs", "{0} doesn't own that."), NameOf(World, FromKey));
 		}
 		if (IsRunOnlyMember(World, ToKey))
 		{
-			return FText::Format(LOCTEXT("RecruitOwnsNothing", "{0} is only here for the run and can't own gear"), NameOf(World, ToKey));
+			return FText::Format(LOCTEXT("RecruitOwnsNothing", "{0} is only here for the run and can't own gear."), NameOf(World, ToKey));
 		}
 		// D-116: a loadout's primary stays until another primary is swapped in. Checked on the spawned giver; an
 		// unspawned giver's next draw refills its primary instead.
@@ -222,12 +222,12 @@ namespace WoRGive
 		{
 			if (Giver->IsPrimaryInAnyLoadout(GearID))
 			{
-				return LOCTEXT("GivePrimary", "That is a loadout's primary. Swap in another primary before giving it");
+				return LOCTEXT("GivePrimary", "Every loadout needs a weapon or adapter. Put another in first.");
 			}
 		}
 		if (!Pool->GiveGear(GearID, ToKey))
 		{
-			return LOCTEXT("GiveFailed", "Couldn't give that");
+			return LOCTEXT("GiveFailed", "Couldn't give that.");
 		}
 		return FText::GetEmpty();
 	}
@@ -237,44 +237,44 @@ namespace WoRGive
 		UPoolSubsystem *Pool = PoolOf(World);
 		if (!Pool)
 		{
-			return LOCTEXT("NoChest", "No chest to put that in");
+			return LOCTEXT("NoChest", "No chest to put that in.");
 		}
 		if (Pool->IsRunLayerActive()) // B-347b (Q-347): the chest is home storage; a run has only what it brought
 		{
-			return LOCTEXT("ChestHomePut", "The chest stays at home until the run ends");
+			return LOCTEXT("ChestHomePut", "The chest stays at home until the run ends.");
 		}
 		if (FromKey.IsNone())
 		{
-			return LOCTEXT("NoOneToPut", "Choose a character");
+			return LOCTEXT("NoOneToPut", "Choose a character.");
 		}
 		if (Pool->FindEvolutionInPool(GearID))
 		{
-			return LOCTEXT("NoEvolutionsChest", "Evolutions can't go in the chest yet");
+			return LOCTEXT("NoEvolutionsChest", "Evolutions can't go in the chest yet.");
 		}
 		if (!Pool->FindWeaponInPool(GearID) && !Pool->FindRingInPool(GearID))
 		{
-			return LOCTEXT("NotGearChest", "That isn't a weapon or adapter");
+			return LOCTEXT("NotGearChest", "That isn't a weapon or adapter.");
 		}
 		if (Pool->GetGearOwner(GearID) != FromKey)
 		{
-			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that"), NameOf(World, FromKey));
+			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that."), NameOf(World, FromKey));
 		}
 		// Worn gear can't be put away (B-324): a piece anyone wears (spawned or not), or in any of the member's
 		// loadouts, stays.
 		if (!Pool->GetWearer(GearID).IsNone())
 		{
-			return LOCTEXT("PutWornByAnyone", "Someone is wearing that. Take it off before putting it in the chest");
+			return LOCTEXT("PutWornByAnyone", "Equipped. Unequip it first.");
 		}
 		if (const UInventoryComponent *Member = FindMemberInventory(World, FromKey))
 		{
 			if (!Member->GetLoadoutsUsing(GearID).IsEmpty())
 			{
-				return LOCTEXT("PutWorn", "That is in a loadout. Take it off before putting it in the chest");
+				return LOCTEXT("PutWorn", "Equipped. Unequip it first.");
 			}
 		}
 		if (!Pool->GiveGear(GearID, UPoolSubsystem::GetChestKey()))
 		{
-			return LOCTEXT("PutFailed", "Couldn't put that in the chest");
+			return LOCTEXT("PutFailed", "Couldn't put that in the chest.");
 		}
 		// An unspawned member's loadouts can't be checked; the piece leaves them at its next draw, so no wearer stays.
 		Pool->ReleaseWearer(GearID);
@@ -286,27 +286,27 @@ namespace WoRGive
 		UPoolSubsystem *Pool = PoolOf(World);
 		if (!Pool)
 		{
-			return LOCTEXT("NoChestTake", "No chest to take from");
+			return LOCTEXT("NoChestTake", "No chest to take from.");
 		}
 		if (Pool->IsRunLayerActive()) // B-347b (Q-347): taking would bring a home piece the run left behind
 		{
-			return LOCTEXT("ChestHomeTake", "The chest stays at home until the run ends");
+			return LOCTEXT("ChestHomeTake", "The chest stays at home until the run ends.");
 		}
 		if (ToKey.IsNone())
 		{
-			return LOCTEXT("NoOneToTake", "Choose a character");
+			return LOCTEXT("NoOneToTake", "Choose a character.");
 		}
 		if (!Pool->IsInChest(GearID))
 		{
-			return LOCTEXT("NotInChest", "That isn't in the chest");
+			return LOCTEXT("NotInChest", "That isn't in the chest.");
 		}
 		if (IsRunOnlyMember(World, ToKey))
 		{
-			return FText::Format(LOCTEXT("RecruitOwnsNothingChest", "{0} is only here for the run and can't own gear"), NameOf(World, ToKey));
+			return FText::Format(LOCTEXT("RecruitOwnsNothingChest", "{0} is only here for the run and can't own gear."), NameOf(World, ToKey));
 		}
 		if (!Pool->GiveGear(GearID, ToKey))
 		{
-			return LOCTEXT("TakeFailed", "Couldn't take that");
+			return LOCTEXT("TakeFailed", "Couldn't take that.");
 		}
 		return FText::GetEmpty();
 	}
@@ -316,30 +316,30 @@ namespace WoRGive
 		UPoolSubsystem *Pool = PoolOf(World);
 		if (!Pool)
 		{
-			return LOCTEXT("NoPouches", "No pouches to give from");
+			return LOCTEXT("NoPouches", "Nothing to give.");
 		}
 		if (FromMember.IsNone() || ToMember.IsNone() || FromMember == ToMember)
 		{
-			return LOCTEXT("SameCharacterItems", "Choose another character to give to");
+			return LOCTEXT("SameCharacterItems", "Choose another character to give to.");
 		}
 		const FName FromKey = GetPouchKey(World, FromMember);
 		const FName ToKey = GetPouchKey(World, ToMember);
 		if (FromKey == ToKey)
 		{
-			return LOCTEXT("SharedPouch", "They carry the same pouch: a recruit uses the host's");
+			return LOCTEXT("SharedPouch", "They share a pouch.");
 		}
 		if (Count <= 0 || Pool->GetCarriedCount(FromKey, Id) < Count)
 		{
-			return FText::Format(LOCTEXT("NotCarried", "{0} doesn't carry that many"), NameOf(World, FromKey));
+			return FText::Format(LOCTEXT("NotCarried", "{0} doesn't carry that many."), NameOf(World, FromKey));
 		}
 		if (Pool->GetCarryRoom(ToKey, Id) < Count)
 		{
-			return FText::Format(LOCTEXT("PouchFull", "{0}'s pouch has no room for {1}"), NameOf(World, ToKey),
+			return FText::Format(LOCTEXT("PouchFull", "{0}'s pouch has no room for {1}."), NameOf(World, ToKey),
 								 FText::FromString(ItemIdentity::GetDisplayName(Id)));
 		}
 		if (!Pool->GiveCarried(FromKey, ToKey, Id, Count))
 		{
-			return LOCTEXT("GiveItemsFailed", "Couldn't give those");
+			return LOCTEXT("GiveItemsFailed", "Couldn't give those.");
 		}
 		return FText::GetEmpty();
 	}
@@ -349,47 +349,47 @@ namespace WoRGive
 		UPoolSubsystem *Pool = PoolOf(World);
 		if (!Pool)
 		{
-			return LOCTEXT("NoSkillStore", "No skills to give from");
+			return LOCTEXT("NoSkillStore", "Nothing to give.");
 		}
 		if (FromKey.IsNone() || ToKey.IsNone() || FromKey == ToKey)
 		{
-			return LOCTEXT("SameCharacterSkills", "Choose another character to give to");
+			return LOCTEXT("SameCharacterSkills", "Choose another character to give to.");
 		}
 		const USpellData *Spell = Cast<USpellData>(Skill);
 		const UAbilityData *Ability = Cast<UAbilityData>(Skill);
 		if (!Spell && !Ability)
 		{
-			return LOCTEXT("NotASkill", "That isn't a spell or an ability");
+			return LOCTEXT("NotASkill", "That isn't a spell or an ability.");
 		}
 		// Between fights only: the giver's loadouts drop the skill in the pre-fight clean (ClearInvalidSlots).
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
 		if (TurnManager && TurnManager->IsCombatActive())
 		{
-			return LOCTEXT("SkillsInFight", "Skills can't change hands during a fight");
+			return LOCTEXT("SkillsInFight", "Not during a fight.");
 		}
 		if (PlayerOfMember(World, FromKey) != PlayerOfMember(World, ToKey))
 		{
-			return LOCTEXT("SkillsBetweenPlayers", "Skills can't be traded between players");
+			return LOCTEXT("SkillsBetweenPlayers", "Skills can't be traded between players.");
 		}
 		for (const FName Key : {FromKey, ToKey})
 		{
 			if (!Pool->HasBankedSkills(Key))
 			{
-				return FText::Format(LOCTEXT("SkillsNotKept", "{0}'s skills aren't kept yet (they join at the next level)"), NameOf(World, Key));
+				return FText::Format(LOCTEXT("SkillsNotKept", "{0} keeps skills from the next level."), NameOf(World, Key));
 			}
 		}
 		if (!(Spell ? Pool->KnowsSpell(FromKey, Spell) : Pool->KnowsAbility(FromKey, Ability)))
 		{
-			return FText::Format(LOCTEXT("DoesntKnow", "{0} doesn't know {1}"), NameOf(World, FromKey), SkillNameOf(Skill));
+			return FText::Format(LOCTEXT("DoesntKnow", "{0} doesn't know {1}."), NameOf(World, FromKey), SkillNameOf(Skill));
 		}
 		if (Spell ? Pool->KnowsSpell(ToKey, Spell) : Pool->KnowsAbility(ToKey, Ability))
 		{
-			return FText::Format(LOCTEXT("AlreadyKnows", "{0} already knows {1}"), NameOf(World, ToKey), SkillNameOf(Skill));
+			return FText::Format(LOCTEXT("AlreadyKnows", "{0} already knows {1}."), NameOf(World, ToKey), SkillNameOf(Skill));
 		}
 		if (!(Spell ? Pool->MoveSpell(FromKey, ToKey, Spell) : Pool->MoveAbility(FromKey, ToKey, Ability)))
 		{
-			return FText::Format(LOCTEXT("SkillsFull", "{0} can't learn any more"), NameOf(World, ToKey));
+			return FText::Format(LOCTEXT("SkillsFull", "{0} can't learn any more."), NameOf(World, ToKey));
 		}
 		return FText::GetEmpty();
 	}
@@ -404,55 +404,55 @@ namespace WoRGive
 		UPoolSubsystem *Pool = PoolOf(World);
 		if (!Pool)
 		{
-			return LOCTEXT("NoSkillStoreTeach", "No skills to teach from");
+			return LOCTEXT("NoSkillStoreTeach", "No skills to teach from.");
 		}
 		if (TeacherKey.IsNone() || LearnerKey.IsNone() || TeacherKey == LearnerKey)
 		{
-			return LOCTEXT("SameCharacterTeach", "Choose another player's character to teach");
+			return LOCTEXT("SameCharacterTeach", "Choose another player's character to teach.");
 		}
 		if (!Cast<USpellData>(Skill) && !Cast<UAbilityData>(Skill))
 		{
-			return LOCTEXT("NotASkillTeach", "That isn't a spell or an ability");
+			return LOCTEXT("NotASkillTeach", "That isn't a spell or an ability.");
 		}
 		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 		const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
 		if (TurnManager && TurnManager->IsCombatActive())
 		{
-			return LOCTEXT("TeachInFight", "Skills can't be taught during a fight");
+			return LOCTEXT("TeachInFight", "Not during a fight.");
 		}
 		// The wallet and the skill store change on the host; a client's teach waits for the co-op screens' request.
 		// TODO: B-233+: a client asks the server to teach (the pool is per game instance, D-065 / D-103).
 		if (World->GetNetMode() == NM_Client)
 		{
-			return LOCTEXT("TeachOnHost", "Only the host can teach for now (co-op requests come with the co-op screens)");
+			return LOCTEXT("TeachOnHost", "Only the host can teach for now (co-op requests come with the co-op screens).");
 		}
 		const APlayerState *Teacher = PlayerOfMember(World, TeacherKey);
 		if (!Teacher || Teacher == PlayerOfMember(World, LearnerKey))
 		{
-			return LOCTEXT("TeachIsBetweenPlayers", "Teaching is between players: give it to your own characters instead");
+			return LOCTEXT("TeachIsBetweenPlayers", "Teaching is between players: give it to your own characters instead.");
 		}
 		if (!Pool->HasBankedSkills(TeacherKey) || !Pool->HasBankedSkills(LearnerKey))
 		{
-			return LOCTEXT("SkillsNotKeptTeach", "Both characters' skills must be kept first (they join at the next level)");
+			return LOCTEXT("SkillsNotKeptTeach", "They keep skills from the next level.");
 		}
 		if (!KnowsSkill(*Pool, TeacherKey, Skill))
 		{
-			return FText::Format(LOCTEXT("DoesntKnowTeach", "{0} doesn't know {1}"), NameOf(World, TeacherKey), SkillNameOf(Skill));
+			return FText::Format(LOCTEXT("DoesntKnowTeach", "{0} doesn't know {1}."), NameOf(World, TeacherKey), SkillNameOf(Skill));
 		}
 		if (KnowsSkill(*Pool, LearnerKey, Skill))
 		{
-			return FText::Format(LOCTEXT("AlreadyKnowsTeach", "{0} already knows {1}"), NameOf(World, LearnerKey), SkillNameOf(Skill));
+			return FText::Format(LOCTEXT("AlreadyKnowsTeach", "{0} already knows {1}."), NameOf(World, LearnerKey), SkillNameOf(Skill));
 		}
 		const int32 Cost = WoRMentorTokens::GetTeachCost(Skill);
 		UCurrencyComponent *Wallet = WoRMentorTokens::WalletOf(Teacher);
 		if (!Wallet || !Wallet->Spend(ECurrencyType::MentorTokens, Cost))
 		{
-			return FText::Format(LOCTEXT("TooFewTokens", "Teaching {0} costs {1} Mentor Tokens"), SkillNameOf(Skill), Cost);
+			return FText::Format(LOCTEXT("TooFewTokens", "Teaching {0} costs {1} Mentor Tokens."), SkillNameOf(Skill), Cost);
 		}
 		if (!Pool->LearnSkillCopy(LearnerKey, Skill))
 		{
 			Wallet->Add(ECurrencyType::MentorTokens, Cost); // nothing learned, nothing spent
-			return FText::Format(LOCTEXT("SkillsFullTeach", "{0} can't learn any more"), NameOf(World, LearnerKey));
+			return FText::Format(LOCTEXT("SkillsFullTeach", "{0} can't learn any more."), NameOf(World, LearnerKey));
 		}
 		UE_LOG(LogTemp, Log, TEXT("[Give] %s teaches %s to %s for %d Mentor Token(s)"), *TeacherKey.ToString(), *GetNameSafe(Skill),
 			   *LearnerKey.ToString(), Cost);

@@ -73,7 +73,7 @@ namespace FieldSkillPickerBuild
 		case EFieldSkillSource::Weapon:
 			return LOCTEXT("SourceWeapon", "Weapon crystal");
 		case EFieldSkillSource::Ring:
-			return LOCTEXT("SourceRing", "Ring");
+			return LOCTEXT("SourceRing", "Adapter");
 		}
 		return FText::GetEmpty();
 	}
@@ -251,7 +251,7 @@ void UFieldSkillPickerWidget::Refresh()
 	const UFieldMovementComponent *FieldMovement = GetFieldMovement();
 	if (!FieldMovement)
 	{
-		SourceText->SetText(LOCTEXT("NoFieldPawn", "No field character (open this on the map)"));
+		SourceText->SetText(LOCTEXT("NoFieldPawn", "Not available here."));
 		TypeText->SetText(FText::GetEmpty());
 		StatusText->SetText(FText::GetEmpty());
 		return;

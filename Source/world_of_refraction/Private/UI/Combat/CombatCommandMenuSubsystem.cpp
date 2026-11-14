@@ -970,7 +970,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateHandToAIButton() const
 {
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("HandToAI");
-    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "HandToAI", "Let AI Play");
+    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "HandToAI", "Auto");
     Button.Category = EPieMenuCategory::HandToAI;
     Button.bEnabled = true;
     return Button;
@@ -1810,7 +1810,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
                 SourceLabel = LOCTEXT("InfusionSourceInnate", "Innate");
                 break;
             case EPieMenuCategory::ResonateWeapon:
-                SourceLabel = LOCTEXT("InfusionSourceWeaponCrystal", "Weapon Crystal");
+                SourceLabel = LOCTEXT("InfusionSourceWeaponCrystal", "Weapon crystal");
                 break;
             case EPieMenuCategory::ResonateRing:
                 SourceLabel = WoRGameNames::GetAdapterWord(); // D-107
@@ -1828,7 +1828,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
             // Combined cycle-level + state-display button
             FPieMenuButtonData CycleLvl;
             CycleLvl.ButtonID = TEXT("CycleLevel");
-            CycleLvl.DisplayName = FText::Format(LOCTEXT("InfusionCycleLevel", "{0}: L{1}"), SourceLabel, FText::AsNumber(PendingInfusionLevel));
+            CycleLvl.DisplayName = FText::Format(LOCTEXT("InfusionCycleLevel", "{0} Lv {1}"), SourceLabel, FText::AsNumber(PendingInfusionLevel));
             CycleLvl.Category = EPieMenuCategory::CycleLevel;
             CycleLvl.bEnabled = true;
             Buttons.Add(CycleLvl);
@@ -1848,7 +1848,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
             {
                 FPieMenuButtonData CycleSrc;
                 CycleSrc.ButtonID = TEXT("CycleSource");
-                CycleSrc.DisplayName = LOCTEXT("InfusionCycleSource", "Cycle Source");
+                CycleSrc.DisplayName = LOCTEXT("InfusionCycleSource", "Source");
                 CycleSrc.Category = EPieMenuCategory::CycleSource;
                 CycleSrc.bEnabled = true;
                 Buttons.Add(CycleSrc);

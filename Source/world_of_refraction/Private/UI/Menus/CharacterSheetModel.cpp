@@ -194,7 +194,7 @@ FCharacterSheetPage WoRCharacterSheet::BuildPage(UWorld *World, int32 MemberInde
 	const UCharacterDataComponent *Character = Member ? WoRLevelDrops::FindSpawnedMember(World, *Member) : nullptr;
 	if (!Character)
 	{
-		Page.Refusal = FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here, so their stats can't be shown."), Page.Who.Name);
+		Page.Refusal = FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here."), Page.Who.Name);
 		return Page;
 	}
 	Page.MaxActions = Character->GetMaxActions();

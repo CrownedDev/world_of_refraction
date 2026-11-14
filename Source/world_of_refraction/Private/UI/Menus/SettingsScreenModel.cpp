@@ -102,16 +102,16 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		EndTurn.Id = ESettingId::EndTurnButton;
 		EndTurn.Label = LOCTEXT("EndTurnButton", "End Turn button");
 		EndTurn.Value = OnOff(!Save || !Save->IsEndTurnButtonHidden());
-		EndTurn.Explanation = LOCTEXT("EndTurnExplain", "Shows the End Turn button on the battle menu. Off hides it.");
+		EndTurn.Explanation = LOCTEXT("EndTurnExplain", "Shows the End Turn button on the battle menu.");
 		Rows.Add(EndTurn);
 
-		Rows.Add(NotBuilt(ESettingId::CornerHints, LOCTEXT("CornerHints", "Button hints in the corner"),
+		Rows.Add(NotBuilt(ESettingId::CornerHints, LOCTEXT("CornerHints", "Button hints"),
 						  LOCTEXT("CornerHintsExplain", "Shows which button does what, in the corner of the screen.")));
 		Rows.Add(NotBuilt(ESettingId::BossCinematics, LOCTEXT("BossCinematics", "Boss cinematics"),
 						  LOCTEXT("BossCinematicsExplain", "Plays the short scene when a great foe appears or changes phase. They can always be skipped.")));
 		FSettingsRow Idle; // B-453e (D-190)
 		Idle.Id = ESettingId::AIFinishesTurn;
-		Idle.Label = LOCTEXT("AIFinishesTurn", "AI finishes my turn when I idle");
+		Idle.Label = LOCTEXT("AIFinishesTurn", "Auto-finish turn");
 		Idle.Value = OnOff(Save && Save->IsAIFinishesIdleTurnOn());
 		Idle.Explanation = FText::Format(LOCTEXT("AIFinishesTurnExplain", "If you don't act for {0} seconds, the AI plays the rest of your turn. Your next turn is yours again."),
 										 FText::AsNumber(FMath::RoundToInt32(ACombatOrchestrator::GetIdleTurnSeconds())));
@@ -130,7 +130,7 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Rows.Add(Text);
 		FSettingsRow Movement; // B-453b (D-190, D-078)
 		Movement.Id = ESettingId::FightCameraMovement;
-		Movement.Label = LOCTEXT("FightCameraMovement", "Camera movement in fights");
+		Movement.Label = LOCTEXT("FightCameraMovement", "Camera motion");
 		Movement.Value = OnOff(!Save || !Save->IsFightCameraMovementOff());
 		Movement.Explanation = LOCTEXT("FightCameraMovementExplain", "Off keeps the camera still during attacks, for anyone the movement makes unwell.");
 		Rows.Add(Movement);
@@ -142,13 +142,13 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Rows.Add(Shake);
 		FSettingsRow Hold; // B-453c (D-190)
 		Hold.Id = ESettingId::HoldToConfirm;
-		Hold.Label = LOCTEXT("HoldToConfirm", "Hold to confirm dangerous actions");
+		Hold.Label = LOCTEXT("HoldToConfirm", "Hold to confirm");
 		Hold.Value = OnOff(!Save || Save->IsHoldToConfirmOn());
 		Hold.Explanation = LOCTEXT("HoldToConfirmExplain", "Asks you to hold the button, not press it, before something that can't be undone. Off: a second press confirms.");
 		Rows.Add(Hold);
 		FSettingsRow Letters; // B-453f (D-190)
 		Letters.Id = ESettingId::ElementLetters;
-		Letters.Label = LOCTEXT("ElementLetters", "Element letters on colours");
+		Letters.Label = LOCTEXT("ElementLetters", "Element letters");
 		Letters.Value = OnOff(Save && Save->IsElementLettersOn());
 		Letters.Explanation = LOCTEXT("ElementLettersExplain", "Adds a letter to each element's colour, so elements can be told apart without colour: damage numbers read \"120 Fi\" and the status line names the element.");
 		Rows.Add(Letters);
@@ -166,7 +166,7 @@ FText WoRSettingsScreen::GetPageNote(ESettingsPage Page)
 	case ESettingsPage::Audio:
 		return LOCTEXT("NothingYet", "Nothing to set here yet."); // TODO: these pages get their rows with their systems (B-125)
 	case ESettingsPage::Controls:
-		return LOCTEXT("ControlsNote", "Keys are fixed for now. Rebinding comes later; every action already has its own name so it can.");
+		return LOCTEXT("ControlsNote", "Keys are fixed for now. Rebinding comes later.");
 	default:
 		return FText::GetEmpty();
 	}
@@ -192,7 +192,7 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Key(LOCTEXT("KeyItems", "Items"), LOCTEXT("KeyItemsKB", "4"), LOCTEXT("KeyItemsPad", "D-pad up")));
 	Rows.Add(Key(LOCTEXT("KeyFlee", "Flee"), LOCTEXT("KeyFleeKB", "5"), LOCTEXT("KeyFleePad", "D-pad down")));
 	Rows.Add(Key(LOCTEXT("KeySwitchWeapon", "Switch weapon"), LOCTEXT("KeySwitchWeaponKB", "6"), LOCTEXT("KeySwitchWeaponPad", "D-pad left")));
-	Rows.Add(Key(LOCTEXT("KeyChangeRing", "Change adapter"), LOCTEXT("KeyChangeRingKB", "7"), LOCTEXT("KeyChangeRingPad", "D-pad right")));
+	Rows.Add(Key(LOCTEXT("KeyChangeRing", "Switch adapter"), LOCTEXT("KeyChangeRingKB", "7"), LOCTEXT("KeyChangeRingPad", "D-pad right")));
 	Rows.Add(Key(LOCTEXT("KeyDefend", "Defend"), LOCTEXT("KeyDefendKB", "G"), LOCTEXT("KeyDefendPad", "Y")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionSource", "Infusion source"), LOCTEXT("KeyInfusionSourceKB", "R"), LOCTEXT("KeyInfusionSourcePad", "LB")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionLevel", "Infusion level"), LOCTEXT("KeyInfusionLevelKB", "T"), LOCTEXT("KeyInfusionLevelPad", "RB")));
@@ -204,7 +204,7 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Key(LOCTEXT("KeyMenuBack", "Back"), LOCTEXT("KeyMenuBackKB", "Backspace, Esc"), LOCTEXT("KeyMenuBackPad", "B, Menu")));
 	Rows.Add(Key(LOCTEXT("KeyMenuPage", "Previous / next page"), LOCTEXT("KeyMenuPageKB", "Q / E"), LOCTEXT("KeyMenuPagePad", "LB / RB")));
 	Rows.Add(Key(LOCTEXT("KeyMenuCharacter", "Previous / next character"), LOCTEXT("KeyMenuCharacterKB", "Z / C"), LOCTEXT("KeyMenuCharacterPad", "LT / RT")));
-	Rows.Add(Key(LOCTEXT("KeyMenuChange", "Change a setting"), LOCTEXT("KeyMenuChangeKB", "Left / Right, A / D"), LOCTEXT("KeyMenuChangePad", "D-pad left / right")));
+	Rows.Add(Key(LOCTEXT("KeyMenuChange", "Change"), LOCTEXT("KeyMenuChangeKB", "Left / Right, A / D"), LOCTEXT("KeyMenuChangePad", "D-pad left / right")));
 	return Rows;
 }
 

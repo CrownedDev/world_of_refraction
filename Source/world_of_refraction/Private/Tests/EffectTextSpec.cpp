@@ -102,8 +102,8 @@ void FEffectTextSpec::Define()
 				 Pay(ESkillEffectType::DefenseBuff, ETargetType::Self, 0, 0.1f),
 				 Pay(ESkillEffectType::EnergyRestore, ETargetType::Self, 1)})};
 			const TArray<FEffectTextLine> Lines = EffectText::BuildTree(Effects, EEffectTextSource::Gear);
-			ExpectLines(Lines, {TEXT("On Damage Received"), TEXT("While your HP is below 30%"),
-								TEXT("Heal 2"), TEXT("Gain +10% Defense"), TEXT("Gain 1 Energy")});
+			ExpectLines(Lines, {TEXT("When Hit"), TEXT("While your HP is below 30%"),
+								TEXT("Heal 2"), TEXT("Gain +10% Defence"), TEXT("Gain 1 EP")});
 			if (Lines.Num() == 5)
 			{
 				TestEqual(TEXT("Heading depth"), Lines[0].Depth, 0);
@@ -123,8 +123,8 @@ void FEffectTextSpec::Define()
 				Eff({Cond(ESkillTrigger::OnTakeDamage), Cond(ESkillTrigger::OnHPBelowThreshold, ECondCombine::And, ECondSubject::TargetTeam)},
 					{Pay(ESkillEffectType::EnergyRestore, ETargetType::Self, 1)})};
 			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
-						{TEXT("On Damage Received"), TEXT("While your HP is below 30%"), TEXT("Heal 2"),
-						 TEXT("While an Enemy's HP is below 30%"), TEXT("Gain 1 Energy")});
+						{TEXT("When Hit"), TEXT("While your HP is below 30%"), TEXT("Heal 2"),
+						 TEXT("While an Enemy's HP is below 30%"), TEXT("Gain 1 EP")});
 		});
 
 		It("gives a different trigger its own heading", [this]()
@@ -133,7 +133,7 @@ void FEffectTextSpec::Define()
 				Eff({Cond(ESkillTrigger::OnHit)}, {Pay(ESkillEffectType::Heal, ETargetType::Self, 2)}),
 				Eff({Cond(ESkillTrigger::OnTurnEnd)}, {Pay(ESkillEffectType::EnergyRestore, ETargetType::Self, 1)})};
 			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
-						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("At the end of your turn"), TEXT("Gain 1 Energy")});
+						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("At the end of your turn"), TEXT("Gain 1 EP")});
 		});
 
 		It("merges headings with the same words even when the rows are apart", [this]()
@@ -143,14 +143,14 @@ void FEffectTextSpec::Define()
 				Eff({Cond(ESkillTrigger::OnTurnEnd)}, {Pay(ESkillEffectType::EnergyRestore, ETargetType::Self, 1)}),
 				Eff({Cond(ESkillTrigger::OnHit)}, {Pay(ESkillEffectType::EnergyRestore, ETargetType::Self, 3)})};
 			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
-						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("Gain 3 Energy"), TEXT("At the end of your turn"), TEXT("Gain 1 Energy")});
+						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("Gain 3 EP"), TEXT("At the end of your turn"), TEXT("Gain 1 EP")});
 		});
 
 		It("puts untriggered gear under Passive and an untriggered skill effect under Activate", [this]()
 		{
 			const TArray<FSkillEffect> Effects = {Eff({}, {Pay(ESkillEffectType::DefenseBuff, ETargetType::Self, 0, 0.2f, 3)})};
-			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear), {TEXT("Passive"), TEXT("Gain +20% Defense for 3 turns")});
-			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Skill), {TEXT("Activate"), TEXT("Gain +20% Defense for 3 turns")});
+			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear), {TEXT("Passive"), TEXT("Gain +20% Defence for 3 turns")});
+			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Skill), {TEXT("Activate"), TEXT("Gain +20% Defence for 3 turns")});
 		});
 
 		It("names another side's event as a sentence and joins either-or triggers", [this]()
@@ -158,7 +158,7 @@ void FEffectTextSpec::Define()
 			TestEqual(TEXT("Team member"),
 					  EffectText::DescribeHeading(Eff({Cond(ESkillTrigger::OnTakeDamage, ECondCombine::And, ECondSubject::SelfTeam)}, {}),
 												  EEffectTextSource::Gear).ToString(),
-					  TEXT("When a Team Member takes damage"));
+					  TEXT("When an Ally takes damage"));
 			TestEqual(TEXT("Either trigger"),
 					  EffectText::DescribeHeading(Eff({Cond(ESkillTrigger::OnHit, ECondCombine::Or), Cond(ESkillTrigger::OnCrit, ECondCombine::Or)}, {}),
 												  EEffectTextSource::Gear).ToString(),
@@ -193,9 +193,9 @@ void FEffectTextSpec::Define()
 				Eff({}, {Pay(ESkillEffectType::DefenseBuff, ETargetType::Self, 0, 0.2f)}),
 				Eff({Cond(ESkillTrigger::OnHit)}, {Pay(ESkillEffectType::Heal, ETargetType::Self, 2)})};
 			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Gear),
-						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("Passive"), TEXT("Gain +20% Defense")});
+						{TEXT("On Hit"), TEXT("Heal 2"), TEXT("Passive"), TEXT("Gain +20% Defence")});
 			ExpectLines(EffectText::BuildTree(Effects, EEffectTextSource::Skill),
-						{TEXT("Activate"), TEXT("Gain +20% Defense"), TEXT("On Hit"), TEXT("Heal 2")});
+						{TEXT("Activate"), TEXT("Gain +20% Defence"), TEXT("On Hit"), TEXT("Heal 2")});
 			FSkillEffect CostCut = Eff({}, {Pay(ESkillEffectType::ModifyEnergyCost, ETargetType::Self, 0, 0.2f)});
 			const TArray<FEffectTextLine> CostLines = EffectText::BuildTree({CostCut}, EEffectTextSource::Gear);
 			if (TestEqual(TEXT("Cost lines"), CostLines.Num(), 2))
@@ -211,7 +211,7 @@ void FEffectTextSpec::Define()
 				 Cond(ESkillTrigger::OnEnergyBelowThreshold, ECondCombine::Or, ECondSubject::Self, LOW_ENERGY_THRESHOLD)},
 				{Pay(ESkillEffectType::Heal, ETargetType::Self, 2)})};
 			const TArray<FEffectTextLine> Lines = EffectText::BuildTree(Effects, EEffectTextSource::Gear);
-			ExpectLines(Lines, {TEXT("On Hit"), TEXT("While your HP is below 30% or your Energy is below 20%"), TEXT("Heal 2")});
+			ExpectLines(Lines, {TEXT("On Hit"), TEXT("While your HP is below 30% or your EP is below 20%"), TEXT("Heal 2")});
 			if (Lines.Num() == 3)
 			{
 				TestTrue(TEXT("Any of"), Lines[1].bAnyOf);
@@ -226,11 +226,11 @@ void FEffectTextSpec::Define()
 			Effect.MaxStacks = 3;
 			Effect.bFiresOncePerMatch = true;
 			ExpectLines(EffectText::BuildTree({Effect}, EEffectTextSource::Gear),
-						{TEXT("On Hit"), TEXT("Gain +10% Defense, stacks up to 3 times, once per fight")});
+						{TEXT("On Hit"), TEXT("Gain +10% Defence, stacks up to 3 times, once per fight")});
 			Effect.MaxStacks = 1;
 			Effect.bFiresOncePerMatch = false;
 			ExpectLines(EffectText::BuildTree({Effect}, EEffectTextSource::Gear),
-						{TEXT("On Hit"), TEXT("Gain +10% Defense, stacks up to 1 time")});
+						{TEXT("On Hit"), TEXT("Gain +10% Defence, stacks up to 1 time")});
 		});
 
 		It("gives the same text for the same data", [this]()
@@ -257,7 +257,7 @@ void FEffectTextSpec::Define()
 			const TArray<FText> Short = EffectText::BuildShortForm(Effects, EEffectTextSource::Gear);
 			if (TestEqual(TEXT("Lines"), Short.Num(), 2))
 			{
-				TestEqual(TEXT("Conditional"), Short[0].ToString(), FString(TEXT("On Hit*: Heal 3, gain 1 Energy")));
+				TestEqual(TEXT("Conditional"), Short[0].ToString(), FString(TEXT("On Hit*: Heal 3, gain 1 EP")));
 				TestEqual(TEXT("Plain"), Short[1].ToString(), FString(TEXT("At the start of your turn: Heal 2")));
 			}
 		});
@@ -276,11 +276,11 @@ void FEffectTextSpec::Define()
 			TestEqual(TEXT("Regen"), Body(Pay(ESkillEffectType::HealthRestore, ETargetType::Self, 2, 0.0f, 3)),
 					  FString(TEXT("heal 2 each turn for 3 turns")));
 			TestEqual(TEXT("Give a debuff"), Body(Pay(ESkillEffectType::DefenseDebuff, ETargetType::Enemy, 0, 0.2f)),
-					  FString(TEXT("give an Enemy -20% Defense")));
-			TestEqual(TEXT("Lose"), Body(Pay(ESkillEffectType::DefenseDebuff, ETargetType::Self, 0, 0.2f)), FString(TEXT("lose 20% Defense")));
+					  FString(TEXT("give an Enemy -20% Defence")));
+			TestEqual(TEXT("Lose"), Body(Pay(ESkillEffectType::DefenseDebuff, ETargetType::Self, 0, 0.2f)), FString(TEXT("lose 20% Defence")));
 			TestEqual(TEXT("Element-keyed stat"), Body(Pay(ESkillEffectType::StatusMultiplierBuff, ETargetType::Self, 0, 0.25f, 0, ESpellElement::Lightning)),
 					  FString(TEXT("gain +25% Lightning Status Multiplier")));
-			TestEqual(TEXT("Drain"), Body(Pay(ESkillEffectType::DrainEnergy, ETargetType::Enemy, 2)), FString(TEXT("drain 2 Energy from an Enemy")));
+			TestEqual(TEXT("Drain"), Body(Pay(ESkillEffectType::DrainEnergy, ETargetType::Enemy, 2)), FString(TEXT("drain 2 EP from an Enemy")));
 			TestEqual(TEXT("Delay, plural"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 1, ESpellElement::None, ETargetCount::All)),
 					  FString(TEXT("delay all Enemies' next turns")));
 			TestEqual(TEXT("Delay, singular"), Body(Pay(ESkillEffectType::SkipTurn, ETargetType::Enemy, 0, 0.0f, 2)),
@@ -289,7 +289,7 @@ void FEffectTextSpec::Define()
 					  FString(TEXT("all Allies take 20% less damage")));
 			TestEqual(TEXT("One extra turn"), Body(Pay(ESkillEffectType::ExtraAction, ETargetType::Self, 2)), FString(TEXT("take an extra turn")));
 			TestEqual(TEXT("Positive Energy cost is cheaper"), Body(Pay(ESkillEffectType::ModifyEnergyCost, ETargetType::Self, 0, 0.2f)),
-					  FString(TEXT("your Refractions and Abilities cost 20% less")));
+					  FString(TEXT("your skills cost 20% less")));
 			TestEqual(TEXT("Random stat"), Body(Pay(ESkillEffectType::RandomDebuff, ETargetType::Enemy, 0, 0.1f, 2)),
 					  FString(TEXT("give an Enemy -10% to a random stat for 2 turns")));
 			TestEqual(TEXT("Stun"), Body(Pay(ESkillEffectType::Stun, ETargetType::Enemy, 0, 0.0f, 1)), FString(TEXT("stun an Enemy for 1 turn")));
@@ -372,7 +372,7 @@ void FEffectTextSpec::Define()
 			EffectText::LightTree(Lines, Effects, [](const FSkillCondition &C) { return C.Trigger == ESkillTrigger::OnHPBelowThreshold; });
 
 			const FEffectTextLine *HP = FindLine(Lines, TEXT("While your HP is below 30%"));
-			const FEffectTextLine *Energy = FindLine(Lines, TEXT("While your Energy is below 20%"));
+			const FEffectTextLine *Energy = FindLine(Lines, TEXT("While your EP is below 20%"));
 			const FEffectTextLine *Either = FindLine(Lines, TEXT("While your HP is above 30% or your HP is below 30%"));
 			if (TestNotNull(TEXT("HP line"), HP) && TestNotNull(TEXT("Energy line"), Energy) && TestNotNull(TEXT("Either line"), Either))
 			{

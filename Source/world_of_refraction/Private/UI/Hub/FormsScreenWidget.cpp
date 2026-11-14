@@ -110,7 +110,7 @@ void UFormsScreenWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Wear this form        {Second}  Base body        {Back}  Back"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Wear        {Second}  Base body        {Back}  Back"));
 	AddToColumn(Main, Hints, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
 }
 
