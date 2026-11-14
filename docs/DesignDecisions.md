@@ -931,7 +931,7 @@ The queue of questions only Crown can answer.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
 ### Q-440f — Changing apparel on the loadout screen: what the picker lists, what X does
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440f, D-164) · **Blocks:** —
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-440f, D-164) · **Blocks:** —
 **Question:** the job says A / X on an apparel row picks an owned piece or takes one off, but not which pieces are listed, whether X asks first, or what a lore loadout does.
 **Answer**, by the reference-backed default (Crown may change any):
 - **The picker lists the character's own pieces** (the store's owner is that character), less those already worn in this loadout; a piece with a stone in its socket is listed but refused. Gear is a view over the store by owner (CL-09), as the weapon picker already works.
