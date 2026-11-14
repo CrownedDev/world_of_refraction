@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-471](B-471.md) | `feature/B-471-npc-talk-recruit-cloud` (cloud, UNBUILT) | The recruit card's rules: with a full party only an NPC steps out (never you or a friend), a party of players refuses; placeholder `wor.Party.RecruitInPlaceOf <slot>` until the card (B-471b) | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |
 | [B-170h](B-170h.md) | `refactor/B-170h-flip-default` (in dev, built 2026-11-14) | Action pips on by default: every fight alternates sides with banked actions and End Turn, no console command; `wor.Turns.ActionPips 0` still gives the old timeline until B-170h2 | Pending |
 | [B-317](B-317.md) | `chore/B-317-store-old-copies` (in dev, built 2026-11-14) | Store 6, first part: a member's crystal inventory keeps no copy of its pouch; the post-fight hand-back is gone; list the enemies with authored item slots (for B-317c) | Pending |
