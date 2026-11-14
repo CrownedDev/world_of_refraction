@@ -1,7 +1,7 @@
 // LoadoutV2CompareSpec.cpp
 // B-476e (UIScreens.md #2-3): an apparel row says its HP, Defence and Amp lines (the v2 Apparel box and Compare read
 // them); the Amp lines in words, only the ones it has. A worn piece's crystal socket takes a carried gem (not a stone)
-// through today's socket picker; taking one off apparel is refused for now.
+// through today's socket picker; taking it off says it goes back to storage (CL-50b).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -62,7 +62,7 @@ void FLoadoutV2CompareSpec::Define()
 		TestFalse(TEXT("no lines it hasn't"), HasDetail(WoRLoadoutScreen::BuildApparelRow(Plain), TEXT("HP"), TEXT("")));
 	});
 
-	It("lists carried gems, not stones, for a worn piece's crystal socket; taking one off is refused for now", [this]()
+	It("lists carried gems, not stones, for a worn piece's crystal socket; taking one off sends it to storage", [this]()
 	{
 		FApparelEntry Entry;
 		Entry.Apparel = NewObject<UApparelData>(GetTransientPackage());
@@ -82,8 +82,9 @@ void FLoadoutV2CompareSpec::Define()
 		Socketed.AttachedItem.Kind = EAttachedItemKind::Crystal;
 		Socketed.AttachedItem.Crystal = FCrystalAttachment(Gem, 1);
 		FText Refusal;
-		WoRLoadoutScreen::GetTakeOffSocketWarning(WoRLoadoutScreen::BuildApparelRow(Socketed), LoadoutScreenSockets::CRYSTAL, Refusal);
-		TestFalse(TEXT("taking it off says it comes later"), Refusal.IsEmpty());
+		const FText Warning = WoRLoadoutScreen::GetTakeOffSocketWarning(WoRLoadoutScreen::BuildApparelRow(Socketed), LoadoutScreenSockets::CRYSTAL, Refusal);
+		TestTrue(TEXT("taking it off: allowed"), Refusal.IsEmpty());
+		TestTrue(TEXT("and it says the crystal goes back to storage (CL-50b)"), Warning.ToString().Contains(TEXT("storage")));
 	});
 }
 
