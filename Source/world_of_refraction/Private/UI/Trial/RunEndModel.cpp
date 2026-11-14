@@ -43,7 +43,7 @@ FWipeCard WoRRunEnd::BuildWipeCard(const WoRDefeat::FWipeResult &Wipe, bool bHas
 	return Card;
 }
 
-FText WoRRunEnd::FormatPayoutLine(const FRunPayout &Payout)
+FText WoRRunEnd::FormatPayoutLine(const FRunPayout &Payout, int32 MemoriesFound)
 {
 	TArray<FText> Parts;
 	const auto Add = [&Parts](int32 Amount, ECurrencyType Currency)
@@ -56,11 +56,15 @@ FText WoRRunEnd::FormatPayoutLine(const FRunPayout &Payout)
 	Add(Payout.HubGold, ECurrencyType::Prisms); // the hub's Gold (D-159)
 	Add(Payout.GearEssence, ECurrencyType::GearEssence);
 	Add(Payout.SkillEssence, ECurrencyType::SkillEssence);
-	// TODO: B-465c: the memories, quests and upgrades the run gave (D-187's list) once the run records them.
+	if (MemoriesFound > 0)
+	{
+		Parts.Add(FText::Format(LOCTEXT("PayoutMemories", "+{0} {0}|plural(one=memory,other=memories)"), MemoriesFound)); // B-465c (D-187)
+	}
+	// TODO: B-465c: the quests and upgrades the run gave (D-187's list) once the run records them (upgrades: B-451).
 	return Parts.IsEmpty() ? LOCTEXT("PayoutNothing", "The run gave nothing.") : FText::Join(LOCTEXT("PayoutSeparator", " \u00B7 "), Parts);
 }
 
-FRunEndPage WoRRunEnd::BuildRunEnd(ERunEnding Ending, const FRunPayout &Payout)
+FRunEndPage WoRRunEnd::BuildRunEnd(ERunEnding Ending, const FRunPayout &Payout, int32 MemoriesFound)
 {
 	FRunEndPage Page;
 	Page.Ending = Ending;
@@ -83,7 +87,8 @@ FRunEndPage WoRRunEnd::BuildRunEnd(ERunEnding Ending, const FRunPayout &Payout)
 		Page.ShareLine = LOCTEXT("ShareNone", "Quit: nothing is paid");
 		break;
 	}
-	Page.PayoutLine = Ending == ERunEnding::Quit ? LOCTEXT("PayoutNothing", "The run gave nothing.") : FormatPayoutLine(Payout);
+	// A quit pays nothing (D-176); its memories stay in the journal all the same.
+	Page.PayoutLine = FormatPayoutLine(Ending == ERunEnding::Quit ? FRunPayout() : Payout, MemoriesFound);
 	Page.ButtonText = LOCTEXT("Return", "Return");
 	return Page;
 }

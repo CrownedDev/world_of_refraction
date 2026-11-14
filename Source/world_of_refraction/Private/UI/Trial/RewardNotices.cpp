@@ -149,6 +149,13 @@ TArray<FRewardNotice> URewardNoticeSubsystem::TakeWaiting()
 	return Taken;
 }
 
+TOptional<FRunEndPage> URewardNoticeSubsystem::TakeRunEnd()
+{
+	TOptional<FRunEndPage> Page = MoveTemp(PendingRunEnd);
+	PendingRunEnd.Reset();
+	return Page;
+}
+
 FString URewardNoticeSubsystem::GetWaitingString() const
 {
 	TArray<FString> Lines;
@@ -156,8 +163,8 @@ FString URewardNoticeSubsystem::GetWaitingString() const
 	{
 		Lines.Add(WoRRewardNotice::GetNoticeString(Notice));
 	}
-	return FString::Printf(TEXT("[RewardNotice] %d waiting%s%s"), Waiting.Num(), Lines.IsEmpty() ? TEXT("") : TEXT(": "),
-						   *FString::Join(Lines, TEXT(" / ")));
+	return FString::Printf(TEXT("[RewardNotice] %d waiting%s%s; run-end page: %s"), Waiting.Num(), Lines.IsEmpty() ? TEXT("") : TEXT(": "),
+						   *FString::Join(Lines, TEXT(" / ")), PendingRunEnd.IsSet() ? *WoRRunEnd::GetRunEndString(*PendingRunEnd) : TEXT("none"));
 }
 
 #if !UE_BUILD_SHIPPING

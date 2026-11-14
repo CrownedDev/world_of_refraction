@@ -15,6 +15,7 @@
 #include "CoreMinimal.h"
 #include "Memory/MemoryJournalSubsystem.h" // EMemorySource, for the UFUNCTION handler (UHT)
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "UI/Trial/RunEndModel.h"
 #include "RewardNotices.generated.h"
 
 class UMemoryData;
@@ -99,7 +100,16 @@ public:
 
 	FString GetWaitingString() const;
 
+	/** B-465c (D-187, D-189): the run-end page the run's end left for the hub (UTrialRunSubsystem::ExitTrial sets it;
+	 *  AWoRHubController shows it once the hub is up). A later end replaces it. */
+	void SetRunEnd(const FRunEndPage &Page) { PendingRunEnd = Page; }
+	/** The page once, then none. */
+	TOptional<FRunEndPage> TakeRunEnd();
+	bool HasRunEnd() const { return PendingRunEnd.IsSet(); }
+
 private:
+	TOptional<FRunEndPage> PendingRunEnd;
+
 	UFUNCTION()
 	void HandleMemoryRecorded(UMemoryData *Memory, EMemorySource Source);
 

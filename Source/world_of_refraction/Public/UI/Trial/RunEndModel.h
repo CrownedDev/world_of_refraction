@@ -68,11 +68,13 @@ namespace WoRRunEnd
 	 *  began). */
 	WORLD_OF_REFRACTION_API FWipeCard BuildWipeCard(const WoRDefeat::FWipeResult &Wipe, bool bHasRestStand);
 
-	/** The run-end page for Ending; Payout is what the end pays (UTrialRunSubsystem::GetRunEndPayout before it pays). */
-	WORLD_OF_REFRACTION_API FRunEndPage BuildRunEnd(ERunEnding Ending, const FRunPayout &Payout);
+	/** The run-end page for Ending; Payout is what the end pays (UTrialRunSubsystem::GetRunEndPayout before it pays).
+	 *  B-465c: MemoriesFound, the memories the run recorded (they stay in the journal whatever the ending). */
+	WORLD_OF_REFRACTION_API FRunEndPage BuildRunEnd(ERunEnding Ending, const FRunPayout &Payout, int32 MemoriesFound = 0);
 
-	/** The payout as one line: each currency it gives, "+n Name", joined; "Nothing" when it gives none. */
-	WORLD_OF_REFRACTION_API FText FormatPayoutLine(const FRunPayout &Payout);
+	/** The payout as one line: each currency it gives, "+n Name", then the memories found, joined; "The run gave
+	 *  nothing." when there is none of either. */
+	WORLD_OF_REFRACTION_API FText FormatPayoutLine(const FRunPayout &Payout, int32 MemoriesFound = 0);
 
 	WORLD_OF_REFRACTION_API FString GetWipeCardString(const FWipeCard &Card);
 	WORLD_OF_REFRACTION_API FString GetRunEndString(const FRunEndPage &Page);
