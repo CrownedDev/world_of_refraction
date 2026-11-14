@@ -361,6 +361,19 @@ void FLoadoutV2ModelSpec::Define()
 		}
 		TestTrue(TEXT("an empty socket: no name on the row"), Page.Entries[1].SocketName.IsEmpty());
 		TestTrue(TEXT("and an empty icon"), Page.Entries[1].Sockets[0] == ELoadoutV2SocketIcon::Empty);
+
+		// An evolution whose item is gone: the row still names it, as the box does.
+		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem = FRuntimeAttachedItem();
+		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution;
+		const FLoadoutV2WeaponsPage Lost = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic);
+		if (TestTrue(TEXT("still an entry"), Lost.Entries.Num() > 0))
+		{
+			const FString LostName = Lost.Entries[0].SocketName.ToString();
+			TestFalse(TEXT("an evolution with no item still has a name on the row"), LostName.IsEmpty());
+			const TArray<FLoadoutV2DetailLine> LostBox = WoRLoadoutV2::BuildEntryDetails(Loadout, Lost.Entries[0], false);
+			const FLoadoutV2DetailLine *LostLine = LostBox.FindByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Kind == ELoadoutV2DetailKind::Socket; });
+			TestTrue(TEXT("and the box says the same"), LostLine && LostLine->Value.ToString().StartsWith(LostName));
+		}
 	});
 }
 

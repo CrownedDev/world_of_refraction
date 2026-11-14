@@ -152,8 +152,7 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToRow(Header, ChipRows, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		LoadoutNameText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToRow(Header, LoadoutNameText, FMargin(0.0f), VAlign_Top);
-		// B-482b: the header is as wide as the list and the box under it, so the loadout's title ends where the box
-		// does and can't run past the screen's margin (it was cut off at the edge when the header filled the screen).
+		// B-482b: as wide as the list and the box, so the loadout's title ends where the box does (it was cut off).
 		AddToColumn(Main, MakeSized(WidgetTree, ListWidth + ColumnGap + BoxWidth, 0.0f, Header))->SetHorizontalAlignment(HAlign_Left);
 		CellsText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToColumn(Main, CellsText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));

@@ -134,7 +134,8 @@ namespace LoadoutV2Build
 	{
 		if (Item.IsEvolution())
 		{
-			return Item.Evolution.Item ? FText::FromString(Item.Evolution.Item->ItemName) : FText::GetEmpty();
+			// An evolution whose item is gone still reads as one, on the row and in the box alike (B-482b).
+			return Item.Evolution.Item ? FText::FromString(Item.Evolution.Item->ItemName) : LOCTEXT("AttachmentEvolutionNoItem", "Evolution");
 		}
 		return Item.IsEmpty() ? FText::GetEmpty() : WoRGameNames::GetCrystalTypeName(StatStone::AsRowId(Item.Crystal.Id).Type);
 	}
