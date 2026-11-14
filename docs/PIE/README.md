@@ -23,6 +23,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-483](B-483.md) | `feature/B-483-key-caps-section-frames` (in dev, built 2026-11-14) | Footers draw keys as caps (coloured circles on a gamepad), each hint clickable, in every menu; loadout v2 section frames | Pending |
 | [B-482b](B-482b.md) | `fix/B-482b-loadout-v2-entry-rows` (in dev, built 2026-11-14) | Loadout v2: rows read "Name (Crystal)", ACTIVE at the right end, no "later", the loadout title inside the margin | Pending |
 | [B-482](B-482.md) | `feature/B-482-loadout-v2-chips-mouse` (in dev, built 2026-11-14) | Loadout v2: character and tab chips, the box hidden on the Add frames, the mouse (click chips and lines, hover) | Pending |
+| [B-476d](B-476d.md) | `feature/B-476d-skills-tab-v3-cloud` (cloud, UNBUILT; from dev after B-482) | The v2 loadout screen's Skills tab between Weapons and Apparel: entries, slots with filled/total, the picker, what a skill does | Pending |
 | [B-481](B-481.md) | `feature/B-481-device-key-hints` (in dev, built 2026-11-14) | Menu footers name the keys of the device in use, live; keyboard Back is Backspace | Pending |
 | [B-440f](B-440f.md) | `feature/B-440f-loadout-apparel-v2` (in dev, built 2026-11-14) | Loadout v2: the Apparel tab (LB / RB): worn pieces, Add apparel, A Pick / Remove | Pending |
 | [B-440e](B-440e.md) | `feature/B-440e-saved-loadouts-v2` (in dev, built 2026-11-14) | Loadout v2: Options > Saved loadouts: use, new, duplicate, rename; the loadout's name top right | Pending |
