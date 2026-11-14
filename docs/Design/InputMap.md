@@ -58,6 +58,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
 | Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
 | Loadout: change the lit gear row (opens the picker); in the picker, put the lit piece in | Enter, Space, left click | A (Cross) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsConfirmKey`; B / Esc closes the picker |
+| Wipe card "Get up" / run-end page "Return" (after a short grace) | Enter, Space, click | A (Cross) | none (the card's keys) | Built (B-465, cloud UNBUILT): `WoRMenuStyle::IsConfirmKey`, any mouse button; nothing continues on its own |
 | Loadout: unequip the lit gear row | X | X (Square) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsToggleKey` |
 | Loadout: move across the lit row to its sockets (row, crystal socket, stone socket); X on a socket asks, X again takes it off | Left / Right, A / D | D-pad left / right, left stick | none (the screen's keys) | Built (B-440c, loadout screen): `WoRMenuStyle::IsLeftKey` / `IsRightKey` |
 | Loadout: the Gear / Skills page | Q / E | LB / RB (L1 / R1) | none (the screen's keys) | Built (B-440d, loadout screen): `WoRMenuStyle::IsTabPrevKey` / `IsTabNextKey`; two pages, either key turns |
@@ -150,3 +151,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-469: the new game screen: Up / Down the parts and the class, Left / Right the body and the element grid, A next part or Begin, B back to the title; read by the screen itself | feature/B-469-new-game-screen |
 | 2026-11-14 | Loadout v2 mockup: D-pad Left / Right between the list and the details box on the Weapons and Apparel tabs (B-479c) | docs/B-479c-weapons-layout |
 | 2026-11-14 | Loadout v2 mockup: X Details and the list / box moves removed (details always shown); X switches full / simple view (B-479c) | docs/B-479c-weapons-layout |
+| 2026-11-14 | Wipe card Get up and run-end page Return: A / Enter / Space / click (B-465) | feature/B-465-run-end-screens-cloud |
