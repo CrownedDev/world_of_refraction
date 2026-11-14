@@ -100,20 +100,19 @@ void FIconTableSpec::Define()
 				 GarnetEffect.Kind == EWoRIconKind::Effect && GarnetEffect.EffectType == ESkillEffectType::DOT && !GarnetEffect.Name.IsEmpty());
 	});
 
-	It("gives the active table's icons, and none with no table", [this]()
+	It("gives the active table's icons, and none from a table with nothing set", [this]()
 	{
 		WoRIcons::SetActiveForTests(Table);
 		TestTrue(TEXT("the active table"), UWoRIconTable::GetActive() == Table);
 		TestTrue(TEXT("its Fire badge"), WoRIcons::GetElementBadge(ESpellElement::Fire) == Texture);
 		TestNull(TEXT("an unset icon"), WoRIcons::GetTierBadge(EItemTier::S_Tier));
-		WoRIcons::SetActiveForTests(nullptr);
-		if (!UWoRIconTable::GetActive()) // before the editor step (B-486) there is no asset
-		{
-			TestNull(TEXT("no table: no badge"), WoRIcons::GetElementBadge(ESpellElement::Fire));
-			TestNull(TEXT("no table: no weapon icon"), WoRIcons::GetWeaponType(EWeaponType::Sword));
-			TestNull(TEXT("no table: no effect icon"), WoRIcons::GetEffectKind(ESkillEffectType::DOT));
-			TestNull(TEXT("no table: no socket"), WoRIcons::GetEmptySocket());
-		}
+		// A table with nothing set stands in for "no icons": the spec never loads the game's own table asset, which
+		// may be missing, or an LFS pointer in a worktree.
+		WoRIcons::SetActiveForTests(NewObject<UWoRIconTable>(GetTransientPackage()));
+		TestNull(TEXT("nothing set: no badge"), WoRIcons::GetElementBadge(ESpellElement::Fire));
+		TestNull(TEXT("nothing set: no weapon icon"), WoRIcons::GetWeaponType(EWeaponType::Sword));
+		TestNull(TEXT("nothing set: no effect icon"), WoRIcons::GetEffectKind(ESkillEffectType::DOT));
+		TestNull(TEXT("nothing set: no socket"), WoRIcons::GetEmptySocket());
 	});
 }
 

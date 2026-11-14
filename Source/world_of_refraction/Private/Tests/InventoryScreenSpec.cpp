@@ -465,10 +465,10 @@ void FInventoryScreenSpec::Define()
 		TestTrue(TEXT("a real element"), Tile.Element != ESpellElement::None);
 		TestTrue(TEXT("its tier as a badge"), Tile.bTierBadge && Tile.TierValue == EItemTier::C_Tier);
 		TestTrue(TEXT("its effect sentence gets the burn's icon"), !Tile.Note.IsEmpty() && Tile.EffectIcon.Kind == EWoRIconKind::Effect && Tile.EffectIcon.EffectType == ESkillEffectType::DOT);
-		if (!UWoRIconTable::GetActive()) // before the icons are imported (B-486)
-		{
-			TestNull(TEXT("with no icon table the tile keeps its letter"), WoRIcons::Find(Tile.Icon));
-		}
+		// A table with nothing set (the spec never loads the game's own table asset): the tile keeps its letter.
+		WoRIcons::SetActiveForTests(NewObject<UWoRIconTable>(GetTransientPackage()));
+		TestNull(TEXT("with no icon set the tile keeps its letter"), WoRIcons::Find(Tile.Icon));
+		WoRIcons::SetActiveForTests(nullptr);
 	});
 }
 
