@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-487b](B-487b.md) | `fix/B-487b-details-box-one-header` (in dev, built 2026-11-14) | Details box layout (loadout v2, inventory): a quiet type line with the icon, then the name and tier badge; socket rows as badge and name; no "Type" row or socket labels | Pending |
 | [B-487](B-487.md) | `feature/B-487-inventory-vendor-icons` (in dev, built 2026-11-14) | Inventory and vendor: reads as before with no icon table; after B-486 element diamonds, tier badges, weapon and effect icons | Pending |
 | [B-485](B-485.md) | `feature/B-485-loadout-icons` (in dev, built 2026-11-14) | Loadout v2 icons: reads as before with no icon table; after B-486 weapon icons, socket and tier badges, effect icons | Pending |
 | [B-484](B-484.md) | `feature/B-484-add-gear-box-follows-row` (in dev, built 2026-11-14) | Loadout v2, Add gear window: the box shows the highlighted or hovered piece alone; EQUIPPED has its own space | Pending |

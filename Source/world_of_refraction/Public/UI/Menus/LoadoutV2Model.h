@@ -196,6 +196,9 @@ struct FLoadoutV2DetailLine
 	FLoadoutV2Icon Icon;
 	bool bHasTier = false;
 	EItemTier Tier = EItemTier::F_Tier;
+	/** B-487b: a Piece line's type in a word ("Sword", "Ring", "Crystal"): the quiet line above its name, in place of
+	 *  a "Type" row. A filled Socket line also carries its tier (bHasTier), for "Garnet (F)" beside its badge. */
+	FText TypeName;
 };
 
 namespace WoRLoadoutV2

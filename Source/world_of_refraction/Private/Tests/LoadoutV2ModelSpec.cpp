@@ -415,6 +415,12 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("the box's piece line: the weapon-type icon and a tier for its badge"),
 				 PieceLine && PieceLine->Icon.Kind == ELoadoutV2IconKind::WeaponType && PieceLine->bHasTier);
 		TestTrue(TEXT("the box's socket line: the gem's badge"), SocketLine && SocketLine->Icon.Kind == ELoadoutV2IconKind::Element);
+		// B-487b: the piece comes first (it is the box's header) and says its type itself; no "Type" row.
+		TestTrue(TEXT("the piece line is first and carries its type"), Box.Num() > 0 && Box[0].Kind == ELoadoutV2DetailKind::Piece && !Box[0].TypeName.IsEmpty() && Box[0].TypeName.EqualTo(Box[0].Icon.Name));
+		TestFalse(TEXT("no Type row"), Box.ContainsByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Label.ToString() == TEXT("Type"); }));
+		TestTrue(TEXT("a filled socket line carries its tier"), SocketLine && SocketLine->bHasTier && SocketLine->Tier == EItemTier::F_Tier);
+		TestTrue(TEXT("an empty socket line has none"), Box.ContainsByPredicate([](const FLoadoutV2DetailLine &Line)
+																		   { return Line.Kind == ELoadoutV2DetailKind::Socket && Line.Icon.Kind == ELoadoutV2IconKind::EmptySocket && !Line.bHasTier; }));
 		const TArray<FLoadoutV2DetailLine> GemBox = WoRLoadoutV2::BuildAttachmentDetails(WithGem.Socket1, false);
 		TestTrue(TEXT("a crystal's own box: its badge and its tier"),
 				 GemBox.Num() > 0 && GemBox[0].Icon.Kind == ELoadoutV2IconKind::Element && GemBox[0].bHasTier && GemBox[0].Tier == EItemTier::F_Tier);

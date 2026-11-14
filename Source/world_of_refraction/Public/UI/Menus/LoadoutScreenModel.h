@@ -14,6 +14,7 @@
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "UI/WoRIcon.h"
 
 class UInventoryComponent;
 class ULoadoutComponent;
@@ -78,6 +79,9 @@ struct FLoadoutScreenDetail
 {
 	FText Label;
 	FText Value;
+	/** B-487b: an icon that says what the line is (a socketed crystal's badge); where the icon table has it, it is
+	 *  drawn in the label's place. */
+	FWoRIcon Icon;
 };
 
 struct FLoadoutScreenRow
