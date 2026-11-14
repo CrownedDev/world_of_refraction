@@ -553,6 +553,10 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		const bool bCanSetActive = Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive && Page.Entries.ContainsByPredicate(
 																														[](const FLoadoutV2Entry &Each) { return Each.bActive; });
 		const FText View = bSimpleView ? LOCTEXT("ViewFull", "Full") : LOCTEXT("ViewSimple", "Simple");
+		if (Tab == ELoadoutV2Tab::Apparel)
+		{
+			return FText::Format(LOCTEXT("HintsApparelList", "A  Change / Remove        X  {0}        Y  Options        B / Esc  Back"), View);
+		}
 		return bCanSetActive ? FText::Format(LOCTEXT("HintsListActive", "A  Edit        X  {0}        L3 / 6  Set active        Y  Options        B / Esc  Back"), View)
 							 : FText::Format(LOCTEXT("HintsList", "A  Edit        X  {0}        Y  Options        B / Esc  Back"), View);
 	}
@@ -1017,11 +1021,11 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		}
 		return FReply::Handled();
 	}
-	if (IsTabPrevKey(Key) || IsTabNextKey(Key))
+	if ((IsTabPrevKey(Key) || IsTabNextKey(Key)) && Mode == ELoadoutV2Mode::List) // B-440f; elsewhere the keys pass through as before
 	{
 		if (!InKeyEvent.IsRepeat())
 		{
-			SwitchTab(); // B-440f
+			SwitchTab();
 		}
 		return FReply::Handled();
 	}
