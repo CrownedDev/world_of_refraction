@@ -699,7 +699,7 @@ FText UEconomyService::GetDismantleWarning(const AActor *Owner, FGuid Persistent
     }
     if (Inv->IsPrimaryInAnyLoadout(PersistentID))
     {
-        return LOCTEXT("DismantlePrimary", "This is a loadout's primary. Swap in another primary before dismantling it.");
+        return LOCTEXT("DismantlePrimary", "Every loadout needs a weapon or adapter. Put another in first.");
     }
 
     TArray<FText> LoadoutNumbers;
@@ -1218,13 +1218,15 @@ bool UEconomyService::PurchaseForImpl(AActor *Payer, FName ForKey, const TArray<
         const bool bSkill = Cast<USpellData>(Asset) || Cast<UAbilityData>(Asset);
         if (bSkill && !Pool->HasBankedSkills(ForKey))
         {
-            WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedSkillsNotBanked", "They can't learn skills for keeps yet."),
+            WOR_REFUSE_PURCHASE(FText::Format(NSLOCTEXT("EconomyService", "RefusedSkillsNotBanked", "{0} keeps skills from the next level."),
+                                              FText::FromString(Receiver->CharacterData ? Receiver->CharacterData->Name : ForKey.ToString())),
                                 TEXT("[EconomyService] PurchaseFor: %s can't learn %s for keeps (not drawn yet, Q-316b) - refused"), *ForKey.ToString(),
                                 *GetNameSafe(Asset));
         }
         if (Receiver->bRunOnly && (Cast<UWeaponData>(Asset) || Cast<URingData>(Asset)))
         {
-            WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedRunOnlyGear", "They are only here for the run and can't own gear."),
+            WOR_REFUSE_PURCHASE(FText::Format(NSLOCTEXT("EconomyService", "RefusedRunOnlyGear", "{0} is only here for the run and can't own gear."),
+                                              FText::FromString(Receiver->CharacterData ? Receiver->CharacterData->Name : ForKey.ToString())),
                                 TEXT("[EconomyService] PurchaseFor: %s is only here for the run and can't own gear (Q-321) - refused"), *ForKey.ToString());
         }
     }

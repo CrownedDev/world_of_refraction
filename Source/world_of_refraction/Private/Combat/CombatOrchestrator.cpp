@@ -1573,7 +1573,7 @@ FText ACombatOrchestrator::GetControlSwitchRefusedReason(AActor *Actor) const
 	}
 	if (Actor != CurrentActor || bWaitingForAsyncAction)
 	{
-		return NSLOCTEXT("CombatOrchestrator", "SwitchNotTurn", "Switch a member on its own turn.");
+		return NSLOCTEXT("CombatOrchestrator", "SwitchNotTurn", "Only on their turn.");
 	}
 	const APawn *Pawn = Cast<APawn>(Actor);
 	if (Pawn && Pawn->IsPlayerControlled())
@@ -1582,7 +1582,7 @@ FText ACombatOrchestrator::GetControlSwitchRefusedReason(AActor *Actor) const
 	}
 	if (SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill))
 	{
-		return NSLOCTEXT("CombatOrchestrator", "SwitchVoidBroken", "A Void break is playing this turn.");
+		return NSLOCTEXT("CombatOrchestrator", "SwitchVoidBroken", "Void Break in progress.");
 	}
 	return FText::GetEmpty();
 }
