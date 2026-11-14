@@ -89,8 +89,8 @@ FJoinRequestCard WoRJoinRequestCard::BuildCard(int32 PlayerId, const FString &Pl
 		Notes.Add(FText::Format(LOCTEXT("MoreWaiting", "{0} more waiting."), MoreWaiting));
 	}
 	Card.Note = FText::Join(FText::FromString(TEXT("  ")), Notes);
-	Card.Hints = bFocused ? LOCTEXT("HintsFocused", "A  Give this seat    X  Refuse    B  Close")
-						  : LOCTEXT("HintsIdle", "Hold View (Tab) to answer  ·  then  A  Give this seat    X  Refuse");
+	Card.Hints = bFocused ? LOCTEXT("HintsFocused", "{Confirm}  Give this seat    {Toggle}  Refuse    {Back}  Close")
+						  : LOCTEXT("HintsIdle", "Hold {ViewButton} to answer  ·  then  {Confirm}  Give this seat    {Toggle}  Refuse");
 	return Card;
 }
 

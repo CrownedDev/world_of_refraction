@@ -89,8 +89,8 @@ TSharedRef<SWidget> UHandOverConfirmWidget::RebuildWidget()
 		CardSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		CardSlot->SetHorizontalAlignment(HAlign_Center);
 		CardSlot->SetVerticalAlignment(VAlign_Center);
-		UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-		Hints->SetText(LOCTEXT("Hints", "A  Hand over        B / Esc  Stay host"));
+		UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+		WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Hand over        {Back}  Stay host"));
 		AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 	}
 	return Super::RebuildWidget();

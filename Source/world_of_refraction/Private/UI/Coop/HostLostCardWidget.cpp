@@ -78,8 +78,8 @@ TSharedRef<SWidget> UHostLostCardWidget::RebuildWidget()
 		CardSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		CardSlot->SetHorizontalAlignment(HAlign_Center);
 		CardSlot->SetVerticalAlignment(VAlign_Center);
-		HintText = MakeText(WidgetTree, LineFontSize, DimColor);
-		HintText->SetText(LOCTEXT("StopHint", "B / Esc  Stop waiting"));
+		HintText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+		WoRKeyHints::SetHint(HintText, LOCTEXT("StopHint", "{Back}  Stop waiting"));
 		AddToColumn(Screen, HintText)->SetHorizontalAlignment(HAlign_Right);
 	}
 	return Super::RebuildWidget();
