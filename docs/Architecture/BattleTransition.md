@@ -22,6 +22,8 @@ B-500 is the rough version: shards and motion. Still to come: the prism light (B
 3. **Arriving.** `PostLoadMapWithWorld`: the same shards are rebuilt on the battle map from the same seed, behind the picture, and wait `ArrivalSettleSeconds`.
 4. **Releasing.** The picture fades off the live shards and they blow past the camera. Then everything is dropped.
 
+**Pace (B-500a, Crown: "starts slow, then speeds up").** The opening is slow and the finish fast. Cracks spread over `CrackSeconds` (0.5). The break takes `BreakSeconds` (0.7) and is eased both ways by `BreakEase` (`FMath::InterpEaseInOut`: out of the wall slowly, slowing again into the drift). The blow-away takes `BlowAwaySeconds` (0.4) as `t ^ BlowAwayEase` (3): the first third barely moves, then it accelerates hard. An ease of 1 is an even pace. Crack plus break should stay under the encounter's join window (2 s), or the map change cuts the opening short.
+
 `Release` (the fight didn't start, or a preview) goes from Playing straight to Releasing in the same world.
 
 **Units.** The shard actor sits on the camera and is scaled so one unit is one screen width at the wall. Motion values are in screen widths, and depth is a fraction of the wall's distance (0 = in the wall, 1 = at the camera), so the effect looks the same at any resolution and field of view.
@@ -55,3 +57,4 @@ B-500 is the rough version: shards and motion. Still to come: the prism light (B
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-14 | B-500 (D-212): first version. Subsystem, shard actor, maths, data asset, debug commands, spec; started from `UEncounterComponent`. | `feature/B-500-battle-transition-rough` |
+| 2026-11-14 | B-500a (Crown's PIE): slow open, fast finish. Defaults `CrackSeconds` 0.5, `BreakSeconds` 0.7, `BlowAwaySeconds` 0.4; new `BreakEase` (2, ease in and out) and `BlowAwayEase` (3, ease in) read by `EvaluatePose`; the debug line shows them; one more spec case. | `feature/B-500a-transition-slow-open-fast-finish` |

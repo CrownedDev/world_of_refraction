@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Combat/Encounter/EncounterComponent.h"
 #include "Combat/Transition/BattleTransitionData.h"
 #include "Combat/Transition/BattleTransitionMath.h"
 #include "Combat/Transition/BattleTransitionSubsystem.h"
@@ -19,6 +20,7 @@ namespace
 	constexpr double TRANSITION_AREA_TOLERANCE = 1.0e-4;
 	/** B-500a: "slow" means behind an even pace at this share of the time. */
 	constexpr float TRANSITION_EARLY_SHARE = 0.25f;
+	constexpr float TRANSITION_HALF_SHARE = 0.5f;
 	constexpr int32 TRANSITION_BLOW_STEPS = 20;
 	/** The bevel leaves at least this share of a shard's area to its camera face (half its width, squared, with slack). */
 	constexpr double TRANSITION_MIN_FACE_SHARE = 0.2;
@@ -116,9 +118,12 @@ void FBattleTransitionSpec::Define()
 				  BattleTransition::GetLookAlpha(Data, TRANSITION_LONG_HOLD_SECONDS, Data.BlowAwaySeconds), 0.0f);
 	});
 
-	It("opens slowly and finishes fast: the break and the blow-away both start below an even pace (B-500a)", [this]()
+	It("with the shipped defaults, opens slowly inside the join window and finishes fast (B-500a)", [this]()
 	{
+		// Pinned to the C++ defaults on purpose: an even pace (an ease of 1) is a legal tuning in the asset, but not what ships.
 		const UBattleTransitionData &Data = *GetDefault<UBattleTransitionData>();
+		TestTrue(TEXT("The opening fits inside an encounter's join window, so the map change lands in the hold"),
+				 Data.CrackSeconds + Data.BreakSeconds < GetDefault<UEncounterComponent>()->JoinWindowSeconds);
 		const TArray<BattleTransition::FShard> Shards =
 			BattleTransition::BuildShards(TRANSITION_TEST_SEED, TRANSITION_TEST_HIT, TRANSITION_TEST_ASPECT, Data);
 		const float BreakEnd = Data.CrackSeconds + Data.BreakSeconds;
@@ -141,7 +146,7 @@ void FBattleTransitionSpec::Define()
 				Previous = Now;
 			}
 			TestTrue(TEXT("The blow-away only moves toward the camera"), bNeverBackwards);
-			const float HalfRelease = Data.BlowAwaySeconds * 0.5f;
+			const float HalfRelease = Data.BlowAwaySeconds * TRANSITION_HALF_SHARE;
 			const float AtHalf = BattleTransition::EvaluatePose(Shard, Data, TRANSITION_LONG_HOLD_SECONDS + HalfRelease, HalfRelease).TowardCamera;
 			TestTrue(TEXT("Half the blow-away's time: under a quarter of its distance"), AtHalf - Held < (Previous - Held) * TRANSITION_EARLY_SHARE);
 		}
