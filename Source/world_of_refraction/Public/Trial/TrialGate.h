@@ -38,6 +38,15 @@ struct WORLD_OF_REFRACTION_API FTrialVariation
 	 *  TODO: read by the boss arena trigger (B-188). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Variation")
 	TObjectPtr<UCharacterData> Boss = nullptr;
+
+	/** B-466 (D-191): locked until this quest (UHiddenQuestData::QuestId) is finished; None = always open. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Variation")
+	FName UnlockQuestId;
+
+	/** B-466 (D-191): what the Gate shows for it while locked, under "???" ("Unlocks with the quest: The Cinder Oath").
+	 *  Empty: a general line. TODO(Crown): content. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Variation")
+	FText UnlockHint;
 };
 
 namespace TrialGate
