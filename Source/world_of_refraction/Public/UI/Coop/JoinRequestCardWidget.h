@@ -118,6 +118,8 @@ private:
 	TWeakObjectPtr<UJoinRequestCardWidget> Card;
 	TWeakObjectPtr<URunStateComponent> Run;
 	TWeakObjectPtr<APlayerController> KeyOwner;
+	/** The input component the hold is bound on (unbound from it, even if the controller makes a new one). */
+	TWeakObjectPtr<class UEnhancedInputComponent> KeyInput;
 	FDelegateHandle RequestsChangedHandle;
 	uint32 HoldBindingHandle = 0;
 	bool bFocused = false;

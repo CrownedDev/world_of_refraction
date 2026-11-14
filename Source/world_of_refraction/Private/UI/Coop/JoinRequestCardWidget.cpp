@@ -269,9 +269,20 @@ void UJoinRequestCardPresenter::Sync()
 		Hide();
 		return;
 	}
+	const UGameInstance *GI = World->GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (bFocused && PartySession && PartySession->IsFightRunning())
+	{
+		ReleaseKeys(); // seats are fixed in a fight: the card says to answer after it
+	}
 	UJoinRequestCardWidget *Shown = Card.Get();
 	if (!Shown || !Shown->IsInViewport())
 	{
+		if (Shown)
+		{
+			Hide(); // taken off the viewport by something else: start clean (no second hold binding)
+			Shown = nullptr;
+		}
 		APlayerController *PC = World->GetFirstPlayerController();
 		if (!PC || !PC->IsLocalController())
 		{
@@ -309,6 +320,7 @@ void UJoinRequestCardPresenter::Focus()
 		return; // in a fight the card's note says to answer after it
 	}
 	bFocused = true;
+	Shown->SetVisibility(ESlateVisibility::Visible); // focusable before the focus goes to it
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Shown->TakeWidget());
 	PC->SetInputMode(InputMode);
@@ -354,6 +366,7 @@ void UJoinRequestCardPresenter::Hide()
 
 void UJoinRequestCardPresenter::AddHoldKey(APlayerController *PC)
 {
+	RemoveHoldKey(); // one binding at a time
 	UEnhancedInputComponent *Input = PC ? Cast<UEnhancedInputComponent>(PC->InputComponent) : nullptr;
 	UEnhancedInputLocalPlayerSubsystem *Mappings =
 		PC ? ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()) : nullptr;
@@ -378,19 +391,21 @@ void UJoinRequestCardPresenter::AddHoldKey(APlayerController *PC)
 	HoldBindingHandle = Input->BindAction(AnswerAction, ETriggerEvent::Triggered, this, &UJoinRequestCardPresenter::Focus).GetHandle();
 	Mappings->AddMappingContext(AnswerContext, WoRInputPriority::JOIN_REQUEST_CARD);
 	KeyOwner = PC;
+	KeyInput = Input;
 }
 
 void UJoinRequestCardPresenter::RemoveHoldKey()
 {
+	if (UEnhancedInputComponent *Input = KeyInput.Get())
+	{
+		Input->RemoveBindingByHandle(HoldBindingHandle);
+	}
+	KeyInput.Reset();
 	APlayerController *PC = KeyOwner.Get();
 	KeyOwner.Reset();
 	if (!PC)
 	{
 		return;
-	}
-	if (UEnhancedInputComponent *Input = Cast<UEnhancedInputComponent>(PC->InputComponent))
-	{
-		Input->RemoveBindingByHandle(HoldBindingHandle);
 	}
 	if (UEnhancedInputLocalPlayerSubsystem *Mappings = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer()))
 	{
