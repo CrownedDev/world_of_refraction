@@ -9,7 +9,9 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/Pawn.h"
 #include "Merchant/MerchantData.h"
+#include "GameFramework/PlayerController.h"
 #include "Shop/MerchantShopSubsystem.h"
+#include "UI/Hub/NpcTalkWidget.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
@@ -151,6 +153,13 @@ void AMerchantInteractable::Interact()
         return;
     }
 
+    // B-471c (D-178): V's talk box first (Shop / Talk / Leave); its Shop opens the vendor's screen below.
+    if (UNpcTalkWidget::Open(Cast<APlayerController>(Pawn->GetController()), Merchant, Pawn))
+    {
+        return;
+    }
+
+    // No root layout for the talk box (an older controller): straight to the shop, as before.
     UGameInstance *GI = GetGameInstance();
     UMerchantShopSubsystem *Shop = GI ? GI->GetSubsystem<UMerchantShopSubsystem>() : nullptr;
     if (!Shop)
