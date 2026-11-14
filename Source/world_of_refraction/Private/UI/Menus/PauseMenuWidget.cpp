@@ -183,7 +183,7 @@ void UPauseMenuWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
 	// Bottom right: the hints.
-	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Select        {Back}  Resume"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }

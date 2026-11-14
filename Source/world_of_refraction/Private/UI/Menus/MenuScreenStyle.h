@@ -127,6 +127,16 @@ namespace WoRMenuStyle
 		return MakeText(Tree, FontSize, Color, bBold, UWoRKeyHintText::StaticClass());
 	}
 
+	/** B-483: a footer. Fill it with WoRKeyHints::SetHint and a footer pattern ("{Confirm}  Select        {Back}  Back"):
+	 *  each key is drawn as a framed cap (a coloured circle for a gamepad's face button) with its label beside it, and
+	 *  each hint is clickable (a click sends its key to the screen). Follows the device live, as a hint text does. */
+	inline UTextBlock *MakeHintBar(UWidgetTree *Tree, int32 FontSize = LineFontSize, const FLinearColor &Color = DimColor)
+	{
+		UTextBlock *Bar = MakeHintText(Tree, FontSize, Color);
+		CastChecked<UWoRKeyHintText>(Bar)->SetKeyCaps(true);
+		return Bar;
+	}
+
 	inline UTextBlock *MakeWrappedText(UWidgetTree *Tree, int32 FontSize, const FLinearColor &Color, bool bBold = false)
 	{
 		UTextBlock *Text = MakeText(Tree, FontSize, Color, bBold);
@@ -199,10 +209,11 @@ namespace WoRMenuStyle
 		return Tab;
 	}
 
-	/** The small key label beside a tab row, as a key-hint pattern (B-481): "{SubTabPrev}" reads "LT" or "Z". */
+	/** The small key label beside a tab row, as a key-hint pattern (B-481): "{SubTabPrev}" reads "LT" or "Z". B-483: it is
+	 *  drawn as a key cap, and a click on it sends its key. */
 	inline UTextBlock *MakeKeyLabel(UWidgetTree *Tree, const FText &Pattern)
 	{
-		UTextBlock *Text = MakeHintText(Tree, SmallFontSize, CyanColor, true);
+		UTextBlock *Text = MakeHintBar(Tree, SmallFontSize, CyanColor);
 		WoRKeyHints::SetHint(Text, Pattern);
 		return Text;
 	}

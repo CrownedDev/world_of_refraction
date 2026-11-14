@@ -176,7 +176,7 @@ void ULoadoutScreenWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	// Bottom right: the hints.
-	HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 }
 
