@@ -20,6 +20,7 @@ public:
 		TWeakObjectPtr<AActor> Actor;
 		EActionType ActionType = EActionType::None;
 		bool bSuccess = false;
+		FActionResult Result;
 	};
 
 	TArray<FEntry> Entries;
@@ -38,5 +39,5 @@ public:
 	}
 
 	UFUNCTION()
-	void Record(AActor *Actor, const FActionResult &Result) { Entries.Add({Actor, Result.ActionType, Result.bSuccess}); }
+	void Record(AActor *Actor, const FActionResult &Result) { Entries.Add({Actor, Result.ActionType, Result.bSuccess, Result}); }
 };

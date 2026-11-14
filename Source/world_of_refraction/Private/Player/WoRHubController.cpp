@@ -122,6 +122,37 @@ void AWoRHubController::SetupInputComponent()
 					"wor.Field.Activate stands in"));
 	}
 
+	// B-214g: the field attack, its source switch, and flying up / down (assets by config soft pointer, as above).
+	const auto LoadFieldAction = [](TObjectPtr<UInputAction> &Action, const TSoftObjectPtr<UInputAction> &Default)
+	{
+		if (!Action && !Default.IsNull())
+		{
+			Action = Default.LoadSynchronous();
+		}
+		return Action != nullptr;
+	};
+	if (LoadFieldAction(FieldAttackAction, DefaultFieldAttackAction))
+	{
+		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldAttackStarted);
+		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldAttackCompleted);
+		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldAttackCanceled);
+	}
+	if (LoadFieldAction(FieldSwitchSourceAction, DefaultFieldSwitchSourceAction))
+	{
+		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldSwitchSource);
+	}
+	if (LoadFieldAction(FieldFlyVerticalAction, DefaultFieldFlyVerticalAction))
+	{
+		EnhancedInput->BindAction(FieldFlyVerticalAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldFlyVertical);
+	}
+	if (!FieldAttackAction || !FieldSwitchSourceAction || !FieldFlyVerticalAction)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[WoRHubController] Field input actions missing (attack %s, switch source %s, fly vertical %s): "
+								 "B-214g's editor step makes them; wor.Field.Attack / SwitchSource / FlyVertical stand in"),
+			   FieldAttackAction ? TEXT("ok") : TEXT("none"), FieldSwitchSourceAction ? TEXT("ok") : TEXT("none"),
+			   FieldFlyVerticalAction ? TEXT("ok") : TEXT("none"));
+	}
+
 	if (!ToggleMenuAction && !DefaultToggleMenuAction.IsNull())
 	{
 		ToggleMenuAction = DefaultToggleMenuAction.LoadSynchronous();
@@ -189,10 +220,55 @@ void AWoRHubController::HandleInteractPressed(const FInputActionValue & /*Value*
 
 void AWoRHubController::HandleFieldMovementSkill(const FInputActionValue & /*Value*/)
 {
-	UFieldMovementComponent *FieldMovement = GetPawn() ? GetPawn()->FindComponentByClass<UFieldMovementComponent>() : nullptr;
-	if (FieldMovement)
+	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
 	{
 		FieldMovement->ActivateFieldSkill();
+	}
+}
+
+UFieldMovementComponent *AWoRHubController::GetFieldMovement() const
+{
+	return GetPawn() ? GetPawn()->FindComponentByClass<UFieldMovementComponent>() : nullptr;
+}
+
+void AWoRHubController::HandleFieldAttackStarted(const FInputActionValue & /*Value*/)
+{
+	FieldAttackPressTime = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+	bFieldAttackPressed = true;
+}
+
+void AWoRHubController::HandleFieldAttackCompleted(const FInputActionValue & /*Value*/)
+{
+	if (!bFieldAttackPressed)
+	{
+		return; // a release with no press of ours (focus loss, a menu took the mapping)
+	}
+	bFieldAttackPressed = false;
+	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
+	{
+		const double Pressed = GetWorld() ? GetWorld()->GetRealTimeSeconds() - FieldAttackPressTime : 0.0;
+		FieldMovement->FieldAttack(FieldSkillRules::IsFieldAttackHeld(Pressed));
+	}
+}
+
+void AWoRHubController::HandleFieldAttackCanceled(const FInputActionValue & /*Value*/)
+{
+	bFieldAttackPressed = false;
+}
+
+void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Value*/)
+{
+	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
+	{
+		FieldMovement->SwitchFieldAttackSource();
+	}
+}
+
+void AWoRHubController::HandleFieldFlyVertical(const FInputActionValue &Value)
+{
+	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
+	{
+		FieldMovement->AddFlightVerticalInput(Value.Get<float>());
 	}
 }
 

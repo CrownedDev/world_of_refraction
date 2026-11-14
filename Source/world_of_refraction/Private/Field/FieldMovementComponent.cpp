@@ -5,8 +5,11 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/ECharacterClass.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Engine/World.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Field/FieldSkillUnlockSubsystem.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Hub/HubMovementLibrary.h"
@@ -23,6 +26,25 @@ namespace FieldMovementLog
 	const TCHAR *const TAG = TEXT("[FieldMovement]");
 }
 
+namespace
+{
+	/** B-214b: has the account unlocked Type for Element? bScanStore first records the store's spells (a pick reads
+	 *  ranks reached since the last scan). No unlock subsystem: only what needs no unlock. */
+	bool IsFieldTypeUnlocked(const UObject *Context, EFieldMovementType Type, ESpellElement Element, bool bScanStore)
+	{
+		UFieldSkillUnlockSubsystem *Unlocks = WoRFight::Get<UFieldSkillUnlockSubsystem>(Context);
+		if (!Unlocks)
+		{
+			return !FieldSkillRules::NeedsUnlock(Type);
+		}
+		if (bScanStore)
+		{
+			Unlocks->RecordFromPool();
+		}
+		return Unlocks->IsUnlocked(Type, Element);
+	}
+}
+
 UFieldMovementComponent::UFieldMovementComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
@@ -35,13 +57,49 @@ void UFieldMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
 	DOREPLIFETIME_CONDITION(UFieldMovementComponent, ActiveChoice, COND_OwnerOnly);
 	DOREPLIFETIME(UFieldMovementComponent, bEnhancedSprintActive);
 	DOREPLIFETIME(UFieldMovementComponent, EnhancedSprintElement);
+	DOREPLIFETIME(UFieldMovementComponent, bGliding);
+	DOREPLIFETIME(UFieldMovementComponent, bWallRunning);
+	DOREPLIFETIME(UFieldMovementComponent, bFlying);
+	DOREPLIFETIME_CONDITION(UFieldMovementComponent, FlightLimits, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UFieldMovementComponent, bHasRecallMark, COND_OwnerOnly);
+	DOREPLIFETIME_CONDITION(UFieldMovementComponent, FieldAttackSource, COND_OwnerOnly);
+}
+
+void UFieldMovementComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	if (ACharacter *Character = Cast<ACharacter>(GetOwner()))
+	{
+		if (const UCharacterMovementComponent *Movement = Character->GetCharacterMovement())
+		{
+			BaseGravityScale = Movement->GravityScale;
+			BaseAirControl = Movement->AirControl;
+			BaseMaxFlySpeed = Movement->MaxFlySpeed;
+			BaseBrakingFlying = Movement->BrakingDecelerationFlying;
+			bHasBaseMovement = true;
+		}
+		Character->LandedDelegate.AddUniqueDynamic(this, &UFieldMovementComponent::HandleLanded); // B-214c
+	}
 }
 
 void UFieldMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (HasAuthority())
+	{
+		// A pawn that outlives this component gets its gravity and air control back.
+		SetGliding(false);
+		SetWallRunning(false);
+		StopFlight();
+	}
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(DrainTimer);
+		World->GetTimerManager().ClearTimer(MoveStepTimer);
+		World->GetTimerManager().ClearTimer(FlightDrainTimer);
+	}
+	if (ACharacter *Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->LandedDelegate.RemoveDynamic(this, &UFieldMovementComponent::HandleLanded);
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -118,7 +176,9 @@ ESpellElement UFieldMovementComponent::GetSourceElement(EFieldSkillSource Source
 
 EFieldSkillRefusal UFieldMovementComponent::SetActiveFieldSkill(EFieldSkillSource Source, EFieldMovementType Type)
 {
-	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckPick(Type, GetSourceElement(Source));
+	const ESpellElement SourceElement = GetSourceElement(Source);
+	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckPick(Type, SourceElement,
+																  IsFieldTypeUnlocked(this, Type, SourceElement, true));
 	if (Refusal != EFieldSkillRefusal::None)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: %s %s refused (%s)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
@@ -134,9 +194,14 @@ EFieldSkillRefusal UFieldMovementComponent::SetActiveFieldSkill(EFieldSkillSourc
 	FFieldSkillChoice Choice;
 	Choice.Source = Source;
 	Choice.Type = Type;
-	if (Choice != GetActiveFieldSkill() && bEnhancedSprintActive)
+	if (Choice != GetActiveFieldSkill())
 	{
-		StopEnhancedSprint();
+		if (bEnhancedSprintActive)
+		{
+			StopEnhancedSprint();
+		}
+		SetGliding(false); // B-214c
+		StopFlight();      // B-214d
 	}
 	ActiveChoice = Choice;
 	const UCharacterDataComponent *CharComp = GetCharacterData();
@@ -223,8 +288,22 @@ EFieldSkillRefusal UFieldMovementComponent::ActivateFieldSkill()
 			return EFieldSkillRefusal::None;
 		}
 		return StartEnhancedSprint();
+	case EFieldMovementType::Glide: // B-214c
+		return ToggleGlide();
+	case EFieldMovementType::HighJump:
+		return HighJump();
+	case EFieldMovementType::AirDash:
+		return AirDash();
+	case EFieldMovementType::Flight: // B-214d
+		return ToggleFlight();
+	case EFieldMovementType::Teleport: // B-214e
+	case EFieldMovementType::PhaseStep:
+	case EFieldMovementType::MarkAndRecall:
+	case EFieldMovementType::SuperLaunch:
+	case EFieldMovementType::Regroup:
+		return UseAdvancedMove(Choice.Type);
 	default:
-		UE_LOG(LogWoR, Log, TEXT("%s %s: %s isn't built yet (B-214c..e)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
+		UE_LOG(LogWoR, Log, TEXT("%s %s: %s isn't built yet (B-214d..e)"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()),
 			   *FieldSkillRules::TypeName(Choice.Type));
 		return EFieldSkillRefusal::NotBuiltYet;
 	}
@@ -235,11 +314,24 @@ void UFieldMovementComponent::ServerActivateFieldSkill_Implementation()
 	ActivateFieldSkill();
 }
 
+EFieldSkillRefusal UFieldMovementComponent::CheckActiveChoiceStillPickable(EFieldMovementType Type) const
+{
+	const FFieldSkillChoice Choice = GetActiveFieldSkill();
+	if (Choice.Type != Type)
+	{
+		return EFieldSkillRefusal::NotActiveSkill;
+	}
+	const ESpellElement Element = GetSourceElement(Choice.Source);
+	return FieldSkillRules::CheckPick(Choice.Type, Element, IsFieldTypeUnlocked(this, Choice.Type, Element, false));
+}
+
 EFieldSkillRefusal UFieldMovementComponent::StartEnhancedSprint()
 {
 	UCharacterDataComponent *CharComp = GetCharacterData();
 	const ESpellElement Element = GetSourceElement(GetActiveFieldSkill().Source);
-	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckEnhancedSprintStart(Element, CharComp ? CharComp->CurrentEP : 0);
+	const EFieldSkillRefusal Refusal = FieldSkillRules::CheckEnhancedSprintStart(
+		Element, GetEPForCostCheck(FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND),
+		IsFieldTypeUnlocked(this, EFieldMovementType::EnhancedSprint, Element, false));
 	if (Refusal != EFieldSkillRefusal::None)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: Enhanced Sprint refused (%s, %s, EP %d)"), FieldMovementLog::TAG,
@@ -254,6 +346,7 @@ EFieldSkillRefusal UFieldMovementComponent::StartEnhancedSprint()
 	{
 		GetWorld()->GetTimerManager().SetTimer(DrainTimer, this, &UFieldMovementComponent::DrainEnhancedSprint,
 											   FieldSkillRules::ENHANCED_SPRINT_DRAIN_INTERVAL, true);
+		UpdateMoveStepTimer(); // B-214c: the wall-run check
 	}
 	return EFieldSkillRefusal::None;
 }
@@ -266,7 +359,8 @@ void UFieldMovementComponent::DrainEnhancedSprint()
 		StopEnhancedSprint();
 		return;
 	}
-	if (CharComp->CurrentEP < FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND)
+	const int32 Cost = GetFieldEPCost(FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND); // B-214h: an evolution's discount
+	if (CharComp->CurrentEP < Cost)
 	{
 		StopEnhancedSprint();
 		return;
@@ -282,8 +376,8 @@ void UFieldMovementComponent::DrainEnhancedSprint()
 	{
 		return; // Q-214a (Crown): standing, walking or stopping to talk costs nothing; it stays on
 	}
-	CharComp->ServerSpendEnergy(FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND);
-	if (CharComp->CurrentEP < FieldSkillRules::ENHANCED_SPRINT_EP_PER_SECOND)
+	CharComp->ServerSpendEnergy(Cost);
+	if (CharComp->CurrentEP < Cost)
 	{
 		UE_LOG(LogWoR, Log, TEXT("%s %s: Enhanced Sprint out of EP"), FieldMovementLog::TAG, *GetNameSafe(GetOwner()));
 		StopEnhancedSprint();
@@ -309,6 +403,8 @@ void UFieldMovementComponent::StopEnhancedSprint()
 	{
 		SetEnhancedSprintActive(false);
 	}
+	SetWallRunning(false); // B-214c: a wall-run is part of Enhanced Sprint
+	UpdateMoveStepTimer();
 }
 
 void UFieldMovementComponent::SetEnhancedSprintActive(bool bActive)
@@ -327,7 +423,44 @@ void UFieldMovementComponent::OnRep_EnhancedSprintActive()
 
 float UFieldMovementComponent::GetSprintSpeedMultiplier() const
 {
-	return bEnhancedSprintActive ? FieldSkillRules::GetEnhancedSprintMultiplier(EnhancedSprintElement) : FieldSkillRules::NO_SPRINT_BOOST;
+	const float SkillMultiplier = bEnhancedSprintActive ? FieldSkillRules::GetEnhancedSprintMultiplier(EnhancedSprintElement)
+														: FieldSkillRules::NO_SPRINT_BOOST;
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return SkillMultiplier * FieldSkillRules::GetEvolutionSprintMultiplier(Evolution ? Evolution->FieldSprintBonusPercent : 0.0f);
+}
+
+const UEvolutionItemData *UFieldMovementComponent::GetSeatedEvolution() const
+{
+	if (!CachedLoadout.IsValid() && GetOwner())
+	{
+		CachedLoadout = GetOwner()->FindComponentByClass<ULoadoutComponent>();
+	}
+	const ULoadoutComponent *Loadout = CachedLoadout.Get();
+	if (!Loadout)
+	{
+		return nullptr;
+	}
+	const FEvolutionAttachment Seat = Loadout->GetCharacterSlotEvolution();
+	return Seat.Item && !Seat.IsBroken() ? Seat.Item : nullptr;
+}
+
+int32 UFieldMovementComponent::GetFieldEPCost(int32 BaseCost) const
+{
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return FieldSkillRules::ApplyFieldEPDiscount(BaseCost, Evolution ? Evolution->FieldSkillEPDiscountPercent : 0.0f);
+}
+
+int32 UFieldMovementComponent::GetEPForCostCheck(int32 BaseCost) const
+{
+	const UCharacterDataComponent *CharComp = GetCharacterData();
+	const int32 EP = CharComp ? CharComp->CurrentEP : 0;
+	return EP >= GetFieldEPCost(BaseCost) ? FMath::Max(EP, BaseCost) : EP;
+}
+
+FFieldFlightLimits UFieldMovementComponent::GetEffectiveFlightLimits() const
+{
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return Evolution ? FieldSkillRules::CombineFlightLimits(FlightLimits, Evolution->FieldFlightLimits) : FlightLimits;
 }
 
 void UFieldMovementComponent::ReapplySprintSpeed() const
@@ -340,6 +473,14 @@ void UFieldMovementComponent::ReapplySprintSpeed() const
 	}
 }
 
+FString UFieldMovementComponent::GetEvolutionStateString() const
+{
+	const UEvolutionItemData *Evolution = GetSeatedEvolution();
+	return Evolution ? FString::Printf(TEXT(" | evolution %s (sprint +%.0f%%, field EP -%.0f%%)"), *Evolution->ItemName,
+									   Evolution->FieldSprintBonusPercent, Evolution->FieldSkillEPDiscountPercent)
+					 : FString(TEXT(" | evolution none"));
+}
+
 FString UFieldMovementComponent::GetFieldStateString() const
 {
 	const FFieldSkillChoice Choice = GetActiveFieldSkill();
@@ -349,9 +490,22 @@ FString UFieldMovementComponent::GetFieldStateString() const
 						   *GetNameSafe(GetOwner()), *FieldSkillRules::SourceName(Choice.Source),
 						   *FieldSkillRules::TypeName(Choice.Type),
 						   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(SourceElement)),
-						   *FieldSkillRules::RefusalName(FieldSkillRules::CheckPick(Choice.Type, SourceElement)),
+						   *FieldSkillRules::RefusalName(FieldSkillRules::CheckPick(
+							   Choice.Type, SourceElement, IsFieldTypeUnlocked(this, Choice.Type, SourceElement, false))),
 						   bEnhancedSprintActive ? TEXT("ON") : TEXT("off"), GetSprintSpeedMultiplier(),
 						   IsMovingAtSprintSpeed() ? TEXT("moving at sprint speed (draining)") : TEXT("not sprinting (no drain)"),
 						   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0,
-						   IsDashReady() ? TEXT("ready") : TEXT("cooling"), FindRecord() ? TEXT("yes") : TEXT("no"));
+						   IsDashReady() ? TEXT("ready") : TEXT("cooling"), FindRecord() ? TEXT("yes") : TEXT("no"))
+		+ FString::Printf(TEXT(" | glide %s | wall-run %s | air jump %s, air dash %s"), // B-214c
+						  bGliding ? TEXT("ON") : TEXT("off"), bWallRunning ? TEXT("ON") : TEXT("off"),
+						  bAirJumpUsed ? TEXT("used") : TEXT("ready"), bAirDashUsed ? TEXT("used") : TEXT("ready"))
+		+ FString::Printf(TEXT(" | attack source %s (%s, %s)"), *FieldSkillRules::SourceName(FieldAttackSource), // B-214f
+						  *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(GetSourceElement(FieldAttackSource))),
+						  *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(GetFieldAttackPhysicalType())))
+		+ FString::Printf(TEXT(" | recall mark %s"), bHasRecallMark ? *RecallMark.ToCompactString() : TEXT("none")) // B-214e
+		+ FString::Printf(TEXT(" | flight %s (limits: EP %s, ceiling %s, no-fly %s; in no-fly %s)"), // B-214d
+						  bFlying ? TEXT("ON") : TEXT("off"), GetEffectiveFlightLimits().bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),
+						  GetEffectiveFlightLimits().bNoCeiling ? TEXT("none") : TEXT("on"),
+						  GetEffectiveFlightLimits().bIgnoreNoFly ? TEXT("ignored") : TEXT("on"), IsInNoFlyZone() ? TEXT("yes") : TEXT("no"))
+		+ GetEvolutionStateString();
 }

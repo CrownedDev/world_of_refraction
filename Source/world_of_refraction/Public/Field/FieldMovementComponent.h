@@ -6,12 +6,22 @@
 //     a pawn with no record keeps it here. Double-tap sprint (IA_Field_MovementSkill) or wor.Field.Activate uses it.
 //   - Enhanced Sprint: a faster sprint while on (by the source's element), EP per second while moving at sprint speed
 //     (Q-214a, Crown), off at 0 EP or on a second double-tap. UHubMovementLibrary::ComputeHubSprintSpeed reads GetSprintSpeedMultiplier.
+// B-214c (moves in FieldMovementMoves.cpp): Glide (a slow fall, toggled in the air), High jump (and one double jump per
+// airtime), Air dash (once per airtime along the aim; Lightning blinks), and wall-run while Enhanced Sprint is on.
+// B-214d (FieldMovementFlight.cpp): Flight, toggled; EP per second (hovering when still), a height ceiling above the
+// take-off ground and Zone.NoFly volumes, each liftable by effects (FFieldFlightLimits).
+// B-214e (FieldMovementAdvanced.cpp): Teleport (Void), Phase step, Mark and recall, Super launch, Regroup.
+// B-214f (FieldMovementAttack.cpp): the field attack: a swing ahead; hitting an encounter starts its fight with first
+// strike and the hit's buildup (element of the switchable attack source, the weapon's physical type, Ice held with Water).
+// B-214h: the evolution on the character's own slot adds an always-on sprint bonus and augments the field skill (cheaper
+// EP, flight limits it lifts).
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Engine/HitResult.h"
 #include "Engine/TimerHandle.h"
 #include "Field/FieldSkillTypes.h"
 #include "FieldMovementComponent.generated.h"
@@ -52,7 +62,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	bool IsEnhancedSprintActive() const { return bEnhancedSprintActive; }
 
-	/** FieldSkillRules::NO_SPRINT_BOOST unless Enhanced Sprint is on. */
+	/** Enhanced Sprint's element multiplier while on (else NO_SPRINT_BOOST), times the seated evolution's always-on
+	 *  bonus (B-214h). */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	float GetSprintSpeedMultiplier() const;
 
@@ -70,6 +81,118 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	bool IsMovingAtSprintSpeed() const;
 
+	// ---- B-214c: ground and air moves ----
+
+	/** Glide on (in the air, paid once) or off. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal ToggleGlide();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsGliding() const { return bGliding; }
+
+	/** A high jump from the ground, or the one double jump in the air. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal HighJump();
+
+	/** The air dash along the aim (Lightning: blinks), once per airtime. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal AirDash();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsWallRunning() const { return bWallRunning; }
+
+	/** Landing: the double jump, air dash and wall-run come back; glide and wall-run end. Public for the spec. */
+	void NotifyLanded();
+
+	/** One wall-run step with the wall test given (StepMoves traces for it). Public for the spec. */
+	void ApplyWallRunStep(bool bWallBeside, const FVector &WallNormal);
+
+	// ---- B-214d: flight ----
+
+	/** Flight on (paid one second, outside a no-fly zone) or off (it falls). */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal ToggleFlight();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsFlying() const { return bFlying; }
+
+	/** What effects lift (unlimited flight, no ceiling, no-fly ignored). Server. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	void SetFlightLimits(const FFieldFlightLimits &NewLimits);
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldFlightLimits GetFlightLimits() const { return FlightLimits; }
+
+	/** Up (+1) or down (-1) while flying: movement input along the world's up. B-214g binds it to IA_Field_FlyVertical
+	 *  (a 1D axis, Q-214g); the pawn's own move input stays flat. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	void AddFlightVerticalInput(float Value);
+
+	/** Debug (wor.Field.FlyVertical, until the keys): a vertical push while flying. Server. */
+	void NudgeFlightVertical(float Direction);
+
+	/** Inside a volume tagged Zone.NoFly. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool IsInNoFlyZone() const;
+
+	/** One flight EP charge (the drain timer's step; public for the spec). Lands it below one charge. */
+	void DrainFlight();
+
+	/** One flight step: out of a no-fly zone and under the ceiling (StepMoves calls it; public for the spec). */
+	void ApplyFlightStep();
+
+	// ---- B-214e: advanced moves ----
+
+	/** Uses Type if it is the active field skill: Teleport, PhaseStep, MarkAndRecall (mark, then recall), SuperLaunch,
+	 *  Regroup. Server; a client uses ActivateFieldSkill. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal UseAdvancedMove(EFieldMovementType Type);
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	bool HasRecallMark() const { return bHasRecallMark; }
+
+	// ---- B-214f: the field attack ----
+
+	/** A swing ahead (bHeld: the attack was held). Striking an encounter starts its fight (UEncounterComponent::
+	 *  StrikeFromField); a miss is just a swing. Refused on cooldown. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	EFieldSkillRefusal FieldAttack(bool bHeld);
+
+	/** The field attack's source: Innate -> Weapon -> Ring (IA_Field_SwitchSource). */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	void SwitchFieldAttackSource();
+
+	UFUNCTION(BlueprintPure, Category = "Field")
+	EFieldSkillSource GetFieldAttackSource() const { return FieldAttackSource; }
+
+	/** The weapon in hand's attack type (its WeaponAttack's), None with no weapon. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	EPhysicalDamageType GetFieldAttackPhysicalType() const;
+
+	/** What a field hit now would carry (FieldSkillRules::MakeFieldStrike). */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldStrike GetFieldStrike(bool bHeld) const;
+
+	// ---- B-214h: evolutions ----
+
+	/** The evolution on the character's own slot, unless broken (null with none). */
+	const class UEvolutionItemData *GetSeatedEvolution() const;
+
+	/** A field EP cost after the seated evolution's discount (FieldSkillRules::ApplyFieldEPDiscount). */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	int32 GetFieldEPCost(int32 BaseCost) const;
+
+	/** The EP to show a start check for a BaseCost move: enough when the discounted cost is affordable (the checks
+	 *  compare against the full cost), else the real EP. */
+	int32 GetEPForCostCheck(int32 BaseCost) const;
+
+	/** " | evolution <name> (sprint +15%, field EP -25%)" for the debug line. */
+	FString GetEvolutionStateString() const;
+
+	/** Flight's limits: the ones effects set (SetFlightLimits) and the seated evolution's, combined. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldFlightLimits GetEffectiveFlightLimits() const;
+
 	/** Server: copies the party record's choice into the replicated mirror (after the leader is rebound). */
 	void RefreshFromRecord();
 
@@ -81,6 +204,7 @@ public:
 
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
+	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
@@ -91,10 +215,59 @@ private:
 	void ServerActivateFieldSkill();
 
 	UFUNCTION(Server, Reliable)
+	void ServerFieldAttack(bool bHeld);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSwitchFieldAttackSource();
+
+	UFUNCTION(Server, Reliable)
 	void ServerSetActiveFieldSkill(EFieldSkillSource Source, EFieldMovementType Type);
 
 	UFUNCTION()
 	void OnRep_EnhancedSprintActive();
+
+	UFUNCTION()
+	void OnRep_AirMoveState();
+
+	UFUNCTION()
+	void OnRep_Flying();
+
+	void StopFlight();
+
+	EFieldSkillRefusal DoTeleport(ACharacter &Character);
+	EFieldSkillRefusal DoPhaseStep(ACharacter &Character);
+	EFieldSkillRefusal DoRecall(ACharacter &Character);
+	EFieldSkillRefusal DoSuperLaunch(ACharacter &Character);
+	EFieldSkillRefusal DoRegroup(ACharacter &Character);
+
+	/** The farthest other party member's field pawn (a pawn stamped with a party member id, or player-controlled), or
+	 *  null: Regroup's target. */
+	AActor *FindRegroupTarget() const;
+
+	/** A fight is running (UPartySessionSubsystem::IsFightRunning). */
+	bool IsFightRunning() const;
+
+	/** Flying movement on / off with the base speed and braking put back (server, and the owning client by OnRep). */
+	void ApplyFlightMode();
+
+	UFUNCTION()
+	void HandleLanded(const FHitResult &Hit);
+
+	/** Type is the active choice and may still be used (its source's element now, the unlock): CheckPick again. */
+	EFieldSkillRefusal CheckActiveChoiceStillPickable(EFieldMovementType Type) const;
+
+	/** Glide's fall cap and the wall-run check, every MOVE_STEP_INTERVAL while gliding or Enhanced Sprint is on. */
+	void StepMoves();
+	void UpdateMoveStepTimer();
+
+	/** Gravity and air control for the glide / wall-run state (server, and the owning client by OnRep). */
+	void ApplyAirMoveState();
+
+	void SetGliding(bool bOn);
+	void SetWallRunning(bool bOn);
+
+	/** True when the pawn has its EP: spends it (server). */
+	bool SpendFieldEP(int32 Amount);
 
 	EFieldSkillRefusal StartEnhancedSprint();
 	void SetEnhancedSprintActive(bool bActive);
@@ -117,7 +290,55 @@ private:
 	UPROPERTY(Replicated)
 	ESpellElement EnhancedSprintElement = ESpellElement::None;
 
+	UPROPERTY(ReplicatedUsing = OnRep_AirMoveState)
+	bool bGliding = false;
+
+	UPROPERTY(ReplicatedUsing = OnRep_AirMoveState)
+	bool bWallRunning = false;
+
+	/** Server: used since the last landing. */
+	bool bAirJumpUsed = false;
+	bool bAirDashUsed = false;
+	bool bWallRunSpent = false;
+	float WallRunSeconds = 0.0f;
+
+	/** The movement's own gravity and air control, put back when glide / wall-run end (read at BeginPlay). */
+	float BaseGravityScale = 1.0f;
+	float BaseAirControl = 0.0f;
+	bool bHasBaseMovement = false;
+
+	FTimerHandle MoveStepTimer;
+
+	UPROPERTY(ReplicatedUsing = OnRep_Flying)
+	bool bFlying = false;
+
+	UPROPERTY(Replicated)
+	FFieldFlightLimits FlightLimits;
+	/** The ground under the take-off: the ceiling counts from it (FieldSkillRules::GetFlightCeilingZ). */
+	double FlightTakeOffGroundZ = 0.0;
+	float BaseMaxFlySpeed = 0.0f;
+	float BaseBrakingFlying = 0.0f;
+	FTimerHandle FlightDrainTimer;
+
+	/** B-214e, server: Mark and recall's mark (one at a time, this level only). */
+	UPROPERTY(Replicated)
+	bool bHasRecallMark = false;
+	FVector RecallMark = FVector::ZeroVector;
+
+	/** Super launch glides from the top of its rise (no glide EP). */
+	bool bSuperLaunchGlidePending = false;
+
+	/** B-214f: the field attack's source (the weapon by default: the hit is a weapon swing). */
+	UPROPERTY(Replicated)
+	EFieldSkillSource FieldAttackSource = EFieldSkillSource::Weapon;
+
+	double LastFieldAttackTime = -FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
+
+	/** When each advanced move was last used (its cooldown). */
+	TMap<EFieldMovementType, double> LastAdvancedUseTime;
+
 	double LastDashTime = -FieldSkillRules::DASH_COOLDOWN_SECONDS;
 	FTimerHandle DrainTimer;
 	mutable TWeakObjectPtr<UCharacterDataComponent> CachedCharacterData;
+	mutable TWeakObjectPtr<class ULoadoutComponent> CachedLoadout; // B-214h: the seated evolution's lookup
 };

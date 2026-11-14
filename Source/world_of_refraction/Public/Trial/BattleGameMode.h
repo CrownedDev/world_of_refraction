@@ -25,6 +25,9 @@
 class UCharacterData;
 class UCombatResultsWidget;
 class UFightTriggers;
+class UStatusBuildupManager;
+struct FFieldStrike;
+class UTrialRunSubsystem;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ABattleGameMode : public AGameModeBase
@@ -68,6 +71,16 @@ private:
      *  UCharacterDataComponent::BeginPlay initializes from the right asset. B-360b: MemberId (a party member's) is
      *  stamped the same way, so the pawn reads its own slot; invalid for an enemy. */
     APawn *SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId = FGuid());
+
+public:
+    /** B-214f: Strike's buildup on each of Enemies, as a hit from Source (the party's first member). Returns how many
+     *  took it. Nothing when the strike is unset or carries neither an element nor a physical type. Static for the spec. */
+    static int32 ApplyFieldStrikeTo(UStatusBuildupManager &Buildup, AActor *Source, const TArray<AActor *> &Enemies,
+                                    const FFieldStrike &Strike);
+
+private:
+    /** B-214f: a field hit's buildup (TrialRun's pending field strike) on every enemy before the first turn; then cleared. */
+    void ApplyFieldStrike(UTrialRunSubsystem &TrialRun, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty);
 
     /** Abort helper: log Reason and send the player back through ExitEncounter. */
     void AbortToTrial(const FString &Reason);

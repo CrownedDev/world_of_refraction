@@ -31,6 +31,7 @@
 #include "Trial/TrialGate.h"
 #include "Combat/Encounter/EEncounterRank.h"
 #include "Combat/Encounter/EFirstStrike.h"
+#include "Field/FieldSkillTypes.h"
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "EncounterComponent.generated.h"
@@ -113,6 +114,10 @@ public:
 	 *  TODO: a runtime-spawned owner gets a new name each load, so it can't stay beaten. */
 	FName GetEncounterId() const;
 
+	/** B-214f: a field hit by Attacker (a player pawn) engages as walking in would, but the party strikes first and the
+	 *  fight starts with Strike's buildup on every enemy. False when it didn't engage (already engaged, not a party pawn). */
+	bool StrikeFromField(AActor *Attacker, const FFieldStrike &Strike);
+
 	/** This encounter's own enemies (its team, else the owner pawn alone). */
 	TArray<UCharacterData *> GetOwnTeam() const;
 
@@ -174,6 +179,9 @@ private:
 
 	/** B-185: judged at first contact, sent with the fight. */
 	EFirstStrike PendingFirstStrike = EFirstStrike::None;
+
+	/** B-214f: set by StrikeFromField for the engagement it opens; sent with the fight. */
+	FFieldStrike PendingFieldStrike;
 
 	/** Latch while the join window runs; cleared only on abort. */
 	bool bTriggered = false;

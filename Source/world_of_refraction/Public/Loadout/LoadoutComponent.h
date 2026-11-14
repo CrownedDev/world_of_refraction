@@ -115,14 +115,7 @@ public:
 
     // ==================== CONFIGURATION ====================
 
-    /** Character class (determines loadout rules). Synced from CharacterData in
-     *  InitializeFromCharacterData; only the fallback when the owner has no CharacterData.
-     *  C++ reads GetCharacterClass(). OBSOLETE (B-022): kept for Blueprint readers until
-     *  Crown's PIE pass. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Config")
-    ECharacterClass CharacterClass = ECharacterClass::Generic;
-
-    /** The owner's CharacterData class; the CharacterClass field when there is no CharacterData. */
+    /** The owner's CharacterData class (determines loadout rules); Generic when there is no CharacterData. */
     UFUNCTION(BlueprintPure, Category = "Loadout")
     ECharacterClass GetCharacterClass() const;
 
@@ -240,10 +233,6 @@ public:
      *  ownership, castability). Inventory = the ownership source. The checks capture raw
      *  component pointers: use the context at once, don't store it. */
     FLoadoutRuleContext BuildRuleContext(const UInventoryComponent *Inventory) const;
-
-    // OBSOLETE (B-028): the pre-merge checks, kept for wor.Loadout.CompareRules until Crown's PIE pass.
-    TArray<FString> GetValidationErrorsLegacy(int32 Index, UInventoryComponent *Inventory) const;
-    TArray<FInvalidSlotFinding> CollectInvalidSlotFindingsLegacy() const;
 
     /** Clears every clearable finding from CollectInvalidSlotFindings on the
      *  active loadout (DropInvalidParts on the active index), announcing each

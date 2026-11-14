@@ -27,6 +27,7 @@
 #include "Combat/TargetType.h"
 #include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 #include "Memory/BoundQuest.h" // B-381
+#include "Field/FieldSkillTypes.h" // B-214h
 #include "EvolutionItemData.generated.h"
 
 class USpellData;
@@ -99,6 +100,22 @@ public:
          *  (default) = the middle to both; Physical leans damage; Status leans status. */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
         EInfusionMode InfusionMode = EInfusionMode::Balanced;
+
+        // ==================== FIELD (B-214h, FieldAbilities choice 2: Kingdom Hearts 2's forms) ====================
+        // Read from the evolution on the character's own slot (ULoadoutComponent::GetCharacterSlotEvolution); a broken
+        // one gives nothing.
+
+        /** Always-on: the sprint is this much faster (+10-20%, Crown 2026-10-27). */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field", meta = (ClampMin = 0.0, ClampMax = 100.0))
+        float FieldSprintBonusPercent = FieldSkillRules::EVOLUTION_SPRINT_BONUS_PERCENT;
+
+        /** The augment of the field skill: its EP costs this much less (each cost at least 1). */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field", meta = (ClampMin = 0.0, ClampMax = 100.0))
+        float FieldSkillEPDiscountPercent = FieldSkillRules::EVOLUTION_FIELD_EP_DISCOUNT_PERCENT;
+
+        /** The augment of flight: limits it lifts (e.g. unlimited flight), on top of other effects'. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field")
+        FFieldFlightLimits FieldFlightLimits;
 
         // ==================== DURABILITY ====================
         // Every evolution crystal is gear and tracks durability. Who can wear/break
