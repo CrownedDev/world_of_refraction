@@ -404,6 +404,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachCrystalToRing(FGuid RingPersistentID, FCrystalId Id);
 
+    /** B-476e (D-164): socket a refined gem the member carries into an owned apparel piece's empty socket (the store's
+     *  UPoolSubsystem::AttachToApparel; every worn copy follows). Same debit model as AttachCrystalToWeapon: the gem
+     *  leaves the pouch only once the socket is known to take it. False (nothing debited) when the piece isn't owned,
+     *  its socket is full, or the item doesn't fit (a stone: ApparelRules::CanSocket). */
+    bool AttachCrystalToApparel(FGuid ApparelPersistentID, FCrystalId Id);
+
+    /** B-476e: an owned evolution into an owned apparel piece's empty socket (one evolution, one slot: refused when it
+     *  is in use anywhere). */
+    bool AttachEvolutionToApparel(FGuid ApparelPersistentID, FGuid EvoInstanceID);
+
     /** Fuse two crystal halves directly onto the owned ring (by PersistentID). Ring counterpart of
      *  AttachFusionToWeapon, with the inline ring-guard (URingData::IsDataValid:40-44): rings accept
      *  only ELEMENTAL fusions (one gem half); augmented fusions (two stones) are weapon-only and are
