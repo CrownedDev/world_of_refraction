@@ -170,7 +170,7 @@ void UVendorScreenWidget::BuildTree()
 	AddToColumn(PanelColumn, BuyForButton, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	ConfirmText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 	AddToColumn(PanelColumn, ConfirmText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
-	ConfirmHint = MakeHintBar(WidgetTree, LineFontSize, CyanColor); // B-483: caps, clickable
+	ConfirmHint = MakeHintBar(WidgetTree, LineFontSize, CyanColor, /*bBar=*/false); // B-483: caps, clickable; no bar (it sits in the page)
 	WoRKeyHints::SetHint(ConfirmHint, LOCTEXT("ConfirmHint", "{Confirm}  Confirm        {Back}  Cancel"));
 	AddToColumn(PanelColumn, ConfirmHint, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	WholeStackText = MakeHintText(WidgetTree, LineFontSize, CyanColor);

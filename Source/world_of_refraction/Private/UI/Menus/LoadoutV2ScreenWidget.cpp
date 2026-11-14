@@ -40,8 +40,6 @@ namespace LoadoutV2ScreenStyle
 	constexpr float RowGap = 10.0f;
 	constexpr float NameColumnWidth = 460.0f;
 	constexpr float BoxPadding = 24.0f;
-	/** B-483: the footer bar is thin: this much above and below its hints. */
-	constexpr float FooterBarPadding = 9.0f;
 	/** Spaces per depth of an effect-tree line in the details box. */
 	constexpr int32 IndentSpaces = 3;
 
@@ -147,10 +145,13 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		// their row; the loadout's name top right; "Cells used" under them.
 		UHorizontalBox *Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UVerticalBox *ChipRows = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		AddToColumn(ChipRows, MakeChipRow(WidgetTree, PartyConstants::MAX_PARTY_MEMBERS, LOCTEXT("KeySubTabPrev", "{SubTabPrev}"),
-										  LOCTEXT("KeySubTabNext", "{SubTabNext}"), MemberChips));
-		AddToColumn(ChipRows, MakeChipRow(WidgetTree, LoadoutV2Chip_Count, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips),
-					FMargin(0.0f, LineGap, 0.0f, 0.0f));
+		// B-483b: each row in its own panel frame, as wide as its chips (more characters will join the first).
+		AddToColumn(ChipRows, MakeChipRowPanel(WidgetTree, PartyConstants::MAX_PARTY_MEMBERS, LOCTEXT("KeySubTabPrev", "{SubTabPrev}"),
+											   LOCTEXT("KeySubTabNext", "{SubTabNext}"), MemberChips))
+			->SetHorizontalAlignment(HAlign_Left);
+		AddToColumn(ChipRows, MakeChipRowPanel(WidgetTree, LoadoutV2Chip_Count, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips),
+					FMargin(0.0f, LineGap, 0.0f, 0.0f))
+			->SetHorizontalAlignment(HAlign_Left);
 		AddToRow(Header, ChipRows, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		LoadoutNameText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToRow(Header, LoadoutNameText, FMargin(0.0f), VAlign_Top);
@@ -195,14 +196,9 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		MessageText = MakeHintText(WidgetTree, LineFontSize, WarnColor); // B-481: a message may name a key ("{Confirm} again: ...")
 		MessageText->SetAutoWrapText(true);
 		AddToColumn(Main, MessageText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-		// B-483: the footer in a thin bar as wide as the two panels, its hints at the right end.
+		// B-483b: the footer's bar hugs its hints (the shared hint bar draws it) and ends where the details box does.
 		HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-		UBorder *FooterBar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		FooterBar->SetBrushColor(PanelColor);
-		FooterBar->SetPadding(FMargin(BoxPadding, FooterBarPadding));
-		FooterBar->SetHorizontalAlignment(HAlign_Right);
-		FooterBar->SetContent(HintsText);
-		AddToColumn(Main, MakeSized(WidgetTree, ListWidth + ColumnGap + BoxWidth, 0.0f, FooterBar), FMargin(0.0f, LineGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Left);
+		AddToColumn(Main, MakeSized(WidgetTree, ListWidth + ColumnGap + BoxWidth, 0.0f, HintsText), FMargin(0.0f, LineGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Left);
 	}
 	return Super::RebuildWidget();
 }

@@ -125,11 +125,13 @@ void FKeyHintsSpec::Define()
 			return;
 		}
 		WoRKeyHints::SetHint(Bar, FText::FromString(TEXT("{Confirm}  Select        {Back}  Back")));
-		TestTrue(TEXT("a footer has caps"), Bar->HasKeyCaps());
+		TestTrue(TEXT("a footer has caps, in a bar that hugs them (B-483b)"), Bar->HasKeyCaps() && Bar->HasBar());
 		TestEqual(TEXT("its hints"), WoRKeyHints::GetHintsString(Bar->GetHints()), FString(TEXT("[Enter -> Enter] Select\n[Backspace -> BackSpace] Back")));
 		TestEqual(TEXT("its text is still readable"), Bar->GetText().ToString(), FString(TEXT("Enter  Select        Backspace  Back")));
 		const UWoRKeyHintText *KeyLabel = Cast<UWoRKeyHintText>(WoRMenuStyle::MakeKeyLabel(Screen->WidgetTree, FText::FromString(TEXT("{TabNext}"))));
-		TestTrue(TEXT("a key label has a cap"), KeyLabel && KeyLabel->HasKeyCaps() && KeyLabel->GetHints().Num() == 1);
+		TestTrue(TEXT("a key label has a cap, and no bar"), KeyLabel && KeyLabel->HasKeyCaps() && !KeyLabel->HasBar() && KeyLabel->GetHints().Num() == 1);
+		const UWoRKeyHintText *NoBar = Cast<UWoRKeyHintText>(WoRMenuStyle::MakeHintBar(Screen->WidgetTree, WoRMenuStyle::LineFontSize, WoRMenuStyle::DimColor, false));
+		TestTrue(TEXT("a hint row inside a page can go without the bar"), NoBar && NoBar->HasKeyCaps() && !NoBar->HasBar());
 		const UWoRKeyHintText *Text = Cast<UWoRKeyHintText>(WoRMenuStyle::MakeHintText(Screen->WidgetTree, WoRMenuStyle::LineFontSize, WoRMenuStyle::DimColor));
 		TestTrue(TEXT("a hint text has none"), Text && !Text->HasKeyCaps());
 		Bar->ClickKey(EKeys::Invalid); // no key: nothing is sent

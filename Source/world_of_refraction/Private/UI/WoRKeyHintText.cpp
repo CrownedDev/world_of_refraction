@@ -75,6 +75,9 @@ namespace WoRKeyCaps
 	constexpr float CAP_OUTLINE = 1.0f;
 	constexpr float FACE_SIZE = 30.0f;
 	constexpr float FACE_OUTLINE = 2.0f;
+	/** B-483b: the footer's thin bar around its hints. */
+	constexpr float BAR_PADDING_X = 24.0f;
+	constexpr float BAR_PADDING_Y = 9.0f;
 
 	// The mockups' face-button colours (screen_mockups/_kit).
 	const FLinearColor FaceAColor = FLinearColor::FromSRGBColor(FColor(108, 203, 95));
@@ -428,7 +431,13 @@ TSharedRef<SWidget> UWoRKeyHintText::BuildCapsRow()
 		// The whole hint is clickable too (its label does what its key does).
 		Row->AddSlot().AutoWidth().VAlign(VAlign_Center).Padding(FMargin(HintIndex > 0 ? HINT_GAP : 0.0f, 0.0f, 0.0f, 0.0f))[MakeClickable(HintBox, Hint.GetClickKey())];
 	}
-	return Row;
+	if (!bBar || Hints.IsEmpty())
+	{
+		return Row; // a key label, or nothing to say: no bar
+	}
+	// B-483b: a footer's hints in a thin bar that hugs them.
+	static const FSlateColorBrush BarBrush(WoRMenuStyle::PanelColor);
+	return SNew(SBorder).BorderImage(&BarBrush).Padding(FMargin(BAR_PADDING_X, BAR_PADDING_Y))[Row];
 }
 
 void UWoRKeyHintText::ClickKey(FKey Key)
@@ -486,7 +495,8 @@ TSharedRef<SWidget> UWoRKeyHintText::RebuildWidget()
 	if (bKeyCaps)
 	{
 		// B-483: caps and labels in a box of our own, not the text block's one line of text.
-		CapsBox = SNew(SBox);
+		// B-483b: a footer's bar hugs its hints at the right end of whatever width its slot gives it.
+		CapsBox = SNew(SBox).HAlign(bBar ? HAlign_Right : HAlign_Fill);
 		ShowHint();
 		return CapsBox.ToSharedRef();
 	}

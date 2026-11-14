@@ -33,6 +33,9 @@ namespace WoRMenuStyle
 	constexpr float TabPaddingY = 9.0f;
 	constexpr float TabGap = 9.0f;
 	constexpr float BarWithValueHeight = 30.0f;
+	/** B-483b: the panel frame around a chip row. */
+	constexpr float ChipRowPanelPaddingX = 12.0f;
+	constexpr float ChipRowPanelPaddingY = 9.0f;
 
 	constexpr int32 TitleFontSize = 38;
 	constexpr int32 SubtitleFontSize = 20;
@@ -129,11 +132,12 @@ namespace WoRMenuStyle
 
 	/** B-483: a footer. Fill it with WoRKeyHints::SetHint and a footer pattern ("{Confirm}  Select        {Back}  Back"):
 	 *  each key is drawn as a framed cap (a coloured circle for a gamepad's face button) with its label beside it, and
-	 *  each hint is clickable (a click sends its key to the screen). Follows the device live, as a hint text does. */
-	inline UTextBlock *MakeHintBar(UWidgetTree *Tree, int32 FontSize = LineFontSize, const FLinearColor &Color = DimColor)
+	 *  each hint is clickable (a click sends its key to the screen). Follows the device live, as a hint text does.
+	 *  B-483b: the hints sit in a thin panel bar that hugs them, right-aligned in the slot (bBar false: caps only). */
+	inline UTextBlock *MakeHintBar(UWidgetTree *Tree, int32 FontSize = LineFontSize, const FLinearColor &Color = DimColor, bool bBar = true)
 	{
 		UTextBlock *Bar = MakeHintText(Tree, FontSize, Color);
-		CastChecked<UWoRKeyHintText>(Bar)->SetKeyCaps(true);
+		CastChecked<UWoRKeyHintText>(Bar)->SetKeyCaps(true, bBar);
 		return Bar;
 	}
 
@@ -213,7 +217,7 @@ namespace WoRMenuStyle
 	 *  drawn as a key cap, and a click on it sends its key. */
 	inline UTextBlock *MakeKeyLabel(UWidgetTree *Tree, const FText &Pattern)
 	{
-		UTextBlock *Text = MakeHintBar(Tree, SmallFontSize, CyanColor);
+		UTextBlock *Text = MakeHintBar(Tree, SmallFontSize, CyanColor, /*bBar=*/false);
 		WoRKeyHints::SetHint(Text, Pattern);
 		return Text;
 	}
@@ -246,6 +250,16 @@ namespace WoRMenuStyle
 		}
 		AddToRow(Row, MakeKeyLabel(Tree, NextKeyPattern), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 		return Row;
+	}
+
+	/** B-483b: a chip row in its own panel frame, sized to its chips (more may join it): add it left-aligned. */
+	inline UBorder *MakeChipRowPanel(UWidgetTree *Tree, int32 Count, const FText &PrevKeyPattern, const FText &NextKeyPattern, FChipRow &OutRow)
+	{
+		UBorder *Panel = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Panel->SetBrushColor(PanelColor);
+		Panel->SetPadding(FMargin(ChipRowPanelPaddingX, ChipRowPanelPaddingY));
+		Panel->SetContent(MakeChipRow(Tree, Count, PrevKeyPattern, NextKeyPattern, OutRow));
+		return Panel;
 	}
 
 	/** Names and colours the chips: one per state (the rest hidden); Current is filled, Hovered lit. */

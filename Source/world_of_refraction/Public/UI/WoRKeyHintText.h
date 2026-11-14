@@ -97,9 +97,16 @@ public:
 	void SetHint(const FText &InPattern, const FFormatNamedArguments &InExtra);
 
 	/** B-483: draw the pattern as key caps with their labels, each clickable (a footer, a key label), not as a line of
-	 *  text. Set once, before the widget is drawn (WoRMenuStyle::MakeHintBar / MakeKeyLabel). */
-	void SetKeyCaps(bool bInKeyCaps) { bKeyCaps = bInKeyCaps; }
+	 *  text. Set once, before the widget is drawn (WoRMenuStyle::MakeHintBar / MakeKeyLabel).
+	 *  B-483b: bInBar puts the caps in a thin panel bar that hugs them, at the right end of the room it is given (a
+	 *  footer); none for a key label. */
+	void SetKeyCaps(bool bInKeyCaps, bool bInBar = false)
+	{
+		bKeyCaps = bInKeyCaps;
+		bBar = bInBar;
+	}
 	bool HasKeyCaps() const { return bKeyCaps; }
+	bool HasBar() const { return bBar; }
 	/** The hints as drawn now (the specs read them). */
 	TArray<FWoRKeyHint> GetHints() const;
 	/** What a click on a hint does: Key goes to the owning screen as a key press on the next frame. */
@@ -119,6 +126,7 @@ private:
 	TSharedRef<SWidget> BuildCapsRow();
 
 	bool bKeyCaps = false;
+	bool bBar = false;
 	TSharedPtr<SBox> CapsBox;
 
 	FText Pattern;
