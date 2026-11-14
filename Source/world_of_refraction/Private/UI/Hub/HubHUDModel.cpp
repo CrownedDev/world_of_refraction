@@ -8,6 +8,9 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Hub/HubInteract.h"
+#include "Trial/DefeatRules.h"
+#include "Trial/TrialRunSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "UI/Menus/PauseMenuModel.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -66,16 +69,38 @@ FText WoRHubHUD::BuildQuestLine(const UWorld *World)
 	return WoRPauseMenu::IsInRun(World) ? WoRPauseMenu::GetTrackedLine(World) : FText::GetEmpty();
 }
 
+FTrialHUDStatus WoRHubHUD::BuildTrialStatus(const UWorld *World)
+{
+	FTrialHUDStatus Status;
+	Status.bInRun = WoRPauseMenu::IsInRun(World);
+	if (!Status.bInRun)
+	{
+		return Status;
+	}
+	Status.Prisms = BuildMoney(World);
+	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	Status.WipesMax = DefeatRules::MAX_WIPES_PER_RUN;
+	Status.WipesLeft = FMath::Clamp(Status.WipesMax - (TrialRun ? TrialRun->GetRunWipes() : 0), 0, Status.WipesMax);
+	Status.WipesLine = FText::Format(LOCTEXT("WipesLeft", "Wipes left {0} of {1}"), FText::AsNumber(Status.WipesLeft), FText::AsNumber(Status.WipesMax));
+	Status.QuestLine = BuildQuestLine(World);
+	return Status;
+}
+
 FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 {
 	const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
 	const FHubHUDPrompt Prompt = BuildPrompt(PC ? PC->GetPawn() : nullptr);
 	const FHubHUDMoney Money = BuildMoney(World);
 	const FText Quest = BuildQuestLine(World);
+	const FTrialHUDStatus Trial = BuildTrialStatus(World);
 	return FString::Printf(TEXT("[HubHUD] prompt: %s; near a vendor: %s; money: %s %s; quest: %s"),
 						   Prompt.bShown ? *FString::Printf(TEXT("%s %s"), *Prompt.Verb.ToString(), *Prompt.What.ToString()) : TEXT("none"),
 						   Prompt.bNearVendor ? TEXT("yes") : TEXT("no"), *Money.Value.ToString(), *Money.Label.ToString(),
-						   Quest.IsEmpty() ? TEXT("none") : *Quest.ToString());
+						   Quest.IsEmpty() ? TEXT("none") : *Quest.ToString())
+		+ (Trial.bInRun ? FString::Printf(TEXT("; trial: %s %s, %s"), *Trial.Prisms.Value.ToString(), *Trial.Prisms.Label.ToString(),
+										  *Trial.WipesLine.ToString())
+						: FString());
 }
 
 #if !UE_BUILD_SHIPPING
