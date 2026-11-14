@@ -140,7 +140,9 @@ void ULoadoutScreenWidget::BuildTree()
 
 	UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	RefusalText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
-	AddToColumn(ListColumn, RefusalText);
+	AddToColumn(ListColumn, RefusalText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	PickerTitle = MakeText(WidgetTree, LineFontSize, DimColor, true);
+	AddToColumn(ListColumn, PickerTitle, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	RowList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	AddToColumn(ListColumn, RowList)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	AddToRow(Body, MakeSized(WidgetTree, ListWidth, 0.0f, ListColumn), FMargin(0.0f), VAlign_Fill);
@@ -172,10 +174,9 @@ void ULoadoutScreenWidget::BuildTree()
 	AddToColumn(PanelColumn, DetailNote, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
-	// Bottom right: the hints. TODO: B-440b adds "A Change" and "X Unequip".
-	UTextBlock *Hints = MakeText(WidgetTree, LineFontSize, DimColor);
-	Hints->SetText(LOCTEXT("Hints", "LT / RT  Character        B / Esc  Back"));
-	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
+	// Bottom right: the hints.
+	HintsText = MakeText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 }
 
 ULoadoutScreenWidget::FRowWidgets ULoadoutScreenWidget::BuildRow()
@@ -267,6 +268,10 @@ void ULoadoutScreenWidget::RefreshData()
 	}
 	SelectedRow = Page.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, Page.Rows.Num() - 1) : 0;
 
+	if (LoadoutTitleText)
+	{
+		LoadoutTitleText->SetText(Page.LoadoutTitle);
+	}
 	for (int32 Index = 0; Index < MemberTabs.Num(); ++Index)
 	{
 		const bool bShown = Members.IsValidIndex(Index);
@@ -278,36 +283,79 @@ void ULoadoutScreenWidget::RefreshData()
 			MemberTabLabels[Index]->SetColorAndOpacity(FSlateColor(Index == MemberIndex ? TextColor : DimColor));
 		}
 	}
-	for (int32 Index = 0; Index < BudgetPips.Num(); ++Index)
+	RefreshList();
+}
+
+void ULoadoutScreenWidget::RefreshList()
+{
+	using namespace LoadoutScreenStyle;
+
+	if (HintsText)
 	{
-		SetShown(BudgetPips[Index], Index < Page.Budget);
-		BudgetPips[Index]->SetBrushColor(Index < Page.Spent ? CyanColor : TrackColor);
+		HintsText->SetText(bPicking ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
+									: LOCTEXT("Hints", "A  Change        X  Unequip        LT / RT  Character        B / Esc  Back"));
 	}
-	if (BudgetText && LoadoutTitleText && RefusalText)
+	if (RefusalText && PickerTitle)
 	{
-		BudgetText->SetText(FText::Format(LOCTEXT("BudgetValue", "{0} of {1}"), FText::AsNumber(Page.Spent), FText::AsNumber(Page.Budget)));
-		BudgetText->SetColorAndOpacity(FSlateColor(Page.Spent > Page.Budget ? WarnColor : TextColor));
-		LoadoutTitleText->SetText(Page.LoadoutTitle);
-		RefusalText->SetText(Page.Refusal);
-		SetShown(RefusalText, !Page.Refusal.IsEmpty());
+		const FText Shown = Message.IsEmpty() ? Page.Refusal : Message;
+		RefusalText->SetText(Shown);
+		SetShown(RefusalText, !Shown.IsEmpty());
+		const FText RowName = Page.Rows.IsValidIndex(SelectedRow) ? Page.Rows[SelectedRow].Name : FText::GetEmpty();
+		PickerTitle->SetText(Choices.Num() > 0 ? FText::Format(LOCTEXT("PickerTitle", "In place of {0}:"), RowName)
+											   : LOCTEXT("PickerNothing", "Nothing you own fits here."));
+		SetShown(PickerTitle, bPicking);
 	}
+	RefreshBudget();
 
 	if (!RowList)
 	{
 		return; // headless: no tree
 	}
-	while (RowWidgets.Num() < Page.Rows.Num())
+	while (RowWidgets.Num() < GetListCount())
 	{
 		RowWidgets.Add(BuildRow());
 	}
 	for (int32 Index = 0; Index < RowWidgets.Num(); ++Index)
 	{
-		const bool bShown = Page.Rows.IsValidIndex(Index);
+		const bool bShown = Index < GetListCount();
 		SetShown(RowWidgets[Index].Root.Get(), bShown);
-		if (bShown)
+		if (!bShown)
+		{
+			continue;
+		}
+		if (bPicking)
+		{
+			FillRow(RowWidgets[Index], Choices[Index].Row, false);
+			if (!Choices[Index].Refusal.IsEmpty() && RowWidgets[Index].Name.IsValid())
+			{
+				RowWidgets[Index].Name->SetColorAndOpacity(FSlateColor(OffColor)); // refused: stays, greyed (UI_Theme §5)
+			}
+		}
+		else
 		{
 			FillRow(RowWidgets[Index], Page.Rows[Index], Index == Page.FirstApparelRow);
 		}
+	}
+}
+
+void ULoadoutScreenWidget::RefreshBudget()
+{
+	using namespace LoadoutScreenStyle;
+
+	// In the picker the lit line's budget shows in amber before it is confirmed (UIScreens #2).
+	const bool bPreview = bPicking && Choices.IsValidIndex(SelectedChoice);
+	const int32 Shown = bPreview ? Choices[SelectedChoice].NewSpent : Page.Spent;
+	for (int32 Index = 0; Index < BudgetPips.Num(); ++Index)
+	{
+		SetShown(BudgetPips[Index], Index < Page.Budget);
+		BudgetPips[Index]->SetBrushColor(Index < Shown ? (bPreview ? WarnColor : CyanColor) : TrackColor);
+	}
+	if (BudgetText)
+	{
+		BudgetText->SetText(bPreview ? FText::Format(LOCTEXT("BudgetPreview", "{0} → {1} of {2}"), FText::AsNumber(Page.Spent), FText::AsNumber(Shown),
+													 FText::AsNumber(Page.Budget))
+									 : FText::Format(LOCTEXT("BudgetValue", "{0} of {1}"), FText::AsNumber(Page.Spent), FText::AsNumber(Page.Budget)));
+		BudgetText->SetColorAndOpacity(FSlateColor(bPreview || Shown > Page.Budget ? WarnColor : TextColor));
 	}
 }
 
@@ -319,7 +367,7 @@ void ULoadoutScreenWidget::FillRow(const FRowWidgets &Widgets, const FLoadoutScr
 	{
 		return;
 	}
-	const bool bEmptySlot = Row.Kind == ELoadoutScreenRowKind::EmptyApparel;
+	const bool bEmptySlot = Row.Kind == ELoadoutScreenRowKind::EmptyApparel || Row.Kind == ELoadoutScreenRowKind::EmptyGear;
 	SetShown(Widgets.Heading.Get(), bHeading);
 	Widgets.Name->SetText(Row.Name);
 	Widgets.Name->SetColorAndOpacity(FSlateColor(bEmptySlot ? OffColor : TextColor));
@@ -345,19 +393,22 @@ void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 {
 	using namespace LoadoutScreenStyle;
 
+	const int32 Lit = GetListSelection();
 	for (int32 Index = 0; Index < RowWidgets.Num(); ++Index)
 	{
 		if (UBorder *Frame = RowWidgets[Index].Frame.Get())
 		{
-			Frame->SetBrushColor(Index == SelectedRow ? FocusColor : PlateColor);
+			Frame->SetBrushColor(Index == Lit ? FocusColor : PlateColor);
 		}
 	}
+	RefreshBudget();
 	if (!DetailName)
 	{
 		return; // headless: no tree
 	}
-	const bool bHasRow = Page.Rows.IsValidIndex(SelectedRow);
-	const FLoadoutScreenRow Row = bHasRow ? Page.Rows[SelectedRow] : FLoadoutScreenRow();
+	const FLoadoutScreenChoice *Choice = bPicking && Choices.IsValidIndex(SelectedChoice) ? &Choices[SelectedChoice] : nullptr;
+	const bool bHasRow = Choice || (!bPicking && Page.Rows.IsValidIndex(SelectedRow));
+	const FLoadoutScreenRow Row = Choice ? Choice->Row : bHasRow ? Page.Rows[SelectedRow] : FLoadoutScreenRow();
 	DetailName->SetText(bHasRow && !Row.Tier.IsEmpty() ? FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Row.Name, Row.Tier) : Row.Name);
 	DetailKindLine->SetText(Row.KindLine);
 	for (int32 Index = 0; Index < DetailLabels.Num(); ++Index)
@@ -372,10 +423,14 @@ void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 		}
 	}
 	DetailCostLine->SetText(Row.CostLine);
-	DetailNote->SetText(Row.Note);
-	if (bScrollIntoView && RowList && RowWidgets.IsValidIndex(SelectedRow))
+	DetailNote->SetText(!Choice ? Row.Note
+				: !Choice->Refusal.IsEmpty() ? Choice->Refusal
+											  : FText::Format(LOCTEXT("BudgetAfter", "Budget after: {0} of {1}."), FText::AsNumber(Choice->NewSpent),
+															  FText::AsNumber(Page.Budget)));
+	DetailNote->SetColorAndOpacity(FSlateColor(Choice ? WarnColor : DimColor));
+	if (bScrollIntoView && RowList && RowWidgets.IsValidIndex(Lit))
 	{
-		if (UWidget *RowRoot = RowWidgets[SelectedRow].Root.Get())
+		if (UWidget *RowRoot = RowWidgets[Lit].Root.Get())
 		{
 			RowList->ScrollWidgetIntoView(RowRoot, /*AnimateScroll=*/false);
 		}
@@ -384,19 +439,21 @@ void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 
 void ULoadoutScreenWidget::MoveSelection(int32 Delta)
 {
-	if (Page.Rows.Num() > 0)
+	const int32 Count = GetListCount();
+	if (Count > 0)
 	{
-		SelectRow(((SelectedRow + Delta) % Page.Rows.Num() + Page.Rows.Num()) % Page.Rows.Num());
+		SelectRow(((GetListSelection() + Delta) % Count + Count) % Count);
 	}
 }
 
 void ULoadoutScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 {
-	if (Page.Rows.IsValidIndex(Index) && Index != SelectedRow)
+	if (Index < 0 || Index >= GetListCount() || Index == GetListSelection())
 	{
-		SelectedRow = Index;
-		RefreshSelection(bScrollIntoView);
+		return;
 	}
+	(bPicking ? SelectedChoice : SelectedRow) = Index;
+	RefreshSelection(bScrollIntoView);
 }
 
 void ULoadoutScreenWidget::MoveMember(int32 Delta)
@@ -407,8 +464,83 @@ void ULoadoutScreenWidget::MoveMember(int32 Delta)
 	}
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
 	SelectedRow = 0;
+	bPicking = false;
+	Message = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
+}
+
+void ULoadoutScreenWidget::PressChange()
+{
+	if (!Members.IsValidIndex(MemberIndex) || !Page.Rows.IsValidIndex(SelectedRow))
+	{
+		return;
+	}
+	const FLoadoutScreenRow &Row = Page.Rows[SelectedRow];
+	if (!bPicking)
+	{
+		if (Row.Place == ELoadoutScreenPlace::None)
+		{
+			Message = LOCTEXT("ApparelNotYet", "Apparel can't be changed here yet."); // TODO: B-440f, the apparel picker
+			RefreshList();
+			return;
+		}
+		Choices = WoRLoadoutScreen::BuildGearChoices(GetWorld(), Members[MemberIndex], Row);
+		const int32 FirstAllowed = Choices.IndexOfByPredicate([](const FLoadoutScreenChoice &Choice) { return Choice.Refusal.IsEmpty(); });
+		SelectedChoice = FMath::Max(0, FirstAllowed);
+		bPicking = true;
+		Message = FText::GetEmpty();
+		RefreshList();
+		RefreshSelection();
+		return;
+	}
+	if (!Choices.IsValidIndex(SelectedChoice))
+	{
+		return;
+	}
+	Message = WoRLoadoutScreen::ApplyGearChoice(GetWorld(), Members[MemberIndex], Row, Choices[SelectedChoice]);
+	if (Message.IsEmpty())
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutScreen] %s: %s put in place of %s"), *Members[MemberIndex].Name.ToString(),
+			   *Choices[SelectedChoice].Row.Name.ToString(), *Row.Name.ToString());
+		ClosePicker();
+		return;
+	}
+	RefreshList();
+	RefreshSelection();
+}
+
+void ULoadoutScreenWidget::PressUnequip()
+{
+	if (bPicking || !Members.IsValidIndex(MemberIndex) || !Page.Rows.IsValidIndex(SelectedRow))
+	{
+		return;
+	}
+	Message = Page.Rows[SelectedRow].Place == ELoadoutScreenPlace::None
+				  ? LOCTEXT("ApparelNotYet", "Apparel can't be changed here yet.")
+				  : WoRLoadoutScreen::UnequipRow(GetWorld(), Members[MemberIndex], Page.Rows[SelectedRow]);
+	RefreshData();
+	RefreshSelection();
+}
+
+void ULoadoutScreenWidget::ClosePicker()
+{
+	bPicking = false;
+	Choices.Reset();
+	SelectedChoice = 0;
+	RefreshData(); // the page after the change, if one went in
+	RefreshSelection();
+}
+
+bool ULoadoutScreenWidget::NativeOnHandleBackAction()
+{
+	if (!bPicking)
+	{
+		return Super::NativeOnHandleBackAction();
+	}
+	Message = FText::GetEmpty();
+	ClosePicker();
+	return true;
 }
 
 FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
@@ -427,9 +559,17 @@ FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 	}
 	if (IsSubTabPrevKey(Key) || IsSubTabNextKey(Key))
 	{
-		if (!InKeyEvent.IsRepeat())
+		if (!InKeyEvent.IsRepeat() && !bPicking)
 		{
 			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
+		}
+		return FReply::Handled();
+	}
+	if (IsConfirmKey(Key) || IsToggleKey(Key))
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			IsConfirmKey(Key) ? PressChange() : PressUnequip();
 		}
 		return FReply::Handled();
 	}
@@ -452,7 +592,7 @@ int32 ULoadoutScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 	{
 		return INDEX_NONE;
 	}
-	for (int32 Index = 0; Index < RowWidgets.Num() && Index < Page.Rows.Num(); ++Index)
+	for (int32 Index = 0; Index < RowWidgets.Num() && Index < GetListCount(); ++Index)
 	{
 		const UBorder *Frame = RowWidgets[Index].Frame.Get();
 		if (Frame && Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
@@ -487,19 +627,30 @@ FReply ULoadoutScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, cons
 
 FReply ULoadoutScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
-	const int32 Tab = FindMemberTabUnder(InMouseEvent);
-	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton || Tab == INDEX_NONE)
+	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
-	MoveMember(Tab - MemberIndex);
+	const int32 Tab = bPicking ? INDEX_NONE : FindMemberTabUnder(InMouseEvent);
+	if (Tab != INDEX_NONE)
+	{
+		MoveMember(Tab - MemberIndex);
+		return FReply::Handled();
+	}
+	const int32 Row = FindRowUnder(InMouseEvent);
+	if (Row == INDEX_NONE)
+	{
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
+	SelectRow(Row, /*bScrollIntoView=*/false);
+	PressChange(); // a click is A on that row (InputMap: Select)
 	return FReply::Handled();
 }
 
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GLoadoutScreenOpenCommand(
 	TEXT("wor.UI.Loadout"),
-	TEXT("B-440a: open the loadout screen (gear page, read only), as the game menu's Loadout page does."),
+	TEXT("B-440a: open the loadout screen (gear page; B-440b: A Change, X Unequip), as the game menu's Loadout page does."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		if (!ULoadoutScreenWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
