@@ -15,6 +15,7 @@
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Hub/HubHUDModel.h"
 #include "UI/Hub/RestSpotWidget.h"
 #include "WoRLog.h"
 
@@ -159,7 +160,7 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	{
 		Run->NoteRestStand(Pawn->GetActorTransform()); // B-187c: a revive brings the party back here
 	}
-	ShowMessageTo(Pawn, LOCTEXT("Rested", "You rest. Your characters are restored."));
+	ShowMessageTo(Pawn, LOCTEXT("Rested", "The party is restored."));
 	APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
 	if (PC && PC->IsLocalController())
 	{
@@ -200,7 +201,7 @@ ATrialRestSpot *ATrialRestSpot::SpawnForMiniBoss(UWorld *World, const FTransform
 
 FString ATrialRestSpot::GetHintText() const
 {
-	return LOCTEXT("RestHint", "Press E to rest").ToString();
+	return WoRHubHUD::FormatPromptLine(GetPrompt()).ToString(); // B-491 (D-213): "E  Rest"
 }
 
 static FAutoConsoleCommandWithWorld GTrialRestCommand(

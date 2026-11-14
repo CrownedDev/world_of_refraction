@@ -406,7 +406,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		// The one button that shows every status (FeelGuide 5).
 		UButton *StatusButton = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass(), TEXT("StatusesButton")); // not focusable: keeps A / Enter for the command menu
 		UTextBlock *StatusButtonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		StatusButtonLabel->SetText(LOCTEXT("StatusesButton", "Statuses"));
+		StatusButtonLabel->SetText(LOCTEXT("StatusesButton", "Status"));
 		StatusButton->AddChild(StatusButtonLabel);
 		StatusButton->OnClicked.AddDynamic(this, &UBattleHUDWidget::HandleStatusButtonClicked);
 		BattleHUDBuild::Place(Canvas, StatusButton, BattleHUDStyle::StatusButtonAnchor, BattleHUDBuild::Inset(BattleHUDStyle::StatusButtonAnchor));
