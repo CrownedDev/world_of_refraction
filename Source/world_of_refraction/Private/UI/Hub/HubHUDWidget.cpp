@@ -14,6 +14,7 @@
 #include "Player/WoRPlayerState.h"
 #include "TimerManager.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/Trial/RewardPopupsWidget.h"
 
 #define LOCTEXT_NAMESPACE "WoRHubHUDWidget"
 
@@ -31,9 +32,13 @@ namespace HubHUDStyle
 	const FAnchors TopLeft(0.0f, 0.0f);
 	const FAnchors TopRight(1.0f, 0.0f);
 	const FVector2D TopRightAlignment(1.0f, 0.0f);
-	/** B-463b: the tracked quest's line sits under the money chip's place, top right. TODO: tune with the trial HUD (B-465) */
-	constexpr float QuestLineTop = 135.0f;
+	/** B-465b: the trial HUD sits bottom left (mockup run/run_end/1_reward_popups.png); the quest step is its last line
+	 *  (it was top right, B-463b). */
+	const FAnchors BottomLeft(0.0f, 1.0f);
+	const FVector2D BottomLeftAlignment(0.0f, 1.0f);
 	constexpr float QuestLineWidth = 540.0f;
+	/** B-465b: the reward popups stack down the right, under the money chip's place. */
+	constexpr float PopupsTop = 225.0f;
 	/** A step changes on an event, not every frame: a second is soon enough. */
 	constexpr float QuestRefreshSeconds = 1.0f;
 }
@@ -94,22 +99,41 @@ void UHubHUDWidget::BuildTree()
 		MoneySlot->SetAutoSize(true);
 	}
 
-	QuestBox = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	QuestBox->SetBrushColor(PanelColor);
-	QuestBox->SetPadding(FMargin(ChipPaddingX, ChipPaddingY));
-	QuestText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
-	QuestBox->SetContent(MakeSized(WidgetTree, QuestLineWidth, 0.0f, QuestText));
-	if (UCanvasPanelSlot *QuestSlot = Canvas->AddChildToCanvas(QuestBox))
+	TrialBox = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	TrialBox->SetBrushColor(PanelColor);
+	TrialBox->SetPadding(FMargin(ChipPaddingX, ChipPaddingY));
+	UVerticalBox *TrialColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	TrialBox->SetContent(TrialColumn);
+	UHorizontalBox *TrialRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	TrialPrismsValue = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	TrialPrismsLabel = MakeText(WidgetTree, LineFontSize, DimColor);
+	TrialWipes = MakeText(WidgetTree, LineFontSize, WarnColor, true);
+	AddToRow(TrialRow, TrialPrismsValue, FMargin(0.0f, 0.0f, WordGap, 0.0f));
+	AddToRow(TrialRow, TrialPrismsLabel, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	AddToRow(TrialRow, TrialWipes);
+	AddToColumn(TrialColumn, TrialRow);
+	QuestText = MakeWrappedText(WidgetTree, SmallFontSize, DimColor);
+	AddToColumn(TrialColumn, MakeSized(WidgetTree, QuestLineWidth, 0.0f, QuestText), FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	if (UCanvasPanelSlot *TrialSlot = Canvas->AddChildToCanvas(TrialBox))
 	{
-		QuestSlot->SetAnchors(TopRight);
-		QuestSlot->SetAlignment(TopRightAlignment);
-		QuestSlot->SetPosition(FVector2D(-ScreenMargin, QuestLineTop));
-		QuestSlot->SetAutoSize(true);
+		TrialSlot->SetAnchors(BottomLeft);
+		TrialSlot->SetAlignment(BottomLeftAlignment);
+		TrialSlot->SetPosition(FVector2D(ScreenMargin, -ScreenMargin));
+		TrialSlot->SetAutoSize(true);
+	}
+
+	Popups = CreateWidget<URewardPopupsWidget>(this, URewardPopupsWidget::StaticClass());
+	if (UCanvasPanelSlot *PopupsSlot = Popups ? Canvas->AddChildToCanvas(Popups) : nullptr)
+	{
+		PopupsSlot->SetAnchors(TopRight);
+		PopupsSlot->SetAlignment(TopRightAlignment);
+		PopupsSlot->SetPosition(FVector2D(-ScreenMargin, PopupsTop));
+		PopupsSlot->SetAutoSize(true);
 	}
 
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
-	SetShown(QuestBox, false);
+	SetShown(TrialBox, false);
 }
 
 void UHubHUDWidget::NativeConstruct()
@@ -120,11 +144,11 @@ void UHubHUDWidget::NativeConstruct()
 	{
 		World->GetTimerManager().SetTimer(RefreshTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::Refresh),
 										  HubHUDStyle::RefreshSeconds, /*bLoop=*/true);
-		World->GetTimerManager().SetTimer(QuestTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::RefreshQuestLine),
+		World->GetTimerManager().SetTimer(QuestTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::RefreshTrialStatus),
 										  HubHUDStyle::QuestRefreshSeconds, /*bLoop=*/true);
 	}
 	Refresh();
-	RefreshQuestLine();
+	RefreshTrialStatus();
 }
 
 void UHubHUDWidget::NativeDestruct()
@@ -174,6 +198,7 @@ void UHubHUDWidget::HandleCurrencyChanged(ECurrencyType Currency, uint8 /*SubKey
 	{
 		MoneyChangedAtSeconds = World->GetTimeSeconds();
 		Refresh();
+		RefreshTrialStatus(); // the trial HUD's Prisms at once, not on its next second
 	}
 }
 
@@ -209,17 +234,25 @@ void UHubHUDWidget::Refresh()
 	PlacePrompt();
 }
 
-void UHubHUDWidget::RefreshQuestLine()
+void UHubHUDWidget::RefreshTrialStatus()
 {
-	if (!QuestBox || !QuestText)
+	if (!TrialBox || !QuestText)
 	{
 		return; // headless: no tree
 	}
-	const FText Quest = WoRHubHUD::BuildQuestLine(GetWorld());
-	WoRMenuStyle::SetShown(QuestBox, !Quest.IsEmpty());
-	if (!Quest.EqualTo(QuestText->GetText()))
+	const FTrialHUDStatus Trial = WoRHubHUD::BuildTrialStatus(GetWorld());
+	WoRMenuStyle::SetShown(TrialBox, Trial.bInRun);
+	if (!Trial.bInRun)
 	{
-		QuestText->SetText(Quest);
+		return;
+	}
+	TrialPrismsValue->SetText(Trial.Prisms.Value);
+	TrialPrismsLabel->SetText(Trial.Prisms.Label);
+	TrialWipes->SetText(Trial.WipesLine);
+	WoRMenuStyle::SetShown(QuestText, !Trial.QuestLine.IsEmpty());
+	if (!Trial.QuestLine.EqualTo(QuestText->GetText()))
+	{
+		QuestText->SetText(Trial.QuestLine);
 	}
 }
 

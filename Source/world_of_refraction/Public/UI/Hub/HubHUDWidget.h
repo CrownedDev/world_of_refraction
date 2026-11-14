@@ -3,6 +3,8 @@
 // two new pieces. The party strip stays the existing UPartyDisplayWidget.
 //   - The interact prompt: key + verb + what, floating above the thing the player faces.
 //   - The money chip, top right: only near a vendor, or for a few seconds after the balance changed.
+//   - B-465b (UIScreens #25, #28): in a run, the small trial HUD bottom left (Prisms, wipes left, the tracked quest
+//     step), and the reward popups on the right (URewardPopupsWidget, hosted here so they hide with the HUD).
 // A plain viewport widget (not a CommonUI screen: it takes no input), created by AWoRHubController for the local
 // player and hidden by the root layout while a menu screen is up. What it shows comes from WoRHubHUD
 // (HubHUDModel.h), which the specs read.
@@ -23,6 +25,7 @@
 class UBorder;
 class UCurrencyComponent;
 class UTextBlock;
+class URewardPopupsWidget;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UHubHUDWidget : public UUserWidget
@@ -35,6 +38,7 @@ public:
 
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
 	bool IsMoneyShown() const { return bMoneyShown; }
+	URewardPopupsWidget *GetPopups() const { return Popups; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -55,9 +59,10 @@ private:
 	/** World seconds when the place's money last changed; negative: not yet. */
 	float MoneyChangedAtSeconds = -1.0f;
 	FTimerHandle RefreshTimer;
-	/** B-463b: the tracked quest's line, read less often than the prompt (it builds the quest list). */
+	/** B-463b: the tracked quest's line, read less often than the prompt (it builds the quest list). B-465b: with the
+	 *  rest of the trial HUD. */
 	FTimerHandle QuestTimer;
-	void RefreshQuestLine();
+	void RefreshTrialStatus();
 
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> PromptBox;
@@ -73,11 +78,19 @@ private:
 	TObjectPtr<UTextBlock> MoneyValue;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> MoneyLabel;
-	/** B-463b: the tracked quest's step, in a run. */
+	/** B-465b: the trial HUD, bottom left in a run: Prisms, wipes left, and (B-463b) the tracked quest's step. */
 	UPROPERTY(Transient)
-	TObjectPtr<UBorder> QuestBox;
+	TObjectPtr<UBorder> TrialBox;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TrialPrismsValue;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TrialPrismsLabel;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TrialWipes;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> QuestText;
+	UPROPERTY(Transient)
+	TObjectPtr<URewardPopupsWidget> Popups;
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;
 };
