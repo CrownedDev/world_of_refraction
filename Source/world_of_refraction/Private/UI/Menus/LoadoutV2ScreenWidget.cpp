@@ -331,6 +331,15 @@ const FLoadoutScreenRow *ULoadoutV2ScreenWidget::GetFocusedApparelRow() const
 void ULoadoutV2ScreenWidget::RefreshDetails()
 {
 	Details.Reset();
+	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
+	{
+		// B-484: in a slot's list, the highlighted (or hovered) piece alone.
+		if (Items.IsValidIndex(GetBoxLine()))
+		{
+			Details = BuildItemDetails(Items[GetBoxLine()]);
+		}
+		return;
+	}
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
 	const FCombatLoadout *Active = nullptr;
@@ -403,11 +412,7 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		{
 			return FText::GetEmpty();
 		}
-		if (Items[Line].bEquipped)
-		{
-			return FText::Format(LOCTEXT("EquippedName", "{0}  EQUIPPED"), Items[Line].Name);
-		}
-		return Line == PickedSocket ? FText::Format(LOCTEXT("PickedName", "{0}  PICKED"), Items[Line].Name) : Items[Line].Name;
+		return Items[Line].Name; // B-484: EQUIPPED / PICKED is the row's tag (GetLineTag)
 	case ELoadoutV2Mode::List:
 	default:
 		if (Tab == ELoadoutV2Tab::Apparel)
@@ -480,10 +485,46 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		}
 		if (Page.Entries.IsValidIndex(Line))
 		{
-			return Page.Entries[Line].bActive ? LOCTEXT("ActiveTag", "ACTIVE") : FText::GetEmpty(); // B-482b: the row's right end
+			return FText::GetEmpty(); // B-484: ACTIVE is the row's tag (GetLineTag)
 		}
 		return Page.AddFrameLine;
 	}
+}
+
+FText ULoadoutV2ScreenWidget::GetLineTag(int32 Line) const
+{
+	switch (Mode)
+	{
+	case ELoadoutV2Mode::WindowItems:
+	case ELoadoutV2Mode::WindowAsk:
+	case ELoadoutV2Mode::ApparelItems:
+		if (!Items.IsValidIndex(Line))
+		{
+			return FText::GetEmpty();
+		}
+		return Items[Line].bEquipped ? LOCTEXT("EquippedTag", "EQUIPPED") : Line == PickedSocket ? LOCTEXT("PickedTag", "PICKED") : FText::GetEmpty();
+	case ELoadoutV2Mode::List:
+		return Tab == ELoadoutV2Tab::Weapons && Page.Entries.IsValidIndex(Line) && Page.Entries[Line].bActive ? LOCTEXT("ActiveTag", "ACTIVE") : FText::GetEmpty();
+	default:
+		return FText::GetEmpty();
+	}
+}
+
+TArray<FLoadoutV2DetailLine> ULoadoutV2ScreenWidget::BuildItemDetails(const FLoadoutV2WindowItem &Item) const
+{
+	if (Item.Weapon.IsValid())
+	{
+		return WoRLoadoutV2::BuildWeaponDetails(Item.Weapon, bSimpleView);
+	}
+	if (Item.Adapter.IsValid())
+	{
+		return WoRLoadoutV2::BuildAdapterDetails(Item.Adapter, bSimpleView);
+	}
+	if (Item.Evolution.InstanceID.IsValid())
+	{
+		return WoRLoadoutV2::BuildAttachmentDetails(WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution), bSimpleView);
+	}
+	return WoRLoadoutV2::BuildAttachmentDetails(Item.Socket.Attachment, bSimpleView); // a socket line; nothing for a note
 }
 
 bool ULoadoutV2ScreenWidget::IsLineRefused(int32 Line) const
@@ -615,12 +656,18 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		Row->SetContent(Line);
 		UTextBlock *Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		UTextBlock *Detail = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: a line may name a key
+		// B-484: the name, the detail and the tag each have their own space; text too long for its space ends in "...".
+		UTextBlock *Tag = MakeText(WidgetTree, SmallFontSize, CyanColor, true);
+		Name->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		Detail->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 		AddToRow(Line, MakeSized(WidgetTree, NameColumnWidth, 0.0f, Name), FMargin(0.0f), VAlign_Center);
-		AddToRow(Line, Detail, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToRow(Line, Detail, FMargin(SectionGap, 0.0f, 0.0f, 0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToRow(Line, Tag, FMargin(SectionGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
 		AddToColumn(ListBox, Row, FMargin(0.0f, 0.0f, 0.0f, RowGap));
 		LineRows.Add(Row);
 		LineNames.Add(Name);
 		LineDetails.Add(Detail);
+		LineTags.Add(Tag);
 	}
 	for (int32 Index = 0; Index < LineRows.Num(); ++Index)
 	{
@@ -639,12 +686,18 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		const bool bListMode = Mode == ELoadoutV2Mode::List;
 		LineDetails[Index]->SetJustification(bListMode ? ETextJustify::Right : ETextJustify::Left);
 		LineDetails[Index]->SetColorAndOpacity(FSlateColor(bRefused && (IsAdding() || Mode == ELoadoutV2Mode::ApparelItems) ? WarnColor : bListMode ? CyanColor : DimColor));
+		const FText Tag = GetLineTag(Index);
+		LineTags[Index]->SetText(Tag);
+		SetShown(LineTags[Index], !Tag.IsEmpty());
 	}
 
 	// The box: the focused entry's details, or in the window the entry being built.
 	TArray<TPair<FText, bool>> BoxText; // a line, and whether it is lit
 	FText BoxTitle;
-	if (IsAdding())
+	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
+	// entry's slots; a line with nothing to show (a note) falls back to the slots.
+	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && !Details.IsEmpty();
+	if (IsAdding() && !bPieceBox)
 	{
 		BoxTitle = bEditing ? EditEntry.Name : LOCTEXT("BoxNewEntry", "New entry");
 		for (int32 Index = 0; Index < Slots.Num(); ++Index)
@@ -653,11 +706,11 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			BoxText.Add({FText::Format(LOCTEXT("BoxSlotLine", "{0}:  {1}"), GetSlotName(Slots[Index]), GetSlotValue(Slots[Index])), bLit});
 		}
 	}
-	else if (Tab == ELoadoutV2Tab::Apparel)
+	else if (Tab == ELoadoutV2Tab::Apparel && !bPieceBox)
 	{
 		// B-440f: the focused piece (in the list of pieces: the lit one), or the Add apparel frame.
 		const FLoadoutScreenRow *Place = GetFocusedApparelRow();
-		const FLoadoutScreenRow *Row = Mode == ELoadoutV2Mode::ApparelItems ? (Items.IsValidIndex(Selected) ? &Items[Selected].Socket.Row : nullptr) : Place;
+		const FLoadoutScreenRow *Row = Mode == ELoadoutV2Mode::ApparelItems ? (Items.IsValidIndex(GetBoxLine()) ? &Items[GetBoxLine()].Socket.Row : nullptr) : Place;
 		if (Row && Row->Kind == ELoadoutScreenRowKind::Apparel)
 		{
 			BoxTitle = Row->Name;
@@ -684,7 +737,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	else
 	{
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
-		BoxTitle = Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
+		BoxTitle = bPieceBox ? Items[GetBoxLine()].Name : Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
 		for (const FLoadoutV2DetailLine &Line : Details)
 		{
 			FText Shown;
@@ -1814,6 +1867,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.bEquipped = true;
 			Equipped.Name = Row.Sockets[Socket].Name;
 			Equipped.Line = Row.Sockets[Socket].Label;
+			Equipped.Socket.Attachment = Socket == LoadoutScreenSockets::CRYSTAL ? Current.Socket1 : Current.Socket2; // B-484: for the box
 			if (bRemoveArmed)
 			{
 				FText Refusal;

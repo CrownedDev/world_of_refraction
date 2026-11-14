@@ -334,6 +334,49 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("the simple view is shorter"), Simple.Num() < Full.Num());
 	});
 
+	It("gives one piece's own details for the Add gear window's box: a weapon, a crystal, nothing for nothing (B-484)", [this]()
+	{
+		constexpr int32 PIECE_TEST_DURABILITY = 5;
+		FWeaponInventoryEntry Maul = LoadoutV2TestWeapon(TEXT("Quarry Maul"), EWeaponType::Hammer);
+		Maul.Weapon->Power = 50;
+		Maul.Weapon->PresetAbilities = {NewObject<UAbilityData>(GetTransientPackage())}; // a built-in: the full view lists it
+		Maul.AttachedItem.Kind = EAttachedItemKind::Crystal;
+		Maul.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), PIECE_TEST_DURABILITY);
+		const auto Count = [](const TArray<FLoadoutV2DetailLine> &Lines, ELoadoutV2DetailKind Kind)
+		{
+			return Lines.FilterByPredicate([Kind](const FLoadoutV2DetailLine &Line) { return Line.Kind == Kind; }).Num();
+		};
+		const TArray<FLoadoutV2DetailLine> Weapon = WoRLoadoutV2::BuildWeaponDetails(Maul, false);
+		TestEqual(TEXT("the weapon alone: one piece"), Count(Weapon, ELoadoutV2DetailKind::Piece), 1);
+		TestTrue(TEXT("named"), Weapon.Num() > 0 && Weapon[0].Label.ToString() == TEXT("Quarry Maul"));
+		TestTrue(TEXT("its power"), Weapon.ContainsByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Value.ToString() == TEXT("50"); }));
+		TestEqual(TEXT("its own two sockets"), Count(Weapon, ELoadoutV2DetailKind::Socket), 2);
+		TestEqual(TEXT("its skill slots"), Count(Weapon, ELoadoutV2DetailKind::SkillSlots), 1);
+		TestTrue(TEXT("the weapon's simple view is shorter"), WoRLoadoutV2::BuildWeaponDetails(Maul, true).Num() < Weapon.Num());
+
+		// The same weapon as a one-weapon entry reads the same in the Weapons tab's box.
+		FCombatLoadout Loadout;
+		FText Refusal;
+		FLoadoutV2Draft Draft = LoadoutV2WeaponDraft(Maul);
+		Draft.Socket1 = Maul.AttachedItem;
+		if (TestTrue(TEXT("the maul goes in"), WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, Draft, Refusal)))
+		{
+			const FLoadoutV2Entry Entry = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[0];
+			TestEqual(TEXT("the same lines as its entry's box"), WoRLoadoutV2::GetDetailsString(Weapon),
+					  WoRLoadoutV2::GetDetailsString(WoRLoadoutV2::BuildEntryDetails(Loadout, Entry, false)));
+		}
+
+		const TArray<FLoadoutV2DetailLine> Gem = WoRLoadoutV2::BuildAttachmentDetails(Maul.AttachedItem, false);
+		TestEqual(TEXT("a crystal: one piece"), Count(Gem, ELoadoutV2DetailKind::Piece), 1);
+		TestTrue(TEXT("with what it costs"), Gem.ContainsByPredicate([](const FLoadoutV2DetailLine &Line)
+																	  { return Line.Value.ToString() == FString::FromInt(LoadoutConstants::LOADOUT_CRYSTAL_COST); }));
+		TestTrue(TEXT("the crystal's simple view is shorter"), WoRLoadoutV2::BuildAttachmentDetails(Maul.AttachedItem, true).Num() < Gem.Num());
+		TestTrue(TEXT("an empty socket: nothing"), WoRLoadoutV2::BuildAttachmentDetails(FRuntimeAttachedItem(), false).IsEmpty());
+		TestTrue(TEXT("no weapon: nothing"), WoRLoadoutV2::BuildWeaponDetails(FWeaponInventoryEntry(), false).IsEmpty());
+		TestTrue(TEXT("no adapter: nothing"), WoRLoadoutV2::BuildAdapterDetails(FRingInventoryEntry(), false).IsEmpty());
+		TestFalse(TEXT("an adapter: its piece"), WoRLoadoutV2::BuildAdapterDetails(LoadoutV2TestAdapter(), false).IsEmpty());
+	});
+
 	It("names what the socket holds the same on the row and in the box; nothing for an empty socket (B-482b)", [this]()
 	{
 		constexpr int32 SOCKET_TEST_DURABILITY = 5;

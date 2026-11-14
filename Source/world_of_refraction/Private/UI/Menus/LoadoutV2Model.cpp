@@ -241,6 +241,42 @@ namespace LoadoutV2Build
 		AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket2, 2), AttachmentLine(Socket2));
 	}
 
+	/** A weapon entry's lines (one weapon, or a pair): the pieces, the built-ins, the sockets, the skill slots. */
+	void AddWeaponSet(TArray<FLoadoutV2DetailLine> &Lines, const FWeaponLoadoutEntry &Set, bool bSimple)
+	{
+		AddWeaponPiece(Lines, Set.WeaponEntry, bSimple);
+		if (Set.HasOffHand())
+		{
+			AddWeaponPiece(Lines, Set.OffHandEntry, bSimple);
+		}
+		if (!bSimple)
+		{
+			TArray<FText> BuiltIns;
+			for (const UAbilityData *Ability : WeaponSetRules::GetSetBuiltIns(Set))
+			{
+				if (Ability)
+				{
+					BuiltIns.Add(FText::FromString(Ability->Name));
+				}
+			}
+			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailBuiltIns", "Built-in"), FText::Join(LOCTEXT("NameSeparator", ", "), BuiltIns));
+		}
+		AddSockets(Lines, Set.WeaponEntry.AttachedItem, Set.WeaponEntry.StoneSocket);
+		AddLine(Lines, ELoadoutV2DetailKind::SkillSlots, LOCTEXT("DetailSkillSlots", "Skill slots"), FText::AsNumber(Set.GetSkillSlotCount()));
+	}
+
+	/** An adapter's lines: the piece, its form, its effects, its sockets. */
+	void AddAdapter(TArray<FLoadoutV2DetailLine> &Lines, const FRingInventoryEntry &Owned, bool bSimple)
+	{
+		if (const URingData *Adapter = Owned.Ring)
+		{
+			AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier));
+			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), WoRGameNames::GetAdapterFormName(Adapter->Form));
+			AddEffects(Lines, Adapter, bSimple);
+		}
+		AddSockets(Lines, Owned.AttachedItem, Owned.StoneSocket);
+	}
+
 	const FWeaponLoadoutEntry *FindWeaponSet(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry)
 	{
 		if (Entry.Kind != ELoadoutV2EntryKind::Weapon)
@@ -884,35 +920,11 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildEntryDetails(const FCombatLoadou
 	TArray<FLoadoutV2DetailLine> Lines;
 	if (const FWeaponLoadoutEntry *Set = FindWeaponSet(Loadout, Entry))
 	{
-		AddWeaponPiece(Lines, Set->WeaponEntry, bSimple);
-		if (Set->HasOffHand())
-		{
-			AddWeaponPiece(Lines, Set->OffHandEntry, bSimple);
-		}
-		if (!bSimple)
-		{
-			TArray<FText> BuiltIns;
-			for (const UAbilityData *Ability : WeaponSetRules::GetSetBuiltIns(*Set))
-			{
-				if (Ability)
-				{
-					BuiltIns.Add(FText::FromString(Ability->Name));
-				}
-			}
-			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailBuiltIns", "Built-in"), FText::Join(LOCTEXT("NameSeparator", ", "), BuiltIns));
-		}
-		AddSockets(Lines, Set->WeaponEntry.AttachedItem, Set->WeaponEntry.StoneSocket);
-		AddLine(Lines, ELoadoutV2DetailKind::SkillSlots, LOCTEXT("DetailSkillSlots", "Skill slots"), FText::AsNumber(Set->GetSkillSlotCount()));
+		AddWeaponSet(Lines, *Set, bSimple);
 	}
 	else if (const FRingLoadoutEntry *Ring = FindAdapter(Loadout, Entry))
 	{
-		if (const URingData *Adapter = Ring->RingEntry.Ring)
-		{
-			AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier));
-			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), WoRGameNames::GetAdapterFormName(Adapter->Form));
-			AddEffects(Lines, Adapter, bSimple);
-		}
-		AddSockets(Lines, Ring->RingEntry.AttachedItem, Ring->RingEntry.StoneSocket);
+		AddAdapter(Lines, Ring->RingEntry, bSimple);
 	}
 	else if (Entry.Kind == ELoadoutV2EntryKind::Evolution && Loadout.IsEvolutionLoadout())
 	{
@@ -936,6 +948,53 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildEntryDetails(const FCombatLoadou
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailSpells", "Spells"), FText::Join(LOCTEXT("NameSeparator", ", "), Spells));
 		// TODO: B-476d: the evolution's passives as the ET-50 tree (its effects live per infusion on UEvolutionItemData).
 	}
+	return Lines;
+}
+
+TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildWeaponDetails(const FWeaponInventoryEntry &Weapon, bool bSimple)
+{
+	TArray<FLoadoutV2DetailLine> Lines;
+	if (Weapon.Weapon)
+	{
+		FWeaponLoadoutEntry Alone; // the weapon as a one-weapon entry: its own sockets and skill slots
+		Alone.WeaponEntry = Weapon;
+		LoadoutV2Build::AddWeaponSet(Lines, Alone, bSimple);
+	}
+	return Lines;
+}
+
+TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAdapterDetails(const FRingInventoryEntry &Adapter, bool bSimple)
+{
+	TArray<FLoadoutV2DetailLine> Lines;
+	if (Adapter.Ring)
+	{
+		LoadoutV2Build::AddAdapter(Lines, Adapter, bSimple);
+	}
+	return Lines;
+}
+
+TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAttachmentDetails(const FRuntimeAttachedItem &Item, bool bSimple)
+{
+	using namespace LoadoutV2Build;
+	TArray<FLoadoutV2DetailLine> Lines;
+	if (Item.IsEmpty())
+	{
+		return Lines;
+	}
+	const EItemTier Tier = Item.IsEvolution() ? Item.Evolution.Tier : StatStone::AsRowId(Item.Crystal.Id).Tier;
+	AddLine(Lines, ELoadoutV2DetailKind::Piece, AttachmentName(Item), WoRGameNames::GetTierLetter(Tier));
+	const ESpellElement Element = Item.GetElement();
+	AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
+	if (!bSimple)
+	{
+		constexpr int32 FILLED_SOCKET = 1; // SocketWord numbers only an empty socket; this one is filled
+		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), SocketWord(Item, FILLED_SOCKET));
+		const int32 Cells = Item.IsEvolution()		? LoadoutConstants::LOADOUT_EVOLUTION_COST
+							: Item.IsAugmentStone() ? LoadoutConstants::LOADOUT_STONE_COST
+													: LoadoutConstants::LOADOUT_CRYSTAL_COST;
+		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailCells", "Cells"), FText::AsNumber(Cells));
+	}
+	// TODO: B-476d: a crystal's and a stone's effect text, and an evolution's passives (no text helper yet).
 	return Lines;
 }
 

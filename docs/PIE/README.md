@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-484](B-484.md) | `feature/B-484-add-gear-box-follows-row` (in dev, built 2026-11-14) | Loadout v2, Add gear window: the box shows the highlighted or hovered piece alone; EQUIPPED has its own space | Pending |
 | [B-483b](B-483b.md) | `fix/B-483b-chip-row-frames-footer-hug` (in dev, built 2026-11-14) | Loadout v2: each chip row in its own panel; every menu's footer bar hugs its hints at the right | Pending |
 | [B-483](B-483.md) | `feature/B-483-key-caps-section-frames` (in dev, built 2026-11-14) | Footers draw keys as caps (coloured circles on a gamepad), each hint clickable, in every menu; loadout v2 section frames | Pending |
 | [B-482b](B-482b.md) | `fix/B-482b-loadout-v2-entry-rows` (in dev, built 2026-11-14) | Loadout v2: rows read "Name (Crystal)", ACTIVE at the right end, no "later", the loadout title inside the margin | Pending |
