@@ -20,6 +20,7 @@
 class UInventoryComponent;
 class ULoadoutComponent;
 class USkillDataBase;
+struct FAmpBonus;
 class UWorld;
 struct FApparelEntry;
 struct FCombatLoadout;
@@ -173,6 +174,9 @@ namespace WoRLoadoutScreen
 
 	/** B-440f: an apparel piece as a gear row (its socket, tier, element; outside the budget); GearID is its owned id. */
 	WORLD_OF_REFRACTION_API FLoadoutScreenRow BuildApparelRow(const FApparelEntry &Entry);
+
+	/** B-476e: an Amp bonus in words, its non-zero lines ("Fire Amp +2 · Spell Amp +1"); empty when it has none. */
+	WORLD_OF_REFRACTION_API FText GetAmpText(const FAmpBonus &Amp);
 
 	/** B-440b: what can take Row's place: "put in hand" first when Row is the weapon not in hand, then every owned
 	 *  weapon or adapter the place takes that isn't in this loadout, each with the budget after it. Refused lines stay:
