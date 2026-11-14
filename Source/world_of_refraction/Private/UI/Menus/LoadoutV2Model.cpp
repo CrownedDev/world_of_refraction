@@ -214,9 +214,9 @@ namespace LoadoutV2Build
 		}
 	}
 
-	/** A gear piece's effects: the ET-50 tree, or its short forms in the simple view. */
 	void AddEffectList(TArray<FLoadoutV2DetailLine> &Lines, const TArray<FSkillEffect> &Effects, bool bSimple);
 
+	/** A gear piece's effects: the ET-50 tree, or its short forms in the simple view. */
 	void AddEffects(TArray<FLoadoutV2DetailLine> &Lines, const UEquipmentDataBase *Piece, bool bSimple)
 	{
 		if (!Piece)
