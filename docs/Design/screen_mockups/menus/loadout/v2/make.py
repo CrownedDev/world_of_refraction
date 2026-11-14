@@ -466,9 +466,9 @@ item_rows(d, 590, 1134, 156, [
 save(im, OUT, "5a_add_apparel.png")
 
 
-def skill_rows(d, rows, focus, top=TOP + 40):
+def skill_rows(d, rows, focus, top=TOP + 40, opened=None):
     """The focused entry's skill slots. rows: ("head", text) for a weapon's sub-heading, or (name, el, kind, ep) with
-    kind "built-in", "slot" (picked) or "empty"."""
+    kind "built-in", "slot" (picked) or "empty". opened: the focused row's details (X Details), drawn in place."""
     y = top
     for i, r in enumerate(rows):
         if r[0] == "head":
@@ -477,6 +477,9 @@ def skill_rows(d, rows, focus, top=TOP + 40):
             continue
         n, el, kind, ep = r[:4]
         f = i == focus
+        if f and opened:
+            y = open_skill(d, LIST_X + 12, 1220, y, *opened) + 6
+            continue
         empty = kind == "empty"
         cut(d, (LIST_X + 12, y, 1220, y + 44), TEAL if f else (BG if empty else PLATE), CYAN if f else (OFF if empty else STEEL), 6)
         if empty:
@@ -492,27 +495,31 @@ def skill_rows(d, rows, focus, top=TOP + 40):
         y += 50
 
 
-def skill_details(d, box, name, el, tier, sub, stats, effects, req):  # effects: tree lines (ET-50)
-    """What a skill does, short stat lines. stats: (label, value) pairs in two columns; effects: lines;
-    req: (text, met) or None."""
-    x0, y0, x1, y1 = box
-    cut(d, box, PANEL, STEEL, 10)
-    icon(d, (x0 + 14, y0 + 14, x0 + 50, y0 + 50), ELEMENT[el])
-    text(d, (x0 + 62, y0 + 14), name, 18, True)
-    tier_badge(d, x0 + 62 + int(d.textlength(name, font=F(18, True))) + 15, y0 + 26, tier, 10)
-    text(d, (x0 + 62, y0 + 38), sub, 12, fill=DIM)
-    half = (x1 - x0 - 28) // 2
+def open_skill(d, x0, x1, y, name, el, tier, sub, stats, effects, req, ep=""):
+    """X Details: the highlighted skill's row grows in place (Crown). Its header stays the row; under it the stat lines
+    in three columns, the ET-50 effect tree and the requirement. Up / Down closes it; the right stick scrolls a tall one."""
+    h = 44 + 10 + 22 * ((len(stats) + 2) // 3) + 8 + 20 * len(effects) + (26 if req else 0) + 6
+    cut(d, (x0, y, x1, y + h), PANEL, CYAN, 6)
+    cut(d, (x0, y, x1, y + 44), TEAL, CYAN, 6)
+    d.regular_polygon((x0 + 22, y + 22, 8), 6, fill=ELEMENT[el])
+    text(d, (x0 + 40, y + 11), name, 16, True)
+    nx = x0 + 40 + int(d.textlength(name, font=F(16, True))) + 15
+    tier_badge(d, nx, y + 21, tier, 10)
+    text(d, (nx + 20, y + 14), sub, 12, fill=TXT)
+    if ep:
+        text(d, (x1 - 14, y + 12), ep, 14, True, anchor="ra")
+    col = (x1 - x0 - 28) // 3
+    yy = y + 54
     for k, (lab, val) in enumerate(stats):
-        x = x0 + 14 + (k % 2) * half
-        y = y0 + 66 + (k // 2) * 24
-        text(d, (x, y), lab, 13, fill=DIM)
-        text(d, (x + 82, y), val, 13, True)
-    y = y0 + 66 + ((len(stats) + 1) // 2) * 24 + 8
-    y = tree(d, x0 + 14, y, effects)
+        x = x0 + 14 + (k % 3) * col
+        text(d, (x, yy + (k // 3) * 22), lab, 13, fill=DIM)
+        text(d, (x + 72, yy + (k // 3) * 22), val, 13, True)
+    yy += 22 * ((len(stats) + 2) // 3) + 8
+    yy = tree(d, x0 + 14, yy, effects)
     if req:
-        y += 12
         txt, met = req
-        text(d, (x0 + 14, y), txt + ("  ✓ met" if met else "  ✗ not met"), 13, True, GOOD if met else RED)
+        text(d, (x0 + 14, yy + 4), txt + ("  ✓ met" if met else "  ✗ not met"), 13, True, GOOD if met else RED)
+    return y + h
 
 
 FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Fire from Garnet",
@@ -521,45 +528,51 @@ FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Fire from Garnet",
              ["Activate", "  • Deal Fire damage to a row of Enemies",
               "On Hit", "  While the target is Burning", "    and your HP is above 50%",
               "      • Give the target -10% Defense for 2 turns, once per fight"],
-             ("Needs Body 3 · Garrick has 4", True))
+             ("Needs Body 3 · Garrick has 4", True), "6 EP")
 
-# ---- 6: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
-#         focused entry's skill slots. With a skill row highlighted, its details show on the left under the entries.
-im, d = canvas()
-header(d, 1, 1, "Bruiser  ·  2 of 5")
-text(d, (L, TOP), "Abilities by entry", 17, True, DIM)
-y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1,
-          active=True)
-y = entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
-skill_details(d, (L, y + 4, LR, 654), *FLAME_ARC)
-panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  5 slots", 16, True, DIM)
-text(d, (LIST_X + 18, TOP + 34), "One list: slots by the main hand's tier (B); single- and dual-blade sword abilities", 12, fill=DIM)
-skill_rows(d, [
+# ---- 6 / 6b: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
+#         focused entry's skill slots, a dual entry as one list. X Details opens the highlighted row in place (6b).
+FOOT_SKILLS = [("A", "Change"), ("X", "Details"), ("Y", "Options"), ("B", "Back")]
+SKILLS_G = [
     ("Slash", "None", "built-in", 0), ("Quick Cut", "None", "built-in", 0),
     ("Twin Rend", "None", "slot", 5, "Dual-blade · Activate: Hit twice"),
     ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense"),
-    ("", None, "empty", 0)], 3, top=TOP + 62)
-footer(d, [("A", "Change"), ("Y", "Options"), ("B", "Back")])
-save(im, OUT, "6_skills_generic.png")
+    ("", None, "empty", 0)]
 
-# ---- 6a: A on an empty slot opens the picker: abilities that fit, the highlighted one's details beside the list.
-base = im
-im, d = window(base, "Pick an ability  ·  Ashen Blade + Cinder Edge", "", [("A", "Put in slot"), ("B", "Cancel")])
+
+def skills_g(opened=None):
+    im, d = canvas()
+    header(d, 1, 1, "Bruiser  ·  2 of 5")
+    text(d, (L, TOP), "Abilities by entry", 17, True, DIM)
+    y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1,
+              active=True)
+    entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
+    panel(d, (LIST_X, TOP, 1232, 654), focus=True)
+    text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  5 slots (main hand B)", 16, True, DIM)
+    skill_rows(d, SKILLS_G, 3, top=TOP + 40, opened=opened)
+    footer(d, FOOT_SKILLS)
+    return im
+
+
+im = skills_g()
+save(im, OUT, "6_skills_generic.png")
+save(skills_g(FLAME_ARC), OUT, "6b_skill_details_open.png")
+
+# ---- 6a: A on an empty slot opens the picker: abilities that fit; X Details opens the highlighted one in place.
+im, d = window(im, "Pick an ability  ·  Ashen Blade + Cinder Edge", "",
+               [("A", "Put in slot"), ("X", "Details"), ("B", "Cancel")])
 text(d, (146, 128), "Abilities that fit", 15, True, DIM)
-item_rows(d, 146, 600, 156, [
-    ("Ember Thrust", "Fire", "C", "5 EP · On Critical Hit*: Deal 4 Fire damage each turn", "", None),
+y = open_skill(d, 146, 1134, 156, "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
+               [("EP", "5"), ("Element", "Fire"), ("Power", "140%"), ("Scaling", "Body C"),
+                ("Targets", "One"), ("Buildup", "Burn 15")],
+               ["Activate", "  • Ignore 20% of the target's Defense",
+                "On Critical Hit", "  While the target is Burning",
+                "    • Deal 4 Fire damage to the target each turn for 2 turns"],
+               ("Needs Body 2 · Garrick has 4", True), ep="5 EP")
+item_rows(d, 146, 1134, y + 6, [
     ("Parry Edge", "None", "D", "3 EP · Activate: Gain +30% Defense for 1 turn", "", None),
-    ("Riposte", "None", "C", "4 EP · When you are hit: Deal 6 damage back", "", None),
     ("Inferno Dance", "Fire", "A", "", "", "Needs Mind 4 · Garrick has 2"),
-    ("Flame Arc", "Fire", "C", "", "", "Already in this list")], 0)
-skill_details(d, (624, 156, 1134, 500), "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
-              [("EP", "5"), ("Element", "Fire"), ("Power", "140%"), ("Scaling", "Body C"),
-               ("Targets", "One"), ("Buildup", "Burn 15")],
-              ["Activate", "  • Ignore 20% of the target's Defense",
-               "On Critical Hit", "  While the target is Burning",
-               "    • Deal 4 Fire damage to the target each turn for 2 turns"],
-              ("Needs Body 2 · Garrick has 4", True))
+    ("Flame Arc", "Fire", "C", "", "", "Already in this list")], -1)
 save(im, OUT, "6a_skill_picker.png")
 
 # ---- 7: Skills tab (Refractor): an "Innate spells" entry above the gear entry. Focused, the right shows the school rows:
@@ -588,6 +601,6 @@ for i, (school, spells) in enumerate([
         if p < len(spells):
             text(d, (px + 6, y + 38), fit(d, spells[p], 11, True, 70), 11, True)
     y += 74
-footer(d, [("A", "Change"), ("Y", "Options"), ("B", "Back")])
+footer(d, FOOT_SKILLS)
 save(im, OUT, "7_skills_refractor.png")
 print("ok")
