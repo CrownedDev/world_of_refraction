@@ -74,6 +74,8 @@ private:
 	void Hide();
 
 	TWeakObjectPtr<UHostLostCardWidget> Card;
+	/** Looks at a world still waiting for its local player controller (reset per world). */
+	int32 PlayerRetries = 0;
 	FDelegateHandle StepChangedHandle;
 	FDelegateHandle WorldInitHandle;
 };

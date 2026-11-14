@@ -28,7 +28,8 @@ namespace
 	constexpr int32 PIPS_NEW_HOST_UP = 3;
 }
 
-FHostLostCard WoRHostHandOverScreens::BuildCard(EHostHandOverStep Step, bool bPlanned, bool bThisMachineHosts, int32 RejoinTries)
+FHostLostCard WoRHostHandOverScreens::BuildCard(EHostHandOverStep Step, bool bPlanned, bool bThisMachineHosts, int32 RejoinTries,
+												bool bLeavePending)
 {
 	FHostLostCard Card;
 	Card.bShown = Step != EHostHandOverStep::None;
@@ -54,7 +55,7 @@ FHostLostCard WoRHostHandOverScreens::BuildCard(EHostHandOverStep Step, bool bPl
 		// The first search means the old session is gone; later ones wait on the new host.
 		Card.LitPips = RejoinTries > 1 ? PIPS_NEW_HOST_UP : RejoinTries > 0 ? PIPS_SESSION_LEFT : PIPS_HOST_LEFT;
 		Card.StatusLine = LOCTEXT("Rejoining", "Looking for the new host's session…");
-		Card.bCanStop = true;
+		Card.bCanStop = !bLeavePending; // the planned old host must leave first, or nobody hosts
 		break;
 	case EHostHandOverStep::GaveUp:
 	default:
@@ -75,7 +76,7 @@ FHostLostCard WoRHostHandOverScreens::BuildCard(UWorld *World)
 		return FHostLostCard();
 	}
 	const bool bThisMachineHosts = !HandOver->GetNextHost().IsEmpty() && HandOver->GetNextHost() == HandOver->GetLocalPlayerId();
-	return BuildCard(HandOver->GetStep(), HandOver->IsPlanned(), bThisMachineHosts, HandOver->GetRejoinTries());
+	return BuildCard(HandOver->GetStep(), HandOver->IsPlanned(), bThisMachineHosts, HandOver->GetRejoinTries(), HandOver->IsLeavePending());
 }
 
 FHandOverConfirm WoRHostHandOverScreens::BuildConfirm(ENetMode NetMode, int32 PlayersKnown, const FString &NextHostName)

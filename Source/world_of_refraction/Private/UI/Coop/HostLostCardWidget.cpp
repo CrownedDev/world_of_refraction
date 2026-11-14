@@ -24,6 +24,9 @@ namespace HostLostCardStyle
 	constexpr float PipGap = 27.0f;
 	/** Over the HUD and the menus: nothing else can be done while the run moves. */
 	constexpr int32 ZOrder = 100;
+	/** A world with no local player controller yet is looked at again this often, this many times. */
+	constexpr float PlayerRetrySeconds = 0.25f;
+	constexpr int32 PlayerRetryLimit = 8;
 	inline const FLinearColor BackdropColor(0.0f, 0.0f, 0.0f, 0.6f);
 }
 
@@ -156,6 +159,7 @@ void UHostLostCardPresenter::HandleWorldActorsInitialized(const FActorsInitializ
 		return;
 	}
 	// The player controller comes after the actors: look once the world has ticked.
+	PlayerRetries = 0;
 	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]() { Sync(); }));
 }
 
@@ -172,10 +176,22 @@ void UHostLostCardPresenter::Sync()
 	if (!Shown || Shown->GetWorld() != World || !Shown->IsInViewport())
 	{
 		APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
-		if (!PC || !PC->IsLocalController() || World->bIsTearingDown)
+		if (!World || World->bIsTearingDown)
 		{
-			return; // a world with no local player yet, or going: the next world-up call shows the card
+			return; // going: the next world-up call shows the card
 		}
+		if (!PC || !PC->IsLocalController())
+		{
+			// A client's controller can come a little after the world: look again shortly, a few times.
+			if (PlayerRetries++ < HostLostCardStyle::PlayerRetryLimit)
+			{
+				FTimerHandle Retry;
+				World->GetTimerManager().SetTimer(Retry, FTimerDelegate::CreateWeakLambda(this, [this]() { Sync(); }),
+												  HostLostCardStyle::PlayerRetrySeconds, false);
+			}
+			return;
+		}
+		PlayerRetries = 0;
 		Shown = CreateWidget<UHostLostCardWidget>(PC, UHostLostCardWidget::StaticClass());
 		if (!Shown)
 		{
