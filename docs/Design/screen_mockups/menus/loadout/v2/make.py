@@ -212,7 +212,7 @@ y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None
           [("crystal", "Fire"), None], 1, active=True, focus=True)
 y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 add_frame(d, y, 1, 5)
-details(d, "Ashen Blade + Cinder Edge", "Dual wield · sword stance (the main hand's) · active · 7 ability slots", [
+details(d, "Ashen Blade + Cinder Edge", "Dual wield · sword stance (the main hand's) · active · 5 ability slots", [
     ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"), ("Speed", "Normal")]),
     ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"), ("Speed", "Fast")])], [
     (("crystal", "Fire"), "Garnet  B", "Fire Amp +2 · Burn 13%/turn"),
@@ -513,7 +513,7 @@ def skill_details(d, box, name, el, tier, sub, stats, effects, req):  # effects:
         text(d, (x0 + 14, y), txt + ("  ✓ met" if met else "  ✗ not met"), 13, True, GOOD if met else RED)
 
 
-FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Ashen Blade slot · Fire from Garnet",
+FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Fire from Garnet",
              [("EP", "6"), ("Element", "Fire"), ("Power", "120%"), ("Scaling", "Body B"),
               ("Targets", "Row"), ("Buildup", "Burn 20")],
              ["Activate", "  • Deal Fire damage to a row of Enemies",
@@ -531,26 +531,26 @@ y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("cry
 y = entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 skill_details(d, (L, y + 4, LR, 654), *FLAME_ARC)
 panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  7 slots", 16, True, DIM)
+text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  5 slots", 16, True, DIM)
+text(d, (LIST_X + 18, TOP + 34), "One list: slots by the main hand's tier (B); single- and dual-blade sword abilities", 12, fill=DIM)
 skill_rows(d, [
-    ("head", "Ashen Blade  ·  4 slots"),
-    ("Slash", "None", "built-in", 0), ("Cleave", "None", "slot", 4), ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense"),
-    ("", None, "empty", 0),
-    ("head", "Cinder Edge  ·  3 slots"),
-    ("Quick Cut", "None", "built-in", 0), ("Whirl", "None", "slot", 5), ("", None, "empty", 0)], 3)
+    ("Slash", "None", "built-in", 0), ("Quick Cut", "None", "built-in", 0),
+    ("Twin Rend", "None", "slot", 5, "Dual-blade · Activate: Hit twice"),
+    ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense"),
+    ("", None, "empty", 0)], 3, top=TOP + 62)
 footer(d, [("A", "Change"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "6_skills_generic.png")
 
 # ---- 6a: A on an empty slot opens the picker: abilities that fit, the highlighted one's details beside the list.
 base = im
-im, d = window(base, "Pick an ability  ·  Cinder Edge slot", "", [("A", "Put in slot"), ("B", "Cancel")])
+im, d = window(base, "Pick an ability  ·  Ashen Blade + Cinder Edge", "", [("A", "Put in slot"), ("B", "Cancel")])
 text(d, (146, 128), "Abilities that fit", 15, True, DIM)
 item_rows(d, 146, 600, 156, [
     ("Ember Thrust", "Fire", "C", "5 EP · On Critical Hit*: Deal 4 Fire damage each turn", "", None),
     ("Parry Edge", "None", "D", "3 EP · Activate: Gain +30% Defense for 1 turn", "", None),
     ("Riposte", "None", "C", "4 EP · When you are hit: Deal 6 damage back", "", None),
     ("Inferno Dance", "Fire", "A", "", "", "Needs Mind 4 · Garrick has 2"),
-    ("Flame Arc", "Fire", "C", "", "", "In Ashen Blade's slot")], 0)
+    ("Flame Arc", "Fire", "C", "", "", "Already in this list")], 0)
 skill_details(d, (624, 156, 1134, 500), "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
               [("EP", "5"), ("Element", "Fire"), ("Power", "140%"), ("Scaling", "Body C"),
                ("Targets", "One"), ("Buildup", "Burn 15")],
