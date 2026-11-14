@@ -7,6 +7,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/FCrystalAttachment.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -328,6 +330,59 @@ void FLoadoutScreenSpec::Define()
 		TestFalse(TEXT("the last primary stays"), WoRLoadoutScreen::TakeOffGear(Off, ECharacterClass::Generic, Last, Refusal));
 		TestFalse(TEXT("with the reason"), Refusal.IsEmpty());
 		TestEqual(TEXT("unchanged"), Off.PrimaryWeapon.WeaponEntry.PersistentID, Hammer);
+	});
+
+	It("offers carried gems, stones and owned evolutions for an empty socket, with the budget after and the refusals (B-440c)", [this]()
+	{
+		FCombatLoadout Loadout = TwoWeapons(); // sword + Garnet (2) and a bare hammer (1): 3 of 5
+		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::S_Tier); // the one S-tier
+		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
+		const FLoadoutScreenRow &Hammer = Page.Rows[LOADOUT_SCREEN_TEST_SECOND];
+		const FCrystalId Citrine(ECrystalType::Citrine, EItemTier::C_Tier);
+		const FCrystalId Onyx(ECrystalType::Onyx, EItemTier::S_Tier);
+		const FCrystalId Stone(ECrystalType::DamageStone, EItemTier::F_Tier);
+		const TMap<FCrystalId, int32> Carried = {{Citrine, 2}, {Onyx, 1}, {Stone, 1}};
+		FEvolutionInventoryEntry Free;
+		Free.Item = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Free.InstanceID = FGuid::NewGuid();
+		FEvolutionInventoryEntry Used = Free;
+		Used.InstanceID = FGuid::NewGuid();
+
+		const TArray<FLoadoutScreenChoice> Crystal = WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Hammer, LoadoutScreenSockets::CRYSTAL,
+																						 Carried, {Free, Used}, {Used.InstanceID});
+		if (!TestEqual(TEXT("two gems (highest tier first), two evolutions; no stone"), Crystal.Num(), 4))
+		{
+			return;
+		}
+		TestTrue(TEXT("the S gem first"), Crystal[0].Crystal == Onyx);
+		TestFalse(TEXT("a second S-tier is refused (one per loadout)"), Crystal[0].Refusal.IsEmpty());
+		TestTrue(TEXT("then the C gem"), Crystal[1].Crystal == Citrine);
+		TestEqual(TEXT("a gem on the bare hammer: 3 + 1"), Crystal[1].NewSpent, Page.Spent + LoadoutConstants::CRYSTAL_ATTACHMENT_COST);
+		TestTrue(TEXT("it fits"), Crystal[1].Refusal.IsEmpty());
+		TestTrue(TEXT("an evolution"), Crystal[2].EvolutionID == Free.InstanceID && Crystal[2].Refusal.IsEmpty());
+		TestFalse(TEXT("one in use is refused"), Crystal[3].Refusal.IsEmpty());
+
+		const TArray<FLoadoutScreenChoice> Stones = WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Hammer, LoadoutScreenSockets::STONE,
+																						Carried, {Free}, {});
+		TestTrue(TEXT("the stone socket takes the stone only"), Stones.Num() == 1 && Stones[0].Crystal == Stone);
+		TestEqual(TEXT("a filled socket offers nothing"),
+				  WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_FIRST], LoadoutScreenSockets::CRYSTAL,
+													   Carried, {Free}, {}).Num(), 0);
+	});
+
+	It("says what X takes off a socket before it does it (B-440c, Q-440c)", [this]()
+	{
+		FCombatLoadout Loadout = TwoWeapons();
+		Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution;
+		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
+		FText Refusal;
+		TestFalse(TEXT("a gem: both sockets come off, destroyed"),
+				  WoRLoadoutScreen::GetTakeOffSocketWarning(Page.Rows[LOADOUT_SCREEN_TEST_FIRST], LoadoutScreenSockets::CRYSTAL, Refusal).IsEmpty());
+		TestTrue(TEXT("an empty socket: nothing to say"),
+				 WoRLoadoutScreen::GetTakeOffSocketWarning(Page.Rows[LOADOUT_SCREEN_TEST_FIRST], LoadoutScreenSockets::STONE, Refusal).IsEmpty());
+		TestFalse(TEXT("but a reason"), Refusal.IsEmpty());
+		TestFalse(TEXT("an evolution goes back"),
+				  WoRLoadoutScreen::GetTakeOffSocketWarning(Page.Rows[LOADOUT_SCREEN_TEST_SECOND], LoadoutScreenSockets::CRYSTAL, Refusal).IsEmpty());
 	});
 
 	It("adds a Resonator's adapter in the free place and takes one off (B-440b)", [this]()

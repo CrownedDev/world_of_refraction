@@ -6,7 +6,11 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/FEvolutionInventoryEntry.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/StatStone.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
@@ -77,6 +81,7 @@ namespace LoadoutScreenBuild
 	{
 		FLoadoutScreenSocket Socket;
 		Socket.bEmpty = Item.IsEmpty();
+		Socket.bEvolution = Item.IsEvolution();
 		Socket.Label = SocketLabel(Item, WhenEmpty);
 		if (!Socket.bEmpty)
 		{
@@ -634,6 +639,246 @@ FText WoRLoadoutScreen::UnequipRow(UWorld *World, const FLoadoutScreenMember &Me
 						   },
 						   Refusal);
 	return Refusal;
+}
+
+namespace LoadoutScreenBuild
+{
+	/** Row's Socket in the loadout's own copy of the piece (the legacy entry its place mirrors), or null. */
+	FRuntimeAttachedItem *FindSocketItem(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket)
+	{
+		FWeaponInventoryEntry *Weapon = nullptr;
+		FRingInventoryEntry *Ring = nullptr;
+		switch (Row.Place)
+		{
+		case ELoadoutScreenPlace::Primary:
+			Weapon = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None ? &Loadout.PrimaryWeapon.WeaponEntry : nullptr;
+			Ring = Loadout.PrimarySlotType == EPrimarySlotType::Ring ? &Loadout.PrimaryRing.RingEntry : nullptr;
+			break;
+		case ELoadoutScreenPlace::Secondary:
+			Weapon = &Loadout.SecondaryWeapon.WeaponEntry;
+			break;
+		case ELoadoutScreenPlace::Adapter:
+			Ring = Loadout.RingLoadout.IsValidIndex(Row.AdapterIndex) ? &Loadout.RingLoadout[Row.AdapterIndex].RingEntry : nullptr;
+			break;
+		default:
+			break;
+		}
+		if (Socket == LoadoutScreenSockets::CRYSTAL)
+		{
+			return Weapon ? &Weapon->AttachedItem : Ring ? &Ring->AttachedItem : nullptr;
+		}
+		return Socket == LoadoutScreenSockets::STONE ? (Weapon ? &Weapon->StoneSocket : Ring ? &Ring->StoneSocket : nullptr) : nullptr;
+	}
+
+	bool HasSocket(const FLoadoutScreenRow &Row, int32 Socket)
+	{
+		return (Row.Kind == ELoadoutScreenRowKind::Weapon || Row.Kind == ELoadoutScreenRowKind::Adapter) && Row.GearID.IsValid() && Row.Sockets.IsValidIndex(Socket);
+	}
+}
+
+TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, int32 Socket,
+																   const TMap<FCrystalId, int32> &Carried, const TArray<FEvolutionInventoryEntry> &Evolutions,
+																   const TSet<FGuid> &EvolutionsInUse)
+{
+	using namespace LoadoutScreenBuild;
+
+	TArray<FLoadoutScreenChoice> Choices;
+	if (!HasSocket(Row, Socket) || !Row.Sockets[Socket].bEmpty)
+	{
+		return Choices;
+	}
+	const FLoadoutScreenPage Before = BuildGearPage(Loadout, Class);
+	const int32 STierBefore = FLoadoutRules::CountEquippedSTierCrystals(Loadout, Class);
+	const auto Finish = [&](FLoadoutScreenChoice &Choice, bool bInUse)
+	{
+		FCombatLoadout After = Loadout;
+		PutSocketChoice(After, Row, Socket, Choice);
+		Choice.NewSpent = BuildGearPage(After, Class).Spent;
+		Choice.Row.bCountsToBudget = false; // the line shows what it adds, not a cost of its own
+		Choice.Row.CostLine = FText::Format(LOCTEXT("SocketAdds", "+{0}"), FText::AsNumber(Choice.NewSpent - Before.Spent));
+		const int32 STierAfter = FLoadoutRules::CountEquippedSTierCrystals(After, Class);
+		if (bInUse)
+		{
+			Choice.Refusal = LOCTEXT("RefuseEvolutionInUse", "It's in use: in a loadout or on other gear.");
+		}
+		else if (STierAfter > LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS && STierAfter > STierBefore)
+		{
+			Choice.Refusal = LOCTEXT("RefuseSecondSTier", "S-tier: one per loadout.");
+		}
+		else if (Choice.NewSpent > Before.Budget && Choice.NewSpent > Before.Spent)
+		{
+			Choice.Refusal = FText::Format(LOCTEXT("RefuseOverBudget", "Over the budget: {0} of {1}."), FText::AsNumber(Choice.NewSpent),
+										   FText::AsNumber(Before.Budget));
+		}
+		Choices.Add(MoveTemp(Choice));
+	};
+
+	// Carried gems (the crystal socket) or stones (the stone socket), highest tier first.
+	const bool bWantStone = Socket == LoadoutScreenSockets::STONE;
+	TArray<TPair<FCrystalId, int32>> Stacks;
+	for (const TPair<FCrystalId, int32> &Stack : Carried)
+	{
+		if (Stack.Value > 0 && Stack.Key.Type != ECrystalType::None && CrystalTypeHelpers::IsGemType(Stack.Key.Type) != bWantStone)
+		{
+			Stacks.Add(Stack);
+		}
+	}
+	Stacks.Sort([](const TPair<FCrystalId, int32> &A, const TPair<FCrystalId, int32> &B)
+				{ return A.Key.Tier != B.Key.Tier ? A.Key.Tier > B.Key.Tier : A.Key.Type < B.Key.Type; });
+	for (const TPair<FCrystalId, int32> &Stack : Stacks)
+	{
+		FLoadoutScreenChoice Choice;
+		Choice.Crystal = Stack.Key;
+		Choice.Attachment.Kind = bWantStone ? EAttachedItemKind::AugmentStone : EAttachedItemKind::Crystal;
+		Choice.Attachment.Crystal.Id = StatStone::Normalize(Stack.Key); // as UInventoryComponent attaches it
+		Choice.Attachment.Crystal.CurrentDurability = bWantStone ? 0 : ItemIdentity::GetMaxDurability(Stack.Key);
+		Choice.Row.Name = AttachmentName(Choice.Attachment);
+		const ESpellElement Element = Choice.Attachment.GetElement();
+		const FText Kind = bWantStone ? LOCTEXT("SocketStone", "Stone") : LOCTEXT("SocketCrystal", "Crystal");
+		Choice.Row.KindLine = Element == ESpellElement::None ? Kind : FText::Format(LOCTEXT("KindAndType", "{0} · {1}"), Kind, WoRGameNames::GetElementName(Element));
+		Choice.Row.Tier = WoRGameNames::GetTierLetter(Stack.Key.Tier);
+		AddDetail(Choice.Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
+		AddDetail(Choice.Row, LOCTEXT("DetailDurability", "Durability"), FormatDurability(Choice.Attachment));
+		AddDetail(Choice.Row, LOCTEXT("DetailCarried", "Carried"), FText::AsNumber(Stack.Value));
+		Finish(Choice, false);
+	}
+
+	// Owned evolutions go in the crystal socket (an evolution on gear, Q-357).
+	if (!bWantStone)
+	{
+		for (const FEvolutionInventoryEntry &Owned : Evolutions)
+		{
+			if (!Owned.Item || !Owned.InstanceID.IsValid())
+			{
+				continue;
+			}
+			FLoadoutScreenChoice Choice;
+			Choice.EvolutionID = Owned.InstanceID;
+			Choice.Attachment.Kind = EAttachedItemKind::Evolution;
+			Choice.Attachment.Evolution.Item = Owned.Item;
+			Choice.Attachment.Evolution.Tier = Owned.Tier;
+			Choice.Row.Name = FText::FromString(Owned.Item->ItemName);
+			Choice.Row.KindLine = LOCTEXT("KindEvolution", "Evolution");
+			Choice.Row.Tier = WoRGameNames::GetTierLetter(Owned.Tier);
+			const ESpellElement Element = Choice.Attachment.GetElement();
+			AddDetail(Choice.Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
+			Finish(Choice, EvolutionsInUse.Contains(Owned.InstanceID));
+		}
+	}
+	return Choices;
+}
+
+bool WoRLoadoutScreen::PutSocketChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket, const FLoadoutScreenChoice &Choice)
+{
+	FRuntimeAttachedItem *Item = LoadoutScreenBuild::HasSocket(Row, Socket) ? LoadoutScreenBuild::FindSocketItem(Loadout, Row, Socket) : nullptr;
+	if (!Item || Choice.Attachment.IsEmpty())
+	{
+		return false;
+	}
+	*Item = Choice.Attachment;
+	return true;
+}
+
+TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket)
+{
+	UInventoryComponent *Inventory = nullptr;
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	if (!Pool || !LoadoutScreenBuild::FindMemberLoadout(World, Member, Inventory))
+	{
+		return {};
+	}
+	const UEvolutionInventoryComponent *EvolutionInventory = Inventory->GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
+	const TArray<FEvolutionInventoryEntry> NoEvolutions;
+	const TArray<FEvolutionInventoryEntry> &Evolutions = EvolutionInventory ? EvolutionInventory->Entries : NoEvolutions;
+	TSet<FGuid> InUse;
+	for (const FEvolutionInventoryEntry &Owned : Evolutions)
+	{
+		if (Inventory->IsEvolutionInUse(Owned.InstanceID))
+		{
+			InUse.Add(Owned.InstanceID);
+		}
+	}
+	// AttachCrystalTo* spends from the pouch the member carries: a recruit carries the host's (B-361).
+	return BuildSocketChoices(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], Member.Class, Row, Socket,
+							  Pool->GetCarriedItems(WoRGive::GetPouchKey(World, Member.Key)),
+							  Evolutions, InUse);
+}
+
+FText WoRLoadoutScreen::ApplySocketChoice(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket,
+										 const FLoadoutScreenChoice &Choice)
+{
+	UInventoryComponent *Inventory = nullptr;
+	if (!LoadoutScreenBuild::FindMemberLoadout(World, Member, Inventory))
+	{
+		return LoadoutScreenBuild::MemberNotHere(Member);
+	}
+	if (!Choice.Refusal.IsEmpty())
+	{
+		return Choice.Refusal;
+	}
+	if (!LoadoutScreenBuild::HasSocket(Row, Socket) || !Row.Sockets[Socket].bEmpty)
+	{
+		return LOCTEXT("RefuseSocketFull", "Take what's in this socket off first.");
+	}
+	const bool bAdapter = Row.Kind == ELoadoutScreenRowKind::Adapter;
+	const bool bDone = Choice.EvolutionID.IsValid()
+						   ? (bAdapter ? Inventory->AttachEvolutionToRing(Row.GearID, Choice.EvolutionID) : Inventory->AttachEvolutionToWeapon(Row.GearID, Choice.EvolutionID))
+						   : (bAdapter ? Inventory->AttachCrystalToRing(Row.GearID, Choice.Crystal) : Inventory->AttachCrystalToWeapon(Row.GearID, Choice.Crystal));
+	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketAttach", "It couldn't be socketed (the Output Log says why).");
+}
+
+FText WoRLoadoutScreen::GetTakeOffSocketWarning(const FLoadoutScreenRow &Row, int32 Socket, FText &OutRefusal)
+{
+	OutRefusal = FText::GetEmpty();
+	if (!LoadoutScreenBuild::HasSocket(Row, Socket) || Row.Sockets[Socket].bEmpty)
+	{
+		OutRefusal = LOCTEXT("RefuseSocketEmpty", "Nothing in this socket.");
+		return FText::GetEmpty();
+	}
+	const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
+	if (Crystal.bEvolution)
+	{
+		if (Socket != LoadoutScreenSockets::CRYSTAL)
+		{
+			OutRefusal = LOCTEXT("RefuseEvolutionFirst", "Take the evolution off first.");
+			return FText::GetEmpty();
+		}
+		return FText::Format(LOCTEXT("WarnEvolutionOff", "X again: {0} goes back to your evolutions with some wear (it breaks at none)."), Crystal.Name);
+	}
+	// CL-28b: the gem and the stone come off together, and a socketed gem or stone is used up.
+	return LOCTEXT("WarnCrystalOff", "X again: what's in both sockets comes off and is destroyed.");
+}
+
+FText WoRLoadoutScreen::TakeOffSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket)
+{
+	UInventoryComponent *Inventory = nullptr;
+	if (!LoadoutScreenBuild::FindMemberLoadout(World, Member, Inventory))
+	{
+		return LoadoutScreenBuild::MemberNotHere(Member);
+	}
+	FText Refusal;
+	if (GetTakeOffSocketWarning(Row, Socket, Refusal).IsEmpty())
+	{
+		return Refusal;
+	}
+	const bool bAdapter = Row.Kind == ELoadoutScreenRowKind::Adapter;
+	bool bDone = false;
+	if (Row.Sockets[LoadoutScreenSockets::CRYSTAL].bEvolution)
+	{
+		bDone = bAdapter ? Inventory->RemoveEvolutionFromRing(Row.GearID) : Inventory->RemoveEvolutionFromWeapon(Row.GearID);
+	}
+	else if (bAdapter)
+	{
+		const int32 Index = Inventory->Rings.IndexOfByPredicate([&Row](const FRingInventoryEntry &Owned) { return Owned.PersistentID == Row.GearID; });
+		bDone = Index != INDEX_NONE && Inventory->RemoveCrystalFromRing(Index);
+	}
+	else
+	{
+		const int32 Index = Inventory->Weapons.IndexOfByPredicate([&Row](const FWeaponInventoryEntry &Owned) { return Owned.PersistentID == Row.GearID; });
+		bDone = Index != INDEX_NONE && Inventory->RemoveCrystalFromWeapon(Index);
+	}
+	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketRemove", "It couldn't be taken off (the Output Log says why).");
 }
 
 FText WoRLoadoutScreen::FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count)

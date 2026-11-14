@@ -8,8 +8,9 @@
 // its sockets and cost. Right: the focused row's details and its cost sum.
 // What it shows comes from WoRLoadoutScreen (LoadoutScreenModel.h), which the specs read.
 // B-440b: A on a gear row opens a picker of owned gear for its place (the budget after each in amber, refused lines
-// greyed with the reason), A again puts the lit one in; X empties the place. Sockets, skills and saved loadouts are
-// B-440c to B-440e.
+// greyed with the reason), A again puts the lit one in; X empties the place. B-440c: Left / Right lights a socket;
+// A there picks a carried gem or stone or an owned evolution, X (twice) takes it off. Skills and saved loadouts are
+// B-440d, B-440e.
 
 #pragma once
 
@@ -42,8 +43,13 @@ public:
 	void MoveMember(int32 Delta);
 	/** B-440b, A: on a gear row, opens the picker for its place; in the picker, puts the lit line in. */
 	void PressChange();
-	/** B-440b, X: empties the lit gear row's place. */
+	/** B-440b, X: empties the lit gear row's place. B-440c: on a socket, the first X says what comes off and the
+	 *  second takes it off (Q-440c). */
 	void PressUnequip();
+	/** B-440c, Left / Right: the lit row itself, its crystal socket, its stone socket (a weapon or adapter row). */
+	void MoveSocket(int32 Delta);
+	/** The lit socket (LoadoutScreenSockets), INDEX_NONE for the row itself. */
+	int32 GetSelectedSocket() const { return SelectedSocket; }
 	/** B, Esc: closes the picker, else the screen. */
 	void PressBack() { HandleBackAction(); }
 
@@ -105,6 +111,11 @@ private:
 	int32 MemberIndex = 0;
 	int32 SelectedRow = 0;
 	bool bPicking = false;
+	/** The picker is for SelectedSocket (B-440c), not the row's place. */
+	bool bPickingSocket = false;
+	int32 SelectedSocket = INDEX_NONE;
+	/** The first X on a socket said what comes off; the next X does it. */
+	bool bTakeOffArmed = false;
 	TArray<FLoadoutScreenChoice> Choices;
 	int32 SelectedChoice = 0;
 	FText Message;

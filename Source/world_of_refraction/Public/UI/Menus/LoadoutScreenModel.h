@@ -3,7 +3,8 @@
 // shows, with no widget in it, so the specs read it headless. ULoadoutScreenWidget draws it.
 //
 // B-440b: a gear row's place takes another owned weapon or adapter (BuildGearChoices, ApplyGearChoice), or is emptied
-// (UnequipRow). Sockets, skills and saved loadouts are B-440c to B-440e.
+// (UnequipRow). B-440c: a socket takes a carried gem or stone or an owned evolution (BuildSocketChoices,
+// ApplySocketChoice), or is emptied (TakeOffSocket). Skills and saved loadouts are B-440d, B-440e.
 // Debug: wor.UI.PrintLoadout logs GetLoadoutScreenString (every party member's gear page).
 
 #pragma once
@@ -17,6 +18,7 @@
 class UWorld;
 struct FCombatLoadout;
 struct FLoadoutSlot;
+struct FEvolutionInventoryEntry;
 struct FRingInventoryEntry;
 struct FWeaponInventoryEntry;
 
@@ -53,7 +55,16 @@ struct FLoadoutScreenSocket
 	FText Name;
 	ESpellElement Element = ESpellElement::None;
 	bool bEmpty = true;
+	/** An evolution sits in it (it goes back to the owner when taken off; a gem or stone is destroyed). */
+	bool bEvolution = false;
 };
+
+/** B-440c: a gear row's two sockets, as indices into FLoadoutScreenRow::Sockets. */
+namespace LoadoutScreenSockets
+{
+	constexpr int32 CRYSTAL = 0;
+	constexpr int32 STONE = 1;
+}
 
 /** One line of the detail panel: "Power" / "42". */
 struct FLoadoutScreenDetail
@@ -96,6 +107,11 @@ struct FLoadoutScreenChoice
 	/** The piece to put in: one of the two is valid. */
 	FWeaponLoadoutEntry Weapon;
 	FRingLoadoutEntry Adapter;
+	/** B-440c, a socket line: the carried gem or stone (Crystal), or the owned evolution (EvolutionID), and the
+	 *  attachment it makes (for the budget after it). */
+	FCrystalId Crystal;
+	FGuid EvolutionID;
+	FRuntimeAttachedItem Attachment;
 	/** The budget spent after the change, shown before it is confirmed. */
 	int32 NewSpent = 0;
 	/** Why it can't go in; empty when it can. The line stays in the picker. */
@@ -162,6 +178,33 @@ namespace WoRLoadoutScreen
 
 	/** X Unequip on the member's active loadout. Empty on success; else the reason. */
 	WORLD_OF_REFRACTION_API FText UnequipRow(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row);
+
+	/** B-440c: what can go in Row's empty Socket (LoadoutScreenSockets): carried gems (the crystal socket) or stones
+	 *  (the stone socket), and owned evolutions (the crystal socket), each with the budget after it. Refused lines
+	 *  stay: over the budget, a second S-tier (MAX_EQUIPPED_S_TIER_CRYSTALS), an evolution in use. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenChoice> BuildSocketChoices(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row,
+																		 int32 Socket, const TMap<FCrystalId, int32> &Carried,
+																		 const TArray<FEvolutionInventoryEntry> &Evolutions, const TSet<FGuid> &EvolutionsInUse);
+
+	/** Writes Choice's attachment into Row's Socket of Loadout (the preview; the owned piece is changed by
+	 *  ApplySocketChoice). False when the row has no such socket. */
+	WORLD_OF_REFRACTION_API bool PutSocketChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket, const FLoadoutScreenChoice &Choice);
+
+	/** The member's socket choices, from its pouch and its evolutions. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenChoice> BuildSocketChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row,
+																		 int32 Socket);
+
+	/** Sockets Choice into the owned piece (UInventoryComponent::AttachCrystalTo* / AttachEvolutionTo*). Empty on
+	 *  success; else the reason. */
+	WORLD_OF_REFRACTION_API FText ApplySocketChoice(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket,
+												   const FLoadoutScreenChoice &Choice);
+
+	/** What X on Row's Socket would do, said before it is done (Q-440c): a gem and the stone are destroyed together
+	 *  (CL-28b), an evolution goes back with wear. Empty when the socket can't be emptied; then OutRefusal says why. */
+	WORLD_OF_REFRACTION_API FText GetTakeOffSocketWarning(const FLoadoutScreenRow &Row, int32 Socket, FText &OutRefusal);
+
+	/** Empties Row's Socket on the owned piece. Empty on success; else the reason. */
+	WORLD_OF_REFRACTION_API FText TakeOffSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket);
 
 	/** "Bruiser (2 of 5)". */
 	WORLD_OF_REFRACTION_API FText FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count);
