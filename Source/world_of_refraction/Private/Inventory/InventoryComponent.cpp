@@ -457,7 +457,7 @@ bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Inde
     const bool bHadAttachment = !Gear[Index].AttachedItem.IsEmpty() || !Gear[Index].StoneSocket.IsEmpty();
     // Speed-relevance gate, read BEFORE the detach: a TurnSpeed-contributing stone
     // (plain TurnSpeedStone or a fusion with a TurnSpeed half/bonus — same
-    // GetAttachedStonePercent read CalculateSpeedRatios uses) feeds the stone factor,
+    // GetAttachedStonePercent read the turn speed layers use) feeds the stone factor,
     // so its removal must recalc turn order. Non-speed stones skip the notify.
     const bool bWasSpeedStone =
         CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f ||
@@ -2472,7 +2472,7 @@ bool UInventoryComponent::CanAddRing(URingData *Ring) const
 
 bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
 {
-    // Ring attachments do not feed the turn-speed read path today (CalculateSpeedRatios reads the
+    // Ring attachments do not feed the turn-speed read path today (UTurnManager::BuildTurnSpeedLayers reads the
     // active WEAPON attachment only), so the speed notify inside is defensive symmetry.
     return RemoveCrystalFromGear(Rings, RingIndex);
 }

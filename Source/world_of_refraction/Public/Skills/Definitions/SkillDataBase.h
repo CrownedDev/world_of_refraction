@@ -273,7 +273,7 @@ public:
     /** B-170c (Q-170b): the actions this skill costs from the banked actions, on top of its Energy. At least 1
      *  (ActionPips.md §3.1: a free action could repeat without limit in one turn), at most 3 (Q-170j, Crown: small 1,
      *  medium 2, large 3; ActionPipsConstants::ACTION_COST_MAX, clamped when read). A cost above the user's Max
-     *  Actions makes it unusable. Read only when wor.Turns.ActionPips is 1. */
+     *  Actions makes it unusable. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "1", ClampMax = "3"))
     int32 ActionCost = ActionPipsConstants::ACTION_COST_DEFAULT;
 
