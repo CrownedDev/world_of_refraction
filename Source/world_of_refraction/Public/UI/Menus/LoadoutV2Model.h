@@ -15,6 +15,10 @@
 #include "Character/ECharacterClass.h"
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Weapons/EWeaponType.h"
+#include "Inventory/ItemTier.h"
+#include "Skills/Definitions/ESpellElement.h"
+#include "Skills/Effects/ESkillEffectType.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 
@@ -50,6 +54,31 @@ enum class ELoadoutV2Place : uint8
 	Seat
 };
 
+/** B-485: what an icon stands for. The widget asks the icon table (UWoRIconTable) for it; where the table has no
+ *  such icon, the text the icon replaces stays. */
+enum class ELoadoutV2IconKind : uint8
+{
+	None,
+	WeaponType,
+	/** A crystal or an evolution in a socket: its element's badge. */
+	Element,
+	EmptySocket,
+	/** An augment stone in a socket. */
+	Stone,
+	/** An effect line: by the effect's type. */
+	Effect
+};
+
+struct FLoadoutV2Icon
+{
+	ELoadoutV2IconKind Kind = ELoadoutV2IconKind::None;
+	EWeaponType WeaponType = EWeaponType::Sword;
+	ESpellElement Element = ESpellElement::None;
+	ESkillEffectType EffectType = ESkillEffectType::None;
+	/** The icon in words (its tooltip): "Sword", "Garnet", "Empty socket". */
+	FText Name;
+};
+
 struct FLoadoutV2Entry
 {
 	ELoadoutV2EntryKind Kind = ELoadoutV2EntryKind::Weapon;
@@ -59,6 +88,9 @@ struct FLoadoutV2Entry
 	FText Name;
 	/** Augment socket 1 and 2 (none for the evolution line). */
 	TArray<ELoadoutV2SocketIcon> Sockets;
+	/** B-485: the weapon-type icon at the row's start (a weapon entry), and the two sockets as badges. */
+	FLoadoutV2Icon TypeIcon;
+	TArray<FLoadoutV2Icon> SocketBadges;
 	/** B-482b: what augment socket 1 holds, by name ("Garnet", an evolution's name); empty when the socket is. The row
 	 *  shows it in brackets after the name; it is the same name the details box prints (one source: the entry's socket). */
 	FText SocketName;
@@ -178,10 +210,21 @@ struct FLoadoutV2DetailLine
 	int32 Depth = 0;
 	FText Label;
 	FText Value;
+	/** B-485: the icon beside the line (a piece's weapon type, a socket's badge, an effect's kind), and a Piece line's
+	 *  tier for its badge (Value is the tier's letter, the text kept when there is no badge). */
+	FLoadoutV2Icon Icon;
+	bool bHasTier = false;
+	EItemTier Tier = EItemTier::F_Tier;
 };
 
 namespace WoRLoadoutV2
 {
+	/** B-485: a socket as an icon: its crystal's or evolution's element badge, a stone, or the empty socket. */
+	WORLD_OF_REFRACTION_API FLoadoutV2Icon MakeSocketIcon(const FRuntimeAttachedItem &Item);
+
+	/** B-485: the tier of what a socket holds; false for an empty socket. */
+	WORLD_OF_REFRACTION_API bool GetAttachmentTier(const FRuntimeAttachedItem &Item, EItemTier &OutTier);
+
 	/** The Weapons tab for the class (only the gear the class fights with). */
 	WORLD_OF_REFRACTION_API FLoadoutV2WeaponsPage BuildWeaponsPage(const FCombatLoadout &Loadout, ECharacterClass Class);
 

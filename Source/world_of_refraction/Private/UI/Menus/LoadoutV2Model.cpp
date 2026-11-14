@@ -52,6 +52,13 @@ namespace LoadoutV2Build
 		Entry.Name = SetName(Set);
 		Entry.Sockets = {IconOf(Set.WeaponEntry.AttachedItem), IconOf(Set.WeaponEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Set.WeaponEntry.AttachedItem);
+		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Set.WeaponEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Set.WeaponEntry.StoneSocket)};
+		if (const UWeaponData *Weapon = Set.WeaponEntry.Weapon)
+		{
+			Entry.TypeIcon.Kind = ELoadoutV2IconKind::WeaponType;
+			Entry.TypeIcon.WeaponType = Weapon->WeaponType;
+			Entry.TypeIcon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+		}
 		Entry.SkillSlots = Set.GetSkillSlotCount();
 		return Entry;
 	}
@@ -65,6 +72,7 @@ namespace LoadoutV2Build
 		Entry.Name = FText::FromString(Ring.RingEntry.Ring ? Ring.RingEntry.Ring->GetDisplayName() : FString());
 		Entry.Sockets = {IconOf(Ring.RingEntry.AttachedItem), IconOf(Ring.RingEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Ring.RingEntry.AttachedItem);
+		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.StoneSocket)};
 		return Entry;
 	}
 
@@ -181,17 +189,29 @@ namespace LoadoutV2Build
 		return FText::Join(LOCTEXT("ScalingSeparator", " · "), Parts);
 	}
 
-	void AddLine(TArray<FLoadoutV2DetailLine> &Lines, ELoadoutV2DetailKind Kind, const FText &Label, const FText &Value, int32 Depth = 0)
+	/** Adds a line; null when it has nothing to say and isn't added. */
+	FLoadoutV2DetailLine *AddLine(TArray<FLoadoutV2DetailLine> &Lines, ELoadoutV2DetailKind Kind, const FText &Label, const FText &Value, int32 Depth = 0)
 	{
 		if (Kind == ELoadoutV2DetailKind::Stat && Value.IsEmpty())
 		{
-			return; // a stat with nothing to say isn't shown
+			return nullptr; // a stat with nothing to say isn't shown
 		}
 		FLoadoutV2DetailLine &Line = Lines.AddDefaulted_GetRef();
 		Line.Kind = Kind;
 		Line.Depth = Depth;
 		Line.Label = Label;
 		Line.Value = Value;
+		return &Line;
+	}
+
+	/** B-485: a Piece line's tier, for its badge. */
+	void SetTier(FLoadoutV2DetailLine *Line, EItemTier Tier)
+	{
+		if (Line)
+		{
+			Line->bHasTier = true;
+			Line->Tier = Tier;
+		}
 	}
 
 	/** A gear piece's effects: the ET-50 tree, or its short forms in the simple view. */
@@ -217,7 +237,14 @@ namespace LoadoutV2Build
 		}
 		for (const FEffectTextLine &Line : EffectText::BuildTree(Effects, EEffectTextSource::Gear))
 		{
-			AddLine(Lines, ELoadoutV2DetailKind::Effect, FText::GetEmpty(), Line.Text, Line.Depth);
+			FLoadoutV2DetailLine *Added = AddLine(Lines, ELoadoutV2DetailKind::Effect, FText::GetEmpty(), Line.Text, Line.Depth);
+			// B-485: an effect's own line carries its kind, for the icon beside it (headings and conditions have none).
+			if (Added && Line.Kind == EEffectTextLineKind::Effect && Effects.IsValidIndex(Line.EffectIndex) && Effects[Line.EffectIndex].Payloads.Num() > 0)
+			{
+				Added->Icon.Kind = ELoadoutV2IconKind::Effect;
+				Added->Icon.EffectType = Effects[Line.EffectIndex].Payloads[0].EffectType;
+				Added->Icon.Name = StaticEnum<ESkillEffectType>()->GetDisplayNameTextByValue(static_cast<int64>(Added->Icon.EffectType));
+			}
 		}
 	}
 
@@ -228,7 +255,14 @@ namespace LoadoutV2Build
 		{
 			return;
 		}
-		AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Weapon->GetDisplayName()), WoRGameNames::GetTierLetter(Weapon->Tier));
+		FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Weapon->GetDisplayName()), WoRGameNames::GetTierLetter(Weapon->Tier));
+		SetTier(Piece, Weapon->Tier);
+		if (Piece)
+		{
+			Piece->Icon.Kind = ELoadoutV2IconKind::WeaponType; // B-485
+			Piece->Icon.WeaponType = Weapon->WeaponType;
+			Piece->Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+		}
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), WoRGameNames::GetWeaponTypeName(Weapon->WeaponType));
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailPower", "Power"), Weapon->Power > 0 ? FText::AsNumber(Weapon->Power) : FText::GetEmpty());
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailScaling", "Scaling"), ScalingLine(Weapon->StatScaling));
@@ -237,8 +271,15 @@ namespace LoadoutV2Build
 
 	void AddSockets(TArray<FLoadoutV2DetailLine> &Lines, const FRuntimeAttachedItem &Socket1, const FRuntimeAttachedItem &Socket2)
 	{
-		AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket1, 1), AttachmentLine(Socket1));
-		AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket2, 2), AttachmentLine(Socket2));
+		// B-485: each socket line carries its badge.
+		if (FLoadoutV2DetailLine *First = AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket1, 1), AttachmentLine(Socket1)))
+		{
+			First->Icon = WoRLoadoutV2::MakeSocketIcon(Socket1);
+		}
+		if (FLoadoutV2DetailLine *Second = AddLine(Lines, ELoadoutV2DetailKind::Socket, SocketWord(Socket2, 2), AttachmentLine(Socket2)))
+		{
+			Second->Icon = WoRLoadoutV2::MakeSocketIcon(Socket2);
+		}
 	}
 
 	/** A weapon entry's lines (one weapon, or a pair): the pieces, the built-ins, the sockets, the skill slots. */
@@ -270,7 +311,7 @@ namespace LoadoutV2Build
 	{
 		if (const URingData *Adapter = Owned.Ring)
 		{
-			AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier));
+			SetTier(AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier)), Adapter->Tier);
 			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailType", "Type"), WoRGameNames::GetAdapterFormName(Adapter->Form));
 			AddEffects(Lines, Adapter, bSimple);
 		}
@@ -951,6 +992,36 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildEntryDetails(const FCombatLoadou
 	return Lines;
 }
 
+FLoadoutV2Icon WoRLoadoutV2::MakeSocketIcon(const FRuntimeAttachedItem &Item)
+{
+	FLoadoutV2Icon Icon;
+	if (Item.IsEmpty())
+	{
+		Icon.Kind = ELoadoutV2IconKind::EmptySocket;
+		Icon.Name = LOCTEXT("IconEmptySocket", "Empty socket");
+		return Icon;
+	}
+	Icon.Name = LoadoutV2Build::AttachmentName(Item);
+	if (Item.IsAugmentStone())
+	{
+		Icon.Kind = ELoadoutV2IconKind::Stone;
+		return Icon;
+	}
+	Icon.Kind = ELoadoutV2IconKind::Element;
+	Icon.Element = Item.GetElement();
+	return Icon;
+}
+
+bool WoRLoadoutV2::GetAttachmentTier(const FRuntimeAttachedItem &Item, EItemTier &OutTier)
+{
+	if (Item.IsEmpty())
+	{
+		return false;
+	}
+	OutTier = Item.IsEvolution() ? Item.Evolution.Tier : StatStone::AsRowId(Item.Crystal.Id).Tier;
+	return true;
+}
+
 TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildWeaponDetails(const FWeaponInventoryEntry &Weapon, bool bSimple)
 {
 	TArray<FLoadoutV2DetailLine> Lines;
@@ -981,8 +1052,13 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAttachmentDetails(const FRuntime
 	{
 		return Lines;
 	}
-	const EItemTier Tier = Item.IsEvolution() ? Item.Evolution.Tier : StatStone::AsRowId(Item.Crystal.Id).Tier;
-	AddLine(Lines, ELoadoutV2DetailKind::Piece, AttachmentName(Item), WoRGameNames::GetTierLetter(Tier));
+	EItemTier Tier = EItemTier::F_Tier;
+	GetAttachmentTier(Item, Tier);
+	if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, AttachmentName(Item), WoRGameNames::GetTierLetter(Tier)))
+	{
+		SetTier(Piece, Tier);
+		Piece->Icon = MakeSocketIcon(Item); // B-485: its element badge (or the stone's)
+	}
 	const ESpellElement Element = Item.GetElement();
 	AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
 	if (!bSimple)
