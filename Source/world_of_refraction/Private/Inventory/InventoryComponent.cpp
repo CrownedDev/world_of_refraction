@@ -511,7 +511,8 @@ namespace
     {
         const auto LeftHome = [&Pool](const FGuid &ID) { return ID.IsValid() && !Pool.IsInRunView(ID); };
         if (LeftHome(Saved.PrimaryWeaponInstance) || LeftHome(Saved.PrimaryRingInstance) ||
-            LeftHome(Saved.PrimaryEvolutionInstance) || LeftHome(Saved.SecondaryWeaponInstance))
+            LeftHome(Saved.PrimaryEvolutionInstance) || LeftHome(Saved.SecondaryWeaponInstance) ||
+            LeftHome(Saved.PrimaryOffHandInstance) || LeftHome(Saved.SecondaryOffHandInstance)) // B-477: the sets' off hands
         {
             return true;
         }
