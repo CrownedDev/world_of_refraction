@@ -667,7 +667,9 @@ void UBattleHUDWidget::SetCardBuildup(FBattleHUDCard &Card, float Current, float
 	// B-453f (D-190): the bar's colour says the pending element; with element letters on, the line says it too.
 	const UWorld *World = GetWorld();
 	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
-	const FText Letter = PendingElement == ESpellElement::Generic ? FText::GetEmpty() : WoRGameNames::GetElementLetter(PendingElement);
+	// Not in Broken Darkness form: its bar is the hybrid colour, which one element's letters would misname.
+	const bool bHybridBar = Source && UBrokenDarknessManager::IsInBDForm(Source);
+	const FText Letter = PendingElement == ESpellElement::Generic || bHybridBar ? FText::GetEmpty() : WoRGameNames::GetElementLetter(PendingElement);
 	if (Save && Save->IsElementLettersOn() && !Letter.IsEmpty())
 	{
 		Card.BuildupLine = FText::Format(LOCTEXT("BuildupWithLetter", "{0} {1}"), Card.BuildupLine, Letter);

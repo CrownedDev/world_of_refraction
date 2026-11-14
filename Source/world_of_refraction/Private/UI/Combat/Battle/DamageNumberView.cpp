@@ -129,7 +129,9 @@ FText DamageNumberView::AddElementLetter(const FText &Text, const FCombatHitShow
 	{
 		return Text; // one colour for every physical hit: nothing to tell apart
 	}
-	const FText Letter = WoRGameNames::GetElementLetter(ElementTable::For(Hit.DamageType).Element);
+	// Ice has its own colour (D-106) but no element of its own in the table: it gets its own tag.
+	const FText Letter = Hit.DamageType == EWoRDamageType::Ice ? LOCTEXT("IceLetter", "Ic")
+															   : WoRGameNames::GetElementLetter(ElementTable::For(Hit.DamageType).Element);
 	return Letter.IsEmpty() ? Text : FText::Format(LOCTEXT("WithElementLetter", "{0} {1}"), Text, Letter);
 }
 
