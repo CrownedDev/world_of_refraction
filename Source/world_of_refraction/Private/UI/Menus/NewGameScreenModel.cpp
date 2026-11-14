@@ -173,12 +173,23 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 		return LOCTEXT("NoPawn", "The game isn't ready to start yet: no player character class is set up.");
 	}
 
-	// The trial's exit first: it ends a run under way (and saves the old game, which the fresh one overwrites next), then
-	// travels to the hub on the next tick, where the player's pawn comes back as the picked character.
+	if (!TrialRun->HasHubLevel())
+	{
+		return LOCTEXT("NoHub", "The game isn't ready to start yet: no hub level is set up.");
+	}
+
+	// The old game's saves stop first: the trial's exit below saves it (async), and that write must not land after the
+	// new game's. StartFreshGame resumes writes.
+	if (Saves->IsBoundToPlayer())
+	{
+		Saves->DeleteSave();
+	}
+	// The trial's exit ends a run under way, then travels to the hub on the next tick, where the player's pawn comes
+	// back as the picked character.
 	TrialRun->ExitTrial();
 	if (!Saves->StartFreshGame(Leader, Pick.Body))
 	{
-		return LOCTEXT("NotStarted", "The new game didn't start; the old one is still loaded.");
+		return LOCTEXT("NotStarted", "The new game didn't start."); // not reached: Begin checked what StartFreshGame refuses
 	}
 	UE_LOG(LogWoRUI, Display, TEXT("[NewGame] Begin as %s (%s), %s"), *GetPanelTitle(Pick).ToString(),
 		   *Leader.CharacterData->GetName(), *UEnum::GetValueAsString(Pick.Body));
