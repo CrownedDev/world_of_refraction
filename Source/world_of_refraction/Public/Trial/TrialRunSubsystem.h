@@ -289,6 +289,14 @@ public:
 
     /** B-073 / B-096: the payout multiplier (passives raise it); BASE 1.0. */
     float GetRunPayoutMultiplier() const { return PayoutMultiplier; } // not GetPayoutMultiplier: that is the difficulty's
+
+    /** B-451 (D-189): the party ran out of wipes (5, or 3 at the main boss). Read from the saved counts, so a resumed
+     *  run knows it too. */
+    bool IsRunWipedOut() const;
+
+    /** B-451 (D-189): out of wipes with the final fight not won: the run's end pays WIPED_OUT_SHARE and keeps no
+     *  upgrades (the one test the payout and ExitTrial share). */
+    bool IsRunLost() const { return IsRunWipedOut() && !bRunBossBeaten; }
     void SetPayoutMultiplier(float Multiplier) { PayoutMultiplier = FMath::Max(Multiplier, 0.0f); }
 
     /** B-096 (server): reads the payout passives the party wears now (every evolution on each fighter, Q-096) into

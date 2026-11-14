@@ -181,7 +181,10 @@ void UTrialRunSubsystem::ExitTrial()
     // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
-        if (bAbandoned)
+        // B-451 (D-189, Q-451 reading A): out of wipes keeps no upgrades: the items found go, as for a quit, and the
+        // run's gear upgrade levels are not remembered.
+        const bool bKeepsUpgrades = !bAbandoned && !IsRunLost();
+        if (!bKeepsUpgrades)
         {
             Pool->TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176): a quit run also loses the items found in it
         }
@@ -189,7 +192,7 @@ void UTrialRunSubsystem::ExitTrial()
         {
             Pool->StoreRunFoundItems(); // B-238b (D-097, Q-238b): any other end sends the run's finds to home storage
         }
-        Pool->EndRunLayer();
+        Pool->EndRunLayer(bKeepsUpgrades);
     }
     // B-377: a hidden quest's step in progress starts its count again next run; steps done stay (MemoryCatalogue §3.6).
     if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())
@@ -212,7 +215,7 @@ void UTrialRunSubsystem::ExitTrial()
         Save->ClearRunGold(GetGameInstance()->GetWorld());
     }
 
-    // B-073 (D-006): the run's tally is paid now, win or lose, to every player in full (D-103).
+    // B-073 (D-006): the run's tally is paid now, win or lose, to every player (D-103), at the ending's share (D-189).
     PayRunEnd(GetGameInstance()->GetWorld());
 
     // B-361b (D-154, Q-361b): a finished co-op run (its boss beaten) pays every player; leaving early pays nothing.
@@ -1101,11 +1104,21 @@ float UTrialRunSubsystem::RefreshPayoutMultiplier(const TArray<AActor *> &Fighte
     return PayoutMultiplier;
 }
 
+bool UTrialRunSubsystem::IsRunWipedOut() const
+{
+    return DefeatRules::RunEnds(RunWipes, RunMainBossLosses);
+}
+
 FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
 {
     if (bAbandoned)
     {
         return FRunPayout(); // B-439 (D-176): quitting loses everything
+    }
+    if (IsRunLost())
+    {
+        // B-451 (D-189): out of wipes: a quarter of the run's currencies, no boss bonus.
+        return RunRewards::ScalePayout(RunTally, TrialDifficulty, false, PayoutMultiplier * RunRewards::WIPED_OUT_SHARE);
     }
     // B-187 (Q-187): leaving at a rest spot pays the leave share, with no boss bonus (full rewards only for beating
     // the boss or falling in battle).

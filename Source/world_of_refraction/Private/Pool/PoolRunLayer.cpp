@@ -198,7 +198,7 @@ bool UPoolSubsystem::IsOnRun(const FGuid &GearID) const
     return Mark && Mark->bOnRun;
 }
 
-FPoolRunEndResult UPoolSubsystem::EndRunLayer()
+FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
 {
     FPoolRunEndResult Result;
     if (!bRunLayerActive)
@@ -221,7 +221,7 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer()
             const bool bFound = FindWeaponInPool(ID) || FindRingInPool(ID) || FindEvolutionInPool(ID);
             if (bFound)
             {
-                Result.Remembered += RememberRunOnlyTier(ID) ? 1 : 0;
+                Result.Remembered += bKeepUpgrades && RememberRunOnlyTier(ID) ? 1 : 0;
                 RemoveGear(ID);
                 ++Result.Dropped;
             }

@@ -54,6 +54,10 @@ namespace RunRewards
 	/** B-187 (RunStructure §6, Q-187): leaving at a rest spot pays this share of the tally. TODO: tune. */
 	constexpr float LEAVE_EARLY_SHARE = 0.5f;
 
+	/** B-451 (D-189): running out of wipes pays this share of the run's currencies, with no boss bonus, and keeps no
+	 *  upgrades (Q-451 reading A: the gear upgrade levels and the items found). */
+	constexpr float WIPED_OUT_SHARE = 0.25f;
+
 	/** Run Prisms a win pays at once (D-048: what in-run shops charge). */
 	WORLD_OF_REFRACTION_API int32 WinRunPrisms(EEncounterRank Rank, ETrialDifficulty Difficulty);
 
