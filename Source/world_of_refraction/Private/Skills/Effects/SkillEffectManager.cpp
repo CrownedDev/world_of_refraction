@@ -3380,8 +3380,8 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		DealBreakShareOfMaxHP(TargetComp, Row->DamageShareOfMaxHP, *Effect.EffectName);
 	}
 
-	// B-170d (Q-170e): Ice takes its actions at once, every break (as its damage); Wind takes
-	// its at the holder's next turn start, a new gust only (as its delay did, D-012). Never below 0.
+	// B-170d (Q-170e): Ice takes its actions at once, every break (as its damage); Wind takes its at the holder's next
+	// turn start, a new gust only (the same attacker's refresh doesn't add, D-012). Never below 0.
 	if (Row && TargetComp && Row->ActionsLostNow > 0)
 	{
 		TargetComp->LoseActions(Row->ActionsLostNow);

@@ -364,7 +364,8 @@ void FIceSpec::Define()
 			const int32 HPBefore = TargetComp->CurrentHP;
 			TestTrue(TEXT("the Water bar breaks"),
 					 Buildup->AddStatusBuildup(nullptr, Target, ICE_SPEC_OVERWHELMING_HIT, ESpellElement::Water, EPhysicalDamageType::None));
-			TestEqual(TEXT("Action Speed slowed"), FirstEffectValue(*Effects, Target, ESkillEffectType::ActionSpeedDebuff),
+			// B-170h2b (Q-170e, SB-22): Water's break slows Spell Speed only.
+			TestEqual(TEXT("Spell Speed slowed"), FirstEffectValue(*Effects, Target, ESkillEffectType::SpellSpeedDebuff),
 					  CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT);
 			TestEqual(TEXT("no damage"), TargetComp->CurrentHP, HPBefore);
 		});
