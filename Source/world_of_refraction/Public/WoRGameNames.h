@@ -122,6 +122,10 @@ namespace WoRGameNames
     /** B-440a: a tier's letter, "F" to "S". */
     WORLD_OF_REFRACTION_API FText GetTierLetter(EItemTier Tier);
 
+    /** B-453f (D-190, Q-453f): an element's short tag for "Element letters on colours": "Fi", "Wa", "Lt" (two letters,
+     *  so Light and Lightning differ). Empty for None. */
+    WORLD_OF_REFRACTION_API FText GetElementLetter(ESpellElement Element);
+
     /** B-445: a vendor's services beside Buy: "Sell", "Dismantle". */
     WORLD_OF_REFRACTION_API FText GetVendorServiceName(EVendorService Service);
 

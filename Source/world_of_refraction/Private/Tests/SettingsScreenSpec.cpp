@@ -34,6 +34,8 @@ namespace
 	constexpr int32 SETTINGS_TEST_TEXT_SIZE_ROW = 1;
 	/** B-453e: Gameplay's "AI finishes my turn when I idle", after the boss cinematics row. */
 	constexpr int32 SETTINGS_TEST_AI_FINISHES_ROW = 5;
+	/** B-453f: Accessibility's element letters, after hold to confirm. */
+	constexpr int32 SETTINGS_TEST_ELEMENT_LETTERS_ROW = 5;
 }
 
 BEGIN_DEFINE_SPEC(FSettingsScreenSpec, "WoR.UI.Settings", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -219,6 +221,25 @@ void FSettingsScreenSpec::Define()
 		TestTrue(TEXT("on"), Save->IsAIFinishesIdleTurnOn());
 		WoRSettingsScreen::ChangeSetting(World, ESettingId::AIFinishesTurn, 1);
 		TestFalse(TEXT("off again"), Save->IsAIFinishesIdleTurnOn());
+	});
+
+	It("turns element letters on and off; off is the default (B-453f)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility);
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_ELEMENT_LETTERS_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the element letters row"), Rows[SETTINGS_TEST_ELEMENT_LETTERS_ROW].Id == ESettingId::ElementLetters);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_ELEMENT_LETTERS_ROW].CanChange());
+		TestFalse(TEXT("off by default"), FSavedSettings().bElementLetters);
+		Save->SetElementLettersOn(false);
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::ElementLetters, 1));
+		TestTrue(TEXT("on"), Save->IsElementLettersOn());
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::ElementLetters, 1);
+		TestFalse(TEXT("off again"), Save->IsElementLettersOn());
 	});
 
 	It("says a setting isn't built yet, and doesn't change it", [this]()

@@ -2,6 +2,9 @@
 
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 
+#include "Save/SaveSubsystem.h"
+#include "WoRGameNames.h"
+
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Character/CharacterDataComponent.h"
@@ -661,6 +664,16 @@ void UBattleHUDWidget::SetCardBuildup(FBattleHUDCard &Card, float Current, float
 	Card.CracksShown = BattleHUDView::CountCracksShown(Card.BuildupFraction);
 	Card.BuildupColour = BattleHUDView::GetBuildupColour(PendingElement, Source && UBrokenDarknessManager::IsInBDForm(Source));
 	Card.BuildupLine = BattleHUDView::FormatBuildupLine(Current, Max);
+	// B-453f (D-190): the bar's colour says the pending element; with element letters on, the line says it too.
+	const UWorld *World = GetWorld();
+	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	// Not in Broken Darkness form: its bar is the hybrid colour, which one element's letters would misname.
+	const bool bHybridBar = Source && UBrokenDarknessManager::IsInBDForm(Source);
+	const FText Letter = PendingElement == ESpellElement::Generic || bHybridBar ? FText::GetEmpty() : WoRGameNames::GetElementLetter(PendingElement);
+	if (Save && Save->IsElementLettersOn() && !Letter.IsEmpty())
+	{
+		Card.BuildupLine = FText::Format(LOCTEXT("BuildupWithLetter", "{0} {1}"), Card.BuildupLine, Letter);
+	}
 }
 
 void UBattleHUDWidget::SetStatusPanelOpen(bool bOpen)
@@ -905,7 +918,10 @@ void UBattleHUDWidget::ShowDamageNumber(AActor *Target, const FCombatHitShown &H
 	FBattleDamageNumber &Number = DamageNumbers[SlotIndex];
 	Number.Target = Target;
 	Number.Hit = Hit;
-	Number.Style = bNegated ? DamageNumberView::MakeNegatedStyle(Hit) : DamageNumberView::MakeStyle(Hit);
+	// B-453f (D-190): the player's "Element letters on colours" setting tags elemental numbers.
+	const USaveSubsystem *Save = World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	const bool bLetters = Save && Save->IsElementLettersOn();
+	Number.Style = bNegated ? DamageNumberView::MakeNegatedStyle(Hit, bLetters) : DamageNumberView::MakeStyle(Hit, bLetters);
 	Number.WorldPoint = Target->GetActorLocation() + FVector(0.0f, 0.0f, Target->GetSimpleCollisionHalfHeight());
 	Number.SpawnTime = World->GetTimeSeconds();
 	Number.StackIndex = DamageNumberView::NextStackIndex(LiveStackIndices);

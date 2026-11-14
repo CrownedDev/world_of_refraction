@@ -30,6 +30,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-451](B-451.md) | `feature/B-451-ending-payouts-cloud` (cloud, UNBUILT) | Out of wipes pays a quarter, no boss bonus, no upgrades (finds taken back, upgrade levels not kept); extract half; the boss full; quit nothing | Pending |
 | [B-460](B-460.md) | `refactor/B-460-crystal-text-ftext-cloud` (cloud, UNBUILT) | Crystal and stone descriptions as FText; nothing should read differently | Pending |
 | [B-408](B-408.md) | `chore/B-408-saved-runs-survey-cloud` (cloud, docs only) | Survey: the saved run stays for the co-op hand-over and to settle a closed game; one change proposed (a game closed mid-run counts as a quit, Q-408); confirm today's resume | Pending |
+| [B-453f](B-453f.md) | `feature/B-453f-element-letters-cloud` (cloud, UNBUILT) | Settings: element letters on damage numbers and the status line | Pending |
 | [B-453e](B-453e.md) | `feature/B-453e-ai-finishes-idle-turn-cloud` (cloud, UNBUILT) | Settings: AI finishes my turn when I idle (30 s, that turn only, off by default) | Pending |
 | [B-453d](B-453d.md) | `feature/B-453d-text-size-cloud` (cloud, UNBUILT) | Settings: text size Normal / Large / Larger, the whole UI grows, saved | Pending |
 | [B-453c](B-453c.md) | `feature/B-453c-hold-to-confirm-cloud` (cloud, UNBUILT) | Settings: hold to confirm on / off (off: a second press quits or starts over) | Pending |

@@ -4,6 +4,7 @@
 
 #include "Combat/Elements/ElementTable.h"
 #include "Infusion/ElementColors.h"
+#include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "DamageNumber"
 
@@ -68,7 +69,7 @@ namespace
 	}
 }
 
-FDamageNumberStyle DamageNumberView::MakeStyle(const FCombatHitShown &Hit)
+FDamageNumberStyle DamageNumberView::MakeStyle(const FCombatHitShown &Hit, bool bElementLetters)
 {
 	FDamageNumberStyle Style;
 	Style.Tier = ClassifyHit(Hit);
@@ -89,7 +90,7 @@ FDamageNumberStyle DamageNumberView::MakeStyle(const FCombatHitShown &Hit)
 		break;
 	default:
 	{
-		Style.Text = FText::AsNumber(Hit.Amount);
+		Style.Text = bElementLetters ? AddElementLetter(FText::AsNumber(Hit.Amount), Hit) : FText::AsNumber(Hit.Amount);
 		Style.Brightness = GetBrightness(Hit.ElementMultiplier);
 		Style.Colour = BrightenDamageColour(GetDamageTypeColour(Hit.DamageType), Style.Brightness);
 		const float CritBonus = Hit.bCritical ? CRIT_SCALE_BONUS : 0.0f;
@@ -122,16 +123,28 @@ bool DamageNumberView::IsNegatedHit(const FCombatHitShown &Hit, bool bTargetBrok
 	return bTargetBrokenDarkness && !Hit.bHeal && Hit.Amount <= 0 && Hit.ElementMultiplier > IMMUNE_MULTIPLIER;
 }
 
+FText DamageNumberView::AddElementLetter(const FText &Text, const FCombatHitShown &Hit)
+{
+	if (Hit.DamageType == EWoRDamageType::None || WoRDamageType::IsPhysical(Hit.DamageType))
+	{
+		return Text; // one colour for every physical hit: nothing to tell apart
+	}
+	// Ice has its own colour (D-106) but no element of its own in the table: it gets its own tag.
+	const FText Letter = Hit.DamageType == EWoRDamageType::Ice ? LOCTEXT("IceLetter", "Ic")
+															   : WoRGameNames::GetElementLetter(ElementTable::For(Hit.DamageType).Element);
+	return Letter.IsEmpty() ? Text : FText::Format(LOCTEXT("WithElementLetter", "{0} {1}"), Text, Letter);
+}
+
 FText DamageNumberView::GetNegatedLabel()
 {
 	return LOCTEXT("Negated", "Negated"); // Crown, 2026-11-12 (Q-391c): not "Absorbed"
 }
 
-FDamageNumberStyle DamageNumberView::MakeNegatedStyle(const FCombatHitShown &Hit)
+FDamageNumberStyle DamageNumberView::MakeNegatedStyle(const FCombatHitShown &Hit, bool bElementLetters)
 {
 	FDamageNumberStyle Style;
 	Style.Tier = EDamageNumberTier::Negated;
-	Style.Text = GetNegatedLabel();
+	Style.Text = bElementLetters ? AddElementLetter(GetNegatedLabel(), Hit) : GetNegatedLabel();
 	Style.Colour = GetDamageTypeColour(Hit.DamageType);
 	Style.Scale = NEGATED_SCALE;
 	Style.OutlineColour = ElementColors::NeedsTextOutline(ElementTable::For(Hit.DamageType).Element) ? ElementColors::TextOutline

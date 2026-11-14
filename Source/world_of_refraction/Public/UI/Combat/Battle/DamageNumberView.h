@@ -91,7 +91,7 @@ namespace DamageNumberView
 	WORLD_OF_REFRACTION_API float GetBrightness(float ElementMultiplier);
 
 	/** The full look of one number. */
-	WORLD_OF_REFRACTION_API FDamageNumberStyle MakeStyle(const FCombatHitShown &Hit);
+	WORLD_OF_REFRACTION_API FDamageNumberStyle MakeStyle(const FCombatHitShown &Hit, bool bElementLetters = false);
 
 	/** False for a hit that took nothing (a fully negated or buildup-only hit), unless the target is immune. */
 	WORLD_OF_REFRACTION_API bool ShouldShow(const FCombatHitShown &Hit);
@@ -110,7 +110,11 @@ namespace DamageNumberView
 	WORLD_OF_REFRACTION_API FText GetNegatedLabel();
 
 	/** "Negated" in the hit's colour (the element Broken Darkness took in), smaller than a number, no glow. */
-	WORLD_OF_REFRACTION_API FDamageNumberStyle MakeNegatedStyle(const FCombatHitShown &Hit);
+	WORLD_OF_REFRACTION_API FDamageNumberStyle MakeNegatedStyle(const FCombatHitShown &Hit, bool bElementLetters = false);
+
+	/** B-453f (D-190): Text with the hit's element tag after it ("123 Fi"), for "Element letters on colours"; Text
+	 *  as it is for a physical or element-less hit. */
+	WORLD_OF_REFRACTION_API FText AddElementLetter(const FText &Text, const FCombatHitShown &Hit);
 
 	/** How far up a number of this age has drifted (Slate units, positive = up). */
 	WORLD_OF_REFRACTION_API float GetRiseOffset(float AgeSeconds);

@@ -6,6 +6,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "WoRGameNames.h"
 #include "Infusion/ElementColors.h"
 #include "UI/Combat/Battle/DamageNumberView.h"
 
@@ -133,6 +134,20 @@ void FDamageNumberSpec::Define()
 		TestEqual(TEXT("ends risen"), DamageNumberView::GetRiseOffset(DamageNumberView::LIFETIME_SECONDS), DamageNumberView::RISE_DISTANCE);
 		TestEqual(TEXT("opaque at first"), DamageNumberView::GetOpacity(0.0f), 1.0f);
 		TestEqual(TEXT("gone at the end"), DamageNumberView::GetOpacity(DamageNumberView::LIFETIME_SECONDS), 0.0f);
+	});
+
+	It("tags an elemental number with its letters when asked, never a physical one (B-453f)", [this]()
+	{
+		const FCombatHitShown FireHit = MakeDamageNumberHit(1.0f, EWoRDamageType::Fire);
+		const FString Plain = DamageNumberView::MakeStyle(FireHit).Text.ToString();
+		const FString Tagged = DamageNumberView::MakeStyle(FireHit, /*bElementLetters=*/true).Text.ToString();
+		TestTrue(TEXT("the number stays"), Tagged.StartsWith(Plain));
+		TestTrue(TEXT("Fire's letters after it"), Tagged.EndsWith(WoRGameNames::GetElementLetter(ESpellElement::Fire).ToString()));
+		const FCombatHitShown SlashHit = MakeDamageNumberHit(1.0f, EWoRDamageType::Slash);
+		TestEqual(TEXT("no tag on a physical hit"), DamageNumberView::MakeStyle(SlashHit, true).Text.ToString(),
+				  DamageNumberView::MakeStyle(SlashHit).Text.ToString());
+		TestNotEqual(TEXT("Light and Lightning differ"), WoRGameNames::GetElementLetter(ESpellElement::Light).ToString(),
+					 WoRGameNames::GetElementLetter(ESpellElement::Lightning).ToString());
 	});
 }
 
