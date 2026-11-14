@@ -2,7 +2,8 @@
 // B-463 (D-181, D-196, D-198, D-199): the journal screen's model. A quest shows the steps reached and no later one;
 // a secret quest is masked until shown, shows its current step only, and X / Y show and hide it; the quest filters
 // keep one kind; memories and lore list newest first, memories by character; a ready conversation plays line by line
-// and is then kept under Played. The screen itself is the PIE sheet (docs/PIE/B-463.md).
+// and is then kept under Played. B-463c: NEW on memories and lore until opened (saved), where each was found, the
+// lore's kind and place sub-tabs, a finished quest's reward. The screen itself is the PIE sheet (docs/PIE/B-463.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -139,7 +140,7 @@ void FJournalScreenSpec::Define()
 			TestFalse(TEXT("and a line says so"), View(Page).ListNote.IsEmpty());
 		}
 		TestEqual(TEXT("quests: All, Main, Side, Secret"), QuestView().Filters.Num(), 4);
-		TestEqual(TEXT("lore has no sub-tabs"), View(EJournalPage::Lore).Filters.Num(), 0);
+		TestEqual(TEXT("lore: Everything only, until something is read"), View(EJournalPage::Lore).Filters.Num(), 1);
 	});
 
 	It("shows a quest's steps reached and no later one (D-199)", [this]()
@@ -277,7 +278,8 @@ void FJournalScreenSpec::Define()
 			return;
 		}
 		TestEqual(TEXT("newest first"), Everyone.Rows[0].Title.ToString(), FString(TEXT("NewSeraMemory")));
-		TestEqual(TEXT("whose it is"), Everyone.Rows[0].Subtitle.ToString(), FString(TEXT("SeraSpec")));
+		TestEqual(TEXT("where it was found (the hub: no run)"), Everyone.Rows[0].Subtitle.ToString(), FString(TEXT("Void Realm")));
+		TestEqual(TEXT("whose it is, and where"), Everyone.Rows[0].Kicker.ToString(), FString(TEXT("SeraSpec · found in Void Realm")));
 		TestEqual(TEXT("its text in the reader"), Everyone.Rows[0].Body.ToString(), FString(TEXT("NewSeraMemory text")));
 		TestEqual(TEXT("found, never 'of'"), Everyone.ListNote.ToString(), FString(TEXT("3 found")));
 		TestTrue(TEXT("Everyone, then each character by name"),
@@ -295,6 +297,64 @@ void FJournalScreenSpec::Define()
 		Journal->RecordLore(TEXT("LoreNewSpec"), FText::FromString(TEXT("New note")), FText::FromString(TEXT("New body")));
 		const FJournalView Lore = View(EJournalPage::Lore);
 		TestTrue(TEXT("newest first"), Lore.Rows.Num() == 2 && Lore.Rows[0].Title.ToString() == TEXT("New note") && Lore.Rows[1].Body.ToString() == TEXT("Old body"));
+	});
+
+	It("marks memories and lore NEW until opened, saves it, and gives the lore's kind and place (B-463c)", [this]()
+	{
+		Journal->RecordMemory(NewJournalMemory(TEXT("NewMarkMemorySpec")), EMemorySource::Fragment);
+		Journal->RecordLore(TEXT("NewMarkLoreSpec"), FText::FromString(TEXT("A ledger")), FText::FromString(TEXT("Body")), ELoreKind::Note);
+		const FJournalView Memories = View(EJournalPage::Memories);
+		const FJournalView Lore = View(EJournalPage::Lore);
+		if (!TestTrue(TEXT("one of each"), Memories.Rows.Num() == 1 && Lore.Rows.Num() == 1)) return;
+		TestTrue(TEXT("both NEW"), Memories.Rows[0].bNew && Memories.Rows[0].Tag.ToString() == TEXT("NEW") && Lore.Rows[0].bNew);
+		TestEqual(TEXT("the lore's kind"), Lore.Rows[0].Subtitle.ToString(), FString(TEXT("Note")));
+		TestEqual(TEXT("and place"), Lore.Rows[0].Kicker.ToString(), FString(TEXT("Note · Void Realm")));
+		TestTrue(TEXT("a sub-tab per place"), Lore.Filters.Num() == 2 && Lore.Filters[1].ToString() == TEXT("Void Realm"));
+		TestEqual(TEXT("the place's sub-tab keeps it"), View(EJournalPage::Lore, 1).Rows.Num(), 1);
+
+		const FSavedJournal Saved = Journal->Capture();
+		TestTrue(TEXT("opened"), WoRJournalScreen::MarkOpened(Game(), Memories.Rows[0]));
+		TestFalse(TEXT("once"), WoRJournalScreen::MarkOpened(Game(), View(EJournalPage::Memories).Rows[0]));
+		TestTrue(TEXT("no longer NEW"), View(EJournalPage::Memories).Rows[0].Tag.IsEmpty());
+		TestTrue(TEXT("the lore still is"), View(EJournalPage::Lore).Rows[0].bNew);
+
+		Journal->Restore(Saved);
+		TestTrue(TEXT("the save keeps what was new"), View(EJournalPage::Memories).Rows.Num() == 1 && View(EJournalPage::Memories).Rows[0].bNew);
+		const FJournalView Restored = View(EJournalPage::Lore);
+		TestTrue(TEXT("and the lore's kind and place"),
+				 Restored.Rows.Num() == 1 && Restored.Rows[0].Kicker.ToString() == TEXT("Note · Void Realm"));
+		TestEqual(TEXT("and the memory's place"), View(EJournalPage::Memories).Rows[0].Subtitle.ToString(), FString(TEXT("Void Realm")));
+
+		Journal->Restore(FSavedJournal());
+		Journal->RecordLore(TEXT("OldSaveLoreSpec"), FText::FromString(TEXT("Old")), FText::FromString(TEXT("Body")));
+		FSavedJournal OlderSave = Journal->Capture();
+		OlderSave.NewEntries.Reset(); // a save from before B-463c
+		OlderSave.Lore[0].Place = FText::GetEmpty();
+		Journal->Restore(OlderSave);
+		const FJournalView Older = View(EJournalPage::Lore);
+		TestTrue(TEXT("an older save: nothing NEW, no place, no place sub-tab"),
+				 Older.Rows.Num() == 1 && !Older.Rows[0].bNew && Older.Rows[0].Kicker.ToString() == TEXT("Inscription") && Older.Filters.Num() == 1);
+	});
+
+	It("names a finished quest's reward; an unfinished one keeps it hidden (B-463c)", [this]()
+	{
+		UHiddenQuestData *Quest = NewJournalQuest(TEXT("RewardQuestSpec"), EQuestKind::Side);
+		FMemoryReward Lift;
+		Lift.Kind = EMemoryRewardKind::RemoveCurse;
+		Lift.RewardId = TEXT("RewardSpecCurse");
+		FMemoryReward Title;
+		Title.Kind = EMemoryRewardKind::Title; // titles don't exist yet: not named
+		Quest->Steps.Last().Rewards = {Lift, Title};
+		Start(Quest);
+		TestEqual(TEXT("unfinished"), QuestView().Rows[0].Note.ToString(), FString(TEXT("Reward: shown when the quest is done.")));
+		for (int32 Step = 0; Step < JOURNAL_SCREEN_TEST_QUEST_STEPS; ++Step)
+		{
+			DoStep(Quest);
+		}
+		const FJournalView Done = QuestView();
+		if (!TestEqual(TEXT("one quest"), Done.Rows.Num(), 1)) return;
+		TestTrue(TEXT("finished"), Done.Rows[0].bDone);
+		TestEqual(TEXT("its reward in words"), Done.Rows[0].Note.ToString(), FString(TEXT("Reward: RewardSpecCurse lifted.")));
 	});
 
 	It("plays a ready conversation line by line, then keeps it under Played (Q-463)", [this]()

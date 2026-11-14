@@ -239,6 +239,10 @@ void UJournalScreenWidget::Refresh(bool bScrollIntoView)
 	View = WoRJournalScreen::BuildView(GetGameInstance(), Page, Filter, State, ObjectPtrDecay(Story));
 	Filter = FMath::Clamp(Filter, 0, FMath::Max(View.Filters.Num() - 1, 0));
 	SelectedRow = View.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, View.Rows.Num() - 1) : 0;
+	if (View.Rows.IsValidIndex(SelectedRow))
+	{
+		WoRJournalScreen::MarkOpened(GetGameInstance(), View.Rows[SelectedRow]); // B-463c: in the reader now, so opened
+	}
 	if (!RowScroll)
 	{
 		return; // headless: no tree

@@ -992,6 +992,17 @@ The queue of questions only Crown can answer.
 - **It shows as "{quest}: {current step}"** in the game menu's Journal preview and top right in a trial (the hub shows none), and is saved. It goes when the quest finishes.
 - **No marker in the world** for the step (none of the steps has a place to point at yet).
 
+### Q-463c — Journal details: when NEW goes, how a place is named, how lore is grouped, what the reward line says
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-463c, Q-463 points 4, 5) · **Blocks:** —
+**Question:** Q-463 left the NEW mark, the place found, the lore's kind and a finished quest's reward until the game records them. How should each work?
+**Answer**, by the reference-backed default (Crown may change any):
+- **NEW goes once the entry has been shown in the reader** (lit in the list), and stays while it is lit; it is saved. The Witcher 3's and Hades' codex mark an entry new until it is viewed. A save from before this build shows nothing NEW.
+- **The place is "{trial}, {variation}"** (as the game menu names it), or **"Void Realm"** in the hub, kept when the memory or lore is found. A memory reads "{who} · found in {place}", a lore entry "{kind} · {place}" (the mockups).
+- **Lore kinds:** Inscription (the default, as the placeholder's "Weathered inscription"), Note, Overheard, Item description, set per lore object in the editor.
+- **Lore sub-tabs: Everything, then each place something was read in**, in the order first read there; no tab for a place with nothing read (pillar 10, as Memories' character tabs).
+- **A finished quest ends "Reward: {names}."**: items and skills by name, a curse given ("the curse {name}") or lifted ("{name} lifted"); titles are left out until titles exist. An unfinished one keeps "Reward: shown when the quest is done." (Mass Effect and Expedition 33 show a quest's reward once it is earned.)
+- **Left out:** the memory replay window (waits for memory scenes); "found by {friend}" on lore.
+
 ### Q-467 — The title screen: where it lives, what Continue and New Game do before the new game screen
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-467, D-202) · **Blocks:** —
 **Question:** the title's look and rows are decided (D-202, `UIScreens.md` #9, #10). Five things the code needed are not. (1) There is no title map: where does the title sit? (2) What does Continue do? (3) What does New Game do after the hold, before the new game screen (B-469) exists? (4) Join a friend and Credits have no screen yet (B-459, B-470). (5) The Continue line shows hours, and the save has never counted time.

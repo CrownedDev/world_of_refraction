@@ -10,6 +10,7 @@
 #include "AI/EAIDifficulty.h"
 #include "GameFramework/Actor.h"
 #include "Hub/InteractPrompt.h"
+#include "Memory/MemoryJournalSubsystem.h" // ELoreKind (B-463c)
 #include "GameplayTagContainer.h"
 #include "TrialMapFeature.generated.h"
 
@@ -133,6 +134,10 @@ protected:
 
 	UPROPERTY(EditInstanceOnly, Category = "Lore", meta = (MultiLine = true))
 	FText Body;
+
+	/** B-463c: what it is, shown in the journal ("Note", "Overheard"). */
+	UPROPERTY(EditInstanceOnly, Category = "Lore")
+	ELoreKind Kind = ELoreKind::Inscription;
 };
 
 /** The way into the boss fight: pressing interact is the player's choice to start it (Q-188).

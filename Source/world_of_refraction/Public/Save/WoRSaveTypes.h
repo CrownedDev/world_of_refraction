@@ -785,6 +785,14 @@ struct WORLD_OF_REFRACTION_API FSavedLore
 
 	UPROPERTY()
 	FText Body;
+
+	/** B-463c (no version bump: an older save loads empty / Inscription). */
+	UPROPERTY()
+	FText Place;
+
+	/** ELoreKind as its byte. */
+	UPROPERTY()
+	uint8 Kind = 0;
 };
 
 /** B-377b: this player's memory journal (save v28; it was transient before): memories in order with where each came
@@ -808,6 +816,14 @@ struct WORLD_OF_REFRACTION_API FSavedJournal
 
 	UPROPERTY()
 	TArray<FName> PlayedConversations;
+
+	/** B-463c (no version bump: an older save loads none): where each memory was found, parallel to Memories. */
+	UPROPERTY()
+	TArray<FText> MemoryPlaces;
+
+	/** B-463c: memory and lore ids not opened in the journal yet. */
+	UPROPERTY()
+	TArray<FName> NewEntries;
 };
 
 /** B-398: the player's own settings (the settings save, D-024's screen later). They stay this player's on a host

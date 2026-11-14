@@ -55,6 +55,8 @@ struct FVisibleQuest
 	bool bFinished = false;
 	/** Q-397: FHiddenQuestProgress::FoundOrder (higher = found later). */
 	int32 FoundOrder = 0;
+	/** B-463c: a finished quest's rewards (every step's, then its end memory's); none while unfinished. */
+	TArray<FMemoryReward> Rewards;
 };
 
 UCLASS()

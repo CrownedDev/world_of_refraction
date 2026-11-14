@@ -266,7 +266,7 @@ void ATrialLoreObject::Interact(APawn * /*Pawn*/)
 	const UGameInstance *GameInstance = GetGameInstance();
 	if (UMemoryJournalSubsystem *Journal = GameInstance ? GameInstance->GetSubsystem<UMemoryJournalSubsystem>() : nullptr)
 	{
-		Journal->RecordLore(GetFeatureId(), Title, Body);
+		Journal->RecordLore(GetFeatureId(), Title, Body, Kind);
 	}
 	UTrialRunSubsystem *TrialRun = GetTrialRun();
 	if (TrialRun && !TrialRun->HasFound(GetFeatureId()))
