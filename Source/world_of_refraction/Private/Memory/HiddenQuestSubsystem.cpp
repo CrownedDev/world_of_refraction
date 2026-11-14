@@ -664,6 +664,17 @@ TArray<FVisibleQuest> UHiddenQuestSubsystem::GetVisibleQuests()
 		{
 			Row.DoneGoals.Add(Quest->Steps[StepIndex].Goal);
 		}
+		if (Row.bFinished)
+		{
+			for (const FHiddenQuestStep &Step : Quest->Steps)
+			{
+				Row.Rewards.Append(Step.Rewards);
+			}
+			if (Quest->EndMemory)
+			{
+				Row.Rewards.Append(Quest->EndMemory->Rewards);
+			}
+		}
 	}
 	Out.Sort([](const FVisibleQuest &A, const FVisibleQuest &B)
 	{
