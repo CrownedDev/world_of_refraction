@@ -818,7 +818,7 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	case ELoadoutV2Mode::SkillEntries:
 		return LOCTEXT("HintsSkillEntries", "{Confirm}  Slots        {Tabs}  Tab        {SubTabs}  Character        {Back}  Back");
 	case ELoadoutV2Mode::SkillRows:
-		return LOCTEXT("HintsSkillRows", "{Confirm}  Change        {Toggle}  {ViewName}        {Second}  Take out        {Back}  Back"); // X as on the Weapons tab
+		return LOCTEXT("HintsSkillRows", "{Confirm}  Change        {Toggle}  {ViewName}        {Second}  Take out        {Back}  Back"); // X the view, as on Weapons; Y / R takes the lit skill out (B-488)
 	case ELoadoutV2Mode::SkillPicker:
 		return LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Toggle}  {ViewName}        {Back}  Cancel");
 	case ELoadoutV2Mode::ApparelItems:
@@ -1545,7 +1545,7 @@ void ULoadoutV2ScreenWidget::PressConfirm()
 		// B-488: the first screen's X on a skill, kept: the lit slot's skill comes out. Nothing is lost (an innate spell
 		// stays learned; a replaced built-in comes back, Q-440d), so one press.
 		const FLoadoutScreenRow *Row = SkillRows.IsValidIndex(Selected) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Selected]) : nullptr;
-		if (Row && Row->Skill && Members.IsValidIndex(MemberIndex))
+		if (Row && Members.IsValidIndex(MemberIndex)) // an empty slot or a piece's own skill: ApplySkill says why not
 		{
 			const FLoadoutSkillTab SkillTab = SkillsPage.Source.Tabs[SkillRows[Selected].Tab];
 			const FLoadoutScreenRow SlotRow = *Row;
