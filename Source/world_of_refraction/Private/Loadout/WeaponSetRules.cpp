@@ -52,6 +52,11 @@ FText WeaponSetRules::GetPairRefusalText(EPairRefusal Refusal)
 	}
 }
 
+bool WeaponSetRules::IsValidPair(const FWeaponLoadoutEntry &Set)
+{
+	return Set.HasOffHand() && CheckPair(Set.WeaponEntry, Set.OffHandEntry) == EPairRefusal::None;
+}
+
 bool WeaponSetRules::CanStandAlone(const FWeaponLoadoutEntry &Set)
 {
 	const UWeaponData *Weapon = Set.WeaponEntry.Weapon;
@@ -66,13 +71,13 @@ int32 WeaponSetRules::GetPairTierSlots(EItemTier MainTier, EItemTier OffHandTier
 
 int32 WeaponSetRules::GetSetTierSlots(const FWeaponLoadoutEntry &Set)
 {
-	return Set.HasOffHand() ? GetPairTierSlots(Set.WeaponEntry.Tier, Set.OffHandEntry.Tier) : CrystalEffectTable::SlotsForContainerTier(Set.WeaponEntry.Tier);
+	return IsValidPair(Set) ? GetPairTierSlots(Set.WeaponEntry.Tier, Set.OffHandEntry.Tier) : CrystalEffectTable::SlotsForContainerTier(Set.WeaponEntry.Tier);
 }
 
 TArray<UAbilityData *> WeaponSetRules::GetSetBuiltIns(const FWeaponLoadoutEntry &Set)
 {
 	TArray<UAbilityData *> BuiltIns = Set.WeaponEntry.Weapon ? Set.WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
-	if (Set.HasOffHand())
+	if (IsValidPair(Set))
 	{
 		for (UAbilityData *Ability : Set.OffHandEntry.Weapon->PresetAbilities)
 		{
@@ -87,7 +92,7 @@ TArray<UAbilityData *> WeaponSetRules::GetSetBuiltIns(const FWeaponLoadoutEntry 
 
 EWeaponWieldMode WeaponSetRules::GetSetWieldMode(const FWeaponLoadoutEntry &Set)
 {
-	if (Set.HasOffHand())
+	if (IsValidPair(Set))
 	{
 		return EWeaponWieldMode::Dual;
 	}
@@ -101,8 +106,10 @@ UStanceData *WeaponSetRules::GetSetStance(const FWeaponLoadoutEntry &Set)
 	{
 		return nullptr;
 	}
-	if (Set.HasOffHand() && !Main->DualWieldStance.IsNull())
+	if (IsValidPair(Set) && !Main->DualWieldStance.IsNull())
 	{
+		// Resolves without a load once loaded. TODO: B-477b: preload the stance when the set is equipped (a first read
+		// mid-fight could hitch).
 		if (UStanceData *DualStance = Main->DualWieldStance.LoadSynchronous())
 		{
 			return DualStance;

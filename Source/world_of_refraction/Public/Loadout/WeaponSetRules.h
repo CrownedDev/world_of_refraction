@@ -35,6 +35,10 @@ namespace WeaponSetRules
 	/** Player-facing reason for a refusal (empty for None). */
 	WORLD_OF_REFRACTION_API FText GetPairRefusalText(EPairRefusal Refusal);
 
+	/** D-209: the set holds an off hand that CheckPair allows. The pair readers below use it; the class (a Generic's
+	 *  sets only) is gated by the loadout check (FLoadoutRules, OffHandWeapon) and ULoadoutComponent::IsWeaponSetPaired. */
+	WORLD_OF_REFRACTION_API bool IsValidPair(const FWeaponLoadoutEntry &Set);
+
 	/** D-209: false for a DualOnly weapon held alone (an empty entry is not refused here). */
 	WORLD_OF_REFRACTION_API bool CanStandAlone(const FWeaponLoadoutEntry &Set);
 

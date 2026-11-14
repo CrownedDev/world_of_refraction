@@ -2709,8 +2709,7 @@ bool ULoadoutComponent::IsWornByAnother(const FGuid &GearID) const
 bool ULoadoutComponent::IsWeaponSetPaired(const FWeaponLoadoutEntry &Weapon) const
 {
     // B-477 (D-209): only a Generic's valid pair counts; anything else waits for the pre-fight clean (OffHandWeapon).
-    return Weapon.HasOffHand() && GetCharacterClass() == ECharacterClass::Generic &&
-           WeaponSetRules::CheckPair(Weapon.WeaponEntry, Weapon.OffHandEntry) == WeaponSetRules::EPairRefusal::None;
+    return GetCharacterClass() == ECharacterClass::Generic && WeaponSetRules::IsValidPair(Weapon);
 }
 
 void ULoadoutComponent::ForEachContributingGear(TFunctionRef<void(const FWeaponLoadoutEntry *, const FRingLoadoutEntry *)> Visit) const
