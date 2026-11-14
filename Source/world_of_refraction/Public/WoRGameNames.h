@@ -32,6 +32,7 @@ enum class ESubStat : uint8;
 enum class EWorldPillar : uint8;
 enum class EInteractVerb : uint8;
 enum class EVendorService : uint8;
+enum class ERestService : uint8;
 
 namespace WoRGameNames
 {
@@ -131,6 +132,9 @@ namespace WoRGameNames
 
     /** B-443: the interact prompt's verbs: "Talk", "Enter", "Pick up". Empty for None. */
     WORLD_OF_REFRACTION_API FText GetInteractVerbName(EInteractVerb Verb);
+
+    /** B-502 (D-214): the object a rest point's service is: "Anvil", "Shrine", "V". Empty for None (a plain rest spot). */
+    WORLD_OF_REFRACTION_API FText GetRestServiceName(ERestService Service);
 
     /** B-442: a sub-stat's name: "Spell Damage", "Defence", "Status Multiplier". Empty for None. */
     WORLD_OF_REFRACTION_API FText GetSubStatName(ESubStat Stat);
