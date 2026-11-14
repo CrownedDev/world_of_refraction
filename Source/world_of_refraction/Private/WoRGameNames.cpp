@@ -777,6 +777,8 @@ FText WoRGameNames::GetRestServiceName(ERestService Service)
         return LOCTEXT("ERestService_Blacksmith", "Anvil");
     case ERestService::Spiritualist:
         return LOCTEXT("ERestService_Spiritualist", "Ritual tree");
+    case ERestService::Jeweler:
+        return LOCTEXT("ERestService_Jeweler", "Crystal pedestal");
     case ERestService::PillarShrine:
         return LOCTEXT("ERestService_PillarShrine", "Shrine");
     case ERestService::Extract:

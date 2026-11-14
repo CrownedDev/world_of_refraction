@@ -6,12 +6,12 @@
 // mini-boss leaves one where it stood, whose menu can revive it one tier stronger (Q-187b). Placing pillar levels
 // here is B-363.
 // B-502 (D-214, Q-502): a placed rest spot is also a service (ERestService): an anvil is the Blacksmith, a ritual
-// tree the Spiritualist, a shrine sells pillar points (one of the placed shrines each run, the same one for the
+// tree the Spiritualist, a crystal pedestal the Jeweler, a shrine sells pillar points (one of the placed shrines each run, the same one for the
 // whole run), V extracts the party.
 // Resting and the service open from the same press: the rest menu carries the service. A rest spot a beaten
 // mini-boss left is unchanged and has no service.
 // Debug: wor.Trial.Rest (rests the party anywhere in a run, as the spot "ConsoleRest", and opens the menu);
-// wor.Trial.PrintRestSpots; wor.Trial.SetRestService <none|anvil|tree|shrine|v> (the nearest rest spot, for a PIE check
+// wor.Trial.PrintRestSpots; wor.Trial.SetRestService <none|anvil|tree|pedestal|shrine|v> (the nearest rest spot, for a PIE check
 // before the services are set in the maps).
 
 #pragma once
@@ -35,7 +35,8 @@ enum class ERestService : uint8
 	Blacksmith UMETA(DisplayName = "Blacksmith (an anvil)"),
 	PillarShrine UMETA(DisplayName = "Pillar shrine (one of the shrines sells points each run)"),
 	Extract UMETA(DisplayName = "Extract (V, or V's mirror)"),
-	Spiritualist UMETA(DisplayName = "Spiritualist (a ritual tree)")
+	Spiritualist UMETA(DisplayName = "Spiritualist (a ritual tree)"),
+	Jeweler UMETA(DisplayName = "Jeweler (a crystal pedestal)")
 };
 
 enum class EMerchantType : uint8;
@@ -53,7 +54,8 @@ namespace WoRRestSpot
 	 *  host steps away, and while only a guest rested somewhere else. A service is offered only here. */
 	WORLD_OF_REFRACTION_API const ATrialRestSpot *FindRestingSpot(const UWorld *World);
 
-	/** The vendor a service is (an anvil: the Blacksmith; a ritual tree: the Spiritualist). False for a service
+	/** The vendor a service is (an anvil: the Blacksmith; a ritual tree: the Spiritualist; a crystal pedestal: the
+	 *  Jeweler). False for a service
 	 *  with no shop of its own. */
 	WORLD_OF_REFRACTION_API bool GetServiceVendor(ERestService Service, EMerchantType &OutVendor);
 
@@ -147,9 +149,9 @@ protected:
 	UPROPERTY(EditInstanceOnly, Category = "Rest Spot")
 	ERestService Service = ERestService::None;
 
-	/** A vendor rest point's stock (the Blacksmith's or the Spiritualist's merchant asset). In a trial its Buy tab
-	 *  shows the run's rolled part of that list (ER-18). */
-	UPROPERTY(EditInstanceOnly, Category = "Rest Spot", meta = (EditCondition = "Service == ERestService::Blacksmith || Service == ERestService::Spiritualist"))
+	/** A vendor rest point's stock (the Blacksmith's, the Spiritualist's or the Jeweler's merchant asset). In a
+	 *  trial its Buy tab shows the run's rolled part of that list (ER-18). */
+	UPROPERTY(EditInstanceOnly, Category = "Rest Spot", meta = (EditCondition = "Service == ERestService::Blacksmith || Service == ERestService::Spiritualist || Service == ERestService::Jeweler"))
 	TObjectPtr<UMerchantData> ServiceMerchant;
 
 private:

@@ -184,6 +184,9 @@ bool WoRRestSpot::GetServiceVendor(ERestService Service, EMerchantType &OutVendo
 	case ERestService::Spiritualist:
 		OutVendor = EMerchantType::Spiritualist;
 		return true;
+	case ERestService::Jeweler:
+		OutVendor = EMerchantType::Jeweler;
+		return true;
 	default:
 		return false;
 	}
@@ -355,13 +358,13 @@ static FAutoConsoleCommandWithWorld GTrialPrintRestSpotsCommand(
 
 static FAutoConsoleCommandWithWorldAndArgs GTrialSetRestServiceCommand(
 	TEXT("wor.Trial.SetRestService"),
-	TEXT("B-502 DEBUG: wor.Trial.SetRestService <none|anvil|tree|shrine|v>: gives the rest spot nearest the player that service, for a PIE "
+	TEXT("B-502 DEBUG: wor.Trial.SetRestService <none|anvil|tree|pedestal|shrine|v>: gives the rest spot nearest the player that service, for a PIE "
 		 "check before the services are set in the trial maps. Not saved; the host's machine only."),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
 	{
 		static const TMap<FString, ERestService> Names = {{TEXT("none"), ERestService::None}, {TEXT("anvil"), ERestService::Blacksmith},
-														  {TEXT("tree"), ERestService::Spiritualist}, {TEXT("shrine"), ERestService::PillarShrine},
-														  {TEXT("v"), ERestService::Extract}};
+														  {TEXT("tree"), ERestService::Spiritualist}, {TEXT("pedestal"), ERestService::Jeweler},
+														  {TEXT("shrine"), ERestService::PillarShrine}, {TEXT("v"), ERestService::Extract}};
 		const ERestService *Wanted = Args.Num() > 0 ? Names.Find(Args[0].ToLower()) : nullptr;
 		const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
 		const APawn *Pawn = PC ? PC->GetPawn() : nullptr;
@@ -379,7 +382,7 @@ static FAutoConsoleCommandWithWorldAndArgs GTrialSetRestServiceCommand(
 		}
 		if (!Nearest)
 		{
-			UE_LOG(LogWoR, Warning, TEXT("[RestSpot] wor.Trial.SetRestService <none|anvil|tree|shrine|v>: needs a service, a pawn and a rest spot in the level"));
+			UE_LOG(LogWoR, Warning, TEXT("[RestSpot] wor.Trial.SetRestService <none|anvil|tree|pedestal|shrine|v>: needs a service, a pawn and a rest spot in the level"));
 			return;
 		}
 		Nearest->SetService(*Wanted);
