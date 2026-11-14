@@ -122,7 +122,7 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
 		InviteButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Invite", "Invite and seat friends"));
 		InviteButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInviteClicked);
-		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Leave", "Leave the trial"));
+		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Extract", "Extract")); // D-186
 		LeaveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
 		ConfirmButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("ConfirmLeave", "Confirm: leave"));
@@ -174,7 +174,12 @@ void URestSpotWidget::Refresh()
 	const bool bOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
 	if (UTextBlock *LeaveLabel = LeaveButton ? Cast<UTextBlock>(LeaveButton->GetChildAt(0)) : nullptr)
 	{
-		LeaveLabel->SetText(bOnClient ? LOCTEXT("LeaveSession", "Leave the session") : LOCTEXT("Leave", "Leave the trial"));
+		LeaveLabel->SetText(bOnClient ? LOCTEXT("LeaveSession", "Leave the session") : LOCTEXT("Extract", "Extract"));
+	}
+	if (LeaveButton)
+	{
+		// B-448 (D-186): only a rest spot a beaten boss left has Extract; a client always has Leave the session.
+		LeaveButton->SetVisibility(bOnClient || WoRRestSpot::CanExtractHere(GetWorld()) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (PayoutText)
 	{
