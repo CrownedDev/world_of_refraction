@@ -203,25 +203,25 @@ def details(d, title, sub, pieces, sockets, notes, sock_head="Sockets (shared)",
 FOOT = [("A", "Edit"), ("X", "Skills"), ("Y", "Options"), ("B", "Back")]
 
 # ---- 1: Garrick (Generic): his evolution, two weapon entries and the Add weapon frame (1/5 left; the adapter entry
-#         is the one left). The dual entry is focused (A Edit; on the Add weapon frame A reads Equip); the right lists swords that could take its place.
+#         is the one left). Quarry Maul is focused and not active: L3 Set active (the fight's switch key, D-207) moves
+#         the ACTIVE tag to it; Y Options lists Set active too.
 im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
 used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
 y = evo_line(d, 168, "Ironheart", "Earth")
 y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")],
-          [("crystal", "Fire"), None], 1, active=True, focus=True)
-y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
+          [("crystal", "Fire"), None], 1, active=True)
+y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1, focus=True)
 add_frame(d, y, 1, 5)
-details(d, "Ashen Blade + Cinder Edge", "Dual wield · sword stance (the main hand's) · active · 5 ability slots", [
-    ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"), ("Speed", "Normal")]),
-    ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"), ("Speed", "Fast")])], [
-    (("crystal", "Fire"), "Garnet  B", "Fire Amp +2 · Burn 13%/turn"),
-    (None, "Empty", "Stone socket")], [], trees=[
-    ("Ashen Blade", ["On Hit", "  While the target is Burning", "    and your HP is above 50%",
-                     "      • Give the target -10% Defense for 2 turns, once per fight"]),
-    ("Cinder Edge", ["Passive", "  • Gain +15% Crit Rate on your first hit each fight"])], sock_cols=2)
-footer(d, FOOT)
+details(d, "Quarry Maul", "Hammer stance · not active · 4 ability slots", [
+    ("Quarry Maul", "Earth", "C", [("Type", "Hammer"), ("Power", "50"), ("Scaling", "Body A"), ("Speed", "Slow")])], [
+    (("stone", None), "Whetstone  C", "Power +9%"),
+    (None, "Empty", "Crystal or evolution socket")], [], trees=[
+    ("Quarry Maul", ["On Critical Hit", "  While the target is Staggered",
+                     "    • Delay the target's next turn, once per fight"])], sock_cols=2)
+footer(d, [("A", "Edit"), ("X", "Skills"), ("L3", "Set active"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "1_weapons_generic.png")
+im1 = im  # 1a sits over this screen
 
 # ---- 1b: the evolution line focused: on the character it gives everything (Amp by tier, passives, spells).
 im, d = canvas()
@@ -241,13 +241,14 @@ footer(d, FOOT)
 save(im, OUT, "1b_evolution.png")
 
 # ---- 1a: Y opens the Options pop-up over the Generic tab.
-opt = Image.blend(im, Image.new("RGB", im.size, BG), 0.55)
+opt = Image.blend(im1, Image.new("RGB", im.size, BG), 0.55)
 d = ImageDraw.Draw(opt)
-box = (860, 340, 1232, 654)
+box = (860, 288, 1232, 654)
 panel(d, box, focus=True)
-text(d, (880, 354), "Options", 18, True)
-y = 388
-for i, (lab, sub, on) in enumerate([("Saved loadouts", "Load, save or rename", True),
+text(d, (880, 302), "Options", 18, True)
+y = 336
+for i, (lab, sub, on) in enumerate([("Set active", "Quarry Maul becomes the active weapon (L3)", True),
+                                     ("Saved loadouts", "Load, save or rename", False),
                                      ("Remove all gear", "Asks first", False),
                                      ("Help", "What each part of this screen does", False),
                                      ("Cosmetics shortcuts", "Later", None)]):

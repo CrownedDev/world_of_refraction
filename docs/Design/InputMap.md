@@ -62,6 +62,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Loadout: move across the lit row to its sockets (row, crystal socket, stone socket); X on a socket asks, X again takes it off | Left / Right, A / D | D-pad left / right, left stick | none (the screen's keys) | Built (B-440c, loadout screen): `WoRMenuStyle::IsLeftKey` / `IsRightKey` |
 | Loadout: the Gear / Skills page | Q / E | LB / RB (L1 / R1) | none (the screen's keys) | Built (B-440d, loadout screen): `WoRMenuStyle::IsTabPrevKey` / `IsTabNextKey`; two pages, either key turns |
 | Loadout, Skills page: the lit list (a school, a weapon, an adapter); A puts a learned skill in the lit slot, X takes it out | Left / Right, A / D; Enter; X | D-pad left / right, left stick; A (Cross); X (Square) | none (the screen's keys) | Built (B-440d, Q-440d) |
+| Loadout v2 (B-479 mockup), Weapons tab: set the focused weapon entry active (the ACTIVE tag moves; also in Y Options) | 6 | L3 click | none (the screen's keys) | Proposed (mockup `menus/loadout/v2`); the fight's switch key, D-207 |
 | Spirit of {character}: wear the lit form (your own form takes a skin off); switch the base body | Enter, left click; R | A (Cross); Y (Triangle) | none (the screen's keys) | Built (B-444, Q-444): `WoRMenuStyle::IsConfirmKey` / `IsSecondActionKey` |
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
@@ -123,3 +124,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-456c: the vendor screen's Item slots tab uses Confirm (A asks, the second A buys) and Back; no new key | feature/B-456c-item-slots |
 | 2026-11-14 | B-456b: the vendor screen's Buy tab: A / Right adds the focused line to the cart, Left takes one back, X buys the cart, R / Y (or LT / RT) changes who it is bought for; read by the screen itself | feature/B-456b-vendor-buy |
 | 2026-11-14 | B-463: the journal screen: LT / RT (Z / C) for its sub-tabs, X shows or hides the focused secret quest, Y (R) hides them all, A plays a ready conversation, the right stick or Page Up / Down scrolls the reader; read by the screen itself | feature/B-463-journal-screen |
+| 2026-11-14 | Loadout v2 mockup: L3 / 6 Set active on the Weapons tab (D-207's switch key) | docs/B-479-loadout-sets |
