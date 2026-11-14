@@ -253,8 +253,6 @@ ESkillEffectType WoRIcons::GetItemEffectKind(EItemEffectType Type)
 		return ESkillEffectType::DefenseBuff;
 	case EItemEffectType::BuffCrit:
 		return ESkillEffectType::CritChanceBuff;
-	case EItemEffectType::BuffTurnSpeed:
-		return ESkillEffectType::TurnSpeedBuff;
 	case EItemEffectType::BuffStatusMultiplier:
 		return ESkillEffectType::StatusMultiplierBuff;
 	case EItemEffectType::BuffEfficiency:
@@ -276,7 +274,7 @@ ESkillEffectType WoRIcons::GetItemEffectKind(EItemEffectType Type)
 	case EItemEffectType::BuffReflex:
 		return ESkillEffectType::ReflexBuff;
 	default:
-		return ESkillEffectType::None; // Repair, a crit-damage buff, None: no icon kind
+		return ESkillEffectType::None; // Repair, a crit-damage buff, the retired Turn Speed buff, None: no icon kind
 	}
 }
 
