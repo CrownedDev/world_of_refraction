@@ -118,7 +118,7 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		// B-502 (D-214): the anvil's blacksmith (the vendor's own name, D-178).
 		ServiceButton = RestSpotStyle::AddButton(WidgetTree, Box, WoRGameNames::GetMerchantTypeName(EMerchantType::Blacksmith));
 		ServiceButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleServiceClicked);
-		ReviveButton =RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
+		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
 		VoteText = RestSpotStyle::AddText(WidgetTree, Box);
@@ -149,7 +149,7 @@ void URestSpotWidget::NativeConstruct()
 	}
 	// B-502: the host's menu belongs to the spot the run just noted; a client has no run, so it takes the spot it stands at.
 	const bool bOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
-	Spot = bOnClient ? Cast<ATrialRestSpot>(ATrialMapFeature::FindNearestInRange(GetOwningPlayerPawn())) : WoRRestSpot::FindLastRestSpot(GetWorld());
+	Spot = bOnClient ? Cast<ATrialRestSpot>(ATrialMapFeature::FindNearestInRange(GetOwningPlayerPawn())) : WoRRestSpot::FindRestingSpot(GetWorld());
 	Refresh();
 }
 
@@ -195,8 +195,9 @@ void URestSpotWidget::Refresh()
 	if (ServiceText)
 	{
 		const FText Line = Service != ERestService::PillarShrine ? FText::GetEmpty()
-						   : WoRRestSpot::FindAwakeShrine(GetWorld()) == Here ? LOCTEXT("ShrineAwake", "The shrine answers this run: buy pillar points under Level up.")
-																			  : LOCTEXT("ShrineQuiet", "The shrine is quiet this run.");
+						   : WoRRestSpot::FindAwakeShrine(GetWorld()) != Here ? LOCTEXT("ShrineQuiet", "The shrine is quiet this run.")
+						   : bOnClient ? LOCTEXT("ShrineAwakeGuest", "The shrine answers this run. Only the host can buy points for now.") // Level up is the host's
+									   : LOCTEXT("ShrineAwake", "The shrine answers this run: buy pillar points under Level up.");
 		ServiceText->SetText(Line);
 		ServiceText->SetVisibility(Line.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	}

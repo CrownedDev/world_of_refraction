@@ -113,7 +113,7 @@ TSharedRef<SWidget> ULevelDropWidget::RebuildWidget()
 		BuyButton = LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Buy", "Buy a point"));
 		BuyButton->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBuyClicked);
 		BuyLabel = Cast<UTextBlock>(BuyButton->GetChildAt(0));
-		StatusLine =LevelDropBuild::AddText(WidgetTree, Box);
+		StatusLine = LevelDropBuild::AddText(WidgetTree, Box);
 		LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleCloseClicked);
 	}
 	return Super::RebuildWidget();
