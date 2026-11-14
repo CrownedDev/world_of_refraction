@@ -33,6 +33,16 @@ enum class EMemorySource : uint8
 /** B-377: a memory went into this journal (hidden quests start from it). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMemoryRecorded, UMemoryData *, Memory, EMemorySource, Source);
 
+/** B-463c: what a lore object is, shown in the journal (UIScreens #6). Append-only (saved as its byte). */
+UENUM(BlueprintType)
+enum class ELoreKind : uint8
+{
+	Inscription,
+	Note,
+	Overheard,
+	ItemDescription UMETA(DisplayName = "Item description")
+};
+
 /** A lore object read on a trial map (B-194). */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FJournalLoreEntry
@@ -47,6 +57,13 @@ struct WORLD_OF_REFRACTION_API FJournalLoreEntry
 
 	UPROPERTY(BlueprintReadOnly, Category = "Journal")
 	FText Body;
+
+	/** B-463c: where it was read ("Ember Trial, Present"; the hub's name outside a run). */
+	UPROPERTY(BlueprintReadOnly, Category = "Journal")
+	FText Place;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Journal")
+	ELoreKind Kind = ELoreKind::Inscription;
 };
 
 UCLASS()
@@ -63,6 +80,17 @@ public:
 	 *  there (the first source stays). */
 	bool RecordMemory(UMemoryData *Memory, EMemorySource Source);
 
+	/** B-463c: where Memory was found (the place at RecordMemory); empty when unknown (older saves). */
+	FText GetPlace(const UMemoryData *Memory) const;
+
+	/** B-463c: a memory or lore entry not opened in the journal yet (memory id or lore id). Saved. */
+	bool IsNew(FName EntryId) const { return NewEntries.Contains(EntryId); }
+	/** The journal opened it: no longer new. False when it wasn't. */
+	bool MarkOpened(FName EntryId) { return NewEntries.Remove(EntryId) > 0; }
+
+	/** Where the player is now, as the journal names a place: "{trial}, {variation}" in a run, else the hub. */
+	static FText GetCurrentPlace(const UGameInstance *GameInstance);
+
 	/** Where Memory first came from; unset when it isn't in the journal. */
 	TOptional<EMemorySource> GetSource(const UMemoryData *Memory) const;
 
@@ -75,7 +103,7 @@ public:
 	bool HasMemoryId(FName MemoryId) const;
 
 	/** Keep a lore object's text for rereading in the hub. False when LoreId is already kept. */
-	bool RecordLore(FName LoreId, const FText &Title, const FText &Body);
+	bool RecordLore(FName LoreId, const FText &Title, const FText &Body, ELoreKind Kind = ELoreKind::Inscription);
 
 	const TArray<FJournalLoreEntry> &GetLore() const { return Lore; }
 
@@ -101,6 +129,10 @@ private:
 
 	/** Parallel to Memories (RecordMemory is the only writer of either). */
 	TArray<EMemorySource> Sources;
+	/** B-463c: parallel to Memories too. */
+	TArray<FText> Places;
+	/** B-463c: memory and lore ids not opened in the journal yet. */
+	TSet<FName> NewEntries;
 
 	UPROPERTY(Transient)
 	TArray<FJournalLoreEntry> Lore;
