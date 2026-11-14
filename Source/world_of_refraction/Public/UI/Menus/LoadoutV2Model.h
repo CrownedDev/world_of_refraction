@@ -96,6 +96,8 @@ struct FLoadoutV2Draft
 	 *  evolution sits in Socket1. */
 	FRuntimeAttachedItem Socket1;
 	FRuntimeAttachedItem Socket2;
+	/** An Evolution draft: the owned evolution's id (the character's slot keeps it, as today's screen does). */
+	FGuid EvolutionInstance;
 };
 
 /** A greyed or open line in an Add gear list: the piece and why it can't go in (empty: it fits). */
@@ -111,6 +113,7 @@ struct FLoadoutV2Compare
 {
 	int32 EquippedPower = 0;
 	int32 SelectedPower = 0;
+	/** Always 0 for a weapon swap: the gear is free (D-206) and the sockets stay with the entry. */
 	int32 CellsChange = 0;
 	TArray<FText> BuiltInsGained;
 	TArray<FText> BuiltInsLost;
@@ -123,7 +126,8 @@ namespace WoRLoadoutV2
 
 	/** Puts the draft into the loadout's next free place for its kind (a weapon: the primary, then a Generic's second
 	 *  weapon; an adapter: a Refractor's primary, else the adapter list; an evolution: the character's own slot, when the
-	 *  primary is free). False with the reason when there is no free place. */
+	 *  primary is free). False with the reason when there is no free place for the class (D-210's entry limits). The
+	 *  entry's sockets replace the pieces' own. CheckDraft runs this on a copy and adds the other refusals. */
 	WORLD_OF_REFRACTION_API bool ApplyDraft(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Draft &Draft, FText &OutRefusal);
 
 	/** Why the draft can't be confirmed (empty: Y Confirm works): no free place, a pair the rules refuse, a dual-only
@@ -135,8 +139,8 @@ namespace WoRLoadoutV2
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2OffHandChoice> BuildOffHandChoices(const FWeaponInventoryEntry &MainHand, const TArray<FWeaponInventoryEntry> &OwnedWeapons,
 																		 ECharacterClass Class);
 
-	/** X Compare of two weapons: power, the cells the draft's sockets don't change (weapons are free, D-206), and the
-	 *  built-in abilities gained and lost. */
+	/** X Compare of two weapons: power, the cells (a weapon swap changes none, D-206), and the built-in abilities gained
+	 *  and lost. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Compare BuildCompare(const FWeaponInventoryEntry &Equipped, const FWeaponInventoryEntry &Selected);
 
 	/** Debug: the page as text (wor.Loadout.PrintV2). */

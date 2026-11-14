@@ -208,6 +208,12 @@ bool WoRLoadoutV2::ApplyDraft(FCombatLoadout &Loadout, ECharacterClass Class, co
 			Loadout.PrimaryRing = Ring;
 			return true;
 		}
+		const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
+		if (Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && CountAdapters(Loadout) >= Limits.MaxAdapters)
+		{
+			OutRefusal = LOCTEXT("RefuseNoAdapterEntry", "No free adapter entry.");
+			return false;
+		}
 		Loadout.RingLoadout.Add(Ring); // a Resonator's adapters, a Generic's adapter entry (D-210)
 		return true;
 	}
@@ -228,6 +234,7 @@ bool WoRLoadoutV2::ApplyDraft(FCombatLoadout &Loadout, ECharacterClass Class, co
 		}
 		Loadout.PrimarySlotType = EPrimarySlotType::Evolution;
 		Loadout.PrimaryEvolution = Draft.Socket1.Evolution;
+		Loadout.PrimaryEvolutionInstance = Draft.EvolutionInstance; // never a stale id from an earlier evolution
 		return true;
 	}
 	}
@@ -276,10 +283,6 @@ FText WoRLoadoutV2::CheckDraft(const FCombatLoadout &Loadout, ECharacterClass Cl
 		return Refusal;
 	}
 	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
-	if (Draft.Kind == ELoadoutV2DraftKind::Adapter && Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && CountAdapters(After) > Limits.MaxAdapters)
-	{
-		return LOCTEXT("RefuseNoAdapterEntry", "No free adapter entry.");
-	}
 	OutCellsAfter = CellsUsed(After, Class);
 	if (OutCellsAfter > Limits.Budget)
 	{
