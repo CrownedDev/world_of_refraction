@@ -1039,6 +1039,16 @@ ETextSizeLevel USaveSubsystem::GetTextSizeLevel() const
 	return Saved <= static_cast<uint8>(ETextSizeLevel::Larger) ? static_cast<ETextSizeLevel>(Saved) : ETextSizeLevel::Normal;
 }
 
+bool USaveSubsystem::IsElementLettersOn() const
+{
+	return SaveGame->Data.Settings.bElementLetters;
+}
+
+void USaveSubsystem::SetElementLettersOn(bool bOn)
+{
+	SaveGame->Data.Settings.bElementLetters = bOn;
+}
+
 bool USaveSubsystem::IsAIFinishesIdleTurnOn() const
 {
 	return SaveGame->Data.Settings.bAIFinishesIdleTurn;

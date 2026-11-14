@@ -187,6 +187,11 @@ public:
 	bool IsAIFinishesIdleTurnOn() const;
 	void SetAIFinishesIdleTurnOn(bool bOn);
 
+	/** B-453f (D-190): element letters beside element colours (WoRGameNames::GetElementLetter); off by default. Kept in
+	 *  memory at once; written with the next save. */
+	bool IsElementLettersOn() const;
+	void SetElementLettersOn(bool bOn);
+
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 
 	/** bKeepVitals false saves no carried HP/EP, crystal wear or absorption: outside a run, a reload

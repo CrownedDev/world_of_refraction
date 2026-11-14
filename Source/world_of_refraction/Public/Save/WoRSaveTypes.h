@@ -865,6 +865,10 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	/** B-453e (D-190): "AI finishes my turn when I idle"; false = off, the default. An older save reads false: no bump. */
 	UPROPERTY()
 	bool bAIFinishesIdleTurn = false;
+
+	/** B-453f (D-190): "Element letters on colours"; false = off, the default. An older save reads false: no bump. */
+	UPROPERTY()
+	bool bElementLetters = false;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
