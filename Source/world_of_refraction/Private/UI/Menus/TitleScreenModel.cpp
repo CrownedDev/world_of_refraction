@@ -26,6 +26,10 @@ TArray<FTitleScreenRow> WoRTitleScreen::BuildRows(const FTitleSaveSummary &Save)
 	{
 		TArray<FText> Parts;
 		Parts.Add(Save.Place);
+		if (Save.bLastRunLost)
+		{
+			Parts.Add(LOCTEXT("LastRunLost", "your last run was lost when the game closed")); // B-408a (Q-408)
+		}
 		if (!Save.PartyNames.IsEmpty())
 		{
 			Parts.Add(FText::Join(LOCTEXT("NameSeparator", ", "), Save.PartyNames));
@@ -43,13 +47,14 @@ TArray<FTitleScreenRow> WoRTitleScreen::BuildRows(const FTitleSaveSummary &Save)
 	return Rows;
 }
 
-FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds)
+FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled)
 {
 	FTitleSaveSummary Summary;
 	Summary.bHasSave = bHasSave;
 	Summary.PlaySeconds = PlaySeconds;
-	const UTrialData *Trial = Data.Run.bHasRun ? Data.Run.Trial.ResolveAs<UTrialData>() : nullptr;
-	Summary.Place = Trial && !Trial->Name.IsEmpty() ? Trial->Name : LOCTEXT("PlaceHub", "The hub");
+	// B-408a (D-172, Q-408): a run in the save is settled as a quit, never resumed: Continue is always the hub.
+	Summary.Place = LOCTEXT("PlaceHub", "The hub");
+	Summary.bLastRunLost = bHasSave && (Data.Run.bHasRun || bRunSettled);
 	for (const FSavedPartyMember &Member : Data.Party.Members)
 	{
 		if (const UCharacterData *Character = Member.CharacterData.ResolveAs<UCharacterData>())
@@ -63,7 +68,7 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 FTitleSaveSummary WoRTitleScreen::SummarizeSave(const UGameInstance *GameInstance)
 {
 	const USaveSubsystem *Saves = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
-	return Saves ? Summarize(Saves->GetData(), Saves->HasSave(), Saves->GetPlaySeconds()) : FTitleSaveSummary();
+	return Saves ? Summarize(Saves->GetData(), Saves->HasSave(), Saves->GetPlaySeconds(), Saves->WasClosedRunSettled()) : FTitleSaveSummary();
 }
 
 FText WoRTitleScreen::GetPlayTimeText(double PlaySeconds)
