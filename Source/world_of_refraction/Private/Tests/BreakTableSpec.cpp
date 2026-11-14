@@ -20,10 +20,13 @@ BEGIN_DEFINE_SPEC(FBreakTableSpec, "WoR.Status.BreakTable",
 	USkillEffectManager *Effects = nullptr;
 	AActor *Holder = nullptr;
 
+	/** EffectValue's answer when the holder has no effect of the type. */
+	static constexpr float NO_EFFECT = -1.0f;
+
 	float EffectValue(ESkillEffectType Type) const
 	{
 		const TArray<FActiveSkillEffect> Found = Effects->GetEffectsByType(Holder, Type);
-		return Found.Num() > 0 ? Found[0].EffectValue : -1.0f;
+		return Found.Num() > 0 ? Found[0].EffectValue : NO_EFFECT;
 	}
 END_DEFINE_SPEC(FBreakTableSpec)
 
@@ -47,8 +50,10 @@ void FBreakTableSpec::Define()
 		TestEqual(TEXT("Burn"), BreakTable::For(ESkillEffectType::DOT)->Size, CombatConstants::BURN_BREAK_MAX_HP_FRACTION);
 		TestEqual(TEXT("Earth"), BreakTable::For(ESkillEffectType::DefenseDebuff)->Size, CombatConstants::EARTH_BREAK_DEFENSE_DOWN_PERCENT);
 		TestEqual(TEXT("Reality"), BreakTable::For(ESkillEffectType::BurstDamage)->Size, CombatConstants::REALITY_BREAK_MAX_HP_FRACTION);
-		TestEqual(TEXT("Wind delay"), BreakTable::For(ESkillEffectType::SkipTurn)->DelayTurnPlaces, CombatConstants::WIND_BREAK_DELAY_PLACES);
-		TestEqual(TEXT("Water's second effect"), BreakTable::For(ESkillEffectType::ActionSpeedDebuff)->AlsoApplied, ESkillEffectType::SpellSpeedDebuff);
+		// B-170h2b (Q-170e): Wind takes an action at the next turn instead of a place; Water slows Spell Speed only.
+		TestEqual(TEXT("Wind's action next turn"), BreakTable::For(ESkillEffectType::SkipTurn)->ActionsLostNextTurn, CombatConstants::WIND_BREAK_ACTIONS_LOST);
+		TestEqual(TEXT("Water slows spells"), BreakTable::For(ESkillEffectType::ActionSpeedDebuff)->Applied, ESkillEffectType::SpellSpeedDebuff);
+		TestEqual(TEXT("Water has no second effect"), BreakTable::For(ESkillEffectType::ActionSpeedDebuff)->AlsoApplied, ESkillEffectType::None);
 		TestFalse(TEXT("printable"), BreakTable::GetBreakTableString().IsEmpty());
 	});
 
@@ -82,8 +87,8 @@ void FBreakTableSpec::Define()
 			TestEqual(TEXT("Fire: burn per payout"), EffectValue(ESkillEffectType::DOT), HolderComp->MaxHP * CombatConstants::BURN_BREAK_MAX_HP_FRACTION);
 
 			Effects->ApplyTriggeredSkillEffect(nullptr, Holder, ESkillEffectType::ActionSpeedDebuff, ESpellElement::Water);
-			TestEqual(TEXT("Water: action speed"), EffectValue(ESkillEffectType::ActionSpeedDebuff), CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT);
-			TestEqual(TEXT("Water: spell speed too"), EffectValue(ESkillEffectType::SpellSpeedDebuff), CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT);
+			TestEqual(TEXT("Water: spell speed"), EffectValue(ESkillEffectType::SpellSpeedDebuff), CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT);
+			TestEqual(TEXT("Water: no action speed slow (B-170d, SB-22)"), EffectValue(ESkillEffectType::ActionSpeedDebuff), NO_EFFECT);
 		});
 	});
 }

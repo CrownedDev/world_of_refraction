@@ -2,10 +2,10 @@
 // Status breaks (B-063): a full bar's effect lasts STATUS_CAP_TURNS of the holder's own turns,
 // counted by the one rule (FTurnSpan, D-051): the landing turn counts if it is the holder's,
 // and the break ends as the holder's turn after those starts, before its payouts.
-// Also: Burn pays out exactly once per counted turn; Water slows Action + Spell Speed;
+// Also: Burn pays out exactly once per counted turn; Water slows Spell Speed (B-170h2b: the action rows, Q-170e);
 // Broken Darkness drains EP. B-170h2: Wind's old place delay went with the speed timeline (its action row is below).
 // Break sizes (B-286): SB-19 Burn 8% of max HP, SB-20 Earth defence down 30%, SB-22 Water slows
-// both speeds 30%, SB-28 Reality deals 25% of max HP at once and can kill.
+// Spell Speed 30%, SB-28 Reality deals 25% of max HP at once and can kill.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -210,7 +210,7 @@ void FStatusBreakSpec::Define()
 			TestFalse(TEXT("Gone the turn after"), Has(Holder, ESkillEffectType::DefenseDebuff));
 		});
 
-		It("of Water slows Action Speed and Spell Speed instead of blocking heals", [this]()
+		It("of Water slows Spell Speed instead of blocking heals", [this]()
 		{
 			if (!EffectManager) return;
 			AActor *Holder = Spawn();
@@ -222,15 +222,13 @@ void FStatusBreakSpec::Define()
 			const ESkillEffectType WaterBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Water, EPhysicalDamageType::None, false);
 			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, WaterBreak, ESpellElement::Water);
 			TestFalse(TEXT("No heal block"), Has(Holder, ESkillEffectType::HealBlock));
-			TestTrue(FString::Printf(TEXT("Action Speed slowed (%f -> %f)"), ActionSpeedBefore, Char->GetEffectiveActionSpeed()),
-					 Char->GetEffectiveActionSpeed() < ActionSpeedBefore);
+			TestEqual(TEXT("Action Speed not slowed (B-170d, SB-22)"), Char->GetEffectiveActionSpeed(), ActionSpeedBefore);
 			TestTrue(FString::Printf(TEXT("Spell Speed slowed (%f -> %f)"), SpellSpeedBefore, Char->GetEffectiveSpellSpeed()),
 					 Char->GetEffectiveSpellSpeed() < SpellSpeedBefore);
 
 			EffectManager->ProcessStartOfTurnEffects(Holder);
 			EffectManager->ProcessEndOfTurnEffects(Holder);
 			EffectManager->ProcessStartOfTurnEffects(Holder);
-			TestFalse(TEXT("Action Speed slow gone after one holder turn"), Has(Holder, ESkillEffectType::ActionSpeedDebuff));
 			TestFalse(TEXT("Spell Speed slow gone after one holder turn"), Has(Holder, ESkillEffectType::SpellSpeedDebuff));
 		});
 
@@ -297,15 +295,14 @@ void FStatusBreakSpec::Define()
 					  B286_SB20_EARTH_DEFENSE_DOWN_PERCENT);
 		});
 
-		It("of Water slows Action Speed and Spell Speed by 30% (SB-22, B-286)", [this]()
+		It("of Water slows Spell Speed by 30% (SB-22, B-286)", [this]()
 		{
 			if (!EffectManager) return;
 			TestEqual(TEXT("Slow is the rule's 30%"), CombatConstants::WATER_BREAK_SPEED_SLOW_PERCENT, B286_SB22_WATER_SPEED_SLOW_PERCENT);
 			AActor *Holder = Spawn();
 			const ESkillEffectType WaterBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Water, EPhysicalDamageType::None, false);
 			EffectManager->ApplyTriggeredSkillEffect(Spawn(), Holder, WaterBreak, ESpellElement::Water);
-			TestEqual(TEXT("Action Speed slowed 30%"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::ActionSpeedDebuff),
-					  B286_SB22_WATER_SPEED_SLOW_PERCENT);
+			TestEqual(TEXT("Action Speed not slowed (B-170d)"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::ActionSpeedDebuff), 0.0f);
 			TestEqual(TEXT("Spell Speed slowed 30%"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::SpellSpeedDebuff),
 					  B286_SB22_WATER_SPEED_SLOW_PERCENT);
 		});
@@ -339,8 +336,7 @@ void FStatusBreakSpec::Define()
 		});
 	});
 
-	// B-170d (Q-170e, ActionPips.md §3.4): in a fight the Water, Wind and Ice rows are the action-pips rows; outside one
-	// (the cases above) the base rows (B-170h2b folds them).
+	// B-170d (Q-170e, ActionPips.md §3.4): the Water, Wind and Ice rows take actions; in a fight, with a bank to show it.
 	Describe("A full bar in an action-pips fight", [this]()
 	{
 		BeforeEach([this]()
