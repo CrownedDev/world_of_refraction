@@ -877,6 +877,17 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-440d — The Skills page: how it is reached, which lists it shows, what X does
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440d, D-181, D-145) · **Blocks:** —
+**Question:** the mockup draws a Refractor's innate spells by school but not how the page and its lists are reached, what the other classes see, what Change lists, or what X does to a slot.
+**Answer**, by the reference-backed default (Crown may change any):
+- **LB / RB (Q / E) turns between Gear and Skills; Left / Right picks the list** (a school, then each weapon and adapter). The shared menu controls already give LB / RB to page tabs (UIScreens); Expedition 33's character menu turns its Skills / Weapons pages the same way, widely liked for speed.
+- **A Refractor's school tabs are the schools it holds a spell in, counting learned spells**, so a school can be started from an empty tab. Six slots a school, the points bar on the 24-point budget less the pillar discount (`SpellPoolConstants.h`).
+- **Every class sees each weapon's skill slots and each adapter's spell slots** on the same page (UIScreens #2); a Refractor's school tabs come first.
+- **A lists what the member has learned** (a weapon also lists its own built-in skills), not what is already in the list. An innate spell over the points stays greyed with the reason and the points after in amber, as the gear picker does. Expedition 33's skill screen (pick from learned skills into a fixed number of slots, the point cost shown) is the model.
+- **X takes a skill out in one press:** nothing is lost (an innate spell stays learned; a replaced built-in comes back), so no second press as for gems (Q-440c). X on a weapon's own built-in is refused: Change puts another in its place.
+- **Left for later:** the lists as tab plates (a text line now), R3 Details, a mouse click on a list or page tab, a Broken Darkness Refractor's element pools (its rule check still applies).
+
 ### Q-440c — The socket picker: how a socket is reached, what it lists, what taking a gem off costs
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440c, D-181, D-141, CL-28b) · **Blocks:** —
 **Question:** the mockup draws the picker for an empty crystal socket but not how the D-pad reaches a socket, what fills a filled one, or how taking a socketed gem off is shown when the code destroys it (CL-28b, the debit model).

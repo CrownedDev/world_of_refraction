@@ -234,7 +234,9 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(const FLoadoutS
 			}
 			return;
 		}
-		Choice.Row = MakeSkillRow(Skill, Row.SkillSlot, BuiltIns.Find(Cast<UAbilityData>(Skill)) != Row.SkillSlot, INDEX_NONE, 0);
+		// A pick unless it is the built-in this very slot holds.
+		const bool bBuiltInHere = BuiltIns.IsValidIndex(Row.SkillSlot) && BuiltIns[Row.SkillSlot] == Skill;
+		Choice.Row = MakeSkillRow(Skill, Row.SkillSlot, !bBuiltInHere, INDEX_NONE, 0);
 	};
 	if (Tab.List == ELoadoutSkillList::WeaponSkills)
 	{

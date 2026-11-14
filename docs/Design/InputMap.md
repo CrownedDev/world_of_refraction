@@ -60,6 +60,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Loadout: change the lit gear row (opens the picker); in the picker, put the lit piece in | Enter, Space, left click | A (Cross) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsConfirmKey`; B / Esc closes the picker |
 | Loadout: unequip the lit gear row | X | X (Square) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsToggleKey` |
 | Loadout: move across the lit row to its sockets (row, crystal socket, stone socket); X on a socket asks, X again takes it off | Left / Right, A / D | D-pad left / right, left stick | none (the screen's keys) | Built (B-440c, loadout screen): `WoRMenuStyle::IsLeftKey` / `IsRightKey` |
+| Loadout: the Gear / Skills page | Q / E | LB / RB (L1 / R1) | none (the screen's keys) | Built (B-440d, loadout screen): `WoRMenuStyle::IsTabPrevKey` / `IsTabNextKey`; two pages, either key turns |
+| Loadout, Skills page: the lit list (a school, a weapon, an adapter); A puts a learned skill in the lit slot, X takes it out | Left / Right, A / D; Enter; X | D-pad left / right, left stick; A (Cross); X (Square) | none (the screen's keys) | Built (B-440d, Q-440d) |
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
 | Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen; B-456a, vendor screen: sell or dismantle one, or the whole stack): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
@@ -109,6 +111,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-439: the game menu opens on `IA_ToggleMenu` (bound in C++); new **Menus** section: move, select, hold to confirm, back, read by the screen itself | feature/B-439-pause-menu |
 | 2026-11-14 | B-440a: previous / next character on LT / RT (Z / C) in the loadout screen, read by the screen itself | feature/B-440-loadout-screen |
 | 2026-11-14 | B-440b: A Change (the gear picker) and X Unequip in the loadout screen, read by the screen itself | feature/B-440b-loadout-change-gear |
+| 2026-11-14 | B-440d: LB / RB to the loadout screen's Skills page; Left / Right picks its list; A / X put a skill in and take it out | feature/B-440d-loadout-skills-page |
 | 2026-11-14 | B-440c: Left / Right to a gear row's sockets, X twice to take a socket off, in the loadout screen | feature/B-440c-loadout-socket-picker |
 | 2026-11-14 | B-443: the hub HUD prompt shows the Interact key (E / X); no new key | feature/B-443-hub-hud |
 | 2026-11-14 | B-452: previous / next page on LB / RB (Q / E) and change a setting on Left / Right (A / D) in the settings screen, read by the screen itself | feature/B-452-settings-screen |
