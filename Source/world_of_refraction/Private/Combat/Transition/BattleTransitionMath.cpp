@@ -27,6 +27,12 @@ namespace
 
 	constexpr float MAX_COLOR_BYTE = 255.0f;
 
+	/** How far a shard's turning axis may lean out of the wall's plane (0 = flat in it). */
+	constexpr float TUMBLE_AXIS_LEAN = 0.3f;
+
+	/** Each cell is cut along one of its two diagonals. */
+	constexpr int32 CELL_DIAGONALS = 2;
+
 	FVector2D WallToUV(const FVector2D &Wall, float Aspect)
 	{
 		return FVector2D(Wall.X + 0.5, 0.5 - Wall.Y * Aspect);
@@ -48,7 +54,7 @@ namespace
 		Shard.RandomB = Random.FRand();
 		// Mostly in the wall's plane, so a turning shard shows its edge and back.
 		const float AxisAngle = Random.FRandRange(0.0f, UE_TWO_PI);
-		Shard.TumbleAxis = FVector(Random.FRandRange(-0.3f, 0.3f), FMath::Cos(AxisAngle), FMath::Sin(AxisAngle)).GetSafeNormal();
+		Shard.TumbleAxis = FVector(Random.FRandRange(-TUMBLE_AXIS_LEAN, TUMBLE_AXIS_LEAN), FMath::Cos(AxisAngle), FMath::Sin(AxisAngle)).GetSafeNormal();
 		return Shard;
 	}
 
@@ -142,7 +148,7 @@ TArray<BattleTransition::FShard> BattleTransition::BuildShards(int32 Seed, const
 			const int32 TopRight = TopLeft + 1;
 			const int32 BottomLeft = TopLeft + Columns + 1;
 			const int32 BottomRight = BottomLeft + 1;
-			if (Random.FRand() < 0.5f)
+			if (Random.RandHelper(CELL_DIAGONALS) == 0)
 			{
 				AddShard(TopLeft, TopRight, BottomRight);
 				AddShard(TopLeft, BottomRight, BottomLeft);

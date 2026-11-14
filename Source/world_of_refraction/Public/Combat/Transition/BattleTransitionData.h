@@ -62,10 +62,11 @@ public:
 
 	// ---- Shards ----
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards", meta = (ClampMin = 2, ClampMax = 24))
+	/** Columns x rows x 2 shards, each its own mesh moved every frame: the caps keep it to 320. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards", meta = (ClampMin = 2, ClampMax = 16))
 	int32 ShardColumns = 12;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards", meta = (ClampMin = 2, ClampMax = 16))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards", meta = (ClampMin = 2, ClampMax = 10))
 	int32 ShardRows = 7;
 
 	/** How far the cut points crowd toward the hit point (0 = even shards, 1 = all at the hit). */
