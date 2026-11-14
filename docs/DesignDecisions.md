@@ -946,6 +946,17 @@ The queue of questions only Crown can answer.
 **Recommendation (my reading):** **A**. D-188 lists "upgrades, memories, quests" as separate things in the payout line, so upgrades are not the memories or quests; and losing a found memory would break the journal's "found is found" (pillar 10). Crown's "their story ended" may mean B: this touches the story, so it is Crown's to say.
 **Answer (Crown):** _write here_
 
+### Q-238b — At run end, do pouch finds move to home storage?
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-04 (B-238b) · **Blocks:** —
+**Question:** RunStructure §6 says items found in a run are kept "to home storage" (D-097). Since B-203 a find already stays, in the finder's pouch (or storage when the pouch is full). Should run end move the pouch finds to storage?
+**Answer**, by the default (Crown may change any): **yes.** When a run ends any way but a quit (win, extract, out of wipes), the items found in it that sit in a pouch go to home storage; what was carried before the run stays in the pouch. Reference: Darkest Dungeon empties the expedition's pack into the Hamlet on return (loot is banked, the party re-packs for the next expedition), widely liked for the "bring it home" moment and a clean start each run. A quit still takes the finds back (Q-439b).
+- **Counted as Q-439b:** per kind, for the whole party; pouches give first.
+- **Shortcut:** a find that already went to storage (a full pouch) still counts, so an item carried from before the run may go to storage in its place. Nothing is lost.
+- **Not covered:** a co-op guest's own pouch (as Q-439b).
+**Notes for Claude:** `UPoolSubsystem::StoreRunFoundItems` (`Pool/PoolRunLayer.cpp`), called by `UTrialRunSubsystem::ExitTrial`; spec `WoR.Pool.RunLayer`.
+
+---
+
 ### Q-450 — Does the rest menu's "Revive boss" stay?
 **Status:** OPEN · **Raised:** 2026-11-14 (D-187, B-450) · **Blocks:** — (B-450 leaves this one label alone until answered)
 **Question:** D-187 says no enemy rank is shown to the player; D-182 (the same day) names the rest menu's row "Revive boss". Keep it, or reword?

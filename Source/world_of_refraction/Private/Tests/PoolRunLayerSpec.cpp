@@ -314,6 +314,26 @@ void FPoolRunLayerSpec::Define()
 		Pool->EndRunLayer();
 	});
 
+	It("sends a finished run's pouch finds to home storage and keeps what was carried before (B-238b, D-097)", [this]()
+	{
+		if (!Pool) return;
+		const FName Key = UPoolSubsystem::GetCharacterKey(Member);
+		const FCrystalId Owned(ECrystalType::Emerald, EItemTier::D_Tier);
+		const FCrystalId FoundOnly(ECrystalType::Emerald, EItemTier::F_Tier);
+		Pool->CarryOrStore(Key, Owned, RUN_LAYER_ITEMS_CARRIED);
+		TestEqual(TEXT("no run: nothing to store"), Pool->StoreRunFoundItems(), 0);
+
+		Pool->BeginRunLayer();
+		Pool->CarryOrStore(Key, Owned, RUN_LAYER_ITEMS_FOUND);
+		Pool->CarryOrStore(Key, FoundOnly, RUN_LAYER_ITEMS_FOUND);
+		TestEqual(TEXT("both finds moved"), Pool->StoreRunFoundItems(), RUN_LAYER_ITEMS_FOUND + RUN_LAYER_ITEMS_FOUND);
+		TestEqual(TEXT("the owned kind is carried as before the run"), Pool->GetCarriedCount(Key, Owned), RUN_LAYER_ITEMS_CARRIED);
+		TestEqual(TEXT("its find is stored"), Pool->GetStoredCount(Owned), RUN_LAYER_ITEMS_FOUND);
+		TestEqual(TEXT("the found kind left the pouch"), Pool->GetCarriedCount(Key, FoundOnly), 0);
+		TestEqual(TEXT("and is stored"), Pool->GetStoredCount(FoundOnly), RUN_LAYER_ITEMS_FOUND);
+		Pool->EndRunLayer();
+	});
+
 	It("keeps a finished run's finds, and starting items banked mid-run survive a quit (B-439b, D-097)", [this]()
 	{
 		if (!Pool) return;

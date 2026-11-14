@@ -324,6 +324,35 @@ int32 UPoolSubsystem::TakeRunFoundItems()
     return Taken;
 }
 
+int32 UPoolSubsystem::StoreRunFoundItems()
+{
+    if (!bRunLayerActive)
+    {
+        return 0;
+    }
+    // shortcut: counted for the whole party, as TakeRunFoundItems; a find that already went to storage (a full pouch)
+    // still counts, so an item carried from before the run may go to storage in its place (never lost). Keep a count
+    // per place if that ever matters.
+    TArray<FName> PouchKeys;
+    Pouches.GetKeys(PouchKeys); // a copy: MoveToStorage's broadcast reaches listeners
+    int32 Moved = 0;
+    for (const TPair<FCrystalId, int32> &Held : CountHeldItems())
+    {
+        int32 Found = Held.Value - RunStartItems.FindRef(Held.Key);
+        for (int32 Index = 0; Index < PouchKeys.Num() && Found > 0; ++Index)
+        {
+            const int32 Carried = FMath::Min(Found, GetCarriedCount(PouchKeys[Index], Held.Key));
+            if (Carried > 0 && MoveToStorage(PouchKeys[Index], Held.Key, Carried))
+            {
+                Found -= Carried;
+                Moved += Carried;
+            }
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: the run ended, %d item(s) found in it go to home storage (D-097)"), Moved);
+    return Moved;
+}
+
 FName UPoolSubsystem::GetDefinitionKey(const UObject *Definition)
 {
     return Definition ? FName(*Definition->GetPathName()) : NAME_None;
@@ -445,7 +474,7 @@ FString UPoolSubsystem::GetRunLayerString() const
         const int32 Found = bRunLayerActive ? Held.Value - RunStartItems.FindRef(Held.Key) : 0;
         if (Found > 0)
         {
-            Out += TEXT("\n") + FString::Printf(TEXT("  found in the run: %d %s (taken back if the run is quit)"), Found, *ItemIdentity::GetDisplayName(Held.Key));
+            Out += TEXT("\n") + FString::Printf(TEXT("  found in the run: %d %s (to storage at run end; taken back if the run is quit)"), Found, *ItemIdentity::GetDisplayName(Held.Key));
         }
     }
     for (const TPair<FName, EItemTier> &Remembered : UpgradeMemory)

@@ -185,6 +185,10 @@ void UTrialRunSubsystem::ExitTrial()
         {
             Pool->TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176): a quit run also loses the items found in it
         }
+        else
+        {
+            Pool->StoreRunFoundItems(); // B-238b (D-097, Q-238b): any other end sends the run's finds to home storage
+        }
         Pool->EndRunLayer();
     }
     // B-377: a hidden quest's step in progress starts its count again next run; steps done stay (MemoryCatalogue §3.6).
