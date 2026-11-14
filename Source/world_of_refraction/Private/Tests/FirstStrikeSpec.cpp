@@ -88,8 +88,10 @@ void FFirstStrikeSpec::Define()
 		const TArray<AActor *> Plain = RecordTurns({Local}, {EnemyA, EnemyB}, INDEX_NONE, 1);
 		TestTrue(TEXT("Without it the party wins the tie"), Plain.Num() == 1 && Plain[0] == Local);
 
-		const TArray<AActor *> Order = RecordTurns({Local}, {EnemyA, EnemyB}, TurnManagerTeams::OPPOSING_TEAM_INDEX, 3);
-		TestTrue(TEXT("Both enemies first, then the party"), Order.Num() == 3 && Order[0] != Local && Order[1] != Local && Order[2] == Local);
+		// B-170h2 (the fixed rotation, Q-170f): the striking side's opening round, then the alternation it leads.
+		const TArray<AActor *> Order = RecordTurns({Local}, {EnemyA, EnemyB}, TurnManagerTeams::OPPOSING_TEAM_INDEX, 4);
+		TestTrue(TEXT("Both enemies open, an enemy leads the alternation, then the party"),
+				 Order.Num() == 4 && Order[0] != Local && Order[1] != Local && Order[2] != Local && Order[3] == Local);
 	});
 
 	It("ends the opening when the rest of the opening side has fallen", [this]()
@@ -104,11 +106,14 @@ void FFirstStrikeSpec::Define()
 		TestTrue(TEXT("An enemy opens"), Opener != Local);
 		Other->FindComponentByClass<UCharacterDataComponent>()->bIsAlive = false;
 		TurnManager->AdvanceToNextTurn();
+		// B-170h2 (the fixed rotation): the opening is over; the striking side leads the alternation, then the party.
+		TestEqual(TEXT("The opener leads the alternation"), TurnManager->GetCurrentActor(), Opener);
+		TurnManager->AdvanceToNextTurn();
 		TestEqual(TEXT("The party acts next"), TurnManager->GetCurrentActor(), Local);
 		TurnManager->EndCombat();
 	});
 
-	It("lets the party go first even against a faster enemy, and the preview shows it", [this]()
+	It("lets the party open its round against a faster enemy, and the preview shows it", [this]()
 	{
 		if (!TurnManager) return;
 		UCharacterData *FastData = FWoRTestWorld::NewCharacterData();
@@ -117,8 +122,9 @@ void FFirstStrikeSpec::Define()
 		AActor *LocalB = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		AActor *Fast = TestWorld->SpawnCombatant(FastData, true);
 
+		// B-170h2: speed orders no turn (the fixed rotation): without first strike the party leads anyway.
 		const TArray<AActor *> Plain = RecordTurns({LocalA, LocalB}, {Fast}, INDEX_NONE, 1);
-		TestTrue(TEXT("Without it the fast enemy goes first"), Plain.Num() == 1 && Plain[0] == Fast);
+		TestTrue(TEXT("Without it the party still leads"), Plain.Num() == 1 && Plain[0] == LocalA);
 
 		TurnManager->InitializeCombat({LocalA, LocalB}, {Fast}, TurnManagerTeams::LOCAL_TEAM_INDEX);
 		const TArray<FPreviewTurnEntry> Preview = TurnManager->PreviewTurnOrder(1);
