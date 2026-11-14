@@ -20,11 +20,9 @@ class WORLD_OF_REFRACTION_API ULoadoutRulesDebug : public UBlueprintFunctionLibr
 
 public:
 	/** Logs what the loadout rules report on every character's active loadout and shows it on screen
-	 *  (wor.Loadout.PrintFindings), e.g. "Hero_1 loadout 0: 1 finding(s): Ability 'Cleave' requires weapon type Spear".
-	 *  TODO: the name is from the old-against-new comparison (B-028); rename to PrintLoadoutFindings once the editor's
-	 *  Find in Blueprints shows no "Compare Loadout Rules" node (B-172 kept it so no Blueprint can break). */
+	 *  (wor.Loadout.PrintFindings), e.g. "Hero_1 loadout 0: 1 finding(s): Ability 'Cleave' requires weapon type Spear". */
 	UFUNCTION(BlueprintCallable, Category = "Debug|Loadout", meta = (WorldContext = "WorldContextObject"))
-	static void CompareLoadoutRules(const UObject *WorldContextObject);
+	static void PrintLoadoutFindings(const UObject *WorldContextObject);
 
 	/** B-302: the unified slot mirror (D-110) against the old getters for the active loadout, e.g.
 	 *  "Hero_1 slots 3: weapon Sword = Sword, adapter Ember = Ember | match". */

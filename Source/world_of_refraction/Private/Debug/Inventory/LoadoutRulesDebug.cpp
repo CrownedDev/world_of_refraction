@@ -48,7 +48,7 @@ namespace
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
-				ULoadoutRulesDebug::CompareLoadoutRules(World);
+				ULoadoutRulesDebug::PrintLoadoutFindings(World);
 			}));
 
 	// B-312 (Q-312): each member's gear copies against its view of the pool store; silence means the views are ready.
@@ -503,7 +503,7 @@ FString ULoadoutRulesDebug::GetCompareSlotsString(const ULoadoutComponent *Loado
 						   bMatch ? TEXT("match") : TEXT("DIFF"));
 }
 
-void ULoadoutRulesDebug::CompareLoadoutRules(const UObject *WorldContextObject)
+void ULoadoutRulesDebug::PrintLoadoutFindings(const UObject *WorldContextObject)
 {
 	UWorld *World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
 	if (!World)
