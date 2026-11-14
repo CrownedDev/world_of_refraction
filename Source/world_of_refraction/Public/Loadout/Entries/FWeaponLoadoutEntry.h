@@ -92,13 +92,24 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
      *  (D-175), so 12 at most. */
     int32 GetSkillSlotCount() const;
 
+    /** B-410: the tier's slots, which come first; the gem / evolution's slots (B-098) follow them. */
+    int32 GetTierSkillSlotCount() const;
+
+    /** B-410: is Slot one the attached gem / evolution adds? */
+    bool IsGemSkillSlot(int32 Slot) const;
+
+    /** B-410 (Q-098): may Ability go in Slot? A gem slot takes an ability with no element, a Generic one or one of the
+     *  attached gem's element; a tier slot takes any. On a refusal OutReason (if given) says why, for the player. */
+    bool CanHoldSkill(int32 Slot, const UAbilityData *Ability, FText *OutReason = nullptr) const;
+
     /** The list slot by slot (null = an empty slot): the pick, else the built-in at that position. */
     TArray<UAbilityData *> GetSkillSlots() const;
 
     /** The abilities the weapon offers: the list's filled slots while it is active, else the pre-D-145 merge. */
     TArray<UAbilityData *> GetSkillSlotAbilities() const;
 
-    /** Replace what Slot holds (a built-in or an empty slot) with Ability; activates the list. False past the count. */
+    /** Replace what Slot holds (a built-in or an empty slot) with Ability; activates the list. False past the count or
+     *  when CanHoldSkill refuses (B-410). */
     bool ReplaceSkill(int32 Slot, UAbilityData *Ability);
 
     /** Bring back the built-in (or empty) Slot held before a replace; activates the list. False if nothing was replaced. */

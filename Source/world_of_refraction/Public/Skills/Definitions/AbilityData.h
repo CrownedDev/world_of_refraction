@@ -11,6 +11,7 @@
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
+#include "Skills/Definitions/ESpellElement.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -48,6 +49,13 @@ public:
      *  loadout validators. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponWieldMode RequiredWieldMode = EWeaponWieldMode::Single;
+
+    /** B-410 (Q-098, Crown 2026-11-12): the element the ability is for, read by the ability slots a weapon's gem /
+     *  evolution adds. None (no element) and Generic (the default: takes the crystal's element, B-080) fit any gem slot;
+     *  another element fits only a gem of that element. The weapon's tier slots take any. Combat still uses the
+     *  crystal's element (B-080). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    ESpellElement Element = ESpellElement::Generic;
 
     /** True if this ability may be slotted on a weapon with the given wield mode.
      *  A Single requirement allows any mode; otherwise the modes must match. */
