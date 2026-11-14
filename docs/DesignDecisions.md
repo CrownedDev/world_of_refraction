@@ -1089,6 +1089,14 @@ The queue of questions only Crown can answer.
 **Recommendation:** **B**: Elden Ring and Hades name the foe itself and never its rank, and D-187 already asks for the opponent's name on the wipe card. A stays until Crown answers.
 **Answer (Crown):** _write here_
 
+### Q-408 — A game closed in the middle of a run: lost, or resumed once?
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-408, D-172, D-176) · **Blocks:** — (B-408a, which waits for Crown's agreement to the survey anyway)
+**Question:** today the run is saved at every fight exit and rest spot, and a restart resumes it. That save also carries the co-op hand-over (B-234b) and the only record of what the run changed in the store (`docs/analysis/NoSavedRunsSurvey.md`). With no saved runs (D-172), what happens when the game closes mid-run (quit to desktop, crash, power cut)?
+**Answer**, by the default (Crown may change it):
+- **A: it counts as a quit (D-176).** On the next start the run is restored only to settle it: home pieces go back, found items are taken back, nothing is paid, run recruits leave, and the player is in the hub. Escape from Tarkov counts leaving a raid as "missing in action" (the gear is lost), and Dark and Darker treats a disconnect the same way; players accept it because it keeps extracting meaningful, and it closes the "close the game instead of quitting" loophole.
+- B (not taken): crash recovery, resuming once from the last checkpoint. Tarkov lets a player reconnect to a raid still running, and Returnal's lack of a mid-run save was its most criticised flaw until its Suspend Cycle patch. But it would go against D-172's "no saved runs".
+**Notes for Claude:** B-408a builds A. The co-op hand-over keeps resuming: there the run is still being played.
+
 ### Q-439b — A quit run's found items: how they are counted
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439b, Q-439 point 2) · **Blocks:** —
 **Question:** a quit run takes back the items found in it (Q-439 point 2: Escape from Tarkov and Dark and Darker take what you picked up in a failed raid). Nothing marks one crystal as "found", so how is it counted?
