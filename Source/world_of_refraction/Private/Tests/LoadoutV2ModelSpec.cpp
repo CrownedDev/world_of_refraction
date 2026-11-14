@@ -176,6 +176,26 @@ void FLoadoutV2ModelSpec::Define()
 		TestEqual(TEXT("one lost"), Compare.BuiltInsLost.Num(), 1);
 		TestEqual(TEXT("weapons cost no cells"), Compare.CellsChange, 0);
 	});
+
+	It("lists the owned weapons the loadout doesn't hold for a new entry, a full class refused (B-476b)", [this]()
+	{
+		const FWeaponInventoryEntry Held = LoadoutV2TestWeapon(TEXT("Ashen Blade"), EWeaponType::Sword);
+		const FWeaponInventoryEntry Spare = LoadoutV2TestWeapon(TEXT("Quarry Maul"), EWeaponType::Hammer);
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon.WeaponEntry = Held;
+		const TArray<FLoadoutV2MainHandChoice> Generic = WoRLoadoutV2::BuildMainHandChoices(Loadout, ECharacterClass::Generic, {Held, Spare});
+		if (TestEqual(TEXT("only the spare"), Generic.Num(), 1))
+		{
+			TestEqual(TEXT("the maul"), Generic[0].Weapon.PersistentID, Spare.PersistentID);
+			TestTrue(TEXT("a Generic has room for a second weapon"), Generic[0].Refusal.IsEmpty());
+		}
+		const TArray<FLoadoutV2MainHandChoice> Refractor = WoRLoadoutV2::BuildMainHandChoices(Loadout, ECharacterClass::Caster, {Held, Spare});
+		if (TestEqual(TEXT("still listed"), Refractor.Num(), 1))
+		{
+			TestFalse(TEXT("a Refractor's one entry is taken: refused with the reason"), Refractor[0].Refusal.IsEmpty());
+		}
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
