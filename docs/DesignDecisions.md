@@ -1089,6 +1089,14 @@ The queue of questions only Crown can answer.
 **Recommendation:** **B**: Elden Ring and Hades name the foe itself and never its rank, and D-187 already asks for the opponent's name on the wipe card. A stays until Crown answers.
 **Answer (Crown):** _write here_
 
+### Q-447 — The trial NPC who sells pillar points: who, where, and the price
+**Status:** OPEN (lore part: Crown's) · **Raised:** 2026-11-14 (B-447, D-183) · **Blocks:** B-447
+**Question:** D-183 moves "buy a pillar point" from the rest spot to an NPC found in the trial. (1) **Who is this NPC?** A character of the world (V, a recruit, a new face) is lore, so it is Crown's. (2) Where does it stand: at every rest spot's area, once per trial map, or at random spots? (3) Does the price stay `WoRLevelDrops::TryBuyPoint`'s run Prisms?
+**Options (lore, no recommendation):** (1) A: V (D-079: V is the guide and every hub NPC); B: a recruitable character met in the trial; C: a new character Crown names.
+**Reference-backed defaults for the non-lore parts (used once (1) is answered):** (2) once per trial map, near a rest spot, marked on the map, like Hades' Charon shop appearing in fixed chambers per region (widely liked as a reliable stop); (3) the price stays as it is (D-156's Prisms).
+**Notes for Claude:** the NPC is a placed actor in the trial maps (a `ATrialMapFeature`), so placing it is an editor step after the code. The code (the NPC's actor and its placeholder buy UI, the rest spot's level screen without "buy") can be built as soon as (1) is answered.
+**Answer (Crown):** _write here_
+
 ### Q-439b — A quit run's found items: how they are counted
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439b, Q-439 point 2) · **Blocks:** —
 **Question:** a quit run takes back the items found in it (Q-439 point 2: Escape from Tarkov and Dark and Darker take what you picked up in a failed raid). Nothing marks one crystal as "found", so how is it counted?
