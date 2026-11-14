@@ -169,7 +169,7 @@ void UPauseMenuWidget::BuildTree()
 	PanelBody = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 	PanelRefusal = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
 	HoldHint = MakeWrappedText(WidgetTree, LineFontSize, WarnColor, true);
-	HoldHint->SetText(LOCTEXT("HoldHint", "Hold A or Enter to quit. B or Esc goes back."));
+	// The hold / press hint is set in RefreshSelection (B-453c: it follows the setting).
 	HoldBar = MakeBar(WidgetTree, WarnColor);
 	ExtractNote = MakeWrappedText(WidgetTree, SmallFontSize, OffColor);
 	ExtractNote->SetText(WoRPauseMenu::GetExtractNote());
