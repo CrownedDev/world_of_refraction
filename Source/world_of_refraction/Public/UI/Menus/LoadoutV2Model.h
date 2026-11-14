@@ -251,6 +251,13 @@ namespace WoRLoadoutV2
 	 *  one short form a line in the simple view), the built-ins, the sockets and the skill slots. */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildEntryDetails(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry, bool bSimple);
 
+	/** B-484: one piece's details on its own, as the box shows them while a slot's list is open. A weapon reads as the
+	 *  Weapons tab shows a single-weapon entry: its stats, effects, built-ins, its own sockets and its skill slots. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildWeaponDetails(const FWeaponInventoryEntry &Weapon, bool bSimple);
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildAdapterDetails(const FRingInventoryEntry &Adapter, bool bSimple);
+	/** A crystal, a stone or an evolution: its name and tier, its element; in the full view what it is and its cells. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildAttachmentDetails(const FRuntimeAttachedItem &Item, bool bSimple);
+
 	/** Debug: the details box as text. */
 	WORLD_OF_REFRACTION_API FString GetDetailsString(const TArray<FLoadoutV2DetailLine> &Lines);
 
