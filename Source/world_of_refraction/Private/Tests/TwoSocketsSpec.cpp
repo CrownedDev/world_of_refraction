@@ -133,15 +133,28 @@ void FTwoSocketsSpec::Define()
 		TestTrue(TEXT("a new stone fits again"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
 	});
 
-	It("refuses a second stone over one authored in the element socket (B-351b)", [this]()
+	It("takes a second stone beside one authored in the element socket (B-480, D-210: two stones)", [this]()
 	{
 		if (!Inventory) return;
 		FRuntimeAttachedItem Authored; // the pre-B-351 shape: a stone in the element socket
 		Authored.Kind = EAttachedItemKind::AugmentStone;
 		Authored.Crystal.Id = SOCKET_TEST_STONE;
 		Inventory->Weapons[0].AttachedItem = Authored;
-		TestFalse(TEXT("second stone refused"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
-		TestEqual(TEXT("not debited"), Crystals->GetCount(SOCKET_TEST_OTHER_STONE), SOCKET_TEST_STACK);
+		TestTrue(TEXT("second stone taken"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
+		TestTrue(TEXT("in the stone socket"), Inventory->Weapons[0].StoneSocket.Crystal.Id == SOCKET_TEST_OTHER_STONE);
+		TestFalse(TEXT("a gem has no room now"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_GEM));
+	});
+
+	It("holds two stones, the second in the crystal socket, and refuses a third (B-480, D-210)", [this]()
+	{
+		if (!Inventory) return;
+		TestTrue(TEXT("first stone"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_STONE));
+		TestTrue(TEXT("second stone"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
+		TestTrue(TEXT("the first in the stone socket"), Inventory->Weapons[0].StoneSocket.Crystal.Id == SOCKET_TEST_STONE);
+		TestTrue(TEXT("the second in the crystal socket"),
+				 Inventory->Weapons[0].AttachedItem.IsAugmentStone() && Inventory->Weapons[0].AttachedItem.Crystal.Id == SOCKET_TEST_OTHER_STONE);
+		TestFalse(TEXT("a third is refused"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_STONE));
+		TestFalse(TEXT("so is a gem"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_GEM));
 	});
 
 	It("carries the stone socket from fight to fight and through the run save (B-351b)", [this]()

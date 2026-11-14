@@ -291,24 +291,19 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
     }
 
     // B-351 (D-141): a gem goes in the element socket, a stone in the stone socket, on a weapon or an adapter alike
-    // (the weapon-only stone guard of D-009 retires). Each socket holds one: a second gem or a second stone is refused.
+    // (the weapon-only stone guard of D-009 retires). B-480 (D-210): the two sockets take a crystal (or an evolution)
+    // and a stone, or two stones (the same stat stacks): a stone goes in the stone socket, else in an empty element
+    // socket. A second gem, or a third stone, is refused.
     const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
     const int32 Index = bIsStone ? FindGearIndex(Gear, GearID, Op) : FindEmptyGearSlot(Gear, GearID, Op);
     if (Index == INDEX_NONE)
     {
         return false;
     }
-    if (bIsStone && !Gear[Index].StoneSocket.IsEmpty())
+    const bool bStoneInElementSocket = bIsStone && !Gear[Index].StoneSocket.IsEmpty();
+    if (bStoneInElementSocket && !Gear[Index].AttachedItem.IsEmpty())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s stone socket already occupied"), Op, GearLabel<TEntry>());
-        return false;
-    }
-    // B-351b: a stone authored before B-351 sits in the element socket and still counts as the item's stone
-    // (GetStoneAttachment): a second one is refused rather than stacking two.
-    if (bIsStone && Gear[Index].AttachedItem.IsAugmentStone())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s already carries a stone in its element socket (remove it first)"), Op,
-               GearLabel<TEntry>());
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s has no free socket for a stone"), Op, GearLabel<TEntry>());
         return false;
     }
 
@@ -322,7 +317,7 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
         return false;
     }
 
-    FRuntimeAttachedItem &Socket = bIsStone ? Gear[Index].StoneSocket : Gear[Index].AttachedItem;
+    FRuntimeAttachedItem &Socket = bIsStone && !bStoneInElementSocket ? Gear[Index].StoneSocket : Gear[Index].AttachedItem;
     Socket = MakeCrystalAttachment(Id, bIsStone);
     HandleGearSocketChanged(GearID);
     UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached %s %s to %s %s"),

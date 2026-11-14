@@ -728,12 +728,17 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 		Choices.Add(MoveTemp(Choice));
 	};
 
-	// Carried gems (the crystal socket) or stones (the stone socket), highest tier first.
+	// Carried gems (the crystal socket) or stones (the stone socket), highest tier first. B-480 (D-210): two stones may
+	// share an entry, so the crystal socket offers stones too once the stone socket holds one (UInventoryComponent puts
+	// a stone there only then).
 	const bool bWantStone = Socket == LoadoutScreenSockets::STONE;
+	const bool bStoneSocketFull = !bWantStone && Row.Sockets.IsValidIndex(LoadoutScreenSockets::STONE) && !Row.Sockets[LoadoutScreenSockets::STONE].bEmpty;
 	TArray<TPair<FCrystalId, int32>> Stacks;
 	for (const TPair<FCrystalId, int32> &Stack : Carried)
 	{
-		if (Stack.Value > 0 && Stack.Key.Type != ECrystalType::None && CrystalTypeHelpers::IsGemType(Stack.Key.Type) != bWantStone)
+		const bool bGem = CrystalTypeHelpers::IsGemType(Stack.Key.Type);
+		const bool bFits = bWantStone ? !bGem : (bGem || bStoneSocketFull);
+		if (Stack.Value > 0 && Stack.Key.Type != ECrystalType::None && bFits)
 		{
 			Stacks.Add(Stack);
 		}
@@ -743,13 +748,14 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 	for (const TPair<FCrystalId, int32> &Stack : Stacks)
 	{
 		FLoadoutScreenChoice Choice;
+		const bool bStone = !CrystalTypeHelpers::IsGemType(Stack.Key.Type);
 		Choice.Crystal = Stack.Key;
-		Choice.Attachment.Kind = bWantStone ? EAttachedItemKind::AugmentStone : EAttachedItemKind::Crystal;
+		Choice.Attachment.Kind = bStone ? EAttachedItemKind::AugmentStone : EAttachedItemKind::Crystal;
 		Choice.Attachment.Crystal.Id = StatStone::Normalize(Stack.Key); // as UInventoryComponent attaches it
-		Choice.Attachment.Crystal.CurrentDurability = bWantStone ? 0 : ItemIdentity::GetMaxDurability(Stack.Key);
+		Choice.Attachment.Crystal.CurrentDurability = bStone ? 0 : ItemIdentity::GetMaxDurability(Stack.Key);
 		Choice.Row.Name = AttachmentName(Choice.Attachment);
 		const ESpellElement Element = Choice.Attachment.GetElement();
-		const FText Kind = bWantStone ? LOCTEXT("SocketStone", "Stone") : LOCTEXT("SocketCrystal", "Crystal");
+		const FText Kind = bStone ? LOCTEXT("SocketStone", "Stone") : LOCTEXT("SocketCrystal", "Crystal");
 		Choice.Row.KindLine = Element == ESpellElement::None ? Kind : FText::Format(LOCTEXT("KindAndType", "{0} · {1}"), Kind, WoRGameNames::GetElementName(Element));
 		Choice.Row.Tier = WoRGameNames::GetTierLetter(Stack.Key.Tier);
 		AddDetail(Choice.Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
