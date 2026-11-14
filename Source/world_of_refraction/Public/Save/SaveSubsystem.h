@@ -29,7 +29,9 @@ class UPoolSubsystem;
 class UCurrencyComponent;
 class UTrialRunSubsystem;
 struct FActorsInitializedParams;
+struct FPartyMember;
 enum class ETurnViewStyle : uint8;
+enum class EPlayerBaseForm : uint8;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API USaveSubsystem : public UGameInstanceSubsystem
@@ -114,6 +116,13 @@ public:
 
 	/** Undo DeleteSave's stop (wor.Save.Now). */
 	void ResumeWrites() { bWritesStopped = false; }
+
+	/** B-469: a new game starts in place. Everything the save holds goes back to a new game's in memory (party, pool,
+	 *  forms, journal, quests, curses, counters, field unlocks, a run waiting to resume, carried Gold, the local wallet),
+	 *  Leader becomes the party's only member with BaseForm as the body, writes resume and the slot is written with
+	 *  just that. The level change after it (UTrialRunSubsystem::ExitTrial) rebuilds the world. False, and nothing
+	 *  changed, while a handed-over run is played or for a member with no CharacterData. */
+	bool StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm BaseForm);
 
 	/** PlayerState EndPlay: bank the wallet's persistent balances and carry its run Gold. */
 	void BankWallet(const UCurrencyComponent *Wallet);

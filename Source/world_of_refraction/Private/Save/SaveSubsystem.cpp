@@ -856,6 +856,70 @@ void USaveSubsystem::DeleteSave()
 	UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' deleted; no automatic saves until the next start (or wor.Save.Now)"), SLOT_NAME);
 }
 
+bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm BaseForm)
+{
+	UGameInstance *GI = GetGameInstance();
+	if (bPlayingHostCopy || !GI || !Leader.IsValidMember())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] New game not started: %s"),
+			   bPlayingHostCopy ? TEXT("a handed-over run is being played") : TEXT("no leader character"));
+		return false;
+	}
+
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
+	WorldActorsInitializedHandle.Reset();
+	PendingRun = FSavedRun();
+	CarriedGold = 0;
+	// The live wallet is banked again when its level ends: empty it, so the old balances don't come back.
+	if (UCurrencyComponent *Wallet = FindLocalWallet(GI->GetWorld()))
+	{
+		for (const FSavedBalance &Balance : CaptureWallet(Wallet).Balances)
+		{
+			if (Balance.Amount > 0 && StaticEnum<ECurrencyType>()->IsValidEnumValue(Balance.Currency))
+			{
+				Wallet->Spend(static_cast<ECurrencyType>(Balance.Currency), Balance.Amount, Balance.SubKey);
+			}
+		}
+	}
+
+	const FWoRSaveData Fresh;
+	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+	PartySession->ForgetLocalParty();
+	GI->GetSubsystem<UPoolSubsystem>()->ResetStore();
+	UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>();
+	Forms->RestoreProgress(Fresh.Forms.Progress);
+	Forms->RestoreWorn(NAME_None, BaseForm);
+	Forms->RestoreOutfit(FOutfitSet::FromSaved(Fresh.Forms.CurrentOutfit));
+	GI->GetSubsystem<UMemoryJournalSubsystem>()->Restore(Fresh.Journal);
+	GI->GetSubsystem<UHiddenQuestSubsystem>()->Restore(Fresh.HiddenQuests);
+	GI->GetSubsystem<UCurseSubsystem>()->Restore(Fresh.Curses);
+	GI->GetSubsystem<UHiddenCounterSubsystem>()->Restore(Fresh.Counters);
+	GI->GetSubsystem<UFieldSkillUnlockSubsystem>()->Restore(Fresh.FieldUnlocks);
+
+	FPartyMember Member = Leader;
+	Member.bPlayerControlled = true;
+	if (!Member.MemberId.IsValid())
+	{
+		Member.MemberId = FGuid::NewGuid();
+	}
+	// No leader yet: the next level's CreateSoloParty / EnsureLocalParty binds the player and names the party.
+	const UParty *Party = PartySession->RestoreLocalParty(FText::GetEmpty(), /*bLetAIFinish=*/false, {Member});
+
+	bWritesStopped = false;
+	PlayClock = FPlatformTime::Seconds();
+	bool bWritten = false;
+	if (IsBoundToPlayer())
+	{
+		SaveGame->ResetToDefault();
+		SaveGame->Data.Party = CaptureParty(Party, /*bKeepVitals=*/false);
+		SaveGame->Data.Forms.BaseForm = static_cast<uint8>(BaseForm);
+		bWritten = WriteSlot(/*bAsync=*/false);
+	}
+	UE_LOG(LogWoR, Display, TEXT("[Save] New game: %s, base %s (written %s)"), *GetNameSafe(Member.CharacterData),
+		   *UEnum::GetValueAsString(BaseForm), bWritten ? TEXT("yes") : TEXT("no"));
+	return Party != nullptr;
+}
+
 void USaveSubsystem::BankWallet(const UCurrencyComponent *Wallet)
 {
 	if (Wallet)
