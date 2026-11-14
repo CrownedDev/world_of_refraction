@@ -12,6 +12,8 @@
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/StatStone.h"
+#include "Equipment/FAmpBonus.h"
+#include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -374,6 +376,27 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 	return Page;
 }
 
+FText WoRLoadoutScreen::GetAmpText(const FAmpBonus &Amp)
+{
+	TArray<FText> Parts;
+	const auto Add = [&Parts](const FText &Name, int32 Value)
+	{
+		if (Value != 0)
+		{
+			Parts.Add(FText::Format(LOCTEXT("AmpPart", "{0} Amp {1}"), Name, FText::FromString(FString::Printf(TEXT("%+d"), Value))));
+		}
+	};
+	Add(LOCTEXT("AmpAll", "All"), Amp.All);
+	Add(LOCTEXT("AmpPhysical", "Physical"), Amp.Physical);
+	Add(LOCTEXT("AmpSpell", "Spell"), Amp.Spell);
+	for (const ESpellElement Element : {ESpellElement::Fire, ESpellElement::Water, ESpellElement::Earth, ESpellElement::Wind, ESpellElement::Light,
+										ESpellElement::Darkness, ESpellElement::Lightning, ESpellElement::Void, ESpellElement::Reality})
+	{
+		Add(WoRGameNames::GetElementName(Element), Amp.GetElementLine(Element));
+	}
+	return FText::Join(LOCTEXT("AmpSeparator", " \u00B7 "), Parts);
+}
+
 FLoadoutScreenRow WoRLoadoutScreen::BuildApparelRow(const FApparelEntry &Entry)
 {
 	using namespace LoadoutScreenBuild;
@@ -390,6 +413,15 @@ FLoadoutScreenRow WoRLoadoutScreen::BuildApparelRow(const FApparelEntry &Entry)
 	const ESpellElement Element = Entry.GetElement();
 	AddDetail(Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
 	AddDetail(Row, LOCTEXT("DetailBonusLine", "Bonus"), ApparelBonusLine::GetText(Entry.BonusLine)); // B-475 (D-208)
+	// B-476e (UIScreens #2-3: apparel shows HP / Defence / Amp + its bonus): the piece's own lines (UApparelData::GetStatLines).
+	if (Entry.Apparel)
+	{
+		const FEquipmentStatBonus Lines = Entry.Apparel->GetStatLines();
+		const auto Signed = [](int32 Value) { return FText::FromString(FString::Printf(TEXT("%+d"), Value)); };
+		AddDetail(Row, LOCTEXT("DetailMaxHP", "HP"), Lines.BonusMaxHP != 0 ? Signed(Lines.BonusMaxHP) : FText::GetEmpty());
+		AddDetail(Row, LOCTEXT("DetailDefence", "Defence"), Lines.BonusDefense != 0 ? Signed(Lines.BonusDefense) : FText::GetEmpty());
+		AddDetail(Row, LOCTEXT("DetailAmp", "Amp"), GetAmpText(Lines.Amp));
+	}
 	return Row;
 }
 
