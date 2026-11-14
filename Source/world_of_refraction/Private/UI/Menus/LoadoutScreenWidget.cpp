@@ -633,7 +633,7 @@ void ULoadoutScreenWidget::PressChange()
 		const int32 FirstAllowed = Choices.IndexOfByPredicate([](const FLoadoutScreenChoice &Choice) { return Choice.Refusal.IsEmpty(); });
 		SelectedChoice = FMath::Max(0, FirstAllowed);
 		bPicking = true;
-		Message = FText::GetEmpty();
+		Message = bPickingApparel && Choices.Num() == 0 ? LOCTEXT("NoSpareApparel", "You own no other apparel to wear here.") : FText::GetEmpty();
 		RefreshList();
 		RefreshSelection();
 		return;

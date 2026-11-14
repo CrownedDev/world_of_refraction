@@ -930,6 +930,14 @@ The queue of questions only Crown can answer.
 - **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
+### Q-440f — Changing apparel on the loadout screen: what the picker lists, what X does
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440f, D-164) · **Blocks:** —
+**Question:** the job says A / X on an apparel row picks an owned piece or takes one off, but not which pieces are listed, whether X asks first, or what a lore loadout does.
+**Answer**, by the reference-backed default (Crown may change any):
+- **The picker lists the character's own pieces** (the store's owner is that character), less those already worn in this loadout; a piece with a stone in its socket is listed but refused. Gear is a view over the store by owner (CL-09), as the weapon picker already works.
+- **X takes a piece off in one press**: nothing is lost (it stays owned), unlike a socket's gem (Q-440c asks twice because that destroys it). Elden Ring and Diablo IV unequip armour in one press.
+- **A lore loadout can't change apparel yet**: its apparel isn't saved until B-380e, so a change would be lost on reload (the same guard as `wor.Loadout.WearApparel`). The screen says to duplicate it.
+
 ### Q-440d — The Skills page: how it is reached, which lists it shows, what X does
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440d, D-181, D-145) · **Blocks:** —
 **Question:** the mockup draws a Refractor's innate spells by school but not how the page and its lists are reached, what the other classes see, what Change lists, or what X does to a slot.
