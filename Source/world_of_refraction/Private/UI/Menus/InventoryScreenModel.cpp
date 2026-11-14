@@ -187,7 +187,7 @@ namespace InventoryScreenBuild
 																		 FText::AsNumber(InventoryConstants::ITEM_STACK_MAX))});
 		}
 		// TODO: B-460 (D-061): the crystal description table is FString; it becomes FText there.
-		Tile.Note = FText::FromString(CrystalDescription::GetItemEffectText(Row.Item));
+		Tile.Note = CrystalDescription::GetItemEffectText(Row.Item); // B-460: FText already
 		return Tile;
 	}
 
