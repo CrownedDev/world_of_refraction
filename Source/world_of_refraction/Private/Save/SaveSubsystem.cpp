@@ -880,6 +880,11 @@ bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm 
 				Wallet->Spend(static_cast<ECurrencyType>(Balance.Currency), Balance.Amount, Balance.SubKey);
 			}
 		}
+		for (const FSavedBalance &Left : CaptureWallet(Wallet).Balances)
+		{
+			UE_CLOG(Left.Amount > 0, LogWoR, Warning, TEXT("[Save] New game: currency %d (key %d) still holds %d after the wallet was emptied"),
+					Left.Currency, Left.SubKey, Left.Amount);
+		}
 	}
 
 	const FWoRSaveData Fresh;

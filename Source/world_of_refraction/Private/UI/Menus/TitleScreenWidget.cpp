@@ -49,6 +49,8 @@ namespace
 {
 	/** Set when the player leaves the title (Continue, or New Game with no save): it doesn't open again this launch. */
 	bool GTitleLeftThisLaunch = false;
+	/** B-469: the hold deleted the save this launch (the title says so until the new game begins). */
+	bool GTitleSaveDeletedThisLaunch = false;
 	/** "Your save was reset" is said once a launch. */
 	bool GSaveResetNoticeShown = false;
 }
@@ -206,7 +208,7 @@ void UTitleScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	SelectedRow = 0;
-	Status = FText::GetEmpty();
+	Status = GTitleSaveDeletedThisLaunch ? LOCTEXT("SaveDeleted", "Your save is deleted. Choose New Game to begin.") : FText::GetEmpty();
 	StopHold();
 	const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 	const bool bShowReset = Saves && Saves->WasWiped() && !GSaveResetNoticeShown;
@@ -417,6 +419,9 @@ void UTitleScreenWidget::StartOver()
 	{
 		// B-469: the new game screen's Begin resets the old game still in memory and starts the new one.
 		Saves->DeleteSave();
+		// Shown if the player backs out of the new game screen: the old game can't be continued now.
+		GTitleSaveDeletedThisLaunch = true;
+		Status = LOCTEXT("SaveDeleted", "Your save is deleted. Choose New Game to begin.");
 		UE_LOG(LogWoRUI, Warning, TEXT("[Title] New Game held: the save is deleted; the new game screen opens"));
 	}
 	SelectedRow = 0;
