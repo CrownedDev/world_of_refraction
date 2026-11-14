@@ -184,6 +184,8 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 	bComparing = false;
 	bRemoveArmed = false;
 	bRemoveAllArmed = false;
+	SkillEntry = 0; // B-476d
+	SkillRowSelected = 0;
 	RefreshData();
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page));
 }
