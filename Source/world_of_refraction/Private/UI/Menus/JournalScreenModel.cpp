@@ -5,10 +5,14 @@
 #include "Character/CharacterData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Equipment/EquipmentDataBase.h"
 #include "HAL/IConsoleManager.h"
+#include "Memory/CurseData.h"
+#include "Memory/CurseSubsystem.h"
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Story/StoryLinesData.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -38,6 +42,49 @@ namespace JournalScreenBuild
 	FText JoinLines(const TArray<FText> &Lines)
 	{
 		return FText::Join(FText::AsCultureInvariant(TEXT("\n\n")), Lines);
+	}
+
+	FText GetNewTag()
+	{
+		return LOCTEXT("EntryNew", "NEW");
+	}
+
+	FText GetLoreKindName(ELoreKind Kind)
+	{
+		switch (Kind)
+		{
+		case ELoreKind::Note:
+			return LOCTEXT("LoreNote", "Note");
+		case ELoreKind::Overheard:
+			return LOCTEXT("LoreOverheard", "Overheard");
+		case ELoreKind::ItemDescription:
+			return LOCTEXT("LoreItemDescription", "Item description");
+		case ELoreKind::Inscription:
+			break;
+		}
+		return LOCTEXT("LoreInscription", "Inscription");
+	}
+
+	/** B-463c: one reward in player words; empty for one with nothing to name (a title, until titles exist). */
+	FText DescribeReward(const UGameInstance *GameInstance, const FMemoryReward &Reward)
+	{
+		const UCurseSubsystem *Curses = Find<UCurseSubsystem>(GameInstance);
+		const UCurseData *Curse = Curses ? Curses->FindCurseAsset(Reward.RewardId) : nullptr;
+		const FText CurseName = Curse && !Curse->Title.IsEmpty() ? Curse->Title : FText::FromName(Reward.RewardId);
+		switch (Reward.Kind)
+		{
+		case EMemoryRewardKind::Item:
+			return Reward.Item ? FText::FromString(Reward.Item->GetDisplayName()) : FText::GetEmpty(); // TODO(B-127): FString names
+		case EMemoryRewardKind::Skill:
+			return Reward.Skill ? FText::FromString(Reward.Skill->Name) : FText::GetEmpty();
+		case EMemoryRewardKind::Curse:
+			return FText::Format(LOCTEXT("RewardCurse", "the curse {0}"), CurseName);
+		case EMemoryRewardKind::RemoveCurse:
+			return FText::Format(LOCTEXT("RewardRemoveCurse", "{0} lifted"), CurseName);
+		case EMemoryRewardKind::Title:
+			break;
+		}
+		return FText::GetEmpty();
 	}
 
 	bool KeepsQuest(EJournalQuestFilter Filter, EQuestKind Kind)
@@ -76,7 +123,8 @@ namespace JournalScreenBuild
 		return Numbers;
 	}
 
-	FJournalRow MakeQuestRow(const FVisibleQuest &Quest, const int32 *MaskNumber, bool bShown, bool bTracked)
+	FJournalRow MakeQuestRow(const UGameInstance *GameInstance, const FVisibleQuest &Quest, const int32 *MaskNumber, bool bShown,
+							 bool bTracked)
 	{
 		const FText Done = LOCTEXT("QuestDone", "done");
 		FJournalRow Row;
@@ -129,6 +177,20 @@ namespace JournalScreenBuild
 			// D-199: later steps are not shown at all. Rewards stay hidden until earned (UIScreens #6).
 			Row.Note = MaskNumber ? LOCTEXT("SecretNote", "What comes next stays hidden until you reach it.")
 								  : LOCTEXT("RewardNote", "Reward: shown when the quest is done.");
+			return Row;
+		}
+		TArray<FText> Rewards;
+		for (const FMemoryReward &Reward : Quest.Rewards)
+		{
+			const FText Words = DescribeReward(GameInstance, Reward);
+			if (!Words.IsEmpty())
+			{
+				Rewards.Add(Words);
+			}
+		}
+		if (!Rewards.IsEmpty())
+		{
+			Row.Note = FText::Format(LOCTEXT("RewardDoneNote", "Reward: {0}."), JoinNames(Rewards));
 		}
 		return Row;
 	}
@@ -145,7 +207,7 @@ namespace JournalScreenBuild
 		{
 			if (KeepsQuest(Kept, Quest.Kind))
 			{
-				View.Rows.Add(MakeQuestRow(Quest, MaskNumbers.Find(Quest.QuestId), State.ShownSecrets.Contains(Quest.QuestId),
+				View.Rows.Add(MakeQuestRow(GameInstance, Quest, MaskNumbers.Find(Quest.QuestId), State.ShownSecrets.Contains(Quest.QuestId),
 										   Quests->GetTrackedQuest() == Quest.QuestId));
 			}
 		}
@@ -222,25 +284,54 @@ namespace JournalScreenBuild
 			FJournalRow &Row = View.Rows.AddDefaulted_GetRef();
 			Row.Id = Memory->GetMemoryId();
 			Row.Title = Memory->Title.IsEmpty() ? FText::FromName(Row.Id) : Memory->Title;
-			Row.Subtitle = JoinNames(Names);
-			Row.Kicker = Row.Subtitle;
+			Row.bNew = Journal->IsNew(Row.Id);
+			Row.Tag = Row.bNew ? GetNewTag() : FText::GetEmpty();
+			// B-463c: the place it was found (a memory from before places were kept has none).
+			const FText Place = Journal->GetPlace(Memory);
+			Row.Subtitle = Place.IsEmpty() ? JoinNames(Names) : Place;
+			Row.Kicker = Place.IsEmpty() ? JoinNames(Names)
+										 : FText::Format(LOCTEXT("MemoryKicker", "{0} · found in {1}"), JoinNames(Names), Place);
 			Row.Body = Memory->Text;
 		}
 		View.ListNote = View.Rows.IsEmpty() ? LOCTEXT("NoMemories", "No memories yet.")
 											: FText::Format(LOCTEXT("MemoriesFound", "{0} found"), FText::AsNumber(View.Rows.Num()));
 	}
 
-	void BuildLore(const UGameInstance *GameInstance, FJournalView &View)
+	void BuildLore(const UGameInstance *GameInstance, int32 Filter, FJournalView &View)
 	{
 		const UMemoryJournalSubsystem *Journal = Find<UMemoryJournalSubsystem>(GameInstance);
 		const TArray<FJournalLoreEntry> NoLore;
 		const TArray<FJournalLoreEntry> &Read = Journal ? Journal->GetLore() : NoLore;
+
+		// B-463c (UIScreens #6): sub-tabs by place, in the order first read there; only places something was read in.
+		TArray<FString> Places;
+		View.Filters.Add(LOCTEXT("FilterEverything", "Everything"));
+		for (const FJournalLoreEntry &Entry : Read)
+		{
+			if (!Entry.Place.IsEmpty() && !Places.Contains(Entry.Place.ToString()))
+			{
+				Places.Add(Entry.Place.ToString());
+				View.Filters.Add(Entry.Place);
+			}
+		}
+		const int32 Kept = FMath::Clamp(Filter, 0, View.Filters.Num() - 1);
+
 		for (int32 Index = Read.Num() - 1; Index >= 0; --Index) // newest first
 		{
+			const FJournalLoreEntry &Entry = Read[Index];
+			if (Kept > 0 && Entry.Place.ToString() != Places[Kept - 1])
+			{
+				continue;
+			}
 			FJournalRow &Row = View.Rows.AddDefaulted_GetRef();
-			Row.Id = Read[Index].LoreId;
-			Row.Title = Read[Index].Title;
-			Row.Body = Read[Index].Body;
+			Row.Id = Entry.LoreId;
+			Row.Title = Entry.Title;
+			Row.Body = Entry.Body;
+			Row.bNew = Journal->IsNew(Row.Id);
+			Row.Tag = Row.bNew ? GetNewTag() : FText::GetEmpty();
+			Row.Subtitle = GetLoreKindName(Entry.Kind);
+			Row.Kicker = Entry.Place.IsEmpty() ? Row.Subtitle
+											   : FText::Format(LOCTEXT("LoreKicker", "{0} · {1}"), Row.Subtitle, Entry.Place);
 		}
 		View.ListNote = View.Rows.IsEmpty() ? LOCTEXT("NoLore", "Nothing read yet.")
 											: FText::Format(LOCTEXT("LoreFound", "{0} found"), FText::AsNumber(View.Rows.Num()));
@@ -341,7 +432,7 @@ FJournalView WoRJournalScreen::BuildView(UGameInstance *GameInstance, EJournalPa
 		JournalScreenBuild::BuildMemories(GameInstance, Filter, View);
 		break;
 	case EJournalPage::Lore:
-		JournalScreenBuild::BuildLore(GameInstance, View);
+		JournalScreenBuild::BuildLore(GameInstance, Filter, View);
 		break;
 	case EJournalPage::Conversations:
 		JournalScreenBuild::BuildConversations(GameInstance, Filter, State, Story, View);
@@ -414,6 +505,12 @@ bool WoRJournalScreen::ToggleTrack(UGameInstance *GameInstance, const FJournalRo
 		return false;
 	}
 	return Quests->TrackQuest(Quests->GetTrackedQuest() == Row.Id ? NAME_None : Row.Id);
+}
+
+bool WoRJournalScreen::MarkOpened(UGameInstance *GameInstance, const FJournalRow &Row)
+{
+	UMemoryJournalSubsystem *Journal = JournalScreenBuild::Find<UMemoryJournalSubsystem>(GameInstance);
+	return Row.bNew && Journal && Journal->MarkOpened(Row.Id);
 }
 
 FString WoRJournalScreen::GetJournalString(UGameInstance *GameInstance, const TArray<UStoryLinesData *> &Story)

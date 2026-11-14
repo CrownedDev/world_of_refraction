@@ -68,6 +68,8 @@ struct FJournalRow
 	FText Subtitle;
 	/** The small word on the row's right: the quest's kind, or "NEW". */
 	FText Tag;
+	/** B-463c: a memory or lore entry not opened yet (Tag is "NEW"). */
+	bool bNew = false;
 
 	bool bQuest = false;
 	EQuestKind Kind = EQuestKind::Main;
@@ -122,6 +124,10 @@ namespace WoRJournalScreen
 	/** B-463b: A on a quest row tracks it (one at a time; the tracked one stops being tracked). False when Row can't be
 	 *  tracked (a finished or secret quest, or not a quest). */
 	WORLD_OF_REFRACTION_API bool ToggleTrack(UGameInstance *GameInstance, const FJournalRow &Row);
+
+	/** B-463c: the journal showed Row in the reader: a new memory or lore entry stops being new (saved). False when
+	 *  Row wasn't new. The row keeps its NEW in the view built before, so it shows while it is open. */
+	WORLD_OF_REFRACTION_API bool MarkOpened(UGameInstance *GameInstance, const FJournalRow &Row);
 
 	/** Debug: every page as the journal opens it (secret quests masked). */
 	WORLD_OF_REFRACTION_API FString GetJournalString(UGameInstance *GameInstance, const TArray<UStoryLinesData *> &Story);
