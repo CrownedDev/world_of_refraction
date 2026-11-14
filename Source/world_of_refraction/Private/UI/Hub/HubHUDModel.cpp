@@ -61,14 +61,21 @@ bool WoRHubHUD::ShouldShowMoney(bool bNearVendor, float SecondsSinceChange)
 	return bNearVendor || (SecondsSinceChange >= 0.0f && SecondsSinceChange < MONEY_SHOWN_SECONDS);
 }
 
+FText WoRHubHUD::BuildQuestLine(const UWorld *World)
+{
+	return WoRPauseMenu::IsInRun(World) ? WoRPauseMenu::GetTrackedLine(World) : FText::GetEmpty();
+}
+
 FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 {
 	const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
 	const FHubHUDPrompt Prompt = BuildPrompt(PC ? PC->GetPawn() : nullptr);
 	const FHubHUDMoney Money = BuildMoney(World);
-	return FString::Printf(TEXT("[HubHUD] prompt: %s; near a vendor: %s; money: %s %s"),
+	const FText Quest = BuildQuestLine(World);
+	return FString::Printf(TEXT("[HubHUD] prompt: %s; near a vendor: %s; money: %s %s; quest: %s"),
 						   Prompt.bShown ? *FString::Printf(TEXT("%s %s"), *Prompt.Verb.ToString(), *Prompt.What.ToString()) : TEXT("none"),
-						   Prompt.bNearVendor ? TEXT("yes") : TEXT("no"), *Money.Value.ToString(), *Money.Label.ToString());
+						   Prompt.bNearVendor ? TEXT("yes") : TEXT("no"), *Money.Value.ToString(), *Money.Label.ToString(),
+						   Quest.IsEmpty() ? TEXT("none") : *Quest.ToString());
 }
 
 #if !UE_BUILD_SHIPPING
