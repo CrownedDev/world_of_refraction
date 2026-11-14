@@ -555,15 +555,16 @@ bool WoRLoadoutScreen::TakeOffGear(FCombatLoadout &Loadout, ECharacterClass Clas
 	return false;
 }
 
+ULoadoutComponent *WoRLoadoutScreen::FindMemberLoadout(UWorld *World, const FLoadoutScreenMember &Member, UInventoryComponent *&OutInventory)
+{
+	OutInventory = WoRGive::FindMemberInventory(World, Member.Key);
+	ULoadoutComponent *Loadout = OutInventory && OutInventory->GetOwner() ? OutInventory->GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	return Loadout && OutInventory->SavedLoadouts.IsValidIndex(OutInventory->ActiveLoadoutIndex) ? Loadout : nullptr;
+}
+
 namespace LoadoutScreenBuild
 {
-	/** The member's spawned loadout component, with its inventory; null when the member isn't in this level. */
-	ULoadoutComponent *FindMemberLoadout(UWorld *World, const FLoadoutScreenMember &Member, UInventoryComponent *&OutInventory)
-	{
-		OutInventory = WoRGive::FindMemberInventory(World, Member.Key);
-		ULoadoutComponent *Loadout = OutInventory && OutInventory->GetOwner() ? OutInventory->GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
-		return Loadout && OutInventory->SavedLoadouts.IsValidIndex(OutInventory->ActiveLoadoutIndex) ? Loadout : nullptr;
-	}
+	using WoRLoadoutScreen::FindMemberLoadout;
 
 	FText MemberNotHere(const FLoadoutScreenMember &Member)
 	{
@@ -641,28 +642,37 @@ FText WoRLoadoutScreen::UnequipRow(UWorld *World, const FLoadoutScreenMember &Me
 	return Refusal;
 }
 
+void WoRLoadoutScreen::FindRowGear(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, FWeaponLoadoutEntry *&OutWeapon, FRingLoadoutEntry *&OutAdapter)
+{
+	OutWeapon = nullptr;
+	OutAdapter = nullptr;
+	switch (Row.Place)
+	{
+	case ELoadoutScreenPlace::Primary:
+		OutWeapon = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None ? &Loadout.PrimaryWeapon : nullptr;
+		OutAdapter = Loadout.PrimarySlotType == EPrimarySlotType::Ring ? &Loadout.PrimaryRing : nullptr;
+		break;
+	case ELoadoutScreenPlace::Secondary:
+		OutWeapon = &Loadout.SecondaryWeapon;
+		break;
+	case ELoadoutScreenPlace::Adapter:
+		OutAdapter = Loadout.RingLoadout.IsValidIndex(Row.AdapterIndex) ? &Loadout.RingLoadout[Row.AdapterIndex] : nullptr;
+		break;
+	default:
+		break;
+	}
+}
+
 namespace LoadoutScreenBuild
 {
 	/** Row's Socket in the loadout's own copy of the piece (the legacy entry its place mirrors), or null. */
 	FRuntimeAttachedItem *FindSocketItem(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket)
 	{
-		FWeaponInventoryEntry *Weapon = nullptr;
-		FRingInventoryEntry *Ring = nullptr;
-		switch (Row.Place)
-		{
-		case ELoadoutScreenPlace::Primary:
-			Weapon = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None ? &Loadout.PrimaryWeapon.WeaponEntry : nullptr;
-			Ring = Loadout.PrimarySlotType == EPrimarySlotType::Ring ? &Loadout.PrimaryRing.RingEntry : nullptr;
-			break;
-		case ELoadoutScreenPlace::Secondary:
-			Weapon = &Loadout.SecondaryWeapon.WeaponEntry;
-			break;
-		case ELoadoutScreenPlace::Adapter:
-			Ring = Loadout.RingLoadout.IsValidIndex(Row.AdapterIndex) ? &Loadout.RingLoadout[Row.AdapterIndex].RingEntry : nullptr;
-			break;
-		default:
-			break;
-		}
+		FWeaponLoadoutEntry *WeaponSlot = nullptr;
+		FRingLoadoutEntry *RingSlot = nullptr;
+		WoRLoadoutScreen::FindRowGear(Loadout, Row, WeaponSlot, RingSlot);
+		FWeaponInventoryEntry *Weapon = WeaponSlot ? &WeaponSlot->WeaponEntry : nullptr;
+		FRingInventoryEntry *Ring = RingSlot ? &RingSlot->RingEntry : nullptr;
 		if (Socket == LoadoutScreenSockets::CRYSTAL)
 		{
 			return Weapon ? &Weapon->AttachedItem : Ring ? &Ring->AttachedItem : nullptr;

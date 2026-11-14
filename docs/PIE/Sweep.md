@@ -419,6 +419,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-442](B-442.md) | The character sheet (D-181): pillars, sub-stats, resistance by damage type | Pending | REVIEW (in dev, `feature/B-442-character-sheet`) | [ ] |
 | [B-440a](B-440a.md) | The loadout screen, piece 1 (D-181, D-180): the gear page, read only | Pending | REVIEW (in dev, `feature/B-440-loadout-screen`) | [ ] |
 | [B-440b](B-440b.md) | The loadout screen, piece 2: change gear (A picker, X unequip) | Pending | REVIEW (in dev, `feature/B-440b-loadout-change-gear`) | [ ] |
+| [B-440d](B-440d.md) | The loadout screen, piece 4: the Skills page | Pending | REVIEW (in dev, `feature/B-440d-loadout-skills-page`) | [ ] |
 | [B-440c](B-440c.md) | The loadout screen, piece 3: the socket picker | Pending | REVIEW (in dev, `feature/B-440c-loadout-socket-picker`) | [ ] |
 | [B-439](B-439.md) | The game menu (D-181): pages, party, side panel; a quit run loses everything (D-176); editor step: delete the Blueprint's `IA_ToggleMenu` nodes | Pending | REVIEW (in dev, `feature/B-439-pause-menu`) | [ ] |
 
