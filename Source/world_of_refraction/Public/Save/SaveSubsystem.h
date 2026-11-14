@@ -179,6 +179,12 @@ public:
 	/** Puts the saved run back into the trial subsystem (opens nothing). False when there is no
 	 *  run or its trial can't be found. */
 	static bool RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &TrialRun);
+	/** B-314b: the saved run's store layer (its marks and start counts) reopened in Pool. B-408a: also for a run that
+	 *  can't be restored, so its store changes can be settled. */
+	static void RestoreSavedRunLayer(const FSavedRun &Saved, UPoolSubsystem &Pool);
+
+	/** B-408a (Q-408): this session settled a run the game closed during (the title says the last run was lost). */
+	bool WasClosedRunSettled() const { return bSettledClosedRun; }
 
 private:
 	void HandleLocalPlayerAdded(ULocalPlayer *LocalPlayer);
@@ -193,6 +199,11 @@ private:
 	/** B-208: the first game world is up; resume the loaded run if it is the hub (Q-208). */
 	void HandleWorldActorsInitialized(const FActorsInitializedParams &Params);
 	void TryResumeRun(UWorld *World);
+	/** B-408a (D-172, D-176, Q-408): a run in the player's own save (the game closed mid-run) is restored and then
+	 *  settled as a quit (UTrialRunSubsystem::SettleRunAsQuit); one that can't be restored has its store layer put
+	 *  back and ended the same way. */
+	void SettleClosedRun(const FSavedRun &Run, UWorld *World);
+	bool bSettledClosedRun = false;
 	/** A run not resumed: the restored party forgets its carried state. */
 	void DropRunVitals();
 
