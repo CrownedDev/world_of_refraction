@@ -16,6 +16,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-465](B-465.md) | `feature/B-465-run-end-screens-cloud` (cloud, UNBUILT; includes B-448, B-450) | The wipe card ("Your possibilities end here", the last blow by name, Get up) and the out-of-wipes run-end page (Return) | Pending |
+| [B-465b](B-465b.md) | `feature/B-465b-reward-popups-cloud` (cloud, UNBUILT; on B-465) | A win shows no results screen: reward popups on the right; the small trial HUD bottom left (Prisms, wipes left, quest step) | Pending |
 | [B-450](B-450.md) | `fix/B-450-no-rank-words-cloud` (cloud, UNBUILT; includes B-448) | No enemy rank in player text: the arena names its foe, the Gate says "final fight", the extract confirm; the wipe result names the foe that dealt the last blow | Pending |
 | [B-448](B-448.md) | `fix/B-448-extract-at-boss-rest-cloud` (cloud, UNBUILT) | Extract only at the rest spot a beaten boss leaves; a wild rest spot has no Extract row | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |
