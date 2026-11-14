@@ -703,8 +703,8 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	case ELoadoutV2Mode::SkillPicker:
 		return LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Toggle}  Full / short text        {Back}  Cancel");
 	case ELoadoutV2Mode::ApparelItems:
-		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "{Confirm}  Remove        {Back}  Back")
-																		 : LOCTEXT("HintsApparelItems", "{Confirm}  Pick        {Back}  Back");
+		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Back}  Back")
+																		 : LOCTEXT("HintsApparelItems", "{Confirm}  Pick        {Toggle}  Compare        {Back}  Back");
 	case ELoadoutV2Mode::List:
 	default:
 	{
@@ -875,7 +875,11 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	}
 
 	FText Compare;
-	if (Mode == ELoadoutV2Mode::WindowItems && bComparing && Items.IsValidIndex(Selected) && Slots.IsValidIndex(SlotIndex))
+	if (Mode == ELoadoutV2Mode::ApparelItems && bComparing && Items.IsValidIndex(Selected))
+	{
+		Compare = BuildEquippedCompare(); // B-476e: apparel against the piece worn in this place
+	}
+	else if (Mode == ELoadoutV2Mode::WindowItems && bComparing && Items.IsValidIndex(Selected) && Slots.IsValidIndex(SlotIndex))
 	{
 		const ELoadoutV2Slot GearSlot = Slots[SlotIndex];
 		const FWeaponInventoryEntry *Equipped = nullptr;
@@ -904,8 +908,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		}
 		else
 		{
-			// TODO: B-476d: Compare for adapters, evolutions and socket pieces (UIScreens: power, element, cells, passive).
-			Compare = LOCTEXT("CompareNothing", "Compare shows two weapons: nothing equipped here to set beside it.");
+			// B-476e: adapters, evolutions and socket pieces: the EQUIPPED line beside the highlighted one.
+			Compare = BuildEquippedCompare();
 		}
 	}
 	CompareText->SetText(Compare);
@@ -1259,6 +1263,43 @@ void ULoadoutV2ScreenWidget::PressA()
 	}
 }
 
+FText ULoadoutV2ScreenWidget::BuildEquippedCompare() const
+{
+	if (!Items.IsValidIndex(Selected))
+	{
+		return FText::GetEmpty();
+	}
+	// What a line is, in its own words: its line, else (an apparel piece) its HP / Defence / Amp details.
+	const auto Summary = [](const FLoadoutV2WindowItem &Item)
+	{
+		if (!Item.Line.IsEmpty())
+		{
+			return Item.Line;
+		}
+		TArray<FText> Parts;
+		for (const FLoadoutScreenDetail &Detail : Item.Socket.Row.Details)
+		{
+			Parts.Add(FText::Format(LOCTEXT("CompareDetail", "{0} {1}"), Detail.Label, Detail.Value));
+		}
+		return FText::Join(LOCTEXT("CompareDetailGap", " \u00B7 "), Parts);
+	};
+	const FLoadoutV2WindowItem &Picked = Items[Selected];
+	const FLoadoutV2WindowItem *Equipped = Items.FindByPredicate([](const FLoadoutV2WindowItem &Item) { return Item.bEquipped; });
+	if (!Equipped)
+	{
+		return FText::Format(LOCTEXT("CompareNoneEquipped", "Nothing equipped here \u00B7 Selected {0}: {1}"), Picked.Name, Summary(Picked));
+	}
+	if (Equipped == &Picked)
+	{
+		return FText::Format(LOCTEXT("CompareIsEquipped", "{0} is the one equipped: {1}"), Picked.Name, Summary(Picked));
+	}
+	const FText Line = FText::Format(LOCTEXT("ComparePieces", "Equipped {0}: {1}  /  Selected {2}: {3}"), Equipped->Name, Summary(*Equipped), Picked.Name, Summary(Picked));
+	// A socket line knows the cells spent after it (D-206: a crystal or stone 1, an evolution 2).
+	return !Picked.Socket.Attachment.IsEmpty()
+			   ? FText::Format(LOCTEXT("CompareCells", "{0} \u00B7 Cells after {1}"), Line, FText::AsNumber(Picked.Socket.NewSpent))
+			   : Line;
+}
+
 void ULoadoutV2ScreenWidget::PressCompare()
 {
 	if (Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker) // B-476d: a skill's text too
@@ -1267,7 +1308,7 @@ void ULoadoutV2ScreenWidget::PressCompare()
 		RefreshView();
 		return;
 	}
-	if (Mode == ELoadoutV2Mode::WindowItems)
+	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems) // B-476e: apparel too
 	{
 		bComparing = !bComparing;
 		RefreshView();
@@ -1545,6 +1586,7 @@ void ULoadoutV2ScreenWidget::OpenApparelItems()
 	Mode = ELoadoutV2Mode::ApparelItems;
 	Selected = 0;
 	PickedSocket = INDEX_NONE;
+	bComparing = false; // B-476e
 	Message = FText::GetEmpty();
 	RefreshData();
 	if (Items.IsEmpty())
