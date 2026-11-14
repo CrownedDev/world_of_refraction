@@ -57,6 +57,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Previous / next page (the top tab row) | Q / E, click a tab | LB / RB (L1 / R1) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_TabPrev` / `Next`) | Built (B-452, settings screen) |
 | Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
 | Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
+| Loadout: change the lit gear row (opens the picker); in the picker, put the lit piece in | Enter, Space, left click | A (Cross) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsConfirmKey`; B / Esc closes the picker |
+| Loadout: unequip the lit gear row | X | X (Square) | none (the screen's keys) | Built (B-440b, loadout screen): `WoRMenuStyle::IsToggleKey` |
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
 | Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen; B-456a, vendor screen: sell or dismantle one, or the whole stack): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
@@ -105,6 +107,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-12 | B-129: mapping-context priorities named (`WoRInputPriority`: exploration 0, combat 0, combat menu keys 1) and listed under "Mapping contexts"; no key or priority changes | feature/B-129-input-priorities-cloud |
 | 2026-11-14 | B-439: the game menu opens on `IA_ToggleMenu` (bound in C++); new **Menus** section: move, select, hold to confirm, back, read by the screen itself | feature/B-439-pause-menu |
 | 2026-11-14 | B-440a: previous / next character on LT / RT (Z / C) in the loadout screen, read by the screen itself | feature/B-440-loadout-screen |
+| 2026-11-14 | B-440b: A Change (the gear picker) and X Unequip in the loadout screen, read by the screen itself | feature/B-440b-loadout-change-gear |
 | 2026-11-14 | B-443: the hub HUD prompt shows the Interact key (E / X); no new key | feature/B-443-hub-hud |
 | 2026-11-14 | B-452: previous / next page on LB / RB (Q / E) and change a setting on Left / Right (A / D) in the settings screen, read by the screen itself | feature/B-452-settings-screen |
 | 2026-11-14 | B-456d: the vendor screen's Repair tab: A repairs the focused piece, X repairs everything (each asks first); Curses: A clears; Merge: Left / Right picks the tier to make, A merges; read by the screen itself | feature/B-456d-spiritualist-services |
