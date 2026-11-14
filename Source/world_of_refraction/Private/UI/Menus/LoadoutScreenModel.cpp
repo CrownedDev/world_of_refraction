@@ -376,6 +376,13 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 	return Page;
 }
 
+FText WoRLoadoutScreen::GetSignedNumber(int32 Value)
+{
+	FNumberFormattingOptions Signed;
+	Signed.AlwaysSign = true;
+	return FText::AsNumber(Value, &Signed);
+}
+
 FText WoRLoadoutScreen::GetAmpText(const FAmpBonus &Amp)
 {
 	TArray<FText> Parts;
@@ -383,7 +390,7 @@ FText WoRLoadoutScreen::GetAmpText(const FAmpBonus &Amp)
 	{
 		if (Value != 0)
 		{
-			Parts.Add(FText::Format(LOCTEXT("AmpPart", "{0} Amp {1}"), Name, FText::FromString(FString::Printf(TEXT("%+d"), Value))));
+			Parts.Add(FText::Format(LOCTEXT("AmpPart", "{0} Amp {1}"), Name, GetSignedNumber(Value)));
 		}
 	};
 	Add(LOCTEXT("AmpAll", "All"), Amp.All);
@@ -414,14 +421,11 @@ FLoadoutScreenRow WoRLoadoutScreen::BuildApparelRow(const FApparelEntry &Entry)
 	AddDetail(Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
 	AddDetail(Row, LOCTEXT("DetailBonusLine", "Bonus"), ApparelBonusLine::GetText(Entry.BonusLine)); // B-475 (D-208)
 	// B-476e (UIScreens #2-3: apparel shows HP / Defence / Amp + its bonus): the piece's own lines (UApparelData::GetStatLines).
-	if (Entry.Apparel)
-	{
-		const FEquipmentStatBonus Lines = Entry.Apparel->GetStatLines();
-		const auto Signed = [](int32 Value) { return FText::FromString(FString::Printf(TEXT("%+d"), Value)); };
-		AddDetail(Row, LOCTEXT("DetailMaxHP", "HP"), Lines.BonusMaxHP != 0 ? Signed(Lines.BonusMaxHP) : FText::GetEmpty());
-		AddDetail(Row, LOCTEXT("DetailDefence", "Defence"), Lines.BonusDefense != 0 ? Signed(Lines.BonusDefense) : FText::GetEmpty());
-		AddDetail(Row, LOCTEXT("DetailAmp", "Amp"), GetAmpText(Lines.Amp));
-	}
+	// The owned piece's lines (the asset's plus its roll, FApparelEntry::GetStatLines), as a fight reads them.
+	const FEquipmentStatBonus Lines = Entry.GetStatLines();
+	AddDetail(Row, LOCTEXT("DetailMaxHP", "HP"), Lines.BonusMaxHP != 0 ? GetSignedNumber(Lines.BonusMaxHP) : FText::GetEmpty());
+	AddDetail(Row, LOCTEXT("DetailDefence", "Defence"), Lines.BonusDefense != 0 ? GetSignedNumber(Lines.BonusDefense) : FText::GetEmpty());
+	AddDetail(Row, LOCTEXT("DetailAmp", "Amp"), GetAmpText(Lines.Amp));
 	return Row;
 }
 

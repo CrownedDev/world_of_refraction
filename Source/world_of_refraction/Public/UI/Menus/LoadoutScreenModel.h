@@ -175,6 +175,9 @@ namespace WoRLoadoutScreen
 	/** B-440f: an apparel piece as a gear row (its socket, tier, element; outside the budget); GearID is its owned id. */
 	WORLD_OF_REFRACTION_API FLoadoutScreenRow BuildApparelRow(const FApparelEntry &Entry);
 
+	/** B-476e: a number with its sign ("+20", "-3"). */
+	WORLD_OF_REFRACTION_API FText GetSignedNumber(int32 Value);
+
 	/** B-476e: an Amp bonus in words, its non-zero lines ("Fire Amp +2 · Spell Amp +1"); empty when it has none. */
 	WORLD_OF_REFRACTION_API FText GetAmpText(const FAmpBonus &Amp);
 
