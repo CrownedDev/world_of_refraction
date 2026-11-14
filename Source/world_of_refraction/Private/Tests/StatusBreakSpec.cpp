@@ -3,14 +3,13 @@
 // counted by the one rule (FTurnSpan, D-051): the landing turn counts if it is the holder's,
 // and the break ends as the holder's turn after those starts, before its payouts.
 // Also: Burn pays out exactly once per counted turn; Water slows Action + Spell Speed;
-// Broken Darkness drains EP; Wind pushes the holder's next turn back one place.
+// Broken Darkness drains EP. B-170h2: Wind's old place delay went with the speed timeline (its action row is below).
 // Break sizes (B-286): SB-19 Burn 8% of max HP, SB-20 Earth defence down 30%, SB-22 Water slows
 // both speeds 30%, SB-28 Reality deals 25% of max HP at once and can kill.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
@@ -23,7 +22,6 @@
 namespace
 {
 	constexpr int32 BREAK_TEST_TWO_TURNS = 2;
-	constexpr int32 BREAK_TEST_TURNS_RECORDED = 2;
 
 	// The rules' numbers (docs/Rules/03-status-bars.md), written out so a changed constant fails here.
 	constexpr float B286_SB19_BURN_MAX_HP_FRACTION = 0.08f;
@@ -33,11 +31,8 @@ namespace
 	/** HP left on the holder so the Reality break is a killing blow. */
 	constexpr int32 B286_REALITY_LETHAL_HP = 1;
 
-	/** B-170d: the action-pips switch, and a bank big enough to show an action taken (Max 2 with no action points). */
-	const TCHAR *const BREAK_TEST_PIPS_SWITCH = TEXT("wor.Turns.ActionPips");
+	/** B-170d: a bank big enough to show an action taken (Max 2 with no action points). */
 	constexpr int32 BREAK_TEST_BANK = 2;
-	constexpr int32 BREAK_TEST_PIPS_ON = 1;
-	constexpr int32 BREAK_TEST_PIPS_OFF = 0;
 }
 
 BEGIN_DEFINE_SPEC(FStatusBreakSpec, "WoR.Effects.StatusBreaks",
@@ -61,18 +56,14 @@ BEGIN_DEFINE_SPEC(FStatusBreakSpec, "WoR.Effects.StatusBreaks",
 		return EffectManager->HasEffectOfType(Actor, Type);
 	}
 
-	IConsoleVariable *PipsSwitch = nullptr;
-	int32 PipsSwitchBefore = BREAK_TEST_PIPS_OFF;
-
-	/** B-170d: a 1v1 fight with wor.Turns.ActionPips at SwitchValue, latched by InitializeCombat; the holder banks 2
-	 *  actions (Max) so a loss shows. False (recorded) when the setup didn't hold. */
-	bool StartPipsFight(int32 SwitchValue, AActor *&OutHolder, AActor *&OutAttacker)
+	/** B-170d: a 1v1 fight; the holder banks 2 actions (Max) so a loss shows. False (recorded) when the setup didn't
+	 *  hold. */
+	bool StartPipsFight(AActor *&OutHolder, AActor *&OutAttacker)
 	{
-		if (!EffectManager || !TurnManager || !TestNotNull(TEXT("the switch exists"), PipsSwitch))
+		if (!EffectManager || !TurnManager)
 		{
 			return false;
 		}
-		PipsSwitch->Set(SwitchValue, ECVF_SetByConsole);
 		OutHolder = Spawn();
 		OutAttacker = Spawn();
 		UCharacterDataComponent *Char = CharOf(OutHolder);
@@ -83,19 +74,7 @@ BEGIN_DEFINE_SPEC(FStatusBreakSpec, "WoR.Effects.StatusBreaks",
 		TurnManager->InitializeCombat({OutHolder}, {OutAttacker});
 		Char->ResetActionsForFight();
 		Char->GainActions(BREAK_TEST_BANK, /*bMayPassMax=*/false);
-		return TestEqual(TEXT("the fight runs the mode asked for"), TurnManager->IsRotationMode(), SwitchValue == BREAK_TEST_PIPS_ON);
-	}
-
-	/** Actors of the next NumTurns turns after the current one. */
-	TArray<AActor *> NextTurns(int32 NumTurns)
-	{
-		TArray<AActor *> Order;
-		for (int32 Turn = 0; Turn < NumTurns; ++Turn)
-		{
-			TurnManager->AdvanceToNextTurn();
-			Order.Add(TurnManager->GetCurrentActor());
-		}
-		return Order;
+		return TestTrue(TEXT("the fight runs"), TurnManager->IsCombatActive());
 	}
 END_DEFINE_SPEC(FStatusBreakSpec)
 
@@ -293,25 +272,6 @@ void FStatusBreakSpec::Define()
 			TestEqual(TEXT("A share of max EP drained"), Char->CurrentEP, FMath::Max(0, Expected));
 		});
 
-		It("of Wind pushes the holder's next turn back one place, once per attacker", [this]()
-		{
-			const FWoRActionPipsSwitchScope SpeedTimeline(WOR_TEST_SPEED_TIMELINE); // B-170h: the old timeline's Wind row
-			if (!EffectManager || !TurnManager) return;
-			AActor *Local = Spawn();
-			AActor *Opposing = Spawn();
-			TurnManager->InitializeCombat({Local}, {Opposing});
-			if (!TestTrue(TEXT("Local acts first"), TurnManager->GetCurrentActor() == Local)) return;
-
-			EffectManager->ApplyTriggeredSkillEffect(Local, Opposing, ESkillEffectType::SkipTurn, ESpellElement::Wind);
-			EffectManager->ApplyTriggeredSkillEffect(Local, Opposing, ESkillEffectType::SkipTurn, ESpellElement::Wind);
-
-			const TArray<AActor *> Order = NextTurns(BREAK_TEST_TURNS_RECORDED);
-			if (!TestEqual(TEXT("Turns recorded"), Order.Num(), BREAK_TEST_TURNS_RECORDED)) return;
-			TestTrue(TEXT("Local goes again before the gusted Opposing"), Order[0] == Local);
-			// A second push from the same attacker would hand this turn to Local too.
-			TestTrue(TEXT("Opposing acts one place later, pushed only once"), Order[1] == Opposing);
-		});
-
 		It("of Fire Burns for 8% of max HP (SB-19, B-286)", [this]()
 		{
 			if (!EffectManager) return;
@@ -379,8 +339,8 @@ void FStatusBreakSpec::Define()
 		});
 	});
 
-	// B-170d (Q-170e, ActionPips.md §3.4): in an action-pips fight (the switch latched at InitializeCombat) the Water,
-	// Wind and Ice rows change; with the switch off they play as built (the cases above).
+	// B-170d (Q-170e, ActionPips.md §3.4): in a fight the Water, Wind and Ice rows are the action-pips rows; outside one
+	// (the cases above) the base rows (B-170h2b folds them).
 	Describe("A full bar in an action-pips fight", [this]()
 	{
 		BeforeEach([this]()
@@ -389,8 +349,6 @@ void FStatusBreakSpec::Define()
 			TestTrue(TEXT("Test world created"), TestWorld->Create());
 			EffectManager = TestWorld->GetSubsystem<USkillEffectManager>();
 			TurnManager = TestWorld->GetSubsystem<UTurnManager>();
-			PipsSwitch = IConsoleManager::Get().FindConsoleVariable(BREAK_TEST_PIPS_SWITCH);
-			PipsSwitchBefore = PipsSwitch ? PipsSwitch->GetInt() : BREAK_TEST_PIPS_OFF;
 		});
 
 		AfterEach([this]()
@@ -399,11 +357,6 @@ void FStatusBreakSpec::Define()
 			{
 				TurnManager->EndCombat();
 			}
-			if (PipsSwitch)
-			{
-				PipsSwitch->Set(PipsSwitchBefore, ECVF_SetByConsole);
-			}
-			PipsSwitch = nullptr;
 			TestWorld.Reset();
 			EffectManager = nullptr;
 			TurnManager = nullptr;
@@ -413,7 +366,7 @@ void FStatusBreakSpec::Define()
 		{
 			AActor *Holder = nullptr;
 			AActor *Attacker = nullptr;
-			if (!StartPipsFight(BREAK_TEST_PIPS_ON, Holder, Attacker)) return;
+			if (!StartPipsFight(Holder, Attacker)) return;
 			UCharacterDataComponent *Char = CharOf(Holder);
 			const int32 BankBefore = Char->CurrentActions;
 			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::IceBreak, ESpellElement::Water);
@@ -430,7 +383,7 @@ void FStatusBreakSpec::Define()
 		{
 			AActor *Holder = nullptr;
 			AActor *Attacker = nullptr;
-			if (!StartPipsFight(BREAK_TEST_PIPS_ON, Holder, Attacker)) return;
+			if (!StartPipsFight(Holder, Attacker)) return;
 			const ESkillEffectType WaterBreak = BarCapTriggerResolver::ResolveTrigger(ESpellElement::Water, EPhysicalDamageType::None, false);
 			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, WaterBreak, ESpellElement::Water);
 			TestEqual(TEXT("Spell Speed slowed"), EffectManager->GetTotalStatModifier(Holder, ESkillEffectType::SpellSpeedDebuff),
@@ -442,7 +395,7 @@ void FStatusBreakSpec::Define()
 		{
 			AActor *Holder = nullptr;
 			AActor *Attacker = nullptr;
-			if (!StartPipsFight(BREAK_TEST_PIPS_ON, Holder, Attacker)) return;
+			if (!StartPipsFight(Holder, Attacker)) return;
 			UCharacterDataComponent *Char = CharOf(Holder);
 			const int32 BankBefore = Char->CurrentActions;
 			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::SkipTurn, ESpellElement::Wind);
@@ -457,20 +410,6 @@ void FStatusBreakSpec::Define()
 			}
 			Char->ApplyWaitingActionChanges(); // the holder's next turn start
 			TestEqual(TEXT("Taken at the next turn start"), Char->CurrentActions, BankBefore - CombatConstants::WIND_BREAK_ACTIONS_LOST);
-		});
-
-		It("plays the rows as built with the switch off", [this]()
-		{
-			AActor *Holder = nullptr;
-			AActor *Attacker = nullptr;
-			if (!StartPipsFight(BREAK_TEST_PIPS_OFF, Holder, Attacker)) return;
-			UCharacterDataComponent *Char = CharOf(Holder);
-			const int32 BankBefore = Char->CurrentActions;
-			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::IceBreak, ESpellElement::Water);
-			EffectManager->ApplyTriggeredSkillEffect(Attacker, Holder, ESkillEffectType::SkipTurn, ESpellElement::Wind);
-			TestEqual(TEXT("Ice takes no action"), Char->CurrentActions, BankBefore);
-			TestEqual(TEXT("Wind waits nothing"), Char->GetWaitingActionChanges().Num(), 0);
-			TestTrue(TEXT("Wind keeps its Skip Turn marker"), Has(Holder, ESkillEffectType::SkipTurn));
 		});
 	});
 }
