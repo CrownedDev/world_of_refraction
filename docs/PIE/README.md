@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-471c](B-471c.md) | `feature/B-471c-npc-talk-cloud` (cloud, UNBUILT; includes B-471b) | The talk box: Shop / Talk / Leave, V's lines under Talk with NEW, Y the log; the journal station opens the journal screen | Pending |
 | [B-471b](B-471b.md) | `feature/B-471b-talk-recruit-screens-cloud` (cloud, UNBUILT) | The recruit card: Invite for this run, or who steps out of a full party | Pending |
 | [B-471](B-471.md) | `feature/B-471-npc-talk-recruit-cloud` (cloud, UNBUILT) | The recruit card's rules: with a full party only an NPC steps out (never you or a friend), a party of players refuses; placeholder `wor.Party.RecruitInPlaceOf <slot>` until the card (B-471b) | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |
