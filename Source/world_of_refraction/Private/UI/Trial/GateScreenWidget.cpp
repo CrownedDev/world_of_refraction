@@ -199,13 +199,13 @@ void UGateScreenWidget::BuildTree()
 	EnterFrame->SetHorizontalAlignment(HAlign_Center);
 	EnterFrame->SetVerticalAlignment(VAlign_Center);
 	UTextBlock *EnterLabel = MakeText(WidgetTree, NameFontSize, TextColor, true);
-	EnterLabel->SetText(LOCTEXT("Enter", "Enter the trial"));
+	EnterLabel->SetText(LOCTEXT("Enter", "Enter"));
 	EnterFrame->SetContent(EnterLabel);
 	AddToColumn(Right, MakeSized(WidgetTree, PanelWidth, EnterHeight, EnterFrame), FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Right), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Toggle}  Party        {Second}  Loadout        {Confirm}  Select        {Back}  Cancel"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Toggle}  Party        {Second}  Loadout        {Confirm}  Select        {Back}  Back"));
 	AddToColumn(Main, Hints, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -397,7 +397,7 @@ void UGateScreenWidget::PressSelect()
 	{
 		if (Page.Trials[Focus].bLocked)
 		{
-			Message = LOCTEXT("LockedTrial", "That trial is still locked.");
+			Message = LOCTEXT("LockedTrial", "Locked.");
 		}
 		else
 		{

@@ -100,7 +100,7 @@ TSharedRef<SWidget> UTrialGateWidget::RebuildWidget()
 		DifficultyText = TrialGateBuild::AddButton(WidgetTree, Box, Button);
 		Button->OnClicked.AddDynamic(this, &UTrialGateWidget::HandleDifficultyClicked);
 
-		TrialGateBuild::AddButton(WidgetTree, Box, Button)->SetText(LOCTEXT("Enter", "Enter the trial"));
+		TrialGateBuild::AddButton(WidgetTree, Box, Button)->SetText(LOCTEXT("Enter", "Enter"));
 		Button->OnClicked.AddDynamic(this, &UTrialGateWidget::HandleEnterClicked);
 
 		TrialGateBuild::AddButton(WidgetTree, Box, Button)->SetText(LOCTEXT("Cancel", "Cancel"));

@@ -126,7 +126,7 @@ FText WoRGateScreen::GetEnterRefusal(const UGameInstance *GameInstance, const UT
 	{
 		return LOCTEXT("NoTrial", "Pick a trial first.");
 	}
-	return IsUnlocked(GameInstance, Gate->Variations[TrialIndex]) ? FText::GetEmpty() : LOCTEXT("Locked", "That trial is still locked.");
+	return IsUnlocked(GameInstance, Gate->Variations[TrialIndex]) ? FText::GetEmpty() : LOCTEXT("Locked", "Locked.");
 }
 
 FText WoRGateScreen::Enter(UGameInstance *GameInstance, UTrialData *Gate, int32 TrialIndex, ETrialDifficulty Difficulty)
