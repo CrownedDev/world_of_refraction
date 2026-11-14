@@ -13,6 +13,10 @@
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Math/RandomStream.h"
 #include "Pool/PoolSubsystem.h"
+#include "Character/CharacterData.h"
+#include "Inventory/InventoryComponent.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Loadout/LoadoutComponent.h"
 
 namespace
 {
@@ -54,19 +58,19 @@ void FApparelBonusLineSpec::Define()
 		TestFalse(TEXT("Turn Speed is not rollable"), ApparelBonusLine::GetRollableSubStats().Contains(ESubStat::TurnSpeed));
 	});
 
-	It("adds the line to the piece's stat lines: a sub-stat's points, a pillar's percent", [this]()
+	It("turns the line into stats: a sub-stat's points, a pillar's percent", [this]()
 	{
 		FApparelEntry Piece;
 		Piece.BonusLine.Kind = EApparelBonusKind::SubStat;
 		Piece.BonusLine.SubStat = ESubStat::Luck;
 		Piece.BonusLine.Value = ApparelBonusLine::SUB_STAT_LINE_POINTS;
-		TestEqual(TEXT("+2 Luck"), Piece.GetStatLines().BonusLuck, FMath::RoundToInt(ApparelBonusLine::SUB_STAT_LINE_POINTS));
+		TestEqual(TEXT("+2 Luck"), Piece.GetBonusLineStats().BonusLuck, FMath::RoundToInt(ApparelBonusLine::SUB_STAT_LINE_POINTS));
 		TestFalse(TEXT("named"), ApparelBonusLine::GetText(Piece.BonusLine).IsEmpty());
 
 		Piece.BonusLine.Kind = EApparelBonusKind::Pillar;
 		Piece.BonusLine.Pillar = EWorldPillar::Spirit;
 		Piece.BonusLine.Value = ApparelBonusLine::PILLAR_LINE_PERCENT;
-		const FEquipmentStatBonus Lines = Piece.GetStatLines();
+		const FEquipmentStatBonus Lines = Piece.GetBonusLineStats();
 		TestEqual(TEXT("+5% Spirit"), Lines.BonusSpiritModifierPercent, ApparelBonusLine::PILLAR_LINE_PERCENT);
 		TestEqual(TEXT("no pillar points elsewhere"), Lines.BonusMindModifierPercent, 0.0f);
 		TestTrue(TEXT("named as a percent"), ApparelBonusLine::GetText(Piece.BonusLine).ToString().Contains(TEXT("%")));
@@ -87,6 +91,27 @@ void FApparelBonusLineSpec::Define()
 		});
 
 		AfterEach([this]() { TestWorld.Reset(); });
+
+		It("adds a worn piece's line flat, the same at every tier (D-208)", [this]()
+		{
+			UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+			ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, nullptr);
+			if (!TestNotNull(TEXT("Loadout"), Loadout))
+			{
+				return;
+			}
+			UInventoryComponent *Inventory = Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>();
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			const int32 LuckBefore = Loadout->GetActiveStatBonus(Loadout->GetOwner()).BonusLuck;
+			FApparelEntry Piece = FApparelEntry::CreateFromApparel(NewObject<UApparelData>(GetTransientPackage()));
+			Piece.Tier = EItemTier::S_Tier;
+			Piece.BonusLine.Kind = EApparelBonusKind::SubStat;
+			Piece.BonusLine.SubStat = ESubStat::Luck;
+			Piece.BonusLine.Value = ApparelBonusLine::SUB_STAT_LINE_POINTS;
+			TestTrue(TEXT("worn"), ApparelRules::AddApparel(Active, Piece));
+			TestEqual(TEXT("an S piece's +2 Luck is +2"), Loadout->GetActiveStatBonus(Loadout->GetOwner()).BonusLuck - LuckBefore,
+					  FMath::RoundToInt(ApparelBonusLine::SUB_STAT_LINE_POINTS));
+		});
 
 		It("gives two drops of one apparel lines that can differ, and keeps a loaded piece's line (D-208)", [this]()
 		{
