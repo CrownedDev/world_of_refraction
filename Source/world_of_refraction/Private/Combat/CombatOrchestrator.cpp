@@ -49,6 +49,7 @@
 #include "Equipment/Durability/CrystalBreak.h"
 #include "Inventory/ItemEffectType.h"
 #include "Combat/Mechanics/WeatherStateManager.h"
+#include "Save/SaveSubsystem.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "TimerManager.h"
@@ -471,6 +472,8 @@ void ACombatOrchestrator::HandleCinematicHudHidden(bool bHudHidden)
 
 void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 {
+	StopIdleTurnClock(); // B-453e
+	IdleTakenActor.Reset();
 	if (CombatState == ECombatState::Idle)
 		return;
 
@@ -717,6 +720,7 @@ void ACombatOrchestrator::ReleaseCombatResources()
 
 void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 {
+	StopIdleTurnClock(); // B-453e: a choice was made
 	FString InvalidReason;
 	if (StartActionAsync(Action, InvalidReason) || InvalidReason.IsEmpty())
 	{
@@ -726,7 +730,7 @@ void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 	// Never strand the turn: the auto-advance timer is already cleared and the
 	// caller (AI timer / menu click) has no return value to recover with.
 	AActor *Actor = CurrentActor;
-	if (IsActorAIControlled(Actor))
+	if (IsActorAIControlled(Actor) || IsAIFinishingIdleTurn(Actor)) // B-453e: the AI's pick for an idled turn passes too
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] %s AI action invalid (%s) - passing turn"),
 			   *Actor->GetName(), *InvalidReason);
@@ -1196,6 +1200,10 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 		OnActionCompleted();
 		return;
 	}
+
+	// B-453e: a new turn is the player's again, whoever idled the last one.
+	IdleTakenActor.Reset();
+	StopIdleTurnClock();
 
 	// Broadcast for UI/listeners
 	OnActorTurnStarted.Broadcast(CurrentActor, CurrentTurnNumber);
@@ -1693,6 +1701,72 @@ void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor *Actor)
 		   *Actor->GetName());
 }
 
+namespace CombatIdleTurn
+{
+	/** B-453e (Q-453e): how long a player's action waits for a choice before the AI takes the rest of the turn. */
+	constexpr float IDLE_TURN_SECONDS = 30.0f;
+}
+
+float ACombatOrchestrator::GetIdleTurnSeconds()
+{
+	return CombatIdleTurn::IDLE_TURN_SECONDS;
+}
+
+void ACombatOrchestrator::StartIdleTurnClock(AActor *Actor)
+{
+	StopIdleTurnClock();
+	const UGameInstance *GI = GetGameInstance();
+	const USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
+	UWorld *World = GetWorld();
+	// TODO: B-453e co-op: a guest's menu input never reaches the host, so its seat would be taken while it plays; until
+	// the guest sends its activity, the clock runs only in a game with no guests.
+	if (!Actor || !World || !Save || !Save->IsAIFinishesIdleTurnOn() || bAutoAdvanceTurns || World->GetNetMode() != NM_Standalone)
+	{
+		return;
+	}
+	IdleClockActor = Actor;
+	World->GetTimerManager().SetTimer(IdleTurnTimer, this, &ACombatOrchestrator::HandleIdleTurnTimeout, CombatIdleTurn::IDLE_TURN_SECONDS, false);
+}
+
+void ACombatOrchestrator::StopIdleTurnClock()
+{
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(IdleTurnTimer);
+	}
+	IdleClockActor.Reset();
+}
+
+void ACombatOrchestrator::NoteTurnActivity()
+{
+	if (AActor *Actor = IdleClockActor.Get())
+	{
+		StartIdleTurnClock(Actor); // the player is still choosing: the clock starts again
+	}
+}
+
+void ACombatOrchestrator::HandleIdleTurnTimeout()
+{
+	AActor *Actor = IdleClockActor.Get();
+	IdleClockActor.Reset();
+	if (!Actor || !IsActorsTurn(Actor) || bWaitingForAsyncAction || IsActorAIControlled(Actor) || !AIDecisionManagerRef)
+	{
+		return; // the turn moved on, an action is playing, or the AI already plays this member
+	}
+	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GetGameInstance()))
+	{
+		if (Menu->IsOpen())
+		{
+			Menu->Close(); // the open menu must not submit a second action
+		}
+	}
+	IdleTakenActor = Actor;
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s idled %.0fs: the AI plays the rest of this turn (B-453e)"), *Actor->GetName(),
+		   CombatIdleTurn::IDLE_TURN_SECONDS);
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	AIDecisionManagerRef->RequestDecision(Actor);
+}
+
 void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 {
 	if (!Actor)
@@ -1712,7 +1786,7 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 
 	// === AI-CONTROLLED ACTOR, or a Void break playing the turn for you (B-199) ===
 	const bool bVoidBroken = SkillEffectManagerRef && SkillEffectManagerRef->HasEffectOfType(Actor, ESkillEffectType::RandomSkill);
-	if (IsActorAIControlled(Actor) || bVoidBroken)
+	if (IsActorAIControlled(Actor) || bVoidBroken || IsAIFinishingIdleTurn(Actor)) // B-453e: an idled turn's rest
 	{
 		if (!AIDecisionManagerRef)
 		{
@@ -1733,6 +1807,7 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Broadcasting OnActionRequested for player actor: %s"),
 		   *Actor->GetName());
 	OnActionRequested.Broadcast(Actor);
+	StartIdleTurnClock(Actor); // B-453e (D-190): with the setting on, the AI takes over after a long idle
 
 	// Auto-advance is a debug fallback for when no UI is wired.
 	// Once the menu is bound to OnActionRequested, this should be off.
