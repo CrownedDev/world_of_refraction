@@ -14,6 +14,10 @@
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/Menus/TitleScreenWidget.h"
+#include "TimerManager.h"
+#include "Trial/TrialRunSubsystem.h"
+#include "UI/Trial/RewardNotices.h"
+#include "UI/Trial/RunEndCardWidget.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -45,6 +49,24 @@ void AWoRHubController::BeginPlay()
 		{
 			HubHUD->AddToViewport(WoRHubControllerConstants::HUB_HUD_ZORDER);
 		}
+		// B-465c (D-187, D-189): a run that just ended left its run-end page; it shows over the hub on arrival, after
+		// the Blueprint's BeginPlay has set its input mode (so the card keeps the keys), and Return gives them back.
+		GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			UGameInstance *GameInstance = GetGameInstance();
+			const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+			URewardNoticeSubsystem *Notices = GameInstance ? GameInstance->GetSubsystem<URewardNoticeSubsystem>() : nullptr;
+			if (!Notices || !Notices->HasRunEnd() || !TrialRun || !TrialRun->IsHubWorld(GetWorld()))
+			{
+				return;
+			}
+			const TOptional<FRunEndPage> Page = Notices->TakeRunEnd();
+			if (URunEndCardWidget *Card = Page.IsSet() ? URunEndCardWidget::AddToPlayer(this) : nullptr)
+			{
+				Card->ShowRunEnd(*Page);
+				Card->OnContinue.AddUniqueDynamic(Card, &URunEndCardWidget::ClosePreview);
+			}
+		}));
 	}
 
 	// Root layout only. The Blueprint's BeginPlay runs after this and still owns

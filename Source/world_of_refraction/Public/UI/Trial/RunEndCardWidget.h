@@ -1,8 +1,10 @@
 // RunEndCardWidget.h
 // B-465 (D-187, D-188, D-189; UIScreens.md #26, #27, mockups run/run_end/2_wipe.png, 4_run_over.png): the wipe card and
 // the run-end page, one code-built card (placeholder look, D-024) over the dimmed battle. ABattleGameMode shows the wipe
-// card instead of the old DEFEAT results; "Get up" goes back to the trial, or, when the wipe ended the run, on to the
-// run-end page, whose "Return" goes to the hub. What it shows is WoRRunEnd's (RunEndModel.h).
+// card instead of the old DEFEAT results; "Get up" goes back to the trial, or, when the wipe ended the run, to the hub.
+// B-465c: every run end (boss beaten, extracted, out of wipes, quit) leaves the run-end page for the hub
+// (UTrialRunSubsystem::AnnounceRunEnd), which shows it on arrival; its "Return" closes it. What it shows is
+// WoRRunEnd's (RunEndModel.h).
 // A press (A, Enter, Space, a click) continues, after a short grace so a held key doesn't skip it; nothing continues on
 // its own (a wipe is read, FeelGuide 7). Previews: wor.UI.WipeCard, wor.UI.RunEnd <0-3>.
 
@@ -45,7 +47,8 @@ public:
 	bool HasContinued() const { return bContinued; }
 	FString GetCardString() const;
 
-	/** The console previews' button: closes the card and gives the keys back to the game. */
+	/** Closes the card and gives the keys back to the game: the console previews' button, and (B-465c) the hub's
+	 *  run-end page's Return (the hub is already there behind it). */
 	UFUNCTION()
 	void ClosePreview();
 

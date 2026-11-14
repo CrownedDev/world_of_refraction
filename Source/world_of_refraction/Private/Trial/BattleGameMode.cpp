@@ -53,6 +53,8 @@ namespace BattleGameModeConstants
     // everyone; these only keep deferred spawns from stacking at one point.
     constexpr float TEAM_X_OFFSET = 300.0f;
     constexpr float COMBATANT_Y_SPACING = 150.0f;
+    /** B-465c: the run-end page shows in the hub for every ending now; true brings back B-465's in-battle page. */
+    constexpr bool SHOW_RUN_END_IN_BATTLE = false;
 }
 
 ABattleGameMode::ABattleGameMode()
@@ -868,9 +870,9 @@ void ABattleGameMode::HandleWipeCardContinue()
     {
         RunEndCard->OnContinue.RemoveDynamic(this, &ABattleGameMode::HandleWipeCardContinue);
     }
-    // B-465 (D-189): the wipe ended the run: the run-end page says what it pays before the hub. Out of wipes and the third
-    // main-boss loss (DefeatRules::RunEnds) are both the defeat ending; the page's words name neither.
-    if (bWipeEndsRun && RunEndCard)
+    // B-465c: the wipe ended the run: the hub shows its run-end page on arrival (ExitTrial's AnnounceRunEnd), as for
+    // every other ending. OBSOLETE once that passes PIE: the in-battle page below (off) and HandleRunEndContinue.
+    if (BattleGameModeConstants::SHOW_RUN_END_IN_BATTLE && bWipeEndsRun && RunEndCard)
     {
         const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
         RunEndCard->ShowRunEnd(WoRRunEnd::BuildRunEnd(ERunEnding::OutOfWipes, TrialRun ? TrialRun->GetRunEndPayout() : FRunPayout()));
