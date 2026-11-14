@@ -159,14 +159,7 @@ y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None
           [("crystal", "Fire"), None], 1, active=True, focus=True)
 y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 add_frame(d, y, 1, 5)
-choices(d, "Swords that fit this entry  ·  A Edit to change it", [
-    ("Ashen Blade", "Fire", "B", "Sword · main hand", "", "worn"),
-    ("Frost Fang", "Water", "C", "Sword · single or dual", "", None),
-    ("Tempest Sabre", "Lightning", "A", "Sword · single or dual", "", None),
-    ("Gale Dagger", "Wind", "D", "", "", "Pairs only with a sword"),
-    ("Greatblade", "None", "B", "", "", "Can't be dual wielded")], 1, [
-    ("Power", "42 + 30", "36 + 30", False), ("Speed", "Normal", "Fast", True), ("Element", "Fire (crystal)", "Fire (crystal)", None),
-    ("Abilities", "Cleave, Whirl…", "Pierce, Lunge…", None)])
+# The right side stays empty for now (Crown may put the focused entry's details there).
 footer(d, FOOT)
 save(im, OUT, "1_weapons_generic.png")
 
@@ -196,9 +189,9 @@ panel(d, (240, 120, 1040, 640), focus=True)
 text(d, (266, 138), "Ashen Blade + Cinder Edge", 22, True)
 text(d, (266, 170), "Dual wield · Sword stance (the main hand's) · ACTIVE", 13, fill=DIM)
 for i, (n, el, t, lines) in enumerate([
-        ("Ashen Blade", "Fire", "B", [("Type", "Sword · single or dual"), ("Power", "42"), ("Scaling", "Body B"),
+        ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"),
                                        ("Speed", "Normal")]),
-        ("Cinder Edge", "None", "C", [("Type", "Sword · single or dual"), ("Power", "30"), ("Scaling", "Body C"),
+        ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"),
                                        ("Speed", "Fast")])]):
     x = 266 + i * 380
     cut(d, (x, 200, x + 356, 380), PLATE, STEEL, 8)
@@ -266,12 +259,13 @@ def screen_g(focus_add=True):
     return base
 
 
-# ---- 2: the Add gear window, Weapon: main and off hand set, socket 1 focused. A is Pick (Remove on the on-now row).
+# ---- 2: the Add gear window, Weapon: main and off hand set, socket 1 focused. A is Pick (Remove on the on-now row),
+#         X Compare.
 im, d = window(screen_g(), "Add gear", "3/5 left",
-               [("A", "Pick"), ("Y", "Confirm"), ("B", "Cancel")])
+               [("A", "Pick"), ("X", "Compare"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 0)
-y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · single or dual")
-y = build_slot(d, y, "Off hand  ·  a sword that pairs, or empty", "Cinder Edge", "None", "Sword · single or dual")
+y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword")
+y = build_slot(d, y, "Off hand  ·  a sword that pairs, or empty", "Cinder Edge", "None", "Sword")
 y = build_slot(d, y, "Augment socket 1", None, ("crystal", None), "A crystal or an evolution, or a stone", focus=True)
 y = build_slot(d, y, "Augment socket 2", None, ("stone", None), "A stone (or a crystal if socket 1 has a stone)")
 cut(d, (146, y + 2, 560, y + 42), BG, STEEL, 8)
@@ -289,7 +283,7 @@ save(im, OUT, "2_add_gear_weapon.png")
 
 # ---- 2a: the Add gear window, Evolution: one per character, on the character, 2 cells; confirming asks first.
 im, d = window(screen_g(), "Add gear", "3/5 left",
-               [("A", "Pick"), ("Y", "Confirm"), ("B", "Cancel")])
+               [("A", "Pick"), ("X", "Compare"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 2)
 build_slot(d, 172, "Garrick's evolution  ·  one per character", "Ironheart", ("evolution", "Earth"), "Evolution · Earth · 2 cells",
            focus=True)
@@ -311,10 +305,10 @@ save(im, OUT, "2a_add_gear_evolution.png")
 # ---- 2b: A Edit on the dual entry opens the window for it. Moving onto the piece already in the focused slot (ON NOW)
 #          turns A into Remove; elsewhere A is Pick.
 im, d = window(screen_g(False), "Edit  ·  Ashen Blade + Cinder Edge", "1/5 left",
-               [("A", "Remove"), ("Y", "Confirm"), ("B", "Cancel")])
+               [("A", "Remove"), ("X", "Compare"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 0)
-y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · single or dual")
-y = build_slot(d, y, "Off hand", "Cinder Edge", "None", "Sword · single or dual")
+y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword")
+y = build_slot(d, y, "Off hand", "Cinder Edge", "None", "Sword")
 y = build_slot(d, y, "Augment socket 1", "Garnet", ("crystal", "Fire"), "Crystal · Fire · 1 cell", focus=True)
 y = build_slot(d, y, "Augment socket 2", None, ("stone", None), "A stone (or a crystal if socket 1 has a stone)")
 text(d, (590, 128), "Augment socket 1", 15, True, DIM)
@@ -326,20 +320,48 @@ item_rows(d, 590, 1134, 156, [
     ("Onyx", ("crystal", "Darkness"), "S", "", "", "S-tier: one per loadout (on Iron Coat)")], 0)
 save(im, OUT, "2b_add_gear_remove.png")
 
+# ---- 2c: X Compare in Add gear: what's on now (Cinder Edge, the off hand) beside the highlighted pick (Frost Fang),
+#          with what you gain (green) and lose (red). Picking and comparing happen only here.
+base = screen_g(False)
+im, d = window(base, "Edit  ·  Ashen Blade + Cinder Edge", "1/5 left",
+               [("A", "Pick"), ("X", "Close compare"), ("Y", "Confirm"), ("B", "Cancel")])
+kind_tabs(d, 0)
+y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword")
+y = build_slot(d, y, "Off hand", "Cinder Edge", "None", "Sword", focus=True)
+text(d, (590, 128), "Off hand  ·  swords that pair", 15, True, DIM)
+item_rows(d, 590, 1134, 156, [
+    ("Cinder Edge", "None", "C", "Sword", "", "worn"),
+    ("Frost Fang", "Water", "C", "Sword", "", None)], 1)
+cut(d, (300, 230, 1100, 600), PANEL, CYAN, 12)
+text(d, (326, 248), "Compare  ·  off hand", 18, True)
+for i, (lab, n, el, t) in enumerate([("On now", "Cinder Edge", "None", "C"), ("Highlighted", "Frost Fang", "Water", "C")]):
+    x = 520 + i * 290
+    text(d, (x, 286), lab, 12, True, CYAN if i else DIM)
+    icon(d, (x, 304, x + 36, 340), ELEMENT[el])
+    text(d, (x + 46, 312), n, 16, True)
+for j, (lab, a, b, good) in enumerate([("Power", "30", "34", True), ("Speed", "Fast", "Normal", False),
+                                        ("Element", "none", "Water", None), ("Cells", "1", "1 (sockets stay)", None)]):
+    yy = 360 + j * 30
+    text(d, (326, yy), lab, 15, fill=DIM)
+    text(d, (520, yy), a, 15, True)
+    col = TXT if good is None else (GOOD if good else RED)
+    text(d, (810, yy), b + ("" if good is None else ("  ▲" if good else "  ▼")), 15, True, col)
+d.line((326, 486, 1074, 486), fill=STEEL)
+text(d, (326, 498), "Abilities", 15, fill=DIM)
+text(d, (520, 498), "Lose", 12, True, RED)
+text(d, (520, 518), "Quick Cut, Whirl", 15, True, RED)
+text(d, (810, 498), "Gain", 12, True, GOOD)
+text(d, (810, 518), "Frost Bite, Chill Edge", 15, True, GOOD)
+text(d, (326, 562), "Both swords' abilities count; the main hand's stay as they are.", 13, fill=DIM)
+save(im, OUT, "2c_add_gear_compare.png")
+
 # ---- 3: Sera (Refractor): one entry, 2 cells; the entry is full, so no frame. Innate spells live on the Skills tab.
 im, d = canvas()
 header(d, 0, 0, "Pyre  ·  1 of 5")
 used_line(d, 1, 2, note="1 entry")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Staff", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1, focus=True)
-choices(d, "One entry  ·  2 cells", [
-    ("Cinder Staff", "Fire", "C", "Staff · Garnet", "1 cell", "worn"),
-    ("Tidal Pike", "Water", "C", "Spear · Sapphire", "1 cell", None),
-    ("Ember Ring", "Fire", "B", "Adapter · evolution", "2 cells", None),
-    ("Pyre Pike", "Fire", "A", "", "", "Evolution + stone: needs 3 cells, 2 here"),
-    ("Twin Fangs", "Wind", "C", "", "", "Twin only: needs two, one item here")], 1, [
-    ("Cells", "1 of 2", "1 of 2", None), ("Power", "28", "34", True),
-    ("Elements cast", "Fire", "Fire, Water", True)])
+# The right side stays empty for now (Crown may put the focused entry's details there).
 footer(d, FOOT)
 save(im, OUT, "3_weapons_refractor.png")
 
@@ -353,14 +375,7 @@ y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1
 y = entry(d, y, "Ring", [("Storm Ring", "Lightning")], [("crystal", "Lightning"), None], 1, h=56)
 y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("evolution", "Water"), None], 2, h=56)
 add_frame(d, y, 1, 5, focus=True)
-choices(d, "Rings you could add  ·  1/5 left", [
-    ("Gale Band", "Wind", "C", "Ring · Emerald", "1 cell", None),
-    ("Frost Ring", "Water", "D", "Ring · empty", "0 cells", None),
-    ("Pyre Ring", "Fire", "B", "", "", "Evolved: needs 2 cells, 1 left"),
-    ("Ember Ring", "Fire", "C", "", "", "Already an entry"),
-    ("Cinder Fists", "None", "C", "", "", "A weapon: the one weapon entry is used")], 0, [
-    ("Cells", "4 of 5", "5 of 5", None), ("Rings", "3 of 5", "4 of 5", None),
-    ("Spell elements", "3", "4 (+ Wind)", True)])
+# The right side stays empty for now (Crown may put the focused entry's details there).
 footer(d, [("A", "Equip"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "4_weapons_resonator.png")
 
