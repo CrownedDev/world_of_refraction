@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-170h](B-170h.md) | `refactor/B-170h-flip-default` (in dev, built 2026-11-14) | Action pips on by default: every fight alternates sides with banked actions and End Turn, no console command; `wor.Turns.ActionPips 0` still gives the old timeline until B-170h2 | Pending |
 | [B-317](B-317.md) | `chore/B-317-store-old-copies` (in dev, built 2026-11-14) | Store 6, first part: a member's crystal inventory keeps no copy of its pouch; the post-fight hand-back is gone; list the enemies with authored item slots (for B-317c) | Pending |
 | [B-435b](B-435b.md) | `feature/B-435b-spell-stacking` (in dev, built 2026-11-14) | Same-element stacking for spells (Q-435 B): every same-element source joins a spell and pays its own cost (a free ring spell pays a matching innate's EP), +25% buildup each; Reality / Broken Darkness may pick their own element | Pending |
 | [B-214h](B-214h.md) | `feature/B-214h-evolution-movement` (in dev, built 2026-11-14) | Field skills part 8: the seated evolution makes the sprint +15% faster always and its field skill 25% cheaper; an evolution can lift flight limits (unlimited flight); a broken one gives nothing | Pending |
