@@ -80,32 +80,7 @@ namespace FieldSkillPickerBuild
 
 	FText TypeName(EFieldMovementType Type)
 	{
-		switch (Type)
-		{
-		case EFieldMovementType::Dash:
-			return LOCTEXT("TypeDash", "Dash");
-		case EFieldMovementType::EnhancedSprint:
-			return LOCTEXT("TypeEnhancedSprint", "Enhanced Sprint");
-		case EFieldMovementType::Glide:
-			return LOCTEXT("TypeGlide", "Glide");
-		case EFieldMovementType::Flight:
-			return LOCTEXT("TypeFlight", "Flight");
-		case EFieldMovementType::Teleport:
-			return LOCTEXT("TypeTeleport", "Teleport");
-		case EFieldMovementType::HighJump:
-			return LOCTEXT("TypeHighJump", "High Jump");
-		case EFieldMovementType::AirDash:
-			return LOCTEXT("TypeAirDash", "Air Dash");
-		case EFieldMovementType::SuperLaunch:
-			return LOCTEXT("TypeSuperLaunch", "Super Launch");
-		case EFieldMovementType::PhaseStep:
-			return LOCTEXT("TypePhaseStep", "Phase Step");
-		case EFieldMovementType::MarkAndRecall:
-			return LOCTEXT("TypeMarkAndRecall", "Mark and Recall");
-		case EFieldMovementType::Regroup:
-			return LOCTEXT("TypeRegroup", "Regroup");
-		}
-		return FText::GetEmpty();
+		return WoRGameNames::GetFieldMovementName(Type); // B-458: the shared name table (D-062)
 	}
 
 	FText RefusalReason(EFieldSkillRefusal Refusal)

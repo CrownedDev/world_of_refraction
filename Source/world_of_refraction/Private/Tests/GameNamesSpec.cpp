@@ -8,6 +8,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
+#include "Field/FieldSkillTypes.h"
 #include "Inventory/InventoryVerbs.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
@@ -61,6 +62,7 @@ void FGameNamesSpec::Define()
 	{
 		ExpectEveryValueNamed<EDefenseType>(&WoRGameNames::GetDefenseTypeName);
 		ExpectEveryValueNamed<ECombatRow>(&WoRGameNames::GetCombatRowName);
+		ExpectEveryValueNamed<EFieldMovementType>(&WoRGameNames::GetFieldMovementName); // B-458
 		ExpectEveryValueNamed<ESpellSchool>(&WoRGameNames::GetSpellSchoolName);
 		ExpectEveryValueNamed<EMerchantType>(&WoRGameNames::GetMerchantTypeName);
 		TestEqual(TEXT("Block reads Guard"), WoRGameNames::GetDefenseTypeName(EDefenseType::Block).ToString(), FString(TEXT("Guard")));

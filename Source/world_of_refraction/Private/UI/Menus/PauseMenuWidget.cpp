@@ -27,6 +27,7 @@
 #include "UI/Menus/SettingsScreenWidget.h"
 #include "UI/Menus/LoadoutScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
+#include "UI/Party/PartyScreenWidget.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -425,7 +426,7 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 		UJournalScreenWidget::Open(GetOwningPlayer());
 		break;
 	case EPauseMenuPage::Party:
-		OpenPlaceholder(Page.Page);
+		UPartyScreenWidget::Open(GetOwningPlayer()); // B-458, over this menu: Back returns here
 		break;
 	case EPauseMenuPage::Quit:
 		if (bConfirmingQuit)
@@ -453,7 +454,7 @@ void UPauseMenuWidget::OpenPlaceholder(EPauseMenuPage Page)
 		{
 			return;
 		}
-		// TODO: the party screen (B-458) replaces this viewport placeholder.
+		// OBSOLETE (B-458): the Party page opens UPartyScreenWidget; remove after Crown's PIE pass.
 		switch (Page)
 		{
 		case EPauseMenuPage::Party:
