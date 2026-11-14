@@ -1,6 +1,7 @@
 // LoadoutScreenModel.h
 // B-440a (D-181, D-180, UIScreens #2, mockups screen_mockups/menus/loadout/): what the loadout screen's gear page
-// shows, with no widget in it, so the specs read it headless. ULoadoutScreenWidget draws it.
+// shows, with no widget in it, so the specs read it headless. ULoadoutV2ScreenWidget reads it (B-488 retired the first
+// screen, ULoadoutScreenWidget): the members, apparel rows, sockets, the gear and socket changes.
 //
 // B-440b: a gear row's place takes another owned weapon or adapter (BuildGearChoices, ApplyGearChoice), or is emptied
 // (UnequipRow). B-440c: a socket takes a carried gem or stone or an owned evolution (BuildSocketChoices,

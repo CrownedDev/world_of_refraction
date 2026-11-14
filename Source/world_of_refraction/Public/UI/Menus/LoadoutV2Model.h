@@ -4,7 +4,8 @@
 // the character's own evolution as one line) with an "Add weapon" frame at the bottom showing the cells left; only the
 // cells used show at the top. The Add gear window builds one entry (a draft: Main hand, Off hand, Augment socket 1 and 2)
 // whose refusals are said in the game's words, and X Compare sets the equipped piece beside the highlighted one.
-// The widget that draws this is B-476b; today's screen (LoadoutScreenModel / ULoadoutScreenWidget) stays until then.
+// The widget that draws this is ULoadoutV2ScreenWidget (B-476b); the first screen's widget was retired by B-488, its
+// model (LoadoutScreenModel) stays: the v2 screen reads it.
 // B-476c: what the Add gear window asks first (BuildAddKinds), the Adapter and Evolution lists, an entry edited in its
 // own place (DraftFromEntry, CheckEntryEdit, ReplaceEntry) or taken off (RemoveEntry, RemoveAllGear), and the details
 // box's lines (BuildEntryDetails: full or simple view, UIScreens B-479c).

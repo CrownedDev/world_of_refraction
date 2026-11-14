@@ -3,7 +3,7 @@
 // with no widget in it, so the specs read it headless. One tab per list: a Refractor's innate spells by school (6 a
 // school, on the points budget less the pillar discount, SpellPoolConstants.h), then each weapon's skill slots and each
 // adapter's spell slots (D-145). The rows are gear-page rows (ELoadoutScreenRowKind::Skill / EmptySkill), so
-// ULoadoutScreenWidget draws them with the gear page's list, picker and detail panel.
+// ULoadoutV2ScreenWidget's Skills tab draws them (WoRLoadoutV2Skills, B-476d; B-488 retired the first screen).
 // A on a slot picks a learned skill (or one of the weapon's built-ins); X takes an innate spell out, or brings back what
 // a pick replaced (Q-440d). Changes go through ULoadoutComponent::TryChangeGear (the loadout's rule check).
 // Debug: wor.UI.PrintSkills logs GetSkillsPageString (every party member's Skills page).
