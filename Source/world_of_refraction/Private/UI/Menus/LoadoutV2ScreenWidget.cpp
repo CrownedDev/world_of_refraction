@@ -336,6 +336,10 @@ void ULoadoutV2ScreenWidget::RefreshSkills()
 		return;
 	}
 	SkillsPage = WoRLoadoutV2Skills::Build(WoRLoadoutSkills::BuildSkillsPage(GetWorld(), Members[MemberIndex]), Page);
+	if (!SkillsPage.Source.Refusal.IsEmpty() && Message.IsEmpty())
+	{
+		Message = SkillsPage.Source.Refusal; // why there are no entries (the member isn't in this level)
+	}
 	if (Mode == ELoadoutV2Mode::SkillEntries)
 	{
 		return;
@@ -805,7 +809,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		{
 			BoxTitle = SkillsPage.Entries[Selected].Header; // "Ashen Blade + Cinder Edge · 4/9 skills"
 		}
-		else if (IsOnSkillsTab() && Details.IsEmpty())
+		else if ((Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker) && Details.IsEmpty())
 		{
 			BoxTitle = LOCTEXT("BoxEmptySlot", "Empty slot: A picks a skill for it");
 		}
@@ -933,7 +937,7 @@ void ULoadoutV2ScreenWidget::SwitchTab(int32 Delta)
 		return;
 	}
 	// B-476d: Weapons | Skills | Apparel, in a ring (Cosmetics later).
-	const int32 TabCount = static_cast<int32>(ELoadoutV2Tab::Apparel) + 1;
+	const int32 TabCount = static_cast<int32>(ELoadoutV2Tab::Last) + 1;
 	Tab = static_cast<ELoadoutV2Tab>(((static_cast<int32>(Tab) + (Delta < 0 ? -1 : 1)) % TabCount + TabCount) % TabCount);
 	Mode = Tab == ELoadoutV2Tab::Skills ? ELoadoutV2Mode::SkillEntries : ELoadoutV2Mode::List;
 	Selected = 0;

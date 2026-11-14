@@ -68,7 +68,9 @@ enum class ELoadoutV2Tab : uint8
 {
 	Weapons,
 	Skills,
-	Apparel
+	Apparel,
+	/** The last tab: SwitchTab's ring ends here (move it when Cosmetics comes). */
+	Last = Apparel
 };
 
 /** B-476c: a slot of the Add gear window. */

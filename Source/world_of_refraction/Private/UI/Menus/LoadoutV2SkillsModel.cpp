@@ -91,7 +91,7 @@ FLoadoutV2SkillsPage WoRLoadoutV2Skills::Build(const FLoadoutSkillsPage &Source,
 		Entry.Tabs.Add(Tab);
 		Entry.Filled = Source.Tabs[Tab].Filled;
 		Entry.Total = Source.Tabs[Tab].Rows.Num();
-		Entry.Header = FText::Format(LOCTEXT("EntryHeader", "{0} · {1}/{2} skills"), Weapon.Name, Entry.Filled, Entry.Total);
+		Entry.Header = FText::Format(LOCTEXT("EntryHeader", "{0} \u00B7 {1}/{2} skills"), Weapon.Name, Entry.Filled, Entry.Total);
 		Page.Entries.Add(MoveTemp(Entry));
 	}
 	FLoadoutV2SkillEntry Innate;
@@ -108,7 +108,7 @@ FLoadoutV2SkillsPage WoRLoadoutV2Skills::Build(const FLoadoutSkillsPage &Source,
 	}
 	if (!Innate.Tabs.IsEmpty())
 	{
-		Innate.Header = FText::Format(LOCTEXT("InnateHeader", "Innate spells · {0}/{1} points"), Source.Points, Source.MaxPoints);
+		Innate.Header = FText::Format(LOCTEXT("InnateHeader", "Innate spells \u00B7 {0}/{1} points"), Source.Points, Source.MaxPoints);
 		Page.Entries.Add(MoveTemp(Innate));
 	}
 	return Page;
