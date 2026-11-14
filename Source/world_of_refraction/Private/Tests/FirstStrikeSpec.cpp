@@ -2,6 +2,7 @@
 // B-185 (Enemies §2, Q-185): touching a team from outside its notice cone gives the party first
 // strike; a team reaching the player from behind gives it to the enemy. The side with first strike
 // takes its whole opening round before the other side moves.
+// B-170h2: runs on the fixed rotation (the speed timeline and its switch are deleted).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -41,14 +42,12 @@ BEGIN_DEFINE_SPEC(FFirstStrikeSpec, "WoR.Combat.FirstStrike",
 		TurnManager->EndCombat();
 		return Order;
 	}
-	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FFirstStrikeSpec)
 
 void FFirstStrikeSpec::Define()
 {
 	BeforeEach([this]()
 	{
-		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
@@ -57,7 +56,6 @@ void FFirstStrikeSpec::Define()
 
 	AfterEach([this]()
 	{
-		SpeedTimeline.Reset();
 		TurnManager = nullptr;
 		TestWorld.Reset();
 	});
