@@ -1,8 +1,8 @@
-"""Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209 / D-210 and Crown's notes). Two columns: what is equipped on the
-left, the focused entry's details on the right (short stat lines; effects as ET-50 nested text). Picking and Compare
+"""Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209 / D-210 and Crown's notes). Weapons and Apparel: one list that takes
+the width; X Details opens a row in place (short stat lines; effects as ET-50 nested text), X again opens its skills. Picking and Compare
 (Equipped vs Selected; ups green, downs red) happen only in the Add gear / Add apparel window, where items that can't go
 in stay listed, greyed, with the reason. Tabs Weapons | Skills | Apparel | Cosmetics (later) on LB / RB. Main keys:
-A Edit / Equip, X Skills, L3 Set active (an inactive weapon entry), Y Options (Set active, Saved loadouts, Remove all
+A Edit / Equip, X Details, L3 Set active (an inactive weapon entry), Y Options (Set active, Saved loadouts, Remove all
 gear, Help, later Cosmetics shortcuts), B Back; help text is not on screen.
 D-210: the Weapons tab is a list of ENTRIES with an empty "Add weapon" frame at the bottom showing the cells left
 ("1/5 left"). The Add gear window asks Weapon, Adapter or Evolution, then Main hand, Off hand, Augment socket 1 and 2
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(OUT, "..", "..", "..", "_kit"))
 from wor_ui import *  # noqa: E402,F401
 
 RED = ROSE_LOW
-L, LR = 48, 620             # left column
+L, LR = 48, 1232            # the entries list takes the width (B-479b); the Skills tab narrows it to 620
 LIST_X = 650                # right column
 TOP = 134
 STONE = (150, 140, 128)     # a plain stone's colour when it has no element
@@ -164,80 +164,97 @@ def tree(d, x, y, lines, step=20):
     return y
 
 
-def details(d, title, sub, pieces, sockets, notes, sock_head="Sockets (shared)", trees=(), sock_cols=1):
-    """The focused entry's details, inline on the right (no pop-up). pieces: (name, el, tier, [(label, value)]);
-    sockets: (socket, name, line); notes: closing lines."""
-    panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-    text(d, (LIST_X + 18, TOP + 12), title, 20, True)
-    text(d, (LIST_X + 18, TOP + 42), sub, 13, fill=DIM)
-    n = len(pieces)
-    w = (1232 - LIST_X - 36 - (n - 1) * 12) // n
-    for i, (name, el, t, lines) in enumerate(pieces):
-        x = LIST_X + 18 + i * (w + 12)
-        cut(d, (x, TOP + 70, x + w, TOP + 104 + 26 * len(lines) + 30), PLATE, STEEL, 8)
-        icon(d, (x + 10, TOP + 80, x + 46, TOP + 116), ELEMENT[el])
-        text(d, (x + 56, TOP + 88), name, 16, True)
-        tier_badge(d, x + 56 + int(d.textlength(name, font=F(16, True))) + 15, TOP + 98, t, 10)
-        for j, (lab, val) in enumerate(lines):
-            text(d, (x + 14, TOP + 128 + j * 26), lab, 14, fill=DIM)
-            text(d, (x + 110, TOP + 128 + j * 26), val, 14, True)
-    y = TOP + 104 + 26 * max(len(p[3]) for p in pieces) + 50
-    for head, lines in trees:
-        text(d, (LIST_X + 18, y - 4), head, 12, True, DIM)
-        y = tree(d, LIST_X + 18, y + 16, lines) + 8
-    if sockets:
-        text(d, (LIST_X + 18, y), sock_head, 15, True, CYAN)
-        y += 28
-    colw = (1232 - LIST_X - 36) // sock_cols
+def open_body(d, y, pieces, lines, sockets, notes=(), skills=True):
+    """X Details (B-479b): the highlighted entry's row grows in place under its header. pieces: (name, el, tier,
+    [(label, value)]); lines: its ET-50 effect tree; sockets: (socket, name, line). Up / Down closes it; the right
+    stick scrolls a tall one; X again opens the entry's skills."""
+    x0 = L + 16
+    yy = y + 4
+    rows = []
+    for name, el, t, stats in pieces:
+        rows.append((yy, name, el, t, stats))
+        yy += 52
+    yy = (yy + 4) if lines else yy
+    tree_y = yy
+    yy += 20 * len(lines) + (8 if lines else 0)
+    sock_y = yy
+    yy += 46 if sockets else 0
+    note_y = yy
+    yy += 22 * len(notes) + (24 if skills else 0) + 6
+    cut(d, (L, y - 8, LR, yy), PANEL, CYAN, 8)
+    for ry, name, el, t, stats in rows:
+        icon(d, (x0, ry + 4, x0 + 24, ry + 28), ELEMENT[el])
+        text(d, (x0 + 34, ry + 6), name, 15, True)
+        tier_badge(d, x0 + 34 + int(d.textlength(name, font=F(15, True))) + 14, ry + 15, t, 9)
+        for k, (lab, val) in enumerate(stats):
+            x = x0 + 240 + k * 220
+            text(d, (x, ry + 7), lab, 13, fill=DIM)
+            text(d, (x + 90, ry + 7), val, 13, True)
+    if lines:
+        tree(d, x0, tree_y, lines)
+    colw = (LR - L - 32) // 2
     for k, (sk, name, line) in enumerate(sockets):
-        x = LIST_X + 18 + (k % sock_cols) * colw
-        socket_icon(d, (x, y, x + 36, y + 36), sk)
-        text(d, (x + 48, y + 1), name, 15, True, TXT if sk else OFF)
-        text(d, (x + 48, y + 20), line, 12, fill=DIM)
-        if k % sock_cols == sock_cols - 1 or k == len(sockets) - 1:
-            y += 46
-    for line in notes:
-        text(d, (LIST_X + 18, y + 8), line, 14, fill=DIM)
-        y += 24
+        x = x0 + k * colw
+        socket_icon(d, (x, sock_y, x + 36, sock_y + 36), sk)
+        text(d, (x + 48, sock_y + 1), name, 15, True, TXT if sk else OFF)
+        text(d, (x + 48, sock_y + 20), line, 12, fill=DIM)
+    for k, line in enumerate(notes):
+        text(d, (x0, note_y + k * 22), line, 13, fill=DIM)
+    if skills:
+        text(d, (LR - 16, yy - 28), "X again: this entry's skills", 13, True, CYAN, anchor="ra")
+    return yy + 8
 
 
-FOOT = [("A", "Edit"), ("X", "Skills"), ("Y", "Options"), ("B", "Back")]
+def more_below(d):
+    """The list goes on past the screen: it scrolls (the open row moves with it)."""
+    d.rectangle((0, 662, 1280, 720), fill=BG)
+    text(d, ((L + LR) // 2, 664), "▼  more", 12, True, DIM, anchor="ma")
 
-# ---- 1: Garrick (Generic): his evolution, two weapon entries and the Add weapon frame (1/5 left; the adapter entry
-#         is the one left). Quarry Maul is focused and not active: L3 Set active (the fight's switch key, D-207) moves
-#         the ACTIVE tag to it; Y Options lists Set active too.
-im, d = canvas()
-header(d, 1, 0, "Bruiser  ·  2 of 5")
-used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
-y = evo_line(d, 168, "Ironheart", "Earth")
-y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")],
-          [("crystal", "Fire"), None], 1, active=True)
-y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1, focus=True)
-add_frame(d, y, 1, 5)
-details(d, "Quarry Maul", "Hammer stance · not active · 4 ability slots", [
-    ("Quarry Maul", "Earth", "C", [("Type", "Hammer"), ("Power", "50"), ("Scaling", "Body A"), ("Speed", "Slow")])], [
-    (("stone", None), "Whetstone  C", "Power +9%"),
-    (None, "Empty", "Crystal or evolution socket")], [], trees=[
-    ("Quarry Maul", ["On Critical Hit", "  While the target is Staggered",
-                     "    • Delay the target's next turn, once per fight"])], sock_cols=2)
-footer(d, [("A", "Edit"), ("X", "Skills"), ("L3", "Set active"), ("Y", "Options"), ("B", "Back")])
+
+FOOT = [("A", "Edit"), ("X", "Details"), ("Y", "Options"), ("B", "Back")]
+FOOT_L3 = [("A", "Edit"), ("X", "Details"), ("L3", "Set active"), ("Y", "Options"), ("B", "Back")]  # an inactive weapon
+QUARRY = dict(pieces=[("Quarry Maul", "Earth", "C", [("Type", "Hammer"), ("Power", "50"), ("Scaling", "Body A"),
+                                                     ("Speed", "Slow")])],
+              lines=["On Critical Hit", "  While the target is Staggered",
+                     "    • Delay the target's next turn, once per fight"],
+              sockets=[(("stone", None), "Whetstone  C", "Power +9%"), (None, "Empty", "Crystal or evolution socket")],
+              notes=["Skill slots 4 (tier C; a stone adds none)  ·  hammer stance  ·  not active"])
+
+# ---- 1 / 1c: Garrick (Generic): his evolution, two weapon entries and the Add weapon frame (1/5 left). The list takes
+#         the width; Quarry Maul is focused and not active (L3 Set active, D-207). 1c: X Details opens it in place.
+def weapons_g(opened=False):
+    im, d = canvas()
+    header(d, 1, 0, "Bruiser  ·  2 of 5")
+    used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
+    y = evo_line(d, 168, "Ironheart", "Earth")
+    y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")],
+              [("crystal", "Fire"), None], 1, active=True)
+    y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1, focus=True)
+    if opened:
+        y = open_body(d, y, **QUARRY)
+    add_frame(d, y, 1, 5)
+    footer(d, FOOT_L3)
+    return im
+
+
+im = weapons_g()
 save(im, OUT, "1_weapons_generic.png")
 im1 = im  # 1a sits over this screen
+save(weapons_g(True), OUT, "1c_weapons_open.png")
 
 # ---- 1b: the evolution line focused: on the character it gives everything (Amp by tier, passives, spells).
 im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
 used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
 y = evo_line(d, 168, "Ironheart", "Earth", focus=True)
+y = open_body(d, y - 2, [("Ironheart", "Earth", "A", [("Element", "Earth"), ("Amp", "Earth +2"), ("Skill slots", "6")])],
+              ["Passive", "  • Gain +10% Defense",
+               "When you take Earth damage", "  While your HP is below 50%",
+               "    • Gain +15% Earth buildup for 2 turns, stacks up to 3 times"], [],
+              ["Garrick's own evolution · 2 cells · on gear instead: these passives only, at infusion 2"], skills=False)
 y = entry(d, y, "Swords", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1, active=True)
 y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 add_frame(d, y, 1, 5)
-details(d, "Ironheart", "Garrick's own evolution · 2 cells", [
-    ("Ironheart", "Earth", "A", [("Element", "Earth"), ("Amp", "Earth +2"), ("Spell slots", "6")])], [],
-    ["On gear instead: these passives only, at infusion 2"], trees=[
-    ("Ironheart", ["Passive", "  • Gain +10% Defense",
-                  "When you take Earth damage", "  While your HP is below 50%",
-                  "    • Gain +15% Earth buildup for 2 turns, stacks up to 3 times"])])
 footer(d, FOOT)
 save(im, OUT, "1b_evolution.png")
 
@@ -406,12 +423,7 @@ im, d = canvas()
 header(d, 0, 0, "Pyre  ·  1 of 5")
 used_line(d, 1, 2, note="1 entry")
 y = evo_line(d, 168, None, None)
-y = entry(d, y, "Staff", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1, focus=True)
-details(d, "Cinder Staff", "One entry · Refractor", [
-    ("Cinder Staff", "Fire", "C", [("Type", "Staff"), ("Power", "28"), ("Scaling", "Mind B"), ("Speed", "Normal"),
-                                   ("Passive", "Spell Amp +1")])], [
-    (("crystal", "Fire"), "Garnet  C", "Fire Amp +1 · Burn 11% max HP/turn"),
-    (None, "Empty", "Stone socket")], ["Ability slots: 4"])
+y = entry(d, y, "Staff", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1, active=True, focus=True)
 footer(d, FOOT)
 save(im, OUT, "3_weapons_refractor.png")
 
@@ -421,15 +433,15 @@ header(d, 2, 0, "Ember Rings  ·  1 of 5")
 used_line(d, 4, 5, note="1 weapon entry · 3 of 5 rings")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Fists", [("Cinder Fists", "None")], [None, None], 0, h=56)
-y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, h=56)
+y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, focus=True, h=56)
+y = open_body(d, y, [("Ember Ring", "Fire", "C", [("Type", "Ring"), ("Spells", "Fire"), ("Durability", "64 / 80"),
+                                                   ("Skill slots", "4")])],
+              ["On Spell Cast", "  While your EP is above 50%", "    • Gain +1 Fire Amp for 1 turn"],
+              [(("crystal", "Fire"), "Garnet  C", "Fire Amp +1 · Burn 11% max HP/turn"), (None, "Empty", "Stone socket")])
 y = entry(d, y, "Ring", [("Storm Ring", "Lightning")], [("crystal", "Lightning"), None], 1, h=56)
-y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("evolution", "Water"), None], 2, focus=True, h=56)
+y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("evolution", "Water"), None], 2, h=56)
 add_frame(d, y, 1, 5)
-details(d, "Tide Ring", "Adapter · evolution on gear", [
-    ("Tide Ring", "Water", "C", [("Type", "Ring"), ("Spells", "Water"), ("Durability", "70 / 80"),
-                                 ("Passive", "Water spells EP -10%")])], [
-    (("evolution", "Water"), "Tidal  B", "At infusion 2: Water damage taken -10% · Soak buildup +10%"),
-    (None, "Empty", "Stone socket")], ["Spell slots: 5 (Tidal's tier)"])
+more_below(d)
 footer(d, FOOT)
 save(im, OUT, "4_weapons_resonator.png")
 
@@ -441,11 +453,11 @@ im, d = canvas()
 header(d, 1, 2, "Bruiser  ·  2 of 5")
 text(d, (L, TOP), "Apparel doesn't use the cells.", 16, fill=DIM)
 y = entry(d, 168, "", [("Iron Coat", "Darkness")], [("crystal", "Darkness")], 0, focus=True)
+y = open_body(d, y, [("Iron Coat", "Darkness", "C", [("HP", "40"), ("Defence", "14"), ("Amp", "+2"),
+                                                     ("Bonus", "+5% Body")])], [],
+              [(("crystal", "Darkness"), "Onyx  S", "Darkness Amp +3 · Darkness resistance · Silence")], skills=False)
 add_frame(d, y, 1, 2, label="Add apparel")
-details(d, "Iron Coat", "Apparel · coat", [
-    ("Iron Coat", "Darkness", "C", [("HP", "40"), ("Defence", "14"), ("Amp", "+2"), ("Bonus", "+5% Body")])], [
-    (("crystal", "Darkness"), "Onyx  S", "Darkness Amp +3 · Darkness resistance · Silence")], [], sock_head="Socket")
-footer(d, [("A", "Edit"), ("Y", "Options"), ("B", "Back")])
+footer(d, FOOT)
 save(im, OUT, "5_apparel.png")
 
 # ---- 5a: the Add apparel window: pick a piece and its socket; X Compare opens equipped vs selected.
@@ -466,9 +478,9 @@ item_rows(d, 590, 1134, 156, [
 save(im, OUT, "5a_add_apparel.png")
 
 
-def skill_rows(d, rows, focus, top=TOP + 40):
+def skill_rows(d, rows, focus, top=TOP + 40, opened=None):
     """The focused entry's skill slots. rows: ("head", text) for a weapon's sub-heading, or (name, el, kind, ep) with
-    kind "built-in", "slot" (picked) or "empty"."""
+    kind "built-in", "slot" (picked) or "empty". opened: the focused row's details (X Details), drawn in place."""
     y = top
     for i, r in enumerate(rows):
         if r[0] == "head":
@@ -477,6 +489,9 @@ def skill_rows(d, rows, focus, top=TOP + 40):
             continue
         n, el, kind, ep = r[:4]
         f = i == focus
+        if f and opened:
+            y = open_skill(d, LIST_X + 12, 1220, y, *opened) + 6
+            continue
         empty = kind == "empty"
         cut(d, (LIST_X + 12, y, 1220, y + 44), TEAL if f else (BG if empty else PLATE), CYAN if f else (OFF if empty else STEEL), 6)
         if empty:
@@ -490,29 +505,34 @@ def skill_rows(d, rows, focus, top=TOP + 40):
                 text(d, (LIST_X + 240, y + 14), r[4], 12, fill=DIM)
             text(d, (1206, y + 12), "%s EP" % ep, 14, True, anchor="ra")
         y += 50
+    return y
 
 
-def skill_details(d, box, name, el, tier, sub, stats, effects, req):  # effects: tree lines (ET-50)
-    """What a skill does, short stat lines. stats: (label, value) pairs in two columns; effects: lines;
-    req: (text, met) or None."""
-    x0, y0, x1, y1 = box
-    cut(d, box, PANEL, STEEL, 10)
-    icon(d, (x0 + 14, y0 + 14, x0 + 50, y0 + 50), ELEMENT[el])
-    text(d, (x0 + 62, y0 + 14), name, 18, True)
-    tier_badge(d, x0 + 62 + int(d.textlength(name, font=F(18, True))) + 15, y0 + 26, tier, 10)
-    text(d, (x0 + 62, y0 + 38), sub, 12, fill=DIM)
-    half = (x1 - x0 - 28) // 2
+def open_skill(d, x0, x1, y, name, el, tier, sub, stats, effects, req, ep=""):
+    """X Details: the highlighted skill's row grows in place (Crown). Its header stays the row; under it the stat lines
+    in three columns, the ET-50 effect tree and the requirement. Up / Down closes it; the right stick scrolls a tall one."""
+    h = 44 + 10 + 22 * ((len(stats) + 2) // 3) + 8 + 20 * len(effects) + (26 if req else 0) + 6
+    cut(d, (x0, y, x1, y + h), PANEL, CYAN, 6)
+    cut(d, (x0, y, x1, y + 44), TEAL, CYAN, 6)
+    d.regular_polygon((x0 + 22, y + 22, 8), 6, fill=ELEMENT[el])
+    text(d, (x0 + 40, y + 11), name, 16, True)
+    nx = x0 + 40 + int(d.textlength(name, font=F(16, True))) + 15
+    tier_badge(d, nx, y + 21, tier, 10)
+    text(d, (nx + 20, y + 14), sub, 12, fill=TXT)
+    if ep:
+        text(d, (x1 - 14, y + 12), ep, 14, True, anchor="ra")
+    col = (x1 - x0 - 28) // 3
+    yy = y + 54
     for k, (lab, val) in enumerate(stats):
-        x = x0 + 14 + (k % 2) * half
-        y = y0 + 66 + (k // 2) * 24
-        text(d, (x, y), lab, 13, fill=DIM)
-        text(d, (x + 82, y), val, 13, True)
-    y = y0 + 66 + ((len(stats) + 1) // 2) * 24 + 8
-    y = tree(d, x0 + 14, y, effects)
+        x = x0 + 14 + (k % 3) * col
+        text(d, (x, yy + (k // 3) * 22), lab, 13, fill=DIM)
+        text(d, (x + 72, yy + (k // 3) * 22), val, 13, True)
+    yy += 22 * ((len(stats) + 2) // 3) + 8
+    yy = tree(d, x0 + 14, yy, effects)
     if req:
-        y += 12
         txt, met = req
-        text(d, (x0 + 14, y), txt + ("  ✓ met" if met else "  ✗ not met"), 13, True, GOOD if met else RED)
+        text(d, (x0 + 14, yy + 4), txt + ("  ✓ met" if met else "  ✗ not met"), 13, True, GOOD if met else RED)
+    return y + h
 
 
 FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Fire from Garnet",
@@ -521,45 +541,58 @@ FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Fire from Garnet",
              ["Activate", "  • Deal Fire damage to a row of Enemies",
               "On Hit", "  While the target is Burning", "    and your HP is above 50%",
               "      • Give the target -10% Defense for 2 turns, once per fight"],
-             ("Needs Body 3 · Garrick has 4", True))
+             ("Needs Body 3 · Garrick has 4", True), "6 EP")
 
-# ---- 6: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
-#         focused entry's skill slots. With a skill row highlighted, its details show on the left under the entries.
-im, d = canvas()
-header(d, 1, 1, "Bruiser  ·  2 of 5")
-text(d, (L, TOP), "Abilities by entry", 17, True, DIM)
-y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1,
-          active=True)
-y = entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
-skill_details(d, (L, y + 4, LR, 654), *FLAME_ARC)
-panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  5 slots", 16, True, DIM)
-text(d, (LIST_X + 18, TOP + 34), "One list: slots by the main hand's tier (B); single- and dual-blade sword abilities", 12, fill=DIM)
-skill_rows(d, [
+LR = 620  # the Skills tab keeps two columns: entries left, slots right
+
+# ---- 6 / 6b: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
+#         focused entry's skill slots, a dual entry as one list. X Details opens the highlighted row in place (6b).
+FOOT_SKILLS = [("A", "Change"), ("X", "Details"), ("Y", "Options"), ("B", "Back")]
+SKILLS_G = [
     ("Slash", "None", "built-in", 0), ("Quick Cut", "None", "built-in", 0),
     ("Twin Rend", "None", "slot", 5, "Dual-blade · Activate: Hit twice"),
-    ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense"),
-    ("", None, "empty", 0)], 3, top=TOP + 62)
-footer(d, [("A", "Change"), ("Y", "Options"), ("B", "Back")])
-save(im, OUT, "6_skills_generic.png")
+    ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense")] + [("", None, "empty", 0)] * 5
+# D-211: a pair's slots are the average of its tiers, rounded down (B + C -> 4), plus the crystal's extra slots
+# (CL-21: a gem's spell slots by its tier; Garnet B -> 5): 9 rows, at most 12.
 
-# ---- 6a: A on an empty slot opens the picker: abilities that fit, the highlighted one's details beside the list.
-base = im
-im, d = window(base, "Pick an ability  ·  Ashen Blade + Cinder Edge", "", [("A", "Put in slot"), ("B", "Cancel")])
+
+def skills_g(opened=None):
+    im, d = canvas()
+    header(d, 1, 1, "Bruiser  ·  2 of 5")
+    text(d, (L, TOP), "Abilities by entry", 17, True, DIM)
+    y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1,
+              active=True)
+    entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
+    panel(d, (LIST_X, TOP, 1232, 654), focus=True)
+    text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  4/9 skills", 16, True, DIM)
+    if skill_rows(d, SKILLS_G, 3, top=TOP + 40, opened=opened) > 650:  # the list scrolls past the panel
+        d.rectangle((LIST_X + 1, 632, 1231, 653), fill=PANEL)
+        d.rectangle((LIST_X - 1, 655, 1234, 720), fill=BG)
+        d.line((LIST_X, 654, 1232, 654), fill=CYAN)
+        text(d, ((LIST_X + 1232) // 2, 636), "▼  more", 12, True, DIM, anchor="ma")
+    footer(d, FOOT_SKILLS)
+    return im
+
+
+im = skills_g()
+save(im, OUT, "6_skills_generic.png")
+save(skills_g(FLAME_ARC), OUT, "6b_skill_details_open.png")
+
+# ---- 6a: A on an empty slot opens the picker: abilities that fit; X Details opens the highlighted one in place.
+im, d = window(im, "Pick an ability  ·  Ashen Blade + Cinder Edge", "",
+               [("A", "Put in slot"), ("X", "Details"), ("B", "Cancel")])
 text(d, (146, 128), "Abilities that fit", 15, True, DIM)
-item_rows(d, 146, 600, 156, [
-    ("Ember Thrust", "Fire", "C", "5 EP · On Critical Hit*: Deal 4 Fire damage each turn", "", None),
+y = open_skill(d, 146, 1134, 156, "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
+               [("EP", "5"), ("Element", "Fire"), ("Power", "140%"), ("Scaling", "Body C"),
+                ("Targets", "One"), ("Buildup", "Burn 15")],
+               ["Activate", "  • Ignore 20% of the target's Defense",
+                "On Critical Hit", "  While the target is Burning",
+                "    • Deal 4 Fire damage to the target each turn for 2 turns"],
+               ("Needs Body 2 · Garrick has 4", True), ep="5 EP")
+item_rows(d, 146, 1134, y + 6, [
     ("Parry Edge", "None", "D", "3 EP · Activate: Gain +30% Defense for 1 turn", "", None),
-    ("Riposte", "None", "C", "4 EP · When you are hit: Deal 6 damage back", "", None),
     ("Inferno Dance", "Fire", "A", "", "", "Needs Mind 4 · Garrick has 2"),
-    ("Flame Arc", "Fire", "C", "", "", "Already in this list")], 0)
-skill_details(d, (624, 156, 1134, 500), "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
-              [("EP", "5"), ("Element", "Fire"), ("Power", "140%"), ("Scaling", "Body C"),
-               ("Targets", "One"), ("Buildup", "Burn 15")],
-              ["Activate", "  • Ignore 20% of the target's Defense",
-               "On Critical Hit", "  While the target is Burning",
-               "    • Deal 4 Fire damage to the target each turn for 2 turns"],
-              ("Needs Body 2 · Garrick has 4", True))
+    ("Flame Arc", "Fire", "C", "", "", "Already in this list")], -1)
 save(im, OUT, "6a_skill_picker.png")
 
 # ---- 7: Skills tab (Refractor): an "Innate spells" entry above the gear entry. Focused, the right shows the school rows:
@@ -573,7 +606,7 @@ text(d, (L + 54, 189), "Innate spells", 16, True)
 text(d, (LR - 14, 199), "18 of 24", 16, True, anchor="rm")
 entry(d, 238, "", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1)
 panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-text(d, (LIST_X + 18, TOP + 10), "Innate spells  ·  Fire  ·  18 of 24 points", 16, True, DIM)
+text(d, (LIST_X + 18, TOP + 10), "Innate spells", 16, True, DIM)
 y = TOP + 44
 for i, (school, spells) in enumerate([
         ("Destruction", ["Flame Lance", "Ember", "Scorch"]), ("Conjuration", []), ("Enhancement", ["Kindle"]),
@@ -588,6 +621,6 @@ for i, (school, spells) in enumerate([
         if p < len(spells):
             text(d, (px + 6, y + 38), fit(d, spells[p], 11, True, 70), 11, True)
     y += 74
-footer(d, [("A", "Change"), ("Y", "Options"), ("B", "Back")])
+footer(d, FOOT_SKILLS)
 save(im, OUT, "7_skills_refractor.png")
 print("ok")
