@@ -791,7 +791,7 @@ void USaveSubsystem::SettleClosedRun(const FSavedRun &Run, UWorld *World)
 	{
 		RestoreSavedRunLayer(Run, *Pool);
 		Pool->TakeRunFoundItems();
-		Pool->EndRunLayer();
+		Pool->EndRunLayer(/*bKeepUpgrades=*/false); // B-451: a quit keeps no upgrade levels, as FinishRun
 	}
 	DropRunVitals();
 	UE_LOG(LogWoR, Warning, TEXT("[Save] The run of %s couldn't be restored: its gear settled as a quit (D-176), the party back in the hub"),
