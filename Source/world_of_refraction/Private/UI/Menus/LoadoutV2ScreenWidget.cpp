@@ -91,8 +91,8 @@ namespace LoadoutV2ScreenStyle
 			return FText::GetEmpty();
 		}
 		const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
-		return Crystal.bEvolution ? FText::Format(LOCTEXT("WarnEvolutionOff", "A again: {0} goes back to your evolutions with some wear (it breaks at none)."), Crystal.Name)
-								  : LOCTEXT("WarnCrystalOff", "A again: what's in both sockets comes off and is destroyed.");
+		return Crystal.bEvolution ? FText::Format(LOCTEXT("WarnEvolutionOff", "{Confirm} again: {0} goes back to your evolutions with some wear (it breaks at none)."), Crystal.Name)
+								  : LOCTEXT("WarnCrystalOff", "{Confirm} again: what's in both sockets comes off and is destroyed.");
 	}
 
 	/** B-440f: an apparel piece's short line: its tier and what its socket holds ("B · Garnet", "C · empty"). */
@@ -139,11 +139,11 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		Screen->SetContent(Main);
 
 		UHorizontalBox *Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		AddToRow(Header, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "LT")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+		AddToRow(Header, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 		MemberText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToRow(Header, MemberText, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
-		AddToRow(Header, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(0.0f, 0.0f, SectionGap * 2.0f, 0.0f));
-		TabsText = MakeText(WidgetTree, RowFontSize, CyanColor, true); // filled in RefreshView (B-440f: the tab in use)
+		AddToRow(Header, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(0.0f, 0.0f, SectionGap * 2.0f, 0.0f));
+		TabsText = MakeHintText(WidgetTree, RowFontSize, CyanColor, true); // filled in RefreshView (B-440f: the tab in use)
 		// TODO: B-476d: Skills on LB / RB; Cosmetics stays greyed (later).
 		AddToRow(Header, TabsText)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		CellsText = MakeText(WidgetTree, RowFontSize, TextColor, true);
@@ -177,9 +177,10 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 
 		CompareText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 		AddToColumn(Main, CompareText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-		MessageText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
+		MessageText = MakeHintText(WidgetTree, LineFontSize, WarnColor); // B-481: a message may name a key ("{Confirm} again: ...")
+		MessageText->SetAutoWrapText(true);
 		AddToColumn(Main, MessageText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-		HintsText = MakeText(WidgetTree, LineFontSize, DimColor);
+		HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
 		AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 	}
 	return Super::RebuildWidget();
@@ -415,12 +416,12 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		{
 		case ELoadoutV2Option::SetActive:
 			return Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive
-					   ? FText::Format(LOCTEXT("OptionSetActiveLine", "{0} becomes the active weapon (L3)"), Entry->Name)
+					   ? FText::Format(LOCTEXT("OptionSetActiveLine", "{0} becomes the active weapon ({SetActive})"), Entry->Name)
 					   : LOCTEXT("OptionSetActiveOff", "Focus a weapon entry that isn't active");
 		case ELoadoutV2Option::SavedLoadouts:
 			return LOCTEXT("OptionSavedList", "Use another, make a new one, duplicate or rename"); // B-440e
 		case ELoadoutV2Option::RemoveAllGear:
-			return bRemoveAllArmed ? LOCTEXT("OptionRemoveAllArmed", "A again: every entry but the first comes out")
+			return bRemoveAllArmed ? LOCTEXT("OptionRemoveAllArmed", "{Confirm} again: every entry but the first comes out")
 								   : LOCTEXT("OptionRemoveAllLine", "Asks first");
 		case ELoadoutV2Option::Help:
 			return LOCTEXT("OptionHelpLine", "What each part of this screen does");
@@ -520,45 +521,44 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	switch (Mode)
 	{
 	case ELoadoutV2Mode::Options:
-		return LOCTEXT("HintsOptions", "A  Select        B / Esc  Close");
+		return LOCTEXT("HintsOptions", "{Confirm}  Select        {Back}  Close");
 	case ELoadoutV2Mode::Saved:
 		if (bRenaming)
 		{
 			return LOCTEXT("HintsRenaming", "Enter  Keep the name        Esc  Cancel");
 		}
 		return Saved.Rows.IsValidIndex(Selected) && Saved.Rows[Selected].IsNewLine()
-				   ? LOCTEXT("HintsSavedNew", "A  New loadout        B / Esc  Back")
-				   : LOCTEXT("HintsSaved", "A  Use        X  Duplicate        Y  Rename        B / Esc  Back");
+				   ? LOCTEXT("HintsSavedNew", "{Confirm}  New loadout        {Back}  Back")
+				   : LOCTEXT("HintsSaved", "{Confirm}  Use        {Toggle}  Duplicate        {Second}  Rename        {Back}  Back");
 	case ELoadoutV2Mode::WindowKind:
-		return LOCTEXT("HintsKind", "A  Pick        B / Esc  Cancel");
+		return LOCTEXT("HintsKind", "{Confirm}  Pick        {Back}  Cancel");
 	case ELoadoutV2Mode::WindowSlots:
-		return LOCTEXT("HintsSlots", "A  Open        Y  Confirm        B / Esc  Cancel");
+		return LOCTEXT("HintsSlots", "{Confirm}  Open        {Second}  Confirm        {Back}  Cancel");
 	case ELoadoutV2Mode::WindowItems:
 		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped
-				   ? LOCTEXT("HintsItemsEquipped", "A  Remove        X  Compare        Y  Confirm        B / Esc  Back")
-				   : LOCTEXT("HintsItems", "A  Pick        X  Compare        Y  Confirm        B / Esc  Back");
+				   ? LOCTEXT("HintsItemsEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Second}  Confirm        {Back}  Back")
+				   : LOCTEXT("HintsItems", "{Confirm}  Pick        {Toggle}  Compare        {Second}  Confirm        {Back}  Back");
 	case ELoadoutV2Mode::WindowAsk:
-		return LOCTEXT("HintsAsk", "A  Attach        B / Esc  Not now");
+		return LOCTEXT("HintsAsk", "{Confirm}  Attach        {Back}  Not now");
 	case ELoadoutV2Mode::ApparelItems:
-		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "A  Remove        B / Esc  Back")
-																		 : LOCTEXT("HintsApparelItems", "A  Pick        B / Esc  Back");
+		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "{Confirm}  Remove        {Back}  Back")
+																		 : LOCTEXT("HintsApparelItems", "{Confirm}  Pick        {Back}  Back");
 	case ELoadoutV2Mode::List:
 	default:
 	{
 		if (IsOnAddFrame() || (Tab == ELoadoutV2Tab::Apparel && Selected >= GetWornApparelCount()))
 		{
-			return LOCTEXT("HintsFrame", "A  Equip        Y  Options        LT / RT  Character        B / Esc  Back");
+			return LOCTEXT("HintsFrame", "{Confirm}  Equip        {Second}  Options        {SubTabs}  Character        {Back}  Back");
 		}
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
 		const bool bCanSetActive = Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive && Page.Entries.ContainsByPredicate(
 																														[](const FLoadoutV2Entry &Each) { return Each.bActive; });
-		const FText View = bSimpleView ? LOCTEXT("ViewFull", "Full") : LOCTEXT("ViewSimple", "Simple");
 		if (Tab == ELoadoutV2Tab::Apparel)
 		{
-			return FText::Format(LOCTEXT("HintsApparelList", "A  Change / Remove        X  {0}        Y  Options        B / Esc  Back"), View);
+			return LOCTEXT("HintsApparelList", "{Confirm}  Change / Remove        {Toggle}  {ViewName}        {Second}  Options        {Back}  Back");
 		}
-		return bCanSetActive ? FText::Format(LOCTEXT("HintsListActive", "A  Edit        X  {0}        L3 / 6  Set active        Y  Options        B / Esc  Back"), View)
-							 : FText::Format(LOCTEXT("HintsList", "A  Edit        X  {0}        Y  Options        B / Esc  Back"), View);
+		return bCanSetActive ? LOCTEXT("HintsListActive", "{Confirm}  Edit        {Toggle}  {ViewName}        {SetActive}  Set active        {Second}  Options        {Back}  Back")
+							 : LOCTEXT("HintsList", "{Confirm}  Edit        {Toggle}  {ViewName}        {Second}  Options        {Back}  Back");
 	}
 	}
 }
@@ -574,8 +574,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		return; // headless: no tree
 	}
 	MemberText->SetText(Members.IsValidIndex(MemberIndex) ? Members[MemberIndex].Name : FText::GetEmpty());
-	TabsText->SetText(Tab == ELoadoutV2Tab::Apparel ? LOCTEXT("TabsApparel", "LB   Weapons  ·  [ Apparel ]   RB     (Skills · Cosmetics: later)")
-													: LOCTEXT("TabsWeapons", "LB   [ Weapons ]  ·  Apparel   RB     (Skills · Cosmetics: later)"));
+	WoRKeyHints::SetHint(TabsText, Tab == ELoadoutV2Tab::Apparel ? LOCTEXT("TabsApparel", "{TabPrev}   Weapons  ·  [ Apparel ]   {TabNext}     (Skills · Cosmetics: later)")
+													: LOCTEXT("TabsWeapons", "{TabPrev}   [ Weapons ]  ·  Apparel   {TabNext}     (Skills · Cosmetics: later)"));
 	CellsText->SetText(LoadoutName.IsEmpty() ? Page.CellsLine : FText::Format(LOCTEXT("NameAndCells", "{0}     {1}"), LoadoutName, Page.CellsLine));
 	TitleText->SetText(GetTitle());
 	SetShown(TitleText, Mode != ELoadoutV2Mode::List);
@@ -588,7 +588,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Row->SetContent(Line);
 		UTextBlock *Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		UTextBlock *Detail = MakeText(WidgetTree, LineFontSize, DimColor);
+		UTextBlock *Detail = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: a line may name a key
 		AddToRow(Line, MakeSized(WidgetTree, NameColumnWidth, 0.0f, Name), FMargin(0.0f), VAlign_Center);
 		AddToRow(Line, Detail, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		AddToColumn(ListBox, Row, FMargin(0.0f, 0.0f, 0.0f, RowGap));
@@ -608,7 +608,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		LineRows[Index]->SetBrushColor(Index == Selected ? FocusColor : PlateColor);
 		LineNames[Index]->SetText(GetLineName(Index));
 		LineNames[Index]->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor)); // refused: stays, greyed
-		LineDetails[Index]->SetText(GetLineDetail(Index));
+		WoRKeyHints::SetHint(LineDetails[Index], GetLineDetail(Index));
 		LineDetails[Index]->SetColorAndOpacity(FSlateColor(bRefused && (IsAdding() || Mode == ELoadoutV2Mode::ApparelItems) ? WarnColor : DimColor));
 	}
 
@@ -739,9 +739,12 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	}
 	CompareText->SetText(Compare);
 	SetShown(CompareText, !Compare.IsEmpty());
-	MessageText->SetText(Message);
+	WoRKeyHints::SetHint(MessageText, Message);
 	SetShown(MessageText, !Message.IsEmpty());
-	HintsText->SetText(GetHints());
+	// B-481: the footer is a pattern; {ViewName} is the view X switches to.
+	FFormatNamedArguments HintArguments;
+	HintArguments.Add(TEXT("ViewName"), bSimpleView ? LOCTEXT("ViewFull", "Full") : LOCTEXT("ViewSimple", "Simple"));
+	WoRKeyHints::SetHint(HintsText, GetHints(), HintArguments);
 }
 
 // ==================== KEYS ====================
@@ -1117,8 +1120,8 @@ void ULoadoutV2ScreenWidget::SelectOption()
 		return;
 	}
 	case ELoadoutV2Option::Help:
-		Message = LOCTEXT("HelpText", "Left: your entries; the box shows the focused one. A edits an entry, or adds one on the frame. X switches the full and "
-									  "simple view. L3 puts a weapon entry in hand. Cells: only what sits in the sockets costs (crystal or stone 1, "
+		Message = LOCTEXT("HelpText", "Left: your entries; the box shows the focused one. {Confirm} edits an entry, or adds one on the frame. {Toggle} switches the full and "
+									  "simple view. {SetActive} puts a weapon entry in hand. Cells: only what sits in the sockets costs (crystal or stone 1, "
 									  "evolution 2).");
 		RefreshView();
 		return;
@@ -1275,7 +1278,7 @@ void ULoadoutV2ScreenWidget::StartRename()
 	}
 	if (Saved.Rows[Selected].IsNewLine())
 	{
-		Message = LOCTEXT("RenameNewLine", "Make the loadout first (A), then name it.");
+		Message = LOCTEXT("RenameNewLine", "Make the loadout first ({Confirm}), then name it.");
 		RefreshView();
 		return;
 	}
