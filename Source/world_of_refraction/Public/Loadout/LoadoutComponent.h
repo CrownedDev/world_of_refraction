@@ -268,6 +268,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Picks")
     bool TryAssignInnateSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal);
 
+    /** B-440b (the loadout screen): changes the gear of the saved loadout at LoadoutIndex (a weapon or adapter in or
+     *  out, the weapon in hand), refused as a pick is; then what the active gear gives is re-read (ToggleEquipment).
+     *  Refused during a fight. */
+    bool TryChangeGear(int32 LoadoutIndex, TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal);
+
     // ==================== BATTLE PREPARATION ====================
 
     /** Prepare loadout for battle (reset item uses, validate) */

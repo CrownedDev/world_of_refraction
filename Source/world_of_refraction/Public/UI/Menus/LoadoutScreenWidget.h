@@ -7,7 +7,9 @@
 // Top right: the saved loadout's name. Left: one row per weapon, adapter, evolution seat and apparel piece, with
 // its sockets and cost. Right: the focused row's details and its cost sum.
 // What it shows comes from WoRLoadoutScreen (LoadoutScreenModel.h), which the specs read.
-// Changing anything (gear, sockets, skills, saved loadouts) is B-440b to B-440e.
+// B-440b: A on a gear row opens a picker of owned gear for its place (the budget after each in amber, refused lines
+// greyed with the reason), A again puts the lit one in; X empties the place. Sockets, skills and saved loadouts are
+// B-440c to B-440e.
 
 #pragma once
 
@@ -38,11 +40,21 @@ public:
 	void SelectRow(int32 Index, bool bScrollIntoView = true);
 	/** The next / previous character; wraps. */
 	void MoveMember(int32 Delta);
+	/** B-440b, A: on a gear row, opens the picker for its place; in the picker, puts the lit line in. */
+	void PressChange();
+	/** B-440b, X: empties the lit gear row's place. */
+	void PressUnequip();
+	/** B, Esc: closes the picker, else the screen. */
 	void PressBack() { HandleBackAction(); }
 
 	int32 GetSelectedRow() const { return SelectedRow; }
 	int32 GetMemberIndex() const { return MemberIndex; }
 	const FLoadoutScreenPage &GetPage() const { return Page; }
+	bool IsPicking() const { return bPicking; }
+	const TArray<FLoadoutScreenChoice> &GetChoices() const { return Choices; }
+	int32 GetSelectedChoice() const { return SelectedChoice; }
+	/** The last refusal (a change or an unequip), shown over the list; empty after a change goes through. */
+	const FText &GetMessage() const { return Message; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -51,6 +63,7 @@ protected:
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual bool NativeOnHandleBackAction() override;
 
 private:
 	/** One gear row's widgets. Rows are made as a page first needs them and refilled after (never rebuilt). */
@@ -78,10 +91,23 @@ private:
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
 	int32 FindMemberTabUnder(const FPointerEvent &MouseEvent) const;
 
+	/** The rows the list shows now: the gear rows, or the picker's lines. */
+	int32 GetListCount() const { return bPicking ? Choices.Num() : Page.Rows.Num(); }
+	/** The list's lit index: the gear row, or the picker's line. */
+	int32 GetListSelection() const { return bPicking ? SelectedChoice : SelectedRow; }
+	/** Fills the row list from the gear page or the picker, and the budget pips (the lit line's budget in amber). */
+	void RefreshList();
+	void RefreshBudget();
+	void ClosePicker();
+
 	TArray<FLoadoutScreenMember> Members;
 	FLoadoutScreenPage Page;
 	int32 MemberIndex = 0;
 	int32 SelectedRow = 0;
+	bool bPicking = false;
+	TArray<FLoadoutScreenChoice> Choices;
+	int32 SelectedChoice = 0;
+	FText Message;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> MemberTabs;
@@ -97,6 +123,10 @@ private:
 	TObjectPtr<UScrollBox> RowList;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> RefusalText;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> PickerTitle;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> HintsText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailName;
 	UPROPERTY(Transient)

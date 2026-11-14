@@ -418,6 +418,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-443](B-443.md) | The hub HUD (D-181): interact prompt and money chip; the old debug hints go after this passes | Pending | REVIEW (in dev, `feature/B-443-hub-hud`) | [ ] |
 | [B-442](B-442.md) | The character sheet (D-181): pillars, sub-stats, resistance by damage type | Pending | REVIEW (in dev, `feature/B-442-character-sheet`) | [ ] |
 | [B-440a](B-440a.md) | The loadout screen, piece 1 (D-181, D-180): the gear page, read only | Pending | REVIEW (in dev, `feature/B-440-loadout-screen`) | [ ] |
+| [B-440b](B-440b.md) | The loadout screen, piece 2: change gear (A picker, X unequip) | Pending | REVIEW (in dev, `feature/B-440b-loadout-change-gear`) | [ ] |
 | [B-439](B-439.md) | The game menu (D-181): pages, party, side panel; a quit run loses everything (D-176); editor step: delete the Blueprint's `IA_ToggleMenu` nodes | Pending | REVIEW (in dev, `feature/B-439-pause-menu`) | [ ] |
 
 ---
