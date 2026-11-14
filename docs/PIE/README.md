@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-440e](B-440e.md) | `feature/B-440e-saved-loadouts-v2` (in dev, built 2026-11-14) | Loadout v2: Options > Saved loadouts: use, new, duplicate, rename; the loadout's name top right | Pending |
 | [B-476c](B-476c.md) | `feature/B-476c-loadout-v2-rest-cloud` (cloud, UNBUILT; includes B-476b) | Loadout v2: list and details box, X Simple / Full, the Add gear window for new and edited entries (kinds, hands, sockets, adapter, evolution ask), L3 Set active, Y Options | Pending |
 | [B-476b](B-476b.md) | `feature/B-476b-loadout-v2-weapons-tab-cloud` (cloud, UNBUILT) | Loadout v2: the Weapons tab and Add weapon (Main hand, Compare, Confirm) | Pending |
 | [B-476](B-476.md) | `feature/B-476-loadout-v2-model-cloud` (cloud, UNBUILT; includes B-472 to B-475) | Loadout v2, first part: the model (entries, cells, Add frame, the Add gear draft's refusals, Compare), read with `wor.Loadout.PrintV2`; the screen is B-476b | Pending |
