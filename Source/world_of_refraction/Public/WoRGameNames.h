@@ -17,6 +17,7 @@
 // Forward-declared so this header stays light (it is included by SkillEffectDisplayNames.h).
 enum class EDefenseType : uint8;
 enum class ECombatRow : uint8;
+enum class EFieldMovementType : uint8;
 enum class ESpellSchool : uint8;
 enum class EMerchantType : uint8;
 enum class EEssenceType : uint8;
@@ -66,6 +67,9 @@ namespace WoRGameNames
 
     /** "Front Row", "Middle Row", "Back Row". */
     WORLD_OF_REFRACTION_API FText GetCombatRowName(ECombatRow Row);
+
+    /** B-458: a field movement's name ("Dash", "Glide", "Mark and Recall"): the field skill picker and the party screen. */
+    WORLD_OF_REFRACTION_API FText GetFieldMovementName(EFieldMovementType Type);
 
     /** The six school names (D-163, B-374): "Destruction", "Conjuration", "Enhancement", "Restoration", "Manipulation", "Impairment". */
     WORLD_OF_REFRACTION_API FText GetSpellSchoolName(ESpellSchool School);

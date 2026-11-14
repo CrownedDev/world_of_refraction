@@ -10,6 +10,7 @@
 #include "Equipment/Crystals/CrystalType.h"
 #include "Hub/InteractPrompt.h"
 #include "Equipment/Weapons/EWeaponType.h"
+#include "Field/FieldSkillTypes.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
 #include "Inventory/ItemTier.h"
 #include "Memory/HiddenQuestData.h"
@@ -353,6 +354,36 @@ FText GetCombatRowName(ECombatRow Row)
         return LOCTEXT("ECombatRow_Middle", "Middle Row");
     case ECombatRow::Front:
         return LOCTEXT("ECombatRow_Front", "Front Row");
+    }
+    return FText::GetEmpty();
+}
+
+FText GetFieldMovementName(EFieldMovementType Type)
+{
+    switch (Type)
+    {
+    case EFieldMovementType::Dash:
+        return LOCTEXT("FieldMove_Dash", "Dash");
+    case EFieldMovementType::EnhancedSprint:
+        return LOCTEXT("FieldMove_EnhancedSprint", "Enhanced Sprint");
+    case EFieldMovementType::Glide:
+        return LOCTEXT("FieldMove_Glide", "Glide");
+    case EFieldMovementType::Flight:
+        return LOCTEXT("FieldMove_Flight", "Flight");
+    case EFieldMovementType::Teleport:
+        return LOCTEXT("FieldMove_Teleport", "Teleport");
+    case EFieldMovementType::HighJump:
+        return LOCTEXT("FieldMove_HighJump", "High Jump");
+    case EFieldMovementType::AirDash:
+        return LOCTEXT("FieldMove_AirDash", "Air Dash");
+    case EFieldMovementType::SuperLaunch:
+        return LOCTEXT("FieldMove_SuperLaunch", "Super Launch");
+    case EFieldMovementType::PhaseStep:
+        return LOCTEXT("FieldMove_PhaseStep", "Phase Step");
+    case EFieldMovementType::MarkAndRecall:
+        return LOCTEXT("FieldMove_MarkAndRecall", "Mark and Recall");
+    case EFieldMovementType::Regroup:
+        return LOCTEXT("FieldMove_Regroup", "Regroup");
     }
     return FText::GetEmpty();
 }
