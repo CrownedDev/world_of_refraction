@@ -983,10 +983,24 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		}
 		return;
 	}
+	// B-474 (D-207): an ability of the weapon not in hand makes that weapon active first (ET-19), so it is validated
+	// and runs with its own weapon. The player's setting decides what the menu offers (a local, per-player choice the
+	// server can't read for a guest); an action that names the other weapon's skill always switches.
+	ULoadoutComponent *SkillLoadout = nullptr;
+	bool bSkillWeaponSwitched = false;
+	if (Action.ActionType == EActionType::Ability && Actor && !Action.bIsDeferredFire)
+	{
+		SkillLoadout = Actor->FindComponentByClass<ULoadoutComponent>();
+		bSkillWeaponSwitched = SkillLoadout && SkillLoadout->SwitchToWeaponOfSkill(Action.SkillData);
+	}
 	// Validate action
 	FActionValidationResult Validation = ValidateAction(Actor, Action);
 	if (!Validation.bIsValid)
 	{
+		if (bSkillWeaponSwitched)
+		{
+			SkillLoadout->RevertSkillWeaponSwitch(); // B-474: a refused action leaves the weapon in hand as it was
+		}
 		FActionResult FailResult;
 		FailResult.bSuccess = false;
 		FailResult.ErrorMessage = Validation.ErrorMessage;

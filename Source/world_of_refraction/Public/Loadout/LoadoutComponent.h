@@ -640,6 +640,19 @@ public:
     /** The turn's free weapon switch. Forwards to TrySwitchActiveSlot(Weapon). */
     bool TrySwitchWeaponThisTurn(FText &OutReason);
 
+    /** B-474 (D-207): the skill list of the weapon not in hand (a Generic with two weapon entries), else empty. The
+     *  battle menu offers it while "Switch to the weapon of the skill you use" is on. */
+    TArray<UAbilityData *> GetOtherWeaponSkills() const;
+
+    /** B-474 (D-207): Skill belongs to the weapon not in hand (and not to the one in hand): that weapon becomes active,
+     *  as the menu's switch does (ET-19: free with action pips; with them off, the turn's one switch). True when it
+     *  switched. The action executor calls it before an ability runs, so the hit uses its own weapon. */
+    bool SwitchToWeaponOfSkill(const USkillDataBase *Skill);
+
+    /** B-474: undoes a SwitchToWeaponOfSkill that returned true when the action is then refused: the other weapon back
+     *  in hand and the turn's switch unused again. */
+    void RevertSkillWeaponSwitch();
+
     /** The turn's free ring switch to NewRingIndex (the same rules as TrySwitchActiveSlot). */
     bool TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason);
 

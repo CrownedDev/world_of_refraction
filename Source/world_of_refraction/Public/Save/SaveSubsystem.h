@@ -160,6 +160,11 @@ public:
 	bool IsEndTurnButtonHidden() const;
 	void SetEndTurnButtonHidden(bool bHidden);
 
+	/** B-474 (D-207): "Switch to the weapon of the skill you use" (default on). Kept in memory at once; written with the
+	 *  next save. Debug: wor.Settings.SwitchToSkillWeapon. */
+	bool IsSwitchToSkillWeaponOn() const;
+	void SetSwitchToSkillWeapon(bool bOn);
+
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 
 	/** bKeepVitals false saves no carried HP/EP, crystal wear or absorption: outside a run, a reload

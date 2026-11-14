@@ -624,6 +624,22 @@ FText WoRLoadoutScreen::ApplyGearChoice(UWorld *World, const FLoadoutScreenMembe
 	return Refusal;
 }
 
+FText WoRLoadoutScreen::SetRowActive(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row)
+{
+	if (Row.Kind != ELoadoutScreenRowKind::Weapon || !LoadoutScreenBuild::PlaceTakesWeapons(Row.Place))
+	{
+		return LOCTEXT("SetActiveNotWeapon", "Only a weapon entry can be set active.");
+	}
+	if (Row.bActive)
+	{
+		return LOCTEXT("SetActiveAlready", "That weapon is already in hand.");
+	}
+	FLoadoutScreenChoice Choice;
+	Choice.bMakeActive = true;
+	Choice.Row = Row;
+	return ApplyGearChoice(World, Member, Row, Choice);
+}
+
 FText WoRLoadoutScreen::UnequipRow(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row)
 {
 	UInventoryComponent *Inventory = nullptr;

@@ -12,6 +12,7 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Save/SaveSubsystem.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -1036,7 +1037,24 @@ void UCombatCommandMenuSubsystem::OpenSpellSubmenu(EPieMenuCategory Source)
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilitySubmenu() const
 {
-    return BuildAbilityButtonsFrom(CurrentCapabilities.WeaponAbilities);
+    TArray<FPieMenuButtonData> Buttons = BuildAbilityButtonsFrom(CurrentCapabilities.WeaponAbilities);
+    // B-474 (D-207): while "Switch to the weapon of the skill you use" is on, the other weapon's skills follow, named
+    // with their weapon; using one switches to it (UActionExecutor -> ULoadoutComponent::SwitchToWeaponOfSkill).
+    const USaveSubsystem *Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+    if (!Save || !Save->IsSwitchToSkillWeaponOn() || CurrentCapabilities.OtherWeaponAbilities.Num() == 0)
+    {
+        return Buttons;
+    }
+    TArray<FPieMenuButtonData> Other = BuildAbilityButtonsFrom(CurrentCapabilities.OtherWeaponAbilities);
+    Other.Pop(); // its own Back button: the list keeps one, last
+    const FText WeaponName = FText::FromString(CurrentCapabilities.OtherWeaponName);
+    for (FPieMenuButtonData &Button : Other)
+    {
+        Button.ButtonID = TEXT("Other") + Button.ButtonID;
+        Button.DisplayName = FText::Format(NSLOCTEXT("CombatCommandMenu", "OtherWeaponSkill", "{0} ({1})"), Button.DisplayName, WeaponName);
+    }
+    Buttons.Insert(Other, FMath::Max(0, Buttons.Num() - 1));
+    return Buttons;
 }
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilityButtonsFrom(

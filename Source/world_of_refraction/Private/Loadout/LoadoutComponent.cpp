@@ -2857,6 +2857,51 @@ bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
     return TrySwitchActiveSlot(EGearKind::Weapon, OutReason);
 }
 
+TArray<UAbilityData *> ULoadoutComponent::GetOtherWeaponSkills() const
+{
+    if (GetCharacterClass() != ECharacterClass::Generic)
+    {
+        return {};
+    }
+    const FWeaponLoadoutEntry *Active = GetActiveWeaponLoadout();
+    const FWeaponLoadoutEntry *Primary = GetPrimaryWeaponLoadout();
+    const FWeaponLoadoutEntry *Secondary = GetSecondaryWeaponLoadout();
+    if (!Active || !Primary || !Secondary || !Primary->IsValid() || !Secondary->IsValid())
+    {
+        return {};
+    }
+    const FWeaponLoadoutEntry *Other = Active == Primary ? Secondary : Primary;
+    return Other->GetSkillSlotAbilities();
+}
+
+bool ULoadoutComponent::SwitchToWeaponOfSkill(const USkillDataBase *Skill)
+{
+    const FWeaponLoadoutEntry *Active = GetActiveWeaponLoadout();
+    if (!Skill || !Active)
+    {
+        return false;
+    }
+    const auto Lists = [Skill](const TArray<UAbilityData *> &Abilities) { return Abilities.ContainsByPredicate([Skill](const UAbilityData *Each) { return Each == Skill; }); };
+    if (Lists(Active->GetSkillSlotAbilities()) || !Lists(GetOtherWeaponSkills()))
+    {
+        return false;
+    }
+    // D-207: the switch follows the skill as the menu's switch does (ET-19: free with action pips, the default; with
+    // them off, the turn's one switch).
+    FText Refusal;
+    const bool bSwitched = TrySwitchWeaponThisTurn(Refusal);
+    UE_LOG(LogWoRLoadout, Log, TEXT("[LoadoutComponent] %s: '%s' is the other weapon's skill - %s"), *GetNameSafe(GetOwner()), *Skill->Name,
+           bSwitched ? TEXT("switched to that weapon") : *FString::Printf(TEXT("not switched (%s)"), *Refusal.ToString()));
+    return bSwitched;
+}
+
+void ULoadoutComponent::RevertSkillWeaponSwitch()
+{
+    ToggleEquipment();
+    bUsedTurnSwitch = false;
+    UE_LOG(LogWoRLoadout, Log, TEXT("[LoadoutComponent] %s: the skill's action was refused - the weapon switch is undone"), *GetNameSafe(GetOwner()));
+}
+
 bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
 {
     return TrySwitchSlotTo(EGearKind::Adapter, NewRingIndex, OutReason);
