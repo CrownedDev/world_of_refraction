@@ -61,7 +61,7 @@ TArray<USpellData *> FSavedLoadout::GetAllSpells() const
         Result.Append(FSpellRef::ExtractSpells(InnateSpells));
     }
 
-    if (RequiredClass == ECharacterClass::Resonator)
+    if (RequiredClass == ECharacterClass::Resonator || RequiredClass == ECharacterClass::Generic) // B-480: a Generic's adapter entry
     {
         for (const FResonatorRingSlot &Slot : EquippedRings)
         {

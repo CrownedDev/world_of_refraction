@@ -170,10 +170,10 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
 
     // ==================== RESONATOR RINGS ====================
 
-    /** Equipped rings (Resonator only - 5 normal, 3 if evolved).
-     *  Each slot pairs a ring with its per-loadout spell overrides. */
+    /** Equipped adapters: a Resonator's (at most 5, D-206), or B-480 (D-210) a Generic's one adapter entry beside its
+     *  weapons. Each slot pairs a ring with its per-loadout spell overrides. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Resonator Rings",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Resonator", EditConditionHides))
+              meta = (EditCondition = "RequiredClass != ECharacterClass::Caster", EditConditionHides))
     TArray<FResonatorRingSlot> EquippedRings;
 
     /** B-380c (D-164): apparel worn with this loadout (outside the budget), each with its owned instance (invalid: an
