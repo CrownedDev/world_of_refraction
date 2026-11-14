@@ -1090,7 +1090,7 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** _write here_
 
 ### Q-408 — A game closed in the middle of a run: lost, or resumed once?
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-408, D-172, D-176) · **Blocks:** — (B-408a, which waits for Crown's agreement to the survey anyway)
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**: A, closing the game mid-run counts as a quit) · **Raised:** 2026-11-14 (B-408, D-172, D-176) · **Blocks:** — (B-408a, which waits for Crown's agreement to the survey anyway)
 **Question:** today the run is saved at every fight exit and rest spot, and a restart resumes it. That save also carries the co-op hand-over (B-234b) and the only record of what the run changed in the store (`docs/analysis/NoSavedRunsSurvey.md`). With no saved runs (D-172), what happens when the game closes mid-run (quit to desktop, crash, power cut)?
 **Answer**, by the default (Crown may change it):
 - **A: it counts as a quit (D-176).** On the next start the run is restored only to settle it: home pieces go back, found items are taken back, nothing is paid, run recruits leave, and the player is in the hub. Escape from Tarkov counts leaving a raid as "missing in action" (the gear is lost), and Dark and Darker treats a disconnect the same way; players accept it because it keeps extracting meaningful, and it closes the "close the game instead of quitting" loophole.

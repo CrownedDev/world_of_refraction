@@ -16,6 +16,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-408](B-408.md) | `chore/B-408-saved-runs-survey-cloud` (cloud, docs only) | Survey: the saved run stays for the co-op hand-over and to settle a closed game; one change proposed (a game closed mid-run counts as a quit, Q-408); confirm today's resume | Pending |
+| [B-408a](B-408a.md) | `feature/B-408a-closed-run-quits-cloud` (cloud, UNBUILT; on B-408) | A game closed mid-run is settled as a quit on the next start: hub, finds gone, home gear back; the title says the run was lost | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |
 | [B-170h](B-170h.md) | `refactor/B-170h-flip-default` (in dev, built 2026-11-14) | Action pips on by default: every fight alternates sides with banked actions and End Turn, no console command; `wor.Turns.ActionPips 0` still gives the old timeline until B-170h2 | Pending |
 | [B-317](B-317.md) | `chore/B-317-store-old-copies` (in dev, built 2026-11-14) | Store 6, first part: a member's crystal inventory keeps no copy of its pouch; the post-fight hand-back is gone; list the enemies with authored item slots (for B-317c) | Pending |
