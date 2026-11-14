@@ -31,6 +31,8 @@ class USphereComponent;
  *  debug hint does not depend on it. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPartyInteractionAvailableChanged, bool, bIsAvailable);
 
+struct FRecruitCard;
+
 UCLASS(ClassGroup = (Party), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UPartyInteractionComponent : public UActorComponent
 {
@@ -72,6 +74,13 @@ public:
 
 	/** B-443: the floating prompt: "Invite" or "Dismiss" and the character's name; None without character data. */
 	FInteractPrompt GetPrompt() const;
+
+	/** B-471 (D-179): the recruit card for this character against the local party (who can step out when it is full). */
+	FRecruitCard BuildRecruitCard() const;
+
+	/** B-471 (D-179): with a full party in a run, this character joins in place of the NPC at StepOutSlot (host only).
+	 *  The card's widget calls it (B-471b); until then wor.Party.RecruitInPlaceOf. */
+	bool InviteInPlaceOf(int32 StepOutSlot);
 
 	/** True while a player pawn stands inside the interaction trigger. */
 	UFUNCTION(BlueprintPure, Category = "Party")
