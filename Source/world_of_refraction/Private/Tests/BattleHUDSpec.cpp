@@ -187,11 +187,11 @@ void FBattleHUDSpec::Define()
 
 		It("shows a Broken Darkness absorb line and its overload (B-391b)", [this]()
 		{
-			TestEqual(TEXT("absorb line"), BattleHUDView::FormatAbsorbLine(80, 100).ToString(), FString(TEXT("Absorb 80 / 100")));
+			TestEqual(TEXT("absorb line"), BattleHUDView::FormatAbsorbLine(80, 100).ToString(), FString(TEXT("Barrier 80 / 100")));
 			TestFalse(TEXT("at max: not overloaded"), BattleHUDView::IsOverloaded(100, 100));
 			TestTrue(TEXT("past max: overloaded"), BattleHUDView::IsOverloaded(115, 100));
 			const FString Over = BattleHUDView::FormatAbsorbLine(130, 100).ToString();
-			TestTrue(TEXT("overload line"), Over.StartsWith(TEXT("Absorb 130 / 100, overload")) && Over.Contains(TEXT("130")));
+			TestTrue(TEXT("overload line"), Over.StartsWith(TEXT("Barrier 130 / 100 (+")) && Over.Contains(TEXT("130")));
 			TestTrue(TEXT("white below"), BattleHUDView::GetOverloadColour(80, 100).Equals(FLinearColor::White));
 			TestTrue(TEXT("yellow just past"), BattleHUDView::GetOverloadColour(105, 100).Equals(FLinearColor::Yellow));
 			TestTrue(TEXT("red near the cap"), BattleHUDView::GetOverloadColour(125, 100).Equals(FLinearColor::Red));
@@ -257,10 +257,10 @@ void FBattleHUDSpec::Define()
 			TestEqual(TEXT("weapon and ring"), BattleHUDView::FormatGearLine(Gear).ToString(), FString(TEXT("Iron Sword · Ember Ring")));
 			const FString Tooltip = BattleHUDView::FormatGearTooltip(Gear).ToString();
 			TestTrue(TEXT("tooltip lists all three"), Tooltip.Contains(TEXT("Loadout: Main")) && Tooltip.Contains(TEXT("Weapon: Iron Sword")) &&
-														  Tooltip.Contains(TEXT("Ring: Ember Ring")));
+														  Tooltip.Contains(TEXT("Adapter: Ember Ring")));
 			Gear.RingName.Reset();
 			TestEqual(TEXT("weapon alone"), BattleHUDView::FormatGearLine(Gear).ToString(), FString(TEXT("Iron Sword")));
-			TestTrue(TEXT("an empty slot reads none"), BattleHUDView::FormatGearTooltip(Gear).ToString().Contains(TEXT("Ring: none")));
+			TestTrue(TEXT("an empty slot reads none"), BattleHUDView::FormatGearTooltip(Gear).ToString().Contains(TEXT("Adapter: none")));
 			TestTrue(TEXT("no gear, no line"), BattleHUDView::FormatGearLine(FBattleGearNames()).IsEmpty());
 			TestTrue(TEXT("no actor, no gear"), BattleHUDView::ReadGearNames(nullptr).WeaponName.IsEmpty());
 		});
