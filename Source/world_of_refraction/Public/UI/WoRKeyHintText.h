@@ -4,7 +4,8 @@
 // buttons after a gamepad key, keyboard keys after a keyboard or mouse input (CommonUI's UCommonInputSubsystem), switching
 // live. On keyboard Back reads "Backspace" (Esc stops PIE in the editor; WoRMenuStyle::IsBackKey takes both).
 // A screen makes its hint text with WoRMenuStyle::MakeHintText and fills it with WoRKeyHints::SetHint: no per-screen
-// device code. Debug: wor.UI.KeyHints.Print.
+// device code. A pattern that also carries the caller's own values takes them by NAME (FText::FormatNamed, or Extra):
+// a numbered argument ({0}) would fill the first key name's place. Debug: wor.UI.KeyHints.Print.
 
 #pragma once
 
