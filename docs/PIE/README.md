@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-476](B-476.md) | `feature/B-476-loadout-v2-model-cloud` (cloud, UNBUILT; includes B-472 to B-475) | Loadout v2, first part: the model (entries, cells, Add frame, the Add gear draft's refusals, Compare), read with `wor.Loadout.PrintV2`; the screen is B-476b | Pending |
 | [B-475](B-475.md) | `feature/B-475-apparel-bonus-line-cloud` (cloud, UNBUILT; includes B-472 to B-474) | Each apparel piece rolls one bonus line when first owned (+2 sub-stat, never Turn Speed, or +5% to a pillar), saved with it and shown on the inventory tile and loadout row | Pending |
 | [B-474](B-474.md) | `feature/B-474-weapon-follows-skill-cloud` (cloud, UNBUILT; includes B-472, B-477, B-480) | Using the other weapon's skill makes it active (setting on by default, `wor.Settings.SwitchToSkillWeapon`); the menu lists both weapons' skills; Switch Weapon moves to L3 (6); the loadout screen's L3 / 6 sets a weapon active | Pending |
 | [B-480](B-480.md) | `feature/B-480-entries-sockets-cloud` (cloud, UNBUILT; includes B-472, B-477) | Entries: a Generic's adapter beside two weapons, two stones on one entry (they stack), no evolution on a Resonator's weapon or a Generic's adapter (taken off back to the inventory) | Pending |
