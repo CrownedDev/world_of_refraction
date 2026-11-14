@@ -3,12 +3,16 @@
 // possibilities end here", names the foe that dealt the last blow (and says nothing when none did), counts the dropped
 // Prisms and the wipes, and says where the party wakes, or that the trial ends. The page titles a cleared trial
 // apart, says each ending's share in words, lists the payout on one line (nothing for a quit) and reads "Return".
+// The card widget, headless: it takes the card's words and its button presses once.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "Trial/DefeatRules.h"
 #include "UI/Trial/RunEndModel.h"
+#include "UI/Trial/RunEndCardWidget.h"
+#include "Blueprint/UserWidget.h"
+#include "WoRTestWorld.h"
 
 namespace
 {
@@ -67,6 +71,30 @@ void FRunEndModelSpec::Define()
 		const FRunEndPage Quit = WoRRunEnd::BuildRunEnd(ERunEnding::Quit, Payout);
 		TestFalse(TEXT("a quit lists no payout"), Quit.PayoutLine.ToString().Contains(FText::AsNumber(RUN_END_TEST_GOLD).ToString()));
 		TestFalse(TEXT("an empty payout says so"), WoRRunEnd::FormatPayoutLine(FRunPayout()).IsEmpty());
+	});
+	It("shows the card's words and presses its button once (URunEndCardWidget)", [this]()
+	{
+		FWoRTestWorld TestWorld;
+		if (!TestTrue(TEXT("world"), TestWorld.Create()))
+		{
+			return;
+		}
+		URunEndCardWidget *Card = CreateWidget<URunEndCardWidget>(TestWorld.GetWorld(), URunEndCardWidget::StaticClass());
+		if (!TestNotNull(TEXT("card"), Card))
+		{
+			return;
+		}
+		WoRDefeat::FWipeResult Wipe;
+		Wipe.Wipes = RUN_END_TEST_WIPES;
+		Card->ShowWipe(WoRRunEnd::BuildWipeCard(Wipe, /*bHasRestStand=*/false));
+		TestEqual(TEXT("the wipe title"), Card->GetTitle().ToString(), FString(TEXT("Your possibilities end here")));
+		TestTrue(TEXT("Get up"), Card->GetButtonText().ToString().Contains(TEXT("Get up")));
+		Card->PressContinue();
+		Card->PressContinue();
+		TestTrue(TEXT("pressed"), Card->HasContinued());
+		Card->ShowRunEnd(WoRRunEnd::BuildRunEnd(ERunEnding::OutOfWipes, FRunPayout()));
+		TestFalse(TEXT("a new page waits for its own press"), Card->HasContinued());
+		TestTrue(TEXT("Return"), Card->GetButtonText().ToString().Contains(TEXT("Return")));
 	});
 }
 
