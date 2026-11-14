@@ -11,7 +11,8 @@
 // greyed with the reason), A again puts the lit one in; X empties the place. B-440c: Left / Right lights a socket;
 // A there picks a carried gem or stone or an owned evolution, X (twice) takes it off. B-440d: LB / RB switches to the
 // Skills page (WoRLoadoutSkills): Left / Right picks the list (a school, a weapon, an adapter), A puts a learned skill
-// in the lit slot, X takes it out. Saved loadouts are B-440e.
+// in the lit slot, X takes it out. Saved loadouts are B-440e. B-440f: A on an apparel row lists the member's owned
+// apparel (WoRLoadoutApparel), A again wears the lit piece; X takes the row's piece off (it stays owned).
 
 #pragma once
 
@@ -122,6 +123,8 @@ private:
 	bool bPicking = false;
 	/** The picker is for SelectedSocket (B-440c), not the row's place. */
 	bool bPickingSocket = false;
+	/** B-440f: the picker lists apparel pieces for an apparel row. */
+	bool bPickingApparel = false;
 	int32 SelectedSocket = INDEX_NONE;
 	/** The first X on a socket said what comes off; the next X does it. */
 	bool bTakeOffArmed = false;

@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Party/Party.h"
+#include "UI/Menus/LoadoutApparelModel.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/WoRRootLayout.h"
@@ -561,6 +562,7 @@ void ULoadoutScreenWidget::MoveMember(int32 Delta)
 	SkillTab = 0;
 	bPicking = false;
 	bPickingSocket = false;
+	bPickingApparel = false;
 	bTakeOffArmed = false;
 	Message = FText::GetEmpty();
 	RefreshData();
@@ -621,13 +623,13 @@ void ULoadoutScreenWidget::PressChange()
 	}
 	if (!bPicking)
 	{
-		if (Row.Place == ELoadoutScreenPlace::None)
+		bPickingApparel = WoRLoadoutApparel::IsApparelRow(Row); // B-440f
+		if (Row.Place == ELoadoutScreenPlace::None && !bPickingApparel)
 		{
-			Message = LOCTEXT("ApparelNotYet", "Apparel can't be changed here yet."); // TODO: B-440f, the apparel picker
-			RefreshList();
 			return;
 		}
-		Choices = WoRLoadoutScreen::BuildGearChoices(GetWorld(), Members[MemberIndex], Row);
+		Choices = bPickingApparel ? WoRLoadoutApparel::BuildApparelChoices(GetWorld(), Members[MemberIndex], Row)
+								  : WoRLoadoutScreen::BuildGearChoices(GetWorld(), Members[MemberIndex], Row);
 		const int32 FirstAllowed = Choices.IndexOfByPredicate([](const FLoadoutScreenChoice &Choice) { return Choice.Refusal.IsEmpty(); });
 		SelectedChoice = FMath::Max(0, FirstAllowed);
 		bPicking = true;
@@ -640,8 +642,9 @@ void ULoadoutScreenWidget::PressChange()
 	{
 		return;
 	}
-	Message = bPickingSocket ? WoRLoadoutScreen::ApplySocketChoice(GetWorld(), Members[MemberIndex], Row, SelectedSocket, Choices[SelectedChoice])
-							 : WoRLoadoutScreen::ApplyGearChoice(GetWorld(), Members[MemberIndex], Row, Choices[SelectedChoice]);
+	Message = bPickingSocket	? WoRLoadoutScreen::ApplySocketChoice(GetWorld(), Members[MemberIndex], Row, SelectedSocket, Choices[SelectedChoice])
+			  : bPickingApparel ? WoRLoadoutApparel::ApplyApparelChoice(GetWorld(), Members[MemberIndex], Row, Choices[SelectedChoice])
+								: WoRLoadoutScreen::ApplyGearChoice(GetWorld(), Members[MemberIndex], Row, Choices[SelectedChoice]);
 	if (Message.IsEmpty())
 	{
 		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutScreen] %s: %s put in place of %s"), *Members[MemberIndex].Name.ToString(),
@@ -686,9 +689,10 @@ void ULoadoutScreenWidget::PressUnequip()
 		RefreshSelection();
 		return;
 	}
-	Message = Page.Rows[SelectedRow].Place == ELoadoutScreenPlace::None
-				  ? LOCTEXT("ApparelNotYet", "Apparel can't be changed here yet.")
-				  : WoRLoadoutScreen::UnequipRow(GetWorld(), Members[MemberIndex], Page.Rows[SelectedRow]);
+	// B-440f: an apparel row's piece comes off in one press (it stays owned, nothing is lost).
+	Message = WoRLoadoutApparel::IsApparelRow(Page.Rows[SelectedRow]) ? WoRLoadoutApparel::TakeOffRow(GetWorld(), Members[MemberIndex], Page.Rows[SelectedRow])
+			  : Page.Rows[SelectedRow].Place == ELoadoutScreenPlace::None ? FText::GetEmpty()
+																		  : WoRLoadoutScreen::UnequipRow(GetWorld(), Members[MemberIndex], Page.Rows[SelectedRow]);
 	RefreshData();
 	RefreshSelection();
 }
@@ -744,6 +748,7 @@ void ULoadoutScreenWidget::ClosePicker()
 {
 	bPicking = false;
 	bPickingSocket = false;
+	bPickingApparel = false;
 	Choices.Reset();
 	SelectedChoice = 0;
 	RefreshData(); // the page after the change, if one went in
@@ -879,6 +884,17 @@ FReply ULoadoutScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry
 }
 
 #if !UE_BUILD_SHIPPING
+static FAutoConsoleCommandWithWorld GLoadoutApparelPrintCommand(
+	TEXT("wor.UI.LoadoutApparel.Print"),
+	TEXT("B-440f: print each party member's owned apparel and what their active loadout wears, as the loadout screen's apparel picker lists it."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
+		{
+			UE_LOG(LogWoRUI, Display, TEXT("[LoadoutApparel] %s"), *WoRLoadoutApparel::GetMemberApparelString(World, Member));
+		}
+	}));
+
 static FAutoConsoleCommandWithWorld GLoadoutScreenOpenCommand(
 	TEXT("wor.UI.Loadout"),
 	TEXT("B-440a: open the loadout screen (gear page; B-440b: A Change, X Unequip), as the game menu's Loadout page does."),
