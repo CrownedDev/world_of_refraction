@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Hub/HubInteract.h"
 #include "UI/Menus/PauseMenuModel.h"
+#include "UI/WoRKeyHintText.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -38,8 +39,8 @@ FHubHUDPrompt WoRHubHUD::BuildPrompt(APawn *Pawn)
 
 FText WoRHubHUD::GetInteractKeyLabel(bool bGamepad)
 {
-	// InputMap.md: Interact is E / X (Square). TODO: glyphs per pad brand with the CommonUI input data.
-	return bGamepad ? LOCTEXT("InteractKeyGamepad", "X") : LOCTEXT("InteractKeyKeyboard", "E");
+	// InputMap.md: Interact is E / X (Square). B-481: the key names live in one table (WoRKeyHints).
+	return WoRKeyHints::Format(FText::AsCultureInvariant(TEXT("{Interact}")), bGamepad);
 }
 
 FHubHUDMoney WoRHubHUD::BuildMoney(const UWorld *World)
