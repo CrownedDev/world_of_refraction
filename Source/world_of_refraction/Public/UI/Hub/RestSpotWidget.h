@@ -3,6 +3,8 @@
 // fallen revived); from here the player opens the inventory, or leaves the trial for a reduced payout after a
 // confirm. Plain buttons built in C++ (like ULevelDropWidget); opened by ATrialRestSpot or wor.Trial.Rest. Replaced by
 // the CommonUI screen (D-024). B-233b: the host invites and seats friends from here (drop-in happens at rest spots).
+// B-502 (D-214): the menu carries the rest point's service: Blacksmith at an anvil, a line at a shrine (it sells
+// pillar points this run, under Level up, or it is quiet), Extract at V's.
 
 #pragma once
 
@@ -13,6 +15,7 @@
 class UTextBlock;
 class UButton;
 class APlayerController;
+class ATrialRestSpot;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API URestSpotWidget : public UUserWidget
@@ -78,7 +81,22 @@ private:
 	UFUNCTION()
 	void HandleInviteClicked();
 
+	/** B-502 (D-214): the rest point's service that has a screen of its own (the blacksmith at an anvil). */
+	UFUNCTION()
+	void HandleServiceClicked();
+
 	void CloseMenu();
+
+	/** B-502: the rest spot this menu belongs to: on the host the one the party just rested at, on a client the one
+	 *  the player stands at. Null from the console (wor.Trial.Rest) and at a mini-boss's spot. */
+	TWeakObjectPtr<const ATrialRestSpot> Spot;
+
+	/** B-502: what the service says here (a shrine: whether it sells points this run). */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ServiceText;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UButton> ServiceButton;
 
 	/** The leave button asks first; the second press (Confirm) leaves. */
 	bool bConfirmingLeave = false;

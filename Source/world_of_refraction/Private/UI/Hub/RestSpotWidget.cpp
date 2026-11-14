@@ -25,6 +25,10 @@
 #include "UI/Hub/InventoryWidget.h"
 #include "UI/Hub/LevelDropWidget.h"
 #include "UI/Party/InviteWidget.h"
+#include "Merchant/MerchantData.h"
+#include "Shop/MerchantShopSubsystem.h"
+#include "UI/Menus/VendorScreenWidget.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "RestSpotWidget"
@@ -101,6 +105,7 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		Overlay->SetContent(Box);
 
 		RestSpotStyle::AddText(WidgetTree, Box)->SetText(LOCTEXT("Rested", "The party is restored."));
+		ServiceText = RestSpotStyle::AddText(WidgetTree, Box); // B-502
 		PayoutText = RestSpotStyle::AddText(WidgetTree, Box);
 		UButton *LevelUpButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("LevelUp", "Level up"));
 		LevelUpButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
@@ -110,7 +115,10 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		LevelUpButton->SetVisibility(bMenuOnClient ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Inventory", "Inventory"))
 			->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInventoryClicked);
-		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
+		// B-502 (D-214): the anvil's blacksmith (the vendor's own name, D-178).
+		ServiceButton = RestSpotStyle::AddButton(WidgetTree, Box, WoRGameNames::GetMerchantTypeName(EMerchantType::Blacksmith));
+		ServiceButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleServiceClicked);
+		ReviveButton =RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
 		VoteText = RestSpotStyle::AddText(WidgetTree, Box);
@@ -139,6 +147,9 @@ void URestSpotWidget::NativeConstruct()
 	{
 		GameState->OnReviveVoteChanged.AddUniqueDynamic(this, &URestSpotWidget::HandleReviveVoteChanged);
 	}
+	// B-502: the host's menu belongs to the spot the run just noted; a client has no run, so it takes the spot it stands at.
+	const bool bOnClient = GetWorld() && GetWorld()->GetNetMode() == NM_Client;
+	Spot = bOnClient ? Cast<ATrialRestSpot>(ATrialMapFeature::FindNearestInRange(GetOwningPlayerPawn())) : WoRRestSpot::FindLastRestSpot(GetWorld());
 	Refresh();
 }
 
@@ -177,6 +188,21 @@ void URestSpotWidget::Refresh()
 	if (!bCanLeave)
 	{
 		bConfirmingLeave = false;
+	}
+	// B-502 (D-214): the rest point's service.
+	const ATrialRestSpot *Here = Spot.Get();
+	const ERestService Service = Here ? Here->GetService() : ERestService::None;
+	if (ServiceText)
+	{
+		const FText Line = Service != ERestService::PillarShrine ? FText::GetEmpty()
+						   : WoRRestSpot::FindAwakeShrine(GetWorld()) == Here ? LOCTEXT("ShrineAwake", "The shrine answers this run: buy pillar points under Level up.")
+																			  : LOCTEXT("ShrineQuiet", "The shrine is quiet this run.");
+		ServiceText->SetText(Line);
+		ServiceText->SetVisibility(Line.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
+	if (ServiceButton)
+	{
+		ServiceButton->SetVisibility(Service == ERestService::Blacksmith ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (UTextBlock *LeaveLabel = LeaveButton ? Cast<UTextBlock>(LeaveButton->GetChildAt(0)) : nullptr)
 	{
@@ -343,6 +369,30 @@ void URestSpotWidget::HandleInventoryClicked()
 	WoRRestSpot::StepAway(GetWorld()); // review: the rest spot's levelling ends with its menu
 	CloseMenu();
 	UInventoryWidget::Open(PC);
+}
+
+void URestSpotWidget::HandleServiceClicked()
+{
+	APlayerController *PC = GetOwningPlayer();
+	const ATrialRestSpot *Here = Spot.Get();
+	UGameInstance *GI = GetGameInstance();
+	WoRRestSpot::StepAway(GetWorld()); // as the inventory: the rest spot's levelling ends with its menu
+	CloseMenu();
+	if (!PC || !Here || Here->GetService() != ERestService::Blacksmith)
+	{
+		return;
+	}
+	// With a stock set, the same way in as any vendor on the map (a trial rolls its part of the list, ER-18);
+	// with none, the vendor screen alone: it still buys what the party sells.
+	UMerchantShopSubsystem *Shop = GI ? GI->GetSubsystem<UMerchantShopSubsystem>() : nullptr;
+	if (UMerchantData *Stock = Here->GetServiceMerchant(); Stock && Shop)
+	{
+		Shop->OpenForMerchant(Stock, PC->GetPawn());
+	}
+	else
+	{
+		UVendorScreenWidget::Open(PC, EMerchantType::Blacksmith);
+	}
 }
 
 void URestSpotWidget::HandleLeaveClicked()
