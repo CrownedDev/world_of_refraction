@@ -1691,7 +1691,7 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     return true;
 }
 
-// OBSOLETE (B-363, D-156, Q-156): points are bought only at rest spots (WoRLevelDrops::TryBuyPoint); the vendor's
+// OBSOLETE (B-363, D-156, Q-156; B-447, D-183): points are bought from the trial NPC who sells them (WoRLevelDrops::TryBuyPoint); the vendor's
 // sale stays until Crown's PIE pass, then goes.
 bool UEconomyService::BuyWorldStat(AActor *Owner, EWorldPillar Pillar)
 {
