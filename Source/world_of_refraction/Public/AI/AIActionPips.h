@@ -1,6 +1,6 @@
 // AIActionPips.h
 // B-170f (ActionPips.md §3.6, Q-170f2): how the AI spends or banks its actions in an action-pips fight
-// (wor.Turns.ActionPips 1). The AI is asked once per action; after each pick it either spends (submits the
+// (every fight since B-170h2). The AI is asked once per action; after each pick it either spends (submits the
 // pick) or banks (End Turn: the actions left stay for its next turn). Pure rules, no actor: UAIDecisionManager
 // gathers the inputs and asks DecideSpendOrBank, so a spec checks every branch headless.
 // Debug: FAISpendOrBankDecision::ToString(), printed in the AI's per-decision Verbose line and kept in
