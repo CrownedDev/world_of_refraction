@@ -6,8 +6,8 @@
 // Left: "WORLD OF REFRACTION", "TALES OF THE VOID" and the rows (WoRTitleScreen). Continue goes on where the save is
 // (the level is already the save's); New Game over a save asks first and needs A held for 2 seconds; Settings opens
 // the settings screen over it; Quit quits. "Your save was reset" (D-060) shows first when the load wiped an old save.
-// Not built: the nebula and the hexagon vortex (an editor step, D-202); a fresh game in place after New Game deletes
-// the save (B-469; until then the new game begins at the next start).
+// New Game (with no save, or once the hold has deleted it) opens the new game screen (B-469), whose Begin starts the
+// fresh game in place. Not built: the nebula and the hexagon vortex (an editor step, D-202).
 
 #pragma once
 
@@ -44,6 +44,8 @@ public:
 	static UTitleScreenWidget *Open(APlayerController *PC);
 	/** Open, the first time a level starts in this launch of the game, until the player leaves the title. */
 	static void OpenAtLaunch(APlayerController *PC);
+	/** B-469: the new game began from the screen over the title: the title doesn't open again this launch. */
+	static void MarkLeftThisLaunch();
 
 	// What the keys and the mouse do.
 	void MoveSelection(int32 Delta);
@@ -78,7 +80,7 @@ private:
 	void Leave();
 	void StartHold();
 	void StopHold();
-	/** The hold is done: the save is deleted (the new game begins at the next start, B-469). */
+	/** The hold is done: the save is deleted and the new game screen opens (B-469). */
 	void StartOver();
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
 
