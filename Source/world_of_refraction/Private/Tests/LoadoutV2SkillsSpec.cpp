@@ -68,6 +68,8 @@ void FLoadoutV2SkillsSpec::Define()
 		}
 		TestTrue(TEXT("the blade on its tab"), Page.Entries[0].Tabs == TArray<int32>({1}));
 		TestTrue(TEXT("filled/total in its header"), Page.Entries[0].Header.ToString().Contains(TEXT("2/3 skills")));
+		TestEqual(TEXT("the blade stands for its Weapons entry (its icons and ACTIVE)"), Page.Entries[0].WeaponEntry, 1);
+		TestEqual(TEXT("Innate spells stands for none"), Page.Entries[2].WeaponEntry, static_cast<int32>(INDEX_NONE));
 		TestTrue(TEXT("the ring on its adapter tab"), Page.Entries[1].Tabs == TArray<int32>({2}));
 		TestTrue(TEXT("Innate spells last, on points"), Page.Entries[2].bInnate && Page.Entries[2].Header.ToString().Contains(TEXT("18/24")));
 		TestEqual(TEXT("the blade's rows"), WoRLoadoutV2Skills::GetRows(Page, 0).Num(), V2_SKILLS_WEAPON_ROWS);
@@ -81,11 +83,12 @@ void FLoadoutV2SkillsSpec::Define()
 		UAbilityData *Skill = NewObject<UAbilityData>(GetTransientPackage());
 		Skill->Name = TEXT("Flame Arc");
 		Skill->BaseEnergyCost = V2_SKILLS_EP;
-		const TArray<FLoadoutV2DetailLine> Lines = WoRLoadoutV2Skills::BuildSkillDetails(Skill, false);
+		const TArray<FLoadoutV2DetailLine> Lines = WoRLoadoutV2Skills::BuildSkillDetails(Skill, false, FText::FromString(TEXT("Ability")));
 		if (!TestTrue(TEXT("lines"), Lines.Num() >= 2))
 		{
 			return;
 		}
+		TestTrue(TEXT("the header as a piece's: its kind above, its tier a badge"), Lines[0].TypeName.ToString() == TEXT("Ability") && Lines[0].bHasTier && Lines[0].Tier == Skill->Tier);
 		TestTrue(TEXT("the name first"), Lines[0].Kind == ELoadoutV2DetailKind::Piece && Lines[0].Label.ToString() == TEXT("Flame Arc"));
 		TestTrue(TEXT("then EP"), Lines[1].Value.ToString() == FText::AsNumber(V2_SKILLS_EP).ToString());
 	});
