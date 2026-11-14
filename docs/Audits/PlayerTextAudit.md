@@ -1,5 +1,7 @@
 # Player-text audit (2026-11-14)
 
+**Status: approved in full by Crown (D-213) and applied by B-491 (2026-11-14).** What it leaves open is listed in D-213. The report below is as written; its line numbers are from before B-491.
+
 Report only. Nothing in code is changed. Crown approves before any job is made from this.
 
 **Scope:** every `LOCTEXT` in `Source/world_of_refraction` on `dev` (about 1,900 strings, tests left out), plus `docs/Design/UIScreens.md` and the mockup `make.py` scripts (branch `docs/ui-screens-all`, unmerged). Lore is skipped: story, dialogue, quest and journal text, names, flavour lines.

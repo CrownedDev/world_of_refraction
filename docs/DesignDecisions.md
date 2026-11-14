@@ -1231,6 +1231,17 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-213 — The player-text audit is approved in full
+**Status:** ANSWERED (Crown, chat 2026-11-14, relayed by the Operator: "3 YES APPROVE") · **Raised:** 2026-11-14 (`docs/Audits/PlayerTextAudit.md`) · **Blocks:** — (applied by B-491)
+**Answer (Crown):** the audit's wording is the game's wording. The rules it sets, for every player-facing text from now on:
+- **"Worn" is not used for two things.** Gear in a loadout is **Equipped**; wear on gear is **Damaged** (or Broken). "Nothing needs repair."
+- **No debug words on a player screen:** no "see the Output Log", no console commands, no "wallet", "armoury", "primary".
+- **One word per thing:** Back (Cancel only in a confirm box), Select, Leave, Buy / Sell, Equip / Unequip, EP, Spell (Skill = spell or ability), Ally / Enemy / the target, Adapter, Form, Chest, Defence, "X Up / X Down" for buffs and debuffs, DoT, \<Element\> Break, Negated / Barrier. One wording for a shared refusal: "Not during a fight.", "Not enough \<currency\>.", "Couldn't \<verb\> that.", "\<Name\> isn't here."
+- **A button doesn't name the place the screen already shows:** Leave, Enter, Hand over host.
+- **Interact prompts are the key, the verb and the thing:** "E  Open · Chest", "E  Rest" (Skyrim's prompt; the hub mockup's "X Talk · Blacksmith").
+- **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
+**Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
+
 ### D-212 — No loading screen into a battle: a designed transition instead
 **Status:** ANSWERED (Crown, 2026-11-14) · **Raised:** 2026-11-14 · **Blocks:** —
 **Answer (Crown):** touching an enemy does not open a loading screen. A short designed transition (the clash, then the fight) plays instead, and any loading hides behind it. The current transition is not nice to look at, so it gets a design job first (B-490), then the build. Loading screens stay for hub and trial travel only (D-203).
