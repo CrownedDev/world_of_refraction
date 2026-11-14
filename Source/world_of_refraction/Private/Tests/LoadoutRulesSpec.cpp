@@ -489,7 +489,7 @@ void FLoadoutRulesSpec::Define()
 			TestEqual(TEXT("the primary ring in the ring loadout counts once"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Resonator), 1);
 		});
 
-		It("ignores a stale S on a slot the class doesn't fight with (a Caster's secondary, a Generic's ring loadout)", [this]()
+		It("ignores a stale S on a slot the class doesn't fight with (a Caster's secondary and ring loadout)", [this]()
 		{
 			FCombatLoadout Loadout = SwordLoadoutWithAbility(EWeaponType::Sword);
 			Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
@@ -505,7 +505,7 @@ void FLoadoutRulesSpec::Define()
 			Adapter.RingEntry.AttachedItem.Crystal.Id = FCrystalId(ECrystalType::Sapphire, EItemTier::S_Tier);
 			Loadout.RingLoadout = {Adapter};
 			Loadout.ItemSlots.Add(ItemSlot(ECrystalType::Citrine, EItemTier::S_Tier, 1));
-			TestEqual(TEXT("a Generic: the secondary and the gem, not the ring loadout"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 2);
+			TestEqual(TEXT("a Generic: the secondary, its adapter entry (B-480, D-210) and the gem"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Generic), 3);
 			TestEqual(TEXT("a Resonator: the ring loadout and the gem, not the secondary"), FLoadoutRules::CountEquippedSTierCrystals(Loadout, ECharacterClass::Resonator), 2);
 			TestEqual(TEXT("a Caster: the gem alone, no finding"), CountSTierFindings(Loadout, ECharacterClass::Caster), 0);
 			TestEqual(TEXT("a Generic: two S, reported"), CountSTierFindings(Loadout, ECharacterClass::Generic), 1);
