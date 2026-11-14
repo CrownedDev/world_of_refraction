@@ -505,6 +505,7 @@ def skill_rows(d, rows, focus, top=TOP + 40, opened=None):
                 text(d, (LIST_X + 240, y + 14), r[4], 12, fill=DIM)
             text(d, (1206, y + 12), "%s EP" % ep, 14, True, anchor="ra")
         y += 50
+    return y
 
 
 def open_skill(d, x0, x1, y, name, el, tier, sub, stats, effects, req, ep=""):
@@ -550,8 +551,9 @@ FOOT_SKILLS = [("A", "Change"), ("X", "Details"), ("Y", "Options"), ("B", "Back"
 SKILLS_G = [
     ("Slash", "None", "built-in", 0), ("Quick Cut", "None", "built-in", 0),
     ("Twin Rend", "None", "slot", 5, "Dual-blade · Activate: Hit twice"),
-    ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense"),
-    ("", None, "empty", 0)]
+    ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense")] + [("", None, "empty", 0)] * 5
+# D-211: a pair's slots are the average of its tiers, rounded down (B + C -> 4), plus the crystal's extra slots
+# (CL-21: a gem's spell slots by its tier; Garnet B -> 5): 9 rows, at most 12.
 
 
 def skills_g(opened=None):
@@ -563,7 +565,11 @@ def skills_g(opened=None):
     entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
     panel(d, (LIST_X, TOP, 1232, 654), focus=True)
     text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge", 16, True, DIM)
-    skill_rows(d, SKILLS_G, 3, top=TOP + 40, opened=opened)
+    if skill_rows(d, SKILLS_G, 3, top=TOP + 40, opened=opened) > 650:  # the list scrolls past the panel
+        d.rectangle((LIST_X + 1, 632, 1231, 653), fill=PANEL)
+        d.rectangle((LIST_X - 1, 655, 1234, 720), fill=BG)
+        d.line((LIST_X, 654, 1232, 654), fill=CYAN)
+        text(d, ((LIST_X + 1232) // 2, 636), "▼  more", 12, True, DIM, anchor="ma")
     footer(d, FOOT_SKILLS)
     return im
 
