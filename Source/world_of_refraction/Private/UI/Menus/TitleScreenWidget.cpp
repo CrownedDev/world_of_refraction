@@ -10,6 +10,7 @@
 #include "Save/SaveSubsystem.h"
 #include "UI/Menus/CreditsScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/Menus/NewGameScreenWidget.h"
 #include "UI/Menus/SettingsScreenWidget.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
@@ -48,6 +49,8 @@ namespace
 {
 	/** Set when the player leaves the title (Continue, or New Game with no save): it doesn't open again this launch. */
 	bool GTitleLeftThisLaunch = false;
+	/** B-469: the hold deleted the save this launch (the title says so until the new game begins). */
+	bool GTitleSaveDeletedThisLaunch = false;
 	/** "Your save was reset" is said once a launch. */
 	bool GSaveResetNoticeShown = false;
 }
@@ -76,6 +79,11 @@ void UTitleScreenWidget::OpenAtLaunch(APlayerController *PC)
 	{
 		Open(PC);
 	}
+}
+
+void UTitleScreenWidget::MarkLeftThisLaunch()
+{
+	GTitleLeftThisLaunch = true;
 }
 
 TSharedRef<SWidget> UTitleScreenWidget::RebuildWidget()
@@ -200,7 +208,7 @@ void UTitleScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	SelectedRow = 0;
-	Status = FText::GetEmpty();
+	Status = GTitleSaveDeletedThisLaunch ? LOCTEXT("SaveDeleted", "Your save is deleted. Choose New Game to begin.") : FText::GetEmpty();
 	StopHold();
 	const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 	const bool bShowReset = Saves && Saves->WasWiped() && !GSaveResetNoticeShown;
@@ -332,7 +340,7 @@ void UTitleScreenWidget::Confirm()
 		}
 		else
 		{
-			Leave(); // nothing saved: the game is already a new one
+			UNewGameScreenWidget::Open(GetOwningPlayer()); // B-469: nothing to lose; Begin starts the game
 		}
 		break;
 	case ETitleScreenRow::Settings:
@@ -409,13 +417,16 @@ void UTitleScreenWidget::StartOver()
 	USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 	if (Saves && Saves->IsBoundToPlayer())
 	{
-		// TODO: B-469 starts the fresh game at once (the party, pool and journal in memory are still the old save's).
+		// B-469: the new game screen's Begin resets the old game still in memory and starts the new one.
 		Saves->DeleteSave();
-		Status = LOCTEXT("SaveDeleted", "Your save is deleted. The new game begins the next time you start the game.");
-		UE_LOG(LogWoRUI, Warning, TEXT("[Title] New Game held: the save is deleted; the fresh game starts at the next launch (B-469)"));
+		// Shown if the player backs out of the new game screen: the old game can't be continued now.
+		GTitleSaveDeletedThisLaunch = true;
+		Status = LOCTEXT("SaveDeleted", "Your save is deleted. Choose New Game to begin.");
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] New Game held: the save is deleted; the new game screen opens"));
 	}
 	SelectedRow = 0;
 	ShowPanel(ETitlePanel::None);
+	UNewGameScreenWidget::Open(GetOwningPlayer());
 }
 
 FReply UTitleScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)

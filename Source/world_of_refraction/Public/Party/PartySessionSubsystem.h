@@ -61,6 +61,11 @@ public:
 	UPROPERTY(Config)
 	TSoftClassPtr<ACombatCharacter> DefaultSoloPawnClass;
 
+	/** B-469: the characters a new game can start as (the lords: one Generic, one Resonator, a Refractor per element).
+	 *  The new game screen picks the one whose class (and, for a Refractor, element) matches (WoRNewGame). */
+	UPROPERTY(Config)
+	TArray<TSoftObjectPtr<UCharacterData>> NewGameCharacters;
+
 	/** The local player's Trial Party. Pure query — null when none exists yet.
 	 *  Use EnsureLocalParty when you need one to exist. */
 	UFUNCTION(BlueprintPure, Category = "Party")

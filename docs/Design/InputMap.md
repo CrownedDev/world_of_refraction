@@ -75,6 +75,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | The Gate: move through the trials, the difficulty row and Enter; step the difficulty | Up / Down, W / S; Left / Right, A / D, click a card | D-pad, left stick | none (the screen's keys) | Built (B-466): Left / Right change the difficulty from any row |
 | The Gate: pick the lit trial (then the difficulty, then Enter), or enter | Enter, Space, left click | A (Cross) | none | Built (B-466): a locked trial says so |
 | The Gate: open the party screen / the loadout over it | X / R | X (Square) / Y (Triangle) | none (the screen's keys) | Built (B-466): `WoRMenuStyle::IsToggleKey` / `IsSecondActionKey`; Back returns to the Gate |
+| New game: move through the body, the class cards, a Refractor's element grid and Begin | arrows, W A S D | D-pad, left stick | none (the screen's keys) | Built (B-469, Q-469): the class follows Up / Down; Right from a Refractor's card enters the grid, Left from its first column leaves it |
+| New game: next part, or Begin on the button | Enter, Space | A (Cross) | none | Built (B-469); B / Esc goes back to the title |
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
 | Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen; B-456a, vendor screen: sell or dismantle one, or the whole stack): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
@@ -146,3 +148,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | Loadout v2 mockup: L3 / 6 Set active on the Weapons tab (D-207's switch key) | docs/B-479-loadout-sets |
 | 2026-11-14 | Loadout v2 mockup: X Details (V) and right-stick scroll on the Skills tab (B-479b) | docs/B-479b-skill-details |
 | 2026-11-14 | Loadout v2 mockup: X Details in place on the Weapons and Apparel tabs, X again for skills (B-479b) | docs/B-479b-skill-details |
+| 2026-11-14 | B-469: the new game screen: Up / Down the parts and the class, Left / Right the body and the element grid, A next part or Begin, B back to the title; read by the screen itself | feature/B-469-new-game-screen |
