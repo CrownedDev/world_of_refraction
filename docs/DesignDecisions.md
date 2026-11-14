@@ -1123,6 +1123,13 @@ The queue of questions only Crown can answer.
 - **A: it counts as a quit (D-176).** On the next start the run is restored only to settle it: home pieces go back, found items are taken back, nothing is paid, run recruits leave, and the player is in the hub. Escape from Tarkov counts leaving a raid as "missing in action" (the gear is lost), and Dark and Darker treats a disconnect the same way; players accept it because it keeps extracting meaningful, and it closes the "close the game instead of quitting" loophole.
 - B (not taken): crash recovery, resuming once from the last checkpoint. Tarkov lets a player reconnect to a raid still running, and Returnal's lack of a mid-run save was its most criticised flaw until its Suspend Cycle patch. But it would go against D-172's "no saved runs".
 **Notes for Claude:** B-408a builds A. The co-op hand-over keeps resuming: there the run is still being played.
+### Q-447 — The trial NPC who sells pillar points: who, where, and the price
+**Status:** OPEN (lore part: Crown's) · **Raised:** 2026-11-14 (B-447, D-183) · **Blocks:** B-447
+**Question:** D-183 moves "buy a pillar point" from the rest spot to an NPC found in the trial. (1) **Who is this NPC?** A character of the world (V, a recruit, a new face) is lore, so it is Crown's. (2) Where does it stand: at every rest spot's area, once per trial map, or at random spots? (3) Does the price stay `WoRLevelDrops::TryBuyPoint`'s run Prisms?
+**Options (lore, no recommendation):** (1) A: V (D-079: V is the guide and every hub NPC); B: a recruitable character met in the trial; C: a new character Crown names.
+**Reference-backed defaults for the non-lore parts (used once (1) is answered):** (2) once per trial map, near a rest spot, marked on the map, like Hades' Charon shop appearing in fixed chambers per region (widely liked as a reliable stop); (3) the price stays as it is (D-156's Prisms).
+**Notes for Claude:** the NPC is a placed actor in the trial maps (a `ATrialMapFeature`), so placing it is an editor step after the code. The code (the NPC's actor and its placeholder buy UI, the rest spot's level screen without "buy") can be built as soon as (1) is answered.
+**Answer (Crown):** _write here_
 
 ### Q-439b — A quit run's found items: how they are counted
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439b, Q-439 point 2) · **Blocks:** —
