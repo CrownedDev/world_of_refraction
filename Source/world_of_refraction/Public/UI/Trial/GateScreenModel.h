@@ -52,7 +52,7 @@ struct FGateScreenPage
 	TArray<FGateTrialRow> Trials;
 	TArray<FGateDifficultyCard> Difficulties;
 	TArray<FGateMember> Members;
-	/** "5  (3 at the boss)". */
+	/** "5  (3 in the final fight)". */
 	FText WipesLine;
 	/** The difficulty's rule, and the run's length and save rule (the mockup's two lines). */
 	FText DifficultyNote;

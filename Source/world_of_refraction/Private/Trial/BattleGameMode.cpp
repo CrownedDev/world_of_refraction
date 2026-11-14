@@ -678,11 +678,14 @@ void ABattleGameMode::HandleTargetKilled(AActor *Killer, AActor *Victim)
         MemoryConditions::RecordKill(FightUsage.FindOrAdd(Killer), Killer);
         AddHiddenCount(Killer, HiddenCounters::KILLS); // B-379
     }
-    // B-450 (D-187): an opponent felled a party member: the wipe card would name it.
-    if (Killer && PartyStartHP.Contains(Victim) && !PartyStartHP.Contains(Killer))
+    // B-450 (D-187): the last party member's fall names who felled it; an unknown or own-side blow names no one.
+    if (PartyStartHP.Contains(Victim))
     {
-        const UCharacterDataComponent *KillerData = Killer->FindComponentByClass<UCharacterDataComponent>();
-        LastBlowBy = KillerData && KillerData->CharacterData ? FText::FromString(KillerData->CharacterData->Name) : FText::FromString(Killer->GetName());
+        const bool bByFoe = Killer && !PartyStartHP.Contains(Killer);
+        const UCharacterDataComponent *KillerData = bByFoe ? Killer->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        LastBlowBy = !bByFoe ? FText::GetEmpty()
+                     : KillerData && KillerData->CharacterData ? FText::FromString(KillerData->CharacterData->Name)
+                                                               : FText::FromString(Killer->GetName());
     }
 }
 
