@@ -1176,18 +1176,19 @@ The queue of questions only Crown can answer.
 - B (not taken): crash recovery, resuming once from the last checkpoint. Tarkov lets a player reconnect to a raid still running, and Returnal's lack of a mid-run save was its most criticised flaw until its Suspend Cycle patch. But it would go against D-172's "no saved runs".
 **Notes for Claude:** B-408a builds A. The co-op hand-over keeps resuming: there the run is still being played.
 ### Q-447 — The trial NPC who sells pillar points: who, where, and the price
-**Status:** OPEN (lore part: Crown's) · **Raised:** 2026-11-14 (B-447, D-183) · **Blocks:** B-447
+**Status:** ANSWERED (Crown, 2026-11-14) · **Raised:** 2026-11-14 (B-447, D-183) · **Blocks:** B-447
 **Question:** D-183 moves "buy a pillar point" from the rest spot to an NPC found in the trial. (1) **Who is this NPC?** A character of the world (V, a recruit, a new face) is lore, so it is Crown's. (2) Where does it stand: at every rest spot's area, once per trial map, or at random spots? (3) Does the price stay `WoRLevelDrops::TryBuyPoint`'s run Prisms?
 **Options (lore, no recommendation):** (1) A: V (D-079: V is the guide and every hub NPC); B: a recruitable character met in the trial; C: a new character Crown names.
 **Reference-backed defaults for the non-lore parts (used once (1) is answered):** (2) once per trial map, near a rest spot, marked on the map, like Hades' Charon shop appearing in fixed chambers per region (widely liked as a reliable stop); (3) the price stays as it is (D-156's Prisms).
 **Notes for Claude:** the NPC is a placed actor in the trial maps (a `ATrialMapFeature`), so placing it is an editor step after the code. The code (the NPC's actor and its placeholder buy UI, the rest spot's level screen without "buy") can be built as soon as (1) is answered.
+**Answer (Crown, 2026-11-14):** (1) It rotates between the trial's NPCs: each run, one of them carries the pillar-point stock, and the player has to find which one. (2) and (3) take the defaults above: the NPCs stand once per trial map near a rest spot, and the price stays D-156's Prisms. Note: the rotation means the seller is not marked on the map; only the NPCs are.
 ### Q-449 — The trial NPC who extracts the party: who, where, and whether it charges
-**Status:** OPEN (lore part: Crown's) · **Raised:** 2026-11-14 (B-449, D-186) · **Blocks:** B-449
+**Status:** ANSWERED (Crown, 2026-11-14) · **Raised:** 2026-11-14 (B-449, D-186) · **Blocks:** B-449
 **Question:** D-186 adds an NPC in the trial whose talk extracts the party at the half share. (1) **Who is this NPC?** Lore, so Crown's. (2) Where does it stand? (3) Does it charge on top of the half share?
 **Options (lore, no recommendation):** (1) A: V (D-079); B: the same NPC as Q-447's point seller; C: a new character Crown names.
 **Reference-backed defaults for the non-lore parts (used once (1) is answered):** (2) at most one per trial map, away from the boss's rest spot so it is a real second way out, like Escape from Tarkov's paid and conditional extracts beside the free ones; (3) no extra charge: the half share already is the price (D-186, RunRewards::LEAVE_EARLY_SHARE).
 **Notes for Claude:** a placed actor in the trial maps (`ATrialMapFeature`), so placing it is an editor step; the code (its actor, the extract through `UTrialRunSubsystem` as the boss rest spot's Extract does since B-448) can be built once (1) is answered.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-14):** (1) A: V extracts the party. (2) and (3) take the defaults above: at most one per trial map, away from the boss's rest spot, with no charge beyond the half share.
 
 ### Q-439b — A quit run's found items: how they are counted
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439b, Q-439 point 2) · **Blocks:** —
