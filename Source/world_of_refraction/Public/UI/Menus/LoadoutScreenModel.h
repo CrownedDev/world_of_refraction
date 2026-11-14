@@ -187,6 +187,10 @@ namespace WoRLoadoutScreen
 	WORLD_OF_REFRACTION_API FText ApplyGearChoice(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row,
 												 const FLoadoutScreenChoice &Choice);
 
+	/** B-474 (D-207), L3 / 6: makes Row's weapon the one in hand (the entry a fight starts with). Empty on success; else
+	 *  the reason, for the player. */
+	WORLD_OF_REFRACTION_API FText SetRowActive(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row);
+
 	/** X Unequip on the member's active loadout. Empty on success; else the reason. */
 	WORLD_OF_REFRACTION_API FText UnequipRow(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row);
 
