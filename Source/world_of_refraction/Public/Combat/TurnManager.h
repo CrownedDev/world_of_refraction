@@ -49,41 +49,12 @@ struct FCombatantTurnDebt
 	int32 PositionInTeam = 0;
 
 	UPROPERTY()
-	float TurnsOwed = 0.0f;
-
-	UPROPERTY()
 	int32 TurnsTaken = 0;
 
-	UPROPERTY()
-	float SpeedRatio = 1.0f;
-
-	// Cached stats for tie-breaking. B-341 (D-133): the tie-break reads only CachedSpeed (then side, then slot).
+	/** The base turn speed (B-042v), read by GetEffectiveTurnSpeed for the GAS turn speed. B-170h2: it no longer
+	 *  orders turns (the fixed rotation does); the Turn Speed family goes with B-170h3. */
 	UPROPERTY()
 	int32 CachedSpeed = 0;
-
-	/** OBSOLETE (B-341): no longer read by the tie-break (ET-08 trimmed to 3 steps); kept until PIE. */
-	UPROPERTY()
-	int32 CachedActionSpeed = 0;
-
-	/** OBSOLETE (B-341): the world stats no longer break ties (ET-08 trimmed); kept until PIE. */
-	UPROPERTY()
-	int32 CachedMind = 0;
-
-	UPROPERTY()
-	int32 CachedBody = 0;
-
-	UPROPERTY()
-	int32 CachedSpirit = 0;
-
-	/** Picks this combatant gives up to the next in line when it would be chosen (Wind
-	 *  break, D-014 / D-090). Each yield moves its turn back one place. */
-	UPROPERTY()
-	int32 PlacesToYield = 0;
-
-	/** Turns this combatant has taken since anyone on the other side last acted: the 2:1 cap
-	 *  (D-049, CombatConstants::MAX_TURN_RATIO) keeps it at most that many. */
-	UPROPERTY()
-	int32 TurnsSinceOpponent = 0;
 
 	/** First strike (B-185): this combatant's side was struck first, so it waits until the
 	 *  other side has taken its opening round. Cleared for everyone when that round is done. */
@@ -194,13 +165,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRoundAdded);
 
 /**
  * TurnManager - per-fight world subsystem (B-336)
- * Manages turn order using debt-based system with speed ratios
- *
- * Algorithm: Debt accumulates per ROUND, not per turn.
- * - SpeedRatio = ActorSpeed / SlowestSpeed (slowest = 1.0)
- * - Each round adds SpeedRatio to TurnsOwed for all combatants
- * - Actor with highest (TurnsOwed - TurnsTaken) goes next
- * - New round starts when no combatant has positive net debt
+ * Orders turns by the fixed rotation (B-170b, ActionPips.md §3.2: the sides alternate, the leading side first;
+ * FTurnRotation), with pinned turns (bonus, a ritual's Execution turn) fired ahead of the next seat.
+ * B-170h2: the old speed timeline (debt per round, the 2:1 cap, the tie-breaks, the Wind yield) is deleted.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UTurnManager : public UWoRFightSubsystem
@@ -278,15 +245,12 @@ public:
 	/** B-228: the global turn count (the number OnTurnStarted carries). */
 	int32 GetTurnCount() const { return GlobalTurnCount; }
 
-	/** B-170b: true when this fight runs the fixed rotation (wor.Turns.ActionPips was 1 when it started). */
-	bool IsRotationMode() const { return bRotationMode; }
-
 	// ========================================
 	// SPEED CHANGES
 	// ========================================
 
-	/** Notify that actor's speed changed (recalculates ratios). A no-op in the fixed rotation (B-170b):
-	 *  speed no longer moves turns; callers stay until the speed timeline is deleted (B-170h). */
+	/** Notify that actor's speed changed: its base turn speed is read again and OnSpeedChanged broadcast (the GAS
+	 *  attribute sync listens). Speed no longer moves turns (B-170h2); the callers go with B-170h3. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void OnActorSpeedChanged(AActor *Actor);
 
@@ -298,18 +262,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void OnActorResurrected(AActor *Actor);
 
-	/** OBSOLETE (B-341): Extra Action now grants a bonus turn through GrantBonusTurn (D-133).
-	 *  Grant an additional NON-bonus turn by crediting one unit of TurnsOwed (debt-soft) —
-	 *  the ExtraAction skill effect path. Cluster 2b: the bonus path is RETIRED — Emerald
-	 *  bonuses are pinned entries via ScheduleBonusTurn. bIsBonusTurn is kept only so
-	 *  existing call sites compile; passing true is a warn-and-ignore no-op. */
+	/** OBSOLETE (B-341, B-170h2): a no-op. Extra Action grants through GrantBonusTurn (D-133); the turn debt it
+	 *  credited went with the speed timeline (B-170h2). Kept for Blueprint callers until B-170h3. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void RequestExtraTurn(AActor *Actor, bool bIsBonusTurn = false);
 
-	/** Push Actor's next normal turn back by Places places in the turn order (Wind break,
-	 *  D-014 / D-090): when it would be picked, the next in line goes first. It still acts
-	 *  that round. Pinned bonus / Execution turns are not moved. A no-op in the fixed rotation (B-170b):
-	 *  Wind's break takes an action there instead (B-170d). */
+	/** OBSOLETE (B-170h2): a no-op. The fixed rotation has no place delays: Wind's break takes an action instead
+	 *  (B-170d). Kept for Blueprint callers until B-170h3. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void DelayNextTurn(AActor *Actor, int32 Places);
 
@@ -339,7 +298,7 @@ public:
 	 *  Schedule Count pinned bonus turn(s) for Actor, firing after DelayTurns turns
 	 *  (Emerald). DelayTurns >= 0 is valid: 0 fires on the very next scheduler step (the
 	 *  S-rank immediate case, Count=2 → two back-to-back). Pinned: the fire preempts the
-	 *  debt pick at its slot; every turn taken burns the delay. A dead/invalid grantee's
+	 *  rotation's next seat; every turn taken burns the delay. A dead/invalid grantee's
 	 *  entry is dropped at fire time without emitting a turn. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count = 1);
@@ -462,26 +421,18 @@ private:
 	UPROPERTY()
 	bool bCombatActive;
 
-	/** B-170b: latched from wor.Turns.ActionPips at InitializeCombat, so a fight never changes mode midway.
-	 *  False = the speed timeline as built (byte-identical). */
-	bool bRotationMode = false;
-
-	/** B-170b: the fixed rotation's live state (used only when bRotationMode). RebuildBelt steps a copy. */
+	/** B-170b: the fixed rotation's live state. RebuildBelt steps a copy. */
 	FTurnRotation Rotation;
 
 	// ========================================
 	// INTERNAL METHODS
 	// ========================================
 
-	/** Calculate speed ratios relative to slowest combatant (does NOT add debt) */
-	void CalculateSpeedRatios();
-
 	/** The single scheduler step both the live path and the belt fill share (Cluster 2a:
 	 *  this IS the live step — AdvanceToNextTurn passes real state, RebuildBelt scratch).
-	 *  Advances ONE turn on the passed state: round-check+accumulate, select+tiebreak,
-	 *  TurnsTaken++, bonus-consume -> OutEntry.bIsBonusTurn, pending-countdown -> debt
-	 *  credit. Returns false if no living combatant remains. const: touches only the
-	 *  passed refs. */
+	 *  Advances ONE turn on the passed state: a ready pinned turn first, else the rotation's next
+	 *  seat; TurnsTaken++, bonus-consume -> OutEntry.bIsBonusTurn, every pending entry's delay
+	 *  burns one. Returns false if no living combatant remains. const: touches only the passed refs. */
 	bool AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 						 TArray<FScheduledTurn> &Pending,
 						 FTurnRotation &RotationState,
@@ -490,14 +441,6 @@ private:
 
 	/** Refill TurnBelt (up to TURN_BELT_HORIZON) from a scratch copy of live state. */
 	void RebuildBelt();
-
-	/** B-341 (D-133, Q-341): the 3-step tie-break: higher base turn speed (buffs ignored), then your
-	 *  party before enemies, then the lower slot. */
-	bool ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const;
-
-	/** OBSOLETE (B-341): the 8-step tie-break before D-133 (speed, action speed, the underdog total,
-	 *  Body, Mind, Spirit, side, slot). Not called; kept until the 3-step chain is proven in PIE. */
-	bool ShouldBreakTieInFavorEightStep(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const;
 
 	/** Cache actor stats from CharacterDataComponent */
 	void CacheActorStats(FCombatantTurnDebt &Combatant);
@@ -510,9 +453,9 @@ private:
 	int32 EffectiveTurnSpeedOf(const AActor *Actor, int32 CachedSpeed) const;
 	const FCombatantTurnDebt *FindCombatantEntry(const AActor *Actor) const;
 
-	/** Lazy-acquired SkillEffectManager pointer used by CalculateSpeedRatios to
-	 *  fold ModifyTurnSpeed / TurnSpeedBuff / TurnSpeedDebuff into the cached
-	 *  speed value. Matches the const_cast pattern used by other subsystems. */
+	/** Lazy-acquired SkillEffectManager pointer used by BuildTurnSpeedLayers to
+	 *  fold ModifyTurnSpeed / TurnSpeedBuff / TurnSpeedDebuff into the effective
+	 *  speed. Matches the const_cast pattern used by other subsystems. */
 	UPROPERTY()
 	mutable USkillEffectManager *SkillEffectManagerRef = nullptr;
 
