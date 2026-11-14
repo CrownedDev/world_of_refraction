@@ -95,22 +95,20 @@ void ULoadoutScreenWidget::BuildTree()
 	AddToColumn(TabsColumn, MemberRow);
 
 	UHorizontalBox *PageRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UTextBlock *GearLabel = nullptr;
-	UBorder *GearTab = MakeTab(WidgetTree, GearLabel);
-	GearTab->SetBrushColor(FocusColor);
-	GearLabel->SetText(LOCTEXT("PageGear", "Gear"));
-	GearLabel->SetColorAndOpacity(FSlateColor(TextColor));
-	UTextBlock *SkillsLabel = nullptr;
-	UBorder *SkillsTab = MakeTab(WidgetTree, SkillsLabel);
-	SkillsLabel->SetText(LOCTEXT("PageSkills", "Skills")); // TODO: B-440d builds the page; until then the tab is off
-	SkillsLabel->SetColorAndOpacity(FSlateColor(OffColor));
-	AddToRow(PageRow, GearTab, FMargin(0.0f, 0.0f, TabGap, 0.0f));
-	AddToRow(PageRow, SkillsTab);
+	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabPrev", "LB")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	for (const FText &PageName : {LOCTEXT("PageGear", "Gear"), LOCTEXT("PageSkills", "Skills")})
+	{
+		UTextBlock *Label = nullptr;
+		PageTabs.Add(MakeTab(WidgetTree, Label));
+		PageTabLabels.Add(Label);
+		Label->SetText(PageName);
+		AddToRow(PageRow, PageTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
+	}
+	AddToRow(PageRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeyTabNext", "RB")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(TabsColumn, PageRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	UHorizontalBox *BudgetRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UTextBlock *BudgetLabel = MakeText(WidgetTree, LineFontSize, DimColor, true);
-	BudgetLabel->SetText(LOCTEXT("Budget", "Budget"));
+	BudgetLabel = MakeText(WidgetTree, LineFontSize, DimColor, true);
 	AddToRow(BudgetRow, BudgetLabel, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < MaxBudgetPips; ++Index)
 	{
@@ -139,6 +137,9 @@ void ULoadoutScreenWidget::BuildTree()
 	AddToColumn(Main, Body, FMargin(0.0f, HeaderGap, 0.0f, SectionGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	// TODO: B-440d, the lists as tab plates (mockup 3); a line of text for now.
+	SkillTabsText = MakeWrappedText(WidgetTree, LineFontSize, TextColor, true);
+	AddToColumn(ListColumn, SkillTabsText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	RefusalText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
 	AddToColumn(ListColumn, RefusalText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	PickerTitle = MakeText(WidgetTree, LineFontSize, DimColor, true);
@@ -266,6 +267,21 @@ void ULoadoutScreenWidget::RefreshData()
 	{
 		Page.Refusal = LOCTEXT("NoParty", "There is no party to show.");
 	}
+	if (bSkillsPage)
+	{
+		// B-440d: the list shows the lit skill list's slots; the points (not the pips) show in the budget line.
+		Skills = Members.IsValidIndex(MemberIndex) ? WoRLoadoutSkills::BuildSkillsPage(World, Members[MemberIndex]) : FLoadoutSkillsPage();
+		SkillTab = Skills.Tabs.Num() > 0 ? FMath::Clamp(SkillTab, 0, Skills.Tabs.Num() - 1) : 0;
+		Page.Rows = Skills.Tabs.IsValidIndex(SkillTab) ? Skills.Tabs[SkillTab].Rows : TArray<FLoadoutScreenRow>();
+		Page.FirstApparelRow = INDEX_NONE;
+		Page.Budget = 0;
+		if (Page.Refusal.IsEmpty())
+		{
+			Page.Refusal = !Skills.Refusal.IsEmpty() ? Skills.Refusal
+						   : Skills.Tabs.Num() == 0 ? LOCTEXT("NoSkillLists", "No skill lists: a weapon or an adapter brings one.")
+													: FText::GetEmpty();
+		}
+	}
 	SelectedRow = Page.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, Page.Rows.Num() - 1) : 0;
 
 	if (LoadoutTitleText)
@@ -283,6 +299,23 @@ void ULoadoutScreenWidget::RefreshData()
 			MemberTabLabels[Index]->SetColorAndOpacity(FSlateColor(Index == MemberIndex ? TextColor : DimColor));
 		}
 	}
+	for (int32 Index = 0; Index < PageTabs.Num(); ++Index)
+	{
+		const bool bLit = Index == (bSkillsPage ? 1 : 0);
+		PageTabs[Index]->SetBrushColor(bLit ? FocusColor : PlateColor);
+		PageTabLabels[Index]->SetColorAndOpacity(FSlateColor(bLit ? TextColor : DimColor));
+	}
+	if (SkillTabsText)
+	{
+		TArray<FText> Lists;
+		for (int32 Index = 0; Index < Skills.Tabs.Num(); ++Index)
+		{
+			const FText List = FText::Format(LOCTEXT("SkillTab", "{0} {1}"), Skills.Tabs[Index].Title, Skills.Tabs[Index].Filled);
+			Lists.Add(Index == SkillTab ? FText::Format(LOCTEXT("SkillTabLit", "[ {0} ]"), List) : List);
+		}
+		SkillTabsText->SetText(FText::Join(LOCTEXT("SkillTabGap", "    "), Lists));
+		SetShown(SkillTabsText, bSkillsPage && Lists.Num() > 0);
+	}
 	RefreshList();
 }
 
@@ -292,8 +325,9 @@ void ULoadoutScreenWidget::RefreshList()
 
 	if (HintsText)
 	{
-		HintsText->SetText(bPicking ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
-									: LOCTEXT("Hints", "A  Change        X  Unequip        Left / Right  Sockets        LT / RT  Character        B / Esc  Back"));
+		HintsText->SetText(bPicking		 ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
+						   : bSkillsPage ? LOCTEXT("HintsSkills", "A  Change        X  Remove        Left / Right  Lists        LB / RB  Page        LT / RT  Character        B / Esc  Back")
+										 : LOCTEXT("Hints", "A  Change        X  Unequip        Left / Right  Sockets        LB / RB  Page        LT / RT  Character        B / Esc  Back"));
 	}
 	if (RefusalText && PickerTitle)
 	{
@@ -303,8 +337,10 @@ void ULoadoutScreenWidget::RefreshList()
 		const bool bHasRow = Page.Rows.IsValidIndex(SelectedRow);
 		const FText RowName = bHasRow ? Page.Rows[SelectedRow].Name : FText::GetEmpty();
 		const FText SocketName = bHasRow && Page.Rows[SelectedRow].Sockets.IsValidIndex(SelectedSocket) ? Page.Rows[SelectedRow].Sockets[SelectedSocket].Label : FText::GetEmpty();
-		PickerTitle->SetText(Choices.Num() == 0 ? LOCTEXT("PickerNothing", "Nothing you own fits here.")
+		const FText ListName = Skills.Tabs.IsValidIndex(SkillTab) ? Skills.Tabs[SkillTab].Title : FText::GetEmpty();
+		PickerTitle->SetText(Choices.Num() == 0 ? (bSkillsPage ? LOCTEXT("PickerNoSkill", "You know nothing that fits here.") : LOCTEXT("PickerNothing", "Nothing you own fits here."))
 							 : bPickingSocket   ? FText::Format(LOCTEXT("PickerSocketTitle", "{0} · {1} socket:"), RowName, SocketName)
+							 : bSkillsPage		? FText::Format(LOCTEXT("PickerSkillTitle", "{0} · in place of {1}:"), ListName, RowName)
 												: FText::Format(LOCTEXT("PickerTitle", "In place of {0}:"), RowName));
 		SetShown(PickerTitle, bPicking);
 	}
@@ -347,6 +383,33 @@ void ULoadoutScreenWidget::RefreshBudget()
 
 	// In the picker the lit line's budget shows in amber before it is confirmed (UIScreens #2).
 	const bool bPreview = bPicking && Choices.IsValidIndex(SelectedChoice);
+	if (bSkillsPage)
+	{
+		// B-440d: a Refractor's innate points (mockup 3); the other classes' skills cost nothing.
+		const bool bPoints = Skills.MaxPoints > 0;
+		const bool bPointsPreview = bPreview && bPoints && Skills.Tabs.IsValidIndex(SkillTab) && Skills.Tabs[SkillTab].List == ELoadoutSkillList::Innate;
+		const int32 Points = bPointsPreview ? Choices[SelectedChoice].NewSpent : Skills.Points;
+		for (UBorder *Pip : BudgetPips)
+		{
+			SetShown(Pip, false);
+		}
+		SetShown(BudgetLabel, bPoints);
+		SetShown(BudgetText, bPoints);
+		if (BudgetLabel && BudgetText)
+		{
+			BudgetLabel->SetText(LOCTEXT("InnatePoints", "Innate spells"));
+			BudgetText->SetText(bPointsPreview ? FText::Format(LOCTEXT("PointsPreview", "{0} → {1} of {2} points"), Skills.Points, Points, Skills.MaxPoints)
+											   : FText::Format(LOCTEXT("PointsValue", "{0} of {1} points"), Points, Skills.MaxPoints));
+			BudgetText->SetColorAndOpacity(FSlateColor(bPointsPreview || Points > Skills.MaxPoints ? WarnColor : TextColor));
+		}
+		return;
+	}
+	SetShown(BudgetLabel, true);
+	SetShown(BudgetText, true);
+	if (BudgetLabel)
+	{
+		BudgetLabel->SetText(LOCTEXT("Budget", "Budget"));
+	}
 	const int32 Shown = bPreview ? Choices[SelectedChoice].NewSpent : Page.Spent;
 	for (int32 Index = 0; Index < BudgetPips.Num(); ++Index)
 	{
@@ -370,7 +433,7 @@ void ULoadoutScreenWidget::FillRow(const FRowWidgets &Widgets, const FLoadoutScr
 	{
 		return;
 	}
-	const bool bEmptySlot = Row.Kind == ELoadoutScreenRowKind::EmptyApparel || Row.Kind == ELoadoutScreenRowKind::EmptyGear;
+	const bool bEmptySlot = Row.Kind == ELoadoutScreenRowKind::EmptyApparel || Row.Kind == ELoadoutScreenRowKind::EmptyGear || Row.Kind == ELoadoutScreenRowKind::EmptySkill;
 	SetShown(Widgets.Heading.Get(), bHeading);
 	Widgets.Name->SetText(Row.Name);
 	Widgets.Name->SetColorAndOpacity(FSlateColor(bEmptySlot ? OffColor : TextColor));
@@ -439,12 +502,15 @@ void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 														Row.Sockets[SelectedSocket].bEmpty ? LOCTEXT("SocketNoteEmpty", "empty, A fills it")
 																						   : Row.Sockets[SelectedSocket].Name)
 										: FText::GetEmpty();
+	const bool bInnateList = Skills.Tabs.IsValidIndex(SkillTab) && Skills.Tabs[SkillTab].List == ELoadoutSkillList::Innate;
+	const bool bSkillNote = bSkillsPage && Choice && Choice->Refusal.IsEmpty() && !bInnateList; // a weapon's or adapter's skill costs nothing
 	DetailNote->SetText(bSocketLit ? SocketNote
-				: !Choice ? Row.Note
+				: !Choice || bSkillNote ? Row.Note
 				: !Choice->Refusal.IsEmpty() ? Choice->Refusal
+				: bSkillsPage ? FText::Format(LOCTEXT("PointsAfter", "Points after: {0} of {1}."), Choice->NewSpent, Skills.MaxPoints)
 											  : FText::Format(LOCTEXT("BudgetAfter", "Budget after: {0} of {1}."), FText::AsNumber(Choice->NewSpent),
 															  FText::AsNumber(Page.Budget)));
-	DetailNote->SetColorAndOpacity(FSlateColor(Choice ? WarnColor : DimColor));
+	DetailNote->SetColorAndOpacity(FSlateColor(Choice && !bSkillNote ? WarnColor : DimColor));
 	if (bScrollIntoView && RowList && RowWidgets.IsValidIndex(Lit))
 	{
 		if (UWidget *RowRoot = RowWidgets[Lit].Root.Get())
@@ -492,6 +558,7 @@ void ULoadoutScreenWidget::MoveMember(int32 Delta)
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
 	SelectedRow = 0;
 	SelectedSocket = INDEX_NONE;
+	SkillTab = 0;
 	bPicking = false;
 	bPickingSocket = false;
 	bTakeOffArmed = false;
@@ -507,6 +574,35 @@ void ULoadoutScreenWidget::PressChange()
 		return;
 	}
 	const FLoadoutScreenRow &Row = Page.Rows[SelectedRow];
+	if (bSkillsPage)
+	{
+		// B-440d: the lit slot takes a learned skill.
+		if (!bPicking)
+		{
+			Choices = WoRLoadoutSkills::BuildSkillChoices(GetWorld(), Members[MemberIndex], Skills, SkillTab, Row);
+			SelectedChoice = FMath::Max(0, Choices.IndexOfByPredicate([](const FLoadoutScreenChoice &Choice) { return Choice.Refusal.IsEmpty(); }));
+			bPicking = true;
+			Message = FText::GetEmpty();
+			RefreshList();
+			RefreshSelection();
+			return;
+		}
+		if (!Choices.IsValidIndex(SelectedChoice) || !Skills.Tabs.IsValidIndex(SkillTab))
+		{
+			return;
+		}
+		Message = !Choices[SelectedChoice].Refusal.IsEmpty()
+					  ? Choices[SelectedChoice].Refusal
+					  : WoRLoadoutSkills::ApplySkill(GetWorld(), Members[MemberIndex], Skills.Tabs[SkillTab], Row, Choices[SelectedChoice].Row.Skill);
+		if (Message.IsEmpty())
+		{
+			ClosePicker();
+			return;
+		}
+		RefreshList();
+		RefreshSelection();
+		return;
+	}
 	if (!bPicking && Row.Sockets.IsValidIndex(SelectedSocket))
 	{
 		// B-440c: a filled socket is emptied first (X), since taking a gem off destroys it (Q-440c).
@@ -563,6 +659,15 @@ void ULoadoutScreenWidget::PressUnequip()
 	{
 		return;
 	}
+	if (bSkillsPage)
+	{
+		// B-440d: nothing is lost (an innate spell stays learned; a replaced built-in comes back), so one press.
+		Message = Skills.Tabs.IsValidIndex(SkillTab) ? WoRLoadoutSkills::ApplySkill(GetWorld(), Members[MemberIndex], Skills.Tabs[SkillTab], Page.Rows[SelectedRow], nullptr)
+													 : FText::GetEmpty();
+		RefreshData();
+		RefreshSelection();
+		return;
+	}
 	if (Page.Rows[SelectedRow].Sockets.IsValidIndex(SelectedSocket))
 	{
 		if (!bTakeOffArmed)
@@ -604,6 +709,35 @@ void ULoadoutScreenWidget::MoveSocket(int32 Delta)
 	Message = FText::GetEmpty();
 	RefreshList();
 	RefreshSelection(false);
+}
+
+void ULoadoutScreenWidget::SwitchPage()
+{
+	if (bPicking)
+	{
+		return;
+	}
+	bSkillsPage = !bSkillsPage;
+	SelectedRow = 0;
+	SelectedSocket = INDEX_NONE;
+	SkillTab = 0;
+	bTakeOffArmed = false;
+	Message = FText::GetEmpty();
+	RefreshData();
+	RefreshSelection();
+}
+
+void ULoadoutScreenWidget::MoveSkillTab(int32 Delta)
+{
+	if (bPicking || Skills.Tabs.Num() < 2)
+	{
+		return;
+	}
+	SkillTab = ((SkillTab + Delta) % Skills.Tabs.Num() + Skills.Tabs.Num()) % Skills.Tabs.Num();
+	SelectedRow = 0;
+	Message = FText::GetEmpty();
+	RefreshData();
+	RefreshSelection();
 }
 
 void ULoadoutScreenWidget::ClosePicker()
@@ -649,9 +783,17 @@ FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 		}
 		return FReply::Handled();
 	}
+	if (IsTabPrevKey(Key) || IsTabNextKey(Key))
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			SwitchPage(); // two pages: either key turns to the other
+		}
+		return FReply::Handled();
+	}
 	if (IsLeftKey(Key) || IsRightKey(Key))
 	{
-		MoveSocket(IsRightKey(Key) ? 1 : -1);
+		bSkillsPage ? MoveSkillTab(IsRightKey(Key) ? 1 : -1) : MoveSocket(IsRightKey(Key) ? 1 : -1);
 		return FReply::Handled();
 	}
 	if (IsConfirmKey(Key) || IsToggleKey(Key))

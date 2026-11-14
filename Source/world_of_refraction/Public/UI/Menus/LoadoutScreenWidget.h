@@ -9,13 +9,15 @@
 // What it shows comes from WoRLoadoutScreen (LoadoutScreenModel.h), which the specs read.
 // B-440b: A on a gear row opens a picker of owned gear for its place (the budget after each in amber, refused lines
 // greyed with the reason), A again puts the lit one in; X empties the place. B-440c: Left / Right lights a socket;
-// A there picks a carried gem or stone or an owned evolution, X (twice) takes it off. Skills and saved loadouts are
-// B-440d, B-440e.
+// A there picks a carried gem or stone or an owned evolution, X (twice) takes it off. B-440d: LB / RB switches to the
+// Skills page (WoRLoadoutSkills): Left / Right picks the list (a school, a weapon, an adapter), A puts a learned skill
+// in the lit slot, X takes it out. Saved loadouts are B-440e.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/Menus/LoadoutSkillsModel.h"
 #include "UI/WoRActivatableWidget.h"
 #include "LoadoutScreenWidget.generated.h"
 
@@ -50,6 +52,13 @@ public:
 	void MoveSocket(int32 Delta);
 	/** The lit socket (LoadoutScreenSockets), INDEX_NONE for the row itself. */
 	int32 GetSelectedSocket() const { return SelectedSocket; }
+	/** B-440d, LB / RB: the Gear or the Skills page. */
+	void SwitchPage();
+	/** B-440d, Left / Right on the Skills page: the previous / next list; wraps. */
+	void MoveSkillTab(int32 Delta);
+	bool IsSkillsPage() const { return bSkillsPage; }
+	const FLoadoutSkillsPage &GetSkills() const { return Skills; }
+	int32 GetSkillTab() const { return SkillTab; }
 	/** B, Esc: closes the picker, else the screen. */
 	void PressBack() { HandleBackAction(); }
 
@@ -119,6 +128,10 @@ private:
 	TArray<FLoadoutScreenChoice> Choices;
 	int32 SelectedChoice = 0;
 	FText Message;
+	/** B-440d: the Skills page is shown; Page.Rows then holds its lit list's rows. */
+	bool bSkillsPage = false;
+	FLoadoutSkillsPage Skills;
+	int32 SkillTab = 0;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> MemberTabs;
@@ -127,7 +140,16 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> BudgetPips;
 	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> BudgetLabel;
+	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BudgetText;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> PageTabs;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> PageTabLabels;
+	/** B-440d: the Skills page's lists, the lit one marked. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> SkillTabsText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> LoadoutTitleText;
 	UPROPERTY(Transient)
