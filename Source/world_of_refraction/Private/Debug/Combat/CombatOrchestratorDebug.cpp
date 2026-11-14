@@ -211,6 +211,13 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("Auto-Advance: %s (%.1fs delay)"),
 		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
 	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));
+	{
+		// B-453e: the idle clock and whose turn the AI took over.
+		const UWorld *World = GetWorld();
+		const float Left = World ? World->GetTimerManager().GetTimerRemaining(IdleTurnTimer) : -1.0f;
+		UE_LOG(LogTemp, Display, TEXT("Idle clock: %s (%.1fs left); AI finishing the turn of: %s"), *GetNameSafe(IdleClockActor.Get()), Left,
+			   *GetNameSafe(IdleTakenActor.Get()));
+	}
 	UE_LOG(LogTemp, Display, TEXT("Encounter Rank: %s (flee %s)"), *UEnum::GetValueAsString(EncounterRank),
 		   FleeRules::CanFleeRank(EncounterRank) ? TEXT("allowed") : TEXT("refused"));
 

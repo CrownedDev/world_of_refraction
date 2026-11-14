@@ -394,6 +394,10 @@ ECombatInputVerdict ACombatPlayerController::HandleFreeCommand(AActor *Actor, EC
 
 bool ACombatPlayerController::ApplyFreeCommand(ACombatOrchestrator *Orchestrator, AActor *Actor, ECombatFreeCommand Command)
 {
+	if (Orchestrator)
+	{
+		Orchestrator->NoteTurnActivity(); // B-453e: a hotkey is a choice too (the idle clock starts again)
+	}
 	FText Refusal;
 	ULoadoutComponent *Loadout = Actor ? Actor->FindComponentByClass<ULoadoutComponent>() : nullptr;
 	switch (Command)
