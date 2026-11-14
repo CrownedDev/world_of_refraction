@@ -212,7 +212,8 @@ namespace
 			}
 		}
 
-		// B-410 (Q-098): a gem slot's pick must fit the gem's element (the crystal can change after the pick).
+		// B-410 (Q-098): a gem slot's pick must fit the gem's element (the crystal can change after the pick). Only picks:
+		// a weapon's own built-in that falls in a gem slot stays (it is the weapon's, like CL-20's restore).
 		for (int32 Slot = 0; Slot < Weapon.WeaponEntry.SkillPicks.Num(); ++Slot)
 		{
 			const UAbilityData *Pick = Weapon.WeaponEntry.SkillPicks[Slot];
