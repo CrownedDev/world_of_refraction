@@ -33,20 +33,20 @@ namespace HiddenQuestNotice
 	// stay). TODO: Crown's text (placeholders).
 	static FText HiddenFound()
 	{
-		return LOCTEXT("HiddenFoundMasked", "Secret quest found. Open the journal to view it.");
+		return LOCTEXT("HiddenFoundMasked", "Secret quest found.");
 	}
 	static FText HiddenStepDone()
 	{
-		return LOCTEXT("HiddenStepDoneMasked", "Secret quest updated. Open the journal to view it.");
+		return LOCTEXT("HiddenStepDoneMasked", "Secret quest updated.");
 	}
 	static FText HiddenFinished()
 	{
-		return LOCTEXT("HiddenFinishedMasked", "Secret quest complete. Open the journal to view it.");
+		return LOCTEXT("HiddenFinishedMasked", "Secret quest complete.");
 	}
 	// Crown (2026-11-12, Q-397b flag): the end memory a hidden quest earns is not named on screen either.
 	static FText HiddenNewMemory()
 	{
-		return LOCTEXT("HiddenNewMemoryMasked", "New memory found. Open the journal to view it.");
+		return LOCTEXT("HiddenNewMemoryMasked", "New memory found.");
 	}
 
 	// B-388: a main or side quest is visible, so its notices name it and its next goal. TODO: Crown's text (placeholders).

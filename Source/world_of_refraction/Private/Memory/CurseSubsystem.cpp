@@ -97,7 +97,7 @@ FText UCurseSubsystem::GetClearRefusal(FName CurseId, const UCurrencyComponent *
 	}
 	if (!Wallet || !Wallet->CanAfford(Currency, Price))
 	{
-		return FText::Format(LOCTEXT("Short", "Clearing it costs {0} {1}; you have {2}."), FText::AsNumber(Price),
+		return FText::Format(LOCTEXT("Short", "Not enough {1}."), FText::AsNumber(Price),
 							 WoRGameNames::GetCurrencyName(Currency), FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0));
 	}
 	return FText::GetEmpty();
@@ -116,7 +116,7 @@ bool UCurseSubsystem::PayToClearCurse(FName CurseId, UCurrencyComponent *Wallet,
 	const int32 Price = Priced->GetClearPrice();
 	if (!Wallet->Spend(Currency, Price))
 	{
-		OutRefusal = LOCTEXT("SpendRefused", "The payment didn't go through.");
+		OutRefusal = LOCTEXT("SpendRefused", "Couldn't buy that.");
 		UE_LOG(LogWoR, Warning, TEXT("[Curse] %s: the clear's spend of %d was refused (no server authority?)"), *CurseId.ToString(), Price);
 		return false;
 	}
