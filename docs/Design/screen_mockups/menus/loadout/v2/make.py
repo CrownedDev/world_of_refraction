@@ -2,8 +2,12 @@
 with their sockets and costs); what can go in the focused slot or socket is on the right, always in view, replacing
 v1's detail panel and picker popup. The focused right-hand item shows how it compares: the budget change and stat
 ups (green) / downs (red), as in Expedition 33's and Persona 5's equip screens. Items that can't go in stay listed,
-greyed, with the reason. Details on R3. Apparel has no budget. Stat values are placeholders; costs are the code's
-(LoadoutConstants.h: weapon 1, adapter 0, crystal / stone +1, evolution on gear +2). Run: python make.py"""
+greyed, with the reason. Details on R3. Apparel has no budget.
+One Weapons tab per class, laid out by docs/Rules/01-classes-and-loadouts.md: Generic a primary (weapon, adapter or
+evolution) + a secondary weapon, budget 5 (CL-03, CL-12); Refractor one primary item, budget 3, plus its innate
+spell pool by school (CL-04, CL-34, CL-42); Resonator a primary weapon or evolution + adapters, budget 5 (CL-05,
+CL-10). Costs: weapon frame 1, adapter frame 0, crystal / stone +1, evolution on gear +2, evolution alone 3 (CL-10).
+Apparel: HP / Defence / Amp + one rolled bonus line (CL-50, CL-50c). Stat values are placeholders. Run: python make.py"""
 import os
 import sys
 
@@ -39,7 +43,7 @@ def budget(d, used, total, preview=None, x=48, y=134):
         text(d, (x + 100 + total * 40, y), "%d → %d of %d" % (used, preview, total), 18, True, WARN if preview > used else GOOD)
 
 
-def slot(d, y, kind, name, el, cost, sockets, focus=None, tag=None, h=78):
+def slot(d, y, kind, name, el, cost, sockets, focus=None, tag=None, h=78, sock_x=340):
     """One equipped slot. focus: "slot", or the index of the focused socket."""
     on = focus == "slot"
     cut(d, (48, y, LEFT_R, y + h), TEAL if on else PLATE, CYAN if on else STEEL, 10)
@@ -56,7 +60,7 @@ def slot(d, y, kind, name, el, cost, sockets, focus=None, tag=None, h=78):
         icon(d, (58, y + 9, 118, y + 69), empty=True, letter="+")
         text(d, (130, y + 26), "Empty " + kind.lower(), 18, fill=OFF)
     for i, (sk, sname, scol) in enumerate(sockets):
-        sx = 340 + i * 118
+        sx = sock_x + i * 118
         if focus == i:
             cut(d, (sx - 6, y + 6, sx + 112, y + h - 6), TEAL, CYAN, 6)
         if sname:
@@ -68,6 +72,22 @@ def slot(d, y, kind, name, el, cost, sockets, focus=None, tag=None, h=78):
         text(d, (sx + 38, y + 34), sk, 12, fill=TXT if focus == i else DIM)
     if cost is not None:
         text(d, (LEFT_R - 14, y + h / 2), cost, 20, True, TXT if name else OFF, anchor="rm")
+
+
+def innate(d, y, element, used, schools):
+    """A Refractor's innate spell pool: its element, the 24-point budget, and spells per school (cap 6 each)."""
+    panel(d, (48, y, LEFT_R, y + 196))
+    icon(d, (64, y + 14, 96, y + 46), ELEMENT[element])
+    text(d, (108, y + 14), "Innate spells", 18, True)
+    text(d, (108, y + 38), "Innate element: " + element, 13, fill=DIM)
+    text(d, (LEFT_R - 16, y + 18), "%d of 24 points" % used, 16, True, anchor="ra")
+    for i, (school, n) in enumerate(schools):
+        sx, sy = 64 + (i % 2) * 280, y + 74 + (i // 2) * 34
+        text(d, (sx, sy), school, 15, fill=TXT if n else OFF)
+        for p in range(6):
+            px = sx + 128 + p * 18
+            cut(d, (px, sy + 3, px + 13, sy + 16), ELEMENT[element] if p < n else TRACK, None, 3)
+    text(d, (64, y + 176), "Edit them on the Skills tab.", 13, fill=DIM)
 
 
 def choices(d, heading, rows, focus, compare, top=134):
@@ -102,40 +122,59 @@ def choices(d, heading, rows, focus, compare, top=134):
 
 
 FOOT = [("A", "Equip"), ("X", "Unequip"), ("R3", "Details"), ("B", "Back")]
+GARNET, CITRINE = ("Crystal", "Garnet", ELEMENT["Fire"]), ("Crystal", "Citrine", ELEMENT["Earth"])
+NO_STONE = ("Stone", None, None)
 
-# ---- 1: Garrick (Generic), Weapons tab: two equal weapon slots (one active) and an adapter. The Sword slot is focused;
-#         the right lists the weapons he owns. Swapping a weapon gives its crystal back (assumed, so the budget falls).
+# ---- 1: Garrick (Generic): a primary slot (weapon, adapter or evolution) and a secondary weapon; the active one gives
+#         its abilities, Switch Weapon in a fight. Primary focused; swapping a weapon leaves its crystal on it.
 im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
-budget(d, 5, 5, preview=4)
-slot(d, 172, "Weapon · Sword", "Ashen Blade", "Fire", "2", [("Crystal", "Garnet", ELEMENT["Fire"]), ("Stone", None, None)],
-     focus="slot", tag="ACTIVE")
-slot(d, 258, "Weapon · Hammer", "Quarry Maul", "Earth", "2", [("Crystal", "Citrine", ELEMENT["Earth"]), ("Stone", None, None)])
-slot(d, 344, "Adapter · Ring", "Storm Ring", "Lightning", "1", [("Crystal", "Amber", ELEMENT["Lightning"]), ("Stone", None, None)])
-wrap(d, (48, 440), "Only the active weapon gives its abilities; switch in a fight (free, once per turn).", 560, 14, DIM)
-choices(d, "Weapons that fit  ·  6 owned", [
-    ("Ashen Blade", "Fire", "B", "Sword · Fire", "cost 2", "worn"),
+budget(d, 4, 5, preview=3)
+slot(d, 172, "Primary · Sword", "Ashen Blade", "Fire", "2", [GARNET, NO_STONE], focus="slot", tag="ACTIVE")
+slot(d, 258, "Secondary · Hammer", "Quarry Maul", "Earth", "2", [CITRINE, NO_STONE])
+wrap(d, (48, 354), "Two items. The primary holds a weapon, an adapter or an evolution; the secondary a weapon or "
+     "nothing. Only the active weapon gives its abilities: switch in a fight (free).", 560, 14, DIM)
+choices(d, "Fits the primary slot  ·  weapon, adapter, evolution", [
+    ("Ashen Blade", "Fire", "B", "Sword · Garnet", "cost 2", "worn"),
     ("Gale Spear", "Wind", "C", "Spear", "cost 1", None),
-    ("Ashen Blade", "Fire", "D", "Sword · a weaker copy", "cost 1", None),
-    ("Quarry Maul", "Earth", "C", "Hammer", "", "In the other weapon slot"),
-    ("Night Scythe", "Darkness", "A", "Scythe", "cost 1", None)], 1, [
-    ("Budget", "5 of 5", "4 of 5", True), ("Power", "42", "36", False), ("Scaling", "Body B", "Body A", True),
+    ("Ember Ring", "Fire", "C", "Adapter · casts its spells", "cost 1", None),
+    ("Quarry Maul", "Earth", "C", "", "", "In the secondary slot"),
+    ("Night Scythe", "Darkness", "A", "Scythe · Jet", "cost 2", None)], 1, [
+    ("Budget", "4 of 5", "3 of 5", True), ("Power", "42", "36", False), ("Scaling", "Body B", "Body A", True),
     ("Element", "Fire (Garnet)", "none", None), ("Abilities", "Cleave, Whirl…", "Pierce, Sweep…", None)])
 footer(d, FOOT)
 save(im, OUT, "1_weapons_generic.png")
 
-# ---- 2: Bram (Resonator), Weapons tab: one weapon and his adapters. An adapter slot is focused; the right lists his rings.
+# ---- 2: Sera (Refractor): one item in the primary slot, budget 3, and the innate spell pool by school. Her innate
+#         element is Fire; a crystal on her gear channels its element for her spells too (CL-36).
+im, d = canvas()
+header(d, 0, 0, "Pyre  ·  1 of 5")
+budget(d, 2, 3, preview=2)
+slot(d, 172, "Primary · Staff", "Cinder Staff", "Fire", "2", [GARNET, NO_STONE], focus="slot")
+innate(d, 268, "Fire", 18, [("Destruction", 3), ("Conjuration", 0), ("Enhancement", 1),
+                            ("Restoration", 2), ("Impairment", 1), ("Manipulation", 0)])
+choices(d, "Fits the primary slot  ·  one item", [
+    ("Cinder Staff", "Fire", "C", "Staff · Garnet", "cost 2", "worn"),
+    ("Tidal Pike", "Water", "C", "Spear · Sapphire", "cost 2", None),
+    ("Ember Ring", "Fire", "B", "Adapter · Phoenix evolution", "cost 2", None),
+    ("Phoenix Heart", "Fire", "B", "Evolution on its own", "cost 3", None),
+    ("Quarry Maul", "Earth", "C", "", "", "Worn by Garrick in this loadout")], 1, [
+    ("Budget", "2 of 3", "2 of 3", None), ("Power", "28", "34", True),
+    ("Elements she casts", "Fire", "Fire, Water", True), ("Innate spells", "18 points", "18 points", None)])
+footer(d, FOOT)
+save(im, OUT, "2_weapons_refractor.png")
+
+# ---- 3: Bram (Resonator): a primary weapon or evolution (never an adapter) and his adapters; he casts the active one.
 im, d = canvas()
 header(d, 2, 0, "Ember Rings  ·  1 of 5")
 budget(d, 5, 5, preview=4)
-slot(d, 172, "Weapon · Gauntlets", "Cinder Fists", "None", "1", [("Crystal", None, None), ("Stone", None, None)])
-slot(d, 258, "Adapter · Ring", "Ember Ring", "Fire", "1", [("Crystal", "Garnet", ELEMENT["Fire"]), ("Stone", None, None)],
-     focus="slot", tag="ACTIVE")
-slot(d, 344, "Adapter · Ring", "Storm Ring", "Lightning", "1", [("Crystal", "Amber", ELEMENT["Lightning"]), ("Stone", None, None)])
-slot(d, 430, "Adapter · Ring", "Tide Ring", "Water", "2", [("Evolution", "Tidal", ELEMENT["Water"]), ("Stone", None, None)])
+slot(d, 172, "Primary · Fists", "Cinder Fists", "None", "1", [("Crystal", None, None), NO_STONE])
+slot(d, 258, "Adapter · Ring", "Ember Ring", "Fire", "1", [GARNET, NO_STONE], focus="slot", tag="ACTIVE")
+slot(d, 344, "Adapter · Ring", "Storm Ring", "Lightning", "1", [("Crystal", "Amber", ELEMENT["Lightning"]), NO_STONE])
+slot(d, 430, "Adapter · Ring", "Tide Ring", "Water", "2", [("Evolution", "Tidal", ELEMENT["Water"]), NO_STONE])
 slot(d, 516, "Adapter", None, None, "0", [])
 choices(d, "Adapters that fit  ·  5 owned", [
-    ("Ember Ring", "Fire", "C", "Ring · Fire", "cost 1", "worn"),
+    ("Ember Ring", "Fire", "C", "Ring · Garnet", "cost 1", "worn"),
     ("Gale Band", "Wind", "C", "Ring · Wind", "cost 0", None),
     ("Frost Ring", "Water", "D", "Ring · Water", "cost 0", None),
     ("Storm Ring", "Lightning", "C", "", "", "In adapter slot 2"),
@@ -143,42 +182,43 @@ choices(d, "Adapters that fit  ·  5 owned", [
     ("Budget", "5 of 5", "4 of 5", True), ("Spells", "Flame Lance…", "Gust, Updraft…", None),
     ("Durability", "64 / 80", "80 / 80", True)])
 footer(d, FOOT)
-save(im, OUT, "2_weapons_resonator.png")
+save(im, OUT, "3_weapons_resonator.png")
 
-# ---- 3: a crystal socket focused (the Hammer's, empty): the right lists the crystals that fit. The S-tier one stays
-#         listed, greyed, with its reason (MAX_EQUIPPED_S_TIER_CRYSTALS = 1).
+# ---- 4: a crystal socket focused (Garrick's secondary, empty): the right lists the crystals that fit. The S-tier one
+#         stays listed, greyed, with its reason (one S-tier per loadout, CL-13b; his Iron Coat holds one).
 im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
-budget(d, 4, 5, preview=5)
-slot(d, 172, "Weapon · Sword", "Ashen Blade", "Fire", "2", [("Crystal", "Garnet", ELEMENT["Fire"]), ("Stone", None, None)],
-     tag="ACTIVE")
-slot(d, 258, "Weapon · Hammer", "Quarry Maul", "Earth", "1", [("Crystal", None, None), ("Stone", None, None)], focus=0)
-slot(d, 344, "Adapter · Ring", "Storm Ring", "Lightning", "1", [("Crystal", "Amber", ELEMENT["Lightning"]), ("Stone", None, None)])
-wrap(d, (48, 440), "A crystal keys the weapon to its element and powers its elemental abilities.", 560, 14, DIM)
+budget(d, 3, 5, preview=4)
+slot(d, 172, "Primary · Sword", "Ashen Blade", "Fire", "2", [GARNET, NO_STONE], tag="ACTIVE")
+slot(d, 258, "Secondary · Hammer", "Quarry Maul", "Earth", "1", [("Crystal", None, None), NO_STONE], focus=0)
+wrap(d, (48, 354), "A crystal keys the weapon to its element and powers its elemental abilities.", 560, 14, DIM)
 choices(d, "Crystals that fit  ·  14 owned", [
     ("Garnet", "Fire", "B", "Fire crystal", "+1", None),
     ("Citrine", "Earth", "C", "Earth crystal", "+1", None),
     ("Sapphire", "Water", "D", "Water crystal", "+1", None),
-    ("Onyx", "Darkness", "S", "", "", "S-tier: one per loadout"),
+    ("Onyx", "Darkness", "S", "", "", "S-tier: one per loadout (on Iron Coat)"),
     ("Quartz", "None", "E", "Crystal", "+1", None)], 0, [
-    ("Budget", "4 of 5", "5 of 5", False), ("Element", "Earth (weapon)", "Fire", None),
+    ("Budget", "3 of 5", "4 of 5", False), ("Element", "Earth (weapon)", "Fire", None),
     ("Elemental abilities", "off", "on", True), ("Fire sources", "1", "2 (they stack)", True)])
 footer(d, [("A", "Socket"), ("X", "Empty it"), ("R3", "Details"), ("B", "Back")])
-save(im, OUT, "3_crystal_socket.png")
+save(im, OUT, "4_crystal_socket.png")
 
-# ---- 4: Apparel tab: two apparel slots, no budget. The right lists his apparel; gear bound to a Spirit you haven't
-#         unlocked stays listed, greyed.
+# ---- 5: Apparel tab: two slots, no budget. Each piece: HP / Defence / Amp + one rolled bonus line (a sub-stat or a
+#         pillar), so the compare shows it. Its socket takes a crystal or an evolution (no stone).
 im, d = canvas()
 header(d, 1, 1, "Bruiser  ·  2 of 5")
 text(d, (48, 134), "Apparel doesn't use the budget.", 16, fill=DIM)
-slot(d, 172, "Apparel · Coat", "Iron Coat", "None", None, [("Crystal", "Garnet", ELEMENT["Fire"])], focus="slot")
-slot(d, 258, "Apparel", None, None, None, [])
-choices(d, "Apparel that fits  ·  4 owned", [
-    ("Iron Coat", "None", "C", "Coat", "", "worn"),
-    ("Ember Cloak", "Fire", "C", "Cloak", "", None),
-    ("Shade Hood", "Darkness", "D", "Hood", "", None),
+slot(d, 172, "HP 40 · Def 14 · Amp +2 · +2 Body", "Iron Coat", "Darkness", None,
+     [("Crystal", "Onyx", ELEMENT["Darkness"])], focus="slot", sock_x=440)
+slot(d, 258, "HP 25 · Def 6 · Amp +1 · +4% Crit Rate", "Shade Hood", "None", None, [("Crystal", None, None)], sock_x=440)
+choices(d, "Apparel that fits  ·  5 owned", [
+    ("Iron Coat", "Darkness", "C", "HP 40 · Def 14 · Amp +2 · +2 Body", "", "worn"),
+    ("Ember Cloak", "Fire", "C", "HP 30 · Def 10 · Amp +4 · +6% Crit Damage", "", None),
+    ("Warden Plate", "None", "B", "HP 55 · Def 20 · Amp +0 · +1 Spirit", "", None),
+    ("Shade Hood", "None", "D", "", "", "In apparel slot 2"),
     ("Prisma's Mantle", "Void", "B", "", "", "Bound to Amethyst Prisma: unlock that Spirit")], 1, [
-    ("Defence", "14", "11", False), ("Resistance", "6", "10", True), ("Fire resistance", "—", "+15%", True)])
+    ("HP", "40", "30", False), ("Defence", "14", "10", False), ("Amp", "+2", "+4", True),
+    ("Body", "+2", "—", False), ("Crit Damage", "—", "+6%", True), ("Resistance", "Darkness", "Fire", None)])
 footer(d, FOOT)
-save(im, OUT, "4_apparel.png")
+save(im, OUT, "5_apparel.png")
 print("ok")
