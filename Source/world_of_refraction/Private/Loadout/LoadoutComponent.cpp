@@ -1158,6 +1158,31 @@ bool ULoadoutComponent::TryAssignInnateSpell(int32 LoadoutIndex, USpellData *Spe
                             [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.InnateSpells, Spell); }, OutRefusal);
 }
 
+bool ULoadoutComponent::TryChangeGear(int32 LoadoutIndex, TFunctionRef<void(FCombatLoadout &)> Change, FText &OutRefusal)
+{
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    const UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(GI);
+    if (TurnManager && TurnManager->IsCombatActive())
+    {
+        OutRefusal = LOCTEXT("GearInFight", "Gear can't be changed during a fight.");
+        return false;
+    }
+    const FActiveWeaponChangeScope ActiveWeaponScope(*this);
+    const TArray<FGatheredEffect> OldGearEffects = GetActiveEffectsGathered(GetOwner());
+    if (!TryChangeLoadout(LoadoutIndex, true, [](const FCombatLoadout &, ECharacterClass) { return FText::GetEmpty(); }, Change, OutRefusal))
+    {
+        return false;
+    }
+    GetInventoryComponent()->SavedLoadouts[LoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass()); // TryChangeLoadout checked both
+    SwapGearEffects(OldGearEffects);
+    if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        CharComp->RecomputeMaxPools();
+    }
+    UE_LOG(LogWoRLoadout, Log, TEXT("%s: gear changed on loadout %d"), *GetNameSafe(GetOwner()), LoadoutIndex);
+    return true;
+}
+
 // ==================== BATTLE PREPARATION ====================
 
 bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
