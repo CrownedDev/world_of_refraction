@@ -6,7 +6,6 @@
 #include "Skills/Effects/EffectText.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Elements/ElementTable.h"
-#include "Combat/TurnRotation.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "WoRGameNames.h"
 
@@ -728,18 +727,13 @@ namespace EffectText
             return Side.bSelf ? FText::Format(LOCTEXT("Stun_Self", "become stunned{0}"), Span(P))
                               : FText::Format(LOCTEXT("Stun_Other", "stun {0}{1}"), Side.Noun, Span(P));
         case ESkillEffectType::SkipTurn:
-            // B-170d (Q-170e): with action pips Wind's break slows actions and takes an action at the next turn start.
-            if (TurnRotation::IsActionPipsOn())
+            // B-170d (Q-170e): Wind's break slows actions and takes an action at the next turn start.
             {
                 const FText Lost = ActionCount(CombatConstants::WIND_BREAK_ACTIONS_LOST);
                 return Side.bSelf ? FText::Format(LOCTEXT("WindPips_Self", "act slower and lose {0} at the start of your next turn"), Lost)
                                   : FText::Format(LOCTEXT("WindPips_Other", "slow {0} actions and take {1} at the start of their next turn"),
                                                   Side.Possessive, Lost);
             }
-            // Wind's break pushes the next turn back (D-014); nothing skips a turn outright.
-            return Side.bSelf ? LOCTEXT("Delay_Self", "delay your next turn")
-                              : FText::Format(Side.bPlural ? LOCTEXT("Delay_Pl", "delay {0} next turns") : LOCTEXT("Delay_Sg", "delay {0} next turn"),
-                                              Side.Possessive);
         case ESkillEffectType::RandomDebuff:
             return Side.bSelf ? FText::Format(LOCTEXT("RandomDebuff_Self", "lose {0} of a random stat{1}"), Amount(P), Span(P))
                               : FText::Format(LOCTEXT("RandomDebuff_Other", "give {0} -{1} to a random stat{2}"), Side.Noun, Amount(P), Span(P));
@@ -907,17 +901,13 @@ namespace EffectText
                               : FText::Format(LOCTEXT("Pull_Other", "pull {0} forward one row"), Side.Noun);
         // B-064a (D-090): Ice's break, a heavier Water break.
         case ESkillEffectType::IceBreak:
-            // B-170d (Q-170e): with action pips Ice also takes an action at once.
-            if (TurnRotation::IsActionPipsOn())
+            // B-170d (Q-170e): Ice also takes an action at once.
             {
                 const FText Lost = ActionCount(CombatConstants::ICE_BREAK_ACTIONS_LOST);
                 return Side.bSelf ? FText::Format(LOCTEXT("IceBreakPips_Self", "act and cast slower, lose {0} and take Ice damage{1}"), Lost, Span(P))
                                   : FText::Format(LOCTEXT("IceBreakPips_Other", "slow {0} actions and spells, take {1} and deal Ice damage{2}"),
                                                   Side.Possessive, Lost, Span(P));
             }
-            return Side.bSelf ? FText::Format(LOCTEXT("IceBreak_Self", "act and cast slower and take Ice damage{0}"), Span(P))
-                              : FText::Format(LOCTEXT("IceBreak_Other", "slow {0} actions and spells and deal Ice damage{1}"),
-                                              Side.Possessive, Span(P));
 
         default:
             // A kind with no sentence yet prints its name, the loud failure (07: "a gap to close").

@@ -3,7 +3,6 @@
 
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/WeaponSpellRules.h"
-#include "Combat/TurnRotation.h" // B-170c: switching is free with action pips
 #include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
 #include "Memory/CurseSubsystem.h"
 #include "Pool/PoolSubsystem.h"
@@ -2737,15 +2736,9 @@ const FLoadoutSlot *ULoadoutComponent::GetActiveSlotIn(const FCombatLoadout &Loa
 
 FText ULoadoutComponent::GetTurnSwitchRefusedReason() const
 {
-    // B-170c (Q-170c): with action pips a switch is always free, any number of times (ET-19 changes). Read from
-    // the switch, not the fight's latched mode: a co-op client's copy has no TurnManager fight to ask.
-    // TODO: co-op (D-103): console variables don't replicate, so read the fight's latched mode on the server and
-    // replicate it to clients (GameState); a host flipping the cvar mid-fight would otherwise free switches.
-    if (TurnRotation::IsActionPipsOn())
-    {
-        return FText::GetEmpty();
-    }
-    return bUsedTurnSwitch ? LOCTEXT("TurnSwitchUsed", "Already switched this turn.") : FText::GetEmpty();
+    // B-170c (Q-170c), B-170h2: a switch is always free, any number of times (ET-19 changes); the old timeline's
+    // one-switch-a-turn rule went with it.
+    return FText::GetEmpty();
 }
 
 bool ULoadoutComponent::TrySwitchActiveSlot(EGearKind Kind, FText &OutReason)
