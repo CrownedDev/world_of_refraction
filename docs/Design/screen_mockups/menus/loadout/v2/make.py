@@ -147,7 +147,23 @@ def choices(d, heading, rows, focus, compare):
         y += 26
 
 
-def details(d, title, sub, pieces, sockets, notes, sock_head="Sockets (shared)"):
+def tree(d, x, y, lines, step=20):
+    """ET-50's nested effect text (EffectText::BuildTree as a block): a trigger heading, its conditions indented
+    under it, then the effects as bullets with numbers, duration and charges. Two spaces per level."""
+    for line in lines:
+        lvl = (len(line) - len(line.lstrip(" "))) // 2
+        body = line.strip()
+        if lvl == 0:
+            text(d, (x, y), body, 13, True, CYAN)
+        elif body.startswith("•"):
+            text(d, (x + lvl * 16, y), body, 13, True)
+        else:
+            text(d, (x + lvl * 16, y), body, 13, fill=DIM)
+        y += step
+    return y
+
+
+def details(d, title, sub, pieces, sockets, notes, sock_head="Sockets (shared)", trees=(), sock_cols=1):
     """The focused entry's details, inline on the right (no pop-up). pieces: (name, el, tier, [(label, value)]);
     sockets: (socket, name, line); notes: closing lines."""
     panel(d, (LIST_X, TOP, 1232, 654), focus=True)
@@ -165,14 +181,20 @@ def details(d, title, sub, pieces, sockets, notes, sock_head="Sockets (shared)")
             text(d, (x + 14, TOP + 128 + j * 26), lab, 14, fill=DIM)
             text(d, (x + 110, TOP + 128 + j * 26), val, 14, True)
     y = TOP + 104 + 26 * max(len(p[3]) for p in pieces) + 50
+    for head, lines in trees:
+        text(d, (LIST_X + 18, y - 4), head, 12, True, DIM)
+        y = tree(d, LIST_X + 18, y + 16, lines) + 8
     if sockets:
         text(d, (LIST_X + 18, y), sock_head, 15, True, CYAN)
         y += 28
-    for sk, name, line in sockets:
-        socket_icon(d, (LIST_X + 18, y, LIST_X + 54, y + 36), sk)
-        text(d, (LIST_X + 66, y + 1), name, 15, True, TXT if sk else OFF)
-        text(d, (LIST_X + 66, y + 20), line, 12, fill=DIM)
-        y += 46
+    colw = (1232 - LIST_X - 36) // sock_cols
+    for k, (sk, name, line) in enumerate(sockets):
+        x = LIST_X + 18 + (k % sock_cols) * colw
+        socket_icon(d, (x, y, x + 36, y + 36), sk)
+        text(d, (x + 48, y + 1), name, 15, True, TXT if sk else OFF)
+        text(d, (x + 48, y + 20), line, 12, fill=DIM)
+        if k % sock_cols == sock_cols - 1 or k == len(sockets) - 1:
+            y += 46
     for line in notes:
         text(d, (LIST_X + 18, y + 8), line, 14, fill=DIM)
         y += 24
@@ -190,13 +212,14 @@ y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None
           [("crystal", "Fire"), None], 1, active=True, focus=True)
 y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 add_frame(d, y, 1, 5)
-details(d, "Ashen Blade + Cinder Edge", "Dual wield · sword stance (the main hand's) · active", [
-    ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"), ("Speed", "Normal"),
-                                  ("Passive", "Burn +10%")]),
-    ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"), ("Speed", "Fast"),
-                                  ("Passive", "1st hit Crit +15%")])], [
-    (("crystal", "Fire"), "Garnet  B", "Fire Amp +2 · Burn 13% max HP/turn"),
-    (None, "Empty", "Stone socket")], ["Ability slots: 7"])
+details(d, "Ashen Blade + Cinder Edge", "Dual wield · sword stance (the main hand's) · active · 7 ability slots", [
+    ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"), ("Speed", "Normal")]),
+    ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"), ("Speed", "Fast")])], [
+    (("crystal", "Fire"), "Garnet  B", "Fire Amp +2 · Burn 13%/turn"),
+    (None, "Empty", "Stone socket")], [], trees=[
+    ("Ashen Blade", ["On Hit", "  While the target is Burning", "    and your HP is above 50%",
+                     "      • Give the target -10% Defense for 2 turns, once per fight"]),
+    ("Cinder Edge", ["Passive", "  • Gain +15% Crit Rate on your first hit each fight"])], sock_cols=2)
 footer(d, FOOT)
 save(im, OUT, "1_weapons_generic.png")
 
@@ -209,9 +232,11 @@ y = entry(d, y, "Swords", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [(
 y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 add_frame(d, y, 1, 5)
 details(d, "Ironheart", "Garrick's own evolution · 2 cells", [
-    ("Ironheart", "Earth", "A", [("Element", "Earth"), ("Amp", "Earth +2"), ("Spell slots", "6"),
-                                 ("Passive", "Defence +10%"), ("Passive", "Earth buildup +15%")])], [],
-    ["On gear instead: passives only, at infusion 2"])
+    ("Ironheart", "Earth", "A", [("Element", "Earth"), ("Amp", "Earth +2"), ("Spell slots", "6")])], [],
+    ["On gear instead: these passives only, at infusion 2"], trees=[
+    ("Ironheart", ["Passive", "  • Gain +10% Defense",
+                  "When you take Earth damage", "  While your HP is below 50%",
+                  "    • Gain +15% Earth buildup for 2 turns, stacks up to 3 times"])])
 footer(d, FOOT)
 save(im, OUT, "1b_evolution.png")
 
@@ -448,7 +473,7 @@ def skill_rows(d, rows, focus, top=TOP + 40):
             text(d, (LIST_X + 18, y + 4), r[1], 14, True, CYAN)
             y += 28
             continue
-        n, el, kind, ep = r
+        n, el, kind, ep = r[:4]
         f = i == focus
         empty = kind == "empty"
         cut(d, (LIST_X + 12, y, 1220, y + 44), TEAL if f else (BG if empty else PLATE), CYAN if f else (OFF if empty else STEEL), 6)
@@ -459,11 +484,13 @@ def skill_rows(d, rows, focus, top=TOP + 40):
             text(d, (LIST_X + 52, y + 11), n, 16, True)
             if kind == "built-in":
                 text(d, (LIST_X + 52 + int(d.textlength(n, font=F(16, True))) + 12, y + 14), "built-in", 12, fill=DIM)
+            if len(r) > 4:  # the one-line short form (EffectText::BuildShortForm)
+                text(d, (LIST_X + 240, y + 14), r[4], 12, fill=DIM)
             text(d, (1206, y + 12), "%s EP" % ep, 14, True, anchor="ra")
         y += 50
 
 
-def skill_details(d, box, name, el, tier, sub, stats, effects, req):
+def skill_details(d, box, name, el, tier, sub, stats, effects, req):  # effects: tree lines (ET-50)
     """What a skill does, short stat lines. stats: (label, value) pairs in two columns; effects: lines;
     req: (text, met) or None."""
     x0, y0, x1, y1 = box
@@ -479,12 +506,9 @@ def skill_details(d, box, name, el, tier, sub, stats, effects, req):
         text(d, (x, y), lab, 13, fill=DIM)
         text(d, (x + 82, y), val, 13, True)
     y = y0 + 66 + ((len(stats) + 1) // 2) * 24 + 8
-    text(d, (x0 + 14, y), "Effects", 13, True, CYAN)
-    for line in effects:
-        y += 22
-        text(d, (x0 + 14, y), line, 13, True)
+    y = tree(d, x0 + 14, y, effects)
     if req:
-        y += 30
+        y += 12
         txt, met = req
         text(d, (x0 + 14, y), txt + ("  ✓ met" if met else "  ✗ not met"), 13, True, GOOD if met else RED)
 
@@ -492,7 +516,10 @@ def skill_details(d, box, name, el, tier, sub, stats, effects, req):
 FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Ashen Blade slot · Fire from Garnet",
              [("EP", "6"), ("Element", "Fire"), ("Power", "120%"), ("Scaling", "Body B"),
               ("Targets", "Row"), ("Buildup", "Burn 20")],
-             ["Burn: 3 turns", "Defence -10%: 2 turns"], ("Needs Body 3 · Garrick has 4", True))
+             ["Activate", "  • Deal Fire damage to a row of Enemies",
+              "On Hit", "  While the target is Burning", "    and your HP is above 50%",
+              "      • Give the target -10% Defense for 2 turns, once per fight"],
+             ("Needs Body 3 · Garrick has 4", True))
 
 # ---- 6: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
 #         focused entry's skill slots. With a skill row highlighted, its details show on the left under the entries.
@@ -507,7 +534,7 @@ panel(d, (LIST_X, TOP, 1232, 654), focus=True)
 text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  7 slots", 16, True, DIM)
 skill_rows(d, [
     ("head", "Ashen Blade  ·  4 slots"),
-    ("Slash", "None", "built-in", 0), ("Cleave", "None", "slot", 4), ("Flame Arc", "Fire", "slot", 6),
+    ("Slash", "None", "built-in", 0), ("Cleave", "None", "slot", 4), ("Flame Arc", "Fire", "slot", 6, "On Hit*: Give the target -10% Defense"),
     ("", None, "empty", 0),
     ("head", "Cinder Edge  ·  3 slots"),
     ("Quick Cut", "None", "built-in", 0), ("Whirl", "None", "slot", 5), ("", None, "empty", 0)], 3)
@@ -519,15 +546,18 @@ base = im
 im, d = window(base, "Pick an ability  ·  Cinder Edge slot", "", [("A", "Put in slot"), ("B", "Cancel")])
 text(d, (146, 128), "Abilities that fit", 15, True, DIM)
 item_rows(d, 146, 600, 156, [
-    ("Ember Thrust", "Fire", "C", "Ability · 5 EP · one enemy", "", None),
-    ("Parry Edge", "None", "D", "Ability · 3 EP · self", "", None),
-    ("Riposte", "None", "C", "Ability · 4 EP · one enemy", "", None),
+    ("Ember Thrust", "Fire", "C", "5 EP · On Critical Hit*: Deal 4 Fire damage each turn", "", None),
+    ("Parry Edge", "None", "D", "3 EP · Activate: Gain +30% Defense for 1 turn", "", None),
+    ("Riposte", "None", "C", "4 EP · When you are hit: Deal 6 damage back", "", None),
     ("Inferno Dance", "Fire", "A", "", "", "Needs Mind 4 · Garrick has 2"),
     ("Flame Arc", "Fire", "C", "", "", "In Ashen Blade's slot")], 0)
-skill_details(d, (624, 156, 1134, 470), "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
+skill_details(d, (624, 156, 1134, 500), "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
               [("EP", "5"), ("Element", "Fire"), ("Power", "140%"), ("Scaling", "Body C"),
                ("Targets", "One"), ("Buildup", "Burn 15")],
-              ["Ignore Defence 20%"], ("Needs Body 2 · Garrick has 4", True))
+              ["Activate", "  • Ignore 20% of the target's Defense",
+               "On Critical Hit", "  While the target is Burning",
+               "    • Deal 4 Fire damage to the target each turn for 2 turns"],
+              ("Needs Body 2 · Garrick has 4", True))
 save(im, OUT, "6a_skill_picker.png")
 
 # ---- 7: Skills tab (Refractor): an "Innate spells" entry above the gear entry. Focused, the right shows the school rows:
