@@ -176,6 +176,29 @@ void UTrialRunSubsystem::ExitTrial()
                TEXT("[TrialRun] ExitTrial: HubLevel not configured (DefaultGame.ini) — ignored."));
         return;
     }
+    FinishRun();
+    TravelTo(HubLevel);
+}
+
+void UTrialRunSubsystem::SettleRunAsQuit()
+{
+    if (!IsRunActive())
+    {
+        return;
+    }
+    UE_LOG(LogWoR, Warning, TEXT("[TrialRun] The game closed during the run of '%s': settled as a quit (D-172, Q-408); %s is lost"),
+           ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), *RunRewards::GetPayoutString(GetRunEndPayout()));
+    bAbandoned = true;
+    FinishRun();
+    const UWorld *World = GetGameInstance()->GetWorld();
+    if (!IsHubWorld(World) && !HubLevel.IsNull())
+    {
+        TravelTo(HubLevel); // started somewhere else (a trial map in PIE): on to the hub, as a quit would
+    }
+}
+
+void UTrialRunSubsystem::FinishRun()
+{
 
     // B-314 (D-111, D-097): the run layer closes while the members are still here to hear it: home pieces go back to
     // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
@@ -268,7 +291,6 @@ void UTrialRunSubsystem::ExitTrial()
     ExitSave->SaveNow(GetGameInstance()->GetWorld(), true);
     // B-234d (Q-234d): a run handed over from the old host's copy ends here; the hub gets this player's own party and pool.
     ExitSave->EndHandedOverRun();
-    TravelTo(HubLevel);
 }
 
 void UTrialRunSubsystem::ExitTrialNextTick()
