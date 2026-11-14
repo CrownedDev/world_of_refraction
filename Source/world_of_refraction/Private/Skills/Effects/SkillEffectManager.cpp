@@ -3261,12 +3261,9 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// Generate element-aware display name: a capped bar is a break, "<Element> Break" (Q-064a2)
 	Effect.EffectName = SkillEffectDisplayNames::GetBreakDisplayName(StatusType, Element);
 
-	// B-274 (S8): what the capped bar applies, its size and timing come from the break table. B-170d (Q-170e): a fight
-	// reads its own Water, Wind and Ice rows (B-170h2: every fight banks actions). Outside a fight (specs) the base rows.
-	// TODO: B-170h2b: fold the action-pips rows into the base rows and drop the flag.
-	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
-	const bool bActionPipsFight = TurnManager && TurnManager->IsCombatActive();
-	const FBreakRow *Row = BreakTable::For(StatusType, bActionPipsFight);
+	// B-274 (S8): what the capped bar applies, its size and timing come from the break table (B-170h2b: one table, the
+	// action-pips Water, Wind and Ice rows, Q-170e).
+	const FBreakRow *Row = BreakTable::For(StatusType);
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	if (Row && Row->SizeKind == EBreakSize::OneShotShareOfMaxHP)
 	{
@@ -3383,14 +3380,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		DealBreakShareOfMaxHP(TargetComp, Row->DamageShareOfMaxHP, *Effect.EffectName);
 	}
 
-	// Wind break (D-014, D-090): a NEW gust pushes the holder's next turn back. The same
-	// attacker's refresh doesn't push again (D-012: same source refreshes, it doesn't add).
-	if (Row && Row->DelayTurnPlaces > 0 && Result == EEffectApplicationResult::Applied && TurnManager)
-	{
-		TurnManager->DelayNextTurn(Target, Row->DelayTurnPlaces);
-	}
-
-	// B-170d (Q-170e), action-pips rows only: Ice takes its actions at once, every break (as its damage); Wind takes
+	// B-170d (Q-170e): Ice takes its actions at once, every break (as its damage); Wind takes
 	// its at the holder's next turn start, a new gust only (as its delay did, D-012). Never below 0.
 	if (Row && TargetComp && Row->ActionsLostNow > 0)
 	{
