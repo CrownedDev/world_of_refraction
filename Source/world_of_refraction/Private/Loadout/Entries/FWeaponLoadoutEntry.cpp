@@ -95,9 +95,12 @@ FString FWeaponLoadoutEntry::GetSkillSlotString() const
     {
         const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SkillPicks, Slot);
         const UAbilityData *BuiltIn = BuiltIns.IsValidIndex(Slot) ? BuiltIns[Slot] : nullptr;
-        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
+        Out += FString::Printf(TEXT("\n  [%d] %s%s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
                                bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *BuiltIn->Name) : TEXT(" (pick)"))
-                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")));
+                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")),
+                               IsGemSkillSlot(Slot) ? *FString::Printf(TEXT(" [gem slot: %s, None or Generic]"), // B-410
+                                                                       *UEnum::GetDisplayValueAsText(WeaponEntry.GetAttachedItem().GetElement()).ToString())
+                                                    : TEXT(""));
     }
     return Out;
 }
