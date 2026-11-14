@@ -141,8 +141,6 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 		return;
 	}
 	ClearFlags(RF_Transactional); // TransBuffer rule, as the old panels
-	// B-170e: the fight's mode is latched at its start (InitializeCombat runs before the HUD is built).
-	bShowActions = ActionPipsText::IsActionPipsFight(this);
 	EnsureDamageNumberPool();
 	BoundBuildup = WoRFight::Get<UStatusBuildupManager>(this); // AddCard seeds each bar from it
 
@@ -214,7 +212,7 @@ void UBattleHUDWidget::AddCard(AActor *Actor, bool bParty)
 		// A Resonator with nothing to spend EP on has no EP line, as the old panel (init-only there too). B-391b: a Broken
 		// Darkness character always shows its absorption pool.
 		Card.bShowEP = bParty && (CharData->HasUsableEPTarget() || CharData->IsBrokenDarkness());
-		if (bParty && bShowActions)
+		if (bParty)
 		{
 			CharData->OnActionsChanged.AddDynamic(this, &UBattleHUDWidget::HandlePoolChanged); // B-170e; same (int32, int32) shape
 		}
@@ -468,7 +466,7 @@ void UBattleHUDWidget::BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Colu
 		Card.GearText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 		Card.GearText->SetColorAndOpacity(FSlateColor(BattleHUDStyle::GearColor));
 		Card.ActionsText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize); // B-170e
-		Card.ActionsText->SetVisibility(bShowActions ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		Card.ActionsText->SetVisibility(ESlateVisibility::HitTestInvisible); // B-170h2: every fight banks actions
 	}
 	Card.StatusText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
 }
@@ -554,7 +552,7 @@ void UBattleHUDWidget::RefreshPools()
 										   : BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), CharData->CurrentEP, CharData->MaxEP);
 		Card.EPColour = Card.bBrokenDarkness ? BattleHUDView::GetOverloadColour(CharData->CurrentEP, CharData->MaxEP)
 											 : BattleHUDStyle::TextColor;
-		if (Card.bParty && bShowActions) // B-170e
+		if (Card.bParty) // B-170e
 		{
 			Card.ActionsLine = ActionPipsText::MakeActionsLine(CharData->CurrentActions, CharData->GetMaxActions(),
 															   CharData->GetActionPointProgress(), CharData->SkillsUsedThisTurn); // Q-170j
@@ -772,10 +770,7 @@ void UBattleHUDWidget::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	CurrentTurnNumber = TurnNumber;
 	RefreshTurnStrip();
 	RefreshStatuses(); // durations are shown per turn
-	if (bShowActions)
-	{
-		RefreshPools(); // B-170e: Max Actions can move with buffs that don't change the bank
-	}
+	RefreshPools();	   // B-170e: Max Actions can move with buffs that don't change the bank
 }
 
 void UBattleHUDWidget::HandleTurnStateChanged()
@@ -786,10 +781,7 @@ void UBattleHUDWidget::HandleTurnStateChanged()
 	}
 	RefreshTurnStrip();
 	RefreshStatuses();
-	if (bShowActions)
-	{
-		RefreshPools(); // B-170e, as HandleTurnStarted
-	}
+	RefreshPools(); // B-170e, as HandleTurnStarted
 }
 
 void UBattleHUDWidget::HandleStatusButtonClicked()
@@ -1006,9 +998,9 @@ void UBattleHUDWidget::HideDamageNumber(FBattleDamageNumber &Number)
 
 FString UBattleHUDWidget::GetBattleHUDString() const
 {
-	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s actionPips=%s"), bBound ? TEXT("yes") : TEXT("no"),
+	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s"), bBound ? TEXT("yes") : TEXT("no"),
 								  Cards.Num(), CurrentTurnNumber, bStatusPanelOpen ? TEXT("open") : TEXT("closed"),
-								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"), bShowActions ? TEXT("on") : TEXT("off"));
+								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"));
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		Out += FString::Printf(TEXT("\n  %s %s%s%s | %s | %s | %s | %s, %d crack(s)"), Card.bParty ? TEXT("party") : TEXT("enemy"),
@@ -1020,7 +1012,7 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 		{
 			Out += FString::Printf(TEXT(" | gear: %s"), Card.GearLine.IsEmpty() ? TEXT("none") : *Card.GearLine.ToString());
 		}
-		if (Card.bParty && bShowActions)
+		if (Card.bParty)
 		{
 			Out += FString::Printf(TEXT(" | %s"), *Card.ActionsLine.ToString()); // B-170e
 		}

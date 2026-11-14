@@ -6,7 +6,7 @@
 // B-391b: the Broken Darkness absorb line and overload tint; damage numbers pool, stack and drop a 0.
 // B-391c: the status buildup bar (fill, cracks, line, tint), the party gear line and tooltip, the durability header
 // and the "Negated" cue; on the duel, a card's buildup follows a hit's buildup.
-// B-170e: with wor.Turns.ActionPips 1 the party cards show the pips line live and the menu an End Turn row; at 0 neither.
+// B-170e: the party cards show the pips line live and the menu an End Turn row (B-170h2: every fight; the switch is gone).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -50,34 +50,7 @@ namespace
 	constexpr int32 BATTLE_HUD_WEAPON_MAX = 4;
 	constexpr int32 BATTLE_HUD_GEM_DURABILITY = 7; // the hero's weapon gem in the durability header case
 	const FCrystalId BATTLE_HUD_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
-	constexpr int32 BATTLE_HUD_PIPS_OFF = 0;
-	constexpr int32 BATTLE_HUD_PIPS_ON = 1;
 	constexpr int32 BATTLE_HUD_ONE_ACTION = 1;
-
-	/** B-170e: sets wor.Turns.ActionPips for one test (before the fight starts, which latches it) and restores it. */
-	struct FBattleHUDPipsSwitchScope
-	{
-		IConsoleVariable *Switch = nullptr;
-		int32 Before = BATTLE_HUD_PIPS_OFF;
-
-		explicit FBattleHUDPipsSwitchScope(int32 Value)
-			: Switch(IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Turns.ActionPips")))
-		{
-			if (Switch)
-			{
-				Before = Switch->GetInt();
-				Switch->Set(Value, ECVF_SetByConsole);
-			}
-		}
-
-		~FBattleHUDPipsSwitchScope()
-		{
-			if (Switch)
-			{
-				Switch->Set(Before, ECVF_SetByConsole);
-			}
-		}
-	};
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -557,11 +530,10 @@ void FBattleHUDSpec::Define()
 			MenuWidget->Teardown();
 		});
 
-		It("shows the party's action pips live and an End Turn row in an action-pips fight (B-170e)", [this]()
+		It("shows the party's action pips live and an End Turn row (B-170e)", [this]()
 		{
-			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_ON);
 			USaveSubsystem *Save = CreateTestWorld() ? TestWorld->GetSubsystem<USaveSubsystem>() : nullptr;
-			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !TestNotNull(TEXT("the save"), Save))
+			if (!TestNotNull(TEXT("the save"), Save))
 			{
 				return;
 			}
@@ -584,7 +556,6 @@ void FBattleHUDSpec::Define()
 				return ActionPipsText::MakeActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions(), HeroData->GetActionPointProgress())
 					.ToString();
 			};
-			TestTrue(TEXT("the HUD shows actions"), HUD->IsShowingActions());
 			if (TestTrue(TEXT("two cards, the party's first"), HUD->GetCards().Num() == 2 && HUD->GetCards()[0].bParty))
 			{
 				TestEqual(TEXT("the party card's pips line"), HUD->GetCards()[0].ActionsLine.ToString(), ExpectedLine());
@@ -608,33 +579,6 @@ void FBattleHUDSpec::Define()
 				MenuWidget->PressRow(EndTurnRow);
 				TestTrue(TEXT("End Turn ended Hero's turn"), Orchestrator->GetCurrentActor() == Foe);
 			}
-			MenuWidget->Teardown();
-		});
-
-		It("shows no action pips and no End Turn row with the switch off (B-170e)", [this]()
-		{
-			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_OFF);
-			if (!StartDuel())
-			{
-				return;
-			}
-			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
-			if (!TestNotNull(TEXT("battle HUD widget"), HUD))
-			{
-				return;
-			}
-			HUD->Initialise({Hero}, {Foe});
-			TestFalse(TEXT("the HUD shows no actions"), HUD->IsShowingActions());
-			TestTrue(TEXT("no pips line"), !HUD->GetCards().IsEmpty() && HUD->GetCards()[0].ActionsLine.IsEmpty());
-			HUD->Teardown();
-
-			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
-			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
-			{
-				return;
-			}
-			MenuWidget->Initialise();
-			TestEqual(TEXT("no End Turn row"), FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString()), INDEX_NONE);
 			MenuWidget->Teardown();
 		});
 

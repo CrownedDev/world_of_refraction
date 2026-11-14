@@ -157,8 +157,6 @@ public:
 	const TArray<FBattleHUDCard> &GetCards() const { return Cards; }
 	const TArray<FText> &GetTurnLines() const { return TurnLines; }
 	const FText &GetStatusPanelText() const { return StatusPanelText; }
-	/** B-170e: true when this fight banks actions (read once in Initialise), so party cards show pips. */
-	bool IsShowingActions() const { return bShowActions; }
 	bool IsStatusPanelOpen() const { return bStatusPanelOpen; }
 
 	/** Open or close the view-all status panel (the Statuses button toggles it). */
@@ -242,7 +240,6 @@ private:
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
 	bool bBound = false;
-	bool bShowActions = false;
 	int32 CurrentTurnNumber = 1;
 
 	TWeakObjectPtr<USkillEffectManager> BoundEffects;
