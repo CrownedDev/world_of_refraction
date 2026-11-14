@@ -533,8 +533,9 @@ public:
     const TMap<FGuid, FPoolRunMark> &GetRunMarks() const { return RunMarks; }
 
     /** The run ends (UTrialRunSubsystem::ExitTrial): home pieces back to their home state, run-only gear dropped
-     *  with its tier remembered per definition. Every change fires OnPoolGearChanged. No-op when no layer is open. */
-    FPoolRunEndResult EndRunLayer();
+     *  with its tier remembered per definition (B-451, D-189: not when bKeepUpgrades is false: a run out of wipes or
+     *  quit). Every change fires OnPoolGearChanged. No-op when no layer is open. */
+    FPoolRunEndResult EndRunLayer(bool bKeepUpgrades = true);
 
     /** B-439b (Q-439 point 2, D-176): how many of each item the party held (every pouch and storage) when the run
      *  began. Starting items banked during the run count as held from the start (D-097). Saved with the run. */
