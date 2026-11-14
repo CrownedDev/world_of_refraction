@@ -135,6 +135,8 @@ struct FLoadoutV2WindowItem
 	/** A socket line (today's socket picker's choice for the entry's row); B-440f: or an apparel line (the piece as
 	 *  WoRLoadoutApparel::BuildApparelChoices lists it, or the worn one on the EQUIPPED line). */
 	FLoadoutScreenChoice Socket;
+	/** B-476e: the apparel picker's "Crystal socket" line: A opens the socket's choices. */
+	bool bOpensSocket = false;
 };
 
 UCLASS()
@@ -274,6 +276,10 @@ private:
 	 *  highlighted one, each in its own words. */
 	FText BuildEquippedCompare() const;
 
+	/** B-476e: the apparel picker shows the worn piece's socket choices (today's socket picker) instead of pieces. */
+	bool bApparelSocket = false;
+	bool IsApparelSocketOpen() const { return Mode == ELoadoutV2Mode::ApparelItems && bApparelSocket; }
+
 	/** B-476d: shows NewTab at its top level (the Skills tab's entries, else the list). */
 	void ShowTab(ELoadoutV2Tab NewTab);
 
@@ -301,6 +307,8 @@ private:
 	void BuildApparelItems();
 	/** A in the apparel list: wears the lit piece in the place, or takes the EQUIPPED one off. */
 	void PickApparel();
+	/** B-476e: the socket line opens the socket's choices; in them, A sockets the pick (ApplySocketChoice). */
+	void PickApparelSocket(const FLoadoutScreenRow &Place, const FLoadoutV2WindowItem &Item);
 
 	// B-440e: the saved loadouts list.
 	void OpenSaved();

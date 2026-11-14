@@ -781,6 +781,10 @@ FText ULoadoutV2ScreenWidget::GetTitle() const
 	if (Mode == ELoadoutV2Mode::ApparelItems)
 	{
 		const FLoadoutScreenRow *Row = GetFocusedApparelRow();
+		if (bApparelSocket && Row)
+		{
+			return FText::Format(LOCTEXT("TitleApparelSocket", "{0} \u00B7 Crystal socket"), Row->Name);
+		}
 		return Row && Row->Kind == ELoadoutScreenRowKind::Apparel ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), Row->Name) : LOCTEXT("TitleAddApparel", "Add apparel");
 	}
 	const FText Window = bEditing ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), EditEntry.Name) : LOCTEXT("TitleAdd", "Add gear");
@@ -1662,6 +1666,13 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		RefreshData();
 		return true;
 	case ELoadoutV2Mode::ApparelItems:
+		if (bApparelSocket)
+		{
+			bApparelSocket = false; // B-476e: back to the pieces, on the socket line
+			Selected = 1;
+			RefreshData();
+			return true;
+		}
 		Mode = ELoadoutV2Mode::List;
 		Selected = ListSelected;
 		Items.Reset();
@@ -1842,6 +1853,7 @@ void ULoadoutV2ScreenWidget::OpenApparelItems()
 	Selected = 0;
 	PickedSocket = INDEX_NONE;
 	bComparing = false; // B-476e
+	bApparelSocket = false;
 	Message = FText::GetEmpty();
 	RefreshData();
 	if (Items.IsEmpty())
@@ -1861,6 +1873,19 @@ void ULoadoutV2ScreenWidget::BuildApparelItems()
 	{
 		return;
 	}
+	if (bApparelSocket)
+	{
+		// B-476e: the worn piece's crystal socket: carried gems and owned evolutions (today's socket picker).
+		for (const FLoadoutScreenChoice &Choice : WoRLoadoutScreen::BuildSocketChoices(GetWorld(), Members[MemberIndex], *Row, LoadoutScreenSockets::CRYSTAL))
+		{
+			FLoadoutV2WindowItem &Item = Items.AddDefaulted_GetRef();
+			Item.Name = Choice.Row.Name;
+			Item.Line = Choice.Row.KindLine;
+			Item.Refusal = Choice.Refusal;
+			Item.Socket = Choice;
+		}
+		return;
+	}
 	if (Row->Kind == ELoadoutScreenRowKind::Apparel) // the worn piece first: A Remove
 	{
 		FLoadoutV2WindowItem &Worn = Items.AddDefaulted_GetRef();
@@ -1868,6 +1893,13 @@ void ULoadoutV2ScreenWidget::BuildApparelItems()
 		Worn.Line = LoadoutV2ScreenStyle::ApparelLine(*Row);
 		Worn.bEquipped = true;
 		Worn.Socket.Row = *Row;
+		// B-476e (D-164): then its one crystal socket.
+		FLoadoutV2WindowItem &SocketLine = Items.AddDefaulted_GetRef();
+		SocketLine.Name = LOCTEXT("ApparelSocketLine", "Crystal socket");
+		const bool bEmpty = Row->Sockets.IsEmpty() || Row->Sockets[0].bEmpty;
+		SocketLine.Line = bEmpty ? LOCTEXT("ApparelSocketEmpty", "Empty: pick a gem or an evolution") : Row->Sockets[0].Name;
+		SocketLine.Refusal = bEmpty ? FText::GetEmpty() : LOCTEXT("ApparelSocketFull", "Taking it off comes later");
+		SocketLine.bOpensSocket = true;
 	}
 	for (const FLoadoutScreenChoice &Choice : WoRLoadoutApparel::BuildApparelChoices(GetWorld(), Members[MemberIndex], *Row))
 	{
@@ -1879,6 +1911,40 @@ void ULoadoutV2ScreenWidget::BuildApparelItems()
 	}
 }
 
+void ULoadoutV2ScreenWidget::PickApparelSocket(const FLoadoutScreenRow &Place, const FLoadoutV2WindowItem &Item)
+{
+	if (!Item.Refusal.IsEmpty())
+	{
+		Message = Item.Refusal; // greyed with its reason
+		RefreshView();
+		return;
+	}
+	if (Item.bOpensSocket)
+	{
+		bApparelSocket = true;
+		Selected = 0;
+		Message = FText::GetEmpty();
+		RefreshData();
+		if (Items.IsEmpty())
+		{
+			bApparelSocket = false;
+			Message = LOCTEXT("NoApparelSocketPick", "You carry no gem and own no free evolution for it.");
+			RefreshData();
+		}
+		return;
+	}
+	Message = WoRLoadoutScreen::ApplySocketChoice(GetWorld(), Members[MemberIndex], Place, LoadoutScreenSockets::CRYSTAL, Item.Socket);
+	if (Message.IsEmpty())
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: %s socketed into %s"), *Members[MemberIndex].Name.ToString(), *Item.Name.ToString(), *Place.Name.ToString());
+		bApparelSocket = false;
+		Mode = ELoadoutV2Mode::List;
+		Selected = ListSelected;
+		Items.Reset();
+	}
+	RefreshData();
+}
+
 void ULoadoutV2ScreenWidget::PickApparel()
 {
 	const FLoadoutScreenRow *Row = GetFocusedApparelRow();
@@ -1888,6 +1954,11 @@ void ULoadoutV2ScreenWidget::PickApparel()
 	}
 	const FLoadoutScreenRow Place = *Row; // copies: RefreshData rebuilds the rows and the list
 	const FLoadoutV2WindowItem Item = Items[Selected];
+	if (Item.bOpensSocket || bApparelSocket)
+	{
+		PickApparelSocket(Place, Item);
+		return;
+	}
 	Message = Item.bEquipped ? WoRLoadoutApparel::TakeOffRow(GetWorld(), Members[MemberIndex], Place)
 							 : WoRLoadoutApparel::ApplyApparelChoice(GetWorld(), Members[MemberIndex], Place, Item.Socket);
 	if (Message.IsEmpty())
