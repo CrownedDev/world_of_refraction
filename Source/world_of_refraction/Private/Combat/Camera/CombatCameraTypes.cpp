@@ -278,6 +278,48 @@ FText FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle Style)
 	}
 }
 
+namespace ScreenShakeScales
+{
+	/** B-453a: the factor each level plays a shot's ShakeScale at (Reduced is half, as The Last of Us Part II's
+	 *  camera shake slider halfway). */
+	constexpr float FULL = 1.0f;
+	constexpr float REDUCED = 0.5f;
+	constexpr float OFF = 0.0f;
+}
+
+FText FCombatCameraRules::GetScreenShakeSettingName()
+{
+	return LOCTEXT("ScreenShakeSetting", "Screen shake");
+}
+
+FText FCombatCameraRules::GetScreenShakeLevelName(EScreenShakeLevel Level)
+{
+	switch (Level)
+	{
+	case EScreenShakeLevel::Reduced:
+		return LOCTEXT("ScreenShakeReduced", "Reduced");
+	case EScreenShakeLevel::Off:
+		return LOCTEXT("ScreenShakeOff", "Off");
+	case EScreenShakeLevel::Full:
+	default:
+		return LOCTEXT("ScreenShakeFull", "Full");
+	}
+}
+
+float FCombatCameraRules::GetScreenShakeScale(EScreenShakeLevel Level)
+{
+	switch (Level)
+	{
+	case EScreenShakeLevel::Reduced:
+		return ScreenShakeScales::REDUCED;
+	case EScreenShakeLevel::Off:
+		return ScreenShakeScales::OFF;
+	case EScreenShakeLevel::Full:
+	default:
+		return ScreenShakeScales::FULL;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
 
 FCinematicWindowTiming FCombatCameraRules::ReadWindowTiming(const USkillDataBase *Skill, float PlayRate, bool bSkipRitualLeg)
