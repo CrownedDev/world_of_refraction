@@ -25,6 +25,8 @@ namespace
 	constexpr int32 SETTINGS_TEST_SCREEN_SHAKE_ROW = 3;
 	/** B-453b: camera movement in fights, the row before it. */
 	constexpr int32 SETTINGS_TEST_CAMERA_MOVEMENT_ROW = 2;
+	/** B-453c: hold to confirm, after screen shake. */
+	constexpr int32 SETTINGS_TEST_HOLD_TO_CONFIRM_ROW = 4;
 }
 
 BEGIN_DEFINE_SPEC(FSettingsScreenSpec, "WoR.UI.Settings", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -147,6 +149,25 @@ void FSettingsScreenSpec::Define()
 		TestNotEqual(TEXT("the row reads off"), WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility)[SETTINGS_TEST_CAMERA_MOVEMENT_ROW].Value.ToString(), On);
 		WoRSettingsScreen::ChangeSetting(World, ESettingId::FightCameraMovement, -1);
 		TestFalse(TEXT("on again"), Save->IsFightCameraMovementOff());
+	});
+
+	It("turns hold to confirm off and on; on is the default (B-453c)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility);
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_HOLD_TO_CONFIRM_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the hold to confirm row"), Rows[SETTINGS_TEST_HOLD_TO_CONFIRM_ROW].Id == ESettingId::HoldToConfirm);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_HOLD_TO_CONFIRM_ROW].CanChange());
+		TestTrue(TEXT("on by default"), FSavedSettings().bPressToConfirm == false);
+		Save->SetHoldToConfirmOn(true);
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::HoldToConfirm, 1));
+		TestFalse(TEXT("off: a press confirms"), Save->IsHoldToConfirmOn());
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::HoldToConfirm, 1);
+		TestTrue(TEXT("on again"), Save->IsHoldToConfirmOn());
 	});
 
 	It("says a setting isn't built yet, and doesn't change it", [this]()
