@@ -1170,6 +1170,10 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 
 void ACombatOrchestrator::ProceedWithTurnStart()
 {
+	// B-453e: a new turn is the player's again, whoever idled the last one (before any early return: a skipped or
+	// scheduled turn must not inherit it).
+	IdleTakenActor.Reset();
+	StopIdleTurnClock();
 	// ET-19: each turn brings back the one free weapon / ring switch.
 	if (ULoadoutComponent *Loadout = CurrentActor ? CurrentActor->FindComponentByClass<ULoadoutComponent>() : nullptr)
 	{
@@ -1200,10 +1204,6 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 		OnActionCompleted();
 		return;
 	}
-
-	// B-453e: a new turn is the player's again, whoever idled the last one.
-	IdleTakenActor.Reset();
-	StopIdleTurnClock();
 
 	// Broadcast for UI/listeners
 	OnActorTurnStarted.Broadcast(CurrentActor, CurrentTurnNumber);
@@ -1749,9 +1749,14 @@ void ACombatOrchestrator::HandleIdleTurnTimeout()
 {
 	AActor *Actor = IdleClockActor.Get();
 	IdleClockActor.Reset();
-	if (!Actor || !IsActorsTurn(Actor) || bWaitingForAsyncAction || IsActorAIControlled(Actor) || !AIDecisionManagerRef)
+	const UGameInstance *GI = GetGameInstance();
+	const USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
+	if (!Actor || !IsActorsTurn(Actor) || bWaitingForAsyncAction || IsActorAIControlled(Actor) || !AIDecisionManagerRef ||
+		!Save || !Save->IsAIFinishesIdleTurnOn())
 	{
-		return; // the turn moved on, an action is playing, or the AI already plays this member
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatOrchestrator] Idle clock ran out for %s: nothing to take (turn moved on, busy, AI, or the setting is off now)"),
+			   *GetNameSafe(Actor));
+		return;
 	}
 	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GetGameInstance()))
 	{
