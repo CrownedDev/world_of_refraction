@@ -1110,6 +1110,25 @@ void FCombatCameraDirectorSpec::Define()
 		Save->SetTurnViewStyle(ETurnViewStyle::CentredWide);
 	});
 
+	It("starts a fight with the saved camera movement switch, and the switch writes it back (B-453b)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestTrue(TEXT("setup"), Director && Save && Hero && Foe))
+		{
+			return;
+		}
+		Save->SetFightCameraMovementOff(true);
+		Director->BeginCombat({Hero}, {Foe}, nullptr);
+		TestTrue(TEXT("the fight starts still"), Director->IsCameraMovementOff());
+		Director->SetCameraMovementOff(false);
+		TestFalse(TEXT("the switch is in the save"), Save->IsFightCameraMovementOff());
+		Director->EndCombat();
+		Director->BeginCombat({Hero}, {Foe}, nullptr);
+		TestFalse(TEXT("the next fight moves"), Director->IsCameraMovementOff());
+		Director->EndCombat();
+	});
+
 	It("moves the camera once per menu-depth change and never while browsing one depth (B-399)", [this]()
 	{
 		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
