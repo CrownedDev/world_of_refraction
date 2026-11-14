@@ -195,7 +195,7 @@ void FSettingsScreenSpec::Define()
 		WoRSettingsScreen::ChangeSetting(World, ESettingId::TextSize, 1);
 		TestTrue(TEXT("round to normal"), Save->GetTextSizeLevel() == ETextSizeLevel::Normal);
 		TestEqual(TEXT("the scale is back"), GetDefault<UUserInterfaceSettings>()->ApplicationScale, NormalScale);
-		WoRTextSize::Restore(); // the project's own scale, whatever a test left
+		// The test world's save subsystem restores the project's own scale when the world goes (WoRTextSize::Restore).
 	});
 
 	It("says a setting isn't built yet, and doesn't change it", [this]()
