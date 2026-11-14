@@ -13,6 +13,8 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Party/Party.h"
+#include "Party/RecruitCard.h"
 #include "Player/WoRInteract.h"
 #include "Trial/TrialRunSubsystem.h"
 
@@ -108,6 +110,17 @@ void UPartyInteractionComponent::Interact()
 		// B-076 (D-026): a character found during a trial joins for that run only.
 		const UTrialRunSubsystem *TrialRun = GetWorld()->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
 		const TSoftClassPtr<ACombatCharacter> PawnClass(GetOwner()->GetClass()->GetPathName());
+		// B-471 (D-179): a full party in a run asks who steps out (the card, B-471b); until the card is drawn, say so.
+		const UParty *Party = PartySession->GetLocalParty();
+		if (TrialRun && TrialRun->IsRunActive() && Party && Party->IsFull())
+		{
+			const FRecruitCard Card = BuildRecruitCard();
+			UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] %s"), *WoRRecruitCard::GetCardString(Card));
+			WoRInteract::ShowHint(*this, FColor::Yellow,
+								  Card.Refusal.IsEmpty() ? FString::Printf(TEXT("Party full: wor.Party.RecruitInPlaceOf <slot> (%s)"), *WoRRecruitCard::GetCardString(Card))
+														 : Card.Refusal.ToString());
+			return;
+		}
 		const bool bInvited = TrialRun && TrialRun->IsRunActive() ? PartySession->InviteRunMember(PawnClass, OwnerData)
 																  : PartySession->InviteMemberWithData(PawnClass, OwnerData);
 		UE_LOG(LogTemp, Log, TEXT("[PartyInteraction] %s: invite %s"),
@@ -126,6 +139,27 @@ void UPartyInteractionComponent::Interact()
 	{
 		WoRInteract::ShowHint(*this, FColor::Green, GetHintText());
 	}
+}
+
+FRecruitCard UPartyInteractionComponent::BuildRecruitCard() const
+{
+	const UPartySessionSubsystem *PartySession = GetPartySession();
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	static const TArray<FPartyMember> NoMembers;
+	return WoRRecruitCard::Build(GetOwnerCharacterData(), Party ? Party->Members : NoMembers,
+								 [PartySession](int32 Slot) { return PartySession && PartySession->IsPlayerSlot(Slot); });
+}
+
+bool UPartyInteractionComponent::InviteInPlaceOf(int32 StepOutSlot)
+{
+	UCharacterData *OwnerData = GetOwnerCharacterData();
+	UPartySessionSubsystem *PartySession = GetPartySession();
+	if (!OwnerData || !PartySession || !GetOwner() || PartySession->GetMemberSlotByData(OwnerData) != INDEX_NONE)
+	{
+		return false;
+	}
+	const TSoftClassPtr<ACombatCharacter> PawnClass(GetOwner()->GetClass()->GetPathName());
+	return PartySession->InviteRunMemberInPlaceOf(PawnClass, OwnerData, StepOutSlot);
 }
 
 UPartyInteractionComponent *UPartyInteractionComponent::FindNearestInRange(APawn *Pawn)

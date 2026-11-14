@@ -150,6 +150,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	bool InviteRunMember(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data);
 
+	/** B-471 (D-179): a real player holds this slot: the leader's, or one a player in the session claims (B-360b). Such
+	 *  a slot never steps out for a recruit. */
+	bool IsPlayerSlot(int32 SlotIndex) const;
+
+	/** B-471 (D-179): with a full party, the NPC at StepOutSlot leaves and Data joins for this run (InviteRunMember).
+	 *  Refused (nothing changes) for the leader's slot, a player's slot or a bad index. */
+	bool InviteRunMemberInPlaceOf(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data, int32 StepOutSlot);
+
 	/** B-076: the run ended; every run-only member leaves. Returns how many left. B-361 (D-152): its skills go to
 	 *  the host's character (UPoolSubsystem::HandOverSkills); its pickups and pouch were the host's all along. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
