@@ -10,6 +10,8 @@
 #include "Engine/GameInstance.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
+#include "GameFramework/GameStateBase.h"
+#include "Player/WoRPlayerState.h"
 #include "Party/Party.h"
 #include "Pool/PoolSubsystem.h"
 #include "Combat/TurnManager.h"
@@ -476,6 +478,48 @@ bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> Paw
 		   Member.bAISeat ? TEXT(", as an AI seat (multiplayer)") : TEXT(""));
 	OnPartyChanged.Broadcast(GetLocalParty());
 	return true;
+}
+
+bool UPartySessionSubsystem::IsPlayerSlot(int32 SlotIndex) const
+{
+	const UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	if (SlotIndex == 0)
+	{
+		return true; // the leader is the local player
+	}
+	const UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr;
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	if (!GameState)
+	{
+		return false;
+	}
+	const FGuid &MemberId = Party->Members[SlotIndex].MemberId;
+	return GameState->PlayerArray.ContainsByPredicate([&MemberId](const APlayerState *Player)
+	{
+		const AWoRPlayerState *WoRPlayer = Cast<AWoRPlayerState>(Player);
+		return WoRPlayer && WoRPlayer->ClaimsMember(MemberId);
+	});
+}
+
+bool UPartySessionSubsystem::InviteRunMemberInPlaceOf(TSoftClassPtr<ACombatCharacter> PawnClass, UCharacterData *Data, int32 StepOutSlot)
+{
+	const UParty *Party = GetLocalParty();
+	if (!Data || !Party || !Party->Members.IsValidIndex(StepOutSlot) || IsPlayerSlot(StepOutSlot))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PartySession] %s can't take slot %d: only an NPC steps out (D-179)"), Data ? *Data->Name : TEXT("<none>"), StepOutSlot);
+		return false;
+	}
+	const FString Leaving = Party->Members[StepOutSlot].CharacterData ? Party->Members[StepOutSlot].CharacterData->Name : FString();
+	if (!DismissMember(StepOutSlot))
+	{
+		return false;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s steps out for %s (D-179)"), *Leaving, *Data->Name);
+	return InviteRunMember(PawnClass, Data);
 }
 
 int32 UPartySessionSubsystem::DismissRunMembers()
