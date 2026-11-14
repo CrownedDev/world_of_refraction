@@ -34,7 +34,7 @@ void FInviteScreenSpec::Define()
 
 	It("lists friends, marks the invited, and offers the session row", [this]()
 	{
-		const FInviteScreenPage Hosting = WoRInviteScreen::BuildPage({TEXT("Kestrel"), TEXT("Dune")}, {INVITE_TEST_INVITED}, true, {});
+		const FInviteScreenPage Hosting = WoRInviteScreen::BuildPage({TEXT("Kestrel"), TEXT("Dune")}, {FString(TEXT("Dune"))}, true, {});
 		if (!TestEqual(TEXT("two friends"), Hosting.Friends.Num(), 2)) return;
 		TestFalse(TEXT("Kestrel not invited"), Hosting.Friends[0].bInvited);
 		TestTrue(TEXT("Dune invited"), Hosting.Friends[INVITE_TEST_INVITED].bInvited);

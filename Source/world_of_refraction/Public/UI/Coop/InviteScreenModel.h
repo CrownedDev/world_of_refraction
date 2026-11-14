@@ -49,11 +49,12 @@ namespace WoRInviteScreen
 	WORLD_OF_REFRACTION_API FText GetSeatWho(bool bLeader, bool bAISeat, bool bHeld, const FString &ClaimantName, bool bHosting);
 
 	/** The page from its parts (the specs build it so). */
-	WORLD_OF_REFRACTION_API FInviteScreenPage BuildPage(const TArray<FString> &FriendNames, const TSet<int32> &Invited, bool bHosting,
+	WORLD_OF_REFRACTION_API FInviteScreenPage BuildPage(const TArray<FString> &FriendNames, const TSet<FString> &Invited, bool bHosting,
 														TArray<FInviteSeatRow> Seats);
 
-	/** The page for World: the session's friends and the local party's seats. */
-	WORLD_OF_REFRACTION_API FInviteScreenPage BuildPage(UWorld *World, const TSet<int32> &Invited);
+	/** The page for World: the session's friends and the local party's seats. Invited holds friend names (a re-read
+	 *  list can come back in another order). */
+	WORLD_OF_REFRACTION_API FInviteScreenPage BuildPage(UWorld *World, const TSet<FString> &Invited);
 
 	/** A on a friend: invites them. Empty on success; else the reason, for the player. */
 	WORLD_OF_REFRACTION_API FText Invite(UWorld *World, int32 FriendIndex);

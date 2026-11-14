@@ -56,7 +56,7 @@ FText WoRInviteScreen::GetSeatWho(bool bLeader, bool bAISeat, bool bHeld, const 
 	return ClaimantName.IsEmpty() ? LOCTEXT("You", "You") : FText::FromString(ClaimantName);
 }
 
-FInviteScreenPage WoRInviteScreen::BuildPage(const TArray<FString> &FriendNames, const TSet<int32> &Invited, bool bHosting,
+FInviteScreenPage WoRInviteScreen::BuildPage(const TArray<FString> &FriendNames, const TSet<FString> &Invited, bool bHosting,
 											 TArray<FInviteSeatRow> Seats)
 {
 	FInviteScreenPage Page;
@@ -68,7 +68,7 @@ FInviteScreenPage WoRInviteScreen::BuildPage(const TArray<FString> &FriendNames,
 	{
 		FInviteFriendRow &Row = Page.Friends.AddDefaulted_GetRef();
 		Row.Name = FText::FromString(FriendNames[Index]);
-		Row.bInvited = Invited.Contains(Index);
+		Row.bInvited = Invited.Contains(FriendNames[Index]);
 		Row.Status = Row.bInvited ? LOCTEXT("Invited", "invited · waiting") : LOCTEXT("InviteVerb", "invite");
 	}
 	const FText HowSeating = LOCTEXT("HowSeating", "A friend brings their own character and takes an AI seat.\nIn a run, new friends are seated at a rest spot.");
@@ -80,7 +80,7 @@ FInviteScreenPage WoRInviteScreen::BuildPage(const TArray<FString> &FriendNames,
 	return Page;
 }
 
-FInviteScreenPage WoRInviteScreen::BuildPage(UWorld *World, const TSet<int32> &Invited)
+FInviteScreenPage WoRInviteScreen::BuildPage(UWorld *World, const TSet<FString> &Invited)
 {
 	const UWoRSessionSubsystem *Sessions = SessionsOf(World);
 	const bool bHosting = Sessions && Sessions->IsHosting();
@@ -131,7 +131,9 @@ FText WoRInviteScreen::ToggleHosting(UWorld *World)
 		return FText::GetEmpty();
 	}
 	// On success the level reopens as a listen server and takes this screen with it.
-	return Sessions->HostSession() ? FText::GetEmpty() : LOCTEXT("HostFailed", "A session couldn't be hosted now.");
+	// HostSession refuses while a create or a destroy is still under way (both are async).
+	return Sessions->HostSession() ? FText::GetEmpty()
+								   : LOCTEXT("HostFailed", "A session is still starting or closing: try again in a moment.");
 }
 
 void WoRInviteScreen::ReadFriends(UWorld *World)
@@ -144,7 +146,7 @@ void WoRInviteScreen::ReadFriends(UWorld *World)
 
 FString WoRInviteScreen::GetInviteScreenString(UWorld *World)
 {
-	const FInviteScreenPage Page = BuildPage(World, TSet<int32>());
+	const FInviteScreenPage Page = BuildPage(World, TSet<FString>());
 	FString Out = FString::Printf(TEXT("[InviteScreen] %s: %s"), *Page.Title.ToString(), *Page.Subtitle.ToString());
 	for (const FInviteFriendRow &Friend : Page.Friends)
 	{
