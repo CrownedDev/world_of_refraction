@@ -20,6 +20,7 @@
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "Online/HostSuccession.h"
+#include "UI/Coop/HandOverConfirmWidget.h"
 #include "UI/Hub/InventoryWidget.h"
 #include "UI/Hub/LevelDropWidget.h"
 #include "UI/Party/InviteWidget.h"
@@ -359,8 +360,10 @@ void URestSpotWidget::HandleHandOverClicked()
 	UWorld *World = GetWorld();
 	UGameInstance *GI = GetGameInstance();
 	UWoRHostHandOverSubsystem *HandOver = GI ? GI->GetSubsystem<UWoRHostHandOverSubsystem>() : nullptr;
+	APlayerController *PC = GetOwningPlayer();
 	CloseMenu();
-	if (HandOver)
+	// B-459a: ask first ("Hand over host?"); straight away only where that screen can't open (no root layout).
+	if (!UHandOverConfirmWidget::Open(PC) && HandOver)
 	{
 		HandOver->BeginPlannedHandOver(World);
 	}
