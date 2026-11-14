@@ -89,6 +89,8 @@ private:
 	/** Closes this menu, then opens the page's old viewport widget once the root layout has let go of it. */
 	void OpenPlaceholder(EPauseMenuPage Page);
 	void BeginQuitHold();
+	/** B-453c: the player's hold-to-confirm setting (on without a save). */
+	bool IsHoldToConfirmOn() const;
 	void StopQuitHold();
 	void TickQuitHold();
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;

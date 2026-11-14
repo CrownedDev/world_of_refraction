@@ -930,6 +930,11 @@ The queue of questions only Crown can answer.
 - **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
+### Q-453c — Hold to confirm off: what confirms instead
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453c, D-190, D-176) · **Blocks:** —
+**Question:** with "hold to confirm dangerous actions" off, what confirms a quit or a start over?
+**Answer**, by the reference-backed default (Crown may change it): **the confirm step stays and a press on it confirms** (two presses in all), so D-176's "strong confirm" is kept without a hold. The Last of Us Part II and Forza Horizon offer "hold to press" toggles as accessibility for players who can't hold a button; both keep the confirm screen.
+
 ### Q-453a — The screen shake setting: how many steps
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453a, D-190) · **Blocks:** —
 **Question:** D-190 approves "screen shake" but not its values.

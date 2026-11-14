@@ -51,8 +51,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Open the game menu | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439): `AWoRHubController::OpenGameMenu`, hub and trial map (not in a battle). Console: `wor.UI.Pause`. In the editor Esc ends PIE, so use the gamepad or the console |
 | Move up / down a list | Up / Down, W / S, mouse over a row | D-pad, left stick | none (the screen's keys) | Built (B-439, game menu) |
 | Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
-| Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks |
-| Hold to confirm (New Game over a save, the title) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-467): 2 seconds, after New Game asks; letting go early does nothing, B cancels |
+| Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks; with Hold to confirm off (B-453c), a second press instead |
+| Hold to confirm (New Game over a save, the title) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-467): 2 seconds, after New Game asks; letting go early does nothing, B cancels; with Hold to confirm off (B-453c), a press on the question instead |
 | Credits: scroll faster | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-470): five times faster while held; B / Esc leaves |
 | Previous / next page (the top tab row) | Q / E, click a tab | LB / RB (L1 / R1) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_TabPrev` / `Next`) | Built (B-452, settings screen) |
 | Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
@@ -159,3 +159,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | Loadout v2 Weapons tab built: A Add weapon, A Pick, X Compare, Y Confirm, B Cancel (B-476b) | feature/B-476b-loadout-v2-weapons-tab-cloud |
 | 2026-11-14 | Loadout v2 Weapons tab, rest (B-476c): X / V Simple / Full, L3 / 6 Set active, Y Options, the Add gear window's kind / slot / list keys and the evolution's ask | feature/B-476c-loadout-v2-rest-cloud |
 | 2026-11-14 | Recruit card: Up / Down choose, A invite, B not now (B-471b) | feature/B-471b-talk-recruit-screens-cloud |
+| 2026-11-14 | Hold to confirm (Quit, New Game over a save): a press instead when the Hold to confirm setting is off (B-453c) | feature/B-453c-hold-to-confirm-cloud |

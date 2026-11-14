@@ -30,6 +30,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-451](B-451.md) | `feature/B-451-ending-payouts-cloud` (cloud, UNBUILT) | Out of wipes pays a quarter, no boss bonus, no upgrades (finds taken back, upgrade levels not kept); extract half; the boss full; quit nothing | Pending |
 | [B-460](B-460.md) | `refactor/B-460-crystal-text-ftext-cloud` (cloud, UNBUILT) | Crystal and stone descriptions as FText; nothing should read differently | Pending |
 | [B-408](B-408.md) | `chore/B-408-saved-runs-survey-cloud` (cloud, docs only) | Survey: the saved run stays for the co-op hand-over and to settle a closed game; one change proposed (a game closed mid-run counts as a quit, Q-408); confirm today's resume | Pending |
+| [B-453c](B-453c.md) | `feature/B-453c-hold-to-confirm-cloud` (cloud, UNBUILT) | Settings: hold to confirm on / off (off: a second press quits or starts over) | Pending |
 | [B-453b](B-453b.md) | `feature/B-453b-fight-camera-movement-cloud` (cloud, UNBUILT) | Settings: camera movement in fights off / on, saved, read when a fight begins | Pending |
 | [B-453a](B-453a.md) | `feature/B-453a-screen-shake-cloud` (cloud, UNBUILT) | Settings: screen shake Full / Reduced / Off, saved, scales the fight camera's shake | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |

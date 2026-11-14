@@ -128,8 +128,12 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Shake.Value = FCombatCameraRules::GetScreenShakeLevelName(Save ? Save->GetScreenShakeLevel() : EScreenShakeLevel::Full);
 		Shake.Explanation = LOCTEXT("ScreenShakeExplain", "How much the screen shakes on heavy hits: full, reduced to half, or off.");
 		Rows.Add(Shake);
-		Rows.Add(NotBuilt(ESettingId::HoldToConfirm, LOCTEXT("HoldToConfirm", "Hold to confirm dangerous actions"),
-						  LOCTEXT("HoldToConfirmExplain", "Asks you to hold the button, not press it, before something that can't be undone.")));
+		FSettingsRow Hold; // B-453c (D-190)
+		Hold.Id = ESettingId::HoldToConfirm;
+		Hold.Label = LOCTEXT("HoldToConfirm", "Hold to confirm dangerous actions");
+		Hold.Value = OnOff(!Save || Save->IsHoldToConfirmOn());
+		Hold.Explanation = LOCTEXT("HoldToConfirmExplain", "Asks you to hold the button, not press it, before something that can't be undone. Off: a second press confirms.");
+		Rows.Add(Hold);
 		Rows.Add(NotBuilt(ESettingId::ElementLetters, LOCTEXT("ElementLetters", "Element letters on colours"),
 						  LOCTEXT("ElementLettersExplain", "Adds a letter to each element's colour, so elements can be told apart without colour.")));
 		Rows.Add(NotBuilt(ESettingId::Subtitles, LOCTEXT("Subtitles", "Subtitles"), LOCTEXT("SubtitlesExplain", "Shows spoken lines as text.")));
@@ -210,6 +214,9 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 		return true;
 	case ESettingId::FightCameraMovement: // B-453b: the next fight reads it (UCombatCameraDirector::BeginCombat)
 		Save->SetFightCameraMovementOff(!Save->IsFightCameraMovementOff());
+		return true;
+	case ESettingId::HoldToConfirm: // B-453c
+		Save->SetHoldToConfirmOn(!Save->IsHoldToConfirmOn());
 		return true;
 	case ESettingId::ScreenShake: // B-453a: Full, Reduced, Off, wrapping either way
 	{
