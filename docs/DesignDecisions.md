@@ -1110,6 +1110,12 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-211 — A pair's slots: the average of the two tiers
+**Status:** ANSWERED (Crown, 2026-11-14, with the reference-backed default for rounding; changes D-210's "slots follow the main hand's tier") · **Raised:** 2026-11-14 · **Blocks:** B-477
+**Answer (Crown):** an entry with two pieces (two weapons, later a weapon and a shield) gets ability slots from the **average of the two tiers** (F 1 … B 5, A 6, S 6, CL-20), plus the entry's crystal's extra slots (CL-21), at most 12 (CL-31). A one-weapon entry is unchanged: its tier plus its crystal's.
+**Default (reference-backed, Crown may change):** a half is **rounded down** (a B with a C gives 4). Destiny's power level is the average of the gear worn, rounded down, and players read it at a glance; rounding down also stops a low piece riding a high one.
+
+
 ### D-210 — Loadout entries, the two augment sockets, and where evolutions may go
 **Status:** ANSWERED (Crown, 2026-11-14; changes D-209's rows and "both crystals' stats", D-141's one crystal socket + one stone socket) · **Raised:** 2026-11-14 · **Blocks:** B-476, B-477, B-479, B-480
 **Answer (Crown):**
