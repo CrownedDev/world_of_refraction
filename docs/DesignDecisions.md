@@ -930,6 +930,11 @@ The queue of questions only Crown can answer.
 - **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
+### Q-453d — Text size: what grows, and by how much
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453d, D-190) · **Blocks:** —
+**Question:** D-190 approves "text size" but not its steps or whether only the text grows.
+**Answer**, by the reference-backed default (Crown may change it): **three steps, Normal / Large / Larger (about 15% each), and the whole UI grows with the text** (panels, icons and text together, so nothing overflows its box). Marvel's Spider-Man and The Last of Us Part II offer text size steps; Elden Ring and Baldur's Gate 3 scale the whole HUD and menus, which keeps layouts intact. Growing only the text would need every hand-built screen's boxes to stretch; the HUD-wide scale doesn't.
+
 ### Q-453c — Hold to confirm off: what confirms instead
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453c, D-190, D-176) · **Blocks:** —
 **Question:** with "hold to confirm dangerous actions" off, what confirms a quit or a start over?
