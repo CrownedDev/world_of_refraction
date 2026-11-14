@@ -2,6 +2,7 @@
 
 #include "UI/Hub/NpcTalkWidget.h"
 
+#include "Character/CharacterData.h"
 #include "Components/Border.h"
 #include "Components/Spacer.h"
 #include "Engine/GameInstance.h"
@@ -59,8 +60,39 @@ UNpcTalkWidget *UNpcTalkWidget::Open(APlayerController *PC, UMerchantData *InMer
 	return Screen;
 }
 
+UNpcTalkWidget *UNpcTalkWidget::OpenForCharacter(APlayerController *PC, UCharacterData *InCharacter)
+{
+	AWoRHubController *Hub = Cast<AWoRHubController>(PC);
+	UWoRRootLayout *Root = Hub ? Hub->GetRootLayout() : nullptr;
+	if (!Root || !InCharacter)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[NpcTalk] Not opened: no root layout or no character"));
+		return nullptr;
+	}
+	UNpcTalkWidget *Screen = Cast<UNpcTalkWidget>(Root->PushToMenu(UNpcTalkWidget::StaticClass()));
+	if (Screen)
+	{
+		Screen->SetStory(StoryUnlocks::GatherStoryData());
+		Screen->SetCharacter(InCharacter);
+	}
+	return Screen;
+}
+
+void UNpcTalkWidget::SetCharacter(UCharacterData *InCharacter)
+{
+	Character = InCharacter;
+	Merchant.Reset();
+	Instigator.Reset();
+	View = ENpcTalkView::Choices;
+	Selected = 0;
+	Spoken = FText::GetEmpty();
+	Refresh();
+	UE_LOG(LogWoRUI, Log, TEXT("[NpcTalk] Opened for a character: %s"), *WoRNpcTalk::GetTalkString(Page));
+}
+
 void UNpcTalkWidget::SetSource(UMerchantData *InMerchant, APawn *InInstigator)
 {
+	Character.Reset();
 	Merchant = InMerchant;
 	Instigator = InInstigator;
 	View = ENpcTalkView::Choices;
@@ -185,7 +217,8 @@ FText UNpcTalkWidget::GetLineText(int32 Line) const
 void UNpcTalkWidget::Refresh()
 {
 	using namespace NpcTalkStyle;
-	Page = WoRNpcTalk::Build(Merchant.Get(), ObjectPtrDecay(Story), GetJournal());
+	Page = Character.IsValid() ? WoRNpcTalk::BuildForCharacter(Character.Get(), ObjectPtrDecay(Story), GetJournal())
+							   : WoRNpcTalk::Build(Merchant.Get(), ObjectPtrDecay(Story), GetJournal());
 	const int32 Count = GetLineCount();
 	Selected = Count > 0 ? FMath::Clamp(Selected, 0, Count - 1) : 0;
 	if (!RoleText)

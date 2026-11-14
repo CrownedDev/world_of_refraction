@@ -42,8 +42,14 @@ public:
 	 *  the pawn the shop opens for. */
 	static UNpcTalkWidget *Open(APlayerController *PC, UMerchantData *Merchant, APawn *Instigator);
 
+	/** B-471d: the talk box for a character in the hub (AHubCharacterSpot): its name, Talk / Leave, its
+	 *  conversations under Talk. Null without a root layout. */
+	static UNpcTalkWidget *OpenForCharacter(APlayerController *PC, UCharacterData *Character);
+
 	/** Who the box is for (set by Open; the specs set it too). */
 	void SetSource(UMerchantData *InMerchant, APawn *InInstigator);
+	/** B-471d: a character instead of a vendor (OpenForCharacter; the specs set it too). */
+	void SetCharacter(UCharacterData *InCharacter);
 	/** The story the topics come from (Open gathers every story asset; the specs pass their own). */
 	void SetStory(const TArray<UStoryLinesData *> &InStory);
 
@@ -77,6 +83,8 @@ private:
 	void OpenShop();
 
 	TWeakObjectPtr<UMerchantData> Merchant;
+	/** B-471d: set, the box is this character's (its conversations), not a vendor's. */
+	TWeakObjectPtr<UCharacterData> Character;
 	TWeakObjectPtr<APawn> Instigator;
 	FNpcTalkPage Page;
 	ENpcTalkView View = ENpcTalkView::Choices;
