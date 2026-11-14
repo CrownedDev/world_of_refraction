@@ -58,8 +58,8 @@ namespace CharacterFormBuild
 	}
 
 	FAutoConsoleCommandWithWorld GOpenFormsCmd(
-		TEXT("wor.UI.Forms"),
-		TEXT("PLACEHOLDER UI (B-279b): open the skins screen (forms, meters, reveal, wear; Manny / Quinn)."),
+		TEXT("wor.UI.FormsOld"), // OBSOLETE (B-444): wor.UI.Forms opens UFormsScreenWidget; removed after Crown's PIE pass
+		TEXT("PLACEHOLDER UI (B-279b): open the old skins screen (forms, meters, reveal, wear; Manny / Quinn)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
