@@ -1025,6 +1025,16 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-209 — Generic weapon sets: dual wield, shields, and the Add gear window
+**Status:** ANSWERED (Crown, 2026-11-14; changes D-206's Generic "3 items at most" and CL-23) · **Raised:** 2026-11-14 · **Blocks:** B-476, B-477, B-478
+**Answer (Crown):**
+- **Each Generic row is a weapon set.** The primary row has 3 cells, the secondary 2 (D-206 costs). A set holds one weapon, or **two one-handed weapons (dual wield)**, or later a one-handed weapon and a **shield** (shields become their own gear piece; until then a shield stays part of its weapon). **At most one adapter per loadout**, in either row. The cells are the only limit: e.g. a primary of an evolved sword and a sword with a crystal (2 + 1 = 3) and a secondary of a weapon and an adapter (1 + 1), or two dual-wield sets.
+- **A dual set gives both weapons' abilities and both crystals' stats.** Switch Weapon (and D-207's follow-the-skill setting) swaps the whole set.
+- **Weapons get a one-handed / two-handed flag**; only one-handed weapons pair. Today's dual-wield assets (one asset showing two blades) are split into one-handed pairs in an editor step.
+- **Loadout screen (changes the v2 mockups):** a confirmed set shows as its own column. Instead of empty cells, the row shows its **free cells as a number**, and an **"Add gear"** button opens a window to build a valid set: pick the pieces (sword, shield, crystal; or sword, sword, evolution). For an adapter: pick a **ready-made one**, or an **empty adapter plus the crystal** to put in it. Pieces that don't fit stay listed, greyed with the reason.
+**Reference:** Elden Ring's powerstancing (two weapons, both counting) and Dark Souls' separate hands; Guild Wars 2's weapon-set swap.
+**Notes for Claude:** B-477 replaces B-473 (retired). The AI loadout and the save (v39) take the set shape.
+
 ### D-208 — Apparel's rolled bonus line
 **Status:** ANSWERED (Crown, 2026-11-14, with the reference-backed default for the size) · **Raised:** 2026-11-14 · **Blocks:** B-475
 **Answer (Crown):** besides HP, Defence and Amp (CL-50, CL-50c), each apparel piece rolls **one bonus line** when it drops (the per-instance roll system): either a **sub-stat** (never Turn Speed, which is retired) or a **pillar's value** (+X% to one pillar's composed value, like an over-cap point, ER-24c). It adds no pillar points, so it never counts toward skill requirements. Apparel stays at **2 slots**.
