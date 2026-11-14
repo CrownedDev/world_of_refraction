@@ -665,7 +665,7 @@ void UBattleHUDWidget::SetCardBuildup(FBattleHUDCard &Card, float Current, float
 	Card.BuildupColour = BattleHUDView::GetBuildupColour(PendingElement, Source && UBrokenDarknessManager::IsInBDForm(Source));
 	Card.BuildupLine = BattleHUDView::FormatBuildupLine(Current, Max);
 	// B-453f (D-190): the bar's colour says the pending element; with element letters on, the line says it too.
-	const UWorld *World = GetWorld();
+	const UWorld *World = Card.Actor.IsValid() ? Card.Actor->GetWorld() : nullptr; // static: the card's actor gives the world
 	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 	// Not in Broken Darkness form: its bar is the hybrid colour, which one element's letters would misname.
 	const bool bHybridBar = Source && UBrokenDarknessManager::IsInBDForm(Source);
