@@ -25,6 +25,10 @@ namespace
 
 void NpcTalkDebug::PrintTalkPages(UWorld *World)
 {
+	if (!World)
+	{
+		return;
+	}
 	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	const UMemoryJournalSubsystem *Journal = GI ? GI->GetSubsystem<UMemoryJournalSubsystem>() : nullptr;
 	const TArray<UStoryLinesData *> Story = StoryUnlocks::GatherStoryData();
