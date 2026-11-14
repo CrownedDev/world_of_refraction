@@ -1,7 +1,7 @@
 // MenuChipRowSpec.cpp
 // B-482: the shared chip row (WoRMenuStyle::MakeChipRow / SetChips / FindChipUnder). One chip per state and the rest
 // hidden; the current one filled, a greyed one never; a note only where one is given; nothing under the mouse before
-// the row is drawn.
+// the row is drawn. (The v2 loadout screen gives its greyed chips no note since B-482b; the row still takes one.)
 
 #if WITH_DEV_AUTOMATION_TESTS
 

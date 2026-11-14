@@ -59,6 +59,9 @@ struct FLoadoutV2Entry
 	FText Name;
 	/** Augment socket 1 and 2 (none for the evolution line). */
 	TArray<ELoadoutV2SocketIcon> Sockets;
+	/** B-482b: what augment socket 1 holds, by name ("Garnet", an evolution's name); empty when the socket is. The row
+	 *  shows it in brackets after the name; it is the same name the details box prints (one source: the entry's socket). */
+	FText SocketName;
 	/** The weapon in hand (marked only when there are two weapon entries). */
 	bool bActive = false;
 	/** A weapon entry's skill slots (D-211 for a pair), 0 otherwise. */

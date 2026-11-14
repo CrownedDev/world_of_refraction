@@ -19,6 +19,8 @@
 
 namespace LoadoutV2Build
 {
+	FText AttachmentName(const FRuntimeAttachedItem &Item); // below: the one name of a socketed piece (the row and the box)
+
 	ELoadoutV2SocketIcon IconOf(const FRuntimeAttachedItem &Item)
 	{
 		if (Item.IsEvolution())
@@ -49,6 +51,7 @@ namespace LoadoutV2Build
 		Entry.Place = Place;
 		Entry.Name = SetName(Set);
 		Entry.Sockets = {IconOf(Set.WeaponEntry.AttachedItem), IconOf(Set.WeaponEntry.StoneSocket)};
+		Entry.SocketName = AttachmentName(Set.WeaponEntry.AttachedItem);
 		Entry.SkillSlots = Set.GetSkillSlotCount();
 		return Entry;
 	}
@@ -61,6 +64,7 @@ namespace LoadoutV2Build
 		Entry.AdapterIndex = AdapterIndex;
 		Entry.Name = FText::FromString(Ring.RingEntry.Ring ? Ring.RingEntry.Ring->GetDisplayName() : FString());
 		Entry.Sockets = {IconOf(Ring.RingEntry.AttachedItem), IconOf(Ring.RingEntry.StoneSocket)};
+		Entry.SocketName = AttachmentName(Ring.RingEntry.AttachedItem);
 		return Entry;
 	}
 

@@ -43,20 +43,10 @@ namespace LoadoutV2ScreenStyle
 	/** Spaces per depth of an effect-tree line in the details box. */
 	constexpr int32 IndentSpaces = 3;
 
-	FText SocketWord(ELoadoutV2SocketIcon Icon)
+	/** B-482b: a row's name with what its socket holds in brackets: "Quarry Maul (Garnet)"; the name alone when empty. */
+	FText NameWithSocket(const FText &Name, const FText &SocketName)
 	{
-		switch (Icon)
-		{
-		case ELoadoutV2SocketIcon::Crystal:
-			return LOCTEXT("SocketCrystal", "Crystal");
-		case ELoadoutV2SocketIcon::Stone:
-			return LOCTEXT("SocketStone", "Stone");
-		case ELoadoutV2SocketIcon::Evolution:
-			return LOCTEXT("SocketEvolution", "Evolution");
-		case ELoadoutV2SocketIcon::Empty:
-		default:
-			return LOCTEXT("SocketEmpty", "empty");
-		}
+		return SocketName.IsEmpty() ? Name : FText::Format(LOCTEXT("NameWithSocket", "{0} ({1})"), Name, SocketName);
 	}
 
 	FText JoinNames(const TArray<FText> &Names)
@@ -107,12 +97,12 @@ namespace LoadoutV2ScreenStyle
 	 *  click that armed it, so a double click only asks. */
 	constexpr double ARMED_CLICK_DELAY_SECONDS = 0.5;
 
-	/** Skills and Cosmetics aren't built yet: greyed, with "later" (TODO: B-476d builds Skills). */
+	/** Skills and Cosmetics aren't built yet: greyed (TODO: B-476d builds Skills). */
 	TArray<FChipState> BuildTabChips()
 	{
-		const FText Later = LOCTEXT("ChipLater", "later");
-		return {FChipState{LOCTEXT("ChipWeapons", "Weapons")}, FChipState{LOCTEXT("ChipSkills", "Skills"), true, Later},
-				FChipState{LOCTEXT("ChipApparel", "Apparel")}, FChipState{LOCTEXT("ChipCosmetics", "Cosmetics"), true, Later}};
+		// B-482b: no "later" note; a greyed chip already says it isn't in use.
+		return {FChipState{LOCTEXT("ChipWeapons", "Weapons")}, FChipState{LOCTEXT("ChipSkills", "Skills"), true},
+				FChipState{LOCTEXT("ChipApparel", "Apparel")}, FChipState{LOCTEXT("ChipCosmetics", "Cosmetics"), true}};
 	}
 
 	/** The option lines Y opens, in order. */
@@ -162,7 +152,9 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToRow(Header, ChipRows, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		LoadoutNameText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToRow(Header, LoadoutNameText, FMargin(0.0f), VAlign_Top);
-		AddToColumn(Main, Header);
+		// B-482b: the header is as wide as the list and the box under it, so the loadout's title ends where the box
+		// does and can't run past the screen's margin (it was cut off at the edge when the header filled the screen).
+		AddToColumn(Main, MakeSized(WidgetTree, ListWidth + ColumnGap + BoxWidth, 0.0f, Header))->SetHorizontalAlignment(HAlign_Left);
 		CellsText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToColumn(Main, CellsText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 
@@ -412,12 +404,18 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 	default:
 		if (Tab == ELoadoutV2Tab::Apparel)
 		{
-			return Line < GetWornApparelCount() && ApparelRows.IsValidIndex(Line) ? ApparelRows[Line].Name : LOCTEXT("AddApparel", "+ Add apparel");
+			if (Line < GetWornApparelCount() && ApparelRows.IsValidIndex(Line))
+			{
+				const FLoadoutScreenRow &Row = ApparelRows[Line];
+				const FLoadoutScreenSocket *Socket = Row.Sockets.IsValidIndex(LoadoutScreenSockets::CRYSTAL) ? &Row.Sockets[LoadoutScreenSockets::CRYSTAL] : nullptr;
+				return NameWithSocket(Row.Name, Socket && !Socket->bEmpty ? Socket->Name : FText::GetEmpty());
+			}
+			return LOCTEXT("AddApparel", "+ Add apparel");
 		}
 		if (Page.Entries.IsValidIndex(Line))
 		{
 			const FLoadoutV2Entry &Entry = Page.Entries[Line];
-			return Entry.bActive ? FText::Format(LOCTEXT("ActiveName", "{0}  ACTIVE"), Entry.Name) : Entry.Name;
+			return NameWithSocket(Entry.Name, Entry.SocketName); // B-482b: ACTIVE sits at the row's right end (GetLineDetail)
 		}
 		return LOCTEXT("AddWeapon", "+ Add weapon");
 	}
@@ -469,17 +467,12 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		{
 			const int32 Worn = GetWornApparelCount();
 			return Line < Worn && ApparelRows.IsValidIndex(Line)
-					   ? ApparelLine(ApparelRows[Line])
+					   ? FText::GetEmpty() // B-482b: the socket is in the name's brackets; the tier is in the box
 					   : FText::Format(LOCTEXT("AddApparelLine", "{0}/{1} left"), FText::AsNumber(ApparelRows.Num() - Worn), FText::AsNumber(ApparelRows.Num()));
 		}
 		if (Page.Entries.IsValidIndex(Line))
 		{
-			TArray<FText> Sockets;
-			for (const ELoadoutV2SocketIcon Icon : Page.Entries[Line].Sockets)
-			{
-				Sockets.Add(SocketWord(Icon));
-			}
-			return FText::Join(LOCTEXT("SocketGap", " · "), Sockets);
+			return Page.Entries[Line].bActive ? LOCTEXT("ActiveTag", "ACTIVE") : FText::GetEmpty(); // B-482b: the row's right end
 		}
 		return Page.AddFrameLine;
 	}
@@ -634,7 +627,10 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		LineNames[Index]->SetText(GetLineName(Index));
 		LineNames[Index]->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor)); // refused: stays, greyed
 		WoRKeyHints::SetHint(LineDetails[Index], GetLineDetail(Index));
-		LineDetails[Index]->SetColorAndOpacity(FSlateColor(bRefused && (IsAdding() || Mode == ELoadoutV2Mode::ApparelItems) ? WarnColor : DimColor));
+		// B-482b: on the entries list the detail is the row's right end ("ACTIVE", "1/5 left"), in the accent colour.
+		const bool bListMode = Mode == ELoadoutV2Mode::List;
+		LineDetails[Index]->SetJustification(bListMode ? ETextJustify::Right : ETextJustify::Left);
+		LineDetails[Index]->SetColorAndOpacity(FSlateColor(bRefused && (IsAdding() || Mode == ELoadoutV2Mode::ApparelItems) ? WarnColor : bListMode ? CyanColor : DimColor));
 	}
 
 	// The box: the focused entry's details, or in the window the entry being built.
