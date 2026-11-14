@@ -113,9 +113,9 @@ TSharedRef<SWidget> UCharacterFormWidget::RebuildWidget()
 
 		CharacterFormBuild::AddButton(WidgetTree, Box, LOCTEXT("NextButton", "Next form"))
 			->OnClicked.AddDynamic(this, &UCharacterFormWidget::HandleNextClicked);
-		CharacterFormBuild::AddButton(WidgetTree, Box, LOCTEXT("WearButton", "Wear this form"))
+		CharacterFormBuild::AddButton(WidgetTree, Box, LOCTEXT("WearButton", "Wear"))
 			->OnClicked.AddDynamic(this, &UCharacterFormWidget::HandleWearClicked);
-		CharacterFormBuild::AddButton(WidgetTree, Box, LOCTEXT("TakeOffButton", "Take the skin off"))
+		CharacterFormBuild::AddButton(WidgetTree, Box, LOCTEXT("TakeOffButton", "Remove form"))
 			->OnClicked.AddDynamic(this, &UCharacterFormWidget::HandleTakeOffClicked);
 		CharacterFormBuild::AddButton(WidgetTree, Box, LOCTEXT("MannyButton", "Base body: Manny"))
 			->OnClicked.AddDynamic(this, &UCharacterFormWidget::HandleMannyClicked);
