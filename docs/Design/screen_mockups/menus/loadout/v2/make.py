@@ -165,8 +165,9 @@ def details(d, title, sub, pieces, sockets, notes, sock_head="Sockets (shared)")
             text(d, (x + 14, TOP + 128 + j * 26), lab, 14, fill=DIM)
             text(d, (x + 110, TOP + 128 + j * 26), val, 14, True)
     y = TOP + 104 + 26 * max(len(p[3]) for p in pieces) + 50
-    text(d, (LIST_X + 18, y), sock_head, 15, True, CYAN)
-    y += 28
+    if sockets:
+        text(d, (LIST_X + 18, y), sock_head, 15, True, CYAN)
+        y += 28
     for sk, name, line in sockets:
         socket_icon(d, (LIST_X + 18, y, LIST_X + 54, y + 36), sk)
         text(d, (LIST_X + 66, y + 1), name, 15, True, TXT if sk else OFF)
@@ -190,12 +191,29 @@ y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None
 y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 add_frame(d, y, 1, 5)
 details(d, "Ashen Blade + Cinder Edge", "Dual wield · sword stance (the main hand's) · active", [
-    ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"), ("Speed", "Normal")]),
-    ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"), ("Speed", "Fast")])], [
-    (("crystal", "Fire"), "Garnet", "Fire crystal · Fire for both swords' infused abilities"),
-    (None, "Empty", "A stone fits here")], ["Ability slots: 7 (both swords)  ·  X Skills to set them"])
+    ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"), ("Speed", "Normal"),
+                                  ("Passive", "Burn +10%")]),
+    ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"), ("Speed", "Fast"),
+                                  ("Passive", "1st hit Crit +15%")])], [
+    (("crystal", "Fire"), "Garnet  B", "Fire Amp +2 · Burn 13% max HP/turn"),
+    (None, "Empty", "Stone socket")], ["Ability slots: 7"])
 footer(d, FOOT)
 save(im, OUT, "1_weapons_generic.png")
+
+# ---- 1b: the evolution line focused: on the character it gives everything (Amp by tier, passives, spells).
+im, d = canvas()
+header(d, 1, 0, "Bruiser  ·  2 of 5")
+used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
+y = evo_line(d, 168, "Ironheart", "Earth", focus=True)
+y = entry(d, y, "Swords", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1, active=True)
+y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
+add_frame(d, y, 1, 5)
+details(d, "Ironheart", "Garrick's own evolution · 2 cells", [
+    ("Ironheart", "Earth", "A", [("Element", "Earth"), ("Amp", "Earth +2"), ("Spell slots", "6"),
+                                 ("Passive", "Defence +10%"), ("Passive", "Earth buildup +15%")])], [],
+    ["On gear instead: passives only, at infusion 2"])
+footer(d, FOOT)
+save(im, OUT, "1b_evolution.png")
 
 # ---- 1a: Y opens the Options pop-up over the Generic tab.
 opt = Image.blend(im, Image.new("RGB", im.size, BG), 0.55)
@@ -274,10 +292,10 @@ text(d, (160, y + 12), "Sword + Sword", 16, True)
 text(d, (546, y + 12), "0 cells so far", 15, True, CYAN, anchor="ra")
 text(d, (590, 128), "Augment socket 1  ·  shared by both swords", 15, True, DIM)
 item_rows(d, 590, 1134, 156, [
-    ("Garnet", ("crystal", "Fire"), "B", "Crystal · Fire", "1 cell", None),
-    ("Phoenix", ("evolution", "Fire"), "B", "Evolution · its passives at infusion 2", "2 cells", None),
-    ("Whetstone", ("stone", None), "C", "Stone · Power +4%", "1 cell", None),
-    ("Sapphire", ("crystal", "Water"), "D", "Crystal · Water", "1 cell", None),
+    ("Garnet", ("crystal", "Fire"), "B", "Fire Amp +2 · Burn 13% max HP/turn", "1 cell", None),
+    ("Phoenix", ("evolution", "Fire"), "B", "At infusion 2: revive once at 20% HP", "2 cells", None),
+    ("Whetstone", ("stone", None), "C", "Power +9%", "1 cell", None),
+    ("Sapphire", ("crystal", "Water"), "D", "Water Amp +1 · Survive one KO", "1 cell", None),
     ("Onyx", ("crystal", "Darkness"), "S", "", "", "S-tier: one per loadout (on Iron Coat)"),
     ("Tidal", ("evolution", "Water"), "B", "", "", "On Bram's Tide Ring")], 0)
 save(im, OUT, "2_add_gear_weapon.png")
@@ -286,12 +304,12 @@ save(im, OUT, "2_add_gear_weapon.png")
 im, d = window(screen_g(), "Add gear", "3/5 left",
                [("A", "Pick"), ("X", "Compare"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 2)
-build_slot(d, 172, "Garrick's evolution  ·  one per character", "Ironheart", ("evolution", "Earth"), "Evolution · Earth · 2 cells",
+build_slot(d, 172, "Garrick's evolution  ·  one per character", "Ironheart", ("evolution", "Earth"), "Earth Amp +2 · Defence +10% · 2 cells",
            focus=True)
 text(d, (590, 128), "Evolutions you own", 15, True, DIM)
 item_rows(d, 590, 1134, 156, [
-    ("Ironheart", ("evolution", "Earth"), "A", "Evolution · Earth", "2 cells", None),
-    ("Phoenix", ("evolution", "Fire"), "B", "Evolution · Fire", "2 cells", None),
+    ("Ironheart", ("evolution", "Earth"), "A", "Earth Amp +2 · Defence +10% · Earth buildup +15%", "2 cells", None),
+    ("Phoenix", ("evolution", "Fire"), "B", "Fire Amp +2 · Revive once at 20% HP", "2 cells", None),
     ("Emberheart", ("evolution", "Fire"), "B", "", "", "Bram's own evolution"),
     ("Tidal", ("evolution", "Water"), "B", "", "", "On Bram's Tide Ring")], 0)
 cut(d, (380, 300, 900, 470), PANEL, CYAN, 12)
@@ -310,14 +328,14 @@ im, d = window(screen_g(False), "Edit  ·  Ashen Blade + Cinder Edge", "1/5 left
 kind_tabs(d, 0)
 y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword")
 y = build_slot(d, y, "Off hand", "Cinder Edge", "None", "Sword")
-y = build_slot(d, y, "Augment socket 1", "Garnet", ("crystal", "Fire"), "Crystal · Fire · 1 cell", focus=True)
+y = build_slot(d, y, "Augment socket 1", "Garnet", ("crystal", "Fire"), "Fire Amp +2 · Burn 13%/turn", focus=True)
 y = build_slot(d, y, "Augment socket 2", None, ("stone", None), "A stone (or a crystal if socket 1 has a stone)")
 text(d, (590, 128), "Augment socket 1", 15, True, DIM)
 item_rows(d, 590, 1134, 156, [
-    ("Garnet", ("crystal", "Fire"), "B", "Crystal · Fire  ·  A takes it out", "1 cell", "worn"),
-    ("Sapphire", ("crystal", "Water"), "D", "Crystal · Water", "1 cell", None),
-    ("Whetstone", ("stone", None), "C", "Stone · Power +4%", "1 cell", None),
-    ("Phoenix", ("evolution", "Fire"), "B", "Evolution", "2 cells", None),
+    ("Garnet", ("crystal", "Fire"), "B", "Fire Amp +2 · Burn 13% max HP/turn", "1 cell", "worn"),
+    ("Sapphire", ("crystal", "Water"), "D", "Water Amp +1 · Survive one KO", "1 cell", None),
+    ("Whetstone", ("stone", None), "C", "Power +9%", "1 cell", None),
+    ("Phoenix", ("evolution", "Fire"), "B", "At infusion 2: revive once at 20% HP", "2 cells", None),
     ("Onyx", ("crystal", "Darkness"), "S", "", "", "S-tier: one per loadout (on Iron Coat)")], 0)
 save(im, OUT, "2b_add_gear_remove.png")
 
@@ -348,12 +366,12 @@ for j, (lab, a, b, good) in enumerate([("Power", "30", "34", True), ("Speed", "F
     col = TXT if good is None else (GOOD if good else RED)
     text(d, (810, yy), b + ("" if good is None else ("  ▲" if good else "  ▼")), 15, True, col)
 d.line((326, 486, 1074, 486), fill=STEEL)
-text(d, (326, 498), "Abilities", 15, fill=DIM)
-text(d, (520, 498), "Lose", 12, True, RED)
-text(d, (520, 518), "Quick Cut, Whirl", 15, True, RED)
-text(d, (810, 498), "Gain", 12, True, GOOD)
-text(d, (810, 518), "Frost Bite, Chill Edge", 15, True, GOOD)
-text(d, (326, 562), "Both swords' abilities count; the main hand's stay as they are.", 13, fill=DIM)
+for j, (lab, a, b) in enumerate([("Passive", "1st hit Crit +15%", "Chill buildup +10%"),
+                                  ("Built-in", "Quick Cut", "Frost Bite")]):
+    yy = 498 + j * 34
+    text(d, (326, yy), lab, 15, fill=DIM)
+    text(d, (520, yy), "- " + a, 15, True, RED)
+    text(d, (810, yy), "+ " + b, 15, True, GOOD)
 save(im, OUT, "2c_add_gear_compare.png")
 
 # ---- 3: Sera (Refractor): one entry, 2 cells; the entry is full, so no frame. Innate spells live on the Skills tab.
@@ -363,10 +381,10 @@ used_line(d, 1, 2, note="1 entry")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Staff", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1, focus=True)
 details(d, "Cinder Staff", "One entry · Refractor", [
-    ("Cinder Staff", "Fire", "C", [("Type", "Staff"), ("Power", "28"), ("Scaling", "Mind B"), ("Speed", "Normal")])], [
-    (("crystal", "Fire"), "Garnet", "Fire crystal · Fire for its infused abilities"),
-    (None, "Empty", "A stone fits here")], ["Ability slots: 4  ·  X Skills to set them",
-                                            "Innate spells are on the Skills tab."])
+    ("Cinder Staff", "Fire", "C", [("Type", "Staff"), ("Power", "28"), ("Scaling", "Mind B"), ("Speed", "Normal"),
+                                   ("Passive", "Spell Amp +1")])], [
+    (("crystal", "Fire"), "Garnet  C", "Fire Amp +1 · Burn 11% max HP/turn"),
+    (None, "Empty", "Stone socket")], ["Ability slots: 4"])
 footer(d, FOOT)
 save(im, OUT, "3_weapons_refractor.png")
 
@@ -376,14 +394,15 @@ header(d, 2, 0, "Ember Rings  ·  1 of 5")
 used_line(d, 4, 5, note="1 weapon entry · 3 of 5 rings")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Fists", [("Cinder Fists", "None")], [None, None], 0, h=56)
-y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, focus=True, h=56)
+y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, h=56)
 y = entry(d, y, "Ring", [("Storm Ring", "Lightning")], [("crystal", "Lightning"), None], 1, h=56)
-y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("evolution", "Water"), None], 2, h=56)
+y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("evolution", "Water"), None], 2, focus=True, h=56)
 add_frame(d, y, 1, 5)
-details(d, "Ember Ring", "Adapter · active: Bram casts its spells", [
-    ("Ember Ring", "Fire", "C", [("Type", "Ring"), ("Spells", "Fire"), ("Durability", "64 / 80"), ("Spell slots", "4")])], [
-    (("crystal", "Fire"), "Garnet", "Fire crystal · its spells are Fire"),
-    (None, "Empty", "A stone fits here")], ["Spell slots: 4  ·  X Skills to set them"])
+details(d, "Tide Ring", "Adapter · evolution on gear", [
+    ("Tide Ring", "Water", "C", [("Type", "Ring"), ("Spells", "Water"), ("Durability", "70 / 80"),
+                                 ("Passive", "Water spells EP -10%")])], [
+    (("evolution", "Water"), "Tidal  B", "At infusion 2: Water damage taken -10% · Soak buildup +10%"),
+    (None, "Empty", "Stone socket")], ["Spell slots: 5 (Tidal's tier)"])
 footer(d, FOOT)
 save(im, OUT, "4_weapons_resonator.png")
 
@@ -398,8 +417,7 @@ y = entry(d, 168, "", [("Iron Coat", "Darkness")], [("crystal", "Darkness")], 0,
 add_frame(d, y, 1, 2, label="Add apparel")
 details(d, "Iron Coat", "Apparel · coat", [
     ("Iron Coat", "Darkness", "C", [("HP", "40"), ("Defence", "14"), ("Amp", "+2"), ("Bonus", "+5% Body")])], [
-    (("crystal", "Darkness"), "Onyx", "Darkness crystal · adds Darkness resistance")], [
-    "The bonus raises Body's value, not its points."], sock_head="Socket")
+    (("crystal", "Darkness"), "Onyx  S", "Darkness Amp +3 · Darkness resistance · Silence")], [], sock_head="Socket")
 footer(d, [("A", "Edit"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "5_apparel.png")
 
