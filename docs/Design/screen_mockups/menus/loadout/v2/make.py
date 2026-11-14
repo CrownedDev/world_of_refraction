@@ -100,10 +100,10 @@ def entry(d, y, title, pieces, sockets, cost, active=False, focus=False, h=62):
     return y + h + 8
 
 
-def add_frame(d, y, left, total, focus=False):
+def add_frame(d, y, left, total, focus=False, label="Add weapon"):
     """The empty frame at the bottom of the entries."""
     cut(d, (L, y, LR, y + 44), TEAL if focus else BG, CYAN if focus else OFF, 8)
-    text(d, (L + 16, y + 12), "+  Add weapon", 16, True, TXT if focus else DIM)
+    text(d, (L + 16, y + 12), "+  " + label, 16, True, TXT if focus else DIM)
     text(d, (LR - 14, y + 12), "%d/%d left" % (left, total), 16, True, CYAN if left else OFF, anchor="ra")
     return y + 54
 
@@ -147,7 +147,37 @@ def choices(d, heading, rows, focus, compare):
         y += 26
 
 
-FOOT = [("A", "Edit"), ("X", "Details"), ("Y", "Options"), ("B", "Back")]
+def details(d, title, sub, pieces, sockets, notes, sock_head="Sockets (shared)"):
+    """The focused entry's details, inline on the right (no pop-up). pieces: (name, el, tier, [(label, value)]);
+    sockets: (socket, name, line); notes: closing lines."""
+    panel(d, (LIST_X, TOP, 1232, 654), focus=True)
+    text(d, (LIST_X + 18, TOP + 12), title, 20, True)
+    text(d, (LIST_X + 18, TOP + 42), sub, 13, fill=DIM)
+    n = len(pieces)
+    w = (1232 - LIST_X - 36 - (n - 1) * 12) // n
+    for i, (name, el, t, lines) in enumerate(pieces):
+        x = LIST_X + 18 + i * (w + 12)
+        cut(d, (x, TOP + 70, x + w, TOP + 104 + 26 * len(lines) + 30), PLATE, STEEL, 8)
+        icon(d, (x + 10, TOP + 80, x + 46, TOP + 116), ELEMENT[el])
+        text(d, (x + 56, TOP + 88), name, 16, True)
+        tier_badge(d, x + 56 + int(d.textlength(name, font=F(16, True))) + 15, TOP + 98, t, 10)
+        for j, (lab, val) in enumerate(lines):
+            text(d, (x + 14, TOP + 128 + j * 26), lab, 14, fill=DIM)
+            text(d, (x + 110, TOP + 128 + j * 26), val, 14, True)
+    y = TOP + 104 + 26 * max(len(p[3]) for p in pieces) + 50
+    text(d, (LIST_X + 18, y), sock_head, 15, True, CYAN)
+    y += 28
+    for sk, name, line in sockets:
+        socket_icon(d, (LIST_X + 18, y, LIST_X + 54, y + 36), sk)
+        text(d, (LIST_X + 66, y + 1), name, 15, True, TXT if sk else OFF)
+        text(d, (LIST_X + 66, y + 20), line, 12, fill=DIM)
+        y += 46
+    for line in notes:
+        text(d, (LIST_X + 18, y + 8), line, 14, fill=DIM)
+        y += 24
+
+
+FOOT = [("A", "Edit"), ("X", "Skills"), ("Y", "Options"), ("B", "Back")]
 
 # ---- 1: Garrick (Generic): his evolution, two weapon entries and the Add weapon frame (1/5 left; the adapter entry
 #         is the one left). The dual entry is focused (A Edit; on the Add weapon frame A reads Equip); the right lists swords that could take its place.
@@ -159,7 +189,11 @@ y = entry(d, y, "Sword + Sword", [("Ashen Blade", "Fire"), ("Cinder Edge", "None
           [("crystal", "Fire"), None], 1, active=True, focus=True)
 y = entry(d, y, "Hammer", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
 add_frame(d, y, 1, 5)
-# The right side stays empty for now (Crown may put the focused entry's details there).
+details(d, "Ashen Blade + Cinder Edge", "Dual wield · sword stance (the main hand's) · active", [
+    ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"), ("Speed", "Normal")]),
+    ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"), ("Speed", "Fast")])], [
+    (("crystal", "Fire"), "Garnet", "Fire crystal · Fire for both swords' infused abilities"),
+    (None, "Empty", "A stone fits here")], ["Ability slots: 7 (both swords)  ·  X Skills to set them"])
 footer(d, FOOT)
 save(im, OUT, "1_weapons_generic.png")
 
@@ -181,39 +215,6 @@ for i, (lab, sub, on) in enumerate([("Saved loadouts", "Load, save or rename", T
 footer(d, [("A", "Select"), ("B", "Close")], y=624, right=1220)
 save(opt, OUT, "1a_options.png")
 
-# ---- 1b: X Details on the dual entry: each weapon's type and stats, the entry's sockets, and a Skills button that
-#          jumps to this entry on the Skills tab.
-det = Image.blend(im, Image.new("RGB", im.size, BG), 0.6)
-d = ImageDraw.Draw(det)
-panel(d, (240, 120, 1040, 640), focus=True)
-text(d, (266, 138), "Ashen Blade + Cinder Edge", 22, True)
-text(d, (266, 170), "Dual wield · Sword stance (the main hand's) · ACTIVE", 13, fill=DIM)
-for i, (n, el, t, lines) in enumerate([
-        ("Ashen Blade", "Fire", "B", [("Type", "Sword"), ("Power", "42"), ("Scaling", "Body B"),
-                                       ("Speed", "Normal")]),
-        ("Cinder Edge", "None", "C", [("Type", "Sword"), ("Power", "30"), ("Scaling", "Body C"),
-                                       ("Speed", "Fast")])]):
-    x = 266 + i * 380
-    cut(d, (x, 200, x + 356, 380), PLATE, STEEL, 8)
-    icon(d, (x + 12, 212, x + 52, 252), ELEMENT[el])
-    text(d, (x + 64, 214), n, 17, True)
-    tier_badge(d, x + 64 + int(d.textlength(n, font=F(17, True))) + 16, 224, t, 10)
-    for j, (lab, val) in enumerate(lines):
-        text(d, (x + 16, 266 + j * 26), lab, 14, fill=DIM)
-        text(d, (x + 120, 266 + j * 26), val, 14, True)
-text(d, (266, 396), "Sockets (shared)", 15, True, CYAN)
-for i, (sk, n, sub) in enumerate([(("crystal", "Fire"), "Garnet", "Fire crystal · Fire for both swords' infused abilities"),
-                                  (None, "Empty", "A stone fits here")]):
-    y = 424 + i * 46
-    socket_icon(d, (266, y, 302, y + 36), sk)
-    text(d, (314, y + 1), n, 15, True, TXT if sk else OFF)
-    text(d, (314, y + 20), sub, 12, fill=DIM)
-text(d, (266, 526), "Abilities: 7 slots (both swords)  ·  Cells: 1", 14, fill=DIM)
-cut(d, (266, 566, 466, 610), TEAL, CYAN, 6)
-text(d, (366, 588), "Skills  →", 16, True, anchor="mm")
-text(d, (480, 580), "Opens this entry on the Skills tab", 12, fill=DIM)
-footer(d, [("A", "Skills"), ("B", "Close")], y=588, right=1020)
-save(det, OUT, "1b_details.png")
 
 
 def window(base, title, free, hints):
@@ -361,7 +362,11 @@ header(d, 0, 0, "Pyre  ·  1 of 5")
 used_line(d, 1, 2, note="1 entry")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Staff", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1, focus=True)
-# The right side stays empty for now (Crown may put the focused entry's details there).
+details(d, "Cinder Staff", "One entry · Refractor", [
+    ("Cinder Staff", "Fire", "C", [("Type", "Staff"), ("Power", "28"), ("Scaling", "Mind B"), ("Speed", "Normal")])], [
+    (("crystal", "Fire"), "Garnet", "Fire crystal · Fire for its infused abilities"),
+    (None, "Empty", "A stone fits here")], ["Ability slots: 4  ·  X Skills to set them",
+                                            "Innate spells are on the Skills tab."])
 footer(d, FOOT)
 save(im, OUT, "3_weapons_refractor.png")
 
@@ -371,41 +376,49 @@ header(d, 2, 0, "Ember Rings  ·  1 of 5")
 used_line(d, 4, 5, note="1 weapon entry · 3 of 5 rings")
 y = evo_line(d, 168, None, None)
 y = entry(d, y, "Fists", [("Cinder Fists", "None")], [None, None], 0, h=56)
-y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, h=56)
+y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, focus=True, h=56)
 y = entry(d, y, "Ring", [("Storm Ring", "Lightning")], [("crystal", "Lightning"), None], 1, h=56)
 y = entry(d, y, "Ring", [("Tide Ring", "Water")], [("evolution", "Water"), None], 2, h=56)
-add_frame(d, y, 1, 5, focus=True)
-# The right side stays empty for now (Crown may put the focused entry's details there).
-footer(d, [("A", "Equip"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
+add_frame(d, y, 1, 5)
+details(d, "Ember Ring", "Adapter · active: Bram casts its spells", [
+    ("Ember Ring", "Fire", "C", [("Type", "Ring"), ("Spells", "Fire"), ("Durability", "64 / 80"), ("Spell slots", "4")])], [
+    (("crystal", "Fire"), "Garnet", "Fire crystal · its spells are Fire"),
+    (None, "Empty", "A stone fits here")], ["Spell slots: 4  ·  X Skills to set them"])
+footer(d, FOOT)
 save(im, OUT, "4_weapons_resonator.png")
 
 
-def apparel(d, y, name, el, lines, bonus, sock, focus=False):
-    cut(d, (L, y, LR, y + 92), TEAL if focus else PLATE, CYAN if focus else STEEL, 10)
-    icon(d, (L + 10, y + 10, L + 66, y + 66), ELEMENT[el])
-    text(d, (L + 78, y + 10), name, 19, True)
-    text(d, (L + 78, y + 38), lines, 14, fill=TXT if focus else DIM)
-    text(d, (L + 78, y + 60), bonus, 14, True, CYAN)
-    socket_icon(d, (LR - 50, y + 28, LR - 14, y + 64), sock)
-
-
-# ---- 5: Apparel tab: two slots, no budget. Each piece: HP / Defence / Amp + one rolled bonus (a sub-stat, or a pillar
-#         as a % of its value, never points). Its socket takes a crystal or an evolution.
+# ---- 5: Apparel tab, the same way as Weapons: entries on the left, an Add apparel frame at the bottom (2 slots, no
+#         cells), the focused piece's details on the right. Each piece: HP / Defence / Amp + one rolled bonus (a sub-stat,
+#         or a pillar as a % of its value, never points); its socket takes a crystal or an evolution.
 im, d = canvas()
 header(d, 1, 2, "Bruiser  ·  2 of 5")
 text(d, (L, TOP), "Apparel doesn't use the cells.", 16, fill=DIM)
-apparel(d, 168, "Iron Coat", "Darkness", "HP 40 · Def 14 · Amp +2", "+5% Body", ("crystal", "Darkness"), focus=True)
-apparel(d, 270, "Shade Hood", "None", "HP 25 · Def 6 · Amp +1", "+4% Crit Rate", None)
-choices(d, "Apparel that fits  ·  5 owned", [
-    ("Iron Coat", "Darkness", "C", "HP 40 · Def 14 · Amp +2 · +5% Body", "", "worn"),
+y = entry(d, 168, "", [("Iron Coat", "Darkness")], [("crystal", "Darkness")], 0, focus=True)
+add_frame(d, y, 1, 2, label="Add apparel")
+details(d, "Iron Coat", "Apparel · coat", [
+    ("Iron Coat", "Darkness", "C", [("HP", "40"), ("Defence", "14"), ("Amp", "+2"), ("Bonus", "+5% Body")])], [
+    (("crystal", "Darkness"), "Onyx", "Darkness crystal · adds Darkness resistance")], [
+    "The bonus raises Body's value, not its points."], sock_head="Socket")
+footer(d, [("A", "Edit"), ("Y", "Options"), ("B", "Back")])
+save(im, OUT, "5_apparel.png")
+
+# ---- 5a: the Add apparel window: pick a piece and its socket; X Compare opens on-now vs the highlighted pick.
+base, d = canvas()
+header(d, 1, 2, "Bruiser  ·  2 of 5")
+y = entry(d, 168, "", [("Iron Coat", "Darkness")], [("crystal", "Darkness")], 0)
+add_frame(d, y, 1, 2, focus=True, label="Add apparel")
+im, d = window(base, "Add apparel", "1/2 left", [("A", "Pick"), ("X", "Compare"), ("Y", "Confirm"), ("B", "Cancel")])
+y = build_slot(d, 140, "Apparel", None, None, "A coat, cloak, hood…", focus=True)
+y = build_slot(d, y, "Socket", None, ("crystal", None), "A crystal or an evolution (no stone)")
+text(d, (590, 128), "Apparel you own", 15, True, DIM)
+item_rows(d, 590, 1134, 156, [
     ("Ember Cloak", "Fire", "C", "HP 30 · Def 10 · Amp +4 · +6% Crit Damage", "", None),
     ("Warden Plate", "None", "B", "HP 55 · Def 20 · Amp +0 · +5% Efficiency", "", None),
-    ("Shade Hood", "None", "D", "", "", "In apparel slot 2"),
-    ("Prisma's Mantle", "Void", "B", "", "", "Bound to Amethyst Prisma: unlock that Spirit")], 1, [
-    ("HP", "40", "30", False), ("Defence", "14", "10", False), ("Amp", "+2", "+4", True),
-    ("Body", "+5%", "—", False), ("Crit Damage", "—", "+6%", True), ("Resistance", "Darkness", "Fire", None)])
-footer(d, FOOT)
-save(im, OUT, "5_apparel.png")
+    ("Shade Hood", "None", "D", "HP 25 · Def 6 · Amp +1 · +4% Crit Rate", "", None),
+    ("Iron Coat", "Darkness", "C", "", "", "Already worn"),
+    ("Prisma's Mantle", "Void", "B", "", "", "Bound to Amethyst Prisma: unlock that Spirit")], 0)
+save(im, OUT, "5a_add_apparel.png")
 
 
 def skill_rows(d, rows, focus, top=TOP + 40):
