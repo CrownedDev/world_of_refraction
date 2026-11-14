@@ -339,7 +339,7 @@ void ULoadoutScreenWidget::RefreshData()
 			Lists.Add(Index == SkillTab ? FText::Format(LOCTEXT("SkillTabLit", "[ {0} ]"), List) : List);
 		}
 		SkillTabsText->SetText(FText::Join(LOCTEXT("SkillTabGap", "    "), Lists));
-		SetShown(SkillTabsText, bSkillsPage && Lists.Num() > 0);
+		SetShown(SkillTabsText, bSkillsPage && !bSavedList && Lists.Num() > 0);
 	}
 	RefreshList();
 }
@@ -800,6 +800,7 @@ void ULoadoutScreenWidget::PressSavedLoadouts()
 	{
 		bSavedList = true;
 		Message = FText::GetEmpty();
+		SetShown(SkillTabsText, false); // the Skills page's list names don't belong over the saved list
 		RefreshSaved();
 		const int32 Active = Saved.Rows.IndexOfByPredicate([](const FLoadoutSavedRow &Row) { return Row.bActive; });
 		SelectedSaved = FMath::Max(0, Active);
@@ -849,7 +850,10 @@ void ULoadoutScreenWidget::CancelRename()
 	if (NameBox)
 	{
 		SetShown(NameBox, false);
-		SetFocus(); // the keys come back to the screen
+		if (UWidget *Target = GetDesiredFocusTarget())
+		{
+			Target->SetFocus(); // the keys come back to the screen
+		}
 	}
 	RefreshData();
 	RefreshSaved();
@@ -972,6 +976,10 @@ bool ULoadoutScreenWidget::NativeOnHandleBackAction()
 
 FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
 {
+	if (bRenaming)
+	{
+		return Super::NativeOnKeyDown(InGeometry, InKeyEvent); // B-440e: typing a name; the box keeps Enter and Esc
+	}
 	using namespace WoRMenuStyle;
 	const FKey Key = InKeyEvent.GetKey();
 	if (IsUpKey(Key))
@@ -1066,7 +1074,7 @@ int32 ULoadoutScreenWidget::FindMemberTabUnder(const FPointerEvent &MouseEvent) 
 FReply ULoadoutScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
 	// Only a moving mouse picks a row, so a resting cursor doesn't fight the keys.
-	if (!InMouseEvent.GetCursorDelta().IsZero())
+	if (!bRenaming && !InMouseEvent.GetCursorDelta().IsZero())
 	{
 		SelectRow(FindRowUnder(InMouseEvent), /*bScrollIntoView=*/false); // the list mustn't move under the cursor
 	}
@@ -1075,7 +1083,7 @@ FReply ULoadoutScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, cons
 
 FReply ULoadoutScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	if (bRenaming || InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
@@ -1112,7 +1120,6 @@ static FAutoConsoleCommandWithWorld GLoadoutSavedPrintCommand(
 		}
 	}));
 
-#if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GLoadoutScreenOpenCommand(
 	TEXT("wor.UI.Loadout"),
 	TEXT("B-440a: open the loadout screen (gear page; B-440b: A Change, X Unequip), as the game menu's Loadout page does."),

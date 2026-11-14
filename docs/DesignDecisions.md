@@ -938,6 +938,7 @@ The queue of questions only Crown can answer.
 - **A new loadout is "Loadout N"** (the first free number); a copy is "<name> copy". Names are trimmed and at most 24 letters (`WoRLoadoutSaved::MAX_LOADOUT_NAME_LENGTH`), like Destiny 2's short loadout names.
 - **A lore loadout can be used and duplicated but not renamed** (it is read only, D-111); the copy is the player's own (B-311). Lore ones don't count toward the five.
 - **No delete here** (not in the job; `ULoadoutComponent::DeleteLoadout` exists): a full list says to rename or change one.
+- **Two loadouts may share a name** (Destiny 2 allows it too); only a new one's "Loadout N" skips names in use.
 
 ### Q-440d — The Skills page: how it is reached, which lists it shows, what X does
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440d, D-181, D-145) · **Blocks:** —
