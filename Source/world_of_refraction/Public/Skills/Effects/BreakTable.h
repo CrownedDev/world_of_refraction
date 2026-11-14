@@ -37,16 +37,14 @@ struct FBreakRow
 	ESkillEffectTiming Timing;
 	/** Pays out from the holder's next turn start, not on landing (Burn, drain). */
 	bool bDelayFirstExecution;
-	/** A second effect applied with the same size and timing (Water: Spell Speed). None for most. */
+	/** A second effect applied with the same size and timing (Ice: Spell Speed). None for most. */
 	ESkillEffectType AlsoApplied;
-	/** Places a newly applied break pushes the holder's next turn back (Wind). 0 for most. */
-	int32 DelayTurnPlaces;
 	/** B-064a: a share of the holder's max HP dealt once on landing, besides the applied effect (Ice, D-090). Can kill,
 	 *  as Reality Burst. 0 for most (the rows that leave it out). */
 	float DamageShareOfMaxHP = 0.0f;
-	/** B-170d (Q-170e): actions removed from the holder's bank on landing, never below 0 (Ice, action pips only). */
+	/** B-170d (Q-170e): actions removed from the holder's bank on landing, never below 0 (Ice). */
 	int32 ActionsLostNow = 0;
-	/** B-170d (Q-170e): actions removed at the holder's next turn start, by a new break only (Wind, action pips only). */
+	/** B-170d (Q-170e): actions removed at the holder's next turn start, by a new break only (Wind). */
 	int32 ActionsLostNextTurn = 0;
 };
 
@@ -60,13 +58,10 @@ namespace BreakTable
 
 	WORLD_OF_REFRACTION_API const TArray<FBreakRow> &Rows();
 
-	/** B-170d (Q-170e): the rows that differ in an action-pips fight (Water: Spell Speed only; Wind: Action Speed slow
-	 *  and an action at the next turn, no delay; Ice: plus an action at once). */
-	WORLD_OF_REFRACTION_API const TArray<FBreakRow> &ActionPipsRows();
-
-	/** The row for Trigger, or null when the trigger has no break row. bActionPips (the fight's latched mode): the
-	 *  action-pips row where one differs. */
-	WORLD_OF_REFRACTION_API const FBreakRow *For(ESkillEffectType Trigger, bool bActionPips = false);
+	/** The row for Trigger, or null when the trigger has no break row. B-170h2b: one table (the old timeline's Water,
+	 *  Wind and Ice rows went with it; Water slows Spell Speed only, Wind slows Action Speed and takes an action at the
+	 *  next turn, Ice also takes an action at once, Q-170e). */
+	WORLD_OF_REFRACTION_API const FBreakRow *For(ESkillEffectType Trigger);
 
 	/** Every row, one line each. */
 	WORLD_OF_REFRACTION_API FString GetBreakTableString();

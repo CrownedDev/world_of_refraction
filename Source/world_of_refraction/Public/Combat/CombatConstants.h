@@ -381,15 +381,13 @@ namespace CombatConstants
     constexpr float EARTH_BREAK_DEFENSE_DOWN_PERCENT = 30.0f;
     // TODO: tune — Reality break: instant damage, share of the holder's max HP; it can kill (SB-28).
     constexpr float REALITY_BREAK_MAX_HP_FRACTION = 0.25f;
-    // TODO: tune — Wind break: how many places the holder's next turn moves back (D-014, D-090).
-    constexpr int32 WIND_BREAK_DELAY_PLACES = 1;
-    // TODO: tune — Water break: Action Speed and Spell Speed slow, percent (D-090).
+    // TODO: tune — Water break: Spell Speed slow, percent (D-090; B-170d: Spell Speed only, SB-22).
     constexpr float WATER_BREAK_SPEED_SLOW_PERCENT = 30.0f;
     // TODO: tune — Ice break (B-064a, D-090: a heavier Water): Action Speed and Spell Speed slow, percent, as Water's.
     constexpr float ICE_BREAK_SPEED_SLOW_PERCENT = 30.0f;
     // TODO: tune — Ice break: damage dealt once on landing, share of the holder's max HP; it can kill, as Reality's (Q-064a).
     constexpr float ICE_BREAK_DAMAGE_MAX_HP_FRACTION = 0.10f;
-    // B-170d (Q-170e), read in a fight (BreakTable::ActionPipsRows):
+    // B-170d (Q-170e), the break table's action rows (BreakTable::Rows):
     // TODO: tune — Ice break: actions removed at once from the holder's bank (never below 0).
     constexpr int32 ICE_BREAK_ACTIONS_LOST = 1;
     // TODO: tune — Wind break: actions removed at the holder's next turn start (D-090's placeholder -1).
