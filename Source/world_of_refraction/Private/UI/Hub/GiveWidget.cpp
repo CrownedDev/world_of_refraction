@@ -117,9 +117,9 @@ TSharedRef<SWidget> UGiveWidget::RebuildWidget()
 		GiveOneButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleGiveOneClicked);
 		GiveStackButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("GiveStack", "Give the stack"));
 		GiveStackButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleGiveStackClicked);
-		RequestButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Request", "Ask for it (the receiver asks the giver)"));
+		RequestButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Request", "Ask for it"));
 		RequestButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleRequestClicked);
-		TeachButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Teach", "Teach it (another player's character, for Mentor Tokens)"));
+		TeachButton = GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Teach", "Teach (Mentor Tokens)"));
 		TeachButton->OnClicked.AddDynamic(this, &UGiveWidget::HandleTeachClicked);
 		StatusLine = GiveBuild::AddText(WidgetTree, Box);
 		GiveBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &UGiveWidget::HandleCloseClicked);

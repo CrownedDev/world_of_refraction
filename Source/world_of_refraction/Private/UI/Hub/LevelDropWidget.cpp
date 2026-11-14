@@ -109,7 +109,7 @@ TSharedRef<SWidget> ULevelDropWidget::RebuildWidget()
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBodyClicked);
 		LevelDropBuild::AddButton(WidgetTree, Box, WoRLevelDrops::GetPillarName(EWorldPillar::Spirit))
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleSpiritClicked);
-		UButton *Buy = LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Buy", "Purchase point"));
+		UButton *Buy = LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Buy", "Buy a point"));
 		Buy->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBuyClicked);
 		BuyLabel = Cast<UTextBlock>(Buy->GetChildAt(0));
 		StatusLine = LevelDropBuild::AddText(WidgetTree, Box);
@@ -173,7 +173,7 @@ void ULevelDropWidget::Refresh()
 		{
 			const FText Level = FText::AsNumber(WoRLevelDrops::GetLiveLevel(World, *Member, Pillar));
 			const int32 Over = WoRLevelDrops::GetOverCap(World, *Member, Pillar);
-			return Over > 0 ? FText::Format(LOCTEXT("PillarOverCap", "{0} (+{1} over-cap)"), Level, FText::AsNumber(Over)) : Level;
+			return Over > 0 ? FText::Format(LOCTEXT("PillarOverCap", "{0} (+{1} extra)"), Level, FText::AsNumber(Over)) : Level;
 		};
 		MemberText->SetText(FText::Format(LOCTEXT("MemberRow", "{0}: {1} {2}, {3} {4}, {5} {6}"), FText::FromString(Member->CharacterData->Name),
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Mind), PillarLevel(EWorldPillar::Mind),
@@ -182,9 +182,9 @@ void ULevelDropWidget::Refresh()
 	}
 	if (BuyLabel)
 	{
-		BuyLabel->SetText(Member ? FText::Format(LOCTEXT("BuyPrice", "Purchase point ({0} {1})"), FText::AsNumber(WoRLevelDrops::GetPointPrice(GetWorld(), *Member)),
+		BuyLabel->SetText(Member ? FText::Format(LOCTEXT("BuyPrice", "Buy a point ({0} {1})"), FText::AsNumber(WoRLevelDrops::GetPointPrice(GetWorld(), *Member)),
 												 WoRGameNames::GetCurrencyName(ECurrencyType::Gold))
-								 : LOCTEXT("BuyNone", "Purchase point"));
+								 : LOCTEXT("BuyNone", "Buy a point"));
 	}
 	StatusLine->SetText(StatusText);
 }

@@ -221,7 +221,7 @@ void UItemSlotUpgradeWidget::HandleBuyClicked()
 	FText Refusal;
 	if (ItemSlotUpgrade::TryBuy(this, *Pool, Members[MemberIndex].Key, GetWallet(), Refusal))
 	{
-		Status = FText::Format(LOCTEXT("Bought", "{0}'s pouch now holds {1} item types."), Members[MemberIndex].Name,
+		Status = FText::Format(LOCTEXT("Bought", "Pouch: {1} slots."), Members[MemberIndex].Name,
 							   FText::AsNumber(Pool->GetItemSlotCount(Members[MemberIndex].Key)));
 	}
 	else
