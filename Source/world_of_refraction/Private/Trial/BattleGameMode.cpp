@@ -859,7 +859,8 @@ void ABattleGameMode::HandleWipeCardContinue()
     {
         RunEndCard->OnContinue.RemoveDynamic(this, &ABattleGameMode::HandleWipeCardContinue);
     }
-    // B-465 (D-189): the wipe ended the run: the run-end page says what it pays before the hub.
+    // B-465 (D-189): the wipe ended the run: the run-end page says what it pays before the hub. Out of wipes and the third
+    // main-boss loss (DefeatRules::RunEnds) are both the defeat ending; the page's words name neither.
     if (bWipeEndsRun && RunEndCard)
     {
         const UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
