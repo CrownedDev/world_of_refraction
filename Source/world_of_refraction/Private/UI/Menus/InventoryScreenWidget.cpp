@@ -13,6 +13,7 @@
 #include "Player/WoRHubController.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/PauseMenuModel.h"
+#include "UI/WoRIconTable.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -28,6 +29,11 @@ namespace InventoryScreenStyle
 	constexpr float TilePadding = 9.0f;
 	constexpr float GridWidth = Columns * (TileSize + 2.0f * TileGap);
 	constexpr int32 MarkFontSize = 38;
+	// B-487: icon sizes.
+	constexpr float TileIconSize = 72.0f;
+	constexpr float TileBadgeSize = 32.0f;
+	constexpr float DetailIconSize = 40.0f;
+	constexpr float DetailBadgeSize = 28.0f;
 	constexpr float PanelGap = 45.0f;
 	constexpr float PanelWidth = 753.0f;
 	constexpr float PanelPadding = 30.0f;
@@ -161,7 +167,14 @@ void UInventoryScreenWidget::BuildTree()
 	Panel->SetContent(PanelColumn);
 	DetailName = MakeText(WidgetTree, NameFontSize, TextColor, true);
 	DetailKindLine = MakeText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(PanelColumn, DetailName);
+	// B-487: the thing's icon before its name, its tier badge after it.
+	DetailIcon = MakeIcon(WidgetTree, DetailIconSize);
+	DetailTierBadge = MakeIcon(WidgetTree, DetailBadgeSize);
+	UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	AddToRow(NameRow, DetailIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f));
+	AddToRow(NameRow, DetailName);
+	AddToRow(NameRow, DetailTierBadge, FMargin(WordGap, 0.0f, 0.0f, 0.0f));
+	AddToColumn(PanelColumn, NameRow);
 	AddToColumn(PanelColumn, DetailKindLine, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	for (int32 Index = 0; Index < MaxDetailLines; ++Index)
 	{
@@ -173,7 +186,13 @@ void UInventoryScreenWidget::BuildTree()
 		AddToColumn(PanelColumn, Line, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	}
 	DetailNote = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(PanelColumn, DetailNote, FMargin(0.0f, LineGap, 0.0f, SectionGap));
+	// B-487: the effect's icon beside the note (a crystal's or stone's effect sentence).
+	DetailEffectIcon = MakeIcon(WidgetTree, DetailBadgeSize);
+	UHorizontalBox *NoteRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	AddToRow(NoteRow, DetailEffectIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
+	AddToRow(NoteRow, DetailNote, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	DetailNoteRow = NoteRow;
+	AddToColumn(PanelColumn, NoteRow, FMargin(0.0f, LineGap, 0.0f, SectionGap));
 
 	ChoiceHeading = MakeText(WidgetTree, LineFontSize, DimColor, true);
 	ChoiceHeading->SetText(LOCTEXT("GiveTo", "Give to"));
@@ -215,6 +234,15 @@ UInventoryScreenWidget::FTileWidgets UInventoryScreenWidget::BuildTile(int32 Ind
 	UOverlaySlot *CountSlot = Layers->AddChildToOverlay(Count);
 	CountSlot->SetHorizontalAlignment(HAlign_Right);
 	CountSlot->SetVerticalAlignment(VAlign_Bottom);
+	// B-487: the icon in the letter's place and a tier badge in the top right corner.
+	UImage *Icon = MakeIcon(WidgetTree, TileIconSize);
+	UOverlaySlot *IconSlot = Layers->AddChildToOverlay(Icon);
+	IconSlot->SetHorizontalAlignment(HAlign_Center);
+	IconSlot->SetVerticalAlignment(VAlign_Center);
+	UImage *TierBadge = MakeIcon(WidgetTree, TileBadgeSize);
+	UOverlaySlot *BadgeSlot = Layers->AddChildToOverlay(TierBadge);
+	BadgeSlot->SetHorizontalAlignment(HAlign_Right);
+	BadgeSlot->SetVerticalAlignment(VAlign_Top);
 
 	UWidget *Root = MakeSized(WidgetTree, TileSize, TileSize, Frame);
 	TileGrid->AddChildToUniformGrid(Root, Index / Columns, Index % Columns);
@@ -224,6 +252,8 @@ UInventoryScreenWidget::FTileWidgets UInventoryScreenWidget::BuildTile(int32 Ind
 	Widgets.Mark = Mark;
 	Widgets.Worn = Worn;
 	Widgets.Count = Count;
+	Widgets.Icon = Icon;
+	Widgets.TierBadge = TierBadge;
 	return Widgets;
 }
 
@@ -386,7 +416,11 @@ void UInventoryScreenWidget::RefreshData()
 		const bool bTile = Page.Tiles.IsValidIndex(Index);
 		const bool bLocked = !bTile && Index >= Page.Slots;
 		const FInventoryScreenTile Tile = bTile ? Page.Tiles[Index] : FInventoryScreenTile();
-		Widgets.Mark->SetText(Tile.Mark);
+		// B-487: the icon stands in for the letter when the icon table has it; the tier is a badge on the tile.
+		const bool bIcon = SetIcon(Widgets.Icon.Get(), bTile ? WoRIcons::Find(Tile.Icon) : nullptr, Tile.Icon.Name);
+		SetIcon(Widgets.TierBadge.Get(), bTile && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr,
+				FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Tile.Tier));
+		Widgets.Mark->SetText(bIcon ? FText::GetEmpty() : Tile.Mark);
 		Widgets.Mark->SetColorAndOpacity(FSlateColor(MarkColor(Tile.Element)));
 		Widgets.Worn->SetText(bLocked ? LOCTEXT("LockedSlot", "Jeweler") : Tile.bWorn ? LOCTEXT("WornMark", "E") : FText::GetEmpty());
 		Widgets.Worn->SetColorAndOpacity(FSlateColor(bLocked ? OffColor : CyanColor));
@@ -425,7 +459,11 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 	{
 		return; // headless: no tree
 	}
-	DetailName->SetText(Focused && !Tile.Tier.IsEmpty() ? FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Tile.Name, Tile.Tier) : Tile.Name);
+	// B-487: the icon before the name; the tier as a badge after it when the icon table has it, else in brackets as before.
+	SetIcon(DetailIcon, Focused ? WoRIcons::Find(Tile.Icon) : nullptr, Tile.Icon.Name);
+	const bool bTierBadge = SetIcon(DetailTierBadge, Focused && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr,
+									FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Tile.Tier));
+	DetailName->SetText(Focused && !Tile.Tier.IsEmpty() && !bTierBadge ? FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Tile.Name, Tile.Tier) : Tile.Name);
 	DetailKindLine->SetText(Tile.KindLine);
 	for (int32 Index = 0; Index < DetailLabels.Num(); ++Index)
 	{
@@ -439,7 +477,8 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 		}
 	}
 	DetailNote->SetText(Tile.Note);
-	SetShown(DetailNote, !Tile.Note.IsEmpty());
+	SetShown(DetailNoteRow, !Tile.Note.IsEmpty());
+	SetIcon(DetailEffectIcon, Focused ? WoRIcons::Find(Tile.EffectIcon) : nullptr, Tile.EffectIcon.Name);
 
 	// The verb menu, or "Give to" in its place.
 	const bool bGiving = Focus == EInventoryScreenFocus::Receivers;
