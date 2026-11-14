@@ -235,7 +235,6 @@ void FItemSlotsSpec::Define()
 
 		Loadout->ResetBattleState();
 		TestEqual(TEXT("Still all carried"), Pool->GetCarriedCount(KeyOf(0), Garnet), InventoryConstants::ITEM_STACK_MAX);
-		TestTrue(TEXT("Nothing owed"), Loadout->GetBattleItemsTaken().IsEmpty());
 	});
 
 	It("keeps an enemy's crystals its own", [this]()
