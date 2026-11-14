@@ -413,9 +413,9 @@ void ULoadoutV2ScreenWidget::LogSkillsTab() const
 void ULoadoutV2ScreenWidget::RefreshDetails()
 {
 	Details.Reset();
-	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
+	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk || IsApparelSocketOpen())
 	{
-		// B-484: in a slot's list, the highlighted (or hovered) piece alone.
+		// B-484: in a slot's list, the highlighted (or hovered) piece alone (B-476e: the apparel socket's list too).
 		if (Items.IsValidIndex(GetBoxLine()))
 		{
 			Details = BuildItemDetails(Items[GetBoxLine()]);
@@ -828,6 +828,15 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	case ELoadoutV2Mode::SkillPicker:
 		return LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Toggle}  {ViewName}        {Back}  Cancel");
 	case ELoadoutV2Mode::ApparelItems:
+		if (bApparelSocket) // B-476e: the socket's choices (no Compare there)
+		{
+			return LOCTEXT("HintsApparelSocket", "{Confirm}  Pick        {Back}  Back");
+		}
+		if (Items.IsValidIndex(Selected) && Items[Selected].bOpensSocket)
+		{
+			const bool bFull = !Items[Selected].Socket.Row.Sockets.IsEmpty() && !Items[Selected].Socket.Row.Sockets[0].bEmpty;
+			return bFull ? LOCTEXT("HintsApparelSocketFull", "{Confirm}  Remove        {Back}  Back") : LOCTEXT("HintsApparelSocketOpen", "{Confirm}  Open        {Back}  Back");
+		}
 		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Back}  Back")
 																		 : LOCTEXT("HintsApparelItems", "{Confirm}  Pick        {Toggle}  Compare        {Back}  Back");
 	case ELoadoutV2Mode::List:
@@ -967,7 +976,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	FText &BoxTitle = BoxHeader.Text;
 	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
 	// entry's slots; a line with nothing to show (a note) falls back to the slots.
-	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && !Details.IsEmpty();
+	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk || IsApparelSocketOpen()) && !Details.IsEmpty(); // B-476e: the apparel socket's picks too
 	if (IsAdding() && !bPieceBox)
 	{
 		BoxTitle = bEditing ? EditEntry.Name : LOCTEXT("BoxNewEntry", "New entry");
@@ -993,7 +1002,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 					BoxText.Add({FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Socket.Label, Socket.bEmpty ? LOCTEXT("SocketEmpty", "empty") : Socket.Name), false});
 				}
 			}
-			// TODO: B-476d: the piece's HP / Defence / Amp lines (tier-scaled in ULoadoutComponent) and its effects' text.
+			// B-476e: the piece's HP / Defence / Amp lines are among its details. TODO: its effects' text.
 			for (const FLoadoutScreenDetail &Detail : Row->Details)
 			{
 				BoxText.Add({FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Detail.Label, Detail.Value), false});
@@ -1905,7 +1914,7 @@ void ULoadoutV2ScreenWidget::BuildApparelItems()
 		const bool bEmpty = Row->Sockets.IsEmpty() || Row->Sockets[0].bEmpty;
 		SocketLine.Line = bEmpty ? LOCTEXT("ApparelSocketEmpty", "Empty: pick a gem or an evolution") : Row->Sockets[0].Name;
 		// B-476e (CL-50b): a full socket's line takes it off (A says what happens, A again does it).
-		SocketLine.Line = bEmpty ? SocketLine.Line : FText::FormatNamed(LOCTEXT("ApparelSocketFullLine", "{What} \u00B7 {Confirm} Take off"), TEXT("What"), Row->Sockets[0].Name);
+		SocketLine.Line = bEmpty ? SocketLine.Line : FText::FormatNamed(LOCTEXT("ApparelSocketFullLine", "{What} \u00B7 {Confirm} Remove"), TEXT("What"), Row->Sockets[0].Name);
 		SocketLine.bOpensSocket = true;
 		SocketLine.Socket.Row = *Row; // the box and Compare describe the piece whose socket it is
 	}

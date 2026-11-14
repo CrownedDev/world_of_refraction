@@ -774,7 +774,9 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 		PutSocketChoice(After, Row, Socket, Choice);
 		Choice.NewSpent = BuildGearPage(After, Class).Spent;
 		Choice.Row.bCountsToBudget = false; // the line shows what it adds, not a cost of its own
-		Choice.Row.CostLine = FText::Format(LOCTEXT("SocketAdds", "+{0}"), FText::AsNumber(Choice.NewSpent - Before.Spent));
+		// B-476e: apparel sits outside the cells (D-164): no "+0" line for its socket.
+		Choice.Row.CostLine = Row.Kind == ELoadoutScreenRowKind::Apparel ? FText::GetEmpty()
+																		 : FText::Format(LOCTEXT("SocketAdds", "+{0}"), FText::AsNumber(Choice.NewSpent - Before.Spent));
 		const int32 STierAfter = FLoadoutRules::CountEquippedSTierCrystals(After, Class);
 		if (bInUse)
 		{
@@ -910,7 +912,7 @@ FText WoRLoadoutScreen::ApplySocketChoice(UWorld *World, const FLoadoutScreenMem
 	{
 		const bool bSocketed = Choice.EvolutionID.IsValid() ? Inventory->AttachEvolutionToApparel(Row.GearID, Choice.EvolutionID)
 															: Inventory->AttachCrystalToApparel(Row.GearID, Choice.Crystal);
-		return bSocketed ? FText::GetEmpty() : LOCTEXT("RefuseSocketAttach", "It couldn't be socketed (the Output Log says why).");
+		return bSocketed ? FText::GetEmpty() : LOCTEXT("RefuseApparelSocketAttach", "It can't go in this socket now.");
 	}
 	const bool bAdapter = Row.Kind == ELoadoutScreenRowKind::Adapter;
 	const bool bDone = Choice.EvolutionID.IsValid()
@@ -963,7 +965,7 @@ FText WoRLoadoutScreen::TakeOffSocket(UWorld *World, const FLoadoutScreenMember 
 	}
 	if (Row.Kind == ELoadoutScreenRowKind::Apparel)
 	{
-		return Inventory->DetachFromApparel(Row.GearID) ? FText::GetEmpty() : LOCTEXT("RefuseSocketRemove", "It couldn't be taken off (the Output Log says why).");
+		return Inventory->DetachFromApparel(Row.GearID) ? FText::GetEmpty() : LOCTEXT("RefuseApparelSocketRemove", "It can't be removed now.");
 	}
 	const bool bAdapter = Row.Kind == ELoadoutScreenRowKind::Adapter;
 	bool bDone = false;
