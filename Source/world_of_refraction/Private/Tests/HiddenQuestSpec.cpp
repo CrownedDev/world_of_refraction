@@ -101,7 +101,7 @@ void FHiddenQuestSpec::Define()
 		TestTrue(TEXT("no notice before"), Quests->GetLastNotice().IsEmpty());
 		Journal->RecordMemory(StartMemory, EMemorySource::Fragment);
 		const FString Notice = Quests->GetLastNotice().ToString();
-		TestEqual(TEXT("the masked discovery notice (Q-397b)"), Notice, FString(TEXT("Secret quest found. Open the journal to view it.")));
+		TestEqual(TEXT("the masked discovery notice (Q-397b)"), Notice, FString(TEXT("Secret quest found.")));
 		TestFalse(TEXT("it never names the quest"), Notice.Contains(Quest->GetDisplayTitle().ToString()));
 		TestFalse(TEXT("no Title: a placeholder, not the quest id"), Notice.Contains(Quest->GetQuestId().ToString()));
 		TestFalse(TEXT("no Goal: a placeholder goal"), Quest->GetGoalAfter(0).IsEmpty());
