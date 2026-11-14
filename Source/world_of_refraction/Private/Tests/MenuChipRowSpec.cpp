@@ -62,6 +62,12 @@ void FMenuChipRowSpec::Define()
 		SetChips(Row, States, CHIP_TEST_FIRST, CHIP_TEST_FIRST + 2);
 		TestTrue(TEXT("the one under the mouse is lit"), Row.Chips[CHIP_TEST_FIRST + 2]->GetBrushColor() == HoverColor);
 		TestEqual(TEXT("nothing under the mouse before the row is drawn"), FindChipUnder(Row, FVector2D::ZeroVector), static_cast<int32>(INDEX_NONE));
+
+		// B-483b: the same row in its own panel frame.
+		FChipRow Framed;
+		UBorder *Panel = MakeChipRowPanel(Screen->WidgetTree, CHIP_TEST_COUNT, FText::FromString(TEXT("{SubTabPrev}")), FText::FromString(TEXT("{SubTabNext}")), Framed);
+		TestTrue(TEXT("a panel around the row"), Panel && Panel->GetBrushColor() == PanelColor && Cast<UHorizontalBox>(Panel->GetContent()) != nullptr);
+		TestEqual(TEXT("with its chips"), Framed.Chips.Num(), CHIP_TEST_COUNT);
 	});
 }
 
