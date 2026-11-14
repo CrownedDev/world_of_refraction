@@ -123,7 +123,7 @@ def item_rows(d, x0, x1, y, rows, focus, step=55):
         text(d, (x0 + 54, y + 28), fit(d, state if greyed else sub, 12, False, x1 - x0 - 120), 12,
              fill=WARN if greyed else (TXT if f else DIM))
         if state == "worn":
-            text(d, (x1 - 12, y + 8), "ON NOW", 11, True, CYAN, anchor="ra")
+            text(d, (x1 - 12, y + 8), "EQUIPPED", 11, True, CYAN, anchor="ra")
         text(d, (x1 - 12, y + 28), right, 13, True, OFF if greyed else TXT, anchor="ra")
         y += step
     return y
@@ -321,7 +321,7 @@ for i, (k, lab, on) in enumerate([("A", "Attach", True), ("B", "Not now", False)
     text(d, (bx + 80, 429), k + "  " + lab, 15, True, anchor="mm")
 save(im, OUT, "2a_add_gear_evolution.png")
 
-# ---- 2b: A Edit on the dual entry opens the window for it. Moving onto the piece already in the focused slot (ON NOW)
+# ---- 2b: A Edit on the dual entry opens the window for it. Moving onto the piece already in the focused slot (EQUIPPED)
 #          turns A into Remove; elsewhere A is Pick.
 im, d = window(screen_g(False), "Edit  ·  Ashen Blade + Cinder Edge", "1/5 left",
                [("A", "Remove"), ("X", "Compare"), ("Y", "Confirm"), ("B", "Cancel")])
@@ -339,7 +339,7 @@ item_rows(d, 590, 1134, 156, [
     ("Onyx", ("crystal", "Darkness"), "S", "", "", "S-tier: one per loadout (on Iron Coat)")], 0)
 save(im, OUT, "2b_add_gear_remove.png")
 
-# ---- 2c: X Compare in Add gear: what's on now (Cinder Edge, the off hand) beside the highlighted pick (Frost Fang),
+# ---- 2c: X Compare in Add gear: the equipped piece (Cinder Edge, the off hand) beside the highlighted pick (Frost Fang),
 #          with what you gain (green) and lose (red). Picking and comparing happen only here.
 base = screen_g(False)
 im, d = window(base, "Edit  ·  Ashen Blade + Cinder Edge", "1/5 left",
@@ -353,7 +353,7 @@ item_rows(d, 590, 1134, 156, [
     ("Frost Fang", "Water", "C", "Sword", "", None)], 1)
 cut(d, (300, 230, 1100, 600), PANEL, CYAN, 12)
 text(d, (326, 248), "Compare  ·  off hand", 18, True)
-for i, (lab, n, el, t) in enumerate([("On now", "Cinder Edge", "None", "C"), ("Highlighted", "Frost Fang", "Water", "C")]):
+for i, (lab, n, el, t) in enumerate([("Equipped", "Cinder Edge", "None", "C"), ("Selected", "Frost Fang", "Water", "C")]):
     x = 520 + i * 290
     text(d, (x, 286), lab, 12, True, CYAN if i else DIM)
     icon(d, (x, 304, x + 36, 340), ELEMENT[el])
@@ -421,7 +421,7 @@ details(d, "Iron Coat", "Apparel · coat", [
 footer(d, [("A", "Edit"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "5_apparel.png")
 
-# ---- 5a: the Add apparel window: pick a piece and its socket; X Compare opens on-now vs the highlighted pick.
+# ---- 5a: the Add apparel window: pick a piece and its socket; X Compare opens equipped vs selected.
 base, d = canvas()
 header(d, 1, 2, "Bruiser  ·  2 of 5")
 y = entry(d, 168, "", [("Iron Coat", "Darkness")], [("crystal", "Darkness")], 0)
@@ -463,14 +463,46 @@ def skill_rows(d, rows, focus, top=TOP + 40):
         y += 50
 
 
+def skill_details(d, box, name, el, tier, sub, stats, effects, req):
+    """What a skill does, short stat lines. stats: (label, value) pairs in two columns; effects: lines;
+    req: (text, met) or None."""
+    x0, y0, x1, y1 = box
+    cut(d, box, PANEL, STEEL, 10)
+    icon(d, (x0 + 14, y0 + 14, x0 + 50, y0 + 50), ELEMENT[el])
+    text(d, (x0 + 62, y0 + 14), name, 18, True)
+    tier_badge(d, x0 + 62 + int(d.textlength(name, font=F(18, True))) + 15, y0 + 26, tier, 10)
+    text(d, (x0 + 62, y0 + 38), sub, 12, fill=DIM)
+    half = (x1 - x0 - 28) // 2
+    for k, (lab, val) in enumerate(stats):
+        x = x0 + 14 + (k % 2) * half
+        y = y0 + 66 + (k // 2) * 24
+        text(d, (x, y), lab, 13, fill=DIM)
+        text(d, (x + 82, y), val, 13, True)
+    y = y0 + 66 + ((len(stats) + 1) // 2) * 24 + 8
+    text(d, (x0 + 14, y), "Effects", 13, True, CYAN)
+    for line in effects:
+        y += 22
+        text(d, (x0 + 14, y), line, 13, True)
+    if req:
+        y += 30
+        txt, met = req
+        text(d, (x0 + 14, y), txt + ("  ✓ met" if met else "  ✗ not met"), 13, True, GOOD if met else RED)
+
+
+FLAME_ARC = ("Flame Arc", "Fire", "C", "Ability · Ashen Blade slot · Fire from Garnet",
+             [("EP", "6"), ("Element", "Fire"), ("Power", "120%"), ("Scaling", "Body B"),
+              ("Targets", "Row"), ("Buildup", "Burn 20")],
+             ["Burn: 3 turns", "Defence -10%: 2 turns"], ("Needs Body 3 · Garrick has 4", True))
+
 # ---- 6: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
-#         focused entry's skill slots. A dual entry shows both swords' slots.
+#         focused entry's skill slots. With a skill row highlighted, its details show on the left under the entries.
 im, d = canvas()
 header(d, 1, 1, "Bruiser  ·  2 of 5")
 text(d, (L, TOP), "Abilities by entry", 17, True, DIM)
 y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1,
-          active=True, focus=True)
-entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
+          active=True)
+y = entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
+skill_details(d, (L, y + 4, LR, 654), *FLAME_ARC)
 panel(d, (LIST_X, TOP, 1232, 654), focus=True)
 text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  7 slots", 16, True, DIM)
 skill_rows(d, [
@@ -479,8 +511,24 @@ skill_rows(d, [
     ("", None, "empty", 0),
     ("head", "Cinder Edge  ·  3 slots"),
     ("Quick Cut", "None", "built-in", 0), ("Whirl", "None", "slot", 5), ("", None, "empty", 0)], 3)
-footer(d, [("A", "Change"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
+footer(d, [("A", "Change"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "6_skills_generic.png")
+
+# ---- 6a: A on an empty slot opens the picker: abilities that fit, the highlighted one's details beside the list.
+base = im
+im, d = window(base, "Pick an ability  ·  Cinder Edge slot", "", [("A", "Put in slot"), ("B", "Cancel")])
+text(d, (146, 128), "Abilities that fit", 15, True, DIM)
+item_rows(d, 146, 600, 156, [
+    ("Ember Thrust", "Fire", "C", "Ability · 5 EP · one enemy", "", None),
+    ("Parry Edge", "None", "D", "Ability · 3 EP · self", "", None),
+    ("Riposte", "None", "C", "Ability · 4 EP · one enemy", "", None),
+    ("Inferno Dance", "Fire", "A", "", "", "Needs Mind 4 · Garrick has 2"),
+    ("Flame Arc", "Fire", "C", "", "", "In Ashen Blade's slot")], 0)
+skill_details(d, (624, 156, 1134, 470), "Ember Thrust", "Fire", "C", "Ability · Fire from Garnet",
+              [("EP", "5"), ("Element", "Fire"), ("Power", "140%"), ("Scaling", "Body C"),
+               ("Targets", "One"), ("Buildup", "Burn 15")],
+              ["Ignore Defence 20%"], ("Needs Body 2 · Garrick has 4", True))
+save(im, OUT, "6a_skill_picker.png")
 
 # ---- 7: Skills tab (Refractor): an "Innate spells" entry above the gear entry. Focused, the right shows the school rows:
 #         each school's spells, 6 at most, on a 24-point budget (tier = points, F 1 .. S 7).
@@ -508,6 +556,6 @@ for i, (school, spells) in enumerate([
         if p < len(spells):
             text(d, (px + 6, y + 38), fit(d, spells[p], 11, True, 70), 11, True)
     y += 74
-footer(d, [("A", "Change"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
+footer(d, [("A", "Change"), ("Y", "Options"), ("B", "Back")])
 save(im, OUT, "7_skills_refractor.png")
 print("ok")
