@@ -1025,6 +1025,25 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-208 — Apparel's rolled bonus line
+**Status:** ANSWERED (Crown, 2026-11-14, with the reference-backed default for the size) · **Raised:** 2026-11-14 · **Blocks:** B-475
+**Answer (Crown):** besides HP, Defence and Amp (CL-50, CL-50c), each apparel piece rolls **one bonus line** when it drops (the per-instance roll system): either a **sub-stat** (never Turn Speed, which is retired) or a **pillar's value** (+X% to one pillar's composed value, like an over-cap point, ER-24c). It adds no pillar points, so it never counts toward skill requirements. Apparel stays at **2 slots**.
+**Default (reference-backed):** a pillar line starts at **+5%** (the over-cap point's value); sub-stat lines are small, `// TODO: tune`. Genshin's artifact sub-stats and Diablo's affixes (one rolled line that makes two copies of a piece differ) are well liked; Honkai: Star Rail's rolled Speed became the one stat everyone chased, so speed stays off gear.
+
+### D-207 — Changing the active weapon: follow the skill, or L3
+**Status:** ANSWERED (Crown, 2026-11-14) · **Raised:** 2026-11-14 · **Blocks:** B-474
+**Answer (Crown):** with the new battle menu a skill can be picked from either weapon, so: (1) a setting **"Switch to the weapon of the skill you use"**, **on by default** (reference-backed default): using a skill makes its weapon (or adapter) active; switching stays free (ET-19). Octopath Traveler uses whichever carried weapon the chosen attack needs, with no swap step, and is well liked for it. (2) With the setting off, **L3** switches the active weapon in a fight (keyboard stays **6**); D-pad Left's Switch Weapon moves to L3. `InputMap.md` gets both rows in the same change.
+**Rules kept:** the weapon's own passives work while it is active (CL-19); an evolution on gear gives its passives only to an action that gear powers at infusion level 2 (CL-28c). The weapon swap swaps passives and stance as today.
+
+### D-206 — Loadout costs: the gear is free, only what is in it costs
+**Status:** ANSWERED (Crown, 2026-11-14; replaces Q-357's "frame + attachment" and changes D-110, CL-03, CL-04, CL-10, CL-11, CL-12) · **Raised:** 2026-11-14 · **Blocks:** B-472, B-473, B-476
+**Answer (Crown):**
+- **A weapon or adapter itself costs 0.** A crystal costs **1**, an augment stone **1**, an evolution **2** (it sits in the crystal socket). An evolution alone (a primary or the seat) costs **2**. So a weapon with a crystal costs 1, the same as an adapter with a crystal.
+- **Budgets:** Generic **5**, Resonator **5**, Refractor **2** (was 3; still 1 item: an evolved weapon, an evolved adapter, an evolution alone or a weapon with a crystal and a stone all fit; evolved gear plus a stone does not).
+- **Generic:** a primary row and a secondary row (shown as 3 and 2 budget cells, `menus/loadout/v2`); each holds a weapon or an adapter, **3 items at most: two weapons and one adapter**. The "one evolved weapon" limit goes: two evolved weapons and an adapter with a crystal (2 + 2 + 1) fit. Only the active weapon gives its abilities (CL-17).
+- **Resonator:** one weapon and adapters, **at most 5 adapters** (reference-backed default: with bare adapters free, the budget alone no longer limits them, CL-11).
+**Notes for Claude (from the 2026-11-14 check):** keep the **pouch capacity** costs (`InventoryConstants::WEAPON_BASE_SLOT_COST` / `RING_BASE_SLOT_COST`, used by `InventoryComponent`, `EconomyService`) separate from the loadout costs: new loadout constants feed only `FLoadoutRules::SlotCost`. `SlotCost` today charges only the crystal socket (`HasAttachment`), so the stone is new. The Refractor over-budget finding becomes clearable (drop the stone). No save goes over budget (every cost falls); B-473's third slot is save v39. Expedition 33's Luminas (only what you equip costs, a fixed point cap) is the reference.
+
 ### D-205 — The old CommonUI mockup-plan jobs are retired: the new screens replace them
 **Status:** ANSWERED (Crown, 2026-11-13, via the desktop operator session) · **Raised:** 2026-11-13 · **Blocks:** —
 **Answer (Crown):** the old CommonUI mockup-plan jobs are replaced by the new screens (`UIScreens.md`, D-181). **Retired:** B-104, B-105, B-106, B-107, B-108, B-109. B-125 (settings save split) and B-128 (button glyphs) are kept where the new screens still need the piece.
