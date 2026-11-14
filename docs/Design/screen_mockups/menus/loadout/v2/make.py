@@ -1,8 +1,8 @@
 """Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209 / D-210 and Crown's notes). Two columns: what is EQUIPPED on the
 left, the owned items that fit on the right with a compare (ups green, downs red, as Expedition 33's and Persona 5's
 equip screens). Items that can't go in stay listed, greyed, with the reason. Tabs Weapons | Apparel | Skills | Cosmetics
-(later) on LB / RB. Main keys: A Edit, X Details (an entry's or the evolution's stats and attachments), Y Saved
-loadouts, B Back; help text lives in a tooltip on View, not on screen.
+(later) on LB / RB. Main keys: A Edit, X Details (an entry's or the evolution's stats and attachments), Y Options
+(Saved loadouts, Remove all gear, Help, later Cosmetics shortcuts), B Back; help text is not on screen.
 D-210: the Weapons tab is a list of ENTRIES with an empty "Add weapon" frame at the bottom showing the cells left
 ("1/5 left"). The Add gear window asks Weapon, Adapter or Evolution, then Main hand, Off hand, Augment socket 1 and 2
 (shared by the entry: a crystal or evolution + a stone, or two stones). Removing happens there (X Remove). The
@@ -166,7 +166,7 @@ def choices(d, heading, rows, focus, compare):
         y += 26
 
 
-FOOT = [("A", "Edit"), ("X", "Details"), ("Y", "Saved loadouts"), ("B", "Back")]
+FOOT = [("A", "Edit"), ("X", "Details"), ("Y", "Options"), ("B", "Back")]
 
 # ---- 1: Garrick (Generic): his evolution, two weapon entries and the Add weapon frame (1/5 left; the adapter entry
 #         is the one left). The dual entry is focused; the right lists swords that could take its place.
@@ -188,6 +188,24 @@ choices(d, "Swords that fit this entry  ·  A Edit to change it", [
     ("Abilities", "Cleave, Whirl…", "Pierce, Lunge…", None)])
 footer(d, FOOT)
 save(im, OUT, "1_weapons_generic.png")
+
+# ---- 1a: Y opens the Options pop-up over the Generic tab.
+opt = Image.blend(im, Image.new("RGB", im.size, BG), 0.55)
+d = ImageDraw.Draw(opt)
+box = (860, 340, 1232, 654)
+panel(d, box, focus=True)
+text(d, (880, 354), "Options", 18, True)
+y = 388
+for i, (lab, sub, on) in enumerate([("Saved loadouts", "Load, save or rename", True),
+                                     ("Remove all gear", "Asks first", False),
+                                     ("Help", "What each part of this screen does", False),
+                                     ("Cosmetics shortcuts", "Later", None)]):
+    cut(d, (872, y, 1220, y + 46), TEAL if on else (PLATE if on is False else BG), CYAN if on else (STEEL if on is False else OFF), 6)
+    text(d, (886, y + 5), lab, 15, True, OFF if on is None else TXT)
+    text(d, (886, y + 26), sub, 11, fill=OFF if on is None else (TXT if on else DIM))
+    y += 52
+footer(d, [("A", "Select"), ("B", "Close")], y=624, right=1220)
+save(opt, OUT, "1a_options.png")
 
 
 def window(base, title, free, hints):
