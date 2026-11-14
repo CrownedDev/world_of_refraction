@@ -15,8 +15,7 @@ class UCharacterPanelWidget;
  * Lets you spawn individual HUD widgets in isolation without starting combat,
  * to verify bindings and behaviour against live actor state.
  *
- * Pattern matches TurnManagerTestActor / SkillEffectManagerTestActor /
- * CombatOrchestratorTestActor — drop into the level, set properties in Details
+ * Pattern matches TurnManagerTestActor / SkillEffectManagerTestActor — drop into the level, set properties in Details
  * panel, click CallInEditor buttons during PIE.
  *
  * Usage:

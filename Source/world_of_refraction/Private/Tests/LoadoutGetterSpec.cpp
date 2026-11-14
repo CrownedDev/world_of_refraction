@@ -1,8 +1,8 @@
 // LoadoutGetterSpec.cpp
 // ULoadoutComponent's read getters (B-022): the active loadout is the inventory's saved
 // loadout at ActiveLoadoutIndex (or an empty default), and the loadout's class follows the
-// owner's CharacterData. Written against the copying getter and the synced CharacterClass
-// field first, so the reference getter and GetCharacterClass must give the same results.
+// owner's CharacterData. Written against the copying getter first, so the reference getter
+// must give the same results.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -74,8 +74,6 @@ void FLoadoutGetterSpec::Define()
 				}
 				const FString ClassName = UEnum::GetValueAsString(CharClass);
 				TestEqual(*FString::Printf(TEXT("%s: class"), *ClassName), Loadout->GetCharacterClass(), CharClass);
-				// TODO: drop with the OBSOLETE CharacterClass field (B-153).
-				TestEqual(*FString::Printf(TEXT("%s: synced field"), *ClassName), Loadout->CharacterClass, CharClass);
 			}
 		});
 	});
