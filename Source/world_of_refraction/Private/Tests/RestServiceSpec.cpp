@@ -15,6 +15,7 @@
 #include "Trial/TrialRestSpot.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/HubHUDModel.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -84,9 +85,15 @@ void FRestServiceSpec::Define()
 
 	It("makes an anvil the Blacksmith and a ritual tree the Spiritualist; a shrine and V have no shop", [this]()
 	{
-		EMerchantType Vendor = EMerchantType::Jeweler;
+		EMerchantType Vendor = EMerchantType::CombatMaster;
 		TestTrue(TEXT("anvil"), WoRRestSpot::GetServiceVendor(ERestService::Blacksmith, Vendor) && Vendor == EMerchantType::Blacksmith);
 		TestTrue(TEXT("tree"), WoRRestSpot::GetServiceVendor(ERestService::Spiritualist, Vendor) && Vendor == EMerchantType::Spiritualist);
+		TestTrue(TEXT("pedestal"), WoRRestSpot::GetServiceVendor(ERestService::Jeweler, Vendor) && Vendor == EMerchantType::Jeweler);
+		// Every service the editor can pick has a name for the prompt.
+		for (const ERestService Named : {ERestService::Blacksmith, ERestService::Spiritualist, ERestService::Jeweler, ERestService::PillarShrine, ERestService::Extract})
+		{
+			TestFalse(TEXT("named"), WoRGameNames::GetRestServiceName(Named).IsEmpty());
+		}
 		for (const ERestService NoShop : {ERestService::None, ERestService::PillarShrine, ERestService::Extract})
 		{
 			TestFalse(TEXT("no shop"), WoRRestSpot::GetServiceVendor(NoShop, Vendor));
