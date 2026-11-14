@@ -26,7 +26,7 @@
 #include "UI/Menus/JournalScreenWidget.h"
 #include "UI/Menus/CharacterSheetWidget.h"
 #include "UI/Menus/SettingsScreenWidget.h"
-#include "UI/Menus/LoadoutScreenWidget.h"
+#include "UI/Menus/LoadoutV2ScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
 #include "UI/Party/PartyScreenWidget.h"
 #include "UI/WoRRootLayout.h"
@@ -422,7 +422,7 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 		DeactivateWidget();
 		break;
 	case EPauseMenuPage::Loadout:
-		ULoadoutScreenWidget::Open(GetOwningPlayer()); // over this menu: Back returns here
+		ULoadoutV2ScreenWidget::Open(GetOwningPlayer()); // over this menu: Back returns here
 		break;
 	case EPauseMenuPage::Character:
 		UCharacterSheetWidget::Open(GetOwningPlayer());
