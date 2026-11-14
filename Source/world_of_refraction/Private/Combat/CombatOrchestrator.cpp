@@ -573,7 +573,7 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] The win dropped %d pillar level(s) across the party"), LevelDrops);
 		OnLevelDropsReady.Broadcast(LevelDrops);
-		WoRRewardNotice::Post(this, WoRRewardNotice::MakeLevels(LevelDrops)); // B-465b: a popup back on the field
+		WoRRewardNotice::Post(this, WoRRewardNotice::MakeLevels(LevelDrops)); // B-465b: a popup back on the field. TODO: B-465b co-op: host only
 	}
 
 	// B-170d (D-064): no waiting action change outlives its fight, whatever the switch.

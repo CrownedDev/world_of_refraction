@@ -101,10 +101,11 @@ void FRewardNoticeSpec::Define()
 		TestEqual(TEXT("one waits"), Popups->GetWaitingCount(), 1);
 		TestTrue(TEXT("the queue is empty"), Notices->GetWaiting().IsEmpty());
 
-		Popups->UpdatePopups(REWARD_TEST_PAST_SHOWN);
+		const double Start = TestWorld->GetWorld()->GetTimeSeconds(); // the popups were shown at the world's time
+		Popups->UpdatePopups(Start + REWARD_TEST_PAST_SHOWN);
 		TestEqual(TEXT("the first went; the waiting one shows"), Popups->GetShown().Num(), 1);
 		TestEqual(TEXT("nothing waits"), Popups->GetWaitingCount(), 0);
-		Popups->UpdatePopups(REWARD_TEST_PAST_SHOWN * 2.0);
+		Popups->UpdatePopups(Start + REWARD_TEST_PAST_SHOWN * 2.0);
 		TestTrue(TEXT("and then none"), Popups->GetShown().IsEmpty());
 	});
 

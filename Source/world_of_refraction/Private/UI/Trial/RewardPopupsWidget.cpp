@@ -11,7 +11,7 @@
 
 namespace RewardPopupsStyle
 {
-	// The mockup's popup (run/run_end/make.py, 1280x720, at 1080p): 380 wide, an edge bar in the kind's colour.
+	// The mockup's popup (run/run_end/make.py: 380 wide at 1280x720, so 570 at 1080p), an edge bar in the kind's colour.
 	using namespace WoRMenuStyle;
 	constexpr float PopupWidth = 570.0f;
 	constexpr float EdgeBarWidth = 6.0f;
@@ -50,12 +50,18 @@ void URewardPopupsWidget::NativeDestruct()
 	if (URewardNoticeSubsystem *Notices = GameInstance ? GameInstance->GetSubsystem<URewardNoticeSubsystem>() : nullptr)
 	{
 		Notices->OnPosted.Remove(PostedHandle);
-		// The level is going (back from the field to a fight, or to the hub): the unshown ones wait for the next HUD.
+		// The level is going (back from the field to a fight, or to the hub): the ones not yet shown, and those still on
+		// screen (a fight started within their few seconds), wait for the next HUD.
+		for (const FShownPopup &Popup : Shown)
+		{
+			Notices->Post(Popup.Notice);
+		}
 		for (const FRewardNotice &Notice : Waiting)
 		{
 			Notices->Post(Notice);
 		}
 	}
+	Shown.Reset();
 	Waiting.Reset();
 	PostedHandle.Reset();
 	if (UWorld *World = GetWorld())
