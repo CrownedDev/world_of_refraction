@@ -205,7 +205,7 @@ namespace LoadoutScreenBuild
 		Row.Name = Name;
 		Row.Place = Place;
 		Row.bCountsToBudget = false; // nothing in it costs nothing; no number shown
-		Row.Note = LOCTEXT("NoteEmptyGear", "Change to put a piece you own here.");
+		Row.Note = LOCTEXT("NoteEmptyGear", "Empty.");
 		return Row;
 	}
 
@@ -399,7 +399,7 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(UWorld *World, const FLoadout
 	if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
 	{
 		FLoadoutScreenPage Page;
-		Page.Refusal = FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here, so their loadout can't be shown."), Member.Name);
+		Page.Refusal = FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here."), Member.Name);
 		return Page;
 	}
 	const FCombatLoadout &Loadout = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
@@ -431,7 +431,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildGearChoices(const FCombatLoa
 		}
 		else if (Choice.NewSpent > Before.Budget && Choice.NewSpent > Before.Spent)
 		{
-			Choice.Refusal = FText::Format(LOCTEXT("RefuseOverBudget", "Over the budget: {0} of {1}."), FText::AsNumber(Choice.NewSpent),
+			Choice.Refusal = FText::Format(LOCTEXT("RefuseOverBudget", "Over budget: {0} / {1}."), FText::AsNumber(Choice.NewSpent),
 										   FText::AsNumber(Before.Budget));
 		}
 		Choices.Add(MoveTemp(Choice));
@@ -582,7 +582,7 @@ namespace LoadoutScreenBuild
 
 	FText MemberNotHere(const FLoadoutScreenMember &Member)
 	{
-		return FText::Format(LOCTEXT("MemberNotHereChange", "{0} isn't here, so their gear can't be changed."), Member.Name);
+		return FText::Format(LOCTEXT("MemberNotHereChange", "{0} isn't here."), Member.Name);
 	}
 }
 
@@ -739,7 +739,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 		const int32 STierAfter = FLoadoutRules::CountEquippedSTierCrystals(After, Class);
 		if (bInUse)
 		{
-			Choice.Refusal = LOCTEXT("RefuseEvolutionInUse", "It's in use: in a loadout or on other gear.");
+			Choice.Refusal = LOCTEXT("RefuseEvolutionInUse", "Already in use.");
 		}
 		else if (STierAfter > LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS && STierAfter > STierBefore)
 		{
@@ -747,7 +747,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 		}
 		else if (Choice.NewSpent > Before.Budget && Choice.NewSpent > Before.Spent)
 		{
-			Choice.Refusal = FText::Format(LOCTEXT("RefuseOverBudget", "Over the budget: {0} of {1}."), FText::AsNumber(Choice.NewSpent),
+			Choice.Refusal = FText::Format(LOCTEXT("RefuseOverBudget", "Over budget: {0} / {1}."), FText::AsNumber(Choice.NewSpent),
 										   FText::AsNumber(Before.Budget));
 		}
 		Choices.Add(MoveTemp(Choice));
@@ -871,7 +871,7 @@ FText WoRLoadoutScreen::ApplySocketChoice(UWorld *World, const FLoadoutScreenMem
 	const bool bDone = Choice.EvolutionID.IsValid()
 						   ? (bAdapter ? Inventory->AttachEvolutionToRing(Row.GearID, Choice.EvolutionID) : Inventory->AttachEvolutionToWeapon(Row.GearID, Choice.EvolutionID))
 						   : (bAdapter ? Inventory->AttachCrystalToRing(Row.GearID, Choice.Crystal) : Inventory->AttachCrystalToWeapon(Row.GearID, Choice.Crystal));
-	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketAttach", "It couldn't be socketed (the Output Log says why).");
+	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketAttach", "Couldn't socket that.");
 }
 
 FText WoRLoadoutScreen::GetTakeOffSocketWarning(const FLoadoutScreenRow &Row, int32 Socket, FText &OutRefusal)
@@ -924,7 +924,7 @@ FText WoRLoadoutScreen::TakeOffSocket(UWorld *World, const FLoadoutScreenMember 
 		const int32 Index = Inventory->Weapons.IndexOfByPredicate([&Row](const FWeaponInventoryEntry &Owned) { return Owned.PersistentID == Row.GearID; });
 		bDone = Index != INDEX_NONE && Inventory->RemoveCrystalFromWeapon(Index);
 	}
-	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketRemove", "It couldn't be taken off (the Output Log says why).");
+	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketRemove", "Couldn't take that off.");
 }
 
 FText WoRLoadoutScreen::FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count)

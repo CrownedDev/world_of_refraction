@@ -226,7 +226,7 @@ void UNewGameScreenWidget::BuildTree()
 	UVerticalBoxSlot *Fill = AddToColumn(Main, WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass()));
 	Fill->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Arrows}  Move        {Confirm}  Select        {Back}  Back to title"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Arrows}  Move        {Confirm}  Select        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 

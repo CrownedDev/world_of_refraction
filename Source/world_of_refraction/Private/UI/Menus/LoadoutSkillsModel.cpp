@@ -28,7 +28,7 @@ namespace LoadoutSkillsBuild
 		Row.Name = LOCTEXT("EmptySlot", "Empty slot");
 		Row.SkillSlot = Slot;
 		Row.bCountsToBudget = false;
-		Row.Note = LOCTEXT("NoteEmptySlot", "Change to put a skill you know here.");
+		Row.Note = LOCTEXT("NoteEmptySlot", "Empty.");
 		return Row;
 	}
 
@@ -55,7 +55,7 @@ namespace LoadoutSkillsBuild
 			Row.Cost = InnatePoints;
 			Row.CostLine = FText::Format(LOCTEXT("PointsCost", "{0} pts"), InnatePoints);
 			Row.Details.Add({LOCTEXT("DetailPoints", "Points"),
-							 Discount > 0 ? FText::Format(LOCTEXT("PointsDiscounted", "{0}  (tier {1}; {2} less your pillar discount)"), InnatePoints, Row.Tier,
+							 Discount > 0 ? FText::Format(LOCTEXT("PointsDiscounted", "{0}  (tier {1}, -{2} pillar discount)"), InnatePoints, Row.Tier,
 														  SpellPoolConstants::SpellSlotBaseCost(Skill->Tier))
 										  : FText::Format(LOCTEXT("PointsPlain", "{0}  (tier {1})"), InnatePoints, Row.Tier)});
 		}
@@ -84,7 +84,7 @@ namespace LoadoutSkillsBuild
 
 	FText MemberNotHere(const FLoadoutScreenMember &Member)
 	{
-		return FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here, so their skills can't be changed."), Member.Name);
+		return FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here."), Member.Name);
 	}
 }
 
@@ -176,7 +176,7 @@ FLoadoutSkillsPage WoRLoadoutSkills::BuildSkillsPage(UWorld *World, const FLoado
 	if (!WoRLoadoutScreen::FindMemberLoadout(World, Member, Inventory))
 	{
 		FLoadoutSkillsPage Page;
-		Page.Refusal = FText::Format(LOCTEXT("NotHere", "{0} isn't here; their skills show where they are."), Member.Name);
+		Page.Refusal = FText::Format(LOCTEXT("NotHere", "{0} isn't here."), Member.Name);
 		return Page;
 	}
 	// The discount the rule check uses (ULoadoutComponent::BuildRuleContext).
