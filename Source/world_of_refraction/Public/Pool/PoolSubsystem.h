@@ -544,6 +544,9 @@ public:
     /** A quit run (UTrialRunSubsystem::ExitTrial, before EndRunLayer): of each item, what is held above the run's start
      *  count leaves, from the pouches first, then storage. Returns how many left. No-op when no layer is open. */
     int32 TakeRunFoundItems();
+    /** A run that ends any other way (B-238b, D-097, Q-238b): of each item, what is held above the run's start count and
+     *  sits in a pouch moves to storage. Returns how many moved. No-op when no layer is open. */
+    int32 StoreRunFoundItems();
 
     /** The key upgrade memory knows a gear definition by (its asset path), as GetCharacterKey does for characters. */
     static FName GetDefinitionKey(const UObject *Definition);
