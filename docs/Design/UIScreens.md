@@ -35,7 +35,7 @@
 |---|---|---|---|---|---|
 | 9 | **Title / main menu** | Press any button; Continue, New Game, Join a friend, Settings, Credits, Quit | `USaveSubsystem` (one slot per local player, `Public/Save/WoRSaveGame.h:2`, so no slot screen) | Built (B-467, in dev: `UTitleScreenWidget`, `PIE/B-467.md`; the backdrop is B-467b, Join a friend B-459) | P2 |
 | 10 | **Save notices** | Autosave icon; the one-time "your old save was reset" warning (D-060) | `UWoRSaveGame::WasWiped` `Public/Save/WoRSaveGame.h:35` (never shown today) | None | P2 |
-| 11 | **New game: first character** | Pick your character (the lords / templates), class reads from it | `DA_Character_*`; `ECharacterClass` | None | P3 (lore: who you start as is Crown's) |
+| 11 | **New game: first character** | Pick your character (the lords / templates), class reads from it | `DA_Character_*`; `ECharacterClass` | Real, C++ (B-469, Q-469): `UNewGameScreenWidget` `Public/UI/Menus/NewGameScreenWidget.h` (from the title's New Game, `wor.UI.NewGame`; model `WoRNewGame`); Begin starts the game in place (`USaveSubsystem::StartFreshGame`) | P3 (lore: who you start as is Crown's) |
 | 12 | **Loading screen** | Only for hub ↔ trial (FeelGuide 10): an item or character description and a slow crystal turn | none (no loading-screen code) | None | P3 |
 | 13 | **Credits** | Scroll | — | Built (B-470, in dev: `UCreditsScreenWidget`, `PIE/B-470.md`) | P3 |
 

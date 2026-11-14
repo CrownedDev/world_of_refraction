@@ -1024,7 +1024,17 @@ The queue of questions only Crown can answer.
 - **(3) After the 2-second hold the save is deleted, and the new game begins the next time the game starts.** Starting it at once needs the party, pool, journal, quests and forms in memory reset, which is the new game screen's job (B-469, its row now says so). The screen says so in plain words. Nothing is written for the rest of that session, so the old game can't come back.
 - **(4) Join a friend and Credits are listed and say they aren't built yet**, as the settings screen does for rows not built (B-452).
 - **(5) The save counts time played from now on** (`FWoRSaveData::PlaySeconds`, no version bump: older saves start at 0). Under an hour it reads in minutes. Hollow Knight's and Elden Ring's Continue show the save's place and time (`UIScreens.md`).
-**Notes for Claude:** B-467b is the backdrop's editor step. B-469 owns the fresh start in place.
+**Notes for Claude:** B-467b is the backdrop's editor step. B-469 owns the fresh start in place (built: Q-469; point 3 now opens the new game screen after the hold).
+
+### Q-469 — The new game screen: who the pick starts as, which elements, how the keys move
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-469, `UIScreens.md` #11) · **Blocks:** —
+**Question:** the screen's look is decided (mockups `front/new_game/`). What does a pick start as, are all nine Refractor elements open (`UIScreens.md` open point 16), and how do the keys move between the parts?
+**Answer**, by the reference-backed default (Crown may change any):
+- **A pick starts as one of the lords** (the character assets already in the game: the Generic lord, the Resonator lord, a Refractor lord per element). The list is `NewGameCharacters` in `DefaultGame.ini`; the screen takes the one whose class (and, for a Refractor, element) matches. The born Broken Darkness lord is never a start. A class's identity and its gear come from its lord, as Hades' and Elden Ring's starting classes come with their kit.
+- **All nine elements are open at the start**, as drawn: Pokémon's starters and Elden Ring's classes are all open on the first screen. Earning Void, Reality or Broken Darkness later would be a change to the start; say if you want it.
+- **Keys:** Up / Down move through the class cards (the class follows), Up from the top card reaches Body, Down from the last reaches Begin. Left / Right pick the body; Right from a Refractor's card goes into the element grid (it stands to the right), Left from its first column comes back. A moves on to the next part, and starts the game on Begin. B goes back to the title.
+- **Begin starts the game in place:** everything in memory goes back to a new game's, the party is the picked lord alone, the slot is written with it, and the hub opens with the player as the picked character. The title's New Game opens the screen with no save too (nothing to lose there).
+- **Left out:** the body previews (grey boxes until an editor step), the mouse, and the heading and opening (Crown's; "placeholder heading" stays).
 
 ### Q-456d — The Spiritualist's tabs: one piece or everything, whose curses, Merge's layout
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-456d, D-193) · **Blocks:** —
