@@ -73,12 +73,14 @@ BEGIN_DEFINE_SPEC(FTurnCapSpec, "WoR.Turns.TurnCap",
 		}
 		return Longest;
 	}
+	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FTurnCapSpec)
 
 void FTurnCapSpec::Define()
 {
 	BeforeEach([this]()
 	{
+		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("test world created"), TestWorld->Create());
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
@@ -91,6 +93,7 @@ void FTurnCapSpec::Define()
 
 	AfterEach([this]()
 	{
+		SpeedTimeline.Reset();
 		if (TurnManager && TurnManager->IsCombatActive())
 		{
 			TurnManager->EndCombat();

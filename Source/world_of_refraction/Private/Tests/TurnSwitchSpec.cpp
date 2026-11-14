@@ -45,18 +45,21 @@ BEGIN_DEFINE_SPEC(FTurnSwitchSpec, "WoR.Loadout.TurnSwitch",
 		Loadout->InitializeFromCharacterData(Data, Inventory);
 		return Actor;
 	}
+	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FTurnSwitchSpec)
 
 void FTurnSwitchSpec::Define()
 {
 	BeforeEach([this]()
 	{
+		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 	});
 
 	AfterEach([this]()
 	{
+		SpeedTimeline.Reset();
 		Loadout = nullptr;
 		TestWorld.Reset();
 	});

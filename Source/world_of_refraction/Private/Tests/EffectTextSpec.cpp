@@ -267,6 +267,7 @@ void FEffectTextSpec::Define()
 	{
 		It("read as the deckbuilder's verbs", [this]()
 		{
+			const FWoRActionPipsSwitchScope SpeedTimeline(WOR_TEST_SPEED_TIMELINE); // B-170h: the old timeline's Delay wording
 			TestEqual(TEXT("DoT"), Body(Pay(ESkillEffectType::DOT, ETargetType::Enemy, 3, 0.0f, 2, ESpellElement::Fire)),
 					  FString(TEXT("deal 3 Fire damage to an Enemy each turn for 2 turns")));
 			TestEqual(TEXT("DoT at self"), Body(Pay(ESkillEffectType::DOT, ETargetType::Self, 3, 0.0f, 2)),

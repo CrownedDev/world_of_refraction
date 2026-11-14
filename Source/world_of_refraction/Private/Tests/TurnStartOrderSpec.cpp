@@ -163,12 +163,14 @@ BEGIN_DEFINE_SPEC(FTurnStartOrderSpec, "WoR.Combat.TurnStartOrder",
 		FireRecorder->Listen(Orchestrator);
 		return TestTrue(TEXT("Hero opens the duel"), Orchestrator->GetCurrentActor() == Hero);
 	}
+	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FTurnStartOrderSpec)
 
 void FTurnStartOrderSpec::Define()
 {
 	BeforeEach([this]()
 	{
+		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		Orchestrator = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
@@ -187,6 +189,7 @@ void FTurnStartOrderSpec::Define()
 
 	AfterEach([this]()
 	{
+		SpeedTimeline.Reset();
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
 		{
 			Orchestrator->ForceEndCombat();

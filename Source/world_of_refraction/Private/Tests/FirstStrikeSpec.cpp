@@ -41,12 +41,14 @@ BEGIN_DEFINE_SPEC(FFirstStrikeSpec, "WoR.Combat.FirstStrike",
 		TurnManager->EndCombat();
 		return Order;
 	}
+	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FFirstStrikeSpec)
 
 void FFirstStrikeSpec::Define()
 {
 	BeforeEach([this]()
 	{
+		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
@@ -55,6 +57,7 @@ void FFirstStrikeSpec::Define()
 
 	AfterEach([this]()
 	{
+		SpeedTimeline.Reset();
 		TurnManager = nullptr;
 		TestWorld.Reset();
 	});

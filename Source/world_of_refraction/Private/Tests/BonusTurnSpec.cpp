@@ -73,12 +73,14 @@ BEGIN_DEFINE_SPEC(FBonusTurnSpec, "WoR.Turns.BonusTurn",
 	{
 		return Turn.Actor == Holder && Turn.Type == ETurnType::Bonus && Turn.bIsBonusTurn;
 	}
+	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FBonusTurnSpec)
 
 void FBonusTurnSpec::Define()
 {
 	BeforeEach([this]()
 	{
+		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("test world created"), TestWorld->Create());
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
@@ -93,6 +95,7 @@ void FBonusTurnSpec::Define()
 
 	AfterEach([this]()
 	{
+		SpeedTimeline.Reset();
 		if (TurnManager && TurnManager->IsCombatActive())
 		{
 			TurnManager->EndCombat();

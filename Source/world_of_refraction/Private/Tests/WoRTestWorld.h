@@ -7,6 +7,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "Tests/AutomationCommon.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
@@ -154,5 +155,35 @@ public:
 private:
 	FTestWorldWrapper Wrapper;
 };
+
+/** B-170h: holds wor.Turns.ActionPips at Value (read when a fight starts) and restores it. The specs of the
+ *  old speed timeline hold it at 0 until the timeline is deleted (B-170h2). */
+struct FWoRActionPipsSwitchScope
+{
+	explicit FWoRActionPipsSwitchScope(int32 Value)
+		: Switch(IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Turns.ActionPips")))
+	{
+		if (Switch)
+		{
+			Before = Switch->GetInt();
+			Switch->Set(Value, ECVF_SetByConsole);
+		}
+	}
+
+	~FWoRActionPipsSwitchScope()
+	{
+		if (Switch)
+		{
+			Switch->Set(Before, ECVF_SetByConsole);
+		}
+	}
+
+private:
+	IConsoleVariable *Switch = nullptr;
+	int32 Before = 0;
+};
+
+/** The old speed timeline's value of wor.Turns.ActionPips (B-170h: no longer the default). */
+constexpr int32 WOR_TEST_SPEED_TIMELINE = 0;
 
 #endif // WITH_DEV_AUTOMATION_TESTS

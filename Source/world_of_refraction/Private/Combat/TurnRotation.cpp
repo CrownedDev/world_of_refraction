@@ -11,8 +11,8 @@ namespace
 {
 	TAutoConsoleVariable<int32> CVarTurnsActionPips(
 		TEXT("wor.Turns.ActionPips"),
-		0,
-		TEXT("B-170: 1 = fixed turn rotation and banked actions (ActionPips.md); 0 = the Turn Speed timeline as built. ")
+		1,
+		TEXT("B-170: 1 (the default since B-170h) = fixed turn rotation and banked actions (ActionPips.md); 0 = the old Turn Speed timeline, until B-170h2 deletes it. ")
 		TEXT("Read when a fight starts, so set it before the fight."),
 		ECVF_Default);
 
