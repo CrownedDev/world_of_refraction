@@ -151,7 +151,7 @@ void FQuestJournalSpec::Define()
 
 		Journal->RecordMemory(Finder, EMemorySource::Fragment); // its memory starts it
 		TestEqual(TEXT("the private notice is masked (Q-397b)"), Quests->GetLastNotice().ToString(),
-				  FString(TEXT("Secret quest found. Open the journal to view it.")));
+				  FString(TEXT("Secret quest found.")));
 		TArray<FVisibleQuest> Visible = Quests->GetVisibleQuests();
 		if (!TestEqual(TEXT("found: listed too"), Visible.Num(), 3))
 		{
@@ -180,7 +180,7 @@ void FQuestJournalSpec::Define()
 		Quests->CheckEvent(FMemoryEvent(), {Hidden}); // the start's own event (Q-377)
 		Quests->CheckEvent(AtQuestSpot(), {Hidden});
 		TestEqual(TEXT("step done: a masked notice (Q-397b)"), Quests->GetLastNotice().ToString(),
-				  FString(TEXT("Secret quest updated. Open the journal to view it.")));
+				  FString(TEXT("Secret quest updated.")));
 		Visible = Quests->GetVisibleQuests();
 		TestEqual(TEXT("step done: the next goal"), Visible.Last().Goal.ToString(), FString(TEXT("FoundHiddenSpec goal 2")));
 		Widget->ShowQuestsPage();
@@ -190,7 +190,7 @@ void FQuestJournalSpec::Define()
 		Quests->CheckEvent(AtQuestSpot(), {Hidden});
 		TestTrue(TEXT("finished: its end memory lands"), Journal->HasMemory(Secret));
 		TestEqual(TEXT("its notice is masked too (Q-397b, Crown)"), Quests->GetLastNotice().ToString(),
-				  FString(TEXT("New memory found. Open the journal to view it.")));
+				  FString(TEXT("New memory found.")));
 		Visible = Quests->GetVisibleQuests();
 		TestTrue(TEXT("listed as done, no goal"), Visible.Last().Kind == EQuestKind::Hidden && Visible.Last().bFinished && Visible.Last().Goal.IsEmpty());
 	});
@@ -242,7 +242,7 @@ void FQuestJournalSpec::Define()
 
 		Quests->CheckEvent(FMemoryEvent(), {Older}); // the start's own event (Q-377)
 		Quests->CheckEvent(AtQuestSpot(), {Older});
-		TestEqual(TEXT("a masked step notice"), Quests->GetLastNotice().ToString(), FString(TEXT("Secret quest updated. Open the journal to view it.")));
+		TestEqual(TEXT("a masked step notice"), Quests->GetLastNotice().ToString(), FString(TEXT("Secret quest updated.")));
 		Quests->CheckEvent(AtQuestSpot(), {Older});
 		TestTrue(TEXT("finished"), Quests->IsFinished(Older->GetQuestId()));
 		Widget->ShowQuestsPage();

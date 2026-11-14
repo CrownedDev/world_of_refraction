@@ -44,7 +44,7 @@ namespace
 	constexpr int32 TRIAL_RECRUIT_LEADER_SLOT = 0;
 	constexpr int32 TRIAL_RECRUIT_PARTY_SIZE = 2;
 	/** WoRGive::TryGiveCarried's refusal when both carry one pouch (GearGive.cpp, SharedPouch). */
-	const TCHAR *const TRIAL_RECRUIT_SHARED_POUCH = TEXT("They carry the same pouch: a recruit uses the host's");
+	const TCHAR *const TRIAL_RECRUIT_SHARED_POUCH = TEXT("They share a pouch.");
 	const FCrystalId TRIAL_RECRUIT_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 
 	int32 TrialRecruitSpellCopies(const UPoolSubsystem &Pool, const USpellData *Spell)

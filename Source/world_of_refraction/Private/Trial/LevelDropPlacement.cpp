@@ -122,7 +122,7 @@ FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member, UCur
 						  && IsPillarFull(World, Member, EWorldPillar::Spirit);
 	if (bAllFull)
 	{
-		return FText::Format(LOCTEXT("BuyAllFull", "{0}'s pillars are all at {1} with {2} over-cap points"), Name,
+		return FText::Format(LOCTEXT("BuyAllFull", "{0}'s pillars are all at {1} with {2} extra points"), Name,
 							 FText::AsNumber(WorldStatConstants::LIVE_MAX), FText::AsNumber(OverCapRules::MAX_PER_PILLAR));
 	}
 	if (!Wallet)
@@ -135,7 +135,7 @@ FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member, UCur
 	const int32 Price = GetPointPrice(World, Member);
 	if (!Wallet || !Wallet->Spend(ECurrencyType::Gold, Price)) // the run currency (shown as Prisms, D-159)
 	{
-		return FText::Format(LOCTEXT("BuyTooFew", "A point costs {0} {1}"), FText::AsNumber(Price), WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
+		return FText::Format(LOCTEXT("BuyTooFew", "Not enough {1}."), FText::AsNumber(Price), WoRGameNames::GetCurrencyName(ECurrencyType::Gold));
 	}
 	const FName MemberKey = UPoolSubsystem::GetCharacterKey(Member);
 	Run->AddUnspentLevels(MemberKey, 1);
@@ -168,7 +168,7 @@ FText WoRLevelDrops::TryPlaceLevel(UWorld *World, const FPartyMember &Member, EW
 	{
 		if (!Run->AddRunOverCap(MemberKey, Pillar))
 		{
-			return FText::Format(LOCTEXT("OverCapFull", "{0}'s {1} already has {2} over-cap points"), Name, GetPillarName(Pillar),
+			return FText::Format(LOCTEXT("OverCapFull", "{0}'s {1} already has {2} extra points"), Name, GetPillarName(Pillar),
 								 FText::AsNumber(OverCapRules::MAX_PER_PILLAR));
 		}
 		Run->TakeUnspentLevel(MemberKey);
