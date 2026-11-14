@@ -993,9 +993,11 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 	if (Line == Selected)
 	{
 		// A second click on the focused line does A. But not straight after the click that armed an ask (Remove all
-		// gear, a socket's Remove): a double click must not confirm what it hasn't shown yet.
+		// gear, a socket's Remove): a double click must not confirm what it hasn't shown yet. B-476d: nor go on through the
+		// Skills tab's slots and picker that click just opened (it would put the first skill in the slot).
 		const double Now = FPlatformTime::Seconds();
-		if ((bRemoveAllArmed || bRemoveArmed) && Now - LastClickActionSeconds < LoadoutV2ScreenStyle::ARMED_CLICK_DELAY_SECONDS)
+		const bool bJustOpened = Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker;
+		if ((bRemoveAllArmed || bRemoveArmed || bJustOpened) && Now - LastClickActionSeconds < LoadoutV2ScreenStyle::ARMED_CLICK_DELAY_SECONDS)
 		{
 			return;
 		}
