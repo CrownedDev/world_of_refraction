@@ -14,6 +14,7 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Misc/ScopeExit.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/WoRRootLayout.h"
@@ -174,6 +175,15 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 	Super::NativeOnActivated();
 	Message = FText::GetEmpty();
 	Mode = ELoadoutV2Mode::List;
+	bEditing = false;
+	Draft = FLoadoutV2Draft();
+	Kinds.Reset();
+	Slots.Reset();
+	Items.Reset();
+	PickedSocket = INDEX_NONE;
+	bComparing = false;
+	bRemoveArmed = false;
+	bRemoveAllArmed = false;
 	RefreshData();
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page));
 }
@@ -610,8 +620,14 @@ void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
 	{
 		Selected = ((Selected + Delta) % Count + Count) % Count;
 		Message = FText::GetEmpty();
+		const bool bWasArmed = bRemoveArmed;
 		bRemoveArmed = false;
 		bRemoveAllArmed = false;
+		if (bWasArmed && Mode == ELoadoutV2Mode::WindowItems)
+		{
+			RefreshData(); // the EQUIPPED line drops its "A again" warning
+			return;
+		}
 		RefreshView();
 	}
 }
@@ -816,6 +832,14 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		if (!InKeyEvent.IsRepeat())
 		{
 			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
+		}
+		return FReply::Handled();
+	}
+	if (Key == EKeys::V && Mode == ELoadoutV2Mode::List) // the Details key on a keyboard (InputMap): the view, as X
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			PressCompare();
 		}
 		return FReply::Handled();
 	}
@@ -1054,6 +1078,15 @@ bool ULoadoutV2ScreenWidget::FindScreenRow(FLoadoutScreenRow &OutRow) const
 void ULoadoutV2ScreenWidget::BuildItems()
 {
 	using namespace LoadoutV2ScreenStyle;
+	// The picked socket line is found again by its piece after the rebuild (the list can change order).
+	const bool bHadPick = Items.IsValidIndex(PickedSocket);
+	const FLoadoutScreenChoice PickedBefore = bHadPick ? Items[PickedSocket].Socket : FLoadoutScreenChoice();
+	ON_SCOPE_EXIT
+	{
+		PickedSocket = bHadPick ? Items.IndexOfByPredicate([&PickedBefore](const FLoadoutV2WindowItem &Item)
+														  { return !Item.bEquipped && Item.Socket.Crystal == PickedBefore.Crystal && Item.Socket.EvolutionID == PickedBefore.EvolutionID; })
+								: INDEX_NONE;
+	};
 	Items.Reset();
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
@@ -1111,9 +1144,9 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Item.Name = WeaponName(Owned);
 			FLoadoutV2Draft Changed = Draft;
 			(bMain ? Changed.MainHand : Changed.OffHand) = Owned;
-			if (bMain && !bEditing)
+			if (bMain)
 			{
-				Changed.Socket1 = Owned.AttachedItem; // a new entry: the piece's own sockets come with it
+				Changed.Socket1 = Owned.AttachedItem; // Q-476c: sockets stay on their piece; a new main hand brings its own
 				Changed.Socket2 = Owned.StoneSocket;
 			}
 			const TPair<FText, int32> Result = Check(Changed);
@@ -1195,9 +1228,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			{
 				// An edit swaps the evolution in its place: check the swap, not a second one.
 				FLoadoutV2Draft Changed = Draft;
-				Changed.Socket1.Kind = EAttachedItemKind::Evolution;
-				Changed.Socket1.Evolution.Item = Choice.Evolution.Item;
-				Changed.Socket1.Evolution.Tier = Choice.Evolution.Tier;
+				Changed.Socket1 = WoRLoadoutV2::MakeEvolutionAttachment(Choice.Evolution);
 				Changed.EvolutionInstance = Choice.Evolution.InstanceID;
 				Item.Refusal = Check(Changed).Key;
 				continue;
@@ -1271,11 +1302,8 @@ void ULoadoutV2ScreenWidget::PickItem()
 	{
 	case ELoadoutV2Slot::MainHand:
 		Draft.MainHand = Item.Weapon;
-		if (!bEditing)
-		{
-			Draft.Socket1 = Item.Weapon.AttachedItem;
-			Draft.Socket2 = Item.Weapon.StoneSocket;
-		}
+		Draft.Socket1 = Item.Weapon.AttachedItem; // Q-476c: sockets stay on their piece; a new main hand brings its own
+		Draft.Socket2 = Item.Weapon.StoneSocket;
 		break;
 	case ELoadoutV2Slot::OffHand:
 		Draft.OffHand = Item.Weapon;
@@ -1286,9 +1314,7 @@ void ULoadoutV2ScreenWidget::PickItem()
 		Draft.Socket2 = Item.Adapter.StoneSocket;
 		break;
 	case ELoadoutV2Slot::Evolution:
-		Draft.Socket1.Kind = EAttachedItemKind::Evolution;
-		Draft.Socket1.Evolution.Item = Item.Evolution.Item;
-		Draft.Socket1.Evolution.Tier = Item.Evolution.Tier;
+		Draft.Socket1 = WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution);
 		Draft.EvolutionInstance = Item.Evolution.InstanceID;
 		break;
 	case ELoadoutV2Slot::Socket1:

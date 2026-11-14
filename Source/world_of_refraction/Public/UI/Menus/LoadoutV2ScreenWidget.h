@@ -161,6 +161,8 @@ private:
 	// Options.
 	void SelectOption();
 
+	// The drafts and lists below hold raw pointers to the gear's data assets (weapons, adapters, evolutions), as today's
+	// screen does: those are loaded assets the inventory keeps, read again on every RefreshData.
 	TArray<FLoadoutScreenMember> Members;
 	int32 MemberIndex = 0;
 	FLoadoutV2WeaponsPage Page;
