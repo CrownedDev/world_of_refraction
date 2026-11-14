@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-474](B-474.md) | `feature/B-474-weapon-follows-skill-cloud` (cloud, UNBUILT; includes B-472, B-477, B-480) | Using the other weapon's skill makes it active (setting on by default, `wor.Settings.SwitchToSkillWeapon`); the menu lists both weapons' skills; Switch Weapon moves to L3 (6); the loadout screen's L3 / 6 sets a weapon active | Pending |
 | [B-480](B-480.md) | `feature/B-480-entries-sockets-cloud` (cloud, UNBUILT; includes B-472, B-477) | Entries: a Generic's adapter beside two weapons, two stones on one entry (they stack), no evolution on a Resonator's weapon or a Generic's adapter (taken off back to the inventory) | Pending |
 | [B-477](B-477.md) | `feature/B-477-weapon-sets-cloud` (cloud, UNBUILT; includes B-472) | Generic weapon sets, first part: two same-type swords (or daggers) in one entry, one skill list by the average tier, both weapons' stats, the main hand's dual-wield stance, bad pairs cleared, saved (v39). Needs an asset set to Single or dual first (editor) | Pending |
 | [B-472](B-472.md) | `feature/B-472-loadout-costs-cloud` (cloud, UNBUILT) | Loadout costs by D-206: gear free, crystal 1, stone 1, evolution 2, an evolution alone 2; Refractor budget 2 (a stone is dropped back to the inventory when over), Generic 3 items, Resonator at most 5 adapters; the cost line names only what is inside | Pending |
