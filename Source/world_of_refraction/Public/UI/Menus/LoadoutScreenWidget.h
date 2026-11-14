@@ -11,11 +11,14 @@
 // greyed with the reason), A again puts the lit one in; X empties the place. B-440c: Left / Right lights a socket;
 // A there picks a carried gem or stone or an owned evolution, X (twice) takes it off. B-440d: LB / RB switches to the
 // Skills page (WoRLoadoutSkills): Left / Right picks the list (a school, a weapon, an adapter), A puts a learned skill
-// in the lit slot, X takes it out. Saved loadouts are B-440e.
+// in the lit slot, X takes it out. B-440e: Y (R) opens the saved loadouts (WoRLoadoutSaved): A uses the lit one (or makes a
+// new one on the last line), X duplicates it, Y renames it in a name box (Enter keeps, Esc drops); B closes the list.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Types/SlateEnums.h"
+#include "UI/Menus/LoadoutSavedModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutSkillsModel.h"
 #include "UI/WoRActivatableWidget.h"
@@ -23,6 +26,7 @@
 
 class APlayerController;
 class UBorder;
+class UEditableTextBox;
 class UScrollBox;
 class UTextBlock;
 class UWidget;
@@ -59,7 +63,16 @@ public:
 	bool IsSkillsPage() const { return bSkillsPage; }
 	const FLoadoutSkillsPage &GetSkills() const { return Skills; }
 	int32 GetSkillTab() const { return SkillTab; }
-	/** B, Esc: closes the picker, else the screen. */
+	/** B-440e, Y (R): opens the saved loadouts list; in it, renames the lit loadout. */
+	void PressSavedLoadouts();
+	bool IsSavedList() const { return bSavedList; }
+	const FLoadoutSavedList &GetSavedList() const { return Saved; }
+	int32 GetSelectedSaved() const { return SelectedSaved; }
+	/** B-440e: the name box is open for the lit saved loadout. */
+	bool IsRenaming() const { return bRenaming; }
+	/** B-440e: what Enter in the name box does (the specs call it too). */
+	void CommitRename(const FText &NewName);
+	/** B, Esc: closes the name box, the picker or the saved list, else the screen. */
 	void PressBack() { HandleBackAction(); }
 
 	int32 GetSelectedRow() const { return SelectedRow; }
@@ -106,14 +119,23 @@ private:
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
 	int32 FindMemberTabUnder(const FPointerEvent &MouseEvent) const;
 
-	/** The rows the list shows now: the gear rows, or the picker's lines. */
-	int32 GetListCount() const { return bPicking ? Choices.Num() : Page.Rows.Num(); }
-	/** The list's lit index: the gear row, or the picker's line. */
-	int32 GetListSelection() const { return bPicking ? SelectedChoice : SelectedRow; }
+	/** The rows the list shows now: the saved loadouts, the picker's lines or the gear rows. */
+	int32 GetListCount() const { return bSavedList ? Saved.Rows.Num() : bPicking ? Choices.Num() : Page.Rows.Num(); }
+	/** The list's lit index: the saved loadout, the picker's line or the gear row. */
+	int32 GetListSelection() const { return bSavedList ? SelectedSaved : bPicking ? SelectedChoice : SelectedRow; }
 	/** Fills the row list from the gear page or the picker, and the budget pips (the lit line's budget in amber). */
 	void RefreshList();
 	void RefreshBudget();
 	void ClosePicker();
+	/** B-440e: the saved list read fresh, the lit line kept in range. */
+	void RefreshSaved();
+	void CloseSavedList();
+	void CancelRename();
+	/** B-440e, A / X in the saved list: use (or make new), duplicate. */
+	void PressUseSaved();
+	void PressDuplicateSaved();
+	UFUNCTION()
+	void HandleNameCommitted(const FText &Text, ETextCommit::Type CommitMethod);
 
 	TArray<FLoadoutScreenMember> Members;
 	FLoadoutScreenPage Page;
@@ -132,6 +154,11 @@ private:
 	bool bSkillsPage = false;
 	FLoadoutSkillsPage Skills;
 	int32 SkillTab = 0;
+	/** B-440e: the saved loadouts list is shown over the page. */
+	bool bSavedList = false;
+	FLoadoutSavedList Saved;
+	int32 SelectedSaved = 0;
+	bool bRenaming = false;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> MemberTabs;
@@ -160,6 +187,9 @@ private:
 	TObjectPtr<UTextBlock> PickerTitle;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> HintsText;
+	/** B-440e: the saved loadout's new name (placeholder until the CommonUI screen, D-024). */
+	UPROPERTY(Transient)
+	TObjectPtr<UEditableTextBox> NameBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailName;
 	UPROPERTY(Transient)

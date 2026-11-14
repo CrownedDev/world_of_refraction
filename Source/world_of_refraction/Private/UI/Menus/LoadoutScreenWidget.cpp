@@ -3,6 +3,7 @@
 #include "UI/Menus/LoadoutScreenWidget.h"
 
 #include "Components/Border.h"
+#include "Components/EditableTextBox.h"
 #include "Components/ScrollBox.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -36,6 +37,24 @@ namespace LoadoutScreenStyle
 	constexpr int32 SocketsPerRow = 2;
 	constexpr int32 MaxDetailLines = 6;
 	constexpr int32 MaxBudgetPips = LoadoutConstants::LOADOUT_TOTAL_BUDGET;
+}
+
+namespace LoadoutScreenSaved
+{
+	/** B-440e: a saved loadout as a list row (the active one carries the ACTIVE chip; no cost, no sockets). */
+	FLoadoutScreenRow ToScreenRow(const FLoadoutSavedRow &Saved)
+	{
+		FLoadoutScreenRow Row;
+		Row.Kind = Saved.IsNewLine() ? ELoadoutScreenRowKind::EmptyGear : ELoadoutScreenRowKind::Weapon;
+		Row.Name = Saved.Name;
+		Row.KindLine = Saved.Note;
+		Row.bActive = Saved.bActive;
+		Row.bCountsToBudget = false;
+		Row.Note = Saved.IsNewLine() ? LOCTEXT("SavedNewNote", "A makes an empty loadout; Y then names it.")
+				   : Saved.bLore	 ? LOCTEXT("SavedLoreNote", "A uses it. X makes a copy of your own, which you can change and rename.")
+									 : LOCTEXT("SavedNote", "A uses it, X duplicates it, Y renames it.");
+		return Row;
+	}
 }
 
 ULoadoutScreenWidget::ULoadoutScreenWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -144,6 +163,12 @@ void ULoadoutScreenWidget::BuildTree()
 	AddToColumn(ListColumn, RefusalText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	PickerTitle = MakeText(WidgetTree, LineFontSize, DimColor, true);
 	AddToColumn(ListColumn, PickerTitle, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	// B-440e: the saved loadout's new name; shown only while renaming.
+	NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("LoadoutNameBox"));
+	NameBox->SetHintText(LOCTEXT("NameHint", "Loadout name"));
+	NameBox->OnTextCommitted.AddDynamic(this, &ULoadoutScreenWidget::HandleNameCommitted);
+	AddToColumn(ListColumn, NameBox, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	SetShown(NameBox, false);
 	RowList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	AddToColumn(ListColumn, RowList)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	AddToRow(Body, MakeSized(WidgetTree, ListWidth, 0.0f, ListColumn), FMargin(0.0f), VAlign_Fill);
@@ -325,13 +350,15 @@ void ULoadoutScreenWidget::RefreshList()
 
 	if (HintsText)
 	{
-		HintsText->SetText(bPicking		 ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
-						   : bSkillsPage ? LOCTEXT("HintsSkills", "A  Change        X  Remove        Left / Right  Lists        LB / RB  Page        LT / RT  Character        B / Esc  Back")
-										 : LOCTEXT("Hints", "A  Change        X  Unequip        Left / Right  Sockets        LB / RB  Page        LT / RT  Character        B / Esc  Back"));
+		HintsText->SetText(bRenaming	 ? LOCTEXT("HintsRenaming", "Enter  Keep the name        Esc  Cancel")
+						   : bSavedList	 ? LOCTEXT("HintsSaved", "A  Use        X  Duplicate        Y / R  Rename        B / Esc  Back")
+						   : bPicking	 ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
+						   : bSkillsPage ? LOCTEXT("HintsSkills", "A  Change        X  Remove        Left / Right  Lists        LB / RB  Page        LT / RT  Character        Y / R  Loadouts        B / Esc  Back")
+										 : LOCTEXT("Hints", "A  Change        X  Unequip        Left / Right  Sockets        LB / RB  Page        LT / RT  Character        Y / R  Loadouts        B / Esc  Back"));
 	}
 	if (RefusalText && PickerTitle)
 	{
-		const FText Shown = Message.IsEmpty() ? Page.Refusal : Message;
+		const FText Shown = !Message.IsEmpty() ? Message : bSavedList ? Saved.Refusal : Page.Refusal;
 		RefusalText->SetText(Shown);
 		SetShown(RefusalText, !Shown.IsEmpty());
 		const bool bHasRow = Page.Rows.IsValidIndex(SelectedRow);
@@ -342,7 +369,12 @@ void ULoadoutScreenWidget::RefreshList()
 							 : bPickingSocket   ? FText::Format(LOCTEXT("PickerSocketTitle", "{0} · {1} socket:"), RowName, SocketName)
 							 : bSkillsPage		? FText::Format(LOCTEXT("PickerSkillTitle", "{0} · in place of {1}:"), ListName, RowName)
 												: FText::Format(LOCTEXT("PickerTitle", "In place of {0}:"), RowName));
-		SetShown(PickerTitle, bPicking);
+		if (bSavedList)
+		{
+			PickerTitle->SetText(FText::Format(LOCTEXT("SavedTitle", "Saved loadouts ({0} of {1} of your own):"), FText::AsNumber(Saved.CustomCount),
+											   FText::AsNumber(Saved.MaxCustom)));
+		}
+		SetShown(PickerTitle, bPicking || bSavedList);
 	}
 	RefreshBudget();
 
@@ -362,7 +394,11 @@ void ULoadoutScreenWidget::RefreshList()
 		{
 			continue;
 		}
-		if (bPicking)
+		if (bSavedList)
+		{
+			FillRow(RowWidgets[Index], LoadoutScreenSaved::ToScreenRow(Saved.Rows[Index]), false);
+		}
+		else if (bPicking)
 		{
 			FillRow(RowWidgets[Index], Choices[Index].Row, false);
 			if (!Choices[Index].Refusal.IsEmpty() && RowWidgets[Index].Name.IsValid())
@@ -480,9 +516,13 @@ void ULoadoutScreenWidget::RefreshSelection(bool bScrollIntoView)
 	{
 		return; // headless: no tree
 	}
-	const FLoadoutScreenChoice *Choice = bPicking && Choices.IsValidIndex(SelectedChoice) ? &Choices[SelectedChoice] : nullptr;
-	const bool bHasRow = Choice || (!bPicking && Page.Rows.IsValidIndex(SelectedRow));
-	const FLoadoutScreenRow Row = Choice ? Choice->Row : bHasRow ? Page.Rows[SelectedRow] : FLoadoutScreenRow();
+	const FLoadoutScreenChoice *Choice = !bSavedList && bPicking && Choices.IsValidIndex(SelectedChoice) ? &Choices[SelectedChoice] : nullptr;
+	const bool bSavedRow = bSavedList && Saved.Rows.IsValidIndex(SelectedSaved);
+	const bool bHasRow = Choice || bSavedRow || (!bSavedList && !bPicking && Page.Rows.IsValidIndex(SelectedRow));
+	const FLoadoutScreenRow Row = Choice	  ? Choice->Row
+								  : bSavedRow ? LoadoutScreenSaved::ToScreenRow(Saved.Rows[SelectedSaved])
+								  : bHasRow	  ? Page.Rows[SelectedRow]
+											  : FLoadoutScreenRow();
 	DetailName->SetText(bHasRow && !Row.Tier.IsEmpty() ? FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Row.Name, Row.Tier) : Row.Name);
 	DetailKindLine->SetText(Row.KindLine);
 	for (int32 Index = 0; Index < DetailLabels.Num(); ++Index)
@@ -535,8 +575,8 @@ void ULoadoutScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 	{
 		return;
 	}
-	(bPicking ? SelectedChoice : SelectedRow) = Index;
-	if (!bPicking)
+	(bSavedList ? SelectedSaved : bPicking ? SelectedChoice : SelectedRow) = Index;
+	if (!bPicking && !bSavedList)
 	{
 		SelectedSocket = INDEX_NONE; // a new row is lit as a whole
 	}
@@ -551,7 +591,7 @@ void ULoadoutScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 
 void ULoadoutScreenWidget::MoveMember(int32 Delta)
 {
-	if (Members.Num() < 2)
+	if (Members.Num() < 2 || bSavedList)
 	{
 		return;
 	}
@@ -569,6 +609,11 @@ void ULoadoutScreenWidget::MoveMember(int32 Delta)
 
 void ULoadoutScreenWidget::PressChange()
 {
+	if (bSavedList)
+	{
+		PressUseSaved(); // B-440e
+		return;
+	}
 	if (!Members.IsValidIndex(MemberIndex) || !Page.Rows.IsValidIndex(SelectedRow))
 	{
 		return;
@@ -655,6 +700,11 @@ void ULoadoutScreenWidget::PressChange()
 
 void ULoadoutScreenWidget::PressUnequip()
 {
+	if (bSavedList)
+	{
+		PressDuplicateSaved(); // B-440e
+		return;
+	}
 	if (bPicking || !Members.IsValidIndex(MemberIndex) || !Page.Rows.IsValidIndex(SelectedRow))
 	{
 		return;
@@ -695,7 +745,7 @@ void ULoadoutScreenWidget::PressUnequip()
 
 void ULoadoutScreenWidget::MoveSocket(int32 Delta)
 {
-	if (bPicking || !Page.Rows.IsValidIndex(SelectedRow))
+	if (bPicking || bSavedList || !Page.Rows.IsValidIndex(SelectedRow))
 	{
 		return;
 	}
@@ -713,7 +763,7 @@ void ULoadoutScreenWidget::MoveSocket(int32 Delta)
 
 void ULoadoutScreenWidget::SwitchPage()
 {
-	if (bPicking)
+	if (bPicking || bSavedList)
 	{
 		return;
 	}
@@ -729,7 +779,7 @@ void ULoadoutScreenWidget::SwitchPage()
 
 void ULoadoutScreenWidget::MoveSkillTab(int32 Delta)
 {
-	if (bPicking || Skills.Tabs.Num() < 2)
+	if (bPicking || bSavedList || Skills.Tabs.Num() < 2)
 	{
 		return;
 	}
@@ -737,6 +787,155 @@ void ULoadoutScreenWidget::MoveSkillTab(int32 Delta)
 	SelectedRow = 0;
 	Message = FText::GetEmpty();
 	RefreshData();
+	RefreshSelection();
+}
+
+void ULoadoutScreenWidget::PressSavedLoadouts()
+{
+	if (bRenaming || bPicking || !Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	if (!bSavedList)
+	{
+		bSavedList = true;
+		Message = FText::GetEmpty();
+		RefreshSaved();
+		const int32 Active = Saved.Rows.IndexOfByPredicate([](const FLoadoutSavedRow &Row) { return Row.bActive; });
+		SelectedSaved = FMath::Max(0, Active);
+		RefreshList();
+		RefreshSelection();
+		return;
+	}
+	// In the list: rename the lit loadout.
+	if (!Saved.Rows.IsValidIndex(SelectedSaved) || Saved.Rows[SelectedSaved].IsNewLine())
+	{
+		Message = LOCTEXT("RenameNewLine", "Make the loadout first (A), then name it.");
+		RefreshList();
+		return;
+	}
+	bRenaming = true;
+	Message = FText::GetEmpty();
+	if (NameBox)
+	{
+		NameBox->SetText(Saved.Rows[SelectedSaved].Name);
+		NameBox->SetVisibility(ESlateVisibility::Visible); // not SetShown: the box takes clicks and the keys
+		NameBox->SetKeyboardFocus();
+	}
+	RefreshList();
+}
+
+void ULoadoutScreenWidget::CommitRename(const FText &NewName)
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	if (!bSavedList || !Saved.Rows.IsValidIndex(SelectedSaved) || !Members.IsValidIndex(MemberIndex) ||
+		!WoRLoadoutSaved::FindComponents(GetWorld(), Members[MemberIndex], Loadout, Inventory))
+	{
+		CancelRename();
+		return;
+	}
+	Message = WoRLoadoutSaved::Rename(*Loadout, *Inventory, Saved.Rows[SelectedSaved].LoadoutIndex, NewName);
+	CancelRename(); // closes the box; the message stays
+}
+
+void ULoadoutScreenWidget::CancelRename()
+{
+	if (!bRenaming)
+	{
+		return;
+	}
+	bRenaming = false;
+	if (NameBox)
+	{
+		SetShown(NameBox, false);
+		SetFocus(); // the keys come back to the screen
+	}
+	RefreshData();
+	RefreshSaved();
+	RefreshList();
+	RefreshSelection();
+}
+
+void ULoadoutScreenWidget::HandleNameCommitted(const FText &Text, ETextCommit::Type CommitMethod)
+{
+	if (!bRenaming)
+	{
+		return; // hiding the box moves its focus away, which commits again
+	}
+	CommitMethod == ETextCommit::OnEnter ? CommitRename(Text) : CancelRename();
+}
+
+void ULoadoutScreenWidget::RefreshSaved()
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	if (Members.IsValidIndex(MemberIndex) && WoRLoadoutSaved::FindComponents(GetWorld(), Members[MemberIndex], Loadout, Inventory))
+	{
+		Saved = WoRLoadoutSaved::BuildList(*Inventory);
+	}
+	else
+	{
+		Saved = FLoadoutSavedList();
+		Saved.Refusal = LOCTEXT("NoSavedLoadouts", "This character keeps no loadouts.");
+	}
+	SelectedSaved = Saved.Rows.Num() > 0 ? FMath::Clamp(SelectedSaved, 0, Saved.Rows.Num() - 1) : 0;
+}
+
+void ULoadoutScreenWidget::CloseSavedList()
+{
+	bSavedList = false;
+	bRenaming = false;
+	SetShown(NameBox, false);
+	SelectedRow = 0;
+	SelectedSocket = INDEX_NONE;
+	SkillTab = 0;
+	RefreshData(); // the page of the loadout now in use
+	RefreshSelection();
+}
+
+void ULoadoutScreenWidget::PressUseSaved()
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	if (!Saved.Rows.IsValidIndex(SelectedSaved) || !Members.IsValidIndex(MemberIndex) ||
+		!WoRLoadoutSaved::FindComponents(GetWorld(), Members[MemberIndex], Loadout, Inventory))
+	{
+		return;
+	}
+	if (Saved.Rows[SelectedSaved].IsNewLine())
+	{
+		int32 NewIndex = INDEX_NONE;
+		Message = WoRLoadoutSaved::CreateNew(*Loadout, *Inventory, NewIndex);
+		SelectedSaved = NewIndex != INDEX_NONE ? NewIndex : SelectedSaved; // the new one lit, ready for Y
+		RefreshSaved();
+		RefreshList();
+		RefreshSelection();
+		return;
+	}
+	Message = WoRLoadoutSaved::SetActive(*Loadout, *Inventory, Saved.Rows[SelectedSaved].LoadoutIndex);
+	if (Message.IsEmpty())
+	{
+		CloseSavedList(); // back to the page, now of that loadout
+		return;
+	}
+	RefreshList();
+}
+
+void ULoadoutScreenWidget::PressDuplicateSaved()
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	if (!Saved.Rows.IsValidIndex(SelectedSaved) || Saved.Rows[SelectedSaved].IsNewLine() || !Members.IsValidIndex(MemberIndex) ||
+		!WoRLoadoutSaved::FindComponents(GetWorld(), Members[MemberIndex], Loadout, Inventory))
+	{
+		return;
+	}
+	int32 NewIndex = INDEX_NONE;
+	Message = WoRLoadoutSaved::Duplicate(*Loadout, *Inventory, Saved.Rows[SelectedSaved].LoadoutIndex, NewIndex);
+	SelectedSaved = NewIndex != INDEX_NONE ? NewIndex : SelectedSaved;
+	RefreshSaved();
+	RefreshList();
 	RefreshSelection();
 }
 
@@ -752,6 +951,16 @@ void ULoadoutScreenWidget::ClosePicker()
 
 bool ULoadoutScreenWidget::NativeOnHandleBackAction()
 {
+	if (bRenaming)
+	{
+		CancelRename(); // B-440e
+		return true;
+	}
+	if (bSavedList)
+	{
+		CloseSavedList();
+		return true;
+	}
 	if (!bPicking)
 	{
 		return Super::NativeOnHandleBackAction();
@@ -801,6 +1010,14 @@ FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 		if (!InKeyEvent.IsRepeat())
 		{
 			IsConfirmKey(Key) ? PressChange() : PressUnequip();
+		}
+		return FReply::Handled();
+	}
+	if (IsSecondActionKey(Key))
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			PressSavedLoadouts(); // B-440e: open the saved loadouts; in them, rename
 		}
 		return FReply::Handled();
 	}
@@ -862,7 +1079,7 @@ FReply ULoadoutScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
-	const int32 Tab = bPicking ? INDEX_NONE : FindMemberTabUnder(InMouseEvent);
+	const int32 Tab = bPicking || bSavedList ? INDEX_NONE : FindMemberTabUnder(InMouseEvent);
 	if (Tab != INDEX_NONE)
 	{
 		MoveMember(Tab - MemberIndex);
@@ -877,6 +1094,23 @@ FReply ULoadoutScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry
 	PressChange(); // a click is A on that row (InputMap: Select)
 	return FReply::Handled();
 }
+
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommandWithWorld GLoadoutSavedPrintCommand(
+	TEXT("wor.UI.LoadoutSaved.Print"),
+	TEXT("B-440e: print each party member's saved loadouts as the loadout screen's Y list shows them."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
+		{
+			ULoadoutComponent *Loadout = nullptr;
+			UInventoryComponent *Inventory = nullptr;
+			if (WoRLoadoutSaved::FindComponents(World, Member, Loadout, Inventory))
+			{
+				UE_LOG(LogWoRUI, Display, TEXT("[LoadoutSaved] %s"), *WoRLoadoutSaved::GetSavedListString(*Inventory));
+			}
+		}
+	}));
 
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GLoadoutScreenOpenCommand(
