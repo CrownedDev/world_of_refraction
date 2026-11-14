@@ -289,8 +289,10 @@ void UWoRHostHandOverSubsystem::StopWaiting()
 	if (UWoRSessionSubsystem *Sessions = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWoRSessionSubsystem>() : nullptr)
 	{
 		Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
+		Sessions->OnSessionJoined.Remove(SessionJoinedHandle); // a join already under way still travels; it isn't tracked
 	}
 	SessionsFoundHandle.Reset();
+	SessionJoinedHandle.Reset();
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
 	WorldInitHandle.Reset();
 	UE_LOG(LogWoR, Display, TEXT("[HandOver] Stopped waiting for %s (wor.Session.Find to look again)"), *NextHost);

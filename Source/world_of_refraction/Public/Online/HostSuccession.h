@@ -93,6 +93,8 @@ public:
 	bool IsPlanned() const { return bPlanned; }
 	/** B-459a: how many times this machine has looked for the new host's session. */
 	int32 GetRejoinTries() const { return RejoinTries; }
+	/** B-459a: the planned old host is about to leave (StopWaiting refuses until it has). */
+	bool IsLeavePending() const { return bPlannedLeavePending; }
 
 	/** B-459a (the lost-host signal): the step changed, or a search for the new host began. The host-lost card listens. */
 	FOnHostHandOverStepChanged OnStepChanged;

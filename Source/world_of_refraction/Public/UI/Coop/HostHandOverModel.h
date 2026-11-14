@@ -52,8 +52,9 @@ struct FHandOverConfirm
 namespace WoRHostHandOverScreens
 {
 	/** The card for a step: bPlanned (chosen at a rest spot), bThisMachineHosts (this machine is the next host),
-	 *  RejoinTries (searches for the new host so far). */
-	WORLD_OF_REFRACTION_API FHostLostCard BuildCard(EHostHandOverStep Step, bool bPlanned, bool bThisMachineHosts, int32 RejoinTries);
+	 *  RejoinTries (searches for the new host so far), bLeavePending (the planned old host hasn't left yet: no B). */
+	WORLD_OF_REFRACTION_API FHostLostCard BuildCard(EHostHandOverStep Step, bool bPlanned, bool bThisMachineHosts, int32 RejoinTries,
+													bool bLeavePending = false);
 
 	/** The card for this game instance's hand-over. */
 	WORLD_OF_REFRACTION_API FHostLostCard BuildCard(UWorld *World);
