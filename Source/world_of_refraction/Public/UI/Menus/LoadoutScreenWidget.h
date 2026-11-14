@@ -48,6 +48,8 @@ public:
 	/** B-440b, X: empties the lit gear row's place. B-440c: on a socket, the first X says what comes off and the
 	 *  second takes it off (Q-440c). */
 	void PressUnequip();
+	/** B-474 (D-207), L3 / 6: on a weapon row, makes it the weapon in hand (the entry a fight starts with). */
+	void PressSetActive();
 	/** B-440c, Left / Right: the lit row itself, its crystal socket, its stone socket (a weapon or adapter row). */
 	void MoveSocket(int32 Delta);
 	/** The lit socket (LoadoutScreenSockets), INDEX_NONE for the row itself. */

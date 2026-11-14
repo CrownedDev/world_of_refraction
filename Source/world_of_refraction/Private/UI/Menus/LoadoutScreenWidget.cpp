@@ -327,7 +327,7 @@ void ULoadoutScreenWidget::RefreshList()
 	{
 		HintsText->SetText(bPicking		 ? LOCTEXT("HintsPicking", "A  Put in        B / Esc  Cancel")
 						   : bSkillsPage ? LOCTEXT("HintsSkills", "A  Change        X  Remove        Left / Right  Lists        LB / RB  Page        LT / RT  Character        B / Esc  Back")
-										 : LOCTEXT("Hints", "A  Change        X  Unequip        Left / Right  Sockets        LB / RB  Page        LT / RT  Character        B / Esc  Back"));
+										 : LOCTEXT("Hints", "A  Change        X  Unequip        L3 / 6  Set active        Left / Right  Sockets        LB / RB  Page        LT / RT  Character        B / Esc  Back"));
 	}
 	if (RefusalText && PickerTitle)
 	{
@@ -693,6 +693,17 @@ void ULoadoutScreenWidget::PressUnequip()
 	RefreshSelection();
 }
 
+void ULoadoutScreenWidget::PressSetActive()
+{
+	if (!Members.IsValidIndex(MemberIndex) || !Page.Rows.IsValidIndex(SelectedRow))
+	{
+		return;
+	}
+	Message = WoRLoadoutScreen::SetRowActive(GetWorld(), Members[MemberIndex], Page.Rows[SelectedRow]);
+	RefreshData();
+	RefreshSelection();
+}
+
 void ULoadoutScreenWidget::MoveSocket(int32 Delta)
 {
 	if (bPicking || !Page.Rows.IsValidIndex(SelectedRow))
@@ -801,6 +812,14 @@ FReply ULoadoutScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 		if (!InKeyEvent.IsRepeat())
 		{
 			IsConfirmKey(Key) ? PressChange() : PressUnequip();
+		}
+		return FReply::Handled();
+	}
+	if (Key == EKeys::Gamepad_LeftThumbstick || Key == EKeys::Six) // B-474 (D-207): the fight's switch key
+	{
+		if (!InKeyEvent.IsRepeat() && !bPicking && !bSkillsPage)
+		{
+			PressSetActive();
 		}
 		return FReply::Handled();
 	}
