@@ -126,7 +126,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("  Status Multiplier:  %.2fx\n"), Character->CalculateStatusMultiplier());
 	Output += FString::Printf(TEXT("  Status Mult (flat): %d\n"), Character->CalculateStatusMultiplierFlat());
 	Output += FString::Printf(TEXT("  Resistance:    %.1f%%\n"), Character->CalculateResistance() * 100.0f);
-	Output += FString::Printf(TEXT("  Turn Speed:    %.1f (retired with action pips, B-170; read only at wor.Turns.ActionPips 0)\n"), Character->CalculateTurnSpeed());
+	Output += FString::Printf(TEXT("  Turn Speed:    %.1f (no longer orders turns, B-170h2; goes with B-170h3)\n"), Character->CalculateTurnSpeed());
 	Output += TEXT("\n");
 
 	// ==================== LOADOUT REMINDER ====================

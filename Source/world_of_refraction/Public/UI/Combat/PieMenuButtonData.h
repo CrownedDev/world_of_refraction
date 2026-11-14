@@ -71,7 +71,7 @@ enum class EPieMenuCategory : uint8
 	Flee UMETA(DisplayName = "Flee"),	  // Leave a normal fight (D-091)
 	MoveRow UMETA(DisplayName = "Move Row"), // Free one-row step, once per turn (D-096); DataIndex 1 = forward
 	HandToAI UMETA(DisplayName = "Let AI Play"), // Hand this party member to the AI (D-026, B-071)
-	EndTurn UMETA(DisplayName = "End Turn") // B-170e: end the turn, the actions left stay banked (wor.Turns.ActionPips 1)
+	EndTurn UMETA(DisplayName = "End Turn") // B-170e: end the turn, the actions left stay banked
 };
 
 /**
