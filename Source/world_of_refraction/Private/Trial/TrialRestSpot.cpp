@@ -145,7 +145,7 @@ bool WoRRestSpot::LeaveRun(UWorld *World)
 
 FText WoRRestSpot::GetLeaveConfirmText()
 {
-	return LOCTEXT("ExtractConfirm", "Extract? You keep part of what you earned. Full rewards only for beating the boss or falling in battle.");
+	return LOCTEXT("ExtractConfirm", "Extract? You keep part of what you earned. Full rewards only for finishing the trial or falling in battle.");
 }
 
 void ATrialRestSpot::Interact(APawn *Pawn)

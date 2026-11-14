@@ -314,7 +314,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 			   !Boss				 ? TEXT("no boss (no variation boss and no FallbackBoss)")
 			   : BattleParty.Num() == 0 ? TEXT("no living party")
 										: TEXT("no active trial (enter through the trial door)"));
-		ShowMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
+		ShowMessage(LOCTEXT("ArenaFightNotStarted", "The fight can't start (see the Output Log)."));
 		return;
 	}
 
@@ -331,7 +331,7 @@ void ABossArenaTrigger::Interact(APawn * /*Pawn*/)
 	{
 		TrialRun->SetPendingEncounterSources({});
 		TrialRun->SetPendingZone(FEncounterZoneInfo());
-		ShowMessage(LOCTEXT("BossNotStarted", "The boss fight can't start (see the Output Log)."));
+		ShowMessage(LOCTEXT("ArenaFightNotStarted", "The fight can't start (see the Output Log)."));
 	}
 }
 
@@ -340,11 +340,14 @@ FString ABossArenaTrigger::GetHintText() const
 	const UTrialRunSubsystem *TrialRun = GetTrialRun();
 	if (TrialRun && TrialRun->IsEncounterBeaten(GetFeatureId()))
 	{
-		return LOCTEXT("BossBeatenHint", "The boss is beaten").ToString();
+		// B-450 (D-187): no rank word; the foe is named.
+		const UCharacterData *Beaten = GetBoss();
+		return Beaten ? FText::Format(LOCTEXT("ArenaBeatenHint", "{0} is beaten"), FText::FromString(Beaten->Name)).ToString()
+					  : LOCTEXT("ArenaBeatenNoName", "Beaten").ToString();
 	}
 	const UCharacterData *Boss = GetBoss();
-	return Boss ? FText::Format(LOCTEXT("BossHint", "Press E to challenge {0} (boss fight)"), FText::FromString(Boss->Name)).ToString()
-				: LOCTEXT("BossMissingHint", "No boss is waiting here").ToString();
+	return Boss ? FText::Format(LOCTEXT("ArenaHint", "Press E to challenge {0}"), FText::FromString(Boss->Name)).ToString()
+				: LOCTEXT("ArenaEmptyHint", "No one is waiting here").ToString();
 }
 
 FInteractPrompt ABossArenaTrigger::GetPrompt() const
