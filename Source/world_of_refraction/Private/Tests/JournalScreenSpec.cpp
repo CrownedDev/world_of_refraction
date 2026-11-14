@@ -169,6 +169,43 @@ void FJournalScreenSpec::Define()
 				  FString(TEXT("done:StepsMainSpec goal 1;done:StepsMainSpec goal 2;done:StepsMainSpec goal 3;")));
 	});
 
+	It("tracks one quest with A, saves it, and drops it when the quest finishes; a secret quest can't be tracked (B-463b)", [this]()
+	{
+		UHiddenQuestData *Main = NewJournalQuest(TEXT("TrackMainSpec"), EQuestKind::Main);
+		UHiddenQuestData *Side = NewJournalQuest(TEXT("TrackSideSpec"), EQuestKind::Side);
+		UHiddenQuestData *Secret = NewJournalQuest(TEXT("TrackSecretSpec"), EQuestKind::Hidden);
+		Start(Main);
+		Start(Side);
+		Start(Secret);
+		FJournalView Page = QuestView();
+		const FJournalRow *MainRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackMainSpec"); });
+		const FJournalRow *SideRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackSideSpec"); });
+		const FJournalRow *SecretRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackSecretSpec"); });
+		if (!TestTrue(TEXT("three quests"), MainRow && SideRow && SecretRow)) return;
+		TestEqual(TEXT("A is Track"), MainRow->SelectVerb.ToString(), FString(TEXT("Track")));
+		TestTrue(TEXT("a secret quest has no Track"), SecretRow->SelectVerb.IsEmpty() && !WoRJournalScreen::ToggleTrack(Game(), *SecretRow));
+		TestFalse(TEXT("nor through the subsystem"), Quests->TrackQuest(TEXT("TrackSecretSpec")));
+
+		TestTrue(TEXT("tracked"), WoRJournalScreen::ToggleTrack(Game(), *MainRow));
+		TestEqual(TEXT("the line: title and current goal"), Quests->GetTrackedLine().ToString(), FString(TEXT("TrackMainSpec: TrackMainSpec goal 1")));
+		Page = QuestView();
+		MainRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackMainSpec"); });
+		TestTrue(TEXT("the row says so"), MainRow && MainRow->SelectVerb.ToString() == TEXT("Stop tracking") && MainRow->Kicker.ToString().Contains(TEXT("tracked")));
+		TestTrue(TEXT("one at a time"), WoRJournalScreen::ToggleTrack(Game(), *SideRow) && Quests->GetTrackedQuest() == FName(TEXT("TrackSideSpec")));
+
+		const FSavedHiddenQuests Saved = Quests->Capture();
+		Quests->TrackQuest(NAME_None);
+		TestTrue(TEXT("stopped"), Quests->GetTrackedLine().IsEmpty());
+		Quests->Restore(Saved);
+		TestEqual(TEXT("saved and restored"), Quests->GetTrackedQuest(), FName(TEXT("TrackSideSpec")));
+
+		DoStep(Side);
+		TestEqual(TEXT("the line follows the step"), Quests->GetTrackedLine().ToString(), FString(TEXT("TrackSideSpec: TrackSideSpec goal 2")));
+		DoStep(Side);
+		DoStep(Side);
+		TestTrue(TEXT("finished: nothing tracked"), Quests->GetTrackedQuest().IsNone() && Quests->GetTrackedLine().IsEmpty());
+	});
+
 	It("masks a secret quest until X shows it, with its current step only; Y hides them all (D-171, D-196, D-198)", [this]()
 	{
 		UHiddenQuestData *Older = NewJournalQuest(TEXT("SecretOlderSpec"), EQuestKind::Hidden);
