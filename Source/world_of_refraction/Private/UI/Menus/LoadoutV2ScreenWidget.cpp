@@ -40,6 +40,8 @@ namespace LoadoutV2ScreenStyle
 	constexpr float RowGap = 10.0f;
 	constexpr float NameColumnWidth = 460.0f;
 	constexpr float BoxPadding = 24.0f;
+	/** B-483: the footer bar is thin: this much above and below its hints. */
+	constexpr float FooterBarPadding = 9.0f;
 	/** Spaces per depth of an effect-tree line in the details box. */
 	constexpr int32 IndentSpaces = 3;
 
@@ -154,22 +156,27 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToRow(Header, LoadoutNameText, FMargin(0.0f), VAlign_Top);
 		// B-482b: as wide as the list and the box, so the loadout's title ends where the box does (it was cut off).
 		AddToColumn(Main, MakeSized(WidgetTree, ListWidth + ColumnGap + BoxWidth, 0.0f, Header))->SetHorizontalAlignment(HAlign_Left);
+		// B-476c (UIScreens B-479c): the list on the left, the box on the right. B-483: each area in one panel frame:
+		// the left side (Cells used, a list's title, the lines) in a panel like the details box's.
+		UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UBorder *ListPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		ListPanel->SetBrushColor(PanelColor);
+		ListPanel->SetPadding(FMargin(BoxPadding));
+		UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		ListPanel->SetContent(ListColumn);
 		CellsText = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		AddToColumn(Main, CellsText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
-
+		AddToColumn(ListColumn, CellsText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		TitleText = MakeText(WidgetTree, LineFontSize, DimColor, true);
-		AddToColumn(Main, TitleText, FMargin(0.0f, SectionGap, 0.0f, LineGap));
+		AddToColumn(ListColumn, TitleText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		// B-440e: the saved loadout's new name; shown only while renaming.
 		NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("LoadoutNameBox"));
 		NameBox->SetHintText(LOCTEXT("NameHint", "Loadout name"));
 		NameBox->OnTextCommitted.AddDynamic(this, &ULoadoutV2ScreenWidget::HandleNameCommitted);
-		AddToColumn(Main, NameBox, FMargin(0.0f, 0.0f, 0.0f, LineGap)); // no wrapper: collapsed, it leaves no gap
+		AddToColumn(ListColumn, NameBox, FMargin(0.0f, 0.0f, 0.0f, LineGap)); // no wrapper: collapsed, it leaves no gap
 		SetShown(NameBox, false);
-
-		// B-476c (UIScreens B-479c): the list on the left, the box on the right.
-		UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		ListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		AddToRow(Columns, MakeSized(WidgetTree, ListWidth, 0.0f, ListBox), FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
+		AddToColumn(ListColumn, ListBox);
+		AddToRow(Columns, MakeSized(WidgetTree, ListWidth, 0.0f, ListPanel), FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
 		UBorder *Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		DetailsBox = Box;
 		Box->SetBrushColor(PanelColor);
@@ -181,15 +188,21 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		BoxLines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		AddToColumn(BoxColumn, BoxLines);
 		AddToRow(Columns, MakeSized(WidgetTree, BoxWidth, 0.0f, Box), FMargin(0.0f), VAlign_Top);
-		AddToColumn(Main, Columns)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToColumn(Main, Columns, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 		CompareText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 		AddToColumn(Main, CompareText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 		MessageText = MakeHintText(WidgetTree, LineFontSize, WarnColor); // B-481: a message may name a key ("{Confirm} again: ...")
 		MessageText->SetAutoWrapText(true);
 		AddToColumn(Main, MessageText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-		HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
-		AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
+		// B-483: the footer in a thin bar as wide as the two panels, its hints at the right end.
+		HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
+		UBorder *FooterBar = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		FooterBar->SetBrushColor(PanelColor);
+		FooterBar->SetPadding(FMargin(BoxPadding, FooterBarPadding));
+		FooterBar->SetHorizontalAlignment(HAlign_Right);
+		FooterBar->SetContent(HintsText);
+		AddToColumn(Main, MakeSized(WidgetTree, ListWidth + ColumnGap + BoxWidth, 0.0f, FooterBar), FMargin(0.0f, LineGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Left);
 	}
 	return Super::RebuildWidget();
 }
