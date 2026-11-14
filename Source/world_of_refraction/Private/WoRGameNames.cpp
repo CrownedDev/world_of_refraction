@@ -60,121 +60,121 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::None:
         return LOCTEXT("ESkillEffectType_None", "None");
     case ESkillEffectType::DOT:
-        return LOCTEXT("ESkillEffectType_DOT", "Damage Over Time");
+        return LOCTEXT("ESkillEffectType_DOT", "DoT");
     case ESkillEffectType::SpeedDebuff:
-        return LOCTEXT("ESkillEffectType_SpeedDebuff", "Speed Debuff");
+        return LOCTEXT("ESkillEffectType_SpeedDebuff", "Speed Down");
     case ESkillEffectType::DefenseDebuff:
-        return LOCTEXT("ESkillEffectType_DefenseDebuff", "Defense Debuff");
+        return LOCTEXT("ESkillEffectType_DefenseDebuff", "Defence Down");
     case ESkillEffectType::CritDebuff:
-        return LOCTEXT("ESkillEffectType_CritDebuff", "Crit Chance Debuff");
+        return LOCTEXT("ESkillEffectType_CritDebuff", "Crit Chance Down");
     case ESkillEffectType::EnergyDebuff:
-        return LOCTEXT("ESkillEffectType_EnergyDebuff", "Energy Debuff");
+        return LOCTEXT("ESkillEffectType_EnergyDebuff", "EP Down");
     case ESkillEffectType::SkipTurn:
         return LOCTEXT("ESkillEffectType_SkipTurn", "Skip Turn");
     case ESkillEffectType::RandomDebuff:
-        return LOCTEXT("ESkillEffectType_RandomDebuff", "Random Stat Debuff");
+        return LOCTEXT("ESkillEffectType_RandomDebuff", "Random Stat Down");
     case ESkillEffectType::BurstDamage:
         return LOCTEXT("ESkillEffectType_BurstDamage", "Burst Damage");
     case ESkillEffectType::MindBuff:
-        return LOCTEXT("ESkillEffectType_MindBuff", "Mind Buff (All Mind Sub-Stats)");
+        return LOCTEXT("ESkillEffectType_MindBuff", "Mind Up");
     case ESkillEffectType::MindDebuff:
-        return LOCTEXT("ESkillEffectType_MindDebuff", "Mind Debuff (All Mind Sub-Stats)");
+        return LOCTEXT("ESkillEffectType_MindDebuff", "Mind Down");
     case ESkillEffectType::BodyBuff:
-        return LOCTEXT("ESkillEffectType_BodyBuff", "Body Buff (All Body Sub-Stats)");
+        return LOCTEXT("ESkillEffectType_BodyBuff", "Body Up");
     case ESkillEffectType::BodyDebuff:
-        return LOCTEXT("ESkillEffectType_BodyDebuff", "Body Debuff (All Body Sub-Stats)");
+        return LOCTEXT("ESkillEffectType_BodyDebuff", "Body Down");
     case ESkillEffectType::SpiritBuff:
-        return LOCTEXT("ESkillEffectType_SpiritBuff", "Spirit Buff (All Spirit Sub-Stats)");
+        return LOCTEXT("ESkillEffectType_SpiritBuff", "Spirit Up");
     case ESkillEffectType::SpiritDebuff:
-        return LOCTEXT("ESkillEffectType_SpiritDebuff", "Spirit Debuff (All Spirit Sub-Stats)");
+        return LOCTEXT("ESkillEffectType_SpiritDebuff", "Spirit Down");
     case ESkillEffectType::SpellCostBuff:
-        return LOCTEXT("ESkillEffectType_SpellCostBuff", "Spell Cost Buff");
+        return LOCTEXT("ESkillEffectType_SpellCostBuff", "Spell Cost Up");
     case ESkillEffectType::SpellCostDebuff:
-        return LOCTEXT("ESkillEffectType_SpellCostDebuff", "Spell Cost Debuff");
+        return LOCTEXT("ESkillEffectType_SpellCostDebuff", "Spell Cost Down");
     case ESkillEffectType::SpellDamageBuff:
-        return LOCTEXT("ESkillEffectType_SpellDamageBuff", "Spell Damage Buff");
+        return LOCTEXT("ESkillEffectType_SpellDamageBuff", "Spell Damage Up");
     case ESkillEffectType::SpellDamageDebuff:
-        return LOCTEXT("ESkillEffectType_SpellDamageDebuff", "Spell Damage Debuff");
+        return LOCTEXT("ESkillEffectType_SpellDamageDebuff", "Spell Damage Down");
     case ESkillEffectType::StatusMultiplierBuff:
-        return LOCTEXT("ESkillEffectType_StatusMultiplierBuff", "Status Multiplier Buff");
+        return LOCTEXT("ESkillEffectType_StatusMultiplierBuff", "Status Multiplier Up");
     case ESkillEffectType::StatusMultiplierDebuff:
-        return LOCTEXT("ESkillEffectType_StatusMultiplierDebuff", "Status Multiplier Debuff");
+        return LOCTEXT("ESkillEffectType_StatusMultiplierDebuff", "Status Multiplier Down");
     case ESkillEffectType::CritChanceBuff:
-        return LOCTEXT("ESkillEffectType_CritChanceBuff", "Crit Chance Buff");
+        return LOCTEXT("ESkillEffectType_CritChanceBuff", "Crit Chance Up");
     case ESkillEffectType::CritChanceDebuff:
-        return LOCTEXT("ESkillEffectType_CritChanceDebuff", "Crit Chance Debuff");
+        return LOCTEXT("ESkillEffectType_CritChanceDebuff", "Crit Chance Down");
     case ESkillEffectType::SpellSpeedBuff:
-        return LOCTEXT("ESkillEffectType_SpellSpeedBuff", "Spell Speed Buff");
+        return LOCTEXT("ESkillEffectType_SpellSpeedBuff", "Spell Speed Up");
     case ESkillEffectType::SpellSpeedDebuff:
-        return LOCTEXT("ESkillEffectType_SpellSpeedDebuff", "Spell Speed Debuff");
+        return LOCTEXT("ESkillEffectType_SpellSpeedDebuff", "Spell Speed Down");
     case ESkillEffectType::DefenseBuff:
-        return LOCTEXT("ESkillEffectType_DefenseBuff", "Defense Buff");
+        return LOCTEXT("ESkillEffectType_DefenseBuff", "Defence Up");
     case ESkillEffectType::ActionSpeedBuff:
-        return LOCTEXT("ESkillEffectType_ActionSpeedBuff", "Action Speed Buff");
+        return LOCTEXT("ESkillEffectType_ActionSpeedBuff", "Action Speed Up");
     case ESkillEffectType::ActionSpeedDebuff:
-        return LOCTEXT("ESkillEffectType_ActionSpeedDebuff", "Action Speed Debuff");
+        return LOCTEXT("ESkillEffectType_ActionSpeedDebuff", "Action Speed Down");
     case ESkillEffectType::RawDamageBuff:
-        return LOCTEXT("ESkillEffectType_RawDamageBuff", "Raw Damage Buff");
+        return LOCTEXT("ESkillEffectType_RawDamageBuff", "Raw Damage Up");
     case ESkillEffectType::RawDamageDebuff:
-        return LOCTEXT("ESkillEffectType_RawDamageDebuff", "Raw Damage Debuff");
+        return LOCTEXT("ESkillEffectType_RawDamageDebuff", "Raw Damage Down");
     case ESkillEffectType::MaxEnergyBuff:
-        return LOCTEXT("ESkillEffectType_MaxEnergyBuff", "Max Energy Buff");
+        return LOCTEXT("ESkillEffectType_MaxEnergyBuff", "Max EP Up");
     case ESkillEffectType::MaxEnergyDebuff:
-        return LOCTEXT("ESkillEffectType_MaxEnergyDebuff", "Max Energy Debuff");
+        return LOCTEXT("ESkillEffectType_MaxEnergyDebuff", "Max EP Down");
     case ESkillEffectType::ResistanceBuff:
-        return LOCTEXT("ESkillEffectType_ResistanceBuff", "Resistance Buff");
+        return LOCTEXT("ESkillEffectType_ResistanceBuff", "Resistance Up");
     case ESkillEffectType::ResistanceDebuff:
-        return LOCTEXT("ESkillEffectType_ResistanceDebuff", "Resistance Debuff");
+        return LOCTEXT("ESkillEffectType_ResistanceDebuff", "Resistance Down");
     case ESkillEffectType::SpellSizeBuff:
-        return LOCTEXT("ESkillEffectType_SpellSizeBuff", "Spell Size Buff");
+        return LOCTEXT("ESkillEffectType_SpellSizeBuff", "Spell Size Up");
     case ESkillEffectType::SpellSizeDebuff:
-        return LOCTEXT("ESkillEffectType_SpellSizeDebuff", "Spell Size Debuff");
+        return LOCTEXT("ESkillEffectType_SpellSizeDebuff", "Spell Size Down");
     case ESkillEffectType::TurnSpeedBuff:
-        return LOCTEXT("ESkillEffectType_TurnSpeedBuff", "Turn Speed Buff");
+        return LOCTEXT("ESkillEffectType_TurnSpeedBuff", "Turn Speed Up");
     case ESkillEffectType::TurnSpeedDebuff:
-        return LOCTEXT("ESkillEffectType_TurnSpeedDebuff", "Turn Speed Debuff");
+        return LOCTEXT("ESkillEffectType_TurnSpeedDebuff", "Turn Speed Down");
     case ESkillEffectType::LuckBuff:
-        return LOCTEXT("ESkillEffectType_LuckBuff", "Luck Buff");
+        return LOCTEXT("ESkillEffectType_LuckBuff", "Luck Up");
     case ESkillEffectType::LuckDebuff:
-        return LOCTEXT("ESkillEffectType_LuckDebuff", "Luck Debuff");
+        return LOCTEXT("ESkillEffectType_LuckDebuff", "Luck Down");
     case ESkillEffectType::DamageBuff:
-        return LOCTEXT("ESkillEffectType_DamageBuff", "Damage Buff (Generic)");
+        return LOCTEXT("ESkillEffectType_DamageBuff", "Damage Up");
     case ESkillEffectType::DamageDebuff:
-        return LOCTEXT("ESkillEffectType_DamageDebuff", "Damage Debuff (Generic)");
+        return LOCTEXT("ESkillEffectType_DamageDebuff", "Damage Down");
     case ESkillEffectType::SpeedBuff:
-        return LOCTEXT("ESkillEffectType_SpeedBuff", "Speed Buff (Generic)");
+        return LOCTEXT("ESkillEffectType_SpeedBuff", "Speed Up");
     case ESkillEffectType::EnergyRestore:
-        return LOCTEXT("ESkillEffectType_EnergyRestore", "Energy Restore");
+        return LOCTEXT("ESkillEffectType_EnergyRestore", "EP Restore");
     case ESkillEffectType::EnergyDrain:
-        return LOCTEXT("ESkillEffectType_EnergyDrain", "Energy Drain");
+        return LOCTEXT("ESkillEffectType_EnergyDrain", "EP Drain");
     case ESkillEffectType::HealthRestore:
         return LOCTEXT("ESkillEffectType_HealthRestore", "Health Restore");
     case ESkillEffectType::Heal:
-        return LOCTEXT("ESkillEffectType_Heal", "Heal (Instant)");
+        return LOCTEXT("ESkillEffectType_Heal", "Heal");
     case ESkillEffectType::RetaliationDamage:
         return LOCTEXT("ESkillEffectType_RetaliationDamage", "Retaliation Damage");
     case ESkillEffectType::SelfDamage:
         return LOCTEXT("ESkillEffectType_SelfDamage", "Self Damage");
     case ESkillEffectType::Cleanse:
-        return LOCTEXT("ESkillEffectType_Cleanse", "Cleanse (Remove All Debuffs)");
+        return LOCTEXT("ESkillEffectType_Cleanse", "Cleanse");
     case ESkillEffectType::RemoveSpeedDebuff:
         return LOCTEXT("ESkillEffectType_RemoveSpeedDebuff", "Remove Speed Debuff");
     case ESkillEffectType::RemoveDamageDebuff:
         return LOCTEXT("ESkillEffectType_RemoveDamageDebuff", "Remove Damage Debuff");
     case ESkillEffectType::RemoveDefenseDebuff:
-        return LOCTEXT("ESkillEffectType_RemoveDefenseDebuff", "Remove Defense Debuff");
+        return LOCTEXT("ESkillEffectType_RemoveDefenseDebuff", "Remove Defence Debuff");
     case ESkillEffectType::Stun:
-        return LOCTEXT("ESkillEffectType_Stun", "Stun (Attack/Defend Only)");
+        return LOCTEXT("ESkillEffectType_Stun", "Stun");
     case ESkillEffectType::HealBlock:
         return LOCTEXT("ESkillEffectType_HealBlock", "Heal Block");
     case ESkillEffectType::Silenced:
         return LOCTEXT("ESkillEffectType_Silenced", "Silenced");
     case ESkillEffectType::RandomSkill:
-        return LOCTEXT("ESkillEffectType_RandomSkill", "Random Skill (Loss of Control)");
+        return LOCTEXT("ESkillEffectType_RandomSkill", "Confuse");
     case ESkillEffectType::ModifyDamageDealt:
         return LOCTEXT("ESkillEffectType_ModifyDamageDealt", "Damage Up");
     case ESkillEffectType::ReduceDamageTaken:
-        return LOCTEXT("ESkillEffectType_ReduceDamageTaken", "Reduce Damage Taken");
+        return LOCTEXT("ESkillEffectType_ReduceDamageTaken", "Damage Taken Down");
     case ESkillEffectType::ModifyHealing:
         return LOCTEXT("ESkillEffectType_ModifyHealing", "Healing Up");
     case ESkillEffectType::ModifyCritChance:
@@ -182,7 +182,7 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::ModifyCritDamage:
         return LOCTEXT("ESkillEffectType_ModifyCritDamage", "Crit Damage Up");
     case ESkillEffectType::ModifyEnergyCost:
-        return LOCTEXT("ESkillEffectType_ModifyEnergyCost", "Energy Cost Down");
+        return LOCTEXT("ESkillEffectType_ModifyEnergyCost", "EP Cost Down");
     case ESkillEffectType::ModifyTurnSpeed:
         return LOCTEXT("ESkillEffectType_ModifyTurnSpeed", "Turn Speed Up");
     case ESkillEffectType::ModifyStatusResist:
@@ -190,11 +190,11 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::RestoreHPPercent:
         return LOCTEXT("ESkillEffectType_RestoreHPPercent", "Restore HP %");
     case ESkillEffectType::RestoreEnergyPercent:
-        return LOCTEXT("ESkillEffectType_RestoreEnergyPercent", "Restore Energy %");
+        return LOCTEXT("ESkillEffectType_RestoreEnergyPercent", "Restore EP %");
     case ESkillEffectType::DrainHP:
         return LOCTEXT("ESkillEffectType_DrainHP", "Drain HP");
     case ESkillEffectType::DrainEnergy:
-        return LOCTEXT("ESkillEffectType_DrainEnergy", "Drain Energy");
+        return LOCTEXT("ESkillEffectType_DrainEnergy", "Drain EP");
     case ESkillEffectType::DamageReflect:
         return LOCTEXT("ESkillEffectType_DamageReflect", "Reflect");
     case ESkillEffectType::ReflectPhysicalDamage:
@@ -204,9 +204,9 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::Lifesteal:
         return LOCTEXT("ESkillEffectType_Lifesteal", "Lifesteal");
     case ESkillEffectType::AbsorbDamage:
-        return LOCTEXT("ESkillEffectType_AbsorbDamage", "Absorb");
+        return LOCTEXT("ESkillEffectType_AbsorbDamage", "Barrier");
     case ESkillEffectType::GrantDOTImmunity:
-        return LOCTEXT("ESkillEffectType_GrantDOTImmunity", "DOT Immunity");
+        return LOCTEXT("ESkillEffectType_GrantDOTImmunity", "DoT Immunity");
     case ESkillEffectType::GrantStunImmunity:
         return LOCTEXT("ESkillEffectType_GrantStunImmunity", "Stun Immunity");
     case ESkillEffectType::GrantSilenceImmunity:
@@ -246,41 +246,41 @@ FText GetSkillEffectTypeName(ESkillEffectType EffectType)
     case ESkillEffectType::GuaranteedCrit:
         return LOCTEXT("ESkillEffectType_GuaranteedCrit", "Guaranteed Crit");
     case ESkillEffectType::IgnoreDefense:
-        return LOCTEXT("ESkillEffectType_IgnoreDefense", "Ignore Defense");
+        return LOCTEXT("ESkillEffectType_IgnoreDefense", "Ignore Defence");
     case ESkillEffectType::DoubleHit:
         return LOCTEXT("ESkillEffectType_DoubleHit", "Double Hit");
     case ESkillEffectType::LastStand:
         return LOCTEXT("ESkillEffectType_LastStand", "Last Stand");
     case ESkillEffectType::IncreaseDamageTaken:
-        return LOCTEXT("ESkillEffectType_IncreaseDamageTaken", "Increase Damage Taken");
+        return LOCTEXT("ESkillEffectType_IncreaseDamageTaken", "Damage Taken Up");
     case ESkillEffectType::StatusIncrease:
-        return LOCTEXT("ESkillEffectType_StatusIncrease", "Status Increase (Build Gauge)");
+        return LOCTEXT("ESkillEffectType_StatusIncrease", "Buildup Up");
     case ESkillEffectType::StatusDecrease:
-        return LOCTEXT("ESkillEffectType_StatusDecrease", "Status Decrease (Reduce Gauge)");
+        return LOCTEXT("ESkillEffectType_StatusDecrease", "Buildup Down");
     case ESkillEffectType::EfficiencyBuff:
-        return LOCTEXT("ESkillEffectType_EfficiencyBuff", "Efficiency Buff");
+        return LOCTEXT("ESkillEffectType_EfficiencyBuff", "Efficiency Up");
     case ESkillEffectType::EfficiencyDebuff:
-        return LOCTEXT("ESkillEffectType_EfficiencyDebuff", "Efficiency Debuff");
+        return LOCTEXT("ESkillEffectType_EfficiencyDebuff", "Efficiency Down");
     case ESkillEffectType::MaxHPBuff:
-        return LOCTEXT("ESkillEffectType_MaxHPBuff", "Max HP Buff");
+        return LOCTEXT("ESkillEffectType_MaxHPBuff", "Max HP Up");
     case ESkillEffectType::MaxHPDebuff:
-        return LOCTEXT("ESkillEffectType_MaxHPDebuff", "Max HP Debuff");
+        return LOCTEXT("ESkillEffectType_MaxHPDebuff", "Max HP Down");
     case ESkillEffectType::CritDamageDebuff:
-        return LOCTEXT("ESkillEffectType_CritDamageDebuff", "Crit Damage Debuff");
+        return LOCTEXT("ESkillEffectType_CritDamageDebuff", "Crit Damage Down");
     case ESkillEffectType::ReflexBuff:
-        return LOCTEXT("ESkillEffectType_ReflexBuff", "Reflex Buff");
+        return LOCTEXT("ESkillEffectType_ReflexBuff", "Reflex Up");
     case ESkillEffectType::ReflexDebuff:
-        return LOCTEXT("ESkillEffectType_ReflexDebuff", "Reflex Debuff");
+        return LOCTEXT("ESkillEffectType_ReflexDebuff", "Reflex Down");
     case ESkillEffectType::HealingReceivedBuff:
         return LOCTEXT("ESkillEffectType_HealingReceivedBuff", "Healing Boost");
     case ESkillEffectType::PushBack:
-        return LOCTEXT("ESkillEffectType_PushBack", "Push Back (one row)");
+        return LOCTEXT("ESkillEffectType_PushBack", "Push Back");
     case ESkillEffectType::PullForward:
-        return LOCTEXT("ESkillEffectType_PullForward", "Pull Forward (one row)");
+        return LOCTEXT("ESkillEffectType_PullForward", "Pull Forward");
     case ESkillEffectType::GrantElementImmunity:
         return LOCTEXT("ESkillEffectType_GrantElementImmunity", "Element Immunity");
     case ESkillEffectType::ApplyDOTOnHit:
-        return LOCTEXT("ESkillEffectType_ApplyDOTOnHit", "Apply Damage over Time");
+        return LOCTEXT("ESkillEffectType_ApplyDOTOnHit", "Apply DoT");
     // B-042j2 (D-092): the absorbing family.
     case ESkillEffectType::NegateDamage:
         return LOCTEXT("ESkillEffectType_NegateDamage", "Barrier");
@@ -428,19 +428,19 @@ FText GetMerchantTypeName(EMerchantType MerchantType)
     switch (MerchantType)
     {
     case EMerchantType::Blacksmith:
-        return LOCTEXT("EMerchantType_Blacksmith", "Blacksmith (weapons, augment stones)");
+        return LOCTEXT("EMerchantType_Blacksmith", "Blacksmith");
     case EMerchantType::Jeweler:
-        return LOCTEXT("EMerchantType_Jeweler", "Jeweler (adapters, item slots)");
+        return LOCTEXT("EMerchantType_Jeweler", "Jeweler");
     case EMerchantType::CombatMaster:
-        return LOCTEXT("EMerchantType_CombatMaster", "Combat Master (abilities)");
+        return LOCTEXT("EMerchantType_CombatMaster", "Combat Master");
     case EMerchantType::SpellShop:
-        return LOCTEXT("EMerchantType_SpellShop", "Spell Shop (spells)");
+        return LOCTEXT("EMerchantType_SpellShop", "Spell Shop");
     case EMerchantType::Spiritualist:
-        return LOCTEXT("EMerchantType_Spiritualist", "Spiritualist (evolutions, crystals, repairs)");
+        return LOCTEXT("EMerchantType_Spiritualist", "Spiritualist");
     case EMerchantType::StoneSmith:
-        return LOCTEXT("EMerchantType_StoneSmith", "Stone Smith (augment stones)");
+        return LOCTEXT("EMerchantType_StoneSmith", "Stone Smith");
     case EMerchantType::LoadoutVendor:
-        return LOCTEXT("EMerchantType_LoadoutVendor", "Loadout Vendor (purchase loadout)");
+        return LOCTEXT("EMerchantType_LoadoutVendor", "Loadout Vendor");
     }
     return FText::GetEmpty();
 }
@@ -653,7 +653,7 @@ FText WoRGameNames::GetCrystalTypeName(ECrystalType Type)
         return LOCTEXT("ECrystalType_StatStone", "Stat Stone");
     // Retired single-stat kinds (B-353): still named, since an old asset can hold one until it is normalized.
     case ECrystalType::DefenseStone:
-        return LOCTEXT("ECrystalType_DefenseStone", "Defense Stone");
+        return LOCTEXT("ECrystalType_DefenseStone", "Defence Stone");
     case ECrystalType::CritStone:
         return LOCTEXT("ECrystalType_CritStone", "Crit Stone");
     case ECrystalType::TurnSpeedStone:
