@@ -126,6 +126,7 @@ FFormsScreenPage WoRFormsScreen::BuildPage(UWorld *World)
 		{
 			return Inventory->OwnsRingAsset(Ring);
 		}
+		// HasAbility / HasSpell take a non-const pointer but only compare it.
 		if (const UAbilityData *Ability = Cast<UAbilityData>(Asset))
 		{
 			return Inventory->Abilities.HasAbility(const_cast<UAbilityData *>(Ability));

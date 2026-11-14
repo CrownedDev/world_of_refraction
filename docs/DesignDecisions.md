@@ -877,6 +877,16 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-444 — Spirit of {character}: when a character counts as met, where the screen opens
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-444, D-184, D-181) · **Blocks:** —
+**Question:** the mockup shows unmet characters as "???", but the code has no "met" record; and the screen has no menu row yet.
+**Answer**, by the reference-backed default (Crown may change any):
+- **A character counts as met once their meter has moved or you own or wear one of their pieces.** Until then the row is "???" with no pieces. Hades' codex and Monster Hunter's monster list stay blank until the first encounter, then fill in; this uses what the code already tracks instead of a new record.
+- **Their pieces show by name once you own or wear them; the rest are "?"; the unlock at 100% names them all** (the reveal, CharacterForms.md §1). Mortal Shell's shells reveal their lore the same way, piece by piece.
+- **A on your own form takes a skin off; A on an unlocked form wears it; Y switches the base body.** Refusals (locked, in a fight, not at a rest spot) show in amber with the code's reason.
+- **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
+- **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
+
 ### Q-440d — The Skills page: how it is reached, which lists it shows, what X does
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440d, D-181, D-145) · **Blocks:** —
 **Question:** the mockup draws a Refractor's innate spells by school but not how the page and its lists are reached, what the other classes see, what Change lists, or what X does to a slot.
