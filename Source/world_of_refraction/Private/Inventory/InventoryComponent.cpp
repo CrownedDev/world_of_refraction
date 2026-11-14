@@ -2323,6 +2323,81 @@ bool UInventoryComponent::AttachCrystalToRing(FGuid RingPersistentID, FCrystalId
     return AttachCrystalToGear(Rings, RingPersistentID, Id, TEXT("AttachCrystalToRing"));
 }
 
+namespace InventoryApparelSocket
+{
+	/** The store and the owned piece whose socket is empty, or null (with the reason logged). */
+	UPoolSubsystem *FindEmptyApparelSocket(const UInventoryComponent &Inventory, const FGuid &ApparelID, const TCHAR *Op)
+	{
+		const UWorld *World = Inventory.GetWorld();
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+		const FApparelEntry *Piece = Pool ? Pool->FindApparelInPool(ApparelID) : nullptr;
+		if (!Piece)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: apparel %s is not owned"), Op, *ApparelID.ToString());
+			return nullptr;
+		}
+		if (!Piece->AttachedItem.IsEmpty())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: apparel %s's socket is full"), Op, *ApparelID.ToString());
+			return nullptr;
+		}
+		return Pool;
+	}
+}
+
+bool UInventoryComponent::AttachCrystalToApparel(FGuid ApparelPersistentID, FCrystalId Id)
+{
+	const TCHAR *const Op = TEXT("AttachCrystalToApparel");
+	if (!GearOpHasAuthority(GetOwner(), Op))
+	{
+		return false;
+	}
+	UPoolSubsystem *Pool = InventoryApparelSocket::FindEmptyApparelSocket(*this, ApparelPersistentID, Op);
+	const FRuntimeAttachedItem Attachment = MakeCrystalAttachment(Id, /*bIsStone=*/!CrystalTypeHelpers::IsGemType(Id.Type));
+	if (!Pool || !ApparelRules::CanSocket(Attachment))
+	{
+		return false; // nothing debited
+	}
+	// DEBIT BEFORE WRITE, as for a weapon: the gem leaves the pouch, then the store sockets it (it was checked above).
+	if (!CommitRemoveCrystals({Id}))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s not carried - nothing debited"), Op, *ItemIdentity::GetDisplayName(Id));
+		return false;
+	}
+	if (!Pool->AttachToApparel(ApparelPersistentID, Attachment))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[InventoryComponent] %s: the store refused %s after the debit"), Op, *ItemIdentity::GetDisplayName(Id));
+		return false;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Socketed %s into apparel %s"), *ItemIdentity::GetDisplayName(Id), *ApparelPersistentID.ToString());
+	BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+	return true;
+}
+
+bool UInventoryComponent::AttachEvolutionToApparel(FGuid ApparelPersistentID, FGuid EvoInstanceID)
+{
+	const TCHAR *const Op = TEXT("AttachEvolutionToApparel");
+	if (!GearOpHasAuthority(GetOwner(), Op) || !EvoInstanceID.IsValid())
+	{
+		return false;
+	}
+	const FEvolutionInventoryEntry *Entry = FindOwnedEvolution(GetOwner(), EvoInstanceID);
+	if (!Entry || !Entry->Item || IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: evolution %s not owned, or in use"), Op, *EvoInstanceID.ToString());
+		return false;
+	}
+	UPoolSubsystem *Pool = InventoryApparelSocket::FindEmptyApparelSocket(*this, ApparelPersistentID, Op);
+	if (!Pool || !Pool->AttachToApparel(ApparelPersistentID, MakeEvolutionAttachment(*Entry, EvoInstanceID)))
+	{
+		return false;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s to apparel %s"), *EvoInstanceID.ToString(), *ApparelPersistentID.ToString());
+	BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+	return true;
+}
+
 bool UInventoryComponent::CommitRemoveCrystals(const TArray<FCrystalId> &Ids)
 {
     if (Ids.Num() == 0)
