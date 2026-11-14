@@ -984,6 +984,15 @@ The queue of questions only Crown can answer.
 - **No delete here** (not in the job; `ULoadoutComponent::DeleteLoadout` exists): a full list says to rename or change one.
 - **Two loadouts may share a name** (Destiny 2 allows it too); only a new one's "Loadout N" skips names in use.
 
+### Q-440f — Changing apparel on the loadout screen: what the list shows, how a piece comes off
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-440f, D-164) · **Blocks:** —
+**Question:** the job says an apparel row picks an owned piece or takes one off, but not which pieces are listed, whether taking one off asks first, or what a lore loadout does.
+**Answer**, by the reference-backed default (Crown may change any):
+- **On the v2 screen apparel is its own tab** (LB / RB; UIScreens #2, B-479) that works like Weapons: A on a worn piece or on the Add apparel frame opens the list of pieces (the first build did this with A / X on the old screen's rows).
+- **The list shows the character's own pieces** (the store's owner is that character), less those already worn in this loadout; a piece with a stone in its socket is listed but refused. Gear is a view over the store by owner (CL-09), as the weapon list already works.
+- **A Remove on the EQUIPPED line takes a piece off in one press**: nothing is lost (it stays owned), unlike a socket's gem (Q-440c asks twice because that destroys it). Elden Ring and Diablo IV unequip armour in one press.
+- **A lore loadout can't change apparel yet**: its apparel isn't saved until B-380e, so a change would be lost on reload (the same guard as `wor.Loadout.WearApparel`). The screen says to duplicate it.
+
 ### Q-440c — The socket picker: how a socket is reached, what it lists, what taking a gem off costs
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440c, D-181, D-141, CL-28b) · **Blocks:** —
 **Question:** the mockup draws the picker for an empty crystal socket but not how the D-pad reaches a socket, what fills a filled one, or how taking a socketed gem off is shown when the code destroys it (CL-28b, the debit model).
