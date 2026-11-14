@@ -3,6 +3,7 @@
 // in the journal (keyed by memory id, the same ids reaction triggers and bosses read). Any number
 // of these assets, gathered by the asset registry. Placeholder text only; the story is Crown's.
 // Shown by the placeholder hub journal (UMemoryJournalWidget). Debug: PrintStory, wor.Story.Print.
+// B-471c: V's lines are heard in the vendors' talk box (UNpcTalkWidget, WoRNpcTalk), by TopicName.
 
 #pragma once
 
@@ -28,6 +29,10 @@ struct WORLD_OF_REFRACTION_API FVLine
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story", meta = (MultiLine = true))
 	FText Text;
+
+	/** B-471c (D-178): the short name the line sits under in the talk box's Talk ("Trials"). Empty: "Topic n". */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Story")
+	FText TopicName;
 };
 
 /** A talk between characters (Expedition 33 camp style), unlocked like a V line. */
