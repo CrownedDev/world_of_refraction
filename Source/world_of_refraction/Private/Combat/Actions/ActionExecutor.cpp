@@ -983,6 +983,15 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		}
 		return;
 	}
+	// B-474 (D-207): an ability of the weapon not in hand makes that weapon active first (free, ET-19), so it is
+	// validated and runs with its own weapon. The menu offers those abilities only while the player's setting is on.
+	if (Action.ActionType == EActionType::Ability && Actor && !Action.bIsDeferredFire)
+	{
+		if (ULoadoutComponent *SkillLoadout = Actor->FindComponentByClass<ULoadoutComponent>())
+		{
+			SkillLoadout->SwitchToWeaponOfSkill(Action.SkillData);
+		}
+	}
 	// Validate action
 	FActionValidationResult Validation = ValidateAction(Actor, Action);
 	if (!Validation.bIsValid)
