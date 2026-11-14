@@ -38,6 +38,8 @@ public:
 	void MoveSelection(int32 Delta);
 	/** A: the lit choice; the screen closes when the recruit joins, a refusal stays on screen. */
 	void PressInvite();
+	/** B, Esc: closes the card ("Not now"). */
+	void PressBack() { HandleBackAction(); }
 
 	const FRecruitCard &GetCard() const { return Card; }
 	const FText &GetMessage() const { return Message; }
