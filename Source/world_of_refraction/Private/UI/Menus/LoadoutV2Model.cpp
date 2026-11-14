@@ -215,6 +215,8 @@ namespace LoadoutV2Build
 	}
 
 	/** A gear piece's effects: the ET-50 tree, or its short forms in the simple view. */
+	void AddEffectList(TArray<FLoadoutV2DetailLine> &Lines, const TArray<FSkillEffect> &Effects, bool bSimple);
+
 	void AddEffects(TArray<FLoadoutV2DetailLine> &Lines, const UEquipmentDataBase *Piece, bool bSimple)
 	{
 		if (!Piece)
@@ -223,6 +225,12 @@ namespace LoadoutV2Build
 		}
 		TArray<FSkillEffect> Effects = Piece->GetStartingEffects();
 		Effects.Append(Piece->GetConditionalEffects());
+		AddEffectList(Lines, Effects, bSimple);
+	}
+
+	/** B-476e: an effect list as the ET-50 tree, or its short forms in the simple view (gear wording: "Passive"). */
+	void AddEffectList(TArray<FLoadoutV2DetailLine> &Lines, const TArray<FSkillEffect> &Effects, bool bSimple)
+	{
 		if (Effects.IsEmpty())
 		{
 			return;
@@ -993,7 +1001,13 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildEntryDetails(const FCombatLoadou
 			}
 		}
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailSpells", "Spells"), FText::Join(LOCTEXT("NameSeparator", ", "), Spells));
-		// TODO: B-476d: the evolution's passives as the ET-50 tree (its effects live per infusion on UEvolutionItemData).
+		// B-476e: the evolution's passives (its referenced effects), as the gear's are.
+		if (Evolution)
+		{
+			TArray<FSkillEffect> Effects = Evolution->GetStartingEffects();
+			Effects.Append(Evolution->GetConditionalEffects());
+			AddEffectList(Lines, Effects, bSimple);
+		}
 	}
 	return Lines;
 }
