@@ -130,7 +130,7 @@ void FLevelDropsSpec::Define()
 		TestEqual(TEXT("re-seed keeps the run's level"), Comp->GetWorldStat(EWorldPillar::Mind), LEVEL_DROPS_TEST_ASSET_MIND + 1);
 	});
 
-	It("places and buys points only at a rest spot; the price climbs per character (B-363, Q-156)", [this]()
+	It("places points only at a rest spot; the price climbs per character (B-363, Q-156)", [this]()
 	{
 		if (!TestTrue(TEXT("setup"), Run && Member))
 		{
@@ -139,7 +139,6 @@ void FLevelDropsSpec::Define()
 		Run->AddUnspentLevels(KeyOf(Member), 1);
 		Run->SetAtRestSpot(false);
 		TestFalse(TEXT("away from a rest spot: refused"), WoRLevelDrops::TryPlaceLevel(TestWorld->GetWorld(), PartyOf(Member), EWorldPillar::Body).IsEmpty());
-		TestFalse(TEXT("buying too"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member)).IsEmpty());
 		TestEqual(TEXT("the point still waits"), Run->GetUnspentLevels(KeyOf(Member)), 1);
 		Run->SetAtRestSpot(true);
 		const int32 First = WoRLevelDrops::GetPointPrice(TestWorld->GetWorld(), PartyOf(Member));
@@ -167,6 +166,7 @@ void FLevelDropsSpec::Define()
 		TestFalse(TEXT("one short: refused"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
 		TestEqual(TEXT("nothing spent"), Wallet->GetBalance(ECurrencyType::Gold), Price - 1);
 		Wallet->Add(ECurrencyType::Gold, 1);
+		Run->SetAtRestSpot(false); // B-447 (D-183): a point is bought from the trial NPC, away from any rest spot
 		TestTrue(TEXT("bought"), WoRLevelDrops::TryBuyPoint(TestWorld->GetWorld(), PartyOf(Member), Wallet).IsEmpty());
 		TestEqual(TEXT("the price spent"), Wallet->GetBalance(ECurrencyType::Gold), 0);
 		TestEqual(TEXT("one more to place"), Run->GetUnspentLevels(KeyOf(Member)), 2);

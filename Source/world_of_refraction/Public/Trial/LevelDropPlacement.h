@@ -42,9 +42,9 @@ namespace WoRLevelDrops
 	/** B-363 (Q-156): the run Prisms Member's next bought point costs: ER-24's ladder per character this run. */
 	WORLD_OF_REFRACTION_API int32 GetPointPrice(const UWorld *World, const FPartyMember &Member);
 
-	/** B-363 (D-156, Q-156): buys Member one unspent point with run Prisms from Wallet (null: the first local player's),
-	 *  at a rest spot. Empty on success, else why not (not at a rest spot, every pillar full (7 and 3 over-cap), too few
-	 *  Prisms). */
+	/** B-363 (D-156, Q-156): buys Member one unspent point with run Prisms from Wallet (null: the first local player's).
+	 *  Empty on success, else why not (every pillar full (7 and 3 over-cap), too few Prisms). B-447 (D-183): not tied
+	 *  to the rest spot any more; the player's way in is the trial NPC who sells points (WoRTrialNPC::TryBuyPointAt). */
 	WORLD_OF_REFRACTION_API FText TryBuyPoint(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet = nullptr);
 
 	/** Debug: the run's levels, the unspent count and each party member's live pillars. */
