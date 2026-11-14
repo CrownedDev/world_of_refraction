@@ -76,6 +76,38 @@ void FLoadoutV2ScreenSpec::Define()
 		Screen->PressBack();
 		Again->PressBack();
 	});
+
+	It("takes the mouse's clicks: a tab chip turns the tab, a greyed one says later; nothing to click with no party (B-482)", [this]()
+	{
+		FWoRTestWorld TestWorld;
+		if (!TestTrue(TEXT("world"), TestWorld.Create()))
+		{
+			return;
+		}
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(TestWorld.GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		Screen->ClickTabChip(LoadoutV2Chip_Apparel);
+		TestTrue(TEXT("the Apparel chip"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
+		Screen->ClickTabChip(LoadoutV2Chip_Apparel);
+		TestTrue(TEXT("again: stays"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
+		Screen->ClickTabChip(LoadoutV2Chip_Skills);
+		TestTrue(TEXT("Skills is not built: the tab stays"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
+		TestFalse(TEXT("and it says so"), Screen->GetMessage().IsEmpty());
+		Screen->ClickTabChip(LoadoutV2Chip_Weapons);
+		TestTrue(TEXT("the Weapons chip"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
+		Screen->ClickTabChip(LoadoutV2Chip_Cosmetics);
+		TestTrue(TEXT("Cosmetics is not built either"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
+		Screen->ClickMemberChip(1);
+		Screen->ClickLine(0);
+		Screen->ClickLine(INDEX_NONE);
+		TestTrue(TEXT("no character, no line: nothing opens"), Screen->GetMode() == ELoadoutV2Mode::List && !Screen->IsAdding());
+		Screen->PressBack();
+		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

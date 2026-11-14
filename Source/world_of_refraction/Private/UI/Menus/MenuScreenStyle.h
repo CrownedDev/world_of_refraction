@@ -20,6 +20,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
+#include "UI/Menus/MenuChipRow.h"
 #include "UI/WoRKeyHintText.h"
 
 namespace WoRMenuStyle
@@ -51,6 +52,8 @@ namespace WoRMenuStyle
 	// marks); was teal. CyanColor keeps its name so every screen reads it unchanged.
 	inline const FLinearColor FocusColor = FLinearColor::FromSRGBColor(FColor(0x5B, 0x3A, 0x99));
 	inline const FLinearColor CyanColor = FLinearColor::FromSRGBColor(FColor(0xCD, 0xB8, 0xFF));
+	/** B-482: a chip or row under the mouse: between the plate and the focus violet. */
+	inline const FLinearColor HoverColor = FLinearColor::FromSRGBColor(FColor(70, 62, 96));
 	inline const FLinearColor TextColor = FLinearColor::FromSRGBColor(FColor(238, 241, 245));
 	inline const FLinearColor DimColor = FLinearColor::FromSRGBColor(FColor(169, 175, 184));
 	inline const FLinearColor OffColor = FLinearColor::FromSRGBColor(FColor(107, 112, 120));
@@ -210,5 +213,89 @@ namespace WoRMenuStyle
 		{
 			Widget->SetVisibility(bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 		}
+	}
+
+	// ==================== CHIP ROW (B-482; FChipRow / FChipState: UI/Menus/MenuChipRow.h) ====================
+
+	/** Builds a row of Count chips between PrevKeyPattern and NextKeyPattern (key-hint patterns: "{TabPrev}"). */
+	inline UHorizontalBox *MakeChipRow(UWidgetTree *Tree, int32 Count, const FText &PrevKeyPattern, const FText &NextKeyPattern, FChipRow &OutRow)
+	{
+		UHorizontalBox *Row = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		AddToRow(Row, MakeKeyLabel(Tree, PrevKeyPattern), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			UTextBlock *Label = nullptr;
+			UBorder *Chip = MakeTab(Tree, Label);
+			UTextBlock *Note = MakeText(Tree, SmallFontSize, OffColor);
+			AddToRow(Row, Chip, FMargin(0.0f, 0.0f, TabGap, 0.0f));
+			AddToRow(Row, Note, FMargin(0.0f, 0.0f, TabGap, 0.0f), VAlign_Top);
+			OutRow.Chips.Add(Chip);
+			OutRow.Labels.Add(Label);
+			OutRow.Notes.Add(Note);
+		}
+		AddToRow(Row, MakeKeyLabel(Tree, NextKeyPattern), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
+		return Row;
+	}
+
+	/** Names and colours the chips: one per state (the rest hidden); Current is filled, Hovered lit. */
+	inline void SetChips(const FChipRow &Row, TConstArrayView<FChipState> States, int32 Current, int32 Hovered = INDEX_NONE)
+	{
+		for (int32 Index = 0; Index < Row.Chips.Num(); ++Index)
+		{
+			UBorder *Chip = Row.Chips[Index].Get();
+			UTextBlock *Label = Row.Labels[Index].Get();
+			UTextBlock *Note = Row.Notes[Index].Get();
+			const bool bShown = States.IsValidIndex(Index);
+			SetShown(Chip, bShown);
+			SetShown(Note, bShown && !States[Index].Note.IsEmpty());
+			if (!bShown || !Chip || !Label || !Note)
+			{
+				continue;
+			}
+			const FChipState &State = States[Index];
+			const bool bCurrent = Index == Current && !State.bGreyed;
+			Chip->SetBrushColor(bCurrent ? FocusColor : Index == Hovered && !State.bGreyed ? HoverColor : PlateColor);
+			Label->SetText(State.Name);
+			Label->SetColorAndOpacity(FSlateColor(State.bGreyed ? OffColor : bCurrent ? TextColor : DimColor));
+			Note->SetText(State.Note);
+		}
+	}
+
+	/** Debug: the row as it shows: "[Weapons] Skills (later) Apparel", the filled chip in brackets, hidden chips left out. */
+	inline FString GetChipRowString(const FChipRow &Row)
+	{
+		FString Out;
+		for (int32 Index = 0; Index < Row.Chips.Num(); ++Index)
+		{
+			const UBorder *Chip = Row.Chips[Index].Get();
+			const UTextBlock *Label = Row.Labels[Index].Get();
+			const UTextBlock *Note = Row.Notes[Index].Get();
+			if (!Chip || !Label || Chip->GetVisibility() == ESlateVisibility::Collapsed)
+			{
+				continue;
+			}
+			const FString Name = Label->GetText().ToString();
+			Out += Out.IsEmpty() ? TEXT("") : TEXT(" ");
+			Out += Chip->GetBrushColor() == FocusColor ? FString::Printf(TEXT("[%s]"), *Name) : Name;
+			if (Note && Note->GetVisibility() != ESlateVisibility::Collapsed)
+			{
+				Out += FString::Printf(TEXT(" (%s)"), *Note->GetText().ToString());
+			}
+		}
+		return Out;
+	}
+
+	/** The shown chip under ScreenPosition; INDEX_NONE for none (and before the row is drawn). */
+	inline int32 FindChipUnder(const FChipRow &Row, const FVector2D &ScreenPosition)
+	{
+		for (int32 Index = 0; Index < Row.Chips.Num(); ++Index)
+		{
+			const UBorder *Chip = Row.Chips[Index].Get();
+			if (Chip && Chip->IsVisible() && Chip->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+			{
+				return Index;
+			}
+		}
+		return INDEX_NONE;
 	}
 }

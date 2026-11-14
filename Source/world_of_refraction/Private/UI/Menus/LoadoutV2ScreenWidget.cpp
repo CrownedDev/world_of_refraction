@@ -16,6 +16,7 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Party/Party.h"
 #include "Misc/ScopeExit.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/LoadoutApparelModel.h"
@@ -102,6 +103,18 @@ namespace LoadoutV2ScreenStyle
 		return FText::Format(LOCTEXT("ApparelLine", "{0} · {1}"), Row.Tier, Socket && !Socket->bEmpty ? Socket->Name : LOCTEXT("SocketEmpty", "empty"));
 	}
 
+	/** B-482: a click that would confirm an armed ask (Remove all gear, a socket's Remove) waits this long after the
+	 *  click that armed it, so a double click only asks. */
+	constexpr double ARMED_CLICK_DELAY_SECONDS = 0.5;
+
+	/** Skills and Cosmetics aren't built yet: greyed, with "later" (TODO: B-476d builds Skills). */
+	TArray<FChipState> BuildTabChips()
+	{
+		const FText Later = LOCTEXT("ChipLater", "later");
+		return {FChipState{LOCTEXT("ChipWeapons", "Weapons")}, FChipState{LOCTEXT("ChipSkills", "Skills"), true, Later},
+				FChipState{LOCTEXT("ChipApparel", "Apparel")}, FChipState{LOCTEXT("ChipCosmetics", "Cosmetics"), true, Later}};
+	}
+
 	/** The option lines Y opens, in order. */
 	const ELoadoutV2Option OptionOrder[] = {ELoadoutV2Option::SetActive, ELoadoutV2Option::SavedLoadouts, ELoadoutV2Option::RemoveAllGear,
 											ELoadoutV2Option::Help, ELoadoutV2Option::CosmeticsShortcuts};
@@ -138,17 +151,20 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		UVerticalBox *Main = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Screen->SetContent(Main);
 
+		// B-482 (mockup 1_weapons_generic): each character and each tab is a framed chip, LT / RT and LB / RB beside
+		// their row; the loadout's name top right; "Cells used" under them.
 		UHorizontalBox *Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		AddToRow(Header, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
-		MemberText = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		AddToRow(Header, MemberText, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
-		AddToRow(Header, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(0.0f, 0.0f, SectionGap * 2.0f, 0.0f));
-		TabsText = MakeHintText(WidgetTree, RowFontSize, CyanColor, true); // filled in RefreshView (B-440f: the tab in use)
-		// TODO: B-476d: Skills on LB / RB; Cosmetics stays greyed (later).
-		AddToRow(Header, TabsText)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		CellsText = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		AddToRow(Header, CellsText);
+		UVerticalBox *ChipRows = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		AddToColumn(ChipRows, MakeChipRow(WidgetTree, PartyConstants::MAX_PARTY_MEMBERS, LOCTEXT("KeySubTabPrev", "{SubTabPrev}"),
+										  LOCTEXT("KeySubTabNext", "{SubTabNext}"), MemberChips));
+		AddToColumn(ChipRows, MakeChipRow(WidgetTree, LoadoutV2Chip_Count, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips),
+					FMargin(0.0f, LineGap, 0.0f, 0.0f));
+		AddToRow(Header, ChipRows, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		LoadoutNameText = MakeText(WidgetTree, RowFontSize, TextColor, true);
+		AddToRow(Header, LoadoutNameText, FMargin(0.0f), VAlign_Top);
 		AddToColumn(Main, Header);
+		CellsText = MakeText(WidgetTree, RowFontSize, TextColor, true);
+		AddToColumn(Main, CellsText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 
 		TitleText = MakeText(WidgetTree, LineFontSize, DimColor, true);
 		AddToColumn(Main, TitleText, FMargin(0.0f, SectionGap, 0.0f, LineGap));
@@ -164,6 +180,7 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		ListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		AddToRow(Columns, MakeSized(WidgetTree, ListWidth, 0.0f, ListBox), FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
 		UBorder *Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		DetailsBox = Box;
 		Box->SetBrushColor(PanelColor);
 		Box->SetPadding(FMargin(BoxPadding));
 		UVerticalBox *BoxColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -203,7 +220,8 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 	bRenaming = false;
 	WoRMenuStyle::SetShown(NameBox, false);
 	RefreshData();
-	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page));
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s; characters: %s; tabs: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page),
+		   *WoRMenuStyle::GetChipRowString(MemberChips), *WoRMenuStyle::GetChipRowString(TabChips));
 }
 
 UWidget *ULoadoutV2ScreenWidget::NativeGetDesiredFocusTarget() const
@@ -231,6 +249,7 @@ bool ULoadoutV2ScreenWidget::FindActive(ULoadoutComponent *&OutLoadout, UInvento
 
 void ULoadoutV2ScreenWidget::RefreshData()
 {
+	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // B-482: the lines may have changed under the mouse; its next move lights again
 	Members = WoRLoadoutScreen::BuildMembers(GetWorld());
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	Page = FLoadoutV2WeaponsPage();
@@ -241,7 +260,7 @@ void ULoadoutV2ScreenWidget::RefreshData()
 	const FCombatLoadout *Active = nullptr;
 	if (FindActive(Loadout, Inventory, Active))
 	{
-		LoadoutName = FText::FromString(Active->LoadoutName);
+		LoadoutName = WoRLoadoutScreen::FormatLoadoutTitle(Active->LoadoutName, Inventory->ActiveLoadoutIndex + 1, Inventory->SavedLoadouts.Num()); // "Bruiser (2 of 5)"
 		Page = WoRLoadoutV2::BuildWeaponsPage(*Active, Members[MemberIndex].Class);
 		// B-440f: the apparel places as today's gear page lists them (worn first, then the empty ones).
 		ApparelRows = WoRLoadoutScreen::BuildGearPage(*Active, Members[MemberIndex].Class).Rows.FilterByPredicate(&WoRLoadoutApparel::IsApparelRow);
@@ -573,10 +592,16 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	{
 		return; // headless: no tree
 	}
-	MemberText->SetText(Members.IsValidIndex(MemberIndex) ? Members[MemberIndex].Name : FText::GetEmpty());
-	WoRKeyHints::SetHint(TabsText, Tab == ELoadoutV2Tab::Apparel ? LOCTEXT("TabsApparel", "{TabPrev}   Weapons  ·  [ Apparel ]   {TabNext}     (Skills · Cosmetics: later)")
-													: LOCTEXT("TabsWeapons", "{TabPrev}   [ Weapons ]  ·  Apparel   {TabNext}     (Skills · Cosmetics: later)"));
-	CellsText->SetText(LoadoutName.IsEmpty() ? Page.CellsLine : FText::Format(LOCTEXT("NameAndCells", "{0}     {1}"), LoadoutName, Page.CellsLine));
+	// B-482: the character chips and the tab chips (the current one filled, the one under the mouse lit).
+	TArray<FChipState> MemberStates;
+	for (const FLoadoutScreenMember &Member : Members)
+	{
+		MemberStates.Add(FChipState{Member.Name});
+	}
+	SetChips(MemberChips, MemberStates, MemberIndex, HoveredMemberChip);
+	SetChips(TabChips, BuildTabChips(), Tab == ELoadoutV2Tab::Apparel ? LoadoutV2Chip_Apparel : LoadoutV2Chip_Weapons, HoveredTabChip);
+	LoadoutNameText->SetText(LoadoutName);
+	CellsText->SetText(Page.CellsLine);
 	TitleText->SetText(GetTitle());
 	SetShown(TitleText, Mode != ELoadoutV2Mode::List);
 	const int32 Count = GetLineCount();
@@ -605,7 +630,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			continue;
 		}
 		const bool bRefused = IsLineRefused(Index);
-		LineRows[Index]->SetBrushColor(Index == Selected ? FocusColor : PlateColor);
+		LineRows[Index]->SetBrushColor(Index == Selected ? FocusColor : Index == HoveredLine ? HoverColor : PlateColor);
 		LineNames[Index]->SetText(GetLineName(Index));
 		LineNames[Index]->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor)); // refused: stays, greyed
 		WoRKeyHints::SetHint(LineDetails[Index], GetLineDetail(Index));
@@ -650,20 +675,12 @@ void ULoadoutV2ScreenWidget::RefreshView()
 				BoxText.Add({Row->CostLine, false});
 			}
 		}
-		else if (Row)
-		{
-			BoxTitle = LOCTEXT("BoxAddApparel", "Add apparel");
-			BoxText.Add({LOCTEXT("BoxAddApparelLine", "A piece you own. Apparel sits outside the cells."), false});
-		}
+		// B-482: on the Add apparel frame the box stays empty (and so hidden): the frame says what it does.
 	}
 	else
 	{
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
-		BoxTitle = Entry ? Entry->Name : (IsOnAddFrame() ? LOCTEXT("BoxAdd", "Add weapon") : FText::GetEmpty());
-		if (IsOnAddFrame())
-		{
-			BoxText.Add({FText::Format(LOCTEXT("BoxAddLine", "A new entry: a weapon, an adapter or the evolution. {0}"), Page.AddFrameLine), false});
-		}
+		BoxTitle = Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
 		for (const FLoadoutV2DetailLine &Line : Details)
 		{
 			FText Shown;
@@ -686,6 +703,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		}
 	}
 	BoxTitleText->SetText(BoxTitle);
+	// B-482: a box with nothing to say is hidden (the Add frames); Hidden, not collapsed, so the list keeps its place.
+	DetailsBox->SetVisibility(BoxTitle.IsEmpty() && BoxText.IsEmpty() ? ESlateVisibility::Hidden : ESlateVisibility::SelfHitTestInvisible);
 	while (BoxTexts.Num() < BoxText.Num())
 	{
 		UTextBlock *Text = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
@@ -778,6 +797,142 @@ void ULoadoutV2ScreenWidget::MoveMember(int32 Delta)
 	Selected = 0;
 	Message = FText::GetEmpty();
 	RefreshData();
+}
+
+// ==================== THE MOUSE (B-482) ====================
+
+void ULoadoutV2ScreenWidget::ClickTabChip(int32 Chip)
+{
+	using namespace LoadoutV2ScreenStyle;
+	if (Mode != ELoadoutV2Mode::List)
+	{
+		return;
+	}
+	if (Chip == LoadoutV2Chip_Weapons || Chip == LoadoutV2Chip_Apparel)
+	{
+		if ((Chip == LoadoutV2Chip_Apparel) != (Tab == ELoadoutV2Tab::Apparel))
+		{
+			SwitchTab(); // two built tabs: the other one
+		}
+	}
+	else if (Chip == LoadoutV2Chip_Skills || Chip == LoadoutV2Chip_Cosmetics)
+	{
+		Message = LOCTEXT("ChipNotYet", "That tab comes later.");
+		RefreshView();
+	}
+}
+
+void ULoadoutV2ScreenWidget::ClickMemberChip(int32 Chip)
+{
+	if (Mode == ELoadoutV2Mode::List && Members.IsValidIndex(Chip) && Chip != MemberIndex)
+	{
+		MoveMember(Chip - MemberIndex);
+	}
+}
+
+void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
+{
+	if (Line < 0 || Line >= GetLineCount() || Mode == ELoadoutV2Mode::WindowAsk)
+	{
+		return;
+	}
+	if (Line == Selected)
+	{
+		// A second click on the focused line does A. But not straight after the click that armed an ask (Remove all
+		// gear, a socket's Remove): a double click must not confirm what it hasn't shown yet.
+		const double Now = FPlatformTime::Seconds();
+		if ((bRemoveAllArmed || bRemoveArmed) && Now - LastClickActionSeconds < LoadoutV2ScreenStyle::ARMED_CLICK_DELAY_SECONDS)
+		{
+			return;
+		}
+		LastClickActionSeconds = Now;
+		PressA();
+	}
+	else
+	{
+		MoveSelection(Line - Selected);
+	}
+}
+
+int32 ULoadoutV2ScreenWidget::FindLineUnder(const FVector2D &ScreenPosition) const
+{
+	const int32 Count = FMath::Min(GetLineCount(), LineRows.Num());
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		if (LineRows[Index] && LineRows[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+bool ULoadoutV2ScreenWidget::SetHovered(int32 MemberChip, int32 TabChip, int32 Line)
+{
+	if (MemberChip == HoveredMemberChip && TabChip == HoveredTabChip && Line == HoveredLine)
+	{
+		return false;
+	}
+	HoveredMemberChip = MemberChip;
+	HoveredTabChip = TabChip;
+	HoveredLine = Line;
+	return true;
+}
+
+FReply ULoadoutV2ScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	// Only a moving mouse lights things, so a resting cursor doesn't fight the keys. Chips answer on the list only.
+	if (!bRenaming && !InMouseEvent.GetCursorDelta().IsZero())
+	{
+		const FVector2D Position = InMouseEvent.GetScreenSpacePosition();
+		const bool bList = Mode == ELoadoutV2Mode::List;
+		if (SetHovered(bList ? WoRMenuStyle::FindChipUnder(MemberChips, Position) : INDEX_NONE,
+					   bList ? WoRMenuStyle::FindChipUnder(TabChips, Position) : INDEX_NONE, FindLineUnder(Position)))
+		{
+			RefreshView();
+		}
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+}
+
+void ULoadoutV2ScreenWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
+{
+	if (SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE))
+	{
+		RefreshView();
+	}
+	Super::NativeOnMouseLeave(InMouseEvent);
+}
+
+FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	if (bRenaming || InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	{
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent); // typing a name: the box keeps the mouse
+	}
+	const FVector2D Position = InMouseEvent.GetScreenSpacePosition();
+	if (Mode == ELoadoutV2Mode::List)
+	{
+		const int32 MemberChip = WoRMenuStyle::FindChipUnder(MemberChips, Position);
+		if (MemberChip != INDEX_NONE)
+		{
+			ClickMemberChip(MemberChip);
+			return FReply::Handled();
+		}
+		const int32 TabChip = WoRMenuStyle::FindChipUnder(TabChips, Position);
+		if (TabChip != INDEX_NONE)
+		{
+			ClickTabChip(TabChip);
+			return FReply::Handled();
+		}
+	}
+	const int32 Line = FindLineUnder(Position);
+	if (Line != INDEX_NONE)
+	{
+		ClickLine(Line);
+		return FReply::Handled();
+	}
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 void ULoadoutV2ScreenWidget::SwitchTab()
@@ -1284,6 +1439,7 @@ void ULoadoutV2ScreenWidget::StartRename()
 		return;
 	}
 	bRenaming = true;
+	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // the mouse belongs to the name box now
 	Message = FText::GetEmpty();
 	if (NameBox)
 	{
