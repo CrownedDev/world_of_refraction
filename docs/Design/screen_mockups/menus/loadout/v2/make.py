@@ -218,7 +218,7 @@ QUARRY = dict(pieces=[("Quarry Maul", "Earth", "C", [("Type", "Hammer"), ("Power
               lines=["On Critical Hit", "  While the target is Staggered",
                      "    • Delay the target's next turn, once per fight"],
               sockets=[(("stone", None), "Whetstone  C", "Power +9%"), (None, "Empty", "Crystal or evolution socket")],
-              notes=["Hammer stance · not active · 4 ability slots"])
+              notes=["Skill slots 4 (tier C; a stone adds none)  ·  hammer stance  ·  not active"])
 
 # ---- 1 / 1c: Garrick (Generic): his evolution, two weapon entries and the Add weapon frame (1/5 left). The list takes
 #         the width; Quarry Maul is focused and not active (L3 Set active, D-207). 1c: X Details opens it in place.
@@ -247,7 +247,7 @@ im, d = canvas()
 header(d, 1, 0, "Bruiser  ·  2 of 5")
 used_line(d, 4, 5, note="2 of 2 weapon entries · 0 of 1 adapter")
 y = evo_line(d, 168, "Ironheart", "Earth", focus=True)
-y = open_body(d, y - 2, [("Ironheart", "Earth", "A", [("Element", "Earth"), ("Amp", "Earth +2"), ("Spell slots", "6")])],
+y = open_body(d, y - 2, [("Ironheart", "Earth", "A", [("Element", "Earth"), ("Amp", "Earth +2"), ("Skill slots", "6")])],
               ["Passive", "  • Gain +10% Defense",
                "When you take Earth damage", "  While your HP is below 50%",
                "    • Gain +15% Earth buildup for 2 turns, stacks up to 3 times"], [],
@@ -435,7 +435,7 @@ y = evo_line(d, 168, None, None)
 y = entry(d, y, "Fists", [("Cinder Fists", "None")], [None, None], 0, h=56)
 y = entry(d, y, "Ring", [("Ember Ring", "Fire")], [("crystal", "Fire"), None], 1, active=True, focus=True, h=56)
 y = open_body(d, y, [("Ember Ring", "Fire", "C", [("Type", "Ring"), ("Spells", "Fire"), ("Durability", "64 / 80"),
-                                                   ("Spell slots", "4")])],
+                                                   ("Skill slots", "4")])],
               ["On Spell Cast", "  While your EP is above 50%", "    • Gain +1 Fire Amp for 1 turn"],
               [(("crystal", "Fire"), "Garnet  C", "Fire Amp +1 · Burn 11% max HP/turn"), (None, "Empty", "Stone socket")])
 y = entry(d, y, "Ring", [("Storm Ring", "Lightning")], [("crystal", "Lightning"), None], 1, h=56)
@@ -564,7 +564,7 @@ def skills_g(opened=None):
               active=True)
     entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
     panel(d, (LIST_X, TOP, 1232, 654), focus=True)
-    text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge", 16, True, DIM)
+    text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  4/9 skills", 16, True, DIM)
     if skill_rows(d, SKILLS_G, 3, top=TOP + 40, opened=opened) > 650:  # the list scrolls past the panel
         d.rectangle((LIST_X + 1, 632, 1231, 653), fill=PANEL)
         d.rectangle((LIST_X - 1, 655, 1234, 720), fill=BG)
