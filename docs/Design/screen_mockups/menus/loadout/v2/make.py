@@ -75,8 +75,7 @@ def evo_line(d, y, name, el, focus=False):
     """The character's own evolution, one compact line; it costs 2 cells."""
     cut(d, (L, y, LR, y + 40), TEAL if focus else PLATE, CYAN if focus else STEEL, 6)
     socket_icon(d, (L + 8, y + 6, L + 36, y + 34), ("evolution", el) if name else None)
-    text(d, (L + 46, y + 10), "Evolution:", 15, fill=DIM)
-    text(d, (L + 130, y + 10), name or "none", 15, True, TXT if name else OFF)
+    text(d, (L + 46, y + 10), name or "—", 15, True, TXT if name else OFF)
     if name:
         text(d, (LR - 12, y + 20), "2", 18, True, anchor="rm")
     return y + 50
@@ -85,11 +84,12 @@ def evo_line(d, y, name, el, focus=False):
 def entry(d, y, title, pieces, sockets, cost, active=False, focus=False, h=62):
     """One confirmed entry: its weapons, its two shared sockets (icons only) and its cells."""
     cut(d, (L, y, LR, y + h), TEAL if focus else PLATE, CYAN if (focus or active) else STEEL, 8)
+    top = y + (h - 32 - 8 * (len(pieces) - 1)) / 2
     for i, (n, el) in enumerate(pieces):
-        icon(d, (L + 8 + i * 22, y + 9 + i * 8, L + 40 + i * 22, y + 41 + i * 8), ELEMENT[el])
-    tx = L + 40 + 22 * len(pieces) + 10
-    text(d, (tx, y + 10), title, 16, True)
-    text(d, (tx, y + 34), " · ".join(p[0] for p in pieces), 13, fill=TXT if focus else DIM)
+        icon(d, (L + 8 + i * 22, top + i * 8, L + 40 + i * 22, top + 32 + i * 8), ELEMENT[el])
+    tx = L + 40 + 22 * (len(pieces) - 1) + 14
+    title = " + ".join(p[0] for p in pieces)  # names only; types and stats live in X Details
+    text(d, (tx, y + h / 2 - 10), title, 16, True)
     for i, s in enumerate(sockets):
         sx = LR - 130 + i * 44
         socket_icon(d, (sx, y + 13, sx + 36, y + 49), s)
@@ -97,8 +97,8 @@ def entry(d, y, title, pieces, sockets, cost, active=False, focus=False, h=62):
     if active:
         tw = int(d.textlength("ACTIVE", font=F(10, True))) + 10
         tx2 = tx + int(d.textlength(title, font=F(16, True))) + 10
-        cut(d, (tx2, y + 11, tx2 + tw, y + 27), BG, CYAN, 4)
-        text(d, (tx2 + tw / 2, y + 13), "ACTIVE", 10, True, CYAN, anchor="ma")
+        cut(d, (tx2, y + h / 2 - 8, tx2 + tw, y + h / 2 + 8), BG, CYAN, 4)
+        text(d, (tx2 + tw / 2, y + h / 2 - 6), "ACTIVE", 10, True, CYAN, anchor="ma")
     return y + h + 8
 
 
