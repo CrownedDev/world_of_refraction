@@ -91,6 +91,12 @@ void WoRRewardNotice::Post(const UObject *WorldContext, const FRewardNotice &Not
 {
 	const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
 	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	if (!GameInstance)
+	{
+		// A game-instance subsystem (the quest system) between worlds: its own game instance.
+		const UGameInstanceSubsystem *Subsystem = Cast<UGameInstanceSubsystem>(WorldContext);
+		GameInstance = Subsystem ? Subsystem->GetGameInstance() : nullptr;
+	}
 	if (URewardNoticeSubsystem *Notices = GameInstance ? GameInstance->GetSubsystem<URewardNoticeSubsystem>() : nullptr)
 	{
 		Notices->Post(Notice);
