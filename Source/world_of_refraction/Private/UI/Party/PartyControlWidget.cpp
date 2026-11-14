@@ -237,7 +237,7 @@ void UPartyControlWidget::Refresh()
 							   ? FText::Format(LOCTEXT("Cell", "{0}, column {1}"),
 											   WoRGameNames::GetCombatRowName(Member->PreferredRow),
 											   FText::AsNumber(Member->PreferredColumn))
-							   : LOCTEXT("NoCell", "auto");
+							   : LOCTEXT("NoCell", "Auto");
 		FormationTexts[SlotIndex]->SetText(FText::Format(LOCTEXT("FormationRow", "{0} starts: {1}"), Name, Cell));
 	}
 
