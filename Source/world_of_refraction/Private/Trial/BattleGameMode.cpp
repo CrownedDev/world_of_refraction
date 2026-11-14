@@ -381,7 +381,13 @@ int32 ABattleGameMode::ApplyFieldStrikeTo(UStatusBuildupManager &Buildup, AActor
     int32 Struck = 0;
     for (AActor *Enemy : Enemies)
     {
-        if (Enemy && Buildup.AddStatusBuildupForHit(Source, Enemy, Strike.Buildup, Hit))
+        if (!Enemy)
+        {
+            continue;
+        }
+        // AddStatusBuildupForHit returns true only when the bar fills and breaks; an immune enemy gains nothing.
+        const float Before = Buildup.GetStatusBarBuildup(Enemy);
+        if (Buildup.AddStatusBuildupForHit(Source, Enemy, Strike.Buildup, Hit) || Buildup.GetStatusBarBuildup(Enemy) > Before)
         {
             ++Struck;
         }
