@@ -119,12 +119,14 @@ bool UWoRHostHandOverSubsystem::BeginHandOver()
 	NextHost = WoRHostSuccession::PickNextHost(KnownOrder, OldHost);
 	if (NextHost.IsEmpty())
 	{
-		Step = EHostHandOverStep::GaveUp;
+		bPlanned = false;
+		SetStep(EHostHandOverStep::GaveUp);
 		return false;
 	}
 	const bool bTakeOver = NextHost == GetLocalPlayerId();
-	Step = bTakeOver ? EHostHandOverStep::TakeOverPending : EHostHandOverStep::Rejoining;
 	RejoinTries = 0;
+	bPlanned = false; // HandlePlannedHandOver sets it again after this
+	SetStep(bTakeOver ? EHostHandOverStep::TakeOverPending : EHostHandOverStep::Rejoining);
 	UE_LOG(LogWoR, Display, TEXT("[HandOver] Host %s dropped; %s hosts next (%s)"), *OldHost, *NextHost, bTakeOver ? TEXT("this machine") : TEXT("rejoining it"));
 	// The lost connection travels to the default map; carry on once it is up.
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
@@ -192,17 +194,17 @@ void UWoRHostHandOverSubsystem::StartHosting()
 	UWoRSessionSubsystem *Sessions = GI ? GI->GetSubsystem<UWoRSessionSubsystem>() : nullptr;
 	if (!Sessions)
 	{
-		Step = EHostHandOverStep::GaveUp;
+		SetStep(EHostHandOverStep::GaveUp);
 		return;
 	}
 	Sessions->OnSessionCreated.Remove(SessionCreatedHandle);
 	SessionCreatedHandle = Sessions->OnSessionCreated.AddUObject(this, &UWoRHostHandOverSubsystem::HandleSessionCreated);
-	Step = EHostHandOverStep::Hosting;
+	SetStep(EHostHandOverStep::Hosting);
 	if (!Sessions->HostSession())
 	{
 		Sessions->OnSessionCreated.Remove(SessionCreatedHandle);
 		SessionCreatedHandle.Reset();
-		Step = EHostHandOverStep::GaveUp;
+		SetStep(EHostHandOverStep::GaveUp);
 		UE_LOG(LogWoR, Warning, TEXT("[HandOver] Could not host; try wor.Session.Host"));
 	}
 }
@@ -217,7 +219,7 @@ void UWoRHostHandOverSubsystem::HandleSessionCreated(bool bSucceeded)
 	SessionCreatedHandle.Reset();
 	if (!bSucceeded)
 	{
-		Step = EHostHandOverStep::GaveUp;
+		SetStep(EHostHandOverStep::GaveUp);
 		UE_LOG(LogWoR, Warning, TEXT("[HandOver] Hosting failed; nothing adopted (try wor.Session.Host)"));
 		return;
 	}
@@ -225,7 +227,7 @@ void UWoRHostHandOverSubsystem::HandleSessionCreated(bool bSucceeded)
 	USaveSubsystem *Save = GI ? GI->GetSubsystem<USaveSubsystem>() : nullptr;
 	// B-428 (a): the run's per-player records follow the hosts (the join order's ids are WoRDefeat::PlayerDropKey's form).
 	const bool bAdopted = Save && Save->AdoptCheckpoint(OldHost, GetLocalPlayerId());
-	Step = EHostHandOverStep::None; // done: a later lost host starts a new hand-over
+	SetStep(EHostHandOverStep::None); // done: a later lost host starts a new hand-over
 	UE_LOG(LogWoR, Display, TEXT("[HandOver] %s"), bAdopted ? TEXT("Hosting from the checkpoint copy; the run resumes at its last checkpoint")
 															: TEXT("Hosting, but no checkpoint copy with a run was kept: the run doesn't resume"));
 }
@@ -252,7 +254,7 @@ void UWoRHostHandOverSubsystem::TryRejoin()
 		}
 		if (Step == EHostHandOverStep::Rejoining)
 		{
-			Step = EHostHandOverStep::GaveUp;
+			SetStep(EHostHandOverStep::GaveUp);
 			UE_LOG(LogWoR, Warning, TEXT("[HandOver] %s never hosted; staying here (wor.Session.Find to look again)"), *NextHost);
 		}
 		return;
@@ -261,7 +263,40 @@ void UWoRHostHandOverSubsystem::TryRejoin()
 	{
 		SessionsFoundHandle = Sessions->OnSessionsFound.AddUObject(this, &UWoRHostHandOverSubsystem::HandleSessionsFound);
 	}
+	OnStepChanged.Broadcast(Step); // B-459a: the step stays, but the card shows the search going on
 	Sessions->FindSessions();
+}
+
+void UWoRHostHandOverSubsystem::SetStep(EHostHandOverStep NewStep)
+{
+	if (Step != NewStep)
+	{
+		Step = NewStep;
+		OnStepChanged.Broadcast(Step);
+	}
+}
+
+void UWoRHostHandOverSubsystem::StopWaiting()
+{
+	if ((Step != EHostHandOverStep::Rejoining && Step != EHostHandOverStep::GaveUp) || bPlannedLeavePending)
+	{
+		return; // this machine is taking over, or still has to leave: the others wait on it
+	}
+	if (UWorld *World = GetGameInstance() ? GetGameInstance()->GetWorld() : nullptr)
+	{
+		World->GetTimerManager().ClearTimer(RetryTimer);
+	}
+	if (UWoRSessionSubsystem *Sessions = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWoRSessionSubsystem>() : nullptr)
+	{
+		Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
+		Sessions->OnSessionJoined.Remove(SessionJoinedHandle); // a join already under way still travels; it isn't tracked
+	}
+	SessionsFoundHandle.Reset();
+	SessionJoinedHandle.Reset();
+	FWorldDelegates::OnWorldInitializedActors.Remove(WorldInitHandle);
+	WorldInitHandle.Reset();
+	UE_LOG(LogWoR, Display, TEXT("[HandOver] Stopped waiting for %s (wor.Session.Find to look again)"), *NextHost);
+	SetStep(EHostHandOverStep::None);
 }
 
 void UWoRHostHandOverSubsystem::HandleSessionsFound()
@@ -349,8 +384,9 @@ bool UWoRHostHandOverSubsystem::BeginPlannedHandOver(UWorld *World)
 		}
 	}
 	// 3. This machine leaves once those calls are out, then looks for the next host like any client.
-	Step = EHostHandOverStep::Rejoining;
 	RejoinTries = 0;
+	bPlanned = true;
+	SetStep(EHostHandOverStep::Rejoining);
 	UE_LOG(LogWoR, Display, TEXT("[HandOver] Planned: %s hosts next; leaving in %.1f s"), *NextHost, WoRHostSuccession::PLANNED_LEAVE_DELAY_SECONDS);
 	// Review: if the level changes during the wait the timer goes with it; forget the hand-over then.
 	bPlannedLeavePending = true;
@@ -362,7 +398,7 @@ bool UWoRHostHandOverSubsystem::BeginPlannedHandOver(UWorld *World)
 			bPlannedLeavePending = false;
 			FWorldDelegates::OnWorldCleanup.Remove(WorldCleanupHandle); // desktop review: once only
 			WorldCleanupHandle.Reset();
-			Step = EHostHandOverStep::None;
+			SetStep(EHostHandOverStep::None);
 			UE_LOG(LogWoR, Warning, TEXT("[HandOver] The level changed before leaving: planned hand-over dropped"));
 		}
 	});
@@ -383,6 +419,8 @@ void UWoRHostHandOverSubsystem::HandlePlannedHandOver(UWorld *World)
 	{
 		return;
 	}
+	bPlanned = true;
+	OnStepChanged.Broadcast(Step); // the card's title follows
 	// Not inside the RPC: leave on the next tick, as a lost connection would.
 	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [World]() { GEngine->Exec(World, TEXT("disconnect")); }));
 }
@@ -396,7 +434,7 @@ void UWoRHostHandOverSubsystem::FinishRejoin()
 		Sessions->OnSessionsFound.Remove(SessionsFoundHandle);
 	}
 	SessionsFoundHandle.Reset();
-	Step = EHostHandOverStep::None; // done: a later lost host starts a new hand-over
+	SetStep(EHostHandOverStep::None); // done: a later lost host starts a new hand-over
 	UE_LOG(LogWoR, Display, TEXT("[HandOver] Rejoined %s"), *NextHost);
 }
 

@@ -877,6 +877,17 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-459a — Host-lost card: the next host's name, and what B does
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-459a, D-200, D-181) · **Blocks:** —
+**Question:** the mockup names the next host ("Kestrel is taking over as host.") and offers B "Leave to the Void Realm"; once the host drops, the old world and its player names are gone, and leaving a dropped run for the hub isn't built.
+**Answer**, by the reference-backed default (Crown may change any):
+- **The card reads "You are taking over as host." or "The next player is taking over as host."** The join order keeps only ids; names come when it carries them. Monster Hunter: World and Deep Rock Galactic's host migration both show a plain "migrating host" message, not a name.
+- **B is "Stop waiting", only while this machine waits on someone else** (never on the new host, whom the others wait on). It stops the search and leaves you where you are; your run waits at its last checkpoint and `wor.Session.Find` still works. A clean "leave to the hub" from a dropped run is its own job.
+- **Four pips:** the host left, the old session left, the new host up, rejoined (the card closes). Planned hand-overs read "Handing over host".
+- **The rest menu's "Hand over host" asks first** ("Hand over host?", the next host by name from the live player list); it refuses a guest, a host alone, or a fight, with the reason.
+
+---
+
 ### Q-458 — Party screen: the rows the mockup shows that the code no longer has
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-458, D-200, D-181) · **Blocks:** —
 **Question:** the mockup shows "When your fighters fall", Y "Swap order" and a friend's name under "Played by"; B-346 retired the fall setting, the party has no reorder, and seats have no friend names until the co-op screens.
