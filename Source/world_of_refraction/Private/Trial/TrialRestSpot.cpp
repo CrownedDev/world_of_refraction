@@ -119,6 +119,13 @@ void WoRRestSpot::StepAway(UWorld *World)
 	}
 }
 
+bool WoRRestSpot::CanExtractHere(const UWorld *World)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	return Run && Run->IsRunActive() && Run->IsBeatenMiniBoss(Run->GetLastRestSpot());
+}
+
 bool WoRRestSpot::LeaveRun(UWorld *World)
 {
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
@@ -127,13 +134,18 @@ bool WoRRestSpot::LeaveRun(UWorld *World)
 	{
 		return false;
 	}
+	if (!CanExtractHere(World))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RestSpot] Extract refused: rest spot %s is not one a beaten boss left (D-186)"), *Run->GetLastRestSpot().ToString());
+		return false;
+	}
 	Run->LeaveRunEarly();
 	return true;
 }
 
 FText WoRRestSpot::GetLeaveConfirmText()
 {
-	return LOCTEXT("LeaveConfirm", "Leave the trial? You keep part of what you earned. Full rewards only for beating the boss or falling in battle.");
+	return LOCTEXT("ExtractConfirm", "Extract? You keep part of what you earned. Full rewards only for beating the boss or falling in battle.");
 }
 
 void ATrialRestSpot::Interact(APawn *Pawn)
