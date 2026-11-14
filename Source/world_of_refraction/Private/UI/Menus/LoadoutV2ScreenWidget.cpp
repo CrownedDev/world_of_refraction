@@ -189,8 +189,15 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		Box->SetPadding(FMargin(BoxPadding));
 		UVerticalBox *BoxColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Box->SetContent(BoxColumn);
+		// B-487b: the header is one row: the piece's icon, its name, its tier badge.
+		UHorizontalBox *BoxTitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		BoxTitleIcon = MakeIcon(WidgetTree, BoxIconSize);
 		BoxTitleText = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		AddToColumn(BoxColumn, BoxTitleText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		BoxTitleTier = MakeIcon(WidgetTree, BadgeSize);
+		AddToRow(BoxTitleRow, BoxTitleIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+		AddToRow(BoxTitleRow, BoxTitleText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToRow(BoxTitleRow, BoxTitleTier, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		AddToColumn(BoxColumn, BoxTitleRow, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		BoxLines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		AddToColumn(BoxColumn, BoxLines);
 		AddToRow(Columns, MakeSized(WidgetTree, BoxWidth, 0.0f, Box), FMargin(0.0f), VAlign_Top);
@@ -790,7 +797,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		EItemTier Tier = EItemTier::F_Tier;
 	};
 	TArray<FBoxLine> BoxText;
-	FText BoxTitle;
+	FBoxLine BoxHeader;
+	FText &BoxTitle = BoxHeader.Text;
 	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
 	// entry's slots; a line with nothing to show (a note) falls back to the slots.
 	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && !Details.IsEmpty();
@@ -864,8 +872,21 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			}
 			BoxText.Add(BoxLine);
 		}
+		// B-487b: the piece's own line (its icon, name and tier) is the header, in place of a plain name above it.
+		if (!Details.IsEmpty() && Details[0].Kind == ELoadoutV2DetailKind::Piece)
+		{
+			BoxHeader = BoxText[0];
+			BoxText.RemoveAt(0);
+		}
 	}
+	const auto GetTierTooltip = [](EItemTier Tier) { return FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Tier)); };
 	BoxTitleText->SetText(BoxTitle);
+	SetIcon(BoxTitleIcon, FindIcon(BoxHeader.Icon), BoxHeader.Icon.Name);
+	const bool bTitleTier = SetIcon(BoxTitleTier, BoxHeader.bHasTier ? WoRIcons::GetTierBadge(BoxHeader.Tier) : nullptr, GetTierTooltip(BoxHeader.Tier));
+	if (UHorizontalBoxSlot *TitleSlot = Cast<UHorizontalBoxSlot>(BoxTitleText->Slot))
+	{
+		TitleSlot->SetSize(FSlateChildSize(bTitleTier ? ESlateSizeRule::Automatic : ESlateSizeRule::Fill)); // as the lines below
+	}
 	// B-482: a box with nothing to say is hidden (the Add frames); Hidden, not collapsed, so the list keeps its place.
 	DetailsBox->SetVisibility(BoxTitle.IsEmpty() && BoxText.IsEmpty() ? ESlateVisibility::Hidden : ESlateVisibility::SelfHitTestInvisible);
 	while (BoxTexts.Num() < BoxText.Num())
@@ -896,8 +917,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			BoxTexts[Index]->SetText(Line.Text);
 			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bLit ? CyanColor : TextColor));
 			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
-			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr,
-									   FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Line.Tier)));
+			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr, GetTierTooltip(Line.Tier));
 			// A name with its tier badge keeps its own width, so the badge sits right after it; other lines fill and wrap.
 			if (UHorizontalBoxSlot *TextSlot = Cast<UHorizontalBoxSlot>(BoxTexts[Index]->Slot))
 			{

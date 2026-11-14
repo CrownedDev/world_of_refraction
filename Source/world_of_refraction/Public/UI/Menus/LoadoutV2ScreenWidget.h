@@ -357,6 +357,11 @@ private:
 	/** The details box (or, in the window, the slots) on the right. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BoxTitleText;
+	// B-487b: the header's icon and tier badge, either side of the title.
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> BoxTitleIcon;
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> BoxTitleTier;
 	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> BoxLines;
 	UPROPERTY(Transient)
