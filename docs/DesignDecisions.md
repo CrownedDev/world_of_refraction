@@ -877,6 +877,16 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-440b — Changing gear on the loadout screen: what the picker offers, what X does to the first slot
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440b, D-181, D-116) · **Blocks:** —
+**Question:** the mockup shows A Change and X Unequip but not what Change lists, what X does to the one slot every loadout must keep (D-116), or what happens in a fight.
+**Answer**, by the reference-backed default (Crown may change any):
+- **The picker lists the owned weapons or adapters the place takes, not ones already in this loadout; each line shows the budget after it in amber.** A line over the budget, or a piece another member wears, stays greyed with its reason (UI_Theme §5; Expedition 33's Pictos screen shows every piece with its cost and greys what doesn't fit). A swap that leaves an over-budget loadout no worse is allowed, so an old loadout can be fixed one piece at a time.
+- **X on the first slot:** a Generic's second weapon moves up into it; with nothing to move up it is refused ("Every loadout keeps a weapon or adapter here. Change it instead."), as D-116 refuses giving a primary away. Diablo IV and Elden Ring let you swap a main weapon but never leave the character with no weapon slot filled.
+- **Which weapon is in hand doesn't change when the other one is swapped;** "Put … in hand" is the first line of the other weapon's picker (no new key).
+- **No gear changes during a fight** (the loadout is in use; Expedition 33 and Final Fantasy X change gear only outside the action menu's turn).
+- **Apparel** is changed in its own piece, **B-440f**.
+
 ### Q-461 — The inventory's filter row and Sort: which filters, which sorts, how the keys reach them
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-461, D-181) · **Blocks:** —
 **Question:** the approved mockup draws one filter row on the Gear tab (All, Weapons, Adapters, Crystals, Evolutions, Apparel) and "Y Sort". Four things it doesn't say. (1) The built screen keeps crystals and stones on the Pouch tab (B-441), so a Crystals filter on Gear would always be empty: which filters does each tab get? (2) What does Sort sort by? (3) LT / RT and LB / RB are taken: how do the keys reach the filter row? (4) Evolutions and apparel can't be given or stored yet (Q-323): what do their tiles do?
