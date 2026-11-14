@@ -68,19 +68,24 @@ namespace JournalScreenBuild
 	/** B-463c: one reward in player words; empty for one with nothing to name (a title, until titles exist). */
 	FText DescribeReward(const UGameInstance *GameInstance, const FMemoryReward &Reward)
 	{
-		const UCurseSubsystem *Curses = Find<UCurseSubsystem>(GameInstance);
-		const UCurseData *Curse = Curses ? Curses->FindCurseAsset(Reward.RewardId) : nullptr;
-		const FText CurseName = Curse && !Curse->Title.IsEmpty() ? Curse->Title : FText::FromName(Reward.RewardId);
+		const auto CurseName = [GameInstance, &Reward]()
+		{
+			const UCurseSubsystem *Curses = Find<UCurseSubsystem>(GameInstance);
+			const UCurseData *Curse = Curses ? Curses->FindCurseAsset(Reward.RewardId) : nullptr;
+			return Curse && !Curse->Title.IsEmpty() ? Curse->Title : FText::FromName(Reward.RewardId);
+		};
 		switch (Reward.Kind)
 		{
 		case EMemoryRewardKind::Item:
-			return Reward.Item ? FText::FromString(Reward.Item->GetDisplayName()) : FText::GetEmpty(); // TODO(B-127): FString names
+		// TODO(B-127): item and skill names are FString on the asset until they become FText.
+		case EMemoryRewardKind::Item:
+			return Reward.Item ? FText::FromString(Reward.Item->GetDisplayName()) : FText::GetEmpty();
 		case EMemoryRewardKind::Skill:
 			return Reward.Skill ? FText::FromString(Reward.Skill->Name) : FText::GetEmpty();
 		case EMemoryRewardKind::Curse:
-			return FText::Format(LOCTEXT("RewardCurse", "the curse {0}"), CurseName);
+			return FText::Format(LOCTEXT("RewardCurse", "the curse {0}"), CurseName());
 		case EMemoryRewardKind::RemoveCurse:
-			return FText::Format(LOCTEXT("RewardRemoveCurse", "{0} lifted"), CurseName);
+			return FText::Format(LOCTEXT("RewardRemoveCurse", "{0} lifted"), CurseName());
 		case EMemoryRewardKind::Title:
 			break;
 		}
@@ -304,6 +309,7 @@ namespace JournalScreenBuild
 		const TArray<FJournalLoreEntry> &Read = Journal ? Journal->GetLore() : NoLore;
 
 		// B-463c (UIScreens #6): sub-tabs by place, in the order first read there; only places something was read in.
+		// Places match by their text (two places worded the same share a tab).
 		TArray<FString> Places;
 		View.Filters.Add(LOCTEXT("FilterEverything", "Everything"));
 		for (const FJournalLoreEntry &Entry : Read)

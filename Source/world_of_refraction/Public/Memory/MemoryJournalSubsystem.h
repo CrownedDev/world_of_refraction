@@ -131,7 +131,8 @@ private:
 	TArray<EMemorySource> Sources;
 	/** B-463c: parallel to Memories too. */
 	TArray<FText> Places;
-	/** B-463c: memory and lore ids not opened in the journal yet. */
+	/** B-463c: memory and lore ids not opened in the journal yet. shortcut: one set for both kinds of id, so a lore id
+	 *  equal to a memory id shares its NEW; split it if ids ever collide. */
 	TSet<FName> NewEntries;
 
 	UPROPERTY(Transient)

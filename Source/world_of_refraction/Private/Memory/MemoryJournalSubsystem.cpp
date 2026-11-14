@@ -82,7 +82,7 @@ void UMemoryJournalSubsystem::Restore(const FSavedJournal &Saved)
 		Kept.Title = Entry.Title;
 		Kept.Body = Entry.Body;
 		Kept.Place = Entry.Place;
-		Kept.Kind = Entry.Kind <= static_cast<uint8>(ELoreKind::ItemDescription) ? static_cast<ELoreKind>(Entry.Kind) : ELoreKind::Inscription;
+		Kept.Kind = StaticEnum<ELoreKind>()->IsValidEnumValue(Entry.Kind) ? static_cast<ELoreKind>(Entry.Kind) : ELoreKind::Inscription;
 	}
 	NewEntries.Reset();
 	NewEntries.Append(Saved.NewEntries); // a save from before B-463c has none: nothing shows NEW
