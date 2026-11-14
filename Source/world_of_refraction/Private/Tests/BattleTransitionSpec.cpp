@@ -17,6 +17,9 @@ namespace
 	constexpr float TRANSITION_TEST_FRAME = 1.0f / 60.0f;
 	constexpr float TRANSITION_LONG_HOLD_SECONDS = 120.0f;
 	constexpr double TRANSITION_AREA_TOLERANCE = 1.0e-4;
+	/** B-500a: "slow" means behind an even pace at this share of the time. */
+	constexpr float TRANSITION_EARLY_SHARE = 0.25f;
+	constexpr int32 TRANSITION_BLOW_STEPS = 20;
 	/** The bevel leaves at least this share of a shard's area to its camera face (half its width, squared, with slack). */
 	constexpr double TRANSITION_MIN_FACE_SHARE = 0.2;
 	const FVector2D TRANSITION_TEST_HIT(0.35, 0.6);
@@ -111,6 +114,37 @@ void FBattleTransitionSpec::Define()
 		TestEqual(TEXT("Full lens look in the hold"), BattleTransition::GetLookAlpha(Data, TRANSITION_LONG_HOLD_SECONDS, 0.0f), 1.0f);
 		TestEqual(TEXT("Lens look gone after the blow-away"),
 				  BattleTransition::GetLookAlpha(Data, TRANSITION_LONG_HOLD_SECONDS, Data.BlowAwaySeconds), 0.0f);
+	});
+
+	It("opens slowly and finishes fast: the break and the blow-away both start below an even pace (B-500a)", [this]()
+	{
+		const UBattleTransitionData &Data = *GetDefault<UBattleTransitionData>();
+		const TArray<BattleTransition::FShard> Shards =
+			BattleTransition::BuildShards(TRANSITION_TEST_SEED, TRANSITION_TEST_HIT, TRANSITION_TEST_ASPECT, Data);
+		const float BreakEnd = Data.CrackSeconds + Data.BreakSeconds;
+		for (const BattleTransition::FShard &Shard : Shards)
+		{
+			const float FullBreak = BattleTransition::EvaluatePose(Shard, Data, BreakEnd, 0.0f).TowardCamera;
+			const float EarlyBreak =
+				BattleTransition::EvaluatePose(Shard, Data, Data.CrackSeconds + Data.BreakSeconds * TRANSITION_EARLY_SHARE, 0.0f).TowardCamera;
+			TestTrue(TEXT("A quarter into the break: under a quarter of the way"), EarlyBreak < FullBreak * TRANSITION_EARLY_SHARE);
+
+			// The blow-away: little in the first half (the slow beat), most in the second, never backwards.
+			float Previous = BattleTransition::EvaluatePose(Shard, Data, TRANSITION_LONG_HOLD_SECONDS, 0.0f).TowardCamera;
+			const float Held = Previous;
+			bool bNeverBackwards = true;
+			for (int32 Step = 1; Step <= TRANSITION_BLOW_STEPS; ++Step)
+			{
+				const float Release = Data.BlowAwaySeconds * Step / TRANSITION_BLOW_STEPS;
+				const float Now = BattleTransition::EvaluatePose(Shard, Data, TRANSITION_LONG_HOLD_SECONDS + Release, Release).TowardCamera;
+				bNeverBackwards &= Now >= Previous;
+				Previous = Now;
+			}
+			TestTrue(TEXT("The blow-away only moves toward the camera"), bNeverBackwards);
+			const float HalfRelease = Data.BlowAwaySeconds * 0.5f;
+			const float AtHalf = BattleTransition::EvaluatePose(Shard, Data, TRANSITION_LONG_HOLD_SECONDS + HalfRelease, HalfRelease).TowardCamera;
+			TestTrue(TEXT("Half the blow-away's time: under a quarter of its distance"), AtHalf - Held < (Previous - Held) * TRANSITION_EARLY_SHARE);
+		}
 	});
 
 	It("builds each shard as a closed, outward-facing solid that carries the frame on its camera face", [this]()

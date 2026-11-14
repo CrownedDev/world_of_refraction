@@ -175,13 +175,13 @@ BattleTransition::FShardPose BattleTransition::EvaluatePose(const FShard &Shard,
 	const float Crack = FMath::Clamp((Elapsed - CrackAt) / CrackTiltSeconds, 0.0f, 1.0f);
 
 	const float BreakLinear = FMath::Clamp((Elapsed - Data.CrackSeconds) / FMath::Max(Data.BreakSeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
-	const float Break = 1.0f - FMath::Square(1.0f - BreakLinear); // fast, then easing into the hold
+	const float Break = FMath::InterpEaseInOut(0.0f, 1.0f, BreakLinear, Data.BreakEase); // B-500a: out of the wall slowly, settling into the hold
 
 	const float HoldSeconds = FMath::Max(Elapsed - Data.CrackSeconds - Data.BreakSeconds, 0.0f);
 	const float Drift = 1.0f - FMath::Exp(-HoldSeconds / FMath::Max(Data.DriftSeconds, UE_KINDA_SMALL_NUMBER)); // slows, never arrives
 
 	const float BlowLinear = FMath::Clamp(ReleaseElapsed / FMath::Max(Data.BlowAwaySeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
-	const float Blow = FMath::Square(BlowLinear); // speeding up past the camera
+	const float Blow = FMath::Pow(BlowLinear, Data.BlowAwayEase); // B-500a: a slow beat, then hard past the camera
 
 	const float ShareA = FMath::Lerp(MIN_MOTION_SHARE, 1.0f, Shard.RandomA);
 	const float ShareB = FMath::Lerp(MIN_MOTION_SHARE, 1.0f, Shard.RandomB);
