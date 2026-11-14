@@ -210,7 +210,7 @@ for i, (n, el, t, lines) in enumerate([
         text(d, (x + 120, 266 + j * 26), val, 14, True)
 text(d, (266, 396), "Sockets (shared)", 15, True, CYAN)
 for i, (sk, n, sub) in enumerate([(("crystal", "Fire"), "Garnet", "Fire crystal · Fire for both swords' infused abilities"),
-                                  (None, "Empty", "A stone or a second crystal fits here")]):
+                                  (None, "Empty", "A stone fits here")]):
     y = 424 + i * 46
     socket_icon(d, (266, y, 302, y + 36), sk)
     text(d, (314, y + 1), n, 15, True, TXT if sk else OFF)
