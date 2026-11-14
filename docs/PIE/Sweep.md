@@ -427,6 +427,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-463b](B-463b.md) | Track a quest | Pending | REVIEW (in dev, `feature/B-463b-track-quest`) | [ ] |
 | [B-463c](B-463c.md) | Journal details: NEW, where found, lore kind, quest reward | Pending | REVIEW (in dev, `feature/B-463c-journal-details`) | [ ] |
 | [B-466](B-466.md) | The Gate screen | Pending | REVIEW (in dev, `feature/B-466-gate-screen`) | [ ] |
+| [B-469](B-469.md) | The new game screen | Pending | REVIEW (in dev, `feature/B-469-new-game-screen`) | [ ] |
 | [B-440d](B-440d.md) | The loadout screen, piece 4: the Skills page | Pending | REVIEW (in dev, `feature/B-440d-loadout-skills-page`) | [ ] |
 | [B-440c](B-440c.md) | The loadout screen, piece 3: the socket picker | Pending | REVIEW (in dev, `feature/B-440c-loadout-socket-picker`) | [ ] |
 | [B-439](B-439.md) | The game menu (D-181): pages, party, side panel; a quit run loses everything (D-176); editor step: delete the Blueprint's `IA_ToggleMenu` nodes | Pending | REVIEW (in dev, `feature/B-439-pause-menu`) | [ ] |
