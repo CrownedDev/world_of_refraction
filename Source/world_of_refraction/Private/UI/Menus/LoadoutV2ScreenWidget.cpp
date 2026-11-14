@@ -260,9 +260,13 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		const FCombatLoadout *Active = Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)
 										   ? &Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex]
 										   : nullptr;
-		if (Active && Active->PrimaryWeapon.IsValid())
+		// The weapon in hand: a Generic's second weapon when it is the ACTIVE entry.
+		const bool bSecondInHand = Page.Entries.ContainsByPredicate([](const FLoadoutV2Entry &Entry)
+																	{ return Entry.bActive && Entry.Place == ELoadoutV2Place::Secondary; });
+		const FWeaponLoadoutEntry *InHand = Active ? (bSecondInHand ? &Active->SecondaryWeapon : &Active->PrimaryWeapon) : nullptr;
+		if (InHand && InHand->IsValid())
 		{
-			const FLoadoutV2Compare Result = WoRLoadoutV2::BuildCompare(Active->PrimaryWeapon.WeaponEntry, Choices[Selected].Weapon);
+			const FLoadoutV2Compare Result = WoRLoadoutV2::BuildCompare(InHand->WeaponEntry, Choices[Selected].Weapon);
 			Compare = FText::Format(LOCTEXT("CompareLine", "Equipped / Selected · Power {0} / {1} · Cells change {2} · Built-in gained: {3} · lost: {4}"),
 									FText::AsNumber(Result.EquippedPower), FText::AsNumber(Result.SelectedPower), FText::AsNumber(Result.CellsChange),
 									JoinNames(Result.BuiltInsGained), JoinNames(Result.BuiltInsLost));
@@ -380,12 +384,17 @@ void ULoadoutV2ScreenWidget::PressConfirm()
 	Draft.Socket2 = Draft.MainHand.StoneSocket;
 	const ECharacterClass Class = Members[MemberIndex].Class;
 	FText Refusal;
-	const bool bDone = Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&Draft, Class](FCombatLoadout &Changed)
-											  {
-												  FText Ignored;
-												  WoRLoadoutV2::ApplyDraft(Changed, Class, Draft, Ignored);
-											  },
+	bool bApplied = false;
+	FText ApplyRefusal;
+	const bool bDone = Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&Draft, Class, &bApplied, &ApplyRefusal](FCombatLoadout &Changed)
+											  { bApplied = WoRLoadoutV2::ApplyDraft(Changed, Class, Draft, ApplyRefusal); },
 											  Refusal);
+	if (bDone && !bApplied)
+	{
+		Message = ApplyRefusal; // the loadout changed since the list was read: nothing went in
+		RefreshData();
+		return;
+	}
 	if (!bDone)
 	{
 		Message = Refusal;
