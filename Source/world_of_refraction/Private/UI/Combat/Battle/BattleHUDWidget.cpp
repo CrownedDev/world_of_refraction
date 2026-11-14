@@ -2,6 +2,8 @@
 
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 
+#include "Save/SaveSubsystem.h"
+
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/WidgetTree.h"
 #include "Character/CharacterDataComponent.h"
@@ -905,7 +907,10 @@ void UBattleHUDWidget::ShowDamageNumber(AActor *Target, const FCombatHitShown &H
 	FBattleDamageNumber &Number = DamageNumbers[SlotIndex];
 	Number.Target = Target;
 	Number.Hit = Hit;
-	Number.Style = bNegated ? DamageNumberView::MakeNegatedStyle(Hit) : DamageNumberView::MakeStyle(Hit);
+	// B-453f (D-190): the player's "Element letters on colours" setting tags elemental numbers.
+	const USaveSubsystem *Save = World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	const bool bLetters = Save && Save->IsElementLettersOn();
+	Number.Style = bNegated ? DamageNumberView::MakeNegatedStyle(Hit, bLetters) : DamageNumberView::MakeStyle(Hit, bLetters);
 	Number.WorldPoint = Target->GetActorLocation() + FVector(0.0f, 0.0f, Target->GetSimpleCollisionHalfHeight());
 	Number.SpawnTime = World->GetTimeSeconds();
 	Number.StackIndex = DamageNumberView::NextStackIndex(LiveStackIndices);
