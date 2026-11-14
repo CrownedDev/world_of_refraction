@@ -76,7 +76,6 @@ namespace JournalScreenBuild
 		};
 		switch (Reward.Kind)
 		{
-		case EMemoryRewardKind::Item:
 		// TODO(B-127): item and skill names are FString on the asset until they become FText.
 		case EMemoryRewardKind::Item:
 			return Reward.Item ? FText::FromString(Reward.Item->GetDisplayName()) : FText::GetEmpty();
