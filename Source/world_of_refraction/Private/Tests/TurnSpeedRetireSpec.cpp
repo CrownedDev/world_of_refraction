@@ -1,6 +1,6 @@
 // TurnSpeedRetireSpec.cpp
 // B-170g (ActionPips.md §3.4, Q-170h, Q-170g2): the Turn Speed family is retired for new authoring. Data validation
-// warns (never refuses, while the speed timeline still reads it at wor.Turns.ActionPips 0) on a Turn Speed effect
+// warns (never refuses, until B-170h3 deletes the family) on a Turn Speed effect
 // payload, a skill's StatScaling on Turn Speed, a character's TurnSpeed points and gear / evolution BonusTurnSpeed,
 // and on nothing else; wor.Data.ListTurnSpeed's per-asset string names the same fields.
 

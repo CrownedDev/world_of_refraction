@@ -12,7 +12,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionPipsRules.h"
@@ -28,9 +27,6 @@
 
 namespace
 {
-	const TCHAR *const ACTION_EFFECTS_SWITCH = TEXT("wor.Turns.ActionPips");
-	constexpr int32 ACTION_EFFECTS_ON = 1;
-	constexpr int32 ACTION_EFFECTS_OFF = 0;
 	constexpr int32 ACTION_EFFECTS_ID = 17001;
 	constexpr int32 ACTION_EFFECTS_NOW = 0;
 	constexpr int32 ACTION_EFFECTS_NEXT_TURN = 1;
@@ -51,19 +47,9 @@ BEGIN_DEFINE_SPEC(FActionEffectsSpec, "WoR.Combat.ActionEffects",
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	USkillEffectManager *Effects = nullptr;
 	UTurnManager *TurnManager = nullptr;
-	IConsoleVariable *PipsSwitch = nullptr;
-	int32 SwitchBefore = ACTION_EFFECTS_OFF;
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
 	UCharacterDataComponent *Char = nullptr;
-
-	void SetSwitch(int32 Value)
-	{
-		if (PipsSwitch)
-		{
-			PipsSwitch->Set(Value, ECVF_SetByConsole);
-		}
-	}
 
 	/** Hero and Foe; Hero starts with the fight-start bank (1 with no Reflex). */
 	bool SpawnPair()
@@ -99,8 +85,6 @@ void FActionEffectsSpec::Define()
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
 		TestNotNull(TEXT("SkillEffectManager"), Effects);
 		TestNotNull(TEXT("TurnManager"), TurnManager);
-		PipsSwitch = IConsoleManager::Get().FindConsoleVariable(ACTION_EFFECTS_SWITCH);
-		SwitchBefore = PipsSwitch ? PipsSwitch->GetInt() : ACTION_EFFECTS_OFF;
 	});
 
 	AfterEach([this]()
@@ -109,8 +93,6 @@ void FActionEffectsSpec::Define()
 		{
 			TurnManager->EndCombat();
 		}
-		SetSwitch(SwitchBefore);
-		PipsSwitch = nullptr;
 		Char = nullptr;
 		Hero = Foe = nullptr;
 		Effects = nullptr;
@@ -207,14 +189,13 @@ void FActionEffectsSpec::Define()
 
 	Describe("Emerald", [this]()
 	{
-		It("in an action-pips fight: actions on yourself by tier, a lost turn on an enemy", [this]()
+		It("in a fight: actions on yourself by tier, a lost turn on an enemy", [this]()
 		{
 			UItemExecutor *Items = TestWorld->GetSubsystem<UItemExecutor>();
-			if (!Effects || !TestNotNull(TEXT("ItemExecutor"), Items) || !TestNotNull(TEXT("the switch exists"), PipsSwitch)) return;
-			SetSwitch(ACTION_EFFECTS_ON);
+			if (!Effects || !TestNotNull(TEXT("ItemExecutor"), Items)) return;
 			if (!SpawnPair()) return;
 			TurnManager->InitializeCombat({Hero}, {Foe});
-			if (!TestTrue(TEXT("Rotation mode, Hero first"), TurnManager->IsRotationMode() && TurnManager->GetCurrentActor() == Hero)) return;
+			if (!TestTrue(TEXT("Hero first"), TurnManager->GetCurrentActor() == Hero)) return;
 			const int32 Start = Char->CurrentActions;
 
 			TestTrue(TEXT("D used"), Items->UseItem(Hero, FCrystalId(ECrystalType::Emerald, EItemTier::D_Tier), Hero).bSuccess);
@@ -234,37 +215,21 @@ void FActionEffectsSpec::Define()
 			TurnManager->AdvanceToNextTurn();
 			TestTrue(TEXT("Foe's turn is skipped: Hero again"), TurnManager->GetCurrentActor() == Hero);
 		});
-
-		It("with the switch off, still grants a bonus turn and no actions", [this]()
-		{
-			UItemExecutor *Items = TestWorld->GetSubsystem<UItemExecutor>();
-			if (!Effects || !TestNotNull(TEXT("ItemExecutor"), Items)) return;
-			SetSwitch(ACTION_EFFECTS_OFF);
-			if (!SpawnPair()) return;
-			TurnManager->InitializeCombat({Hero}, {Foe});
-			if (!TestTrue(TEXT("Hero takes turn 1"), TurnManager->GetCurrentActor() == Hero)) return;
-			TestTrue(TEXT("Used"), Items->UseItem(Hero, FCrystalId(ECrystalType::Emerald, EItemTier::D_Tier), Hero).bSuccess);
-			TestEqual(TEXT("No actions given"), Char->CurrentActions, ACTIONS_REGAIN_BASE);
-			TurnManager->AdvanceToNextTurn();
-			TestTrue(TEXT("Hero's bonus turn"), TurnManager->GetCurrentActor() == Hero && TurnManager->GetCurrentTurnType() == ETurnType::Bonus);
-		});
 	});
 
 	Describe("The turn-start order (orchestrator)", [this]()
 	{
-		// Starts Hero vs Foe with the switch on, then ends Hero's first turn and lets Prepare queue Hero's changes on Foe's
+		// Starts Hero vs Foe, then ends Hero's first turn and lets Prepare queue Hero's changes on Foe's
 		// turn; Foe ends its turn and Hero's turn starts (regain, the changes, the check).
 		const auto RunToHeroSecondTurn = [this](TFunctionRef<void()> Prepare) -> ACombatOrchestrator *
 		{
-			if (!TestNotNull(TEXT("the switch exists"), PipsSwitch)) return nullptr;
-			SetSwitch(ACTION_EFFECTS_ON);
 			ACombatOrchestrator *Fight = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
 			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 			Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 			Char = Hero ? Hero->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 			if (!TestNotNull(TEXT("Orchestrator"), Fight) || !TestNotNull(TEXT("Hero data"), Char) || !Foe) return nullptr;
 			Fight->StartCombat({Hero}, {Foe});
-			if (!TestTrue(TEXT("Hero opens"), Fight->GetCurrentActor() == Hero && Fight->IsActionPipsFight()))
+			if (!TestTrue(TEXT("Hero opens"), Fight->GetCurrentActor() == Hero))
 			{
 				Fight->ForceEndCombat();
 				return nullptr;
@@ -287,8 +252,6 @@ void FActionEffectsSpec::Define()
 
 		It("takes an authored skill's Value as whole actions through the action executor (Value 1, Magnitude 0)", [this]()
 		{
-			if (!TestNotNull(TEXT("the switch exists"), PipsSwitch)) return;
-			SetSwitch(ACTION_EFFECTS_ON);
 			ACombatOrchestrator *Fight = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
 			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 			Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
@@ -318,7 +281,7 @@ void FActionEffectsSpec::Define()
 			Ability->AddToRoot();
 
 			Fight->StartCombat({Hero}, {Foe});
-			if (TestTrue(TEXT("Hero opens an action-pips fight"), Fight->GetCurrentActor() == Hero && Fight->IsActionPipsFight()))
+			if (TestTrue(TEXT("Hero opens the fight"), Fight->GetCurrentActor() == Hero))
 			{
 				FAction Action;
 				Action.ActionType = EActionType::Ability;

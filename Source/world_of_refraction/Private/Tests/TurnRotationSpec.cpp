@@ -1,14 +1,13 @@
 // TurnRotationSpec.cpp
-// B-170b (ActionPips.md §3.2, Q-170d, Q-170f): with wor.Turns.ActionPips 1 the turns go round in a fixed
+// B-170b (ActionPips.md §3.2, Q-170d, Q-170f): the turns go round in a fixed
 // rotation: sides alternate, the party (or the first-striking side) first; a smaller side fills its
 // extra seats in turn, carried across rounds (the deckbuilder's §8 items 53-56). Bonus turns, skips,
-// death purge, revive and Execution turns keep the turn belt's rules (D-133). The switch-off behaviour
-// is covered by the existing turn specs, unchanged.
+// death purge, revive and Execution turns keep the turn belt's rules (D-133).
+// B-170h2: the only turn order (the speed timeline and its switch are deleted).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
@@ -16,9 +15,6 @@
 
 namespace
 {
-	const TCHAR *const TURN_ROTATION_TEST_SWITCH = TEXT("wor.Turns.ActionPips");
-	constexpr int32 TURN_ROTATION_TEST_ON = 1;
-	constexpr int32 TURN_ROTATION_TEST_OFF = 0;
 	constexpr int32 TURN_ROTATION_TEST_REVIVE_HP = 1;
 	constexpr int32 TURN_ROTATION_TEST_EXECUTION_DELAY = 2;
 	constexpr int32 TURN_ROTATION_TEST_PAYLOAD = 7;
@@ -32,8 +28,6 @@ BEGIN_DEFINE_SPEC(FTurnRotationSpec, "WoR.Turns.Rotation",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	UTurnManager *TurnManager = nullptr;
-	IConsoleVariable *PipsSwitch = nullptr;
-	int32 SwitchBefore = TURN_ROTATION_TEST_OFF;
 
 	AActor *Spawn(bool bEnemy)
 	{
@@ -80,15 +74,15 @@ BEGIN_DEFINE_SPEC(FTurnRotationSpec, "WoR.Turns.Rotation",
 		}
 	}
 
-	/** Starts the fight; false (recorded) when setup failed or the rotation is off. */
+	/** Starts the fight; false (recorded) when setup failed. */
 	bool StartFight(const TArray<AActor *> &Party, const TArray<AActor *> &Enemies, int32 OpeningTeam = INDEX_NONE)
 	{
-		if (!TestNotNull(TEXT("TurnManager"), TurnManager) || !TestNotNull(TEXT("the switch exists"), PipsSwitch))
+		if (!TestNotNull(TEXT("TurnManager"), TurnManager))
 		{
 			return false;
 		}
 		TurnManager->InitializeCombat(Party, Enemies, OpeningTeam);
-		return TestTrue(TEXT("the fight runs the fixed rotation"), TurnManager->IsRotationMode());
+		return TestTrue(TEXT("the fight runs"), TurnManager->IsCombatActive());
 	}
 
 	static void Kill(AActor *Actor)
@@ -108,13 +102,6 @@ void FTurnRotationSpec::Define()
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
-		// Console priority, so a value typed earlier in the session can't override it; put back after.
-		PipsSwitch = IConsoleManager::Get().FindConsoleVariable(TURN_ROTATION_TEST_SWITCH);
-		if (PipsSwitch)
-		{
-			SwitchBefore = PipsSwitch->GetInt();
-			PipsSwitch->Set(TURN_ROTATION_TEST_ON, ECVF_SetByConsole);
-		}
 	});
 
 	AfterEach([this]()
@@ -123,11 +110,6 @@ void FTurnRotationSpec::Define()
 		{
 			TurnManager->EndCombat();
 		}
-		if (PipsSwitch)
-		{
-			PipsSwitch->Set(SwitchBefore, ECVF_SetByConsole);
-		}
-		PipsSwitch = nullptr;
 		TurnManager = nullptr;
 		TestWorld.Reset();
 	});
@@ -274,22 +256,6 @@ void FTurnRotationSpec::Define()
 			if (!StartFight(P, E)) return;
 			TurnManager->DelayNextTurn(E[0], 1);
 			ExpectActors(TEXT("wind"), RecordNextTurns(2), {E[0], P[1]});
-		});
-	});
-
-	Describe("The switch", [this]()
-	{
-		It("is read when the fight starts: flipping it midway changes nothing", [this]()
-		{
-			const TArray<AActor *> P = SpawnSide(2, false);
-			const TArray<AActor *> E = SpawnSide(2, true);
-			if (!StartFight(P, E)) return;
-			PipsSwitch->Set(TURN_ROTATION_TEST_OFF, ECVF_SetByConsole);
-			TestTrue(TEXT("still the rotation"), TurnManager->IsRotationMode());
-			ExpectActors(TEXT("after the flip"), RecordNextTurns(3), {E[0], P[1], E[1]});
-			TurnManager->EndCombat();
-			TurnManager->InitializeCombat(P, E);
-			TestFalse(TEXT("the next fight runs the speed timeline"), TurnManager->IsRotationMode());
 		});
 	});
 }
