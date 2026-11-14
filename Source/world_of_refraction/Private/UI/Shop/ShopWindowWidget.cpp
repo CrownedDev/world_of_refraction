@@ -292,7 +292,7 @@ void UShopWindowWidget::SetMerchant(UMerchantData *Merchant, APawn *PurchaserPaw
     const UCurrencyComponent *OpenedWallet = PurchaserCurrency.Get();
     if (OpenedWallet && !WoRAuthority::HasAuthority(OpenedWallet->GetOwner()))
     {
-        ShowToast(NSLOCTEXT("Shop", "HostOnlyBuy", "Only the host can buy for now"));
+        ShowToast(NSLOCTEXT("Shop", "HostOnlyBuy", "Only the host can buy for now."));
     }
 }
 
@@ -371,7 +371,7 @@ void UShopWindowWidget::HandleConfirmClicked()
     {
         // Shouldn't fire — Confirm disables while unaffordable; capacity/duplicate edge
         // cases (e.g. inventory filled since the last refresh) land here.
-        ShowToast(NSLOCTEXT("Shop", "PurchaseFailed", "Purchase failed"));
+        ShowToast(NSLOCTEXT("Shop", "PurchaseFailed", "Couldn't buy that."));
         RefreshTotals();
     }
 }
