@@ -971,6 +971,15 @@ The queue of questions only Crown can answer.
 - **The place name top right** uses the game menu's own words for where you are ("Void Realm · The hub"; in a run, the trial and its variation and difficulty).
 **Notes for Claude:** `WoRInventoryScreen::GetFilters`, `GetNextSort`, `BuildPage(World, Member, Tab, Filter, Sort)`. When Q-323 is built, the Chest row gains Evolutions and Apparel.
 
+### Q-471d — Characters in the hub: when they stand there, and where their talks play
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-471d, Q-471c, Q-463 point 2) · **Blocks:** —
+**Question:** "the lords met stand in the hub": when does a character's spot show, what does its box list, and where are its conversations played?
+**Answer**, by the reference-backed default (Crown may change any):
+- **A character stands where its spot is placed in the hub** (an editor step, one spot per character); it shows from the start for now. Hiding it until it is met needs a "met" record the code doesn't keep yet (TODO). Expedition 33's camp and Hades' House show companions at fixed spots once they have joined.
+- **Its box lists the conversations it speaks in that are unlocked, NEW until played; played ones stay to hear again**, like V's lines (Q-471c). Mass Effect's and Expedition 33's camp talks are heard at the character, marked new until heard.
+- **A conversation played at the character is marked played** (the journal shows it under Played); the journal still plays a ready one itself until its "Show where" comes (B-471e).
+**Notes for Claude:** the greeting is a placeholder ("…"): each character's words are Crown's (lore).
+
 ### Q-471c — The talk box: whose lines, topic names, the conversations, the greeting
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-471c, D-178, Q-463) · **Blocks:** —
 **Question:** the talk box (UIScreens #20) needs four things the mockup doesn't settle: where V's lines are heard, what a topic is called, where the characters' conversations go, and what V says when the box opens.
