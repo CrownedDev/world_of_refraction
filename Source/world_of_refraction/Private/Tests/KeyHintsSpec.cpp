@@ -62,6 +62,9 @@ void FKeyHintsSpec::Define()
 		// A numbered argument ({0}) would not: it fills the first name's place, so mixed patterns use FormatNamed.
 		const FText Once = FText::FormatNamed(FText::FromString(TEXT("{Confirm} again: {What} comes off")), TEXT("What"), FText::FromString(TEXT("Garnet")));
 		TestEqual(TEXT("two passes"), WoRKeyHints::Format(Once, false).ToString(), FString(TEXT("Enter again: Garnet comes off")));
+		// A name the player typed with braces shows as typed, not as a key.
+		const FText Named = FText::Format(FText::FromString(TEXT("{0} is now in use.")), WoRKeyHints::Literal(FText::FromString(TEXT("My {Back} `set`"))));
+		TestEqual(TEXT("a typed name keeps its braces"), WoRKeyHints::Format(Named, false).ToString(), FString(TEXT("My {Back} `set` is now in use.")));
 	});
 
 	It("shows the keyboard's keys on a hint text with no player (headless), and fills a plain text once", [this]()

@@ -77,6 +77,16 @@ void WoRKeyHints::SetHint(UTextBlock *Text, const FText &Pattern, const FFormatN
 	}
 }
 
+FText WoRKeyHints::Literal(const FText &PlayerText)
+{
+	// FText::Format's escape character is the backtick: `{ shows a brace instead of opening a name.
+	FString Typed = PlayerText.ToString();
+	Typed.ReplaceInline(TEXT("`"), TEXT("``"));
+	Typed.ReplaceInline(TEXT("{"), TEXT("`{"));
+	Typed.ReplaceInline(TEXT("}"), TEXT("`}"));
+	return FText::FromString(Typed);
+}
+
 FString WoRKeyHints::GetKeyNamesString()
 {
 	FString Out = TEXT("Key hints (name: gamepad / keyboard):");
@@ -96,28 +106,43 @@ void UWoRKeyHintText::SetHint(const FText &InPattern, const FFormatNamedArgument
 
 void UWoRKeyHintText::ShowHint()
 {
+	BindInput(); // the player may not have been known when the text was built
 	SetText(Pattern.IsEmpty() ? FText::GetEmpty() : WoRKeyHints::Format(Pattern, WoRKeyHints::IsGamepad(this), Extra));
+}
+
+void UWoRKeyHintText::BindInput()
+{
+	if (BoundInput.IsValid())
+	{
+		return; // one binding
+	}
+	if (UCommonInputSubsystem *Input = UCommonInputSubsystem::Get(GetOwningLocalPlayer()))
+	{
+		BoundInput = Input;
+		InputChangedHandle = Input->OnInputMethodChangedNative.AddUObject(this, &UWoRKeyHintText::HandleInputMethodChanged);
+	}
+}
+
+void UWoRKeyHintText::UnbindInput()
+{
+	if (UCommonInputSubsystem *Input = BoundInput.Get())
+	{
+		Input->OnInputMethodChangedNative.Remove(InputChangedHandle);
+	}
+	BoundInput.Reset();
+	InputChangedHandle.Reset();
 }
 
 TSharedRef<SWidget> UWoRKeyHintText::RebuildWidget()
 {
 	TSharedRef<SWidget> Widget = Super::RebuildWidget();
-	if (UCommonInputSubsystem *Input = UCommonInputSubsystem::Get(GetOwningLocalPlayer()))
-	{
-		Input->OnInputMethodChangedNative.Remove(InputChangedHandle); // rebuilt: one binding, not two
-		InputChangedHandle = Input->OnInputMethodChangedNative.AddUObject(this, &UWoRKeyHintText::HandleInputMethodChanged);
-	}
-	ShowHint(); // the pattern may have been set before the player was known
+	ShowHint(); // binds, and shows the pattern for the device now that the player is known
 	return Widget;
 }
 
 void UWoRKeyHintText::ReleaseSlateResources(bool bReleaseChildren)
 {
-	if (UCommonInputSubsystem *Input = UCommonInputSubsystem::Get(GetOwningLocalPlayer()))
-	{
-		Input->OnInputMethodChangedNative.Remove(InputChangedHandle);
-	}
-	InputChangedHandle.Reset();
+	UnbindInput();
 	Super::ReleaseSlateResources(bReleaseChildren);
 }
 

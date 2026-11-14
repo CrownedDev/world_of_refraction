@@ -1247,7 +1247,8 @@ void ULoadoutV2ScreenWidget::UseSaved()
 	Message = WoRLoadoutSaved::SetActive(*Loadout, *Inventory, Row.LoadoutIndex);
 	if (Message.IsEmpty())
 	{
-		Message = FText::Format(LOCTEXT("SavedNowUsed", "{0} is now in use."), Row.Name);
+		// The name is typed by the player and the message is shown as a key hint: its braces stay as typed.
+		Message = FText::Format(LOCTEXT("SavedNowUsed", "{0} is now in use."), WoRKeyHints::Literal(Row.Name));
 		Mode = ELoadoutV2Mode::List; // back to the entries, now of that loadout
 		Selected = 0;
 		ListSelected = 0;
@@ -1672,7 +1673,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		if (Items.Num() == 1 && Items[0].bEquipped)
 		{
 			// Today's socket rule: a full socket is emptied first (its gem goes, CL-28b), then filled.
-			Items[0].Line = bRemoveArmed ? Items[0].Line : FText::Format(LOCTEXT("SocketFullLine", "{0} · A Remove to put another in"), Items[0].Line);
+			Items[0].Line = bRemoveArmed ? Items[0].Line : FText::FormatNamed(LOCTEXT("SocketFullLine", "{What} · {Confirm} Remove to put another in"), TEXT("What"), Items[0].Line);
 		}
 		return;
 	}

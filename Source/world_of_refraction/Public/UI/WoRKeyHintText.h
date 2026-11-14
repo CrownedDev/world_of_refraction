@@ -13,6 +13,7 @@
 #include "CoreMinimal.h"
 #include "WoRKeyHintText.generated.h"
 
+class UCommonInputSubsystem;
 class UWidget;
 enum class ECommonInputType : uint8;
 
@@ -32,6 +33,10 @@ namespace WoRKeyHints
 	/** Shows Pattern on Text for the device in use. A text made by WoRMenuStyle::MakeHintText keeps the pattern and
 	 *  shows it again when the device changes; any other text is filled once. */
 	WORLD_OF_REFRACTION_API void SetHint(UTextBlock *Text, const FText &Pattern, const FFormatNamedArguments &Extra = FFormatNamedArguments());
+
+	/** Text the player typed (a loadout's name), safe to put in a hint: its braces and backticks show as typed instead
+	 *  of being read as key names. */
+	WORLD_OF_REFRACTION_API FText Literal(const FText &PlayerText);
 
 	/** Debug: every key name on both devices. */
 	WORLD_OF_REFRACTION_API FString GetKeyNamesString();
@@ -53,8 +58,13 @@ protected:
 private:
 	void HandleInputMethodChanged(ECommonInputType NewInputType);
 	void ShowHint();
+	/** Listens to the player's input subsystem once it is known (not yet at construction, never headless). */
+	void BindInput();
+	void UnbindInput();
 
 	FText Pattern;
 	FFormatNamedArguments Extra;
+	/** The subsystem listened to, kept so the binding comes off even when the player is gone at teardown. */
+	TWeakObjectPtr<UCommonInputSubsystem> BoundInput;
 	FDelegateHandle InputChangedHandle;
 };
