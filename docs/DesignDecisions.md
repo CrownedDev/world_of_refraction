@@ -930,6 +930,15 @@ The queue of questions only Crown can answer.
 - **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
+### Q-440e — Saved loadouts on the loadout screen: keys, names, lore ones
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440e, D-111) · **Blocks:** —
+**Question:** UIScreens #2 says Y opens the five saved loadouts, but not what each key does there, what a new one is called, or what happens to a lore (the character's own) loadout.
+**Answer**, by the reference-backed default (Crown may change any):
+- **Y opens the list; in it A uses the lit loadout and goes back to its page, X duplicates it, Y renames it, B closes.** The last line, "New loadout", makes an empty one while there is room. Destiny 2's loadouts screen and Diablo IV's wardrobe both open from one button with use / save / rename on face buttons, widely used and liked for switching builds quickly.
+- **A new loadout is "Loadout N"** (the first free number); a copy is "<name> copy". Names are trimmed and at most 24 letters (`WoRLoadoutSaved::MAX_LOADOUT_NAME_LENGTH`), like Destiny 2's short loadout names.
+- **A lore loadout can be used and duplicated but not renamed** (it is read only, D-111); the copy is the player's own (B-311). Lore ones don't count toward the five.
+- **No delete here** (not in the job; `ULoadoutComponent::DeleteLoadout` exists): a full list says to rename or change one.
+
 ### Q-440d — The Skills page: how it is reached, which lists it shows, what X does
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-440d, D-181, D-145) · **Blocks:** —
 **Question:** the mockup draws a Refractor's innate spells by school but not how the page and its lists are reached, what the other classes see, what Change lists, or what X does to a slot.
