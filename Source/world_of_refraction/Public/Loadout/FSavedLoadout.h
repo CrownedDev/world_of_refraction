@@ -204,6 +204,17 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     FGuid PrimaryWeaponInstance;
 
+    /** B-477 (D-209): the primary set's off hand (Generic only; a same-type pair, WeaponSetRules::CheckPair). Null for
+     *  a weapon alone. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+    UWeaponData *PrimaryOffHandWeapon = nullptr;
+
+    /** Owned-instance reference pairing with PrimaryOffHandWeapon (see PrimaryWeaponInstance). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "3. Primary",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+    FGuid PrimaryOffHandInstance;
+
     /** Primary ring (Generic/Caster only, when PrimarySlotType == Ring) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
               meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
@@ -257,6 +268,16 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "4. Secondary",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     FGuid SecondaryWeaponInstance;
+
+    /** B-477 (D-209): the secondary set's off hand (see PrimaryOffHandWeapon). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
+    UWeaponData *SecondaryOffHandWeapon = nullptr;
+
+    /** Owned-instance reference pairing with SecondaryOffHandWeapon (see PrimaryWeaponInstance). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "4. Secondary",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
+    FGuid SecondaryOffHandInstance;
 
     // ==================== SECONDARY WEAPON CONFIGURATION (Generic only) ====================
 

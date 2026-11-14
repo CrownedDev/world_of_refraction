@@ -384,6 +384,11 @@ FSavedLoadout FCombatLoadout::ToSavedLoadout(ECharacterClass CharacterClass) con
     Saved.SecondaryWeapon = SecondaryWeapon.WeaponEntry.Weapon;
     Saved.SecondaryWeaponInstance = SecondaryWeapon.WeaponEntry.PersistentID;
     Saved.SecondaryWeaponAbilities = SecondaryWeapon.AssignedAbilities;
+    // B-477 (D-209): the sets' off hands, by owned GUID like the main hands.
+    Saved.PrimaryOffHandWeapon = PrimaryWeapon.OffHandEntry.Weapon;
+    Saved.PrimaryOffHandInstance = PrimaryWeapon.OffHandEntry.PersistentID;
+    Saved.SecondaryOffHandWeapon = SecondaryWeapon.OffHandEntry.Weapon;
+    Saved.SecondaryOffHandInstance = SecondaryWeapon.OffHandEntry.PersistentID;
     for (const FRingLoadoutEntry &Ring : RingLoadout)
     {
         FResonatorRingSlot &Slot = Saved.EquippedRings.AddDefaulted_GetRef();
@@ -564,6 +569,19 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 SavedLoadout.SecondaryWeapon, SavedLoadout.SecondaryWeaponInstance, TEXT("SecondaryWeapon"));
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = SavedLoadout.SecondaryWeaponAbilities;
+            if (SavedLoadout.SecondaryOffHandWeapon) // B-477 (D-209): the secondary set's off hand
+            {
+                Result.SecondaryWeapon.OffHandEntry = ResolveWeaponEntry(
+                    SavedLoadout.SecondaryOffHandWeapon, SavedLoadout.SecondaryOffHandInstance, TEXT("SecondaryOffHandWeapon"));
+            }
+        }
+
+        // B-477 (D-209): the primary set's off hand (a Generic's sets only).
+        if (Result.PrimaryWeapon.IsValid() && SavedLoadout.PrimaryOffHandWeapon &&
+            (SavedLoadout.PrimarySlotType == EPrimarySlotType::Weapon || SavedLoadout.PrimarySlotType == EPrimarySlotType::None))
+        {
+            Result.PrimaryWeapon.OffHandEntry = ResolveWeaponEntry(
+                SavedLoadout.PrimaryOffHandWeapon, SavedLoadout.PrimaryOffHandInstance, TEXT("PrimaryOffHandWeapon"));
         }
     }
 
