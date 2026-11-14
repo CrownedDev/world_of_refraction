@@ -119,19 +119,24 @@ namespace LoadoutScreenBuild
 		}
 	}
 
-	/** "Weapon 1 + Crystal 1 = 2": the frame, plus what sits in it (Q-357). */
+	/** D-206 (B-472): only what is inside costs: "Crystal 1", "Evolution 2 + Stone 1 = 3", or "Free" for bare gear. */
 	FText FormatCostLine(const FLoadoutSlot &Slot, int32 Cost)
 	{
-		const bool bWeapon = Slot.Kind() == EGearKind::Weapon;
-		const FText FrameName = bWeapon ? LOCTEXT("FrameWeapon", "Weapon") : LOCTEXT("FrameAdapter", "Adapter");
-		const int32 FrameCost = FMath::Min(Cost, bWeapon ? LoadoutConstants::WEAPON_FRAME_COST : LoadoutConstants::ADAPTER_FRAME_COST);
-		const int32 AttachmentCost = Cost - FrameCost;
-		if (AttachmentCost <= 0 || !Slot.Gear.HasAttachment())
+		TArray<FText> Parts;
+		for (const FRuntimeAttachedItem *Socket : {&Slot.Gear.AttachedItem, &Slot.Gear.StoneSocket})
 		{
-			return FText::Format(LOCTEXT("CostFrameOnly", "{0} {1}"), FrameName, FText::AsNumber(Cost));
+			const int32 SocketCost = FLoadoutRules::AttachmentCost(*Socket);
+			if (!Socket->IsEmpty() && SocketCost > 0)
+			{
+				Parts.Add(FText::Format(LOCTEXT("CostPart", "{0} {1}"), SocketLabel(*Socket, FText::GetEmpty()), FText::AsNumber(SocketCost)));
+			}
 		}
-		return FText::Format(LOCTEXT("CostFrameAndAttachment", "{0} {1} + {2} {3} = {4}"), FrameName, FText::AsNumber(FrameCost),
-							 SocketLabel(Slot.Gear.AttachedItem, FText::GetEmpty()), FText::AsNumber(AttachmentCost), FText::AsNumber(Cost));
+		if (Parts.Num() == 0)
+		{
+			return LOCTEXT("CostFree", "Free");
+		}
+		const FText Sum = FText::Join(LOCTEXT("CostPlus", " + "), Parts);
+		return Parts.Num() == 1 ? Sum : FText::Format(LOCTEXT("CostSum", "{0} = {1}"), Sum, FText::AsNumber(Cost));
 	}
 
 	FText FormatDurability(const FRuntimeAttachedItem &Item)

@@ -54,7 +54,7 @@ FText WoRNewGame::GetClassLine(ECharacterClass Class)
 	case ECharacterClass::Caster:
 		return FText::Format(LOCTEXT("RefractorLine", "Your own element and spell pool; one item. Budget {0}."), Budget);
 	case ECharacterClass::Resonator:
-		return FText::Format(LOCTEXT("ResonatorLine", "Any number of adapters and one weapon. Budget {0}."), Budget);
+		return FText::Format(LOCTEXT("ResonatorLine", "Up to five adapters and one weapon. Budget {0}."), Budget);
 	}
 	return FText::GetEmpty();
 }

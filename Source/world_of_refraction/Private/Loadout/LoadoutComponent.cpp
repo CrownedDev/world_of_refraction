@@ -881,10 +881,12 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             // Walk rings accumulating cost from the primary slot's cost; truncate
             // from the first index where adding the next ring would exceed budget.
             // B-303: the same cost and budget the finding used (FLoadoutRules over the slots the fight reads).
+            // B-472 (D-206): the loadout cost (FLoadoutRules::SlotCost, not the pouch's), and the class's adapter cap.
             const int32 PrimaryCost = FLoadoutRules::NonAdapterCost(Loadout, GetCharacterClass());
-            const int32 Budget = LoadoutClassTable::Get(GetCharacterClass()).Budget;
+            const FLoadoutClassLimits Limits = LoadoutClassTable::Get(GetCharacterClass());
 
             int32 RunningTotal = PrimaryCost;
+            int32 AdapterCount = 0;
             int32 TruncateFromIndex = INDEX_NONE;
             for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
             {
@@ -892,17 +894,34 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
                 {
                     continue;
                 }
-                const int32 NextCost = InventoryConstants::GetRingSlotCost(Loadout.RingLoadout[i].IsEvolved());
-                if (RunningTotal + NextCost > Budget)
+                const int32 NextCost = FLoadoutRules::SlotCost(FLoadoutSlot::FromRingLoadoutEntry(Loadout.RingLoadout[i]));
+                const bool bOverCount = Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && AdapterCount + 1 > Limits.MaxAdapters;
+                if (RunningTotal + NextCost > Limits.Budget || bOverCount)
                 {
                     TruncateFromIndex = i;
                     break;
                 }
                 RunningTotal += NextCost;
+                ++AdapterCount;
             }
             if (TruncateFromIndex != INDEX_NONE)
             {
                 Loadout.RingLoadout.SetNum(TruncateFromIndex);
+            }
+            break;
+        }
+        case ELoadoutSlotType::PrimaryStone:
+        {
+            // B-472 (D-206): a Refractor over 2 drops its one item's augment stone; Q-159 = A: it goes back to the
+            // inventory, and the owned item is written so the stone isn't on it and in the pouch at once.
+            FRuntimeAttachedItem &Stone = Loadout.PrimarySlotType == EPrimarySlotType::Ring ? Loadout.PrimaryRing.RingEntry.StoneSocket
+                                                                                             : Loadout.PrimaryWeapon.WeaponEntry.StoneSocket;
+            if (!Stone.IsEmpty())
+            {
+                const FCrystalId StoneId = Stone.Crystal.Id;
+                Stone = FRuntimeAttachedItem();
+                Inv->WriteLoadoutToOwned(Index);
+                LoadoutReturnDroppedCrystals(Inv, StoneId, 1);
             }
             break;
         }
