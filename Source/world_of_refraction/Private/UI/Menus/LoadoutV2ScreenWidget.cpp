@@ -91,7 +91,7 @@ namespace LoadoutV2ScreenStyle
 			return FText::GetEmpty();
 		}
 		const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
-		return Crystal.bEvolution ? FText::Format(LOCTEXT("WarnEvolutionOff", "{Confirm} again: {0} goes back to your evolutions with some wear (it breaks at none)."), Crystal.Name)
+		return Crystal.bEvolution ? FText::FormatNamed(LOCTEXT("WarnEvolutionOff", "{Confirm} again: {What} goes back to your evolutions with some wear (it breaks at none)."), TEXT("What"), Crystal.Name)
 								  : LOCTEXT("WarnCrystalOff", "{Confirm} again: what's in both sockets comes off and is destroyed.");
 	}
 
@@ -416,7 +416,7 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		{
 		case ELoadoutV2Option::SetActive:
 			return Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive
-					   ? FText::Format(LOCTEXT("OptionSetActiveLine", "{0} becomes the active weapon ({SetActive})"), Entry->Name)
+					   ? FText::FormatNamed(LOCTEXT("OptionSetActiveLine", "{What} becomes the active weapon ({SetActive})"), TEXT("What"), Entry->Name)
 					   : LOCTEXT("OptionSetActiveOff", "Focus a weapon entry that isn't active");
 		case ELoadoutV2Option::SavedLoadouts:
 			return LOCTEXT("OptionSavedList", "Use another, make a new one, duplicate or rename"); // B-440e
