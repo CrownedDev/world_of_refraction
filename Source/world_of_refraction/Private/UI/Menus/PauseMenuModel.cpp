@@ -76,9 +76,9 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, co
 	TArray<FPauseMenuPage> Pages;
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Resume, LOCTEXT("Resume", "Resume"), LOCTEXT("ResumePreview", "Back to the game.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Loadout, LOCTEXT("Loadout", "Loadout"),
-					   LOCTEXT("LoadoutPreview", "Weapons, adapters and apparel, their sockets, and your saved loadouts.")));
+					   LOCTEXT("LoadoutPreview", "Gear, sockets and saved loadouts.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Inventory, LOCTEXT("Inventory", "Inventory"),
-					   LOCTEXT("InventoryPreview", "Each character's gear and pouch, and the home chest.")));
+					   LOCTEXT("InventoryPreview", "Gear, pouch and chest.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Character, LOCTEXT("Character", "Character"),
 					   LOCTEXT("CharacterPreview", "Pillars, substats and resistances.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Party, LOCTEXT("Party", "Party"),
@@ -95,7 +95,7 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, co
 
 FText WoRPauseMenu::GetQuitWarning(bool bInRun)
 {
-	return bInRun ? LOCTEXT("QuitWarningRun", "Quitting now ends the run and you lose everything from it: its Prisms, its rewards, all of it. "
+	return bInRun ? LOCTEXT("QuitWarningRun", "Quitting ends the run. You lose its Prisms and rewards. "
 													   "The only way out with your rewards is to extract at a rest spot left where a great foe fell.")
 				  : LOCTEXT("QuitWarningHub", "There is no title screen yet, so this saves and closes the game.");
 }
