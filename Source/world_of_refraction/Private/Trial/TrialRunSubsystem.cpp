@@ -180,7 +180,7 @@ void UTrialRunSubsystem::ExitTrial()
     TravelTo(HubLevel);
 }
 
-void UTrialRunSubsystem::SettleRunAsQuit()
+void UTrialRunSubsystem::SettleRunAsQuit(bool bTravelIfAway)
 {
     if (!IsRunActive())
     {
@@ -191,7 +191,7 @@ void UTrialRunSubsystem::SettleRunAsQuit()
     bAbandoned = true;
     FinishRun();
     const UWorld *World = GetGameInstance()->GetWorld();
-    if (!IsHubWorld(World) && !HubLevel.IsNull())
+    if (bTravelIfAway && !IsHubWorld(World) && !HubLevel.IsNull())
     {
         TravelTo(HubLevel); // started somewhere else (a trial map in PIE): on to the hub, as a quit would
     }
