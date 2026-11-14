@@ -170,7 +170,7 @@ void UVendorScreenWidget::BuildTree()
 	AddToColumn(PanelColumn, BuyForButton, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	ConfirmText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 	AddToColumn(PanelColumn, ConfirmText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
-	ConfirmHint = MakeHintText(WidgetTree, LineFontSize, CyanColor, true);
+	ConfirmHint = MakeHintBar(WidgetTree, LineFontSize, CyanColor); // B-483: caps, clickable
 	WoRKeyHints::SetHint(ConfirmHint, LOCTEXT("ConfirmHint", "{Confirm}  Confirm        {Back}  Cancel"));
 	AddToColumn(PanelColumn, ConfirmHint, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	WholeStackText = MakeHintText(WidgetTree, LineFontSize, CyanColor);
@@ -208,7 +208,7 @@ void UVendorScreenWidget::BuildTree()
 	AddToColumn(Side, CartPanel, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, Side, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
-	HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 }
 

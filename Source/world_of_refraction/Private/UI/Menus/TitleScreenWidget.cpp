@@ -148,7 +148,7 @@ void UTitleScreenWidget::BuildTree()
 
 	UVerticalBox *Spacer = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	AddToColumn(Main, Spacer)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	HintsText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 
 	// Over everything: the dimmed screen and one centred panel (the reset notice, or New Game's confirm).

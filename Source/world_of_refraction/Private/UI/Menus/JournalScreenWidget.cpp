@@ -148,7 +148,7 @@ void UJournalScreenWidget::BuildTree()
 	AddToColumn(PanelColumn, ReaderNote, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 	AddToRow(Body, Panel, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
-	HintText = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	HintText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	AddToColumn(Main, HintText)->SetHorizontalAlignment(HAlign_Right);
 }
 

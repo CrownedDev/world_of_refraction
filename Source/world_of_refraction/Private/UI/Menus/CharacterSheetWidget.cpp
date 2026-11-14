@@ -133,7 +133,7 @@ void UCharacterSheetWidget::BuildTree()
 	AddToRow(Body, MakeSized(WidgetTree, ResistanceWidth, 0.0f, BuildResistancePanel()), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	// Bottom right: the hints. TODO: "R3 Where it comes from" and "Y Loadout" when those are built.
-	UTextBlock *Hints = MakeHintText(WidgetTree, LineFontSize, DimColor); // B-481: the keys of the device in use
+	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{SubTabs}  Character        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
