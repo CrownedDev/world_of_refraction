@@ -971,6 +971,15 @@ The queue of questions only Crown can answer.
 - **The place name top right** uses the game menu's own words for where you are ("Void Realm · The hub"; in a run, the trial and its variation and difficulty).
 **Notes for Claude:** `WoRInventoryScreen::GetFilters`, `GetNextSort`, `BuildPage(World, Member, Tab, Filter, Sort)`. When Q-323 is built, the Chest row gains Evolutions and Apparel.
 
+### Q-471c — The talk box: whose lines, topic names, the conversations, the greeting
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-471c, D-178, Q-463) · **Blocks:** —
+**Question:** the talk box (UIScreens #20) needs four things the mockup doesn't settle: where V's lines are heard, what a topic is called, where the characters' conversations go, and what V says when the box opens.
+**Answer**, by the reference-backed default (Crown may change any), except the greeting's words, which are Crown's (story):
+- **V's lines are heard from any vendor's Talk**, since every vendor is V in an outfit (HubAndStory §3). Talk lists the lines heard (to hear again) and the next one unlocked, marked NEW; Talk itself shows NEW while one waits. Y shows the log (the lines heard, in order). Hades marks new dialogue and keeps it re-readable; Persona 5 puts the log on a button.
+- **A topic's name is the line's own short name** (`FVLine::TopicName`, authored with the line); a line without one reads "Topic n" until Crown names it.
+- **The characters' conversations stay in the journal** (A plays them, then Played) until the characters stand in the hub to be talked to (**B-471d**): nothing in the hub can be talked to but V's vendors yet, and moving the talks to V would put the characters' words in V's mouth. Expedition 33's camp talks are with each character; that is the target.
+- **The greeting is a neutral placeholder ("…")** until Crown writes V's lines for it (lore, not decided here).
+
 ### Q-463 — The journal screen: what it does where the mockup needs things the game doesn't have yet
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-463, D-181, D-196, D-198, D-199) · **Blocks:** —
 **Question:** the journal's look and its secret quest rules are decided (`UIScreens.md` #6, D-198, D-199). Six things the mockups show need data or screens that don't exist yet. (1) A "Track" on a quest: nothing stores a tracked quest or shows it on a HUD. (2) A ready conversation says "talk to Garrick in the Void Realm", but NPC talk isn't built (B-471), and today conversations are played in the placeholder journal. (3) "Talk to V" is not a journal page any more, and V's hub talk isn't built either. (4) Memories show a NEW mark, a replay window and where they were found; lore shows its kind and place: none of that is recorded. (5) A finished quest's reward: rewards have no player-facing words. (6) Which characters get a Memories sub-tab.
