@@ -15,20 +15,24 @@
 // B-440f (D-164): LB / RB turns to the Apparel tab, which works like Weapons: the worn pieces, an Add apparel frame
 // ("1/2 left"), the focused piece in the box. A opens the owned pieces for that place (WoRLoadoutApparel): A Pick, or
 // A Remove on the EQUIPPED line. Apparel is outside the cells.
-// B-482: each character and each tab is a framed chip (WoRMenuStyle::FChipRow), the current one filled, Skills and
-// Cosmetics greyed with "later"; the details box is hidden when it has nothing to say (the Add weapon / Add apparel
+// B-482: each character and each tab is a framed chip (WoRMenuStyle::FChipRow), the current one filled, Cosmetics
+// greyed with "later"; the details box is hidden when it has nothing to say (the Add weapon / Add apparel
 // frames). Mouse: a click on a chip goes there, on a line focuses it (again: A); hovering lights a chip or a line.
 // B-485 (mockups menus/loadout/icons): icons from UWoRIconTable: a weapon-type icon at a row's start, its two sockets
 // as badges after the name (instead of "(Garnet)"), a tier badge by a piece's name, an icon beside an effect line and
 // a socket line in the box, element and tier badges on the crystal lines of Add gear. Each icon carries its name as a
 // tooltip; where the table has no icon (or there is no table yet) the text of before stays.
-// Not yet (B-476d): the Skills tab, the apparel socket and Compare, then replacing ULoadoutScreenWidget on the game menu.
+// B-476d: the Skills tab between Weapons and Apparel (LB / RB turn the three in a ring): the entries (WoRLoadoutV2Skills)
+// with filled / total; A opens an entry's slots, A on a slot the picker, A puts the pick in (today's Skills page
+// change); X / V the full or short skill text; the box says what the highlighted skill does.
+// Not yet (B-476d): the apparel socket and Compare, then replacing ULoadoutScreenWidget on the game menu.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
 #include "UI/Menus/LoadoutSavedModel.h"
+#include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
 #include "UI/Menus/MenuChipRow.h"
@@ -64,17 +68,26 @@ enum class ELoadoutV2Mode : uint8
 	/** The focused slot's list of pieces. */
 	WindowItems,
 	/** "Attach ... to ...? Uses 2 cells": A Attach, B Not now. */
-	WindowAsk
+	WindowAsk,
+	/** B-476d, the Skills tab: its entries (the tab's top level). */
+	SkillEntries,
+	/** The focused entry's skill slots. */
+	SkillRows,
+	/** The picker for a slot. */
+	SkillPicker
 };
 
-/** B-440f: the tab LB / RB shows (Skills comes with B-476d). */
+/** B-440f: the tab LB / RB shows. B-476d: Weapons | Skills | Apparel, the chips' order (Cosmetics later). */
 enum class ELoadoutV2Tab : uint8
 {
 	Weapons,
-	Apparel
+	Skills,
+	Apparel,
+	/** The last tab: SwitchTab's ring ends here (move it when Cosmetics comes). */
+	Last = Apparel
 };
 
-/** B-482: the tab chips, in the mockup's order (Skills and Cosmetics are greyed until they are built). */
+/** B-482: the tab chips, in the mockup's order (Cosmetics greyed until it is built; B-476d built Skills). */
 enum ELoadoutV2TabChip : int32
 {
 	LoadoutV2Chip_Weapons,
@@ -138,8 +151,13 @@ public:
 	// What the keys do (the specs call these too).
 	void MoveSelection(int32 Delta);
 	void MoveMember(int32 Delta);
-	/** B-440f, LB / RB: the other tab (Weapons, Apparel); on the list only. */
-	void SwitchTab();
+	/** B-440f, LB / RB: the next tab (Delta > 0) or the one before, from a tab's top level only. B-476d: Weapons |
+	 *  Skills | Apparel in a ring. */
+	void SwitchTab(int32 Delta = 1);
+	bool IsOnSkillsTab() const { return Mode == ELoadoutV2Mode::SkillEntries || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker; }
+	const FLoadoutV2SkillsPage &GetSkillsPage() const { return SkillsPage; }
+	const TArray<FLoadoutV2SkillRowRef> &GetSkillRows() const { return SkillRows; }
+	const TArray<FLoadoutScreenChoice> &GetSkillChoices() const { return SkillChoices; }
 	/** A: Edit an entry, Equip on the Add weapon frame; in Options, select; in the window, open a slot's list, Pick or
 	 *  Remove; when asked, Attach. */
 	void PressA();
@@ -150,7 +168,7 @@ public:
 	/** L3 / 6: the focused weapon entry becomes the one in hand (D-207). */
 	void PressSetActive();
 	// B-482: what a mouse click does (the specs call these too).
-	/** A tab chip: goes to that tab; a greyed one (Skills, Cosmetics) only says it comes later. On the list only. */
+	/** A tab chip: goes to that tab; the greyed one (Cosmetics) only says it comes later. From a tab's top level. */
 	void ClickTabChip(int32 Chip);
 	/** A character chip: shows that character. On the list only. */
 	void ClickMemberChip(int32 Chip);
@@ -212,10 +230,12 @@ private:
 	/** B-484: the row's tag, in its own space at the right end: ACTIVE on the weapon in hand, EQUIPPED / PICKED in a
 	 *  slot's list. */
 	FText GetLineTag(int32 Line) const;
-	/** B-484: the line the details box shows in a list of pieces: the one under the mouse, else the focused one. */
+	/** B-484: the line the details box shows in a list of pieces: the one under the mouse, else the focused one.
+	 *  B-476d: a skill's slots and the picker follow the mouse the same way. */
 	int32 GetBoxLine() const
 	{
-		return (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems) && Items.IsValidIndex(HoveredLine) ? HoveredLine : Selected;
+		const bool bFollowsMouse = Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker;
+		return bFollowsMouse && HoveredLine >= 0 && HoveredLine < GetLineCount() ? HoveredLine : Selected;
 	}
 	/** B-484: one line of a slot's list as the box's details: that piece alone (WoRLoadoutV2::Build...Details). */
 	TArray<FLoadoutV2DetailLine> BuildItemDetails(const FLoadoutV2WindowItem &Item) const;
@@ -249,6 +269,25 @@ private:
 	int32 FindLineUnder(const FVector2D &ScreenPosition) const;
 	/** What the mouse is over, shown lit; true when it changed. */
 	bool SetHovered(int32 MemberChip, int32 TabChip, int32 Line);
+
+	/** B-476d: shows NewTab at its top level (the Skills tab's entries, else the list). */
+	void ShowTab(ELoadoutV2Tab NewTab);
+
+	// B-476d, the Skills tab.
+	/** The Weapons tab entry a list line shows (the Weapons list's own, or the one a Skills entry stands for): its
+	 *  icons, socket badges and ACTIVE are drawn the same on both tabs. Null on any other line. */
+	const FLoadoutV2Entry *GetRowEntry(int32 Line) const;
+	void RefreshSkills();
+	void PutPickedSkill();
+	/** Debug: the Skills tab as shown (WoRLoadoutV2Skills::GetSkillsString), logged when the tab opens. */
+	void LogSkillsTab() const;
+	FLoadoutV2SkillsPage SkillsPage;
+	/** The entry whose slots are open (SkillRows, SkillPicker). */
+	int32 SkillEntry = 0;
+	TArray<FLoadoutV2SkillRowRef> SkillRows;
+	/** The slot the picker is for. */
+	int32 SkillRowSelected = 0;
+	TArray<FLoadoutScreenChoice> SkillChoices;
 
 	// B-440f: the Apparel tab.
 	int32 GetWornApparelCount() const;
