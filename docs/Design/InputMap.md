@@ -66,6 +66,8 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Party: change the lit member's seat (you / AI), or open Invite; move the lit member to the next start cell | Enter, left click; X | A (Cross); X (Square) | none (the screen's keys) | Built (B-458, Q-458): `WoRMenuStyle::IsConfirmKey` / `IsToggleKey` |
 | Host-lost card: stop waiting for the new host; Hand over host?: hand over, or stay host | Esc; Enter / Esc | B (Circle); A (Cross) / B (Circle) | none (the screen's keys) | Built (B-459a, Q-459a): `WoRMenuStyle::IsBackKey` / `IsConfirmKey` |
 | Play together: invite the lit friend, or host / stop hosting; switch between the friends and the seats | Enter, left click; X | A (Cross); X (Square) | none (the screen's keys) | Built (B-459b, Q-459b): `WoRMenuStyle::IsConfirmKey` / `IsToggleKey` |
+| Join request card: answer (the host, while a request waits) | hold Tab 0.5 s | hold View (Touchpad) 0.5 s | `IA_Coop_AnswerJoinRequest` (code-built) | Built (B-459c, Q-459c): a hold, so a tap of View stays free for the proposed Map; doesn't eat the key; only mapped while a request waits; not in a fight |
+| Join request card: light a seat, give it, refuse, let go | arrows / W S; Enter; X; Esc | D-pad / stick; A (Cross); X (Square); B (Circle) | none (the card's keys) | Built (B-459c): `WoRMenuStyle` keys, once held to answer |
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
 | Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen; B-456a, vendor screen: sell or dismantle one, or the whole stack): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
@@ -90,6 +92,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | Exploration (hub and trial map) | `AExplorationPlayerController` (`ExplorationMappingContext`; a BP may override `ExplorationMappingPriority`) | `EXPLORATION` = 0 | Built (B-129: named) |
 | Combat (editor-authored: Guard, Dodge) | `ACombatPlayerController::CombatMappingContext` | `COMBAT` = 0 | Built (B-129: named) |
 | Combat menu keys (code-built: Defend, infusion, category keys, skip cinematic) | `ACombatPlayerController::BuildMenuKeys` | `COMBAT_MENU_KEYS` = `COMBAT` + 1 | Built (B-129: named; was `CombatMenuKeys::CONTEXT_PRIORITY`) |
+| Join request card (code-built: hold to answer) | `UJoinRequestCardPresenter::AddHoldKey`, only while a join request waits | `JOIN_REQUEST_CARD` = `COMBAT_MENU_KEYS` + 1 | Built (B-459c) |
 
 ## Notes
 
@@ -119,6 +122,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-458: A changes a seat, X moves on the grid, on the party screen | feature/B-458-party-screen |
 | 2026-11-14 | B-459a: B stops waiting on the host-lost card; A / B on Hand over host? | feature/B-459-coop-session-screens |
 | 2026-11-14 | B-459b: A invites or hosts, X switches lists, on Play together | feature/B-459b-invite-screen |
+| 2026-11-14 | B-459c: hold View / Tab to answer the join request card (`IA_Coop_AnswerJoinRequest`, new context `JOIN_REQUEST_CARD`); then A gives, X refuses, B lets go | feature/B-459c-join-request-card |
 | 2026-11-14 | B-440d: LB / RB to the loadout screen's Skills page; Left / Right picks its list; A / X put a skill in and take it out | feature/B-440d-loadout-skills-page |
 | 2026-11-14 | B-440c: Left / Right to a gear row's sockets, X twice to take a socket off, in the loadout screen | feature/B-440c-loadout-socket-picker |
 | 2026-11-14 | B-443: the hub HUD prompt shows the Interact key (E / X); no new key | feature/B-443-hub-hud |

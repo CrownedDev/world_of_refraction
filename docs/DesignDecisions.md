@@ -886,6 +886,15 @@ The queue of questions only Crown can answer.
 - **The seats only show who plays each** ("You (host)", a friend by name, "AI seat", "AI seat · held" for a friend who left); who plays a seat is changed on the party screen and by a friend joining (the join request card, B-459c).
 - **The last right-hand row is Host a session / Stop hosting**; hosting reopens the level for friends, as the placeholder did. Rows answer a second click, not the first.
 
+### Q-459c — The join request card: where, which key, what it shows
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-459c, D-150, D-200) · **Blocks:** —
+**Question:** the mockup puts the card in the host's corner with "Hold View to answer"; View is the proposed Map key and End Turn in a fight, and keyboard had no key.
+**Answer**, by the reference-backed default (Crown may change any):
+- **A small card in the top-right corner while a request waits; it never stops play** (mouse and keys stay with the game). Elden Ring's summon notice and Deep Rock Galactic's join prompt sit in a corner and are answered when the player chooses.
+- **Hold View (Tab on keyboard) for half a second to answer.** A hold leaves a tap of View free for the Map; the key is only mapped while a request waits and isn't eaten. Not in a fight: seats are fixed there, and the card says to answer after it. Destiny 2 and Halo put "hold to" on shared buttons the same way.
+- **Answering: Up / Down light a seat, A gives it, X refuses, B lets go.** The first request waits first; the card says how many more wait.
+- **Each seat shows the AI character's name and "AI seat · give"** (or "AI seat · held · give" for one held for a friend who left). The element icon by the seat comes with the HUD art.
+
 ---
 
 ### Q-459a — Host-lost card: the next host's name, and what B does
