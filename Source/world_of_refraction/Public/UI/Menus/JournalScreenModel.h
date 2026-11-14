@@ -119,6 +119,10 @@ namespace WoRJournalScreen
 	WORLD_OF_REFRACTION_API bool PlayNextLine(UGameInstance *GameInstance, const FJournalRow &Row, FJournalState &State,
 											  const TArray<UStoryLinesData *> &Story);
 
+	/** B-463b: A on a quest row tracks it (one at a time; the tracked one stops being tracked). False when Row can't be
+	 *  tracked (a finished or secret quest, or not a quest). */
+	WORLD_OF_REFRACTION_API bool ToggleTrack(UGameInstance *GameInstance, const FJournalRow &Row);
+
 	/** Debug: every page as the journal opens it (secret quests masked). */
 	WORLD_OF_REFRACTION_API FString GetJournalString(UGameInstance *GameInstance, const TArray<UStoryLinesData *> &Story);
 }

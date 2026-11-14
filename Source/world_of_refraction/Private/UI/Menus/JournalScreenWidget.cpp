@@ -426,6 +426,14 @@ void UJournalScreenWidget::SelectRow(int32 Index)
 void UJournalScreenWidget::PressSelect()
 {
 	const FJournalRow *Row = GetFocusedRow();
+	if (Row && Row->bQuest)
+	{
+		if (WoRJournalScreen::ToggleTrack(GetGameInstance(), *Row))
+		{
+			Refresh(); // the row keeps its place: tracking doesn't reorder the list
+		}
+		return;
+	}
 	const FName TalkId = Row ? Row->Id : NAME_None;
 	if (Row && WoRJournalScreen::PlayNextLine(GetGameInstance(), *Row, State, ObjectPtrDecay(Story)))
 	{
