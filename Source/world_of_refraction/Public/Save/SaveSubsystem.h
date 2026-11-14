@@ -171,6 +171,11 @@ public:
 	bool IsFightCameraMovementOff() const;
 	void SetFightCameraMovementOff(bool bOff);
 
+	/** B-453c (D-190): something that can't be undone (the game menu's quit, the title's start over) asks for a hold
+	 *  (default) or, off, a press on its confirm. Kept in memory at once; written with the next save. */
+	bool IsHoldToConfirmOn() const;
+	void SetHoldToConfirmOn(bool bOn);
+
 	// ==================== CAPTURE / RESTORE (pure, spec-tested) ====================
 
 	/** bKeepVitals false saves no carried HP/EP, crystal wear or absorption: outside a run, a reload

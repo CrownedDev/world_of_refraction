@@ -1020,6 +1020,16 @@ void USaveSubsystem::SetFightCameraMovementOff(bool bOff)
 	SaveGame->Data.Settings.bFightCameraStill = bOff;
 }
 
+bool USaveSubsystem::IsHoldToConfirmOn() const
+{
+	return !SaveGame->Data.Settings.bPressToConfirm;
+}
+
+void USaveSubsystem::SetHoldToConfirmOn(bool bOn)
+{
+	SaveGame->Data.Settings.bPressToConfirm = !bOn;
+}
+
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;

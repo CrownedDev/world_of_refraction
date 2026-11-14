@@ -852,6 +852,11 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	 *  when they follow the movement); false = moving, the default. An older save reads false: no bump. */
 	UPROPERTY()
 	bool bFightCameraStill = false;
+
+	/** B-453c (D-190): a press confirms what can't be undone (quit, start over) instead of a hold; false = hold, the
+	 *  default. An older save reads false: no bump. */
+	UPROPERTY()
+	bool bPressToConfirm = false;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
