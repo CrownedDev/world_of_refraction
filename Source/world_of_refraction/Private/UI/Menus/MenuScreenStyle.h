@@ -20,6 +20,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
+#include "UI/WoRKeyHintText.h"
 
 namespace WoRMenuStyle
 {
@@ -101,9 +102,10 @@ namespace WoRMenuStyle
 	inline bool IsSubTabPrevKey(const FKey &Key) { return Key == EKeys::Z || Key == EKeys::Gamepad_LeftTrigger; }
 	inline bool IsSubTabNextKey(const FKey &Key) { return Key == EKeys::C || Key == EKeys::Gamepad_RightTrigger; }
 
-	inline UTextBlock *MakeText(UWidgetTree *Tree, int32 FontSize, const FLinearColor &Color, bool bBold = false)
+	inline UTextBlock *MakeText(UWidgetTree *Tree, int32 FontSize, const FLinearColor &Color, bool bBold = false,
+								TSubclassOf<UTextBlock> TextClass = UTextBlock::StaticClass())
 	{
-		UTextBlock *Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		UTextBlock *Text = Tree->ConstructWidget<UTextBlock>(TextClass);
 		FSlateFontInfo Font = Text->GetFont();
 		Font.Size = FontSize;
 		if (bBold)
@@ -113,6 +115,13 @@ namespace WoRMenuStyle
 		Text->SetFont(Font);
 		Text->SetColorAndOpacity(FSlateColor(Color));
 		return Text;
+	}
+
+	/** B-481: a text for key hints (a footer, a prompt). Fill it with WoRKeyHints::SetHint and a pattern
+	 *  ("{Confirm}  Select        {Back}  Back"): it shows the keys of the device in use and follows it live. */
+	inline UTextBlock *MakeHintText(UWidgetTree *Tree, int32 FontSize, const FLinearColor &Color, bool bBold = false)
+	{
+		return MakeText(Tree, FontSize, Color, bBold, UWoRKeyHintText::StaticClass());
 	}
 
 	inline UTextBlock *MakeWrappedText(UWidgetTree *Tree, int32 FontSize, const FLinearColor &Color, bool bBold = false)
@@ -187,11 +196,11 @@ namespace WoRMenuStyle
 		return Tab;
 	}
 
-	/** The small key label beside a tab row: "LT", "RB". */
-	inline UTextBlock *MakeKeyLabel(UWidgetTree *Tree, const FText &Label)
+	/** The small key label beside a tab row, as a key-hint pattern (B-481): "{SubTabPrev}" reads "LT" or "Z". */
+	inline UTextBlock *MakeKeyLabel(UWidgetTree *Tree, const FText &Pattern)
 	{
-		UTextBlock *Text = MakeText(Tree, SmallFontSize, CyanColor, true);
-		Text->SetText(Label);
+		UTextBlock *Text = MakeHintText(Tree, SmallFontSize, CyanColor, true);
+		WoRKeyHints::SetHint(Text, Pattern);
 		return Text;
 	}
 
