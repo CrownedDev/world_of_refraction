@@ -45,6 +45,7 @@ namespace LoadoutV2ScreenStyle
 	constexpr float RowIconSize = 36.0f;
 	constexpr float BadgeSize = 28.0f;
 	constexpr float BoxIconSize = 28.0f;
+	constexpr float BoxLineGap = 3.0f; // B-487b: the box's rows sit close (Crown)
 	/** Spaces per depth of an effect-tree line in the details box. */
 	constexpr int32 IndentSpaces = 3;
 
@@ -189,12 +190,16 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		Box->SetPadding(FMargin(BoxPadding));
 		UVerticalBox *BoxColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Box->SetContent(BoxColumn);
-		// B-487b: the header is one row: the piece's icon, its name, its tier badge.
-		UHorizontalBox *BoxTitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		// B-487b: the header: a small quiet line (the piece's icon and its type), then its name and tier badge.
+		BoxTypeRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		BoxTitleIcon = MakeIcon(WidgetTree, BoxIconSize);
+		BoxTypeText = MakeText(WidgetTree, SmallFontSize, DimColor);
+		AddToRow(BoxTypeRow, BoxTitleIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+		AddToRow(BoxTypeRow, BoxTypeText, FMargin(0.0f), VAlign_Center);
+		AddToColumn(BoxColumn, BoxTypeRow, FMargin(0.0f, 0.0f, 0.0f, BoxLineGap));
+		UHorizontalBox *BoxTitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		BoxTitleText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		BoxTitleTier = MakeIcon(WidgetTree, BadgeSize);
-		AddToRow(BoxTitleRow, BoxTitleIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
 		AddToRow(BoxTitleRow, BoxTitleText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		AddToRow(BoxTitleRow, BoxTitleTier, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
 		AddToColumn(BoxColumn, BoxTitleRow, FMargin(0.0f, 0.0f, 0.0f, LineGap));
@@ -795,8 +800,11 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		FLoadoutV2Icon Icon;
 		bool bHasTier = false;
 		EItemTier Tier = EItemTier::F_Tier;
+		/** B-487b: a piece's type line: dim, above its name. */
+		bool bQuiet = false;
 	};
 	TArray<FBoxLine> BoxText;
+	FBoxLine BoxType; // the header's quiet line: the piece's icon and type
 	FBoxLine BoxHeader;
 	FText &BoxTitle = BoxHeader.Text;
 	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
@@ -845,43 +853,63 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		BoxTitle = bPieceBox ? GetLineName(GetBoxLine()) : Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
 		for (const FLoadoutV2DetailLine &Line : Details)
 		{
-			FText Shown;
+			FBoxLine BoxLine;
+			BoxLine.Icon = Line.Icon;
 			switch (Line.Kind)
 			{
 			case ELoadoutV2DetailKind::Piece:
-				Shown = FText::Format(LOCTEXT("BoxPiece", "{0}  {1}"), Line.Label, Line.Value);
+				// B-487b: a piece is two lines: its type with its icon, quiet; then its name and tier.
+				if (!Line.TypeName.IsEmpty())
+				{
+					FBoxLine TypeLine{Line.TypeName};
+					TypeLine.Icon = Line.Icon;
+					TypeLine.bQuiet = true;
+					BoxText.Add(TypeLine);
+					BoxLine.Icon = FLoadoutV2Icon();
+				}
+				BoxLine.bLit = true;
+				// B-485: a piece's tier is a badge after its name when the icon table has it; else its letter, as before.
+				BoxLine.bHasTier = Line.bHasTier && WoRIcons::GetTierBadge(Line.Tier) != nullptr;
+				BoxLine.Tier = Line.Tier;
+				BoxLine.Text = BoxLine.bHasTier ? Line.Label : FText::Format(LOCTEXT("BoxPiece", "{0}  {1}"), Line.Label, Line.Value);
 				break;
 			case ELoadoutV2DetailKind::Effect:
-				Shown = FText::Format(LOCTEXT("BoxEffect", "{0}{1}"), FText::FromString(FString::ChrN(Line.Depth * IndentSpaces, TEXT(' '))), Line.Value);
+				BoxLine.Text = FText::Format(LOCTEXT("BoxEffect", "{0}{1}"), FText::FromString(FString::ChrN(Line.Depth * IndentSpaces, TEXT(' '))), Line.Value);
 				break;
-			case ELoadoutV2DetailKind::Stat:
 			case ELoadoutV2DetailKind::Socket:
+				// B-487b: with its badge drawn a socket needs no label: "Garnet (F)", "Empty". Without one the words stay.
+				if (FindIcon(Line.Icon))
+				{
+					BoxLine.Text = Line.bHasTier ? FText::Format(LOCTEXT("BoxSocketFilled", "{0} ({1})"), Line.Icon.Name, WoRGameNames::GetTierLetter(Line.Tier)) : Line.Value;
+					break;
+				}
+				[[fallthrough]];
+			case ELoadoutV2DetailKind::Stat:
 			case ELoadoutV2DetailKind::SkillSlots:
 			default:
-				Shown = FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Line.Label, Line.Value);
+				BoxLine.Text = FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Line.Label, Line.Value);
 				break;
-			}
-			FBoxLine BoxLine{Shown, Line.Kind == ELoadoutV2DetailKind::Piece};
-			BoxLine.Icon = Line.Icon;
-			// B-485: a piece's tier is a badge after its name when the icon table has it; else its letter, as before.
-			if (Line.bHasTier && WoRIcons::GetTierBadge(Line.Tier))
-			{
-				BoxLine.bHasTier = true;
-				BoxLine.Tier = Line.Tier;
-				BoxLine.Text = Line.Label;
 			}
 			BoxText.Add(BoxLine);
 		}
-		// B-487b: the piece's own line (its icon, name and tier) is the header, in place of a plain name above it.
+		// B-487b: the first piece's own lines are the header, in place of a plain name above them.
 		if (!Details.IsEmpty() && Details[0].Kind == ELoadoutV2DetailKind::Piece)
 		{
+			if (BoxText[0].bQuiet)
+			{
+				BoxType = BoxText[0];
+				BoxText.RemoveAt(0);
+			}
 			BoxHeader = BoxText[0];
 			BoxText.RemoveAt(0);
 		}
 	}
 	const auto GetTierTooltip = [](EItemTier Tier) { return FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Tier)); };
 	BoxTitleText->SetText(BoxTitle);
-	SetIcon(BoxTitleIcon, FindIcon(BoxHeader.Icon), BoxHeader.Icon.Name);
+	BoxTypeText->SetText(BoxType.Text);
+	const FLoadoutV2Icon &HeaderIcon = BoxType.Text.IsEmpty() ? BoxHeader.Icon : BoxType.Icon; // a piece with no type keeps its icon
+	const bool bHeaderIcon = SetIcon(BoxTitleIcon, FindIcon(HeaderIcon), HeaderIcon.Name);
+	SetShown(BoxTypeRow, bHeaderIcon || !BoxType.Text.IsEmpty());
 	const bool bTitleTier = SetIcon(BoxTitleTier, BoxHeader.bHasTier ? WoRIcons::GetTierBadge(BoxHeader.Tier) : nullptr, GetTierTooltip(BoxHeader.Tier));
 	if (UHorizontalBoxSlot *TitleSlot = Cast<UHorizontalBoxSlot>(BoxTitleText->Slot))
 	{
@@ -899,7 +927,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		AddToRow(BoxRow, Icon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
 		AddToRow(BoxRow, Text, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		AddToRow(BoxRow, TierIcon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
-		AddToColumn(BoxLines, BoxRow, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		AddToColumn(BoxLines, BoxRow, FMargin(0.0f, 0.0f, 0.0f, BoxLineGap));
 		BoxRows.Add(BoxRow);
 		BoxIcons.Add(Icon);
 		BoxTexts.Add(Text);
@@ -915,7 +943,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		{
 			const FBoxLine &Line = BoxText[Index];
 			BoxTexts[Index]->SetText(Line.Text);
-			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bLit ? CyanColor : TextColor));
+			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bLit ? CyanColor : Line.bQuiet ? DimColor : TextColor));
 			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
 			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr, GetTierTooltip(Line.Tier));
 			// A name with its tier badge keeps its own width, so the badge sits right after it; other lines fill and wrap.
