@@ -5,11 +5,15 @@
 // cells used show at the top. The Add gear window builds one entry (a draft: Main hand, Off hand, Augment socket 1 and 2)
 // whose refusals are said in the game's words, and X Compare sets the equipped piece beside the highlighted one.
 // The widget that draws this is B-476b; today's screen (LoadoutScreenModel / ULoadoutScreenWidget) stays until then.
+// B-476c: what the Add gear window asks first (BuildAddKinds), the Adapter and Evolution lists, an entry edited in its
+// own place (DraftFromEntry, CheckEntryEdit, ReplaceEntry) or taken off (RemoveEntry, RemoveAllGear), and the details
+// box's lines (BuildEntryDetails: full or simple view, UIScreens B-479c).
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Character/ECharacterClass.h"
+#include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
@@ -128,6 +132,51 @@ struct FLoadoutV2Compare
 	TArray<FText> BuiltInsLost;
 };
 
+/** B-476c: one of the Add gear window's first choices (Weapon, Adapter, Evolution), greyed with the reason when the
+ *  class has no free place for it now. */
+struct FLoadoutV2KindChoice
+{
+	ELoadoutV2DraftKind Kind = ELoadoutV2DraftKind::Weapon;
+	FText Name;
+	FText Refusal;
+};
+
+/** B-476c: a line of the Add gear window's Adapter or Evolution list: the piece, a short line saying what it is, why it
+ *  can't be confirmed (empty: Y Confirm works) and the cells used once it is in. */
+struct FLoadoutV2PieceChoice
+{
+	ELoadoutV2DraftKind Kind = ELoadoutV2DraftKind::Adapter;
+	FRingInventoryEntry Adapter;
+	FEvolutionInventoryEntry Evolution;
+	FText Name;
+	FText Line;
+	FText Refusal;
+	int32 CellsAfter = 0;
+};
+
+/** B-476c: what a line of the details box is (the widget styles each kind). */
+enum class ELoadoutV2DetailKind : uint8
+{
+	/** A piece's name and tier ("Quarry Maul  C"). */
+	Piece,
+	/** Label / value ("Power" / "50"). */
+	Stat,
+	/** One line of the effect tree (Depth indents it) or, in the simple view, one short form. */
+	Effect,
+	/** A socket: Label the socket, Value what is in it. */
+	Socket,
+	/** "Skill slots" / n. */
+	SkillSlots
+};
+
+struct FLoadoutV2DetailLine
+{
+	ELoadoutV2DetailKind Kind = ELoadoutV2DetailKind::Stat;
+	int32 Depth = 0;
+	FText Label;
+	FText Value;
+};
+
 namespace WoRLoadoutV2
 {
 	/** The Weapons tab for the class (only the gear the class fights with). */
@@ -156,6 +205,48 @@ namespace WoRLoadoutV2
 	/** X Compare of two weapons: power, the cells (a weapon swap changes none, D-206), and the built-in abilities gained
 	 *  and lost. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Compare BuildCompare(const FWeaponInventoryEntry &Equipped, const FWeaponInventoryEntry &Selected);
+
+	/** B-476c: the Add gear window's first question, Weapon / Adapter / Evolution, each refused with the reason when the
+	 *  class can't add one now (D-210's entry limits; one evolution per character). */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2KindChoice> BuildAddKinds(const FCombatLoadout &Loadout, ECharacterClass Class);
+
+	/** B-476c: the Adapter list for a new entry: every owned adapter the loadout doesn't hold, each checked as a draft
+	 *  (its own sockets come with it). */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2PieceChoice> BuildAdapterChoices(const FCombatLoadout &Loadout, ECharacterClass Class,
+																		   const TArray<FRingInventoryEntry> &OwnedAdapters);
+
+	/** B-476c: the Evolution list for the character's own evolution: every owned evolution, those InUse (on gear or in a
+	 *  loadout) refused, the rest checked as a draft (2 cells). */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2PieceChoice> BuildEvolutionChoices(const FCombatLoadout &Loadout, ECharacterClass Class,
+																			 const TArray<FEvolutionInventoryEntry> &Evolutions, const TSet<FGuid> &InUse);
+
+	/** B-476c: the entry as a draft (A Edit): its pieces and the sockets they carry. */
+	WORLD_OF_REFRACTION_API FLoadoutV2Draft DraftFromEntry(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry);
+
+	/** B-476c: writes the draft in Entry's own place (a weapon entry's hands, an adapter, the character's evolution).
+	 *  False with the reason when the draft's kind doesn't fit the place or the place is gone. */
+	WORLD_OF_REFRACTION_API bool ReplaceEntry(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry, const FLoadoutV2Draft &Draft,
+											  FText &OutRefusal);
+
+	/** B-476c: CheckDraft for an edit of Entry: why the draft can't replace it (empty: Y Confirm works), and the cells
+	 *  used after. */
+	WORLD_OF_REFRACTION_API FText CheckEntryEdit(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry,
+												 const FLoadoutV2Draft &Draft, int32 &OutCellsAfter);
+
+	/** B-476c: A Remove on an entry's main piece takes the entry out. The first entry never empties (D-116): a
+	 *  Generic's second weapon moves up into it, otherwise it is refused with the reason. The pieces keep their
+	 *  sockets (nothing is destroyed). */
+	WORLD_OF_REFRACTION_API bool RemoveEntry(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry, FText &OutRefusal);
+
+	/** B-476c, Y Options' Remove all gear: every entry but the first (D-116) comes out. The count taken out. */
+	WORLD_OF_REFRACTION_API int32 RemoveAllGear(FCombatLoadout &Loadout, ECharacterClass Class);
+
+	/** B-476c: the details box for Entry: each piece (name, tier, type, power, scaling), its effects (the ET-50 tree, or
+	 *  one short form a line in the simple view), the built-ins, the sockets and the skill slots. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildEntryDetails(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry, bool bSimple);
+
+	/** Debug: the details box as text. */
+	WORLD_OF_REFRACTION_API FString GetDetailsString(const TArray<FLoadoutV2DetailLine> &Lines);
 
 	/** Debug: the page as text (wor.Loadout.PrintV2). */
 	WORLD_OF_REFRACTION_API FString GetWeaponsPageString(const FLoadoutV2WeaponsPage &Page);
