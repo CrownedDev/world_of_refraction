@@ -1231,6 +1231,11 @@ The queue of questions only Crown can answer.
 
 ---
 
+### D-212 — No loading screen into a battle: a designed transition instead
+**Status:** ANSWERED (Crown, 2026-11-14) · **Raised:** 2026-11-14 · **Blocks:** —
+**Answer (Crown):** touching an enemy does not open a loading screen. A short designed transition (the clash, then the fight) plays instead, and any loading hides behind it. The current transition is not nice to look at, so it gets a design job first (B-490), then the build. Loading screens stay for hub and trial travel only (D-203).
+**Reference-backed default (Crown may change):** about one second, an effect in the game's own style (a refraction shatter or prism flash), like Expedition 33's swirl, Persona 5's shatter and the Final Fantasy battle swirl, which players like because the pace never stops. If a fight ever needs more than about 2 seconds to load, a small spinner shows over the effect, never a full screen.
+
 ### D-211 — A pair's slots: the average of the two tiers
 **Status:** ANSWERED (Crown, 2026-11-14, with the reference-backed default for rounding; changes D-210's "slots follow the main hand's tier") · **Raised:** 2026-11-14 · **Blocks:** B-477
 **Answer (Crown):** an entry with two pieces (two weapons, later a weapon and a shield) gets ability slots from the **average of the two tiers** (F 1 … B 5, A 6, S 6, CL-20), plus the entry's crystal's extra slots (CL-21), at most 12 (CL-31). A one-weapon entry is unchanged: its tier plus its crystal's.
