@@ -90,6 +90,7 @@
 | 41 | `ACombatHUD::FallbackCharacterPanelClass` — `Public/UI/Combat/CombatHUD.h:56` (B-205) | `CharacterPanelClass` | [B-205](B-205.md) (the character panels show) | sweep | [ ] |
 | 42 | Old combat widgets | The new HUD (B-105) | PIE of B-105 | B-106 | [ ] |
 | 43 | `ETargetType_Legacy` — `Public/Combat/TargetType.h:10` | `ETargetType` + `ETargetCount` (`USkillDataBase::PostLoad`) | Editor: re-save every skill asset (no PIE check) | sweep | [ ] |
+| 49 | `ATrialNPC`, `WoRTrialNPC` and `UTrialNPCWidget`; `wor.Trial.SpawnV`, `wor.Trial.PrintNPCs`; spec `WoR.Trial.NPC` — `Public/Trial/TrialNPC.h`, `Public/UI/Trial/TrialNPCWidget.h` (B-502) | Rest point services (`ERestService::Extract`, D-214) | [B-502](B-502.md) checks 7 and 8, after its editor step 3 (no `ATrialNPC` left in any map) | sweep | [ ] |
 
 ## Flags on branches not yet in `dev`
 

@@ -1248,6 +1248,17 @@ The queue of questions only Crown can answer.
 **Reference:** Dark Souls' bonfires and Elden Ring's Sites of Grace (rest and level up at one spot), Hollow Knight's benches (rest and change charms): one stop does everything and the map reads at a glance; all three are widely praised for it.
 **Notes for Claude:** B-447 and B-449 built the seller and V as NPC actors; B-502 turns them into rest point types. Until the art, test boxes stand in (purple rest points, shop colours for the service).
 
+### Q-502 — Rest point services: which rest points can be the shrine, where the point is bought, what the anvil opens
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-14; Crown may change) · **Raised:** 2026-11-14 (B-502, D-214) · **Blocks:** —
+**Question:** D-214 makes rest points the services. Four things it leaves open, none of them lore: (1) Which rest points can be the pillar-point shrine in a run? (2) What does a shrine do in a run where it is not the one? (3) Where is the point bought? (4) What do the vendor rest points (the anvil, the ritual tree, the crystal pedestal) open?
+**Options:** (1) **A** only the rest points placed as shrines: one of them sells each run; **B** any non-boss rest point takes the shrine on top of its own service. (2) **A** it still rests the party and says it is quiet this run; **B** it does not appear. (3) **A** on the rest point's Level up screen, where points are placed; **B** a separate buy panel. (4) **A** that vendor's own screen (the Blacksmith's, the Spiritualist's, the Jeweler's), with the run's rolled part of its stock (ER-18); **B** a new smaller menu.
+**Answer:** **A, A, A, A**, by the reference-backed default.
+- (1) A: each rest point is one recognisable object (D-214: "a unique object that is also a service"), so an anvil stays an anvil. Hades moves Charon's shop and the Well between chambers each run while the object stays the same; players like knowing what a thing is on sight and not knowing where it will be.
+- (2) A: a rest point always rests, as every bonfire in Dark Souls and every bench in Hollow Knight does; the quiet line tells the player to look for the other shrines.
+- (3) A: Elden Ring's Sites of Grace and Dark Souls 3's bonfire put levelling in the rest menu; buying and placing a point in one screen saves a trip.
+- (4) A: one vendor screen for every vendor is already the rule (D-193), and a vendor met in a trial already shows its rolled stock (ER-18).
+**Notes for Claude:** built in B-502. With one shrine placed, that shrine sells every run (no rotation until a second is placed). The names "Anvil", "Ritual tree", "Crystal pedestal", "Shrine" and "V" are placeholders until the art (`WoRGameNames::GetRestServiceName`). The old `ATrialNPC` and its panel stay until the maps are re-placed and Crown's PIE pass, then go (Sweep.md).
+
 ### D-212 — No loading screen into a battle: a designed transition instead
 **Status:** ANSWERED (Crown, 2026-11-14) · **Raised:** 2026-11-14 · **Blocks:** —
 **Answer (Crown):** touching an enemy does not open a loading screen. A short designed transition (the clash, then the fight) plays instead, and any loading hides behind it. The current transition is not nice to look at, so it gets a design job first (B-490), then the build. Loading screens stay for hub and trial travel only (D-203).

@@ -17,6 +17,7 @@
 #include "Memory/HiddenQuestData.h"
 #include "Merchant/MerchantData.h"
 #include "Shop/VendorServices.h"
+#include "Trial/TrialRestSpot.h"
 #include "Skills/Definitions/SpellSchool.h"
 
 #define LOCTEXT_NAMESPACE "WoRGameNames"
@@ -762,6 +763,27 @@ FText WoRGameNames::GetInteractVerbName(EInteractVerb Verb)
     case EInteractVerb::Rest:
         return LOCTEXT("EInteractVerb_Rest", "Rest");
     case EInteractVerb::None:
+    default:
+        return FText::GetEmpty();
+    }
+}
+
+FText WoRGameNames::GetRestServiceName(ERestService Service)
+{
+    // Placeholder words until the art names the objects (D-214: an anvil; a ritual tree; a shrine; V himself or his mirror).
+    switch (Service)
+    {
+    case ERestService::Blacksmith:
+        return LOCTEXT("ERestService_Blacksmith", "Anvil");
+    case ERestService::Spiritualist:
+        return LOCTEXT("ERestService_Spiritualist", "Ritual tree");
+    case ERestService::Jeweler:
+        return LOCTEXT("ERestService_Jeweler", "Crystal pedestal");
+    case ERestService::PillarShrine:
+        return LOCTEXT("ERestService_PillarShrine", "Shrine");
+    case ERestService::Extract:
+        return LOCTEXT("ERestService_Extract", "V");
+    case ERestService::None:
     default:
         return FText::GetEmpty();
     }

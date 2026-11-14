@@ -112,8 +112,8 @@ FText WoRLevelDrops::TryBuyPoint(UWorld *World, const FPartyMember &Member, UCur
 	{
 		return LOCTEXT("BuyNoRun", "No run to buy a point in");
 	}
-	// B-447 (D-183): no rest-spot check: a point is bought from the trial NPC who sells them this run, wherever it
-	// stands (WoRTrialNPC::TryBuyPointAt is the way in). The point is placed at a rest spot (TryPlaceLevel).
+	// No check of the place here: the player's way in is the shrine that sells points this run
+	// (WoRRestSpot::TryBuyPointHere; B-502, D-214), which checks it. The point is placed at a rest spot (TryPlaceLevel).
 	const FText Name = FText::FromString(Member.CharacterData->Name);
 	// B-364: a point at the cap goes over-cap, so buying stops only when every pillar is at 7 with 3 over-cap points.
 	const bool bAllFull = IsPillarFull(World, Member, EWorldPillar::Mind) && IsPillarFull(World, Member, EWorldPillar::Body)
