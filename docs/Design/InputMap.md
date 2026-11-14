@@ -63,6 +63,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Loadout: the Gear / Skills page | Q / E | LB / RB (L1 / R1) | none (the screen's keys) | Built (B-440d, loadout screen): `WoRMenuStyle::IsTabPrevKey` / `IsTabNextKey`; two pages, either key turns |
 | Loadout, Skills page: the lit list (a school, a weapon, an adapter); A puts a learned skill in the lit slot, X takes it out | Left / Right, A / D; Enter; X | D-pad left / right, left stick; A (Cross); X (Square) | none (the screen's keys) | Built (B-440d, Q-440d) |
 | Spirit of {character}: wear the lit form (your own form takes a skin off); switch the base body | Enter, left click; R | A (Cross); Y (Triangle) | none (the screen's keys) | Built (B-444, Q-444): `WoRMenuStyle::IsConfirmKey` / `IsSecondActionKey` |
+| Party: change the lit member's seat (you / AI), or open Invite; move the lit member to the next start cell | Enter, left click; X | A (Cross); X (Square) | none (the screen's keys) | Built (B-458, Q-458): `WoRMenuStyle::IsConfirmKey` / `IsToggleKey` |
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
 | Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen; B-456a, vendor screen: sell or dismantle one, or the whole stack): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
@@ -113,6 +114,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-14 | B-440a: previous / next character on LT / RT (Z / C) in the loadout screen, read by the screen itself | feature/B-440-loadout-screen |
 | 2026-11-14 | B-440b: A Change (the gear picker) and X Unequip in the loadout screen, read by the screen itself | feature/B-440b-loadout-change-gear |
 | 2026-11-14 | B-444: A wears a form, Y switches the base body, on the Spirit of {character} screen | feature/B-444-spirit-forms-screen |
+| 2026-11-14 | B-458: A changes a seat, X moves on the grid, on the party screen | feature/B-458-party-screen |
 | 2026-11-14 | B-440d: LB / RB to the loadout screen's Skills page; Left / Right picks its list; A / X put a skill in and take it out | feature/B-440d-loadout-skills-page |
 | 2026-11-14 | B-440c: Left / Right to a gear row's sockets, X twice to take a socket off, in the loadout screen | feature/B-440c-loadout-socket-picker |
 | 2026-11-14 | B-443: the hub HUD prompt shows the Interact key (E / X); no new key | feature/B-443-hub-hud |

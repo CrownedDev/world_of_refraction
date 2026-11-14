@@ -877,6 +877,18 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-458 — Party screen: the rows the mockup shows that the code no longer has
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-458, D-200, D-181) · **Blocks:** —
+**Question:** the mockup shows "When your fighters fall", Y "Swap order" and a friend's name under "Played by"; B-346 retired the fall setting, the party has no reorder, and seats have no friend names until the co-op screens.
+**Answer**, by the reference-backed default (Crown may change any):
+- **"When your fighters fall" is left out.** B-346 (Q-21-audit) made an AI seat play on with nothing handed over, so the row would do nothing. Showing only settings that change something is the usual rule in well-received menus (Persona 5's and Fire Emblem's party menus hide what doesn't apply).
+- **Y "Swap order" waits for a party reorder.** The slot order is read across the code (the leader is slot 0); a reorder is its own job. Until then the screen hints only A and X.
+- **"Played by" reads "You (leader)", "You" or "AI"** (no level, D-200); a friend's name comes with B-459's seats.
+- **A on a member toggles you / AI; the leader is refused with a reason; X steps the member to the next start cell** (a held cell swaps, as the placeholder did). Divinity: Original Sin 2's formation and Baldur's Gate 3's party line-up both move one member at a time with the others giving way.
+- **A on "Invite" opens the existing invite screen** after closing the menus, until B-459's Invite screen replaces it.
+
+---
+
 ### Q-444 — Spirit of {character}: when a character counts as met, where the screen opens
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-444, D-184, D-181) · **Blocks:** —
 **Question:** the mockup shows unmet characters as "???", but the code has no "met" record; and the screen has no menu row yet.
