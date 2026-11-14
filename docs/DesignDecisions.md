@@ -1089,6 +1089,14 @@ The queue of questions only Crown can answer.
 **Recommendation:** **B**: Elden Ring and Hades name the foe itself and never its rank, and D-187 already asks for the opponent's name on the wipe card. A stays until Crown answers.
 **Answer (Crown):** _write here_
 
+### Q-449 — The trial NPC who extracts the party: who, where, and whether it charges
+**Status:** OPEN (lore part: Crown's) · **Raised:** 2026-11-14 (B-449, D-186) · **Blocks:** B-449
+**Question:** D-186 adds an NPC in the trial whose talk extracts the party at the half share. (1) **Who is this NPC?** Lore, so Crown's. (2) Where does it stand? (3) Does it charge on top of the half share?
+**Options (lore, no recommendation):** (1) A: V (D-079); B: the same NPC as Q-447's point seller; C: a new character Crown names.
+**Reference-backed defaults for the non-lore parts (used once (1) is answered):** (2) at most one per trial map, away from the boss's rest spot so it is a real second way out, like Escape from Tarkov's paid and conditional extracts beside the free ones; (3) no extra charge: the half share already is the price (D-186, RunRewards::LEAVE_EARLY_SHARE).
+**Notes for Claude:** a placed actor in the trial maps (`ATrialMapFeature`), so placing it is an editor step; the code (its actor, the extract through `UTrialRunSubsystem` as the boss rest spot's Extract does since B-448) can be built once (1) is answered.
+**Answer (Crown):** _write here_
+
 ### Q-439b — A quit run's found items: how they are counted
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-439b, Q-439 point 2) · **Blocks:** —
 **Question:** a quit run takes back the items found in it (Q-439 point 2: Escape from Tarkov and Dark and Darker take what you picked up in a failed raid). Nothing marks one crystal as "found", so how is it counted?
