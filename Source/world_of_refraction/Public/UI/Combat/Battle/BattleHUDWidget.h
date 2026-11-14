@@ -14,7 +14,7 @@
 //   tooltip with the loadout, from the ULoadoutComponent; a 0-damage hit on Broken Darkness reads "Negated"
 //   (DamageNumberView::SHOW_NEGATED_CUE, Q-391c). Combatants that join mid-fight get no card or numbers: nothing
 //   announces a join today (no summons exist; UISystem.md Known Limitations).
-// - B-170e: in an action-pips fight (wor.Turns.ActionPips 1), each party card's action pips and Max Actions line
+// - B-170e: in every fight (B-170h2), each party card's action pips and Max Actions line
 //   ("Actions ●●○ 2 · Max 3 (+75/100)", ActionPipsText), live from OnActionsChanged. At 0 the cards are as before.
 // The command menu is its own widget (UBattleCommandMenuWidget). CommonUI replaces both later (D-024).
 //
