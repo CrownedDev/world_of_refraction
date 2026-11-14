@@ -120,6 +120,7 @@ private:
     friend class FAIOneSkillPathSpec;
     friend class FSpellSchoolSpec;
     friend class FAIActionPipsSpec;
+    friend class FInfusionSameElementStackSpec; // B-435b: the AI prices the stack
     friend class USpellDataDebug; // B-356b: the school-vs-effects audit reads IsOffensiveSpell / IsHealingSpell
 
     // ==================== ACTION PIPS (B-170f, ActionPips.md §3.6) ====================
@@ -441,8 +442,8 @@ private:
     int32 DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const;
 
     /** Decide the infusion SOURCE for a SPELL (origin-bound): the first allowed source from
-     *  GetAllowedInfusionSourcesForSpell, Evolution preferred for the BD/Reality {Evolution, Innate}
-     *  case. Returns None for Item / non-infusable (empty binding). Shared by BuildAction (sets
+     *  GetAllowedInfusionSourcesForSpell, Evolution preferred, else the origin (first) over a BD/Reality Innate (B-435b)
+     *  Returns None for Item / non-infusable (empty binding). Shared by BuildAction (sets
      *  SelectedSource) and DecideSpellInfusionLevel (source-aware prediction) so they never drift. */
     EInfusionSourceOption DecideSpellInfusionSource(AActor *Attacker, USpellData *Spell) const;
 

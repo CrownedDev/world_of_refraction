@@ -1,8 +1,9 @@
 // InfusionSameElementStackSpec.cpp
 // B-435 (D-174, ED-51): an infused action uses every one of the character's sources that shares its element.
 // Status buildup grows +25% per extra source, capped at +50%; each source pays its own cost once (a crystal
-// source pays wear, not EP; a stacked innate pays its EP); a different-element or broken source isn't used. Only
-// abilities and attacks stack (Q-435: a spell is origin-bound to one source). The stack is fixed at commit.
+// source pays wear, not EP; a stacked innate pays its EP); a different-element or broken source isn't used. The stack
+// is fixed at commit. B-435b (Q-435 B, Q-435b): an infused spell stacks too, on its origin's element; a BD / Reality
+// caster may pick their own element instead.
 // Expectations are literals, so a changed number fails here on purpose.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -10,9 +11,12 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "AI/AIDecisionManager.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Infusion/InfusionConstants.h"
@@ -77,6 +81,52 @@ BEGIN_DEFINE_SPEC(FInfusionSameElementStackSpec, "WoR.Infusion.SameElementStack"
 		Action.AbilityInfusionLevel = Level;
 		Action.Targets.Add(Caster);
 		return Action;
+	}
+
+	/** B-435b: a Fire spell costing STACK_TEST_BASE_EP. */
+	static USpellData *FireSpell()
+	{
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->Element = ESpellElement::Fire;
+		Spell->BaseEnergyCost = STACK_TEST_BASE_EP;
+		return Spell;
+	}
+
+	FAction SpellAction(USpellData *Spell, ESpellSource Origin, EInfusionSourceOption Source, int32 Level) const
+	{
+		FAction Action;
+		Action.ActionType = EActionType::Spell;
+		Action.SpellData = Spell;
+		Action.SpellSource = Origin;
+		Action.SelectedSource = Source;
+		Action.SpellInfusionLevel = Level;
+		Action.Targets.Add(Caster);
+		return Action;
+	}
+
+	/** The primary slot holds a ring with Gem and Spell (a Caster's adapter). */
+	void SetPrimaryRing(const FCrystalId &Gem, USpellData *Spell)
+	{
+		Active().PrimarySlotType = EPrimarySlotType::Ring;
+		Active().PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+		Active().PrimaryRing.RingEntry.AttachedItem = StackTestGem(Gem, STACK_TEST_INTACT);
+		Active().PrimaryRing.RingEntry.AssignedSpells = {Spell};
+	}
+
+	/** The primary slot holds an evolution of CrystalType (its element). */
+	void SeatEvolution(ECrystalType CrystalType)
+	{
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->CrystalType = CrystalType;
+		Active().PrimarySlotType = EPrimarySlotType::Evolution;
+		Active().PrimaryEvolution = FEvolutionAttachment();
+		Active().PrimaryEvolution.Item = Evolution;
+		Active().PrimaryEvolution.CurrentDurability = STACK_TEST_INTACT;
+	}
+
+	void SetInnateElement(ESpellElement Element) const
+	{
+		Caster->FindComponentByClass<UCharacterDataComponent>()->CharacterData->InnateElement = Element;
 	}
 
 	int32 CommitHPCost(const FAction &Action)
@@ -154,18 +204,96 @@ void FInfusionSameElementStackSpec::Define()
 		TestEqual(TEXT("Raw"), Executor->GetSameElementSourceCount(Caster, AbilityAction(EInfusionSourceOption::Raw, STACK_TEST_L1)), 0);
 	});
 
-	It("doesn't stack a spell, which is origin-bound to one source (Q-435)", [this]()
+	It("stacks an infused innate spell with a same-element gem; the gem adds no EP (B-435b)", [this]()
 	{
 		if (!Executor) return;
+		USpellData *Spell = FireSpell();
+		Active().InnateSpells.Add(Spell);
+		const FAction Cast = SpellAction(Spell, ESpellSource::Innate, EInfusionSourceOption::Innate, STACK_TEST_L1);
+		const int32 InnateEP = Executor->CalculateActionEnergyCost(Caster, Cast);
+		TestTrue(TEXT("the innate spell pays EP"), InnateEP > 0);
+		TestEqual(TEXT("alone: one source"), Executor->GetSameElementSourceCount(Caster, Cast), 1);
 		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_INTACT);
-		FAction Spell;
-		Spell.ActionType = EActionType::Spell;
-		Spell.SpellData = NewObject<USpellData>(GetTransientPackage());
-		Spell.SpellSource = ESpellSource::Innate;
-		Spell.SelectedSource = EInfusionSourceOption::Innate;
-		Spell.SpellInfusionLevel = STACK_TEST_L1;
-		Spell.Targets.Add(Caster);
-		TestEqual(TEXT("An innate spell beside a Fire gem"), Executor->GetSameElementSourceCount(Caster, Spell), 0);
+		TestEqual(TEXT("with a Fire gem: two"), Executor->GetSameElementSourceCount(Caster, Cast), 2);
+		TestEqual(TEXT("uninfused: no stack (Q-435b)"), Executor->GetSameElementSourceCount(
+			Caster, SpellAction(Spell, ESpellSource::Innate, EInfusionSourceOption::None, 0)), 0);
+		TestEqual(TEXT("the gem adds no EP"), Executor->CalculateActionEnergyCost(Caster, Cast), InnateEP);
+	});
+
+	It("makes a ring Fire spell with a Fire innate pay the innate's EP for x1.25 buildup; a Water innate doesn't join", [this]()
+	{
+		if (!Executor) return;
+		USpellData *Spell = FireSpell();
+		SetPrimaryRing(STACK_TEST_FIRE_GEM, Spell);
+		const FAction Cast = SpellAction(Spell, ESpellSource::RingCrystal, EInfusionSourceOption::PrimaryRing, STACK_TEST_L1);
+		const int32 Count = Executor->GetSameElementSourceCount(Caster, Cast);
+		TestEqual(TEXT("ring + innate"), Count, 2);
+		TestEqual(TEXT("x1.25 buildup"), InfusionConstants::SameElementBuildupMultiplier(Count), STACK_TEST_MULT_TWO, STACK_TEST_TOLERANCE);
+		TestTrue(TEXT("the free ring spell now pays the innate's EP"), Executor->CalculateActionEnergyCost(Caster, Cast) > 0);
+		SetInnateElement(ESpellElement::Water);
+		TestEqual(TEXT("a Water innate doesn't join"), Executor->GetSameElementSourceCount(Caster, Cast), 1);
+		TestEqual(TEXT("so the ring spell is free again"), Executor->CalculateActionEnergyCost(Caster, Cast), 0);
+	});
+
+	It("makes the AI price an infused ring spell with the stacked innate's EP", [this]()
+	{
+		if (!Executor) return;
+		UAIDecisionManager *AI = TestWorld->GetSubsystem<UAIDecisionManager>();
+		if (!TestNotNull(TEXT("AI"), AI)) return;
+		USpellData *Spell = FireSpell();
+		SetPrimaryRing(STACK_TEST_FIRE_GEM, Spell);
+		const int32 StackedCost = Executor->CalculateActionEnergyCost(
+			Caster, SpellAction(Spell, ESpellSource::RingCrystal, EInfusionSourceOption::PrimaryRing, STACK_TEST_L1));
+		Caster->FindComponentByClass<UCharacterDataComponent>()->CurrentEP = StackedCost - 1;
+		TestTrue(TEXT("the uninfused ring spell is free"), AI->CanAffordSkill(Caster, Spell));
+		TestFalse(TEXT("one EP short of the stack: unaffordable"), AI->CanAffordSkill(Caster, Spell, STACK_TEST_L1));
+	});
+
+	It("stacks nothing for a non-elemental spell, even on an elemental ring", [this]()
+	{
+		if (!Executor) return;
+		USpellData *Spell = FireSpell();
+		Spell->Element = ESpellElement::None;
+		SetPrimaryRing(STACK_TEST_FIRE_GEM, Spell);
+		const FAction Cast = SpellAction(Spell, ESpellSource::RingCrystal, EInfusionSourceOption::PrimaryRing, STACK_TEST_L1);
+		TestEqual(TEXT("no stack"), Executor->GetSameElementSourceCount(Caster, Cast), 0);
+		TestEqual(TEXT("and still free"), Executor->CalculateActionEnergyCost(Caster, Cast), 0);
+	});
+
+	It("lets a Reality caster stack on their own element or the spell's source element", [this]()
+	{
+		if (!Executor) return;
+		SetInnateElement(ESpellElement::Reality);
+		USpellData *Spell = FireSpell();
+		SetPrimaryRing(STACK_TEST_FIRE_GEM, Spell);
+		TestTrue(TEXT("Innate is allowed on a ring spell"),
+				 Executor->GetAllowedInfusionSourcesForSpell(Caster, Spell).Contains(EInfusionSourceOption::Innate));
+		const FAction Own = SpellAction(Spell, ESpellSource::RingCrystal, EInfusionSourceOption::Innate, STACK_TEST_L1);
+		const TArray<EInfusionSourceOption> OwnStack = Executor->GetSameElementInfusionSources(Caster, Own);
+		TestTrue(TEXT("own element: the innate alone"), OwnStack.Num() == 1 && OwnStack[0] == EInfusionSourceOption::Innate);
+		TestTrue(TEXT("own element pays the innate's EP"), Executor->CalculateActionEnergyCost(Caster, Own) > 0);
+		const FAction Source = SpellAction(Spell, ESpellSource::RingCrystal, EInfusionSourceOption::PrimaryRing, STACK_TEST_L1);
+		const TArray<EInfusionSourceOption> SourceStack = Executor->GetSameElementInfusionSources(Caster, Source);
+		TestTrue(TEXT("source element: the ring alone"), SourceStack.Num() == 1 && SourceStack[0] == EInfusionSourceOption::PrimaryRing);
+		TestEqual(TEXT("and free"), Executor->CalculateActionEnergyCost(Caster, Source), 0);
+	});
+
+	It("sums the L2 HP of each HP-paying source on a spell (innate + a same-element evolution)", [this]()
+	{
+		if (!Executor) return;
+		UCharacterDataComponent *Stats = Caster->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("Stats"), Stats)) return;
+		Stats->MaxEP = STACK_TEST_MAX_EP;
+		Stats->MaxHP = STACK_TEST_MAX_HP;
+		USpellData *Spell = FireSpell();
+		Active().InnateSpells.Add(Spell);
+		const FAction Cast = SpellAction(Spell, ESpellSource::Innate, EInfusionSourceOption::Innate, STACK_TEST_L2);
+		SeatEvolution(ECrystalType::Sapphire); // Water: doesn't join
+		const int32 OneSource = CommitHPCost(Cast);
+		TestTrue(TEXT("the innate spell pays HP at L2"), OneSource > 0);
+		SeatEvolution(ECrystalType::Garnet); // Fire: joins and pays its own HP
+		TestEqual(TEXT("two HP-paying sources"), Executor->CountHPPayingInfusionSources(Caster, Cast), 2);
+		TestEqual(TEXT("the HP backlash doubles"), CommitHPCost(Cast), 2 * OneSource);
 	});
 
 	It("keeps the stack resolved at commit when the commit's wear breaks the gem", [this]()

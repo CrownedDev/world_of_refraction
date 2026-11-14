@@ -991,7 +991,9 @@ bool UAIDecisionManager::CanAffordSkill(AActor *Actor, USkillDataBase *Skill, in
     // A spell's source comes off the actor's loadout (MakeSkillAction): CalculateActionEnergyCost
     // returns 0 for ring/weapon crystal sources and varies for BD evolution, so a wrong default
     // ESpellSource would mis-gate affordability.
-    const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, MakeSkillAction(Actor, nullptr, Skill, InfusionLevel));
+    // An infused action carries the source the AI will pick, so the same-element stack's EP is priced (B-435b).
+    const EInfusionSourceOption Source = InfusionLevel > 0 ? DecideSkillInfusionSource(Actor, Skill) : EInfusionSourceOption::None;
+    const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, MakeSkillAction(Actor, nullptr, Skill, InfusionLevel, Source));
     return GetCurrentEP(Actor) >= Cost;
 }
 
@@ -2464,7 +2466,7 @@ EInfusionSourceOption UAIDecisionManager::DecideSpellInfusionSource(AActor *Atta
         return EInfusionSourceOption::None; // Item / non-infusable -> no source
     }
 
-    // Spells are 1:1 origin-bound; the BD/Reality evolution case returns {Evolution, Innate} —
+    // Spells are origin-bound; a BD/Reality caster also gets Innate on any origin (B-435b), listed after the origin —
     // prefer Evolution this stage (richer BD/Reality choice deferred).
     return Allowed.Contains(EInfusionSourceOption::Evolution)
                ? EInfusionSourceOption::Evolution

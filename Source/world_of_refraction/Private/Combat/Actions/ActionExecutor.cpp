@@ -673,6 +673,15 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 		Preview.BaseDamage = Action.SpellData->CalculateDamage(UserData, ActionMods);
 		// Cluster 3c: a Generic spell resolves to its source/pool element; fixed elements pass through.
 		Preview.Element = ResolveSpellCastElement(User, Action.SpellData);
+		// B-435b (Q-435 B): a BD / Reality caster who infused through Innate on another origin casts their own element.
+		if (bIsInfused && Action.SelectedSource == EInfusionSourceOption::Innate)
+		{
+			const TArray<EInfusionSourceOption> Allowed = GetAllowedInfusionSourcesForSpell(User, Action.SpellData);
+			if (Allowed.Num() > 1 && Allowed[0] != EInfusionSourceOption::Innate)
+			{
+				Preview.Element = GetElementForSourceOption(User, EInfusionSourceOption::Innate);
+			}
+		}
 		// 3a safety net: a still-Generic result means the resolver could not bind a source (e.g. a
 		// Generic-innate Caster routing through Innate — a data misconfiguration). Never let Generic
 		// ("inherit") reach the damage/colour/resistance pipeline.
@@ -1325,7 +1334,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// 6-4: the live spell status multiplier — per-mode, stat-scaled (L0 → ×1.0). Logged here and
 	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
-	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp);
+	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp) *
+							 InfusionConstants::SameElementBuildupMultiplier(GetSameElementSourceCount(Caster, Action)); // B-435b
 
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
 		   Action.SpellInfusionLevel,
@@ -4488,24 +4498,25 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell
 	}
 
 	case ESpellSource::Evolution:
-	{
 		Allowed.Add(EInfusionSourceOption::Evolution);
-		// Exception: BD / Reality casters may ALSO route an evolution spell through Innate.
-		const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
-		const UCharacterData *Data = GetCharacterData(Actor);
-		const bool bReality = Data && Data->IsRealityRefractor();
-		const bool bBD = Comp && Comp->IsBrokenDarkness();
-		if (bReality || bBD)
-		{
-			Allowed.Add(EInfusionSourceOption::Innate);
-		}
 		break;
-	}
 
 	case ESpellSource::Item:
 	default:
 		// Item spells (and any unresolved origin) are consumables, not infusable -> no source.
 		break;
+	}
+
+	// Exception: a BD / Reality caster may ALSO infuse a spell with their own element through Innate, whatever its
+	// origin (B-435b, Q-435 B, Crown 2026-11-14; it was the evolution origin only). The origin stays first.
+	if (Allowed.Num() > 0 && !Allowed.Contains(EInfusionSourceOption::Innate))
+	{
+		const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+		const UCharacterData *Data = GetCharacterData(Actor);
+		if ((Data && Data->IsRealityRefractor()) || (Comp && Comp->IsBrokenDarkness()))
+		{
+			Allowed.Add(EInfusionSourceOption::Innate);
+		}
 	}
 
 	return Allowed;
@@ -4609,6 +4620,7 @@ TArray<EInfusionSourceOption> UActionExecutor::GetSameElementInfusionSources(AAc
 		CurrentExecutionContext->Action.ActionType == Action.ActionType &&
 		CurrentExecutionContext->Action.SelectedSource == Action.SelectedSource &&
 		CurrentExecutionContext->Action.SkillData == Action.SkillData &&
+		CurrentExecutionContext->Action.SpellData == Action.SpellData && // B-435b: spells stack too
 		CurrentExecutionContext->Action.GetChargeLevel() == Action.GetChargeLevel())
 	{
 		return CurrentExecutionContext->InfusionStack;
@@ -4619,12 +4631,33 @@ TArray<EInfusionSourceOption> UActionExecutor::GetSameElementInfusionSources(AAc
 TArray<EInfusionSourceOption> UActionExecutor::ResolveSameElementInfusionSources(AActor *Actor, const FAction &Action) const
 {
 	TArray<EInfusionSourceOption> Sources;
-	const EInfusionSourceOption Picked = Action.SelectedSource;
-	// Q-435: a spell is origin-bound to one source (GetAllowedInfusionSourcesForSpell), so only abilities and attacks stack.
-	if (!Actor || Action.ActionType != EActionType::Ability || Action.GetChargeLevel() <= 0 ||
+	if (!Actor)
+	{
+		return Sources;
+	}
+	EInfusionSourceOption Picked = Action.SelectedSource;
+	const bool bSpell = Action.ActionType == EActionType::Spell;
+	// Q-435b: like an ability, a spell stacks only when infused (D-174 / ED-51: "an infused action").
+	if ((!bSpell && Action.ActionType != EActionType::Ability) || Action.GetChargeLevel() <= 0 ||
 		Picked == EInfusionSourceOption::None || Picked == EInfusionSourceOption::Raw)
 	{
 		return Sources;
+	}
+	TOptional<ESpellElement> SpellElement; // set for a spell cast on its origin's element
+	if (bSpell)
+	{
+		// B-435b (Q-435 B, Crown 2026-11-14): a spell keeps its origin's element and every other source of that
+		// element joins the cast. The picked source is the origin, unless a BD / Reality caster picked Innate (their
+		// own element; GetAllowedInfusionSourcesForSpell allows it), and then the stack keys on that.
+		const TArray<EInfusionSourceOption> Allowed = GetAllowedInfusionSourcesForSpell(Actor, Action.SpellData);
+		if (!Allowed.Contains(Picked))
+		{
+			return Sources; // an item spell, a broken ring's spell, a source its origin doesn't allow: nothing stacks
+		}
+		if (Picked == Allowed[0])
+		{
+			SpellElement = ResolveSpellCastElement(Actor, Action.SpellData);
+		}
 	}
 
 	// D-174: a Generic (inherit) source counts as the character's innate element; a Generic character gives it none.
@@ -4640,7 +4673,10 @@ TArray<EInfusionSourceOption> UActionExecutor::ResolveSameElementInfusionSources
 	const auto IsAdapter = [](EInfusionSourceOption Option)
 	{ return Option == EInfusionSourceOption::ActiveRing || Option == EInfusionSourceOption::PrimaryRing; };
 
-	const ESpellElement StackElement = ElementOf(Picked);
+	// A spell on its origin stacks on its cast element (a non-elemental spell: None, so nothing stacks).
+	const ESpellElement StackElement = !SpellElement.IsSet()						   ? ElementOf(Picked)
+									   : SpellElement.GetValue() == ESpellElement::Generic ? CharacterElement
+																						   : SpellElement.GetValue();
 	if (StackElement == ESpellElement::None)
 	{
 		return Sources; // CL-24: a broken or empty source pushes no element, so nothing stacks with it
