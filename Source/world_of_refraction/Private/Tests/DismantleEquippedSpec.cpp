@@ -90,8 +90,8 @@ void FDismantleEquippedSpec::Define()
 		const FString Warning = UEconomyService::GetDismantleWarning(Owner, SecondaryId).ToString();
 		TestTrue(TEXT("names both loadouts"), Warning.Contains(TEXT("loadouts 1, 2")));
 		TestTrue(TEXT("says upgrades are lost"), Warning.Contains(TEXT("upgrades")));
-		TestTrue(TEXT("the primary's warning says swap first"),
-				 UEconomyService::GetDismantleWarning(Owner, PrimaryId).ToString().Contains(TEXT("Swap in another primary")));
+		TestTrue(TEXT("the primary's warning says put another in first"),
+				 UEconomyService::GetDismantleWarning(Owner, PrimaryId).ToString().Contains(TEXT("Put another in first")));
 
 		TestFalse(TEXT("the primary is refused"), Economy->DismantleWeapon(Owner, PrimaryId));
 		TestNotNull(TEXT("the primary is still owned"), Inventory->FindOwnedWeapon(PrimaryId));
