@@ -95,6 +95,9 @@ namespace LoadoutV2Build
 
 namespace LoadoutV2Build
 {
+	/** Spaces per effect-tree depth in GetDetailsString. */
+	constexpr int32 DEBUG_INDENT_SPACES = 2;
+
 	int32 CountWeaponEntries(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		const bool bWeaponPrimary = Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None;
@@ -120,11 +123,7 @@ namespace LoadoutV2Build
 
 	FRuntimeAttachedItem EvolutionAttachment(const FEvolutionInventoryEntry &Owned)
 	{
-		FRuntimeAttachedItem Item;
-		Item.Kind = EAttachedItemKind::Evolution;
-		Item.Evolution.Item = Owned.Item;
-		Item.Evolution.Tier = Owned.Tier;
-		return Item;
+		return WoRLoadoutV2::MakeEvolutionAttachment(Owned);
 	}
 
 	FText AttachmentName(const FRuntimeAttachedItem &Item)
@@ -714,6 +713,19 @@ TArray<FLoadoutV2PieceChoice> WoRLoadoutV2::BuildEvolutionChoices(const FCombatL
 	return Choices;
 }
 
+FRuntimeAttachedItem WoRLoadoutV2::MakeEvolutionAttachment(const FEvolutionInventoryEntry &Owned)
+{
+	FRuntimeAttachedItem Item;
+	Item.Kind = EAttachedItemKind::Evolution;
+	Item.Evolution.Item = Owned.Item;
+	Item.Evolution.Tier = Owned.Tier;
+	Item.Evolution.InstanceID = Owned.InstanceID;
+	Item.Evolution.CurrentDurability = Owned.CurrentDurability; // its wear and roll go with it
+	Item.Evolution.GeneratedStatBonus = Owned.GeneratedStatBonus;
+	Item.Evolution.GeneratedResistance = Owned.GeneratedResistance;
+	return Item;
+}
+
 FLoadoutV2Draft WoRLoadoutV2::DraftFromEntry(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry)
 {
 	using namespace LoadoutV2Build;
@@ -927,7 +939,7 @@ FString WoRLoadoutV2::GetDetailsString(const TArray<FLoadoutV2DetailLine> &Lines
 	FString Out;
 	for (const FLoadoutV2DetailLine &Line : Lines)
 	{
-		Out += FString::Printf(TEXT("\n  %s%s%s%s"), *FString::ChrN(Line.Depth * 2, TEXT(' ')), *Line.Label.ToString(),
+		Out += FString::Printf(TEXT("\n  %s%s%s%s"), *FString::ChrN(Line.Depth * LoadoutV2Build::DEBUG_INDENT_SPACES, TEXT(' ')), *Line.Label.ToString(),
 							   Line.Label.IsEmpty() || Line.Value.IsEmpty() ? TEXT("") : TEXT(": "), *Line.Value.ToString());
 	}
 	return Out;

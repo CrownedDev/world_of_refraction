@@ -58,6 +58,11 @@ void FLoadoutV2ScreenSpec::Define()
 		Screen->PressCompare();
 		TestNotEqual(TEXT("X switches the view"), ULoadoutV2ScreenWidget::IsSimpleView(), bWasSimple);
 		ULoadoutV2ScreenWidget *Again = CreateWidget<ULoadoutV2ScreenWidget>(TestWorld.GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("a second screen"), Again))
+		{
+			Screen->PressCompare(); // back as it was
+			return;
+		}
 		Again->ActivateWidget();
 		TestNotEqual(TEXT("a new screen keeps it"), ULoadoutV2ScreenWidget::IsSimpleView(), bWasSimple);
 		Again->PressCompare(); // back as it was, for the next test

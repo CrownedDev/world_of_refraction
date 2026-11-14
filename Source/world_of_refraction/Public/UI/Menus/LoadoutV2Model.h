@@ -220,6 +220,9 @@ namespace WoRLoadoutV2
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2PieceChoice> BuildEvolutionChoices(const FCombatLoadout &Loadout, ECharacterClass Class,
 																			 const TArray<FEvolutionInventoryEntry> &Evolutions, const TSet<FGuid> &InUse);
 
+	/** B-476c: an owned evolution as a socket item (its tier, wear and roll go with it). */
+	WORLD_OF_REFRACTION_API FRuntimeAttachedItem MakeEvolutionAttachment(const FEvolutionInventoryEntry &Owned);
+
 	/** B-476c: the entry as a draft (A Edit): its pieces and the sockets they carry. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Draft DraftFromEntry(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry);
 
