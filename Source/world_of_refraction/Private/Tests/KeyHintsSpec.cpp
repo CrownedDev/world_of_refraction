@@ -67,6 +67,72 @@ void FKeyHintsSpec::Define()
 		TestEqual(TEXT("a typed name keeps its braces"), WoRKeyHints::Format(Named, false).ToString(), FString(TEXT("My {Back} `set` is now in use.")));
 	});
 
+	It("reads a footer as key caps with their labels, a pair as two caps, a sentence as text (B-483)", [this]()
+	{
+		const FText Pattern = FText::FromString(TEXT("{Confirm}  Edit        {Tabs}  Tab        Up / Down  Choose        {Confirm} / Right  Add        {Back}  Back"));
+		const TArray<FWoRKeyHint> Keys = WoRKeyHints::ParseHints(Pattern, false);
+		if (!TestEqual(TEXT("five hints"), Keys.Num(), 5))
+		{
+			return;
+		}
+		TestEqual(TEXT("a cap and its label"), WoRKeyHints::GetHintsString({Keys[0]}), FString(TEXT("[Enter -> Enter] Edit")));
+		TestTrue(TEXT("Tabs is its two caps"), Keys[1].Caps.Num() == 2 && Keys[1].Caps[0].Text.ToString() == TEXT("Q") && Keys[1].Caps[1].Text.ToString() == TEXT("E"));
+		TestTrue(TEXT("each of the pair clicks its own key"), Keys[1].Caps[0].ClickKey == EKeys::Q && Keys[1].Caps[1].ClickKey == EKeys::E);
+		TestTrue(TEXT("the pair's label clicks next"), Keys[1].GetClickKey() == EKeys::E);
+		TestTrue(TEXT("words are caps too, and Up / Down click the arrows"), Keys[2].Caps.Num() == 2 && Keys[2].Caps[0].ClickKey == EKeys::Up && Keys[2].Caps[1].ClickKey == EKeys::Down);
+		TestTrue(TEXT("a key name beside a word"), Keys[3].Caps.Num() == 2 && Keys[3].Caps[0].ClickKey == EKeys::Enter && Keys[3].Caps[1].ClickKey == EKeys::Right);
+		TestTrue(TEXT("Back is Backspace, and clicks it"), Keys[4].Caps[0].Text.ToString() == TEXT("Backspace") && Keys[4].GetClickKey() == EKeys::BackSpace);
+		TestTrue(TEXT("keyboard caps are framed"), Keys[0].Caps[0].Style == EWoRKeyCapStyle::Framed);
+
+		const TArray<FWoRKeyHint> Pad = WoRKeyHints::ParseHints(Pattern, true);
+		TestTrue(TEXT("on a gamepad A is the green circle"), Pad[0].Caps[0].Text.ToString() == TEXT("A") && Pad[0].Caps[0].Style == EWoRKeyCapStyle::FaceA);
+		TestTrue(TEXT("B the red one"), Pad[4].Caps[0].Style == EWoRKeyCapStyle::FaceB);
+		TestTrue(TEXT("the shoulders are framed caps"), Pad[1].Caps[0].Text.ToString() == TEXT("LB") && Pad[1].Caps[0].Style == EWoRKeyCapStyle::Framed);
+
+		// A tab row's key label: one cap, no label. A sentence, or a lone word, stays text.
+		const TArray<FWoRKeyHint> Label = WoRKeyHints::ParseHints(FText::FromString(TEXT("{SubTabPrev}")), false);
+		TestTrue(TEXT("a key label is one cap"), Label.Num() == 1 && Label[0].Caps.Num() == 1 && Label[0].Label.IsEmpty() && Label[0].Caps[0].ClickKey == EKeys::Z);
+		const TArray<FWoRKeyHint> Sentence = WoRKeyHints::ParseHints(FText::FromString(TEXT("Hold {ViewButton} to answer  ·  then  {Confirm}  Give this seat")), false);
+		TestTrue(TEXT("a sentence has no caps"), Sentence.Num() == 1 && Sentence[0].Caps.IsEmpty() && Sentence[0].Label.ToString().StartsWith(TEXT("Hold Tab to answer")));
+		const TArray<FWoRKeyHint> Word = WoRKeyHints::ParseHints(FText::FromString(TEXT("Cancel")), false);
+		TestTrue(TEXT("a lone word is text"), Word.Num() == 1 && Word[0].Caps.IsEmpty() && Word[0].Label.ToString() == TEXT("Cancel"));
+
+		// The caller's own value in a label is filled; a typed key (the rename box) is a cap that clicks nothing.
+		FFormatNamedArguments Extra;
+		Extra.Add(TEXT("ViewName"), FText::FromString(TEXT("Simple")));
+		const TArray<FWoRKeyHint> View = WoRKeyHints::ParseHints(FText::FromString(TEXT("{Toggle}  {ViewName}        Esc  Cancel")), false, Extra);
+		TestTrue(TEXT("the label's own value"), View.Num() == 2 && View[0].Label.ToString() == TEXT("Simple"));
+		TestTrue(TEXT("a typed key is a cap that clicks nothing"), View[1].Caps.Num() == 1 && !View[1].GetClickKey().IsValid());
+	});
+
+	It("draws a footer made by MakeHintBar as caps, and a key label too; a hint text stays text (B-483)", [this]()
+	{
+		FWoRTestWorld World;
+		if (!TestTrue(TEXT("world"), World.Create()))
+		{
+			return;
+		}
+		UWoRTestScreen *Screen = CreateWidget<UWoRTestScreen>(World.GetWorld(), UWoRTestScreen::StaticClass());
+		if (!TestNotNull(TEXT("a screen to own the texts"), Screen) || !TestNotNull(TEXT("its tree"), Screen->WidgetTree.Get()))
+		{
+			return;
+		}
+		UWoRKeyHintText *Bar = Cast<UWoRKeyHintText>(WoRMenuStyle::MakeHintBar(Screen->WidgetTree));
+		if (!TestNotNull(TEXT("the bar"), Bar))
+		{
+			return;
+		}
+		WoRKeyHints::SetHint(Bar, FText::FromString(TEXT("{Confirm}  Select        {Back}  Back")));
+		TestTrue(TEXT("a footer has caps"), Bar->HasKeyCaps());
+		TestEqual(TEXT("its hints"), WoRKeyHints::GetHintsString(Bar->GetHints()), FString(TEXT("[Enter -> Enter] Select\n[Backspace -> BackSpace] Back")));
+		TestEqual(TEXT("its text is still readable"), Bar->GetText().ToString(), FString(TEXT("Enter  Select        Backspace  Back")));
+		const UWoRKeyHintText *KeyLabel = Cast<UWoRKeyHintText>(WoRMenuStyle::MakeKeyLabel(Screen->WidgetTree, FText::FromString(TEXT("{TabNext}"))));
+		TestTrue(TEXT("a key label has a cap"), KeyLabel && KeyLabel->HasKeyCaps() && KeyLabel->GetHints().Num() == 1);
+		const UWoRKeyHintText *Text = Cast<UWoRKeyHintText>(WoRMenuStyle::MakeHintText(Screen->WidgetTree, WoRMenuStyle::LineFontSize, WoRMenuStyle::DimColor));
+		TestTrue(TEXT("a hint text has none"), Text && !Text->HasKeyCaps());
+		Bar->ClickKey(EKeys::Invalid); // no key: nothing is sent
+	});
+
 	It("shows the keyboard's keys on a hint text with no player (headless), and fills a plain text once", [this]()
 	{
 		FWoRTestWorld World;
