@@ -856,6 +856,12 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	 *  and reads false, which is the default: no save version bump. */
 	UPROPERTY()
 	bool bHideEndTurnButton = false;
+
+	/** B-474 (D-207): "Switch to the weapon of the skill you use": the battle menu offers the other weapon's skills too,
+	 *  and using one makes that weapon active. On by default; an older save has no such field and keeps the default
+	 *  (no save version bump). */
+	UPROPERTY()
+	bool bSwitchToSkillWeapon = true;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */

@@ -1007,6 +1007,16 @@ void USaveSubsystem::SetEndTurnButtonHidden(bool bHidden)
 	SaveGame->Data.Settings.bHideEndTurnButton = bHidden;
 }
 
+bool USaveSubsystem::IsSwitchToSkillWeaponOn() const
+{
+	return SaveGame->Data.Settings.bSwitchToSkillWeapon;
+}
+
+void USaveSubsystem::SetSwitchToSkillWeapon(bool bOn)
+{
+	SaveGame->Data.Settings.bSwitchToSkillWeapon = bOn;
+}
+
 bool USaveSubsystem::IsBoundToPlayer() const
 {
 	return SaveGame && SaveGame->GetLocalPlayer() != nullptr;
