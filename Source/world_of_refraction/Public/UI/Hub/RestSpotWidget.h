@@ -42,7 +42,7 @@ protected:
 private:
 	void Refresh();
 
-	/** B-363: the level screen (place and buy pillar points). */
+	/** B-363: the level screen (place pillar points; B-447: they are bought from the trial NPC). */
 	UFUNCTION()
 	void HandleLevelUpClicked();
 

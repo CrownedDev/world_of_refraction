@@ -7,6 +7,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Party/Party.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialNPC.h"
@@ -18,6 +19,8 @@ namespace
 {
 	constexpr int32 TRIAL_NPC_TEST_SEED = 449;
 	const FName TRIAL_NPC_TEST_WILD_SPOT(TEXT("WildRestSpot"));
+	constexpr int32 TRIAL_NPC_TEST_COUNT = 3;
+	constexpr int32 TRIAL_NPC_TEST_RUNS = 60;
 }
 
 BEGIN_DEFINE_SPEC(FTrialNPCSpec, "WoR.Trial.NPC", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -63,6 +66,43 @@ void FTrialNPCSpec::Define()
 		Run->NoteRestSpotUsed(TRIAL_NPC_TEST_WILD_SPOT);
 		TestFalse(TEXT("no Extract at a rest spot in the wild (B-448)"), WoRRestSpot::CanExtractHere(TestWorld->GetWorld()));
 		TestTrue(TEXT("V extracts all the same"), WoRTrialNPC::GetExtractRefusal(TestWorld->GetWorld()).IsEmpty());
+	});
+
+	It("has one of the placed NPCs sell pillar points for the whole run; only that one sells (B-447, Q-447)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		ATrialNPC *V = World->SpawnActor<ATrialNPC>();
+		ATrialNPC *Second = World->SpawnActor<ATrialNPC>();
+		ATrialNPC *Third = World->SpawnActor<ATrialNPC>();
+		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!TestTrue(TEXT("setup"), V && Second && Third && Run)) return;
+		Second->SetIdentity(FText::FromString(TEXT("Second")), /*bInExtractsParty=*/false);
+		Third->SetIdentity(FText::FromString(TEXT("Third")), /*bInExtractsParty=*/false);
+		TestNull(TEXT("no run: nobody sells"), WoRTrialNPC::FindPointSeller(World));
+
+		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), TRIAL_NPC_TEST_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, {}, {});
+		const ATrialNPC *Seller = WoRTrialNPC::FindPointSeller(World);
+		TestTrue(TEXT("one of the three"), Seller == V || Seller == Second || Seller == Third);
+		TestTrue(TEXT("the same one when asked again"), WoRTrialNPC::FindPointSeller(World) == Seller);
+		const ATrialNPC *Other = Seller == V ? Second : V;
+		TestTrue(TEXT("another NPC has none to sell"),
+				 WoRTrialNPC::TryBuyPointAt(World, *Other, FPartyMember()).ToString().Contains(TEXT("no points to sell")));
+		TestTrue(TEXT("the debug string names the seller"), WoRTrialNPC::GetTrialNPCsString(World).Contains(TEXT("sells points this run")));
+	});
+
+	It("picks the seller from the run's seed, inside the NPCs placed; a lone NPC always sells", [this]()
+	{
+		TSet<int32> Picked;
+		for (int32 Seed = 0; Seed < TRIAL_NPC_TEST_RUNS; ++Seed)
+		{
+			const int32 Index = WoRTrialNPC::PickSellerIndex(Seed, TRIAL_NPC_TEST_COUNT);
+			TestTrue(TEXT("inside the placed NPCs"), Index >= 0 && Index < TRIAL_NPC_TEST_COUNT);
+			TestEqual(TEXT("the same seed, the same pick"), WoRTrialNPC::PickSellerIndex(Seed, TRIAL_NPC_TEST_COUNT), Index);
+			Picked.Add(Index);
+		}
+		TestEqual(TEXT("over many runs every NPC gets a turn"), Picked.Num(), TRIAL_NPC_TEST_COUNT);
+		TestEqual(TEXT("one NPC: it sells"), WoRTrialNPC::PickSellerIndex(TRIAL_NPC_TEST_SEED, 1), 0);
+		TestEqual(TEXT("none placed: no index past the end"), WoRTrialNPC::PickSellerIndex(TRIAL_NPC_TEST_SEED, 0), 0);
 	});
 }
 

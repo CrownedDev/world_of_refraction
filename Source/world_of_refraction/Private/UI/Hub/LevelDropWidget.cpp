@@ -109,9 +109,7 @@ TSharedRef<SWidget> ULevelDropWidget::RebuildWidget()
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBodyClicked);
 		LevelDropBuild::AddButton(WidgetTree, Box, WoRLevelDrops::GetPillarName(EWorldPillar::Spirit))
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleSpiritClicked);
-		UButton *Buy = LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Buy", "Buy a point"));
-		Buy->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBuyClicked);
-		BuyLabel = Cast<UTextBlock>(Buy->GetChildAt(0));
+		// B-447 (D-183): no Buy here; points are bought from the trial NPC who sells them this run (UTrialNPCWidget).
 		StatusLine = LevelDropBuild::AddText(WidgetTree, Box);
 		LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleCloseClicked);
 	}
@@ -180,12 +178,6 @@ void ULevelDropWidget::Refresh()
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Body), PillarLevel(EWorldPillar::Body),
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Spirit), PillarLevel(EWorldPillar::Spirit)));
 	}
-	if (BuyLabel)
-	{
-		BuyLabel->SetText(Member ? FText::Format(LOCTEXT("BuyPrice", "Buy a point ({0} {1})"), FText::AsNumber(WoRLevelDrops::GetPointPrice(GetWorld(), *Member)),
-												 WoRGameNames::GetCurrencyName(ECurrencyType::Gold))
-								 : LOCTEXT("BuyNone", "Buy a point"));
-	}
 	StatusLine->SetText(StatusText);
 }
 
@@ -229,21 +221,9 @@ void ULevelDropWidget::HandleBodyClicked() { Place(EWorldPillar::Body); }
 
 void ULevelDropWidget::HandleSpiritClicked() { Place(EWorldPillar::Spirit); }
 
-void ULevelDropWidget::HandleBuyClicked()
-{
-	const FPartyMember *Member = SelectedMember();
-	if (!Member)
-	{
-		return;
-	}
-	const FText Refusal = WoRLevelDrops::TryBuyPoint(GetWorld(), *Member);
-	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Bought", "{0}: +1 point to place"), FText::FromString(Member->CharacterData->Name)) : Refusal;
-	Refresh();
-}
-
 void ULevelDropWidget::HandleCloseClicked()
 {
-	WoRRestSpot::StepAway(GetWorld()); // B-363 review: placing and buying end with the rest spot's level screen
+	WoRRestSpot::StepAway(GetWorld()); // B-363 review: placing ends with the rest spot's level screen
 	if (APlayerController *PC = GetOwningPlayer())
 	{
 		PC->SetInputMode(FInputModeGameOnly());

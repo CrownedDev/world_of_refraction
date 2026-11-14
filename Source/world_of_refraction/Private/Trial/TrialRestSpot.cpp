@@ -64,7 +64,7 @@ int32 WoRRestSpot::Rest(UWorld *World, FName RestSpotId, const AWoRPlayerState *
 	// the client's menu would close it). The presser is the host when its controller is local (or with no presser).
 	if (bPresserIsHost)
 	{
-		Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed and bought here; the skin switch reads it too
+		Run->SetAtRestSpot(true); // B-363 (D-156): pillar points are placed here; the skin switch reads it too
 	}
 	if (USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
 	{
