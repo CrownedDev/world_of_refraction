@@ -18,6 +18,7 @@
 #include "Loadout/LoadoutConstants.h"
 #include "Misc/ScopeExit.h"
 #include "Player/WoRHubController.h"
+#include "UI/Menus/LoadoutApparelModel.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRGameNames.h"
@@ -94,6 +95,13 @@ namespace LoadoutV2ScreenStyle
 								  : LOCTEXT("WarnCrystalOff", "A again: what's in both sockets comes off and is destroyed.");
 	}
 
+	/** B-440f: an apparel piece's short line: its tier and what its socket holds ("B · Garnet", "C · empty"). */
+	FText ApparelLine(const FLoadoutScreenRow &Row)
+	{
+		const FLoadoutScreenSocket *Socket = Row.Sockets.IsValidIndex(LoadoutScreenSockets::CRYSTAL) ? &Row.Sockets[LoadoutScreenSockets::CRYSTAL] : nullptr;
+		return FText::Format(LOCTEXT("ApparelLine", "{0} · {1}"), Row.Tier, Socket && !Socket->bEmpty ? Socket->Name : LOCTEXT("SocketEmpty", "empty"));
+	}
+
 	/** The option lines Y opens, in order. */
 	const ELoadoutV2Option OptionOrder[] = {ELoadoutV2Option::SetActive, ELoadoutV2Option::SavedLoadouts, ELoadoutV2Option::RemoveAllGear,
 											ELoadoutV2Option::Help, ELoadoutV2Option::CosmeticsShortcuts};
@@ -135,9 +143,8 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		MemberText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToRow(Header, MemberText, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 		AddToRow(Header, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "RT")), FMargin(0.0f, 0.0f, SectionGap * 2.0f, 0.0f));
-		TabsText = MakeText(WidgetTree, RowFontSize, CyanColor, true);
-		// TODO: B-476d: Skills and Apparel on LB / RB; Cosmetics stays greyed (later).
-		TabsText->SetText(LOCTEXT("Tabs", "Weapons     (Skills · Apparel · Cosmetics: later)"));
+		TabsText = MakeText(WidgetTree, RowFontSize, CyanColor, true); // filled in RefreshView (B-440f: the tab in use)
+		// TODO: B-476d: Skills on LB / RB; Cosmetics stays greyed (later).
 		AddToRow(Header, TabsText)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		CellsText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		AddToRow(Header, CellsText);
@@ -227,6 +234,7 @@ void ULoadoutV2ScreenWidget::RefreshData()
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	Page = FLoadoutV2WeaponsPage();
 	LoadoutName = FText::GetEmpty();
+	ApparelRows.Reset();
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
 	const FCombatLoadout *Active = nullptr;
@@ -234,6 +242,8 @@ void ULoadoutV2ScreenWidget::RefreshData()
 	{
 		LoadoutName = FText::FromString(Active->LoadoutName);
 		Page = WoRLoadoutV2::BuildWeaponsPage(*Active, Members[MemberIndex].Class);
+		// B-440f: the apparel places as today's gear page lists them (worn first, then the empty ones).
+		ApparelRows = WoRLoadoutScreen::BuildGearPage(*Active, Members[MemberIndex].Class).Rows.FilterByPredicate(&WoRLoadoutApparel::IsApparelRow);
 		if (Mode == ELoadoutV2Mode::WindowKind)
 		{
 			Kinds = WoRLoadoutV2::BuildAddKinds(*Active, Members[MemberIndex].Class);
@@ -246,6 +256,10 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		{
 			Saved = WoRLoadoutSaved::BuildList(*Inventory);
 		}
+		else if (Mode == ELoadoutV2Mode::ApparelItems)
+		{
+			BuildApparelItems();
+		}
 	}
 	else
 	{
@@ -254,7 +268,7 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		Saved = FLoadoutSavedList();
 		bRenaming = false; // the member left: no name to keep, and the keys go back to the screen
 		WoRMenuStyle::SetShown(NameBox, false);
-		if (IsAdding() || Mode == ELoadoutV2Mode::Saved)
+		if (IsAdding() || Mode == ELoadoutV2Mode::Saved || Mode == ELoadoutV2Mode::ApparelItems)
 		{
 			Mode = ELoadoutV2Mode::List; // the member left: nothing to edit
 		}
@@ -274,7 +288,24 @@ void ULoadoutV2ScreenWidget::RefreshData()
 const FLoadoutV2Entry *ULoadoutV2ScreenWidget::GetFocusedEntry() const
 {
 	const int32 Line = Mode == ELoadoutV2Mode::List ? Selected : ListSelected;
-	return Page.Entries.IsValidIndex(Line) ? &Page.Entries[Line] : nullptr;
+	return Tab == ELoadoutV2Tab::Weapons && Page.Entries.IsValidIndex(Line) ? &Page.Entries[Line] : nullptr; // the Apparel tab lists no entry
+}
+
+int32 ULoadoutV2ScreenWidget::GetWornApparelCount() const
+{
+	return ApparelRows.FilterByPredicate([](const FLoadoutScreenRow &Row) { return Row.Kind == ELoadoutScreenRowKind::Apparel; }).Num();
+}
+
+const FLoadoutScreenRow *ULoadoutV2ScreenWidget::GetFocusedApparelRow() const
+{
+	if (Tab != ELoadoutV2Tab::Apparel)
+	{
+		return nullptr;
+	}
+	const int32 Line = Mode == ELoadoutV2Mode::List ? Selected : ListSelected;
+	const int32 Worn = GetWornApparelCount();
+	// The worn pieces come first; the Add apparel frame after them stands for the first empty place.
+	return ApparelRows.IsValidIndex(FMath::Min(Line, Worn)) ? &ApparelRows[FMath::Min(Line, Worn)] : nullptr;
 }
 
 void ULoadoutV2ScreenWidget::RefreshDetails()
@@ -306,9 +337,15 @@ int32 ULoadoutV2ScreenWidget::GetLineCount() const
 		return Slots.Num();
 	case ELoadoutV2Mode::WindowItems:
 	case ELoadoutV2Mode::WindowAsk:
+	case ELoadoutV2Mode::ApparelItems:
 		return Items.Num();
 	case ELoadoutV2Mode::List:
 	default:
+		if (Tab == ELoadoutV2Tab::Apparel)
+		{
+			const int32 Worn = GetWornApparelCount();
+			return Worn + (Worn < ApparelRows.Num() ? 1 : 0); // the Add apparel frame last, while a place is free
+		}
 		return Page.Entries.Num() + (Page.bCanAdd ? 1 : 0); // the Add weapon frame last
 	}
 }
@@ -341,6 +378,7 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		return Slots.IsValidIndex(Line) ? GetSlotName(Slots[Line]) : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowItems:
 	case ELoadoutV2Mode::WindowAsk:
+	case ELoadoutV2Mode::ApparelItems:
 		if (!Items.IsValidIndex(Line))
 		{
 			return FText::GetEmpty();
@@ -352,6 +390,10 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		return Line == PickedSocket ? FText::Format(LOCTEXT("PickedName", "{0}  PICKED"), Items[Line].Name) : Items[Line].Name;
 	case ELoadoutV2Mode::List:
 	default:
+		if (Tab == ELoadoutV2Tab::Apparel)
+		{
+			return Line < GetWornApparelCount() && ApparelRows.IsValidIndex(Line) ? ApparelRows[Line].Name : LOCTEXT("AddApparel", "+ Add apparel");
+		}
 		if (Page.Entries.IsValidIndex(Line))
 		{
 			const FLoadoutV2Entry &Entry = Page.Entries[Line];
@@ -395,6 +437,7 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		return Slots.IsValidIndex(Line) ? GetSlotValue(Slots[Line]) : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowItems:
 	case ELoadoutV2Mode::WindowAsk:
+	case ELoadoutV2Mode::ApparelItems:
 		if (!Items.IsValidIndex(Line))
 		{
 			return FText::GetEmpty();
@@ -402,6 +445,13 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		return Items[Line].Refusal.IsEmpty() ? Items[Line].Line : Items[Line].Refusal;
 	case ELoadoutV2Mode::List:
 	default:
+		if (Tab == ELoadoutV2Tab::Apparel)
+		{
+			const int32 Worn = GetWornApparelCount();
+			return Line < Worn && ApparelRows.IsValidIndex(Line)
+					   ? ApparelLine(ApparelRows[Line])
+					   : FText::Format(LOCTEXT("AddApparelLine", "{0}/{1} left"), FText::AsNumber(ApparelRows.Num() - Worn), FText::AsNumber(ApparelRows.Num()));
+		}
 		if (Page.Entries.IsValidIndex(Line))
 		{
 			TArray<FText> Sockets;
@@ -431,6 +481,7 @@ bool ULoadoutV2ScreenWidget::IsLineRefused(int32 Line) const
 		return Kinds.IsValidIndex(Line) && !Kinds[Line].Refusal.IsEmpty();
 	case ELoadoutV2Mode::WindowItems:
 	case ELoadoutV2Mode::WindowAsk:
+	case ELoadoutV2Mode::ApparelItems:
 		return Items.IsValidIndex(Line) && !Items[Line].Refusal.IsEmpty();
 	default:
 		return false;
@@ -450,6 +501,11 @@ FText ULoadoutV2ScreenWidget::GetTitle() const
 	if (Mode == ELoadoutV2Mode::Saved)
 	{
 		return FText::Format(LOCTEXT("TitleSaved", "Saved loadouts ({0} of {1} of your own)"), FText::AsNumber(Saved.CustomCount), FText::AsNumber(Saved.MaxCustom));
+	}
+	if (Mode == ELoadoutV2Mode::ApparelItems)
+	{
+		const FLoadoutScreenRow *Row = GetFocusedApparelRow();
+		return Row && Row->Kind == ELoadoutScreenRowKind::Apparel ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), Row->Name) : LOCTEXT("TitleAddApparel", "Add apparel");
 	}
 	const FText Window = bEditing ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), EditEntry.Name) : LOCTEXT("TitleAdd", "Add gear");
 	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
@@ -483,10 +539,13 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 				   : LOCTEXT("HintsItems", "A  Pick        X  Compare        Y  Confirm        B / Esc  Back");
 	case ELoadoutV2Mode::WindowAsk:
 		return LOCTEXT("HintsAsk", "A  Attach        B / Esc  Not now");
+	case ELoadoutV2Mode::ApparelItems:
+		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "A  Remove        B / Esc  Back")
+																		 : LOCTEXT("HintsApparelItems", "A  Pick        B / Esc  Back");
 	case ELoadoutV2Mode::List:
 	default:
 	{
-		if (IsOnAddFrame())
+		if (IsOnAddFrame() || (Tab == ELoadoutV2Tab::Apparel && Selected >= GetWornApparelCount()))
 		{
 			return LOCTEXT("HintsFrame", "A  Equip        Y  Options        LT / RT  Character        B / Esc  Back");
 		}
@@ -511,6 +570,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		return; // headless: no tree
 	}
 	MemberText->SetText(Members.IsValidIndex(MemberIndex) ? Members[MemberIndex].Name : FText::GetEmpty());
+	TabsText->SetText(Tab == ELoadoutV2Tab::Apparel ? LOCTEXT("TabsApparel", "LB   Weapons  ·  [ Apparel ]   RB     (Skills · Cosmetics: later)")
+													: LOCTEXT("TabsWeapons", "LB   [ Weapons ]  ·  Apparel   RB     (Skills · Cosmetics: later)"));
 	CellsText->SetText(LoadoutName.IsEmpty() ? Page.CellsLine : FText::Format(LOCTEXT("NameAndCells", "{0}     {1}"), LoadoutName, Page.CellsLine));
 	TitleText->SetText(GetTitle());
 	SetShown(TitleText, Mode != ELoadoutV2Mode::List);
@@ -544,7 +605,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		LineNames[Index]->SetText(GetLineName(Index));
 		LineNames[Index]->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor)); // refused: stays, greyed
 		LineDetails[Index]->SetText(GetLineDetail(Index));
-		LineDetails[Index]->SetColorAndOpacity(FSlateColor(bRefused && IsAdding() ? WarnColor : DimColor));
+		LineDetails[Index]->SetColorAndOpacity(FSlateColor(bRefused && (IsAdding() || Mode == ELoadoutV2Mode::ApparelItems) ? WarnColor : DimColor));
 	}
 
 	// The box: the focused entry's details, or in the window the entry being built.
@@ -557,6 +618,38 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		{
 			const bool bLit = Mode != ELoadoutV2Mode::WindowSlots && Index == SlotIndex;
 			BoxText.Add({FText::Format(LOCTEXT("BoxSlotLine", "{0}:  {1}"), GetSlotName(Slots[Index]), GetSlotValue(Slots[Index])), bLit});
+		}
+	}
+	else if (Tab == ELoadoutV2Tab::Apparel)
+	{
+		// B-440f: the focused piece (in the list of pieces: the lit one), or the Add apparel frame.
+		const FLoadoutScreenRow *Place = GetFocusedApparelRow();
+		const FLoadoutScreenRow *Row = Mode == ELoadoutV2Mode::ApparelItems ? (Items.IsValidIndex(Selected) ? &Items[Selected].Socket.Row : nullptr) : Place;
+		if (Row && Row->Kind == ELoadoutScreenRowKind::Apparel)
+		{
+			BoxTitle = Row->Name;
+			if (!bSimpleView)
+			{
+				BoxText.Add({FText::Format(LOCTEXT("BoxApparelKind", "{0}  {1}"), Row->KindLine, Row->Tier), true});
+				for (const FLoadoutScreenSocket &Socket : Row->Sockets)
+				{
+					BoxText.Add({FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Socket.Label, Socket.bEmpty ? LOCTEXT("SocketEmpty", "empty") : Socket.Name), false});
+				}
+			}
+			// TODO: B-476d: the piece's HP / Defence / Amp lines (tier-scaled in ULoadoutComponent) and its effects' text.
+			for (const FLoadoutScreenDetail &Detail : Row->Details)
+			{
+				BoxText.Add({FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Detail.Label, Detail.Value), false});
+			}
+			if (!bSimpleView)
+			{
+				BoxText.Add({Row->CostLine, false});
+			}
+		}
+		else if (Row)
+		{
+			BoxTitle = LOCTEXT("BoxAddApparel", "Add apparel");
+			BoxText.Add({LOCTEXT("BoxAddApparelLine", "A piece you own. Apparel sits outside the cells."), false});
 		}
 	}
 	else
@@ -680,12 +773,31 @@ void ULoadoutV2ScreenWidget::MoveMember(int32 Delta)
 	RefreshData();
 }
 
+void ULoadoutV2ScreenWidget::SwitchTab()
+{
+	if (Mode != ELoadoutV2Mode::List)
+	{
+		return;
+	}
+	Tab = Tab == ELoadoutV2Tab::Weapons ? ELoadoutV2Tab::Apparel : ELoadoutV2Tab::Weapons; // two tabs: either key turns
+	Selected = 0;
+	Message = FText::GetEmpty();
+	RefreshData();
+}
+
 void ULoadoutV2ScreenWidget::PressA()
 {
 	switch (Mode)
 	{
+	case ELoadoutV2Mode::ApparelItems:
+		PickApparel();
+		return;
 	case ELoadoutV2Mode::List:
-		if (IsOnAddFrame())
+		if (Tab == ELoadoutV2Tab::Apparel)
+		{
+			OpenApparelItems();
+		}
+		else if (IsOnAddFrame())
 		{
 			OpenWindowForNew();
 		}
@@ -849,6 +961,12 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		bRemoveAllArmed = false;
 		RefreshData();
 		return true;
+	case ELoadoutV2Mode::ApparelItems:
+		Mode = ELoadoutV2Mode::List;
+		Selected = ListSelected;
+		Items.Reset();
+		RefreshData();
+		return true;
 	case ELoadoutV2Mode::Saved:
 		Mode = ELoadoutV2Mode::Options; // one step back, on the Saved loadouts line
 		// The cast: a C array's index type isn't int32.
@@ -896,6 +1014,14 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		if (!InKeyEvent.IsRepeat())
 		{
 			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
+		}
+		return FReply::Handled();
+	}
+	if (IsTabPrevKey(Key) || IsTabNextKey(Key))
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			SwitchTab(); // B-440f
 		}
 		return FReply::Handled();
 	}
@@ -1001,6 +1127,77 @@ void ULoadoutV2ScreenWidget::SelectOption()
 		RefreshView();
 		return;
 	}
+}
+
+// ==================== APPAREL (B-440f) ====================
+
+void ULoadoutV2ScreenWidget::OpenApparelItems()
+{
+	if (!GetFocusedApparelRow())
+	{
+		return;
+	}
+	ListSelected = Selected;
+	Mode = ELoadoutV2Mode::ApparelItems;
+	Selected = 0;
+	PickedSocket = INDEX_NONE;
+	Message = FText::GetEmpty();
+	RefreshData();
+	if (Items.IsEmpty())
+	{
+		Mode = ELoadoutV2Mode::List;
+		Selected = ListSelected;
+		Message = LOCTEXT("NoApparelToPick", "You own no apparel that isn't worn already.");
+		RefreshView();
+	}
+}
+
+void ULoadoutV2ScreenWidget::BuildApparelItems()
+{
+	Items.Reset();
+	const FLoadoutScreenRow *Row = GetFocusedApparelRow();
+	if (!Row || !Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	if (Row->Kind == ELoadoutScreenRowKind::Apparel) // the worn piece first: A Remove
+	{
+		FLoadoutV2WindowItem &Worn = Items.AddDefaulted_GetRef();
+		Worn.Name = Row->Name;
+		Worn.Line = LoadoutV2ScreenStyle::ApparelLine(*Row);
+		Worn.bEquipped = true;
+		Worn.Socket.Row = *Row;
+	}
+	for (const FLoadoutScreenChoice &Choice : WoRLoadoutApparel::BuildApparelChoices(GetWorld(), Members[MemberIndex], *Row))
+	{
+		FLoadoutV2WindowItem &Item = Items.AddDefaulted_GetRef();
+		Item.Name = Choice.Row.Name;
+		Item.Line = LoadoutV2ScreenStyle::ApparelLine(Choice.Row);
+		Item.Refusal = Choice.Refusal;
+		Item.Socket = Choice;
+	}
+}
+
+void ULoadoutV2ScreenWidget::PickApparel()
+{
+	const FLoadoutScreenRow *Row = GetFocusedApparelRow();
+	if (!Row || !Items.IsValidIndex(Selected) || !Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	const FLoadoutScreenRow Place = *Row; // copies: RefreshData rebuilds the rows and the list
+	const FLoadoutV2WindowItem Item = Items[Selected];
+	Message = Item.bEquipped ? WoRLoadoutApparel::TakeOffRow(GetWorld(), Members[MemberIndex], Place)
+							 : WoRLoadoutApparel::ApplyApparelChoice(GetWorld(), Members[MemberIndex], Place, Item.Socket);
+	if (Message.IsEmpty())
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: apparel %s %s"), *Members[MemberIndex].Name.ToString(), *Item.Name.ToString(),
+			   Item.bEquipped ? TEXT("taken off") : TEXT("put on"));
+		Mode = ELoadoutV2Mode::List;
+		Selected = ListSelected; // RefreshData keeps it in range (a taken-off piece's line is gone)
+		Items.Reset();
+	}
+	RefreshData();
 }
 
 // ==================== SAVED LOADOUTS (B-440e) ====================
@@ -1754,6 +1951,17 @@ static FAutoConsoleCommandWithWorld GLoadoutV2OpenCommand(
 		if (!ULoadoutV2ScreenWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
 		{
 			UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] wor.UI.LoadoutV2: not opened (no hub controller with a root layout)"));
+		}
+	}));
+
+static FAutoConsoleCommandWithWorld GLoadoutApparelPrintCommand(
+	TEXT("wor.UI.LoadoutApparel.Print"),
+	TEXT("B-440f: print each party member's owned apparel and what the active loadout wears (the v2 loadout screen's Apparel tab)."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+	{
+		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
+		{
+			UE_LOG(LogWoRUI, Display, TEXT("[LoadoutApparel] %s"), *WoRLoadoutApparel::GetMemberApparelString(World, Member));
 		}
 	}));
 

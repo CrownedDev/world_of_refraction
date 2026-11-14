@@ -12,7 +12,10 @@
 // weapon entry active; Y Options (Set active, Saved loadouts, Remove all gear, Help, Cosmetics shortcuts).
 // B-440e (D-111): Options' Saved loadouts opens the saved list (WoRLoadoutSaved): A uses the lit one (or makes a new one
 // on the last line), X duplicates it, Y renames it in a name box (Enter keeps, Esc drops); B goes back to Options.
-// Not yet (B-476d): the Skills and Apparel tabs on LB / RB, then replacing ULoadoutScreenWidget on the game menu.
+// B-440f (D-164): LB / RB turns to the Apparel tab, which works like Weapons: the worn pieces, an Add apparel frame
+// ("1/2 left"), the focused piece in the box. A opens the owned pieces for that place (WoRLoadoutApparel): A Pick, or
+// A Remove on the EQUIPPED line. Apparel is outside the cells.
+// Not yet (B-476d): the Skills tab, the apparel socket and Compare, then replacing ULoadoutScreenWidget on the game menu.
 
 #pragma once
 
@@ -41,6 +44,8 @@ enum class ELoadoutV2Mode : uint8
 	Options,
 	/** B-440e: Options' Saved loadouts list. */
 	Saved,
+	/** B-440f: the owned apparel pieces for the focused apparel place. */
+	ApparelItems,
 	/** The Add gear window's first question: Weapon / Adapter / Evolution. */
 	WindowKind,
 	/** The window's slots (Main hand, Off hand, sockets...). */
@@ -49,6 +54,13 @@ enum class ELoadoutV2Mode : uint8
 	WindowItems,
 	/** "Attach ... to ...? Uses 2 cells": A Attach, B Not now. */
 	WindowAsk
+};
+
+/** B-440f: the tab LB / RB shows (Skills comes with B-476d). */
+enum class ELoadoutV2Tab : uint8
+{
+	Weapons,
+	Apparel
 };
 
 /** B-476c: a slot of the Add gear window. */
@@ -84,7 +96,8 @@ struct FLoadoutV2WindowItem
 	FWeaponInventoryEntry Weapon;
 	FRingInventoryEntry Adapter;
 	FEvolutionInventoryEntry Evolution;
-	/** A socket line (today's socket picker's choice for the entry's row). */
+	/** A socket line (today's socket picker's choice for the entry's row); B-440f: or an apparel line (the piece as
+	 *  WoRLoadoutApparel::BuildApparelChoices lists it, or the worn one on the EQUIPPED line). */
 	FLoadoutScreenChoice Socket;
 };
 
@@ -102,6 +115,8 @@ public:
 	// What the keys do (the specs call these too).
 	void MoveSelection(int32 Delta);
 	void MoveMember(int32 Delta);
+	/** B-440f, LB / RB: the other tab (Weapons, Apparel); on the list only. */
+	void SwitchTab();
 	/** A: Edit an entry, Equip on the Add weapon frame; in Options, select; in the window, open a slot's list, Pick or
 	 *  Remove; when asked, Attach. */
 	void PressA();
@@ -125,6 +140,8 @@ public:
 	int32 GetSelected() const { return Selected; }
 	const FText &GetMessage() const { return Message; }
 	const FLoadoutSavedList &GetSavedList() const { return Saved; }
+	ELoadoutV2Tab GetTab() const { return Tab; }
+	const TArray<FLoadoutScreenRow> &GetApparelRows() const { return ApparelRows; }
 	bool IsRenaming() const { return bRenaming; }
 	static bool IsSimpleView() { return bSimpleView; }
 
@@ -150,7 +167,7 @@ private:
 	bool IsLineRefused(int32 Line) const;
 	FText GetTitle() const;
 	FText GetHints() const;
-	bool IsOnAddFrame() const { return Mode == ELoadoutV2Mode::List && Page.bCanAdd && Selected == Page.Entries.Num(); }
+	bool IsOnAddFrame() const { return Mode == ELoadoutV2Mode::List && Tab == ELoadoutV2Tab::Weapons && Page.bCanAdd && Selected == Page.Entries.Num(); }
 	const FLoadoutV2Entry *GetFocusedEntry() const;
 
 	// The window.
@@ -171,6 +188,15 @@ private:
 
 	// Options.
 	void SelectOption();
+
+	// B-440f: the Apparel tab.
+	int32 GetWornApparelCount() const;
+	/** The apparel place the list's line stands for: a worn piece, or on the Add apparel frame the first empty place. */
+	const FLoadoutScreenRow *GetFocusedApparelRow() const;
+	void OpenApparelItems();
+	void BuildApparelItems();
+	/** A in the apparel list: wears the lit piece in the place, or takes the EQUIPPED one off. */
+	void PickApparel();
 
 	// B-440e: the saved loadouts list.
 	void OpenSaved();
@@ -212,6 +238,9 @@ private:
 	/** Options' Remove all gear asked; A again does it. */
 	bool bRemoveAllArmed = false;
 	FLoadoutSavedList Saved;
+	ELoadoutV2Tab Tab = ELoadoutV2Tab::Weapons;
+	/** B-440f: the member's apparel places (the worn ones first, then the empty ones), from today's gear page. */
+	TArray<FLoadoutScreenRow> ApparelRows;
 	/** B-440e: the name box is open for the lit saved loadout. */
 	bool bRenaming = false;
 	/** Remembered while the game runs (UIScreens B-479c: the screen remembers the view). */

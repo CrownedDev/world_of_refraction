@@ -6,11 +6,14 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "WoRTestWorld.h"
+#include "Blueprint/UserWidget.h"
 #include "Equipment/Apparel/ApparelData.h"
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Loadout/FCombatLoadout.h"
 #include "UI/Menus/LoadoutApparelModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/Menus/LoadoutV2ScreenWidget.h"
 
 namespace
 {
@@ -89,6 +92,33 @@ void FLoadoutApparelSpec::Define()
 		TestFalse(TEXT("empty row: nothing"), WoRLoadoutApparel::TakeOffApparel(Loadout, ApparelTestEmptyRow()));
 		TestTrue(TEXT("off"), WoRLoadoutApparel::TakeOffApparel(Loadout, WoRLoadoutScreen::BuildApparelRow(Worn)));
 		TestEqual(TEXT("none worn"), Loadout.Apparel.Num(), 0);
+	});
+
+	It("on the v2 screen LB / RB turns to the Apparel tab and back; with no party it lists nothing and A opens nothing (headless)", [this]()
+	{
+		FWoRTestWorld World;
+		if (!TestTrue(TEXT("world"), World.Create()))
+		{
+			return;
+		}
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World.GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		TestTrue(TEXT("opens on Weapons"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
+		Screen->SwitchTab();
+		TestTrue(TEXT("the Apparel tab"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
+		TestTrue(TEXT("no character: no apparel places"), Screen->GetApparelRows().IsEmpty());
+		Screen->PressA();
+		TestTrue(TEXT("nothing to pick from"), Screen->GetMode() == ELoadoutV2Mode::List && Screen->GetItems().IsEmpty());
+		Screen->PressSetActive();
+		TestFalse(TEXT("Set active says why not here"), Screen->GetMessage().IsEmpty());
+		Screen->SwitchTab();
+		TestTrue(TEXT("back on Weapons"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
+		Screen->PressBack();
+		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
 	});
 }
 
