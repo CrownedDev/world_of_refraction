@@ -1,6 +1,6 @@
 """Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209 / D-210 and Crown's notes). Two columns: what is EQUIPPED on the
 left, the owned items that fit on the right with a compare (ups green, downs red, as Expedition 33's and Persona 5's
-equip screens). Items that can't go in stay listed, greyed, with the reason. Tabs Weapons | Apparel | Skills | Cosmetics
+equip screens). Items that can't go in stay listed, greyed, with the reason. Tabs Weapons | Skills | Apparel | Cosmetics
 (later) on LB / RB. Main keys: A Edit, X Details (an entry's or the evolution's stats and attachments), Y Options
 (Saved loadouts, Remove all gear, Help, later Cosmetics shortcuts), B Back; help text is not on screen.
 D-210: the Weapons tab is a list of ENTRIES with an empty "Add weapon" frame at the bottom showing the cells left
@@ -37,7 +37,7 @@ def fit(d, s, size, bold, w):
 def header(d, who, page, loadout):
     x = tabs(d, 48, 30, ["Sera", "Garrick", "Bram"], who, lead="LT")
     text(d, (x + 4, 37), "RT", 16, True, CYAN)
-    x = tabs(d, 48, 78, ["Weapons", "Apparel", "Skills"], page, lead="LB")
+    x = tabs(d, 48, 78, ["Weapons", "Skills", "Apparel"], page, lead="LB")
     w = int(d.textlength("Cosmetics", font=F(18, True))) + 28
     cut(d, (x, 78, x + w, 112), BG, OFF, 8)
     text(d, (x + 14, 85), "Cosmetics", 18, True, OFF)
@@ -377,7 +377,7 @@ def apparel(d, y, name, el, lines, bonus, sock, focus=False):
 # ---- 5: Apparel tab: two slots, no budget. Each piece: HP / Defence / Amp + one rolled bonus (a sub-stat, or a pillar
 #         as a % of its value, never points). Its socket takes a crystal or an evolution.
 im, d = canvas()
-header(d, 1, 1, "Bruiser  ·  2 of 5")
+header(d, 1, 2, "Bruiser  ·  2 of 5")
 text(d, (L, TOP), "Apparel doesn't use the cells.", 16, fill=DIM)
 apparel(d, 168, "Iron Coat", "Darkness", "HP 40 · Def 14 · Amp +2", "+5% Body", ("crystal", "Darkness"), focus=True)
 apparel(d, 270, "Shade Hood", "None", "HP 25 · Def 6 · Amp +1", "+4% Crit Rate", None)
@@ -420,7 +420,7 @@ def skill_rows(d, rows, focus, top=TOP + 40):
 # ---- 6: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
 #         focused entry's skill slots. A dual entry shows both swords' slots.
 im, d = canvas()
-header(d, 1, 2, "Bruiser  ·  2 of 5")
+header(d, 1, 1, "Bruiser  ·  2 of 5")
 text(d, (L, TOP), "Abilities by entry", 17, True, DIM)
 y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1,
           active=True, focus=True)
@@ -439,7 +439,7 @@ save(im, OUT, "6_skills_generic.png")
 # ---- 7: Skills tab (Refractor): an "Innate spells" entry above the gear entry. Focused, the right shows the school rows:
 #         each school's spells, 6 at most, on a 24-point budget (tier = points, F 1 .. S 7).
 im, d = canvas()
-header(d, 0, 2, "Pyre  ·  1 of 5")
+header(d, 0, 1, "Pyre  ·  1 of 5")
 text(d, (L, TOP), "Skills by entry", 17, True, DIM)
 cut(d, (L, 168, LR, 230), TEAL, CYAN, 8)
 icon(d, (L + 8, 183, L + 40, 215), ELEMENT["Fire"])
