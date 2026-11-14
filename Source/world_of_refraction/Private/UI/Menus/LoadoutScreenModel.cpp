@@ -799,8 +799,9 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(UWorld *World,
 			InUse.Add(Owned.InstanceID);
 		}
 	}
-	// AttachCrystalTo* spends from the member's pouch (B-313b).
-	return BuildSocketChoices(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], Member.Class, Row, Socket, Pool->GetCarriedItems(Member.Key),
+	// AttachCrystalTo* spends from the pouch the member carries: a recruit carries the host's (B-361).
+	return BuildSocketChoices(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], Member.Class, Row, Socket,
+							  Pool->GetCarriedItems(WoRGive::GetPouchKey(World, Member.Key)),
 							  Evolutions, InUse);
 }
 
