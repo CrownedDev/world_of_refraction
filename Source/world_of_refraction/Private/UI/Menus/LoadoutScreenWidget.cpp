@@ -453,6 +453,11 @@ void ULoadoutScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 		return;
 	}
 	(bPicking ? SelectedChoice : SelectedRow) = Index;
+	if (!Message.IsEmpty())
+	{
+		Message = FText::GetEmpty(); // a refusal belongs to the line it was about
+		RefreshList();
+	}
 	RefreshSelection(bScrollIntoView);
 }
 
