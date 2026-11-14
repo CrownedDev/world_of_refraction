@@ -69,7 +69,10 @@ enum class ELoadoutSlotType : uint8
 	OffHandWeapon,
 	// B-480 (D-210): an evolution on gear its class may not put one on (a Resonator's weapon, a Generic's adapter);
 	// cleared by taking the evolution off. SlotIndex: LoadoutGearEvolutionIndex, or the adapter loadout's index.
-	GearEvolution
+	GearEvolution,
+	// B-410 (Q-098): a pick in a gem ability slot whose element the gem doesn't take. SlotIndex is the slot in the
+	// weapon's one skill list, SubIndex SECONDARY_WEAPON for a Generic's secondary; cleared by restoring the slot.
+	WeaponGemSkill
 };
 
 /** One actionable validation finding, produced by FLoadoutRules — the structured

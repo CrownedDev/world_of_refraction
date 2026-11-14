@@ -156,7 +156,8 @@ void ULoadoutComponent::HandleGearSocketChanged(FGuid GearID)
     // What a socket change can break; other problems a loadout has wait for the pre-fight clean.
     static const TArray<ELoadoutSlotType> SocketBreakableSlots = {
         ELoadoutSlotType::WeaponSpell, ELoadoutSlotType::WeaponAbility, ELoadoutSlotType::RingSpell,
-        ELoadoutSlotType::EvolutionOverflow, ELoadoutSlotType::RingOverflow, ELoadoutSlotType::AbilityOverflow};
+        ELoadoutSlotType::EvolutionOverflow, ELoadoutSlotType::RingOverflow, ELoadoutSlotType::AbilityOverflow,
+        ELoadoutSlotType::WeaponGemSkill}; // B-410: a new gem can refuse a pick's element
 
     const UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
@@ -844,6 +845,13 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             {
                 Weapon.AssignedSpells[Finding.SlotIndex] = nullptr;
             }
+            break;
+        }
+        case ELoadoutSlotType::WeaponGemSkill: // B-410: the slot goes back to its built-in (or empty)
+        {
+            FWeaponLoadoutEntry &Weapon = Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon
+                                                                                                           : Loadout.PrimaryWeapon;
+            Weapon.RestoreSkill(Finding.SlotIndex);
             break;
         }
         case ELoadoutSlotType::RingSpell:
