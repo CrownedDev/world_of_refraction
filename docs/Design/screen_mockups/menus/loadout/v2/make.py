@@ -1,8 +1,9 @@
-"""Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209 / D-210 and Crown's notes). Two columns: what is EQUIPPED on the
-left, the owned items that fit on the right with a compare (ups green, downs red, as Expedition 33's and Persona 5's
-equip screens). Items that can't go in stay listed, greyed, with the reason. Tabs Weapons | Skills | Apparel | Cosmetics
-(later) on LB / RB. Main keys: A Edit, X Details (an entry's or the evolution's stats and attachments), Y Options
-(Saved loadouts, Remove all gear, Help, later Cosmetics shortcuts), B Back; help text is not on screen.
+"""Loadout v2 (Crown, 2026-11-14; B-479 redraw for D-209 / D-210 and Crown's notes). Two columns: what is equipped on the
+left, the focused entry's details on the right (short stat lines; effects as ET-50 nested text). Picking and Compare
+(Equipped vs Selected; ups green, downs red) happen only in the Add gear / Add apparel window, where items that can't go
+in stay listed, greyed, with the reason. Tabs Weapons | Skills | Apparel | Cosmetics (later) on LB / RB. Main keys:
+A Edit / Equip, X Skills, L3 Set active (an inactive weapon entry), Y Options (Set active, Saved loadouts, Remove all
+gear, Help, later Cosmetics shortcuts), B Back; help text is not on screen.
 D-210: the Weapons tab is a list of ENTRIES with an empty "Add weapon" frame at the bottom showing the cells left
 ("1/5 left"). The Add gear window asks Weapon, Adapter or Evolution, then Main hand, Off hand, Augment socket 1 and 2
 (shared by the entry: a crystal or evolution + a stone, or two stones). Removing happens there: on the row of the
