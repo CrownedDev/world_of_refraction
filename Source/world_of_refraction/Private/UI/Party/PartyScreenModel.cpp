@@ -47,7 +47,7 @@ FPartyScreenPage WoRPartyScreen::BuildPage(const UParty *Party, bool bHosting)
 		Row.PlayedBy = Row.bLeader ? LOCTEXT("Leader", "You (leader)") : Row.bAISeat ? LOCTEXT("AI", "AI") : LOCTEXT("You", "You");
 		Row.bHasCell = Member.HasFormation();
 		Row.Row = Member.PreferredRow;
-		Row.Column = Row.bHasCell ? Member.PreferredColumn : 0;
+		Row.Column = Row.bHasCell ? FMath::Clamp(Member.PreferredColumn, 0, CombatGridConstants::GRID_COLUMNS - 1) : 0;
 		Row.StartLine = Row.bHasCell ? FText::Format(LOCTEXT("Starts", "Starts: {0}"), WoRGameNames::GetCombatRowName(Member.PreferredRow))
 									 : LOCTEXT("StartsAuto", "Starts: placed for you");
 		Row.FieldSkillLine = FText::Format(LOCTEXT("FieldSkill", "Field skill: {0}"), WoRGameNames::GetFieldMovementName(Member.FieldSkill.Type));

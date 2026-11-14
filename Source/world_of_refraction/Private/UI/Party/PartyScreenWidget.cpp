@@ -300,6 +300,10 @@ void UPartyScreenWidget::RefreshSelection()
 	{
 		PanelName->SetText(LOCTEXT("InviteHeading", "Invite"));
 		PanelSeat->SetText(LOCTEXT("InviteNote", "Host a session and invite a friend to take a seat."));
+		if (RowList && InviteRow.Frame.IsValid())
+		{
+			RowList->ScrollWidgetIntoView(InviteRow.Frame.Get(), /*AnimateScroll=*/false);
+		}
 		return;
 	}
 	const FPartyScreenMember &Member = Page.Members[SelectedRow];
@@ -430,8 +434,15 @@ FReply UPartyScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, 
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
-	SelectRow(Row);
-	PressChange(); // a click is A on that row (InputMap: Select)
+	// The first click lights a row, a click on the lit row is A: a stray click doesn't flip a seat.
+	if (Row != SelectedRow)
+	{
+		SelectRow(Row);
+	}
+	else
+	{
+		PressChange();
+	}
 	return FReply::Handled();
 }
 
