@@ -67,6 +67,16 @@ enum class ELoadoutV2Tab : uint8
 	Apparel
 };
 
+/** B-482: the tab chips, in the mockup's order (Skills and Cosmetics are greyed until they are built). */
+enum ELoadoutV2TabChip : int32
+{
+	LoadoutV2Chip_Weapons,
+	LoadoutV2Chip_Skills,
+	LoadoutV2Chip_Apparel,
+	LoadoutV2Chip_Cosmetics,
+	LoadoutV2Chip_Count
+};
+
 /** B-476c: a slot of the Add gear window. */
 enum class ELoadoutV2Slot : uint8
 {
@@ -272,6 +282,8 @@ private:
 	int32 HoveredMemberChip = INDEX_NONE;
 	int32 HoveredTabChip = INDEX_NONE;
 	int32 HoveredLine = INDEX_NONE;
+	/** When the mouse last did A on the focused line: a double click must not confirm what its first click only asked. */
+	double LastClickActionSeconds = 0.0;
 
 	/** The loadout in use, top right ("Bruiser (2 of 5)"). */
 	UPROPERTY(Transient)

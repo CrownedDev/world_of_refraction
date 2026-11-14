@@ -261,6 +261,30 @@ namespace WoRMenuStyle
 		}
 	}
 
+	/** Debug: the row as it shows: "[Weapons] Skills (later) Apparel", the filled chip in brackets, hidden chips left out. */
+	inline FString GetChipRowString(const FChipRow &Row)
+	{
+		FString Out;
+		for (int32 Index = 0; Index < Row.Chips.Num(); ++Index)
+		{
+			const UBorder *Chip = Row.Chips[Index].Get();
+			const UTextBlock *Label = Row.Labels[Index].Get();
+			const UTextBlock *Note = Row.Notes[Index].Get();
+			if (!Chip || !Label || Chip->GetVisibility() == ESlateVisibility::Collapsed)
+			{
+				continue;
+			}
+			const FString Name = Label->GetText().ToString();
+			Out += Out.IsEmpty() ? TEXT("") : TEXT(" ");
+			Out += Chip->GetBrushColor() == FocusColor ? FString::Printf(TEXT("[%s]"), *Name) : Name;
+			if (Note && Note->GetVisibility() != ESlateVisibility::Collapsed)
+			{
+				Out += FString::Printf(TEXT(" (%s)"), *Note->GetText().ToString());
+			}
+		}
+		return Out;
+	}
+
 	/** The shown chip under ScreenPosition; INDEX_NONE for none (and before the row is drawn). */
 	inline int32 FindChipUnder(const FChipRow &Row, const FVector2D &ScreenPosition)
 	{

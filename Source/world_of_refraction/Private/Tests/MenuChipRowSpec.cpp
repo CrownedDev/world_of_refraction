@@ -55,6 +55,7 @@ void FMenuChipRowSpec::Define()
 		TestTrue(TEXT("its note shows"), Row.Notes[CHIP_TEST_GREYED]->GetVisibility() != ESlateVisibility::Collapsed);
 		TestTrue(TEXT("no note on the others"), Row.Notes[CHIP_TEST_FIRST]->GetVisibility() == ESlateVisibility::Collapsed);
 		TestTrue(TEXT("a chip with no state is hidden"), Row.Chips[CHIP_TEST_HIDDEN]->GetVisibility() == ESlateVisibility::Collapsed);
+		TestEqual(TEXT("the debug string reads as the row does"), GetChipRowString(Row), FString(TEXT("[Weapons] Skills (later) Apparel")));
 
 		SetChips(Row, States, CHIP_TEST_GREYED, CHIP_TEST_GREYED);
 		TestTrue(TEXT("a greyed chip is never filled or lit"), Row.Chips[CHIP_TEST_GREYED]->GetBrushColor() == PlateColor);

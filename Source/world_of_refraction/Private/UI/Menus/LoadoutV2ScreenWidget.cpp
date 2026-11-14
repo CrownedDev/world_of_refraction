@@ -103,15 +103,9 @@ namespace LoadoutV2ScreenStyle
 		return FText::Format(LOCTEXT("ApparelLine", "{0} · {1}"), Row.Tier, Socket && !Socket->bEmpty ? Socket->Name : LOCTEXT("SocketEmpty", "empty"));
 	}
 
-	/** B-482: the tab chips, in the mockup's order. */
-	enum ETabChip : int32
-	{
-		ChipWeapons,
-		ChipSkills,
-		ChipApparel,
-		ChipCosmetics,
-		TabChipCount
-	};
+	/** B-482: a click that would confirm an armed ask (Remove all gear, a socket's Remove) waits this long after the
+	 *  click that armed it, so a double click only asks. */
+	constexpr double ARMED_CLICK_DELAY_SECONDS = 0.5;
 
 	/** Skills and Cosmetics aren't built yet: greyed, with "later" (TODO: B-476d builds Skills). */
 	TArray<FChipState> BuildTabChips()
@@ -163,7 +157,7 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		UVerticalBox *ChipRows = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		AddToColumn(ChipRows, MakeChipRow(WidgetTree, PartyConstants::MAX_PARTY_MEMBERS, LOCTEXT("KeySubTabPrev", "{SubTabPrev}"),
 										  LOCTEXT("KeySubTabNext", "{SubTabNext}"), MemberChips));
-		AddToColumn(ChipRows, MakeChipRow(WidgetTree, TabChipCount, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips),
+		AddToColumn(ChipRows, MakeChipRow(WidgetTree, LoadoutV2Chip_Count, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips),
 					FMargin(0.0f, LineGap, 0.0f, 0.0f));
 		AddToRow(Header, ChipRows, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		LoadoutNameText = MakeText(WidgetTree, RowFontSize, TextColor, true);
@@ -226,7 +220,8 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 	bRenaming = false;
 	WoRMenuStyle::SetShown(NameBox, false);
 	RefreshData();
-	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page));
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s; characters: %s; tabs: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page),
+		   *WoRMenuStyle::GetChipRowString(MemberChips), *WoRMenuStyle::GetChipRowString(TabChips));
 }
 
 UWidget *ULoadoutV2ScreenWidget::NativeGetDesiredFocusTarget() const
@@ -254,6 +249,7 @@ bool ULoadoutV2ScreenWidget::FindActive(ULoadoutComponent *&OutLoadout, UInvento
 
 void ULoadoutV2ScreenWidget::RefreshData()
 {
+	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // B-482: the lines may have changed under the mouse; its next move lights again
 	Members = WoRLoadoutScreen::BuildMembers(GetWorld());
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	Page = FLoadoutV2WeaponsPage();
@@ -603,7 +599,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		MemberStates.Add(FChipState{Member.Name});
 	}
 	SetChips(MemberChips, MemberStates, MemberIndex, HoveredMemberChip);
-	SetChips(TabChips, BuildTabChips(), Tab == ELoadoutV2Tab::Apparel ? ChipApparel : ChipWeapons, HoveredTabChip);
+	SetChips(TabChips, BuildTabChips(), Tab == ELoadoutV2Tab::Apparel ? LoadoutV2Chip_Apparel : LoadoutV2Chip_Weapons, HoveredTabChip);
 	LoadoutNameText->SetText(LoadoutName);
 	CellsText->SetText(Page.CellsLine);
 	TitleText->SetText(GetTitle());
@@ -812,14 +808,14 @@ void ULoadoutV2ScreenWidget::ClickTabChip(int32 Chip)
 	{
 		return;
 	}
-	if (Chip == ChipWeapons || Chip == ChipApparel)
+	if (Chip == LoadoutV2Chip_Weapons || Chip == LoadoutV2Chip_Apparel)
 	{
-		if ((Chip == ChipApparel) != (Tab == ELoadoutV2Tab::Apparel))
+		if ((Chip == LoadoutV2Chip_Apparel) != (Tab == ELoadoutV2Tab::Apparel))
 		{
 			SwitchTab(); // two built tabs: the other one
 		}
 	}
-	else if (Chip == ChipSkills || Chip == ChipCosmetics)
+	else if (Chip == LoadoutV2Chip_Skills || Chip == LoadoutV2Chip_Cosmetics)
 	{
 		Message = LOCTEXT("ChipNotYet", "That tab comes later.");
 		RefreshView();
@@ -842,7 +838,15 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 	}
 	if (Line == Selected)
 	{
-		PressA(); // a second click on the focused line does A
+		// A second click on the focused line does A. But not straight after the click that armed an ask (Remove all
+		// gear, a socket's Remove): a double click must not confirm what it hasn't shown yet.
+		const double Now = FPlatformTime::Seconds();
+		if ((bRemoveAllArmed || bRemoveArmed) && Now - LastClickActionSeconds < LoadoutV2ScreenStyle::ARMED_CLICK_DELAY_SECONDS)
+		{
+			return;
+		}
+		LastClickActionSeconds = Now;
+		PressA();
 	}
 	else
 	{
@@ -1435,6 +1439,7 @@ void ULoadoutV2ScreenWidget::StartRename()
 		return;
 	}
 	bRenaming = true;
+	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // the mouse belongs to the name box now
 	Message = FText::GetEmpty();
 	if (NameBox)
 	{

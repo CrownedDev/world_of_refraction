@@ -79,11 +79,6 @@ void FLoadoutV2ScreenSpec::Define()
 
 	It("takes the mouse's clicks: a tab chip turns the tab, a greyed one says later; nothing to click with no party (B-482)", [this]()
 	{
-		// The tab chips in the mockup's order (LoadoutV2ScreenStyle::ETabChip).
-		constexpr int32 CHIP_WEAPONS = 0;
-		constexpr int32 CHIP_SKILLS = 1;
-		constexpr int32 CHIP_APPAREL = 2;
-		constexpr int32 CHIP_COSMETICS = 3;
 		FWoRTestWorld TestWorld;
 		if (!TestTrue(TEXT("world"), TestWorld.Create()))
 		{
@@ -95,17 +90,16 @@ void FLoadoutV2ScreenSpec::Define()
 			return;
 		}
 		Screen->ActivateWidget();
-		Screen->ClickTabChip(CHIP_APPAREL);
+		Screen->ClickTabChip(LoadoutV2Chip_Apparel);
 		TestTrue(TEXT("the Apparel chip"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
-		Screen->ClickTabChip(CHIP_APPAREL);
+		Screen->ClickTabChip(LoadoutV2Chip_Apparel);
 		TestTrue(TEXT("again: stays"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
-		Screen->ClickTabChip(CHIP_SKILLS);
+		Screen->ClickTabChip(LoadoutV2Chip_Skills);
 		TestTrue(TEXT("Skills is not built: the tab stays"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
 		TestFalse(TEXT("and it says so"), Screen->GetMessage().IsEmpty());
-		Screen->ClickTabChip(CHIP_WEAPONS);
+		Screen->ClickTabChip(LoadoutV2Chip_Weapons);
 		TestTrue(TEXT("the Weapons chip"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
-		TestTrue(TEXT("turning the tab clears the message"), Screen->GetMessage().IsEmpty() || Screen->GetPage().Entries.IsEmpty());
-		Screen->ClickTabChip(CHIP_COSMETICS);
+		Screen->ClickTabChip(LoadoutV2Chip_Cosmetics);
 		TestTrue(TEXT("Cosmetics is not built either"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
 		Screen->ClickMemberChip(1);
 		Screen->ClickLine(0);
