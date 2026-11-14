@@ -21,6 +21,7 @@
 #include "Player/WoRHubController.h"
 #include "UI/Menus/LoadoutApparelModel.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/WoRIconTable.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -40,6 +41,10 @@ namespace LoadoutV2ScreenStyle
 	constexpr float RowGap = 10.0f;
 	constexpr float NameColumnWidth = 460.0f;
 	constexpr float BoxPadding = 24.0f;
+	// B-485: icon sizes (the mockups' 22 px at 720p, here at 1080p).
+	constexpr float RowIconSize = 36.0f;
+	constexpr float BadgeSize = 28.0f;
+	constexpr float BoxIconSize = 28.0f;
 	/** Spaces per depth of an effect-tree line in the details box. */
 	constexpr int32 IndentSpaces = 3;
 
@@ -412,7 +417,16 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		{
 			return FText::GetEmpty();
 		}
-		return Items[Line].Name; // B-484: EQUIPPED / PICKED is the row's tag (GetLineTag)
+	{
+		// B-484: EQUIPPED / PICKED is the row's tag (GetLineTag). B-485: the tier is a badge when the table has one.
+		if (Items[Line].TierText.IsEmpty())
+		{
+			return Items[Line].Name;
+		}
+		const FLineIcons Icons = GetLineIcons(Line);
+		const bool bTierBadge = Icons.bHasTier && WoRIcons::GetTierBadge(Icons.Tier) != nullptr;
+		return bTierBadge ? Items[Line].Name : FText::Format(LOCTEXT("SocketItemName", "{0}  {1}"), Items[Line].Name, Items[Line].TierText);
+	}
 	case ELoadoutV2Mode::List:
 	default:
 		if (Tab == ELoadoutV2Tab::Apparel)
@@ -428,7 +442,9 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		if (Page.Entries.IsValidIndex(Line))
 		{
 			const FLoadoutV2Entry &Entry = Page.Entries[Line];
-			return NameWithSocket(Entry.Name, Entry.SocketName); // B-482b: ACTIVE sits at the row's right end (GetLineDetail)
+			// B-485: the socket shows as a badge when the icon table has one; else its name in brackets, as before.
+			const bool bBadge = Entry.SocketBadges.Num() > 0 && FindIcon(Entry.SocketBadges[0]) != nullptr;
+			return bBadge ? Entry.Name : NameWithSocket(Entry.Name, Entry.SocketName);
 		}
 		return LOCTEXT("AddWeapon", "+ Add weapon");
 	}
@@ -489,6 +505,62 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		}
 		return Page.AddFrameLine;
 	}
+}
+
+UTexture2D *ULoadoutV2ScreenWidget::FindIcon(const FLoadoutV2Icon &Icon)
+{
+	switch (Icon.Kind)
+	{
+	case ELoadoutV2IconKind::WeaponType:
+		return WoRIcons::GetWeaponType(Icon.WeaponType);
+	case ELoadoutV2IconKind::Element:
+		return WoRIcons::GetElementBadge(Icon.Element);
+	case ELoadoutV2IconKind::EmptySocket:
+		return WoRIcons::GetEmptySocket();
+	case ELoadoutV2IconKind::Stone:
+		return WoRIcons::GetStoneSocket();
+	case ELoadoutV2IconKind::Effect:
+		return WoRIcons::GetEffectKind(Icon.EffectType, Icon.Element);
+	case ELoadoutV2IconKind::None:
+	default:
+		return nullptr;
+	}
+}
+
+ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Line) const
+{
+	FLineIcons Icons;
+	if (Mode == ELoadoutV2Mode::List)
+	{
+		if (Tab == ELoadoutV2Tab::Weapons && Page.Entries.IsValidIndex(Line))
+		{
+			const FLoadoutV2Entry &Entry = Page.Entries[Line];
+			Icons.Type = Entry.TypeIcon;
+			Icons.Socket1 = Entry.SocketBadges.IsValidIndex(0) ? Entry.SocketBadges[0] : FLoadoutV2Icon();
+			Icons.Socket2 = Entry.SocketBadges.IsValidIndex(1) ? Entry.SocketBadges[1] : FLoadoutV2Icon();
+		}
+		return Icons;
+	}
+	if ((Mode != ELoadoutV2Mode::WindowItems && Mode != ELoadoutV2Mode::WindowAsk) || !Items.IsValidIndex(Line))
+	{
+		return Icons;
+	}
+	const FLoadoutV2WindowItem &Item = Items[Line];
+	if (Item.Weapon.IsValid() && Item.Weapon.Weapon)
+	{
+		Icons.Type.Kind = ELoadoutV2IconKind::WeaponType;
+		Icons.Type.WeaponType = Item.Weapon.Weapon->WeaponType;
+		Icons.Type.Name = WoRGameNames::GetWeaponTypeName(Item.Weapon.Weapon->WeaponType);
+		return Icons;
+	}
+	// A crystal, stone or evolution line: its badge, and its tier.
+	const FRuntimeAttachedItem Attachment = Item.Evolution.InstanceID.IsValid() ? WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution) : Item.Socket.Attachment;
+	if (!Attachment.IsEmpty())
+	{
+		Icons.Socket1 = WoRLoadoutV2::MakeSocketIcon(Attachment);
+		Icons.bHasTier = WoRLoadoutV2::GetAttachmentTier(Attachment, Icons.Tier);
+	}
+	return Icons;
 }
 
 FText ULoadoutV2ScreenWidget::GetLineTag(int32 Line) const
@@ -660,7 +732,21 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		UTextBlock *Tag = MakeText(WidgetTree, SmallFontSize, CyanColor, true);
 		Name->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 		Detail->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
-		AddToRow(Line, MakeSized(WidgetTree, NameColumnWidth, 0.0f, Name), FMargin(0.0f), VAlign_Center);
+		// B-485: the weapon-type icon, the name, then the two socket badges and a tier badge (each hidden until the
+		// icon table has it); the name column cuts what doesn't fit.
+		UImage *TypeIcon = MakeIcon(WidgetTree, RowIconSize);
+		UImage *Socket1Icon = MakeIcon(WidgetTree, BadgeSize);
+		UImage *Socket2Icon = MakeIcon(WidgetTree, BadgeSize);
+		UImage *TierIcon = MakeIcon(WidgetTree, BadgeSize);
+		UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		AddToRow(NameRow, TypeIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+		AddToRow(NameRow, Name, FMargin(0.0f), VAlign_Center);
+		AddToRow(NameRow, TierIcon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		AddToRow(NameRow, Socket1Icon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		AddToRow(NameRow, Socket2Icon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		USizeBox *NameColumn = MakeSized(WidgetTree, NameColumnWidth, 0.0f, NameRow);
+		NameColumn->SetClipping(EWidgetClipping::ClipToBounds);
+		AddToRow(Line, NameColumn, FMargin(0.0f), VAlign_Center);
 		AddToRow(Line, Detail, FMargin(SectionGap, 0.0f, 0.0f, 0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		AddToRow(Line, Tag, FMargin(SectionGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
 		AddToColumn(ListBox, Row, FMargin(0.0f, 0.0f, 0.0f, RowGap));
@@ -668,6 +754,10 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		LineNames.Add(Name);
 		LineDetails.Add(Detail);
 		LineTags.Add(Tag);
+		LineTypeIcons.Add(TypeIcon);
+		LineSocket1Icons.Add(Socket1Icon);
+		LineSocket2Icons.Add(Socket2Icon);
+		LineTierIcons.Add(TierIcon);
 	}
 	for (int32 Index = 0; Index < LineRows.Num(); ++Index)
 	{
@@ -689,10 +779,32 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		const FText Tag = GetLineTag(Index);
 		LineTags[Index]->SetText(Tag);
 		SetShown(LineTags[Index], !Tag.IsEmpty());
+		// B-485: the row's icons; each is hidden when the icon table has none for it.
+		const FLineIcons Icons = GetLineIcons(Index);
+		SetIcon(LineTypeIcons[Index], FindIcon(Icons.Type), Icons.Type.Name);
+		const bool bSocketBadge = SetIcon(LineSocket1Icons[Index], FindIcon(Icons.Socket1), Icons.Socket1.Name);
+		SetIcon(LineSocket2Icons[Index], bSocketBadge ? FindIcon(Icons.Socket2) : nullptr, Icons.Socket2.Name); // the pair shows together
+		const bool bTierBadge = SetIcon(LineTierIcons[Index], Icons.bHasTier ? WoRIcons::GetTierBadge(Icons.Tier) : nullptr,
+										FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Icons.Tier)));
+		// A name with a badge after it keeps its own width, so the badge sits right after it; with none it fills the
+		// column and a long one ends in "...", as before the icons.
+		if (UHorizontalBoxSlot *NameSlot = Cast<UHorizontalBoxSlot>(LineNames[Index]->Slot))
+		{
+			NameSlot->SetSize(FSlateChildSize(bSocketBadge || bTierBadge ? ESlateSizeRule::Automatic : ESlateSizeRule::Fill));
+		}
 	}
 
 	// The box: the focused entry's details, or in the window the entry being built.
-	TArray<TPair<FText, bool>> BoxText; // a line, and whether it is lit
+	// A box line: its text, whether it is lit, and (B-485) its icon and a tier badge.
+	struct FBoxLine
+	{
+		FText Text;
+		bool bLit = false;
+		FLoadoutV2Icon Icon;
+		bool bHasTier = false;
+		EItemTier Tier = EItemTier::F_Tier;
+	};
+	TArray<FBoxLine> BoxText;
 	FText BoxTitle;
 	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
 	// entry's slots; a line with nothing to show (a note) falls back to the slots.
@@ -737,7 +849,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	else
 	{
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
-		BoxTitle = bPieceBox ? Items[GetBoxLine()].Name : Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
+		BoxTitle = bPieceBox ? GetLineName(GetBoxLine()) : Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
 		for (const FLoadoutV2DetailLine &Line : Details)
 		{
 			FText Shown;
@@ -756,7 +868,16 @@ void ULoadoutV2ScreenWidget::RefreshView()
 				Shown = FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Line.Label, Line.Value);
 				break;
 			}
-			BoxText.Add({Shown, Line.Kind == ELoadoutV2DetailKind::Piece});
+			FBoxLine BoxLine{Shown, Line.Kind == ELoadoutV2DetailKind::Piece};
+			BoxLine.Icon = Line.Icon;
+			// B-485: a piece's tier is a badge after its name when the icon table has it; else its letter, as before.
+			if (Line.bHasTier && WoRIcons::GetTierBadge(Line.Tier))
+			{
+				BoxLine.bHasTier = true;
+				BoxLine.Tier = Line.Tier;
+				BoxLine.Text = Line.Label;
+			}
+			BoxText.Add(BoxLine);
 		}
 	}
 	BoxTitleText->SetText(BoxTitle);
@@ -764,18 +885,39 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	DetailsBox->SetVisibility(BoxTitle.IsEmpty() && BoxText.IsEmpty() ? ESlateVisibility::Hidden : ESlateVisibility::SelfHitTestInvisible);
 	while (BoxTexts.Num() < BoxText.Num())
 	{
+		// B-485: a line is a row: its icon, its text, a tier badge.
+		UHorizontalBox *BoxRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UImage *Icon = MakeIcon(WidgetTree, BoxIconSize);
 		UTextBlock *Text = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
-		AddToColumn(BoxLines, Text, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		UImage *TierIcon = MakeIcon(WidgetTree, BadgeSize);
+		AddToRow(BoxRow, Icon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
+		AddToRow(BoxRow, Text, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToRow(BoxRow, TierIcon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		AddToColumn(BoxLines, BoxRow, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		BoxRows.Add(BoxRow);
+		BoxIcons.Add(Icon);
 		BoxTexts.Add(Text);
+		BoxTierIcons.Add(TierIcon);
 	}
+	// With any icon in the box, a line without one keeps the icon's room, so the lines stay aligned.
+	const bool bAnyBoxIcon = BoxText.ContainsByPredicate([](const FBoxLine &Line) { return FindIcon(Line.Icon) != nullptr; });
 	for (int32 Index = 0; Index < BoxTexts.Num(); ++Index)
 	{
 		const bool bShown = BoxText.IsValidIndex(Index);
-		SetShown(BoxTexts[Index], bShown);
+		SetShown(BoxRows[Index], bShown);
 		if (bShown)
 		{
-			BoxTexts[Index]->SetText(BoxText[Index].Key);
-			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(BoxText[Index].Value ? CyanColor : TextColor));
+			const FBoxLine &Line = BoxText[Index];
+			BoxTexts[Index]->SetText(Line.Text);
+			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bLit ? CyanColor : TextColor));
+			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
+			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr,
+									   FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Line.Tier)));
+			// A name with its tier badge keeps its own width, so the badge sits right after it; other lines fill and wrap.
+			if (UHorizontalBoxSlot *TextSlot = Cast<UHorizontalBoxSlot>(BoxTexts[Index]->Slot))
+			{
+				TextSlot->SetSize(FSlateChildSize(bTier ? ESlateSizeRule::Automatic : ESlateSizeRule::Fill));
+			}
 		}
 	}
 
@@ -1879,7 +2021,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		{
 			FLoadoutV2WindowItem &Item = Items.AddDefaulted_GetRef();
 			Item.Socket = Choice;
-			Item.Name = FText::Format(LOCTEXT("SocketItemName", "{0}  {1}"), Choice.Row.Name, Choice.Row.Tier);
+			Item.Name = Choice.Row.Name;
+			Item.TierText = Choice.Row.Tier; // B-485: written after the name only when there is no tier badge
 			Item.Line = FText::Format(LOCTEXT("SocketItemLine", "{0} · Cells after: {1} of {2}"), Choice.Row.KindLine, FText::AsNumber(Choice.NewSpent),
 									  FText::AsNumber(Page.CellsBudget));
 			Item.Refusal = Choice.Refusal;

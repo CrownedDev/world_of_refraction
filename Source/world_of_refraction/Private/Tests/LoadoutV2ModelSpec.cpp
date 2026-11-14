@@ -405,6 +405,23 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("an empty socket: no name on the row"), Page.Entries[1].SocketName.IsEmpty());
 		TestTrue(TEXT("and an empty icon"), Page.Entries[1].Sockets[0] == ELoadoutV2SocketIcon::Empty);
 
+		// B-485: what the row and the box show as icons.
+		TestTrue(TEXT("the row's weapon-type icon"), Page.Entries[0].TypeIcon.Kind == ELoadoutV2IconKind::WeaponType && Page.Entries[0].TypeIcon.WeaponType == EWeaponType::Sword);
+		TestTrue(TEXT("its two socket badges: the gem's element, then the empty socket"),
+				 Page.Entries[0].SocketBadges.Num() == 2 && Page.Entries[0].SocketBadges[0].Kind == ELoadoutV2IconKind::Element &&
+					 Page.Entries[0].SocketBadges[0].Name.ToString() == RowName && Page.Entries[0].SocketBadges[1].Kind == ELoadoutV2IconKind::EmptySocket);
+		TestTrue(TEXT("an empty socket's badge says so"), Page.Entries[1].SocketBadges[0].Kind == ELoadoutV2IconKind::EmptySocket && !Page.Entries[1].SocketBadges[0].Name.IsEmpty());
+		const FLoadoutV2DetailLine *PieceLine = Box.FindByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Kind == ELoadoutV2DetailKind::Piece; });
+		TestTrue(TEXT("the box's piece line: the weapon-type icon and a tier for its badge"),
+				 PieceLine && PieceLine->Icon.Kind == ELoadoutV2IconKind::WeaponType && PieceLine->bHasTier);
+		TestTrue(TEXT("the box's socket line: the gem's badge"), SocketLine && SocketLine->Icon.Kind == ELoadoutV2IconKind::Element);
+		const TArray<FLoadoutV2DetailLine> GemBox = WoRLoadoutV2::BuildAttachmentDetails(WithGem.Socket1, false);
+		TestTrue(TEXT("a crystal's own box: its badge and its tier"),
+				 GemBox.Num() > 0 && GemBox[0].Icon.Kind == ELoadoutV2IconKind::Element && GemBox[0].bHasTier && GemBox[0].Tier == EItemTier::F_Tier);
+		EItemTier NoTier = EItemTier::S_Tier;
+		TestFalse(TEXT("an empty socket has no tier"), WoRLoadoutV2::GetAttachmentTier(FRuntimeAttachedItem(), NoTier));
+		TestTrue(TEXT("a stone's badge is the stone"), WoRLoadoutV2::MakeSocketIcon(LoadoutV2TestStone()).Kind == ELoadoutV2IconKind::Stone);
+
 		// An evolution whose item is gone: the row still names it, as the box does.
 		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem = FRuntimeAttachedItem();
 		Loadout.PrimaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution;

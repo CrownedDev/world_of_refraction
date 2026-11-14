@@ -13,6 +13,7 @@
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
 #include "Components/ProgressBar.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
@@ -228,6 +229,36 @@ namespace WoRMenuStyle
 		{
 			Widget->SetVisibility(bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 		}
+	}
+
+	// ==================== ICONS (B-485; the textures come from UWoRIconTable) ====================
+
+	/** A small square icon, hidden until SetIcon gives it a texture. */
+	inline UImage *MakeIcon(UWidgetTree *Tree, float Size)
+	{
+		UImage *Icon = Tree->ConstructWidget<UImage>(UImage::StaticClass());
+		Icon->SetDesiredSizeOverride(FVector2D(Size, Size));
+		SetShown(Icon, false);
+		return Icon;
+	}
+
+	/** Shows Texture on Icon with Name as its tooltip (the icon in words). With no texture the icon is hidden: taken
+	 *  out of the row, or (bKeepSpace) left as a gap so lines stay aligned. Returns whether the icon shows. */
+	inline bool SetIcon(UImage *Icon, UTexture2D *Texture, const FText &Name, bool bKeepSpace = false)
+	{
+		if (!Icon)
+		{
+			return false;
+		}
+		if (!Texture)
+		{
+			Icon->SetVisibility(bKeepSpace ? ESlateVisibility::Hidden : ESlateVisibility::Collapsed);
+			return false;
+		}
+		Icon->SetBrushFromTexture(Texture);
+		Icon->SetToolTipText(Name);
+		Icon->SetVisibility(ESlateVisibility::Visible); // hit-testable: a tooltip needs the mouse
+		return true;
 	}
 
 	// ==================== CHIP ROW (B-482; FChipRow / FChipState: UI/Menus/MenuChipRow.h) ====================
