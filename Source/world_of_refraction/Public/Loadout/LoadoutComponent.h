@@ -609,6 +609,10 @@ public:
      *  The primary evolution seat is not gear; callers add it. */
     void ForEachContributingGear(TFunctionRef<void(const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)> Visit) const;
 
+    /** B-477 (D-209): Weapon is a Generic's allowed pair (WeaponSetRules::CheckPair): its off hand's stats, resistances
+     *  and the pair's dual-wield stance count. */
+    bool IsWeaponSetPaired(const FWeaponLoadoutEntry &Weapon) const;
+
     /** D-083: why Spell can't be cast right now because the active weapon's or ring's crystal
      *  is broken (a broken ring still casts F-tier spells). Empty when it can. */
     FText GetBrokenSourceReason(const USpellData *Spell) const;

@@ -3,6 +3,7 @@
 
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/WeaponSpellRules.h"
+#include "Loadout/WeaponSetRules.h"
 #include "Combat/TurnRotation.h" // B-170c: switching is free with action pips
 #include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
 #include "Memory/CurseSubsystem.h"
@@ -910,6 +911,11 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             }
             break;
         }
+        case ELoadoutSlotType::OffHandWeapon:
+            // B-477 (D-209): the set goes back to its main hand alone.
+            (Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon : Loadout.PrimaryWeapon).OffHandEntry =
+                FWeaponInventoryEntry();
+            break;
         case ELoadoutSlotType::PrimaryStone:
         {
             // B-472 (D-206): a Refractor over 2 drops its one item's augment stone; Q-159 = A: it goes back to the
@@ -2424,9 +2430,11 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
 
     if (ShownWeapon && ShownWeapon->WeaponEntry.Weapon)
     {
-        if (ShownWeapon->WeaponEntry.Weapon->WeaponStance)
+        // B-477 (D-209): a pair stands in its main hand's dual-wield stance (its own stance when unset).
+        UStanceData *SetStance = IsWeaponSetPaired(*ShownWeapon) ? WeaponSetRules::GetSetStance(*ShownWeapon) : ShownWeapon->WeaponEntry.Weapon->WeaponStance;
+        if (SetStance)
         {
-            return ShownWeapon->WeaponEntry.Weapon->WeaponStance;
+            return SetStance;
         }
     }
 
@@ -2696,6 +2704,12 @@ bool ULoadoutComponent::IsWornByAnother(const FGuid &GearID) const
         WearerKey = UPoolSubsystem::GetCharacterKey(GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr);
     }
     return Wearer != WearerKey;
+}
+
+bool ULoadoutComponent::IsWeaponSetPaired(const FWeaponLoadoutEntry &Weapon) const
+{
+    // B-477 (D-209): only a Generic's valid pair counts; anything else waits for the pre-fight clean (OffHandWeapon).
+    return GetCharacterClass() == ECharacterClass::Generic && WeaponSetRules::IsValidPair(Weapon);
 }
 
 void ULoadoutComponent::ForEachContributingGear(TFunctionRef<void(const FWeaponLoadoutEntry *, const FRingLoadoutEntry *)> Visit) const
@@ -3879,6 +3893,10 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         {
             AddScaled(Weapon->WeaponEntry.StatBonus, WeaponTier(Weapon->WeaponEntry));
             AddSocketCrystalAmp(Weapon->WeaponEntry.AttachedItem);
+            if (IsWeaponSetPaired(*Weapon)) // B-477 (D-210): a pair gives both weapons' stats; the sockets are the main hand's
+            {
+                AddScaled(Weapon->OffHandEntry.StatBonus, WeaponTier(Weapon->OffHandEntry));
+            }
         }
         else
         {
@@ -3959,9 +3977,13 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
     FResistanceBonus Combined;
 
     // B-306 (Q-244): the gear that counts, one rule for stats, resistances and effects.
-    ForEachContributingGear([&Combined](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
+    ForEachContributingGear([this, &Combined](const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Adapter)
     {
         Combined.Accumulate(Weapon ? Weapon->WeaponEntry.ResistanceBonus : Adapter->RingEntry.ResistanceBonus);
+        if (Weapon && IsWeaponSetPaired(*Weapon)) // B-477 (D-210): both weapons of a pair count
+        {
+            Combined.Accumulate(Weapon->OffHandEntry.ResistanceBonus);
+        }
     });
 
     // Evolution resistance, a permanent equipped bonus while slotted: the asset's authored Base plus the slotted

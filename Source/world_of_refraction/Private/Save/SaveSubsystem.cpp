@@ -281,6 +281,10 @@ FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
 	Saved.SecondaryWeapon = FSavedAssetRef::Make(Loadout.SecondaryWeapon);
 	Saved.SecondaryInstance = Loadout.SecondaryWeaponInstance;
 	Saved.SecondaryAbilities = SaveLoadoutRefs(Loadout.SecondaryWeaponAbilities);
+	Saved.PrimaryOffHand = FSavedAssetRef::Make(Loadout.PrimaryOffHandWeapon); // B-477 (D-209)
+	Saved.PrimaryOffHandInstance = Loadout.PrimaryOffHandInstance;
+	Saved.SecondaryOffHand = FSavedAssetRef::Make(Loadout.SecondaryOffHandWeapon);
+	Saved.SecondaryOffHandInstance = Loadout.SecondaryOffHandInstance;
 	for (const FResonatorRingSlot &Slot : Loadout.EquippedRings)
 	{
 		if (Slot.Ring)
@@ -326,6 +330,10 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 	Loadout.SecondaryWeapon = Saved.SecondaryWeapon.ResolveAs<UWeaponData>();
 	Loadout.SecondaryWeaponInstance = Saved.SecondaryInstance;
 	Loadout.SecondaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.SecondaryAbilities);
+	Loadout.PrimaryOffHandWeapon = Saved.PrimaryOffHand.ResolveAs<UWeaponData>(); // B-477 (D-209)
+	Loadout.PrimaryOffHandInstance = Loadout.PrimaryOffHandWeapon ? Saved.PrimaryOffHandInstance : FGuid();
+	Loadout.SecondaryOffHandWeapon = Saved.SecondaryOffHand.ResolveAs<UWeaponData>();
+	Loadout.SecondaryOffHandInstance = Loadout.SecondaryOffHandWeapon ? Saved.SecondaryOffHandInstance : FGuid();
 	for (int32 Index = 0; Index < Saved.Adapters.Num(); ++Index)
 	{
 		if (URingData *Ring = Saved.Adapters[Index].ResolveAs<URingData>())

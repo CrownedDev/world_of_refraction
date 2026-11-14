@@ -63,7 +63,10 @@ enum class ELoadoutSlotType : uint8
 	EquippedSTierCrystal,
 	// B-472 (D-206): the Refractor's budget finding: its one item's augment stone is dropped (back to the inventory,
 	// Q-159 = A) to get under 2.
-	PrimaryStone
+	PrimaryStone,
+	// B-477 (D-209): a weapon set's off hand that may not be there (a pair WeaponSetRules::CheckPair refuses, or a set on
+	// a class other than Generic); cleared by emptying the off hand. SubIndex SECONDARY_WEAPON for the secondary set.
+	OffHandWeapon
 };
 
 /** One actionable validation finding, produced by FLoadoutRules — the structured

@@ -7,6 +7,7 @@
 #include "Equipment/EquipmentDataBase.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
+#include "Equipment/Weapons/EWeaponHandling.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Infusion/EInfusionMode.h"
 #include "Animation/AnimMontage.h"
@@ -69,6 +70,16 @@ public:
     // Idle stance when this weapon is equipped
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     UStanceData *WeaponStance = nullptr;
+
+    /** B-477 (D-209): how this weapon may be held in a weapon set: alone, only as a same-type pair, or either. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Weapon Set")
+    EWeaponHandling Handling = EWeaponHandling::SingleOnly;
+
+    /** B-477 (D-209): the stance a same-type pair stands in when this weapon is the main hand (the first chosen).
+     *  Soft (D-057: a stance carries animations). Unset falls back to WeaponStance. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Weapon Set",
+              meta = (EditCondition = "Handling != EWeaponHandling::SingleOnly", EditConditionHides))
+    TSoftObjectPtr<UStanceData> DualWieldStance;
 
     // ==================== DAMAGE (D-101, B-220) ====================
 
@@ -164,6 +175,14 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool HasStance() const { return WeaponStance != nullptr; }
+
+    /** B-477 (D-209): false for a DualOnly weapon (it is only equipped as a pair). */
+    UFUNCTION(BlueprintPure, Category = "Weapon|Weapon Set")
+    bool CanBeHeldAlone() const { return Handling != EWeaponHandling::DualOnly; }
+
+    /** B-477 (D-209): true for a DualOnly or SingleOrDual weapon. */
+    UFUNCTION(BlueprintPure, Category = "Weapon|Weapon Set")
+    bool CanBePaired() const { return Handling != EWeaponHandling::SingleOnly; }
 
     virtual int32 GetMaxSpells() const override;
 

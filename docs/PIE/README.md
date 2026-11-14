@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-477](B-477.md) | `feature/B-477-weapon-sets-cloud` (cloud, UNBUILT; includes B-472) | Generic weapon sets, first part: two same-type swords (or daggers) in one entry, one skill list by the average tier, both weapons' stats, the main hand's dual-wield stance, bad pairs cleared, saved (v39). Needs an asset set to Single or dual first (editor) | Pending |
 | [B-472](B-472.md) | `feature/B-472-loadout-costs-cloud` (cloud, UNBUILT) | Loadout costs by D-206: gear free, crystal 1, stone 1, evolution 2, an evolution alone 2; Refractor budget 2 (a stone is dropped back to the inventory when over), Generic 3 items, Resonator at most 5 adapters; the cost line names only what is inside | Pending |
 | [B-238b](B-238b.md) | `feature/B-238b-run-finds-to-storage` (in dev, built 2026-11-14) | A finished run's finds go from the pouches to home storage (a quit still takes them back) | Pending |
 | [B-170h](B-170h.md) | `refactor/B-170h-flip-default` (in dev, built 2026-11-14) | Action pips on by default: every fight alternates sides with banked actions and End Turn, no console command; `wor.Turns.ActionPips 0` still gives the old timeline until B-170h2 | Pending |

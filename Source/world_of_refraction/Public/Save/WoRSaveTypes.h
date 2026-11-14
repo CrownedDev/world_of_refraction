@@ -541,6 +541,20 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 	UPROPERTY()
 	TArray<FSavedAssetRef> SecondaryAbilities;
 
+	/** B-477 (D-209, save v39): each weapon set's off hand (dual wield), by asset and owned GUID; empty for a weapon
+	 *  alone. */
+	UPROPERTY()
+	FSavedAssetRef PrimaryOffHand;
+
+	UPROPERTY()
+	FGuid PrimaryOffHandInstance;
+
+	UPROPERTY()
+	FSavedAssetRef SecondaryOffHand;
+
+	UPROPERTY()
+	FGuid SecondaryOffHandInstance;
+
 	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
 	UPROPERTY()
 	TArray<FSavedAssetRef> Adapters;
