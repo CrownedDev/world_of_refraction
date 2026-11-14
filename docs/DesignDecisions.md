@@ -931,14 +931,17 @@ The queue of questions only Crown can answer.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
 ### Q-453f — Element letters on colours: which letters, where
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453f, D-190) · **Blocks:** —
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-453f, D-190) · **Blocks:** —
 **Question:** what tag each element gets, and which colour-only signals get it first.
 **Answer**, by the reference-backed default (Crown may change any):
 - **Two letters per element** (Fi, Wa, Ea, Wi, Li, Da, Lt for Lightning, Vo, Ge; "?" for the unknown element), so Light and Lightning differ and Water and Wind too. Colour-blind modes in Hearthstone and Slay the Spire add short text or symbols beside colour, widely praised; two letters fit beside a damage number.
 - **First where colour alone tells the element in a fight:** damage numbers ("120 Fi") and the status buildup line. Physical hits share one colour, so they get no tag. The menus mostly name the element already; their remaining colour swatches are a follow-up.
 
+
+**Crown, 2026-11-14:** confirmed for now, but Crown wants **element icons that appear with the damage**. That is B-294b (the element gem beside every damage number). The two-letter tags are the stand-in until B-294b's icons land; whether the letters stay beside the icon is decided then.
+
 ### Q-453e — "AI finishes my turn when I idle": how long, how much, and co-op
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453e, D-190) · **Blocks:** —
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-453e, D-190) · **Blocks:** —
 **Question:** how long is "idle", does the AI take one action or the turn, and what happens to the next turn and to co-op guests?
 **Answer**, by the reference-backed default (Crown may change any):
 - **30 seconds with no choice in the battle menu** (any selection, Back or target change restarts it), **off by default**. Final Fantasy XIV and Dota 2 hand an idle player's turn or hero to the AI after a grace period, and turn timers in online tactics (Hearthstone's 75 s, Into the Breach has none) sit in that range; 30 s is generous for a single-player turn.
@@ -946,17 +949,17 @@ The queue of questions only Crown can answer.
 - **Co-op guests later:** the host can't see a guest's menu input yet, so the clock runs only in a game with no guests (TODO in `ACombatOrchestrator::StartIdleTurnClock`).
 
 ### Q-453d — Text size: what grows, and by how much
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453d, D-190) · **Blocks:** —
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-453d, D-190) · **Blocks:** —
 **Question:** D-190 approves "text size" but not its steps or whether only the text grows.
 **Answer**, by the reference-backed default (Crown may change it): **three steps, Normal / Large / Larger (about 15% each), and the whole UI grows with the text** (panels, icons and text together, so nothing overflows its box). Marvel's Spider-Man and The Last of Us Part II offer text size steps; Elden Ring and Baldur's Gate 3 scale the whole HUD and menus, which keeps layouts intact. Growing only the text would need every hand-built screen's boxes to stretch; the HUD-wide scale doesn't.
 
 ### Q-453c — Hold to confirm off: what confirms instead
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453c, D-190, D-176) · **Blocks:** —
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-453c, D-190, D-176) · **Blocks:** —
 **Question:** with "hold to confirm dangerous actions" off, what confirms a quit or a start over?
 **Answer**, by the reference-backed default (Crown may change it): **the confirm step stays and a press on it confirms** (two presses in all), so D-176's "strong confirm" is kept without a hold. The Last of Us Part II and Forza Horizon offer "hold to press" toggles as accessibility for players who can't hold a button; both keep the confirm screen.
 
 ### Q-453a — The screen shake setting: how many steps
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453a, D-190) · **Blocks:** —
+**Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**) · **Raised:** 2026-11-14 (B-453a, D-190) · **Blocks:** —
 **Question:** D-190 approves "screen shake" but not its values.
 **Answer**, by the reference-backed default (Crown may change it): **Full (default), Reduced (half), Off.** The Last of Us Part II's camera shake slider and Celeste's / Hades' screen shake options are among the most praised accessibility settings; three steps fit a left / right row. Only the camera shake is scaled: a shot's field-of-view punch and motion blur are camera movement, which B-453b's switch covers.
 
