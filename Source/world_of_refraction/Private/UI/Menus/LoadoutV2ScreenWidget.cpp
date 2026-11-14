@@ -222,7 +222,11 @@ void ULoadoutV2ScreenWidget::RefreshData()
 	if (FindActive(Loadout, Inventory, Active))
 	{
 		Page = WoRLoadoutV2::BuildWeaponsPage(*Active, Members[MemberIndex].Class);
-		if (Mode == ELoadoutV2Mode::WindowKind)
+		if (IsOnSkillsTab())
+		{
+			RefreshSkills();
+		}
+		else if (Mode == ELoadoutV2Mode::WindowKind)
 		{
 			Kinds = WoRLoadoutV2::BuildAddKinds(*Active, Members[MemberIndex].Class);
 		}
@@ -235,6 +239,13 @@ void ULoadoutV2ScreenWidget::RefreshData()
 	{
 		Kinds.Reset();
 		Items.Reset();
+		SkillsPage = FLoadoutV2SkillsPage();
+		SkillRows.Reset();
+		SkillChoices.Reset();
+		if (Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker)
+		{
+			Mode = ELoadoutV2Mode::SkillEntries; // the member left: no slots to change
+		}
 		if (IsAdding())
 		{
 			Mode = ELoadoutV2Mode::List; // the member left: nothing to edit
@@ -258,9 +269,79 @@ const FLoadoutV2Entry *ULoadoutV2ScreenWidget::GetFocusedEntry() const
 	return Page.Entries.IsValidIndex(Line) ? &Page.Entries[Line] : nullptr;
 }
 
+void ULoadoutV2ScreenWidget::RefreshSkills()
+{
+	SkillsPage = FLoadoutV2SkillsPage();
+	SkillRows.Reset();
+	SkillChoices.Reset();
+	if (!Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	SkillsPage = WoRLoadoutV2Skills::Build(WoRLoadoutSkills::BuildSkillsPage(GetWorld(), Members[MemberIndex]), Page);
+	if (Mode == ELoadoutV2Mode::SkillEntries)
+	{
+		return;
+	}
+	if (!SkillsPage.Entries.IsValidIndex(SkillEntry))
+	{
+		Mode = ELoadoutV2Mode::SkillEntries; // the entry went (gear changed elsewhere)
+		Selected = 0;
+		return;
+	}
+	SkillRows = WoRLoadoutV2Skills::GetRows(SkillsPage, SkillEntry);
+	if (Mode != ELoadoutV2Mode::SkillPicker)
+	{
+		return;
+	}
+	const FLoadoutScreenRow *Row = SkillRows.IsValidIndex(SkillRowSelected) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[SkillRowSelected]) : nullptr;
+	if (!Row)
+	{
+		Mode = ELoadoutV2Mode::SkillRows;
+		Selected = 0;
+		return;
+	}
+	SkillChoices = WoRLoadoutSkills::BuildSkillChoices(GetWorld(), Members[MemberIndex], SkillsPage.Source, SkillRows[SkillRowSelected].Tab, *Row);
+}
+
+const FLoadoutScreenRow *ULoadoutV2ScreenWidget::GetFocusedSkillRow() const
+{
+	const int32 Row = Mode == ELoadoutV2Mode::SkillRows ? Selected : Mode == ELoadoutV2Mode::SkillPicker ? SkillRowSelected : INDEX_NONE;
+	return SkillRows.IsValidIndex(Row) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Row]) : nullptr;
+}
+
 void ULoadoutV2ScreenWidget::RefreshDetails()
 {
 	Details.Reset();
+	if (IsOnSkillsTab())
+	{
+		// B-476d: the box shows the focused entry's slots, or what the highlighted skill (a slot's, a pick's) does.
+		if (Mode == ELoadoutV2Mode::SkillEntries)
+		{
+			for (const FLoadoutV2SkillRowRef &Ref : WoRLoadoutV2Skills::GetRows(SkillsPage, Selected))
+			{
+				if (const FLoadoutScreenRow *Row = WoRLoadoutV2Skills::FindRow(SkillsPage, Ref))
+				{
+					FLoadoutV2DetailLine Line;
+					Line.Label = Row->Skill ? Row->Name : LOCTEXT("EmptySkillSlot", "Empty slot");
+					Line.Value = Row->KindLine;
+					Details.Add(MoveTemp(Line));
+				}
+			}
+			return;
+		}
+		const USkillDataBase *Skill = nullptr;
+		if (Mode == ELoadoutV2Mode::SkillPicker)
+		{
+			Skill = SkillChoices.IsValidIndex(Selected) ? SkillChoices[Selected].Row.Skill : nullptr;
+		}
+		else if (const FLoadoutScreenRow *Row = GetFocusedSkillRow())
+		{
+			Skill = Row->Skill;
+		}
+		Details = WoRLoadoutV2Skills::BuildSkillDetails(Skill, bSimpleView);
+		return;
+	}
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
 	const FCombatLoadout *Active = nullptr;
@@ -286,6 +367,12 @@ int32 ULoadoutV2ScreenWidget::GetLineCount() const
 	case ELoadoutV2Mode::WindowItems:
 	case ELoadoutV2Mode::WindowAsk:
 		return Items.Num();
+	case ELoadoutV2Mode::SkillEntries:
+		return SkillsPage.Entries.Num();
+	case ELoadoutV2Mode::SkillRows:
+		return SkillRows.Num();
+	case ELoadoutV2Mode::SkillPicker:
+		return SkillChoices.Num();
 	case ELoadoutV2Mode::List:
 	default:
 		return Page.Entries.Num() + (Page.bCanAdd ? 1 : 0); // the Add weapon frame last
@@ -327,6 +414,15 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 			return FText::Format(LOCTEXT("EquippedName", "{0}  EQUIPPED"), Items[Line].Name);
 		}
 		return Line == PickedSocket ? FText::Format(LOCTEXT("PickedName", "{0}  PICKED"), Items[Line].Name) : Items[Line].Name;
+	case ELoadoutV2Mode::SkillEntries:
+		return SkillsPage.Entries.IsValidIndex(Line) ? SkillsPage.Entries[Line].Name : FText::GetEmpty();
+	case ELoadoutV2Mode::SkillRows:
+	{
+		const FLoadoutScreenRow *Row = SkillRows.IsValidIndex(Line) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Line]) : nullptr;
+		return Row && Row->Skill ? Row->Name : LOCTEXT("EmptySlotName", "Empty slot");
+	}
+	case ELoadoutV2Mode::SkillPicker:
+		return SkillChoices.IsValidIndex(Line) ? SkillChoices[Line].Row.Name : FText::GetEmpty();
 	case ELoadoutV2Mode::List:
 	default:
 		if (Page.Entries.IsValidIndex(Line))
@@ -376,6 +472,21 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 			return FText::GetEmpty();
 		}
 		return Items[Line].Refusal.IsEmpty() ? Items[Line].Line : Items[Line].Refusal;
+	case ELoadoutV2Mode::SkillEntries:
+		return SkillsPage.Entries.IsValidIndex(Line)
+				   ? FText::Format(LOCTEXT("SkillEntryCount", "{0}/{1}"), SkillsPage.Entries[Line].Filled, SkillsPage.Entries[Line].Total)
+				   : FText::GetEmpty();
+	case ELoadoutV2Mode::SkillRows:
+	{
+		const FLoadoutScreenRow *Row = SkillRows.IsValidIndex(Line) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Line]) : nullptr;
+		return Row ? Row->KindLine : FText::GetEmpty();
+	}
+	case ELoadoutV2Mode::SkillPicker:
+		if (!SkillChoices.IsValidIndex(Line))
+		{
+			return FText::GetEmpty();
+		}
+		return SkillChoices[Line].Refusal.IsEmpty() ? SkillChoices[Line].Row.KindLine : SkillChoices[Line].Refusal;
 	case ELoadoutV2Mode::List:
 	default:
 		if (Page.Entries.IsValidIndex(Line))
@@ -408,6 +519,8 @@ bool ULoadoutV2ScreenWidget::IsLineRefused(int32 Line) const
 	case ELoadoutV2Mode::WindowItems:
 	case ELoadoutV2Mode::WindowAsk:
 		return Items.IsValidIndex(Line) && !Items[Line].Refusal.IsEmpty();
+	case ELoadoutV2Mode::SkillPicker:
+		return SkillChoices.IsValidIndex(Line) && !SkillChoices[Line].Refusal.IsEmpty();
 	default:
 		return false;
 	}
@@ -422,6 +535,13 @@ FText ULoadoutV2ScreenWidget::GetTitle() const
 	if (Mode == ELoadoutV2Mode::Options)
 	{
 		return LOCTEXT("TitleOptions", "Options");
+	}
+	if (IsOnSkillsTab())
+	{
+		const FText Header = SkillsPage.Entries.IsValidIndex(SkillEntry) ? SkillsPage.Entries[SkillEntry].Header : FText::GetEmpty();
+		return Mode == ELoadoutV2Mode::SkillEntries ? FText::GetEmpty()
+			 : Mode == ELoadoutV2Mode::SkillPicker	? FText::Format(LOCTEXT("TitlePicker", "{0} · pick a skill"), Header)
+													: Header;
 	}
 	const FText Window = bEditing ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), EditEntry.Name) : LOCTEXT("TitleAdd", "Add gear");
 	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
@@ -447,6 +567,13 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 				   : LOCTEXT("HintsItems", "A  Pick        X  Compare        Y  Confirm        B / Esc  Back");
 	case ELoadoutV2Mode::WindowAsk:
 		return LOCTEXT("HintsAsk", "A  Attach        B / Esc  Not now");
+	case ELoadoutV2Mode::SkillEntries:
+		return LOCTEXT("HintsSkillEntries", "A  Slots        LB / RB  Tab        LT / RT  Character        B / Esc  Back");
+	case ELoadoutV2Mode::SkillRows:
+		return bSimpleView ? LOCTEXT("HintsSkillRowsFull", "A  Change        X  Full text        B / Esc  Back")
+						   : LOCTEXT("HintsSkillRowsShort", "A  Change        X  Short text        B / Esc  Back");
+	case ELoadoutV2Mode::SkillPicker:
+		return LOCTEXT("HintsSkillPicker", "A  Put in slot        X  Full / short text        B / Esc  Cancel");
 	case ELoadoutV2Mode::List:
 	default:
 	{
@@ -475,6 +602,9 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		return; // headless: no tree
 	}
 	MemberText->SetText(Members.IsValidIndex(MemberIndex) ? Members[MemberIndex].Name : FText::GetEmpty());
+	// B-476d: the built tabs lit by which one is shown; Apparel and Cosmetics come later (B-476e).
+	TabsText->SetText(IsOnSkillsTab() ? LOCTEXT("TabsSkills", "Weapons   [Skills]   Apparel (later)   Cosmetics (later)")
+									  : LOCTEXT("TabsWeapons", "[Weapons]   Skills   Apparel (later)   Cosmetics (later)"));
 	CellsText->SetText(Page.CellsLine);
 	TitleText->SetText(GetTitle());
 	SetShown(TitleText, Mode != ELoadoutV2Mode::List);
@@ -525,8 +655,16 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	}
 	else
 	{
-		const FLoadoutV2Entry *Entry = GetFocusedEntry();
+		const FLoadoutV2Entry *Entry = IsOnSkillsTab() ? nullptr : GetFocusedEntry();
 		BoxTitle = Entry ? Entry->Name : (IsOnAddFrame() ? LOCTEXT("BoxAdd", "Add weapon") : FText::GetEmpty());
+		if (Mode == ELoadoutV2Mode::SkillEntries && SkillsPage.Entries.IsValidIndex(Selected))
+		{
+			BoxTitle = SkillsPage.Entries[Selected].Header; // "Ashen Blade + Cinder Edge · 4/9 skills"
+		}
+		else if (IsOnSkillsTab() && Details.IsEmpty())
+		{
+			BoxTitle = LOCTEXT("BoxEmptySlot", "Empty slot: A picks a skill for it");
+		}
 		if (IsOnAddFrame())
 		{
 			BoxText.Add({FText::Format(LOCTEXT("BoxAddLine", "A new entry: a weapon, an adapter or the evolution. {0}"), Page.AddFrameLine), false});
@@ -634,7 +772,7 @@ void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
 
 void ULoadoutV2ScreenWidget::MoveMember(int32 Delta)
 {
-	if (Mode != ELoadoutV2Mode::List || Members.Num() < 2)
+	if ((Mode != ELoadoutV2Mode::List && Mode != ELoadoutV2Mode::SkillEntries) || Members.Num() < 2)
 	{
 		return;
 	}
@@ -710,16 +848,93 @@ void ULoadoutV2ScreenWidget::PressA()
 	case ELoadoutV2Mode::WindowAsk:
 		ApplyWindowDraft();
 		return;
+	case ELoadoutV2Mode::SkillEntries:
+		if (!SkillsPage.Entries.IsValidIndex(Selected))
+		{
+			return;
+		}
+		SkillEntry = Selected;
+		Mode = ELoadoutV2Mode::SkillRows;
+		Selected = 0;
+		Message = FText::GetEmpty();
+		RefreshData();
+		return;
+	case ELoadoutV2Mode::SkillRows:
+		if (!SkillRows.IsValidIndex(Selected))
+		{
+			return;
+		}
+		SkillRowSelected = Selected;
+		Mode = ELoadoutV2Mode::SkillPicker;
+		Selected = 0;
+		Message = FText::GetEmpty();
+		RefreshData();
+		if (SkillChoices.IsEmpty())
+		{
+			Message = LOCTEXT("NoSkillToPick", "No learned skill fits this slot.");
+			RefreshView();
+		}
+		return;
+	case ELoadoutV2Mode::SkillPicker:
+		PutPickedSkill();
+		return;
 	default:
 		return;
 	}
 }
 
+void ULoadoutV2ScreenWidget::PutPickedSkill()
+{
+	if (!SkillChoices.IsValidIndex(Selected) || !SkillRows.IsValidIndex(SkillRowSelected) || !Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	const FLoadoutScreenChoice Choice = SkillChoices[Selected];
+	if (!Choice.Refusal.IsEmpty())
+	{
+		Message = Choice.Refusal; // greyed with its reason; stays in the picker
+		RefreshView();
+		return;
+	}
+	const FLoadoutV2SkillRowRef Ref = SkillRows[SkillRowSelected];
+	const FLoadoutScreenRow *Row = WoRLoadoutV2Skills::FindRow(SkillsPage, Ref);
+	if (!Row)
+	{
+		return;
+	}
+	// Today's Skills page's change (B-440d): through ULoadoutComponent::TryChangeGear, the picks written to the pieces.
+	const FLoadoutSkillTab Tab = SkillsPage.Source.Tabs[Ref.Tab];
+	const FLoadoutScreenRow SlotRow = *Row;
+	Message = WoRLoadoutSkills::ApplySkill(GetWorld(), Members[MemberIndex], Tab, SlotRow, Choice.Row.Skill);
+	if (Message.IsEmpty())
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: %s put in a slot of %s"), *Members[MemberIndex].Name.ToString(), *Choice.Row.Name.ToString(),
+			   *Tab.Title.ToString());
+	}
+	Mode = ELoadoutV2Mode::SkillRows;
+	Selected = SkillRowSelected;
+	RefreshData();
+}
+
+void ULoadoutV2ScreenWidget::PressTab(int32 Delta)
+{
+	if (Mode != ELoadoutV2Mode::List && Mode != ELoadoutV2Mode::SkillEntries)
+	{
+		return; // tabs switch from a tab's top level only
+	}
+	// Weapons and Skills are built; Apparel and Cosmetics are greyed (B-476e): the two built tabs swap either way.
+	(void)Delta;
+	Mode = Mode == ELoadoutV2Mode::List ? ELoadoutV2Mode::SkillEntries : ELoadoutV2Mode::List;
+	Selected = 0;
+	Message = FText::GetEmpty();
+	RefreshData();
+}
+
 void ULoadoutV2ScreenWidget::PressCompare()
 {
-	if (Mode == ELoadoutV2Mode::List)
+	if (Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker)
 	{
-		bSimpleView = !bSimpleView; // UIScreens B-479c: X switches the view, remembered
+		bSimpleView = !bSimpleView; // UIScreens B-479c: X switches the view, remembered (B-476d: a skill's text too)
 		RefreshView();
 		return;
 	}
@@ -812,6 +1027,18 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 	case ELoadoutV2Mode::WindowSlots:
 		CloseWindow();
 		return true;
+	case ELoadoutV2Mode::SkillPicker:
+		Mode = ELoadoutV2Mode::SkillRows;
+		Selected = SkillRowSelected;
+		SkillChoices.Reset();
+		RefreshData();
+		return true;
+	case ELoadoutV2Mode::SkillRows:
+		Mode = ELoadoutV2Mode::SkillEntries;
+		Selected = SkillEntry;
+		RefreshData();
+		return true;
+	case ELoadoutV2Mode::SkillEntries:
 	case ELoadoutV2Mode::List:
 	default:
 		return Super::NativeOnHandleBackAction();
@@ -827,6 +1054,14 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		MoveSelection(IsDownKey(Key) ? 1 : -1);
 		return FReply::Handled();
 	}
+	if (IsTabPrevKey(Key) || IsTabNextKey(Key)) // B-476d: LB / RB, Q / E
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			PressTab(IsTabNextKey(Key) ? 1 : -1);
+		}
+		return FReply::Handled();
+	}
 	if (IsSubTabPrevKey(Key) || IsSubTabNextKey(Key))
 	{
 		if (!InKeyEvent.IsRepeat())
@@ -835,7 +1070,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		}
 		return FReply::Handled();
 	}
-	if (Key == EKeys::V && Mode == ELoadoutV2Mode::List) // the Details key on a keyboard (InputMap): the view, as X
+	if (Key == EKeys::V && (Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker)) // the Details key on a keyboard (InputMap): the view, as X
 	{
 		if (!InKeyEvent.IsRepeat())
 		{

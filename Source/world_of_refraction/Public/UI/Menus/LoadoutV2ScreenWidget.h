@@ -10,13 +10,18 @@
 // Off hand, Augment socket 1 and 2; an Adapter; the Evolution) each open a list: A Pick, A Remove on the EQUIPPED line,
 // X Compare (weapons), Y Confirm, B back. An evolution asks "Attach ... ? Uses 2 cells" first. L3 / 6 sets the focused
 // weapon entry active; Y Options (Set active, Saved loadouts, Remove all gear, Help, Cosmetics shortcuts).
-// Not yet (B-476d): the Skills and Apparel tabs on LB / RB, then replacing ULoadoutScreenWidget on the game menu.
+// B-476d: LB / RB switch the tabs (Weapons | Skills; Apparel and Cosmetics greyed, B-476e). The Skills tab: the entries
+// on the left (WoRLoadoutV2Skills), the focused entry's slots under "Name · 4/9 skills" in the box; A opens its slots,
+// A on a slot the picker (A Put in slot), X the full / short skill text, B back. The box shows what the highlighted
+// skill does. Not yet (B-476e): the Apparel tab, Compare for adapters / evolutions / sockets, Saved loadouts, then
+// replacing ULoadoutScreenWidget on the game menu.
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
+#include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/WoRActivatableWidget.h"
 #include "LoadoutV2ScreenWidget.generated.h"
 
@@ -41,7 +46,13 @@ enum class ELoadoutV2Mode : uint8
 	/** The focused slot's list of pieces. */
 	WindowItems,
 	/** "Attach ... to ...? Uses 2 cells": A Attach, B Not now. */
-	WindowAsk
+	WindowAsk,
+	/** B-476d, the Skills tab: the entries. */
+	SkillEntries,
+	/** The focused entry's skill slots. */
+	SkillRows,
+	/** The picker for a slot. */
+	SkillPicker
 };
 
 /** B-476c: a slot of the Add gear window. */
@@ -106,6 +117,12 @@ public:
 	void PressSetActive();
 	/** B, Esc: one step back (the ask, the list, the window, Options), else closes the screen. */
 	void PressBack() { HandleBackAction(); }
+	/** B-476d, LB / RB: the next built tab (Weapons, Skills), from the tab's top level. */
+	void PressTab(int32 Delta);
+	bool IsOnSkillsTab() const { return Mode == ELoadoutV2Mode::SkillEntries || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker; }
+	const FLoadoutV2SkillsPage &GetSkillsPage() const { return SkillsPage; }
+	const TArray<FLoadoutV2SkillRowRef> &GetSkillRows() const { return SkillRows; }
+	const TArray<FLoadoutScreenChoice> &GetSkillChoices() const { return SkillChoices; }
 
 	const FLoadoutV2WeaponsPage &GetPage() const { return Page; }
 	ELoadoutV2Mode GetMode() const { return Mode; }
@@ -160,6 +177,19 @@ private:
 
 	// Options.
 	void SelectOption();
+
+	// B-476d, the Skills tab.
+	void RefreshSkills();
+	/** The focused slot's Skills page row (rows and picker); null elsewhere. */
+	const FLoadoutScreenRow *GetFocusedSkillRow() const;
+	void PutPickedSkill();
+	FLoadoutV2SkillsPage SkillsPage;
+	/** The entry whose slots are open (SkillRows, SkillPicker). */
+	int32 SkillEntry = 0;
+	TArray<FLoadoutV2SkillRowRef> SkillRows;
+	/** The slot the picker is for. */
+	int32 SkillRowSelected = 0;
+	TArray<FLoadoutScreenChoice> SkillChoices;
 
 	// The drafts and lists below hold raw pointers to the gear's data assets (weapons, adapters, evolutions), as today's
 	// screen does: those are loaded assets the inventory keeps, read again on every RefreshData.
