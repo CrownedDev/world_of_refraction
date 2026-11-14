@@ -573,7 +573,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	FText Compare;
 	if (Mode == ELoadoutV2Mode::WindowItems && bComparing && Items.IsValidIndex(Selected) && Slots.IsValidIndex(SlotIndex))
 	{
-		const ELoadoutV2Slot Slot = Slots[SlotIndex];
+		const ELoadoutV2Slot GearSlot = Slots[SlotIndex];
 		const FWeaponInventoryEntry *Equipped = nullptr;
 		ULoadoutComponent *Loadout = nullptr;
 		UInventoryComponent *Inventory = nullptr;
@@ -582,16 +582,16 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		if (bEditing && FindActive(Loadout, Inventory, Active))
 		{
 			Current = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry);
-			Equipped = Slot == ELoadoutV2Slot::MainHand ? &Current.MainHand : Slot == ELoadoutV2Slot::OffHand ? &Current.OffHand : nullptr;
+			Equipped = GearSlot == ELoadoutV2Slot::MainHand ? &Current.MainHand : GearSlot == ELoadoutV2Slot::OffHand ? &Current.OffHand : nullptr;
 		}
-		else if (!bEditing && Slot == ELoadoutV2Slot::MainHand && FindActive(Loadout, Inventory, Active))
+		else if (!bEditing && GearSlot == ELoadoutV2Slot::MainHand && FindActive(Loadout, Inventory, Active))
 		{
 			// A new entry: against the weapon in hand (a Generic's second weapon when it is the ACTIVE entry).
 			const bool bSecondInHand = Page.Entries.ContainsByPredicate([](const FLoadoutV2Entry &Entry)
 																		{ return Entry.bActive && Entry.Place == ELoadoutV2Place::Secondary; });
 			Equipped = bSecondInHand ? &Active->SecondaryWeapon.WeaponEntry : &Active->PrimaryWeapon.WeaponEntry;
 		}
-		if ((Slot == ELoadoutV2Slot::MainHand || Slot == ELoadoutV2Slot::OffHand) && Equipped && Equipped->IsValid() && Items[Selected].Weapon.IsValid())
+		if ((GearSlot == ELoadoutV2Slot::MainHand || GearSlot == ELoadoutV2Slot::OffHand) && Equipped && Equipped->IsValid() && Items[Selected].Weapon.IsValid())
 		{
 			const FLoadoutV2Compare Result = WoRLoadoutV2::BuildCompare(*Equipped, Items[Selected].Weapon);
 			Compare = FText::Format(LOCTEXT("CompareLine", "Equipped {0} / Selected {1} · Power {2} / {3} · Cells change {4} · Built-in gained: {5} · lost: {6}"),
@@ -1012,9 +1012,9 @@ void ULoadoutV2ScreenWidget::StartDraft(ELoadoutV2DraftKind Kind)
 	RefreshView();
 }
 
-FText ULoadoutV2ScreenWidget::GetSlotName(ELoadoutV2Slot Slot) const
+FText ULoadoutV2ScreenWidget::GetSlotName(ELoadoutV2Slot GearSlot) const
 {
-	switch (Slot)
+	switch (GearSlot)
 	{
 	case ELoadoutV2Slot::MainHand:
 		return LOCTEXT("SlotMainHand", "Main hand");
@@ -1033,10 +1033,10 @@ FText ULoadoutV2ScreenWidget::GetSlotName(ELoadoutV2Slot Slot) const
 	}
 }
 
-FText ULoadoutV2ScreenWidget::GetSlotValue(ELoadoutV2Slot Slot) const
+FText ULoadoutV2ScreenWidget::GetSlotValue(ELoadoutV2Slot GearSlot) const
 {
 	using namespace LoadoutV2ScreenStyle;
-	switch (Slot)
+	switch (GearSlot)
 	{
 	case ELoadoutV2Slot::MainHand:
 		return Draft.MainHand.IsValid() ? WeaponName(Draft.MainHand) : LOCTEXT("SlotPick", "pick one");
@@ -1338,8 +1338,8 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 	{
 		return;
 	}
-	const ELoadoutV2Slot Slot = Slots[SlotIndex];
-	if (Slot == ELoadoutV2Slot::OffHand)
+	const ELoadoutV2Slot GearSlot = Slots[SlotIndex];
+	if (GearSlot == ELoadoutV2Slot::OffHand)
 	{
 		Draft.OffHand = FWeaponInventoryEntry(); // goes on Y Confirm (a twin-only main hand refuses then)
 		Mode = ELoadoutV2Mode::WindowSlots;
@@ -1348,9 +1348,9 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 		RefreshView();
 		return;
 	}
-	if (Slot == ELoadoutV2Slot::Socket1 || Slot == ELoadoutV2Slot::Socket2)
+	if (GearSlot == ELoadoutV2Slot::Socket1 || GearSlot == ELoadoutV2Slot::Socket2)
 	{
-		const int32 Socket = Slot == ELoadoutV2Slot::Socket1 ? LoadoutScreenSockets::CRYSTAL : LoadoutScreenSockets::STONE;
+		const int32 Socket = GearSlot == ELoadoutV2Slot::Socket1 ? LoadoutScreenSockets::CRYSTAL : LoadoutScreenSockets::STONE;
 		FLoadoutScreenRow Row;
 		if (!FindScreenRow(Row))
 		{
