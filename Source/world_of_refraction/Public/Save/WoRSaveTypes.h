@@ -725,6 +725,10 @@ struct WORLD_OF_REFRACTION_API FSavedHiddenQuests
 
 	UPROPERTY()
 	TArray<FSavedQuestProgress> Quests;
+
+	/** B-463b: the quest this player tracks (none: NAME_None; an older save tracks none, no version bump). */
+	UPROPERTY()
+	FName TrackedQuest;
 };
 
 /** B-378: the curses this player holds (save v26); they last across runs until removed. */

@@ -472,6 +472,10 @@ void UHiddenQuestSubsystem::Finish(const UHiddenQuestData &Quest)
 	{
 		Entry->bFinished = true;
 	}
+	if (TrackedQuest == Quest.GetQuestId())
+	{
+		TrackedQuest = NAME_None; // B-463b: a finished quest has no step to follow
+	}
 	UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] %s finished"), *Quest.GetQuestId().ToString());
 	ShowNotice(Quest.IsVisible() ? HiddenQuestNotice::VisibleFinished(Quest) : HiddenQuestNotice::HiddenFinished()); // B-388; Q-397b masked
 	if (!Quest.EndMemory)
@@ -532,6 +536,7 @@ FSavedHiddenQuests UHiddenQuestSubsystem::Capture() const
 		Out.bFinished = Entry.Value.bFinished;
 		Out.FoundOrder = Entry.Value.FoundOrder;
 	}
+	Saved.TrackedQuest = TrackedQuest;
 	return Saved;
 }
 
@@ -539,6 +544,7 @@ void UHiddenQuestSubsystem::Restore(const FSavedHiddenQuests &Saved)
 {
 	Progress.Reset();
 	NextFoundOrder = 1;
+	TrackedQuest = Saved.TrackedQuest; // checked when read (GetTrackedLine): the quest may be gone from the assets
 	for (const FSavedQuestProgress &In : Saved.Quests)
 	{
 		if (!In.QuestId.IsNone())
@@ -550,6 +556,46 @@ void UHiddenQuestSubsystem::Restore(const FSavedHiddenQuests &Saved)
 			NextFoundOrder = FMath::Max(NextFoundOrder, Entry.FoundOrder + 1); // a quest found after loading is the newest
 		}
 	}
+}
+
+bool UHiddenQuestSubsystem::TrackQuest(FName QuestId)
+{
+	if (QuestId.IsNone())
+	{
+		TrackedQuest = NAME_None;
+		return true;
+	}
+	for (const FVisibleQuest &Quest : GetVisibleQuests())
+	{
+		if (Quest.QuestId == QuestId)
+		{
+			if (Quest.bFinished || Quest.Kind == EQuestKind::Hidden)
+			{
+				return false;
+			}
+			TrackedQuest = QuestId;
+			UE_LOG(LogWoR, Log, TEXT("[HiddenQuest] tracking %s"), *QuestId.ToString());
+			return true;
+		}
+	}
+	return false;
+}
+
+FText UHiddenQuestSubsystem::GetTrackedLine()
+{
+	if (TrackedQuest.IsNone())
+	{
+		return FText::GetEmpty();
+	}
+	for (const FVisibleQuest &Quest : GetVisibleQuests())
+	{
+		if (Quest.QuestId == TrackedQuest && !Quest.bFinished)
+		{
+			return Quest.Goal.IsEmpty() ? Quest.Title
+										: FText::Format(LOCTEXT("TrackedLine", "{0}: {1}"), Quest.Title, Quest.Goal);
+		}
+	}
+	return FText::GetEmpty();
 }
 
 const UHiddenQuestData *UHiddenQuestSubsystem::FindKnownQuest(FName QuestId) const
