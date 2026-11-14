@@ -11,6 +11,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "AI/AIDecisionManager.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -232,6 +233,20 @@ void FInfusionSameElementStackSpec::Define()
 		SetInnateElement(ESpellElement::Water);
 		TestEqual(TEXT("a Water innate doesn't join"), Executor->GetSameElementSourceCount(Caster, Cast), 1);
 		TestEqual(TEXT("so the ring spell is free again"), Executor->CalculateActionEnergyCost(Caster, Cast), 0);
+	});
+
+	It("makes the AI price an infused ring spell with the stacked innate's EP", [this]()
+	{
+		if (!Executor) return;
+		UAIDecisionManager *AI = TestWorld->GetSubsystem<UAIDecisionManager>();
+		if (!TestNotNull(TEXT("AI"), AI)) return;
+		USpellData *Spell = FireSpell();
+		SetPrimaryRing(STACK_TEST_FIRE_GEM, Spell);
+		const int32 StackedCost = Executor->CalculateActionEnergyCost(
+			Caster, SpellAction(Spell, ESpellSource::RingCrystal, EInfusionSourceOption::PrimaryRing, STACK_TEST_L1));
+		Caster->FindComponentByClass<UCharacterDataComponent>()->CurrentEP = StackedCost - 1;
+		TestTrue(TEXT("the uninfused ring spell is free"), AI->CanAffordSkill(Caster, Spell));
+		TestFalse(TEXT("one EP short of the stack: unaffordable"), AI->CanAffordSkill(Caster, Spell, STACK_TEST_L1));
 	});
 
 	It("stacks nothing for a non-elemental spell, even on an elemental ring", [this]()

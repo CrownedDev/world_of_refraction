@@ -15,7 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-435b](B-435b.md) | `feature/B-435b-spell-stacking-cloud` (cloud, **unbuilt**) | Same-element stacking for spells (Q-435 B): every same-element source joins a spell and pays its own cost (a free ring spell pays a matching innate's EP), +25% buildup each; Reality / Broken Darkness may pick their own element | Pending |
+| [B-435b](B-435b.md) | `feature/B-435b-spell-stacking` (in dev, built 2026-11-14) | Same-element stacking for spells (Q-435 B): every same-element source joins a spell and pays its own cost (a free ring spell pays a matching innate's EP), +25% buildup each; Reality / Broken Darkness may pick their own element | Pending |
 | [B-214h](B-214h.md) | `feature/B-214h-evolution-movement` (in dev, built 2026-11-14) | Field skills part 8: the seated evolution makes the sprint +15% faster always and its field skill 25% cheaper; an evolution can lift flight limits (unlimited flight); a broken one gives nothing | Pending |
 | [B-214g](B-214g.md) | `feature/B-214g-field-inputs` (in dev, built 2026-11-14; code side only, editor steps first) | Field skills part 7: the field keys (double-tap sprint, attack with a hold, switch source, fly up / down), swimming in a water volume, a no-fly boss arena. **Editor steps first** (assets, mapping, volumes) | Pending |
 | [B-214f](B-214f.md) | `feature/B-214f-field-attack` (in dev, built 2026-11-14) | Field skills part 6: the field attack: striking an enemy on the map starts the fight with the party first and the hit's buildup on every enemy (held Water = Ice); the attack source switches | Pending |
