@@ -18,6 +18,7 @@
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/InventoryConstants.h"
 #include "Loadout/FLoadoutSlot.h"
+#include "UI/Menus/LoadoutV2Model.h"
 #include "Pool/PoolSubsystem.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -167,11 +168,16 @@ namespace InventoryScreenBuild
 		Tile.Element = Slot.Gear.AttachedItem.GetElement();
 		Tile.bWorn = !Row.bInChest && Inventory && !Inventory->GetLoadoutsUsing(Row.GearID).IsEmpty();
 		Tile.Details = Gear.Details;
-		for (const FLoadoutScreenSocket &Socket : Gear.Sockets)
+		// B-487b: a filled socket's line carries its badge (drawn in its label's place) and its tier: "Garnet (F)".
+		const FRuntimeAttachedItem *SocketItems[] = {&Slot.Gear.AttachedItem, &Slot.Gear.StoneSocket}; // in LoadoutScreenSockets order
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(SocketItems) && Gear.Sockets.IsValidIndex(Index); ++Index)
 		{
-			if (!Socket.bEmpty)
+			EItemTier SocketTier = EItemTier::F_Tier;
+			if (WoRLoadoutV2::GetAttachmentTier(*SocketItems[Index], SocketTier))
 			{
-				Tile.Details.Add({Socket.Label, Socket.Name});
+				Tile.Details.Add({Gear.Sockets[Index].Label,
+								  FText::Format(LOCTEXT("SocketNameAndTier", "{0} ({1})"), Gear.Sockets[Index].Name, WoRGameNames::GetTierLetter(SocketTier)),
+								  WoRLoadoutV2::MakeSocketIcon(*SocketItems[Index])});
 			}
 		}
 		if (Tile.bWorn)
