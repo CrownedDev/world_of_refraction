@@ -33,9 +33,10 @@ namespace
 
 namespace WoRDefeat
 {
-	FWipeResult ApplyWipe(UWorld *World, EEncounterRank Rank, const TArray<FName> &MemberKeys)
+	FWipeResult ApplyWipe(UWorld *World, EEncounterRank Rank, const TArray<FName> &MemberKeys, const FText &LastBlowBy)
 	{
 		FWipeResult Result;
+		Result.LastBlowBy = LastBlowBy; // B-450 (D-187): the wipe card names the foe, not its rank
 		UTrialRunSubsystem *Run = DefeatRun(World);
 		if (!Run || !Run->IsRunActive())
 		{

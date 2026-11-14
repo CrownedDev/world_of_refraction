@@ -95,6 +95,9 @@ namespace WoRDefeat
 		int32 MainBossLosses = 0;
 		int32 Revived = 0;
 		bool bRunEnds = false;
+		/** B-450 (D-187): the opponent that dealt the last blow, by name, for the wipe card (never its rank). Empty when
+		 *  unknown (a status tick, a self-hit). */
+		FText LastBlowBy;
 	};
 
 	/** The party was wiped by an enemy of Rank: counts it on the run, drops the local wallet's run Prisms at this fight
@@ -102,7 +105,8 @@ namespace WoRDefeat
 	 *  caller sends the party back to the trial (the last rest spot used) or, when bRunEnds, to the hub. Server side.
 	 *  MemberKeys: the members that fought (logged; they no longer pay points, D-160). B-235: every other player's
 	 *  wallet drops too, each into their own drop at the same spot. */
-	WORLD_OF_REFRACTION_API FWipeResult ApplyWipe(UWorld *World, EEncounterRank Rank, const TArray<FName> &MemberKeys);
+	WORLD_OF_REFRACTION_API FWipeResult ApplyWipe(UWorld *World, EEncounterRank Rank, const TArray<FName> &MemberKeys,
+												  const FText &LastBlowBy = FText::GetEmpty());
 
 	/** B-362b: Wallet's whole run balance leaves it and becomes Run's drop at the pending fight. Returns the amount
 	 *  dropped; OutLostForGood gets the earlier drop's amount. */
