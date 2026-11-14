@@ -431,6 +431,166 @@ def variants():
     save(sheet, OUT, "strike_variants.png")
 
 
+# ---------- D: Crown's pick (D-212): A's shatter kept in the world (Expedition 33: never a black card), B's prism
+#            inside it; thick lit bevelled shards, bloom, motion blur, depth of field, a small camera push.
+LIGHT = (-0.6, -0.8)  # the key light comes from the top left
+
+
+def push(im, k):
+    """The camera pushes in toward the clash point by k (1.0 = none)."""
+    w, h = W / k, H / k
+    x0, y0 = CX - CX / k, CY - CY / k
+    return im.crop((int(x0), int(y0), int(x0 + w), int(y0 + h))).resize((W, H), Image.LANCZOS)
+
+
+def bloom(im, thr=205, r=14, k=0.9):
+    mask = im.convert("L").point(lambda v: 255 if v > thr else 0)
+    bright = Image.composite(im, Image.new("RGB", im.size), mask).filter(ImageFilter.GaussianBlur(r))
+    return ImageChops.add(im, bright.point(lambda v: int(v * k)))
+
+
+def shade(col, k):
+    return tuple(max(0, min(255, int(c * k))) for c in col)
+
+
+def shard3d(layer, src, tri, off, rot, s, hue, tint, thick=1.0):
+    """One shard as a thick glass slab: side faces along the depth, the captured frame on the face (tinted with the
+    colour it caught), a bevel lit from the top left, a glint on the lit edge. Drawn onto the RGBA layer."""
+    cx = sum(p[0] for p in tri) / 3
+    cy = sum(p[1] for p in tri) / 3
+    tx, ty = cx + off[0], cy + off[1]
+    co, si = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+    pts = [(tx + s * (co * (x - cx) - si * (y - cy)), ty + s * (si * (x - cx) + co * (y - cy))) for x, y in tri]
+    depth = (6 * s * thick, 10 * s * thick)
+    d = ImageDraw.Draw(layer)
+    glass = shade(hue, 0.55)
+    for i in range(3):  # side faces, lit by how they face the light
+        a, b = pts[i], pts[(i + 1) % 3]
+        nx, ny = b[1] - a[1], a[0] - b[0]
+        ln = math.hypot(nx, ny) or 1
+        mx, my = (a[0] + b[0]) / 2 - tx, (a[1] + b[1]) / 2 - ty
+        if nx * mx + ny * my < 0:
+            nx, ny = -nx, -ny
+        lit = (nx * LIGHT[0] + ny * LIGHT[1]) / ln
+        d.polygon([a, b, (b[0] + depth[0], b[1] + depth[1]), (a[0] + depth[0], a[1] + depth[1])],
+                  fill=shade(glass, 0.55 + 0.45 * max(0, -lit)) + (255,))
+    # the face: the captured frame, mapped through the same move
+    inv_a, inv_b = co / s, si / s
+    face = src.transform(src.size, Image.AFFINE, (inv_a, inv_b, cx - (co * tx + si * ty) / s,
+                                                  -inv_b, inv_a, cy - (-si * tx + co * ty) / s), Image.BILINEAR)
+    face = Image.blend(face, Image.new("RGB", face.size, hue), tint)
+    mask = Image.new("L", layer.size, 0)
+    ImageDraw.Draw(mask).polygon(pts, fill=255)
+    layer.paste(face.convert("RGBA"), (0, 0), mask)
+    for i in range(3):  # the bevel: bright on edges facing the light, dark on the others
+        a, b = pts[i], pts[(i + 1) % 3]
+        nx, ny = b[1] - a[1], a[0] - b[0]
+        mx, my = (a[0] + b[0]) / 2 - tx, (a[1] + b[1]) / 2 - ty
+        if nx * mx + ny * my < 0:
+            nx, ny = -nx, -ny
+        lit = nx * LIGHT[0] + ny * LIGHT[1] > 0
+        d.line((a, b), fill=(shade(hue, 1.5) if lit else shade(hue, 0.35)) + (255,), width=max(2, int(3 * s)))
+        if lit:
+            d.line((a, b), fill=(255, 255, 255, 255), width=1)
+    inner = [(tx + (x - tx) * 0.86, ty + (y - ty) * 0.86) for x, y in pts]
+    d.polygon(inner, outline=shade(hue, 1.3) + (140,))
+
+
+def shard_field(src, t, spread=1.0, tint=0.3, near_from=None):
+    """All shards at time t: pushed out from the clash point and toward the camera (bigger). Returns (far, near)
+    layers so the near ones can be blurred (depth of field)."""
+    far = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    near = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    rnd = random.Random(11)
+    order = []
+    for tri in TRIS:
+        cx = sum(p[0] for p in tri) / 3
+        cy = sum(p[1] for p in tri) / 3
+        dx, dy = cx - CX, cy - CY
+        dist = math.hypot(dx, dy) or 1
+        z = rnd.random()
+        sp = (0.5 + z) * spread
+        off = (dx / dist * t * 420 * sp, dy / dist * t * 300 * sp - t * 60)
+        s = 1 + t * (0.3 + 1.4 * z)
+        rot = (rnd.random() - 0.5) * 90 * t
+        hue = spectral(math.atan2(dy, dx) / (2 * math.pi) + 0.08, 0.75)
+        order.append((s, tri, off, rot, hue))
+    for s, tri, off, rot, hue in sorted(order, key=lambda o: o[0]):
+        target = near if (near_from and s > near_from) else far
+        shard3d(target, src, tri, off, rot, s, hue, tint, thick=1.0 + 0.6 * t)
+    return far, near
+
+
+def zoom_blur(layer, amount=0.08, steps=6):
+    """Motion blur for shards flying past the camera: the layer smeared outward from the clash point."""
+    acc = layer
+    for k in range(1, steps + 1):
+        z = push(layer, 1 - amount * k / steps)
+        acc = Image.blend(acc, z, 1 / (k + 1))
+    return acc
+
+
+def light_cracks(im, reach, origin=(CX, CY)):
+    """The hit's light running through the cracks: white at the hit, splitting into the spectrum further out."""
+    lay = Image.new("RGB", im.size)
+    d = ImageDraw.Draw(lay)
+    for tri in TRIS:
+        for a, b in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
+            da = math.hypot(a[0] - origin[0], a[1] - origin[1])
+            db = math.hypot(b[0] - origin[0], b[1] - origin[1])
+            if max(da, db) > reach:
+                continue
+            mx, my = (a[0] + b[0]) / 2 - origin[0], (a[1] + b[1]) / 2 - origin[1]
+            k = min(1, math.hypot(mx, my) / 260)
+            col = spectral(math.atan2(my, mx) / (2 * math.pi), 0.85 * k)
+            d.line((a, b), fill=col, width=3)
+    return ImageChops.add(ImageChops.add(im, lay.filter(ImageFilter.GaussianBlur(5))), lay)
+
+
+D = [("1_hit", "0.00–0.08 s", "The hit flashes white in the world; the camera starts a small push in; the first cracks.",
+      "A sharp crystal 'tink' over a low hit; the field music ducks.", "Load starts (the battle map, read in the background)."),
+     ("2_light", "0.08–0.25 s", "The light runs through the cracks, white at the hit, splitting into the spectrum further out.",
+      "Glass splintering with a rising shimmer.", "Loading."),
+     ("3_break", "0.25–0.45 s", "The frame breaks into thick lit shards, each catching a colour; the world behind stays, "
+      "out of focus.", "The shatter: a bright crash with a choir swell.", "Loading."),
+     ("4_hold", "0.45–0.80 s (hold)", "Coloured shards drift slowly toward the camera, the near ones soft (depth of "
+      "field), the world dim behind them. Holds as long as the load needs.",
+      "A shimmer loop.", "The load hides here: the world behind is the captured frame, drawn above the level; spinner only past 2 s."),
+     ("5_battle", "0.80–1.00 s", "The shards blow past the camera with motion blur onto the battle stage; bloom on the "
+      "last edges; the HUD slides in.", "Battle music downbeat.", "Done: stage loaded.")]
+
+
+def option_d():
+    f0 = freeze(field(), 0.12)
+    st = stage()
+    f1 = push(f0, 1.02)
+    f1 = rays(glow(f1, CX, CY, 170, (255, 255, 255)), CX, CY, 20, 230, (255, 255, 255), 2)
+    f1 = bloom(cracks(f1, 150, (255, 255, 255), fringe=False))
+    cap = push(f0, 1.04)  # the frame the shards carry
+    far, _ = shard_field(cap, 0.0, tint=0.12)
+    f2 = cap.copy()
+    f2.paste(far, (0, 0), far)
+    f2 = bloom(light_cracks(glow(f2, CX, CY, 110, (255, 255, 255), 0.8), 900), 200, 16, 1.0)
+    back = Image.blend(push(f0, 1.06), Image.new("RGB", f0.size, (10, 8, 20)), 0.3).filter(ImageFilter.GaussianBlur(7))
+    far, _ = shard_field(cap, 0.12, tint=0.2)
+    f3 = back.copy()
+    f3.paste(far, (0, 0), far)
+    f3 = bloom(light_cracks(f3, 260), 200, 12, 0.8)
+    far, near = shard_field(cap, 0.42, spread=1.25, tint=0.24, near_from=1.45)
+    f4 = Image.blend(push(f0, 1.08), Image.new("RGB", f0.size, (10, 8, 20)), 0.45).filter(ImageFilter.GaussianBlur(9))
+    f4.paste(far, (0, 0), far)
+    near = near.filter(ImageFilter.GaussianBlur(4))
+    f4.paste(near, (0, 0), near)
+    f4 = spinner(bloom(f4, 210, 12, 0.7))
+    far, near = shard_field(cap, 1.15, spread=1.4, tint=0.4)
+    f5 = st.copy()
+    lay = zoom_blur(Image.alpha_composite(far, near), 0.10)
+    f5.paste(lay, (0, 0), lay)
+    f5 = bloom(f5, 200, 14, 0.8)
+    return [f1, f2, f3, f4, f5]
+
+
+write(option_d(), "D", D, "Picked: shatter in the world + prism")
 write(option_a(), "A", A, "Refraction shatter")
 write(option_b(), "B", B, "Prism flash")
 write(option_c(), "C", C, "Facet turn")
