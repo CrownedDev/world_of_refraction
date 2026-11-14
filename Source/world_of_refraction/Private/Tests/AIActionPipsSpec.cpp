@@ -1,11 +1,10 @@
 // AIActionPipsSpec.cpp
-// B-170f (ActionPips.md §3.6, Q-170f2): the AI in an action-pips fight (wor.Turns.ActionPips 1).
+// B-170f (ActionPips.md §3.6, Q-170f2): the AI in a fight of banked actions (B-170h2: every fight).
 // - The spend-or-bank rule (AIActionPips::DecideSpendOrBank), branch by branch; bonus actions above Max are spent (Q-170f2).
-// - Affordability: a pick the bank can't pay is skipped; within Max it is held; with the switch off nothing changes.
-// - The worth of the action effects (Gain / Lose Action, Max Actions Up / Down), signed by side; 0 with the switch off.
+// - Affordability: a pick the bank can't pay is skipped; within Max it is held.
+// - The worth of the action effects (Gain / Lose Action, Max Actions Up / Down), signed by side.
 // - Through a real orchestrator (setup as MultiActionTurnSpec / BalanceSimOneFightSpec): an AI with 2 actions takes
-//   two in one turn with the switch on and one with it off; an AI whose best pick is worth nothing ends its turn
-//   (End Turn) and keeps its action banked.
+//   two in one turn; an AI whose best pick is worth nothing ends its turn (End Turn) and keeps its action banked.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -26,11 +25,11 @@
 
 namespace
 {
-	const TCHAR *const AI_PIPS_SWITCH = TEXT("wor.Turns.ActionPips");
 	const TCHAR *const AI_PIPS_THINK_SCALE = TEXT("wor.AI.ThinkDelayScale");
 	const TCHAR *const AI_PIPS_INSTANT_IMPACTS = TEXT("wor.Combat.InstantImpacts");
-	constexpr int32 AI_PIPS_ON = 1;
-	constexpr int32 AI_PIPS_OFF = 0;
+	/** wor.Combat.InstantImpacts on / off for the orchestrator cases. */
+	constexpr int32 AI_PIPS_CVAR_ON = 1;
+	constexpr int32 AI_PIPS_CVAR_OFF = 0;
 	constexpr float AI_PIPS_THINK_LIVE = 1.0f;
 	constexpr float AI_PIPS_THINK_NOW = 0.0f;
 
@@ -71,21 +70,12 @@ BEGIN_DEFINE_SPEC(FAIActionPipsSpec, "WoR.AI.ActionPips",
 	UAIDecisionManager *AI = nullptr;
 	UActionExecutedRecorder *Recorder = nullptr;
 	TArray<UObject *> Rooted;
-	int32 SwitchBefore = AI_PIPS_OFF;
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
 
 	static IConsoleVariable *CVar(const TCHAR *Name)
 	{
 		return IConsoleManager::Get().FindConsoleVariable(Name);
-	}
-
-	void SetSwitch(int32 Value)
-	{
-		if (IConsoleVariable *Switch = CVar(AI_PIPS_SWITCH))
-		{
-			Switch->Set(Value, ECVF_SetByConsole); // console priority, as MultiActionTurnSpec
-		}
 	}
 
 	template <class T>
@@ -125,14 +115,13 @@ BEGIN_DEFINE_SPEC(FAIActionPipsSpec, "WoR.AI.ActionPips",
 		return Actor;
 	}
 
-	/** Bare Hero (player-driven, so it waits) against Foe; the fight runs the mode the switch asks for. */
-	bool StartFight(int32 SwitchValue, AActor *InFoe = nullptr)
+	/** Bare Hero (player-driven, so it waits) against Foe. */
+	bool StartFight(AActor *InFoe = nullptr)
 	{
 		if (!TestNotNull(TEXT("Orchestrator"), Orchestrator) || !TestNotNull(TEXT("AIDecisionManager"), AI))
 		{
 			return false;
 		}
-		SetSwitch(SwitchValue);
 		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		Foe = InFoe ? InFoe : TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData(), /*bAIControlled=*/true);
 		if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe))
@@ -142,11 +131,10 @@ BEGIN_DEFINE_SPEC(FAIActionPipsSpec, "WoR.AI.ActionPips",
 		Orchestrator->StartCombat({Hero}, {Foe}, EAIDifficulty::Medium);
 		Recorder = NewRooted<UActionExecutedRecorder>();
 		Recorder->Listen(Orchestrator);
-		return TestTrue(TEXT("Hero opens the fight"), Orchestrator->GetCurrentActor() == Hero) &&
-			   TestEqual(TEXT("The fight runs the mode the switch asked for"), Orchestrator->IsActionPipsFight(), SwitchValue == AI_PIPS_ON);
+		return TestTrue(TEXT("Hero opens the fight"), Orchestrator->GetCurrentActor() == Hero);
 	}
 
-	/** Hero defends (ends its turn in both modes), then ticks until a later turn of Hero's starts (Foe's turn between). */
+	/** Hero defends (ends its turn), then ticks until a later turn of Hero's starts (Foe's turn between). */
 	bool PlayFoeTurn()
 	{
 		const int32 HeroTurn = Orchestrator->GetCurrentTurnNumber();
@@ -213,8 +201,6 @@ void FAIActionPipsSpec::Define()
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		Orchestrator = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
 		AI = TestWorld->GetSubsystem<UAIDecisionManager>();
-		IConsoleVariable *Switch = CVar(AI_PIPS_SWITCH);
-		SwitchBefore = Switch ? Switch->GetInt() : AI_PIPS_OFF;
 	});
 
 	AfterEach([this]()
@@ -229,7 +215,6 @@ void FAIActionPipsSpec::Define()
 		}
 		Rooted.Reset();
 		Recorder = nullptr;
-		SetSwitch(SwitchBefore);
 		Orchestrator = nullptr;
 		AI = nullptr;
 		Hero = Foe = nullptr;
@@ -320,7 +305,7 @@ void FAIActionPipsSpec::Define()
 	{
 		It("skips a pick the bank can't pay, holds one within Max, never one above it", [this]()
 		{
-			if (!StartFight(AI_PIPS_ON) || !TestEqual(TEXT("Hero's bank is the regain"), DataOf(Hero)->CurrentActions, DataOf(Hero)->GetActionRegain()))
+			if (!StartFight() || !TestEqual(TEXT("Hero's bank is the regain"), DataOf(Hero)->CurrentActions, DataOf(Hero)->GetActionRegain()))
 			{
 				return;
 			}
@@ -334,7 +319,7 @@ void FAIActionPipsSpec::Define()
 
 		It("holds a pricey skill only when its Energy can be paid", [this]()
 		{
-			if (!StartFight(AI_PIPS_ON))
+			if (!StartFight())
 			{
 				return;
 			}
@@ -358,21 +343,13 @@ void FAIActionPipsSpec::Define()
 			TestEqual(TEXT("Energy unpayable: never held"), AI->PickNotes.HeldActionCost, 0);
 		});
 
-		It("changes nothing with the switch off", [this]()
-		{
-			if (!StartFight(AI_PIPS_OFF))
-			{
-				return;
-			}
-			TestTrue(TEXT("Any cost passes"), AI->CanPayActionsOrHold(Hero, AI_PIPS_COST_ABOVE_MAX, AI_PIPS_PICK_SCORE));
-		});
 	});
 
 	Describe("Scoring the action effects", [this]()
 	{
 		It("values Lose Action on the foe and Gain Action on itself, and counts a gain on the foe against", [this]()
 		{
-			if (!StartFight(AI_PIPS_ON))
+			if (!StartFight())
 			{
 				return;
 			}
@@ -391,15 +368,6 @@ void FAIActionPipsSpec::Define()
 					  FoeAction * AI_MAX_ACTION_WORTH_IN_ACTIONS);
 		});
 
-		It("scores nothing with the switch off", [this]()
-		{
-			if (!StartFight(AI_PIPS_OFF))
-			{
-				return;
-			}
-			TestEqual(TEXT("No worth"), AI->ScoreActionEffects(Hero, Foe, NewActionEffectAbility(ESkillEffectType::LoseActions, ETargetType::Enemy)),
-					  0.0f);
-		});
 	});
 
 	Describe("Through the orchestrator", [this]()
@@ -412,7 +380,7 @@ void FAIActionPipsSpec::Define()
 			}
 			if (IConsoleVariable *Instant = CVar(AI_PIPS_INSTANT_IMPACTS))
 			{
-				Instant->Set(AI_PIPS_ON, ECVF_SetByCode);
+				Instant->Set(AI_PIPS_CVAR_ON, ECVF_SetByCode);
 			}
 		});
 
@@ -424,13 +392,13 @@ void FAIActionPipsSpec::Define()
 			}
 			if (IConsoleVariable *Instant = CVar(AI_PIPS_INSTANT_IMPACTS))
 			{
-				Instant->Set(AI_PIPS_OFF, ECVF_SetByCode);
+				Instant->Set(AI_PIPS_CVAR_OFF, ECVF_SetByCode);
 			}
 		});
 
-		It("lets an AI with 2 actions take both in one turn with the switch on", [this]()
+		It("lets an AI with 2 actions take both in one turn", [this]()
 		{
-			if (!StartFight(AI_PIPS_ON, SpawnArmedAI(AI_PIPS_STRIKE_DAMAGE, AI_PIPS_COST_ONE)))
+			if (!StartFight(SpawnArmedAI(AI_PIPS_STRIKE_DAMAGE, AI_PIPS_COST_ONE)))
 			{
 				return;
 			}
@@ -444,24 +412,9 @@ void FAIActionPipsSpec::Define()
 			TestTrue(TEXT("The debug line says it spent"), AI->GetLastSpendOrBankString().Contains(TEXT(": spend")));
 		});
 
-		It("keeps one action a turn with the switch off", [this]()
-		{
-			if (!StartFight(AI_PIPS_OFF, SpawnArmedAI(AI_PIPS_STRIKE_DAMAGE, AI_PIPS_COST_ONE)))
-			{
-				return;
-			}
-			DataOf(Foe)->GainActions(AI_PIPS_MAX - AI_PIPS_REGAIN, /*bMayPassMax=*/false); // ignored outside an action-pips fight
-			if (!PlayFoeTurn())
-			{
-				return;
-			}
-			TestEqual(TEXT("Foe struck once"), CountFoeActions(EActionType::Ability), 1);
-			TestTrue(TEXT("No spend-or-bank decision"), AI->GetLastSpendOrBankString().IsEmpty());
-		});
-
 		It("ends its turn (End Turn) and banks when its best pick is worth nothing", [this]()
 		{
-			if (!StartFight(AI_PIPS_ON, SpawnArmedAI(/*Damage=*/0, AI_PIPS_COST_ONE)) || !PlayFoeTurn())
+			if (!StartFight(SpawnArmedAI(/*Damage=*/0, AI_PIPS_COST_ONE)) || !PlayFoeTurn())
 			{
 				return;
 			}

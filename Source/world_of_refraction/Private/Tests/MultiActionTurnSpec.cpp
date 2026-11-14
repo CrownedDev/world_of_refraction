@@ -1,5 +1,5 @@
 // MultiActionTurnSpec.cpp
-// B-170c (ActionPips.md §1, §3.3, Q-170b, Q-170c): with wor.Turns.ActionPips 1 a turn spends banked actions.
+// B-170c (ActionPips.md §1, §3.3, Q-170b, Q-170c): a turn spends banked actions (B-170h2: every fight).
 // Each skill, spell or item costs its ActionCost; the turn goes on until the bank is 0, End Turn or Defend;
 // a cost above Max Actions is refused, one above the bank waits; arming a ritual spends its cost and the turn
 // goes on; switching is free; bonus actions above Max are lost at turn end (Q-170f2). The turn-start and turn-end
@@ -11,7 +11,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "HAL/IConsoleManager.h"
 #include "WoRTestWorld.h"
 #include "ActionExecutedRecorder.h"
 #include "CombatResultRecorder.h"
@@ -28,9 +27,6 @@
 
 namespace
 {
-	const TCHAR *const MULTI_ACTION_TEST_SWITCH = TEXT("wor.Turns.ActionPips");
-	constexpr int32 MULTI_ACTION_TEST_ON = 1;
-	constexpr int32 MULTI_ACTION_TEST_OFF = 0;
 	/** Test-world ticks are 0.01s; spans the executor's 10s timeout, which covers the defense window's 8s
 	 *  failsafe a montage-less ability waits on (as CombatRitualFireSpec). */
 	constexpr int32 MULTI_ACTION_SETTLE_FRAMES = 1100;
@@ -61,19 +57,9 @@ BEGIN_DEFINE_SPEC(FMultiActionTurnSpec, "WoR.Turns.MultiAction",
 	UTurnManager *TurnManager = nullptr;
 	UActionExecutedRecorder *Recorder = nullptr;
 	UTurnStartOrderRecorder *StepRecorder = nullptr;
-	IConsoleVariable *PipsSwitch = nullptr;
-	int32 SwitchBefore = MULTI_ACTION_TEST_OFF;
 	TArray<UAbilityData *> Abilities;
 	AActor *Hero = nullptr;
 	AActor *Foe = nullptr;
-
-	void SetSwitch(int32 Value)
-	{
-		if (PipsSwitch)
-		{
-			PipsSwitch->Set(Value, ECVF_SetByConsole); // console priority, so an earlier typed value can't win
-		}
-	}
 
 	UCharacterDataComponent *DataOf(AActor *Actor) const
 	{
@@ -120,16 +106,15 @@ BEGIN_DEFINE_SPEC(FMultiActionTurnSpec, "WoR.Turns.MultiAction",
 		TestWorld->Tick(MULTI_ACTION_SETTLE_FRAMES);
 	}
 
-	/** Spawns the duel (Hero with a loadout when asked), sets the switch and starts the fight on Hero's turn,
-	 *  with both recorders listening. False (recorded) when the setup didn't hold. */
-	bool StartDuel(int32 SwitchValue, bool bHeroLoadout = false)
+	/** Spawns the duel (Hero with a loadout when asked) and starts the fight on Hero's turn, with both recorders
+	 *  listening. False (recorded) when the setup didn't hold. */
+	bool StartDuel(bool bHeroLoadout = false)
 	{
-		if (!Orchestrator || !TurnManager || !TestNotNull(TEXT("the switch exists"), PipsSwitch))
+		if (!Orchestrator || !TurnManager)
 		{
 			AddError(TEXT("Setup incomplete"));
 			return false;
 		}
-		SetSwitch(SwitchValue);
 		if (bHeroLoadout)
 		{
 			const ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
@@ -152,12 +137,7 @@ BEGIN_DEFINE_SPEC(FMultiActionTurnSpec, "WoR.Turns.MultiAction",
 		StepRecorder->AddToRoot();
 		StepRecorder->Listen(Hero, INDEX_NONE, INDEX_NONE, false, Orchestrator, TestWorld->GetSubsystem<USkillEffectManager>(),
 							 TestWorld->GetSubsystem<UStatusBuildupManager>(), nullptr);
-		if (!TestTrue(TEXT("Hero opens the duel"), Orchestrator->GetCurrentActor() == Hero))
-		{
-			return false;
-		}
-		return TestEqual(TEXT("the fight runs the mode the switch asked for"), Orchestrator->IsActionPipsFight(),
-						 SwitchValue == MULTI_ACTION_TEST_ON);
+		return TestTrue(TEXT("Hero opens the duel"), Orchestrator->GetCurrentActor() == Hero);
 	}
 
 	/** Gives Hero a second action (fight start = the regain, 1), for the cases that need two. */
@@ -196,8 +176,6 @@ void FMultiActionTurnSpec::Define()
 		TurnManager = TestWorld->GetSubsystem<UTurnManager>();
 		TestNotNull(TEXT("Orchestrator"), Orchestrator);
 		TestNotNull(TEXT("TurnManager"), TurnManager);
-		PipsSwitch = IConsoleManager::Get().FindConsoleVariable(MULTI_ACTION_TEST_SWITCH);
-		SwitchBefore = PipsSwitch ? PipsSwitch->GetInt() : MULTI_ACTION_TEST_OFF;
 	});
 
 	AfterEach([this]()
@@ -220,48 +198,17 @@ void FMultiActionTurnSpec::Define()
 			Ability->RemoveFromRoot();
 		}
 		Abilities.Reset();
-		SetSwitch(SwitchBefore);
-		PipsSwitch = nullptr;
 		Orchestrator = nullptr;
 		TurnManager = nullptr;
 		Hero = Foe = nullptr;
 		TestWorld.Reset();
 	});
 
-	Describe("With the switch off (wor.Turns.ActionPips 0)", [this]()
-	{
-		It("ends the turn after one action, as built", [this]()
-		{
-			if (!StartDuel(MULTI_ACTION_TEST_OFF))
-			{
-				return;
-			}
-			SubmitAndSettle(AbilityOn(Foe, NewAbility(MULTI_ACTION_COST_ONE)));
-			TestEqual(TEXT("Hero acted once"), CountHeroActions(EActionType::Ability), 1);
-			TestTrue(TEXT("Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
-			TestEqual(TEXT("No bank is kept"), ActionsOf(Hero), 0);
-			TestTrue(TEXT("No cost refusal outside an action-pips fight"),
-					 Orchestrator->GetActionCostRefusedReason(Hero, AbilityOn(Foe, NewAbility(MULTI_ACTION_COST_ABOVE_MAX))).IsEmpty());
-		});
-
-		It("refuses End Turn outside an action-pips fight (B-170e review)", [this]()
-		{
-			if (!StartDuel(MULTI_ACTION_TEST_OFF))
-			{
-				return;
-			}
-			const int32 TurnCountBefore = TurnManager->GetTurnCount();
-			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn)); // logs a refusal warning
-			TestTrue(TEXT("Still Hero's turn (asked again)"), Orchestrator->GetCurrentActor() == Hero);
-			TestEqual(TEXT("No turn ended"), TurnManager->GetTurnCount(), TurnCountBefore);
-		});
-	});
-
-	Describe("With the switch on (wor.Turns.ActionPips 1)", [this]()
+	Describe("A turn of banked actions", [this]()
 	{
 		It("plays two cost-1 actions in one turn, then ends it at 0", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			if (!StartDuel() || !GiveHeroTwoActions())
 			{
 				return;
 			}
@@ -285,7 +232,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("wins at once when the first of two banked actions kills the only enemy (B-430)", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			if (!StartDuel() || !GiveHeroTwoActions())
 			{
 				return;
 			}
@@ -314,7 +261,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("ends the turn on End Turn and banks the rest", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			if (!StartDuel() || !GiveHeroTwoActions())
 			{
 				return;
 			}
@@ -327,7 +274,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("loses a bonus above Max at turn end, and banks the rest up to Max (Q-170f2)", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			if (!StartDuel() || !GiveHeroTwoActions())
 			{
 				return;
 			}
@@ -343,7 +290,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("keeps a bank above Max through the other side's turn end, and trims it at the owner's own (Q-170f3, Crown)", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			if (!StartDuel())
 			{
 				return;
 			}
@@ -362,7 +309,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("keeps a bank above a lowered Max through the caster's turn end, and trims it at the holder's own (Q-170f3, Crown)", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			if (!StartDuel())
 			{
 				return;
 			}
@@ -394,7 +341,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("ends the turn after three skills with actions left, which stay banked (Q-170j, Crown)", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			if (!StartDuel())
 			{
 				return;
 			}
@@ -425,7 +372,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("ends the turn on Defend, which costs nothing", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			if (!StartDuel() || !GiveHeroTwoActions())
 			{
 				return;
 			}
@@ -437,7 +384,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("refuses a cost above Max, and makes a cost above the bank wait", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			if (!StartDuel())
 			{
 				return;
 			}
@@ -470,7 +417,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("spends a ritual's cost when it is armed, and the turn goes on", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON) || !GiveHeroTwoActions())
+			if (!StartDuel() || !GiveHeroTwoActions())
 			{
 				return;
 			}
@@ -484,7 +431,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("lets a weapon switch happen again and again, for free", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON, /*bHeroLoadout=*/true))
+			if (!StartDuel(/*bHeroLoadout=*/true))
 			{
 				return;
 			}
@@ -503,7 +450,7 @@ void FMultiActionTurnSpec::Define()
 
 		It("plays the fight-start bank on a first turn and regains on the next", [this]()
 		{
-			if (!StartDuel(MULTI_ACTION_TEST_ON))
+			if (!StartDuel())
 			{
 				return;
 			}
