@@ -56,19 +56,14 @@ namespace ActionPipsText
 	 *  while the holder has used one this turn (the limit is shown, never hidden). */
 	WORLD_OF_REFRACTION_API FText MakeSkillsUsedText(int32 SkillsUsed);
 
-	/** Defend's tooltip in an action-pips fight: "Ends your turn." (§3.5). */
+	/** Defend's tooltip: "Ends your turn." (§3.5). */
 	WORLD_OF_REFRACTION_API FText GetDefendEndsTurnText();
 
 	/** End Turn's tooltip: "Ends your turn; the actions left stay banked." */
 	WORLD_OF_REFRACTION_API FText GetEndTurnDescription();
 
-	/** True when this fight banks actions: the server's TurnManager mode (latched at fight start). On a co-op client,
-	 *  which runs no TurnManager, the wor.Turns.ActionPips switch as it is now.
-	 *  TODO: replicate the fight's mode on the turn state so a client never reads a changed switch mid-fight. */
-	WORLD_OF_REFRACTION_API bool IsActionPipsFight(const UObject *Context);
-
-	/** B-170e (Crown, 2026-11-12): the main menu shows End Turn in an action-pips fight unless this machine's player
-	 *  hid it (USaveSubsystem::IsEndTurnButtonHidden, default shown). Hidden, the turn still ends at 0 actions and on
-	 *  Defend. */
+	/** B-170e (Crown, 2026-11-12): the main menu shows End Turn unless this machine's player hid it
+	 *  (USaveSubsystem::IsEndTurnButtonHidden, default shown). Hidden, the turn still ends at 0 actions and on Defend.
+	 *  B-170h2: every fight banks actions (the old speed timeline is gone). */
 	WORLD_OF_REFRACTION_API bool ShouldShowEndTurnButton(const UObject *Context);
 }
