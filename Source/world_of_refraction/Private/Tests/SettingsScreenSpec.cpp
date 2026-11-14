@@ -11,6 +11,8 @@
 #include "Save/SaveSubsystem.h"
 #include "UI/Menus/SettingsScreenModel.h"
 #include "UI/Menus/SettingsScreenWidget.h"
+#include "UI/Settings/TextSizeSetting.h"
+#include "Engine/UserInterfaceSettings.h"
 #include "WoRTestWorld.h"
 
 namespace
@@ -27,6 +29,8 @@ namespace
 	constexpr int32 SETTINGS_TEST_CAMERA_MOVEMENT_ROW = 2;
 	/** B-453c: hold to confirm, after screen shake. */
 	constexpr int32 SETTINGS_TEST_HOLD_TO_CONFIRM_ROW = 4;
+	/** B-453d: text size, the first row after the battle controls. */
+	constexpr int32 SETTINGS_TEST_TEXT_SIZE_ROW = 1;
 }
 
 BEGIN_DEFINE_SPEC(FSettingsScreenSpec, "WoR.UI.Settings", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -168,6 +172,30 @@ void FSettingsScreenSpec::Define()
 		TestFalse(TEXT("off: a press confirms"), Save->IsHoldToConfirmOn());
 		WoRSettingsScreen::ChangeSetting(World, ESettingId::HoldToConfirm, 1);
 		TestTrue(TEXT("on again"), Save->IsHoldToConfirmOn());
+	});
+
+	It("steps the text size Normal, Large, Larger and round; the UI scale grows with it (B-453d)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = WoRSettingsScreen::BuildRows(World, ESettingsPage::Accessibility);
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_TEXT_SIZE_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the text size row"), Rows[SETTINGS_TEST_TEXT_SIZE_ROW].Id == ESettingId::TextSize);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_TEXT_SIZE_ROW].CanChange());
+		Save->SetTextSizeLevel(ETextSizeLevel::Normal);
+		const float NormalScale = GetDefault<UUserInterfaceSettings>()->ApplicationScale;
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::TextSize, 1));
+		TestTrue(TEXT("large"), Save->GetTextSizeLevel() == ETextSizeLevel::Large);
+		TestTrue(TEXT("the UI grew"), GetDefault<UUserInterfaceSettings>()->ApplicationScale > NormalScale);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::TextSize, 1);
+		TestTrue(TEXT("larger"), Save->GetTextSizeLevel() == ETextSizeLevel::Larger);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::TextSize, 1);
+		TestTrue(TEXT("round to normal"), Save->GetTextSizeLevel() == ETextSizeLevel::Normal);
+		TestEqual(TEXT("the scale is back"), GetDefault<UUserInterfaceSettings>()->ApplicationScale, NormalScale);
+		WoRTextSize::Restore(); // the project's own scale, whatever a test left
 	});
 
 	It("says a setting isn't built yet, and doesn't change it", [this]()
