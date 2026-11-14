@@ -70,7 +70,7 @@
 
 | # | Screen | What the player does | Code it talks to | Today | Pri |
 |---|---|---|---|---|---|
-| 31 | **Invite / host** | Host, friends list, Invite, Seat a friend | `UWoRSessionSubsystem` `Public/Online/WoRSessionSubsystem.h:41-78` | Placeholder `UInviteWidget` `Public/UI/Party/InviteWidget.h:20` (`wor.UI.Invite`) | P2 |
+| 31 | **Invite / host** | Host, friends list, Invite, Seat a friend | `UWoRSessionSubsystem` `Public/Online/WoRSessionSubsystem.h:41-78` | Real, C++ (B-459b): `UInviteScreenWidget` `Public/UI/Coop/InviteScreenWidget.h` (party screen > Invite, rest menu > Invite, `wor.UI.PlayTogether`); waits for Crown's PIE pass (the placeholder `UInviteWidget`, `wor.UI.Invite`, stays until then) | P2 |
 | 32 | **Join request (host side)** | A player asks to join: give them an AI seat or refuse | `URunStateComponent::AcceptJoin` / `RefuseJoin` `Public/Player/RunStateComponent.h:152-157` | Placeholder `UJoinSeatWidget` `Public/UI/Party/JoinSeatWidget.h:20` (`wor.UI.JoinSeat`) | P2 |
 | 33 | **Host hand-over / host lost** | Planned hand-over from the rest menu; "Host left, reconnecting" when it isn't planned | `HostSuccession::BeginHandOver` / `GetStep` `Public/Online/HostSuccession.h:88-102` | Real, C++ (B-459a): `UHostLostCardWidget` `Public/UI/Coop/HostLostCardWidget.h` (shown by `UHostLostCardPresenter`), `UHandOverConfirmWidget` `Public/UI/Coop/HandOverConfirmWidget.h` (rest menu, `wor.UI.HandOver`); waits for Crown's PIE pass | P2 |
 | 34 | **Revive vote** | Everyone votes yes / no on reviving the mini-boss; tally shown | `OnReviveVoteChanged` `WoRGameState.h:66` | Inside the rest placeholder | P2 (drawn with 22) |

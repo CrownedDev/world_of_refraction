@@ -422,6 +422,7 @@ Every job waiting on Crown's PIE: the union of the **Pending** table in [`README
 | [B-444](B-444.md) | The Spirit of {character} screen | Pending | REVIEW (in dev, `feature/B-444-spirit-forms-screen`) | [ ] |
 | [B-458](B-458.md) | The party screen | Pending | REVIEW (in dev, `feature/B-458-party-screen`) | [ ] |
 | [B-459a](B-459a.md) | The host-lost card and Hand over host? | Pending | REVIEW (in dev, `feature/B-459-coop-session-screens`) | [ ] |
+| [B-459b](B-459b.md) | Play together (Invite) | Pending | REVIEW (in dev, `feature/B-459b-invite-screen`) | [ ] |
 | [B-440d](B-440d.md) | The loadout screen, piece 4: the Skills page | Pending | REVIEW (in dev, `feature/B-440d-loadout-skills-page`) | [ ] |
 | [B-440c](B-440c.md) | The loadout screen, piece 3: the socket picker | Pending | REVIEW (in dev, `feature/B-440c-loadout-socket-picker`) | [ ] |
 | [B-439](B-439.md) | The game menu (D-181): pages, party, side panel; a quit run loses everything (D-176); editor step: delete the Blueprint's `IA_ToggleMenu` nodes | Pending | REVIEW (in dev, `feature/B-439-pause-menu`) | [ ] |

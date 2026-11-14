@@ -877,6 +877,17 @@ The queue of questions only Crown can answer.
 - **What is refused:** a loadout's primary (swap first), a piece from home while in a run (only what the run gave is sold there), and an evolution in use is not dismantled.
 **Notes for Claude:** `UEconomyService::GetSellPriceForTier`, `SellGear`, `SellCrystal`; `WoRVendorServices` (`Shop/VendorServices.h`). Rules ER-32b.
 
+### Q-459b — Play together: friend status, seats and the session row
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-459b, D-200, D-181) · **Blocks:** —
+**Question:** the mockup shows each friend's presence (online, in another game, offline) and portraits by the seats; the friends list the code reads gives names only, and LAN has no list.
+**Answer**, by the reference-backed default (Crown may change any):
+- **A friend row shows the name and "invite", or "invited · waiting" once invited while the screen is open.** Presence comes when the online layer reads it. Deep Rock Galactic and It Takes Two list friends with an invite action and mark one invited until they answer.
+- **With no friends list (LAN) the screen says how a friend on your network finds the session**, and the lit row starts on the seats.
+- **The seats only show who plays each** ("You (host)", a friend by name, "AI seat", "AI seat · held" for a friend who left); who plays a seat is changed on the party screen and by a friend joining (the join request card, B-459c).
+- **The last right-hand row is Host a session / Stop hosting**; hosting reopens the level for friends, as the placeholder did. Rows answer a second click, not the first.
+
+---
+
 ### Q-459a — Host-lost card: the next host's name, and what B does
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-459a, D-200, D-181) · **Blocks:** —
 **Question:** the mockup names the next host ("Kestrel is taking over as host.") and offers B "Leave to the Void Realm"; once the host drops, the old world and its player names are gone, and leaving a dropped run for the hub isn't built.
