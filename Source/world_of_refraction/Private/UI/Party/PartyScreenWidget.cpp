@@ -341,7 +341,10 @@ void UPartyScreenWidget::PressChange()
 {
 	if (IsInviteRow(SelectedRow))
 	{
-		UInviteScreenWidget::Open(GetOwningPlayer()); // B-459b, over this screen: Back returns here
+		if (!UInviteScreenWidget::Open(GetOwningPlayer())) // B-459b, over this screen: Back returns here
+		{
+			UE_LOG(LogWoRUI, Warning, TEXT("[PartyScreen] Invite: Play together didn't open"));
+		}
 		return;
 	}
 	Message = WoRPartyScreen::ToggleSeat(GetWorld(), SelectedRow);

@@ -293,7 +293,7 @@ void UInviteScreenWidget::PressAction()
 			Message = WoRInviteScreen::Invite(GetWorld(), FriendRow);
 			if (Message.IsEmpty())
 			{
-				Invited.Add(FriendRow);
+				Invited.Add(Page.Friends[FriendRow].Name.ToString());
 			}
 			RefreshData();
 		}

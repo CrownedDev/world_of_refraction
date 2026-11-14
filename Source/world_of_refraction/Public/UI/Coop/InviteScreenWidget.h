@@ -70,8 +70,8 @@ private:
 	bool FindRowUnder(const FPointerEvent &MouseEvent, bool &bOutSeats, int32 &OutRow) const;
 
 	FInviteScreenPage Page;
-	/** Friends invited while this screen was open (indexes into the friends list). */
-	TSet<int32> Invited;
+	/** Friends invited while this screen was open, by name. */
+	TSet<FString> Invited;
 	bool bSeatsSide = false;
 	int32 FriendRow = 0;
 	int32 SeatRow = 0;
