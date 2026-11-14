@@ -186,8 +186,7 @@ namespace InventoryScreenBuild
 			Tile.Details.Add({LOCTEXT("DetailStack", "Stack"), FText::Format(LOCTEXT("StackOfMax", "{0} of {1}"), FText::AsNumber(Row.Count),
 																		 FText::AsNumber(InventoryConstants::ITEM_STACK_MAX))});
 		}
-		// TODO: B-460 (D-061): the crystal description table is FString; it becomes FText there.
-		Tile.Note = CrystalDescription::GetItemEffectText(Row.Item); // B-460: FText already
+		Tile.Note = CrystalDescription::GetItemEffectText(Row.Item); // B-460
 		return Tile;
 	}
 
