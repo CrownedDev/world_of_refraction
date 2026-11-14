@@ -7,6 +7,7 @@
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Combat/Encounter/EncounterData.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Combat/Transition/BattleTransitionSubsystem.h"
 #include "Character/CombatCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -241,6 +242,12 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 		   *UEnum::GetValueAsString(PendingFirstStrike));
 	SpawnArenaSphere(ArenaCenter);
 
+	// B-500 (D-212): the transition starts at contact, whoever started the fight; the join window runs under it.
+	if (UBattleTransitionSubsystem *Transition = UBattleTransitionSubsystem::Get(this))
+	{
+		Transition->Play(ArenaCenter);
+	}
+
 	GetWorld()->GetTimerManager().SetTimer(JoinWindowTimer, this, &UEncounterComponent::OnJoinWindowExpired,
 										   FMath::Max(JoinWindowSeconds, KINDA_SMALL_NUMBER), false);
 
@@ -448,6 +455,11 @@ void UEncounterComponent::RearmEncounter()
 	if (ArenaSphere.IsValid())
 	{
 		ArenaSphere->Destroy();
+	}
+	// B-500: the fight didn't start, so the shards blow away here and the trial shows again.
+	if (UBattleTransitionSubsystem *Transition = UBattleTransitionSubsystem::Get(this))
+	{
+		Transition->Release();
 	}
 	PendingBattleParty.Reset();
 	PendingFirstStrike = EFirstStrike::None;
