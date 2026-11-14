@@ -334,7 +334,7 @@ void URestSpotWidget::HandleLevelUpClicked()
 {
 	APlayerController *PC = GetOwningPlayer();
 	CloseMenu();
-	ULevelDropWidget::Open(PC); // B-363 (D-156): place and buy pillar points here
+	ULevelDropWidget::Open(PC); // B-363 (D-156): place pillar points here (B-447: bought from the trial NPC)
 }
 
 void URestSpotWidget::HandleInventoryClicked()

@@ -223,7 +223,7 @@ void ULevelDropWidget::HandleSpiritClicked() { Place(EWorldPillar::Spirit); }
 
 void ULevelDropWidget::HandleCloseClicked()
 {
-	WoRRestSpot::StepAway(GetWorld()); // B-363 review: placing and buying end with the rest spot's level screen
+	WoRRestSpot::StepAway(GetWorld()); // B-363 review: placing ends with the rest spot's level screen
 	if (APlayerController *PC = GetOwningPlayer())
 	{
 		PC->SetInputMode(FInputModeGameOnly());
