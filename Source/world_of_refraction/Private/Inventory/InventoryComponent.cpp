@@ -937,6 +937,15 @@ bool UInventoryComponent::StripFromLoadout(FCombatLoadout &Loadout, const FGuid 
         return false;
     }
     bool bRemoved = false;
+    // B-477 (D-209): an off hand that goes leaves its set's main hand alone.
+    for (FWeaponLoadoutEntry *Set : {&Loadout.PrimaryWeapon, &Loadout.SecondaryWeapon})
+    {
+        if (Set->OffHandEntry.PersistentID == PersistentID)
+        {
+            Set->OffHandEntry = FWeaponInventoryEntry();
+            bRemoved = true;
+        }
+    }
     if (Loadout.PrimaryWeapon.WeaponEntry.PersistentID == PersistentID)
     {
         Loadout.PrimaryWeapon.Clear();
@@ -1029,6 +1038,9 @@ namespace InventoryGearSync
     {
         WeaponFunc(Loadout.PrimaryWeapon.WeaponEntry);
         WeaponFunc(Loadout.SecondaryWeapon.WeaponEntry);
+        // B-477 (D-209): a set's off hand is owned gear too (linked, refreshed and written like a main hand).
+        WeaponFunc(Loadout.PrimaryWeapon.OffHandEntry);
+        WeaponFunc(Loadout.SecondaryWeapon.OffHandEntry);
         RingFunc(Loadout.PrimaryRing.RingEntry);
         for (auto &Ring : Loadout.RingLoadout)
         {
