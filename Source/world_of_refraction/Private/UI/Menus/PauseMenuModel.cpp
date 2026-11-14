@@ -13,6 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Memory/HiddenQuestSubsystem.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
@@ -61,7 +62,14 @@ namespace
 	}
 }
 
-TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun)
+FText WoRPauseMenu::GetTrackedLine(const UWorld *World)
+{
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UHiddenQuestSubsystem *Quests = GI ? GI->GetSubsystem<UHiddenQuestSubsystem>() : nullptr;
+	return Quests ? Quests->GetTrackedLine() : FText::GetEmpty();
+}
+
+TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine)
 {
 	const FText GuestCantQuit = LOCTEXT("GuestCantQuit", "Only the host can end the run.");
 
@@ -76,7 +84,8 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun)
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Party, LOCTEXT("Party", "Party"),
 					   LOCTEXT("PartyPreview", "Who plays each member, and where they start a fight.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Journal, LOCTEXT("Journal", "Journal"),
-					   LOCTEXT("JournalPreview", "Quests, memories, lore and conversations.")));
+					   TrackedLine.IsEmpty() ? LOCTEXT("JournalPreview", "Quests, memories, lore and conversations.")
+											 : FText::Format(LOCTEXT("JournalTracked", "Tracking: {0}"), TrackedLine)));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Settings, LOCTEXT("Settings", "Settings"),
 					   LOCTEXT("SettingsPreview", "Controls, camera, display, audio and accessibility.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Quit, LOCTEXT("Quit", "Quit to title"), GetQuitWarning(bInRun),
@@ -210,7 +219,12 @@ FString WoRPauseMenu::GetPauseMenuString(const UWorld *World)
 		Out += FString::Printf(TEXT("\n  %s %s"), *Chip.Value.ToString(), *Chip.Label.ToString());
 	}
 	const bool bCanEndRun = !World || World->GetNetMode() != NM_Client;
-	for (const FPauseMenuPage &Page : BuildPages(Header.bInRun, bCanEndRun))
+	const FText Tracked = GetTrackedLine(World);
+	if (!Tracked.IsEmpty())
+	{
+		Out += TEXT("\n  tracking: ") + Tracked.ToString();
+	}
+	for (const FPauseMenuPage &Page : BuildPages(Header.bInRun, bCanEndRun, Tracked))
 	{
 		Out += FString::Printf(TEXT("\n  page %s%s"), *Page.Label.ToString(),
 							   Page.CanOpen() ? TEXT("") : *FString::Printf(TEXT(" (refused: %s)"), *Page.Refusal.ToString()));
