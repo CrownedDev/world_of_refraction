@@ -34,7 +34,7 @@ namespace LoadoutApparelBuild
 		ULoadoutComponent *Loadout = WoRLoadoutScreen::FindMemberLoadout(World, Member, OutInventory);
 		if (!Loadout || !OutInventory || !OutInventory->SavedLoadouts.IsValidIndex(OutInventory->ActiveLoadoutIndex))
 		{
-			OutRefusal = FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here, so their apparel can't be changed."), Member.Name);
+			OutRefusal = FText::Format(LOCTEXT("MemberNotHere", "{0} isn't here."), Member.Name);
 			return nullptr;
 		}
 		if (OutInventory->SavedLoadouts[OutInventory->ActiveLoadoutIndex].bLore)
@@ -180,7 +180,7 @@ FText WoRLoadoutApparel::TakeOffRow(UWorld *World, const FLoadoutScreenMember &M
 	FCombatLoadout Probe = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 	if (!TakeOffApparel(Probe, Row))
 	{
-		return LOCTEXT("NothingWorn", "Nothing is worn here.");
+		return LOCTEXT("NothingWorn", "Nothing equipped here.");
 	}
 	if (!Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&Row](FCombatLoadout &Changed) { TakeOffApparel(Changed, Row); }, Refusal))
 	{
