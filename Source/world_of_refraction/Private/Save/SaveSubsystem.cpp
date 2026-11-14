@@ -384,7 +384,7 @@ void USaveSubsystem::Deinitialize()
 {
 	// No save here: the subsystems deinitialise in creation order, so the party may already be
 	// gone. The shutdown save runs when the local player is removed, before any of them.
-	WoRTextSize::Apply(ETextSizeLevel::Normal); // B-453d: the project's own scale back (the editor keeps it across PIE)
+	WoRTextSize::Restore(); // B-453d: the project's own scale back (the editor keeps it across PIE)
 	UGameInstance *GI = GetGameInstance();
 	GI->OnLocalPlayerAddedEvent.Remove(LocalPlayerAddedHandle);
 	GI->OnLocalPlayerRemovedEvent.Remove(LocalPlayerRemovedHandle);

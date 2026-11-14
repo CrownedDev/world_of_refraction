@@ -48,6 +48,13 @@ float WoRTextSize::GetScale(ETextSizeLevel Level)
 	}
 }
 
+namespace TextSizeState
+{
+	/** The project's own ApplicationScale, read before the first change, so the levels multiply it and Restore puts
+	 *  it back exactly. */
+	TOptional<float> ProjectScale;
+}
+
 void WoRTextSize::Apply(ETextSizeLevel Level)
 {
 	UUserInterfaceSettings *Settings = GetMutableDefault<UUserInterfaceSettings>();
@@ -55,12 +62,26 @@ void WoRTextSize::Apply(ETextSizeLevel Level)
 	{
 		return;
 	}
-	const float Scale = GetScale(Level);
+	if (!TextSizeState::ProjectScale.IsSet())
+	{
+		TextSizeState::ProjectScale = Settings->ApplicationScale;
+	}
+	const float Scale = TextSizeState::ProjectScale.GetValue() * GetScale(Level);
 	if (!FMath::IsNearlyEqual(Settings->ApplicationScale, Scale))
 	{
 		Settings->ApplicationScale = Scale; // read by the game viewport's DPI scale every frame
 		UE_LOG(LogWoRUI, Log, TEXT("[TextSize] %s"), *GetTextSizeString(Level));
 	}
+}
+
+void WoRTextSize::Restore()
+{
+	UUserInterfaceSettings *Settings = GetMutableDefault<UUserInterfaceSettings>();
+	if (Settings && TextSizeState::ProjectScale.IsSet())
+	{
+		Settings->ApplicationScale = TextSizeState::ProjectScale.GetValue();
+	}
+	TextSizeState::ProjectScale.Reset();
 }
 
 FString WoRTextSize::GetTextSizeString(ETextSizeLevel Level)

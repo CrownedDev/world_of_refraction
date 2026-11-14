@@ -1,7 +1,7 @@
 // TextSizeSetting.h
 // B-453d (D-190): the text size setting. It scales the game's UI (every UMG / CommonUI screen and the HUD) through
 // UUserInterfaceSettings::ApplicationScale, which multiplies the project's DPI curve for the game viewport only (the
-// editor's own panels are not scaled). Applied when the save loads and when the row changes; put back to Normal when
+// editor's own panels are not scaled). Applied when the save loads and when the row changes; put back (Restore) when
 // the game instance ends, so the editor's project setting is left as it was.
 
 #pragma once
@@ -24,8 +24,10 @@ namespace WoRTextSize
 	WORLD_OF_REFRACTION_API FText GetLevelName(ETextSizeLevel Level);
 	/** The UI scale for Level (Normal 1). */
 	WORLD_OF_REFRACTION_API float GetScale(ETextSizeLevel Level);
-	/** Sets the game viewport's UI scale for Level. */
+	/** Sets the game viewport's UI scale for Level: the project's own scale times GetScale(Level). */
 	WORLD_OF_REFRACTION_API void Apply(ETextSizeLevel Level);
+	/** Puts the project's own scale back (the game instance ends; the editor keeps the setting across PIE). */
+	WORLD_OF_REFRACTION_API void Restore();
 	/** Debug: the level and the scale in use now. */
 	WORLD_OF_REFRACTION_API FString GetTextSizeString(ETextSizeLevel Level);
 }
