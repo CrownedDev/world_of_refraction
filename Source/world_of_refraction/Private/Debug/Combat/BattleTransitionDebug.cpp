@@ -31,9 +31,10 @@ FString WoRBattleTransitionDebug::GetStateString(const UBattleTransitionSubsyste
 FString WoRBattleTransitionDebug::GetDataString(const UBattleTransitionData &Data)
 {
 	return FString::Printf(
-		TEXT("crack %.2fs, break %.2fs, settle %.2fs, blow away %.2fs, picture fade %.2fs, max hold %.1fs | %dx%d cells, wall %.0f cm, "
-			 "push in %.2f | bloom %.1f, motion blur %.1f (max %.0f%%), f/%.1f | material %s"),
-		Data.CrackSeconds, Data.BreakSeconds, Data.ArrivalSettleSeconds, Data.BlowAwaySeconds, Data.PictureFadeSeconds, Data.MaxHoldSeconds,
+		TEXT("crack %.2fs, break %.2fs (ease %.1f), settle %.2fs, blow away %.2fs (ease %.1f), picture fade %.2fs, max hold %.1fs | %dx%d cells, "
+			 "wall %.0f cm, push in %.2f | bloom %.1f, motion blur %.1f (max %.0f%%), f/%.1f | material %s"),
+		Data.CrackSeconds, Data.BreakSeconds, Data.BreakEase, Data.ArrivalSettleSeconds, Data.BlowAwaySeconds, Data.BlowAwayEase,
+		Data.PictureFadeSeconds, Data.MaxHoldSeconds,
 		Data.ShardColumns, Data.ShardRows, Data.WallDistance, Data.PushIn, Data.BloomIntensity, Data.MotionBlurAmount,
 		Data.MotionBlurMaxPercent, Data.FocusFstop,
 		Data.ShardMaterial.IsNull() ? TEXT("none (plain tinted shards)") : *Data.ShardMaterial.GetAssetName());

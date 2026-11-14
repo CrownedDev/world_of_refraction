@@ -33,15 +33,21 @@ public:
 	/** The authored asset, else the class defaults. Looked up on every call, so a new asset needs no restart. */
 	static const UBattleTransitionData &Get();
 
-	// ---- Timings (seconds; storyboard D: crack 0-0.25, break 0.25-0.45, hold, blow away 0.2) ----
+	// ---- Timings (seconds). B-500a (Crown's PIE): it opens slowly and finishes fast: the cracks and the break take
+	// their time inside the join window, the shards hold for a beat, then the blow-away accelerates hard. ----
 
 	/** Contact to the last crack: the cracks spread from the hit point over this long. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
-	float CrackSeconds = 0.25f;
+	float CrackSeconds = 0.5f;
 
 	/** The frame breaks apart over this long, then the shards hold and drift. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
-	float BreakSeconds = 0.2f;
+	float BreakSeconds = 0.7f;
+
+	/** How slowly the break starts: 1 = even speed; higher = a slower start and end with a faster middle, so the
+	 *  shards ease out of the wall and settle into the hold. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 1.0, ClampMax = 6.0))
+	float BreakEase = 2.0f;
 
 	/** If no map change has come this long after contact, the fight didn't start: the shards blow away
 	 *  where they are, so they can never stay on screen. Keep it above every encounter's join window. */
@@ -54,7 +60,12 @@ public:
 
 	/** The shards blow past the camera over this long. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
-	float BlowAwaySeconds = 0.2f;
+	float BlowAwaySeconds = 0.4f;
+
+	/** How hard the blow-away accelerates: 1 = even speed; 3 = a short slow beat (the first third barely moves),
+	 *  then a fast finish. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 1.0, ClampMax = 6.0))
+	float BlowAwayEase = 3.0f;
 
 	/** The held picture fades off the live shards over this long as the blow-away starts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
