@@ -268,7 +268,7 @@ void UTitleScreenWidget::Refresh()
 		const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 		PanelTitle->SetText(LOCTEXT("ResetTitle", "Your save was reset"));
 		PanelTitle->SetColorAndOpacity(FSlateColor(NoticeTitleColor));
-		PanelBody->SetText(LOCTEXT("ResetBody", "This build can't read saves from the older version, so the game starts fresh. This can happen until the first public release; after that, saves are always carried forward."));
+		PanelBody->SetText(LOCTEXT("ResetBody", "This build can't read your old save, so the game starts fresh. This can happen until the first public release."));
 		OldVersionText->SetText(WoRTitleScreen::GetOldVersionText(Saves ? Saves->GetWipedFromVersion() : 0));
 		NeededVersionText->SetText(WoRTitleScreen::GetNeededVersionText());
 		WoRKeyHints::SetHint(HintsText, LOCTEXT("ResetHints", "{Confirm}  Start fresh"));
@@ -283,7 +283,7 @@ void UTitleScreenWidget::Refresh()
 	}
 	else
 	{
-		WoRKeyHints::SetHint(HintsText, LOCTEXT("Hints", "Up / Down  Choose        {Confirm}  Select"));
+		WoRKeyHints::SetHint(HintsText, LOCTEXT("Hints", "{Confirm}  Select"));
 	}
 }
 
