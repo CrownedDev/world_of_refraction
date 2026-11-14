@@ -64,7 +64,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GCombatCameraMovementOffCmd(
 		TEXT("wor.Camera.MovementOff"),
-		TEXT("DEBUG: 1 = camera movement off (one static wide view; no sequences unless wor.Camera.Cinematics is 1), 0 = on."),
+		TEXT("DEBUG: 1 = camera movement off (one static wide view; no sequences unless wor.Camera.Cinematics is 1), 0 = on. B-453b: it is the player's setting, so it is kept for later fights and saved."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
 			{
