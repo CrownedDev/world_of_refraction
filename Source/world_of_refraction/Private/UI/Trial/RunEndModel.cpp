@@ -57,7 +57,7 @@ FText WoRRunEnd::FormatPayoutLine(const FRunPayout &Payout)
 	Add(Payout.GearEssence, ECurrencyType::GearEssence);
 	Add(Payout.SkillEssence, ECurrencyType::SkillEssence);
 	// TODO: B-465c: the memories, quests and upgrades the run gave (D-187's list) once the run records them.
-	return Parts.IsEmpty() ? LOCTEXT("PayoutNothing", "The run gave nothing.") : FText::Join(LOCTEXT("PayoutSeparator", " · "), Parts);
+	return Parts.IsEmpty() ? LOCTEXT("PayoutNothing", "The run gave nothing.") : FText::Join(LOCTEXT("PayoutSeparator", " \u00B7 "), Parts);
 }
 
 FRunEndPage WoRRunEnd::BuildRunEnd(ERunEnding Ending, const FRunPayout &Payout)
@@ -75,6 +75,7 @@ FRunEndPage WoRRunEnd::BuildRunEnd(ERunEnding Ending, const FRunPayout &Payout)
 		Page.ShareLine = LOCTEXT("ShareHalf", "Half payout, and the run's upgrades kept");
 		break;
 	case ERunEnding::OutOfWipes:
+		// TODO: B-451: GetRunEndPayout still pays a run-ending wipe the full tally; this line holds once B-451 pays 25%.
 		Page.ShareLine = LOCTEXT("ShareQuarter", "A quarter of the run's currencies, no upgrades");
 		break;
 	case ERunEnding::Quit:

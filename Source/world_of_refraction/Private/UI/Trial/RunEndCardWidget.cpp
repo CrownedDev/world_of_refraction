@@ -26,8 +26,8 @@ namespace RunEndCardStyle
 	/** Above the battle HUD, as the old results screen. */
 	constexpr int32 CardZOrder = 100;
 	/** The pips the wipes line draws: used, then left. */
-	const TCHAR *const PipUsed = TEXT("●");
-	const TCHAR *const PipLeft = TEXT("○");
+	const TCHAR *const PipUsed = TEXT("\u25CF");
+	const TCHAR *const PipLeft = TEXT("\u25CB");
 }
 
 URunEndCardWidget *URunEndCardWidget::AddToPlayer(APlayerController *PC)

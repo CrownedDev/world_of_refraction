@@ -27,7 +27,7 @@ enum class ERunEnding : uint8
 	BossBeaten,
 	/** Extracted at a rest spot (D-186): half, and the run's upgrades kept. */
 	Extracted,
-	/** Out of wipes: a quarter of the run's currencies, no upgrades. */
+	/** Out of wipes, or the third main-boss loss (the defeat ending): a quarter of the run's currencies, no upgrades. */
 	OutOfWipes,
 	/** Quit from the game menu: nothing. */
 	Quit
