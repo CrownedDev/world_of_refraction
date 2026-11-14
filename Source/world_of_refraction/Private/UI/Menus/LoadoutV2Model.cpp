@@ -322,6 +322,33 @@ TArray<FLoadoutV2OffHandChoice> WoRLoadoutV2::BuildOffHandChoices(const FWeaponI
 	return Choices;
 }
 
+TArray<FLoadoutV2MainHandChoice> WoRLoadoutV2::BuildMainHandChoices(const FCombatLoadout &Loadout, ECharacterClass Class,
+																	 const TArray<FWeaponInventoryEntry> &OwnedWeapons)
+{
+	const auto InLoadout = [&Loadout](const FGuid &ID)
+	{
+		return ID.IsValid() && (Loadout.PrimaryWeapon.WeaponEntry.PersistentID == ID || Loadout.SecondaryWeapon.WeaponEntry.PersistentID == ID ||
+								Loadout.PrimaryWeapon.OffHandEntry.PersistentID == ID || Loadout.SecondaryWeapon.OffHandEntry.PersistentID == ID);
+	};
+	TArray<FLoadoutV2MainHandChoice> Choices;
+	for (const FWeaponInventoryEntry &Owned : OwnedWeapons)
+	{
+		if (!Owned.Weapon || InLoadout(Owned.PersistentID))
+		{
+			continue;
+		}
+		FLoadoutV2MainHandChoice &Choice = Choices.AddDefaulted_GetRef();
+		Choice.Weapon = Owned;
+		FLoadoutV2Draft Draft;
+		Draft.Kind = ELoadoutV2DraftKind::Weapon;
+		Draft.MainHand = Owned;
+		Draft.Socket1 = Owned.AttachedItem; // the piece's own sockets come with it until the window edits them
+		Draft.Socket2 = Owned.StoneSocket;
+		Choice.Refusal = CheckDraft(Loadout, Class, Draft, Choice.CellsAfter);
+	}
+	return Choices;
+}
+
 FLoadoutV2Compare WoRLoadoutV2::BuildCompare(const FWeaponInventoryEntry &Equipped, const FWeaponInventoryEntry &Selected)
 {
 	FLoadoutV2Compare Compare;

@@ -107,6 +107,15 @@ struct FLoadoutV2OffHandChoice
 	FText Refusal;
 };
 
+/** B-476b: a line of the Add gear window's Main hand list for a new weapon entry: the piece, why it can't be confirmed
+ *  (empty: Y Confirm works) and the cells used once it is in. */
+struct FLoadoutV2MainHandChoice
+{
+	FWeaponInventoryEntry Weapon;
+	FText Refusal;
+	int32 CellsAfter = 0;
+};
+
 /** X Compare: the equipped piece beside the highlighted one (only their own numbers and built-ins, never the player's
  *  slotted picks). */
 struct FLoadoutV2Compare
@@ -138,6 +147,11 @@ namespace WoRLoadoutV2
 	/** The Off hand list for MainHand: every owned weapon but MainHand, greyed with the reason it can't pair. */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2OffHandChoice> BuildOffHandChoices(const FWeaponInventoryEntry &MainHand, const TArray<FWeaponInventoryEntry> &OwnedWeapons,
 																		 ECharacterClass Class);
+
+	/** B-476b: the Main hand list for a new weapon entry: every owned weapon the loadout doesn't hold, each checked as a
+	 *  draft (CheckDraft), so the ones that can't go in stay listed with the reason. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2MainHandChoice> BuildMainHandChoices(const FCombatLoadout &Loadout, ECharacterClass Class,
+																			   const TArray<FWeaponInventoryEntry> &OwnedWeapons);
 
 	/** X Compare of two weapons: power, the cells (a weapon swap changes none, D-206), and the built-in abilities gained
 	 *  and lost. */
