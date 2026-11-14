@@ -188,6 +188,16 @@ private:
 	int32 GetLineCount() const;
 	FText GetLineName(int32 Line) const;
 	FText GetLineDetail(int32 Line) const;
+	/** B-484: the row's tag, in its own space at the right end: ACTIVE on the weapon in hand, EQUIPPED / PICKED in a
+	 *  slot's list. */
+	FText GetLineTag(int32 Line) const;
+	/** B-484: the line the details box shows in a list of pieces: the one under the mouse, else the focused one. */
+	int32 GetBoxLine() const
+	{
+		return (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems) && Items.IsValidIndex(HoveredLine) ? HoveredLine : Selected;
+	}
+	/** B-484: one line of a slot's list as the box's details: that piece alone (WoRLoadoutV2::Build...Details). */
+	TArray<FLoadoutV2DetailLine> BuildItemDetails(const FLoadoutV2WindowItem &Item) const;
 	bool IsLineRefused(int32 Line) const;
 	FText GetTitle() const;
 	FText GetHints() const;
@@ -312,6 +322,8 @@ private:
 	TArray<TObjectPtr<UTextBlock>> LineNames;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> LineDetails;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> LineTags;
 	/** The details box (or, in the window, the slots) on the right. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BoxTitleText;
