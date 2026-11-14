@@ -34,6 +34,8 @@ namespace HubHUDStyle
 	/** B-463b: the tracked quest's line sits under the money chip's place, top right. TODO: tune with the trial HUD (B-465) */
 	constexpr float QuestLineTop = 135.0f;
 	constexpr float QuestLineWidth = 540.0f;
+	/** A step changes on an event, not every frame: a second is soon enough. */
+	constexpr float QuestRefreshSeconds = 1.0f;
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -118,8 +120,11 @@ void UHubHUDWidget::NativeConstruct()
 	{
 		World->GetTimerManager().SetTimer(RefreshTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::Refresh),
 										  HubHUDStyle::RefreshSeconds, /*bLoop=*/true);
+		World->GetTimerManager().SetTimer(QuestTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::RefreshQuestLine),
+										  HubHUDStyle::QuestRefreshSeconds, /*bLoop=*/true);
 	}
 	Refresh();
+	RefreshQuestLine();
 }
 
 void UHubHUDWidget::NativeDestruct()
@@ -127,6 +132,7 @@ void UHubHUDWidget::NativeDestruct()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(RefreshTimer);
+		World->GetTimerManager().ClearTimer(QuestTimer);
 	}
 	if (UCurrencyComponent *Wallet = BoundWallet.Get())
 	{
@@ -185,9 +191,6 @@ void UHubHUDWidget::Refresh()
 	{
 		return; // headless: no tree
 	}
-	const FText Quest = WoRHubHUD::BuildQuestLine(World);
-	SetShown(QuestBox, !Quest.IsEmpty());
-	QuestText->SetText(Quest);
 	SetShown(MoneyBox, bMoneyShown);
 	if (bMoneyShown)
 	{
@@ -204,6 +207,20 @@ void UHubHUDWidget::Refresh()
 		SetShown(PromptWhat, !Prompt.What.IsEmpty());
 	}
 	PlacePrompt();
+}
+
+void UHubHUDWidget::RefreshQuestLine()
+{
+	if (!QuestBox || !QuestText)
+	{
+		return; // headless: no tree
+	}
+	const FText Quest = WoRHubHUD::BuildQuestLine(GetWorld());
+	WoRMenuStyle::SetShown(QuestBox, !Quest.IsEmpty());
+	if (!Quest.EqualTo(QuestText->GetText()))
+	{
+		QuestText->SetText(Quest);
+	}
 }
 
 void UHubHUDWidget::PlacePrompt()

@@ -536,7 +536,8 @@ FSavedHiddenQuests UHiddenQuestSubsystem::Capture() const
 		Out.bFinished = Entry.Value.bFinished;
 		Out.FoundOrder = Entry.Value.FoundOrder;
 	}
-	Saved.TrackedQuest = TrackedQuest;
+	const FHiddenQuestProgress *Tracked = Progress.Find(TrackedQuest);
+	Saved.TrackedQuest = Tracked && !Tracked->bFinished ? TrackedQuest : NAME_None; // a stale id isn't kept
 	return Saved;
 }
 
