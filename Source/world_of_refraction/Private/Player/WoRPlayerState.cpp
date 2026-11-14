@@ -44,7 +44,6 @@
 #include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "WoRLog.h"
-#include "UI/Trial/RewardNotices.h"
 
 namespace
 {
@@ -898,8 +897,7 @@ void AWoRPlayerState::Client_UnlockMemory_Implementation(UMemoryData *Memory, EM
 	{
 		return; // already in this player's journal
 	}
-	// B-465b: the popup (private: this machine's queue). OBSOLETE once the popup passes PIE: the debug line.
-	WoRRewardNotice::Post(this, WoRRewardNotice::MakeMemory(Memory->Title));
+	// B-465b: RecordMemory's OnMemoryRecorded posts the popup (URewardNoticeSubsystem). OBSOLETE once it passes PIE: this line.
 	ATrialMapFeature::ShowMessage(FText::Format(LOCTEXT("MemoryUnlocked", "New memory: {0}"), Memory->Title)); // private
 	UE_LOG(LogWoR, Log, TEXT("[MemoryUnlock] %s recorded in this player's journal"), *Memory->GetMemoryId().ToString());
 }

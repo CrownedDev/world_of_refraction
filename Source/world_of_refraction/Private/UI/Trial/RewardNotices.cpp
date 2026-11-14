@@ -6,6 +6,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Memory/MemoryData.h"
+#include "Memory/MemoryJournalSubsystem.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -107,6 +109,24 @@ FString WoRRewardNotice::GetNoticeString(const FRewardNotice &Notice)
 {
 	return FString::Printf(TEXT("[%d] %s: %s%s"), static_cast<int32>(Notice.Kind), *Notice.Head.ToString(), *Notice.Body.ToString(),
 						   Notice.bOnlyYou ? TEXT(" (only you see this)") : TEXT(""));
+}
+
+void URewardNoticeSubsystem::Initialize(FSubsystemCollectionBase &Collection)
+{
+	Super::Initialize(Collection);
+	if (UMemoryJournalSubsystem *Journal = Collection.InitializeDependency<UMemoryJournalSubsystem>())
+	{
+		Journal->OnMemoryRecorded.AddDynamic(this, &URewardNoticeSubsystem::HandleMemoryRecorded);
+	}
+}
+
+void URewardNoticeSubsystem::HandleMemoryRecorded(UMemoryData *Memory, EMemorySource Source)
+{
+	// A quest's end memory: UHiddenQuestSubsystem::ShowNotice posts it (a secret quest's stays masked, Q-397b).
+	if (Memory && Source != EMemorySource::HiddenQuest)
+	{
+		Post(WoRRewardNotice::MakeMemory(Memory->Title));
+	}
 }
 
 void URewardNoticeSubsystem::Post(const FRewardNotice &Notice)

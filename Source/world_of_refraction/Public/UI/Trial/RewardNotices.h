@@ -13,8 +13,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Memory/MemoryJournalSubsystem.h" // EMemorySource, for the UFUNCTION handler (UHT)
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "RewardNotices.generated.h"
+
+class UMemoryData;
 
 /** B-465b: what a popup is about; it picks the colour and the order a batch shows in. */
 enum class ERewardNoticeKind : uint8
@@ -80,6 +83,10 @@ class WORLD_OF_REFRACTION_API URewardNoticeSubsystem : public UGameInstanceSubsy
 	GENERATED_BODY()
 
 public:
+	/** Listens to the journal: every memory recorded on this machine posts its popup (a quest's end memory is the
+	 *  quest system's own popup, masked when secret). */
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
+
 	void Post(const FRewardNotice &Notice);
 
 	/** Hands every waiting notice over, in show order, and empties the queue. */
@@ -93,5 +100,8 @@ public:
 	FString GetWaitingString() const;
 
 private:
+	UFUNCTION()
+	void HandleMemoryRecorded(UMemoryData *Memory, EMemorySource Source);
+
 	TArray<FRewardNotice> Waiting;
 };
