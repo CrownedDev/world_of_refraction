@@ -5,6 +5,7 @@
 #include "Loadout/FSavedLoadout.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Loadout/SpellPoolConstants.h"
+#include "Loadout/WeaponSetRules.h"
 #include "Inventory/InventoryConstants.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -143,11 +144,40 @@ namespace
 	void CheckWeapon(FFindingSink &Sink, const FWeaponLoadoutEntry &Weapon, const FLoadoutRuleContext &Context, bool bSecondary)
 	{
 		const int32 WeaponSub = bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : -1;
+		const ELoadoutSlotType WeaponSlotType = bSecondary ? ELoadoutSlotType::SecondaryWeapon : ELoadoutSlotType::PrimaryWeapon;
 		if (!Passes<const UWeaponData *>(Context.OwnsWeapon, Weapon.WeaponEntry.Weapon))
 		{
-			Sink.Add(bSecondary ? ELoadoutSlotType::SecondaryWeapon : ELoadoutSlotType::PrimaryWeapon, -1, true,
-					 bSecondary ? TEXT("Secondary weapon not in inventory") : TEXT("Primary weapon not in inventory"));
+			Sink.Add(WeaponSlotType, -1, true, bSecondary ? TEXT("Secondary weapon not in inventory") : TEXT("Primary weapon not in inventory"));
 		}
+
+		// B-477 (D-209): the weapon set. Only a Generic holds a pair, only an allowed pair, and a DualOnly weapon never alone.
+		if (Weapon.HasOffHand())
+		{
+			const WeaponSetRules::EPairRefusal Refusal = WeaponSetRules::CheckPair(Weapon.WeaponEntry, Weapon.OffHandEntry);
+			if (Context.CharacterClass != ECharacterClass::Generic)
+			{
+				Sink.Add(ELoadoutSlotType::OffHandWeapon, -1, true, TEXT("Only a Generic can dual wield"), WeaponSub);
+			}
+			else if (Refusal != WeaponSetRules::EPairRefusal::None)
+			{
+				Sink.Add(ELoadoutSlotType::OffHandWeapon, -1, true,
+						 FString::Printf(TEXT("Off-hand weapon '%s' can't pair: %s"), *GetNameSafe(Weapon.OffHandEntry.Weapon),
+										 *WeaponSetRules::GetPairRefusalText(Refusal).ToString()),
+						 WeaponSub);
+			}
+			else if (!Passes<const UWeaponData *>(Context.OwnsWeapon, Weapon.OffHandEntry.Weapon))
+			{
+				Sink.Add(ELoadoutSlotType::OffHandWeapon, -1, true, TEXT("Off-hand weapon not in inventory"), WeaponSub);
+			}
+		}
+		else if (!WeaponSetRules::CanStandAlone(Weapon))
+		{
+			Sink.Add(WeaponSlotType, -1, true,
+					 FString::Printf(TEXT("Weapon '%s' can only be dual wielded"), *GetNameSafe(Weapon.WeaponEntry.Weapon)));
+		}
+		// D-210: a valid pair takes single-blade and dual-blade abilities of its type.
+		const EWeaponWieldMode SetWieldMode = Context.CharacterClass == ECharacterClass::Generic ? WeaponSetRules::GetSetWieldMode(Weapon)
+																								  : (Weapon.WeaponEntry.Weapon ? Weapon.WeaponEntry.Weapon->WieldMode : EWeaponWieldMode::Single);
 
 		// The ability checks stay the primary's for now: a secondary's authored abilities were never type-checked, so
 		// checking them would newly refuse authored Generic loadouts (B-304 review). The row's spell checks apply.
@@ -173,12 +203,12 @@ namespace
 										 *UEnum::GetValueAsString(EquippedWeapon->WeaponType)), WeaponSub);
 				continue;
 			}
-			if (!Ability->AllowsWieldMode(EquippedWeapon->WieldMode))
+			if (!Ability->AllowsWieldMode(SetWieldMode))
 			{
 				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true,
 						 FString::Printf(TEXT("Ability '%s' requires wield mode %s, equipped weapon is %s"),
 										 *Ability->Name, *UEnum::GetValueAsString(Ability->RequiredWieldMode),
-										 *UEnum::GetValueAsString(EquippedWeapon->WieldMode)), WeaponSub);
+										 *UEnum::GetValueAsString(SetWieldMode)), WeaponSub);
 			}
 		}
 

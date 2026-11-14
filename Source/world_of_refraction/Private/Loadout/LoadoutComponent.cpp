@@ -910,6 +910,11 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             }
             break;
         }
+        case ELoadoutSlotType::OffHandWeapon:
+            // B-477 (D-209): the set goes back to its main hand alone.
+            (Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon : Loadout.PrimaryWeapon).OffHandEntry =
+                FWeaponInventoryEntry();
+            break;
         case ELoadoutSlotType::PrimaryStone:
         {
             // B-472 (D-206): a Refractor over 2 drops its one item's augment stone; Q-159 = A: it goes back to the
