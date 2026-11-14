@@ -310,8 +310,9 @@ public:
 
     /** B-408a (D-172, D-176, Q-408): a run restored from the player's own save at start (the game closed mid-run) is
      *  settled as a quit: home pieces back, found items taken back, nothing paid, run recruits leave. Unlike
-     *  AbandonRun it needs no HubLevel and no host check (the game is just starting), and it doesn't travel when it is
-     *  already in the hub (or when !bTravelIfAway: the specs, whose world can't travel). Nothing without an active run. */
+     *  AbandonRun it needs no HubLevel and no host check (the game is just starting). bTravelIfAway: on to the hub
+     *  when not in it (the save's settle passes false: the player stays where the game started; the specs' world
+     *  can't travel). Nothing without an active run. */
     void SettleRunAsQuit(bool bTravelIfAway = true);
 
     /** B-073: the save puts a resumed run's tally back. */

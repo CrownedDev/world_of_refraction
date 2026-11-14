@@ -767,7 +767,8 @@ void USaveSubsystem::SettleClosedRun(const FSavedRun &Run, UWorld *World)
 		{
 			if (UTrialRunSubsystem *Settled = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
 			{
-				Settled->SettleRunAsQuit();
+				// No travel: the player is wherever the game started (the hub and its title in a real start).
+				Settled->SettleRunAsQuit(/*bTravelIfAway=*/false);
 			}
 		}));
 		return;
@@ -783,7 +784,18 @@ void USaveSubsystem::SettleClosedRun(const FSavedRun &Run, UWorld *World)
 	}
 	DropRunVitals();
 	UE_LOG(LogWoR, Warning, TEXT("[Save] The run of %s couldn't be restored: its gear settled as a quit (D-176), the party back in the hub"),
-		   *Run.Trial.Path.ToString()); // the next save writes the settled store, with no run (PendingRun is cleared)
+		   *Run.Trial.Path.ToString());
+	if (World)
+	{
+		// The settled store and no run (PendingRun is cleared), so a close before the next save doesn't settle again.
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (UWorld *SaveWorld = GetGameInstance()->GetWorld())
+			{
+				SaveNow(SaveWorld, /*bAsync=*/true);
+			}
+		}));
+	}
 }
 
 void USaveSubsystem::DropRunVitals()

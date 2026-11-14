@@ -186,7 +186,7 @@ void UTrialRunSubsystem::SettleRunAsQuit(bool bTravelIfAway)
     {
         return;
     }
-    UE_LOG(LogWoR, Warning, TEXT("[TrialRun] The game closed during the run of '%s': settled as a quit (D-172, Q-408); %s is lost"),
+    UE_LOG(LogWoR, Warning, TEXT("[TrialRun] The game closed during the run of '%s': settled as a quit (D-172, Q-408); the end would have paid %s, forfeited"),
            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"), *RunRewards::GetPayoutString(GetRunEndPayout()));
     bAbandoned = true;
     FinishRun();
@@ -199,7 +199,6 @@ void UTrialRunSubsystem::SettleRunAsQuit(bool bTravelIfAway)
 
 void UTrialRunSubsystem::FinishRun()
 {
-
     // B-314 (D-111, D-097): the run layer closes while the members are still here to hear it: home pieces go back to
     // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
