@@ -244,6 +244,11 @@ namespace FieldSkillRules
 	constexpr int32 FIELD_ATTACK_SOURCE_COUNT = 3;        // Innate, Weapon, Ring (EFieldSkillSource)
 	static_assert(static_cast<int32>(EFieldSkillSource::Ring) + 1 == FIELD_ATTACK_SOURCE_COUNT, "A new field source: update the count");
 
+	/** B-214g: the field attack counts as held after this long pressed (IA_Field_Attack: press, then release). */
+	constexpr double FIELD_ATTACK_HOLD_SECONDS = 0.4; // TODO: tune
+
+	inline bool IsFieldAttackHeld(double PressedSeconds) { return PressedSeconds >= FIELD_ATTACK_HOLD_SECONDS; }
+
 	/** The strike a field hit carries: the element if it is a real one, the weapon's physical type, Ice when held with
 	 *  a Water source, FIELD_STRIKE_BUILDUP. */
 	WORLD_OF_REFRACTION_API FFieldStrike MakeFieldStrike(ESpellElement SourceElement, EPhysicalDamageType Physical, bool bHeld);

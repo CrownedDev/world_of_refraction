@@ -120,8 +120,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	FFieldFlightLimits GetFlightLimits() const { return FlightLimits; }
 
-	/** Up (+1) or down (-1) while flying: movement input along the world's up. B-214g binds it to keys
-	 *  (IA_Field_FlyUp / IA_Field_FlyDown, InputMap rows with that job); the pawn's own move input stays flat. */
+	/** Up (+1) or down (-1) while flying: movement input along the world's up. B-214g binds it to IA_Field_FlyVertical
+	 *  (a 1D axis, Q-214g); the pawn's own move input stays flat. */
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	void AddFlightVerticalInput(float Value);
 
