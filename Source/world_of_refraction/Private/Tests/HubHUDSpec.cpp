@@ -56,6 +56,17 @@ void FHubHUDSpec::Define()
 		TestFalse(TEXT("not the same key"), WoRHubHUD::GetInteractKeyLabel(true).EqualTo(WoRHubHUD::GetInteractKeyLabel(false)));
 	});
 
+	It("writes a prompt as one line: the key, the verb, the thing (B-491, D-213)", [this]()
+	{
+		const FString Key = WoRHubHUD::GetInteractKeyLabel(false).ToString();
+		const FString Chest = WoRHubHUD::FormatPromptLine(FInteractPrompt(EInteractVerb::Open, FText::FromString(TEXT("Chest")))).ToString();
+		TestTrue(TEXT("key, verb, a dot, the thing"), Chest.StartsWith(Key) && Chest.Contains(TEXT("Open · Chest")));
+		TestFalse(TEXT("no sentence"), Chest.Contains(TEXT("Press")));
+		const FString Rest = WoRHubHUD::FormatPromptLine(FInteractPrompt(EInteractVerb::Rest)).ToString();
+		TestTrue(TEXT("no thing: the key and the verb"), Rest.StartsWith(Key) && Rest.EndsWith(TEXT("Rest")) && !Rest.Contains(TEXT("·")));
+		TestTrue(TEXT("no prompt: nothing"), WoRHubHUD::FormatPromptLine(FInteractPrompt()).IsEmpty());
+	});
+
 	It("has a word for every prompt verb, and none for no prompt", [this]()
 	{
 		for (const EInteractVerb Verb : HUB_HUD_TEST_VERBS)

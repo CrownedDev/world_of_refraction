@@ -52,6 +52,10 @@ namespace WoRHubHUD
 	/** The interact key's label for the device in use: "X" on a gamepad, "E" on the keyboard (InputMap.md). */
 	WORLD_OF_REFRACTION_API FText GetInteractKeyLabel(bool bGamepad);
 
+	/** B-491 (D-213): a prompt as one line, for the on-screen hints that aren't the floating prompt: the key, the
+	 *  verb, the thing ("E  Open · Chest"; "E  Rest"). Empty for no prompt. */
+	WORLD_OF_REFRACTION_API FText FormatPromptLine(const FInteractPrompt &Prompt, bool bGamepad = false);
+
 	/** The money the place spends: Gold in the hub, Prisms in a run (D-159). */
 	WORLD_OF_REFRACTION_API FHubHUDMoney BuildMoney(const UWorld *World);
 

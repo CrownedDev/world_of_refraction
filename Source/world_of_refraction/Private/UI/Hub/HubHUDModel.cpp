@@ -43,6 +43,19 @@ FText WoRHubHUD::GetInteractKeyLabel(bool bGamepad)
 	return WoRKeyHints::Format(FText::AsCultureInvariant(TEXT("{Interact}")), bGamepad);
 }
 
+FText WoRHubHUD::FormatPromptLine(const FInteractPrompt &Prompt, bool bGamepad)
+{
+	if (Prompt.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("Verb"), WoRGameNames::GetInteractVerbName(Prompt.Verb));
+	Arguments.Add(TEXT("What"), Prompt.What);
+	return WoRKeyHints::Format(Prompt.What.IsEmpty() ? LOCTEXT("PromptLineVerb", "{Interact}  {Verb}") : LOCTEXT("PromptLine", "{Interact}  {Verb} · {What}"),
+							   bGamepad, Arguments);
+}
+
 FHubHUDMoney WoRHubHUD::BuildMoney(const UWorld *World)
 {
 	// The game menu's first chip is the place's money (Gold in the hub, Prisms in a run): one read for both.
