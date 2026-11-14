@@ -930,6 +930,13 @@ The queue of questions only Crown can answer.
 - **The screen opens with `wor.UI.Forms` for now;** its "Spirit of {character}" row comes with the rest menu (D-184). The old placeholder is `wor.UI.FormsOld` until your PIE pass.
 - **Left for later:** the form preview picture, the pieces as icon tiles (a list of names now).
 
+### Q-453f — Element letters on colours: which letters, where
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453f, D-190) · **Blocks:** —
+**Question:** what tag each element gets, and which colour-only signals get it first.
+**Answer**, by the reference-backed default (Crown may change any):
+- **Two letters per element** (Fi, Wa, Ea, Wi, Li, Da, Lt for Lightning, Vo, Ge; "?" for the unknown element), so Light and Lightning differ and Water and Wind too. Colour-blind modes in Hearthstone and Slay the Spire add short text or symbols beside colour, widely praised; two letters fit beside a damage number.
+- **First where colour alone tells the element in a fight:** damage numbers ("120 Fi") and the status buildup line. Physical hits share one colour, so they get no tag. The menus mostly name the element already; their remaining colour swatches are a follow-up.
+
 ### Q-453e — "AI finishes my turn when I idle": how long, how much, and co-op
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-453e, D-190) · **Blocks:** —
 **Question:** how long is "idle", does the AI take one action or the turn, and what happens to the next turn and to co-op guests?
