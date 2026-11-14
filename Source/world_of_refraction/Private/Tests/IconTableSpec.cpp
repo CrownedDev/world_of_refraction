@@ -11,6 +11,7 @@
 BEGIN_DEFINE_SPEC(FIconTableSpec, "WoR.UI.IconTable", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 	UWoRIconTable *Table = nullptr;
 	UTexture2D *Texture = nullptr;
+	UTexture2D *ElementTexture = nullptr;
 END_DEFINE_SPEC(FIconTableSpec)
 
 void FIconTableSpec::Define()
@@ -22,7 +23,11 @@ void FIconTableSpec::Define()
 		Table->ElementBadges.Add(ESpellElement::Fire, Texture);
 		Table->TierBadges.Add(EItemTier::C_Tier, Texture);
 		Table->WeaponTypes.Add(EWeaponType::Sword, Texture);
-		Table->EffectKinds.Add(ESkillEffectType::DOT, Texture);
+		ElementTexture = NewObject<UTexture2D>(GetTransientPackage());
+		FWoREffectIcons Burn;
+		Burn.Default = Texture;
+		Burn.ByElement.Add(ESpellElement::Fire, ElementTexture);
+		Table->EffectKinds.Add(ESkillEffectType::DOT, Burn);
 		Table->EmptySocket = Texture;
 	});
 	AfterEach([this]()
@@ -30,6 +35,7 @@ void FIconTableSpec::Define()
 		WoRIcons::SetActiveForTests(nullptr);
 		Table = nullptr;
 		Texture = nullptr;
+		ElementTexture = nullptr;
 	});
 
 	It("returns an icon that is set and null for one that isn't", [this]()
@@ -41,6 +47,8 @@ void FIconTableSpec::Define()
 		TestTrue(TEXT("the sword"), Table->GetWeaponType(EWeaponType::Sword) == Texture);
 		TestNull(TEXT("no hammer"), Table->GetWeaponType(EWeaponType::Hammer));
 		TestTrue(TEXT("damage over time"), Table->GetEffectKind(ESkillEffectType::DOT) == Texture);
+		TestTrue(TEXT("in Fire's colour where there is that variant"), Table->GetEffectKind(ESkillEffectType::DOT, ESpellElement::Fire) == ElementTexture);
+		TestTrue(TEXT("an element without a variant takes the one for any"), Table->GetEffectKind(ESkillEffectType::DOT, ESpellElement::Water) == Texture);
 		TestNull(TEXT("no skip-turn icon"), Table->GetEffectKind(ESkillEffectType::SkipTurn));
 		TestTrue(TEXT("the empty socket"), Table->GetEmptySocket() == Texture);
 		TestNull(TEXT("no stone icon"), Table->GetStoneSocket());

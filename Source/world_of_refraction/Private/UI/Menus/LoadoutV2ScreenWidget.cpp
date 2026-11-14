@@ -419,9 +419,13 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		}
 	{
 		// B-484: EQUIPPED / PICKED is the row's tag (GetLineTag). B-485: the tier is a badge when the table has one.
+		if (Items[Line].TierText.IsEmpty())
+		{
+			return Items[Line].Name;
+		}
 		const FLineIcons Icons = GetLineIcons(Line);
 		const bool bTierBadge = Icons.bHasTier && WoRIcons::GetTierBadge(Icons.Tier) != nullptr;
-		return Items[Line].TierText.IsEmpty() || bTierBadge ? Items[Line].Name : FText::Format(LOCTEXT("SocketItemName", "{0}  {1}"), Items[Line].Name, Items[Line].TierText);
+		return bTierBadge ? Items[Line].Name : FText::Format(LOCTEXT("SocketItemName", "{0}  {1}"), Items[Line].Name, Items[Line].TierText);
 	}
 	case ELoadoutV2Mode::List:
 	default:
@@ -516,7 +520,7 @@ UTexture2D *ULoadoutV2ScreenWidget::FindIcon(const FLoadoutV2Icon &Icon)
 	case ELoadoutV2IconKind::Stone:
 		return WoRIcons::GetStoneSocket();
 	case ELoadoutV2IconKind::Effect:
-		return WoRIcons::GetEffectKind(Icon.EffectType);
+		return WoRIcons::GetEffectKind(Icon.EffectType, Icon.Element);
 	case ELoadoutV2IconKind::None:
 	default:
 		return nullptr;
@@ -780,8 +784,14 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		SetIcon(LineTypeIcons[Index], FindIcon(Icons.Type), Icons.Type.Name);
 		const bool bSocketBadge = SetIcon(LineSocket1Icons[Index], FindIcon(Icons.Socket1), Icons.Socket1.Name);
 		SetIcon(LineSocket2Icons[Index], bSocketBadge ? FindIcon(Icons.Socket2) : nullptr, Icons.Socket2.Name); // the pair shows together
-		SetIcon(LineTierIcons[Index], Icons.bHasTier ? WoRIcons::GetTierBadge(Icons.Tier) : nullptr,
-				FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Icons.Tier)));
+		const bool bTierBadge = SetIcon(LineTierIcons[Index], Icons.bHasTier ? WoRIcons::GetTierBadge(Icons.Tier) : nullptr,
+										FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Icons.Tier)));
+		// A name with a badge after it keeps its own width, so the badge sits right after it; with none it fills the
+		// column and a long one ends in "...", as before the icons.
+		if (UHorizontalBoxSlot *NameSlot = Cast<UHorizontalBoxSlot>(LineNames[Index]->Slot))
+		{
+			NameSlot->SetSize(FSlateChildSize(bSocketBadge || bTierBadge ? ESlateSizeRule::Automatic : ESlateSizeRule::Fill));
+		}
 	}
 
 	// The box: the focused entry's details, or in the window the entry being built.
@@ -839,7 +849,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	else
 	{
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
-		BoxTitle = bPieceBox ? Items[GetBoxLine()].Name : Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
+		BoxTitle = bPieceBox ? GetLineName(GetBoxLine()) : Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
 		for (const FLoadoutV2DetailLine &Line : Details)
 		{
 			FText Shown;

@@ -23,9 +23,30 @@ namespace WoRIconTableBuild
 		return Icon && !Icon->IsNull() ? Icon->LoadSynchronous() : nullptr;
 	}
 
+	bool IsSet(const TSoftObjectPtr<UTexture2D> &Icon)
+	{
+		return !Icon.IsNull();
+	}
+
+	bool IsSet(const FWoREffectIcons &Icons)
+	{
+		if (!Icons.Default.IsNull())
+		{
+			return true;
+		}
+		for (const TPair<ESpellElement, TSoftObjectPtr<UTexture2D>> &Each : Icons.ByElement)
+		{
+			if (!Each.Value.IsNull())
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** "Tiers: 5 of 7 set: F-Tier ...; missing: ..." for one map keyed by an enum. */
-	template <typename KeyType>
-	FString DescribeGroup(const TCHAR *Group, const TMap<KeyType, TSoftObjectPtr<UTexture2D>> &Icons)
+	template <typename KeyType, typename ValueType>
+	FString DescribeGroup(const TCHAR *Group, const TMap<KeyType, ValueType> &Icons)
 	{
 		const UEnum *Enum = StaticEnum<KeyType>();
 		TArray<FString> Set;
@@ -37,8 +58,8 @@ namespace WoRIconTableBuild
 				continue; // retired values aren't asked for
 			}
 			const KeyType Key = static_cast<KeyType>(Enum->GetValueByIndex(Index));
-			const TSoftObjectPtr<UTexture2D> *Icon = Icons.Find(Key);
-			(Icon && !Icon->IsNull() ? Set : Missing).Add(Enum->GetNameStringByIndex(Index));
+			const ValueType *Icon = Icons.Find(Key);
+			(Icon && IsSet(*Icon) ? Set : Missing).Add(Enum->GetNameStringByIndex(Index));
 		}
 		return FString::Printf(TEXT("\n  %s: %d of %d set%s%s"), Group, Set.Num(), Set.Num() + Missing.Num(),
 							   Set.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *FString::Join(Set, TEXT(" "))),
@@ -116,9 +137,16 @@ UTexture2D *UWoRIconTable::GetWeaponType(EWeaponType Type) const
 	return WoRIconTableBuild::Find(WeaponTypes, Type);
 }
 
-UTexture2D *UWoRIconTable::GetEffectKind(ESkillEffectType Type) const
+UTexture2D *UWoRIconTable::GetEffectKind(ESkillEffectType Type, ESpellElement Element) const
 {
-	return WoRIconTableBuild::Find(EffectKinds, Type);
+	const FWoREffectIcons *Icons = EffectKinds.Find(Type);
+	if (!Icons)
+	{
+		return nullptr;
+	}
+	// The element's own variant, else the one for any element.
+	UTexture2D *Variant = WoRIconTableBuild::Find(Icons->ByElement, Element);
+	return Variant ? Variant : Icons->Default.IsNull() ? nullptr : Icons->Default.LoadSynchronous();
 }
 
 FString UWoRIconTable::GetIconTableString() const
@@ -169,10 +197,10 @@ UTexture2D *WoRIcons::GetWeaponType(EWeaponType Type)
 	return Table ? Table->GetWeaponType(Type) : nullptr;
 }
 
-UTexture2D *WoRIcons::GetEffectKind(ESkillEffectType Type)
+UTexture2D *WoRIcons::GetEffectKind(ESkillEffectType Type, ESpellElement Element)
 {
 	const UWoRIconTable *Table = UWoRIconTable::GetActive();
-	return Table ? Table->GetEffectKind(Type) : nullptr;
+	return Table ? Table->GetEffectKind(Type, Element) : nullptr;
 }
 
 void WoRIcons::SetActiveForTests(const UWoRIconTable *Table)

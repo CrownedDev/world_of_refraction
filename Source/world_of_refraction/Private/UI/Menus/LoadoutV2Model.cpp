@@ -243,6 +243,7 @@ namespace LoadoutV2Build
 			{
 				Added->Icon.Kind = ELoadoutV2IconKind::Effect;
 				Added->Icon.EffectType = Effects[Line.EffectIndex].Payloads[0].EffectType;
+				Added->Icon.Element = Effects[Line.EffectIndex].Payloads[0].Element; // its own variant, where the table has one
 				Added->Icon.Name = StaticEnum<ESkillEffectType>()->GetDisplayNameTextByValue(static_cast<int64>(Added->Icon.EffectType));
 			}
 		}
