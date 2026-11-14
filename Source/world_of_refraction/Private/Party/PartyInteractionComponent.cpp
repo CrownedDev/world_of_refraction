@@ -113,13 +113,15 @@ void UPartyInteractionComponent::Interact()
 		const TSoftClassPtr<ACombatCharacter> PawnClass(GetOwner()->GetClass()->GetPathName());
 		// B-471b (D-179): in a run the local player gets the recruit card (who they are, who plays them, who steps out of
 		// a full party); its A invites through InviteForRun / InviteInPlaceOf.
-		const APawn *Interactor = Cast<APawn>(PawnInRange.Get());
-		APlayerController *LocalPC = Interactor && Interactor->IsLocallyControlled() ? Cast<APlayerController>(Interactor->GetController()) : nullptr;
-		if (TrialRun && TrialRun->IsRunActive() && LocalPC && URecruitCardWidget::Open(LocalPC, this))
+		// Interact runs on the host for its own player (a guest's request goes through ServerRecruit / InviteForClient),
+		// so the card is the host's local player's, whose pawn must stand beside this character.
+		APlayerController *LocalPC = GetWorld()->GetFirstPlayerController();
+		const APawn *LocalPawn = LocalPC ? LocalPC->GetPawn() : nullptr;
+		if (TrialRun && TrialRun->IsRunActive() && LocalPawn && IsWithinReach(LocalPawn) && URecruitCardWidget::Open(LocalPC, this))
 		{
 			return;
 		}
-		// No card (a guest's request on the host, or no root layout): a full party says how, as before the card.
+		// No card (no root layout, as in headless tests): a full party says how, as before the card.
 		const UParty *Party = PartySession->GetLocalParty();
 		if (TrialRun && TrialRun->IsRunActive() && Party && Party->IsFull())
 		{

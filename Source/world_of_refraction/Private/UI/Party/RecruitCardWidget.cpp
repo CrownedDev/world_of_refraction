@@ -161,6 +161,10 @@ void URecruitCardWidget::Refresh()
 	{
 		Card.Refusal = LOCTEXT("NoRecruit", "There is no one here to invite.");
 	}
+	if (Card.Refusal.IsEmpty() && Card.bPartyFull && Card.StepOut.Num() == 0)
+	{
+		Card.Refusal = LOCTEXT("NoOneStepsOut", "Your party is full and no one can step out.");
+	}
 	const int32 Count = GetChoiceCount();
 	SelectedChoice = Count > 0 ? FMath::Clamp(SelectedChoice, 0, Count - 1) : 0;
 	if (!NameText)
@@ -199,7 +203,15 @@ void URecruitCardWidget::MoveSelection(int32 Delta)
 
 void URecruitCardWidget::PressInvite()
 {
+	Refresh(); // the party may have changed since the card was drawn
 	UPartyInteractionComponent *Source = Recruit.Get();
+	const APlayerController *PC = GetOwningPlayer();
+	if (Source && PC && PC->GetPawn() && !Source->IsWithinReach(PC->GetPawn()))
+	{
+		Message = LOCTEXT("WalkedAway", "They're no longer beside you.");
+		Refresh();
+		return;
+	}
 	if (!Source || GetChoiceCount() == 0)
 	{
 		Message = Card.Refusal;
