@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-170h2b](B-170h2b.md) | `refactor/B-170h2b-one-break-table-cloud-2` (cloud, UNBUILT; includes B-170h2) | One break table: Water slows spells only, Wind takes an action next turn, Ice an action at once; no play change in a fight | Pending |
 | [B-170h2](B-170h2.md) | `refactor/B-170h2-speed-timeline-delete-cloud-2` (cloud, UNBUILT) | The old speed timeline's code deleted: no play change from B-170h; `wor.Turns.ActionPips` gone; switches free; Wind / Ice take actions | Pending |
 | [B-487b](B-487b.md) | `fix/B-487b-details-box-one-header` (in dev, built 2026-11-14) | Details box layout (loadout v2, inventory): a quiet type line with the icon, then the name and tier badge; socket rows as badge and name; no "Type" row or socket labels | Pending |
 | [B-487](B-487.md) | `feature/B-487-inventory-vendor-icons` (in dev, built 2026-11-14) | Inventory and vendor: reads as before with no icon table; after B-486 element diamonds, tier badges, weapon and effect icons | Pending |
