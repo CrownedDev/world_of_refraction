@@ -2,6 +2,7 @@
 
 #include "Player/RunStateComponent.h"
 #include "EngineUtils.h"
+#include "Misc/ScopeExit.h"
 #include "Trial/TrialMapFeature.h"
 #include "Memory/MemoryData.h"
 
@@ -465,6 +466,7 @@ TArray<int32> URunStateComponent::GetFreeAISeats() const
 
 bool URunStateComponent::RequestJoin(APlayerState *Joiner, UCharacterData *Character, TSoftClassPtr<ACombatCharacter> PawnClass)
 {
+	ON_SCOPE_EXIT { OnJoinRequestsChanged.Broadcast(); }; // B-459c: the host's join request card follows
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !Joiner || !Character)
 	{
 		return false;
@@ -507,6 +509,7 @@ bool URunStateComponent::RequestJoin(APlayerState *Joiner, UCharacterData *Chara
 
 bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 {
+	ON_SCOPE_EXIT { OnJoinRequestsChanged.Broadcast(); };
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return false;
@@ -581,6 +584,7 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 
 bool URunStateComponent::RefuseJoin(int32 PlayerId)
 {
+	ON_SCOPE_EXIT { OnJoinRequestsChanged.Broadcast(); };
 	if (!GetOwner() || !GetOwner()->HasAuthority())
 	{
 		return false;
@@ -628,6 +632,7 @@ void URunStateComponent::HandleLogout(AGameModeBase *GameMode, AController *Exit
 
 void URunStateComponent::HandlePlayerLeft(APlayerState *Leaver)
 {
+	ON_SCOPE_EXIT { OnJoinRequestsChanged.Broadcast(); };
 	AWoRPlayerState *WoRLeaver = Cast<AWoRPlayerState>(Leaver);
 	if (!GetOwner() || !GetOwner()->HasAuthority() || !WoRLeaver)
 	{

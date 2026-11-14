@@ -156,6 +156,9 @@ public:
 	/** Server: drop PlayerId's request. */
 	bool RefuseJoin(int32 PlayerId);
 	const TArray<FRunJoinRequest> &GetJoinRequests() const { return JoinRequests; }
+	/** B-459c (server): a join request came, was answered, or left with its player (also on a refused answer; the
+	 *  listeners re-read GetJoinRequests). The host's join request card listens. */
+	FSimpleMulticastDelegate OnJoinRequestsChanged;
 	/** The party slots an AI seat holds (never the leader's). */
 	TArray<int32> GetFreeAISeats() const;
 
