@@ -21,7 +21,7 @@
 | # | Screen | What the player does | Code it talks to | Today | Pri |
 |---|---|---|---|---|---|
 | 1 | **Pause / game menu** | Opens with Menu / Esc. Tabs into every menu below; Resume, Settings, Quit to title. In a trial it also shows the run (Prisms, wipes left) | `IA_ToggleMenu` (InputMap, built); CommonUI stacks `UWoRRootLayout::PushMenu` `Public/UI/WoRRootLayout.h:57` | Real, C++ (B-439): `UPauseMenuWidget` `Public/UI/Menus/PauseMenuWidget.h`; waits for Crown's PIE pass | P1 |
-| 2 | **Loadout (gear)** | Per character: weapons (Generic 2, one active), adapters, the Refractor's one item, 2 apparel slots; sockets on each (crystal or evolution; stone); the budget meter; up to 5 saved loadouts | `ULoadoutComponent` `Public/Loadout/LoadoutComponent.h:141-286` (Create/Duplicate/Rename/SetActive, `ValidateLoadout` :214, `GetValidationErrors` :218); costs `Public/Loadout/LoadoutConstants.h:31-47`; attach `UInventoryComponent::Attach*` `Public/Inventory/InventoryComponent.h:335-449`; apparel `FApparelEntry.h:70-84`, `UPoolSubsystem::AttachToApparel` `Public/Pool/PoolSubsystem.h:222` | Console (`wor.Loadout.*`, `LoadoutRulesDebug.cpp:36-458`; apparel `:217`, `:260`) | P1 |
+| 2 | **Loadout (gear)** | Per character: entries (Generic 2 weapon + 1 adapter, Resonator 1 weapon + up to 5 adapters, Refractor 1; D-210), each with two shared augment sockets; the character's evolution; 2 apparel slots; cells used; up to 5 saved loadouts | `ULoadoutComponent` `Public/Loadout/LoadoutComponent.h:141-286` (Create/Duplicate/Rename/SetActive, `ValidateLoadout` :214, `GetValidationErrors` :218); costs `Public/Loadout/LoadoutConstants.h:31-47`; attach `UInventoryComponent::Attach*` `Public/Inventory/InventoryComponent.h:335-449`; apparel `FApparelEntry.h:70-84`, `UPoolSubsystem::AttachToApparel` `Public/Pool/PoolSubsystem.h:222` | Console (`wor.Loadout.*`, `LoadoutRulesDebug.cpp:36-458`; apparel `:217`, `:260`) | P1 |
 | 3 | **Skills (loadout page)** | Pick which abilities and spells each item gives; the Refractor's innate spells; see school, element, cost | `TryAssignWeaponAbility` / `TryAssignWeaponSpell` / `TryAssignRingSpell` / `TryAssignInnateSpell` `LoadoutComponent.h:270-280` | Console (`wor.Loadout.ReplaceSkill`) | P1 |
 | 4 | **Inventory and pouch** | Per character: gear and pouch; the shared home chest. Verbs **Give, Store, Take** (D-177: Dismantle and Convert moved to the vendors; changes D-131) | `WoRInventoryVerbs` `Public/Inventory/InventoryVerbs.h:58-65`; `WoRGive` `Public/Inventory/GearGive.h:30-63` | Placeholder `UInventoryWidget` `Public/UI/Hub/InventoryWidget.h:21` (`wor.UI.Inventory`); old `UStorageWidget`, `UGiveWidget`, `UDismantleWidget`, `UDuplicateGearWidget` are OBSOLETE | P1 |
 | 5 | **Character sheet** | Class, element, Mind / Body / Spirit, substats, resistances by type (D-168: All, Physical, Spell, each element), Max Actions | `UCharacterDataComponent`; resistance scopes (`ResistanceSystem.md`) | Real, C++ (B-442): `UCharacterSheetWidget` `Public/UI/Menus/CharacterSheetWidget.h`; waits for Crown's PIE pass | P2 |
@@ -112,7 +112,21 @@ One block per mocked screen: the images, why the layout, the references.
 - **No "Leave the trial" here:** you leave only by extracting at a rest spot (RunStructure §6, D-172); the side panel says so.
 - Pages (code names): Resume, Loadout, Inventory, Character, Party, Journal, Settings, Quit to title.
 
-### 2–3. Loadout and skills (`menus/loadout/`)
+### 2–3. Loadout and skills (`menus/loadout/v2/`, B-479; replaces v1 below)
+
+- **Images:** `1_weapons_generic.png` (Garrick: his evolution, a dual entry and a hammer entry, Add weapon 1/5 left), `1a_options.png` (Y Options), `1b_details.png` (X Details with the Skills button), `2_add_gear_weapon.png`, `2a_add_gear_evolution.png` (confirm "Attach Ironheart to Garrick? Uses 2 cells"), `2b_add_gear_remove.png` (A Remove on the on-now row), `3_weapons_refractor.png`, `4_weapons_resonator.png` (Add weapon focused: A Equip), `5_apparel.png`, `6_skills_generic.png`, `7_skills_refractor.png`. Script `make.py`.
+- **Layout:** two columns, what is equipped on the left, the owned items that fit on the right with a compare (ups green, downs red). Character on LT / RT; tabs Weapons | Apparel | Skills | Cosmetics (greyed, later) on LB / RB; the loadout name top right. No character frame (Crown).
+  *Ref:* Expedition 33's and Persona 5's equip screens: the list beside what you wear, each pick showing its stat changes.
+- **Entries (D-210):** the Weapons tab is a list of entries with an empty **Add weapon** frame at the bottom showing the cells left ("1/5 left"). An entry shows names only ("Ashen Blade + Cinder Edge", "Quarry Maul", a ring's name) and its two sockets as icons (crystal hexagon, stone pebble, evolution star); no per-entry cell number. Types and stats live in X Details. Generic: 2 weapon entries + 1 adapter entry; Resonator: 1 weapon entry + up to 5 adapter entries; Refractor: 1 entry.
+- **Cells (D-206):** only "Cells used 4 of 5" at the top and the Add weapon frame's "n/5 left". Gear is free; a crystal or stone 1, an evolution 2; budgets Generic 5, Resonator 5, Refractor 2.
+- **The character's evolution** is one line, its name only. It costs 2 cells; attaching it asks first.
+- **Add gear window:** asks Weapon, Adapter or Evolution, then Main hand (sets the stance), Off hand (a weapon of the same type that can dual wield, D-209), Augment socket 1 and 2 (shared by the entry: a crystal or evolution + a stone, or two stones; the same stone stacks). Pieces that don't fit stay listed, greyed with the reason ("Pairs only with a sword", "Can't be dual wielded", "Twin only: needs two, one item here", "Resonators put evolutions on adapters only", "Generics put evolutions on weapons only"). Keys: A Pick, or **A Remove** on the row of the piece already in the slot; Y Confirm; B Cancel.
+- **Main keys:** A Edit on an entry or the evolution (opens the Add gear window for it), A Equip on the Add weapon frame; X Details; Y Options (Saved loadouts, Remove all gear, Help, later Cosmetics shortcuts); B Back. Help text is not on screen.
+- **Details (X):** each weapon's type and stats, the shared sockets, and a **Skills** button that opens that entry on the Skills tab.
+- **Skills tab:** the left lists the same entries (names only); the right shows the focused entry's skill slots (built-in, picked, empty), grouped by weapon for a dual entry. A Refractor has an **Innate spells** entry whose right side is the six school rows (6 per school, 24 points). Innate spells are not on the Weapons tab.
+- **Apparel:** 2 slots outside the cells; HP / Defence / Amp + one rolled bonus line (D-208).
+
+#### v1 (superseded by B-479)
 
 - `1_gear_generic.png` (Garrick: two weapons, one active, an adapter, two apparel), `2_socket_picker.png` (a crystal for an empty socket), `3_skills_refractor.png` (Sera's innate spells), `4_gear_resonator.png` (Bram: one weapon, any number of adapters).
 - **Layout:** the character on LT / RT, the page (Gear, Skills) on LB / RB, the saved loadout name top right (Y opens the five saved ones, D-111). Slots on the left, one detail panel on the right that always shows the focused thing's **cost sum** ("Weapon 1 + Crystal 1 = 2").
@@ -304,6 +318,7 @@ Collected as screens are drawn; lore and story questions are listed, not answere
    **Answered (Crown, 2026-11-13, D-180):** the other augment stones stay; only the Ability Stone was removed (D-175, B-437). The socket stays as drawn.
 3. **Main hand / off hand** (loadout, #2): the code has two equal weapon slots and a wield mode per weapon, not hand slots. The mockup follows the code; say if you want hand slots shown.
    **Answered (Crown, 2026-11-13, D-180):** keep two equal weapon slots, the wield mode in the kind line. A shield weapon stands in the shield stance by default (B-446).
+   **Changed (Crown, 2026-11-14, D-209, D-210):** entries with a main hand and an off hand (same-type dual wield), drawn in `menus/loadout/v2` (B-479).
 4. **Level-up preview** (rest spot, #23): a pillar level changes skill requirements and boosts, not flat stats, so the screen lists the character's affected skills. Is that the read you want, or should a level also show a plain number going up?
    **Answered (Crown, 2026-11-13, D-183):** keep the level screen simple: it does **not** list affected skills (the Skills page shows whether requirements are met). No buying a point at the rest spot.
 5. **Words for the end screens** (#26, #27) (**partly answered, D-188:** "Your possibilities end here" and "Return"; the other words stay stand-ins): "The party has fallen", "Get up", "Trial cleared", "The trial ends", "Return to the Void Realm" are stand-ins. These are story-facing words: yours to choose.
@@ -332,7 +347,7 @@ Approved as drawn, one build job each; built one at a time on the CommonUI root 
 | Screen | # | Mock set | Job | Note |
 |---|---|---|---|---|
 | Pause / game menu | 1 | `menus/pause` | B-439 (built, in dev; `PIE/B-439.md`) | Quit in a run loses everything (D-176) |
-| Loadout and skills | 2, 3 | `menus/loadout` | B-440 (piece B-440a built, in dev; `PIE/B-440a.md`) | Stone socket stays, two equal weapon slots (D-180) |
+| Loadout and skills | 2, 3 | `menus/loadout/v2` | B-440 (piece B-440a built, in dev; `PIE/B-440a.md`); v2 is B-476 | v2 (B-479): entries, Add gear window, cells (D-206, D-209, D-210) |
 | Inventory and pouch | 4 | `menus/inventory` | B-441 (built, in dev; `PIE/B-441.md`), B-461 (filter row, Sort, evolution and apparel tiles, place name: built, in dev; `PIE/B-461.md`) | Verbs Give, Store, Take (D-177); Take is listed only at storage (D-195); no chest during a run (Q-441); each tab's filters are what it can hold, Sort is Kind / Tier / Name (Q-461) |
 | Character sheet | 5 | `menus/character` | B-442 (built, in dev; `PIE/B-442.md`) | The fight's own numbers (Q-442) |
 | Hub HUD and interact prompt | 14 | `hub/hud` 1 | B-443 (built, in dev; `PIE/B-443.md`) | |
@@ -366,6 +381,7 @@ Answered, not approved yet (the mockup is redrawn first): NPC talk (#20, D-178),
 
 | Date | Change | Branch |
 |---|---|---|
+| 2026-11-14 | Loadout v2 redrawn (B-479; D-206, D-209, D-210 and Crown's notes): entries with names only, Add weapon frame, Add gear window (Weapon / Adapter / Evolution, A Pick / Remove), Options on Y, Details with a Skills button, Skills tab by entry; §2–3 rewritten | docs/B-479-loadout-sets |
 | 2026-11-14 | The Spiritualist's tabs are built (B-456d): Repair (one piece on A, everything on X), Curses (clear a held curse), Merge (one list, the tier on Left / Right; Q-456d); every vendor tab works | feature/B-456d-spiritualist-services |
 | 2026-11-14 | The title screen is built (B-467): the rows, Continue's line, New Game's hold, the "save was reset" notice (Q-467); the backdrop art is B-467b | feature/B-467-title-screen |
 | 2026-11-14 | The credits are built (B-470): the title's Credits row opens them | feature/B-470-credits-screen |

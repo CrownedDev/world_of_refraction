@@ -5,7 +5,8 @@ equip screens). Items that can't go in stay listed, greyed, with the reason. Tab
 (Saved loadouts, Remove all gear, Help, later Cosmetics shortcuts), B Back; help text is not on screen.
 D-210: the Weapons tab is a list of ENTRIES with an empty "Add weapon" frame at the bottom showing the cells left
 ("1/5 left"). The Add gear window asks Weapon, Adapter or Evolution, then Main hand, Off hand, Augment socket 1 and 2
-(shared by the entry: a crystal or evolution + a stone, or two stones). Removing happens there (X Remove). The
+(shared by the entry: a crystal or evolution + a stone, or two stones). Removing happens there: on the row of the
+piece already in the focused slot, A reads Remove. The
 character's own evolution is one compact line; it costs 2 cells and confirming it asks first. Entries per class:
 Generic 2 weapon + 1 adapter, Resonator 1 weapon + up to 5 adapters, Refractor 1. Evolutions: a Resonator only on
 adapters, a Generic only on weapons. Costs (D-206): gear 0, crystal 1, stone 1, evolution 2. Sockets show icons only:
@@ -187,6 +188,40 @@ for i, (lab, sub, on) in enumerate([("Saved loadouts", "Load, save or rename", T
 footer(d, [("A", "Select"), ("B", "Close")], y=624, right=1220)
 save(opt, OUT, "1a_options.png")
 
+# ---- 1b: X Details on the dual entry: each weapon's type and stats, the entry's sockets, and a Skills button that
+#          jumps to this entry on the Skills tab.
+det = Image.blend(im, Image.new("RGB", im.size, BG), 0.6)
+d = ImageDraw.Draw(det)
+panel(d, (240, 120, 1040, 640), focus=True)
+text(d, (266, 138), "Ashen Blade + Cinder Edge", 22, True)
+text(d, (266, 170), "Dual wield · Sword stance (the main hand's) · ACTIVE", 13, fill=DIM)
+for i, (n, el, t, lines) in enumerate([
+        ("Ashen Blade", "Fire", "B", [("Type", "Sword · single or dual"), ("Power", "42"), ("Scaling", "Body B"),
+                                       ("Speed", "Normal")]),
+        ("Cinder Edge", "None", "C", [("Type", "Sword · single or dual"), ("Power", "30"), ("Scaling", "Body C"),
+                                       ("Speed", "Fast")])]):
+    x = 266 + i * 380
+    cut(d, (x, 200, x + 356, 380), PLATE, STEEL, 8)
+    icon(d, (x + 12, 212, x + 52, 252), ELEMENT[el])
+    text(d, (x + 64, 214), n, 17, True)
+    tier_badge(d, x + 64 + int(d.textlength(n, font=F(17, True))) + 16, 224, t, 10)
+    for j, (lab, val) in enumerate(lines):
+        text(d, (x + 16, 266 + j * 26), lab, 14, fill=DIM)
+        text(d, (x + 120, 266 + j * 26), val, 14, True)
+text(d, (266, 396), "Sockets (shared)", 15, True, CYAN)
+for i, (sk, n, sub) in enumerate([(("crystal", "Fire"), "Garnet", "Fire crystal · Fire for both swords' infused abilities"),
+                                  (None, "Empty", "A stone or a second crystal fits here")]):
+    y = 424 + i * 46
+    socket_icon(d, (266, y, 302, y + 36), sk)
+    text(d, (314, y + 1), n, 15, True, TXT if sk else OFF)
+    text(d, (314, y + 20), sub, 12, fill=DIM)
+text(d, (266, 526), "Abilities: 7 slots (both swords)  ·  Cells: 1", 14, fill=DIM)
+cut(d, (266, 566, 466, 610), TEAL, CYAN, 6)
+text(d, (366, 588), "Skills  →", 16, True, anchor="mm")
+text(d, (480, 580), "Opens this entry on the Skills tab", 12, fill=DIM)
+footer(d, [("A", "Skills"), ("B", "Close")], y=588, right=1020)
+save(det, OUT, "1b_details.png")
+
 
 def window(base, title, free, hints):
     """The Add gear window over the dimmed screen."""
@@ -231,9 +266,9 @@ def screen_g(focus_add=True):
     return base
 
 
-# ---- 2: the Add gear window, Weapon: main and off hand set, socket 1 focused. X Remove takes a piece out here.
+# ---- 2: the Add gear window, Weapon: main and off hand set, socket 1 focused. A is Pick (Remove on the on-now row).
 im, d = window(screen_g(), "Add gear", "3/5 left",
-               [("A", "Pick"), ("X", "Remove"), ("Y", "Confirm"), ("B", "Cancel")])
+               [("A", "Pick"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 0)
 y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · single or dual")
 y = build_slot(d, y, "Off hand  ·  a sword that pairs, or empty", "Cinder Edge", "None", "Sword · single or dual")
@@ -254,7 +289,7 @@ save(im, OUT, "2_add_gear_weapon.png")
 
 # ---- 2a: the Add gear window, Evolution: one per character, on the character, 2 cells; confirming asks first.
 im, d = window(screen_g(), "Add gear", "3/5 left",
-               [("A", "Pick"), ("X", "Remove"), ("Y", "Confirm"), ("B", "Cancel")])
+               [("A", "Pick"), ("Y", "Confirm"), ("B", "Cancel")])
 kind_tabs(d, 2)
 build_slot(d, 172, "Garrick's evolution  ·  one per character", "Ironheart", ("evolution", "Earth"), "Evolution · Earth · 2 cells",
            focus=True)
@@ -272,6 +307,24 @@ for i, (k, lab, on) in enumerate([("A", "Attach", True), ("B", "Not now", False)
     cut(d, (bx, 410, bx + 160, 448), TEAL if on else PLATE, CYAN if on else STEEL, 6)
     text(d, (bx + 80, 429), k + "  " + lab, 15, True, anchor="mm")
 save(im, OUT, "2a_add_gear_evolution.png")
+
+# ---- 2b: A Edit on the dual entry opens the window for it. Moving onto the piece already in the focused slot (ON NOW)
+#          turns A into Remove; elsewhere A is Pick.
+im, d = window(screen_g(False), "Edit  ·  Ashen Blade + Cinder Edge", "1/5 left",
+               [("A", "Remove"), ("Y", "Confirm"), ("B", "Cancel")])
+kind_tabs(d, 0)
+y = build_slot(d, 172, "Main hand  ·  sets the stance", "Ashen Blade", "Fire", "Sword · single or dual")
+y = build_slot(d, y, "Off hand", "Cinder Edge", "None", "Sword · single or dual")
+y = build_slot(d, y, "Augment socket 1", "Garnet", ("crystal", "Fire"), "Crystal · Fire · 1 cell", focus=True)
+y = build_slot(d, y, "Augment socket 2", None, ("stone", None), "A stone (or a crystal if socket 1 has a stone)")
+text(d, (590, 128), "Augment socket 1", 15, True, DIM)
+item_rows(d, 590, 1134, 156, [
+    ("Garnet", ("crystal", "Fire"), "B", "Crystal · Fire  ·  A takes it out", "1 cell", "worn"),
+    ("Sapphire", ("crystal", "Water"), "D", "Crystal · Water", "1 cell", None),
+    ("Whetstone", ("stone", None), "C", "Stone · Power +4%", "1 cell", None),
+    ("Phoenix", ("evolution", "Fire"), "B", "Evolution", "2 cells", None),
+    ("Onyx", ("crystal", "Darkness"), "S", "", "", "S-tier: one per loadout (on Iron Coat)")], 0)
+save(im, OUT, "2b_add_gear_remove.png")
 
 # ---- 3: Sera (Refractor): one entry, 2 cells; the entry is full, so no frame. Innate spells live on the Skills tab.
 im, d = canvas()
@@ -338,4 +391,77 @@ choices(d, "Apparel that fits  ·  5 owned", [
     ("Body", "+5%", "—", False), ("Crit Damage", "—", "+6%", True), ("Resistance", "Darkness", "Fire", None)])
 footer(d, FOOT)
 save(im, OUT, "5_apparel.png")
+
+
+def skill_rows(d, rows, focus, top=TOP + 40):
+    """The focused entry's skill slots. rows: ("head", text) for a weapon's sub-heading, or (name, el, kind, ep) with
+    kind "built-in", "slot" (picked) or "empty"."""
+    y = top
+    for i, r in enumerate(rows):
+        if r[0] == "head":
+            text(d, (LIST_X + 18, y + 4), r[1], 14, True, CYAN)
+            y += 28
+            continue
+        n, el, kind, ep = r
+        f = i == focus
+        empty = kind == "empty"
+        cut(d, (LIST_X + 12, y, 1220, y + 44), TEAL if f else (BG if empty else PLATE), CYAN if f else (OFF if empty else STEEL), 6)
+        if empty:
+            text(d, (LIST_X + 28, y + 12), "Empty ability slot", 15, fill=TXT if f else OFF)
+        else:
+            d.regular_polygon((LIST_X + 34, y + 22, 8), 6, fill=ELEMENT[el])
+            text(d, (LIST_X + 52, y + 11), n, 16, True)
+            if kind == "built-in":
+                text(d, (LIST_X + 52 + int(d.textlength(n, font=F(16, True))) + 12, y + 14), "built-in", 12, fill=DIM)
+            text(d, (1206, y + 12), "%s EP" % ep, 14, True, anchor="ra")
+        y += 50
+
+
+# ---- 6: Skills tab (Generic): the left lists the same entries as the Weapons tab, names only; the right shows the
+#         focused entry's skill slots. A dual entry shows both swords' slots.
+im, d = canvas()
+header(d, 1, 2, "Bruiser  ·  2 of 5")
+text(d, (L, TOP), "Abilities by entry", 17, True, DIM)
+y = entry(d, 168, "", [("Ashen Blade", "Fire"), ("Cinder Edge", "None")], [("crystal", "Fire"), None], 1,
+          active=True, focus=True)
+entry(d, y, "", [("Quarry Maul", "Earth")], [("stone", None), None], 1)
+panel(d, (LIST_X, TOP, 1232, 654), focus=True)
+text(d, (LIST_X + 18, TOP + 10), "Ashen Blade + Cinder Edge  ·  7 slots", 16, True, DIM)
+skill_rows(d, [
+    ("head", "Ashen Blade  ·  4 slots"),
+    ("Slash", "None", "built-in", 0), ("Cleave", "None", "slot", 4), ("Flame Arc", "Fire", "slot", 6),
+    ("", None, "empty", 0),
+    ("head", "Cinder Edge  ·  3 slots"),
+    ("Quick Cut", "None", "built-in", 0), ("Whirl", "None", "slot", 5), ("", None, "empty", 0)], 3)
+footer(d, [("A", "Change"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
+save(im, OUT, "6_skills_generic.png")
+
+# ---- 7: Skills tab (Refractor): an "Innate spells" entry above the gear entry. Focused, the right shows the school rows:
+#         each school's spells, 6 at most, on a 24-point budget (tier = points, F 1 .. S 7).
+im, d = canvas()
+header(d, 0, 2, "Pyre  ·  1 of 5")
+text(d, (L, TOP), "Skills by entry", 17, True, DIM)
+cut(d, (L, 168, LR, 230), TEAL, CYAN, 8)
+icon(d, (L + 8, 183, L + 40, 215), ELEMENT["Fire"])
+text(d, (L + 54, 189), "Innate spells", 16, True)
+text(d, (LR - 14, 199), "18 of 24", 16, True, anchor="rm")
+entry(d, 238, "", [("Cinder Staff", "Fire")], [("crystal", "Fire"), None], 1)
+panel(d, (LIST_X, TOP, 1232, 654), focus=True)
+text(d, (LIST_X + 18, TOP + 10), "Innate spells  ·  Fire  ·  18 of 24 points", 16, True, DIM)
+y = TOP + 44
+for i, (school, spells) in enumerate([
+        ("Destruction", ["Flame Lance", "Ember", "Scorch"]), ("Conjuration", []), ("Enhancement", ["Kindle"]),
+        ("Restoration", ["Warm Light", "Cauterise"]), ("Impairment", ["Smoulder"]), ("Manipulation", [])]):
+    f = i == 0
+    cut(d, (LIST_X + 12, y, 1220, y + 66), TEAL if f else PLATE, CYAN if f else STEEL, 6)
+    text(d, (LIST_X + 26, y + 8), school, 16, True, TXT if spells else OFF)
+    text(d, (1206, y + 8), "%d of 6" % len(spells), 13, True, TXT if spells else OFF, anchor="ra")
+    for p in range(6):
+        px = LIST_X + 26 + p * 86
+        cut(d, (px, y + 34, px + 80, y + 58), (BG if p >= len(spells) else PANEL), OFF if p >= len(spells) else STEEL, 4)
+        if p < len(spells):
+            text(d, (px + 6, y + 38), fit(d, spells[p], 11, True, 70), 11, True)
+    y += 74
+footer(d, [("A", "Change"), ("X", "Details"), ("Y", "Options"), ("B", "Back")])
+save(im, OUT, "7_skills_refractor.png")
 print("ok")
