@@ -799,6 +799,36 @@ FText WoRGameNames::GetSubStatName(ESubStat Stat)
     }
 }
 
+FText WoRGameNames::GetElementLetter(ESpellElement Element)
+{
+    switch (Element)
+    {
+    case ESpellElement::Generic:
+        return LOCTEXT("ElementLetter_Generic", "Ge");
+    case ESpellElement::Fire:
+        return LOCTEXT("ElementLetter_Fire", "Fi");
+    case ESpellElement::Water:
+        return LOCTEXT("ElementLetter_Water", "Wa");
+    case ESpellElement::Earth:
+        return LOCTEXT("ElementLetter_Earth", "Ea");
+    case ESpellElement::Wind:
+        return LOCTEXT("ElementLetter_Wind", "Wi");
+    case ESpellElement::Light:
+        return LOCTEXT("ElementLetter_Light", "Li");
+    case ESpellElement::Darkness:
+        return LOCTEXT("ElementLetter_Darkness", "Da");
+    case ESpellElement::Lightning:
+        return LOCTEXT("ElementLetter_Lightning", "Lt");
+    case ESpellElement::Void:
+        return LOCTEXT("ElementLetter_Void", "Vo");
+    case ESpellElement::Reality:
+        return LOCTEXT("ElementLetter_Reality", "?"); // D-095: players never see "Reality"
+    case ESpellElement::None:
+    default:
+        return FText::GetEmpty();
+    }
+}
+
 FText WoRGameNames::GetTierLetter(EItemTier Tier)
 {
     switch (Tier)
