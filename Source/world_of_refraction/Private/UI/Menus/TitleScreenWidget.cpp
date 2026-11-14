@@ -260,7 +260,9 @@ void UTitleScreenWidget::Refresh()
 
 	SetShown(PanelLayer, Panel != ETitlePanel::None);
 	SetShown(VersionLines, Panel == ETitlePanel::SaveReset);
-	SetShown(HoldLines, Panel == ETitlePanel::NewGameConfirm);
+	const USaveSubsystem *HoldSave = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	const bool bHold = !HoldSave || HoldSave->IsHoldToConfirmOn(); // B-453c (D-190)
+	SetShown(HoldLines, Panel == ETitlePanel::NewGameConfirm && bHold);
 	if (Panel == ETitlePanel::SaveReset)
 	{
 		const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
@@ -277,7 +279,7 @@ void UTitleScreenWidget::Refresh()
 		PanelTitle->SetColorAndOpacity(FSlateColor(TextColor));
 		PanelBody->SetText(WoRTitleScreen::GetNewGameWarning(Save));
 		HoldBar->SetPercent(HeldSeconds / HOLD_TO_START_OVER_SECONDS);
-		HintsText->SetText(LOCTEXT("ConfirmHints", "A  Hold: start over        B  Cancel"));
+		HintsText->SetText(bHold ? LOCTEXT("ConfirmHints", "A  Hold: start over        B  Cancel") : LOCTEXT("ConfirmPressHints", "A  Start over        B  Cancel"));
 	}
 	else
 	{
@@ -369,6 +371,12 @@ void UTitleScreenWidget::StartHold()
 {
 	if (Panel != ETitlePanel::NewGameConfirm || HoldTicker.IsValid())
 	{
+		return;
+	}
+	const USaveSubsystem *HoldSave = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	if (HoldSave && !HoldSave->IsHoldToConfirmOn())
+	{
+		StartOver(); // B-453c: hold to confirm is off; this press on the confirm panel is the confirm
 		return;
 	}
 	HeldSeconds = 0.0f;

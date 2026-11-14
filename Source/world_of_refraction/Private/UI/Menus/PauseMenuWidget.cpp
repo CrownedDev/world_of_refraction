@@ -19,6 +19,7 @@
 #include "InputCoreTypes.h"
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
+#include "Save/SaveSubsystem.h"
 #include "TimerManager.h"
 #include "UI/Menus/InventoryScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
@@ -359,8 +360,17 @@ void UPauseMenuWidget::RefreshSelection()
 	PanelBody->SetText(Page.Preview);
 	PanelRefusal->SetText(Page.Refusal);
 	PauseMenuStyle::SetShown(PanelRefusal, !Page.CanOpen());
+	const bool bHold = IsHoldToConfirmOn(); // B-453c (D-190)
+	HoldHint->SetText(bHold ? LOCTEXT("HoldHint", "Hold A or Enter to quit. B or Esc goes back.")
+							: LOCTEXT("PressHint", "Press A or Enter again to quit. B or Esc goes back."));
 	PauseMenuStyle::SetShown(HoldHint, bConfirmingQuit);
-	PauseMenuStyle::SetShown(HoldBar, bConfirmingQuit);
+	PauseMenuStyle::SetShown(HoldBar, bConfirmingQuit && bHold);
+}
+
+bool UPauseMenuWidget::IsHoldToConfirmOn() const
+{
+	const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	return !Saves || Saves->IsHoldToConfirmOn(); // no save: the safe default, a hold
 }
 
 void UPauseMenuWidget::MoveSelection(int32 Delta)
@@ -429,7 +439,16 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 		UPartyScreenWidget::Open(GetOwningPlayer()); // B-458, over this menu: Back returns here
 		break;
 	case EPauseMenuPage::Quit:
-		if (bConfirmingQuit)
+		if (bConfirmingQuit && !IsHoldToConfirmOn())
+		{
+			// B-453c: hold to confirm is off, so the press on the confirm quits (the confirm step stays, D-176).
+			UE_LOG(LogWoRUI, Log, TEXT("[PauseMenu] Quit confirmed with a press (%s)"), bInRun ? TEXT("in a run: it is lost, D-176") : TEXT("hub"));
+			UWorld *World = GetWorld();
+			APlayerController *PC = GetOwningPlayer();
+			DeactivateWidget();
+			WoRPauseMenu::Quit(World, PC);
+		}
+		else if (bConfirmingQuit)
 		{
 			BeginQuitHold();
 		}
