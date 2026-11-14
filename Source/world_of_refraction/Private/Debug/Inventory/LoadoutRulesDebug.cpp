@@ -346,6 +346,12 @@ namespace
 					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSkill] no learned or built-in ability named '%s'"), *Name);
 					return;
 				}
+				FText Refusal;
+				if (!Weapon->CanHoldSkill(Slot, Ability, &Refusal)) // B-410
+				{
+					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSkill] slot %d refused: %s"), Slot, *Refusal.ToString());
+					return;
+				}
 				if (!Weapon->ReplaceSkill(Slot, Ability))
 				{
 					UE_LOG(LogWoRLoadout, Display, TEXT("[ReplaceSkill] slot %d is not one of this weapon's %d"), Slot, Weapon->GetSkillSlotCount());

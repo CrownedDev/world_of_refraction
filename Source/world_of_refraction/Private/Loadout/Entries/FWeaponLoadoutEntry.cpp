@@ -12,6 +12,9 @@
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Loadout/SkillSlotList.h"
 #include "Loadout/WeaponSpellRules.h"
+#include "WoRGameNames.h"
+
+#define LOCTEXT_NAMESPACE "WeaponLoadoutEntry"
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
@@ -42,16 +45,46 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
 
 int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
 {
-    // D-175: a stone adds none. B-477 (D-211): a pair's slots are the average of its two tiers', rounded down.
-    const int32 TierSlots = WeaponSetRules::GetSetTierSlots(*this);
+    const int32 TierSlots = GetTierSkillSlotCount();
     // B-098 (Q-098, Crown 2026-11-12): a weapon's spell slots became ability slots. The attached gem / evolution adds
     // what were its spell slots while it is attached, broken or not (no ceiling: any other attachment adds none).
-    // TODO: B-410 — these slots take only None, Generic or the crystal's element once abilities carry an element.
+    // B-410: these slots take only None, Generic or the crystal's element (CanHoldSkill).
     constexpr int32 NO_SPELL_SOURCE_SLOTS = 0;
     const int32 ConvertedSpellSlots = WeaponSpellRules::WeaponsGiveSpells()
                                           ? 0
                                           : CrystalEffectTable::ResolveSpellSlotCap(WeaponEntry.GetAttachedItem(), NO_SPELL_SOURCE_SLOTS);
     return TierSlots + ConvertedSpellSlots;
+}
+
+int32 FWeaponLoadoutEntry::GetTierSkillSlotCount() const
+{
+    // D-175: a stone adds none. B-477 (D-211): a pair's slots are the average of its two tiers', rounded down.
+    return WeaponSetRules::GetSetTierSlots(*this);
+}
+
+bool FWeaponLoadoutEntry::IsGemSkillSlot(int32 Slot) const
+{
+    return Slot >= GetTierSkillSlotCount() && Slot < GetSkillSlotCount();
+}
+
+bool FWeaponLoadoutEntry::CanHoldSkill(int32 Slot, const UAbilityData *Ability, FText *OutReason) const
+{
+    if (!Ability || !IsGemSkillSlot(Slot))
+    {
+        return true; // emptying a slot, or a tier slot: no element limit
+    }
+    const ESpellElement GemElement = WeaponEntry.GetAttachedItem().GetElement();
+    if (Ability->Element == ESpellElement::None || Ability->Element == ESpellElement::Generic || Ability->Element == GemElement)
+    {
+        return true;
+    }
+    if (OutReason)
+    {
+        *OutReason = FText::Format(LOCTEXT("GemSlotElement", "{0} is {1}: this slot takes only {2} skills or skills with no element."),
+                                   FText::FromString(Ability->Name), WoRGameNames::GetElementName(Ability->Element),
+                                   WoRGameNames::GetElementName(GemElement));
+    }
+    return false;
 }
 
 FString FWeaponLoadoutEntry::GetSkillSlotString() const
@@ -64,9 +97,12 @@ FString FWeaponLoadoutEntry::GetSkillSlotString() const
     {
         const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SkillPicks, Slot);
         const UAbilityData *BuiltIn = BuiltIns.IsValidIndex(Slot) ? BuiltIns[Slot] : nullptr;
-        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
+        Out += FString::Printf(TEXT("\n  [%d] %s%s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
                                bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *BuiltIn->Name) : TEXT(" (pick)"))
-                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")));
+                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")),
+                               IsGemSkillSlot(Slot) ? *FString::Printf(TEXT(" [gem slot: %s, None or Generic]"), // B-410
+                                                                       *UEnum::GetDisplayValueAsText(WeaponEntry.GetAttachedItem().GetElement()).ToString())
+                                                    : TEXT(""));
     }
     return Out;
 }
@@ -91,7 +127,7 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlotAbilities() const
 
 bool FWeaponLoadoutEntry::ReplaceSkill(int32 Slot, UAbilityData *Ability)
 {
-    if (Slot >= GetSkillSlotCount() || !SkillSlotList::Replace(WeaponEntry.SkillPicks, Slot, Ability))
+    if (Slot >= GetSkillSlotCount() || !CanHoldSkill(Slot, Ability) || !SkillSlotList::Replace(WeaponEntry.SkillPicks, Slot, Ability))
     {
         return false;
     }
@@ -393,3 +429,5 @@ void FWeaponLoadoutEntry::InitializeFromWeapon()
     // Preset abilities are merged in at query time by GetAllAbilities().
     AssignedAbilities.Empty();
 }
+
+#undef LOCTEXT_NAMESPACE
