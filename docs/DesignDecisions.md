@@ -1036,6 +1036,15 @@ The queue of questions only Crown can answer.
 - **Begin starts the game in place:** everything in memory goes back to a new game's, the party is the picked lord alone, the slot is written with it, and the hub opens with the player as the picked character. The title's New Game opens the screen with no save too (nothing to lose there).
 - **Left out:** the body previews (grey boxes until an editor step), the mouse, and the heading and opening (Crown's; "placeholder heading" stays).
 
+### Q-477 — Weapon sets: what the first code part decides
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-477) · **Blocks:** —
+**Question:** D-209 to D-211 set the sets' rules. Four smaller points the code needs before the screen (B-476) and the editor step (B-478) land.
+**Answer**, by the reference-backed default (Crown may change any):
+- **A new weapon is `SingleOnly` until the editor step sets it** (`EWeaponHandling`), so nothing pairs by accident before B-478 marks the swords and daggers that may.
+- **A pair's weapon Power is the main hand's**; the off hand adds its stat and resistance lines (D-210 "both weapons' stats"). Monster Hunter's Dual Blades carry one attack value for the pair, and players read it at a glance; adding two Powers would double a pair's base damage over a two-handed weapon.
+- **The sockets are the main hand's**: an off hand's own crystal or stone is not read (D-210: the sockets belong to the entry). An off hand that is no longer owned leaves its main hand alone; a main hand that goes takes the set with it.
+- **A bad pair is cleared to its main hand alone** by the loadout check (a sword with a dagger, a single-only weapon, a pair on a Resonator or Refractor). A dual-only weapon on its own is dropped like an unowned one (D-116 refills the primary).
+
 ### Q-456d — The Spiritualist's tabs: one piece or everything, whose curses, Merge's layout
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-456d, D-193) · **Blocks:** —
 **Question:** the approved mockups for Repair, Curses and Merge differ from the code in four places. (1) Repair shows "A Repair this" and "X Repair all", but the paid repair is all or nothing (ER-37). (2) Repair lists unworn pieces with "—". (3) Curses says "Sera holds it", but curses are held by the player, not by one character. (4) Merge has two columns (the crystal, then the tier to make).
