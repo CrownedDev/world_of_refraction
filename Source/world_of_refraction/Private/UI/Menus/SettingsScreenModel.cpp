@@ -3,6 +3,7 @@
 #include "UI/Menus/SettingsScreenModel.h"
 
 #include "Combat/Camera/CombatCameraTypes.h"
+#include "Combat/CombatOrchestrator.h"
 #include "UI/Settings/TextSizeSetting.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -108,8 +109,13 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 						  LOCTEXT("CornerHintsExplain", "Shows which button does what, in the corner of the screen.")));
 		Rows.Add(NotBuilt(ESettingId::BossCinematics, LOCTEXT("BossCinematics", "Boss cinematics"),
 						  LOCTEXT("BossCinematicsExplain", "Plays the short scene when a boss appears or changes phase. They can always be skipped.")));
-		Rows.Add(NotBuilt(ESettingId::AIFinishesTurn, LOCTEXT("AIFinishesTurn", "AI finishes my turn when I idle"),
-						  LOCTEXT("AIFinishesTurnExplain", "If you don't act for a while, the AI plays the rest of your turn.")));
+		FSettingsRow Idle; // B-453e (D-190)
+		Idle.Id = ESettingId::AIFinishesTurn;
+		Idle.Label = LOCTEXT("AIFinishesTurn", "AI finishes my turn when I idle");
+		Idle.Value = OnOff(Save && Save->IsAIFinishesIdleTurnOn());
+		Idle.Explanation = FText::Format(LOCTEXT("AIFinishesTurnExplain", "If you don't act for {0} seconds, the AI plays the rest of your turn. Your next turn is yours again."),
+										 FText::AsNumber(FMath::RoundToInt32(ACombatOrchestrator::GetIdleTurnSeconds())));
+		Rows.Add(Idle);
 		Rows.Add(NotBuilt(ESettingId::TutorialTips, LOCTEXT("TutorialTips", "Tutorial tips"),
 						  LOCTEXT("TutorialTipsExplain", "Short tips the first time something new comes up.")));
 	}
@@ -220,6 +226,9 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 		return true;
 	case ESettingId::FightCameraMovement: // B-453b: the next fight reads it (UCombatCameraDirector::BeginCombat)
 		Save->SetFightCameraMovementOff(!Save->IsFightCameraMovementOff());
+		return true;
+	case ESettingId::AIFinishesTurn: // B-453e: the next player turn reads it
+		Save->SetAIFinishesIdleTurnOn(!Save->IsAIFinishesIdleTurnOn());
 		return true;
 	case ESettingId::TextSize: // B-453d: Normal, Large, Larger, wrapping either way; applied at once
 	{
