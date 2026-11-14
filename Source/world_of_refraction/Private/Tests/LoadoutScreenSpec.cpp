@@ -45,7 +45,21 @@ BEGIN_DEFINE_SPEC(FLoadoutScreenSpec, "WoR.UI.LoadoutScreen", EAutomationTestFla
 		Data->WieldMode = Wield;
 		FWeaponLoadoutEntry Entry;
 		Entry.WeaponEntry.Weapon = Data;
+		Entry.WeaponEntry.PersistentID = FGuid::NewGuid(); // owned (B-440b's picker skips pieces without one)
 		return Entry;
+	}
+
+	static FRingLoadoutEntry Adapter()
+	{
+		FRingLoadoutEntry Entry;
+		Entry.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+		Entry.RingEntry.PersistentID = FGuid::NewGuid();
+		return Entry;
+	}
+
+	static const FLoadoutScreenRow *FindRow(const FLoadoutScreenPage &Page, ELoadoutScreenRowKind Kind)
+	{
+		return Page.Rows.FindByPredicate([Kind](const FLoadoutScreenRow &Row) { return Row.Kind == Kind; });
 	}
 
 	/** A Generic with two weapons, the first in hand. */
@@ -112,7 +126,7 @@ void FLoadoutScreenSpec::Define()
 		Loadout.SecondarySlotType = ESecondarySlotType::None;
 		Loadout.SecondaryWeapon = FWeaponLoadoutEntry();
 		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
-		if (TestEqual(TEXT("one weapon row"), Page.FirstApparelRow, 1))
+		if (TestEqual(TEXT("one weapon row, then the free weapon place (B-440b)"), Page.FirstApparelRow, 2))
 		{
 			TestFalse(TEXT("no ACTIVE mark"), Page.Rows[LOADOUT_SCREEN_TEST_FIRST].bActive);
 			TestTrue(TEXT("no two-weapon note"), Page.Rows[LOADOUT_SCREEN_TEST_FIRST].Note.IsEmpty());
@@ -132,7 +146,7 @@ void FLoadoutScreenSpec::Define()
 			Loadout.RingLoadout.Add(Adapter);
 		}
 		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Resonator);
-		if (!TestEqual(TEXT("a weapon and two adapters"), Page.FirstApparelRow, 3))
+		if (!TestEqual(TEXT("a weapon, two adapters and the free adapter place (B-440b)"), Page.FirstApparelRow, 4))
 		{
 			return;
 		}
@@ -148,7 +162,7 @@ void FLoadoutScreenSpec::Define()
 		FCombatLoadout Loadout;
 		Loadout.PrimarySlotType = EPrimarySlotType::Evolution; // no item: a stale seat still takes its budget
 		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
-		if (TestEqual(TEXT("the seat row"), Page.FirstApparelRow, 1))
+		if (TestEqual(TEXT("the seat row, then the free weapon place (B-440b)"), Page.FirstApparelRow, 2))
 		{
 			TestTrue(TEXT("an evolution seat"), Page.Rows[LOADOUT_SCREEN_TEST_FIRST].Kind == ELoadoutScreenRowKind::EvolutionSeat);
 			TestFalse(TEXT("named even when the item is missing"), Page.Rows[LOADOUT_SCREEN_TEST_FIRST].Name.IsEmpty());
@@ -228,6 +242,118 @@ void FLoadoutScreenSpec::Define()
 		const FString Title = WoRLoadoutScreen::FormatLoadoutTitle(TEXT("Bruiser"), 2, 5).ToString();
 		TestTrue(TEXT("name"), Title.Contains(TEXT("Bruiser")));
 		TestTrue(TEXT("place"), Title.Contains(TEXT("2")) && Title.Contains(TEXT("5")));
+	});
+
+	It("gives each gear row its place, and each free place a row (B-440b)", [this]()
+	{
+		FCombatLoadout Generic = TwoWeapons();
+		Generic.SecondarySlotType = ESecondarySlotType::None;
+		Generic.SecondaryWeapon = FWeaponLoadoutEntry();
+		const FLoadoutScreenPage One = WoRLoadoutScreen::BuildGearPage(Generic, ECharacterClass::Generic);
+		if (TestTrue(TEXT("a weapon and a free place"), One.Rows.Num() > 1))
+		{
+			TestTrue(TEXT("the weapon is the primary"), One.Rows[0].Place == ELoadoutScreenPlace::Primary);
+			TestEqual(TEXT("its owned piece"), One.Rows[0].GearID, Generic.PrimaryWeapon.WeaponEntry.PersistentID);
+			TestTrue(TEXT("then the free second weapon"), One.Rows[1].Kind == ELoadoutScreenRowKind::EmptyGear && One.Rows[1].Place == ELoadoutScreenPlace::Secondary);
+			TestFalse(TEXT("a free place takes no budget"), One.Rows[1].bCountsToBudget);
+		}
+		TestNull(TEXT("two weapons: no free place"), FindRow(WoRLoadoutScreen::BuildGearPage(TwoWeapons(), ECharacterClass::Generic), ELoadoutScreenRowKind::EmptyGear));
+
+		FCombatLoadout Resonator;
+		Resonator.PrimarySlotType = EPrimarySlotType::Weapon;
+		Resonator.PrimaryWeapon = Weapon(EWeaponType::Staff);
+		Resonator.RingLoadout = {Adapter(), Adapter()};
+		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Resonator, ECharacterClass::Resonator);
+		if (TestEqual(TEXT("weapon, two adapters, a free adapter"), Page.FirstApparelRow, 4))
+		{
+			TestTrue(TEXT("the second adapter's place"), Page.Rows[2].Place == ELoadoutScreenPlace::Adapter && Page.Rows[2].AdapterIndex == 1);
+			TestTrue(TEXT("a new adapter"), Page.Rows[3].Place == ELoadoutScreenPlace::Adapter && Page.Rows[3].AdapterIndex == INDEX_NONE);
+		}
+	});
+
+	It("offers the owned gear a place takes, with the budget after it, and keeps refused lines (B-440b)", [this]()
+	{
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Evolution; // the seat: 3 of the Generic's 5
+		const FLoadoutScreenPage Before = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
+		const FLoadoutScreenRow *Free = FindRow(Before, ELoadoutScreenRowKind::EmptyGear);
+		if (!TestNotNull(TEXT("the free weapon place"), Free))
+		{
+			return;
+		}
+		const FWeaponInventoryEntry Bare = Weapon(EWeaponType::Sword).WeaponEntry;
+		FWeaponInventoryEntry Evolved = Weapon(EWeaponType::Hammer).WeaponEntry;
+		Evolved.AttachedItem.Kind = EAttachedItemKind::Evolution;
+		const FWeaponInventoryEntry Worn = Weapon(EWeaponType::Spear).WeaponEntry;
+		const FRingInventoryEntry Ring = Adapter().RingEntry;
+		const TArray<FLoadoutScreenChoice> Choices =
+			WoRLoadoutScreen::BuildGearChoices(Loadout, ECharacterClass::Generic, *Free, {Bare, Evolved, Worn}, {Ring}, {Worn.PersistentID});
+		if (!TestEqual(TEXT("the three weapons; a second weapon place takes no adapter"), Choices.Num(), 3))
+		{
+			return;
+		}
+		TestEqual(TEXT("bare: seat 3 + weapon 1"), Choices[0].NewSpent, LoadoutConstants::EVOLUTION_ALONE_SLOT_COST + LoadoutConstants::WEAPON_FRAME_COST);
+		TestTrue(TEXT("it fits"), Choices[0].Refusal.IsEmpty());
+		TestTrue(TEXT("an evolved weapon is over the budget"), Choices[1].NewSpent > Before.Budget && !Choices[1].Refusal.IsEmpty());
+		TestFalse(TEXT("another member wears the third"), Choices[2].Refusal.IsEmpty());
+	});
+
+	It("puts the other weapon in hand, swaps a piece in, and takes one off but never the last primary (B-440b)", [this]()
+	{
+		FCombatLoadout Loadout = TwoWeapons();
+		const FGuid Hammer = Loadout.SecondaryWeapon.WeaponEntry.PersistentID;
+		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
+		const FWeaponInventoryEntry Spare = Weapon(EWeaponType::Spear).WeaponEntry;
+		const TArray<FLoadoutScreenChoice> Choices = WoRLoadoutScreen::BuildGearChoices(Loadout, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_SECOND],
+																					   {Loadout.PrimaryWeapon.WeaponEntry, Loadout.SecondaryWeapon.WeaponEntry, Spare}, {}, {});
+		if (!TestEqual(TEXT("put in hand, then the spare (the two worn ones aren't offered)"), Choices.Num(), 2))
+		{
+			return;
+		}
+		TestTrue(TEXT("put in hand first"), Choices[0].bMakeActive);
+		FCombatLoadout InHand = Loadout;
+		TestTrue(TEXT("put in hand"), WoRLoadoutScreen::PutGearChoice(InHand, Page.Rows[LOADOUT_SCREEN_TEST_SECOND], Choices[0]));
+		TestTrue(TEXT("the hammer is in hand"), WoRLoadoutScreen::BuildGearPage(InHand, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_SECOND].bActive);
+
+		FCombatLoadout Swapped = Loadout;
+		TestTrue(TEXT("swapped"), WoRLoadoutScreen::PutGearChoice(Swapped, Page.Rows[LOADOUT_SCREEN_TEST_SECOND], Choices[1]));
+		TestEqual(TEXT("the spare is the second weapon"), Swapped.SecondaryWeapon.WeaponEntry.PersistentID, Spare.PersistentID);
+
+		FText Refusal;
+		FCombatLoadout Off = Loadout;
+		TestTrue(TEXT("the primary comes off"), WoRLoadoutScreen::TakeOffGear(Off, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_FIRST], Refusal));
+		TestEqual(TEXT("the hammer moved up into it (D-116)"), Off.PrimaryWeapon.WeaponEntry.PersistentID, Hammer);
+		TestTrue(TEXT("no second weapon"), Off.SecondarySlotType == ESecondarySlotType::None);
+		const FLoadoutScreenRow Last = WoRLoadoutScreen::BuildGearPage(Off, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_FIRST];
+		TestFalse(TEXT("the last primary stays"), WoRLoadoutScreen::TakeOffGear(Off, ECharacterClass::Generic, Last, Refusal));
+		TestFalse(TEXT("with the reason"), Refusal.IsEmpty());
+		TestEqual(TEXT("unchanged"), Off.PrimaryWeapon.WeaponEntry.PersistentID, Hammer);
+	});
+
+	It("adds a Resonator's adapter in the free place and takes one off (B-440b)", [this]()
+	{
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon = Weapon(EWeaponType::Staff);
+		Loadout.RingLoadout = {Adapter()};
+		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Resonator);
+		const FLoadoutScreenRow *Free = FindRow(Page, ELoadoutScreenRowKind::EmptyGear);
+		const FRingInventoryEntry Spare = Adapter().RingEntry;
+		const TArray<FLoadoutScreenChoice> Choices =
+			Free ? WoRLoadoutScreen::BuildGearChoices(Loadout, ECharacterClass::Resonator, *Free, {Weapon(EWeaponType::Sword).WeaponEntry}, {Spare}, {})
+				 : TArray<FLoadoutScreenChoice>();
+		if (!TestEqual(TEXT("only the adapter: an adapter place takes no weapon"), Choices.Num(), 1))
+		{
+			return;
+		}
+		FCombatLoadout Added = Loadout;
+		TestTrue(TEXT("added"), WoRLoadoutScreen::PutGearChoice(Added, *Free, Choices[0]));
+		TestEqual(TEXT("two adapters"), Added.RingLoadout.Num(), 2);
+
+		FText Refusal;
+		TestTrue(TEXT("the first adapter comes off"), WoRLoadoutScreen::TakeOffGear(Added, ECharacterClass::Resonator, Page.Rows[LOADOUT_SCREEN_TEST_SECOND], Refusal));
+		TestEqual(TEXT("the spare stays"), Added.RingLoadout.Num() == 1 ? Added.RingLoadout[0].RingEntry.PersistentID : FGuid(), Spare.PersistentID);
+		TestFalse(TEXT("a free place has nothing to take off"), WoRLoadoutScreen::TakeOffGear(Added, ECharacterClass::Resonator, *Free, Refusal));
 	});
 }
 

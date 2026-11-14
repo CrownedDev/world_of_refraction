@@ -2,18 +2,23 @@
 // B-440a (D-181, D-180, UIScreens #2, mockups screen_mockups/menus/loadout/): what the loadout screen's gear page
 // shows, with no widget in it, so the specs read it headless. ULoadoutScreenWidget draws it.
 //
-// Read only for now: changing gear, sockets, skills and saved loadouts are B-440b to B-440e.
+// B-440b: a gear row's place takes another owned weapon or adapter (BuildGearChoices, ApplyGearChoice), or is emptied
+// (UnequipRow). Sockets, skills and saved loadouts are B-440c to B-440e.
 // Debug: wor.UI.PrintLoadout logs GetLoadoutScreenString (every party member's gear page).
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Character/ECharacterClass.h"
+#include "Loadout/Entries/FRingLoadoutEntry.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Skills/Definitions/ESpellElement.h"
 
 class UWorld;
 struct FCombatLoadout;
 struct FLoadoutSlot;
+struct FRingInventoryEntry;
+struct FWeaponInventoryEntry;
 
 enum class ELoadoutScreenRowKind : uint8
 {
@@ -22,7 +27,21 @@ enum class ELoadoutScreenRowKind : uint8
 	/** An evolution on its own in the character's slot. */
 	EvolutionSeat,
 	Apparel,
-	EmptyApparel
+	EmptyApparel,
+	/** A free weapon or adapter place (B-440b): A fills it. */
+	EmptyGear
+};
+
+/** The loadout place a gear row fills (B-440b): A Change and X Unequip act on it. */
+enum class ELoadoutScreenPlace : uint8
+{
+	None,
+	/** The weapon, adapter or evolution every loadout keeps (D-116). */
+	Primary,
+	/** A Generic's second weapon. */
+	Secondary,
+	/** One of a Resonator's adapters (AdapterIndex), or a new one (INDEX_NONE). */
+	Adapter
 };
 
 /** One socket on a gear row: what it takes, and what sits in it. */
@@ -61,6 +80,26 @@ struct FLoadoutScreenRow
 	TArray<FLoadoutScreenDetail> Details;
 	/** A rule worth saying on this row; may be empty. */
 	FText Note;
+	ELoadoutScreenPlace Place = ELoadoutScreenPlace::None;
+	int32 AdapterIndex = INDEX_NONE;
+	/** The owned piece in the place; invalid for an evolution seat or an empty place. */
+	FGuid GearID;
+};
+
+/** One line of the gear picker (B-440b): an owned piece for the row's place, or "put in hand". */
+struct FLoadoutScreenChoice
+{
+	/** The piece as a gear row describes it. */
+	FLoadoutScreenRow Row;
+	/** Hold the row's own weapon instead of the other (a Generic's two weapons). */
+	bool bMakeActive = false;
+	/** The piece to put in: one of the two is valid. */
+	FWeaponLoadoutEntry Weapon;
+	FRingLoadoutEntry Adapter;
+	/** The budget spent after the change, shown before it is confirmed. */
+	int32 NewSpent = 0;
+	/** Why it can't go in; empty when it can. The line stays in the picker. */
+	FText Refusal;
 };
 
 struct FLoadoutScreenPage
@@ -98,6 +137,31 @@ namespace WoRLoadoutScreen
 	/** One weapon's or adapter's row (name, tier, kind line, sockets, details), as the gear page lists it. The
 	 *  inventory screen describes an owned piece with it (B-441). */
 	WORLD_OF_REFRACTION_API FLoadoutScreenRow BuildGearRow(const FLoadoutSlot &Slot);
+
+	/** B-440b: what can take Row's place: "put in hand" first when Row is the weapon not in hand, then every owned
+	 *  weapon or adapter the place takes that isn't in this loadout, each with the budget after it. Refused lines stay:
+	 *  over the budget, or WornElsewhere (another member wears it). */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenChoice> BuildGearChoices(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row,
+																	   const TArray<FWeaponInventoryEntry> &OwnedWeapons, const TArray<FRingInventoryEntry> &OwnedAdapters,
+																	   const TSet<FGuid> &WornElsewhere);
+
+	/** Puts Choice in Row's place of Loadout (or Row's weapon in hand). False when the place can't take it. */
+	WORLD_OF_REFRACTION_API bool PutGearChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, const FLoadoutScreenChoice &Choice);
+
+	/** Empties Row's place of Loadout. The primary can't be empty (D-116): a Generic's second weapon moves up into it,
+	 *  otherwise it is refused with the reason. */
+	WORLD_OF_REFRACTION_API bool TakeOffGear(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, FText &OutRefusal);
+
+	/** The member's choices for Row, read from its spawned inventory. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenChoice> BuildGearChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row);
+
+	/** Applies Choice to the member's active loadout through ULoadoutComponent::TryChangeGear. Empty on success; else the
+	 *  reason, for the player. */
+	WORLD_OF_REFRACTION_API FText ApplyGearChoice(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row,
+												 const FLoadoutScreenChoice &Choice);
+
+	/** X Unequip on the member's active loadout. Empty on success; else the reason. */
+	WORLD_OF_REFRACTION_API FText UnequipRow(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row);
 
 	/** "Bruiser (2 of 5)". */
 	WORLD_OF_REFRACTION_API FText FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count);
