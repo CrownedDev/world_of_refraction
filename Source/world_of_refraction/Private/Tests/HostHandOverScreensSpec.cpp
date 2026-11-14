@@ -36,6 +36,8 @@ void FHostHandOverScreensSpec::Define()
 		const FHostLostCard Later = WoRHostHandOverScreens::BuildCard(EHostHandOverStep::Rejoining, true, false, HANDOVER_TEST_SECOND_SEARCH);
 		TestEqual(TEXT("a planned hand-over's title"), First.Title.ToString(), FString(TEXT("Handing over host")));
 		TestTrue(TEXT("a guest can stop waiting"), First.bCanStop);
+		TestFalse(TEXT("the planned old host can't, until it has left"),
+				  WoRHostHandOverScreens::BuildCard(EHostHandOverStep::Rejoining, true, false, 0, /*bLeavePending=*/true).bCanStop);
 		TestTrue(TEXT("more pips once searching"), Later.LitPips > First.LitPips && Later.LitPips < WoRHostHandOverScreens::CARD_PIPS);
 
 		const FHostLostCard GaveUp = WoRHostHandOverScreens::BuildCard(EHostHandOverStep::GaveUp, false, false, 0);
