@@ -292,6 +292,14 @@ TArray<FWoRKeyHint> WoRKeyHints::ParseHints(const FText &Pattern, bool bGamepad,
 		{
 			const FString Label = Gap == INDEX_NONE ? FString() : Part.Mid(Gap).TrimStart();
 			Hint.Label = Label.IsEmpty() ? FText::GetEmpty() : Format(FText::FromString(Label), bGamepad, Extra);
+			// A hold ("Hold: start over") can't be done by a click, which is one press: its caps click nothing.
+			if (Label.StartsWith(LOCTEXT("HoldLabelStart", "Hold").ToString()))
+			{
+				for (FWoRKeyCap &Cap : Hint.Caps)
+				{
+					Cap.ClickKey = EKeys::Invalid;
+				}
+			}
 		}
 		else
 		{
@@ -436,7 +444,10 @@ void UWoRKeyHintText::ClickKey(FKey Key)
 		UUserWidget *Screen = WeakThis.IsValid() ? WeakThis->GetTypedOuter<UUserWidget>() : nullptr;
 		if (Screen && FSlateApplication::IsInitialized())
 		{
-			Screen->SetKeyboardFocus(); // the key goes to the screen the hint is on
+			if (!Screen->HasAnyUserFocus() && !Screen->HasFocusedDescendants())
+			{
+				Screen->SetKeyboardFocus(); // the key goes to the screen the hint is on; a focused child keeps its focus
+			}
 			FSlateApplication &Slate = FSlateApplication::Get();
 			const FKeyEvent Press(Key, FModifierKeysState(), Slate.GetUserIndexForKeyboard(), /*bIsRepeat=*/false, 0, 0);
 			Slate.ProcessKeyDownEvent(Press);

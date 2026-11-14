@@ -103,6 +103,8 @@ void FKeyHintsSpec::Define()
 		const TArray<FWoRKeyHint> View = WoRKeyHints::ParseHints(FText::FromString(TEXT("{Toggle}  {ViewName}        Esc  Cancel")), false, Extra);
 		TestTrue(TEXT("the label's own value"), View.Num() == 2 && View[0].Label.ToString() == TEXT("Simple"));
 		TestTrue(TEXT("a typed key is a cap that clicks nothing"), View[1].Caps.Num() == 1 && !View[1].GetClickKey().IsValid());
+		const TArray<FWoRKeyHint> Hold = WoRKeyHints::ParseHints(FText::FromString(TEXT("{Confirm}  Hold: start over        {Back}  Cancel")), false);
+		TestTrue(TEXT("a hold can't be clicked; the hint beside it can"), Hold.Num() == 2 && !Hold[0].GetClickKey().IsValid() && Hold[1].GetClickKey() == EKeys::BackSpace);
 	});
 
 	It("draws a footer made by MakeHintBar as caps, and a key label too; a hint text stays text (B-483)", [this]()
