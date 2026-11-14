@@ -1201,7 +1201,7 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
     else if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         // Only an actor with no pouch (an enemy, an unbound test actor) still auto-equips its item slots: the
-        // enemies' own item list (Q-313b) is an editor move, so this stays until it lands (B-317).
+        // enemies' own item list (Q-313b) is an editor move, so this stays until it lands (B-317c).
         // Auto-equip refills item slots from the crystal inventory at combat
         // start when the loadout's flag is set. Pass the LIVE loadout element
         // (not a by-value accessor) so the Quantity writes persist.
