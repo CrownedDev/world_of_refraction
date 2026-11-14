@@ -35,6 +35,11 @@ public:
      *  this level comes back there, side by side (TrialReturn::GetReturnStand). */
     virtual void RestartPlayer(AController *NewPlayer) override;
 
+    /** B-469: the local leader's pawn stands for the party's first member: its CharacterData is that member's (a new
+     *  game's picked character), set before BeginPlay as the battle spawn does. Anyone else's pawn is the class
+     *  default's. */
+    virtual APawn *SpawnDefaultPawnAtTransform_Implementation(AController *NewPlayer, const FTransform &SpawnTransform) override;
+
 private:
     /** B-187d: this level's return stand, taken from the run by the first player restarted. */
     FTransform ReturnStand;

@@ -5,6 +5,9 @@
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Character/CharacterDataComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -65,4 +68,42 @@ void ATrialGameMode::RestartPlayer(AController *NewPlayer)
         return;
     }
     Super::RestartPlayer(NewPlayer);
+}
+
+APawn *ATrialGameMode::SpawnDefaultPawnAtTransform_Implementation(AController *NewPlayer, const FTransform &SpawnTransform)
+{
+    const UPartySessionSubsystem *PartySession = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+    const APlayerController *Player = Cast<APlayerController>(NewPlayer);
+    UClass *PawnClass = GetDefaultPawnClassForController(NewPlayer);
+    // The local player is the party's first member (a client's player is the host's remote controller here).
+    const bool bLocalLeader = Player && Player->IsLocalController() && Party && Party->Members.Num() > 0 &&
+                              (!Party->LeaderPlayer.IsValid() || Party->LeaderPlayer.Get() == Player->GetLocalPlayer());
+    UCharacterData *LeaderData = bLocalLeader ? Party->Members[0].CharacterData.Get() : nullptr;
+    if (!LeaderData || !PawnClass)
+    {
+        return Super::SpawnDefaultPawnAtTransform_Implementation(NewPlayer, SpawnTransform);
+    }
+
+    FActorSpawnParameters SpawnInfo;
+    SpawnInfo.Instigator = GetInstigator();
+    SpawnInfo.ObjectFlags |= RF_Transient; // as AGameModeBase's: a player pawn is never saved with the level
+    SpawnInfo.bDeferConstruction = true;
+    APawn *Pawn = GetWorld()->SpawnActor<APawn>(PawnClass, SpawnTransform, SpawnInfo);
+    if (!Pawn)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[TrialGameMode] Could not spawn %s for %s"), *PawnClass->GetName(), *GetNameSafe(NewPlayer));
+        return nullptr;
+    }
+    if (UCharacterDataComponent *CharComp = Pawn->FindComponentByClass<UCharacterDataComponent>())
+    {
+        if (CharComp->CharacterData != LeaderData)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[TrialGameMode] %s stands as the party leader %s (class default %s)"), *Pawn->GetName(),
+                   *LeaderData->GetName(), *GetNameSafe(CharComp->CharacterData));
+            CharComp->CharacterData = LeaderData;
+        }
+    }
+    Pawn->FinishSpawning(SpawnTransform);
+    return Pawn;
 }
