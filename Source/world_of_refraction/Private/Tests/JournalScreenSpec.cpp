@@ -19,6 +19,7 @@
 #include "Story/StoryLinesData.h"
 #include "UI/Menus/JournalScreenModel.h"
 #include "UI/Menus/JournalScreenWidget.h"
+#include "UI/WoRKeyHintText.h"
 #include "WoRTestWorld.h"
 
 namespace
@@ -447,11 +448,11 @@ void FJournalScreenSpec::Define()
 		Screen->MoveFilter(-1);
 		TestEqual(TEXT("back from All: Secret"), Screen->GetFilter(), static_cast<int32>(EJournalQuestFilter::Secret));
 		TestEqual(TEXT("one secret quest"), Screen->GetView().Rows.Num(), 1);
-		TestTrue(TEXT("the hint offers Show"), Screen->GetHints().ToString().Contains(TEXT("X  Show")));
+		TestTrue(TEXT("the hint offers Show"), WoRKeyHints::Format(Screen->GetHints(), true).ToString().Contains(TEXT("X  Show"))); // B-481: a key-hint pattern
 
 		Screen->PressToggle();
 		TestEqual(TEXT("X shows the focused one"), Screen->GetFocusedRow()->Title.ToString(), FString(TEXT("ScreenSecretSpec")));
-		TestTrue(TEXT("the hint flips to Hide"), Screen->GetHints().ToString().Contains(TEXT("X  Hide")));
+		TestTrue(TEXT("the hint flips to Hide"), WoRKeyHints::Format(Screen->GetHints(), true).ToString().Contains(TEXT("X  Hide")));
 		Screen->PressHideAll();
 		TestEqual(TEXT("Y hides it"), Screen->GetFocusedRow()->Title.ToString(), FString(TEXT("Secret Quest 1")));
 
