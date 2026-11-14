@@ -1095,6 +1095,7 @@ The queue of questions only Crown can answer.
 - **Innate spells is one entry, after the gear entries**, its slots the school rows on points (the mockup's `7_skills_refractor.png`). Persona 5 and Expedition 33 list a character's own skills after the equipped gear's.
 - **The character's evolution has no Skills entry:** it adds no skill slots (its passives show on the Weapons tab).
 - **LB / RB turn Weapons | Skills | Apparel in a ring** (RB right, LB left; Cosmetics joins later), the chips' order (B-482), as Elden Ring's and Expedition 33's bumper-paged menus wrap around. This changes B-440f's "either key turns" (two tabs).
+- **The Skills tab looks like the Weapons tab** (desktop, 2026-11-14): an entry's row keeps its weapon-type icon, socket badges and ACTIVE; "Skills by entry" sits above the list (the mockup's line; cells are the Weapons tab's); a skill in the box uses the B-487b header; the box follows the mouse in the slots and the picker (as B-484). One screen, one look, as Expedition 33's and Persona 5's menu tabs keep one row style.
 - **X switches a skill's full and short effect text, shared with the Weapons tab's view** (B-479c: the screen remembers the view); the box beside the list stands in for the mockup's open-in-place row (the B-479c layout).
 
 ### Q-476c — Loadout v2's Add gear window: where sockets live, Remove all gear, the remembered view

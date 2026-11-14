@@ -230,10 +230,12 @@ private:
 	/** B-484: the row's tag, in its own space at the right end: ACTIVE on the weapon in hand, EQUIPPED / PICKED in a
 	 *  slot's list. */
 	FText GetLineTag(int32 Line) const;
-	/** B-484: the line the details box shows in a list of pieces: the one under the mouse, else the focused one. */
+	/** B-484: the line the details box shows in a list of pieces: the one under the mouse, else the focused one.
+	 *  B-476d: a skill's slots and the picker follow the mouse the same way. */
 	int32 GetBoxLine() const
 	{
-		return (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems) && Items.IsValidIndex(HoveredLine) ? HoveredLine : Selected;
+		const bool bFollowsMouse = Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker;
+		return bFollowsMouse && HoveredLine >= 0 && HoveredLine < GetLineCount() ? HoveredLine : Selected;
 	}
 	/** B-484: one line of a slot's list as the box's details: that piece alone (WoRLoadoutV2::Build...Details). */
 	TArray<FLoadoutV2DetailLine> BuildItemDetails(const FLoadoutV2WindowItem &Item) const;
@@ -276,8 +278,6 @@ private:
 	 *  icons, socket badges and ACTIVE are drawn the same on both tabs. Null on any other line. */
 	const FLoadoutV2Entry *GetRowEntry(int32 Line) const;
 	void RefreshSkills();
-	/** The focused slot's Skills page row (rows and picker); null elsewhere. */
-	const FLoadoutScreenRow *GetFocusedSkillRow() const;
 	void PutPickedSkill();
 	/** Debug: the Skills tab as shown (WoRLoadoutV2Skills::GetSkillsString), logged when the tab opens. */
 	void LogSkillsTab() const;

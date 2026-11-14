@@ -241,6 +241,7 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 	if (Tab == ELoadoutV2Tab::Skills)
 	{
 		Mode = ELoadoutV2Mode::SkillEntries;
+		Selected = 0;
 	}
 	RefreshData();
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened: %s; characters: %s; tabs: %s"), *WoRLoadoutV2::GetWeaponsPageString(Page),
@@ -407,12 +408,6 @@ void ULoadoutV2ScreenWidget::LogSkillsTab() const
 	UE_LOG(LogWoRUI, Log, TEXT("%s"), *WoRLoadoutV2Skills::GetSkillsString(SkillsPage)); // B-476d debug: the tab as shown
 }
 
-const FLoadoutScreenRow *ULoadoutV2ScreenWidget::GetFocusedSkillRow() const
-{
-	const int32 Row = Mode == ELoadoutV2Mode::SkillRows ? Selected : Mode == ELoadoutV2Mode::SkillPicker ? SkillRowSelected : INDEX_NONE;
-	return SkillRows.IsValidIndex(Row) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Row]) : nullptr;
-}
-
 void ULoadoutV2ScreenWidget::RefreshDetails()
 {
 	Details.Reset();
@@ -442,7 +437,10 @@ void ULoadoutV2ScreenWidget::RefreshDetails()
 			}
 			return;
 		}
-		const FLoadoutScreenRow *Row = Mode == ELoadoutV2Mode::SkillPicker ? (SkillChoices.IsValidIndex(Selected) ? &SkillChoices[Selected].Row : nullptr) : GetFocusedSkillRow();
+		const int32 Line = GetBoxLine(); // the line under the mouse, else the focused one (as B-484's lists)
+		const FLoadoutScreenRow *Row = Mode == ELoadoutV2Mode::SkillPicker ? (SkillChoices.IsValidIndex(Line) ? &SkillChoices[Line].Row : nullptr)
+									 : SkillRows.IsValidIndex(Line)		   ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Line])
+																		   : nullptr;
 		if (Row)
 		{
 			Details = WoRLoadoutV2Skills::BuildSkillDetails(Row->Skill, bSimpleView, Row->KindLine);
