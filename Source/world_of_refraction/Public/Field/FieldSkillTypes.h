@@ -244,6 +244,21 @@ namespace FieldSkillRules
 	constexpr int32 FIELD_ATTACK_SOURCE_COUNT = 3;        // Innate, Weapon, Ring (EFieldSkillSource)
 	static_assert(static_cast<int32>(EFieldSkillSource::Ring) + 1 == FIELD_ATTACK_SOURCE_COUNT, "A new field source: update the count");
 
+	// ---- B-214h: evolutions (FieldAbilities choice 2; Q-214h; TODO: tune) ----
+
+	constexpr float EVOLUTION_SPRINT_BONUS_PERCENT = 15.0f;     // the default always-on bonus (+10-20%)
+	constexpr float EVOLUTION_FIELD_EP_DISCOUNT_PERCENT = 25.0f; // the default augment: field skills cost less EP
+	constexpr int32 MIN_FIELD_EP_COST = 1;
+
+	/** Sprint multiplier for an evolution's bonus percent (1 with none). */
+	WORLD_OF_REFRACTION_API float GetEvolutionSprintMultiplier(float BonusPercent);
+
+	/** A field EP cost after an evolution's discount, rounded, at least MIN_FIELD_EP_COST (a free cost stays free). */
+	WORLD_OF_REFRACTION_API int32 ApplyFieldEPDiscount(int32 BaseCost, float DiscountPercent);
+
+	/** Both sets of lifted limits together: a limit is lifted if either lifts it; extra ceilings add. */
+	WORLD_OF_REFRACTION_API FFieldFlightLimits CombineFlightLimits(const FFieldFlightLimits &A, const FFieldFlightLimits &B);
+
 	/** B-214g: the field attack counts as held after this long pressed (IA_Field_Attack: press, then release). */
 	constexpr double FIELD_ATTACK_HOLD_SECONDS = 0.4; // TODO: tune
 

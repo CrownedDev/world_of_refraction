@@ -13,6 +13,8 @@
 // B-214e (FieldMovementAdvanced.cpp): Teleport (Void), Phase step, Mark and recall, Super launch, Regroup.
 // B-214f (FieldMovementAttack.cpp): the field attack: a swing ahead; hitting an encounter starts its fight with first
 // strike and the hit's buildup (element of the switchable attack source, the weapon's physical type, Ice held with Water).
+// B-214h: the evolution on the character's own slot adds an always-on sprint bonus and augments the field skill (cheaper
+// EP, flight limits it lifts).
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
 
 #pragma once
@@ -60,7 +62,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Field")
 	bool IsEnhancedSprintActive() const { return bEnhancedSprintActive; }
 
-	/** FieldSkillRules::NO_SPRINT_BOOST unless Enhanced Sprint is on. */
+	/** Enhanced Sprint's element multiplier while on (else NO_SPRINT_BOOST), times the seated evolution's always-on
+	 *  bonus (B-214h). */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	float GetSprintSpeedMultiplier() const;
 
@@ -169,6 +172,26 @@ public:
 	/** What a field hit now would carry (FieldSkillRules::MakeFieldStrike). */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	FFieldStrike GetFieldStrike(bool bHeld) const;
+
+	// ---- B-214h: evolutions ----
+
+	/** The evolution on the character's own slot, unless broken (null with none). */
+	const class UEvolutionItemData *GetSeatedEvolution() const;
+
+	/** A field EP cost after the seated evolution's discount (FieldSkillRules::ApplyFieldEPDiscount). */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	int32 GetFieldEPCost(int32 BaseCost) const;
+
+	/** The EP to show a start check for a BaseCost move: enough when the discounted cost is affordable (the checks
+	 *  compare against the full cost), else the real EP. */
+	int32 GetEPForCostCheck(int32 BaseCost) const;
+
+	/** " | evolution <name> (sprint +15%, field EP -25%)" for the debug line. */
+	FString GetEvolutionStateString() const;
+
+	/** Flight's limits: the ones effects set (SetFlightLimits) and the seated evolution's, combined. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldFlightLimits GetEffectiveFlightLimits() const;
 
 	/** Server: copies the party record's choice into the replicated mirror (after the leader is rebound). */
 	void RefreshFromRecord();
@@ -317,4 +340,5 @@ private:
 	double LastDashTime = -FieldSkillRules::DASH_COOLDOWN_SECONDS;
 	FTimerHandle DrainTimer;
 	mutable TWeakObjectPtr<UCharacterDataComponent> CachedCharacterData;
+	mutable TWeakObjectPtr<class ULoadoutComponent> CachedLoadout; // B-214h: the seated evolution's lookup
 };
