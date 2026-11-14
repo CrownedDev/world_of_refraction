@@ -1088,7 +1088,15 @@ The queue of questions only Crown can answer.
 - **Begin starts the game in place:** everything in memory goes back to a new game's, the party is the picked lord alone, the slot is written with it, and the hub opens with the player as the picked character. The title's New Game opens the screen with no save too (nothing to lose there).
 - **Left out:** the body previews (grey boxes until an editor step), the mouse, and the heading and opening (Crown's; "placeholder heading" stays).
 
-### Q-476d — The Skills tab: where Innate spells sit, the evolution, the tab order and X
+### Q-476e — Compare for adapters, evolutions, sockets and apparel: what it shows
+**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476e, UIScreens #2-3) · **Blocks:** —
+**Question:** the mockup's Compare is drawn for two weapons (power, speed, element, cells, passive, built-ins). What does X Compare show for the other pieces?
+**Answer**, by the reference-backed default (Crown may change any):
+- **The EQUIPPED piece beside the highlighted one, each in the words its list line already uses** (an adapter's or crystal's effect line, an evolution's name and element, an apparel piece's HP / Defence / Amp), and for a crystal, stone or evolution the **cells after** the pick (D-206). Diablo IV and Elden Ring set the worn item's lines beside the highlighted one in the same words the list uses.
+- **The equipped line itself says it is the one equipped**; an empty place says "Nothing equipped here".
+- Weapons keep their own Compare (power, cells change, built-ins gained and lost).
+
+— The Skills tab: where Innate spells sit, the evolution, the tab order and X
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476d, UIScreens #2-3) · **Blocks:** —
 **Question:** the mockup shows a Refractor's Innate spells as an entry and the tabs Weapons | Skills | Apparel | Cosmetics on LB / RB; where does Innate spells sit, does the character's evolution get an entry, how do LB / RB turn now that there are three built tabs, and what does X do on the Skills tab?
 **Answer**, by the reference-backed default (Crown may change any):
