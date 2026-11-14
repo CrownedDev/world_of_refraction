@@ -100,7 +100,7 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		UVerticalBox *Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Rows"));
 		Overlay->SetContent(Box);
 
-		RestSpotStyle::AddText(WidgetTree, Box)->SetText(LOCTEXT("Rested", "Rest spot: the party is restored."));
+		RestSpotStyle::AddText(WidgetTree, Box)->SetText(LOCTEXT("Rested", "The party is restored."));
 		PayoutText = RestSpotStyle::AddText(WidgetTree, Box);
 		UButton *LevelUpButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("LevelUp", "Level up"));
 		LevelUpButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLevelUpClicked); // B-363
@@ -114,18 +114,18 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
 		VoteText = RestSpotStyle::AddText(WidgetTree, Box);
-		VoteYesButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("VoteYes", "Vote yes: revive the mini-boss"));
+		VoteYesButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("VoteYes", "Yes"));
 		VoteYesButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleVoteYesClicked);
-		VoteNoButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("VoteNo", "Vote no"));
+		VoteNoButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("VoteNo", "No"));
 		VoteNoButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleVoteNoClicked);
-		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host (the next player hosts; you rejoin)"));
+		HandOverButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("HandOver", "Hand over host"));
 		HandOverButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleHandOverClicked);
-		InviteButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Invite", "Invite and seat friends"));
+		InviteButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Invite", "Invite"));
 		InviteButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleInviteClicked);
 		LeaveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Extract", "Extract")); // D-186
 		LeaveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleLeaveClicked);
 		ConfirmText = RestSpotStyle::AddText(WidgetTree, Box);
-		ConfirmButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("ConfirmLeave", "Confirm: leave"));
+		ConfirmButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("ConfirmLeave", "Leave"));
 		ConfirmButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleConfirmLeaveClicked);
 		RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &URestSpotWidget::HandleCloseClicked);
 	}
@@ -180,7 +180,7 @@ void URestSpotWidget::Refresh()
 	}
 	if (UTextBlock *LeaveLabel = LeaveButton ? Cast<UTextBlock>(LeaveButton->GetChildAt(0)) : nullptr)
 	{
-		LeaveLabel->SetText(bOnClient ? LOCTEXT("LeaveSession", "Leave the session") : LOCTEXT("Extract", "Extract"));
+		LeaveLabel->SetText(bOnClient ? LOCTEXT("LeaveSession", "Leave") : LOCTEXT("Extract", "Extract"));
 	}
 	if (LeaveButton)
 	{
@@ -250,7 +250,7 @@ void URestSpotWidget::Refresh()
 	const int32 RevivalNumber = bOnClient ? HostRevivalNumber : WoRRestSpot::GetNextRevivalNumber(GetWorld());
 	if (ReviveLabel && bCanRevive)
 	{
-		ReviveLabel->SetText(FText::Format(LOCTEXT("ReviveCount", "Revive the mini-boss: one tier stronger, better drops ({0} of {1})"),
+		ReviveLabel->SetText(FText::Format(LOCTEXT("ReviveCount", "Revive the mini-boss ({0} of {1})"),
 										   FText::AsNumber(RevivalNumber), FText::AsNumber(MiniBossRevival::MAX_REVIVALS)));
 	}
 }

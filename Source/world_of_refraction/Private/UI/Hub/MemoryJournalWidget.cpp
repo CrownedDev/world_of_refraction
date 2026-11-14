@@ -230,7 +230,7 @@ void UMemoryJournalWidget::ShowJournalPage()
 	const UMemoryJournalSubsystem *Journal = GetJournal();
 	if (!Journal)
 	{
-		SetPage(LOCTEXT("JournalTitle", "Memory journal"), LOCTEXT("NoJournal", "(no journal)"));
+		SetPage(LOCTEXT("JournalTitle", "Journal"), LOCTEXT("NoJournal", "(no journal)"));
 		return;
 	}
 	TArray<FText> Lines;
