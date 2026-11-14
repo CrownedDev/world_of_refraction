@@ -323,8 +323,8 @@ int32 ULoadoutComponent::CreateNewLoadout(const FString &LoadoutName)
     }
 
     FCombatLoadout NewLoadout;
-    NewLoadout.LoadoutName = LoadoutName;
     NewLoadout.InitializeForClass(GetCharacterClass());
+    NewLoadout.LoadoutName = LoadoutName; // after: InitializeForClass clears the name too (B-440e: a new one kept "Default Loadout")
 
     int32 NewIndex = Inv->SavedLoadouts.Add(NewLoadout);
     return NewIndex;

@@ -149,7 +149,7 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("LoadoutNameBox"));
 		NameBox->SetHintText(LOCTEXT("NameHint", "Loadout name"));
 		NameBox->OnTextCommitted.AddDynamic(this, &ULoadoutV2ScreenWidget::HandleNameCommitted);
-		AddToColumn(Main, MakeSized(WidgetTree, ListWidth, 0.0f, NameBox), FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		AddToColumn(Main, NameBox, FMargin(0.0f, 0.0f, 0.0f, LineGap)); // no wrapper: collapsed, it leaves no gap
 		SetShown(NameBox, false);
 
 		// B-476c (UIScreens B-479c): the list on the left, the box on the right.
@@ -226,11 +226,13 @@ void ULoadoutV2ScreenWidget::RefreshData()
 	Members = WoRLoadoutScreen::BuildMembers(GetWorld());
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	Page = FLoadoutV2WeaponsPage();
+	LoadoutName = FText::GetEmpty();
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
 	const FCombatLoadout *Active = nullptr;
 	if (FindActive(Loadout, Inventory, Active))
 	{
+		LoadoutName = FText::FromString(Active->LoadoutName);
 		Page = WoRLoadoutV2::BuildWeaponsPage(*Active, Members[MemberIndex].Class);
 		if (Mode == ELoadoutV2Mode::WindowKind)
 		{
@@ -250,6 +252,8 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		Kinds.Reset();
 		Items.Reset();
 		Saved = FLoadoutSavedList();
+		bRenaming = false; // the member left: no name to keep, and the keys go back to the screen
+		WoRMenuStyle::SetShown(NameBox, false);
 		if (IsAdding() || Mode == ELoadoutV2Mode::Saved)
 		{
 			Mode = ELoadoutV2Mode::List; // the member left: nothing to edit
@@ -507,7 +511,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		return; // headless: no tree
 	}
 	MemberText->SetText(Members.IsValidIndex(MemberIndex) ? Members[MemberIndex].Name : FText::GetEmpty());
-	CellsText->SetText(Page.CellsLine);
+	CellsText->SetText(LoadoutName.IsEmpty() ? Page.CellsLine : FText::Format(LOCTEXT("NameAndCells", "{0}     {1}"), LoadoutName, Page.CellsLine));
 	TitleText->SetText(GetTitle());
 	SetShown(TitleText, Mode != ELoadoutV2Mode::List);
 	const int32 Count = GetLineCount();
@@ -847,6 +851,7 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		return true;
 	case ELoadoutV2Mode::Saved:
 		Mode = ELoadoutV2Mode::Options; // one step back, on the Saved loadouts line
+		// The cast: a C array's index type isn't int32.
 		Selected = FMath::Max(0, static_cast<int32>(Algo::IndexOf(LoadoutV2ScreenStyle::OptionOrder, ELoadoutV2Option::SavedLoadouts)));
 		RefreshView();
 		return true;

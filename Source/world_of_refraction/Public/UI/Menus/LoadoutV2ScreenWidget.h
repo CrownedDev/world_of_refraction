@@ -193,6 +193,8 @@ private:
 	/** The list's line when Options or the window opened (back to it after). */
 	int32 ListSelected = 0;
 	FText Message;
+	/** B-440e: the loadout in use, shown top right before the cells (UIScreens #2). */
+	FText LoadoutName;
 
 	TArray<FLoadoutV2KindChoice> Kinds;
 	/** The window edits this entry (A Edit); a new entry when false. */
