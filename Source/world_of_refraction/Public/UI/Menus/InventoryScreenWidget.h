@@ -182,6 +182,9 @@ private:
 	TArray<TObjectPtr<UTextBlock>> DetailLabels;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> DetailValues;
+	// B-487b: a detail line's icon, in its label's place.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> DetailLineIcons;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailNote;
 	// B-487: the focused thing's icon before its name, its tier badge after it, and its effect's icon beside the note.

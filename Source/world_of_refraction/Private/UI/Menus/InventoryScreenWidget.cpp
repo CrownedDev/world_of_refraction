@@ -32,7 +32,6 @@ namespace InventoryScreenStyle
 	// B-487: icon sizes.
 	constexpr float TileIconSize = 72.0f;
 	constexpr float TileBadgeSize = 32.0f;
-	constexpr float DetailIconSize = 40.0f;
 	constexpr float DetailBadgeSize = 28.0f;
 	constexpr float PanelGap = 45.0f;
 	constexpr float PanelWidth = 753.0f;
@@ -166,21 +165,27 @@ void UInventoryScreenWidget::BuildTree()
 	UVerticalBox *PanelColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Panel->SetContent(PanelColumn);
 	DetailName = MakeText(WidgetTree, NameFontSize, TextColor, true);
-	DetailKindLine = MakeText(WidgetTree, LineFontSize, DimColor);
-	// B-487: the thing's icon before its name, its tier badge after it.
-	DetailIcon = MakeIcon(WidgetTree, DetailIconSize);
+	DetailKindLine = MakeText(WidgetTree, SmallFontSize, DimColor);
+	// B-487b: the header as in the loadout's box: a small quiet line (the thing's icon and kind), then its name and
+	// tier badge (B-487).
+	DetailIcon = MakeIcon(WidgetTree, DetailBadgeSize);
 	DetailTierBadge = MakeIcon(WidgetTree, DetailBadgeSize);
+	UHorizontalBox *KindRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	AddToRow(KindRow, DetailIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+	AddToRow(KindRow, DetailKindLine, FMargin(0.0f), VAlign_Center);
+	AddToColumn(PanelColumn, KindRow);
 	UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(NameRow, DetailIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f));
 	AddToRow(NameRow, DetailName);
 	AddToRow(NameRow, DetailTierBadge, FMargin(WordGap, 0.0f, 0.0f, 0.0f));
-	AddToColumn(PanelColumn, NameRow);
-	AddToColumn(PanelColumn, DetailKindLine, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	AddToColumn(PanelColumn, NameRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	for (int32 Index = 0; Index < MaxDetailLines; ++Index)
 	{
 		UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		DetailLabels.Add(MakeText(WidgetTree, LineFontSize, DimColor));
 		DetailValues.Add(MakeWrappedText(WidgetTree, LineFontSize, TextColor, true));
+		// B-487b: a line's icon (a socketed crystal's badge) takes its label's place.
+		DetailLineIcons.Add(MakeIcon(WidgetTree, DetailBadgeSize));
+		AddToRow(Line, DetailLineIcons.Last(), FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
 		AddToRow(Line, MakeSized(WidgetTree, DetailLabelWidth, 0.0f, DetailLabels.Last()), FMargin(0.0f), VAlign_Top);
 		AddToRow(Line, DetailValues.Last(), FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		AddToColumn(PanelColumn, Line, FMargin(0.0f, 0.0f, 0.0f, LineGap));
@@ -468,6 +473,8 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 	for (int32 Index = 0; Index < DetailLabels.Num(); ++Index)
 	{
 		const bool bShown = Tile.Details.IsValidIndex(Index);
+		const bool bLineIcon = SetIcon(DetailLineIcons[Index], bShown ? WoRIcons::Find(Tile.Details[Index].Icon) : nullptr, bShown ? Tile.Details[Index].Icon.Name : FText::GetEmpty());
+		SetShown(DetailLabels[Index]->GetParent(), !bLineIcon); // the label's sized box, so the value sits right after the icon
 		SetShown(DetailLabels[Index], bShown);
 		SetShown(DetailValues[Index], bShown);
 		if (bShown)
