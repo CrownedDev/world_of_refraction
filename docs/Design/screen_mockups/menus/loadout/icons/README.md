@@ -21,3 +21,9 @@ Library = `D:/github/wor-deckbuilder/wor.game/assets/ui/library/` (made from PON
 | Weapon icon (sword) | `vendor/PONETI/ClassicFantasyRPG_UI/ARTWORKS/UIicons/Colored/13_Sword.png` (under `assets/ui/`) |
 
 Not used: `badges/gem_<tier>.png` (a gem without a letter; the `tier_` hexagon reads better at 22 px).
+
+## Reference sheet (Crown, 2026-11-14)
+
+`deckbuilder_icon_sheet.png` shows every icon on offer from `D:/github/wor-deckbuilder/wor.game/assets/ui/library/` (`badges/` and `icons/`), labelled by file name.
+- **Crystals use the diamond element badges** (`badges/element_<element>.png`, the empty socket `element_socket.png`); the square gem badges are not used.
+- These are **placeholders for now**: they stand in until this game's own icon art is chosen.
