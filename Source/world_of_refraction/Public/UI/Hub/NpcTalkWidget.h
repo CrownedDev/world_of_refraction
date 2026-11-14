@@ -82,6 +82,7 @@ private:
 	ENpcTalkView View = ENpcTalkView::Choices;
 	/** The view the log was opened from (Y again or B goes back to it). */
 	ENpcTalkView ViewBeforeLog = ENpcTalkView::Choices;
+	int32 SelectedBeforeLog = 0;
 	int32 Selected = 0;
 	FText Spoken;
 

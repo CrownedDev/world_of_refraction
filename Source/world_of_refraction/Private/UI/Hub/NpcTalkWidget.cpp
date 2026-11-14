@@ -16,6 +16,7 @@
 #include "Shop/MerchantShopSubsystem.h"
 #include "Story/StoryLinesData.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/Menus/VendorScreenModel.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -66,6 +67,7 @@ void UNpcTalkWidget::SetSource(UMerchantData *InMerchant, APawn *InInstigator)
 	Selected = 0;
 	Spoken = FText::GetEmpty();
 	Refresh();
+	UE_LOG(LogWoRUI, Log, TEXT("[NpcTalk] Opened: %s"), *WoRNpcTalk::GetTalkString(Page));
 }
 
 void UNpcTalkWidget::SetStory(const TArray<UStoryLinesData *> &InStory)
@@ -138,8 +140,7 @@ void UNpcTalkWidget::NativeOnActivated()
 	View = ENpcTalkView::Choices;
 	Selected = 0;
 	Spoken = FText::GetEmpty();
-	Refresh();
-	UE_LOG(LogWoRUI, Log, TEXT("[NpcTalk] Opened: %s"), *WoRNpcTalk::GetTalkString(Page));
+	Refresh(); // Open sets the source right after (the log line is SetSource's)
 }
 
 UWidget *UNpcTalkWidget::NativeGetDesiredFocusTarget() const
@@ -218,14 +219,14 @@ void UNpcTalkWidget::Refresh()
 	switch (View)
 	{
 	case ENpcTalkView::Topics:
-		HintsText->SetText(LOCTEXT("HintsTopics", "A  Hear        Y  Log        B / Esc  Back"));
+		HintsText->SetText(LOCTEXT("HintsTopics", "A  Hear        Y / R  Log        B / Esc  Back"));
 		break;
 	case ENpcTalkView::Log:
-		HintsText->SetText(LOCTEXT("HintsLog", "Y / B / Esc  Back"));
+		HintsText->SetText(LOCTEXT("HintsLog", "Y / R / B / Esc  Back"));
 		break;
 	case ENpcTalkView::Choices:
 	default:
-		HintsText->SetText(LOCTEXT("HintsChoices", "A  Select        Y  Log        B / Esc  Leave"));
+		HintsText->SetText(LOCTEXT("HintsChoices", "A  Select        Y / R  Log        B / Esc  Leave"));
 		break;
 	}
 }
@@ -287,7 +288,8 @@ void UNpcTalkWidget::OpenShop()
 	UWorld *World = GetWorld();
 	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	UMerchantShopSubsystem *Shop = GI ? GI->GetSubsystem<UMerchantShopSubsystem>() : nullptr;
-	if (!Shopkeeper || !Pawn || !Shop)
+	// The vendor's screen opens only for a vendor with tabs (VendorScreenWidget); else the box stays and says so.
+	if (!Shopkeeper || !Pawn || !Shop || WoRVendorScreen::GetTabs(Shopkeeper->MerchantType).IsEmpty())
 	{
 		Spoken = LOCTEXT("ShopClosed", "The shop can't open right now.");
 		UE_LOG(LogWoRUI, Warning, TEXT("[NpcTalk] Shop: missing %s"), !Shopkeeper ? TEXT("merchant") : !Pawn ? TEXT("pawn") : TEXT("shop subsystem"));
@@ -303,13 +305,15 @@ void UNpcTalkWidget::PressLog()
 	if (View == ENpcTalkView::Log)
 	{
 		View = ViewBeforeLog;
+		Selected = SelectedBeforeLog;
 	}
 	else
 	{
 		ViewBeforeLog = View;
+		SelectedBeforeLog = Selected;
 		View = ENpcTalkView::Log;
+		Selected = 0;
 	}
-	Selected = 0;
 	Refresh();
 }
 

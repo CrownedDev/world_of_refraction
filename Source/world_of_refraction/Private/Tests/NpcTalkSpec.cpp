@@ -2,6 +2,8 @@
 // B-471c (D-178; UIScreens.md #20): the talk box's page. A vendor's box has its role and Shop / Talk / Leave; V without
 // a shop has no Shop. Under Talk sit V's heard lines and the next unlocked one marked NEW; hearing it moves it to the
 // log and unlocks the next (a line whose memory isn't found stays out). An unnamed line reads "Topic n".
+// The box, headless: Talk opens the topics on the NEW line, A hears it, Y shows the log and back, B steps back to the
+// choices keeping Talk lit, and B on the choices leaves.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,6 +14,8 @@
 #include "Merchant/MerchantData.h"
 #include "Story/StoryLinesData.h"
 #include "UI/Hub/NpcTalkModel.h"
+#include "UI/Hub/NpcTalkWidget.h"
+#include "Blueprint/UserWidget.h"
 
 namespace
 {
@@ -101,6 +105,39 @@ void FNpcTalkSpec::Define()
 		TestEqual(TEXT("the locked line stays out"), Page.Topics.Num(), 2);
 		TestFalse(TEXT("nothing NEW"), Page.bTalkHasNew);
 		TestEqual(TEXT("two in the log"), Page.Log.Num(), 2);
+	});
+	It("walks the box: Talk on the NEW line, hear it, the log and back, B back then Leave (B-471c)", [this]()
+	{
+		if (!Journal)
+		{
+			return;
+		}
+		UNpcTalkWidget *Box = CreateWidget<UNpcTalkWidget>(TestWorld->GetWorld(), UNpcTalkWidget::StaticClass());
+		if (!TestNotNull(TEXT("box"), Box))
+		{
+			return;
+		}
+		Box->ActivateWidget();
+		Box->SetStory({NpcTalkTestStory()});
+		Box->SetSource(nullptr, nullptr);
+		TestTrue(TEXT("the choices first"), Box->GetView() == ENpcTalkView::Choices);
+		const int32 Talk = Box->GetPage().Choices.IndexOfByKey(ENpcTalkChoice::Talk);
+		Box->MoveSelection(Talk - Box->GetSelected());
+		Box->PressA();
+		TestTrue(TEXT("Talk opens the topics"), Box->GetView() == ENpcTalkView::Topics);
+		TestTrue(TEXT("on the NEW line"), Box->GetPage().Topics.IsValidIndex(Box->GetSelected()) && Box->GetPage().Topics[Box->GetSelected()].bNew);
+		Box->PressA();
+		TestTrue(TEXT("it is said"), Box->GetSpoken().ToString().Contains(TEXT("opening")));
+		TestTrue(TEXT("and heard"), Journal->HasHeardVLine(TEXT("NpcTalkOpening")));
+		const int32 Lit = Box->GetSelected();
+		Box->PressLog();
+		TestTrue(TEXT("Y: the log"), Box->GetView() == ENpcTalkView::Log);
+		Box->PressLog();
+		TestTrue(TEXT("Y again: the topics, the same line lit"), Box->GetView() == ENpcTalkView::Topics && Box->GetSelected() == Lit);
+		Box->PressBack();
+		TestTrue(TEXT("B: the choices, Talk lit"), Box->GetView() == ENpcTalkView::Choices && Box->GetSelected() == Talk);
+		Box->PressBack();
+		TestFalse(TEXT("B on the choices leaves"), Box->IsActivated());
 	});
 }
 
