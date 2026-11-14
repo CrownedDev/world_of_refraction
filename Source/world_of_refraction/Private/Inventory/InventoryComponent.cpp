@@ -2398,6 +2398,32 @@ bool UInventoryComponent::AttachEvolutionToApparel(FGuid ApparelPersistentID, FG
 	return true;
 }
 
+bool UInventoryComponent::DetachFromApparel(FGuid ApparelPersistentID)
+{
+	const TCHAR *const Op = TEXT("DetachFromApparel");
+	if (!GearOpHasAuthority(GetOwner(), Op))
+	{
+		return false;
+	}
+	const UWorld *World = GetWorld();
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	const FApparelEntry *Piece = Pool ? Pool->FindApparelInPool(ApparelPersistentID) : nullptr;
+	if (!Piece || Piece->AttachedItem.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: apparel %s not owned, or its socket is empty"), Op, *ApparelPersistentID.ToString());
+		return false;
+	}
+	// CL-50b: the store clears the socket and sends a crystal back to storage.
+	if (!Pool->AttachToApparel(ApparelPersistentID, FRuntimeAttachedItem()))
+	{
+		return false;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Emptied apparel %s's socket"), *ApparelPersistentID.ToString());
+	BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+	return true;
+}
+
 bool UInventoryComponent::CommitRemoveCrystals(const TArray<FCrystalId> &Ids)
 {
     if (Ids.Num() == 0)
