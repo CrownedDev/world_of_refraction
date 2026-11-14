@@ -8,7 +8,6 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
-#include "Trial/RunRewards.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Hub/HubHUDModel.h"
 #include "UI/Trial/TrialNPCWidget.h"
@@ -29,15 +28,13 @@ ATrialNPC::ATrialNPC()
 
 void ATrialNPC::Interact(APawn *Pawn)
 {
+	// The press is the pressing machine's own (HubInteract routes only chests, drops and rest spots to the host), so a
+	// guest opens its own panel; there the offer is greyed with "Only the host can extract" (the run is the host's).
 	APlayerController *PC = Pawn ? Cast<APlayerController>(Pawn->GetController()) : nullptr;
 	if (PC && PC->IsLocalController())
 	{
 		UTrialNPCWidget::Open(PC, this);
-		return;
 	}
-	// A client's press arrives on the host (ServerInteractFeature). The run is the host's, so only the host extracts.
-	// TODO: B-447 / co-op: a client's own talk panel (a Client RPC, as the rest menu's Client_OpenRestMenu).
-	ShowMessageTo(Pawn, FText::Format(LOCTEXT("HostTalks", "Only the host can talk to {0} for now."), DisplayName));
 }
 
 FString ATrialNPC::GetHintText() const
@@ -68,10 +65,11 @@ bool WoRTrialNPC::Extract(UWorld *World)
 		UE_LOG(LogWoR, Log, TEXT("[TrialNPC] Extract refused: %s"), *Refusal.ToString());
 		return false;
 	}
-	UE_LOG(LogWoR, Log, TEXT("[TrialNPC] The party extracts at an NPC: the run pays %d%% (D-186, Q-449)"),
-		   FMath::RoundToInt(RunRewards::LEAVE_EARLY_SHARE * 100.0f));
-	World->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>()->LeaveRunEarly();
-	return true;
+	UTrialRunSubsystem *Run = World->GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+	Run->LeaveRunEarly();
+	// LeaveRunEarly does nothing when the run has no hub to go back to (it logs why): then nothing was left.
+	UE_LOG(LogWoR, Log, TEXT("[TrialNPC] Extract at an NPC (D-186, Q-449): %s"), Run->IsLeavingEarly() ? TEXT("the run ends at the leave share") : TEXT("the run couldn't be left"));
+	return Run->IsLeavingEarly();
 }
 
 FString WoRTrialNPC::GetTrialNPCsString(const UWorld *World)

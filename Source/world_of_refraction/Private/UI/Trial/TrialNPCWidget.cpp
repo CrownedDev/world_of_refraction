@@ -147,9 +147,19 @@ void UTrialNPCWidget::HandleExtractClicked()
 
 void UTrialNPCWidget::HandleConfirmExtractClicked()
 {
-	UWorld *World = GetWorld();
-	CloseMenu();
-	WoRTrialNPC::Extract(World);
+	if (WoRTrialNPC::Extract(GetWorld()))
+	{
+		CloseMenu(); // the run ends next tick
+		return;
+	}
+	// Refused (the run can't be left): the panel stays and says so.
+	bConfirmingExtract = false;
+	Refresh();
+	if (NoteText && WoRTrialNPC::GetExtractRefusal(GetWorld()).IsEmpty())
+	{
+		NoteText->SetText(LOCTEXT("ExtractFailed", "Couldn't extract."));
+		NoteText->SetVisibility(ESlateVisibility::Visible);
+	}
 }
 
 void UTrialNPCWidget::HandleCloseClicked()

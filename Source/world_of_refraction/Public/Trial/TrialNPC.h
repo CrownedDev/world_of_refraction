@@ -3,7 +3,8 @@
 // panel (UTrialNPCWidget) with what it offers. V extracts the party: the run ends at the half share
 // (RunRewards::LEAVE_EARLY_SHARE) exactly as the boss rest spot's Extract does (UTrialRunSubsystem::LeaveRunEarly),
 // with no charge on top. V's Extract works wherever V stands: it is the second way out, not tied to a beaten boss.
-// A placed actor (ATrialMapFeature): at most one V per trial map, at a rest spot not tied to a boss (the editor step).
+// A placed actor (ATrialMapFeature). Placing rule (Q-449, a level-design rule, not checked in code): at most one V
+// per trial map, at a rest spot not tied to a boss.
 // Debug: wor.Trial.PrintNPCs logs GetTrialNPCsString; wor.Trial.SpawnV puts a V at the player for a PIE check.
 
 #pragma once
@@ -20,7 +21,7 @@ class WORLD_OF_REFRACTION_API ATrialNPC : public ATrialMapFeature
 public:
 	ATrialNPC();
 
-	/** Opens the talk panel for the pressing player (the host; a client is told the run is the host's). */
+	/** Opens the talk panel for the pressing player (a guest's panel greys Extract: the run is the host's). */
 	virtual void Interact(APawn *Pawn) override;
 	virtual FInteractPrompt GetPrompt() const override { return FInteractPrompt(EInteractVerb::Talk, DisplayName); }
 
