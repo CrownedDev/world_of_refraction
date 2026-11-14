@@ -12,6 +12,7 @@
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutRules.h"
+#include "Loadout/WeaponSetRules.h"
 #include "Loadout/WeaponSpellRules.h"
 #include "Skills/Definitions/AbilityData.h"
 
@@ -99,6 +100,33 @@ void FGemSlotElementSpec::Define()
 		TestTrue(TEXT("Generic"), Weapon.ReplaceSkill(GemSlot, MakeAbility(ESpellElement::Generic)));
 		TestTrue(TEXT("the gem's element"), Weapon.ReplaceSkill(GemSlot, MakeAbility(GemElement)));
 		TestTrue(TEXT("a new ability defaults to Generic"), NewObject<UAbilityData>(GetTransientPackage())->Element == ESpellElement::Generic);
+	});
+
+	It("starts a pair's gem slots after the pair's average tier slots (D-211)", [this]()
+	{
+		// A B-tier and a C-tier sword: (5 + 4) / 2 = 4 tier slots, then the gem's.
+		const auto MakeHand = [](EItemTier Tier)
+		{
+			FWeaponInventoryEntry Hand;
+			Hand.Weapon = NewObject<UWeaponData>(GetTransientPackage());
+			Hand.Weapon->WeaponType = EWeaponType::Sword;
+			Hand.Weapon->Handling = EWeaponHandling::SingleOrDual;
+			Hand.Tier = Tier;
+			Hand.PersistentID = FGuid::NewGuid();
+			return Hand;
+		};
+		FWeaponLoadoutEntry Pair;
+		Pair.WeaponEntry = MakeHand(EItemTier::B_Tier);
+		Pair.OffHandEntry = MakeHand(EItemTier::C_Tier);
+		Pair.WeaponEntry.AttachedItem = GemSlotTestGem();
+		const int32 PairTierSlots = WeaponSetRules::GetPairTierSlots(EItemTier::B_Tier, EItemTier::C_Tier);
+		TestTrue(TEXT("a valid pair"), WeaponSetRules::IsValidPair(Pair));
+		TestEqual(TEXT("the pair's tier slots"), Pair.GetTierSkillSlotCount(), PairTierSlots);
+		TestFalse(TEXT("the last tier slot is not a gem slot"), Pair.IsGemSkillSlot(PairTierSlots - 1));
+		TestTrue(TEXT("the next one is"), Pair.IsGemSkillSlot(PairTierSlots));
+		UAbilityData *Wrong = MakeAbility(OtherElementThan(GemElement));
+		TestTrue(TEXT("a wrong element goes in the last tier slot"), Pair.ReplaceSkill(PairTierSlots - 1, Wrong));
+		TestFalse(TEXT("and is refused in the first gem slot"), Pair.ReplaceSkill(PairTierSlots, Wrong));
 	});
 
 	It("flags a pick the gem no longer takes, clearably", [this]()
