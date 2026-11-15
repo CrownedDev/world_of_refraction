@@ -99,7 +99,8 @@ public:
 
     /** B-347 (D-137): what a run's start does to the party's gear and Gold, without the level travel: run Gold to its
      *  start (none, B-178), a layer left open ended, and the run layer opened with the party's worn loadouts, free.
-     *  EnterTrial calls it; specs call it directly. */
+     *  B-512 (D-221): each member with a class kit is put on it, reset; one without keeps what it wears.
+     *  EnterTrial calls it (a resumed run does not: RestoreRun); specs call it directly. */
     void StartRunGearAndGold();
 
     /** Return to the config-authored HubLevel and clear the active trial. Safe
@@ -474,6 +475,8 @@ public:
     /** B-511 (D-221): the kit a trial starts Class on (DA_Loadout_ClassDefaults, DefaultGame.ini). Null, with a
      *  warning, when the asset or the class's entry is missing: the trial then keeps what is worn. */
     const FClassDefaultLoadout *FindClassDefaults(ECharacterClass Class) const;
+    /** B-512: specs point the trial start at their own kits (or none), so they don't depend on the content's asset. */
+    void SetClassDefaultLoadouts(const TSoftObjectPtr<UClassDefaultLoadoutData> &Kits) { ClassDefaultLoadouts = Kits; }
 
     /** Debug: the kit asset's classes and every character's minted kit (wor.Trial.PrintClassDefaults). */
     FString GetClassDefaultsString() const;

@@ -597,6 +597,14 @@ public:
      *  same asset reuses it (its state is left as it is: B-512's trial start resets it); a changed or emptied place
      *  removes the old piece first. Returns the kit's IDs, place for place with Kit. */
     const FClassDefaultKitIDs &MintClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
+    /** B-512: mints the kit, then puts each piece back to its authored state: the asset's tier, empty sockets (a crystal
+     *  or stone in one goes to the owner's pouch or storage, never lost) and the kit's skill picks. A trial start calls
+     *  it before the run layer opens, so a freed crystal isn't counted as a find. */
+    void ResetClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
+    /** B-512: CharacterKey's worn record becomes its minted kit (ActiveGearID the kit's ACTIVE place, the wheel pick
+     *  cleared); its own evolution, innate spells and Broken Darkness pools stay. Returns the pieces now worn (empty
+     *  with no minted kit). Home gear stays owned in the store. */
+    TArray<FGuid> WearClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
     /** The character's minted kit, or null before its first mint. */
     const FClassDefaultKitIDs *GetClassDefaultKit(FName CharacterKey) const { return ClassDefaultKits.Find(CharacterKey); }
     /** A piece of any character's kit (refused for sale, dismantling, giving and the chest). */
