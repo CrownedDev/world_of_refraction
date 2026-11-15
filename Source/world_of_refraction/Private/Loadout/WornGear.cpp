@@ -77,6 +77,8 @@ FWornGear FCombatLoadout::ToWornGear(ECharacterClass CharacterClass) const
 		}
 	}
 
+	// shortcut: a Resonator's active adapter (ActiveRingIndex) isn't recorded, as no map kept it before either; stage 2
+	// makes ActiveGearID the one ACTIVE entry for adapters too.
 	// The weapon drawn (ComputeActiveSlotIndices' rule, with a non-Generic's hidden weapon as none).
 	const FGuid PrimaryID = Worn.Equipment[PRIMARY_INDEX].GearID;
 	const FGuid SecondaryID = Worn.Equipment[SECONDARY_INDEX].GearID;
