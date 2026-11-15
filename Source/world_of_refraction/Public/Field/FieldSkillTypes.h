@@ -306,6 +306,7 @@ namespace FieldSkillRules
 	// ---- B-503: the field attack's cycle through the loadout (D-215) ----
 
 	constexpr int32 FIRST_FIELD_ATTACK_INDEX = 0;
+	// OBSOLETE since B-503h (the chip is always up and flashes on a cycle): delete after Crown's PIE pass.
 	constexpr float FIELD_ATTACK_POPUP_SECONDS = 2.0f; // how long the cycled entry's icon and name show (D-215)
 
 	/** A kept index the loadout no longer reaches (gear taken off since) falls back to the first entry. */
