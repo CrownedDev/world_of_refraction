@@ -722,7 +722,7 @@ TArray<FLoadoutV2KindChoice> WoRLoadoutV2::BuildAddKinds(const FCombatLoadout &L
 
 	FLoadoutV2KindChoice &Adapter = Kinds.AddDefaulted_GetRef();
 	Adapter.Kind = ELoadoutV2DraftKind::Adapter;
-	Adapter.Name = LOCTEXT("KindAdapter", "Add an adapter");
+	Adapter.Name = FText::Format(LOCTEXT("KindAdapter", "Add an {0}"), WoRGameNames::GetAdapterWord().ToLower()); // the shared word (D-062)
 	const bool bAdapterRoom = Class == ECharacterClass::Caster ? PrimaryIsFree(Loadout)
 																: Limits.MaxAdapters == LoadoutClassTable::NO_LIMIT || CountAdapters(Loadout) < Limits.MaxAdapters;
 	if (!Page.bCanAdd)
@@ -1060,6 +1060,33 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAdapterDetails(const FRingInvent
 		LoadoutV2Build::AddAdapter(Lines, Adapter, bSimple);
 	}
 	return Lines;
+}
+
+FLoadoutV2DetailLine WoRLoadoutV2::MakeNoteLine(const FText &Text)
+{
+	FLoadoutV2DetailLine Line;
+	Line.Kind = ELoadoutV2DetailKind::Effect; // an unindented plain line
+	Line.Value = Text;
+	return Line;
+}
+
+TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildSocketDetails(const FRuntimeAttachedItem &Item, bool bFirstSocket, bool bSimple)
+{
+	if (!Item.IsEmpty())
+	{
+		return BuildAttachmentDetails(Item, bSimple);
+	}
+	return {MakeNoteLine(bFirstSocket ? LOCTEXT("SocketOneTakes", "Empty. Takes a crystal, an evolution or a stone.")
+									  : LOCTEXT("SocketTwoTakes", "Empty. Takes a stone."))};
+}
+
+TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildOffHandDetails(const FWeaponInventoryEntry &OffHand, bool bSimple)
+{
+	if (OffHand.IsValid())
+	{
+		return BuildWeaponDetails(OffHand, bSimple);
+	}
+	return {MakeNoteLine(LOCTEXT("OffHandTakes", "Empty: the weapon alone. A second weapon of the same type that can be dual wielded goes here."))};
 }
 
 TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAttachmentDetails(const FRuntimeAttachedItem &Item, bool bSimple)

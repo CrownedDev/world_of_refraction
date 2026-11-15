@@ -14,6 +14,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/FCrystalAttachment.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/FCombatLoadout.h"
@@ -234,6 +235,28 @@ void FLoadoutV2ModelSpec::Define()
 		{
 			TestFalse(TEXT("a Refractor's one entry is taken: every kind refused"), Kind.Refusal.IsEmpty());
 		}
+		TestEqual(TEXT("B-503u: with its class limit"), WoRLoadoutV2::BuildAddKinds(Refractor, ECharacterClass::Caster)[0].Refusal.ToString(),
+				  FString(TEXT("A Refractor holds at most 1 piece.")));
+		FCombatLoadout Resonator;
+		WoRLoadoutV2::ApplyDraft(Resonator, ECharacterClass::Resonator, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("A"), EWeaponType::Sword)), Refusal);
+		const TArray<FLoadoutV2KindChoice> ResonatorKinds = WoRLoadoutV2::BuildAddKinds(Resonator, ECharacterClass::Resonator);
+		TestEqual(TEXT("a Resonator's one weapon"), ResonatorKinds[0].Refusal.ToString(), FString(TEXT("A Resonator holds at most 1 weapon.")));
+		TestTrue(TEXT("its adapters still fit"), ResonatorKinds[1].Refusal.IsEmpty());
+	});
+
+	It("gives the Edit window's box the lit slot's piece, or what an empty slot takes (B-503u)", [this]()
+	{
+		const TArray<FLoadoutV2DetailLine> EmptyFirst = WoRLoadoutV2::BuildSocketDetails(FRuntimeAttachedItem(), /*bFirstSocket=*/true, false);
+		TestTrue(TEXT("an empty socket 1: one line, what it takes"), EmptyFirst.Num() == 1 && EmptyFirst[0].Value.ToString().Contains(TEXT("crystal")));
+		const TArray<FLoadoutV2DetailLine> EmptySecond = WoRLoadoutV2::BuildSocketDetails(FRuntimeAttachedItem(), false, false);
+		TestTrue(TEXT("an empty socket 2 takes a stone"), EmptySecond.Num() == 1 && EmptySecond[0].Value.ToString().Contains(TEXT("stone")));
+		FRuntimeAttachedItem Garnet;
+		Garnet.Kind = EAttachedItemKind::Crystal;
+		constexpr int32 LIVE_DURABILITY = 10;
+		Garnet.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), LIVE_DURABILITY);
+		TestEqual(TEXT("a filled socket: the crystal's own details"), WoRLoadoutV2::GetDetailsString(WoRLoadoutV2::BuildSocketDetails(Garnet, true, false)),
+				  WoRLoadoutV2::GetDetailsString(WoRLoadoutV2::BuildAttachmentDetails(Garnet, false)));
+		TestEqual(TEXT("an empty off hand: one line"), WoRLoadoutV2::BuildOffHandDetails(FWeaponInventoryEntry(), false).Num(), 1);
 	});
 
 	It("lists adapters the loadout doesn't hold and evolutions, one in use refused (B-476c)", [this]()
