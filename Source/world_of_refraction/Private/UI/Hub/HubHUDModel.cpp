@@ -91,15 +91,28 @@ FText WoRHubHUD::BuildQuestLine(const UWorld *World)
 	return WoRPauseMenu::IsInRun(World) ? WoRPauseMenu::GetTrackedLine(World) : FText::GetEmpty();
 }
 
-TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party)
+TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party, int32 PlayedSlot)
 {
 	TArray<FBattleHUDCard> Cards;
 	if (!Party)
 	{
 		return Cards;
 	}
-	for (const FPartyMember &Member : Party->Members)
+	TArray<const FPartyMember *> Order;
+	if (Party->Members.IsValidIndex(PlayedSlot))
 	{
+		Order.Add(&Party->Members[PlayedSlot]); // B-503m4 (D-217): the played character's card is always first
+	}
+	for (int32 Slot = 0; Slot < Party->Members.Num(); ++Slot)
+	{
+		if (Slot != PlayedSlot)
+		{
+			Order.Add(&Party->Members[Slot]);
+		}
+	}
+	for (const FPartyMember *MemberPtr : Order)
+	{
+		const FPartyMember &Member = *MemberPtr;
 		const UCharacterData *Data = Member.CharacterData;
 		if (!Data)
 		{
@@ -134,25 +147,23 @@ EBattleCardLevel WoRHubHUD::GetCardLevel(const UWorld *World)
 
 int32 WoRHubHUD::GetFieldAttackCardIndex(const UParty *Party, int32 MemberSlot)
 {
-	if (!Party || !Party->Members.IsValidIndex(MemberSlot) || !Party->Members[MemberSlot].CharacterData)
-	{
-		return INDEX_NONE;
-	}
-	// BuildPartyStrip leaves out members with no data: count the cards before this one.
-	int32 Card = 0;
-	for (int32 Slot = 0; Slot < MemberSlot; ++Slot)
-	{
-		Card += Party->Members[Slot].CharacterData ? 1 : 0;
-	}
-	return Card;
+	// B-503m4 (D-217): the played member's card is the first (BuildPartyStrip with its slot).
+	return Party && Party->Members.IsValidIndex(MemberSlot) && Party->Members[MemberSlot].CharacterData ? 0 : INDEX_NONE;
 }
 
-int32 WoRHubHUD::FindFieldAttackCard(const APawn *Pawn)
+int32 WoRHubHUD::FindPlayedMemberSlot(const APawn *Pawn)
 {
 	const UCharacterDataComponent *CharComp = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UGameInstance *GameInstance = Pawn && Pawn->GetWorld() ? Pawn->GetWorld()->GetGameInstance() : nullptr;
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	return PartySession && CharComp ? GetFieldAttackCardIndex(PartySession->GetLocalParty(), PartySession->GetMemberSlotOf(CharComp)) : INDEX_NONE;
+	return PartySession && CharComp ? PartySession->GetMemberSlotOf(CharComp) : INDEX_NONE;
+}
+
+int32 WoRHubHUD::FindFieldAttackCard(const APawn *Pawn)
+{
+	const UGameInstance *GameInstance = Pawn && Pawn->GetWorld() ? Pawn->GetWorld()->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	return PartySession ? GetFieldAttackCardIndex(PartySession->GetLocalParty(), FindPlayedMemberSlot(Pawn)) : INDEX_NONE;
 }
 
 float WoRHubHUD::GetPartyStripMaxWidth(int32 Cards)
@@ -211,13 +222,13 @@ FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	FString Party;
-	for (const FBattleHUDCard &Card : BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr))
+	for (const FBattleHUDCard &Card : BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr, FindPlayedMemberSlot(PC ? PC->GetPawn() : nullptr)))
 	{
 		Party += FString::Printf(TEXT("%s%s %s %s"), Party.IsEmpty() ? TEXT("") : TEXT(", "), *Card.Name.ToString(), *Card.HPLine.ToString(), *Card.EPLine.ToString());
 	}
 	if (!Party.IsEmpty())
 	{
-		Party += GetCardLevel(World) == EBattleCardLevel::Trial ? TEXT(" (trial cards: HP, EP, build-up)") : TEXT(" (hub cards: names only)");
+		Party += GetCardLevel(World) == EBattleCardLevel::Trial ? TEXT(" (trial cards: HP, EP)") : TEXT(" (hub cards: names only)");
 	}
 	const APawn *Pawn = PC ? PC->GetPawn() : nullptr;
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
