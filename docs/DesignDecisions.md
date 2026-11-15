@@ -1284,6 +1284,12 @@ The queue of questions only Crown can answer.
 - (3) A: Metaphor: ReFantazio lets the character keep moving through the field attack, which keeps the map fluid. The feet may slide until the swing is blended on the upper body; Crown judges it in PIE.
 **Notes for Claude:** built in B-503b. A second attack is refused until the first hit has landed. A weapon whose attack has no field montage hits at once, as before.
 
+### Q-503m3 — The LB wheel: which stick, which way the mouse wheel turns, what a tap does
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503m3, D-217) · **Blocks:** —
+**Question:** D-217's wheel leaves four things open, none of them lore: (1) which stick picks; (2) which way the mouse wheel steps; (3) what a tap steps to, now the hold steps sit on the wheel; (4) what an unarmed plain swing (no name, Q-503k (4)) shows on the wheel.
+**Answer:** (1) **the right stick**, and the camera holds still while the wheel is up, so the left stick keeps moving the character (the radial wheels D-217 names, Doom Eternal's and GTA V's, take the pick from a stick while the view stays put). (2) **Down = the next entry**, as in any scrolled list. (3) **The next source**, skipping the hold steps, as before (a tap "still steps"); the hold steps are reached on the wheel. (4) **"Plain"**, on the wheel only; the strip still shows nothing.
+**Notes for Claude:** built in B-503m3; the wheel opens at `FIELD_SOURCE_HOLD_SECONDS` while the key is down; trial maps only, as the strip (D-217); in the hub a hold reads as a tap.
+
 ### Q-503m — The card fixes: where the level comes from, the bars' look
 **Status:** ANSWERED (approved by the reference-backed default; Crown may change) · **Raised:** 2026-11-15 (B-503m, Crown's PIE of B-503k) · **Blocks:** —
 **Question:** the details Crown's notes left open: what decides hub vs trial cards; how the numbers sit on the bars; what marks the build-up bar; the R / LB hold time.

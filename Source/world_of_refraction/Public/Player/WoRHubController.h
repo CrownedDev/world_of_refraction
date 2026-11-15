@@ -14,6 +14,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Field/FieldSkillTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "Templates/SubclassOf.h"
 #include "WoRHubController.generated.h"
@@ -170,9 +171,31 @@ private:
 	/** B-214g: the field attack's press (real time, for its hold); a release with no press (focus loss) does nothing. */
 	double FieldAttackPressTime = 0.0;
 	bool bFieldAttackPressed = false;
-	/** B-503k (D-217): R / LB's press, read on release: a press changes the source, a hold the element. */
-	double FieldSourcePressTime = 0.0;
+	/** B-503k (D-217): R / LB's press, read on release: a tap steps the source; B-503m3: held FIELD_SOURCE_HOLD_SECONDS
+	 *  it opens the wheel (FieldWheelOpenTimer) and the release confirms the wheel's pick. */
 	bool bFieldSourcePressed = false;
+	FTimerHandle FieldWheelOpenTimer;
+
+	/** B-503m3 (D-217): the wheel's keys, made in code and mapped only while it is up (IMC_Field_Wheel, priority
+	 *  FIELD_WHEEL): the right stick picks (eaten, so the camera holds still), the mouse wheel steps. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelPickAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelScrollAction;
+	UPROPERTY(Transient)
+	TObjectPtr<class UInputMappingContext> FieldWheelContext;
+	/** The entries read when the wheel opened, and its pick; INDEX_NONE: the wheel is down. */
+	UPROPERTY(Transient)
+	TArray<FFieldAttackEntry> FieldWheelEntries;
+	int32 FieldWheelPick = INDEX_NONE;
+
+	bool IsFieldWheelOpen() const { return FieldWheelPick != INDEX_NONE; }
+	void BuildFieldWheelKeys();
+	void OpenFieldWheel();
+	/** Hides the wheel and unmaps its keys, picking nothing. */
+	void CloseFieldWheel();
+	void HandleFieldWheelPick(const FInputActionValue &Value);
+	void HandleFieldWheelScroll(const FInputActionValue &Value);
 
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);

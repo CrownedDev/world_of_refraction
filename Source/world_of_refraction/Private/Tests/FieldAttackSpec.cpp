@@ -143,6 +143,23 @@ void FFieldAttackSpec::Define()
 			TestEqual(TEXT("a hold on a one-element stop stays"), FieldSkillRules::NextFieldAttackHoldIndex(Stops, 3), 3);
 			TestEqual(TEXT("nothing to step"), FieldSkillRules::NextFieldAttackSourceIndex(TArray<FFieldAttackEntry>(), 0), 0);
 		});
+
+		It("B-503m3: pick the wheel's entry with the stick and step it with the mouse wheel", [this]()
+		{
+			constexpr int32 FOUR_ENTRIES = 4;
+			TestEqual(TEXT("up is the first"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(0, 1), FOUR_ENTRIES), 0);
+			TestEqual(TEXT("right is the second (clockwise)"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(1, 0), FOUR_ENTRIES), 1);
+			TestEqual(TEXT("down"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(0, -1), FOUR_ENTRIES), 2);
+			TestEqual(TEXT("left"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(-1, 0), FOUR_ENTRIES), 3);
+			TestEqual(TEXT("just left of up rounds to the first"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(-0.1, 1), FOUR_ENTRIES), 0);
+			TestEqual(TEXT("a centred stick picks nothing"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(0.1, 0.1), FOUR_ENTRIES), INDEX_NONE);
+			TestEqual(TEXT("no entries"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(0, 1), 0), INDEX_NONE);
+			TestEqual(TEXT("one entry anywhere"), FieldSkillRules::GetFieldWheelIndexFromStick(FVector2D(0, -1), 1), 0);
+			TestEqual(TEXT("scroll on"), FieldSkillRules::StepFieldWheelIndex(1, 1, FOUR_ENTRIES), 2);
+			TestEqual(TEXT("scroll wraps on"), FieldSkillRules::StepFieldWheelIndex(3, 1, FOUR_ENTRIES), 0);
+			TestEqual(TEXT("scroll wraps back"), FieldSkillRules::StepFieldWheelIndex(0, -1, FOUR_ENTRIES), 3);
+			TestEqual(TEXT("scroll with nothing"), FieldSkillRules::StepFieldWheelIndex(2, 1, 0), 0);
+		});
 	});
 
 	Describe("the component", [this]()

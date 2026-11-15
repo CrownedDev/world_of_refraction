@@ -221,16 +221,23 @@ FFieldAttackEntry UFieldMovementComponent::CycleFieldAttack(bool bHold)
 	const TArray<FFieldAttackEntry> Entries = GetFieldAttackEntries();
 	const int32 Kept = GetKeptFieldAttackIndex();
 	const int32 Next = bHold ? FieldSkillRules::NextFieldAttackHoldIndex(Entries, Kept) : FieldSkillRules::NextFieldAttackSourceIndex(Entries, Kept);
+	return SelectFieldAttack(Next);
+}
+
+FFieldAttackEntry UFieldMovementComponent::SelectFieldAttack(int32 Index)
+{
+	const TArray<FFieldAttackEntry> Entries = GetFieldAttackEntries();
+	const int32 Picked = FieldSkillRules::ClampFieldAttackIndex(Index, Entries.Num());
 	if (HasAuthority())
 	{
-		StoreFieldAttackIndex(Next);
+		StoreFieldAttackIndex(Picked);
 	}
 	else
 	{
-		FieldAttackIndex = Next; // shown at once; the host keeps it and its copy comes back the same
-		ServerSetFieldAttackIndex(Next);
+		FieldAttackIndex = Picked; // shown at once; the host keeps it and its copy comes back the same
+		ServerSetFieldAttackIndex(Picked);
 	}
-	return Entries.IsValidIndex(Next) ? Entries[Next] : FFieldAttackEntry();
+	return Entries.IsValidIndex(Picked) ? Entries[Picked] : FFieldAttackEntry();
 }
 
 void UFieldMovementComponent::StoreFieldAttackIndex(int32 Index)
