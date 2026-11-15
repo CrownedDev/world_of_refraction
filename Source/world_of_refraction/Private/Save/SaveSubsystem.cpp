@@ -1388,6 +1388,10 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	}
 	Saved.BankedItemCharacters = Pool.GetBankedItemCharacters().Array();
 	Saved.HubGear = Pool.GetHubGear().Array(); // B-509
+	for (const TPair<FName, FClassDefaultKitIDs> &Kit : Pool.GetAllClassDefaultKits()) // B-511
+	{
+		Saved.ClassDefaultKits.Add({Kit.Key, Kit.Value.Pieces, Kit.Value.OffHands, Kit.Value.Apparel});
+	}
 	for (const TPair<FName, FPoolCustomLoadouts> &Custom : Pool.GetAllCustomLoadouts())
 	{
 		FSavedCharacterLoadouts &Out = Saved.CustomLoadouts.AddDefaulted_GetRef();
@@ -1758,6 +1762,12 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 	}
 	Pool.RestorePouches(Pouches, Saved.BankedItemCharacters);
 	Pool.RestoreHubGear(TSet<FGuid>(Saved.HubGear)); // B-509
+	TMap<FName, FClassDefaultKitIDs> Kits; // B-511
+	for (const FSavedClassDefaultKit &Kit : Saved.ClassDefaultKits)
+	{
+		Kits.Add(Kit.CharacterKey, {Kit.Pieces, Kit.OffHands, Kit.Apparel});
+	}
+	Pool.RestoreClassDefaultKits(Kits);
 	for (const FSavedCharacterLoadouts &Custom : Saved.CustomLoadouts)
 	{
 		TArray<FSavedLoadout> Loadouts;
