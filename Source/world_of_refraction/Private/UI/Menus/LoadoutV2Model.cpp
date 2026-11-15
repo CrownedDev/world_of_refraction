@@ -52,7 +52,7 @@ namespace LoadoutV2Build
 		{
 			Entry.TypeIcon.Kind = ELoadoutV2IconKind::WeaponType;
 			Entry.TypeIcon.WeaponType = Weapon->WeaponType;
-			Entry.TypeIcon.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon, Set.HasOffHand()); // B-513
+			Entry.TypeIcon.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon, Set.HasOffHand() ? Set.OffHandEntry.Weapon : nullptr); // B-513, B-515
 		}
 		Entry.SkillSlots = Set.GetSkillSlotCount();
 		return Entry;

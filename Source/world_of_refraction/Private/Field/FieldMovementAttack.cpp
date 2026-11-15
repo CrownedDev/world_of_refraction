@@ -105,7 +105,7 @@ namespace
 		}
 		const USkillDataBase *Attack = Slot->OverrideAttack ? Slot->OverrideAttack : Weapon->WeaponAttack;
 		const UAbilityData *Ability = Cast<UAbilityData>(Attack);
-		Swing.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon, Slot->HasOffHand()); // B-513: "Sword and Shield"
+		Swing.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon, Slot->HasOffHand() ? Slot->OffHandEntry.Weapon : nullptr); // B-513, B-515
 		Swing.Physical = Ability ? Ability->PhysicalDamageType : EPhysicalDamageType::None;
 		Swing.WeaponType = Weapon->WeaponType;
 		Swing.Icon = Weapon->Icon;
@@ -163,7 +163,7 @@ namespace
 				Slice.Weapon = &Slot;
 				Slice.Icon = Slot.WeaponEntry.Weapon ? Slot.WeaponEntry.Weapon->Icon : nullptr;
 				Slice.OffHandIcon = Slot.HasOffHand() && Slot.OffHandEntry.Weapon ? Slot.OffHandEntry.Weapon->Icon : nullptr;
-				Slice.Type = WoRGameNames::GetHeldWeaponTypeName(Slot.WeaponEntry.Weapon, Slot.HasOffHand());
+				Slice.Type = WoRGameNames::GetHeldWeaponTypeName(Slot.WeaponEntry.Weapon, Slot.HasOffHand() ? Slot.OffHandEntry.Weapon : nullptr);
 			};
 			const auto AddRing = [&Slices](const FRingLoadoutEntry &Slot)
 			{
