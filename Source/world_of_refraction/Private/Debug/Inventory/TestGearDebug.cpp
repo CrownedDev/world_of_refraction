@@ -44,7 +44,7 @@ namespace
 	void RestoreChangedClasses(UWorld *World, bool bSessionEnded, bool /*bCleanupResources*/)
 	{
 		// Map travel cleans up a world too: only the end of the session puts the classes back.
-		if (!bSessionEnded || GChangedClasses.IsEmpty())
+		if (!bSessionEnded || !World || !World->IsGameWorld() || GChangedClasses.IsEmpty())
 		{
 			return;
 		}
