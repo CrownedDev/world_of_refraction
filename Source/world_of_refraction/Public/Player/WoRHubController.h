@@ -177,8 +177,10 @@ private:
 	FTimerHandle FieldWheelOpenTimer;
 
 	/** B-503m4 (D-217): the wheel's keys, made in code and mapped only while it is up (IMC_Field_Wheel, priority
-	 *  FIELD_WHEEL, eaten): the left stick or the mouse cursor picks a slice; D-pad left / right, A / D or the mouse
-	 *  wheel step the slice's element. B-503m5: A or a click confirms and closes; B, Backspace, RB or R closes. */
+	 *  FIELD_WHEEL, eaten). B-514 (D-222, the quick strip): left / right (D-pad, left stick, A / D, the mouse wheel)
+	 *  move along the pieces (IA_Field_StripMove); up / down (D-pad, left stick, W / S) step the piece's source
+	 *  (IA_Field_StripSource); the mouse cursor picks the tile under it. A or a click confirms and closes; B,
+	 *  Backspace, RB or R closes. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> FieldWheelPickAction;
 	/** B-503m5: mapped only to eat the mouse's travel while the wheel is up; the cursor picks (FieldWheelHoverTimer). */
@@ -203,6 +205,8 @@ private:
 	/** B-503m5: the wheel opened on keyboard and mouse: the cursor shows, and is read on this timer while it is up. */
 	bool bFieldWheelCursor = false;
 	FTimerHandle FieldWheelHoverTimer;
+	/** B-514: where the cursor was at the last hover read; it picks only when it moves. */
+	FVector2f FieldWheelCursorAt = FVector2f::ZeroVector;
 
 	bool IsFieldWheelOpen() const { return FieldWheelPick != INDEX_NONE; }
 	void BuildFieldWheelKeys();
@@ -221,6 +225,8 @@ private:
 	/** Moves the pick to a slice (its first option, or the kept entry on its own slice) and redraws. */
 	void PickFieldWheelSlice(int32 Slice);
 	void StepFieldWheelElement(int32 Delta);
+	/** B-514: Delta pieces along the strip, wrapping at the ends. */
+	void StepFieldWheelPiece(int32 Delta);
 
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);
