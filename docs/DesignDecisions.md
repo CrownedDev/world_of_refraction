@@ -1280,6 +1280,11 @@ The queue of questions only Crown can answer.
 - (3) A: Metaphor: ReFantazio lets the character keep moving through the field attack, which keeps the map fluid. The feet may slide until the swing is blended on the upper body; Crown judges it in PIE.
 **Notes for Claude:** built in B-503b. A second attack is refused until the first hit has landed. A weapon whose attack has no field montage hits at once, as before.
 
+### Q-503m — The card fixes: where the level comes from, the bars' look
+**Status:** ANSWERED (approved by the reference-backed default; Crown may change) · **Raised:** 2026-11-15 (B-503m, Crown's PIE of B-503k) · **Blocks:** —
+**Question:** the details Crown's notes left open: what decides hub vs trial cards; how the numbers sit on the bars; what marks the build-up bar; the R / LB hold time.
+**Answer (default):** (1) the **map** decides: the hub map (`HubLevel`) shows names only, every other field map the trial card, run or not, so a map played from the editor shows its own card. (2) The number sits centred on its bar, white with a dark shadow, as E33's and most JRPG party frames draw HP / MP on the bar; EP's bar is blue, the common MP / energy colour (FF, Persona). An enemy's HP bar keeps no number (Q-391). (3) A dim "Status" label before the build-up bar and a faint empty-bar tint, so it reads as a meter that is empty, not a missing bar. (4) The hold is 0.6 s for now (the Operator's value); the researcher recommends 0.5 s (`docs/research/hold-duration.md`), to be set when the Operator sends it.
+
 ### Q-503l — Broken Darkness and Reality: what holding LB cycles on the map
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 (B-503k, D-217) · **Blocks:** B-503l
 **Question (for Crown):** you said a Broken Darkness character on Darkness, or a Reality one, holds LB to "cycle their dark sources, based on whatever other gear they have". Today on the map: a press already steps each of their sources (innate, the weapon's crystal, the adapter, the evolution), and each has its own element: a BD character's innate is its active pool (Darkness, or an absorbed element), a Reality character's is Reality (players see it as Unknown, ED-42). So what should a hold change?
