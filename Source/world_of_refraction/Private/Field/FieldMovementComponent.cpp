@@ -145,6 +145,7 @@ void UFieldMovementComponent::RefreshFromRecord()
 		ActiveChoice = Record->FieldSkill;
 		FieldAttackIndex = Record->FieldAttackIndex; // B-503
 	}
+	ShowWeaponForFieldAttack(); // B-503s: a kept element-source pick starts the map with the weapon put away
 }
 
 ESpellElement UFieldMovementComponent::GetSourceElement(EFieldSkillSource Source) const

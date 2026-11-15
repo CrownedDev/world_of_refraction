@@ -278,6 +278,9 @@ private:
 	/** The index as kept (the record's on the host, else the mirror), not yet clamped to the entries. */
 	int32 GetKeptFieldAttackIndex() const;
 
+	/** B-503s (D-218): the pick in hand: a swing shows the weapon, a pulse (an element source) puts it away. */
+	void ShowWeaponForFieldAttack() const;
+
 	UFUNCTION(Server, Reliable)
 	void ServerSetActiveFieldSkill(EFieldSkillSource Source, EFieldMovementType Type);
 
