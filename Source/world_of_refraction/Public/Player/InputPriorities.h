@@ -26,4 +26,8 @@ namespace WoRInputPriority
 	/** B-503e: the hub / trial map's code-made field keys (attack, source cycle, fly up / down). They don't eat
 	 *  their keys, so Space still jumps; above EXPLORATION so they're seen first. */
 	constexpr int32 FIELD_KEYS = EXPLORATION + 1;
+
+	/** B-503m3: the LB wheel's keys, only while it is up. It eats the right stick, so above the context the camera
+	 *  reads it from. */
+	constexpr int32 FIELD_WHEEL = FIELD_KEYS + 1;
 }

@@ -42,6 +42,26 @@ namespace WoRHubControllerConstants
 	const FName FIELD_SWITCH_SOURCE_ACTION_NAME = TEXT("IA_Field_SwitchSource");
 	const FName FIELD_FLY_VERTICAL_ACTION_NAME = TEXT("IA_Field_FlyVertical");
 	const FName FIELD_KEYS_CONTEXT_NAME = TEXT("IMC_Field_Keys");
+	/** B-503m3: the LB wheel's keys, always made in code (InputMap.md row 18). */
+	const FName FIELD_WHEEL_PICK_ACTION_NAME = TEXT("IA_Field_WheelPick");
+	const FName FIELD_WHEEL_SCROLL_ACTION_NAME = TEXT("IA_Field_WheelScroll");
+	const FName FIELD_WHEEL_CONTEXT_NAME = TEXT("IMC_Field_Wheel");
+}
+
+void AWoRHubController::BuildFieldWheelKeys()
+{
+	if (FieldWheelContext)
+	{
+		return;
+	}
+	using namespace WoRHubControllerConstants;
+	FieldWheelContext = NewObject<UInputMappingContext>(this, FIELD_WHEEL_CONTEXT_NAME);
+	FieldWheelPickAction = NewObject<UInputAction>(this, FIELD_WHEEL_PICK_ACTION_NAME);
+	FieldWheelPickAction->ValueType = EInputActionValueType::Axis2D;
+	FieldWheelContext->MapKey(FieldWheelPickAction, EKeys::Gamepad_Right2D); // eats the stick: the camera holds still
+	FieldWheelScrollAction = NewObject<UInputAction>(this, FIELD_WHEEL_SCROLL_ACTION_NAME);
+	FieldWheelScrollAction->ValueType = EInputActionValueType::Axis1D;
+	FieldWheelContext->MapKey(FieldWheelScrollAction, EKeys::MouseWheelAxis);
 }
 
 void AWoRHubController::BuildCodeFieldActions()
@@ -106,6 +126,7 @@ void AWoRHubController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		}
 		FieldKeysContext = nullptr;
 	}
+	CloseFieldWheel();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -222,6 +243,9 @@ void AWoRHubController::SetupInputComponent()
 		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldSwitchSourceStarted);
 		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldSwitchSource);
 		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldSwitchSourceCanceled);
+		BuildFieldWheelKeys();
+		EnhancedInput->BindAction(FieldWheelPickAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldWheelPick);
+		EnhancedInput->BindAction(FieldWheelScrollAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldWheelScroll);
 	}
 	if (FieldFlyVerticalAction)
 	{
@@ -333,13 +357,17 @@ void AWoRHubController::HandleFieldAttackCanceled(const FInputActionValue & /*Va
 
 void AWoRHubController::HandleFieldSwitchSourceStarted(const FInputActionValue & /*Value*/)
 {
-	FieldSourcePressTime = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
 	bFieldSourcePressed = true;
+	// B-503m3 (D-217): held this long, the wheel opens while the key is still down.
+	GetWorldTimerManager().SetTimer(FieldWheelOpenTimer, this, &AWoRHubController::OpenFieldWheel,
+									static_cast<float>(FieldSkillRules::FIELD_SOURCE_HOLD_SECONDS), /*bLoop=*/false);
 }
 
 void AWoRHubController::HandleFieldSwitchSourceCanceled(const FInputActionValue & /*Value*/)
 {
 	bFieldSourcePressed = false;
+	GetWorldTimerManager().ClearTimer(FieldWheelOpenTimer);
+	CloseFieldWheel(); // focus loss or a menu took the key: nothing picked
 }
 
 void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Value*/)
@@ -349,17 +377,87 @@ void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Valu
 		return; // a release with no press of ours (focus loss, a menu took the mapping)
 	}
 	bFieldSourcePressed = false;
-	const double Pressed = GetWorld() ? GetWorld()->GetRealTimeSeconds() - FieldSourcePressTime : 0.0;
-	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
+	GetWorldTimerManager().ClearTimer(FieldWheelOpenTimer);
+	UFieldMovementComponent *FieldMovement = GetFieldMovement();
+	const int32 Picked = FieldWheelPick;
+	const bool bFromWheel = IsFieldWheelOpen();
+	CloseFieldWheel();
+	if (!FieldMovement)
 	{
-		// D-217: a press steps the field attack's source (plain Sword, Fire Sword, ...); a hold the element within it
-		// (B-503l, Q-503l: Reality "(R) Fire", Broken Darkness "Dark Fire"; a one-element source stays). Flashed on the strip.
-		const FFieldAttackEntry Entry = FieldMovement->CycleFieldAttack(FieldSkillRules::IsFieldSourceHeld(Pressed));
-		if (HubHUD)
-		{
-			HubHUD->ShowFieldAttack(Entry);
-		}
+		return;
 	}
+	// D-217: a tap steps to the next source (plain Sword, Fire Sword, ...); B-503m3: letting go of the wheel confirms
+	// its pick (a hold step too: "(R) Fire", "Dark Fire"). The hub has no wheel: a hold there reads as a tap.
+	const FFieldAttackEntry Entry = bFromWheel ? FieldMovement->SelectFieldAttack(Picked) : FieldMovement->CycleFieldAttack(false);
+	if (HubHUD)
+	{
+		HubHUD->ShowFieldAttack(Entry);
+	}
+}
+
+void AWoRHubController::OpenFieldWheel()
+{
+	const UFieldMovementComponent *FieldMovement = bFieldSourcePressed ? GetFieldMovement() : nullptr;
+	if (!FieldMovement || !HubHUD || !FieldWheelContext)
+	{
+		return;
+	}
+	FieldWheelEntries = FieldMovement->GetFieldAttackEntries();
+	const int32 Kept = FieldMovement->GetFieldAttackIndex();
+	if (!HubHUD->ShowFieldAttackWheel(FieldWheelEntries, Kept))
+	{
+		FieldWheelEntries.Reset();
+		return; // the hub or nothing to pick
+	}
+	FieldWheelPick = Kept;
+	if (UEnhancedInputLocalPlayerSubsystem *Mappings = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		Mappings->AddMappingContext(FieldWheelContext, WoRInputPriority::FIELD_WHEEL);
+	}
+	UE_LOG(LogWoR, Verbose, TEXT("%s Field attack wheel open: %d entries, on %d"), WoRHubControllerConstants::LOG_TAG,
+		   FieldWheelEntries.Num(), Kept + 1);
+}
+
+void AWoRHubController::CloseFieldWheel()
+{
+	if (!IsFieldWheelOpen())
+	{
+		return;
+	}
+	FieldWheelPick = INDEX_NONE;
+	FieldWheelEntries.Reset();
+	if (HubHUD)
+	{
+		HubHUD->HideFieldAttackWheel();
+	}
+	if (UEnhancedInputLocalPlayerSubsystem *Mappings = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		Mappings->RemoveMappingContext(FieldWheelContext);
+	}
+}
+
+void AWoRHubController::HandleFieldWheelPick(const FInputActionValue &Value)
+{
+	const int32 Pointed = IsFieldWheelOpen() ? FieldSkillRules::GetFieldWheelIndexFromStick(Value.Get<FVector2D>(), FieldWheelEntries.Num())
+											 : INDEX_NONE;
+	if (Pointed != INDEX_NONE && Pointed != FieldWheelPick && HubHUD)
+	{
+		FieldWheelPick = Pointed;
+		HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick);
+	}
+}
+
+void AWoRHubController::HandleFieldWheelScroll(const FInputActionValue &Value)
+{
+	const float Scroll = Value.Get<float>();
+	if (!IsFieldWheelOpen() || Scroll == 0.0f || !HubHUD)
+	{
+		return;
+	}
+	constexpr int32 WHEEL_DOWN_STEPS_ON = 1; // scrolling down (towards you) moves to the next entry, as in a list
+	FieldWheelPick = FieldSkillRules::StepFieldWheelIndex(FieldWheelPick, Scroll < 0.0f ? WHEEL_DOWN_STEPS_ON : -WHEEL_DOWN_STEPS_ON,
+														  FieldWheelEntries.Num());
+	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick);
 }
 
 void AWoRHubController::HandleFieldFlyVertical(const FInputActionValue &Value)
