@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-216 — One party card everywhere; what it shows depends on where you are
+**Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
+**Answer (Crown):** the party cards in the field are the battle screen's party cards ("should basically be our battle one"). What they show: **hub**: no HP, no EP, no status (who is in the party only); **trial**: HP and EP, no status; **battle**: everything. The field attack's chip (D-215) sits after the cards in the same style.
+**Notes for Claude:** one card class with a show-level (Hub / Trial / Battle), not three widgets. Built by B-503i.
+
 ### D-215 — The field attack: one swing per weapon type, a pulse for casters, LB cycles the whole loadout
 **Status:** ANSWERED (Crown, 2026-11-15; extends B-214f and the B-214g source switch) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
