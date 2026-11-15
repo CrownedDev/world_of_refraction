@@ -2,6 +2,7 @@
 // B-424 (editor only): builds the light hit's two montages, which the editor's Python can't author (a second segment,
 // the length, notify subobjects). Run headless by Scripts/editor/build_light_hit.py; that script saves the packages.
 //   wor.Editor.BuildLightHitMontages
+//   wor.Editor.BuildLightHitFieldMontage (B-503b: the strike alone, for the field attack)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -26,6 +27,7 @@ namespace LightHitMontageBuilder
 	constexpr const TCHAR *STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/DSAS_V2/Manny_UE5/InPlace/Attack/Combo/Anim_SAS_V2_ComboAttack02_01_IP.Anim_SAS_V2_ComboAttack02_01_IP");
 	constexpr const TCHAR *APPROACH_MONTAGE = TEXT("AM_SAS_LightHit");
 	constexpr const TCHAR *RETURN_MONTAGE = TEXT("AM_SAS_LightHit_Return");
+	constexpr const TCHAR *FIELD_MONTAGE = TEXT("AM_SAS_LightHit_Field");
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -142,6 +144,34 @@ namespace LightHitMontageBuilder
 		AddWarpWindow(Return, HOP_BACK_WARP_START, HOP_BACK_WARP_END);
 		Finish(Return);
 	}
+
+	/** B-503b (D-215): the map's swing, the strike alone (in place, no warp), with the approach montage's strike notifies. */
+	void BuildField()
+	{
+		UAnimSequenceBase *Strike = LoadObject<UAnimSequenceBase>(nullptr, STRIKE_CLIP);
+		if (!Strike)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing the strike clip %s"), STRIKE_CLIP);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(FOLDER) / FIELD_MONTAGE + TEXT(".") + FIELD_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), FIELD_MONTAGE);
+			return;
+		}
+		UAnimMontage *Field = MakeMontage(FIELD_MONTAGE, {Strike});
+		AddCombatNotify(Field, STRIKE_VFX_TIME, ECombatNotifyFamily::VFX);
+		AddCombatNotify(Field, STRIKE_SFX_TIME, ECombatNotifyFamily::SFX);
+		AddCombatNotify(Field, STRIKE_IMPACT_TIME, ECombatNotifyFamily::Impact);
+		Finish(Field);
+	}
+
+	static FAutoConsoleCommand GBuildFieldCommand(
+		TEXT("wor.Editor.BuildLightHitFieldMontage"),
+		TEXT("EDITOR (B-503b): build AM_SAS_LightHit_Field (the strike alone: the map's swing) in ")
+			TEXT("/Game/Data/Skills/Weapons/SwordAndShield/LightHit. Doesn't save; Scripts/editor/build_light_hit.py does."),
+		FConsoleCommandDelegate::CreateStatic(&BuildField));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),

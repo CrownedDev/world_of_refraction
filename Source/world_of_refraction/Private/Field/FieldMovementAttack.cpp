@@ -4,11 +4,13 @@
 // buildup into the fight (UEncounterComponent::StrikeFromField -> ABattleGameMode::ApplyFieldStrike). Held with Water
 // it is Ice. Server side; a client's calls go by Server RPC.
 // B-503 (D-215): the strike's element and physical type come from the entry in use, one stop of a cycle through the
-// whole loadout (GetFieldAttackEntries); only a weapon entry has a physical type. TODO: the swing (B-503b) and the
-// pulse (B-503c).
+// whole loadout (GetFieldAttackEntries); only a weapon entry has a physical type.
+// B-503b: a weapon entry plays its attack's FieldMontage (the battle swing without the dash) on every machine and the
+// sweep waits for its Impact notify; with no montage the hit lands at once. TODO: the pulse (B-503c).
 
 #include "Field/FieldMovementComponent.h"
 
+#include "Animation/AnimMontage.h"
 #include "Character/ECharacterClass.h"
 #include "CollisionQueryParams.h"
 #include "Combat/Encounter/EncounterComponent.h"
@@ -18,10 +20,12 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "GameFramework/Character.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "TimerManager.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -84,6 +88,7 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 		const UAbilityData *Attack = Cast<UAbilityData>(Weapon->WeaponAttack);
 		FFieldAttackEntry &Entry = Entries.Add_GetRef(MakeGearEntry(EFieldAttackKind::Weapon, *Weapon, Socket));
 		Entry.Physical = Attack ? Attack->PhysicalDamageType : EPhysicalDamageType::None;
+		Entry.SwingMontage = Weapon->WeaponAttack ? Weapon->WeaponAttack->FieldMontage : nullptr;
 		AddSocketEvolutionEntry(Socket, Evolutions);
 	};
 	const auto AddRing = [&Entries, &Evolutions](const FRingLoadoutEntry &Slot)
@@ -219,7 +224,8 @@ EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
 	{
 		return EFieldSkillRefusal::NoMovement;
 	}
-	if (World->GetTimeSeconds() - LastFieldAttackTime < FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS)
+	if (World->GetTimeSeconds() - LastFieldAttackTime < FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS ||
+		World->GetTimerManager().IsTimerActive(FieldSwingTimer))
 	{
 		return EFieldSkillRefusal::OnCooldown;
 	}
@@ -230,13 +236,50 @@ EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
 		return EFieldSkillRefusal::None;
 	}
 
+	// The strike is the entry's at the press: cycling during the swing doesn't change the hit on its way.
+	const FFieldAttackEntry Entry = GetFieldAttackEntry();
+	const FFieldStrike Strike = FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld);
+	// shortcut: a blocking load of one small montage on the first swing, async-load with the loadout if it hitches
+	UAnimMontage *Swing = Entry.IsSwing() ? Entry.SwingMontage.LoadSynchronous() : nullptr;
+	if (Swing)
+	{
+		MulticastPlayFieldSwing(Swing);
+	}
+	const float ImpactSeconds = FieldSkillRules::GetSwingImpactSeconds(Swing);
+	if (ImpactSeconds > FieldSkillRules::NO_SWING_DELAY)
+	{
+		World->GetTimerManager().SetTimer(FieldSwingTimer, FTimerDelegate::CreateUObject(this, &UFieldMovementComponent::ResolveFieldAttack, Strike),
+										  ImpactSeconds, /*bLoop=*/false);
+	}
+	else
+	{
+		ResolveFieldAttack(Strike);
+	}
+	return EFieldSkillRefusal::None;
+}
+
+void UFieldMovementComponent::MulticastPlayFieldSwing_Implementation(UAnimMontage *Montage)
+{
+	if (ACharacter *Character = Cast<ACharacter>(GetOwner()))
+	{
+		Character->PlayAnimMontage(Montage); // in place: the strike clip carries no root motion
+	}
+}
+
+void UFieldMovementComponent::ResolveFieldAttack(FFieldStrike Strike)
+{
+	AActor *Owner = GetOwner();
+	UWorld *World = GetWorld();
+	if (!Owner || !World)
+	{
+		return;
+	}
 	const FVector Start = Owner->GetActorLocation();
 	const FVector End = Start + Owner->GetActorForwardVector().GetSafeNormal2D() * FieldSkillRules::FIELD_ATTACK_RANGE;
 	TArray<FHitResult> Hits;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(FieldAttack), false, Owner);
 	World->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn,
 							   FCollisionShape::MakeSphere(FieldSkillRules::FIELD_ATTACK_RADIUS), Params);
-	const FFieldStrike Strike = GetFieldStrike(bHeld);
 	for (const FHitResult &Hit : Hits)
 	{
 		if (!Hit.bBlockingHit)
@@ -248,11 +291,10 @@ EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
 		if (Encounter && Encounter->StrikeFromField(Owner, Strike))
 		{
 			UE_LOG(LogWoR, Log, TEXT("%s %s struck %s"), FieldAttackLog::TAG, *GetNameSafe(Owner), *GetNameSafe(Struck));
-			return EFieldSkillRefusal::None;
+			return;
 		}
 	}
 	UE_LOG(LogWoR, Verbose, TEXT("%s %s: a swing, nothing struck"), FieldAttackLog::TAG, *GetNameSafe(Owner));
-	return EFieldSkillRefusal::None;
 }
 
 void UFieldMovementComponent::ServerFieldAttack_Implementation(bool bHeld)

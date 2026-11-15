@@ -161,6 +161,10 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	TObjectPtr<class UTexture2D> Icon = nullptr;
 
+	/** B-503b: a weapon's swing on the map (its attack's USkillDataBase::FieldMontage); unset for every other kind. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	TSoftObjectPtr<class UAnimMontage> SwingMontage;
+
 	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
 	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
 };
@@ -285,6 +289,11 @@ namespace FieldSkillRules
 	constexpr float FIELD_STRIKE_BUILDUP = 25.0f;         // status buildup each enemy takes at the start
 	constexpr int32 FIELD_ATTACK_SOURCE_COUNT = 3;        // Innate, Weapon, Ring (EFieldSkillSource)
 	static_assert(static_cast<int32>(EFieldSkillSource::Ring) + 1 == FIELD_ATTACK_SOURCE_COUNT, "A new field source: update the count");
+
+	/** B-503b: seconds from the swing's start to its hit: the montage's earliest Impact notify (UCombatNotify) at the
+	 *  montage's own rate. NO_SWING_DELAY with no montage or no Impact notify: the hit lands at once. */
+	constexpr float NO_SWING_DELAY = 0.0f;
+	WORLD_OF_REFRACTION_API float GetSwingImpactSeconds(const class UAnimMontage *Montage);
 
 	// ---- B-503: the field attack's cycle through the loadout (D-215) ----
 

@@ -28,6 +28,7 @@
 #include "Field/FieldSkillTypes.h"
 #include "FieldMovementComponent.generated.h"
 
+class UAnimMontage;
 class UCharacterDataComponent;
 struct FPartyMember;
 
@@ -156,7 +157,9 @@ public:
 	// ---- B-214f: the field attack ----
 
 	/** A swing ahead (bHeld: the attack was held). Striking an encounter starts its fight (UEncounterComponent::
-	 *  StrikeFromField); a miss is just a swing. Refused on cooldown. */
+	 *  StrikeFromField); a miss is just a swing. Refused on cooldown and while a swing's hit is still to land.
+	 *  B-503b: a weapon entry with a swing montage plays it on every machine and hits at its Impact notify
+	 *  (FieldSkillRules::GetSwingImpactSeconds); with none the hit lands at once. */
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	EFieldSkillRefusal FieldAttack(bool bHeld);
 
@@ -227,6 +230,13 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerFieldAttack(bool bHeld);
+
+	/** B-503b: the swing on every machine (a look only: the host times the hit itself). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayFieldSwing(UAnimMontage *Montage);
+
+	/** The hit: the sweep ahead, engaging the first encounter body with Strike (server). */
+	void ResolveFieldAttack(FFieldStrike Strike);
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetFieldAttackIndex(int32 Index);
@@ -355,6 +365,8 @@ private:
 	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
 
 	double LastFieldAttackTime = -FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
+	/** B-503b, server: running from the swing's start to its hit. */
+	FTimerHandle FieldSwingTimer;
 
 	/** When each advanced move was last used (its cooldown). */
 	TMap<EFieldMovementType, double> LastAdvancedUseTime;

@@ -1259,6 +1259,16 @@ The queue of questions only Crown can answer.
 - (5) A: no outside reference; D-215 only names the field attack, and the weapon in hand is the loadout's choice (D-110). Changing the fight's opening weapon from a field key would surprise.
 **Notes for Claude:** built in B-503. The order is the primary weapon or ring, the secondary weapon, the Resonator's rings, the innate element, then evolutions (the character's own slot, gear sockets, apparel). A broken evolution is not a stop; a weapon or ring with a broken crystal stays a stop with no element. Saved with no version bump (an older save loads the first entry). The 2 s popup is a placeholder on the hub HUD, bottom left.
 
+### Q-503b — The field swing: when the hit is read, and moving during it
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503b, D-215) · **Blocks:** —
+**Question:** D-215 says the field attack is the battle swing without the dash. Three things it leaves open, none of them lore: (1) Does the hit land at the press or when the blade does? (2) If the player cycles to another entry during the swing, which entry's element does the hit carry? (3) Can the character walk during the swing?
+**Options:** (1) **A** when the blade lands (the montage's Impact notify), read from where the character stands then; **B** at the press. (2) **A** the entry at the press; **B** the entry when the blade lands. (3) **A** yes; **B** no, held still for the swing.
+**Answer:** **A, A, A**, by the reference-backed default.
+- (1) A: Expedition 33's and Metaphor: ReFantazio's field strikes connect on the swing's contact frame, so a swing that visibly misses doesn't start the fight. It is also how the battle times the same swing.
+- (2) A: the swing on screen is the one the player started; changing its element mid-air would not match what they see.
+- (3) A: Metaphor: ReFantazio lets the character keep moving through the field attack, which keeps the map fluid. The feet may slide until the swing is blended on the upper body; Crown judges it in PIE.
+**Notes for Claude:** built in B-503b. A second attack is refused until the first hit has landed. A weapon whose attack has no field montage hits at once, as before.
+
 ### D-214 — Rest points are the services: each one is a themed object you rest at and use
 **Status:** ANSWERED (Crown, 2026-11-14; changes Q-447 and Q-449's NPC stand-ins) · **Raised:** 2026-11-14 · **Blocks:** —
 **Answer (Crown):** the trial's non-boss rest points and its NPCs merge. Each rest point is a unique object that is also a service: you rest there and use it as that service, e.g. an **anvil** is the Blacksmith a **ritual tree** is the Spiritualist (Crown, 2026-11-14), and a **crystal pedestal** is the Jeweler (for now, Crown). (1) The **pillar-point seller** becomes a rest point type (e.g. a shrine) that rotates: a different rest point offers it each run, the same one for the whole run. (2) **V's extract** is a rest point too: V himself or a mirror with V's picture (look to be decided with the art). **Boss rest spots are a campfire** (Crown, 2026-11-14): their rules are unchanged, only the look.
