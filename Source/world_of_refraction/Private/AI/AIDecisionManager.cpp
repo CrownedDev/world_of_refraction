@@ -1946,7 +1946,7 @@ float UAIDecisionManager::ScoreActionEffects(AActor *Attacker, AActor *Target, U
     // The Ice and Wind breaks take actions too (Q-170e): worth it when this hit tips the target's bar (the status
     // score's trigger tier). The bar's break is the pending hit kind's, as the status score reads it.
     const UStatusBuildupManager *BuildupManager = WoRFight::Get<UStatusBuildupManager>(this);
-    const FBreakRow *Break = BuildupManager ? BreakTable::For(BuildupManager->GetPendingTrigger(Target), /*bActionPips=*/true) : nullptr;
+    const FBreakRow *Break = BuildupManager ? BreakTable::For(BuildupManager->GetPendingTrigger(Target)) : nullptr;
     const int32 BreakActionsLost = Break ? Break->ActionsLostNow + Break->ActionsLostNextTurn : 0;
     if (BreakActionsLost > 0 && EstimateSkillStatusScore(Attacker, Target, Skill) >= WoRTuning::Get().AIStatusScoreTrigger)
     {
