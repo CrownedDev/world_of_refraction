@@ -3,6 +3,7 @@
 #include "UI/Hub/HubHUDWidget.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Currency/CurrencyComponent.h"
@@ -11,6 +12,8 @@
 #include "Engine/World.h"
 #include "Field/FieldSkillTypes.h"
 #include "GameFramework/PlayerController.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Infusion/ElementColors.h"
 #include "Player/WoRPlayerState.h"
 #include "TimerManager.h"
@@ -43,6 +46,15 @@ namespace HubHUDStyle
 	const FVector2D BottomLeftAlignment(0.0f, 1.0f);
 	constexpr float FieldAttackBottom = 220.0f;
 	constexpr float FieldAttackIconSize = 48.0f;
+	/** B-503g: the party strip (mockup hub/hud: 48, 640 at 720p, so x1.5 here); bottom left, cards left to right. */
+	constexpr float PartyStripBottom = 54.0f;
+	constexpr float PartyCardWidth = 207.0f;
+	constexpr float PartyCardHeight = 66.0f;
+	constexpr float PartyCardPaddingX = 15.0f;
+	constexpr float PartyDotSize = 24.0f;
+	constexpr float PartyDotGap = 12.0f;
+	constexpr float PartyBarWidth = 138.0f;
+	constexpr float PartyBarHeight = 8.0f;
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -133,10 +145,76 @@ void UHubHUDWidget::BuildTree()
 		FieldAttackSlot->SetAutoSize(true);
 	}
 
+	BuildPartyStrip(Canvas);
+
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
 	SetShown(QuestBox, false);
 	SetShown(FieldAttackBox, false);
+}
+
+void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
+{
+	using namespace HubHUDStyle;
+
+	UHorizontalBox *Strip = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
+	{
+		FPartyCardWidgets &Widgets = PartyCards.AddDefaulted_GetRef();
+		UBorder *Card = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Card->SetBrushColor(PanelColor);
+		Card->SetPadding(FMargin(PartyCardPaddingX, 0.0f));
+		Card->SetVerticalAlignment(VAlign_Center);
+		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		Card->SetContent(Row);
+		Widgets.Dot = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
+		Widgets.Dot->SetDesiredSizeOverride(FVector2D(PartyDotSize, PartyDotSize));
+		AddToRow(Row, Widgets.Dot, FMargin(0.0f, 0.0f, PartyDotGap, 0.0f));
+		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Widgets.Name = MakeText(WidgetTree, RowFontSize, DimColor, true);
+		Widgets.HP = MakeBar(WidgetTree, HPColor);
+		AddToColumn(Column, Widgets.Name);
+		AddToColumn(Column, MakeSized(WidgetTree, PartyBarWidth, PartyBarHeight, Widgets.HP), FMargin(0.0f, LineGap * 0.5f, 0.0f, 0.0f));
+		AddToRow(Row, Column);
+		Widgets.Card = MakeSized(WidgetTree, PartyCardWidth, PartyCardHeight, Card);
+		AddToRow(Strip, Widgets.Card, FMargin(0.0f, 0.0f, Index + 1 < PartyConstants::MAX_PARTY_MEMBERS ? SectionGap : 0.0f, 0.0f));
+		SetShown(Widgets.Card, false);
+	}
+	if (UCanvasPanelSlot *StripSlot = Canvas->AddChildToCanvas(Strip))
+	{
+		StripSlot->SetAnchors(BottomLeft);
+		StripSlot->SetAlignment(BottomLeftAlignment);
+		StripSlot->SetPosition(FVector2D(ScreenPadding, -PartyStripBottom));
+		StripSlot->SetAutoSize(true);
+	}
+}
+
+void UHubHUDWidget::RefreshPartyStrip()
+{
+	const UGameInstance *GameInstance = GetGameInstance();
+	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const TArray<FHubHUDPartyCard> Cards = WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr);
+	for (int32 Index = 0; Index < PartyCards.Num(); ++Index)
+	{
+		const FPartyCardWidgets &Widgets = PartyCards[Index];
+		const bool bShown = Cards.IsValidIndex(Index);
+		WoRMenuStyle::SetShown(Widgets.Card, bShown);
+		if (!bShown)
+		{
+			continue;
+		}
+		const FHubHUDPartyCard &Card = Cards[Index];
+		if (!Card.Name.EqualTo(Widgets.Name->GetText()))
+		{
+			Widgets.Name->SetText(Card.Name);
+		}
+		if (Widgets.Dot->GetBrush().TintColor.GetSpecifiedColor() != Card.DotColor)
+		{
+			Widgets.Dot->SetBrush(FSlateRoundedBoxBrush(Card.DotColor, HubHUDStyle::PartyDotSize * 0.5f,
+														  FVector2f(HubHUDStyle::PartyDotSize, HubHUDStyle::PartyDotSize)));
+		}
+		Widgets.HP->SetPercent(Card.HPShare);
+	}
 }
 
 void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
@@ -243,6 +321,7 @@ void UHubHUDWidget::Refresh()
 	{
 		return; // headless: no tree
 	}
+	RefreshPartyStrip();
 	SetShown(MoneyBox, bMoneyShown);
 	if (bMoneyShown)
 	{
