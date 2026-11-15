@@ -32,6 +32,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Weapon Mesh")
     void ClearWeaponMesh();
 
+    /** B-503s (D-218): the field wheel's pick of an element source (the innate, an evolution, a caster's adapter)
+     *  puts the weapon away; a weapon pick shows it again. Kept across mesh rebuilds. A look only, per machine. */
+    void SetWeaponHidden(bool bHidden);
+    bool IsWeaponHidden() const { return bWeaponHidden; }
+
     /** Get currently displayed weapon */
     UFUNCTION(BlueprintPure, Category = "Weapon Mesh")
     UWeaponData *GetDisplayedWeapon() const { return CachedWeapon; }
@@ -57,6 +62,8 @@ private:
     void HandleActiveWeaponChanged(UWeaponData *NewWeapon);
 
     void CacheReferences();
+    bool bWeaponHidden = false;
+    void ApplyWeaponHidden();
     void SpawnWeaponMesh(UWeaponData *Weapon);
     void SpawnDualWeaponMesh(UWeaponData *Weapon);
     USkeletalMeshComponent *GetOwnerMesh() const;

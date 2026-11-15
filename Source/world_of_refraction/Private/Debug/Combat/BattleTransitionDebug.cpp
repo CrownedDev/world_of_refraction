@@ -22,20 +22,27 @@ FString WoRBattleTransitionDebug::GetStateString(const UBattleTransitionSubsyste
 		return TEXT("no battle transition subsystem");
 	}
 	const BattleTransition::FClock &Clock = Transition->GetClock();
-	return FString::Printf(TEXT("%s: %.2fs (blow-away %.2fs), %d shards, %s, %s"), BattleTransition::GetStateName(Clock.State),
-						   Clock.Elapsed, Clock.ReleaseElapsed, Transition->GetShardCount(),
+	const BattleTransition::FPrismLight Light = Clock.State == BattleTransition::EState::Idle
+													? BattleTransition::FPrismLight()
+													: BattleTransition::EvaluatePrismLight(UBattleTransitionData::Get(), Clock.Elapsed);
+	return FString::Printf(TEXT("%s: %.2fs (blow-away %.2fs), %d shards, %s, %s | light: flash %.2f, reach %.2f, edge glow %.2f"),
+						   BattleTransition::GetStateName(Clock.State), Clock.Elapsed, Clock.ReleaseElapsed, Transition->GetShardCount(),
 						   Transition->HasFrame() ? TEXT("frame captured") : TEXT("no frame"),
-						   Transition->HasPicture() ? TEXT("held picture shown") : TEXT("no picture"));
+						   Transition->HasPicture() ? TEXT("held picture shown") : TEXT("no picture"), Light.Flash, Light.LightReach,
+						   Light.EdgeGlow);
 }
 
 FString WoRBattleTransitionDebug::GetDataString(const UBattleTransitionData &Data)
 {
 	return FString::Printf(
-		TEXT("crack %.2fs, break %.2fs, settle %.2fs, blow away %.2fs, picture fade %.2fs, max hold %.1fs | %dx%d cells, wall %.0f cm, "
-			 "push in %.2f | bloom %.1f, motion blur %.1f (max %.0f%%), f/%.1f | material %s"),
-		Data.CrackSeconds, Data.BreakSeconds, Data.ArrivalSettleSeconds, Data.BlowAwaySeconds, Data.PictureFadeSeconds, Data.MaxHoldSeconds,
+		TEXT("crack %.2fs, break %.2fs (ease %.1f), settle %.2fs, blow away %.2fs (ease %.1f), picture fade %.2fs, max hold %.1fs | %dx%d cells, "
+			 "wall %.0f cm, push in %.2f | bloom %.1f, motion blur %.1f (max %.0f%%), f/%.1f | prism: flash %.1f over %.2fs, white reach %.2f, "
+			 "edge glow %.1f (hold share %.2f), shard colour %.2f | material %s"),
+		Data.CrackSeconds, Data.BreakSeconds, Data.BreakEase, Data.ArrivalSettleSeconds, Data.BlowAwaySeconds, Data.BlowAwayEase,
+		Data.PictureFadeSeconds, Data.MaxHoldSeconds,
 		Data.ShardColumns, Data.ShardRows, Data.WallDistance, Data.PushIn, Data.BloomIntensity, Data.MotionBlurAmount,
-		Data.MotionBlurMaxPercent, Data.FocusFstop,
+		Data.MotionBlurMaxPercent, Data.FocusFstop, Data.FlashStrength, Data.FlashSeconds, Data.WhiteReach, Data.EdgeGlowStrength,
+		Data.EdgeGlowHoldShare, Data.ShardColorStrength,
 		Data.ShardMaterial.IsNull() ? TEXT("none (plain tinted shards)") : *Data.ShardMaterial.GetAssetName());
 }
 

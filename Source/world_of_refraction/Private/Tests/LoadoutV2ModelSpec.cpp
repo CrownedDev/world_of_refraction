@@ -14,6 +14,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/FCrystalAttachment.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/FCombatLoadout.h"
@@ -214,6 +215,19 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("a second weapon fits"), Kinds[0].Refusal.IsEmpty());
 		TestTrue(TEXT("an adapter fits"), Kinds[1].Refusal.IsEmpty());
 		TestFalse(TEXT("the evolution needs the first entry free"), Kinds[2].Refusal.IsEmpty());
+		TestEqual(TEXT("B-503u (D-220): Add a weapon first"), Kinds[0].Name.ToString(), FString(TEXT("Add a weapon")));
+		TestEqual(TEXT("then Add an adapter"), Kinds[1].Name.ToString(), FString(TEXT("Add an adapter")));
+
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("B"), EWeaponType::Axe)), Refusal);
+		const TArray<FLoadoutV2KindChoice> TwoWeapons = WoRLoadoutV2::BuildAddKinds(Loadout, ECharacterClass::Generic);
+		TestEqual(TEXT("two weapons: greyed with the class limit"), TwoWeapons[0].Refusal.ToString(), FString(TEXT("A Generic holds at most 2 weapons.")));
+		TestTrue(TEXT("the adapter still fits"), TwoWeapons[1].Refusal.IsEmpty());
+		FLoadoutV2Draft Ring;
+		Ring.Kind = ELoadoutV2DraftKind::Adapter;
+		Ring.Adapter = LoadoutV2TestAdapter();
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, Ring, Refusal);
+		TestEqual(TEXT("three pieces: every kind says the piece limit"), WoRLoadoutV2::BuildAddKinds(Loadout, ECharacterClass::Generic)[1].Refusal.ToString(),
+				  FString(TEXT("A Generic holds at most 3 pieces.")));
 
 		FCombatLoadout Refractor;
 		WoRLoadoutV2::ApplyDraft(Refractor, ECharacterClass::Caster, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Staff"), EWeaponType::Staff)), Refusal);
@@ -221,6 +235,28 @@ void FLoadoutV2ModelSpec::Define()
 		{
 			TestFalse(TEXT("a Refractor's one entry is taken: every kind refused"), Kind.Refusal.IsEmpty());
 		}
+		TestEqual(TEXT("B-503u: with its class limit"), WoRLoadoutV2::BuildAddKinds(Refractor, ECharacterClass::Caster)[0].Refusal.ToString(),
+				  FString(TEXT("A Refractor holds at most 1 piece.")));
+		FCombatLoadout Resonator;
+		WoRLoadoutV2::ApplyDraft(Resonator, ECharacterClass::Resonator, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("A"), EWeaponType::Sword)), Refusal);
+		const TArray<FLoadoutV2KindChoice> ResonatorKinds = WoRLoadoutV2::BuildAddKinds(Resonator, ECharacterClass::Resonator);
+		TestEqual(TEXT("a Resonator's one weapon"), ResonatorKinds[0].Refusal.ToString(), FString(TEXT("A Resonator holds at most 1 weapon.")));
+		TestTrue(TEXT("its adapters still fit"), ResonatorKinds[1].Refusal.IsEmpty());
+	});
+
+	It("gives the Edit window's box the lit slot's piece, or what an empty slot takes (B-503u)", [this]()
+	{
+		const TArray<FLoadoutV2DetailLine> EmptyFirst = WoRLoadoutV2::BuildSocketDetails(FRuntimeAttachedItem(), /*bFirstSocket=*/true, false);
+		TestTrue(TEXT("an empty socket 1: one line, what it takes"), EmptyFirst.Num() == 1 && EmptyFirst[0].Value.ToString().Contains(TEXT("crystal")));
+		const TArray<FLoadoutV2DetailLine> EmptySecond = WoRLoadoutV2::BuildSocketDetails(FRuntimeAttachedItem(), false, false);
+		TestTrue(TEXT("an empty socket 2 takes a stone"), EmptySecond.Num() == 1 && EmptySecond[0].Value.ToString().Contains(TEXT("stone")));
+		FRuntimeAttachedItem Garnet;
+		Garnet.Kind = EAttachedItemKind::Crystal;
+		constexpr int32 LIVE_DURABILITY = 10;
+		Garnet.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), LIVE_DURABILITY);
+		TestEqual(TEXT("a filled socket: the crystal's own details"), WoRLoadoutV2::GetDetailsString(WoRLoadoutV2::BuildSocketDetails(Garnet, true, false)),
+				  WoRLoadoutV2::GetDetailsString(WoRLoadoutV2::BuildAttachmentDetails(Garnet, false)));
+		TestEqual(TEXT("an empty off hand: one line"), WoRLoadoutV2::BuildOffHandDetails(FWeaponInventoryEntry(), false).Num(), 1);
 	});
 
 	It("lists adapters the loadout doesn't hold and evolutions, one in use refused (B-476c)", [this]()

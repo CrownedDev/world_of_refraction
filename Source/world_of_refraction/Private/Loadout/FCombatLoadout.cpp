@@ -169,8 +169,8 @@ TArray<UAbilityData *> FCombatLoadout::GetAllAbilities() const
 {
     TArray<UAbilityData *> Result;
 
-    // Primary weapon abilities (only if primary is weapon)
-    if (PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid())
+    // Primary weapon abilities (a Weapon or None primary type, the active rule: B-503q)
+    if (HasPrimaryWeapon())
     {
         // B-351 (D-145): the weapon's one skill-slot list once active (else the old merge), so every reader of
         // the loadout's abilities (CanUseAbility, the AI, combat tier, memory conditions) sees the same list.
@@ -199,8 +199,8 @@ TArray<USpellData *> FCombatLoadout::GetAllSpells() const
         Result.Append(EvolutionSpells);
     }
 
-    // Primary weapon spells
-    if (PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid())
+    // Primary weapon spells (a Weapon or None primary type: B-503q)
+    if (HasPrimaryWeapon())
     {
         Result.Append(PrimaryWeapon.GetAllSpells());
     }

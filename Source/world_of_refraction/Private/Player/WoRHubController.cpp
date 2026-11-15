@@ -5,15 +5,23 @@
 #include "Blueprint/UserWidget.h"
 #include "Character/CombatCharacter.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "Field/FieldMovementComponent.h"
 #include "Hub/HubInteract.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
+#include "InputMappingContext.h"
+#include "InputModifiers.h"
+#include "Character/CharacterDataComponent.h"
+#include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/InputPriorities.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/Menus/TitleScreenWidget.h"
+#include "UI/WoRKeyHintText.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -31,6 +39,131 @@ namespace WoRHubControllerConstants
 	/** B-443: with the rest of the viewport HUD (the party strip, ZOrder 0), above the root layout; the layout
 	 *  hides both while a menu screen is up. */
 	constexpr int32 HUB_HUD_ZORDER = 0;
+
+	/** B-503e: the code-made field actions keep the asset names (InputMap.md), so a later asset slots in. */
+	const FName FIELD_ATTACK_ACTION_NAME = TEXT("IA_Field_Attack");
+	const FName FIELD_SWITCH_SOURCE_ACTION_NAME = TEXT("IA_Field_SwitchSource");
+	const FName FIELD_FLY_VERTICAL_ACTION_NAME = TEXT("IA_Field_FlyVertical");
+	const FName FIELD_KEYS_CONTEXT_NAME = TEXT("IMC_Field_Keys");
+	/** B-503m3, B-503m4: the wheel's keys, always made in code (InputMap.md row 18). */
+	const FName FIELD_WHEEL_PICK_ACTION_NAME = TEXT("IA_Field_WheelPick");
+	const FName FIELD_WHEEL_MOUSE_ACTION_NAME = TEXT("IA_Field_WheelMouse");
+	const FName FIELD_WHEEL_ELEMENT_ACTION_NAME = TEXT("IA_Field_WheelElement");
+	const FName FIELD_WHEEL_SCROLL_ACTION_NAME = TEXT("IA_Field_WheelScroll");
+	const FName FIELD_WHEEL_CONFIRM_ACTION_NAME = TEXT("IA_Field_WheelConfirm");
+	const FName FIELD_WHEEL_CLOSE_ACTION_NAME = TEXT("IA_Field_WheelClose");
+	const FName FIELD_WHEEL_CONTEXT_NAME = TEXT("IMC_Field_Wheel");
+	/** B-503m5: how often the cursor is read while the wheel is up (only then; the field has no tick for it). */
+	constexpr float FIELD_WHEEL_HOVER_SECONDS = 1.0f / 30.0f;
+}
+
+void AWoRHubController::BuildFieldWheelKeys()
+{
+	if (FieldWheelContext)
+	{
+		return;
+	}
+	using namespace WoRHubControllerConstants;
+	FieldWheelContext = NewObject<UInputMappingContext>(this, FIELD_WHEEL_CONTEXT_NAME);
+	// B-503m4 (D-217): the actions eat their keys (the default), so the character stands and the camera holds still.
+	FieldWheelPickAction = NewObject<UInputAction>(this, FIELD_WHEEL_PICK_ACTION_NAME);
+	FieldWheelPickAction->ValueType = EInputActionValueType::Axis2D;
+	FieldWheelContext->MapKey(FieldWheelPickAction, EKeys::Gamepad_Left2D);
+	FieldWheelMouseAction = NewObject<UInputAction>(this, FIELD_WHEEL_MOUSE_ACTION_NAME);
+	FieldWheelMouseAction->ValueType = EInputActionValueType::Axis2D;
+	FieldWheelContext->MapKey(FieldWheelMouseAction, EKeys::Mouse2D);
+	FieldWheelElementAction = NewObject<UInputAction>(this, FIELD_WHEEL_ELEMENT_ACTION_NAME);
+	FieldWheelElementAction->ValueType = EInputActionValueType::Axis1D;
+	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::Gamepad_DPad_Right);
+	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::D);
+	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::Gamepad_DPad_Left).Modifiers.Add(NewObject<UInputModifierNegate>(FieldWheelContext));
+	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::A).Modifiers.Add(NewObject<UInputModifierNegate>(FieldWheelContext));
+	FieldWheelScrollAction = NewObject<UInputAction>(this, FIELD_WHEEL_SCROLL_ACTION_NAME);
+	FieldWheelScrollAction->ValueType = EInputActionValueType::Axis1D;
+	FieldWheelContext->MapKey(FieldWheelScrollAction, EKeys::MouseWheelAxis);
+	// B-503m5 (D-218, a toggle): eaten while it is up, so the click doesn't attack, A doesn't jump and R / RB don't
+	// reach the field keys. The key that opened it is still down then: Enhanced Input ignores it until let go.
+	FieldWheelConfirmAction = NewObject<UInputAction>(this, FIELD_WHEEL_CONFIRM_ACTION_NAME);
+	FieldWheelConfirmAction->ValueType = EInputActionValueType::Boolean;
+	FieldWheelContext->MapKey(FieldWheelConfirmAction, EKeys::Gamepad_FaceButton_Bottom);
+	FieldWheelContext->MapKey(FieldWheelConfirmAction, EKeys::LeftMouseButton);
+	FieldWheelCloseAction = NewObject<UInputAction>(this, FIELD_WHEEL_CLOSE_ACTION_NAME);
+	FieldWheelCloseAction->ValueType = EInputActionValueType::Boolean;
+	for (const FKey &Key : {EKeys::Gamepad_FaceButton_Right, EKeys::BackSpace, EKeys::Gamepad_RightShoulder, EKeys::R})
+	{
+		FieldWheelContext->MapKey(FieldWheelCloseAction, Key);
+	}
+}
+
+void AWoRHubController::BuildCodeFieldActions()
+{
+	if (FieldKeysContext || (FieldAttackAction && FieldSwitchSourceAction && FieldFlyVerticalAction))
+	{
+		return;
+	}
+	UEnhancedInputLocalPlayerSubsystem *Mappings =
+		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	using namespace WoRHubControllerConstants;
+	if (!Mappings)
+	{
+		UE_LOG(LogWoR, Warning, TEXT("%s No Enhanced Input subsystem - field keys unbound"), LOG_TAG);
+		return;
+	}
+	FieldKeysContext = NewObject<UInputMappingContext>(this, FIELD_KEYS_CONTEXT_NAME);
+	const auto MakeAction = [this](FName Name, EInputActionValueType ValueType)
+	{
+		UInputAction *Action = NewObject<UInputAction>(this, Name);
+		Action->ValueType = ValueType;
+		// Don't eat the key: Space is also Jump, and the BP's own context may map these keys.
+		Action->bConsumeInput = false;
+		return Action;
+	};
+	if (!FieldAttackAction)
+	{
+		FieldAttackAction = MakeAction(FIELD_ATTACK_ACTION_NAME, EInputActionValueType::Boolean);
+		FieldKeysContext->MapKey(FieldAttackAction, EKeys::LeftMouseButton);
+		FieldKeysContext->MapKey(FieldAttackAction, EKeys::Gamepad_RightShoulder);
+	}
+	if (!FieldSwitchSourceAction)
+	{
+		FieldSwitchSourceAction = MakeAction(FIELD_SWITCH_SOURCE_ACTION_NAME, EInputActionValueType::Boolean);
+		// B-503m4 (D-217 "RB, tap and hold"): RB is both: a tap attacks, a hold opens the wheel. LB is off the field keys.
+		FieldKeysContext->MapKey(FieldSwitchSourceAction, EKeys::R);
+		FieldKeysContext->MapKey(FieldSwitchSourceAction, EKeys::Gamepad_RightShoulder);
+	}
+	if (!FieldFlyVerticalAction)
+	{
+		FieldFlyVerticalAction = MakeAction(FIELD_FLY_VERTICAL_ACTION_NAME, EInputActionValueType::Axis1D);
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::SpaceBar);
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::Gamepad_FaceButton_Bottom);
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::LeftControl)
+			.Modifiers.Add(NewObject<UInputModifierNegate>(FieldKeysContext));
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::Gamepad_RightThumbstick)
+			.Modifiers.Add(NewObject<UInputModifierNegate>(FieldKeysContext));
+	}
+	Mappings->AddMappingContext(FieldKeysContext, WoRInputPriority::FIELD_KEYS);
+	UE_LOG(LogWoR, Log, TEXT("%s Field keys made in code (no IA_Field_* assets): %d mappings in %s"), LOG_TAG,
+		   FieldKeysContext->GetMappings().Num(), *FIELD_KEYS_CONTEXT_NAME.ToString());
+}
+
+void AWoRHubController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// The local player outlives this controller: leave no stale field keys for the next level's controller.
+	if (FieldKeysContext)
+	{
+		if (UEnhancedInputLocalPlayerSubsystem *Mappings =
+				ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+		{
+			Mappings->RemoveMappingContext(FieldKeysContext);
+		}
+		FieldKeysContext = nullptr;
+	}
+	if (GetWorld())
+	{
+		GetWorldTimerManager().ClearTimer(FieldWheelOpenTimer);
+	}
+	CloseFieldWheel();
+	Super::EndPlay(EndPlayReason);
 }
 
 void AWoRHubController::BeginPlay()
@@ -131,26 +264,31 @@ void AWoRHubController::SetupInputComponent()
 		}
 		return Action != nullptr;
 	};
-	if (LoadFieldAction(FieldAttackAction, DefaultFieldAttackAction))
+	LoadFieldAction(FieldAttackAction, DefaultFieldAttackAction);
+	LoadFieldAction(FieldSwitchSourceAction, DefaultFieldSwitchSourceAction);
+	LoadFieldAction(FieldFlyVerticalAction, DefaultFieldFlyVerticalAction);
+	BuildCodeFieldActions();
+	if (FieldAttackAction)
 	{
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldAttackStarted);
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldAttackCompleted);
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldAttackCanceled);
 	}
-	if (LoadFieldAction(FieldSwitchSourceAction, DefaultFieldSwitchSourceAction))
+	if (FieldSwitchSourceAction)
 	{
-		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldSwitchSource);
+		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldSwitchSourceStarted);
+		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldSwitchSource);
+		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldSwitchSourceCanceled);
+		BuildFieldWheelKeys();
+		EnhancedInput->BindAction(FieldWheelPickAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldWheelPick);
+		EnhancedInput->BindAction(FieldWheelElementAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldWheelElement);
+		EnhancedInput->BindAction(FieldWheelScrollAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldWheelScroll);
+		EnhancedInput->BindAction(FieldWheelConfirmAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldWheelConfirm);
+		EnhancedInput->BindAction(FieldWheelCloseAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldWheelClose);
 	}
-	if (LoadFieldAction(FieldFlyVerticalAction, DefaultFieldFlyVerticalAction))
+	if (FieldFlyVerticalAction)
 	{
 		EnhancedInput->BindAction(FieldFlyVerticalAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldFlyVertical);
-	}
-	if (!FieldAttackAction || !FieldSwitchSourceAction || !FieldFlyVerticalAction)
-	{
-		UE_LOG(LogWoR, Log, TEXT("[WoRHubController] Field input actions missing (attack %s, switch source %s, fly vertical %s): "
-								 "B-214g's editor step makes them; wor.Field.Attack / SwitchSource / FlyVertical stand in"),
-			   FieldAttackAction ? TEXT("ok") : TEXT("none"), FieldSwitchSourceAction ? TEXT("ok") : TEXT("none"),
-			   FieldFlyVerticalAction ? TEXT("ok") : TEXT("none"));
 	}
 
 	if (!ToggleMenuAction && !DefaultToggleMenuAction.IsNull())
@@ -172,6 +310,7 @@ void AWoRHubController::SetupInputComponent()
 
 void AWoRHubController::HandleToggleMenu(const FInputActionValue & /*Value*/)
 {
+	CloseFieldWheel(); // B-503m5: the wheel stays up after its key is let go; a menu over it closes it, picking nothing
 	OpenGameMenu();
 }
 
@@ -192,6 +331,14 @@ void AWoRHubController::OnPossess(APawn *InPawn)
 		{
 			PartySession->EnsureLocalParty(this, LocalPartyPawnClass);
 		}
+	}
+	// B-503s2: a hub pawn spawns unstamped; the local leader's is the party's first member (ATrialGameMode's rule).
+	const UPartySessionSubsystem *Session = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const UParty *Party = Session ? Session->GetLocalParty() : nullptr;
+	UCharacterDataComponent *CharComp = InPawn ? InPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (IsLocalController() && Party && Party->Members.Num() > 0 && CharComp && CharComp->CharacterData == Party->Members[0].CharacterData)
+	{
+		CharComp->StampPartyMember(Party->Members[0].MemberId);
 	}
 	EnsureFieldMovement(InPawn); // after EnsureLocalParty, so the leader's record is bound
 }
@@ -246,8 +393,7 @@ void AWoRHubController::HandleFieldAttackCompleted(const FInputActionValue & /*V
 	bFieldAttackPressed = false;
 	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
 	{
-		const double Pressed = GetWorld() ? GetWorld()->GetRealTimeSeconds() - FieldAttackPressTime : 0.0;
-		FieldMovement->FieldAttack(FieldSkillRules::IsFieldAttackHeld(Pressed));
+		FieldMovement->FieldAttack(/*bHeld=*/false); // B-503m4 (D-217 "Ice"): Ice is the Water entry's option, not a hold
 	}
 }
 
@@ -256,11 +402,200 @@ void AWoRHubController::HandleFieldAttackCanceled(const FInputActionValue & /*Va
 	bFieldAttackPressed = false;
 }
 
+void AWoRHubController::HandleFieldSwitchSourceStarted(const FInputActionValue & /*Value*/)
+{
+	bFieldSourcePressed = true;
+	// B-503m3 (D-217): held this long, the wheel opens while the key is still down.
+	GetWorldTimerManager().SetTimer(FieldWheelOpenTimer, this, &AWoRHubController::OpenFieldWheel,
+									static_cast<float>(FieldSkillRules::FIELD_SOURCE_HOLD_SECONDS), /*bLoop=*/false);
+}
+
+void AWoRHubController::HandleFieldSwitchSourceCanceled(const FInputActionValue & /*Value*/)
+{
+	bFieldSourcePressed = false;
+	GetWorldTimerManager().ClearTimer(FieldWheelOpenTimer); // focus loss or a menu took the key before the wheel opened
+}
+
 void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Value*/)
 {
-	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
+	// B-503m5 (D-218, a toggle): letting go leaves an open wheel up (its own keys confirm or close it). A tap
+	// changes nothing: RB's tap is the attack (IA_Field_Attack), R's is nothing.
+	bFieldSourcePressed = false;
+	GetWorldTimerManager().ClearTimer(FieldWheelOpenTimer);
+}
+
+void AWoRHubController::ConfirmFieldWheel()
+{
+	UFieldMovementComponent *FieldMovement = GetFieldMovement();
+	const int32 Picked = FieldWheelPick;
+	CloseFieldWheel();
+	if (!FieldMovement || Picked == INDEX_NONE)
 	{
-		FieldMovement->SwitchFieldAttackSource();
+		return;
+	}
+	// An element option too: "Ice", "(R) Fire", "Dark Fire".
+	const FFieldAttackEntry Entry = FieldMovement->SelectFieldAttack(Picked);
+	UE_LOG(LogWoR, Log, TEXT("%s Field attack wheel: picked %d"), WoRHubControllerConstants::LOG_TAG, Picked + 1);
+	if (HubHUD)
+	{
+		HubHUD->ShowFieldAttack(Entry);
+	}
+}
+
+void AWoRHubController::HandleFieldWheelConfirm(const FInputActionValue & /*Value*/)
+{
+	if (!IsFieldWheelOpen() || !HubHUD)
+	{
+		return;
+	}
+	if (bFieldWheelCursor)
+	{
+		// A click picks the slice under it; a click off the wheel does nothing (the wheel stays up).
+		bool bOnWheel = false;
+		const int32 Slice = HubHUD->GetFieldWheelSliceUnderCursor(bOnWheel);
+		if (!bOnWheel)
+		{
+			return;
+		}
+		PickFieldWheelSlice(Slice);
+	}
+	ConfirmFieldWheel();
+}
+
+void AWoRHubController::HandleFieldWheelClose(const FInputActionValue & /*Value*/)
+{
+	CloseFieldWheel();
+}
+
+void AWoRHubController::UpdateFieldWheelHover()
+{
+	bool bOnWheel = false;
+	if (IsFieldWheelOpen() && HubHUD)
+	{
+		PickFieldWheelSlice(HubHUD->GetFieldWheelSliceUnderCursor(bOnWheel));
+	}
+}
+
+void AWoRHubController::OpenFieldWheel()
+{
+	const UFieldMovementComponent *FieldMovement = bFieldSourcePressed ? GetFieldMovement() : nullptr;
+	if (!FieldMovement || !HubHUD || !FieldWheelContext)
+	{
+		return;
+	}
+	FieldWheelEntries = FieldMovement->GetFieldAttackEntries();
+	const TArray<int32> Slices = FieldSkillRules::GetFieldSliceStarts(FieldWheelEntries);
+	if (Slices.Num() > HubHUD->GetFieldWheelCapacity())
+	{
+		FieldWheelEntries.SetNum(Slices[HubHUD->GetFieldWheelCapacity()]); // the stick picks only shown slices
+	}
+	const int32 Kept = FieldSkillRules::ClampFieldAttackIndex(FieldMovement->GetFieldAttackIndex(), FieldWheelEntries.Num());
+	if (!HubHUD->ShowFieldAttackWheel(FieldWheelEntries, Kept))
+	{
+		FieldWheelEntries.Reset();
+		return; // the hub or nothing to pick
+	}
+	FieldWheelPick = FieldWheelKept = Kept;
+	bFieldAttackPressed = false; // B-503m4: RB held for the wheel doesn't attack on release
+	if (UEnhancedInputLocalPlayerSubsystem *Mappings = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		Mappings->AddMappingContext(FieldWheelContext, WoRInputPriority::FIELD_WHEEL);
+	}
+	// B-503m5 (D-218): the character stands and the camera holds while it is up, whatever the pawn's own look and
+	// move keys are; on keyboard and mouse the cursor shows and picks.
+	SetIgnoreMoveInput(true);
+	SetIgnoreLookInput(true);
+	bFieldWheelCursor = !WoRKeyHints::IsGamepad(HubHUD.Get());
+	if (bFieldWheelCursor)
+	{
+		SetShowMouseCursor(true);
+		FInputModeGameAndUI CursorMode;
+		CursorMode.SetHideCursorDuringCapture(false);
+		CursorMode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
+		SetInputMode(CursorMode);
+		GetWorldTimerManager().SetTimer(FieldWheelHoverTimer, this, &AWoRHubController::UpdateFieldWheelHover,
+										WoRHubControllerConstants::FIELD_WHEEL_HOVER_SECONDS, /*bLoop=*/true);
+	}
+	UE_LOG(LogWoR, Log, TEXT("%s Field attack wheel open: %d entries, on %d (wor.Field.CycleAttack lists them)"), WoRHubControllerConstants::LOG_TAG,
+		   FieldWheelEntries.Num(), Kept + 1);
+}
+
+void AWoRHubController::CloseFieldWheel()
+{
+	if (!IsFieldWheelOpen())
+	{
+		return;
+	}
+	FieldWheelPick = FieldWheelKept = INDEX_NONE;
+	FieldWheelEntries.Reset();
+	if (HubHUD)
+	{
+		HubHUD->HideFieldAttackWheel();
+	}
+	if (UEnhancedInputLocalPlayerSubsystem *Mappings = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	{
+		Mappings->RemoveMappingContext(FieldWheelContext);
+	}
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+	if (bFieldWheelCursor)
+	{
+		bFieldWheelCursor = false;
+		if (GetWorld())
+		{
+			GetWorldTimerManager().ClearTimer(FieldWheelHoverTimer);
+		}
+		SetShowMouseCursor(false);
+		SetInputMode(FInputModeGameOnly());
+	}
+}
+
+void AWoRHubController::PickFieldWheelSlice(int32 Slice)
+{
+	const TArray<int32> Slices = FieldSkillRules::GetFieldSliceStarts(FieldWheelEntries);
+	if (!Slices.IsValidIndex(Slice) || Slice == FieldSkillRules::GetFieldSliceOf(FieldWheelEntries, FieldWheelPick) || !HubHUD)
+	{
+		return;
+	}
+	// Back on the kept entry's slice, the kept option; any other slice opens on its first option.
+	FieldWheelPick = Slice == FieldSkillRules::GetFieldSliceOf(FieldWheelEntries, FieldWheelKept) ? FieldWheelKept : Slices[Slice];
+	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick);
+}
+
+void AWoRHubController::StepFieldWheelElement(int32 Delta)
+{
+	if (!IsFieldWheelOpen() || !HubHUD)
+	{
+		return;
+	}
+	FieldWheelPick = FieldSkillRules::StepFieldSliceOption(FieldWheelEntries, FieldWheelPick, Delta);
+	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick);
+}
+
+void AWoRHubController::HandleFieldWheelPick(const FInputActionValue &Value)
+{
+	if (IsFieldWheelOpen())
+	{
+		const int32 SliceCount = FieldSkillRules::GetFieldSliceStarts(FieldWheelEntries).Num();
+		PickFieldWheelSlice(FieldSkillRules::GetFieldWheelIndexFromStick(Value.Get<FVector2D>(), SliceCount));
+	}
+}
+
+void AWoRHubController::HandleFieldWheelElement(const FInputActionValue &Value)
+{
+	const float Direction = Value.Get<float>();
+	if (Direction != 0.0f)
+	{
+		StepFieldWheelElement(Direction > 0.0f ? 1 : -1); // D-pad right / D: the next element
+	}
+}
+
+void AWoRHubController::HandleFieldWheelScroll(const FInputActionValue &Value)
+{
+	const float Scroll = Value.Get<float>();
+	if (Scroll != 0.0f)
+	{
+		StepFieldWheelElement(Scroll < 0.0f ? 1 : -1); // down (towards you) is the next, as in a list (Q-503m3)
 	}
 }
 

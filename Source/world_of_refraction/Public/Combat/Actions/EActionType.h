@@ -22,7 +22,7 @@ enum class EActionType : uint8
 	Defend UMETA(DisplayName = "Defend"),
 	SwitchWeapon UMETA(DisplayName = "Switch Weapon"),
 	Flee UMETA(DisplayName = "Flee"),
-	// B-170c (Q-170c): ends the turn and banks the actions left (wor.Turns.ActionPips 1). Appended: the enum
+	// B-170c (Q-170c): ends the turn and banks the actions left. Appended: the enum
 	// is stored by value in Blueprints and replicated picks, so members are never reordered.
 	EndTurn UMETA(DisplayName = "End Turn")
 };

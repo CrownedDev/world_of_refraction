@@ -3208,7 +3208,7 @@ bool USkillEffectManager::IsSpeedEffect(ESkillEffectType EffectType) const
 	case ESkillEffectType::ActionSpeedDebuff:
 	case ESkillEffectType::TurnSpeedBuff:
 	case ESkillEffectType::TurnSpeedDebuff:
-	case ESkillEffectType::ModifyTurnSpeed: // folded into effective speed by CalculateSpeedRatios
+	case ESkillEffectType::ModifyTurnSpeed: // folded into the effective turn speed (BuildTurnSpeedLayers)
 	// SpiritBuff/Debuff feed turn speed via the modified-Spirit read in CacheActorStats
 	// (Job 2), so speed must recompute on their apply/expiry. Mind/Body pillar buffs
 	// deliberately absent — they don't touch turn speed.
@@ -3261,11 +3261,9 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// Generate element-aware display name: a capped bar is a break, "<Element> Break" (Q-064a2)
 	Effect.EffectName = SkillEffectDisplayNames::GetBreakDisplayName(StatusType, Element);
 
-	// B-274 (S8): what the capped bar applies, its size and timing come from the break table. B-170d (Q-170e): an
-	// action-pips fight reads its own Water, Wind and Ice rows (the fight's latched mode, so play is unchanged at 0).
-	UTurnManager *TurnManager = WoRFight::Get<UTurnManager>(this);
-	const bool bActionPipsFight = TurnManager && TurnManager->IsRotationMode();
-	const FBreakRow *Row = BreakTable::For(StatusType, bActionPipsFight);
+	// B-274 (S8): what the capped bar applies, its size and timing come from the break table (B-170h2b: one table, the
+	// action-pips Water, Wind and Ice rows, Q-170e).
+	const FBreakRow *Row = BreakTable::For(StatusType);
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	if (Row && Row->SizeKind == EBreakSize::OneShotShareOfMaxHP)
 	{
@@ -3382,15 +3380,8 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		DealBreakShareOfMaxHP(TargetComp, Row->DamageShareOfMaxHP, *Effect.EffectName);
 	}
 
-	// Wind break (D-014, D-090): a NEW gust pushes the holder's next turn back. The same
-	// attacker's refresh doesn't push again (D-012: same source refreshes, it doesn't add).
-	if (Row && Row->DelayTurnPlaces > 0 && Result == EEffectApplicationResult::Applied && TurnManager)
-	{
-		TurnManager->DelayNextTurn(Target, Row->DelayTurnPlaces);
-	}
-
-	// B-170d (Q-170e), action-pips rows only: Ice takes its actions at once, every break (as its damage); Wind takes
-	// its at the holder's next turn start, a new gust only (as its delay did, D-012). Never below 0.
+	// B-170d (Q-170e): Ice takes its actions at once, every break (as its damage); Wind takes its at the holder's next
+	// turn start, a new gust only (the same attacker's refresh doesn't add, D-012). Never below 0.
 	if (Row && TargetComp && Row->ActionsLostNow > 0)
 	{
 		TargetComp->LoseActions(Row->ActionsLostNow);

@@ -4,7 +4,6 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/WeaponSpellRules.h"
 #include "Loadout/WeaponSetRules.h"
-#include "Combat/TurnRotation.h" // B-170c: switching is free with action pips
 #include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
 #include "Memory/CurseSubsystem.h"
 #include "Pool/PoolSubsystem.h"
@@ -1418,7 +1417,7 @@ TArray<USkillDataBase *> ULoadoutComponent::GetAllWeaponAttacks() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Primary weapon attack — OverrideAttack takes precedence over the asset attack.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    if (Loadout.HasPrimaryWeapon())
     {
         UWeaponData *Weapon = Loadout.PrimaryWeapon.WeaponEntry.Weapon;
         USkillDataBase *Attack = Loadout.PrimaryWeapon.OverrideAttack
@@ -1577,7 +1576,7 @@ ESpellSource ULoadoutComponent::ResolveSpellSource(USpellData *Spell) const
 
     // 3. Weapon spells — primary weapon (when weapon-primary) + secondary
     //    weapon (Generic only). Walks the same composition GetAllSpells uses.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    if (Loadout.HasPrimaryWeapon())
     {
         if (Loadout.PrimaryWeapon.GetAllSpells().Contains(Spell))
         {
@@ -1654,7 +1653,7 @@ UObject *ULoadoutComponent::FindSpellCatalystHolder(USpellData *Spell) const
 
     // 3. Weapon catalysts — primary weapon (when weapon-primary) + secondary
     //    weapon (Generic only).
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    if (Loadout.HasPrimaryWeapon())
     {
         if (Loadout.PrimaryWeapon.GetAllSpells().Contains(Spell))
         {
@@ -1701,7 +1700,7 @@ TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
         Result = Loadout.EvolutionSpells;
     }
     // Weapon primary with crystal
-    else if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    else if (Loadout.HasPrimaryWeapon())
     {
         Result = Loadout.PrimaryWeapon.GetAllSpells();
     }
@@ -1770,8 +1769,7 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
 
     // Generic dual-weapon: bShowPrimary IS a real gameplay toggle —
     // only the shown weapon's spells are available.
-    if (GetCharacterClass() == ECharacterClass::Generic &&
-        Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+    if (GetCharacterClass() == ECharacterClass::Generic && Loadout.HasPrimaryWeapon() &&
         Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
     {
         return Loadout.bShowPrimary ? GetPrimarySlotSpells() : GetSecondarySlotSpells();
@@ -2007,6 +2005,7 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
     }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
     UWeaponData *ActiveWeapon = GetInventoryComponent() ? GetActiveWeapon() : nullptr;
+    RecordWeaponInHand();
     if (ActiveWeapon == LastNotifiedWeapon)
     {
         return;
@@ -2420,48 +2419,15 @@ bool ULoadoutComponent::HasRingInSecondary() const
 
 UStanceData *ULoadoutComponent::GetCurrentStance() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    if (!GetInventoryComponent())
     {
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetCurrentStance] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
 
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    // Stance is a visual concern, decoupled from combat capability:
-    // bShowPrimary picks which slot is currently DISPLAYED, regardless of
-    // whether the other slot's weapon is also available for combat actions.
-    const FWeaponLoadoutEntry *ShownWeapon = nullptr;
-
-    if (Loadout.bShowPrimary)
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            ShownWeapon = Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
-        }
-        // B-099 (D-027): an evolution has no stance, and the Generic fights with its secondary weapon.
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution &&
-                 GetCharacterClass() == ECharacterClass::Generic &&
-                 Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
-        }
-        // Ring primary while showing primary => no weapon stance, fall through to unarmed.
-    }
-    else
-    {
-        // Showing secondary. Only Generic has secondary slots that can hold a weapon.
-        if (GetCharacterClass() == ECharacterClass::Generic &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
-        }
-    }
+    // B-503p: the stance is the ACTIVE weapon's, the one the fight swings (an evolution primary leaves a Generic its
+    // secondary, a ring primary none: unarmed). OBSOLETE: the old bShowPrimary / PrimarySlotType walk that stood here.
+    const FWeaponLoadoutEntry *ShownWeapon = GetActiveWeaponLoadout();
 
     if (ShownWeapon && ShownWeapon->WeaponEntry.Weapon)
     {
@@ -2805,15 +2771,9 @@ const FLoadoutSlot *ULoadoutComponent::GetActiveSlotIn(const FCombatLoadout &Loa
 
 FText ULoadoutComponent::GetTurnSwitchRefusedReason() const
 {
-    // B-170c (Q-170c): with action pips a switch is always free, any number of times (ET-19 changes). Read from
-    // the switch, not the fight's latched mode: a co-op client's copy has no TurnManager fight to ask.
-    // TODO: co-op (D-103): console variables don't replicate, so read the fight's latched mode on the server and
-    // replicate it to clients (GameState); a host flipping the cvar mid-fight would otherwise free switches.
-    if (TurnRotation::IsActionPipsOn())
-    {
-        return FText::GetEmpty();
-    }
-    return bUsedTurnSwitch ? LOCTEXT("TurnSwitchUsed", "Already switched this turn.") : FText::GetEmpty();
+    // B-170c (Q-170c), B-170h2: a switch is always free, any number of times (ET-19 changes); the old timeline's
+    // one-switch-a-turn rule went with it.
+    return FText::GetEmpty();
 }
 
 bool ULoadoutComponent::TrySwitchActiveSlot(EGearKind Kind, FText &OutReason)
@@ -2860,11 +2820,6 @@ bool ULoadoutComponent::TrySwitchSlotTo(EGearKind Kind, int32 AdapterIndex, FTex
     return bUsedTurnSwitch;
 }
 
-bool ULoadoutComponent::TrySwitchWeaponThisTurn(FText &OutReason)
-{
-    return TrySwitchActiveSlot(EGearKind::Weapon, OutReason);
-}
-
 TArray<UAbilityData *> ULoadoutComponent::GetOtherWeaponSkills() const
 {
     if (GetCharacterClass() != ECharacterClass::Generic)
@@ -2897,7 +2852,7 @@ bool ULoadoutComponent::SwitchToWeaponOfSkill(const USkillDataBase *Skill)
     // D-207: the switch follows the skill as the menu's switch does (ET-19: free with action pips, the default; with
     // them off, the turn's one switch).
     FText Refusal;
-    const bool bSwitched = TrySwitchWeaponThisTurn(Refusal);
+    const bool bSwitched = TrySwitchActiveSlot(EGearKind::Weapon, Refusal);
     UE_LOG(LogWoRLoadout, Log, TEXT("[LoadoutComponent] %s: '%s' is the other weapon's skill - %s"), *GetNameSafe(GetOwner()), *Skill->Name,
            bSwitched ? TEXT("switched to that weapon") : *FString::Printf(TEXT("not switched (%s)"), *Refusal.ToString()));
     return bSwitched;
@@ -2908,11 +2863,6 @@ void ULoadoutComponent::RevertSkillWeaponSwitch()
     ToggleEquipment();
     bUsedTurnSwitch = false;
     UE_LOG(LogWoRLoadout, Log, TEXT("[LoadoutComponent] %s: the skill's action was refused - the weapon switch is undone"), *GetNameSafe(GetOwner()));
-}
-
-bool ULoadoutComponent::TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason)
-{
-    return TrySwitchSlotTo(EGearKind::Adapter, NewRingIndex, OutReason);
 }
 
 void ULoadoutComponent::ResetTurnSwitch()
@@ -3517,7 +3467,7 @@ void ULoadoutComponent::HandleCrystalBroken(UObject *Holder, const FBrokenCrysta
 
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Ring crystal '%s' broke on %s — auto-switching"),
            *CrystalName, *GetNameSafe(GetOwner()));
-    SwitchToNextUsableRing();
+    SwitchToNextUsableSlot(EGearKind::Adapter);
 }
 
 void ULoadoutComponent::DebugLogLoadout()
@@ -3688,15 +3638,62 @@ EGuardStyle ULoadoutComponent::ResolveGuardStyle(bool bWeaponInHand, const FGuid
                                                                                      : EGuardStyle::Weapon;
 }
 
+void ULoadoutComponent::RecordWeaponInHand() const
+{
+    // B-503s2 (D-218): the next pool draw rebuilds the loadout, so the weapon in hand lives on the member's record.
+    const FPartyMember *Record = GetOwner() && GetOwner()->HasAuthority() ? FindGuardRecord() : nullptr;
+    const FWeaponLoadoutEntry *InHand = Record && GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    const FGuid WeaponId = InHand ? InHand->WeaponEntry.PersistentID : FGuid();
+    if (!Record || Record->ActiveWeaponId == WeaponId)
+    {
+        return;
+    }
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    const UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+    if (PartySession && PartySession->SetMemberActiveWeapon(PartySession->GetMemberSlotOf(CharComp), WeaponId))
+    {
+        UE_LOG(LogWoRLoadout, Log, TEXT("%s: %s kept as the weapon in hand for the next map"), *GetNameSafe(GetOwner()),
+               InHand && InHand->WeaponEntry.Weapon ? *InHand->WeaponEntry.Weapon->Name : TEXT("no weapon"));
+    }
+}
+
 const FPartyMember *ULoadoutComponent::FindGuardRecord() const
 {
     const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     return CharComp && CharComp->PartyMemberId.IsValid() ? CharComp->FindCarriedPartyMember() : nullptr;
 }
 
+bool ULoadoutComponent::GetFieldAttackPick(FFieldAttackEntry &OutPick) const
+{
+    const FPartyMember *Record = FindGuardRecord();
+    if (!Record || !Record->bFieldAttackPicked)
+    {
+        return false;
+    }
+    const TArray<FFieldAttackEntry> Entries = FieldSkillRules::BuildFieldAttackEntries(GetOwner());
+    const int32 Index = FieldSkillRules::ClampFieldAttackIndex(Record->FieldAttackIndex, Entries.Num());
+    if (!Entries.IsValidIndex(Index))
+    {
+        return false;
+    }
+    const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    if (Entries[Index].WeaponId.IsValid() && (!WeaponEntry || WeaponEntry->WeaponEntry.PersistentID != Entries[Index].WeaponId))
+    {
+        return false; // the fight changed the weapon in hand since the pick
+    }
+    OutPick = Entries[Index];
+    return true;
+}
+
 EGuardStyle ULoadoutComponent::GetGuardStyle() const
 {
     const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    FFieldAttackEntry Pick;
+    if (GetFieldAttackPick(Pick))
+    {
+        return Pick.IsSwing() && WeaponEntry ? EGuardStyle::Weapon : EGuardStyle::Unarmed; // B-503s (D-218): the pick guards
+    }
     const FGuid ActiveWeaponId = WeaponEntry ? WeaponEntry->WeaponEntry.PersistentID : FGuid();
     const FPartyMember *Record = FindGuardRecord();
     return ResolveGuardStyle(WeaponEntry != nullptr, ActiveWeaponId, Record ? Record->GuardStyle : LocalGuardStyle,

@@ -191,6 +191,24 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	FFieldSkillChoice FieldSkill;
 
+	/** B-503 (D-215): which stop of the field attack's cycle the member uses (UFieldMovementComponent::
+	 *  GetFieldAttackEntries; read clamped, so a loadout change can't strand it). Saved (FSavedPartyMember). Written
+	 *  by UPartySessionSubsystem::SetMemberFieldAttackIndex. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
+
+	/** B-503s (D-218): the member has picked a field attack (set with FieldAttackIndex). The pick is then its guard and
+	 *  parry colour; never picked (an AI seat, an older save), GuardStyle and ParryElementPriority stay. Saved. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bFieldAttackPicked = false;
+
+	/** B-503s2 (D-218): the owned weapon (its PersistentID) the member last had in hand: a wheel pick, a loadout
+	 *  screen change or a switch in a fight. Every pool draw rebuilds the loadout (a lore one from its asset), so the
+	 *  draw puts this weapon back in hand (UCharacterDataComponent). Written by a stamped pawn's ULoadoutComponent
+	 *  through UPartySessionSubsystem::SetMemberActiveWeapon. Saved; unset: the loadout's own choice. */
+	UPROPERTY()
+	FGuid ActiveWeaponId;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }

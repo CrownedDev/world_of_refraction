@@ -48,25 +48,14 @@
 namespace BattleHUDStyle
 {
 	// TODO: style pass (placeholder until the CommonUI screens, D-024). Slate units, DPI-scaled.
+	using namespace BattleCardStyle; // B-503j: the card's look is shared with the hub HUD
 	constexpr float ScreenMargin = 24.0f;
-	constexpr float CardWidth = 260.0f;
-	constexpr float BarHeight = 10.0f;
-	constexpr float CardPadding = 6.0f;
-	constexpr float RowPadding = 2.0f;
 	constexpr float StatusPanelWidth = 640.0f;
-	constexpr int32 NameFontSize = 16;
-	constexpr int32 LineFontSize = 13;
 	constexpr int32 TurnFontSize = 14;
-	constexpr float DownedCardOpacity = 0.4f;
 
-	const FLinearColor CardColor(0.0f, 0.0f, 0.0f, 0.55f);
 	const FLinearColor PanelColor(0.0f, 0.0f, 0.0f, 0.85f);
-	const FLinearColor TextColor = FLinearColor::White;
-	const FLinearColor ActingColor(1.0f, 0.78f, 0.25f);  // warm gold: whose turn it is
 	const FLinearColor EnemyColor(0.85f, 0.55f, 0.5f);   // the other side, in the turn strip
 	const FLinearColor BonusColor(0.45f, 0.9f, 0.55f);   // a bonus turn (Emerald), as the old strip's green
-	const FLinearColor PartyHPColor(0.75f, 0.1f, 0.1f);
-	const FLinearColor EnemyHPColor(0.55f, 0.1f, 0.1f);
 
 	const FVector2D TurnStripAnchor(0.0f, 0.0f);    // left edge, top (Expedition 33's turn column)
 	const FVector2D EnemyAnchor(1.0f, 0.0f);        // top-right
@@ -77,30 +66,11 @@ namespace BattleHUDStyle
 
 	// B-391b: a damage number's text is centred on its point and sits above it.
 	const FVector2D DamageNumberAlignment(0.5f, 1.0f);
-
-	// B-391c: the status buildup bar under the HP bar, and its cracks (Q-111 A).
-	constexpr float BuildupBarHeight = 6.0f;
-	constexpr float CrackWidth = 2.0f;
-	const FLinearColor CrackColor(0.0f, 0.0f, 0.0f, 0.85f);
-	const FLinearColor GearColor(0.8f, 0.8f, 0.8f);
 }
 
 namespace BattleHUDBuild
 {
-	UTextBlock *AddText(UWidgetTree *Tree, UVerticalBox *Box, int32 FontSize)
-	{
-		UTextBlock *Text = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		FSlateFontInfo Font = Text->GetFont();
-		Font.Size = FontSize;
-		Text->SetFont(Font);
-		Text->SetColorAndOpacity(FSlateColor(BattleHUDStyle::TextColor));
-		Text->SetAutoWrapText(true);
-		if (UVerticalBoxSlot *BoxSlot = Box->AddChildToVerticalBox(Text))
-		{
-			BoxSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
-		}
-		return Text;
-	}
+	using BattleHUDCard::AddText;
 
 	UCanvasPanelSlot *Place(UCanvasPanel *Canvas, UWidget *Widget, const FVector2D &Anchor, const FVector2D &Offset)
 	{
@@ -144,8 +114,6 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 		return;
 	}
 	ClearFlags(RF_Transactional); // TransBuffer rule, as the old panels
-	// B-170e: the fight's mode is latched at its start (InitializeCombat runs before the HUD is built).
-	bShowActions = ActionPipsText::IsActionPipsFight(this);
 	EnsureDamageNumberPool();
 	BoundBuildup = WoRFight::Get<UStatusBuildupManager>(this); // AddCard seeds each bar from it
 
@@ -217,7 +185,7 @@ void UBattleHUDWidget::AddCard(AActor *Actor, bool bParty)
 		// A Resonator with nothing to spend EP on has no EP line, as the old panel (init-only there too). B-391b: a Broken
 		// Darkness character always shows its absorption pool.
 		Card.bShowEP = bParty && (CharData->HasUsableEPTarget() || CharData->IsBrokenDarkness());
-		if (bParty && bShowActions)
+		if (bParty)
 		{
 			CharData->OnActionsChanged.AddDynamic(this, &UBattleHUDWidget::HandlePoolChanged); // B-170e; same (int32, int32) shape
 		}
@@ -398,7 +366,11 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		EnemyColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
 		for (FBattleHUDCard &Card : Cards)
 		{
-			BuildCardWidgets(Card, Card.bParty ? PartyColumn : EnemyColumn);
+			UVerticalBox *Column = Card.bParty ? PartyColumn : EnemyColumn;
+			if (UVerticalBoxSlot *ColumnSlot = Column->AddChildToVerticalBox(BattleHUDCard::Build(WidgetTree, Card, EBattleCardLevel::Battle)))
+			{
+				ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
+			}
 		}
 		BattleHUDBuild::Place(Canvas, PartyColumn, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
 		BattleHUDBuild::Place(Canvas, EnemyColumn, BattleHUDStyle::EnemyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::EnemyAnchor));
@@ -427,114 +399,6 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 	return Super::RebuildWidget();
 }
 
-void UBattleHUDWidget::BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Column)
-{
-	Card.Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Card.Frame->SetBrushColor(BattleHUDStyle::CardColor);
-	Card.Frame->SetPadding(FMargin(BattleHUDStyle::CardPadding));
-	// B-391c: a party card is hit-testable so its gear tooltip shows on hover; an enemy card lets clicks through.
-	Card.Frame->SetVisibility(Card.bParty ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
-	if (Card.bParty)
-	{
-		Card.Frame->SetToolTipText(Card.GearTooltip); // Initialise's RefreshGear ran before the widgets existed
-	}
-	if (UVerticalBoxSlot *ColumnSlot = Column->AddChildToVerticalBox(Card.Frame))
-	{
-		ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
-	}
-	USizeBox *Width = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	Width->SetWidthOverride(BattleHUDStyle::CardWidth);
-	Card.Frame->SetContent(Width);
-	UVerticalBox *Rows = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Width->AddChild(Rows);
-
-	Card.NameText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::NameFontSize);
-
-	USizeBox *BarSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	BarSize->SetHeightOverride(BattleHUDStyle::BarHeight);
-	Card.HPBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass());
-	Card.HPBar->SetFillColorAndOpacity(Card.bParty ? BattleHUDStyle::PartyHPColor : BattleHUDStyle::EnemyHPColor);
-	BarSize->AddChild(Card.HPBar);
-	if (UVerticalBoxSlot *BarSlot = Rows->AddChildToVerticalBox(BarSize))
-	{
-		BarSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
-	}
-
-	BuildBuildupWidgets(Card, Rows);
-
-	if (Card.bParty) // Q-391: enemies show a bar, no numbers (Expedition 33)
-	{
-		Card.HPText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
-		Card.EPText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
-		Card.EPText->SetVisibility(Card.bShowEP ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-		Card.BuildupText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
-		Card.GearText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
-		Card.GearText->SetColorAndOpacity(FSlateColor(BattleHUDStyle::GearColor));
-		Card.ActionsText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize); // B-170e
-		Card.ActionsText->SetVisibility(bShowActions ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
-	}
-	Card.StatusText = BattleHUDBuild::AddText(WidgetTree, Rows, BattleHUDStyle::LineFontSize);
-}
-
-void UBattleHUDWidget::BuildBuildupWidgets(FBattleHUDCard &Card, UVerticalBox *Rows)
-{
-	// The bar under the HP bar, with a row of crack marks laid over it: spacers weighted by the gaps between
-	// BattleHUDView::GetCrackPositions, a thin mark at each. Marks are Hidden (not Collapsed) so the row keeps its spacing.
-	USizeBox *BarSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	BarSize->SetHeightOverride(BattleHUDStyle::BuildupBarHeight);
-	UOverlay *BarLayers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	BarSize->AddChild(BarLayers);
-
-	Card.BuildupBar = WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass());
-	if (UOverlaySlot *BarSlot = BarLayers->AddChildToOverlay(Card.BuildupBar))
-	{
-		BarSlot->SetHorizontalAlignment(HAlign_Fill);
-		BarSlot->SetVerticalAlignment(VAlign_Fill);
-	}
-	UHorizontalBox *CrackRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	CrackRow->SetVisibility(ESlateVisibility::HitTestInvisible);
-	if (UOverlaySlot *CrackRowSlot = BarLayers->AddChildToOverlay(CrackRow))
-	{
-		CrackRowSlot->SetHorizontalAlignment(HAlign_Fill);
-		CrackRowSlot->SetVerticalAlignment(VAlign_Fill);
-	}
-
-	const auto AddGap = [this, CrackRow](float Weight)
-	{
-		USpacer *Gap = WidgetTree->ConstructWidget<USpacer>(USpacer::StaticClass());
-		if (UHorizontalBoxSlot *GapSlot = CrackRow->AddChildToHorizontalBox(Gap))
-		{
-			FSlateChildSize GapSize(ESlateSizeRule::Fill);
-			GapSize.Value = Weight;
-			GapSlot->SetSize(GapSize);
-		}
-	};
-	float PreviousPosition = 0.0f;
-	for (const float Position : BattleHUDView::GetCrackPositions())
-	{
-		AddGap(Position - PreviousPosition);
-		USizeBox *MarkSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		MarkSize->SetWidthOverride(BattleHUDStyle::CrackWidth);
-		UBorder *Mark = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Mark->SetBrushColor(BattleHUDStyle::CrackColor);
-		MarkSize->AddChild(Mark);
-		MarkSize->SetVisibility(ESlateVisibility::Hidden);
-		if (UHorizontalBoxSlot *MarkSlot = CrackRow->AddChildToHorizontalBox(MarkSize))
-		{
-			MarkSlot->SetSize(FSlateChildSize(ESlateSizeRule::Automatic));
-			MarkSlot->SetVerticalAlignment(VAlign_Fill);
-		}
-		Card.CrackMarks.Add(MarkSize);
-		PreviousPosition = Position;
-	}
-	AddGap(1.0f - PreviousPosition);
-
-	if (UVerticalBoxSlot *BuildupSlot = Rows->AddChildToVerticalBox(BarSize))
-	{
-		BuildupSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
-	}
-}
-
 // ========================================
 // STATE (plain data; runs unbuilt)
 // ========================================
@@ -553,11 +417,12 @@ void UBattleHUDWidget::RefreshPools()
 		Card.HPLine = BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), CharData->CurrentHP, CharData->MaxHP);
 		// B-391b: a Broken Darkness character's EP is its absorption pool, which can overload past max (the old "Abs").
 		Card.bBrokenDarkness = CharData->IsBrokenDarkness();
+		Card.EPFraction = BattleHUDView::PoolFraction(CharData->CurrentEP, CharData->MaxEP); // B-503m
 		Card.EPLine = Card.bBrokenDarkness ? BattleHUDView::FormatAbsorbLine(CharData->CurrentEP, CharData->MaxEP)
 										   : BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), CharData->CurrentEP, CharData->MaxEP);
 		Card.EPColour = Card.bBrokenDarkness ? BattleHUDView::GetOverloadColour(CharData->CurrentEP, CharData->MaxEP)
 											 : BattleHUDStyle::TextColor;
-		if (Card.bParty && bShowActions) // B-170e
+		if (Card.bParty) // B-170e
 		{
 			Card.ActionsLine = ActionPipsText::MakeActionsLine(CharData->CurrentActions, CharData->GetMaxActions(),
 															   CharData->GetActionPointProgress(), CharData->SkillsUsedThisTurn); // Q-170j
@@ -691,46 +556,7 @@ void UBattleHUDWidget::PushToWidgets()
 {
 	for (const FBattleHUDCard &Card : Cards)
 	{
-		const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Card.Name) : Card.Name;
-		BattleHUDBuild::SetTextSafe(Card.NameText, Name);
-		if (Card.NameText)
-		{
-			Card.NameText->SetColorAndOpacity(FSlateColor(Card.bActing ? BattleHUDStyle::ActingColor : BattleHUDStyle::TextColor));
-		}
-		if (Card.HPBar)
-		{
-			Card.HPBar->SetPercent(Card.HPFraction);
-		}
-		BattleHUDBuild::SetTextSafe(Card.HPText, Card.HPLine);
-		BattleHUDBuild::SetTextSafe(Card.EPText, Card.EPLine);
-		if (Card.EPText)
-		{
-			Card.EPText->SetColorAndOpacity(FSlateColor(Card.EPColour));
-		}
-		BattleHUDBuild::SetTextSafe(Card.ActionsText, Card.ActionsLine);
-		BattleHUDBuild::SetTextSafe(Card.StatusText, Card.StatusLine);
-		if (Card.Frame)
-		{
-			Card.Frame->SetRenderOpacity(Card.bAlive ? 1.0f : BattleHUDStyle::DownedCardOpacity);
-		}
-		if (Card.BuildupBar)
-		{
-			Card.BuildupBar->SetPercent(Card.BuildupFraction);
-			Card.BuildupBar->SetFillColorAndOpacity(Card.BuildupColour);
-		}
-		for (int32 Index = 0; Index < Card.CrackMarks.Num(); ++Index)
-		{
-			if (UWidget *Mark = Card.CrackMarks[Index])
-			{
-				Mark->SetVisibility(Index < Card.CracksShown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-			}
-		}
-		BattleHUDBuild::SetTextSafe(Card.BuildupText, Card.BuildupLine);
-		BattleHUDBuild::SetTextSafe(Card.GearText, Card.GearLine);
-		if (Card.GearText)
-		{
-			Card.GearText->SetVisibility(Card.GearLine.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
-		}
+		BattleHUDCard::Push(Card);
 	}
 	for (int32 Index = 0; Index < TurnTexts.Num(); ++Index)
 	{
@@ -785,10 +611,7 @@ void UBattleHUDWidget::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	CurrentTurnNumber = TurnNumber;
 	RefreshTurnStrip();
 	RefreshStatuses(); // durations are shown per turn
-	if (bShowActions)
-	{
-		RefreshPools(); // B-170e: Max Actions can move with buffs that don't change the bank
-	}
+	RefreshPools();	   // B-170e: Max Actions can move with buffs that don't change the bank
 }
 
 void UBattleHUDWidget::HandleTurnStateChanged()
@@ -799,10 +622,7 @@ void UBattleHUDWidget::HandleTurnStateChanged()
 	}
 	RefreshTurnStrip();
 	RefreshStatuses();
-	if (bShowActions)
-	{
-		RefreshPools(); // B-170e, as HandleTurnStarted
-	}
+	RefreshPools(); // B-170e, as HandleTurnStarted
 }
 
 void UBattleHUDWidget::HandleStatusButtonClicked()
@@ -1022,9 +842,9 @@ void UBattleHUDWidget::HideDamageNumber(FBattleDamageNumber &Number)
 
 FString UBattleHUDWidget::GetBattleHUDString() const
 {
-	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s actionPips=%s"), bBound ? TEXT("yes") : TEXT("no"),
+	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s"), bBound ? TEXT("yes") : TEXT("no"),
 								  Cards.Num(), CurrentTurnNumber, bStatusPanelOpen ? TEXT("open") : TEXT("closed"),
-								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"), bShowActions ? TEXT("on") : TEXT("off"));
+								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"));
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		Out += FString::Printf(TEXT("\n  %s %s%s%s | %s | %s | %s | %s, %d crack(s)"), Card.bParty ? TEXT("party") : TEXT("enemy"),
@@ -1036,7 +856,7 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 		{
 			Out += FString::Printf(TEXT(" | gear: %s"), Card.GearLine.IsEmpty() ? TEXT("none") : *Card.GearLine.ToString());
 		}
-		if (Card.bParty && bShowActions)
+		if (Card.bParty)
 		{
 			Out += FString::Printf(TEXT(" | %s"), *Card.ActionsLine.ToString()); // B-170e
 		}

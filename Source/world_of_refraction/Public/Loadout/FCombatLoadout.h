@@ -298,8 +298,11 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** Check if this loadout uses evolution */
     bool IsEvolutionLoadout() const { return PrimarySlotType == EPrimarySlotType::Evolution; }
 
-    /** Check if primary is weapon */
-    bool HasPrimaryWeapon() const { return PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid(); }
+    /** A weapon in the primary, with a Weapon or None type (AutoPopulateLoadout leaves None): the active rule (B-503q). */
+    bool HasPrimaryWeapon() const
+    {
+        return (PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None) && PrimaryWeapon.IsValid();
+    }
 
     /** Check if primary is ring */
     bool HasPrimaryRing() const { return PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing.IsValid(); }

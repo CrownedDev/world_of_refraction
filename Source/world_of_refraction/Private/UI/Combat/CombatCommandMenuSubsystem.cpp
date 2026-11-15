@@ -888,10 +888,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateDefendButton() const
     Button.DisplayName = FText::FromString(TEXT("Defend"));
     Button.Category = EPieMenuCategory::Defend;
     Button.bEnabled = true;
-    if (ActionPipsText::IsActionPipsFight(this))
-    {
-        Button.Description = ActionPipsText::GetDefendEndsTurnText(); // B-170e (Q-170c): Defend ends the turn
-    }
+    Button.Description = ActionPipsText::GetDefendEndsTurnText(); // B-170e (Q-170c): Defend ends the turn
     return Button;
 }
 
@@ -908,10 +905,6 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateEndTurnButton() const
 
 void UCombatCommandMenuSubsystem::ShowActionCost(FPieMenuButtonData &Button) const
 {
-    if (!ActionPipsText::IsActionPipsFight(this))
-    {
-        return;
-    }
     const UCharacterDataComponent *CDC = CurrentActor.IsValid() ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     if (!CDC)
     {

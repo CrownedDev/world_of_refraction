@@ -12,7 +12,9 @@
 // take-off ground and Zone.NoFly volumes, each liftable by effects (FFieldFlightLimits).
 // B-214e (FieldMovementAdvanced.cpp): Teleport (Void), Phase step, Mark and recall, Super launch, Regroup.
 // B-214f (FieldMovementAttack.cpp): the field attack: a swing ahead; hitting an encounter starts its fight with first
-// strike and the hit's buildup (element of the switchable attack source, the weapon's physical type, Ice held with Water).
+// strike and the hit's buildup (the element and physical type of the entry in use, Ice held with Water).
+// B-503 (D-215): the entry in use is one stop of a cycle through the whole loadout (weapons, rings, the innate element,
+// evolutions), replacing B-214g's Innate / Weapon / Ring switch; a weapon swings, every other entry throws the pulse.
 // B-214h: the evolution on the character's own slot adds an always-on sprint bonus and augments the field skill (cheaper
 // EP, flight limits it lifts).
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
@@ -26,12 +28,13 @@
 #include "Field/FieldSkillTypes.h"
 #include "FieldMovementComponent.generated.h"
 
+class UAnimMontage;
 class UCharacterDataComponent;
 struct FPartyMember;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnhancedSprintChanged, bool, bActive);
 
-UCLASS(ClassGroup = (WoR), meta = (BlueprintSpawnableComponent))
+UCLASS(Config = Game, ClassGroup = (WoR), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UFieldMovementComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -154,24 +157,57 @@ public:
 	// ---- B-214f: the field attack ----
 
 	/** A swing ahead (bHeld: the attack was held). Striking an encounter starts its fight (UEncounterComponent::
-	 *  StrikeFromField); a miss is just a swing. Refused on cooldown. */
+	 *  StrikeFromField); a miss is just a swing. Refused on cooldown and while a swing's hit is still to land.
+	 *  B-503b: a weapon entry with a swing montage plays it on every machine and hits at its Impact notify
+	 *  (FieldSkillRules::GetSwingImpactSeconds); with none the hit lands at once.
+	 *  B-503c: every other entry throws the pulse: FieldPulseMontage the same way, then a shot
+	 *  FieldSkillRules::FIELD_PULSE_RANGE ahead in the strike's colour. */
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	EFieldSkillRefusal FieldAttack(bool bHeld);
 
-	/** The field attack's source: Innate -> Weapon -> Ring (IA_Field_SwitchSource). */
+	/** B-503k (D-217): the stops of the field attack's cycle, its infusions. A weapon user (Generic) swings the
+	 *  loadout's active weapon: plain first, then infused with each element its combat infusion sources give
+	 *  (UActionExecutor::GetAvailableInfusionSources). A Refractor or Resonator throws the pulse in each of those
+	 *  elements, no plain stop. One stop per element. Empty for a caster with no element.
+	 *  B-503l (Q-503l): a Reality stop (innate or evolution) or a Broken Darkness character's Darkness stop is followed
+	 *  by its hold steps (FFieldAttackEntry::bHoldStep), one per element of the other stops: "(R) Fire", "Dark Fire". */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	TArray<FFieldAttackEntry> GetFieldAttackEntries() const;
+
+	/** The stop in use, within GetFieldAttackEntries (FieldSkillRules::ClampFieldAttackIndex). */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	int32 GetFieldAttackIndex() const;
+
+	/** The entry in use; the plain swing (no name, no element) with nothing to cycle. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldAttackEntry GetFieldAttackEntry() const;
+
+	/** Steps to the next stop, wrapping (IA_Field_SwitchSource: LB / R), and returns it. Kept on the party record
+	 *  when the pawn has one. B-503l (D-217): a press (bHold false) steps the source, skipping hold steps; a hold the
+	 *  element within it (FieldSkillRules::NextFieldAttackHoldIndex; no change for a one-element source).
+	 *  B-503m3: the keys' hold opens the wheel now (SelectFieldAttack); bHold is left for wor.Field.CycleAttack. */
 	UFUNCTION(BlueprintCallable, Category = "Field")
-	void SwitchFieldAttackSource();
+	FFieldAttackEntry CycleFieldAttack(bool bHold = false);
 
-	UFUNCTION(BlueprintPure, Category = "Field")
-	EFieldSkillSource GetFieldAttackSource() const { return FieldAttackSource; }
+	/** B-503m3 (D-217): the wheel's pick: makes that stop (an index into GetFieldAttackEntries, clamped) the one in use,
+	 *  kept as CycleFieldAttack keeps it, and returns it. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	FFieldAttackEntry SelectFieldAttack(int32 Index);
 
-	/** The weapon in hand's attack type (its WeaponAttack's), None with no weapon. */
-	UFUNCTION(BlueprintPure, Category = "Field")
-	EPhysicalDamageType GetFieldAttackPhysicalType() const;
-
-	/** What a field hit now would carry (FieldSkillRules::MakeFieldStrike). */
+	/** What a field hit now would carry: the entry in use's element and physical type
+	 *  (FieldSkillRules::MakeFieldStrike). */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	FFieldStrike GetFieldStrike(bool bHeld) const;
+
+	/** B-503c (D-215): the pulse's cast animation, one for every entry that isn't a weapon; its first Impact notify is
+	 *  the release. Unset (DefaultGame.ini): the pulse leaves at once with no animation. Public for the spec. */
+	UPROPERTY(Config)
+	TSoftObjectPtr<UAnimMontage> FieldPulseMontage;
+
+	/** B-503c: the pulse's burst, spawned at the hand facing the end point, with the user parameters PulseColor
+	 *  (linear colour) and PulseEnd (world position) set. Unset: a plain line and ball in the strike's colour. */
+	UPROPERTY(Config)
+	TSoftObjectPtr<class UNiagaraSystem> FieldPulseVFX;
 
 	// ---- B-214h: evolutions ----
 
@@ -217,8 +253,33 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerFieldAttack(bool bHeld);
 
+	/** B-503b: the swing, or the pulse's cast, on every machine (a look only: the host times the hit itself). */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayFieldSwing(UAnimMontage *Montage);
+
+	/** B-503c: the pulse's look on every machine, from the hand to End in Colour: FieldPulseVFX, or a plain line and
+	 *  ball until it is authored. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayFieldPulse(FVector_NetQuantize Start, FVector_NetQuantize End, FLinearColor Colour);
+
+	/** The hit: the sweep ahead (a swing 2 m, a pulse 7 m), engaging the first encounter body with Strike (server). */
+	void ResolveFieldAttack(FFieldStrike Strike, bool bSwing);
+
 	UFUNCTION(Server, Reliable)
-	void ServerSwitchFieldAttackSource();
+	void ServerSetFieldAttackIndex(int32 Index);
+
+	/** The host kept a different index than the owning client asked for (it clamps to its own reading of the loadout). */
+	UFUNCTION(Client, Reliable)
+	void ClientSetFieldAttackIndex(int32 Index);
+
+	/** Keeps Index (clamped to the entries now): on the party record when the pawn has one, and in the mirror. */
+	void StoreFieldAttackIndex(int32 Index);
+
+	/** The index as kept (the record's on the host, else the mirror), not yet clamped to the entries. */
+	int32 GetKeptFieldAttackIndex() const;
+
+	/** B-503s (D-218): the pick in hand: a swing shows the weapon, a pulse (an element source) puts it away. */
+	void ShowWeaponForFieldAttack() const;
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetActiveFieldSkill(EFieldSkillSource Source, EFieldMovementType Type);
@@ -328,11 +389,14 @@ private:
 	/** Super launch glides from the top of its rise (no glide EP). */
 	bool bSuperLaunchGlidePending = false;
 
-	/** B-214f: the field attack's source (the weapon by default: the hit is a weapon swing). */
+	/** B-503 (D-215): the field attack's stop for a pawn with no party record, and the replicated mirror of the
+	 *  record's (FPartyMember::FieldAttackIndex) for the owning client, which sets it at once when it cycles. */
 	UPROPERTY(Replicated)
-	EFieldSkillSource FieldAttackSource = EFieldSkillSource::Weapon;
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
 
 	double LastFieldAttackTime = -FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
+	/** B-503b, server: running from the swing's (or the cast's) start to its hit. */
+	FTimerHandle FieldSwingTimer;
 
 	/** When each advanced move was last used (its cooldown). */
 	TMap<EFieldMovementType, double> LastAdvancedUseTime;

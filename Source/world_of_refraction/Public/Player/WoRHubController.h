@@ -14,6 +14,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Field/FieldSkillTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "Templates/SubclassOf.h"
 #include "WoRHubController.generated.h"
@@ -79,6 +80,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnPossess(APawn *InPawn) override;
 	virtual void SetupInputComponent() override;
 
@@ -100,15 +102,16 @@ protected:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultFieldMovementSkillAction;
 
-	/** B-214g: the field attack (press, release; held past FieldSkillRules::FIELD_ATTACK_HOLD_SECONDS is the held
-	 *  attack). Leave empty to use DefaultFieldAttackAction (IA_Field_Attack). */
+	/** B-214g: the field attack, on release (left mouse, RB). B-503m4 (D-217): a hold of RB opens the wheel instead (the
+	 *  same key is on FieldSwitchSourceAction); no held attack. Leave empty to use DefaultFieldAttackAction (IA_Field_Attack). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
 	TObjectPtr<UInputAction> FieldAttackAction;
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultFieldAttackAction;
 
-	/** B-214g: steps the field attack's source. Leave empty to use DefaultFieldSwitchSourceAction (IA_Field_SwitchSource). */
+	/** B-214g, B-503m4 (D-217): held, opens the field attack wheel (R, RB); a tap does nothing. Leave empty to use
+	 *  DefaultFieldSwitchSourceAction (IA_Field_SwitchSource; the name is kept so the asset and the ini line stand). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
 	TObjectPtr<UInputAction> FieldSwitchSourceAction;
 
@@ -157,16 +160,76 @@ private:
 
 	EHubMode CurrentMode = EHubMode::Hub;
 
+	/** B-503e: the field keys made in code (attack, source cycle, fly up / down) when no asset is set; mapped
+	 *  at WoRInputPriority::FIELD_KEYS. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UInputMappingContext> FieldKeysContext;
+
+	/** B-503e: makes any field action still empty (no asset, no ini line) in code with its InputMap.md keys. */
+	void BuildCodeFieldActions();
+
 	/** B-214g: the field attack's press (real time, for its hold); a release with no press (focus loss) does nothing. */
 	double FieldAttackPressTime = 0.0;
 	bool bFieldAttackPressed = false;
+	/** B-503m5 (D-218): R / RB's press: held FIELD_SOURCE_HOLD_SECONDS it opens the wheel (FieldWheelOpenTimer), which
+	 *  stays up after the release (a toggle); a tap does nothing here (RB's tap is the attack). */
+	bool bFieldSourcePressed = false;
+	FTimerHandle FieldWheelOpenTimer;
+
+	/** B-503m4 (D-217): the wheel's keys, made in code and mapped only while it is up (IMC_Field_Wheel, priority
+	 *  FIELD_WHEEL, eaten): the left stick or the mouse cursor picks a slice; D-pad left / right, A / D or the mouse
+	 *  wheel step the slice's element. B-503m5: A or a click confirms and closes; B, Backspace, RB or R closes. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelPickAction;
+	/** B-503m5: mapped only to eat the mouse's travel while the wheel is up; the cursor picks (FieldWheelHoverTimer). */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelMouseAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelElementAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelScrollAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelConfirmAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelCloseAction;
+	UPROPERTY(Transient)
+	TObjectPtr<class UInputMappingContext> FieldWheelContext;
+	/** The entries read when the wheel opened, and its pick; INDEX_NONE: the wheel is down. */
+	UPROPERTY(Transient)
+	TArray<FFieldAttackEntry> FieldWheelEntries;
+	int32 FieldWheelPick = INDEX_NONE;
+	/** The entry kept when the wheel opened (its slice comes back on it). */
+	int32 FieldWheelKept = INDEX_NONE;
+	/** B-503m5: the wheel opened on keyboard and mouse: the cursor shows, and is read on this timer while it is up. */
+	bool bFieldWheelCursor = false;
+	FTimerHandle FieldWheelHoverTimer;
+
+	bool IsFieldWheelOpen() const { return FieldWheelPick != INDEX_NONE; }
+	void BuildFieldWheelKeys();
+	void OpenFieldWheel();
+	/** Hides the wheel and unmaps its keys, picking nothing. */
+	void CloseFieldWheel();
+	/** B-503m5: picks the wheel's current entry, shows it on the strip and closes the wheel. */
+	void ConfirmFieldWheel();
+	void HandleFieldWheelPick(const FInputActionValue &Value);
+	void HandleFieldWheelElement(const FInputActionValue &Value);
+	void HandleFieldWheelScroll(const FInputActionValue &Value);
+	void HandleFieldWheelConfirm(const FInputActionValue &Value);
+	void HandleFieldWheelClose(const FInputActionValue &Value);
+	/** B-503m5: the slice under the mouse cursor becomes the pick (the middle and off the wheel keep it). */
+	void UpdateFieldWheelHover();
+	/** Moves the pick to a slice (its first option, or the kept entry on its own slice) and redraws. */
+	void PickFieldWheelSlice(int32 Slice);
+	void StepFieldWheelElement(int32 Delta);
 
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);
 	void HandleFieldAttackStarted(const FInputActionValue &Value);
 	void HandleFieldAttackCompleted(const FInputActionValue &Value);
 	void HandleFieldAttackCanceled(const FInputActionValue &Value);
+	void HandleFieldSwitchSourceStarted(const FInputActionValue &Value);
 	void HandleFieldSwitchSource(const FInputActionValue &Value);
+	void HandleFieldSwitchSourceCanceled(const FInputActionValue &Value);
 	void HandleFieldFlyVertical(const FInputActionValue &Value);
 
 	/** The possessed pawn's field movement, or null. */

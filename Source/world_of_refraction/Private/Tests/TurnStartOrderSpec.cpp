@@ -8,6 +8,7 @@
 // (an overloaded holder's energy moves at turn start, so the trigger's energy payout can't be
 // told apart there), so together they pin the whole chain.
 // ET-16: rituals ready together fire faster frozen spell speed first, ties in arming order.
+// B-170h2: runs on the fixed rotation (the speed timeline and its switch are deleted).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -163,14 +164,12 @@ BEGIN_DEFINE_SPEC(FTurnStartOrderSpec, "WoR.Combat.TurnStartOrder",
 		FireRecorder->Listen(Orchestrator);
 		return TestTrue(TEXT("Hero opens the duel"), Orchestrator->GetCurrentActor() == Hero);
 	}
-	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FTurnStartOrderSpec)
 
 void FTurnStartOrderSpec::Define()
 {
 	BeforeEach([this]()
 	{
-		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		Orchestrator = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
@@ -189,7 +188,6 @@ void FTurnStartOrderSpec::Define()
 
 	AfterEach([this]()
 	{
-		SpeedTimeline.Reset();
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
 		{
 			Orchestrator->ForceEndCombat();
@@ -228,24 +226,13 @@ void FTurnStartOrderSpec::Define()
 			Trigger.ProcessTiming = ESkillEffectTiming::OnTrigger;
 			Trigger.TriggerCondition = ESkillTrigger::OnTurnStart;
 			EffectManager->ApplyEffect(Hero, Trigger, Hero);
-			// Use Hero's free switch now, so only the turn-start flag reset can give it back.
-			ULoadoutComponent *HeroLoadout = Hero->FindComponentByClass<ULoadoutComponent>();
-			if (!TestNotNull(TEXT("Hero's loadout"), HeroLoadout))
-			{
-				return;
-			}
-			FText Reason;
-			TestTrue(TEXT("Hero switches weapon"), HeroLoadout->TrySwitchWeaponThisTurn(Reason));
-			if (!TestFalse(TEXT("The free switch is used"), HeroLoadout->GetTurnSwitchRefusedReason().IsEmpty()))
-			{
-				return;
-			}
+			// B-170h2: a switch is always free now (ET-19), so there is no used switch for step 1 to give back.
 
 			StepRecorder->Listen(Hero, TURN_START_ORDER_HOT_ID, TURN_START_ORDER_ALWAYS_ON_ID, true, Orchestrator, EffectManager, BuildupManager, nullptr);
 			Orchestrator->OnActionCompleted();
 
 			TestTrue(TEXT("Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
-			TestTrue(TEXT("Step 1: the free switch was back before the own-turn effects ran"), StepRecorder->bSwitchFreeAtOwnTurnStartEffect);
+			TestTrue(TEXT("Step 1: the switch is free when the own-turn effects run"), StepRecorder->bSwitchFreeAtOwnTurnStartEffect);
 			ExpectInOrder({ETurnStartStep::OwnTurnStartEffect, ETurnStartStep::AlwaysOnEffect, ETurnStartStep::TurnStartTrigger,
 						   ETurnStartStep::BarDecay, ETurnStartStep::TurnStartedBroadcast, ETurnStartStep::ActionRequested});
 		});

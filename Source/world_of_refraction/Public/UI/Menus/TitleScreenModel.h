@@ -40,8 +40,10 @@ struct FTitleScreenRow
 struct FTitleSaveSummary
 {
 	bool bHasSave = false;
-	/** The trial of a saved run, else the hub. */
+	/** Where Continue starts: always the hub (B-408a: a saved run is never resumed, D-172). */
 	FText Place;
+	/** B-408a (Q-408): the save held a run when the game closed, so it was settled as a quit. */
+	bool bLastRunLost = false;
 	TArray<FText> PartyNames;
 	double PlaySeconds = 0.0;
 };
@@ -51,7 +53,8 @@ namespace WoRTitleScreen
 	/** Continue (only with a save), New Game, Join a friend, Settings, Credits, Quit. */
 	WORLD_OF_REFRACTION_API TArray<FTitleScreenRow> BuildRows(const FTitleSaveSummary &Save);
 
-	WORLD_OF_REFRACTION_API FTitleSaveSummary Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds);
+	/** bRunSettled: the save subsystem already settled a run this session (WasClosedRunSettled), so Data holds none. */
+	WORLD_OF_REFRACTION_API FTitleSaveSummary Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled = false);
 	/** The game instance's save (USaveSubsystem). */
 	WORLD_OF_REFRACTION_API FTitleSaveSummary SummarizeSave(const UGameInstance *GameInstance);
 

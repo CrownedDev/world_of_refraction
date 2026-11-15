@@ -286,6 +286,16 @@ namespace WoRLoadoutV2
 	/** A crystal, a stone or an evolution: its name and tier, its element; in the full view what it is and its cells. */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildAttachmentDetails(const FRuntimeAttachedItem &Item, bool bSimple);
 
+	/** B-503u (Crown): the Edit window's box on an Augment socket row: what is in it, or (empty) one line saying what
+	 *  it takes: socket 1 a crystal, an evolution or a stone; socket 2 a stone (D-210). */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildSocketDetails(const FRuntimeAttachedItem &Item, bool bFirstSocket, bool bSimple);
+
+	/** B-503u: the box on the Off hand row: the weapon's own details, or (empty) one line saying what can go there. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildOffHandDetails(const FWeaponInventoryEntry &OffHand, bool bSimple);
+
+	/** B-503u: one plain line for the box (an empty slot's note). */
+	WORLD_OF_REFRACTION_API FLoadoutV2DetailLine MakeNoteLine(const FText &Text);
+
 	/** Debug: the details box as text. */
 	WORLD_OF_REFRACTION_API FString GetDetailsString(const TArray<FLoadoutV2DetailLine> &Lines);
 

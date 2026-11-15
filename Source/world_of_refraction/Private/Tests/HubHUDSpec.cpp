@@ -7,11 +7,19 @@
 
 #include "Misc/AutomationTest.h"
 #include "Blueprint/UserWidget.h"
+#include "Character/CharacterData.h"
+#include "Field/FieldSkillTypes.h"
+#include "Infusion/ElementColors.h"
+#include "Party/Party.h"
 #include "Hub/InteractPrompt.h"
 #include "Memory/MemorySpot.h"
+#include "Trial/TrialData.h"
 #include "Trial/TrialRestSpot.h"
+#include "Trial/TrialRunSubsystem.h"
+#include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Hub/HubHUDModel.h"
 #include "UI/Hub/HubHUDWidget.h"
+#include "UI/Menus/MenuScreenStyle.h"
 #include "WoRGameNames.h"
 #include "WoRTestWorld.h"
 
@@ -19,6 +27,7 @@ namespace
 {
 	constexpr float HUB_HUD_TEST_JUST_CHANGED = 1.0f;
 	constexpr float HUB_HUD_TEST_NEVER_CHANGED = -1.0f;
+	constexpr int32 HUB_HUD_TEST_RUN_SEED = 503;
 	const EInteractVerb HUB_HUD_TEST_VERBS[] = {EInteractVerb::Talk, EInteractVerb::Enter, EInteractVerb::Return,
 												EInteractVerb::Invite, EInteractVerb::Dismiss, EInteractVerb::Open,
 												EInteractVerb::Read, EInteractVerb::Challenge, EInteractVerb::PickUp,
@@ -39,6 +48,120 @@ void FHubHUDSpec::Define()
 	AfterEach([this]()
 	{
 		TestWorld.Reset();
+	});
+
+	It("shows the battle card per member: the name, the carried HP and EP (B-503g, B-503j)", [this]()
+	{
+		UParty *Party = NewObject<UParty>(GetTransientPackage());
+		const auto AddMember = [Party](const TCHAR *Name, int32 CurrentHP) -> UCharacterData *
+		{
+			UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+			Data->Name = Name;
+			FPartyMember &Member = Party->Members.AddDefaulted_GetRef();
+			Member.CharacterData = Data;
+			Member.CurrentHP = CurrentHP;
+			return Data;
+		};
+		UCharacterData *Hub = AddMember(TEXT("Sera"), PartyConstants::NO_CARRIED_VITALS);
+		UCharacterData *Hurt = AddMember(TEXT("Bram"), 0);
+		Hurt->CharacterClass = ECharacterClass::Caster;
+		Hurt->InnateElement = ESpellElement::Fire;
+		Party->Members.Last().CurrentHP = Hurt->CalculateMaxHealth() / 2;
+		Party->Members.AddDefaulted(); // a member with no data shows no card
+
+		Party->Members.Last(1).CurrentEP = 0;
+
+		const TArray<FBattleHUDCard> Cards = WoRHubHUD::BuildPartyStrip(Party);
+		if (!TestEqual(TEXT("one card per member with data"), Cards.Num(), 2))
+		{
+			return;
+		}
+		TestEqual(TEXT("party order, the character's name"), Cards[0].Name.ToString(), Hub->Name);
+		TestTrue(TEXT("a party card"), Cards[0].bParty);
+		TestEqual(TEXT("no carried vitals reads full"), Cards[0].HPFraction, 1.0f);
+		TestEqual(TEXT("full HP in numbers"), Cards[0].HPLine.ToString(),
+				  BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), Hub->CalculateMaxHealth(), Hub->CalculateMaxHealth()).ToString());
+		TestEqual(TEXT("full EP in numbers"), Cards[0].EPLine.ToString(),
+				  BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), Hub->CalculateMaxEnergy(), Hub->CalculateMaxEnergy()).ToString());
+		TestEqual(TEXT("carried HP over max"), Cards[1].HPFraction,
+				  static_cast<float>(Hurt->CalculateMaxHealth() / 2) / static_cast<float>(Hurt->CalculateMaxHealth()), UE_KINDA_SMALL_NUMBER);
+		TestEqual(TEXT("carried EP"), Cards[1].EPLine.ToString(),
+				  BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), 0, Hurt->CalculateMaxEnergy()).ToString());
+		TestEqual(TEXT("B-503m: the EP bar follows it"), Cards[1].EPFraction, 0.0f);
+		TestEqual(TEXT("and a full one is full"), Cards[0].EPFraction,
+				  BattleHUDView::PoolFraction(Hub->CalculateMaxEnergy(), Hub->CalculateMaxEnergy()));
+		TestEqual(TEXT("the build-up bar is empty between fights (SB-18)"), Cards[1].BuildupFraction, 0.0f);
+		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
+		const TArray<FBattleHUDCard> Played = WoRHubHUD::BuildPartyStrip(Party, 1);
+		TestTrue(TEXT("B-503m4 (D-217): the played member first, then the rest in party order"),
+				 Played.Num() == 2 && Played[0].Name.ToString() == Hurt->Name && Played[1].Name.ToString() == Hub->Name);
+	});
+
+	It("fits a full party on one row (B-503i, B-503j; the chip's room is kept until it is deleted, B-503k)", [this]()
+	{
+		TestTrue(TEXT("the chip can grow past its minimum"), WoRHubHUD::FIELD_ATTACK_CHIP_MAX_WIDTH > WoRHubHUD::FIELD_ATTACK_CHIP_MIN_WIDTH);
+		// The strip starts at the screen's padding on the left and keeps the same padding clear on the right.
+		const float Room = WoRHubHUD::HUD_LAYOUT_WIDTH - 2.0f * WoRMenuStyle::ScreenPadding;
+		TestTrue(TEXT("four cards and the widest chip fit"), WoRHubHUD::GetPartyStripMaxWidth(PartyConstants::MAX_PARTY_MEMBERS) <= Room);
+	});
+
+	It("shows the trial level on any map but the hub, run or not (B-503j, D-216; B-503m)", [this]()
+	{
+		TestTrue(TEXT("no world: the hub's cards (names only)"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Hub);
+		TestTrue(TEXT("not the hub map, no run (a trial map played straight from the editor): the trial's cards"),
+				 WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
+		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("run subsystem"), Run))
+		{
+			return;
+		}
+		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), HUB_HUD_TEST_RUN_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, {}, {});
+		TestTrue(TEXT("in a run: the trial's cards (HP, EP, build-up)"), WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
+	});
+
+	It("puts the field attack strip above the played member's card, in a trial only (B-503k, D-217)", [this]()
+	{
+		TestFalse(TEXT("none in the hub"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Hub));
+		TestTrue(TEXT("in a trial"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Trial));
+		TestFalse(TEXT("not the battle's (its card has the gear tooltip)"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Battle));
+
+		UParty *Party = NewObject<UParty>(GetTransientPackage());
+		Party->Members.AddDefaulted_GetRef().CharacterData = FWoRTestWorld::NewCharacterData();
+		Party->Members.AddDefaulted(); // no data: no card
+		Party->Members.AddDefaulted_GetRef().CharacterData = FWoRTestWorld::NewCharacterData();
+		TestEqual(TEXT("the first member's card"), WoRHubHUD::GetFieldAttackCardIndex(Party, 0), 0);
+		TestEqual(TEXT("B-503m4 (D-217): the played member's card is always the first"), WoRHubHUD::GetFieldAttackCardIndex(Party, 2), 0);
+		TestEqual(TEXT("a member with no card"), WoRHubHUD::GetFieldAttackCardIndex(Party, 1), INDEX_NONE);
+		TestEqual(TEXT("no slot"), WoRHubHUD::GetFieldAttackCardIndex(Party, INDEX_NONE), INDEX_NONE);
+		TestEqual(TEXT("no party"), WoRHubHUD::GetFieldAttackCardIndex(nullptr, 0), INDEX_NONE);
+		TestEqual(TEXT("no pawn"), WoRHubHUD::FindFieldAttackCard(nullptr), INDEX_NONE);
+	});
+
+	It("shows the field attack chip's name, table icon and element dot (B-503i)", [this]()
+	{
+		FFieldAttackEntry Sword;
+		Sword.Kind = EFieldAttackKind::Weapon;
+		Sword.Name = FText::FromString(TEXT("Generic Primary Weapon"));
+		Sword.WeaponType = EWeaponType::Sword;
+		Sword.Element = ESpellElement::Fire;
+		const FHubHUDFieldAttackChip SwordChip = WoRHubHUD::BuildFieldAttackChip(Sword);
+		TestEqual(TEXT("the item's name"), SwordChip.Name.ToString(), Sword.Name.ToString());
+		TestTrue(TEXT("a weapon's table icon is its type's"), SwordChip.Icon.Kind == EWoRIconKind::WeaponType && SwordChip.Icon.WeaponType == EWeaponType::Sword);
+		TestEqual(TEXT("its type in words with no texture"), SwordChip.IconText.ToString(), WoRGameNames::GetWeaponTypeName(EWeaponType::Sword).ToString());
+		TestTrue(TEXT("elemental"), SwordChip.bElemental);
+		TestEqual(TEXT("the dot is the element's colour"), SwordChip.ElementColor, ElementColors::GetColorForElement(ESpellElement::Fire));
+
+		FFieldAttackEntry Ring;
+		Ring.Kind = EFieldAttackKind::Ring;
+		Ring.Name = FText::FromString(TEXT("Ring"));
+		Ring.Element = ESpellElement::Water;
+		const FHubHUDFieldAttackChip RingChip = WoRHubHUD::BuildFieldAttackChip(Ring);
+		TestTrue(TEXT("a ring's table icon is its element's badge"), RingChip.Icon.Kind == EWoRIconKind::Element && RingChip.Icon.Element == ESpellElement::Water);
+
+		const FHubHUDFieldAttackChip Plain = WoRHubHUD::BuildFieldAttackChip(FFieldAttackEntry());
+		TestFalse(TEXT("the plain swing has a name"), Plain.Name.IsEmpty());
+		TestTrue(TEXT("no icon"), Plain.Icon.Kind == EWoRIconKind::None && Plain.IconText.IsEmpty());
+		TestFalse(TEXT("no element: no dot"), Plain.bElemental);
 	});
 
 	It("shows the money near a vendor, or for a few seconds after it changed", [this]()

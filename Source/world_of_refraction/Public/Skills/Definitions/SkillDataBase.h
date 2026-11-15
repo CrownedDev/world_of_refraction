@@ -273,7 +273,7 @@ public:
     /** B-170c (Q-170b): the actions this skill costs from the banked actions, on top of its Energy. At least 1
      *  (ActionPips.md §3.1: a free action could repeat without limit in one turn), at most 3 (Q-170j, Crown: small 1,
      *  medium 2, large 3; ActionPipsConstants::ACTION_COST_MAX, clamped when read). A cost above the user's Max
-     *  Actions makes it unusable. Read only when wor.Turns.ActionPips is 1. */
+     *  Actions makes it unusable. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "1", ClampMax = "3"))
     int32 ActionCost = ActionPipsConstants::ACTION_COST_DEFAULT;
 
@@ -317,6 +317,11 @@ public:
      *  readers switch; the leaf fields stay runtime-authoritative until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *SkillMontage = nullptr;
+
+    /** B-503b (D-215): a weapon attack's swing on the map: SkillMontage's strike without the approach. Its first
+     *  Impact notify times the field hit. Unset: the field attack hits at once with no animation. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+    TSoftObjectPtr<UAnimMontage> FieldMontage;
 
     /** Optional wind-up montage played BEFORE SkillMontage (the cast lead-in).
      *  Null = skip straight to SkillMontage (opt-in, like ReturnMontage —

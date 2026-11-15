@@ -2,6 +2,9 @@
 // B-424 (editor only): builds the light hit's two montages, which the editor's Python can't author (a second segment,
 // the length, notify subobjects). Run headless by Scripts/editor/build_light_hit.py; that script saves the packages.
 //   wor.Editor.BuildLightHitMontages
+//   wor.Editor.BuildLightHitFieldMontage (B-503b: the strike alone, for the field attack)
+//   wor.Editor.BuildFieldPulseMontage (B-503d: the field pulse's cast, the throw cut from AS_Cast_FireBall; it shares
+//   this file's montage helpers)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -26,6 +29,19 @@ namespace LightHitMontageBuilder
 	constexpr const TCHAR *STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/DSAS_V2/Manny_UE5/InPlace/Attack/Combo/Anim_SAS_V2_ComboAttack02_01_IP.Anim_SAS_V2_ComboAttack02_01_IP");
 	constexpr const TCHAR *APPROACH_MONTAGE = TEXT("AM_SAS_LightHit");
 	constexpr const TCHAR *RETURN_MONTAGE = TEXT("AM_SAS_LightHit_Return");
+	constexpr const TCHAR *FIELD_MONTAGE = TEXT("AM_SAS_LightHit_Field");
+
+	// ---- B-503d: the field pulse's cast (D-215) ----
+	constexpr const TCHAR *PULSE_FOLDER = TEXT("/Game/Data/Skills/Field/Pulse");
+	constexpr const TCHAR *PULSE_MONTAGE = TEXT("AM_Field_Pulse");
+	/** A right-hand throw, in place, read only (vendor folder). The clip is 7 s; only the throw is used. */
+	constexpr const TCHAR *PULSE_CLIP = TEXT("/Game/Imports/Animations/MagicAnimations/Animations/AS_Cast_FireBall.AS_Cast_FireBall");
+	/** In the clip's own time (Scripts/ue/sample_bones.sh, hand_r): the hands are drawn back at 4.0 s, the right hand
+	 *  is fastest at 4.47 s and fully forward by 4.6 s, and it stays there until 5.8 s. */
+	constexpr float PULSE_CLIP_START = 4.0f;
+	constexpr float PULSE_CLIP_END = 5.2f;
+	/** In the montage's time: 4.5 s of the clip, the hand at full speed and nearly forward. */
+	constexpr float PULSE_RELEASE_TIME = 0.5f;
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -42,9 +58,9 @@ namespace LightHitMontageBuilder
 	constexpr float FRONT_ROW_WARP_DISTANCE = 700.0f;
 	const FName NOTIFY_TRACK(TEXT("1"));
 
-	UAnimMontage *MakeMontage(const TCHAR *Name, const TArray<UAnimSequenceBase *> &Clips)
+	UAnimMontage *MakeMontage(const TCHAR *Name, const TArray<UAnimSequenceBase *> &Clips, const TCHAR *Folder = FOLDER)
 	{
-		UPackage *Package = CreatePackage(*(FString(FOLDER) / Name));
+		UPackage *Package = CreatePackage(*(FString(Folder) / Name));
 		UAnimMontage *Montage = NewObject<UAnimMontage>(Package, Name, RF_Public | RF_Standalone | RF_Transactional);
 		Montage->SetSkeleton(Clips[0]->GetSkeleton());
 		Montage->BlendIn.SetBlendTime(IDLE_BLEND_SECONDS);
@@ -142,6 +158,66 @@ namespace LightHitMontageBuilder
 		AddWarpWindow(Return, HOP_BACK_WARP_START, HOP_BACK_WARP_END);
 		Finish(Return);
 	}
+
+	/** B-503b (D-215): the map's swing, the strike alone (in place, no warp), with the approach montage's strike notifies. */
+	void BuildField()
+	{
+		UAnimSequenceBase *Strike = LoadObject<UAnimSequenceBase>(nullptr, STRIKE_CLIP);
+		if (!Strike)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing the strike clip %s"), STRIKE_CLIP);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(FOLDER) / FIELD_MONTAGE + TEXT(".") + FIELD_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), FIELD_MONTAGE);
+			return;
+		}
+		UAnimMontage *Field = MakeMontage(FIELD_MONTAGE, {Strike});
+		AddCombatNotify(Field, STRIKE_VFX_TIME, ECombatNotifyFamily::VFX);
+		AddCombatNotify(Field, STRIKE_SFX_TIME, ECombatNotifyFamily::SFX);
+		AddCombatNotify(Field, STRIKE_IMPACT_TIME, ECombatNotifyFamily::Impact);
+		Finish(Field);
+	}
+
+	static FAutoConsoleCommand GBuildFieldCommand(
+		TEXT("wor.Editor.BuildLightHitFieldMontage"),
+		TEXT("EDITOR (B-503b): build AM_SAS_LightHit_Field (the strike alone: the map's swing) in ")
+			TEXT("/Game/Data/Skills/Weapons/SwordAndShield/LightHit. Doesn't save; Scripts/editor/build_light_hit.py does."),
+		FConsoleCommandDelegate::CreateStatic(&BuildField));
+
+	/** B-503d (D-215): the field pulse's cast, the clip alone (in place), with the release as its Impact notify. */
+	void BuildFieldPulse()
+	{
+		UAnimSequenceBase *CastClip = LoadObject<UAnimSequenceBase>(nullptr, PULSE_CLIP);
+		if (!CastClip)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing the cast clip %s"), PULSE_CLIP);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(PULSE_FOLDER) / PULSE_MONTAGE + TEXT(".") + PULSE_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), PULSE_MONTAGE);
+			return;
+		}
+		UAnimMontage *Pulse = MakeMontage(PULSE_MONTAGE, {CastClip}, PULSE_FOLDER);
+		FAnimSegment &Throw = Pulse->SlotAnimTracks[0].AnimTrack.AnimSegments[0];
+		Throw.AnimStartTime = PULSE_CLIP_START;
+		Throw.AnimEndTime = PULSE_CLIP_END;
+		Pulse->SetCompositeLength(Throw.GetLength());
+		AddCombatNotify(Pulse, PULSE_RELEASE_TIME, ECombatNotifyFamily::Impact);
+		Finish(Pulse);
+		UE_LOG(LogWoR, Display, TEXT("[LightHitBuilder] %s: skeleton %s, release at %.2f s of %.2f s"), PULSE_MONTAGE,
+			   *GetPathNameSafe(Pulse->GetSkeleton()), PULSE_RELEASE_TIME, Pulse->GetPlayLength());
+	}
+
+	static FAutoConsoleCommand GBuildFieldPulseCommand(
+		TEXT("wor.Editor.BuildFieldPulseMontage"),
+		TEXT("EDITOR (B-503d): build AM_Field_Pulse (the field pulse's cast, Impact0 at the release) in ")
+			TEXT("/Game/Data/Skills/Field/Pulse. Doesn't save: save it in the editor, then uncomment FieldPulseMontage in DefaultGame.ini."),
+		FConsoleCommandDelegate::CreateStatic(&BuildFieldPulse));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),

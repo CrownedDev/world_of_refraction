@@ -363,13 +363,6 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 }
 }
 
-namespace SaveRunResume
-{
-	TAutoConsoleVariable<bool> CVarResumeRun(
-		TEXT("wor.Save.ResumeRun"), true,
-		TEXT("B-208: resume a saved trial run when the game starts in the hub (0: start in the hub; the run is dropped at the next save)."));
-}
-
 void USaveSubsystem::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
@@ -454,7 +447,8 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
 
-	// B-208: a saved run waits for the first game world, then resumes from the hub (Q-208).
+	// B-208: a saved run waits for the first game world. B-408a (Q-408): from the own slot it is settled as a quit there;
+	// a handed-over copy resumes from the hub (Q-208).
 	if (Data.Run.bHasRun)
 	{
 		PendingRun = Data.Run;
@@ -739,9 +733,15 @@ void USaveSubsystem::TryResumeRun(UWorld *World)
 	PendingRun = FSavedRun();
 
 	UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
-	if (!TrialRun || !SaveRunResume::CVarResumeRun.GetValueOnGameThread() || !TrialRun->IsHubWorld(World))
+	// B-408a (D-172, Q-408): the player's own save never resumes a run: the game closed mid-run, so it counts as a quit.
+	if (!bPlayingHostCopy)
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[Save] Saved run of %s not resumed (started in %s, not the hub, or wor.Save.ResumeRun 0); it is dropped at the next save"),
+		SettleClosedRun(Run, World);
+		return;
+	}
+	if (!TrialRun || !TrialRun->IsHubWorld(World))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Handed-over run of %s not resumed (started in %s, not the hub); it is dropped at the next save"),
 			   *Run.Trial.Path.ToString(), World ? *World->GetMapName() : TEXT("<no world>"));
 		DropRunVitals();
 		return;
@@ -765,6 +765,57 @@ void USaveSubsystem::TryResumeRun(UWorld *World)
 			Resumed->ResumeRun();
 		}
 	}));
+}
+
+void USaveSubsystem::SettleClosedRun(const FSavedRun &Run, UWorld *World)
+{
+	bSettledClosedRun = true;
+	UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+	if (TrialRun && World && RestoreRun(Run, *TrialRun))
+	{
+		// Restored only to be ended as D-176's quit; not inside world initialisation, so on the next tick.
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (UTrialRunSubsystem *Settled = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>())
+			{
+				// No travel: the player is wherever the game started (the hub and its title in a real start).
+				Settled->SettleRunAsQuit(/*bTravelIfAway=*/false);
+			}
+		}));
+		return;
+	}
+	// The run can't be restored (its trial asset is gone, no seed): its store changes are settled all the same, so
+	// the run's finds don't stay as home gear (the survey's gap).
+	UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>();
+	if (Pool && Run.bHasRun && Run.bHasRunLayer)
+	{
+		RestoreSavedRunLayer(Run, *Pool);
+		Pool->TakeRunFoundItems();
+		Pool->EndRunLayer(/*bKeepUpgrades=*/false); // B-451: a quit keeps no upgrade levels, as FinishRun
+	}
+	// The rest of FinishRun's quit (D-176): run recruits leave, a hidden quest's step in progress starts again.
+	if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+	{
+		PartySession->DismissRunMembers();
+	}
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())
+	{
+		Quests->EndRun();
+	}
+	DropRunVitals();
+	UE_LOG(LogWoR, Warning, TEXT("[Save] The run of %s couldn't be restored: its gear settled as a quit (D-176), the party back in the hub"),
+		   *Run.Trial.Path.ToString());
+	if (World)
+	{
+		// The settled store and no run (PendingRun is cleared), so a close before the next save doesn't settle again.
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (UWorld *SaveWorld = GetGameInstance()->GetWorld())
+			{
+				SaveNow(SaveWorld, /*bAsync=*/true);
+			}
+		}));
+	}
 }
 
 void USaveSubsystem::DropRunVitals()
@@ -1156,6 +1207,9 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
 		Out.FieldSkillSource = Member.FieldSkill.Source; // B-214a (D-099)
 		Out.FieldSkillType = Member.FieldSkill.Type;
+		Out.FieldAttackIndex = Member.FieldAttackIndex; // B-503 (D-215)
+		Out.bFieldAttackPicked = Member.bFieldAttackPicked; // B-503s (D-218)
+		Out.ActiveWeaponId = Member.ActiveWeaponId; // B-503s2
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -1406,27 +1460,32 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 	}
 	else if (Pool)
 	{
-		TMap<FGuid, FPoolRunMark> Marks;
-		for (const FSavedRunMark &In : Saved.RunMarks)
-		{
-			Marks.Add(In.GearID, RestoreRunMark(In));
-		}
-		Pool->RestoreRunLayer(Marks);
-		if (Saved.bHasRunStartItems) // B-439b: else RestoreRunLayer's own count (what is held now) stands
-		{
-			TMap<FCrystalId, int32> StartItems;
-			for (const FSavedCrystalStack &Stack : Saved.RunStartItems)
-			{
-				if (Stack.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
-				{
-					StartItems.FindOrAdd(StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier,
-																		 static_cast<ESubStat>(Stack.StoneStat)))) += Stack.Count;
-				}
-			}
-			Pool->RestoreRunStartItems(StartItems);
-		}
+		RestoreSavedRunLayer(Saved, *Pool);
 	}
 	return true;
+}
+
+void USaveSubsystem::RestoreSavedRunLayer(const FSavedRun &Saved, UPoolSubsystem &Pool)
+{
+	TMap<FGuid, FPoolRunMark> Marks;
+	for (const FSavedRunMark &In : Saved.RunMarks)
+	{
+		Marks.Add(In.GearID, RestoreRunMark(In));
+	}
+	Pool.RestoreRunLayer(Marks);
+	if (Saved.bHasRunStartItems) // B-439b: else RestoreRunLayer's own count (what is held now) stands
+	{
+		TMap<FCrystalId, int32> StartItems;
+		for (const FSavedCrystalStack &Stack : Saved.RunStartItems)
+		{
+			if (Stack.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
+			{
+				StartItems.FindOrAdd(StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier,
+																	 static_cast<ESubStat>(Stack.StoneStat)))) += Stack.Count;
+			}
+		}
+		Pool.RestoreRunStartItems(StartItems);
+	}
 }
 
 bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsystem &PartySession)
@@ -1462,6 +1521,9 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.ParryElementPriority = In.ParryElementPriority; // B-393 (D-170)
 		Member.FieldSkill.Source = In.FieldSkillSource; // B-214a (D-099)
 		Member.FieldSkill.Type = In.FieldSkillType;
+		Member.FieldAttackIndex = In.FieldAttackIndex; // B-503 (D-215)
+		Member.bFieldAttackPicked = In.bFieldAttackPicked; // B-503s (D-218)
+		Member.ActiveWeaponId = In.ActiveWeaponId; // B-503s2
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();

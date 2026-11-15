@@ -2,6 +2,9 @@
 
 #include "Field/FieldSkillTypes.h"
 
+#include "Animation/AnimMontage.h"
+#include "Combat/CombatNotify.h"
+
 namespace FieldSkillRules
 {
 	bool IsElemental(ESpellElement Element)
@@ -297,6 +300,135 @@ namespace FieldSkillRules
 	FString SourceName(EFieldSkillSource Source)
 	{
 		return StaticEnum<EFieldSkillSource>()->GetNameStringByValue(static_cast<int64>(Source));
+	}
+
+	float GetSwingImpactSeconds(const UAnimMontage *Montage)
+	{
+		if (!Montage || Montage->RateScale <= 0.0f)
+		{
+			return NO_SWING_DELAY;
+		}
+		constexpr float NO_IMPACT = TNumericLimits<float>::Max();
+		float Earliest = NO_IMPACT;
+		for (const FAnimNotifyEvent &Event : Montage->Notifies)
+		{
+			const UCombatNotify *Notify = Cast<UCombatNotify>(Event.Notify);
+			if (Notify && Notify->Family == ECombatNotifyFamily::Impact)
+			{
+				Earliest = FMath::Min(Earliest, Event.GetTriggerTime());
+			}
+		}
+		return Earliest < NO_IMPACT ? Earliest / Montage->RateScale : NO_SWING_DELAY;
+	}
+
+	namespace
+	{
+		/** The stop Index belongs to: itself, or the stop before its hold steps. */
+		int32 FieldAttackStopOf(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+		{
+			while (Index > FIRST_FIELD_ATTACK_INDEX && Entries[Index].bHoldStep)
+			{
+				--Index;
+			}
+			return Index;
+		}
+	}
+
+	int32 NextFieldAttackSourceIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+	{
+		int32 Next = FieldAttackStopOf(Entries, ClampFieldAttackIndex(Index, Entries.Num())) + 1;
+		while (Next < Entries.Num() && Entries[Next].bHoldStep)
+		{
+			++Next;
+		}
+		return Next < Entries.Num() ? Next : FIRST_FIELD_ATTACK_INDEX;
+	}
+
+	int32 NextFieldAttackHoldIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+	{
+		const int32 Kept = ClampFieldAttackIndex(Index, Entries.Num());
+		const int32 Next = Kept + 1;
+		return Next < Entries.Num() && Entries[Next].bHoldStep ? Next : FieldAttackStopOf(Entries, Kept);
+	}
+
+	int32 GetFieldWheelIndexFromStick(const FVector2D &Stick, int32 EntryCount)
+	{
+		if (EntryCount <= 0 || Stick.Size() < FIELD_WHEEL_STICK_DEADZONE)
+		{
+			return INDEX_NONE;
+		}
+		const double FromTopClockwise = FMath::Atan2(Stick.X, Stick.Y); // 0 straight up, positive to the right
+		const double Turn = FMath::Fmod(FromTopClockwise + UE_DOUBLE_TWO_PI, UE_DOUBLE_TWO_PI);
+		return FMath::RoundToInt32(Turn / (UE_DOUBLE_TWO_PI / EntryCount)) % EntryCount;
+	}
+
+	int32 StepFieldWheelIndex(int32 Index, int32 Delta, int32 EntryCount)
+	{
+		if (EntryCount <= 0)
+		{
+			return FIRST_FIELD_ATTACK_INDEX;
+		}
+		return ((ClampFieldAttackIndex(Index, EntryCount) + Delta) % EntryCount + EntryCount) % EntryCount;
+	}
+
+	TArray<int32> GetFieldSliceStarts(const TArray<FFieldAttackEntry> &Entries)
+	{
+		TArray<int32> Starts;
+		for (int32 Index = 0; Index < Entries.Num(); ++Index)
+		{
+			if (Index == FIRST_FIELD_ATTACK_INDEX || !Entries[Index].bHoldStep)
+			{
+				Starts.Add(Index);
+			}
+		}
+		return Starts;
+	}
+
+	int32 GetFieldSliceOf(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+	{
+		return Entries.IsEmpty() ? INDEX_NONE : GetFieldSliceStarts(Entries).Find(FieldAttackStopOf(Entries, ClampFieldAttackIndex(Index, Entries.Num())));
+	}
+
+	int32 StepFieldSliceOption(const TArray<FFieldAttackEntry> &Entries, int32 Index, int32 Delta)
+	{
+		if (Entries.IsEmpty())
+		{
+			return FIRST_FIELD_ATTACK_INDEX;
+		}
+		const int32 Kept = ClampFieldAttackIndex(Index, Entries.Num());
+		const int32 Start = FieldAttackStopOf(Entries, Kept);
+		int32 End = Start + 1; // one past the slice's last option
+		while (End < Entries.Num() && Entries[End].bHoldStep)
+		{
+			++End;
+		}
+		return Start + StepFieldWheelIndex(Kept - Start, Delta, End - Start);
+	}
+
+	int32 GetFieldWheelSliceAt(const FVector2D &FromCentre, float HubRadius, float RimRadius, int32 SliceCount)
+	{
+		const double Distance = FromCentre.Size();
+		if (SliceCount <= 0 || Distance < HubRadius || Distance > RimRadius)
+		{
+			return INDEX_NONE;
+		}
+		return GetFieldWheelIndexFromStick(FVector2D(FromCentre.X, -FromCentre.Y) / Distance, SliceCount); // the stick's Y is up
+	}
+
+	FVector2D MoveFieldWheelPointer(const FVector2D &Pointer, const FVector2D &MouseDelta)
+	{
+		return (Pointer + MouseDelta * FIELD_WHEEL_MOUSE_SCALE).GetClampedToMaxSize(1.0);
+	}
+
+	FString FieldAttackEntryString(const FFieldAttackEntry &Entry)
+	{
+		return FString::Printf(TEXT("%s[%s] %s '%s' %s%s %s (%s%s)"), Entry.bHoldStep ? TEXT("  option: ") : TEXT(""),
+							   *Entry.SliceName.ToString(),
+							   *StaticEnum<EFieldAttackKind>()->GetNameStringByValue(static_cast<int64>(Entry.Kind)), *Entry.Name.ToString(),
+							   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Entry.Element)), Entry.bIce ? TEXT(" Ice") : TEXT(""),
+							   *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(Entry.Physical)),
+							   Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"),
+							   Entry.SwingMontage.IsNull() ? TEXT("") : *(TEXT(" ") + Entry.SwingMontage.GetAssetName()));
 	}
 
 	FString RefusalName(EFieldSkillRefusal Refusal)

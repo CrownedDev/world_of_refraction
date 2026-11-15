@@ -14,7 +14,7 @@
 //   tooltip with the loadout, from the ULoadoutComponent; a 0-damage hit on Broken Darkness reads "Negated"
 //   (DamageNumberView::SHOW_NEGATED_CUE, Q-391c). Combatants that join mid-fight get no card or numbers: nothing
 //   announces a join today (no summons exist; UISystem.md Known Limitations).
-// - B-170e: in an action-pips fight (wor.Turns.ActionPips 1), each party card's action pips and Max Actions line
+// - B-170e: in every fight (B-170h2), each party card's action pips and Max Actions line
 //   ("Actions ●●○ 2 · Max 3 (+75/100)", ActionPipsText), live from OnActionsChanged. At 0 the cards are as before.
 // The command menu is its own widget (UBattleCommandMenuWidget). CommonUI replaces both later (D-024).
 //
@@ -29,6 +29,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Skills/Effects/ActiveSkillEffect.h" // UFUNCTION handler parameter type
+#include "UI/Combat/Battle/BattleHUDCard.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/Battle/DamageNumberView.h" // FCombatHitShown: UFUNCTION handler parameter type
 #include "BattleHUDWidget.generated.h"
@@ -49,75 +50,6 @@ class UTurnStateComponent;
 class UVerticalBox;
 class UWeaponData;
 class UWoREffectMirrorComponent;
-
-/** One combatant's card: what it shows (plain data) and, once built, its text blocks. */
-USTRUCT()
-struct FBattleHUDCard
-{
-	GENERATED_BODY()
-
-	TWeakObjectPtr<AActor> Actor;
-	TWeakObjectPtr<UCharacterDataComponent> CharData;
-	bool bParty = false;
-	bool bActing = false;
-	bool bAlive = true;
-	bool bShowEP = true;
-	/** B-391b: the EP line is the absorption pool. */
-	bool bBrokenDarkness = false;
-	FLinearColor EPColour = FLinearColor::White;
-	float HPFraction = 0.0f;
-	FText Name;
-	FText HPLine;
-	FText EPLine;
-	/** B-170e: "Actions ●●○ 2 · Max 3 (+75/100)"; party cards in an action-pips fight only. */
-	FText ActionsLine;
-	FText StatusLine;
-
-	/** B-391c: the status buildup bar (every card; the line on party cards only, Q-391). */
-	float BuildupFraction = 0.0f;
-	int32 CracksShown = 0;
-	FLinearColor BuildupColour = FLinearColor::White;
-	FText BuildupLine;
-
-	/** B-391c: party cards: "weapon · ring" and the hover tooltip with the loadout. */
-	TWeakObjectPtr<ULoadoutComponent> Loadout;
-	FText GearLine;
-	FText GearTooltip;
-
-	UPROPERTY()
-	TObjectPtr<UBorder> Frame;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> NameText;
-
-	UPROPERTY()
-	TObjectPtr<UProgressBar> HPBar;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> HPText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> EPText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> ActionsText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> StatusText;
-
-	UPROPERTY()
-	TObjectPtr<UProgressBar> BuildupBar;
-
-	/** One mark per BattleHUDView::GetCrackPositions, built once; shown as the bar passes each. */
-	UPROPERTY()
-	TArray<TObjectPtr<UWidget>> CrackMarks;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> BuildupText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> GearText;
-};
 
 /** B-391b: one pooled floating damage number. */
 USTRUCT()
@@ -157,8 +89,6 @@ public:
 	const TArray<FBattleHUDCard> &GetCards() const { return Cards; }
 	const TArray<FText> &GetTurnLines() const { return TurnLines; }
 	const FText &GetStatusPanelText() const { return StatusPanelText; }
-	/** B-170e: true when this fight banks actions (read once in Initialise), so party cards show pips. */
-	bool IsShowingActions() const { return bShowActions; }
 	bool IsStatusPanelOpen() const { return bStatusPanelOpen; }
 
 	/** Open or close the view-all status panel (the Statuses button toggles it). */
@@ -177,9 +107,6 @@ protected:
 
 private:
 	void AddCard(AActor *Actor, bool bParty);
-	void BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Column);
-
-	void BuildBuildupWidgets(FBattleHUDCard &Card, UVerticalBox *Rows);
 
 	void RefreshPools();
 	void RefreshStatuses();
@@ -242,7 +169,6 @@ private:
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
 	bool bBound = false;
-	bool bShowActions = false;
 	int32 CurrentTurnNumber = 1;
 
 	TWeakObjectPtr<USkillEffectManager> BoundEffects;

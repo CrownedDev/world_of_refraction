@@ -22,6 +22,14 @@ namespace BattleTransitionAsset
 
 	/** The shard material's texture parameter that receives the captured frame. */
 	inline const FName FRAME_PARAMETER = TEXT("Frame");
+
+	/** B-500b: the shard material's scalar parameters for the prism light. The first three change every frame
+	 *  (BattleTransition::EvaluatePrismLight); the last two are set once from the data asset. */
+	inline const FName FLASH_PARAMETER = TEXT("Flash");
+	inline const FName LIGHT_REACH_PARAMETER = TEXT("LightReach");
+	inline const FName EDGE_GLOW_PARAMETER = TEXT("EdgeGlow");
+	inline const FName SHARD_COLOR_PARAMETER = TEXT("ShardColor");
+	inline const FName WHITE_REACH_PARAMETER = TEXT("WhiteReach");
 }
 
 UCLASS(BlueprintType)
@@ -33,15 +41,21 @@ public:
 	/** The authored asset, else the class defaults. Looked up on every call, so a new asset needs no restart. */
 	static const UBattleTransitionData &Get();
 
-	// ---- Timings (seconds; storyboard D: crack 0-0.25, break 0.25-0.45, hold, blow away 0.2) ----
+	// ---- Timings (seconds). B-500a (Crown's PIE): it opens slowly and finishes fast: the cracks and the break take
+	// their time inside the join window, the shards hold for a beat, then the blow-away accelerates hard. ----
 
 	/** Contact to the last crack: the cracks spread from the hit point over this long. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
-	float CrackSeconds = 0.25f;
+	float CrackSeconds = 0.5f;
 
 	/** The frame breaks apart over this long, then the shards hold and drift. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
-	float BreakSeconds = 0.2f;
+	float BreakSeconds = 0.7f;
+
+	/** How slowly the break starts: 1 = even speed; higher = a slower start and end with a faster middle, so the
+	 *  shards ease out of the wall and settle into the hold. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 1.0, ClampMax = 6.0))
+	float BreakEase = 2.0f;
 
 	/** If no map change has come this long after contact, the fight didn't start: the shards blow away
 	 *  where they are, so they can never stay on screen. Keep it above every encounter's join window. */
@@ -54,7 +68,13 @@ public:
 
 	/** The shards blow past the camera over this long. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
-	float BlowAwaySeconds = 0.2f;
+	float BlowAwaySeconds = 0.4f;
+
+	/** How hard the blow-away accelerates: 1 = even speed; 3 = a short slow beat (the first third barely moves),
+	 *  then a fast finish. Below 1 (B-503d, Crown) it leaves at full speed and slows instead: 0.3 = over half the
+	 *  way out in the first fifth of the time. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.3, ClampMax = 6.0))
+	float BlowAwayEase = 3.0f;
 
 	/** The held picture fades off the live shards over this long as the blow-away starts. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.01))
@@ -82,7 +102,8 @@ public:
 	float ShardBevel = 0.004f;
 
 	/** Lit shard material; its "Frame" texture parameter gets the captured frame, read by UV0 (the screen).
-	 *  Vertex colour: R = 1 on bevels and sides, G = a random per shard, B = distance from the hit.
+	 *  Vertex colour: R = 1 on bevels and sides, G = a random per shard, B = distance from the hit,
+	 *  A = the shard's hue (B-500b). The prism light's scalar parameters: BattleTransitionAsset.
 	 *  Unset = the engine's basic material tinted Void, which shows no frame. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards")
 	TSoftObjectPtr<UMaterialInterface> ShardMaterial;
@@ -90,6 +111,35 @@ public:
 	/** What the frame capture stores. Scene colour (before post-processing) is exposed again on the shards. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards")
 	TEnumAsByte<ESceneCaptureSource> FrameCaptureSource = SCS_SceneColorHDR;
+
+	// ---- Prism light (B-500b): a white flash at the hit, light running out through the cracks (white near the
+	// hit, the spectrum further out), each shard catching a colour. The shard material draws it. ----
+
+	/** The white flash at the hit fades over this long from contact. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.01))
+	float FlashSeconds = 0.25f;
+
+	/** The flash's brightness at contact (above 1 blooms; 0 = no flash). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0))
+	float FlashStrength = 6.0f;
+
+	/** The flash covers, and the light stays white, this far from the hit (0 = at the hit, 1 = the farthest
+	 *  shard); further out the light splits into the spectrum. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float WhiteReach = 0.25f;
+
+	/** Brightness of the light in the cracks and on the shard edges as it arrives (above 1 blooms; 0 = none). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0))
+	float EdgeGlowStrength = 4.0f;
+
+	/** The share of the edge light that stays on through the hold; it settles to this during the break. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float EdgeGlowHoldShare = 0.35f;
+
+	/** How strongly a shard's face takes its colour once the light has reached it (0 = the plain frame,
+	 *  1 = fully tinted). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float ShardColorStrength = 0.45f;
 
 	// ---- Motion ----
 

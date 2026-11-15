@@ -233,14 +233,17 @@ private:
 	 *  slot's list. */
 	FText GetLineTag(int32 Line) const;
 	/** B-484: the line the details box shows in a list of pieces: the one under the mouse, else the focused one.
-	 *  B-476d: a skill's slots and the picker follow the mouse the same way. */
+	 *  B-476d: a skill's slots and the picker follow the mouse the same way. B-503u: the Edit window's slot rows too. */
 	int32 GetBoxLine() const
 	{
-		const bool bFollowsMouse = Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker;
+		const bool bFollowsMouse = Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems || Mode == ELoadoutV2Mode::SkillRows ||
+								   Mode == ELoadoutV2Mode::SkillPicker || Mode == ELoadoutV2Mode::WindowSlots;
 		return bFollowsMouse && HoveredLine >= 0 && HoveredLine < GetLineCount() ? HoveredLine : Selected;
 	}
 	/** B-484: one line of a slot's list as the box's details: that piece alone (WoRLoadoutV2::Build...Details). */
 	TArray<FLoadoutV2DetailLine> BuildItemDetails(const FLoadoutV2WindowItem &Item) const;
+	/** B-503u: the Edit window's box on a slot row: that slot's piece, or a line saying what it takes. */
+	TArray<FLoadoutV2DetailLine> BuildSlotDetails(ELoadoutV2Slot GearSlot) const;
 	bool IsLineRefused(int32 Line) const;
 	FText GetTitle() const;
 	FText GetHints() const;

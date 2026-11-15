@@ -482,9 +482,9 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 	// OBSOLETE (B-341): the delayed path (ScheduleBonusTurn after EMERALD_BONUS_TURN_DELAY turns) retired.
 	const int32 Count = CrystalEffectTable::GetEmeraldBonusTurnCount(Id);
 
-	// B-170d (Crown, Q-170f), action-pips fights only: on an enemy the target loses its next turn (S: two, Q-341b);
-	// on yourself or an ally it gains actions by tier (EMERALD_ALLY_*), which may pass Max.
-	if (TurnMgr->IsRotationMode())
+	// B-170d (Crown, Q-170f): in a fight (B-170h2: every fight banks actions), on an enemy the target loses its next
+	// turn (S: two, Q-341b); on yourself or an ally it gains actions by tier (EMERALD_ALLY_*), which may pass Max.
+	if (TurnMgr->IsCombatActive())
 	{
 		const int32 UserTeam = TurnMgr->GetActorTeam(User);
 		const bool bOnEnemy = UserTeam != INDEX_NONE && TurnMgr->GetActorTeam(Target) != INDEX_NONE && TurnMgr->GetActorTeam(Target) != UserTeam;
@@ -517,6 +517,8 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 		return;
 	}
 
+	// OBSOLETE (B-170h2): outside a fight the old bonus turn is asked for (GrantBonusTurn refuses it with a warning);
+	// this path goes with B-170h3.
 	TurnMgr->GrantBonusTurn(Target, Count);
 	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Emerald: %d bonus turn(s) for %s, landing next"), Count, *Target->GetName());
 

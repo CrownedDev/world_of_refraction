@@ -44,6 +44,7 @@ class URingData;
 class UEvolutionItemData;
 struct FWeaponLoadoutEntry;
 struct FPartyMember;
+struct FFieldAttackEntry;
 struct FRingLoadoutEntry;
 struct FRuntimeAttachedItem;
 class UStanceData;
@@ -148,9 +149,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     ESpellElement GetActiveRingElement() const;
 
-    /** Make the next ring (wrapping) whose attachment is present and unbroken the active
-     *  one. False when no other ring is usable. Also runs when a ring's crystal breaks.
-     *  Forwards to SwitchToNextUsableSlot(Adapter). */
+    /** OBSOLETE (B-309b): forwards to SwitchToNextUsableSlot(Adapter), which C++ calls. Kept only as the Blueprint node;
+     *  delete once Find in Blueprints shows no "Switch To Next Usable Ring" node. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
     bool SwitchToNextUsableRing();
 
@@ -345,6 +345,8 @@ public:
      *  the slotted crystal (e.g. channel-tier resolution). */
     UObject *FindSpellCatalystHolder(USpellData *Spell) const;
 
+    // OBSOLETE (B-503q): GetPrimarySlotSpells / GetSecondarySlotSpells / GetActiveSlotSpells have no C++ game caller
+    // (only the orchestrator debug print; Blueprints unchecked); the fight reads GetAvailableSpells. Delete after PIE.
     /** Get spells from primary slot only (Ring or evolved Weapon) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetPrimarySlotSpells() const;
@@ -519,6 +521,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
     EGuardStyle GetGuardStyle() const;
 
+    /** B-503s (D-218, Q-503s C): the member's field attack pick from its party record (FPartyMember::FieldAttackIndex,
+     *  rebuilt from this loadout), which is its guard and parry colour. False when it never picked one (an AI seat),
+     *  or the picked weapon is no longer the one in hand: the guard and priority settings apply then. */
+    bool GetFieldAttackPick(FFieldAttackEntry &OutPick) const;
+
     /** B-392: choose the guard. Unarmed puts the weapon now in hand away for parrying; refused (false) with no weapon in
      *  hand, which is unarmed already. A rostered member (a pawn stamped with its PartyMemberId) keeps the choice on its
      *  party record, which the save writes; any other pawn keeps it here for its life. */
@@ -637,9 +644,6 @@ public:
      *  and unbroken. Weapons don't switch on their own: false. */
     bool SwitchToNextUsableSlot(EGearKind Kind);
 
-    /** The turn's free weapon switch. Forwards to TrySwitchActiveSlot(Weapon). */
-    bool TrySwitchWeaponThisTurn(FText &OutReason);
-
     /** B-474 (D-207): the skill list of the weapon not in hand (a Generic with two weapon entries), else empty. The
      *  battle menu offers it while "Switch to the weapon of the skill you use" is on. */
     TArray<UAbilityData *> GetOtherWeaponSkills() const;
@@ -652,9 +656,6 @@ public:
     /** B-474: undoes a SwitchToWeaponOfSkill that returned true when the action is then refused: the other weapon back
      *  in hand and the turn's switch unused again. */
     void RevertSkillWeaponSwitch();
-
-    /** The turn's free ring switch to NewRingIndex (the same rules as TrySwitchActiveSlot). */
-    bool TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason);
 
     /** Gives back the free switch; the orchestrator calls it at the owner's turn start. */
     void ResetTurnSwitch();
@@ -876,6 +877,9 @@ public:
     /** Broadcasts OnActiveWeaponChanged if GetActiveWeapon() differs from the last broadcast.
      *  Mutators here call it on every return; code that edits SavedLoadouts directly calls it after. */
     void NotifyActiveWeaponChanged();
+
+    /** B-503s2 (D-218): writes the weapon in hand to a stamped member's record (FPartyMember::ActiveWeaponId). */
+    void RecordWeaponInHand() const;
 
     /** B-380c: apparel worn in this loadout changed (worn, removed, or its socket set in play): the max pools and every
      *  stat reader (GAS sync, loadout UI: OnLoadoutChanged) re-read it. */

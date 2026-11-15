@@ -53,6 +53,11 @@ namespace BattleTransition
 	/** UV to the wall plane (Y, Z). Aspect = width / height. */
 	WORLD_OF_REFRACTION_API FVector2D UVToWall(const FVector2D &UV, float Aspect);
 
+	/** B-503f: how far in front of the camera the unbroken wall sits, in screen widths, so it fills the view.
+	 *  ViewTangents = tan of the view's half angles (horizontal, vertical), read from the real projection, so any
+	 *  aspect, FOV or aspect-ratio axis rule is covered; the wall goes as near as the tighter axis needs. */
+	WORLD_OF_REFRACTION_API double GetWallX(const FVector2D &ViewTangents, float Aspect);
+
 	/** Cuts the overscanned screen into 2 x columns x rows triangles, crowded toward HitUV. The same seed
 	 *  gives the same shards, which is how the battle map rebuilds the ones the trial map showed. */
 	WORLD_OF_REFRACTION_API TArray<FShard> BuildShards(int32 Seed, const FVector2D &HitUV, float Aspect,
@@ -65,8 +70,23 @@ namespace BattleTransition
 	/** 0..1: how far the push in and the lens look have come on, and gone again with the blow-away. */
 	WORLD_OF_REFRACTION_API float GetLookAlpha(const UBattleTransitionData &Data, float Elapsed, float ReleaseElapsed);
 
+	/** B-500b: what the shard material is told each frame (BattleTransitionAsset's scalar parameters). */
+	struct FPrismLight
+	{
+		float Flash = 0.0f;		 // brightness of the white flash at the hit
+		float LightReach = 0.0f; // how far the light has run out through the cracks, in FShard::Delay units; runs on past 1
+		float EdgeGlow = 0.0f;	 // brightness of the light in the cracks and on the shard edges
+	};
+
+	/** The prism light at Elapsed seconds after contact. The light reaches a shard as its crack does. */
+	WORLD_OF_REFRACTION_API FPrismLight EvaluatePrismLight(const UBattleTransitionData &Data, float Elapsed);
+
+	/** 0..1 around the colour wheel (0 = red): the shard's direction from the hit point, so the spectrum fans
+	 *  out around the hit as on the storyboard, with a little of the shard's own random. */
+	WORLD_OF_REFRACTION_API float GetShardHue(const FShard &Shard);
+
 	/** A thick bevelled prism: the face toward the camera carries the frame; bevels and sides are marked in
-	 *  vertex colour R. */
+	 *  vertex colour R. G = the shard's random, B = its distance from the hit, A = its hue. */
 	WORLD_OF_REFRACTION_API FShardMesh BuildShardMesh(const FShard &Shard, float Aspect, const UBattleTransitionData &Data);
 
 	enum class EState : uint8

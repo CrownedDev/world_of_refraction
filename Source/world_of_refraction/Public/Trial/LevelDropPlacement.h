@@ -1,7 +1,7 @@
 // LevelDropPlacement.h
 // B-223 (D-102): the player places a dropped pillar level on a party member's chosen pillar. B-363 (D-156): only at a
-// rest spot. A point can also be bought for run Prisms (TryBuyPoint; B-447, D-183: from the trial NPC who sells them
-// this run, WoRTrialNPC, not at the rest spot). Dropped levels
+// rest spot. A point can also be bought for run Prisms (TryBuyPoint; B-502, D-214: at the shrine rest point that
+// sells them this run, WoRRestSpot::TryBuyPointHere). Dropped levels
 // wait in the trial run (UTrialRunSubsystem::GetUnspentLevels); placing one raises that member's live level
 // (a spawned member at once, else at its next spawn), clamped at 7 (B-222). Placeholder screen:
 // wor.UI.LevelDrop (ULevelDropWidget). Debug: wor.WorldStat.Print.
@@ -44,8 +44,8 @@ namespace WoRLevelDrops
 	WORLD_OF_REFRACTION_API int32 GetPointPrice(const UWorld *World, const FPartyMember &Member);
 
 	/** B-363 (D-156, Q-156): buys Member one unspent point with run Prisms from Wallet (null: the first local player's).
-	 *  Empty on success, else why not (every pillar full (7 and 3 over-cap), too few Prisms). B-447 (D-183): not tied
-	 *  to the rest spot any more; the player's way in is the trial NPC who sells points (WoRTrialNPC::TryBuyPointAt). */
+	 *  Empty on success, else why not (every pillar full (7 and 3 over-cap), too few Prisms). It doesn't check
+	 *  the place: the player's way in is this run's shrine (WoRRestSpot::TryBuyPointHere; B-502, D-214). */
 	WORLD_OF_REFRACTION_API FText TryBuyPoint(UWorld *World, const FPartyMember &Member, UCurrencyComponent *Wallet = nullptr);
 
 	/** Debug: the run's levels, the unspent count and each party member's live pillars. */

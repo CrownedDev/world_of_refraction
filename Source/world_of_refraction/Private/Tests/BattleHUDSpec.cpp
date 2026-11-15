@@ -6,13 +6,15 @@
 // B-391b: the Broken Darkness absorb line and overload tint; damage numbers pool, stack and drop a 0.
 // B-391c: the status buildup bar (fill, cracks, line, tint), the party gear line and tooltip, the durability header
 // and the "Negated" cue; on the duel, a card's buildup follows a hit's buildup.
-// B-170e: with wor.Turns.ActionPips 1 the party cards show the pips line live and the menu an End Turn row; at 0 neither.
+// B-170e: the party cards show the pips line live and the menu an End Turn row (B-170h2: every fight; the switch is gone).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Combat/CombatConstants.h"
 #include "HAL/IConsoleManager.h"
 #include "Character/CharacterDataComponent.h"
@@ -50,34 +52,7 @@ namespace
 	constexpr int32 BATTLE_HUD_WEAPON_MAX = 4;
 	constexpr int32 BATTLE_HUD_GEM_DURABILITY = 7; // the hero's weapon gem in the durability header case
 	const FCrystalId BATTLE_HUD_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
-	constexpr int32 BATTLE_HUD_PIPS_OFF = 0;
-	constexpr int32 BATTLE_HUD_PIPS_ON = 1;
 	constexpr int32 BATTLE_HUD_ONE_ACTION = 1;
-
-	/** B-170e: sets wor.Turns.ActionPips for one test (before the fight starts, which latches it) and restores it. */
-	struct FBattleHUDPipsSwitchScope
-	{
-		IConsoleVariable *Switch = nullptr;
-		int32 Before = BATTLE_HUD_PIPS_OFF;
-
-		explicit FBattleHUDPipsSwitchScope(int32 Value)
-			: Switch(IConsoleManager::Get().FindConsoleVariable(TEXT("wor.Turns.ActionPips")))
-		{
-			if (Switch)
-			{
-				Before = Switch->GetInt();
-				Switch->Set(Value, ECVF_SetByConsole);
-			}
-		}
-
-		~FBattleHUDPipsSwitchScope()
-		{
-			if (Switch)
-			{
-				Switch->Set(Before, ECVF_SetByConsole);
-			}
-		}
-	};
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -152,6 +127,62 @@ void FBattleHUDSpec::Define()
 		Menu = nullptr;
 		Hero = Foe = nullptr;
 		TestWorld.Reset();
+	});
+
+	Describe("the party card's show levels (B-503j, D-216)", [this]()
+	{
+		It("shows the name only in the hub", [this]()
+		{
+			const FBattleCardParts Parts = BattleHUDCard::GetParts(EBattleCardLevel::Hub, /*bParty=*/true);
+			TestFalse(TEXT("no HP"), Parts.bHPBar || Parts.bHPLine);
+			TestFalse(TEXT("no EP"), Parts.bEPLine);
+			TestFalse(TEXT("no build-up"), Parts.bBuildupBar || Parts.bBuildupLine);
+			TestFalse(TEXT("no fight parts"), Parts.bGear || Parts.bActions || Parts.bStatus);
+			TestFalse(TEXT("fits the name (B-503k)"), Parts.bFixedWidth);
+		});
+
+		It("shows HP and EP in a trial, no build-up bar (D-216)", [this]()
+		{
+			const FBattleCardParts Parts = BattleHUDCard::GetParts(EBattleCardLevel::Trial, /*bParty=*/true);
+			TestTrue(TEXT("HP bar and line"), Parts.bHPBar && Parts.bHPLine);
+			TestTrue(TEXT("EP line"), Parts.bEPLine);
+			TestFalse(TEXT("no build-up bar: battle only (it is always empty after a fight)"), Parts.bBuildupBar);
+			TestFalse(TEXT("no fight parts"), Parts.bBuildupLine || Parts.bGear || Parts.bActions || Parts.bStatus);
+			TestTrue(TEXT("the battle card's width"), Parts.bFixedWidth);
+		});
+
+		It("shows everything in a battle, and an enemy its bars and statuses (Q-391)", [this]()
+		{
+			const FBattleCardParts Party = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/true);
+			TestTrue(TEXT("a party card has every part"), Party.bHPBar && Party.bHPLine && Party.bEPLine && Party.bBuildupBar &&
+															  Party.bBuildupLine && Party.bGear && Party.bActions && Party.bStatus);
+			const FBattleCardParts Enemy = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/false);
+			TestTrue(TEXT("an enemy: the bars and statuses"), Enemy.bHPBar && Enemy.bBuildupBar && Enemy.bStatus);
+			TestFalse(TEXT("an enemy: no numbers, gear or actions"), Enemy.bHPLine || Enemy.bEPLine || Enemy.bBuildupLine || Enemy.bGear || Enemy.bActions);
+		});
+
+		It("builds only its level's parts", [this]()
+		{
+			UWidgetTree *Tree = NewObject<UWidgetTree>(GetTransientPackage());
+			for (const EBattleCardLevel Level : {EBattleCardLevel::Hub, EBattleCardLevel::Trial, EBattleCardLevel::Battle})
+			{
+				FBattleHUDCard Card;
+				Card.bParty = true;
+				TestNotNull(TEXT("a frame"), BattleHUDCard::Build(Tree, Card, Level));
+				const FBattleCardParts Parts = BattleHUDCard::GetParts(Level, Card.bParty);
+				TestNotNull(TEXT("the name"), Card.NameText.Get());
+				TestEqual(TEXT("HP bar"), Card.HPBar != nullptr, Parts.bHPBar);
+				TestEqual(TEXT("HP number (on the HP bar, B-503m)"), Card.HPText != nullptr, Parts.bHPLine);
+				TestEqual(TEXT("EP bar (B-503m)"), Card.EPBar != nullptr, Parts.bEPLine);
+				TestEqual(TEXT("EP number (on the EP bar)"), Card.EPText != nullptr, Parts.bEPLine);
+				TestEqual(TEXT("build-up bar"), Card.BuildupBar != nullptr, Parts.bBuildupBar);
+				TestEqual(TEXT("build-up line"), Card.BuildupText != nullptr, Parts.bBuildupLine);
+				TestEqual(TEXT("the gear tooltip on hover, no gear line (B-503k)"), Card.Frame->GetVisibility() == ESlateVisibility::Visible, Parts.bGear);
+				TestEqual(TEXT("actions"), Card.ActionsText != nullptr, Parts.bActions);
+				TestEqual(TEXT("statuses"), Card.StatusText != nullptr, Parts.bStatus);
+				BattleHUDCard::Push(Card); // the parts it didn't build are skipped
+			}
+		});
 	});
 
 	Describe("the text helpers", [this]()
@@ -355,6 +386,8 @@ void FBattleHUDSpec::Define()
 			}
 			TestEqual(TEXT("seeded HP line"), HUD->GetCards()[0].HPLine.ToString(),
 					  BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), HeroData->CurrentHP, HeroData->MaxHP).ToString());
+			TestEqual(TEXT("B-503m: the EP bar's fill"), HUD->GetCards()[0].EPFraction,
+					  BattleHUDView::PoolFraction(HeroData->CurrentEP, HeroData->MaxEP));
 
 			Hero->FindComponentByClass<UCharacterDataComponent>()->ServerTakeDamage(BATTLE_HUD_HIT);
 			TestEqual(TEXT("HP line after the hit"), HUD->GetCards()[0].HPLine.ToString(),
@@ -557,11 +590,10 @@ void FBattleHUDSpec::Define()
 			MenuWidget->Teardown();
 		});
 
-		It("shows the party's action pips live and an End Turn row in an action-pips fight (B-170e)", [this]()
+		It("shows the party's action pips live and an End Turn row (B-170e)", [this]()
 		{
-			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_ON);
 			USaveSubsystem *Save = CreateTestWorld() ? TestWorld->GetSubsystem<USaveSubsystem>() : nullptr;
-			if (!TestNotNull(TEXT("the switch exists"), Pips.Switch) || !TestNotNull(TEXT("the save"), Save))
+			if (!TestNotNull(TEXT("the save"), Save))
 			{
 				return;
 			}
@@ -584,7 +616,6 @@ void FBattleHUDSpec::Define()
 				return ActionPipsText::MakeActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions(), HeroData->GetActionPointProgress())
 					.ToString();
 			};
-			TestTrue(TEXT("the HUD shows actions"), HUD->IsShowingActions());
 			if (TestTrue(TEXT("two cards, the party's first"), HUD->GetCards().Num() == 2 && HUD->GetCards()[0].bParty))
 			{
 				TestEqual(TEXT("the party card's pips line"), HUD->GetCards()[0].ActionsLine.ToString(), ExpectedLine());
@@ -608,33 +639,6 @@ void FBattleHUDSpec::Define()
 				MenuWidget->PressRow(EndTurnRow);
 				TestTrue(TEXT("End Turn ended Hero's turn"), Orchestrator->GetCurrentActor() == Foe);
 			}
-			MenuWidget->Teardown();
-		});
-
-		It("shows no action pips and no End Turn row with the switch off (B-170e)", [this]()
-		{
-			const FBattleHUDPipsSwitchScope Pips(BATTLE_HUD_PIPS_OFF);
-			if (!StartDuel())
-			{
-				return;
-			}
-			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
-			if (!TestNotNull(TEXT("battle HUD widget"), HUD))
-			{
-				return;
-			}
-			HUD->Initialise({Hero}, {Foe});
-			TestFalse(TEXT("the HUD shows no actions"), HUD->IsShowingActions());
-			TestTrue(TEXT("no pips line"), !HUD->GetCards().IsEmpty() && HUD->GetCards()[0].ActionsLine.IsEmpty());
-			HUD->Teardown();
-
-			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
-			if (!TestNotNull(TEXT("command menu widget"), MenuWidget))
-			{
-				return;
-			}
-			MenuWidget->Initialise();
-			TestEqual(TEXT("no End Turn row"), FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString()), INDEX_NONE);
 			MenuWidget->Teardown();
 		});
 

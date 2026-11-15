@@ -30,6 +30,12 @@ namespace
 	/** How far a shard's turning axis may lean out of the wall's plane (0 = flat in it). */
 	constexpr float TUMBLE_AXIS_LEAN = 0.3f;
 
+	/** The light runs on this far past the farthest shard, so a soft front in the material clears it. */
+	constexpr float LIGHT_REACH_END = 1.5f;
+
+	/** A shard's hue strays at most this far (share of the colour wheel) from its direction's hue. */
+	constexpr float HUE_JITTER = 0.12f;
+
 	/** Each cell is cut along one of its two diagonals. */
 	constexpr int32 CELL_DIAGONALS = 2;
 
@@ -104,6 +110,15 @@ FVector2D BattleTransition::UVToWall(const FVector2D &UV, float Aspect)
 	return FVector2D(UV.X - 0.5, (0.5 - UV.Y) / FMath::Max(Aspect, UE_KINDA_SMALL_NUMBER));
 }
 
+double BattleTransition::GetWallX(const FVector2D &ViewTangents, float Aspect)
+{
+	// The wall is 1 wide and 1 / Aspect tall: its half width over WallX must reach the view's horizontal tangent,
+	// its half height the vertical one.
+	const double HorizontalX = 0.5 / FMath::Max(ViewTangents.X, UE_DOUBLE_KINDA_SMALL_NUMBER);
+	const double VerticalX = 0.5 / (FMath::Max(Aspect, UE_KINDA_SMALL_NUMBER) * FMath::Max(ViewTangents.Y, UE_DOUBLE_KINDA_SMALL_NUMBER));
+	return FMath::Min(HorizontalX, VerticalX);
+}
+
 TArray<BattleTransition::FShard> BattleTransition::BuildShards(int32 Seed, const FVector2D &HitUV, float Aspect,
 															   const UBattleTransitionData &Data)
 {
@@ -175,13 +190,13 @@ BattleTransition::FShardPose BattleTransition::EvaluatePose(const FShard &Shard,
 	const float Crack = FMath::Clamp((Elapsed - CrackAt) / CrackTiltSeconds, 0.0f, 1.0f);
 
 	const float BreakLinear = FMath::Clamp((Elapsed - Data.CrackSeconds) / FMath::Max(Data.BreakSeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
-	const float Break = 1.0f - FMath::Square(1.0f - BreakLinear); // fast, then easing into the hold
+	const float Break = FMath::InterpEaseInOut(0.0f, 1.0f, BreakLinear, Data.BreakEase); // B-500a: out of the wall slowly, settling into the hold
 
 	const float HoldSeconds = FMath::Max(Elapsed - Data.CrackSeconds - Data.BreakSeconds, 0.0f);
 	const float Drift = 1.0f - FMath::Exp(-HoldSeconds / FMath::Max(Data.DriftSeconds, UE_KINDA_SMALL_NUMBER)); // slows, never arrives
 
 	const float BlowLinear = FMath::Clamp(ReleaseElapsed / FMath::Max(Data.BlowAwaySeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
-	const float Blow = FMath::Square(BlowLinear); // speeding up past the camera
+	const float Blow = FMath::Pow(BlowLinear, Data.BlowAwayEase); // B-500a: a slow beat, then hard past the camera
 
 	const float ShareA = FMath::Lerp(MIN_MOTION_SHARE, 1.0f, Shard.RandomA);
 	const float ShareB = FMath::Lerp(MIN_MOTION_SHARE, 1.0f, Shard.RandomB);
@@ -203,13 +218,34 @@ float BattleTransition::GetLookAlpha(const UBattleTransitionData &Data, float El
 	return On * (1.0f - Off);
 }
 
+BattleTransition::FPrismLight BattleTransition::EvaluatePrismLight(const UBattleTransitionData &Data, float Elapsed)
+{
+	FPrismLight Light;
+	const float FlashLeft = 1.0f - FMath::Clamp(Elapsed / FMath::Max(Data.FlashSeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
+	Light.Flash = Data.FlashStrength * FMath::Square(FlashLeft); // full at contact, a quick fall, a soft tail
+
+	// The same clock as the cracks (EvaluatePose): the light is at a shard when it starts to tilt.
+	Light.LightReach = FMath::Clamp(Elapsed / FMath::Max(Data.CrackSeconds * CRACK_SPREAD_SHARE, UE_KINDA_SMALL_NUMBER), 0.0f, LIGHT_REACH_END);
+
+	const float BreakLinear = FMath::Clamp((Elapsed - Data.CrackSeconds) / FMath::Max(Data.BreakSeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
+	Light.EdgeGlow = Data.EdgeGlowStrength * FMath::Lerp(1.0f, Data.EdgeGlowHoldShare, BreakLinear);
+	return Light;
+}
+
+float BattleTransition::GetShardHue(const FShard &Shard)
+{
+	// Clockwise from the right of the hit: red, yellow-green below, cyan to the left, violet above (storyboard D).
+	const float Turn = FMath::Atan2(Shard.Outward.Y, Shard.Outward.X) / UE_TWO_PI;
+	return FMath::Frac(1.0f - Turn + FMath::Lerp(-HUE_JITTER, HUE_JITTER, Shard.RandomB));
+}
+
 BattleTransition::FShardMesh BattleTransition::BuildShardMesh(const FShard &Shard, float Aspect, const UBattleTransitionData &Data)
 {
+	const auto ToByte = [](float Share) { return static_cast<uint8>(FMath::RoundToInt32(Share * MAX_COLOR_BYTE)); };
 	FShardMeshBuilder Builder;
 	Builder.Center = UVToWall(Shard.Centroid, Aspect);
 	Builder.Aspect = Aspect;
-	Builder.FaceColor = FColor(0, static_cast<uint8>(FMath::RoundToInt32(Shard.RandomA * MAX_COLOR_BYTE)),
-							   static_cast<uint8>(FMath::RoundToInt32(Shard.Delay * MAX_COLOR_BYTE)), 255);
+	Builder.FaceColor = FColor(0, ToByte(Shard.RandomA), ToByte(Shard.Delay), ToByte(GetShardHue(Shard)));
 
 	FVector2D Rim[3];
 	double MeanRadius = 0.0;

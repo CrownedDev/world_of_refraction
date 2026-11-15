@@ -116,9 +116,14 @@ public:
 
     /** B-360b: the party member this pawn plays (FPartyMember::MemberId), stamped by ABattleGameMode before spawn
      *  finishes so two copies of one character each find their own slot (vitals, formation, pool key, commander).
-     *  Invalid: not spawned from the party (a hub pawn, an enemy); the first member with CharacterData stands in. */
+     *  B-503s2: the trial map's leader pawn too (ATrialGameMode), and a hub pawn when its controller possesses it
+     *  (StampPartyMember). Invalid: not spawned from the party (an enemy); the first member with CharacterData stands in. */
     UPROPERTY(BlueprintReadOnly, Replicated, Category = "Character")
     FGuid PartyMemberId;
+
+    /** B-503s2: stamps a pawn that spawned unstamped (the hub's) with its member, then puts the member's recorded
+     *  weapon in hand (FPartyMember::ActiveWeaponId), which its spawn could not read. No-op when already stamped. */
+    void StampPartyMember(const FGuid &MemberId);
 
     // ========================================
     // RUNTIME STATE (REPLICATED)
@@ -545,8 +550,8 @@ public:
      *  and before the 0-action check. */
     void ApplyWaitingActionChanges();
 
-    /** B-170d (D-064): drops every waiting change. The orchestrator calls it at every fight start and end, whatever
-     *  wor.Turns.ActionPips says, so none outlives its fight. */
+    /** B-170d (D-064): drops every waiting change. The orchestrator calls it at every fight start and end, so none
+     *  outlives its fight. */
     void ClearWaitingActionChanges();
 
     const TArray<FWoRWaitingActionChange> &GetWaitingActionChanges() const { return WaitingActionChanges; }

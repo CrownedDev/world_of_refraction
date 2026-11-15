@@ -103,6 +103,8 @@ APawn *ATrialGameMode::SpawnDefaultPawnAtTransform_Implementation(AController *N
                    *LeaderData->GetName(), *GetNameSafe(CharComp->CharacterData));
             CharComp->CharacterData = LeaderData;
         }
+        // B-503s2: the field pawn is the member's own, as a battle pawn is: its pick, guard and weapon reach the record.
+        CharComp->PartyMemberId = Party->Members[0].MemberId;
     }
     Pawn->FinishSpawning(SpawnTransform);
     return Pawn;

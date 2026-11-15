@@ -109,7 +109,10 @@ TSharedRef<SWidget> ULevelDropWidget::RebuildWidget()
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBodyClicked);
 		LevelDropBuild::AddButton(WidgetTree, Box, WoRLevelDrops::GetPillarName(EWorldPillar::Spirit))
 			->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleSpiritClicked);
-		// B-447 (D-183): no Buy here; points are bought from the trial NPC who sells them this run (UTrialNPCWidget).
+		// B-502 (D-214): Buy shows only at the shrine that sells points this run (Refresh).
+		BuyButton = LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Buy", "Buy a point"));
+		BuyButton->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleBuyClicked);
+		BuyLabel = Cast<UTextBlock>(BuyButton->GetChildAt(0));
 		StatusLine = LevelDropBuild::AddText(WidgetTree, Box);
 		LevelDropBuild::AddButton(WidgetTree, Box, LOCTEXT("Close", "Close"))->OnClicked.AddDynamic(this, &ULevelDropWidget::HandleCloseClicked);
 	}
@@ -178,7 +181,29 @@ void ULevelDropWidget::Refresh()
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Body), PillarLevel(EWorldPillar::Body),
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Spirit), PillarLevel(EWorldPillar::Spirit)));
 	}
+	if (BuyButton && BuyLabel)
+	{
+		const bool bSoldHere = Member && WoRRestSpot::SellsPointsHere(GetWorld());
+		BuyButton->SetVisibility(bSoldHere ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		if (bSoldHere)
+		{
+			BuyLabel->SetText(FText::Format(LOCTEXT("BuyPrice", "Buy a point ({0} {1})"), FText::AsNumber(WoRLevelDrops::GetPointPrice(GetWorld(), *Member)),
+											WoRGameNames::GetCurrencyName(ECurrencyType::Gold))); // the run currency (shown as Prisms, D-159)
+		}
+	}
 	StatusLine->SetText(StatusText);
+}
+
+void ULevelDropWidget::HandleBuyClicked()
+{
+	const FPartyMember *Member = SelectedMember();
+	if (!Member)
+	{
+		return;
+	}
+	const FText Refusal = WoRRestSpot::TryBuyPointHere(GetWorld(), *Member);
+	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Bought", "{0}: +1 point to place"), FText::FromString(Member->CharacterData->Name)) : Refusal;
+	Refresh();
 }
 
 FString ULevelDropWidget::GetLevelDropWidgetString() const

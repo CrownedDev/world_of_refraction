@@ -8,10 +8,13 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Equipment/Weapons/EWeaponType.h"
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Templates/Function.h"
 #include "FieldSkillTypes.generated.h"
+
+class AActor;
 
 /** The 11 movement types (FieldAbilities "Movement types", Crown 2026-10-27). B-214a builds Dash and Enhanced Sprint,
  *  B-214c Glide, High jump and Air dash, B-214d Flight, B-214e the rest (all built). Append only: saved as a byte (FSavedPartyMember). */
@@ -121,6 +124,80 @@ struct WORLD_OF_REFRACTION_API FFieldStrike
 	float Buildup = 0.0f;
 
 	bool IsSet() const { return Buildup > 0.0f; }
+};
+
+/** B-503 (D-215): what a stop of the field attack's cycle is. A weapon swings; every other kind throws the pulse.
+ *  B-503k (D-217): a pulse stop's kind is the infusion source it takes its element from (a weapon's crystal: Ring). */
+UENUM(BlueprintType)
+enum class EFieldAttackKind : uint8
+{
+	Weapon,
+	Ring,
+	Innate,
+	Evolution
+};
+
+/** B-503 (D-215): one stop of the field attack's cycle (IA_Field_SwitchSource: LB / R). B-503k (D-217): the attack
+ *  (the active weapon's swing, or a Refractor's / Resonator's pulse) with one infusion. Built each time it is read
+ *  (UFieldMovementComponent::GetFieldAttackEntries); only the index is kept (FPartyMember::FieldAttackIndex, saved). */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FFieldAttackEntry
+{
+	GENERATED_BODY()
+
+	/** Weapon by default: with nothing to cycle the attack is a plain swing with no element. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	EFieldAttackKind Kind = EFieldAttackKind::Weapon;
+
+	/** B-503k (D-217): the strip above the card: "Sword", "Fire Sword"; a pulse just "Fire". Empty unarmed and plain. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText Name;
+
+	/** The strike's element; None when the entry has none (no crystal, a broken one). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	ESpellElement Element = ESpellElement::None;
+
+	/** A weapon's attack type; None for every other kind. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	EPhysicalDamageType Physical = EPhysicalDamageType::None;
+
+	/** B-503i: a weapon's type, for its icon-table icon when the weapon has no icon of its own; unused for other kinds. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	EWeaponType WeaponType = EWeaponType::Sword;
+
+	/** The item's icon; null for the innate element and an item with none. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	TObjectPtr<class UTexture2D> Icon = nullptr;
+
+	/** B-503b: a weapon's swing on the map (its attack's USkillDataBase::FieldMontage); unset for every other kind. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	TSoftObjectPtr<class UAnimMontage> SwingMontage;
+
+	/** B-503l (Q-503l): a hold step of the stop before it ("(R) Fire", "Dark Fire"): a hold of R / LB reaches it, a
+	 *  press skips it. B-503m4 (D-217): an element option of the wheel's slice: a slice is an entry with this false
+	 *  followed by its entries with this true, and D-pad left / right steps through them. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	bool bHoldStep = false;
+
+	/** B-503m4 (D-217): the loadout entry this option belongs to, the wheel slice's name ("Sword", "Storm Ring"). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText SliceName;
+
+	/** B-503m4 (D-217): the option's own word on the wheel's centre ("Plain", "Fire", "Ice", "(R) Fire", "Dark Fire"). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText OptionName;
+
+	/** B-503m4 (D-217 "Ice"): the Water option's Ice (was the held attack, B-214f). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	bool bIce = false;
+
+	/** B-503s (D-218): the weapon a weapon slice swings (its PersistentID); picking it puts that weapon in hand. Unset
+	 *  for an infusion of the weapon already in hand and for a pulse. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FGuid WeaponId;
+
+	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
+	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
 };
 
 /** A character's active field skill. Its home is FPartyMember::FieldSkill (saved, v36). */
@@ -244,6 +321,81 @@ namespace FieldSkillRules
 	constexpr int32 FIELD_ATTACK_SOURCE_COUNT = 3;        // Innate, Weapon, Ring (EFieldSkillSource)
 	static_assert(static_cast<int32>(EFieldSkillSource::Ring) + 1 == FIELD_ATTACK_SOURCE_COUNT, "A new field source: update the count");
 
+	/** B-503b: seconds from the swing's start to its hit: the montage's earliest Impact notify (UCombatNotify) at the
+	 *  montage's own rate. NO_SWING_DELAY with no montage or no Impact notify: the hit lands at once. */
+	constexpr float NO_SWING_DELAY = 0.0f;
+	WORLD_OF_REFRACTION_API float GetSwingImpactSeconds(const class UAnimMontage *Montage);
+
+	// ---- B-503c: the pulse, every entry that isn't a weapon (D-215; numbers TODO: tune in PIE) ----
+
+	constexpr float FIELD_PULSE_RANGE = 700.0f; // cm ahead (D-215: about 7 m)
+	constexpr float FIELD_PULSE_RADIUS = 50.0f; // cm, the swept sphere: thinner than the swing's, it is a shot
+
+	inline float GetFieldAttackRange(bool bSwing) { return bSwing ? FIELD_ATTACK_RANGE : FIELD_PULSE_RANGE; }
+	inline float GetFieldAttackRadius(bool bSwing) { return bSwing ? FIELD_ATTACK_RADIUS : FIELD_PULSE_RADIUS; }
+
+	// ---- B-503: the field attack's cycle through the loadout (D-215) ----
+
+	constexpr int32 FIRST_FIELD_ATTACK_INDEX = 0;
+	// OBSOLETE since B-503h (the chip is always up and flashes on a cycle): delete after Crown's PIE pass.
+	constexpr float FIELD_ATTACK_POPUP_SECONDS = 2.0f; // how long the cycled entry's icon and name show (D-215)
+
+	/** A kept index the loadout no longer reaches (gear taken off since) falls back to the first entry. */
+	inline int32 ClampFieldAttackIndex(int32 Index, int32 EntryCount)
+	{
+		return Index >= FIRST_FIELD_ATTACK_INDEX && Index < EntryCount ? Index : FIRST_FIELD_ATTACK_INDEX;
+	}
+
+	/** The cycle's next stop, wrapping after the last; the first with nothing to cycle. */
+	inline int32 NextFieldAttackIndex(int32 Index, int32 EntryCount)
+	{
+		return EntryCount > 0 ? (ClampFieldAttackIndex(Index, EntryCount) + 1) % EntryCount : FIRST_FIELD_ATTACK_INDEX;
+	}
+
+	/** B-503s: Character's field attack entries (UFieldMovementComponent::GetFieldAttackEntries), read from its loadout
+	 *  and character components; free so the fight can rebuild a member's pick for its parry (ParryVisuals). */
+	WORLD_OF_REFRACTION_API TArray<FFieldAttackEntry> BuildFieldAttackEntries(const AActor *Character);
+
+	/** B-503l (D-217): a press of R / LB: the next stop that isn't a hold step, wrapping; the first with none. */
+	WORLD_OF_REFRACTION_API int32 NextFieldAttackSourceIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index);
+
+	/** B-503l (Q-503l): a hold of R / LB: the stop's next hold step, back to the stop after the last; the stop itself
+	 *  when it has none (a source with one element). */
+	WORLD_OF_REFRACTION_API int32 NextFieldAttackHoldIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index);
+
+	// ---- B-503m3 (D-217): the LB wheel, every stop and hold step at once ----
+
+	constexpr float FIELD_WHEEL_STICK_DEADZONE = 0.5f; // the stick picks past half tilt; let go, the pick stays
+
+	/** The wheel's entry the stick points at: entry 0 at the top, then clockwise; INDEX_NONE inside the dead zone or
+	 *  with no entries. The stick's Y is up. */
+	WORLD_OF_REFRACTION_API int32 GetFieldWheelIndexFromStick(const FVector2D &Stick, int32 EntryCount);
+
+	/** The mouse wheel: Delta entries on (negative: back), wrapping both ways; the first with no entries. */
+	WORLD_OF_REFRACTION_API int32 StepFieldWheelIndex(int32 Index, int32 Delta, int32 EntryCount);
+
+	// ---- B-503m4 (D-217 "The wheel on RB"): one slice per loadout entry, its element options inside ----
+
+	/** The first entry of each slice (an entry that isn't a hold step), in order. */
+	WORLD_OF_REFRACTION_API TArray<int32> GetFieldSliceStarts(const TArray<FFieldAttackEntry> &Entries);
+
+	/** The slice Index belongs to, as a place in GetFieldSliceStarts; INDEX_NONE with no entries. */
+	WORLD_OF_REFRACTION_API int32 GetFieldSliceOf(const TArray<FFieldAttackEntry> &Entries, int32 Index);
+
+	/** D-pad left / right: Delta options on within Index's slice (negative: back), wrapping inside the slice. */
+	WORLD_OF_REFRACTION_API int32 StepFieldSliceOption(const TArray<FFieldAttackEntry> &Entries, int32 Index, int32 Delta);
+
+	/** B-503m5 (D-218): the slice under the mouse cursor, FromCentre being its offset from the wheel's centre in screen
+	 *  units (Y down): slice 0 at the top, clockwise; INDEX_NONE in the middle circle, past the rim, or with no slices. */
+	WORLD_OF_REFRACTION_API int32 GetFieldWheelSliceAt(const FVector2D &FromCentre, float HubRadius, float RimRadius, int32 SliceCount);
+
+	/** The mouse on PC (GTA V's wheel): the pointer moves by the mouse's travel, scaled, and stays inside the unit
+	 *  circle, so it reads as a stick for GetFieldWheelIndexFromStick.
+	 *  OBSOLETE (B-503m5): the wheel shows the cursor and picks the slice under it (GetFieldWheelSliceAt); delete after
+	 *  B-503m5's PIE pass. */
+	constexpr float FIELD_WHEEL_MOUSE_SCALE = 0.05f; // TODO: tune in PIE (about 20 units of mouse travel to the rim)
+	WORLD_OF_REFRACTION_API FVector2D MoveFieldWheelPointer(const FVector2D &Pointer, const FVector2D &MouseDelta);
+
 	// ---- B-214h: evolutions (FieldAbilities choice 2; Q-214h; TODO: tune) ----
 
 	constexpr float EVOLUTION_SPRINT_BONUS_PERCENT = 15.0f;     // the default always-on bonus (+10-20%)
@@ -259,16 +411,28 @@ namespace FieldSkillRules
 	/** Both sets of lifted limits together: a limit is lifted if either lifts it; extra ceilings add. */
 	WORLD_OF_REFRACTION_API FFieldFlightLimits CombineFlightLimits(const FFieldFlightLimits &A, const FFieldFlightLimits &B);
 
-	/** B-214g: the field attack counts as held after this long pressed (IA_Field_Attack: press, then release). */
-	constexpr double FIELD_ATTACK_HOLD_SECONDS = 0.4; // TODO: tune
+	/** B-214g: the field attack counts as held after this long pressed (IA_Field_Attack: press, then release).
+	 *  OBSOLETE since B-503m4 (D-217 "Ice"): a hold of RB is the wheel and Ice is the Water entry's option
+	 *  (FFieldAttackEntry::bIce); nothing in the game reads a held attack. Delete after Crown's PIE pass. */
+	constexpr double FIELD_ATTACK_HOLD_SECONDS = 0.4;
 
 	inline bool IsFieldAttackHeld(double PressedSeconds) { return PressedSeconds >= FIELD_ATTACK_HOLD_SECONDS; }
+
+	/** B-503k (D-217): R / LB pressed this long is a hold, shorter a press (change the source). B-503m3: the hold
+	 *  opens the wheel. B-503m: its own value; 0.5 s, the middle of the usual 0.4-0.6 s (docs/research/hold-duration.md).
+	 *  TODO: a hold-time setting in Options can replace it later. */
+	constexpr double FIELD_SOURCE_HOLD_SECONDS = 0.5;
+
+	// TODO: retire with CycleFieldAttack's bHold after B-503m3's PIE pass: only the specs and wor.Field.CycleAttack use it.
+	inline bool IsFieldSourceHeld(double PressedSeconds) { return PressedSeconds >= FIELD_SOURCE_HOLD_SECONDS; }
 
 	/** The strike a field hit carries: the element if it is a real one, the weapon's physical type, Ice when held with
 	 *  a Water source, FIELD_STRIKE_BUILDUP. */
 	WORLD_OF_REFRACTION_API FFieldStrike MakeFieldStrike(ESpellElement SourceElement, EPhysicalDamageType Physical, bool bHeld);
 
-	/** The next field attack source: Innate -> Weapon -> Ring -> Innate. */
+	/** OBSOLETE (B-503, D-215): the field attack cycles the loadout's entries now (NextFieldAttackIndex); no caller
+	 *  left but the spec. Delete with FIELD_ATTACK_SOURCE_COUNT after Crown's PIE pass.
+	 *  The next field attack source: Innate -> Weapon -> Ring -> Innate. */
 	WORLD_OF_REFRACTION_API EFieldSkillSource NextSource(EFieldSkillSource Source);
 
 	/** Glide may start: in the air with its EP. */
@@ -339,6 +503,8 @@ namespace FieldSkillRules
 	/** Enum display names for logs and the debug print. */
 	WORLD_OF_REFRACTION_API FString TypeName(EFieldMovementType Type);
 	WORLD_OF_REFRACTION_API FString SourceName(EFieldSkillSource Source);
+	/** "Weapon 'Iron Sword' Fire Slash (swing)" / "Innate 'Innate' Water None (pulse)". */
+	WORLD_OF_REFRACTION_API FString FieldAttackEntryString(const FFieldAttackEntry &Entry);
 	WORLD_OF_REFRACTION_API FString RefusalName(EFieldSkillRefusal Refusal);
 	WORLD_OF_REFRACTION_API FString AuraName(EFieldAura Aura);
 }

@@ -7,6 +7,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Field/FieldSkillTypes.h"
 #include "Animation/AnimMontage.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -165,9 +166,11 @@ FString WoRGuardDebug::GetGuardString(const ULoadoutComponent *Loadout)
 		Loadout->GetOwner() ? Loadout->GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const bool bOnRecord = CharComp && CharComp->PartyMemberId.IsValid() && CharComp->FindCarriedPartyMember();
 	const AActor *Owner = Loadout->GetOwner();
-	return FString::Printf(TEXT("%s: guard %s | weapon %s | montage %s | record %s\n  parry (B-393): %s -> %s"),
+	FFieldAttackEntry Pick;
+	const FString PickText = Loadout->GetFieldAttackPick(Pick) ? FieldSkillRules::FieldAttackEntryString(Pick) : FString(TEXT("none (the settings)"));
+	return FString::Printf(TEXT("%s: guard %s | weapon %s | montage %s | record %s | field pick (B-503s) %s\n  parry (B-393): %s -> %s"),
 						   *GetNameSafe(Owner), *GuardName(Loadout->GetGuardStyle()), Weapon ? *Weapon->Name : TEXT("none"),
-						   *GetNameSafe(Montage), bOnRecord ? TEXT("yes (saved)") : TEXT("no (this pawn only)"),
+						   *GetNameSafe(Montage), bOnRecord ? TEXT("yes (saved)") : TEXT("no (this pawn only)"), *PickText,
 						   *ParryVisuals::GetInputsString(ParryVisuals::GatherInputs(Owner, false)),
 						   *ParryVisuals::GetChoiceString(ParryVisuals::ResolveForDefender(Owner, false)));
 }

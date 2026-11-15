@@ -235,6 +235,13 @@ public:
 	 *  writes through). False for an invalid slot. */
 	bool SetMemberFieldSkill(int32 SlotIndex, const FFieldSkillChoice &Choice);
 
+	/** B-503 (D-215): stores a member's stop of the field attack's cycle (UFieldMovementComponent::CycleFieldAttack
+	 *  writes through). False for an invalid slot. */
+	bool SetMemberFieldAttackIndex(int32 SlotIndex, int32 FieldAttackIndex);
+
+	/** B-503s2: the weapon the member has in hand (FPartyMember::ActiveWeaponId). */
+	bool SetMemberActiveWeapon(int32 SlotIndex, const FGuid &WeaponId);
+
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberAISeat(int32 SlotIndex) const;

@@ -172,6 +172,19 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
 
+	/** B-503 (D-215): the member's stop of the field attack's cycle (FPartyMember::FieldAttackIndex). Added with no
+	 *  version bump: an older 39 loads it as 0, the first entry (a bump would wipe the save, D-138). */
+	UPROPERTY()
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
+
+	/** B-503s (D-218): FPartyMember::bFieldAttackPicked. No version bump: an older 39 loads it as never picked. */
+	UPROPERTY()
+	bool bFieldAttackPicked = false;
+
+	/** B-503s2 (D-218): FPartyMember::ActiveWeaponId. No version bump: an older 39 loads it unset (the loadout's own). */
+	UPROPERTY()
+	FGuid ActiveWeaponId;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 

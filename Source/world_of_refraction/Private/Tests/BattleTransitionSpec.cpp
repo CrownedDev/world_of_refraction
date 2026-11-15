@@ -6,6 +6,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Combat/Encounter/EncounterComponent.h"
 #include "Combat/Transition/BattleTransitionData.h"
 #include "Combat/Transition/BattleTransitionMath.h"
 #include "Combat/Transition/BattleTransitionSubsystem.h"
@@ -15,10 +16,23 @@ namespace
 	constexpr int32 TRANSITION_TEST_SEED = 500;
 	constexpr float TRANSITION_TEST_ASPECT = 16.0f / 9.0f;
 	constexpr float TRANSITION_TEST_FRAME = 1.0f / 60.0f;
+	/** B-503f: a third-person camera's field of view, degrees. */
+	constexpr double TRANSITION_TEST_FOV = 90.0;
 	constexpr float TRANSITION_LONG_HOLD_SECONDS = 120.0f;
 	constexpr double TRANSITION_AREA_TOLERANCE = 1.0e-4;
+	/** B-500a: "slow" means behind an even pace at this share of the time. */
+	constexpr float TRANSITION_EARLY_SHARE = 0.25f;
+	constexpr float TRANSITION_HALF_SHARE = 0.5f;
+	constexpr int32 TRANSITION_BLOW_STEPS = 20;
 	/** The bevel leaves at least this share of a shard's area to its camera face (half its width, squared, with slack). */
 	constexpr double TRANSITION_MIN_FACE_SHARE = 0.2;
+	/** B-500b: the crack time is checked at this many moments. */
+	constexpr int32 TRANSITION_LIGHT_STEPS = 25;
+	/** A shard this close behind the light's front has tilted too little to tell from whole. */
+	constexpr float TRANSITION_LIGHT_SLACK = 0.01f;
+	/** The colour wheel in six bands: red, yellow, green, cyan, blue, magenta. */
+	constexpr int32 TRANSITION_HUE_BANDS = 6;
+	constexpr float TRANSITION_MAX_COLOR_BYTE = 255.0f;
 	const FVector2D TRANSITION_TEST_HIT(0.35, 0.6);
 
 	double TriangleArea(const FVector2D &A, const FVector2D &B, const FVector2D &C)
@@ -46,6 +60,27 @@ END_DEFINE_SPEC(FBattleTransitionSpec)
 
 void FBattleTransitionSpec::Define()
 {
+	It("places the wall so it fills the view on both axes, whichever axis the FOV is kept on (B-503f)", [this]()
+	{
+		const double HalfTangent = FMath::Tan(FMath::DegreesToRadians(TRANSITION_TEST_FOV * 0.5));
+		// Horizontal FOV kept (the engine default), Vertical kept (the FOV is the vertical one), and a view whose
+		// pixels aren't square (a squeezed vertical): each must be covered edge to edge on both axes.
+		const FVector2D Views[] = {FVector2D(HalfTangent, HalfTangent / TRANSITION_TEST_ASPECT),
+								   FVector2D(HalfTangent * TRANSITION_TEST_ASPECT, HalfTangent),
+								   FVector2D(HalfTangent, HalfTangent)};
+		for (const FVector2D &Tangents : Views)
+		{
+			const double WallX = BattleTransition::GetWallX(Tangents, TRANSITION_TEST_ASPECT);
+			const double CoveredH = 0.5 / WallX;
+			const double CoveredV = 0.5 / (TRANSITION_TEST_ASPECT * WallX);
+			TestTrue(FString::Printf(TEXT("covers %.3f x %.3f (covered %.3f x %.3f)"), Tangents.X, Tangents.Y, CoveredH, CoveredV),
+					 CoveredH >= Tangents.X - UE_KINDA_SMALL_NUMBER && CoveredV >= Tangents.Y - UE_KINDA_SMALL_NUMBER);
+		}
+		// The default view needs no more than it did: the wall sits where the old horizontal-only sum put it.
+		TestEqual(TEXT("horizontal FOV, square pixels: as before"), BattleTransition::GetWallX(Views[0], TRANSITION_TEST_ASPECT),
+				  1.0 / (2.0 * HalfTangent), TRANSITION_AREA_TOLERANCE);
+	});
+
 	It("cuts the whole overscanned screen into shards, the same ones for the same seed", [this]()
 	{
 		const UBattleTransitionData &Data = *GetDefault<UBattleTransitionData>();
@@ -111,6 +146,114 @@ void FBattleTransitionSpec::Define()
 		TestEqual(TEXT("Full lens look in the hold"), BattleTransition::GetLookAlpha(Data, TRANSITION_LONG_HOLD_SECONDS, 0.0f), 1.0f);
 		TestEqual(TEXT("Lens look gone after the blow-away"),
 				  BattleTransition::GetLookAlpha(Data, TRANSITION_LONG_HOLD_SECONDS, Data.BlowAwaySeconds), 0.0f);
+	});
+
+	It("with the shipped defaults, opens slowly inside the join window and finishes fast (B-500a)", [this]()
+	{
+		// Pinned to the C++ defaults on purpose: an even pace (an ease of 1) is a legal tuning in the asset, but not what ships.
+		const UBattleTransitionData &Data = *GetDefault<UBattleTransitionData>();
+		TestTrue(TEXT("The opening fits inside an encounter's join window, so the map change lands in the hold"),
+				 Data.CrackSeconds + Data.BreakSeconds < GetDefault<UEncounterComponent>()->JoinWindowSeconds);
+		const TArray<BattleTransition::FShard> Shards =
+			BattleTransition::BuildShards(TRANSITION_TEST_SEED, TRANSITION_TEST_HIT, TRANSITION_TEST_ASPECT, Data);
+		const float BreakEnd = Data.CrackSeconds + Data.BreakSeconds;
+		for (const BattleTransition::FShard &Shard : Shards)
+		{
+			const float FullBreak = BattleTransition::EvaluatePose(Shard, Data, BreakEnd, 0.0f).TowardCamera;
+			const float EarlyBreak =
+				BattleTransition::EvaluatePose(Shard, Data, Data.CrackSeconds + Data.BreakSeconds * TRANSITION_EARLY_SHARE, 0.0f).TowardCamera;
+			TestTrue(TEXT("A quarter into the break: under a quarter of the way"), EarlyBreak < FullBreak * TRANSITION_EARLY_SHARE);
+
+			// The blow-away: little in the first half (the slow beat), most in the second, never backwards.
+			float Previous = BattleTransition::EvaluatePose(Shard, Data, TRANSITION_LONG_HOLD_SECONDS, 0.0f).TowardCamera;
+			const float Held = Previous;
+			bool bNeverBackwards = true;
+			for (int32 Step = 1; Step <= TRANSITION_BLOW_STEPS; ++Step)
+			{
+				const float Release = Data.BlowAwaySeconds * Step / TRANSITION_BLOW_STEPS;
+				const float Now = BattleTransition::EvaluatePose(Shard, Data, TRANSITION_LONG_HOLD_SECONDS + Release, Release).TowardCamera;
+				bNeverBackwards &= Now >= Previous;
+				Previous = Now;
+			}
+			TestTrue(TEXT("The blow-away only moves toward the camera"), bNeverBackwards);
+			const float HalfRelease = Data.BlowAwaySeconds * TRANSITION_HALF_SHARE;
+			const float AtHalf = BattleTransition::EvaluatePose(Shard, Data, TRANSITION_LONG_HOLD_SECONDS + HalfRelease, HalfRelease).TowardCamera;
+			TestTrue(TEXT("Half the blow-away's time: under a quarter of its distance"), AtHalf - Held < (Previous - Held) * TRANSITION_EARLY_SHARE);
+		}
+	});
+
+	It("flashes at the hit, runs the light out with the cracks and keeps a share of the edge light in the hold (B-500b)", [this]()
+	{
+		const UBattleTransitionData &Data = *GetDefault<UBattleTransitionData>();
+		const BattleTransition::FPrismLight AtContact = BattleTransition::EvaluatePrismLight(Data, 0.0f);
+		TestEqual(TEXT("At contact: the full flash"), AtContact.Flash, Data.FlashStrength);
+		TestEqual(TEXT("At contact: the light hasn't left the hit"), AtContact.LightReach, 0.0f);
+		TestEqual(TEXT("The flash is over after its time"), BattleTransition::EvaluatePrismLight(Data, Data.FlashSeconds).Flash, 0.0f);
+		TestTrue(TEXT("The flash is done before the frame breaks"), Data.FlashSeconds < Data.CrackSeconds);
+
+		const TArray<BattleTransition::FShard> Shards =
+			BattleTransition::BuildShards(TRANSITION_TEST_SEED, TRANSITION_TEST_HIT, TRANSITION_TEST_ASPECT, Data);
+		bool bLightArrivesWithTheCrack = true;
+		bool bNeverBackwards = true;
+		BattleTransition::FPrismLight Previous = AtContact;
+		for (int32 Step = 1; Step <= TRANSITION_LIGHT_STEPS; ++Step)
+		{
+			const float Elapsed = Data.CrackSeconds * Step / TRANSITION_LIGHT_STEPS;
+			const BattleTransition::FPrismLight Light = BattleTransition::EvaluatePrismLight(Data, Elapsed);
+			bNeverBackwards &= Light.LightReach >= Previous.LightReach && Light.Flash <= Previous.Flash;
+			Previous = Light;
+			for (const BattleTransition::FShard &Shard : Shards)
+			{
+				// A shard the light hasn't reached is still whole in the wall; one well behind the light has tilted.
+				const bool bTilted = !BattleTransition::EvaluatePose(Shard, Data, Elapsed, 0.0f).Rotation.Equals(FQuat::Identity);
+				bLightArrivesWithTheCrack &= Shard.Delay > Light.LightReach ? !bTilted : (bTilted || Shard.Delay > Light.LightReach - TRANSITION_LIGHT_SLACK);
+			}
+		}
+		TestTrue(TEXT("The light reaches a shard as its crack does"), bLightArrivesWithTheCrack);
+		TestTrue(TEXT("The light only runs outward and the flash only fades"), bNeverBackwards);
+		TestTrue(TEXT("By the end of the cracks the light is past the farthest shard"), Previous.LightReach > 1.0f);
+
+		TestEqual(TEXT("Full edge light while the cracks spread"), Previous.EdgeGlow, Data.EdgeGlowStrength);
+		const BattleTransition::FPrismLight Held = BattleTransition::EvaluatePrismLight(Data, TRANSITION_LONG_HOLD_SECONDS);
+		TestEqual(TEXT("The hold keeps its share of the edge light"), Held.EdgeGlow, Data.EdgeGlowStrength * Data.EdgeGlowHoldShare);
+		TestTrue(TEXT("The shards stay lit through a long hold"), Held.EdgeGlow > 0.0f && Held.LightReach > 1.0f);
+	});
+
+	It("fans the spectrum around the hit and writes each shard's hue into its mesh (B-500b)", [this]()
+	{
+		const UBattleTransitionData &Data = *GetDefault<UBattleTransitionData>();
+		const TArray<BattleTransition::FShard> Shards =
+			BattleTransition::BuildShards(TRANSITION_TEST_SEED, TRANSITION_TEST_HIT, TRANSITION_TEST_ASPECT, Data);
+		TArray<bool> BandSeen;
+		BandSeen.Init(false, TRANSITION_HUE_BANDS);
+		for (const BattleTransition::FShard &Shard : Shards)
+		{
+			const float Hue = BattleTransition::GetShardHue(Shard);
+			if (!TestTrue(TEXT("Hue is on the colour wheel"), Hue >= 0.0f && Hue < 1.0f))
+			{
+				return;
+			}
+			BandSeen[FMath::Min(FMath::FloorToInt32(Hue * TRANSITION_HUE_BANDS), TRANSITION_HUE_BANDS - 1)] = true;
+
+			const BattleTransition::FShardMesh Mesh = BattleTransition::BuildShardMesh(Shard, TRANSITION_TEST_ASPECT, Data);
+			const uint8 HueByte = static_cast<uint8>(FMath::RoundToInt32(Hue * TRANSITION_MAX_COLOR_BYTE));
+			bool bEveryVertexCarriesTheHue = Mesh.Colors.Num() > 0;
+			for (const FColor &Color : Mesh.Colors)
+			{
+				bEveryVertexCarriesTheHue &= Color.A == HueByte;
+			}
+			TestTrue(TEXT("One hue per shard, in vertex colour A"), bEveryVertexCarriesTheHue);
+		}
+		TestFalse(TEXT("Every band of the spectrum is on some shard"), BandSeen.Contains(false));
+
+		// Storyboard D: red to the right of the hit, cyan to the left.
+		BattleTransition::FShard Right;
+		Right.Outward = FVector2D(1.0, 0.0);
+		Right.RandomB = 0.5f; // no jitter
+		BattleTransition::FShard Left = Right;
+		Left.Outward = FVector2D(-1.0, 0.0);
+		TestTrue(TEXT("Right of the hit is red"), FMath::IsNearlyZero(BattleTransition::GetShardHue(Right), UE_KINDA_SMALL_NUMBER));
+		TestTrue(TEXT("Left of the hit is cyan"), FMath::IsNearlyEqual(BattleTransition::GetShardHue(Left), 0.5f, UE_KINDA_SMALL_NUMBER));
 	});
 
 	It("builds each shard as a closed, outward-facing solid that carries the frame on its camera face", [this]()
