@@ -123,6 +123,10 @@ namespace WoRGameNames
      *  screen that names the weapon in hand (the wheel's centre, the strip, the Equipment screen) asks here. */
     WORLD_OF_REFRACTION_API FText GetHeldWeaponTypeName(const UWeaponData *Weapon, bool bPaired = false);
 
+    /** B-513b: the pieces in hand by name: "Flame Sword", or with an off-hand piece of its own "Flame Sword and Void
+     *  Shield". A piece with no name gives its type. Empty for no main hand. The wheel's slice and the Equipment row. */
+    WORLD_OF_REFRACTION_API FText GetHeldPiecesName(const UWeaponData *MainHand, const UWeaponData *OffHand = nullptr);
+
     /** B-440a (D-180): how a weapon is held, for its kind line: "dual", "with shield". Empty for a single weapon. */
     WORLD_OF_REFRACTION_API FText GetWieldModeName(EWeaponWieldMode Mode);
 

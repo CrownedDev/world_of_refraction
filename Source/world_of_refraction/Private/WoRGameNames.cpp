@@ -757,6 +757,19 @@ FText WoRGameNames::GetHeldWeaponTypeName(const UWeaponData *Weapon, bool bPaire
                                                                    : GetWeaponTypeName(Weapon->WeaponType);
 }
 
+FText WoRGameNames::GetHeldPiecesName(const UWeaponData *MainHand, const UWeaponData *OffHand)
+{
+    const auto PieceName = [](const UWeaponData *Piece)
+    {
+        return Piece->GetDisplayName().IsEmpty() ? GetWeaponTypeName(Piece->WeaponType) : FText::FromString(Piece->GetDisplayName());
+    };
+    if (!MainHand)
+    {
+        return FText::GetEmpty();
+    }
+    return OffHand ? FText::Format(LOCTEXT("HeldPieces", "{0} and {1}"), PieceName(MainHand), PieceName(OffHand)) : PieceName(MainHand);
+}
+
 FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)
 {
     switch (Mode)
