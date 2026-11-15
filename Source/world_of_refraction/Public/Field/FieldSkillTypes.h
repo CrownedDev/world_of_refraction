@@ -374,8 +374,14 @@ namespace FieldSkillRules
 	/** D-pad left / right: Delta options on within Index's slice (negative: back), wrapping inside the slice. */
 	WORLD_OF_REFRACTION_API int32 StepFieldSliceOption(const TArray<FFieldAttackEntry> &Entries, int32 Index, int32 Delta);
 
+	/** B-503m5 (D-218): the slice under the mouse cursor, FromCentre being its offset from the wheel's centre in screen
+	 *  units (Y down): slice 0 at the top, clockwise; INDEX_NONE in the middle circle, past the rim, or with no slices. */
+	WORLD_OF_REFRACTION_API int32 GetFieldWheelSliceAt(const FVector2D &FromCentre, float HubRadius, float RimRadius, int32 SliceCount);
+
 	/** The mouse on PC (GTA V's wheel): the pointer moves by the mouse's travel, scaled, and stays inside the unit
-	 *  circle, so it reads as a stick for GetFieldWheelIndexFromStick. */
+	 *  circle, so it reads as a stick for GetFieldWheelIndexFromStick.
+	 *  OBSOLETE (B-503m5): the wheel shows the cursor and picks the slice under it (GetFieldWheelSliceAt); delete after
+	 *  B-503m5's PIE pass. */
 	constexpr float FIELD_WHEEL_MOUSE_SCALE = 0.05f; // TODO: tune in PIE (about 20 units of mouse travel to the rim)
 	WORLD_OF_REFRACTION_API FVector2D MoveFieldWheelPointer(const FVector2D &Pointer, const FVector2D &MouseDelta);
 

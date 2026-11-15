@@ -182,6 +182,20 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("the mouse moves the pointer by its scaled travel"), Moved.Equals(FVector2D(FieldSkillRules::FIELD_WHEEL_MOUSE_SCALE, 0.0)));
 			TestTrue(TEXT("and never past the rim"), FMath::IsNearlyEqual(FieldSkillRules::MoveFieldWheelPointer(FVector2D(0.0, 1.0), FVector2D(0.0, 1000.0)).Size(), 1.0));
 		});
+
+		It("B-503m5: the mouse cursor picks the slice under it", [this]()
+		{
+			constexpr int32 FOUR_SLICES = 4;
+			constexpr float HUB = 50.0f;
+			constexpr float RIM = 150.0f;
+			TestEqual(TEXT("above the middle is the first (the screen's Y is down)"), FieldSkillRules::GetFieldWheelSliceAt(FVector2D(0, -100), HUB, RIM, FOUR_SLICES), 0);
+			TestEqual(TEXT("right is the second (clockwise)"), FieldSkillRules::GetFieldWheelSliceAt(FVector2D(100, 0), HUB, RIM, FOUR_SLICES), 1);
+			TestEqual(TEXT("below"), FieldSkillRules::GetFieldWheelSliceAt(FVector2D(0, 100), HUB, RIM, FOUR_SLICES), 2);
+			TestEqual(TEXT("left"), FieldSkillRules::GetFieldWheelSliceAt(FVector2D(-100, 0), HUB, RIM, FOUR_SLICES), 3);
+			TestEqual(TEXT("the middle circle picks nothing"), FieldSkillRules::GetFieldWheelSliceAt(FVector2D(0, -20), HUB, RIM, FOUR_SLICES), INDEX_NONE);
+			TestEqual(TEXT("past the rim picks nothing"), FieldSkillRules::GetFieldWheelSliceAt(FVector2D(0, -200), HUB, RIM, FOUR_SLICES), INDEX_NONE);
+			TestEqual(TEXT("no slices"), FieldSkillRules::GetFieldWheelSliceAt(FVector2D(0, -100), HUB, RIM, 0), INDEX_NONE);
+		});
 	});
 
 	Describe("the component", [this]()
