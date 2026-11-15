@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-219 — What you finish or leave a run wearing is what you wear in the hub
+**Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
+**Answer (Crown):** "the equipment you finish or leave the run with is the equipment you have in the hub". The loadout as it stands at the end of a run (finished, extracted, or left) carries into the hub: the ACTIVE weapon, the wheel's pick (D-218), what is in each socket, the rings and apparel. The hub does not put back the loadout the run started with.
+**Notes for Claude:** this is about what is equipped, not what is owned: a quit run still takes back the items found in it (Q-439, Q-439b). Where a taken-back item is equipped at the end, the build job reports how that slot is left (empty, or the piece it replaced) before building; Crown decides.
+
 ### D-218 — The wheel's pick is what the character holds, and their parry
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** (1) Picking a **weapon** on the field wheel (D-217) **changes the weapon in hand**: the character shows and swings that weapon. Picking an **element source** (the innate, an evolution, an adapter) **hides the weapon**. (2) **Whatever is picked is the character's active parry** in the fight: "whatever you use is what your active parry will be". The parry priority setting (B-392 / B-393, `EParryElementPriority`) already decides which element a parry uses; the wheel's pick now drives it.
