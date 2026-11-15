@@ -13,7 +13,6 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutRules.h"
 #include "Loadout/WeaponSetRules.h"
-#include "Loadout/WeaponSpellRules.h"
 #include "Skills/Definitions/AbilityData.h"
 
 namespace
@@ -53,7 +52,6 @@ namespace
 }
 
 BEGIN_DEFINE_SPEC(FGemSlotElementSpec, "WoR.Loadout.GemSlotElement", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
-	TUniquePtr<WeaponSpellRules::FScopedWeaponSpells> Rule;
 	FWeaponLoadoutEntry Weapon;
 	int32 GemSlot = INDEX_NONE;
 	ESpellElement GemElement = ESpellElement::None;
@@ -63,7 +61,6 @@ void FGemSlotElementSpec::Define()
 {
 	BeforeEach([this]()
 	{
-		Rule = MakeUnique<WeaponSpellRules::FScopedWeaponSpells>(false); // the B-098 default: gem slots are ability slots
 		Weapon = FWeaponLoadoutEntry();
 		Weapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Weapon.WeaponEntry.AttachedItem = GemSlotTestGem();
@@ -73,7 +70,6 @@ void FGemSlotElementSpec::Define()
 	AfterEach([this]()
 	{
 		Weapon = FWeaponLoadoutEntry();
-		Rule.Reset();
 	});
 
 	It("knows which slots the gem adds", [this]()

@@ -12,7 +12,6 @@
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/SkillSlotList.h"
-#include "Loadout/WeaponSpellRules.h"
 #include "Skills/Definitions/AbilityData.h"
 
 namespace
@@ -103,7 +102,6 @@ void FSkillSlotListSpec::Define()
 
 	It("counts the tier's slots plus the crystal's with any stone attached, 12 at most (B-437, D-175)", [this]()
 	{
-		WeaponSpellRules::FScopedWeaponSpells Rule(false); // the D-027 default, whatever the console says
 		for (const ECrystalType Stone : SLOT_TEST_STONES)
 		{
 			Entry.WeaponEntry.Tier = EItemTier::F_Tier;
