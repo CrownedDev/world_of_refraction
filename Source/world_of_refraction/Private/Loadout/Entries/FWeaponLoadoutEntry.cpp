@@ -375,7 +375,7 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
         }
 
         // Wield-mode gate: abilities may require a specific off-hand configuration.
-        if (!Ability->AllowsWieldMode(WeaponEntry.Weapon->WieldMode))
+        if (!Ability->AllowsWieldMode(WeaponSetRules::GetSetWieldMode(*this))) // B-515: the set's mode, as LoadoutRules
         {
             return false;
         }

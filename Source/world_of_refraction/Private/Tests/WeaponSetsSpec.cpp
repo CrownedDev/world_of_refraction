@@ -125,6 +125,8 @@ void FWeaponSetsSpec::Define()
 		TestTrue(TEXT("a shield isn't a main hand"), WeaponSetRules::CheckPair(Shield, Sword) == EPairRefusal::ShieldInMainHand);
 		TestFalse(TEXT("that refusal has words"), WeaponSetRules::GetPairRefusalText(EPairRefusal::ShieldInMainHand).IsEmpty());
 		TestFalse(TEXT("a shield can't be held alone"), WeaponSetRules::CanStandAlone(WeaponSetsTestSet(Shield)));
+		const FWeaponInventoryEntry LooseShield = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::SingleOrDual));
+		TestFalse(TEXT("not even one authored as single-or-dual"), WeaponSetRules::CanStandAlone(WeaponSetsTestSet(LooseShield)));
 
 		const FWeaponLoadoutEntry WithShield = WeaponSetsTestSet(Sword, Shield);
 		const FWeaponLoadoutEntry TwoSwords = WeaponSetsTestSet(Sword, OtherSword);

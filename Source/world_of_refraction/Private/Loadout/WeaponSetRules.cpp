@@ -72,7 +72,8 @@ bool WeaponSetRules::IsShieldPair(const FWeaponLoadoutEntry &Set)
 bool WeaponSetRules::CanStandAlone(const FWeaponLoadoutEntry &Set)
 {
 	const UWeaponData *Weapon = Set.WeaponEntry.Weapon;
-	return !Weapon || Set.HasOffHand() || Weapon->CanBeHeldAlone();
+	// B-515: a shield never stands alone, whatever its Handling says.
+	return !Weapon || Set.HasOffHand() || (Weapon->CanBeHeldAlone() && Weapon->WeaponType != EWeaponType::Shield);
 }
 
 int32 WeaponSetRules::GetPairTierSlots(EItemTier MainTier, EItemTier OffHandTier)
