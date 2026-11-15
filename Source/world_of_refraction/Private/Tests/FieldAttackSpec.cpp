@@ -252,6 +252,28 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("and wraps to the first"), Field->CycleFieldAttack().Element == ESpellElement::None && Field->GetFieldAttackIndex() == 0);
 		});
 
+		It("swings an entry's override attack over its weapon's own (B-503o)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
+			{
+				return;
+			}
+			UAbilityData *Pierce = NewObject<UAbilityData>(GetTransientPackage());
+			Pierce->PhysicalDamageType = EPhysicalDamageType::Pierce;
+			UInventoryComponent *Inventory = Field->GetOwner()->FindComponentByClass<UInventoryComponent>();
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Active.PrimaryWeapon.OverrideAttack = Pierce;
+			Active.SecondaryWeapon.OverrideAttack = Pierce;
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("the same three entries"), Entries.Num(), 3))
+			{
+				return;
+			}
+			TestEqual(TEXT("the primary swings the override, not its Slash"), Entries[0].Physical, EPhysicalDamageType::Pierce);
+			TestEqual(TEXT("infused too"), Entries[1].Physical, EPhysicalDamageType::Pierce);
+			TestEqual(TEXT("the secondary's slice swings its own override"), Entries[2].Physical, EPhysicalDamageType::Pierce);
+		});
+
 		It("gives a weapon user's ring its own slice, infusing the weapon in hand (B-503m4, D-217)", [this]()
 		{
 			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))

@@ -344,6 +344,8 @@ public:
      *  the slotted crystal (e.g. channel-tier resolution). */
     UObject *FindSpellCatalystHolder(USpellData *Spell) const;
 
+    // OBSOLETE (B-503q): GetPrimarySlotSpells / GetSecondarySlotSpells / GetActiveSlotSpells have no C++ game caller
+    // (only the orchestrator debug print; Blueprints unchecked); the fight reads GetAvailableSpells. Delete after PIE.
     /** Get spells from primary slot only (Ring or evolved Weapon) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetPrimarySlotSpells() const;

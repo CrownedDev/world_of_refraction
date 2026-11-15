@@ -1284,6 +1284,12 @@ The queue of questions only Crown can answer.
 - (3) A: Metaphor: ReFantazio lets the character keep moving through the field attack, which keeps the map fluid. The feet may slide until the swing is blended on the upper body; Crown judges it in PIE.
 **Notes for Claude:** built in B-503b. A second attack is refused until the first hit has landed. A weapon whose attack has no field montage hits at once, as before.
 
+### Q-503r — An evolution in a weapon's socket: which infusion mode, and for which options
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503r, Crown: "whatever is attached in the socket decides") · **Blocks:** —
+**Question:** the rule leaves two things open, none of them lore: (1) does it hold for an adapter's socket too, or only a weapon's; (2) does a Raw action (HP, no element) with an evolution in the weapon's socket take the evolution's mode or the weapon's.
+**Answer:** (1) **both sockets**: the rule is about what sits in the socket, not what holds it. (2) **The weapon's**: Raw pushes no element and uses no socket, so the socket has nothing to decide. In games where a socketed gem changes a skill (Path of Exile's support gems, Diablo II's runewords) the gem changes only what it is linked to, which players find clear.
+**Notes for Claude:** built in B-503r (`ResolveInfusionSource`, the `ModeOf` lambda). A crystal carries no mode (`FCrystalAttachment` has none), so a crystal socket keeps the weapon's or adapter's mode as before.
+
 ### Q-503m4 — The wheel on RB: what the mouse does, what a ring infuses, what a tap of R does
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown has seen these defaults; Crown may change) · **Raised:** 2026-11-15 (B-503m4, D-217 "The wheel on RB") · **Blocks:** —
 **Question:** D-217's wheel on RB leaves five things open, none of them lore: (1) how the mouse picks a slice; (2) what a weapon user's ring, innate or evolution slice swings; (3) what a tap of R (keyboard) does, now RB's tap is the attack; (4) two entries of one element: one slice or two (Q-503k (2) said one stop per element); (5) which option a slice opens on when the stick moves to it.
