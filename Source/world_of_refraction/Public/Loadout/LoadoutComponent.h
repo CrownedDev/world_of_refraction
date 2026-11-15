@@ -44,6 +44,7 @@ class URingData;
 class UEvolutionItemData;
 struct FWeaponLoadoutEntry;
 struct FPartyMember;
+struct FFieldAttackEntry;
 struct FRingLoadoutEntry;
 struct FRuntimeAttachedItem;
 class UStanceData;
@@ -519,6 +520,11 @@ public:
      *  brings the weapon guard back). Looks only: the timing window never reads it. */
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
     EGuardStyle GetGuardStyle() const;
+
+    /** B-503s (D-218, Q-503s C): the member's field attack pick from its party record (FPartyMember::FieldAttackIndex,
+     *  rebuilt from this loadout), which is its guard and parry colour. False when it never picked one (an AI seat),
+     *  or the picked weapon is no longer the one in hand: the guard and priority settings apply then. */
+    bool GetFieldAttackPick(FFieldAttackEntry &OutPick) const;
 
     /** B-392: choose the guard. Unarmed puts the weapon now in hand away for parrying; refused (false) with no weapon in
      *  hand, which is unarmed already. A rostered member (a pawn stamped with its PartyMemberId) keeps the choice on its
