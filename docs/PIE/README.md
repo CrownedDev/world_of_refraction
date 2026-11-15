@@ -15,8 +15,6 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
-| [B-500a](B-500a.md) | `feature/B-500a-transition-slow-open-fast-finish` (in dev, built 2026-11-14) | Battle transition pace: a slow opening (cracks 0.5 s, an eased break 0.7 s), a beat of drift, then a blow-away that accelerates hard; the ease values and timings are in the data asset | Pending |
-| [B-500](B-500.md) | `feature/B-500-battle-transition-rough` (in dev, built 2026-11-14) | Battle transition, rough version: at contact the frame cracks and breaks into 3D shards that hold over the map load and blow away onto the battle; `wor.Transition.Play` previews it with no fight. Needs the shard material and data asset first (editor steps) | Pending |
 | [B-487b](B-487b.md) | `fix/B-487b-details-box-one-header` (in dev, built 2026-11-14) | Details box layout (loadout v2, inventory): a quiet type line with the icon, then the name and tier badge; socket rows as badge and name; no "Type" row or socket labels | Pending |
 | [B-487](B-487.md) | `feature/B-487-inventory-vendor-icons` (in dev, built 2026-11-14) | Inventory and vendor: reads as before with no icon table; after B-486 element diamonds, tier badges, weapon and effect icons | Pending |
 | [B-485](B-485.md) | `feature/B-485-loadout-icons` (in dev, built 2026-11-14) | Loadout v2 icons: reads as before with no icon table; after B-486 weapon icons, socket and tier badges, effect icons | Pending |
@@ -559,6 +557,8 @@ Move rows to **Done** when every check passes.
 ## Done
 | Job | Tested | Notes |
 |---|---|---|
+| [B-500](B-500.md) | 2026-11-15 | Previewed with wor.Transition.Play: looks good, slow start then fast finish (Crown) |
+| [B-500a](B-500a.md) | 2026-11-15 | Previewed with wor.Transition.Play: looks good, slow start then fast finish (Crown) |
 | [B-476d](B-476d.md) | 2026-11-14 | Checked in PIE, looked good (Crown) |
 | [B-488](B-488.md) | 2026-11-14 | Checked in PIE, looked good (Crown) |
 | [B-491](B-491.md) | 2026-11-14 | Checked in PIE, looked good (Crown) |
