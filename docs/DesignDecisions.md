@@ -1298,6 +1298,15 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
+### Q-511 — The class default kit: its sockets, whose it is, the asset's name
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-511, D-221) · **Blocks:** —
+**Question:** D-221 gives every trial start a class default kit, minted once. Three things it leaves open, none of them lore: (1) Does a kit piece keep a crystal baked on its asset? (2) Is the kit kept per character or per class? (3) The plan names the asset `DA_ClassDefaultLoadouts`; the naming guide wants `DA_<Kind>_`.
+**Answer:** by the reference-backed default:
+- (1) **Sockets start empty.** The trial start resets them each run (B-512), and a crystal put back each run would make crystals from nothing. Hades and Dead Cells start every run from a bare base kit; upgrades come from the run.
+- (2) **Per character, minted from its class's kit**, so each character owns its own pieces (D-117: each piece belongs to one character). They can't be sold, dismantled, given or put in the chest, so nothing piles up or moves between characters.
+- (3) **`DA_Loadout_ClassDefaults`**, in `/Game/Data/Loadout/` (`Conventions/ContentNaming.md`, B-123).
+- Saved in `FSavedPool::ClassDefaultKits` with no version bump: a save without it mints the kits again at the next trial start.
+
 ### Q-503 — The field attack's cycle: which entries, what is kept, what a pulse carries
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503, D-215) · **Blocks:** —
 **Question:** D-215 says LB cycles the field attack through the whole loadout. Five things it leaves open, none of them lore: (1) Is an evolution socketed in a weapon or ring its own stop? (2) Is "Innate" a stop for a character with no innate element? (3) What is saved: the entry or its place in the list? (4) Does a pulse carry the weapon's physical type (Slash / Pierce / Impact) into the fight? (5) Does cycling to a weapon put it in hand for the fight?
