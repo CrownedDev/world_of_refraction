@@ -336,7 +336,9 @@ void FFieldAttackSpec::Define()
 				return;
 			}
 			const FFieldAttackEntry &Storm = Entries[3];
-			TestEqual(TEXT("the ring's slice"), Storm.SliceName.ToString(), FString(TEXT("Storm Ring")));
+			TestEqual(TEXT("the ring's slice, named by its crystal (B-514b, D-223)"), Storm.SliceName.ToString(),
+					  FString::Printf(TEXT("%s %s"), *WoRGameNames::GetElementName(ESpellElement::Lightning).ToString(),
+									  *WoRGameNames::GetAdapterFormName(EAdapterForm::Ring).ToString()));
 			TestTrue(TEXT("its quick strip tile is the ring's icon (B-514)"), Storm.SliceIcon == Ring->Icon && !Storm.SliceOffHandIcon);
 			TestEqual(TEXT("read as the adapter's form and its source (B-514)"), FieldSkillRules::GetFieldStripTypeLine(Storm).ToString(),
 					  FString::Printf(TEXT("%s · %s"), *WoRGameNames::GetAdapterFormName(EAdapterForm::Ring).ToString(),
