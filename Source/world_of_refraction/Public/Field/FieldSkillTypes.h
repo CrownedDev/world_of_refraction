@@ -124,7 +124,8 @@ struct WORLD_OF_REFRACTION_API FFieldStrike
 	bool IsSet() const { return Buildup > 0.0f; }
 };
 
-/** B-503 (D-215): what a stop of the field attack's cycle is. A weapon swings; every other kind throws the pulse. */
+/** B-503 (D-215): what a stop of the field attack's cycle is. A weapon swings; every other kind throws the pulse.
+ *  B-503k (D-217): a pulse stop's kind is the infusion source it takes its element from (a weapon's crystal: Ring). */
 UENUM(BlueprintType)
 enum class EFieldAttackKind : uint8
 {
@@ -134,8 +135,8 @@ enum class EFieldAttackKind : uint8
 	Evolution
 };
 
-/** B-503 (D-215): one stop of the field attack's cycle (IA_Field_SwitchSource: LB / R): a weapon, a ring, the innate
- *  element or an evolution of the loadout. Built from the loadout each time it is read
+/** B-503 (D-215): one stop of the field attack's cycle (IA_Field_SwitchSource: LB / R). B-503k (D-217): the attack
+ *  (the active weapon's swing, or a Refractor's / Resonator's pulse) with one infusion. Built each time it is read
  *  (UFieldMovementComponent::GetFieldAttackEntries); only the index is kept (FPartyMember::FieldAttackIndex, saved). */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FFieldAttackEntry
@@ -146,7 +147,7 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	EFieldAttackKind Kind = EFieldAttackKind::Weapon;
 
-	/** The item's name ("Innate" for the innate element); empty for the plain swing. */
+	/** B-503k (D-217): the strip above the card: "Sword", "Fire Sword"; a pulse just "Fire". Empty unarmed and plain. */
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	FText Name;
 
