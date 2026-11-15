@@ -1254,7 +1254,7 @@ The queue of questions only Crown can answer.
 
 ### D-216 — One party card everywhere; what it shows depends on where you are
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
-**Answer (Crown):** the party cards in the field are the battle screen's party cards ("should basically be our battle one"). What they show: **hub**: no HP, no EP, no status (who is in the party only); **trial**: HP, EP and the status build-up bars (Crown: "status bar as in the status buildup"; the old card's M / B / S line), since build-up carries between fights in a run; **battle**: everything (those plus the fight-only parts). The field attack's chip (D-215) sits after the cards in the same style.
+**Answer (Crown):** the party cards in the field are the battle screen's party cards ("should basically be our battle one"). What they show: **hub**: no HP, no EP, no status (who is in the party only); **trial**: HP and EP only; no status build-up bar (Crown, 2026-11-15: it is always set to 0 after a battle, SB-18, so it would never show anything); **battle**: everything (those plus the fight-only parts). The field attack's chip (D-215) sits after the cards in the same style.
 **Notes for Claude:** one card class with a show-level (Hub / Trial / Battle), not three widgets. Built by B-503j (B-503i was the visual fix of the field strip, and hid the hub's HP bar). Note: SB-18 (D-013) empties the status bars after every fight, so the trial's build-up bar reads empty between fights unless that rule changes.
 
 ### D-215 — The field attack: one swing per weapon type, a pulse for casters, LB cycles the whole loadout
