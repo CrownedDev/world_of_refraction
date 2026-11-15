@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-220 — The loadout's Weapons tab is the Equipment tab
+**Status:** ANSWERED (Crown, 2026-11-15; renames part of the v2 loadout screen, D-210) · **Raised:** 2026-11-15 · **Blocks:** —
+**Answer (Crown):** the tab is called **Equipment**, not Weapons, and its add row reads **"+ Add equipment"**. Choosing it first asks **"Add a weapon" or "Add an adapter"**, then lists the pieces. The list is not organised by weapon: the first slot is not "the weapon slot"; every entry (weapon or adapter) is a piece of equipment.
+**Notes for Claude:** the tabs read Equipment / Skills / Apparel / Cosmetics. The class limits are unchanged (a Generic: 3 pieces, at most 2 weapons and 1 adapter). Player-facing text says "adapter"; a ring is one form of adapter.
+
 ### D-219 — What you finish or leave a run wearing is what you wear in the hub
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** "the equipment you finish or leave the run with is the equipment you have in the hub". The loadout as it stands at the end of a run (finished or extracted) carries into the hub: the ACTIVE weapon, the wheel's pick (D-218), what is in each socket, the rings and apparel. The hub does not put back the loadout the run started with.
