@@ -64,7 +64,7 @@ namespace LoadoutV2Build
 		Entry.Kind = ELoadoutV2EntryKind::Adapter;
 		Entry.Place = Place;
 		Entry.AdapterIndex = AdapterIndex;
-		Entry.Name = FText::FromString(Ring.RingEntry.Ring ? Ring.RingEntry.Ring->GetDisplayName() : FString());
+		Entry.Name = WoRGameNames::GetAdapterName(Ring.RingEntry.Ring, Ring.RingEntry.AttachedItem); // B-514b: "Fire Ring"
 		Entry.Sockets = {IconOf(Ring.RingEntry.AttachedItem), IconOf(Ring.RingEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Ring.RingEntry.AttachedItem);
 		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.StoneSocket)};
@@ -309,7 +309,7 @@ namespace LoadoutV2Build
 	{
 		if (const URingData *Adapter = Owned.Ring)
 		{
-			if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier)))
+			if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, WoRGameNames::GetAdapterName(Adapter, Owned.AttachedItem), WoRGameNames::GetTierLetter(Adapter->Tier)))
 			{
 				SetTier(Piece, Adapter->Tier);
 				Piece->TypeName = WoRGameNames::GetAdapterFormName(Adapter->Form); // B-487b: no "Type" row
@@ -761,7 +761,7 @@ TArray<FLoadoutV2PieceChoice> WoRLoadoutV2::BuildAdapterChoices(const FCombatLoa
 		FLoadoutV2PieceChoice &Choice = Choices.AddDefaulted_GetRef();
 		Choice.Kind = ELoadoutV2DraftKind::Adapter;
 		Choice.Adapter = Owned;
-		Choice.Name = FText::FromString(Owned.Ring->GetDisplayName());
+		Choice.Name = WoRGameNames::GetAdapterName(Owned.Ring, Owned.AttachedItem);
 		Choice.Line = WoRGameNames::GetAdapterFormName(Owned.Ring->Form);
 		FLoadoutV2Draft Draft;
 		Draft.Kind = ELoadoutV2DraftKind::Adapter;

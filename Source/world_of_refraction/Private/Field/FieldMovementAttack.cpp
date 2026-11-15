@@ -168,7 +168,7 @@ namespace
 			const auto AddRing = [&Slices](const FRingLoadoutEntry &Slot)
 			{
 				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
-				Slice.Name = FText::FromString(Slot.RingEntry.Ring->GetDisplayName());
+				Slice.Name = WoRGameNames::GetAdapterName(Slot.RingEntry.Ring, Slot.RingEntry.GetAttachedItem()); // B-514b: "Fire Ring"
 				Slice.Element = LiveSocketElement(Slot.RingEntry.GetAttachedItem());
 				Slice.bPulse = Slot.RingEntry.Ring->Form != EAdapterForm::Ring;
 				Slice.Icon = Slot.RingEntry.Ring->Icon;

@@ -2128,7 +2128,7 @@ FText ULoadoutV2ScreenWidget::GetSlotValue(ELoadoutV2Slot GearSlot) const
 	case ELoadoutV2Slot::OffHand:
 		return Draft.OffHand.IsValid() ? WeaponName(Draft.OffHand) : LOCTEXT("SlotOffHandEmpty", "empty (a weapon alone)");
 	case ELoadoutV2Slot::Adapter:
-		return Draft.Adapter.Ring ? FText::FromString(Draft.Adapter.Ring->GetDisplayName()) : LOCTEXT("SlotPick", "pick one");
+		return Draft.Adapter.Ring ? WoRGameNames::GetAdapterName(Draft.Adapter.Ring, Draft.Socket1) : LOCTEXT("SlotPick", "pick one");
 	case ELoadoutV2Slot::Evolution:
 		return Draft.Socket1.IsEvolution() && Draft.Socket1.Evolution.Item ? FText::FromString(Draft.Socket1.Evolution.Item->ItemName) : LOCTEXT("SlotPick", "pick one");
 	case ELoadoutV2Slot::Socket1:
@@ -2250,7 +2250,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			FLoadoutV2WindowItem &Equipped = Items.AddDefaulted_GetRef();
 			Equipped.bEquipped = true;
 			Equipped.Adapter = Current.Adapter;
-			Equipped.Name = Current.Adapter.Ring ? FText::FromString(Current.Adapter.Ring->GetDisplayName()) : FText::GetEmpty();
+			Equipped.Name = WoRGameNames::GetAdapterName(Current.Adapter.Ring, Current.Socket1); // B-514b: "Fire Ring"
 		}
 		if (!bEditing)
 		{
@@ -2272,7 +2272,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			}
 			FLoadoutV2WindowItem &Item = Items.AddDefaulted_GetRef();
 			Item.Adapter = Owned;
-			Item.Name = FText::FromString(Owned.Ring->GetDisplayName());
+			Item.Name = WoRGameNames::GetAdapterName(Owned.Ring, Owned.AttachedItem);
 			FLoadoutV2Draft Changed = Draft;
 			Changed.Adapter = Owned;
 			Changed.Socket1 = Owned.AttachedItem; // the new adapter brings its own sockets (they live on the piece)

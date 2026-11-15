@@ -29,6 +29,8 @@ enum class EWeaponType : uint8;
 enum class EWeaponWieldMode : uint8;
 enum class EItemTier : uint8;
 class UWeaponData;
+class URingData;
+struct FRuntimeAttachedItem;
 enum class ESubStat : uint8;
 enum class EWorldPillar : uint8;
 enum class EInteractVerb : uint8;
@@ -126,6 +128,12 @@ namespace WoRGameNames
     /** B-513b: the pieces in hand by name: "Flame Sword", or with an off-hand piece of its own "Flame Sword and Void
      *  Shield". A piece with no name gives its type. Empty for no main hand. The wheel's slice and the Equipment row. */
     WORLD_OF_REFRACTION_API FText GetHeldPiecesName(const UWeaponData *MainHand, const UWeaponData *OffHand = nullptr);
+
+    /** B-514b (D-223 "A ring is named by what is in it"): an adapter by its socket, then its form: an evolution gives
+     *  its name ("Phoenix Ring"), a crystal its element ("Fire Ring"); an empty one (or a socket with no element) reads
+     *  "Adapter Ring" ("Adapter Pistol", "Adapter Trainer"; Crown, D-223). Empty for no adapter. The quick strip and
+     *  the Equipment screen ask here. */
+    WORLD_OF_REFRACTION_API FText GetAdapterName(const URingData *Adapter, const FRuntimeAttachedItem &Socket);
 
     /** B-440a (D-180): how a weapon is held, for its kind line: "dual", "with shield". Empty for a single weapon. */
     WORLD_OF_REFRACTION_API FText GetWieldModeName(EWeaponWieldMode Mode);

@@ -9,6 +9,9 @@
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
 #include "Equipment/Crystals/CrystalType.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
 #include "Hub/InteractPrompt.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Field/FieldSkillTypes.h"
@@ -768,6 +771,26 @@ FText WoRGameNames::GetHeldPiecesName(const UWeaponData *MainHand, const UWeapon
         return FText::GetEmpty();
     }
     return OffHand ? FText::Format(LOCTEXT("HeldPieces", "{0} and {1}"), PieceName(MainHand), PieceName(OffHand)) : PieceName(MainHand);
+}
+
+FText WoRGameNames::GetAdapterName(const URingData *Adapter, const FRuntimeAttachedItem &Socket)
+{
+    if (!Adapter)
+    {
+        return FText::GetEmpty();
+    }
+    FText InSocket;
+    if (Socket.IsEvolution() && Socket.Evolution.Item)
+    {
+        const UEvolutionItemData *Item = Socket.Evolution.Item;
+        InSocket = Item->ItemName.IsEmpty() ? GetCrystalTypeName(Item->CrystalType) : FText::FromString(Item->ItemName);
+    }
+    else if (!Socket.IsEmpty() && !Socket.IsEvolution() && Socket.GetElement() != ESpellElement::None)
+    {
+        InSocket = GetElementName(Socket.GetElement());
+    }
+    // The form word last, as "Phoenix Ring": an empty one is "Adapter Ring" (D-223).
+    return FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), InSocket.IsEmpty() ? GetAdapterWord() : InSocket, GetAdapterFormName(Adapter->Form));
 }
 
 FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)
