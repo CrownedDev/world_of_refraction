@@ -1353,10 +1353,7 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
-                            Owned->SkillPicks = Slot.SkillPicks;   // B-351 (D-145): the picks live on the item
-                            Owned->bSkillSlotsActive = Slot.bSkillSlotsActive;
-                            Owned->SpellPicks = Slot.SpellPicks;   // B-351d (D-145): so does the crystal's spell list
-                            Owned->bSpellSlotsActive = Slot.bSpellSlotsActive;
+                            // D-224 (B-517): the picks live on the worn entry (WriteWornGear), never on the piece.
                             Written.Add(Slot.PersistentID);
                         }
                     },
@@ -1366,8 +1363,6 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
-                            Owned->SpellPicks = Slot.SpellPicks;   // B-351d (D-145)
-                            Owned->bSpellSlotsActive = Slot.bSpellSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     });

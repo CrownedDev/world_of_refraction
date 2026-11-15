@@ -63,19 +63,14 @@ namespace
 		Pool.RemoveGear(ID);
 	}
 
-	/** A kit weapon as authored: the asset's tier, sockets empty (no crystal from nowhere), the kit's skill picks. */
-	FWeaponInventoryEntry MakeKitWeapon(UWeaponData *Weapon, const TArray<TObjectPtr<UAbilityData>> &SkillPicks, const FGuid &ID)
+	/** A kit weapon as authored: the asset's tier, sockets empty (no crystal from nowhere). The kit's skill picks go on
+	 *  the worn entry (WearClassDefaultKit, D-224), not the piece. */
+	FWeaponInventoryEntry MakeKitWeapon(UWeaponData *Weapon, const FGuid &ID)
 	{
 		FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
 		Entry.PersistentID = ID;
 		Entry.AttachedItem = FRuntimeAttachedItem();
 		Entry.StoneSocket = FRuntimeAttachedItem();
-		Entry.SkillPicks.Reset();
-		for (UAbilityData *Pick : SkillPicks)
-		{
-			Entry.SkillPicks.Add(Pick);
-		}
-		Entry.bSkillSlotsActive = !SkillPicks.IsEmpty();
 		return Entry;
 	}
 
@@ -90,12 +85,12 @@ namespace
 
 	/** B-512: a minted kit piece back to its authored state, same ID; its socketed crystals go to its owner first.
 	 *  Returns how many crystals went. */
-	int32 ResetKitPiece(UPoolSubsystem &Pool, const FGuid &ID, const TArray<TObjectPtr<UAbilityData>> &SkillPicks)
+	int32 ResetKitPiece(UPoolSubsystem &Pool, const FGuid &ID)
 	{
 		int32 Freed = 0;
 		if (const FWeaponInventoryEntry *Weapon = Pool.FindWeaponInPool(ID))
 		{
-			FWeaponInventoryEntry Reset = MakeKitWeapon(Weapon->Weapon, SkillPicks, ID);
+			FWeaponInventoryEntry Reset = MakeKitWeapon(Weapon->Weapon, ID);
 			Reset.InstanceID = Weapon->InstanceID;
 			const FRuntimeAttachedItem Attached = Weapon->AttachedItem, Stone = Weapon->StoneSocket; // CarryOrStore broadcasts
 			Freed = FreeKitSocket(Pool, ID, Attached) + FreeKitSocket(Pool, ID, Stone);
@@ -112,13 +107,12 @@ namespace
 		return Freed;
 	}
 
-	/** A new owned weapon or adapter at the asset's tier, sockets empty, with the kit's skill picks. Invalid when Asset
-	 *  is neither. */
-	FGuid MintKitPiece(UPoolSubsystem &Pool, UEquipmentDataBase *Asset, const TArray<TObjectPtr<UAbilityData>> &SkillPicks, FName CharacterKey)
+	/** A new owned weapon or adapter at the asset's tier, sockets empty. Invalid when Asset is neither. */
+	FGuid MintKitPiece(UPoolSubsystem &Pool, UEquipmentDataBase *Asset, FName CharacterKey)
 	{
 		if (UWeaponData *Weapon = Cast<UWeaponData>(Asset))
 		{
-			const FWeaponInventoryEntry Entry = MakeKitWeapon(Weapon, SkillPicks, FGuid::NewGuid());
+			const FWeaponInventoryEntry Entry = MakeKitWeapon(Weapon, FGuid::NewGuid());
 			Pool.SetGearOwner(Entry.PersistentID, CharacterKey); // whose piece it is before anyone hears of it
 			Pool.UpdateWeapon(Entry);
 			return Entry.PersistentID;
@@ -186,9 +180,9 @@ const FClassDefaultKitIDs &UPoolSubsystem::MintClassDefaultKit(FName CharacterKe
 	FClassDefaultKitIDs IDs = ClassDefaultKits.FindRef(CharacterKey);
 	const int32 Places = Kit.Pieces.Num();
 	int32 Minted = ReconcileKitPlaces(*this, IDs.Pieces, Places, [&Kit](int32 I) -> const UObject * { return Kit.Pieces[I].Piece; },
-									  [this, &Kit, CharacterKey](int32 I) { return MintKitPiece(*this, Kit.Pieces[I].Piece, Kit.Pieces[I].SkillPicks, CharacterKey); });
+									  [this, &Kit, CharacterKey](int32 I) { return MintKitPiece(*this, Kit.Pieces[I].Piece, CharacterKey); });
 	Minted += ReconcileKitPlaces(*this, IDs.OffHands, Places, [&Kit](int32 I) -> const UObject * { return Kit.Pieces[I].OffHand; },
-								 [this, &Kit, CharacterKey](int32 I) { return MintKitPiece(*this, Kit.Pieces[I].OffHand, {}, CharacterKey); });
+								 [this, &Kit, CharacterKey](int32 I) { return MintKitPiece(*this, Kit.Pieces[I].OffHand, CharacterKey); });
 	Minted += ReconcileKitPlaces(*this, IDs.Apparel, Kit.Apparel.Num(), [&Kit](int32 I) -> const UObject * { return Kit.Apparel[I]; },
 								 [this, &Kit, CharacterKey](int32 I) { return MintKitApparel(*this, Kit.Apparel[I], CharacterKey); });
 	if (Minted > 0)
@@ -204,8 +198,8 @@ void UPoolSubsystem::ResetClassDefaultKit(FName CharacterKey, const FClassDefaul
 	int32 Freed = 0;
 	for (int32 Index = 0; Index < IDs.Pieces.Num() && Kit.Pieces.IsValidIndex(Index); ++Index)
 	{
-		Freed += ResetKitPiece(*this, IDs.Pieces[Index], Kit.Pieces[Index].SkillPicks);
-		Freed += IDs.OffHands.IsValidIndex(Index) ? ResetKitPiece(*this, IDs.OffHands[Index], {}) : 0;
+		Freed += ResetKitPiece(*this, IDs.Pieces[Index]);
+		Freed += IDs.OffHands.IsValidIndex(Index) ? ResetKitPiece(*this, IDs.OffHands[Index]) : 0;
 	}
 	// shortcut: apparel only has its socket cleared (its crystal goes to storage, AttachToApparel), not its tier reset;
 	// kit apparel is F tier and a wipe can't drop it lower. Reset the tier if apparel ever gains tiers in a run.
@@ -238,6 +232,10 @@ TArray<FGuid> UPoolSubsystem::WearClassDefaultKit(FName CharacterKey, const FCla
 		FLoadoutSlot &Slot = Worn.Equipment[Index];
 		Slot.GearID = IDs->Pieces[Index];
 		Slot.OffHandID = IDs->OffHands.IsValidIndex(Index) ? IDs->OffHands[Index] : FGuid();
+		if (Kit.Pieces.IsValidIndex(Index))
+		{
+			Slot.AssignedAbilities.Append(Kit.Pieces[Index].SkillPicks); // D-224 (B-517): the picks are the worn entry's
+		}
 		if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(Slot.GearID))
 		{
 			Slot.Gear = FGearInstance::FromWeaponEntry(*Weapon);
