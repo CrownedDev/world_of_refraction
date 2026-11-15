@@ -74,7 +74,9 @@ void UCharacterDataComponent::StampPartyMember(const FGuid &MemberId)
                 bHasRecord;
         if (bHasRecord && !bWore)
         {
-            UE_LOG(LogWoR, Warning, TEXT("[CharacterData] %s can't wear its record: %s"), *GetNameSafe(GetOwner()), *Refusal.ToString());
+            // Left unstamped: stamped, this pawn's next gear change would write its unworn lore gear over the record.
+            UE_LOG(LogWoR, Warning, TEXT("[CharacterData] %s can't wear its record (%s); not stamped"), *GetNameSafe(GetOwner()), *Refusal.ToString());
+            return;
         }
     }
     PartyMemberId = MemberId;

@@ -47,7 +47,10 @@ namespace
 		Member.FieldSkill = Worn->WheelPick.FieldSkill;
 		Member.FieldAttackIndex = Worn->WheelPick.FieldAttackIndex;
 		Member.bFieldAttackPicked = Worn->WheelPick.bPicked;
-		Member.ActiveWeaponId = Worn->ActiveGearID;
+		if (Worn->ActiveGearID.IsValid()) // none drawn (a caster's weapon put away) keeps the member's own
+		{
+			Member.ActiveWeaponId = Worn->ActiveGearID;
+		}
 		return true;
 	}
 }

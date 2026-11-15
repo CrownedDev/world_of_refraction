@@ -243,8 +243,9 @@ public:
 	bool SetMemberActiveWeapon(int32 SlotIndex, const FGuid &WeaponId);
 
 	/** D-221 (B-506): each local member takes its wheel pick and weapon in hand from its worn-gear record in the pool,
-	 *  the pick's home (FWornGear::WheelPick). Called when a member joins (a benched character comes back with its pick)
-	 *  and after a save's pool is restored. A member with no record keeps its own. Returns members updated.
+	 *  the pick's home (FWornGear::WheelPick). A joining member does the same for itself (a benched character comes back
+	 *  with its pick); this whole-party pull is for after a save's pool is restored (wired by B-507, save v40). A member
+	 *  with no record keeps its own. Returns members updated.
 	 *  shortcut: FPartyMember keeps a copy for its readers (the setters above write both); stage 2 moves them. */
 	int32 PullWheelPicksFromPool();
 
