@@ -87,6 +87,9 @@ void FHubHUDSpec::Define()
 				  static_cast<float>(Hurt->CalculateMaxHealth() / 2) / static_cast<float>(Hurt->CalculateMaxHealth()), UE_KINDA_SMALL_NUMBER);
 		TestEqual(TEXT("carried EP"), Cards[1].EPLine.ToString(),
 				  BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), 0, Hurt->CalculateMaxEnergy()).ToString());
+		TestEqual(TEXT("B-503m: the EP bar follows it"), Cards[1].EPFraction, 0.0f);
+		TestEqual(TEXT("and a full one is full"), Cards[0].EPFraction,
+				  BattleHUDView::PoolFraction(Hub->CalculateMaxEnergy(), Hub->CalculateMaxEnergy()));
 		TestEqual(TEXT("the build-up bar is empty between fights (SB-18)"), Cards[1].BuildupFraction, 0.0f);
 		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
 	});
