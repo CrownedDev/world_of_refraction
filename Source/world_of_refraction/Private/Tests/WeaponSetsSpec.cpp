@@ -264,6 +264,37 @@ void FWeaponSetsSpec::Define()
 			TestFalse(TEXT("a sword and a dagger are no pair"), Loadout->IsWeaponSetPaired(Active.PrimaryWeapon));
 			TestEqual(TEXT("only the main hand's stats"), Loadout->GetActiveStatBonus(Loadout->GetOwner()).BonusDefense, WEAPON_SETS_TEST_DEFENSE);
 		});
+
+		It("attacks with the main hand's own attack whatever is in the off hand (Crown, after B-515)", [this]()
+		{
+			UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+			Data->CharacterClass = ECharacterClass::Generic;
+			UAbilityData *MainAttack = NewObject<UAbilityData>(GetTransientPackage());
+			MainAttack->bIsAttack = true;
+			UAbilityData *OffHandAttack = NewObject<UAbilityData>(GetTransientPackage());
+			OffHandAttack->bIsAttack = true;
+			UWeaponData *Sword = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+			Sword->WeaponAttack = MainAttack;
+			UWeaponData *OtherSword = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+			OtherSword->WeaponAttack = OffHandAttack;
+			ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Sword);
+			if (!TestNotNull(TEXT("Loadout"), Loadout))
+			{
+				return;
+			}
+			UInventoryComponent *Inventory = Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>();
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			TestTrue(TEXT("alone: its own attack"), Loadout->GetCurrentAttack() == MainAttack);
+
+			Active.PrimaryWeapon.OffHandEntry = WeaponSetsTestHand(OtherSword);
+			TestTrue(TEXT("a dual pair"), Loadout->IsWeaponSetPaired(Active.PrimaryWeapon));
+			TestTrue(TEXT("a dual pair attacks with the main hand's attack"), Loadout->GetCurrentAttack() == MainAttack);
+			TestFalse(TEXT("the off hand's attack isn't listed"), Loadout->GetAllWeaponAttacks().Contains(OffHandAttack));
+
+			Active.PrimaryWeapon.OffHandEntry = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::DualOnly));
+			TestTrue(TEXT("a shield pair"), Loadout->IsWeaponSetPaired(Active.PrimaryWeapon));
+			TestTrue(TEXT("a sword and shield attack with the sword's attack"), Loadout->GetCurrentAttack() == MainAttack);
+		});
 	});
 }
 
