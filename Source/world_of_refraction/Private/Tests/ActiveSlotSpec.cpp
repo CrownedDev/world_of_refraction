@@ -122,7 +122,7 @@ void FActiveSlotSpec::Define()
 		TestTrue(TEXT("not a primary ring"), Loadout->GetPrimaryRing() == nullptr);
 	});
 
-	It("checks a Generic's secondary weapon's spells like the primary's", [this]()
+	It("flags a spell left on a Generic's secondary weapon like the primary's (B-411: weapons hold none)", [this]()
 	{
 		FCombatLoadout L;
 		L.PrimarySlotType = EPrimarySlotType::Weapon;
@@ -138,7 +138,7 @@ void FActiveSlotSpec::Define()
 		FLoadoutRuleContext Context;
 		Context.CharacterClass = ECharacterClass::Generic;
 		const TArray<FInvalidSlotFinding> Findings = FLoadoutRules::CollectFindings(L, Context);
-		TestTrue(TEXT("the secondary's mismatched spell is found, aimed at the secondary"),
+		TestTrue(TEXT("the secondary's spell is found, aimed at the secondary"),
 				 Findings.ContainsByPredicate([](const FInvalidSlotFinding &F)
 											  { return F.SlotType == ELoadoutSlotType::WeaponSpell && F.SlotIndex == 0 &&
 													   F.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON; }));
