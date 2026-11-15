@@ -1,7 +1,7 @@
 # Loadout restructure plan (D-221)
 
-**Status:** PLAN, for Crown's OK. Nothing here is built. Each stage is its own Backlog job once Crown agrees.
-**Written:** 2026-11-15 (desktop writer), from D-221, D-219 "Starting gear", D-218, `Audits/LoadoutAlignmentAudit.md` (LA-n), `Audits/CharacterStateAudit.md` (CS-n), `Audits/CharacterAssetDump.md`.
+**Status:** AGREED (Crown, 2026-11-15: questions 1-7 answered, §7). Stage 1 is being built; each stage is its own Backlog job.
+**Written:** 2026-11-15 (desktop writer), from D-221 (with Crown's answers to the plan's questions), D-219, D-218, `Audits/LoadoutAlignmentAudit.md` (LA-n), `Audits/CharacterStateAudit.md` (CS-n), `Audits/CharacterAssetDump.md`.
 **Supersedes:** B-503t (its WIP branch `feature/B-503t-run-end-loadout` is reused in stage 1b). B-503v, w, x and y stay on hold until stage 2 is in; most of them fold into it.
 
 ## In plain words
@@ -12,7 +12,7 @@ After the restructure:
 
 - **One "wearing now" per character.** It is a short list of owned pieces, which one is ACTIVE, the apparel, the character's own evolution and the wheel pick. It is stored with the character, saved, and read by everything.
 - **Presets.** A preset is a saved copy of "wearing now", made and put on at a mirror.
-- **The template gives the starting gear once.** After that it is never read again.
+- **The template gives the hub's starting gear once.** After that it is never read again. **A trial always starts on the class default loadout** (`DA_ClassDefaultLoadouts`), the same for everyone.
 
 ## 1. The target structs
 
@@ -66,7 +66,7 @@ USTRUCT()
 struct FGearPreset
 {
     FString Name;
-    bool bLastUsed = false;                  // the automatic "last used gear" (D-221 (4)); one per character
+    bool bLastUsed = false;                  // the automatic "last used gear" (question 9); one per character
     FWornGear Gear;
     TArray<FPresetSocket> Sockets;           // what was in each socket when the preset was made
 };
@@ -95,16 +95,38 @@ struct FPresetSocket
 
 ## 3. How D-219 and D-218 sit on it
 
+**D-221, the class default loadout at a trial's start (stage 1c):**
+
+A trial always starts on the class's default loadout, so every run has the same starting point (Crown: "maybe F tier gear"). This replaces "the last used gear is the trial's starting gear" and D-219's "Starting gear" paragraph. Roguelites work this way: Hades and Dead Cells start every run from the same base kit.
+
+- **Where it's authored.** A new data asset, `UClassDefaultLoadoutData` (`UPrimaryDataAsset`, `Public/Loadout/ClassDefaultLoadoutData.h`), holding `TMap<ECharacterClass, FSavedStartingGear> Defaults` (the same starting-gear form as stage 4's template). There is one asset, `DA_ClassDefaultLoadouts` (an editor step under ContentNaming). It's referenced from `UTrialRunSubsystem` by a config path in `DefaultGame.ini`, the way `UPartySessionSubsystem` holds its fallback pawn class. With no asset or no entry for a class, the trial keeps what is worn and logs a warning.
+- **The default pieces are owned once.** The first time a character needs its class defaults, the pieces are minted into the pool as that character's owned gear, tagged `bClassDefault` on their pool mark. They can't be sold, dismantled or given away; nothing piles up from run to run.
+- **How a trial start applies them** (`BeginRunLayer`):
+  1. Snapshot the hub's `FWornGear`, saved in `FSavedRun`, for a quit.
+  2. Reset each default piece to its authored state: tier, empty sockets (crystals in them go back to the inventory, not destroyed) and the class's skill picks.
+  3. Set `FWornGear::Equipment` and `Apparel` to the defaults, and `ActiveGearID` to the default ACTIVE piece; clear the wheel pick.
+  4. The character's own evolution (`EvolutionID`, D-210) and innate spells stay: they belong to the character, not the kit.
+  5. Home gear left behind stays owned in the pool. The trial mirror puts it on from a preset, priced by tier (§6).
+
 **D-219, run endings (stage 1b, reusing B-503t's WIP):**
-- **Run start.** `BeginRunLayer` copies each member's `FWornGear`, plus the socket states of the pieces worn, into the run snapshot (`FSavedRun`, saved).
-- **Finish, extract, out of wipes.**
-  - The current `FWornGear` stays.
-  - Found gear that is worn, and found crystals in its sockets, become owned: their `bRunOnly` mark is cleared.
-  - The "last used gear" preset is overwritten with what is worn.
-  - Unworn found gear keeps its rule (it goes back).
-- **Quit, or the game closed mid-run.** The snapshot is put back, and the found items are taken back (Q-439).
-- **"Starting gear" supersedes two lines.** D-219's two lines that say kept gear is "lost when the next run starts" no longer apply. Nothing is removed at the next run start. B-503t's "lost at the next run" step is **dropped**. Its WIP rule ER-65f is reworded before it lands in `docs/Rules/05-economy-and-runs.md`.
-- **The run's gear pick.** `PoolRunLayer.cpp:131-162` picks the run's gear from **wearers**. It now reads `FWornGear` (CS-3, second half; CS-14).
+- **Extract, or beating the boss (a finish).**
+  - What is worn carries into the hub (D-219).
+  - Worn found gear and the found crystals in its sockets are **kept for the hub**: the `bRunOnly` mark becomes `bHubGear` (Crown: "just to have in the hub").
+  - Unworn found gear goes back, as now.
+  - The hub snapshot is dropped.
+- **Out of wipes.**
+  - What is worn carries into the hub (D-219).
+  - **Found gear is not kept** ("a wipe does not provide it"). Worn found pieces go back and leave their slots empty.
+  - The tier drop applies (below).
+- **Quit, or the game closed mid-run.**
+  - The tier drop applies first (Q7).
+  - Then the hub snapshot is put back, and the found items are taken back (Q-439).
+- **Hub gear (`bHubGear`).**
+  - Worn and changed in the hub, and kept in presets.
+  - Not sold or dismantled.
+  - Can be put on at the trial mirror like home gear, priced by tier. This is the plan's reading of "only counts once it's kept"; see question 8.
+- **Superseded.** D-219's "Starting gear" paragraph and the "last used gear is the starting gear" line in D-221 (4) no longer apply. B-503t's WIP rule ER-65f is rewritten for these rules before it lands in `docs/Rules/05-economy-and-runs.md`.
+- **The run's gear pick.** `PoolRunLayer.cpp:131-162` picks the run's gear from **wearers**. The class defaults replace that pick, and wearers go in stage 4 (CS-3 second half, CS-14).
 
 **D-219, a lost run costs tier (stage 1b):**
 - **Where a piece's tier lives.** On the owned instance, never the asset (`TierOnInstance.md`). That is `FGearInstance::Tier` in the pool's owned store (`UPoolSubsystem::OwnedWeapons` and the other owned lists; evolutions: `FEvolutionInventoryEntry::Tier`). It is saved as `FSavedOwnedItem::Tier`, so **the drop needs no new save field**.
@@ -129,12 +151,12 @@ struct FPresetSocket
       constexpr int32 RANKS_LOST_ON_LOST_RUN = 3; // D-219: S to C; tuned in play (Crown: two, "maybe even 3")
   }
   ```
-- **Socketed crystals.** A crystal is its `FCrystalId{Type, Tier}`. Crown's "everything you were wearing" reads as the pieces, not what is in their sockets. **Default:** sockets keep their crystal unchanged. This is question 6 below.
-- **A quit and the restore.** A quit puts back the run-start loadout. The drop is applied **first**, to the pieces worn at the moment of quitting that the player still owns after the quit. That means home pieces only: found pieces go back anyway.
+- **Socketed crystals and evolutions don't drop** (Q6, Crown took the default). Only the pieces drop.
+- **Class default pieces** drop too, but are reset at the next trial start anyway.
+- **A quit and the restore** (Q7, Crown took the default). A quit puts back the hub snapshot. The drop is applied **first**, to the pieces worn at the moment of quitting that the player still owns after the quit. That means home pieces bought in at the trial mirror, hub gear and the class defaults: found pieces go back anyway.
   - A home piece worn at the quit loses tier even if the restore then moves it to another slot or takes it off.
   - A home piece worn at the run start but taken off before the quit does not lose tier.
   - For a closed game, "the moment of quitting" is the `FWornGear` in the last save before the close.
-  - This is question 7 below.
 
 **D-218, the wheel (stage 1):**
 - The wheel pick lives in `FWornGear::WheelPick`. A weapon pick sets `ActiveGearID` in the same write. The pick and the ACTIVE entry stay separate fields because an element-source pick leaves the ACTIVE weapon as it is.
@@ -160,14 +182,22 @@ Each stage is playable in PIE and builds, and every commit touches at most 3 fil
   - LA-1: the pick and the ACTIVE entry become one write.
 - **Likely also removed:** CS-4 (the stale crystal undo), because sockets are read from the owned piece rather than `CarriedGear`. This is checked while building, not promised.
 
-### Stage 1b: run endings on the record (M, about 3 commits; reuses B-503t)
-- Snapshot and restore of `FWornGear`, the found-gear keep on carrying endings, and the "last used gear" write. D-219's rows go into `docs/Rules/05-economy-and-runs.md`.
+### Stage 1b: run endings on the record (M, about 4 commits; reuses B-503t)
+- The hub snapshot and its restore on a quit or a close.
+- Found gear kept as hub gear on an extract or a boss win, and not kept on out of wipes (§3).
 - The tier drop on a lost run (§3): `ApplyLostRunTierDrop`, and the `GearTierLoss` constant.
-- Specs per ending: finish, extract, out of wipes, quit, and closed mid-run. Each one checks the tiers:
-  - out of wipes, a quit and a close drop each worn piece by 3, clamped at F;
-  - a finish, an extract and a single wipe drop nothing;
-  - a home piece taken off before a quit keeps its tier.
-- **PIE:** finish a run with a found axe socketed. It is worn in the hub and at the next trial's start. A quit puts the old gear back.
+- D-219's rows go into `docs/Rules/05-economy-and-runs.md`.
+- Specs per ending (extract, boss win, out of wipes, quit, closed mid-run):
+  - what is worn in the hub after each ending;
+  - found gear: kept on an extract or a win only;
+  - tiers: out of wipes, a quit and a close drop each worn piece by 3, clamped at F; an extract, a win and a single wipe drop nothing; a home piece taken off before a quit keeps its tier.
+- **PIE:** extract with a found axe socketed: it is worn in the hub. Wipe out with one: it's gone, and the worn pieces are 3 tiers lower. A quit puts the hub gear back.
+
+### Stage 1c: the class default loadout at a trial's start (M, about 3 commits, plus an editor step)
+- `UClassDefaultLoadoutData`, the `UTrialRunSubsystem` config path, minting the default pieces once (`bClassDefault`), and the reset-and-wear at `BeginRunLayer` (§3).
+- Editor step: author `DA_ClassDefaultLoadouts` with an F-tier kit per class (a Generic, a Refractor and a Resonator). `// TODO:` the pieces, picked by Crown or by the editor writer from the existing F-tier weapons and adapters.
+- Spec `WoR.Trial.ClassDefaults`: a trial starts on the class kit whatever the hub wore; default pieces are reset each start (tier, sockets, skills); the character's own evolution and innate spells stay; home gear stays owned.
+- **PIE:** wear an S-tier sword in the hub, enter a trial: the class kit is worn. Extract: the run's gear is in the hub.
 - **Clashes removed:** CS-3 second half and CS-14 (the run's gear pick reads the record, not wearers).
 
 ### Stage 2: the readers (L, about 8 commits)
@@ -193,7 +223,7 @@ Each stage is playable in PIE and builds, and every commit touches at most 3 fil
   - `SavePreset(Key, Name)`;
   - `ApplyPreset(Key, Index, OUT TArray<FText> Notes)`;
   - `GetPresetPrice(Key, Index)`;
-  - the automatic "last used gear".
+  - the automatic "last used gear" preset (question 9; no longer the starting gear).
 - **`ApplyPreset` rules (D-221 defaults):**
   - A piece that is no longer owned leaves its slot empty, with a note.
   - A remembered crystal or evolution goes in **only** if one is in the inventory; otherwise the socket stays as it is, with a note.
@@ -203,7 +233,7 @@ Each stage is playable in PIE and builds, and every commit touches at most 3 fil
   - the trial one is placed by a designer; it needs one placed actor per trial map, as an editor step.
 - **Placeholder UI (C++, Backlog rule 4):** the preset list, "Save current as…", "Put on", the price (trial), the notes, and the replace warning. It is replaced by the CommonUI screen later (D-024).
 - **The Equipment screen loses its loadout switching** (D-221 (2)). The v2 screen's loadout picker goes; it edits `FWornGear` only.
-- **Save version 41:** `FSavedGearPreset` replaces `FSavedCustomLoadout`.
+- **Save version 42:** `FSavedGearPreset` replaces `FSavedCustomLoadout`.
 - Spec `WoR.Loadout.Presets`: each default above, the price sum, and the last-used write.
 - **PIE:** save a preset in the hub, change gear, put the preset on (free); at the trial mirror, the price shows and is paid in Prisms.
 - **Clashes removed:** LA-24 in part (the v2 screen no longer turns its entry back into the old row to switch loadouts).
@@ -229,7 +259,7 @@ Each stage is playable in PIE and builds, and every commit touches at most 3 fil
 - Remove the baked crystals and the leftover Garnet / F defaults with kind None.
 - Fix the typo names (`Equpment`) under ContentNaming (B-123).
 - Delete or repoint `DA_Test_EvoCrystal_Water`, and give `DA_Enemy_Darkness` its own inventory (it uses `DA_Test_Inventory`).
-- Template and GenericLord are identical: Crown says if one goes.
+- Delete `DA_Character_Template` (Q5); the played test character moves to `DA_Character_GenericLord`.
 
 **Clashes removed:**
 - LA-11 (the old save shape);
@@ -242,7 +272,8 @@ Each stage is playable in PIE and builds, and every commit touches at most 3 fil
 | Stage | Version | Change | Older saves |
 |---|---|---|---|
 | 1 | 40 | `FSavedWornGear` per character in `FSavedPool`; `FSavedPartyMember` loses `ActiveWeaponId` and the field-pick fields (moved) | wiped with a warning (D-060, D-138) |
-| 3 | 41 | `FSavedGearPreset` replaces `FSavedCustomLoadout` | wiped |
+| 1b / 1c | 41 | the hub snapshot (`FSavedWornGear`) in `FSavedRun`; `bHubGear` and `bClassDefault` on `FSavedRunMark` / the owned-item marks | wiped |
+| 3 | 42 | `FSavedGearPreset` replaces `FSavedCustomLoadout` | wiped |
 | 4 | — | none (the template's starting gear is not in the save) | — |
 
 ## 6. The trial mirror's price (placeholder)
@@ -262,20 +293,26 @@ namespace GearMirrorPrice
 
 The values are zero until tuned, so the trial mirror is free until Crown sets them.
 
-## 7. Open questions for Crown
+## 7. Questions: answered (Crown, 2026-11-15, D-221)
 
-1. **Found gear in "last used gear".** On a carrying ending, worn found gear becomes owned and is part of "last used gear" and the next run's start (D-219 "Starting gear"). Is it then owned outright, so that it can be put in other presets, sold or dismantled like home gear? **Default: yes, owned outright.** This matches what D-219 now says, where the gear is not removed at the next run.
-2. **Hub changes and the next trial's start.** D-221 (4) says the last used gear is the trial's starting gear. If you change gear in the hub (free mirror, or the Equipment screen) after a run, what does the next trial start with?
-   - **Default: what you wear when you enter.** That equals the last used gear unless you changed it. Monster Hunter works this way: you leave the village in what you wear.
-   - The other reading: the trial always puts the last used gear back on.
-3. **Does the trial mirror save presets too, or only put them on?** **Default: both**, since saving is free and only putting on costs. FFXIV's gear sets can be saved anywhere.
-4. **What the mirror charges for.** Only pieces and crystals it changes (default), or the whole preset?
-5. **Template and GenericLord** are identical assets. Keep both?
-6. **A lost run's tier drop and socketed crystals.** Does "everything you were wearing" include the crystals and evolutions in the pieces' sockets? **Default: no.** Only the pieces drop (weapons, adapters, the character's own evolution, apparel), and sockets keep what they hold.
-7. **The tier drop on a quit.** A quit puts back the run-start loadout. The plan drops tier on **the pieces worn at the moment of quitting that the player still owns**, which means the home pieces, since found ones go back anyway. Examples:
-   - you start with an S sword, swap to a found axe, and quit: the sword is not dropped, and the axe goes back;
-   - you keep the S sword on and quit: it drops to C.
-   For a closed game, it is what was worn in the last save. **Default: as described.** The other reading: drop the run-start pieces that the restore puts back on.
+| # | Question | Answer |
+|---|---|---|
+| 1 | Is found gear kept after a run owned outright? | **No**: "just to have in the hub". It is hub gear (`bHubGear`), kept only on an extract or a boss win (§3) |
+| 2 | Hub changes vs the next trial's start | No longer applies: a trial always starts on the class defaults (§3) |
+| 3 | Can the trial mirror save presets too? | **Yes**, mid-run, found gear included; that gear only counts once it is kept. Presets are kept |
+| 4 | What the mirror charges for | Crown took the default: only what it changes |
+| 5 | Template and GenericLord | Delete `DA_Character_Template`; the played test character moves to `DA_Character_GenericLord` (stage 4 editor step) |
+| 6 | Do socketed crystals drop tier? | Crown took the default: no, only the pieces |
+| 7 | Which pieces drop on a quit? | Crown took the default: those worn at the quit that the player still owns |
+
+**Still open (non-lore, built with the default unless Crown changes it):**
+
+8. **Hub gear at the trial mirror.** The plan's reading of "only counts once it's kept" is that kept found gear (hub gear) can be put on at the trial mirror from a preset, priced by tier like home gear. The other reading is that hub gear stays in the hub only, and a preset naming it leaves that slot empty in a trial. **Default: it can be bought in.**
+9. **The "last used gear" preset.** It's no longer the starting gear. **Default:** keep it as an automatic preset (the gear worn at the last run's end), so it can be put back on at a mirror. The other option is to drop it.
+
+## 7b. A future stage, not designed (Crown's idea)
+
+A trial-side place or track that changes the starting defaults and gives trial-related skills (Crown: "maybe a trial-specific one where you can get all your trial-related skills"). It would sit on `UClassDefaultLoadoutData` (§3). Nothing is planned or built until Crown designs it.
 
 ## 8. What stays on hold
 
@@ -284,6 +321,6 @@ The values are zero until tuned, so the trial mirror is free until Crown sets th
 - The three audit issues are **not** in this plan's stages, except where noted:
   - CS-4 (the crystal undo): likely gone in stage 1, checked there;
   - CS-5 (run-earned levels not saved): its own job;
-  - CS-3's wrong run gear: stage 1b.
+  - CS-3's wrong run gear: stage 1c (the class defaults replace the run's gear pick).
 
 **Not covered here:** CS-6, 10, 11, 13, 15-17, 19-22, 24 and 25. These are other systems (HP, head-start, vitals, AI seat flags, forms, counters, wallet). Each stays its own job.
