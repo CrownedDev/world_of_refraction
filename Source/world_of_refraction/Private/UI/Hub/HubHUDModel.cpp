@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Hub/HubInteract.h"
+#include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRIconTable.h"
 #include "UI/WoRKeyHintText.h"
@@ -88,9 +89,9 @@ FText WoRHubHUD::BuildQuestLine(const UWorld *World)
 	return WoRPauseMenu::IsInRun(World) ? WoRPauseMenu::GetTrackedLine(World) : FText::GetEmpty();
 }
 
-TArray<FHubHUDPartyCard> WoRHubHUD::BuildPartyStrip(const UParty *Party)
+TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party)
 {
-	TArray<FHubHUDPartyCard> Cards;
+	TArray<FBattleHUDCard> Cards;
 	if (!Party)
 	{
 		return Cards;
@@ -102,20 +103,31 @@ TArray<FHubHUDPartyCard> WoRHubHUD::BuildPartyStrip(const UParty *Party)
 		{
 			continue;
 		}
-		FHubHUDPartyCard &Card = Cards.AddDefaulted_GetRef();
+		FBattleHUDCard &Card = Cards.AddDefaulted_GetRef();
+		Card.bParty = true;
 		Card.Name = FText::FromString(Data->Name);
-		Card.DotColor = ElementColors::GetColorForElement(Data->GetElement());
+		Card.bAlive = !Member.IsFallen();
 		const int32 MaxHP = Data->CalculateMaxHealth();
-		Card.HPShare = Member.CurrentHP == PartyConstants::NO_CARRIED_VITALS || MaxHP <= 0
-						   ? 1.0f
-						   : FMath::Clamp(static_cast<float>(Member.CurrentHP) / static_cast<float>(MaxHP), 0.0f, 1.0f);
+		const int32 MaxEP = Data->CalculateMaxEnergy();
+		const int32 HP = Member.CurrentHP == PartyConstants::NO_CARRIED_VITALS ? MaxHP : Member.CurrentHP;
+		const int32 EP = Member.CurrentEP == PartyConstants::NO_CARRIED_VITALS ? MaxEP : Member.CurrentEP;
+		Card.HPFraction = BattleHUDView::PoolFraction(HP, MaxHP);
+		Card.HPLine = BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), HP, MaxHP);
+		Card.EPLine = BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), EP, MaxEP);
+		// The bar empties after every fight (SB-18, D-013), so between fights it reads 0 in no element's colour.
+		Card.BuildupColour = BattleHUDView::GetBuildupColour(ESpellElement::None, /*bSourceInBrokenDarkness=*/false);
 	}
 	return Cards;
 }
 
+EBattleCardLevel WoRHubHUD::GetCardLevel(const UWorld *World)
+{
+	return WoRPauseMenu::IsInRun(World) ? EBattleCardLevel::Trial : EBattleCardLevel::Hub;
+}
+
 float WoRHubHUD::GetPartyStripMaxWidth(int32 Cards)
 {
-	return Cards * (PARTY_CARD_MAX_WIDTH + PARTY_STRIP_GAP) + FIELD_ATTACK_CHIP_MAX_WIDTH;
+	return Cards * (BattleCardStyle::CardWidth + PARTY_STRIP_GAP) + FIELD_ATTACK_CHIP_MAX_WIDTH;
 }
 
 FHubHUDFieldAttackChip WoRHubHUD::BuildFieldAttackChip(const FFieldAttackEntry &Entry)
@@ -169,9 +181,13 @@ FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	FString Party;
-	for (const FHubHUDPartyCard &Card : BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr))
+	for (const FBattleHUDCard &Card : BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr))
 	{
-		Party += FString::Printf(TEXT("%s%s %.0f%%"), Party.IsEmpty() ? TEXT("") : TEXT(", "), *Card.Name.ToString(), Card.HPShare * 100.0f);
+		Party += FString::Printf(TEXT("%s%s %s %s"), Party.IsEmpty() ? TEXT("") : TEXT(", "), *Card.Name.ToString(), *Card.HPLine.ToString(), *Card.EPLine.ToString());
+	}
+	if (!Party.IsEmpty())
+	{
+		Party += GetCardLevel(World) == EBattleCardLevel::Trial ? TEXT(" (trial cards: HP, EP, build-up)") : TEXT(" (hub cards: names only)");
 	}
 	const APawn *Pawn = PC ? PC->GetPawn() : nullptr;
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
