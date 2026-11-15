@@ -60,15 +60,30 @@ void UCharacterDataComponent::StampPartyMember(const FGuid &MemberId)
     {
         return;
     }
-    PartyMemberId = MemberId;
     ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
-    const UInventoryComponent *Inventory = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
+    UInventoryComponent *Inventory = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
+    // D-221 (B-506): the pawn wears its record first, while still unstamped, so the change funnel can't write the
+    // lore gear over the record.
+    bool bWore = false;
+    if (Loadout && Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
+    {
+        FText Refusal;
+        bool bHasRecord = false;
+        bWore = Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex,
+                                       [Inventory, &bHasRecord](FCombatLoadout &Changed) { bHasRecord = Inventory->WearWornGear(Changed); }, Refusal) &&
+                bHasRecord;
+        if (bHasRecord && !bWore)
+        {
+            UE_LOG(LogWoR, Warning, TEXT("[CharacterData] %s can't wear its record: %s"), *GetNameSafe(GetOwner()), *Refusal.ToString());
+        }
+    }
+    PartyMemberId = MemberId;
     const FPartyMember *Member = FindCarriedPartyMember();
     if (!Loadout || !Inventory || !Member)
     {
         return;
     }
-    if (Member->ActiveWeaponId.IsValid())
+    if (!bWore && Member->ActiveWeaponId.IsValid()) // B-503s2's put-back, for a member with no record yet
     {
         const FGuid WeaponId = Member->ActiveWeaponId;
         FText Refusal;
@@ -80,6 +95,7 @@ void UCharacterDataComponent::StampPartyMember(const FGuid &MemberId)
         }
     }
     Loadout->RecordWeaponInHand(); // a member with nothing recorded yet starts from what this pawn holds
+    Inventory->WriteWornGear();    // D-221 (B-506): stamped now, so this pawn's gear is the record's from here on
     UE_LOG(LogWoR, Log, TEXT("[CharacterData] %s stamped as party member %s"), *GetNameSafe(GetOwner()), *MemberId.ToString());
 }
 
@@ -132,7 +148,7 @@ void UCharacterDataComponent::BeginPlay()
                 Inventory->InitializeFromCharacterData(CharacterData);
                 // B-091 (D-020): a party member's gear is the party's shared armoury.
                 Inventory->DrawSharedGear();
-                if (Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex) &&
+                if (!Inventory->WoreRecordAtDraw() && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex) &&
                     PutWeaponInHand(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], WeaponInHand))
                 {
                     UE_LOG(LogWoR, Log, TEXT("[CharacterData] %s: the weapon last in hand is back in hand (D-218)"), *GetNameSafe(Owner));
