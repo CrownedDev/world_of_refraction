@@ -551,6 +551,7 @@ void UInventoryComponent::PushCustomLoadoutsToPool()
                *GetNameSafe(GetOwner()), Kept);
     }
     Pool->SetCustomLoadouts(SharedGearKey, Custom);
+    Pool->SetActiveLoadoutIndex(SharedGearKey, ActiveLoadoutIndex); // B-503t (audit finding 4)
 }
 
 void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -1575,6 +1576,13 @@ bool UInventoryComponent::DrawSharedGear()
                 Added.HeldHomeLoadout = MakeShared<const FSavedLoadout>(Saved);
             }
         }
+    }
+    // B-503t (audit finding 4): the first draw takes the loadout in use the pool kept (lore then custom order, as
+    // pushed); a re-draw keeps its own.
+    const int32 InUse = Pool->GetActiveLoadoutIndex(Key);
+    if (!bRunOnly && !bKeepsCustomLoadouts && SavedLoadouts.IsValidIndex(InUse))
+    {
+        ActiveLoadoutIndex = InUse;
     }
     bKeepsCustomLoadouts = !bRunOnly;
 

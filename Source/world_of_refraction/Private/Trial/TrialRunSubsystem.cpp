@@ -16,6 +16,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
@@ -26,6 +27,7 @@
 #include "Save/SaveSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
 #include "TimerManager.h"
+#include "UObject/UObjectIterator.h"
 #include "Trial/TrialData.h"
 #include "Trial/PrismDropPickup.h"
 #include "GameFramework/Pawn.h"
@@ -43,12 +45,32 @@ namespace
     /** 0 means "no run", so a generated seed of 0 is bumped to this. */
     constexpr int32 TRIAL_NONZERO_SEED_FALLBACK = 1;
 
+    /** The shared-armoury inventories of the members in World (the trial map, or the hub as a run starts). */
+    TArray<UInventoryComponent *> GetMemberInventories(const UWorld *World)
+    {
+        TArray<UInventoryComponent *> Inventories;
+        for (TObjectIterator<UInventoryComponent> It; It; ++It)
+        {
+            if (!It->IsTemplate() && World && It->GetWorld() == World && It->DrawsSharedGear())
+            {
+                Inventories.Add(*It);
+            }
+        }
+        return Inventories;
+    }
+
     /** B-347 (D-137): opens the run layer and takes the local party's worn loadouts on the run, free. */
     void OpenRunLayerWithWornLoadouts(UGameInstance *GI, UPoolSubsystem &Pool)
     {
+        // B-503t (D-219): the hub's live edits reach the pool first, so the run-start snapshot a quit puts back has them.
+        for (UInventoryComponent *Inventory : GetMemberInventories(GI ? GI->GetWorld() : nullptr))
+        {
+            Inventory->PushCustomLoadoutsToPool();
+        }
         TSet<FName> MemberKeys;
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-        if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+        const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+        if (Party)
         {
             for (const FPartyMember &Member : Party->Members)
             {
@@ -58,6 +80,51 @@ namespace
         MemberKeys.Remove(NAME_None);
         Pool.BeginRunLayer();
         Pool.TakeHomeGearOnRun(MemberKeys);
+        for (int32 Slot = 0; Party && Slot < Party->Members.Num(); ++Slot)
+        {
+            const FPartyMember &Member = Party->Members[Slot];
+            Pool.NoteRunStartFieldPick(UPoolSubsystem::GetCharacterKey(Member), Member.FieldAttackIndex, Member.bFieldAttackPicked);
+        }
+    }
+
+    /** B-503t (D-219): the run-only pieces some member has in the loadout it uses, at the run's end. */
+    TSet<FGuid> GatherEquippedRunGear(const UWorld *World, const UPoolSubsystem &Pool)
+    {
+        TSet<FGuid> Equipped;
+        const TArray<UInventoryComponent *> Inventories = GetMemberInventories(World);
+        for (const TPair<FGuid, FPoolRunMark> &Mark : Pool.GetRunMarks())
+        {
+            if (Mark.Value.bRunOnly && Inventories.ContainsByPredicate([&Mark](const UInventoryComponent *Inventory)
+                                                                       { return Inventory->GetLoadoutsUsing(Mark.Key).Contains(Inventory->ActiveLoadoutIndex); }))
+            {
+                Equipped.Add(Mark.Key);
+            }
+        }
+        return Equipped;
+    }
+
+    /** B-503t (D-219): a quit: each member's field pick as the run began, and the live members' run edits forgotten. */
+    void PutBackRunStartPicks(UGameInstance *GI, const UPoolSubsystem &Pool)
+    {
+        UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+        if (UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+        {
+            for (FPartyMember &Member : Party->Members)
+            {
+                const FPoolRunStartLoadouts *Start = Pool.GetRunStartLoadouts().Find(UPoolSubsystem::GetCharacterKey(Member));
+                if (Start && Start->bHasFieldPick)
+                {
+                    Member.FieldAttackIndex = Start->FieldAttackIndex;
+                    Member.bFieldAttackPicked = Start->bFieldAttackPicked;
+                }
+            }
+        }
+        // shortcut: a member already drawn in this world (a closed game settled in the hub) shows its run loadouts
+        // until the next map; redraw it here if that is ever seen in play.
+        for (UInventoryComponent *Inventory : GetMemberInventories(GI->GetWorld()))
+        {
+            Inventory->ForgetLoadoutEdits();
+        }
     }
 
     int32 MakeFreshRunSeed()
@@ -206,6 +273,19 @@ void UTrialRunSubsystem::FinishRun()
         // B-451 (D-189, Q-451 reading A): out of wipes keeps no upgrades: the items found go, as for a quit, and the
         // run's gear upgrade levels are not remembered.
         const bool bKeepsUpgrades = !bAbandoned && !IsRunLost();
+        // B-503t (D-219): finish, extract and out of wipes carry the run's loadout home; only a quit puts the
+        // run-start loadout back.
+        const bool bCarriesLoadout = !bAbandoned;
+        TSet<FGuid> Equipped;
+        if (bCarriesLoadout)
+        {
+            Equipped = GatherEquippedRunGear(GetGameInstance()->GetWorld(), *Pool);
+            Pool->KeepFoundCrystalsInSockets(); // before the found items are counted
+        }
+        else
+        {
+            PutBackRunStartPicks(GetGameInstance(), *Pool);
+        }
         if (!bKeepsUpgrades)
         {
             Pool->TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176): a quit run also loses the items found in it
@@ -214,7 +294,7 @@ void UTrialRunSubsystem::FinishRun()
         {
             Pool->StoreRunFoundItems(); // B-238b (D-097, Q-238b): any other end sends the run's finds to home storage
         }
-        Pool->EndRunLayer(bKeepsUpgrades);
+        Pool->EndRunLayer(bKeepsUpgrades, bCarriesLoadout ? &Equipped : nullptr);
     }
     // B-377: a hidden quest's step in progress starts its count again next run; steps done stay (MemoryCatalogue §3.6).
     if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())

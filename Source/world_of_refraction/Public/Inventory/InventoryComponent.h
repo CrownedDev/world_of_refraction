@@ -98,8 +98,13 @@ public:
     void InitializeFromPool(UPoolSubsystem *Pool);
 
     /** B-311 (D-111): hands this character's custom loadouts (every loadout not from the character asset) to the
-     *  pool, which keeps and saves them. No-op off the shared armoury or in a run. Called at EndPlay and before a save. */
+     *  pool, which keeps and saves them. No-op off the shared armoury or in a run. Called at EndPlay and before a save.
+     *  B-503t (audit finding 4): the loadout in use goes with them. */
     void PushCustomLoadoutsToPool();
+
+    /** B-503t (D-219): a quit run's loadout edits don't count: this member stops pushing to the pool (EndPlay, the exit
+     *  save), so the run-start loadouts the pool put back stand. Its next draw (the next map) reads them. */
+    void ForgetLoadoutEdits() { bKeepsCustomLoadouts = false; }
 
     /** Learned spells (max 50) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Spells")
