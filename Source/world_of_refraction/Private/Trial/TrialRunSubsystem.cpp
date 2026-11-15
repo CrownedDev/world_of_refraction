@@ -16,6 +16,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loadout/ClassDefaultLoadoutData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
@@ -1141,6 +1142,42 @@ FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
     const float Multiplier = bLeavingEarly ? PayoutMultiplier * RunRewards::LEAVE_EARLY_SHARE : PayoutMultiplier;
     return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten && !bLeavingEarly, Multiplier);
 }
+
+const FClassDefaultLoadout *UTrialRunSubsystem::FindClassDefaults(ECharacterClass Class) const
+{
+    const UClassDefaultLoadoutData *Data = ClassDefaultLoadouts.IsNull() ? nullptr : ClassDefaultLoadouts.LoadSynchronous();
+    if (!Data)
+    {
+        UE_LOG(LogWoRLoadout, Warning, TEXT("[TrialRun] No class default kits (ClassDefaultLoadouts '%s' in DefaultGame.ini): the trial keeps what is worn"),
+               *ClassDefaultLoadouts.ToString());
+        return nullptr;
+    }
+    const FClassDefaultLoadout *Kit = Data->Defaults.Find(Class);
+    if (!Kit)
+    {
+        UE_LOG(LogWoRLoadout, Warning, TEXT("[TrialRun] %s has no %s kit: the trial keeps what is worn"), *Data->GetName(),
+               *UEnum::GetDisplayValueAsText(Class).ToString());
+    }
+    return Kit;
+}
+
+FString UTrialRunSubsystem::GetClassDefaultsString() const
+{
+    const UClassDefaultLoadoutData *Data = ClassDefaultLoadouts.IsNull() ? nullptr : ClassDefaultLoadouts.LoadSynchronous();
+    const UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>();
+    return FString::Printf(TEXT("%s\n%s"), Data ? *Data->GetDefaultsString() : *FString::Printf(TEXT("[ClassDefaults] no asset at '%s'"), *ClassDefaultLoadouts.ToString()),
+                           Pool ? *Pool->GetClassDefaultKitsString() : TEXT("[ClassDefaults] no pool"));
+}
+
+static FAutoConsoleCommandWithWorld GTrialPrintClassDefaultsCommand(
+    TEXT("wor.Trial.PrintClassDefaults"),
+    TEXT("B-511 (D-221): the class default kits (DA_Loadout_ClassDefaults) and every character's minted kit pieces."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        UE_LOG(LogWoRLoadout, Display, TEXT("%s"), Run ? *Run->GetClassDefaultsString() : TEXT("[ClassDefaults] no run subsystem"));
+    }));
 
 static FAutoConsoleCommandWithWorld GTrialPrintRevivalsCommand(
     TEXT("wor.Trial.PrintRevivals"),
