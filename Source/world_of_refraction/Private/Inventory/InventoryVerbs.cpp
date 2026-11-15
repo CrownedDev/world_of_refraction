@@ -216,6 +216,10 @@ namespace WoRInventoryVerbs
 		{
 			return LOCTEXT("HubGear", "Gear kept from a run is just for the hub; it can't be sold or dismantled.");
 		}
+		if (Row.IsGear() && Pool->IsClassDefault(Row.GearID)) // B-511 (D-221)
+		{
+			return LOCTEXT("ClassDefault", "Starting gear can't be sold or dismantled.");
+		}
 		if (Row.IsGear() && Pool->IsRunLayerActive() && !Pool->IsRunOnly(Row.GearID))
 		{
 			return LOCTEXT("HomeOnRun", "Gear from home can't go during a run; it comes back when the run ends.");

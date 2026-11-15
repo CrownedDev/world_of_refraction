@@ -140,6 +140,10 @@ FText WoRVendorServices::GetRefusal(UWorld *World, EMerchantType Vendor, EVendor
 	{
 		return LOCTEXT("HubGear", "Gear kept from a run is just for the hub; it can't be sold or dismantled");
 	}
+	if (Pool->IsClassDefault(Row.GearID) || Pool->IsClassDefault(Row.EvolutionID)) // B-511 (D-221)
+	{
+		return LOCTEXT("ClassDefault", "Starting gear can't be sold or dismantled");
+	}
 	const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
 	if (!Inventory)
 	{
