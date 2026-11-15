@@ -93,6 +93,12 @@ The struct itself stays only as the save and preset shape, until restructure sta
 - It is never learned, slotted or counted in Combat Tier (`FAbilityCollection.cpp:17-19`, `CombatTier.cpp:59-72`).
 - The battle's Attack button plays it (`LoadoutComponent.cpp:2459-2479` `GetCurrentAttack`), and the field swing plays its `FieldMontage` (`FieldMovementAttack.cpp:98-113`). So **the basic Attack works unchanged with no weapon skills.**
 - With no weapon there is no Attack button, and the field gives a plain swing, as today (`FCombatCapabilities.cpp:58`).
+- **The rule for a pair (Crown, after B-515):** any held pair's basic attack is the **main hand's** `WeaponAttack`, whatever is in the off hand: a shield, a second sword or a second axe. **The code already does this everywhere:**
+  - the battle's `GetCurrentAttack` (`LoadoutComponent.cpp:2459-2479`);
+  - the attack list `GetAllWeaponAttacks` (`:1402-1446`);
+  - the field swing (`FieldMovementAttack.cpp:106`).
+  - Each one reads the entry's main-hand weapon, and an off hand's `WeaponAttack` is never read. The spec `WoR.Loadout.WeaponSets` "attacks with the main hand's own attack whatever is in the off hand" covers a dual pair and a shield pair (B-515b), so stage 3 (the axes) needs no attack job.
+  - The worn entry's `OverrideAttack` (`FLoadoutSlot`), where set, still comes first, as today.
 
 **Every weapon must have:**
 - a valid `WeaponType` (the Gauntlets asset has `EWeaponType_MAX` today);
