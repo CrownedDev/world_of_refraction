@@ -933,6 +933,7 @@ bool UPartySessionSubsystem::SetMemberFieldAttackIndex(int32 SlotIndex, int32 Fi
 		return false;
 	}
 	Party->Members[SlotIndex].FieldAttackIndex = FieldAttackIndex;
+	Party->Members[SlotIndex].bFieldAttackPicked = true; // B-503s (D-218): the pick drives the parry now
 	return true; // the component logs the entry it names
 }
 

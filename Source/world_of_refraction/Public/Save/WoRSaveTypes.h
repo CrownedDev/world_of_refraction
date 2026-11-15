@@ -177,6 +177,10 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
 
+	/** B-503s (D-218): FPartyMember::bFieldAttackPicked. No version bump: an older 39 loads it as never picked. */
+	UPROPERTY()
+	bool bFieldAttackPicked = false;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 
