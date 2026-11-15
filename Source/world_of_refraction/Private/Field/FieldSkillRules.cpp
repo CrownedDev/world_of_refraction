@@ -351,6 +351,26 @@ namespace FieldSkillRules
 		return Next < Entries.Num() && Entries[Next].bHoldStep ? Next : FieldAttackStopOf(Entries, Kept);
 	}
 
+	int32 GetFieldWheelIndexFromStick(const FVector2D &Stick, int32 EntryCount)
+	{
+		if (EntryCount <= 0 || Stick.Size() < FIELD_WHEEL_STICK_DEADZONE)
+		{
+			return INDEX_NONE;
+		}
+		const double FromTopClockwise = FMath::Atan2(Stick.X, Stick.Y); // 0 straight up, positive to the right
+		const double Turn = FMath::Fmod(FromTopClockwise + UE_DOUBLE_TWO_PI, UE_DOUBLE_TWO_PI);
+		return FMath::RoundToInt32(Turn / (UE_DOUBLE_TWO_PI / EntryCount)) % EntryCount;
+	}
+
+	int32 StepFieldWheelIndex(int32 Index, int32 Delta, int32 EntryCount)
+	{
+		if (EntryCount <= 0)
+		{
+			return FIRST_FIELD_ATTACK_INDEX;
+		}
+		return ((ClampFieldAttackIndex(Index, EntryCount) + Delta) % EntryCount + EntryCount) % EntryCount;
+	}
+
 	FString FieldAttackEntryString(const FFieldAttackEntry &Entry)
 	{
 		return FString::Printf(TEXT("%s%s '%s' %s %s (%s%s)"), Entry.bHoldStep ? TEXT("hold step: ") : TEXT(""),

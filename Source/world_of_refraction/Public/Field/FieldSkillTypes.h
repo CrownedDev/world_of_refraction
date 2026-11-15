@@ -339,6 +339,17 @@ namespace FieldSkillRules
 	 *  when it has none (a source with one element). */
 	WORLD_OF_REFRACTION_API int32 NextFieldAttackHoldIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index);
 
+	// ---- B-503m3 (D-217): the LB wheel, every stop and hold step at once ----
+
+	constexpr float FIELD_WHEEL_STICK_DEADZONE = 0.5f; // the stick picks past half tilt; let go, the pick stays
+
+	/** The wheel's entry the stick points at: entry 0 at the top, then clockwise; INDEX_NONE inside the dead zone or
+	 *  with no entries. The stick's Y is up. */
+	WORLD_OF_REFRACTION_API int32 GetFieldWheelIndexFromStick(const FVector2D &Stick, int32 EntryCount);
+
+	/** The mouse wheel: Delta entries on (negative: back), wrapping both ways; the first with no entries. */
+	WORLD_OF_REFRACTION_API int32 StepFieldWheelIndex(int32 Index, int32 Delta, int32 EntryCount);
+
 	// ---- B-214h: evolutions (FieldAbilities choice 2; Q-214h; TODO: tune) ----
 
 	constexpr float EVOLUTION_SPRINT_BONUS_PERCENT = 15.0f;     // the default always-on bonus (+10-20%)
@@ -359,8 +370,8 @@ namespace FieldSkillRules
 
 	inline bool IsFieldAttackHeld(double PressedSeconds) { return PressedSeconds >= FIELD_ATTACK_HOLD_SECONDS; }
 
-	/** B-503k (D-217): R / LB pressed this long is a hold (change the element within the source), shorter a press
-	 *  (change the source). B-503m: its own value; 0.5 s, the middle of the usual 0.4-0.6 s (docs/research/hold-duration.md).
+	/** B-503k (D-217): R / LB pressed this long is a hold, shorter a press (change the source). B-503m3: the hold
+	 *  opens the wheel. B-503m: its own value; 0.5 s, the middle of the usual 0.4-0.6 s (docs/research/hold-duration.md).
 	 *  TODO: a hold-time setting in Options can replace it later. */
 	constexpr double FIELD_SOURCE_HOLD_SECONDS = 0.5;
 
