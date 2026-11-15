@@ -110,6 +110,7 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 		const UAbilityData *Attack = Cast<UAbilityData>(Weapon->WeaponAttack);
 		FFieldAttackEntry &Entry = Entries.Add_GetRef(MakeGearEntry(EFieldAttackKind::Weapon, *Weapon, Socket));
 		Entry.Physical = Attack ? Attack->PhysicalDamageType : EPhysicalDamageType::None;
+		Entry.WeaponType = Weapon->WeaponType;
 		Entry.SwingMontage = Weapon->WeaponAttack ? Weapon->WeaponAttack->FieldMontage : nullptr;
 		AddSocketEvolutionEntry(Socket, Evolutions);
 	};

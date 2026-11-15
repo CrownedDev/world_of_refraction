@@ -11,10 +11,13 @@
 
 #include "CoreMinimal.h"
 #include "Hub/InteractPrompt.h"
+#include "UI/WoRIcon.h"
 
 class APawn;
 class UParty;
+class UTexture2D;
 class UWorld;
+struct FFieldAttackEntry;
 enum class ECurrencyType : uint8;
 
 struct FHubHUDPrompt
@@ -38,6 +41,21 @@ struct FHubHUDPartyCard
 	FLinearColor DotColor = FLinearColor::White;
 	/** 0..1; a member with no carried vitals (the hub) reads full. */
 	float HPShare = 1.0f;
+};
+
+/** B-503i: the field attack chip, a card after the party strip: an icon, the name, the element as a dot. */
+struct FHubHUDFieldAttackChip
+{
+	FText Name;
+	/** The item's own icon; null: Icon, from the icon table. */
+	UTexture2D *OwnIcon = nullptr;
+	/** The table's icon: a weapon's type, else the entry's element badge (None for neither). */
+	FWoRIcon Icon;
+	/** Shown in the icon's place when there is no texture ("Sword", "Ring"); may be empty. */
+	FText IconText;
+	bool bElemental = false;
+	FText ElementName;
+	FLinearColor ElementColor = FLinearColor::White;
 };
 
 struct FHubHUDMoney
@@ -77,6 +95,23 @@ namespace WoRHubHUD
 
 	/** B-503g: the party strip, one card per member in party order (members with no data are left out). */
 	WORLD_OF_REFRACTION_API TArray<FHubHUDPartyCard> BuildPartyStrip(const UParty *Party);
+
+	// B-503i: the strip's cards size to their content between these widths (layout units: 1920 wide at 16:9, at any
+	// resolution); a longer name ends in "...". The mockup's card is the minimum (138 at 720p, x1.5).
+	inline constexpr float PARTY_CARD_MIN_WIDTH = 207.0f;
+	inline constexpr float PARTY_CARD_MAX_WIDTH = 300.0f;
+	inline constexpr float FIELD_ATTACK_CHIP_MIN_WIDTH = 207.0f;
+	inline constexpr float FIELD_ATTACK_CHIP_MAX_WIDTH = 360.0f;
+	/** The mockup's 12 px at 720p between cards, and before the chip. */
+	inline constexpr float PARTY_STRIP_GAP = 18.0f;
+	/** The HUD's layout width at 16:9 (the DPI curve scales 1080p's units to the screen). */
+	inline constexpr float HUD_LAYOUT_WIDTH = 1920.0f;
+
+	/** The widest the strip's row can get: Cards cards at their maximum, the gaps and the chip. */
+	WORLD_OF_REFRACTION_API float GetPartyStripMaxWidth(int32 Cards);
+
+	/** B-503i: the chip for Entry: its name ("Unarmed" for none), its icon and the element dot's colour. */
+	WORLD_OF_REFRACTION_API FHubHUDFieldAttackChip BuildFieldAttackChip(const FFieldAttackEntry &Entry);
 
 	WORLD_OF_REFRACTION_API FString GetHubHUDString(const UWorld *World);
 }
