@@ -128,9 +128,9 @@ void FRingWeaponQuerySpec::Define()
 			{
 				return;
 			}
-			TestTrue(TEXT("switched"), Loadout->SwitchToNextUsableRing());
+			TestTrue(TEXT("switched"), Loadout->SwitchToNextUsableSlot(EGearKind::Adapter));
 			TestEqual(TEXT("landed past the broken ring"), ActiveRingIndex(), 2);
-			TestTrue(TEXT("loadout switch wraps"), Loadout->SwitchToNextUsableRing());
+			TestTrue(TEXT("loadout switch wraps"), Loadout->SwitchToNextUsableSlot(EGearKind::Adapter));
 			TestEqual(TEXT("wrapped past the broken ring to the first"), ActiveRingIndex(), 0);
 		});
 
@@ -142,7 +142,7 @@ void FRingWeaponQuerySpec::Define()
 			{
 				return;
 			}
-			TestFalse(TEXT("no loadout switch"), Loadout->SwitchToNextUsableRing());
+			TestFalse(TEXT("no loadout switch"), Loadout->SwitchToNextUsableSlot(EGearKind::Adapter));
 			TestEqual(TEXT("stayed"), ActiveRingIndex(), 0);
 		});
 

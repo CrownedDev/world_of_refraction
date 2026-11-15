@@ -233,7 +233,7 @@ void FTurnStartOrderSpec::Define()
 				return;
 			}
 			FText Reason;
-			TestTrue(TEXT("Hero switches weapon"), HeroLoadout->TrySwitchWeaponThisTurn(Reason));
+			TestTrue(TEXT("Hero switches weapon"), HeroLoadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
 			if (!TestFalse(TEXT("The free switch is used"), HeroLoadout->GetTurnSwitchRefusedReason().IsEmpty()))
 			{
 				return;
