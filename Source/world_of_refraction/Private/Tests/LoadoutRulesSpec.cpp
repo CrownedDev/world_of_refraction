@@ -6,7 +6,6 @@
 
 #include "Misc/AutomationTest.h"
 #include "Loadout/LoadoutRules.h"
-#include "Loadout/WeaponSpellRules.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -193,8 +192,7 @@ void FLoadoutRulesSpec::Define()
 				Ring.RingEntry.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
 			}
 
-			WeaponSpellRules::FScopedWeaponSpells OldWeaponSpells(true); // B-098: the old weapon-spell path, until the sweep
-			TestEqual(FString::Printf(TEXT("weapon lists the evolution's count: got %d"), Weapon.GetAllSpells().Num()), Weapon.GetAllSpells().Num(), FCount);
+			TestEqual(TEXT("B-411 (D-027): the weapon lists none"), Weapon.GetAllSpells().Num(), 0);
 			TestEqual(FString::Printf(TEXT("ring lists the evolution's count: got %d"), Ring.GetAllSpells().Num()), Ring.GetAllSpells().Num(), FCount);
 			TestEqual(FString::Printf(TEXT("ring offers the evolution's count to fill: got %d"), Ring.GetCustomizableSpellCount()), Ring.GetCustomizableSpellCount(), FCount);
 		});
@@ -340,42 +338,29 @@ void FLoadoutRulesSpec::Define()
 		};
 		const int32 FCount = CrystalEffectTable::SlotsForContainerTier(EItemTier::F_Tier);
 
-		It("reports each weapon spell over the cap, none at the cap", [this, FEvolution, CountOverCap, FCount]()
+		It("flags every spell an older loadout keeps on a weapon, clearably (B-411, D-027)", [this, FEvolution]()
 		{
 			FCombatLoadout Loadout;
 			Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
 			Loadout.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
-			Loadout.PrimaryWeapon.WeaponEntry.Tier = EItemTier::S_Tier;
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem = FEvolution();
-			for (int32 i = 0; i < FCount; ++i)
+			const auto CountWeaponSpellFindings = [](const FCombatLoadout &Checked)
 			{
-				Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
-			}
-			TestEqual(TEXT("at the cap: no finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
-			for (int32 i = FCount; i < LoadoutConstants::MAX_SPELL_SLOTS; ++i)
+				return FLoadoutRules::CollectFindings(Checked, FLoadoutRuleContext())
+					.FilterByPredicate([](const FInvalidSlotFinding &Finding) { return Finding.SlotType == ELoadoutSlotType::WeaponSpell; })
+					.Num();
+			};
+			TestEqual(TEXT("no spell: no finding"), CountWeaponSpellFindings(Loadout), 0);
+			Loadout.PrimaryWeapon.AssignedSpells = {NewSpell(ESpellElement::Fire), nullptr, NewSpell(ESpellElement::Water)};
+			TestEqual(TEXT("one finding per spell, none for the empty slot"), CountWeaponSpellFindings(Loadout), 2);
+			for (const FInvalidSlotFinding &Finding : FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()))
 			{
-				Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+				if (Finding.SlotType == ELoadoutSlotType::WeaponSpell)
+				{
+					TestTrue(TEXT("clearable"), Finding.bClearable);
+					TestTrue(TEXT("says why"), Finding.Reason.Contains(TEXT("weapons don't hold spells")));
+				}
 			}
-			TestEqual(TEXT("one finding per spell the fight drops"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell),
-					  LoadoutConstants::MAX_SPELL_SLOTS - FCount);
-		});
-
-		It("doesn't flag a loadout spell that only replaces one of the item's own (the fight keeps it)", [this, FEvolution, CountOverCap, FCount]()
-		{
-			FCombatLoadout Loadout;
-			Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
-			FWeaponInventoryEntry &Entry = Loadout.PrimaryWeapon.WeaponEntry;
-			Entry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
-			Entry.Tier = EItemTier::S_Tier;
-			Entry.AttachedItem = FEvolution();
-			for (int32 i = 0; i <= FCount; ++i)
-			{
-				Entry.AssignedSpells.Add(NewSpell(ESpellElement::Fire)); // the item's own: one over the cap
-			}
-			Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire)); // replaces the first
-			TestEqual(TEXT("no clearable finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
-			const TArray<FString> Reasons = FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()));
-			TestTrue(TEXT("the item's own spells are reported"), AnyReasonContains(Reasons, TEXT("of the item's own spells")));
 		});
 
 		It("reports each primary ring spell over the cap", [this, FEvolution, CountOverCap, FCount]()

@@ -224,37 +224,17 @@ namespace
 			}
 		}
 
+		// B-411 (D-027): weapons hold no spells. A spell an older loadout still has on a weapon is a clearable problem, so the
+		// pre-fight clean (and a socket change, B-171) drops it with a message naming it.
 		for (int32 i = 0; i < Weapon.AssignedSpells.Num(); ++i)
 		{
-			const USpellData *Spell = Weapon.AssignedSpells[i];
-			if (!Spell)
-			{
-				continue;
-			}
-			if (!Passes<const USpellData *>(Context.KnowsSpell, Spell))
-			{
-				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true, FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name), WeaponSub);
-				continue;
-			}
-			// Element coherence: weapon-sourced spell must match the weapon crystal.
-			if (!Weapon.WeaponEntry.HasCrystal())
+			if (const USpellData *Spell = Weapon.AssignedSpells[i])
 			{
 				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true,
-						 FString::Printf(TEXT("Weapon spell '%s' requires a crystal but equipped weapon has none"), *Spell->Name), WeaponSub);
-				continue;
-			}
-			const ESpellElement CrystalElement = Weapon.WeaponEntry.GetElement();
-			if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, CrystalElement))
-			{
-				Sink.Add(ELoadoutSlotType::WeaponSpell, i, true,
-						 FString::Printf(TEXT("Weapon spell '%s' element %s does not match weapon crystal element %s"),
-										 *Spell->Name, *UEnum::GetValueAsString(Spell->Element),
-										 *UEnum::GetValueAsString(CrystalElement)), WeaponSub);
+						 FString::Printf(TEXT("Weapon spell '%s': weapons don't hold spells"), *Spell->Name), WeaponSub);
 			}
 		}
 
-		CheckSpellCap(Sink, ELoadoutSlotType::WeaponSpell, -1, /*bSpellIsSubIndex=*/false, Weapon.AssignedSpells,
-					  Weapon.WeaponEntry.GetSpells().Num(), Weapon.GetAllSpellsUncapped().Num(), Weapon.GetSpellSlotCap(), WeaponSub);
 		CheckAbilityCounts(Sink, Weapon, bSecondary ? TEXT("Secondary") : TEXT("Primary"),
 						   bSecondary ? LoadoutAbilityOverflowIndex::SECONDARY_WEAPON : LoadoutAbilityOverflowIndex::PRIMARY_WEAPON);
 	}
