@@ -57,6 +57,7 @@ namespace
         }
         MemberKeys.Remove(NAME_None);
         Pool.BeginRunLayer();
+        Pool.SnapshotRunStartGear(MemberKeys); // B-508 (D-219): a quit puts these back
         Pool.TakeHomeGearOnRun(MemberKeys);
     }
 
@@ -201,20 +202,10 @@ void UTrialRunSubsystem::FinishRun()
 {
     // B-314 (D-111, D-097): the run layer closes while the members are still here to hear it: home pieces go back to
     // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
+    // B-508 (D-219): one call per ending; a quit (or a closed game) also puts the run-start gear back.
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
-        // B-451 (D-189, Q-451 reading A): out of wipes keeps no upgrades: the items found go, as for a quit, and the
-        // run's gear upgrade levels are not remembered.
-        const bool bKeepsUpgrades = !bAbandoned && !IsRunLost();
-        if (!bKeepsUpgrades)
-        {
-            Pool->TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176): a quit run also loses the items found in it
-        }
-        else
-        {
-            Pool->StoreRunFoundItems(); // B-238b (D-097, Q-238b): any other end sends the run's finds to home storage
-        }
-        Pool->EndRunLayer(bKeepsUpgrades);
+        Pool->CloseRun(bAbandoned ? EPoolRunEnding::Quit : IsRunLost() ? EPoolRunEnding::Lost : EPoolRunEnding::Kept);
     }
     // B-377: a hidden quest's step in progress starts its count again next run; steps done stay (MemoryCatalogue §3.6).
     if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())
@@ -230,6 +221,10 @@ void UTrialRunSubsystem::FinishRun()
         // B-076 (D-026): characters found in the trial leave with it.
         PartySession->DismissRunMembers();
         PartySession->ClearAllMemberVitals();
+        if (bAbandoned)
+        {
+            PartySession->PullWheelPicksFromPool(); // B-508: the members' picks follow their put-back records
+        }
     }
     // B-178: the run's Gold is lost when it ends (never banked).
     if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())

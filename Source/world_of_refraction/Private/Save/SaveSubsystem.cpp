@@ -361,6 +361,73 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 	}
 	return Loadout;
 }
+
+/** D-221 (B-507): a worn-gear record by owned GUID, its wheel pick included (the pool's and the run's start copy). */
+FSavedWornGear SaveWornGearRecord(FName Character, const FWornGear &Worn)
+{
+	FSavedWornGear Out;
+	Out.Character = Character;
+	for (const FLoadoutSlot &Entry : Worn.Equipment)
+	{
+		FSavedWornEntry &OutEntry = Out.Equipment.AddDefaulted_GetRef();
+		OutEntry.GearID = Entry.GearID;
+		OutEntry.OffHandID = Entry.OffHandID;
+		OutEntry.Abilities = SaveLoadoutRefs(ObjectPtrDecay(Entry.AssignedAbilities));
+	}
+	Out.ActiveGearID = Worn.ActiveGearID;
+	Out.EvolutionID = Worn.EvolutionID;
+	Out.EvolutionSpells = SaveLoadoutRefs(ObjectPtrDecay(Worn.EvolutionSpells));
+	Out.Apparel = Worn.Apparel;
+	Out.InnateSpells = SaveLoadoutRefs(ObjectPtrDecay(Worn.InnateSpells));
+	for (const FBDElementSpellPool &BDPool : Worn.BDSpellPools)
+	{
+		FSavedCustomBDPool &OutPool = Out.BDSpellPools.AddDefaulted_GetRef();
+		OutPool.Element = static_cast<uint8>(BDPool.Element);
+		OutPool.Spells = SaveLoadoutRefs(BDPool.Spells);
+	}
+	Out.FieldSkillSource = Worn.WheelPick.FieldSkill.Source;
+	Out.FieldSkillType = Worn.WheelPick.FieldSkill.Type;
+	Out.FieldAttackIndex = Worn.WheelPick.FieldAttackIndex;
+	Out.bFieldAttackPicked = Worn.WheelPick.bPicked;
+	return Out;
+}
+
+/** SaveWornGearRecord's way back, by character (a record with no character is dropped). */
+TMap<FName, FWornGear> RestoreWornGearRecords(const TArray<FSavedWornGear> &Saved)
+{
+	TMap<FName, FWornGear> WornGear;
+	for (const FSavedWornGear &In : Saved)
+	{
+		if (In.Character.IsNone())
+		{
+			continue;
+		}
+		FWornGear &Worn = WornGear.Add(In.Character);
+		for (const FSavedWornEntry &InEntry : In.Equipment)
+		{
+			FLoadoutSlot &Entry = Worn.Equipment.AddDefaulted_GetRef();
+			Entry.GearID = InEntry.GearID;
+			Entry.OffHandID = InEntry.OffHandID;
+			Entry.AssignedAbilities.Append(RestoreLoadoutRefs<UAbilityData>(InEntry.Abilities));
+		}
+		Worn.ActiveGearID = In.ActiveGearID;
+		Worn.EvolutionID = In.EvolutionID;
+		Worn.EvolutionSpells.Append(RestoreLoadoutRefs<USpellData>(In.EvolutionSpells));
+		Worn.Apparel = In.Apparel;
+		Worn.InnateSpells.Append(RestoreLoadoutRefs<USpellData>(In.InnateSpells));
+		for (const FSavedCustomBDPool &InPool : In.BDSpellPools)
+		{
+			FBDElementSpellPool &BDPool = Worn.BDSpellPools.AddDefaulted_GetRef();
+			BDPool.Element = static_cast<ESpellElement>(InPool.Element);
+			BDPool.Spells = RestoreLoadoutRefs<USpellData>(InPool.Spells);
+		}
+		Worn.WheelPick.FieldSkill.Source = In.FieldSkillSource;
+		Worn.WheelPick.FieldSkill.Type = In.FieldSkillType;
+		Worn.WheelPick.FieldAttackIndex = In.FieldAttackIndex;
+		Worn.WheelPick.bPicked = In.bFieldAttackPicked;
+	}
+	return WornGear;
+}
 }
 
 void USaveSubsystem::Initialize(FSubsystemCollectionBase &Collection)
@@ -790,13 +857,13 @@ void USaveSubsystem::SettleClosedRun(const FSavedRun &Run, UWorld *World)
 	if (Pool && Run.bHasRun && Run.bHasRunLayer)
 	{
 		RestoreSavedRunLayer(Run, *Pool);
-		Pool->TakeRunFoundItems();
-		Pool->EndRunLayer(/*bKeepUpgrades=*/false); // B-451: a quit keeps no upgrade levels, as FinishRun
+		Pool->CloseRun(EPoolRunEnding::Quit); // B-508: as FinishRun's quit, the run-start gear included
 	}
 	// The rest of FinishRun's quit (D-176): run recruits leave, a hidden quest's step in progress starts again.
 	if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
 	{
 		PartySession->DismissRunMembers();
+		PartySession->PullWheelPicksFromPool(); // B-508: the picks follow the put-back records
 	}
 	if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())
 	{
@@ -1331,31 +1398,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 	}
 	for (const TPair<FName, FWornGear> &Record : Pool.GetAllWornGear()) // D-221 (B-507, v40)
 	{
-		const FWornGear &Worn = Record.Value;
-		FSavedWornGear &Out = Saved.WornGear.AddDefaulted_GetRef();
-		Out.Character = Record.Key;
-		for (const FLoadoutSlot &Entry : Worn.Equipment)
-		{
-			FSavedWornEntry &OutEntry = Out.Equipment.AddDefaulted_GetRef();
-			OutEntry.GearID = Entry.GearID;
-			OutEntry.OffHandID = Entry.OffHandID;
-			OutEntry.Abilities = SaveLoadoutRefs(ObjectPtrDecay(Entry.AssignedAbilities));
-		}
-		Out.ActiveGearID = Worn.ActiveGearID;
-		Out.EvolutionID = Worn.EvolutionID;
-		Out.EvolutionSpells = SaveLoadoutRefs(ObjectPtrDecay(Worn.EvolutionSpells));
-		Out.Apparel = Worn.Apparel;
-		Out.InnateSpells = SaveLoadoutRefs(ObjectPtrDecay(Worn.InnateSpells));
-		for (const FBDElementSpellPool &BDPool : Worn.BDSpellPools)
-		{
-			FSavedCustomBDPool &OutPool = Out.BDSpellPools.AddDefaulted_GetRef();
-			OutPool.Element = static_cast<uint8>(BDPool.Element);
-			OutPool.Spells = SaveLoadoutRefs(BDPool.Spells);
-		}
-		Out.FieldSkillSource = Worn.WheelPick.FieldSkill.Source;
-		Out.FieldSkillType = Worn.WheelPick.FieldSkill.Type;
-		Out.FieldAttackIndex = Worn.WheelPick.FieldAttackIndex;
-		Out.bFieldAttackPicked = Worn.WheelPick.bPicked;
+		Saved.WornGear.Add(SaveWornGearRecord(Record.Key, Record.Value));
 	}
 	Saved.UpgradeMemory = Pool.GetUpgradeMemory(); // B-314b (D-097)
 	for (const TPair<FName, FPoolSkills> &Skills : Pool.GetCharacterSkills()) // B-316b
@@ -1422,6 +1465,10 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 			Out.Tier = Stack.Key.Tier;
 			Out.StoneStat = static_cast<uint8>(Stack.Key.StoneStat);
 			Out.Count = Stack.Value;
+		}
+		for (const TPair<FName, FWornGear> &Start : Pool->GetRunStartWornGear()) // B-508 (D-219, v41)
+		{
+			Saved.RunStartWornGear.Add(SaveWornGearRecord(Start.Key, Start.Value));
 		}
 	}
 	return Saved;
@@ -1510,6 +1557,7 @@ void USaveSubsystem::RestoreSavedRunLayer(const FSavedRun &Saved, UPoolSubsystem
 		}
 		Pool.RestoreRunStartItems(StartItems);
 	}
+	Pool.RestoreRunStartWornGear(RestoreWornGearRecords(Saved.RunStartWornGear)); // B-508 (D-219, v41)
 }
 
 bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsystem &PartySession)
@@ -1717,37 +1765,8 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		}
 		Pool.SetCustomLoadouts(Custom.Character, Loadouts);
 	}
-	TMap<FName, FWornGear> WornGear; // D-221 (B-507, v40); a piece that's gone leaves its place empty at the next draw
-	for (const FSavedWornGear &In : Saved.WornGear)
-	{
-		if (In.Character.IsNone())
-		{
-			continue;
-		}
-		FWornGear &Worn = WornGear.Add(In.Character);
-		for (const FSavedWornEntry &InEntry : In.Equipment)
-		{
-			FLoadoutSlot &Entry = Worn.Equipment.AddDefaulted_GetRef();
-			Entry.GearID = InEntry.GearID;
-			Entry.OffHandID = InEntry.OffHandID;
-			Entry.AssignedAbilities.Append(RestoreLoadoutRefs<UAbilityData>(InEntry.Abilities));
-		}
-		Worn.ActiveGearID = In.ActiveGearID;
-		Worn.EvolutionID = In.EvolutionID;
-		Worn.EvolutionSpells.Append(RestoreLoadoutRefs<USpellData>(In.EvolutionSpells));
-		Worn.Apparel = In.Apparel;
-		Worn.InnateSpells.Append(RestoreLoadoutRefs<USpellData>(In.InnateSpells));
-		for (const FSavedCustomBDPool &InPool : In.BDSpellPools)
-		{
-			FBDElementSpellPool &BDPool = Worn.BDSpellPools.AddDefaulted_GetRef();
-			BDPool.Element = static_cast<ESpellElement>(InPool.Element);
-			BDPool.Spells = RestoreLoadoutRefs<USpellData>(InPool.Spells);
-		}
-		Worn.WheelPick.FieldSkill.Source = In.FieldSkillSource;
-		Worn.WheelPick.FieldSkill.Type = In.FieldSkillType;
-		Worn.WheelPick.FieldAttackIndex = In.FieldAttackIndex;
-		Worn.WheelPick.bPicked = In.bFieldAttackPicked;
-	}
+	// D-221 (B-507, v40); a piece that's gone leaves its place empty at the next draw
+	const TMap<FName, FWornGear> WornGear = RestoreWornGearRecords(Saved.WornGear);
 	Pool.RestoreWornGear(WornGear);
 	// The wheel pick's home is the record: a party restored before the pool takes its members' picks from it.
 	UPartySessionSubsystem *PartySession = Pool.GetGameInstance() ? Pool.GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;

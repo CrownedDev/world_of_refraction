@@ -204,6 +204,82 @@ struct WORLD_OF_REFRACTION_API FSavedCrystalStack
 	uint8 StoneStat = static_cast<uint8>(ESubStat::None);
 };
 
+/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
+{
+	GENERATED_BODY()
+
+	/** ESpellElement. */
+	UPROPERTY()
+	uint8 Element = 0;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Spells;
+};
+
+/** D-221 (B-507, save v40): one entry of a worn-gear record (FLoadoutSlot): the owned piece and its set's off hand. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedWornEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid GearID;
+
+	UPROPERTY()
+	FGuid OffHandID;
+
+	/** The weapon's assigned abilities, as custom loadouts keep them (OBSOLETE with them in stage 4). */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Abilities;
+};
+
+/** D-221 (B-507, save v40): one character's worn-gear record (FWornGear), by owned GUID; the wheel pick moved here
+ *  from FSavedPartyMember. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedWornGear
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	/** In the WornGearLayout places (an empty entry keeps its place). */
+	UPROPERTY()
+	TArray<FSavedWornEntry> Equipment;
+
+	UPROPERTY()
+	FGuid ActiveGearID;
+
+	UPROPERTY()
+	FGuid EvolutionID;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> EvolutionSpells;
+
+	UPROPERTY()
+	TArray<FGuid> Apparel;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> InnateSpells;
+
+	UPROPERTY()
+	TArray<FSavedCustomBDPool> BDSpellPools;
+
+	UPROPERTY()
+	EFieldSkillSource FieldSkillSource = EFieldSkillSource::Innate;
+
+	UPROPERTY()
+	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
+
+	UPROPERTY()
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
+
+	UPROPERTY()
+	bool bFieldAttackPicked = false;
+};
+
 /** B-314b (Q-314, save v15): one piece's run mark (UPoolSubsystem's FPoolRunMark) and its home state, pointers as refs. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRunMark
@@ -331,6 +407,9 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 
 	UPROPERTY()
 	TArray<FSavedCrystalStack> RunStartItems;
+	/** B-508 (D-219, save v41): the run party's worn-gear records as the run began; a quit puts them back. */
+	UPROPERTY()
+	TArray<FSavedWornGear> RunStartWornGear;
 };
 
 USTRUCT()
@@ -482,20 +561,6 @@ struct WORLD_OF_REFRACTION_API FSavedWearer
 	FName Character;
 };
 
-/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
-{
-	GENERATED_BODY()
-
-	/** ESpellElement. */
-	UPROPERTY()
-	uint8 Element = 0;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> Spells;
-};
-
 /** B-311 (D-111): one custom loadout; each piece by its owned GUID and asset, the rest by asset. An adapter's spells
  *  ride on the adapter itself (FSavedGearDetail). */
 USTRUCT()
@@ -575,68 +640,6 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	TArray<FGuid> ApparelInstances;
-};
-
-/** D-221 (B-507, save v40): one entry of a worn-gear record (FLoadoutSlot): the owned piece and its set's off hand. */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedWornEntry
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FGuid GearID;
-
-	UPROPERTY()
-	FGuid OffHandID;
-
-	/** The weapon's assigned abilities, as custom loadouts keep them (OBSOLETE with them in stage 4). */
-	UPROPERTY()
-	TArray<FSavedAssetRef> Abilities;
-};
-
-/** D-221 (B-507, save v40): one character's worn-gear record (FWornGear), by owned GUID; the wheel pick moved here
- *  from FSavedPartyMember. */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedWornGear
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FName Character;
-
-	/** In the WornGearLayout places (an empty entry keeps its place). */
-	UPROPERTY()
-	TArray<FSavedWornEntry> Equipment;
-
-	UPROPERTY()
-	FGuid ActiveGearID;
-
-	UPROPERTY()
-	FGuid EvolutionID;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> EvolutionSpells;
-
-	UPROPERTY()
-	TArray<FGuid> Apparel;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> InnateSpells;
-
-	UPROPERTY()
-	TArray<FSavedCustomBDPool> BDSpellPools;
-
-	UPROPERTY()
-	EFieldSkillSource FieldSkillSource = EFieldSkillSource::Innate;
-
-	UPROPERTY()
-	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
-
-	UPROPERTY()
-	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
-
-	UPROPERTY()
-	bool bFieldAttackPicked = false;
 };
 
 /** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */
