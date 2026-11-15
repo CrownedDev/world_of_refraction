@@ -38,9 +38,12 @@ struct FBattleCardParts
 	bool bEPLine = false;
 	bool bBuildupBar = false;
 	bool bBuildupLine = false;
+	/** The gear tooltip on hover; B-503k: no gear line on the card (GearLine stays as data). */
 	bool bGear = false;
 	bool bActions = false;
 	bool bStatus = false;
+	/** B-503k: the card's fixed width (CardWidth); without it the card fits its name. */
+	bool bFixedWidth = false;
 };
 
 /** The card's look, shared by every HUD that shows it. */
@@ -65,7 +68,6 @@ namespace BattleCardStyle
 	inline constexpr float BuildupBarHeight = 6.0f;
 	inline constexpr float CrackWidth = 2.0f;
 	inline const FLinearColor CrackColor(0.0f, 0.0f, 0.0f, 0.85f);
-	inline const FLinearColor GearColor(0.8f, 0.8f, 0.8f);
 }
 
 /** One combatant's card: what it shows (plain data) and, once built, its text blocks. */
@@ -132,9 +134,6 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> BuildupText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> GearText;
 };
 
 namespace BattleHUDCard

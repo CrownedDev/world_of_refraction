@@ -219,7 +219,9 @@ void AWoRHubController::SetupInputComponent()
 	}
 	if (FieldSwitchSourceAction)
 	{
-		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldSwitchSource);
+		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldSwitchSourceStarted);
+		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldSwitchSource);
+		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldSwitchSourceCanceled);
 	}
 	if (FieldFlyVerticalAction)
 	{
@@ -329,11 +331,36 @@ void AWoRHubController::HandleFieldAttackCanceled(const FInputActionValue & /*Va
 	bFieldAttackPressed = false;
 }
 
+void AWoRHubController::HandleFieldSwitchSourceStarted(const FInputActionValue & /*Value*/)
+{
+	FieldSourcePressTime = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.0;
+	bFieldSourcePressed = true;
+}
+
+void AWoRHubController::HandleFieldSwitchSourceCanceled(const FInputActionValue & /*Value*/)
+{
+	bFieldSourcePressed = false;
+}
+
 void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Value*/)
 {
+	if (!bFieldSourcePressed)
+	{
+		return; // a release with no press of ours (focus loss, a menu took the mapping)
+	}
+	bFieldSourcePressed = false;
+	const double Pressed = GetWorld() ? GetWorld()->GetRealTimeSeconds() - FieldSourcePressTime : 0.0;
+	if (FieldSkillRules::IsFieldSourceHeld(Pressed))
+	{
+		// D-217: a hold changes the element within the source. Innate, an adapter, a weapon crystal and an evolution
+		// each have one element: nothing to change. TODO: B-503l: Broken Darkness and Reality cycle the gear their
+		// element is drawn through (waits on Crown's answer, Q-503l).
+		UE_LOG(LogWoR, Verbose, TEXT("[FieldAttack] hold: the source's element is fixed"));
+		return;
+	}
 	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
 	{
-		// B-503 (D-215): the next stop of the cycle through the loadout, shown for a moment.
+		// B-503k (D-217): a press steps the field attack's source (plain Sword, Fire Sword, ...), flashed on the strip.
 		const FFieldAttackEntry Entry = FieldMovement->CycleFieldAttack();
 		if (HubHUD)
 		{

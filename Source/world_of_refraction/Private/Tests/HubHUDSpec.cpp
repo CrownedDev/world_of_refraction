@@ -91,7 +91,7 @@ void FHubHUDSpec::Define()
 		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
 	});
 
-	It("fits a full party and the field attack chip on one row (B-503i, B-503j)", [this]()
+	It("fits a full party on one row (B-503i, B-503j; the chip's room is kept until it is deleted, B-503k)", [this]()
 	{
 		TestTrue(TEXT("the chip can grow past its minimum"), WoRHubHUD::FIELD_ATTACK_CHIP_MAX_WIDTH > WoRHubHUD::FIELD_ATTACK_CHIP_MIN_WIDTH);
 		// The strip starts at the screen's padding on the left and keeps the same padding clear on the right.
@@ -110,6 +110,24 @@ void FHubHUDSpec::Define()
 		}
 		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), HUB_HUD_TEST_RUN_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, {}, {});
 		TestTrue(TEXT("in a run: the trial's cards (HP, EP, build-up)"), WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
+	});
+
+	It("puts the field attack strip above the played member's card, in a trial only (B-503k, D-217)", [this]()
+	{
+		TestFalse(TEXT("none in the hub"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Hub));
+		TestTrue(TEXT("in a trial"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Trial));
+		TestFalse(TEXT("not the battle's (its card has the gear tooltip)"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Battle));
+
+		UParty *Party = NewObject<UParty>(GetTransientPackage());
+		Party->Members.AddDefaulted_GetRef().CharacterData = FWoRTestWorld::NewCharacterData();
+		Party->Members.AddDefaulted(); // no data: no card
+		Party->Members.AddDefaulted_GetRef().CharacterData = FWoRTestWorld::NewCharacterData();
+		TestEqual(TEXT("the first member's card"), WoRHubHUD::GetFieldAttackCardIndex(Party, 0), 0);
+		TestEqual(TEXT("the cards skip a member with no data"), WoRHubHUD::GetFieldAttackCardIndex(Party, 2), 1);
+		TestEqual(TEXT("a member with no card"), WoRHubHUD::GetFieldAttackCardIndex(Party, 1), INDEX_NONE);
+		TestEqual(TEXT("no slot"), WoRHubHUD::GetFieldAttackCardIndex(Party, INDEX_NONE), INDEX_NONE);
+		TestEqual(TEXT("no party"), WoRHubHUD::GetFieldAttackCardIndex(nullptr, 0), INDEX_NONE);
+		TestEqual(TEXT("no pawn"), WoRHubHUD::FindFieldAttackCard(nullptr), INDEX_NONE);
 	});
 
 	It("shows the field attack chip's name, table icon and element dot (B-503i)", [this]()

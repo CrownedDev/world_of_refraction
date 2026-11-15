@@ -6,6 +6,7 @@
 // and the strike following the entry in use. Rings and evolutions in the cycle: PIE (docs/PIE/B-503.md).
 // B-503b: the swing's hit timed to the montage's Impact notify. The swing itself on screen: PIE (docs/PIE/B-503b.md).
 // B-503c: the pulse's reach and its wait for the cast's release. The pulse on screen and its 7 m hit: PIE (B-503c.md).
+// B-503k (D-217): the cycle is the attack's infusions (a weapon user: plain, then each element; a Refractor: elements).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -26,6 +27,7 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Trial/BattleGameMode.h"
+#include "WoRGameNames.h"
 
 BEGIN_DEFINE_SPEC(FFieldAttackSpec, "WoR.Field.Attack",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -52,9 +54,9 @@ BEGIN_DEFINE_SPEC(FFieldAttackSpec, "WoR.Field.Attack",
 		return Field != nullptr;
 	}
 
-	/** B-503: a Caster of Element with field movement and two weapons: the primary a Slash weapon with a live Garnet
-	 *  (Fire), the secondary with a broken one. */
-	bool SpawnCasterWithWeapons(ESpellElement Element)
+	/** B-503: a Class of Element with field movement and two weapons: the primary (in hand) a Slash sword with a live
+	 *  Garnet (Fire), the secondary with a broken one. */
+	bool SpawnWithWeapons(ECharacterClass Class, ESpellElement Element)
 	{
 		constexpr int32 LIVE_DURABILITY = 10;
 		constexpr int32 BROKEN_DURABILITY = 0;
@@ -66,7 +68,7 @@ BEGIN_DEFINE_SPEC(FFieldAttackSpec, "WoR.Field.Attack",
 			return Attached;
 		};
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
-		Data->CharacterClass = ECharacterClass::Caster;
+		Data->CharacterClass = Class;
 		Data->InnateElement = Element;
 		UAbilityData *Slash = NewObject<UAbilityData>(GetTransientPackage());
 		Slash->PhysicalDamageType = EPhysicalDamageType::Slash;
@@ -124,6 +126,8 @@ void FFieldAttackSpec::Define()
 			TestEqual(TEXT("a negative index is the first"), FieldSkillRules::ClampFieldAttackIndex(INDEX_NONE, THREE_ENTRIES), 0);
 			TestFalse(TEXT("a tap isn't held (B-214g)"), FieldSkillRules::IsFieldAttackHeld(0.0));
 			TestTrue(TEXT("held from the threshold"), FieldSkillRules::IsFieldAttackHeld(FieldSkillRules::FIELD_ATTACK_HOLD_SECONDS));
+			TestFalse(TEXT("B-503k: a press of R / LB changes the source"), FieldSkillRules::IsFieldSourceHeld(0.0));
+			TestTrue(TEXT("a hold changes the element"), FieldSkillRules::IsFieldSourceHeld(FieldSkillRules::FIELD_SOURCE_HOLD_SECONDS));
 		});
 	});
 
@@ -155,31 +159,51 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("no element"), Field->GetFieldStrike(false).Element == ESpellElement::None);
 		});
 
-		It("cycles the loadout in order: weapons, the innate element, then back (B-503)", [this]()
+		It("swings the weapon in hand plain, then infused with each source's element, then back (B-503k, D-217)", [this]()
 		{
-			if (!TestTrue(TEXT("spawned"), SpawnCasterWithWeapons(ESpellElement::Water)))
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
+			{
+				return;
+			}
+			const FString Sword = WoRGameNames::GetWeaponTypeName(EWeaponType::Sword).ToString();
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("plain and the crystal's Fire (no innate for a weapon user, no secondary weapon)"), Entries.Num(), 2))
+			{
+				return;
+			}
+			TestTrue(TEXT("plain first: a swing with no element and the weapon's type"),
+					 Entries[0].IsSwing() && Entries[0].Element == ESpellElement::None && Entries[0].Physical == EPhysicalDamageType::Slash);
+			TestEqual(TEXT("named by the weapon type"), Entries[0].Name.ToString(), Sword);
+			TestTrue(TEXT("then infused: still the swing"), Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire &&
+																 Entries[1].Physical == EPhysicalDamageType::Slash);
+			TestEqual(TEXT("the element first"), Entries[1].Name.ToString(),
+					  FString::Printf(TEXT("%s %s"), *WoRGameNames::GetElementName(ESpellElement::Fire).ToString(), *Sword));
+
+			TestEqual(TEXT("plain by default"), Field->GetFieldAttackIndex(), 0);
+			TestTrue(TEXT("a plain strike"), Field->GetFieldStrike(false).Element == ESpellElement::None);
+			TestTrue(TEXT("a tap steps to Fire"), Field->CycleFieldAttack().Element == ESpellElement::Fire && Field->GetFieldAttackIndex() == 1);
+			const FFieldStrike Swing = Field->GetFieldStrike(false);
+			TestTrue(TEXT("the strike follows the stop"), Swing.Element == ESpellElement::Fire && Swing.Physical == EPhysicalDamageType::Slash);
+			TestTrue(TEXT("wraps to plain"), Field->CycleFieldAttack().Element == ESpellElement::None && Field->GetFieldAttackIndex() == 0);
+		});
+
+		It("gives a Refractor only its sources' elements, thrown and named by the element (B-503k, D-217)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Caster, ESpellElement::Water)))
 			{
 				return;
 			}
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
-			if (!TestEqual(TEXT("two weapons and the innate element"), Entries.Num(), 3))
+			if (!TestEqual(TEXT("the innate Water and the crystal's Fire, no plain stop"), Entries.Num(), 2))
 			{
 				return;
 			}
-			TestTrue(TEXT("the primary weapon first, a swing in its crystal's element"),
-					 Entries[0].IsSwing() && Entries[0].Element == ESpellElement::Fire && Entries[0].Physical == EPhysicalDamageType::Slash);
-			TestTrue(TEXT("a broken crystal gives no element"), Entries[1].IsSwing() && Entries[1].Element == ESpellElement::None);
-			TestTrue(TEXT("the innate element last"), Entries[2].Kind == EFieldAttackKind::Innate && Entries[2].Element == ESpellElement::Water);
-
-			TestEqual(TEXT("the first entry by default"), Field->GetFieldAttackIndex(), 0);
-			const FFieldStrike Swing = Field->GetFieldStrike(false);
-			TestTrue(TEXT("the strike follows the entry"), Swing.Element == ESpellElement::Fire && Swing.Physical == EPhysicalDamageType::Slash);
-			Field->CycleFieldAttack();
-			TestTrue(TEXT("the third stop is the pulse"), !Field->CycleFieldAttack().IsSwing());
-			TestEqual(TEXT("kept"), Field->GetFieldAttackIndex(), 2);
-			TestTrue(TEXT("the pulse carries the innate element and no physical type"),
-					 Field->GetFieldStrike(false).Element == ESpellElement::Water && Field->GetFieldStrike(false).Physical == EPhysicalDamageType::None);
-			TestTrue(TEXT("wraps to the first"), Field->CycleFieldAttack().Element == ESpellElement::Fire && Field->GetFieldAttackIndex() == 0);
+			TestTrue(TEXT("the innate element first, a pulse"), Entries[0].Kind == EFieldAttackKind::Innate && !Entries[0].IsSwing() &&
+																	Entries[0].Element == ESpellElement::Water);
+			TestEqual(TEXT("just the element"), Entries[0].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Water).ToString());
+			TestTrue(TEXT("the crystal in hand, thrown with no physical type"),
+					 !Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire && Entries[1].Physical == EPhysicalDamageType::None);
+			TestEqual(TEXT("no weapon line"), Entries[1].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Fire).ToString());
 		});
 
 		It("gives every enemy of the fight the strike's buildup, and nothing for an empty strike", [this]()
@@ -227,7 +251,7 @@ void FFieldAttackSpec::Define()
 
 		It("gives a weapon entry its attack's swing, and holds the next swing until the hit has landed", [this]()
 		{
-			if (!TestTrue(TEXT("spawned"), SpawnCasterWithWeapons(ESpellElement::Water)))
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
 			{
 				return;
 			}
@@ -242,7 +266,7 @@ void FFieldAttackSpec::Define()
 
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
 			TestTrue(TEXT("the primary weapon swings with it"), Entries[0].IsSwing() && Entries[0].SwingMontage.Get() == Montage);
-			TestTrue(TEXT("the innate pulse has none"), Entries.Last().SwingMontage.IsNull());
+			TestTrue(TEXT("infused, the same swing (B-503k)"), Entries.Last().IsSwing() && Entries.Last().SwingMontage.Get() == Montage);
 			TestTrue(TEXT("a swing"), Field->FieldAttack(false) == EFieldSkillRefusal::None);
 			constexpr int32 MAX_FRAMES = 1000;
 			const UWorld *World = TestWorld->GetWorld();

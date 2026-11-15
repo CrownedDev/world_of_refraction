@@ -16,6 +16,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [B-503j](B-503j.md) | `feature/B-503j-shared-party-card` (in dev, built 2026-11-15) | One party card everywhere (D-216): the battle card in the field, names only in the hub, HP / EP / the build-up bar in a trial, the battle unchanged; the chip after them in the same dark box | Pending |
+| [B-503k](B-503k.md) | `feature/B-503k-field-attack-strip` (in dev, built 2026-11-15) | The field attack strip above the card (Sword, Fire Sword; a caster just the element), R / LB steps the infusion; the hub card fits its name; the battle card has no gear line (tooltip kept) | Pending |
 | [B-503i](B-503i.md) | `fix/B-503i-party-strip-cards` (in dev, built 2026-11-15) | The party strip's cards framed as the mockup (cut corner, outline), sized to their names, HP bar inside; the field attack chip a matching card with an icon and an element dot; the hub shows names only | Pending |
 | [B-503h](B-503h.md) | `feature/B-503h-field-attack-chip` (in dev, built 2026-11-15) | The field attack's current entry (icon, name, element) always shown after the party strip; R / LB lights it as it cycles (no more 2 s popup) | Pending |
 | [B-503g](B-503g.md) | `feature/B-503g-trial-hud-party-strip` (in dev, built 2026-11-15) | The mockup party strip (element dot, name, HP bar) bottom left on the hub and trial maps; the old debug party box hidden (`wor.UI.DebugPartyBox 1` shows it) | Pending |

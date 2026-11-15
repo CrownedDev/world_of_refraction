@@ -170,13 +170,18 @@ private:
 	/** B-214g: the field attack's press (real time, for its hold); a release with no press (focus loss) does nothing. */
 	double FieldAttackPressTime = 0.0;
 	bool bFieldAttackPressed = false;
+	/** B-503k (D-217): R / LB's press, read on release: a press changes the source, a hold the element. */
+	double FieldSourcePressTime = 0.0;
+	bool bFieldSourcePressed = false;
 
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);
 	void HandleFieldAttackStarted(const FInputActionValue &Value);
 	void HandleFieldAttackCompleted(const FInputActionValue &Value);
 	void HandleFieldAttackCanceled(const FInputActionValue &Value);
+	void HandleFieldSwitchSourceStarted(const FInputActionValue &Value);
 	void HandleFieldSwitchSource(const FInputActionValue &Value);
+	void HandleFieldSwitchSourceCanceled(const FInputActionValue &Value);
 	void HandleFieldFlyVertical(const FInputActionValue &Value);
 
 	/** The possessed pawn's field movement, or null. */

@@ -1,8 +1,8 @@
 // HubHUDWidget.h
 // B-443 (D-181, UIScreens #14, mockup screen_mockups/hub/hud/1_hub_hud_prompt.png): the hub and trial-map HUD's
 // pieces, and (B-503g) the party strip, bottom left: B-503j (D-216) the battle HUD's party card per member, at the
-// Hub level (names) or, in a run, the Trial level (HP, EP, the build-up bar); the field attack chip after them in the
-// card's look. The old UPartyDisplayWidget (the debug cards) is hidden unless wor.UI.DebugPartyBox shows it.
+// Hub level (names, the card fitted to them) or, in a run, the Trial level (HP, EP, the build-up bar). B-503k (D-217):
+// in a run, the field attack strip ("Fire Sword") above the played member's card. The old UPartyDisplayWidget (the debug cards) is hidden unless wor.UI.DebugPartyBox shows it.
 //   - The interact prompt: key + verb + what, floating above the thing the player faces.
 //   - The money chip, top right: only near a vendor, or for a few seconds after the balance changed.
 // A plain viewport widget (not a CommonUI screen: it takes no input), created by AWoRHubController for the local
@@ -60,8 +60,8 @@ public:
 	/** Reads what is in reach and the money, and updates both pieces. The timer calls it; so can a spec. */
 	void Refresh();
 
-	/** B-503h (D-215): the field attack just cycled to: shows it and flashes the chip. The chip itself is always up
-	 *  beside the party strip while the pawn has a field attack. */
+	/** B-503k (D-217): the infusion R / LB just stepped to: shows it on the strip and flashes it. The strip is up in a
+	 *  run while the pawn has a field attack with a name. */
 	void ShowFieldAttack(const struct FFieldAttackEntry &Entry);
 
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
@@ -109,28 +109,16 @@ private:
 	TObjectPtr<UBorder> QuestBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> QuestText;
-	/** B-503h: the field attack's current loadout entry, a card (B-503i) at the end of the party strip's row. */
+	/** B-503k (D-217): the field attack strip above each card, built at the Trial level only (none in the hub). */
 	UPROPERTY(Transient)
-	TObjectPtr<UWidget> FieldAttackBox;
+	TArray<TObjectPtr<UBorder>> AttackStrips;
 	UPROPERTY(Transient)
-	TObjectPtr<UBorder> FieldAttackFrame;
-	UPROPERTY(Transient)
-	TObjectPtr<class UImage> FieldAttackIcon;
-	/** The icon in words when the table has no texture ("Sword"). */
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> FieldAttackIconText;
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> FieldAttackName;
-	/** The element's dot and name, under the name; hidden for an entry with no element. */
-	UPROPERTY(Transient)
-	TObjectPtr<class UHorizontalBox> FieldAttackElementRow;
-	UPROPERTY(Transient)
-	TObjectPtr<class UImage> FieldAttackDot;
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> FieldAttackElement;
+	TArray<TObjectPtr<UTextBlock>> AttackStripTexts;
+	/** The card whose strip shows (WoRHubHUD::FindFieldAttackCard); INDEX_NONE: none. */
+	int32 AttackStripCard = INDEX_NONE;
 	FTimerHandle FieldAttackTimer;
 	void SetFieldAttack(const struct FFieldAttackEntry &Entry);
-	/** Reads the pawn's current entry (on the slow timer: the entries walk the loadout). */
+	/** Reads the pawn's current stop (on the slow timer: the stops read the loadout and the sources). */
 	void RefreshFieldAttack();
 	void EndFieldAttackFlash();
 
@@ -138,9 +126,10 @@ private:
 	 *  filled on Refresh. */
 	UPROPERTY(Transient)
 	TArray<FBattleHUDCard> PartyCards;
+	/** B-503k: each card's column (its strip over it), shown and hidden whole so a hidden card leaves no gap. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> PartyColumns;
 	void BuildPartyStrip(class UCanvasPanel *Canvas);
-	/** B-503j: the field attack chip's card: the battle card's frame around Content, sized to it between the widths. */
-	UWidget *MakeChipCard(UWidget *Content, float MinWidth, float MaxWidth, UBorder *&OutFrame);
 	void RefreshPartyStrip();
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;

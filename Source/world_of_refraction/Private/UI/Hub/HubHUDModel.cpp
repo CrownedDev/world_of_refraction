@@ -3,6 +3,7 @@
 #include "UI/Hub/HubHUDModel.h"
 
 #include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Currency/CurrencyTypes.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -125,6 +126,29 @@ EBattleCardLevel WoRHubHUD::GetCardLevel(const UWorld *World)
 	return WoRPauseMenu::IsInRun(World) ? EBattleCardLevel::Trial : EBattleCardLevel::Hub;
 }
 
+int32 WoRHubHUD::GetFieldAttackCardIndex(const UParty *Party, int32 MemberSlot)
+{
+	if (!Party || !Party->Members.IsValidIndex(MemberSlot) || !Party->Members[MemberSlot].CharacterData)
+	{
+		return INDEX_NONE;
+	}
+	// BuildPartyStrip leaves out members with no data: count the cards before this one.
+	int32 Card = 0;
+	for (int32 Slot = 0; Slot < MemberSlot; ++Slot)
+	{
+		Card += Party->Members[Slot].CharacterData ? 1 : 0;
+	}
+	return Card;
+}
+
+int32 WoRHubHUD::FindFieldAttackCard(const APawn *Pawn)
+{
+	const UCharacterDataComponent *CharComp = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	const UGameInstance *GameInstance = Pawn && Pawn->GetWorld() ? Pawn->GetWorld()->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	return PartySession && CharComp ? GetFieldAttackCardIndex(PartySession->GetLocalParty(), PartySession->GetMemberSlotOf(CharComp)) : INDEX_NONE;
+}
+
 float WoRHubHUD::GetPartyStripMaxWidth(int32 Cards)
 {
 	return Cards * (BattleCardStyle::CardWidth + PARTY_STRIP_GAP) + FIELD_ATTACK_CHIP_MAX_WIDTH;
@@ -194,10 +218,10 @@ FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 	FString FieldAttack = TEXT("none");
 	if (FieldMovement)
 	{
-		const FHubHUDFieldAttackChip Chip = BuildFieldAttackChip(FieldMovement->GetFieldAttackEntry());
-		const bool bIcon = Chip.OwnIcon || WoRIcons::Find(Chip.Icon);
-		FieldAttack = FString::Printf(TEXT("%s (%s; icon: %s)"), *Chip.Name.ToString(), Chip.bElemental ? *Chip.ElementName.ToString() : TEXT("no element"),
-									  bIcon ? TEXT("texture") : (Chip.IconText.IsEmpty() ? TEXT("none") : *Chip.IconText.ToString()));
+		// B-503k: the strip's text, the card it sits above, and whether this map shows it.
+		const FFieldAttackEntry Entry = FieldMovement->GetFieldAttackEntry();
+		FieldAttack = FString::Printf(TEXT("'%s' (%s) above card %d%s"), *Entry.Name.ToString(), Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"),
+									  FindFieldAttackCard(Pawn), ShowsFieldAttackStrip(GetCardLevel(World)) ? TEXT("") : TEXT(", hidden in the hub"));
 	}
 	return FString::Printf(TEXT("[HubHUD] prompt: %s; near a vendor: %s; money: %s %s; quest: %s; party: %s; field attack: %s"),
 						   Prompt.bShown ? *FString::Printf(TEXT("%s %s"), *Prompt.Verb.ToString(), *Prompt.What.ToString()) : TEXT("none"),

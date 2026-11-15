@@ -3,8 +3,8 @@
 // sweeps a sphere ahead; the first encounter it strikes engages with the party striking first and carries the hit's
 // buildup into the fight (UEncounterComponent::StrikeFromField -> ABattleGameMode::ApplyFieldStrike). Held with Water
 // it is Ice. Server side; a client's calls go by Server RPC.
-// B-503 (D-215): the strike's element and physical type come from the entry in use, one stop of a cycle through the
-// whole loadout (GetFieldAttackEntries); only a weapon entry has a physical type.
+// B-503 (D-215): the strike's element and physical type come from the entry in use (GetFieldAttackEntries); only a
+// swing has a physical type. B-503k (D-217): the stops are the attack's infusions, not the loadout's items.
 // B-503b: a weapon entry plays its attack's FieldMontage (the battle swing without the dash) on every machine and the
 // sweep waits for its Impact notify; with no montage the hit lands at once.
 // B-503c: every other entry throws the pulse: the cast montage (FieldPulseMontage) the same way, then a thinner sweep
@@ -14,18 +14,20 @@
 #include "Field/FieldMovementComponent.h"
 
 #include "Animation/AnimMontage.h"
+#include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Character/ECharacterClass.h"
+#include "Combat/Actions/ActionExecutor.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "CollisionQueryParams.h"
 #include "Combat/Encounter/EncounterComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
-#include "Equipment/Crystals/EvolutionItemData.h"
-#include "Equipment/FRuntimeAttachedItem.h"
-#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Character.h"
+#include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/ElementColors.h"
 #include "Loadout/LoadoutComponent.h"
 #include "NiagaraComponent.h"
@@ -60,112 +62,80 @@ namespace FieldPulse
 
 namespace
 {
-	/** A socket's element as the strike reads it: None when empty or broken. */
-	ESpellElement LiveSocketElement(const FRuntimeAttachedItem &Socket)
+	/** B-503k: a pulse stop's kind, from the infusion source it takes its element from (a weapon's crystal is
+	 *  listed with the rings: a crystal in gear, thrown). */
+	EFieldAttackKind PulseKindOf(EInfusionSourceOption Source)
 	{
-		return !Socket.IsEmpty() && !Socket.IsBroken() ? Socket.GetElement() : ESpellElement::None;
-	}
-
-	FFieldAttackEntry MakeGearEntry(EFieldAttackKind Kind, const UEquipmentDataBase &Gear, const FRuntimeAttachedItem &Socket)
-	{
-		FFieldAttackEntry Entry;
-		Entry.Kind = Kind;
-		Entry.Name = FText::FromString(Gear.GetDisplayName());
-		Entry.Element = LiveSocketElement(Socket);
-		Entry.Icon = Gear.Icon;
-		return Entry;
-	}
-
-	void AddEvolutionEntry(const FEvolutionAttachment &Attachment, TArray<FFieldAttackEntry> &Out)
-	{
-		const UEvolutionItemData *Item = Attachment.Item;
-		if (!Item || Attachment.IsBroken())
+		switch (Source)
 		{
-			return; // a broken evolution gives nothing (as on the character's own slot, B-214h)
+		case EInfusionSourceOption::Innate:
+			return EFieldAttackKind::Innate;
+		case EInfusionSourceOption::Evolution:
+			return EFieldAttackKind::Evolution;
+		default:
+			return EFieldAttackKind::Ring;
 		}
-		FFieldAttackEntry &Entry = Out.AddDefaulted_GetRef();
-		Entry.Kind = EFieldAttackKind::Evolution;
-		Entry.Name = Item->ItemName.IsEmpty() ? WoRGameNames::GetCrystalTypeName(Item->CrystalType) : FText::FromString(Item->ItemName);
-		Entry.Element = Item->GetAssociatedElement();
-		Entry.Icon = Item->Icon;
 	}
 
-	void AddSocketEvolutionEntry(const FRuntimeAttachedItem &Socket, TArray<FFieldAttackEntry> &Out)
+	/** D-217: "Fire Sword" for an infused weapon, "Fire" with no weapon line. */
+	FText MakeInfusedLabel(ESpellElement Element, const FText &WeaponTypeName)
 	{
-		if (Socket.IsEvolution())
-		{
-			AddEvolutionEntry(Socket.Evolution, Out);
-		}
+		const FText ElementName = WoRGameNames::GetElementName(Element);
+		return WeaponTypeName.IsEmpty() ? ElementName
+										: FText::Format(LOCTEXT("InfusedWeapon", "{0} {1}"), ElementName, WeaponTypeName);
 	}
 }
 
 TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 {
+	// B-503k (D-217): the attack is the loadout's active weapon (a swing) or, for a Refractor or Resonator, the pulse;
+	// the stops are its infusions: plain first (a weapon user only), then each element of the combat menu's sources,
+	// one stop per element (two sources of one element would read the same).
 	TArray<FFieldAttackEntry> Entries;
-	TArray<FFieldAttackEntry> Evolutions; // listed after the gear and the innate element
-	const auto AddWeapon = [&Entries, &Evolutions](const FWeaponLoadoutEntry &Slot)
+	AActor *Owner = GetOwner();
+	const UCharacterDataComponent *CharComp = GetCharacterData();
+	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
+	const bool bPulse = Data && Data->CharacterClass != ECharacterClass::Generic;
+	FFieldAttackEntry Plain; // the Weapon kind: a swing
+	if (!bPulse)
 	{
-		const UWeaponData *Weapon = Slot.WeaponEntry.Weapon;
-		const FRuntimeAttachedItem &Socket = Slot.WeaponEntry.GetAttachedItem();
-		const UAbilityData *Attack = Cast<UAbilityData>(Weapon->WeaponAttack);
-		FFieldAttackEntry &Entry = Entries.Add_GetRef(MakeGearEntry(EFieldAttackKind::Weapon, *Weapon, Socket));
-		Entry.Physical = Attack ? Attack->PhysicalDamageType : EPhysicalDamageType::None;
-		Entry.WeaponType = Weapon->WeaponType;
-		Entry.SwingMontage = Weapon->WeaponAttack ? Weapon->WeaponAttack->FieldMontage : nullptr;
-		AddSocketEvolutionEntry(Socket, Evolutions);
-	};
-	const auto AddRing = [&Entries, &Evolutions](const FRingLoadoutEntry &Slot)
-	{
-		const FRuntimeAttachedItem &Socket = Slot.RingEntry.GetAttachedItem();
-		Entries.Add(MakeGearEntry(EFieldAttackKind::Ring, *Slot.RingEntry.Ring, Socket));
-		AddSocketEvolutionEntry(Socket, Evolutions);
-	};
-
-	if (const ULoadoutComponent *LoadoutComponent = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr)
-	{
-		const FCombatLoadout &Loadout = LoadoutComponent->GetActiveLoadout();
-		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+		const ULoadoutComponent *Loadout = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr;
+		const FWeaponLoadoutEntry *Slot = Loadout ? Loadout->GetActiveWeaponLoadout() : nullptr;
+		if (const UWeaponData *Weapon = Slot ? Slot->WeaponEntry.Weapon : nullptr)
 		{
-			AddEvolutionEntry(Loadout.PrimaryEvolution, Evolutions);
+			const UAbilityData *Attack = Cast<UAbilityData>(Weapon->WeaponAttack);
+			Plain.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+			Plain.Physical = Attack ? Attack->PhysicalDamageType : EPhysicalDamageType::None;
+			Plain.WeaponType = Weapon->WeaponType;
+			Plain.Icon = Weapon->Icon;
+			Plain.SwingMontage = Weapon->WeaponAttack ? Weapon->WeaponAttack->FieldMontage : nullptr;
 		}
-		if (Loadout.HasPrimaryWeapon())
-		{
-			AddWeapon(Loadout.PrimaryWeapon);
-		}
-		// A Resonator's rings are its ring loadout only; a stray primary ring is never one in use (GetActiveSlotIn).
-		if (Loadout.HasPrimaryRing() && LoadoutComponent->GetCharacterClass() != ECharacterClass::Resonator)
-		{
-			AddRing(Loadout.PrimaryRing);
-		}
-		if (Loadout.HasSecondaryWeapon())
-		{
-			AddWeapon(Loadout.SecondaryWeapon);
-		}
-		for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
-		{
-			if (Ring.IsValid())
-			{
-				AddRing(Ring);
-			}
-		}
-		for (const FApparelEntry &Piece : Loadout.Apparel)
-		{
-			if (Piece.Apparel)
-			{
-				AddSocketEvolutionEntry(Piece.AttachedItem, Evolutions);
-			}
-		}
+		Entries.Add(Plain); // unarmed: a plain swing with no name
 	}
 
-	const ESpellElement Innate = GetSourceElement(EFieldSkillSource::Innate);
-	if (FieldSkillRules::IsElemental(Innate))
+	const UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(this);
+	if (!Executor || !Owner)
 	{
-		FFieldAttackEntry &Entry = Entries.AddDefaulted_GetRef();
-		Entry.Kind = EFieldAttackKind::Innate;
-		Entry.Name = LOCTEXT("Innate", "Innate"); // TODO: one shared name (also in the field skill picker and the infusion menu)
-		Entry.Element = Innate;
+		return Entries;
 	}
-	Entries.Append(Evolutions);
+	for (const EInfusionSourceOption Source : Executor->GetAvailableInfusionSources(Owner))
+	{
+		const ESpellElement Element = InfusionSourceOptionHelpers::HasElement(Source) ? Executor->GetElementForSourceOption(Owner, Source)
+																					  : ESpellElement::None;
+		const bool bListed = Entries.ContainsByPredicate([Element](const FFieldAttackEntry &Listed)
+		{ return Listed.Element == Element; });
+		if (!FieldSkillRules::IsElemental(Element) || bListed)
+		{
+			continue;
+		}
+		FFieldAttackEntry &Entry = Entries.Add_GetRef(Plain);
+		Entry.Element = Element;
+		Entry.Name = MakeInfusedLabel(Element, Plain.Name);
+		if (bPulse)
+		{
+			Entry.Kind = PulseKindOf(Source);
+		}
+	}
 	return Entries;
 }
 

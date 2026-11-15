@@ -3,13 +3,11 @@
 #include "UI/Hub/HubHUDWidget.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
-#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Components/CanvasPanel.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
-#include "Components/SizeBox.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyWallet.h"
 #include "Engine/LocalPlayer.h"
@@ -26,7 +24,6 @@
 #include "TimerManager.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/PauseMenuModel.h"
-#include "UI/WoRIconTable.h"
 
 #define LOCTEXT_NAMESPACE "WoRHubHUDWidget"
 
@@ -51,26 +48,16 @@ namespace HubHUDStyle
 	constexpr float QuestRefreshSeconds = 1.0f;
 	const FAnchors BottomLeft(0.0f, 1.0f);
 	const FVector2D BottomLeftAlignment(0.0f, 1.0f);
-	/** B-503h: the field attack chip ends the party strip's row, a card like the members' (B-503i). TODO: tune in PIE */
-	constexpr float FieldAttackIconSize = 36.0f;
-	constexpr float FieldAttackDotSize = 12.0f;
-	/** How long the chip's panel stays lit after R / LB cycles it. TODO: tune */
+	/** B-503k (D-217): how long the field attack strip stays lit after R / LB steps it. TODO: tune */
 	constexpr float FieldAttackFlashSeconds = 0.35f;
+	/** Between the strip and its card. TODO: tune in PIE */
+	constexpr float AttackStripGap = 3.0f;
 	/** B-503g: the party strip (mockup hub/hud: 48, 640 at 720p, so x1.5 here); bottom left, cards left to right.
-	 *  B-503j: the cards are the battle HUD's (BattleCardStyle); the chip's width follows its content. */
+	 *  B-503j: the cards are the battle HUD's (BattleCardStyle). */
 	constexpr float PartyStripBottom = 54.0f;
-	constexpr float PartyDotGap = 12.0f;
 	/** B-503i: the mockup's card: the top-left corner cut 6 px at 720p, a 1 px outline. */
 	constexpr float CardCutSize = 9.0f;
 	constexpr float CardOutlineThickness = 1.5f;
-
-	/** A white disc of Size; SetColorAndOpacity tints it. */
-	inline UImage *MakeDot(UWidgetTree *Tree, float Size)
-	{
-		UImage *Dot = Tree->ConstructWidget<UImage>(UImage::StaticClass());
-		Dot->SetBrush(FSlateRoundedBoxBrush(FLinearColor::White, Size * 0.5f, FVector2f(Size, Size)));
-		return Dot;
-	}
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -142,34 +129,11 @@ void UHubHUDWidget::BuildTree()
 		QuestSlot->SetAutoSize(true);
 	}
 
-	// B-503i: the field attack chip, a card: the icon (or its word), then the name over the element's dot and name.
-	UHorizontalBox *FieldAttackRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	FieldAttackIcon = MakeIcon(WidgetTree, FieldAttackIconSize);
-	FieldAttackIconText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
-	AddToRow(FieldAttackRow, FieldAttackIcon, FMargin(0.0f, 0.0f, PartyDotGap, 0.0f));
-	AddToRow(FieldAttackRow, FieldAttackIconText, FMargin(0.0f, 0.0f, PartyDotGap, 0.0f));
-	UVerticalBox *FieldAttackColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	FieldAttackName = MakeText(WidgetTree, RowFontSize, DimColor, true);
-	FieldAttackName->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
-	AddToColumn(FieldAttackColumn, FieldAttackName);
-	FieldAttackElementRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	FieldAttackDot = MakeDot(WidgetTree, FieldAttackDotSize);
-	FieldAttackElement = MakeText(WidgetTree, SmallFontSize, DimColor);
-	AddToRow(FieldAttackElementRow, FieldAttackDot, FMargin(0.0f, 0.0f, WordGap, 0.0f));
-	AddToRow(FieldAttackElementRow, FieldAttackElement);
-	AddToColumn(FieldAttackColumn, FieldAttackElementRow);
-	AddToRow(FieldAttackRow, FieldAttackColumn)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	UBorder *ChipFrame = nullptr;
-	FieldAttackBox = MakeChipCard(FieldAttackRow, WoRHubHUD::FIELD_ATTACK_CHIP_MIN_WIDTH, WoRHubHUD::FIELD_ATTACK_CHIP_MAX_WIDTH, ChipFrame);
-	FieldAttackFrame = ChipFrame;
-	// BuildPartyStrip puts the chip at the end of the strip's row.
-
 	BuildPartyStrip(Canvas);
 
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
 	SetShown(QuestBox, false);
-	SetShown(FieldAttackBox, false);
 }
 
 void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
@@ -179,18 +143,33 @@ void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
 	// B-503j (D-216): the battle HUD's card, at the map's level. A run is active before its map opens and each map
 	// makes a new HUD, so the level is read once here.
 	const EBattleCardLevel Level = WoRHubHUD::GetCardLevel(GetWorld());
+	const bool bAttackStrips = WoRHubHUD::ShowsFieldAttackStrip(Level);
 	UHorizontalBox *Strip = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
 	{
 		FBattleHUDCard &Card = PartyCards.AddDefaulted_GetRef();
 		Card.bParty = true;
-		UBorder *Frame = BattleHUDCard::Build(WidgetTree, Card, Level);
-		// Each card's gap is on its left, so the first card starts at the strip's edge and hidden cards leave none.
-		// Filled: the cards and the chip in the row are one height.
-		AddToRow(Strip, Frame, FMargin(Index > 0 ? WoRHubHUD::PARTY_STRIP_GAP : 0.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
-		SetShown(Frame, false);
+		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		if (bAttackStrips)
+		{
+			// B-503k (D-217): the field attack strip, directly above the card, in the card's look.
+			UBorder *AttackStrip = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+			AttackStrip->SetBrushColor(BattleCardStyle::CardColor);
+			AttackStrip->SetPadding(FMargin(BattleCardStyle::CardPadding));
+			UTextBlock *AttackText = MakeText(WidgetTree, BattleCardStyle::LineFontSize, BattleCardStyle::TextColor, true);
+			AttackStrip->SetContent(AttackText);
+			AddToColumn(Column, AttackStrip, FMargin(0.0f, 0.0f, 0.0f, AttackStripGap));
+			SetShown(AttackStrip, false);
+			AttackStrips.Add(AttackStrip);
+			AttackStripTexts.Add(AttackText);
+		}
+		AddToColumn(Column, BattleHUDCard::Build(WidgetTree, Card, Level));
+		// Each column's gap is on its left, so the first card starts at the strip's edge and hidden cards leave none.
+		// Bottom: the cards sit on one line, each its own height (a hub card fits its name).
+		AddToRow(Strip, Column, FMargin(Index > 0 ? WoRHubHUD::PARTY_STRIP_GAP : 0.0f, 0.0f, 0.0f, 0.0f), VAlign_Bottom);
+		SetShown(Column, false);
+		PartyColumns.Add(Column);
 	}
-	AddToRow(Strip, FieldAttackBox, FMargin(WoRHubHUD::PARTY_STRIP_GAP, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 	if (UCanvasPanelSlot *StripSlot = Canvas->AddChildToCanvas(Strip))
 	{
 		StripSlot->SetAnchors(BottomLeft);
@@ -198,21 +177,6 @@ void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
 		StripSlot->SetPosition(FVector2D(ScreenPadding, -PartyStripBottom));
 		StripSlot->SetAutoSize(true);
 	}
-}
-
-UWidget *UHubHUDWidget::MakeChipCard(UWidget *Content, float MinWidth, float MaxWidth, UBorder *&OutFrame)
-{
-	OutFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	OutFrame->SetBrushColor(BattleCardStyle::CardColor);
-	OutFrame->SetPadding(FMargin(BattleCardStyle::CardPadding));
-	OutFrame->SetVerticalAlignment(VAlign_Center);
-	OutFrame->SetVisibility(ESlateVisibility::HitTestInvisible);
-	OutFrame->SetContent(Content);
-	USizeBox *Box = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	Box->SetMinDesiredWidth(MinWidth);
-	Box->SetMaxDesiredWidth(MaxWidth);
-	Box->AddChild(OutFrame);
-	return Box;
 }
 
 int32 UHubHUDCardFrame::NativePaint(const FPaintArgs &Args, const FGeometry &AllottedGeometry, const FSlateRect &MyCullingRect,
@@ -253,7 +217,7 @@ void UHubHUDWidget::RefreshPartyStrip()
 	{
 		FBattleHUDCard &Card = PartyCards[Index];
 		const bool bShown = Cards.IsValidIndex(Index);
-		WoRMenuStyle::SetShown(Card.Frame, bShown);
+		WoRMenuStyle::SetShown(PartyColumns[Index], bShown);
 		if (!bShown)
 		{
 			continue;
@@ -274,46 +238,37 @@ void UHubHUDWidget::RefreshPartyStrip()
 
 void UHubHUDWidget::SetFieldAttack(const FFieldAttackEntry &Entry)
 {
-	const FHubHUDFieldAttackChip Chip = WoRHubHUD::BuildFieldAttackChip(Entry);
-	if (!Chip.Name.EqualTo(FieldAttackName->GetText()))
+	for (int32 Index = 0; Index < AttackStrips.Num(); ++Index)
 	{
-		FieldAttackName->SetText(Chip.Name);
+		const bool bShown = Index == AttackStripCard && !Entry.Name.IsEmpty(); // unarmed and plain: nothing to name
+		WoRMenuStyle::SetShown(AttackStrips[Index], bShown);
+		if (bShown && !Entry.Name.EqualTo(AttackStripTexts[Index]->GetText()))
+		{
+			AttackStripTexts[Index]->SetText(Entry.Name);
+		}
 	}
-	// The item's own icon, else the icon table's; with neither, the icon in words.
-	UTexture2D *Texture = Chip.OwnIcon ? Chip.OwnIcon : WoRIcons::Find(Chip.Icon);
-	const bool bIcon = WoRMenuStyle::SetIcon(FieldAttackIcon, Texture, Chip.Icon.Name.IsEmpty() ? Chip.Name : Chip.Icon.Name);
-	FieldAttackIconText->SetText(Chip.IconText);
-	WoRMenuStyle::SetShown(FieldAttackIconText, !bIcon && !Chip.IconText.IsEmpty());
-	FieldAttackElement->SetText(Chip.ElementName);
-	FieldAttackDot->SetColorAndOpacity(Chip.ElementColor);
-	WoRMenuStyle::SetShown(FieldAttackElementRow, Chip.bElemental);
-	WoRMenuStyle::SetShown(FieldAttackBox, true);
 }
 
 void UHubHUDWidget::RefreshFieldAttack()
 {
-	if (!FieldAttackBox)
+	if (AttackStrips.IsEmpty())
 	{
-		return; // headless: no tree
+		return; // headless, or the hub: no strips
 	}
 	const APawn *Pawn = GetOwningPlayerPawn();
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
-	if (!FieldMovement)
-	{
-		WoRMenuStyle::SetShown(FieldAttackBox, false);
-		return;
-	}
-	SetFieldAttack(FieldMovement->GetFieldAttackEntry());
+	AttackStripCard = FieldMovement ? WoRHubHUD::FindFieldAttackCard(Pawn) : INDEX_NONE;
+	SetFieldAttack(FieldMovement ? FieldMovement->GetFieldAttackEntry() : FFieldAttackEntry());
 }
 
 void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 {
-	if (!FieldAttackBox)
+	if (!AttackStrips.IsValidIndex(AttackStripCard))
 	{
-		return; // headless: no tree
+		return; // headless, the hub, or no card for the pawn
 	}
 	SetFieldAttack(Entry);
-	FieldAttackFrame->SetBrushColor(WoRMenuStyle::FocusColor);
+	AttackStrips[AttackStripCard]->SetBrushColor(WoRMenuStyle::FocusColor);
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(FieldAttackTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::EndFieldAttackFlash),
@@ -323,9 +278,9 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 
 void UHubHUDWidget::EndFieldAttackFlash()
 {
-	if (FieldAttackFrame)
+	for (UBorder *AttackStrip : AttackStrips)
 	{
-		FieldAttackFrame->SetBrushColor(BattleCardStyle::CardColor);
+		AttackStrip->SetBrushColor(BattleCardStyle::CardColor);
 	}
 }
 

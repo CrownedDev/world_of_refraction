@@ -165,9 +165,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	EFieldSkillRefusal FieldAttack(bool bHeld);
 
-	/** B-503 (D-215): the stops of the field attack's cycle, in loadout order: the primary weapon or ring, the
-	 *  secondary weapon, the Resonator's rings; then the innate element (a real one); then each evolution that isn't
-	 *  broken (the character's own slot, the ones socketed in those weapons and rings, apparel's). Empty with none. */
+	/** B-503k (D-217): the stops of the field attack's cycle, its infusions. A weapon user (Generic) swings the
+	 *  loadout's active weapon: plain first, then infused with each element its combat infusion sources give
+	 *  (UActionExecutor::GetAvailableInfusionSources). A Refractor or Resonator throws the pulse in each of those
+	 *  elements, no plain stop. One stop per element. Empty for a caster with no element. */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	TArray<FFieldAttackEntry> GetFieldAttackEntries() const;
 
