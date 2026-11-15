@@ -316,6 +316,13 @@ public:
     void AbandonRun();
     bool IsAbandoned() const { return bAbandoned; }
 
+    /** B-408a (D-172, D-176, Q-408): a run restored from the player's own save at start (the game closed mid-run) is
+     *  settled as a quit: home pieces back, found items taken back, nothing paid, run recruits leave. Unlike
+     *  AbandonRun it needs no HubLevel and no host check (the game is just starting). bTravelIfAway: on to the hub
+     *  when not in it (the save's settle passes false: the player stays where the game started; the specs' world
+     *  can't travel). Nothing without an active run. */
+    void SettleRunAsQuit(bool bTravelIfAway = true);
+
     /** B-073: the save puts a resumed run's tally back. */
     void RestoreRunTally(const FRunPayout &Tally) { RunTally = Tally; }
 
@@ -473,6 +480,10 @@ private:
      *  (World->ServerTravel; the game modes set bUseSeamlessTravel); standalone keeps OpenLevel. A client
      *  doesn't travel on its own (it follows the server; its inputs reach the server with B-229). */
     void TravelTo(const TSoftObjectPtr<UWorld> &Level);
+
+    /** B-408a: everything ExitTrial does to end the run (the layer, payout, resets, the exit save), without the
+     *  travel. */
+    void FinishRun();
 
     /** The map ExitTrial returns to — authored in DefaultGame.ini. */
     UPROPERTY(Config)
