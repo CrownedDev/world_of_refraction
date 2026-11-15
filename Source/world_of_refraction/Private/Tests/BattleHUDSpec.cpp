@@ -13,6 +13,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetTree.h"
 #include "Combat/CombatConstants.h"
 #include "HAL/IConsoleManager.h"
 #include "Character/CharacterDataComponent.h"
@@ -125,6 +126,59 @@ void FBattleHUDSpec::Define()
 		Menu = nullptr;
 		Hero = Foe = nullptr;
 		TestWorld.Reset();
+	});
+
+	Describe("the party card's show levels (B-503j, D-216)", [this]()
+	{
+		It("shows the name only in the hub", [this]()
+		{
+			const FBattleCardParts Parts = BattleHUDCard::GetParts(EBattleCardLevel::Hub, /*bParty=*/true);
+			TestFalse(TEXT("no HP"), Parts.bHPBar || Parts.bHPLine);
+			TestFalse(TEXT("no EP"), Parts.bEPLine);
+			TestFalse(TEXT("no build-up"), Parts.bBuildupBar || Parts.bBuildupLine);
+			TestFalse(TEXT("no fight parts"), Parts.bGear || Parts.bActions || Parts.bStatus);
+		});
+
+		It("shows HP, EP and the one build-up bar in a trial", [this]()
+		{
+			const FBattleCardParts Parts = BattleHUDCard::GetParts(EBattleCardLevel::Trial, /*bParty=*/true);
+			TestTrue(TEXT("HP bar and line"), Parts.bHPBar && Parts.bHPLine);
+			TestTrue(TEXT("EP line"), Parts.bEPLine);
+			TestTrue(TEXT("the build-up bar"), Parts.bBuildupBar);
+			TestFalse(TEXT("no fight parts"), Parts.bBuildupLine || Parts.bGear || Parts.bActions || Parts.bStatus);
+		});
+
+		It("shows everything in a battle, and an enemy its bars and statuses (Q-391)", [this]()
+		{
+			const FBattleCardParts Party = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/true);
+			TestTrue(TEXT("a party card has every part"), Party.bHPBar && Party.bHPLine && Party.bEPLine && Party.bBuildupBar &&
+															  Party.bBuildupLine && Party.bGear && Party.bActions && Party.bStatus);
+			const FBattleCardParts Enemy = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/false);
+			TestTrue(TEXT("an enemy: the bars and statuses"), Enemy.bHPBar && Enemy.bBuildupBar && Enemy.bStatus);
+			TestFalse(TEXT("an enemy: no numbers, gear or actions"), Enemy.bHPLine || Enemy.bEPLine || Enemy.bBuildupLine || Enemy.bGear || Enemy.bActions);
+		});
+
+		It("builds only its level's parts", [this]()
+		{
+			UWidgetTree *Tree = NewObject<UWidgetTree>(GetTransientPackage());
+			for (const EBattleCardLevel Level : {EBattleCardLevel::Hub, EBattleCardLevel::Trial, EBattleCardLevel::Battle})
+			{
+				FBattleHUDCard Card;
+				Card.bParty = true;
+				TestNotNull(TEXT("a frame"), BattleHUDCard::Build(Tree, Card, Level));
+				const FBattleCardParts Parts = BattleHUDCard::GetParts(Level, Card.bParty);
+				TestNotNull(TEXT("the name"), Card.NameText.Get());
+				TestEqual(TEXT("HP bar"), Card.HPBar != nullptr, Parts.bHPBar);
+				TestEqual(TEXT("HP line"), Card.HPText != nullptr, Parts.bHPLine);
+				TestEqual(TEXT("EP line"), Card.EPText != nullptr, Parts.bEPLine);
+				TestEqual(TEXT("build-up bar"), Card.BuildupBar != nullptr, Parts.bBuildupBar);
+				TestEqual(TEXT("build-up line"), Card.BuildupText != nullptr, Parts.bBuildupLine);
+				TestEqual(TEXT("gear"), Card.GearText != nullptr, Parts.bGear);
+				TestEqual(TEXT("actions"), Card.ActionsText != nullptr, Parts.bActions);
+				TestEqual(TEXT("statuses"), Card.StatusText != nullptr, Parts.bStatus);
+				BattleHUDCard::Push(Card); // the parts it didn't build are skipped
+			}
+		});
 	});
 
 	Describe("the text helpers", [this]()

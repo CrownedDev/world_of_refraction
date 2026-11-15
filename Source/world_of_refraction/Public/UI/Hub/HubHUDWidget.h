@@ -1,7 +1,8 @@
 // HubHUDWidget.h
 // B-443 (D-181, UIScreens #14, mockup screen_mockups/hub/hud/1_hub_hud_prompt.png): the hub and trial-map HUD's
-// pieces, and (B-503g) the party strip: an element dot, the name and an HP bar per member, bottom left. The old
-// UPartyDisplayWidget (the debug cards) is hidden unless wor.UI.DebugPartyBox shows it.
+// pieces, and (B-503g) the party strip, bottom left: B-503j (D-216) the battle HUD's party card per member, at the
+// Hub level (names) or, in a run, the Trial level (HP, EP, the build-up bar); the field attack chip after them in the
+// card's look. The old UPartyDisplayWidget (the debug cards) is hidden unless wor.UI.DebugPartyBox shows it.
 //   - The interact prompt: key + verb + what, floating above the thing the player faces.
 //   - The money chip, top right: only near a vendor, or for a few seconds after the balance changed.
 // A plain viewport widget (not a CommonUI screen: it takes no input), created by AWoRHubController for the local
@@ -26,7 +27,8 @@ class UCurrencyComponent;
 class UTextBlock;
 
 /** B-503i (mockup hub/hud): a party strip card's frame: a dark fill and a thin light outline, the top-left corner cut.
- *  It only paints: put it behind the card's content in an overlay. */
+ *  It only paints: put it behind the card's content in an overlay.
+ *  OBSOLETE (B-503j): unused since the strip took the battle card's look (D-216); delete after B-503j's PIE pass. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UHubHUDCardFrame : public UUserWidget
 {
@@ -111,7 +113,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> FieldAttackBox;
 	UPROPERTY(Transient)
-	TObjectPtr<UHubHUDCardFrame> FieldAttackFrame;
+	TObjectPtr<UBorder> FieldAttackFrame;
 	UPROPERTY(Transient)
 	TObjectPtr<class UImage> FieldAttackIcon;
 	/** The icon in words when the table has no texture ("Sword"). */
@@ -132,19 +134,13 @@ private:
 	void RefreshFieldAttack();
 	void EndFieldAttackFlash();
 
-	/** B-503g: the party strip's cards, built once (PartyConstants::MAX_PARTY_MEMBERS), filled on Refresh. The
-	 *  widget tree owns them. */
-	struct FPartyCardWidgets
-	{
-		TObjectPtr<UWidget> Card;
-		TObjectPtr<class UImage> Dot;
-		TObjectPtr<UTextBlock> Name;
-		TObjectPtr<class UProgressBar> HP;
-	};
-	TArray<FPartyCardWidgets> PartyCards;
+	/** B-503g: the party strip's cards, built once (PartyConstants::MAX_PARTY_MEMBERS) at the map's level (B-503j),
+	 *  filled on Refresh. */
+	UPROPERTY(Transient)
+	TArray<FBattleHUDCard> PartyCards;
 	void BuildPartyStrip(class UCanvasPanel *Canvas);
-	/** B-503i: a strip card: the frame behind Content, sized to it between the widths, as tall as the mockup's card. */
-	UWidget *MakeCard(UWidget *Content, float MinWidth, float MaxWidth, UHubHUDCardFrame *&OutFrame);
+	/** B-503j: the field attack chip's card: the battle card's frame around Content, sized to it between the widths. */
+	UWidget *MakeChipCard(UWidget *Content, float MinWidth, float MaxWidth, UBorder *&OutFrame);
 	void RefreshPartyStrip();
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;

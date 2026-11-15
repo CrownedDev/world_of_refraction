@@ -13,7 +13,10 @@
 #include "Party/Party.h"
 #include "Hub/InteractPrompt.h"
 #include "Memory/MemorySpot.h"
+#include "Trial/TrialData.h"
 #include "Trial/TrialRestSpot.h"
+#include "Trial/TrialRunSubsystem.h"
+#include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Hub/HubHUDModel.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
@@ -24,6 +27,7 @@ namespace
 {
 	constexpr float HUB_HUD_TEST_JUST_CHANGED = 1.0f;
 	constexpr float HUB_HUD_TEST_NEVER_CHANGED = -1.0f;
+	constexpr int32 HUB_HUD_TEST_RUN_SEED = 503;
 	const EInteractVerb HUB_HUD_TEST_VERBS[] = {EInteractVerb::Talk, EInteractVerb::Enter, EInteractVerb::Return,
 												EInteractVerb::Invite, EInteractVerb::Dismiss, EInteractVerb::Open,
 												EInteractVerb::Read, EInteractVerb::Challenge, EInteractVerb::PickUp,
@@ -46,7 +50,7 @@ void FHubHUDSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("shows a party card per member: the element dot, the name, the carried HP (B-503g)", [this]()
+	It("shows the battle card per member: the name, the carried HP and EP (B-503g, B-503j)", [this]()
 	{
 		UParty *Party = NewObject<UParty>(GetTransientPackage());
 		const auto AddMember = [Party](const TCHAR *Name, int32 CurrentHP) -> UCharacterData *
@@ -65,27 +69,47 @@ void FHubHUDSpec::Define()
 		Party->Members.Last().CurrentHP = Hurt->CalculateMaxHealth() / 2;
 		Party->Members.AddDefaulted(); // a member with no data shows no card
 
-		const TArray<FHubHUDPartyCard> Cards = WoRHubHUD::BuildPartyStrip(Party);
+		Party->Members.Last(1).CurrentEP = 0;
+
+		const TArray<FBattleHUDCard> Cards = WoRHubHUD::BuildPartyStrip(Party);
 		if (!TestEqual(TEXT("one card per member with data"), Cards.Num(), 2))
 		{
 			return;
 		}
 		TestEqual(TEXT("party order, the character's name"), Cards[0].Name.ToString(), Hub->Name);
-		TestEqual(TEXT("no carried vitals reads full"), Cards[0].HPShare, 1.0f);
-		TestEqual(TEXT("a non-Caster's dot is the generic colour"), Cards[0].DotColor, ElementColors::GetColorForElement(ESpellElement::Generic));
-		TestEqual(TEXT("a Caster's dot is its element's colour"), Cards[1].DotColor, ElementColors::GetColorForElement(ESpellElement::Fire));
-		TestEqual(TEXT("carried HP over max"), Cards[1].HPShare,
+		TestTrue(TEXT("a party card"), Cards[0].bParty);
+		TestEqual(TEXT("no carried vitals reads full"), Cards[0].HPFraction, 1.0f);
+		TestEqual(TEXT("full HP in numbers"), Cards[0].HPLine.ToString(),
+				  BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), Hub->CalculateMaxHealth(), Hub->CalculateMaxHealth()).ToString());
+		TestEqual(TEXT("full EP in numbers"), Cards[0].EPLine.ToString(),
+				  BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), Hub->CalculateMaxEnergy(), Hub->CalculateMaxEnergy()).ToString());
+		TestEqual(TEXT("carried HP over max"), Cards[1].HPFraction,
 				  static_cast<float>(Hurt->CalculateMaxHealth() / 2) / static_cast<float>(Hurt->CalculateMaxHealth()), UE_KINDA_SMALL_NUMBER);
+		TestEqual(TEXT("carried EP"), Cards[1].EPLine.ToString(),
+				  BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), 0, Hurt->CalculateMaxEnergy()).ToString());
+		TestEqual(TEXT("the build-up bar is empty between fights (SB-18)"), Cards[1].BuildupFraction, 0.0f);
 		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
 	});
 
-	It("fits a full party and the field attack chip on one row, every card between its widths (B-503i)", [this]()
+	It("fits a full party and the field attack chip on one row (B-503i, B-503j)", [this]()
 	{
-		TestTrue(TEXT("a card can grow past the mockup's width"), WoRHubHUD::PARTY_CARD_MAX_WIDTH > WoRHubHUD::PARTY_CARD_MIN_WIDTH);
 		TestTrue(TEXT("the chip can grow past its minimum"), WoRHubHUD::FIELD_ATTACK_CHIP_MAX_WIDTH > WoRHubHUD::FIELD_ATTACK_CHIP_MIN_WIDTH);
 		// The strip starts at the screen's padding on the left and keeps the same padding clear on the right.
 		const float Room = WoRHubHUD::HUD_LAYOUT_WIDTH - 2.0f * WoRMenuStyle::ScreenPadding;
-		TestTrue(TEXT("four widest cards and the widest chip fit"), WoRHubHUD::GetPartyStripMaxWidth(PartyConstants::MAX_PARTY_MEMBERS) <= Room);
+		TestTrue(TEXT("four cards and the widest chip fit"), WoRHubHUD::GetPartyStripMaxWidth(PartyConstants::MAX_PARTY_MEMBERS) <= Room);
+	});
+
+	It("shows the hub level out of a run and the trial level in one (B-503j, D-216)", [this]()
+	{
+		TestTrue(TEXT("no run: the hub's cards (names only)"), WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Hub);
+		TestTrue(TEXT("no world: the hub's cards"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Hub);
+		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("run subsystem"), Run))
+		{
+			return;
+		}
+		Run->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), HUB_HUD_TEST_RUN_SEED, INDEX_NONE, ETrialDifficulty::Medium, {}, {}, {});
+		TestTrue(TEXT("in a run: the trial's cards (HP, EP, build-up)"), WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
 	});
 
 	It("shows the field attack chip's name, table icon and element dot (B-503i)", [this]()

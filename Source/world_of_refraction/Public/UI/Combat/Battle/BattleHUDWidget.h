@@ -29,6 +29,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Skills/Effects/ActiveSkillEffect.h" // UFUNCTION handler parameter type
+#include "UI/Combat/Battle/BattleHUDCard.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/Battle/DamageNumberView.h" // FCombatHitShown: UFUNCTION handler parameter type
 #include "BattleHUDWidget.generated.h"
@@ -49,75 +50,6 @@ class UTurnStateComponent;
 class UVerticalBox;
 class UWeaponData;
 class UWoREffectMirrorComponent;
-
-/** One combatant's card: what it shows (plain data) and, once built, its text blocks. */
-USTRUCT()
-struct FBattleHUDCard
-{
-	GENERATED_BODY()
-
-	TWeakObjectPtr<AActor> Actor;
-	TWeakObjectPtr<UCharacterDataComponent> CharData;
-	bool bParty = false;
-	bool bActing = false;
-	bool bAlive = true;
-	bool bShowEP = true;
-	/** B-391b: the EP line is the absorption pool. */
-	bool bBrokenDarkness = false;
-	FLinearColor EPColour = FLinearColor::White;
-	float HPFraction = 0.0f;
-	FText Name;
-	FText HPLine;
-	FText EPLine;
-	/** B-170e: "Actions ●●○ 2 · Max 3 (+75/100)"; party cards in an action-pips fight only. */
-	FText ActionsLine;
-	FText StatusLine;
-
-	/** B-391c: the status buildup bar (every card; the line on party cards only, Q-391). */
-	float BuildupFraction = 0.0f;
-	int32 CracksShown = 0;
-	FLinearColor BuildupColour = FLinearColor::White;
-	FText BuildupLine;
-
-	/** B-391c: party cards: "weapon · ring" and the hover tooltip with the loadout. */
-	TWeakObjectPtr<ULoadoutComponent> Loadout;
-	FText GearLine;
-	FText GearTooltip;
-
-	UPROPERTY()
-	TObjectPtr<UBorder> Frame;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> NameText;
-
-	UPROPERTY()
-	TObjectPtr<UProgressBar> HPBar;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> HPText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> EPText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> ActionsText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> StatusText;
-
-	UPROPERTY()
-	TObjectPtr<UProgressBar> BuildupBar;
-
-	/** One mark per BattleHUDView::GetCrackPositions, built once; shown as the bar passes each. */
-	UPROPERTY()
-	TArray<TObjectPtr<UWidget>> CrackMarks;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> BuildupText;
-
-	UPROPERTY()
-	TObjectPtr<UTextBlock> GearText;
-};
 
 /** B-391b: one pooled floating damage number. */
 USTRUCT()
@@ -175,9 +107,6 @@ protected:
 
 private:
 	void AddCard(AActor *Actor, bool bParty);
-	void BuildCardWidgets(FBattleHUDCard &Card, UVerticalBox *Column);
-
-	void BuildBuildupWidgets(FBattleHUDCard &Card, UVerticalBox *Rows);
 
 	void RefreshPools();
 	void RefreshStatuses();
