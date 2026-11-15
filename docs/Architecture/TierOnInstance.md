@@ -113,6 +113,8 @@ op (`AttachEvolutionToWeapon/Ring`) writes the leveled instance tier + a valid `
 - `InventoryDebug` dumps owned spells/abilities with their per-instance tier.
 
 ## Known Limitations / TODOs
+
+- **The floor has one exception (B-510, D-219):** a lost run (out of wipes, a quit, a closed game) lowers each worn piece's instance tier by `GearTierLoss::RANKS_LOST_ON_LOST_RUN`, clamped at F, even below the asset's authored tier (`UPoolSubsystem::ApplyLostRunTierDrop`). Leveling down by hand (`TryDowngradeEntry`) still stops at the authored tier.
 - **⚠️ `FSavedLoadout` re-save caveat:** the spell arrays' type changed (`TArray<USpellData*>` →
   `TArray<FSpellRef>` / `FSavedBDElementSpellPool`). UE tagged-property serialization can't auto-convert
   the old inner type, so **existing authored loadout assets load those spell arrays EMPTY** until
@@ -131,3 +133,4 @@ op (`AttachEvolutionToWeapon/Ring`) writes the leveled instance tier + a valid `
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-06-24 | Initial doc — the per-instance tier/quality axis across weapon/ring/evolution/spell/ability, the asset-keyed spell resolver, `FSpellRef` saved-side pairing + dormant `InstanceID`, seed points, inflation, and the re-save caveat. | feature/currency-component |
+| 2026-11-15 | B-510: the lost-run tier drop goes below the authored floor, never below F (Known Limitations) | `feature/B-510-lost-run-tier-drop` |
