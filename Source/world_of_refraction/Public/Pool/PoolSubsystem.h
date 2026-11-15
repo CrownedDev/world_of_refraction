@@ -40,6 +40,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Currency/CurrencyTypes.h"             // ECurrencyType / EEssenceType / FCurrencyArray
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/WornGear.h"
 #include "Pool/PoolQueryTypes.h"                // FPoolFilter + the per-category result views
 #include "Inventory/InventoryConstants.h"       // ITEM_SLOTS_START
 #include "PoolSubsystem.generated.h"
@@ -144,6 +145,9 @@ struct WORLD_OF_REFRACTION_API FPoolSkills
 
 /** B-316b: a character's skills changed in the store (a give, a learn). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolSkillsChanged, FName, CharacterKey);
+
+/** D-221 (B-505): a character's worn-gear record changed (its gear or its wheel pick). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWornGearChanged, FName, CharacterKey);
 
 /** B-311 (D-111): one character's custom loadouts, pieces referenced by owned GUID. */
 USTRUCT()
@@ -396,6 +400,25 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnPoolGearChanged OnPoolGearChanged;
+
+    // ==================== WORN GEAR (D-221 stage 1, B-505) ====================
+    // What each character wears now, by character key (GetCharacterKey; a benched character keeps its own). Every
+    // map's draw builds the pawn's loadout from it; the template seeds it once (UInventoryComponent::DrawSharedGear).
+
+    /** The character's record, or null before its first draw (a new game, a new recruit). */
+    const FWornGear *GetWornGear(FName CharacterKey) const { return WornGear.Find(CharacterKey); }
+
+    /** Replaces the record's gear; its wheel pick is kept (SetWheelPick writes that). Fires OnWornGearChanged and
+     *  logs when anything changed. */
+    void SetWornGear(FName CharacterKey, const FWornGear &Worn);
+
+    /** D-218: the wheel pick. False (nothing kept) for a character with no record yet. */
+    bool SetWheelPick(FName CharacterKey, const FWheelPick &Pick);
+
+    const TMap<FName, FWornGear> &GetAllWornGear() const { return WornGear; }
+
+    UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
+    FOnWornGearChanged OnWornGearChanged;
 
     // ==================== POUCHES AND STORAGE (B-203, B-322, D-097, D-117, Q-322) ====================
     // Each character carries its own pouch of item slots (one item type, a crystal type and tier, per
@@ -681,6 +704,10 @@ private:
     /** B-311: character key -> its custom loadouts. */
     UPROPERTY()
     TMap<FName, FPoolCustomLoadouts> CustomLoadouts;
+
+    /** D-221 (B-505): character key -> what it wears now. */
+    UPROPERTY()
+    TMap<FName, FWornGear> WornGear;
 
     /** B-316b: character key -> its learned skills (present once banked, even when empty). */
     UPROPERTY()
