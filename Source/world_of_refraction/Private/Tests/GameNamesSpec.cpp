@@ -128,6 +128,22 @@ void FGameNamesSpec::Define()
 		TestEqual(TEXT("gauntlets are a pair already"), WoRGameNames::GetHeldWeaponTypeName(Weapon).ToString(), WoRGameNames::GetWeaponTypeName(EWeaponType::Gauntlets).ToString());
 		TestTrue(TEXT("no weapon"), WoRGameNames::GetHeldWeaponTypeName(nullptr).IsEmpty());
 	});
+
+	It("names the pieces in hand, joining a separate off hand (B-513b)", [this]()
+	{
+		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
+		Sword->Name = TEXT("Flame Sword");
+		UWeaponData *Shield = NewObject<UWeaponData>(GetTransientPackage());
+		Shield->Name = TEXT("Void Shield");
+		UWeaponData *Unnamed = NewObject<UWeaponData>(GetTransientPackage());
+		Unnamed->Name = FString();
+		Unnamed->WeaponType = EWeaponType::Axe;
+		TestEqual(TEXT("one piece: its name"), WoRGameNames::GetHeldPiecesName(Sword).ToString(), FString(TEXT("Flame Sword")));
+		TestEqual(TEXT("with its off hand"), WoRGameNames::GetHeldPiecesName(Sword, Shield).ToString(), FString(TEXT("Flame Sword and Void Shield")));
+		TestEqual(TEXT("a piece with no name gives its type"), WoRGameNames::GetHeldPiecesName(Sword, Unnamed).ToString(),
+				  FString::Printf(TEXT("Flame Sword and %s"), *WoRGameNames::GetWeaponTypeName(EWeaponType::Axe).ToString()));
+		TestTrue(TEXT("no main hand"), WoRGameNames::GetHeldPiecesName(nullptr, Shield).IsEmpty());
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
