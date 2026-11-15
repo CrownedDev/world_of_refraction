@@ -2,6 +2,14 @@
 
 **Status:** plan; stages 1 and 2 are built (B-515, B-516, in dev). **Crown approves the cast and gear list (§2) before the asset stages are built.**
 
+**Revision 6 (2026-11-15) takes in Crown's last answers (D-224, "More answers" and "The Broken Darkness pool"). Every question is now answered, apart from tuning and the three follow-ons on found skills (questions 10 to 12):**
+- **Q8:** a sword with a shield counts as **one weapon** for the D-211 slots: the shield adds nothing to the slot average. It still adds its stats. This is a one-line rule change, its own small job right after stage 2 (§1, "The shield as its own piece").
+- **Q9:** the starting bolt is **in the inventory**: the player picks it into a slot. Nothing is pre-attached, and the kit's sockets start empty (§5.3).
+- **The class kits, first shape** (tuned later): a Refractor starts with nothing (it has its innate), a Generic with one weapon, a Resonator with two rings (§2).
+- **Q6:** innate spells stay. "No skills at the start" means no learned or bought ones.
+- **(b) yes:** a character keeps the skills found in a run, "similar to their other equipment", under the found-gear rules of D-219 and D-221 (§5.3).
+- **Broken Darkness's pools are capacity, not content:** empty places to learn spells, never pre-filled. The authored field goes, and the pool is a rule in code that the screens draw as empty places (§5.4).
+
 **Revision 5 (2026-11-15) takes in Crown's answers on revision 4 (D-224):**
 - **Q3:** the averaged tier does not lower the ring's own stat lines; they stay on the ring's own tier. The average drives how strong the skills cast through the ring are (§4).
 - **Q4:** weapons average with their crystal too, and it affects the status build-up (§4.1).
@@ -53,7 +61,8 @@ Then we delete the old assets. The code learns to read only the new shape; nothi
 |---|---|---|
 | `StartingGear` | **new**, type `FClassDefaultLoadout` (the kit's own struct, reused) | The starting worn gear as a list of pieces. Each `FClassDefaultPiece` has `Piece`, `OffHand`, `SkillPicks` (D-224: **the worn entry's skills**, not the piece's) and the new `Crystal`, plus `ActiveIndex` and `Apparel`. It is minted into the pool once (a new game or a new recruit) and worn like the kit (D-221 (1)). |
 | `StartingEvolution` | **new**, `UEvolutionItemData*` | The character's own evolution (it becomes `FWornGear::EvolutionID`). |
-| `InnateSpells`, `BDSpellPools` | **moved here** from `FSavedLoadout` | The character's own spells (§5.1). |
+| `InnateSpells` | **moved here** from `FSavedLoadout` | The character's own spells (§5.1). |
+| ~~`BDSpellPools`~~ | **not moved: deleted** (stage 6) | Broken Darkness's pools are empty places the player fills, a rule in code (§5.4), so nothing is authored. |
 | `CrystalStock` | kept | The starting crystal stock, `{crystal kind, tier}: count` (§2). |
 | `Spells`, `Abilities` | kept until (b) is answered | The character's known skills in the hub (§5.3). |
 | `EvolutionEquipment` | kept | Owned evolutions besides the worn one. |
@@ -142,6 +151,12 @@ An adapter is a full gear piece, and all of this **stays** in the new shape. Onl
 - The left hand shows the shield piece's own mesh. A D-209 pair now shows its second piece's mesh too.
 - A shield asset is `DualOnly` with no attack, and the sword is `SingleOrDual`.
 - `EWeaponWieldMode::OffHandShield` on a sword (the baked-in shield) and the left-hand mesh fields are OBSOLETE, deleted in stage 6.
+
+**A sword and shield count as one weapon for the slots (Crown, Q8: "as if it was one weapon, i.e. like a sword").**
+- **Today:** `WeaponSetRules::GetSetTierSlots` (`WeaponSetRules.cpp:84-87`) averages the two hands' slots for any valid pair (D-211), a shield included. An F shield lowers an S sword's slots.
+- **The change:** a shield pair (`IsShieldPair`) takes the main hand's own slots, as a sword alone does. A D-209 pair of two weapons keeps the average.
+- **Its stats stay:** the off hand's stat bonus (`LoadoutComponent.cpp:4015`, scaled by its own tier) and its resistances (`:4107`) still count. A shield is worn for its defence. This is the plan's recommendation, and Crown's answer only changed the slots.
+- **The job:** one rule line plus a `WoR.Loadout.WeaponSets` case (an S sword with an F shield keeps the S slots; two axes still average). It is its own small job right after stage 2 (B-515c), as it touches neither the empty adapter nor the tier work.
 
 ## 2. The asset list (for Crown's OK)
 
@@ -232,13 +247,17 @@ These are spares on top of the crystals in the rings. More come from `wor.Econom
 
 ### Change: the class kits (`DA_Loadout_ClassDefaults`)
 
-| Class | Pieces | `StartingSkills` (D-224 default, `TODO` tune) |
+**The first shape (Crown, 2026-11-15; `TODO` tune later):**
+
+| Class | Pieces | `StartingSkills` (in the inventory, not picked) |
 |---|---|---|
-| Generic | `DA_Weapon_Sword` (with `DA_Weapon_Shield` as its off hand), one `DA_Ring_Adapter` | one generic bolt |
-| Caster | one `DA_Ring_Adapter` | one generic bolt |
-| Resonator | `DA_Weapon_Sword`, three `DA_Ring_Adapter` | one generic bolt |
+| Generic | one weapon: `DA_Weapon_Sword` | one generic bolt |
+| Caster (Refractor) | **nothing** ("since they have innate") | none: its innate spells are its start |
+| Resonator | two `DA_Ring_Adapter` | one generic bolt |
 
 - Every kit is F tier, and its `Crystal` is left empty: the trial's kit starts empty (D-221), and its stock fills it.
+- **The bolt is in the inventory (Crown, Q9):** `StartingSkills` go into the character's run skills, not into a slot. The player picks the bolt into a slot themself, and it can be cast once a crystal is in.
+- **Today's kit asset** also gives the Generic the shield and a ring, and the Resonator a sword and three rings; the editor worker cuts it down to the first shape in stage 5.
 - **The generic bolt:** no spell asset is referenced in code. The docs name `DA_Spell_Bolt` and `DA_Spell_Missile` (`Audits/CharacterAssetDump.md:22`). The editor worker uses whichever exists, or makes `DA_Spell_Bolt` as a Generic-element bolt (it takes the source's element).
 
 ### Delete (after the new ones are in and the reference check is clean)
@@ -382,7 +401,8 @@ One helper works this out (`CrystalEffectTable::GetAdapterTier(const FRingInvent
 | **Ring built-ins** (`PresetSpells`, `bSpellsLocked`, `DefaultSpells`) | on the asset; they pre-fill the ring's slots (`FRingLoadoutEntry.cpp:121-135`) | **gone** | The ring's spell list is only the picks. A "locked" (conjured) ring becomes an ordinary empty ring (Crown, Q7); `bSpellsLocked` is deleted in stage 6. |
 | **Ring picks** | on the owned piece: `FRingInventoryEntry::SpellPicks` / `bSpellSlotsActive` / `AssignedSpells` (`:88-98`); dropped when the crystal comes off (`FRingInventoryEntry.h:196`) | **on the worn entry**: `FLoadoutSlot::SpellOverrides` (exists; today "weapon only"), the same list for any piece | The same as weapon picks. The drop on unsocketing stays. |
 | **Evolution spells** | not on the asset. They are the worn seat's picks: `FWornGear::EvolutionSpells` (`WornGear.h:68`), sized by the evolution's tier (`LoadoutRules.cpp:550`) | **no change**: already part of what is worn. An evolution in an adapter uses the adapter entry's list. | None. |
-| **Innate spells, BD pools** | `FSavedLoadout`; runtime `FWornGear` | moved to `UInventoryData` (§1), runtime unchanged | Small. Do they count as "skills" a run starts without? (question 6). |
+| **Innate spells** | `FSavedLoadout`; runtime `FWornGear` | moved to `UInventoryData` (§1), runtime unchanged | Crown (Q6): they stay, and a run starts with them. |
+| **Broken Darkness pools** | `FSavedLoadout::BDSpellPools` (authored, empty everywhere); runtime `FCombatLoadout` / `FWornGear` | the authored field is deleted; the places are a rule (§5.4) | Small: one copy line goes. |
 | **Known skills** | `UInventoryData::Spells` / `Abilities`; runtime `UInventoryComponent` and the pool's `CharacterSkills`; saved in `FSavedCharacterSkills` | **depends on (b)** (§5.3) | — |
 | **Field skills** | derived from the worn pieces (`GetFieldAttackEntries`) | **no change** | None. |
 
@@ -449,16 +469,61 @@ One helper works this out (`CrystalEffectTable::GetAdapterTier(const FRingInvent
 - **The reset at trial start**, and the kit's `StartingSkills` (§1).
 - **A trial mirror** that builds presets (planned in the restructure, not in code).
 
-**The default for now (D-224, tune later):**
-- Each class kit's `StartingSkills` is one generic bolt (§2), with `// TODO: tune the starting skills (D-224)`.
-- A Generic's or Resonator's bolt needs an adapter with a crystal. The kit's sockets start empty, so the bolt can't be cast until a crystal from the stock goes in (question 9).
+**The start (D-224, tune later):**
+- A Generic's and a Resonator's kit give one generic bolt in `StartingSkills` (§2), with `// TODO: tune the starting skills (D-224)`. A Refractor's gives none: it starts on its innate spells (Q6).
+- **The bolt is in the inventory (Crown, Q9):** it goes into the run's skills, not into a slot. Nothing is pre-attached. The player picks it into a slot, and it casts once a crystal from the stock is in a ring.
+- Innate spells stay (Q6). "No skills at the start" means no learned or bought ones.
 
-**What depends on (b), a permanent known-skills list in the hub:**
-- **If yes:**
-  - The hub keeps the character's known list (`CharacterSkills`, as today), and presets are built from it.
-  - A run keeps its own list beside the run-start snapshot (B-508). It starts as the kit's `StartingSkills`, and purchases, chests and enemy drops go into it.
-  - At the run's end, the run list is dropped. Whether a won skill joins the hub list is a follow-on question.
-- **If no:** one list per character, reset to the kit's `StartingSkills` at each trial start.
+**(b) yes: a character keeps the skills found in a run, "similar to their other equipment" (Crown).** The hub keeps the character's known list (`CharacterSkills`, as today), and presets are built from it. A run keeps its own list beside the run-start snapshot (B-508): the kit's `StartingSkills`, plus purchases, chests and enemy drops. At the end, the run list is settled by the found-gear rules (D-219, D-221).
+
+**What D-219's found-gear rules mean for a skill:**
+
+| The run ends by | A found gear piece (D-219) | A found skill |
+|---|---|---|
+| **a boss win (finish)** | kept if worn at the end | kept: it joins the hub's known list |
+| **an extract** (leaving early) | kept if worn | kept |
+| **out of wipes** | kept if worn, and every worn piece drops tier ranks (3, tunable) | kept (question 12 asks about the tier drop) |
+| **a quit, or the game closed mid-run** | the run-start loadout is put back; found gear goes back | **lost**: the run list is dropped, nothing joins the hub list |
+
+- **Today it is not built:** learning writes the permanent list at once (`PoolSkills.cpp`, `CharacterSkills`), so a skill bought in a run stays even after a quit. The run list and its settling at the end are the S3 code.
+- **A kept skill is the character's**, like owned gear: it can be put in any preset in the hub.
+
+**Gaps, for Crown (questions 10 to 12):**
+- **Picked or carried (10):** D-219 keeps only the gear **worn** at the end, and found gear left in the inventory goes back. Does a found skill need to be in a slot at the end, or is every skill found in the run kept? Recommendation: every found skill is kept. A skill takes no room in the inventory, so the "worn" test protects nothing. Monster Hunter and Hades keep what you unlock whether it is equipped or not.
+- **The next run's start (11):** D-219 makes the gear you end with the next run's starting gear, but D-224 (2) says a run starts with no skills. Does a kept skill start the next run, or only sit in the hub's list (for presets) while each run starts with the kit's bolt? Recommendation: in the hub list only, so every run starts on the kit (D-224 (2) is the newer ruling). Hades and Dead Cells keep unlocks between runs while each run starts on its loadout.
+- **The tier drop (12):** out of wipes, every worn piece drops 3 tiers (D-219). Does a kept skill drop too? Recommendation: no. A learned skill has its own instance tier (`ResolveAbilityTier`), but the lost-run drop (B-510, `PoolRunLayer.cpp` `DropLostRunTier`) runs on gear only, and the worn gear's drop already carries the cost.
+
+### 5.4 Broken Darkness's pools: a rule, not data (Crown, 2026-11-15)
+
+**Crown:** "the pool is just saying we have these empty spaces to learn spells", "we wouldn't add presets to it", and "we might even just have to remove the data asset side of it and keep it as logic for UI".
+
+**What a pool is in code today:**
+- **The struct:** `FBDElementSpellPool` (`FCombatLoadout.h:48`): an `Element` and its `Spells` (at most 6, each of that element). One pool per absorbable element other than Darkness, so 7. Darkness's own spells are the character's `InnateSpells`, not a pool.
+- **Where it is authored:** `FSavedLoadout::BDSpellPools` (`FSavedLoadout.h:169`, as `FSavedBDElementSpellPool`) on `UInventoryData`'s loadouts. The asset dump shows it empty on every inventory.
+- **The places already come from code:** `ULoadoutComponent::InitializeBDPools` (`LoadoutComponent.cpp:1960`, run by `ApplyBDPoolsIfBroken`) adds an empty pool for each absorbable element the loadout lacks. The limits are named constants: `MAX_BD_ELEMENT_POOLS` 7 (`LoadoutConstants.h:19`), `MAX_EQUIPPED_SLOT_POOL` 6 places a pool (`SpellPoolConstants.h:23`), `BD_SPELL_BUDGET` 48 (`:28`).
+- **The runtime pools** hold the spells the player has put in. They are kept on the loadout and on what is worn (`FCombatLoadout::BDSpellPools`, `FWornGear::BDSpellPools`) and saved with them (`FSavedCustomBDPool` in `WoRSaveTypes.h:268` / `:635`).
+
+**Every reader of the pools today:**
+
+| Reader | What it reads | After the change |
+|---|---|---|
+| `MakeRunPreset` (`InventoryComponent.cpp:1475`) | copies the **authored** pools into a run preset | **goes**: the run preset starts with the places from the rule |
+| `InventoryData.cpp:255` | empties an authored loadout's pools for a non-Caster | **goes** with the field |
+| `FCombatLoadout::CreateFromSavedLoadout` / `ToSavedLoadout` (`FCombatLoadout.cpp`) | the authored and preset round trip | the authored part goes. A preset keeps the spells the player put in (a preset is a copy of what is worn, D-221) |
+| `WornGear.cpp` (compare, `CreateFromWornGear`, `ToSavedLoadout`) | the worn pools | kept: they hold the player's spells |
+| `SaveSubsystem.cpp:306-420` | saves and loads the preset and worn pools | kept |
+| `GetAvailableSpells` (`LoadoutComponent.cpp:1499`) | the active pool's spells in a fight | kept |
+| `ResolveSpellSource`, `FindSpellCatalystHolder`, the broken-source checks (`LoadoutComponent.cpp:1547`, `:1630`, `:2930`, `:3003`) | "is this spell a pool spell" | kept |
+| `FLoadoutRules` (`LoadoutRules.cpp:269`) | the pool size and budget check | kept: it already checks against the constants |
+| `FCombatCapabilities.cpp:98`, `ActionExecutor.cpp:4802` | the castable list, the AI | kept |
+| `LoadoutSkillsModel.cpp:98` | a `TODO` (B-440d): the Skills tab doesn't draw the pools yet | the tab draws each absorbed element's 6 places, empty until filled |
+| `InventoryDebug.cpp`, `GenericSpellResolveDebug.cpp` | debug prints | kept |
+
+**The rule that replaces the authored field:** a Broken Darkness character has one pool per absorbable element other than Darkness (`MAX_BD_ELEMENT_POOLS`), each with `MAX_EQUIPPED_SLOT_POOL` empty places, within `BD_SPELL_BUDGET`. That is `InitializeBDPools` as it stands. No reader needs content the rule can't give: none of them reads authored spells (there are none), so there is nothing to ask Crown.
+
+**Where the spells the player puts in are kept:** on what is worn, as today, and therefore in presets. A spell learned into a pool in a run is a found skill (§5.3): it follows the same keep-or-lose rule at the run's end.
+
+**The stage:** stage 6 deletes `FSavedLoadout::BDSpellPools` (and `FSavedBDElementSpellPool` if nothing else uses it) and the two "goes" readers above. The Skills tab's empty places are UI work in the restructure's Skills screen, not this plan.
 
 **Trial skills (a future stage, not designed now):** a trial-side track beside the starting-gear track (D-221), with unlocks such as "start with this spell in a trial" and "more starting spells". They are read at run start alongside the kit's `StartingSkills`.
 
@@ -483,16 +548,16 @@ Until stage 4, the new pieces are added as spares to the current played characte
 | **2b. The built tier: rings and weapons** (§4, §4.1) | `GetAdapterTier` and its four ring readers; `GetWeaponTier` and its three readers; the detail line (+ `WoR.Loadout.AdapterTier` with weapon cases, updated ring and ED-11 weapon specs, rules rows) | none (use the stage 2 rings, the sword and the stock) | An F ring with a B Citrine reads **D**: 3 spell slots, its spells' damage and wear against D, **its stat line still at F**. Unsocketed it reads F again. An F sword with a B Garnet reads D: a D ability's damage and status build-up go up. Combat Tier moves with both. |
 | **3. Pieces start empty; the axes** | stop copying `AttachedItem`; the price term; a found piece may be prebuilt (§3, "Found pieces") (+ spec fixes) | `DA_Weapon_Axe_Hand`, `DA_Weapon_Axe_Bearded` | The axes read "Hand Axe and Bearded Axe", "Dual Axes", each axe's own mesh in its hand. A ring bought from the merchant arrives empty. |
 | **4. The Generic starts from `StartingGear`** | the `UInventoryData` fields, `FClassDefaultPiece::Crystal`, `FClassDefaultLoadout::StartingSkills` (field only); generalise the kit minting; the `DrawSharedGear` seed (+ spec) | `DA_Character_Generic`, `DA_Inventory_Generic_Start`, Gale; point the played character at it | A new game: the Generic wears the sword and shield, the axes are spare, the **Earth Ring** is socketed, Gale is in its seat, and the stock is in the pouch. |
-| **5. The rest of the cast** | none expected | the other characters, Phoenix, the two enemies, `DA_Loadout_ClassDefaults` (pieces and the bolt) | Each character's start, the Resonator's three rings, the Refractor's Fire innate and Phoenix, BD's pools, a trial on the kit, a fight against each enemy. |
-| **6. Delete the old** | delete the §1 fields and their readers; raise the minimum save version | the reference check, then the §2 delete list | A new game works, an old save is wiped with a warning, validation has no new errors, a battle plays. |
+| **5. The rest of the cast** | none expected | the other characters, Phoenix, the two enemies, `DA_Loadout_ClassDefaults` cut to the first shape (§2: the Generic's sword, the Resonator's two rings, nothing for the Refractor; the bolt) | Each character's start, the Refractor's Fire innate and Phoenix, BD's empty pool places, a trial on the kit (the bolt in the inventory, not in a slot), a fight against each enemy. |
+| **6. Delete the old** | delete the §1 fields and their readers, and `FSavedLoadout::BDSpellPools` with its two authored readers (§5.4); raise the minimum save version | the reference check, then the §2 delete list | A new game works, an old save is wiped with a warning, validation has no new errors, a battle plays. |
 
-### The skills track (D-224; S1 and S2 don't wait for (b), S3 does)
+### The skills track (D-224; (b) is answered, so none of it waits)
 
 | Stage | Code | Editor | Crown checks in PIE |
 |---|---|---|---|
 | **S1. No skills on gear** (§5.1) | picks move from the piece to the worn entry (`FLoadoutSlot`), with the save; built-ins and the write-back go; the Equipment screen offers only known skills | clear the clean set's skill lists (none authored) | A sword has no skills until you put one in. The skills stay when you change crystals. A preset keeps them. Giving the sword away doesn't take them along. |
 | **S2. Skills name what they need** (§5.2) | `FSkillGearRequirement`, `SkillRequirementRules::IsMet`, the four readers | one scripted pass setting every skill's requirement | An axe skill is offered only with an axe worn. A bolt needs an adapter with a crystal. An evolution skill needs an evolution. A skill whose gear you take off greys out. |
-| **S3. A run's skills** (§5.3, after (b)) | the kit's `StartingSkills` given at trial start; the run list (or the reset); purchases and chests go into it | the bolt in each kit | A trial starts with only the bolt. Buying a skill at the merchant adds it for the run. After the run it's gone (or kept, per (b)). |
+| **S3. A run's skills** (§5.3) | the kit's `StartingSkills` into the run list at trial start (not into a slot); purchases and chests go into it; at the end the list is settled by D-219 (kept on a finish, an extract or out of wipes; dropped on a quit) | the bolt in the Generic's and the Resonator's kits | A trial starts with the bolt in the inventory, and you pick it into a slot. Buying a skill at the merchant adds it. After an extract it's in the hub list; after a quit it's gone. |
 | **S4. Enemies drop skills** | a skill entry in enemy loot | a few drop entries | Defeating a tagged enemy can give a skill, shown in the reward. |
 | **Later: trial skills** | the trial-side starting-skill track | — | — |
 
@@ -504,8 +569,11 @@ Until stage 4, the new pieces are added as spares to the current played characte
 2. **Two same-named rings:** a repeat number ("Lightning Ring 2"), shown only where a list has the same name twice (the default for now)?
 3. ~~**The built ring tier (§4).**~~ **Answered (Crown):** the ring's stat lines stay on its own tier; the average drives the skills cast through it (slots, damage, wear) and Combat Tier.
 4. ~~**Weapons with a crystal.**~~ **Answered (Crown):** they average too, and it affects the status build-up (§4.1). By the plan's default, weapon power and skill slots keep the weapon's own tier (its own stats; CL-20 already adds the crystal's slots).
-5. **(b), still open:** does a character keep a permanent list of known skills in the hub?
-6. **Do innate spells and Broken Darkness's pools count as skills a run starts without?** Recommendation: no. They are the class's identity and always on (D-040).
+5. ~~**(b).**~~ **Answered (Crown):** yes. A character keeps the skills found in a run, like its other equipment, under D-219 / D-221 (§5.3). Three follow-ons are questions 10 to 12.
+6. ~~**Innate spells and BD pools.**~~ **Answered (Crown):** innate spells stay; a BD pool is empty places, not spells, and becomes a rule (§5.4).
 7. ~~**Locked (conjured) rings.**~~ **Answered (Crown):** they become ordinary empty rings; found rings may come prebuilt, with a crystal or an evolution in the socket (§3, "Found pieces").
-8. **A shield in a pair:** today it counts in the D-211 slot average (an F shield lowers an S sword's slots) and adds its own stats. Recommendation: the shield adds its stats but **doesn't** count in the slot average; the main hand's slots stand.
-9. **The starting bolt** needs an adapter with a crystal, but the kit's sockets start empty, so a crystal must go in before the bolt can be cast. OK, or should the kit's ring start socketed?
+8. ~~**A shield in a pair.**~~ **Answered (Crown):** it counts as one weapon, like a sword; the shield adds nothing to the slot average. By the plan's default it still adds its stats (§1).
+9. ~~**The starting bolt.**~~ **Answered (Crown):** it's in the inventory and the player attaches it; nothing is pre-attached, and the kit's sockets start empty (§5.3).
+10. **A found skill: picked or carried?** Is every skill found in a run kept, or only one in a slot at the end (D-219 keeps only worn gear)? Recommendation: every found skill (§5.3).
+11. **A kept skill and the next run:** does it start the next run (as D-219's gear does), or only sit in the hub list while each run starts on the kit (D-224 (2))? Recommendation: the hub list only (§5.3).
+12. **A kept skill out of wipes:** does it drop tiers as worn gear does? Recommendation: no (§5.3).
