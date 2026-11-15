@@ -59,6 +59,19 @@ namespace
         return Kept;
     }
 
+    /** B-510: Entry's tier after a lost run (never below F). True when it changed. */
+    template <class TEntry>
+    bool DropLostRunTier(TEntry &Entry)
+    {
+        const EItemTier Lowered = TierHelpers::GetTierFromValue(TierHelpers::GetTierValue(Entry.Tier) - GearTierLoss::RANKS_LOST_ON_LOST_RUN);
+        if (Lowered == Entry.Tier)
+        {
+            return false;
+        }
+        Entry.Tier = Lowered;
+        return true;
+    }
+
     /** The evolution instance in a socket, or an unset ID. */
     FGuid SocketedEvolutionID(const FRuntimeAttachedItem &Attached)
     {
@@ -380,6 +393,14 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
         TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176) and B-451 (D-189): a quit or a lost run loses its finds
     }
     const TMap<FName, FWornGear> RunStart = MoveTemp(RunStartWornGear);
+    if (!bKept)
+    {
+        // B-510 (D-219): before anything goes back, so it is what the party wears at the end (a closed game: as saved).
+        for (const TPair<FName, FWornGear> &Start : RunStart)
+        {
+            ApplyLostRunTierDrop(Start.Key);
+        }
+    }
     // B-509 (D-219, D-221): every ending but a quit keeps the run's sockets; only a kept ending keeps worn found gear.
     TSet<FGuid> WornNow;
     if (bKept)
@@ -409,6 +430,58 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
         ++PutBack;
     }
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run quit: %d worn-gear record(s) put back as the run found them (D-219)"), PutBack);
+}
+
+int32 UPoolSubsystem::ApplyLostRunTierDrop(FName CharacterKey)
+{
+    const FWornGear *Worn = WornGear.Find(CharacterKey);
+    if (!Worn)
+    {
+        return 0;
+    }
+    int32 Dropped = 0;
+    for (const FGuid &ID : Worn->GetPieceIDs())
+    {
+        // Copies, as EndRunLayer: each update broadcasts, and a listener may move the arrays.
+        if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(ID))
+        {
+            FWeaponInventoryEntry Lowered = *Weapon;
+            if (DropLostRunTier(Lowered))
+            {
+                UpdateWeapon(Lowered);
+                ++Dropped;
+            }
+        }
+        else if (const FRingInventoryEntry *Adapter = FindRingInPool(ID))
+        {
+            FRingInventoryEntry Lowered = *Adapter;
+            if (DropLostRunTier(Lowered))
+            {
+                UpdateRing(Lowered);
+                ++Dropped;
+            }
+        }
+        else if (const FEvolutionInventoryEntry *Evolution = FindEvolutionInPool(ID))
+        {
+            FEvolutionInventoryEntry Lowered = *Evolution;
+            if (DropLostRunTier(Lowered))
+            {
+                UpdateEvolution(Lowered);
+                ++Dropped;
+            }
+        }
+        else if (FApparelEntry *Apparel = OwnedApparel.FindByPredicate([&ID](const FApparelEntry &E) { return E.PersistentID == ID; }))
+        {
+            if (DropLostRunTier(*Apparel))
+            {
+                OnPoolGearChanged.Broadcast(ID);
+                ++Dropped;
+            }
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Lost run: %s's %d worn piece(s) drop %d tier(s), never below F (D-219)"),
+           *FPaths::GetBaseFilename(CharacterKey.ToString()), Dropped, GearTierLoss::RANKS_LOST_ON_LOST_RUN);
+    return Dropped;
 }
 
 TMap<FCrystalId, int32> UPoolSubsystem::CountHeldItems() const
