@@ -34,8 +34,8 @@ public:
 	/** Reads what is in reach and the money, and updates both pieces. The timer calls it; so can a spec. */
 	void Refresh();
 
-	/** B-503 (D-215): the cycled field attack's icon, name and element, for FieldSkillRules::FIELD_ATTACK_POPUP_SECONDS.
-	 *  A placeholder until the trial HUD (B-465). */
+	/** B-503h (D-215): the field attack just cycled to: shows it and flashes the chip. The chip itself is always up
+	 *  beside the party strip while the pawn has a field attack. */
 	void ShowFieldAttack(const struct FFieldAttackEntry &Entry);
 
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
@@ -83,7 +83,7 @@ private:
 	TObjectPtr<UBorder> QuestBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> QuestText;
-	/** B-503: the cycled field attack, shown for a moment. */
+	/** B-503h: the field attack's current loadout entry, at the end of the party strip's row. */
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> FieldAttackBox;
 	UPROPERTY(Transient)
@@ -93,7 +93,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> FieldAttackElement;
 	FTimerHandle FieldAttackTimer;
-	void HideFieldAttack();
+	void SetFieldAttack(const struct FFieldAttackEntry &Entry);
+	/** Reads the pawn's current entry (on the slow timer: the entries walk the loadout). */
+	void RefreshFieldAttack();
+	void EndFieldAttackFlash();
 
 	/** B-503g: the party strip's cards, built once (PartyConstants::MAX_PARTY_MEMBERS), filled on Refresh. The
 	 *  widget tree owns them. */
