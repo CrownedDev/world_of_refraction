@@ -8,7 +8,17 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Debug/Inventory/LoadoutRulesDebug.h"
+#include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
+#include "Character/CombatCharacter.h"
+#include "Currency/CurrencyComponent.h"
+#include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Inventory/InventoryData.h"
+#include "Loadout/FSavedLoadout.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
@@ -161,6 +171,155 @@ void FWornGearSpec::Define()
 
 		Pool->ResetStore();
 		TestNull(TEXT("a store reset drops the records"), Pool->GetWornGear(WORN_TEST_KEY));
+	});
+}
+
+// B-506: every map's pawn wears the record, and every change writes it. The real spawn cascade runs (the components,
+// then the character data component's BeginPlay: InitializeFromCharacterData, DrawSharedGear), as WheelWeaponCarry.
+BEGIN_DEFINE_SPEC(FWornGearMapsSpec, "WoR.Loadout.WornGear.Maps", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+	TUniquePtr<FWoRTestWorld> TestWorld;
+	UCharacterData *Data = nullptr;
+	UWeaponData *Sword = nullptr;
+	UWeaponData *Axe = nullptr;
+	FGuid MemberId;
+
+	AActor *SpawnMemberPawn(bool bStamped)
+	{
+		AActor *Actor = TestWorld->GetWorld()->SpawnActor<AActor>();
+		if (!Actor)
+		{
+			return nullptr;
+		}
+		FWoRTestWorld::AddComponent<UCrystalInventoryComponent>(Actor);
+		FWoRTestWorld::AddComponent<UEvolutionInventoryComponent>(Actor);
+		FWoRTestWorld::AddComponent<UCurrencyComponent>(Actor);
+		FWoRTestWorld::AddComponent<UInventoryComponent>(Actor);
+		FWoRTestWorld::AddComponent<ULoadoutComponent>(Actor);
+		UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(Actor);
+		CharComp->CharacterData = Data;
+		CharComp->PartyMemberId = bStamped ? MemberId : FGuid();
+		Actor->AddInstanceComponent(CharComp);
+		CharComp->RegisterComponent(); // BeginPlay: the spawn cascade
+		return Actor;
+	}
+
+	static bool HoldsSecondary(const AActor *Actor)
+	{
+		const UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
+		return Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex) &&
+			   Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].HasSecondaryWeapon();
+	}
+
+	/** Takes the axe off through the real commit (TryChangeGear), as the loadout screen does. */
+	bool TakeAxeOff(AActor *Actor)
+	{
+		ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+		const UInventoryComponent *Inventory = Actor->FindComponentByClass<UInventoryComponent>();
+		FText Refusal;
+		return Loadout && Inventory && Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [](FCombatLoadout &Changed)
+		{
+			Changed.SecondarySlotType = ESecondarySlotType::None;
+			Changed.SecondaryWeapon = FWeaponLoadoutEntry();
+		}, Refusal);
+	}
+
+	const FWornGear *Record() const
+	{
+		const UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		return Pool ? Pool->GetWornGear(UPoolSubsystem::GetCharacterKey(Data)) : nullptr;
+	}
+END_DEFINE_SPEC(FWornGearMapsSpec)
+
+void FWornGearMapsSpec::Define()
+{
+	BeforeEach([this]()
+	{
+		TestWorld = MakeUnique<FWoRTestWorld>();
+		TestTrue(TEXT("Test world created"), TestWorld->Create());
+		Sword = NewObject<UWeaponData>(GetTransientPackage());
+		Sword->Name = TEXT("Maps Sword");
+		Axe = NewObject<UWeaponData>(GetTransientPackage());
+		Axe->Name = TEXT("Maps Axe");
+		Data = FWoRTestWorld::NewCharacterData();
+		Data->Name = TEXT("Worn gear member");
+		Data->CharacterClass = ECharacterClass::Generic;
+		UInventoryData *Inventory = NewObject<UInventoryData>(GetTransientPackage());
+		Inventory->Weapons = {Sword, Axe};
+		FSavedLoadout Lore; // the character's own loadout: before D-221 rebuilt from this asset on every map
+		Lore.LoadoutName = TEXT("Sword and axe");
+		Lore.RequiredClass = ECharacterClass::Generic;
+		Lore.PrimarySlotType = EPrimarySlotType::Weapon;
+		Lore.PrimaryWeapon = Sword;
+		Lore.SecondarySlotType = ESecondarySlotType::Weapon;
+		Lore.SecondaryWeapon = Axe;
+		Inventory->SavedLoadouts = {Lore};
+		Data->Inventory = Inventory;
+		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+		UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
+		if (!TestNotNull(TEXT("Party"), Party)) return;
+		Party->Members.Empty();
+		FPartyMember &Member = Party->Members.AddDefaulted_GetRef();
+		Member.PawnClass = ACombatCharacter::StaticClass();
+		Member.CharacterData = Data;
+		Member.MemberId = FGuid::NewGuid();
+		MemberId = Member.MemberId;
+	});
+
+	AfterEach([this]()
+	{
+		Data = nullptr;
+		Sword = nullptr;
+		Axe = nullptr;
+		TestWorld.Reset();
+	});
+
+	It("seeds the record once from the character's own loadout", [this]()
+	{
+		AActor *Field = SpawnMemberPawn(/*bStamped=*/true);
+		if (!TestNotNull(TEXT("Field pawn"), Field) || !TestNotNull(TEXT("seeded"), Record())) return;
+		TestEqual(TEXT("the sword and the axe"), Record()->GetPieceIDs().Num(), 2);
+	});
+
+	It("keeps a gear change through the next map and a fight (CS-2, CS-7, CS-8)", [this]()
+	{
+		AActor *Field = SpawnMemberPawn(/*bStamped=*/true);
+		if (!TestNotNull(TEXT("Field pawn"), Field) || !TestTrue(TEXT("the axe comes off"), TakeAxeOff(Field))) return;
+		TestEqual(TEXT("the record has it at once"), Record() ? Record()->GetPieceIDs().Num() : 0, 1);
+		Field->Destroy(); // the travel to the fight
+
+		AActor *Battle = SpawnMemberPawn(/*bStamped=*/true);
+		TestFalse(TEXT("the fight's pawn wears no axe (no rebuild from the asset)"), HoldsSecondary(Battle));
+		Battle->Destroy(); // back to the trial
+
+		AActor *Back = SpawnMemberPawn(/*bStamped=*/true);
+		TestFalse(TEXT("and nor does the next map's"), HoldsSecondary(Back));
+	});
+
+	It("leaves the record alone for an unstamped pawn sharing the asset (an enemy)", [this]()
+	{
+		AActor *Field = SpawnMemberPawn(/*bStamped=*/true);
+		if (!TestNotNull(TEXT("Field pawn"), Field) || !TestTrue(TEXT("the axe comes off"), TakeAxeOff(Field))) return;
+		const FWornGear Before = Record() ? *Record() : FWornGear();
+		AActor *Enemy = SpawnMemberPawn(/*bStamped=*/false);
+		TestTrue(TEXT("the enemy keeps its asset's axe"), HoldsSecondary(Enemy));
+		ULoadoutComponent *Loadout = Enemy->FindComponentByClass<ULoadoutComponent>();
+		FText Refusal;
+		Loadout->TryChangeGear(Enemy->FindComponentByClass<UInventoryComponent>()->ActiveLoadoutIndex,
+							   [](FCombatLoadout &Changed) { Changed.bShowPrimary = false; }, Refusal);
+		TestTrue(TEXT("its change never reaches the record"), Record() && Record()->SameAs(Before));
+	});
+
+	It("puts the record on a hub pawn once its controller stamps it", [this]()
+	{
+		AActor *Field = SpawnMemberPawn(/*bStamped=*/true);
+		if (!TestNotNull(TEXT("Field pawn"), Field) || !TestTrue(TEXT("the axe comes off"), TakeAxeOff(Field))) return;
+		Field->Destroy();
+
+		AActor *Hub = SpawnMemberPawn(/*bStamped=*/false);
+		TestTrue(TEXT("unstamped, it wears its asset's loadout"), HoldsSecondary(Hub));
+		Hub->FindComponentByClass<UCharacterDataComponent>()->StampPartyMember(MemberId);
+		TestFalse(TEXT("stamped, it wears the record"), HoldsSecondary(Hub));
+		TestEqual(TEXT("and the stamp didn't write the asset's axe back"), Record() ? Record()->GetPieceIDs().Num() : 0, 1);
 	});
 }
 
