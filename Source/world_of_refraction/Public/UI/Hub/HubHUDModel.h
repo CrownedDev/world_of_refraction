@@ -35,7 +35,8 @@ struct FHubHUDPrompt
 	bool bNearVendor = false;
 };
 
-/** B-503i: the field attack chip, a card after the party strip: an icon, the name, the element as a dot. */
+/** B-503i: the field attack chip, a card after the party strip: an icon, the name, the element as a dot.
+ *  OBSOLETE (B-503k, D-217): the strip above the card replaced the chip; delete with BuildFieldAttackChip after PIE. */
 struct FHubHUDFieldAttackChip
 {
 	FText Name;
@@ -92,6 +93,16 @@ namespace WoRHubHUD
 	/** B-503j (D-216): the strip's cards show the Trial level in a run, else the Hub level. */
 	WORLD_OF_REFRACTION_API EBattleCardLevel GetCardLevel(const UWorld *World);
 
+	/** B-503k (D-217): the field attack strip above a card (FFieldAttackEntry::Name: "Sword", "Fire Sword", "Fire")
+	 *  shows in a trial only; the hub shows no strip, as it shows no HP (D-216). */
+	inline bool ShowsFieldAttackStrip(EBattleCardLevel Level) { return Level == EBattleCardLevel::Trial; }
+
+	/** B-503k: the party strip's card (BuildPartyStrip's order) of the member in MemberSlot; INDEX_NONE for none. */
+	WORLD_OF_REFRACTION_API int32 GetFieldAttackCardIndex(const UParty *Party, int32 MemberSlot);
+
+	/** B-503k: the card of the member Pawn plays, who makes the field attack (INDEX_NONE: none). */
+	WORLD_OF_REFRACTION_API int32 FindFieldAttackCard(const APawn *Pawn);
+
 	// B-503i: the chip sizes to its content between these widths (layout units: 1920 wide at 16:9, at any
 	// resolution); a longer name ends in "...". The party cards are the battle card's width (B-503j).
 	inline constexpr float FIELD_ATTACK_CHIP_MIN_WIDTH = 207.0f;
@@ -104,7 +115,8 @@ namespace WoRHubHUD
 	/** The widest the strip's row can get: Cards cards, the gaps and the chip at its maximum. */
 	WORLD_OF_REFRACTION_API float GetPartyStripMaxWidth(int32 Cards);
 
-	/** B-503i: the chip for Entry: its name ("Unarmed" for none), its icon and the element dot's colour. */
+	/** B-503i: the chip for Entry: its name ("Unarmed" for none), its icon and the element dot's colour.
+	 *  OBSOLETE (B-503k): no caller but its spec; delete after B-503k's PIE pass. */
 	WORLD_OF_REFRACTION_API FHubHUDFieldAttackChip BuildFieldAttackChip(const FFieldAttackEntry &Entry);
 
 	WORLD_OF_REFRACTION_API FString GetHubHUDString(const UWorld *World);
