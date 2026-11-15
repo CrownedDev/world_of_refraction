@@ -158,6 +158,14 @@ private:
 
 	EHubMode CurrentMode = EHubMode::Hub;
 
+	/** B-503e: the field keys made in code (attack, source cycle, fly up / down) when no asset is set; mapped
+	 *  at WoRInputPriority::FIELD_KEYS. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UInputMappingContext> FieldKeysContext;
+
+	/** B-503e: makes any field action still empty (no asset, no ini line) in code with its InputMap.md keys. */
+	void BuildCodeFieldActions();
+
 	/** B-214g: the field attack's press (real time, for its hold); a release with no press (focus loss) does nothing. */
 	double FieldAttackPressTime = 0.0;
 	bool bFieldAttackPressed = false;

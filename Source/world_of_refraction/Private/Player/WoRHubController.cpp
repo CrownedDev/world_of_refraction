@@ -5,12 +5,17 @@
 #include "Blueprint/UserWidget.h"
 #include "Character/CombatCharacter.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
 #include "Field/FieldMovementComponent.h"
 #include "Hub/HubInteract.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
+#include "InputMappingContext.h"
+#include "InputModifiers.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/InputPriorities.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/Menus/TitleScreenWidget.h"
@@ -31,6 +36,62 @@ namespace WoRHubControllerConstants
 	/** B-443: with the rest of the viewport HUD (the party strip, ZOrder 0), above the root layout; the layout
 	 *  hides both while a menu screen is up. */
 	constexpr int32 HUB_HUD_ZORDER = 0;
+
+	/** B-503e: the code-made field actions keep the asset names (InputMap.md), so a later asset slots in. */
+	const FName FIELD_ATTACK_ACTION_NAME = TEXT("IA_Field_Attack");
+	const FName FIELD_SWITCH_SOURCE_ACTION_NAME = TEXT("IA_Field_SwitchSource");
+	const FName FIELD_FLY_VERTICAL_ACTION_NAME = TEXT("IA_Field_FlyVertical");
+	const FName FIELD_KEYS_CONTEXT_NAME = TEXT("IMC_Field_Keys");
+}
+
+void AWoRHubController::BuildCodeFieldActions()
+{
+	if (FieldKeysContext || (FieldAttackAction && FieldSwitchSourceAction && FieldFlyVerticalAction))
+	{
+		return;
+	}
+	UEnhancedInputLocalPlayerSubsystem *Mappings =
+		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	if (!Mappings)
+	{
+		return;
+	}
+	using namespace WoRHubControllerConstants;
+	FieldKeysContext = NewObject<UInputMappingContext>(this, FIELD_KEYS_CONTEXT_NAME);
+	const auto MakeAction = [this](FName Name, EInputActionValueType ValueType)
+	{
+		UInputAction *Action = NewObject<UInputAction>(this, Name);
+		Action->ValueType = ValueType;
+		// Don't eat the key: Space is also Jump, and the BP's own context may map these keys.
+		Action->bConsumeInput = false;
+		return Action;
+	};
+	if (!FieldAttackAction)
+	{
+		FieldAttackAction = MakeAction(FIELD_ATTACK_ACTION_NAME, EInputActionValueType::Boolean);
+		FieldKeysContext->MapKey(FieldAttackAction, EKeys::LeftMouseButton);
+		FieldKeysContext->MapKey(FieldAttackAction, EKeys::Gamepad_RightShoulder);
+	}
+	if (!FieldSwitchSourceAction)
+	{
+		FieldSwitchSourceAction = MakeAction(FIELD_SWITCH_SOURCE_ACTION_NAME, EInputActionValueType::Boolean);
+		FieldKeysContext->MapKey(FieldSwitchSourceAction, EKeys::R);
+		FieldKeysContext->MapKey(FieldSwitchSourceAction, EKeys::Gamepad_LeftShoulder);
+	}
+	if (!FieldFlyVerticalAction)
+	{
+		FieldFlyVerticalAction = MakeAction(FIELD_FLY_VERTICAL_ACTION_NAME, EInputActionValueType::Axis1D);
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::SpaceBar);
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::Gamepad_FaceButton_Bottom);
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::LeftControl)
+			.Modifiers.Add(NewObject<UInputModifierNegate>(FieldKeysContext));
+		FieldKeysContext->MapKey(FieldFlyVerticalAction, EKeys::Gamepad_RightThumbstick)
+			.Modifiers.Add(NewObject<UInputModifierNegate>(FieldKeysContext));
+	}
+	Mappings->AddMappingContext(FieldKeysContext, WoRInputPriority::FIELD_KEYS);
+	UE_LOG(LogWoR, Log, TEXT("%s Field keys made in code (no IA_Field_* assets): attack LMB / RB, cycle R / LB, "
+							 "fly Space / Ctrl"),
+		   LOG_TAG);
 }
 
 void AWoRHubController::BeginPlay()
@@ -131,26 +192,23 @@ void AWoRHubController::SetupInputComponent()
 		}
 		return Action != nullptr;
 	};
-	if (LoadFieldAction(FieldAttackAction, DefaultFieldAttackAction))
+	LoadFieldAction(FieldAttackAction, DefaultFieldAttackAction);
+	LoadFieldAction(FieldSwitchSourceAction, DefaultFieldSwitchSourceAction);
+	LoadFieldAction(FieldFlyVerticalAction, DefaultFieldFlyVerticalAction);
+	BuildCodeFieldActions();
+	if (FieldAttackAction)
 	{
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldAttackStarted);
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldAttackCompleted);
 		EnhancedInput->BindAction(FieldAttackAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldAttackCanceled);
 	}
-	if (LoadFieldAction(FieldSwitchSourceAction, DefaultFieldSwitchSourceAction))
+	if (FieldSwitchSourceAction)
 	{
 		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldSwitchSource);
 	}
-	if (LoadFieldAction(FieldFlyVerticalAction, DefaultFieldFlyVerticalAction))
+	if (FieldFlyVerticalAction)
 	{
 		EnhancedInput->BindAction(FieldFlyVerticalAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldFlyVertical);
-	}
-	if (!FieldAttackAction || !FieldSwitchSourceAction || !FieldFlyVerticalAction)
-	{
-		UE_LOG(LogWoR, Log, TEXT("[WoRHubController] Field input actions missing (attack %s, switch source %s, fly vertical %s): "
-								 "B-214g's editor step makes them; wor.Field.Attack / CycleAttack / FlyVertical stand in"),
-			   FieldAttackAction ? TEXT("ok") : TEXT("none"), FieldSwitchSourceAction ? TEXT("ok") : TEXT("none"),
-			   FieldFlyVerticalAction ? TEXT("ok") : TEXT("none"));
 	}
 
 	if (!ToggleMenuAction && !DefaultToggleMenuAction.IsNull())
