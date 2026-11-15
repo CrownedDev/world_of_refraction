@@ -11,6 +11,9 @@
 //   - with no element behind it (None, Generic, a broken crystal), no parry effect plays: a weapon sparks only and the
 //     unarmed guard shows nothing.
 // With no parry-effect cosmetic authored, play is the spark as before (B-369), minus the unarmed guard's spark (D-170).
+// B-503s (D-218, Q-503s C): a member's field attack pick replaces the guard and priority settings: a swing guards with
+// the weapon in the option's element (plain: the spark only); a pulse guards unarmed in its element (Ice in Ice's
+// colour; "(R) Fire" and "Dark Fire" are Fire). Never picked (an AI seat): the settings, as above.
 // Spawned at the defender's HitPoint socket (ImpactVisuals::GetSpawnLocation); the burst is sent to clients too.
 // Debug: wor.Guard.Print (each combatant's parry pick), wor.ImpactVFX.Log 1 (each landed parry).
 
@@ -24,6 +27,7 @@
 
 class AActor;
 class UNiagaraSystem;
+struct FFieldAttackEntry;
 
 /** Which source coloured the parry effect (debug and specs). */
 enum class EParryElementSource : uint8
@@ -47,6 +51,8 @@ struct WORLD_OF_REFRACTION_API FParryVisualInputs
 	/** A Refractor's element, else its adapter's crystal element; None with neither. */
 	ESpellElement MagicElement = ESpellElement::None;
 	EParryElementPriority Priority = EParryElementPriority::Weapon;
+	/** B-503s: the field pick's Ice option: the Water effect takes Ice's colour. */
+	bool bIce = false;
 	/** The defender's cosmetic slots (UCosmeticsData). */
 	TSoftObjectPtr<UNiagaraSystem> Spark;
 	TSoftObjectPtr<UNiagaraSystem> WeaponGuardEffect;
@@ -80,6 +86,10 @@ namespace ParryVisuals
 	/** D-170's rule only: which source colours the effect (no asset lookups). The weapon counts for the weapon guard
 	 *  only; Priority picks when both have an element. */
 	WORLD_OF_REFRACTION_API EParryElementSource PickElementSource(const FParryVisualInputs &Inputs);
+
+	/** B-503s (D-218): sets the guard, both elements and the priority from the member's field attack pick.
+	 *  bWeaponInHand false makes a swing (an unarmed Generic's) guard unarmed in its element. */
+	WORLD_OF_REFRACTION_API void ApplyFieldPick(FParryVisualInputs &Inputs, const FFieldAttackEntry &Pick, bool bWeaponInHand);
 
 	/** The spark, the effect and its tint. */
 	WORLD_OF_REFRACTION_API FParryVisualChoice Resolve(const FParryVisualInputs &Inputs);

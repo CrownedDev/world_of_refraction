@@ -11,6 +11,8 @@
 // B-503c: every other entry throws the pulse: the cast montage (FieldPulseMontage) the same way, then a thinner sweep
 // 7 m ahead and the burst (FieldPulseVFX, or a plain line and ball) from the hand to where it stopped, in the strike's
 // colour, on every machine.
+// B-503s (D-218): picking a weapon's slice puts that weapon in hand (the loadout's ACTIVE); a pulse pick puts it away.
+// A weapon user's ring infuses the swing; an evolution or a Pistol / Trainer adapter throws the pulse.
 
 #include "Field/FieldMovementComponent.h"
 
@@ -31,6 +33,7 @@
 #include "Equipment/Weapons/WeaponMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "Infusion/ElementColors.h"
+#include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -81,6 +84,9 @@ namespace
 		bool bRealityCycles = false;
 		/** A weapon slice: the weapon it swings (a weapon user); a pulse class throws its crystal. */
 		const FWeaponLoadoutEntry *Weapon = nullptr;
+		/** B-503s (D-218): a weapon user throws the pulse from this slice too: the innate, an evolution, an adapter
+		 *  that isn't a ring (a Pistol or a Trainer). A ring infuses the weapon in hand. */
+		bool bPulse = false;
 	};
 
 	/** A weapon's swing, from its loadout entry: the entry's own attack override first (as
@@ -156,6 +162,7 @@ namespace
 				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
 				Slice.Name = FText::FromString(Slot.RingEntry.Ring->GetDisplayName());
 				Slice.Element = LiveSocketElement(Slot.RingEntry.GetAttachedItem());
+				Slice.bPulse = Slot.RingEntry.Ring->Form != EAdapterForm::Ring;
 			};
 			// The fight's own walk (FCombatLoadout.cpp ForEachReadLegacySlot): a primary weapon with a Weapon or None type
 			// (AutoPopulateLoadout leaves None), else a primary adapter; a Generic's secondary weapon; the adapter loadout
@@ -189,6 +196,7 @@ namespace
 			Slice.Element = Data->InnateElement;
 			Slice.Kind = EFieldAttackKind::Innate;
 			Slice.bRealityCycles = true;
+			Slice.bPulse = true;
 		}
 		// The combat menu's Evolution source: the character's own slot (one in a gear socket gives that gear's element).
 		if (LoadoutComponent && LoadoutComponent->IsEvolved())
@@ -202,25 +210,26 @@ namespace
 				Slice.Element = Item->GetAssociatedElement();
 				Slice.Kind = EFieldAttackKind::Evolution;
 				Slice.bRealityCycles = true;
+				Slice.bPulse = true;
 			}
 		}
 		return Slices;
 	}
 }
 
-TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
+TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor *Character)
 {
 	// B-503m4 (D-217 "The wheel on RB"): one slice per loadout entry, each followed by its element options (bHoldStep).
-	// A weapon user swings: a weapon's slice swings that weapon, plain then its crystal's element; every other slice
-	// infuses the weapon in hand ("Lightning Sword"). A Refractor or Resonator throws the pulse in the slice's element
-	// ("Fire"). A slice with nothing to add (no element, no weapon of its own) is left out (Q-503 (2)); two slices of
-	// one element both show (each entry its slice, Q-503m4).
-	AActor *Owner = GetOwner();
-	const UCharacterDataComponent *CharComp = GetCharacterData();
+	// A weapon user swings: a weapon's slice swings that weapon, plain then its crystal's element; a ring infuses the
+	// weapon in hand ("Lightning Sword"). B-503s (D-218): an evolution or a Pistol / Trainer adapter throws the pulse
+	// even for a weapon user. A Refractor or Resonator throws the pulse in the slice's element ("Fire"). A slice with
+	// nothing to add (no element, no weapon of its own) is left out (Q-503 (2)); two slices of one element both show
+	// (each entry its slice, Q-503m4).
+	const UCharacterDataComponent *CharComp = Character ? Character->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
-	const ULoadoutComponent *LoadoutComponent = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	const ULoadoutComponent *LoadoutComponent = Character ? Character->FindComponentByClass<ULoadoutComponent>() : nullptr;
 	const TArray<FFieldSlice> Slices = GetFieldSlices(LoadoutComponent, Data);
-	const bool bPulse = Data && Data->CharacterClass != ECharacterClass::Generic;
+	const bool bPulseClass = Data && Data->CharacterClass != ECharacterClass::Generic;
 	const FFieldAttackEntry ActiveSwing = MakeSwing(LoadoutComponent ? LoadoutComponent->GetActiveWeaponLoadout() : nullptr);
 	const bool bBrokenDarkness = CharComp && CharComp->IsBrokenDarkness();
 
@@ -237,6 +246,7 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 	TArray<FFieldAttackEntry> Entries;
 	for (const FFieldSlice &Slice : Slices)
 	{
+		const bool bPulse = bPulseClass || Slice.bPulse;
 		const bool bOwnSwing = !bPulse && Slice.Weapon;
 		if (!FieldSkillRules::IsElemental(Slice.Element) && !bOwnSwing)
 		{
@@ -246,6 +256,10 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 		if (bPulse)
 		{
 			Base.Kind = Slice.Kind == EFieldAttackKind::Weapon ? EFieldAttackKind::Ring : Slice.Kind; // a crystal in gear, thrown
+		}
+		else if (bOwnSwing)
+		{
+			Base.WeaponId = Slice.Weapon->WeaponEntry.PersistentID; // picking it puts it in hand (D-218)
 		}
 		Base.SliceName = Slice.Name;
 		const FText WeaponTypeName = Base.Name; // empty for a pulse or unarmed
@@ -286,6 +300,11 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 		}
 	}
 	return Entries;
+}
+
+TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
+{
+	return FieldSkillRules::BuildFieldAttackEntries(GetOwner());
 }
 
 int32 UFieldMovementComponent::GetKeptFieldAttackIndex() const
@@ -350,6 +369,28 @@ void UFieldMovementComponent::StoreFieldAttackIndex(int32 Index)
 	UE_LOG(LogWoR, Log, TEXT("%s %s: field attack %d of %d: %s"), FieldAttackLog::TAG, *GetNameSafe(GetOwner()),
 		   FieldAttackIndex + 1, Entries.Num(),
 		   *FieldSkillRules::FieldAttackEntryString(Entries.IsValidIndex(FieldAttackIndex) ? Entries[FieldAttackIndex] : FFieldAttackEntry()));
+	// B-503s (D-218, Q-503s A): a weapon's own slice puts that weapon in hand, saved with the loadout (the loadout
+	// screen's ACTIVE); the mesh follows OnActiveWeaponChanged. Slices keep loadout order, so the index stays valid.
+	// shortcut: the host's pawn only; a co-op guest's own copy of the loadout catches up on its next loadout sync.
+	const FGuid PickedWeapon = Entries.IsValidIndex(FieldAttackIndex) ? Entries[FieldAttackIndex].WeaponId : FGuid();
+	ULoadoutComponent *Loadout = PickedWeapon.IsValid() && GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	const FWeaponLoadoutEntry *InHand = Loadout ? Loadout->GetActiveWeaponLoadout() : nullptr;
+	const UInventoryComponent *Inventory = Loadout ? Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
+	if (Inventory && (!InHand || InHand->WeaponEntry.PersistentID != PickedWeapon))
+	{
+		FText Refusal;
+		const auto PutInHand = [&PickedWeapon](FCombatLoadout &Changed)
+		{
+			if (Changed.PrimaryWeapon.WeaponEntry.PersistentID == PickedWeapon || Changed.SecondaryWeapon.WeaponEntry.PersistentID == PickedWeapon)
+			{
+				Changed.bShowPrimary = Changed.PrimaryWeapon.WeaponEntry.PersistentID == PickedWeapon;
+			}
+		};
+		if (!Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, PutInHand, Refusal))
+		{
+			UE_LOG(LogWoR, Log, TEXT("%s %s: the picked weapon stays out of hand: %s"), FieldAttackLog::TAG, *GetNameSafe(GetOwner()), *Refusal.ToString());
+		}
+	}
 	ShowWeaponForFieldAttack();
 }
 

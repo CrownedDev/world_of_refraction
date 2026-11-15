@@ -14,6 +14,8 @@
 #include "Templates/Function.h"
 #include "FieldSkillTypes.generated.h"
 
+class AActor;
+
 /** The 11 movement types (FieldAbilities "Movement types", Crown 2026-10-27). B-214a builds Dash and Enhanced Sprint,
  *  B-214c Glide, High jump and Air dash, B-214d Flight, B-214e the rest (all built). Append only: saved as a byte (FSavedPartyMember). */
 UENUM(BlueprintType)
@@ -189,6 +191,11 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	bool bIce = false;
 
+	/** B-503s (D-218): the weapon a weapon slice swings (its PersistentID); picking it puts that weapon in hand. Unset
+	 *  for an infusion of the weapon already in hand and for a pulse. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FGuid WeaponId;
+
 	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
 	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
 };
@@ -344,6 +351,10 @@ namespace FieldSkillRules
 	{
 		return EntryCount > 0 ? (ClampFieldAttackIndex(Index, EntryCount) + 1) % EntryCount : FIRST_FIELD_ATTACK_INDEX;
 	}
+
+	/** B-503s: Character's field attack entries (UFieldMovementComponent::GetFieldAttackEntries), read from its loadout
+	 *  and character components; free so the fight can rebuild a member's pick for its parry (ParryVisuals). */
+	WORLD_OF_REFRACTION_API TArray<FFieldAttackEntry> BuildFieldAttackEntries(const AActor *Character);
 
 	/** B-503l (D-217): a press of R / LB: the next stop that isn't a hold step, wrapping; the first with none. */
 	WORLD_OF_REFRACTION_API int32 NextFieldAttackSourceIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index);

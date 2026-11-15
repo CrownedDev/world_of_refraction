@@ -8,6 +8,7 @@
 #include "Character/CosmeticsData.h"
 #include "Character/ECharacterClass.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Field/FieldSkillTypes.h"
 #include "Infusion/ElementColors.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/Entries/FRingLoadoutEntry.h"
@@ -108,6 +109,16 @@ namespace ParryVisuals
 		return bMagic ? EParryElementSource::Magic : EParryElementSource::None;
 	}
 
+	void ApplyFieldPick(FParryVisualInputs &Inputs, const FFieldAttackEntry &Pick, bool bWeaponInHand)
+	{
+		const bool bWeaponGuard = Pick.IsSwing() && bWeaponInHand;
+		Inputs.Guard = bWeaponGuard ? EGuardStyle::Weapon : EGuardStyle::Unarmed;
+		Inputs.WeaponElement = bWeaponGuard ? Pick.Element : ESpellElement::None;
+		Inputs.MagicElement = bWeaponGuard ? ESpellElement::None : Pick.Element;
+		Inputs.Priority = bWeaponGuard ? EParryElementPriority::Weapon : EParryElementPriority::Magic;
+		Inputs.bIce = Pick.bIce;
+	}
+
 	FParryVisualChoice Resolve(const FParryVisualInputs &Inputs)
 	{
 		FParryVisualChoice Choice;
@@ -122,7 +133,7 @@ namespace ParryVisuals
 			return Choice; // no element behind it: the spark only (weapon) or nothing (unarmed)
 		}
 		Choice.Element = Choice.ElementSource == EParryElementSource::Weapon ? Inputs.WeaponElement : Inputs.MagicElement;
-		Choice.Tint = ElementColors::GetColorForElement(Choice.Element);
+		Choice.Tint = Inputs.bIce && Choice.Element == ESpellElement::Water ? ElementColors::Ice : ElementColors::GetColorForElement(Choice.Element);
 		Choice.Effect = Inputs.Guard == EGuardStyle::Weapon ? Inputs.WeaponGuardEffect : Inputs.UnarmedGuardEffect;
 		return Choice;
 	}
@@ -136,10 +147,18 @@ namespace ParryVisuals
 		{
 			return Inputs;
 		}
-		Inputs.Guard = Loadout->GetGuardStyle();
-		Inputs.WeaponElement = WeaponCrystalElement(*Loadout);
-		Inputs.MagicElement = OwnMagicElement(*Loadout);
-		Inputs.Priority = Loadout->GetParryElementPriority();
+		FFieldAttackEntry Pick;
+		if (Loadout->GetFieldAttackPick(Pick))
+		{
+			ApplyFieldPick(Inputs, Pick, Loadout->GetActiveWeapon() != nullptr); // B-503s: GetGuardStyle's own rule
+		}
+		else
+		{
+			Inputs.Guard = Loadout->GetGuardStyle();
+			Inputs.WeaponElement = WeaponCrystalElement(*Loadout);
+			Inputs.MagicElement = OwnMagicElement(*Loadout);
+			Inputs.Priority = Loadout->GetParryElementPriority();
+		}
 		const UCharacterData *CharData = Loadout->GetOwnerCharacterData();
 		if (const UCosmeticsData *Cosmetics = CharData ? CharData->Cosmetics : nullptr)
 		{
@@ -181,9 +200,9 @@ namespace ParryVisuals
 
 	FString GetInputsString(const FParryVisualInputs &Inputs)
 	{
-		return FString::Printf(TEXT("guard %s | weapon %s, magic %s, priority %s"),
+		return FString::Printf(TEXT("guard %s | weapon %s, magic %s%s, priority %s"),
 							   *StaticEnum<EGuardStyle>()->GetNameStringByValue(static_cast<int64>(Inputs.Guard)),
-							   *ParryElementName(Inputs.WeaponElement), *ParryElementName(Inputs.MagicElement),
+							   *ParryElementName(Inputs.WeaponElement), *ParryElementName(Inputs.MagicElement), Inputs.bIce ? TEXT(" (Ice)") : TEXT(""),
 							   *StaticEnum<EParryElementPriority>()->GetNameStringByValue(static_cast<int64>(Inputs.Priority)));
 	}
 

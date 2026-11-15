@@ -197,6 +197,11 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
 
+	/** B-503s (D-218): the member has picked a field attack (set with FieldAttackIndex). The pick is then its guard and
+	 *  parry colour; never picked (an AI seat, an older save), GuardStyle and ParryElementPriority stay. Saved. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bFieldAttackPicked = false;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }

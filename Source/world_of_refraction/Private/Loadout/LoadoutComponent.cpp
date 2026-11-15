@@ -3643,9 +3643,36 @@ const FPartyMember *ULoadoutComponent::FindGuardRecord() const
     return CharComp && CharComp->PartyMemberId.IsValid() ? CharComp->FindCarriedPartyMember() : nullptr;
 }
 
+bool ULoadoutComponent::GetFieldAttackPick(FFieldAttackEntry &OutPick) const
+{
+    const FPartyMember *Record = FindGuardRecord();
+    if (!Record || !Record->bFieldAttackPicked)
+    {
+        return false;
+    }
+    const TArray<FFieldAttackEntry> Entries = FieldSkillRules::BuildFieldAttackEntries(GetOwner());
+    const int32 Index = FieldSkillRules::ClampFieldAttackIndex(Record->FieldAttackIndex, Entries.Num());
+    if (!Entries.IsValidIndex(Index))
+    {
+        return false;
+    }
+    const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    if (Entries[Index].WeaponId.IsValid() && (!WeaponEntry || WeaponEntry->WeaponEntry.PersistentID != Entries[Index].WeaponId))
+    {
+        return false; // the fight changed the weapon in hand since the pick
+    }
+    OutPick = Entries[Index];
+    return true;
+}
+
 EGuardStyle ULoadoutComponent::GetGuardStyle() const
 {
     const FWeaponLoadoutEntry *WeaponEntry = GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    FFieldAttackEntry Pick;
+    if (GetFieldAttackPick(Pick))
+    {
+        return Pick.IsSwing() && WeaponEntry ? EGuardStyle::Weapon : EGuardStyle::Unarmed; // B-503s (D-218): the pick guards
+    }
     const FGuid ActiveWeaponId = WeaponEntry ? WeaponEntry->WeaponEntry.PersistentID : FGuid();
     const FPartyMember *Record = FindGuardRecord();
     return ResolveGuardStyle(WeaponEntry != nullptr, ActiveWeaponId, Record ? Record->GuardStyle : LocalGuardStyle,

@@ -9,6 +9,7 @@
 // B-503k (D-217): the cycle is the attack's infusions (a weapon user: plain, then each element; a Refractor: elements).
 // B-503l (Q-503l): a hold steps a Reality or Broken Darkness stop through the other stops' elements; a press skips them.
 // B-503m4 (D-217): one wheel slice per loadout entry, its element options inside (Ice on Water); the D-pad and mouse rules.
+// B-503s (D-218): a weapon pick puts that weapon in hand (saved); a weapon user's Pistol / evolution pulses, a ring infuses.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -19,6 +20,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/ECharacterClass.h"
 #include "Combat/CombatNotify.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -332,6 +334,70 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("its own slice, the crystal's Lightning on the weapon in hand's swing"),
 					 !Storm.bHoldStep && Storm.IsSwing() && Storm.Element == ESpellElement::Lightning && Storm.Physical == EPhysicalDamageType::Slash);
 			TestTrue(TEXT("named as the strip reads"), Storm.Name.ToString().StartsWith(WoRGameNames::GetElementName(ESpellElement::Lightning).ToString()));
+		});
+
+		It("throws the pulse from a weapon user's Pistol adapter and evolution; a ring still infuses (B-503s, D-218)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
+			{
+				return;
+			}
+			UInventoryComponent *Inventory = Field->GetOwner()->FindComponentByClass<UInventoryComponent>();
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			URingData *Pistol = NewObject<URingData>(GetTransientPackage());
+			Pistol->Form = EAdapterForm::Pistol;
+			FRingLoadoutEntry &Adapter = Active.RingLoadout.AddDefaulted_GetRef();
+			Adapter.RingEntry.Ring = Pistol;
+			Adapter.RingEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			constexpr int32 LIVE_DURABILITY = 10;
+			Adapter.RingEntry.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Citrine, EItemTier::F_Tier), LIVE_DURABILITY);
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("the two weapons' three, then the pistol"), Entries.Num(), 4))
+			{
+				return;
+			}
+			TestTrue(TEXT("the pistol throws its Lightning, no weapon line"), !Entries[3].IsSwing() && Entries[3].Kind == EFieldAttackKind::Ring &&
+																				   Entries[3].Element == ESpellElement::Lightning && !Entries[3].WeaponId.IsValid() &&
+																				   Entries[3].Name.ToString() == WoRGameNames::GetElementName(ESpellElement::Lightning).ToString());
+			Pistol->Form = EAdapterForm::Ring;
+			TestTrue(TEXT("the same adapter as a ring infuses the swing"), Field->GetFieldAttackEntries()[3].IsSwing());
+
+			Active.PrimarySlotType = EPrimarySlotType::Evolution;
+			UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+			Evolution->CrystalType = ECrystalType::Garnet;
+			Active.PrimaryEvolution.Item = Evolution;
+			Active.PrimaryEvolution.CurrentDurability = LIVE_DURABILITY;
+			const FFieldAttackEntry Evolved = Field->GetFieldAttackEntries().Last();
+			TestTrue(TEXT("the evolution throws its Fire"), Evolved.Kind == EFieldAttackKind::Evolution && !Evolved.IsSwing() && Evolved.Element == ESpellElement::Fire);
+		});
+
+		It("puts a picked weapon in hand, saved as the loadout's ACTIVE (B-503s, Q-503s A)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
+			{
+				return;
+			}
+			ULoadoutComponent *Loadout = Field->GetOwner()->FindComponentByClass<ULoadoutComponent>();
+			UInventoryComponent *Inventory = Field->GetOwner()->FindComponentByClass<UInventoryComponent>();
+			FCombatLoadout &Saved = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			Saved.PrimaryWeapon.WeaponEntry.PersistentID = FGuid::NewGuid();
+			Saved.SecondaryWeapon.WeaponEntry.PersistentID = FGuid::NewGuid();
+			const FGuid Secondary = Saved.SecondaryWeapon.WeaponEntry.PersistentID;
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("three entries"), Entries.Num(), 3))
+			{
+				return;
+			}
+			TestTrue(TEXT("a weapon's slice names its weapon"), Entries[2].WeaponId == Secondary);
+			Field->SelectFieldAttack(2);
+			const FWeaponLoadoutEntry *InHand = Loadout->GetActiveWeaponLoadout();
+			TestTrue(TEXT("the secondary is in hand"), InHand && InHand->WeaponEntry.PersistentID == Secondary);
+			TestFalse(TEXT("in the saved loadout"), Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].bShowPrimary);
+			TestEqual(TEXT("the pick stays the secondary's slice"), Field->GetFieldAttackIndex(), 2);
+			Field->SelectFieldAttack(1);
+			InHand = Loadout->GetActiveWeaponLoadout();
+			TestTrue(TEXT("the primary's Fire option: the primary back in hand"), InHand && InHand->WeaponEntry.PersistentID != Secondary &&
+																				  Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].bShowPrimary);
 		});
 
 		It("gives a Refractor a slice per entry, thrown and named by the element (B-503m4, D-217)", [this]()
