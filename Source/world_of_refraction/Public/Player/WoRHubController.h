@@ -108,7 +108,8 @@ protected:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultFieldAttackAction;
 
-	/** B-214g: steps the field attack's source. Leave empty to use DefaultFieldSwitchSourceAction (IA_Field_SwitchSource). */
+	/** B-214g, B-503 (D-215): cycles the field attack through the loadout (LB / R). Leave empty to use
+	 *  DefaultFieldSwitchSourceAction (IA_Field_SwitchSource; the name is kept so the asset and the ini line stand). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
 	TObjectPtr<UInputAction> FieldSwitchSourceAction;
 

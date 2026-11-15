@@ -260,7 +260,12 @@ void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Valu
 {
 	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
 	{
-		FieldMovement->SwitchFieldAttackSource();
+		// B-503 (D-215): the next stop of the cycle through the loadout, shown for a moment.
+		const FFieldAttackEntry Entry = FieldMovement->CycleFieldAttack();
+		if (HubHUD)
+		{
+			HubHUD->ShowFieldAttack(Entry);
+		}
 	}
 }
 
