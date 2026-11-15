@@ -84,6 +84,10 @@ namespace
 		bool bRealityCycles = false;
 		/** A weapon slice: the weapon it swings (a weapon user); a pulse class throws its crystal. */
 		const FWeaponLoadoutEntry *Weapon = nullptr;
+		/** B-514 (D-222): the quick strip's tile: the piece's icon, a pair's off hand beside it. */
+		UTexture2D *Icon = nullptr;
+		UTexture2D *OffHandIcon = nullptr;
+		FText Type;
 		/** B-503s (D-218): a weapon user throws the pulse from this slice too: the innate, an evolution, an adapter
 		 *  that isn't a ring (a Pistol or a Trainer). A ring infuses the weapon in hand. */
 		bool bPulse = false;
@@ -157,6 +161,9 @@ namespace
 				Slice.Element = LiveSocketElement(Slot.WeaponEntry.GetAttachedItem());
 				Slice.Kind = EFieldAttackKind::Weapon;
 				Slice.Weapon = &Slot;
+				Slice.Icon = Slot.WeaponEntry.Weapon ? Slot.WeaponEntry.Weapon->Icon : nullptr;
+				Slice.OffHandIcon = Slot.HasOffHand() && Slot.OffHandEntry.Weapon ? Slot.OffHandEntry.Weapon->Icon : nullptr;
+				Slice.Type = WoRGameNames::GetHeldWeaponTypeName(Slot.WeaponEntry.Weapon, Slot.HasOffHand());
 			};
 			const auto AddRing = [&Slices](const FRingLoadoutEntry &Slot)
 			{
@@ -164,6 +171,8 @@ namespace
 				Slice.Name = FText::FromString(Slot.RingEntry.Ring->GetDisplayName());
 				Slice.Element = LiveSocketElement(Slot.RingEntry.GetAttachedItem());
 				Slice.bPulse = Slot.RingEntry.Ring->Form != EAdapterForm::Ring;
+				Slice.Icon = Slot.RingEntry.Ring->Icon;
+				Slice.Type = WoRGameNames::GetAdapterFormName(Slot.RingEntry.Ring->Form);
 			};
 			// The fight's own walk (FCombatLoadout.cpp ForEachReadLegacySlot): a primary weapon with a Weapon or None type
 			// (AutoPopulateLoadout leaves None), else a primary adapter; a Generic's secondary weapon; the adapter loadout
@@ -210,12 +219,23 @@ namespace
 				Slice.Name = Item->ItemName.IsEmpty() ? WoRGameNames::GetCrystalTypeName(Item->CrystalType) : FText::FromString(Item->ItemName);
 				Slice.Element = Item->GetAssociatedElement();
 				Slice.Kind = EFieldAttackKind::Evolution;
+				Slice.Type = LOCTEXT("EvolutionType", "Evolution"); // TODO: one shared name with the combat menu's source
 				Slice.bRealityCycles = true;
 				Slice.bPulse = true;
 			}
 		}
 		return Slices;
 	}
+}
+
+FText FieldSkillRules::GetFieldStripTypeLine(const FFieldAttackEntry &Entry)
+{
+	const bool bPlain = (Entry.Element == ESpellElement::None && !Entry.bIce) || Entry.OptionName.IsEmpty();
+	if (bPlain || Entry.SliceType.IsEmpty())
+	{
+		return bPlain ? Entry.SliceType : Entry.OptionName;
+	}
+	return FText::Format(LOCTEXT("StripTypeSource", "{0} · {1}"), Entry.SliceType, Entry.OptionName);
 }
 
 TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor *Character)
@@ -263,6 +283,9 @@ TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor 
 			Base.WeaponId = Slice.Weapon->WeaponEntry.PersistentID; // picking it puts it in hand (D-218)
 		}
 		Base.SliceName = Slice.Name;
+		Base.SliceIcon = Slice.Icon;
+		Base.SliceOffHandIcon = Slice.OffHandIcon;
+		Base.SliceType = Slice.Type;
 		const FText WeaponTypeName = Base.Name; // empty for a pulse or unarmed
 		const int32 First = Entries.Num();
 		const auto AddOption = [&Entries, &Base, &WeaponTypeName, First](ESpellElement Element, const FText &ElementName, bool bIce)

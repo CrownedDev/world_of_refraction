@@ -1312,6 +1312,18 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
+### Q-514 — The quick strip's smaller choices
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-514, D-222) · **Blocks:** —
+**Question:** D-222 sets the strip's keys, text and frame. What about its ends, the arrows, the mouse, its size and the lines for pieces with no held type? None of this is lore.
+**Answer:** by the reference-backed default (Breath of the Wild's quick-select, D-222's reference):
+- **Ends:** left / right wraps from the last piece to the first (BotW's row wraps).
+- **Arrows:** ▲ ▼ show on the highlighted tile only when it has more than one source.
+- **Mouse:** a resting cursor never moves the highlight; only a moving one does, so A / D and the mouse wheel are not undone.
+- **Size:** up to 9 pieces (two weapons, five adapters, the innate, the evolution); more are logged and not shown.
+- **Type line:** an adapter's form ("Ring", "Pistol"); an evolution "Evolution"; the innate has no type, so its line is its source alone ("Fire").
+- **IN HAND:** marks the entry in use (with a ring picked, the ring's tile).
+- **Tiles with no icon:** the piece's name as text (the icon table has no ring, adapter or shield icons yet).
+
 ### Q-513 — The names for a weapon held with a shield or as a pair
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-513, Crown's PIE of the wheel) · **Blocks:** —
 **Question:** the wheel, the strip and the Equipment screen named a sword and shield "Sword". What does the type line say for a weapon held with a shield, or as a pair? None of this is lore.

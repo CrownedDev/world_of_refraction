@@ -46,9 +46,9 @@ namespace WoRHubControllerConstants
 	const FName FIELD_FLY_VERTICAL_ACTION_NAME = TEXT("IA_Field_FlyVertical");
 	const FName FIELD_KEYS_CONTEXT_NAME = TEXT("IMC_Field_Keys");
 	/** B-503m3, B-503m4: the wheel's keys, always made in code (InputMap.md row 18). */
-	const FName FIELD_WHEEL_PICK_ACTION_NAME = TEXT("IA_Field_WheelPick");
+	const FName FIELD_WHEEL_PICK_ACTION_NAME = TEXT("IA_Field_StripMove"); // B-514 (D-222): was IA_Field_WheelPick
 	const FName FIELD_WHEEL_MOUSE_ACTION_NAME = TEXT("IA_Field_WheelMouse");
-	const FName FIELD_WHEEL_ELEMENT_ACTION_NAME = TEXT("IA_Field_WheelElement");
+	const FName FIELD_WHEEL_ELEMENT_ACTION_NAME = TEXT("IA_Field_StripSource"); // B-514: was IA_Field_WheelElement
 	const FName FIELD_WHEEL_SCROLL_ACTION_NAME = TEXT("IA_Field_WheelScroll");
 	const FName FIELD_WHEEL_CONFIRM_ACTION_NAME = TEXT("IA_Field_WheelConfirm");
 	const FName FIELD_WHEEL_CLOSE_ACTION_NAME = TEXT("IA_Field_WheelClose");
@@ -66,18 +66,29 @@ void AWoRHubController::BuildFieldWheelKeys()
 	using namespace WoRHubControllerConstants;
 	FieldWheelContext = NewObject<UInputMappingContext>(this, FIELD_WHEEL_CONTEXT_NAME);
 	// B-503m4 (D-217): the actions eat their keys (the default), so the character stands and the camera holds still.
+	// B-514 (D-222): the quick strip. Left / right along the pieces, up / down the highlighted piece's source.
+	const auto MapSteps = [this](UInputAction *Action, std::initializer_list<FKey> Next, std::initializer_list<FKey> Back)
+	{
+		for (const FKey &Key : Next)
+		{
+			FieldWheelContext->MapKey(Action, Key);
+		}
+		for (const FKey &Key : Back)
+		{
+			FieldWheelContext->MapKey(Action, Key).Modifiers.Add(NewObject<UInputModifierNegate>(FieldWheelContext));
+		}
+	};
 	FieldWheelPickAction = NewObject<UInputAction>(this, FIELD_WHEEL_PICK_ACTION_NAME);
-	FieldWheelPickAction->ValueType = EInputActionValueType::Axis2D;
-	FieldWheelContext->MapKey(FieldWheelPickAction, EKeys::Gamepad_Left2D);
+	FieldWheelPickAction->ValueType = EInputActionValueType::Axis1D;
+	MapSteps(FieldWheelPickAction, {EKeys::Gamepad_DPad_Right, EKeys::Gamepad_LeftStick_Right, EKeys::D},
+			 {EKeys::Gamepad_DPad_Left, EKeys::Gamepad_LeftStick_Left, EKeys::A});
 	FieldWheelMouseAction = NewObject<UInputAction>(this, FIELD_WHEEL_MOUSE_ACTION_NAME);
 	FieldWheelMouseAction->ValueType = EInputActionValueType::Axis2D;
 	FieldWheelContext->MapKey(FieldWheelMouseAction, EKeys::Mouse2D);
 	FieldWheelElementAction = NewObject<UInputAction>(this, FIELD_WHEEL_ELEMENT_ACTION_NAME);
 	FieldWheelElementAction->ValueType = EInputActionValueType::Axis1D;
-	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::Gamepad_DPad_Right);
-	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::D);
-	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::Gamepad_DPad_Left).Modifiers.Add(NewObject<UInputModifierNegate>(FieldWheelContext));
-	FieldWheelContext->MapKey(FieldWheelElementAction, EKeys::A).Modifiers.Add(NewObject<UInputModifierNegate>(FieldWheelContext));
+	MapSteps(FieldWheelElementAction, {EKeys::Gamepad_DPad_Down, EKeys::Gamepad_LeftStick_Down, EKeys::S},
+			 {EKeys::Gamepad_DPad_Up, EKeys::Gamepad_LeftStick_Up, EKeys::W});
 	FieldWheelScrollAction = NewObject<UInputAction>(this, FIELD_WHEEL_SCROLL_ACTION_NAME);
 	FieldWheelScrollAction->ValueType = EInputActionValueType::Axis1D;
 	FieldWheelContext->MapKey(FieldWheelScrollAction, EKeys::MouseWheelAxis);
@@ -280,7 +291,7 @@ void AWoRHubController::SetupInputComponent()
 		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Completed, this, &AWoRHubController::HandleFieldSwitchSource);
 		EnhancedInput->BindAction(FieldSwitchSourceAction, ETriggerEvent::Canceled, this, &AWoRHubController::HandleFieldSwitchSourceCanceled);
 		BuildFieldWheelKeys();
-		EnhancedInput->BindAction(FieldWheelPickAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldWheelPick);
+		EnhancedInput->BindAction(FieldWheelPickAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldWheelPick);
 		EnhancedInput->BindAction(FieldWheelElementAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldWheelElement);
 		EnhancedInput->BindAction(FieldWheelScrollAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleFieldWheelScroll);
 		EnhancedInput->BindAction(FieldWheelConfirmAction, ETriggerEvent::Started, this, &AWoRHubController::HandleFieldWheelConfirm);
@@ -469,11 +480,15 @@ void AWoRHubController::HandleFieldWheelClose(const FInputActionValue & /*Value*
 
 void AWoRHubController::UpdateFieldWheelHover()
 {
-	bool bOnWheel = false;
-	if (IsFieldWheelOpen() && HubHUD)
+	// B-514: only a moving cursor picks, so a resting one doesn't undo A / D or the mouse wheel.
+	FVector2f CursorAt;
+	if (!IsFieldWheelOpen() || !HubHUD || !GetMousePosition(CursorAt.X, CursorAt.Y) || CursorAt.Equals(FieldWheelCursorAt))
 	{
-		PickFieldWheelSlice(HubHUD->GetFieldWheelSliceUnderCursor(bOnWheel));
+		return;
 	}
+	FieldWheelCursorAt = CursorAt;
+	bool bOnWheel = false;
+	PickFieldWheelSlice(HubHUD->GetFieldWheelSliceUnderCursor(bOnWheel));
 }
 
 void AWoRHubController::OpenFieldWheel()
@@ -490,7 +505,7 @@ void AWoRHubController::OpenFieldWheel()
 		FieldWheelEntries.SetNum(Slices[HubHUD->GetFieldWheelCapacity()]); // the stick picks only shown slices
 	}
 	const int32 Kept = FieldSkillRules::ClampFieldAttackIndex(FieldMovement->GetFieldAttackIndex(), FieldWheelEntries.Num());
-	if (!HubHUD->ShowFieldAttackWheel(FieldWheelEntries, Kept))
+	if (!HubHUD->ShowFieldAttackWheel(FieldWheelEntries, Kept, Kept))
 	{
 		FieldWheelEntries.Reset();
 		return; // the hub or nothing to pick
@@ -513,6 +528,7 @@ void AWoRHubController::OpenFieldWheel()
 		CursorMode.SetHideCursorDuringCapture(false);
 		CursorMode.SetLockMouseToViewportBehavior(EMouseLockMode::LockAlways);
 		SetInputMode(CursorMode);
+		GetMousePosition(FieldWheelCursorAt.X, FieldWheelCursorAt.Y); // the cursor picks only once it moves
 		GetWorldTimerManager().SetTimer(FieldWheelHoverTimer, this, &AWoRHubController::UpdateFieldWheelHover,
 										WoRHubControllerConstants::FIELD_WHEEL_HOVER_SECONDS, /*bLoop=*/true);
 	}
@@ -559,7 +575,17 @@ void AWoRHubController::PickFieldWheelSlice(int32 Slice)
 	}
 	// Back on the kept entry's slice, the kept option; any other slice opens on its first option.
 	FieldWheelPick = Slice == FieldSkillRules::GetFieldSliceOf(FieldWheelEntries, FieldWheelKept) ? FieldWheelKept : Slices[Slice];
-	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick);
+	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick, FieldWheelKept);
+}
+
+void AWoRHubController::StepFieldWheelPiece(int32 Delta)
+{
+	if (IsFieldWheelOpen())
+	{
+		const int32 PieceCount = FieldSkillRules::GetFieldSliceStarts(FieldWheelEntries).Num();
+		const int32 Piece = FieldSkillRules::GetFieldSliceOf(FieldWheelEntries, FieldWheelPick);
+		PickFieldWheelSlice(FieldSkillRules::StepFieldWheelIndex(Piece, Delta, PieceCount)); // wraps at the ends
+	}
 }
 
 void AWoRHubController::StepFieldWheelElement(int32 Delta)
@@ -569,15 +595,15 @@ void AWoRHubController::StepFieldWheelElement(int32 Delta)
 		return;
 	}
 	FieldWheelPick = FieldSkillRules::StepFieldSliceOption(FieldWheelEntries, FieldWheelPick, Delta);
-	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick);
+	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick, FieldWheelKept);
 }
 
 void AWoRHubController::HandleFieldWheelPick(const FInputActionValue &Value)
 {
-	if (IsFieldWheelOpen())
+	const float Direction = Value.Get<float>();
+	if (Direction != 0.0f)
 	{
-		const int32 SliceCount = FieldSkillRules::GetFieldSliceStarts(FieldWheelEntries).Num();
-		PickFieldWheelSlice(FieldSkillRules::GetFieldWheelIndexFromStick(Value.Get<FVector2D>(), SliceCount));
+		StepFieldWheelPiece(Direction > 0.0f ? 1 : -1); // B-514: right / D, the next piece
 	}
 }
 
@@ -586,7 +612,7 @@ void AWoRHubController::HandleFieldWheelElement(const FInputActionValue &Value)
 	const float Direction = Value.Get<float>();
 	if (Direction != 0.0f)
 	{
-		StepFieldWheelElement(Direction > 0.0f ? 1 : -1); // D-pad right / D: the next element
+		StepFieldWheelElement(Direction > 0.0f ? 1 : -1); // B-514: down / S, the next source, as in a list
 	}
 }
 
@@ -595,7 +621,7 @@ void AWoRHubController::HandleFieldWheelScroll(const FInputActionValue &Value)
 	const float Scroll = Value.Get<float>();
 	if (Scroll != 0.0f)
 	{
-		StepFieldWheelElement(Scroll < 0.0f ? 1 : -1); // down (towards you) is the next, as in a list (Q-503m3)
+		StepFieldWheelPiece(Scroll < 0.0f ? 1 : -1); // B-514 (D-222): along the pieces, down (towards you) the next
 	}
 }
 
