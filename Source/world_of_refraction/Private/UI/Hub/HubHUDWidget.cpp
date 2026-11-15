@@ -12,6 +12,8 @@
 #include "Currency/CurrencyWallet.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Rendering/SlateRenderer.h"
 #include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
 #include "Infusion/ElementColors.h"
@@ -62,13 +64,21 @@ namespace HubHUDStyle
 	constexpr float CardOutlineThickness = 1.5f;
 	/** B-503m4 (D-217, mockup hub/hud/v2/3_trial_wheel_open: centre 180, 442 at 720p, so x1.5 here): the RB wheel
 	 *  above the strip, bottom left. The most slices: two weapons, five adapters, the innate, the evolution. The
-	 *  circle grows past a few slices so the names keep their spacing. TODO: tune in PIE (Crown's look check) */
+	 *  circle grows past a few slices so the names keep their spacing. B-503m5: one round wheel (the mockup's rim
+	 *  125 and middle 54 at 720p). TODO: tune in PIE (Crown's look check) */
 	constexpr int32 WheelSlotCount = 9;
-	constexpr float WheelMinRadius = 130.0f;
+	constexpr float WheelMinRadius = 140.0f; // the circle the names sit on
 	constexpr float WheelSlotSpacing = 110.0f; // along the circle, between neighbouring names
-	const FVector2D WheelCentreFromBottomLeft(270.0f, -400.0f);
-	constexpr int32 WheelCentreFontSize = 18;
-	constexpr float WheelHubPadding = 18.0f;
+	constexpr float WheelRimPastNames = 55.0f;
+	constexpr float WheelHubRadius = 85.0f;
+	const FVector2D WheelCentreFromBottomLeft(270.0f, -420.0f);
+	constexpr int32 WheelCentreFontSize = 16;
+	constexpr float WheelCentreTextInset = 12.0f; // the middle's text wraps inside its circle
+	constexpr int32 WheelCircleSegments = 96;
+	constexpr int32 WheelMinSliceSegments = 8;
+	constexpr float WheelLineThickness = 1.5f;
+	const FLinearColor WheelFillColor = PanelColor.CopyWithNewOpacity(0.92f);
+	const FLinearColor WheelLineColor = DimColor.CopyWithNewOpacity(0.6f);
 	const FVector2D CentreAlignment(0.5f, 0.5f);
 	const FAnchors BottomRight(1.0f, 1.0f);
 	const FVector2D BottomRightAlignment(1.0f, 1.0f);
@@ -226,6 +236,92 @@ int32 UHubHUDCardFrame::NativePaint(const FPaintArgs &Args, const FGeometry &All
 	return Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId + 1, InWidgetStyle, bParentEnabled);
 }
 
+namespace HubHUDWheel
+{
+	/** A point Radius out from Centre at Turn (from the top, clockwise; the screen's Y is down). */
+	FVector2f OnCircle(const FVector2f &Centre, float Radius, float Turn)
+	{
+		return Centre + FVector2f(FMath::Sin(Turn), -FMath::Cos(Turn)) * Radius;
+	}
+
+	/** A piece of ring between two turns, as triangles (InnerRadius 0: a pie piece). */
+	void AddRingPiece(TArray<FSlateVertex> &Verts, TArray<SlateIndex> &Indices, const FSlateRenderTransform &Transform, const FVector2f &Centre,
+					  float InnerRadius, float OuterRadius, float FromTurn, float ToTurn, int32 Segments, const FColor &Colour)
+	{
+		const FVector2f WhiteTexel(0.5f, 0.5f);
+		for (int32 Step = 0; Step <= Segments; ++Step)
+		{
+			const float Turn = FMath::Lerp(FromTurn, ToTurn, static_cast<float>(Step) / Segments);
+			const SlateIndex Inner = static_cast<SlateIndex>(Verts.Num());
+			Verts.Add(FSlateVertex::Make(Transform, OnCircle(Centre, InnerRadius, Turn), WhiteTexel, Colour));
+			Verts.Add(FSlateVertex::Make(Transform, OnCircle(Centre, OuterRadius, Turn), WhiteTexel, Colour));
+			if (Step > 0)
+			{
+				Indices.Append({static_cast<SlateIndex>(Inner - 2), static_cast<SlateIndex>(Inner - 1), Inner,
+								static_cast<SlateIndex>(Inner - 1), static_cast<SlateIndex>(Inner + 1), Inner});
+			}
+		}
+	}
+
+	TArray<FVector2f> MakeCircle(const FVector2f &Centre, float Radius)
+	{
+		TArray<FVector2f> Points;
+		for (int32 Step = 0; Step <= HubHUDStyle::WheelCircleSegments; ++Step)
+		{
+			Points.Add(OnCircle(Centre, Radius, UE_TWO_PI * Step / HubHUDStyle::WheelCircleSegments));
+		}
+		return Points;
+	}
+}
+
+int32 UHubHUDWheelRing::NativePaint(const FPaintArgs &Args, const FGeometry &AllottedGeometry, const FSlateRect &MyCullingRect,
+									FSlateWindowElementList &OutDrawElements, int32 LayerId, const FWidgetStyle &InWidgetStyle,
+									bool bParentEnabled) const
+{
+	using namespace HubHUDStyle;
+	using namespace HubHUDWheel;
+
+	const FVector2f Size = AllottedGeometry.GetLocalSize();
+	const FVector2f Centre = Size * 0.5f;
+	const float Rim = FMath::Min(Size.X, Size.Y) * 0.5f - WheelLineThickness;
+	if (Rim <= HubRadius || SliceCount <= 0 || !FSlateApplication::IsInitialized())
+	{
+		return Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+	}
+	const FLinearColor Tint = InWidgetStyle.GetColorAndOpacityTint();
+	const FSlateRenderTransform &Transform = AllottedGeometry.GetAccumulatedRenderTransform();
+	const float Slice = UE_TWO_PI / SliceCount;
+	// The disc, the picked slice over it, then the middle: one draw, later triangles on top.
+	TArray<FSlateVertex> Verts;
+	TArray<SlateIndex> Indices;
+	AddRingPiece(Verts, Indices, Transform, Centre, 0.0f, Rim, 0.0f, UE_TWO_PI, WheelCircleSegments, (FillColor * Tint).ToFColor(true));
+	if (PickedSlice >= 0 && PickedSlice < SliceCount)
+	{
+		const float Turn = Slice * PickedSlice;
+		AddRingPiece(Verts, Indices, Transform, Centre, HubRadius, Rim, Turn - Slice * 0.5f, Turn + Slice * 0.5f,
+					 FMath::Max(WheelMinSliceSegments, WheelCircleSegments / SliceCount), (LitColor * Tint).ToFColor(true));
+	}
+	AddRingPiece(Verts, Indices, Transform, Centre, 0.0f, HubRadius, 0.0f, UE_TWO_PI, WheelCircleSegments, (HubColor * Tint).ToFColor(true));
+	const FSlateBrush *White = FCoreStyle::Get().GetBrush(TEXT("WhiteBrush"));
+	FSlateDrawElement::MakeCustomVerts(OutDrawElements, LayerId, FSlateApplication::Get().GetRenderer()->GetResourceHandle(*White), Verts, Indices,
+									   nullptr, 0, 0);
+	// The rim, the middle's edge, and a line between each two slices.
+	const FLinearColor Line = LineColor * Tint;
+	for (const float Radius : {Rim, HubRadius})
+	{
+		FSlateDrawElement::MakeLines(OutDrawElements, LayerId + 1, AllottedGeometry.ToPaintGeometry(), MakeCircle(Centre, Radius),
+									 ESlateDrawEffect::None, Line, /*bAntialias=*/true, WheelLineThickness);
+	}
+	for (int32 Index = 0; SliceCount > 1 && Index < SliceCount; ++Index)
+	{
+		const float Between = Slice * (Index + 0.5f);
+		FSlateDrawElement::MakeLines(OutDrawElements, LayerId + 1, AllottedGeometry.ToPaintGeometry(),
+									 TArray<FVector2f>({OnCircle(Centre, HubRadius, Between), OnCircle(Centre, Rim, Between)}), ESlateDrawEffect::None, Line,
+									 /*bAntialias=*/true, WheelLineThickness);
+	}
+	return Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId + 1, InWidgetStyle, bParentEnabled);
+}
+
 void UHubHUDWidget::RefreshPartyStrip()
 {
 	const UGameInstance *GameInstance = GetGameInstance();
@@ -305,21 +401,26 @@ void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
 		}
 		SetShown(Widget, false);
 	};
-	WheelHub = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	WheelHub->SetBrushColor(PanelColor);
-	WheelHub->SetPadding(FMargin(WheelHubPadding));
-	UVerticalBox *HubColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	WheelHub->SetContent(HubColumn);
+	// B-503m5: the round body first, so the names and the middle's text draw on it.
+	WheelRing = WidgetTree->ConstructWidget<UHubHUDWheelRing>(UHubHUDWheelRing::StaticClass());
+	WheelRing->FillColor = WheelFillColor;
+	WheelRing->HubColor = PanelColor;
+	WheelRing->LitColor = FocusColor;
+	WheelRing->LineColor = WheelLineColor;
+	AddOnWheel(WheelRing);
+	if (UCanvasPanelSlot *RingSlot = Cast<UCanvasPanelSlot>(WheelRing->Slot))
+	{
+		RingSlot->SetAutoSize(false); // sized to the slice count when shown
+	}
 	WheelCentre = MakeText(WidgetTree, WheelCentreFontSize, CyanColor, true);
 	WheelCentre->SetJustification(ETextJustify::Center);
-	WheelResult = MakeText(WidgetTree, BattleCardStyle::LineFontSize, DimColor);
-	WheelResult->SetJustification(ETextJustify::Center);
-	AddToColumn(HubColumn, WheelCentre);
-	AddToColumn(HubColumn, WheelResult);
-	AddOnWheel(WheelHub);
+	WheelCentre->SetAutoWrapText(true);
+	WheelCentre->SetWrapTextAt(2.0f * (WheelHubRadius - WheelCentreTextInset));
+	AddOnWheel(WheelCentre);
 	for (int32 Index = 0; Index < WheelSlotCount; ++Index)
 	{
 		UBorder *WheelSlot = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		WheelSlot->SetBrushColor(FLinearColor::Transparent); // B-503m5: the names sit on the wheel, not in boxes
 		WheelSlot->SetPadding(FMargin(BattleCardStyle::CardPadding));
 		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		WheelSlot->SetContent(Column);
@@ -364,6 +465,13 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 	const int32 PickedSlice = FieldSkillRules::GetFieldSliceOf(Entries, Kept);
 	const int32 Shown = FMath::Min(Slices.Num(), WheelSlots.Num());
 	const float Radius = FMath::Max(WheelMinRadius, Shown * WheelSlotSpacing / UE_TWO_PI);
+	const float Rim = Radius + WheelRimPastNames;
+	if (UCanvasPanelSlot *RingSlot = Cast<UCanvasPanelSlot>(WheelRing->Slot))
+	{
+		RingSlot->SetSize(FVector2D(2.0f * Rim));
+	}
+	WheelRing->SetWheel(Shown, PickedSlice, WheelHubRadius);
+	SetShown(WheelRing, true);
 	for (int32 Index = 0; Index < WheelSlots.Num(); ++Index)
 	{
 		const bool bShown = Index < Shown;
@@ -382,19 +490,19 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 		WheelTexts[Index]->SetText(Option.SliceName);
 		const FLinearColor Element = Option.bIce ? ElementColors::Ice : ElementColors::GetColorForElement(Option.Element);
 		WheelDiamonds[Index]->SetColorAndOpacity(FSlateColor(Element));
-		WheelSlots[Index]->SetBrushColor(Index == PickedSlice ? FocusColor : BattleCardStyle::CardColor);
+		WheelTexts[Index]->SetColorAndOpacity(FSlateColor(Index == PickedSlice ? TextColor : DimColor));
 	}
 	const FFieldAttackEntry &Pick = Entries[Kept];
 	const int32 SliceEnd = Slices.IsValidIndex(PickedSlice + 1) ? Slices[PickedSlice + 1] : Entries.Num();
 	const bool bHasOptions = SliceEnd - Slices[PickedSlice] > 1;
-	WheelCentre->SetText(bHasOptions ? FText::Format(LOCTEXT("WheelOptionArrows", "◄  {0}  ►"), Pick.OptionName) : Pick.OptionName);
-	WheelResult->SetText(Pick.Name); // what the strip will read; empty for an unarmed plain swing
-	SetShown(WheelHub, true);
-	SetShown(WheelResult, !Pick.Name.IsEmpty());
+	// B-503m5 (Crown): only what the strip will read ("Sword", "Fire Sword"); an unarmed plain swing reads as its option.
+	const FText Result = Pick.Name.IsEmpty() ? Pick.OptionName : Pick.Name;
+	WheelCentre->SetText(bHasOptions ? FText::Format(LOCTEXT("WheelResultArrows", "◄  {0}  ►"), Result) : Result);
+	SetShown(WheelCentre, true);
 	// The wheel's keys for the device in use (B-481). TODO: key caps (WoRMenuStyle::MakeHintBar) with the real HUD.
 	WheelHints->SetText(WoRKeyHints::IsGamepad(this)
-							? LOCTEXT("WheelHintsPad", "L-stick  Pick        D-pad ◄ ►  Element        RB  Let go: confirm")
-							: LOCTEXT("WheelHintsKeys", "Mouse  Pick        A / D, wheel  Element        R  Let go: confirm"));
+							? LOCTEXT("WheelHintsToggle", "L-stick  Pick        D-pad ◄ ►  Element        A  Confirm        B / RB  Close")
+							: LOCTEXT("WheelHintsToggleKeys", "Mouse  Pick        A / D, wheel  Element        Click  Confirm        Backspace / R  Close"));
 	SetShown(WheelHints, true);
 	return true;
 }
@@ -405,13 +513,28 @@ void UHubHUDWidget::HideFieldAttackWheel()
 	{
 		WoRMenuStyle::SetShown(WheelSlot, false);
 	}
-	for (UWidget *Part : {static_cast<UWidget *>(WheelHub), static_cast<UWidget *>(WheelHints)})
+	for (UWidget *Part : {static_cast<UWidget *>(WheelRing), static_cast<UWidget *>(WheelCentre), static_cast<UWidget *>(WheelHints)})
 	{
 		if (Part)
 		{
 			WoRMenuStyle::SetShown(Part, false);
 		}
 	}
+}
+
+int32 UHubHUDWidget::GetFieldWheelSliceUnderCursor(bool &bOnWheel) const
+{
+	bOnWheel = false;
+	if (!WheelRing || !WheelRing->IsVisible() || !FSlateApplication::IsInitialized())
+	{
+		return INDEX_NONE;
+	}
+	const FGeometry &Geometry = WheelRing->GetCachedGeometry();
+	const FVector2D Size(Geometry.GetLocalSize());
+	const FVector2D FromCentre = FVector2D(Geometry.AbsoluteToLocal(FSlateApplication::Get().GetCursorPos())) - Size * 0.5;
+	const float Rim = FMath::Min(Size.X, Size.Y) * 0.5f;
+	bOnWheel = Rim > 0.0f && FromCentre.Size() <= Rim;
+	return FieldSkillRules::GetFieldWheelSliceAt(FromCentre, HubHUDStyle::WheelHubRadius, Rim, WheelRing->GetSliceCount());
 }
 
 void UHubHUDWidget::NativeConstruct()

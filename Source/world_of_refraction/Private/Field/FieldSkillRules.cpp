@@ -405,6 +405,16 @@ namespace FieldSkillRules
 		return Start + StepFieldWheelIndex(Kept - Start, Delta, End - Start);
 	}
 
+	int32 GetFieldWheelSliceAt(const FVector2D &FromCentre, float HubRadius, float RimRadius, int32 SliceCount)
+	{
+		const double Distance = FromCentre.Size();
+		if (SliceCount <= 0 || Distance < HubRadius || Distance > RimRadius)
+		{
+			return INDEX_NONE;
+		}
+		return GetFieldWheelIndexFromStick(FVector2D(FromCentre.X, -FromCentre.Y) / Distance, SliceCount); // the stick's Y is up
+	}
+
 	FVector2D MoveFieldWheelPointer(const FVector2D &Pointer, const FVector2D &MouseDelta)
 	{
 		return (Pointer + MouseDelta * FIELD_WHEEL_MOUSE_SCALE).GetClampedToMaxSize(1.0);
