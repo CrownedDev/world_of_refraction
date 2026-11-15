@@ -600,6 +600,7 @@ void UPoolSubsystem::ResetStore()
     GearOwners.Reset();
     CustomLoadouts.Reset();
     WornGear.Reset();
+    HubGear.Reset(); // B-509
     CharacterSkills.Reset();
     Clashes.Reset();
     Pouches.Reset();

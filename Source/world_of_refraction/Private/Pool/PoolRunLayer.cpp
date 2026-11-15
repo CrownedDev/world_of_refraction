@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "HAL/IConsoleManager.h"
@@ -235,7 +236,7 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades, bool bKeepRunS
     bRunLayerActive = false;
 
     // B-509: a kept piece keeps the found evolution in its socket, as does a home piece keeping the run's sockets on
-    // an ending that keeps found gear.
+    // an ending that keeps found gear (CloseRun passes a non-empty KeepAsHubGear only for a Kept ending).
     TSet<FGuid> Keep;
     for (const TPair<FGuid, FPoolRunMark> &Pair : Marks)
     {
@@ -366,7 +367,7 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
             const FRuntimeAttachedItem *Now = Weapon ? &Weapon->AttachedItem : Adapter ? &Adapter->AttachedItem : nullptr;
             if (Now && (Home.IsCrystal() || Home.IsAugmentStone()) && !(*Now == Home))
             {
-                ++RunStartItems.FindOrAdd(Home.Crystal.Id);
+                ++RunStartItems.FindOrAdd(StatStone::Normalize(Home.Crystal.Id)); // CountHeldItems' keys
             }
         }
     }
