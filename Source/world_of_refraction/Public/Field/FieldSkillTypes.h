@@ -347,6 +347,12 @@ namespace FieldSkillRules
 
 	inline bool IsFieldAttackHeld(double PressedSeconds) { return PressedSeconds >= FIELD_ATTACK_HOLD_SECONDS; }
 
+	/** B-503k (D-217): R / LB pressed this long is a hold (change the element within the source), shorter a press
+	 *  (change the source). The field attack's threshold, so both keys feel the same. */
+	constexpr double FIELD_SOURCE_HOLD_SECONDS = FIELD_ATTACK_HOLD_SECONDS;
+
+	inline bool IsFieldSourceHeld(double PressedSeconds) { return PressedSeconds >= FIELD_SOURCE_HOLD_SECONDS; }
+
 	/** The strike a field hit carries: the element if it is a real one, the weapon's physical type, Ice when held with
 	 *  a Water source, FIELD_STRIKE_BUILDUP. */
 	WORLD_OF_REFRACTION_API FFieldStrike MakeFieldStrike(ESpellElement SourceElement, EPhysicalDamageType Physical, bool bHeld);
