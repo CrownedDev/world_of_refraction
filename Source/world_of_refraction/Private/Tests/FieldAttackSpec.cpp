@@ -5,6 +5,7 @@
 // B-503 (D-215): the cycle through the loadout (weapons, the innate element; a weapon swings, the rest throw the pulse)
 // and the strike following the entry in use. Rings and evolutions in the cycle: PIE (docs/PIE/B-503.md).
 // B-503b: the swing's hit timed to the montage's Impact notify. The swing itself on screen: PIE (docs/PIE/B-503b.md).
+// B-503c: the pulse's reach and its wait for the cast's release. The pulse on screen and its 7 m hit: PIE (B-503c.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -252,6 +253,35 @@ void FFieldAttackSpec::Define()
 			}
 			TestTrue(TEXT("the cooldown is over"), World->GetTimeSeconds() > CooldownOver);
 			TestTrue(TEXT("the hit is still to land"), Field->FieldAttack(false) == EFieldSkillRefusal::OnCooldown);
+		});
+
+		It("throws the pulse further than the swing reaches, and waits for the cast's release (B-503c)", [this]()
+		{
+			TestTrue(TEXT("the pulse outreaches the swing"),
+					 FieldSkillRules::GetFieldAttackRange(false) == FieldSkillRules::FIELD_PULSE_RANGE &&
+						 FieldSkillRules::GetFieldAttackRange(true) == FieldSkillRules::FIELD_ATTACK_RANGE &&
+						 FieldSkillRules::FIELD_PULSE_RANGE > FieldSkillRules::FIELD_ATTACK_RANGE);
+			TestEqual(TEXT("a thinner sweep"), FieldSkillRules::GetFieldAttackRadius(false), FieldSkillRules::FIELD_PULSE_RADIUS);
+			if (!TestTrue(TEXT("spawned"), SpawnCaster(ESpellElement::Fire)))
+			{
+				return;
+			}
+			constexpr float RELEASE_TIME = 5.0f; // past the cooldown: only the pending pulse can refuse the second one
+			UAnimMontage *CastMontage = NewObject<UAnimMontage>(GetTransientPackage());
+			FAnimNotifyEvent &Event = CastMontage->Notifies.AddDefaulted_GetRef();
+			Event.Link(CastMontage, RELEASE_TIME);
+			Event.Notify = NewObject<UCombatNotify>(CastMontage);
+			Field->FieldPulseMontage = CastMontage;
+			TestFalse(TEXT("the innate element is a pulse"), Field->GetFieldAttackEntry().IsSwing());
+			TestTrue(TEXT("a pulse"), Field->FieldAttack(false) == EFieldSkillRefusal::None);
+			constexpr int32 MAX_FRAMES = 1000;
+			const UWorld *World = TestWorld->GetWorld();
+			const double CooldownOver = World->GetTimeSeconds() + FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
+			for (int32 Frame = 0; Frame < MAX_FRAMES && World->GetTimeSeconds() <= CooldownOver; ++Frame)
+			{
+				TestWorld->Tick();
+			}
+			TestTrue(TEXT("the pulse has not left yet"), Field->FieldAttack(false) == EFieldSkillRefusal::OnCooldown);
 		});
 
 		It("swings at nothing, then waits out the cooldown", [this]()

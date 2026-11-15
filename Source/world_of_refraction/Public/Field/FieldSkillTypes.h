@@ -295,6 +295,14 @@ namespace FieldSkillRules
 	constexpr float NO_SWING_DELAY = 0.0f;
 	WORLD_OF_REFRACTION_API float GetSwingImpactSeconds(const class UAnimMontage *Montage);
 
+	// ---- B-503c: the pulse, every entry that isn't a weapon (D-215; numbers TODO: tune in PIE) ----
+
+	constexpr float FIELD_PULSE_RANGE = 700.0f; // cm ahead (D-215: about 7 m)
+	constexpr float FIELD_PULSE_RADIUS = 50.0f; // cm, the swept sphere: thinner than the swing's, it is a shot
+
+	inline float GetFieldAttackRange(bool bSwing) { return bSwing ? FIELD_ATTACK_RANGE : FIELD_PULSE_RANGE; }
+	inline float GetFieldAttackRadius(bool bSwing) { return bSwing ? FIELD_ATTACK_RADIUS : FIELD_PULSE_RADIUS; }
+
 	// ---- B-503: the field attack's cycle through the loadout (D-215) ----
 
 	constexpr int32 FIRST_FIELD_ATTACK_INDEX = 0;

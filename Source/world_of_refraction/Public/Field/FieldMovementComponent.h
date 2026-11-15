@@ -34,7 +34,7 @@ struct FPartyMember;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnhancedSprintChanged, bool, bActive);
 
-UCLASS(ClassGroup = (WoR), meta = (BlueprintSpawnableComponent))
+UCLASS(Config = Game, ClassGroup = (WoR), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UFieldMovementComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -159,7 +159,9 @@ public:
 	/** A swing ahead (bHeld: the attack was held). Striking an encounter starts its fight (UEncounterComponent::
 	 *  StrikeFromField); a miss is just a swing. Refused on cooldown and while a swing's hit is still to land.
 	 *  B-503b: a weapon entry with a swing montage plays it on every machine and hits at its Impact notify
-	 *  (FieldSkillRules::GetSwingImpactSeconds); with none the hit lands at once. */
+	 *  (FieldSkillRules::GetSwingImpactSeconds); with none the hit lands at once.
+	 *  B-503c: every other entry throws the pulse: FieldPulseMontage the same way, then a shot
+	 *  FieldSkillRules::FIELD_PULSE_RANGE ahead in the strike's colour. */
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	EFieldSkillRefusal FieldAttack(bool bHeld);
 
@@ -186,6 +188,16 @@ public:
 	 *  (FieldSkillRules::MakeFieldStrike). */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	FFieldStrike GetFieldStrike(bool bHeld) const;
+
+	/** B-503c (D-215): the pulse's cast animation, one for every entry that isn't a weapon; its first Impact notify is
+	 *  the release. Unset (DefaultGame.ini): the pulse leaves at once with no animation. Public for the spec. */
+	UPROPERTY(Config)
+	TSoftObjectPtr<UAnimMontage> FieldPulseMontage;
+
+	/** B-503c: the pulse's burst, spawned at the hand facing the end point, with the user parameters PulseColor
+	 *  (linear colour) and PulseEnd (world position) set. Unset: a plain line and ball in the strike's colour. */
+	UPROPERTY(Config)
+	TSoftObjectPtr<class UNiagaraSystem> FieldPulseVFX;
 
 	// ---- B-214h: evolutions ----
 
@@ -231,12 +243,17 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerFieldAttack(bool bHeld);
 
-	/** B-503b: the swing on every machine (a look only: the host times the hit itself). */
+	/** B-503b: the swing, or the pulse's cast, on every machine (a look only: the host times the hit itself). */
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastPlayFieldSwing(UAnimMontage *Montage);
 
-	/** The hit: the sweep ahead, engaging the first encounter body with Strike (server). */
-	void ResolveFieldAttack(FFieldStrike Strike);
+	/** B-503c: the pulse's look on every machine, from the hand to End in Colour: FieldPulseVFX, or a plain line and
+	 *  ball until it is authored. */
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastPlayFieldPulse(FVector_NetQuantize Start, FVector_NetQuantize End, FLinearColor Colour);
+
+	/** The hit: the sweep ahead (a swing 2 m, a pulse 7 m), engaging the first encounter body with Strike (server). */
+	void ResolveFieldAttack(FFieldStrike Strike, bool bSwing);
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetFieldAttackIndex(int32 Index);
@@ -365,7 +382,7 @@ private:
 	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
 
 	double LastFieldAttackTime = -FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
-	/** B-503b, server: running from the swing's start to its hit. */
+	/** B-503b, server: running from the swing's (or the cast's) start to its hit. */
 	FTimerHandle FieldSwingTimer;
 
 	/** When each advanced move was last used (its cooldown). */

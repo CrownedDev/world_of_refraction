@@ -6,7 +6,10 @@
 // B-503 (D-215): the strike's element and physical type come from the entry in use, one stop of a cycle through the
 // whole loadout (GetFieldAttackEntries); only a weapon entry has a physical type.
 // B-503b: a weapon entry plays its attack's FieldMontage (the battle swing without the dash) on every machine and the
-// sweep waits for its Impact notify; with no montage the hit lands at once. TODO: the pulse (B-503c).
+// sweep waits for its Impact notify; with no montage the hit lands at once.
+// B-503c: every other entry throws the pulse: the cast montage (FieldPulseMontage) the same way, then a thinner sweep
+// 7 m ahead and the burst (FieldPulseVFX, or a plain line and ball) from the hand to where it stopped, in the strike's
+// colour, on every machine.
 
 #include "Field/FieldMovementComponent.h"
 
@@ -14,6 +17,8 @@
 #include "Character/ECharacterClass.h"
 #include "CollisionQueryParams.h"
 #include "Combat/Encounter/EncounterComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -21,7 +26,11 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Character.h"
+#include "Infusion/ElementColors.h"
 #include "Loadout/LoadoutComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -34,6 +43,19 @@
 namespace FieldAttackLog
 {
 	const TCHAR *const TAG = TEXT("[FieldAttack]");
+}
+
+namespace FieldPulse
+{
+	/** The burst's user parameters (the editor step names them the same in the Niagara system). */
+	const FName COLOUR_PARAMETER(TEXT("PulseColor"));
+	const FName END_PARAMETER(TEXT("PulseEnd"));
+	/** The pulse leaves the right hand; a mesh without the bone throws it from the body's centre. */
+	const FName HAND_BONE(TEXT("hand_r"));
+	constexpr float PLACEHOLDER_SECONDS = 0.4f;
+	constexpr float PLACEHOLDER_THICKNESS = 6.0f;
+	constexpr int32 PLACEHOLDER_SEGMENTS = 12;
+	constexpr uint8 PLACEHOLDER_DEPTH_PRIORITY = 0; // the world's own depth: hidden behind walls
 }
 
 namespace
@@ -239,21 +261,22 @@ EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
 	// The strike is the entry's at the press: cycling during the swing doesn't change the hit on its way.
 	const FFieldAttackEntry Entry = GetFieldAttackEntry();
 	const FFieldStrike Strike = FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld);
-	// shortcut: a blocking load of one small montage on the first swing, async-load with the loadout if it hitches
-	UAnimMontage *Swing = Entry.IsSwing() ? Entry.SwingMontage.LoadSynchronous() : nullptr;
-	if (Swing)
+	const bool bSwing = Entry.IsSwing();
+	// shortcut: a blocking load of one small montage on the first attack, async-load with the loadout if it hitches
+	UAnimMontage *Montage = (bSwing ? Entry.SwingMontage : FieldPulseMontage).LoadSynchronous();
+	if (Montage)
 	{
-		MulticastPlayFieldSwing(Swing);
+		MulticastPlayFieldSwing(Montage);
 	}
-	const float ImpactSeconds = FieldSkillRules::GetSwingImpactSeconds(Swing);
+	const float ImpactSeconds = FieldSkillRules::GetSwingImpactSeconds(Montage);
 	if (ImpactSeconds > FieldSkillRules::NO_SWING_DELAY)
 	{
-		World->GetTimerManager().SetTimer(FieldSwingTimer, FTimerDelegate::CreateUObject(this, &UFieldMovementComponent::ResolveFieldAttack, Strike),
+		World->GetTimerManager().SetTimer(FieldSwingTimer, FTimerDelegate::CreateUObject(this, &UFieldMovementComponent::ResolveFieldAttack, Strike, bSwing),
 										  ImpactSeconds, /*bLoop=*/false);
 	}
 	else
 	{
-		ResolveFieldAttack(Strike);
+		ResolveFieldAttack(Strike, bSwing);
 	}
 	return EFieldSkillRefusal::None;
 }
@@ -266,7 +289,34 @@ void UFieldMovementComponent::MulticastPlayFieldSwing_Implementation(UAnimMontag
 	}
 }
 
-void UFieldMovementComponent::ResolveFieldAttack(FFieldStrike Strike)
+void UFieldMovementComponent::MulticastPlayFieldPulse_Implementation(FVector_NetQuantize Start, FVector_NetQuantize End, FLinearColor Colour)
+{
+	UWorld *World = GetWorld();
+	if (!World || World->GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+	const ACharacter *Character = Cast<ACharacter>(GetOwner());
+	const USkeletalMeshComponent *Mesh = Character ? Character->GetMesh() : nullptr;
+	const FVector From = Mesh && Mesh->DoesSocketExist(FieldPulse::HAND_BONE) ? Mesh->GetSocketLocation(FieldPulse::HAND_BONE) : FVector(Start);
+	// shortcut: a blocking load of one small effect on the first pulse, async-load at BeginPlay if it hitches
+	if (UNiagaraSystem *Burst = FieldPulseVFX.LoadSynchronous())
+	{
+		if (UNiagaraComponent *Spawned = UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, Burst, From, (End - From).Rotation()))
+		{
+			Spawned->SetVariableLinearColor(FieldPulse::COLOUR_PARAMETER, Colour);
+			Spawned->SetVariableVec3(FieldPulse::END_PARAMETER, End);
+		}
+		return;
+	}
+	// The placeholder until the burst is authored (not drawn in a shipping build).
+	const FColor Drawn = Colour.ToFColor(/*bSRGB=*/true);
+	DrawDebugLine(World, From, End, Drawn, /*bPersistentLines=*/false, FieldPulse::PLACEHOLDER_SECONDS,
+				  FieldPulse::PLACEHOLDER_DEPTH_PRIORITY, FieldPulse::PLACEHOLDER_THICKNESS);
+	DrawDebugSphere(World, End, FieldSkillRules::FIELD_PULSE_RADIUS, FieldPulse::PLACEHOLDER_SEGMENTS, Drawn, false, FieldPulse::PLACEHOLDER_SECONDS);
+}
+
+void UFieldMovementComponent::ResolveFieldAttack(FFieldStrike Strike, bool bSwing)
 {
 	AActor *Owner = GetOwner();
 	UWorld *World = GetWorld();
@@ -275,11 +325,17 @@ void UFieldMovementComponent::ResolveFieldAttack(FFieldStrike Strike)
 		return;
 	}
 	const FVector Start = Owner->GetActorLocation();
-	const FVector End = Start + Owner->GetActorForwardVector().GetSafeNormal2D() * FieldSkillRules::FIELD_ATTACK_RANGE;
+	const FVector End = Start + Owner->GetActorForwardVector().GetSafeNormal2D() * FieldSkillRules::GetFieldAttackRange(bSwing);
 	TArray<FHitResult> Hits;
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(FieldAttack), false, Owner);
 	World->SweepMultiByChannel(Hits, Start, End, FQuat::Identity, ECC_Pawn,
-							   FCollisionShape::MakeSphere(FieldSkillRules::FIELD_ATTACK_RADIUS), Params);
+							   FCollisionShape::MakeSphere(FieldSkillRules::GetFieldAttackRadius(bSwing)), Params);
+	if (!bSwing)
+	{
+		// A multi sweep ends at its first blocking hit, listed last: the pulse stops at that body or wall.
+		const FVector Stop = Hits.Num() > 0 && Hits.Last().bBlockingHit ? Hits.Last().Location : End;
+		MulticastPlayFieldPulse(Start, Stop, Strike.bIce ? ElementColors::Ice : ElementColors::GetColorForElement(Strike.Element));
+	}
 	for (const FHitResult &Hit : Hits)
 	{
 		if (!Hit.bBlockingHit)
@@ -294,7 +350,7 @@ void UFieldMovementComponent::ResolveFieldAttack(FFieldStrike Strike)
 			return;
 		}
 	}
-	UE_LOG(LogWoR, Verbose, TEXT("%s %s: a swing, nothing struck"), FieldAttackLog::TAG, *GetNameSafe(Owner));
+	UE_LOG(LogWoR, Verbose, TEXT("%s %s: a %s, nothing struck"), FieldAttackLog::TAG, *GetNameSafe(Owner), bSwing ? TEXT("swing") : TEXT("pulse"));
 }
 
 void UFieldMovementComponent::ServerFieldAttack_Implementation(bool bHeld)
