@@ -375,6 +375,7 @@ namespace FieldSkillRules
 	 *  TODO: a hold-time setting in Options can replace it later. */
 	constexpr double FIELD_SOURCE_HOLD_SECONDS = 0.5;
 
+	// TODO: retire with CycleFieldAttack's bHold after B-503m3's PIE pass: only the specs and wor.Field.CycleAttack use it.
 	inline bool IsFieldSourceHeld(double PressedSeconds) { return PressedSeconds >= FIELD_SOURCE_HOLD_SECONDS; }
 
 	/** The strike a field hit carries: the element if it is a real one, the weapon's physical type, Ice when held with

@@ -69,6 +69,8 @@ public:
 	 *  to show (the hub, headless, no entries). Call again to move the pick. */
 	bool ShowFieldAttackWheel(const TArray<struct FFieldAttackEntry> &Entries, int32 Picked);
 	void HideFieldAttackWheel();
+	/** How many entries the wheel can show (0: no wheel here). */
+	int32 GetFieldWheelCapacity() const { return WheelSlots.Num(); }
 
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
 	bool IsMoneyShown() const { return bMoneyShown; }

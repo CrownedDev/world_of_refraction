@@ -126,6 +126,10 @@ void AWoRHubController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		}
 		FieldKeysContext = nullptr;
 	}
+	if (GetWorld())
+	{
+		GetWorldTimerManager().ClearTimer(FieldWheelOpenTimer);
+	}
 	CloseFieldWheel();
 	Super::EndPlay(EndPlayReason);
 }
@@ -389,6 +393,10 @@ void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Valu
 	// D-217: a tap steps to the next source (plain Sword, Fire Sword, ...); B-503m3: letting go of the wheel confirms
 	// its pick (a hold step too: "(R) Fire", "Dark Fire"). The hub has no wheel: a hold there reads as a tap.
 	const FFieldAttackEntry Entry = bFromWheel ? FieldMovement->SelectFieldAttack(Picked) : FieldMovement->CycleFieldAttack(false);
+	if (bFromWheel)
+	{
+		UE_LOG(LogWoR, Log, TEXT("%s Field attack wheel: picked %d"), WoRHubControllerConstants::LOG_TAG, Picked + 1);
+	}
 	if (HubHUD)
 	{
 		HubHUD->ShowFieldAttack(Entry);
@@ -403,6 +411,7 @@ void AWoRHubController::OpenFieldWheel()
 		return;
 	}
 	FieldWheelEntries = FieldMovement->GetFieldAttackEntries();
+	FieldWheelEntries.SetNum(FMath::Min(FieldWheelEntries.Num(), HubHUD->GetFieldWheelCapacity())); // the stick picks only shown ones
 	const int32 Kept = FieldMovement->GetFieldAttackIndex();
 	if (!HubHUD->ShowFieldAttackWheel(FieldWheelEntries, Kept))
 	{
@@ -414,7 +423,7 @@ void AWoRHubController::OpenFieldWheel()
 	{
 		Mappings->AddMappingContext(FieldWheelContext, WoRInputPriority::FIELD_WHEEL);
 	}
-	UE_LOG(LogWoR, Verbose, TEXT("%s Field attack wheel open: %d entries, on %d"), WoRHubControllerConstants::LOG_TAG,
+	UE_LOG(LogWoR, Log, TEXT("%s Field attack wheel open: %d entries, on %d (wor.Field.CycleAttack lists them)"), WoRHubControllerConstants::LOG_TAG,
 		   FieldWheelEntries.Num(), Kept + 1);
 }
 
@@ -454,9 +463,8 @@ void AWoRHubController::HandleFieldWheelScroll(const FInputActionValue &Value)
 	{
 		return;
 	}
-	constexpr int32 WHEEL_DOWN_STEPS_ON = 1; // scrolling down (towards you) moves to the next entry, as in a list
-	FieldWheelPick = FieldSkillRules::StepFieldWheelIndex(FieldWheelPick, Scroll < 0.0f ? WHEEL_DOWN_STEPS_ON : -WHEEL_DOWN_STEPS_ON,
-														  FieldWheelEntries.Num());
+	// Scrolling down (towards you) moves to the next entry, as in a list (Q-503m3).
+	FieldWheelPick = FieldSkillRules::StepFieldWheelIndex(FieldWheelPick, Scroll < 0.0f ? 1 : -1, FieldWheelEntries.Num());
 	HubHUD->ShowFieldAttackWheel(FieldWheelEntries, FieldWheelPick);
 }
 
