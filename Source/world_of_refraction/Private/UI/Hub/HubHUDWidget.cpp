@@ -24,6 +24,7 @@
 #include "TimerManager.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/PauseMenuModel.h"
+#include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "WoRHubHUDWidget"
 
@@ -56,6 +57,16 @@ namespace HubHUDStyle
 	/** B-503i: the mockup's card: the top-left corner cut 6 px at 720p, a 1 px outline. */
 	constexpr float CardCutSize = 9.0f;
 	constexpr float CardOutlineThickness = 1.5f;
+	/** B-503m3 (D-217): the LB wheel, mid-screen. The most entries: plain + one stop per element (9) + two hold
+	 *  cycles of the other 8 (Q-503l). The circle grows past a few entries so the names keep their spacing.
+	 *  TODO: tune in PIE (Crown's look check) */
+	constexpr int32 WheelSlotCount = 1 + 9 + 2 * 8;
+	constexpr float WheelMinRadius = 110.0f;
+	constexpr float WheelSlotSpacing = 70.0f; // along the circle, between neighbouring names
+	constexpr int32 WheelCentreFontSize = 18;
+	const FAnchors ScreenCentre(0.5f, 0.5f);
+	const FVector2D CentreAlignment(0.5f, 0.5f);
+	const FLinearColor WheelPickedColor(1.0f, 0.78f, 0.25f, 0.35f); // BattleCardStyle::ActingColor, see-through
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -128,6 +139,10 @@ void UHubHUDWidget::BuildTree()
 	}
 
 	BuildPartyStrip(Canvas);
+	if (!AttackStrips.IsEmpty())
+	{
+		BuildFieldAttackWheel(Canvas); // on top: built last
+	}
 
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
@@ -267,6 +282,87 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 		return; // headless, the hub, or no card for the pawn
 	}
 	SetFieldAttack(Entry); // B-503m: no flash (Crown: the text change is enough)
+}
+
+void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
+{
+	using namespace HubHUDStyle;
+
+	const auto AddCentred = [Canvas](UWidget *Widget)
+	{
+		if (UCanvasPanelSlot *CanvasSlot = Canvas->AddChildToCanvas(Widget))
+		{
+			CanvasSlot->SetAnchors(ScreenCentre);
+			CanvasSlot->SetAlignment(CentreAlignment);
+			CanvasSlot->SetAutoSize(true);
+		}
+		SetShown(Widget, false);
+	};
+	for (int32 Index = 0; Index < WheelSlotCount; ++Index)
+	{
+		UBorder *WheelSlot = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		WheelSlot->SetPadding(FMargin(BattleCardStyle::CardPadding));
+		UTextBlock *Text = MakeText(WidgetTree, BattleCardStyle::LineFontSize, BattleCardStyle::TextColor, true);
+		WheelSlot->SetContent(Text);
+		AddCentred(WheelSlot);
+		WheelSlots.Add(WheelSlot);
+		WheelTexts.Add(Text);
+	}
+	WheelCentre = MakeText(WidgetTree, WheelCentreFontSize, BattleCardStyle::ActingColor, true);
+	AddCentred(WheelCentre);
+}
+
+bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entries, int32 Picked)
+{
+	using namespace HubHUDStyle;
+
+	if (WheelSlots.IsEmpty() || Entries.IsEmpty())
+	{
+		return false; // the hub, headless, or nothing to pick
+	}
+	if (Entries.Num() > WheelSlots.Num())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[HubHUD] The field attack wheel has %d entries, room for %d: the rest aren't shown"),
+			   Entries.Num(), WheelSlots.Num());
+	}
+	const int32 Shown = FMath::Min(Entries.Num(), WheelSlots.Num());
+	const float Radius = FMath::Max(WheelMinRadius, Shown * WheelSlotSpacing / UE_TWO_PI);
+	const FText PlainName = LOCTEXT("WheelPlain", "Plain"); // unarmed: the plain swing has no strip name (Q-503k (4))
+	for (int32 Index = 0; Index < WheelSlots.Num(); ++Index)
+	{
+		const bool bShown = Index < Shown;
+		SetShown(WheelSlots[Index], bShown);
+		if (!bShown)
+		{
+			continue;
+		}
+		const float Turn = UE_TWO_PI * Index / Shown; // from the top, clockwise; the screen's Y is down
+		if (UCanvasPanelSlot *CanvasSlot = Cast<UCanvasPanelSlot>(WheelSlots[Index]->Slot))
+		{
+			CanvasSlot->SetPosition(FVector2D(Radius * FMath::Sin(Turn), -Radius * FMath::Cos(Turn)));
+		}
+		const FText &Name = Entries[Index].Name.IsEmpty() ? PlainName : Entries[Index].Name;
+		WheelTexts[Index]->SetText(Name);
+		WheelSlots[Index]->SetBrushColor(Index == Picked ? WheelPickedColor : BattleCardStyle::CardColor);
+		if (Index == Picked)
+		{
+			WheelCentre->SetText(Name);
+		}
+	}
+	SetShown(WheelCentre, Entries.IsValidIndex(Picked));
+	return true;
+}
+
+void UHubHUDWidget::HideFieldAttackWheel()
+{
+	for (UBorder *WheelSlot : WheelSlots)
+	{
+		WoRMenuStyle::SetShown(WheelSlot, false);
+	}
+	if (WheelCentre)
+	{
+		WoRMenuStyle::SetShown(WheelCentre, false);
+	}
 }
 
 void UHubHUDWidget::NativeConstruct()

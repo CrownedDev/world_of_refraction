@@ -64,6 +64,12 @@ public:
 	 *  in a trial map while the pawn has a field attack with a name. */
 	void ShowFieldAttack(const struct FFieldAttackEntry &Entry);
 
+	/** B-503m3 (D-217): the LB wheel, mid-screen: every entry's strip name around a circle (entry 0 at the top,
+	 *  clockwise), the pick lit and its name in the middle. Trial only, as the strip; false when there is no wheel
+	 *  to show (the hub, headless, no entries). Call again to move the pick. */
+	bool ShowFieldAttackWheel(const TArray<struct FFieldAttackEntry> &Entries, int32 Picked);
+	void HideFieldAttackWheel();
+
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
 	bool IsMoneyShown() const { return bMoneyShown; }
 
@@ -119,6 +125,15 @@ private:
 	void SetFieldAttack(const struct FFieldAttackEntry &Entry);
 	/** Reads the pawn's current stop (on the slow timer: the stops read the loadout and the sources). */
 	void RefreshFieldAttack();
+
+	/** B-503m3: the wheel's slots, built once with the strips (Trial level), shown per entry while R / LB is held. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> WheelSlots;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> WheelTexts;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> WheelCentre;
+	void BuildFieldAttackWheel(class UCanvasPanel *Canvas);
 
 	/** B-503g: the party strip's cards, built once (PartyConstants::MAX_PARTY_MEMBERS) at the map's level (B-503j),
 	 *  filled on Refresh. */
