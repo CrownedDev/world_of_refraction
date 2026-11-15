@@ -78,11 +78,35 @@ namespace
 	}
 
 	/** D-217: "Fire Sword" for an infused weapon, "Fire" with no weapon line. */
-	FText MakeInfusedLabel(ESpellElement Element, const FText &WeaponTypeName)
+	FText MakeInfusedLabel(const FText &ElementName, const FText &WeaponTypeName)
 	{
-		const FText ElementName = WoRGameNames::GetElementName(Element);
 		return WeaponTypeName.IsEmpty() ? ElementName
 										: FText::Format(LOCTEXT("InfusedWeapon", "{0} {1}"), ElementName, WeaponTypeName);
+	}
+
+	/** Q-503l: which stops a hold cycles. Reality on the innate element or an evolution ("(R) Fire"; an adapter
+	 *  or a weapon crystal cannot), and a Broken Darkness character's Darkness ("Dark Fire"). */
+	enum class EFieldHoldCycle : uint8
+	{
+		None,
+		Reality,
+		BrokenDarkness
+	};
+
+	EFieldHoldCycle GetHoldCycle(ESpellElement Element, EInfusionSourceOption Source, bool bBrokenDarkness)
+	{
+		if (Element == ESpellElement::Reality && (Source == EInfusionSourceOption::Innate || Source == EInfusionSourceOption::Evolution))
+		{
+			return EFieldHoldCycle::Reality;
+		}
+		return bBrokenDarkness && Element == ESpellElement::Darkness ? EFieldHoldCycle::BrokenDarkness : EFieldHoldCycle::None;
+	}
+
+	FText MakeHoldElementName(EFieldHoldCycle Cycle, ESpellElement Element)
+	{
+		const FText ElementName = WoRGameNames::GetElementName(Element);
+		return Cycle == EFieldHoldCycle::Reality ? FText::Format(LOCTEXT("RealityHoldElement", "(R) {0}"), ElementName)
+												 : FText::Format(LOCTEXT("DarkHoldElement", "Dark {0}"), ElementName);
 	}
 }
 
@@ -92,6 +116,7 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 	// the stops are its infusions: plain first (a weapon user only), then each element of the combat menu's sources,
 	// one stop per element (two sources of one element would read the same).
 	TArray<FFieldAttackEntry> Entries;
+	TArray<EInfusionSourceOption> Sources; // each stop's source, for its hold steps (B-503l)
 	AActor *Owner = GetOwner();
 	const UCharacterDataComponent *CharComp = GetCharacterData();
 	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
@@ -111,6 +136,7 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 			Plain.SwingMontage = Weapon->WeaponAttack ? Weapon->WeaponAttack->FieldMontage : nullptr;
 		}
 		Entries.Add(Plain); // unarmed: a plain swing with no name
+		Sources.Add(EInfusionSourceOption::None);
 	}
 
 	const UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(this);
@@ -130,13 +156,40 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 		}
 		FFieldAttackEntry &Entry = Entries.Add_GetRef(Plain);
 		Entry.Element = Element;
-		Entry.Name = MakeInfusedLabel(Element, Plain.Name);
+		Entry.Name = MakeInfusedLabel(WoRGameNames::GetElementName(Element), Plain.Name);
 		if (bPulse)
 		{
 			Entry.Kind = PulseKindOf(Source);
 		}
+		Sources.Add(Source);
 	}
-	return Entries;
+
+	// B-503l (Q-503l = B): a hold steps a Reality or Broken Darkness stop through the elements of the other stops,
+	// listed right after it as hold steps (one saved index covers both keys; a press skips them).
+	const bool bBrokenDarkness = CharComp && CharComp->IsBrokenDarkness();
+	TArray<FFieldAttackEntry> WithHoldSteps;
+	for (int32 Stop = 0; Stop < Entries.Num(); ++Stop)
+	{
+		WithHoldSteps.Add(Entries[Stop]);
+		const EFieldHoldCycle Cycle = GetHoldCycle(Entries[Stop].Element, Sources[Stop], bBrokenDarkness);
+		if (Cycle == EFieldHoldCycle::None)
+		{
+			continue;
+		}
+		for (const FFieldAttackEntry &Other : Entries)
+		{
+			// Each element once (the stops are), never the stop's own nor the hidden Reality.
+			if (!FieldSkillRules::IsElemental(Other.Element) || Other.Element == Entries[Stop].Element || Other.Element == ESpellElement::Reality)
+			{
+				continue;
+			}
+			FFieldAttackEntry &Step = WithHoldSteps.Add_GetRef(Entries[Stop]);
+			Step.bHoldStep = true;
+			Step.Element = Other.Element;
+			Step.Name = MakeInfusedLabel(MakeHoldElementName(Cycle, Other.Element), Plain.Name);
+		}
+	}
+	return WithHoldSteps;
 }
 
 int32 UFieldMovementComponent::GetKeptFieldAttackIndex() const
@@ -163,10 +216,11 @@ FFieldStrike UFieldMovementComponent::GetFieldStrike(bool bHeld) const
 	return FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld);
 }
 
-FFieldAttackEntry UFieldMovementComponent::CycleFieldAttack()
+FFieldAttackEntry UFieldMovementComponent::CycleFieldAttack(bool bHold)
 {
 	const TArray<FFieldAttackEntry> Entries = GetFieldAttackEntries();
-	const int32 Next = FieldSkillRules::NextFieldAttackIndex(GetKeptFieldAttackIndex(), Entries.Num());
+	const int32 Kept = GetKeptFieldAttackIndex();
+	const int32 Next = bHold ? FieldSkillRules::NextFieldAttackHoldIndex(Entries, Kept) : FieldSkillRules::NextFieldAttackSourceIndex(Entries, Kept);
 	if (HasAuthority())
 	{
 		StoreFieldAttackIndex(Next);

@@ -171,6 +171,11 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	TSoftObjectPtr<class UAnimMontage> SwingMontage;
 
+	/** B-503l (Q-503l): a hold step of the stop before it ("(R) Fire", "Dark Fire"): a hold of R / LB reaches it, a
+	 *  press skips it. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	bool bHoldStep = false;
+
 	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
 	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
 };
@@ -326,6 +331,13 @@ namespace FieldSkillRules
 	{
 		return EntryCount > 0 ? (ClampFieldAttackIndex(Index, EntryCount) + 1) % EntryCount : FIRST_FIELD_ATTACK_INDEX;
 	}
+
+	/** B-503l (D-217): a press of R / LB: the next stop that isn't a hold step, wrapping; the first with none. */
+	WORLD_OF_REFRACTION_API int32 NextFieldAttackSourceIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index);
+
+	/** B-503l (Q-503l): a hold of R / LB: the stop's next hold step, back to the stop after the last; the stop itself
+	 *  when it has none (a source with one element). */
+	WORLD_OF_REFRACTION_API int32 NextFieldAttackHoldIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index);
 
 	// ---- B-214h: evolutions (FieldAbilities choice 2; Q-214h; TODO: tune) ----
 

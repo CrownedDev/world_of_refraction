@@ -7,6 +7,7 @@
 // B-503b: the swing's hit timed to the montage's Impact notify. The swing itself on screen: PIE (docs/PIE/B-503b.md).
 // B-503c: the pulse's reach and its wait for the cast's release. The pulse on screen and its 7 m hit: PIE (B-503c.md).
 // B-503k (D-217): the cycle is the attack's infusions (a weapon user: plain, then each element; a Refractor: elements).
+// B-503l (Q-503l): a hold steps a Reality or Broken Darkness stop through the other stops' elements; a press skips them.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -128,6 +129,19 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("held from the threshold"), FieldSkillRules::IsFieldAttackHeld(FieldSkillRules::FIELD_ATTACK_HOLD_SECONDS));
 			TestFalse(TEXT("B-503k: a press of R / LB changes the source"), FieldSkillRules::IsFieldSourceHeld(0.0));
 			TestTrue(TEXT("a hold changes the element"), FieldSkillRules::IsFieldSourceHeld(FieldSkillRules::FIELD_SOURCE_HOLD_SECONDS));
+
+			// B-503l: a stop with two hold steps, then a stop with none.
+			TArray<FFieldAttackEntry> Stops;
+			Stops.AddDefaulted(4);
+			Stops[1].bHoldStep = Stops[2].bHoldStep = true;
+			TestEqual(TEXT("a press skips the hold steps"), FieldSkillRules::NextFieldAttackSourceIndex(Stops, 0), 3);
+			TestEqual(TEXT("a press from a hold step goes to the next stop"), FieldSkillRules::NextFieldAttackSourceIndex(Stops, 2), 3);
+			TestEqual(TEXT("a press wraps"), FieldSkillRules::NextFieldAttackSourceIndex(Stops, 3), 0);
+			TestEqual(TEXT("a hold steps in"), FieldSkillRules::NextFieldAttackHoldIndex(Stops, 0), 1);
+			TestEqual(TEXT("a hold steps on"), FieldSkillRules::NextFieldAttackHoldIndex(Stops, 1), 2);
+			TestEqual(TEXT("a hold wraps to the stop"), FieldSkillRules::NextFieldAttackHoldIndex(Stops, 2), 0);
+			TestEqual(TEXT("a hold on a one-element stop stays"), FieldSkillRules::NextFieldAttackHoldIndex(Stops, 3), 3);
+			TestEqual(TEXT("nothing to step"), FieldSkillRules::NextFieldAttackSourceIndex(TArray<FFieldAttackEntry>(), 0), 0);
 		});
 	});
 
@@ -204,6 +218,55 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("the crystal in hand, thrown with no physical type"),
 					 !Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire && Entries[1].Physical == EPhysicalDamageType::None);
 			TestEqual(TEXT("no weapon line"), Entries[1].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Fire).ToString());
+		});
+
+		It("steps a Reality Refractor's innate through its other gear's elements on a hold (B-503l, Q-503l)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Caster, ESpellElement::Reality)))
+			{
+				return;
+			}
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("the innate, its hold step, the crystal"), Entries.Num(), 3))
+			{
+				return;
+			}
+			const FString Fire = WoRGameNames::GetElementName(ESpellElement::Fire).ToString();
+			TestEqual(TEXT("Reality reads Unknown (ED-42)"), Entries[0].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Reality).ToString());
+			TestTrue(TEXT("its hold step: the crystal's Fire"), Entries[1].bHoldStep && Entries[1].Element == ESpellElement::Fire && !Entries[1].IsSwing());
+			TestTrue(TEXT("named (R) Fire"), Entries[1].Name.ToString().StartsWith(TEXT("(R)")) && Entries[1].Name.ToString().EndsWith(Fire));
+			TestTrue(TEXT("the crystal's own stop, no hold step (not innate or evolution)"), !Entries[2].bHoldStep && Entries[2].Name.ToString() == Fire);
+			TestTrue(TEXT("a hold: (R) Fire"), Field->CycleFieldAttack(true).bHoldStep && Field->GetFieldStrike(false).Element == ESpellElement::Fire);
+			TestEqual(TEXT("a hold again: back to Unknown"), Field->CycleFieldAttack(true).Element, ESpellElement::Reality);
+			Field->CycleFieldAttack(true);
+			TestEqual(TEXT("a press from the hold step: the crystal"), Field->CycleFieldAttack(false).Name.ToString(), Fire);
+			TestEqual(TEXT("a hold on the crystal stays"), Field->CycleFieldAttack(true).Name.ToString(), Fire);
+			TestEqual(TEXT("a press wraps to the innate"), Field->CycleFieldAttack(false).Element, ESpellElement::Reality);
+		});
+
+		It("steps a Broken Darkness character's Darkness through its other gear's elements on a hold (B-503l, Q-503l)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Caster, ESpellElement::Darkness)))
+			{
+				return;
+			}
+			UCharacterDataComponent *CharComp = Field->GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestNotNull(TEXT("character"), CharComp))
+			{
+				return;
+			}
+			CharComp->bIsBrokenDarkness = true;
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("Darkness, its hold step, the crystal"), Entries.Num(), 3))
+			{
+				return;
+			}
+			TestEqual(TEXT("Darkness"), Entries[0].Element, ESpellElement::Darkness);
+			TestTrue(TEXT("Dark Fire"), Entries[1].bHoldStep && Entries[1].Element == ESpellElement::Fire &&
+											Entries[1].Name.ToString().EndsWith(WoRGameNames::GetElementName(ESpellElement::Fire).ToString()) &&
+											!Entries[1].Name.ToString().StartsWith(TEXT("(R)")));
+			CharComp->bIsBrokenDarkness = false;
+			TestEqual(TEXT("not Broken Darkness: no hold step"), Field->GetFieldAttackEntries().Num(), 2);
 		});
 
 		It("gives every enemy of the fight the strike's buildup, and nothing for an empty strike", [this]()
