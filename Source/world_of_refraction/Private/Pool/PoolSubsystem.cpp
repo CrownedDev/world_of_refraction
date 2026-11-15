@@ -598,6 +598,9 @@ void UPoolSubsystem::ResetStore()
     BankedCharacters.Reset();
     GearOwners.Reset();
     CustomLoadouts.Reset();
+    ActiveLoadoutIndices.Reset(); // B-503t
+    KeptRunGear.Reset();
+    KeptRunCrystals.Reset();
     CharacterSkills.Reset();
     Clashes.Reset();
     Pouches.Reset();
@@ -631,6 +634,26 @@ const TArray<FSavedLoadout> *UPoolSubsystem::GetCustomLoadouts(FName CharacterKe
 {
     const FPoolCustomLoadouts *Found = CustomLoadouts.Find(CharacterKey);
     return Found ? &Found->Loadouts : nullptr;
+}
+
+void UPoolSubsystem::SetActiveLoadoutIndex(FName CharacterKey, int32 Index)
+{
+    if (CharacterKey.IsNone())
+    {
+        return;
+    }
+    if (Index == INDEX_NONE)
+    {
+        ActiveLoadoutIndices.Remove(CharacterKey);
+        return;
+    }
+    ActiveLoadoutIndices.Add(CharacterKey, Index);
+}
+
+int32 UPoolSubsystem::GetActiveLoadoutIndex(FName CharacterKey) const
+{
+    const int32 *Found = ActiveLoadoutIndices.Find(CharacterKey);
+    return Found ? *Found : INDEX_NONE;
 }
 
 // ==================== KNOWLEDGE ====================

@@ -44,6 +44,120 @@ namespace
     {
         return !(Now == Home) || Now.GetCurrentDurability() != Home.GetCurrentDurability();
     }
+
+    /** B-503t (D-219): what a home piece's socket holds after the run. A quit (or the same item) goes back to the home
+     *  state; a carrying end keeps the run's item, at full wear (wear resets at run end, D-093). */
+    FRuntimeAttachedItem AttachmentAtRunEnd(const FRuntimeAttachedItem &Now, const FRuntimeAttachedItem &Home, bool bCarry)
+    {
+        if (!bCarry || Now == Home)
+        {
+            return Home;
+        }
+        FRuntimeAttachedItem Carried = Now;
+        Carried.RepairBetweenCombats(Carried.GetMaxDurability());
+        return Carried;
+    }
+
+    /** A crystal or stone in the socket: an item counted in the pouches and storage. */
+    bool HoldsItem(const FRuntimeAttachedItem &Attached) { return Attached.IsCrystal() || Attached.IsAugmentStone(); }
+}
+
+void UPoolSubsystem::SnapshotRunStartLoadouts()
+{
+    RunStartLoadouts.Reset();
+    for (const TPair<FName, FPoolCustomLoadouts> &Custom : CustomLoadouts)
+    {
+        RunStartLoadouts.FindOrAdd(Custom.Key).Loadouts = Custom.Value.Loadouts;
+    }
+    for (const TPair<FName, int32> &InUse : ActiveLoadoutIndices)
+    {
+        RunStartLoadouts.FindOrAdd(InUse.Key).ActiveIndex = InUse.Value;
+    }
+}
+
+void UPoolSubsystem::NoteRunStartFieldPick(FName CharacterKey, int32 FieldAttackIndex, bool bPicked)
+{
+    if (!bRunLayerActive || CharacterKey.IsNone())
+    {
+        return;
+    }
+    FPoolRunStartLoadouts &Start = RunStartLoadouts.FindOrAdd(CharacterKey);
+    Start.FieldAttackIndex = FieldAttackIndex;
+    Start.bFieldAttackPicked = bPicked;
+    Start.bHasFieldPick = true;
+}
+
+void UPoolSubsystem::DropKeptRunGear()
+{
+    if (KeptRunGear.IsEmpty() && KeptRunCrystals.IsEmpty())
+    {
+        return;
+    }
+    const auto ClearSocket = [this](const FPoolKeptCrystal &Kept)
+    {
+        if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(Kept.GearID))
+        {
+            if (HoldsItem(Weapon->AttachedItem) && Weapon->AttachedItem.Crystal.Id == Kept.Crystal)
+            {
+                FWeaponInventoryEntry Emptied = *Weapon;
+                Emptied.AttachedItem = FRuntimeAttachedItem();
+                UpdateWeapon(Emptied);
+                return true;
+            }
+        }
+        else if (const FRingInventoryEntry *Adapter = FindRingInPool(Kept.GearID))
+        {
+            if (HoldsItem(Adapter->AttachedItem) && Adapter->AttachedItem.Crystal.Id == Kept.Crystal)
+            {
+                FRingInventoryEntry Emptied = *Adapter;
+                Emptied.AttachedItem = FRuntimeAttachedItem();
+                UpdateRing(Emptied);
+                return true;
+            }
+        }
+        return false;
+    };
+    int32 CrystalsGone = 0;
+    bool bStorageChanged = false;
+    for (const FPoolKeptCrystal &Kept : KeptRunCrystals)
+    {
+        if (ClearSocket(Kept))
+        {
+            ++CrystalsGone;
+            continue;
+        }
+        // Moved out of its socket in the hub: one of that item goes from a pouch, else storage, so it isn't kept.
+        TArray<FName> PouchKeys;
+        Pouches.GetKeys(PouchKeys);
+        int32 Taken = 0;
+        for (int32 Index = 0; Index < PouchKeys.Num() && Taken == 0; ++Index)
+        {
+            Taken = TakeCarried(PouchKeys[Index], Kept.Crystal, 1);
+        }
+        if (Taken == 0 && TakeStored(Kept.Crystal, 1) > 0)
+        {
+            Taken = 1;
+            bStorageChanged = true;
+        }
+        CrystalsGone += Taken;
+    }
+    int32 Gear = 0;
+    for (const FGuid &ID : KeptRunGear)
+    {
+        if (FindWeaponInPool(ID) || FindRingInPool(ID) || FindEvolutionInPool(ID))
+        {
+            RemoveGear(ID);
+            ++Gear;
+        }
+    }
+    if (bStorageChanged)
+    {
+        OnPoolItemsChanged.Broadcast();
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: the last run's kept found gear goes as this run starts (D-219): %d piece(s), %d crystal(s)"),
+           Gear, CrystalsGone);
+    KeptRunGear.Reset();
+    KeptRunCrystals.Reset();
 }
 
 void UPoolSubsystem::BeginRunLayer()
@@ -54,8 +168,10 @@ void UPoolSubsystem::BeginRunLayer()
         UE_LOG(LogTemp, Warning, TEXT("[Pool] Run layer: a new run starts while the last one is still open - its marks are discarded"));
         DiscardRunLayer();
     }
+    DropKeptRunGear(); // B-503t (D-219): before the start counts, so a crystal taken here isn't counted held
     RunMarks.Reset();
     RunStartItems = CountHeldItems(); // B-439b
+    SnapshotRunStartLoadouts(); // B-503t (D-219): a quit puts these back
     bRunLayerActive = true;
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer open"));
 }
@@ -68,6 +184,7 @@ void UPoolSubsystem::DiscardRunLayer()
     }
     RunMarks.Reset();
     RunStartItems.Reset();
+    RunStartLoadouts.Reset();
     bRunLayerActive = false;
 }
 
@@ -75,8 +192,9 @@ int32 UPoolSubsystem::RestoreRunLayer(const TMap<FGuid, FPoolRunMark> &SavedMark
 {
     RunMarks.Reset();
     // B-439b: a save from before the counts were kept has none, so what is held now stands in (the save's restore
-    // replaces it with the saved counts, RestoreRunStartItems).
+    // replaces it with the saved counts, RestoreRunStartItems). B-503t: the loadouts the same way.
     RunStartItems = CountHeldItems();
+    SnapshotRunStartLoadouts();
     bRunLayerActive = true;
     int32 Dropped = 0;
     for (const TPair<FGuid, FPoolRunMark> &Saved : SavedMarks)
@@ -200,16 +318,94 @@ bool UPoolSubsystem::IsOnRun(const FGuid &GearID) const
 
 FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
 {
+    return EndRunLayer(bKeepUpgrades, nullptr);
+}
+
+int32 UPoolSubsystem::KeepFoundCrystalsInSockets()
+{
+    if (!bRunLayerActive)
+    {
+        return 0;
+    }
+    // Per item: how many more sit in the run's home sockets than left home in them, and which pieces took one on.
+    TMap<FCrystalId, int32> SocketChange;
+    TMap<FCrystalId, TArray<FGuid>> NewHolders;
+    for (const TPair<FGuid, FPoolRunMark> &Pair : RunMarks)
+    {
+        const FWeaponInventoryEntry *Weapon = Pair.Value.bOnRun ? FindWeaponInPool(Pair.Key) : nullptr;
+        const FRingInventoryEntry *Adapter = Pair.Value.bOnRun && !Weapon ? FindRingInPool(Pair.Key) : nullptr;
+        const FRuntimeAttachedItem *Now = Weapon ? &Weapon->AttachedItem : Adapter ? &Adapter->AttachedItem : nullptr;
+        const FRuntimeAttachedItem &Home = Pair.Value.HomeAttached;
+        if (!Now || *Now == Home)
+        {
+            continue;
+        }
+        if (HoldsItem(Home))
+        {
+            --SocketChange.FindOrAdd(Home.Crystal.Id);
+        }
+        if (HoldsItem(*Now))
+        {
+            ++SocketChange.FindOrAdd(Now->Crystal.Id);
+            NewHolders.FindOrAdd(Now->Crystal.Id).Add(Pair.Key);
+        }
+    }
+    // Finds = held above the start count plus the socket change; the pouch's surplus counts first (the player's own
+    // crystal is the one in the socket when either reading fits), the rest are finds sitting in sockets.
+    const TMap<FCrystalId, int32> Held = CountHeldItems();
+    int32 Kept = 0;
+    for (const TPair<FCrystalId, int32> &Change : SocketChange)
+    {
+        const int32 HeldNow = Held.FindRef(Change.Key);
+        const int32 AboveStart = HeldNow - RunStartItems.FindRef(Change.Key);
+        const int32 Found = FMath::Max(0, AboveStart + Change.Value);
+        const int32 FromPouch = FMath::Clamp(AboveStart, 0, Found);
+        RunStartItems.Add(Change.Key, HeldNow - FromPouch);
+        const TArray<FGuid> &Holders = NewHolders.FindRef(Change.Key);
+        for (int32 Index = 0; Index < FMath::Min(Found - FromPouch, Holders.Num()); ++Index)
+        {
+            FPoolKeptCrystal &Socketed = KeptRunCrystals.AddDefaulted_GetRef();
+            Socketed.GearID = Holders[Index];
+            Socketed.Crystal = Change.Key;
+            ++Kept;
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: %d found crystal(s) stay in their sockets until the next run (D-219)"), Kept);
+    return Kept;
+}
+
+FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades, const TSet<FGuid> *CarriedGear)
+{
     FPoolRunEndResult Result;
     if (!bRunLayerActive)
     {
         return Result;
     }
+    const bool bCarry = CarriedGear != nullptr;
     // Closed before any change is heard: a listener that pushes a piece back mid-way finds no open layer to mark it in.
     const TMap<FGuid, FPoolRunMark> Marks = MoveTemp(RunMarks);
+    const TMap<FName, FPoolRunStartLoadouts> StartLoadouts = MoveTemp(RunStartLoadouts);
     RunMarks.Reset();
     RunStartItems.Reset(); // B-439b
+    RunStartLoadouts.Reset();
     bRunLayerActive = false;
+
+    // B-503t (D-219): a kept piece keeps an evolution attached to it (an evolution is its own piece of gear).
+    TSet<FGuid> Keep = bCarry ? *CarriedGear : TSet<FGuid>();
+    for (const TPair<FGuid, FPoolRunMark> &Pair : Marks)
+    {
+        if (!bCarry || (!Pair.Value.bOnRun && !Keep.Contains(Pair.Key)))
+        {
+            continue;
+        }
+        const FWeaponInventoryEntry *Weapon = FindWeaponInPool(Pair.Key);
+        const FRingInventoryEntry *Adapter = Weapon ? nullptr : FindRingInPool(Pair.Key);
+        const FRuntimeAttachedItem *Attached = Weapon ? &Weapon->AttachedItem : Adapter ? &Adapter->AttachedItem : nullptr;
+        if (Attached && Attached->IsEvolution() && Attached->Evolution.InstanceID.IsValid())
+        {
+            Keep.Add(Attached->Evolution.InstanceID);
+        }
+    }
 
     for (const TPair<FGuid, FPoolRunMark> &Pair : Marks)
     {
@@ -222,6 +418,12 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
             if (bFound)
             {
                 Result.Remembered += bKeepUpgrades && RememberRunOnlyTier(ID) ? 1 : 0;
+                if (Keep.Contains(ID)) // B-503t (D-219): equipped at a carrying end: worn home, gone next run
+                {
+                    KeptRunGear.AddUnique(ID);
+                    ++Result.Kept;
+                    continue;
+                }
                 RemoveGear(ID);
                 ++Result.Dropped;
             }
@@ -231,21 +433,25 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
         if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(ID))
         {
             // B-098 (Q-098): only the attachment goes home; a weapon's spells are not tracked (deleted).
-            if (RunLayerAttachmentDiffers(Weapon->AttachedItem, Mark.HomeAttached))
+            const FRuntimeAttachedItem After = AttachmentAtRunEnd(Weapon->AttachedItem, Mark.HomeAttached, bCarry);
+            if (RunLayerAttachmentDiffers(Weapon->AttachedItem, After))
             {
                 FWeaponInventoryEntry Home = *Weapon;
-                Home.AttachedItem = Mark.HomeAttached;
+                Home.AttachedItem = After;
                 UpdateWeapon(Home);
                 ++Result.Restored;
             }
         }
         else if (const FRingInventoryEntry *Adapter = FindRingInPool(ID))
         {
-            if (RunLayerAttachmentDiffers(Adapter->AttachedItem, Mark.HomeAttached) || Adapter->AssignedSpells != Mark.HomeSpells)
+            // B-503t (D-219): a carrying end keeps the adapter's spells as the run left them.
+            const FRuntimeAttachedItem After = AttachmentAtRunEnd(Adapter->AttachedItem, Mark.HomeAttached, bCarry);
+            const TArray<USpellData *> &Spells = bCarry ? Adapter->AssignedSpells : Mark.HomeSpells;
+            if (RunLayerAttachmentDiffers(Adapter->AttachedItem, After) || Adapter->AssignedSpells != Spells)
             {
                 FRingInventoryEntry Home = *Adapter;
-                Home.AttachedItem = Mark.HomeAttached;
-                Home.AssignedSpells = Mark.HomeSpells;
+                Home.AttachedItem = After;
+                Home.AssignedSpells = Spells;
                 UpdateRing(Home);
                 ++Result.Restored;
             }
@@ -263,8 +469,29 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
         // A home piece on the run can't be sold or dismantled (UEconomyService refuses, Q-314b); one removed another
         // way stays gone.
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer closed: %d home piece(s) back to their home state, %d run-only piece(s) dropped, %d tier(s) remembered"),
-           Result.Restored, Result.Dropped, Result.Remembered);
+    if (!bCarry)
+    {
+        // B-503t (D-219): a quit's loadouts go back to how the run found them; one made during the run goes.
+        TSet<FName> Characters;
+        CustomLoadouts.GetKeys(Characters);
+        for (const TPair<FName, int32> &InUse : ActiveLoadoutIndices)
+        {
+            Characters.Add(InUse.Key);
+        }
+        for (const TPair<FName, FPoolRunStartLoadouts> &Start : StartLoadouts)
+        {
+            Characters.Add(Start.Key);
+        }
+        for (const FName &Character : Characters)
+        {
+            const FPoolRunStartLoadouts *Start = StartLoadouts.Find(Character);
+            SetCustomLoadouts(Character, Start ? Start->Loadouts : TArray<FSavedLoadout>());
+            SetActiveLoadoutIndex(Character, Start ? Start->ActiveIndex : INDEX_NONE);
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer closed (%s): %d home piece(s) changed back, %d run-only piece(s) dropped, %d kept until the next run, %d tier(s) remembered"),
+           bCarry ? TEXT("the run's loadout carries home") : TEXT("the run-start loadout comes back"), Result.Restored,
+           Result.Dropped, Result.Kept, Result.Remembered);
     return Result;
 }
 
@@ -481,6 +708,26 @@ FString UPoolSubsystem::GetRunLayerString() const
     {
         Out += FString::Printf(TEXT("\n  remembered: %s at %s"), *FPaths::GetBaseFilename(Remembered.Key.ToString()),
                                *TierHelpers::GetTierName(Remembered.Value));
+    }
+    // B-503t (D-219): what the last run's end kept, and what a quit would put back.
+    for (const FGuid &ID : KeptRunGear)
+    {
+        Out += FString::Printf(TEXT("\n  kept from the last run: %s (gone when the next run starts)"), *NameOf(ID));
+    }
+    for (const FPoolKeptCrystal &Kept : KeptRunCrystals)
+    {
+        Out += FString::Printf(TEXT("\n  kept in a socket: %s in %s (gone when the next run starts)"),
+                               *ItemIdentity::GetDisplayName(Kept.Crystal), *NameOf(Kept.GearID));
+    }
+    for (const TPair<FName, FPoolRunStartLoadouts> &Start : RunStartLoadouts)
+    {
+        Out += FString::Printf(TEXT("\n  run start (a quit puts it back): %s: %d custom loadout(s), in use %d, wheel pick %d"),
+                               *FPaths::GetBaseFilename(Start.Key.ToString()), Start.Value.Loadouts.Num(),
+                               Start.Value.ActiveIndex, Start.Value.FieldAttackIndex);
+    }
+    for (const TPair<FName, int32> &InUse : ActiveLoadoutIndices)
+    {
+        Out += FString::Printf(TEXT("\n  loadout in use: %s: %d"), *FPaths::GetBaseFilename(InUse.Key.ToString()), InUse.Value);
     }
     return Out;
 }

@@ -108,6 +108,44 @@ struct WORLD_OF_REFRACTION_API FPoolRunMark
     int32 HomeDurability = 0;
 };
 
+/** B-503t (D-219): one character's loadouts as the run began, put back when the run is quit. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FPoolRunStartLoadouts
+{
+    GENERATED_BODY()
+
+    /** Its custom loadouts (empty: none). */
+    UPROPERTY()
+    TArray<FSavedLoadout> Loadouts;
+
+    /** The loadout in use (INDEX_NONE: the asset's default). */
+    UPROPERTY()
+    int32 ActiveIndex = INDEX_NONE;
+
+    /** The field wheel's pick (FPartyMember::FieldAttackIndex / bFieldAttackPicked), noted by the trial run. */
+    UPROPERTY()
+    int32 FieldAttackIndex = 0;
+
+    UPROPERTY()
+    bool bFieldAttackPicked = false;
+
+    UPROPERTY()
+    bool bHasFieldPick = false;
+};
+
+/** B-503t (D-219): a found crystal left in a home piece's socket at a run's end: kept until the next run starts. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FPoolKeptCrystal
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    FGuid GearID;
+
+    UPROPERTY()
+    FCrystalId Crystal;
+};
+
 /** B-314: what a run's end did to the store. */
 struct FPoolRunEndResult
 {
@@ -117,6 +155,8 @@ struct FPoolRunEndResult
     int32 Dropped = 0;
     /** Definitions whose remembered tier was written. */
     int32 Remembered = 0;
+    /** B-503t (D-219): run-only pieces equipped at a carrying end, kept until the next run starts. */
+    int32 Kept = 0;
 };
 
 /** B-203: a pouch or the storage changed. */
@@ -394,6 +434,13 @@ public:
     const TArray<FSavedLoadout> *GetCustomLoadouts(FName CharacterKey) const;
     const TMap<FName, FPoolCustomLoadouts> &GetAllCustomLoadouts() const { return CustomLoadouts; }
 
+    /** B-503t (audit finding 4): the loadout a character has in use (its index in the lore-then-custom list), kept
+     *  across maps and saved. INDEX_NONE clears it (the asset's default is used). */
+    void SetActiveLoadoutIndex(FName CharacterKey, int32 Index);
+    /** INDEX_NONE when none is kept. */
+    int32 GetActiveLoadoutIndex(FName CharacterKey) const;
+    const TMap<FName, int32> &GetActiveLoadoutIndices() const { return ActiveLoadoutIndices; }
+
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnPoolGearChanged OnPoolGearChanged;
 
@@ -536,6 +583,33 @@ public:
      *  with its tier remembered per definition (B-451, D-189: not when bKeepUpgrades is false: a run out of wipes or
      *  quit). Every change fires OnPoolGearChanged. No-op when no layer is open. */
     FPoolRunEndResult EndRunLayer(bool bKeepUpgrades = true);
+    /** B-503t (D-219): finish, extract and out of wipes carry the run's loadout home. With CarriedGear set, home pieces
+     *  keep what the run put in their sockets (wear reset, D-093) and the custom loadouts stay as the run left them;
+     *  a run-only piece in CarriedGear (equipped at the end) stays until the next run starts (BeginRunLayer drops it).
+     *  Without it (a quit, a game closed mid-run) the run-start loadouts come back too (GetRunStartLoadouts). */
+    FPoolRunEndResult EndRunLayer(bool bKeepUpgrades, const TSet<FGuid> *CarriedGear);
+
+    /** B-503t (D-219): a carrying end, before Take/StoreRunFoundItems: a found crystal now in a home piece's socket
+     *  stays there until the next run starts, and the crystal a socket gave up is the player's own, not a find. Sets
+     *  the start counts so the found-items step only moves the pouch's finds. Returns how many stay in sockets. */
+    int32 KeepFoundCrystalsInSockets();
+
+    /** B-503t (D-219): each party member's loadouts as the run began (filled by BeginRunLayer, the field pick by
+     *  NoteRunStartFieldPick). Saved with the run. */
+    const TMap<FName, FPoolRunStartLoadouts> &GetRunStartLoadouts() const { return RunStartLoadouts; }
+    void NoteRunStartFieldPick(FName CharacterKey, int32 FieldAttackIndex, bool bPicked);
+    /** A resumed run's saved snapshot (BeginRunLayer's own is from mid-run). */
+    void RestoreRunStartLoadouts(const TMap<FName, FPoolRunStartLoadouts> &Saved) { RunStartLoadouts = Saved; }
+
+    /** B-503t (D-219): found gear and found socketed crystals a carrying end kept; gone when the next run starts.
+     *  Saved with the pool. */
+    const TArray<FGuid> &GetKeptRunGear() const { return KeptRunGear; }
+    const TArray<FPoolKeptCrystal> &GetKeptRunCrystals() const { return KeptRunCrystals; }
+    void RestoreKeptRunGear(const TArray<FGuid> &Gear, const TArray<FPoolKeptCrystal> &SocketedCrystals)
+    {
+        KeptRunGear = Gear;
+        KeptRunCrystals = SocketedCrystals;
+    }
 
     /** B-439b (Q-439 point 2, D-176): how many of each item the party held (every pouch and storage) when the run
      *  began. Starting items banked during the run count as held from the start (D-097). Saved with the run. */
@@ -715,6 +789,26 @@ private:
 
     /** B-439b: item -> how many were held when the run began (GetRunStartItems). */
     TMap<FCrystalId, int32> RunStartItems;
+
+    /** B-503t (D-219): character key -> its loadouts as the run began. */
+    UPROPERTY()
+    TMap<FName, FPoolRunStartLoadouts> RunStartLoadouts;
+
+    /** B-503t: character key -> the loadout in use (GetActiveLoadoutIndex). */
+    UPROPERTY()
+    TMap<FName, int32> ActiveLoadoutIndices;
+
+    /** B-503t (D-219): kept from the last run's end until the next run starts. */
+    UPROPERTY()
+    TArray<FGuid> KeptRunGear;
+
+    UPROPERTY()
+    TArray<FPoolKeptCrystal> KeptRunCrystals;
+
+    /** B-503t: drops what the last carrying end kept (BeginRunLayer, before the start counts). */
+    void DropKeptRunGear();
+    /** B-503t: RunStartLoadouts from the custom loadouts and in-use indices held now. */
+    void SnapshotRunStartLoadouts();
 
     /** Every item held now, by kind: storage and every pouch. */
     TMap<FCrystalId, int32> CountHeldItems() const;
