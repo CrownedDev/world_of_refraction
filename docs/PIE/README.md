@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-411](B-411.md) | `refactor/B-411-weapon-spell-path-delete-cloud` (cloud, unbuilt; merge after B-098's PIE) | The weapon spell path deleted: no play change except an old loadout's weapon spell is dropped with a message | Pending |
 | [B-500b](B-500b.md) | `feature/B-500b-transition-prism-light` (in dev, built 2026-11-15) | Battle transition's prism light: a white flash at the hit, light through the cracks (white near the hit, colours further out), each shard its own colour with glowing edges. **Editor material steps first** (in the sheet) | Pending |
 | [B-487b](B-487b.md) | `fix/B-487b-details-box-one-header` (in dev, built 2026-11-14) | Details box layout (loadout v2, inventory): a quiet type line with the icon, then the name and tier badge; socket rows as badge and name; no "Type" row or socket labels | Pending |
 | [B-487](B-487.md) | `feature/B-487-inventory-vendor-icons` (in dev, built 2026-11-14) | Inventory and vendor: reads as before with no icon table; after B-486 element diamonds, tier badges, weapon and effect icons | Pending |
