@@ -1,4 +1,5 @@
 // BattleHUDCard.cpp
+// B-503k: a party card in a fight keeps the gear tooltip on hover but no gear line (Crown: no "Generic Primary Weapon").
 
 #include "UI/Combat/Battle/BattleHUDCard.h"
 
@@ -97,6 +98,7 @@ FBattleCardParts BattleHUDCard::GetParts(EBattleCardLevel Level, bool bParty)
 	Parts.bHPLine = Parts.bEPLine = Level != EBattleCardLevel::Hub && bParty;
 	Parts.bBuildupLine = Parts.bGear = Parts.bActions = Level == EBattleCardLevel::Battle && bParty;
 	Parts.bStatus = Level == EBattleCardLevel::Battle;
+	Parts.bFixedWidth = Level != EBattleCardLevel::Hub; // the hub's name-only card shrinks to the name
 	return Parts;
 }
 
@@ -130,12 +132,16 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 		Card.Frame->SetToolTipText(Card.GearTooltip); // the battle HUD's RefreshGear ran before the widgets existed
 	}
 	USizeBox *Width = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-	Width->SetWidthOverride(CardWidth);
+	if (Parts.bFixedWidth)
+	{
+		Width->SetWidthOverride(CardWidth);
+	}
 	Card.Frame->SetContent(Width);
 	UVerticalBox *Rows = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Width->AddChild(Rows);
 
 	Card.NameText = AddText(Tree, Rows, NameFontSize);
+	Card.NameText->SetAutoWrapText(Parts.bFixedWidth); // wrapping needs a width: a fitted card keeps the name on one line
 
 	if (Parts.bHPBar)
 	{
@@ -165,11 +171,6 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 	if (Parts.bBuildupLine)
 	{
 		Card.BuildupText = AddText(Tree, Rows, LineFontSize);
-	}
-	if (Parts.bGear)
-	{
-		Card.GearText = AddText(Tree, Rows, LineFontSize);
-		Card.GearText->SetColorAndOpacity(FSlateColor(GearColor));
 	}
 	if (Parts.bActions)
 	{
@@ -222,11 +223,6 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 		}
 	}
 	SetTextSafe(Card.BuildupText, Card.BuildupLine);
-	SetTextSafe(Card.GearText, Card.GearLine);
-	if (Card.GearText)
-	{
-		Card.GearText->SetVisibility(Card.GearLine.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

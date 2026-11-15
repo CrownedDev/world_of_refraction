@@ -14,6 +14,7 @@
 #include "WoRTestWorld.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/Border.h"
 #include "Combat/CombatConstants.h"
 #include "HAL/IConsoleManager.h"
 #include "Character/CharacterDataComponent.h"
@@ -137,6 +138,7 @@ void FBattleHUDSpec::Define()
 			TestFalse(TEXT("no EP"), Parts.bEPLine);
 			TestFalse(TEXT("no build-up"), Parts.bBuildupBar || Parts.bBuildupLine);
 			TestFalse(TEXT("no fight parts"), Parts.bGear || Parts.bActions || Parts.bStatus);
+			TestFalse(TEXT("fits the name (B-503k)"), Parts.bFixedWidth);
 		});
 
 		It("shows HP, EP and the one build-up bar in a trial", [this]()
@@ -146,6 +148,7 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("EP line"), Parts.bEPLine);
 			TestTrue(TEXT("the build-up bar"), Parts.bBuildupBar);
 			TestFalse(TEXT("no fight parts"), Parts.bBuildupLine || Parts.bGear || Parts.bActions || Parts.bStatus);
+			TestTrue(TEXT("the battle card's width"), Parts.bFixedWidth);
 		});
 
 		It("shows everything in a battle, and an enemy its bars and statuses (Q-391)", [this]()
@@ -173,7 +176,7 @@ void FBattleHUDSpec::Define()
 				TestEqual(TEXT("EP line"), Card.EPText != nullptr, Parts.bEPLine);
 				TestEqual(TEXT("build-up bar"), Card.BuildupBar != nullptr, Parts.bBuildupBar);
 				TestEqual(TEXT("build-up line"), Card.BuildupText != nullptr, Parts.bBuildupLine);
-				TestEqual(TEXT("gear"), Card.GearText != nullptr, Parts.bGear);
+				TestEqual(TEXT("the gear tooltip on hover, no gear line (B-503k)"), Card.Frame->GetVisibility() == ESlateVisibility::Visible, Parts.bGear);
 				TestEqual(TEXT("actions"), Card.ActionsText != nullptr, Parts.bActions);
 				TestEqual(TEXT("statuses"), Card.StatusText != nullptr, Parts.bStatus);
 				BattleHUDCard::Push(Card); // the parts it didn't build are skipped
