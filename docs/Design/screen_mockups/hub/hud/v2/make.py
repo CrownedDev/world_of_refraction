@@ -1,5 +1,5 @@
 """Hub and trial HUD v2 (D-216, D-217, Q-503l): one party card in the battle card's style, showing what the place needs
-(hub: the name; trial: HP, EP and the status build-up), the field attack strip above the played card (trial only),
+(hub: the name; trial: HP and EP; build-up is battle only), the field attack strip above the played card (trial only),
 and the LB wheel. The place name, the money chip and the interact prompt stay. Values are placeholders.
 Run: python make.py"""
 import math
@@ -24,18 +24,6 @@ def on_bar(d, x, y, w, h, frac, col, label):
     d.text((x + w - 6, y + h / 2), label, font=F(h - 3, True), fill=TXT, anchor="rm", stroke_width=2, stroke_fill=BG)
 
 
-def build_up(d, x, y, w, frac, col):
-    """The one status build-up bar: thin, chevron-ended, with a quiet label."""
-    text(d, (x, y - 2), "Build-up", 11, fill=OFF)
-    bx = x + 58
-    bw = w - 58
-    d.polygon([(bx, y + 4), (bx + 5, y), (bx + bw - 5, y), (bx + bw, y + 4), (bx + bw - 5, y + 8), (bx + 5, y + 8)],
-              fill=TRACK, outline=STEEL)
-    if frac > 0:
-        fw = int((bw - 10) * frac)
-        d.polygon([(bx, y + 4), (bx + 5, y), (bx + 5 + fw, y), (bx + 5 + fw, y + 8), (bx + 5, y + 8)], fill=col)
-
-
 def order(played):
     """The played character's card is always first (D-217), so no card needs a highlight."""
     return [PARTY[played]] + [m for i, m in enumerate(PARTY) if i != played]
@@ -51,11 +39,11 @@ def hub_cards(d, played):
         x += w + GAP
 
 
-CARD_W, CARD_H = 196, 96
+CARD_W, CARD_H = 196, 84
 
 
 def trial_cards(d, played):
-    """Trial: name, HP on its bar, EP on its bar, the build-up bar. Returns the played card's box."""
+    """Trial: name, HP on its bar, EP on its bar (no build-up: battle only, D-216). Returns the played card's box."""
     box = None
     for i, (name, el, hp, ep, bu, bu_el) in enumerate(order(played)):
         x = X0 + i * (CARD_W + GAP)
@@ -64,7 +52,6 @@ def trial_cards(d, played):
         text(d, (x + 14, y + 8), name, 17, True)
         on_bar(d, x + 14, y + 34, CARD_W - 28, 18, hp[0] / hp[1], ROSE, "%d/%d" % hp)
         on_bar(d, x + 14, y + 56, CARD_W - 28, 14, ep[0] / ep[1], EP, "%d/%d" % ep)
-        build_up(d, x + 14, y + 80, CARD_W - 28, bu, ELEMENT[bu_el])
         if i == 0:
             box = (x, y, x + CARD_W, BOTTOM)
     return box
