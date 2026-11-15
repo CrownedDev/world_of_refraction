@@ -168,7 +168,8 @@ void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
 		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Card->SetContent(Row);
 		Widgets.Dot = WidgetTree->ConstructWidget<UImage>(UImage::StaticClass());
-		Widgets.Dot->SetDesiredSizeOverride(FVector2D(PartyDotSize, PartyDotSize));
+		// A white disc once; the refresh tints it with the member's element.
+		Widgets.Dot->SetBrush(FSlateRoundedBoxBrush(FLinearColor::White, PartyDotSize * 0.5f, FVector2f(PartyDotSize, PartyDotSize)));
 		AddToRow(Row, Widgets.Dot, FMargin(0.0f, 0.0f, PartyDotGap, 0.0f));
 		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Widgets.Name = MakeText(WidgetTree, RowFontSize, DimColor, true);
@@ -208,11 +209,7 @@ void UHubHUDWidget::RefreshPartyStrip()
 		{
 			Widgets.Name->SetText(Card.Name);
 		}
-		if (Widgets.Dot->GetBrush().TintColor.GetSpecifiedColor() != Card.DotColor)
-		{
-			Widgets.Dot->SetBrush(FSlateRoundedBoxBrush(Card.DotColor, HubHUDStyle::PartyDotSize * 0.5f,
-														  FVector2f(HubHUDStyle::PartyDotSize, HubHUDStyle::PartyDotSize)));
-		}
+		Widgets.Dot->SetColorAndOpacity(Card.DotColor);
 		Widgets.HP->SetPercent(Card.HPShare);
 	}
 }
