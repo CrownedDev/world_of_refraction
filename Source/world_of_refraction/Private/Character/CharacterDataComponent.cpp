@@ -72,7 +72,12 @@ void UCharacterDataComponent::StampPartyMember(const FGuid &MemberId)
     {
         const FGuid WeaponId = Member->ActiveWeaponId;
         FText Refusal;
-        Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&WeaponId](FCombatLoadout &Changed) { PutWeaponInHand(Changed, WeaponId); }, Refusal);
+        bool bPutBack = false;
+        Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&WeaponId, &bPutBack](FCombatLoadout &Changed) { bPutBack = PutWeaponInHand(Changed, WeaponId); }, Refusal);
+        if (!bPutBack)
+        {
+            UE_LOG(LogWoR, Log, TEXT("[CharacterData] %s: the recorded weapon isn't in the loadout in use; keeping what it holds"), *GetNameSafe(GetOwner()));
+        }
     }
     Loadout->RecordWeaponInHand(); // a member with nothing recorded yet starts from what this pawn holds
     UE_LOG(LogWoR, Log, TEXT("[CharacterData] %s stamped as party member %s"), *GetNameSafe(GetOwner()), *MemberId.ToString());

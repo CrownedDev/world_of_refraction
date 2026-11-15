@@ -3642,7 +3642,7 @@ void ULoadoutComponent::RecordWeaponInHand() const
 {
     // B-503s2 (D-218): the next pool draw rebuilds the loadout, so the weapon in hand lives on the member's record.
     const FPartyMember *Record = GetOwner() && GetOwner()->HasAuthority() ? FindGuardRecord() : nullptr;
-    const FWeaponLoadoutEntry *InHand = Record && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    const FWeaponLoadoutEntry *InHand = Record && GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
     const FGuid WeaponId = InHand ? InHand->WeaponEntry.PersistentID : FGuid();
     if (!Record || Record->ActiveWeaponId == WeaponId)
     {
