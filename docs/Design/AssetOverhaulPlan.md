@@ -158,6 +158,25 @@ The played test character becomes `DA_Character_Generic` (D-221 Q5).
 - The empty adapter reads "Adapter Ring". No ring has an element in its own name.
 - The earlier idea of one sub-stat per ring is dropped.
 
+**Every ring is its own piece (Crown: "each one is unique, i.e. we can have 2 Lightning adapters").** Each owned ring is a separate instance with its own `PersistentID`. Two rings may carry the same element, and both must work as separate entries everywhere. They are keyed by the piece id, or by their place in the list, and never by element, name or asset. Today:
+
+| Where | Keyed by | Two Lightning rings |
+|---|---|---|
+| Worn gear | `FWornGear::Equipment[].GearID`, the piece id (`WornGear.h`, `GetPieceIDs`) | separate |
+| Saved presets | `FSavedCustomLoadout::AdapterInstances`, piece ids matched index for index with `Adapters` (`WoRSaveTypes.h:624`) | separate |
+| Equipment list | `FLoadoutV2Entry::AdapterIndex`, the place in the ring loadout (`LoadoutV2Model.cpp:61`) | separate |
+| Quick strip | the place in the list (`FWheelPick::FieldAttackIndex`, Q-503 (3)); the ring slices are built per ring loadout entry | separate |
+| Gear mirroring | by `PersistentID`; a second copy of the same asset arriving only raises the duplicate notice (`InventoryComponent.cpp:2291`) | separate |
+| **Crystal wear: which ring a cast wears** | **the ring asset** (`LoadoutComponent.cpp:3034-3048`). B-310 picks the adapter in use first, so the cast's ring is worn, but any other match falls to the first copy in the list. | **to check in stage 2**; if wear lands on the wrong copy, key it by piece id |
+| "Owns this ring" checks | the asset (`InventoryComponent.cpp:1736-1739`) | fine: these only ask "has one" |
+
+**Telling two same-named rings apart in the UI (the simplest):** a small number, shown only where two entries in the same list would read the same. The first keeps its name and the next reads "Lightning Ring 2".
+- It is worked out at display time from the list's order, and nothing is stored.
+- The tier badge doesn't work alone, since two F rings look the same.
+- The stat line doesn't work alone, since the clean set's rings share one, and it is only in the details, not on the strip tile.
+- This is how Diablo's and Path of Exile's stash and equipment lists handle duplicates: identical item names, with the slot telling them apart. A number is the shortest form of that on a strip with no slot labels.
+- **Proposal:** one helper in `WoRGameNames` that numbers repeats in a list of names, used by the quick strip and the Equipment list (stage 2).
+
 **The adapter's stat line (shared by all five):**
 - One `BaseStatBonus` line, `BonusSpellDamage`, at the value the pool's existing F rings use. The editor worker reads it off one of them; no new number.
 - This exercises the adapter's own stat on the Equipment detail, the tier scaling and the combat sum.
@@ -326,7 +345,7 @@ Until stage 4, the new pieces are added as spares to the current played characte
 | Stage | Code | Editor | Crown checks in PIE (its own sheet) |
 |---|---|---|---|
 | **1. Sword and shield** | `EWeaponType::Shield`, the set rule, the held name (+ spec); the left-hand mesh if needed | `DA_Weapon_Sword`, `DA_Weapon_Shield` | Wear the sword with the shield in the off hand: it reads "Arming Sword and Round Shield", the type "Sword and Shield", the shield is in the left hand, and the battle attack is the sword's. |
-| **2. The empty adapter** | sockets in the add window (§3 gap); the detail shows the owned piece's tier and the shown tier per Q-223a (+ spec) | `DA_Ring_Adapter` (the stat line and built-ins as in §2) | Add the adapter: it reads "Adapter Ring", F, with its stat line. Socket a Garnet in the same window: "Fire Ring", one spell slot, its built-in Missile. The quick strip shows "Fire Ring". |
+| **2. The empty adapter** | sockets in the add window (§3 gap); the detail shows the owned piece's tier and the shown tier per Q-223a; the repeat-number helper for same-named entries (+ specs, including two Lightning rings) | `DA_Ring_Adapter` (the stat line and built-ins as in §2); **three** copies as spares on the played character | Add the adapter: it reads "Adapter Ring", F, with its stat line. Socket a Garnet in the same window: "Fire Ring", one spell slot, its built-in Missile. The quick strip shows "Fire Ring". **Two Lightning rings:** add two more adapters and socket a Citrine in each. The list and the strip show "Lightning Ring" and "Lightning Ring 2" as separate entries. Each one can be picked on the strip and casts on its own. A spell pick on one doesn't change the other. A cast wears only the ring it went through. Save a preset, reload, and both are still there. |
 | **3. Pieces start empty; the axes** | stop copying `AttachedItem` and `DefaultSpells`; prices (+ spec fixes) | `DA_Weapon_Axe_Hand`, `DA_Weapon_Axe_Bearded` | The axes pair reads "Hand Axe and Bearded Axe", "Dual Axes". A ring bought from the merchant arrives empty and is priced without a crystal. |
 | **4. The Generic starts from `StartingGear`** | the `UInventoryData` fields and `FClassDefaultPiece::Crystal`; generalise the kit minting; the `DrawSharedGear` seed (+ spec) | `DA_Character_Generic`, `DA_Inventory_Generic_Start`, the Gale evolution; point the played character at it | A new game: the Generic wears the sword and shield, the axes are spare, it has an **Earth Ring** socketed and Gale in its seat, and the crystal stock is in the pouch. |
 | **5. The rest of the cast** | none expected (the fields exist); small fixes if PIE finds any | the Refractor, Resonator, BD and Reality characters with their inventories, the Phoenix evolution, the two enemies, `DA_Loadout_ClassDefaults` | Each character's start. The Resonator's Water, Lightning and Wind Rings. The Refractor's Fire innate and Phoenix. BD's pools. A trial starts on the kit (empty sockets). A fight against each enemy. |
@@ -339,4 +358,5 @@ Until stage 4, the new pieces are added as spares to the current played characte
    - which character holds which ring and evolution;
    - the adapter's one shared stat line (Spell Damage at the existing F value).
 2. **Q-223a, a ring's tier (§4):** the shown tier is display only, and the mechanics keep reading the crystal for spells and wear and the ring for stats and Combat Tier (recommended)? Or should one of them follow the shown tier?
-3. **§5's design choices:** a pick stays with its item (D-145 over Q-085 A); a given piece's picks from the old owner's learned list are greyed until learned; innate spells stay a hand list for now.
+3. **Two same-named rings:** a repeat number ("Lightning Ring 2"), shown only where a list has the same name twice (recommended, §2)?
+4. **§5's design choices:** a pick stays with its item (D-145 over Q-085 A); a given piece's picks from the old owner's learned list are greyed until learned; innate spells stay a hand list for now.
