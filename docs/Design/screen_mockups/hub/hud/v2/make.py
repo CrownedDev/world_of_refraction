@@ -36,12 +36,17 @@ def build_up(d, x, y, w, frac, col):
         d.polygon([(bx, y + 4), (bx + 5, y), (bx + 5 + fw, y), (bx + 5 + fw, y + 8), (bx + 5, y + 8)], fill=col)
 
 
+def order(played):
+    """The played character's card is always first (D-217), so no card needs a highlight."""
+    return [PARTY[played]] + [m for i, m in enumerate(PARTY) if i != played]
+
+
 def hub_cards(d, played):
     """Hub: the name only; each card shrinks to fit it."""
     x = X0
-    for i, (name, *_rest) in enumerate(PARTY):
+    for name, *_rest in order(played):
         w = int(d.textlength(name, font=F(17, True))) + 32
-        cut(d, (x, BOTTOM - 40, x + w, BOTTOM), TEAL if i == played else PANEL, CYAN if i == played else STEEL, 8)
+        cut(d, (x, BOTTOM - 40, x + w, BOTTOM), PANEL, STEEL, 8)
         text(d, (x + 16, BOTTOM - 20), name, 17, True, anchor="lm")
         x += w + GAP
 
@@ -52,15 +57,15 @@ CARD_W, CARD_H = 196, 96
 def trial_cards(d, played):
     """Trial: name, HP on its bar, EP on its bar, the build-up bar. Returns the played card's box."""
     box = None
-    for i, (name, el, hp, ep, bu, bu_el) in enumerate(PARTY):
+    for i, (name, el, hp, ep, bu, bu_el) in enumerate(order(played)):
         x = X0 + i * (CARD_W + GAP)
         y = BOTTOM - CARD_H
-        cut(d, (x, y, x + CARD_W, BOTTOM), PANEL, CYAN if i == played else STEEL, 10)
+        cut(d, (x, y, x + CARD_W, BOTTOM), PANEL, STEEL, 10)
         text(d, (x + 14, y + 8), name, 17, True)
         on_bar(d, x + 14, y + 34, CARD_W - 28, 18, hp[0] / hp[1], ROSE, "%d/%d" % hp)
         on_bar(d, x + 14, y + 56, CARD_W - 28, 14, ep[0] / ep[1], EP, "%d/%d" % ep)
         build_up(d, x + 14, y + 80, CARD_W - 28, bu, ELEMENT[bu_el])
-        if i == played:
+        if i == 0:
             box = (x, y, x + CARD_W, BOTTOM)
     return box
 
@@ -76,12 +81,13 @@ def strip(d, box, label, el):
     diamond(d, x0 + 18, y0 - 21, 7, ELEMENT[el])
     text(d, (x0 + 34, y0 - 21), label, 16, True, anchor="lm")
     cut(d, (x1 - 40, y0 - 31, x1 - 8, y0 - 11), BG, STEEL, 4)
-    text(d, (x1 - 24, y0 - 21), "LB", 11, True, CYAN, anchor="mm")
+    text(d, (x1 - 24, y0 - 21), "RB", 11, True, CYAN, anchor="mm")
     return y0 - 36
 
 
-def wheel(d, cx, cy, entries, lit, r=118, hole=46):
-    """The LB wheel (hold LB): every source and element in one ring; the stick or mouse wheel picks, release confirms."""
+def wheel(d, cx, cy, entries, lit, element, result, r=124, hole=54):
+    """The RB wheel (hold RB): one slice per loadout entry; the left stick picks the entry, D-pad left / right changes
+    its element (shown in the centre with arrows, and the name the strip will read), letting go confirms."""
     d.ellipse((cx - r - 4, cy - r - 4, cx + r + 4, cy + r + 4), fill=BG)
     n = len(entries)
     step = 360 / n
@@ -96,16 +102,15 @@ def wheel(d, cx, cy, entries, lit, r=118, hole=46):
         diamond(d, lx, ly - 13, 6, ELEMENT[el])
         for k, word in enumerate(label.split(" ")[-2:] if len(label) > 9 else [label]):
             text(d, (lx, ly + 1 + k * 15), word, 13, True, TXT if i == lit else DIM, anchor="ma")
-    name, el, src = entries[lit]
-    text(d, (cx, cy - 6), "from", 10, fill=OFF, anchor="mm")
-    text(d, (cx, cy + 9), src, 12, True, CYAN, anchor="mm")
+    text(d, (cx, cy - 9), "◄  %s  ►" % element, 14, True, CYAN, anchor="mm")
+    text(d, (cx, cy + 12), result, 11, fill=DIM, anchor="mm")
 
 
 def field_hints(d, wheel_open=False):
     if wheel_open:
-        footer(d, [("L-stick", "Pick"), ("LB", "Let go: confirm")], y=694)
+        footer(d, [("L-stick", "Pick"), ("D-pad ◄ ►", "Element"), ("RB", "Let go: confirm")], y=694)
     else:
-        footer(d, [("RB", "Attack"), ("LB", "Infusion (hold: wheel)"), ("X", "Interact")], y=694)
+        footer(d, [("RT", "Attack"), ("RB", "Hold: wheel"), ("X", "Interact")], y=694)
 
 
 def top(d, place, gold=True):
@@ -154,13 +159,15 @@ strip(d, box, "Fire Sword", "Fire")
 field_hints(d)
 save(im, OUT, "2_trial.png")
 
-# ---- 3: LB held: the wheel opens above the strip. Garrick's choices: plain, then each source (Q-503k: one stop per element).
+# ---- 3: RB held: the wheel opens above the strip; the stick is on the Sword entry, D-pad has set its element to Fire.
 im, d = trial_scene()
 top(d, "Ashen Hollow  ·  floor 2")
 box = trial_cards(d, 1)
 y = strip(d, box, "Fire Sword", "Fire")
-wheel(d, (box[0] + box[2]) // 2, y - 132, [("Sword", "None", "the weapon"), ("Fire Sword", "Fire", "Garnet"),
-                                           ("Earth Sword", "Earth", "Ironheart"), ("Lightning Sword", "Lightning", "Storm Ring")], 1)
+# Garrick's loadout entries: two weapon entries, his ring, his evolution (a Generic has no innate stop, Q-503).
+wheel(d, max((box[0] + box[2]) // 2, X0 + 132), y - 138, [("Sword", "Fire", "weapon"), ("Hammer", "None", "weapon"),
+                                           ("Storm Ring", "Lightning", "ring"), ("Ironheart", "Earth", "evolution")],
+      0, "Fire", "Fire Sword")
 field_hints(d, wheel_open=True)
 save(im, OUT, "3_trial_wheel_open.png")
 
