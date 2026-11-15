@@ -696,30 +696,42 @@ TArray<FLoadoutV2KindChoice> WoRLoadoutV2::BuildAddKinds(const FCombatLoadout &L
 	using namespace LoadoutV2Build;
 	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
 	const FLoadoutV2WeaponsPage Page = BuildWeaponsPage(Loadout, Class);
-	const FText Full = LOCTEXT("RefuseEntriesFull", "Every entry is taken.");
+	// B-503u (D-220): a class limit says so ("A Generic holds at most 2 weapons."), in the class's own name.
+	const FText ClassName = WoRGameNames::GetCharacterClassName(Class);
+	const FText Full = Limits.MaxItems == LoadoutClassTable::NO_LIMIT
+						   ? LOCTEXT("RefuseEntriesFull", "Every entry is taken.")
+						   : FText::Format(LOCTEXT("RefusePieceLimit", "A {0} holds at most {1} {1}|plural(one=piece,other=pieces)."), ClassName, Limits.MaxItems);
 	TArray<FLoadoutV2KindChoice> Kinds;
 
 	FLoadoutV2KindChoice &Weapon = Kinds.AddDefaulted_GetRef();
 	Weapon.Kind = ELoadoutV2DraftKind::Weapon;
-	Weapon.Name = LOCTEXT("KindWeapon", "Weapon");
+	Weapon.Name = LOCTEXT("KindWeapon", "Add a weapon");
 	const bool bWeaponPlace = PrimaryIsFree(Loadout) || (Class == ECharacterClass::Generic && !Loadout.SecondaryWeapon.IsValid());
 	if (!Page.bCanAdd)
 	{
 		Weapon.Refusal = Full;
 	}
-	else if (CountWeaponEntries(Loadout, Class) >= Limits.MaxWeapons || !bWeaponPlace)
+	else if (CountWeaponEntries(Loadout, Class) >= Limits.MaxWeapons)
+	{
+		Weapon.Refusal = FText::Format(LOCTEXT("RefuseWeaponLimit", "A {0} holds at most {1} {1}|plural(one=weapon,other=weapons)."), ClassName, Limits.MaxWeapons);
+	}
+	else if (!bWeaponPlace)
 	{
 		Weapon.Refusal = LOCTEXT("RefuseNoWeaponEntry", "No free weapon entry.");
 	}
 
 	FLoadoutV2KindChoice &Adapter = Kinds.AddDefaulted_GetRef();
 	Adapter.Kind = ELoadoutV2DraftKind::Adapter;
-	Adapter.Name = WoRGameNames::GetAdapterWord();
+	Adapter.Name = FText::Format(LOCTEXT("KindAdapter", "Add an {0}"), WoRGameNames::GetAdapterWord().ToLower()); // the shared word (D-062)
 	const bool bAdapterRoom = Class == ECharacterClass::Caster ? PrimaryIsFree(Loadout)
 																: Limits.MaxAdapters == LoadoutClassTable::NO_LIMIT || CountAdapters(Loadout) < Limits.MaxAdapters;
 	if (!Page.bCanAdd)
 	{
 		Adapter.Refusal = Full;
+	}
+	else if (!bAdapterRoom && Class != ECharacterClass::Caster)
+	{
+		Adapter.Refusal = FText::Format(LOCTEXT("RefuseAdapterLimit", "A {0} holds at most {1} {1}|plural(one=adapter,other=adapters)."), ClassName, Limits.MaxAdapters);
 	}
 	else if (!bAdapterRoom)
 	{
@@ -728,7 +740,7 @@ TArray<FLoadoutV2KindChoice> WoRLoadoutV2::BuildAddKinds(const FCombatLoadout &L
 
 	FLoadoutV2KindChoice &Evolution = Kinds.AddDefaulted_GetRef();
 	Evolution.Kind = ELoadoutV2DraftKind::Evolution;
-	Evolution.Name = LOCTEXT("KindEvolution", "Evolution");
+	Evolution.Name = LOCTEXT("KindEvolution", "Add an evolution");
 	if (Loadout.IsEvolutionLoadout())
 	{
 		Evolution.Refusal = LOCTEXT("RefuseOneEvolution", "One evolution per character: it already has one.");
@@ -1050,6 +1062,33 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAdapterDetails(const FRingInvent
 	return Lines;
 }
 
+FLoadoutV2DetailLine WoRLoadoutV2::MakeNoteLine(const FText &Text)
+{
+	FLoadoutV2DetailLine Line;
+	Line.Kind = ELoadoutV2DetailKind::Effect; // an unindented plain line
+	Line.Value = Text;
+	return Line;
+}
+
+TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildSocketDetails(const FRuntimeAttachedItem &Item, bool bFirstSocket, bool bSimple)
+{
+	if (!Item.IsEmpty())
+	{
+		return BuildAttachmentDetails(Item, bSimple);
+	}
+	return {MakeNoteLine(bFirstSocket ? LOCTEXT("SocketOneTakes", "Empty. Takes a crystal, an evolution or a stone.")
+									  : LOCTEXT("SocketTwoTakes", "Empty. Takes a stone."))};
+}
+
+TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildOffHandDetails(const FWeaponInventoryEntry &OffHand, bool bSimple)
+{
+	if (OffHand.IsValid())
+	{
+		return BuildWeaponDetails(OffHand, bSimple);
+	}
+	return {MakeNoteLine(LOCTEXT("OffHandTakes", "Empty: the weapon alone. A second weapon of the same type that can be dual wielded goes here."))};
+}
+
 TArray<FLoadoutV2DetailLine> WoRLoadoutV2::BuildAttachmentDetails(const FRuntimeAttachedItem &Item, bool bSimple)
 {
 	using namespace LoadoutV2Build;
@@ -1094,7 +1133,7 @@ FString WoRLoadoutV2::GetDetailsString(const TArray<FLoadoutV2DetailLine> &Lines
 
 FString WoRLoadoutV2::GetWeaponsPageString(const FLoadoutV2WeaponsPage &Page)
 {
-	FString Out = FString::Printf(TEXT("%s; Add weapon %s%s"), *Page.CellsLine.ToString(), *Page.AddFrameLine.ToString(), Page.bCanAdd ? TEXT("") : TEXT(" (full)"));
+	FString Out = FString::Printf(TEXT("%s; Add equipment %s%s"), *Page.CellsLine.ToString(), *Page.AddFrameLine.ToString(), Page.bCanAdd ? TEXT("") : TEXT(" (full)"));
 	for (const FLoadoutV2Entry &Entry : Page.Entries)
 	{
 		Out += FString::Printf(TEXT("\n  %s%s, %d socket(s), %d skill slot(s)"), *Entry.Name.ToString(), Entry.bActive ? TEXT(" [ACTIVE]") : TEXT(""),
