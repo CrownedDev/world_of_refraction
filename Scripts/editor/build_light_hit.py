@@ -11,6 +11,7 @@ ROOT_MOTION_COPIES = {
 }
 APPROACH_MONTAGE = FOLDER + "/AM_SAS_LightHit"
 RETURN_MONTAGE = FOLDER + "/AM_SAS_LightHit_Return"
+FIELD_MONTAGE = FOLDER + "/AM_SAS_LightHit_Field"
 SKILL = FOLDER + "/DA_SAS_Attack_LightHit"
 SKILL_TEMPLATE = "/Game/Data/Skills/Weapons/SwordAndShield/Attack/Attack1/DA_SAS_Attack_F"
 STARTING_WEAPON = "/Game/Data/Characters/Data/Generic/Inventory/Loadouts/Loadout0/Weapons/DA_Equipment_Generic_SAS"
@@ -56,4 +57,13 @@ weapon = EAL.load_asset(STARTING_WEAPON)
 if weapon.get_editor_property("weapon_attack") != EAL.load_asset(SKILL):
     weapon.set_editor_property("weapon_attack", EAL.load_asset(SKILL))
     save(STARTING_WEAPON)
+
+# B-503b (D-215): the map's swing, the strike without the dash, named on the attack as its field montage.
+if not EAL.does_asset_exist(FIELD_MONTAGE):
+    unreal.SystemLibrary.execute_console_command(None, "wor.Editor.BuildLightHitFieldMontage")
+    save(FIELD_MONTAGE)
+skill = EAL.load_asset(SKILL)
+if skill.get_editor_property("field_montage") != EAL.load_asset(FIELD_MONTAGE):
+    skill.set_editor_property("field_montage", EAL.load_asset(FIELD_MONTAGE))
+    save(SKILL)
 log("done")

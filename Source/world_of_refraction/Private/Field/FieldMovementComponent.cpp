@@ -96,6 +96,7 @@ void UFieldMovementComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		World->GetTimerManager().ClearTimer(DrainTimer);
 		World->GetTimerManager().ClearTimer(MoveStepTimer);
 		World->GetTimerManager().ClearTimer(FlightDrainTimer);
+		World->GetTimerManager().ClearTimer(FieldSwingTimer);
 	}
 	if (ACharacter *Character = Cast<ACharacter>(GetOwner()))
 	{
