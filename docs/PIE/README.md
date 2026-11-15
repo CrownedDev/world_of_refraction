@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-503b](B-503b.md) | `feature/B-503b-field-swing` (in dev, built 2026-11-15) | The field attack's swing (D-215): a weapon entry plays the battle swing without the dash, and the hit lands when the blade does. **Editor steps first** (in the sheet): run `Scripts/editor/build_light_hit.py`, check the map character's Anim Blueprint has a Default Slot | Pending |
 | [B-503](B-503.md) | `feature/B-503-field-attack-loadout-cycle` (in dev, built 2026-11-15) | The field attack cycles the whole loadout (D-215): R / LB steps through every weapon, ring, the innate element and every evolution; a 2 s icon and name box; the strike's element follows; kept per character and saved. `wor.Field.CycleAttack` until B-214g's key is mapped | Pending |
 | [B-500b](B-500b.md) | `feature/B-500b-transition-prism-light` (in dev, built 2026-11-15) | Battle transition's prism light: a white flash at the hit, light through the cracks (white near the hit, colours further out), each shard its own colour with glowing edges. **Editor material steps first** (in the sheet) | Pending |
 | [B-487b](B-487b.md) | `fix/B-487b-details-box-one-header` (in dev, built 2026-11-14) | Details box layout (loadout v2, inventory): a quiet type line with the icon, then the name and tier badge; socket rows as badge and name; no "Type" row or socket labels | Pending |
