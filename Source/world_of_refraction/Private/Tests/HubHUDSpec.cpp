@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "Blueprint/UserWidget.h"
 #include "Character/CharacterData.h"
+#include "Field/FieldSkillTypes.h"
 #include "Infusion/ElementColors.h"
 #include "Party/Party.h"
 #include "Hub/InteractPrompt.h"
@@ -15,6 +16,7 @@
 #include "Trial/TrialRestSpot.h"
 #include "UI/Hub/HubHUDModel.h"
 #include "UI/Hub/HubHUDWidget.h"
+#include "UI/Menus/MenuScreenStyle.h"
 #include "WoRGameNames.h"
 #include "WoRTestWorld.h"
 
@@ -75,6 +77,42 @@ void FHubHUDSpec::Define()
 		TestEqual(TEXT("carried HP over max"), Cards[1].HPShare,
 				  static_cast<float>(Hurt->CalculateMaxHealth() / 2) / static_cast<float>(Hurt->CalculateMaxHealth()), UE_KINDA_SMALL_NUMBER);
 		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
+	});
+
+	It("fits a full party and the field attack chip on one row, every card between its widths (B-503i)", [this]()
+	{
+		TestTrue(TEXT("a card can grow past the mockup's width"), WoRHubHUD::PARTY_CARD_MAX_WIDTH > WoRHubHUD::PARTY_CARD_MIN_WIDTH);
+		TestTrue(TEXT("the chip can grow past its minimum"), WoRHubHUD::FIELD_ATTACK_CHIP_MAX_WIDTH > WoRHubHUD::FIELD_ATTACK_CHIP_MIN_WIDTH);
+		// The strip starts at the screen's padding on the left and keeps the same padding clear on the right.
+		const float Room = WoRHubHUD::HUD_LAYOUT_WIDTH - 2.0f * WoRMenuStyle::ScreenPadding;
+		TestTrue(TEXT("four widest cards and the widest chip fit"), WoRHubHUD::GetPartyStripMaxWidth(PartyConstants::MAX_PARTY_MEMBERS) <= Room);
+	});
+
+	It("shows the field attack chip's name, table icon and element dot (B-503i)", [this]()
+	{
+		FFieldAttackEntry Sword;
+		Sword.Kind = EFieldAttackKind::Weapon;
+		Sword.Name = FText::FromString(TEXT("Generic Primary Weapon"));
+		Sword.WeaponType = EWeaponType::Sword;
+		Sword.Element = ESpellElement::Fire;
+		const FHubHUDFieldAttackChip SwordChip = WoRHubHUD::BuildFieldAttackChip(Sword);
+		TestEqual(TEXT("the item's name"), SwordChip.Name.ToString(), Sword.Name.ToString());
+		TestTrue(TEXT("a weapon's table icon is its type's"), SwordChip.Icon.Kind == EWoRIconKind::WeaponType && SwordChip.Icon.WeaponType == EWeaponType::Sword);
+		TestEqual(TEXT("its type in words with no texture"), SwordChip.IconText.ToString(), WoRGameNames::GetWeaponTypeName(EWeaponType::Sword).ToString());
+		TestTrue(TEXT("elemental"), SwordChip.bElemental);
+		TestEqual(TEXT("the dot is the element's colour"), SwordChip.ElementColor, ElementColors::GetColorForElement(ESpellElement::Fire));
+
+		FFieldAttackEntry Ring;
+		Ring.Kind = EFieldAttackKind::Ring;
+		Ring.Name = FText::FromString(TEXT("Ring"));
+		Ring.Element = ESpellElement::Water;
+		const FHubHUDFieldAttackChip RingChip = WoRHubHUD::BuildFieldAttackChip(Ring);
+		TestTrue(TEXT("a ring's table icon is its element's badge"), RingChip.Icon.Kind == EWoRIconKind::Element && RingChip.Icon.Element == ESpellElement::Water);
+
+		const FHubHUDFieldAttackChip Plain = WoRHubHUD::BuildFieldAttackChip(FFieldAttackEntry());
+		TestFalse(TEXT("the plain swing has a name"), Plain.Name.IsEmpty());
+		TestTrue(TEXT("no icon"), Plain.Icon.Kind == EWoRIconKind::None && Plain.IconText.IsEmpty());
+		TestFalse(TEXT("no element: no dot"), Plain.bElemental);
 	});
 
 	It("shows the money near a vendor, or for a few seconds after it changed", [this]()
