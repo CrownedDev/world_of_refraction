@@ -4549,6 +4549,9 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 	// CL-24 for every attached source: a missing or broken attachment pushes no element.
 	const auto ElementOf = [](const FRuntimeAttachedItem &Attached)
 	{ return !Attached.IsEmpty() && !Attached.IsBroken() ? Attached.GetElement() : ESpellElement::None; };
+	// B-503r: what sits in the socket decides the mode: an evolution carries its own, a crystal none (the holder's).
+	const auto ModeOf = [](const FRuntimeAttachedItem &Attached, EInfusionMode HolderMode)
+	{ return Attached.IsEvolution() && Attached.Evolution.Item ? Attached.Evolution.Item->InfusionMode : HolderMode; };
 
 	switch (Option)
 	{
@@ -4571,7 +4574,7 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 		{
 			View.Attached = Adapter->RingEntry.AttachedItem;
 			View.Element = ElementOf(View.Attached);
-			View.Mode = Adapter->RingEntry.Ring->InfusionMode;
+			View.Mode = ModeOf(View.Attached, Adapter->RingEntry.Ring->InfusionMode);
 			// A broken adapter crystal has no element to push, so it's no source (Q-163 = B); its F-tier spells still cast.
 			View.bUsable = !View.Attached.IsBroken();
 		}
@@ -4599,6 +4602,7 @@ FInfusionSourceView UActionExecutor::ResolveInfusionSource(AActor *Actor, EInfus
 		{
 			View.Attached = Weapon->WeaponEntry.AttachedItem;
 			View.Element = ElementOf(View.Attached);
+			View.Mode = ModeOf(View.Attached, View.Mode);
 			View.bUsable = View.Attached.CanProvideSpells();
 		}
 		break;
