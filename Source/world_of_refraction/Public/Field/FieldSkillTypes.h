@@ -196,6 +196,13 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	FGuid WeaponId;
 
+	/** B-514 (D-222): the quick strip's tile for this entry's slice: the piece's own icon (the main hand's for a
+	 *  weapon), and a pair's off-hand piece beside it. Null: the strip falls back (the type icon, the badge, the name). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	TObjectPtr<class UTexture2D> SliceIcon = nullptr;
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	TObjectPtr<class UTexture2D> SliceOffHandIcon = nullptr;
+
 	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
 	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
 };
@@ -368,10 +375,12 @@ namespace FieldSkillRules
 	constexpr float FIELD_WHEEL_STICK_DEADZONE = 0.5f; // the stick picks past half tilt; let go, the pick stays
 
 	/** The wheel's entry the stick points at: entry 0 at the top, then clockwise; INDEX_NONE inside the dead zone or
-	 *  with no entries. The stick's Y is up. */
+	 *  with no entries. The stick's Y is up.
+	 *  OBSOLETE (B-514, D-222): the quick strip steps along its pieces; delete after B-514's PIE pass. */
 	WORLD_OF_REFRACTION_API int32 GetFieldWheelIndexFromStick(const FVector2D &Stick, int32 EntryCount);
 
-	/** The mouse wheel: Delta entries on (negative: back), wrapping both ways; the first with no entries. */
+	/** The mouse wheel: Delta entries on (negative: back), wrapping both ways; the first with no entries. B-514
+	 *  (D-222): the quick strip's left / right along its pieces, as a place in GetFieldSliceStarts. */
 	WORLD_OF_REFRACTION_API int32 StepFieldWheelIndex(int32 Index, int32 Delta, int32 EntryCount);
 
 	// ---- B-503m4 (D-217 "The wheel on RB"): one slice per loadout entry, its element options inside ----
@@ -382,11 +391,17 @@ namespace FieldSkillRules
 	/** The slice Index belongs to, as a place in GetFieldSliceStarts; INDEX_NONE with no entries. */
 	WORLD_OF_REFRACTION_API int32 GetFieldSliceOf(const TArray<FFieldAttackEntry> &Entries, int32 Index);
 
-	/** D-pad left / right: Delta options on within Index's slice (negative: back), wrapping inside the slice. */
+	/** D-pad left / right: Delta options on within Index's slice (negative: back), wrapping inside the slice.
+	 *  B-514 (D-222): up / down on the quick strip. */
 	WORLD_OF_REFRACTION_API int32 StepFieldSliceOption(const TArray<FFieldAttackEntry> &Entries, int32 Index, int32 Delta);
 
+	/** B-514 (D-222): the quick strip's line under its row: the piece's name, with the source in brackets
+	 *  ("Excalibur (Fire)", "Tidecaller (Ice)"); just the name when plain. */
+	WORLD_OF_REFRACTION_API FText GetFieldStripName(const FFieldAttackEntry &Entry);
+
 	/** B-503m5 (D-218): the slice under the mouse cursor, FromCentre being its offset from the wheel's centre in screen
-	 *  units (Y down): slice 0 at the top, clockwise; INDEX_NONE in the middle circle, past the rim, or with no slices. */
+	 *  units (Y down): slice 0 at the top, clockwise; INDEX_NONE in the middle circle, past the rim, or with no slices.
+	 *  OBSOLETE (B-514, D-222): the quick strip hit-tests its tiles; delete after B-514's PIE pass. */
 	WORLD_OF_REFRACTION_API int32 GetFieldWheelSliceAt(const FVector2D &FromCentre, float HubRadius, float RimRadius, int32 SliceCount);
 
 	/** The mouse on PC (GTA V's wheel): the pointer moves by the mouse's travel, scaled, and stays inside the unit

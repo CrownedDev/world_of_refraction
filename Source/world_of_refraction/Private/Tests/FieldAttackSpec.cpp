@@ -18,6 +18,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Engine/Texture2D.h"
 #include "Character/ECharacterClass.h"
 #include "Combat/CombatNotify.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -273,6 +274,9 @@ void FFieldAttackSpec::Define()
 					 Entries[0].IsSwing() && Entries[0].Element == ESpellElement::None && Entries[0].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("named by the weapon type"), Entries[0].Name.ToString(), Sword);
 			TestEqual(TEXT("the slice is the weapon, by name (B-513)"), Entries[0].SliceName.ToString(), FString(TEXT("Field test blade")));
+			TestEqual(TEXT("the quick strip names a plain piece alone (B-514)"), FieldSkillRules::GetFieldStripName(Entries[0]).ToString(), FString(TEXT("Field test blade")));
+			TestEqual(TEXT("and an infused one with its source in brackets (B-514)"), FieldSkillRules::GetFieldStripName(Entries[1]).ToString(),
+					  FString::Printf(TEXT("Field test blade (%s)"), *WoRGameNames::GetElementName(ESpellElement::Fire).ToString()));
 			TestTrue(TEXT("then infused, an option of the same slice: still the swing"),
 					 Entries[1].bHoldStep && Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire && Entries[1].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("the element first"), Entries[1].Name.ToString(),
@@ -320,6 +324,7 @@ void FFieldAttackSpec::Define()
 			UInventoryComponent *Inventory = Field->GetOwner()->FindComponentByClass<UInventoryComponent>();
 			URingData *Ring = NewObject<URingData>(GetTransientPackage());
 			Ring->Name = TEXT("Storm Ring");
+			Ring->Icon = NewObject<UTexture2D>(GetTransientPackage());
 			FRingLoadoutEntry &Adapter = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout.AddDefaulted_GetRef();
 			Adapter.RingEntry.Ring = Ring;
 			Adapter.RingEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
@@ -332,6 +337,9 @@ void FFieldAttackSpec::Define()
 			}
 			const FFieldAttackEntry &Storm = Entries[3];
 			TestEqual(TEXT("the ring's slice"), Storm.SliceName.ToString(), FString(TEXT("Storm Ring")));
+			TestTrue(TEXT("its quick strip tile is the ring's icon (B-514)"), Storm.SliceIcon == Ring->Icon && !Storm.SliceOffHandIcon);
+			TestEqual(TEXT("read as the ring and its source (B-514)"), FieldSkillRules::GetFieldStripName(Storm).ToString(),
+					  FString::Printf(TEXT("Storm Ring (%s)"), *WoRGameNames::GetElementName(ESpellElement::Lightning).ToString()));
 			TestTrue(TEXT("its own slice, the crystal's Lightning on the weapon in hand's swing"),
 					 !Storm.bHoldStep && Storm.IsSwing() && Storm.Element == ESpellElement::Lightning && Storm.Physical == EPhysicalDamageType::Slash);
 			TestTrue(TEXT("named as the strip reads"), Storm.Name.ToString().StartsWith(WoRGameNames::GetElementName(ESpellElement::Lightning).ToString()));
