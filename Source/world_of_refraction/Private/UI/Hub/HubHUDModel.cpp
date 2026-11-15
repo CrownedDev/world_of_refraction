@@ -16,6 +16,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Hub/HubInteract.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRIconTable.h"
@@ -123,7 +124,11 @@ TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party)
 
 EBattleCardLevel WoRHubHUD::GetCardLevel(const UWorld *World)
 {
-	return WoRPauseMenu::IsInRun(World) ? EBattleCardLevel::Trial : EBattleCardLevel::Hub;
+	// B-503m: the map decides, not the run: a map played straight from the editor has no run, and the hub's first
+	// frame can still hold a closed run's restore (USaveSubsystem::SettleClosedRun ends it a tick later).
+	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	return TrialRun && !TrialRun->IsHubWorld(World) ? EBattleCardLevel::Trial : EBattleCardLevel::Hub;
 }
 
 int32 WoRHubHUD::GetFieldAttackCardIndex(const UParty *Party, int32 MemberSlot)

@@ -99,10 +99,11 @@ void FHubHUDSpec::Define()
 		TestTrue(TEXT("four cards and the widest chip fit"), WoRHubHUD::GetPartyStripMaxWidth(PartyConstants::MAX_PARTY_MEMBERS) <= Room);
 	});
 
-	It("shows the hub level out of a run and the trial level in one (B-503j, D-216)", [this]()
+	It("shows the trial level on any map but the hub, run or not (B-503j, D-216; B-503m)", [this]()
 	{
-		TestTrue(TEXT("no run: the hub's cards (names only)"), WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Hub);
-		TestTrue(TEXT("no world: the hub's cards"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Hub);
+		TestTrue(TEXT("no world: the hub's cards (names only)"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Hub);
+		TestTrue(TEXT("not the hub map, no run (a trial map played straight from the editor): the trial's cards"),
+				 WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
 		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
 		if (!TestNotNull(TEXT("run subsystem"), Run))
 		{
