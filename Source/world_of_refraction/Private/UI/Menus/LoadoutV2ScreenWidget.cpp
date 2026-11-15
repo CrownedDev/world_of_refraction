@@ -75,7 +75,12 @@ namespace LoadoutV2ScreenStyle
 		{
 			return Item.Evolution.Item ? FText::FromString(Item.Evolution.Item->ItemName) : LOCTEXT("SocketEvolution", "Evolution");
 		}
-		return Item.IsAugmentStone() ? LOCTEXT("SocketStone", "Stone") : LOCTEXT("SocketCrystal", "Crystal");
+		if (Item.IsAugmentStone())
+		{
+			return LOCTEXT("SocketStone", "Stone");
+		}
+		// B-503u: the crystal's name and tier ("Garnet (F)")
+		return FText::Format(LOCTEXT("SocketCrystalNamed", "{0} ({1})"), WoRGameNames::GetCrystalTypeName(Item.Crystal.Id.Type), WoRGameNames::GetTierLetter(Item.Crystal.Id.Tier));
 	}
 
 	/** What A again on a filled socket takes off (today's rule, WoRLoadoutScreen::GetTakeOffSocketWarning, said for A):
@@ -420,6 +425,15 @@ void ULoadoutV2ScreenWidget::RefreshDetails()
 		}
 		return;
 	}
+	if (Mode == ELoadoutV2Mode::WindowSlots)
+	{
+		// B-503u (Crown): the box is the lit or hovered slot's own piece, as B-484's lists; never the whole entry.
+		if (Slots.IsValidIndex(GetBoxLine()))
+		{
+			Details = BuildSlotDetails(Slots[GetBoxLine()]);
+		}
+		return;
+	}
 	if (IsOnSkillsTab())
 	{
 		// B-476d: the box shows the focused entry's slots, or what the highlighted skill (a slot's, a pick's) does.
@@ -715,6 +729,29 @@ const FLoadoutV2Entry *ULoadoutV2ScreenWidget::GetRowEntry(int32 Line) const
 	return Page.Entries.IsValidIndex(Line) ? &Page.Entries[Line] : nullptr;
 }
 
+TArray<FLoadoutV2DetailLine> ULoadoutV2ScreenWidget::BuildSlotDetails(ELoadoutV2Slot GearSlot) const
+{
+	switch (GearSlot)
+	{
+	case ELoadoutV2Slot::MainHand:
+		return Draft.MainHand.IsValid() ? WoRLoadoutV2::BuildWeaponDetails(Draft.MainHand, bSimpleView)
+										: TArray<FLoadoutV2DetailLine>{WoRLoadoutV2::MakeNoteLine(LOCTEXT("MainHandTakes", "Pick the weapon this entry holds."))};
+	case ELoadoutV2Slot::OffHand:
+		return WoRLoadoutV2::BuildOffHandDetails(Draft.OffHand, bSimpleView);
+	case ELoadoutV2Slot::Adapter:
+		return Draft.Adapter.Ring ? WoRLoadoutV2::BuildAdapterDetails(Draft.Adapter, bSimpleView)
+								  : TArray<FLoadoutV2DetailLine>{WoRLoadoutV2::MakeNoteLine(LOCTEXT("AdapterTakes", "Pick the adapter this entry holds."))};
+	case ELoadoutV2Slot::Evolution:
+		return Draft.Socket1.IsEmpty() ? TArray<FLoadoutV2DetailLine>{WoRLoadoutV2::MakeNoteLine(LOCTEXT("EvolutionTakes", "Pick the evolution."))}
+									   : WoRLoadoutV2::BuildAttachmentDetails(Draft.Socket1, bSimpleView);
+	case ELoadoutV2Slot::Socket1:
+		return WoRLoadoutV2::BuildSocketDetails(Draft.Socket1, /*bFirstSocket=*/true, bSimpleView);
+	case ELoadoutV2Slot::Socket2:
+	default:
+		return WoRLoadoutV2::BuildSocketDetails(Draft.Socket2, /*bFirstSocket=*/false, bSimpleView);
+	}
+}
+
 TArray<FLoadoutV2DetailLine> ULoadoutV2ScreenWidget::BuildItemDetails(const FLoadoutV2WindowItem &Item) const
 {
 	if (Item.Weapon.IsValid())
@@ -961,7 +998,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	FText &BoxTitle = BoxHeader.Text;
 	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
 	// entry's slots; a line with nothing to show (a note) falls back to the slots.
-	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && !Details.IsEmpty();
+	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk || Mode == ELoadoutV2Mode::WindowSlots) && !Details.IsEmpty(); // B-503u: the slot rows too
 	if (IsAdding() && !bPieceBox)
 	{
 		BoxTitle = bEditing ? EditEntry.Name : LOCTEXT("BoxNewEntry", "New entry");

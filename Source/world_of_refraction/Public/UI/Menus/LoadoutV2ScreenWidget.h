@@ -239,6 +239,8 @@ private:
 	}
 	/** B-484: one line of a slot's list as the box's details: that piece alone (WoRLoadoutV2::Build...Details). */
 	TArray<FLoadoutV2DetailLine> BuildItemDetails(const FLoadoutV2WindowItem &Item) const;
+	/** B-503u: the Edit window's box on a slot row: that slot's piece, or a line saying what it takes. */
+	TArray<FLoadoutV2DetailLine> BuildSlotDetails(ELoadoutV2Slot GearSlot) const;
 	bool IsLineRefused(int32 Line) const;
 	FText GetTitle() const;
 	FText GetHints() const;
