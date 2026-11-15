@@ -203,6 +203,11 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	TObjectPtr<class UTexture2D> SliceOffHandIcon = nullptr;
 
+	/** B-514 (D-222 "The text and the frame"): the piece's type on the strip's second line: the held type ("Sword and
+	 *  Shield"), an adapter's form ("Ring"), "Evolution"; empty for the innate. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText SliceType;
+
 	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
 	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
 };
@@ -395,9 +400,10 @@ namespace FieldSkillRules
 	 *  B-514 (D-222): up / down on the quick strip. */
 	WORLD_OF_REFRACTION_API int32 StepFieldSliceOption(const TArray<FFieldAttackEntry> &Entries, int32 Index, int32 Delta);
 
-	/** B-514 (D-222): the quick strip's line under its row: the piece's name, with the source in brackets
-	 *  ("Excalibur (Fire)", "Tidecaller (Ice)"); just the name when plain. */
-	WORLD_OF_REFRACTION_API FText GetFieldStripName(const FFieldAttackEntry &Entry);
+	/** B-514 (D-222 "The text and the frame"): the quick strip's second line, under the piece's name: its type, a dot and
+	 *  the source ("Ring · Lightning", "Sword and Shield · Fire"); the type alone when plain, the source alone with
+	 *  no type (the innate). */
+	WORLD_OF_REFRACTION_API FText GetFieldStripTypeLine(const FFieldAttackEntry &Entry);
 
 	/** B-503m5 (D-218): the slice under the mouse cursor, FromCentre being its offset from the wheel's centre in screen
 	 *  units (Y down): slice 0 at the top, clockwise; INDEX_NONE in the middle circle, past the rim, or with no slices.
