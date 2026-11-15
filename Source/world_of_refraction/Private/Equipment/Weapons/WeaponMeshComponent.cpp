@@ -152,9 +152,34 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
     }
 
     CachedWeapon = ActiveWeapon;
+    ApplyWeaponHidden(); // B-503s: a new mesh keeps the field pick's put-away
 
     UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Updated weapon mesh: %s"),
            ActiveWeapon ? *ActiveWeapon->Name : TEXT("None"));
+}
+
+void UWeaponMeshComponent::SetWeaponHidden(bool bHidden)
+{
+    if (bWeaponHidden == bHidden)
+    {
+        return;
+    }
+    bWeaponHidden = bHidden;
+    ApplyWeaponHidden();
+    UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] %s: weapon %s (B-503s, the field pick)"), *GetNameSafe(GetOwner()),
+           bHidden ? TEXT("put away") : TEXT("in hand"));
+}
+
+void UWeaponMeshComponent::ApplyWeaponHidden()
+{
+    for (USceneComponent *Mesh : {static_cast<USceneComponent *>(PrimaryStaticMeshComp), static_cast<USceneComponent *>(SecondaryStaticMeshComp),
+                                  static_cast<USceneComponent *>(PrimarySkeletalMeshComp), static_cast<USceneComponent *>(SecondarySkeletalMeshComp)})
+    {
+        if (IsValid(Mesh))
+        {
+            Mesh->SetHiddenInGame(bWeaponHidden);
+        }
+    }
 }
 
 void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
