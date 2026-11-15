@@ -1279,6 +1279,23 @@ The queue of questions only Crown can answer.
 - (3) A: Metaphor: ReFantazio lets the character keep moving through the field attack, which keeps the map fluid. The feet may slide until the swing is blended on the upper body; Crown judges it in PIE.
 **Notes for Claude:** built in B-503b. A second attack is refused until the first hit has landed. A weapon whose attack has no field montage hits at once, as before.
 
+### Q-503l — Broken Darkness and Reality: what holding LB cycles on the map
+**Status:** OPEN · **Raised:** 2026-11-15 (B-503k, D-217) · **Blocks:** B-503l
+**Question (for Crown):** you said a Broken Darkness character on Darkness, or a Reality one, holds LB to "cycle their dark sources, based on whatever other gear they have". Today on the map: a press already steps each of their sources (innate, the weapon's crystal, the adapter, the evolution), and each has its own element: a BD character's innate is its active pool (Darkness, or an absorbed element), a Reality character's is Reality (players see it as Unknown, ED-42). So what should a hold change?
+**Options:** **A** the strike stays Darkness / Reality and only the gear it goes through changes (the strip reads e.g. Darkness Sword then Darkness through the ring; nothing else on the map changes, since the field strike carries only an element, the weapon's physical type and build-up); **B** the hold steps the element through the elements of their other gear (Darkness, then the crystal's Fire, then the ring's Water), which is what a press does today; **C** BD: the hold steps its pools (Darkness and each absorbed element, CL-08's single active pool); Reality: every element (CL-08: a Reality Refractor may cast any element).
+**Notes for Claude:** no outside reference fits (this is our own BD / Reality rule), so no default; B-503k ships press = source and hold = nothing for every other source.
+
+### Q-503k — The field attack strip and the infusion cycle: whose card, which stops
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503k, D-217) · **Blocks:** —
+**Question:** D-217 puts the strip above the card and has LB step the infusion. Four things it leaves open, none of them lore: (1) Whose card gets the strip? (2) Two sources of one element (a Fire crystal and a Fire ring): one stop or two? (3) A Refractor's weapon crystal: a stop? (4) A weapon user with no weapon: what does the strip say?
+**Options:** (1) **A** only the card of the member the player plays (the one who makes the field attack); **B** every card. (2) **A** one stop per element; **B** one per source. (3) **A** yes, a pulse in that element; **B** no. (4) **A** no strip until an infusion is picked (then just the element); **B** a word like Unarmed.
+**Answer:** **A, A, A, A**, by the reference-backed default.
+- (1) A: only the played character attacks on the map (D-215); Expedition 33 and Tales of Arise show the field action for the leader alone. In co-op each player sees their own.
+- (2) A: the strip would read the same twice: a wasted press (Q-503 (2), Elden Ring skipping empty slots).
+- (3) A: D-217 names the character's available sources, and the combat menu offers the weapon crystal to every class.
+- (4) A: the plain swing with no weapon has nothing to name; D-217's strip names a weapon type or an element.
+**Notes for Claude:** built in B-503k. The sources are the combat menu's (`UActionExecutor::GetAvailableInfusionSources`), Raw left out (no element). A Resonator's ring stop is its active ring only (as in combat), beside its weapon crystal and evolution; with two sources of one element the first in the menu's order names the stop. The kept index is the old `FieldAttackIndex` (an older save's index is clamped). The hold list is B-503l.
+
 ### Q-503c — The field pulse: where it goes, when it hits, what it costs
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503c, D-215) · **Blocks:** —
 **Question:** D-215 says a non-weapon entry throws an energy pulse about 7 m that engages. Four things it leaves open, none of them lore: (1) Where does it go? (2) Does it hit when it leaves or when the look arrives? (3) Do walls stop it? (4) Does it cost EP or have its own cooldown?

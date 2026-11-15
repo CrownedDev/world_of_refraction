@@ -126,6 +126,8 @@ void FFieldAttackSpec::Define()
 			TestEqual(TEXT("a negative index is the first"), FieldSkillRules::ClampFieldAttackIndex(INDEX_NONE, THREE_ENTRIES), 0);
 			TestFalse(TEXT("a tap isn't held (B-214g)"), FieldSkillRules::IsFieldAttackHeld(0.0));
 			TestTrue(TEXT("held from the threshold"), FieldSkillRules::IsFieldAttackHeld(FieldSkillRules::FIELD_ATTACK_HOLD_SECONDS));
+			TestFalse(TEXT("B-503k: a press of R / LB changes the source"), FieldSkillRules::IsFieldSourceHeld(0.0));
+			TestTrue(TEXT("a hold changes the element"), FieldSkillRules::IsFieldSourceHeld(FieldSkillRules::FIELD_SOURCE_HOLD_SECONDS));
 		});
 	});
 
