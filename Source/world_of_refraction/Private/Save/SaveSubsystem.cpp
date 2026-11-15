@@ -1156,6 +1156,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
 		Out.FieldSkillSource = Member.FieldSkill.Source; // B-214a (D-099)
 		Out.FieldSkillType = Member.FieldSkill.Type;
+		Out.FieldAttackIndex = Member.FieldAttackIndex; // B-503 (D-215)
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -1462,6 +1463,7 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.ParryElementPriority = In.ParryElementPriority; // B-393 (D-170)
 		Member.FieldSkill.Source = In.FieldSkillSource; // B-214a (D-099)
 		Member.FieldSkill.Type = In.FieldSkillType;
+		Member.FieldAttackIndex = In.FieldAttackIndex; // B-503 (D-215)
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();
