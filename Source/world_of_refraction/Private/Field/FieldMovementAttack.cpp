@@ -249,12 +249,13 @@ TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 			FFieldAttackEntry &Option = Entries.Add_GetRef(Base);
 			Option.Element = Element;
 			Option.bIce = bIce;
+			Option.OptionName = ElementName;
 			Option.Name = MakeInfusedLabel(ElementName, WeaponTypeName);
 			Option.bHoldStep = Entries.Num() - 1 > First;
 		};
 		if (bOwnSwing)
 		{
-			Entries.Add(Base); // plain first
+			Entries.Add_GetRef(Base).OptionName = LOCTEXT("PlainOption", "Plain"); // plain first
 		}
 		if (!FieldSkillRules::IsElemental(Slice.Element))
 		{

@@ -181,6 +181,10 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	FText SliceName;
 
+	/** B-503m4 (D-217): the option's own word on the wheel's centre ("Plain", "Fire", "Ice", "(R) Fire", "Dark Fire"). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText OptionName;
+
 	/** B-503m4 (D-217 "Ice"): the Water option's Ice (was the held attack, B-214f). */
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	bool bIce = false;
