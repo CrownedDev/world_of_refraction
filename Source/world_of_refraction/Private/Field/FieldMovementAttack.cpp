@@ -1,54 +1,204 @@
 // FieldMovementAttack.cpp
 // B-214f (Design/FieldAbilities.md; Metaphor: ReFantazio's field strike): UFieldMovementComponent's field attack. A swing
 // sweeps a sphere ahead; the first encounter it strikes engages with the party striking first and carries the hit's
-// buildup into the fight (UEncounterComponent::StrikeFromField -> ABattleGameMode::ApplyFieldStrike). The source is
-// switchable (innate / weapon / ring); the weapon in hand gives the physical type; held with Water it is Ice. Server
-// side; a client's calls go by Server RPC. TODO: the swing's animation and hit VFX.
+// buildup into the fight (UEncounterComponent::StrikeFromField -> ABattleGameMode::ApplyFieldStrike). Held with Water
+// it is Ice. Server side; a client's calls go by Server RPC.
+// B-503 (D-215): the strike's element and physical type come from the entry in use, one stop of a cycle through the
+// whole loadout (GetFieldAttackEntries); only a weapon entry has a physical type. TODO: the swing (B-503b) and the
+// pulse (B-503c).
 
 #include "Field/FieldMovementComponent.h"
 
+#include "Character/ECharacterClass.h"
 #include "CollisionQueryParams.h"
 #include "Combat/Encounter/EncounterComponent.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
+
+#define LOCTEXT_NAMESPACE "WoRFieldAttack"
 
 namespace FieldAttackLog
 {
 	const TCHAR *const TAG = TEXT("[FieldAttack]");
 }
 
-EPhysicalDamageType UFieldMovementComponent::GetFieldAttackPhysicalType() const
+namespace
 {
-	const ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
-	const UWeaponData *Weapon = Loadout ? Loadout->GetActiveWeapon() : nullptr;
-	const UAbilityData *Attack = Weapon ? Cast<UAbilityData>(Weapon->WeaponAttack) : nullptr;
-	return Attack ? Attack->PhysicalDamageType : EPhysicalDamageType::None;
+	/** A socket's element as the strike reads it: None when empty or broken. */
+	ESpellElement LiveSocketElement(const FRuntimeAttachedItem &Socket)
+	{
+		return !Socket.IsEmpty() && !Socket.IsBroken() ? Socket.GetElement() : ESpellElement::None;
+	}
+
+	FFieldAttackEntry MakeGearEntry(EFieldAttackKind Kind, const UEquipmentDataBase &Gear, const FRuntimeAttachedItem &Socket)
+	{
+		FFieldAttackEntry Entry;
+		Entry.Kind = Kind;
+		Entry.Name = FText::FromString(Gear.GetDisplayName());
+		Entry.Element = LiveSocketElement(Socket);
+		Entry.Icon = Gear.Icon;
+		return Entry;
+	}
+
+	void AddEvolutionEntry(const FEvolutionAttachment &Attachment, TArray<FFieldAttackEntry> &Out)
+	{
+		const UEvolutionItemData *Item = Attachment.Item;
+		if (!Item || Attachment.IsBroken())
+		{
+			return; // a broken evolution gives nothing (as on the character's own slot, B-214h)
+		}
+		FFieldAttackEntry &Entry = Out.AddDefaulted_GetRef();
+		Entry.Kind = EFieldAttackKind::Evolution;
+		Entry.Name = Item->ItemName.IsEmpty() ? WoRGameNames::GetCrystalTypeName(Item->CrystalType) : FText::FromString(Item->ItemName);
+		Entry.Element = Item->GetAssociatedElement();
+		Entry.Icon = Item->Icon;
+	}
+
+	void AddSocketEvolutionEntry(const FRuntimeAttachedItem &Socket, TArray<FFieldAttackEntry> &Out)
+	{
+		if (Socket.IsEvolution())
+		{
+			AddEvolutionEntry(Socket.Evolution, Out);
+		}
+	}
+}
+
+TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
+{
+	TArray<FFieldAttackEntry> Entries;
+	TArray<FFieldAttackEntry> Evolutions; // listed after the gear and the innate element
+	const auto AddWeapon = [&Entries, &Evolutions](const FWeaponLoadoutEntry &Slot)
+	{
+		const UWeaponData *Weapon = Slot.WeaponEntry.Weapon;
+		const FRuntimeAttachedItem &Socket = Slot.WeaponEntry.GetAttachedItem();
+		const UAbilityData *Attack = Cast<UAbilityData>(Weapon->WeaponAttack);
+		FFieldAttackEntry &Entry = Entries.Add_GetRef(MakeGearEntry(EFieldAttackKind::Weapon, *Weapon, Socket));
+		Entry.Physical = Attack ? Attack->PhysicalDamageType : EPhysicalDamageType::None;
+		AddSocketEvolutionEntry(Socket, Evolutions);
+	};
+	const auto AddRing = [&Entries, &Evolutions](const FRingLoadoutEntry &Slot)
+	{
+		const FRuntimeAttachedItem &Socket = Slot.RingEntry.GetAttachedItem();
+		Entries.Add(MakeGearEntry(EFieldAttackKind::Ring, *Slot.RingEntry.Ring, Socket));
+		AddSocketEvolutionEntry(Socket, Evolutions);
+	};
+
+	if (const ULoadoutComponent *LoadoutComponent = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr)
+	{
+		const FCombatLoadout &Loadout = LoadoutComponent->GetActiveLoadout();
+		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+		{
+			AddEvolutionEntry(Loadout.PrimaryEvolution, Evolutions);
+		}
+		if (Loadout.HasPrimaryWeapon())
+		{
+			AddWeapon(Loadout.PrimaryWeapon);
+		}
+		// A Resonator's rings are its ring loadout only; a stray primary ring is never one in use (GetActiveSlotIn).
+		if (Loadout.HasPrimaryRing() && LoadoutComponent->GetCharacterClass() != ECharacterClass::Resonator)
+		{
+			AddRing(Loadout.PrimaryRing);
+		}
+		if (Loadout.HasSecondaryWeapon())
+		{
+			AddWeapon(Loadout.SecondaryWeapon);
+		}
+		for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+		{
+			if (Ring.IsValid())
+			{
+				AddRing(Ring);
+			}
+		}
+		for (const FApparelEntry &Piece : Loadout.Apparel)
+		{
+			if (Piece.Apparel)
+			{
+				AddSocketEvolutionEntry(Piece.AttachedItem, Evolutions);
+			}
+		}
+	}
+
+	const ESpellElement Innate = GetSourceElement(EFieldSkillSource::Innate);
+	if (FieldSkillRules::IsElemental(Innate))
+	{
+		FFieldAttackEntry &Entry = Entries.AddDefaulted_GetRef();
+		Entry.Kind = EFieldAttackKind::Innate;
+		Entry.Name = LOCTEXT("Innate", "Innate"); // TODO: one shared name (also in the field skill picker and the infusion menu)
+		Entry.Element = Innate;
+	}
+	Entries.Append(Evolutions);
+	return Entries;
+}
+
+int32 UFieldMovementComponent::GetKeptFieldAttackIndex() const
+{
+	const FPartyMember *Record = HasAuthority() ? FindRecord() : nullptr;
+	return Record ? Record->FieldAttackIndex : FieldAttackIndex;
+}
+
+int32 UFieldMovementComponent::GetFieldAttackIndex() const
+{
+	return FieldSkillRules::ClampFieldAttackIndex(GetKeptFieldAttackIndex(), GetFieldAttackEntries().Num());
+}
+
+FFieldAttackEntry UFieldMovementComponent::GetFieldAttackEntry() const
+{
+	const TArray<FFieldAttackEntry> Entries = GetFieldAttackEntries();
+	const int32 Index = FieldSkillRules::ClampFieldAttackIndex(GetKeptFieldAttackIndex(), Entries.Num());
+	return Entries.IsValidIndex(Index) ? Entries[Index] : FFieldAttackEntry();
 }
 
 FFieldStrike UFieldMovementComponent::GetFieldStrike(bool bHeld) const
 {
-	return FieldSkillRules::MakeFieldStrike(GetSourceElement(FieldAttackSource), GetFieldAttackPhysicalType(), bHeld);
+	const FFieldAttackEntry Entry = GetFieldAttackEntry();
+	return FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld);
 }
 
-void UFieldMovementComponent::SwitchFieldAttackSource()
+FFieldAttackEntry UFieldMovementComponent::CycleFieldAttack()
 {
-	if (!HasAuthority())
+	const TArray<FFieldAttackEntry> Entries = GetFieldAttackEntries();
+	const int32 Next = FieldSkillRules::NextFieldAttackIndex(GetKeptFieldAttackIndex(), Entries.Num());
+	if (HasAuthority())
 	{
-		ServerSwitchFieldAttackSource();
-		return;
+		StoreFieldAttackIndex(Next);
 	}
-	FieldAttackSource = FieldSkillRules::NextSource(FieldAttackSource);
-	UE_LOG(LogWoR, Log, TEXT("%s %s: attack source %s (%s)"), FieldAttackLog::TAG, *GetNameSafe(GetOwner()),
-		   *FieldSkillRules::SourceName(FieldAttackSource),
-		   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(GetSourceElement(FieldAttackSource))));
+	else
+	{
+		FieldAttackIndex = Next; // shown at once; the host keeps it and its copy comes back the same
+		ServerSetFieldAttackIndex(Next);
+	}
+	return Entries.IsValidIndex(Next) ? Entries[Next] : FFieldAttackEntry();
 }
 
-void UFieldMovementComponent::ServerSwitchFieldAttackSource_Implementation()
+void UFieldMovementComponent::StoreFieldAttackIndex(int32 Index)
 {
-	SwitchFieldAttackSource();
+	const TArray<FFieldAttackEntry> Entries = GetFieldAttackEntries();
+	FieldAttackIndex = FieldSkillRules::ClampFieldAttackIndex(Index, Entries.Num());
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (PartySession && FindRecord())
+	{
+		PartySession->SetMemberFieldAttackIndex(PartySession->GetMemberSlotOf(GetCharacterData()), FieldAttackIndex);
+	}
+	UE_LOG(LogWoR, Log, TEXT("%s %s: field attack %d of %d: %s"), FieldAttackLog::TAG, *GetNameSafe(GetOwner()),
+		   FieldAttackIndex + 1, Entries.Num(),
+		   *FieldSkillRules::FieldAttackEntryString(Entries.IsValidIndex(FieldAttackIndex) ? Entries[FieldAttackIndex] : FFieldAttackEntry()));
+}
+
+void UFieldMovementComponent::ServerSetFieldAttackIndex_Implementation(int32 Index)
+{
+	StoreFieldAttackIndex(Index); // clamped to the host's own reading of the loadout
 }
 
 EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
@@ -99,3 +249,5 @@ void UFieldMovementComponent::ServerFieldAttack_Implementation(bool bHeld)
 {
 	FieldAttack(bHeld); // the server keeps its own cooldown
 }
+
+#undef LOCTEXT_NAMESPACE

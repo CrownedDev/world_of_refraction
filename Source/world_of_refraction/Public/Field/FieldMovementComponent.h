@@ -12,7 +12,9 @@
 // take-off ground and Zone.NoFly volumes, each liftable by effects (FFieldFlightLimits).
 // B-214e (FieldMovementAdvanced.cpp): Teleport (Void), Phase step, Mark and recall, Super launch, Regroup.
 // B-214f (FieldMovementAttack.cpp): the field attack: a swing ahead; hitting an encounter starts its fight with first
-// strike and the hit's buildup (element of the switchable attack source, the weapon's physical type, Ice held with Water).
+// strike and the hit's buildup (the element and physical type of the entry in use, Ice held with Water).
+// B-503 (D-215): the entry in use is one stop of a cycle through the whole loadout (weapons, rings, the innate element,
+// evolutions), replacing B-214g's Innate / Weapon / Ring switch; a weapon swings, every other entry throws the pulse.
 // B-214h: the evolution on the character's own slot adds an always-on sprint bonus and augments the field skill (cheaper
 // EP, flight limits it lifts).
 // A client's calls go to the server (it spends the EP and owns the record); the on / off state and the choice replicate.
@@ -158,18 +160,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	EFieldSkillRefusal FieldAttack(bool bHeld);
 
-	/** The field attack's source: Innate -> Weapon -> Ring (IA_Field_SwitchSource). */
+	/** B-503 (D-215): the stops of the field attack's cycle, in loadout order: the primary weapon or ring, the
+	 *  secondary weapon, the Resonator's rings; then the innate element (a real one); then each evolution that isn't
+	 *  broken (the character's own slot, the ones socketed in those weapons and rings, apparel's). Empty with none. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	TArray<FFieldAttackEntry> GetFieldAttackEntries() const;
+
+	/** The stop in use, within GetFieldAttackEntries (FieldSkillRules::ClampFieldAttackIndex). */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	int32 GetFieldAttackIndex() const;
+
+	/** The entry in use; the plain swing (no name, no element) with nothing to cycle. */
+	UFUNCTION(BlueprintPure, Category = "Field")
+	FFieldAttackEntry GetFieldAttackEntry() const;
+
+	/** Steps to the next stop, wrapping (IA_Field_SwitchSource: LB / R), and returns it. Kept on the party record
+	 *  when the pawn has one. */
 	UFUNCTION(BlueprintCallable, Category = "Field")
-	void SwitchFieldAttackSource();
+	FFieldAttackEntry CycleFieldAttack();
 
-	UFUNCTION(BlueprintPure, Category = "Field")
-	EFieldSkillSource GetFieldAttackSource() const { return FieldAttackSource; }
-
-	/** The weapon in hand's attack type (its WeaponAttack's), None with no weapon. */
-	UFUNCTION(BlueprintPure, Category = "Field")
-	EPhysicalDamageType GetFieldAttackPhysicalType() const;
-
-	/** What a field hit now would carry (FieldSkillRules::MakeFieldStrike). */
+	/** What a field hit now would carry: the entry in use's element and physical type
+	 *  (FieldSkillRules::MakeFieldStrike). */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	FFieldStrike GetFieldStrike(bool bHeld) const;
 
@@ -218,7 +229,13 @@ private:
 	void ServerFieldAttack(bool bHeld);
 
 	UFUNCTION(Server, Reliable)
-	void ServerSwitchFieldAttackSource();
+	void ServerSetFieldAttackIndex(int32 Index);
+
+	/** Keeps Index (clamped to the entries now): on the party record when the pawn has one, and in the mirror. */
+	void StoreFieldAttackIndex(int32 Index);
+
+	/** The index as kept (the record's on the host, else the mirror), not yet clamped to the entries. */
+	int32 GetKeptFieldAttackIndex() const;
 
 	UFUNCTION(Server, Reliable)
 	void ServerSetActiveFieldSkill(EFieldSkillSource Source, EFieldMovementType Type);
@@ -328,9 +345,10 @@ private:
 	/** Super launch glides from the top of its rise (no glide EP). */
 	bool bSuperLaunchGlidePending = false;
 
-	/** B-214f: the field attack's source (the weapon by default: the hit is a weapon swing). */
+	/** B-503 (D-215): the field attack's stop for a pawn with no party record, and the replicated mirror of the
+	 *  record's (FPartyMember::FieldAttackIndex) for the owning client, which sets it at once when it cycles. */
 	UPROPERTY(Replicated)
-	EFieldSkillSource FieldAttackSource = EFieldSkillSource::Weapon;
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
 
 	double LastFieldAttackTime = -FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
 
