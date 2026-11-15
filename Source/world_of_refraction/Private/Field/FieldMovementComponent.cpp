@@ -506,6 +506,9 @@ FString UFieldMovementComponent::GetFieldStateString() const
 		+ (GetWorld() && GetWorld()->GetTimerManager().IsTimerActive(FieldSwingTimer) // B-503b (the host's timer)
 			   ? FString::Printf(TEXT(", hit lands in %.2f s"), GetWorld()->GetTimerManager().GetTimerRemaining(FieldSwingTimer))
 			   : FString())
+		+ FString::Printf(TEXT(" | pulse cast %s, burst %s"), // B-503c
+						  FieldPulseMontage.IsNull() ? TEXT("none (leaves at once)") : *FieldPulseMontage.GetAssetName(),
+						  FieldPulseVFX.IsNull() ? TEXT("none (plain line)") : *FieldPulseVFX.GetAssetName())
 		+ FString::Printf(TEXT(" | recall mark %s"), bHasRecallMark ? *RecallMark.ToCompactString() : TEXT("none")) // B-214e
 		+ FString::Printf(TEXT(" | flight %s (limits: EP %s, ceiling %s, no-fly %s; in no-fly %s)"), // B-214d
 						  bFlying ? TEXT("ON") : TEXT("off"), GetEffectiveFlightLimits().bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),
