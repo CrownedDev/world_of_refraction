@@ -40,6 +40,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Currency/CurrencyTypes.h"             // ECurrencyType / EEssenceType / FCurrencyArray
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/ClassDefaultLoadoutData.h"     // FClassDefaultKitIDs (B-511)
 #include "Loadout/WornGear.h"
 #include "Pool/PoolQueryTypes.h"                // FPoolFilter + the per-category result views
 #include "Inventory/InventoryConstants.h"       // ITEM_SLOTS_START
@@ -588,6 +589,23 @@ public:
     const TSet<FGuid> &GetHubGear() const { return HubGear; }
     void RestoreHubGear(const TSet<FGuid> &Saved) { HubGear = Saved; }
 
+    // ==================== CLASS DEFAULT KIT (D-221 stage 1c, B-511) ====================
+    // The kit a trial starts on (UClassDefaultLoadoutData). Each character's kit pieces are minted once as its own:
+    // owned, worn like any gear, but never sold, dismantled, given or put in the chest. PoolClassDefaults.cpp.
+
+    /** Mints CharacterKey's kit pieces into the store, owned by CharacterKey. A place whose kept piece is still the
+     *  same asset reuses it (its state is left as it is: B-512's trial start resets it); a changed or emptied place
+     *  removes the old piece first. Returns the kit's IDs, place for place with Kit. */
+    const FClassDefaultKitIDs &MintClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
+    /** The character's minted kit, or null before its first mint. */
+    const FClassDefaultKitIDs *GetClassDefaultKit(FName CharacterKey) const { return ClassDefaultKits.Find(CharacterKey); }
+    /** A piece of any character's kit (refused for sale, dismantling, giving and the chest). */
+    bool IsClassDefault(const FGuid &GearID) const;
+    const TMap<FName, FClassDefaultKitIDs> &GetAllClassDefaultKits() const { return ClassDefaultKits; }
+    void RestoreClassDefaultKits(const TMap<FName, FClassDefaultKitIDs> &Saved) { ClassDefaultKits = Saved; }
+    /** Debug: each character's kit pieces (wor.Trial.PrintClassDefaults). */
+    FString GetClassDefaultKitsString() const;
+
     /** B-508 (D-219): the run party's worn-gear records as the trial begins (after BeginRunLayer); a quit puts them
      *  back. A character with no record yet has none kept. Saved with the run (FSavedRun::RunStartWornGear). */
     void SnapshotRunStartGear(const TSet<FName> &CharacterKeys);
@@ -792,6 +810,10 @@ private:
     /** B-509: GearIDs of hub gear (IsHubGear). */
     UPROPERTY()
     TSet<FGuid> HubGear;
+
+    /** B-511: character key -> its minted class default kit (MintClassDefaultKit). Saved (FSavedPool::ClassDefaultKits). */
+    UPROPERTY()
+    TMap<FName, FClassDefaultKitIDs> ClassDefaultKits;
 
     /** B-508: character key -> its worn-gear record as the run began (SnapshotRunStartGear). */
     UPROPERTY()

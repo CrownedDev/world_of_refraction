@@ -140,6 +140,12 @@ namespace
                    Op, *GearID.ToString());
             return true;
         }
+        if (Pool && Pool->IsClassDefault(GearID)) // B-511 (D-221): the class default kit is never sold or dismantled
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a class default kit piece - it can't be sold or dismantled (D-221)"),
+                   Op, *GearID.ToString());
+            return true;
+        }
         if (!Pool || !Pool->IsRunLayerActive() || Pool->IsRunOnly(GearID))
         {
             return false;

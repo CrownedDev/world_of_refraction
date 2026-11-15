@@ -688,6 +688,25 @@ struct WORLD_OF_REFRACTION_API FSavedPouch
 	int32 SlotCount = 0;
 };
 
+/** B-511 (D-221): a character's minted class default kit, place for place (UPoolSubsystem::MintClassDefaultKit). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedClassDefaultKit
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName CharacterKey;
+
+	UPROPERTY()
+	TArray<FGuid> Pieces;
+
+	UPROPERTY()
+	TArray<FGuid> OffHands;
+
+	UPROPERTY()
+	TArray<FGuid> Apparel;
+};
+
 /** UPoolSubsystem's owned items. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPool
@@ -735,6 +754,10 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	/** B-509 (D-221, save v41, no bump: a v41 save without it has none): found gear kept as hub gear. */
 	UPROPERTY()
 	TArray<FGuid> HubGear;
+
+	/** B-511 (D-221, no bump: a save without it mints the kits again at the next trial start). */
+	UPROPERTY()
+	TArray<FSavedClassDefaultKit> ClassDefaultKits;
 
 	/** B-311 (save v6): each character's custom loadouts. */
 	UPROPERTY()

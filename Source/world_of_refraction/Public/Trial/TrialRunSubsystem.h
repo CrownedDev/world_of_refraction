@@ -35,6 +35,7 @@
 #include "Combat/Encounter/EnemyZone.h"
 #include "Trial/TrialGate.h"
 #include "Trial/RunRewards.h"
+#include "Character/ECharacterClass.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TrialRunSubsystem.generated.h"
@@ -44,6 +45,8 @@ class UMemoryData;
 class UMerchantData;
 struct FMerchantStockEntry;
 class UTrialData;
+class UClassDefaultLoadoutData;
+struct FClassDefaultLoadout;
 class UWorld;
 struct FActorsInitializedParams;
 
@@ -468,6 +471,13 @@ public:
 
     // ==================== DEBUG ====================
 
+    /** B-511 (D-221): the kit a trial starts Class on (DA_Loadout_ClassDefaults, DefaultGame.ini). Null, with a
+     *  warning, when the asset or the class's entry is missing: the trial then keeps what is worn. */
+    const FClassDefaultLoadout *FindClassDefaults(ECharacterClass Class) const;
+
+    /** Debug: the kit asset's classes and every character's minted kit (wor.Trial.PrintClassDefaults). */
+    FString GetClassDefaultsString() const;
+
     /** Formatted snapshot: active trial (or none) + configured hub level. */
     UFUNCTION(BlueprintPure, Category = "Debug")
     FString GetTrialRunString() const;
@@ -488,6 +498,10 @@ private:
     /** The map ExitTrial returns to — authored in DefaultGame.ini. */
     UPROPERTY(Config)
     TSoftObjectPtr<UWorld> HubLevel;
+
+    /** B-511 (D-221): the class default kits, authored in DefaultGame.ini. */
+    UPROPERTY(Config)
+    TSoftObjectPtr<UClassDefaultLoadoutData> ClassDefaultLoadouts;
 
     /** Strong (B-070): in a packaged build nothing else may hold the trial asset,
      *  so a weak pointer let GC drop it mid-run. Cleared on ExitTrial. */
