@@ -1417,7 +1417,7 @@ TArray<USkillDataBase *> ULoadoutComponent::GetAllWeaponAttacks() const
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Primary weapon attack — OverrideAttack takes precedence over the asset attack.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    if (Loadout.HasPrimaryWeapon())
     {
         UWeaponData *Weapon = Loadout.PrimaryWeapon.WeaponEntry.Weapon;
         USkillDataBase *Attack = Loadout.PrimaryWeapon.OverrideAttack
@@ -1576,7 +1576,7 @@ ESpellSource ULoadoutComponent::ResolveSpellSource(USpellData *Spell) const
 
     // 3. Weapon spells — primary weapon (when weapon-primary) + secondary
     //    weapon (Generic only). Walks the same composition GetAllSpells uses.
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    if (Loadout.HasPrimaryWeapon())
     {
         if (Loadout.PrimaryWeapon.GetAllSpells().Contains(Spell))
         {
@@ -1653,7 +1653,7 @@ UObject *ULoadoutComponent::FindSpellCatalystHolder(USpellData *Spell) const
 
     // 3. Weapon catalysts — primary weapon (when weapon-primary) + secondary
     //    weapon (Generic only).
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    if (Loadout.HasPrimaryWeapon())
     {
         if (Loadout.PrimaryWeapon.GetAllSpells().Contains(Spell))
         {
@@ -1700,7 +1700,7 @@ TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
         Result = Loadout.EvolutionSpells;
     }
     // Weapon primary with crystal
-    else if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    else if (Loadout.HasPrimaryWeapon())
     {
         Result = Loadout.PrimaryWeapon.GetAllSpells();
     }
@@ -1769,8 +1769,7 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
 
     // Generic dual-weapon: bShowPrimary IS a real gameplay toggle —
     // only the shown weapon's spells are available.
-    if (GetCharacterClass() == ECharacterClass::Generic &&
-        Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+    if (GetCharacterClass() == ECharacterClass::Generic && Loadout.HasPrimaryWeapon() &&
         Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
     {
         return Loadout.bShowPrimary ? GetPrimarySlotSpells() : GetSecondarySlotSpells();
@@ -2419,48 +2418,15 @@ bool ULoadoutComponent::HasRingInSecondary() const
 
 UStanceData *ULoadoutComponent::GetCurrentStance() const
 {
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
+    if (!GetInventoryComponent())
     {
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetCurrentStance] No InventoryComponent found on owner"));
         return nullptr;
     }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
 
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    // Stance is a visual concern, decoupled from combat capability:
-    // bShowPrimary picks which slot is currently DISPLAYED, regardless of
-    // whether the other slot's weapon is also available for combat actions.
-    const FWeaponLoadoutEntry *ShownWeapon = nullptr;
-
-    if (Loadout.bShowPrimary)
-    {
-        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            ShownWeapon = Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
-        }
-        // B-099 (D-027): an evolution has no stance, and the Generic fights with its secondary weapon.
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution &&
-                 GetCharacterClass() == ECharacterClass::Generic &&
-                 Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
-        }
-        // Ring primary while showing primary => no weapon stance, fall through to unarmed.
-    }
-    else
-    {
-        // Showing secondary. Only Generic has secondary slots that can hold a weapon.
-        if (GetCharacterClass() == ECharacterClass::Generic &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
-        }
-    }
+    // B-503p: the stance is the ACTIVE weapon's, the one the fight swings (an evolution primary leaves a Generic its
+    // secondary, a ring primary none: unarmed). OBSOLETE: the old bShowPrimary / PrimarySlotType walk that stood here.
+    const FWeaponLoadoutEntry *ShownWeapon = GetActiveWeaponLoadout();
 
     if (ShownWeapon && ShownWeapon->WeaponEntry.Weapon)
     {

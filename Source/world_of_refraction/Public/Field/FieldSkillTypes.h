@@ -172,9 +172,22 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	TSoftObjectPtr<class UAnimMontage> SwingMontage;
 
 	/** B-503l (Q-503l): a hold step of the stop before it ("(R) Fire", "Dark Fire"): a hold of R / LB reaches it, a
-	 *  press skips it. */
+	 *  press skips it. B-503m4 (D-217): an element option of the wheel's slice: a slice is an entry with this false
+	 *  followed by its entries with this true, and D-pad left / right steps through them. */
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	bool bHoldStep = false;
+
+	/** B-503m4 (D-217): the loadout entry this option belongs to, the wheel slice's name ("Sword", "Storm Ring"). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText SliceName;
+
+	/** B-503m4 (D-217): the option's own word on the wheel's centre ("Plain", "Fire", "Ice", "(R) Fire", "Dark Fire"). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText OptionName;
+
+	/** B-503m4 (D-217 "Ice"): the Water option's Ice (was the held attack, B-214f). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	bool bIce = false;
 
 	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
 	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
@@ -350,6 +363,28 @@ namespace FieldSkillRules
 	/** The mouse wheel: Delta entries on (negative: back), wrapping both ways; the first with no entries. */
 	WORLD_OF_REFRACTION_API int32 StepFieldWheelIndex(int32 Index, int32 Delta, int32 EntryCount);
 
+	// ---- B-503m4 (D-217 "The wheel on RB"): one slice per loadout entry, its element options inside ----
+
+	/** The first entry of each slice (an entry that isn't a hold step), in order. */
+	WORLD_OF_REFRACTION_API TArray<int32> GetFieldSliceStarts(const TArray<FFieldAttackEntry> &Entries);
+
+	/** The slice Index belongs to, as a place in GetFieldSliceStarts; INDEX_NONE with no entries. */
+	WORLD_OF_REFRACTION_API int32 GetFieldSliceOf(const TArray<FFieldAttackEntry> &Entries, int32 Index);
+
+	/** D-pad left / right: Delta options on within Index's slice (negative: back), wrapping inside the slice. */
+	WORLD_OF_REFRACTION_API int32 StepFieldSliceOption(const TArray<FFieldAttackEntry> &Entries, int32 Index, int32 Delta);
+
+	/** B-503m5 (D-218): the slice under the mouse cursor, FromCentre being its offset from the wheel's centre in screen
+	 *  units (Y down): slice 0 at the top, clockwise; INDEX_NONE in the middle circle, past the rim, or with no slices. */
+	WORLD_OF_REFRACTION_API int32 GetFieldWheelSliceAt(const FVector2D &FromCentre, float HubRadius, float RimRadius, int32 SliceCount);
+
+	/** The mouse on PC (GTA V's wheel): the pointer moves by the mouse's travel, scaled, and stays inside the unit
+	 *  circle, so it reads as a stick for GetFieldWheelIndexFromStick.
+	 *  OBSOLETE (B-503m5): the wheel shows the cursor and picks the slice under it (GetFieldWheelSliceAt); delete after
+	 *  B-503m5's PIE pass. */
+	constexpr float FIELD_WHEEL_MOUSE_SCALE = 0.05f; // TODO: tune in PIE (about 20 units of mouse travel to the rim)
+	WORLD_OF_REFRACTION_API FVector2D MoveFieldWheelPointer(const FVector2D &Pointer, const FVector2D &MouseDelta);
+
 	// ---- B-214h: evolutions (FieldAbilities choice 2; Q-214h; TODO: tune) ----
 
 	constexpr float EVOLUTION_SPRINT_BONUS_PERCENT = 15.0f;     // the default always-on bonus (+10-20%)
@@ -365,8 +400,10 @@ namespace FieldSkillRules
 	/** Both sets of lifted limits together: a limit is lifted if either lifts it; extra ceilings add. */
 	WORLD_OF_REFRACTION_API FFieldFlightLimits CombineFlightLimits(const FFieldFlightLimits &A, const FFieldFlightLimits &B);
 
-	/** B-214g: the field attack counts as held after this long pressed (IA_Field_Attack: press, then release). */
-	constexpr double FIELD_ATTACK_HOLD_SECONDS = 0.4; // TODO: tune
+	/** B-214g: the field attack counts as held after this long pressed (IA_Field_Attack: press, then release).
+	 *  OBSOLETE since B-503m4 (D-217 "Ice"): a hold of RB is the wheel and Ice is the Water entry's option
+	 *  (FFieldAttackEntry::bIce); nothing in the game reads a held attack. Delete after Crown's PIE pass. */
+	constexpr double FIELD_ATTACK_HOLD_SECONDS = 0.4;
 
 	inline bool IsFieldAttackHeld(double PressedSeconds) { return PressedSeconds >= FIELD_ATTACK_HOLD_SECONDS; }
 

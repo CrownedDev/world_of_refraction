@@ -160,7 +160,8 @@ namespace
 FBattleCardParts BattleHUDCard::GetParts(EBattleCardLevel Level, bool bParty)
 {
 	FBattleCardParts Parts;
-	Parts.bHPBar = Parts.bBuildupBar = Level != EBattleCardLevel::Hub;
+	Parts.bHPBar = Level != EBattleCardLevel::Hub;
+	Parts.bBuildupBar = Level == EBattleCardLevel::Battle; // D-216: the trial's bar is always empty after a fight (SB-18)
 	Parts.bHPLine = Parts.bEPLine = Level != EBattleCardLevel::Hub && bParty;
 	Parts.bBuildupLine = Parts.bGear = Parts.bActions = Level == EBattleCardLevel::Battle && bParty;
 	Parts.bStatus = Level == EBattleCardLevel::Battle;

@@ -92,6 +92,9 @@ void FHubHUDSpec::Define()
 				  BattleHUDView::PoolFraction(Hub->CalculateMaxEnergy(), Hub->CalculateMaxEnergy()));
 		TestEqual(TEXT("the build-up bar is empty between fights (SB-18)"), Cards[1].BuildupFraction, 0.0f);
 		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
+		const TArray<FBattleHUDCard> Played = WoRHubHUD::BuildPartyStrip(Party, 1);
+		TestTrue(TEXT("B-503m4 (D-217): the played member first, then the rest in party order"),
+				 Played.Num() == 2 && Played[0].Name.ToString() == Hurt->Name && Played[1].Name.ToString() == Hub->Name);
 	});
 
 	It("fits a full party on one row (B-503i, B-503j; the chip's room is kept until it is deleted, B-503k)", [this]()
@@ -127,7 +130,7 @@ void FHubHUDSpec::Define()
 		Party->Members.AddDefaulted(); // no data: no card
 		Party->Members.AddDefaulted_GetRef().CharacterData = FWoRTestWorld::NewCharacterData();
 		TestEqual(TEXT("the first member's card"), WoRHubHUD::GetFieldAttackCardIndex(Party, 0), 0);
-		TestEqual(TEXT("the cards skip a member with no data"), WoRHubHUD::GetFieldAttackCardIndex(Party, 2), 1);
+		TestEqual(TEXT("B-503m4 (D-217): the played member's card is always the first"), WoRHubHUD::GetFieldAttackCardIndex(Party, 2), 0);
 		TestEqual(TEXT("a member with no card"), WoRHubHUD::GetFieldAttackCardIndex(Party, 1), INDEX_NONE);
 		TestEqual(TEXT("no slot"), WoRHubHUD::GetFieldAttackCardIndex(Party, INDEX_NONE), INDEX_NONE);
 		TestEqual(TEXT("no party"), WoRHubHUD::GetFieldAttackCardIndex(nullptr, 0), INDEX_NONE);

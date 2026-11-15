@@ -1242,6 +1242,12 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-218 — The wheel's pick is what the character holds, and their parry
+**Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
+**Answer (Crown):** (1) Picking a **weapon** on the field wheel (D-217) **changes the weapon in hand**: the character shows and swings that weapon. Picking an **element source** (the innate, an evolution, an adapter) **hides the weapon**. (2) **Whatever is picked is the character's active parry** in the fight: "whatever you use is what your active parry will be". The parry priority setting (B-392 / B-393, `EParryElementPriority`) already decides which element a parry uses; the wheel's pick now drives it.
+**The wheel is a toggle (Crown, 2026-11-15):** a hold opens it and it stays on screen; the mouse works on it (cursor, hover, click); the centre shows only the result ("Sword", "Fire Sword").
+**Notes for Claude:** how the pick maps onto the parry priority's values (and whether the setting stays as an override) is for the build job to report before changing fight rules.
+
 ### D-217 — The field attack strip: the weapon type above the card, LB changes its infusion
 **Status:** ANSWERED (Crown, 2026-11-15; changes D-215 point 3 and B-503h's chip) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** the separate field attack chip with the weapon's name goes. Instead a **strip above the character's card** names what the field attack is: for a weapon user the **weapon type** ("Sword"), and when infused the element first ("Fire Sword"). **LB (held) changes the infusion**: it starts plain ("Sword") and cycles the character's available sources. A Refractor or Resonator has no weapon line: the strip just names the source element in use ("Fire" for a Fire Refractor, or a Resonator whose main ring is Fire), so adapters and rings need no names here. The weapon is the loadout's ACTIVE entry; LB no longer cycles weapons, rings and evolutions as separate entries (D-215 point 3).
@@ -1283,6 +1289,24 @@ The queue of questions only Crown can answer.
 - (2) A: the swing on screen is the one the player started; changing its element mid-air would not match what they see.
 - (3) A: Metaphor: ReFantazio lets the character keep moving through the field attack, which keeps the map fluid. The feet may slide until the swing is blended on the upper body; Crown judges it in PIE.
 **Notes for Claude:** built in B-503b. A second attack is refused until the first hit has landed. A weapon whose attack has no field montage hits at once, as before.
+
+### Q-503r — An evolution in a weapon's socket: which infusion mode, and for which options
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503r, Crown: "whatever is attached in the socket decides") · **Blocks:** —
+**Question:** the rule leaves two things open, none of them lore: (1) does it hold for an adapter's socket too, or only a weapon's; (2) does a Raw action (HP, no element) with an evolution in the weapon's socket take the evolution's mode or the weapon's.
+**Answer:** (1) **both sockets**: the rule is about what sits in the socket, not what holds it. (2) **The weapon's**: Raw pushes no element and uses no socket, so the socket has nothing to decide. In games where a socketed gem changes a skill (Path of Exile's support gems, Diablo II's runewords) the gem changes only what it is linked to, which players find clear.
+**Notes for Claude:** built in B-503r (`ResolveInfusionSource`, the `ModeOf` lambda). A crystal carries no mode (`FCrystalAttachment` has none), so a crystal socket keeps the weapon's or adapter's mode as before.
+
+### Q-503m5 — The toggle wheel: a click off it, the middle, the menu key
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503m5, D-218 "The wheel is a toggle") · **Blocks:** —
+**Question:** D-218 makes the wheel a toggle with the mouse on it. Three small things are left: (1) what a click off the wheel does; (2) what the cursor in the middle circle does; (3) what the menu key does while the wheel is up.
+**Answer:** (1) **Nothing**: the wheel stays up (a stray click doesn't throw the choice away or attack). (2) **Keeps the pick**; a click there confirms it. (3) **Closes the wheel with no change**, then opens the menu. Radial menus that stay open (Mass Effect's power wheel, The Witcher 3's sign wheel on PC) pick only from the slices, keep the last pick in the middle, and give way to the pause menu; widely used and not complained about.
+**Notes for Claude:** built in B-503m5. Q-503m4 (1) is superseded: the cursor picks the slice under it (`FieldSkillRules::GetFieldWheelSliceAt`); the pointer from mouse travel (`MoveFieldWheelPointer`) is flagged OBSOLETE. While the wheel is up the controller ignores move and look input, so the character stands and the camera holds whatever the pawn's own keys are.
+
+### Q-503m4 — The wheel on RB: what the mouse does, what a ring infuses, what a tap of R does
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown has seen these defaults; Crown may change) · **Raised:** 2026-11-15 (B-503m4, D-217 "The wheel on RB") · **Blocks:** —
+**Question:** D-217's wheel on RB leaves five things open, none of them lore: (1) how the mouse picks a slice; (2) what a weapon user's ring, innate or evolution slice swings; (3) what a tap of R (keyboard) does, now RB's tap is the attack; (4) two entries of one element: one slice or two (Q-503k (2) said one stop per element); (5) which option a slice opens on when the stick moves to it.
+**Answer:** (1) **the mouse moves a pointer on the wheel** from its travel (clamped to the rim), read like the stick; the camera holds still. GTA V's PC weapon wheel picks by mouse movement this way, widely used and liked. (2) **The weapon in hand, infused** ("Lightning Sword"), as D-217's strip names it; a weapon's own slice swings that weapon. (3) **Nothing**: the wheel is a hold, and Doom Eternal's and GTA V's wheel keys do nothing on a tap unless they double as another action (RB's tap is the attack). (4) **Two slices**: the slices are the loadout's entries (D-217), so each entry is its own slice; this supersedes Q-503k (2). (5) **Its first option**, or the kept one on the kept entry's slice (GTA V keeps each weapon's attachment choice).
+**Notes for Claude:** built in B-503m4. The old held attack (`FIELD_ATTACK_HOLD_SECONDS`) is flagged OBSOLETE; Ice is the Water entry's option (`FFieldAttackEntry::bIce`). LB is off the field keys; RT stays free on the map.
 
 ### Q-503m3 — The LB wheel: which stick, which way the mouse wheel turns, what a tap does
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503m3, D-217) · **Blocks:** —

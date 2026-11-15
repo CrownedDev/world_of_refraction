@@ -87,8 +87,12 @@ namespace WoRHubHUD
 	WORLD_OF_REFRACTION_API FText BuildQuestLine(const UWorld *World);
 
 	/** B-503g: the party strip, one card per member in party order (members with no data are left out).
-	 *  B-503j (D-216): the battle HUD's card; its data from the carried vitals (none: full, as the pause menu). */
-	WORLD_OF_REFRACTION_API TArray<FBattleHUDCard> BuildPartyStrip(const UParty *Party);
+	 *  B-503j (D-216): the battle HUD's card; its data from the carried vitals (none: full, as the pause menu).
+	 *  B-503m4 (D-217): the played member (PlayedSlot) is always the first card, the others after in party order. */
+	WORLD_OF_REFRACTION_API TArray<FBattleHUDCard> BuildPartyStrip(const UParty *Party, int32 PlayedSlot = INDEX_NONE);
+
+	/** B-503m4: the party slot of the member Pawn plays (INDEX_NONE: none). */
+	WORLD_OF_REFRACTION_API int32 FindPlayedMemberSlot(const APawn *Pawn);
 
 	/** B-503j (D-216): the strip's cards show the Hub level on the hub map (DefaultGame.ini HubLevel) or with no world,
 	 *  else the Trial level. B-503m: by the map, run or not (a trial map played straight from the editor has none). */
@@ -98,7 +102,8 @@ namespace WoRHubHUD
 	 *  shows in a trial only; the hub shows no strip, as it shows no HP (D-216). */
 	inline bool ShowsFieldAttackStrip(EBattleCardLevel Level) { return Level == EBattleCardLevel::Trial; }
 
-	/** B-503k: the party strip's card (BuildPartyStrip's order) of the member in MemberSlot; INDEX_NONE for none. */
+	/** B-503k: the party strip's card (BuildPartyStrip's order) of the member in MemberSlot, played: B-503m4 (D-217)
+	 *  the first card; INDEX_NONE for none. */
 	WORLD_OF_REFRACTION_API int32 GetFieldAttackCardIndex(const UParty *Party, int32 MemberSlot);
 
 	/** B-503k: the card of the member Pawn plays, who makes the field attack (INDEX_NONE: none). */

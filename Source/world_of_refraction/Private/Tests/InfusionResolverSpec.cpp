@@ -9,6 +9,7 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
@@ -72,6 +73,30 @@ void FInfusionResolverSpec::Define()
 		TestTrue(TEXT("broken: no element"),
 				 Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::WeaponCrystal).Element == ESpellElement::None);
 		TestTrue(TEXT("Raw splits by the weapon's mode"),
+				 Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::Raw).Mode == EInfusionMode::Physical);
+	});
+
+	It("takes the mode from what sits in the socket: an evolution its own, a crystal the holder's (B-503r)", [this]()
+	{
+		if (!TestNotNull(TEXT("Executor"), Executor)) return;
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Weapon->InfusionMode = EInfusionMode::Physical;
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData(), Weapon);
+		if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
+		AActor *Actor = Loadout->GetOwner();
+		ActiveOf(Loadout).PrimaryWeapon.WeaponEntry.AttachedItem = InfusionResolverTestGem(INFUSION_RESOLVER_TEST_INTACT);
+		TestTrue(TEXT("a crystal: the weapon's mode"),
+				 Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::WeaponCrystal).Mode == EInfusionMode::Physical);
+
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Evolution->InfusionMode = EInfusionMode::Status;
+		FRuntimeAttachedItem Socketed;
+		Socketed.Kind = EAttachedItemKind::Evolution;
+		Socketed.Evolution.Item = Evolution;
+		ActiveOf(Loadout).PrimaryWeapon.WeaponEntry.AttachedItem = Socketed;
+		TestTrue(TEXT("an evolution: its own mode"),
+				 Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::WeaponCrystal).Mode == EInfusionMode::Status);
+		TestTrue(TEXT("Raw still splits by the weapon's mode"),
 				 Executor->ResolveInfusionSource(Actor, EInfusionSourceOption::Raw).Mode == EInfusionMode::Physical);
 	});
 
