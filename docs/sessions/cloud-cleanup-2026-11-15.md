@@ -19,9 +19,15 @@ Cloud writer, no Unreal: every branch below is **unbuilt**. The desktop merger b
 - **B-317c**: CC+UE, and needs B-312b, which is only at step 1 (29 copy reads left); its part 3 is an editor step.
 - **B-351e**: its PIE gate (B-351d) isn't passed.
 - **B-066**: needs the editor (the two spell assets).
-- **B-042g3 to g6**: a chain of large GAS refactors on top of the gated B-042g2; left until the standalone jobs are done.
+- **B-042g3 to g6**: not started. g3 needs a new held-effect struct and the effect conditions moved onto the GE context (net-serialized), on top of B-042g2, which waits for Crown's play pass; g4 and g5 are L. Too much new design to write without a compiler: best done on the desktop once B-042g2 is merged.
 - **B-317b**: the store's co-op move to `AWoRPlayerState` (replication, owner-only lists): not attempted blind; it can't be checked without a two-player run.
 
 ## Reviews
 
-wor-reviewer (2026-11-15) on B-042g2 and B-408a: no must-fix; B-408a's two should-fixes applied; B-042g2's specs-to-watch added to its PIE sheet.
+wor-reviewer (2026-11-15) on B-042g2 and B-408a: no must-fix; B-408a's two should-fixes applied; B-042g2's specs-to-watch added to its PIE sheet. On B-411 and B-309b: no must-fix; B-411's small fixes applied. **Merge note:** B-411 and B-309b both add to `LoadoutSystem.md` and `PIE/README.md` (doc-only conflicts); B-309b, B-170h2b stack on B-170h2 `-2`.
+
+## Merge order suggested
+
+1. B-170h2 `-2`, then B-170h2b `-2` and B-309b (both on it).
+2. B-408a `-2` (independent).
+3. Gated, when their gate passes: B-034b `-2` (B-034 PIE + Find in Blueprints), B-042g2 `-2` (play pass at `wor.Effects.UseGAS 1`), B-411 (B-098 PIE).
