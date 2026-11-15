@@ -1286,6 +1286,17 @@ The queue of questions only Crown can answer.
 **Reference:** Dark Souls' bonfires and Elden Ring's Sites of Grace (rest and level up at one spot), Hollow Knight's benches (rest and change charms): one stop does everything and the map reads at a glance; all three are widely praised for it.
 **Notes for Claude:** B-447 and B-449 built the seller and V as NPC actors; B-502 turns them into rest point types. Until the art, test boxes stand in (purple rest points, shop colours for the service).
 
+### Q-309c — The save stores the slots: the slots can't hold a whole loadout yet
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-309c, cloud writer 7) · **Blocks:** —
+**Question:** B-309c says the save writes `FCombatLoadout::Slots` and a loadout round-trips through the slots alone. Two facts, read in the code, stand in the way (not lore):
+- The save never sees `FCombatLoadout`. A custom loadout is kept in the pool as an `FSavedLoadout` (`PoolSubsystem.h:155`), which is also the designer-authored struct inside every `UInventoryData` asset. `SaveSubsystem.cpp` `SaveCustomLoadout` / `RestoreCustomLoadout` convert it to and from `FSavedCustomLoadout`.
+- `FLoadoutSlot` (`FLoadoutSlot.h:30`) holds less than a loadout. It has no off hand (`FromWeaponLoadoutEntry` drops `OffHandEntry`, B-477) and no evolution primary. It doesn't say which slot is primary and which is secondary (only `LegacyOrigin`, which isn't saved). So saving the slots alone would lose the dual wield, the evolution and which weapon is in hand.
+**Options:**
+- **A** Reorder. B-309d goes first: the pool keeps custom loadouts as slots, and `FLoadoutSlot` gains the off hand and its place (primary, secondary or adapter). The evolution primary stays a field beside the slots, as apparel and innate spells do. B-309c then writes those slots with the save bump.
+- **B** Now: give `FSavedCustomLoadout` its own slot list made from `FSavedLoadout`'s old fields, and bump the save. This wipes saves (D-060) for a format that B-309d would reshape again.
+**Answer:** **A**, by the reference-backed default. Change the store first and the file format once, as UE's own versioned saves do (one bump per real format change). B is a save wipe that changes nothing a player sees.
+**Notes for Claude:** B-309c now depends on B-309d. The authored `FSavedLoadout` asset fields stay (D-058); only the runtime store and the save file move. B-408b (`DropEncounters`) still waits for the next save bump, now B-309c's.
+
 ### Q-502 — Rest point services: which rest points can be the shrine, where the point is bought, what the anvil opens
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-14; Crown may change) · **Raised:** 2026-11-14 (B-502, D-214) · **Blocks:** —
 **Question:** D-214 makes rest points the services. Four things it leaves open, none of them lore: (1) Which rest points can be the pillar-point shrine in a run? (2) What does a shrine do in a run where it is not the one? (3) Where is the point bought? (4) What do the vendor rest points (the anvil, the ritual tree, the crystal pedestal) open?
