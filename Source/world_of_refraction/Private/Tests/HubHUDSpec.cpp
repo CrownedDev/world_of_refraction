@@ -87,6 +87,9 @@ void FHubHUDSpec::Define()
 				  static_cast<float>(Hurt->CalculateMaxHealth() / 2) / static_cast<float>(Hurt->CalculateMaxHealth()), UE_KINDA_SMALL_NUMBER);
 		TestEqual(TEXT("carried EP"), Cards[1].EPLine.ToString(),
 				  BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), 0, Hurt->CalculateMaxEnergy()).ToString());
+		TestEqual(TEXT("B-503m: the EP bar follows it"), Cards[1].EPFraction, 0.0f);
+		TestEqual(TEXT("and a full one is full"), Cards[0].EPFraction,
+				  BattleHUDView::PoolFraction(Hub->CalculateMaxEnergy(), Hub->CalculateMaxEnergy()));
 		TestEqual(TEXT("the build-up bar is empty between fights (SB-18)"), Cards[1].BuildupFraction, 0.0f);
 		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
 	});
@@ -99,10 +102,11 @@ void FHubHUDSpec::Define()
 		TestTrue(TEXT("four cards and the widest chip fit"), WoRHubHUD::GetPartyStripMaxWidth(PartyConstants::MAX_PARTY_MEMBERS) <= Room);
 	});
 
-	It("shows the hub level out of a run and the trial level in one (B-503j, D-216)", [this]()
+	It("shows the trial level on any map but the hub, run or not (B-503j, D-216; B-503m)", [this]()
 	{
-		TestTrue(TEXT("no run: the hub's cards (names only)"), WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Hub);
-		TestTrue(TEXT("no world: the hub's cards"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Hub);
+		TestTrue(TEXT("no world: the hub's cards (names only)"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Hub);
+		TestTrue(TEXT("not the hub map, no run (a trial map played straight from the editor): the trial's cards"),
+				 WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
 		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
 		if (!TestNotNull(TEXT("run subsystem"), Run))
 		{

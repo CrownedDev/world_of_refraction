@@ -172,8 +172,9 @@ void FBattleHUDSpec::Define()
 				const FBattleCardParts Parts = BattleHUDCard::GetParts(Level, Card.bParty);
 				TestNotNull(TEXT("the name"), Card.NameText.Get());
 				TestEqual(TEXT("HP bar"), Card.HPBar != nullptr, Parts.bHPBar);
-				TestEqual(TEXT("HP line"), Card.HPText != nullptr, Parts.bHPLine);
-				TestEqual(TEXT("EP line"), Card.EPText != nullptr, Parts.bEPLine);
+				TestEqual(TEXT("HP number (on the HP bar, B-503m)"), Card.HPText != nullptr, Parts.bHPLine);
+				TestEqual(TEXT("EP bar (B-503m)"), Card.EPBar != nullptr, Parts.bEPLine);
+				TestEqual(TEXT("EP number (on the EP bar)"), Card.EPText != nullptr, Parts.bEPLine);
 				TestEqual(TEXT("build-up bar"), Card.BuildupBar != nullptr, Parts.bBuildupBar);
 				TestEqual(TEXT("build-up line"), Card.BuildupText != nullptr, Parts.bBuildupLine);
 				TestEqual(TEXT("the gear tooltip on hover, no gear line (B-503k)"), Card.Frame->GetVisibility() == ESlateVisibility::Visible, Parts.bGear);
@@ -385,6 +386,8 @@ void FBattleHUDSpec::Define()
 			}
 			TestEqual(TEXT("seeded HP line"), HUD->GetCards()[0].HPLine.ToString(),
 					  BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), HeroData->CurrentHP, HeroData->MaxHP).ToString());
+			TestEqual(TEXT("B-503m: the EP bar's fill"), HUD->GetCards()[0].EPFraction,
+					  BattleHUDView::PoolFraction(HeroData->CurrentEP, HeroData->MaxEP));
 
 			Hero->FindComponentByClass<UCharacterDataComponent>()->ServerTakeDamage(BATTLE_HUD_HIT);
 			TestEqual(TEXT("HP line after the hit"), HUD->GetCards()[0].HPLine.ToString(),

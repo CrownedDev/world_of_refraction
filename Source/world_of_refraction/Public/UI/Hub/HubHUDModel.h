@@ -90,7 +90,8 @@ namespace WoRHubHUD
 	 *  B-503j (D-216): the battle HUD's card; its data from the carried vitals (none: full, as the pause menu). */
 	WORLD_OF_REFRACTION_API TArray<FBattleHUDCard> BuildPartyStrip(const UParty *Party);
 
-	/** B-503j (D-216): the strip's cards show the Trial level in a run, else the Hub level. */
+	/** B-503j (D-216): the strip's cards show the Hub level on the hub map (DefaultGame.ini HubLevel) or with no world,
+	 *  else the Trial level. B-503m: by the map, run or not (a trial map played straight from the editor has none). */
 	WORLD_OF_REFRACTION_API EBattleCardLevel GetCardLevel(const UWorld *World);
 
 	/** B-503k (D-217): the field attack strip above a card (FFieldAttackEntry::Name: "Sword", "Fire Sword", "Fire")

@@ -48,8 +48,6 @@ namespace HubHUDStyle
 	constexpr float QuestRefreshSeconds = 1.0f;
 	const FAnchors BottomLeft(0.0f, 1.0f);
 	const FVector2D BottomLeftAlignment(0.0f, 1.0f);
-	/** B-503k (D-217): how long the field attack strip stays lit after R / LB steps it. TODO: tune */
-	constexpr float FieldAttackFlashSeconds = 0.35f;
 	/** Between the strip and its card. TODO: tune in PIE */
 	constexpr float AttackStripGap = 3.0f;
 	/** B-503g: the party strip (mockup hub/hud: 48, 640 at 720p, so x1.5 here); bottom left, cards left to right.
@@ -140,8 +138,8 @@ void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
 {
 	using namespace HubHUDStyle;
 
-	// B-503j (D-216): the battle HUD's card, at the map's level. A run is active before its map opens and each map
-	// makes a new HUD, so the level is read once here.
+	// B-503j (D-216): the battle HUD's card, at the map's level (B-503m: hub map or not). Each map makes a new HUD,
+	// so the level is read once here.
 	const EBattleCardLevel Level = WoRHubHUD::GetCardLevel(GetWorld());
 	const bool bAttackStrips = WoRHubHUD::ShowsFieldAttackStrip(Level);
 	UHorizontalBox *Strip = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -228,6 +226,7 @@ void UHubHUDWidget::RefreshPartyStrip()
 		Card.bAlive = Data.bAlive;
 		Card.HPFraction = Data.HPFraction;
 		Card.HPLine = Data.HPLine;
+		Card.EPFraction = Data.EPFraction;
 		Card.EPLine = Data.EPLine;
 		Card.BuildupFraction = Data.BuildupFraction;
 		Card.CracksShown = Data.CracksShown;
@@ -267,21 +266,7 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 	{
 		return; // headless, the hub, or no card for the pawn
 	}
-	SetFieldAttack(Entry);
-	AttackStrips[AttackStripCard]->SetBrushColor(WoRMenuStyle::FocusColor);
-	if (UWorld *World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(FieldAttackTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::EndFieldAttackFlash),
-										  HubHUDStyle::FieldAttackFlashSeconds, /*bLoop=*/false);
-	}
-}
-
-void UHubHUDWidget::EndFieldAttackFlash()
-{
-	for (UBorder *AttackStrip : AttackStrips)
-	{
-		AttackStrip->SetBrushColor(BattleCardStyle::CardColor);
-	}
+	SetFieldAttack(Entry); // B-503m: no flash (Crown: the text change is enough)
 }
 
 void UHubHUDWidget::NativeConstruct()
@@ -310,7 +295,6 @@ void UHubHUDWidget::NativeDestruct()
 	{
 		World->GetTimerManager().ClearTimer(RefreshTimer);
 		World->GetTimerManager().ClearTimer(QuestTimer);
-		World->GetTimerManager().ClearTimer(FieldAttackTimer);
 	}
 	if (UCurrencyComponent *Wallet = BoundWallet.Get())
 	{

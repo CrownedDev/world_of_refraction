@@ -417,6 +417,7 @@ void UBattleHUDWidget::RefreshPools()
 		Card.HPLine = BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), CharData->CurrentHP, CharData->MaxHP);
 		// B-391b: a Broken Darkness character's EP is its absorption pool, which can overload past max (the old "Abs").
 		Card.bBrokenDarkness = CharData->IsBrokenDarkness();
+		Card.EPFraction = BattleHUDView::PoolFraction(CharData->CurrentEP, CharData->MaxEP); // B-503m
 		Card.EPLine = Card.bBrokenDarkness ? BattleHUDView::FormatAbsorbLine(CharData->CurrentEP, CharData->MaxEP)
 										   : BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), CharData->CurrentEP, CharData->MaxEP);
 		Card.EPColour = Card.bBrokenDarkness ? BattleHUDView::GetOverloadColour(CharData->CurrentEP, CharData->MaxEP)
