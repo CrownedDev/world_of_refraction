@@ -152,10 +152,8 @@ namespace
 			const auto AddWeapon = [&Slices](const FWeaponLoadoutEntry &Slot)
 			{
 				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
-				// B-513: the weapon's own name, so two of one type can be told apart; the centre keeps the type.
-				const UWeaponData *Weapon = Slot.WeaponEntry.Weapon;
-				Slice.Name = Weapon->GetDisplayName().IsEmpty() ? WoRGameNames::GetHeldWeaponTypeName(Weapon, Slot.HasOffHand())
-															  : FText::FromString(Weapon->GetDisplayName());
+				// B-513 / B-513b: the pieces' own names ("Flame Sword and Void Shield"); the centre keeps the type.
+				Slice.Name = WoRGameNames::GetHeldPiecesName(Slot.WeaponEntry.Weapon, Slot.HasOffHand() ? Slot.OffHandEntry.Weapon : nullptr);
 				Slice.Element = LiveSocketElement(Slot.WeaponEntry.GetAttachedItem());
 				Slice.Kind = EFieldAttackKind::Weapon;
 				Slice.Weapon = &Slot;

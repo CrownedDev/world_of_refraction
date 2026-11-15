@@ -36,12 +36,7 @@ namespace LoadoutV2Build
 
 	FText SetName(const FWeaponLoadoutEntry &Set)
 	{
-		const FText Main = FText::FromString(Set.WeaponEntry.Weapon ? Set.WeaponEntry.Weapon->GetDisplayName() : FString());
-		if (!Set.HasOffHand())
-		{
-			return Main;
-		}
-		return FText::Format(LOCTEXT("PairName", "{0} + {1}"), Main, FText::FromString(Set.OffHandEntry.Weapon->GetDisplayName()));
+		return WoRGameNames::GetHeldPiecesName(Set.WeaponEntry.Weapon, Set.HasOffHand() ? Set.OffHandEntry.Weapon : nullptr); // B-513b: as the wheel
 	}
 
 	FLoadoutV2Entry MakeWeaponEntry(const FWeaponLoadoutEntry &Set, ELoadoutV2Place Place)

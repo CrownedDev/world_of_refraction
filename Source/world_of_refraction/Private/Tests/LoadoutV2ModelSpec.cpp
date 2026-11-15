@@ -1,6 +1,6 @@
 // LoadoutV2ModelSpec.cpp
 // B-476 (D-206, D-209, D-210; UIScreens.md #2-3), first part: the v2 loadout screen's model. The Weapons tab lists the
-// entries by name (a pair as "A + B"), their two sockets as icons and the weapon in hand; only "Cells used n of 5" and
+// entries by name (a pair as "A and B", B-513b), their two sockets as icons and the weapon in hand; only "Cells used n of 5" and
 // the Add weapon frame's "n/5 left" show the cells. The Add gear window's draft is refused in the game's words (a pair
 // of two types, a twin-only weapon alone, an evolution where the class can't put one, no free entry, over the cells)
 // and goes into the next free place; Compare sets built-ins gained beside lost.
@@ -91,7 +91,7 @@ void FLoadoutV2ModelSpec::Define()
 		{
 			return;
 		}
-		TestEqual(TEXT("names only, a pair as A + B"), Page.Entries[0].Name.ToString(), FString(TEXT("Ashen Blade + Cinder Edge")));
+		TestEqual(TEXT("names only, a pair as A and B (B-513b)"), Page.Entries[0].Name.ToString(), FString(TEXT("Ashen Blade and Cinder Edge")));
 		TestTrue(TEXT("its sockets as icons"), Page.Entries[0].Sockets.Num() == 2 && Page.Entries[0].Sockets[0] == ELoadoutV2SocketIcon::Evolution &&
 												   Page.Entries[0].Sockets[1] == ELoadoutV2SocketIcon::Stone);
 		TestTrue(TEXT("the first is in hand"), Page.Entries[0].bActive && !Page.Entries[1].bActive);
@@ -307,7 +307,7 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("two swords pair"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Entry, Draft, Cells).IsEmpty());
 		TestTrue(TEXT("it goes in"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Entry, Draft, Refusal));
 		TestEqual(TEXT("one entry, now a pair"), WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[0].Name.ToString(),
-				  FString(TEXT("Blade + Twin")));
+				  FString(TEXT("Blade and Twin")));
 
 		FLoadoutV2Draft TwinAlone = WoRLoadoutV2::DraftFromEntry(Loadout, Entry);
 		TwinAlone.MainHand = Twin;
