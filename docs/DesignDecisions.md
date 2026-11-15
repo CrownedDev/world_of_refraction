@@ -1248,6 +1248,7 @@ The queue of questions only Crown can answer.
 **A quit is the exception (Crown, 2026-11-15):** "if you quit then the progress doesn't count, so they would be how they were before the run". A quit run puts the loadout back to how it was when the run began, as it takes back the items found (Q-439). Finishing and extracting carry the run's loadout into the hub.
 **Out of wipes (Crown, 2026-11-15):** it carries over too: "it still counts as a complete run". Only a quit (and a game closed mid-run) restores the run-start loadout.
 **Gear found in the run (Crown, 2026-11-15; refines D-111 / ER-65b):** only what is **equipped** at the end is kept; found gear left in the inventory goes back as before. The kept found gear is worn in the hub, and is **lost when the next run starts**. Crown's reason: hub secrets can then be found with the gear's movement and abilities from the last run.
+**Equipped crystals (Crown, 2026-11-15):** a found crystal that is in a socket at the end is kept with its gear, on every carrying ending (out of wipes included), and the player may change it in the hub. Like the gear, it is lost when the next run starts.
 **Notes for Claude:** built by B-503t. Found *items* (crystals and the like) keep their own rule (stored on a finish or extract, taken back on a quit).
 
 ### D-218 — The wheel's pick is what the character holds, and their parry
