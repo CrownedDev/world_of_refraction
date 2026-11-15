@@ -321,9 +321,39 @@ namespace FieldSkillRules
 		return Earliest < NO_IMPACT ? Earliest / Montage->RateScale : NO_SWING_DELAY;
 	}
 
+	namespace
+	{
+		/** The stop Index belongs to: itself, or the stop before its hold steps. */
+		int32 FieldAttackStopOf(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+		{
+			while (Index > FIRST_FIELD_ATTACK_INDEX && Entries[Index].bHoldStep)
+			{
+				--Index;
+			}
+			return Index;
+		}
+	}
+
+	int32 NextFieldAttackSourceIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+	{
+		int32 Next = FieldAttackStopOf(Entries, ClampFieldAttackIndex(Index, Entries.Num())) + 1;
+		while (Next < Entries.Num() && Entries[Next].bHoldStep)
+		{
+			++Next;
+		}
+		return Next < Entries.Num() ? Next : FIRST_FIELD_ATTACK_INDEX;
+	}
+
+	int32 NextFieldAttackHoldIndex(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+	{
+		const int32 Kept = ClampFieldAttackIndex(Index, Entries.Num());
+		const int32 Next = Kept + 1;
+		return Next < Entries.Num() && Entries[Next].bHoldStep ? Next : FieldAttackStopOf(Entries, Kept);
+	}
+
 	FString FieldAttackEntryString(const FFieldAttackEntry &Entry)
 	{
-		return FString::Printf(TEXT("%s '%s' %s %s (%s%s)"),
+		return FString::Printf(TEXT("%s%s '%s' %s %s (%s%s)"), Entry.bHoldStep ? TEXT("hold step: ") : TEXT(""),
 							   *StaticEnum<EFieldAttackKind>()->GetNameStringByValue(static_cast<int64>(Entry.Kind)), *Entry.Name.ToString(),
 							   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Entry.Element)),
 							   *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(Entry.Physical)),
