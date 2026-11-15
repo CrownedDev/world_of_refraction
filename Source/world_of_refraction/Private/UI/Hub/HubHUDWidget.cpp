@@ -5,6 +5,7 @@
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Brushes/SlateRoundedBoxBrush.h"
 #include "Components/CanvasPanel.h"
+#include "Components/Border.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
@@ -56,25 +57,12 @@ namespace HubHUDStyle
 	/** How long the chip's panel stays lit after R / LB cycles it. TODO: tune */
 	constexpr float FieldAttackFlashSeconds = 0.35f;
 	/** B-503g: the party strip (mockup hub/hud: 48, 640 at 720p, so x1.5 here); bottom left, cards left to right.
-	 *  B-503i: a card's width follows its content (WoRHubHUD::PARTY_CARD_MIN_WIDTH to _MAX_WIDTH). */
+	 *  B-503j: the cards are the battle HUD's (BattleCardStyle); the chip's width follows its content. */
 	constexpr float PartyStripBottom = 54.0f;
-	constexpr float PartyCardHeight = 66.0f;
-	constexpr float PartyCardPaddingX = 15.0f;
-	constexpr float PartyDotSize = 24.0f;
 	constexpr float PartyDotGap = 12.0f;
-	constexpr float PartyBarHeight = 8.0f;
 	/** B-503i: the mockup's card: the top-left corner cut 6 px at 720p, a 1 px outline. */
 	constexpr float CardCutSize = 9.0f;
 	constexpr float CardOutlineThickness = 1.5f;
-
-	/** A box only as tall as Height; its width follows the slot (a bar that fills its column). */
-	inline USizeBox *MakeHeightOnly(UWidgetTree *Tree, float Height, UWidget *Content)
-	{
-		USizeBox *Box = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		Box->SetHeightOverride(Height);
-		Box->AddChild(Content);
-		return Box;
-	}
 
 	/** A white disc of Size; SetColorAndOpacity tints it. */
 	inline UImage *MakeDot(UWidgetTree *Tree, float Size)
@@ -171,8 +159,8 @@ void UHubHUDWidget::BuildTree()
 	AddToRow(FieldAttackElementRow, FieldAttackElement);
 	AddToColumn(FieldAttackColumn, FieldAttackElementRow);
 	AddToRow(FieldAttackRow, FieldAttackColumn)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	UHubHUDCardFrame *ChipFrame = nullptr;
-	FieldAttackBox = MakeCard(FieldAttackRow, WoRHubHUD::FIELD_ATTACK_CHIP_MIN_WIDTH, WoRHubHUD::FIELD_ATTACK_CHIP_MAX_WIDTH, ChipFrame);
+	UBorder *ChipFrame = nullptr;
+	FieldAttackBox = MakeChipCard(FieldAttackRow, WoRHubHUD::FIELD_ATTACK_CHIP_MIN_WIDTH, WoRHubHUD::FIELD_ATTACK_CHIP_MAX_WIDTH, ChipFrame);
 	FieldAttackFrame = ChipFrame;
 	// BuildPartyStrip puts the chip at the end of the strip's row.
 
@@ -188,27 +176,21 @@ void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
 {
 	using namespace HubHUDStyle;
 
+	// B-503j (D-216): the battle HUD's card, at the map's level. A run is active before its map opens and each map
+	// makes a new HUD, so the level is read once here.
+	const EBattleCardLevel Level = WoRHubHUD::GetCardLevel(GetWorld());
 	UHorizontalBox *Strip = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
 	{
-		FPartyCardWidgets &Widgets = PartyCards.AddDefaulted_GetRef();
-		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Widgets.Dot = MakeDot(WidgetTree, PartyDotSize); // the refresh tints it with the member's element
-		AddToRow(Row, Widgets.Dot, FMargin(0.0f, 0.0f, PartyDotGap, 0.0f));
-		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		Widgets.Name = MakeText(WidgetTree, RowFontSize, DimColor, true);
-		Widgets.Name->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis); // a name past the card's max width
-		Widgets.HP = MakeBar(WidgetTree, HPColor);
-		AddToColumn(Column, Widgets.Name);
-		AddToColumn(Column, MakeHeightOnly(WidgetTree, PartyBarHeight, Widgets.HP), FMargin(0.0f, LineGap * 0.5f, 0.0f, 0.0f));
-		AddToRow(Row, Column)->SetSize(FSlateChildSize(ESlateSizeRule::Fill)); // the bar spans the card's inner width
-		UHubHUDCardFrame *Frame = nullptr;
-		Widgets.Card = MakeCard(Row, WoRHubHUD::PARTY_CARD_MIN_WIDTH, WoRHubHUD::PARTY_CARD_MAX_WIDTH, Frame);
+		FBattleHUDCard &Card = PartyCards.AddDefaulted_GetRef();
+		Card.bParty = true;
+		UBorder *Frame = BattleHUDCard::Build(WidgetTree, Card, Level);
 		// Each card's gap is on its left, so the first card starts at the strip's edge and hidden cards leave none.
-		AddToRow(Strip, Widgets.Card, FMargin(Index > 0 ? WoRHubHUD::PARTY_STRIP_GAP : 0.0f, 0.0f, 0.0f, 0.0f));
-		SetShown(Widgets.Card, false);
+		// Filled: the cards and the chip in the row are one height.
+		AddToRow(Strip, Frame, FMargin(Index > 0 ? WoRHubHUD::PARTY_STRIP_GAP : 0.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+		SetShown(Frame, false);
 	}
-	AddToRow(Strip, FieldAttackBox, FMargin(WoRHubHUD::PARTY_STRIP_GAP, 0.0f, 0.0f, 0.0f));
+	AddToRow(Strip, FieldAttackBox, FMargin(WoRHubHUD::PARTY_STRIP_GAP, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 	if (UCanvasPanelSlot *StripSlot = Canvas->AddChildToCanvas(Strip))
 	{
 		StripSlot->SetAnchors(BottomLeft);
@@ -218,31 +200,18 @@ void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
 	}
 }
 
-UWidget *UHubHUDWidget::MakeCard(UWidget *Content, float MinWidth, float MaxWidth, UHubHUDCardFrame *&OutFrame)
+UWidget *UHubHUDWidget::MakeChipCard(UWidget *Content, float MinWidth, float MaxWidth, UBorder *&OutFrame)
 {
-	using namespace HubHUDStyle;
-
-	UOverlay *Layers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
-	OutFrame = WidgetTree->ConstructWidget<UHubHUDCardFrame>(UHubHUDCardFrame::StaticClass());
-	OutFrame->FillColor = PanelColor;
-	OutFrame->OutlineColor = OffColor;
-	OutFrame->SetVisibility(ESlateVisibility::HitTestInvisible); // it only paints
-	if (UOverlaySlot *FrameSlot = Layers->AddChildToOverlay(OutFrame))
-	{
-		FrameSlot->SetHorizontalAlignment(HAlign_Fill);
-		FrameSlot->SetVerticalAlignment(VAlign_Fill);
-	}
-	if (UOverlaySlot *ContentSlot = Layers->AddChildToOverlay(Content))
-	{
-		ContentSlot->SetPadding(FMargin(PartyCardPaddingX, 0.0f));
-		ContentSlot->SetHorizontalAlignment(HAlign_Fill);
-		ContentSlot->SetVerticalAlignment(VAlign_Center);
-	}
+	OutFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	OutFrame->SetBrushColor(BattleCardStyle::CardColor);
+	OutFrame->SetPadding(FMargin(BattleCardStyle::CardPadding));
+	OutFrame->SetVerticalAlignment(VAlign_Center);
+	OutFrame->SetVisibility(ESlateVisibility::HitTestInvisible);
+	OutFrame->SetContent(Content);
 	USizeBox *Box = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 	Box->SetMinDesiredWidth(MinWidth);
 	Box->SetMaxDesiredWidth(MaxWidth);
-	Box->SetHeightOverride(PartyCardHeight);
-	Box->AddChild(Layers);
+	Box->AddChild(OutFrame);
 	return Box;
 }
 
@@ -279,25 +248,27 @@ void UHubHUDWidget::RefreshPartyStrip()
 {
 	const UGameInstance *GameInstance = GetGameInstance();
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	const TArray<FHubHUDPartyCard> Cards = WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr);
-	const bool bInRun = WoRPauseMenu::IsInRun(GetWorld());
+	const TArray<FBattleHUDCard> Cards = WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr);
 	for (int32 Index = 0; Index < PartyCards.Num(); ++Index)
 	{
-		const FPartyCardWidgets &Widgets = PartyCards[Index];
+		FBattleHUDCard &Card = PartyCards[Index];
 		const bool bShown = Cards.IsValidIndex(Index);
-		WoRMenuStyle::SetShown(Widgets.Card, bShown);
+		WoRMenuStyle::SetShown(Card.Frame, bShown);
 		if (!bShown)
 		{
 			continue;
 		}
-		const FHubHUDPartyCard &Card = Cards[Index];
-		if (!Card.Name.EqualTo(Widgets.Name->GetText()))
-		{
-			Widgets.Name->SetText(Card.Name);
-		}
-		Widgets.Dot->SetColorAndOpacity(Card.DotColor);
-		Widgets.HP->SetPercent(Card.HPShare);
-		WoRMenuStyle::SetShown(Widgets.HP->GetParent(), bInRun); // D-216: the hub shows who is in the party only
+		// The model's data into the card that holds the widgets (built once).
+		const FBattleHUDCard &Data = Cards[Index];
+		Card.Name = Data.Name;
+		Card.bAlive = Data.bAlive;
+		Card.HPFraction = Data.HPFraction;
+		Card.HPLine = Data.HPLine;
+		Card.EPLine = Data.EPLine;
+		Card.BuildupFraction = Data.BuildupFraction;
+		Card.CracksShown = Data.CracksShown;
+		Card.BuildupColour = Data.BuildupColour;
+		BattleHUDCard::Push(Card);
 	}
 }
 
@@ -342,7 +313,7 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 		return; // headless: no tree
 	}
 	SetFieldAttack(Entry);
-	FieldAttackFrame->SetFillColor(WoRMenuStyle::FocusColor);
+	FieldAttackFrame->SetBrushColor(WoRMenuStyle::FocusColor);
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(FieldAttackTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::EndFieldAttackFlash),
@@ -354,7 +325,7 @@ void UHubHUDWidget::EndFieldAttackFlash()
 {
 	if (FieldAttackFrame)
 	{
-		FieldAttackFrame->SetFillColor(WoRMenuStyle::PanelColor);
+		FieldAttackFrame->SetBrushColor(BattleCardStyle::CardColor);
 	}
 }
 
