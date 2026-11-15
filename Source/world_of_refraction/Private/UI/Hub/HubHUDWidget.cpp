@@ -48,8 +48,6 @@ namespace HubHUDStyle
 	constexpr float QuestRefreshSeconds = 1.0f;
 	const FAnchors BottomLeft(0.0f, 1.0f);
 	const FVector2D BottomLeftAlignment(0.0f, 1.0f);
-	/** B-503k (D-217): how long the field attack strip stays lit after R / LB steps it. TODO: tune */
-	constexpr float FieldAttackFlashSeconds = 0.35f;
 	/** Between the strip and its card. TODO: tune in PIE */
 	constexpr float AttackStripGap = 3.0f;
 	/** B-503g: the party strip (mockup hub/hud: 48, 640 at 720p, so x1.5 here); bottom left, cards left to right.
@@ -267,21 +265,7 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 	{
 		return; // headless, the hub, or no card for the pawn
 	}
-	SetFieldAttack(Entry);
-	AttackStrips[AttackStripCard]->SetBrushColor(WoRMenuStyle::FocusColor);
-	if (UWorld *World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(FieldAttackTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::EndFieldAttackFlash),
-										  HubHUDStyle::FieldAttackFlashSeconds, /*bLoop=*/false);
-	}
-}
-
-void UHubHUDWidget::EndFieldAttackFlash()
-{
-	for (UBorder *AttackStrip : AttackStrips)
-	{
-		AttackStrip->SetBrushColor(BattleCardStyle::CardColor);
-	}
+	SetFieldAttack(Entry); // B-503m: no flash (Crown: the text change is enough)
 }
 
 void UHubHUDWidget::NativeConstruct()
@@ -310,7 +294,6 @@ void UHubHUDWidget::NativeDestruct()
 	{
 		World->GetTimerManager().ClearTimer(RefreshTimer);
 		World->GetTimerManager().ClearTimer(QuestTimer);
-		World->GetTimerManager().ClearTimer(FieldAttackTimer);
 	}
 	if (UCurrencyComponent *Wallet = BoundWallet.Get())
 	{

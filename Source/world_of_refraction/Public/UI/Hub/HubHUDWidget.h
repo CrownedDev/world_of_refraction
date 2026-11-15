@@ -60,8 +60,8 @@ public:
 	/** Reads what is in reach and the money, and updates both pieces. The timer calls it; so can a spec. */
 	void Refresh();
 
-	/** B-503k (D-217): the infusion R / LB just stepped to: shows it on the strip and flashes it. The strip is up in a
-	 *  run while the pawn has a field attack with a name. */
+	/** B-503k (D-217): the infusion R / LB just stepped to: shows it on the strip (B-503m: no flash). The strip is up
+	 *  in a trial map while the pawn has a field attack with a name. */
 	void ShowFieldAttack(const struct FFieldAttackEntry &Entry);
 
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
@@ -116,11 +116,9 @@ private:
 	TArray<TObjectPtr<UTextBlock>> AttackStripTexts;
 	/** The card whose strip shows (WoRHubHUD::FindFieldAttackCard); INDEX_NONE: none. */
 	int32 AttackStripCard = INDEX_NONE;
-	FTimerHandle FieldAttackTimer;
 	void SetFieldAttack(const struct FFieldAttackEntry &Entry);
 	/** Reads the pawn's current stop (on the slow timer: the stops read the loadout and the sources). */
 	void RefreshFieldAttack();
-	void EndFieldAttackFlash();
 
 	/** B-503g: the party strip's cards, built once (PartyConstants::MAX_PARTY_MEMBERS) at the map's level (B-503j),
 	 *  filled on Refresh. */
