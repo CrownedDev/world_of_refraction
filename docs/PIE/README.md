@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-503n](B-503n.md) | `feature/B-503n-test-loadout-cloud` (cloud, UNBUILT) | `wor.Debug.TestLoadout [variant]`: a full v2 loadout for the played character (weapons with different crystals, adapters, an evolution) and the Refractor / Resonator / Broken Darkness / Reality variants, so R / LB steps real sources | Pending |
 | [B-503j](B-503j.md) | `feature/B-503j-shared-party-card` (in dev, built 2026-11-15) | One party card everywhere (D-216): the battle card in the field, names only in the hub, HP / EP / the build-up bar in a trial, the battle unchanged; the chip after them in the same dark box | Pending |
 | [B-503k](B-503k.md) | `feature/B-503k-field-attack-strip` (in dev, built 2026-11-15) | The field attack strip above the card (Sword, Fire Sword; a caster just the element), R / LB steps the infusion; the hub card fits its name; the battle card has no gear line (tooltip kept) | Pending |
 | [B-503m](B-503m.md) | `fix/B-503m-field-card-bars` (in dev, built 2026-11-15) | Card and strip fixes: no flash on R / LB; hub map names only, any other map the trial card; HP and EP numbers on their bars (EP its own bar); the Status bar labelled; the hold 0.5 s (B-503m2) | Pending |
