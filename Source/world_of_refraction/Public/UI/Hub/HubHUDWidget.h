@@ -25,6 +25,30 @@ class UBorder;
 class UCurrencyComponent;
 class UTextBlock;
 
+/** B-503i (mockup hub/hud): a party strip card's frame: a dark fill and a thin light outline, the top-left corner cut.
+ *  It only paints: put it behind the card's content in an overlay. */
+UCLASS()
+class WORLD_OF_REFRACTION_API UHubHUDCardFrame : public UUserWidget
+{
+	GENERATED_BODY()
+
+public:
+	/** Sets the fill and repaints (the field attack chip flashes with it). */
+	void SetFillColor(const FLinearColor &Color)
+	{
+		FillColor = Color;
+		InvalidateLayoutAndVolatility();
+	}
+
+	FLinearColor FillColor = FLinearColor::Black;
+	FLinearColor OutlineColor = FLinearColor::White;
+
+protected:
+	virtual int32 NativePaint(const FPaintArgs &Args, const FGeometry &AllottedGeometry, const FSlateRect &MyCullingRect,
+							  FSlateWindowElementList &OutDrawElements, int32 LayerId, const FWidgetStyle &InWidgetStyle,
+							  bool bParentEnabled) const override;
+};
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UHubHUDWidget : public UUserWidget
 {
@@ -83,13 +107,23 @@ private:
 	TObjectPtr<UBorder> QuestBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> QuestText;
-	/** B-503h: the field attack's current loadout entry, at the end of the party strip's row. */
+	/** B-503h: the field attack's current loadout entry, a card (B-503i) at the end of the party strip's row. */
 	UPROPERTY(Transient)
-	TObjectPtr<UBorder> FieldAttackBox;
+	TObjectPtr<UWidget> FieldAttackBox;
+	UPROPERTY(Transient)
+	TObjectPtr<UHubHUDCardFrame> FieldAttackFrame;
 	UPROPERTY(Transient)
 	TObjectPtr<class UImage> FieldAttackIcon;
+	/** The icon in words when the table has no texture ("Sword"). */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FieldAttackIconText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> FieldAttackName;
+	/** The element's dot and name, under the name; hidden for an entry with no element. */
+	UPROPERTY(Transient)
+	TObjectPtr<class UHorizontalBox> FieldAttackElementRow;
+	UPROPERTY(Transient)
+	TObjectPtr<class UImage> FieldAttackDot;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> FieldAttackElement;
 	FTimerHandle FieldAttackTimer;
@@ -109,6 +143,8 @@ private:
 	};
 	TArray<FPartyCardWidgets> PartyCards;
 	void BuildPartyStrip(class UCanvasPanel *Canvas);
+	/** B-503i: a strip card: the frame behind Content, sized to it between the widths, as tall as the mockup's card. */
+	UWidget *MakeCard(UWidget *Content, float MinWidth, float MaxWidth, UHubHUDCardFrame *&OutFrame);
 	void RefreshPartyStrip();
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;
