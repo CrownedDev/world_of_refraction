@@ -371,11 +371,51 @@ namespace FieldSkillRules
 		return ((ClampFieldAttackIndex(Index, EntryCount) + Delta) % EntryCount + EntryCount) % EntryCount;
 	}
 
+	TArray<int32> GetFieldSliceStarts(const TArray<FFieldAttackEntry> &Entries)
+	{
+		TArray<int32> Starts;
+		for (int32 Index = 0; Index < Entries.Num(); ++Index)
+		{
+			if (Index == FIRST_FIELD_ATTACK_INDEX || !Entries[Index].bHoldStep)
+			{
+				Starts.Add(Index);
+			}
+		}
+		return Starts;
+	}
+
+	int32 GetFieldSliceOf(const TArray<FFieldAttackEntry> &Entries, int32 Index)
+	{
+		return Entries.IsEmpty() ? INDEX_NONE : GetFieldSliceStarts(Entries).Find(FieldAttackStopOf(Entries, ClampFieldAttackIndex(Index, Entries.Num())));
+	}
+
+	int32 StepFieldSliceOption(const TArray<FFieldAttackEntry> &Entries, int32 Index, int32 Delta)
+	{
+		if (Entries.IsEmpty())
+		{
+			return FIRST_FIELD_ATTACK_INDEX;
+		}
+		const int32 Kept = ClampFieldAttackIndex(Index, Entries.Num());
+		const int32 Start = FieldAttackStopOf(Entries, Kept);
+		int32 End = Start + 1; // one past the slice's last option
+		while (End < Entries.Num() && Entries[End].bHoldStep)
+		{
+			++End;
+		}
+		return Start + StepFieldWheelIndex(Kept - Start, Delta, End - Start);
+	}
+
+	FVector2D MoveFieldWheelPointer(const FVector2D &Pointer, const FVector2D &MouseDelta)
+	{
+		return (Pointer + MouseDelta * FIELD_WHEEL_MOUSE_SCALE).GetClampedToMaxSize(1.0);
+	}
+
 	FString FieldAttackEntryString(const FFieldAttackEntry &Entry)
 	{
-		return FString::Printf(TEXT("%s%s '%s' %s %s (%s%s)"), Entry.bHoldStep ? TEXT("hold step: ") : TEXT(""),
+		return FString::Printf(TEXT("%s[%s] %s '%s' %s%s %s (%s%s)"), Entry.bHoldStep ? TEXT("  option: ") : TEXT(""),
+							   *Entry.SliceName.ToString(),
 							   *StaticEnum<EFieldAttackKind>()->GetNameStringByValue(static_cast<int64>(Entry.Kind)), *Entry.Name.ToString(),
-							   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Entry.Element)),
+							   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Entry.Element)), Entry.bIce ? TEXT(" Ice") : TEXT(""),
 							   *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(Entry.Physical)),
 							   Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"),
 							   Entry.SwingMontage.IsNull() ? TEXT("") : *(TEXT(" ") + Entry.SwingMontage.GetAssetName()));
