@@ -155,20 +155,24 @@ namespace
 				Slice.Name = FText::FromString(Slot.RingEntry.Ring->GetDisplayName());
 				Slice.Element = LiveSocketElement(Slot.RingEntry.GetAttachedItem());
 			};
-			if (Loadout.HasPrimaryWeapon())
+			// The fight's own walk (FCombatLoadout.cpp ForEachReadLegacySlot): a primary weapon with a Weapon or None type
+			// (AutoPopulateLoadout leaves None), else a primary adapter; a Generic's secondary weapon; the adapter loadout
+			// of a Resonator or a Generic. TODO: B-503q shares one walker instead of this copy.
+			const ECharacterClass Class = LoadoutComponent->GetCharacterClass();
+			if ((Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None) &&
+				Loadout.PrimaryWeapon.IsValid())
 			{
 				AddWeapon(Loadout.PrimaryWeapon);
 			}
-			// A Resonator's adapters are its ring loadout only; a stray primary ring is never one in use (GetActiveSlotIn).
-			if (Loadout.HasPrimaryRing() && LoadoutComponent->GetCharacterClass() != ECharacterClass::Resonator)
+			else if (Loadout.HasPrimaryRing() && Class != ECharacterClass::Resonator)
 			{
-				AddRing(Loadout.PrimaryRing);
+				AddRing(Loadout.PrimaryRing); // a Resonator's stray primary ring is never one in use (GetActiveSlotIn)
 			}
-			if (Loadout.HasSecondaryWeapon())
+			if (Class == ECharacterClass::Generic && Loadout.HasSecondaryWeapon())
 			{
 				AddWeapon(Loadout.SecondaryWeapon);
 			}
-			for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+			for (const FRingLoadoutEntry &Ring : Class == ECharacterClass::Resonator || Class == ECharacterClass::Generic ? Loadout.RingLoadout : TArray<FRingLoadoutEntry>())
 			{
 				if (Ring.IsValid())
 				{
