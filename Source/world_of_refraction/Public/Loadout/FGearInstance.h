@@ -67,7 +67,8 @@ struct WORLD_OF_REFRACTION_API FGearInstance
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
 	FRuntimeAttachedItem StoneSocket;
 
-	/** B-351 (D-145): a weapon's skill-slot picks and whether its one list is active (empty / false for an adapter). */
+	/** OBSOLETE (D-224, B-517; deleted in stage 6): the picks live on the worn entry (FLoadoutSlot), so an owned piece's
+	 *  are empty. B-351 (D-145): a weapon's skill-slot picks and whether its one list is active. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
 	TArray<TObjectPtr<UAbilityData>> SkillPicks;
 
@@ -78,7 +79,7 @@ struct WORLD_OF_REFRACTION_API FGearInstance
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
 	TArray<TObjectPtr<USpellData>> AssignedSpells;
 
-	/** B-351d (D-145): the crystal's one spell list: the pick per slot and whether the list is active (both kinds). */
+	/** OBSOLETE (D-224, B-517; deleted in stage 6), as SkillPicks. B-351d (D-145): the crystal's one spell list. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
 	TArray<TObjectPtr<USpellData>> SpellPicks;
 
