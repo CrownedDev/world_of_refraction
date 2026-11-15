@@ -4,14 +4,17 @@
 // strike and the buildup in the fight) needs a party and a level change: PIE (docs/PIE/B-214f.md).
 // B-503 (D-215): the cycle through the loadout (weapons, the innate element; a weapon swings, the rest throw the pulse)
 // and the strike following the entry in use. Rings and evolutions in the cycle: PIE (docs/PIE/B-503.md).
+// B-503b: the swing's hit timed to the montage's Impact notify. The swing itself on screen: PIE (docs/PIE/B-503b.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "Animation/AnimMontage.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/ECharacterClass.h"
+#include "Combat/CombatNotify.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Field/FieldMovementComponent.h"
@@ -194,6 +197,61 @@ void FFieldAttackSpec::Define()
 			TestEqual(TEXT("both enemies"), ABattleGameMode::ApplyFieldStrikeTo(*Buildup, Hero, Enemies, Strike), Enemies.Num());
 			TestTrue(TEXT("the first has buildup"), Buildup->GetStatusBarBuildup(FirstEnemy) > 0.0f);
 			TestTrue(TEXT("the second too"), Buildup->GetStatusBarBuildup(SecondEnemy) > 0.0f);
+		});
+
+		It("times the swing's hit to the montage's earliest Impact notify, and hits at once with none", [this]()
+		{
+			constexpr float VFX_TIME = 0.3f;
+			constexpr float IMPACT_TIME = 0.4f;
+			constexpr float LATER_IMPACT_TIME = 0.9f;
+			constexpr float DOUBLE_RATE = 2.0f;
+			UAnimMontage *Montage = NewObject<UAnimMontage>(GetTransientPackage());
+			const auto AddNotify = [Montage](float Time, ECombatNotifyFamily Family)
+			{
+				UCombatNotify *Notify = NewObject<UCombatNotify>(Montage);
+				Notify->Family = Family;
+				FAnimNotifyEvent &Event = Montage->Notifies.AddDefaulted_GetRef();
+				Event.Link(Montage, Time);
+				Event.Notify = Notify;
+			};
+			TestEqual(TEXT("no montage"), FieldSkillRules::GetSwingImpactSeconds(nullptr), FieldSkillRules::NO_SWING_DELAY);
+			AddNotify(VFX_TIME, ECombatNotifyFamily::VFX);
+			TestEqual(TEXT("no Impact notify"), FieldSkillRules::GetSwingImpactSeconds(Montage), FieldSkillRules::NO_SWING_DELAY);
+			AddNotify(LATER_IMPACT_TIME, ECombatNotifyFamily::Impact);
+			AddNotify(IMPACT_TIME, ECombatNotifyFamily::Impact);
+			TestEqual(TEXT("the earliest Impact"), FieldSkillRules::GetSwingImpactSeconds(Montage), IMPACT_TIME);
+			Montage->RateScale = DOUBLE_RATE;
+			TestEqual(TEXT("at the montage's rate"), FieldSkillRules::GetSwingImpactSeconds(Montage), IMPACT_TIME / DOUBLE_RATE);
+		});
+
+		It("gives a weapon entry its attack's swing, and holds the next swing until the hit has landed", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnCasterWithWeapons(ESpellElement::Water)))
+			{
+				return;
+			}
+			constexpr float IMPACT_TIME = 5.0f; // past the cooldown: only the pending hit can refuse the second swing
+			UAnimMontage *Montage = NewObject<UAnimMontage>(GetTransientPackage());
+			UCombatNotify *Notify = NewObject<UCombatNotify>(Montage);
+			FAnimNotifyEvent &Event = Montage->Notifies.AddDefaulted_GetRef();
+			Event.Link(Montage, IMPACT_TIME);
+			Event.Notify = Notify;
+			const ULoadoutComponent *Loadout = Field->GetOwner()->FindComponentByClass<ULoadoutComponent>();
+			Loadout->GetActiveLoadout().PrimaryWeapon.WeaponEntry.Weapon->WeaponAttack->FieldMontage = Montage;
+
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			TestTrue(TEXT("the primary weapon swings with it"), Entries[0].IsSwing() && Entries[0].SwingMontage.Get() == Montage);
+			TestTrue(TEXT("the innate pulse has none"), Entries.Last().SwingMontage.IsNull());
+			TestTrue(TEXT("a swing"), Field->FieldAttack(false) == EFieldSkillRefusal::None);
+			constexpr int32 MAX_FRAMES = 1000;
+			const UWorld *World = TestWorld->GetWorld();
+			const double CooldownOver = World->GetTimeSeconds() + FieldSkillRules::FIELD_ATTACK_COOLDOWN_SECONDS;
+			for (int32 Frame = 0; Frame < MAX_FRAMES && World->GetTimeSeconds() <= CooldownOver; ++Frame)
+			{
+				TestWorld->Tick();
+			}
+			TestTrue(TEXT("the cooldown is over"), World->GetTimeSeconds() > CooldownOver);
+			TestTrue(TEXT("the hit is still to land"), Field->FieldAttack(false) == EFieldSkillRefusal::OnCooldown);
 		});
 
 		It("swings at nothing, then waits out the cooldown", [this]()
