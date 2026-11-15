@@ -44,22 +44,42 @@ namespace
     /** 0 means "no run", so a generated seed of 0 is bumped to this. */
     constexpr int32 TRIAL_NONZERO_SEED_FALLBACK = 1;
 
-    /** B-347 (D-137): opens the run layer and takes the local party's worn loadouts on the run, free. */
-    void OpenRunLayerWithWornLoadouts(UGameInstance *GI, UPoolSubsystem &Pool)
+    /** The local party's members by character key, with their class (Generic when the member has no data). */
+    TMap<FName, ECharacterClass> GetLocalPartyClasses(UGameInstance *GI)
     {
-        TSet<FName> MemberKeys;
+        TMap<FName, ECharacterClass> Members;
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
         if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
         {
             for (const FPartyMember &Member : Party->Members)
             {
-                MemberKeys.Add(UPoolSubsystem::GetCharacterKey(Member));
+                Members.Add(UPoolSubsystem::GetCharacterKey(Member),
+                            Member.CharacterData ? Member.CharacterData->CharacterClass : ECharacterClass::Generic);
             }
         }
-        MemberKeys.Remove(NAME_None);
+        Members.Remove(NAME_None);
+        return Members;
+    }
+
+    /** B-347 (D-137): opens the run layer and takes the local party's worn loadouts on the run, free. B-512 (D-221): a
+     *  member in Kits wears its class kit instead (reset already, ResetClassDefaultKit), after the snapshot. */
+    void OpenRunLayerWithWornLoadouts(UGameInstance *GI, UPoolSubsystem &Pool,
+                                      const TMap<FName, const FClassDefaultLoadout *> &Kits = {})
+    {
+        TSet<FName> MemberKeys;
+        GetLocalPartyClasses(GI).GetKeys(MemberKeys);
         Pool.BeginRunLayer();
         Pool.SnapshotRunStartGear(MemberKeys); // B-508 (D-219): a quit puts these back
-        Pool.TakeHomeGearOnRun(MemberKeys);
+        TSet<FName> HomeWearers = MemberKeys;
+        for (const TPair<FName, const FClassDefaultLoadout *> &Kit : Kits)
+        {
+            for (const FGuid &ID : Pool.WearClassDefaultKit(Kit.Key, *Kit.Value))
+            {
+                Pool.TakeOnRun(ID); // the kit and the character's own evolution; home gear stays home
+            }
+            HomeWearers.Remove(Kit.Key);
+        }
+        Pool.TakeHomeGearOnRun(HomeWearers);
     }
 
     int32 MakeFreshRunSeed()
@@ -152,7 +172,23 @@ void UTrialRunSubsystem::StartRunGearAndGold()
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
         Pool->EndRunLayer();
-        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
+        // B-512 (D-221): every run starts on the class kit, reset before the layer opens (a crystal it frees is the
+        // player's own, not a find). A member with no kit keeps what it wears (FindClassDefaults logs why).
+        TMap<FName, const FClassDefaultLoadout *> Kits;
+        for (const TPair<FName, ECharacterClass> &Member : GetLocalPartyClasses(GetGameInstance()))
+        {
+            if (const FClassDefaultLoadout *Kit = FindClassDefaults(Member.Value))
+            {
+                Pool->ResetClassDefaultKit(Member.Key, *Kit);
+                Kits.Add(Member.Key, Kit);
+            }
+        }
+        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool, Kits);
+        UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+        if (PartySession && !Kits.IsEmpty())
+        {
+            PartySession->PullWheelPicksFromPool(); // the cleared picks reach the members
+        }
     }
 }
 
@@ -850,7 +886,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     {
         UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resumed run: a fresh run layer (the save's own layer replaces it when it has one, B-314b)"));
         Pool->DiscardRunLayer(); // the store was reloaded: an open layer's home states are stale
-        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
+        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool); // B-512: no kit here: the saved run already wears it
     }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),
            Trial ? *Trial->Name.ToString() : TEXT("<none>"), RunSeed, BeatenEncounters.Num(), FoundFeatures.Num(),
