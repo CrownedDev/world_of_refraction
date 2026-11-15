@@ -115,6 +115,7 @@ TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party)
 		const int32 EP = Member.CurrentEP == PartyConstants::NO_CARRIED_VITALS ? MaxEP : Member.CurrentEP;
 		Card.HPFraction = BattleHUDView::PoolFraction(HP, MaxHP);
 		Card.HPLine = BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), HP, MaxHP);
+		Card.EPFraction = BattleHUDView::PoolFraction(EP, MaxEP); // B-503m: the EP bar
 		Card.EPLine = BattleHUDView::FormatPool(BattleHUDView::GetEPLabel(), EP, MaxEP);
 		// The bar empties after every fight (SB-18, D-013), so between fights it reads 0 in no element's colour.
 		Card.BuildupColour = BattleHUDView::GetBuildupColour(ESpellElement::None, /*bSourceInBrokenDarkness=*/false);
