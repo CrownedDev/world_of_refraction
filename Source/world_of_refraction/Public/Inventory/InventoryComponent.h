@@ -204,6 +204,21 @@ public:
      *  False, changing nothing, for anyone else. */
     bool DrawSharedGear();
 
+    /** D-221 (B-506): writes the active loadout to the character's worn-gear record in the pool (keeping its wheel
+     *  pick). Called on every gear change (ULoadoutComponent::NotifyActiveWeaponChanged / NotifyApparelChanged) and at
+     *  the stamp. Only a stamped party pawn with authority writes: an unstamped pawn (a hub pawn before its possess, an
+     *  enemy sharing a member's asset) reads the record but never changes it. No-op for a run-only recruit, and while
+     *  a run holds the record as stored (it names a piece the run left at home). */
+    void WriteWornGear();
+
+    /** D-221 (B-506): rebuilds Active (the active loadout, or a copy of it) from the character's worn-gear record, each
+     *  piece from this member's drawn copies; false, changing nothing, with no record or before the draw. Marks the
+     *  record held when it names a piece the open run left at home. */
+    bool WearWornGear(FCombatLoadout &Active);
+
+    /** D-221 (B-506): the last draw built the active loadout from the record (its weapon in hand included). */
+    bool WoreRecordAtDraw() const { return bWoreRecord; }
+
     /** Claims the active loadout's gear for this member. A piece another party member wears is taken
      *  out of this loadout; returns a line per piece taken ("Fire Sword (worn by Ayla)").
      *  OBSOLETE (B-321, D-117): a member draws only its own gear, so nothing is claimed away; delete after PIE. */
@@ -595,6 +610,10 @@ private:
     bool bKeepsCustomLoadouts = false;
     /** B-321: a run-only recruit draws the whole armoury (it brings no gear, B-076); everyone else only its own. */
     bool bDrawsWholeArmoury = false;
+    /** D-221 (B-506), B-347b's rule: the worn-gear record names a piece the open run left at home, so this copy wears
+     *  it without that piece and the record is kept as stored until the run ends (WriteWornGear skips). */
+    bool bWornGearHeld = false;
+    bool bWoreRecord = false;
     /** B-312b: is this store piece this member's to draw: its own by owner key, or (a run-only recruit) any piece
      *  not in the chest. The one rule DrawSharedGear and the owns-checks share. */
     bool IsMineInStore(const UPoolSubsystem &Pool, const FGuid &GearID) const;
