@@ -732,6 +732,10 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FName> BankedItemCharacters;
 
+	/** B-509 (D-221, save v41, no bump: a v41 save without it has none): found gear kept as hub gear. */
+	UPROPERTY()
+	TArray<FGuid> HubGear;
+
 	/** B-311 (save v6): each character's custom loadouts. */
 	UPROPERTY()
 	TArray<FSavedCharacterLoadouts> CustomLoadouts;

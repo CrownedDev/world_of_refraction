@@ -127,13 +127,19 @@ namespace
         return true;
     }
 
-    /** B-314 (Q-314b) / B-347: while a run is open, only run-only gear can be sold or dismantled. A home piece, on the
+    /** B-314 (Q-314b) / B-347: while a run is open, only run-only gear can be sold or dismantled (B-509: hub gear never). A home piece, on the
      *  run or left home (D-137 takes only the worn loadout), waits for the run's end (it comes back restored, D-111). */
     bool EconomyRefusesOnRun(const AActor *Owner, const FGuid &GearID, const TCHAR *Op)
     {
         const UWorld *World = Owner ? Owner->GetWorld() : nullptr;
         const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
         const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+        if (Pool && Pool->IsHubGear(GearID)) // B-509 (D-221): kept from a run, "just to have in the hub"
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is hub gear (kept from a run) - it can't be sold or dismantled (D-221)"),
+                   Op, *GearID.ToString());
+            return true;
+        }
         if (!Pool || !Pool->IsRunLayerActive() || Pool->IsRunOnly(GearID))
         {
             return false;

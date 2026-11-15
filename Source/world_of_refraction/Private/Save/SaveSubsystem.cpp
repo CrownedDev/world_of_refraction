@@ -1387,6 +1387,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		}
 	}
 	Saved.BankedItemCharacters = Pool.GetBankedItemCharacters().Array();
+	Saved.HubGear = Pool.GetHubGear().Array(); // B-509
 	for (const TPair<FName, FPoolCustomLoadouts> &Custom : Pool.GetAllCustomLoadouts())
 	{
 		FSavedCharacterLoadouts &Out = Saved.CustomLoadouts.AddDefaulted_GetRef();
@@ -1756,6 +1757,7 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		ReadStacks(In.Stacks, Pouch.Stacks);
 	}
 	Pool.RestorePouches(Pouches, Saved.BankedItemCharacters);
+	Pool.RestoreHubGear(TSet<FGuid>(Saved.HubGear)); // B-509
 	for (const FSavedCharacterLoadouts &Custom : Saved.CustomLoadouts)
 	{
 		TArray<FSavedLoadout> Loadouts;
