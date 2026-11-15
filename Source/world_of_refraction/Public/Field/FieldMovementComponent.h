@@ -184,9 +184,15 @@ public:
 
 	/** Steps to the next stop, wrapping (IA_Field_SwitchSource: LB / R), and returns it. Kept on the party record
 	 *  when the pawn has one. B-503l (D-217): a press (bHold false) steps the source, skipping hold steps; a hold the
-	 *  element within it (FieldSkillRules::NextFieldAttackHoldIndex; no change for a one-element source). */
+	 *  element within it (FieldSkillRules::NextFieldAttackHoldIndex; no change for a one-element source).
+	 *  B-503m3: the keys' hold opens the wheel now (SelectFieldAttack); bHold is left for wor.Field.CycleAttack. */
 	UFUNCTION(BlueprintCallable, Category = "Field")
 	FFieldAttackEntry CycleFieldAttack(bool bHold = false);
+
+	/** B-503m3 (D-217): the wheel's pick: makes that stop (an index into GetFieldAttackEntries, clamped) the one in use,
+	 *  kept as CycleFieldAttack keeps it, and returns it. */
+	UFUNCTION(BlueprintCallable, Category = "Field")
+	FFieldAttackEntry SelectFieldAttack(int32 Index);
 
 	/** What a field hit now would carry: the entry in use's element and physical type
 	 *  (FieldSkillRules::MakeFieldStrike). */
