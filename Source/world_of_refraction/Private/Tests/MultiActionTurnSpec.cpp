@@ -441,8 +441,8 @@ void FMultiActionTurnSpec::Define()
 				return;
 			}
 			FText Reason;
-			TestTrue(TEXT("First switch"), Loadout->TrySwitchWeaponThisTurn(Reason));
-			TestTrue(TEXT("Second switch in the same turn"), Loadout->TrySwitchWeaponThisTurn(Reason));
+			TestTrue(TEXT("First switch"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
+			TestTrue(TEXT("Second switch in the same turn"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
 			TestTrue(TEXT("Never refused"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
 			TestEqual(TEXT("No action spent"), ActionsOf(Hero), MULTI_ACTION_REGAIN);
 			TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);

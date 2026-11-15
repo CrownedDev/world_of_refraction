@@ -59,14 +59,6 @@ namespace InfusionSourceOptionHelpers
         return Option != EInfusionSourceOption::None && Option != EInfusionSourceOption::Raw;
     }
 
-    /** Do weapon stats apply with this source?
-     *  Only None (no infusion) applies weapon stats. Raw is still an infusion
-     *  (pays HP), so weapon stats are bypassed for Raw too. */
-    inline bool WeaponStatsApply(EInfusionSourceOption Option)
-    {
-        return Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw;
-    }
-
     /** Is this an active infusion (Level > 0 valid)?
      *  Equivalent to (Option != None). Raw and any element source qualify. */
     inline bool IsInfused(EInfusionSourceOption Option)

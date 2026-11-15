@@ -148,9 +148,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     ESpellElement GetActiveRingElement() const;
 
-    /** Make the next ring (wrapping) whose attachment is present and unbroken the active
-     *  one. False when no other ring is usable. Also runs when a ring's crystal breaks.
-     *  Forwards to SwitchToNextUsableSlot(Adapter). */
+    /** OBSOLETE (B-309b): forwards to SwitchToNextUsableSlot(Adapter), which C++ calls. Kept only as the Blueprint node;
+     *  delete once Find in Blueprints shows no "Switch To Next Usable Ring" node. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
     bool SwitchToNextUsableRing();
 
@@ -637,9 +636,6 @@ public:
      *  and unbroken. Weapons don't switch on their own: false. */
     bool SwitchToNextUsableSlot(EGearKind Kind);
 
-    /** The turn's free weapon switch. Forwards to TrySwitchActiveSlot(Weapon). */
-    bool TrySwitchWeaponThisTurn(FText &OutReason);
-
     /** B-474 (D-207): the skill list of the weapon not in hand (a Generic with two weapon entries), else empty. The
      *  battle menu offers it while "Switch to the weapon of the skill you use" is on. */
     TArray<UAbilityData *> GetOtherWeaponSkills() const;
@@ -652,9 +648,6 @@ public:
     /** B-474: undoes a SwitchToWeaponOfSkill that returned true when the action is then refused: the other weapon back
      *  in hand and the turn's switch unused again. */
     void RevertSkillWeaponSwitch();
-
-    /** The turn's free ring switch to NewRingIndex (the same rules as TrySwitchActiveSlot). */
-    bool TrySwitchRingThisTurn(int32 NewRingIndex, FText &OutReason);
 
     /** Gives back the free switch; the orchestrator calls it at the owner's turn start. */
     void ResetTurnSwitch();
