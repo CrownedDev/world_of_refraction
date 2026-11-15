@@ -1333,6 +1333,17 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		}
 	}
 	Saved.UpgradeMemory = Pool.GetUpgradeMemory(); // B-314b (D-097)
+	Saved.ActiveLoadoutIndices = Pool.GetActiveLoadoutIndices(); // B-503t (audit finding 4)
+	Saved.KeptRunGear = Pool.GetKeptRunGear(); // B-503t (D-219)
+	for (const FPoolKeptCrystal &Kept : Pool.GetKeptRunCrystals())
+	{
+		FSavedKeptCrystal &Out = Saved.KeptRunCrystals.AddDefaulted_GetRef();
+		Out.GearID = Kept.GearID;
+		Out.Crystal.Type = static_cast<uint8>(Kept.Crystal.Type);
+		Out.Crystal.Tier = Kept.Crystal.Tier;
+		Out.Crystal.StoneStat = static_cast<uint8>(Kept.Crystal.StoneStat);
+		Out.Crystal.Count = 1;
+	}
 	for (const TPair<FName, FPoolSkills> &Skills : Pool.GetCharacterSkills()) // B-316b
 	{
 		FSavedCharacterSkills &Out = Saved.CharacterSkills.AddDefaulted_GetRef();
@@ -1397,6 +1408,20 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 			Out.Tier = Stack.Key.Tier;
 			Out.StoneStat = static_cast<uint8>(Stack.Key.StoneStat);
 			Out.Count = Stack.Value;
+		}
+		Saved.bHasRunStartLoadouts = true; // B-503t (D-219)
+		for (const TPair<FName, FPoolRunStartLoadouts> &Start : Pool->GetRunStartLoadouts())
+		{
+			FSavedRunStartLoadouts &Out = Saved.RunStartLoadouts.AddDefaulted_GetRef();
+			Out.Character = Start.Key;
+			for (const FSavedLoadout &Loadout : Start.Value.Loadouts)
+			{
+				Out.Loadouts.Add(SaveCustomLoadout(Loadout));
+			}
+			Out.ActiveIndex = Start.Value.ActiveIndex;
+			Out.FieldAttackIndex = Start.Value.FieldAttackIndex;
+			Out.bFieldAttackPicked = Start.Value.bFieldAttackPicked;
+			Out.bHasFieldPick = Start.Value.bHasFieldPick;
 		}
 	}
 	return Saved;
@@ -1484,6 +1509,23 @@ void USaveSubsystem::RestoreSavedRunLayer(const FSavedRun &Saved, UPoolSubsystem
 			}
 		}
 		Pool.RestoreRunStartItems(StartItems);
+	}
+	if (Saved.bHasRunStartLoadouts) // B-503t (D-219): else RestoreRunLayer's own snapshot (what is held now) stands
+	{
+		TMap<FName, FPoolRunStartLoadouts> StartLoadouts;
+		for (const FSavedRunStartLoadouts &In : Saved.RunStartLoadouts)
+		{
+			FPoolRunStartLoadouts &Start = StartLoadouts.FindOrAdd(In.Character);
+			for (const FSavedCustomLoadout &Loadout : In.Loadouts)
+			{
+				Start.Loadouts.Add(RestoreCustomLoadout(Loadout));
+			}
+			Start.ActiveIndex = In.ActiveIndex;
+			Start.FieldAttackIndex = In.FieldAttackIndex;
+			Start.bFieldAttackPicked = In.bFieldAttackPicked;
+			Start.bHasFieldPick = In.bHasFieldPick;
+		}
+		Pool.RestoreRunStartLoadouts(StartLoadouts);
 	}
 }
 
@@ -1696,6 +1738,22 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		Pool.SetCustomLoadouts(Custom.Character, Loadouts);
 	}
 	Pool.RestoreUpgradeMemory(Saved.UpgradeMemory); // B-314b (D-097)
+	for (const TPair<FName, int32> &InUse : Saved.ActiveLoadoutIndices) // B-503t (audit finding 4)
+	{
+		Pool.SetActiveLoadoutIndex(InUse.Key, InUse.Value);
+	}
+	TArray<FPoolKeptCrystal> KeptCrystals; // B-503t (D-219)
+	for (const FSavedKeptCrystal &In : Saved.KeptRunCrystals)
+	{
+		if (StaticEnum<ECrystalType>()->IsValidEnumValue(In.Crystal.Type))
+		{
+			FPoolKeptCrystal &Kept = KeptCrystals.AddDefaulted_GetRef();
+			Kept.GearID = In.GearID;
+			Kept.Crystal = StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(In.Crystal.Type), In.Crystal.Tier,
+															static_cast<ESubStat>(In.Crystal.StoneStat)));
+		}
+	}
+	Pool.RestoreKeptRunGear(Saved.KeptRunGear, KeptCrystals);
 	TMap<FName, FPoolSkills> CharacterSkills; // B-316b: a skill whose asset is gone is dropped
 	for (const FSavedCharacterSkills &In : Saved.CharacterSkills)
 	{

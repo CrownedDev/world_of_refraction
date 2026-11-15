@@ -217,6 +217,153 @@ struct WORLD_OF_REFRACTION_API FSavedCrystalStack
 	uint8 StoneStat = static_cast<uint8>(ESubStat::None);
 };
 
+/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
+{
+	GENERATED_BODY()
+
+	/** ESpellElement. */
+	UPROPERTY()
+	uint8 Element = 0;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Spells;
+};
+
+/** B-311 (D-111): one custom loadout; each piece by its owned GUID and asset, the rest by asset. An adapter's spells
+ *  ride on the adapter itself (FSavedGearDetail). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString Name;
+
+	/** ECharacterClass. */
+	UPROPERTY()
+	uint8 RequiredClass = 0;
+
+	UPROPERTY()
+	bool bShowPrimary = true;
+
+	/** EPrimarySlotType; PrimaryAsset is the weapon, adapter or evolution it names. */
+	UPROPERTY()
+	uint8 PrimarySlotType = 0;
+
+	UPROPERTY()
+	FSavedAssetRef PrimaryAsset;
+
+	UPROPERTY()
+	FGuid PrimaryInstance;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> PrimaryAbilities;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> EvolutionSpells;
+
+	/** ESecondarySlotType. */
+	UPROPERTY()
+	uint8 SecondarySlotType = 0;
+
+	UPROPERTY()
+	FSavedAssetRef SecondaryWeapon;
+
+	UPROPERTY()
+	FGuid SecondaryInstance;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> SecondaryAbilities;
+
+	/** B-477 (D-209, save v39): each weapon set's off hand (dual wield), by asset and owned GUID; empty for a weapon
+	 *  alone. */
+	UPROPERTY()
+	FSavedAssetRef PrimaryOffHand;
+
+	UPROPERTY()
+	FGuid PrimaryOffHandInstance;
+
+	UPROPERTY()
+	FSavedAssetRef SecondaryOffHand;
+
+	UPROPERTY()
+	FGuid SecondaryOffHandInstance;
+
+	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Adapters;
+
+	UPROPERTY()
+	TArray<FGuid> AdapterInstances;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> InnateSpells;
+
+	UPROPERTY()
+	TArray<FSavedCustomBDPool> BDSpellPools;
+
+	/** B-380c (D-164, save v29): apparel worn with this loadout, and each piece's owned instance. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Apparel;
+
+	UPROPERTY()
+	TArray<FGuid> ApparelInstances;
+};
+
+/** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCharacterLoadouts
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	UPROPERTY()
+	TArray<FSavedCustomLoadout> Loadouts;
+};
+
+/** B-503t (D-219): one character's loadouts as the run began (UPoolSubsystem's FPoolRunStartLoadouts). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedRunStartLoadouts
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	UPROPERTY()
+	TArray<FSavedCustomLoadout> Loadouts;
+
+	UPROPERTY()
+	int32 ActiveIndex = INDEX_NONE;
+
+	UPROPERTY()
+	int32 FieldAttackIndex = 0;
+
+	UPROPERTY()
+	bool bFieldAttackPicked = false;
+
+	UPROPERTY()
+	bool bHasFieldPick = false;
+};
+
+/** B-503t (D-219): a found crystal kept in a socket until the next run (UPoolSubsystem's FPoolKeptCrystal). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedKeptCrystal
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid GearID;
+
+	/** Count unused (one crystal). */
+	UPROPERTY()
+	FSavedCrystalStack Crystal;
+};
+
 /** B-314b (Q-314, save v15): one piece's run mark (UPoolSubsystem's FPoolRunMark) and its home state, pointers as refs. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRunMark
@@ -344,6 +491,14 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 
 	UPROPERTY()
 	TArray<FSavedCrystalStack> RunStartItems;
+
+	/** B-503t (D-219, no version bump: a save without it keeps what the resumed run holds as its start): each
+	 *  member's loadouts as the run began, put back if the run is quit. */
+	UPROPERTY()
+	bool bHasRunStartLoadouts = false;
+
+	UPROPERTY()
+	TArray<FSavedRunStartLoadouts> RunStartLoadouts;
 };
 
 USTRUCT()
@@ -495,114 +650,6 @@ struct WORLD_OF_REFRACTION_API FSavedWearer
 	FName Character;
 };
 
-/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
-{
-	GENERATED_BODY()
-
-	/** ESpellElement. */
-	UPROPERTY()
-	uint8 Element = 0;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> Spells;
-};
-
-/** B-311 (D-111): one custom loadout; each piece by its owned GUID and asset, the rest by asset. An adapter's spells
- *  ride on the adapter itself (FSavedGearDetail). */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FString Name;
-
-	/** ECharacterClass. */
-	UPROPERTY()
-	uint8 RequiredClass = 0;
-
-	UPROPERTY()
-	bool bShowPrimary = true;
-
-	/** EPrimarySlotType; PrimaryAsset is the weapon, adapter or evolution it names. */
-	UPROPERTY()
-	uint8 PrimarySlotType = 0;
-
-	UPROPERTY()
-	FSavedAssetRef PrimaryAsset;
-
-	UPROPERTY()
-	FGuid PrimaryInstance;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> PrimaryAbilities;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> EvolutionSpells;
-
-	/** ESecondarySlotType. */
-	UPROPERTY()
-	uint8 SecondarySlotType = 0;
-
-	UPROPERTY()
-	FSavedAssetRef SecondaryWeapon;
-
-	UPROPERTY()
-	FGuid SecondaryInstance;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> SecondaryAbilities;
-
-	/** B-477 (D-209, save v39): each weapon set's off hand (dual wield), by asset and owned GUID; empty for a weapon
-	 *  alone. */
-	UPROPERTY()
-	FSavedAssetRef PrimaryOffHand;
-
-	UPROPERTY()
-	FGuid PrimaryOffHandInstance;
-
-	UPROPERTY()
-	FSavedAssetRef SecondaryOffHand;
-
-	UPROPERTY()
-	FGuid SecondaryOffHandInstance;
-
-	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
-	UPROPERTY()
-	TArray<FSavedAssetRef> Adapters;
-
-	UPROPERTY()
-	TArray<FGuid> AdapterInstances;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> InnateSpells;
-
-	UPROPERTY()
-	TArray<FSavedCustomBDPool> BDSpellPools;
-
-	/** B-380c (D-164, save v29): apparel worn with this loadout, and each piece's owned instance. */
-	UPROPERTY()
-	TArray<FSavedAssetRef> Apparel;
-
-	UPROPERTY()
-	TArray<FGuid> ApparelInstances;
-};
-
-/** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedCharacterLoadouts
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FName Character;
-
-	UPROPERTY()
-	TArray<FSavedCustomLoadout> Loadouts;
-};
-
 /** B-316b (Q-316b, save v16): one character's learned skills (present once banked, even when empty). */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedCharacterSkills
@@ -691,6 +738,19 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	/** B-316b (save v16): each character's learned skills. */
 	UPROPERTY()
 	TArray<FSavedCharacterSkills> CharacterSkills;
+
+	/** B-503t (audit finding 4, no version bump: an older save uses each asset's default): the loadout each character
+	 *  has in use (UPoolSubsystem::GetActiveLoadoutIndex). */
+	UPROPERTY()
+	TMap<FName, int32> ActiveLoadoutIndices;
+
+	/** B-503t (D-219, no version bump): found gear and found socketed crystals kept from the last run's end until the
+	 *  next run starts. */
+	UPROPERTY()
+	TArray<FGuid> KeptRunGear;
+
+	UPROPERTY()
+	TArray<FSavedKeptCrystal> KeptRunCrystals;
 
 	int32 Num() const
 	{
