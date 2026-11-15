@@ -226,24 +226,13 @@ void FTurnStartOrderSpec::Define()
 			Trigger.ProcessTiming = ESkillEffectTiming::OnTrigger;
 			Trigger.TriggerCondition = ESkillTrigger::OnTurnStart;
 			EffectManager->ApplyEffect(Hero, Trigger, Hero);
-			// Use Hero's free switch now, so only the turn-start flag reset can give it back.
-			ULoadoutComponent *HeroLoadout = Hero->FindComponentByClass<ULoadoutComponent>();
-			if (!TestNotNull(TEXT("Hero's loadout"), HeroLoadout))
-			{
-				return;
-			}
-			FText Reason;
-			TestTrue(TEXT("Hero switches weapon"), HeroLoadout->TrySwitchWeaponThisTurn(Reason));
-			if (!TestFalse(TEXT("The free switch is used"), HeroLoadout->GetTurnSwitchRefusedReason().IsEmpty()))
-			{
-				return;
-			}
+			// B-170h2: a switch is always free now (ET-19), so there is no used switch for step 1 to give back.
 
 			StepRecorder->Listen(Hero, TURN_START_ORDER_HOT_ID, TURN_START_ORDER_ALWAYS_ON_ID, true, Orchestrator, EffectManager, BuildupManager, nullptr);
 			Orchestrator->OnActionCompleted();
 
 			TestTrue(TEXT("Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
-			TestTrue(TEXT("Step 1: the free switch was back before the own-turn effects ran"), StepRecorder->bSwitchFreeAtOwnTurnStartEffect);
+			TestTrue(TEXT("Step 1: the switch is free when the own-turn effects run"), StepRecorder->bSwitchFreeAtOwnTurnStartEffect);
 			ExpectInOrder({ETurnStartStep::OwnTurnStartEffect, ETurnStartStep::AlwaysOnEffect, ETurnStartStep::TurnStartTrigger,
 						   ETurnStartStep::BarDecay, ETurnStartStep::TurnStartedBroadcast, ETurnStartStep::ActionRequested});
 		});

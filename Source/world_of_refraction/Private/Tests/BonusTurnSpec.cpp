@@ -7,7 +7,8 @@
 // taken, pinned ones included; a dead holder's pinned turn is dropped.
 // ET-14 is left out here: D-052 answered A (a real extra turn), built by B-295, whose
 // WoR.Turns.EmeraldExtraTurn pins it. Every case here passes with and without B-295.
-// B-170h2: runs on the fixed rotation (the speed timeline and its switch are deleted).
+// B-170h2: runs on the fixed rotation (the speed timeline and its switch are deleted). Under action pips an
+// Emerald on yourself gives actions, not a bonus turn, so its two fight cases went; WoR.Combat.ActionEffects' Emerald case pins it.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -118,45 +119,6 @@ void FBonusTurnSpec::Define()
 			TestEqual(TEXT("GetEmeraldBonusTurnCount") + Tier, CrystalEffectTable::GetEmeraldBonusTurnCount(Emerald),
 					  BONUS_TURN_TEST_TIERS[Index] == EItemTier::S_Tier ? BONUS_TURN_TEST_RULE_S_COUNT : BONUS_TURN_TEST_RULE_COUNT);
 		}
-	});
-
-	It("an Emerald's bonus turn lands right after the current turn at every tier (ET-12, B-341)", [this]()
-	{
-		if (!TurnManager || !Items) return;
-		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BONUS_TURN_TEST_TIERS); ++Index)
-		{
-			if (BONUS_TURN_TEST_TIERS[Index] == EItemTier::S_Tier)
-			{
-				continue; // S grants two turns: its own It below
-			}
-			const FString Tier = FString::Printf(TEXT(" at tier index %d"), Index);
-			TurnManager->InitializeCombat({Hero}, {Foe});
-			if (!TestTrue(TEXT("Hero takes turn 1") + Tier, TurnManager->GetCurrentActor() == Hero))
-			{
-				continue;
-			}
-			TestTrue(TEXT("Emerald used") + Tier,
-					 Items->UseItem(Hero, FCrystalId(ECrystalType::Emerald, BONUS_TURN_TEST_TIERS[Index]), Hero).bSuccess);
-
-			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(BONUS_TURN_TEST_RULE_COUNT + 1);
-			TestTrue(TEXT("the next turn is Hero's bonus turn") + Tier, IsBonusFor(Turns[0], Hero));
-			TestTrue(TEXT("then the speed pick resumes") + Tier, Turns[BONUS_TURN_TEST_RULE_COUNT].Type == ETurnType::Normal);
-			TurnManager->EndCombat();
-		}
-	});
-
-	It("an S Emerald grants two turns back to back at once (ET-12)", [this]()
-	{
-		if (!TurnManager || !Items) return;
-		TurnManager->InitializeCombat({Hero}, {Foe});
-		TestTrue(TEXT("Emerald S used"),
-				 Items->UseItem(Hero, FCrystalId(ECrystalType::Emerald, EItemTier::S_Tier), Hero).bSuccess);
-		const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(BONUS_TURN_TEST_RULE_S_COUNT + 1);
-		for (int32 Turn = 0; Turn < BONUS_TURN_TEST_RULE_S_COUNT; ++Turn)
-		{
-			TestTrue(FString::Printf(TEXT("turn %d after use is Hero's bonus turn"), Turn + 1), IsBonusFor(Turns[Turn], Hero));
-		}
-		TestTrue(TEXT("then the speed pick resumes"), Turns[BONUS_TURN_TEST_RULE_S_COUNT].Type == ETurnType::Normal);
 	});
 
 	It("a pinned turn counts toward another pinned turn's delay (ET-13)", [this]()
