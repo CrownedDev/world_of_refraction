@@ -52,11 +52,12 @@ void AWoRHubController::BuildCodeFieldActions()
 	}
 	UEnhancedInputLocalPlayerSubsystem *Mappings =
 		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	using namespace WoRHubControllerConstants;
 	if (!Mappings)
 	{
+		UE_LOG(LogWoR, Warning, TEXT("%s No Enhanced Input subsystem - field keys unbound"), LOG_TAG);
 		return;
 	}
-	using namespace WoRHubControllerConstants;
 	FieldKeysContext = NewObject<UInputMappingContext>(this, FIELD_KEYS_CONTEXT_NAME);
 	const auto MakeAction = [this](FName Name, EInputActionValueType ValueType)
 	{
@@ -89,9 +90,23 @@ void AWoRHubController::BuildCodeFieldActions()
 			.Modifiers.Add(NewObject<UInputModifierNegate>(FieldKeysContext));
 	}
 	Mappings->AddMappingContext(FieldKeysContext, WoRInputPriority::FIELD_KEYS);
-	UE_LOG(LogWoR, Log, TEXT("%s Field keys made in code (no IA_Field_* assets): attack LMB / RB, cycle R / LB, "
-							 "fly Space / Ctrl"),
-		   LOG_TAG);
+	UE_LOG(LogWoR, Log, TEXT("%s Field keys made in code (no IA_Field_* assets): %d mappings in %s"), LOG_TAG,
+		   FieldKeysContext->GetMappings().Num(), *FIELD_KEYS_CONTEXT_NAME.ToString());
+}
+
+void AWoRHubController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// The local player outlives this controller: leave no stale field keys for the next level's controller.
+	if (FieldKeysContext)
+	{
+		if (UEnhancedInputLocalPlayerSubsystem *Mappings =
+				ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+		{
+			Mappings->RemoveMappingContext(FieldKeysContext);
+		}
+		FieldKeysContext = nullptr;
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void AWoRHubController::BeginPlay()
