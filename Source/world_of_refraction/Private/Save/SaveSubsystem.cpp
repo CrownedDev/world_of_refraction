@@ -793,6 +793,15 @@ void USaveSubsystem::SettleClosedRun(const FSavedRun &Run, UWorld *World)
 		Pool->TakeRunFoundItems();
 		Pool->EndRunLayer(/*bKeepUpgrades=*/false); // B-451: a quit keeps no upgrade levels, as FinishRun
 	}
+	// The rest of FinishRun's quit (D-176): run recruits leave, a hidden quest's step in progress starts again.
+	if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
+	{
+		PartySession->DismissRunMembers();
+	}
+	if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())
+	{
+		Quests->EndRun();
+	}
 	DropRunVitals();
 	UE_LOG(LogWoR, Warning, TEXT("[Save] The run of %s couldn't be restored: its gear settled as a quit (D-176), the party back in the hub"),
 		   *Run.Trial.Path.ToString());

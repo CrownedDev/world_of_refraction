@@ -68,7 +68,15 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 FTitleSaveSummary WoRTitleScreen::SummarizeSave(const UGameInstance *GameInstance)
 {
 	const USaveSubsystem *Saves = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
-	return Saves ? Summarize(Saves->GetData(), Saves->HasSave(), Saves->GetPlaySeconds(), Saves->WasClosedRunSettled()) : FTitleSaveSummary();
+	if (!Saves)
+	{
+		return FTitleSaveSummary();
+	}
+	// A handed-over copy's run resumes (Q-208), so it is not lost: only the own slot's run is settled as a quit.
+	const bool bOwnRunInSave = Saves->GetData().Run.bHasRun && !Saves->IsPlayingHostCopy();
+	FTitleSaveSummary Summary = Summarize(Saves->GetData(), Saves->HasSave(), Saves->GetPlaySeconds(), Saves->WasClosedRunSettled());
+	Summary.bLastRunLost = Saves->HasSave() && (bOwnRunInSave || Saves->WasClosedRunSettled());
+	return Summary;
 }
 
 FText WoRTitleScreen::GetPlayTimeText(double PlaySeconds)
