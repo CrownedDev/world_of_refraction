@@ -148,7 +148,7 @@ void AWoRHubController::SetupInputComponent()
 	if (!FieldAttackAction || !FieldSwitchSourceAction || !FieldFlyVerticalAction)
 	{
 		UE_LOG(LogWoR, Log, TEXT("[WoRHubController] Field input actions missing (attack %s, switch source %s, fly vertical %s): "
-								 "B-214g's editor step makes them; wor.Field.Attack / SwitchSource / FlyVertical stand in"),
+								 "B-214g's editor step makes them; wor.Field.Attack / CycleAttack / FlyVertical stand in"),
 			   FieldAttackAction ? TEXT("ok") : TEXT("none"), FieldSwitchSourceAction ? TEXT("ok") : TEXT("none"),
 			   FieldFlyVerticalAction ? TEXT("ok") : TEXT("none"));
 	}
