@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-217 — The field attack strip: the weapon type above the card, LB changes its infusion
+**Status:** ANSWERED (Crown, 2026-11-15; changes D-215 point 3 and B-503h's chip) · **Raised:** 2026-11-15 · **Blocks:** —
+**Answer (Crown):** the separate field attack chip with the weapon's name goes. Instead a **strip above the character's card** names what the field attack is: for a weapon user the **weapon type** ("Sword"), and when infused the element first ("Fire Sword"). **LB (held) changes the infusion**: it starts plain ("Sword") and cycles the character's available sources. A Refractor or Resonator has no weapon line: the strip just names the source element in use ("Fire" for a Fire Refractor, or a Resonator whose main ring is Fire), so adapters and rings need no names here. The weapon is the loadout's ACTIVE entry; LB no longer cycles weapons, rings and evolutions as separate entries (D-215 point 3).
+**Defaults (reference-backed, Crown may change):** a tap of LB (R on keyboard) steps to the next source; holding LB shows the list of sources above the strip, a direction picks, release confirms (the hold-a-shoulder quick list of Final Fantasy XVI's and Elden Ring's quick slots). The swing or pulse takes the chosen element's colour. Trial only: the hub shows no strip, as it shows no HP (D-216).
+
 ### D-216 — One party card everywhere; what it shows depends on where you are
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** the party cards in the field are the battle screen's party cards ("should basically be our battle one"). What they show: **hub**: no HP, no EP, no status (who is in the party only); **trial**: HP, EP and the status build-up bars (Crown: "status bar as in the status buildup"; the old card's M / B / S line), since build-up carries between fights in a run; **battle**: everything (those plus the fight-only parts). The field attack's chip (D-215) sits after the cards in the same style.
