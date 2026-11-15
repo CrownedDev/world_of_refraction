@@ -10,6 +10,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Character/StanceData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/FCombatLoadout.h"
@@ -103,6 +104,38 @@ void FWeaponSetsSpec::Define()
 		TestTrue(TEXT("a single-only sword doesn't"), WeaponSetRules::CheckPair(SwordA, SingleSword) == EPairRefusal::NotPairable);
 		TestTrue(TEXT("nor the same piece twice"), WeaponSetRules::CheckPair(SwordA, SwordA) == EPairRefusal::SamePiece);
 		TestFalse(TEXT("each refusal has words"), WeaponSetRules::GetPairRefusalText(EPairRefusal::DifferentTypes).IsEmpty());
+	});
+
+	It("holds a shield piece in the off hand of a pairable weapon, never the main hand or alone (B-515, D-223)", [this]()
+	{
+		using WeaponSetRules::EPairRefusal;
+		UWeaponData *SwordAsset = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+		UStanceData *OwnStance = NewObject<UStanceData>(GetTransientPackage());
+		UStanceData *DualStance = NewObject<UStanceData>(GetTransientPackage());
+		SwordAsset->WeaponStance = OwnStance;
+		SwordAsset->DualWieldStance = DualStance;
+		const FWeaponInventoryEntry Sword = WeaponSetsTestHand(SwordAsset);
+		const FWeaponInventoryEntry OtherSword = WeaponSetsTestHand(SwordAsset);
+		const FWeaponInventoryEntry Dagger = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Dagger, EWeaponHandling::SingleOrDual));
+		const FWeaponInventoryEntry SingleSword = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOnly));
+		const FWeaponInventoryEntry Shield = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::DualOnly));
+		TestTrue(TEXT("a sword takes a shield"), WeaponSetRules::CheckPair(Sword, Shield) == EPairRefusal::None);
+		TestTrue(TEXT("so does a dagger: any type"), WeaponSetRules::CheckPair(Dagger, Shield) == EPairRefusal::None);
+		TestTrue(TEXT("a single-only weapon doesn't"), WeaponSetRules::CheckPair(SingleSword, Shield) == EPairRefusal::NotPairable);
+		TestTrue(TEXT("a shield isn't a main hand"), WeaponSetRules::CheckPair(Shield, Sword) == EPairRefusal::ShieldInMainHand);
+		TestFalse(TEXT("that refusal has words"), WeaponSetRules::GetPairRefusalText(EPairRefusal::ShieldInMainHand).IsEmpty());
+		TestFalse(TEXT("a shield can't be held alone"), WeaponSetRules::CanStandAlone(WeaponSetsTestSet(Shield)));
+		const FWeaponInventoryEntry LooseShield = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::SingleOrDual));
+		TestFalse(TEXT("not even one authored as single-or-dual"), WeaponSetRules::CanStandAlone(WeaponSetsTestSet(LooseShield)));
+
+		const FWeaponLoadoutEntry WithShield = WeaponSetsTestSet(Sword, Shield);
+		const FWeaponLoadoutEntry TwoSwords = WeaponSetsTestSet(Sword, OtherSword);
+		TestTrue(TEXT("a sword and a shield are a shield pair"), WeaponSetRules::IsShieldPair(WithShield));
+		TestFalse(TEXT("two swords aren't"), WeaponSetRules::IsShieldPair(TwoSwords));
+		TestTrue(TEXT("it reads as off-hand shield"), WeaponSetRules::GetSetWieldMode(WithShield) == EWeaponWieldMode::OffHandShield);
+		TestTrue(TEXT("two swords still read as dual"), WeaponSetRules::GetSetWieldMode(TwoSwords) == EWeaponWieldMode::Dual);
+		TestTrue(TEXT("it stands in the sword's own stance"), WeaponSetRules::GetSetStance(WithShield) == OwnStance);
+		TestTrue(TEXT("two swords in the dual stance"), WeaponSetRules::GetSetStance(TwoSwords) == DualStance);
 	});
 
 	It("refuses a dual-only weapon alone, and lets it stand in a pair (D-209)", [this]()

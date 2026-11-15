@@ -23,11 +23,16 @@ WeaponSetRules::EPairRefusal WeaponSetRules::CheckPair(const FWeaponInventoryEnt
 	{
 		return EPairRefusal::SamePiece;
 	}
+	if (Main.Weapon->WeaponType == EWeaponType::Shield)
+	{
+		return EPairRefusal::ShieldInMainHand;
+	}
 	if (!Main.Weapon->CanBePaired() || !OffHand.Weapon->CanBePaired())
 	{
 		return EPairRefusal::NotPairable;
 	}
-	if (Main.Weapon->WeaponType != OffHand.Weapon->WeaponType)
+	// B-515 (D-223): a shield goes with any one-handed (pairable) weapon; otherwise only a same-type pair.
+	if (OffHand.Weapon->WeaponType != EWeaponType::Shield && Main.Weapon->WeaponType != OffHand.Weapon->WeaponType)
 	{
 		return EPairRefusal::DifferentTypes;
 	}
@@ -46,6 +51,8 @@ FText WeaponSetRules::GetPairRefusalText(EPairRefusal Refusal)
 		return LOCTEXT("RefuseNotPairable", "This weapon can't be dual wielded.");
 	case EPairRefusal::DifferentTypes:
 		return LOCTEXT("RefuseDifferentTypes", "Only two weapons of the same type can be dual wielded.");
+	case EPairRefusal::ShieldInMainHand:
+		return LOCTEXT("RefuseShieldInMainHand", "A shield goes in the off hand.");
 	case EPairRefusal::None:
 	default:
 		return FText::GetEmpty();
@@ -57,10 +64,16 @@ bool WeaponSetRules::IsValidPair(const FWeaponLoadoutEntry &Set)
 	return Set.HasOffHand() && CheckPair(Set.WeaponEntry, Set.OffHandEntry) == EPairRefusal::None;
 }
 
+bool WeaponSetRules::IsShieldPair(const FWeaponLoadoutEntry &Set)
+{
+	return IsValidPair(Set) && Set.OffHandEntry.Weapon->WeaponType == EWeaponType::Shield;
+}
+
 bool WeaponSetRules::CanStandAlone(const FWeaponLoadoutEntry &Set)
 {
 	const UWeaponData *Weapon = Set.WeaponEntry.Weapon;
-	return !Weapon || Set.HasOffHand() || Weapon->CanBeHeldAlone();
+	// B-515: a shield never stands alone, whatever its Handling says.
+	return !Weapon || Set.HasOffHand() || (Weapon->CanBeHeldAlone() && Weapon->WeaponType != EWeaponType::Shield);
 }
 
 int32 WeaponSetRules::GetPairTierSlots(EItemTier MainTier, EItemTier OffHandTier)
@@ -94,7 +107,7 @@ EWeaponWieldMode WeaponSetRules::GetSetWieldMode(const FWeaponLoadoutEntry &Set)
 {
 	if (IsValidPair(Set))
 	{
-		return EWeaponWieldMode::Dual;
+		return IsShieldPair(Set) ? EWeaponWieldMode::OffHandShield : EWeaponWieldMode::Dual;
 	}
 	return Set.WeaponEntry.Weapon ? Set.WeaponEntry.Weapon->WieldMode : EWeaponWieldMode::Single;
 }
@@ -106,7 +119,7 @@ UStanceData *WeaponSetRules::GetSetStance(const FWeaponLoadoutEntry &Set)
 	{
 		return nullptr;
 	}
-	if (IsValidPair(Set) && !Main->DualWieldStance.IsNull())
+	if (IsValidPair(Set) && !IsShieldPair(Set) && !Main->DualWieldStance.IsNull())
 	{
 		// Resolves without a load once loaded. TODO: B-477b: preload the stance when the set is equipped (a first read
 		// mid-fight could hitch).

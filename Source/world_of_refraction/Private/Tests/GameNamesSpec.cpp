@@ -121,7 +121,12 @@ void FGameNamesSpec::Define()
 		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Weapon->WeaponType = EWeaponType::Sword;
 		TestEqual(TEXT("one sword"), WoRGameNames::GetHeldWeaponTypeName(Weapon).ToString(), FString(TEXT("Sword")));
-		TestEqual(TEXT("a sword paired with a sword"), WoRGameNames::GetHeldWeaponTypeName(Weapon, /*bPaired=*/true).ToString(), FString(TEXT("Dual Swords")));
+		UWeaponData *SecondSword = NewObject<UWeaponData>(GetTransientPackage());
+		SecondSword->WeaponType = EWeaponType::Sword;
+		TestEqual(TEXT("a sword paired with a sword"), WoRGameNames::GetHeldWeaponTypeName(Weapon, SecondSword).ToString(), FString(TEXT("Dual Swords")));
+		UWeaponData *Shield = NewObject<UWeaponData>(GetTransientPackage());
+		Shield->WeaponType = EWeaponType::Shield;
+		TestEqual(TEXT("a sword with a shield piece (B-515)"), WoRGameNames::GetHeldWeaponTypeName(Weapon, Shield).ToString(), FString(TEXT("Sword and Shield")));
 		Weapon->WieldMode = EWeaponWieldMode::OffHandShield;
 		TestEqual(TEXT("with its shield"), WoRGameNames::GetHeldWeaponTypeName(Weapon).ToString(), FString(TEXT("Sword and Shield")));
 		Weapon->WeaponType = EWeaponType::Axe;

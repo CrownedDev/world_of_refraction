@@ -6,6 +6,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
@@ -98,8 +99,9 @@ FName UWeaponMeshComponent::GetLeftSocketForWeapon(const UWeaponData *Weapon) co
         return NAME_None;
     }
 
-    // A shield always uses the same socket regardless of the right-hand weapon type.
-    if (Weapon->WieldMode == EWeaponWieldMode::OffHandShield)
+    // A shield always uses the same socket regardless of the right-hand weapon type: a shield piece (B-515), or the
+    // OBSOLETE shield baked into the weapon.
+    if (Weapon->WeaponType == EWeaponType::Shield || Weapon->WieldMode == EWeaponWieldMode::OffHandShield)
     {
         return FName("hand_l_sas");
     }
@@ -131,8 +133,11 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
     }
 
     UWeaponData *ActiveWeapon = CharacterDataComponent->GetActiveWeapon();
+    UWeaponData *OffHand = GetOffHandPiece(ActiveWeapon);
 
-    if (ActiveWeapon == CachedWeapon)
+    // shortcut: refreshes on OnActiveWeaponChanged only, so an off hand swapped under the same main hand shows on the
+    // next main-hand change; add an off-hand change event if PIE shows a stale left hand.
+    if (ActiveWeapon == CachedWeapon && OffHand == CachedOffHand)
     {
         return;
     }
@@ -141,7 +146,12 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
 
     if (ActiveWeapon && (ActiveWeapon->WeaponStaticMesh || ActiveWeapon->WeaponSkeletalMesh))
     {
-        if (ActiveWeapon->IsDualWielded())
+        if (OffHand)
+        {
+            SpawnWeaponMesh(ActiveWeapon);
+            SpawnOffHandMesh(OffHand);
+        }
+        else if (ActiveWeapon->IsDualWielded())
         {
             SpawnDualWeaponMesh(ActiveWeapon);
         }
@@ -152,6 +162,7 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
     }
 
     CachedWeapon = ActiveWeapon;
+    CachedOffHand = OffHand;
     ApplyWeaponHidden(); // B-503s: a new mesh keeps the field pick's put-away
 
     UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Updated weapon mesh: %s"),
@@ -331,6 +342,53 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
            *Weapon->Name, *RightSocket.ToString(), *LeftSocket.ToString());
 }
 
+UWeaponData *UWeaponMeshComponent::GetOffHandPiece(const UWeaponData *ActiveWeapon) const
+{
+    const FWeaponLoadoutEntry *Set = LoadoutComponent && ActiveWeapon ? LoadoutComponent->GetActiveWeaponLoadout() : nullptr;
+    return Set && Set->WeaponEntry.Weapon == ActiveWeapon && LoadoutComponent->IsWeaponSetPaired(*Set) ? Set->OffHandEntry.Weapon : nullptr;
+}
+
+void UWeaponMeshComponent::SpawnOffHandMesh(UWeaponData *OffHand)
+{
+    USkeletalMeshComponent *OwnerMesh = GetOwnerMesh();
+    const FName LeftSocket = OffHand ? GetLeftSocketForWeapon(OffHand) : NAME_None;
+    if (!OwnerMesh || LeftSocket.IsNone())
+    {
+        return;
+    }
+    const FAttachmentTransformRules AttachRules = FAttachmentTransformRules::SnapToTargetNotIncludingScale;
+    if (OffHand->WeaponSkeletalMesh)
+    {
+        SecondarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());
+        SecondarySkeletalMeshComp->SetSkeletalMesh(OffHand->WeaponSkeletalMesh);
+        if (OffHand->WeaponMaterialOverride)
+        {
+            SecondarySkeletalMeshComp->SetMaterial(0, OffHand->WeaponMaterialOverride);
+        }
+        SecondarySkeletalMeshComp->RegisterComponent();
+        SecondarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
+        SecondarySkeletalMeshComp->SetRelativeRotation(OffHand->LeftMeshRotation);
+    }
+    else if (OffHand->WeaponStaticMesh)
+    {
+        SecondaryStaticMeshComp = NewObject<UStaticMeshComponent>(GetOwner());
+        SecondaryStaticMeshComp->SetStaticMesh(OffHand->WeaponStaticMesh);
+        if (OffHand->WeaponMaterialOverride)
+        {
+            SecondaryStaticMeshComp->SetMaterial(0, OffHand->WeaponMaterialOverride);
+        }
+        SecondaryStaticMeshComp->RegisterComponent();
+        SecondaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
+        SecondaryStaticMeshComp->SetRelativeRotation(OffHand->LeftMeshRotation);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[WeaponMeshComponent] Off-hand piece '%s' has no mesh; nothing in the left hand."), *OffHand->Name);
+        return;
+    }
+    UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Off-hand piece '%s' at socket '%s' (B-515)"), *OffHand->Name, *LeftSocket.ToString());
+}
+
 void UWeaponMeshComponent::ClearWeaponMesh()
 {
     if (PrimaryStaticMeshComp)
@@ -358,6 +416,7 @@ void UWeaponMeshComponent::ClearWeaponMesh()
     }
 
     CachedWeapon = nullptr;
+    CachedOffHand = nullptr;
 }
 
 void UWeaponMeshComponent::DebugLogMeshState()

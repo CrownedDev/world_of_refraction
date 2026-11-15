@@ -710,6 +710,8 @@ FText WoRGameNames::GetWeaponTypeName(EWeaponType Type)
         return LOCTEXT("EWeaponType_Scythe", "Scythe");
     case EWeaponType::Gun:
         return LOCTEXT("EWeaponType_Gun", "Gun");
+    case EWeaponType::Shield:
+        return LOCTEXT("EWeaponType_Shield", "Shield");
     default:
         return FText::GetEmpty();
     }
@@ -746,18 +748,20 @@ namespace
     }
 }
 
-FText WoRGameNames::GetHeldWeaponTypeName(const UWeaponData *Weapon, bool bPaired)
+FText WoRGameNames::GetHeldWeaponTypeName(const UWeaponData *Weapon, const UWeaponData *OffHand)
 {
     if (!Weapon)
     {
         return FText::GetEmpty();
     }
-    if (Weapon->WieldMode == EWeaponWieldMode::OffHandShield)
+    // B-515: a shield piece in the off hand; the OffHandShield wield mode is the OBSOLETE baked-in shield.
+    if ((OffHand && OffHand->WeaponType == EWeaponType::Shield) || Weapon->WieldMode == EWeaponWieldMode::OffHandShield)
     {
-        return FText::Format(LOCTEXT("WeaponWithShield", "{0} and Shield"), GetWeaponTypeName(Weapon->WeaponType));
+        return FText::Format(LOCTEXT("WeaponWithShield", "{0} and {1}"), GetWeaponTypeName(Weapon->WeaponType),
+                             GetWeaponTypeName(EWeaponType::Shield));
     }
-    return bPaired || Weapon->WieldMode == EWeaponWieldMode::Dual ? GetDualWeaponTypeName(Weapon->WeaponType)
-                                                                   : GetWeaponTypeName(Weapon->WeaponType);
+    return OffHand || Weapon->WieldMode == EWeaponWieldMode::Dual ? GetDualWeaponTypeName(Weapon->WeaponType)
+                                                                  : GetWeaponTypeName(Weapon->WeaponType);
 }
 
 FText WoRGameNames::GetHeldPiecesName(const UWeaponData *MainHand, const UWeaponData *OffHand)

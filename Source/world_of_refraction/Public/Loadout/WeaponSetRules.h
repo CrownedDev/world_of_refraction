@@ -26,7 +26,8 @@ namespace WeaponSetRules
 		MissingWeapon,   // a hand is empty
 		SamePiece,       // the same owned weapon in both hands
 		NotPairable,     // a SingleOnly weapon (EWeaponHandling)
-		DifferentTypes   // only two of the same type pair (two swords, two daggers)
+		DifferentTypes,  // only two of the same type pair (two swords, two daggers), or a weapon and a shield
+		ShieldInMainHand // B-515 (D-223): a shield is held in the off hand only
 	};
 
 	/** D-209: None when Main and OffHand may be held together, else the first reason they can't. */
@@ -38,6 +39,10 @@ namespace WeaponSetRules
 	/** D-209: the set holds an off hand that CheckPair allows. The pair readers below use it; the class (a Generic's
 	 *  sets only) is gated by the loadout check (FLoadoutRules, OffHandWeapon) and ULoadoutComponent::IsWeaponSetPaired. */
 	WORLD_OF_REFRACTION_API bool IsValidPair(const FWeaponLoadoutEntry &Set);
+
+	/** B-515 (D-223): the set is a valid pair whose off hand is a shield ("Sword and Shield"): it attacks and stands
+	 *  as the main hand alone, and reads as EWeaponWieldMode::OffHandShield. */
+	WORLD_OF_REFRACTION_API bool IsShieldPair(const FWeaponLoadoutEntry &Set);
 
 	/** D-209: false for a DualOnly weapon held alone (an empty entry is not refused here). */
 	WORLD_OF_REFRACTION_API bool CanStandAlone(const FWeaponLoadoutEntry &Set);
@@ -51,11 +56,11 @@ namespace WeaponSetRules
 	/** D-210: the set's built-in abilities, the main hand's then the off hand's not already listed. */
 	WORLD_OF_REFRACTION_API TArray<UAbilityData *> GetSetBuiltIns(const FWeaponLoadoutEntry &Set);
 
-	/** D-210: a pair holds single-blade and dual-blade abilities of its type: it reads as Dual; a weapon alone as its own
-	 *  wield mode. */
+	/** D-210: a pair holds single-blade and dual-blade abilities of its type: it reads as Dual; a weapon and a shield as
+	 *  OffHandShield (B-515); a weapon alone as its own wield mode. */
 	WORLD_OF_REFRACTION_API EWeaponWieldMode GetSetWieldMode(const FWeaponLoadoutEntry &Set);
 
 	/** D-209: the stance the set stands in: a pair the main hand's DualWieldStance (its WeaponStance when unset), a
-	 *  weapon alone its WeaponStance. Loads the soft stance on demand. */
+	 *  weapon alone or with a shield its WeaponStance (B-515). Loads the soft stance on demand. */
 	WORLD_OF_REFRACTION_API UStanceData *GetSetStance(const FWeaponLoadoutEntry &Set);
 }

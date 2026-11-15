@@ -121,9 +121,10 @@ namespace WoRGameNames
     WORLD_OF_REFRACTION_API FText GetWeaponTypeName(EWeaponType Type);
 
     /** B-513 (Q-513): the type of what is in hand, by how it is held: "Sword and Shield", "Dual Axes", else the type
-     *  ("Sword"). bPaired: a main hand with a same-type off hand (D-209) reads as dual. Empty for no weapon. Every
-     *  screen that names the weapon in hand (the wheel's centre, the strip, the Equipment screen) asks here. */
-    WORLD_OF_REFRACTION_API FText GetHeldWeaponTypeName(const UWeaponData *Weapon, bool bPaired = false);
+     *  ("Sword"). OffHand: the set's off-hand piece (D-209): a shield reads "<type> and Shield" (B-515), a same-type
+     *  weapon as dual. Empty for no weapon. Every screen that names the weapon in hand (the strip, the Equipment
+     *  screen) asks here. */
+    WORLD_OF_REFRACTION_API FText GetHeldWeaponTypeName(const UWeaponData *Weapon, const UWeaponData *OffHand = nullptr);
 
     /** B-513b: the pieces in hand by name: "Flame Sword", or with an off-hand piece of its own "Flame Sword and Void
      *  Shield". A piece with no name gives its type. Empty for no main hand. The wheel's slice and the Equipment row. */
