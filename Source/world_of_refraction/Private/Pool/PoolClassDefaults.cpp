@@ -202,7 +202,7 @@ void UPoolSubsystem::ResetClassDefaultKit(FName CharacterKey, const FClassDefaul
 {
 	const FClassDefaultKitIDs IDs = MintClassDefaultKit(CharacterKey, Kit); // a copy: the resets below broadcast
 	int32 Freed = 0;
-	for (int32 Index = 0; Index < IDs.Pieces.Num(); ++Index)
+	for (int32 Index = 0; Index < IDs.Pieces.Num() && Kit.Pieces.IsValidIndex(Index); ++Index)
 	{
 		Freed += ResetKitPiece(*this, IDs.Pieces[Index], Kit.Pieces[Index].SkillPicks);
 		Freed += IDs.OffHands.IsValidIndex(Index) ? ResetKitPiece(*this, IDs.OffHands[Index], {}) : 0;
@@ -271,7 +271,8 @@ bool UPoolSubsystem::IsClassDefault(const FGuid &GearID) const
 FString UPoolSubsystem::GetClassDefaultKitsString() const
 {
 	FString Out = FString::Printf(TEXT("[ClassDefaults] %d character(s) with a minted kit"), ClassDefaultKits.Num());
-	const auto Line = [this](const TCHAR *Label, const TArray<FGuid> &IDs)
+	TArray<FGuid> Worn;
+	const auto Line = [this, &Worn](const TCHAR *Label, const TArray<FGuid> &IDs)
 	{
 		FString Lines;
 		for (int32 Index = 0; Index < IDs.Num(); ++Index)
@@ -279,14 +280,16 @@ FString UPoolSubsystem::GetClassDefaultKitsString() const
 			if (IDs[Index].IsValid())
 			{
 				const UObject *Asset = StoredKitAsset(*this, IDs[Index]);
-				Lines += FString::Printf(TEXT("\n    %s [%d] %s %s%s"), Label, Index, *GetNameSafe(Asset), *IDs[Index].ToString(),
-										 Asset ? TEXT("") : TEXT(" (MISSING from the store)"));
+				Lines += FString::Printf(TEXT("\n    %s [%d] %s %s%s%s"), Label, Index, *GetNameSafe(Asset), *IDs[Index].ToString(),
+										 Asset ? TEXT("") : TEXT(" (MISSING from the store)"), Worn.Contains(IDs[Index]) ? TEXT(" (worn now)") : TEXT(""));
 			}
 		}
 		return Lines;
 	};
 	for (const TPair<FName, FClassDefaultKitIDs> &Pair : ClassDefaultKits)
 	{
+		const FWornGear *Record = WornGear.Find(Pair.Key);
+		Worn = Record ? Record->GetPieceIDs() : TArray<FGuid>();
 		Out += FString::Printf(TEXT("\n  %s"), *Pair.Key.ToString());
 		Out += Line(TEXT("piece"), Pair.Value.Pieces) + Line(TEXT("off hand"), Pair.Value.OffHands) + Line(TEXT("apparel"), Pair.Value.Apparel);
 	}
