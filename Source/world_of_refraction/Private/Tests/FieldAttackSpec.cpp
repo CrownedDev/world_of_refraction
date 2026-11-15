@@ -80,6 +80,7 @@ BEGIN_DEFINE_SPEC(FFieldAttackSpec, "WoR.Field.Attack",
 		Slash->PhysicalDamageType = EPhysicalDamageType::Slash;
 		UWeaponData *Primary = NewObject<UWeaponData>(GetTransientPackage());
 		Primary->WeaponAttack = Slash;
+		Primary->Name = TEXT("Field test blade"); // B-513: the slice shows the weapon's name
 		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Primary);
 		UInventoryComponent *Inventory = Loadout ? Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
 		if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
@@ -271,7 +272,7 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("plain first: a swing with no element and the weapon's type"),
 					 Entries[0].IsSwing() && Entries[0].Element == ESpellElement::None && Entries[0].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("named by the weapon type"), Entries[0].Name.ToString(), Sword);
-			TestEqual(TEXT("the slice is the weapon"), Entries[0].SliceName.ToString(), Sword);
+			TestEqual(TEXT("the slice is the weapon, by name (B-513)"), Entries[0].SliceName.ToString(), FString(TEXT("Field test blade")));
 			TestTrue(TEXT("then infused, an option of the same slice: still the swing"),
 					 Entries[1].bHoldStep && Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire && Entries[1].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("the element first"), Entries[1].Name.ToString(),
