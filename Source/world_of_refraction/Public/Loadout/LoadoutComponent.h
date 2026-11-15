@@ -345,6 +345,11 @@ public:
      *  the slotted crystal (e.g. channel-tier resolution). */
     UObject *FindSpellCatalystHolder(USpellData *Spell) const;
 
+    /** B-516: the slotted crystal of the entry that grants Spell, found by the entry, not the asset: every adapter can
+     *  be one asset (DA_Ring_Adapter). Among adapters, the one in use first when it lists the spell; a weapon as
+     *  FindAttachedItemByHolder (the one in hand first). Null where FindSpellCatalystHolder gives none. */
+    FRuntimeAttachedItem *FindSpellCatalystAttachment(USpellData *Spell);
+
     // OBSOLETE (B-503q): GetPrimarySlotSpells / GetSecondarySlotSpells / GetActiveSlotSpells have no C++ game caller
     // (only the orchestrator debug print; Blueprints unchecked); the fight reads GetAvailableSpells. Delete after PIE.
     /** Get spells from primary slot only (Ring or evolved Weapon) */

@@ -1672,6 +1672,38 @@ UObject *ULoadoutComponent::FindSpellCatalystHolder(USpellData *Spell) const
     return nullptr;
 }
 
+FRuntimeAttachedItem *ULoadoutComponent::FindSpellCatalystAttachment(USpellData *Spell)
+{
+    UObject *Holder = FindSpellCatalystHolder(Spell);
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Holder || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+    if (!Holder->IsA<URingData>())
+    {
+        return FindAttachedItemByHolder(Holder);
+    }
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const auto Lists = [Spell](const FRingLoadoutEntry &Ring) { return Ring.IsValid() && Ring.GetAllSpells().Contains(Spell); };
+    if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex) && Lists(Loadout.RingLoadout[Loadout.ActiveRingIndex]))
+    {
+        return &Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry.AttachedItem;
+    }
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Lists(Loadout.PrimaryRing))
+    {
+        return &Loadout.PrimaryRing.RingEntry.AttachedItem;
+    }
+    for (FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+    {
+        if (Lists(Ring))
+        {
+            return &Ring.RingEntry.AttachedItem;
+        }
+    }
+    return nullptr;
+}
+
 TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
 {
     TArray<USpellData *> Result;

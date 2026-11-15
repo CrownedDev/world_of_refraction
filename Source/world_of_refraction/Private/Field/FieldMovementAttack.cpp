@@ -224,6 +224,17 @@ namespace
 				Slice.bPulse = true;
 			}
 		}
+		// B-516: two same-named entries (two Lightning rings) read apart on the strip.
+		TArray<FText> Names;
+		for (const FFieldSlice &Slice : Slices)
+		{
+			Names.Add(Slice.Name);
+		}
+		WoRGameNames::NumberRepeatedNames(Names);
+		for (int32 Index = 0; Index < Names.Num(); ++Index)
+		{
+			Slices[Index].Name = Names[Index];
+		}
 		return Slices;
 	}
 }
