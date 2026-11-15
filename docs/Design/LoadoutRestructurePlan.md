@@ -106,6 +106,36 @@ struct FPresetSocket
 - **"Starting gear" supersedes two lines.** D-219's two lines that say kept gear is "lost when the next run starts" no longer apply. Nothing is removed at the next run start. B-503t's "lost at the next run" step is **dropped**. Its WIP rule ER-65f is reworded before it lands in `docs/Rules/05-economy-and-runs.md`.
 - **The run's gear pick.** `PoolRunLayer.cpp:131-162` picks the run's gear from **wearers**. It now reads `FWornGear` (CS-3, second half; CS-14).
 
+**D-219, a lost run costs tier (stage 1b):**
+- **Where a piece's tier lives.** On the owned instance, never the asset (`TierOnInstance.md`). That is `FGearInstance::Tier` in the pool's owned store (`UPoolSubsystem::OwnedWeapons` and the other owned lists; evolutions: `FEvolutionInventoryEntry::Tier`). It is saved as `FSavedOwnedItem::Tier`, so **the drop needs no new save field**.
+- **When.** Once per run, on the ending:
+  - **out of wipes:** yes;
+  - **quit mid-run:** yes (`AbandonRun`);
+  - **game closed mid-run:** yes, settled at the next start by `SettleRunAsQuit` (B-408a);
+  - **a single wipe that doesn't end the run, a finish, an extract:** no.
+- **Which pieces.** Every piece in `FWornGear` at that moment, owned gear included:
+  - each `Equipment` entry's `GearID` and `OffHandID`;
+  - `EvolutionID`;
+  - each `Apparel` piece.
+- **How.**
+  - `PoolRunLayer` gets `ApplyLostRunTierDrop(Key)`. It lowers each piece's instance tier by `GearTierLoss::RANKS_LOST_ON_LOST_RUN`, clamped at F.
+  - This goes below the asset's authored tier, which `TierOnInstance.md` calls the floor. Crown's ruling is "never below F", so the floor rule changes for this one case, and the doc gets a line.
+  - The values derived from tier are worked out again from the new tier (budget, power, wear, dismantle value). Leveled stat pools are checked while building.
+  - It runs in the same step that closes the run, so the save that records the ending already holds the lower tiers. A closed game is settled on load before anything else saves, so there is no double drop and no missed drop.
+- **The named number:**
+  ```cpp
+  namespace GearTierLoss
+  {
+      constexpr int32 RANKS_LOST_ON_LOST_RUN = 3; // D-219: S to C; tuned in play (Crown: two, "maybe even 3")
+  }
+  ```
+- **Socketed crystals.** A crystal is its `FCrystalId{Type, Tier}`. Crown's "everything you were wearing" reads as the pieces, not what is in their sockets. **Default:** sockets keep their crystal unchanged. This is question 6 below.
+- **A quit and the restore.** A quit puts back the run-start loadout. The drop is applied **first**, to the pieces worn at the moment of quitting that the player still owns after the quit. That means home pieces only: found pieces go back anyway.
+  - A home piece worn at the quit loses tier even if the restore then moves it to another slot or takes it off.
+  - A home piece worn at the run start but taken off before the quit does not lose tier.
+  - For a closed game, "the moment of quitting" is the `FWornGear` in the last save before the close.
+  - This is question 7 below.
+
 **D-218, the wheel (stage 1):**
 - The wheel pick lives in `FWornGear::WheelPick`. A weapon pick sets `ActiveGearID` in the same write. The pick and the ACTIVE entry stay separate fields because an element-source pick leaves the ACTIVE weapon as it is.
 - Guard and parry are worked out from the pick when `bPicked` is set, and otherwise from the `FPartyMember` fallbacks (as today, B-503s).
@@ -132,7 +162,11 @@ Each stage is playable in PIE and builds, and every commit touches at most 3 fil
 
 ### Stage 1b: run endings on the record (M, about 3 commits; reuses B-503t)
 - Snapshot and restore of `FWornGear`, the found-gear keep on carrying endings, and the "last used gear" write. D-219's rows go into `docs/Rules/05-economy-and-runs.md`.
-- Specs per ending: finish, extract, out of wipes, quit, and closed mid-run.
+- The tier drop on a lost run (§3): `ApplyLostRunTierDrop`, and the `GearTierLoss` constant.
+- Specs per ending: finish, extract, out of wipes, quit, and closed mid-run. Each one checks the tiers:
+  - out of wipes, a quit and a close drop each worn piece by 3, clamped at F;
+  - a finish, an extract and a single wipe drop nothing;
+  - a home piece taken off before a quit keeps its tier.
 - **PIE:** finish a run with a found axe socketed. It is worn in the hub and at the next trial's start. A quit puts the old gear back.
 - **Clashes removed:** CS-3 second half and CS-14 (the run's gear pick reads the record, not wearers).
 
@@ -237,6 +271,11 @@ The values are zero until tuned, so the trial mirror is free until Crown sets th
 3. **Does the trial mirror save presets too, or only put them on?** **Default: both**, since saving is free and only putting on costs. FFXIV's gear sets can be saved anywhere.
 4. **What the mirror charges for.** Only pieces and crystals it changes (default), or the whole preset?
 5. **Template and GenericLord** are identical assets. Keep both?
+6. **A lost run's tier drop and socketed crystals.** Does "everything you were wearing" include the crystals and evolutions in the pieces' sockets? **Default: no.** Only the pieces drop (weapons, adapters, the character's own evolution, apparel), and sockets keep what they hold.
+7. **The tier drop on a quit.** A quit puts back the run-start loadout. The plan drops tier on **the pieces worn at the moment of quitting that the player still owns**, which means the home pieces, since found ones go back anyway. Examples:
+   - you start with an S sword, swap to a found axe, and quit: the sword is not dropped, and the axe goes back;
+   - you keep the S sword on and quit: it drops to C.
+   For a closed game, it is what was worn in the last save. **Default: as described.** The other reading: drop the run-start pieces that the restore puts back on.
 
 ## 8. What stays on hold
 
