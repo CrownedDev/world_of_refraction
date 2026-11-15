@@ -360,8 +360,9 @@ namespace FieldSkillRules
 	inline bool IsFieldAttackHeld(double PressedSeconds) { return PressedSeconds >= FIELD_ATTACK_HOLD_SECONDS; }
 
 	/** B-503k (D-217): R / LB pressed this long is a hold (change the element within the source), shorter a press
-	 *  (change the source). B-503m: its own value, 0.6 s for now (was the attack's 0.4 s). */
-	constexpr double FIELD_SOURCE_HOLD_SECONDS = 0.6; // TODO: the researcher's value
+	 *  (change the source). B-503m: its own value; 0.5 s, the middle of the usual 0.4-0.6 s (docs/research/hold-duration.md).
+	 *  TODO: a hold-time setting in Options can replace it later. */
+	constexpr double FIELD_SOURCE_HOLD_SECONDS = 0.5;
 
 	inline bool IsFieldSourceHeld(double PressedSeconds) { return PressedSeconds >= FIELD_SOURCE_HOLD_SECONDS; }
 
