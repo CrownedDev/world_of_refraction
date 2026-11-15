@@ -16,6 +16,8 @@ namespace
 	constexpr int32 TRANSITION_TEST_SEED = 500;
 	constexpr float TRANSITION_TEST_ASPECT = 16.0f / 9.0f;
 	constexpr float TRANSITION_TEST_FRAME = 1.0f / 60.0f;
+	/** B-503f: a third-person camera's field of view, degrees. */
+	constexpr double TRANSITION_TEST_FOV = 90.0;
 	constexpr float TRANSITION_LONG_HOLD_SECONDS = 120.0f;
 	constexpr double TRANSITION_AREA_TOLERANCE = 1.0e-4;
 	/** B-500a: "slow" means behind an even pace at this share of the time. */
@@ -58,6 +60,27 @@ END_DEFINE_SPEC(FBattleTransitionSpec)
 
 void FBattleTransitionSpec::Define()
 {
+	It("places the wall so it fills the view on both axes, whichever axis the FOV is kept on (B-503f)", [this]()
+	{
+		const double HalfTangent = FMath::Tan(FMath::DegreesToRadians(TRANSITION_TEST_FOV * 0.5));
+		// Horizontal FOV kept (the engine default), Vertical kept (the FOV is the vertical one), and a view whose
+		// pixels aren't square (a squeezed vertical): each must be covered edge to edge on both axes.
+		const FVector2D Views[] = {FVector2D(HalfTangent, HalfTangent / TRANSITION_TEST_ASPECT),
+								   FVector2D(HalfTangent * TRANSITION_TEST_ASPECT, HalfTangent),
+								   FVector2D(HalfTangent, HalfTangent)};
+		for (const FVector2D &Tangents : Views)
+		{
+			const double WallX = BattleTransition::GetWallX(Tangents, TRANSITION_TEST_ASPECT);
+			const double CoveredH = 0.5 / WallX;
+			const double CoveredV = 0.5 / (TRANSITION_TEST_ASPECT * WallX);
+			TestTrue(FString::Printf(TEXT("covers %.3f x %.3f (covered %.3f x %.3f)"), Tangents.X, Tangents.Y, CoveredH, CoveredV),
+					 CoveredH >= Tangents.X - UE_KINDA_SMALL_NUMBER && CoveredV >= Tangents.Y - UE_KINDA_SMALL_NUMBER);
+		}
+		// The default view needs no more than it did: the wall sits where the old horizontal-only sum put it.
+		TestEqual(TEXT("horizontal FOV, square pixels: as before"), BattleTransition::GetWallX(Views[0], TRANSITION_TEST_ASPECT),
+				  1.0 / (2.0 * HalfTangent), TRANSITION_AREA_TOLERANCE);
+	});
+
 	It("cuts the whole overscanned screen into shards, the same ones for the same seed", [this]()
 	{
 		const UBattleTransitionData &Data = *GetDefault<UBattleTransitionData>();
