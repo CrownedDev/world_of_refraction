@@ -9,10 +9,13 @@
 #include "Currency/CurrencyWallet.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "Field/FieldSkillTypes.h"
 #include "GameFramework/PlayerController.h"
+#include "Infusion/ElementColors.h"
 #include "Player/WoRPlayerState.h"
 #include "TimerManager.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "WoRHubHUDWidget"
 
@@ -35,6 +38,11 @@ namespace HubHUDStyle
 	constexpr float QuestLineWidth = 540.0f;
 	/** A step changes on an event, not every frame: a second is soon enough. */
 	constexpr float QuestRefreshSeconds = 1.0f;
+	/** B-503: the cycled field attack sits bottom left. TODO: tune beside the party strip with the trial HUD (B-465) */
+	const FAnchors BottomLeft(0.0f, 1.0f);
+	const FVector2D BottomLeftAlignment(0.0f, 1.0f);
+	constexpr float FieldAttackBottom = 220.0f;
+	constexpr float FieldAttackIconSize = 48.0f;
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -106,9 +114,53 @@ void UHubHUDWidget::BuildTree()
 		QuestSlot->SetAutoSize(true);
 	}
 
+	FieldAttackBox = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	FieldAttackBox->SetBrushColor(PanelColor);
+	FieldAttackBox->SetPadding(FMargin(ChipPaddingX, ChipPaddingY));
+	UHorizontalBox *FieldAttackRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	FieldAttackBox->SetContent(FieldAttackRow);
+	FieldAttackIcon = MakeIcon(WidgetTree, FieldAttackIconSize);
+	FieldAttackName = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	FieldAttackElement = MakeText(WidgetTree, LineFontSize, DimColor);
+	AddToRow(FieldAttackRow, FieldAttackIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f));
+	AddToRow(FieldAttackRow, FieldAttackName, FMargin(0.0f, 0.0f, WordGap, 0.0f));
+	AddToRow(FieldAttackRow, FieldAttackElement);
+	if (UCanvasPanelSlot *FieldAttackSlot = Canvas->AddChildToCanvas(FieldAttackBox))
+	{
+		FieldAttackSlot->SetAnchors(BottomLeft);
+		FieldAttackSlot->SetAlignment(BottomLeftAlignment);
+		FieldAttackSlot->SetPosition(FVector2D(ScreenMargin, -FieldAttackBottom));
+		FieldAttackSlot->SetAutoSize(true);
+	}
+
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
 	SetShown(QuestBox, false);
+	SetShown(FieldAttackBox, false);
+}
+
+void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
+{
+	if (!FieldAttackBox)
+	{
+		return; // headless: no tree
+	}
+	const bool bElemental = FieldSkillRules::IsElemental(Entry.Element);
+	FieldAttackName->SetText(Entry.Name.IsEmpty() ? LOCTEXT("FieldAttackUnarmed", "Unarmed") : Entry.Name);
+	FieldAttackElement->SetText(bElemental ? WoRGameNames::GetElementName(Entry.Element) : FText::GetEmpty());
+	FieldAttackElement->SetColorAndOpacity(FSlateColor(bElemental ? ElementColors::GetColorForElement(Entry.Element) : WoRMenuStyle::DimColor));
+	WoRMenuStyle::SetIcon(FieldAttackIcon, Entry.Icon, Entry.Name);
+	WoRMenuStyle::SetShown(FieldAttackBox, true);
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(FieldAttackTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::HideFieldAttack),
+										  FieldSkillRules::FIELD_ATTACK_POPUP_SECONDS, /*bLoop=*/false);
+	}
+}
+
+void UHubHUDWidget::HideFieldAttack()
+{
+	WoRMenuStyle::SetShown(FieldAttackBox, false);
 }
 
 void UHubHUDWidget::NativeConstruct()
@@ -132,6 +184,7 @@ void UHubHUDWidget::NativeDestruct()
 	{
 		World->GetTimerManager().ClearTimer(RefreshTimer);
 		World->GetTimerManager().ClearTimer(QuestTimer);
+		World->GetTimerManager().ClearTimer(FieldAttackTimer);
 	}
 	if (UCurrencyComponent *Wallet = BoundWallet.Get())
 	{

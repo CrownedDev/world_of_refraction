@@ -925,6 +925,17 @@ bool UPartySessionSubsystem::SetMemberFieldSkill(int32 SlotIndex, const FFieldSk
 	return true;
 }
 
+bool UPartySessionSubsystem::SetMemberFieldAttackIndex(int32 SlotIndex, int32 FieldAttackIndex)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !Party->Members.IsValidIndex(SlotIndex))
+	{
+		return false;
+	}
+	Party->Members[SlotIndex].FieldAttackIndex = FieldAttackIndex;
+	return true; // the component logs the entry it names
+}
+
 bool UPartySessionSubsystem::IsMemberAISeat(int32 SlotIndex) const
 {
 	const UParty *Party = GetLocalParty();

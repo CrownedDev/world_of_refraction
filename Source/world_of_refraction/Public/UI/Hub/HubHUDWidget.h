@@ -33,6 +33,10 @@ public:
 	/** Reads what is in reach and the money, and updates both pieces. The timer calls it; so can a spec. */
 	void Refresh();
 
+	/** B-503 (D-215): the cycled field attack's icon, name and element, for FieldSkillRules::FIELD_ATTACK_POPUP_SECONDS.
+	 *  A placeholder until the trial HUD (B-465). */
+	void ShowFieldAttack(const struct FFieldAttackEntry &Entry);
+
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
 	bool IsMoneyShown() const { return bMoneyShown; }
 
@@ -78,6 +82,17 @@ private:
 	TObjectPtr<UBorder> QuestBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> QuestText;
+	/** B-503: the cycled field attack, shown for a moment. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> FieldAttackBox;
+	UPROPERTY(Transient)
+	TObjectPtr<class UImage> FieldAttackIcon;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FieldAttackName;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FieldAttackElement;
+	FTimerHandle FieldAttackTimer;
+	void HideFieldAttack();
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;
 };

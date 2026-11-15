@@ -191,6 +191,12 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	FFieldSkillChoice FieldSkill;
 
+	/** B-503 (D-215): which stop of the field attack's cycle the member uses (UFieldMovementComponent::
+	 *  GetFieldAttackEntries; read clamped, so a loadout change can't strand it). Saved (FSavedPartyMember). Written
+	 *  by UPartySessionSubsystem::SetMemberFieldAttackIndex. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }

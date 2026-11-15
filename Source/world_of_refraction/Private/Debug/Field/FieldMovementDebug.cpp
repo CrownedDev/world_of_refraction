@@ -203,18 +203,32 @@ namespace
 				}
 			}));
 
-	FAutoConsoleCommandWithWorld GFieldSwitchSourceCmd(
-		TEXT("wor.Field.SwitchSource"),
-		TEXT("DEBUG (B-214f, until B-214g's IA_Field_SwitchSource): the field attack's source steps Innate -> Weapon -> Ring."),
+	FAutoConsoleCommandWithWorld GFieldCycleAttackCmd(
+		TEXT("wor.Field.CycleAttack"),
+		TEXT("DEBUG (B-503, D-215; stands in for IA_Field_SwitchSource, LB / R): the field attack steps to the loadout's "
+			 "next entry (weapons, rings, the innate element, evolutions) and the whole cycle is listed. No popup."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
 				if (UFieldMovementComponent *FieldMovement = PlayerFieldMovement(World))
 				{
-					FieldMovement->SwitchFieldAttackSource();
-					Report(FieldMovement->GetFieldStateString());
+					FieldMovement->CycleFieldAttack();
+					Report(WoRFieldMovementDebug::GetFieldAttackCycleString(*FieldMovement));
 				}
 			}));
+}
+
+FString WoRFieldMovementDebug::GetFieldAttackCycleString(const UFieldMovementComponent &FieldMovement)
+{
+	const TArray<FFieldAttackEntry> Entries = FieldMovement.GetFieldAttackEntries();
+	const int32 InUse = FieldMovement.GetFieldAttackIndex();
+	FString Lines = FString::Printf(TEXT("Field attack cycle (%d):"), Entries.Num());
+	for (int32 Index = 0; Index < Entries.Num(); ++Index)
+	{
+		Lines += FString::Printf(TEXT("\n%s %d %s"), Index == InUse ? TEXT(">") : TEXT(" "), Index + 1,
+								 *FieldSkillRules::FieldAttackEntryString(Entries[Index]));
+	}
+	return Entries.IsEmpty() ? Lines + TEXT(" none: the plain swing") : Lines;
 }
 
 void WoRFieldMovementDebug::PrintUnlocks(UWorld *World)
