@@ -34,7 +34,9 @@ enum class EBattleCardLevel : uint8
 struct FBattleCardParts
 {
 	bool bHPBar = false;
+	/** B-503m: the HP number, drawn on the HP bar. */
 	bool bHPLine = false;
+	/** B-503m: the EP bar with its number on it. */
 	bool bEPLine = false;
 	bool bBuildupBar = false;
 	bool bBuildupLine = false;
@@ -68,6 +70,16 @@ namespace BattleCardStyle
 	inline constexpr float BuildupBarHeight = 6.0f;
 	inline constexpr float CrackWidth = 2.0f;
 	inline const FLinearColor CrackColor(0.0f, 0.0f, 0.0f, 0.85f);
+
+	// B-503m: the HP and EP numbers on their bars, the bars' quiet empty part, the build-up bar's label.
+	inline constexpr float NumberBarHeight = 18.0f;
+	inline constexpr int32 BarFontSize = 11;
+	inline const FLinearColor BarTextShadowColor(0.0f, 0.0f, 0.0f, 0.9f);
+	inline const FLinearColor EmptyBarColor(1.0f, 1.0f, 1.0f, 0.15f);
+	inline const FLinearColor EPBarColor(0.15f, 0.4f, 0.85f);
+	inline constexpr int32 BuildupLabelFontSize = 10;
+	inline constexpr float BuildupLabelGap = 4.0f;
+	inline const FLinearColor BuildupLabelColor(1.0f, 1.0f, 1.0f, 0.55f);
 }
 
 /** One combatant's card: what it shows (plain data) and, once built, its text blocks. */
@@ -86,6 +98,8 @@ struct FBattleHUDCard
 	bool bBrokenDarkness = false;
 	FLinearColor EPColour = FLinearColor::White;
 	float HPFraction = 0.0f;
+	/** B-503m: the EP bar (a Broken Darkness pool past max reads full; its line says the overload). */
+	float EPFraction = 0.0f;
 	FText Name;
 	FText HPLine;
 	FText EPLine;
@@ -113,9 +127,14 @@ struct FBattleHUDCard
 	UPROPERTY()
 	TObjectPtr<UProgressBar> HPBar;
 
+	/** B-503m: drawn on HPBar. */
 	UPROPERTY()
 	TObjectPtr<UTextBlock> HPText;
 
+	UPROPERTY()
+	TObjectPtr<UProgressBar> EPBar;
+
+	/** B-503m: drawn on EPBar. */
 	UPROPERTY()
 	TObjectPtr<UTextBlock> EPText;
 
