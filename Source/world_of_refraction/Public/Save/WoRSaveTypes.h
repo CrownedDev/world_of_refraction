@@ -181,6 +181,10 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	bool bFieldAttackPicked = false;
 
+	/** B-503s2 (D-218): FPartyMember::ActiveWeaponId. No version bump: an older 39 loads it unset (the loadout's own). */
+	UPROPERTY()
+	FGuid ActiveWeaponId;
+
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
 

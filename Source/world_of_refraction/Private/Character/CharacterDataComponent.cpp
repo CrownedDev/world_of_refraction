@@ -39,6 +39,45 @@ UCharacterDataComponent::UCharacterDataComponent()
     bIsAlive = true;
 }
 
+namespace
+{
+    /** B-503s2 (D-218): the recorded weapon goes back in hand in the loadout in use; false when it isn't there. */
+    bool PutWeaponInHand(FCombatLoadout &Active, const FGuid &WeaponId)
+    {
+        const bool bPrimary = WeaponId.IsValid() && Active.PrimaryWeapon.WeaponEntry.PersistentID == WeaponId;
+        if (!bPrimary && (!WeaponId.IsValid() || Active.SecondaryWeapon.WeaponEntry.PersistentID != WeaponId))
+        {
+            return false;
+        }
+        Active.bShowPrimary = bPrimary;
+        return true;
+    }
+}
+
+void UCharacterDataComponent::StampPartyMember(const FGuid &MemberId)
+{
+    if (PartyMemberId.IsValid() || !MemberId.IsValid())
+    {
+        return;
+    }
+    PartyMemberId = MemberId;
+    ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    const UInventoryComponent *Inventory = GetOwner() ? GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
+    const FPartyMember *Member = FindCarriedPartyMember();
+    if (!Loadout || !Inventory || !Member)
+    {
+        return;
+    }
+    if (Member->ActiveWeaponId.IsValid())
+    {
+        const FGuid WeaponId = Member->ActiveWeaponId;
+        FText Refusal;
+        Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&WeaponId](FCombatLoadout &Changed) { PutWeaponInHand(Changed, WeaponId); }, Refusal);
+    }
+    Loadout->RecordWeaponInHand(); // a member with nothing recorded yet starts from what this pawn holds
+    UE_LOG(LogWoR, Log, TEXT("[CharacterData] %s stamped as party member %s"), *GetNameSafe(GetOwner()), *MemberId.ToString());
+}
+
 const FPartyMember *UCharacterDataComponent::FindCarriedPartyMember() const
 {
     const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
@@ -82,9 +121,17 @@ void UCharacterDataComponent::BeginPlay()
 
             if (Inventory)
             {
+                // B-503s2 (D-218): read before the draw, which may announce the rebuilt loadout's own weapon.
+                const FPartyMember *Recorded = PartyMemberId.IsValid() ? FindCarriedPartyMember() : nullptr;
+                const FGuid WeaponInHand = Recorded ? Recorded->ActiveWeaponId : FGuid();
                 Inventory->InitializeFromCharacterData(CharacterData);
                 // B-091 (D-020): a party member's gear is the party's shared armoury.
                 Inventory->DrawSharedGear();
+                if (Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex) &&
+                    PutWeaponInHand(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], WeaponInHand))
+                {
+                    UE_LOG(LogWoR, Log, TEXT("[CharacterData] %s: the weapon last in hand is back in hand (D-218)"), *GetNameSafe(Owner));
+                }
             }
             if (Loadout && Inventory)
             {

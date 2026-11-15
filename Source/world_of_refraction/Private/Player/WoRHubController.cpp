@@ -14,6 +14,8 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "Character/CharacterDataComponent.h"
+#include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/InputPriorities.h"
 #include "UI/Hub/HubHUDWidget.h"
@@ -329,6 +331,14 @@ void AWoRHubController::OnPossess(APawn *InPawn)
 		{
 			PartySession->EnsureLocalParty(this, LocalPartyPawnClass);
 		}
+	}
+	// B-503s2: a hub pawn spawns unstamped; the local leader's is the party's first member (ATrialGameMode's rule).
+	const UPartySessionSubsystem *Session = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const UParty *Party = Session ? Session->GetLocalParty() : nullptr;
+	UCharacterDataComponent *CharComp = InPawn ? InPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (IsLocalController() && Party && Party->Members.Num() > 0 && CharComp && CharComp->CharacterData == Party->Members[0].CharacterData)
+	{
+		CharComp->StampPartyMember(Party->Members[0].MemberId);
 	}
 	EnsureFieldMovement(InPawn); // after EnsureLocalParty, so the leader's record is bound
 }

@@ -1209,6 +1209,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.FieldSkillType = Member.FieldSkill.Type;
 		Out.FieldAttackIndex = Member.FieldAttackIndex; // B-503 (D-215)
 		Out.bFieldAttackPicked = Member.bFieldAttackPicked; // B-503s (D-218)
+		Out.ActiveWeaponId = Member.ActiveWeaponId; // B-503s2
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -1522,6 +1523,7 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.FieldSkill.Type = In.FieldSkillType;
 		Member.FieldAttackIndex = In.FieldAttackIndex; // B-503 (D-215)
 		Member.bFieldAttackPicked = In.bFieldAttackPicked; // B-503s (D-218)
+		Member.ActiveWeaponId = In.ActiveWeaponId; // B-503s2
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();
