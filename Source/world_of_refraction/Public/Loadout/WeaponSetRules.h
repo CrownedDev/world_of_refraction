@@ -50,7 +50,8 @@ namespace WeaponSetRules
 	/** D-211: the tier slots of a pair: the average of the two tiers' slots (CL-20), a half rounded down. */
 	WORLD_OF_REFRACTION_API int32 GetPairTierSlots(EItemTier MainTier, EItemTier OffHandTier);
 
-	/** The set's tier slots: the weapon's own (CL-20), or the pair's average (D-211). */
+	/** The set's tier slots: the weapon's own (CL-20), or the pair's average (D-211). A shield pair keeps the main
+	 *  hand's own slots (B-515c). */
 	WORLD_OF_REFRACTION_API int32 GetSetTierSlots(const FWeaponLoadoutEntry &Set);
 
 	/** D-210: the set's built-in abilities, the main hand's then the off hand's not already listed. */

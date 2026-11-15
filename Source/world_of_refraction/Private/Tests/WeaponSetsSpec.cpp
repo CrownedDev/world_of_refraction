@@ -160,6 +160,18 @@ void FWeaponSetsSpec::Define()
 		TestEqual(TEXT("a weapon alone keeps its tier's slots"), Alone.GetSkillSlotCount(), WeaponSetRules::GetPairTierSlots(EItemTier::B_Tier, EItemTier::B_Tier));
 	});
 
+	It("gives a sword and shield the sword's own slots; two axes still average (B-515c, Crown Q8)", [this]()
+	{
+		UWeaponData *Sword = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+		UWeaponData *Shield = WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::DualOnly);
+		UWeaponData *Axe = WeaponSetsTestWeapon(EWeaponType::Axe, EWeaponHandling::SingleOrDual);
+		const FWeaponLoadoutEntry WithShield = WeaponSetsTestSet(WeaponSetsTestHand(Sword, EItemTier::S_Tier), WeaponSetsTestHand(Shield, EItemTier::F_Tier));
+		const FWeaponLoadoutEntry TwoAxes = WeaponSetsTestSet(WeaponSetsTestHand(Axe, EItemTier::S_Tier), WeaponSetsTestHand(Axe, EItemTier::F_Tier));
+		TestEqual(TEXT("an S sword with an F shield keeps the S slots"), WeaponSetRules::GetSetTierSlots(WithShield),
+				  WeaponSetRules::GetSetTierSlots(WeaponSetsTestSet(WithShield.WeaponEntry)));
+		TestEqual(TEXT("an S axe with an F axe averages"), WeaponSetRules::GetSetTierSlots(TwoAxes), WEAPON_SETS_S_AND_F_SLOTS);
+	});
+
 	It("pre-fills a pair's list with both weapons' built-ins, the main hand's first, once each (D-210)", [this]()
 	{
 		UAbilityData *Slash = WeaponSetsTestAbility(EWeaponType::Sword, EWeaponWieldMode::Single);

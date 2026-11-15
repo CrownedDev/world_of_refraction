@@ -84,7 +84,8 @@ int32 WeaponSetRules::GetPairTierSlots(EItemTier MainTier, EItemTier OffHandTier
 
 int32 WeaponSetRules::GetSetTierSlots(const FWeaponLoadoutEntry &Set)
 {
-	return IsValidPair(Set) ? GetPairTierSlots(Set.WeaponEntry.Tier, Set.OffHandEntry.Tier) : CrystalEffectTable::SlotsForContainerTier(Set.WeaponEntry.Tier);
+	// B-515c (Crown, Q8): a shield pair counts as one weapon, so it keeps the main hand's own slots.
+	return IsValidPair(Set) && !IsShieldPair(Set) ? GetPairTierSlots(Set.WeaponEntry.Tier, Set.OffHandEntry.Tier) : CrystalEffectTable::SlotsForContainerTier(Set.WeaponEntry.Tier);
 }
 
 TArray<UAbilityData *> WeaponSetRules::GetSetBuiltIns(const FWeaponLoadoutEntry &Set)
