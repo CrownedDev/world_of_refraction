@@ -60,16 +60,18 @@ public:
 	/** Reads what is in reach and the money, and updates both pieces. The timer calls it; so can a spec. */
 	void Refresh();
 
-	/** B-503k (D-217): the infusion R / LB just stepped to: shows it on the strip (B-503m: no flash). The strip is up
-	 *  in a trial map while the pawn has a field attack with a name. */
+	/** B-503k (D-217): the field attack just picked on the wheel: shows it on the strip (B-503m: no flash). The strip is
+	 *  up in a trial map while the pawn has a field attack with a name. */
 	void ShowFieldAttack(const struct FFieldAttackEntry &Entry);
 
-	/** B-503m3 (D-217): the LB wheel, mid-screen: every entry's strip name around a circle (entry 0 at the top,
-	 *  clockwise), the pick lit and its name in the middle. Trial only, as the strip; false when there is no wheel
-	 *  to show (the hub, headless, no entries). Call again to move the pick. */
+	/** B-503m4 (D-217 "The wheel on RB"): the wheel above the strip, bottom left: one slice per loadout entry around a
+	 *  circle (slice 0 at the top, clockwise), each with its element's diamond; the picked slice lit, and in the
+	 *  middle the picked option ("< Fire >") over what the strip will read ("Fire Sword"); key hints bottom right.
+	 *  Trial only, as the strip; false when there is no wheel to show (the hub, headless, no entries). Call again to
+	 *  move the pick. */
 	bool ShowFieldAttackWheel(const TArray<struct FFieldAttackEntry> &Entries, int32 Picked);
 	void HideFieldAttackWheel();
-	/** How many entries the wheel can show (0: no wheel here). */
+	/** How many slices the wheel can show (0: no wheel here). */
 	int32 GetFieldWheelCapacity() const { return WheelSlots.Num(); }
 
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
@@ -128,13 +130,24 @@ private:
 	/** Reads the pawn's current stop (on the slow timer: the stops read the loadout and the sources). */
 	void RefreshFieldAttack();
 
-	/** B-503m3: the wheel's slots, built once with the strips (Trial level), shown per entry while R / LB is held. */
+	/** B-503m4: the wheel's slices, built once with the strips (Trial level), shown per slice while RB / R is held. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> WheelSlots;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> WheelTexts;
+	/** Each slice's element diamond, in the element's colour. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> WheelDiamonds;
+	/** The middle: the picked option, with arrows when the slice has more than one, over the strip's reading. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> WheelHub;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> WheelCentre;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> WheelResult;
+	/** The wheel's keys, bottom right, while it is up. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> WheelHints;
 	void BuildFieldAttackWheel(class UCanvasPanel *Canvas);
 
 	/** B-503g: the party strip's cards, built once (PartyConstants::MAX_PARTY_MEMBERS) at the map's level (B-503j),

@@ -8,6 +8,7 @@
 // B-503c: the pulse's reach and its wait for the cast's release. The pulse on screen and its 7 m hit: PIE (B-503c.md).
 // B-503k (D-217): the cycle is the attack's infusions (a weapon user: plain, then each element; a Refractor: elements).
 // B-503l (Q-503l): a hold steps a Reality or Broken Darkness stop through the other stops' elements; a press skips them.
+// B-503m4 (D-217): one wheel slice per loadout entry, its element options inside (Ice on Water); the D-pad and mouse rules.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -19,6 +20,7 @@
 #include "Character/ECharacterClass.h"
 #include "Combat/CombatNotify.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
@@ -160,6 +162,26 @@ void FFieldAttackSpec::Define()
 			TestEqual(TEXT("scroll wraps back"), FieldSkillRules::StepFieldWheelIndex(0, -1, FOUR_ENTRIES), 3);
 			TestEqual(TEXT("scroll with nothing"), FieldSkillRules::StepFieldWheelIndex(2, 1, 0), 0);
 		});
+
+		It("B-503m4: find the wheel's slices and step a slice's element options", [this]()
+		{
+			// Two slices: entry 0 with two options after it, entry 3 alone.
+			TArray<FFieldAttackEntry> Entries;
+			Entries.AddDefaulted(4);
+			Entries[1].bHoldStep = Entries[2].bHoldStep = true;
+			TestTrue(TEXT("two slices"), FieldSkillRules::GetFieldSliceStarts(Entries) == TArray<int32>({0, 3}));
+			TestEqual(TEXT("an option belongs to its slice"), FieldSkillRules::GetFieldSliceOf(Entries, 2), 0);
+			TestEqual(TEXT("the second slice"), FieldSkillRules::GetFieldSliceOf(Entries, 3), 1);
+			TestEqual(TEXT("no entries: no slice"), FieldSkillRules::GetFieldSliceOf(TArray<FFieldAttackEntry>(), 0), INDEX_NONE);
+			TestEqual(TEXT("D-pad right: the next option"), FieldSkillRules::StepFieldSliceOption(Entries, 0, 1), 1);
+			TestEqual(TEXT("right from the last option wraps inside the slice"), FieldSkillRules::StepFieldSliceOption(Entries, 2, 1), 0);
+			TestEqual(TEXT("D-pad left from the first wraps to the last"), FieldSkillRules::StepFieldSliceOption(Entries, 0, -1), 2);
+			TestEqual(TEXT("a one-option slice stays"), FieldSkillRules::StepFieldSliceOption(Entries, 3, 1), 3);
+			TestEqual(TEXT("nothing to step"), FieldSkillRules::StepFieldSliceOption(TArray<FFieldAttackEntry>(), 0, 1), 0);
+			const FVector2D Moved = FieldSkillRules::MoveFieldWheelPointer(FVector2D::ZeroVector, FVector2D(1.0, 0.0));
+			TestTrue(TEXT("the mouse moves the pointer by its scaled travel"), Moved.Equals(FVector2D(FieldSkillRules::FIELD_WHEEL_MOUSE_SCALE, 0.0)));
+			TestTrue(TEXT("and never past the rim"), FMath::IsNearlyEqual(FieldSkillRules::MoveFieldWheelPointer(FVector2D(0.0, 1.0), FVector2D(0.0, 1000.0)).Size(), 1.0));
+		});
 	});
 
 	Describe("the component", [this]()
@@ -170,13 +192,21 @@ void FFieldAttackSpec::Define()
 			{
 				return;
 			}
-			TestEqual(TEXT("one entry"), Field->GetFieldAttackEntries().Num(), 1);
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("one slice: Water and its Ice option (B-503m4)"), Entries.Num(), 2))
+			{
+				return;
+			}
 			const FFieldAttackEntry Innate = Field->GetFieldAttackEntry();
-			TestTrue(TEXT("the innate element, thrown"), Innate.Kind == EFieldAttackKind::Innate && !Innate.IsSwing());
-			const FFieldStrike Held = Field->GetFieldStrike(true);
-			TestTrue(TEXT("held innate Water is Ice, no physical type"),
-					 Held.Element == ESpellElement::Water && Held.bIce && Held.Physical == EPhysicalDamageType::None);
-			TestTrue(TEXT("one entry wraps onto itself"), Field->CycleFieldAttack().Kind == EFieldAttackKind::Innate);
+			TestTrue(TEXT("the innate element, thrown"), Innate.Kind == EFieldAttackKind::Innate && !Innate.IsSwing() && !Innate.bIce);
+			TestTrue(TEXT("the Ice option (D-217 Ice)"), Entries[1].bHoldStep && Entries[1].bIce && Entries[1].Element == ESpellElement::Water &&
+															 Entries[1].Name.EqualTo(WoRGameNames::GetIceName()));
+			TestFalse(TEXT("plain Water isn't Ice"), Field->GetFieldStrike(false).bIce);
+			Field->SelectFieldAttack(1);
+			const FFieldStrike Ice = Field->GetFieldStrike(false);
+			TestTrue(TEXT("the Ice option strikes Ice, no physical type"),
+					 Ice.Element == ESpellElement::Water && Ice.bIce && Ice.Physical == EPhysicalDamageType::None);
+			TestTrue(TEXT("one slice: a tap wraps onto itself"), Field->CycleFieldAttack().Kind == EFieldAttackKind::Innate && Field->GetFieldAttackIndex() == 0);
 		});
 
 		It("with no gear and no element is the plain swing (B-503)", [this]()
@@ -190,7 +220,7 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("no element"), Field->GetFieldStrike(false).Element == ESpellElement::None);
 		});
 
-		It("swings the weapon in hand plain, then infused with each source's element, then back (B-503k, D-217)", [this]()
+		It("gives a weapon user a slice per weapon, plain then its crystal, and swings that weapon (B-503m4, D-217)", [this]()
 		{
 			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
 			{
@@ -198,70 +228,99 @@ void FFieldAttackSpec::Define()
 			}
 			const FString Sword = WoRGameNames::GetWeaponTypeName(EWeaponType::Sword).ToString();
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
-			if (!TestEqual(TEXT("plain and the crystal's Fire (no innate for a weapon user, no secondary weapon)"), Entries.Num(), 2))
+			if (!TestEqual(TEXT("the primary: plain and the crystal's Fire; the secondary (broken crystal): plain; no innate"), Entries.Num(), 3))
 			{
 				return;
 			}
 			TestTrue(TEXT("plain first: a swing with no element and the weapon's type"),
 					 Entries[0].IsSwing() && Entries[0].Element == ESpellElement::None && Entries[0].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("named by the weapon type"), Entries[0].Name.ToString(), Sword);
-			TestTrue(TEXT("then infused: still the swing"), Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire &&
-																 Entries[1].Physical == EPhysicalDamageType::Slash);
+			TestEqual(TEXT("the slice is the weapon"), Entries[0].SliceName.ToString(), Sword);
+			TestTrue(TEXT("then infused, an option of the same slice: still the swing"),
+					 Entries[1].bHoldStep && Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire && Entries[1].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("the element first"), Entries[1].Name.ToString(),
 					  FString::Printf(TEXT("%s %s"), *WoRGameNames::GetElementName(ESpellElement::Fire).ToString(), *Sword));
+			TestTrue(TEXT("the secondary's own slice, plain, its own swing (no attack: no physical type)"),
+					 !Entries[2].bHoldStep && Entries[2].IsSwing() && Entries[2].Element == ESpellElement::None && Entries[2].Physical == EPhysicalDamageType::None);
 
 			TestEqual(TEXT("plain by default"), Field->GetFieldAttackIndex(), 0);
 			TestTrue(TEXT("a plain strike"), Field->GetFieldStrike(false).Element == ESpellElement::None);
-			TestTrue(TEXT("a tap steps to Fire"), Field->CycleFieldAttack().Element == ESpellElement::Fire && Field->GetFieldAttackIndex() == 1);
+			Field->SelectFieldAttack(1);
 			const FFieldStrike Swing = Field->GetFieldStrike(false);
-			TestTrue(TEXT("the strike follows the stop"), Swing.Element == ESpellElement::Fire && Swing.Physical == EPhysicalDamageType::Slash);
-			TestTrue(TEXT("wraps to plain"), Field->CycleFieldAttack().Element == ESpellElement::None && Field->GetFieldAttackIndex() == 0);
+			TestTrue(TEXT("the strike follows the pick"), Swing.Element == ESpellElement::Fire && Swing.Physical == EPhysicalDamageType::Slash);
+			TestEqual(TEXT("a tap steps to the next slice"), Field->CycleFieldAttack().Physical, EPhysicalDamageType::None);
+			TestTrue(TEXT("and wraps to the first"), Field->CycleFieldAttack().Element == ESpellElement::None && Field->GetFieldAttackIndex() == 0);
 		});
 
-		It("gives a Refractor only its sources' elements, thrown and named by the element (B-503k, D-217)", [this]()
+		It("gives a weapon user's ring its own slice, infusing the weapon in hand (B-503m4, D-217)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
+			{
+				return;
+			}
+			UInventoryComponent *Inventory = Field->GetOwner()->FindComponentByClass<UInventoryComponent>();
+			URingData *Ring = NewObject<URingData>(GetTransientPackage());
+			Ring->Name = TEXT("Storm Ring");
+			FRingLoadoutEntry &Adapter = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout.AddDefaulted_GetRef();
+			Adapter.RingEntry.Ring = Ring;
+			Adapter.RingEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
+			constexpr int32 LIVE_DURABILITY = 10;
+			Adapter.RingEntry.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Citrine, EItemTier::F_Tier), LIVE_DURABILITY);
+			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
+			if (!TestEqual(TEXT("the two weapons' three, then the ring"), Entries.Num(), 4))
+			{
+				return;
+			}
+			const FFieldAttackEntry &Storm = Entries[3];
+			TestEqual(TEXT("the ring's slice"), Storm.SliceName.ToString(), FString(TEXT("Storm Ring")));
+			TestTrue(TEXT("its own slice, the crystal's Lightning on the weapon in hand's swing"),
+					 !Storm.bHoldStep && Storm.IsSwing() && Storm.Element == ESpellElement::Lightning && Storm.Physical == EPhysicalDamageType::Slash);
+			TestTrue(TEXT("named as the strip reads"), Storm.Name.ToString().StartsWith(WoRGameNames::GetElementName(ESpellElement::Lightning).ToString()));
+		});
+
+		It("gives a Refractor a slice per entry, thrown and named by the element (B-503m4, D-217)", [this]()
 		{
 			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Caster, ESpellElement::Water)))
 			{
 				return;
 			}
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
-			if (!TestEqual(TEXT("the innate Water and the crystal's Fire, no plain stop"), Entries.Num(), 2))
+			if (!TestEqual(TEXT("the crystal's Fire; the innate Water and its Ice; no plain stop"), Entries.Num(), 3))
 			{
 				return;
 			}
-			TestTrue(TEXT("the innate element first, a pulse"), Entries[0].Kind == EFieldAttackKind::Innate && !Entries[0].IsSwing() &&
-																	Entries[0].Element == ESpellElement::Water);
-			TestEqual(TEXT("just the element"), Entries[0].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Water).ToString());
-			TestTrue(TEXT("the crystal in hand, thrown with no physical type"),
-					 !Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire && Entries[1].Physical == EPhysicalDamageType::None);
-			TestEqual(TEXT("no weapon line"), Entries[1].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Fire).ToString());
+			TestTrue(TEXT("the crystal in hand first (loadout order), thrown with no physical type"),
+					 !Entries[0].IsSwing() && Entries[0].Element == ESpellElement::Fire && Entries[0].Physical == EPhysicalDamageType::None);
+			TestEqual(TEXT("no weapon line"), Entries[0].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Fire).ToString());
+			TestTrue(TEXT("then the innate element, its own slice, a pulse"), !Entries[1].bHoldStep && Entries[1].Kind == EFieldAttackKind::Innate &&
+																				  !Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Water);
+			TestEqual(TEXT("just the element"), Entries[1].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Water).ToString());
+			TestTrue(TEXT("and its Ice"), Entries[2].bHoldStep && Entries[2].bIce);
 		});
 
-		It("steps a Reality Refractor's innate through its other gear's elements on a hold (B-503l, Q-503l)", [this]()
+		It("steps a Reality Refractor's innate through its other gear's elements (B-503l, Q-503l)", [this]()
 		{
 			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Caster, ESpellElement::Reality)))
 			{
 				return;
 			}
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
-			if (!TestEqual(TEXT("the innate, its hold step, the crystal"), Entries.Num(), 3))
+			if (!TestEqual(TEXT("the crystal, the innate, its option"), Entries.Num(), 3))
 			{
 				return;
 			}
 			const FString Fire = WoRGameNames::GetElementName(ESpellElement::Fire).ToString();
-			TestEqual(TEXT("Reality reads Unknown (ED-42)"), Entries[0].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Reality).ToString());
-			TestTrue(TEXT("its hold step: the crystal's Fire"), Entries[1].bHoldStep && Entries[1].Element == ESpellElement::Fire && !Entries[1].IsSwing());
-			TestTrue(TEXT("named (R) Fire"), Entries[1].Name.ToString().StartsWith(TEXT("(R)")) && Entries[1].Name.ToString().EndsWith(Fire));
-			TestTrue(TEXT("the crystal's own stop, no hold step (not innate or evolution)"), !Entries[2].bHoldStep && Entries[2].Name.ToString() == Fire);
+			TestTrue(TEXT("the crystal's own slice, no option (not innate or evolution)"), !Entries[0].bHoldStep && Entries[0].Name.ToString() == Fire);
+			TestEqual(TEXT("Reality reads Unknown (ED-42)"), Entries[1].Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Reality).ToString());
+			TestTrue(TEXT("its option: the crystal's Fire"), Entries[2].bHoldStep && Entries[2].Element == ESpellElement::Fire && !Entries[2].IsSwing());
+			TestTrue(TEXT("named (R) Fire"), Entries[2].Name.ToString().StartsWith(TEXT("(R)")) && Entries[2].Name.ToString().EndsWith(Fire));
+			TestEqual(TEXT("a hold on the crystal stays"), Field->CycleFieldAttack(true).Name.ToString(), Fire);
+			TestEqual(TEXT("a press: the innate"), Field->CycleFieldAttack(false).Element, ESpellElement::Reality);
 			TestTrue(TEXT("a hold: (R) Fire"), Field->CycleFieldAttack(true).bHoldStep && Field->GetFieldStrike(false).Element == ESpellElement::Fire);
 			TestEqual(TEXT("a hold again: back to Unknown"), Field->CycleFieldAttack(true).Element, ESpellElement::Reality);
-			Field->CycleFieldAttack(true);
-			TestEqual(TEXT("a press from the hold step: the crystal"), Field->CycleFieldAttack(false).Name.ToString(), Fire);
-			TestEqual(TEXT("a hold on the crystal stays"), Field->CycleFieldAttack(true).Name.ToString(), Fire);
-			TestEqual(TEXT("a press wraps to the innate"), Field->CycleFieldAttack(false).Element, ESpellElement::Reality);
 		});
 
-		It("steps a Broken Darkness character's Darkness through its other gear's elements on a hold (B-503l, Q-503l)", [this]()
+		It("steps a Broken Darkness character's Darkness through its other gear's elements (B-503l, Q-503l)", [this]()
 		{
 			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Caster, ESpellElement::Darkness)))
 			{
@@ -274,16 +333,16 @@ void FFieldAttackSpec::Define()
 			}
 			CharComp->bIsBrokenDarkness = true;
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
-			if (!TestEqual(TEXT("Darkness, its hold step, the crystal"), Entries.Num(), 3))
+			if (!TestEqual(TEXT("the crystal, Darkness, its option"), Entries.Num(), 3))
 			{
 				return;
 			}
-			TestEqual(TEXT("Darkness"), Entries[0].Element, ESpellElement::Darkness);
-			TestTrue(TEXT("Dark Fire"), Entries[1].bHoldStep && Entries[1].Element == ESpellElement::Fire &&
-											Entries[1].Name.ToString().EndsWith(WoRGameNames::GetElementName(ESpellElement::Fire).ToString()) &&
-											!Entries[1].Name.ToString().StartsWith(TEXT("(R)")));
+			TestEqual(TEXT("Darkness"), Entries[1].Element, ESpellElement::Darkness);
+			TestTrue(TEXT("Dark Fire"), Entries[2].bHoldStep && Entries[2].Element == ESpellElement::Fire &&
+											Entries[2].Name.ToString().EndsWith(WoRGameNames::GetElementName(ESpellElement::Fire).ToString()) &&
+											!Entries[2].Name.ToString().StartsWith(TEXT("(R)")));
 			CharComp->bIsBrokenDarkness = false;
-			TestEqual(TEXT("not Broken Darkness: no hold step"), Field->GetFieldAttackEntries().Num(), 2);
+			TestEqual(TEXT("not Broken Darkness: no option"), Field->GetFieldAttackEntries().Num(), 2);
 		});
 
 		It("gives every enemy of the fight the strike's buildup, and nothing for an empty strike", [this]()
@@ -346,7 +405,8 @@ void FFieldAttackSpec::Define()
 
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
 			TestTrue(TEXT("the primary weapon swings with it"), Entries[0].IsSwing() && Entries[0].SwingMontage.Get() == Montage);
-			TestTrue(TEXT("infused, the same swing (B-503k)"), Entries.Last().IsSwing() && Entries.Last().SwingMontage.Get() == Montage);
+			TestTrue(TEXT("infused, the same swing (B-503k)"), Entries.IsValidIndex(1) && Entries[1].IsSwing() && Entries[1].SwingMontage.Get() == Montage);
+			TestTrue(TEXT("B-503m4: the secondary weapon's slice swings its own attack (none here)"), Entries.Last().IsSwing() && Entries.Last().SwingMontage.IsNull());
 			TestTrue(TEXT("a swing"), Field->FieldAttack(false) == EFieldSkillRefusal::None);
 			constexpr int32 MAX_FRAMES = 1000;
 			const UWorld *World = TestWorld->GetWorld();

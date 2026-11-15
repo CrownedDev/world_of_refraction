@@ -141,12 +141,12 @@ void FBattleHUDSpec::Define()
 			TestFalse(TEXT("fits the name (B-503k)"), Parts.bFixedWidth);
 		});
 
-		It("shows HP, EP and the one build-up bar in a trial", [this]()
+		It("shows HP and EP in a trial, no build-up bar (D-216)", [this]()
 		{
 			const FBattleCardParts Parts = BattleHUDCard::GetParts(EBattleCardLevel::Trial, /*bParty=*/true);
 			TestTrue(TEXT("HP bar and line"), Parts.bHPBar && Parts.bHPLine);
 			TestTrue(TEXT("EP line"), Parts.bEPLine);
-			TestTrue(TEXT("the build-up bar"), Parts.bBuildupBar);
+			TestFalse(TEXT("no build-up bar: battle only (it is always empty after a fight)"), Parts.bBuildupBar);
 			TestFalse(TEXT("no fight parts"), Parts.bBuildupLine || Parts.bGear || Parts.bActions || Parts.bStatus);
 			TestTrue(TEXT("the battle card's width"), Parts.bFixedWidth);
 		});

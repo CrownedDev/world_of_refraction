@@ -14,6 +14,7 @@
 #include "Engine/World.h"
 #include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
+#include "Infusion/ElementColors.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Party/Party.h"
@@ -24,6 +25,8 @@
 #include "TimerManager.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/PauseMenuModel.h"
+#include "UI/WoRKeyHintText.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "WoRHubHUDWidget"
@@ -57,16 +60,18 @@ namespace HubHUDStyle
 	/** B-503i: the mockup's card: the top-left corner cut 6 px at 720p, a 1 px outline. */
 	constexpr float CardCutSize = 9.0f;
 	constexpr float CardOutlineThickness = 1.5f;
-	/** B-503m3 (D-217): the LB wheel, mid-screen. The most entries: plain + one stop per element (9) + two hold
-	 *  cycles of the other 8 (Q-503l). The circle grows past a few entries so the names keep their spacing.
-	 *  TODO: tune in PIE (Crown's look check) */
-	constexpr int32 WheelSlotCount = 1 + 9 + 2 * 8;
-	constexpr float WheelMinRadius = 110.0f;
-	constexpr float WheelSlotSpacing = 70.0f; // along the circle, between neighbouring names
+	/** B-503m4 (D-217, mockup hub/hud/v2/3_trial_wheel_open: centre 180, 442 at 720p, so x1.5 here): the RB wheel
+	 *  above the strip, bottom left. The most slices: two weapons, five adapters, the innate, the evolution. The
+	 *  circle grows past a few slices so the names keep their spacing. TODO: tune in PIE (Crown's look check) */
+	constexpr int32 WheelSlotCount = 9;
+	constexpr float WheelMinRadius = 130.0f;
+	constexpr float WheelSlotSpacing = 110.0f; // along the circle, between neighbouring names
+	const FVector2D WheelCentreFromBottomLeft(270.0f, -400.0f);
 	constexpr int32 WheelCentreFontSize = 18;
-	const FAnchors ScreenCentre(0.5f, 0.5f);
+	constexpr float WheelHubPadding = 18.0f;
 	const FVector2D CentreAlignment(0.5f, 0.5f);
-	const FLinearColor WheelPickedColor(1.0f, 0.78f, 0.25f, 0.35f); // BattleCardStyle::ActingColor, see-through
+	const FAnchors BottomRight(1.0f, 1.0f);
+	const FVector2D BottomRightAlignment(1.0f, 1.0f);
 }
 
 TSharedRef<SWidget> UHubHUDWidget::RebuildWidget()
@@ -225,7 +230,8 @@ void UHubHUDWidget::RefreshPartyStrip()
 {
 	const UGameInstance *GameInstance = GetGameInstance();
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	const TArray<FBattleHUDCard> Cards = WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr);
+	const TArray<FBattleHUDCard> Cards =
+		WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr, WoRHubHUD::FindPlayedMemberSlot(GetOwningPlayerPawn()));
 	for (int32 Index = 0; Index < PartyCards.Num(); ++Index)
 	{
 		FBattleHUDCard &Card = PartyCards[Index];
@@ -288,28 +294,56 @@ void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
 {
 	using namespace HubHUDStyle;
 
-	const auto AddCentred = [Canvas](UWidget *Widget)
+	const auto AddOnWheel = [Canvas](UWidget *Widget)
 	{
 		if (UCanvasPanelSlot *CanvasSlot = Canvas->AddChildToCanvas(Widget))
 		{
-			CanvasSlot->SetAnchors(ScreenCentre);
+			CanvasSlot->SetAnchors(BottomLeft);
 			CanvasSlot->SetAlignment(CentreAlignment);
+			CanvasSlot->SetPosition(WheelCentreFromBottomLeft);
 			CanvasSlot->SetAutoSize(true);
 		}
 		SetShown(Widget, false);
 	};
+	WheelHub = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	WheelHub->SetBrushColor(PanelColor);
+	WheelHub->SetPadding(FMargin(WheelHubPadding));
+	UVerticalBox *HubColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	WheelHub->SetContent(HubColumn);
+	WheelCentre = MakeText(WidgetTree, WheelCentreFontSize, CyanColor, true);
+	WheelCentre->SetJustification(ETextJustify::Center);
+	WheelResult = MakeText(WidgetTree, BattleCardStyle::LineFontSize, DimColor);
+	WheelResult->SetJustification(ETextJustify::Center);
+	AddToColumn(HubColumn, WheelCentre);
+	AddToColumn(HubColumn, WheelResult);
+	AddOnWheel(WheelHub);
 	for (int32 Index = 0; Index < WheelSlotCount; ++Index)
 	{
 		UBorder *WheelSlot = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		WheelSlot->SetPadding(FMargin(BattleCardStyle::CardPadding));
+		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		WheelSlot->SetContent(Column);
+		UTextBlock *Diamond = MakeText(WidgetTree, BattleCardStyle::LineFontSize, TextColor);
+		Diamond->SetText(FText::AsCultureInvariant(TEXT("◆")));
+		Diamond->SetJustification(ETextJustify::Center);
 		UTextBlock *Text = MakeText(WidgetTree, BattleCardStyle::LineFontSize, BattleCardStyle::TextColor, true);
-		WheelSlot->SetContent(Text);
-		AddCentred(WheelSlot);
+		Text->SetJustification(ETextJustify::Center);
+		AddToColumn(Column, Diamond);
+		AddToColumn(Column, Text);
+		AddOnWheel(WheelSlot);
 		WheelSlots.Add(WheelSlot);
 		WheelTexts.Add(Text);
+		WheelDiamonds.Add(Diamond);
 	}
-	WheelCentre = MakeText(WidgetTree, WheelCentreFontSize, BattleCardStyle::ActingColor, true);
-	AddCentred(WheelCentre);
+	WheelHints = MakeText(WidgetTree, LineFontSize, DimColor);
+	if (UCanvasPanelSlot *HintSlot = Canvas->AddChildToCanvas(WheelHints))
+	{
+		HintSlot->SetAnchors(BottomRight);
+		HintSlot->SetAlignment(BottomRightAlignment);
+		HintSlot->SetPosition(FVector2D(-ScreenMargin, -PartyStripBottom));
+		HintSlot->SetAutoSize(true);
+	}
+	SetShown(WheelHints, false);
 }
 
 bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entries, int32 Picked)
@@ -320,14 +354,16 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 	{
 		return false; // the hub, headless, or nothing to pick
 	}
-	if (Entries.Num() > WheelSlots.Num())
+	const TArray<int32> Slices = FieldSkillRules::GetFieldSliceStarts(Entries);
+	if (Slices.Num() > WheelSlots.Num())
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[HubHUD] The field attack wheel has %d entries, room for %d: the rest aren't shown"),
-			   Entries.Num(), WheelSlots.Num());
+		UE_LOG(LogWoR, Warning, TEXT("[HubHUD] The field attack wheel has %d slices, room for %d: the rest aren't shown"),
+			   Slices.Num(), WheelSlots.Num());
 	}
-	const int32 Shown = FMath::Min(Entries.Num(), WheelSlots.Num());
+	const int32 Kept = FieldSkillRules::ClampFieldAttackIndex(Picked, Entries.Num());
+	const int32 PickedSlice = FieldSkillRules::GetFieldSliceOf(Entries, Kept);
+	const int32 Shown = FMath::Min(Slices.Num(), WheelSlots.Num());
 	const float Radius = FMath::Max(WheelMinRadius, Shown * WheelSlotSpacing / UE_TWO_PI);
-	const FText PlainName = LOCTEXT("WheelPlain", "Plain"); // unarmed: the plain swing has no strip name (Q-503k (4))
 	for (int32 Index = 0; Index < WheelSlots.Num(); ++Index)
 	{
 		const bool bShown = Index < Shown;
@@ -339,17 +375,27 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 		const float Turn = UE_TWO_PI * Index / Shown; // from the top, clockwise; the screen's Y is down
 		if (UCanvasPanelSlot *CanvasSlot = Cast<UCanvasPanelSlot>(WheelSlots[Index]->Slot))
 		{
-			CanvasSlot->SetPosition(FVector2D(Radius * FMath::Sin(Turn), -Radius * FMath::Cos(Turn)));
+			CanvasSlot->SetPosition(WheelCentreFromBottomLeft + FVector2D(Radius * FMath::Sin(Turn), -Radius * FMath::Cos(Turn)));
 		}
-		const FText &Name = Entries[Index].Name.IsEmpty() ? PlainName : Entries[Index].Name;
-		WheelTexts[Index]->SetText(Name);
-		WheelSlots[Index]->SetBrushColor(Index == Picked ? WheelPickedColor : BattleCardStyle::CardColor);
-		if (Index == Picked)
-		{
-			WheelCentre->SetText(Name);
-		}
+		// The picked slice shows the picked option's element; the others their first option's (D-217 mockup).
+		const FFieldAttackEntry &Option = Entries[Index == PickedSlice ? Kept : Slices[Index]];
+		WheelTexts[Index]->SetText(Option.SliceName);
+		const FLinearColor Element = Option.bIce ? ElementColors::Ice : ElementColors::GetColorForElement(Option.Element);
+		WheelDiamonds[Index]->SetColorAndOpacity(FSlateColor(Element));
+		WheelSlots[Index]->SetBrushColor(Index == PickedSlice ? FocusColor : BattleCardStyle::CardColor);
 	}
-	SetShown(WheelCentre, Entries.IsValidIndex(Picked));
+	const FFieldAttackEntry &Pick = Entries[Kept];
+	const int32 SliceEnd = Slices.IsValidIndex(PickedSlice + 1) ? Slices[PickedSlice + 1] : Entries.Num();
+	const bool bHasOptions = SliceEnd - Slices[PickedSlice] > 1;
+	WheelCentre->SetText(bHasOptions ? FText::Format(LOCTEXT("WheelOptionArrows", "◄  {0}  ►"), Pick.OptionName) : Pick.OptionName);
+	WheelResult->SetText(Pick.Name); // what the strip will read; empty for an unarmed plain swing
+	SetShown(WheelHub, true);
+	SetShown(WheelResult, !Pick.Name.IsEmpty());
+	// The wheel's keys for the device in use (B-481). TODO: key caps (WoRMenuStyle::MakeHintBar) with the real HUD.
+	WheelHints->SetText(WoRKeyHints::IsGamepad(this)
+							? LOCTEXT("WheelHintsPad", "L-stick  Pick        D-pad ◄ ►  Element        RB  Let go: confirm")
+							: LOCTEXT("WheelHintsKeys", "Mouse  Pick        A / D, wheel  Element        R  Let go: confirm"));
+	SetShown(WheelHints, true);
 	return true;
 }
 
@@ -359,9 +405,12 @@ void UHubHUDWidget::HideFieldAttackWheel()
 	{
 		WoRMenuStyle::SetShown(WheelSlot, false);
 	}
-	if (WheelCentre)
+	for (UWidget *Part : {static_cast<UWidget *>(WheelHub), static_cast<UWidget *>(WheelHints)})
 	{
-		WoRMenuStyle::SetShown(WheelCentre, false);
+		if (Part)
+		{
+			WoRMenuStyle::SetShown(Part, false);
+		}
 	}
 }
 

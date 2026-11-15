@@ -5,6 +5,7 @@
 // it is Ice. Server side; a client's calls go by Server RPC.
 // B-503 (D-215): the strike's element and physical type come from the entry in use (GetFieldAttackEntries); only a
 // swing has a physical type. B-503k (D-217): the stops are the attack's infusions, not the loadout's items.
+// B-503m4 (D-217 "The wheel on RB"): one slice per loadout entry again, its element options inside (Ice on Water).
 // B-503b: a weapon entry plays its attack's FieldMontage (the battle swing without the dash) on every machine and the
 // sweep waits for its Impact notify; with no montage the hit lands at once.
 // B-503c: every other entry throws the pulse: the cast montage (FieldPulseMontage) the same way, then a thinner sweep
@@ -17,17 +18,16 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/ECharacterClass.h"
-#include "Combat/Actions/ActionExecutor.h"
-#include "Combat/WoRFightSubsystem.h"
 #include "CollisionQueryParams.h"
 #include "Combat/Encounter/EncounterComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Character.h"
-#include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/ElementColors.h"
 #include "Loadout/LoadoutComponent.h"
 #include "NiagaraComponent.h"
@@ -62,19 +62,43 @@ namespace FieldPulse
 
 namespace
 {
-	/** B-503k: a pulse stop's kind, from the infusion source it takes its element from (a weapon's crystal is
-	 *  listed with the rings: a crystal in gear, thrown). */
-	EFieldAttackKind PulseKindOf(EInfusionSourceOption Source)
+	/** CL-24: a socket's element as the strike reads it (as UActionExecutor::ResolveInfusionSource): None when empty or
+	 *  broken. An evolution in the socket gives its own element. */
+	ESpellElement LiveSocketElement(const FRuntimeAttachedItem &Socket)
 	{
-		switch (Source)
+		return !Socket.IsEmpty() && !Socket.IsBroken() ? Socket.GetElement() : ESpellElement::None;
+	}
+
+	/** B-503m4 (D-217): one loadout entry, a slice of the wheel, before its element options are made. */
+	struct FFieldSlice
+	{
+		FText Name;
+		ESpellElement Element = ESpellElement::None;
+		EFieldAttackKind Kind = EFieldAttackKind::Ring;
+		/** Q-503l: Reality cycles on the innate element or an evolution; an adapter or a weapon crystal cannot. */
+		bool bRealityCycles = false;
+		/** A weapon slice: the weapon it swings (a weapon user); a pulse class throws its crystal. */
+		const FWeaponLoadoutEntry *Weapon = nullptr;
+	};
+
+	/** A weapon's swing, from its loadout entry: the entry's own attack override first (as
+	 *  ULoadoutComponent::GetCurrentAttack), else the weapon's attack. Unarmed: a plain swing with no name. */
+	FFieldAttackEntry MakeSwing(const FWeaponLoadoutEntry *Slot)
+	{
+		FFieldAttackEntry Swing;
+		const UWeaponData *Weapon = Slot ? Slot->WeaponEntry.Weapon : nullptr;
+		if (!Weapon)
 		{
-		case EInfusionSourceOption::Innate:
-			return EFieldAttackKind::Innate;
-		case EInfusionSourceOption::Evolution:
-			return EFieldAttackKind::Evolution;
-		default:
-			return EFieldAttackKind::Ring;
+			return Swing;
 		}
+		const USkillDataBase *Attack = Slot->OverrideAttack ? Slot->OverrideAttack : Weapon->WeaponAttack;
+		const UAbilityData *Ability = Cast<UAbilityData>(Attack);
+		Swing.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+		Swing.Physical = Ability ? Ability->PhysicalDamageType : EPhysicalDamageType::None;
+		Swing.WeaponType = Weapon->WeaponType;
+		Swing.Icon = Weapon->Icon;
+		Swing.SwingMontage = Attack ? Attack->FieldMontage : nullptr;
+		return Swing;
 	}
 
 	/** D-217: "Fire Sword" for an infused weapon, "Fire" with no weapon line. */
@@ -84,8 +108,8 @@ namespace
 										: FText::Format(LOCTEXT("InfusedWeapon", "{0} {1}"), ElementName, WeaponTypeName);
 	}
 
-	/** Q-503l: which stops a hold cycles. Reality on the innate element or an evolution ("(R) Fire"; an adapter
-	 *  or a weapon crystal cannot), and a Broken Darkness character's Darkness ("Dark Fire"). */
+	/** Q-503l: which slices step through the other entries' elements. Reality on the innate element or an evolution
+	 *  ("(R) Fire"), and a Broken Darkness character's Darkness ("Dark Fire"). */
 	enum class EFieldHoldCycle : uint8
 	{
 		None,
@@ -93,13 +117,13 @@ namespace
 		BrokenDarkness
 	};
 
-	EFieldHoldCycle GetHoldCycle(ESpellElement Element, EInfusionSourceOption Source, bool bBrokenDarkness)
+	EFieldHoldCycle GetHoldCycle(const FFieldSlice &Slice, bool bBrokenDarkness)
 	{
-		if (Element == ESpellElement::Reality && (Source == EInfusionSourceOption::Innate || Source == EInfusionSourceOption::Evolution))
+		if (Slice.Element == ESpellElement::Reality && Slice.bRealityCycles)
 		{
 			return EFieldHoldCycle::Reality;
 		}
-		return bBrokenDarkness && Element == ESpellElement::Darkness ? EFieldHoldCycle::BrokenDarkness : EFieldHoldCycle::None;
+		return bBrokenDarkness && Slice.Element == ESpellElement::Darkness ? EFieldHoldCycle::BrokenDarkness : EFieldHoldCycle::None;
 	}
 
 	FText MakeHoldElementName(EFieldHoldCycle Cycle, ESpellElement Element)
@@ -108,88 +132,158 @@ namespace
 		return Cycle == EFieldHoldCycle::Reality ? FText::Format(LOCTEXT("RealityHoldElement", "(R) {0}"), ElementName)
 												 : FText::Format(LOCTEXT("DarkHoldElement", "Dark {0}"), ElementName);
 	}
+
+	/** The loadout's entries in loadout order (Q-503): the primary weapon or adapter, the secondary weapon, the
+	 *  adapters of the ring loadout, the innate element (a Refractor), the character's evolution. */
+	TArray<FFieldSlice> GetFieldSlices(const ULoadoutComponent *LoadoutComponent, const UCharacterData *Data)
+	{
+		TArray<FFieldSlice> Slices;
+		if (LoadoutComponent)
+		{
+			const FCombatLoadout &Loadout = LoadoutComponent->GetActiveLoadout();
+			const auto AddWeapon = [&Slices](const FWeaponLoadoutEntry &Slot)
+			{
+				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
+				Slice.Name = WoRGameNames::GetWeaponTypeName(Slot.WeaponEntry.Weapon->WeaponType);
+				Slice.Element = LiveSocketElement(Slot.WeaponEntry.GetAttachedItem());
+				Slice.Kind = EFieldAttackKind::Weapon;
+				Slice.Weapon = &Slot;
+			};
+			const auto AddRing = [&Slices](const FRingLoadoutEntry &Slot)
+			{
+				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
+				Slice.Name = FText::FromString(Slot.RingEntry.Ring->GetDisplayName());
+				Slice.Element = LiveSocketElement(Slot.RingEntry.GetAttachedItem());
+			};
+			// The fight's own walk (FCombatLoadout.cpp ForEachReadLegacySlot): a primary weapon with a Weapon or None type
+			// (AutoPopulateLoadout leaves None), else a primary adapter; a Generic's secondary weapon; the adapter loadout
+			// of a Resonator or a Generic. TODO: B-503q shares one walker instead of this copy.
+			const ECharacterClass Class = LoadoutComponent->GetCharacterClass();
+			if ((Loadout.PrimarySlotType == EPrimarySlotType::Weapon || Loadout.PrimarySlotType == EPrimarySlotType::None) &&
+				Loadout.PrimaryWeapon.IsValid())
+			{
+				AddWeapon(Loadout.PrimaryWeapon);
+			}
+			else if (Loadout.HasPrimaryRing() && Class != ECharacterClass::Resonator)
+			{
+				AddRing(Loadout.PrimaryRing); // a Resonator's stray primary ring is never one in use (GetActiveSlotIn)
+			}
+			if (Class == ECharacterClass::Generic && Loadout.HasSecondaryWeapon())
+			{
+				AddWeapon(Loadout.SecondaryWeapon);
+			}
+			for (const FRingLoadoutEntry &Ring : Class == ECharacterClass::Resonator || Class == ECharacterClass::Generic ? Loadout.RingLoadout : TArray<FRingLoadoutEntry>())
+			{
+				if (Ring.IsValid())
+				{
+					AddRing(Ring);
+				}
+			}
+		}
+		if (Data && Data->IsCaster())
+		{
+			FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
+			Slice.Name = LOCTEXT("Innate", "Innate"); // TODO: one shared name (also in the field skill picker and the infusion menu)
+			Slice.Element = Data->InnateElement;
+			Slice.Kind = EFieldAttackKind::Innate;
+			Slice.bRealityCycles = true;
+		}
+		// The combat menu's Evolution source: the character's own slot (one in a gear socket gives that gear's element).
+		if (LoadoutComponent && LoadoutComponent->IsEvolved())
+		{
+			const FEvolutionAttachment Seat = LoadoutComponent->GetCharacterSlotEvolution();
+			const UEvolutionItemData *Item = Seat.Item;
+			if (Item && !Seat.IsBroken())
+			{
+				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
+				Slice.Name = Item->ItemName.IsEmpty() ? WoRGameNames::GetCrystalTypeName(Item->CrystalType) : FText::FromString(Item->ItemName);
+				Slice.Element = Item->GetAssociatedElement();
+				Slice.Kind = EFieldAttackKind::Evolution;
+				Slice.bRealityCycles = true;
+			}
+		}
+		return Slices;
+	}
 }
 
 TArray<FFieldAttackEntry> UFieldMovementComponent::GetFieldAttackEntries() const
 {
-	// B-503k (D-217): the attack is the loadout's active weapon (a swing) or, for a Refractor or Resonator, the pulse;
-	// the stops are its infusions: plain first (a weapon user only), then each element of the combat menu's sources,
-	// one stop per element (two sources of one element would read the same).
-	TArray<FFieldAttackEntry> Entries;
-	TArray<EInfusionSourceOption> Sources; // each stop's source, for its hold steps (B-503l)
+	// B-503m4 (D-217 "The wheel on RB"): one slice per loadout entry, each followed by its element options (bHoldStep).
+	// A weapon user swings: a weapon's slice swings that weapon, plain then its crystal's element; every other slice
+	// infuses the weapon in hand ("Lightning Sword"). A Refractor or Resonator throws the pulse in the slice's element
+	// ("Fire"). A slice with nothing to add (no element, no weapon of its own) is left out (Q-503 (2)); two slices of
+	// one element both show (each entry its slice, Q-503m4).
 	AActor *Owner = GetOwner();
 	const UCharacterDataComponent *CharComp = GetCharacterData();
 	const UCharacterData *Data = CharComp ? CharComp->CharacterData : nullptr;
+	const ULoadoutComponent *LoadoutComponent = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr;
+	const TArray<FFieldSlice> Slices = GetFieldSlices(LoadoutComponent, Data);
 	const bool bPulse = Data && Data->CharacterClass != ECharacterClass::Generic;
-	FFieldAttackEntry Plain; // the Weapon kind: a swing
-	if (!bPulse)
+	const FFieldAttackEntry ActiveSwing = MakeSwing(LoadoutComponent ? LoadoutComponent->GetActiveWeaponLoadout() : nullptr);
+	const bool bBrokenDarkness = CharComp && CharComp->IsBrokenDarkness();
+
+	// Q-503l: Reality's and Broken Darkness's options are the other entries' elements, each once, never the hidden Reality.
+	TArray<ESpellElement> GearElements;
+	for (const FFieldSlice &Slice : Slices)
 	{
-		const ULoadoutComponent *Loadout = Owner ? Owner->FindComponentByClass<ULoadoutComponent>() : nullptr;
-		const FWeaponLoadoutEntry *Slot = Loadout ? Loadout->GetActiveWeaponLoadout() : nullptr;
-		if (const UWeaponData *Weapon = Slot ? Slot->WeaponEntry.Weapon : nullptr)
+		if (FieldSkillRules::IsElemental(Slice.Element) && Slice.Element != ESpellElement::Reality)
 		{
-			const UAbilityData *Attack = Cast<UAbilityData>(Weapon->WeaponAttack);
-			Plain.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
-			Plain.Physical = Attack ? Attack->PhysicalDamageType : EPhysicalDamageType::None;
-			Plain.WeaponType = Weapon->WeaponType;
-			Plain.Icon = Weapon->Icon;
-			Plain.SwingMontage = Weapon->WeaponAttack ? Weapon->WeaponAttack->FieldMontage : nullptr;
+			GearElements.AddUnique(Slice.Element);
 		}
-		Entries.Add(Plain); // unarmed: a plain swing with no name
-		Sources.Add(EInfusionSourceOption::None);
 	}
 
-	const UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(this);
-	if (!Executor || !Owner)
+	TArray<FFieldAttackEntry> Entries;
+	for (const FFieldSlice &Slice : Slices)
 	{
-		return Entries;
-	}
-	for (const EInfusionSourceOption Source : Executor->GetAvailableInfusionSources(Owner))
-	{
-		const ESpellElement Element = InfusionSourceOptionHelpers::HasElement(Source) ? Executor->GetElementForSourceOption(Owner, Source)
-																					  : ESpellElement::None;
-		const bool bListed = Entries.ContainsByPredicate([Element](const FFieldAttackEntry &Listed)
-		{ return Listed.Element == Element; });
-		if (!FieldSkillRules::IsElemental(Element) || bListed)
+		const bool bOwnSwing = !bPulse && Slice.Weapon;
+		if (!FieldSkillRules::IsElemental(Slice.Element) && !bOwnSwing)
 		{
 			continue;
 		}
-		FFieldAttackEntry &Entry = Entries.Add_GetRef(Plain);
-		Entry.Element = Element;
-		Entry.Name = MakeInfusedLabel(WoRGameNames::GetElementName(Element), Plain.Name);
+		FFieldAttackEntry Base = bPulse ? FFieldAttackEntry() : (bOwnSwing ? MakeSwing(Slice.Weapon) : ActiveSwing);
 		if (bPulse)
 		{
-			Entry.Kind = PulseKindOf(Source);
+			Base.Kind = Slice.Kind == EFieldAttackKind::Weapon ? EFieldAttackKind::Ring : Slice.Kind; // a crystal in gear, thrown
 		}
-		Sources.Add(Source);
-	}
-
-	// B-503l (Q-503l = B): a hold steps a Reality or Broken Darkness stop through the elements of the other stops,
-	// listed right after it as hold steps (one saved index covers both keys; a press skips them).
-	const bool bBrokenDarkness = CharComp && CharComp->IsBrokenDarkness();
-	TArray<FFieldAttackEntry> WithHoldSteps;
-	for (int32 Stop = 0; Stop < Entries.Num(); ++Stop)
-	{
-		WithHoldSteps.Add(Entries[Stop]);
-		const EFieldHoldCycle Cycle = GetHoldCycle(Entries[Stop].Element, Sources[Stop], bBrokenDarkness);
+		Base.SliceName = Slice.Name;
+		const FText WeaponTypeName = Base.Name; // empty for a pulse or unarmed
+		const int32 First = Entries.Num();
+		const auto AddOption = [&Entries, &Base, &WeaponTypeName, First](ESpellElement Element, const FText &ElementName, bool bIce)
+		{
+			FFieldAttackEntry &Option = Entries.Add_GetRef(Base);
+			Option.Element = Element;
+			Option.bIce = bIce;
+			Option.OptionName = ElementName;
+			Option.Name = MakeInfusedLabel(ElementName, WeaponTypeName);
+			Option.bHoldStep = Entries.Num() - 1 > First;
+		};
+		if (bOwnSwing)
+		{
+			Entries.Add_GetRef(Base).OptionName = LOCTEXT("PlainOption", "Plain"); // plain first
+		}
+		if (!FieldSkillRules::IsElemental(Slice.Element))
+		{
+			continue;
+		}
+		AddOption(Slice.Element, WoRGameNames::GetElementName(Slice.Element), /*bIce=*/false);
+		if (Slice.Element == ESpellElement::Water)
+		{
+			AddOption(ESpellElement::Water, WoRGameNames::GetIceName(), /*bIce=*/true); // D-217 "Ice"
+		}
+		const EFieldHoldCycle Cycle = GetHoldCycle(Slice, bBrokenDarkness);
 		if (Cycle == EFieldHoldCycle::None)
 		{
 			continue;
 		}
-		for (const FFieldAttackEntry &Other : Entries)
+		for (const ESpellElement Other : GearElements)
 		{
-			// Each element once (the stops are), never the stop's own nor the hidden Reality.
-			if (!FieldSkillRules::IsElemental(Other.Element) || Other.Element == Entries[Stop].Element || Other.Element == ESpellElement::Reality)
+			if (Other != Slice.Element)
 			{
-				continue;
+				AddOption(Other, MakeHoldElementName(Cycle, Other), /*bIce=*/false);
 			}
-			FFieldAttackEntry &Step = WithHoldSteps.Add_GetRef(Entries[Stop]);
-			Step.bHoldStep = true;
-			Step.Element = Other.Element;
-			Step.Name = MakeInfusedLabel(MakeHoldElementName(Cycle, Other.Element), Plain.Name);
 		}
 	}
-	return WithHoldSteps;
+	return Entries;
 }
 
 int32 UFieldMovementComponent::GetKeptFieldAttackIndex() const
@@ -213,7 +307,7 @@ FFieldAttackEntry UFieldMovementComponent::GetFieldAttackEntry() const
 FFieldStrike UFieldMovementComponent::GetFieldStrike(bool bHeld) const
 {
 	const FFieldAttackEntry Entry = GetFieldAttackEntry();
-	return FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld);
+	return FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld || Entry.bIce); // B-503m4: Ice is the option
 }
 
 FFieldAttackEntry UFieldMovementComponent::CycleFieldAttack(bool bHold)
@@ -292,7 +386,7 @@ EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
 
 	// The strike is the entry's at the press: cycling during the swing doesn't change the hit on its way.
 	const FFieldAttackEntry Entry = GetFieldAttackEntry();
-	const FFieldStrike Strike = FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld);
+	const FFieldStrike Strike = FieldSkillRules::MakeFieldStrike(Entry.Element, Entry.Physical, bHeld || Entry.bIce);
 	const bool bSwing = Entry.IsSwing();
 	// shortcut: a blocking load of one small montage on the first attack, async-load with the loadout if it hitches
 	UAnimMontage *Montage = (bSwing ? Entry.SwingMontage : FieldPulseMontage).LoadSynchronous();
