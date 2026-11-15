@@ -120,6 +120,14 @@ struct FPoolRunEndResult
     int32 Remembered = 0;
 };
 
+/** B-508 (D-219, D-221 stage 1b): how a run ended, for UPoolSubsystem::CloseRun. */
+enum class EPoolRunEnding : uint8
+{
+    Kept, // an extract or a boss win
+    Lost, // out of wipes
+    Quit, // a quit, or the game closed mid-run (settled at the next start)
+};
+
 /** B-203: a pouch or the storage changed. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPoolItemsChanged);
 
@@ -563,6 +571,18 @@ public:
      *  quit). Every change fires OnPoolGearChanged. No-op when no layer is open. */
     FPoolRunEndResult EndRunLayer(bool bKeepUpgrades = true);
 
+    /** B-508 (D-219): the run party's worn-gear records as the trial begins (after BeginRunLayer); a quit puts them
+     *  back. A character with no record yet has none kept. Saved with the run (FSavedRun::RunStartWornGear). */
+    void SnapshotRunStartGear(const TSet<FName> &CharacterKeys);
+    const TMap<FName, FWornGear> &GetRunStartWornGear() const { return RunStartWornGear; }
+    /** A resumed run's saved copy (after RestoreRunLayer, which clears it). */
+    void RestoreRunStartWornGear(const TMap<FName, FWornGear> &Saved) { RunStartWornGear = Saved; }
+
+    /** B-508: the run ends (UTrialRunSubsystem::FinishRun, the save's closed-run settle). Kept: the found items go to
+     *  storage; Lost and Quit: they are taken back (B-439b, B-451). Then EndRunLayer (upgrades kept only on Kept), and
+     *  a Quit puts the run-start records back, wheel picks included (D-219). No-op when no layer is open. */
+    void CloseRun(EPoolRunEnding Ending);
+
     /** B-439b (Q-439 point 2, D-176): how many of each item the party held (every pouch and storage) when the run
      *  began. Starting items banked during the run count as held from the start (D-097). Saved with the run. */
     const TMap<FCrystalId, int32> &GetRunStartItems() const { return RunStartItems; }
@@ -745,6 +765,10 @@ private:
 
     /** B-439b: item -> how many were held when the run began (GetRunStartItems). */
     TMap<FCrystalId, int32> RunStartItems;
+
+    /** B-508: character key -> its worn-gear record as the run began (SnapshotRunStartGear). */
+    UPROPERTY()
+    TMap<FName, FWornGear> RunStartWornGear;
 
     /** Every item held now, by kind: storage and every pouch. */
     TMap<FCrystalId, int32> CountHeldItems() const;

@@ -56,6 +56,7 @@ void UPoolSubsystem::BeginRunLayer()
     }
     RunMarks.Reset();
     RunStartItems = CountHeldItems(); // B-439b
+    RunStartWornGear.Reset(); // B-508: SnapshotRunStartGear fills it
     bRunLayerActive = true;
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer open"));
 }
@@ -68,6 +69,7 @@ void UPoolSubsystem::DiscardRunLayer()
     }
     RunMarks.Reset();
     RunStartItems.Reset();
+    RunStartWornGear.Reset();
     bRunLayerActive = false;
 }
 
@@ -77,6 +79,7 @@ int32 UPoolSubsystem::RestoreRunLayer(const TMap<FGuid, FPoolRunMark> &SavedMark
     // B-439b: a save from before the counts were kept has none, so what is held now stands in (the save's restore
     // replaces it with the saved counts, RestoreRunStartItems).
     RunStartItems = CountHeldItems();
+    RunStartWornGear.Reset(); // B-508: the save's restore puts its copy back (RestoreRunStartWornGear)
     bRunLayerActive = true;
     int32 Dropped = 0;
     for (const TPair<FGuid, FPoolRunMark> &Saved : SavedMarks)
@@ -209,6 +212,7 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
     const TMap<FGuid, FPoolRunMark> Marks = MoveTemp(RunMarks);
     RunMarks.Reset();
     RunStartItems.Reset(); // B-439b
+    RunStartWornGear.Reset(); // B-508: CloseRun takes its copy first
     bRunLayerActive = false;
 
     for (const TPair<FGuid, FPoolRunMark> &Pair : Marks)
@@ -266,6 +270,57 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer closed: %d home piece(s) back to their home state, %d run-only piece(s) dropped, %d tier(s) remembered"),
            Result.Restored, Result.Dropped, Result.Remembered);
     return Result;
+}
+
+void UPoolSubsystem::SnapshotRunStartGear(const TSet<FName> &CharacterKeys)
+{
+    RunStartWornGear.Reset();
+    for (const FName &Key : CharacterKeys)
+    {
+        if (const FWornGear *Worn = WornGear.Find(Key))
+        {
+            RunStartWornGear.Add(Key, *Worn);
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer: %d worn-gear record(s) kept as the run found them; a quit puts them back (D-219)"),
+           RunStartWornGear.Num());
+}
+
+void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
+{
+    if (!bRunLayerActive)
+    {
+        return;
+    }
+    const bool bKept = Ending == EPoolRunEnding::Kept;
+    if (bKept)
+    {
+        StoreRunFoundItems(); // B-238b (D-097, Q-238b): the run's finds go to home storage
+    }
+    else
+    {
+        TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176) and B-451 (D-189): a quit or a lost run loses its finds
+    }
+    const TMap<FName, FWornGear> RunStart = MoveTemp(RunStartWornGear);
+    EndRunLayer(/*bKeepUpgrades=*/bKept); // B-451: a lost or quit run keeps no upgrade levels
+    if (Ending != EPoolRunEnding::Quit)
+    {
+        return;
+    }
+    // D-219: a quit's progress doesn't count, so each record goes back to how the run found it (pick included).
+    int32 PutBack = 0;
+    for (const TPair<FName, FWornGear> &Start : RunStart)
+    {
+        const FWornGear *Now = WornGear.Find(Start.Key);
+        if (Now && Now->SameAs(Start.Value))
+        {
+            continue;
+        }
+        WornGear.Add(Start.Key, Start.Value);
+        OnWornGearChanged.Broadcast(Start.Key);
+        ++PutBack;
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run quit: %d worn-gear record(s) put back as the run found them (D-219)"), PutBack);
 }
 
 TMap<FCrystalId, int32> UPoolSubsystem::CountHeldItems() const
@@ -481,6 +536,11 @@ FString UPoolSubsystem::GetRunLayerString() const
     {
         Out += FString::Printf(TEXT("\n  remembered: %s at %s"), *FPaths::GetBaseFilename(Remembered.Key.ToString()),
                                *TierHelpers::GetTierName(Remembered.Value));
+    }
+    for (const TPair<FName, FWornGear> &Start : RunStartWornGear) // B-508
+    {
+        Out += FString::Printf(TEXT("\n  run start: %s wore %d piece(s) (put back if the run is quit)"),
+                               *FPaths::GetBaseFilename(Start.Key.ToString()), Start.Value.GetPieceIDs().Num());
     }
     return Out;
 }
