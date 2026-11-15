@@ -57,7 +57,7 @@ namespace LoadoutV2Build
 		{
 			Entry.TypeIcon.Kind = ELoadoutV2IconKind::WeaponType;
 			Entry.TypeIcon.WeaponType = Weapon->WeaponType;
-			Entry.TypeIcon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+			Entry.TypeIcon.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon, Set.HasOffHand()); // B-513
 		}
 		Entry.SkillSlots = Set.GetSkillSlotCount();
 		return Entry;
@@ -262,7 +262,7 @@ namespace LoadoutV2Build
 		{
 			Piece->Icon.Kind = ELoadoutV2IconKind::WeaponType; // B-485
 			Piece->Icon.WeaponType = Weapon->WeaponType;
-			Piece->Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+			Piece->Icon.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon); // B-513
 			Piece->TypeName = Piece->Icon.Name; // B-487b: no "Type" row
 		}
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailPower", "Power"), Weapon->Power > 0 ? FText::AsNumber(Weapon->Power) : FText::GetEmpty());

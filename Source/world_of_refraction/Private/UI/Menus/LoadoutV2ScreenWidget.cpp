@@ -680,7 +680,7 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 	{
 		Icons.Type.Kind = ELoadoutV2IconKind::WeaponType;
 		Icons.Type.WeaponType = Item.Weapon.Weapon->WeaponType;
-		Icons.Type.Name = WoRGameNames::GetWeaponTypeName(Item.Weapon.Weapon->WeaponType);
+		Icons.Type.Name = WoRGameNames::GetHeldWeaponTypeName(Item.Weapon.Weapon); // B-513
 		return Icons;
 	}
 	// A crystal, stone or evolution line: its badge, and its tier.
@@ -2215,7 +2215,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.bEquipped = true;
 			Equipped.Weapon = InSlot;
 			Equipped.Name = WeaponName(InSlot);
-			Equipped.Line = InSlot.Weapon ? WoRGameNames::GetWeaponTypeName(InSlot.Weapon->WeaponType) : FText::GetEmpty();
+			Equipped.Line = WoRGameNames::GetHeldWeaponTypeName(InSlot.Weapon); // B-513
 		}
 		const TArray<FLoadoutV2OffHandChoice> OffHands = bMain ? TArray<FLoadoutV2OffHandChoice>() : WoRLoadoutV2::BuildOffHandChoices(Draft.MainHand, Inventory->Weapons, Class);
 		for (const FWeaponInventoryEntry &Owned : Inventory->Weapons)
@@ -2235,7 +2235,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 				Changed.Socket2 = Owned.StoneSocket;
 			}
 			const TPair<FText, int32> Result = Check(Changed);
-			Item.Line = FText::Format(LOCTEXT("WeaponItemLine", "{0} · {1}"), WoRGameNames::GetWeaponTypeName(Owned.Weapon->WeaponType), CellsLine(Result.Value));
+			Item.Line = FText::Format(LOCTEXT("WeaponItemLine", "{0} · {1}"), WoRGameNames::GetHeldWeaponTypeName(Owned.Weapon), CellsLine(Result.Value));
 			const FLoadoutV2OffHandChoice *Pair = OffHands.FindByPredicate([&Owned](const FLoadoutV2OffHandChoice &Each) { return Each.Weapon.PersistentID == Owned.PersistentID; });
 			Item.Refusal = IsElsewhere(Owned.PersistentID) ? LOCTEXT("RefuseInOtherEntry", "In another entry.")
 						   : Pair && !Pair->Refusal.IsEmpty() ? Pair->Refusal
