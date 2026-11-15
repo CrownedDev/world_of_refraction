@@ -71,8 +71,9 @@ public:
 	float BlowAwaySeconds = 0.4f;
 
 	/** How hard the blow-away accelerates: 1 = even speed; 3 = a short slow beat (the first third barely moves),
-	 *  then a fast finish. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 1.0, ClampMax = 6.0))
+	 *  then a fast finish. Below 1 (B-503d, Crown) it leaves at full speed and slows instead: 0.3 = over half the
+	 *  way out in the first fifth of the time. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Timing", meta = (ClampMin = 0.3, ClampMax = 6.0))
 	float BlowAwayEase = 3.0f;
 
 	/** The held picture fades off the live shards over this long as the blow-away starts. */
