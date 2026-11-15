@@ -26,7 +26,9 @@
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Weapons/WeaponMeshComponent.h"
 #include "GameFramework/Character.h"
 #include "Infusion/ElementColors.h"
 #include "Loadout/LoadoutComponent.h"
@@ -330,6 +332,7 @@ FFieldAttackEntry UFieldMovementComponent::SelectFieldAttack(int32 Index)
 	{
 		FieldAttackIndex = Picked; // shown at once; the host keeps it and its copy comes back the same
 		ServerSetFieldAttackIndex(Picked);
+		ShowWeaponForFieldAttack();
 	}
 	return Entries.IsValidIndex(Picked) ? Entries[Picked] : FFieldAttackEntry();
 }
@@ -347,6 +350,7 @@ void UFieldMovementComponent::StoreFieldAttackIndex(int32 Index)
 	UE_LOG(LogWoR, Log, TEXT("%s %s: field attack %d of %d: %s"), FieldAttackLog::TAG, *GetNameSafe(GetOwner()),
 		   FieldAttackIndex + 1, Entries.Num(),
 		   *FieldSkillRules::FieldAttackEntryString(Entries.IsValidIndex(FieldAttackIndex) ? Entries[FieldAttackIndex] : FFieldAttackEntry()));
+	ShowWeaponForFieldAttack();
 }
 
 void UFieldMovementComponent::ServerSetFieldAttackIndex_Implementation(int32 Index)
@@ -362,6 +366,19 @@ void UFieldMovementComponent::ServerSetFieldAttackIndex_Implementation(int32 Ind
 void UFieldMovementComponent::ClientSetFieldAttackIndex_Implementation(int32 Index)
 {
 	FieldAttackIndex = Index;
+	ShowWeaponForFieldAttack();
+}
+
+void UFieldMovementComponent::ShowWeaponForFieldAttack() const
+{
+	// shortcut: the owner's machine and the host only (the index replicates to its owner); other co-op players
+	// still see the weapon. Upgrade with the real HUD's co-op pass if the put-away should show to everyone.
+	if (UWeaponMeshComponent *Weapon = GetOwner() ? GetOwner()->FindComponentByClass<UWeaponMeshComponent>() : nullptr)
+	{
+		const TArray<FFieldAttackEntry> Entries = GetFieldAttackEntries();
+		const int32 Index = FieldSkillRules::ClampFieldAttackIndex(GetKeptFieldAttackIndex(), Entries.Num());
+		Weapon->SetWeaponHidden(Entries.IsValidIndex(Index) && !Entries[Index].IsSwing());
+	}
 }
 
 EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
