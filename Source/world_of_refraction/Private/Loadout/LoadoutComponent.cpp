@@ -2,7 +2,6 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
-#include "Loadout/WeaponSpellRules.h"
 #include "Loadout/WeaponSetRules.h"
 #include "Combat/TurnRotation.h" // B-170c: switching is free with action pips
 #include "Equipment/Apparel/ApparelData.h" // B-380: the apparel loops read UApparelData
@@ -381,14 +380,8 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
             continue;
         }
 
-        // Add to primary weapon or ring depending on class
-        if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
-        {
-            Loadout.PrimaryWeapon.AssignedSpells.Add(Spell);
-            SpellsAdded++;
-            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to weapon"), *Spell->Name);
-        }
-        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
+        // B-411 (D-027): weapons hold no spells, so a spell goes on the primary ring only.
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
         {
             Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(Spell);
             SpellsAdded++;
@@ -396,7 +389,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         }
         else
         {
-            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] No valid weapon/ring to add spell to"));
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Spell '%s' not added: no primary ring (weapons hold no spells, D-027)"), *Spell->Name);
         }
     }
 
@@ -1180,18 +1173,9 @@ bool ULoadoutComponent::TryAssignWeaponAbility(int32 LoadoutIndex, UAbilityData 
 
 bool ULoadoutComponent::TryAssignWeaponSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
 {
-    if (!WeaponSpellRules::WeaponsGiveSpells())
-    {
-        OutRefusal = LOCTEXT("WeaponsGiveNoSpells", "Weapons don't hold spells. Put it on an adapter or evolution."); // B-098 (D-027)
-        return false;
-    }
-    return TryChangeLoadout(LoadoutIndex, Spell != nullptr,
-                            [Spell](const FCombatLoadout &Loadout, ECharacterClass)
-                            {
-                                return RefuseUnlessFree(UsesPrimaryWeapon(Loadout), NoPrimaryWeaponText(),
-                                                        Loadout.PrimaryWeapon.AssignedSpells, Spell);
-                            },
-                            [Spell](FCombatLoadout &Loadout) { AddToFirstGap(Loadout.PrimaryWeapon.AssignedSpells, Spell); }, OutRefusal);
+    // B-098 / B-411 (D-027): always refused. OBSOLETE: kept only as the Blueprint node until Find in Blueprints (B-411b).
+    OutRefusal = LOCTEXT("WeaponsGiveNoSpells", "Weapons don't hold spells. Put it on an adapter or evolution.");
+    return false;
 }
 
 bool ULoadoutComponent::TryAssignRingSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal)
@@ -2508,26 +2492,8 @@ USkillDataBase *ULoadoutComponent::GetCurrentAttack() const
 
 TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
 {
-    TArray<USpellData *> Result;
-
-    const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
-    if (!WeaponEntry)
-    {
-        return Result;
-    }
-
-    // Only evolved weapons have resonate spells; none since D-027 (B-098, WeaponSpellRules)
-    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry->WeaponEntry.IsEvolved())
-    {
-        return Result;
-    }
-
-    if (!WeaponEntry->WeaponEntry.AttachedItem.IsEmpty())
-    {
-        // Get spells from weapon's assigned spells (no longer from crystal)
-        Result = WeaponEntry->WeaponEntry.AssignedSpells;
-    }
-    return Result;
+    // B-098 / B-411 (D-027): weapons give no spells. OBSOLETE: kept only as the Blueprint node (B-411b).
+    return TArray<USpellData *>();
 }
 
 TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
@@ -2960,27 +2926,7 @@ FText ULoadoutComponent::GetBrokenSourceReason(const USpellData *Spell) const
         }
     }
 
-    // B-204 (Q-204): the primary, then the secondary weapon (FCombatLoadout::GetAllSpells lists both);
-    // the first that holds the spell is the one the cast channels (FindSpellCatalystHolder's order).
-    // B-098 (D-027): weapons give no spells, so no weapon crystal channels (or greys out) one.
-    for (const FWeaponLoadoutEntry *Weapon : WeaponSpellRules::WeaponsGiveSpells()
-                                                 ? TArray<const FWeaponLoadoutEntry *>{GetPrimaryWeaponLoadout(), GetSecondaryWeaponLoadout()}
-                                                 : TArray<const FWeaponLoadoutEntry *>())
-    {
-        // B-197: the loadout's own overrides (FWeaponLoadoutEntry::AssignedSpells) come through the
-        // same crystal, so they grey out with it too.
-        // B-351d review: and the crystal's one-list picks.
-        if (!Weapon || !(Lists(Weapon->WeaponEntry.AssignedSpells) || Lists(Weapon->AssignedSpells) || Lists(Weapon->WeaponEntry.SpellPicks)))
-        {
-            continue;
-        }
-        const FRuntimeAttachedItem &Attached = Weapon->WeaponEntry.AttachedItem;
-        if (Attached.IsSpellSource() && Attached.IsBroken())
-        {
-            return SourceBreakRules::BrokenWeaponCrystalReason();
-        }
-        break;
-    }
+    // B-411 (D-027): weapons give no spells, so no weapon crystal channels (or greys out) one.
     if (IsSpellFromBrokenRing(Spell) && !SourceBreakRules::IsRingSpellUsableWhenBroken(Spell->Tier))
     {
         return SourceBreakRules::BrokenRingCrystalReason();

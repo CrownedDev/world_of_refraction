@@ -258,6 +258,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Picks")
     bool TryAssignWeaponAbility(int32 LoadoutIndex, UAbilityData *Ability, FText &OutRefusal);
 
+    /** OBSOLETE (B-411, D-027): always refused (weapons hold no spells). Delete after Find in Blueprints (B-411b). */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Picks")
     bool TryAssignWeaponSpell(int32 LoadoutIndex, USpellData *Spell, FText &OutRefusal);
 
@@ -478,7 +479,7 @@ public:
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get spells from evolved weapon crystal */
+    /** OBSOLETE (B-411, D-027): always empty (weapons give no spells). Delete after Find in Blueprints (B-411b). */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetWeaponResonateSpells() const;
 
