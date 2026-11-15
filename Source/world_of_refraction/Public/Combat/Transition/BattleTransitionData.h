@@ -22,6 +22,14 @@ namespace BattleTransitionAsset
 
 	/** The shard material's texture parameter that receives the captured frame. */
 	inline const FName FRAME_PARAMETER = TEXT("Frame");
+
+	/** B-500b: the shard material's scalar parameters for the prism light. The first three change every frame
+	 *  (BattleTransition::EvaluatePrismLight); the last two are set once from the data asset. */
+	inline const FName FLASH_PARAMETER = TEXT("Flash");
+	inline const FName LIGHT_REACH_PARAMETER = TEXT("LightReach");
+	inline const FName EDGE_GLOW_PARAMETER = TEXT("EdgeGlow");
+	inline const FName SHARD_COLOR_PARAMETER = TEXT("ShardColor");
+	inline const FName WHITE_REACH_PARAMETER = TEXT("WhiteReach");
 }
 
 UCLASS(BlueprintType)
@@ -93,7 +101,8 @@ public:
 	float ShardBevel = 0.004f;
 
 	/** Lit shard material; its "Frame" texture parameter gets the captured frame, read by UV0 (the screen).
-	 *  Vertex colour: R = 1 on bevels and sides, G = a random per shard, B = distance from the hit.
+	 *  Vertex colour: R = 1 on bevels and sides, G = a random per shard, B = distance from the hit,
+	 *  A = the shard's hue (B-500b). The prism light's scalar parameters: BattleTransitionAsset.
 	 *  Unset = the engine's basic material tinted Void, which shows no frame. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards")
 	TSoftObjectPtr<UMaterialInterface> ShardMaterial;
@@ -101,6 +110,35 @@ public:
 	/** What the frame capture stores. Scene colour (before post-processing) is exposed again on the shards. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Shards")
 	TEnumAsByte<ESceneCaptureSource> FrameCaptureSource = SCS_SceneColorHDR;
+
+	// ---- Prism light (B-500b): a white flash at the hit, light running out through the cracks (white near the
+	// hit, the spectrum further out), each shard catching a colour. The shard material draws it. ----
+
+	/** The white flash at the hit fades over this long from contact. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.01))
+	float FlashSeconds = 0.25f;
+
+	/** The flash's brightness at contact (above 1 blooms; 0 = no flash). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0))
+	float FlashStrength = 6.0f;
+
+	/** The flash covers, and the light stays white, this far from the hit (0 = at the hit, 1 = the farthest
+	 *  shard); further out the light splits into the spectrum. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float WhiteReach = 0.25f;
+
+	/** Brightness of the light in the cracks and on the shard edges as it arrives (above 1 blooms; 0 = none). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0))
+	float EdgeGlowStrength = 4.0f;
+
+	/** The share of the edge light that stays on through the hold; it settles to this during the break. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float EdgeGlowHoldShare = 0.35f;
+
+	/** How strongly a shard's face takes its colour once the light has reached it (0 = the plain frame,
+	 *  1 = fully tinted). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Prism", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	float ShardColorStrength = 0.45f;
 
 	// ---- Motion ----
 

@@ -30,6 +30,12 @@ namespace
 	/** How far a shard's turning axis may lean out of the wall's plane (0 = flat in it). */
 	constexpr float TUMBLE_AXIS_LEAN = 0.3f;
 
+	/** The light runs on this far past the farthest shard, so a soft front in the material clears it. */
+	constexpr float LIGHT_REACH_END = 1.5f;
+
+	/** A shard's hue strays at most this far (share of the colour wheel) from its direction's hue. */
+	constexpr float HUE_JITTER = 0.12f;
+
 	/** Each cell is cut along one of its two diagonals. */
 	constexpr int32 CELL_DIAGONALS = 2;
 
@@ -203,13 +209,34 @@ float BattleTransition::GetLookAlpha(const UBattleTransitionData &Data, float El
 	return On * (1.0f - Off);
 }
 
+BattleTransition::FPrismLight BattleTransition::EvaluatePrismLight(const UBattleTransitionData &Data, float Elapsed)
+{
+	FPrismLight Light;
+	const float FlashLeft = 1.0f - FMath::Clamp(Elapsed / FMath::Max(Data.FlashSeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
+	Light.Flash = Data.FlashStrength * FMath::Square(FlashLeft); // full at contact, a quick fall, a soft tail
+
+	// The same clock as the cracks (EvaluatePose): the light is at a shard when it starts to tilt.
+	Light.LightReach = FMath::Clamp(Elapsed / FMath::Max(Data.CrackSeconds * CRACK_SPREAD_SHARE, UE_KINDA_SMALL_NUMBER), 0.0f, LIGHT_REACH_END);
+
+	const float BreakLinear = FMath::Clamp((Elapsed - Data.CrackSeconds) / FMath::Max(Data.BreakSeconds, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
+	Light.EdgeGlow = Data.EdgeGlowStrength * FMath::Lerp(1.0f, Data.EdgeGlowHoldShare, BreakLinear);
+	return Light;
+}
+
+float BattleTransition::GetShardHue(const FShard &Shard)
+{
+	// Clockwise from the right of the hit: red, yellow below, green and blue to the left, magenta above (storyboard D).
+	const float Turn = FMath::Atan2(Shard.Outward.Y, Shard.Outward.X) / UE_TWO_PI;
+	return FMath::Frac(1.0f - Turn + (Shard.RandomB - 0.5f) * 2.0f * HUE_JITTER);
+}
+
 BattleTransition::FShardMesh BattleTransition::BuildShardMesh(const FShard &Shard, float Aspect, const UBattleTransitionData &Data)
 {
+	const auto ToByte = [](float Share) { return static_cast<uint8>(FMath::RoundToInt32(Share * MAX_COLOR_BYTE)); };
 	FShardMeshBuilder Builder;
 	Builder.Center = UVToWall(Shard.Centroid, Aspect);
 	Builder.Aspect = Aspect;
-	Builder.FaceColor = FColor(0, static_cast<uint8>(FMath::RoundToInt32(Shard.RandomA * MAX_COLOR_BYTE)),
-							   static_cast<uint8>(FMath::RoundToInt32(Shard.Delay * MAX_COLOR_BYTE)), 255);
+	Builder.FaceColor = FColor(0, ToByte(Shard.RandomA), ToByte(Shard.Delay), ToByte(GetShardHue(Shard)));
 
 	FVector2D Rim[3];
 	double MeanRadius = 0.0;
