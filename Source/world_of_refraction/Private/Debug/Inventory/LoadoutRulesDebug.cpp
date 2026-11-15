@@ -15,6 +15,9 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/Pawn.h"
 #include "Loadout/FCombatLoadout.h"
+#include "Loadout/WornGear.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Misc/Paths.h"
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Equipment/Apparel/ApparelData.h"
 #include "Pool/PoolSubsystem.h"
@@ -76,6 +79,16 @@ namespace
 					}
 				}
 				UE_LOG(LogTemp, Log, TEXT("[CompareStore] %d member(s) drawing from the store, %d differ"), Members, Differing);
+			}));
+
+	// D-221 (B-505): what each character wears now, as the pool keeps it across maps and the save.
+	FAutoConsoleCommandWithWorldAndArgs GPrintWornGearCmd(
+		TEXT("wor.Loadout.PrintWorn"),
+		TEXT("DEBUG: wor.Loadout.PrintWorn [member] - each character's worn-gear record in the pool (D-221), or only the keys containing [member]."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+			[](const TArray<FString> &Args, UWorld *World)
+			{
+				ULoadoutRulesDebug::PrintWornGear(World, FString::Join(Args, TEXT(" ")));
 			}));
 
 	FAutoConsoleCommandWithWorldAndArgs GTryAbilityPickCmd(
@@ -551,6 +564,75 @@ void ULoadoutRulesDebug::CompareLoadoutSlots(const UObject *WorldContextObject)
 			}
 		}
 	}
+}
+
+FString ULoadoutRulesDebug::GetWornGearString(FName CharacterKey, const FWornGear &Worn, const UPoolSubsystem *Pool)
+{
+	using namespace WornGearLayout;
+	const auto Name = [Pool](const FGuid &ID) -> FString
+	{
+		if (!ID.IsValid())
+		{
+			return TEXT("none");
+		}
+		const auto ByID = [&ID](const auto &Entry) { return Entry.PersistentID == ID; };
+		const FWeaponInventoryEntry *Weapon = Pool ? Pool->GetOwnedWeapons().FindByPredicate(ByID) : nullptr;
+		const FRingInventoryEntry *Ring = Pool && !Weapon ? Pool->GetOwnedRings().FindByPredicate(ByID) : nullptr;
+		const FEvolutionInventoryEntry *Evolution = Pool && !Weapon && !Ring
+			? Pool->GetOwnedEvolutions().FindByPredicate([&ID](const FEvolutionInventoryEntry &E) { return E.InstanceID == ID; })
+			: nullptr;
+		return Weapon ? GetNameSafe(Weapon->Weapon) : Ring ? GetNameSafe(Ring->Ring) : Evolution ? GetNameSafe(Evolution->Item)
+															: FString::Printf(TEXT("? %s"), *ID.ToString(EGuidFormats::Short));
+	};
+	const auto Entry = [&Worn, &Name](int32 Index) -> FString
+	{
+		const FLoadoutSlot *Slot = Worn.GetEntry(Index);
+		if (!Slot || !Slot->GearID.IsValid())
+		{
+			return TEXT("none");
+		}
+		FString Out = Name(Slot->GearID);
+		Out += Slot->GearID == Worn.ActiveGearID ? TEXT(" [ACTIVE]") : TEXT("");
+		Out += Slot->OffHandID.IsValid() ? FString::Printf(TEXT(" + %s"), *Name(Slot->OffHandID)) : FString();
+		return Out;
+	};
+	TArray<FString> Adapters;
+	for (int32 Index = FIRST_ADAPTER_INDEX; Index < Worn.Equipment.Num(); ++Index)
+	{
+		Adapters.Add(Entry(Index));
+	}
+	const FWheelPick &Pick = Worn.WheelPick;
+	return FString::Printf(TEXT("%s: primary %s | secondary %s | adapters %s | evolution %s | apparel %d | spells %d innate, %d evolution | wheel %s/%s entry %d%s"),
+						   *FPaths::GetBaseFilename(CharacterKey.ToString()), *Entry(PRIMARY_INDEX), *Entry(SECONDARY_INDEX),
+						   Adapters.IsEmpty() ? TEXT("none") : *FString::Join(Adapters, TEXT(", ")), *Name(Worn.EvolutionID), Worn.Apparel.Num(),
+						   Worn.InnateSpells.Num(), Worn.EvolutionSpells.Num(), *FieldSkillRules::SourceName(Pick.FieldSkill.Source),
+						   *FieldSkillRules::TypeName(Pick.FieldSkill.Type), Pick.FieldAttackIndex,
+						   Pick.bPicked ? TEXT(" picked") : TEXT(" (not picked)"));
+}
+
+void ULoadoutRulesDebug::PrintWornGear(const UObject *WorldContextObject, const FString &MemberFilter)
+{
+	const UWorld *World = GEngine ? GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull) : nullptr;
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	if (!Pool)
+	{
+		UE_LOG(LogWoRLoadout, Display, TEXT("[WornGear] no pool"));
+		return;
+	}
+	int32 Shown = 0;
+	for (const TPair<FName, FWornGear> &Record : Pool->GetAllWornGear())
+	{
+		if (!MemberFilter.IsEmpty() && !Record.Key.ToString().Contains(MemberFilter))
+		{
+			continue;
+		}
+		++Shown;
+		const FString Line = GetWornGearString(Record.Key, Record.Value, Pool);
+		UE_LOG(LogWoRLoadout, Display, TEXT("[WornGear] %s"), *Line);
+		GEngine->AddOnScreenDebugMessage(INDEX_NONE, LOADOUT_RULES_SCREEN_SECONDS, FColor::Cyan, Line);
+	}
+	UE_LOG(LogWoRLoadout, Display, TEXT("[WornGear] %d record(s) shown of %d"), Shown, Pool->GetAllWornGear().Num());
 }
 
 FString ULoadoutRulesDebug::TryAbilityPick(ULoadoutComponent *Loadout, const FString &AbilityName)

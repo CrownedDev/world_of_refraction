@@ -36,6 +36,11 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	FGuid GearID;
 
+	/** D-221 (B-505): the second piece of a same-type pair (D-209 weapon sets); invalid for a piece alone. Replaces the
+	 *  old fields' off hands once the readers move (stage 2). */
+	UPROPERTY(BlueprintReadOnly, Category = "Slot")
+	FGuid OffHandID;
+
 	/** A DERIVED cache of the owned item GearID names (today copied from the old loadout entry). Never the source:
 	 *  readers that need the item's live state (wear, tier, attachment) look the GUID up in the owned store. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
@@ -65,6 +70,7 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 		FLoadoutSlot Slot;
 		Slot.Gear = FGearInstance::FromWeaponEntry(Entry.WeaponEntry);
 		Slot.GearID = Slot.Gear.PersistentID;
+		Slot.OffHandID = Entry.OffHandEntry.PersistentID;
 		Slot.AssignedAbilities.Append(Entry.AssignedAbilities);
 		Slot.SpellOverrides.Append(Entry.AssignedSpells);
 		Slot.OverrideAttack = Entry.OverrideAttack;

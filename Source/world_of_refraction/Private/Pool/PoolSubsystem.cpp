@@ -598,6 +598,7 @@ void UPoolSubsystem::ResetStore()
     BankedCharacters.Reset();
     GearOwners.Reset();
     CustomLoadouts.Reset();
+    WornGear.Reset();
     CharacterSkills.Reset();
     Clashes.Reset();
     Pouches.Reset();
@@ -631,6 +632,47 @@ const TArray<FSavedLoadout> *UPoolSubsystem::GetCustomLoadouts(FName CharacterKe
 {
     const FPoolCustomLoadouts *Found = CustomLoadouts.Find(CharacterKey);
     return Found ? &Found->Loadouts : nullptr;
+}
+
+// ==================== WORN GEAR (D-221, B-505) ====================
+
+void UPoolSubsystem::SetWornGear(FName CharacterKey, const FWornGear &Worn)
+{
+    if (CharacterKey.IsNone())
+    {
+        return;
+    }
+    FWornGear *Stored = WornGear.Find(CharacterKey);
+    FWornGear Next = Worn;
+    if (Stored)
+    {
+        Next.WheelPick = Stored->WheelPick;
+        if (Stored->SameAs(Next))
+        {
+            return;
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s wears %d piece(s) now%s (D-221)"), *FPaths::GetBaseFilename(CharacterKey.ToString()),
+           Next.GetPieceIDs().Num(), Stored ? TEXT("") : TEXT(": first record"));
+    WornGear.Add(CharacterKey, MoveTemp(Next));
+    OnWornGearChanged.Broadcast(CharacterKey);
+}
+
+bool UPoolSubsystem::SetWheelPick(FName CharacterKey, const FWheelPick &Pick)
+{
+    FWornGear *Stored = WornGear.Find(CharacterKey);
+    if (!Stored)
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("[Pool] %s has no worn-gear record yet; the wheel pick stays on the member only"),
+               *FPaths::GetBaseFilename(CharacterKey.ToString()));
+        return false;
+    }
+    if (!(Stored->WheelPick == Pick))
+    {
+        Stored->WheelPick = Pick;
+        OnWornGearChanged.Broadcast(CharacterKey);
+    }
+    return true;
 }
 
 // ==================== KNOWLEDGE ====================

@@ -35,6 +35,7 @@ class UEvolutionItemData;
 class UStanceData;
 class UInfusionDisplayData;
 struct FSavedLoadout;
+struct FWornGear;
 
 /**
  * FBDElementSpellPool
@@ -108,6 +109,20 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** B-311 (D-111): back to the authored shape, with each piece referenced by its owned GUID, so a custom loadout
      *  can be kept and rebuilt by CreateFromSavedLoadout. Carried items are not kept (D-111: the pouch holds them). */
     FSavedLoadout ToSavedLoadout(ECharacterClass CharacterClass) const;
+
+    /** D-221 (B-505): the record of what this loadout wears, in the WornGearLayout places (WornGear.h). The ACTIVE
+     *  entry is the weapon drawn: a Generic's by bShowPrimary (its secondary when the primary is no weapon), anyone
+     *  else's primary weapon when shown. The wheel pick is left default (the pool keeps it apart). */
+    FWornGear ToWornGear(ECharacterClass CharacterClass) const;
+
+    /** D-221 (B-505): the loadout a record wears, built through CreateFromSavedLoadout. Each piece is taken from the
+     *  member's drawn copies (OwnedInventory / OwnedEvolutions; apparel from the pool), so a piece not drawn (gone, or
+     *  left at home for a run) leaves its place empty instead of being built from its asset. bShowPrimary follows the
+     *  ACTIVE entry; with no weapon primary it can't tell, and FallbackShowPrimary (the lore loadout's) is kept. */
+    static FCombatLoadout CreateFromWornGear(const FWornGear &Worn, ECharacterClass CharacterClass,
+                                             const class UInventoryComponent *OwnedInventory,
+                                             const class UEvolutionInventoryComponent *OwnedEvolutions,
+                                             bool bFallbackShowPrimary = true);
 
     /** B-311 (D-111): a lore loadout (the character asset's own) is rebuilt from the asset each spawn and never kept;
      *  a custom one (the player's) is kept per character. */
