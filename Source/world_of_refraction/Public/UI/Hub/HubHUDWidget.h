@@ -24,6 +24,8 @@
 
 class UBorder;
 class UCurrencyComponent;
+class UImage;
+class USizeBox;
 class UTextBlock;
 
 /** B-503i (mockup hub/hud): a party strip card's frame: a dark fill and a thin light outline, the top-left corner cut.
@@ -52,7 +54,8 @@ protected:
 };
 
 /** B-503m5 (D-218, mockup hub/hud/v2/3_trial_wheel_open): the field wheel's round body: a dark disc, the picked slice
- *  lit, the lines between slices and the middle circle. It only paints: the names and the middle's text sit on top. */
+ *  lit, the lines between slices and the middle circle. It only paints: the names and the middle's text sit on top.
+ *  OBSOLETE (B-514, D-222): the quick strip replaced the wheel and nothing builds this; delete after B-514's PIE pass. */
 UCLASS()
 class WORLD_OF_REFRACTION_API UHubHUDWheelRing : public UUserWidget
 {
@@ -98,17 +101,18 @@ public:
 	 *  up in a trial map while the pawn has a field attack with a name. */
 	void ShowFieldAttack(const struct FFieldAttackEntry &Entry);
 
-	/** B-503m4 (D-217 "The wheel on RB"): the wheel above the strip, bottom left: one slice per loadout entry around a
-	 *  circle (slice 0 at the top, clockwise), each with its element's diamond; the picked slice lit. B-503m5: one
-	 *  round wheel on a dark disc; the middle shows only what the strip will read ("Fire Sword"), between < > when
-	 *  the slice has more than one option; key hints bottom right. Trial only, as the strip; false when there is no
-	 *  wheel to show (the hub, headless, no entries). Call again to move the pick. */
-	bool ShowFieldAttackWheel(const TArray<struct FFieldAttackEntry> &Entries, int32 Picked);
+	/** B-514 (D-222, mockup hub/hud/v2/3_trial_strip_open; was the B-503m4 wheel): the quick strip, a row of icon tiles
+	 *  through the screen's middle, one per slice (piece of gear), the world dimmed behind. The picked slice's tile is
+	 *  framed, with up / down arrows when it has more than one source; the InHand entry's tile is tagged IN HAND. Under
+	 *  the row: the piece and its source ("Excalibur (Fire)") and, quieter, what the strip will read ("Fire Sword").
+	 *  Key hints bottom right. Trial only, as the strip; false when there is nothing to show (the hub, headless, no
+	 *  entries). Call again to move the pick. */
+	bool ShowFieldAttackWheel(const TArray<struct FFieldAttackEntry> &Entries, int32 Picked, int32 InHand = INDEX_NONE);
 	void HideFieldAttackWheel();
-	/** How many slices the wheel can show (0: no wheel here). */
-	int32 GetFieldWheelCapacity() const { return WheelSlots.Num(); }
-	/** B-503m5: the slice under the mouse cursor (INDEX_NONE in the middle, off the wheel, or before its first
-	 *  paint); bOnWheel: the cursor is inside the wheel's rim. */
+	/** How many pieces the strip can show (0: no strip here). */
+	int32 GetFieldWheelCapacity() const { return StripTiles.Num(); }
+	/** B-514: the slice whose tile is under the mouse cursor; INDEX_NONE off the tiles (bOnWheel false) or before the
+	 *  strip's first paint. */
 	int32 GetFieldWheelSliceUnderCursor(bool &bOnWheel) const;
 
 	const FHubHUDPrompt &GetPrompt() const { return Prompt; }
@@ -167,21 +171,44 @@ private:
 	/** Reads the pawn's current stop (on the slow timer: the stops read the loadout and the sources). */
 	void RefreshFieldAttack();
 
-	/** B-503m4: the wheel's slices, built once with the strips (Trial level), shown per slice while RB / R is held. */
+	/** B-514 (D-222): the quick strip, built once with the strips (Trial level), shown while it is open. Per tile: its
+	 *  outer frame (the hit-test), the inner ring and gap of the picked tile's double frame, the size box (the picked
+	 *  tile grows), the fill, the piece's icon and a pair's second icon, the name when there is no icon, the IN HAND
+	 *  tag, and the arrows above and below. */
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UBorder>> WheelSlots;
+	TArray<TObjectPtr<UBorder>> StripTiles;
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> WheelTexts;
-	/** Each slice's element diamond, in the element's colour. */
+	TArray<TObjectPtr<UBorder>> StripTileGaps;
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> WheelDiamonds;
-	/** B-503m5: the round body under the names, sized to the slice count when shown. */
+	TArray<TObjectPtr<UBorder>> StripTileRings;
 	UPROPERTY(Transient)
-	TObjectPtr<UHubHUDWheelRing> WheelRing;
-	/** The middle: the strip's reading, with arrows when the slice has more than one option. */
+	TArray<TObjectPtr<USizeBox>> StripTileSizes;
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> WheelCentre;
-	/** The wheel's keys, bottom right, while it is up. */
+	TArray<TObjectPtr<UBorder>> StripTileFills;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> StripIcons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> StripOffHandIcons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StripTileNames;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> StripInHandTags;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StripUpArrows;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> StripDownArrows;
+	/** The whole strip: the row and the text under it. */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> StripBox;
+	/** The world dimmed behind the open strip (under the cards). */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> StripDim;
+	/** Under the row: the piece and its source; under it, quieter, what the strip will read. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> StripName;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> StripReading;
+	/** The strip's keys, bottom right, while it is open. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> WheelHints;
 	void BuildFieldAttackWheel(class UCanvasPanel *Canvas);
