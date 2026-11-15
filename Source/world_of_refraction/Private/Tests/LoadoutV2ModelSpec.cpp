@@ -214,6 +214,19 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("a second weapon fits"), Kinds[0].Refusal.IsEmpty());
 		TestTrue(TEXT("an adapter fits"), Kinds[1].Refusal.IsEmpty());
 		TestFalse(TEXT("the evolution needs the first entry free"), Kinds[2].Refusal.IsEmpty());
+		TestEqual(TEXT("B-503u (D-220): Add a weapon first"), Kinds[0].Name.ToString(), FString(TEXT("Add a weapon")));
+		TestEqual(TEXT("then Add an adapter"), Kinds[1].Name.ToString(), FString(TEXT("Add an adapter")));
+
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("B"), EWeaponType::Axe)), Refusal);
+		const TArray<FLoadoutV2KindChoice> TwoWeapons = WoRLoadoutV2::BuildAddKinds(Loadout, ECharacterClass::Generic);
+		TestEqual(TEXT("two weapons: greyed with the class limit"), TwoWeapons[0].Refusal.ToString(), FString(TEXT("A Generic holds at most 2 weapons.")));
+		TestTrue(TEXT("the adapter still fits"), TwoWeapons[1].Refusal.IsEmpty());
+		FLoadoutV2Draft Ring;
+		Ring.Kind = ELoadoutV2DraftKind::Adapter;
+		Ring.Adapter = LoadoutV2TestAdapter();
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, Ring, Refusal);
+		TestEqual(TEXT("three pieces: every kind says the piece limit"), WoRLoadoutV2::BuildAddKinds(Loadout, ECharacterClass::Generic)[1].Refusal.ToString(),
+				  FString(TEXT("A Generic holds at most 3 pieces.")));
 
 		FCombatLoadout Refractor;
 		WoRLoadoutV2::ApplyDraft(Refractor, ECharacterClass::Caster, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Staff"), EWeaponType::Staff)), Refusal);

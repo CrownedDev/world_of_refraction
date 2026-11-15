@@ -107,7 +107,7 @@ namespace LoadoutV2ScreenStyle
 	TArray<FChipState> BuildTabChips()
 	{
 		// B-482b: no "later" note; a greyed chip already says it isn't in use.
-		return {FChipState{LOCTEXT("ChipWeapons", "Weapons")}, FChipState{LOCTEXT("ChipSkills", "Skills")}, // B-476d: built
+		return {FChipState{LOCTEXT("ChipWeapons", "Equipment")}, FChipState{LOCTEXT("ChipSkills", "Skills")}, // B-476d: built
 				FChipState{LOCTEXT("ChipApparel", "Apparel")}, FChipState{LOCTEXT("ChipCosmetics", "Cosmetics"), true}};
 	}
 
@@ -563,7 +563,7 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 			const bool bBadge = Entry.SocketBadges.Num() > 0 && FindIcon(Entry.SocketBadges[0]) != nullptr;
 			return bBadge ? Entry.Name : NameWithSocket(Entry.Name, Entry.SocketName);
 		}
-		return LOCTEXT("AddWeapon", "+ Add weapon");
+		return LOCTEXT("AddWeapon", "+ Add equipment");
 	}
 }
 
@@ -783,7 +783,7 @@ FText ULoadoutV2ScreenWidget::GetTitle() const
 		const FLoadoutScreenRow *Row = GetFocusedApparelRow();
 		return Row && Row->Kind == ELoadoutScreenRowKind::Apparel ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), Row->Name) : LOCTEXT("TitleAddApparel", "Add apparel");
 	}
-	const FText Window = bEditing ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), EditEntry.Name) : LOCTEXT("TitleAdd", "Add gear");
+	const FText Window = bEditing ? FText::Format(LOCTEXT("TitleEdit", "Edit · {0}"), EditEntry.Name) : LOCTEXT("TitleAdd", "Add equipment");
 	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
 	{
 		return Slots.IsValidIndex(SlotIndex) ? FText::Format(LOCTEXT("TitleSlot", "{0} · {1}"), Window, GetSlotName(Slots[SlotIndex])) : Window;
@@ -2607,7 +2607,7 @@ void ULoadoutV2ScreenWidget::CloseWindow()
 static FAutoConsoleCommandWithWorld GLoadoutV2OpenCommand(
 	TEXT("wor.UI.LoadoutV2"),
 	TEXT("B-476b/c: open the loadout screen, as the game menu's Loadout page does: A Edit / Equip, X Simple / Full, L3 / 6 Set active, Y Options; "
-		 "in the Add gear window A Pick / Remove, X Compare, Y Confirm."),
+		 "in the Add equipment window A Pick / Remove, X Compare, Y Confirm."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		if (!ULoadoutV2ScreenWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
