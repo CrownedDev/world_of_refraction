@@ -2,6 +2,9 @@
 
 #include "Field/FieldSkillTypes.h"
 
+#include "Animation/AnimMontage.h"
+#include "Combat/CombatNotify.h"
+
 namespace FieldSkillRules
 {
 	bool IsElemental(ESpellElement Element)
@@ -299,13 +302,33 @@ namespace FieldSkillRules
 		return StaticEnum<EFieldSkillSource>()->GetNameStringByValue(static_cast<int64>(Source));
 	}
 
+	float GetSwingImpactSeconds(const UAnimMontage *Montage)
+	{
+		if (!Montage || Montage->RateScale <= 0.0f)
+		{
+			return NO_SWING_DELAY;
+		}
+		constexpr float NO_IMPACT = TNumericLimits<float>::Max();
+		float Earliest = NO_IMPACT;
+		for (const FAnimNotifyEvent &Event : Montage->Notifies)
+		{
+			const UCombatNotify *Notify = Cast<UCombatNotify>(Event.Notify);
+			if (Notify && Notify->Family == ECombatNotifyFamily::Impact)
+			{
+				Earliest = FMath::Min(Earliest, Event.GetTriggerTime());
+			}
+		}
+		return Earliest < NO_IMPACT ? Earliest / Montage->RateScale : NO_SWING_DELAY;
+	}
+
 	FString FieldAttackEntryString(const FFieldAttackEntry &Entry)
 	{
-		return FString::Printf(TEXT("%s '%s' %s %s (%s)"),
+		return FString::Printf(TEXT("%s '%s' %s %s (%s%s)"),
 							   *StaticEnum<EFieldAttackKind>()->GetNameStringByValue(static_cast<int64>(Entry.Kind)), *Entry.Name.ToString(),
 							   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Entry.Element)),
 							   *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(Entry.Physical)),
-							   Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"));
+							   Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"),
+							   Entry.SwingMontage.IsNull() ? TEXT("") : *(TEXT(" ") + Entry.SwingMontage.GetAssetName()));
 	}
 
 	FString RefusalName(EFieldSkillRefusal Refusal)

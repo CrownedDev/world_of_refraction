@@ -318,6 +318,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *SkillMontage = nullptr;
 
+    /** B-503b (D-215): a weapon attack's swing on the map: SkillMontage's strike without the approach. Its first
+     *  Impact notify times the field hit. Unset: the field attack hits at once with no animation. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+    TSoftObjectPtr<UAnimMontage> FieldMontage;
+
     /** Optional wind-up montage played BEFORE SkillMontage (the cast lead-in).
      *  Null = skip straight to SkillMontage (opt-in, like ReturnMontage —
      *  presence is the trigger, no flag/duration gate). Carries its own
