@@ -123,6 +123,48 @@ struct WORLD_OF_REFRACTION_API FFieldStrike
 	bool IsSet() const { return Buildup > 0.0f; }
 };
 
+/** B-503 (D-215): what a stop of the field attack's cycle is. A weapon swings; every other kind throws the pulse. */
+UENUM(BlueprintType)
+enum class EFieldAttackKind : uint8
+{
+	Weapon,
+	Ring,
+	Innate,
+	Evolution
+};
+
+/** B-503 (D-215): one stop of the field attack's cycle (IA_Field_SwitchSource: LB / R): a weapon, a ring, the innate
+ *  element or an evolution of the loadout. Built from the loadout each time it is read
+ *  (UFieldMovementComponent::GetFieldAttackEntries); only the index is kept (FPartyMember::FieldAttackIndex, saved). */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FFieldAttackEntry
+{
+	GENERATED_BODY()
+
+	/** Weapon by default: with nothing to cycle the attack is a plain swing with no element. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	EFieldAttackKind Kind = EFieldAttackKind::Weapon;
+
+	/** The item's name ("Innate" for the innate element); empty for the plain swing. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	FText Name;
+
+	/** The strike's element; None when the entry has none (no crystal, a broken one). */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	ESpellElement Element = ESpellElement::None;
+
+	/** A weapon's attack type; None for every other kind. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	EPhysicalDamageType Physical = EPhysicalDamageType::None;
+
+	/** The item's icon; null for the innate element and an item with none. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	TObjectPtr<class UTexture2D> Icon = nullptr;
+
+	/** D-215: only a weapon has a swing; a ring, the innate element and an evolution throw the pulse. */
+	bool IsSwing() const { return Kind == EFieldAttackKind::Weapon; }
+};
+
 /** A character's active field skill. Its home is FPartyMember::FieldSkill (saved, v36). */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FFieldSkillChoice
@@ -244,6 +286,23 @@ namespace FieldSkillRules
 	constexpr int32 FIELD_ATTACK_SOURCE_COUNT = 3;        // Innate, Weapon, Ring (EFieldSkillSource)
 	static_assert(static_cast<int32>(EFieldSkillSource::Ring) + 1 == FIELD_ATTACK_SOURCE_COUNT, "A new field source: update the count");
 
+	// ---- B-503: the field attack's cycle through the loadout (D-215) ----
+
+	constexpr int32 FIRST_FIELD_ATTACK_INDEX = 0;
+	constexpr float FIELD_ATTACK_POPUP_SECONDS = 2.0f; // how long the cycled entry's icon and name show (D-215)
+
+	/** A kept index the loadout no longer reaches (gear taken off since) falls back to the first entry. */
+	inline int32 ClampFieldAttackIndex(int32 Index, int32 EntryCount)
+	{
+		return Index >= FIRST_FIELD_ATTACK_INDEX && Index < EntryCount ? Index : FIRST_FIELD_ATTACK_INDEX;
+	}
+
+	/** The cycle's next stop, wrapping after the last; the first with nothing to cycle. */
+	inline int32 NextFieldAttackIndex(int32 Index, int32 EntryCount)
+	{
+		return EntryCount > 0 ? (ClampFieldAttackIndex(Index, EntryCount) + 1) % EntryCount : FIRST_FIELD_ATTACK_INDEX;
+	}
+
 	// ---- B-214h: evolutions (FieldAbilities choice 2; Q-214h; TODO: tune) ----
 
 	constexpr float EVOLUTION_SPRINT_BONUS_PERCENT = 15.0f;     // the default always-on bonus (+10-20%)
@@ -268,7 +327,9 @@ namespace FieldSkillRules
 	 *  a Water source, FIELD_STRIKE_BUILDUP. */
 	WORLD_OF_REFRACTION_API FFieldStrike MakeFieldStrike(ESpellElement SourceElement, EPhysicalDamageType Physical, bool bHeld);
 
-	/** The next field attack source: Innate -> Weapon -> Ring -> Innate. */
+	/** OBSOLETE (B-503, D-215): the field attack cycles the loadout's entries now (NextFieldAttackIndex); no caller
+	 *  left but the spec. Delete with FIELD_ATTACK_SOURCE_COUNT after Crown's PIE pass.
+	 *  The next field attack source: Innate -> Weapon -> Ring -> Innate. */
 	WORLD_OF_REFRACTION_API EFieldSkillSource NextSource(EFieldSkillSource Source);
 
 	/** Glide may start: in the air with its EP. */
@@ -339,6 +400,8 @@ namespace FieldSkillRules
 	/** Enum display names for logs and the debug print. */
 	WORLD_OF_REFRACTION_API FString TypeName(EFieldMovementType Type);
 	WORLD_OF_REFRACTION_API FString SourceName(EFieldSkillSource Source);
+	/** "Weapon 'Iron Sword' Fire Slash (swing)" / "Innate 'Innate' Water None (pulse)". */
+	WORLD_OF_REFRACTION_API FString FieldAttackEntryString(const FFieldAttackEntry &Entry);
 	WORLD_OF_REFRACTION_API FString RefusalName(EFieldSkillRefusal Refusal);
 	WORLD_OF_REFRACTION_API FString AuraName(EFieldAura Aura);
 }

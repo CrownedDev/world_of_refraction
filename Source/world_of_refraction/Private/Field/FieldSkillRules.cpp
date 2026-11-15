@@ -299,6 +299,15 @@ namespace FieldSkillRules
 		return StaticEnum<EFieldSkillSource>()->GetNameStringByValue(static_cast<int64>(Source));
 	}
 
+	FString FieldAttackEntryString(const FFieldAttackEntry &Entry)
+	{
+		return FString::Printf(TEXT("%s '%s' %s %s (%s)"),
+							   *StaticEnum<EFieldAttackKind>()->GetNameStringByValue(static_cast<int64>(Entry.Kind)), *Entry.Name.ToString(),
+							   *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Entry.Element)),
+							   *StaticEnum<EPhysicalDamageType>()->GetNameStringByValue(static_cast<int64>(Entry.Physical)),
+							   Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"));
+	}
+
 	FString RefusalName(EFieldSkillRefusal Refusal)
 	{
 		return StaticEnum<EFieldSkillRefusal>()->GetNameStringByValue(static_cast<int64>(Refusal));
