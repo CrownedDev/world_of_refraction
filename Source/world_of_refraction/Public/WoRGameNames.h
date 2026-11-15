@@ -136,6 +136,10 @@ namespace WoRGameNames
      *  the Equipment screen ask here. */
     WORLD_OF_REFRACTION_API FText GetAdapterName(const URingData *Adapter, const FRuntimeAttachedItem &Socket);
 
+    /** B-516: a name that repeats in one list gets its count from the second on ("Lightning Ring", "Lightning Ring 2"),
+     *  in list order, at display time; nothing is stored. The quick strip and the Equipment list ask here. */
+    WORLD_OF_REFRACTION_API void NumberRepeatedNames(TArray<FText> &Names);
+
     /** B-440a (D-180): how a weapon is held, for its kind line: "dual", "with shield". Empty for a single weapon. */
     WORLD_OF_REFRACTION_API FText GetWieldModeName(EWeaponWieldMode Mode);
 

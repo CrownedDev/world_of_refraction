@@ -251,8 +251,8 @@ namespace LoadoutV2Build
 		{
 			return;
 		}
-		FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Weapon->GetDisplayName()), WoRGameNames::GetTierLetter(Weapon->Tier));
-		SetTier(Piece, Weapon->Tier);
+		FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Weapon->GetDisplayName()), WoRGameNames::GetTierLetter(Owned.Tier));
+		SetTier(Piece, Owned.Tier); // B-516: the owned piece's tier (the run layer can lower it), not the asset's
 		if (Piece)
 		{
 			Piece->Icon.Kind = ELoadoutV2IconKind::WeaponType; // B-485
@@ -309,9 +309,9 @@ namespace LoadoutV2Build
 	{
 		if (const URingData *Adapter = Owned.Ring)
 		{
-			if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, WoRGameNames::GetAdapterName(Adapter, Owned.AttachedItem), WoRGameNames::GetTierLetter(Adapter->Tier)))
+			if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, WoRGameNames::GetAdapterName(Adapter, Owned.AttachedItem), WoRGameNames::GetTierLetter(Owned.Tier)))
 			{
-				SetTier(Piece, Adapter->Tier);
+				SetTier(Piece, Owned.Tier);
 				Piece->TypeName = WoRGameNames::GetAdapterFormName(Adapter->Form); // B-487b: no "Type" row
 			}
 			AddEffects(Lines, Adapter, bSimple);
@@ -473,6 +473,17 @@ FLoadoutV2WeaponsPage WoRLoadoutV2::BuildWeaponsPage(const FCombatLoadout &Loado
 				Page.Entries.Add(MakeAdapterEntry(Loadout.RingLoadout[Index], ELoadoutV2Place::Adapter, Index));
 			}
 		}
+	}
+	// B-516: two same-named entries (two Lightning rings) read apart.
+	TArray<FText> Names;
+	for (const FLoadoutV2Entry &Entry : Page.Entries)
+	{
+		Names.Add(Entry.Name);
+	}
+	WoRGameNames::NumberRepeatedNames(Names);
+	for (int32 Index = 0; Index < Names.Num(); ++Index)
+	{
+		Page.Entries[Index].Name = Names[Index];
 	}
 	// The weapon in hand, marked only when there are two weapon entries (as today's screen).
 	if (WeaponEntries > 1)
