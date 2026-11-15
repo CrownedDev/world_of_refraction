@@ -81,7 +81,7 @@ namespace HubHUDStyle
 	constexpr float StripTileTextInset = 9.0f;
 	constexpr float StripTagBottom = 6.0f;
 	constexpr float StripTagPaddingX = 9.0f;
-	constexpr float StripTextGap = 12.0f; // between the row's down arrows and the text under it
+	constexpr float StripTextGap = 6.0f; // between the row's down arrows and the name under it
 	constexpr float StripTextPaddingX = 72.0f;
 	constexpr float StripTextPaddingY = 9.0f;
 	const FVector2D StripTopFromCentre(0.0f, -160.0f); // the up arrows' top: the row sits a little above the middle
@@ -485,29 +485,31 @@ void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
 		StripUpArrows.Add(Up);
 		StripDownArrows.Add(Down);
 	}
-	// Under the row: the piece and its source; quieter, what the strip will read.
-	UVerticalBox *Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	// Under the row: the piece's name; quieter, its type and source. D-222 "The text and the frame": one frame
+	// around the icons and the text, a single panel.
 	StripName = MakeText(WidgetTree, NameFontSize, TextColor, true);
 	StripName->SetJustification(ETextJustify::Center);
 	StripReading = MakeText(WidgetTree, LineFontSize, DimColor);
 	StripReading->SetJustification(ETextJustify::Center);
-	AddToColumn(Lines, StripName)->SetHorizontalAlignment(HAlign_Center);
-	AddToColumn(Lines, StripReading)->SetHorizontalAlignment(HAlign_Center);
-	UBorder *TextPanel = MakeBorder(Lines);
-	TextPanel->SetBrushColor(StripTextFillColor);
-	TextPanel->SetPadding(FMargin(StripTextPaddingX, StripTextPaddingY));
 	UVerticalBox *Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	AddToColumn(Box, Row)->SetHorizontalAlignment(HAlign_Center);
-	AddToColumn(Box, TextPanel, FMargin(0.0f, StripTextGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Center);
-	if (UCanvasPanelSlot *BoxSlot = Canvas->AddChildToCanvas(Box))
+	AddToColumn(Box, StripName, FMargin(0.0f, StripTextGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Center);
+	AddToColumn(Box, StripReading)->SetHorizontalAlignment(HAlign_Center);
+	UBorder *Panel = MakeBorder(Box);
+	Panel->SetBrushColor(StripTextFillColor);
+	Panel->SetPadding(FMargin(StripTextPaddingX, StripTextPaddingY));
+	UBorder *Frame = MakeBorder(Panel);
+	Frame->SetBrushColor(StripFrameColor);
+	Frame->SetPadding(FMargin(StripFrameThickness));
+	if (UCanvasPanelSlot *FrameSlot = Canvas->AddChildToCanvas(Frame))
 	{
-		BoxSlot->SetAnchors(ScreenCentre);
-		BoxSlot->SetAlignment(TopCentreAlignment);
-		BoxSlot->SetPosition(StripTopFromCentre);
-		BoxSlot->SetAutoSize(true);
+		FrameSlot->SetAnchors(ScreenCentre);
+		FrameSlot->SetAlignment(TopCentreAlignment);
+		FrameSlot->SetPosition(StripTopFromCentre);
+		FrameSlot->SetAutoSize(true);
 	}
-	SetShown(Box, false);
-	StripBox = Box;
+	SetShown(Frame, false);
+	StripBox = Frame;
 
 	WheelHints = MakeText(WidgetTree, LineFontSize, DimColor);
 	if (UCanvasPanelSlot *HintSlot = Canvas->AddChildToCanvas(WheelHints))
@@ -547,16 +549,17 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 		{
 			continue;
 		}
-		// The tile: the piece's own icon, else (a weapon) its type's, else its element's badge, else its name.
+		// The tile: the piece's own icon, else (a weapon) its type's, else (the innate, an evolution) its element's badge,
+		// else its name. The icon table has no ring, adapter or shield icon yet.
 		const FFieldAttackEntry &Piece = Entries[Slices[Index]];
 		UTexture2D *Icon = Piece.SliceIcon;
 		if (!Icon && Piece.WeaponId.IsValid())
 		{
 			Icon = WoRIcons::GetWeaponType(Piece.WeaponType);
 		}
-		if (!Icon)
+		if (!Icon && (Piece.Kind == EFieldAttackKind::Innate || Piece.Kind == EFieldAttackKind::Evolution))
 		{
-			Icon = WoRIcons::GetElementBadge(Piece.Element);
+			Icon = WoRIcons::GetElementBadge(Piece.Element); // no asset of its own (the mockup's evolution tile)
 		}
 		UTexture2D *OffHandIcon = Icon ? Piece.SliceOffHandIcon.Get() : nullptr;
 		StripIcons[Index]->SetDesiredSizeOverride(FVector2D(OffHandIcon ? StripPairIconSize : StripIconSize));
@@ -582,13 +585,12 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 		StripTileSizes[Index]->SetHeightOverride(TileSize);
 		StripTileFills[Index]->SetBrushColor(bPicked ? PlateColor : StripTileFillColor);
 	}
+	// D-222 "The text and the frame": "Storm Ring", then "Ring · Lightning".
 	const FFieldAttackEntry &Pick = Entries[Kept];
-	const FText Name = FieldSkillRules::GetFieldStripName(Pick);
-	StripName->SetText(Name);
-	// B-503m5 (Crown): what the strip will read ("Fire Sword"); an unarmed plain swing reads as its option.
-	const FText Reading = Pick.Name.IsEmpty() ? Pick.OptionName : Pick.Name;
-	StripReading->SetText(Reading);
-	SetShown(StripReading, !Reading.IsEmpty() && !Reading.EqualTo(Name));
+	StripName->SetText(Pick.SliceName);
+	const FText TypeLine = FieldSkillRules::GetFieldStripTypeLine(Pick);
+	StripReading->SetText(TypeLine);
+	SetShown(StripReading, !TypeLine.IsEmpty());
 	SetShown(StripBox, true);
 	SetShown(StripDim, true);
 	// The strip's keys for the device in use (B-481). TODO: key caps (WoRMenuStyle::MakeHintBar) with the real HUD.

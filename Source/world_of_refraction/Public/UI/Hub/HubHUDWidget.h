@@ -104,7 +104,7 @@ public:
 	/** B-514 (D-222, mockup hub/hud/v2/3_trial_strip_open; was the B-503m4 wheel): the quick strip, a row of icon tiles
 	 *  through the screen's middle, one per slice (piece of gear), the world dimmed behind. The picked slice's tile is
 	 *  framed, with up / down arrows when it has more than one source; the InHand entry's tile is tagged IN HAND. Under
-	 *  the row: the piece and its source ("Excalibur (Fire)") and, quieter, what the strip will read ("Fire Sword").
+	 *  the row: the piece's name and, quieter, its type and source ("Ring · Lightning"); one frame around it all.
 	 *  Key hints bottom right. Trial only, as the strip; false when there is nothing to show (the hub, headless, no
 	 *  entries). Call again to move the pick. */
 	bool ShowFieldAttackWheel(const TArray<struct FFieldAttackEntry> &Entries, int32 Picked, int32 InHand = INDEX_NONE);
@@ -197,13 +197,13 @@ private:
 	TArray<TObjectPtr<UTextBlock>> StripUpArrows;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> StripDownArrows;
-	/** The whole strip: the row and the text under it. */
+	/** The whole strip: one framed panel around the row and the text under it. */
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> StripBox;
 	/** The world dimmed behind the open strip (under the cards). */
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> StripDim;
-	/** Under the row: the piece and its source; under it, quieter, what the strip will read. */
+	/** Under the row: the piece's name; under it, quieter, its type and source. */
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StripName;
 	UPROPERTY(Transient)
