@@ -1269,6 +1269,17 @@ The queue of questions only Crown can answer.
 - (3) A: Metaphor: ReFantazio lets the character keep moving through the field attack, which keeps the map fluid. The feet may slide until the swing is blended on the upper body; Crown judges it in PIE.
 **Notes for Claude:** built in B-503b. A second attack is refused until the first hit has landed. A weapon whose attack has no field montage hits at once, as before.
 
+### Q-503c — The field pulse: where it goes, when it hits, what it costs
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503c, D-215) · **Blocks:** —
+**Question:** D-215 says a non-weapon entry throws an energy pulse about 7 m that engages. Four things it leaves open, none of them lore: (1) Where does it go? (2) Does it hit when it leaves or when the look arrives? (3) Do walls stop it? (4) Does it cost EP or have its own cooldown?
+**Options:** (1) **A** where the character faces, level with the ground (as the swing); **B** where the camera looks, with an aim mode and a reticle; **C** it locks onto the nearest enemy ahead. (2) **A** when it leaves; **B** after a flight time. (3) **A** yes; **B** no. (4) **A** free, on the swing's 0.6 s cooldown; **B** an EP cost.
+**Answer:** **A, A, A, A**, by the reference-backed default.
+- (1) A: Metaphor: ReFantazio's field attack goes where the character faces, and the swing here already does. Expedition 33's shot, which D-215 names, uses an aim mode with a reticle (B): that is a job of its own (a camera mode, a reticle, an input), so it is flagged here rather than built unasked.
+- (2) A: Expedition 33's field shot hits the instant it is fired. The fight's own opening (the join window and the shatter) covers the look's flight.
+- (3) A: every reference stops a shot at a wall; a pulse through walls would start fights the player can't see.
+- (4) A: Expedition 33's field shot is free. It only starts the fight; the element's buildup is the same as the swing's.
+**Notes for Claude:** built in B-503c. The sweep is 7 m long and 50 cm in radius from the body's centre, so an enemy a little above or below on a slope is still hit; one on a ledge is not. The look starts at the right hand. Held Water shows in Ice's colour.
+
 ### D-214 — Rest points are the services: each one is a themed object you rest at and use
 **Status:** ANSWERED (Crown, 2026-11-14; changes Q-447 and Q-449's NPC stand-ins) · **Raised:** 2026-11-14 · **Blocks:** —
 **Answer (Crown):** the trial's non-boss rest points and its NPCs merge. Each rest point is a unique object that is also a service: you rest there and use it as that service, e.g. an **anvil** is the Blacksmith a **ritual tree** is the Spiritualist (Crown, 2026-11-14), and a **crystal pedestal** is the Jeweler (for now, Crown). (1) The **pillar-point seller** becomes a rest point type (e.g. a shrine) that rotates: a different rest point offers it each run, the same one for the whole run. (2) **V's extract** is a rest point too: V himself or a mirror with V's picture (look to be decided with the art). **Boss rest spots are a campfire** (Crown, 2026-11-14): their rules are unchanged, only the look.

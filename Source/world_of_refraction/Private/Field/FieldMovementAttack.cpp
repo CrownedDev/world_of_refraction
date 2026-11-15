@@ -16,9 +16,9 @@
 #include "Animation/AnimMontage.h"
 #include "Character/ECharacterClass.h"
 #include "CollisionQueryParams.h"
+#include "Combat/Encounter/EncounterComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
-#include "Combat/Encounter/EncounterComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -55,6 +55,7 @@ namespace FieldPulse
 	constexpr float PLACEHOLDER_SECONDS = 0.4f;
 	constexpr float PLACEHOLDER_THICKNESS = 6.0f;
 	constexpr int32 PLACEHOLDER_SEGMENTS = 12;
+	constexpr uint8 PLACEHOLDER_DEPTH_PRIORITY = 0; // the world's own depth: hidden behind walls
 }
 
 namespace
@@ -310,7 +311,8 @@ void UFieldMovementComponent::MulticastPlayFieldPulse_Implementation(FVector_Net
 	}
 	// The placeholder until the burst is authored (not drawn in a shipping build).
 	const FColor Drawn = Colour.ToFColor(/*bSRGB=*/true);
-	DrawDebugLine(World, From, End, Drawn, /*bPersistentLines=*/false, FieldPulse::PLACEHOLDER_SECONDS, 0, FieldPulse::PLACEHOLDER_THICKNESS);
+	DrawDebugLine(World, From, End, Drawn, /*bPersistentLines=*/false, FieldPulse::PLACEHOLDER_SECONDS,
+				  FieldPulse::PLACEHOLDER_DEPTH_PRIORITY, FieldPulse::PLACEHOLDER_THICKNESS);
 	DrawDebugSphere(World, End, FieldSkillRules::FIELD_PULSE_RADIUS, FieldPulse::PLACEHOLDER_SEGMENTS, Drawn, false, FieldPulse::PLACEHOLDER_SECONDS);
 }
 
