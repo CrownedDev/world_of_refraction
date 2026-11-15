@@ -239,6 +239,9 @@ public:
 	 *  writes through). False for an invalid slot. */
 	bool SetMemberFieldAttackIndex(int32 SlotIndex, int32 FieldAttackIndex);
 
+	/** B-503s2: the weapon the member has in hand (FPartyMember::ActiveWeaponId). */
+	bool SetMemberActiveWeapon(int32 SlotIndex, const FGuid &WeaponId);
+
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberAISeat(int32 SlotIndex) const;

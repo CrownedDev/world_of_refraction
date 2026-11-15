@@ -2005,6 +2005,7 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
     }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
     UWeaponData *ActiveWeapon = GetInventoryComponent() ? GetActiveWeapon() : nullptr;
+    RecordWeaponInHand();
     if (ActiveWeapon == LastNotifiedWeapon)
     {
         return;
@@ -3635,6 +3636,26 @@ EGuardStyle ULoadoutComponent::ResolveGuardStyle(bool bWeaponInHand, const FGuid
     // weapons) never matches, so any weapon in hand brings the weapon guard back.
     return (Chosen == EGuardStyle::Unarmed && ChosenWithWeaponId.IsValid() && ActiveWeaponId == ChosenWithWeaponId) ? EGuardStyle::Unarmed
                                                                                      : EGuardStyle::Weapon;
+}
+
+void ULoadoutComponent::RecordWeaponInHand() const
+{
+    // B-503s2 (D-218): the next pool draw rebuilds the loadout, so the weapon in hand lives on the member's record.
+    const FPartyMember *Record = GetOwner() && GetOwner()->HasAuthority() ? FindGuardRecord() : nullptr;
+    const FWeaponLoadoutEntry *InHand = Record && GetInventoryComponent() && GetActiveWeapon() ? GetActiveWeaponLoadout() : nullptr;
+    const FGuid WeaponId = InHand ? InHand->WeaponEntry.PersistentID : FGuid();
+    if (!Record || Record->ActiveWeaponId == WeaponId)
+    {
+        return;
+    }
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+    const UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+    if (PartySession && PartySession->SetMemberActiveWeapon(PartySession->GetMemberSlotOf(CharComp), WeaponId))
+    {
+        UE_LOG(LogWoRLoadout, Log, TEXT("%s: %s kept as the weapon in hand for the next map"), *GetNameSafe(GetOwner()),
+               InHand && InHand->WeaponEntry.Weapon ? *InHand->WeaponEntry.Weapon->Name : TEXT("no weapon"));
+    }
 }
 
 const FPartyMember *ULoadoutComponent::FindGuardRecord() const

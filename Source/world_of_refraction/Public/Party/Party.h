@@ -202,6 +202,13 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	bool bFieldAttackPicked = false;
 
+	/** B-503s2 (D-218): the owned weapon (its PersistentID) the member last had in hand: a wheel pick, a loadout
+	 *  screen change or a switch in a fight. Every pool draw rebuilds the loadout (a lore one from its asset), so the
+	 *  draw puts this weapon back in hand (UCharacterDataComponent). Written by a stamped pawn's ULoadoutComponent
+	 *  through UPartySessionSubsystem::SetMemberActiveWeapon. Saved; unset: the loadout's own choice. */
+	UPROPERTY()
+	FGuid ActiveWeaponId;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }

@@ -878,6 +878,9 @@ public:
      *  Mutators here call it on every return; code that edits SavedLoadouts directly calls it after. */
     void NotifyActiveWeaponChanged();
 
+    /** B-503s2 (D-218): writes the weapon in hand to a stamped member's record (FPartyMember::ActiveWeaponId). */
+    void RecordWeaponInHand() const;
+
     /** B-380c: apparel worn in this loadout changed (worn, removed, or its socket set in play): the max pools and every
      *  stat reader (GAS sync, loadout UI: OnLoadoutChanged) re-read it. */
     void NotifyApparelChanged();
