@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-503e](B-503e.md) | `fix/B-503e-field-input-in-code` (in dev, built 2026-11-15) | Left click attacks, a hold is the held attack, R cycles, on the trial map and in the hub, with no editor step (the field keys are made in code) | Pending |
 | [B-503d](B-503d.md) | `chore/B-503d-transition-ease-pulse-montage` (in dev, built 2026-11-15) | Blow Away Ease can go down to 0.3 (a fast start to the transition's fly-off); `wor.Editor.BuildFieldPulseMontage` builds the pulse's cast montage; the map character's Anim Blueprint already has the Default Slot. **Editor steps first** (in the sheet; the main checkout needs a rebuild with the editor closed) | Pending |
 | [B-503c](B-503c.md) | `feature/B-503c-field-pulse` (in dev, built 2026-11-15) | The field attack's pulse (D-215): a ring, innate or evolution entry throws a pulse from the hand, 7 m, in its element's colour, stopping at the first enemy or wall. Playable now as a plain line; the cast animation and the Niagara burst are editor steps (in the sheet) | Pending |
 | [B-503b](B-503b.md) | `feature/B-503b-field-swing` (in dev, built 2026-11-15) | The field attack's swing (D-215): a weapon entry plays the battle swing without the dash, and the hit lands when the blade does. **Editor steps first** (in the sheet): run `Scripts/editor/build_light_hit.py`, check the map character's Anim Blueprint has a Default Slot | Pending |
