@@ -242,6 +242,12 @@ public:
 	/** B-503s2: the weapon the member has in hand (FPartyMember::ActiveWeaponId). */
 	bool SetMemberActiveWeapon(int32 SlotIndex, const FGuid &WeaponId);
 
+	/** D-221 (B-506): each local member takes its wheel pick and weapon in hand from its worn-gear record in the pool,
+	 *  the pick's home (FWornGear::WheelPick). Called when a member joins (a benched character comes back with its pick)
+	 *  and after a save's pool is restored. A member with no record keeps its own. Returns members updated.
+	 *  shortcut: FPartyMember keeps a copy for its readers (the setters above write both); stage 2 moves them. */
+	int32 PullWheelPicksFromPool();
+
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberAISeat(int32 SlotIndex) const;
