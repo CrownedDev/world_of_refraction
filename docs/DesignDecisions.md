@@ -1244,8 +1244,9 @@ The queue of questions only Crown can answer.
 
 ### D-219 — What you finish or leave a run wearing is what you wear in the hub
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
-**Answer (Crown):** "the equipment you finish or leave the run with is the equipment you have in the hub". The loadout as it stands at the end of a run (finished, extracted, or left) carries into the hub: the ACTIVE weapon, the wheel's pick (D-218), what is in each socket, the rings and apparel. The hub does not put back the loadout the run started with.
-**Notes for Claude:** this is about what is equipped, not what is owned: a quit run still takes back the items found in it (Q-439, Q-439b). Where a taken-back item is equipped at the end, the build job reports how that slot is left (empty, or the piece it replaced) before building; Crown decides.
+**Answer (Crown):** "the equipment you finish or leave the run with is the equipment you have in the hub". The loadout as it stands at the end of a run (finished or extracted) carries into the hub: the ACTIVE weapon, the wheel's pick (D-218), what is in each socket, the rings and apparel. The hub does not put back the loadout the run started with.
+**A quit is the exception (Crown, 2026-11-15):** "if you quit then the progress doesn't count, so they would be how they were before the run". A quit run puts the loadout back to how it was when the run began, as it takes back the items found (Q-439). Finishing and extracting carry the run's loadout into the hub.
+**Notes for Claude:** a game closed mid-run is settled as a quit (B-408a), so it restores too. A wipe: the build job reports what it does today and Crown decides if it differs.
 
 ### D-218 — The wheel's pick is what the character holds, and their parry
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
