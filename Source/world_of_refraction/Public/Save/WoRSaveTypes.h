@@ -165,25 +165,8 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
 
-	/** B-214a (D-099, save v36): the member's active field skill (FPartyMember::FieldSkill). */
-	UPROPERTY()
-	EFieldSkillSource FieldSkillSource = EFieldSkillSource::Innate;
-
-	UPROPERTY()
-	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
-
-	/** B-503 (D-215): the member's stop of the field attack's cycle (FPartyMember::FieldAttackIndex). Added with no
-	 *  version bump: an older 39 loads it as 0, the first entry (a bump would wipe the save, D-138). */
-	UPROPERTY()
-	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
-
-	/** B-503s (D-218): FPartyMember::bFieldAttackPicked. No version bump: an older 39 loads it as never picked. */
-	UPROPERTY()
-	bool bFieldAttackPicked = false;
-
-	/** B-503s2 (D-218): FPartyMember::ActiveWeaponId. No version bump: an older 39 loads it unset (the loadout's own). */
-	UPROPERTY()
-	FGuid ActiveWeaponId;
+	// D-221 (B-507, save v40): the field skill, the field attack pick and the weapon in hand moved to the member's
+	// worn-gear record (FSavedPool::WornGear).
 
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
@@ -594,6 +577,68 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 	TArray<FGuid> ApparelInstances;
 };
 
+/** D-221 (B-507, save v40): one entry of a worn-gear record (FLoadoutSlot): the owned piece and its set's off hand. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedWornEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid GearID;
+
+	UPROPERTY()
+	FGuid OffHandID;
+
+	/** The weapon's assigned abilities, as custom loadouts keep them (OBSOLETE with them in stage 4). */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Abilities;
+};
+
+/** D-221 (B-507, save v40): one character's worn-gear record (FWornGear), by owned GUID; the wheel pick moved here
+ *  from FSavedPartyMember. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedWornGear
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	/** In the WornGearLayout places (an empty entry keeps its place). */
+	UPROPERTY()
+	TArray<FSavedWornEntry> Equipment;
+
+	UPROPERTY()
+	FGuid ActiveGearID;
+
+	UPROPERTY()
+	FGuid EvolutionID;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> EvolutionSpells;
+
+	UPROPERTY()
+	TArray<FGuid> Apparel;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> InnateSpells;
+
+	UPROPERTY()
+	TArray<FSavedCustomBDPool> BDSpellPools;
+
+	UPROPERTY()
+	EFieldSkillSource FieldSkillSource = EFieldSkillSource::Innate;
+
+	UPROPERTY()
+	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
+
+	UPROPERTY()
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
+
+	UPROPERTY()
+	bool bFieldAttackPicked = false;
+};
+
 /** B-311: one character's custom loadouts (UPoolSubsystem::GetCharacterKey). */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedCharacterLoadouts
@@ -687,6 +732,10 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	/** B-311 (save v6): each character's custom loadouts. */
 	UPROPERTY()
 	TArray<FSavedCharacterLoadouts> CustomLoadouts;
+
+	/** D-221 (B-507, save v40): what each character wears now. */
+	UPROPERTY()
+	TArray<FSavedWornGear> WornGear;
 
 	/** B-314b (D-097, save v15): gear definition key -> the highest tier a run-only copy of it reached. */
 	UPROPERTY()

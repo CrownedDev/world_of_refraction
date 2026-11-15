@@ -417,6 +417,9 @@ public:
 
     const TMap<FName, FWornGear> &GetAllWornGear() const { return WornGear; }
 
+    /** B-507: a save's records, wheel picks included (USaveSubsystem::RestorePool). */
+    void RestoreWornGear(const TMap<FName, FWornGear> &Restored) { WornGear = Restored; }
+
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnWornGearChanged OnWornGearChanged;
 
