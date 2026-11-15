@@ -3,7 +3,8 @@
 // R / LB steps real infusion sources: up to three weapons with crystals of different elements (the first in hand), an
 // adapter with a crystal, and an evolution (in a piece's socket, else the first entry). Each piece goes in through the
 // v2 screen's own path (WoRLoadoutV2::ApplyDraft inside ULoadoutComponent::TryChangeGear), so the class rules decide
-// what fits; a refused piece stays owned and is logged.
+// what fits; a refused piece stays owned and is logged. It replaces the active loadout's gear (the old gear stays owned).
+// The evolution goes in the entry's socket only (as the screen's socket pick does), never onto the owned piece.
 // Variants (Generic, Refractor, Resonator, BrokenDarkness, Reality) swap the played pawn's character data for that
 // class's test character first (the pawn only: not the party record; gone at the next map). The gear is owned for
 // good (it reaches the pool and the save), like any gear given in PIE.
@@ -29,6 +30,9 @@ enum class ETestLoadoutVariant : uint8
 
 namespace WoRTestLoadout
 {
+	/** A crystal for each piece that can take one: three weapons and two adapters, one of them holding the evolution. */
+	constexpr int32 TEST_CRYSTAL_COUNT = 4;
+
 	/** "Played", "Generic", "Refractor", "Resonator", "BrokenDarkness", "Reality" (any case); an empty string is Played.
 	 *  False for anything else. */
 	WORLD_OF_REFRACTION_API bool ParseVariant(const FString &Text, ETestLoadoutVariant &OutVariant);

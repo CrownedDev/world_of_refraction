@@ -35,12 +35,12 @@ namespace
 	const TCHAR *const SECOND_ADAPTER_PATH = TEXT("/Game/Data/Pool/Fire/Rings/DA_Ring_Emberflame.DA_Ring_Emberflame");
 
 	/** The crystals' elements, in order (the innate element and the evolution's are skipped). */
+	/** No Light or Void: Broken Darkness pays to use them (ElementTable's bBDForbidden), which would hide its stops.
+	 *  Six, so TEST_CRYSTAL_COUNT are left after the innate element and the evolution's are skipped. */
 	const ESpellElement CRYSTAL_ELEMENT_ORDER[] = {ESpellElement::Fire, ESpellElement::Water, ESpellElement::Lightning, ESpellElement::Earth,
-												   ESpellElement::Wind, ESpellElement::Light, ESpellElement::Void};
+												   ESpellElement::Wind, ESpellElement::Darkness};
 	const ESpellElement EVOLUTION_ELEMENT_ORDER[] = {ESpellElement::Water, ESpellElement::Lightning, ESpellElement::Wind, ESpellElement::Earth,
 													 ESpellElement::Fire};
-	/** A crystal for each piece that can take one: three weapons and two adapters, one of them holding the evolution. */
-	constexpr int32 TEST_CRYSTAL_COUNT = 4;
 	constexpr EItemTier TEST_CRYSTAL_TIER = EItemTier::F_Tier;
 
 	FString GLastReport = TEXT("(none yet)");
@@ -138,26 +138,31 @@ namespace
 		return Inventory.AddEvolutionInstance(Item) && !Evolutions->Entries.IsEmpty() ? Evolutions->Entries.Last().InstanceID : FGuid();
 	}
 
-	/** Fills an empty socket 1 of the owned piece: the evolution or a crystal of Element (given first). True when the
-	 *  evolution went in now. */
-	bool FillSocket(UInventoryComponent &Inventory, bool bWeapon, const FGuid &GearID, bool bEvolution, const FGuid &EvolutionID, ESpellElement Element)
+	/** Fills an empty socket 1 of the owned piece with a crystal of Element (given first); a socket already holding
+	 *  something (a run before this one) keeps it. */
+	void FillCrystalSocket(UInventoryComponent &Inventory, bool bWeapon, const FGuid &GearID, ESpellElement Element)
 	{
 		const FRuntimeAttachedItem *Socket = bWeapon ? (Inventory.FindOwnedWeapon(GearID) ? &Inventory.FindOwnedWeapon(GearID)->AttachedItem : nullptr)
 													 : (Inventory.FindOwnedRing(GearID) ? &Inventory.FindOwnedRing(GearID)->AttachedItem : nullptr);
 		if (!Socket || !Socket->IsEmpty())
 		{
-			return false; // already holds something (a run before this one): kept
-		}
-		if (bEvolution)
-		{
-			return bWeapon ? Inventory.AttachEvolutionToWeapon(GearID, EvolutionID) : Inventory.AttachEvolutionToRing(GearID, EvolutionID);
+			return;
 		}
 		const FCrystalId Crystal(ElementTable::ForElement(Element).Gem, TEST_CRYSTAL_TIER);
 		if (Inventory.AddCrystal(Crystal))
 		{
 			bWeapon ? Inventory.AttachCrystalToWeapon(GearID, Crystal) : Inventory.AttachCrystalToRing(GearID, Crystal);
 		}
-		return false;
+	}
+
+	/** What a draft's socket 1 holds, for the report. */
+	FString DescribeSocket(const FRuntimeAttachedItem &Socket)
+	{
+		if (Socket.IsEvolution())
+		{
+			return FString::Printf(TEXT("evolution %s"), *GetNameSafe(Socket.Evolution.Item));
+		}
+		return Socket.IsEmpty() ? FString(TEXT("an empty socket")) : FString::Printf(TEXT("a %s crystal"), *WoRGameNames::GetElementName(Socket.GetElement()).ToString());
 	}
 
 	/** Puts one draft in through the v2 screen's path; empty on success, else why not. */
@@ -186,7 +191,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GTestLoadoutCmd(
 		TEXT("wor.Debug.TestLoadout"),
-		TEXT("DEBUG: wor.Debug.TestLoadout [Played|Generic|Refractor|Resonator|BrokenDarkness|Reality] - give the played character a full v2 loadout (weapons with different crystals, an adapter, an evolution) so R / LB steps real sources; a variant swaps the pawn to that class's test character first (B-503n)."),
+		TEXT("DEBUG: wor.Debug.TestLoadout [Played|Generic|Refractor|Resonator|BrokenDarkness|Reality] - give the played character a full v2 loadout (weapons with different crystals, an adapter, an evolution) so R / LB steps real sources. It REPLACES the active loadout's gear (the gear stays owned); a variant swaps the pawn to that class's test character first (B-503n)."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&GiveTestLoadoutCommand));
 
 	FAutoConsoleCommand GTestLoadoutPrintCmd(
@@ -330,11 +335,17 @@ FString WoRTestLoadout::GiveTestLoadout(APawn *Pawn, ETestLoadoutVariant Variant
 	UEvolutionItemData *EvolutionItem = LoadObject<UEvolutionItemData>(nullptr, *GetEvolutionPath(EvolutionElement));
 	const FGuid EvolutionID = FindOrAddEvolution(*Inventory, Evolutions, EvolutionItem);
 	bool bEvolutionIn = false;
+	const FEvolutionInventoryEntry *OwnedEvolution = Evolutions ? Evolutions->Entries.FindByPredicate([&EvolutionID](const FEvolutionInventoryEntry &Entry)
+																									  { return Entry.InstanceID == EvolutionID; })
+																: nullptr;
+	// Q-476c / the screen's socket pick: an evolution goes in the entry's socket (the draft), never onto the owned piece,
+	// so nothing is worn or left attached when a piece is refused or the command runs again.
+	const FRuntimeAttachedItem EvolutionSocket = OwnedEvolution ? WoRLoadoutV2::MakeEvolutionAttachment(*OwnedEvolution) : FRuntimeAttachedItem();
 	const TArray<ESpellElement> CrystalElements = PickCrystalElements(Innate, EvolutionElement, TEST_CRYSTAL_COUNT);
 
 	for (const FTestPiece &Piece : GetPieces(Class))
 	{
-		const bool bWantsEvolution = EvolutionID.IsValid() && !bEvolutionIn && Piece.Socket != EPieceSocket::Crystal;
+		const bool bWantsEvolution = EvolutionSocket.IsEvolution() && !bEvolutionIn && Piece.Socket != EPieceSocket::Crystal;
 		if (Piece.Socket == EPieceSocket::Evolution && !bWantsEvolution)
 		{
 			continue; // the evolution's piece, with the evolution already in elsewhere (or none owned)
@@ -356,15 +367,16 @@ FString WoRTestLoadout::GiveTestLoadout(APawn *Pawn, ETestLoadoutVariant Variant
 			Lines.Add(FString::Printf(TEXT("%s: not given (didn't load, or the inventory is full)"), Piece.Path));
 			continue;
 		}
-		const bool bAttachedEvolution = FillSocket(*Inventory, Piece.bWeapon, GearID, bWantsEvolution, EvolutionID, Element);
-		const FRuntimeAttachedItem *Socket1 = nullptr;
+		if (!bWantsEvolution)
+		{
+			FillCrystalSocket(*Inventory, Piece.bWeapon, GearID, Element);
+		}
 		FString PieceName;
 		if (Piece.bWeapon)
 		{
 			Draft.MainHand = *Inventory->FindOwnedWeapon(GearID);
 			Draft.Socket1 = Draft.MainHand.AttachedItem;
 			Draft.Socket2 = Draft.MainHand.StoneSocket;
-			Socket1 = &Draft.MainHand.AttachedItem;
 			PieceName = GetNameSafe(Draft.MainHand.Weapon);
 		}
 		else
@@ -372,43 +384,35 @@ FString WoRTestLoadout::GiveTestLoadout(APawn *Pawn, ETestLoadoutVariant Variant
 			Draft.Adapter = *Inventory->FindOwnedRing(GearID);
 			Draft.Socket1 = Draft.Adapter.AttachedItem;
 			Draft.Socket2 = Draft.Adapter.StoneSocket;
-			Socket1 = &Draft.Adapter.AttachedItem;
 			PieceName = GetNameSafe(Draft.Adapter.Ring);
 		}
-		const FString SocketName = Socket1->IsEvolution() ? FString::Printf(TEXT("evolution %s"), *GetNameSafe(EvolutionItem))
-														  : FString::Printf(TEXT("crystal (%s)"), *WoRGameNames::GetElementName(Element).ToString());
+		if (bWantsEvolution)
+		{
+			Draft.Socket1 = EvolutionSocket;
+		}
+		const FString SocketName = DescribeSocket(Draft.Socket1);
 		const FText Refused = TryApply(*Loadout, *Inventory, Class, Draft);
 		if (Refused.IsEmpty())
 		{
-			bEvolutionIn = bEvolutionIn || Socket1->IsEvolution();
+			bEvolutionIn = bEvolutionIn || Draft.Socket1.IsEvolution();
 			Lines.Add(FString::Printf(TEXT("%s with %s: in"), *PieceName, *SocketName));
 			continue;
-		}
-		if (bAttachedEvolution)
-		{
-			// Refused: the evolution comes back off so another piece can take it.
-			Piece.bWeapon ? Inventory->RemoveEvolutionFromWeapon(GearID) : Inventory->RemoveEvolutionFromRing(GearID);
 		}
 		Lines.Add(FString::Printf(TEXT("%s with %s: refused (%s), kept in storage"), *PieceName, *SocketName, *Refused.ToString()));
 	}
 
-	if (EvolutionID.IsValid() && !bEvolutionIn)
+	if (EvolutionSocket.IsEvolution() && !bEvolutionIn)
 	{
 		// No piece took it in a socket: the evolution on its own, in the first entry when that is free.
 		FLoadoutV2Draft Draft;
 		Draft.Kind = ELoadoutV2DraftKind::Evolution;
 		Draft.EvolutionInstance = EvolutionID;
-		if (const FEvolutionInventoryEntry *Owned = Evolutions ? Evolutions->Entries.FindByPredicate([&EvolutionID](const FEvolutionInventoryEntry &Entry)
-																									 { return Entry.InstanceID == EvolutionID; })
-															   : nullptr)
-		{
-			Draft.Socket1 = WoRLoadoutV2::MakeEvolutionAttachment(*Owned);
-		}
+		Draft.Socket1 = EvolutionSocket;
 		const FText Refused = TryApply(*Loadout, *Inventory, Class, Draft);
 		Lines.Add(FString::Printf(TEXT("evolution %s on its own: %s"), *GetNameSafe(EvolutionItem),
 								  Refused.IsEmpty() ? TEXT("in") : *FString::Printf(TEXT("refused (%s), kept in storage"), *Refused.ToString())));
 	}
-	else if (!EvolutionID.IsValid())
+	else if (!EvolutionSocket.IsEvolution())
 	{
 		Lines.Add(FString::Printf(TEXT("no evolution (%s didn't load, or the cap is reached)"), *GetEvolutionPath(EvolutionElement)));
 	}

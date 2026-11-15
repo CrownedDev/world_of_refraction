@@ -8,11 +8,6 @@
 #include "Misc/AutomationTest.h"
 #include "Debug/Inventory/TestLoadoutDebug.h"
 
-namespace
-{
-	constexpr int32 TEST_LOADOUT_CRYSTALS = 4;
-}
-
 BEGIN_DEFINE_SPEC(FTestLoadoutDebugSpec, "WoR.Debug.TestLoadout", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 END_DEFINE_SPEC(FTestLoadoutDebugSpec)
 
@@ -35,8 +30,8 @@ void FTestLoadoutDebugSpec::Define()
 
 	It("picks different crystal elements, never the innate element nor the evolution's", [this]()
 	{
-		const TArray<ESpellElement> Elements = WoRTestLoadout::PickCrystalElements(ESpellElement::Fire, ESpellElement::Water, TEST_LOADOUT_CRYSTALS);
-		TestEqual(TEXT("one per piece"), Elements.Num(), TEST_LOADOUT_CRYSTALS);
+		const TArray<ESpellElement> Elements = WoRTestLoadout::PickCrystalElements(ESpellElement::Fire, ESpellElement::Water, WoRTestLoadout::TEST_CRYSTAL_COUNT);
+		TestEqual(TEXT("one per piece"), Elements.Num(), WoRTestLoadout::TEST_CRYSTAL_COUNT);
 		TestFalse(TEXT("not the innate element"), Elements.Contains(ESpellElement::Fire));
 		TestFalse(TEXT("not the evolution's"), Elements.Contains(ESpellElement::Water));
 		TestEqual(TEXT("all different"), TSet<ESpellElement>(Elements).Num(), Elements.Num());
