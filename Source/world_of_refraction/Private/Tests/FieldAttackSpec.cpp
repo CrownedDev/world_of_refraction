@@ -22,6 +22,7 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Weapons/WeaponMeshComponent.h"
 #include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
 #include "GameFramework/Character.h"
@@ -221,6 +222,25 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("the Ice option strikes Ice, no physical type"),
 					 Ice.Element == ESpellElement::Water && Ice.bIce && Ice.Physical == EPhysicalDamageType::None);
 			TestTrue(TEXT("one slice: a tap wraps onto itself"), Field->CycleFieldAttack().Kind == EFieldAttackKind::Innate && Field->GetFieldAttackIndex() == 0);
+		});
+
+		It("puts the weapon away for an element source and takes it out for a weapon (B-503s, D-218)", [this]()
+		{
+			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
+			{
+				return;
+			}
+			UWeaponMeshComponent *Weapon = FWoRTestWorld::AddComponent<UWeaponMeshComponent>(Field->GetOwner());
+			Weapon->SetWeaponHidden(true);
+			Field->SelectFieldAttack(1);
+			TestFalse(TEXT("a weapon pick takes it out"), Weapon->IsWeaponHidden());
+			if (!TestTrue(TEXT("a caster for the pulse"), SpawnCaster(ESpellElement::Water)))
+			{
+				return;
+			}
+			Weapon = FWoRTestWorld::AddComponent<UWeaponMeshComponent>(Field->GetOwner());
+			Field->SelectFieldAttack(0);
+			TestTrue(TEXT("the innate's pulse puts it away"), Weapon->IsWeaponHidden());
 		});
 
 		It("with no gear and no element is the plain swing (B-503)", [this]()
