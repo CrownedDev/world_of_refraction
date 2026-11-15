@@ -5,7 +5,6 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "Loadout/WeaponSpellRules.h"
 #include "WoRTestWorld.h"
 #include "AI/AIDecisionManager.h"
 #include "Combat/Actions/ActionExecutor.h"
@@ -90,29 +89,23 @@ BEGIN_DEFINE_SPEC(FBrokenSourceSpec, "WoR.Combat.BrokenSources",
 		Active.PrimaryRing.RingEntry.AssignedSpells = {FTierSpell};
 	}
 
-	/** A Generic whose primary weapon's crystal holds an F-tier spell. */
+	/** A Generic whose primary weapon holds a crystal (B-411: weapons give no spells, D-027; it keys infusion only). */
 	void SpawnGenericWithWeapon(int32 Durability)
 	{
 		FCombatLoadout &Active = Spawn(ECharacterClass::Generic);
 		Active.PrimarySlotType = EPrimarySlotType::Weapon;
 		Active.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Active.PrimaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(Durability);
-		Active.PrimaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
 	}
 
 	FCombatCapabilities Capabilities(ECharacterClass CharacterClass) const
 	{
 		return FCombatCapabilities::BuildFrom(Loadout, CharacterClass, FLinearColor::White, [](int32) { return FLinearColor::White; });
 	}
-	/** B-098: these cases prove the old weapon-spell path, kept until the sweep (wor.Loadout.WeaponSpells 1). */
-	TUniquePtr<WeaponSpellRules::FScopedWeaponSpells> OldWeaponSpells;
 END_DEFINE_SPEC(FBrokenSourceSpec)
 
 void FBrokenSourceSpec::Define()
 {
-	BeforeEach([this]() { OldWeaponSpells = MakeUnique<WeaponSpellRules::FScopedWeaponSpells>(true); });
-	AfterEach([this]() { OldWeaponSpells.Reset(); });
-
 	BeforeEach([this]()
 	{
 		TestWorld = MakeUnique<FWoRTestWorld>();
@@ -284,12 +277,6 @@ void FBrokenSourceSpec::Define()
 			TestFalse(TEXT("the AI does not pick it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(HighPreset));
 		});
 
-		It("never picks a spell from a broken weapon crystal", [this]()
-		{
-			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
-			TestFalse(TEXT("not offered"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(FTierSpell));
-		});
-
 		It("picks from every spell while the source is intact", [this]()
 		{
 			SpawnResonatorWithRing(BROKEN_SOURCE_INTACT_DURABILITY);
@@ -298,66 +285,15 @@ void FBrokenSourceSpec::Define()
 		});
 	});
 
-	Describe("a broken secondary weapon crystal (B-204)", [this]()
-	{
-		It("greys out its spells while the primary weapon is intact, and the AI skips them", [this]()
-		{
-			SpawnGenericWithWeapon(BROKEN_SOURCE_INTACT_DURABILITY);
-			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-			Active.SecondarySlotType = ESecondarySlotType::Weapon;
-			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
-			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_BROKEN_DURABILITY);
-			Active.SecondaryWeapon.AssignedSpells = {CTierSpell};
-
-			TestFalse(TEXT("the secondary's spell is refused with a reason"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
-			TestTrue(TEXT("the intact primary's spell is not"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
-			TestFalse(TEXT("the AI skips it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(CTierSpell));
-
-			Active.SecondaryWeapon.AssignedSpells = {FTierSpell};
-			TestTrue(TEXT("a spell the intact primary also holds stays castable"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
-		});
-
-		It("greys out a spell a broken primary holds, though the secondary holds it too: the primary channels it", [this]()
-		{
-			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
-			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-			Active.SecondarySlotType = ESecondarySlotType::Weapon;
-			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
-			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_INTACT_DURABILITY);
-			Active.SecondaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
-			TestFalse(TEXT("refused with a reason"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
-		});
-
-		It("leaves a spell an intact ring also holds alone: the ring is cast from first", [this]()
-		{
-			SpawnGenericWithPrimaryRing(BROKEN_SOURCE_INTACT_DURABILITY);
-			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-			Active.SecondarySlotType = ESecondarySlotType::Weapon;
-			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
-			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_BROKEN_DURABILITY);
-			Active.SecondaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
-			TestTrue(TEXT("castable from the ring"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
-		});
-	});
-
 	Describe("a broken weapon crystal", [this]()
 	{
-		It("greys out the loadout's own spell overrides on it too (B-197)", [this]()
+
+		It("offers no spells (B-411, D-027), and plain attacks still work", [this]()
 		{
 			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
-			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.AssignedSpells = {CTierSpell};
-			TestFalse(TEXT("the override is refused with a reason"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
-		});
-
-		It("greys out every spell it gave, F-tier included", [this]()
-		{
-			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
-			TestFalse(TEXT("refused with a reason"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
-
 			const FCombatCapabilities Caps = Capabilities(ECharacterClass::Generic);
-			TestTrue(TEXT("Resonate Weapon still shown"), Caps.bHasWeaponCrystal);
-			TestEqual(TEXT("its spell still listed"), Caps.WeaponCrystalSpells.Num(), 1);
-			TestFalse(TEXT("greyed"), Caps.GetBlockedReason(FTierSpell).IsEmpty());
+			TestFalse(TEXT("no Resonate Weapon"), Caps.bHasWeaponCrystal);
+			TestEqual(TEXT("no weapon spells"), Caps.WeaponCrystalSpells.Num(), 0);
 			TestTrue(TEXT("plain attacks still work"), Caps.bCanAttack);
 		});
 
@@ -390,24 +326,6 @@ void FBrokenSourceSpec::Define()
 			const FActionValidationResult Result = Executor->ValidateAction(Loadout->GetOwner(), Swing);
 			TestFalse(TEXT("refused"), Result.bIsValid);
 			TestEqual(TEXT("for the source"), Result.ErrorMessage, FString(TEXT("Infusion source not available")));
-		});
-
-		It("is refused by the executor", [this]()
-		{
-			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
-			UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
-			if (!TestNotNull(TEXT("executor"), Executor))
-			{
-				return;
-			}
-			FAction Cast;
-			Cast.ActionType = EActionType::Spell;
-			Cast.SpellData = FTierSpell;
-			Cast.SpellSource = ESpellSource::WeaponCrystal;
-			Cast.Targets.Add(Loadout->GetOwner());
-			const FActionValidationResult Result = Executor->ValidateAction(Loadout->GetOwner(), Cast);
-			TestFalse(TEXT("refused"), Result.bIsValid);
-			TestEqual(TEXT("with the broken-source reason"), Result.ErrorMessage, Loadout->GetBrokenSourceReason(FTierSpell).ToString());
 		});
 	});
 

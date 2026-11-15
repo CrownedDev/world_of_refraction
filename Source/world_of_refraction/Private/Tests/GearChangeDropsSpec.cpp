@@ -1,11 +1,11 @@
 // GearChangeDropsSpec.cpp
 // B-171 (D-081 = A): a change to an owned weapon's socket goes through, and every loadout holding
-// that weapon drops the parts it broke at once, with a message naming them.
+// that weapon drops the parts it broke at once, with a message naming them. B-411 (D-027): weapons hold no spells, so
+// the part these cases drop is a spell an older loadout still keeps on the sword (Fire Bolt).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
-#include "Loadout/WeaponSpellRules.h"
 #include "WoRTestWorld.h"
 #include "PartsDroppedRecorder.h"
 #include "Currency/CurrencyComponent.h"
@@ -46,15 +46,10 @@ BEGIN_DEFINE_SPEC(FGearChangeDropsSpec, "WoR.Loadout.GearChangeDrops",
 	{
 		return Inventory->SavedLoadouts[LoadoutIndex].PrimaryWeapon.AssignedSpells.Contains(FireBolt);
 	}
-	/** B-098: these cases prove the old weapon-spell path, kept until the sweep (wor.Loadout.WeaponSpells 1). */
-	TUniquePtr<WeaponSpellRules::FScopedWeaponSpells> OldWeaponSpells;
 END_DEFINE_SPEC(FGearChangeDropsSpec)
 
 void FGearChangeDropsSpec::Define()
 {
-	BeforeEach([this]() { OldWeaponSpells = MakeUnique<WeaponSpellRules::FScopedWeaponSpells>(true); });
-	AfterEach([this]() { OldWeaponSpells.Reset(); });
-
 	BeforeEach([this]()
 	{
 		TestWorld = MakeUnique<FWoRTestWorld>();
@@ -73,7 +68,7 @@ void FGearChangeDropsSpec::Define()
 		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
 		TestTrue(TEXT("Sword owned"), Inventory->AddWeapon(Sword));
 		SwordId = Inventory->Weapons.Num() > 0 ? Inventory->Weapons[0].PersistentID : FGuid();
-		// Two: a gem taken off is not returned, and one case puts a Fire gem back on.
+		// A gem taken off is not returned. TODO: one is enough since B-411 dropped the put-it-back case.
 		TestTrue(TEXT("Fire gems owned"), Inventory->AddCrystal(GEAR_DROPS_FIRE_GEM, GEAR_DROPS_FIRE_GEMS));
 		TestTrue(TEXT("Water gem owned"), Inventory->AddCrystal(GEAR_DROPS_WATER_GEM));
 
@@ -107,22 +102,7 @@ void FGearChangeDropsSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("keeps a spell the new crystal still powers", [this]()
-	{
-		if (!Inventory || !SwordId.IsValid()) return;
-		AssignFireBoltInBothLoadouts();
-		TestTrue(TEXT("Fire gem off"), Inventory->RemoveCrystalFromWeapon(0));
-		Recorder->LoadoutIndices.Empty();
-		Recorder->Messages.Empty();
-		AssignFireBoltInBothLoadouts();
-
-		TestTrue(TEXT("Fire gem back on"), Inventory->AttachCrystalToWeapon(SwordId, GEAR_DROPS_FIRE_GEM));
-		TestTrue(TEXT("Loadout 0 keeps Fire Bolt"), HoldsFireBolt(0));
-		TestTrue(TEXT("Loadout 1 keeps Fire Bolt"), HoldsFireBolt(1));
-		TestEqual(TEXT("Nothing announced"), Recorder->Messages.Num(), 0);
-	});
-
-	It("drops a spell from every loadout when its crystal comes off, with a message", [this]()
+	It("drops a weapon spell from every loadout when the sword's crystal comes off, with a message", [this]()
 	{
 		if (!Inventory || !SwordId.IsValid()) return;
 		AssignFireBoltInBothLoadouts();
@@ -156,7 +136,7 @@ void FGearChangeDropsSpec::Define()
 		TestTrue(TEXT("A loadout without the sword is untouched"), HoldsFireBolt(BareIndex));
 	});
 
-	It("drops a spell the swapped-in crystal's element doesn't power", [this]()
+	It("drops a weapon spell when a crystal is swapped in, whatever its element", [this]()
 	{
 		if (!Inventory || !SwordId.IsValid()) return;
 		TestTrue(TEXT("Fire gem off"), Inventory->RemoveCrystalFromWeapon(0));
