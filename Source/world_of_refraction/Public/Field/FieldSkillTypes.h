@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Equipment/Weapons/EWeaponType.h"
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Templates/Function.h"
@@ -156,6 +157,10 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	/** A weapon's attack type; None for every other kind. */
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	EPhysicalDamageType Physical = EPhysicalDamageType::None;
+
+	/** B-503i: a weapon's type, for its icon-table icon when the weapon has no icon of its own; unused for other kinds. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	EWeaponType WeaponType = EWeaponType::Sword;
 
 	/** The item's icon; null for the innate element and an item with none. */
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
