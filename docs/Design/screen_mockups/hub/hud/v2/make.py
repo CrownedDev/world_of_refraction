@@ -190,14 +190,18 @@ def icon_art(im, path, cx, cy, size):
 
 
 def quick_strip(im, lit, name, kind, cy=330):
-    """The row of tiles, the lit one framed with up / down arrows, the name (source) and the held type under it."""
+    """One panel holding the row of tiles (the lit one framed, with up / down arrows), the piece's name and, on a
+    quieter line, the held type and the source after a dot (D-222, "The text and the frame")."""
     d = ImageDraw.Draw(im)
-    x0 = 640 - (len(PIECES) * (TILE + TGAP) - TGAP) // 2
+    row_w = len(PIECES) * (TILE + TGAP) - TGAP
+    x0 = 640 - row_w // 2
+    half = max(row_w, int(d.textlength(name, font=F(22, True)))) // 2 + 36
+    cut(d, (640 - half, cy - TILE // 2 - 40, 640 + half, cy + TILE // 2 + 98), PANEL, STEEL, 12)
     for i, (_n, arts) in enumerate(PIECES):
         x = x0 + i * (TILE + TGAP)
         grow = 6 if i == lit else 0
         box = (x - grow, cy - TILE // 2 - grow, x + TILE + grow, cy + TILE // 2 + grow)
-        cut(d, box, PANEL if i != lit else PLATE, CYAN if i == lit else STEEL, 10)
+        cut(d, box, BG if i != lit else PLATE, CYAN if i == lit else STEEL, 10)
         if i == lit:
             d.rectangle((box[0] + 3, box[1] + 3, box[2] - 3, box[3] - 3), outline=CYAN, width=1)
         n = len(arts)
@@ -209,8 +213,6 @@ def quick_strip(im, lit, name, kind, cy=330):
     lx = x0 + lit * (TILE + TGAP) + TILE // 2
     text(d, (lx, cy - TILE // 2 - 22), "▲", 16, True, CYAN, anchor="mm")
     text(d, (lx, cy + TILE // 2 + 22), "▼", 16, True, CYAN, anchor="mm")
-    w = int(d.textlength(name, font=F(22, True))) // 2 + 40
-    cut(d, (640 - w, cy + TILE // 2 + 30, 640 + w, cy + TILE // 2 + 92), BG, None, 8)
     text(d, (640, cy + TILE // 2 + 48), name, 22, True, anchor="mm")
     text(d, (640, cy + TILE // 2 + 76), kind, 15, fill=DIM, anchor="mm")
 
@@ -227,6 +229,6 @@ def strip_frame(lit, name, kind, filename):
     im.save(os.path.join(OUT, filename), optimize=True)  # full colour: the icon art bands in the 128-colour palette
 
 
-strip_frame(1, "Flame Sword and Void Shield (Fire)", "Sword and Shield", "3_trial_strip_open.png")
-strip_frame(2, "Storm Ring (Lightning)", "Ring  ·  an energy pulse", "3b_trial_strip_ring.png")
+strip_frame(1, "Flame Sword and Void Shield", "Sword and Shield  ·  Fire", "3_trial_strip_open.png")
+strip_frame(2, "Storm Ring", "Ring  ·  Lightning", "3b_trial_strip_ring.png")
 print("ok")
