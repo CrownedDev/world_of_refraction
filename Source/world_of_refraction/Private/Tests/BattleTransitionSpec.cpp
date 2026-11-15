@@ -30,6 +30,7 @@ namespace
 	constexpr float TRANSITION_LIGHT_SLACK = 0.01f;
 	/** The colour wheel in six bands: red, yellow, green, cyan, blue, magenta. */
 	constexpr int32 TRANSITION_HUE_BANDS = 6;
+	constexpr float TRANSITION_MAX_COLOR_BYTE = 255.0f;
 	const FVector2D TRANSITION_TEST_HIT(0.35, 0.6);
 
 	double TriangleArea(const FVector2D &A, const FVector2D &B, const FVector2D &C)
@@ -212,7 +213,7 @@ void FBattleTransitionSpec::Define()
 			BandSeen[FMath::Min(FMath::FloorToInt32(Hue * TRANSITION_HUE_BANDS), TRANSITION_HUE_BANDS - 1)] = true;
 
 			const BattleTransition::FShardMesh Mesh = BattleTransition::BuildShardMesh(Shard, TRANSITION_TEST_ASPECT, Data);
-			const uint8 HueByte = static_cast<uint8>(FMath::RoundToInt32(Hue * 255.0f));
+			const uint8 HueByte = static_cast<uint8>(FMath::RoundToInt32(Hue * TRANSITION_MAX_COLOR_BYTE));
 			bool bEveryVertexCarriesTheHue = Mesh.Colors.Num() > 0;
 			for (const FColor &Color : Mesh.Colors)
 			{

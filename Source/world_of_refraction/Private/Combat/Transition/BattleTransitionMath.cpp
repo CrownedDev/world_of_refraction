@@ -225,9 +225,9 @@ BattleTransition::FPrismLight BattleTransition::EvaluatePrismLight(const UBattle
 
 float BattleTransition::GetShardHue(const FShard &Shard)
 {
-	// Clockwise from the right of the hit: red, yellow below, green and blue to the left, magenta above (storyboard D).
+	// Clockwise from the right of the hit: red, yellow-green below, cyan to the left, violet above (storyboard D).
 	const float Turn = FMath::Atan2(Shard.Outward.Y, Shard.Outward.X) / UE_TWO_PI;
-	return FMath::Frac(1.0f - Turn + (Shard.RandomB - 0.5f) * 2.0f * HUE_JITTER);
+	return FMath::Frac(1.0f - Turn + FMath::Lerp(-HUE_JITTER, HUE_JITTER, Shard.RandomB));
 }
 
 BattleTransition::FShardMesh BattleTransition::BuildShardMesh(const FShard &Shard, float Aspect, const UBattleTransitionData &Data)
