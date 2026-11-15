@@ -601,6 +601,7 @@ void UPoolSubsystem::ResetStore()
     CustomLoadouts.Reset();
     WornGear.Reset();
     HubGear.Reset(); // B-509
+    ClassDefaultKits.Reset(); // B-511
     CharacterSkills.Reset();
     Clashes.Reset();
     Pouches.Reset();
