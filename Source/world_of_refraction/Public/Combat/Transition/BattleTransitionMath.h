@@ -65,8 +65,23 @@ namespace BattleTransition
 	/** 0..1: how far the push in and the lens look have come on, and gone again with the blow-away. */
 	WORLD_OF_REFRACTION_API float GetLookAlpha(const UBattleTransitionData &Data, float Elapsed, float ReleaseElapsed);
 
+	/** B-500b: what the shard material is told each frame (BattleTransitionAsset's scalar parameters). */
+	struct FPrismLight
+	{
+		float Flash = 0.0f;		 // brightness of the white flash at the hit
+		float LightReach = 0.0f; // how far the light has run out through the cracks, in FShard::Delay units; runs on past 1
+		float EdgeGlow = 0.0f;	 // brightness of the light in the cracks and on the shard edges
+	};
+
+	/** The prism light at Elapsed seconds after contact. The light reaches a shard as its crack does. */
+	WORLD_OF_REFRACTION_API FPrismLight EvaluatePrismLight(const UBattleTransitionData &Data, float Elapsed);
+
+	/** 0..1 around the colour wheel (0 = red): the shard's direction from the hit point, so the spectrum fans
+	 *  out around the hit as on the storyboard, with a little of the shard's own random. */
+	WORLD_OF_REFRACTION_API float GetShardHue(const FShard &Shard);
+
 	/** A thick bevelled prism: the face toward the camera carries the frame; bevels and sides are marked in
-	 *  vertex colour R. */
+	 *  vertex colour R. G = the shard's random, B = its distance from the hit, A = its hue. */
 	WORLD_OF_REFRACTION_API FShardMesh BuildShardMesh(const FShard &Shard, float Aspect, const UBattleTransitionData &Data);
 
 	enum class EState : uint8

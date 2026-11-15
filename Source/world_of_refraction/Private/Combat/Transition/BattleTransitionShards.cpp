@@ -85,11 +85,18 @@ void ABattleTransitionShards::Build(const UBattleTransitionData &InData, int32 S
 	UMaterialInterface *Authored = InData.ShardMaterial.LoadSynchronous();
 	UMaterialInterface *Base = Authored ? Authored : LoadObject<UMaterialInterface>(nullptr, FALLBACK_MATERIAL_PATH);
 	UMaterialInstanceDynamic *Material = Base ? UMaterialInstanceDynamic::Create(Base, this) : nullptr;
-	if (Material && Authored && Frame)
+	ShardMaterial = Material;
+	if (Material && Authored)
 	{
-		Material->SetTextureParameterValue(BattleTransitionAsset::FRAME_PARAMETER, Frame);
+		if (Frame)
+		{
+			Material->SetTextureParameterValue(BattleTransitionAsset::FRAME_PARAMETER, Frame);
+		}
+		// A material without the prism parameters ignores them and shows the plain frame.
+		Material->SetScalarParameterValue(BattleTransitionAsset::SHARD_COLOR_PARAMETER, InData.ShardColorStrength);
+		Material->SetScalarParameterValue(BattleTransitionAsset::WHITE_REACH_PARAMETER, InData.WhiteReach);
 	}
-	else if (Material && !Authored)
+	else if (Material)
 	{
 		Material->SetVectorParameterValue(FALLBACK_COLOR_PARAMETER, ElementColors::GetColorForElement(ESpellElement::Void));
 	}
@@ -149,6 +156,14 @@ void ABattleTransitionShards::ApplyClock(float Elapsed, float ReleaseElapsed)
 		const FVector2D &Home = ShardHomes[Index];
 		ShardMeshes[Index]->SetRelativeLocationAndRotation(
 			FVector(PushedWallX * (1.0f - Pose.TowardCamera), Home.X + Pose.WallOffset.X, Home.Y + Pose.WallOffset.Y), Pose.Rotation);
+	}
+
+	if (ShardMaterial)
+	{
+		const BattleTransition::FPrismLight Light = BattleTransition::EvaluatePrismLight(*Data, Elapsed);
+		ShardMaterial->SetScalarParameterValue(BattleTransitionAsset::FLASH_PARAMETER, Light.Flash);
+		ShardMaterial->SetScalarParameterValue(BattleTransitionAsset::LIGHT_REACH_PARAMETER, Light.LightReach);
+		ShardMaterial->SetScalarParameterValue(BattleTransitionAsset::EDGE_GLOW_PARAMETER, Light.EdgeGlow);
 	}
 }
 

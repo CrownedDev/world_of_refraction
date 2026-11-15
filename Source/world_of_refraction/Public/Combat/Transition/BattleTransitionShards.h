@@ -13,6 +13,7 @@
 #include "BattleTransitionShards.generated.h"
 
 class UBattleTransitionData;
+class UMaterialInstanceDynamic;
 class UPostProcessComponent;
 class UProceduralMeshComponent;
 class UTexture;
@@ -36,7 +37,7 @@ public:
 	/** Cuts the wall and builds every shard. Frame may be null (the shards then show no picture). */
 	void Build(const UBattleTransitionData &InData, int32 Seed, const FVector2D &HitUV, float InAspect, UTexture *Frame);
 
-	/** Puts the wall in front of the camera and every shard where the clock says. */
+	/** Puts the wall in front of the camera and every shard where the clock says, and lights the prism. */
 	void ApplyClock(float Elapsed, float ReleaseElapsed);
 
 	int32 GetShardCount() const { return Shards.Num(); }
@@ -49,6 +50,10 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UProceduralMeshComponent>> ShardMeshes;
+
+	/** The one material every shard shares; the prism light's parameters are set on it each frame (B-500b). */
+	UPROPERTY()
+	TObjectPtr<UMaterialInstanceDynamic> ShardMaterial;
 
 	UPROPERTY()
 	TObjectPtr<const UBattleTransitionData> Data;

@@ -4,7 +4,7 @@
 
 There is no loading screen into a fight (D-212). At contact the frame is captured and broken into 3D shards in front of the camera. The shards drift while the join window runs and the battle map loads, then blow away onto the battle. The target is storyboard D (`docs/Design/screen_mockups/combat/transition/D_sheet.png`).
 
-B-500 is the rough version: shards and motion. Still to come: the prism light (B-500b), sound and timing polish (B-500c), first strike and ambush looks (B-500d).
+B-500 is the rough version: shards and motion. B-500b adds the prism light (code side; the material steps are in `docs/PIE/B-500b.md`). Still to come: sound and timing polish (B-500c), first strike and ambush looks (B-500d).
 
 ## Architecture
 
@@ -28,7 +28,19 @@ B-500 is the rough version: shards and motion. Still to come: the prism light (B
 
 **Units.** The shard actor sits on the camera and is scaled so one unit is one screen width at the wall. Motion values are in screen widths, and depth is a fraction of the wall's distance (0 = in the wall, 1 = at the camera), so the effect looks the same at any resolution and field of view.
 
-**Shard material contract.** `ShardMaterial` gets the captured frame in its `Frame` texture parameter, read with UV0 (the screen). Vertex colour: R = 1 on bevels and sides, G = a random per shard, B = distance from the hit point. With no material set, the shards use the engine's basic material tinted Void and show no frame.
+**Shard material contract.** `ShardMaterial` gets the captured frame in its `Frame` texture parameter, read with UV0 (the screen). Vertex colour: R = 1 on bevels and sides, G = a random per shard, B = distance from the hit point, A = the shard's hue (B-500b). With no material set, the shards use the engine's basic material tinted Void and show no frame.
+
+**Prism light (B-500b).** The code sends numbers; the material draws the light. All shards share one material instance (`ABattleTransitionShards::ShardMaterial`), so per-shard differences come from vertex colour.
+
+| Material scalar | Set | From |
+|---|---|---|
+| `Flash` | every frame | `FlashStrength` at contact, falling to 0 over `FlashSeconds` (squared, so a quick fall and a soft tail) |
+| `LightReach` | every frame | 0 at contact, 1 when the crack reaches the farthest shard, ending at 1.5 so a soft front clears it. Same clock as the cracks: a shard is lit when `LightReach` passes its vertex colour B |
+| `EdgeGlow` | every frame | `EdgeGlowStrength` while the cracks spread, settling to `EdgeGlowStrength × EdgeGlowHoldShare` over the break, kept through the hold and the blow-away |
+| `ShardColor` | once, at build | `ShardColorStrength` |
+| `WhiteReach` | once, at build | `WhiteReach`: the flash covers, and the light stays white, this far from the hit |
+
+The three per-frame values are `BattleTransition::EvaluatePrismLight` (pure, in the spec). A shard's hue is `BattleTransition::GetShardHue`: its direction from the hit point around the colour wheel (red right, yellow-green below, cyan left, violet above, as on storyboard D), plus up to 0.12 of the wheel from its own random. A material without these parameters ignores them and shows the plain frame. Parameter names: `BattleTransitionAsset` (`BattleTransitionData.h`).
 
 ## Integration Points
 
@@ -48,6 +60,8 @@ B-500 is the rough version: shards and motion. Still to come: the prism light (B
 - **The captured frame** comes from a one-shot scene capture, so it has no temporal anti-aliasing and can differ a little from the real frame. If the match is poor, reading the viewport back (as the held picture does) is the alternative.
 - **The push in** moves the shard wall toward the camera (the frame grows); the real camera does not move.
 - **Field of view** is read as horizontal (the engine default).
+- **The prism light needs the material** (B-500b): until `M_BattleTransition_Shard` reads the five scalars and vertex colour A (`docs/PIE/B-500b.md`), nothing new shows.
+- **The flash blooms through the level's own bloom**: the transition's lens (stronger bloom) comes on with the break, after the flash.
 - **The world behind is not dimmed** in the hold (storyboard frame 4); that needs a translucent material.
 - **The spinner** for a load past 2 seconds (D-212) is not built.
 - **Safety:** if no map change comes within `MaxHoldSeconds` of contact, the shards blow away where they are. From the map change on, a core-ticker watch (`WatchTravel`) drops the effect if the new map hasn't come after 120 seconds or the rebuilt shards are lost, so the held picture can't stay on screen.
@@ -58,3 +72,4 @@ B-500 is the rough version: shards and motion. Still to come: the prism light (B
 |---|---|---|
 | 2026-11-14 | B-500 (D-212): first version. Subsystem, shard actor, maths, data asset, debug commands, spec; started from `UEncounterComponent`. | `feature/B-500-battle-transition-rough` |
 | 2026-11-14 | B-500a (Crown's PIE): slow open, fast finish. Defaults `CrackSeconds` 0.5, `BreakSeconds` 0.7, `BlowAwaySeconds` 0.4; new `BreakEase` (2, ease in and out) and `BlowAwayEase` (3, ease in) read by `EvaluatePose`; the debug line shows them; one more spec case. | `feature/B-500a-transition-slow-open-fast-finish` |
+| 2026-11-15 | B-500b (D-212; Crown: "weren't we gonna add colours?"): the prism light, code side. `EvaluatePrismLight` (flash, light reach, edge glow) set on the shared shard material every frame; `GetShardHue` in vertex colour A; six **Prism** values in the data asset; the debug lines show them; two more spec cases. Material steps for the editor worker in `docs/PIE/B-500b.md`. | `feature/B-500b-transition-prism-light` |
