@@ -212,6 +212,10 @@ namespace WoRInventoryVerbs
 			return FText::Format(LOCTEXT("NotWeaker", "Only the weaker copy of a duplicate converts to {0}."),
 								 WoRGameNames::GetCurrencyName(UEconomyService::GetPlaceCurrency(World)));
 		}
+		if (Row.IsGear() && Pool->IsHubGear(Row.GearID)) // B-509 (D-221)
+		{
+			return LOCTEXT("HubGear", "Gear kept from a run is just for the hub; it can't be sold or dismantled.");
+		}
 		if (Row.IsGear() && Pool->IsRunLayerActive() && !Pool->IsRunOnly(Row.GearID))
 		{
 			return LOCTEXT("HomeOnRun", "Gear from home can't go during a run; it comes back when the run ends.");
