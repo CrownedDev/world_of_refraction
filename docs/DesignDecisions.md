@@ -1298,6 +1298,17 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
+### Q-513 — The names for a weapon held with a shield or as a pair
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-513, Crown's PIE of the wheel) · **Blocks:** —
+**Question:** the wheel, the strip and the Equipment screen named a sword and shield "Sword". What does the type line say for a weapon held with a shield, or as a pair? None of this is lore.
+**Answer:** by the reference-backed default:
+- **With a shield:** "{type} and Shield": "Sword and Shield", "Axe and Shield".
+- **A pair** (a Dual weapon, or a main hand with a same-type off hand, D-209): "Dual Swords", "Dual Daggers", "Dual Axes", "Dual Hammers", "Dual Spears", "Dual Greatswords", "Dual Staves", "Dual Scythes", "Dual Guns". Gauntlets stay "Gauntlets" (a pair already); a bow is never dual.
+- An infused one puts the element first: "Fire Sword and Shield", "Fire Dual Axes".
+- References: Monster Hunter names its classes "Sword and Shield" and "Dual Blades", and players read the class at a glance; Dark Souls and Elden Ring call two-handing a pair "dual wielding".
+- The wheel's slices name the weapon itself ("Arming Sword"), as the weapon wheels of Doom Eternal and GTA V name each weapon; the centre and the strip keep the type.
+**Notes for Claude:** one place, `WoRGameNames::GetHeldWeaponTypeName`; the legacy loadout screen keeps its own "with shield" line (`GetWieldModeName`).
+
 ### Q-511 — The class default kit: its sockets, whose it is, the asset's name
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-511, D-221) · **Blocks:** —
 **Question:** D-221 gives every trial start a class default kit, minted once. Three things it leaves open, none of them lore: (1) Does a kit piece keep a crystal baked on its asset? (2) Is the kit kept per character or per class? (3) The plan names the asset `DA_ClassDefaultLoadouts`; the naming guide wants `DA_<Kind>_`.
