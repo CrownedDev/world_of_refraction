@@ -102,15 +102,15 @@ protected:
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultFieldMovementSkillAction;
 
-	/** B-214g: the field attack (press, release; held past FieldSkillRules::FIELD_ATTACK_HOLD_SECONDS is the held
-	 *  attack). Leave empty to use DefaultFieldAttackAction (IA_Field_Attack). */
+	/** B-214g: the field attack, on release (left mouse, RB). B-503m4 (D-217): a hold of RB opens the wheel instead (the
+	 *  same key is on FieldSwitchSourceAction); no held attack. Leave empty to use DefaultFieldAttackAction (IA_Field_Attack). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
 	TObjectPtr<UInputAction> FieldAttackAction;
 
 	UPROPERTY(Config, EditDefaultsOnly, Category = "Hub|Input")
 	TSoftObjectPtr<UInputAction> DefaultFieldAttackAction;
 
-	/** B-214g, B-503 (D-215): cycles the field attack through the loadout (LB / R). Leave empty to use
+	/** B-214g, B-503m4 (D-217): held, opens the field attack wheel (R, RB); a tap does nothing. Leave empty to use
 	 *  DefaultFieldSwitchSourceAction (IA_Field_SwitchSource; the name is kept so the asset and the ini line stand). */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hub|Input")
 	TObjectPtr<UInputAction> FieldSwitchSourceAction;
@@ -171,15 +171,20 @@ private:
 	/** B-214g: the field attack's press (real time, for its hold); a release with no press (focus loss) does nothing. */
 	double FieldAttackPressTime = 0.0;
 	bool bFieldAttackPressed = false;
-	/** B-503k (D-217): R / LB's press, read on release: a tap steps the source; B-503m3: held FIELD_SOURCE_HOLD_SECONDS
-	 *  it opens the wheel (FieldWheelOpenTimer) and the release confirms the wheel's pick. */
+	/** B-503m4 (D-217): R / RB's press: held FIELD_SOURCE_HOLD_SECONDS it opens the wheel (FieldWheelOpenTimer) and the
+	 *  release confirms the wheel's pick; a tap does nothing here (RB's tap is the attack). */
 	bool bFieldSourcePressed = false;
 	FTimerHandle FieldWheelOpenTimer;
 
-	/** B-503m3 (D-217): the wheel's keys, made in code and mapped only while it is up (IMC_Field_Wheel, priority
-	 *  FIELD_WHEEL): the right stick picks (eaten, so the camera holds still), the mouse wheel steps. */
+	/** B-503m4 (D-217): the wheel's keys, made in code and mapped only while it is up (IMC_Field_Wheel, priority
+	 *  FIELD_WHEEL, eaten): the left stick or the mouse picks a slice; D-pad left / right, A / D or the mouse wheel step
+	 *  the slice's element. */
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> FieldWheelPickAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelMouseAction;
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> FieldWheelElementAction;
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> FieldWheelScrollAction;
 	UPROPERTY(Transient)
@@ -188,6 +193,9 @@ private:
 	UPROPERTY(Transient)
 	TArray<FFieldAttackEntry> FieldWheelEntries;
 	int32 FieldWheelPick = INDEX_NONE;
+	/** The entry kept when the wheel opened (its slice comes back on it) and the mouse's place on the wheel. */
+	int32 FieldWheelKept = INDEX_NONE;
+	FVector2D FieldWheelPointer = FVector2D::ZeroVector;
 
 	bool IsFieldWheelOpen() const { return FieldWheelPick != INDEX_NONE; }
 	void BuildFieldWheelKeys();
@@ -195,7 +203,12 @@ private:
 	/** Hides the wheel and unmaps its keys, picking nothing. */
 	void CloseFieldWheel();
 	void HandleFieldWheelPick(const FInputActionValue &Value);
+	void HandleFieldWheelMouse(const FInputActionValue &Value);
+	void HandleFieldWheelElement(const FInputActionValue &Value);
 	void HandleFieldWheelScroll(const FInputActionValue &Value);
+	/** Moves the pick to a slice (its first option, or the kept entry on its own slice) and redraws. */
+	void PickFieldWheelSlice(int32 Slice);
+	void StepFieldWheelElement(int32 Delta);
 
 	void HandleInteractPressed(const FInputActionValue &Value);
 	void HandleFieldMovementSkill(const FInputActionValue &Value);
