@@ -18,6 +18,43 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 
+namespace
+{
+	/** D-221 (B-506): the wheel pick's home is the member's worn-gear record; a character with no record yet keeps it on
+	 *  the member only (UPoolSubsystem::SetWheelPick). */
+	void WritePickToRecord(UGameInstance *GI, const FPartyMember &Member)
+	{
+		UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+		if (Pool)
+		{
+			FWheelPick Pick;
+			Pick.FieldSkill = Member.FieldSkill;
+			Pick.FieldAttackIndex = Member.FieldAttackIndex;
+			Pick.bPicked = Member.bFieldAttackPicked;
+			Pool->SetWheelPick(UPoolSubsystem::GetCharacterKey(Member), Pick);
+		}
+	}
+
+	/** The member's copy of its record's wheel pick and weapon in hand; false when it has no record. */
+	bool PullPickFromRecord(const UGameInstance *GI, FPartyMember &Member)
+	{
+		const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+		const FWornGear *Worn = Pool && Member.CharacterData ? Pool->GetWornGear(UPoolSubsystem::GetCharacterKey(Member)) : nullptr;
+		if (!Worn)
+		{
+			return false;
+		}
+		Member.FieldSkill = Worn->WheelPick.FieldSkill;
+		Member.FieldAttackIndex = Worn->WheelPick.FieldAttackIndex;
+		Member.bFieldAttackPicked = Worn->WheelPick.bPicked;
+		if (Worn->ActiveGearID.IsValid()) // none drawn (a caster's weapon put away) keeps the member's own
+		{
+			Member.ActiveWeaponId = Worn->ActiveGearID;
+		}
+		return true;
+	}
+}
+
 namespace PartySessionDebug
 {
 	UPartySessionSubsystem *FindPartySession(const UWorld *World)
@@ -416,6 +453,7 @@ bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter
 	Member.CharacterData = Data;
 	Member.MemberId = FGuid::NewGuid();
 	Member.bKeyedByMember = GetMemberSlotByData(Data) != INDEX_NONE;
+	PullPickFromRecord(GetGameInstance(), Member); // D-221 (B-506): a benched character comes back with its wheel pick
 	Party->Members.Add(Member);
 
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Invited %s (%d/%d)%s"),
@@ -922,6 +960,7 @@ bool UPartySessionSubsystem::SetMemberFieldSkill(int32 SlotIndex, const FFieldSk
 	Party->Members[SlotIndex].FieldSkill = Choice;
 	UE_LOG(LogTemp, Log, TEXT("[PartySession] Slot %d field skill %s %s (B-214a)"), SlotIndex,
 		   *FieldSkillRules::SourceName(Choice.Source), *FieldSkillRules::TypeName(Choice.Type));
+	WritePickToRecord(GetGameInstance(), Party->Members[SlotIndex]);
 	return true;
 }
 
@@ -934,7 +973,24 @@ bool UPartySessionSubsystem::SetMemberFieldAttackIndex(int32 SlotIndex, int32 Fi
 	}
 	Party->Members[SlotIndex].FieldAttackIndex = FieldAttackIndex;
 	Party->Members[SlotIndex].bFieldAttackPicked = true; // B-503s (D-218): the pick drives the parry now
+	WritePickToRecord(GetGameInstance(), Party->Members[SlotIndex]);
 	return true; // the component logs the entry it names
+}
+
+int32 UPartySessionSubsystem::PullWheelPicksFromPool()
+{
+	UParty *Party = GetLocalParty();
+	if (!Party)
+	{
+		return 0;
+	}
+	int32 Pulled = 0;
+	for (FPartyMember &Member : Party->Members)
+	{
+		Pulled += PullPickFromRecord(GetGameInstance(), Member) ? 1 : 0;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] %d member(s) took their wheel pick from their worn-gear record (D-221)"), Pulled);
+	return Pulled;
 }
 
 bool UPartySessionSubsystem::SetMemberActiveWeapon(int32 SlotIndex, const FGuid &WeaponId)

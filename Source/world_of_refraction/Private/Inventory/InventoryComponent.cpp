@@ -553,6 +553,47 @@ void UInventoryComponent::PushCustomLoadoutsToPool()
     Pool->SetCustomLoadouts(SharedGearKey, Custom);
 }
 
+bool UInventoryComponent::WearWornGear(FCombatLoadout &Active)
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    const FWornGear *Worn = Pool && bKeepsCustomLoadouts ? Pool->GetWornGear(SharedGearKey) : nullptr;
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!Worn || !CharComp)
+    {
+        return false;
+    }
+    const ECharacterClass Class = CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    const UEvolutionInventoryComponent *EvoInv = GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
+    // The lore loadout in its place lends only what the record doesn't hold (its name and item slots).
+    FCombatLoadout Built = FCombatLoadout::CreateFromWornGear(*Worn, Class, this, EvoInv, Active.bShowPrimary);
+    Built.LoadoutName = Active.LoadoutName;
+    Built.ItemSlots = Active.ItemSlots;
+    Built.bAutoEquipItemsOnCombatStart = Active.bAutoEquipItemsOnCombatStart;
+    Built.bLore = Active.bLore;
+    Active = MoveTemp(Built);
+    // B-347b's rule: a piece the run left at home can't be worn here, and the stored record keeps it.
+    TArray<FGuid> Pieces = Worn->GetPieceIDs();
+    Pieces.RemoveAll([Worn](const FGuid &ID) { return Worn->Apparel.Contains(ID); }); // apparel isn't left at home
+    const FName Key = SharedGearKey;
+    bWornGearHeld = Pieces.ContainsByPredicate([Pool, Key](const FGuid &ID) { return Pool->GetGearOwner(ID) == Key && !Pool->IsInRunView(ID); });
+    UE_LOG(LogTemp, Log, TEXT("[Inventory] %s wears its record (D-221)%s"), *GetNameSafe(GetOwner()),
+           bWornGearHeld ? TEXT(": it names gear left at home, kept as stored until the run ends") : TEXT(""));
+    return true;
+}
+
+void UInventoryComponent::WriteWornGear()
+{
+    UPoolSubsystem *Pool = SharedPool.Get();
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!Pool || !bKeepsCustomLoadouts || bWornGearHeld || !CharComp || !CharComp->PartyMemberId.IsValid() ||
+        !GetOwner()->HasAuthority() || !SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return;
+    }
+    const ECharacterClass Class = CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    Pool->SetWornGear(SharedGearKey, SavedLoadouts[ActiveLoadoutIndex].ToWornGear(Class)); // logs and announces only a change
+}
+
 void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     PushCustomLoadoutsToPool();
@@ -1582,7 +1623,25 @@ bool UInventoryComponent::DrawSharedGear()
     const int32 Stripped = StripUnownedGear();
     SharedPool = Pool;
     SharedGearKey = Key;
+    // D-221 (B-506): a stamped member wears its record (an unstamped pawn, maybe an enemy sharing the asset, never
+    // reads it; a hub pawn wears it when its controller stamps it, UCharacterDataComponent::StampPartyMember).
+    const ECharacterClass Class = CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    bWornGearHeld = false;
+    bWoreRecord = CharComp->PartyMemberId.IsValid() && SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) &&
+                  WearWornGear(SavedLoadouts[ActiveLoadoutIndex]);
     RefillActivePrimary(); // after the pool is set, so gear another member wears is skipped
+    // D-221 (1): the template seeds the record once (a new game, a new recruit), from its pieces now linked to owned gear.
+    if (!bRunOnly && !Pool->GetWornGear(Key) && SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) && GetOwner()->HasAuthority())
+    {
+        FWornGear Seed = SavedLoadouts[ActiveLoadoutIndex].ToWornGear(Class);
+        if (RunMember) // a wheel pick made before the first draw comes along
+        {
+            Seed.WheelPick.FieldSkill = RunMember->FieldSkill;
+            Seed.WheelPick.FieldAttackIndex = RunMember->FieldAttackIndex;
+            Seed.WheelPick.bPicked = RunMember->bFieldAttackPicked;
+        }
+        Pool->SetWornGear(Key, Seed);
+    }
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
     // B-316b (Q-316, Q-316b): learned skills are the member's own and kept: its asset's go in once, the store's are
     // loaded after. B-361 (D-152): a run-only recruit's too; they go to the host when it leaves (DismissRunMembers).

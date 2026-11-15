@@ -1989,7 +1989,11 @@ void ULoadoutComponent::NotifyApparelChanged()
     {
         Data->RecomputeMaxPools(); // gear HP
     }
-    const UInventoryComponent *Inv = GetInventoryComponent();
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (Inv)
+    {
+        Inv->WriteWornGear(); // D-221 (B-506): apparel is on the record too
+    }
     OnLoadoutChanged.Broadcast(Inv ? Inv->ActiveLoadoutIndex : 0); // GAS stats and resistances re-sync on this
 }
 
@@ -2006,6 +2010,10 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
     UWeaponData *ActiveWeapon = GetInventoryComponent() ? GetActiveWeapon() : nullptr;
     RecordWeaponInHand();
+    if (UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        Inv->WriteWornGear(); // D-221 (B-506): every gear change reaches the record at once (CS-8)
+    }
     if (ActiveWeapon == LastNotifiedWeapon)
     {
         return;
