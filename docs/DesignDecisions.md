@@ -1242,6 +1242,12 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-223 — The character and gear data assets are rebuilt in the new format, not adapted
+**Status:** ANSWERED (Crown, 2026-11-15; brings D-221's stage 4 forward and widens it) · **Raised:** 2026-11-15 · **Blocks:** the asset overhaul jobs
+**Answer (Crown):** "instead of using the old ones we should overhaul it to match what we want to achieve. This is where the tweaks and problems are coming from: we're trying to make an old format fit our new one, when we should really be removing and updating, creating new characters if need be." The character templates, their inventories and starting loadouts, and the test gear are **rebuilt in the new format** (D-220, D-221, D-222): new assets are made, the old ones are deleted, and the code stops reading the old layout rather than converting it.
+**Why (the evidence):** `Audits/CharacterAssetDump.md`: every loadout is still authored as primary / secondary slots; crystals are baked into weapons; weapon spell lists and old ability lists are filled; two characters are identical; stats are placeholder 3s; nine weapons have no attack or stance; names are misspelled.
+**Notes for Claude:** the order is a short asset plan first (the new authored shape, the list of characters and kits to make, what is deleted), Crown's OK on the list, then the code reads the new shape only, then the editor worker makes the assets and removes the old ones. Old saves are wiped (D-060).
+
 ### D-222 — The field picker is a quick strip, not a wheel
 **Status:** ANSWERED (Crown, 2026-11-15; replaces the wheel's shape in D-217 / D-218, not its rules) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** the round wheel is too compressed. The picker becomes a **quick strip like Breath of the Wild's**: holding RB opens a row of the character's equipment; **left / right moves along the pieces** (weapons, adapters or rings, the innate, the evolution), each shown by **its icon** (the icons assigned to weapons and rings, the icon table); **up / down cycles the source** (the element) of the piece under the cursor. The source is **not drawn**: it is written as text under the row, as the piece's name and the source in brackets, e.g. **"Excalibur (Fire)"**.
