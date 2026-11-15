@@ -21,7 +21,7 @@ namespace
 	const FCrystalId GEAR_DROPS_FIRE_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	const FCrystalId GEAR_DROPS_WATER_GEM(ECrystalType::Sapphire, EItemTier::F_Tier);
 	constexpr int32 GEAR_DROPS_LOADOUTS = 2;
-	constexpr int32 GEAR_DROPS_FIRE_GEMS = 2;
+	constexpr int32 GEAR_DROPS_FIRE_GEMS = 1;
 }
 
 BEGIN_DEFINE_SPEC(FGearChangeDropsSpec, "WoR.Loadout.GearChangeDrops",
@@ -68,7 +68,7 @@ void FGearChangeDropsSpec::Define()
 		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
 		TestTrue(TEXT("Sword owned"), Inventory->AddWeapon(Sword));
 		SwordId = Inventory->Weapons.Num() > 0 ? Inventory->Weapons[0].PersistentID : FGuid();
-		// A gem taken off is not returned. TODO: one is enough since B-411 dropped the put-it-back case.
+		// One: a gem taken off is not returned, and no case puts it back (B-411).
 		TestTrue(TEXT("Fire gems owned"), Inventory->AddCrystal(GEAR_DROPS_FIRE_GEM, GEAR_DROPS_FIRE_GEMS));
 		TestTrue(TEXT("Water gem owned"), Inventory->AddCrystal(GEAR_DROPS_WATER_GEM));
 

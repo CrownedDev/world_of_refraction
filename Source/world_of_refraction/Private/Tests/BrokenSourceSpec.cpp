@@ -287,7 +287,6 @@ void FBrokenSourceSpec::Define()
 
 	Describe("a broken weapon crystal", [this]()
 	{
-
 		It("offers no spells (B-411, D-027), and plain attacks still work", [this]()
 		{
 			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
