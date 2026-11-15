@@ -471,6 +471,7 @@ void UPoolSubsystem::RemoveGear(const FGuid &GearID)
     MarkGearIndexDirty();
     Wearers.Remove(GearID);
     GearOwners.Remove(GearID);
+    HubGear.Remove(GearID); // B-509
     if (Removed > 0)
     {
         OnPoolGearChanged.Broadcast(GearID);

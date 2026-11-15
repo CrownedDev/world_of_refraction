@@ -118,6 +118,8 @@ struct FPoolRunEndResult
     int32 Dropped = 0;
     /** Definitions whose remembered tier was written. */
     int32 Remembered = 0;
+    /** B-509: run-only pieces kept as hub gear (worn at an extract or a boss win). */
+    int32 KeptAsHubGear = 0;
 };
 
 /** B-508 (D-219, D-221 stage 1b): how a run ended, for UPoolSubsystem::CloseRun. */
@@ -568,8 +570,18 @@ public:
 
     /** The run ends (UTrialRunSubsystem::ExitTrial): home pieces back to their home state, run-only gear dropped
      *  with its tier remembered per definition (B-451, D-189: not when bKeepUpgrades is false: a run out of wipes or
-     *  quit). Every change fires OnPoolGearChanged. No-op when no layer is open. */
-    FPoolRunEndResult EndRunLayer(bool bKeepUpgrades = true);
+     *  quit). Every change fires OnPoolGearChanged. No-op when no layer is open.
+     *  B-509 (D-219): bKeepRunSockets keeps each home piece's socket and an adapter's spells as the run left them (at
+     *  full wear) instead of the home state, except a found evolution that leaves; a run-only piece in KeepAsHubGear
+     *  (and an evolution in its socket or a home piece's) stays as hub gear instead of leaving. */
+    FPoolRunEndResult EndRunLayer(bool bKeepUpgrades = true, bool bKeepRunSockets = false,
+                                  const TSet<FGuid> &KeepAsHubGear = TSet<FGuid>());
+
+    /** B-509 (D-221): found gear kept from an extract or a boss win, "just to have in the hub": worn, changed and taken
+     *  on runs like home gear, but never sold or dismantled. Saved (FSavedPool::HubGear). */
+    bool IsHubGear(const FGuid &GearID) const { return HubGear.Contains(GearID); }
+    const TSet<FGuid> &GetHubGear() const { return HubGear; }
+    void RestoreHubGear(const TSet<FGuid> &Saved) { HubGear = Saved; }
 
     /** B-508 (D-219): the run party's worn-gear records as the trial begins (after BeginRunLayer); a quit puts them
      *  back. A character with no record yet has none kept. Saved with the run (FSavedRun::RunStartWornGear). */
@@ -765,6 +777,10 @@ private:
 
     /** B-439b: item -> how many were held when the run began (GetRunStartItems). */
     TMap<FCrystalId, int32> RunStartItems;
+
+    /** B-509: GearIDs of hub gear (IsHubGear). */
+    UPROPERTY()
+    TSet<FGuid> HubGear;
 
     /** B-508: character key -> its worn-gear record as the run began (SnapshotRunStartGear). */
     UPROPERTY()

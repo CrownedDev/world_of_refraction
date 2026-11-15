@@ -44,6 +44,25 @@ namespace
     {
         return !(Now == Home) || Now.GetCurrentDurability() != Home.GetCurrentDurability();
     }
+
+    /** B-509 (D-219): a home piece's socket after a run that keeps the run's sockets: the run's item at full wear (wear
+     *  resets at run end, D-093), or the home state when it is the same item. */
+    FRuntimeAttachedItem KeptRunAttachment(const FRuntimeAttachedItem &Now, const FRuntimeAttachedItem &Home)
+    {
+        if (Now == Home)
+        {
+            return Home;
+        }
+        FRuntimeAttachedItem Kept = Now;
+        Kept.RepairBetweenCombats(Kept.GetMaxDurability());
+        return Kept;
+    }
+
+    /** The evolution instance in a socket, or an unset ID. */
+    FGuid SocketedEvolutionID(const FRuntimeAttachedItem &Attached)
+    {
+        return Attached.IsEvolution() ? Attached.Evolution.InstanceID : FGuid();
+    }
 }
 
 void UPoolSubsystem::BeginRunLayer()
@@ -201,7 +220,7 @@ bool UPoolSubsystem::IsOnRun(const FGuid &GearID) const
     return Mark && Mark->bOnRun;
 }
 
-FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
+FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades, bool bKeepRunSockets, const TSet<FGuid> &KeepAsHubGear)
 {
     FPoolRunEndResult Result;
     if (!bRunLayerActive)
@@ -215,6 +234,36 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
     RunStartWornGear.Reset(); // B-508: CloseRun takes its copy first
     bRunLayerActive = false;
 
+    // B-509: a kept piece keeps the found evolution in its socket, as does a home piece keeping the run's sockets on
+    // an ending that keeps found gear.
+    TSet<FGuid> Keep;
+    for (const TPair<FGuid, FPoolRunMark> &Pair : Marks)
+    {
+        const bool bKeptHere = Pair.Value.bRunOnly && KeepAsHubGear.Contains(Pair.Key);
+        if (!bKeptHere && !(bKeepRunSockets && Pair.Value.bOnRun && KeepAsHubGear.Num() > 0))
+        {
+            continue;
+        }
+        if (bKeptHere)
+        {
+            Keep.Add(Pair.Key);
+        }
+        const FWeaponInventoryEntry *Weapon = FindWeaponInPool(Pair.Key);
+        const FRingInventoryEntry *Adapter = Weapon ? nullptr : FindRingInPool(Pair.Key);
+        const FGuid Socketed = Weapon ? SocketedEvolutionID(Weapon->AttachedItem) : Adapter ? SocketedEvolutionID(Adapter->AttachedItem) : FGuid();
+        if (Socketed.IsValid())
+        {
+            Keep.Add(Socketed);
+        }
+    }
+    // A home socket keeps the run's item unless it is a found evolution that leaves (a run out of wipes).
+    const auto KeepsRunSocket = [bKeepRunSockets, &Marks, &Keep](const FRuntimeAttachedItem &Now)
+    {
+        const FGuid Socketed = SocketedEvolutionID(Now);
+        const FPoolRunMark *SocketedMark = Socketed.IsValid() ? Marks.Find(Socketed) : nullptr;
+        return bKeepRunSockets && !(SocketedMark && SocketedMark->bRunOnly && !Keep.Contains(Socketed));
+    };
+
     for (const TPair<FGuid, FPoolRunMark> &Pair : Marks)
     {
         const FGuid &ID = Pair.Key;
@@ -226,6 +275,12 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
             if (bFound)
             {
                 Result.Remembered += bKeepUpgrades && RememberRunOnlyTier(ID) ? 1 : 0;
+                if (Keep.Contains(ID)) // B-509 (D-221): worn at an extract or a boss win: hub gear
+                {
+                    HubGear.Add(ID);
+                    ++Result.KeptAsHubGear;
+                    continue;
+                }
                 RemoveGear(ID);
                 ++Result.Dropped;
             }
@@ -235,21 +290,25 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
         if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(ID))
         {
             // B-098 (Q-098): only the attachment goes home; a weapon's spells are not tracked (deleted).
-            if (RunLayerAttachmentDiffers(Weapon->AttachedItem, Mark.HomeAttached))
+            const FRuntimeAttachedItem After = KeepsRunSocket(Weapon->AttachedItem) ? KeptRunAttachment(Weapon->AttachedItem, Mark.HomeAttached) : Mark.HomeAttached;
+            if (RunLayerAttachmentDiffers(Weapon->AttachedItem, After))
             {
                 FWeaponInventoryEntry Home = *Weapon;
-                Home.AttachedItem = Mark.HomeAttached;
+                Home.AttachedItem = After;
                 UpdateWeapon(Home);
                 ++Result.Restored;
             }
         }
         else if (const FRingInventoryEntry *Adapter = FindRingInPool(ID))
         {
-            if (RunLayerAttachmentDiffers(Adapter->AttachedItem, Mark.HomeAttached) || Adapter->AssignedSpells != Mark.HomeSpells)
+            const bool bKeepsSocket = KeepsRunSocket(Adapter->AttachedItem); // B-509: its spells ride with its socket
+            const FRuntimeAttachedItem After = bKeepsSocket ? KeptRunAttachment(Adapter->AttachedItem, Mark.HomeAttached) : Mark.HomeAttached;
+            const TArray<USpellData *> &Spells = bKeepsSocket ? Adapter->AssignedSpells : Mark.HomeSpells;
+            if (RunLayerAttachmentDiffers(Adapter->AttachedItem, After) || Adapter->AssignedSpells != Spells)
             {
                 FRingInventoryEntry Home = *Adapter;
-                Home.AttachedItem = Mark.HomeAttached;
-                Home.AssignedSpells = Mark.HomeSpells;
+                Home.AttachedItem = After;
+                Home.AssignedSpells = Spells;
                 UpdateRing(Home);
                 ++Result.Restored;
             }
@@ -267,8 +326,9 @@ FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades)
         // A home piece on the run can't be sold or dismantled (UEconomyService refuses, Q-314b); one removed another
         // way stays gone.
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer closed: %d home piece(s) back to their home state, %d run-only piece(s) dropped, %d tier(s) remembered"),
-           Result.Restored, Result.Dropped, Result.Remembered);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run layer closed (%s): %d home piece(s) changed, %d run-only piece(s) dropped, %d kept as hub gear, %d tier(s) remembered"),
+           bKeepRunSockets ? TEXT("the run's sockets stay") : TEXT("home states back"), Result.Restored, Result.Dropped,
+           Result.KeptAsHubGear, Result.Remembered);
     return Result;
 }
 
@@ -293,6 +353,23 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
         return;
     }
     const bool bKept = Ending == EPoolRunEnding::Kept;
+    if (Ending != EPoolRunEnding::Quit)
+    {
+        // B-509: the run's sockets stay, so an item a home socket held at the start and gave up in the run is the
+        // player's own, not a find. shortcut: an item swapped out (destroyed, CL-28b) also counts, so one find of that
+        // item can stay; count destroyed items if that ever matters.
+        for (const TPair<FGuid, FPoolRunMark> &Pair : RunMarks)
+        {
+            const FRuntimeAttachedItem &Home = Pair.Value.HomeAttached;
+            const FWeaponInventoryEntry *Weapon = Pair.Value.bOnRun ? FindWeaponInPool(Pair.Key) : nullptr;
+            const FRingInventoryEntry *Adapter = Pair.Value.bOnRun && !Weapon ? FindRingInPool(Pair.Key) : nullptr;
+            const FRuntimeAttachedItem *Now = Weapon ? &Weapon->AttachedItem : Adapter ? &Adapter->AttachedItem : nullptr;
+            if (Now && (Home.IsCrystal() || Home.IsAugmentStone()) && !(*Now == Home))
+            {
+                ++RunStartItems.FindOrAdd(Home.Crystal.Id);
+            }
+        }
+    }
     if (bKept)
     {
         StoreRunFoundItems(); // B-238b (D-097, Q-238b): the run's finds go to home storage
@@ -302,7 +379,17 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
         TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176) and B-451 (D-189): a quit or a lost run loses its finds
     }
     const TMap<FName, FWornGear> RunStart = MoveTemp(RunStartWornGear);
-    EndRunLayer(/*bKeepUpgrades=*/bKept); // B-451: a lost or quit run keeps no upgrade levels
+    // B-509 (D-219, D-221): every ending but a quit keeps the run's sockets; only a kept ending keeps worn found gear.
+    TSet<FGuid> WornNow;
+    if (bKept)
+    {
+        for (const TPair<FName, FWornGear> &Record : WornGear)
+        {
+            WornNow.Append(Record.Value.GetPieceIDs());
+        }
+    }
+    // B-451: a lost or quit run keeps no upgrade levels.
+    EndRunLayer(/*bKeepUpgrades=*/bKept, /*bKeepRunSockets=*/Ending != EPoolRunEnding::Quit, WornNow);
     if (Ending != EPoolRunEnding::Quit)
     {
         return;
