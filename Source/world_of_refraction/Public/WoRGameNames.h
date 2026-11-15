@@ -28,6 +28,7 @@ enum class ECrystalType : uint8;
 enum class EWeaponType : uint8;
 enum class EWeaponWieldMode : uint8;
 enum class EItemTier : uint8;
+class UWeaponData;
 enum class ESubStat : uint8;
 enum class EWorldPillar : uint8;
 enum class EInteractVerb : uint8;
@@ -116,6 +117,11 @@ namespace WoRGameNames
 
     /** B-440a: "Sword", "Greatsword", "Gauntlets". */
     WORLD_OF_REFRACTION_API FText GetWeaponTypeName(EWeaponType Type);
+
+    /** B-513 (Q-513): the type of what is in hand, by how it is held: "Sword and Shield", "Dual Axes", else the type
+     *  ("Sword"). bPaired: a main hand with a same-type off hand (D-209) reads as dual. Empty for no weapon. Every
+     *  screen that names the weapon in hand (the wheel's centre, the strip, the Equipment screen) asks here. */
+    WORLD_OF_REFRACTION_API FText GetHeldWeaponTypeName(const UWeaponData *Weapon, bool bPaired = false);
 
     /** B-440a (D-180): how a weapon is held, for its kind line: "dual", "with shield". Empty for a single weapon. */
     WORLD_OF_REFRACTION_API FText GetWieldModeName(EWeaponWieldMode Mode);

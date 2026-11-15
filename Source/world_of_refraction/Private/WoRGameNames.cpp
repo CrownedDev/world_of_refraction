@@ -13,6 +13,7 @@
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Field/FieldSkillTypes.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/ItemTier.h"
 #include "Memory/HiddenQuestData.h"
 #include "Merchant/MerchantData.h"
@@ -709,6 +710,51 @@ FText WoRGameNames::GetWeaponTypeName(EWeaponType Type)
     default:
         return FText::GetEmpty();
     }
+}
+
+namespace
+{
+    /** Q-513: a pair of one type. Gauntlets are a pair already; a bow is never dual. */
+    FText GetDualWeaponTypeName(EWeaponType Type)
+    {
+        switch (Type)
+        {
+        case EWeaponType::Sword:
+            return LOCTEXT("DualWeapon_Sword", "Dual Swords");
+        case EWeaponType::Greatsword:
+            return LOCTEXT("DualWeapon_Greatsword", "Dual Greatswords");
+        case EWeaponType::Spear:
+            return LOCTEXT("DualWeapon_Spear", "Dual Spears");
+        case EWeaponType::Staff:
+            return LOCTEXT("DualWeapon_Staff", "Dual Staves");
+        case EWeaponType::Dagger:
+            return LOCTEXT("DualWeapon_Dagger", "Dual Daggers");
+        case EWeaponType::Axe:
+            return LOCTEXT("DualWeapon_Axe", "Dual Axes");
+        case EWeaponType::Hammer:
+            return LOCTEXT("DualWeapon_Hammer", "Dual Hammers");
+        case EWeaponType::Scythe:
+            return LOCTEXT("DualWeapon_Scythe", "Dual Scythes");
+        case EWeaponType::Gun:
+            return LOCTEXT("DualWeapon_Gun", "Dual Guns");
+        default:
+            return WoRGameNames::GetWeaponTypeName(Type); // Gauntlets, Bow
+        }
+    }
+}
+
+FText WoRGameNames::GetHeldWeaponTypeName(const UWeaponData *Weapon, bool bPaired)
+{
+    if (!Weapon)
+    {
+        return FText::GetEmpty();
+    }
+    if (Weapon->WieldMode == EWeaponWieldMode::OffHandShield)
+    {
+        return FText::Format(LOCTEXT("WeaponWithShield", "{0} and Shield"), GetWeaponTypeName(Weapon->WeaponType));
+    }
+    return bPaired || Weapon->WieldMode == EWeaponWieldMode::Dual ? GetDualWeaponTypeName(Weapon->WeaponType)
+                                                                   : GetWeaponTypeName(Weapon->WeaponType);
 }
 
 FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)

@@ -101,7 +101,7 @@ namespace
 		}
 		const USkillDataBase *Attack = Slot->OverrideAttack ? Slot->OverrideAttack : Weapon->WeaponAttack;
 		const UAbilityData *Ability = Cast<UAbilityData>(Attack);
-		Swing.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+		Swing.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon, Slot->HasOffHand()); // B-513: "Sword and Shield"
 		Swing.Physical = Ability ? Ability->PhysicalDamageType : EPhysicalDamageType::None;
 		Swing.WeaponType = Weapon->WeaponType;
 		Swing.Icon = Weapon->Icon;
@@ -152,7 +152,10 @@ namespace
 			const auto AddWeapon = [&Slices](const FWeaponLoadoutEntry &Slot)
 			{
 				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
-				Slice.Name = WoRGameNames::GetWeaponTypeName(Slot.WeaponEntry.Weapon->WeaponType);
+				// B-513: the weapon's own name, so two of one type can be told apart; the centre keeps the type.
+				const UWeaponData *Weapon = Slot.WeaponEntry.Weapon;
+				Slice.Name = Weapon->GetDisplayName().IsEmpty() ? WoRGameNames::GetHeldWeaponTypeName(Weapon, Slot.HasOffHand())
+															  : FText::FromString(Weapon->GetDisplayName());
 				Slice.Element = LiveSocketElement(Slot.WeaponEntry.GetAttachedItem());
 				Slice.Kind = EFieldAttackKind::Weapon;
 				Slice.Weapon = &Slot;
