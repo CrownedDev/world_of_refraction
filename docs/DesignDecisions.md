@@ -1242,6 +1242,12 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-222 — The field picker is a quick strip, not a wheel
+**Status:** ANSWERED (Crown, 2026-11-15; replaces the wheel's shape in D-217 / D-218, not its rules) · **Raised:** 2026-11-15 · **Blocks:** —
+**Answer (Crown):** the round wheel is too compressed. The picker becomes a **quick strip like Breath of the Wild's**: holding RB opens a row of the character's equipment; **left / right moves along the pieces** (weapons, adapters or rings, the innate, the evolution), each shown by **its icon** (the icons assigned to weapons and rings, the icon table); **up / down cycles the source** (the element) of the piece under the cursor. The source is **not drawn**: it is written as text under the row, as the piece's name and the source in brackets, e.g. **"Excalibur (Fire)"**.
+**What stays:** every rule of D-217 and D-218: tap RB attacks, the hold opens it and it stays up, picking confirms, the pick is the weapon in hand and the parry, the names (a pair reads "Flame Sword and Void Shield"; the held type is worked out from the pieces), Reality's "(R) Fire", Broken Darkness's "Dark Fire", Water's Ice.
+**Defaults (reference-backed, Crown may change):** on a pad the D-pad or left stick moves (left / right pieces, up / down source); on keyboard A / D or the mouse wheel moves along the pieces, W / S changes the source, a click picks. The piece in hand is marked. Reference: Breath of the Wild's and Tears of the Kingdom's quick-select row, liked for showing every item at full size without a menu.
+
 ### D-221 — The loadout is restructured: one "wearing now" per character, presets at a mirror
 **Status:** ANSWERED in outline (Crown, 2026-11-15); the staged plan comes back for Crown's OK before building · **Raised:** 2026-11-15 · **Blocks:** the restructure jobs
 **Why:** two independent audits (`Audits/LoadoutAlignmentAudit.md`, `Audits/CharacterStateAudit.md`) and the asset dump (`Audits/CharacterAssetDump.md`) show the loadout is still stored the old way (a primary slot, a secondary slot, a ring list, a shown flag; a lore loadout rebuilt from the asset on every map; no record of which loadout is in use). Crown: "I think the old way is outdated".
