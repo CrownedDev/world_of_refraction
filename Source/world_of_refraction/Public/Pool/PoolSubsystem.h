@@ -122,6 +122,11 @@ struct FPoolRunEndResult
     int32 KeptAsHubGear = 0;
 };
 
+namespace GearTierLoss
+{
+    constexpr int32 RANKS_LOST_ON_LOST_RUN = 3; // D-219: S to C; tuned in play (Crown: two, "maybe even 3")
+}
+
 /** B-508 (D-219, D-221 stage 1b): how a run ended, for UPoolSubsystem::CloseRun. */
 enum class EPoolRunEnding : uint8
 {
@@ -592,8 +597,14 @@ public:
 
     /** B-508: the run ends (UTrialRunSubsystem::FinishRun, the save's closed-run settle). Kept: the found items go to
      *  storage; Lost and Quit: they are taken back (B-439b, B-451). Then EndRunLayer (upgrades kept only on Kept), and
-     *  a Quit puts the run-start records back, wheel picks included (D-219). No-op when no layer is open. */
+     *  a Quit puts the run-start records back, wheel picks included (D-219). No-op when no layer is open.
+     *  B-510: Lost and Quit first lower the tier of every piece the run party wears (ApplyLostRunTierDrop). */
     void CloseRun(EPoolRunEnding Ending);
+
+    /** B-510 (D-219): a lost run costs tier. Each piece in the character's record (equipment and off hands, its
+     *  evolution, apparel; not what sits in a socket) drops GearTierLoss::RANKS_LOST_ON_LOST_RUN ranks, never below F,
+     *  even below its asset's tier. Returns how many pieces dropped. */
+    int32 ApplyLostRunTierDrop(FName CharacterKey);
 
     /** B-439b (Q-439 point 2, D-176): how many of each item the party held (every pouch and storage) when the run
      *  began. Starting items banked during the run count as held from the start (D-097). Saved with the run. */
