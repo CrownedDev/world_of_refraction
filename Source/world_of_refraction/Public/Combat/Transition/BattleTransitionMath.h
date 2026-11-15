@@ -53,6 +53,11 @@ namespace BattleTransition
 	/** UV to the wall plane (Y, Z). Aspect = width / height. */
 	WORLD_OF_REFRACTION_API FVector2D UVToWall(const FVector2D &UV, float Aspect);
 
+	/** B-503f: how far in front of the camera the unbroken wall sits, in screen widths, so it fills the view.
+	 *  ViewTangents = tan of the view's half angles (horizontal, vertical), read from the real projection, so any
+	 *  aspect, FOV or aspect-ratio axis rule is covered; the wall goes as near as the tighter axis needs. */
+	WORLD_OF_REFRACTION_API double GetWallX(const FVector2D &ViewTangents, float Aspect);
+
 	/** Cuts the overscanned screen into 2 x columns x rows triangles, crowded toward HitUV. The same seed
 	 *  gives the same shards, which is how the battle map rebuilds the ones the trial map showed. */
 	WORLD_OF_REFRACTION_API TArray<FShard> BuildShards(int32 Seed, const FVector2D &HitUV, float Aspect,

@@ -110,6 +110,15 @@ FVector2D BattleTransition::UVToWall(const FVector2D &UV, float Aspect)
 	return FVector2D(UV.X - 0.5, (0.5 - UV.Y) / FMath::Max(Aspect, UE_KINDA_SMALL_NUMBER));
 }
 
+double BattleTransition::GetWallX(const FVector2D &ViewTangents, float Aspect)
+{
+	// The wall is 1 wide and 1 / Aspect tall: its half width over WallX must reach the view's horizontal tangent,
+	// its half height the vertical one.
+	const double HorizontalX = 0.5 / FMath::Max(ViewTangents.X, UE_DOUBLE_KINDA_SMALL_NUMBER);
+	const double VerticalX = 0.5 / (FMath::Max(Aspect, UE_KINDA_SMALL_NUMBER) * FMath::Max(ViewTangents.Y, UE_DOUBLE_KINDA_SMALL_NUMBER));
+	return FMath::Min(HorizontalX, VerticalX);
+}
+
 TArray<BattleTransition::FShard> BattleTransition::BuildShards(int32 Seed, const FVector2D &HitUV, float Aspect,
 															   const UBattleTransitionData &Data)
 {
