@@ -1331,6 +1331,13 @@ The queue of questions only Crown can answer.
 **Reference:** Dark Souls' bonfires and Elden Ring's Sites of Grace (rest and level up at one spot), Hollow Knight's benches (rest and change charms): one stop does everything and the map reads at a glance; all three are widely praised for it.
 **Notes for Claude:** B-447 and B-449 built the seller and V as NPC actors; B-502 turns them into rest point types. Until the art, test boxes stand in (purple rest points, shop colours for the service).
 
+### Q-503n — The test loadout: how a variant plays, and where the evolution goes
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-503n, cloud writer 7) · **Blocks:** —
+**Question:** B-503n's debug command needs variants for a Refractor, a Resonator, Broken Darkness and Reality, but the played character is the party leader, and nothing switches who is played. Today's v2 rules also put an evolution on its own only in a free first entry (the D-210 place for it is a TODO). Not lore.
+**Options:** (1) **A** the variant swaps the played pawn's character data to that class's test character (`DA_Character_*Lord`), for this pawn only, until the next map; **B** it changes the party leader's record (saved). (2) **A** the evolution goes in a weapon's or adapter's first socket, else on its own in the first entry; **B** on its own only.
+**Answer:** **A, A**, by the reference-backed default. Fighting-game training modes (Street Fighter 6's, Tekken 8's) switch the character and setup at once and leave the saved game alone, which players and testers rate as the fastest way to try a setup. An evolution in a socket is a real source the strip steps through, the same as one on its own (D-141's socket 1 takes an evolution).
+**Notes for Claude:** built in B-503n (`Debug/Inventory/TestLoadoutDebug`). The gear given is owned for good (pool and save), like any gear found in PIE. A Refractor's evolution has no place until D-210's evolution place exists.
+
 ### Q-502 — Rest point services: which rest points can be the shrine, where the point is bought, what the anvil opens
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-14; Crown may change) · **Raised:** 2026-11-14 (B-502, D-214) · **Blocks:** —
 **Question:** D-214 makes rest points the services. Four things it leaves open, none of them lore: (1) Which rest points can be the pillar-point shrine in a run? (2) What does a shrine do in a run where it is not the one? (3) Where is the point bought? (4) What do the vendor rest points (the anvil, the ritual tree, the crystal pedestal) open?
