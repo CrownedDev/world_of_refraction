@@ -147,14 +147,17 @@ namespace ParryVisuals
 		{
 			return Inputs;
 		}
-		Inputs.Guard = Loadout->GetGuardStyle();
-		Inputs.WeaponElement = WeaponCrystalElement(*Loadout);
-		Inputs.MagicElement = OwnMagicElement(*Loadout);
-		Inputs.Priority = Loadout->GetParryElementPriority();
 		FFieldAttackEntry Pick;
 		if (Loadout->GetFieldAttackPick(Pick))
 		{
-			ApplyFieldPick(Inputs, Pick, Loadout->GetActiveWeapon() != nullptr);
+			ApplyFieldPick(Inputs, Pick, Loadout->GetActiveWeapon() != nullptr); // B-503s: GetGuardStyle's own rule
+		}
+		else
+		{
+			Inputs.Guard = Loadout->GetGuardStyle();
+			Inputs.WeaponElement = WeaponCrystalElement(*Loadout);
+			Inputs.MagicElement = OwnMagicElement(*Loadout);
+			Inputs.Priority = Loadout->GetParryElementPriority();
 		}
 		const UCharacterData *CharData = Loadout->GetOwnerCharacterData();
 		if (const UCosmeticsData *Cosmetics = CharData ? CharData->Cosmetics : nullptr)

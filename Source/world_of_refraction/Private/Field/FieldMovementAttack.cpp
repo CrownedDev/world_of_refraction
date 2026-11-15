@@ -379,10 +379,16 @@ void UFieldMovementComponent::StoreFieldAttackIndex(int32 Index)
 	if (Inventory && (!InHand || InHand->WeaponEntry.PersistentID != PickedWeapon))
 	{
 		FText Refusal;
-		if (!Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&PickedWeapon](FCombatLoadout &Changed)
-									{ Changed.bShowPrimary = Changed.PrimaryWeapon.WeaponEntry.PersistentID == PickedWeapon; }, Refusal))
+		const auto PutInHand = [&PickedWeapon](FCombatLoadout &Changed)
 		{
-			UE_LOG(LogWoR, Warning, TEXT("%s %s: the picked weapon stays out of hand: %s"), FieldAttackLog::TAG, *GetNameSafe(GetOwner()), *Refusal.ToString());
+			if (Changed.PrimaryWeapon.WeaponEntry.PersistentID == PickedWeapon || Changed.SecondaryWeapon.WeaponEntry.PersistentID == PickedWeapon)
+			{
+				Changed.bShowPrimary = Changed.PrimaryWeapon.WeaponEntry.PersistentID == PickedWeapon;
+			}
+		};
+		if (!Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, PutInHand, Refusal))
+		{
+			UE_LOG(LogWoR, Log, TEXT("%s %s: the picked weapon stays out of hand: %s"), FieldAttackLog::TAG, *GetNameSafe(GetOwner()), *Refusal.ToString());
 		}
 	}
 	ShowWeaponForFieldAttack();
