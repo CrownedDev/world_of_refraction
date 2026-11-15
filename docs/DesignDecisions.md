@@ -1246,6 +1246,7 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** (1) Picking a **weapon** on the field wheel (D-217) **changes the weapon in hand**: the character shows and swings that weapon. Picking an **element source** (the innate, an evolution, an adapter) **hides the weapon**. (2) **Whatever is picked is the character's active parry** in the fight: "whatever you use is what your active parry will be". The parry priority setting (B-392 / B-393, `EParryElementPriority`) already decides which element a parry uses; the wheel's pick now drives it.
 **The wheel is a toggle (Crown, 2026-11-15):** a hold opens it and it stays on screen; the mouse works on it (cursor, hover, click); the centre shows only the result ("Sword", "Fire Sword").
+**A Generic and the pulse (Crown, 2026-11-15, answers Q-503s B):** "a Generic would only use the pulse if they had an adapter". So a Generic's **ring** pick keeps the weapon in hand, infused ("Lightning Sword"); only an **adapter** pick (or the innate / an evolution) hides the weapon and throws the pulse.
 **Notes for Claude:** how the pick maps onto the parry priority's values (and whether the setting stays as an override) is for the build job to report before changing fight rules.
 
 ### D-217 — The field attack strip: the weapon type above the card, LB changes its infusion
