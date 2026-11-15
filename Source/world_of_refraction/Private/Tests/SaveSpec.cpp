@@ -107,8 +107,7 @@ void FSaveSpec::Define()
 		Party->Members[1].GuardStyle = EGuardStyle::Unarmed;
 		Party->Members[1].GuardWeaponId = SavedGuardWeapon;
 		Party->Members[1].ParryElementPriority = EParryElementPriority::Magic; // B-393
-		Party->Members[1].FieldSkill.Source = EFieldSkillSource::Ring; // B-214a
-		Party->Members[1].FieldSkill.Type = EFieldMovementType::EnhancedSprint;
+		// B-507 (D-221): the field skill is saved on the worn-gear record now (the case below).
 
 		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
 		Save->HandlePreSave();
@@ -146,15 +145,72 @@ void FSaveSpec::Define()
 		TestTrue(TEXT("The parry colour priority survives save / load (B-393)"),
 				 Back.ParryElementPriority == EParryElementPriority::Magic &&
 					 Restored->Members[0].ParryElementPriority == EParryElementPriority::Weapon);
-		TestTrue(TEXT("The active field skill survives save / load (B-214a)"),
-				 Back.FieldSkill.Source == EFieldSkillSource::Ring && Back.FieldSkill.Type == EFieldMovementType::EnhancedSprint &&
-					 Restored->Members[0].FieldSkill == FFieldSkillChoice());
 		TestEqual(TEXT("The run's strain goes with a saved run"), Back.RunStrain, SAVED_RUN_STRAIN);
 		TestEqual(TEXT("... and not without one"), USaveSubsystem::CaptureParty(Party, false).Members[1].RunStrain, 0.0f);
 		TestTrue(TEXT("... while Broken Darkness is kept outside the run too"), USaveSubsystem::CaptureParty(Party, false).Members[1].bBrokenDarkness);
 		TestFalse(TEXT("Member 0 never broke"), Loaded->Data.Party.Members.Num() > 0 && Loaded->Data.Party.Members[0].bBrokenDarkness);
 		TestFalse(TEXT("A party that already exists is left alone"),
 				  USaveSubsystem::RestoreParty(Loaded->Data.Party, *PartySession));
+	});
+
+	It("brings each character's worn gear back, and hands its wheel pick to the restored party (B-507, D-221)", [this]()
+	{
+		FWoRTestWorld Before;
+		FWoRTestWorld After;
+		if (!CreateWorlds(Before, After))
+		{
+			return;
+		}
+		UCharacterData *Hero = FWoRTestWorld::NewCharacterData();
+		const FName Key = UPoolSubsystem::GetCharacterKey(Hero);
+		FWornGear Worn;
+		Worn.Equipment.SetNum(WornGearLayout::FIRST_ADAPTER_INDEX + 1); // a primary set, no secondary, one adapter
+		Worn.Equipment[WornGearLayout::PRIMARY_INDEX].GearID = FGuid::NewGuid();
+		Worn.Equipment[WornGearLayout::PRIMARY_INDEX].OffHandID = FGuid::NewGuid();
+		Worn.Equipment[WornGearLayout::FIRST_ADAPTER_INDEX].GearID = FGuid::NewGuid();
+		Worn.ActiveGearID = Worn.Equipment[WornGearLayout::PRIMARY_INDEX].GearID;
+		Worn.Apparel = {FGuid::NewGuid()};
+		UPoolSubsystem *BeforePool = Before.GetSubsystem<UPoolSubsystem>();
+		UPoolSubsystem *AfterPool = After.GetSubsystem<UPoolSubsystem>();
+		UPartySessionSubsystem *PartySession = After.GetSubsystem<UPartySessionSubsystem>();
+		if (!TestNotNull(TEXT("Pools"), BeforePool) || !TestNotNull(TEXT("After pool"), AfterPool) || !TestNotNull(TEXT("Party session"), PartySession))
+		{
+			return;
+		}
+		BeforePool->SetWornGear(Key, Worn);
+		FWheelPick Pick;
+		Pick.FieldSkill.Source = EFieldSkillSource::Ring; // B-214a's field skill, moved onto the record
+		Pick.FieldSkill.Type = EFieldMovementType::EnhancedSprint;
+		Pick.FieldAttackIndex = SAVED_COLUMN;
+		Pick.bPicked = true;
+		BeforePool->SetWheelPick(Key, Pick);
+
+		UParty *Party = NewObject<UParty>(GetTransientPackage());
+		FPartyMember &Member = Party->Members.AddDefaulted_GetRef();
+		Member.PawnClass = ACombatCharacter::StaticClass();
+		Member.CharacterData = Hero;
+		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
+		Save->HandlePreSave();
+		Save->Data.Party = USaveSubsystem::CaptureParty(Party, false);
+		Save->Data.Pool = USaveSubsystem::CapturePool(*BeforePool);
+		UWoRSaveGame *Loaded = RoundTrip(Save);
+		if (!TestNotNull(TEXT("Loaded"), Loaded) || !TestTrue(TEXT("Party restored"), USaveSubsystem::RestoreParty(Loaded->Data.Party, *PartySession)))
+		{
+			return;
+		}
+		USaveSubsystem::RestorePool(Loaded->Data.Pool, *AfterPool); // party first, as LoadForPlayer
+
+		const FWornGear *Back = AfterPool->GetWornGear(Key);
+		if (!TestNotNull(TEXT("The record is back"), Back))
+		{
+			return;
+		}
+		Worn.WheelPick = Pick;
+		TestTrue(TEXT("same pieces, places, ACTIVE entry and pick"), Back->SameAs(Worn));
+		const FPartyMember *Restored = PartySession->GetMemberCarriedState(0);
+		TestTrue(TEXT("the member took the record's field skill and pick"),
+				 Restored && Restored->FieldSkill == Pick.FieldSkill && Restored->FieldAttackIndex == SAVED_COLUMN && Restored->bFieldAttackPicked);
+		TestTrue(TEXT("and its weapon in hand"), Restored && Restored->ActiveWeaponId == Worn.ActiveGearID);
 	});
 
 	It("banks every persistent balance but never Gold", [this]()
