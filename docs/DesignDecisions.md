@@ -1323,7 +1323,14 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
-### Q-514 — The quick strip's smaller choices
+### Q-516 — The empty adapter's smaller choices
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-516, D-224 stage 2) · **Blocks:** —
+**Question:** with one empty ring asset for every ring, how do two same-named rings read, when can the add window socket a ring, and which ring does a spell both rings pick read? None of this is lore.
+**Answer:** by the reference-backed default:
+- **Same names:** "Lightning Ring", then "Lightning Ring 2", in list order, only where two entries in one list read the same (the plan's default; Diablo and Path of Exile show identical names and let the slot tell them apart, and a number is the shortest form of that on a strip with no slot labels).
+- **Socketing in the add window:** a ring is socketed as it waits in the window, and the gem is spent then, as in the Edit window; backing out keeps the ring socketed in the spares (Diablo's and Path of Exile's sockets are filled on the item, not on the slot).
+- **One spell on two rings:** the ring in use, so Switch Adapter picks which (B-310's rule for wear).
+
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-514, D-222) · **Blocks:** —
 **Question:** D-222 sets the strip's keys, text and frame. What about its ends, the arrows, the mouse, its size and the lines for pieces with no held type? None of this is lore.
 **Answer:** by the reference-backed default (Breath of the Wild's quick-select, D-222's reference):

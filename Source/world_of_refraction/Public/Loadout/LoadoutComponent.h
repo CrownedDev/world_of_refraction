@@ -347,7 +347,8 @@ public:
 
     /** B-516: the slotted crystal of the entry that grants Spell, found by the entry, not the asset: every adapter can
      *  be one asset (DA_Ring_Adapter). Among adapters, the one in use first when it lists the spell; a weapon as
-     *  FindAttachedItemByHolder (the one in hand first). Null where FindSpellCatalystHolder gives none. */
+     *  FindAttachedItemByHolder (the one in hand first). Null where FindSpellCatalystHolder gives none. The pointer is
+     *  into SavedLoadouts: use it at once, never across an inventory change. */
     FRuntimeAttachedItem *FindSpellCatalystAttachment(USpellData *Spell);
 
     // OBSOLETE (B-503q): GetPrimarySlotSpells / GetSecondarySlotSpells / GetActiveSlotSpells have no C++ game caller
