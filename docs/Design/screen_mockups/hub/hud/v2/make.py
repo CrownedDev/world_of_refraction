@@ -110,7 +110,7 @@ def field_hints(d, wheel_open=False):
     if wheel_open:
         footer(d, [("L-stick", "Pick"), ("D-pad ◄ ►", "Element"), ("RB", "Let go: confirm")], y=694)
     else:
-        footer(d, [("RT", "Attack"), ("RB", "Hold: wheel"), ("X", "Interact")], y=694)
+        footer(d, [("RB", "Attack"), ("RB hold", "Change source"), ("X", "Interact")], y=694)
 
 
 def top(d, place, gold=True):

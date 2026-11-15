@@ -15,10 +15,10 @@ Replaces `../1_hub_hud_prompt.png` for the HUD. The talk and recruit pictures th
 - **The played character's card is always first** (Crown, D-217), so no card is highlighted. In the trial the strip above it also marks it.
 - **The field attack strip** (D-217), trial only, directly above the first card. It shows the element diamond, the name, and an RB key cap.
   - Strip names (Q-503l): "Sword", "Fire Sword", just "Fire" for a Refractor or Resonator, "Unknown" or "(R) Fire" for Reality, "Dark Fire" for Broken Darkness.
-- **The wheel is on RB, held** (Crown, D-217). Its slices are the loadout entries (each weapon, each ring, the evolution, the innate) with the element diamond of each one's current element.
+- **The wheel is on RB, held** (Crown, D-217); a tap of RB still attacks. Its slices are the loadout entries (each weapon, each ring, the evolution, the innate) with the element diamond of each one's current element.
   - The **left stick** moves around the wheel. **D-pad ◄ ►** changes the element of the entry under the stick, where it has more than one (a weapon's infusion, "(R) Fire", "Dark Fire"). **Letting go** confirms.
   - Keyboard (D-217): hold R, the mouse picks a slice, the mouse wheel or A / D changes the element.
-- **Field key hints**, bottom right: **RT Attack** (left mouse; the attack moves from RB to RT), **RB Hold: wheel** (R), **X Interact** (E). While the wheel is open: **L-stick Pick**, **D-pad ◄ ► Element**, **RB Let go: confirm**. The gamepad names are shown; the keyboard names swap in live (B-481).
+- **Field key hints**, bottom right: **RB Attack** (a tap; left mouse), **RB hold Change source** (the wheel; hold R; D-217 "RB, tap and hold"), **X Interact** (E). While the wheel is open: **L-stick Pick**, **D-pad ◄ ► Element**, **RB Let go: confirm**. The gamepad names are shown; the keyboard names swap in live (B-481).
 - **Kept:** the place name (top left), the money chip (top right, which fades in on a change or near a vendor; it shows in the trial too), and the interact prompt by the thing you face.
 
 ## Choices made here (reference-backed, Crown may change)
@@ -30,5 +30,5 @@ Replaces `../1_hub_hud_prompt.png` for the HUD. The talk and recruit pictures th
 
 ## For the build job
 
-- InputMap: the wheel on RB (hold; the stick picks, D-pad ◄ ► changes the element, letting go confirms) and the field attack moving to RT need their rows when they are built. The current rows say LB and RB.
+- InputMap: the wheel on RB (hold; the stick picks, D-pad ◄ ► changes the element, letting go confirms) needs its row when it is built, with RB tap staying the attack. The current rows say RB attack and LB source.
 - Not drawn: the battle level of the card (D-216).
