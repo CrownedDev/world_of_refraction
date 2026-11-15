@@ -12,6 +12,7 @@
 #include "Inventory/InventoryVerbs.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
+#include "Equipment/Weapons/WeaponData.h"
 
 BEGIN_DEFINE_SPEC(FGameNamesSpec, "WoR.Text.GameNames",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -110,6 +111,22 @@ void FGameNamesSpec::Define()
 		TestEqual(TEXT("SkipTurn"), WoRGameNames::GetSkillEffectTypeName(ESkillEffectType::SkipTurn).ToString(),
 				  FString(TEXT("Skip Turn")));
 		TestEqual(TEXT("Caster"), WoRGameNames::GetCharacterClassName(ECharacterClass::Caster).ToString(), FString(TEXT("Refractor")));
+	});
+
+	It("names the weapon in hand by how it is held (B-513, Q-513)", [this]()
+	{
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Weapon->WeaponType = EWeaponType::Sword;
+		TestEqual(TEXT("one sword"), WoRGameNames::GetHeldWeaponTypeName(Weapon).ToString(), FString(TEXT("Sword")));
+		TestEqual(TEXT("a sword paired with a sword"), WoRGameNames::GetHeldWeaponTypeName(Weapon, /*bPaired=*/true).ToString(), FString(TEXT("Dual Swords")));
+		Weapon->WieldMode = EWeaponWieldMode::OffHandShield;
+		TestEqual(TEXT("with its shield"), WoRGameNames::GetHeldWeaponTypeName(Weapon).ToString(), FString(TEXT("Sword and Shield")));
+		Weapon->WeaponType = EWeaponType::Axe;
+		Weapon->WieldMode = EWeaponWieldMode::Dual;
+		TestEqual(TEXT("a dual pair"), WoRGameNames::GetHeldWeaponTypeName(Weapon).ToString(), FString(TEXT("Dual Axes")));
+		Weapon->WeaponType = EWeaponType::Gauntlets;
+		TestEqual(TEXT("gauntlets are a pair already"), WoRGameNames::GetHeldWeaponTypeName(Weapon).ToString(), WoRGameNames::GetWeaponTypeName(EWeaponType::Gauntlets).ToString());
+		TestTrue(TEXT("no weapon"), WoRGameNames::GetHeldWeaponTypeName(nullptr).IsEmpty());
 	});
 }
 
