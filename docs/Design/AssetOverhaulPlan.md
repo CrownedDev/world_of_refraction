@@ -1,6 +1,12 @@
 # Asset overhaul plan (D-223, D-224)
 
-**Status:** plan; stage 1 is built (B-515, in dev). **Crown approves the cast and gear list (§2) before the asset stages are built.**
+**Status:** plan; stages 1 and 2 are built (B-515, B-516, in dev). **Crown approves the cast and gear list (§2) before the asset stages are built.**
+
+**Revision 5 (2026-11-15) takes in Crown's answers on revision 4 (D-224):**
+- **Q3:** the averaged tier does not lower the ring's own stat lines; they stay on the ring's own tier. The average drives how strong the skills cast through the ring are (§4).
+- **Q4:** weapons average with their crystal too, and it affects the status build-up (§4.1).
+- **Q7:** conjured (locked) rings become ordinary empty rings; found rings may come prebuilt, with a crystal or an evolution already in the socket (§3, "Found pieces").
+- **Stage 2 is built** (B-516): the empty adapter, socketing in the add window, two same-named rings.
 
 **Revision 4 (2026-11-15) takes in D-224:**
 - **A ring's tier is the built average** of the ring and its crystal: a rules change, with its own stage (§4).
@@ -279,6 +285,16 @@ These are spares on top of the crystals in the rings. More come from `wor.Econom
 4. **Delete the fields** in §1 once nothing reads them. Old `.uasset`s that still carry them load fine: the engine skips a property that no longer exists.
 5. **Saves:** raise the minimum save version, so older saves are wiped with a warning (D-060).
 
+**Found pieces: a drop or a chest may come prebuilt (Crown, Q7).** "You can find prebuilt rings, i.e. built with an evolution crystal or a normal crystal." So a piece starts empty (step 2) unless the find says what is in its socket.
+- **Today:** a drop picks an asset by its source tag (`TrialMapFeature.cpp:201`, `TrialLoot::PickFromPool`) and gives it with `TrialLoot::GrantTo` → `AddWeapon` / `AddRing`. That calls `CreateFromRing`, which copies the asset's baked `AttachedItem`, the shape step 2 removes. Chest gear is pool gear marked as in a chest (B-324), minted by the same factories.
+- **The change:** a find names its piece and, optionally, its socket. It is the same shape as a kit piece's `FClassDefaultPiece::Crystal` (stage 4): a gem (`FCrystalId`) or an evolution asset.
+  - **Minting** reuses the kit's path (`PoolClassDefaults.cpp`'s `MintKitPiece`): the empty piece with a new `PersistentID`, then its socket filled.
+  - **A gem** goes in at full durability, as a socketed gem does.
+  - **An evolution** is minted as its own instance in the finder's evolutions and attached (`AttachEvolutionToRing`), so it can be taken off and used elsewhere like any owned evolution.
+  - **The loot list** (today a list of assets with source tags) gains a small entry for a prebuilt find: the piece, its source tags, and its gem or evolution. A plain find stays a plain asset and arrives empty.
+- **A merchant's stock** stays empty (`VendorScreenModel.cpp:184/192`).
+- **Where:** stage 3, beside "pieces start empty", so a find never arrives with an old baked crystal. The kit minting is generalised in stage 4; stage 3 takes the gem / evolution fill from it early, or stage 4 adds prebuilt finds. One small spec: a prebuilt Phoenix Ring drop arrives with its evolution in the socket and owned; a plain drop arrives empty.
+
 **Not in this plan (restructure stages 2 and 4):** the runtime `FCombatLoadout` primary and secondary fields, the round trip in `CreateFromWornGear`, and `ApplyDraft` writing the old runtime fields.
 
 **A gap on the Equipment screen (the add-an-adapter flow):** adding an adapter copies the piece's own sockets (`LoadoutV2ScreenWidget.cpp:2398`), and a new draft's socket slots can't be filled (`:2333`). **Fix (stage 2):** the add window's socket slots list `BuildSocketChoices`, as the Edit window does.
@@ -302,28 +318,58 @@ One helper works this out (`CrystalEffectTable::GetAdapterTier(const FRingInvent
 | **The tier-gap output** (spell damage) | the crystal's tier as the channel; spell tier − channel (`ActionExecutor.cpp:429-500`; ED-11) | **the adapter tier** as the channel for a ring's spells | The ED-11 specs for rings change. An empty socket still means no channel (×1.00). A weapon crystal's spells stay on the crystal until the weapon question below. |
 | **Crystal Amp** | the crystal's tier (`LoadoutComponent.cpp:3970`; ED-50d) | **keep the crystal's tier** | Recommended: it is the crystal's own bonus, and the ring already counts once through the channel; averaging it too would count the ring twice. |
 | **Max durability** | the crystal's tier, F30 … S100 (ER-34) | **keep the crystal's tier** | Durability is the crystal's own state. It moves with the crystal, so a ring can't change it. |
-| **Wear per cast** | 7% per tier gap, spell tier − crystal tier (`CrystalManager.cpp:105-121`) | **the same gap as the output**: spell tier − adapter tier | **A new consequence:** a better ring slows a weaker crystal's wear. One gap per cast keeps wear and damage reading the same. Crown's OK needed (question 3). |
-| **The adapter's stat lines** | the ring's tier (`GetTierPowerMultiplier`, `LoadoutComponent.cpp:3931-3988`) | **the adapter tier** | **A new consequence:** socketing a lower crystal lowers an S ring's stats (S with F reads C). An empty ring uses its own tier. Crown's OK needed (question 3). |
+| **Wear per cast** | 7% per tier gap, spell tier − crystal tier (`CrystalManager.cpp:105-121`) | **the same gap as the output**: spell tier − adapter tier | It is part of casting the skill (Q3: the average drives the skills), so one gap per cast keeps wear and damage reading the same. A better ring slows a weaker crystal's wear. |
+| **The adapter's stat lines** | the ring's own instance tier (`GetTierPowerMultiplier` on `RingTier`, `LoadoutComponent.cpp:3991`) | **keep the ring's own tier** (Crown, Q3) | You always get the ring's stats; only the skills cast through it follow the average. |
 | **Combat Tier** | the ring's tier (`CombatTier.cpp:51`; D-118, Q-325) | **the adapter tier** | It is the overall number, so it should match. Weapons' crystals still aren't counted (question 4). |
 | **Dismantle** | the ring's own tier (`EconomyService.cpp:475`) | **keep the ring's tier** | You dismantle the ring piece; its crystal comes out as today. |
 | **Buy / sell price** | the sum of the ring's and the attachment's prices (ER-22, `EconomyService.cpp:920-934`) | **keep the sum** | The sum already prices both parts; an average would under-price the pair. |
 | **Repair** | the crystal's tier price (`GearRepair.cpp:35-45`) | **keep** | Repair fixes the crystal. |
 | **Lost-run tier drop** | the ring drops 3 tiers, its crystal doesn't (ER-65g, D-219) | **keep** | The adapter tier falls with the ring through the average. |
 | **A broken crystal** (D-083), **the S-crystal cap** (CL-13b) | the spell's tier; the crystal's tier | **keep** | — |
-| **The Equipment detail** | the asset's tier, a bug (`LoadoutV2Model.cpp:312-314`) | **the adapter tier**, with the parts in the detail line | — |
+| **The Equipment detail** | the owned piece's tier (fixed in B-516; it read the asset's) | **the adapter tier**, with the parts in the detail line | — |
+
+**What the logic does today, and what Q3 keeps (Crown: "you would still get the ring's stats, the skills you use just wouldn't be as powerful").**
+- **Today the two halves already read different tiers.** The ring's stat lines read the ring's own tier. The skills cast through it read the crystal's tier alone: the spell slots, the channel (damage) and the wear gap.
+- **With D-224** only the skill half moves to the average. The stat half stays on the ring's own tier, as it is today.
+- So an S ring with an F gem keeps its S stats, and its skills read C (today they read F). An F ring with an S gem keeps its F stats, and its skills read C (today they read S). That is Crown's "the skills just wouldn't be as powerful" in the second case.
 
 **The size of the change:**
-- **Code:** one helper plus five readers:
+- **Code:** one helper plus four ring readers (the stat-line multiplier is not one, Q3):
   - the ring slot cap;
   - the channel tier;
   - the wear gap;
-  - the stat-line multiplier;
   - Combat Tier.
+- **Weapons:** their own readers (§4.1).
 - **Equipment detail:** fixed as above.
 - **Specs:** a new `WoR.Loadout.AdapterTier` spec; the CL-25, ED-11 and ER-34 ring specs are updated.
 - **Rules pages:** the `docs/Rules/` rows change with it.
 - **Commits:** about three, of at most three files each.
-- **Stage:** it has its own stage (2b) and its own PIE sheet.
+- **Stage:** it has its own stage (2b, rings and weapons) and its own PIE sheet.
+
+### 4.1 A weapon's tier is the built average too (D-224, Q4)
+
+**Crown:** weapons average with their crystal too, "and it would affect the status build-up". The rule is the ring's: the weapon's own tier and its socket's tier, a half rounded down, counted from F0 to S6. An empty socket, or one with no spell source, gives the weapon's own tier. The stone socket doesn't count. The sockets are the main hand's (D-210), so a pair averages its main hand with that socket.
+
+**Each weapon mechanic that reads a tier today, and what it should read:**
+
+| Mechanic | Today | With D-224 | Note |
+|---|---|---|---|
+| **The channel for attacks and abilities** (the tier gap) | the weapon's own instance tier (`ResolveChannelTier`, `ActionExecutor.cpp:431-447`) | **the weapon tier** (the average) | This is the reader that carries the status build-up (below). |
+| **Status build-up** of an ability or attack | authored × the charge multiplier × own-tier power × **the tier gap** against the channel (`ActionExecutor.cpp:1633`) | follows the channel, so it reads the average | No new code of its own: it changes because the channel does. |
+| **Damage** of an ability or attack | the same tier gap (ED-11) | follows the channel | As for rings. |
+| **The action's own tier fallback** (a skill that can't resolve) | the weapon's instance tier (`ActionExecutor.cpp:414-424`) | **the weapon tier** | Safety path only. |
+| **Combat Tier** | the weapon entry's tier (`CombatTier.cpp:47`) | **the weapon tier** | Matches the rings' row. |
+| **Weapon power** (base damage) | `Power` × the instance tier's power (`WeaponPower.cpp:50`) | **keep the weapon's own tier** | The piece's own stats, as Q3 keeps a ring's stat lines. |
+| **Skill slots** | the weapon's own tier (`SlotsForContainerTier`, `FWeaponLoadoutEntry.cpp:41/217/420`), a pair the average of its two hands (D-211), **plus** the crystal's own slots (CL-20) | **keep** | The crystal already adds its slots (CL-20). Averaging as well would count it twice. |
+| **Crystal infusion wear, max durability, Crystal Amp** | the crystal's tier | **keep** | The crystal's own state, as for rings. |
+| **Dismantle, price, repair, the lost-run drop** | as for rings | **keep** | As for rings. |
+
+**How the average feeds the status build-up.** The gap is the skill's tier against the channel. A skill above the channel is cut, and one below it is boosted (`TierGapDamage`, `TierGapScalingSpec`). The build-up uses the same multiplier as the damage.
+- **A gem above the weapon** raises the channel. A skill above the weapon is cut less, and its build-up and damage go up. An F sword with a B Garnet reads D: a D ability on it was 2 tiers above the channel and is now matched (×1.00).
+- **A gem below the weapon** lowers the channel. Its skills gain the "below the channel" boost less, or are cut, so build-up and damage go down. An S sword with an F gem reads C.
+- **A weapon with no crystal** keeps its own tier: nothing changes.
+
+**The size:** one helper (`CrystalEffectTable::GetWeaponTier(const FWeaponInventoryEntry&)`) and three readers: the channel, the fallback and Combat Tier. Add weapon cases to `WoR.Loadout.AdapterTier` (an F sword with a B gem reads D; empty reads its own tier; the build-up of a D ability rises), update the ED-11 weapon specs, and change the rules rows. It joins stage 2b, one or two commits more.
 
 ## 5. Skills under D-224
 
@@ -333,7 +379,7 @@ One helper works this out (`CrystalEffectTable::GetAdapterTier(const FRingInvent
 |---|---|---|---|
 | **Weapon built-ins** (`PresetAbilities`, `bAbilitiesLocked`) | on the asset; they pre-fill the weapon's slot list (`WeaponSetRules::GetSetBuiltIns`, D-210) and are offered on the Equipment screen (`LoadoutSkillsModel.cpp:241-252`) | **gone** | `GetSetBuiltIns` and its pre-fill go. The Equipment screen offers only the known skills. The price term goes (`EconomyService.cpp:988-1005`). |
 | **Weapon picks** | **on the owned piece**: `FWeaponInventoryEntry::SkillPicks` / `bSkillSlotsActive` (`:101/106`), mirrored on `FGearInstance` (`:72/75`), saved in `FSavedGearDetail` (`WoRSaveTypes.h:480`); written back from the loadout (`InventoryComponent.cpp:1104-1117`, `:1356`) | **on the worn entry**: `FLoadoutSlot::AssignedAbilities` (exists, `FLoadoutSlot.h:51`) in `FWornGear::Equipment`. `FGearPreset` holds a `FWornGear`, so **presets carry the skills automatically**. | The piece's pick fields, the mirror and the save fields go, and so does the write-back. `GiveGear` stops carrying picks (`PoolSubsystem.cpp:520-534`). `FSavedWornGear` must save each entry's skills; if it doesn't, a field is added. This reverses D-145 / CL-20c (Q-085 A stands). |
-| **Ring built-ins** (`PresetSpells`, `bSpellsLocked`, `DefaultSpells`) | on the asset; they pre-fill the ring's slots (`FRingLoadoutEntry.cpp:121-135`) | **gone** | The ring's spell list is only the picks. A "locked" (conjured) ring loses its fixed spells (question 7). |
+| **Ring built-ins** (`PresetSpells`, `bSpellsLocked`, `DefaultSpells`) | on the asset; they pre-fill the ring's slots (`FRingLoadoutEntry.cpp:121-135`) | **gone** | The ring's spell list is only the picks. A "locked" (conjured) ring becomes an ordinary empty ring (Crown, Q7); `bSpellsLocked` is deleted in stage 6. |
 | **Ring picks** | on the owned piece: `FRingInventoryEntry::SpellPicks` / `bSpellSlotsActive` / `AssignedSpells` (`:88-98`); dropped when the crystal comes off (`FRingInventoryEntry.h:196`) | **on the worn entry**: `FLoadoutSlot::SpellOverrides` (exists; today "weapon only"), the same list for any piece | The same as weapon picks. The drop on unsocketing stays. |
 | **Evolution spells** | not on the asset. They are the worn seat's picks: `FWornGear::EvolutionSpells` (`WornGear.h:68`), sized by the evolution's tier (`LoadoutRules.cpp:550`) | **no change**: already part of what is worn. An evolution in an adapter uses the adapter entry's list. | None. |
 | **Innate spells, BD pools** | `FSavedLoadout`; runtime `FWornGear` | moved to `UInventoryData` (§1), runtime unchanged | Small. Do they count as "skills" a run starts without? (question 6). |
@@ -433,9 +479,9 @@ Until stage 4, the new pieces are added as spares to the current played characte
 | Stage | Code | Editor | Crown checks in PIE (its own sheet) |
 |---|---|---|---|
 | **1. Sword and shield** ✅ B-515, in dev | `EWeaponType::Shield`, the set rule, the held name, the off-hand mesh | `DA_Weapon_Sword` (SingleOrDual), `DA_Weapon_Shield` | `PIE/B-515.md`: "Arming Sword and Round Shield", "Sword and Shield", the shield in the left hand, the sword's attack and stance. |
-| **2. The empty adapter** | sockets in the add window (§3 gap); the detail shows the owned piece's tier; the repeat-number helper (+ specs, including two Lightning rings) | `DA_Ring_Adapter` (no spells, the shared stat line); **three** copies as spares | Add it: "Adapter Ring", F, its stat line. Socket a Garnet in the same window: "Fire Ring", one spell slot, empty until you pick a known spell. **Two Lightning rings:** "Lightning Ring" and "Lightning Ring 2" as separate entries, each picked and cast on its own, picks separate, wear only on the cast ring, both kept through a preset save and reload. |
-| **2b. A ring's built tier** (§4) | `GetAdapterTier` and its five readers; the detail line (+ `WoR.Loadout.AdapterTier`, updated ring specs, rules rows) | none (use the stage 2 rings and the stock) | An F ring with a B Citrine reads **D**: 3 spell slots, the stat line at D, its spells' damage and wear against D. Unsocketed it reads F again. Combat Tier moves with it. |
-| **3. Pieces start empty; the axes** | stop copying `AttachedItem`; the price term (+ spec fixes) | `DA_Weapon_Axe_Hand`, `DA_Weapon_Axe_Bearded` | The axes read "Hand Axe and Bearded Axe", "Dual Axes", each axe's own mesh in its hand. A ring bought from the merchant arrives empty. |
+| **2. The empty adapter** ✅ B-516, in dev | sockets in the add window (§3 gap); the detail shows the owned piece's tier; the repeat-number helper (+ specs, including two Lightning rings) | `DA_Ring_Adapter` (no spells, the shared stat line); **three** copies as spares | Add it: "Adapter Ring", F, its stat line. Socket a Garnet in the same window: "Fire Ring", one spell slot, empty until you pick a known spell. **Two Lightning rings:** "Lightning Ring" and "Lightning Ring 2" as separate entries, each picked and cast on its own, picks separate, wear only on the cast ring, both kept through a preset save and reload. |
+| **2b. The built tier: rings and weapons** (§4, §4.1) | `GetAdapterTier` and its four ring readers; `GetWeaponTier` and its three readers; the detail line (+ `WoR.Loadout.AdapterTier` with weapon cases, updated ring and ED-11 weapon specs, rules rows) | none (use the stage 2 rings, the sword and the stock) | An F ring with a B Citrine reads **D**: 3 spell slots, its spells' damage and wear against D, **its stat line still at F**. Unsocketed it reads F again. An F sword with a B Garnet reads D: a D ability's damage and status build-up go up. Combat Tier moves with both. |
+| **3. Pieces start empty; the axes** | stop copying `AttachedItem`; the price term; a found piece may be prebuilt (§3, "Found pieces") (+ spec fixes) | `DA_Weapon_Axe_Hand`, `DA_Weapon_Axe_Bearded` | The axes read "Hand Axe and Bearded Axe", "Dual Axes", each axe's own mesh in its hand. A ring bought from the merchant arrives empty. |
 | **4. The Generic starts from `StartingGear`** | the `UInventoryData` fields, `FClassDefaultPiece::Crystal`, `FClassDefaultLoadout::StartingSkills` (field only); generalise the kit minting; the `DrawSharedGear` seed (+ spec) | `DA_Character_Generic`, `DA_Inventory_Generic_Start`, Gale; point the played character at it | A new game: the Generic wears the sword and shield, the axes are spare, the **Earth Ring** is socketed, Gale is in its seat, and the stock is in the pouch. |
 | **5. The rest of the cast** | none expected | the other characters, Phoenix, the two enemies, `DA_Loadout_ClassDefaults` (pieces and the bolt) | Each character's start, the Resonator's three rings, the Refractor's Fire innate and Phoenix, BD's pools, a trial on the kit, a fight against each enemy. |
 | **6. Delete the old** | delete the §1 fields and their readers; raise the minimum save version | the reference check, then the §2 delete list | A new game works, an old save is wiped with a warning, validation has no new errors, a battle plays. |
@@ -456,13 +502,10 @@ Until stage 4, the new pieces are added as spares to the current played characte
 
 1. **The cast and gear list (§2):** OK as listed? It includes the item names, who holds which ring and evolution, and the adapter's one shared stat line.
 2. **Two same-named rings:** a repeat number ("Lightning Ring 2"), shown only where a list has the same name twice (the default for now)?
-3. **The built ring tier (§4).** The proposed reads:
-   - spell slots, spell damage, the wear gap, the stat lines and Combat Tier use the adapter tier;
-   - Crystal Amp, max durability, dismantle, price and repair stay as they are.
-   - Two consequences need your OK: **a better ring slows a weaker crystal's wear**, and **socketing a low crystal lowers an S ring's stats**.
-4. **Weapons with a crystal:** should they average too? Recommendation: not now, rings first. A weapon's ability slots already add its crystal's (CL-20), and its spells' channel stays the crystal's.
+3. ~~**The built ring tier (§4).**~~ **Answered (Crown):** the ring's stat lines stay on its own tier; the average drives the skills cast through it (slots, damage, wear) and Combat Tier.
+4. ~~**Weapons with a crystal.**~~ **Answered (Crown):** they average too, and it affects the status build-up (§4.1). By the plan's default, weapon power and skill slots keep the weapon's own tier (its own stats; CL-20 already adds the crystal's slots).
 5. **(b), still open:** does a character keep a permanent list of known skills in the hub?
 6. **Do innate spells and Broken Darkness's pools count as skills a run starts without?** Recommendation: no. They are the class's identity and always on (D-040).
-7. **Locked (conjured) rings:** today their spells are fixed. With no spells on gear, do they become ordinary empty rings? Recommendation: yes, and their spells become skills that require that ring's form.
+7. ~~**Locked (conjured) rings.**~~ **Answered (Crown):** they become ordinary empty rings; found rings may come prebuilt, with a crystal or an evolution in the socket (§3, "Found pieces").
 8. **A shield in a pair:** today it counts in the D-211 slot average (an F shield lowers an S sword's slots) and adds its own stats. Recommendation: the shield adds its stats but **doesn't** count in the slot average; the main hand's slots stand.
 9. **The starting bolt** needs an adapter with a crystal, but the kit's sockets start empty, so a crystal must go in before the bolt can be cast. OK, or should the kit's ring start socketed?
