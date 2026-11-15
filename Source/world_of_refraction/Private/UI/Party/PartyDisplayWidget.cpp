@@ -8,6 +8,7 @@
 #include "Components/PanelWidget.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/GameInstance.h"
+#include "HAL/IConsoleManager.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "UI/Combat/CharacterPanelWidget.h"
@@ -17,6 +18,26 @@ namespace PartyDisplayConstants
 	/** Gap between adjacent cards in the strip (slot padding, runtime-set —
 	 *  designer cannot author runtime-added slots). */
 	constexpr float CARD_GAP = 2.0f;
+
+	/** B-503g: the HUD's party strip replaced these debug cards on screen; wor.UI.DebugPartyBox 1 brings them back. */
+	ESlateVisibility GetDebugBoxVisibility(bool bShown)
+	{
+		return bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
+	}
+	bool bDebugBoxShown = false;
+	FAutoConsoleVariableRef CVarDebugPartyBox(
+		TEXT("wor.UI.DebugPartyBox"), bDebugBoxShown,
+		TEXT("DEBUG (B-503g): 1 shows the old party cards (class, M/B/S, HP and EP bars) over the hub and trial HUD; 0 hides them."),
+		FConsoleVariableDelegate::CreateLambda([](IConsoleVariable *)
+		{
+			for (TObjectIterator<UPartyDisplayWidget> It(RF_ClassDefaultObject | RF_ArchetypeObject); It; ++It)
+			{
+				if (It->IsConstructed())
+				{
+					It->SetVisibility(GetDebugBoxVisibility(bDebugBoxShown));
+				}
+			}
+		}));
 }
 
 void UPartyDisplayWidget::NativeConstruct()
@@ -40,6 +61,8 @@ void UPartyDisplayWidget::NativeConstruct()
 	// Initial paint — REQUIRED: CreateSoloParty's early-return on an existing
 	// party does not broadcast, so hub re-entry would otherwise show ghosts.
 	RefreshFromParty();
+
+	SetVisibility(PartyDisplayConstants::GetDebugBoxVisibility(PartyDisplayConstants::bDebugBoxShown));
 }
 
 void UPartyDisplayWidget::NativeDestruct()
