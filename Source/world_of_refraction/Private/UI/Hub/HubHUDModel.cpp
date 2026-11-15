@@ -2,8 +2,13 @@
 
 #include "UI/Hub/HubHUDModel.h"
 
+#include "Character/CharacterData.h"
 #include "Currency/CurrencyTypes.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Infusion/ElementColors.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
@@ -80,16 +85,48 @@ FText WoRHubHUD::BuildQuestLine(const UWorld *World)
 	return WoRPauseMenu::IsInRun(World) ? WoRPauseMenu::GetTrackedLine(World) : FText::GetEmpty();
 }
 
+TArray<FHubHUDPartyCard> WoRHubHUD::BuildPartyStrip(const UParty *Party)
+{
+	TArray<FHubHUDPartyCard> Cards;
+	if (!Party)
+	{
+		return Cards;
+	}
+	for (const FPartyMember &Member : Party->Members)
+	{
+		const UCharacterData *Data = Member.CharacterData;
+		if (!Data)
+		{
+			continue;
+		}
+		FHubHUDPartyCard &Card = Cards.AddDefaulted_GetRef();
+		Card.Name = FText::FromString(Data->Name);
+		Card.DotColor = ElementColors::GetColorForElement(Data->GetElement());
+		const int32 MaxHP = Data->CalculateMaxHealth();
+		Card.HPShare = Member.CurrentHP == PartyConstants::NO_CARRIED_VITALS || MaxHP <= 0
+						   ? 1.0f
+						   : FMath::Clamp(static_cast<float>(Member.CurrentHP) / static_cast<float>(MaxHP), 0.0f, 1.0f);
+	}
+	return Cards;
+}
+
 FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 {
 	const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
 	const FHubHUDPrompt Prompt = BuildPrompt(PC ? PC->GetPawn() : nullptr);
 	const FHubHUDMoney Money = BuildMoney(World);
 	const FText Quest = BuildQuestLine(World);
-	return FString::Printf(TEXT("[HubHUD] prompt: %s; near a vendor: %s; money: %s %s; quest: %s"),
+	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	FString Party;
+	for (const FHubHUDPartyCard &Card : BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr))
+	{
+		Party += FString::Printf(TEXT("%s%s %.0f%%"), Party.IsEmpty() ? TEXT("") : TEXT(", "), *Card.Name.ToString(), Card.HPShare * 100.0f);
+	}
+	return FString::Printf(TEXT("[HubHUD] prompt: %s; near a vendor: %s; money: %s %s; quest: %s; party: %s"),
 						   Prompt.bShown ? *FString::Printf(TEXT("%s %s"), *Prompt.Verb.ToString(), *Prompt.What.ToString()) : TEXT("none"),
 						   Prompt.bNearVendor ? TEXT("yes") : TEXT("no"), *Money.Value.ToString(), *Money.Label.ToString(),
-						   Quest.IsEmpty() ? TEXT("none") : *Quest.ToString());
+						   Quest.IsEmpty() ? TEXT("none") : *Quest.ToString(), Party.IsEmpty() ? TEXT("none") : *Party);
 }
 
 #if !UE_BUILD_SHIPPING

@@ -13,6 +13,7 @@
 #include "Hub/InteractPrompt.h"
 
 class APawn;
+class UParty;
 class UWorld;
 enum class ECurrencyType : uint8;
 
@@ -28,6 +29,15 @@ struct FHubHUDPrompt
 	FVector WorldLocation = FVector::ZeroVector;
 	/** The nearest thing in reach is a vendor (the money shows). */
 	bool bNearVendor = false;
+};
+
+/** B-503g: one card of the party strip (mockup hub/hud: an element dot, the name, an HP bar). */
+struct FHubHUDPartyCard
+{
+	FText Name;
+	FLinearColor DotColor = FLinearColor::White;
+	/** 0..1; a member with no carried vitals (the hub) reads full. */
+	float HPShare = 1.0f;
 };
 
 struct FHubHUDMoney
@@ -64,6 +74,9 @@ namespace WoRHubHUD
 
 	/** B-463b (UIScreens #28): in a run, the tracked quest's "Title: current goal"; empty in the hub or with none. */
 	WORLD_OF_REFRACTION_API FText BuildQuestLine(const UWorld *World);
+
+	/** B-503g: the party strip, one card per member in party order (members with no data are left out). */
+	WORLD_OF_REFRACTION_API TArray<FHubHUDPartyCard> BuildPartyStrip(const UParty *Party);
 
 	WORLD_OF_REFRACTION_API FString GetHubHUDString(const UWorld *World);
 }

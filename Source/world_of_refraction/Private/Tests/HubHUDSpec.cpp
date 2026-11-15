@@ -7,6 +7,9 @@
 
 #include "Misc/AutomationTest.h"
 #include "Blueprint/UserWidget.h"
+#include "Character/CharacterData.h"
+#include "Infusion/ElementColors.h"
+#include "Party/Party.h"
 #include "Hub/InteractPrompt.h"
 #include "Memory/MemorySpot.h"
 #include "Trial/TrialRestSpot.h"
@@ -39,6 +42,39 @@ void FHubHUDSpec::Define()
 	AfterEach([this]()
 	{
 		TestWorld.Reset();
+	});
+
+	It("shows a party card per member: the element dot, the name, the carried HP (B-503g)", [this]()
+	{
+		UParty *Party = NewObject<UParty>(GetTransientPackage());
+		const auto AddMember = [Party](const TCHAR *Name, int32 CurrentHP) -> UCharacterData *
+		{
+			UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+			Data->Name = Name;
+			FPartyMember &Member = Party->Members.AddDefaulted_GetRef();
+			Member.CharacterData = Data;
+			Member.CurrentHP = CurrentHP;
+			return Data;
+		};
+		UCharacterData *Hub = AddMember(TEXT("Sera"), PartyConstants::NO_CARRIED_VITALS);
+		UCharacterData *Hurt = AddMember(TEXT("Bram"), 0);
+		Hurt->CharacterClass = ECharacterClass::Caster;
+		Hurt->InnateElement = ESpellElement::Fire;
+		Party->Members.Last().CurrentHP = Hurt->CalculateMaxHealth() / 2;
+		Party->Members.AddDefaulted(); // a member with no data shows no card
+
+		const TArray<FHubHUDPartyCard> Cards = WoRHubHUD::BuildPartyStrip(Party);
+		if (!TestEqual(TEXT("one card per member with data"), Cards.Num(), 2))
+		{
+			return;
+		}
+		TestEqual(TEXT("party order, the character's name"), Cards[0].Name.ToString(), Hub->Name);
+		TestEqual(TEXT("no carried vitals reads full"), Cards[0].HPShare, 1.0f);
+		TestEqual(TEXT("a non-Caster's dot is the generic colour"), Cards[0].DotColor, ElementColors::GetColorForElement(ESpellElement::Generic));
+		TestEqual(TEXT("a Caster's dot is its element's colour"), Cards[1].DotColor, ElementColors::GetColorForElement(ESpellElement::Fire));
+		TestEqual(TEXT("carried HP over max"), Cards[1].HPShare,
+				  static_cast<float>(Hurt->CalculateMaxHealth() / 2) / static_cast<float>(Hurt->CalculateMaxHealth()), UE_KINDA_SMALL_NUMBER);
+		TestEqual(TEXT("no party, no cards"), WoRHubHUD::BuildPartyStrip(nullptr).Num(), 0);
 	});
 
 	It("shows the money near a vendor, or for a few seconds after it changed", [this]()

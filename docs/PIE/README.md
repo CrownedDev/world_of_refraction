@@ -15,6 +15,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
+| [B-503g](B-503g.md) | `feature/B-503g-trial-hud-party-strip` (in dev, built 2026-11-15) | The mockup party strip (element dot, name, HP bar) bottom left on the hub and trial maps; the old debug party box hidden (`wor.UI.DebugPartyBox 1` shows it) | Pending |
 | [B-503f](B-503f.md) | `fix/B-503f-transition-timing-wall` (in dev, built 2026-11-15) | The battle transition back to B-500's quick timing (no slow start, no freeze beat) and a shard wall that fills the screen at any window shape. **Editor step first:** the data asset's values are in the sheet | Pending |
 | [B-503e](B-503e.md) | `fix/B-503e-field-input-in-code` (in dev, built 2026-11-15) | Left click attacks, a hold is the held attack, R cycles, on the trial map and in the hub, with no editor step (the field keys are made in code) | Pending |
 | [B-503d](B-503d.md) | `chore/B-503d-transition-ease-pulse-montage` (in dev, built 2026-11-15) | Blow Away Ease can go down to 0.3 (a fast start to the transition's fly-off); `wor.Editor.BuildFieldPulseMontage` builds the pulse's cast montage; the map character's Anim Blueprint already has the Default Slot. **Editor steps first** (in the sheet; the main checkout needs a rebuild with the editor closed) | Pending |

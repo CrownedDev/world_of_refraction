@@ -1,6 +1,7 @@
 // HubHUDWidget.h
 // B-443 (D-181, UIScreens #14, mockup screen_mockups/hub/hud/1_hub_hud_prompt.png): the hub and trial-map HUD's
-// two new pieces. The party strip stays the existing UPartyDisplayWidget.
+// pieces, and (B-503g) the party strip: an element dot, the name and an HP bar per member, bottom left. The old
+// UPartyDisplayWidget (the debug cards) is hidden unless wor.UI.DebugPartyBox shows it.
 //   - The interact prompt: key + verb + what, floating above the thing the player faces.
 //   - The money chip, top right: only near a vendor, or for a few seconds after the balance changed.
 // A plain viewport widget (not a CommonUI screen: it takes no input), created by AWoRHubController for the local
@@ -93,6 +94,19 @@ private:
 	TObjectPtr<UTextBlock> FieldAttackElement;
 	FTimerHandle FieldAttackTimer;
 	void HideFieldAttack();
+
+	/** B-503g: the party strip's cards, built once (PartyConstants::MAX_PARTY_MEMBERS), filled on Refresh. The
+	 *  widget tree owns them. */
+	struct FPartyCardWidgets
+	{
+		TObjectPtr<UWidget> Card;
+		TObjectPtr<class UImage> Dot;
+		TObjectPtr<UTextBlock> Name;
+		TObjectPtr<class UProgressBar> HP;
+	};
+	TArray<FPartyCardWidgets> PartyCards;
+	void BuildPartyStrip(class UCanvasPanel *Canvas);
+	void RefreshPartyStrip();
 
 	TWeakObjectPtr<UCurrencyComponent> BoundWallet;
 };

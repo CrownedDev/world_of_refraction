@@ -10,6 +10,8 @@
 // required, not optional, because CreateSoloParty's early-return on an existing
 // party does not broadcast, so a pure-reactive widget would miss state on hub
 // re-entry.
+//
+// B-503g: hidden by default (the hub HUD's party strip shows the party); wor.UI.DebugPartyBox 1 shows it.
 
 #pragma once
 
