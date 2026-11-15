@@ -1307,6 +1307,8 @@ The queue of questions only Crown can answer.
 - An infused one puts the element first: "Fire Sword and Shield", "Fire Dual Axes".
 - References: Monster Hunter names its classes "Sword and Shield" and "Dual Blades", and players read the class at a glance; Dark Souls and Elden Ring call two-handing a pair "dual wielding".
 - The wheel's slices name the weapon itself ("Arming Sword"), as the weapon wheels of Doom Eternal and GTA V name each weapon; the centre and the strip keep the type.
+- **B-513b (Crown):** a slice with a separate off-hand piece joins the two names: "Flame Sword and Void Shield", "Flame Sword and Excalibur"; the Equipment screen's entry row says the same (it read "A + B"). A single piece, a one-asset sword and shield included, shows its own name.
+- **One form for pairs: the plural, "Dual Swords"** (Crown said "dual sword"): "dual" names two things, and the plural reads naturally for every type ("Dual Axes", "Dual Daggers", "Dual Staves"), as Monster Hunter's "Dual Blades" and Diablo's "dual wield" lines do. "Dual Sword" is the singular Crown may prefer: it is one line to change in `WoRGameNames.cpp`.
 **Notes for Claude:** one place, `WoRGameNames::GetHeldWeaponTypeName`; the legacy loadout screen keeps its own "with shield" line (`GetWieldModeName`).
 
 ### Q-511 — The class default kit: its sockets, whose it is, the asset's name
