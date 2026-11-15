@@ -104,7 +104,7 @@ namespace BreakTable
 			Out += RowLine(Row);
 		}
 		// B-170d: what an action-pips fight reads instead.
-		Out += FString::Printf(TEXT("With wor.Turns.ActionPips 1 (%d rows differ)\n"), ActionPipsRows().Num());
+		Out += FString::Printf(TEXT("In a fight, with action pips (%d rows differ)\n"), ActionPipsRows().Num());
 		for (const FBreakRow &Row : ActionPipsRows())
 		{
 			Out += RowLine(Row);

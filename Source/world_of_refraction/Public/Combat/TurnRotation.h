@@ -1,6 +1,6 @@
 // TurnRotation.h
-// B-170b (ActionPips.md §3.2, Q-170d, Q-170f): the fixed turn rotation that replaces the speed timeline
-// when wor.Turns.ActionPips is 1. The sides alternate, the leading side first (the party, or the side
+// B-170b (ActionPips.md §3.2, Q-170d, Q-170f): the fixed turn rotation, every fight's turn order (B-170h2: the
+// speed timeline and its wor.Turns.ActionPips switch are deleted). The sides alternate, the leading side first (the party, or the side
 // that struck first): P1 E1 P2 E2 ... Within a side, slot order (party-screen order, enemy spawn slot).
 // A smaller side fills its empty seats in turn, and its rotation carries on across rounds (the
 // deckbuilder's turn belt, WoR_TCG_Pivot_Design.md §7c and §8 items 53-56): 4 heroes vs 1 boss plays
@@ -24,13 +24,6 @@ namespace TurnRotationConstants
 
 	/** The two sides of a fight (party, enemies). */
 	constexpr int32 SIDE_COUNT = 2;
-}
-
-namespace TurnRotation
-{
-	/** wor.Turns.ActionPips (default 1 since B-170h): 1 = the fixed rotation and banked actions (B-170), 0 = the old Turn
-	 *  Speed timeline until B-170h2 deletes it. UTurnManager reads it once per fight, at InitializeCombat. */
-	WORLD_OF_REFRACTION_API bool IsActionPipsOn();
 }
 
 /** One seat of the current round. bEmptySeat: a smaller side's extra turn (not the holder's own), which

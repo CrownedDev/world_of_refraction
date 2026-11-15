@@ -8,6 +8,7 @@
 // (an overloaded holder's energy moves at turn start, so the trigger's energy payout can't be
 // told apart there), so together they pin the whole chain.
 // ET-16: rituals ready together fire faster frozen spell speed first, ties in arming order.
+// B-170h2: runs on the fixed rotation (the speed timeline and its switch are deleted).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -163,14 +164,12 @@ BEGIN_DEFINE_SPEC(FTurnStartOrderSpec, "WoR.Combat.TurnStartOrder",
 		FireRecorder->Listen(Orchestrator);
 		return TestTrue(TEXT("Hero opens the duel"), Orchestrator->GetCurrentActor() == Hero);
 	}
-	TOptional<FWoRActionPipsSwitchScope> SpeedTimeline; // B-170h: this spec checks the old speed timeline
 END_DEFINE_SPEC(FTurnStartOrderSpec)
 
 void FTurnStartOrderSpec::Define()
 {
 	BeforeEach([this]()
 	{
-		SpeedTimeline.Emplace(WOR_TEST_SPEED_TIMELINE);
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		Orchestrator = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>() : nullptr;
@@ -189,7 +188,6 @@ void FTurnStartOrderSpec::Define()
 
 	AfterEach([this]()
 	{
-		SpeedTimeline.Reset();
 		if (Orchestrator && Orchestrator->GetCombatState() != ECombatState::Idle)
 		{
 			Orchestrator->ForceEndCombat();

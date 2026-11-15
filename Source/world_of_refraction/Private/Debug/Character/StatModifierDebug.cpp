@@ -124,7 +124,7 @@ FString UStatModifierDebug::GetStatsSnapshotString(AActor *Actor)
 	}
 	if (const USkillEffectManager *SEM = StatDebugSubsystem<USkillEffectManager>(Actor))
 	{
-		// Turn order's stat x buff layer, as TurnManager::CalculateSpeedRatios composes it
+		// Turn order's stat x buff layer, as TurnManager::BuildTurnSpeedLayers composes it
 		// (the attached TurnSpeedStone is left out).
 		if (const UCharacterData *CharData = Char->CharacterData)
 		{

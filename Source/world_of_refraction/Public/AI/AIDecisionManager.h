@@ -139,12 +139,9 @@ private:
     /** Forgets the last acted turn; at fight start and end (SetCombatOrchestrator / ClearCombatOrchestrator). */
     void ResetActedThisTurn();
 
-    /** The current fight plays action pips (wor.Turns.ActionPips 1 at its start). */
-    bool IsActionPipsFight() const;
-
-    /** In an action-pips fight, whether Actor's bank pays ActionCost now. A cost above the bank but within Max is
+    /** In a fight, whether Actor's bank pays ActionCost now. A cost above the bank but within Max is
      *  noted in PickNotes as the held pick when Score beats the one held; a cost above Max never counts. Always
-     *  true outside an action-pips fight (play unchanged). */
+     *  true outside a fight (a spec, a debug print). */
     bool CanPayActionsOrHold(AActor *Actor, int32 ActionCost, float Score);
 
     /** The spend-or-bank decision for Pick (AIActionPips::DecideSpendOrBank on PickNotes and Actor's bank). */

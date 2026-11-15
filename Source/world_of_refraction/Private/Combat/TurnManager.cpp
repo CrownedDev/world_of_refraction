@@ -78,7 +78,6 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 			NewCombatant.Actor = LocalParty[i];
 			NewCombatant.TeamIndex = 0;
 			NewCombatant.PositionInTeam = i;
-			NewCombatant.TurnsOwed = 0.0f;
 			NewCombatant.TurnsTaken = 0;
 			CacheActorStats(NewCombatant);
 			Combatants.Add(NewCombatant);
@@ -94,7 +93,6 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 			NewCombatant.Actor = OpposingParty[i];
 			NewCombatant.TeamIndex = 1;
 			NewCombatant.PositionInTeam = i;
-			NewCombatant.TurnsOwed = 0.0f;
 			NewCombatant.TurnsTaken = 0;
 			CacheActorStats(NewCombatant);
 			Combatants.Add(NewCombatant);
@@ -109,16 +107,12 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 
 	bCombatActive = true;
 
-	// B-170b: the mode is read once per fight, so flipping the switch mid-fight changes nothing until the next.
-	bRotationMode = TurnRotation::IsActionPipsOn();
+	// B-170b: the fixed rotation (B-170h2: the only turn order); OpeningTeam leads (first strike).
 	Rotation.Reset(OpeningTeam);
-	if (bRotationMode)
-	{
-		UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Fixed rotation (wor.Turns.ActionPips 1): lead team %d"), Rotation.LeadTeam);
-	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] Fixed rotation: lead team %d"), Rotation.LeadTeam);
 
 	// Liveness binds — TurnManager owns its invalidation: every combatant's REAL
-	// death/revive (CheckDeath / ServerResurrect broadcasts) recalcs speed ratios
+	// death/revive (CheckDeath / ServerResurrect broadcasts) updates the rotation
 	// without each death-site needing to know about us. AddUnique so a re-init
 	// can't double-bind. Mirrors WeatherStateManager's bind/unbind-per-member
 	// pattern; unbound in EndCombat.
@@ -130,9 +124,6 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &LocalParty, const TA
 			CharComp->OnResurrected.AddUniqueDynamic(this, &UTurnManager::OnActorResurrected);
 		}
 	}
-
-	// Calculate speed ratios (but don't add to TurnsOwed yet - that happens in AdvanceSimState)
-	CalculateSpeedRatios();
 
 	// B-185 first strike: the other side waits out the advantaged side's opening round.
 	if (OpeningTeam != INDEX_NONE)
@@ -185,7 +176,6 @@ void UTurnManager::EndCombat()
 	bCurrentTurnIsBonus = false;
 	CurrentTurnType = ETurnType::Normal;
 	CurrentTurnPayloadId = INDEX_NONE;
-	bRotationMode = false;
 	Rotation.Reset(INDEX_NONE);
 }
 
@@ -239,50 +229,6 @@ void UTurnManager::AdvanceToNextTurn()
 	RebuildBelt();
 
 	OnTurnStarted.Broadcast(CurrentActor, GlobalTurnCount);
-}
-
-// ========================================
-// CORRECTED: Only calculates ratios, doesn't add to TurnsOwed
-// ========================================
-void UTurnManager::CalculateSpeedRatios()
-{
-	if (Combatants.Num() == 0)
-		return;
-
-	// Effective speed is computed on the fly each call (GetEffectiveTurnSpeed over the entry's CachedSpeed), so
-	// OnActorDied / OnActorResurrected, which invoke CalculateSpeedRatios without a fresh CacheActorStats, don't
-	// compound. CachedSpeed remains the pristine base. Through the getter, so turn order reads GAS at UseGAS 1 (B-042yc).
-	auto GetEffectiveSpeed = [this](const FCombatantTurnDebt &Combatant) -> int32
-	{
-		float OnGAS = 0.0f;
-		if (UWoRAttributeSyncComponent::ReadComposedOnGAS(Combatant.Actor, UWoRAttributeSet_Stats::GetTurnSpeedAttribute(), OnGAS))
-		{
-			return FMath::RoundToInt(OnGAS);
-		}
-		return EffectiveTurnSpeedOf(Combatant.Actor, Combatant.CachedSpeed);
-	};
-
-	// Find slowest effective speed among living combatants.
-	int32 SlowestSpeed = INT_MAX;
-	for (const FCombatantTurnDebt &Combatant : Combatants)
-	{
-		UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
-		if (CharComp && CharComp->bIsAlive)
-		{
-			SlowestSpeed = FMath::Min(SlowestSpeed, GetEffectiveSpeed(Combatant));
-		}
-	}
-
-	if (SlowestSpeed <= 0 || SlowestSpeed == INT_MAX)
-		SlowestSpeed = 1;
-
-	// Calculate speed ratios from effective speed (slowest = 1.0, others higher).
-	for (FCombatantTurnDebt &Combatant : Combatants)
-	{
-		const int32 Effective = GetEffectiveSpeed(Combatant);
-		const float Ratio = (Effective > 0) ? (float)Effective / (float)SlowestSpeed : 1.0f;
-		Combatant.SpeedRatio = FMath::Min(Ratio, (float)CombatConstants::MAX_TURN_RATIO); // D-049: 2 turns per turn of the slowest
-	}
 }
 
 bool UTurnManager::BuildTurnSpeedLayers(const AActor *Actor, int32 CachedSpeed, FWoRStatLayers &OutLayers) const
@@ -358,59 +304,16 @@ USkillEffectManager *UTurnManager::GetSkillEffectManager() const
 
 void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 {
-	if (!Actor) return;
-
-	// Cluster 2b: bonus turns are pinned belt entries (ScheduleBonusTurn), not debt
-	// credits. The bonus path here is retired; the param survives only so existing
-	// call sites compile. True is a no-op so a stray call can't silently re-create
-	// the old debt-soft bonus behaviour.
-	if (bIsBonusTurn)
-	{
-		UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] RequestExtraTurn(bIsBonusTurn=true) for %s ignored — use ScheduleBonusTurn for bonuses"),
-			   *Actor->GetName());
-		return;
-	}
-
-	for (FCombatantTurnDebt &Combatant : Combatants)
-	{
-		if (Combatant.Actor == Actor)
-		{
-			Combatant.TurnsOwed += 1.0f;
-			UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
-				   *Actor->GetName(), Combatant.TurnsOwed);
-			return;
-		}
-	}
-	UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] RequestExtraTurn: %s not in current combat"),
-		   *Actor->GetName());
+	// OBSOLETE (B-341, B-170h2): the turn debt this credited went with the speed timeline; GrantBonusTurn grants.
+	UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] RequestExtraTurn(%s, %s) ignored: use GrantBonusTurn"), *GetNameSafe(Actor),
+		   bIsBonusTurn ? TEXT("bonus") : TEXT("normal"));
 }
 
 void UTurnManager::DelayNextTurn(AActor *Actor, int32 Places)
 {
-	if (!Actor || Places <= 0)
-	{
-		return;
-	}
-	if (bRotationMode)
-	{
-		// B-170b (ActionPips.md §3.2): no place delays in the fixed rotation; Wind's break takes an action (B-170d).
-		UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] DelayNextTurn(%s, %d) ignored: fixed rotation"), *Actor->GetName(), Places);
-		return;
-	}
-
-	for (FCombatantTurnDebt &Combatant : Combatants)
-	{
-		if (Combatant.Actor == Actor)
-		{
-			Combatant.PlacesToYield += Places;
-			UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s's next turn moves back %d place(s)"), *Actor->GetName(), Places);
-			// The strip reads the belt; rebuild it so the delay shows now, not next turn.
-			RebuildBelt();
-			OnSpeedChanged.Broadcast(Actor);
-			return;
-		}
-	}
-	UE_LOG(LogWoRCombat, Warning, TEXT("[TurnManager] DelayNextTurn: %s not in current combat"), *Actor->GetName());
+	// OBSOLETE (B-170h2): no place delays in the fixed rotation (ActionPips.md §3.2); Wind's break takes an action
+	// instead (B-170d).
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] DelayNextTurn(%s, %d) ignored: fixed rotation"), *GetNameSafe(Actor), Places);
 }
 
 void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count)
@@ -510,45 +413,6 @@ int32 UTurnManager::GetTurnsToSkip(const AActor *Actor) const
 	return Entry ? Entry->TurnsToSkip : 0;
 }
 
-bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const
-{
-	// B-341 (D-133, Q-341): three steps. The old action speed / underdog total / Body / Mind / Spirit
-	// steps are retired (their cached fields stay, OBSOLETE (B-341), until PIE).
-
-	// Step 1: higher base turn speed (buffs ignored).
-	if (A.CachedSpeed != B.CachedSpeed)
-		return A.CachedSpeed > B.CachedSpeed;
-
-	// Step 2: your party before enemies.
-	if (A.TeamIndex != B.TeamIndex)
-		return A.TeamIndex < B.TeamIndex;
-
-	// Step 3: the lower slot.
-	return A.PositionInTeam < B.PositionInTeam;
-}
-
-bool UTurnManager::ShouldBreakTieInFavorEightStep(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const
-{
-	// OBSOLETE (B-341): the 8-step chain ShouldBreakTieInFavor used before D-133. Unused; remove after PIE.
-	if (A.CachedSpeed != B.CachedSpeed)
-		return A.CachedSpeed > B.CachedSpeed;
-	if (A.CachedActionSpeed != B.CachedActionSpeed)
-		return A.CachedActionSpeed > B.CachedActionSpeed;
-	const int32 TotalA = A.CachedMind + A.CachedBody + A.CachedSpirit;
-	const int32 TotalB = B.CachedMind + B.CachedBody + B.CachedSpirit;
-	if (TotalA != TotalB)
-		return TotalA < TotalB; // the underdog
-	if (A.CachedBody != B.CachedBody)
-		return A.CachedBody > B.CachedBody;
-	if (A.CachedMind != B.CachedMind)
-		return A.CachedMind > B.CachedMind;
-	if (A.CachedSpirit != B.CachedSpirit)
-		return A.CachedSpirit > B.CachedSpirit;
-	if (A.TeamIndex != B.TeamIndex)
-		return A.TeamIndex < B.TeamIndex;
-	return A.PositionInTeam < B.PositionInTeam;
-}
-
 int32 UTurnManager::ComputeCachedTurnSpeed(const AActor *Actor) const
 {
 	UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Actor);
@@ -586,23 +450,10 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 	{
 		UCharacterData *CharData = CharComp->CharacterData;
 		Combatant.CachedSpeed = ComputeCachedTurnSpeed(Combatant.Actor);
-
-		Combatant.CachedActionSpeed = CharData->GetTotalActionSpeed();
-		// §7 C2: turn-order tiebreak reads the LIVE world stats (asset + head-start + earned), not the
-		// asset's authored levels. ⚠️ Cached at combat init — mid-combat earn won't update the tiebreak
-		// until a recache (next encounter). Acceptable (earn applies next encounter); flagged for awareness.
-		Combatant.CachedMind = CharComp->GetWorldMind();
-		Combatant.CachedBody = CharComp->GetWorldBody();
-		Combatant.CachedSpirit = CharComp->GetWorldSpirit();
 	}
 	else
 	{
-		// Fallback defaults for testing
-		Combatant.CachedSpeed = TURN_SPEED_FALLBACK;
-		Combatant.CachedActionSpeed = 5;
-		Combatant.CachedMind = 3;
-		Combatant.CachedBody = 3;
-		Combatant.CachedSpirit = 3;
+		Combatant.CachedSpeed = TURN_SPEED_FALLBACK; // no character data (tests)
 	}
 }
 
@@ -613,12 +464,7 @@ void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 		if (Combatant.Actor == Actor)
 		{
 			CacheActorStats(Combatant);
-			// Recalculate all ratios since relative speeds changed. B-170b: speed doesn't move turns in the fixed
-			// rotation, but the broadcast still runs (the GAS attribute sync listens to it).
-			if (!bRotationMode)
-			{
-				CalculateSpeedRatios();
-			}
+			// Speed doesn't move turns in the fixed rotation; the broadcast still runs (the GAS attribute sync listens).
 			OnSpeedChanged.Broadcast(Actor);
 			return;
 		}
@@ -628,31 +474,24 @@ void UTurnManager::OnActorSpeedChanged(AActor *Actor)
 void UTurnManager::OnActorDied(AActor *Actor)
 {
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s died"), *GetNameSafe(Actor));
-	// A Wind delay dies with its holder; a revived holder starts undelayed.
 	// B-341 (D-133, the turn belt): death purges the holder's turns: its skips and its bonus turns
 	// (a ritual's Execution turn keeps its own fire-time check, ET-16).
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
 		if (Combatant.Actor == Actor)
 		{
-			Combatant.PlacesToYield = 0;
 			Combatant.TurnsToSkip = 0;
 		}
 	}
-	if (bRotationMode)
-	{
-		// B-170b: its own seats this round go; its empty seats pass to the next living teammate.
-		Rotation.OnCombatantDied(Combatants, Combatants.IndexOfByPredicate([Actor](const FCombatantTurnDebt &Combatant)
-																		   { return Combatant.Actor == Actor; }));
-	}
+	// B-170b: its own seats this round go; its empty seats pass to the next living teammate.
+	Rotation.OnCombatantDied(Combatants, Combatants.IndexOfByPredicate([Actor](const FCombatantTurnDebt &Combatant)
+																	   { return Combatant.Actor == Actor; }));
 	const int32 Purged = PendingTurns.RemoveAll([Actor](const FScheduledTurn &Entry)
 												{ return Entry.Actor == Actor && Entry.Type == ETurnType::Bonus; });
 	if (Purged > 0)
 	{
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[TurnManager] %s's %d bonus turn(s) purged by death"), *GetNameSafe(Actor), Purged);
 	}
-	// Recalculate ratios since the slowest combatant might have changed
-	CalculateSpeedRatios();
 	if (bCombatActive)
 	{
 		RebuildBelt();
@@ -662,20 +501,15 @@ void UTurnManager::OnActorDied(AActor *Actor)
 void UTurnManager::OnActorResurrected(AActor *Actor)
 {
 	UE_LOG(LogWoRCombat, Log, TEXT("[TurnManager] %s resurrected"), *GetNameSafe(Actor));
-	// B-341 (D-133, Q-341d): a revive re-enters the holder from the next round: nothing owed
-	// now (no catch-up turn), no streak toward the 2:1 cap, no leftover delay or skip.
+	// B-341 (D-133, Q-341d): a revive re-enters the holder from the next round (the rotation seats it there), with no
+	// leftover skip.
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
 		if (Combatant.Actor == Actor)
 		{
-			Combatant.TurnsOwed = static_cast<float>(Combatant.TurnsTaken);
-			Combatant.TurnsSinceOpponent = 0;
-			Combatant.PlacesToYield = 0;
 			Combatant.TurnsToSkip = 0;
 		}
 	}
-	// Recalculate ratios since the slowest combatant might have changed
-	CalculateSpeedRatios();
 	if (bCombatActive)
 	{
 		RebuildBelt();
@@ -711,9 +545,9 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	// (RebuildBelt, scratch state) both run through here — the only place a turn is
 	// selected. Deliberately log-free: RebuildBelt replays it 16x per rebuild.
 
-	// Pinned-fire (Cluster 2b + Execution W-A) — BEFORE the debt machinery. A ready entry
-	// (TurnsRemaining <= 0) preempts the debt pick: the pinned turn lands at its guaranteed
-	// slot regardless of debt. Bonus entries keep FIFO by Pending order. Among ready EXECUTION
+	// Pinned-fire (Cluster 2b + Execution W-A) — BEFORE the rotation's seat. A ready entry
+	// (TurnsRemaining <= 0) preempts the next seat: the pinned turn lands at its guaranteed
+	// slot. Bonus entries keep FIFO by Pending order. Among ready EXECUTION
 	// entries, the highest SortKey (frozen spell speed) fires first — so directly-adjacent
 	// ritual Execution turns resolve fastest-first (ties -> FIFO). At most ONE entry fires per
 	// call. ALL TURNS COUNT (a turn is a turn): a fired pinned turn STILL burns one unit of delay
@@ -753,28 +587,6 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		return Debt && Debt->bWaitsForOpening;
 	};
 
-	// D-049: counts each turn toward the 2:1 cap; the other side's counts restart when this one acts.
-	auto RecordTurnFor = [&State](const AActor *Actor)
-	{
-		const FCombatantTurnDebt *Taker = State.FindByPredicate([Actor](const FCombatantTurnDebt &C) { return C.Actor == Actor; });
-		if (!Taker)
-		{
-			return;
-		}
-		const int32 Team = Taker->TeamIndex;
-		for (FCombatantTurnDebt &Combatant : State)
-		{
-			if (Combatant.Actor == Actor)
-			{
-				Combatant.TurnsSinceOpponent++;
-			}
-			else if (Combatant.TeamIndex != Team)
-			{
-				Combatant.TurnsSinceOpponent = 0;
-			}
-		}
-	};
-
 	int32 WinnerIdx = INDEX_NONE;
 	for (int32 p = 0; p < Pending.Num(); ++p)
 	{
@@ -804,7 +616,7 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		AActor *PinnedActor = Winner.Actor;
 
 		// B-341: a skip removes the holder's next turn, a bonus one included (not a ritual's
-		// Execution turn). The removed turn never happens: no cap count, no delay burn; pick again.
+		// Execution turn). The removed turn never happens: no delay burn; pick again.
 		if (Winner.Type == ETurnType::Bonus)
 		{
 			FCombatantTurnDebt *Holder = State.FindByPredicate([PinnedActor](const FCombatantTurnDebt &C) { return C.Actor == PinnedActor; });
@@ -831,13 +643,8 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 			Pending.RemoveAt(WinnerIdx);
 		}
 
-		// D-052 (Crown, A): an Emerald bonus turn is a real extra turn, so it isn't counted as taken and no later
-		// normal turn is lost. Other pinned turns (Execution) still count as taken, costing one slot of future
-		// normal priority. (Winner may be gone after RemoveAt; OutEntry.Type holds its type.)
-		// Q-297 (Crown, A): Emerald bonus turns ignore the 2:1 cap, so an S Emerald's two turns stay back to back (ET-12).
-		// Execution turns skip the cap too (code only, no ruling). Every pinned turn still counts toward the holder's
-		// TurnsSinceOpponent, so the next normal turn waits for an opponent.
-		RecordTurnFor(PinnedActor);
+		// D-052 (Crown, A): an Emerald bonus turn is a real extra turn, so it isn't counted as taken. Other pinned
+		// turns (Execution) still count as taken. (Winner may be gone after RemoveAt; OutEntry.Type holds its type.)
 		if (OutEntry.Type != ETurnType::Bonus)
 		{
 			for (FCombatantTurnDebt &Combatant : State)
@@ -866,180 +673,24 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		return true;
 	}
 
-	// B-170b (ActionPips.md §3.2, Q-170d): the fixed rotation replaces the speed pick, the 2:1 cap, the
-	// tie-break and the Wind yield. Pinned turns above stay as built: they don't take a rotation seat.
-	if (bRotationMode)
-	{
-		const int32 PickedIndex = RotationState.PickNext(State, bOutRoundAdded);
-		if (PickedIndex == INDEX_NONE)
-		{
-			return false;
-		}
-		FCombatantTurnDebt &Picked = State[PickedIndex];
-		OutEntry.Actor = Picked.Actor;
-		OutEntry.bIsBonusTurn = false;
-		OutEntry.bIsForced = false;
-		OutEntry.Type = ETurnType::Normal;
-		OutEntry.PayloadId = INDEX_NONE;
-		Picked.TurnsTaken++;
-		for (FScheduledTurn &Entry : Pending)
-		{
-			Entry.TurnsRemaining--; // all turns count, as below
-		}
-		return true;
-	}
-
-	// Check if we need a new round
-	float MaxNetDebt = -FLT_MAX;
-	for (const FCombatantTurnDebt &Combatant : State)
-	{
-		UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
-		if (CharComp && CharComp->bIsAlive)
-		{
-			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-			MaxNetDebt = FMath::Max(MaxNetDebt, NetDebt);
-		}
-	}
-
-	// If no one has positive debt, add a round — LIVING combatants only. Dead actors
-	// don't accrue debt (no revive catch-up turn-burst): a revived actor re-enters
-	// near its death-time net debt. Same live bIsAlive read as the selection below.
-	if (MaxNetDebt <= KINDA_SMALL_NUMBER)
-	{
-		if (bOutRoundAdded)
-		{
-			*bOutRoundAdded = true;
-		}
-		for (FCombatantTurnDebt &Combatant : State)
-		{
-			UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
-			if (CharComp && CharComp->bIsAlive)
-			{
-				Combatant.TurnsOwed += Combatant.SpeedRatio;
-			}
-		}
-	}
-
-	// B-185 first strike: the opening round is over once no living combatant of the advantaged
-	// side still owes a turn (all of them acted, or fell); then everyone is picked as usual.
-	bool bAnyWaiting = false;
-	bool bOpeningSideOwes = false;
-	for (const FCombatantTurnDebt &Combatant : State)
-	{
-		UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
-		if (!CharComp || !CharComp->bIsAlive)
-			continue;
-		if (Combatant.bWaitsForOpening)
-		{
-			bAnyWaiting = true;
-		}
-		else if (Combatant.TurnsOwed - Combatant.TurnsTaken > KINDA_SMALL_NUMBER)
-		{
-			bOpeningSideOwes = true;
-		}
-	}
-	if (bAnyWaiting && !bOpeningSideOwes)
-	{
-		for (FCombatantTurnDebt &Combatant : State)
-		{
-			Combatant.bWaitsForOpening = false;
-		}
-		bAnyWaiting = false;
-	}
-
-	// Find highest debt (optionally skipping one combatant: the one yielding its place)
-	// bRespectCap: skip combatants at the 2:1 cap (D-049); the caller falls back without it when nobody else can act.
-	auto PickHighestDebt = [this, &State](const FCombatantTurnDebt *Skip, bool bRespectCap) -> FCombatantTurnDebt *
-	{
-		FCombatantTurnDebt *Best = nullptr;
-		float HighestDebt = -FLT_MAX;
-
-		for (FCombatantTurnDebt &Combatant : State)
-		{
-			if (&Combatant == Skip || Combatant.bWaitsForOpening)
-				continue;
-			if (bRespectCap && Combatant.TurnsSinceOpponent >= CombatConstants::MAX_TURN_RATIO)
-				continue;
-
-			UCharacterDataComponent *CharComp = TurnManagerComponentOf<UCharacterDataComponent>(Combatant.Actor);
-			if (!CharComp || !CharComp->bIsAlive)
-				continue;
-
-			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-
-			if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
-			{
-				HighestDebt = NetDebt;
-				Best = &Combatant;
-			}
-			else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
-			{
-				if (Best && ShouldBreakTieInFavor(Combatant, *Best))
-				{
-					Best = &Combatant;
-				}
-			}
-		}
-		return Best;
-	};
-
-	FCombatantTurnDebt *NextCombatant = PickHighestDebt(nullptr, /*bRespectCap=*/true);
-	if (!NextCombatant)
-	{
-		NextCombatant = PickHighestDebt(nullptr, /*bRespectCap=*/false); // only capped combatants can act
-	}
-	if (!NextCombatant)
+	// B-170b (ActionPips.md §3.2, Q-170d): the fixed rotation's next seat. B-170h2: the speed pick, the 2:1 cap, the
+	// tie-break and the Wind yield are deleted. Pinned turns above don't take a rotation seat.
+	const int32 PickedIndex = RotationState.PickNext(State, bOutRoundAdded);
+	if (PickedIndex == INDEX_NONE)
 	{
 		return false;
 	}
-
-	// Wind break (D-014): a delayed combatant gives this pick to the next in line, once per
-	// place. Alone on the field, it keeps the turn (and the yield) — nobody to step behind.
-	// During a first-strike opening the delay waits: yielding would hand a teammate who already
-	// acted an extra opening turn, never move the delayed one behind the waiting side.
-	if (NextCombatant->PlacesToYield > 0 && !bAnyWaiting)
-	{
-		// The next in line goes even if it has used this round's turns: in a 1v1 that is the
-		// only way to move back a place. Within the 2:1 cap (D-049, Q-297b): when everyone else is
-		// at the cap, the place is spent without moving (the cap eats it), so no delay waits forever.
-		if (FCombatantTurnDebt *NextInLine = PickHighestDebt(NextCombatant, /*bRespectCap=*/true))
-		{
-			NextCombatant->PlacesToYield--;
-			NextCombatant = NextInLine;
-		}
-		else if (PickHighestDebt(NextCombatant, /*bRespectCap=*/false))
-		{
-			NextCombatant->PlacesToYield--;
-		}
-	}
-
-	// B-341: a skip removes this pick. The turn is used up (taken) without happening: no cap
-	// count, no delay burn; pick again.
-	if (NextCombatant->TurnsToSkip > 0)
-	{
-		NextCombatant->TurnsToSkip--;
-		NextCombatant->TurnsTaken++;
-		return AdvanceSimState(State, Pending, RotationState, OutEntry, bOutRoundAdded);
-	}
-
-	// Record the slot — a NORMAL turn. Bonus identity now comes solely from the
-	// pinned-fire step above; the debt pick never flags.
-	OutEntry.Actor = NextCombatant->Actor;
+	FCombatantTurnDebt &Picked = State[PickedIndex];
+	OutEntry.Actor = Picked.Actor;
 	OutEntry.bIsBonusTurn = false;
 	OutEntry.bIsForced = false;
 	OutEntry.Type = ETurnType::Normal;
-	OutEntry.PayloadId = INDEX_NONE; // a debt pick carries no payload
-	NextCombatant->TurnsTaken++;
-	RecordTurnFor(NextCombatant->Actor);
-
-	// Delay countdown (all turns count): a turn was picked, so every pending entry burns one
-	// turn of delay. The pinned-fire path above now runs the same burn (skipping only its
-	// just-fired entry) — every turn type decrements pending delay; a turn is a turn.
+	OutEntry.PayloadId = INDEX_NONE;
+	Picked.TurnsTaken++;
 	for (FScheduledTurn &Entry : Pending)
 	{
-		Entry.TurnsRemaining--;
+		Entry.TurnsRemaining--; // all turns count: every pending entry burns one turn of delay
 	}
-
 	return true;
 }
 
@@ -1072,18 +723,14 @@ void UTurnManager::DebugPrintTurnOrder()
 		UE_LOG(LogWoRCombat, Display, TEXT("Current Actor: %s"), *CurrentActor->GetName());
 	}
 
-	UE_LOG(LogWoRCombat, Display, TEXT("\nCombatant Debt Status:"));
+	UE_LOG(LogWoRCombat, Display, TEXT("\nCombatants:"));
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
-		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f, InARow=%d, Skips=%d%s"),
+		UE_LOG(LogWoRCombat, Display, TEXT("  %s: Team=%d, Slot=%d, Taken=%d, Skips=%d%s"),
 			   *GetNameSafe(Combatant.Actor),
-			   Combatant.CachedSpeed,
-			   Combatant.SpeedRatio,
-			   Combatant.TurnsOwed,
+			   Combatant.TeamIndex,
+			   Combatant.PositionInTeam,
 			   Combatant.TurnsTaken,
-			   NetDebt,
-			   Combatant.TurnsSinceOpponent,
 			   Combatant.TurnsToSkip,
 			   Combatant.bWaitsForOpening ? TEXT(" [WAITS: first strike]") : TEXT(""));
 	}
@@ -1102,11 +749,7 @@ void UTurnManager::DebugPrintTurnOrder()
 
 FString UTurnManager::GetTurnModeString() const
 {
-	if (!bRotationMode)
-	{
-		return TEXT("Mode: speed timeline (wor.Turns.ActionPips 0 at fight start)");
-	}
-	return FString::Printf(TEXT("Mode: fixed rotation (wor.Turns.ActionPips 1 at fight start). %s"), *Rotation.ToString(Combatants));
+	return FString::Printf(TEXT("Mode: fixed rotation. %s"), *Rotation.ToString(Combatants));
 }
 
 FString UTurnManager::GetPendingTurnsString() const
