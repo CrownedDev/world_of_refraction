@@ -474,8 +474,7 @@ TOptional<EItemTier> UActionExecutor::ResolveChannelTier(AActor *Actor, const FA
 	case ESpellSource::WeaponCrystal:
 	{
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		UObject *Holder = LC ? LC->FindSpellCatalystHolder(Action.SpellData) : nullptr;
-		FRuntimeAttachedItem *Attachment = Holder ? LC->FindAttachedItemByHolder(Holder) : nullptr;
+		FRuntimeAttachedItem *Attachment = LC ? LC->FindSpellCatalystAttachment(Action.SpellData) : nullptr; // B-516: by the entry
 		if (!Attachment || Attachment->IsEmpty())
 		{
 			return TOptional<EItemTier>();

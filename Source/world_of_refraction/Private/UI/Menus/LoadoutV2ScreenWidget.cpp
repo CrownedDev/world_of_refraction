@@ -2139,6 +2139,59 @@ FText ULoadoutV2ScreenWidget::GetSlotValue(ELoadoutV2Slot GearSlot) const
 	}
 }
 
+namespace LoadoutV2DraftSocket
+{
+	/** B-516: a new entry's piece is not in the loadout yet, so its sockets are read off a copy with the draft in
+	 *  (Preview, the budget the socket lines count against). Empty on success; else why it can't be socketed yet. */
+	FText FindDraftRow(const FCombatLoadout &Active, ECharacterClass Class, const FLoadoutV2Draft &Draft, FCombatLoadout &OutPreview, FLoadoutScreenRow &OutRow)
+	{
+		const bool bAdapter = Draft.Kind == ELoadoutV2DraftKind::Adapter;
+		const FGuid PieceID = bAdapter ? Draft.Adapter.PersistentID : Draft.Kind == ELoadoutV2DraftKind::Weapon ? Draft.MainHand.PersistentID : FGuid();
+		if (!PieceID.IsValid())
+		{
+			return LOCTEXT("SocketPickPieceFirst", "Pick the piece first.");
+		}
+		OutPreview = Active;
+		FText Refusal;
+		if (!WoRLoadoutV2::ApplyDraft(OutPreview, Class, Draft, Refusal))
+		{
+			return Refusal;
+		}
+		const ELoadoutScreenRowKind Kind = bAdapter ? ELoadoutScreenRowKind::Adapter : ELoadoutScreenRowKind::Weapon;
+		const FLoadoutScreenPage Preview = WoRLoadoutScreen::BuildGearPage(OutPreview, Class);
+		const FLoadoutScreenRow *Found = Preview.Rows.FindByPredicate([Kind, &PieceID](const FLoadoutScreenRow &Row) { return Row.Kind == Kind && Row.GearID == PieceID; });
+		if (!Found)
+		{
+			return LOCTEXT("SocketPickPieceFirst", "Pick the piece first.");
+		}
+		OutRow = *Found;
+		return FText::GetEmpty();
+	}
+
+	/** The draft's piece read again from the owned copy once its socket changed (the sockets are the piece's, Q-476c). */
+	void RereadPiece(const UInventoryComponent &Inventory, FLoadoutV2Draft &Draft)
+	{
+		if (Draft.Kind == ELoadoutV2DraftKind::Adapter)
+		{
+			if (const FRingInventoryEntry *Owned = Inventory.FindOwnedRing(Draft.Adapter.PersistentID))
+			{
+				Draft.Adapter = *Owned;
+				Draft.Socket1 = Owned->AttachedItem;
+				Draft.Socket2 = Owned->StoneSocket;
+			}
+		}
+		else if (Draft.Kind == ELoadoutV2DraftKind::Weapon)
+		{
+			if (const FWeaponInventoryEntry *Owned = Inventory.FindOwnedWeapon(Draft.MainHand.PersistentID))
+			{
+				Draft.MainHand = *Owned;
+				Draft.Socket1 = Owned->AttachedItem;
+				Draft.Socket2 = Owned->StoneSocket;
+			}
+		}
+	}
+}
+
 bool ULoadoutV2ScreenWidget::FindScreenRow(FLoadoutScreenRow &OutRow) const
 {
 	if (!bEditing || !Members.IsValidIndex(MemberIndex))
@@ -2329,12 +2382,14 @@ void ULoadoutV2ScreenWidget::BuildItems()
 	{
 		const int32 Socket = Slots[SlotIndex] == ELoadoutV2Slot::Socket1 ? LoadoutScreenSockets::CRYSTAL : LoadoutScreenSockets::STONE;
 		FLoadoutScreenRow Row;
-		if (!FindScreenRow(Row))
+		FCombatLoadout Preview;
+		const bool bNewEntry = !FindScreenRow(Row);
+		const FText NotYet = bNewEntry ? LoadoutV2DraftSocket::FindDraftRow(*Active, Class, Draft, Preview, Row) : FText::GetEmpty();
+		if (!NotYet.IsEmpty())
 		{
-			// A new entry: its sockets are the picked piece's own; they change once it is in (A Edit on the entry).
 			FLoadoutV2WindowItem &Note = Items.AddDefaulted_GetRef();
 			Note.Name = AttachmentText(Socket == LoadoutScreenSockets::CRYSTAL ? Draft.Socket1 : Draft.Socket2);
-			Note.Refusal = LOCTEXT("SocketAfterIn", "Comes with the piece. Once the entry is in, A Edit on it changes its sockets.");
+			Note.Refusal = NotYet;
 			return;
 		}
 		if (Row.Sockets.IsValidIndex(Socket) && !Row.Sockets[Socket].bEmpty)
@@ -2343,7 +2398,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.bEquipped = true;
 			Equipped.Name = Row.Sockets[Socket].Name;
 			Equipped.Line = Row.Sockets[Socket].Label;
-			Equipped.Socket.Attachment = Socket == LoadoutScreenSockets::CRYSTAL ? Current.Socket1 : Current.Socket2; // B-484: for the box
+			const FLoadoutV2Draft &Piece = bNewEntry ? Draft : Current;
+			Equipped.Socket.Attachment = Socket == LoadoutScreenSockets::CRYSTAL ? Piece.Socket1 : Piece.Socket2; // B-484: for the box
 			if (bRemoveArmed)
 			{
 				FText Refusal;
@@ -2351,7 +2407,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 				Equipped.Refusal = Refusal;
 			}
 		}
-		for (const FLoadoutScreenChoice &Choice : WoRLoadoutScreen::BuildSocketChoices(GetWorld(), Members[MemberIndex], Row, Socket))
+		for (const FLoadoutScreenChoice &Choice : WoRLoadoutScreen::BuildSocketChoices(GetWorld(), Members[MemberIndex], Row, Socket, bNewEntry ? &Preview : nullptr))
 		{
 			FLoadoutV2WindowItem &Item = Items.AddDefaulted_GetRef();
 			Item.Socket = Choice;
@@ -2438,8 +2494,14 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 	if (GearSlot == ELoadoutV2Slot::Socket1 || GearSlot == ELoadoutV2Slot::Socket2)
 	{
 		const int32 Socket = GearSlot == ELoadoutV2Slot::Socket1 ? LoadoutScreenSockets::CRYSTAL : LoadoutScreenSockets::STONE;
+		ULoadoutComponent *Loadout = nullptr;
+		UInventoryComponent *Inventory = nullptr;
+		const FCombatLoadout *Active = nullptr;
 		FLoadoutScreenRow Row;
-		if (!FindScreenRow(Row))
+		FCombatLoadout Preview;
+		const bool bNewEntry = !FindScreenRow(Row);
+		if (!FindActive(Loadout, Inventory, Active) ||
+			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, Preview, Row).IsEmpty()))
 		{
 			return;
 		}
@@ -2457,13 +2519,16 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 		Message = WoRLoadoutScreen::TakeOffSocket(GetWorld(), Members[MemberIndex], Row, Socket);
 		if (Message.IsEmpty())
 		{
-			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: socket %d of %s emptied"), *Members[MemberIndex].Name.ToString(), Socket + 1, *EditEntry.Name.ToString());
-			ULoadoutComponent *Loadout = nullptr;
-			UInventoryComponent *Inventory = nullptr;
-			const FCombatLoadout *Active = nullptr;
-			if (FindActive(Loadout, Inventory, Active))
+			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: socket %d of %s emptied"), *Members[MemberIndex].Name.ToString(), Socket + 1,
+				   bNewEntry ? *Row.Name.ToString() : *EditEntry.Name.ToString());
+			// The piece changed: read its sockets again.
+			if (bNewEntry)
 			{
-				Draft = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry); // the piece changed: read its sockets again
+				LoadoutV2DraftSocket::RereadPiece(*Inventory, Draft);
+			}
+			else
+			{
+				Draft = WoRLoadoutV2::DraftFromEntry(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], EditEntry);
 			}
 		}
 		RefreshData();
@@ -2514,20 +2579,29 @@ void ULoadoutV2ScreenWidget::ConfirmWindow()
 	if (Mode == ELoadoutV2Mode::WindowItems && Items.IsValidIndex(PickedSocket) && Slots.IsValidIndex(SlotIndex))
 	{
 		const int32 Socket = Slots[SlotIndex] == ELoadoutV2Slot::Socket1 ? LoadoutScreenSockets::CRYSTAL : LoadoutScreenSockets::STONE;
+		ULoadoutComponent *Loadout = nullptr;
+		UInventoryComponent *Inventory = nullptr;
+		const FCombatLoadout *Active = nullptr;
 		FLoadoutScreenRow Row;
-		if (!FindScreenRow(Row))
+		FCombatLoadout Preview;
+		const bool bNewEntry = !FindScreenRow(Row);
+		if (!FindActive(Loadout, Inventory, Active) ||
+			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, Preview, Row).IsEmpty()))
 		{
 			return;
 		}
 		Message = WoRLoadoutScreen::ApplySocketChoice(GetWorld(), Members[MemberIndex], Row, Socket, Items[PickedSocket].Socket);
 		if (Message.IsEmpty())
 		{
+			// B-516: a new entry's piece is socketed as it waits in the window; the entry goes in on Y Confirm.
 			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: %s socketed into %s"), *Members[MemberIndex].Name.ToString(), *Items[PickedSocket].Name.ToString(),
-				   *EditEntry.Name.ToString());
-			ULoadoutComponent *Loadout = nullptr;
-			UInventoryComponent *Inventory = nullptr;
-			const FCombatLoadout *Active = nullptr;
-			if (FindActive(Loadout, Inventory, Active))
+				   bNewEntry ? *Row.Name.ToString() : *EditEntry.Name.ToString());
+			Active = &Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			if (bNewEntry)
+			{
+				LoadoutV2DraftSocket::RereadPiece(*Inventory, Draft);
+			}
+			else
 			{
 				Draft = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry);
 			}

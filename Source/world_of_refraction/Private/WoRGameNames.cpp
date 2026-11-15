@@ -797,6 +797,23 @@ FText WoRGameNames::GetAdapterName(const URingData *Adapter, const FRuntimeAttac
     return FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), InSocket.IsEmpty() ? GetAdapterWord() : InSocket, GetAdapterFormName(Adapter->Form));
 }
 
+void WoRGameNames::NumberRepeatedNames(TArray<FText> &Names)
+{
+    TMap<FString, int32> Seen;
+    for (FText &Name : Names)
+    {
+        if (Name.IsEmpty())
+        {
+            continue;
+        }
+        const int32 Count = ++Seen.FindOrAdd(Name.ToString());
+        if (Count > 1)
+        {
+            Name = FText::Format(LOCTEXT("RepeatedName", "{0} {1}"), Name, FText::AsNumber(Count));
+        }
+    }
+}
+
 FText WoRGameNames::GetWieldModeName(EWeaponWieldMode Mode)
 {
     switch (Mode)
