@@ -10,7 +10,9 @@
 #include "Currency/CurrencyWallet.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "Field/FieldMovementComponent.h"
 #include "Field/FieldSkillTypes.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -41,11 +43,12 @@ namespace HubHUDStyle
 	constexpr float QuestLineWidth = 540.0f;
 	/** A step changes on an event, not every frame: a second is soon enough. */
 	constexpr float QuestRefreshSeconds = 1.0f;
-	/** B-503: the cycled field attack sits bottom left. TODO: tune beside the party strip with the trial HUD (B-465) */
 	const FAnchors BottomLeft(0.0f, 1.0f);
 	const FVector2D BottomLeftAlignment(0.0f, 1.0f);
-	constexpr float FieldAttackBottom = 220.0f;
-	constexpr float FieldAttackIconSize = 48.0f;
+	/** B-503h: the field attack chip ends the party strip's row, as tall as a card. TODO: tune in PIE */
+	constexpr float FieldAttackIconSize = 36.0f;
+	/** How long the chip's panel stays lit after R / LB cycles it. TODO: tune */
+	constexpr float FieldAttackFlashSeconds = 0.35f;
 	/** B-503g: the party strip (mockup hub/hud: 48, 640 at 720p, so x1.5 here); bottom left, cards left to right. */
 	constexpr float PartyStripBottom = 54.0f;
 	constexpr float PartyCardWidth = 207.0f;
@@ -128,7 +131,8 @@ void UHubHUDWidget::BuildTree()
 
 	FieldAttackBox = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	FieldAttackBox->SetBrushColor(PanelColor);
-	FieldAttackBox->SetPadding(FMargin(ChipPaddingX, ChipPaddingY));
+	FieldAttackBox->SetPadding(FMargin(ChipPaddingX, 0.0f));
+	FieldAttackBox->SetVerticalAlignment(VAlign_Center);
 	UHorizontalBox *FieldAttackRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	FieldAttackBox->SetContent(FieldAttackRow);
 	FieldAttackIcon = MakeIcon(WidgetTree, FieldAttackIconSize);
@@ -137,13 +141,7 @@ void UHubHUDWidget::BuildTree()
 	AddToRow(FieldAttackRow, FieldAttackIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f));
 	AddToRow(FieldAttackRow, FieldAttackName, FMargin(0.0f, 0.0f, WordGap, 0.0f));
 	AddToRow(FieldAttackRow, FieldAttackElement);
-	if (UCanvasPanelSlot *FieldAttackSlot = Canvas->AddChildToCanvas(FieldAttackBox))
-	{
-		FieldAttackSlot->SetAnchors(BottomLeft);
-		FieldAttackSlot->SetAlignment(BottomLeftAlignment);
-		FieldAttackSlot->SetPosition(FVector2D(ScreenMargin, -FieldAttackBottom));
-		FieldAttackSlot->SetAutoSize(true);
-	}
+	// BuildPartyStrip puts the chip at the end of the strip's row.
 
 	BuildPartyStrip(Canvas);
 
@@ -181,6 +179,7 @@ void UHubHUDWidget::BuildPartyStrip(UCanvasPanel *Canvas)
 		AddToRow(Strip, Widgets.Card, FMargin(0.0f, 0.0f, Index + 1 < PartyConstants::MAX_PARTY_MEMBERS ? SectionGap : 0.0f, 0.0f));
 		SetShown(Widgets.Card, false);
 	}
+	AddToRow(Strip, FieldAttackBox, FMargin(SectionGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 	if (UCanvasPanelSlot *StripSlot = Canvas->AddChildToCanvas(Strip))
 	{
 		StripSlot->SetAnchors(BottomLeft);
@@ -214,28 +213,57 @@ void UHubHUDWidget::RefreshPartyStrip()
 	}
 }
 
+void UHubHUDWidget::SetFieldAttack(const FFieldAttackEntry &Entry)
+{
+	const bool bElemental = FieldSkillRules::IsElemental(Entry.Element);
+	const FText Name = Entry.Name.IsEmpty() ? LOCTEXT("FieldAttackUnarmed", "Unarmed") : Entry.Name;
+	if (!Name.EqualTo(FieldAttackName->GetText()))
+	{
+		FieldAttackName->SetText(Name);
+	}
+	FieldAttackElement->SetText(bElemental ? WoRGameNames::GetElementName(Entry.Element) : FText::GetEmpty());
+	FieldAttackElement->SetColorAndOpacity(FSlateColor(bElemental ? ElementColors::GetColorForElement(Entry.Element) : WoRMenuStyle::DimColor));
+	WoRMenuStyle::SetIcon(FieldAttackIcon, Entry.Icon, Entry.Name);
+	WoRMenuStyle::SetShown(FieldAttackBox, true);
+}
+
+void UHubHUDWidget::RefreshFieldAttack()
+{
+	if (!FieldAttackBox)
+	{
+		return; // headless: no tree
+	}
+	const APawn *Pawn = GetOwningPlayerPawn();
+	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
+	if (!FieldMovement)
+	{
+		WoRMenuStyle::SetShown(FieldAttackBox, false);
+		return;
+	}
+	SetFieldAttack(FieldMovement->GetFieldAttackEntry());
+}
+
 void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 {
 	if (!FieldAttackBox)
 	{
 		return; // headless: no tree
 	}
-	const bool bElemental = FieldSkillRules::IsElemental(Entry.Element);
-	FieldAttackName->SetText(Entry.Name.IsEmpty() ? LOCTEXT("FieldAttackUnarmed", "Unarmed") : Entry.Name);
-	FieldAttackElement->SetText(bElemental ? WoRGameNames::GetElementName(Entry.Element) : FText::GetEmpty());
-	FieldAttackElement->SetColorAndOpacity(FSlateColor(bElemental ? ElementColors::GetColorForElement(Entry.Element) : WoRMenuStyle::DimColor));
-	WoRMenuStyle::SetIcon(FieldAttackIcon, Entry.Icon, Entry.Name);
-	WoRMenuStyle::SetShown(FieldAttackBox, true);
+	SetFieldAttack(Entry);
+	FieldAttackBox->SetBrushColor(WoRMenuStyle::FocusColor);
 	if (UWorld *World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(FieldAttackTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::HideFieldAttack),
-										  FieldSkillRules::FIELD_ATTACK_POPUP_SECONDS, /*bLoop=*/false);
+		World->GetTimerManager().SetTimer(FieldAttackTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::EndFieldAttackFlash),
+										  HubHUDStyle::FieldAttackFlashSeconds, /*bLoop=*/false);
 	}
 }
 
-void UHubHUDWidget::HideFieldAttack()
+void UHubHUDWidget::EndFieldAttackFlash()
 {
-	WoRMenuStyle::SetShown(FieldAttackBox, false);
+	if (FieldAttackBox)
+	{
+		FieldAttackBox->SetBrushColor(WoRMenuStyle::PanelColor);
+	}
 }
 
 void UHubHUDWidget::NativeConstruct()
@@ -246,11 +274,16 @@ void UHubHUDWidget::NativeConstruct()
 	{
 		World->GetTimerManager().SetTimer(RefreshTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::Refresh),
 										  HubHUDStyle::RefreshSeconds, /*bLoop=*/true);
-		World->GetTimerManager().SetTimer(QuestTimer, FTimerDelegate::CreateUObject(this, &UHubHUDWidget::RefreshQuestLine),
+		World->GetTimerManager().SetTimer(QuestTimer, FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			RefreshQuestLine();
+			RefreshFieldAttack();
+		}),
 										  HubHUDStyle::QuestRefreshSeconds, /*bLoop=*/true);
 	}
 	Refresh();
 	RefreshQuestLine();
+	RefreshFieldAttack();
 }
 
 void UHubHUDWidget::NativeDestruct()
