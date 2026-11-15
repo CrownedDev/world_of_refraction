@@ -53,13 +53,17 @@ TArray<FCharacterFormPiece> UCharacterFormSubsystem::GatherEquippedPieces(const 
         {
             Pieces.Add({Slot.Gear.Asset, Slot.Gear.Tier, true});
         }
-        for (const USpellData *Spell : Slot.Gear.AssignedSpells)
+        // B-411 (D-027): a weapon gives no spells, so the spells an older save keeps on one are not form pieces.
+        if (!Slot.Gear.IsWeapon())
         {
-            Pieces.Add({Spell, EItemTier::E_Tier, false});
-        }
-        for (const USpellData *Spell : Slot.SpellOverrides)
-        {
-            Pieces.Add({Spell, EItemTier::E_Tier, false});
+            for (const USpellData *Spell : Slot.Gear.AssignedSpells)
+            {
+                Pieces.Add({Spell, EItemTier::E_Tier, false});
+            }
+            for (const USpellData *Spell : Slot.SpellOverrides)
+            {
+                Pieces.Add({Spell, EItemTier::E_Tier, false});
+            }
         }
         for (const UAbilityData *Ability : Slot.AssignedAbilities)
         {

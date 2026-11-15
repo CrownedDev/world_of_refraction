@@ -31,7 +31,7 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bCanUseAbilities = false;
 
-    /** Active weapon has crystal with spells - show Resonate Weapon */
+    /** OBSOLETE (B-411, D-027): always false (weapons give no spells); a Blueprint field, deleted after Find in Blueprints (B-411b). */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bHasWeaponCrystal = false;
 
@@ -67,7 +67,7 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     // Each submenu reads directly from the relevant array.
     // Never re-query LoadoutComponent after BuildFrom() runs.
 
-    /** Spells for Resonate Weapon submenu */
+    /** OBSOLETE (B-411, D-027): always empty; deleted with bHasWeaponCrystal (B-411b). */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Spells")
     TArray<USpellData *> WeaponCrystalSpells;
 
