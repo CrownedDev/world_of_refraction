@@ -9,12 +9,15 @@
 #include "Components/PostProcessComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/GameInstance.h"
+#include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Infusion/ElementColors.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProceduralMeshComponent.h"
+#include "SceneView.h"
 #include "Skills/Definitions/ESpellElement.h"
 
 namespace
@@ -29,6 +32,25 @@ namespace
 	/** Stand-in until the shard material is authored: shows the motion, not the frame. */
 	const TCHAR *FALLBACK_MATERIAL_PATH = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
 	const FName FALLBACK_COLOR_PARAMETER = TEXT("Color");
+
+	/** B-503f: tan of the view's half angles (horizontal, vertical), from the local player's real projection, so the
+	 *  aspect-ratio axis rule (a camera may keep its vertical FOV) and the viewport's shape are both counted. With no
+	 *  projection (a headless world), the FOV is read as horizontal. */
+	FVector2D GetViewTangents(const UWorld *World, const FMinimalViewInfo &View, float Aspect)
+	{
+		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+		const APlayerController *Player = GameInstance ? GameInstance->GetFirstLocalPlayerController(World) : nullptr;
+		const ULocalPlayer *Local = Player ? Player->GetLocalPlayer() : nullptr;
+		FSceneViewProjectionData Projection;
+		if (Local && Local->ViewportClient && Local->ViewportClient->Viewport &&
+			Local->GetProjectionData(Local->ViewportClient->Viewport, Projection) && Projection.IsPerspectiveProjection() &&
+			Projection.ProjectionMatrix.M[0][0] > 0.0 && Projection.ProjectionMatrix.M[1][1] > 0.0)
+		{
+			return FVector2D(1.0 / Projection.ProjectionMatrix.M[0][0], 1.0 / Projection.ProjectionMatrix.M[1][1]);
+		}
+		const double Horizontal = FMath::Tan(FMath::DegreesToRadians(FMath::Clamp(View.FOV, MIN_FIELD_OF_VIEW, MAX_FIELD_OF_VIEW)) * 0.5);
+		return FVector2D(Horizontal, Horizontal / FMath::Max(Aspect, UE_KINDA_SMALL_NUMBER));
+	}
 }
 
 ABattleTransitionShards::ABattleTransitionShards()
@@ -69,7 +91,9 @@ void ABattleTransitionShards::CaptureFrame(UTextureRenderTarget2D *Target, const
 	Capture->bCaptureOnMovement = false;
 	Capture->CaptureSource = InData.FrameCaptureSource;
 	Capture->TextureTarget = Target;
-	Capture->FOVAngle = View.FOV;
+	// The capture's FOV is always horizontal: take the screen's real one, so the picture lines up with the world.
+	const float TargetAspect = static_cast<float>(Target->SizeX) / static_cast<float>(FMath::Max(Target->SizeY, 1));
+	Capture->FOVAngle = FMath::RadiansToDegrees(2.0 * FMath::Atan(GetViewTangents(GetWorld(), View, TargetAspect).X));
 	Capture->SetupAttachment(RootComponent);
 	Capture->RegisterComponent();
 	Capture->SetWorldLocationAndRotation(View.Location, View.Rotation);
@@ -138,11 +162,9 @@ void ABattleTransitionShards::ApplyClock(float Elapsed, float ReleaseElapsed)
 	{
 		return;
 	}
-	// The actor sits on the camera, one unit = one screen width at the wall. The wall then fills the view
-	// at any field of view, and every motion value reads in screen widths.
-	// shortcut: reads FOV as horizontal (the engine default); a vertical-FOV view would need the other axis.
-	const float HalfFieldOfView = FMath::DegreesToRadians(FMath::Clamp(View.FOV, MIN_FIELD_OF_VIEW, MAX_FIELD_OF_VIEW)) * 0.5f;
-	const float WallX = 1.0f / (2.0f * FMath::Tan(HalfFieldOfView));
+	// The actor sits on the camera, one unit = one screen width at the wall. The wall then fills the view on both
+	// axes (B-503f: from the real projection), and every motion value reads in screen widths.
+	const float WallX = static_cast<float>(BattleTransition::GetWallX(GetViewTangents(GetWorld(), View, Aspect), Aspect));
 	SetActorTransform(FTransform(View.Rotation, View.Location, FVector(Data->WallDistance / WallX)));
 
 	const float Look = BattleTransition::GetLookAlpha(*Data, Elapsed, ReleaseElapsed);
