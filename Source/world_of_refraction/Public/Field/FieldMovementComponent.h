@@ -231,6 +231,10 @@ private:
 	UFUNCTION(Server, Reliable)
 	void ServerSetFieldAttackIndex(int32 Index);
 
+	/** The host kept a different index than the owning client asked for (it clamps to its own reading of the loadout). */
+	UFUNCTION(Client, Reliable)
+	void ClientSetFieldAttackIndex(int32 Index);
+
 	/** Keeps Index (clamped to the entries now): on the party record when the pawn has one, and in the mirror. */
 	void StoreFieldAttackIndex(int32 Index);
 

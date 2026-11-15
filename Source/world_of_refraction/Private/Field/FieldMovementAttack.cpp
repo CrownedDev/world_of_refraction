@@ -199,6 +199,16 @@ void UFieldMovementComponent::StoreFieldAttackIndex(int32 Index)
 void UFieldMovementComponent::ServerSetFieldAttackIndex_Implementation(int32 Index)
 {
 	StoreFieldAttackIndex(Index); // clamped to the host's own reading of the loadout
+	if (FieldAttackIndex != Index)
+	{
+		// The host read a shorter loadout. If its value didn't change, nothing replicates back: tell the client.
+		ClientSetFieldAttackIndex(FieldAttackIndex);
+	}
+}
+
+void UFieldMovementComponent::ClientSetFieldAttackIndex_Implementation(int32 Index)
+{
+	FieldAttackIndex = Index;
 }
 
 EFieldSkillRefusal UFieldMovementComponent::FieldAttack(bool bHeld)
