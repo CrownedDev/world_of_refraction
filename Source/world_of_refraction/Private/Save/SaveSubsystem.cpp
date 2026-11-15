@@ -1205,11 +1205,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.GuardStyle = Member.GuardStyle; // B-392 (D-170)
 		Out.GuardWeaponId = Member.GuardWeaponId;
 		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
-		Out.FieldSkillSource = Member.FieldSkill.Source; // B-214a (D-099)
-		Out.FieldSkillType = Member.FieldSkill.Type;
-		Out.FieldAttackIndex = Member.FieldAttackIndex; // B-503 (D-215)
-		Out.bFieldAttackPicked = Member.bFieldAttackPicked; // B-503s (D-218)
-		Out.ActiveWeaponId = Member.ActiveWeaponId; // B-503s2
+		// B-507 (D-221, v40): the field skill, the field attack pick and the weapon in hand are saved on the worn-gear record.
 		if (bKeepVitals)
 		{
 			Out.CurrentHP = Member.CurrentHP;
@@ -1332,6 +1328,34 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		{
 			Out.Loadouts.Add(SaveCustomLoadout(Loadout));
 		}
+	}
+	for (const TPair<FName, FWornGear> &Record : Pool.GetAllWornGear()) // D-221 (B-507, v40)
+	{
+		const FWornGear &Worn = Record.Value;
+		FSavedWornGear &Out = Saved.WornGear.AddDefaulted_GetRef();
+		Out.Character = Record.Key;
+		for (const FLoadoutSlot &Entry : Worn.Equipment)
+		{
+			FSavedWornEntry &OutEntry = Out.Equipment.AddDefaulted_GetRef();
+			OutEntry.GearID = Entry.GearID;
+			OutEntry.OffHandID = Entry.OffHandID;
+			OutEntry.Abilities = SaveLoadoutRefs(ObjectPtrDecay(Entry.AssignedAbilities));
+		}
+		Out.ActiveGearID = Worn.ActiveGearID;
+		Out.EvolutionID = Worn.EvolutionID;
+		Out.EvolutionSpells = SaveLoadoutRefs(ObjectPtrDecay(Worn.EvolutionSpells));
+		Out.Apparel = Worn.Apparel;
+		Out.InnateSpells = SaveLoadoutRefs(ObjectPtrDecay(Worn.InnateSpells));
+		for (const FBDElementSpellPool &BDPool : Worn.BDSpellPools)
+		{
+			FSavedCustomBDPool &OutPool = Out.BDSpellPools.AddDefaulted_GetRef();
+			OutPool.Element = static_cast<uint8>(BDPool.Element);
+			OutPool.Spells = SaveLoadoutRefs(BDPool.Spells);
+		}
+		Out.FieldSkillSource = Worn.WheelPick.FieldSkill.Source;
+		Out.FieldSkillType = Worn.WheelPick.FieldSkill.Type;
+		Out.FieldAttackIndex = Worn.WheelPick.FieldAttackIndex;
+		Out.bFieldAttackPicked = Worn.WheelPick.bPicked;
 	}
 	Saved.UpgradeMemory = Pool.GetUpgradeMemory(); // B-314b (D-097)
 	for (const TPair<FName, FPoolSkills> &Skills : Pool.GetCharacterSkills()) // B-316b
@@ -1519,11 +1543,7 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.GuardStyle = In.GuardStyle; // B-392 (D-170)
 		Member.GuardWeaponId = In.GuardWeaponId;
 		Member.ParryElementPriority = In.ParryElementPriority; // B-393 (D-170)
-		Member.FieldSkill.Source = In.FieldSkillSource; // B-214a (D-099)
-		Member.FieldSkill.Type = In.FieldSkillType;
-		Member.FieldAttackIndex = In.FieldAttackIndex; // B-503 (D-215)
-		Member.bFieldAttackPicked = In.bFieldAttackPicked; // B-503s (D-218)
-		Member.ActiveWeaponId = In.ActiveWeaponId; // B-503s2
+		// B-507 (D-221, v40): the wheel pick and weapon in hand come from the worn-gear record (RestorePool).
 		Member.CurrentHP = In.CurrentHP;
 		Member.CurrentEP = In.CurrentEP;
 		Member.CarriedGear = In.CarriedGear.Restore();
@@ -1696,6 +1716,44 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 			Loadouts.Add(RestoreCustomLoadout(Loadout));
 		}
 		Pool.SetCustomLoadouts(Custom.Character, Loadouts);
+	}
+	TMap<FName, FWornGear> WornGear; // D-221 (B-507, v40); a piece that's gone leaves its place empty at the next draw
+	for (const FSavedWornGear &In : Saved.WornGear)
+	{
+		if (In.Character.IsNone())
+		{
+			continue;
+		}
+		FWornGear &Worn = WornGear.Add(In.Character);
+		for (const FSavedWornEntry &InEntry : In.Equipment)
+		{
+			FLoadoutSlot &Entry = Worn.Equipment.AddDefaulted_GetRef();
+			Entry.GearID = InEntry.GearID;
+			Entry.OffHandID = InEntry.OffHandID;
+			Entry.AssignedAbilities.Append(RestoreLoadoutRefs<UAbilityData>(InEntry.Abilities));
+		}
+		Worn.ActiveGearID = In.ActiveGearID;
+		Worn.EvolutionID = In.EvolutionID;
+		Worn.EvolutionSpells.Append(RestoreLoadoutRefs<USpellData>(In.EvolutionSpells));
+		Worn.Apparel = In.Apparel;
+		Worn.InnateSpells.Append(RestoreLoadoutRefs<USpellData>(In.InnateSpells));
+		for (const FSavedCustomBDPool &InPool : In.BDSpellPools)
+		{
+			FBDElementSpellPool &BDPool = Worn.BDSpellPools.AddDefaulted_GetRef();
+			BDPool.Element = static_cast<ESpellElement>(InPool.Element);
+			BDPool.Spells = RestoreLoadoutRefs<USpellData>(InPool.Spells);
+		}
+		Worn.WheelPick.FieldSkill.Source = In.FieldSkillSource;
+		Worn.WheelPick.FieldSkill.Type = In.FieldSkillType;
+		Worn.WheelPick.FieldAttackIndex = In.FieldAttackIndex;
+		Worn.WheelPick.bPicked = In.bFieldAttackPicked;
+	}
+	Pool.RestoreWornGear(WornGear);
+	// The wheel pick's home is the record: a party restored before the pool takes its members' picks from it.
+	UPartySessionSubsystem *PartySession = Pool.GetGameInstance() ? Pool.GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (PartySession && !WornGear.IsEmpty())
+	{
+		PartySession->PullWheelPicksFromPool();
 	}
 	Pool.RestoreUpgradeMemory(Saved.UpgradeMemory); // B-314b (D-097)
 	TMap<FName, FPoolSkills> CharacterSkills; // B-316b: a skill whose asset is gone is dropped
