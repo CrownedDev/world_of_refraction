@@ -1242,6 +1242,12 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-218 — The wheel's pick is what the character holds, and their parry
+**Status:** ANSWERED (Crown, 2026-11-15) · **Raised:** 2026-11-15 · **Blocks:** —
+**Answer (Crown):** (1) Picking a **weapon** on the field wheel (D-217) **changes the weapon in hand**: the character shows and swings that weapon. Picking an **element source** (the innate, an evolution, an adapter) **hides the weapon**. (2) **Whatever is picked is the character's active parry** in the fight: "whatever you use is what your active parry will be". The parry priority setting (B-392 / B-393, `EParryElementPriority`) already decides which element a parry uses; the wheel's pick now drives it.
+**The wheel is a toggle (Crown, 2026-11-15):** a hold opens it and it stays on screen; the mouse works on it (cursor, hover, click); the centre shows only the result ("Sword", "Fire Sword").
+**Notes for Claude:** how the pick maps onto the parry priority's values (and whether the setting stays as an override) is for the build job to report before changing fight rules.
+
 ### D-217 — The field attack strip: the weapon type above the card, LB changes its infusion
 **Status:** ANSWERED (Crown, 2026-11-15; changes D-215 point 3 and B-503h's chip) · **Raised:** 2026-11-15 · **Blocks:** —
 **Answer (Crown):** the separate field attack chip with the weapon's name goes. Instead a **strip above the character's card** names what the field attack is: for a weapon user the **weapon type** ("Sword"), and when infused the element first ("Fire Sword"). **LB (held) changes the infusion**: it starts plain ("Sword") and cycles the character's available sources. A Refractor or Resonator has no weapon line: the strip just names the source element in use ("Fire" for a Fire Refractor, or a Resonator whose main ring is Fire), so adapters and rings need no names here. The weapon is the loadout's ACTIVE entry; LB no longer cycles weapons, rings and evolutions as separate entries (D-215 point 3).
