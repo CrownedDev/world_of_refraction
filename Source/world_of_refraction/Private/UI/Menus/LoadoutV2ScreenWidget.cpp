@@ -2215,7 +2215,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.bEquipped = true;
 			Equipped.Weapon = InSlot;
 			Equipped.Name = WeaponName(InSlot);
-			Equipped.Line = WoRGameNames::GetHeldWeaponTypeName(InSlot.Weapon); // B-513
+			Equipped.Line = WoRGameNames::GetHeldWeaponTypeName(InSlot.Weapon, bMain && Current.OffHand.IsValid()); // B-513: a main hand with its pair reads dual
 		}
 		const TArray<FLoadoutV2OffHandChoice> OffHands = bMain ? TArray<FLoadoutV2OffHandChoice>() : WoRLoadoutV2::BuildOffHandChoices(Draft.MainHand, Inventory->Weapons, Class);
 		for (const FWeaponInventoryEntry &Owned : Inventory->Weapons)
