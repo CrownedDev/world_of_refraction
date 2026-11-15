@@ -3,6 +3,7 @@
 // parry-effect cosmetic plays tinted by the element behind it (the weapon's crystal, weapon guard only; a Refractor's
 // element; an adapter's crystal); the loadout priority picks when two apply; with no element there is no effect, so a
 // weapon sparks only and the unarmed guard shows nothing. A Perfect Guard's flash takes the spark's place.
+// B-503s (D-218): a member's field attack pick replaces the guard and priority settings.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -10,7 +11,12 @@
 #include "WoRTestWorld.h"
 #include "Combat/Presentation/ParryVisuals.h"
 #include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
+#include "Character/CombatCharacter.h"
 #include "Character/CosmeticsData.h"
+#include "Field/FieldSkillTypes.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Infusion/ElementColors.h"
 #include "Loadout/LoadoutComponent.h"
@@ -114,6 +120,37 @@ void FParryVisualsSpec::Define()
 			TestTrue(TEXT("Wind"), Choice.Element == ESpellElement::Wind);
 		});
 
+		It("a field pick: a swing guards with the weapon in its element, a pulse guards unarmed in its own (B-503s, D-218)", [this]()
+		{
+			FFieldAttackEntry Swing;
+			FParryVisualInputs Inputs = WeaponGuardInputs();
+			Inputs.MagicElement = ESpellElement::Wind; // the settings' own magic: a pick drops it
+			ParryVisuals::ApplyFieldPick(Inputs, Swing, /*bWeaponInHand=*/true);
+			const FParryVisualChoice Plain = ParryVisuals::Resolve(Inputs);
+			TestTrue(TEXT("a plain weapon: the spark only"), Plain.ShouldSpawnSpark() && !Plain.ShouldSpawnEffect());
+			Swing.Element = ESpellElement::Lightning; // "Lightning Sword", a ring's infusion
+			ParryVisuals::ApplyFieldPick(Inputs, Swing, true);
+			const FParryVisualChoice Infused = ParryVisuals::Resolve(Inputs);
+			TestTrue(TEXT("infused: the spark and the weapon guard's effect in Lightning"),
+					 Infused.ShouldSpawnSpark() && Infused.Effect == ParryTestVFX(TEXT("WeaponCircle")) && Infused.Element == ESpellElement::Lightning);
+			ParryVisuals::ApplyFieldPick(Inputs, Swing, /*bWeaponInHand=*/false);
+			TestTrue(TEXT("an unarmed swing guards unarmed, still Lightning"), Inputs.Guard == EGuardStyle::Unarmed &&
+																				 ParryVisuals::Resolve(Inputs).Element == ESpellElement::Lightning);
+
+			FFieldAttackEntry DarkFire;
+			DarkFire.Kind = EFieldAttackKind::Innate;
+			DarkFire.Element = ESpellElement::Fire; // "Dark Fire" and "(R) Fire" carry Fire
+			ParryVisuals::ApplyFieldPick(Inputs, DarkFire, true);
+			const FParryVisualChoice Pulse = ParryVisuals::Resolve(Inputs);
+			TestTrue(TEXT("a pulse: unarmed, no spark, the unarmed effect in Fire"), Inputs.Guard == EGuardStyle::Unarmed && !Pulse.ShouldSpawnSpark() &&
+																						 Pulse.Effect == ParryTestVFX(TEXT("BodyCircle")) && Pulse.Element == ESpellElement::Fire);
+			FFieldAttackEntry Ice = DarkFire;
+			Ice.Element = ESpellElement::Water;
+			Ice.bIce = true;
+			ParryVisuals::ApplyFieldPick(Inputs, Ice, true);
+			TestTrue(TEXT("Ice in Ice's colour"), ParryVisuals::Resolve(Inputs).Tint.Equals(ElementColors::Ice));
+		});
+
 		It("Generic is no colour; a Perfect Guard's flash replaces the spark but the effect plays", [this]()
 		{
 			FParryVisualInputs Inputs = WeaponGuardInputs();
@@ -157,6 +194,28 @@ void FParryVisualsSpec::Define()
 			const FParryVisualChoice Choice = ParryVisuals::ResolveForDefender(Loadout->GetOwner(), PARRY_TEST_NORMAL_GUARD);
 			TestTrue(TEXT("sparks"), Choice.Spark == ParryTestVFX(TEXT("Spark")));
 			TestFalse(TEXT("no parry effect"), Choice.ShouldSpawnEffect());
+		});
+
+		It("guards with its field pick once it has one; never picked, the settings (B-503s, D-218)", [this]()
+		{
+			ULoadoutComponent *Loadout = SpawnDefender(ECharacterClass::Caster, ESpellElement::Water, true);
+			UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+			UParty *Party = PartySession ? PartySession->CreateSoloParty(nullptr, TSoftClassPtr<ACombatCharacter>()) : nullptr;
+			UCharacterDataComponent *CharComp = Loadout ? Loadout->GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			if (!TestTrue(TEXT("set up"), Party && CharComp)) return;
+			Party->Members.Empty();
+			FPartyMember &Record = Party->Members.AddDefaulted_GetRef();
+			Record.PawnClass = ACombatCharacter::StaticClass();
+			Record.CharacterData = CharComp->CharacterData;
+			Record.MemberId = FGuid::NewGuid();
+			CharComp->PartyMemberId = Record.MemberId;
+			TestTrue(TEXT("never picked: the weapon guard setting"), Loadout->GetGuardStyle() == EGuardStyle::Weapon);
+			constexpr int32 ICE_OPTION = 1; // the plain weapon has no element, so: the innate Water, then its Ice
+			PartySession->SetMemberFieldAttackIndex(0, ICE_OPTION);
+			TestTrue(TEXT("picked: the innate's pulse guards unarmed"), Loadout->GetGuardStyle() == EGuardStyle::Unarmed);
+			const FParryVisualChoice Choice = ParryVisuals::ResolveForDefender(Loadout->GetOwner(), PARRY_TEST_NORMAL_GUARD);
+			TestTrue(TEXT("the unarmed effect in Ice's colour, no spark"), !Choice.ShouldSpawnSpark() && Choice.Effect == ParryTestVFX(TEXT("BodyCircle")) &&
+																			  Choice.Element == ESpellElement::Water && Choice.Tint.Equals(ElementColors::Ice));
 		});
 
 		It("the priority setting is the loadout's, default Weapon", [this]()
