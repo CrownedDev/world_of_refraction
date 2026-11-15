@@ -66,6 +66,11 @@ private:
     void ApplyWeaponHidden();
     void SpawnWeaponMesh(UWeaponData *Weapon);
     void SpawnDualWeaponMesh(UWeaponData *Weapon);
+
+    /** B-515: the off-hand piece of the active weapon set (a shield, or a D-209 pair's second weapon); null when the
+     *  set isn't a valid pair. Its own mesh goes in the left hand, not the main hand's left-hand mesh. */
+    UWeaponData *GetOffHandPiece(const UWeaponData *ActiveWeapon) const;
+    void SpawnOffHandMesh(UWeaponData *OffHand);
     USkeletalMeshComponent *GetOwnerMesh() const;
 
     /** Resolve the right-hand attachment socket from the weapon's WeaponType.
@@ -87,6 +92,9 @@ private:
 
     UPROPERTY()
     UWeaponData *CachedWeapon;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UWeaponData> CachedOffHand;
 
     // ==================== SPAWNED MESHES ====================
 
