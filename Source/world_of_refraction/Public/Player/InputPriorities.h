@@ -22,4 +22,8 @@ namespace WoRInputPriority
 	/** B-459c: the host's hold-to-answer key (View / Tab), only while a join request waits. It doesn't eat the key, so
 	 *  a tap still reaches the rest; above the others so the hold is seen first. */
 	constexpr int32 JOIN_REQUEST_CARD = COMBAT_MENU_KEYS + 1;
+
+	/** B-503e: the hub / trial map's code-made field keys (attack, source cycle, fly up / down). They don't eat
+	 *  their keys, so Space still jumps; above EXPLORATION so they're seen first. */
+	constexpr int32 FIELD_KEYS = EXPLORATION + 1;
 }
