@@ -503,6 +503,9 @@ FString UFieldMovementComponent::GetFieldStateString() const
 						  bAirJumpUsed ? TEXT("used") : TEXT("ready"), bAirDashUsed ? TEXT("used") : TEXT("ready"))
 		+ FString::Printf(TEXT(" | attack %d of %d: %s"), GetFieldAttackIndex() + 1, GetFieldAttackEntries().Num(), // B-503
 						  *FieldSkillRules::FieldAttackEntryString(GetFieldAttackEntry()))
+		+ (GetWorld() && GetWorld()->GetTimerManager().IsTimerActive(FieldSwingTimer) // B-503b (the host's timer)
+			   ? FString::Printf(TEXT(", hit lands in %.2f s"), GetWorld()->GetTimerManager().GetTimerRemaining(FieldSwingTimer))
+			   : FString())
 		+ FString::Printf(TEXT(" | recall mark %s"), bHasRecallMark ? *RecallMark.ToCompactString() : TEXT("none")) // B-214e
 		+ FString::Printf(TEXT(" | flight %s (limits: EP %s, ceiling %s, no-fly %s; in no-fly %s)"), // B-214d
 						  bFlying ? TEXT("ON") : TEXT("off"), GetEffectiveFlightLimits().bUnlimitedEP ? TEXT("unlimited") : TEXT("drains"),

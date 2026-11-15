@@ -66,4 +66,5 @@ skill = EAL.load_asset(SKILL)
 if skill.get_editor_property("field_montage") != EAL.load_asset(FIELD_MONTAGE):
     skill.set_editor_property("field_montage", EAL.load_asset(FIELD_MONTAGE))
     save(SKILL)
+log("field montage on the skill: " + str(skill.get_editor_property("field_montage")))
 log("done")
