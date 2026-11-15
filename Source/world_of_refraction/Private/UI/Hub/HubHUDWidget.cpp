@@ -24,6 +24,7 @@
 #include "Player/WoRPlayerState.h"
 #include "TimerManager.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRIconTable.h"
 
 #define LOCTEXT_NAMESPACE "WoRHubHUDWidget"
@@ -225,6 +226,7 @@ UWidget *UHubHUDWidget::MakeCard(UWidget *Content, float MinWidth, float MaxWidt
 	OutFrame = WidgetTree->ConstructWidget<UHubHUDCardFrame>(UHubHUDCardFrame::StaticClass());
 	OutFrame->FillColor = PanelColor;
 	OutFrame->OutlineColor = OffColor;
+	OutFrame->SetVisibility(ESlateVisibility::HitTestInvisible); // it only paints
 	if (UOverlaySlot *FrameSlot = Layers->AddChildToOverlay(OutFrame))
 	{
 		FrameSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -278,6 +280,7 @@ void UHubHUDWidget::RefreshPartyStrip()
 	const UGameInstance *GameInstance = GetGameInstance();
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	const TArray<FHubHUDPartyCard> Cards = WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr);
+	const bool bInRun = WoRPauseMenu::IsInRun(GetWorld());
 	for (int32 Index = 0; Index < PartyCards.Num(); ++Index)
 	{
 		const FPartyCardWidgets &Widgets = PartyCards[Index];
@@ -294,6 +297,7 @@ void UHubHUDWidget::RefreshPartyStrip()
 		}
 		Widgets.Dot->SetColorAndOpacity(Card.DotColor);
 		Widgets.HP->SetPercent(Card.HPShare);
+		WoRMenuStyle::SetShown(Widgets.HP->GetParent(), bInRun); // D-216: the hub shows who is in the party only
 	}
 }
 
