@@ -405,7 +405,8 @@ void FFieldAttackSpec::Define()
 
 			const TArray<FFieldAttackEntry> Entries = Field->GetFieldAttackEntries();
 			TestTrue(TEXT("the primary weapon swings with it"), Entries[0].IsSwing() && Entries[0].SwingMontage.Get() == Montage);
-			TestTrue(TEXT("infused, the same swing (B-503k)"), Entries.Last().IsSwing() && Entries.Last().SwingMontage.Get() == Montage);
+			TestTrue(TEXT("infused, the same swing (B-503k)"), Entries.IsValidIndex(1) && Entries[1].IsSwing() && Entries[1].SwingMontage.Get() == Montage);
+			TestTrue(TEXT("B-503m4: the secondary weapon's slice swings its own attack (none here)"), Entries.Last().IsSwing() && Entries.Last().SwingMontage.IsNull());
 			TestTrue(TEXT("a swing"), Field->FieldAttack(false) == EFieldSkillRefusal::None);
 			constexpr int32 MAX_FRAMES = 1000;
 			const UWorld *World = TestWorld->GetWorld();
