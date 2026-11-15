@@ -350,18 +350,11 @@ void AWoRHubController::HandleFieldSwitchSource(const FInputActionValue & /*Valu
 	}
 	bFieldSourcePressed = false;
 	const double Pressed = GetWorld() ? GetWorld()->GetRealTimeSeconds() - FieldSourcePressTime : 0.0;
-	if (FieldSkillRules::IsFieldSourceHeld(Pressed))
-	{
-		// D-217: a hold changes the element within the source. Innate, an adapter, a weapon crystal and an evolution
-		// each have one element: nothing to change. TODO: B-503l: Broken Darkness and Reality cycle the gear their
-		// element is drawn through (waits on Crown's answer, Q-503l).
-		UE_LOG(LogWoR, Verbose, TEXT("[FieldAttack] hold: the source's element is fixed"));
-		return;
-	}
 	if (UFieldMovementComponent *FieldMovement = GetFieldMovement())
 	{
-		// B-503k (D-217): a press steps the field attack's source (plain Sword, Fire Sword, ...), flashed on the strip.
-		const FFieldAttackEntry Entry = FieldMovement->CycleFieldAttack();
+		// D-217: a press steps the field attack's source (plain Sword, Fire Sword, ...); a hold the element within it
+		// (B-503l, Q-503l: Reality "(R) Fire", Broken Darkness "Dark Fire"; a one-element source stays). Flashed on the strip.
+		const FFieldAttackEntry Entry = FieldMovement->CycleFieldAttack(FieldSkillRules::IsFieldSourceHeld(Pressed));
 		if (HubHUD)
 		{
 			HubHUD->ShowFieldAttack(Entry);

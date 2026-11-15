@@ -168,7 +168,9 @@ public:
 	/** B-503k (D-217): the stops of the field attack's cycle, its infusions. A weapon user (Generic) swings the
 	 *  loadout's active weapon: plain first, then infused with each element its combat infusion sources give
 	 *  (UActionExecutor::GetAvailableInfusionSources). A Refractor or Resonator throws the pulse in each of those
-	 *  elements, no plain stop. One stop per element. Empty for a caster with no element. */
+	 *  elements, no plain stop. One stop per element. Empty for a caster with no element.
+	 *  B-503l (Q-503l): a Reality stop (innate or evolution) or a Broken Darkness character's Darkness stop is followed
+	 *  by its hold steps (FFieldAttackEntry::bHoldStep), one per element of the other stops: "(R) Fire", "Dark Fire". */
 	UFUNCTION(BlueprintPure, Category = "Field")
 	TArray<FFieldAttackEntry> GetFieldAttackEntries() const;
 
@@ -181,9 +183,10 @@ public:
 	FFieldAttackEntry GetFieldAttackEntry() const;
 
 	/** Steps to the next stop, wrapping (IA_Field_SwitchSource: LB / R), and returns it. Kept on the party record
-	 *  when the pawn has one. */
+	 *  when the pawn has one. B-503l (D-217): a press (bHold false) steps the source, skipping hold steps; a hold the
+	 *  element within it (FieldSkillRules::NextFieldAttackHoldIndex; no change for a one-element source). */
 	UFUNCTION(BlueprintCallable, Category = "Field")
-	FFieldAttackEntry CycleFieldAttack();
+	FFieldAttackEntry CycleFieldAttack(bool bHold = false);
 
 	/** What a field hit now would carry: the entry in use's element and physical type
 	 *  (FieldSkillRules::MakeFieldStrike). */
