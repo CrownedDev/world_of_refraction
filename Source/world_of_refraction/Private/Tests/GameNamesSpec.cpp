@@ -13,6 +13,9 @@
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
 
 BEGIN_DEFINE_SPEC(FGameNamesSpec, "WoR.Text.GameNames",
 				  EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -143,6 +146,29 @@ void FGameNamesSpec::Define()
 		TestEqual(TEXT("a piece with no name gives its type"), WoRGameNames::GetHeldPiecesName(Sword, Unnamed).ToString(),
 				  FString::Printf(TEXT("Flame Sword and %s"), *WoRGameNames::GetWeaponTypeName(EWeaponType::Axe).ToString()));
 		TestTrue(TEXT("no main hand"), WoRGameNames::GetHeldPiecesName(nullptr, Shield).IsEmpty());
+	});
+
+	It("names an adapter by what is in its socket (B-514b, D-223)", [this]()
+	{
+		URingData *Ring = NewObject<URingData>(GetTransientPackage());
+		Ring->Name = TEXT("Plain Ring");
+		Ring->Form = EAdapterForm::Ring;
+		const FString Form = WoRGameNames::GetAdapterFormName(EAdapterForm::Ring).ToString();
+		FRuntimeAttachedItem Socket;
+		TestEqual(TEXT("empty: the adapter word, then the form (D-223)"), WoRGameNames::GetAdapterName(Ring, Socket).ToString(),
+				  FString::Printf(TEXT("%s %s"), *WoRGameNames::GetAdapterWord().ToString(), *Form));
+		constexpr int32 LIVE_DURABILITY = 10;
+		Socket.Kind = EAttachedItemKind::Crystal;
+		Socket.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), LIVE_DURABILITY);
+		TestEqual(TEXT("a crystal: its element, then the form"), WoRGameNames::GetAdapterName(Ring, Socket).ToString(),
+				  FString::Printf(TEXT("%s %s"), *WoRGameNames::GetElementName(ESpellElement::Fire).ToString(), *Form));
+		UEvolutionItemData *Phoenix = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Phoenix->ItemName = TEXT("Phoenix");
+		FRuntimeAttachedItem Evolved;
+		Evolved.Kind = EAttachedItemKind::Evolution;
+		Evolved.Evolution.Item = Phoenix;
+		TestEqual(TEXT("an evolution: its name, then the form"), WoRGameNames::GetAdapterName(Ring, Evolved).ToString(), FString::Printf(TEXT("Phoenix %s"), *Form));
+		TestTrue(TEXT("no adapter"), WoRGameNames::GetAdapterName(nullptr, Socket).IsEmpty());
 	});
 }
 
