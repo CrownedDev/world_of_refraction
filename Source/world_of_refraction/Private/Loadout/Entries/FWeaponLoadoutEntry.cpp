@@ -11,7 +11,6 @@
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Loadout/SkillSlotList.h"
-#include "Loadout/WeaponSpellRules.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "WeaponLoadoutEntry"
@@ -50,9 +49,7 @@ int32 FWeaponLoadoutEntry::GetSkillSlotCount() const
     // what were its spell slots while it is attached, broken or not (no ceiling: any other attachment adds none).
     // B-410: these slots take only None, Generic or the crystal's element (CanHoldSkill).
     constexpr int32 NO_SPELL_SOURCE_SLOTS = 0;
-    const int32 ConvertedSpellSlots = WeaponSpellRules::WeaponsGiveSpells()
-                                          ? 0
-                                          : CrystalEffectTable::ResolveSpellSlotCap(WeaponEntry.GetAttachedItem(), NO_SPELL_SOURCE_SLOTS);
+    const int32 ConvertedSpellSlots = CrystalEffectTable::ResolveSpellSlotCap(WeaponEntry.GetAttachedItem(), NO_SPELL_SOURCE_SLOTS);
     return TierSlots + ConvertedSpellSlots;
 }
 
@@ -195,126 +192,8 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
 {
-    if (!WeaponSpellRules::WeaponsGiveSpells())
-    {
-        return TArray<USpellData *>(); // B-098 (D-027): weapons give no spells; the data stays, unread
-    }
-    TArray<USpellData *> Result = GetAllSpellsUncapped();
-    if (Result.Num() > GetSpellSlotCap())
-    {
-        Result.SetNum(GetSpellSlotCap());
-    }
-    return Result;
-}
-
-int32 FWeaponLoadoutEntry::GetSpellSlotCap() const
-{
-    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
-    // the cap falls through to the weapon's own tier (SlotsForContainerTier), MAX_SPELL_SLOTS only
-    // as the no-weapon ceiling.
-    return CrystalEffectTable::ResolveSpellSlotCap(
-        WeaponEntry.GetAttachedItem(),
-        WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
-                           : LoadoutConstants::MAX_SPELL_SLOTS);
-}
-
-int32 FWeaponLoadoutEntry::GetSpellsOverCap() const
-{
-    if (!WeaponSpellRules::WeaponsGiveSpells())
-    {
-        return 0; // B-098: nothing is listed, so nothing is over the cap
-    }
-    return FMath::Max(0, GetAllSpellsUncapped().Num() - GetSpellSlotCap());
-}
-
-TArray<USpellData *> FWeaponLoadoutEntry::GetSpellSlots() const
-{
-    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry.AttachedItem.CanProvideSpells())
-    {
-        return TArray<USpellData *>();
-    }
-    return SkillSlotList::Resolve(WeaponEntry.AssignedSpells, WeaponEntry.SpellPicks, GetSpellSlotCap());
-}
-
-bool FWeaponLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
-{
-    if (!WeaponSpellRules::WeaponsGiveSpells() || !WeaponEntry.AttachedItem.CanProvideSpells() || Slot >= GetSpellSlotCap() ||
-        !SkillSlotList::Replace(WeaponEntry.SpellPicks, Slot, Spell))
-    {
-        return false;
-    }
-    WeaponEntry.bSpellSlotsActive = true;
-    return true;
-}
-
-bool FWeaponLoadoutEntry::RestoreSpell(int32 Slot)
-{
-    if (!WeaponSpellRules::WeaponsGiveSpells() || !SkillSlotList::Restore(WeaponEntry.SpellPicks, Slot))
-    {
-        return false;
-    }
-    WeaponEntry.bSpellSlotsActive = true;
-    return true;
-}
-
-FString FWeaponLoadoutEntry::GetSpellSlotString() const
-{
-    const TArray<USpellData *> Slots = GetSpellSlots();
-    FString Out = FString::Printf(TEXT("%s spell slots: %d (%s)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num(),
-                                  WeaponEntry.bSpellSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old merge plays"));
-    for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
-    {
-        const USpellData *BuiltIn = WeaponEntry.AssignedSpells.IsValidIndex(Slot) ? WeaponEntry.AssignedSpells[Slot] : nullptr;
-        const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SpellPicks, Slot);
-        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, *GetNameSafe(Slots[Slot]),
-                               bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *GetNameSafe(BuiltIn)) : TEXT(" (pick)"))
-                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")));
-    }
-    return Out;
-}
-
-TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpellsUncapped() const
-{
-    // B-351d (D-145): once the player has edited the crystal's one list, it is the list (the loadout's AssignedSpells
-    // override is OBSOLETE then).
-    if (WeaponEntry.bSpellSlotsActive)
-    {
-        TArray<USpellData *> Spells = GetSpellSlots();
-        Spells.RemoveAll([](const USpellData *Spell) { return Spell == nullptr; });
-        return Spells;
-    }
-
-    // Inventory-entry spells form the base list; AssignedSpells override them.
-    const TArray<USpellData *> Presets = WeaponEntry.GetSpells();
-
-    // Sequential override merge: AssignedSpells replace base slots in order;
-    // non-null entries beyond the base count are appended.
-    TArray<USpellData *> Result;
-    int32 OverrideIndex = 0;
-
-    for (int32 i = 0; i < Presets.Num(); ++i)
-    {
-        if (OverrideIndex < AssignedSpells.Num() && AssignedSpells[OverrideIndex])
-        {
-            Result.Add(AssignedSpells[OverrideIndex]);
-            ++OverrideIndex;
-        }
-        else
-        {
-            Result.Add(Presets[i]);
-        }
-    }
-
-    while (OverrideIndex < AssignedSpells.Num())
-    {
-        if (AssignedSpells[OverrideIndex])
-        {
-            Result.Add(AssignedSpells[OverrideIndex]);
-        }
-        ++OverrideIndex;
-    }
-
-    return Result;
+    // B-098 / B-411 (D-027): weapons give no spells; the spells an old save or asset holds stay in the data, unread.
+    return TArray<USpellData *>();
 }
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetLockedAbilities() const

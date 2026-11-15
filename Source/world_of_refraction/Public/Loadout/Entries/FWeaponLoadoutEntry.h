@@ -143,35 +143,10 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get all spells: inventory-entry spells as the base list, with
-     *  AssignedSpells applied as a sequential override (replace base slots
-     *  in order, then append any remainder). Capped at MAX_SPELL_SLOTS. */
+    /** B-098 / B-411 (D-027): weapons give no spells, so this is always empty. Kept for the callers that still list a
+     *  loadout's weapon spells (FCombatLoadout::GetAllSpells, ULoadoutComponent's spell lookups), which go with the
+     *  weapon spell fields (B-411b, with B-351e). */
     TArray<USpellData *> GetAllSpells() const;
-
-    /** GetAllSpells before the slot cap: the spells over the cap are what a fight drops (B-196). */
-    TArray<USpellData *> GetAllSpellsUncapped() const;
-
-    /** Spell slots the attached gem / evolution (Q-147) or the weapon's tier allows. */
-    int32 GetSpellSlotCap() const;
-
-    /** Spells the cap drops. */
-    int32 GetSpellsOverCap() const;
-
-    // ==================== ONE SPELL-SLOT LIST (B-351d, D-145) ====================
-
-    /** The crystal's one spell list slot by slot (null = an empty slot): the pick, else the built-in (the item's crystal
-     *  spells) at that position; GetSpellSlotCap slots. Empty without a crystal that can give spells. */
-    TArray<USpellData *> GetSpellSlots() const;
-
-    /** Replace what Slot holds with Spell; activates the list (the loadout's AssignedSpells then stop playing). False
-     *  without a spell-giving crystal or past the cap. */
-    bool ReplaceSpell(int32 Slot, USpellData *Spell);
-
-    /** Bring back the built-in (or empty) Slot held before a replace; activates the list. False if nothing was replaced. */
-    bool RestoreSpell(int32 Slot);
-
-    /** Debug: the spell list slot by slot (picks, the built-in each hides) and whether it is active. */
-    FString GetSpellSlotString() const;
 
     /** Get spell count (delegates to inventory entry) */
     int32 GetSpellCount() const
