@@ -14,6 +14,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Effects/EffectText.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/WoRIconTable.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "WoRLoadoutV2"
@@ -71,6 +72,7 @@ namespace LoadoutV2Build
 		Entry.Sockets = {IconOf(Ring.RingEntry.AttachedItem), IconOf(Ring.RingEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Ring.RingEntry.AttachedItem);
 		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.StoneSocket)};
+		Entry.TypeIcon = WoRLoadoutV2::MakeAdapterIcon(Ring.RingEntry); // B-530 (D-229): the frame with its crystal
 		return Entry;
 	}
 
@@ -1035,6 +1037,13 @@ FLoadoutV2Icon WoRLoadoutV2::MakeSocketIcon(const FRuntimeAttachedItem &Item)
 	Icon.Kind = ELoadoutV2IconKind::Element;
 	Icon.Element = Item.GetElement();
 	return Icon;
+}
+
+FLoadoutV2Icon WoRLoadoutV2::MakeAdapterIcon(const FRingInventoryEntry &Adapter)
+{
+	const FRuntimeAttachedItem &Socket = Adapter.AttachedItem;
+	const ESpellElement Element = Socket.IsEmpty() || Socket.IsAugmentStone() ? ESpellElement::None : Socket.GetElement();
+	return WoRIcons::MakeAdapterIcon(Element, WoRGameNames::GetAdapterName(Adapter.Ring, Socket));
 }
 
 bool WoRLoadoutV2::GetAttachmentTier(const FRuntimeAttachedItem &Item, EItemTier &OutTier)
