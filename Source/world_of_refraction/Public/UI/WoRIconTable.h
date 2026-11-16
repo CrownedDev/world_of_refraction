@@ -93,8 +93,14 @@ namespace WoRIcons
 	WORLD_OF_REFRACTION_API UTexture2D *GetWeaponType(EWeaponType Type);
 	WORLD_OF_REFRACTION_API UTexture2D *GetEffectKind(ESkillEffectType Type, ESpellElement Element = ESpellElement::None);
 
-	/** B-487: the texture for what Icon stands for; null for none (the caller keeps its text). */
+	/** B-487: the texture for what Icon stands for; null for none (the caller keeps its text). An adapter's is its frame. */
 	WORLD_OF_REFRACTION_API UTexture2D *Find(const FWoRIcon &Icon);
+
+	/** B-530 (D-229): what sits in an icon's centre, over Find's texture: an adapter's crystal badge; null otherwise. */
+	WORLD_OF_REFRACTION_API UTexture2D *FindCentre(const FWoRIcon &Icon);
+
+	/** B-530 (D-229): an adapter's icon: the frame, with SocketElement's badge inside (None: the centre stays empty). */
+	WORLD_OF_REFRACTION_API FWoRIcon MakeAdapterIcon(ESpellElement SocketElement, const FText &Name);
 
 	/** B-487: the effect kind an item's use counts as, for the icon beside its effect sentence (a Garnet's burn is
 	 *  damage over time, a Sapphire's is the last stand); None for a use with no icon kind. */

@@ -390,6 +390,9 @@ private:
 	// B-485: a row's icons (made with the row, hidden until the icon table has a texture for them).
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> LineTypeIcons;
+	/** B-530 (D-229): on an adapter's type icon (its socket frame), its crystal's badge. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> LineTypeCentres;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> LineSocket1Icons;
 	UPROPERTY(Transient)

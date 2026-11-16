@@ -210,6 +210,10 @@ namespace WoRLoadoutV2
 	/** B-485: a socket as an icon: its crystal's or evolution's element badge, a stone, or the empty socket. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Icon MakeSocketIcon(const FRuntimeAttachedItem &Item);
 
+	/** B-530 (D-229): an adapter's icon: the socket frame with its crystal's or evolution's badge inside; empty inside
+	 *  with nothing (or a stone) socketed. */
+	WORLD_OF_REFRACTION_API FLoadoutV2Icon MakeAdapterIcon(const FRingInventoryEntry &Adapter);
+
 	/** B-485: the tier of what a socket holds; false for an empty socket. */
 	WORLD_OF_REFRACTION_API bool GetAttachmentTier(const FRuntimeAttachedItem &Item, EItemTier &OutTier);
 

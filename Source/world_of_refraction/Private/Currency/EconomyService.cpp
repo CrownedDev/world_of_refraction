@@ -642,6 +642,8 @@ bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConv
             Loadout->NotifyActiveWeaponChanged(); // the move edits SavedLoadouts directly (B-138)
         }
     }
+    // TODO: B-530 (D-223): no ring pair is made any more (FindDuplicateGear is weapons only); remove the ring branches
+    // after Crown's PIE pass.
     if (bConvertToGold)
     {
         return Chosen.bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID, Verb)

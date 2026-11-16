@@ -12,7 +12,7 @@
 // 7 m ahead and the burst (FieldPulseVFX, or a plain line and ball) from the hand to where it stopped, in the strike's
 // colour, on every machine.
 // B-503s (D-218): picking a weapon's slice puts that weapon in hand (the loadout's ACTIVE); a pulse pick puts it away.
-// A weapon user's ring infuses the swing; an evolution or a Pistol / Trainer adapter throws the pulse.
+// An evolution or any adapter, a ring too (B-530), throws the pulse; only a weapon's own slice swings.
 
 #include "Field/FieldMovementComponent.h"
 
@@ -90,9 +90,11 @@ namespace
 		FText Type;
 		/** B-516b (D-223): the piece's tier (a pair: its main hand's), for telling two same-named pieces apart. */
 		EItemTier Tier = EItemTier::F_Tier;
-		/** B-503s (D-218): a weapon user throws the pulse from this slice too: the innate, an evolution, an adapter
-		 *  that isn't a ring (a Pistol or a Trainer). A ring infuses the weapon in hand. */
+		/** B-503s (D-218): a weapon user throws the pulse from this slice too: the innate, an evolution, any adapter
+		 *  (B-530: a ring as well; only a weapon's own slice swings). */
 		bool bPulse = false;
+		/** B-530 (D-229): an adapter; its tile is the socket frame with its crystal. */
+		bool bAdapter = false;
 	};
 
 	/** A weapon's swing, from its loadout entry: the entry's own attack override first (as
@@ -173,8 +175,8 @@ namespace
 				FFieldSlice &Slice = Slices.AddDefaulted_GetRef();
 				Slice.Name = WoRGameNames::GetAdapterName(Slot.RingEntry.Ring, Slot.RingEntry.GetAttachedItem()); // B-514b: "Fire Ring"
 				Slice.Element = LiveSocketElement(Slot.RingEntry.GetAttachedItem());
-				Slice.bPulse = Slot.RingEntry.Ring->Form != EAdapterForm::Ring;
-				Slice.Icon = Slot.RingEntry.Ring->Icon;
+				Slice.bPulse = true; // B-530 (D-218): every adapter is an element source, a ring too: it puts the weapon away
+				Slice.bAdapter = true; // B-530 (D-229): drawn as the socket frame with its crystal, not the ring's own icon
 				Slice.Type = WoRGameNames::GetAdapterFormName(Slot.RingEntry.Ring->Form);
 				Slice.Tier = Slot.RingEntry.Tier; // TODO: stage 2b, the built average of the ring and its crystal (D-224 (1))
 			};
@@ -259,9 +261,8 @@ FText FieldSkillRules::GetFieldStripTypeLine(const FFieldAttackEntry &Entry)
 TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor *Character)
 {
 	// B-503m4 (D-217 "The wheel on RB"): one slice per loadout entry, each followed by its element options (bHoldStep).
-	// A weapon user swings: a weapon's slice swings that weapon, plain then its crystal's element; a ring infuses the
-	// weapon in hand ("Lightning Sword"). B-503s (D-218): an evolution or a Pistol / Trainer adapter throws the pulse
-	// even for a weapon user. A Refractor or Resonator throws the pulse in the slice's element ("Fire"). A slice with
+	// A weapon user swings: a weapon's slice swings that weapon, plain then its crystal's element. B-503s / B-530
+	// (D-218): an evolution or any adapter (a ring too) throws the pulse even for a weapon user. A Refractor or Resonator throws the pulse in the slice's element ("Fire"). A slice with
 	// nothing to add (no element, no weapon of its own) is left out (Q-503 (2)); two slices of one element both show
 	// (each entry its slice, Q-503m4).
 	const UCharacterDataComponent *CharComp = Character ? Character->FindComponentByClass<UCharacterDataComponent>() : nullptr;
@@ -269,7 +270,6 @@ TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor 
 	const ULoadoutComponent *LoadoutComponent = Character ? Character->FindComponentByClass<ULoadoutComponent>() : nullptr;
 	const TArray<FFieldSlice> Slices = GetFieldSlices(LoadoutComponent, Data);
 	const bool bPulseClass = Data && Data->CharacterClass != ECharacterClass::Generic;
-	const FFieldAttackEntry ActiveSwing = MakeSwing(LoadoutComponent ? LoadoutComponent->GetActiveWeaponLoadout() : nullptr);
 	const bool bBrokenDarkness = CharComp && CharComp->IsBrokenDarkness();
 
 	// Q-503l: Reality's and Broken Darkness's options are the other entries' elements, each once, never the hidden Reality.
@@ -291,7 +291,7 @@ TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor 
 		{
 			continue;
 		}
-		FFieldAttackEntry Base = bPulse ? FFieldAttackEntry() : (bOwnSwing ? MakeSwing(Slice.Weapon) : ActiveSwing);
+		FFieldAttackEntry Base = bOwnSwing ? MakeSwing(Slice.Weapon) : FFieldAttackEntry(); // only a weapon slice swings
 		if (bPulse)
 		{
 			Base.Kind = Slice.Kind == EFieldAttackKind::Weapon ? EFieldAttackKind::Ring : Slice.Kind; // a crystal in gear, thrown
@@ -303,6 +303,7 @@ TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor 
 		Base.SliceName = Slice.Name;
 		Base.SliceIcon = Slice.Icon;
 		Base.SliceOffHandIcon = Slice.OffHandIcon;
+		Base.bSliceAdapter = Slice.bAdapter;
 		Base.SliceType = Slice.Type;
 		const FText WeaponTypeName = Base.Name; // empty for a pulse or unarmed
 		const int32 First = Entries.Num();

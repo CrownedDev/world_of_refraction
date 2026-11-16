@@ -114,6 +114,24 @@ void FIconTableSpec::Define()
 		TestNull(TEXT("nothing set: no effect icon"), WoRIcons::GetEffectKind(ESkillEffectType::DOT));
 		TestNull(TEXT("nothing set: no socket"), WoRIcons::GetEmptySocket());
 	});
+
+	It("draws an adapter as the socket frame with its crystal's badge inside (B-530, D-229)", [this]()
+	{
+		UTexture2D *Frame = NewObject<UTexture2D>(GetTransientPackage());
+		Table->EmptySocket = Frame;
+		WoRIcons::SetActiveForTests(Table);
+		const FWoRIcon Fire = WoRIcons::MakeAdapterIcon(ESpellElement::Fire, FText::FromString(TEXT("Fire Ring")));
+		TestTrue(TEXT("an adapter icon"), Fire.Kind == EWoRIconKind::Adapter && Fire.Name.ToString() == TEXT("Fire Ring"));
+		TestTrue(TEXT("its frame is the socket frame"), WoRIcons::Find(Fire) == Frame);
+		TestTrue(TEXT("its centre is the crystal's badge"), WoRIcons::FindCentre(Fire) == Texture);
+		const FWoRIcon Empty = WoRIcons::MakeAdapterIcon(ESpellElement::None, FText::FromString(TEXT("Adapter Ring")));
+		TestTrue(TEXT("an empty adapter: the frame"), WoRIcons::Find(Empty) == Frame);
+		TestNull(TEXT("with an empty centre"), WoRIcons::FindCentre(Empty));
+		FWoRIcon Badge;
+		Badge.Kind = EWoRIconKind::Element;
+		Badge.Element = ESpellElement::Fire;
+		TestNull(TEXT("no other icon has a centre"), WoRIcons::FindCentre(Badge));
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

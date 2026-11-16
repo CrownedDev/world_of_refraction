@@ -432,7 +432,8 @@ void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
 		UHorizontalBox *Icons = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UImage *Icon = MakeIcon(WidgetTree, StripIconSize);
 		UImage *OffHandIcon = MakeIcon(WidgetTree, StripPairIconSize);
-		AddToRow(Icons, Icon);
+		UImage *IconCentre = nullptr;
+		AddToRow(Icons, MakeIconStack(WidgetTree, Icon, StripIconSize, IconCentre)); // B-530: an adapter's crystal
 		AddToRow(Icons, OffHandIcon);
 		UOverlaySlot *IconsSlot = Face->AddChildToOverlay(Icons);
 		IconsSlot->SetHorizontalAlignment(HAlign_Center);
@@ -476,6 +477,7 @@ void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
 		StripTileSizes.Add(Size);
 		StripTileFills.Add(Fill);
 		StripIcons.Add(Icon);
+		StripIconCentres.Add(IconCentre);
 		StripOffHandIcons.Add(OffHandIcon);
 		StripTileNames.Add(Name);
 		StripInHandTags.Add(TagFrame);
@@ -546,10 +548,11 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 		{
 			continue;
 		}
-		// The tile: the piece's own icon, else (a weapon) its type's, else (the innate, an evolution) its element's badge,
-		// else its name. The icon table has no ring, adapter or shield icon yet.
+		// The tile: an adapter's socket frame with its crystal inside (B-530, D-229), else the piece's own icon, else (a
+		// weapon) its type's, else (the innate, an evolution) its element's badge, else its name.
 		const FFieldAttackEntry &Piece = Entries[Slices[Index]];
-		UTexture2D *Icon = Piece.SliceIcon;
+		const FWoRIcon AdapterIcon = Piece.bSliceAdapter ? WoRIcons::MakeAdapterIcon(Piece.Element, Piece.SliceName) : FWoRIcon();
+		UTexture2D *Icon = Piece.bSliceAdapter ? WoRIcons::Find(AdapterIcon) : Piece.SliceIcon.Get();
 		if (!Icon && Piece.WeaponId.IsValid())
 		{
 			Icon = WoRIcons::GetWeaponType(Piece.WeaponType);
@@ -561,6 +564,7 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 		UTexture2D *OffHandIcon = Icon ? Piece.SliceOffHandIcon.Get() : nullptr;
 		StripIcons[Index]->SetDesiredSizeOverride(FVector2D(OffHandIcon ? StripPairIconSize : StripIconSize));
 		const bool bIcon = SetIcon(StripIcons[Index], Icon, Piece.SliceName);
+		SetIcon(StripIconCentres[Index], bIcon ? WoRIcons::FindCentre(AdapterIcon) : nullptr, Piece.SliceName);
 		SetIcon(StripOffHandIcons[Index], OffHandIcon, Piece.SliceName);
 		StripTileNames[Index]->SetText(Piece.SliceName);
 		SetShown(StripTileNames[Index], !bIcon);

@@ -203,6 +203,11 @@ struct WORLD_OF_REFRACTION_API FFieldAttackEntry
 	UPROPERTY(BlueprintReadOnly, Category = "Field")
 	TObjectPtr<class UTexture2D> SliceOffHandIcon = nullptr;
 
+	/** B-530 (D-229): the slice is an adapter: its tile is the socket frame with the slice's element badge inside
+	 *  (WoRIcons::MakeAdapterIcon), not a piece icon. */
+	UPROPERTY(BlueprintReadOnly, Category = "Field")
+	bool bSliceAdapter = false;
+
 	/** B-514 (D-222 "The text and the frame"): the piece's type on the strip's second line: the held type ("Sword and
 	 *  Shield"), an adapter's form ("Ring"), "Evolution"; empty for the innate. */
 	UPROPERTY(BlueprintReadOnly, Category = "Field")

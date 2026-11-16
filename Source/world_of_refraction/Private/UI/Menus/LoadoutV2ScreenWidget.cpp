@@ -687,6 +687,11 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 		Icons.Type.Name = WoRGameNames::GetHeldWeaponTypeName(Item.Weapon.Weapon); // B-513
 		return Icons;
 	}
+	if (Item.Adapter.Ring)
+	{
+		Icons.Type = WoRLoadoutV2::MakeAdapterIcon(Item.Adapter); // B-530 (D-229): the frame with its crystal
+		return Icons;
+	}
 	// A crystal, stone or evolution line: its badge, and its tier.
 	const FRuntimeAttachedItem Attachment = Item.Evolution.InstanceID.IsValid() ? WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution) : Item.Socket.Attachment;
 	if (!Attachment.IsEmpty())
@@ -925,11 +930,13 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		// B-485: the weapon-type icon, the name, then the two socket badges and a tier badge (each hidden until the
 		// icon table has it); the name column cuts what doesn't fit.
 		UImage *TypeIcon = MakeIcon(WidgetTree, RowIconSize);
+		UImage *TypeCentre = nullptr;
+		UOverlay *TypeStack = MakeIconStack(WidgetTree, TypeIcon, RowIconSize, TypeCentre); // B-530: an adapter's crystal
 		UImage *Socket1Icon = MakeIcon(WidgetTree, BadgeSize);
 		UImage *Socket2Icon = MakeIcon(WidgetTree, BadgeSize);
 		UImage *TierIcon = MakeIcon(WidgetTree, BadgeSize);
 		UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		AddToRow(NameRow, TypeIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+		AddToRow(NameRow, TypeStack, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
 		AddToRow(NameRow, Name, FMargin(0.0f), VAlign_Center);
 		AddToRow(NameRow, TierIcon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
 		AddToRow(NameRow, Socket1Icon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
@@ -945,6 +952,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		LineDetails.Add(Detail);
 		LineTags.Add(Tag);
 		LineTypeIcons.Add(TypeIcon);
+		LineTypeCentres.Add(TypeCentre);
 		LineSocket1Icons.Add(Socket1Icon);
 		LineSocket2Icons.Add(Socket2Icon);
 		LineTierIcons.Add(TierIcon);
@@ -971,7 +979,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		SetShown(LineTags[Index], !Tag.IsEmpty());
 		// B-485: the row's icons; each is hidden when the icon table has none for it.
 		const FLineIcons Icons = GetLineIcons(Index);
-		SetIcon(LineTypeIcons[Index], FindIcon(Icons.Type), Icons.Type.Name);
+		const bool bTypeIcon = SetIcon(LineTypeIcons[Index], FindIcon(Icons.Type), Icons.Type.Name);
+		SetIcon(LineTypeCentres[Index], bTypeIcon ? WoRIcons::FindCentre(Icons.Type) : nullptr, Icons.Type.Name);
 		const bool bSocketBadge = SetIcon(LineSocket1Icons[Index], FindIcon(Icons.Socket1), Icons.Socket1.Name);
 		SetIcon(LineSocket2Icons[Index], bSocketBadge ? FindIcon(Icons.Socket2) : nullptr, Icons.Socket2.Name); // the pair shows together
 		const bool bTierBadge = SetIcon(LineTierIcons[Index], Icons.bHasTier ? WoRIcons::GetTierBadge(Icons.Tier) : nullptr,
