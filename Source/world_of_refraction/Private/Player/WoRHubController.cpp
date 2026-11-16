@@ -399,7 +399,6 @@ void AWoRHubController::OnPossess(APawn *InPawn)
 {
 	Super::OnPossess(InPawn);
 
-
 	if (bEnsureLocalPartyOnPossess)
 	{
 		UGameInstance *GI = GetGameInstance();
