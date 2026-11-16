@@ -172,7 +172,7 @@ void FDuplicateGearSpec::Define()
 		UCharacterData *Data = Owner->FindComponentByClass<UCharacterDataComponent>()->CharacterData;
 		Data->Inventory = NewObject<UInventoryData>(GetTransientPackage());
 		Data->Inventory->Rings.Init(Adapter, SPARE_ADAPTERS);
-		Inventory->InitializeFromInventoryAsset(Data);
+		Inventory->InitializeFromCharacterData(Data);
 		TestEqual(TEXT("all five spares owned"), Inventory->Rings.Num(), SPARE_ADAPTERS);
 		Inventory->AddRing(Adapter);
 		TestEqual(TEXT("a sixth found one is kept too"), Inventory->Rings.Num(), SPARE_ADAPTERS + 1);
