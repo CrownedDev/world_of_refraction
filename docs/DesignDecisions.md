@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-230 — The loadout screen gets an Inventory tab, first in the row
+**Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
+**Answer (Crown):** "we should have an inventory tab, which should be first": the tab row reads Inventory, Equipment, Skills, Apparel, Cosmetics. It shows what the character owns and is not wearing, so spares can be seen and swapped in ("we should add what they can't equip to inventory so we can change it").
+**Defaults (reference-backed, Crown may change):** grouped as Weapons, Adapters, Evolutions, Crystals; hovering a piece fills the same details box as the Equipment tab; choosing a piece offers to wear it (the Equipment tab's add flow, reused). The screen still opens on the Equipment tab. Reference: Destiny 2's and Breath of the Wild's inventory pages sit beside the worn gear and equip straight from the list.
+
 ### D-229 — Character slots at new game; an adapter's icon is the frame with its crystal
 **Status:** ANSWERED (Crown, 2026-11-16); slots are planned with D-228, not built yet · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** (1) **Character slots:** "we should have character select slots, so when we create a new game we pick a slot". Each slot is its own game with its own character (body, class, picks, name; D-227, D-228). Default (Crown may change): three slots, as Destiny has; the title shows the slots, an empty one starts a new game, a filled one continues it. (2) **Adapter icon:** an adapter shows **the crystal's icon inside the frame**; with nothing socketed the frame's centre is empty. This replaces the text-only tile on the quick strip and the lists.
