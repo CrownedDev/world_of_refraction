@@ -2,6 +2,7 @@
 
 #include "UI/Menus/TitleScreenWidget.h"
 
+#include "Algo/Count.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -34,15 +35,27 @@ namespace TitleScreenStyle
 	constexpr float ScreenPaddingX = 108.0f;
 	constexpr float TitleGap = 36.0f;
 	constexpr float RowsTopGap = 96.0f;
-	constexpr float ListWidth = 612.0f;
-	constexpr float RowHeight = 72.0f;
+	/** B-546: the slots stand centred while there is nothing beside them. With a character figure (Crown: it goes on the
+	 *  right), set HAlign_Left and put the figure on the right of Main's slot row. */
+	constexpr EHorizontalAlignment SlotsAlignment = HAlign_Center;
+	constexpr float ListWidth = 720.0f;
+	constexpr float RowHeight = 96.0f;
 	constexpr float RowGap = 12.0f;
 	constexpr float RowPaddingX = 24.0f;
+	/** shortcut: room for the boxes one save file can fill (a slot and the +); stage 3 (a save per character) puts the
+	 *  slots in a ScrollBox of GetMaxSlots boxes. */
+	constexpr int32 MaxSlotBoxes = 4;
+	/** Settings, Credits, Quit. */
+	constexpr int32 MaxButtons = 3;
+	constexpr float ButtonWidth = 240.0f;
+	constexpr float ButtonHeight = 60.0f;
+	constexpr float ButtonGap = 24.0f;
 	constexpr float PanelWidth = 900.0f;
 	constexpr float PanelPadding = 36.0f;
+	constexpr float AnswerWidth = 180.0f;
+	constexpr float AnswerHeight = 56.0f;
 	constexpr float HoldBarHeight = 12.0f;
-	constexpr int32 MaxRows = 6;
-	/** UIScreens #9: New Game over a save needs A held this long (Destiny 2's dismantle, Elden Ring's delete). */
+	/** UIScreens #9: New Game over a save needs A held this long. OBSOLETE (B-546): a yes / no now. */
 	constexpr float HOLD_TO_START_OVER_SECONDS = 2.0f;
 	constexpr float MaxHoldStepSeconds = 0.1f;
 	inline const FLinearColor DimLayerColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.6f);
@@ -58,10 +71,15 @@ namespace
 	TWeakObjectPtr<const UGameInstance> GTitleStartSeenFor;
 	TAutoConsoleVariable<bool> CVarTitleAtStart(TEXT("wor.UI.TitleAtStart"), true,
 		TEXT("B-535: open the title on a play session's first map load (the default map only). 0 skips it, for testing."));
-	/** B-469: the hold deleted the save this launch (the title says so until the new game begins). */
+	/** B-469: the save was deleted this launch (the title says so until the new game begins). */
 	bool GTitleSaveDeletedThisLaunch = false;
 	/** "Your save was reset" is said once a launch. */
 	bool GSaveResetNoticeShown = false;
+
+	FText GetSaveDeletedText()
+	{
+		return LOCTEXT("SaveDeleted", "Your save is deleted. Pick + to begin.");
+	}
 }
 
 UTitleScreenWidget::UTitleScreenWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -143,39 +161,54 @@ void UTitleScreenWidget::BuildTree()
 	GameSubtitle->SetFont(SubtitleFont);
 	GameSubtitle->SetText(LOCTEXT("GameSubtitle", "TALES OF THE VOID"));
 	UVerticalBox *TitleBlock = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	AddToColumn(TitleBlock, GameTitle);
+	AddToColumn(TitleBlock, GameTitle)->SetHorizontalAlignment(HAlign_Center);
 	AddToColumn(TitleBlock, GameSubtitle, FMargin(0.0f, TitleGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Center);
-	AddToColumn(Main, TitleBlock)->SetHorizontalAlignment(HAlign_Left);
+	AddToColumn(Main, TitleBlock)->SetHorizontalAlignment(HAlign_Center); // B-546: the whole screen is centred
 
+	// The slots: the character's name over its last run's levels ("Mind 3  ·  Body 2  ·  Spirit 1"), or "+" over "New character".
 	UVerticalBox *List = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	for (int32 Index = 0; Index < MaxRows; ++Index)
+	for (int32 Index = 0; Index < MaxSlotBoxes; ++Index)
 	{
 		UBorder *Row = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Row->SetPadding(FMargin(RowPaddingX, 0.0f));
 		Row->SetVerticalAlignment(VAlign_Center);
-		UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		Row->SetContent(Columns);
+		UVerticalBox *Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Row->SetContent(Lines);
 		UTextBlock *Label = MakeText(WidgetTree, NameFontSize, TextColor, true);
-		UTextBlock *Line = MakeText(WidgetTree, SmallFontSize, TextColor);
-		AddToRow(Columns, Label);
-		UHorizontalBoxSlot *LineSlot = AddToRow(Columns, Line, FMargin(SectionGap, 0.0f, 0.0f, 0.0f));
-		LineSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		LineSlot->SetHorizontalAlignment(HAlign_Right);
+		UTextBlock *Line = MakeText(WidgetTree, SmallFontSize, DimColor);
+		AddToColumn(Lines, Label);
+		AddToColumn(Lines, Line, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 		RowBoxes.Add(Row);
 		RowLabels.Add(Label);
 		RowLines.Add(Line);
 		AddToColumn(List, MakeSized(WidgetTree, ListWidth, RowHeight, Row), FMargin(0.0f, 0.0f, 0.0f, RowGap));
 	}
-	AddToColumn(Main, List, FMargin(0.0f, RowsTopGap, 0.0f, 0.0f));
+	AddToColumn(Main, List, FMargin(0.0f, RowsTopGap, 0.0f, 0.0f))->SetHorizontalAlignment(SlotsAlignment);
 	StatusText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
-	AddToColumn(Main, MakeSized(WidgetTree, ListWidth, 0.0f, StatusText), FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	StatusText->SetJustification(ETextJustify::Center);
+	AddToColumn(Main, MakeSized(WidgetTree, ListWidth, 0.0f, StatusText), FMargin(0.0f, LineGap, 0.0f, 0.0f))->SetHorizontalAlignment(SlotsAlignment);
 
 	UVerticalBox *Spacer = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	AddToColumn(Main, Spacer)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 
-	// Over everything: the dimmed screen and one centred panel (the reset notice, or New Game's confirm).
+	// B-546: Settings, Credits and Quit along the bottom, centred under the slots.
+	UHorizontalBox *Buttons = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	for (int32 Index = 0; Index < MaxButtons; ++Index)
+	{
+		UBorder *Button = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Button->SetHorizontalAlignment(HAlign_Center);
+		Button->SetVerticalAlignment(VAlign_Center);
+		UTextBlock *Label = MakeText(WidgetTree, LineFontSize, TextColor, true);
+		Button->SetContent(Label);
+		ButtonBoxes.Add(Button);
+		ButtonLabels.Add(Label);
+		AddToRow(Buttons, MakeSized(WidgetTree, ButtonWidth, ButtonHeight, Button), FMargin(Index == 0 ? 0.0f : ButtonGap, 0.0f, 0.0f, 0.0f));
+	}
+	AddToColumn(Main, Buttons)->SetHorizontalAlignment(HAlign_Center);
+	HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
+	AddToColumn(Main, HintsText, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
+
+	// Over everything: the dimmed screen and one centred panel (the reset notice, or a yes / no).
 	UBorder *Dim = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("PanelLayer"));
 	Dim->SetBrushColor(DimLayerColor);
 	Dim->SetHorizontalAlignment(HAlign_Center);
@@ -213,17 +246,30 @@ void UTitleScreenWidget::BuildTree()
 	AddToColumn(PanelColumn, Versions, FMargin(0.0f, SectionGap * 2.0f, 0.0f, 0.0f));
 	VersionLines = Versions;
 
+	// OBSOLETE (B-546): the hold's lines, never shown now; retire with the hold after PIE.
 	UVerticalBox *Hold = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UTextBlock *CantUndo = MakeText(WidgetTree, LineFontSize, WarnColor, true);
-	CantUndo->SetText(LOCTEXT("CantUndo", "This can't be undone."));
-	UTextBlock *HoldHint = MakeHintText(WidgetTree, SmallFontSize, DimColor);
-	WoRKeyHints::SetHint(HoldHint, FText::FormatNamed(LOCTEXT("HoldHint", "Hold {Confirm} for {Seconds} seconds to confirm."), TEXT("Seconds"), FMath::RoundToInt32(HOLD_TO_START_OVER_SECONDS)));
-	HoldBar = MakeBar(WidgetTree, WarnColor); // as the game menu's quit hold
-	AddToColumn(Hold, CantUndo);
-	AddToColumn(Hold, HoldHint, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
-	AddToColumn(Hold, MakeSized(WidgetTree, PanelWidth - PanelPadding * 2.0f, HoldBarHeight, HoldBar), FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToColumn(PanelColumn, Hold, FMargin(0.0f, SectionGap * 2.0f, 0.0f, 0.0f));
+	HoldBar = MakeBar(WidgetTree, WarnColor);
+	AddToColumn(Hold, MakeSized(WidgetTree, PanelWidth - PanelPadding * 2.0f, HoldBarHeight, HoldBar));
+	AddToColumn(PanelColumn, Hold);
 	HoldLines = Hold;
+
+	// B-546: Yes and No, No lit first.
+	UHorizontalBox *Answers = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	auto AddAnswer = [this, Answers](const FText &Word, float LeftGap) -> UBorder *
+	{
+		UBorder *Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Box->SetHorizontalAlignment(HAlign_Center);
+		Box->SetVerticalAlignment(VAlign_Center);
+		UTextBlock *Label = MakeText(WidgetTree, LineFontSize, TextColor, true);
+		Label->SetText(Word);
+		Box->SetContent(Label);
+		AddToRow(Answers, MakeSized(WidgetTree, AnswerWidth, AnswerHeight, Box), FMargin(LeftGap, 0.0f, 0.0f, 0.0f));
+		return Box;
+	};
+	YesBox = AddAnswer(LOCTEXT("Yes", "Yes"), 0.0f);
+	NoBox = AddAnswer(LOCTEXT("No", "No"), ButtonGap);
+	AddToColumn(PanelColumn, Answers, FMargin(0.0f, SectionGap * 2.0f, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
+	AnswerLines = Answers;
 
 	Dim->SetContent(MakeSized(WidgetTree, PanelWidth, 0.0f, PanelBox));
 }
@@ -232,7 +278,7 @@ void UTitleScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	SelectedRow = 0;
-	Status = GTitleSaveDeletedThisLaunch ? LOCTEXT("SaveDeleted", "Your save is deleted. Choose New Game to begin.") : FText::GetEmpty();
+	Status = GTitleSaveDeletedThisLaunch ? GetSaveDeletedText() : FText::GetEmpty();
 	StopHold();
 	const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 	const bool bShowReset = Saves && Saves->WasWiped() && !GSaveResetNoticeShown;
@@ -254,6 +300,25 @@ UWidget *UTitleScreenWidget::NativeGetDesiredFocusTarget() const
 	return const_cast<UTitleScreenWidget *>(this);
 }
 
+int32 UTitleScreenWidget::GetSlotCount() const
+{
+	return Algo::CountIf(Rows, [](const FTitleScreenRow &Row) { return !Row.bButton; });
+}
+
+UBorder *UTitleScreenWidget::GetRowBox(int32 Index) const
+{
+	const int32 Slots = GetSlotCount();
+	if (Index < 0)
+	{
+		return nullptr;
+	}
+	if (Index < Slots)
+	{
+		return RowBoxes.IsValidIndex(Index) ? RowBoxes[Index].Get() : nullptr;
+	}
+	return ButtonBoxes.IsValidIndex(Index - Slots) ? ButtonBoxes[Index - Slots].Get() : nullptr;
+}
+
 void UTitleScreenWidget::Refresh()
 {
 	using namespace TitleScreenStyle;
@@ -262,9 +327,14 @@ void UTitleScreenWidget::Refresh()
 	Rows = WoRTitleScreen::BuildRows(Save);
 	SelectedRow = FMath::Clamp(SelectedRow, 0, Rows.Num() - 1);
 
+	const int32 Slots = GetSlotCount();
+	if (Slots > RowBoxes.Num() && !RowBoxes.IsEmpty())
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] %d slots, room for %d (MaxSlotBoxes): the rest aren't drawn"), Slots, RowBoxes.Num());
+	}
 	for (int32 Index = 0; Index < RowBoxes.Num(); ++Index)
 	{
-		const bool bShown = Rows.IsValidIndex(Index);
+		const bool bShown = Index < Slots;
 		SetShown(RowBoxes[Index]->GetParent(), bShown);
 		if (!bShown)
 		{
@@ -276,6 +346,17 @@ void UTitleScreenWidget::Refresh()
 		RowLabels[Index]->SetColorAndOpacity(FSlateColor(Row.CanUse() ? TextColor : OffColor));
 		RowLines[Index]->SetText(Row.Line);
 	}
+	for (int32 Index = 0; Index < ButtonBoxes.Num(); ++Index)
+	{
+		const int32 RowIndex = Slots + Index;
+		const bool bShown = Rows.IsValidIndex(RowIndex);
+		SetShown(ButtonBoxes[Index]->GetParent(), bShown);
+		if (bShown)
+		{
+			ButtonBoxes[Index]->SetBrushColor(RowIndex == SelectedRow ? FocusColor : PlateColor);
+			ButtonLabels[Index]->SetText(Rows[RowIndex].Label);
+		}
+	}
 	if (!StatusText)
 	{
 		return; // headless: no tree
@@ -285,9 +366,11 @@ void UTitleScreenWidget::Refresh()
 
 	SetShown(PanelLayer, Panel != ETitlePanel::None);
 	SetShown(VersionLines, Panel == ETitlePanel::SaveReset);
-	const USaveSubsystem *HoldSave = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
-	const bool bHold = !HoldSave || HoldSave->IsHoldToConfirmOn(); // B-453c (D-190)
-	SetShown(HoldLines, Panel == ETitlePanel::NewGameConfirm && bHold);
+	SetShown(HoldLines, false);
+	SetShown(AnswerLines, IsYesNoPanel());
+	YesBox->SetBrushColor(bPanelYes ? FocusColor : PlateColor);
+	NoBox->SetBrushColor(bPanelYes ? PlateColor : FocusColor);
+	const FText YesNoHints = LOCTEXT("YesNoHints", "{Arrows}  Yes / No        {Confirm}  Choose        {Back}  No");
 	if (Panel == ETitlePanel::SaveReset)
 	{
 		const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
@@ -303,12 +386,22 @@ void UTitleScreenWidget::Refresh()
 		PanelTitle->SetText(LOCTEXT("NewGameTitle", "Start a new game?"));
 		PanelTitle->SetColorAndOpacity(FSlateColor(TextColor));
 		PanelBody->SetText(WoRTitleScreen::GetNewGameWarning(Save));
-		HoldBar->SetPercent(HeldSeconds / HOLD_TO_START_OVER_SECONDS);
-		WoRKeyHints::SetHint(HintsText, bHold ? LOCTEXT("ConfirmHints", "{Confirm}  Hold: start over        {Back}  Cancel") : LOCTEXT("ConfirmPressHints", "{Confirm}  Start over        {Back}  Cancel"));
+		WoRKeyHints::SetHint(HintsText, YesNoHints);
+	}
+	else if (Panel == ETitlePanel::DeleteConfirm)
+	{
+		PanelTitle->SetText(LOCTEXT("DeleteTitle", "Delete a character"));
+		PanelTitle->SetColorAndOpacity(FSlateColor(WarnColor));
+		PanelBody->SetText(WoRTitleScreen::GetDeleteWarning(Save));
+		WoRKeyHints::SetHint(HintsText, YesNoHints);
+	}
+	else if (Rows.IsValidIndex(SelectedRow) && Rows[SelectedRow].Id == ETitleScreenRow::Continue)
+	{
+		WoRKeyHints::SetHint(HintsText, LOCTEXT("SlotHints", "{Arrows}  Move        {Confirm}  Continue        {Second}  Delete"));
 	}
 	else
 	{
-		WoRKeyHints::SetHint(HintsText, LOCTEXT("Hints", "{Confirm}  Select"));
+		WoRKeyHints::SetHint(HintsText, LOCTEXT("Hints", "{Arrows}  Move        {Confirm}  Select"));
 	}
 }
 
@@ -316,14 +409,41 @@ void UTitleScreenWidget::ShowPanel(ETitlePanel InPanel)
 {
 	StopHold();
 	Panel = InPanel;
+	bPanelYes = false; // a yes / no opens on No
 	Refresh();
 }
 
 void UTitleScreenWidget::MoveSelection(int32 Delta)
 {
-	if (Panel == ETitlePanel::None && Rows.Num() > 0)
+	if (Panel != ETitlePanel::None || Rows.IsEmpty())
 	{
-		SelectRow(((SelectedRow + Delta) % Rows.Num() + Rows.Num()) % Rows.Num());
+		return;
+	}
+	const int32 Slots = GetSlotCount();
+	if (SelectedRow < Slots)
+	{
+		// Down past the last slot: the first button. Up from the first slot stays.
+		SelectRow(SelectedRow + Delta >= Slots ? Slots : FMath::Max(SelectedRow + Delta, 0));
+	}
+	else if (Delta < 0 && Slots > 0)
+	{
+		SelectRow(Slots - 1); // Up from a button: the last slot
+	}
+}
+
+void UTitleScreenWidget::MoveSide(int32 Delta)
+{
+	if (IsYesNoPanel())
+	{
+		bPanelYes = !bPanelYes;
+		Refresh();
+		return;
+	}
+	const int32 Slots = GetSlotCount();
+	const int32 Buttons = Rows.Num() - Slots;
+	if (Panel == ETitlePanel::None && SelectedRow >= Slots && Buttons > 0)
+	{
+		SelectRow(Slots + ((SelectedRow - Slots + Delta) % Buttons + Buttons) % Buttons);
 	}
 }
 
@@ -344,9 +464,14 @@ void UTitleScreenWidget::Confirm()
 		ShowPanel(ETitlePanel::None);
 		return;
 	}
-	if (Panel != ETitlePanel::None || !Rows.IsValidIndex(SelectedRow))
+	if (IsYesNoPanel())
 	{
-		return; // New Game's confirm is a hold, not a press
+		ChooseAnswer(bPanelYes);
+		return;
+	}
+	if (!Rows.IsValidIndex(SelectedRow))
+	{
+		return;
 	}
 	const FTitleScreenRow &Row = Rows[SelectedRow];
 	if (!Row.CanUse())
@@ -363,7 +488,7 @@ void UTitleScreenWidget::Confirm()
 	case ETitleScreenRow::NewGame:
 		if (Save.bHasSave)
 		{
-			ShowPanel(ETitlePanel::NewGameConfirm);
+			ShowPanel(ETitlePanel::NewGameConfirm); // one save file until stage 3: a new character replaces it
 		}
 		else
 		{
@@ -385,6 +510,32 @@ void UTitleScreenWidget::Confirm()
 	}
 }
 
+void UTitleScreenWidget::RequestDelete()
+{
+	if (Panel == ETitlePanel::None && Rows.IsValidIndex(SelectedRow) && Rows[SelectedRow].Id == ETitleScreenRow::Continue)
+	{
+		ShowPanel(ETitlePanel::DeleteConfirm);
+	}
+}
+
+void UTitleScreenWidget::ChooseAnswer(bool bYes)
+{
+	const ETitlePanel Asked = Panel;
+	if (!bYes || !IsYesNoPanel())
+	{
+		ShowPanel(ETitlePanel::None);
+		return;
+	}
+	if (Asked == ETitlePanel::NewGameConfirm)
+	{
+		StartOver();
+	}
+	else
+	{
+		DeleteCharacter();
+	}
+}
+
 void UTitleScreenWidget::Leave()
 {
 	GTitleLeftThisLaunch = true;
@@ -402,12 +553,6 @@ void UTitleScreenWidget::StartHold()
 {
 	if (Panel != ETitlePanel::NewGameConfirm || HoldTicker.IsValid())
 	{
-		return;
-	}
-	const USaveSubsystem *HoldSave = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
-	if (HoldSave && !HoldSave->IsHoldToConfirmOn())
-	{
-		StartOver(); // B-453c: hold to confirm is off; this press on the confirm panel is the confirm
 		return;
 	}
 	HeldSeconds = 0.0f;
@@ -460,12 +605,26 @@ void UTitleScreenWidget::StartOver()
 		Saves->DeleteSave();
 		// Shown if the player backs out of the new game screen: the old game can't be continued now.
 		GTitleSaveDeletedThisLaunch = true;
-		Status = LOCTEXT("SaveDeleted", "Your save is deleted. Choose New Game to begin.");
-		UE_LOG(LogWoRUI, Warning, TEXT("[Title] New Game held: the save is deleted; the new game screen opens"));
+		Status = GetSaveDeletedText();
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] New character over the save: the save is deleted; the new game screen opens"));
 	}
 	SelectedRow = 0;
 	ShowPanel(ETitlePanel::None);
 	UNewGameScreenWidget::Open(GetOwningPlayer());
+}
+
+void UTitleScreenWidget::DeleteCharacter()
+{
+	USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	if (Saves && Saves->IsBoundToPlayer())
+	{
+		Saves->DeleteSave(); // one save file until stage 3: the slot's character is the save
+		GTitleSaveDeletedThisLaunch = true;
+		Status = GetSaveDeletedText();
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Slot deleted: %s"), *Save.LeaderName.ToString());
+	}
+	SelectedRow = 0;
+	ShowPanel(ETitlePanel::None);
 }
 
 FReply UTitleScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
@@ -477,18 +636,24 @@ FReply UTitleScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FK
 		MoveSelection(IsDownKey(Key) ? 1 : -1);
 		return FReply::Handled();
 	}
+	if (IsLeftKey(Key) || IsRightKey(Key))
+	{
+		MoveSide(IsRightKey(Key) ? 1 : -1);
+		return FReply::Handled();
+	}
 	if (IsConfirmKey(Key))
 	{
 		if (!InKeyEvent.IsRepeat())
 		{
-			if (Panel == ETitlePanel::NewGameConfirm)
-			{
-				StartHold();
-			}
-			else
-			{
-				Confirm();
-			}
+			Confirm();
+		}
+		return FReply::Handled();
+	}
+	if (IsSecondActionKey(Key))
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			RequestDelete();
 		}
 		return FReply::Handled();
 	}
@@ -508,7 +673,7 @@ FReply UTitleScreenWidget::NativeOnKeyUp(const FGeometry &InGeometry, const FKey
 {
 	if (WoRMenuStyle::IsConfirmKey(InKeyEvent.GetKey()) && HoldTicker.IsValid())
 	{
-		StopHold(); // let go before the end: nothing happens
+		StopHold(); // OBSOLETE (B-546) with the hold
 		return FReply::Handled();
 	}
 	return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
@@ -516,13 +681,13 @@ FReply UTitleScreenWidget::NativeOnKeyUp(const FGeometry &InGeometry, const FKey
 
 void UTitleScreenWidget::NativeOnFocusLost(const FFocusEvent &InFocusEvent)
 {
-	StopHold(); // no key-up arrives once the keys go elsewhere: the hold must not finish by itself
+	StopHold();
 	Super::NativeOnFocusLost(InFocusEvent);
 }
 
 bool UTitleScreenWidget::NativeOnHandleBackAction()
 {
-	// The title never closes on Back; Back only takes a panel away.
+	// The title never closes on Back; Back only takes a panel away (a yes / no's No).
 	if (Panel != ETitlePanel::None)
 	{
 		ShowPanel(ETitlePanel::None);
@@ -532,9 +697,10 @@ bool UTitleScreenWidget::NativeOnHandleBackAction()
 
 int32 UTitleScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 {
-	for (int32 Index = 0; Index < RowBoxes.Num(); ++Index)
+	for (int32 Index = 0; Index < Rows.Num(); ++Index)
 	{
-		if (Rows.IsValidIndex(Index) && RowBoxes[Index]->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+		const UBorder *Box = GetRowBox(Index);
+		if (Box && Box->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
 		{
 			return Index;
 		}
@@ -542,30 +708,72 @@ int32 UTitleScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 	return INDEX_NONE;
 }
 
+int32 UTitleScreenWidget::FindAnswerUnder(const FPointerEvent &MouseEvent) const
+{
+	const FVector2D Where = MouseEvent.GetScreenSpacePosition();
+	if (YesBox && YesBox->GetCachedGeometry().IsUnderLocation(Where))
+	{
+		return 1;
+	}
+	if (NoBox && NoBox->GetCachedGeometry().IsUnderLocation(Where))
+	{
+		return 0;
+	}
+	return INDEX_NONE;
+}
+
 FReply UTitleScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
 	// Only a moving mouse picks a row, so a resting cursor doesn't fight the keys.
-	if (Panel == ETitlePanel::None && !InMouseEvent.GetCursorDelta().IsZero())
+	if (!InMouseEvent.GetCursorDelta().IsZero())
 	{
-		SelectRow(FindRowUnder(InMouseEvent));
+		if (Panel == ETitlePanel::None)
+		{
+			SelectRow(FindRowUnder(InMouseEvent));
+		}
+		else if (IsYesNoPanel())
+		{
+			const int32 Answer = FindAnswerUnder(InMouseEvent);
+			if (Answer != INDEX_NONE && (Answer == 1) != bPanelYes)
+			{
+				bPanelYes = Answer == 1;
+				Refresh();
+			}
+		}
 	}
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
 FReply UTitleScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	const FKey Button = InMouseEvent.GetEffectingButton();
+	if (Button == EKeys::RightMouseButton && Panel == ETitlePanel::None)
+	{
+		// B-546: a right-click on a filled slot asks to delete it (as R / Y; the hint bar's key cap works too).
+		const int32 Row = FindRowUnder(InMouseEvent);
+		if (Row != INDEX_NONE && Rows[Row].Id == ETitleScreenRow::Continue)
+		{
+			SelectRow(Row);
+			RequestDelete();
+			return FReply::Handled();
+		}
+	}
+	if (Button != EKeys::LeftMouseButton)
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
-	}
-	if (Panel == ETitlePanel::NewGameConfirm)
-	{
-		StartHold(); // held anywhere, as A is
-		return FReply::Handled();
 	}
 	if (Panel == ETitlePanel::SaveReset)
 	{
 		Confirm();
+		return FReply::Handled();
+	}
+	if (IsYesNoPanel())
+	{
+		const int32 Answer = FindAnswerUnder(InMouseEvent);
+		if (Answer != INDEX_NONE)
+		{
+			ChooseAnswer(Answer == 1);
+		}
 		return FReply::Handled();
 	}
 	const int32 Row = FindRowUnder(InMouseEvent);
@@ -582,7 +790,7 @@ FReply UTitleScreenWidget::NativeOnMouseButtonUp(const FGeometry &InGeometry, co
 {
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && HoldTicker.IsValid())
 	{
-		StopHold();
+		StopHold(); // OBSOLETE (B-546) with the hold
 		return FReply::Handled();
 	}
 	return Super::NativeOnMouseButtonUp(InGeometry, InMouseEvent);

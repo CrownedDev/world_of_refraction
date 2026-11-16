@@ -2,6 +2,7 @@
 
 #include "UI/Menus/NewGameScreenWidget.h"
 
+#include "Components/EditableTextBox.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Engine/World.h"
@@ -40,6 +41,10 @@ namespace NewGameScreenStyle
 	constexpr int32 HeadingFontSize = 48;
 	constexpr int32 BeginFontSize = 29;
 	constexpr int32 GridColumns = 3;
+	/** B-546: the most entries a class's pick grid has (a Generic's twelve weapon types). */
+	constexpr int32 MaxPickChips = 12;
+	static_assert(static_cast<int32>(EWeaponType::Shield) + 1 <= MaxPickChips, "a Generic's grid needs a chip per weapon type");
+	constexpr float NameBoxWidth = 480.0f;
 	inline const FLinearColor PreviewColor = FLinearColor::FromSRGBColor(FColor(12, 14, 20));
 
 	FLinearColor MarkColor(ESpellElement Element)
@@ -99,7 +104,19 @@ void UNewGameScreenWidget::BuildTree()
 	AddToColumn(Main, Heading);
 	UTextBlock *Subheading = MakeText(WidgetTree, SubtitleFontSize, DimColor);
 	Subheading->SetText(LOCTEXT("Subheading", "placeholder heading"));
-	AddToColumn(Main, Subheading, FMargin(0.0f, LineGap, 0.0f, HeadingGap));
+	AddToColumn(Main, Subheading, FMargin(0.0f, LineGap, 0.0f, SectionGap));
+
+	// B-546 (D-228 Q6): the player types their name.
+	UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	NameLabel = MakeText(WidgetTree, LineFontSize, DimColor, true);
+	NameLabel->SetText(LOCTEXT("Name", "Name"));
+	AddToRow(NameRow, NameLabel, FMargin(0.0f, 0.0f, SectionGap, 0.0f), VAlign_Center);
+	NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("NewGameNameBox"));
+	NameBox->SetHintText(LOCTEXT("NameHint", "Type a name"));
+	NameBox->OnTextChanged.AddDynamic(this, &UNewGameScreenWidget::HandleNameChanged);
+	NameBox->OnTextCommitted.AddDynamic(this, &UNewGameScreenWidget::HandleNameCommitted);
+	AddToRow(NameRow, MakeSized(WidgetTree, NameBoxWidth, 0.0f, NameBox), FMargin(0.0f), VAlign_Center);
+	AddToColumn(Main, NameRow, FMargin(0.0f, 0.0f, 0.0f, HeadingGap - SectionGap));
 
 	UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(Main, Columns);
@@ -200,17 +217,16 @@ void UNewGameScreenWidget::BuildTree()
 	AddToColumn(ElementColumn, Grid);
 	ElementChips.Reset();
 	ElementNames.Reset();
-	const TArray<ESpellElement> &Elements = WoRNewGame::GetElements();
-	for (int32 Index = 0; Index < Elements.Num(); ++Index)
+	ElementMarks.Reset();
+	for (int32 Index = 0; Index < MaxPickChips; ++Index)
 	{
 		UBorder *Chip = MakeBox(WidgetTree, PlateColor, FMargin(ChipPadding, 0.0f));
 		Chip->SetVerticalAlignment(VAlign_Center);
 		UHorizontalBox *ChipRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Chip->SetContent(ChipRow);
-		AddToRow(ChipRow, MakeSized(WidgetTree, ChipMarkSize, ChipMarkSize, MakeBox(WidgetTree, MarkColor(Elements[Index]), FMargin(0.0f))),
-				 FMargin(0.0f, 0.0f, WordGap, 0.0f));
+		UBorder *Mark = MakeBox(WidgetTree, TextColor, FMargin(0.0f));
+		AddToRow(ChipRow, MakeSized(WidgetTree, ChipMarkSize, ChipMarkSize, Mark), FMargin(0.0f, 0.0f, WordGap, 0.0f));
 		UTextBlock *Name = MakeText(WidgetTree, SmallFontSize, DimColor, true);
-		Name->SetText(WoRGameNames::GetElementName(Elements[Index]));
 		AddToRow(ChipRow, Name);
 		USizeBox *ChipBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 		ChipBox->SetHeightOverride(ChipHeight); // the grid shares the width out
@@ -219,6 +235,7 @@ void UNewGameScreenWidget::BuildTree()
 		ChipSlot->SetHorizontalAlignment(HAlign_Fill);
 		ElementChips.Add(Chip);
 		ElementNames.Add(Name);
+		ElementMarks.Add(Mark);
 	}
 	PanelFootnote = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 	AddToColumn(PanelColumn, PanelFootnote, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
@@ -226,7 +243,7 @@ void UNewGameScreenWidget::BuildTree()
 	UVerticalBoxSlot *Fill = AddToColumn(Main, WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass()));
 	Fill->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Arrows}  Move        {Confirm}  Select        {Back}  Back"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Arrows}  Move        {Confirm}  Select / pick        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -236,6 +253,11 @@ void UNewGameScreenWidget::NativeOnActivated()
 	// The stack may hand back a pooled instance: every open starts at the mockup's default pick.
 	Pick = FNewGamePick();
 	Focus = ENewGameFocus::Class;
+	ResetPickCursor();
+	if (NameBox)
+	{
+		NameBox->SetText(FText::GetEmpty());
+	}
 	Status = FText::GetEmpty();
 	HoveredIndex = INDEX_NONE;
 	Refresh();
@@ -253,9 +275,64 @@ int32 UNewGameScreenWidget::GetClassIndex() const
 	return WoRNewGame::GetClasses().IndexOfByKey(Pick.Class);
 }
 
-int32 UNewGameScreenWidget::GetElementIndex() const
+void UNewGameScreenWidget::MovePickCursor(int32 Index)
 {
-	return WoRNewGame::GetElements().IndexOfByKey(Pick.Element);
+	if (Index < 0 || Index >= WoRNewGame::GetPickChoiceCount(Pick.Class))
+	{
+		return;
+	}
+	PickCursor = Index;
+	if (Pick.Class == ECharacterClass::Caster)
+	{
+		WoRNewGame::TogglePick(Pick, Index); // one pick: it follows the cursor, as the element grid always did
+	}
+}
+
+void UNewGameScreenWidget::ResetPickCursor()
+{
+	PickCursor = 0;
+	for (int32 Index = 0; Index < WoRNewGame::GetPickChoiceCount(Pick.Class); ++Index)
+	{
+		if (WoRNewGame::IsPicked(Pick, Index))
+		{
+			PickCursor = Index;
+			return;
+		}
+	}
+}
+
+void UNewGameScreenWidget::SetName(const FString &Name)
+{
+	Pick.Name = Name.Left(WoRNewGame::MAX_NAME_LENGTH);
+	Status = FText::GetEmpty();
+}
+
+void UNewGameScreenWidget::StartTypingName()
+{
+	Focus = ENewGameFocus::Name;
+	if (NameBox)
+	{
+		NameBox->SetKeyboardFocus(); // a pad on PC types through the system keyboard (Steam), as every PC game's name box
+	}
+	Refresh();
+}
+
+void UNewGameScreenWidget::HandleNameChanged(const FText &Text)
+{
+	const FString Typed = Text.ToString();
+	SetName(Typed);
+	if (NameBox && Typed.Len() > WoRNewGame::MAX_NAME_LENGTH)
+	{
+		NameBox->SetText(FText::FromString(Pick.Name)); // no longer than the limit
+	}
+}
+
+void UNewGameScreenWidget::HandleNameCommitted(const FText &Text, ETextCommit::Type CommitMethod)
+{
+	HandleNameChanged(Text);
+	SetFocus(); // every way out of the box (Enter, Esc, Tab, a click away) gives the keys back to the screen
+	Focus = ENewGameFocus::Body;
+	Refresh();
 }
 
 void UNewGameScreenWidget::MoveUp()
@@ -263,10 +340,14 @@ void UNewGameScreenWidget::MoveUp()
 	const TArray<ECharacterClass> &Classes = WoRNewGame::GetClasses();
 	switch (Focus)
 	{
+	case ENewGameFocus::Body:
+		Focus = ENewGameFocus::Name;
+		break;
 	case ENewGameFocus::Class:
 		if (GetClassIndex() > 0)
 		{
 			Pick.Class = Classes[GetClassIndex() - 1];
+			ResetPickCursor();
 		}
 		else
 		{
@@ -274,10 +355,7 @@ void UNewGameScreenWidget::MoveUp()
 		}
 		break;
 	case ENewGameFocus::Element:
-		if (GetElementIndex() >= NewGameScreenStyle::GridColumns)
-		{
-			Pick.Element = WoRNewGame::GetElements()[GetElementIndex() - NewGameScreenStyle::GridColumns];
-		}
+		MovePickCursor(PickCursor - NewGameScreenStyle::GridColumns);
 		break;
 	case ENewGameFocus::Begin:
 		Focus = ENewGameFocus::Class;
@@ -292,9 +370,11 @@ void UNewGameScreenWidget::MoveUp()
 void UNewGameScreenWidget::MoveDown()
 {
 	const TArray<ECharacterClass> &Classes = WoRNewGame::GetClasses();
-	const TArray<ESpellElement> &Elements = WoRNewGame::GetElements();
 	switch (Focus)
 	{
+	case ENewGameFocus::Name:
+		Focus = ENewGameFocus::Body;
+		break;
 	case ENewGameFocus::Body:
 		Focus = ENewGameFocus::Class;
 		break;
@@ -302,6 +382,7 @@ void UNewGameScreenWidget::MoveDown()
 		if (GetClassIndex() < Classes.Num() - 1)
 		{
 			Pick.Class = Classes[GetClassIndex() + 1];
+			ResetPickCursor();
 		}
 		else
 		{
@@ -309,9 +390,9 @@ void UNewGameScreenWidget::MoveDown()
 		}
 		break;
 	case ENewGameFocus::Element:
-		if (GetElementIndex() + NewGameScreenStyle::GridColumns < Elements.Num())
+		if (PickCursor + NewGameScreenStyle::GridColumns < WoRNewGame::GetPickChoiceCount(Pick.Class))
 		{
-			Pick.Element = Elements[GetElementIndex() + NewGameScreenStyle::GridColumns];
+			MovePickCursor(PickCursor + NewGameScreenStyle::GridColumns);
 		}
 		else
 		{
@@ -330,15 +411,18 @@ void UNewGameScreenWidget::MoveSide(int32 Delta)
 	using NewGameScreenStyle::GridColumns;
 	switch (Focus)
 	{
+	case ENewGameFocus::Name:
+		break;
 	case ENewGameFocus::Body:
 		Pick.Body = Delta < 0 ? EPlayerBaseForm::Manny : EPlayerBaseForm::Quinn;
 		break;
 	case ENewGameFocus::Class:
 	case ENewGameFocus::Begin:
-		// The element grid stands to the right of the class cards, the body cards to their left (B-539).
-		if (Delta > 0 && HasElements())
+		// The pick grid stands to the right of the class cards, the body cards to their left (B-539).
+		if (Delta > 0)
 		{
 			Focus = ENewGameFocus::Element;
+			ResetPickCursor(); // the cursor starts on the pick
 		}
 		else if (Delta < 0)
 		{
@@ -347,14 +431,14 @@ void UNewGameScreenWidget::MoveSide(int32 Delta)
 		break;
 	case ENewGameFocus::Element:
 	{
-		const int32 Column = GetElementIndex() % GridColumns;
+		const int32 Column = PickCursor % GridColumns;
 		if (Delta < 0 && Column == 0)
 		{
 			Focus = ENewGameFocus::Class;
 		}
 		else if (Column + Delta >= 0 && Column + Delta < GridColumns)
 		{
-			Pick.Element = WoRNewGame::GetElements()[GetElementIndex() + Delta];
+			MovePickCursor(PickCursor + Delta);
 		}
 		break;
 	}
@@ -367,14 +451,26 @@ void UNewGameScreenWidget::Confirm()
 {
 	switch (Focus)
 	{
+	case ENewGameFocus::Name:
+		StartTypingName();
+		return;
 	case ENewGameFocus::Body:
 		Focus = ENewGameFocus::Class;
 		break;
 	case ENewGameFocus::Class:
-		Focus = HasElements() ? ENewGameFocus::Element : ENewGameFocus::Begin;
+		Focus = ENewGameFocus::Element;
+		ResetPickCursor();
 		break;
 	case ENewGameFocus::Element:
-		Focus = ENewGameFocus::Begin;
+		if (Pick.Class == ECharacterClass::Caster)
+		{
+			Focus = ENewGameFocus::Begin;
+		}
+		else
+		{
+			WoRNewGame::TogglePick(Pick, PickCursor); // two picks: A takes or drops the lit one
+			Status = FText::GetEmpty();
+		}
 		break;
 	case ENewGameFocus::Begin:
 		Status = WoRNewGame::Begin(GetOwningPlayer(), Pick);
@@ -394,6 +490,9 @@ void UNewGameScreenWidget::ClickPart(ENewGameFocus Part, int32 Index)
 {
 	switch (Part)
 	{
+	case ENewGameFocus::Name:
+		StartTypingName();
+		return;
 	case ENewGameFocus::Body:
 		if (Index != static_cast<int32>(EPlayerBaseForm::Manny) && Index != static_cast<int32>(EPlayerBaseForm::Quinn))
 		{
@@ -406,14 +505,19 @@ void UNewGameScreenWidget::ClickPart(ENewGameFocus Part, int32 Index)
 		{
 			return;
 		}
-		Pick.Class = WoRNewGame::GetClasses()[Index];
+		if (Pick.Class != WoRNewGame::GetClasses()[Index])
+		{
+			Pick.Class = WoRNewGame::GetClasses()[Index];
+			ResetPickCursor();
+		}
 		break;
 	case ENewGameFocus::Element:
-		if (!HasElements() || !WoRNewGame::GetElements().IsValidIndex(Index))
+		if (Index < 0 || Index >= WoRNewGame::GetPickChoiceCount(Pick.Class))
 		{
 			return;
 		}
-		Pick.Element = WoRNewGame::GetElements()[Index];
+		PickCursor = Index;
+		WoRNewGame::TogglePick(Pick, Index); // a Refractor takes it; the others take or drop it
 		break;
 	case ENewGameFocus::Begin:
 		Focus = ENewGameFocus::Begin;
@@ -455,22 +559,36 @@ void UNewGameScreenWidget::Refresh()
 	BodyLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Body ? CyanColor : DimColor));
 	ClassLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Class ? CyanColor : DimColor));
 	ElementLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Element ? CyanColor : DimColor));
+	ElementLabel->SetText(WoRNewGame::GetPicksLabel(Pick.Class));
+	NameLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Name ? CyanColor : DimColor));
 
-	const bool bElements = HasElements();
-	SetShown(PanelMark, bElements);
+	const bool bRefractor = Pick.Class == ECharacterClass::Caster;
+	SetShown(PanelMark, bRefractor);
 	PanelMark->SetBrushColor(MarkColor(Pick.Element));
 	PanelTitle->SetText(WoRNewGame::GetPanelTitle(Pick));
 	PanelAbout->SetText(WoRNewGame::GetAbout(Pick));
-	SetShown(PanelElementLine, bElements);
-	PanelElementLine->SetText(WoRNewGame::GetElementLine(Pick.Element));
-	PanelElementLine->SetColorAndOpacity(FSlateColor(MarkColor(Pick.Element)));
-	SetShown(ElementArea, bElements);
-	const int32 ElementIndex = GetElementIndex();
+	// A Refractor: the element's full-bar line, in its colour; the others: what they picked.
+	PanelElementLine->SetText(bRefractor ? (Pick.bBrokenDarkness ? FText::GetEmpty() : WoRNewGame::GetElementLine(Pick.Element)) : WoRNewGame::GetPicksLine(Pick));
+	PanelElementLine->SetColorAndOpacity(FSlateColor(bRefractor ? MarkColor(Pick.Element) : CyanColor));
+	SetShown(PanelElementLine, !PanelElementLine->GetText().IsEmpty());
+	const int32 ChoiceCount = WoRNewGame::GetPickChoiceCount(Pick.Class);
 	for (int32 Index = 0; Index < ElementChips.Num(); ++Index)
 	{
-		const bool bPicked = Index == ElementIndex;
-		ElementChips[Index]->SetBrushColor(Fill(bPicked && Focus == ENewGameFocus::Element, bPicked, ENewGameFocus::Element, Index));
+		const bool bShown = Index < ChoiceCount;
+		SetShown(ElementChips[Index]->GetParent(), bShown);
+		if (!bShown)
+		{
+			continue;
+		}
+		const bool bPicked = WoRNewGame::IsPicked(Pick, Index);
+		const bool bLit = Focus == ENewGameFocus::Element && Index == PickCursor;
+		ElementChips[Index]->SetBrushColor(Fill(bLit, bPicked, ENewGameFocus::Element, Index));
+		ElementNames[Index]->SetText(WoRNewGame::GetPickChoiceName(Pick.Class, Index));
 		ElementNames[Index]->SetColorAndOpacity(FSlateColor(bPicked ? TextColor : DimColor));
+		ESpellElement ChoiceElement = ESpellElement::None;
+		const bool bMarked = WoRNewGame::GetPickChoiceElement(Pick.Class, Index, ChoiceElement);
+		SetShown(ElementMarks[Index], bMarked);
+		ElementMarks[Index]->SetBrushColor(MarkColor(ChoiceElement));
 	}
 	PanelFootnote->SetText(WoRNewGame::GetPanelFootnote(Pick));
 	StatusText->SetText(Status);
@@ -525,9 +643,10 @@ bool UNewGameScreenWidget::FindPartUnder(const FVector2D &ScreenPosition, ENewGa
 			return Box && Box->IsVisible() && Box->GetCachedGeometry().IsUnderLocation(ScreenPosition);
 		});
 	};
-	const TPair<ENewGameFocus, int32> Hits[] = {{ENewGameFocus::Body, Under(BodyCards)},
+	const TPair<ENewGameFocus, int32> Hits[] = {{ENewGameFocus::Name, NameBox && NameBox->GetCachedGeometry().IsUnderLocation(ScreenPosition) ? 0 : INDEX_NONE},
+												 {ENewGameFocus::Body, Under(BodyCards)},
 												 {ENewGameFocus::Class, Under(ClassCards)},
-												 {ENewGameFocus::Element, HasElements() ? Under(ElementChips) : INDEX_NONE},
+												 {ENewGameFocus::Element, Under(ElementChips)},
 												 {ENewGameFocus::Begin, Under({BeginCard})}};
 	for (const TPair<ENewGameFocus, int32> &Hit : Hits)
 	{
