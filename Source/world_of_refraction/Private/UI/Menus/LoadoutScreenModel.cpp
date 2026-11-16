@@ -6,7 +6,9 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/Durability/GearRepair.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
@@ -83,6 +85,7 @@ namespace LoadoutScreenBuild
 		FLoadoutScreenSocket Socket;
 		Socket.bEmpty = Item.IsEmpty();
 		Socket.bEvolution = Item.IsEvolution();
+		Socket.bBroken = !Socket.bEmpty && Item.IsBroken(); // B-534
 		Socket.Label = SocketLabel(Item, WhenEmpty);
 		if (!Socket.bEmpty)
 		{
@@ -930,6 +933,90 @@ FText WoRLoadoutScreen::TakeOffSocket(UWorld *World, const FLoadoutScreenMember 
 		bDone = Index != INDEX_NONE && (bStone ? Inventory->RemoveStoneFromWeapon(Index) : Inventory->RemoveCrystalFromWeapon(Index));
 	}
 	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketRemove", "Couldn't take that off.");
+}
+
+namespace LoadoutScreenRestore
+{
+	/** B-534: the owned gem Restore would work on, and the member's crystal pouch; false when either is missing. */
+	bool FindGem(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, UInventoryComponent *&OutInventory,
+				 const FRuntimeAttachedItem *&OutGem, const UCrystalInventoryComponent *&OutPouch)
+	{
+		OutGem = nullptr;
+		OutPouch = nullptr;
+		if (!LoadoutScreenBuild::FindMemberLoadout(World, Member, OutInventory) || !OutInventory)
+		{
+			return false;
+		}
+		if (const FWeaponInventoryEntry *Weapon = OutInventory->FindOwnedWeapon(Row.GearID))
+		{
+			OutGem = &Weapon->AttachedItem;
+		}
+		else if (const FRingInventoryEntry *Ring = OutInventory->FindOwnedRing(Row.GearID))
+		{
+			OutGem = &Ring->AttachedItem;
+		}
+		OutPouch = OutInventory->GetOwner() ? OutInventory->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+		return OutGem && OutPouch;
+	}
+
+	/** "2 Garnet (F), 1 Garnet (E)": Uses grouped by tier, cheapest first (they arrive in that order). */
+	FText DescribeUses(const TArray<FCrystalId> &Uses)
+	{
+		TArray<FText> Parts;
+		for (int32 Index = 0; Index < Uses.Num();)
+		{
+			int32 Count = 0;
+			const FCrystalId Id = Uses[Index];
+			for (; Index < Uses.Num() && Uses[Index] == Id; ++Index)
+			{
+				++Count;
+			}
+			Parts.Add(FText::Format(LOCTEXT("RestoreUse", "{0} {1} ({2})"), FText::AsNumber(Count), WoRGameNames::GetCrystalTypeName(Id.Type),
+									WoRGameNames::GetTierLetter(Id.Tier)));
+		}
+		return FText::Join(LOCTEXT("RestoreUseJoin", ", "), Parts);
+	}
+}
+
+bool WoRLoadoutScreen::IsRestoreOffered(const FLoadoutScreenRow &Row, int32 Socket)
+{
+	return Socket == LoadoutScreenSockets::CRYSTAL && Row.bCrystalFixed && LoadoutScreenBuild::HasSocket(Row, Socket) &&
+		   Row.Sockets[Socket].bBroken && !Row.Sockets[Socket].bEvolution;
+}
+
+FText WoRLoadoutScreen::DescribeRestore(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, FText &OutRefusal)
+{
+	OutRefusal = FText::GetEmpty();
+	UInventoryComponent *Inventory = nullptr;
+	const FRuntimeAttachedItem *Gem = nullptr;
+	const UCrystalInventoryComponent *Pouch = nullptr;
+	if (!IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL) || !LoadoutScreenRestore::FindGem(World, Member, Row, Inventory, Gem, Pouch))
+	{
+		OutRefusal = LOCTEXT("RefuseRestoreNothing", "Nothing here to restore.");
+		return FText::GetEmpty();
+	}
+	const GearRepair::FRestorePlan Plan = GearRepair::PlanRestore(*Gem, *Pouch);
+	if (Plan.Uses.IsEmpty())
+	{
+		OutRefusal = FText::Format(LOCTEXT("RefuseRestoreNoCrystals", "Restoring it takes {0} crystals; you have none."),
+								   WoRGameNames::GetCrystalTypeName(Gem->Crystal.Id.Type));
+		return FText::GetEmpty();
+	}
+	const int32 Percent = Plan.MaxDurability > 0 ? FMath::FloorToInt(100.0f * Plan.NewDurability / Plan.MaxDurability) : 0;
+	return FText::Format(LOCTEXT("RestorePlan", "{0} back to {1}% for {2}"), Row.Sockets[LoadoutScreenSockets::CRYSTAL].Name,
+						 FText::AsNumber(Percent), LoadoutScreenRestore::DescribeUses(Plan.Uses));
+}
+
+FText WoRLoadoutScreen::RestoreSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row)
+{
+	FText Refusal;
+	if (DescribeRestore(World, Member, Row, Refusal).IsEmpty())
+	{
+		return Refusal;
+	}
+	UInventoryComponent *Inventory = nullptr;
+	LoadoutScreenBuild::FindMemberLoadout(World, Member, Inventory);
+	return Inventory && Inventory->RestoreFixedCrystal(Row.GearID) ? FText::GetEmpty() : LOCTEXT("RefuseRestore", "Couldn't restore that.");
 }
 
 FText WoRLoadoutScreen::FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count)
