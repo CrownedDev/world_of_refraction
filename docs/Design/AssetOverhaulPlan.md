@@ -171,8 +171,8 @@ All new assets go under `Content/Data/`, named per ContentNaming.
 
 | Asset | Path | Class / innate | Starting gear (`StartingGear`; F tier, crystals at F) | Evolution |
 |---|---|---|---|---|
-| `DA_Character_Generic` + `DA_Inventory_Generic_Start` | `Data/Characters/Generic/` | Generic | Sword with the shield as its off hand (active). The two axes as a pair. **Earth Ring** (adapter + Amber). | Gale |
-| `DA_Character_Refractor` + `DA_Inventory_Refractor_Start` | `Data/Characters/Refractor/` | Caster, Fire innate | **Fire Ring** (adapter + Garnet). Innate Fire spells (`DA_Spells_Fire_*`). | Phoenix |
+| `DA_Character_Generic` + `DA_Inventory_Generic_Start` | `Data/Characters/Generic/` | Generic | Sword with the shield as its off hand (active). The two axes as a pair. **Earth Ring** (adapter + Amber). | Gale Force |
+| `DA_Character_Refractor` + `DA_Inventory_Refractor_Start` | `Data/Characters/Refractor/` | Caster, Fire innate | **Fire Ring** (adapter + Garnet). Innate Fire spells (`DA_Spells_Fire_*`). | Phoenix Fire |
 | `DA_Character_Resonator` + `DA_Inventory_Resonator_Start` | `Data/Characters/Resonator/` | Resonator | Sword. **Water Ring** (Sapphire), **Lightning Ring** (Citrine), **Wind Ring** (Emerald). | — |
 | `DA_Character_BrokenDarkness` + `DA_Inventory_BrokenDarkness_Start` | `Data/Characters/BrokenDarkness/` | Caster, Darkness, BD flag on | Fire Ring. The Darkness pools. | — |
 | `DA_Character_Reality` + `DA_Inventory_Reality_Start` | `Data/Characters/Reality/` | Caster, Reality innate | Wind Ring | — |
@@ -194,8 +194,8 @@ The played test character becomes `DA_Character_Generic` (D-221 Q5).
 | `DA_Weapon_Axe_Hand` | Axe, `SingleOrDual` | `DA_Axe_Attack_OverheadChop` / dual stance `DA_Stance_DualSword_Basic` until an axe stance exists | an axe mesh from StylizedWeapons (the editor worker picks; the current one is in `Imports/`, out of git) | "Hand Axe" | F |
 | `DA_Weapon_Axe_Bearded` | Axe, `SingleOrDual` | as above | a second axe mesh | "Bearded Axe" | F |
 | `DA_Ring_Adapter` | Ring form, **empty**, no spells | — | one ring mesh | (shown by socket) | F |
-| `DA_Evo_Fire_Phoenix` | Garnet (Fire), Balanced | — | — | "Phoenix" | E |
-| `DA_Evo_Wind_Gale` | Emerald (Wind), Balanced | — | — | "Gale" | E |
+| `DA_Evo_Fire_Phoenix` | Garnet (Fire), Balanced | — | — | "Phoenix Fire" (in a ring: "Phoenix Fire Ring") | E |
+| `DA_Evo_Wind_Gale` | Emerald (Wind), Balanced | — | — | "Gale Force" (in a ring: "Gale Force Ring") | E |
 
 No piece has a skill list (D-224).
 
@@ -231,8 +231,8 @@ Today:
 
 **The two axes are two assets**, so the pair reads "Hand Axe and Bearded Axe" (not "Axe and Axe"), and the held type reads "Dual Axes".
 
-**What the two evolutions give.** Their element comes from their crystal kind: Phoenix is Fire, Gale is Wind.
-- **Proposal:** Phoenix takes the field-skill EP −25% and Gale the sprint +15%, so the two read differently in the field. Today all 27 evolutions carry both placeholder bonuses.
+**What the two evolutions give.** Their element comes from their crystal kind: Phoenix Fire is Fire, Gale Force is Wind (names: Crown, D-223).
+- **Proposal:** Phoenix Fire takes the field-skill EP −25% and Gale Force the sprint +15%, so the two read differently in the field. Today all 27 evolutions carry both placeholder bonuses.
 - In battle, each gives its element as a source.
 - The names are lore-adjacent, so Crown may rename them.
 
@@ -567,7 +567,7 @@ Until stage 4, the new pieces are added as spares to the current played characte
 | **2b. The built tier: rings and weapons** (§4, §4.1) | `GetAdapterTier` and its four ring readers; `GetWeaponTier` and its three readers; the detail line (+ `WoR.Loadout.AdapterTier` with weapon cases, updated ring and ED-11 weapon specs, rules rows) | none (use the stage 2 rings, the sword and the stock) | An F ring with a B Citrine reads **D**: 3 spell slots, its spells' damage and wear against D, **its stat line still at F**. Unsocketed it reads F again. An F sword with a B Garnet reads D: a D ability's damage and status build-up go up. Combat Tier moves with both. |
 | **3. Pieces start empty; the axes** | stop copying `AttachedItem`; the price term; a found piece may be prebuilt (§3, "Found pieces") (+ spec fixes) | `DA_Weapon_Axe_Hand`, `DA_Weapon_Axe_Bearded` | The axes read "Hand Axe and Bearded Axe", "Dual Axes", each axe's own mesh in its hand. A ring bought from the merchant arrives empty. |
 | **4. The Generic starts from `StartingGear`** | the `UInventoryData` fields, `FClassDefaultPiece::Crystal`, `FClassDefaultLoadout::StartingSkills` (field only); generalise the kit minting; the `DrawSharedGear` seed (+ spec) | `DA_Character_Generic`, `DA_Inventory_Generic_Start`, Gale; point the played character at it | A new game: the Generic wears the sword and shield, the axes are spare, the **Earth Ring** is socketed, Gale is in its seat, and the stock is in the pouch. |
-| **5. The rest of the cast** | none expected | the other characters, Phoenix, the two enemies, `DA_Loadout_ClassDefaults` cut to the first shape (§2: the Generic's sword, the Resonator's two rings, nothing for the Refractor; the bolt) | Each character's start, the Refractor's Fire innate and Phoenix, BD's empty pool places, a trial on the kit (the bolt in the inventory, not in a slot), a fight against each enemy. |
+| **5. The rest of the cast** | none expected | the other characters, Phoenix Fire, the two enemies, `DA_Loadout_ClassDefaults` cut to the first shape (§2: the Generic's sword, the Resonator's two rings, nothing for the Refractor; the bolt) | Each character's start, the Refractor's Fire innate and Phoenix, BD's empty pool places, a trial on the kit (the bolt in the inventory, not in a slot), a fight against each enemy. |
 | **6. Delete the old** | delete the §1 fields and their readers, and `FSavedLoadout::BDSpellPools` with its two authored readers (§5.4); raise the minimum save version | the reference check, then the §2 delete list | A new game works, an old save is wiped with a warning, validation has no new errors, a battle plays. |
 
 ### The skills track (D-224; (b) is answered, so none of it waits)
