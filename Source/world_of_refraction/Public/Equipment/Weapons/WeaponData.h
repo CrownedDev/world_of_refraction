@@ -59,11 +59,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     USkillDataBase *WeaponAttack = nullptr;
 
-    // Default abilities for this weapon (can be customized unless locked)
+    // OBSOLETE (B-518, D-224: no skills on gear): nothing reads this for play; deleted in stage 6.
+    // Was: default abilities for this weapon (can be customized unless locked).
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (TitleProperty = "Name"))
     TArray<UAbilityData *> PresetAbilities;
 
-    // If true, abilities cannot be customized (used for conjured weapons)
+    // OBSOLETE (B-518, D-224: no skills on gear): nothing reads this for play; deleted in stage 6. A conjured weapon is an ordinary one (Q7).
+    // Was: if true, abilities cannot be customized (used for conjured weapons).
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     bool bAbilitiesLocked = false;
 
