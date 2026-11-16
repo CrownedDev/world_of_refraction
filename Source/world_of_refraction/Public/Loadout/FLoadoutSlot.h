@@ -36,16 +36,22 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	FGuid GearID;
 
+	/** D-221 (B-505): the second piece of a same-type pair (D-209 weapon sets); invalid for a piece alone. Replaces the
+	 *  old fields' off hands once the readers move (stage 2). */
+	UPROPERTY(BlueprintReadOnly, Category = "Slot")
+	FGuid OffHandID;
+
 	/** A DERIVED cache of the owned item GearID names (today copied from the old loadout entry). Never the source:
 	 *  readers that need the item's live state (wear, tier, attachment) look the GUID up in the owned store. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	FGearInstance Gear;
 
-	/** Weapon only: the slot's chosen abilities. */
+	/** D-224 (B-517): the weapon entry's skill picks, slot by slot (null = an empty slot). The picks live here, on what
+	 *  is worn, so a preset carries them and the piece doesn't: giving the piece away leaves them behind. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	TArray<TObjectPtr<UAbilityData>> AssignedAbilities;
 
-	/** Weapon only: today's loadout-level spell overrides (weapon spells go with B-098). */
+	/** D-224 (B-517): the entry's spell picks, slot by slot, for a weapon's or an adapter's crystal. */
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	TArray<TObjectPtr<USpellData>> SpellOverrides;
 
@@ -65,8 +71,9 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 		FLoadoutSlot Slot;
 		Slot.Gear = FGearInstance::FromWeaponEntry(Entry.WeaponEntry);
 		Slot.GearID = Slot.Gear.PersistentID;
-		Slot.AssignedAbilities.Append(Entry.AssignedAbilities);
-		Slot.SpellOverrides.Append(Entry.AssignedSpells);
+		Slot.OffHandID = Entry.OffHandEntry.PersistentID;
+		Slot.AssignedAbilities.Append(Entry.WeaponEntry.SkillPicks);
+		Slot.SpellOverrides.Append(Entry.WeaponEntry.SpellPicks);
 		Slot.OverrideAttack = Entry.OverrideAttack;
 		return Slot;
 	}
@@ -76,6 +83,7 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 		FLoadoutSlot Slot;
 		Slot.Gear = FGearInstance::FromRingEntry(Entry.RingEntry);
 		Slot.GearID = Slot.Gear.PersistentID;
+		Slot.SpellOverrides.Append(Entry.RingEntry.SpellPicks);
 		return Slot;
 	}
 };

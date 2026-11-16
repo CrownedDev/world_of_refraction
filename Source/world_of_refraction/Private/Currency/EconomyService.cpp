@@ -41,6 +41,8 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/TrialRunSubsystem.h" // B-366b: the place's currency
+#include "Trial/PrebuiltFindData.h"   // B-527: prebuilt adapters on the shelf
+#include "Trial/TrialLoot.h"          // B-527: given whole, socket filled (B-522b)
 #include "WoRGameNames.h"                // B-366c/d: log the place currency by its player-facing name
 
 namespace
@@ -127,13 +129,25 @@ namespace
         return true;
     }
 
-    /** B-314 (Q-314b) / B-347: while a run is open, only run-only gear can be sold or dismantled. A home piece, on the
+    /** B-314 (Q-314b) / B-347: while a run is open, only run-only gear can be sold or dismantled (B-509: hub gear never). A home piece, on the
      *  run or left home (D-137 takes only the worn loadout), waits for the run's end (it comes back restored, D-111). */
     bool EconomyRefusesOnRun(const AActor *Owner, const FGuid &GearID, const TCHAR *Op)
     {
         const UWorld *World = Owner ? Owner->GetWorld() : nullptr;
         const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
         const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+        if (Pool && Pool->IsHubGear(GearID)) // B-509 (D-221): kept from a run, "just to have in the hub"
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is hub gear (kept from a run) - it can't be sold or dismantled (D-221)"),
+                   Op, *GearID.ToString());
+            return true;
+        }
+        if (Pool && Pool->IsClassDefault(GearID)) // B-511 (D-221): the class default kit is never sold or dismantled
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] %s refused: GUID %s is a class default kit piece - it can't be sold or dismantled (D-221)"),
+                   Op, *GearID.ToString());
+            return true;
+        }
         if (!Pool || !Pool->IsRunLayerActive() || Pool->IsRunOnly(GearID))
         {
             return false;
@@ -628,6 +642,8 @@ bool UEconomyService::ResolveDuplicate(AActor *Owner, FGuid WeakerID, bool bConv
             Loadout->NotifyActiveWeaponChanged(); // the move edits SavedLoadouts directly (B-138)
         }
     }
+    // TODO: B-530 (D-223): no ring pair is made any more (FindDuplicateGear is weapons only); remove the ring branches
+    // after Crown's PIE pass.
     if (bConvertToGold)
     {
         return Chosen.bRing ? ConvertOwnedGearToGold<FRingInventoryEntry>(Owner, *Inv, *Currency, Chosen.WeakerID, Verb)
@@ -891,65 +907,45 @@ bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
 
 namespace
 {
-    /** Prisms surcharge for whatever is authored in the equipment's attachment slot
-     *  (3j): crystal / augment stone → its tier base; evolution → 2× the evolution's
-     *  tier base (premium attachment); fusion → 1.5× the summed half bases. */
-    int32 AttachmentPrisms(const UEquipmentDataBase *Eq)
+    /** B-527 (D-226 (1)): a prebuilt piece on the shelf (a UPrebuiltFindData) is priced and checked as its parts: the
+     *  piece, then its gem or its evolution (the gem wins, as Q-522b). Every other entry passes through. The grant
+     *  still gives it whole, its socket filled (TrialLoot::GrantTo). */
+    TArray<FMerchantStockEntry> SplitPrebuilt(const TArray<FMerchantStockEntry> &Items)
     {
-        if (!Eq->HasCrystal())
+        TArray<FMerchantStockEntry> Parts;
+        for (const FMerchantStockEntry &E : Items)
         {
-            return 0;
-        }
-        const FAttachedItem &Attached = Eq->AttachedItem;
-        switch (Attached.Kind)
-        {
-        case EAttachedItemKind::Crystal:
-        case EAttachedItemKind::AugmentStone:
-            return EconomyYield::GetPrismsBaseForTier(Attached.CrystalTier);
-        case EAttachedItemKind::Evolution:
-            // Null-guarded: a mis-authored Evolution slot with no asset prices at 0
-            // (IsDataValid flags it upstream).
-            return Attached.Evolution ? 2 * EconomyYield::GetPrismsBaseForTier(Attached.Evolution->Tier) : 0;
-        case EAttachedItemKind::Fusion:
-            if constexpr (FusionRules::RETIRED)
+            const UPrebuiltFindData *Find = E.IsAssetEntry() ? Cast<UPrebuiltFindData>(E.Asset) : nullptr;
+            if (!Find)
             {
-                return 0; // B-352 (D-141): an authored fusion no longer attaches, so it adds nothing to the price
+                Parts.Add(E);
+                continue;
             }
-            else
+            FMerchantStockEntry &Piece = Parts.AddDefaulted_GetRef();
+            Piece.Asset = Find->Piece;
+            Piece.Count = E.Count;
+            if (Find->Crystal.Type != ECrystalType::None || Find->Evolution)
             {
-                // OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusion pricing.
-                return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
-                                                 EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
-            }
-        default:
-            return 0;
-        }
-    }
-
-    /** Prisms surcharge for skills bundled on equipment (3l): each non-null skill
-     *  prices at a third of its tier base + 10 flat (integer floor per the project
-     *  rounding rule). Prisms-only — bundled skills never charge essence. Template
-     *  because DefaultSpells / PresetAbilities are arrays of different derived
-     *  pointers; Tier reads through the shared USkillDataBase. */
-    template <typename TSkill>
-    int32 BundledSkillsPrisms(const TArray<TSkill *> &Skills)
-    {
-        int32 Prisms = 0;
-        for (const TSkill *Skill : Skills)
-        {
-            if (Skill)
-            {
-                Prisms += EconomyYield::GetPrismsBaseForTier(Skill->Tier) / 3 + 10;
+                FMerchantStockEntry &Socket = Parts.AddDefaulted_GetRef();
+                Socket.Count = E.Count;
+                if (Find->Crystal.Type != ECrystalType::None)
+                {
+                    Socket.Crystal = Find->Crystal;
+                }
+                else
+                {
+                    Socket.Asset = Find->Evolution;
+                }
             }
         }
-        return Prisms;
+        return Parts;
     }
 }
 
 FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
 {
     FPurchaseCost Cost;
-    for (const FMerchantStockEntry &E : Items)
+    for (const FMerchantStockEntry &E : SplitPrebuilt(Items)) // B-527: the piece's price plus its socket's
     {
         if (E.IsCrystalEntry())
         {
@@ -969,29 +965,15 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         UPrimaryDataAsset *Asset = E.Asset;
         if (UWeaponData *W = Cast<UWeaponData>(Asset))
         {
-            // Equipment pricing: Prisms base by tier + attachment surcharge + bundled
-            // skills (3l), all per-unit (quality = C placeholder until shop-roll).
-            // PresetAbilities always price — they're baked into what you're buying.
-            // Gem-side DefaultSpells price only when the attachment actually grants them
-            // (B-437, D-175: no stone grants abilities, so DefaultAbilities are not priced).
-            // WeaponAttack is the weapon's identity, never priced.
-            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W) +
-                            BundledSkillsPrisms(W->PresetAbilities);
-            if (W->AttachedItem.Kind == EAttachedItemKind::Crystal)
-            {
-                PerUnit += BundledSkillsPrisms(W->DefaultSpells);
-            }
+            // Equipment pricing: Prisms base by tier, per unit (quality = C placeholder until shop-roll). B-518 (D-224):
+            // gear carries no skills, so none are priced; B-521: a bought piece arrives empty, so its asset's baked
+            // crystal isn't priced. WeaponAttack is the weapon's identity, never priced.
+            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier);
             Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (URingData *R = Cast<URingData>(Asset))
         {
-            // Gem-attached rings price their bundled DefaultSpells (3l — the themed
-            // rings); stone/evolution/fusion attachments don't gem-seed spells.
-            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R);
-            if (R->AttachedItem.Kind == EAttachedItemKind::Crystal)
-            {
-                PerUnit += BundledSkillsPrisms(R->DefaultSpells);
-            }
+            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier); // B-518, B-521: no skills or crystal priced
             Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
@@ -1206,7 +1188,7 @@ bool UEconomyService::PurchaseForImpl(AActor *Payer, FName ForKey, const TArray<
         WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedNotInParty", "They aren't in your party."),
                             TEXT("[EconomyService] PurchaseFor: %s is not a party member the payer can buy for - refused"), *ForKey.ToString());
     }
-    for (const FMerchantStockEntry &Entry : Items)
+    for (const FMerchantStockEntry &Entry : SplitPrebuilt(Items)) // B-527: a prebuilt piece's evolution counts too
     {
         const UPrimaryDataAsset *Asset = Entry.IsAssetEntry() ? Entry.Asset.Get() : nullptr;
         if (Cast<UEvolutionItemData>(Asset))
@@ -1235,7 +1217,7 @@ bool UEconomyService::PurchaseForImpl(AActor *Payer, FName ForKey, const TArray<
     const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
     const FName ForPouch = PartySession ? PartySession->GetPouchKey(ForKey) : ForKey;
     const FName PayerPouch = PartySession ? PartySession->GetPouchKey(PayerKey) : PayerKey;
-    if (!BuyForReceiverHasRoom(*Pool, ForPouch, Items, OutRefusal, bCheckOnly))
+    if (!BuyForReceiverHasRoom(*Pool, ForPouch, SplitPrebuilt(Items), OutRefusal, bCheckOnly))
     {
         return false;
     }
@@ -1393,9 +1375,11 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
     TSet<const USpellData *> CartSpells;
     TSet<const UAbilityData *> CartAbilities;
 
-    for (int32 i = 0; i < Items.Num(); ++i)
+    // B-527: a prebuilt piece needs the room of its piece and of its gem or evolution (they pass through the pouch).
+    const TArray<FMerchantStockEntry> Parts = SplitPrebuilt(Items);
+    for (int32 i = 0; i < Parts.Num(); ++i)
     {
-        const FMerchantStockEntry &E = Items[i];
+        const FMerchantStockEntry &E = Parts[i];
 
         if (E.IsCrystalEntry())
         {
@@ -1576,7 +1560,28 @@ bool UEconomyService::PurchaseImpl(AActor *Owner, const TArray<FMerchantStockEnt
         }
 
         UPrimaryDataAsset *Asset = E.Asset;
-        if (UWeaponData *W = Cast<UWeaponData>(Asset))
+        if (UPrebuiltFindData *Find = Cast<UPrebuiltFindData>(Asset))
+        {
+            // B-527 (D-226 (1)): the piece with its socket filled, as a prebuilt find arrives (B-522b).
+            // shortcut: an undo removes the piece only; its gem or evolution isn't taken back (the cart was pre-checked).
+            const bool bWeapon = Cast<UWeaponData>(Find->Piece) != nullptr;
+            const int32 Count = FMath::Max(1, E.Count);
+            for (int32 c = 0; c < Count && bGrantOk; ++c)
+            {
+                if (TrialLoot::GrantTo(Owner, Find))
+                {
+                    const FGuid AddedID = bWeapon ? Inv->Weapons.Last().PersistentID : Inv->Rings.Last().PersistentID;
+                    Undo.Add([Inv, AddedID, bWeapon]()
+                             { bWeapon ? Inv->RemoveWeaponByPersistentID(AddedID) : Inv->RemoveRingByPersistentID(AddedID); });
+                }
+                else
+                {
+                    bGrantOk = false;
+                    FailName = Find->GetName();
+                }
+            }
+        }
+        else if (UWeaponData *W = Cast<UWeaponData>(Asset))
         {
             const int32 Count = FMath::Max(1, E.Count);
             for (int32 c = 0; c < Count && bGrantOk; ++c)

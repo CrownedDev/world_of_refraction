@@ -6,6 +6,7 @@
 #include "Loadout/LoadoutConstants.h"
 #include "Loadout/SpellPoolConstants.h"
 #include "Loadout/WeaponSetRules.h"
+#include "Loadout/SkillRequirementRules.h"
 #include "Inventory/InventoryConstants.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -69,6 +70,12 @@ namespace
 						 FString::Printf(TEXT("Adapter spell '%s' element %s does not match adapter crystal element %s"),
 										 *Spell->Name, *UEnum::GetValueAsString(Spell->Element), *UEnum::GetValueAsString(RingElement)),
 						 j);
+				continue;
+			}
+			if (!SkillRequirementRules::IsMet(Spell, FSkillGearHost::FromAdapter(Ring))) // D-224 (§5.2)
+			{
+				Sink.Add(ELoadoutSlotType::RingSpell, RingLoadoutIndex, true,
+						 FString::Printf(TEXT("Adapter spell '%s' needs %s"), *Spell->Name, *SkillRequirementRules::GetRequirementString(Spell)), j);
 			}
 		}
 	}
@@ -194,12 +201,12 @@ namespace
 				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true, FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name), WeaponSub);
 				continue;
 			}
-			// Weapon-type coherence: ability must match the equipped weapon type.
-			if (Ability->RequiredWeaponType != EquippedWeapon->WeaponType)
+			// D-224 (§5.2): the ability's gear requirement, met by this weapon.
+			if (!SkillRequirementRules::IsMet(Ability, FSkillGearHost::FromWeapon(Weapon.WeaponEntry)))
 			{
 				Sink.Add(ELoadoutSlotType::WeaponAbility, i, true,
-						 FString::Printf(TEXT("Ability '%s' requires weapon type %s, equipped weapon is %s"),
-										 *Ability->Name, *UEnum::GetValueAsString(Ability->RequiredWeaponType),
+						 FString::Printf(TEXT("Ability '%s' needs %s, equipped weapon is %s"),
+										 *Ability->Name, *SkillRequirementRules::GetRequirementString(Ability),
 										 *UEnum::GetValueAsString(EquippedWeapon->WeaponType)), WeaponSub);
 				continue;
 			}

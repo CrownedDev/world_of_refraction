@@ -97,7 +97,7 @@ def field_hints(d, wheel_open=False):
     if wheel_open:
         footer(d, [("L-stick", "Pick"), ("D-pad ◄ ►", "Element"), ("RB", "Let go: confirm")], y=694)
     else:
-        footer(d, [("RB", "Attack"), ("RB hold", "Change source"), ("X", "Interact")], y=694)
+        footer(d, [("RB", "Attack"), ("RB hold", "Gear"), ("X", "Interact")], y=694)
 
 
 def top(d, place, gold=True):
@@ -166,4 +166,69 @@ box = trial_cards(d, 0)
 strip(d, box, "Fire", "Fire")
 field_hints(d)
 save(im, OUT, "4_trial_caster.png")
+
+# ---- 3 / 3b: the quick strip (D-222, replaces the wheel's shape): RB held opens a row of the character's gear as icon
+#      tiles through the screen centre (Breath of the Wild's quick-select). Left / right moves along the pieces, up / down
+#      cycles the highlighted piece's source; the source is text under the row, never tiles. The piece in hand is marked.
+REPO = os.path.join(OUT, "..", "..", "..", "..", "..", "..")
+WEAPONS = os.path.join(REPO, "SourceArt", "UI", "Deckbuilder", "weapons")  # the T_Icon_Weapon_* originals (PONETI)
+BADGES = os.path.join(REPO, "SourceArt", "UI", "Deckbuilder", "badges")
+# shortcut: ring and shield have no T_Icon_* yet; drawn from the same PONETI set in the deckbuilder clone until added.
+PONETI = "D:/github/wor-deckbuilder/wor.game/assets/ui/vendor/PONETI/ClassicFantasyRPG_UI/ARTWORKS/UIicons/Colored"
+TILE, TGAP = 88, 14
+PIECES = [("Ashen Blade", [os.path.join(WEAPONS, "13_Sword.png")]),
+          ("Flame Sword and Void Shield", [os.path.join(WEAPONS, "13_Sword.png"), os.path.join(PONETI, "17_Shield.png")]),
+          ("Storm Ring", [os.path.join(PONETI, "64_ring.png")]),
+          ("Ironheart", [os.path.join(BADGES, "element_earth.png")])]
+IN_HAND = 0
+
+
+def icon_art(im, path, cx, cy, size):
+    a = Image.open(path).convert("RGBA")
+    a.thumbnail((size, size), Image.LANCZOS)
+    im.paste(a, (int(cx - a.width / 2), int(cy - a.height / 2)), a)
+
+
+def quick_strip(im, lit, name, kind, cy=330):
+    """One panel holding the row of tiles (the lit one framed, with up / down arrows), the piece's name and, on a
+    quieter line, the held type and the source after a dot (D-222, "The text and the frame")."""
+    d = ImageDraw.Draw(im)
+    row_w = len(PIECES) * (TILE + TGAP) - TGAP
+    x0 = 640 - row_w // 2
+    half = max(row_w, int(d.textlength(name, font=F(22, True)))) // 2 + 36
+    cut(d, (640 - half, cy - TILE // 2 - 40, 640 + half, cy + TILE // 2 + 98), PANEL, STEEL, 12)
+    for i, (_n, arts) in enumerate(PIECES):
+        x = x0 + i * (TILE + TGAP)
+        grow = 6 if i == lit else 0
+        box = (x - grow, cy - TILE // 2 - grow, x + TILE + grow, cy + TILE // 2 + grow)
+        cut(d, box, BG if i != lit else PLATE, CYAN if i == lit else STEEL, 10)
+        if i == lit:
+            d.rectangle((box[0] + 3, box[1] + 3, box[2] - 3, box[3] - 3), outline=CYAN, width=1)
+        n = len(arts)
+        for k, path in enumerate(arts):
+            icon_art(im, path, x + TILE / 2 + (k - (n - 1) / 2) * 30, cy - 4, 62 if n == 1 else 44)
+        if i == IN_HAND:
+            cut(d, (x + 8, cy + TILE // 2 - 20, x + TILE - 8, cy + TILE // 2 - 4), BG, CYAN, 4)
+            text(d, (x + TILE / 2, cy + TILE // 2 - 12), "IN HAND", 9, True, CYAN, anchor="mm")
+    lx = x0 + lit * (TILE + TGAP) + TILE // 2
+    text(d, (lx, cy - TILE // 2 - 22), "▲", 16, True, CYAN, anchor="mm")
+    text(d, (lx, cy + TILE // 2 + 22), "▼", 16, True, CYAN, anchor="mm")
+    text(d, (640, cy + TILE // 2 + 48), name, 22, True, anchor="mm")
+    text(d, (640, cy + TILE // 2 + 76), kind, 15, fill=DIM, anchor="mm")
+
+
+def strip_frame(lit, name, kind, filename):
+    im, d = trial_scene()
+    im = Image.blend(im, Image.new("RGB", im.size, BG), 0.45)  # the world dims behind the open strip
+    d = ImageDraw.Draw(im)
+    top(d, "Ashen Hollow  ·  floor 2")
+    box = trial_cards(d, 1)
+    strip(d, box, "Fire Sword", "Fire")
+    quick_strip(im, lit, name, kind)
+    footer(d, [("◄ ►", "Piece"), ("▲ ▼", "Source"), ("A", "Pick"), ("B", "Close"), ("RB", "Attack")], y=694)
+    im.save(os.path.join(OUT, filename), optimize=True)  # full colour: the icon art bands in the 128-colour palette
+
+
+strip_frame(1, "Flame Sword and Void Shield", "Sword and Shield  ·  Fire", "3_trial_strip_open.png")
+strip_frame(2, "Storm Ring", "Ring  ·  Lightning", "3b_trial_strip_ring.png")
 print("ok")

@@ -12,6 +12,8 @@
 #include "LoadoutRulesDebug.generated.h"
 
 class ULoadoutComponent;
+class UPoolSubsystem;
+struct FWornGear;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API ULoadoutRulesDebug : public UBlueprintFunctionLibrary
@@ -34,4 +36,13 @@ public:
 
 	/** e.g. "Hero_1: 'Cleave' refused - Ability 'Cleave' requires weapon type Spear". */
 	static FString TryAbilityPick(ULoadoutComponent *Loadout, const FString &AbilityName);
+
+	/** D-221 (B-505): one character's worn-gear record, e.g. "DA_Lord: primary Sword [ACTIVE] + Dagger | secondary Axe |
+	 *  adapters Ember | evolution none | apparel 1 | spells 0 innate, 0 evolution | wheel Weapon/Dash entry 1 picked".
+	 *  Pool may be null (pieces then show by short GUID). */
+	static FString GetWornGearString(FName CharacterKey, const FWornGear &Worn, const UPoolSubsystem *Pool);
+
+	/** Logs every worn-gear record in the pool and shows it on screen (wor.Loadout.PrintWorn [member]: only the keys
+	 *  containing that text). */
+	static void PrintWornGear(const UObject *WorldContextObject, const FString &MemberFilter);
 };

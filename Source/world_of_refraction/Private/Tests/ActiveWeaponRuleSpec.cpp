@@ -70,7 +70,7 @@ void FActiveWeaponRuleSpec::Define()
 		if (!TestNotNull(TEXT("Loadout"), Loadout)) return;
 		UAbilityData *Slotted = NewObject<UAbilityData>(GetTransientPackage());
 		ActiveOf(Loadout).PrimarySlotType = EPrimarySlotType::None;
-		ActiveOf(Loadout).PrimaryWeapon.AssignedAbilities = {Slotted};
+		TestTrue(TEXT("picked"), ActiveOf(Loadout).PrimaryWeapon.ReplaceSkill(0, Slotted)); // B-518: a pick, not the old override
 		TestTrue(TEXT("the weapon in hand"), Loadout->GetActiveWeapon() == Primary);
 		TestTrue(TEXT("its stance, not unarmed"), Loadout->GetCurrentStance() == Primary->WeaponStance);
 		TestTrue(TEXT("its attack is listed"), Loadout->GetAllWeaponAttacks().Contains(Primary->WeaponAttack));

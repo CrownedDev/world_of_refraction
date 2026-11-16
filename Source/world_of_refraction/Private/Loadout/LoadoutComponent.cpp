@@ -1672,6 +1672,67 @@ UObject *ULoadoutComponent::FindSpellCatalystHolder(USpellData *Spell) const
     return nullptr;
 }
 
+FRuntimeAttachedItem *ULoadoutComponent::FindSpellCatalystAttachment(USpellData *Spell)
+{
+    UObject *Holder = FindSpellCatalystHolder(Spell);
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Holder || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+    if (!Holder->IsA<URingData>())
+    {
+        return FindAttachedItemByHolder(Holder);
+    }
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    const auto Lists = [Spell](const FRingLoadoutEntry &Ring) { return Ring.IsValid() && Ring.GetAllSpells().Contains(Spell); };
+    if (Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex) && Lists(Loadout.RingLoadout[Loadout.ActiveRingIndex]))
+    {
+        return &Loadout.RingLoadout[Loadout.ActiveRingIndex].RingEntry.AttachedItem;
+    }
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Lists(Loadout.PrimaryRing))
+    {
+        return &Loadout.PrimaryRing.RingEntry.AttachedItem;
+    }
+    for (FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+    {
+        if (Lists(Ring))
+        {
+            return &Ring.RingEntry.AttachedItem;
+        }
+    }
+    return nullptr;
+}
+
+TOptional<EItemTier> ULoadoutComponent::GetBuiltTierOfSocket(const FRuntimeAttachedItem *Attachment) const
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Attachment || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return TOptional<EItemTier>();
+    }
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    for (const FWeaponLoadoutEntry *Weapon : {&Loadout.PrimaryWeapon, &Loadout.SecondaryWeapon})
+    {
+        if (&Weapon->WeaponEntry.AttachedItem == Attachment)
+        {
+            return CrystalEffectTable::GetBuiltTier(Weapon->WeaponEntry.Tier, *Attachment);
+        }
+    }
+    if (&Loadout.PrimaryRing.RingEntry.AttachedItem == Attachment)
+    {
+        return CrystalEffectTable::GetBuiltTier(Loadout.PrimaryRing.RingEntry.Tier, *Attachment);
+    }
+    for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+    {
+        if (&Ring.RingEntry.AttachedItem == Attachment)
+        {
+            return CrystalEffectTable::GetBuiltTier(Ring.RingEntry.Tier, *Attachment);
+        }
+    }
+    return TOptional<EItemTier>();
+}
+
 TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
 {
     TArray<USpellData *> Result;
@@ -1989,7 +2050,11 @@ void ULoadoutComponent::NotifyApparelChanged()
     {
         Data->RecomputeMaxPools(); // gear HP
     }
-    const UInventoryComponent *Inv = GetInventoryComponent();
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (Inv)
+    {
+        Inv->WriteWornGear(); // D-221 (B-506): apparel is on the record too
+    }
     OnLoadoutChanged.Broadcast(Inv ? Inv->ActiveLoadoutIndex : 0); // GAS stats and resistances re-sync on this
 }
 
@@ -2006,6 +2071,10 @@ void ULoadoutComponent::NotifyActiveWeaponChanged()
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
     UWeaponData *ActiveWeapon = GetInventoryComponent() ? GetActiveWeapon() : nullptr;
     RecordWeaponInHand();
+    if (UInventoryComponent *Inv = GetInventoryComponent())
+    {
+        Inv->WriteWornGear(); // D-221 (B-506): every gear change reaches the record at once (CS-8)
+    }
     if (ActiveWeapon == LastNotifiedWeapon)
     {
         return;
@@ -2965,9 +3034,8 @@ bool ULoadoutComponent::IsSpellFromBrokenRing(const USpellData *Spell) const
             return false;
         }
     }
-    // Raw lists, not the capped GetAllSpells(true): the player's capabilities list them all, and each must be greyed.
-    return Lists(Ring->RingEntry.AssignedSpells) || Lists(Ring->RingEntry.SpellPicks) // B-351d review: a pick greys out too
-           || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
+    // B-518: the ring's spells are its picks alone (its presets and the old AssignedSpells list don't play).
+    return Lists(Ring->RingEntry.SpellPicks);
 }
 
 FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holder)

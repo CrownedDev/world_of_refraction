@@ -942,7 +942,10 @@ float UAIDecisionManager::EstimateSkillStatusScore(AActor *Attacker, AActor *Tar
 
     // Mirror the execution status site: own-tier power + tier-gap (the shared accessor the damage
     // path uses), through the same FAction the damage estimate builds (a spell's real catalyst channel).
-    float TierFactor = TierPowerScaling::GetTierPowerMultiplier(Skill->Tier);
+    // B-519 (D-224): the own-tier power reads the caster's copy, as the executor does.
+    const EItemTier OwnTier = Cast<USpellData>(Skill) ? UInventoryComponent::ResolveSpellTier(Attacker, Cast<USpellData>(Skill))
+                                                      : UInventoryComponent::ResolveAbilityTier(Attacker, Skill);
+    float TierFactor = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
     if (UActionExecutor *ActionExec = GetActionExecutor())
     {
         TierFactor *= ActionExec->GetTierGapDamageMultiplier(Attacker, MakeSkillAction(Attacker, Target, Skill));

@@ -408,6 +408,7 @@ FSavedLoadout FCombatLoadout::ToSavedLoadout(ECharacterClass CharacterClass) con
         Out.Element = Pool.Element;
         Out.Spells = Refs(Pool.Spells);
     }
+    Saved.EntryPicks = ToWornGear(CharacterClass).Equipment; // D-224 (B-517): the picks live on the entries
     return Saved;
 }
 
@@ -426,12 +427,12 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     const auto ResolveWeaponEntry = [OwnedInventory](UWeaponData *Asset, const FGuid &Ref, const TCHAR *SlotName)
     {
         return ResolveOwnedGearEntry(OwnedInventory ? &OwnedInventory->Weapons : nullptr, Asset, Ref, SlotName, TEXT("weapon"),
-                                     &FWeaponInventoryEntry::CreateFromWeapon);
+                                     &FWeaponInventoryEntry::CreateFromAuthoredWeapon); // B-521: the old layout keeps its baked crystal
     };
     const auto ResolveRingEntry = [OwnedInventory](URingData *Asset, const FGuid &Ref, const TCHAR *SlotName)
     {
         return ResolveOwnedGearEntry(OwnedInventory ? &OwnedInventory->Rings : nullptr, Asset, Ref, SlotName, TEXT("ring"),
-                                     &FRingInventoryEntry::CreateFromRing);
+                                     &FRingInventoryEntry::CreateFromAuthoredRing);
     };
 
     FCombatLoadout Result;
@@ -666,6 +667,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
 
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from SavedLoadout '%s' (PrimarySlotType: %d)"),
            *SavedLoadout.LoadoutName, static_cast<int32>(SavedLoadout.PrimarySlotType));
+    Result.ApplyEntryPicks(SavedLoadout.EntryPicks);
     return Result;
 }
 

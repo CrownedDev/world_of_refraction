@@ -124,7 +124,8 @@ public:
               meta = (ShowOnlyInnerProperties))
     FAttachedItem AttachedItem;
 
-    /** Default spells for this equipment — copied to inventory entry when obtained.
+    /** OBSOLETE (B-518, D-224: no skills on gear): nothing reads this for play; deleted in stage 6.
+     *  Was: default spells for this equipment — copied to inventory entry when obtained.
      *  Lost if crystal is removed; spell vendor reassigns them. Hidden in the
      *  editor when the attachment is a augment stone (augment stones carry abilities,
      *  not spells); the hidden value is inert and never read for a augment stone. */

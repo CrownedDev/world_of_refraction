@@ -221,9 +221,10 @@ namespace WoRLoadoutScreen
 	 *  ApplySocketChoice). False when the row has no such socket. */
 	WORLD_OF_REFRACTION_API bool PutSocketChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket, const FLoadoutScreenChoice &Choice);
 
-	/** The member's socket choices, from its pouch and its evolutions. */
+	/** The member's socket choices, from its pouch and its evolutions, against its active loadout or, when given,
+	 *  Preview (B-516: the add window's loadout with the new entry in). */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenChoice> BuildSocketChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row,
-																		 int32 Socket);
+																		 int32 Socket, const FCombatLoadout *Preview = nullptr);
 
 	/** Sockets Choice into the owned piece (UInventoryComponent::AttachCrystalTo* / AttachEvolutionTo*). Empty on
 	 *  success; else the reason. */

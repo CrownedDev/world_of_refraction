@@ -9,7 +9,7 @@
 // B-503k (D-217): the cycle is the attack's infusions (a weapon user: plain, then each element; a Refractor: elements).
 // B-503l (Q-503l): a hold steps a Reality or Broken Darkness stop through the other stops' elements; a press skips them.
 // B-503m4 (D-217): one wheel slice per loadout entry, its element options inside (Ice on Water); the D-pad and mouse rules.
-// B-503s (D-218): a weapon pick puts that weapon in hand (saved); a weapon user's Pistol / evolution pulses, a ring infuses.
+// B-503s (D-218): a weapon pick puts that weapon in hand (saved); a weapon user's adapter / evolution pulses (B-530: a ring too).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -18,6 +18,7 @@
 #include "Animation/AnimMontage.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Engine/Texture2D.h"
 #include "Character/ECharacterClass.h"
 #include "Combat/CombatNotify.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -80,6 +81,7 @@ BEGIN_DEFINE_SPEC(FFieldAttackSpec, "WoR.Field.Attack",
 		Slash->PhysicalDamageType = EPhysicalDamageType::Slash;
 		UWeaponData *Primary = NewObject<UWeaponData>(GetTransientPackage());
 		Primary->WeaponAttack = Slash;
+		Primary->Name = TEXT("Field test blade"); // B-513: the slice shows the weapon's name
 		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Primary);
 		UInventoryComponent *Inventory = Loadout ? Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>() : nullptr;
 		if (!Inventory || !Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex))
@@ -271,7 +273,10 @@ void FFieldAttackSpec::Define()
 			TestTrue(TEXT("plain first: a swing with no element and the weapon's type"),
 					 Entries[0].IsSwing() && Entries[0].Element == ESpellElement::None && Entries[0].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("named by the weapon type"), Entries[0].Name.ToString(), Sword);
-			TestEqual(TEXT("the slice is the weapon"), Entries[0].SliceName.ToString(), Sword);
+			TestEqual(TEXT("the slice is the weapon, by name (B-513)"), Entries[0].SliceName.ToString(), FString(TEXT("Field test blade")));
+			TestEqual(TEXT("the quick strip's type line: the held type alone when plain (B-514)"), FieldSkillRules::GetFieldStripTypeLine(Entries[0]).ToString(), Sword);
+			TestEqual(TEXT("and the type, a dot and the source when infused (B-514)"), FieldSkillRules::GetFieldStripTypeLine(Entries[1]).ToString(),
+					  FString::Printf(TEXT("%s · %s"), *Sword, *WoRGameNames::GetElementName(ESpellElement::Fire).ToString()));
 			TestTrue(TEXT("then infused, an option of the same slice: still the swing"),
 					 Entries[1].bHoldStep && Entries[1].IsSwing() && Entries[1].Element == ESpellElement::Fire && Entries[1].Physical == EPhysicalDamageType::Slash);
 			TestEqual(TEXT("the element first"), Entries[1].Name.ToString(),
@@ -310,7 +315,7 @@ void FFieldAttackSpec::Define()
 			TestEqual(TEXT("the secondary's slice swings its own override"), Entries[2].Physical, EPhysicalDamageType::Pierce);
 		});
 
-		It("gives a weapon user's ring its own slice, infusing the weapon in hand (B-503m4, D-217)", [this]()
+		It("gives a weapon user's ring its own slice, a pulse that puts the weapon away (B-503m4, B-530, D-218)", [this]()
 		{
 			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
 			{
@@ -318,7 +323,8 @@ void FFieldAttackSpec::Define()
 			}
 			UInventoryComponent *Inventory = Field->GetOwner()->FindComponentByClass<UInventoryComponent>();
 			URingData *Ring = NewObject<URingData>(GetTransientPackage());
-			Ring->Name = TEXT("Storm Ring");
+			// D-226: no Name of its own (the class default), so it is named by its crystal.
+			Ring->Icon = NewObject<UTexture2D>(GetTransientPackage());
 			FRingLoadoutEntry &Adapter = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout.AddDefaulted_GetRef();
 			Adapter.RingEntry.Ring = Ring;
 			Adapter.RingEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
@@ -330,13 +336,26 @@ void FFieldAttackSpec::Define()
 				return;
 			}
 			const FFieldAttackEntry &Storm = Entries[3];
-			TestEqual(TEXT("the ring's slice"), Storm.SliceName.ToString(), FString(TEXT("Storm Ring")));
-			TestTrue(TEXT("its own slice, the crystal's Lightning on the weapon in hand's swing"),
-					 !Storm.bHoldStep && Storm.IsSwing() && Storm.Element == ESpellElement::Lightning && Storm.Physical == EPhysicalDamageType::Slash);
-			TestTrue(TEXT("named as the strip reads"), Storm.Name.ToString().StartsWith(WoRGameNames::GetElementName(ESpellElement::Lightning).ToString()));
+			TestEqual(TEXT("the ring's slice, named by its crystal (B-514b, D-223)"), Storm.SliceName.ToString(),
+					  FString::Printf(TEXT("%s %s"), *WoRGameNames::GetElementName(ESpellElement::Lightning).ToString(),
+									  *WoRGameNames::GetAdapterFormName(EAdapterForm::Ring).ToString()));
+			TestTrue(TEXT("its quick strip tile is the adapter's frame with its crystal, not the ring's icon (B-530, D-229)"),
+					 Storm.bSliceAdapter && !Storm.SliceIcon && !Storm.SliceOffHandIcon);
+			TestEqual(TEXT("read as the adapter's form and its source (B-514)"), FieldSkillRules::GetFieldStripTypeLine(Storm).ToString(),
+					  FString::Printf(TEXT("%s · %s"), *WoRGameNames::GetAdapterFormName(EAdapterForm::Ring).ToString(),
+									  *WoRGameNames::GetElementName(ESpellElement::Lightning).ToString()));
+			TestTrue(TEXT("its own slice, the crystal's Lightning thrown, no swing (B-530)"),
+					 !Storm.bHoldStep && !Storm.IsSwing() && Storm.Kind == EFieldAttackKind::Ring && Storm.Element == ESpellElement::Lightning &&
+						 Storm.Physical == EPhysicalDamageType::None && !Storm.WeaponId.IsValid());
+			TestEqual(TEXT("named by its element alone"), Storm.Name.ToString(), WoRGameNames::GetElementName(ESpellElement::Lightning).ToString());
+			UWeaponMeshComponent *Weapon = FWoRTestWorld::AddComponent<UWeaponMeshComponent>(Field->GetOwner());
+			Field->SelectFieldAttack(0);
+			TestFalse(TEXT("the sword's pick: the weapon in hand"), Weapon->IsWeaponHidden());
+			Field->SelectFieldAttack(3);
+			TestTrue(TEXT("the ring's pick puts the weapon away (B-530, D-218)"), Weapon->IsWeaponHidden());
 		});
 
-		It("throws the pulse from a weapon user's Pistol adapter and evolution; a ring still infuses (B-503s, D-218)", [this]()
+		It("throws the pulse from a weapon user's Pistol adapter, ring and evolution (B-503s, B-530, D-218)", [this]()
 		{
 			if (!TestTrue(TEXT("spawned"), SpawnWithWeapons(ECharacterClass::Generic, ESpellElement::Water)))
 			{
@@ -360,7 +379,7 @@ void FFieldAttackSpec::Define()
 																				   Entries[3].Element == ESpellElement::Lightning && !Entries[3].WeaponId.IsValid() &&
 																				   Entries[3].Name.ToString() == WoRGameNames::GetElementName(ESpellElement::Lightning).ToString());
 			Pistol->Form = EAdapterForm::Ring;
-			TestTrue(TEXT("the same adapter as a ring infuses the swing"), Field->GetFieldAttackEntries()[3].IsSwing());
+			TestFalse(TEXT("the same adapter as a ring throws the pulse too (B-530)"), Field->GetFieldAttackEntries()[3].IsSwing());
 
 			Active.PrimarySlotType = EPrimarySlotType::Evolution;
 			UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());

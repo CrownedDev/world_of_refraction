@@ -1,6 +1,6 @@
 // SkillSlotListSpec.cpp
 // B-351 (D-145, changes CL-20): one skill-slot list per weapon. Slots by tier (F 1, E 2, D 3, C 4, B 5, A 6, S 6);
-// built-ins pre-fill it; the player replaces any slot and can restore the built-in. B-437 (D-175): a stone adds no
+// B-518 (D-224): nothing pre-fills it (a weapon's built-ins don't play); the player fills any slot and can empty it. B-437 (D-175): a stone adds no
 // slots; a weapon has its tier's slots plus its crystal's, 12 at most.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -82,23 +82,23 @@ void FSkillSlotListSpec::Define()
 		}
 	});
 
-	It("pre-fills the list with the built-ins", [this]()
+	It("starts empty: the weapon's built-ins don't pre-fill it (B-518)", [this]()
 	{
 		const TArray<UAbilityData *> Slots = Entry.GetSkillSlots();
 		TestEqual(TEXT("one slot at F"), Slots.Num(), 1);
-		TestTrue(TEXT("the built-in in it"), Slots.Num() > 0 && Slots[SLOT_TEST_FIRST] == BuiltIn);
+		TestTrue(TEXT("the slot is empty"), Slots.Num() > 0 && Slots[SLOT_TEST_FIRST] == nullptr);
+		TestEqual(TEXT("nothing offered"), Entry.GetSkillSlotAbilities().Num(), 0);
+		TestEqual(TEXT("the loadout list follows"), Entry.GetAllAbilities().Num(), 0);
 	});
 
-	It("replaces a built-in, then restores it", [this]()
+	It("fills a slot, then empties it", [this]()
 	{
-		TestTrue(TEXT("replaced"), Entry.ReplaceSkill(SLOT_TEST_FIRST, Chosen));
-		TestTrue(TEXT("the list is active"), Entry.WeaponEntry.bSkillSlotsActive);
+		TestTrue(TEXT("filled"), Entry.ReplaceSkill(SLOT_TEST_FIRST, Chosen));
 		TestTrue(TEXT("the pick shows"), Entry.GetSkillSlots()[SLOT_TEST_FIRST] == Chosen);
-		TestTrue(TEXT("the built-in is still on the weapon"), Entry.WeaponEntry.Weapon->PresetAbilities.Contains(BuiltIn));
-		TestTrue(TEXT("restored"), Entry.RestoreSkill(SLOT_TEST_FIRST));
-		TestTrue(TEXT("the built-in is back"), Entry.GetSkillSlots()[SLOT_TEST_FIRST] == BuiltIn);
-		TestFalse(TEXT("nothing left to restore"), Entry.RestoreSkill(SLOT_TEST_FIRST));
-		TestEqual(TEXT("offered: the built-in"), Entry.GetSkillSlotAbilities().Num(), 1);
+		TestTrue(TEXT("emptied"), Entry.RestoreSkill(SLOT_TEST_FIRST));
+		TestTrue(TEXT("the slot is empty again, no built-in back"), Entry.GetSkillSlots()[SLOT_TEST_FIRST] == nullptr);
+		TestFalse(TEXT("nothing left to empty"), Entry.RestoreSkill(SLOT_TEST_FIRST));
+		TestEqual(TEXT("nothing offered"), Entry.GetSkillSlotAbilities().Num(), 0);
 	});
 
 	It("counts the tier's slots plus the crystal's with any stone attached, 12 at most (B-437, D-175)", [this]()
@@ -127,7 +127,7 @@ void FSkillSlotListSpec::Define()
 		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
 		Loadout.PrimaryWeapon = Entry;
 		const TArray<UAbilityData *> Abilities = Loadout.GetAllAbilities();
-		TestTrue(TEXT("the built-in"), Abilities.Contains(BuiltIn));
+		TestFalse(TEXT("not the built-in"), Abilities.Contains(BuiltIn));
 		TestTrue(TEXT("the pick in the second slot"), Abilities.Contains(Chosen));
 	});
 }

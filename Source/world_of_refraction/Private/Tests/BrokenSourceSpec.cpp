@@ -44,7 +44,8 @@ namespace
 	{
 		FRuntimeAttachedItem Attached;
 		Attached.Kind = EAttachedItemKind::Crystal;
-		Attached.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), Durability);
+		// B-518: an E gem, so its two spell slots hold the F- and C-tier picks (the list is capped at the slots).
+		Attached.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::E_Tier), Durability);
 		return Attached;
 	}
 }
@@ -74,8 +75,9 @@ BEGIN_DEFINE_SPEC(FBrokenSourceSpec, "WoR.Combat.BrokenSources",
 		FCombatLoadout &Active = Spawn(ECharacterClass::Resonator);
 		FRingLoadoutEntry Ring;
 		Ring.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+		Ring.RingEntry.Tier = EItemTier::E_Tier; // B-519: an E ring with the E gem is built E, two slots
 		Ring.RingEntry.AttachedItem = GarnetCrystal(Durability);
-		Ring.RingEntry.AssignedSpells = {FTierSpell, CTierSpell};
+		Ring.RingEntry.SpellPicks = {FTierSpell, CTierSpell}; // B-518: the ring's spells are its picks
 		Active.RingLoadout = {Ring};
 		Active.ActiveRingIndex = 0;
 	}
@@ -87,7 +89,7 @@ BEGIN_DEFINE_SPEC(FBrokenSourceSpec, "WoR.Combat.BrokenSources",
 		Active.PrimarySlotType = EPrimarySlotType::Ring;
 		Active.PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
 		Active.PrimaryRing.RingEntry.AttachedItem = GarnetCrystal(Durability);
-		Active.PrimaryRing.RingEntry.AssignedSpells = {FTierSpell};
+		Active.PrimaryRing.RingEntry.SpellPicks = {FTierSpell};
 	}
 
 	/** A Generic whose primary weapon's crystal holds an F-tier spell. */
@@ -97,7 +99,7 @@ BEGIN_DEFINE_SPEC(FBrokenSourceSpec, "WoR.Combat.BrokenSources",
 		Active.PrimarySlotType = EPrimarySlotType::Weapon;
 		Active.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Active.PrimaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(Durability);
-		Active.PrimaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
+		Active.PrimaryWeapon.WeaponEntry.SpellPicks = {FTierSpell};
 	}
 
 	FCombatCapabilities Capabilities(ECharacterClass CharacterClass) const
@@ -166,12 +168,12 @@ void FBrokenSourceSpec::Define()
 			TestFalse(TEXT("C-tier greyed with the reason"), Caps.GetBlockedReason(CTierSpell).IsEmpty());
 		});
 
-		It("greys out its higher-tier preset spells too", [this]()
+		It("greys out its higher-tier picks too", [this]()
 		{
 			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
-			USpellData *Preset = BrokenSourceSpell(EItemTier::B_Tier);
-			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.Ring->PresetSpells.Add(Preset);
-			TestFalse(TEXT("preset refused"), Loadout->GetBrokenSourceReason(Preset).IsEmpty());
+			USpellData *Pick = BrokenSourceSpell(EItemTier::B_Tier);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.SpellPicks[1] = Pick;
+			TestFalse(TEXT("pick refused"), Loadout->GetBrokenSourceReason(Pick).IsEmpty());
 		});
 
 		It("leaves a spell that is also innate alone", [this]()
@@ -275,13 +277,13 @@ void FBrokenSourceSpec::Define()
 			TestTrue(TEXT("the AI picks it while intact"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(FTierSpell));
 		});
 
-		It("never picks a broken ring's higher-tier preset, which the loadout still lists", [this]()
+		It("never picks a broken ring's higher-tier pick, which the menu still lists", [this]()
 		{
 			SpawnResonatorWithRing(BROKEN_SOURCE_BROKEN_DURABILITY);
-			USpellData *HighPreset = BrokenSourceSpell(EItemTier::B_Tier);
-			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.Ring->PresetSpells = {HighPreset};
-			TestTrue(TEXT("the loadout still lists the B-tier preset"), Loadout->GetAvailableSpells().Contains(HighPreset));
-			TestFalse(TEXT("the AI does not pick it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(HighPreset));
+			USpellData *HighPick = BrokenSourceSpell(EItemTier::B_Tier);
+			Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.SpellPicks = {HighPick};
+			TestTrue(TEXT("the menu still lists the B-tier pick, greyed"), Capabilities(ECharacterClass::Resonator).RingSpells.Contains(HighPick));
+			TestFalse(TEXT("the AI does not pick it"), UAIDecisionManager::GetUsableSpells(Loadout).Contains(HighPick));
 		});
 
 		It("never picks a spell from a broken weapon crystal", [this]()
@@ -324,7 +326,7 @@ void FBrokenSourceSpec::Define()
 			Active.SecondarySlotType = ESecondarySlotType::Weapon;
 			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_INTACT_DURABILITY);
-			Active.SecondaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
+			Active.SecondaryWeapon.WeaponEntry.SpellPicks = {FTierSpell};
 			TestFalse(TEXT("refused with a reason"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
 		});
 
@@ -335,7 +337,7 @@ void FBrokenSourceSpec::Define()
 			Active.SecondarySlotType = ESecondarySlotType::Weapon;
 			Active.SecondaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			Active.SecondaryWeapon.WeaponEntry.AttachedItem = GarnetCrystal(BROKEN_SOURCE_BROKEN_DURABILITY);
-			Active.SecondaryWeapon.WeaponEntry.AssignedSpells = {FTierSpell};
+			Active.SecondaryWeapon.WeaponEntry.SpellPicks = {FTierSpell};
 			TestTrue(TEXT("castable from the ring"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
 		});
 	});
@@ -349,15 +351,15 @@ void FBrokenSourceSpec::Define()
 			TestFalse(TEXT("the override is refused with a reason"), Loadout->GetBrokenSourceReason(CTierSpell).IsEmpty());
 		});
 
-		It("greys out every spell it gave, F-tier included", [this]()
+		It("refuses every spell it gave, F-tier included", [this]()
 		{
 			SpawnGenericWithWeapon(BROKEN_SOURCE_BROKEN_DURABILITY);
 			TestFalse(TEXT("refused with a reason"), Loadout->GetBrokenSourceReason(FTierSpell).IsEmpty());
 
+			// B-518: the old weapon-spell path (off since D-027) lists only the one list, which a broken gem empties.
 			const FCombatCapabilities Caps = Capabilities(ECharacterClass::Generic);
 			TestTrue(TEXT("Resonate Weapon still shown"), Caps.bHasWeaponCrystal);
-			TestEqual(TEXT("its spell still listed"), Caps.WeaponCrystalSpells.Num(), 1);
-			TestFalse(TEXT("greyed"), Caps.GetBlockedReason(FTierSpell).IsEmpty());
+			TestEqual(TEXT("its spell not listed"), Caps.WeaponCrystalSpells.Num(), 0);
 			TestTrue(TEXT("plain attacks still work"), Caps.bCanAttack);
 		});
 

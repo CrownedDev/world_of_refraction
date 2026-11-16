@@ -45,7 +45,8 @@ void FClassSlotsNotGatesSpec::Define()
 			}
 			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 			UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
-			Active.PrimaryWeapon.AssignedAbilities = {Ability}; // the helper already put the sword in the primary slot
+			// The helper already put the sword in the primary slot. B-518: a skill plays as the worn entry's pick.
+			TestTrue(ClassName + TEXT(": picked"), Active.PrimaryWeapon.ReplaceSkill(0, Ability));
 
 			const FCombatCapabilities Caps = FCombatCapabilities::BuildFrom(Loadout, Class, FLinearColor::White, [](int32) { return FLinearColor::White; });
 			TestTrue(ClassName + TEXT(": can use abilities"), Caps.bCanUseAbilities);

@@ -89,7 +89,7 @@ void FFallenMembersSpec::Define()
 
 		const FPartyMember &Revived = Party->Members[FALLEN_TEST_SLOT];
 		TestFalse(TEXT("no longer fallen"), Revived.IsFallen());
-		TestEqual(TEXT("full HP"), Revived.CurrentHP, Revived.CharacterData->CalculateMaxHealth());
+		TestFalse(TEXT("full: no carried HP, the pawn fills to its own max (CS-6)"), Revived.HasCarriedVitals());
 		TestEqual(TEXT("fights again"), Party->GetLivingMemberCharacterData().Num(), FALLEN_TEST_MEMBERS);
 		TestEqual(TEXT("a wounded standing member is not healed"), Party->Members[0].CurrentHP, FALLEN_TEST_WOUNDED_HP);
 	});

@@ -212,6 +212,10 @@ namespace WoRGive
 		{
 			return FText::Format(LOCTEXT("NotTheirs", "{0} doesn't own that."), NameOf(World, FromKey));
 		}
+		if (Pool->IsClassDefault(GearID)) // B-511 (D-221): each character's kit stays its own
+		{
+			return LOCTEXT("ClassDefaultGive", "Starting gear can't be given.");
+		}
 		if (IsRunOnlyMember(World, ToKey))
 		{
 			return FText::Format(LOCTEXT("RecruitOwnsNothing", "{0} is only here for the run and can't own gear."), NameOf(World, ToKey));
@@ -258,6 +262,10 @@ namespace WoRGive
 		if (Pool->GetGearOwner(GearID) != FromKey)
 		{
 			return FText::Format(LOCTEXT("NotTheirsChest", "{0} doesn't own that."), NameOf(World, FromKey));
+		}
+		if (Pool->IsClassDefault(GearID)) // B-511 (D-221)
+		{
+			return LOCTEXT("ClassDefaultChest", "Starting gear can't go in the chest.");
 		}
 		// Worn gear can't be put away (B-324): a piece anyone wears (spawned or not), or in any of the member's
 		// loadouts, stays.

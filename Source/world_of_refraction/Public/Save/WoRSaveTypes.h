@@ -165,25 +165,8 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
 
-	/** B-214a (D-099, save v36): the member's active field skill (FPartyMember::FieldSkill). */
-	UPROPERTY()
-	EFieldSkillSource FieldSkillSource = EFieldSkillSource::Innate;
-
-	UPROPERTY()
-	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
-
-	/** B-503 (D-215): the member's stop of the field attack's cycle (FPartyMember::FieldAttackIndex). Added with no
-	 *  version bump: an older 39 loads it as 0, the first entry (a bump would wipe the save, D-138). */
-	UPROPERTY()
-	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
-
-	/** B-503s (D-218): FPartyMember::bFieldAttackPicked. No version bump: an older 39 loads it as never picked. */
-	UPROPERTY()
-	bool bFieldAttackPicked = false;
-
-	/** B-503s2 (D-218): FPartyMember::ActiveWeaponId. No version bump: an older 39 loads it unset (the loadout's own). */
-	UPROPERTY()
-	FGuid ActiveWeaponId;
+	// D-221 (B-507, save v40): the field skill, the field attack pick and the weapon in hand moved to the member's
+	// worn-gear record (FSavedPool::WornGear).
 
 	UPROPERTY()
 	int32 CurrentHP = PartyConstants::NO_CARRIED_VITALS;
@@ -221,6 +204,86 @@ struct WORLD_OF_REFRACTION_API FSavedCrystalStack
 	uint8 StoneStat = static_cast<uint8>(ESubStat::None);
 };
 
+/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
+{
+	GENERATED_BODY()
+
+	/** ESpellElement. */
+	UPROPERTY()
+	uint8 Element = 0;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> Spells;
+};
+
+/** D-221 (B-507, save v40): one entry of a worn-gear record (FLoadoutSlot): the owned piece and its set's off hand. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedWornEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FGuid GearID;
+
+	UPROPERTY()
+	FGuid OffHandID;
+
+	/** D-224 (B-517, save v42): the entry's skill picks, one ref per slot (an unset ref is an empty slot). */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Abilities;
+
+	/** D-224 (B-517, save v42): the entry's spell picks, one ref per slot. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Spells;
+};
+
+/** D-221 (B-507, save v40): one character's worn-gear record (FWornGear), by owned GUID; the wheel pick moved here
+ *  from FSavedPartyMember. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedWornGear
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName Character;
+
+	/** In the WornGearLayout places (an empty entry keeps its place). */
+	UPROPERTY()
+	TArray<FSavedWornEntry> Equipment;
+
+	UPROPERTY()
+	FGuid ActiveGearID;
+
+	UPROPERTY()
+	FGuid EvolutionID;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> EvolutionSpells;
+
+	UPROPERTY()
+	TArray<FGuid> Apparel;
+
+	UPROPERTY()
+	TArray<FSavedAssetRef> InnateSpells;
+
+	UPROPERTY()
+	TArray<FSavedCustomBDPool> BDSpellPools;
+
+	UPROPERTY()
+	EFieldSkillSource FieldSkillSource = EFieldSkillSource::Innate;
+
+	UPROPERTY()
+	EFieldMovementType FieldSkillType = EFieldMovementType::Dash;
+
+	UPROPERTY()
+	int32 FieldAttackIndex = FieldSkillRules::FIRST_FIELD_ATTACK_INDEX;
+
+	UPROPERTY()
+	bool bFieldAttackPicked = false;
+};
+
 /** B-314b (Q-314, save v15): one piece's run mark (UPoolSubsystem's FPoolRunMark) and its home state, pointers as refs. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRunMark
@@ -249,6 +312,43 @@ struct WORLD_OF_REFRACTION_API FSavedRunMark
 
 	UPROPERTY()
 	int32 HomeDurability = 0;
+};
+
+/** CS-5 (audit clash 5): one character's run levels (UTrialRunSubsystem::RunLevels and UnspentLevels). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedRunLevels
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName CharacterKey;
+
+	UPROPERTY()
+	int32 Mind = 0;
+
+	UPROPERTY()
+	int32 Body = 0;
+
+	UPROPERTY()
+	int32 Spirit = 0;
+
+	/** Levels bought from a vendor this run (its rising price, D-102). */
+	UPROPERTY()
+	int32 Purchases = 0;
+
+	/** B-364 (D-157): over-cap points per pillar. */
+	UPROPERTY()
+	int32 OverMind = 0;
+
+	UPROPERTY()
+	int32 OverBody = 0;
+
+	UPROPERTY()
+	int32 OverSpirit = 0;
+
+	/** Dropped levels not yet placed (B-223b). */
+	UPROPERTY()
+	int32 Unspent = 0;
 };
 
 /** B-208 (Q-090, Q-208): the trial run as the last fight's exit left it; reloading resumes it. */
@@ -348,6 +448,14 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 
 	UPROPERTY()
 	TArray<FSavedCrystalStack> RunStartItems;
+	/** B-508 (D-219, save v41): the run party's worn-gear records as the run began; a quit puts them back. */
+	UPROPERTY()
+	TArray<FSavedWornGear> RunStartWornGear;
+
+	/** CS-5 (no version bump: a save without it resumes with no run levels, as before): each character's levels
+	 *  earned this run, its vendor purchases, over-cap points and waiting levels. */
+	UPROPERTY()
+	TArray<FSavedRunLevels> RunLevels;
 };
 
 USTRUCT()
@@ -412,7 +520,8 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	FRuntimeAttachedItem StoneSocket;
 
-	/** B-351 (D-145): a weapon's skill-slot picks, one ref per slot (an unset ref = the built-in), and whether its
+	/** OBSOLETE (D-224, B-517; deleted in stage 6): an owned piece holds no picks now (FSavedWornEntry has them).
+	 *  B-351 (D-145): a weapon's skill-slot picks, one ref per slot (an unset ref = the built-in), and whether its
 	 *  one list is active. Empty for an adapter. */
 	UPROPERTY()
 	TArray<FSavedAssetRef> SkillPicks;
@@ -428,7 +537,8 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	TArray<FSavedAssetRef> AssignedSpells;
 
-	/** B-351d (D-145): the crystal's one spell list, one ref per slot (unset = the built-in), and whether it is active.
+	/** OBSOLETE (D-224, B-517; deleted in stage 6), as SkillPicks.
+	 *  B-351d (D-145): the crystal's one spell list, one ref per slot (unset = the built-in), and whether it is active.
 	 *  New tagged fields: an older save reads them as empty / false (the old merge), so no version bump. */
 	UPROPERTY()
 	TArray<FSavedAssetRef> SpellPicks;
@@ -499,20 +609,6 @@ struct WORLD_OF_REFRACTION_API FSavedWearer
 	FName Character;
 };
 
-/** B-311: a Broken Darkness element's spell pool in a custom loadout. */
-USTRUCT()
-struct WORLD_OF_REFRACTION_API FSavedCustomBDPool
-{
-	GENERATED_BODY()
-
-	/** ESpellElement. */
-	UPROPERTY()
-	uint8 Element = 0;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> Spells;
-};
-
 /** B-311 (D-111): one custom loadout; each piece by its owned GUID and asset, the rest by asset. An adapter's spells
  *  ride on the adapter itself (FSavedGearDetail). */
 USTRUCT()
@@ -572,6 +668,10 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	FGuid SecondaryOffHandInstance;
+
+	/** D-224 (B-517, save v42): each entry's skill and spell picks by piece (FSavedLoadout::EntryPicks). */
+	UPROPERTY()
+	TArray<FSavedWornEntry> EntryPicks;
 
 	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
 	UPROPERTY()
@@ -640,6 +740,25 @@ struct WORLD_OF_REFRACTION_API FSavedPouch
 	int32 SlotCount = 0;
 };
 
+/** B-511 (D-221): a character's minted class default kit, place for place (UPoolSubsystem::MintClassDefaultKit). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedClassDefaultKit
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName CharacterKey;
+
+	UPROPERTY()
+	TArray<FGuid> Pieces;
+
+	UPROPERTY()
+	TArray<FGuid> OffHands;
+
+	UPROPERTY()
+	TArray<FGuid> Apparel;
+};
+
 /** UPoolSubsystem's owned items. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedPool
@@ -684,9 +803,21 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FName> BankedItemCharacters;
 
+	/** B-509 (D-221, save v41, no bump: a v41 save without it has none): found gear kept as hub gear. */
+	UPROPERTY()
+	TArray<FGuid> HubGear;
+
+	/** B-511 (D-221, no bump: a save without it mints the kits again at the next trial start). */
+	UPROPERTY()
+	TArray<FSavedClassDefaultKit> ClassDefaultKits;
+
 	/** B-311 (save v6): each character's custom loadouts. */
 	UPROPERTY()
 	TArray<FSavedCharacterLoadouts> CustomLoadouts;
+
+	/** D-221 (B-507, save v40): what each character wears now. */
+	UPROPERTY()
+	TArray<FSavedWornGear> WornGear;
 
 	/** B-314b (D-097, save v15): gear definition key -> the highest tier a run-only copy of it reached. */
 	UPROPERTY()
@@ -695,6 +826,11 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	/** B-316b (save v16): each character's learned skills. */
 	UPROPERTY()
 	TArray<FSavedCharacterSkills> CharacterSkills;
+
+	/** B-523 (D-224, no version bump: a save without it puts nothing back, and its run never swapped the lists): each
+	 *  hub list kept aside while a run uses its run list (UPoolSubsystem::GetRunStartSkills). */
+	UPROPERTY()
+	TArray<FSavedCharacterSkills> RunStartSkills;
 
 	int32 Num() const
 	{

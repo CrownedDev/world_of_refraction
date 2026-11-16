@@ -21,6 +21,7 @@ namespace
 		TEXT("CharacterForm"),		   // CharacterFormSubsystem lists them by type (GetPrimaryAssetIdList)
 		TEXT("WeaponData"), TEXT("RingData"), TEXT("EvolutionItemData"), // TrialLoot::GatherPool (equipment)
 		TEXT("SpellData"), TEXT("AbilityData"),							  // TrialLoot::GatherPool (skills)
+		TEXT("PrebuiltFindData"),		   // TrialLoot::GatherPool (prebuilt finds, B-522b)
 	};
 }
 

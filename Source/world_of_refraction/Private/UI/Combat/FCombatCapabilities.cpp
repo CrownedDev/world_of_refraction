@@ -3,6 +3,7 @@
 
 #include "UI/Combat/FCombatCapabilities.h"
 #include "Loadout/WeaponSpellRules.h"
+#include "Loadout/SkillRequirementRules.h"
 #include "Loadout/LoadoutComponent.h"
 #include "WoRLog.h"
 #include "Loadout/FCombatLoadout.h"
@@ -57,9 +58,11 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                ActiveWeapon->WeaponEntry.HasCrystal());
         Out.bCanAttack = true;
         Out.ActiveWeaponName = ActiveWeapon->WeaponEntry.Weapon->Name;
-        // B-351 (D-145): the weapon's one skill-slot list (built-ins and picks), or the pre-D-145
-        // lists until the player first edits it.
+        // B-518 (D-224): the weapon's one skill-slot list, the worn entry's picks.
         Out.WeaponAbilities = ActiveWeapon->GetSkillSlotAbilities();
+        // D-224 (§5.2): a pick whose gear requirement this weapon doesn't meet isn't offered.
+        const FSkillGearHost WeaponHost = FSkillGearHost::FromWeapon(ActiveWeapon->WeaponEntry);
+        Out.WeaponAbilities.RemoveAll([&WeaponHost](const UAbilityData *Ability) { return !SkillRequirementRules::IsMet(Ability, WeaponHost); });
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
 
         // Crystal spells on active weapon. D-083: a broken crystal's spells stay listed,
@@ -68,8 +71,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         if (WeaponSpellRules::WeaponsGiveSpells() && ActiveWeapon->WeaponEntry.AttachedItem.IsSpellSource())
         {
             // B-351d desktop review: once the crystal's one list is edited, it is what combat offers.
-            Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.bSpellSlotsActive ? ActiveWeapon->GetAllSpells()
-                                                                                 : ActiveWeapon->WeaponEntry.AssignedSpells;
+            Out.WeaponCrystalSpells = ActiveWeapon->GetAllSpells(); // B-518: the one list
             Out.bHasWeaponCrystal = true;
             Out.WeaponCrystalColor = GetElementColorFn(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
@@ -145,8 +147,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
             if (PrimaryRing->RingEntry.AttachedItem.IsSpellSource())
             {
-                Out.RingSpells = PrimaryRing->RingEntry.bSpellSlotsActive ? PrimaryRing->GetAllSpells(/*bAsIfIntact=*/true) // B-351d
-                                                                          : PrimaryRing->RingEntry.AssignedSpells;
+                Out.RingSpells = PrimaryRing->GetAllSpells(/*bAsIfIntact=*/true); // B-518: the one list
             }
             Out.bRingHasBreakChance = !PrimaryRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
@@ -179,8 +180,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
             if (ActiveRing->RingEntry.AttachedItem.IsSpellSource())
             {
-                Out.RingSpells = ActiveRing->RingEntry.bSpellSlotsActive ? ActiveRing->GetAllSpells(/*bAsIfIntact=*/true) // B-351d
-                                                                         : ActiveRing->RingEntry.AssignedSpells;
+                Out.RingSpells = ActiveRing->GetAllSpells(/*bAsIfIntact=*/true); // B-518: the one list
             }
             Out.bRingHasBreakChance = !ActiveRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
@@ -201,6 +201,28 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Out.AvailableItems.Add(Slot.CrystalId);
     }
     Out.bHasItems = Out.AvailableItems.Num() > 0;
+
+    // ==================== GEAR REQUIREMENTS (D-224, §5.2) ====================
+    // A listed spell its piece doesn't meet the need of is greyed with what it needs.
+
+    const auto BlockUnmet = [&Out](const TArray<USpellData *> &Spells, const FSkillGearHost &Host)
+    {
+        for (USpellData *Spell : Spells)
+        {
+            if (Spell && !SkillRequirementRules::IsMet(Spell, Host))
+            {
+                Out.BlockedSpellReasons.Add(Spell, SkillRequirementRules::GetNeedText(Spell));
+            }
+        }
+    };
+    const FRingLoadoutEntry *ListedRing = CharClass == ECharacterClass::Resonator ? LC->GetActiveRingLoadout()
+                                         : Loadout.PrimarySlotType == EPrimarySlotType::Ring ? LC->GetPrimaryRingLoadout()
+                                                                                            : nullptr;
+    if (ListedRing)
+    {
+        BlockUnmet(Out.RingSpells, FSkillGearHost::FromAdapter(ListedRing->RingEntry));
+    }
+    BlockUnmet(Out.BreakthroughSpells, FSkillGearHost::FromEvolutionSeat(LC->GetCharacterSlotEvolution().Item));
 
     // ==================== BROKEN SOURCES (D-083) ====================
 
@@ -234,6 +256,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Out.OtherWeaponAbilities = LC->GetOtherWeaponSkills();
         const FWeaponLoadoutEntry &Other = Loadout.bShowPrimary ? Loadout.SecondaryWeapon : Loadout.PrimaryWeapon;
         Out.OtherWeaponName = Other.WeaponEntry.Weapon ? Other.WeaponEntry.Weapon->Name : FString();
+        const FSkillGearHost OtherHost = FSkillGearHost::FromWeapon(Other.WeaponEntry);
+        Out.OtherWeaponAbilities.RemoveAll([&OtherHost](const UAbilityData *Ability) { return !SkillRequirementRules::IsMet(Ability, OtherHost); });
     }
 
     UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d BrokenSourceSpells=%d"),

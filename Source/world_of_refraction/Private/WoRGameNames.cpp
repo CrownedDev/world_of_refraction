@@ -9,10 +9,14 @@
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
 #include "Equipment/Crystals/CrystalType.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Rings/RingData.h"
 #include "Hub/InteractPrompt.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Field/FieldSkillTypes.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/ItemTier.h"
 #include "Memory/HiddenQuestData.h"
 #include "Merchant/MerchantData.h"
@@ -706,8 +710,134 @@ FText WoRGameNames::GetWeaponTypeName(EWeaponType Type)
         return LOCTEXT("EWeaponType_Scythe", "Scythe");
     case EWeaponType::Gun:
         return LOCTEXT("EWeaponType_Gun", "Gun");
+    case EWeaponType::Shield:
+        return LOCTEXT("EWeaponType_Shield", "Shield");
     default:
         return FText::GetEmpty();
+    }
+}
+
+namespace
+{
+    /** Q-513: a pair of one type. Gauntlets are a pair already; a bow is never dual. */
+    FText GetDualWeaponTypeName(EWeaponType Type)
+    {
+        switch (Type)
+        {
+        case EWeaponType::Sword:
+            return LOCTEXT("DualWeapon_Sword", "Dual Swords");
+        case EWeaponType::Greatsword:
+            return LOCTEXT("DualWeapon_Greatsword", "Dual Greatswords");
+        case EWeaponType::Spear:
+            return LOCTEXT("DualWeapon_Spear", "Dual Spears");
+        case EWeaponType::Staff:
+            return LOCTEXT("DualWeapon_Staff", "Dual Staves");
+        case EWeaponType::Dagger:
+            return LOCTEXT("DualWeapon_Dagger", "Dual Daggers");
+        case EWeaponType::Axe:
+            return LOCTEXT("DualWeapon_Axe", "Dual Axes");
+        case EWeaponType::Hammer:
+            return LOCTEXT("DualWeapon_Hammer", "Dual Hammers");
+        case EWeaponType::Scythe:
+            return LOCTEXT("DualWeapon_Scythe", "Dual Scythes");
+        case EWeaponType::Gun:
+            return LOCTEXT("DualWeapon_Gun", "Dual Guns");
+        default:
+            return WoRGameNames::GetWeaponTypeName(Type); // Gauntlets, Bow
+        }
+    }
+}
+
+FText WoRGameNames::GetHeldWeaponTypeName(const UWeaponData *Weapon, const UWeaponData *OffHand)
+{
+    if (!Weapon)
+    {
+        return FText::GetEmpty();
+    }
+    // B-515: a shield piece in the off hand; the OffHandShield wield mode is the OBSOLETE baked-in shield.
+    if ((OffHand && OffHand->WeaponType == EWeaponType::Shield) || Weapon->WieldMode == EWeaponWieldMode::OffHandShield)
+    {
+        return FText::Format(LOCTEXT("WeaponWithShield", "{0} and {1}"), GetWeaponTypeName(Weapon->WeaponType),
+                             GetWeaponTypeName(EWeaponType::Shield));
+    }
+    return OffHand || Weapon->WieldMode == EWeaponWieldMode::Dual ? GetDualWeaponTypeName(Weapon->WeaponType)
+                                                                  : GetWeaponTypeName(Weapon->WeaponType);
+}
+
+FText WoRGameNames::GetHeldPiecesName(const UWeaponData *MainHand, const UWeaponData *OffHand)
+{
+    const auto PieceName = [](const UWeaponData *Piece)
+    {
+        return Piece->GetDisplayName().IsEmpty() ? GetWeaponTypeName(Piece->WeaponType) : FText::FromString(Piece->GetDisplayName());
+    };
+    if (!MainHand)
+    {
+        return FText::GetEmpty();
+    }
+    return OffHand ? FText::Format(LOCTEXT("HeldPiecesPlus", "{0} + {1}"), PieceName(MainHand), PieceName(OffHand)) : PieceName(MainHand); // Crown: a plus, not "and"
+}
+
+FText WoRGameNames::GetAdapterName(const URingData *Adapter, const FRuntimeAttachedItem &Socket)
+{
+    if (!Adapter)
+    {
+        return FText::GetEmpty();
+    }
+    const FText EmptyAdapterName = FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), GetAdapterWord(), GetAdapterFormName(Adapter->Form));
+    // D-226 (2): an adapter with a name of its own (its Name, not empty, not the class default, not the empty adapter's
+    // own reading) shows it whatever is in the socket, as "King's Ring".
+    const bool bOwnName = !Adapter->Name.IsEmpty() && Adapter->Name != GetDefault<URingData>()->Name &&
+                          Adapter->Name != EmptyAdapterName.ToString();
+    if (bOwnName)
+    {
+        return FText::FromString(Adapter->Name);
+    }
+    FText InSocket;
+    if (Socket.IsEvolution() && Socket.Evolution.Item)
+    {
+        const UEvolutionItemData *Item = Socket.Evolution.Item;
+        InSocket = Item->ItemName.IsEmpty() ? GetCrystalTypeName(Item->CrystalType) : FText::FromString(Item->ItemName);
+    }
+    else if (!Socket.IsEmpty() && !Socket.IsEvolution() && Socket.GetElement() != ESpellElement::None)
+    {
+        InSocket = GetElementName(Socket.GetElement());
+    }
+    // The form word last, as "Phoenix Ring": an empty one is "Adapter Ring" (D-223).
+    return InSocket.IsEmpty() ? EmptyAdapterName : FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), InSocket, GetAdapterFormName(Adapter->Form));
+}
+
+void WoRGameNames::NumberRepeatedNames(TArray<FText> &Names, TConstArrayView<EItemTier> Tiers, bool bTierLetter)
+{
+    const bool bByTier = Tiers.Num() == Names.Num();
+    constexpr int32 NO_TIER = -1;
+    const auto TierOf = [&](int32 Index) { return bByTier ? static_cast<int32>(Tiers[Index]) : NO_TIER; };
+    // The strip's letter: which names are held by more than one tier.
+    TMap<FString, TSet<int32>> TiersByName;
+    for (int32 Index = 0; bTierLetter && Index < Names.Num(); ++Index)
+    {
+        if (!Names[Index].IsEmpty())
+        {
+            TiersByName.FindOrAdd(Names[Index].ToString()).Add(TierOf(Index));
+        }
+    }
+    TMap<FString, int32> Seen;
+    for (int32 Index = 0; Index < Names.Num(); ++Index)
+    {
+        FText &Name = Names[Index];
+        if (Name.IsEmpty())
+        {
+            continue;
+        }
+        const FString Key = Name.ToString();
+        const int32 Count = ++Seen.FindOrAdd(FString::Printf(TEXT("%s|%d"), *Key, TierOf(Index)));
+        if (bByTier && TiersByName.Contains(Key) && TiersByName[Key].Num() > 1 && !GetTierLetter(Tiers[Index]).IsEmpty())
+        {
+            Name = FText::Format(LOCTEXT("RepeatedNameTier", "{0}  {1}"), Name, GetTierLetter(Tiers[Index]));
+        }
+        if (Count > 1)
+        {
+            Name = FText::Format(LOCTEXT("RepeatedName", "{0} {1}"), Name, FText::AsNumber(Count));
+        }
     }
 }
 

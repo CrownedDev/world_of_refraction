@@ -85,7 +85,8 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
 
-    /** B-351d (D-145): the player's pick per spell slot of the crystal's one list (null = the built-in there; the
+    /** D-224 (B-517): on a loadout's copy of the piece this is the worn entry's list (FLoadoutSlot); an owned piece holds none (OBSOLETE there, deleted in stage 6). 
+     *  B-351d (D-145): the player's pick per spell slot of the crystal's one list (null = the built-in there; the
      *  built-ins are the crystal's spells on this item (AssignedSpells)). SkillSlotList.h. Lost with the crystal, like AssignedSpells. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> SpellPicks;
@@ -95,7 +96,8 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     bool bSpellSlotsActive = false;
 
-    /** B-351 (D-145): the player's pick per skill slot (null = the built-in there). SkillSlotList.h. The replaced
+    /** D-224 (B-517): on a loadout's copy of the piece this is the worn entry's list (FLoadoutSlot); an owned piece holds none (OBSOLETE there, deleted in stage 6). 
+     *  B-351 (D-145): the player's pick per skill slot (null = the built-in there). SkillSlotList.h. The replaced
      *  built-ins stay on the weapon asset (PresetAbilities), so a cleared pick restores them. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<UAbilityData *> SkillPicks;
@@ -140,8 +142,12 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     // ==================== FACTORY ====================
 
-    /** Create entry from WeaponData — always copies the template's default crystal + DefaultSpells. */
+    /** A new piece from WeaponData, its socket empty (B-521, D-224). */
     static FWeaponInventoryEntry CreateFromWeapon(UWeaponData *InWeapon);
+
+    /** OBSOLETE (B-521, D-224; delete in asset overhaul stage 6 with the asset's AttachedItem): CreateFromWeapon plus the
+     *  asset's baked crystal, for the old authored layout only (an inventory asset's Weapons, an authored loadout). */
+    static FWeaponInventoryEntry CreateFromAuthoredWeapon(UWeaponData *InWeapon);
 
     // ==================== STATE QUERIES ====================
 

@@ -459,6 +459,11 @@ public:
 	 *  both real damage (B2 assembly points) and AI damage previews. */
 	float GetTierGapDamageMultiplier(AActor *Actor, const FAction &Action) const;
 
+	/** D-224 (AssetOverhaulPlan §4.1): the tier-gap multiplier of an action's ELEMENTAL side, against
+	 *  ResolveElementalChannelTier. A spell's is GetTierGapDamageMultiplier's; an attack's or ability's reads the
+	 *  weapon's built tier (the weapon and its socket averaged), its physical side stays on the weapon's own. */
+	float GetElementalTierGapDamageMultiplier(AActor *Actor, const FAction &Action) const;
+
 	/** Damage factor from the active weapon's requirement (D-082, B-162) for attacks and abilities;
 	 *  1.0 for spells and unarmed. See FWorldStatRequirements::GetWeaponRequirementFactor. */
 	float GetWeaponRequirementFactor(AActor *Actor, const FAction &Action) const;
@@ -610,6 +615,10 @@ private:
 	 *  Broken crystals still report their tier: breaks land at turn end, so the
 	 *  channel is intact for the cast being assembled. */
 	TOptional<EItemTier> ResolveChannelTier(AActor *Actor, const FAction &Action) const;
+
+	/** D-224 (§4.1): the channel of an action's elemental side. A spell: ResolveChannelTier. An attack or ability: the
+	 *  active weapon's built tier (CrystalEffectTable::GetBuiltTier); unarmed or no entry, ResolveChannelTier. */
+	TOptional<EItemTier> ResolveElementalChannelTier(AActor *Actor, const FAction &Action) const;
 
 	/** The active weapon's INVENTORY ENTRY (carries instance .Tier), resolved via
 	 *  LoadoutComponent::GetActiveWeaponLoadout() — which mirrors GetActiveWeapon's

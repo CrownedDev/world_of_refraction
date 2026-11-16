@@ -1,8 +1,8 @@
 // WeaponSetsSpec.cpp
 // B-477 (D-209, D-210, D-211): a Generic's weapon sets. Two weapons of the same type, both pairable, make a set; a
 // pair of different types, or with a single-only weapon, or the same piece twice, can't; a dual-only weapon is refused
-// alone. A pair has one skill list sized by the average of its two tiers (rounded down) and pre-filled with both
-// weapons' built-ins, takes dual-blade abilities, sums both weapons' stats and resistances in the fight, and goes
+// alone. A pair has one skill list sized by the average of its two tiers (rounded down), empty until filled (B-518:
+// no built-ins), takes dual-blade abilities, sums both weapons' stats and resistances in the fight, and goes
 // through the authored loadout and back. The loadout checks refuse a bad set and clear it to the main hand alone.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -10,6 +10,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
+#include "Character/StanceData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/FCombatLoadout.h"
@@ -105,6 +106,38 @@ void FWeaponSetsSpec::Define()
 		TestFalse(TEXT("each refusal has words"), WeaponSetRules::GetPairRefusalText(EPairRefusal::DifferentTypes).IsEmpty());
 	});
 
+	It("holds a shield piece in the off hand of a pairable weapon, never the main hand or alone (B-515, D-223)", [this]()
+	{
+		using WeaponSetRules::EPairRefusal;
+		UWeaponData *SwordAsset = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+		UStanceData *OwnStance = NewObject<UStanceData>(GetTransientPackage());
+		UStanceData *DualStance = NewObject<UStanceData>(GetTransientPackage());
+		SwordAsset->WeaponStance = OwnStance;
+		SwordAsset->DualWieldStance = DualStance;
+		const FWeaponInventoryEntry Sword = WeaponSetsTestHand(SwordAsset);
+		const FWeaponInventoryEntry OtherSword = WeaponSetsTestHand(SwordAsset);
+		const FWeaponInventoryEntry Dagger = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Dagger, EWeaponHandling::SingleOrDual));
+		const FWeaponInventoryEntry SingleSword = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOnly));
+		const FWeaponInventoryEntry Shield = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::DualOnly));
+		TestTrue(TEXT("a sword takes a shield"), WeaponSetRules::CheckPair(Sword, Shield) == EPairRefusal::None);
+		TestTrue(TEXT("so does a dagger: any type"), WeaponSetRules::CheckPair(Dagger, Shield) == EPairRefusal::None);
+		TestTrue(TEXT("a single-only weapon doesn't"), WeaponSetRules::CheckPair(SingleSword, Shield) == EPairRefusal::NotPairable);
+		TestTrue(TEXT("a shield isn't a main hand"), WeaponSetRules::CheckPair(Shield, Sword) == EPairRefusal::ShieldInMainHand);
+		TestFalse(TEXT("that refusal has words"), WeaponSetRules::GetPairRefusalText(EPairRefusal::ShieldInMainHand).IsEmpty());
+		TestFalse(TEXT("a shield can't be held alone"), WeaponSetRules::CanStandAlone(WeaponSetsTestSet(Shield)));
+		const FWeaponInventoryEntry LooseShield = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::SingleOrDual));
+		TestFalse(TEXT("not even one authored as single-or-dual"), WeaponSetRules::CanStandAlone(WeaponSetsTestSet(LooseShield)));
+
+		const FWeaponLoadoutEntry WithShield = WeaponSetsTestSet(Sword, Shield);
+		const FWeaponLoadoutEntry TwoSwords = WeaponSetsTestSet(Sword, OtherSword);
+		TestTrue(TEXT("a sword and a shield are a shield pair"), WeaponSetRules::IsShieldPair(WithShield));
+		TestFalse(TEXT("two swords aren't"), WeaponSetRules::IsShieldPair(TwoSwords));
+		TestTrue(TEXT("it reads as off-hand shield"), WeaponSetRules::GetSetWieldMode(WithShield) == EWeaponWieldMode::OffHandShield);
+		TestTrue(TEXT("two swords still read as dual"), WeaponSetRules::GetSetWieldMode(TwoSwords) == EWeaponWieldMode::Dual);
+		TestTrue(TEXT("it stands in the sword's own stance"), WeaponSetRules::GetSetStance(WithShield) == OwnStance);
+		TestTrue(TEXT("two swords in the dual stance"), WeaponSetRules::GetSetStance(TwoSwords) == DualStance);
+	});
+
 	It("refuses a dual-only weapon alone, and lets it stand in a pair (D-209)", [this]()
 	{
 		const FWeaponInventoryEntry DualOnly = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::DualOnly));
@@ -127,21 +160,29 @@ void FWeaponSetsSpec::Define()
 		TestEqual(TEXT("a weapon alone keeps its tier's slots"), Alone.GetSkillSlotCount(), WeaponSetRules::GetPairTierSlots(EItemTier::B_Tier, EItemTier::B_Tier));
 	});
 
-	It("pre-fills a pair's list with both weapons' built-ins, the main hand's first, once each (D-210)", [this]()
+	It("gives a sword and shield the sword's own slots; two axes still average (B-515c, Crown Q8)", [this]()
+	{
+		UWeaponData *Sword = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+		UWeaponData *Shield = WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::DualOnly);
+		UWeaponData *Axe = WeaponSetsTestWeapon(EWeaponType::Axe, EWeaponHandling::SingleOrDual);
+		const FWeaponLoadoutEntry WithShield = WeaponSetsTestSet(WeaponSetsTestHand(Sword, EItemTier::S_Tier), WeaponSetsTestHand(Shield, EItemTier::F_Tier));
+		const FWeaponLoadoutEntry TwoAxes = WeaponSetsTestSet(WeaponSetsTestHand(Axe, EItemTier::S_Tier), WeaponSetsTestHand(Axe, EItemTier::F_Tier));
+		TestEqual(TEXT("an S sword with an F shield keeps the S slots"), WeaponSetRules::GetSetTierSlots(WithShield),
+				  WeaponSetRules::GetSetTierSlots(WeaponSetsTestSet(WithShield.WeaponEntry)));
+		TestEqual(TEXT("an S axe with an F axe averages"), WeaponSetRules::GetSetTierSlots(TwoAxes), WEAPON_SETS_S_AND_F_SLOTS);
+	});
+
+	It("starts a pair's list empty: neither weapon's built-ins pre-fill it (B-518, D-224)", [this]()
 	{
 		UAbilityData *Slash = WeaponSetsTestAbility(EWeaponType::Sword, EWeaponWieldMode::Single);
 		UAbilityData *Cross = WeaponSetsTestAbility(EWeaponType::Sword, EWeaponWieldMode::Dual);
 		UWeaponData *Main = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual, Slash);
 		UWeaponData *Off = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual, Cross);
-		Off->PresetAbilities.Add(Slash); // shared with the main hand: listed once
 		const FWeaponLoadoutEntry Pair = WeaponSetsTestSet(WeaponSetsTestHand(Main, EItemTier::S_Tier), WeaponSetsTestHand(Off, EItemTier::S_Tier));
-		const TArray<UAbilityData *> BuiltIns = WeaponSetRules::GetSetBuiltIns(Pair);
-		if (TestEqual(TEXT("two built-ins"), BuiltIns.Num(), 2))
-		{
-			TestTrue(TEXT("the main hand's first"), BuiltIns[0] == Slash && BuiltIns[1] == Cross);
-		}
+		TestEqual(TEXT("no built-ins"), WeaponSetRules::GetSetBuiltIns(Pair).Num(), 0);
 		const TArray<UAbilityData *> Slots = Pair.GetSkillSlots();
-		TestTrue(TEXT("both pre-fill the list"), Slots.Contains(Slash) && Slots.Contains(Cross));
+		TestFalse(TEXT("neither pre-fills the list"), Slots.Contains(Slash) || Slots.Contains(Cross));
+		TestEqual(TEXT("nothing offered"), Pair.GetSkillSlotAbilities().Num(), 0);
 	});
 
 	It("lets a pair hold dual-blade abilities of its type; a weapon alone can't (D-210)", [this]()
@@ -230,6 +271,37 @@ void FWeaponSetsSpec::Define()
 			Active.PrimaryWeapon.OffHandEntry.Weapon = WeaponSetsTestWeapon(EWeaponType::Dagger, EWeaponHandling::SingleOrDual);
 			TestFalse(TEXT("a sword and a dagger are no pair"), Loadout->IsWeaponSetPaired(Active.PrimaryWeapon));
 			TestEqual(TEXT("only the main hand's stats"), Loadout->GetActiveStatBonus(Loadout->GetOwner()).BonusDefense, WEAPON_SETS_TEST_DEFENSE);
+		});
+
+		It("attacks with the main hand's own attack whatever is in the off hand (Crown, after B-515)", [this]()
+		{
+			UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+			Data->CharacterClass = ECharacterClass::Generic;
+			UAbilityData *MainAttack = NewObject<UAbilityData>(GetTransientPackage());
+			MainAttack->bIsAttack = true;
+			UAbilityData *OffHandAttack = NewObject<UAbilityData>(GetTransientPackage());
+			OffHandAttack->bIsAttack = true;
+			UWeaponData *Sword = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+			Sword->WeaponAttack = MainAttack;
+			UWeaponData *OtherSword = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual);
+			OtherSword->WeaponAttack = OffHandAttack;
+			ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Sword);
+			if (!TestNotNull(TEXT("Loadout"), Loadout))
+			{
+				return;
+			}
+			UInventoryComponent *Inventory = Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>();
+			FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+			TestTrue(TEXT("alone: its own attack"), Loadout->GetCurrentAttack() == MainAttack);
+
+			Active.PrimaryWeapon.OffHandEntry = WeaponSetsTestHand(OtherSword);
+			TestTrue(TEXT("a dual pair"), Loadout->IsWeaponSetPaired(Active.PrimaryWeapon));
+			TestTrue(TEXT("a dual pair attacks with the main hand's attack"), Loadout->GetCurrentAttack() == MainAttack);
+			TestFalse(TEXT("the off hand's attack isn't listed"), Loadout->GetAllWeaponAttacks().Contains(OffHandAttack));
+
+			Active.PrimaryWeapon.OffHandEntry = WeaponSetsTestHand(WeaponSetsTestWeapon(EWeaponType::Shield, EWeaponHandling::DualOnly));
+			TestTrue(TEXT("a shield pair"), Loadout->IsWeaponSetPaired(Active.PrimaryWeapon));
+			TestTrue(TEXT("a sword and shield attack with the sword's attack"), Loadout->GetCurrentAttack() == MainAttack);
 		});
 	});
 }

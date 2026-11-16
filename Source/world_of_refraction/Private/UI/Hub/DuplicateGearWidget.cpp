@@ -87,7 +87,7 @@ namespace DuplicateGearBuild
 			return FText::Format(LOCTEXT("Copy", "{0} ({1}, {2})"), FText::FromString(Name), FText::FromString(TierHelpers::GetTierName(Tier)),
 								 StaticEnum<EItemQuality>()->GetDisplayNameTextByValue(static_cast<int64>(Quality)));
 		};
-		if (bRing)
+		if (bRing) // TODO: B-530 (D-223): no ring pair any more; remove after Crown's PIE pass
 		{
 			const FRingInventoryEntry *Ring = Inv.FindOwnedRing(ID);
 			return Ring && Ring->Ring ? Describe(Ring->Ring->Name, Ring->Tier, Ring->Quality) : FText::GetEmpty();

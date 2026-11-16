@@ -33,7 +33,8 @@ public:
 
 	// ==================== RING ====================
 
-	// If true, spells cannot be customized (conjured-ring equivalent of bAbilitiesLocked)
+	// OBSOLETE (B-518, D-224: no skills on gear): nothing reads this for play; deleted in stage 6. A conjured ring is an ordinary empty ring (Q7).
+	// Was: if true, spells cannot be customized (conjured-ring equivalent of bAbilitiesLocked).
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
 	bool bSpellsLocked = false;
 
@@ -42,7 +43,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
 	EInfusionMode InfusionMode = EInfusionMode::Balanced;
 
-	/** Preset spells. When bSpellsLocked is true these are the locked spells
+	/** OBSOLETE (B-518, D-224: no skills on gear): nothing reads this for play; deleted in stage 6.
+	 *  Was: preset spells. When bSpellsLocked is true these are the locked spells
 	 *  (all-or-nothing — mirrors UWeaponData::PresetAbilities). When false,
 	 *  they act as customisable defaults copied into the loadout entry on
 	 *  InitializeFromRing. */

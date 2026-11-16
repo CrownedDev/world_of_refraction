@@ -68,7 +68,7 @@ void FRingFusionStoneSpec::Define()
 		FRingLoadoutEntry FusionRing;
 		FusionRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
 		FusionRing.RingEntry.AttachedItem = RingFusionDefenseFire();
-		FusionRing.RingEntry.AssignedSpells = {FireSpell};
+		FusionRing.RingEntry.SpellPicks = {FireSpell}; // B-518: a pick, not the old list
 		FRingLoadoutEntry PlainRing;
 		PlainRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
 		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];

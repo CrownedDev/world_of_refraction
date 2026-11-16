@@ -16,6 +16,10 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Inventory/InventoryData.h"
+#include "Loadout/ClassDefaultLoadoutData.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Loadout/FSavedLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
@@ -25,6 +29,9 @@
 #include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
 #include "Trial/PrismDropPickup.h"
@@ -43,21 +50,67 @@ namespace
     /** 0 means "no run", so a generated seed of 0 is bumped to this. */
     constexpr int32 TRIAL_NONZERO_SEED_FALLBACK = 1;
 
-    /** B-347 (D-137): opens the run layer and takes the local party's worn loadouts on the run, free. */
-    void OpenRunLayerWithWornLoadouts(UGameInstance *GI, UPoolSubsystem &Pool)
+    /** The local party's members by character key, with their class (Generic when the member has no data). */
+    TMap<FName, ECharacterClass> GetLocalPartyClasses(UGameInstance *GI)
     {
-        TSet<FName> MemberKeys;
+        TMap<FName, ECharacterClass> Members;
         const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
         if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
         {
             for (const FPartyMember &Member : Party->Members)
             {
-                MemberKeys.Add(UPoolSubsystem::GetCharacterKey(Member));
+                Members.Add(UPoolSubsystem::GetCharacterKey(Member),
+                            Member.CharacterData ? Member.CharacterData->CharacterClass : ECharacterClass::Generic);
             }
         }
-        MemberKeys.Remove(NAME_None);
+        Members.Remove(NAME_None);
+        return Members;
+    }
+
+    /** B-523 (D-224 (2), Q-523): a kit member starts the run with no learned or bought skills. It keeps the skills
+     *  its worn record names apart from gear picks (innate, Broken Darkness pools, its own evolution's: they stay with
+     *  the kit, WearClassDefaultKit) and any picks the kit authors; the kit's StartingSkills go into the list, not a slot. */
+    void BeginKitRunSkills(UPoolSubsystem &Pool, FName Key, const FClassDefaultLoadout &Kit)
+    {
+        TArray<const UObject *> Keep;
+        if (const FWornGear *Worn = Pool.GetWornGear(Key))
+        {
+            Keep.Append(Worn->InnateSpells);
+            Keep.Append(Worn->EvolutionSpells);
+            for (const FBDElementSpellPool &BDPool : Worn->BDSpellPools)
+            {
+                Keep.Append(BDPool.Spells);
+            }
+        }
+        for (const FClassDefaultPiece &Piece : Kit.Pieces)
+        {
+            Keep.Append(Piece.SkillPicks);
+        }
+        TArray<const UObject *> Starting;
+        Starting.Append(Kit.StartingSkills);
+        Pool.BeginRunSkills(Key, Keep, Starting);
+    }
+
+    /** B-347 (D-137): opens the run layer and takes the local party's worn loadouts on the run, free. B-512 (D-221): a
+     *  member in Kits wears its class kit instead (reset already, ResetClassDefaultKit), after the snapshot. */
+    void OpenRunLayerWithWornLoadouts(UGameInstance *GI, UPoolSubsystem &Pool,
+                                      const TMap<FName, const FClassDefaultLoadout *> &Kits = {})
+    {
+        TSet<FName> MemberKeys;
+        GetLocalPartyClasses(GI).GetKeys(MemberKeys);
         Pool.BeginRunLayer();
-        Pool.TakeHomeGearOnRun(MemberKeys);
+        Pool.SnapshotRunStartGear(MemberKeys); // B-508 (D-219): a quit puts these back
+        TSet<FName> HomeWearers = MemberKeys;
+        for (const TPair<FName, const FClassDefaultLoadout *> &Kit : Kits)
+        {
+            for (const FGuid &ID : Pool.WearClassDefaultKit(Kit.Key, *Kit.Value))
+            {
+                Pool.TakeOnRun(ID); // the kit and the character's own evolution; home gear stays home
+            }
+            HomeWearers.Remove(Kit.Key);
+            BeginKitRunSkills(Pool, Kit.Key, *Kit.Value);
+        }
+        Pool.TakeHomeGearOnRun(HomeWearers);
     }
 
     int32 MakeFreshRunSeed()
@@ -150,7 +203,53 @@ void UTrialRunSubsystem::StartRunGearAndGold()
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
         Pool->EndRunLayer();
-        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
+        // B-529: a member who reaches a trial with no worn record (the hub never drew it) is seeded with its starting
+        // gear first, so the run-start record is that, not the kit: the kit is per run (D-221) and must not become its
+        // first record and block the starting gear for good.
+        const UPartySessionSubsystem *Session = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+        if (const UParty *Party = Session ? Session->GetLocalParty() : nullptr)
+        {
+            for (const FPartyMember &Member : Party->Members)
+            {
+                const UInventoryData *Start = Member.CharacterData ? Member.CharacterData->Inventory : nullptr;
+                if (Member.bRunOnly || !Start)
+                {
+                    continue;
+                }
+                // The innate list and pools as a pawn's first draw reads them: the template's active authored loadout.
+                FWornGear Innate;
+                if (!Start->SavedLoadouts.IsEmpty())
+                {
+                    const FSavedLoadout &Authored = Start->SavedLoadouts[FMath::Clamp(Start->DefaultActiveLoadoutIndex, 0, Start->SavedLoadouts.Num() - 1)];
+                    Innate = FCombatLoadout::CreateFromSavedLoadout(Authored).ToWornGear(Member.CharacterData->CharacterClass);
+                }
+                Innate.WheelPick.FieldSkill = Member.FieldSkill;
+                Innate.WheelPick.FieldAttackIndex = Member.FieldAttackIndex;
+                Innate.WheelPick.bPicked = Member.bFieldAttackPicked;
+                if (Pool->SeedStartingGear(UPoolSubsystem::GetCharacterKey(Member), Start, Innate))
+                {
+                    UE_LOG(LogWoRLoadout, Warning, TEXT("[TrialRun] %s entered a trial with no worn record: its starting gear was seeded first"),
+                           *Member.CharacterData->GetName());
+                }
+            }
+        }
+        // B-512 (D-221): every run starts on the class kit, reset before the layer opens (a crystal it frees is the
+        // player's own, not a find). A member with no kit keeps what it wears (FindClassDefaults logs why).
+        TMap<FName, const FClassDefaultLoadout *> Kits;
+        for (const TPair<FName, ECharacterClass> &Member : GetLocalPartyClasses(GetGameInstance()))
+        {
+            if (const FClassDefaultLoadout *Kit = FindClassDefaults(Member.Value))
+            {
+                Pool->ResetClassDefaultKit(Member.Key, *Kit);
+                Kits.Add(Member.Key, Kit);
+            }
+        }
+        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool, Kits);
+        UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+        if (PartySession && !Kits.IsEmpty())
+        {
+            PartySession->PullWheelPicksFromPool(); // the cleared picks reach the members
+        }
     }
 }
 
@@ -201,20 +300,10 @@ void UTrialRunSubsystem::FinishRun()
 {
     // B-314 (D-111, D-097): the run layer closes while the members are still here to hear it: home pieces go back to
     // their home state, run-only gear leaves with its tier remembered. Before the exit save below.
+    // B-508 (D-219): one call per ending; a quit (or a closed game) also puts the run-start gear back.
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
-        // B-451 (D-189, Q-451 reading A): out of wipes keeps no upgrades: the items found go, as for a quit, and the
-        // run's gear upgrade levels are not remembered.
-        const bool bKeepsUpgrades = !bAbandoned && !IsRunLost();
-        if (!bKeepsUpgrades)
-        {
-            Pool->TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176): a quit run also loses the items found in it
-        }
-        else
-        {
-            Pool->StoreRunFoundItems(); // B-238b (D-097, Q-238b): any other end sends the run's finds to home storage
-        }
-        Pool->EndRunLayer(bKeepsUpgrades);
+        Pool->CloseRun(bAbandoned ? EPoolRunEnding::Quit : IsRunLost() ? EPoolRunEnding::Lost : EPoolRunEnding::Kept);
     }
     // B-377: a hidden quest's step in progress starts its count again next run; steps done stay (MemoryCatalogue §3.6).
     if (UHiddenQuestSubsystem *Quests = GetGameInstance()->GetSubsystem<UHiddenQuestSubsystem>())
@@ -230,6 +319,10 @@ void UTrialRunSubsystem::FinishRun()
         // B-076 (D-026): characters found in the trial leave with it.
         PartySession->DismissRunMembers();
         PartySession->ClearAllMemberVitals();
+        if (bAbandoned)
+        {
+            PartySession->PullWheelPicksFromPool(); // B-508: the members' picks follow their put-back records
+        }
     }
     // B-178: the run's Gold is lost when it ends (never banked).
     if (USaveSubsystem *Save = GetGameInstance()->GetSubsystem<USaveSubsystem>())
@@ -854,7 +947,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     {
         UE_LOG(LogTemp, Log, TEXT("[TrialRun] Resumed run: a fresh run layer (the save's own layer replaces it when it has one, B-314b)"));
         Pool->DiscardRunLayer(); // the store was reloaded: an open layer's home states are stale
-        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool);
+        OpenRunLayerWithWornLoadouts(GetGameInstance(), *Pool); // B-512: no kit here: the saved run already wears it
     }
     UE_LOG(LogTemp, Log, TEXT("[TrialRun] Restored saved run of '%s' (seed %d, %d beaten, %d found, %d memories)"),
            Trial ? *Trial->Name.ToString() : TEXT("<none>"), RunSeed, BeatenEncounters.Num(), FoundFeatures.Num(),
@@ -1146,6 +1239,42 @@ FRunPayout UTrialRunSubsystem::GetRunEndPayout() const
     const float Multiplier = bLeavingEarly ? PayoutMultiplier * RunRewards::LEAVE_EARLY_SHARE : PayoutMultiplier;
     return RunRewards::ScalePayout(RunTally, TrialDifficulty, bRunBossBeaten && !bLeavingEarly, Multiplier);
 }
+
+const FClassDefaultLoadout *UTrialRunSubsystem::FindClassDefaults(ECharacterClass Class) const
+{
+    const UClassDefaultLoadoutData *Data = ClassDefaultLoadouts.IsNull() ? nullptr : ClassDefaultLoadouts.LoadSynchronous();
+    if (!Data)
+    {
+        UE_LOG(LogWoRLoadout, Warning, TEXT("[TrialRun] No class default kits (ClassDefaultLoadouts '%s' in DefaultGame.ini): the trial keeps what is worn"),
+               *ClassDefaultLoadouts.ToString());
+        return nullptr;
+    }
+    const FClassDefaultLoadout *Kit = Data->Defaults.Find(Class);
+    if (!Kit)
+    {
+        UE_LOG(LogWoRLoadout, Warning, TEXT("[TrialRun] %s has no %s kit: the trial keeps what is worn"), *Data->GetName(),
+               *UEnum::GetDisplayValueAsText(Class).ToString());
+    }
+    return Kit;
+}
+
+FString UTrialRunSubsystem::GetClassDefaultsString() const
+{
+    const UClassDefaultLoadoutData *Data = ClassDefaultLoadouts.IsNull() ? nullptr : ClassDefaultLoadouts.LoadSynchronous();
+    const UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>();
+    return FString::Printf(TEXT("%s\n%s"), Data ? *Data->GetDefaultsString() : *FString::Printf(TEXT("[ClassDefaults] no asset at '%s'"), *ClassDefaultLoadouts.ToString()),
+                           Pool ? *Pool->GetClassDefaultKitsString() : TEXT("[ClassDefaults] no pool"));
+}
+
+static FAutoConsoleCommandWithWorld GTrialPrintClassDefaultsCommand(
+    TEXT("wor.Trial.PrintClassDefaults"),
+    TEXT("B-511 (D-221): the class default kits (DA_Loadout_ClassDefaults) and every character's minted kit pieces."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+        const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+        UE_LOG(LogWoRLoadout, Display, TEXT("%s"), Run ? *Run->GetClassDefaultsString() : TEXT("[ClassDefaults] no run subsystem"));
+    }));
 
 static FAutoConsoleCommandWithWorld GTrialPrintRevivalsCommand(
     TEXT("wor.Trial.PrintRevivals"),

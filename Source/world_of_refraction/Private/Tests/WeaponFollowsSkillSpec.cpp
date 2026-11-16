@@ -26,11 +26,9 @@ namespace
 		return Ability;
 	}
 
-	UWeaponData *WeaponFollowsTestWeapon(UAbilityData *Ability)
+	UWeaponData *WeaponFollowsTestWeapon()
 	{
-		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
-		Weapon->PresetAbilities.Add(Ability);
-		return Weapon;
+		return NewObject<UWeaponData>(GetTransientPackage());
 	}
 }
 
@@ -67,8 +65,8 @@ void FWeaponFollowsSkillSpec::Define()
 			TestTrue(TEXT("Test world created"), TestWorld->Create());
 			SwordSkill = WeaponFollowsTestAbility(TEXT("Slash"));
 			HammerSkill = WeaponFollowsTestAbility(TEXT("Smash"));
-			Sword = WeaponFollowsTestWeapon(SwordSkill);
-			Hammer = WeaponFollowsTestWeapon(HammerSkill);
+			Sword = WeaponFollowsTestWeapon();
+			Hammer = WeaponFollowsTestWeapon();
 			UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 			Data->CharacterClass = ECharacterClass::Generic;
 			Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Sword);
@@ -81,6 +79,9 @@ void FWeaponFollowsSkillSpec::Define()
 				Active.SecondarySlotType = ESecondarySlotType::Weapon;
 				Active.SecondaryWeapon.WeaponEntry.Weapon = Hammer;
 				Active.SecondaryWeapon.WeaponEntry.PersistentID = FGuid::NewGuid();
+				// B-518: each weapon's skill is its worn entry's pick (gear has no built-ins).
+				Active.PrimaryWeapon.ReplaceSkill(0, SwordSkill);
+				Active.SecondaryWeapon.ReplaceSkill(0, HammerSkill);
 			}
 		});
 

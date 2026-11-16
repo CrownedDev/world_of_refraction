@@ -866,7 +866,8 @@ bool WoRLoadoutScreen::PutSocketChoice(FCombatLoadout &Loadout, const FLoadoutSc
 	return true;
 }
 
-TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket)
+TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket,
+																   const FCombatLoadout *Preview)
 {
 	UInventoryComponent *Inventory = nullptr;
 	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
@@ -887,7 +888,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(UWorld *World,
 		}
 	}
 	// AttachCrystalTo* spends from the pouch the member carries: a recruit carries the host's (B-361).
-	return BuildSocketChoices(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], Member.Class, Row, Socket,
+	return BuildSocketChoices(Preview ? *Preview : Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], Member.Class, Row, Socket,
 							  Pool->GetCarriedItems(WoRGive::GetPouchKey(World, Member.Key)),
 							  Evolutions, InUse);
 }

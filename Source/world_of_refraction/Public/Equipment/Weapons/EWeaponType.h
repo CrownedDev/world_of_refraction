@@ -19,5 +19,8 @@ enum class EWeaponType : uint8
     Bow UMETA(DisplayName = "Bow"),
     Gauntlets UMETA(DisplayName = "Gauntlets"),
     Scythe UMETA(DisplayName = "Scythe"),
-    Gun UMETA(DisplayName = "Gun")
+    Gun UMETA(DisplayName = "Gun"),
+    // B-515 (D-223): a piece held only in the off hand of a pairable weapon (DualOnly handling, no attack). Appended
+    // last so the saved values of the other types don't move.
+    Shield UMETA(DisplayName = "Shield")
 };

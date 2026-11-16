@@ -471,6 +471,7 @@ void UPoolSubsystem::RemoveGear(const FGuid &GearID)
     MarkGearIndexDirty();
     Wearers.Remove(GearID);
     GearOwners.Remove(GearID);
+    HubGear.Remove(GearID); // B-509
     if (Removed > 0)
     {
         OnPoolGearChanged.Broadcast(GearID);
@@ -598,7 +599,11 @@ void UPoolSubsystem::ResetStore()
     BankedCharacters.Reset();
     GearOwners.Reset();
     CustomLoadouts.Reset();
+    WornGear.Reset();
+    HubGear.Reset(); // B-509
+    ClassDefaultKits.Reset(); // B-511
     CharacterSkills.Reset();
+    RunStartSkills.Reset(); // B-523
     Clashes.Reset();
     Pouches.Reset();
     BankedItemCharacters.Reset();
@@ -631,6 +636,47 @@ const TArray<FSavedLoadout> *UPoolSubsystem::GetCustomLoadouts(FName CharacterKe
 {
     const FPoolCustomLoadouts *Found = CustomLoadouts.Find(CharacterKey);
     return Found ? &Found->Loadouts : nullptr;
+}
+
+// ==================== WORN GEAR (D-221, B-505) ====================
+
+void UPoolSubsystem::SetWornGear(FName CharacterKey, const FWornGear &Worn)
+{
+    if (CharacterKey.IsNone())
+    {
+        return;
+    }
+    FWornGear *Stored = WornGear.Find(CharacterKey);
+    FWornGear Next = Worn;
+    if (Stored)
+    {
+        Next.WheelPick = Stored->WheelPick;
+        if (Stored->SameAs(Next))
+        {
+            return;
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s wears %d piece(s) now%s (D-221)"), *FPaths::GetBaseFilename(CharacterKey.ToString()),
+           Next.GetPieceIDs().Num(), Stored ? TEXT("") : TEXT(": first record"));
+    WornGear.Add(CharacterKey, MoveTemp(Next));
+    OnWornGearChanged.Broadcast(CharacterKey);
+}
+
+bool UPoolSubsystem::SetWheelPick(FName CharacterKey, const FWheelPick &Pick)
+{
+    FWornGear *Stored = WornGear.Find(CharacterKey);
+    if (!Stored)
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("[Pool] %s has no worn-gear record yet; the wheel pick stays on the member only"),
+               *FPaths::GetBaseFilename(CharacterKey.ToString()));
+        return false;
+    }
+    if (!(Stored->WheelPick == Pick))
+    {
+        Stored->WheelPick = Pick;
+        OnWornGearChanged.Broadcast(CharacterKey);
+    }
+    return true;
 }
 
 // ==================== KNOWLEDGE ====================
@@ -1036,7 +1082,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
     }
 
     // ---------- Weapons ----------
-    // Reuse the SAME factory the run uses: CreateFromWeapon copies the default crystal into
+    // The old authored layout's factory (B-521): CreateFromAuthoredWeapon copies the baked crystal into
     // AttachedItem + seeds Tier/Quality; the acquisition mint adds a fresh PersistentID (the factory
     // deliberately leaves it invalid). NO pickup roll — authored banking is deterministic (the
     // toggle-off path keeps the factory's C_Quality placeholder).
@@ -1046,7 +1092,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
+        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromAuthoredWeapon(Weapon); // B-521: the old authored layout
         Entry.PersistentID = FGuid::NewGuid();
         AddWeaponToPool(Entry);
     }
@@ -1058,7 +1104,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
+        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromAuthoredRing(Ring);
         Entry.PersistentID = FGuid::NewGuid();
         AddRingToPool(Entry);
     }

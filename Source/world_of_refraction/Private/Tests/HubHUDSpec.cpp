@@ -137,6 +137,34 @@ void FHubHUDSpec::Define()
 		TestEqual(TEXT("no pawn"), WoRHubHUD::FindFieldAttackCard(nullptr), INDEX_NONE);
 	});
 
+	It("opens the quick strip in the hub too, with no card strip (B-528, D-218)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
+		FSoftObjectProperty *HubLevel = FindFProperty<FSoftObjectProperty>(UTrialRunSubsystem::StaticClass(), TEXT("HubLevel"));
+		if (!TestNotNull(TEXT("run subsystem"), Run) || !TestNotNull(TEXT("HubLevel property"), HubLevel))
+		{
+			return;
+		}
+		FSoftObjectPtr *HubLevelValue = HubLevel->ContainerPtrToValuePtr<FSoftObjectPtr>(Run);
+		const FSoftObjectPtr AuthoredHub = *HubLevelValue;
+		*HubLevelValue = FSoftObjectPtr(World); // this test world plays the hub
+		TestTrue(TEXT("the hub's cards"), WoRHubHUD::GetCardLevel(World) == EBattleCardLevel::Hub);
+		TestFalse(TEXT("no card strip in the hub (D-216)"), WoRHubHUD::ShowsFieldAttackStrip(WoRHubHUD::GetCardLevel(World)));
+		UHubHUDWidget *HUD = CreateWidget<UHubHUDWidget>(World, UHubHUDWidget::StaticClass());
+		if (TestNotNull(TEXT("HUD created"), HUD))
+		{
+			HUD->TakeWidget(); // builds the tree
+			TestTrue(TEXT("the quick strip is built"), HUD->GetFieldWheelCapacity() > 0);
+			FFieldAttackEntry Sword;
+			Sword.Kind = EFieldAttackKind::Weapon;
+			Sword.SliceName = FText::FromString(TEXT("Arming Sword"));
+			TestTrue(TEXT("and opens"), HUD->ShowFieldAttackWheel({Sword}, 0, 0));
+			HUD->HideFieldAttackWheel();
+		}
+		*HubLevelValue = AuthoredHub;
+	});
+
 	It("shows the field attack chip's name, table icon and element dot (B-503i)", [this]()
 	{
 		FFieldAttackEntry Sword;

@@ -3,6 +3,7 @@
 
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/WeaponSetRules.h"
+#include "Loadout/SkillRequirementRules.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -18,20 +19,7 @@
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
-    if (!WeaponEntry.Weapon)
-    {
-        return 0;
-    }
-
-    // Use weapon's locked status - if abilities are locked, all preset abilities are locked
-    if (WeaponEntry.Weapon->bAbilitiesLocked)
-    {
-        return WeaponEntry.Weapon->PresetAbilities.Num();
-    }
-
-    // Otherwise no abilities are locked (all customizable)
-    // TODO: Add LockedAbilityCount to WeaponData if partial locking is desired
-    return 0;
+    return 0; // B-518 (D-224, Q7): a locked (conjured) weapon is an ordinary weapon with no built-ins
 }
 
 int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
@@ -89,17 +77,11 @@ bool FWeaponLoadoutEntry::CanHoldSkill(int32 Slot, const UAbilityData *Ability, 
 
 FString FWeaponLoadoutEntry::GetSkillSlotString() const
 {
-    const TArray<UAbilityData *> BuiltIns = WeaponSetRules::GetSetBuiltIns(*this); // B-477: a pair's built-ins pre-fill both
     const TArray<UAbilityData *> Slots = GetSkillSlots();
-    FString Out = FString::Printf(TEXT("%s skill slots: %d (%s)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num(),
-                                  WeaponEntry.bSkillSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old lists play"));
+    FString Out = FString::Printf(TEXT("%s skill slots: %d (picks only, B-518)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num());
     for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
     {
-        const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SkillPicks, Slot);
-        const UAbilityData *BuiltIn = BuiltIns.IsValidIndex(Slot) ? BuiltIns[Slot] : nullptr;
-        Out += FString::Printf(TEXT("\n  [%d] %s%s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
-                               bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *BuiltIn->Name) : TEXT(" (pick)"))
-                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")),
+        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, Slots[Slot] ? *Slots[Slot]->Name : TEXT("-"),
                                IsGemSkillSlot(Slot) ? *FString::Printf(TEXT(" [gem slot: %s, None or Generic]"), // B-410
                                                                        *UEnum::GetDisplayValueAsText(WeaponEntry.GetAttachedItem().GetElement()).ToString())
                                                     : TEXT(""));
@@ -109,17 +91,12 @@ FString FWeaponLoadoutEntry::GetSkillSlotString() const
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlots() const
 {
-    // B-477 (D-210): one merged list for a pair: both weapons' built-ins pre-fill it, the main hand's first.
-    const TArray<UAbilityData *> BuiltIns = WeaponSetRules::GetSetBuiltIns(*this);
-    return SkillSlotList::Resolve(BuiltIns, WeaponEntry.SkillPicks, GetSkillSlotCount());
+    // B-518 (D-224): the slots hold only the picks; nothing pre-fills them.
+    return SkillSlotList::Resolve(TArray<UAbilityData *>(), WeaponEntry.SkillPicks, GetSkillSlotCount());
 }
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetSkillSlotAbilities() const
 {
-    if (!WeaponEntry.bSkillSlotsActive)
-    {
-        return GetAllAbilities(); // pre-D-145 lists until the player edits this weapon's one list (OBSOLETE path)
-    }
     TArray<UAbilityData *> Abilities = GetSkillSlots();
     Abilities.RemoveAll([](const UAbilityData *Ability) { return Ability == nullptr; });
     return Abilities;
@@ -147,50 +124,7 @@ bool FWeaponLoadoutEntry::RestoreSkill(int32 Slot)
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
 {
-    // Preset abilities from the weapon asset.
-    const TArray<UAbilityData *> Presets = WeaponEntry.Weapon
-                                               ? WeaponEntry.Weapon->PresetAbilities
-                                               : TArray<UAbilityData *>();
-
-    // Locked weapons (conjured) ignore overrides entirely — presets only.
-    if (WeaponEntry.Weapon && WeaponEntry.Weapon->bAbilitiesLocked)
-    {
-        return Presets;
-    }
-
-    // Sequential override merge: AssignedAbilities replace preset slots in
-    // order; non-null entries beyond the preset count are appended.
-    TArray<UAbilityData *> Result;
-    int32 OverrideIndex = 0;
-
-    for (int32 i = 0; i < Presets.Num(); ++i)
-    {
-        if (OverrideIndex < AssignedAbilities.Num() && AssignedAbilities[OverrideIndex])
-        {
-            Result.Add(AssignedAbilities[OverrideIndex]);
-            ++OverrideIndex;
-        }
-        else
-        {
-            Result.Add(Presets[i]);
-        }
-    }
-
-    while (OverrideIndex < AssignedAbilities.Num())
-    {
-        if (AssignedAbilities[OverrideIndex])
-        {
-            Result.Add(AssignedAbilities[OverrideIndex]);
-        }
-        ++OverrideIndex;
-    }
-
-    if (Result.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
-    {
-        Result.SetNum(LoadoutConstants::MAX_WEAPON_ABILITIES);
-    }
-
-    return Result;
+    return GetSkillSlotAbilities(); // B-518: every list is the one list (the preset merge went)
 }
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
@@ -233,7 +167,7 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetSpellSlots() const
     {
         return TArray<USpellData *>();
     }
-    return SkillSlotList::Resolve(WeaponEntry.AssignedSpells, WeaponEntry.SpellPicks, GetSpellSlotCap());
+    return SkillSlotList::Resolve(TArray<USpellData *>(), WeaponEntry.SpellPicks, GetSpellSlotCap()); // B-518: picks only
 }
 
 bool FWeaponLoadoutEntry::ReplaceSpell(int32 Slot, USpellData *Spell)
@@ -260,61 +194,20 @@ bool FWeaponLoadoutEntry::RestoreSpell(int32 Slot)
 FString FWeaponLoadoutEntry::GetSpellSlotString() const
 {
     const TArray<USpellData *> Slots = GetSpellSlots();
-    FString Out = FString::Printf(TEXT("%s spell slots: %d (%s)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num(),
-                                  WeaponEntry.bSpellSlotsActive ? TEXT("one list, active") : TEXT("one list not edited yet: the old merge plays"));
+    FString Out = FString::Printf(TEXT("%s spell slots: %d (picks only, B-518)"), *GetNameSafe(WeaponEntry.Weapon), Slots.Num());
     for (int32 Slot = 0; Slot < Slots.Num(); ++Slot)
     {
-        const USpellData *BuiltIn = WeaponEntry.AssignedSpells.IsValidIndex(Slot) ? WeaponEntry.AssignedSpells[Slot] : nullptr;
-        const bool bReplaced = SkillSlotList::IsReplaced(WeaponEntry.SpellPicks, Slot);
-        Out += FString::Printf(TEXT("\n  [%d] %s%s"), Slot, *GetNameSafe(Slots[Slot]),
-                               bReplaced ? (BuiltIn ? *FString::Printf(TEXT(" (pick; built-in %s restorable)"), *GetNameSafe(BuiltIn)) : TEXT(" (pick)"))
-                                         : (BuiltIn ? TEXT(" (built-in)") : TEXT("")));
+        Out += FString::Printf(TEXT("\n  [%d] %s"), Slot, *GetNameSafe(Slots[Slot]));
     }
     return Out;
 }
 
 TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpellsUncapped() const
 {
-    // B-351d (D-145): once the player has edited the crystal's one list, it is the list (the loadout's AssignedSpells
-    // override is OBSOLETE then).
-    if (WeaponEntry.bSpellSlotsActive)
-    {
-        TArray<USpellData *> Spells = GetSpellSlots();
-        Spells.RemoveAll([](const USpellData *Spell) { return Spell == nullptr; });
-        return Spells;
-    }
-
-    // Inventory-entry spells form the base list; AssignedSpells override them.
-    const TArray<USpellData *> Presets = WeaponEntry.GetSpells();
-
-    // Sequential override merge: AssignedSpells replace base slots in order;
-    // non-null entries beyond the base count are appended.
-    TArray<USpellData *> Result;
-    int32 OverrideIndex = 0;
-
-    for (int32 i = 0; i < Presets.Num(); ++i)
-    {
-        if (OverrideIndex < AssignedSpells.Num() && AssignedSpells[OverrideIndex])
-        {
-            Result.Add(AssignedSpells[OverrideIndex]);
-            ++OverrideIndex;
-        }
-        else
-        {
-            Result.Add(Presets[i]);
-        }
-    }
-
-    while (OverrideIndex < AssignedSpells.Num())
-    {
-        if (AssignedSpells[OverrideIndex])
-        {
-            Result.Add(AssignedSpells[OverrideIndex]);
-        }
-        ++OverrideIndex;
-    }
-
-    return Result;
+    // B-518: the one list is the list (the old AssignedSpells merge went).
+    TArray<USpellData *> Spells = GetSpellSlots();
+    Spells.RemoveAll([](const USpellData *Spell) { return Spell == nullptr; });
+    return Spells;
 }
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetLockedAbilities() const
@@ -347,8 +240,6 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
         return true; // No weapon = nothing to validate
     }
 
-    EWeaponType WeaponType = WeaponEntry.Weapon->WeaponType;
-
     for (UAbilityData *Ability : AssignedAbilities)
     {
         if (!Ability)
@@ -368,14 +259,14 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
             return false;
         }
 
-        // Check weapon type match
-        if (Ability->RequiredWeaponType != WeaponType)
+        // D-224 (§5.2): the ability's gear requirement, met by this weapon
+        if (!SkillRequirementRules::IsMet(Ability, FSkillGearHost::FromWeapon(WeaponEntry)))
         {
             return false;
         }
 
         // Wield-mode gate: abilities may require a specific off-hand configuration.
-        if (!Ability->AllowsWieldMode(WeaponEntry.Weapon->WieldMode))
+        if (!Ability->AllowsWieldMode(WeaponSetRules::GetSetWieldMode(*this))) // B-515: the set's mode, as LoadoutRules
         {
             return false;
         }

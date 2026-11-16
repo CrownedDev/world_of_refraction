@@ -26,12 +26,16 @@
 // with filled / total; A opens an entry's slots, A on a slot the picker, A puts the pick in (today's Skills page
 // change); X / V the full or short skill text; the box says what the highlighted skill does.
 // B-488: on a skill's slot Y / R takes the skill out (the first screen's X). Not yet (B-476d): the apparel socket and Compare.
+// B-531 (D-230): the Inventory tab, first in the row (the screen still opens on Equipment): what the character owns and
+// isn't wearing, grouped (WoRLoadoutV2::BuildInventoryPage); the box shows the lit or hovered piece; A on a piece opens
+// the Add equipment window with it already picked (the same window and Confirm as "+ Add equipment").
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
 #include "UI/Menus/LoadoutSavedModel.h"
+#include "UI/Menus/LoadoutV2InventoryModel.h"
 #include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
@@ -77,9 +81,10 @@ enum class ELoadoutV2Mode : uint8
 	SkillPicker
 };
 
-/** B-440f: the tab LB / RB shows. B-476d: Weapons | Skills | Apparel, the chips' order (Cosmetics later). */
+/** B-440f: the tab LB / RB shows. B-476d: Weapons | Skills | Apparel, the chips' order (Cosmetics later). B-531: Inventory first. */
 enum class ELoadoutV2Tab : uint8
 {
+	Inventory,
 	Weapons,
 	Skills,
 	Apparel,
@@ -90,6 +95,7 @@ enum class ELoadoutV2Tab : uint8
 /** B-482: the tab chips, in the mockup's order (Cosmetics greyed until it is built; B-476d built Skills). */
 enum ELoadoutV2TabChip : int32
 {
+	LoadoutV2Chip_Inventory,
 	LoadoutV2Chip_Weapons,
 	LoadoutV2Chip_Skills,
 	LoadoutV2Chip_Apparel,
@@ -130,6 +136,8 @@ struct FLoadoutV2WindowItem
 	FWeaponInventoryEntry Weapon;
 	FRingInventoryEntry Adapter;
 	FEvolutionInventoryEntry Evolution;
+	/** B-531 (D-230): how many exactly-same pieces the line stands for ("Adapter Ring x5"); picking it takes the first. */
+	int32 Count = 1;
 	/** B-485: a socket line's tier as a letter, written after the name when there is no tier badge to show. */
 	FText TierText;
 	/** A socket line (today's socket picker's choice for the entry's row); B-440f: or an apparel line (the piece as
@@ -191,6 +199,7 @@ public:
 	const FText &GetMessage() const { return Message; }
 	const FLoadoutSavedList &GetSavedList() const { return Saved; }
 	ELoadoutV2Tab GetTab() const { return Tab; }
+	const FLoadoutV2InventoryPage &GetInventoryPage() const { return InventoryPage; }
 	const TArray<FLoadoutScreenRow> &GetApparelRows() const { return ApparelRows; }
 	bool IsRenaming() const { return bRenaming; }
 	static bool IsSimpleView() { return bSimpleView; }
@@ -237,7 +246,7 @@ private:
 	int32 GetBoxLine() const
 	{
 		const bool bFollowsMouse = Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems || Mode == ELoadoutV2Mode::SkillRows ||
-								   Mode == ELoadoutV2Mode::SkillPicker || Mode == ELoadoutV2Mode::WindowSlots;
+								   Mode == ELoadoutV2Mode::SkillPicker || Mode == ELoadoutV2Mode::WindowSlots || IsOnInventoryList();
 		return bFollowsMouse && HoveredLine >= 0 && HoveredLine < GetLineCount() ? HoveredLine : Selected;
 	}
 	/** B-484: one line of a slot's list as the box's details: that piece alone (WoRLoadoutV2::Build...Details). */
@@ -252,10 +261,15 @@ private:
 
 	// The window.
 	void OpenWindowForNew();
+	/** A on an entry (B-531, D-230): the Add window's first question; its own kind edits it, another replaces it on Y. */
 	void OpenWindowForEntry(const FLoadoutV2Entry &Entry);
+	/** B-531: the window edits an entry with a piece of another kind (it replaces the entry on Y Confirm). */
+	bool IsReplacingKind() const;
 	void StartDraft(ELoadoutV2DraftKind Kind);
 	void BuildItems();
 	void PickItem();
+	/** A piece slot's pick (PickItem, and B-531's Inventory tab): Item's piece into the draft; false for a socket slot. */
+	bool PutPieceInDraft(ELoadoutV2Slot GearSlot, const FLoadoutV2WindowItem &Item);
 	void RemoveEquipped();
 	void ConfirmWindow();
 	/** Puts the draft in (a new entry, or the edited one) through ULoadoutComponent::TryChangeGear. */
@@ -301,6 +315,15 @@ private:
 	/** The slot the picker is for. */
 	int32 SkillRowSelected = 0;
 	TArray<FLoadoutScreenChoice> SkillChoices;
+
+	// B-531 (D-230): the Inventory tab.
+	bool IsOnInventoryList() const { return Mode == ELoadoutV2Mode::List && Tab == ELoadoutV2Tab::Inventory; }
+	const FLoadoutV2InventoryRow *GetInventoryRow(int32 Line) const { return IsOnInventoryList() && InventoryPage.Rows.IsValidIndex(Line) ? &InventoryPage.Rows[Line] : nullptr; }
+	/** The tab's page from the member's inventory, evolutions and pouch (the real store), logged when it changes. */
+	void RefreshInventory(const UInventoryComponent &Inventory, const FCombatLoadout &Active);
+	/** A on a piece: the Add equipment window for its kind, the piece already picked (the kind's refusal when it has no place). */
+	void WearFromInventory();
+	FLoadoutV2InventoryPage InventoryPage;
 
 	// B-440f: the Apparel tab.
 	int32 GetWornApparelCount() const;
@@ -402,6 +425,9 @@ private:
 	// B-485: a row's icons (made with the row, hidden until the icon table has a texture for them).
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> LineTypeIcons;
+	/** B-530 (D-229): on an adapter's type icon (its socket frame), its crystal's badge. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> LineTypeCentres;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> LineSocket1Icons;
 	UPROPERTY(Transient)

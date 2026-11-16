@@ -21,7 +21,9 @@ enum class EWoRIconKind : uint8
 	/** An augment stone. */
 	Stone,
 	/** An effect: by its type, in its element's colour where the table has that variant. */
-	Effect
+	Effect,
+	/** B-530 (D-229): an adapter: the socket frame, its crystal's element badge in the centre (Element None: empty). */
+	Adapter
 };
 
 struct FWoRIcon

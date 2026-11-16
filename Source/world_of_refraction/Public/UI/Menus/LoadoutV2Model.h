@@ -76,6 +76,9 @@ struct FLoadoutV2Entry
 	/** B-482b: what augment socket 1 holds, by name ("Garnet", an evolution's name); empty when the socket is. The row
 	 *  shows it in brackets after the name; it is the same name the details box prints (one source: the entry's socket). */
 	FText SocketName;
+	/** B-516b (D-223): the piece's tier, the badge beside the name (a pair: its main hand's); it tells two same-named
+	 *  pieces apart before a number does. */
+	EItemTier Tier = EItemTier::F_Tier;
 	/** The weapon in hand (marked only when there are two weapon entries). */
 	bool bActive = false;
 	/** A weapon entry's skill slots (D-211 for a pair), 0 otherwise. */
@@ -207,6 +210,10 @@ namespace WoRLoadoutV2
 	/** B-485: a socket as an icon: its crystal's or evolution's element badge, a stone, or the empty socket. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Icon MakeSocketIcon(const FRuntimeAttachedItem &Item);
 
+	/** B-530 (D-229): an adapter's icon: the socket frame with its crystal's or evolution's badge inside; empty inside
+	 *  with nothing (or a stone) socketed. */
+	WORLD_OF_REFRACTION_API FLoadoutV2Icon MakeAdapterIcon(const FRingInventoryEntry &Adapter);
+
 	/** B-485: the tier of what a socket holds; false for an empty socket. */
 	WORLD_OF_REFRACTION_API bool GetAttachmentTier(const FRuntimeAttachedItem &Item, EItemTier &OutTier);
 
@@ -257,8 +264,16 @@ namespace WoRLoadoutV2
 	/** B-476c: the entry as a draft (A Edit): its pieces and the sockets they carry. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Draft DraftFromEntry(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry);
 
+	/** B-531 (D-230): the draft kind an entry of this kind is built as. */
+	WORLD_OF_REFRACTION_API ELoadoutV2DraftKind GetDraftKind(ELoadoutV2EntryKind Kind);
+
+	/** B-531 (D-230): Edit on a worn entry asks the same first question as Add (BuildAddKinds): the entry's own kind is
+	 *  always open (edit or replace the piece); another kind is judged as if the entry were out, and greyed with why. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2KindChoice> BuildEditKinds(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry);
+
 	/** B-476c: writes the draft in Entry's own place (a weapon entry's hands, an adapter, the character's evolution).
-	 *  False with the reason when the draft's kind doesn't fit the place or the place is gone. */
+	 *  B-531: a draft of another kind replaces the entry: it comes out and the draft goes in, all or nothing (the first
+	 *  entry is never left empty, D-116). False with the reason, Loadout unchanged. */
 	WORLD_OF_REFRACTION_API bool ReplaceEntry(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry, const FLoadoutV2Draft &Draft,
 											  FText &OutRefusal);
 

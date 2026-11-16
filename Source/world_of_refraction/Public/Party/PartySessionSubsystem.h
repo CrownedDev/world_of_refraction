@@ -27,6 +27,7 @@ class UParty;
 struct FPartyMember;
 struct FCarriedGearState;
 struct FCarriedAbsorptionState;
+struct FRuntimeAttachedItem;
 enum class EGuardStyle : uint8;
 enum class EParryElementPriority : uint8;
 struct FFieldSkillChoice;
@@ -242,6 +243,13 @@ public:
 	/** B-503s2: the weapon the member has in hand (FPartyMember::ActiveWeaponId). */
 	bool SetMemberActiveWeapon(int32 SlotIndex, const FGuid &WeaponId);
 
+	/** D-221 (B-506): each local member takes its wheel pick and weapon in hand from its worn-gear record in the pool,
+	 *  the pick's home (FWornGear::WheelPick). A joining member does the same for itself (a benched character comes back
+	 *  with its pick); this whole-party pull is for after a save's pool is restored (wired by B-507, save v40). A member
+	 *  with no record keeps its own. Returns members updated.
+	 *  shortcut: FPartyMember keeps a copy for its readers (the setters above write both); stage 2 moves them. */
+	int32 PullWheelPicksFromPool();
+
 	/** True when the member is an AI seat; false for an invalid slot. */
 	UFUNCTION(BlueprintPure, Category = "Party")
 	bool IsMemberAISeat(int32 SlotIndex) const;
@@ -302,8 +310,13 @@ public:
 	 *  part's bCarried says whether anything was banked. */
 	const FPartyMember *GetMemberCarriedState(int32 SlotIndex) const;
 
-	/** Trial entry: seed every slot to its computed maxima. Broken-Darkness-innate
-	 *  members start with an empty EP pool. */
+	/** CS-4: a piece's socket changed between fights (the trial map's Equipment screen): its carried copy follows the
+	 *  owned piece, so the next fight starts with what the player socketed, not the last fight's crystal. Returns how
+	 *  many carried entries changed (0 when no member carries the piece). */
+	int32 RefreshCarriedSocket(const FGuid &GearID, const FRuntimeAttachedItem &Attached, const FRuntimeAttachedItem &StoneSocket);
+
+	/** Trial entry: every slot starts full (no carried vitals, CS-6): each pawn fills to its own max. Broken
+	 *  Darkness members start with an empty EP pool. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void SetAllMembersFull();
 
@@ -337,7 +350,7 @@ public:
 
 private:
 
-	/** A member's carried vitals at its computed maxima (Broken Darkness innate: empty EP). */
+	/** CS-6: a member's carried vitals set to "full" (the no-carry sentinel): its pawn fills to its own max. */
 	static void SetMemberVitalsFull(FPartyMember &Member);
 
 	/** Internal add path — does the work but does NOT broadcast. Callers that

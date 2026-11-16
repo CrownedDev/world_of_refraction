@@ -40,6 +40,8 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Currency/CurrencyTypes.h"             // ECurrencyType / EEssenceType / FCurrencyArray
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/ClassDefaultLoadoutData.h"     // FClassDefaultKitIDs (B-511)
+#include "Loadout/WornGear.h"
 #include "Pool/PoolQueryTypes.h"                // FPoolFilter + the per-category result views
 #include "Inventory/InventoryConstants.h"       // ITEM_SLOTS_START
 #include "PoolSubsystem.generated.h"
@@ -117,6 +119,21 @@ struct FPoolRunEndResult
     int32 Dropped = 0;
     /** Definitions whose remembered tier was written. */
     int32 Remembered = 0;
+    /** B-509: run-only pieces kept as hub gear (worn at an extract or a boss win). */
+    int32 KeptAsHubGear = 0;
+};
+
+namespace GearTierLoss
+{
+    constexpr int32 RANKS_LOST_ON_LOST_RUN = 3; // D-219: S to C; tuned in play (Crown: two, "maybe even 3")
+}
+
+/** B-508 (D-219, D-221 stage 1b): how a run ended, for UPoolSubsystem::CloseRun. */
+enum class EPoolRunEnding : uint8
+{
+    Kept, // an extract or a boss win
+    Lost, // out of wipes
+    Quit, // a quit, or the game closed mid-run (settled at the next start)
 };
 
 /** B-203: a pouch or the storage changed. */
@@ -144,6 +161,9 @@ struct WORLD_OF_REFRACTION_API FPoolSkills
 
 /** B-316b: a character's skills changed in the store (a give, a learn). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPoolSkillsChanged, FName, CharacterKey);
+
+/** D-221 (B-505): a character's worn-gear record changed (its gear or its wheel pick). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWornGearChanged, FName, CharacterKey);
 
 /** B-311 (D-111): one character's custom loadouts, pieces referenced by owned GUID. */
 USTRUCT()
@@ -295,8 +315,8 @@ public:
     /** Seed the pool from an authored UInventoryData asset, mirroring the POPULATE half of
      *  UInventoryComponent::InitializeFromInventoryAsset but targeting the POOL (account-wide, flat
      *  — no per-character keying). Weapons/Rings reuse the SAME factory primitive the run uses
-     *  (FWeaponInventoryEntry::CreateFromWeapon + a freshly-minted PersistentID, default crystal +
-     *  DefaultSpells always copied in); Spells/Abilities mint FSpellInstance/FAbilityInstance at learn-time semantics;
+     *  (FWeaponInventoryEntry::CreateFromAuthoredWeapon + a freshly-minted PersistentID, the baked crystal +
+     *  DefaultSpells copied in until stage 6, B-521); Spells/Abilities mint FSpellInstance/FAbilityInstance at learn-time semantics;
      *  Crystals route through AddCrystalToPool (gem/stone dispatch); Evolutions mint
      *  an FEvolutionInventoryEntry per authored item.
      *
@@ -397,6 +417,28 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnPoolGearChanged OnPoolGearChanged;
 
+    // ==================== WORN GEAR (D-221 stage 1, B-505) ====================
+    // What each character wears now, by character key (GetCharacterKey; a benched character keeps its own). Every
+    // map's draw builds the pawn's loadout from it; the template seeds it once (UInventoryComponent::DrawSharedGear).
+
+    /** The character's record, or null before its first draw (a new game, a new recruit). */
+    const FWornGear *GetWornGear(FName CharacterKey) const { return WornGear.Find(CharacterKey); }
+
+    /** Replaces the record's gear; its wheel pick is kept (SetWheelPick writes that). Fires OnWornGearChanged and
+     *  logs when anything changed. */
+    void SetWornGear(FName CharacterKey, const FWornGear &Worn);
+
+    /** D-218: the wheel pick. False (nothing kept) for a character with no record yet. */
+    bool SetWheelPick(FName CharacterKey, const FWheelPick &Pick);
+
+    const TMap<FName, FWornGear> &GetAllWornGear() const { return WornGear; }
+
+    /** B-507: a save's records, wheel picks included (USaveSubsystem::RestorePool). */
+    void RestoreWornGear(const TMap<FName, FWornGear> &Restored) { WornGear = Restored; }
+
+    UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
+    FOnWornGearChanged OnWornGearChanged;
+
     // ==================== POUCHES AND STORAGE (B-203, B-322, D-097, D-117, Q-322) ====================
     // Each character carries its own pouch of item slots (one item type, a crystal type and tier, per
     // slot, stacked to ITEM_STACK_MAX; ITEM_SLOTS_START slots each); everything else waits in the one
@@ -493,6 +535,22 @@ public:
     /** Debug: each character's skills, one line per character. */
     FString GetCharacterSkillsString() const;
 
+    // B-523 (D-224 (2), stage S3): a run's skills. At a trial start a kit member's hub list is kept aside and its list
+    // becomes the run's: the copies it keeps (innate spells: Q6) plus the kit's StartingSkills (Q9). Purchases, chests
+    // and teaches in the run learn into it as before. At the run's end the hub list comes back (CloseRun).
+    /** Keeps CharacterKey's hub list aside (once per run) and makes its list the run's: its own copies of Keep, then a
+     *  fresh copy of each of Starting. False when the character was never banked. Fires OnPoolSkillsChanged. */
+    bool BeginRunSkills(FName CharacterKey, const TArray<const UObject *> &Keep, const TArray<const UObject *> &Starting);
+    /** The hub lists kept aside by BeginRunSkills, by character. Saved with the pool (FSavedPool::RunStartSkills). */
+    const TMap<FName, FPoolSkills> &GetRunStartSkills() const { return RunStartSkills; }
+    /** Save restore. */
+    void RestoreRunStartSkills(const TMap<FName, FPoolSkills> &Saved) { RunStartSkills = Saved; }
+    /** Puts every kept hub list back (fires OnPoolSkillsChanged for each) and clears them. Returns how many. */
+    int32 PutBackRunStartSkills();
+    /** A fresh copy of Skill (a USpellData or UAbilityData, its tier from the asset) into To; no broadcast. False when
+     *  To already knows it or has no room. */
+    static bool LearnSkillInto(FPoolSkills &To, const UObject *Skill);
+
     UPROPERTY(BlueprintAssignable, Category = "Pool|Skills")
     FOnPoolSkillsChanged OnPoolSkillsChanged;
 
@@ -534,8 +592,76 @@ public:
 
     /** The run ends (UTrialRunSubsystem::ExitTrial): home pieces back to their home state, run-only gear dropped
      *  with its tier remembered per definition (B-451, D-189: not when bKeepUpgrades is false: a run out of wipes or
-     *  quit). Every change fires OnPoolGearChanged. No-op when no layer is open. */
-    FPoolRunEndResult EndRunLayer(bool bKeepUpgrades = true);
+     *  quit). Every change fires OnPoolGearChanged. No-op when no layer is open.
+     *  B-509 (D-219): bKeepRunSockets keeps each home piece's socket and an adapter's spells as the run left them (at
+     *  full wear) instead of the home state, except a found evolution that leaves; a run-only piece in KeepAsHubGear
+     *  (and an evolution in its socket or a home piece's) stays as hub gear instead of leaving. */
+    FPoolRunEndResult EndRunLayer(bool bKeepUpgrades = true, bool bKeepRunSockets = false,
+                                  const TSet<FGuid> &KeepAsHubGear = TSet<FGuid>());
+
+    /** B-509 (D-221): found gear kept from an extract or a boss win, "just to have in the hub": worn, changed and taken
+     *  on runs like home gear, but never sold or dismantled. Saved (FSavedPool::HubGear). */
+    bool IsHubGear(const FGuid &GearID) const { return HubGear.Contains(GearID); }
+    const TSet<FGuid> &GetHubGear() const { return HubGear; }
+    void RestoreHubGear(const TSet<FGuid> &Saved) { HubGear = Saved; }
+
+    // ==================== CLASS DEFAULT KIT (D-221 stage 1c, B-511) ====================
+    // The kit a trial starts on (UClassDefaultLoadoutData). Each character's kit pieces are minted once as its own:
+    // owned, worn like any gear, but never sold, dismantled, given or put in the chest. PoolClassDefaults.cpp.
+
+    /** Mints CharacterKey's kit pieces into the store, owned by CharacterKey. A place whose kept piece is still the
+     *  same asset reuses it (its state is left as it is: B-512's trial start resets it); a changed or emptied place
+     *  removes the old piece first. Returns the kit's IDs, place for place with Kit. */
+    const FClassDefaultKitIDs &MintClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
+    /** B-512: mints the kit, then puts each piece back to its authored state: the asset's tier, empty sockets (a crystal
+     *  or stone in one goes to the owner's pouch or storage, never lost) and the kit's skill picks. A trial start calls
+     *  it before the run layer opens, so a freed crystal isn't counted as a find. */
+    void ResetClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
+    /** B-512: CharacterKey's worn record becomes its minted kit (ActiveGearID the kit's ACTIVE place, the wheel pick
+     *  cleared); its own evolution, innate spells and Broken Darkness pools stay. Returns the pieces now worn (empty
+     *  with no minted kit). Home gear stays owned in the store. */
+    TArray<FGuid> WearClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
+    /** B-522 (D-223, asset overhaul stage 4): mints a character's StartingGear into the store once, owned by
+     *  CharacterKey, each piece's Crystal socketed at full durability, and Evolution as an owned evolution in the seat;
+     *  then Worn (its innate spells and pools kept) wears them and becomes CharacterKey's record. Not a kit: IsClassDefault
+     *  stays false for them, and a trial start doesn't reset them. Returns the pieces now worn. */
+    TArray<FGuid> WearStartingGear(FName CharacterKey, const FClassDefaultLoadout &Gear, UEvolutionItemData *Evolution, FWornGear Worn);
+    /** B-529: the one starting-gear seed (a pawn's first draw, a trial start): WearStartingGear with Start's StartingGear
+     *  and StartingEvolution, only when CharacterKey has no worn record yet and Start authors some. True when it seeded. */
+    bool SeedStartingGear(FName CharacterKey, const class UInventoryData *Start, FWornGear Innate);
+    /** The character's minted kit, or null before its first mint. */
+    const FClassDefaultKitIDs *GetClassDefaultKit(FName CharacterKey) const { return ClassDefaultKits.Find(CharacterKey); }
+    /** A piece of any character's kit (refused for sale, dismantling, giving and the chest). */
+    bool IsClassDefault(const FGuid &GearID) const;
+    const TMap<FName, FClassDefaultKitIDs> &GetAllClassDefaultKits() const { return ClassDefaultKits; }
+    void RestoreClassDefaultKits(const TMap<FName, FClassDefaultKitIDs> &Saved) { ClassDefaultKits = Saved; }
+    /** Debug: each character's kit pieces (wor.Trial.PrintClassDefaults). */
+    FString GetClassDefaultKitsString() const;
+
+    /** B-508 (D-219): the run party's worn-gear records as the trial begins (after BeginRunLayer); a quit puts them
+     *  back. A character with no record yet has none kept. Saved with the run (FSavedRun::RunStartWornGear). */
+    void SnapshotRunStartGear(const TSet<FName> &CharacterKeys);
+    const TMap<FName, FWornGear> &GetRunStartWornGear() const { return RunStartWornGear; }
+    /** A resumed run's saved copy (after RestoreRunLayer, which clears it). */
+    void RestoreRunStartWornGear(const TMap<FName, FWornGear> &Saved) { RunStartWornGear = Saved; }
+
+    /** B-508: the run ends (UTrialRunSubsystem::FinishRun, the save's closed-run settle). Kept: the found items go to
+     *  storage; Lost and Quit: they are taken back (B-439b, B-451). Then EndRunLayer (upgrades kept only on Kept), and
+     *  a Quit puts the run-start records back, wheel picks included (D-219). No-op when no layer is open.
+     *  B-510: Lost and Quit first lower the tier of every piece the run party wears (ApplyLostRunTierDrop). */
+    void CloseRun(EPoolRunEnding Ending);
+
+    /** B-510 (D-219): a lost run costs tier. Each piece in the character's record (equipment and off hands, its
+     *  evolution, apparel; not what sits in a socket) drops GearTierLoss::RANKS_LOST_ON_LOST_RUN ranks, never below F,
+     *  even below its asset's tier. Returns how many pieces dropped. */
+    int32 ApplyLostRunTierDrop(FName CharacterKey);
+
+    /** B-525 (D-224, D-219): settles each run skill list into its kept-aside hub list, before the hub lists come back
+     *  (CloseRun, then EndRunLayer). Slotted means a pick in a slot of a worn entry at the end. A slotted found skill
+     *  (one the hub doesn't know) joins the hub list on every ending but a quit; on a lost run or a quit the hub's
+     *  copy of every slotted skill drops GearTierLoss::RANKS_LOST_ON_LOST_RUN, never below F. Unslotted run skills go
+     *  back. Returns how many found skills were kept. */
+    int32 SettleRunSkills(EPoolRunEnding Ending);
 
     /** B-439b (Q-439 point 2, D-176): how many of each item the party held (every pouch and storage) when the run
      *  began. Starting items banked during the run count as held from the start (D-097). Saved with the run. */
@@ -682,6 +808,10 @@ private:
     UPROPERTY()
     TMap<FName, FPoolCustomLoadouts> CustomLoadouts;
 
+    /** D-221 (B-505): character key -> what it wears now. */
+    UPROPERTY()
+    TMap<FName, FWornGear> WornGear;
+
     /** B-316b: character key -> its learned skills (present once banked, even when empty). */
     UPROPERTY()
     TMap<FName, FPoolSkills> CharacterSkills;
@@ -715,6 +845,22 @@ private:
 
     /** B-439b: item -> how many were held when the run began (GetRunStartItems). */
     TMap<FCrystalId, int32> RunStartItems;
+
+    /** B-509: GearIDs of hub gear (IsHubGear). */
+    UPROPERTY()
+    TSet<FGuid> HubGear;
+
+    /** B-511: character key -> its minted class default kit (MintClassDefaultKit). Saved (FSavedPool::ClassDefaultKits). */
+    UPROPERTY()
+    TMap<FName, FClassDefaultKitIDs> ClassDefaultKits;
+
+    /** B-508: character key -> its worn-gear record as the run began (SnapshotRunStartGear). */
+    UPROPERTY()
+    TMap<FName, FWornGear> RunStartWornGear;
+
+    /** B-523: character key -> its hub skill list while a run uses its run list (BeginRunSkills). */
+    UPROPERTY()
+    TMap<FName, FPoolSkills> RunStartSkills;
 
     /** Every item held now, by kind: storage and every pouch. */
     TMap<FCrystalId, int32> CountHeldItems() const;

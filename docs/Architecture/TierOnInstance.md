@@ -113,6 +113,8 @@ op (`AttachEvolutionToWeapon/Ring`) writes the leveled instance tier + a valid `
 - `InventoryDebug` dumps owned spells/abilities with their per-instance tier.
 
 ## Known Limitations / TODOs
+
+- **The floor has one exception (B-510, D-219):** a lost run (out of wipes, a quit, a closed game) lowers each worn piece's instance tier by `GearTierLoss::RANKS_LOST_ON_LOST_RUN`, clamped at F, even below the asset's authored tier (`UPoolSubsystem::ApplyLostRunTierDrop`). Leveling down by hand (`TryDowngradeEntry`) still stops at the authored tier.
 - **⚠️ `FSavedLoadout` re-save caveat:** the spell arrays' type changed (`TArray<USpellData*>` →
   `TArray<FSpellRef>` / `FSavedBDElementSpellPool`). UE tagged-property serialization can't auto-convert
   the old inner type, so **existing authored loadout assets load those spell arrays EMPTY** until
@@ -131,3 +133,5 @@ op (`AttachEvolutionToWeapon/Ring`) writes the leveled instance tier + a valid `
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-06-24 | Initial doc — the per-instance tier/quality axis across weapon/ring/evolution/spell/ability, the asset-keyed spell resolver, `FSpellRef` saved-side pairing + dormant `InstanceID`, seed points, inflation, and the re-save caveat. | feature/currency-component |
+| 2026-11-15 | B-510: the lost-run tier drop goes below the authored floor, never below F (Known Limitations) | `feature/B-510-lost-run-tier-drop` |
+| 2026-11-16 | B-519 (D-224, asset overhaul stage 2b): the **built tier**. `CrystalEffectTable::GetSocketSkillTier` / `GetBuiltTier` (the piece and its socket averaged, a half rounded down; empty keeps the piece's own) and `ULoadoutComponent::GetBuiltTierOfSocket`. Readers: a ring's spell slots (`FRingLoadoutEntry::GetSpellSlotCap`), a ring- or weapon-crystal spell's channel (`ResolveChannelTier`), a weapon's elemental side (`ResolveElementalChannelTier`, the split in `PreviewActionDamage`, ability build-up), Combat Tier; a skill's own-tier power reads the player's copy (executor and AI status estimate). The ring's stat lines and the weapon's physical side, slots, power and crystal state keep their own tiers. Q-519; spec `WoR.Loadout.AdapterTier`; debug `UCombatTierDebug::GetBuiltTierString` in `wor.Combat.PrintTiers`; PIE `docs/PIE/B-519.md` | `feature/B-519-built-tier` |

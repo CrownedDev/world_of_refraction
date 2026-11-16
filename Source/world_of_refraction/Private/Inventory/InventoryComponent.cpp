@@ -553,6 +553,47 @@ void UInventoryComponent::PushCustomLoadoutsToPool()
     Pool->SetCustomLoadouts(SharedGearKey, Custom);
 }
 
+bool UInventoryComponent::WearWornGear(FCombatLoadout &Active)
+{
+    const UPoolSubsystem *Pool = SharedPool.Get();
+    const FWornGear *Worn = Pool && bKeepsCustomLoadouts ? Pool->GetWornGear(SharedGearKey) : nullptr;
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!Worn || !CharComp)
+    {
+        return false;
+    }
+    const ECharacterClass Class = CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    const UEvolutionInventoryComponent *EvoInv = GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>();
+    // The lore loadout in its place lends only what the record doesn't hold (its name and item slots).
+    FCombatLoadout Built = FCombatLoadout::CreateFromWornGear(*Worn, Class, this, EvoInv, Active.bShowPrimary);
+    Built.LoadoutName = Active.LoadoutName;
+    Built.ItemSlots = Active.ItemSlots;
+    Built.bAutoEquipItemsOnCombatStart = Active.bAutoEquipItemsOnCombatStart;
+    Built.bLore = Active.bLore;
+    Active = MoveTemp(Built);
+    // B-347b's rule: a piece the run left at home can't be worn here, and the stored record keeps it.
+    TArray<FGuid> Pieces = Worn->GetPieceIDs();
+    Pieces.RemoveAll([Worn](const FGuid &ID) { return Worn->Apparel.Contains(ID); }); // apparel isn't left at home
+    const FName Key = SharedGearKey;
+    bWornGearHeld = Pieces.ContainsByPredicate([Pool, Key](const FGuid &ID) { return Pool->GetGearOwner(ID) == Key && !Pool->IsInRunView(ID); });
+    UE_LOG(LogTemp, Log, TEXT("[Inventory] %s wears its record (D-221)%s"), *GetNameSafe(GetOwner()),
+           bWornGearHeld ? TEXT(": it names gear left at home, kept as stored until the run ends") : TEXT(""));
+    return true;
+}
+
+void UInventoryComponent::WriteWornGear()
+{
+    UPoolSubsystem *Pool = SharedPool.Get();
+    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!Pool || !bKeepsCustomLoadouts || bWornGearHeld || !CharComp || !CharComp->PartyMemberId.IsValid() ||
+        !GetOwner()->HasAuthority() || !SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return;
+    }
+    const ECharacterClass Class = CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    Pool->SetWornGear(SharedGearKey, SavedLoadouts[ActiveLoadoutIndex].ToWornGear(Class)); // logs and announces only a change
+}
+
 void UInventoryComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     PushCustomLoadoutsToPool();
@@ -753,7 +794,9 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
         // (purchases, authored gear) skip this and keep the factory's C_Quality placeholder.
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
-    const TEntry *Owned = Gear.FindByPredicate([&Asset](const TEntry &Other) { return GearEntryAsset(Other) == &Asset; });
+    // B-530 (D-223): every ring is an adapter, its own piece by what is socketed: several of one asset are no duplicate.
+    constexpr bool bDuplicateRule = std::is_same_v<TEntry, FWeaponInventoryEntry>;
+    const TEntry *Owned = bDuplicateRule ? Gear.FindByPredicate([&Asset](const TEntry &Other) { return GearEntryAsset(Other) == &Asset; }) : nullptr;
     const FGuid OwnedID = Owned ? Owned->PersistentID : FGuid();
     Gear.Add(Entry);
     PushGearToPool(Entry.PersistentID);
@@ -1227,6 +1270,19 @@ int32 UInventoryComponent::RefreshLoadoutsFromOwned(const FGuid &GearID)
 void UInventoryComponent::HandleGearSocketChanged(const FGuid &GearID)
 {
     RefreshLoadoutsFromOwned(GearID);
+    // CS-4: the last fight's carried copy must not put the old crystal back at the next fight.
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+    {
+        if (const FWeaponInventoryEntry *Weapon = FindOwnedWeapon(GearID))
+        {
+            PartySession->RefreshCarriedSocket(GearID, Weapon->AttachedItem, Weapon->StoneSocket);
+        }
+        else if (const FRingInventoryEntry *Ring = FindOwnedRing(GearID))
+        {
+            PartySession->RefreshCarriedSocket(GearID, Ring->AttachedItem, Ring->StoneSocket);
+        }
+    }
     OnGearSocketChanged.Broadcast(GearID);
 }
 
@@ -1312,10 +1368,7 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
-                            Owned->SkillPicks = Slot.SkillPicks;   // B-351 (D-145): the picks live on the item
-                            Owned->bSkillSlotsActive = Slot.bSkillSlotsActive;
-                            Owned->SpellPicks = Slot.SpellPicks;   // B-351d (D-145): so does the crystal's spell list
-                            Owned->bSpellSlotsActive = Slot.bSpellSlotsActive;
+                            // D-224 (B-517): the picks live on the worn entry (WriteWornGear), never on the piece.
                             Written.Add(Slot.PersistentID);
                         }
                     },
@@ -1325,8 +1378,6 @@ int32 UInventoryComponent::WriteLoadoutToOwned(int32 LoadoutIndex)
                         {
                             Owned->AttachedItem = Slot.AttachedItem;
                             Owned->StoneSocket = Slot.StoneSocket; // B-351
-                            Owned->SpellPicks = Slot.SpellPicks;   // B-351d (D-145)
-                            Owned->bSpellSlotsActive = Slot.bSpellSlotsActive;
                             Written.Add(Slot.PersistentID);
                         }
                     });
@@ -1534,6 +1585,23 @@ bool UInventoryComponent::DrawSharedGear()
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
     Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
+    // B-522 (D-223, asset overhaul stage 4): the template's StartingGear seeds the record once (a new game, a new
+    // recruit), minted before the draw so this member draws it. Its innate spells and pools still come from the old
+    // authored loadout until stage 6 moves them. With no StartingGear, the old seed below runs.
+    const UInventoryData *StartAsset = CharComp->CharacterData ? CharComp->CharacterData->Inventory : nullptr;
+    if (!bRunOnly && StartAsset && StartAsset->StartingGear.Pieces.Num() > 0 && !Pool->GetWornGear(Key) && GetOwner()->HasAuthority())
+    {
+        // B-529: the same seed a trial start runs (UPoolSubsystem::SeedStartingGear); here with the authored innate list.
+        const ECharacterClass StartClass = CharComp->CharacterData->CharacterClass;
+        FWornGear Innate = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? SavedLoadouts[ActiveLoadoutIndex].ToWornGear(StartClass) : FWornGear();
+        if (RunMember) // a wheel pick made before the first draw comes along, as the old seed below does
+        {
+            Innate.WheelPick.FieldSkill = RunMember->FieldSkill;
+            Innate.WheelPick.FieldAttackIndex = RunMember->FieldAttackIndex;
+            Innate.WheelPick.bPicked = RunMember->bFieldAttackPicked;
+        }
+        Pool->SeedStartingGear(Key, StartAsset, Innate);
+    }
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
     // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).
@@ -1582,7 +1650,25 @@ bool UInventoryComponent::DrawSharedGear()
     const int32 Stripped = StripUnownedGear();
     SharedPool = Pool;
     SharedGearKey = Key;
+    // D-221 (B-506): a stamped member wears its record (an unstamped pawn, maybe an enemy sharing the asset, never
+    // reads it; a hub pawn wears it when its controller stamps it, UCharacterDataComponent::StampPartyMember).
+    const ECharacterClass Class = CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    bWornGearHeld = false;
+    bWoreRecord = CharComp->PartyMemberId.IsValid() && SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) &&
+                  WearWornGear(SavedLoadouts[ActiveLoadoutIndex]);
     RefillActivePrimary(); // after the pool is set, so gear another member wears is skipped
+    // D-221 (1): the template seeds the record once (a new game, a new recruit), from its pieces now linked to owned gear.
+    if (!bRunOnly && !Pool->GetWornGear(Key) && SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) && GetOwner()->HasAuthority())
+    {
+        FWornGear Seed = SavedLoadouts[ActiveLoadoutIndex].ToWornGear(Class);
+        if (RunMember) // a wheel pick made before the first draw comes along
+        {
+            Seed.WheelPick.FieldSkill = RunMember->FieldSkill;
+            Seed.WheelPick.FieldAttackIndex = RunMember->FieldAttackIndex;
+            Seed.WheelPick.bPicked = RunMember->bFieldAttackPicked;
+        }
+        Pool->SetWornGear(Key, Seed);
+    }
     Pool->OnPoolGearChanged.AddUniqueDynamic(this, &UInventoryComponent::HandlePoolGearChanged);
     // B-316b (Q-316, Q-316b): learned skills are the member's own and kept: its asset's go in once, the store's are
     // loaded after. B-361 (D-152): a run-only recruit's too; they go to the host when it leaves (DismissRunMembers).
@@ -1952,8 +2038,9 @@ TArray<FDuplicateGearPair> UInventoryComponent::FindDuplicateGear() const
             }
         }
     };
+    // B-530 (D-223): not Rings: adapters of one asset are separate pieces. TODO: drop Collect's bRing (and
+    // FDuplicateGearPair::bRing) after Crown's PIE pass.
     Collect(Weapons, false);
-    Collect(Rings, true);
     return Pairs;
 }
 
@@ -2228,16 +2315,9 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     }
     else if (const FRingInventoryEntry *SharedRing = bOthers ? nullptr : Pool->FindRingInPool(GearID))
     {
-        const bool bNew = FindOwned(Rings, GearID) == nullptr;
-        const FRingInventoryEntry *Twin = Rings.FindByPredicate([SharedRing](const FRingInventoryEntry &Other)
-            { return Other.PersistentID != SharedRing->PersistentID && Other.Ring && Other.Ring == SharedRing->Ring; });
-        const FGuid TwinID = Twin ? Twin->PersistentID : FGuid();
+        // B-530 (D-223): no duplicate choice for an adapter (AddGearEntry).
         MirrorShared(Rings, *SharedRing);
         RefreshLoadoutsFromOwned(GearID);
-        if (bNew)
-        {
-            NoteDuplicate(TwinID, GetNameSafe(SharedRing->Ring));
-        }
     }
     else if (const FEvolutionInventoryEntry *SharedEvolution = bOthers ? nullptr : Pool->FindEvolutionInPool(GearID))
     {
@@ -2785,20 +2865,21 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     }
 
     // ---------- Weapons ----------
+    // B-521 (D-224): the old authored layout keeps its baked crystals until stage 6; a new piece (AddWeapon) starts empty.
     for (UWeaponData *Weapon : InventoryAsset->Weapons)
     {
-        if (Weapon)
+        if (Weapon && CanAddWeapon(Weapon))
         {
-            AddWeapon(Weapon);
+            AddGearEntry(Weapons, FWeaponInventoryEntry::CreateFromAuthoredWeapon(Weapon), *Weapon);
         }
     }
 
     // ---------- Rings ----------
     for (URingData *Ring : InventoryAsset->Rings)
     {
-        if (Ring)
+        if (Ring && CanAddRing(Ring))
         {
-            AddRing(Ring);
+            AddGearEntry(Rings, FRingInventoryEntry::CreateFromAuthoredRing(Ring), *Ring);
         }
     }
 
@@ -2888,6 +2969,17 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     for (const FSavedLoadout &SavedLoadout : InventoryAsset->SavedLoadouts)
     {
         SavedLoadouts.Add_GetRef(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, OwnedEvolutions)).bLore = true;
+    }
+    // TODO: (Q-518, B-518) remove in stage 5: gear has no built-ins now (D-224), so an enemy's empty pieces fill
+    // from its known skills until enemies carry their own.
+    if (!CharacterData->IsPlayerOrigin())
+    {
+        for (FCombatLoadout &Loadout : SavedLoadouts)
+        {
+            Loadout.FillEmptyPicksFromKnown(InventoryAsset->Abilities, InventoryAsset->Spells);
+            UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] %s: Q-518 enemy fill, the loadout lists %d abilities and %d spells"),
+                   *CharacterData->Name, Loadout.GetAllAbilities().Num(), Loadout.GetAllSpells().Num());
+        }
     }
 
     // Active index — clamp to valid range. Empty SavedLoadouts is soft-fail

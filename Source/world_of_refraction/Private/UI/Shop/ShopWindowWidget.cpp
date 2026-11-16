@@ -96,33 +96,10 @@ namespace
             {
                 Lines.Add(FString::Printf(TEXT("Attack: %s"), *W->WeaponAttack->Name));
             }
-            TArray<FString> AbilityNames;
-            for (const UAbilityData *A : W->PresetAbilities)
-            {
-                if (A)
-                {
-                    AbilityNames.Add(A->Name);
-                }
-            }
-            if (AbilityNames.Num() > 0)
-            {
-                Lines.Add(FString::Printf(TEXT("Abilities: %s"), *FString::Join(AbilityNames, TEXT(", "))));
-            }
+            // B-518 (D-224): gear carries no skills, so none are listed.
         }
         else if (const URingData *R = Cast<URingData>(E.Asset))
         {
-            TArray<FString> SpellNames;
-            for (const USpellData *S : R->DefaultSpells)
-            {
-                if (S)
-                {
-                    SpellNames.Add(S->Name);
-                }
-            }
-            if (SpellNames.Num() > 0)
-            {
-                Lines.Add(FString::Printf(TEXT("Spells: %s"), *FString::Join(SpellNames, TEXT(", "))));
-            }
             if (R->HasCrystal())
             {
                 Lines.Add(FString::Printf(TEXT("Attached Crystal: %s (%s)"),

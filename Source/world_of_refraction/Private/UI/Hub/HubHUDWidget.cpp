@@ -27,6 +27,7 @@
 #include "TimerManager.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/PauseMenuModel.h"
+#include "UI/WoRIconTable.h"
 #include "UI/WoRKeyHintText.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
@@ -62,24 +63,35 @@ namespace HubHUDStyle
 	/** B-503i: the mockup's card: the top-left corner cut 6 px at 720p, a 1 px outline. */
 	constexpr float CardCutSize = 9.0f;
 	constexpr float CardOutlineThickness = 1.5f;
-	/** B-503m4 (D-217, mockup hub/hud/v2/3_trial_wheel_open: centre 180, 442 at 720p, so x1.5 here): the RB wheel
-	 *  above the strip, bottom left. The most slices: two weapons, five adapters, the innate, the evolution. The
-	 *  circle grows past a few slices so the names keep their spacing. B-503m5: one round wheel (the mockup's rim
-	 *  125 and middle 54 at 720p). TODO: tune in PIE (Crown's look check) */
-	constexpr int32 WheelSlotCount = 9;
-	constexpr float WheelMinRadius = 140.0f; // the circle the names sit on
-	constexpr float WheelSlotSpacing = 110.0f; // along the circle, between neighbouring names
-	constexpr float WheelRimPastNames = 55.0f;
-	constexpr float WheelHubRadius = 85.0f;
-	const FVector2D WheelCentreFromBottomLeft(270.0f, -420.0f);
-	constexpr int32 WheelCentreFontSize = 16;
-	constexpr float WheelCentreTextInset = 12.0f; // the middle's text wraps inside its circle
+	/** B-503m5: the old wheel's paint (UHubHUDWheelRing, OBSOLETE since B-514). */
 	constexpr int32 WheelCircleSegments = 96;
 	constexpr int32 WheelMinSliceSegments = 8;
 	constexpr float WheelLineThickness = 1.5f;
-	const FLinearColor WheelFillColor = PanelColor.CopyWithNewOpacity(0.92f);
-	const FLinearColor WheelLineColor = DimColor.CopyWithNewOpacity(0.6f);
-	const FVector2D CentreAlignment(0.5f, 0.5f);
+	/** B-514 (D-222, mockup hub/hud/v2/3_trial_strip_open, 1280x720, so x1.5 here): the quick strip through the
+	 *  screen's middle. The most pieces: two weapons, five adapters, the innate, the evolution.
+	 *  TODO: tune in PIE (Crown's look check) */
+	constexpr int32 StripTileCount = 9;
+	constexpr float StripTileSize = 132.0f;
+	constexpr float StripPickedTileSize = 144.0f; // the picked tile grows a little
+	constexpr float StripTileGap = 24.0f;
+	constexpr float StripIconSize = 96.0f;
+	constexpr float StripPairIconSize = 60.0f; // a pair: both icons on one tile
+	constexpr float StripFrameThickness = 1.5f;
+	constexpr float StripDoubleFrameGap = 3.0f;
+	constexpr float StripTileTextInset = 9.0f;
+	constexpr float StripTagBottom = 6.0f;
+	constexpr float StripTagPaddingX = 9.0f;
+	constexpr float StripTextGap = 6.0f; // between the row's down arrows and the name under it
+	constexpr float StripTextPaddingX = 72.0f;
+	constexpr float StripTextPaddingY = 9.0f;
+	const FVector2D StripTopFromCentre(0.0f, -160.0f); // the up arrows' top: the row sits a little above the middle
+	const FAnchors ScreenCentre(0.5f, 0.5f);
+	const FAnchors FullScreen(0.0f, 0.0f, 1.0f, 1.0f);
+	const FVector2D TopCentreAlignment(0.5f, 0.0f);
+	const FLinearColor StripDimColor(0.0f, 0.0f, 0.0f, 0.45f);
+	const FLinearColor StripTileFillColor = PanelColor.CopyWithNewOpacity(0.92f);
+	const FLinearColor StripTextFillColor = PanelColor.CopyWithNewOpacity(0.85f);
+	const FLinearColor StripFrameColor = DimColor.CopyWithNewOpacity(0.6f);
 	const FAnchors BottomRight(1.0f, 1.0f);
 	const FVector2D BottomRightAlignment(1.0f, 1.0f);
 }
@@ -154,10 +166,7 @@ void UHubHUDWidget::BuildTree()
 	}
 
 	BuildPartyStrip(Canvas);
-	if (!AttackStrips.IsEmpty())
-	{
-		BuildFieldAttackWheel(Canvas); // on top: built last
-	}
+	BuildFieldAttackWheel(Canvas); // on top: built last. B-528 (D-218): the hub too; only the card strip stays a trial's
 
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
@@ -369,7 +378,7 @@ void UHubHUDWidget::RefreshFieldAttack()
 {
 	if (AttackStrips.IsEmpty())
 	{
-		return; // headless, or the hub: no strips
+		return; // headless, or the hub: no card strips
 	}
 	const APawn *Pawn = GetOwningPlayerPawn();
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
@@ -381,7 +390,7 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 {
 	if (!AttackStrips.IsValidIndex(AttackStripCard))
 	{
-		return; // headless, the hub, or no card for the pawn
+		return; // headless, the hub (no card strips), or no card for the pawn
 	}
 	SetFieldAttack(Entry); // B-503m: no flash (Crown: the text change is enough)
 }
@@ -390,52 +399,117 @@ void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
 {
 	using namespace HubHUDStyle;
 
-	const auto AddOnWheel = [Canvas](UWidget *Widget)
+	// B-514 (D-222): the world dims behind the open strip; first in the canvas, so the cards stay bright on top.
+	UBorder *Dim = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Dim->SetBrushColor(StripDimColor);
+	if (UCanvasPanelSlot *DimSlot = Cast<UCanvasPanelSlot>(Canvas->InsertChildAt(0, Dim)))
 	{
-		if (UCanvasPanelSlot *CanvasSlot = Canvas->AddChildToCanvas(Widget))
-		{
-			CanvasSlot->SetAnchors(BottomLeft);
-			CanvasSlot->SetAlignment(CentreAlignment);
-			CanvasSlot->SetPosition(WheelCentreFromBottomLeft);
-			CanvasSlot->SetAutoSize(true);
-		}
-		SetShown(Widget, false);
+		DimSlot->SetAnchors(FullScreen);
+		DimSlot->SetOffsets(FMargin(0.0f));
+	}
+	SetShown(Dim, false);
+	StripDim = Dim;
+
+	const auto MakeBorder = [this](UWidget *Content)
+	{
+		UBorder *Border = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Border->SetPadding(FMargin(0.0f));
+		Border->SetContent(Content);
+		return Border;
 	};
-	// B-503m5: the round body first, so the names and the middle's text draw on it.
-	WheelRing = WidgetTree->ConstructWidget<UHubHUDWheelRing>(UHubHUDWheelRing::StaticClass());
-	WheelRing->FillColor = WheelFillColor;
-	WheelRing->HubColor = PanelColor;
-	WheelRing->LitColor = FocusColor;
-	WheelRing->LineColor = WheelLineColor;
-	AddOnWheel(WheelRing);
-	if (UCanvasPanelSlot *RingSlot = Cast<UCanvasPanelSlot>(WheelRing->Slot))
+	const auto MakeArrow = [this](const TCHAR *Arrow)
 	{
-		RingSlot->SetAutoSize(false); // sized to the slice count when shown
-	}
-	WheelCentre = MakeText(WidgetTree, WheelCentreFontSize, CyanColor, true);
-	WheelCentre->SetJustification(ETextJustify::Center);
-	WheelCentre->SetAutoWrapText(true);
-	WheelCentre->SetWrapTextAt(2.0f * (WheelHubRadius - WheelCentreTextInset));
-	AddOnWheel(WheelCentre);
-	for (int32 Index = 0; Index < WheelSlotCount; ++Index)
-	{
-		UBorder *WheelSlot = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		WheelSlot->SetBrushColor(FLinearColor::Transparent); // B-503m5: the names sit on the wheel, not in boxes
-		WheelSlot->SetPadding(FMargin(BattleCardStyle::CardPadding));
-		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		WheelSlot->SetContent(Column);
-		UTextBlock *Diamond = MakeText(WidgetTree, BattleCardStyle::LineFontSize, TextColor);
-		Diamond->SetText(FText::AsCultureInvariant(TEXT("◆")));
-		Diamond->SetJustification(ETextJustify::Center);
-		UTextBlock *Text = MakeText(WidgetTree, BattleCardStyle::LineFontSize, BattleCardStyle::TextColor, true);
+		UTextBlock *Text = MakeText(WidgetTree, LineFontSize, CyanColor);
+		Text->SetText(FText::AsCultureInvariant(Arrow));
 		Text->SetJustification(ETextJustify::Center);
-		AddToColumn(Column, Diamond);
-		AddToColumn(Column, Text);
-		AddOnWheel(WheelSlot);
-		WheelSlots.Add(WheelSlot);
-		WheelTexts.Add(Text);
-		WheelDiamonds.Add(Diamond);
+		return Text;
+	};
+	UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	for (int32 Index = 0; Index < StripTileCount; ++Index)
+	{
+		// The tile's face: the icon (a pair's two side by side), the name when there is no icon, the IN HAND tag.
+		UOverlay *Face = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		UHorizontalBox *Icons = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UImage *Icon = MakeIcon(WidgetTree, StripIconSize);
+		UImage *OffHandIcon = MakeIcon(WidgetTree, StripPairIconSize);
+		UImage *IconCentre = nullptr;
+		AddToRow(Icons, MakeIconStack(WidgetTree, Icon, StripIconSize, IconCentre)); // B-530: an adapter's crystal
+		AddToRow(Icons, OffHandIcon);
+		UOverlaySlot *IconsSlot = Face->AddChildToOverlay(Icons);
+		IconsSlot->SetHorizontalAlignment(HAlign_Center);
+		IconsSlot->SetVerticalAlignment(VAlign_Center);
+		UTextBlock *Name = MakeWrappedText(WidgetTree, SmallFontSize, TextColor, true);
+		Name->SetJustification(ETextJustify::Center);
+		UOverlaySlot *NameSlot = Face->AddChildToOverlay(Name);
+		NameSlot->SetHorizontalAlignment(HAlign_Center);
+		NameSlot->SetVerticalAlignment(VAlign_Center);
+		NameSlot->SetPadding(FMargin(StripTileTextInset));
+		UTextBlock *TagText = MakeText(WidgetTree, SmallFontSize, CyanColor, true);
+		TagText->SetText(LOCTEXT("StripInHand", "IN HAND"));
+		UBorder *Tag = MakeBorder(TagText);
+		Tag->SetBrushColor(PanelColor);
+		Tag->SetPadding(FMargin(StripTagPaddingX, 0.0f));
+		UBorder *TagFrame = MakeBorder(Tag);
+		TagFrame->SetBrushColor(FocusColor);
+		TagFrame->SetPadding(FMargin(StripFrameThickness));
+		UOverlaySlot *TagSlot = Face->AddChildToOverlay(TagFrame);
+		TagSlot->SetHorizontalAlignment(HAlign_Center);
+		TagSlot->SetVerticalAlignment(VAlign_Bottom);
+		TagSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, StripTagBottom));
+		// Inside out: the fill, its size, then the picked tile's double frame (ring, gap, outer frame).
+		UBorder *Fill = MakeBorder(Face);
+		USizeBox *Size = MakeSized(WidgetTree, StripTileSize, StripTileSize, Fill);
+		UBorder *Ring = MakeBorder(Size);
+		UBorder *Gap = MakeBorder(Ring);
+		UBorder *Tile = MakeBorder(Gap);
+		UTextBlock *Up = MakeArrow(TEXT("▲"));
+		UTextBlock *Down = MakeArrow(TEXT("▼"));
+		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		for (UWidget *Part : {static_cast<UWidget *>(Up), static_cast<UWidget *>(Tile), static_cast<UWidget *>(Down)})
+		{
+			AddToColumn(Column, Part)->SetHorizontalAlignment(HAlign_Center);
+		}
+		AddToRow(Row, Column, FMargin(Index > 0 ? StripTileGap : 0.0f, 0.0f, 0.0f, 0.0f));
+		SetShown(Column, false);
+		StripTiles.Add(Tile);
+		StripTileGaps.Add(Gap);
+		StripTileRings.Add(Ring);
+		StripTileSizes.Add(Size);
+		StripTileFills.Add(Fill);
+		StripIcons.Add(Icon);
+		StripIconCentres.Add(IconCentre);
+		StripOffHandIcons.Add(OffHandIcon);
+		StripTileNames.Add(Name);
+		StripInHandTags.Add(TagFrame);
+		StripUpArrows.Add(Up);
+		StripDownArrows.Add(Down);
 	}
+	// Under the row: the piece's name; quieter, its type and source. D-222 "The text and the frame": one frame
+	// around the icons and the text, a single panel.
+	StripName = MakeText(WidgetTree, NameFontSize, TextColor, true);
+	StripName->SetJustification(ETextJustify::Center);
+	StripReading = MakeText(WidgetTree, LineFontSize, DimColor);
+	StripReading->SetJustification(ETextJustify::Center);
+	UVerticalBox *Box = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	AddToColumn(Box, Row)->SetHorizontalAlignment(HAlign_Center);
+	AddToColumn(Box, StripName, FMargin(0.0f, StripTextGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Center);
+	AddToColumn(Box, StripReading)->SetHorizontalAlignment(HAlign_Center);
+	UBorder *Panel = MakeBorder(Box);
+	Panel->SetBrushColor(StripTextFillColor);
+	Panel->SetPadding(FMargin(StripTextPaddingX, StripTextPaddingY));
+	UBorder *Frame = MakeBorder(Panel);
+	Frame->SetBrushColor(StripFrameColor);
+	Frame->SetPadding(FMargin(StripFrameThickness));
+	if (UCanvasPanelSlot *FrameSlot = Canvas->AddChildToCanvas(Frame))
+	{
+		FrameSlot->SetAnchors(ScreenCentre);
+		FrameSlot->SetAlignment(TopCentreAlignment);
+		FrameSlot->SetPosition(StripTopFromCentre);
+		FrameSlot->SetAutoSize(true);
+	}
+	SetShown(Frame, false);
+	StripBox = Frame;
+
 	WheelHints = MakeText(WidgetTree, LineFontSize, DimColor);
 	if (UCanvasPanelSlot *HintSlot = Canvas->AddChildToCanvas(WheelHints))
 	{
@@ -447,94 +521,113 @@ void UHubHUDWidget::BuildFieldAttackWheel(UCanvasPanel *Canvas)
 	SetShown(WheelHints, false);
 }
 
-bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entries, int32 Picked)
+bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entries, int32 Picked, int32 InHand)
 {
 	using namespace HubHUDStyle;
 
-	if (WheelSlots.IsEmpty() || Entries.IsEmpty())
+	if (StripTiles.IsEmpty() || Entries.IsEmpty())
 	{
-		return false; // the hub, headless, or nothing to pick
+		return false; // not built yet, or nothing to pick
 	}
 	const TArray<int32> Slices = FieldSkillRules::GetFieldSliceStarts(Entries);
-	if (Slices.Num() > WheelSlots.Num())
+	if (Slices.Num() > StripTiles.Num())
 	{
-		UE_LOG(LogWoR, Warning, TEXT("[HubHUD] The field attack wheel has %d slices, room for %d: the rest aren't shown"),
-			   Slices.Num(), WheelSlots.Num());
+		UE_LOG(LogWoR, Warning, TEXT("[HubHUD] The quick strip has %d pieces, room for %d: the rest aren't shown"),
+			   Slices.Num(), StripTiles.Num());
 	}
 	const int32 Kept = FieldSkillRules::ClampFieldAttackIndex(Picked, Entries.Num());
 	const int32 PickedSlice = FieldSkillRules::GetFieldSliceOf(Entries, Kept);
-	const int32 Shown = FMath::Min(Slices.Num(), WheelSlots.Num());
-	const float Radius = FMath::Max(WheelMinRadius, Shown * WheelSlotSpacing / UE_TWO_PI);
-	const float Rim = Radius + WheelRimPastNames;
-	if (UCanvasPanelSlot *RingSlot = Cast<UCanvasPanelSlot>(WheelRing->Slot))
-	{
-		RingSlot->SetSize(FVector2D(2.0f * Rim));
-	}
-	WheelRing->SetWheel(Shown, PickedSlice, WheelHubRadius);
-	SetShown(WheelRing, true);
-	for (int32 Index = 0; Index < WheelSlots.Num(); ++Index)
+	const int32 InHandSlice = Entries.IsValidIndex(InHand) ? FieldSkillRules::GetFieldSliceOf(Entries, InHand) : INDEX_NONE;
+	const int32 Shown = FMath::Min(Slices.Num(), StripTiles.Num());
+	for (int32 Index = 0; Index < StripTiles.Num(); ++Index)
 	{
 		const bool bShown = Index < Shown;
-		SetShown(WheelSlots[Index], bShown);
+		SetShown(StripTiles[Index]->GetParent(), bShown);
+		SetShown(StripTiles[Index], bShown);
 		if (!bShown)
 		{
 			continue;
 		}
-		const float Turn = UE_TWO_PI * Index / Shown; // from the top, clockwise; the screen's Y is down
-		if (UCanvasPanelSlot *CanvasSlot = Cast<UCanvasPanelSlot>(WheelSlots[Index]->Slot))
+		// The tile: an adapter's socket frame with its crystal inside (B-530, D-229), else the piece's own icon, else (a
+		// weapon) its type's, else (the innate, an evolution) its element's badge, else its name.
+		const FFieldAttackEntry &Piece = Entries[Slices[Index]];
+		const FWoRIcon AdapterIcon = Piece.bSliceAdapter ? WoRIcons::MakeAdapterIcon(Piece.Element, Piece.SliceName) : FWoRIcon();
+		UTexture2D *Icon = Piece.bSliceAdapter ? WoRIcons::Find(AdapterIcon) : Piece.SliceIcon.Get();
+		if (!Icon && Piece.WeaponId.IsValid())
 		{
-			CanvasSlot->SetPosition(WheelCentreFromBottomLeft + FVector2D(Radius * FMath::Sin(Turn), -Radius * FMath::Cos(Turn)));
+			Icon = WoRIcons::GetWeaponType(Piece.WeaponType);
 		}
-		// The picked slice shows the picked option's element; the others their first option's (D-217 mockup).
-		const FFieldAttackEntry &Option = Entries[Index == PickedSlice ? Kept : Slices[Index]];
-		WheelTexts[Index]->SetText(Option.SliceName);
-		const FLinearColor Element = Option.bIce ? ElementColors::Ice : ElementColors::GetColorForElement(Option.Element);
-		WheelDiamonds[Index]->SetColorAndOpacity(FSlateColor(Element));
-		WheelTexts[Index]->SetColorAndOpacity(FSlateColor(Index == PickedSlice ? TextColor : DimColor));
+		if (!Icon && (Piece.Kind == EFieldAttackKind::Innate || Piece.Kind == EFieldAttackKind::Evolution))
+		{
+			Icon = WoRIcons::GetElementBadge(Piece.Element); // no asset of its own (the mockup's evolution tile)
+		}
+		UTexture2D *OffHandIcon = Icon ? Piece.SliceOffHandIcon.Get() : nullptr;
+		StripIcons[Index]->SetDesiredSizeOverride(FVector2D(OffHandIcon ? StripPairIconSize : StripIconSize));
+		const bool bIcon = SetIcon(StripIcons[Index], Icon, Piece.SliceName);
+		SetIcon(StripIconCentres[Index], bIcon ? WoRIcons::FindCentre(AdapterIcon) : nullptr, Piece.SliceName);
+		SetIcon(StripOffHandIcons[Index], OffHandIcon, Piece.SliceName);
+		StripTileNames[Index]->SetText(Piece.SliceName);
+		SetShown(StripTileNames[Index], !bIcon);
+		SetShown(StripInHandTags[Index], Index == InHandSlice);
+		// The picked tile: framed twice, a little bigger, with up / down arrows when it has more than one source.
+		const bool bPicked = Index == PickedSlice;
+		const int32 SliceEnd = Slices.IsValidIndex(Index + 1) ? Slices[Index + 1] : Entries.Num();
+		const ESlateVisibility Arrows = bPicked && SliceEnd - Slices[Index] > 1 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Hidden;
+		StripUpArrows[Index]->SetVisibility(Arrows);
+		StripDownArrows[Index]->SetVisibility(Arrows);
+		StripTiles[Index]->SetBrushColor(bPicked ? CyanColor : StripFrameColor);
+		StripTiles[Index]->SetPadding(FMargin(StripFrameThickness));
+		StripTileGaps[Index]->SetBrushColor(bPicked ? PanelColor : FLinearColor::Transparent);
+		StripTileGaps[Index]->SetPadding(FMargin(bPicked ? StripDoubleFrameGap : 0.0f));
+		StripTileRings[Index]->SetBrushColor(bPicked ? CyanColor : FLinearColor::Transparent);
+		StripTileRings[Index]->SetPadding(FMargin(bPicked ? StripFrameThickness : 0.0f));
+		const float TileSize = bPicked ? StripPickedTileSize : StripTileSize;
+		StripTileSizes[Index]->SetWidthOverride(TileSize);
+		StripTileSizes[Index]->SetHeightOverride(TileSize);
+		StripTileFills[Index]->SetBrushColor(bPicked ? PlateColor : StripTileFillColor);
 	}
+	// D-222 "The text and the frame": "Storm Ring", then "Ring · Lightning".
 	const FFieldAttackEntry &Pick = Entries[Kept];
-	const int32 SliceEnd = Slices.IsValidIndex(PickedSlice + 1) ? Slices[PickedSlice + 1] : Entries.Num();
-	const bool bHasOptions = SliceEnd - Slices[PickedSlice] > 1;
-	// B-503m5 (Crown): only what the strip will read ("Sword", "Fire Sword"); an unarmed plain swing reads as its option.
-	const FText Result = Pick.Name.IsEmpty() ? Pick.OptionName : Pick.Name;
-	WheelCentre->SetText(bHasOptions ? FText::Format(LOCTEXT("WheelResultArrows", "◄  {0}  ►"), Result) : Result);
-	SetShown(WheelCentre, true);
-	// The wheel's keys for the device in use (B-481). TODO: key caps (WoRMenuStyle::MakeHintBar) with the real HUD.
+	StripName->SetText(Pick.SliceName);
+	const FText TypeLine = FieldSkillRules::GetFieldStripTypeLine(Pick);
+	StripReading->SetText(TypeLine);
+	SetShown(StripReading, !TypeLine.IsEmpty());
+	SetShown(StripBox, true);
+	SetShown(StripDim, true);
+	// The strip's keys for the device in use (B-481). TODO: key caps (WoRMenuStyle::MakeHintBar) with the real HUD.
 	WheelHints->SetText(WoRKeyHints::IsGamepad(this)
-							? LOCTEXT("WheelHintsToggle", "L-stick  Pick        D-pad ◄ ►  Element        A  Confirm        B / RB  Close")
-							: LOCTEXT("WheelHintsToggleKeys", "Mouse  Pick        A / D, wheel  Element        Click  Confirm        Backspace / R  Close"));
+							? LOCTEXT("StripHintsPad", "◄ ►  Piece        ▲ ▼  Source        A  Pick        B / RB  Close")
+							: LOCTEXT("StripHintsKeys", "A / D, wheel  Piece        W / S  Source        Click  Pick        Backspace / R  Close"));
 	SetShown(WheelHints, true);
 	return true;
 }
 
 void UHubHUDWidget::HideFieldAttackWheel()
 {
-	for (UBorder *WheelSlot : WheelSlots)
+	for (UWidget *Part : {StripBox.Get(), StripDim.Get(), static_cast<UWidget *>(WheelHints)})
 	{
-		WoRMenuStyle::SetShown(WheelSlot, false);
-	}
-	for (UWidget *Part : {static_cast<UWidget *>(WheelRing), static_cast<UWidget *>(WheelCentre), static_cast<UWidget *>(WheelHints)})
-	{
-		if (Part)
-		{
-			WoRMenuStyle::SetShown(Part, false);
-		}
+		WoRMenuStyle::SetShown(Part, false); // null-safe
 	}
 }
 
 int32 UHubHUDWidget::GetFieldWheelSliceUnderCursor(bool &bOnWheel) const
 {
 	bOnWheel = false;
-	if (!WheelRing || !WheelRing->IsVisible() || !FSlateApplication::IsInitialized())
+	if (!StripBox || !StripBox->IsVisible() || !FSlateApplication::IsInitialized())
 	{
 		return INDEX_NONE;
 	}
-	const FGeometry &Geometry = WheelRing->GetCachedGeometry();
-	const FVector2D Size(Geometry.GetLocalSize());
-	const FVector2D FromCentre = FVector2D(Geometry.AbsoluteToLocal(FSlateApplication::Get().GetCursorPos())) - Size * 0.5;
-	const float Rim = FMath::Min(Size.X, Size.Y) * 0.5f;
-	bOnWheel = Rim > 0.0f && FromCentre.Size() <= Rim;
-	return FieldSkillRules::GetFieldWheelSliceAt(FromCentre, HubHUDStyle::WheelHubRadius, Rim, WheelRing->GetSliceCount());
+	const FVector2D CursorAt = FSlateApplication::Get().GetCursorPos();
+	for (int32 Index = 0; Index < StripTiles.Num(); ++Index)
+	{
+		const UBorder *Tile = StripTiles[Index];
+		if (Tile && Tile->IsVisible() && Tile->GetCachedGeometry().IsUnderLocation(CursorAt))
+		{
+			bOnWheel = true;
+			return Index;
+		}
+	}
+	return INDEX_NONE;
 }
 
 void UHubHUDWidget::NativeConstruct()

@@ -261,6 +261,24 @@ namespace WoRMenuStyle
 		return true;
 	}
 
+	/** B-530 (D-229): how big an adapter's crystal sits inside its socket frame. TODO: tune in PIE (Crown's look check) */
+	constexpr float AdapterCentreScale = 0.55f;
+
+	/** B-530 (D-229): Frame with a second icon on it, in the middle at AdapterCentreScale of Size (an adapter: the socket
+	 *  frame, its crystal inside). Both hidden until SetIcon; OutCentre is the inner one. */
+	inline UOverlay *MakeIconStack(UWidgetTree *Tree, UImage *Frame, float Size, UImage *&OutCentre)
+	{
+		UOverlay *Stack = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		OutCentre = MakeIcon(Tree, Size * AdapterCentreScale);
+		for (UImage *Layer : {Frame, OutCentre})
+		{
+			UOverlaySlot *LayerSlot = Stack->AddChildToOverlay(Layer);
+			LayerSlot->SetHorizontalAlignment(HAlign_Center);
+			LayerSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		return Stack;
+	}
+
 	// ==================== CHIP ROW (B-482; FChipRow / FChipState: UI/Menus/MenuChipRow.h) ====================
 
 	/** Builds a row of Count chips between PrevKeyPattern and NextKeyPattern (key-hint patterns: "{TabPrev}"). */

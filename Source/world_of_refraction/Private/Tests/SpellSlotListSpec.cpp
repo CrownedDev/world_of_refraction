@@ -1,7 +1,7 @@
 // SpellSlotListSpec.cpp
-// B-351d part 1 (D-145, Q-351d): one spell-slot list per crystal. The crystal's spells (a weapon) or the ring's presets
-// (an adapter) pre-fill it; the player replaces any slot and can restore the built-in; once edited it is the list
-// every GetAllSpells reader gets; until then the old position merge plays; the list goes with the crystal.
+// B-351d part 1 (D-145, Q-351d): one spell-slot list per crystal. B-518 (D-224): nothing pre-fills it (the crystal's
+// spells and the ring's presets don't play); the player fills any slot and can empty it; it is the list every
+// GetAllSpells reader gets; the list goes with the crystal.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -65,33 +65,31 @@ void FSpellSlotListSpec::Define()
 		Adapter.RingEntry.AttachedItem = Gem();
 	});
 
-	It("pre-fills a weapon crystal's list with its spells, sized by the gem", [this]()
+	It("starts a weapon crystal's list empty, sized by the gem (B-518: its spells don't pre-fill it)", [this]()
 	{
 		const TArray<USpellData *> Slots = Weapon.GetSpellSlots();
 		TestEqual(TEXT("the gem's slots"), Slots.Num(), Weapon.GetSpellSlotCap());
-		TestTrue(TEXT("the built-in first"), Slots.IsValidIndex(SPELL_SLOT_TEST_FIRST) && Slots[SPELL_SLOT_TEST_FIRST] == BuiltIn);
+		TestTrue(TEXT("the first is empty"), Slots.IsValidIndex(SPELL_SLOT_TEST_FIRST) && Slots[SPELL_SLOT_TEST_FIRST] == nullptr);
+		TestEqual(TEXT("nothing plays"), Weapon.GetAllSpells().Num(), 0);
 	});
 
-	It("replaces a weapon crystal's built-in, then restores it; GetAllSpells follows", [this]()
+	It("fills a weapon crystal's slot, then empties it; GetAllSpells follows", [this]()
 	{
-		Weapon.AssignedSpells = {OldOverride}; // the old loadout-level override: plays until the list is edited
-		TestTrue(TEXT("old merge before an edit"), Weapon.GetAllSpells().Contains(OldOverride));
-		TestTrue(TEXT("replaced"), Weapon.ReplaceSpell(SPELL_SLOT_TEST_FIRST, Chosen));
-		TestTrue(TEXT("active"), Weapon.WeaponEntry.bSpellSlotsActive);
+		Weapon.AssignedSpells = {OldOverride}; // the old loadout-level override: never plays (B-518)
+		TestFalse(TEXT("the old override doesn't play"), Weapon.GetAllSpells().Contains(OldOverride));
+		TestTrue(TEXT("filled"), Weapon.ReplaceSpell(SPELL_SLOT_TEST_FIRST, Chosen));
 		TestTrue(TEXT("the pick plays"), Weapon.GetAllSpells().Contains(Chosen));
-		TestFalse(TEXT("the old override doesn't"), Weapon.GetAllSpells().Contains(OldOverride));
-		TestTrue(TEXT("restored"), Weapon.RestoreSpell(SPELL_SLOT_TEST_FIRST));
-		TestTrue(TEXT("the built-in is back"), Weapon.GetAllSpells().Contains(BuiltIn));
-		TestFalse(TEXT("nothing left to restore"), Weapon.RestoreSpell(SPELL_SLOT_TEST_FIRST));
+		TestTrue(TEXT("emptied"), Weapon.RestoreSpell(SPELL_SLOT_TEST_FIRST));
+		TestEqual(TEXT("nothing plays, no built-in back"), Weapon.GetAllSpells().Num(), 0);
+		TestFalse(TEXT("nothing left to empty"), Weapon.RestoreSpell(SPELL_SLOT_TEST_FIRST));
 		TestFalse(TEXT("past the cap: refused"), Weapon.ReplaceSpell(SPELL_SLOT_TEST_PAST_CAP, Chosen));
-		TestTrue(TEXT("debug says active"), Weapon.GetSpellSlotString().Contains(TEXT("active")));
 	});
 
 	It("an empty slot takes a spell too", [this]()
 	{
 		TestTrue(TEXT("second slot"), Weapon.ReplaceSpell(SPELL_SLOT_TEST_SECOND, Chosen));
 		const TArray<USpellData *> Spells = Weapon.GetAllSpells();
-		TestTrue(TEXT("both"), Spells.Contains(BuiltIn) && Spells.Contains(Chosen));
+		TestTrue(TEXT("only the pick"), Spells.Num() == 1 && Spells.Contains(Chosen));
 	});
 
 	It("without a crystal there is no list, and removing it clears the picks", [this]()
@@ -104,16 +102,17 @@ void FSpellSlotListSpec::Define()
 		TestFalse(TEXT("nothing to replace"), Weapon.ReplaceSpell(SPELL_SLOT_TEST_FIRST, Chosen));
 	});
 
-	It("an adapter's list starts from the ring's presets; a locked ring can't be edited", [this]()
+	It("starts an adapter's list empty (not from the ring's presets); a locked ring is an ordinary one (B-518, Q7)", [this]()
 	{
 		const TArray<USpellData *> Slots = Adapter.GetSpellSlots();
-		TestTrue(TEXT("the preset first"), Slots.IsValidIndex(SPELL_SLOT_TEST_FIRST) && Slots[SPELL_SLOT_TEST_FIRST] == BuiltIn);
-		TestTrue(TEXT("replaced"), Adapter.ReplaceSpell(SPELL_SLOT_TEST_FIRST, Chosen));
+		TestTrue(TEXT("the first is empty"), Slots.IsValidIndex(SPELL_SLOT_TEST_FIRST) && Slots[SPELL_SLOT_TEST_FIRST] == nullptr);
+		TestTrue(TEXT("filled"), Adapter.ReplaceSpell(SPELL_SLOT_TEST_FIRST, Chosen));
 		TestTrue(TEXT("the pick plays"), Adapter.GetAllSpells().Contains(Chosen));
-		TestTrue(TEXT("restored"), Adapter.RestoreSpell(SPELL_SLOT_TEST_FIRST));
-		TestTrue(TEXT("the preset is back"), Adapter.GetAllSpells().Contains(BuiltIn));
+		TestTrue(TEXT("emptied"), Adapter.RestoreSpell(SPELL_SLOT_TEST_FIRST));
+		TestFalse(TEXT("no preset back"), Adapter.GetAllSpells().Contains(BuiltIn));
 		Adapter.RingEntry.Ring->bSpellsLocked = true;
-		TestFalse(TEXT("locked: refused"), Adapter.ReplaceSpell(SPELL_SLOT_TEST_FIRST, Chosen));
+		TestTrue(TEXT("locked: still takes a pick"), Adapter.ReplaceSpell(SPELL_SLOT_TEST_FIRST, Chosen));
+		TestTrue(TEXT("and plays it"), Adapter.GetAllSpells().Contains(Chosen));
 	});
 }
 

@@ -159,11 +159,13 @@ FLoadoutSkillsPage WoRLoadoutSkills::BuildSkillsPage(const FCombatLoadout &Loado
 		if (Weapon)
 		{
 			Tab.List = ELoadoutSkillList::WeaponSkills;
+			Tab.Host = FSkillGearHost::FromWeapon(Weapon->WeaponEntry);
 			AddSlotRows(Tab, Weapon->GetSkillSlots(), Weapon->WeaponEntry.SkillPicks);
 		}
 		else
 		{
 			Tab.List = ELoadoutSkillList::AdapterSpells;
+			Tab.Host = FSkillGearHost::FromAdapter(Adapter->RingEntry);
 			AddSlotRows(Tab, Adapter->GetSpellSlots(), Adapter->RingEntry.SpellPicks);
 		}
 	}
@@ -218,6 +220,11 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(const FLoadoutS
 	const auto Offer = [&](USkillDataBase *Skill)
 	{
 		if (!Skill || InList.Contains(Skill))
+		{
+			return;
+		}
+		// D-224 (§5.2): a piece offers only the skills whose gear it meets.
+		if (Tab.List != ELoadoutSkillList::Innate && !SkillRequirementRules::IsMet(Skill, Tab.Host))
 		{
 			return;
 		}
@@ -278,18 +285,8 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(UWorld *World, 
 	{
 		Spells.Add(Instance.Spell);
 	}
-	TArray<UAbilityData *> BuiltIns;
-	FWeaponLoadoutEntry *Weapon = nullptr;
-	FRingLoadoutEntry *Adapter = nullptr;
-	WoRLoadoutScreen::FindRowGear(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], Page.Tabs[Tab].Gear, Weapon, Adapter);
-	if (Weapon && Weapon->WeaponEntry.Weapon)
-	{
-		for (UAbilityData *Ability : Weapon->WeaponEntry.Weapon->PresetAbilities)
-		{
-			BuiltIns.Add(Ability);
-		}
-	}
-	return BuildSkillChoices(Page, Tab, Row, Abilities, Spells, BuiltIns);
+	// B-518 (D-224): only the known skills are offered; gear has no built-ins.
+	return BuildSkillChoices(Page, Tab, Row, Abilities, Spells, TArray<UAbilityData *>());
 }
 
 bool WoRLoadoutSkills::PutSkill(FCombatLoadout &Loadout, const FLoadoutSkillTab &Tab, const FLoadoutScreenRow &Row, USkillDataBase *Skill, FText &OutRefusal)
@@ -381,7 +378,7 @@ FText WoRLoadoutSkills::ApplySkill(UWorld *World, const FLoadoutScreenMember &Me
 												 Refusal);
 	if (bChanged)
 	{
-		Inventory->WriteLoadoutToOwned(Index); // the picks live on the owned piece (D-145)
+		Inventory->WriteLoadoutToOwned(Index); // its sockets; the picks reach the worn entry (D-224, B-517)
 		UE_LOG(LogWoRLoadout, Log, TEXT("%s: %s %s slot %d"), *Member.Key.ToString(), Skill ? TEXT("put") : TEXT("took off"), *Tab.Title.ToString(), Row.SkillSlot);
 	}
 	return Refusal;

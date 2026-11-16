@@ -35,6 +35,7 @@
 #include "Combat/Encounter/EnemyZone.h"
 #include "Trial/TrialGate.h"
 #include "Trial/RunRewards.h"
+#include "Character/ECharacterClass.h"
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TrialRunSubsystem.generated.h"
@@ -44,6 +45,8 @@ class UMemoryData;
 class UMerchantData;
 struct FMerchantStockEntry;
 class UTrialData;
+class UClassDefaultLoadoutData;
+struct FClassDefaultLoadout;
 class UWorld;
 struct FActorsInitializedParams;
 
@@ -96,7 +99,8 @@ public:
 
     /** B-347 (D-137): what a run's start does to the party's gear and Gold, without the level travel: run Gold to its
      *  start (none, B-178), a layer left open ended, and the run layer opened with the party's worn loadouts, free.
-     *  EnterTrial calls it; specs call it directly. */
+     *  B-512 (D-221): each member with a class kit is put on it, reset; one without keeps what it wears.
+     *  EnterTrial calls it (a resumed run does not: RestoreRun); specs call it directly. */
     void StartRunGearAndGold();
 
     /** Return to the config-authored HubLevel and clear the active trial. Safe
@@ -187,6 +191,14 @@ public:
     void AddUnspentLevels(FName CharacterKey, int32 Count);
     /** Takes one of the character's unspent levels; false when it has none. */
     bool TakeUnspentLevel(FName CharacterKey);
+
+    /** CS-5: the characters with run levels (the save writes each one's). */
+    TArray<FName> GetRunLevelKeys() const
+    {
+        TArray<FName> Keys;
+        RunLevels.GetKeys(Keys);
+        return Keys;
+    }
 
     /** Debug: every character's run levels and the unspent count. wor.WorldStat.Print. */
     FString GetRunLevelsString() const;
@@ -468,6 +480,15 @@ public:
 
     // ==================== DEBUG ====================
 
+    /** B-511 (D-221): the kit a trial starts Class on (DA_Loadout_ClassDefaults, DefaultGame.ini). Null, with a
+     *  warning, when the asset or the class's entry is missing: the trial then keeps what is worn. */
+    const FClassDefaultLoadout *FindClassDefaults(ECharacterClass Class) const;
+    /** B-512: specs point the trial start at their own kits (or none), so they don't depend on the content's asset. */
+    void SetClassDefaultLoadouts(const TSoftObjectPtr<UClassDefaultLoadoutData> &Kits) { ClassDefaultLoadouts = Kits; }
+
+    /** Debug: the kit asset's classes and every character's minted kit (wor.Trial.PrintClassDefaults). */
+    FString GetClassDefaultsString() const;
+
     /** Formatted snapshot: active trial (or none) + configured hub level. */
     UFUNCTION(BlueprintPure, Category = "Debug")
     FString GetTrialRunString() const;
@@ -488,6 +509,10 @@ private:
     /** The map ExitTrial returns to — authored in DefaultGame.ini. */
     UPROPERTY(Config)
     TSoftObjectPtr<UWorld> HubLevel;
+
+    /** B-511 (D-221): the class default kits, authored in DefaultGame.ini. */
+    UPROPERTY(Config)
+    TSoftObjectPtr<UClassDefaultLoadoutData> ClassDefaultLoadouts;
 
     /** Strong (B-070): in a packaged build nothing else may hold the trial asset,
      *  so a weak pointer let GC drop it mid-run. Cleared on ExitTrial. */

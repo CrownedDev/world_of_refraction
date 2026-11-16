@@ -87,7 +87,8 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     TArray<USpellData *> AssignedSpells;
 
-    /** B-351d (D-145): the player's pick per spell slot of the crystal's one list (null = the built-in there; the
+    /** D-224 (B-517): on a loadout's copy of the piece this is the worn entry's list (FLoadoutSlot); an owned piece holds none (OBSOLETE there, deleted in stage 6). 
+     *  B-351d (D-145): the player's pick per spell slot of the crystal's one list (null = the built-in there; the
      *  built-ins are the ring asset's PresetSpells). SkillSlotList.h. Lost with the crystal, like AssignedSpells. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     TArray<USpellData *> SpellPicks;
@@ -132,8 +133,12 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     // ==================== FACTORY ====================
 
-    /** Create entry from RingData — always copies the template's default crystal + DefaultSpells. */
+    /** A new piece from RingData, its socket empty (B-521, D-224). */
     static FRingInventoryEntry CreateFromRing(URingData *InRing);
+
+    /** OBSOLETE (B-521, D-224; delete in asset overhaul stage 6 with the asset's AttachedItem): CreateFromRing plus the
+     *  asset's baked crystal, for the old authored layout only (an inventory asset's Rings, an authored loadout). */
+    static FRingInventoryEntry CreateFromAuthoredRing(URingData *InRing);
 
     // ==================== STATE QUERIES ====================
 

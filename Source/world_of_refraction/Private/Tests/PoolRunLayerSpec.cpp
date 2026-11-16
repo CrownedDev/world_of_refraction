@@ -135,6 +135,10 @@ void FPoolRunLayerSpec::Define()
 		TestWorld = MakeUnique<FWoRTestWorld>();
 		TestTrue(TEXT("Test world created"), TestWorld->Create());
 		Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (UTrialRunSubsystem *TrialRun = TestWorld->GetSubsystem<UTrialRunSubsystem>())
+		{
+			TrialRun->SetClassDefaultLoadouts(TSoftObjectPtr<UClassDefaultLoadoutData>()); // B-512: these runs keep the worn gear
+		}
 		Sword = NewObject<UWeaponData>(GetTransientPackage());
 		Sword->Name = TEXT("Run layer sword");
 		Dagger = NewObject<UWeaponData>(GetTransientPackage());

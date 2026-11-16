@@ -29,7 +29,8 @@ void FSeamlessTravelSpec::Define()
 {
 	It("has the trial and battle game modes travel seamlessly with AWoRGameState", [this]()
 	{
-		for (const AGameModeBase *Mode : {static_cast<const AGameModeBase *>(GetDefault<ATrialGameMode>()),
+		for (const AGameModeBase *Mode : {static_cast<const AGameModeBase *>(GetDefault<AWoRGameModeBase>()), // B-529: the hub's parent
+										  static_cast<const AGameModeBase *>(GetDefault<ATrialGameMode>()),
 										  static_cast<const AGameModeBase *>(GetDefault<ABattleGameMode>())})
 		{
 			TestTrue(FString::Printf(TEXT("%s: seamless travel"), *Mode->GetClass()->GetName()), Mode->bUseSeamlessTravel);

@@ -22,6 +22,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Pool/PoolSubsystem.h"
 
 BEGIN_DEFINE_SPEC(FWheelWeaponCarrySpec, "WoR.Field.WheelWeaponCarry", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
 	TUniquePtr<FWoRTestWorld> TestWorld;
@@ -128,6 +129,13 @@ void FWheelWeaponCarrySpec::Define()
 		TestTrue(TEXT("the sword in hand at first"), InHand(Field) == Sword);
 		TestTrue(TEXT("the axe's slice is on the wheel"), PickAxe(Field));
 		TestTrue(TEXT("the pick puts the axe in hand on the map"), InHand(Field) == Axe);
+		// D-221 (B-506): the pick and the weapon in hand are one write on the worn-gear record (LA-1).
+		const UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		const FWornGear *Worn = Pool ? Pool->GetWornGear(UPoolSubsystem::GetCharacterKey(Data)) : nullptr;
+		const UInventoryComponent *FieldInventory = Field->FindComponentByClass<UInventoryComponent>();
+		const FWeaponInventoryEntry *OwnedAxe = FieldInventory->Weapons.FindByPredicate([this](const FWeaponInventoryEntry &E) { return E.Weapon == Axe; });
+		TestTrue(TEXT("the record's ACTIVE entry is the axe"), Worn && OwnedAxe && Worn->ActiveGearID == OwnedAxe->PersistentID);
+		TestTrue(TEXT("and the record holds the pick"), Worn && Worn->WheelPick.bPicked);
 		Field->Destroy(); // the travel to the fight
 
 		AActor *Battle = SpawnMemberPawn(/*bStamped=*/true);

@@ -4,6 +4,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/StatStone.h"
 #include "Equipment/Rings/RingData.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutConstants.h"
@@ -13,6 +14,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Effects/EffectText.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/WoRIconTable.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "WoRLoadoutV2"
@@ -36,12 +38,7 @@ namespace LoadoutV2Build
 
 	FText SetName(const FWeaponLoadoutEntry &Set)
 	{
-		const FText Main = FText::FromString(Set.WeaponEntry.Weapon ? Set.WeaponEntry.Weapon->GetDisplayName() : FString());
-		if (!Set.HasOffHand())
-		{
-			return Main;
-		}
-		return FText::Format(LOCTEXT("PairName", "{0} + {1}"), Main, FText::FromString(Set.OffHandEntry.Weapon->GetDisplayName()));
+		return WoRGameNames::GetHeldPiecesName(Set.WeaponEntry.Weapon, Set.HasOffHand() ? Set.OffHandEntry.Weapon : nullptr); // B-513b: as the wheel
 	}
 
 	FLoadoutV2Entry MakeWeaponEntry(const FWeaponLoadoutEntry &Set, ELoadoutV2Place Place)
@@ -50,6 +47,7 @@ namespace LoadoutV2Build
 		Entry.Kind = ELoadoutV2EntryKind::Weapon;
 		Entry.Place = Place;
 		Entry.Name = SetName(Set);
+		Entry.Tier = Set.WeaponEntry.Tier;
 		Entry.Sockets = {IconOf(Set.WeaponEntry.AttachedItem), IconOf(Set.WeaponEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Set.WeaponEntry.AttachedItem);
 		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Set.WeaponEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Set.WeaponEntry.StoneSocket)};
@@ -57,7 +55,7 @@ namespace LoadoutV2Build
 		{
 			Entry.TypeIcon.Kind = ELoadoutV2IconKind::WeaponType;
 			Entry.TypeIcon.WeaponType = Weapon->WeaponType;
-			Entry.TypeIcon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+			Entry.TypeIcon.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon, Set.HasOffHand() ? Set.OffHandEntry.Weapon : nullptr); // B-513, B-515
 		}
 		Entry.SkillSlots = Set.GetSkillSlotCount();
 		return Entry;
@@ -69,10 +67,12 @@ namespace LoadoutV2Build
 		Entry.Kind = ELoadoutV2EntryKind::Adapter;
 		Entry.Place = Place;
 		Entry.AdapterIndex = AdapterIndex;
-		Entry.Name = FText::FromString(Ring.RingEntry.Ring ? Ring.RingEntry.Ring->GetDisplayName() : FString());
+		Entry.Name = WoRGameNames::GetAdapterName(Ring.RingEntry.Ring, Ring.RingEntry.AttachedItem); // B-514b: "Fire Ring"
+		Entry.Tier = Ring.RingEntry.Tier; // TODO: stage 2b, the built average of the ring and its crystal (D-224 (1))
 		Entry.Sockets = {IconOf(Ring.RingEntry.AttachedItem), IconOf(Ring.RingEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Ring.RingEntry.AttachedItem);
 		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.StoneSocket)};
+		Entry.TypeIcon = WoRLoadoutV2::MakeAdapterIcon(Ring.RingEntry); // B-530 (D-229): the frame with its crystal
 		return Entry;
 	}
 
@@ -264,13 +264,13 @@ namespace LoadoutV2Build
 		{
 			return;
 		}
-		FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Weapon->GetDisplayName()), WoRGameNames::GetTierLetter(Weapon->Tier));
-		SetTier(Piece, Weapon->Tier);
+		FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Weapon->GetDisplayName()), WoRGameNames::GetTierLetter(Owned.Tier));
+		SetTier(Piece, Owned.Tier); // B-516: the owned piece's tier (the run layer can lower it), not the asset's
 		if (Piece)
 		{
 			Piece->Icon.Kind = ELoadoutV2IconKind::WeaponType; // B-485
 			Piece->Icon.WeaponType = Weapon->WeaponType;
-			Piece->Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->WeaponType);
+			Piece->Icon.Name = WoRGameNames::GetHeldWeaponTypeName(Weapon); // B-513
 			Piece->TypeName = Piece->Icon.Name; // B-487b: no "Type" row
 		}
 		AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailPower", "Power"), Weapon->Power > 0 ? FText::AsNumber(Weapon->Power) : FText::GetEmpty());
@@ -293,7 +293,27 @@ namespace LoadoutV2Build
 		}
 	}
 
-	/** A weapon entry's lines (one weapon, or a pair): the pieces, the built-ins, the sockets, the skill slots. */
+	/** D-226 (4): the piece's tier and its socket's, on two lines, in place of B-519's averaged "Skill tier D (F + B)".
+	 *  D-227 (5): the tier in brackets, "Adapter (S)", "Crystal (B)", so the whole line is the label (no value). The
+	 *  crystal line only while the socket holds a gem or an evolution. */
+	void AddPieceAndCrystalTiers(TArray<FLoadoutV2DetailLine> &Lines, const FText &PieceWord, EItemTier PieceTier,
+								 const FRuntimeAttachedItem &Socket)
+	{
+		const auto AddTierLine = [&Lines](const FText &Word, EItemTier Tier)
+		{
+			FLoadoutV2DetailLine &Line = Lines.AddDefaulted_GetRef();
+			Line.Kind = ELoadoutV2DetailKind::Stat;
+			Line.Label = FText::Format(LOCTEXT("DetailTierInBrackets", "{0} ({1})"), Word, WoRGameNames::GetTierLetter(Tier));
+			SetTier(&Line, Tier);
+		};
+		AddTierLine(PieceWord, PieceTier);
+		if (const TOptional<EItemTier> SocketTier = CrystalEffectTable::GetSocketSkillTier(Socket))
+		{
+			AddTierLine(LOCTEXT("DetailCrystalWord", "Crystal"), SocketTier.GetValue());
+		}
+	}
+
+	/** A weapon entry's lines (one weapon, or a pair): the pieces, the sockets, the skill slots. */
 	void AddWeaponSet(TArray<FLoadoutV2DetailLine> &Lines, const FWeaponLoadoutEntry &Set, bool bSimple)
 	{
 		AddWeaponPiece(Lines, Set.WeaponEntry, bSimple);
@@ -301,19 +321,8 @@ namespace LoadoutV2Build
 		{
 			AddWeaponPiece(Lines, Set.OffHandEntry, bSimple);
 		}
-		if (!bSimple)
-		{
-			TArray<FText> BuiltIns;
-			for (const UAbilityData *Ability : WeaponSetRules::GetSetBuiltIns(Set))
-			{
-				if (Ability)
-				{
-					BuiltIns.Add(FText::FromString(Ability->Name));
-				}
-			}
-			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailBuiltIns", "Built-in"), FText::Join(LOCTEXT("NameSeparator", ", "), BuiltIns));
-		}
 		AddSockets(Lines, Set.WeaponEntry.AttachedItem, Set.WeaponEntry.StoneSocket);
+		AddPieceAndCrystalTiers(Lines, LOCTEXT("DetailWeaponWord", "Weapon"), Set.WeaponEntry.Tier, Set.WeaponEntry.AttachedItem);
 		AddLine(Lines, ELoadoutV2DetailKind::SkillSlots, LOCTEXT("DetailSkillSlots", "Skill slots"), FText::AsNumber(Set.GetSkillSlotCount()));
 	}
 
@@ -322,14 +331,15 @@ namespace LoadoutV2Build
 	{
 		if (const URingData *Adapter = Owned.Ring)
 		{
-			if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, FText::FromString(Adapter->GetDisplayName()), WoRGameNames::GetTierLetter(Adapter->Tier)))
+			if (FLoadoutV2DetailLine *Piece = AddLine(Lines, ELoadoutV2DetailKind::Piece, WoRGameNames::GetAdapterName(Adapter, Owned.AttachedItem), WoRGameNames::GetTierLetter(Owned.Tier)))
 			{
-				SetTier(Piece, Adapter->Tier);
+				SetTier(Piece, Owned.Tier);
 				Piece->TypeName = WoRGameNames::GetAdapterFormName(Adapter->Form); // B-487b: no "Type" row
 			}
 			AddEffects(Lines, Adapter, bSimple);
 		}
 		AddSockets(Lines, Owned.AttachedItem, Owned.StoneSocket);
+		AddPieceAndCrystalTiers(Lines, WoRGameNames::GetAdapterWord(), Owned.Tier, Owned.AttachedItem);
 	}
 
 	const FWeaponLoadoutEntry *FindWeaponSet(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry)
@@ -459,6 +469,7 @@ FLoadoutV2WeaponsPage WoRLoadoutV2::BuildWeaponsPage(const FCombatLoadout &Loado
 		Seat.Kind = ELoadoutV2EntryKind::Evolution;
 		Seat.Place = ELoadoutV2Place::Seat;
 		Seat.Name = Loadout.PrimaryEvolution.Item ? FText::FromString(Loadout.PrimaryEvolution.Item->ItemName) : LOCTEXT("EvolutionMissing", "Evolution (missing)");
+		Seat.Tier = Loadout.PrimaryEvolution.Tier; // B-516b: its own badge, as its detail line
 		Page.Entries.Add(MoveTemp(Seat));
 	}
 	int32 WeaponEntries = 0;
@@ -486,6 +497,19 @@ FLoadoutV2WeaponsPage WoRLoadoutV2::BuildWeaponsPage(const FCombatLoadout &Loado
 				Page.Entries.Add(MakeAdapterEntry(Loadout.RingLoadout[Index], ELoadoutV2Place::Adapter, Index));
 			}
 		}
+	}
+	// B-516 / B-516b: two same-named entries read apart, by the tier badge first, then a number.
+	TArray<FText> Names;
+	TArray<EItemTier> Tiers;
+	for (const FLoadoutV2Entry &Entry : Page.Entries)
+	{
+		Names.Add(Entry.Name);
+		Tiers.Add(Entry.Tier);
+	}
+	WoRGameNames::NumberRepeatedNames(Names, Tiers);
+	for (int32 Index = 0; Index < Names.Num(); ++Index)
+	{
+		Page.Entries[Index].Name = Names[Index];
 	}
 	// The weapon in hand, marked only when there are two weapon entries (as today's screen).
 	if (WeaponEntries > 1)
@@ -680,22 +704,7 @@ FLoadoutV2Compare WoRLoadoutV2::BuildCompare(const FWeaponInventoryEntry &Equipp
 	Compare.EquippedPower = Equipped.Weapon ? Equipped.Weapon->Power : 0;
 	Compare.SelectedPower = Selected.Weapon ? Selected.Weapon->Power : 0;
 	Compare.CellsChange = 0; // D-206: a weapon itself is free; the sockets stay with the entry
-	const TArray<UAbilityData *> Before = Equipped.Weapon ? Equipped.Weapon->PresetAbilities : TArray<UAbilityData *>();
-	const TArray<UAbilityData *> After = Selected.Weapon ? Selected.Weapon->PresetAbilities : TArray<UAbilityData *>();
-	for (const UAbilityData *Ability : After)
-	{
-		if (Ability && !Before.Contains(Ability))
-		{
-			Compare.BuiltInsGained.Add(FText::FromString(Ability->Name));
-		}
-	}
-	for (const UAbilityData *Ability : Before)
-	{
-		if (Ability && !After.Contains(Ability))
-		{
-			Compare.BuiltInsLost.Add(FText::FromString(Ability->Name));
-		}
-	}
+	// B-518 (D-224): no built-ins to gain or lose (BuiltInsGained / BuiltInsLost are OBSOLETE, deleted in stage 6).
 	return Compare;
 }
 
@@ -761,6 +770,73 @@ TArray<FLoadoutV2KindChoice> WoRLoadoutV2::BuildAddKinds(const FCombatLoadout &L
 	return Kinds;
 }
 
+namespace LoadoutV2Replace
+{
+	/** Entry taken out to make room for a piece of another kind. The first entry, which RemoveEntry keeps (D-116), is
+	 *  emptied here: the piece replacing it must fill it (ReplaceEntry checks). */
+	bool TakeOut(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry, FText &OutRefusal)
+	{
+		if (WoRLoadoutV2::RemoveEntry(Loadout, Class, Entry, OutRefusal))
+		{
+			return true;
+		}
+		if (Entry.Place != ELoadoutV2Place::Primary && Entry.Place != ELoadoutV2Place::Seat)
+		{
+			return false;
+		}
+		OutRefusal = FText::GetEmpty();
+		Loadout.PrimaryWeapon.Clear(); // as WoRLoadoutScreen's ClearPrimary
+		Loadout.PrimaryRing.Clear();
+		Loadout.PrimaryEvolution = FEvolutionAttachment();
+		Loadout.PrimaryEvolutionInstance = FGuid();
+		Loadout.EvolutionSpells.Reset();
+		Loadout.PrimarySlotType = EPrimarySlotType::None;
+		return true;
+	}
+
+	/** Whether ApplyDraft puts a Kind piece in a free first entry (a weapon, the evolution, a Refractor's adapter). */
+	bool FillsFirstEntry(ELoadoutV2DraftKind Kind, ECharacterClass Class)
+	{
+		return Kind != ELoadoutV2DraftKind::Adapter || Class == ECharacterClass::Caster;
+	}
+
+	FText KeepFirstEntry()
+	{
+		return LOCTEXT("RefuseReplaceFirst", "The first entry keeps a weapon: it can't become this.");
+	}
+}
+
+ELoadoutV2DraftKind WoRLoadoutV2::GetDraftKind(ELoadoutV2EntryKind Kind)
+{
+	return Kind == ELoadoutV2EntryKind::Adapter ? ELoadoutV2DraftKind::Adapter : Kind == ELoadoutV2EntryKind::Evolution ? ELoadoutV2DraftKind::Evolution : ELoadoutV2DraftKind::Weapon;
+}
+
+TArray<FLoadoutV2KindChoice> WoRLoadoutV2::BuildEditKinds(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry)
+{
+	using namespace LoadoutV2Build;
+	FCombatLoadout Without = Loadout;
+	FText OutRefusal;
+	const bool bOut = LoadoutV2Replace::TakeOut(Without, Class, Entry, OutRefusal);
+	TArray<FLoadoutV2KindChoice> Kinds = BuildAddKinds(bOut ? Without : Loadout, Class);
+	const ELoadoutV2DraftKind Own = GetDraftKind(Entry.Kind);
+	for (FLoadoutV2KindChoice &Kind : Kinds)
+	{
+		if (Kind.Kind == Own)
+		{
+			Kind.Refusal = FText::GetEmpty(); // its own place: edit it, or another piece of its kind
+		}
+		else if (!bOut)
+		{
+			Kind.Refusal = OutRefusal;
+		}
+		else if (Kind.Refusal.IsEmpty() && PrimaryIsFree(Without) && !LoadoutV2Replace::FillsFirstEntry(Kind.Kind, Class))
+		{
+			Kind.Refusal = LoadoutV2Replace::KeepFirstEntry();
+		}
+	}
+	return Kinds;
+}
+
 TArray<FLoadoutV2PieceChoice> WoRLoadoutV2::BuildAdapterChoices(const FCombatLoadout &Loadout, ECharacterClass Class, const TArray<FRingInventoryEntry> &OwnedAdapters)
 {
 	using namespace LoadoutV2Build;
@@ -774,7 +850,7 @@ TArray<FLoadoutV2PieceChoice> WoRLoadoutV2::BuildAdapterChoices(const FCombatLoa
 		FLoadoutV2PieceChoice &Choice = Choices.AddDefaulted_GetRef();
 		Choice.Kind = ELoadoutV2DraftKind::Adapter;
 		Choice.Adapter = Owned;
-		Choice.Name = FText::FromString(Owned.Ring->GetDisplayName());
+		Choice.Name = WoRGameNames::GetAdapterName(Owned.Ring, Owned.AttachedItem);
 		Choice.Line = WoRGameNames::GetAdapterFormName(Owned.Ring->Form);
 		FLoadoutV2Draft Draft;
 		Draft.Kind = ELoadoutV2DraftKind::Adapter;
@@ -874,6 +950,22 @@ bool WoRLoadoutV2::ReplaceEntry(FCombatLoadout &Loadout, ECharacterClass Class, 
 {
 	using namespace LoadoutV2Build;
 	OutRefusal = FText::GetEmpty();
+	if (Draft.Kind != GetDraftKind(Entry.Kind))
+	{
+		// B-531 (D-230): another kind replaces the entry; on a copy, so a refusal leaves the loadout as it was.
+		FCombatLoadout After = Loadout;
+		if (!LoadoutV2Replace::TakeOut(After, Class, Entry, OutRefusal) || !ApplyDraft(After, Class, Draft, OutRefusal))
+		{
+			return false;
+		}
+		if (PrimaryIsFree(After))
+		{
+			OutRefusal = LoadoutV2Replace::KeepFirstEntry();
+			return false;
+		}
+		Loadout = MoveTemp(After);
+		return true;
+	}
 	const FText WrongPlace = LOCTEXT("RefuseWrongPlace", "It can't go in this place.");
 	switch (Entry.Kind)
 	{
@@ -1042,6 +1134,13 @@ FLoadoutV2Icon WoRLoadoutV2::MakeSocketIcon(const FRuntimeAttachedItem &Item)
 	Icon.Kind = ELoadoutV2IconKind::Element;
 	Icon.Element = Item.GetElement();
 	return Icon;
+}
+
+FLoadoutV2Icon WoRLoadoutV2::MakeAdapterIcon(const FRingInventoryEntry &Adapter)
+{
+	const FRuntimeAttachedItem &Socket = Adapter.AttachedItem;
+	const ESpellElement Element = Socket.IsEmpty() || Socket.IsAugmentStone() ? ESpellElement::None : Socket.GetElement();
+	return WoRIcons::MakeAdapterIcon(Element, WoRGameNames::GetAdapterName(Adapter.Ring, Socket));
 }
 
 bool WoRLoadoutV2::GetAttachmentTier(const FRuntimeAttachedItem &Item, EItemTier &OutTier)
