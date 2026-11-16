@@ -2628,13 +2628,22 @@ void ULoadoutV2ScreenWidget::RefreshInventory(const UInventoryComponent &Invento
 	const UEvolutionInventoryComponent *EvolutionInventory = Inventory.GetOwner() ? Inventory.GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
 	const TArray<FEvolutionInventoryEntry> NoEvolutions;
 	const TArray<FEvolutionInventoryEntry> &Evolutions = EvolutionInventory ? EvolutionInventory->Entries : NoEvolutions;
-	TSet<FGuid> InUse;
-	for (const FEvolutionInventoryEntry &Owned : Evolutions)
+	// Worn: the active loadout's own evolution, or one sitting in a piece's socket (another saved loadout's seat isn't worn).
+	TSet<FGuid> InUse{Active.PrimaryEvolutionInstance};
+	const auto AddSocketed = [&InUse](const FRuntimeAttachedItem &Socket)
 	{
-		if (Inventory.IsEvolutionInUse(Owned.InstanceID))
+		if (Socket.IsEvolution())
 		{
-			InUse.Add(Owned.InstanceID);
+			InUse.Add(Socket.Evolution.InstanceID);
 		}
+	};
+	for (const FWeaponInventoryEntry &Owned : Inventory.Weapons)
+	{
+		AddSocketed(Owned.AttachedItem);
+	}
+	for (const FRingInventoryEntry &Owned : Inventory.Rings)
+	{
+		AddSocketed(Owned.AttachedItem);
 	}
 	// The pouch the member carries (a recruit carries the host's, B-361), as the socket lists read it.
 	const UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
@@ -2680,6 +2689,11 @@ void ULoadoutV2ScreenWidget::WearFromInventory()
 	{
 		Selected = FMath::Min(1, Slots.Num() - 1); // as a pick: on to the next slot, the draft in the box
 		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: Inventory tab, %s opened in Add equipment"), *Members[MemberIndex].Name.ToString(), *PieceName.ToString());
+	}
+	else
+	{
+		Message = FText::Format(LOCTEXT("InventoryPickIt", "Pick {0} in the first slot."), PieceName);
+		UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] Inventory tab: %s couldn't be put in the window's first slot"), *PieceName.ToString());
 	}
 	RefreshView();
 }
