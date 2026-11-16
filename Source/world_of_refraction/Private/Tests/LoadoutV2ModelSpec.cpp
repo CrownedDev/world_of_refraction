@@ -344,6 +344,48 @@ void FLoadoutV2ModelSpec::Define()
 		TestFalse(TEXT("an adapter can't take a weapon entry's place"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Entry, Adapter, Refusal));
 	});
 
+	It("Edit offers the other kind; it replaces the entry only when confirmed, cancel leaves it (B-531, D-230)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Blade"), EWeaponType::Sword)), Refusal);
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Maul"), EWeaponType::Hammer)), Refusal);
+		const FLoadoutV2Entry Maul = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[1];
+		const FString Before = WoRLoadoutV2::GetWeaponsPageString(WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic));
+
+		const TArray<FLoadoutV2KindChoice> Kinds = WoRLoadoutV2::BuildEditKinds(Loadout, ECharacterClass::Generic, Maul);
+		const FLoadoutV2KindChoice *WeaponKind = Kinds.FindByPredicate([](const FLoadoutV2KindChoice &Kind) { return Kind.Kind == ELoadoutV2DraftKind::Weapon; });
+		const FLoadoutV2KindChoice *AdapterKind = Kinds.FindByPredicate([](const FLoadoutV2KindChoice &Kind) { return Kind.Kind == ELoadoutV2DraftKind::Adapter; });
+		TestTrue(TEXT("its own kind is open"), WeaponKind && WeaponKind->Refusal.IsEmpty());
+		TestTrue(TEXT("an adapter can take its place"), AdapterKind && AdapterKind->Refusal.IsEmpty());
+
+		// Cancel: the window checked a draft of the other kind and closed; nothing was written.
+		FLoadoutV2Draft Adapter;
+		Adapter.Kind = ELoadoutV2DraftKind::Adapter;
+		int32 Cells = 0;
+		TestFalse(TEXT("no adapter picked yet: refused"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Maul, Adapter, Cells).IsEmpty());
+		TestFalse(TEXT("and not written"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Maul, Adapter, Refusal));
+		TestEqual(TEXT("cancel: the entry is as it was"), WoRLoadoutV2::GetWeaponsPageString(WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic)), Before);
+
+		// Confirm: the adapter replaces the Maul.
+		Adapter.Adapter = LoadoutV2TestAdapter();
+		TestTrue(TEXT("the adapter fits"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Maul, Adapter, Cells).IsEmpty());
+		TestTrue(TEXT("confirmed: it goes in"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Maul, Adapter, Refusal));
+		const FLoadoutV2WeaponsPage After = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic);
+		TestFalse(TEXT("the Maul is out"), Loadout.SecondaryWeapon.IsValid());
+		TestTrue(TEXT("the adapter is in"), After.Entries.ContainsByPredicate([](const FLoadoutV2Entry &Entry) { return Entry.Kind == ELoadoutV2EntryKind::Adapter; }));
+
+		// The first entry keeps a weapon (D-116): a Generic's only weapon can't become an adapter.
+		FCombatLoadout Alone;
+		WoRLoadoutV2::ApplyDraft(Alone, ECharacterClass::Generic, LoadoutV2WeaponDraft(LoadoutV2TestWeapon(TEXT("Blade"), EWeaponType::Sword)), Refusal);
+		const FLoadoutV2Entry First = WoRLoadoutV2::BuildWeaponsPage(Alone, ECharacterClass::Generic).Entries[0];
+		const TArray<FLoadoutV2KindChoice> FirstKinds = WoRLoadoutV2::BuildEditKinds(Alone, ECharacterClass::Generic, First);
+		const FLoadoutV2KindChoice *FirstAdapter = FirstKinds.FindByPredicate([](const FLoadoutV2KindChoice &Kind) { return Kind.Kind == ELoadoutV2DraftKind::Adapter; });
+		TestTrue(TEXT("the adapter kind is greyed with why"), FirstAdapter && !FirstAdapter->Refusal.IsEmpty());
+		TestFalse(TEXT("and refused"), WoRLoadoutV2::ReplaceEntry(Alone, ECharacterClass::Generic, First, Adapter, Refusal));
+		TestTrue(TEXT("the weapon stays"), Alone.PrimaryWeapon.IsValid());
+	});
+
 	It("takes an entry out, keeping the first (D-116), and removes all gear but the first (B-476c)", [this]()
 	{
 		FCombatLoadout Loadout;
