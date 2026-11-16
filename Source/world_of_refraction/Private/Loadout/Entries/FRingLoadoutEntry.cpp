@@ -16,12 +16,7 @@ int32 FRingLoadoutEntry::GetLockedSpellCount() const
 
 int32 FRingLoadoutEntry::GetCustomizableSpellCount() const
 {
-    return FMath::Max(0,
-                      CrystalEffectTable::ResolveSpellSlotCap(
-                          RingEntry.GetAttachedItem(),
-                          RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Tier)
-                                         : LoadoutConstants::MAX_RING_SPELLS)
-                          - GetLockedSpellCount());
+    return FMath::Max(0, GetSpellSlotCap() - GetLockedSpellCount());
 }
 
 TArray<USpellData *> FRingLoadoutEntry::GetAllSpells(bool bAsIfIntact) const
@@ -36,9 +31,13 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpells(bool bAsIfIntact) const
 
 int32 FRingLoadoutEntry::GetSpellSlotCap() const
 {
-    // Gem crystals and evolutions (Q-147) gate spell slots by their own tier; otherwise
-    // the cap falls through to the ring's own tier (SlotsForContainerTier), MAX_RING_SPELLS only
-    // as the no-ring ceiling.
+    // D-224 (AssetOverhaulPlan §4): a ring's slots follow its built tier, the ring and its socket averaged; an empty
+    // ring keeps its own tier's. MAX_RING_SPELLS only as the no-ring ceiling.
+    if (RingEntry.Ring)
+    {
+        return CrystalEffectTable::SlotsForContainerTier(
+            CrystalEffectTable::GetBuiltTier(RingEntry.Tier, RingEntry.GetAttachedItem()));
+    }
     return CrystalEffectTable::ResolveSpellSlotCap(
         RingEntry.GetAttachedItem(),
         RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Tier)

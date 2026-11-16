@@ -795,4 +795,38 @@ namespace CrystalEffectTable
         }
         return FlatCeiling;
     }
+
+    /** D-224 (AssetOverhaulPlan §4): the tier a socket brings to its piece's built tier: a gem by its tier, a
+     *  fusion by its gem half (none without one), an evolution by its instance tier. Unset for an empty socket or one
+     *  with no spell source. A broken crystal still counts: it breaks at turn end, as the channel reads it. */
+    inline TOptional<EItemTier> GetSocketSkillTier(const FRuntimeAttachedItem &Attachment)
+    {
+        if (Attachment.IsCrystal() && CrystalTypeHelpers::IsGemType(Attachment.Crystal.Id.Type))
+        {
+            return Attachment.Crystal.Id.Tier;
+        }
+        if (Attachment.IsFusion() && Attachment.Fusion.HasGemHalf())
+        {
+            return Attachment.Fusion.GemHalf().Tier;
+        }
+        if (Attachment.IsEvolution() && Attachment.Evolution.Item)
+        {
+            return Attachment.Evolution.Tier;
+        }
+        return TOptional<EItemTier>();
+    }
+
+    /** D-224: a piece's built tier, the average of its own tier and its socket's (GetSocketSkillTier), a half
+     *  rounded down as D-211 rounds a pair; with no socket tier, the piece's own. The ring's (GetAdapterTier) and
+     *  the weapon's elemental side (GetWeaponTier) both read this. */
+    inline EItemTier GetBuiltTier(EItemTier PieceTier, const FRuntimeAttachedItem &Attachment)
+    {
+        const TOptional<EItemTier> SocketTier = GetSocketSkillTier(Attachment);
+        if (!SocketTier.IsSet())
+        {
+            return PieceTier;
+        }
+        return TierHelpers::GetTierFromValue(
+            (TierHelpers::GetTierValue(PieceTier) + TierHelpers::GetTierValue(SocketTier.GetValue())) / 2);
+    }
 }

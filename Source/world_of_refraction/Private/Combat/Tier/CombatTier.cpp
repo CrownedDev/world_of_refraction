@@ -11,6 +11,7 @@
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 
 #define LOCTEXT_NAMESPACE "CombatTier"
 
@@ -44,11 +45,11 @@ void WoRCombatTier::GatherTiers(const AActor *Actor, TArray<EItemTier> &OutTiers
 	{
 		if (Weapon && Weapon->WeaponEntry.Weapon)
 		{
-			OutTiers.Add(Weapon->WeaponEntry.Tier);
+			OutTiers.Add(CrystalEffectTable::GetBuiltTier(Weapon->WeaponEntry.Tier, Weapon->WeaponEntry.AttachedItem)); // D-224: the built tier
 		}
 		else if (Adapter && Adapter->RingEntry.Ring)
 		{
-			OutTiers.Add(Adapter->RingEntry.Tier);
+			OutTiers.Add(CrystalEffectTable::GetBuiltTier(Adapter->RingEntry.Tier, Adapter->RingEntry.AttachedItem));
 		}
 	});
 	const FEvolutionAttachment Seat = Loadout->GetCharacterSlotEvolution(); // B-357e: the one resolve path
