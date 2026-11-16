@@ -343,7 +343,8 @@ void AWoRHubController::OnPossess(APawn *InPawn)
 			PartySession->EnsureLocalParty(this, LocalPartyPawnClass);
 		}
 	}
-	// B-503s2: a hub pawn spawns unstamped; the local leader's is the party's first member (ATrialGameMode's rule).
+	// B-503s2: the local leader's pawn is the party's first member (AWoRGameModeBase's rule, B-529); stamped here too
+	// for a map whose game mode doesn't derive from it yet.
 	const UPartySessionSubsystem *Session = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	const UParty *Party = Session ? Session->GetLocalParty() : nullptr;
 	UCharacterDataComponent *CharComp = InPawn ? InPawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;

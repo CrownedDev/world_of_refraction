@@ -1589,6 +1589,7 @@ bool UInventoryComponent::DrawSharedGear()
     const UInventoryData *StartAsset = CharComp->CharacterData ? CharComp->CharacterData->Inventory : nullptr;
     if (!bRunOnly && StartAsset && StartAsset->StartingGear.Pieces.Num() > 0 && !Pool->GetWornGear(Key) && GetOwner()->HasAuthority())
     {
+        // B-529: the same seed a trial start runs (UPoolSubsystem::SeedStartingGear); here with the authored innate list.
         const ECharacterClass StartClass = CharComp->CharacterData->CharacterClass;
         FWornGear Innate = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? SavedLoadouts[ActiveLoadoutIndex].ToWornGear(StartClass) : FWornGear();
         if (RunMember) // a wheel pick made before the first draw comes along, as the old seed below does
@@ -1597,7 +1598,7 @@ bool UInventoryComponent::DrawSharedGear()
             Innate.WheelPick.FieldAttackIndex = RunMember->FieldAttackIndex;
             Innate.WheelPick.bPicked = RunMember->bFieldAttackPicked;
         }
-        Pool->WearStartingGear(Key, StartAsset->StartingGear, StartAsset->StartingEvolution, Innate);
+        Pool->SeedStartingGear(Key, StartAsset, Innate);
     }
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.

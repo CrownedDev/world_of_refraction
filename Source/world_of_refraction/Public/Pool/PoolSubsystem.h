@@ -626,6 +626,9 @@ public:
      *  then Worn (its innate spells and pools kept) wears them and becomes CharacterKey's record. Not a kit: IsClassDefault
      *  stays false for them, and a trial start doesn't reset them. Returns the pieces now worn. */
     TArray<FGuid> WearStartingGear(FName CharacterKey, const FClassDefaultLoadout &Gear, UEvolutionItemData *Evolution, FWornGear Worn);
+    /** B-529: the one starting-gear seed (a pawn's first draw, a trial start): WearStartingGear with Start's StartingGear
+     *  and StartingEvolution, only when CharacterKey has no worn record yet and Start authors some. True when it seeded. */
+    bool SeedStartingGear(FName CharacterKey, const class UInventoryData *Start, FWornGear Innate);
     /** The character's minted kit, or null before its first mint. */
     const FClassDefaultKitIDs *GetClassDefaultKit(FName CharacterKey) const { return ClassDefaultKits.Find(CharacterKey); }
     /** A piece of any character's kit (refused for sale, dismantling, giving and the chest). */
