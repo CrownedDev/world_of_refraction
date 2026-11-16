@@ -54,7 +54,10 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
 | Game menu: show / hide the page descriptions (the side panel; off at first) | H, click the Help hint | View (Touchpad) | none (the screen's keys) | Built (B-543): `WoRMenuStyle::IsHelpKey`, hint `{Help}`. Standard practice: a help toggle on the pad's View / Select (Elden Ring toggles its menu help there); H on the keyboard, not F1 (the engine's wireframe debug key in development builds). A refusal or the quit question still shows the panel |
 | Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks; with Hold to confirm off (B-453c), a second press instead |
-| Hold to confirm (New Game over a save, the title) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-467): 2 seconds, after New Game asks; letting go early does nothing, B cancels; with Hold to confirm off (B-453c), a press on the question instead |
+| Title: move through the character slots, down into the bottom buttons; across the buttons | Up / Down, W / S; Left / Right, A / D; mouse over a slot or button | D-pad, left stick | none (the screen's keys) | Built (B-546, D-229): Down from the last slot goes to Settings, Up from a button to the last slot; Left / Right wrap across Settings, Credits, Quit |
+| Title: continue a filled slot, the + makes a character, press a button | Enter, Space, left click | A (Cross) | none | Built (B-546): the + over today's one save asks yes / no first (it replaces the save; the 2-second hold is gone, B-467's row retired) |
+| Title: delete the lit character | R, right-click the slot, click the hint's key cap | Y (Triangle) | none (the screen's keys) | Built (B-546): `WoRMenuStyle::IsSecondActionKey`; asks yes / no first. Standard practice: Destiny 2 and Diablo IV delete a character from its select-screen slot with a confirm |
+| Yes / no question (the title's delete and new character) | Left / Right, A / D, mouse over Yes or No; Enter, Space, left click; Esc | D-pad, left stick; A (Cross); B (Circle) answers No | none (the screen's keys) | Built (B-546): opens on No, so a stray press never deletes |
 | Credits: scroll faster | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-470): five times faster while held; B / Esc leaves |
 | Previous / next page (the top tab row) | Q / E, click a tab | LB / RB (L1 / R1) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_TabPrev` / `Next`) | Built (B-452, settings screen) |
 | Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
@@ -88,7 +91,9 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | The Gate: move through the trials, the difficulty row and Enter; step the difficulty | Up / Down, W / S; Left / Right, A / D, click a card | D-pad, left stick | none (the screen's keys) | Built (B-466): Left / Right change the difficulty from any row |
 | The Gate: pick the lit trial (then the difficulty, then Enter), or enter | Enter, Space, left click | A (Cross) | none | Built (B-466): a locked trial says so |
 | The Gate: open the party screen / the loadout over it | X / R | X (Square) / Y (Triangle) | none (the screen's keys) | Built (B-466): `WoRMenuStyle::IsToggleKey` / `IsSecondActionKey`; Back returns to the Gate |
-| New game: move through the body, the class cards, a Refractor's element grid and Begin | arrows, W A S D | D-pad, left stick | none (the screen's keys) | Built (B-469, Q-469): the class follows Up / Down; Right from a Refractor's card enters the grid, Left from its first column leaves it |
+| New game: move through the name, the body, the class cards, the class's pick grid and Begin | arrows, W A S D | D-pad, left stick | none (the screen's keys) | Built (B-469, Q-469; B-546): Up from the body reaches the name; Right from any class card enters its grid (a Refractor's elements, a Generic's weapons, a Resonator's crystals), Left from its first column leaves it, Down from its last row reaches Begin |
+| New game: type the name | Enter (or a click) on the name box, then type; Enter ends | A (Cross) on the name box: the platform's on-screen keyboard (Steam Big Picture on PC) | none (a text box) | Built (B-546): up to 16 letters; Enter or Esc gives the keys back to the screen |
+| New game: pick in the grid (a Generic's two weapons, a Resonator's two crystal types) | Enter, Space, left click on a tile | A (Cross) | none | Built (B-546): a press picks or unpicks; a third pick drops the oldest. A Refractor's element follows the cursor (as before) |
 | New game: next part, or Begin on the button | Enter, Space | A (Cross) | none | Built (B-469); B / Esc goes back to the title |
 | Move across a grid of tiles | arrows, W A S D, mouse over a tile | D-pad, left stick | none | Built (B-441, inventory screen) |
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
@@ -114,8 +119,8 @@ Every player screen as of 2026-11-16. "Console only" means a player could not re
 
 | Screen | Reached by | Console | Mouse |
 |---|---|---|---|
-| Title | The menu level (B-537); Quit to title | `wor.UI.Title` | **Yes** (B-538): hover + click, the cursor shows; no list to wheel |
-| New game | The title's New Game | `wor.UI.NewGame` | **Yes** (B-538): hover + click on Body, Class, the elements and Begin; no list to wheel |
+| Title | The menu level (B-537); Quit to title | `wor.UI.Title` | **Yes** (B-538, B-546): hover + click on the slots, buttons and Yes / No; right-click a slot to delete; no list to wheel |
+| New game | The title's + slot | `wor.UI.NewGame` | **Yes** (B-538, B-546): hover + click on the name box, Body, Class, the pick grid and Begin; no list to wheel |
 | Credits | The title's Credits | `wor.UI.Credits` | Partly: a held click speeds it up (as A); no wheel |
 | Game menu | Esc, **tap Tab** (B-536), gamepad Menu | `wor.UI.Pause` | Yes: hover + click; no list to wheel |
 | Loadout v2 (Equipment, with its Inventory tab, Skills, Apparel) | Game menu > Loadout; the Gate screen | `wor.UI.LoadoutV2` | Yes: hover + click on members, tabs and lines; **no wheel** (long lists move with the keys only) |
@@ -214,3 +219,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-16 | B-538 (D-233): the mouse on the title and the new-game screen (hover lights, a click picks through the confirm path, the cursor shows); the screens table gains a Mouse column; no key changes | feature/B-538-mouse-front-screens |
 | 2026-11-16 | Row 18: Enter selects the lit piece on the quick strip (`IA_Field_WheelConfirm` gains Enter); the PC hint says Enter Select instead of Click Pick, the pad hint A Select; a click still picks (B-539, D-234 point 3) | feature/B-539-strip-enter-select |
 | 2026-11-16 | B-543: the game menu's Help toggle (H / View, the hint is clickable); the inventory's Loadout tab | feature/B-543-menu-ui |
+| 2026-11-16 | B-546: the title's slots and bottom buttons, R / Y (or right-click) deletes a character, yes / no questions (no hold on the title); the new-game name box and pick grid | feature/B-546-title-slots-stage1 |
