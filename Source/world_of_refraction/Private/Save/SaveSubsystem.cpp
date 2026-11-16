@@ -122,6 +122,8 @@ namespace
 		Gear.EvolutionItem = FSavedAssetRef::Make(Entry.AttachedItem.Evolution.Item);
 		Gear.Attached.Evolution.Item = nullptr;
 		Gear.StoneSocket = Entry.StoneSocket; // B-351
+		Gear.bPrebuilt = Entry.bPrebuilt;	  // D-231 (B-532)
+		Gear.bCrystalRemovable = Entry.bCrystalRemovable;
 		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)
 		{
 			for (const UAbilityData *Pick : Entry.SkillPicks) // B-351 (D-145), one ref per slot
@@ -163,6 +165,8 @@ namespace
 		}
 		Entry.AttachedItem.Evolution.Item = Gear.EvolutionItem.IsSet() ? Gear.EvolutionItem.ResolveAs<UEvolutionItemData>() : nullptr;
 		Entry.StoneSocket = Gear.StoneSocket; // B-351
+		Entry.bPrebuilt = Gear.bPrebuilt;	  // D-231 (B-532)
+		Entry.bCrystalRemovable = Gear.bCrystalRemovable;
 		Entry.StoneSocket.Crystal.Id = StatStone::Normalize(Entry.StoneSocket.Crystal.Id);   // B-353 (D-142)
 		Entry.AttachedItem.Crystal.Id = StatStone::Normalize(Entry.AttachedItem.Crystal.Id); // B-353: a pre-B-351 stone
 		if constexpr (std::is_same_v<TGearEntry, FWeaponInventoryEntry>)

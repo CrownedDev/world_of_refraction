@@ -83,6 +83,14 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     FRuntimeAttachedItem StoneSocket;
 
+    /** D-231 (B-532): granted already built (a prebuilt find, or starting gear handed out with its crystal). */
+    UPROPERTY(BlueprintReadOnly, Category = "Ring")
+    bool bPrebuilt = false;
+
+    /** D-231: the prebuilt's own crystal may be taken out (its setting). The rule: GearSockets::IsSocketFixed. */
+    UPROPERTY(BlueprintReadOnly, Category = "Ring")
+    bool bCrystalRemovable = false;
+
     /** Spells assigned to this ring's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     TArray<USpellData *> AssignedSpells;

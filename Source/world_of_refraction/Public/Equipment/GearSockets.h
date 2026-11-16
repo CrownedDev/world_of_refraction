@@ -32,6 +32,15 @@ namespace GearSockets
 		}
 	}
 
+	/** D-231 (B-532): a prebuilt piece's own crystal or evolution stays in unless the prebuilt was made removable.
+	 *  Taking off either socket clears both (CL-28b), so a fixed piece's stone stays too. The one rule the socket
+	 *  removals and the loadout screen read. TGear: a weapon or ring entry, or an FGearInstance. */
+	template <typename TGear>
+	bool IsSocketFixed(const TGear &Gear)
+	{
+		return Gear.bPrebuilt && !Gear.bCrystalRemovable && !Gear.AttachedItem.IsEmpty();
+	}
+
 	inline const TCHAR *GetSocketName(EGearSocket Socket)
 	{
 		switch (Socket)
