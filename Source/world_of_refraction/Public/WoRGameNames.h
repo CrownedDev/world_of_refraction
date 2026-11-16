@@ -114,6 +114,9 @@ namespace WoRGameNames
      *  "Skill Essence", "Elemental Essence", "Pillar Essence". */
     WORLD_OF_REFRACTION_API FText GetCurrencyName(ECurrencyType Currency);
 
+    /** B-544 (D-236): the hub's place name, "The Hub" (was "Void Realm" with a "The hub" subtitle). */
+    WORLD_OF_REFRACTION_API FText GetHubPlaceName();
+
     /** B-388: "Secret" (the Hidden kind's player-facing name, D-196), "Main", "Side". */
     WORLD_OF_REFRACTION_API FText GetQuestKindName(EQuestKind Kind);
 

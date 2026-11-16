@@ -493,6 +493,11 @@ FText GetEssenceName(EEssenceType Essence)
     return FText::GetEmpty();
 }
 
+FText GetHubPlaceName()
+{
+    return LOCTEXT("HubPlaceName", "The Hub");
+}
+
 FText GetCurrencyName(ECurrencyType Currency)
 {
     switch (Currency)
