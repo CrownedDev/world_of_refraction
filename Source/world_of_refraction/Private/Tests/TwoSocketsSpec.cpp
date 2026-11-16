@@ -1,8 +1,8 @@
 // TwoSocketsSpec.cpp
 // B-351 (D-141): every weapon and adapter has an element socket (a gem or an evolution) and a stone socket (a stone).
 // A gem and a stone sit together; a second gem is refused; an adapter takes a stone; a save below the minimum version
-// (one from before the two sockets) is wiped (D-138). B-351b: removing a crystal takes the stone off too; a stone
-// authored in the element socket blocks a second; the carry and the run save keep the stone socket.
+// (one from before the two sockets) is wiped (D-138). B-533 (D-231): each socket comes off alone (B-351b took both); a
+// stone authored in the element socket blocks a second; the carry and the run save keep the stone socket.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -123,14 +123,22 @@ void FTwoSocketsSpec::Define()
 		TestTrue(TEXT("the stone in the adapter's stone socket"), Inventory->Rings[0].StoneSocket.IsAugmentStone());
 	});
 
-	It("takes a socketed stone off with the gem (B-351b)", [this]()
+	It("takes one socket off at a time, the other kept (B-533, D-231)", [this]()
 	{
 		if (!Inventory) return;
 		TestTrue(TEXT("gem"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_GEM));
 		TestTrue(TEXT("stone"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_STONE));
-		TestTrue(TEXT("removed"), Inventory->RemoveCrystalFromWeapon(0));
+		TestTrue(TEXT("the gem out"), Inventory->RemoveCrystalFromWeapon(0));
 		TestTrue(TEXT("element socket empty"), Inventory->Weapons[0].AttachedItem.IsEmpty());
+		TestTrue(TEXT("the stone stays"), Inventory->Weapons[0].StoneSocket.Crystal.Id == SOCKET_TEST_STONE);
+		TestEqual(TEXT("the gem is destroyed, not returned"), Crystals->GetCount(SOCKET_TEST_GEM), SOCKET_TEST_STACK - 1);
+		TestEqual(TEXT("a stone alone: no element"), Inventory->Weapons[0].GetElement(), ESpellElement::None);
+		TestTrue(TEXT("another gem fits"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_GEM));
+		TestTrue(TEXT("the stone out"), Inventory->RemoveStoneFromWeapon(0));
 		TestTrue(TEXT("stone socket empty"), Inventory->Weapons[0].StoneSocket.IsEmpty());
+		TestTrue(TEXT("the gem stays"), Inventory->Weapons[0].AttachedItem.Crystal.Id == SOCKET_TEST_OTHER_GEM);
+		TestEqual(TEXT("the stone is destroyed, not returned"), Crystals->GetCount(SOCKET_TEST_STONE), SOCKET_TEST_STACK - 1);
+		TestFalse(TEXT("an empty stone socket: nothing to take"), Inventory->RemoveStoneFromWeapon(0));
 		TestTrue(TEXT("a new stone fits again"), Inventory->AttachCrystalToWeapon(WeaponId, SOCKET_TEST_OTHER_STONE));
 	});
 
