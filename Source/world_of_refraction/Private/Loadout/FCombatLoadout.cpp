@@ -427,12 +427,12 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     const auto ResolveWeaponEntry = [OwnedInventory](UWeaponData *Asset, const FGuid &Ref, const TCHAR *SlotName)
     {
         return ResolveOwnedGearEntry(OwnedInventory ? &OwnedInventory->Weapons : nullptr, Asset, Ref, SlotName, TEXT("weapon"),
-                                     &FWeaponInventoryEntry::CreateFromWeapon);
+                                     &FWeaponInventoryEntry::CreateFromAuthoredWeapon); // B-521: the old layout keeps its baked crystal
     };
     const auto ResolveRingEntry = [OwnedInventory](URingData *Asset, const FGuid &Ref, const TCHAR *SlotName)
     {
         return ResolveOwnedGearEntry(OwnedInventory ? &OwnedInventory->Rings : nullptr, Asset, Ref, SlotName, TEXT("ring"),
-                                     &FRingInventoryEntry::CreateFromRing);
+                                     &FRingInventoryEntry::CreateFromAuthoredRing);
     };
 
     FCombatLoadout Result;

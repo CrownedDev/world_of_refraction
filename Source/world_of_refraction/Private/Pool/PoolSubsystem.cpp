@@ -1091,7 +1091,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
+        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromAuthoredWeapon(Weapon); // B-521: the old authored layout
         Entry.PersistentID = FGuid::NewGuid();
         AddWeaponToPool(Entry);
     }
@@ -1103,7 +1103,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
+        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromAuthoredRing(Ring);
         Entry.PersistentID = FGuid::NewGuid();
         AddRingToPool(Entry);
     }

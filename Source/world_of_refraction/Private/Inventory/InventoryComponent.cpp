@@ -2738,20 +2738,21 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     }
 
     // ---------- Weapons ----------
+    // B-521 (D-224): the old authored layout keeps its baked crystals until stage 6; a new piece (AddWeapon) starts empty.
     for (UWeaponData *Weapon : InventoryAsset->Weapons)
     {
-        if (Weapon)
+        if (Weapon && CanAddWeapon(Weapon))
         {
-            AddWeapon(Weapon);
+            AddGearEntry(Weapons, FWeaponInventoryEntry::CreateFromAuthoredWeapon(Weapon), *Weapon);
         }
     }
 
     // ---------- Rings ----------
     for (URingData *Ring : InventoryAsset->Rings)
     {
-        if (Ring)
+        if (Ring && CanAddRing(Ring))
         {
-            AddRing(Ring);
+            AddGearEntry(Rings, FRingInventoryEntry::CreateFromAuthoredRing(Ring), *Ring);
         }
     }
 
