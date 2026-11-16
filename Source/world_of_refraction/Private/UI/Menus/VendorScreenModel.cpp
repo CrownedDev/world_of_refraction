@@ -202,6 +202,12 @@ namespace VendorScreenBuild
 			Line.Tier = Gear.Tier;
 			Line.KindLine = Gear.KindLine;
 			Line.Element = Slot.Gear.AttachedItem.GetElement();
+			if (Prebuilt) // B-527: the element of what is in its socket
+			{
+				Line.Element = Prebuilt->Crystal.Type != ECrystalType::None ? CrystalTypeHelpers::GetElement(Prebuilt->Crystal.Type)
+							   : Prebuilt->Evolution								? Prebuilt->Evolution->GetAssociatedElement()
+																					: Line.Element;
+			}
 			Line.Details = Gear.Details;
 			if (Weapon)
 			{

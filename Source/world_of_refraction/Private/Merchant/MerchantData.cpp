@@ -145,9 +145,9 @@ void UMerchantData::CollectStockIssues(TArray<FString> &OutErrors, TArray<FStrin
         {
             const UClass *Expected = GetExpectedAssetClass(MerchantType);
             const UPrebuiltFindData *Prebuilt = Cast<UPrebuiltFindData>(Entry.Asset); // B-527: a prebuilt piece is its piece
-            if (Prebuilt && !Prebuilt->Piece)
+            if (Prebuilt && !Cast<UWeaponData>(Prebuilt->Piece) && !Cast<URingData>(Prebuilt->Piece))
             {
-                OutErrors.Add(FString::Printf(TEXT("Stock[%d]: %s names no piece."), Index, *Entry.Asset->GetName()));
+                OutErrors.Add(FString::Printf(TEXT("Stock[%d]: %s names no weapon or adapter as its piece."), Index, *Entry.Asset->GetName()));
                 continue;
             }
             const UObject *Sold = Prebuilt ? static_cast<const UObject *>(Prebuilt->Piece.Get()) : Entry.Asset.Get();
