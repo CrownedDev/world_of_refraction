@@ -12,13 +12,15 @@
 #include "Blueprint/UserWidget.h"
 #include "UI/Menus/PauseMenuModel.h"
 #include "UI/Menus/PauseMenuWidget.h"
+#include "Currency/CurrencyTypes.h"
+#include "WoRGameNames.h"
 #include "WoRTestWorld.h"
 
 namespace
 {
 	constexpr int32 PAUSE_TEST_SEED = 23;
 	constexpr int32 PAUSE_TEST_PAGE_COUNT = 9; // B-536: Forms
-	constexpr int32 PAUSE_TEST_CHIP_COUNT = 3;
+	constexpr int32 PAUSE_TEST_CHIP_COUNT = 6; // B-543: the place's money, Diamond and the four essences
 }
 
 BEGIN_DEFINE_SPEC(FPauseMenuSpec, "WoR.UI.PauseMenu", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -106,13 +108,15 @@ void FPauseMenuSpec::Define()
 		}
 		const FPauseMenuHeader Hub = WoRPauseMenu::BuildHeader(TestWorld->GetWorld());
 		TestFalse(TEXT("hub: not in a run"), Hub.bInRun);
-		TestEqual(TEXT("hub: three chips"), Hub.Chips.Num(), PAUSE_TEST_CHIP_COUNT);
+		TestEqual(TEXT("hub: every balance"), Hub.Chips.Num(), PAUSE_TEST_CHIP_COUNT);
+		TestTrue(TEXT("hub: Gold first"), Hub.Chips.Num() > 0 && Hub.Chips[0].Label.EqualTo(WoRGameNames::GetCurrencyName(ECurrencyType::Prisms)));
 
 		StartRun();
 		Run->RecordWipe(EEncounterRank::Normal);
 		const FPauseMenuHeader InRun = WoRPauseMenu::BuildHeader(TestWorld->GetWorld());
 		TestTrue(TEXT("run: in a run"), InRun.bInRun);
-		if (TestEqual(TEXT("run: three chips"), InRun.Chips.Num(), PAUSE_TEST_CHIP_COUNT))
+		TestTrue(TEXT("run: Prisms first"), InRun.Chips.Num() > 0 && InRun.Chips[0].Label.EqualTo(WoRGameNames::GetCurrencyName(ECurrencyType::Gold)));
+		if (TestEqual(TEXT("run: every balance and the wipes left"), InRun.Chips.Num(), PAUSE_TEST_CHIP_COUNT + 1))
 		{
 			const FString WipesLeft = InRun.Chips.Last().Value.ToString();
 			TestTrue(TEXT("one wipe used"), WipesLeft.StartsWith(FString::FromInt(DefeatRules::MAX_WIPES_PER_RUN - 1)));
@@ -153,6 +157,20 @@ void FPauseMenuSpec::Define()
 			TestEqual(TEXT("down from the bottom: Resume"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Resume));
 			Menu->PressSelected();
 			TestFalse(TEXT("Resume closes the menu"), Menu->IsActivated());
+		});
+
+		It("hides the page descriptions until Help, and Help toggles them (B-543)", [this]()
+		{
+			UPauseMenuWidget *Menu = OpenMenu();
+			if (!Menu)
+			{
+				return;
+			}
+			TestFalse(TEXT("off at first"), Menu->IsHelpShown());
+			Menu->ToggleHelp();
+			TestTrue(TEXT("Help shows them"), Menu->IsHelpShown());
+			Menu->ToggleHelp();
+			TestFalse(TEXT("Help again hides them"), Menu->IsHelpShown());
 		});
 
 		It("asks before quitting, holds only from the second press, and stops when let go (D-176)", [this]()

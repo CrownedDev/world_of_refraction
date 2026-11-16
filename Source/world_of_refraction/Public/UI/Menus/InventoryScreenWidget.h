@@ -102,6 +102,8 @@ private:
 		TWeakObjectPtr<UTextBlock> Count;
 		/** B-487: the tile's icon in the letter's place, and its tier badge (hidden until the icon table has them). */
 		TWeakObjectPtr<UImage> Icon;
+		/** B-543: an adapter's crystal, inside its frame (B-530). */
+		TWeakObjectPtr<UImage> IconCentre;
 		TWeakObjectPtr<UImage> TierBadge;
 	};
 
@@ -122,6 +124,8 @@ private:
 	void RefreshData();
 	/** The focused tile's colour, the detail panel and the verb menu (or "Give to"). */
 	void RefreshSelection(bool bScrollIntoView = true);
+	/** B-543: the Loadout tab: the Equipment screen (v2 loadout) for the shown character, over this one. */
+	void OpenLoadoutScreen();
 	void RunVerb(EInventoryVerb Verb, const FInventoryScreenReceiver *Receiver);
 	FName MemberKey() const;
 	const FInventoryScreenTile *FocusedTile() const;

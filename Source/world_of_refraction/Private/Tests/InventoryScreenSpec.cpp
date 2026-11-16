@@ -16,6 +16,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/InventoryConstants.h"
@@ -167,6 +168,12 @@ void FInventoryScreenSpec::Define()
 		TestTrue(TEXT("a weapon tile asks for its weapon-type icon, and no tier badge (B-487)"),
 				 Gear.Tiles[DaggerTile].Icon.Kind == EWoRIconKind::WeaponType && !Gear.Tiles[DaggerTile].Icon.Name.IsEmpty() && !Gear.Tiles[DaggerTile].bTierBadge);
 		TestTrue(TEXT("the pouch tab holds no gear"), PageOf(EInventoryScreenTab::Pouch).Tiles.IsEmpty());
+
+		// B-543: an adapter tile asks for the B-530 adapter icon (its frame, the crystal inside), not the letter A.
+		Inventories[SCREEN_MEMBER]->AddRing(NewObject<URingData>(GetTransientPackage()));
+		const FInventoryScreenPage WithAdapter = PageOf(EInventoryScreenTab::Gear);
+		const FInventoryScreenTile *Adapter = WithAdapter.Tiles.FindByPredicate([](const FInventoryScreenTile &Tile) { return Tile.Kind == EInventoryScreenKind::Adapter; });
+		TestTrue(TEXT("an adapter tile uses the adapter icon"), Adapter && Adapter->Icon.Kind == EWoRIconKind::Adapter && Adapter->Icon.Element == Adapter->Element);
 		TestFalse(TEXT("an empty tab says so"), PageOf(EInventoryScreenTab::Chest).EmptyNote.IsEmpty());
 	});
 
@@ -404,7 +411,7 @@ void FInventoryScreenSpec::Define()
 		Screen->CycleSort();
 		TestTrue(TEXT("on the tiles Y sorts by tier"), Screen->GetSort() == EInventoryScreenSort::Tier);
 
-		Screen->MoveTab(1);
+		Screen->MoveTab(2); // past Loadout (B-543) to the Pouch
 		TestTrue(TEXT("a new tab starts unfiltered"), Screen->GetFilter() == EInventoryScreenFilter::All);
 		TestTrue(TEXT("and keeps the sort"), Screen->GetSort() == EInventoryScreenSort::Tier);
 		Screen->MoveTile(0, -1);
@@ -440,7 +447,10 @@ void FInventoryScreenSpec::Define()
 
 		// Store the whole stack from the Pouch tab.
 		Screen->MoveTab(1);
-		TestTrue(TEXT("the next tab is the Pouch"), Screen->GetTab() == EInventoryScreenTab::Pouch);
+		TestTrue(TEXT("Loadout is next to Gear (B-543)"), Screen->GetTab() == EInventoryScreenTab::Loadout && Screen->GetPage().Tiles.IsEmpty()
+															&& !Screen->GetPage().EmptyNote.IsEmpty());
+		Screen->MoveTab(1);
+		TestTrue(TEXT("then the Pouch"), Screen->GetTab() == EInventoryScreenTab::Pouch);
 		Screen->ToggleWholeStack();
 		TestTrue(TEXT("X switches to the whole stack"), Screen->IsWholeStack());
 		const int32 StoredBefore = Pool->GetStoredCount(SCREEN_GEM);

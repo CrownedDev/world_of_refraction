@@ -64,7 +64,7 @@ namespace PauseMenuStyle
 
 	constexpr float LowHPFraction = 0.3f;
 	constexpr float HoldTickSeconds = 0.03f;
-	constexpr int32 MaxChips = 3;
+	constexpr int32 MaxChips = 7; // B-543: six balances, and a run's wipes left
 }
 
 UPauseMenuWidget::UPauseMenuWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -117,7 +117,7 @@ void UPauseMenuWidget::BuildTree()
 	UVerticalBox *Main = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Screen->SetContent(Main);
 
-	// Top line: the place, then its money.
+	// Top line: the place on the left, every balance on the right (B-543).
 	UHorizontalBox *Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(Main, Header);
 	UVerticalBox *Place = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -125,7 +125,7 @@ void UPauseMenuWidget::BuildTree()
 	SubtitleText = MakeText(WidgetTree, SubtitleFontSize, DimColor);
 	AddToColumn(Place, TitleText);
 	AddToColumn(Place, SubtitleText);
-	AddToRow(Header, MakeSized(WidgetTree, PageWidth + ColumnGap, 0.0f, Place), FMargin(0.0f), VAlign_Top);
+	AddToRow(Header, Place, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	for (int32 Index = 0; Index < MaxChips; ++Index)
 	{
 		ChipValues.Add(MakeText(WidgetTree, SubtitleFontSize, TextColor, true));
@@ -162,7 +162,7 @@ void UPauseMenuWidget::BuildTree()
 	}
 	AddToRow(Body, MakeSized(WidgetTree, CardWidth, 0.0f, PartyBox), FMargin(ColumnGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
-	UBorder *Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	Panel->SetBrushColor(PanelColor);
 	Panel->SetPadding(FMargin(PanelPadding));
 	UVerticalBox *PanelBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -186,7 +186,7 @@ void UPauseMenuWidget::BuildTree()
 
 	// Bottom right: the hints.
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Select        {Back}  Back"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Select        {Help}  Help        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -318,7 +318,7 @@ void UPauseMenuWidget::RefreshData()
 	{
 		PageLabels[Index]->SetText(Pages[Index].Label);
 	}
-	PauseMenuStyle::SetShown(ExtractNote, bInRun);
+	PauseMenuStyle::SetShown(ExtractNote, bInRun && bShowHelp);
 
 	const TArray<FPauseMenuMember> Members = WoRPauseMenu::BuildParty(World);
 	for (int32 Index = 0; Index < MemberCards.Num(); ++Index)
@@ -364,6 +364,10 @@ void UPauseMenuWidget::RefreshSelection()
 	PanelBody->SetText(Page.Preview);
 	PanelRefusal->SetText(Page.Refusal);
 	PauseMenuStyle::SetShown(PanelRefusal, !Page.CanOpen());
+	// B-543: the descriptions wait for Help; a refusal or the quit question still shows the panel.
+	PauseMenuStyle::SetShown(PanelBody, bShowHelp);
+	PauseMenuStyle::SetShown(ExtractNote, bInRun && bShowHelp);
+	PauseMenuStyle::SetShown(Panel, bShowHelp || !Page.CanOpen() || bConfirmingQuit);
 	const bool bHold = IsHoldToConfirmOn(); // B-453c (D-190)
 	WoRKeyHints::SetHint(HoldHint, bHold ? LOCTEXT("HoldHint", "Hold {Confirm} to quit.")
 							: LOCTEXT("PressHint", "Press {Confirm} again to quit. {Back} goes back."));
@@ -546,10 +550,24 @@ void UPauseMenuWidget::TickQuitHold()
 	WoRPauseMenu::Quit(World, PC);
 }
 
+void UPauseMenuWidget::ToggleHelp()
+{
+	bShowHelp = !bShowHelp;
+	RefreshSelection();
+}
+
 FReply UPauseMenuWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
 {
 	using namespace PauseMenuStyle;
 	const FKey Key = InKeyEvent.GetKey();
+	if (IsHelpKey(Key))
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			ToggleHelp();
+		}
+		return FReply::Handled();
+	}
 	if (IsUpKey(Key))
 	{
 		MoveSelection(-1);

@@ -46,6 +46,9 @@ public:
 
 	int32 GetSelectedIndex() const { return SelectedIndex; }
 	bool IsConfirmingQuit() const { return bConfirmingQuit; }
+	/** B-543: H / View / a click on the Help hint: the side panel's descriptions on or off (off at first). */
+	void ToggleHelp();
+	bool IsHelpShown() const { return bShowHelp; }
 	bool IsHoldingQuit() const { return QuitHoldTimer.IsValid(); }
 	const TArray<FPauseMenuPage> &GetPages() const { return Pages; }
 
@@ -99,6 +102,7 @@ private:
 	bool bInRun = false;
 	int32 SelectedIndex = 0;
 	bool bConfirmingQuit = false;
+	bool bShowHelp = false;
 	FTimerHandle QuitHoldTimer;
 	double QuitHoldStartSeconds = 0.0;
 
@@ -114,6 +118,8 @@ private:
 	TArray<TObjectPtr<UBorder>> PageRows;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> PageLabels;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> Panel;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> PanelHeading;
 	UPROPERTY(Transient)

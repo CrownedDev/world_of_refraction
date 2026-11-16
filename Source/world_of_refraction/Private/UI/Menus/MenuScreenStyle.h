@@ -102,6 +102,8 @@ namespace WoRMenuStyle
 	inline bool IsToggleKey(const FKey &Key) { return Key == EKeys::X || Key == EKeys::Gamepad_FaceButton_Left; }
 	/** A screen's second action (UIScreens.md: R / Y). */
 	inline bool IsSecondActionKey(const FKey &Key) { return Key == EKeys::R || Key == EKeys::Gamepad_FaceButton_Top; }
+	/** B-543: show / hide a screen's help text (InputMap: H, the pad's View; not F1, the engine's wireframe debug key). */
+	inline bool IsHelpKey(const FKey &Key) { return Key == EKeys::H || Key == EKeys::Gamepad_Special_Left; }
 	/** Page tabs, the top row (UIScreens, shared menu controls): LB / RB, Q / E. */
 	inline bool IsTabPrevKey(const FKey &Key) { return Key == EKeys::Q || Key == EKeys::Gamepad_LeftShoulder; }
 	inline bool IsTabNextKey(const FKey &Key) { return Key == EKeys::E || Key == EKeys::Gamepad_RightShoulder; }
