@@ -16,7 +16,10 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "Inventory/InventoryData.h"
 #include "Loadout/ClassDefaultLoadoutData.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Loadout/FSavedLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Misc/Paths.h"
 #include "Merchant/MerchantInteractable.h"
@@ -200,6 +203,36 @@ void UTrialRunSubsystem::StartRunGearAndGold()
     if (UPoolSubsystem *Pool = GetGameInstance()->GetSubsystem<UPoolSubsystem>())
     {
         Pool->EndRunLayer();
+        // B-529: a member who reaches a trial with no worn record (the hub never drew it) is seeded with its starting
+        // gear first, so the run-start record is that, not the kit: the kit is per run (D-221) and must not become its
+        // first record and block the starting gear for good.
+        const UPartySessionSubsystem *Session = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+        if (const UParty *Party = Session ? Session->GetLocalParty() : nullptr)
+        {
+            for (const FPartyMember &Member : Party->Members)
+            {
+                const UInventoryData *Start = Member.CharacterData ? Member.CharacterData->Inventory : nullptr;
+                if (Member.bRunOnly || !Start)
+                {
+                    continue;
+                }
+                // The innate list and pools as a pawn's first draw reads them: the template's active authored loadout.
+                FWornGear Innate;
+                if (!Start->SavedLoadouts.IsEmpty())
+                {
+                    const FSavedLoadout &Authored = Start->SavedLoadouts[FMath::Clamp(Start->DefaultActiveLoadoutIndex, 0, Start->SavedLoadouts.Num() - 1)];
+                    Innate = FCombatLoadout::CreateFromSavedLoadout(Authored).ToWornGear(Member.CharacterData->CharacterClass);
+                }
+                Innate.WheelPick.FieldSkill = Member.FieldSkill;
+                Innate.WheelPick.FieldAttackIndex = Member.FieldAttackIndex;
+                Innate.WheelPick.bPicked = Member.bFieldAttackPicked;
+                if (Pool->SeedStartingGear(UPoolSubsystem::GetCharacterKey(Member), Start, Innate))
+                {
+                    UE_LOG(LogWoRLoadout, Warning, TEXT("[TrialRun] %s entered a trial with no worn record: its starting gear was seeded first"),
+                           *Member.CharacterData->GetName());
+                }
+            }
+        }
         // B-512 (D-221): every run starts on the class kit, reset before the layer opens (a crystal it frees is the
         // player's own, not a find). A member with no kit keeps what it wears (FindClassDefaults logs why).
         TMap<FName, const FClassDefaultLoadout *> Kits;
