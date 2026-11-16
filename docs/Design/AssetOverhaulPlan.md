@@ -580,7 +580,81 @@ Until stage 4, the new pieces are added as spares to the current played characte
 | **S4. Enemies drop skills** | a skill entry in enemy loot | a few drop entries | Defeating a tagged enemy can give a skill, shown in the reward. |
 | **Later: trial skills** | the trial-side starting-skill track | — | — |
 
-**The order:** stages 2, 2b and 3 don't depend on the skills track. S1 is best before stage 4, so the new assets never carry picks on pieces.
+**The order:** stages 2, 2b and 3 don't depend on the skills track. S1 is best before stage 4, so the new assets never carry picks on pieces. The trial pool (§7) comes after stage 5.
+
+## 7. A trial's pool: what it gives is what its enemies use (D-225)
+
+**In plain words:** each trial lists what can be earned in it. Its enemies are rolled from that same list when the run starts, sized by the enemy's own pillar points. A boss also has a few skills it always has. What an enemy uses is more likely to drop.
+
+### 7.1 What exists today and is reused
+
+| Need | Already there | Gap |
+|---|---|---|
+| A pool | `TrialLoot::GatherPool(tag)`: every weapon, ring, spell and ability whose `SourceTags` match a tag (B-188). The zone's `FEncounterZoneInfo::LootPool` and `ATrialChest::GetLootPool` already name one. | Evolutions and apparel have `SourceTags` but `GatherPool` doesn't read them yet. Crystals aren't assets (`FCrystalId` is a type and a tier), so they need a short list. |
+| A seeded roll | `TrialLoot::PickFromPool(candidates, pool, seed)`; `UTrialRunSubsystem::GetRunSeed`; `UBattleRandomSubsystem` for the fights | the roll is unweighted (its TODO already asks for weights) |
+| The enemies | `UEncounterData::Enemies` (character templates) and `MiniBossForm`; `EEncounterRank` (Normal, MiniBoss, Boss, Elite); the zone's `Tier` (0 to 4) | nothing says what an enemy may roll |
+| An enemy's size | the template's `WorldMindLevel` / `WorldBodyLevel` / `WorldSpiritLevel` (0 to 7 each) | no table from them to a kit |
+| Hard limits | `LoadoutClassTable` (`FLoadoutClassLimits`: budget, max items, weapons, adapters) per class | — |
+| Slots | D-211: `SlotsForContainerTier` F1 E2 D3 C4 B5 A6 S6, the pair average, the crystal's slots (CL-20) | — |
+| A skill's fit | `FWorldStatRequirements` on a skill (`RequiredWorldMind` etc.); a gap lowers its power (`GetRequirementGapPillarPercents`); S2's gear requirement (§5.2) | — |
+| Merchant and chest | `UMerchantData::Stock` and `AvailabilityTags`; the chest's pool | the merchant doesn't read the trial pool |
+| Drops | `TrialGate::RollLevelDrops` (the level-drop ladder); S4's skill drop entry | no "what it used" weight |
+| Today's stand-in | Q-518's `FCombatLoadout::FillEmptyPicksFromKnown` (built in B-518; D-225 calls it B-519's): an enemy's empty piece fills from its known skills | goes when §7 is built |
+
+### 7.2 The new data
+
+**The pool stays a tag** (no new pool asset): a trial's items opt in by `SourceTags`, as chests do today. The trial gets one new field:
+- `UTrialData::Pool` (a `FGameplayTag`): the trial's pool, read by its zones, chests, merchant and enemies. A zone's own `LootPool` stays as an override.
+- `UTrialData::PoolCrystals` (a list of `FCrystalId`): the crystals the trial can give, since crystals aren't tagged assets.
+
+**On the enemy's template** (`UCharacterData`, enemies only), one struct `FEnemyRollLimits`:
+- `WeaponTypes`: the weapon types it may roll (empty means its class's usual ones).
+- `Elements`: the crystal elements it may roll (empty means its innate element only).
+- `AlwaysHas`: skills it always has, slotted first (a mini boss's or boss's signature; Persona and Expedition 33 keep fixed boss signatures).
+- `bRollsExtras`: whether a boss rolls more beyond `AlwaysHas` (default yes, inside the table).
+
+Its class (`LoadoutClassTable`) stays the hard cap on pieces.
+
+### 7.3 The pillar table (`EnemyKitTable`, a named table in C++, like `LoadoutClassTable`)
+
+The enemy's **total** pillar points (Mind + Body + Spirit, 0 to 21) pick a row. Total reads closer to Crown's example and stays one table. Each pillar is used **per skill** instead (below), which matches how skill requirements already work.
+
+| Total pillar points | Pieces | Skills (at most) | Tier band |
+|---|---|---|---|
+| 3 (e.g. 1 1 1, Crown's example) | 1 // TODO | 3 // TODO | D // TODO |
+| 0 to 2 | 1 // TODO | 1 // TODO | F // TODO |
+| 4 to 8 | // TODO | // TODO | // TODO |
+| 9 to 14 | // TODO | // TODO | // TODO |
+| 15 to 21 | // TODO | // TODO | // TODO |
+
+**How it fits D-211's slots:**
+- The table's skills number is a **cap**, not a target: an enemy holds at most the smaller of that number and the slots its rolled pieces give. Slots need not be filled (D-225 (3)).
+- The tier band sets the pieces' tier, and the slots follow from D-211. So the band must give enough slots for the skills number. One F piece has one slot, so Crown's "1 piece with 3 skills" needs a **D** piece (3 slots), or an E piece with a crystal (2 + the crystal's). That is why the example row says D.
+- A pair or a shield set follows the D-211 rules as worn by players.
+
+**How it fits the skills' pillar requirements:**
+- The roll prefers skills whose `FWorldStatRequirements` the enemy meets, pillar by pillar. A skill it falls short on may still be rolled, but plays weaker by the existing gap rule. So a Body-heavy enemy leans to Body skills without a new rule.
+- Gear is rolled first, then only skills that gear can use (D-224, §5.2's gate).
+
+### 7.4 When and how it rolls
+
+1. **Run start** (`UTrialRunSubsystem`, with the run seed): for each enemy template in the trial's encounters, roll its kit once and keep it for the run (D-225 (5)). Every fight against it, a retry and a co-op partner all see the same kit.
+2. **The roll:** pieces from the pool inside `FEnemyRollLimits` and the class cap, at the band's tier. Then `AlwaysHas`, then skills from the pool up to the cap.
+3. **The fight:** the enemy's loadout is built from the rolled kit instead of its authored loadout. The Q-518 fill and its `// TODO` go. (The TODO's "stage 5" means this stage.)
+4. **Drops:** `PickFromPool` gets weights, and what the defeated enemy used weighs more (D-225 (4); Diablo-style "the monster drops what it wields"). S4's skill drops fold into this.
+5. **Seeing a kit:** a field skill (or an evolution's field skill) shows a rolled enemy's kit (D-225 (6)). It is a later job, since it needs its UI.
+
+### 7.5 Where it sits and how big it is
+
+**Placement:** after stage 5 (the cast, including the two enemies), as its own stage; stage 6's deletes don't touch what it reads. S4 (enemies drop skills) merges into its drop step.
+
+**Size: about four code jobs, plus editor work.**
+- (a) The two `UTrialData` fields, `FEnemyRollLimits`, `EnemyKitTable` and its debug print, plus specs.
+- (b) The run-start roll and its run-kept kits (`wor.Trial.PrintEnemyKits`), plus specs with a fixed seed.
+- (c) The enemy loadout from the kit; the fill goes. Plus PIE.
+- (d) The weighted drops.
+
+Editor: tag the clean set into the first trial's pool, and author the two enemies' limits and pillar points. Later: (e) the field skill.
 
 ## Questions for Crown
 
@@ -596,3 +670,10 @@ Until stage 4, the new pieces are added as spares to the current played characte
 10. ~~**A found skill: picked or carried?**~~ **Answered (Crown):** only the slotted ones are kept; the rest go back to the pool, like gear (§5.3).
 11. ~~**A kept skill and the next run.**~~ **Answered (agreed by Crown):** the hub list and its presets only; a trial starts on the kit with no skills (§5.3).
 12. ~~**A kept skill out of wipes.**~~ **Answered (Crown):** it follows the equipment rules: slotted skills, owned or found, take the tier loss. By the plan's default the skill's own-tier power then reads the copy's tier, or the drop would make it stronger (§5.3).
+13. **The pillar table (§7.3):** the **total** of the three pillars picks the row, and each pillar steers which skills are rolled. OK, or a row per pillar?
+14. **Crown's example row:** 1 1 1 gives one piece with up to 3 skills, so the piece must be D tier (or E with a crystal) to have 3 slots. OK, or fewer skills at that size?
+15. **Elites (§7.4):** roll like normal enemies one row up, or have `AlwaysHas` like bosses?
+16. **A boss's extras:** `AlwaysHas` plus a roll inside the table (default), or `AlwaysHas` only?
+17. **Drop weight:** how much likelier is what the enemy used (default 3×, // TODO)? And can a boss's `AlwaysHas` skills drop?
+18. **Apparel on enemies:** rolled from the pool like weapons (default), or drop-only?
+19. **The merchant:** does it sell from the trial's pool too (default yes, as Hades' shops follow the region), or keep its own stock?
