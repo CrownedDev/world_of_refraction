@@ -443,7 +443,12 @@ void AWoRPlayerState::ApplyFormLook()
 	const ACharacter *Character = Cast<ACharacter>(GetPawn());
 	USkeletalMeshComponent *Mesh = Character ? Character->GetMesh() : nullptr;
 	const UGameInstance *OutfitGI = GetGameInstance();
-	const UCharacterFormSubsystem *LocalForms = OutfitGI && IsLocalPlayerWallet() ? OutfitGI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	// B-547: the local player's own pawn (the owner may not be known yet on a client) wears its saved choice from the
+	// form subsystem, which is right before the replicated copy arrives (SetForm, or the server round trip).
+	const bool bLocalLook = IsLocalPlayerWallet() || (Character && Character->IsLocallyControlled());
+	const UCharacterFormSubsystem *LocalForms = OutfitGI && bLocalLook ? OutfitGI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	UCharacterFormData *Form = LocalForms ? LocalForms->GetWornForm() : WornForm.Get();
+	const EPlayerBaseForm Base = LocalForms ? LocalForms->GetBaseForm() : BaseForm;
 	// TODO: co-op (D-103): a remote player's outfit isn't known here, so its pawn is stripped; replicate the set.
 	const bool bWearsOutfit = LocalForms && !LocalForms->GetCurrentOutfit().IsEmpty();
 	// An outfit emptied (the last piece cleared, a save without one) takes its meshes off, even on the default look.
@@ -457,23 +462,31 @@ void AWoRPlayerState::ApplyFormLook()
 	{
 		return;
 	}
-	bool bDressed = false;
-	if (WornForm)
+	// B-547: one dress per pawn and look; the pawn set and the form's replication both ask for it on arrival.
+	const bool bAlreadyDressed = DressedPawn.Get() == Character && DressedForm.Get() == Form && DressedBase == Base;
+	if (!bAlreadyDressed)
 	{
-		bDressed = WornForm->DressMesh(*Mesh);
+		bool bDressed = false;
+		if (Form)
+		{
+			bDressed = Form->DressMesh(*Mesh);
+		}
+		else if (USkeletalMesh *BaseMesh = LoadObject<USkeletalMesh>(nullptr, Base == EPlayerBaseForm::Quinn ? PlayerFormLook::QUINN_MESH : PlayerFormLook::MANNY_MESH))
+		{
+			Mesh->EmptyOverrideMaterials();
+			Mesh->SetSkeletalMesh(BaseMesh);
+			bDressed = true;
+		}
+		if (!bDressed)
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), Form ? *Form->GetName() : *UEnum::GetValueAsString(Base));
+			return;
+		}
+		DressedPawn = Character;
+		DressedForm = Form;
+		DressedBase = Base;
+		UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 	}
-	else if (USkeletalMesh *BaseMesh = LoadObject<USkeletalMesh>(nullptr, BaseForm == EPlayerBaseForm::Quinn ? PlayerFormLook::QUINN_MESH : PlayerFormLook::MANNY_MESH))
-	{
-		Mesh->EmptyOverrideMaterials();
-		Mesh->SetSkeletalMesh(BaseMesh);
-		bDressed = true;
-	}
-	if (!bDressed)
-	{
-		UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), WornForm ? *WornForm->GetName() : *UEnum::GetValueAsString(BaseForm));
-		return;
-	}
-	UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 	// B-279c: the local player's current outfit over the body (Leader Pose). // TODO: co-op guests read it replicated.
 	if (bWearsOutfit)
 	{
