@@ -819,6 +819,9 @@ namespace CrystalEffectTable
     /** D-224: a piece's built tier, the average of its own tier and its socket's (GetSocketSkillTier), a half
      *  rounded down as D-211 rounds a pair; with no socket tier, the piece's own. The ring's (GetAdapterTier) and
      *  the weapon's elemental side (GetWeaponTier) both read this. */
+    /** The two parts a built tier averages: the piece and its socket. */
+    constexpr int32 BUILT_TIER_PARTS = 2;
+
     inline EItemTier GetBuiltTier(EItemTier PieceTier, const FRuntimeAttachedItem &Attachment)
     {
         const TOptional<EItemTier> SocketTier = GetSocketSkillTier(Attachment);
@@ -827,6 +830,6 @@ namespace CrystalEffectTable
             return PieceTier;
         }
         return TierHelpers::GetTierFromValue(
-            (TierHelpers::GetTierValue(PieceTier) + TierHelpers::GetTierValue(SocketTier.GetValue())) / 2);
+            (TierHelpers::GetTierValue(PieceTier) + TierHelpers::GetTierValue(SocketTier.GetValue())) / BUILT_TIER_PARTS);
     }
 }

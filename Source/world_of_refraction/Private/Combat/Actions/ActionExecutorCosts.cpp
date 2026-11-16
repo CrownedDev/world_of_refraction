@@ -670,7 +670,8 @@ void UActionExecutor::ApplyCrystalWearOn(AActor *Actor, URingData *Ring, const F
 		return;
 	}
 	// B-245 (Q-245): the action's own tier, as tier-gap damage reads it. D-224: the gap reads the ring's built tier,
-	// as the channel does, so one gap drives the cast's damage and wear.
+	// as the channel does, so one gap drives a ring cast's damage and wear (a weapon crystal's wear keeps its own
+	// tier, the plan's "keep" row, Q-519).
 	CrystalMgr->ProcessPostCastWear(Actor, Ring, *Attachment, ResolveActionTier(Actor, Action), Level,
 									Action.ActionType == EActionType::Spell, LC->GetBuiltTierOfSocket(Attachment));
 }
