@@ -159,11 +159,13 @@ FLoadoutSkillsPage WoRLoadoutSkills::BuildSkillsPage(const FCombatLoadout &Loado
 		if (Weapon)
 		{
 			Tab.List = ELoadoutSkillList::WeaponSkills;
+			Tab.Host = FSkillGearHost::FromWeapon(Weapon->WeaponEntry);
 			AddSlotRows(Tab, Weapon->GetSkillSlots(), Weapon->WeaponEntry.SkillPicks);
 		}
 		else
 		{
 			Tab.List = ELoadoutSkillList::AdapterSpells;
+			Tab.Host = FSkillGearHost::FromAdapter(Adapter->RingEntry);
 			AddSlotRows(Tab, Adapter->GetSpellSlots(), Adapter->RingEntry.SpellPicks);
 		}
 	}
@@ -218,6 +220,11 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(const FLoadoutS
 	const auto Offer = [&](USkillDataBase *Skill)
 	{
 		if (!Skill || InList.Contains(Skill))
+		{
+			return;
+		}
+		// D-224 (§5.2): a piece offers only the skills whose gear it meets.
+		if (Tab.List != ELoadoutSkillList::Innate && !SkillRequirementRules::IsMet(Skill, Tab.Host))
 		{
 			return;
 		}
