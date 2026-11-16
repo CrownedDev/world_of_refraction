@@ -354,9 +354,9 @@ void FLoadoutScreenSpec::Define()
 
 	It("D-231 point 5 (B-540): a piece set to one crystal type takes only that gem, says why, and unset takes any", [this]()
 	{
-		TestTrue(TEXT("unset takes any gem"), GearSockets::AcceptsCrystal(ECrystalType::None, ECrystalType::Ruby));
+		TestTrue(TEXT("unset takes any gem"), GearSockets::AcceptsCrystal(ECrystalType::None, ECrystalType::Garnet));
 		TestTrue(TEXT("the set type fits"), GearSockets::AcceptsCrystal(ECrystalType::Emerald, ECrystalType::Emerald));
-		TestFalse(TEXT("another gem is refused"), GearSockets::AcceptsCrystal(ECrystalType::Emerald, ECrystalType::Ruby));
+		TestFalse(TEXT("another gem is refused"), GearSockets::AcceptsCrystal(ECrystalType::Emerald, ECrystalType::Garnet));
 		TestTrue(TEXT("a stone is not limited"), GearSockets::AcceptsCrystal(ECrystalType::Emerald, ECrystalType::DamageStone));
 
 		FCombatLoadout Loadout = TwoWeapons();
@@ -364,11 +364,11 @@ void FLoadoutScreenSpec::Define()
 		const FLoadoutScreenRow &Hammer = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_SECOND];
 		TestTrue(TEXT("the row reads the piece's setting"), Hammer.AcceptedCrystal == ECrystalType::Citrine);
 		const FCrystalId Citrine(ECrystalType::Citrine, EItemTier::C_Tier);
-		const FCrystalId Ruby(ECrystalType::Ruby, EItemTier::C_Tier);
+		const FCrystalId Garnet(ECrystalType::Garnet, EItemTier::C_Tier);
 		const TArray<FLoadoutScreenChoice> Choices = WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Hammer, LoadoutScreenSockets::CRYSTAL,
-																						 {{Citrine, 1}, {Ruby, 1}}, {}, {});
+																						 {{Citrine, 1}, {Garnet, 1}}, {}, {});
 		const FLoadoutScreenChoice *Fits = Choices.FindByPredicate([&Citrine](const FLoadoutScreenChoice &C) { return C.Crystal == Citrine; });
-		const FLoadoutScreenChoice *Refused = Choices.FindByPredicate([&Ruby](const FLoadoutScreenChoice &C) { return C.Crystal == Ruby; });
+		const FLoadoutScreenChoice *Refused = Choices.FindByPredicate([&Garnet](const FLoadoutScreenChoice &C) { return C.Crystal == Garnet; });
 		if (!TestNotNull(TEXT("both gems listed"), Fits) || !TestNotNull(TEXT("the other gem stays, greyed"), Refused))
 		{
 			return;
