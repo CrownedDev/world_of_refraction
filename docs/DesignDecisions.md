@@ -1245,6 +1245,7 @@ The queue of questions only Crown can answer.
 ### D-230 — The loadout screen gets an Inventory tab, first in the row
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "we should have an inventory tab, which should be first": the tab row reads Inventory, Equipment, Skills, Apparel, Cosmetics. It shows what the character owns and is not wearing, so spares can be seen and swapped in ("we should add what they can't equip to inventory so we can change it").
+**Edit on a worn entry (Crown, 2026-11-16):** Edit opens the same choice as "+ Add equipment" (a weapon or an adapter). Choosing **weapon** opens the entry's weapon window with what is there, to edit or replace it; choosing **adapter** replaces the entry with an adapter (and the other way round for an adapter entry).
 **Defaults (reference-backed, Crown may change):** grouped as Weapons, Adapters, Evolutions, Crystals; hovering a piece fills the same details box as the Equipment tab; choosing a piece offers to wear it (the Equipment tab's add flow, reused). The screen still opens on the Equipment tab. Reference: Destiny 2's and Breath of the Wild's inventory pages sit beside the worn gear and equip straight from the list.
 
 ### D-229 — Character slots at new game; an adapter's icon is the frame with its crystal
