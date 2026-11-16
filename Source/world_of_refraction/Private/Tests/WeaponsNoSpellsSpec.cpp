@@ -60,14 +60,13 @@ void FWeaponsNoSpellsSpec::Define()
 		FWeaponLoadoutEntry Weapon;
 		Weapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 		Weapon.WeaponEntry.AttachedItem = WeaponsNoSpellsTestGem();
-		Weapon.WeaponEntry.AssignedSpells = {CrystalSpell};
-		Weapon.AssignedSpells = {CrystalSpell};
+		Weapon.WeaponEntry.SpellPicks = {CrystalSpell}; // B-518: the crystal's list is its picks
 
 		TestFalse(TEXT("off by default"), WeaponSpellRules::WeaponsGiveSpells());
 		TestEqual(TEXT("no spells"), Weapon.GetAllSpells().Num(), 0);
 		TestEqual(TEXT("no spell slots"), Weapon.GetSpellSlots().Num(), 0);
 		TestFalse(TEXT("no pick"), Weapon.ReplaceSpell(WEAPONS_NO_SPELLS_TEST_FIRST, CrystalSpell));
-		TestTrue(TEXT("the saved data is untouched"), Weapon.WeaponEntry.AssignedSpells.Contains(CrystalSpell));
+		TestTrue(TEXT("the saved data is untouched"), Weapon.WeaponEntry.SpellPicks.Contains(CrystalSpell));
 
 		WeaponSpellRules::FScopedWeaponSpells OldPath(true);
 		TestTrue(TEXT("the old path lists them again"), Weapon.GetAllSpells().Contains(CrystalSpell));
@@ -130,8 +129,8 @@ void FWeaponsNoSpellsSpec::Define()
 				Active.PrimarySlotType = EPrimarySlotType::Weapon;
 				Active.PrimaryWeapon.WeaponEntry.Weapon = Sword;
 				Active.PrimaryWeapon.WeaponEntry.AttachedItem = WeaponsNoSpellsTestGem();
-				Active.PrimaryWeapon.WeaponEntry.AssignedSpells = {CrystalSpell};
-				Active.PrimaryWeapon.AssignedAbilities = {Ability};
+				Active.PrimaryWeapon.WeaponEntry.SpellPicks = {CrystalSpell};
+				Active.PrimaryWeapon.ReplaceSkill(0, Ability); // B-518: a pick, not the old override
 
 				TestFalse(ClassName + TEXT(": not castable"), Loadout->GetAvailableSpells().Contains(CrystalSpell));
 				TestEqual(ClassName + TEXT(": no resonate spells"), Loadout->GetWeaponResonateSpells().Num(), 0);

@@ -1,8 +1,8 @@
 // WeaponSetsSpec.cpp
 // B-477 (D-209, D-210, D-211): a Generic's weapon sets. Two weapons of the same type, both pairable, make a set; a
 // pair of different types, or with a single-only weapon, or the same piece twice, can't; a dual-only weapon is refused
-// alone. A pair has one skill list sized by the average of its two tiers (rounded down) and pre-filled with both
-// weapons' built-ins, takes dual-blade abilities, sums both weapons' stats and resistances in the fight, and goes
+// alone. A pair has one skill list sized by the average of its two tiers (rounded down), empty until filled (B-518:
+// no built-ins), takes dual-blade abilities, sums both weapons' stats and resistances in the fight, and goes
 // through the authored loadout and back. The loadout checks refuse a bad set and clear it to the main hand alone.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -172,21 +172,17 @@ void FWeaponSetsSpec::Define()
 		TestEqual(TEXT("an S axe with an F axe averages"), WeaponSetRules::GetSetTierSlots(TwoAxes), WEAPON_SETS_S_AND_F_SLOTS);
 	});
 
-	It("pre-fills a pair's list with both weapons' built-ins, the main hand's first, once each (D-210)", [this]()
+	It("starts a pair's list empty: neither weapon's built-ins pre-fill it (B-518, D-224)", [this]()
 	{
 		UAbilityData *Slash = WeaponSetsTestAbility(EWeaponType::Sword, EWeaponWieldMode::Single);
 		UAbilityData *Cross = WeaponSetsTestAbility(EWeaponType::Sword, EWeaponWieldMode::Dual);
 		UWeaponData *Main = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual, Slash);
 		UWeaponData *Off = WeaponSetsTestWeapon(EWeaponType::Sword, EWeaponHandling::SingleOrDual, Cross);
-		Off->PresetAbilities.Add(Slash); // shared with the main hand: listed once
 		const FWeaponLoadoutEntry Pair = WeaponSetsTestSet(WeaponSetsTestHand(Main, EItemTier::S_Tier), WeaponSetsTestHand(Off, EItemTier::S_Tier));
-		const TArray<UAbilityData *> BuiltIns = WeaponSetRules::GetSetBuiltIns(Pair);
-		if (TestEqual(TEXT("two built-ins"), BuiltIns.Num(), 2))
-		{
-			TestTrue(TEXT("the main hand's first"), BuiltIns[0] == Slash && BuiltIns[1] == Cross);
-		}
+		TestEqual(TEXT("no built-ins"), WeaponSetRules::GetSetBuiltIns(Pair).Num(), 0);
 		const TArray<UAbilityData *> Slots = Pair.GetSkillSlots();
-		TestTrue(TEXT("both pre-fill the list"), Slots.Contains(Slash) && Slots.Contains(Cross));
+		TestFalse(TEXT("neither pre-fills the list"), Slots.Contains(Slash) || Slots.Contains(Cross));
+		TestEqual(TEXT("nothing offered"), Pair.GetSkillSlotAbilities().Num(), 0);
 	});
 
 	It("lets a pair hold dual-blade abilities of its type; a weapon alone can't (D-210)", [this]()
