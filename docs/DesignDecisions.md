@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-237 — Run levels are kept in the hub, the way gear is
+**Status:** ANSWERED in outline (Crown, 2026-11-16); the reading below is to be confirmed before it is built · **Raised:** 2026-11-16 · **Blocks:** the title slot's levels (D-229), one-player stage 3
+**Answer (Crown):** "run levels should work the same way as gear does: we keep it in the hub". This changes D-102 (a run's Mind / Body / Spirit levels ended with the run).
+**Brain's reading (to confirm):** the levels a character ends a run with are theirs in the hub afterwards, by the gear rules of D-219: kept on a boss win, an extract and out of wipes; a quit puts back what they had before the run. As with gear (D-221), the next trial still starts from the class's base levels; the hub keeps the last run's. The title slot shows these (D-229). **Open:** whether out of wipes or a quit costs levels, as it costs gear 3 tiers.
+
 ### D-236 — The hub is called The Hub
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** the hub's place name shown to the player is **The Hub**, once, with no subtitle (was Void Realm with The hub under it). Text only: lore docs, assets and code names stay. **Built (B-544, in dev, 2026-11-16):** `WoRGameNames::GetHubPlaceName`; the game menu header, the inventory place line, the journal's place and the title's Continue line read it. Memories found before keep the place they saved.
