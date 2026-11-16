@@ -52,6 +52,7 @@ BEGIN_DEFINE_SPEC(FPrebuiltFindSpec, "WoR.Trial.PrebuiltFind", EAutomationTestFl
 	{
 		FLoadoutScreenRow Row;
 		Row.Kind = ELoadoutScreenRowKind::Adapter;
+		Row.GearID = Ring.PersistentID;
 		Row.Sockets.SetNum(2);
 		Row.Sockets[LoadoutScreenSockets::CRYSTAL].bEmpty = Ring.AttachedItem.IsEmpty();
 		Row.Sockets[LoadoutScreenSockets::STONE].bEmpty = Ring.StoneSocket.IsEmpty();
@@ -188,7 +189,8 @@ void FPrebuiltFindSpec::Define()
 		for (const int32 Socket : {LoadoutScreenSockets::CRYSTAL, LoadoutScreenSockets::STONE})
 		{
 			FText Refusal;
-			TestTrue(TEXT("The screen says no, with why"), WoRLoadoutScreen::GetTakeOffSocketWarning(Row, Socket, Refusal).IsEmpty() && !Refusal.IsEmpty());
+			TestTrue(TEXT("The screen says no"), WoRLoadoutScreen::GetTakeOffSocketWarning(Row, Socket, Refusal).IsEmpty());
+			TestTrue(TEXT("Because it is built in"), Refusal.ToString().Contains(TEXT("built-in")) || Refusal.ToString().Contains(TEXT("built in")));
 		}
 	});
 
@@ -210,6 +212,8 @@ void FPrebuiltFindSpec::Define()
 		if (!TestTrue(TEXT("Given"), TrialLoot::GrantTo(Finder, Find))) return;
 		TestFalse(TEXT("Fixed: refused"), Inventory->RemoveEvolutionFromRing(Inventory->Rings[0].PersistentID));
 		TestTrue(TEXT("The evolution stays"), Inventory->Rings[0].AttachedItem.IsEvolution());
+		TestFalse(TEXT("Nor can it be dismantled out"), Inventory->RemoveEvolutionInstance(Inventory->Rings[0].AttachedItem.Evolution.InstanceID));
+		TestTrue(TEXT("Still there"), Inventory->Rings[0].AttachedItem.IsEvolution());
 	});
 
 	It("D-231: a ring the player built is unchanged", [this]()

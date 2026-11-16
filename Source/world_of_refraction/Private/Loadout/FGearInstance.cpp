@@ -111,9 +111,10 @@ FRingInventoryEntry FGearInstance::ToRingEntry() const
 
 FString FGearInstance::GetGearString() const
 {
-	return FString::Printf(TEXT("%s %s [id %d, %s] %s / %s, element %s%s"),
+	return FString::Printf(TEXT("%s %s [id %d, %s] %s / %s, element %s%s%s"),
 						   *UEnum::GetValueAsString(Kind), Asset ? *Asset->GetName() : TEXT("(no asset)"), InstanceID,
 						   *PersistentID.ToString(EGuidFormats::Short), *UEnum::GetValueAsString(Tier),
 						   *UEnum::GetValueAsString(Quality), *UEnum::GetValueAsString(GetElement()),
-						   !HasAttachment() ? TEXT(", no attachment") : AttachedItem.IsBroken() ? TEXT(", attachment broken") : TEXT(""));
+						   !HasAttachment() ? TEXT(", no attachment") : AttachedItem.IsBroken() ? TEXT(", attachment broken") : TEXT(""),
+						   !bPrebuilt ? TEXT("") : bCrystalRemovable ? TEXT(", prebuilt (removable)") : TEXT(", prebuilt (fixed)")); // D-231
 }

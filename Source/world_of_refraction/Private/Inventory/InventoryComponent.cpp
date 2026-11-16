@@ -2656,6 +2656,18 @@ bool UInventoryComponent::RemoveEvolutionInstance(FGuid InstanceID)
     {
         return false;
     }
+    // D-231 (B-532): an evolution fixed in a prebuilt piece can't leave it by being dismantled either.
+    const auto FixedHere = [&InstanceID](const auto &Gear)
+    {
+        return Gear.ContainsByPredicate([&InstanceID](const auto &Entry)
+                                        { return GearSockets::IsSocketFixed(Entry) && Entry.AttachedItem.IsEvolution() &&
+                                                 Entry.AttachedItem.Evolution.InstanceID == InstanceID; });
+    };
+    if (FixedHere(Weapons) || FixedHere(Rings))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RemoveEvolutionInstance: %s is fixed in a prebuilt piece"), *InstanceID.ToString());
+        return false;
+    }
     const bool bRemoved = EvolutionInv->RemoveInstance(InstanceID);
     if (bRemoved)
     {
