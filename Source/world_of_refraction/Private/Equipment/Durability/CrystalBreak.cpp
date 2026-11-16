@@ -160,7 +160,7 @@ namespace
 		// D-231 (B-534): a gem locked to its prebuilt piece is kept, broken, like an evolution, until Restore or a paid
 		// repair brings it back. An unlocked gem breaks as before.
 		const UInventoryComponent *Inventory = Actor->FindComponentByClass<UInventoryComponent>();
-		if (Inventory && Slot.GearID.IsValid() && Inventory->IsCrystalFixedOn(Slot.GearID))
+		if (Inventory && Slot.Kind == EAttachedItemKind::Crystal && Slot.GearID.IsValid() && Inventory->IsCrystalFixedOn(Slot.GearID))
 		{
 			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken locked crystal '%s' on %s kept (D-231)"),
 				   *CrystalBreakDisplayName(Slot), *Actor->GetName());

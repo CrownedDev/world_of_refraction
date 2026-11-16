@@ -2605,22 +2605,26 @@ bool UInventoryComponent::IsCrystalFixedOn(const FGuid &GearID) const
     return Ring && GearSockets::IsCrystalFixed(*Ring);
 }
 
-bool UInventoryComponent::RestoreFixedCrystal(const FGuid &GearID)
+bool UInventoryComponent::RestoreCrystal(const FGuid &GearID)
 {
+    if (!GearOpHasAuthority(GetOwner(), TEXT("RestoreCrystal")))
+    {
+        return false;
+    }
     FWeaponInventoryEntry *Weapon = FindOwnedWeapon(GearID);
     FRingInventoryEntry *Ring = Weapon ? nullptr : FindOwnedRing(GearID);
     FRuntimeAttachedItem *Gem = Weapon ? &Weapon->AttachedItem : Ring ? &Ring->AttachedItem : nullptr;
     const UCrystalInventoryComponent *Pouch = GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
-    if (!Gem || !IsCrystalFixedOn(GearID) || !GearRepair::CanRestore(*Gem) || !Pouch ||
-        !UEconomyService::IsOutOfCombat(GetOwner(), TEXT("RestoreFixedCrystal")))
+    if (!Gem || !GearRepair::CanRestore(*Gem, IsCrystalFixedOn(GearID)) || !Pouch ||
+        !UEconomyService::IsOutOfCombat(GetOwner(), TEXT("RestoreCrystal")))
     {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RestoreFixedCrystal: %s is not a locked broken gem here (or a fight is on)"), *GearID.ToString());
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RestoreCrystal: %s has no gem to restore here (or a fight is on)"), *GearID.ToString());
         return false;
     }
     const GearRepair::FRestorePlan Plan = GearRepair::PlanRestore(*Gem, *Pouch);
-    if (Plan.Uses.IsEmpty() || !RemoveCrystals(Plan.Uses))
+    if (Plan.Uses.IsEmpty() || !CommitRemoveCrystals(Plan.Uses))
     {
-        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RestoreFixedCrystal: nothing to spend (%s)"), *GearRepair::GetRestorePlanString(*Gem, Plan));
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RestoreCrystal: nothing to spend (%s)"), *GearRepair::GetRestorePlanString(*Gem, Plan));
         return false;
     }
     Gem->Crystal.CurrentDurability = Plan.NewDurability;
