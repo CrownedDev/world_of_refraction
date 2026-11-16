@@ -26,6 +26,9 @@
 #include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Shop/MerchantShopSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
 #include "Trial/PrismDropPickup.h"
@@ -61,6 +64,30 @@ namespace
         return Members;
     }
 
+    /** B-523 (D-224 (2), Q-523): a kit member starts the run with no learned or bought skills. It keeps the skills
+     *  its worn record names apart from gear picks (innate, Broken Darkness pools, its own evolution's: they stay with
+     *  the kit, WearClassDefaultKit) and any picks the kit authors; the kit's StartingSkills go into the list, not a slot. */
+    void BeginKitRunSkills(UPoolSubsystem &Pool, FName Key, const FClassDefaultLoadout &Kit)
+    {
+        TArray<const UObject *> Keep;
+        if (const FWornGear *Worn = Pool.GetWornGear(Key))
+        {
+            Keep.Append(Worn->InnateSpells);
+            Keep.Append(Worn->EvolutionSpells);
+            for (const FBDElementSpellPool &BDPool : Worn->BDSpellPools)
+            {
+                Keep.Append(BDPool.Spells);
+            }
+        }
+        for (const FClassDefaultPiece &Piece : Kit.Pieces)
+        {
+            Keep.Append(Piece.SkillPicks);
+        }
+        TArray<const UObject *> Starting;
+        Starting.Append(Kit.StartingSkills);
+        Pool.BeginRunSkills(Key, Keep, Starting);
+    }
+
     /** B-347 (D-137): opens the run layer and takes the local party's worn loadouts on the run, free. B-512 (D-221): a
      *  member in Kits wears its class kit instead (reset already, ResetClassDefaultKit), after the snapshot. */
     void OpenRunLayerWithWornLoadouts(UGameInstance *GI, UPoolSubsystem &Pool,
@@ -78,6 +105,7 @@ namespace
                 Pool.TakeOnRun(ID); // the kit and the character's own evolution; home gear stays home
             }
             HomeWearers.Remove(Kit.Key);
+            BeginKitRunSkills(Pool, Kit.Key, *Kit.Value);
         }
         Pool.TakeHomeGearOnRun(HomeWearers);
     }
