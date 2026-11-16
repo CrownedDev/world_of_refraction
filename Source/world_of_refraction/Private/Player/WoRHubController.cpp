@@ -19,6 +19,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/InputPriorities.h"
+#include "Player/WoRFrontEndGameMode.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
 #include "UI/Menus/TitleScreenWidget.h"
@@ -211,8 +212,8 @@ void AWoRHubController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// B-443: the interact prompt and the money chip, for this machine's player only.
-	if (IsLocalController())
+	// B-443: the interact prompt and the money chip, for this machine's player only (B-537: not in the menu level).
+	if (IsLocalController() && !WoRFrontEnd::IsFrontEndWorld(GetWorld()))
 	{
 		HubHUD = CreateWidget<UHubHUDWidget>(this, UHubHUDWidget::StaticClass());
 		if (HubHUD)
@@ -246,7 +247,14 @@ void AWoRHubController::BeginPlay()
 		   *RootLayoutClass->GetName(), *UEnum::GetValueAsString(CurrentMode),
 		   WoRHubControllerConstants::ROOT_LAYOUT_ZORDER);
 
+	// B-537 (D-232): the menu level opens the title every time it loads.
+	if (IsLocalController() && WoRFrontEnd::IsFrontEndWorld(GetWorld()))
+	{
+		UTitleScreenWidget::Open(this);
+		return;
+	}
 	// B-467, B-535: the game opens on the title, PIE included (the first map load of a session, the default map only).
+	// OBSOLETE (B-537): once the menu level is GameDefaultMap this opens nothing (the hub is no longer the default map).
 	UTitleScreenWidget::OpenAtLaunch(this);
 }
 
