@@ -186,6 +186,20 @@ void FCrystalBreakSpec::Define()
 		TestTrue(TEXT("still on the weapon"), Loadout->GetCrystalEntryByHolder(Weapon).Evolution.Item == Evolution);
 	});
 
+	It("keeps a broken gem locked to its prebuilt piece, for Restore (D-231, B-534)", [this]()
+	{
+		Spawn(CRYSTAL_BREAK_INTACT_DURABILITY, CRYSTAL_BREAK_BROKEN_DURABILITY);
+		Inventory->AddRing(Ring);
+		FRingInventoryEntry &Owned = Inventory->Rings.Last();
+		Owned.AttachedItem = CrystalBreakGem(CRYSTAL_BREAK_BROKEN_DURABILITY);
+		Owned.bPrebuilt = true;
+		Owned.bCrystalRemovable = false;
+		Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout[0].RingEntry.PersistentID = Owned.PersistentID;
+		TestEqual(TEXT("nothing destroyed"), CrystalBreak::DestroyBrokenOn(Actor), 0);
+		TestTrue(TEXT("the locked gem stays, broken"), Loadout->GetCrystalEntryByHolder(Ring).IsBroken());
+		TestEqual(TEXT("no essence paid"), GemEssence(), 0);
+	});
+
 	It("repair: a worn gem gains the repair amount, clamped to its max", [this]()
 	{
 		Spawn(CRYSTAL_BREAK_WORN_DURABILITY, CRYSTAL_BREAK_WORN_DURABILITY);
