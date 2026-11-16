@@ -30,4 +30,10 @@ public:
 	 *  and why each one is what it is. Returns a POPULATED TOptional; the base
 	 *  class's empty return is precisely what this override exists to avoid. */
 	virtual TOptional<FUIInputConfig> GetDesiredInputConfig() const override;
+
+protected:
+	/** D-233: the mouse cursor shows while this screen is up. CommonUI shows it when the screen activates (the
+	 *  config above), but a controller's Blueprint BeginPlay running after that (a level's first frame) can hide it
+	 *  again; this applies the config once more on the next tick. Call from NativeOnActivated. */
+	void ShowCursorNextTick();
 };
