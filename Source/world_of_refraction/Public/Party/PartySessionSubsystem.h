@@ -27,6 +27,7 @@ class UParty;
 struct FPartyMember;
 struct FCarriedGearState;
 struct FCarriedAbsorptionState;
+struct FRuntimeAttachedItem;
 enum class EGuardStyle : uint8;
 enum class EParryElementPriority : uint8;
 struct FFieldSkillChoice;
@@ -308,6 +309,11 @@ public:
 	/** B-115: the slot's carried crystal and absorption state, or null on an invalid slot. Each
 	 *  part's bCarried says whether anything was banked. */
 	const FPartyMember *GetMemberCarriedState(int32 SlotIndex) const;
+
+	/** CS-4: a piece's socket changed between fights (the trial map's Equipment screen): its carried copy follows the
+	 *  owned piece, so the next fight starts with what the player socketed, not the last fight's crystal. Returns how
+	 *  many carried entries changed (0 when no member carries the piece). */
+	int32 RefreshCarriedSocket(const FGuid &GearID, const FRuntimeAttachedItem &Attached, const FRuntimeAttachedItem &StoneSocket);
 
 	/** Trial entry: seed every slot to its computed maxima. Broken-Darkness-innate
 	 *  members start with an empty EP pool. */

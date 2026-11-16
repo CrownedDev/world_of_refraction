@@ -1268,6 +1268,19 @@ int32 UInventoryComponent::RefreshLoadoutsFromOwned(const FGuid &GearID)
 void UInventoryComponent::HandleGearSocketChanged(const FGuid &GearID)
 {
     RefreshLoadoutsFromOwned(GearID);
+    // CS-4: the last fight's carried copy must not put the old crystal back at the next fight.
+    const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+    if (UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr)
+    {
+        if (const FWeaponInventoryEntry *Weapon = FindOwnedWeapon(GearID))
+        {
+            PartySession->RefreshCarriedSocket(GearID, Weapon->AttachedItem, Weapon->StoneSocket);
+        }
+        else if (const FRingInventoryEntry *Ring = FindOwnedRing(GearID))
+        {
+            PartySession->RefreshCarriedSocket(GearID, Ring->AttachedItem, Ring->StoneSocket);
+        }
+    }
     OnGearSocketChanged.Broadcast(GearID);
 }
 
