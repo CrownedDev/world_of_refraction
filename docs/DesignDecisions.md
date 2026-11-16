@@ -1260,6 +1260,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-233 — Every screen works with the mouse as well as keys and a pad
+**Status:** ANSWERED (Crown, 2026-11-16); a standing rule · **Raised:** 2026-11-16 · **Blocks:** nothing
+**Answer (Crown):** "we should allow mouse clicks; it's a PC and console game". Every menu and screen can be used with the mouse (hover lights a row, a click picks it, the wheel scrolls a list), as well as the keyboard and a gamepad. A new screen ships with all three; existing screens that are keys-only (the title and the new-game screen first) get the mouse added.
+**Built (B-538, in dev, 2026-11-16):** the title and the new-game screen (hover, click through the confirm path, the cursor shows). Every other screen and what the mouse does there: `InputMap.md`, "Screens and how they are reached", the Mouse column.
+
 ### D-232 — The title is its own level
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "should we not make a new level which is the menu, and it takes us there, that way it's separate". The game starts in a small **menu level** that holds only the title (Continue, Load; D-229); choosing a character travels to the hub. The title no longer opens over the hub.

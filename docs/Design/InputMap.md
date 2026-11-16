@@ -110,25 +110,28 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 
 ## Screens and how they are reached (B-536)
 
-Every player screen as of 2026-11-16. "Console only" means a player could not reach it by playing.
+Every player screen as of 2026-11-16. "Console only" means a player could not reach it by playing. **Mouse** (D-233, every screen takes the mouse as well as keys and a pad): what it does today. "Hover + click" = moving lights a row and a click picks it (the confirm key's path); "wheel" = a list in a scroll box scrolls under the cursor (Slate does it); a key-driven list with no scroll box does not take the wheel.
 
-| Screen | Reached by | Console |
-|---|---|---|
-| Title | Opens at the start of a session (B-535); Quit to title | `wor.UI.Title` |
-| New game, Credits | The title's rows | `wor.UI.NewGame`, `wor.UI.Credits` |
-| Game menu | Esc, **tap Tab** (B-536), gamepad Menu | `wor.UI.Pause` |
-| Loadout v2 (Equipment, with its Inventory tab, Skills, Apparel) | Game menu > Loadout; the Gate screen | `wor.UI.LoadoutV2` |
-| Inventory | Game menu > Inventory | `wor.UI.InventoryScreen` |
-| Character sheet | Game menu > Character | `wor.UI.Sheet` |
-| **Forms ("Spirit of {character}")** | **Game menu > Forms (B-536; was console only)** | `wor.UI.Forms` |
-| Party (and its Invite) | Game menu > Party | `wor.UI.Party` |
-| Journal | Game menu > Journal; the hub's journal station (memories) | `wor.UI.Journal` |
-| Settings | Game menu > Settings; the title | `wor.UI.Settings` |
-| Vendor (Buy, Sell, Dismantle, Item slots, Repair, Curses, Merge) | A merchant; a rest spot | `wor.UI.VendorScreen` |
-| Rest spot (rest, level drops, hand over host) | Interact at a rest spot | — |
-| Gate | Interact at a trial door | `wor.UI.Gate` |
-| Recruit card | Interact with a character | `wor.UI.RecruitCard` |
-| Join request card | Hold Tab / View when a friend asks to join | `wor.UI.AnswerJoinRequest` |
+| Screen | Reached by | Console | Mouse |
+|---|---|---|---|
+| Title | The menu level (B-537); Quit to title | `wor.UI.Title` | **Yes** (B-538): hover + click, the cursor shows; no list to wheel |
+| New game | The title's New Game | `wor.UI.NewGame` | **Yes** (B-538): hover + click on Body, Class, the elements and Begin; no list to wheel |
+| Credits | The title's Credits | `wor.UI.Credits` | Partly: a held click speeds it up (as A); no wheel |
+| Game menu | Esc, **tap Tab** (B-536), gamepad Menu | `wor.UI.Pause` | Yes: hover + click; no list to wheel |
+| Loadout v2 (Equipment, with its Inventory tab, Skills, Apparel) | Game menu > Loadout; the Gate screen | `wor.UI.LoadoutV2` | Yes: hover + click on members, tabs and lines; **no wheel** (long lists move with the keys only) |
+| Inventory | Game menu > Inventory | `wor.UI.InventoryScreen` | Yes: hover + click; wheel on the tiles |
+| Character sheet | Game menu > Character | `wor.UI.Sheet` | **Partly**: a click on a member tab only; no hover |
+| **Forms ("Spirit of {character}")** | **Game menu > Forms (B-536; was console only)** | `wor.UI.Forms` | Yes: hover + click; wheel |
+| Party (and its Invite) | Game menu > Party | `wor.UI.Party` | Party: hover + click, wheel. **Invite: click only, no hover** |
+| Journal | Game menu > Journal; the hub's journal station (memories) | `wor.UI.Journal` | Yes: hover + click; wheel |
+| Settings | Game menu > Settings; the title | `wor.UI.Settings` | Yes: hover + click; wheel |
+| Vendor (Buy, Sell, Dismantle, Item slots, Repair, Curses, Merge) | A merchant; a rest spot | `wor.UI.VendorScreen` | Yes: hover + click; wheel on the rows |
+| Rest spot (rest, level drops, hand over host) | Interact at a rest spot | — | **Partly**: plain buttons (click; the button's own hover), the old UMG panel |
+| Gate | Interact at a trial door | `wor.UI.Gate` | **Partly**: click (first click lights, second enters; a card click picks it); no hover |
+| Recruit card | Interact with a character | `wor.UI.RecruitCard` | **No**: keys and pad only |
+| Join request card | Hold Tab / View when a friend asks to join | `wor.UI.AnswerJoinRequest` | **No**: a hold of the key only |
+
+The cursor: every CommonUI screen asks for it (`UWoRActivatableWidget`, no capture); the title and new-game screens ask again a frame later (B-538), because the menu level's controller can hide it on its first frame. Mouse not checked here: the battle HUD (its own pass) and the old console-only placeholders below.
 
 Still console only, on purpose (each has a replacement the player reaches): the placeholders `wor.UI.Inventory`, `wor.UI.Give`, `wor.UI.Storage`, `wor.UI.Dismantle`, `wor.UI.Duplicates` (the inventory screen's verbs, OBSOLETE B-339), `wor.UI.Vendor`, `wor.UI.ItemSlots`, `wor.UI.ClearCurse` (the vendor screen's tabs), `wor.UI.FormsOld` (the Forms screen), `wor.UI.PartyControl` (the Party screen).
 
@@ -208,4 +211,5 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-15 | Loadout v2: the Weapons tab is named Equipment and its add row + Add equipment (D-220); no key changes (B-503u) | feature/B-503u-equipment-tab |
 | 2026-11-16 | Quick strip and field attack (rows 15, 18): they work in the hub too, same keys as a trial; no key changes (B-528, D-218) | feature/B-528-hub-quick-strip |
 | 2026-11-16 | B-536: tap Tab opens the game menu (`IA_UI_GameMenuTab`, code-built, works in PIE), Tab closes it; a screens table; the game menu gains Forms | feature/B-536-menu-reaches-screens |
+| 2026-11-16 | B-538 (D-233): the mouse on the title and the new-game screen (hover lights, a click picks through the confirm path, the cursor shows); the screens table gains a Mouse column; no key changes | feature/B-538-mouse-front-screens |
 | 2026-11-14 | Loadout v2: X Compare in the apparel picker and for every Add gear list (B-476e) | feature/B-476e-loadout-v2-compare-on-dev-cloud |

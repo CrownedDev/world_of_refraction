@@ -237,7 +237,9 @@ void UNewGameScreenWidget::NativeOnActivated()
 	Pick = FNewGamePick();
 	Focus = ENewGameFocus::Class;
 	Status = FText::GetEmpty();
+	HoveredIndex = INDEX_NONE;
 	Refresh();
+	ShowCursorNextTick(); // D-233
 	UE_LOG(LogWoRUI, Log, TEXT("[NewGame] Opened"));
 }
 
@@ -384,6 +386,41 @@ void UNewGameScreenWidget::Confirm()
 	Refresh();
 }
 
+void UNewGameScreenWidget::ClickPart(ENewGameFocus Part, int32 Index)
+{
+	switch (Part)
+	{
+	case ENewGameFocus::Body:
+		if (Index != static_cast<int32>(EPlayerBaseForm::Manny) && Index != static_cast<int32>(EPlayerBaseForm::Quinn))
+		{
+			return;
+		}
+		Pick.Body = static_cast<EPlayerBaseForm>(Index);
+		break;
+	case ENewGameFocus::Class:
+		if (!WoRNewGame::GetClasses().IsValidIndex(Index))
+		{
+			return;
+		}
+		Pick.Class = WoRNewGame::GetClasses()[Index];
+		break;
+	case ENewGameFocus::Element:
+		if (!HasElements() || !WoRNewGame::GetElements().IsValidIndex(Index))
+		{
+			return;
+		}
+		Pick.Element = WoRNewGame::GetElements()[Index];
+		break;
+	case ENewGameFocus::Begin:
+		Focus = ENewGameFocus::Begin;
+		Confirm(); // the same path as A on Begin
+		return;
+	}
+	Focus = Part;
+	Status = FText::GetEmpty();
+	Refresh();
+}
+
 void UNewGameScreenWidget::Refresh()
 {
 	using namespace NewGameScreenStyle;
@@ -391,24 +428,25 @@ void UNewGameScreenWidget::Refresh()
 	{
 		return; // headless: no tree
 	}
-	auto Fill = [this](bool bFocused, bool bPicked)
+	auto Fill = [this](bool bFocused, bool bPicked, ENewGameFocus Part, int32 Index)
 	{
-		return bFocused ? FocusColor : bPicked ? TrackColor : PlateColor;
+		const bool bHovered = HoveredIndex == Index && HoveredPart == Part; // D-233: the mouse is over it
+		return bFocused ? FocusColor : bPicked ? TrackColor : bHovered ? HoverColor : PlateColor;
 	};
 	for (int32 Index = 0; Index < BodyCards.Num(); ++Index)
 	{
 		const bool bPicked = static_cast<int32>(Pick.Body) == Index;
-		BodyCards[Index]->SetBrushColor(Fill(bPicked && Focus == ENewGameFocus::Body, bPicked));
+		BodyCards[Index]->SetBrushColor(Fill(bPicked && Focus == ENewGameFocus::Body, bPicked, ENewGameFocus::Body, Index));
 	}
 	const int32 ClassIndex = GetClassIndex();
 	for (int32 Index = 0; Index < ClassCards.Num(); ++Index)
 	{
 		const bool bPicked = Index == ClassIndex;
-		ClassCards[Index]->SetBrushColor(Fill(bPicked && Focus == ENewGameFocus::Class, bPicked));
+		ClassCards[Index]->SetBrushColor(Fill(bPicked && Focus == ENewGameFocus::Class, bPicked, ENewGameFocus::Class, Index));
 		ClassKinds[Index]->SetColorAndOpacity(FSlateColor(bPicked ? CyanColor : DimColor));
 		ClassLines[Index]->SetColorAndOpacity(FSlateColor(bPicked ? TextColor : DimColor));
 	}
-	BeginCard->SetBrushColor(Fill(Focus == ENewGameFocus::Begin, false));
+	BeginCard->SetBrushColor(Fill(Focus == ENewGameFocus::Begin, false, ENewGameFocus::Begin, 0));
 	BeginText->SetText(WoRNewGame::GetBeginLabel(Pick));
 	BodyLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Body ? CyanColor : DimColor));
 	ClassLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Class ? CyanColor : DimColor));
@@ -427,7 +465,7 @@ void UNewGameScreenWidget::Refresh()
 	for (int32 Index = 0; Index < ElementChips.Num(); ++Index)
 	{
 		const bool bPicked = Index == ElementIndex;
-		ElementChips[Index]->SetBrushColor(Fill(bPicked && Focus == ENewGameFocus::Element, bPicked));
+		ElementChips[Index]->SetBrushColor(Fill(bPicked && Focus == ENewGameFocus::Element, bPicked, ENewGameFocus::Element, Index));
 		ElementNames[Index]->SetColorAndOpacity(FSlateColor(bPicked ? TextColor : DimColor));
 	}
 	PanelFootnote->SetText(WoRNewGame::GetPanelFootnote(Pick));
@@ -472,6 +510,71 @@ FReply UNewGameScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 		return FReply::Handled();
 	}
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+}
+
+bool UNewGameScreenWidget::FindPartUnder(const FVector2D &ScreenPosition, ENewGameFocus &OutPart, int32 &OutIndex) const
+{
+	auto Under = [&ScreenPosition](const TArray<TObjectPtr<UBorder>> &Boxes)
+	{
+		return Boxes.IndexOfByPredicate([&ScreenPosition](const TObjectPtr<UBorder> &Box)
+		{
+			return Box && Box->IsVisible() && Box->GetCachedGeometry().IsUnderLocation(ScreenPosition);
+		});
+	};
+	const TPair<ENewGameFocus, int32> Hits[] = {{ENewGameFocus::Body, Under(BodyCards)},
+												 {ENewGameFocus::Class, Under(ClassCards)},
+												 {ENewGameFocus::Element, HasElements() ? Under(ElementChips) : INDEX_NONE},
+												 {ENewGameFocus::Begin, Under({BeginCard})}};
+	for (const TPair<ENewGameFocus, int32> &Hit : Hits)
+	{
+		if (Hit.Value != INDEX_NONE)
+		{
+			OutPart = Hit.Key;
+			OutIndex = Hit.Value;
+			return true;
+		}
+	}
+	return false;
+}
+
+FReply UNewGameScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	ENewGameFocus Part = ENewGameFocus::Body;
+	int32 Index = INDEX_NONE;
+	FindPartUnder(InMouseEvent.GetScreenSpacePosition(), Part, Index);
+	if (Part != HoveredPart || Index != HoveredIndex)
+	{
+		HoveredPart = Part;
+		HoveredIndex = Index;
+		Refresh();
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+}
+
+void UNewGameScreenWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
+{
+	if (HoveredIndex != INDEX_NONE)
+	{
+		HoveredIndex = INDEX_NONE;
+		Refresh();
+	}
+	Super::NativeOnMouseLeave(InMouseEvent);
+}
+
+FReply UNewGameScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	if (!IsActivated())
+	{
+		return FReply::Handled(); // a double click after Begin: the game is already starting
+	}
+	ENewGameFocus Part = ENewGameFocus::Body;
+	int32 Index = INDEX_NONE;
+	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && FindPartUnder(InMouseEvent.GetScreenSpacePosition(), Part, Index))
+	{
+		ClickPart(Part, Index);
+		return FReply::Handled();
+	}
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 #if !UE_BUILD_SHIPPING

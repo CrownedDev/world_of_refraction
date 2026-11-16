@@ -3,6 +3,9 @@
 #include "UI/WoRActivatableWidget.h"
 
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/World.h"
+#include "Input/CommonUIActionRouterBase.h"
+#include "TimerManager.h"
 
 TOptional<FUIInputConfig> UWoRActivatableWidget::GetDesiredInputConfig() const
 {
@@ -32,4 +35,21 @@ TOptional<FUIInputConfig> UWoRActivatableWidget::GetDesiredInputConfig() const
 						  EMouseCaptureMode::NoCapture,
 						  EMouseLockMode::DoNotLock,
 						  /*bHideCursorDuringViewportCapture=*/false);
+}
+
+void UWoRActivatableWidget::ShowCursorNextTick()
+{
+	UWorld *World = GetWorld();
+	if (!World)
+	{
+		return; // headless: no viewport, no cursor
+	}
+	World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		UCommonUIActionRouterBase *Router = IsActivated() ? UCommonUIActionRouterBase::Get(*this) : nullptr;
+		if (Router)
+		{
+			Router->RefreshUIInputConfig();
+		}
+	}));
 }
