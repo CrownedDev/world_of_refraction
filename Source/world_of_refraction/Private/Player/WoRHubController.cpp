@@ -103,6 +103,7 @@ void AWoRHubController::BuildFieldWheelKeys()
 	FieldWheelConfirmAction->ValueType = EInputActionValueType::Boolean;
 	FieldWheelContext->MapKey(FieldWheelConfirmAction, EKeys::Gamepad_FaceButton_Bottom);
 	FieldWheelContext->MapKey(FieldWheelConfirmAction, EKeys::LeftMouseButton);
+	FieldWheelContext->MapKey(FieldWheelConfirmAction, EKeys::Enter); // B-539 (D-234): Enter selects the lit piece
 	FieldWheelCloseAction = NewObject<UInputAction>(this, FIELD_WHEEL_CLOSE_ACTION_NAME);
 	FieldWheelCloseAction->ValueType = EInputActionValueType::Boolean;
 	for (const FKey &Key : {EKeys::Gamepad_FaceButton_Right, EKeys::BackSpace, EKeys::Gamepad_RightShoulder, EKeys::R})
@@ -504,7 +505,7 @@ void AWoRHubController::HandleFieldWheelConfirm(const FInputActionValue & /*Valu
 	{
 		return;
 	}
-	if (bFieldWheelCursor)
+	if (bFieldWheelCursor && IsInputKeyDown(EKeys::LeftMouseButton)) // Enter takes the lit piece, as A does
 	{
 		// A click picks the slice under it; a click off the wheel does nothing (the wheel stays up).
 		bool bOnWheel = false;

@@ -1260,6 +1260,12 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-234 — An appearance mirror in the hub; the two base bodies are Male Nobody and Female Nobody; Enter picks on the quick strip
+**Status:** ANSWERED in part (Crown, 2026-11-16); two points open · **Raised:** 2026-11-16 · **Blocks:** nothing
+**Answer (Crown):** (1) **Appearance mirror:** "like the shops, we should have an appearance mirror that will allow us to change our cosmetic": an object in the hub (a box for now, as the shops are) that opens the appearance screen. (2) **The first two entries** of the spirit list are **Male Nobody** and **Female Nobody**, "who would be Manny and Quinn" (Crown's names). (3) **Quick strip:** **Enter selects**; the "Click Pick" hint goes ("click is intuitive, people will just know"); the click still works.
+**Answered (Crown, 2026-11-16):** the new-game screen **keeps the choice**, and it is called **Starting spirit** (Male Nobody / Female Nobody); it can be changed later at the mirror. The appearance mirror is **the same mirror as the loadout presets' mirror** (D-221): one mirror. **Its three options (Crown): Spirit (meaning appearance), Presets and Cosmetics.** "Spirit" is the player-facing word for the appearance screen.
+**Built (B-539, in dev, 2026-11-16):** point 3: Enter selects the lit piece on the quick strip; the hint says Enter Select; the click still picks.
+
 ### D-233 — Every screen works with the mouse as well as keys and a pad
 **Status:** ANSWERED (Crown, 2026-11-16); a standing rule · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "we should allow mouse clicks; it's a PC and console game". Every menu and screen can be used with the mouse (hover lights a row, a click picks it, the wheel scrolls a list), as well as the keyboard and a gamepad. A new screen ships with all three; existing screens that are keys-only (the title and the new-game screen first) get the mouse added.
