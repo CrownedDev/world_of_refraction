@@ -821,7 +821,7 @@ void WoRGameNames::NumberRepeatedNames(TArray<FText> &Names, TConstArrayView<EIt
         }
         const FString Key = Name.ToString();
         const int32 Count = ++Seen.FindOrAdd(FString::Printf(TEXT("%s|%d"), *Key, TierOf(Index)));
-        if (bByTier && TiersByName.Contains(Key) && TiersByName[Key].Num() > 1)
+        if (bByTier && TiersByName.Contains(Key) && TiersByName[Key].Num() > 1 && !GetTierLetter(Tiers[Index]).IsEmpty())
         {
             Name = FText::Format(LOCTEXT("RepeatedNameTier", "{0}  {1}"), Name, GetTierLetter(Tiers[Index]));
         }

@@ -448,6 +448,7 @@ FLoadoutV2WeaponsPage WoRLoadoutV2::BuildWeaponsPage(const FCombatLoadout &Loado
 		Seat.Kind = ELoadoutV2EntryKind::Evolution;
 		Seat.Place = ELoadoutV2Place::Seat;
 		Seat.Name = Loadout.PrimaryEvolution.Item ? FText::FromString(Loadout.PrimaryEvolution.Item->ItemName) : LOCTEXT("EvolutionMissing", "Evolution (missing)");
+		Seat.Tier = Loadout.PrimaryEvolution.Tier; // B-516b: its own badge, as its detail line
 		Page.Entries.Add(MoveTemp(Seat));
 	}
 	int32 WeaponEntries = 0;
