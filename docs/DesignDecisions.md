@@ -1341,6 +1341,15 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
+### Q-527 — D-226's smaller choices (ring slots, tier lines, named adapters, prebuilt stock)
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-527, D-226) · **Blocks:** —
+**Question:** D-226 settles the rules; a few small cases are left. None of this is lore.
+**Answer:** by the reference-backed default:
+- **Which name field is "its own name":** the asset's existing `Name` (no new field). It counts as the adapter's own unless it is empty, the class default ("Unnamed Equipment") or "Adapter Ring" itself, so the clean set's empty adapter keeps being named by its socket. Diablo's uniques show their own name, plain items their base and affixes; the same split.
+- **A weapon's detail lines** follow the adapter's: "Weapon tier" and "Crystal tier" replace the averaged line there too, so both kinds read alike.
+- **The crystal line** shows only while the socket holds a gem or an evolution.
+- **A prebuilt piece for sale** is priced as its piece plus a gem's or an evolution's shop price; if both are set, the gem goes in (as Q-522b). Buying one with an evolution for another member is refused, as any evolution is (Q-323). A weapon can be stocked prebuilt the same way.
+
 ### Q-525 — Settling a run's skills: the smaller choices
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-525, D-224 questions 10 to 12) · **Blocks:** —
 **Question:** Crown ruled that only slotted skills are kept and that they follow D-219's worn-gear rules. Some smaller cases are left. None of this is lore.
