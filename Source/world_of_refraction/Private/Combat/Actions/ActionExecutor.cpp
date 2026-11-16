@@ -483,17 +483,15 @@ TOptional<EItemTier> UActionExecutor::ResolveChannelTier(AActor *Actor, const FA
 		// Fusion channels through the GEM half — same keying as the wear path.
 		// Broken is intentionally NOT excluded: crystals break at turn end, so
 		// the channel is intact for the cast being assembled.
-		if (Attachment->IsFusion())
+		// D-224 (AssetOverhaulPlan §4, §4.1): the channel is the piece's built tier, its own tier and the socket's
+		// averaged. No spell source in the socket = no channel, as before.
+		const TOptional<EItemTier> SocketTier = CrystalEffectTable::GetSocketSkillTier(*Attachment);
+		if (!SocketTier.IsSet())
 		{
-			return Attachment->Fusion.HasGemHalf()
-					   ? TOptional<EItemTier>(Attachment->Fusion.GemHalf().Tier)
-					   : TOptional<EItemTier>();
+			return TOptional<EItemTier>();
 		}
-		if (Attachment->IsCrystal())
-		{
-			return Attachment->Crystal.Id.Tier;
-		}
-		return TOptional<EItemTier>();
+		const TOptional<EItemTier> BuiltTier = LC->GetBuiltTierOfSocket(Attachment);
+		return BuiltTier.IsSet() ? BuiltTier : SocketTier;
 	}
 	}
 
@@ -511,6 +509,28 @@ float UActionExecutor::GetTierGapDamageMultiplier(AActor *Actor, const FAction &
 	}
 	return TierGapDamage::GetTierGapDamageMultiplier(
 		ResolveActionTier(Actor, Action), ChannelTier.GetValue());
+}
+
+TOptional<EItemTier> UActionExecutor::ResolveElementalChannelTier(AActor *Actor, const FAction &Action) const
+{
+	if (Action.ActionType != EActionType::Spell)
+	{
+		if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
+		{
+			return CrystalEffectTable::GetBuiltTier(WeaponEntry->Tier, WeaponEntry->AttachedItem);
+		}
+	}
+	return ResolveChannelTier(Actor, Action);
+}
+
+float UActionExecutor::GetElementalTierGapDamageMultiplier(AActor *Actor, const FAction &Action) const
+{
+	const TOptional<EItemTier> ChannelTier = ResolveElementalChannelTier(Actor, Action);
+	if (!ChannelTier.IsSet())
+	{
+		return TierGapDamage::MATCHED_TIER;
+	}
+	return TierGapDamage::GetTierGapDamageMultiplier(ResolveActionTier(Actor, Action), ChannelTier.GetValue());
 }
 
 float UActionExecutor::GetTierGapCostMultiplier(AActor *Actor, const FAction &Action) const
@@ -729,12 +749,29 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	const EInfusionMode Mode = ResolveInfusionMode(Action.SelectedSource, User);
 	Preview.ChargeMultiplier = GetChargeDamageMultiplier(InfusionLevel, Mode, bIsSpell, GetCharacterDataComponent(User));
 	// A negative Amp total never takes the base below zero.
-	int32 Damage = FMath::RoundToInt(FMath::Max(0, Preview.BaseDamage + Preview.AmpBonus) * Preview.ChargeMultiplier);
+	const int32 ChargeBase = FMath::Max(0, Preview.BaseDamage + Preview.AmpBonus);
+	int32 Damage = FMath::RoundToInt(ChargeBase * Preview.ChargeMultiplier);
 
 	// Tier-gap (B2) then tier-power (the skill's OWN tier, F=x1.0 floor); all commutative.
 	const float TierGap = bLog ? ResolveTierGapMultiplier(User, Action, Skill->Name) : GetTierGapDamageMultiplier(User, Action);
-	Damage = FMath::RoundToInt(Damage * TierGap);
-	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(Skill->Tier));
+	// D-224 (AssetOverhaulPlan §4.1): an infused attack or ability splits: the uninfused part on the weapon's own
+	// gap, the infusion's share above x1 on the built tier's gap. Equal gaps keep the one-number path.
+	const float ElementalGap = bIsSpell ? TierGap : GetElementalTierGapDamageMultiplier(User, Action);
+	if (!bIsSpell && Preview.Element != ESpellElement::None && Preview.ChargeMultiplier > 1.0f && ElementalGap != TierGap)
+	{
+		Damage = FMath::RoundToInt(ChargeBase * TierGap + ChargeBase * (Preview.ChargeMultiplier - 1.0f) * ElementalGap);
+		if (bLog)
+		{
+			UE_LOG(LogWoRCombat, Verbose, TEXT("[TierGap] %s split: physical x%.2f, elemental share x%.2f"), *Skill->Name, TierGap,
+				   ElementalGap);
+		}
+	}
+	else
+	{
+		Damage = FMath::RoundToInt(Damage * TierGap);
+	}
+	// D-224 (S3 default, §5.3): the own-tier power reads the player's copy (ResolveActionTier), as the gap does.
+	Damage = FMath::RoundToInt(Damage * TierPowerScaling::GetTierPowerMultiplier(ResolveActionTier(User, Action)));
 	// B-326 (D-119): an unmet skill requirement cuts the skill part by the one flat factor (the skill still works).
 	const float SkillRequirementFactor = GetSkillRequirementFactor(User, Skill);
 	Damage = FMath::RoundToInt(Damage * SkillRequirementFactor);
@@ -1434,7 +1471,10 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		// Own-tier power scales status buildup too (everything but effects).
 		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
 		// same ladder/direction as damage — reuse the shared damage accessor.
-		SpellBaseBuildup = FMath::RoundToInt(SpellAuthoredBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier) * GetTierGapDamageMultiplier(Caster, Action));
+		// D-224 (§5.3): the own-tier power reads the player's copy, as the gap does.
+		SpellBaseBuildup = FMath::RoundToInt(SpellAuthoredBuildup * StatusMultiplier *
+											 TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveSpellTier(Caster, Spell)) *
+											 GetTierGapDamageMultiplier(Caster, Action));
 	}
 
 	FinalizeDamageInputs(Spell, FinalDamage, Spell->HitCount, DamagePerHit);
@@ -1630,7 +1670,14 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		// Own-tier power scales status buildup too (everything but effects).
 		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
 		// same ladder/direction as damage — reuse the shared damage accessor.
-		AbilityBaseBuildup = FMath::RoundToInt(AbilityAuthoredBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier) * GetTierGapDamageMultiplier(User, Action));
+		// D-224 (§4.1): an elemental hit's build-up (infused, Element set) gaps against the weapon's built tier, a
+		// physical one against the weapon's own (one status bar per target, so one number). The own-tier power
+		// reads the player's copy (§5.3).
+		const float BuildupGap = Element != ESpellElement::None ? GetElementalTierGapDamageMultiplier(User, Action)
+																: GetTierGapDamageMultiplier(User, Action);
+		AbilityBaseBuildup = FMath::RoundToInt(AbilityAuthoredBuildup * StatusMult *
+											   TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveAbilityTier(User, Ability)) *
+											   BuildupGap);
 	}
 
 	int32 DamagePerHit = 0;
