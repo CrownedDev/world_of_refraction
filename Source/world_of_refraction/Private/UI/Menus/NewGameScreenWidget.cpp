@@ -335,10 +335,14 @@ void UNewGameScreenWidget::MoveSide(int32 Delta)
 		break;
 	case ENewGameFocus::Class:
 	case ENewGameFocus::Begin:
-		// The element grid stands to the right of the class cards.
+		// The element grid stands to the right of the class cards, the body cards to their left (B-539).
 		if (Delta > 0 && HasElements())
 		{
 			Focus = ENewGameFocus::Element;
+		}
+		else if (Delta < 0)
+		{
+			Focus = ENewGameFocus::Body;
 		}
 		break;
 	case ENewGameFocus::Element:

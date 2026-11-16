@@ -115,6 +115,9 @@ void FNewGameScreenSpec::Define()
 				 Screen->GetFocus() == ENewGameFocus::Class && Screen->GetPick().Class == ECharacterClass::Generic);
 		Screen->MoveSide(1);
 		TestTrue(TEXT("a Generic has no element grid"), Screen->GetFocus() == ENewGameFocus::Class);
+		Screen->MoveSide(-1);
+		TestTrue(TEXT("Left from the class: the body cards, on its left (B-539)"), Screen->GetFocus() == ENewGameFocus::Body);
+		Screen->MoveDown();
 		Screen->MoveUp();
 		Screen->MoveSide(1);
 		TestTrue(TEXT("Up from the top class: the body; Right picks Quinn"),
