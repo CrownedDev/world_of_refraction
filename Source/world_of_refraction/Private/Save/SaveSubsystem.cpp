@@ -21,6 +21,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRFrontEndGameMode.h"
 #include "Player/WoRPlayerState.h"
 #include "WoRAuthority.h"
 #include "GameFramework/GameStateBase.h"
@@ -826,7 +827,9 @@ bool USaveSubsystem::ReturnToOwnSaveFrom(const FString &SlotName)
 
 void USaveSubsystem::HandleWorldActorsInitialized(const FActorsInitializedParams &Params)
 {
-	if (Params.World && Params.World->IsGameWorld() && Params.World->GetGameInstance() == GetGameInstance())
+	// B-537: the menu level is not where play starts; the saved run settles in the first map after it (the hub).
+	if (Params.World && Params.World->IsGameWorld() && Params.World->GetGameInstance() == GetGameInstance() &&
+		!WoRFrontEnd::IsFrontEndWorld(Params.World))
 	{
 		TryResumeRun(Params.World);
 	}
