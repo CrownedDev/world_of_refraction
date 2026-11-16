@@ -41,9 +41,10 @@ struct WORLD_OF_REFRACTION_API FClassDefaultPiece
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
 	FCrystalId Crystal;
 
-	/** D-231 (B-532): a piece handed out with its Crystal counts as prebuilt; on, that crystal may be taken out. */
+	/** D-231 (B-532; on by default, Crown): a piece handed out with its Crystal counts as prebuilt; on, that crystal may
+	 *  be taken out (destroyed). Off: it stays as built. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
-	bool bCrystalRemovable = false;
+	bool bCrystalRemovable = true;
 };
 
 /** One class's kit. */

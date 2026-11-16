@@ -37,7 +37,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Find")
 	TObjectPtr<UEvolutionItemData> Evolution = nullptr;
 
-	/** D-231 (B-532): the gem or evolution above may be taken out of the found piece. Off: it stays as built. */
+	/** D-231 (B-532; on by default, Crown): the gem (destroyed) or evolution (back to the owner) above may be taken out
+	 *  of the found piece. Off: it stays as built. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Find")
-	bool bCrystalRemovable = false;
+	bool bCrystalRemovable = true;
 };

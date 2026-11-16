@@ -342,12 +342,16 @@ public:
 
     // ==================== WEAPON CRYSTAL OPERATIONS ====================
 
-    /** Remove crystal from weapon. Returns true if an attachment was removed,
-     *  false if the slot was already empty or the index was invalid. Refined
-     *  and evolution attachments are both destroyed on removal, and (B-351b) the stone in
-     *  the stone socket with them. */
+    /** Remove crystal from weapon (its element socket only; B-533: the stone socket keeps its stone). Returns true if
+     *  an attachment was removed, false if the slot was already empty, the index was invalid or the crystal is a
+     *  prebuilt's fixed one (D-231). Refined and evolution attachments are both destroyed on removal. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveCrystalFromWeapon(int32 WeaponIndex);
+
+    /** B-533 (D-231): takes the stone out of the weapon's stone socket, destroyed; the element socket keeps its crystal.
+     *  False if there was none or the index was invalid. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
+    bool RemoveStoneFromWeapon(int32 WeaponIndex);
 
     /** Attach an OWNED evolution (by EvoInstanceID) onto the owned weapon (by PersistentID),
      *  Spiritualist-gated. Reference model (§5.3b): the owned FEvolutionInventoryEntry PERSISTS; the
@@ -457,11 +461,15 @@ public:
 
     // ==================== RING CRYSTAL OPERATIONS ====================
 
-    /** Remove crystal from ring. Returns true if an attachment was removed,
-     *  false if the slot was already empty or the index was invalid. Refined
-     *  and evolution attachments are both destroyed on removal. */
+    /** Remove crystal from ring (its element socket only; B-533: the stone socket keeps its stone). Returns true if an
+     *  attachment was removed, false if the slot was already empty, the index was invalid or the crystal is a
+     *  prebuilt's fixed one (D-231). Refined and evolution attachments are both destroyed on removal. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool RemoveCrystalFromRing(int32 RingIndex);
+
+    /** B-533 (D-231): takes the stone out of the ring's stone socket, destroyed; the element socket keeps its crystal. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
+    bool RemoveStoneFromRing(int32 RingIndex);
 
     // ==================== EVOLUTION HELPERS ====================
 
@@ -652,7 +660,7 @@ private:
     template <class TEntry>
     bool RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid GearID, const TCHAR *Op);
     template <class TEntry>
-    bool RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index);
+    bool RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index, bool bStoneSocket);
     /** B-251 (DRY audit A13): the weapon / ring acquisition (mint the owned ID, the pickup roll, pool push,
      *  broadcast) and removal, once for both entry types. */
     template <class TEntry>

@@ -87,7 +87,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(BlueprintReadOnly, Category = "Ring")
     bool bPrebuilt = false;
 
-    /** D-231: the prebuilt's own crystal may be taken out (its setting). The rule: GearSockets::IsSocketFixed. */
+    /** D-231: the prebuilt's own crystal may be taken out (its setting). The rule: GearSockets::IsCrystalFixed. */
     UPROPERTY(BlueprintReadOnly, Category = "Ring")
     bool bCrystalRemovable = false;
 
