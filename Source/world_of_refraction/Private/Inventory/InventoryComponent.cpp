@@ -305,6 +305,22 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
     {
         return false;
     }
+    // D-231 point 5 (B-540): a piece set to one crystal type takes only that gem.
+    const UEquipmentDataBase *Asset = nullptr;
+    if constexpr (std::is_same_v<TEntry, FWeaponInventoryEntry>)
+    {
+        Asset = Gear[Index].Weapon;
+    }
+    else
+    {
+        Asset = Gear[Index].Ring;
+    }
+    if (Asset && !GearSockets::AcceptsCrystal(Asset->AcceptedCrystalType, Id.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s takes only %s, not %s"), Op, *Asset->GetName(),
+               *UEnum::GetValueAsString(Asset->AcceptedCrystalType), *ItemIdentity::GetDisplayName(Id));
+        return false;
+    }
     const bool bStoneInElementSocket = bIsStone && !Gear[Index].StoneSocket.IsEmpty();
     if (bStoneInElementSocket && !Gear[Index].AttachedItem.IsEmpty())
     {

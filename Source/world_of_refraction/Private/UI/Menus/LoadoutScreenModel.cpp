@@ -162,6 +162,7 @@ namespace LoadoutScreenBuild
 		Row.Sockets.Add(MakeSocket(Gear.AttachedItem, LOCTEXT("SocketCrystal", "Crystal")));
 		Row.Sockets.Add(MakeSocket(Gear.StoneSocket, LOCTEXT("SocketStone", "Stone")));
 		Row.bCrystalFixed = GearSockets::IsCrystalFixed(Gear);
+		Row.AcceptedCrystal = Gear.Asset ? Gear.Asset->AcceptedCrystalType : ECrystalType::None;
 		Row.Cost = FLoadoutRules::SlotCost(Slot);
 		Row.CostLine = FormatCostLine(Slot, Row.Cost);
 
@@ -787,6 +788,11 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 		if (bInUse)
 		{
 			Choice.Refusal = LOCTEXT("RefuseEvolutionInUse", "Already in use.");
+		}
+		else if (!GearSockets::AcceptsCrystal(Row.AcceptedCrystal, Choice.Crystal.Type)) // D-231 point 5 (B-540)
+		{
+			Choice.Refusal = FText::Format(LOCTEXT("RefuseCrystalType", "This piece takes only {0}."),
+										   WoRGameNames::GetCrystalTypeName(Row.AcceptedCrystal));
 		}
 		else if (STierAfter > LoadoutConstants::MAX_EQUIPPED_S_TIER_CRYSTALS && STierAfter > STierBefore)
 		{

@@ -1,5 +1,5 @@
 // FormsScreenSpec.cpp
-// B-444: the "Spirit of {character}" screen's model. Your own form first and worn by default; a form's meter and
+// B-444: the "Spirit of {character}" screen's model. Your own spirits first (Male / Female Nobody, D-234) and worn by default; a form's meter and
 // unlock; a character not met is "???" with no pieces; their pieces named once owned or worn, the rest "?", all named
 // once unlocked. The screen is the PIE sheet.
 
@@ -17,8 +17,9 @@
 namespace
 {
 	constexpr float FORMS_SCREEN_TEST_PARTIAL = 0.5f;
-	constexpr int32 FORMS_SCREEN_TEST_OWN_ROW = 0;
-	constexpr int32 FORMS_SCREEN_TEST_FORM_ROW = 1;
+	constexpr int32 FORMS_SCREEN_TEST_OWN_ROW = 0; // Male Nobody
+	constexpr int32 FORMS_SCREEN_TEST_FEMALE_ROW = 1; // Female Nobody
+	constexpr int32 FORMS_SCREEN_TEST_FORM_ROW = 2;
 }
 
 BEGIN_DEFINE_SPEC(FFormsScreenSpec, "WoR.UI.FormsScreen", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -55,14 +56,32 @@ void FFormsScreenSpec::Define()
 	{
 		const FFormsScreenPage Page = Build(nullptr);
 		TestTrue(TEXT("Spirit of Sera"), Page.Title.ToString().Contains(TEXT("Sera")));
-		if (!TestEqual(TEXT("your own form, then the one form"), Page.Rows.Num(), 2))
+		if (!TestEqual(TEXT("your two own spirits, then the one form"), Page.Rows.Num(), 3))
 		{
 			return;
 		}
 		const FFormsScreenRow &Own = Page.Rows[FORMS_SCREEN_TEST_OWN_ROW];
-		TestNull(TEXT("your own form has no form asset"), Own.Form);
+		TestNull(TEXT("your own spirit has no form asset"), Own.Form);
 		TestTrue(TEXT("worn while no skin is"), Own.bWorn);
 		TestFalse(TEXT("the wearing line names it"), Page.WearingLine.IsEmpty());
+	});
+
+	It("names your own spirits Male Nobody and Female Nobody; the worn one follows the base body (D-234)", [this]()
+	{
+		const FFormsScreenPage Page = Build(nullptr);
+		const FFormsScreenRow &Male = Page.Rows[FORMS_SCREEN_TEST_OWN_ROW];
+		const FFormsScreenRow &Female = Page.Rows[FORMS_SCREEN_TEST_FEMALE_ROW];
+		TestEqual(TEXT("Male Nobody first"), Male.Name.ToString(), FString(TEXT("Male Nobody")));
+		TestEqual(TEXT("then Female Nobody"), Female.Name.ToString(), FString(TEXT("Female Nobody")));
+		TestTrue(TEXT("both are own spirits, by body"), Male.bBaseBody && Male.BaseBody == EPlayerBaseForm::Manny && Female.bBaseBody
+														 && Female.BaseBody == EPlayerBaseForm::Quinn);
+		TestTrue(TEXT("the wearing line names the body"), Page.WearingLine.ToString().Contains(TEXT("Male Nobody")));
+
+		Forms->SetAtRestSpot(true);
+		TestTrue(TEXT("Female Nobody picked"), Forms->TrySetBaseForm(EPlayerBaseForm::Quinn));
+		const FFormsScreenPage After = Build(nullptr);
+		TestTrue(TEXT("Female Nobody is worn, Male Nobody is not"),
+				 After.Rows[FORMS_SCREEN_TEST_FEMALE_ROW].bWorn && !After.Rows[FORMS_SCREEN_TEST_OWN_ROW].bWorn);
 	});
 
 	It("shows a character not met as ??? with no pieces, until one of their pieces is owned", [this]()

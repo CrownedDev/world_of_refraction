@@ -12,6 +12,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/ECharacterClass.h"
+#include "Equipment/Crystals/CrystalType.h"
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Skills/Definitions/ESpellElement.h"
@@ -102,6 +103,8 @@ struct FLoadoutScreenRow
 	TArray<FLoadoutScreenSocket> Sockets;
 	/** D-231 (B-532): a prebuilt whose own crystal stays in (GearSockets::IsCrystalFixed): its first socket won't empty. */
 	bool bCrystalFixed = false;
+	/** D-231 point 5 (B-540): the one crystal type the piece accepts (its asset's AcceptedCrystalType); None: any. */
+	ECrystalType AcceptedCrystal = ECrystalType::None;
 	/** Apparel never takes budget (D-164). */
 	bool bCountsToBudget = true;
 	int32 Cost = 0;

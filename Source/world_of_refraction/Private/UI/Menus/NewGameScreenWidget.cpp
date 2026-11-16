@@ -104,15 +104,15 @@ void UNewGameScreenWidget::BuildTree()
 	UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(Main, Columns);
 
-	// Body: Manny and Quinn.
+	// Body: the starting spirit, Male Nobody (Manny) or Female Nobody (Quinn) (D-234).
 	UVerticalBox *BodyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	AddToRow(Columns, BodyColumn, FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
 	BodyLabel = MakeText(WidgetTree, LineFontSize, DimColor, true);
-	BodyLabel->SetText(LOCTEXT("Body", "Body"));
+	BodyLabel->SetText(LOCTEXT("StartingSpirit", "Starting spirit")); // D-234
 	AddToColumn(BodyColumn, BodyLabel, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	UHorizontalBox *BodyRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(BodyColumn, BodyRow);
-	const FText BodyNames[] = {LOCTEXT("Manny", "Manny"), LOCTEXT("Quinn", "Quinn")};
+	const FText BodyNames[] = {WoRGameNames::GetBaseFormName(EPlayerBaseForm::Manny), WoRGameNames::GetBaseFormName(EPlayerBaseForm::Quinn)};
 	BodyCards.Reset();
 	for (int32 Index = 0; Index < UE_ARRAY_COUNT(BodyNames); ++Index)
 	{

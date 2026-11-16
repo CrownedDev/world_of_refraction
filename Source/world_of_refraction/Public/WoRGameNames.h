@@ -36,6 +36,7 @@ enum class EWorldPillar : uint8;
 enum class EInteractVerb : uint8;
 enum class EVendorService : uint8;
 enum class ERestService : uint8;
+enum class EPlayerBaseForm : uint8;
 
 namespace WoRGameNames
 {
@@ -63,6 +64,9 @@ namespace WoRGameNames
 
     /** "Generic", "Refractor" (code: Caster), "Resonator". */
     WORLD_OF_REFRACTION_API FText GetCharacterClassName(ECharacterClass CharacterClass);
+
+    /** D-234: the player's own spirits, "Male Nobody" (code: Manny) and "Female Nobody" (code: Quinn). */
+    WORLD_OF_REFRACTION_API FText GetBaseFormName(EPlayerBaseForm Form);
 
     /** "Guard", "Dodge" (the legacy Parry also reads "Guard"). */
     WORLD_OF_REFRACTION_API FText GetDefenseTypeName(EDefenseType DefenseType);
