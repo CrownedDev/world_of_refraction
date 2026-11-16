@@ -213,6 +213,7 @@ UTexture2D *WoRIcons::Find(const FWoRIcon &Icon)
 	case EWoRIconKind::Element:
 		return GetElementBadge(Icon.Element);
 	case EWoRIconKind::EmptySocket:
+	case EWoRIconKind::Adapter: // its frame; the crystal sits on it (FindCentre)
 		return GetEmptySocket();
 	case EWoRIconKind::Stone:
 		return GetStoneSocket();
@@ -289,6 +290,20 @@ FWoRIcon WoRIcons::MakeItemEffectIcon(const FCrystalId &Item)
 		Icon.Element = ItemIdentity::GetElement(Item);
 		Icon.Name = StaticEnum<ESkillEffectType>()->GetDisplayNameTextByValue(static_cast<int64>(Kind));
 	}
+	return Icon;
+}
+
+UTexture2D *WoRIcons::FindCentre(const FWoRIcon &Icon)
+{
+	return Icon.Kind == EWoRIconKind::Adapter && Icon.Element != ESpellElement::None ? GetElementBadge(Icon.Element) : nullptr;
+}
+
+FWoRIcon WoRIcons::MakeAdapterIcon(ESpellElement SocketElement, const FText &Name)
+{
+	FWoRIcon Icon;
+	Icon.Kind = EWoRIconKind::Adapter;
+	Icon.Element = SocketElement;
+	Icon.Name = Name;
 	return Icon;
 }
 
