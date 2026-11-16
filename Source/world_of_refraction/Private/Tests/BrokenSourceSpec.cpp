@@ -75,6 +75,7 @@ BEGIN_DEFINE_SPEC(FBrokenSourceSpec, "WoR.Combat.BrokenSources",
 		FCombatLoadout &Active = Spawn(ECharacterClass::Resonator);
 		FRingLoadoutEntry Ring;
 		Ring.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+		Ring.RingEntry.Tier = EItemTier::E_Tier; // B-519: an E ring with the E gem is built E, two slots
 		Ring.RingEntry.AttachedItem = GarnetCrystal(Durability);
 		Ring.RingEntry.SpellPicks = {FTierSpell, CTierSpell}; // B-518: the ring's spells are its picks
 		Active.RingLoadout = {Ring};

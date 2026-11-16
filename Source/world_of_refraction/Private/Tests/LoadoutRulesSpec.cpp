@@ -169,7 +169,7 @@ void FLoadoutRulesSpec::Define()
 					 CrystalEffectTable::SlotsForContainerTier(EItemTier::F_Tier) < LoadoutConstants::MAX_SPELL_SLOTS);
 		});
 
-		It("lists only an F evolution's spell count on an S weapon and an S ring (Q-147 = B)", [this]()
+		It("lists only an F evolution's spell count on an S weapon; an S ring lists its built tier's, C (Q-147, D-224)", [this]()
 		{
 			FRuntimeAttachedItem Attached;
 			Attached.Kind = EAttachedItemKind::Evolution;
@@ -195,8 +195,10 @@ void FLoadoutRulesSpec::Define()
 
 			WeaponSpellRules::FScopedWeaponSpells OldWeaponSpells(true); // B-098: the old weapon-spell path, until the sweep
 			TestEqual(FString::Printf(TEXT("weapon lists the evolution's count: got %d"), Weapon.GetAllSpells().Num()), Weapon.GetAllSpells().Num(), FCount);
-			TestEqual(FString::Printf(TEXT("ring lists the evolution's count: got %d"), Ring.GetAllSpells().Num()), Ring.GetAllSpells().Num(), FCount);
-			TestEqual(FString::Printf(TEXT("ring offers the evolution's count to fill: got %d"), Ring.GetCustomizableSpellCount()), Ring.GetCustomizableSpellCount(), FCount);
+			// B-519 (D-224): a ring's count follows its built tier, the S ring and the F evolution averaged: C.
+			const int32 BuiltCount = CrystalEffectTable::SlotsForContainerTier(EItemTier::C_Tier);
+			TestEqual(FString::Printf(TEXT("ring lists its built tier's count: got %d"), Ring.GetAllSpells().Num()), Ring.GetAllSpells().Num(), BuiltCount);
+			TestEqual(FString::Printf(TEXT("ring offers its built tier's count to fill: got %d"), Ring.GetCustomizableSpellCount()), Ring.GetCustomizableSpellCount(), BuiltCount);
 		});
 
 		It("uses BD rules when the character is BD, whatever pools are authored", [this]()
@@ -359,7 +361,8 @@ void FLoadoutRulesSpec::Define()
 				RingLoadout.PrimaryRing.RingEntry.SpellPicks.Add(NewSpell(ESpellElement::Fire));
 			}
 			TestEqual(TEXT("the weapon lists the evolution's count"), Loadout.PrimaryWeapon.GetAllSpells().Num(), FCount);
-			TestEqual(TEXT("the ring lists the evolution's count"), RingLoadout.PrimaryRing.GetAllSpells().Num(), FCount);
+			TestEqual(TEXT("the ring lists its built tier's count (B-519: S and F average to C)"), RingLoadout.PrimaryRing.GetAllSpells().Num(),
+					  CrystalEffectTable::SlotsForContainerTier(EItemTier::C_Tier));
 			TestEqual(TEXT("no weapon finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
 			TestEqual(TEXT("no ring finding"), CountOverCap(RingLoadout, ELoadoutSlotType::RingSpell), 0);
 		});

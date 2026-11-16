@@ -4,6 +4,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/StatStone.h"
 #include "Equipment/Rings/RingData.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutConstants.h"
@@ -282,6 +283,20 @@ namespace LoadoutV2Build
 		}
 	}
 
+	/** B-519 (D-224): the built tier the skills read, with its parts ("D (F + B)"); none while the socket is empty. */
+	void AddBuiltTier(TArray<FLoadoutV2DetailLine> &Lines, EItemTier PieceTier, const FRuntimeAttachedItem &Socket)
+	{
+		const TOptional<EItemTier> SocketTier = CrystalEffectTable::GetSocketSkillTier(Socket);
+		if (!SocketTier.IsSet())
+		{
+			return;
+		}
+		const EItemTier Built = CrystalEffectTable::GetBuiltTier(PieceTier, Socket);
+		const FText Value = FText::Format(LOCTEXT("DetailBuiltTierValue", "{0} ({1} + {2})"), WoRGameNames::GetTierLetter(Built),
+										  WoRGameNames::GetTierLetter(PieceTier), WoRGameNames::GetTierLetter(SocketTier.GetValue()));
+		SetTier(AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailBuiltTier", "Skill tier"), Value), Built);
+	}
+
 	/** A weapon entry's lines (one weapon, or a pair): the pieces, the sockets, the skill slots. */
 	void AddWeaponSet(TArray<FLoadoutV2DetailLine> &Lines, const FWeaponLoadoutEntry &Set, bool bSimple)
 	{
@@ -291,6 +306,7 @@ namespace LoadoutV2Build
 			AddWeaponPiece(Lines, Set.OffHandEntry, bSimple);
 		}
 		AddSockets(Lines, Set.WeaponEntry.AttachedItem, Set.WeaponEntry.StoneSocket);
+		AddBuiltTier(Lines, Set.WeaponEntry.Tier, Set.WeaponEntry.AttachedItem); // the elemental side's tier (§4.1)
 		AddLine(Lines, ELoadoutV2DetailKind::SkillSlots, LOCTEXT("DetailSkillSlots", "Skill slots"), FText::AsNumber(Set.GetSkillSlotCount()));
 	}
 
@@ -307,6 +323,7 @@ namespace LoadoutV2Build
 			AddEffects(Lines, Adapter, bSimple);
 		}
 		AddSockets(Lines, Owned.AttachedItem, Owned.StoneSocket);
+		AddBuiltTier(Lines, Owned.Tier, Owned.AttachedItem);
 	}
 
 	const FWeaponLoadoutEntry *FindWeaponSet(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry)
