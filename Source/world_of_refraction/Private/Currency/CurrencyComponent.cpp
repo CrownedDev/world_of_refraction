@@ -169,8 +169,8 @@ const int32 *UCurrencyComponent::FindScalar(ECurrencyType Currency) const
         return &Diamond;
     case ECurrencyType::GearEssence:
         return &GearEssence;
-    case ECurrencyType::SkillEssence:
-        return &SkillEssence;
+    case ECurrencyType::SkillEssence: // B-550 (D-235): Dormant Essence, one balance
+        return &GearEssence;
     case ECurrencyType::ElementalEssence:
         return &ElementalEssence;
     case ECurrencyType::PillarEssence:
@@ -187,7 +187,7 @@ const int32 *UCurrencyComponent::FindScalar(ECurrencyType Currency) const
 
 void UCurrencyComponent::NotifyChanged(ECurrencyType Currency, uint8 SubKey, int32 NewBalance)
 {
-    OnCurrencyChanged.Broadcast(Currency, SubKey, NewBalance);
+    OnCurrencyChanged.Broadcast(CurrencyBalances::KeptIn(Currency), SubKey, NewBalance);
 }
 
 // ==================== DEBUG ====================
@@ -295,7 +295,6 @@ void UCurrencyComponent::CopyBalancesFrom(const UCurrencyComponent &Other)
     CopyScalar(Prisms, Other.Prisms, ECurrencyType::Prisms);
     CopyScalar(Diamond, Other.Diamond, ECurrencyType::Diamond);
     CopyScalar(GearEssence, Other.GearEssence, ECurrencyType::GearEssence);
-    CopyScalar(SkillEssence, Other.SkillEssence, ECurrencyType::SkillEssence);
     CopyScalar(ElementalEssence, Other.ElementalEssence, ECurrencyType::ElementalEssence);
     CopyScalar(PillarEssence, Other.PillarEssence, ECurrencyType::PillarEssence);
     CopyScalar(MentorTokens, Other.MentorTokens, ECurrencyType::MentorTokens);

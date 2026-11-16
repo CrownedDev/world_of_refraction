@@ -42,7 +42,7 @@ struct FCrystalMergePlan
 namespace PurchaseCostBalances
 {
     /** B-333: the balances a purchase can charge, in display order. */
-    inline constexpr ECurrencyType CHARGED[] = {ECurrencyType::Prisms, ECurrencyType::SkillEssence,
+    inline constexpr ECurrencyType CHARGED[] = {ECurrencyType::Prisms, ECurrencyType::GearEssence, // B-550: Dormant
                                                 ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
 
     /** B-366c: the balance a cost line is paid from. The money line (listed as Prisms) is paid in the currency
@@ -64,6 +64,7 @@ struct WORLD_OF_REFRACTION_API FPurchaseCost
     UPROPERTY(BlueprintReadOnly, Category = "Economy")
     int32 Prisms = 0;
 
+    /** B-550 (D-235): the Dormant Essence line (charged from GearEssence); the name stays for Blueprints. */
     UPROPERTY(BlueprintReadOnly, Category = "Economy")
     int32 SkillEssence = 0;
 
@@ -86,6 +87,7 @@ struct WORLD_OF_REFRACTION_API FPurchaseCost
         switch (Currency)
         {
         case ECurrencyType::Prisms: return Prisms;
+        case ECurrencyType::GearEssence:
         case ECurrencyType::SkillEssence: return SkillEssence;
         case ECurrencyType::ElementalEssence: return ElementalEssence;
         case ECurrencyType::PillarEssence: return PillarEssence;
@@ -98,6 +100,7 @@ struct WORLD_OF_REFRACTION_API FPurchaseCost
     {
         switch (Currency)
         {
+        case ECurrencyType::GearEssence:
         case ECurrencyType::SkillEssence: SkillEssence += Amount; break;
         case ECurrencyType::ElementalEssence: ElementalEssence += Amount; break;
         case ECurrencyType::PillarEssence: PillarEssence += Amount; break;
