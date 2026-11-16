@@ -1336,6 +1336,15 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
+### Q-525 — Settling a run's skills: the smaller choices
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-525, D-224 questions 10 to 12) · **Blocks:** —
+**Question:** Crown ruled that only slotted skills are kept and that they follow D-219's worn-gear rules. Some smaller cases are left. None of this is lore.
+**Answer:** by the reference-backed default (D-219's own rules for worn gear; Monster Hunter and Diablo keep what is equipped and drop the rest):
+- **"Slotted"** means a pick in a slot of a worn weapon or adapter at the end. Innate spells, Broken Darkness pools and the evolution's spells are not gear picks: they are neither settled nor lowered, as a lost run lowers only the pieces and not their crystals or evolutions (D-221 Q6).
+- **A skill the hub already knew, bought back in the run** is the hub's one copy: the hub copy stays and takes the tier drop; the run's fresh copy goes.
+- **The kit's starting bolt** counts as found: slotted at an extract, it joins the hub list.
+- **A full hub list** (the learned-skill cap): a found skill with no room is not kept (counted in the log line).
+
 ### Q-523 — A run's skill list: what a kit member keeps at the start
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-523, D-224 stage S3) · **Blocks:** —
 **Question:** "a run starts with no learned or bought skills; innate spells stay" (D-224). Which skills count as innate, and who is reset? None of this is lore.
