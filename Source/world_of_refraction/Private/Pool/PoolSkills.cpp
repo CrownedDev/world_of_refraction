@@ -187,32 +187,38 @@ bool UPoolSubsystem::LearnSkillCopy(FName ToKey, const UObject *Skill)
     {
         return false;
     }
+    const bool bLearned = LearnSkillInto(*To, Skill);
+    if (bLearned)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Pool] %s learns its own copy of %s"), *ToKey.ToString(), *GetNameSafe(Skill));
+        OnPoolSkillsChanged.Broadcast(ToKey);
+    }
+    return bLearned;
+}
+
+bool UPoolSubsystem::LearnSkillInto(FPoolSkills &To, const UObject *Skill)
+{
     // The collections' learn mints the instance and seeds its tier; the stored skill pointers are mutable.
     bool bLearned = false;
     if (USpellData *Spell = const_cast<USpellData *>(Cast<USpellData>(Skill)))
     {
         FSpellCollection Learner;
-        Learner.LearnedSpells = To->Spells;
-        bLearned = To->Spells.Num() < InventoryConstants::MAX_LEARNED_SPELLS && Learner.LearnSpell(Spell);
+        Learner.LearnedSpells = To.Spells;
+        bLearned = To.Spells.Num() < InventoryConstants::MAX_LEARNED_SPELLS && Learner.LearnSpell(Spell);
         if (bLearned)
         {
-            To->Spells = Learner.LearnedSpells;
+            To.Spells = Learner.LearnedSpells;
         }
     }
     else if (UAbilityData *Ability = const_cast<UAbilityData *>(Cast<UAbilityData>(Skill)))
     {
         FAbilityCollection Learner;
-        Learner.LearnedAbilities = To->Abilities;
-        bLearned = To->Abilities.Num() < InventoryConstants::MAX_LEARNED_ABILITIES && Learner.LearnAbility(Ability);
+        Learner.LearnedAbilities = To.Abilities;
+        bLearned = To.Abilities.Num() < InventoryConstants::MAX_LEARNED_ABILITIES && Learner.LearnAbility(Ability);
         if (bLearned)
         {
-            To->Abilities = Learner.LearnedAbilities;
+            To.Abilities = Learner.LearnedAbilities;
         }
-    }
-    if (bLearned)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[Pool] %s learns its own copy of %s"), *ToKey.ToString(), *GetNameSafe(Skill));
-        OnPoolSkillsChanged.Broadcast(ToKey);
     }
     return bLearned;
 }
@@ -230,13 +236,13 @@ bool UPoolSubsystem::BeginRunSkills(FName CharacterKey, const TArray<const UObje
     FPoolSkills Run;
     Run.Spells = Hub.Spells.FilterByPredicate([&Keep](const FSpellInstance &I) { return Keep.Contains(I.Spell); });
     Run.Abilities = Hub.Abilities.FilterByPredicate([&Keep](const FAbilityInstance &I) { return Keep.Contains(I.Ability); });
-    *Skills = Run;
     for (const UObject *Skill : Starting)
     {
-        LearnSkillCopy(CharacterKey, Skill); // false for one already kept (an innate bolt) or no room
+        LearnSkillInto(Run, Skill); // false for one already kept (an innate bolt) or no room
     }
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run skills: %s starts the run with %d spell(s), %d ability(ies); %d starting skill(s) (D-224)"),
-           *CharacterKey.ToString(), Skills->Spells.Num(), Skills->Abilities.Num(), Starting.Num());
+           *CharacterKey.ToString(), Run.Spells.Num(), Run.Abilities.Num(), Starting.Num());
+    *Skills = MoveTemp(Run); // whole, before the one broadcast
     OnPoolSkillsChanged.Broadcast(CharacterKey);
     return true;
 }
@@ -248,6 +254,9 @@ int32 UPoolSubsystem::PutBackRunStartSkills()
     for (const TPair<FName, FPoolSkills> &Pair : Hub)
     {
         CharacterSkills.Add(Pair.Key, Pair.Value);
+    }
+    for (const TPair<FName, FPoolSkills> &Pair : Hub) // every list back before anyone hears
+    {
         OnPoolSkillsChanged.Broadcast(Pair.Key);
     }
     if (Hub.Num() > 0)

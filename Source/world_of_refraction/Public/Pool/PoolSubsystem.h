@@ -547,6 +547,9 @@ public:
     void RestoreRunStartSkills(const TMap<FName, FPoolSkills> &Saved) { RunStartSkills = Saved; }
     /** Puts every kept hub list back (fires OnPoolSkillsChanged for each) and clears them. Returns how many. */
     int32 PutBackRunStartSkills();
+    /** A fresh copy of Skill (a USpellData or UAbilityData, its tier from the asset) into To; no broadcast. False when
+     *  To already knows it or has no room. */
+    static bool LearnSkillInto(FPoolSkills &To, const UObject *Skill);
 
     UPROPERTY(BlueprintAssignable, Category = "Pool|Skills")
     FOnPoolSkillsChanged OnPoolSkillsChanged;
