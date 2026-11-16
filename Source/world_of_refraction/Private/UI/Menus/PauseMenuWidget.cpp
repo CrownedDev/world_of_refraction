@@ -64,7 +64,7 @@ namespace PauseMenuStyle
 
 	constexpr float LowHPFraction = 0.3f;
 	constexpr float HoldTickSeconds = 0.03f;
-	constexpr int32 MaxChips = 3;
+	constexpr int32 MaxChips = 7; // B-543: six balances, and a run's wipes left
 }
 
 UPauseMenuWidget::UPauseMenuWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -117,7 +117,7 @@ void UPauseMenuWidget::BuildTree()
 	UVerticalBox *Main = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Screen->SetContent(Main);
 
-	// Top line: the place, then its money.
+	// Top line: the place on the left, every balance on the right (B-543).
 	UHorizontalBox *Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(Main, Header);
 	UVerticalBox *Place = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -125,7 +125,7 @@ void UPauseMenuWidget::BuildTree()
 	SubtitleText = MakeText(WidgetTree, SubtitleFontSize, DimColor);
 	AddToColumn(Place, TitleText);
 	AddToColumn(Place, SubtitleText);
-	AddToRow(Header, MakeSized(WidgetTree, PageWidth + ColumnGap, 0.0f, Place), FMargin(0.0f), VAlign_Top);
+	AddToRow(Header, Place, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	for (int32 Index = 0; Index < MaxChips; ++Index)
 	{
 		ChipValues.Add(MakeText(WidgetTree, SubtitleFontSize, TextColor, true));
