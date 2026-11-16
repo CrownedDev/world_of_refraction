@@ -1336,6 +1336,14 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
+### Q-522b — Prebuilt finds: the smaller choices
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-522b, Crown Q7) · **Blocks:** —
+**Question:** a prebuilt find names a piece and a gem or an evolution (`Design/AssetOverhaulPlan.md` §3 "Found pieces"). What if both are set, what if the socket can't be filled, and does a second copy of a piece still raise the duplicate choice? None of this is lore.
+**Answer:** by the reference-backed default (Diablo and Path of Exile drop socketed items as one item, already filled; a full inventory never loses the item itself):
+- **Both set:** the gem goes in (the socket holds one); the editor's tooltip says the evolution is for when no gem is set. Data validation can flag it later.
+- **The socket can't be filled** (a full gem pouch, or 5 evolutions already): the piece still arrives, empty, and a warning is logged; a gem that went into the pouch stays there. Nothing is lost.
+- **A second copy** of a piece raises the usual "Gold or dismantle" choice (D-115), as any found piece does.
+
 ### Q-521 — Pieces start empty: what keeps its baked crystal until stage 6
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-521, D-224 stage 3) · **Blocks:** —
 **Question:** the plan (`Design/AssetOverhaulPlan.md` §3 step 2) stops `CreateFromWeapon` / `CreateFromRing` copying the asset's baked crystal. Those factories also build every enemy's and every current character's gear from their old inventory and loadout assets, which have no other place for a crystal until stages 4 and 5 replace them. Taken literally, every enemy would lose its spells overnight. None of this is lore.
