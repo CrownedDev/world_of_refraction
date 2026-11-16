@@ -10,6 +10,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Inventory/InventoryData.h"
 #include "Loadout/Entries/FApparelEntry.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "WoRLog.h"
@@ -320,6 +321,16 @@ TArray<FGuid> UPoolSubsystem::WearStartingGear(FName CharacterKey, const FClassD
 	UE_LOG(LogWoRLoadout, Log, TEXT("[StartingGear] %s minted and wears its starting gear (D-223): %d piece(s)%s"), *CharacterKey.ToString(),
 		   Worn.GetPieceIDs().Num(), Evolution ? TEXT(", its evolution in the seat") : TEXT(""));
 	return Worn.GetPieceIDs();
+}
+
+bool UPoolSubsystem::SeedStartingGear(FName CharacterKey, const UInventoryData *Start, FWornGear Innate)
+{
+	if (CharacterKey.IsNone() || !Start || Start->StartingGear.Pieces.IsEmpty() || GetWornGear(CharacterKey))
+	{
+		return false;
+	}
+	WearStartingGear(CharacterKey, Start->StartingGear, Start->StartingEvolution, MoveTemp(Innate));
+	return true;
 }
 
 bool UPoolSubsystem::IsClassDefault(const FGuid &GearID) const
