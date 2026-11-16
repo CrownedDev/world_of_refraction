@@ -176,7 +176,7 @@ public:
 		float EfficiencyFrac,
 		float ResistanceFrac);
 
-	/** D-224 (AssetOverhaulPlan ง4): CalculateDurabilityWearWithSubstatsDetailed with the tier gap read against
+	/** D-224 (AssetOverhaulPlan ยง4): CalculateDurabilityWearWithSubstatsDetailed with the tier gap read against
 	 *  GapTier (a ring's built tier) while max durability stays CrystalTier's. GapTier == CrystalTier is the plain
 	 *  form. C++ only. */
 	static FDurabilityWearWithSubstatsResult CalculateGapWearWithSubstatsDetailed(

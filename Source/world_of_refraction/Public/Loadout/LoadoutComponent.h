@@ -351,7 +351,7 @@ public:
      *  into SavedLoadouts: use it at once, never across an inventory change. */
     FRuntimeAttachedItem *FindSpellCatalystAttachment(USpellData *Spell);
 
-    /** D-224 (AssetOverhaulPlan ง4): the built tier of the active loadout's piece whose socket is Attachment (a
+    /** D-224 (AssetOverhaulPlan ยง4): the built tier of the active loadout's piece whose socket is Attachment (a
      *  pointer from FindSpellCatalystAttachment / FindAttachedItemByHolder): the piece and its socket averaged
      *  (CrystalEffectTable::GetBuiltTier). Unset when no piece of the active loadout holds it. */
     TOptional<EItemTier> GetBuiltTierOfSocket(const FRuntimeAttachedItem *Attachment) const;
