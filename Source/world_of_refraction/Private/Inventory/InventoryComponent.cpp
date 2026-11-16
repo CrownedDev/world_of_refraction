@@ -2849,6 +2849,8 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         for (FCombatLoadout &Loadout : SavedLoadouts)
         {
             Loadout.FillEmptyPicksFromKnown(InventoryAsset->Abilities, InventoryAsset->Spells);
+            UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] %s: Q-518 enemy fill, the loadout lists %d abilities and %d spells"),
+                   *CharacterData->Name, Loadout.GetAllAbilities().Num(), Loadout.GetAllSpells().Num());
         }
     }
 

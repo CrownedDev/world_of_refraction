@@ -24,7 +24,7 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
     {
         Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InWeapon->AttachedItem);
 
-        // Copy default spells from weapon asset
+        // TODO: (B-518, D-224) stage 6 stops this copy: the list is OBSOLETE and no longer plays (the picks are the list).
         Entry.AssignedSpells = InWeapon->DefaultSpells;
     }
 

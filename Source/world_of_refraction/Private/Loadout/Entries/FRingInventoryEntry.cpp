@@ -33,7 +33,7 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing)
     {
         Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InRing->AttachedItem);
 
-        // Copy default spells from ring asset
+        // TODO: (B-518, D-224) stage 6 stops this copy: the list is OBSOLETE and no longer plays (the picks are the list).
         Entry.AssignedSpells = InRing->DefaultSpells;
     }
 
