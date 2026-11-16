@@ -90,18 +90,8 @@ int32 WeaponSetRules::GetSetTierSlots(const FWeaponLoadoutEntry &Set)
 
 TArray<UAbilityData *> WeaponSetRules::GetSetBuiltIns(const FWeaponLoadoutEntry &Set)
 {
-	TArray<UAbilityData *> BuiltIns = Set.WeaponEntry.Weapon ? Set.WeaponEntry.Weapon->PresetAbilities : TArray<UAbilityData *>();
-	if (IsValidPair(Set))
-	{
-		for (UAbilityData *Ability : Set.OffHandEntry.Weapon->PresetAbilities)
-		{
-			if (Ability)
-			{
-				BuiltIns.AddUnique(Ability);
-			}
-		}
-	}
-	return BuiltIns;
+	// B-518 (D-224): no skills on gear, so a set has no built-ins. OBSOLETE, deleted in stage 6.
+	return TArray<UAbilityData *>();
 }
 
 EWeaponWieldMode WeaponSetRules::GetSetWieldMode(const FWeaponLoadoutEntry &Set)
