@@ -156,9 +156,9 @@ void FGameNamesSpec::Define()
 	It("names an adapter by what is in its socket (B-514b, D-223)", [this]()
 	{
 		URingData *Ring = NewObject<URingData>(GetTransientPackage());
-		Ring->Name = TEXT("Plain Ring");
 		Ring->Form = EAdapterForm::Ring;
 		const FString Form = WoRGameNames::GetAdapterFormName(EAdapterForm::Ring).ToString();
+		Ring->Name = FString::Printf(TEXT("%s %s"), *WoRGameNames::GetAdapterWord().ToString(), *Form); // the empty adapter's own reading: not a name of its own
 		FRuntimeAttachedItem Socket;
 		TestEqual(TEXT("empty: the adapter word, then the form (D-223)"), WoRGameNames::GetAdapterName(Ring, Socket).ToString(),
 				  FString::Printf(TEXT("%s %s"), *WoRGameNames::GetAdapterWord().ToString(), *Form));
@@ -174,6 +174,22 @@ void FGameNamesSpec::Define()
 		Evolved.Evolution.Item = Phoenix;
 		TestEqual(TEXT("an evolution: its name, then the form"), WoRGameNames::GetAdapterName(Ring, Evolved).ToString(), FString::Printf(TEXT("Phoenix %s"), *Form));
 		TestTrue(TEXT("no adapter"), WoRGameNames::GetAdapterName(nullptr, Socket).IsEmpty());
+		Ring->Name = GetDefault<URingData>()->Name;
+		TestEqual(TEXT("the class default name is not its own: by its socket"), WoRGameNames::GetAdapterName(Ring, Evolved).ToString(),
+				  FString::Printf(TEXT("Phoenix %s"), *Form));
+	});
+
+	It("shows an adapter's own name whatever is in its socket (D-226)", [this]()
+	{
+		URingData *Ring = NewObject<URingData>(GetTransientPackage());
+		Ring->Form = EAdapterForm::Ring;
+		Ring->Name = TEXT("King's Ring");
+		constexpr int32 LIVE_DURABILITY = 10;
+		FRuntimeAttachedItem Socket;
+		TestEqual(TEXT("empty"), WoRGameNames::GetAdapterName(Ring, Socket).ToString(), FString(TEXT("King's Ring")));
+		Socket.Kind = EAttachedItemKind::Crystal;
+		Socket.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), LIVE_DURABILITY);
+		TestEqual(TEXT("with a crystal"), WoRGameNames::GetAdapterName(Ring, Socket).ToString(), FString(TEXT("King's Ring")));
 	});
 }
 

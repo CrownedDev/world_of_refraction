@@ -132,8 +132,9 @@ namespace WoRGameNames
 
     /** B-514b (D-223 "A ring is named by what is in it"): an adapter by its socket, then its form: an evolution gives
      *  its name ("Phoenix Ring"), a crystal its element ("Fire Ring"); an empty one (or a socket with no element) reads
-     *  "Adapter Ring" ("Adapter Pistol", "Adapter Trainer"; Crown, D-223). Empty for no adapter. The quick strip and
-     *  the Equipment screen ask here. */
+     *  "Adapter Ring" ("Adapter Pistol", "Adapter Trainer"; Crown, D-223). D-226 (2): an adapter whose Name is its own
+     *  (not empty, not the class default, not "Adapter Ring") shows that name instead. Empty for no adapter. The quick
+     *  strip and the Equipment screen ask here. */
     WORLD_OF_REFRACTION_API FText GetAdapterName(const URingData *Adapter, const FRuntimeAttachedItem &Socket);
 
     /** B-516 / B-516b (D-223 "Two pieces with the same name"): the tier tells same-named pieces apart first; only a
