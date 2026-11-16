@@ -2769,6 +2769,7 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 			{
 				Draft = WoRLoadoutV2::DraftFromEntry(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], EditEntry);
 			}
+			Selected = bRestore ? 0 : Selected; // the Restore line goes once full: a second A mustn't land on a choice
 		}
 		RefreshData();
 		return;
