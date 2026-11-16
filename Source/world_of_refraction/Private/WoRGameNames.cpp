@@ -653,7 +653,7 @@ FText WoRGameNames::GetCrystalTypeName(ECrystalType Type)
     case ECrystalType::MaxEPStone:
         return LOCTEXT("ECrystalType_MaxEPStone", "Max EP Stone");
     case ECrystalType::DurabilityStone:
-        return LOCTEXT("ECrystalType_DurabilityStone", "Durability Stone");
+        return LOCTEXT("ECrystalType_DurabilityStone", "Wear Stone");
     case ECrystalType::StatStone:
         return LOCTEXT("ECrystalType_StatStone", "Stat Stone");
     // Retired single-stat kinds (B-353): still named, since an old asset can hold one until it is normalized.

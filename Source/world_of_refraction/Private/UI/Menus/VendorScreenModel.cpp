@@ -634,7 +634,7 @@ FVendorScreenPage WoRVendorScreen::BuildRepairPage(UWorld *World, AActor *Payer)
 		Line.bStateIsBad = Current <= 0;
 		Line.State = Line.bStateIsBad ? LOCTEXT("Broken", "broken") : FText::AsPercent(Max > 0 ? static_cast<double>(Current) / Max : 0.0);
 		Line.Pay = MoneyText(Piece.Cost, World);
-		Line.Details.Add({LOCTEXT("DetailDurability", "Durability"), FText::Format(LOCTEXT("DurabilityOf", "{0} of {1}"), FText::AsNumber(Current), FText::AsNumber(Max))});
+		Line.Details.Add({LOCTEXT("DetailDurability", "Wear"), FText::Format(LOCTEXT("DurabilityOf", "{0} of {1}"), FText::AsNumber(Current), FText::AsNumber(Max))});
 		Line.Refusal = GearRepair::GetRefusal(Wallet, Piece.Cost);
 	}
 	if (Page.Rows.IsEmpty())
