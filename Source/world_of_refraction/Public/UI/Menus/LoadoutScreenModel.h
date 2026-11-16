@@ -96,6 +96,8 @@ struct FLoadoutScreenRow
 	/** The weapon in hand (or the adapter in use), shown only when the loadout has more than one. */
 	bool bActive = false;
 	TArray<FLoadoutScreenSocket> Sockets;
+	/** D-231 (B-532): a prebuilt whose own crystal stays in (GearSockets::IsCrystalFixed): its first socket won't empty. */
+	bool bCrystalFixed = false;
 	/** Apparel never takes budget (D-164). */
 	bool bCountsToBudget = true;
 	int32 Cost = 0;

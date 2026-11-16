@@ -110,7 +110,7 @@ namespace LoadoutV2ScreenStyle
 	}
 
 	/** What A again on a filled socket takes off (today's rule, WoRLoadoutScreen::GetTakeOffSocketWarning, said for A):
-	 *  an evolution goes back with wear; a gem and the stone come off together and are used up (CL-28b). Empty with
+	 *  an evolution goes back with wear; a gem or a stone comes out alone and is used up (CL-28b, B-533). Empty with
 	 *  OutRefusal when the socket can't be emptied. */
 	FText SocketRemoveWarning(const FLoadoutScreenRow &Row, int32 Socket, FText &OutRefusal)
 	{
@@ -118,9 +118,10 @@ namespace LoadoutV2ScreenStyle
 		{
 			return FText::GetEmpty();
 		}
-		const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
-		return Crystal.bEvolution ? FText::FormatNamed(LOCTEXT("WarnEvolutionOff", "{Confirm} again: {What} goes back to your evolutions with some wear (it breaks at none)."), TEXT("What"), Crystal.Name)
-								  : LOCTEXT("WarnCrystalOff", "{Confirm} again: what's in both sockets comes off and is destroyed.");
+		const FLoadoutScreenSocket &Taken = Row.Sockets[Socket];
+		return Socket == LoadoutScreenSockets::CRYSTAL && Taken.bEvolution
+				   ? FText::FormatNamed(LOCTEXT("WarnEvolutionOff", "{Confirm} again: {What} goes back to your evolutions with some wear (it breaks at none)."), TEXT("What"), Taken.Name)
+				   : FText::FormatNamed(LOCTEXT("WarnSocketOff", "{Confirm} again: {What} comes out and is destroyed. The other socket keeps its own."), TEXT("What"), Taken.Name);
 	}
 
 	/** B-440f: an apparel piece's short line: its tier and what its socket holds ("B · Garnet", "C · empty"). */

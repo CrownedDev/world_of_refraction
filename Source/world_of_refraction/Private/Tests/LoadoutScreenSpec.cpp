@@ -379,7 +379,7 @@ void FLoadoutScreenSpec::Define()
 		Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Kind = EAttachedItemKind::Evolution;
 		const FLoadoutScreenPage Page = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic);
 		FText Refusal;
-		TestFalse(TEXT("a gem: both sockets come off, destroyed"),
+		TestFalse(TEXT("a gem: it comes out alone, destroyed (B-533)"),
 				  WoRLoadoutScreen::GetTakeOffSocketWarning(Page.Rows[LOADOUT_SCREEN_TEST_FIRST], LoadoutScreenSockets::CRYSTAL, Refusal).IsEmpty());
 		TestTrue(TEXT("an empty socket: nothing to say"),
 				 WoRLoadoutScreen::GetTakeOffSocketWarning(Page.Rows[LOADOUT_SCREEN_TEST_FIRST], LoadoutScreenSockets::STONE, Refusal).IsEmpty());

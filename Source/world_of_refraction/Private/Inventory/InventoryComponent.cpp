@@ -26,6 +26,7 @@
 #include "Equipment/EquipmentDataBase.h" // B-091: gear display names
 #include "Inventory/ItemTier.h" // TierHelpers::GetTierName for the instance dump
 #include "Equipment/FRuntimeAttachedItem.h" // attached-crystal description in the instance dump
+#include "Equipment/GearSockets.h"         // D-231: IsCrystalFixed
 #include "Combat/CombatConstants.h"
 #include "Combat/TurnManager.h" // speed-notify on speed-relevant crystal detach
 #include "Equipment/Crystals/CrystalEffectTable.h"
@@ -401,6 +402,11 @@ bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid Ge
         return false;
     }
 
+    if (GearSockets::IsCrystalFixed(Gear[Index])) // D-231 (B-532)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] %s: %s %s is prebuilt with a fixed evolution"), Op, GearLabel<TEntry>(), *GearID.ToString());
+        return false;
+    }
     FRuntimeAttachedItem &Attached = Gear[Index].AttachedItem;
     // Must be a PLAYER-ATTACHED evolution: valid InstanceID. Authored-locked (invalid InstanceID) is
     // a built-in evolution and cannot be removed.
@@ -441,25 +447,35 @@ bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid Ge
 }
 
 template <class TEntry>
-bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index)
+bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Index, bool bStoneSocket)
 {
     if (!Gear.IsValidIndex(Index))
     {
         return false;
     }
 
-    // B-351b (D-141): both sockets clear (a socketed stone was lost for good before: nothing could remove it).
-    const bool bHadAttachment = !Gear[Index].AttachedItem.IsEmpty() || !Gear[Index].StoneSocket.IsEmpty();
+    if (!bStoneSocket && GearSockets::IsCrystalFixed(Gear[Index])) // D-231 (B-532): its stone may still come off
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RemoveCrystal: %s is prebuilt with a fixed crystal"), *Gear[Index].PersistentID.ToString());
+        return false;
+    }
+    // B-533 (D-231): only the chosen socket clears; what comes out is destroyed. (B-351b cleared both.)
+    FRuntimeAttachedItem &Socket = bStoneSocket ? Gear[Index].StoneSocket : Gear[Index].AttachedItem;
+    const bool bHadAttachment = !Socket.IsEmpty();
     // Speed-relevance gate, read BEFORE the detach: a TurnSpeed-contributing stone
     // (plain TurnSpeedStone or a fusion with a TurnSpeed half/bonus — same
     // GetAttachedStonePercent read the turn speed layers use) feeds the stone factor,
     // so its removal must recalc turn order. Non-speed stones skip the notify.
-    const bool bWasSpeedStone =
-        CrystalEffectTable::GetAttachedStonePercent(Gear[Index].AttachedItem, ESubStat::TurnSpeed) > 0.0f ||
-        CrystalEffectTable::GetAttachedStonePercent(Gear[Index].StoneSocket, ESubStat::TurnSpeed) > 0.0f;
+    const bool bWasSpeedStone = CrystalEffectTable::GetAttachedStonePercent(Socket, ESubStat::TurnSpeed) > 0.0f;
 
-    Gear[Index].RemoveCrystal();
-    Gear[Index].StoneSocket = FRuntimeAttachedItem();
+    if (bStoneSocket)
+    {
+        Socket = FRuntimeAttachedItem();
+    }
+    else
+    {
+        Gear[Index].RemoveCrystal(); // the element socket and the spells it gave
+    }
     if (bHadAttachment)
     {
         HandleGearSocketChanged(Gear[Index].PersistentID);
@@ -913,7 +929,12 @@ bool UInventoryComponent::CanAddWeapon(UWeaponData *Weapon) const
 
 bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
 {
-    return RemoveCrystalFromGear(Weapons, WeaponIndex);
+    return RemoveCrystalFromGear(Weapons, WeaponIndex, false);
+}
+
+bool UInventoryComponent::RemoveStoneFromWeapon(int32 WeaponIndex)
+{
+    return RemoveCrystalFromGear(Weapons, WeaponIndex, true);
 }
 
 // ==================== RING OPERATIONS ====================
@@ -2663,7 +2684,12 @@ bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
 {
     // Ring attachments do not feed the turn-speed read path today (UTurnManager::BuildTurnSpeedLayers reads the
     // active WEAPON attachment only), so the speed notify inside is defensive symmetry.
-    return RemoveCrystalFromGear(Rings, RingIndex);
+    return RemoveCrystalFromGear(Rings, RingIndex, false);
+}
+
+bool UInventoryComponent::RemoveStoneFromRing(int32 RingIndex)
+{
+    return RemoveCrystalFromGear(Rings, RingIndex, true);
 }
 
 // ==================== EVOLUTION HELPERS ====================
@@ -2744,6 +2770,18 @@ bool UInventoryComponent::RemoveEvolutionInstance(FGuid InstanceID)
         GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     if (!EvolutionInv)
     {
+        return false;
+    }
+    // D-231 (B-532): an evolution fixed in a prebuilt piece can't leave it by being dismantled either.
+    const auto FixedHere = [&InstanceID](const auto &Gear)
+    {
+        return Gear.ContainsByPredicate([&InstanceID](const auto &Entry)
+                                        { return GearSockets::IsCrystalFixed(Entry) && Entry.AttachedItem.IsEvolution() &&
+                                                 Entry.AttachedItem.Evolution.InstanceID == InstanceID; });
+    };
+    if (FixedHere(Weapons) || FixedHere(Rings))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RemoveEvolutionInstance: %s is fixed in a prebuilt piece"), *InstanceID.ToString());
         return false;
     }
     const bool bRemoved = EvolutionInv->RemoveInstance(InstanceID);

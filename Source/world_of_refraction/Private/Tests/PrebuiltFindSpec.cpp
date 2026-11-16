@@ -1,7 +1,8 @@
 // PrebuiltFindSpec.cpp
 // B-522b (asset overhaul §3 "Found pieces", Crown Q7): a prebuilt find arrives with its gem or evolution in the socket,
 // the evolution owned by the finder; a plain find arrives empty. B-527 (D-226 (1)): a merchant sells one the same way,
-// priced as its piece plus its socket.
+// priced as its piece plus its socket. B-532 (D-231): a prebuilt keeps its own crystal unless its setting lets it out; its
+// second socket takes a stone only, which comes off alone (B-533); a ring the player built is unchanged.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -13,16 +14,21 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/GearSockets.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
+#include "Loadout/FGearInstance.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Trial/PrebuiltFindData.h"
 #include "Trial/TrialLoot.h"
+#include "UI/Menus/LoadoutScreenModel.h"
 
 namespace
 {
 	const FCrystalId PREBUILT_TEST_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
+	const FCrystalId PREBUILT_TEST_OTHER_GEM(ECrystalType::Sapphire, EItemTier::F_Tier);
+	const FCrystalId PREBUILT_TEST_STONE(ECrystalType::DamageStone, EItemTier::F_Tier);
 	constexpr int32 PREBUILT_TEST_SEED = 522;
 	const TCHAR *PREBUILT_TEST_POOL = TEXT("Source.Zone.Tier4");
 }
@@ -39,6 +45,34 @@ BEGIN_DEFINE_SPEC(FPrebuiltFindSpec, "WoR.Trial.PrebuiltFind", EAutomationTestFl
 		UPrebuiltFindData *Find = NewObject<UPrebuiltFindData>(GetTransientPackage());
 		Find->Piece = Piece;
 		return Find;
+	}
+
+	/** The loadout screen's view of an owned ring: both sockets filled, fixed by the one rule (D-231). */
+	static FLoadoutScreenRow ScreenRowFor(const FRingInventoryEntry &Ring)
+	{
+		FLoadoutScreenRow Row;
+		Row.Kind = ELoadoutScreenRowKind::Adapter;
+		Row.GearID = Ring.PersistentID;
+		Row.Sockets.SetNum(2);
+		Row.Sockets[LoadoutScreenSockets::CRYSTAL].bEmpty = Ring.AttachedItem.IsEmpty();
+		Row.Sockets[LoadoutScreenSockets::STONE].bEmpty = Ring.StoneSocket.IsEmpty();
+		Row.bCrystalFixed = GearSockets::IsCrystalFixed(FGearInstance::FromRingEntry(Ring));
+		return Row;
+	}
+
+	/** A ring find with PREBUILT_TEST_GEM in, granted; then a second gem and a stone in the pouch. */
+	const FRingInventoryEntry *GrantGemRing(bool bRemovable)
+	{
+		UPrebuiltFindData *Find = NewFind(NewObject<URingData>(GetTransientPackage()));
+		Find->Crystal = PREBUILT_TEST_GEM;
+		Find->bCrystalRemovable = bRemovable;
+		if (!TrialLoot::GrantTo(Finder, Find) || Inventory->Rings.Num() != 1)
+		{
+			return nullptr;
+		}
+		Inventory->AddCrystal(PREBUILT_TEST_OTHER_GEM);
+		Inventory->AddCrystal(PREBUILT_TEST_STONE);
+		return &Inventory->Rings[0];
 	}
 END_DEFINE_SPEC(FPrebuiltFindSpec)
 
@@ -136,6 +170,78 @@ void FPrebuiltFindSpec::Define()
 													 Inventory->Rings.Last().AttachedItem.Crystal.Id == PREBUILT_TEST_GEM);
 		TestEqual(TEXT("None loose"), Crystals->GetCount(PREBUILT_TEST_GEM), 0);
 		TestEqual(TEXT("All Prisms spent"), Wallet->GetBalance(ECurrencyType::Prisms), 0);
+	});
+
+	It("D-231: a prebuilt set fixed refuses a second gem, takes a stone, and keeps its own crystal", [this]()
+	{
+		const FRingInventoryEntry *Ring = GrantGemRing(false);
+		if (!TestNotNull(TEXT("Granted"), Ring)) return;
+		const FGuid RingId = Ring->PersistentID;
+		TestTrue(TEXT("Prebuilt, its crystal fixed"), Ring->bPrebuilt && !Ring->bCrystalRemovable);
+		TestFalse(TEXT("A second gem refused"), Inventory->AttachCrystalToRing(RingId, PREBUILT_TEST_OTHER_GEM));
+		TestTrue(TEXT("A stone taken, in the second socket"), Inventory->AttachCrystalToRing(RingId, PREBUILT_TEST_STONE) &&
+																	 Inventory->Rings[0].StoneSocket.IsAugmentStone());
+		TestFalse(TEXT("Taking the crystal out refused"), Inventory->RemoveCrystalFromRing(0));
+		TestTrue(TEXT("Its gem stays"), Inventory->Rings[0].AttachedItem.Crystal.Id == PREBUILT_TEST_GEM);
+
+		const FLoadoutScreenRow Row = ScreenRowFor(Inventory->Rings[0]);
+		FText Refusal;
+		TestTrue(TEXT("The screen refuses the crystal"), WoRLoadoutScreen::GetTakeOffSocketWarning(Row, LoadoutScreenSockets::CRYSTAL, Refusal).IsEmpty());
+		TestTrue(TEXT("Because it is built in"), Refusal.ToString().Contains(TEXT("built in")));
+		TestFalse(TEXT("The screen offers the stone (B-533)"), WoRLoadoutScreen::GetTakeOffSocketWarning(Row, LoadoutScreenSockets::STONE, Refusal).IsEmpty());
+		TestTrue(TEXT("The stone comes off alone"), Inventory->RemoveStoneFromRing(0) && Inventory->Rings[0].StoneSocket.IsEmpty());
+		TestTrue(TEXT("Its gem stays"), Inventory->Rings[0].AttachedItem.Crystal.Id == PREBUILT_TEST_GEM);
+	});
+
+	It("D-231: a prebuilt set removable lets its crystal out", [this]()
+	{
+		const FRingInventoryEntry *Ring = GrantGemRing(true);
+		if (!TestNotNull(TEXT("Granted"), Ring)) return;
+		TestTrue(TEXT("Prebuilt, removable"), Ring->bPrebuilt && Ring->bCrystalRemovable);
+		FText Refusal;
+		TestFalse(TEXT("The screen offers the take-off"), WoRLoadoutScreen::GetTakeOffSocketWarning(ScreenRowFor(*Ring), LoadoutScreenSockets::CRYSTAL, Refusal).IsEmpty());
+		TestTrue(TEXT("Taken out"), Inventory->RemoveCrystalFromRing(0) && Inventory->Rings[0].AttachedItem.IsEmpty());
+		TestTrue(TEXT("Another gem goes in"), Inventory->AttachCrystalToRing(Inventory->Rings[0].PersistentID, PREBUILT_TEST_OTHER_GEM));
+	});
+
+	It("D-231: a prebuilt's evolution stays when set fixed", [this]()
+	{
+		UPrebuiltFindData *Find = NewFind(NewObject<URingData>(GetTransientPackage()));
+		Find->Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Find->bCrystalRemovable = false; // the opt-out
+		if (!TestTrue(TEXT("Given"), TrialLoot::GrantTo(Finder, Find))) return;
+		TestFalse(TEXT("Fixed: refused"), Inventory->RemoveEvolutionFromRing(Inventory->Rings[0].PersistentID));
+		TestTrue(TEXT("The evolution stays"), Inventory->Rings[0].AttachedItem.IsEvolution());
+		TestFalse(TEXT("Nor can it be dismantled out"), Inventory->RemoveEvolutionInstance(Inventory->Rings[0].AttachedItem.Evolution.InstanceID));
+		TestTrue(TEXT("Still there"), Inventory->Rings[0].AttachedItem.IsEvolution());
+	});
+
+	It("D-231: a removable prebuilt's evolution goes back to the owned evolutions, not destroyed", [this]()
+	{
+		UPrebuiltFindData *Find = NewFind(NewObject<URingData>(GetTransientPackage()));
+		Find->Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		TestTrue(TEXT("Removable by default (Crown)"), Find->bCrystalRemovable);
+		if (!TestTrue(TEXT("Given"), TrialLoot::GrantTo(Finder, Find)) || !TestEqual(TEXT("One evolution owned"), Evolutions->Entries.Num(), 1)) return;
+		const FGuid EvolutionID = Evolutions->Entries[0].InstanceID;
+		TestTrue(TEXT("Prebuilt, removable"), Inventory->Rings[0].bPrebuilt && Inventory->Rings[0].bCrystalRemovable);
+		TestTrue(TEXT("Taken out"), Inventory->RemoveEvolutionFromRing(Inventory->Rings[0].PersistentID));
+		TestTrue(TEXT("The socket empty"), Inventory->Rings[0].AttachedItem.IsEmpty());
+		TestTrue(TEXT("Still owned, the same one"), Evolutions->Entries.Num() == 1 && Evolutions->Entries[0].InstanceID == EvolutionID);
+	});
+
+	It("D-231: a ring the player built is unchanged", [this]()
+	{
+		if (!TestTrue(TEXT("Given"), TrialLoot::GrantTo(Finder, NewObject<URingData>(GetTransientPackage())))) return;
+		Inventory->AddCrystal(PREBUILT_TEST_GEM);
+		Inventory->AddCrystal(PREBUILT_TEST_OTHER_GEM);
+		Inventory->AddCrystal(PREBUILT_TEST_STONE);
+		const FGuid RingId = Inventory->Rings[0].PersistentID;
+		TestTrue(TEXT("A gem goes in"), Inventory->AttachCrystalToRing(RingId, PREBUILT_TEST_GEM));
+		TestFalse(TEXT("Not prebuilt"), Inventory->Rings[0].bPrebuilt);
+		TestFalse(TEXT("A second gem refused, as on every piece"), Inventory->AttachCrystalToRing(RingId, PREBUILT_TEST_OTHER_GEM));
+		TestTrue(TEXT("A stone goes in"), Inventory->AttachCrystalToRing(RingId, PREBUILT_TEST_STONE));
+		TestTrue(TEXT("The gem comes out alone (B-533)"), Inventory->RemoveCrystalFromRing(0) && Inventory->Rings[0].AttachedItem.IsEmpty() &&
+															   Inventory->Rings[0].StoneSocket.IsAugmentStone());
 	});
 }
 

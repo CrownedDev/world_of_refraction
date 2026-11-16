@@ -159,7 +159,26 @@ namespace
 		{
 			UE_LOG(LogWoREconomy, Warning, TEXT("[TrialLoot] %s: the piece arrived but its socket could not be filled (full pouch or evolutions?)"),
 				   *Find.GetName());
+			return; // an empty piece is not prebuilt: what the player sockets later stays theirs to take out
 		}
+		// D-231 (B-532): the piece remembers it came built, and whether its own crystal may come out.
+		const auto MarkPrebuilt = [&Find](auto *Piece)
+		{
+			if (Piece && !Piece->AttachedItem.IsEmpty()) // a find with nothing to socket arrives as a plain piece
+			{
+				Piece->bPrebuilt = true;
+				Piece->bCrystalRemovable = Find.bCrystalRemovable;
+			}
+		};
+		if (bWeapon)
+		{
+			MarkPrebuilt(Inventory.FindOwnedWeapon(PieceID));
+		}
+		else
+		{
+			MarkPrebuilt(Inventory.FindOwnedRing(PieceID));
+		}
+		Inventory.RefreshLoadoutsFromOwned(PieceID); // the flags to the pool and any loadout copy
 	}
 }
 

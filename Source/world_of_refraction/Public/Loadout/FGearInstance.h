@@ -67,6 +67,13 @@ struct WORLD_OF_REFRACTION_API FGearInstance
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
 	FRuntimeAttachedItem StoneSocket;
 
+	/** D-231 (B-532): mirrored from the entry (granted built; whether its own crystal may come out). */
+	UPROPERTY(BlueprintReadOnly, Category = "Gear")
+	bool bPrebuilt = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Gear")
+	bool bCrystalRemovable = false;
+
 	/** OBSOLETE (D-224, B-517; deleted in stage 6): the picks live on the worn entry (FLoadoutSlot), so an owned piece's
 	 *  are empty. B-351 (D-145): a weapon's skill-slot picks and whether its one list is active. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gear")
