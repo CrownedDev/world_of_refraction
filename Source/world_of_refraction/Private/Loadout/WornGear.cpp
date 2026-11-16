@@ -221,7 +221,7 @@ FCombatLoadout FCombatLoadout::CreateFromWornGear(const FWornGear &Worn, ECharac
 		{
 			FResonatorRingSlot &Slot = Saved.EquippedRings.AddDefaulted_GetRef();
 			Slot.Ring = Adapter;
-			Slot.RingInstance = Worn.Equipment[Index].GearID; // its spell picks are the worn entry's (ApplyWornPicks)
+			Slot.RingInstance = Worn.Equipment[Index].GearID; // its spell picks are the worn entry's (ApplyEntryPicks)
 		}
 	}
 
