@@ -36,4 +36,8 @@ public:
 	 *  elsewhere. Used when Crystal is None. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Find")
 	TObjectPtr<UEvolutionItemData> Evolution = nullptr;
+
+	/** D-231 (B-532): the gem or evolution above may be taken out of the found piece. Off: it stays as built. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Find")
+	bool bCrystalRemovable = false;
 };

@@ -40,6 +40,10 @@ struct WORLD_OF_REFRACTION_API FClassDefaultPiece
 	 *  run). Type None: an empty socket. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
 	FCrystalId Crystal;
+
+	/** D-231 (B-532): a piece handed out with its Crystal counts as prebuilt; on, that crystal may be taken out. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
+	bool bCrystalRemovable = false;
 };
 
 /** One class's kit. */
