@@ -5,19 +5,43 @@
 // tier times its missing share of durability (Q-178). Outside a run there is nothing to repair: the carried gear is cleared when a run starts
 // and ends, so the next fight starts from the authored, unworn gear.
 // Console: wor.Party.RepairQuote, wor.Party.Repair.
+// B-534 (D-231, Q-534): Restore, a locked prebuilt's broken gem brought back with crystals of its own type.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/Crystals/FCrystalId.h"
 #include "Inventory/ItemTier.h"
 
 struct FRuntimeAttachedItem;
 struct FEvolutionAttachment;
 class UParty;
 class UCurrencyComponent;
+class UCrystalInventoryComponent;
 
 namespace GearRepair
 {
+	/** B-534: what a Restore would spend and the durability the gem would end on. Uses is empty when nothing can be spent. */
+	struct FRestorePlan
+	{
+		TArray<FCrystalId> Uses;
+		int32 NewDurability = 0;
+		int32 MaxDurability = 0;
+	};
+
+	/** B-534 (D-231): Restore is offered on a broken gem (not an evolution, which is kept and repaired, Q-159). The
+	 *  caller also checks the gem is locked to its piece (GearSockets::IsCrystalFixed). */
+	WORLD_OF_REFRACTION_API bool CanRestore(const FRuntimeAttachedItem &Gem);
+
+	/** B-534 (D-231 "Restore amounts", Q-534): crystals of the gem's type from Pouch, cheapest first, until it is full.
+	 *  One crystal restores value(its tier) / value(the gem's tier) of full durability (EconomyYield::GetCrystalValue,
+	 *  the merge values): the same tier or higher fills it, the extra is lost; one tier down a half (a third below S).
+	 *  Not enough: as far as they go. No money is charged. */
+	WORLD_OF_REFRACTION_API FRestorePlan PlanRestore(const FRuntimeAttachedItem &Gem, const UCrystalInventoryComponent &Pouch);
+
+	/** Debug: the plan in one line ("Garnet C: F x3, E x1 -> 42 / 60"). */
+	WORLD_OF_REFRACTION_API FString GetRestorePlanString(const FRuntimeAttachedItem &Gem, const FRestorePlan &Plan);
+
 	/** Gold to repair a fully broken item, by tier F..S; a worn one pays its missing share (Q-178).
 	 *  TODO: tune. */
 	constexpr int32 GOLD_BY_TIER[] = {5, 10, 15, 25, 40, 60, 90};
