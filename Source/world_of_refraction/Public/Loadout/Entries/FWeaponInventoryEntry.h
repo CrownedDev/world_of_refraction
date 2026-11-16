@@ -81,6 +81,14 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     FRuntimeAttachedItem StoneSocket;
 
+    /** D-231 (B-532): granted already built (a prebuilt find, or starting gear handed out with its crystal). */
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+    bool bPrebuilt = false;
+
+    /** D-231: the prebuilt's own crystal may be taken out (its setting). The rule: GearSockets::IsSocketFixed. */
+    UPROPERTY(BlueprintReadOnly, Category = "Weapon")
+    bool bCrystalRemovable = false;
+
     /** Spells assigned to this weapon's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
