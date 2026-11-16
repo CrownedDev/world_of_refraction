@@ -23,6 +23,7 @@
 #include "WoRGameNames.h"
 #include "Combat/Tier/CombatTier.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Trial/TrialRunSubsystem.h" // CS-6: a run shows the vitals rows
 
 namespace PanelLabels
 {
@@ -284,11 +285,10 @@ void UCharacterPanelWidget::InitialiseForData(UCharacterData *Data, bool bIsLead
 	ApplyStaticText();
 	UpdatePortrait(Data);
 
-	// Hub vs trial, discriminated by the carry sentinel: an uncarried slot is a hub
-	// lobby entry and shows identity only (name + class + portrait); a carried slot
-	// is mid-trial and shows runtime state. Same test as ApplyRosterVitals' bHasCarry
-	// — HP is the carry signal for BOTH pools, so one test covers them.
-	const bool bHasCarry = (InCurrentHP != PartyConstants::NO_CARRIED_VITALS);
+	// Hub vs trial: a hub lobby entry shows identity only (name + class + portrait); a slot in a run shows runtime
+	// state. CS-6: a member at full carries no number in a run (rest, trial entry), so the run, not the carry, decides.
+	const UTrialRunSubsystem *TrialRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const bool bHasCarry = (InCurrentHP != PartyConstants::NO_CARRIED_VITALS) || (TrialRun && TrialRun->IsRunActive());
 
 	// Status stays collapsed in BOTH cases, unlike the vitals rows: buildup is
 	// battle-only and is cleared between battles, so a trial roster has nothing to
@@ -323,9 +323,9 @@ void UCharacterPanelWidget::ApplyRosterVitals(UCharacterData *Data, int32 InCurr
 	// that has since moved. Mirrors the same guard in UCharacterDataComponent.
 	const int32 ShowHP = bHasCarry ? FMath::Clamp(InCurrentHP, 0, MaxHP) : MaxHP;
 
-	// Uncarried BD reads 0, not MaxEP: a born-BD has no regular EP pool, and 0 is
-	// exactly what SetAllMembersFull will seed on trial entry. Showing MaxEP here
-	// would make the hub panel disagree with the first battle.
+	// Uncarried BD reads 0, not MaxEP: a born-BD has no regular EP pool, and its pawn
+	// seeds 0 with no carry (trial entry, a rest). Showing MaxEP here would make the
+	// panel disagree with the first battle.
 	const int32 UncarriedEP = Data->bBrokenDarknessInnate ? 0 : MaxEP;
 	const int32 ShowEP = bHasCarry ? FMath::Clamp(InCurrentEP, 0, MaxEP) : UncarriedEP;
 
