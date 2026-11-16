@@ -84,7 +84,7 @@ void UTitleScreenWidget::OpenAtLaunch(APlayerController *PC)
 	// B-535: once per play session (the game instance: a new one each PIE run and each launch), on its first map load
 	// only, and only on the game's default map (the hub), so later loads and a trial test level never open it.
 	UWorld *World = PC && PC->IsLocalController() ? PC->GetWorld() : nullptr;
-	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	const UGameInstance *GameInstance = World && World->GetNetMode() != NM_Client ? World->GetGameInstance() : nullptr; // a friend joining lands in the host's hub
 	if (!GameInstance || GTitleStartSeenFor.Get() == GameInstance)
 	{
 		return;
