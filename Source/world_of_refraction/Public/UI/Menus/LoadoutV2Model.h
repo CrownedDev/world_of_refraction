@@ -76,6 +76,9 @@ struct FLoadoutV2Entry
 	/** B-482b: what augment socket 1 holds, by name ("Garnet", an evolution's name); empty when the socket is. The row
 	 *  shows it in brackets after the name; it is the same name the details box prints (one source: the entry's socket). */
 	FText SocketName;
+	/** B-516b (D-223): the piece's tier, the badge beside the name (a pair: its main hand's); it tells two same-named
+	 *  pieces apart before a number does. */
+	EItemTier Tier = EItemTier::F_Tier;
 	/** The weapon in hand (marked only when there are two weapon entries). */
 	bool bActive = false;
 	/** A weapon entry's skill slots (D-211 for a pair), 0 otherwise. */

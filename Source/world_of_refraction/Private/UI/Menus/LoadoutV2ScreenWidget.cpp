@@ -575,7 +575,9 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 			const FLoadoutV2Entry &Entry = Page.Entries[Line];
 			// B-485: the socket shows as a badge when the icon table has one; else its name in brackets, as before.
 			const bool bBadge = Entry.SocketBadges.Num() > 0 && FindIcon(Entry.SocketBadges[0]) != nullptr;
-			return bBadge ? Entry.Name : NameWithSocket(Entry.Name, Entry.SocketName);
+			const FText Name = bBadge ? Entry.Name : NameWithSocket(Entry.Name, Entry.SocketName);
+			// B-516b: the tier is a badge when the table has one, else its letter after the name.
+			return WoRIcons::GetTierBadge(Entry.Tier) ? Name : FText::Format(LOCTEXT("EntryNameTier", "{0}  {1}"), Name, WoRGameNames::GetTierLetter(Entry.Tier));
 		}
 		return LOCTEXT("AddWeapon", "+ Add equipment");
 	}
@@ -668,6 +670,8 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 			Icons.Type = Entry->TypeIcon;
 			Icons.Socket1 = Entry->SocketBadges.IsValidIndex(0) ? Entry->SocketBadges[0] : FLoadoutV2Icon();
 			Icons.Socket2 = Entry->SocketBadges.IsValidIndex(1) ? Entry->SocketBadges[1] : FLoadoutV2Icon();
+			Icons.bHasTier = Mode == ELoadoutV2Mode::List; // B-516b (D-223): the Equipment list's tier badge
+			Icons.Tier = Entry->Tier;
 		}
 		return Icons;
 	}

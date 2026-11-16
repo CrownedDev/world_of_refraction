@@ -45,6 +45,7 @@ namespace LoadoutV2Build
 		Entry.Kind = ELoadoutV2EntryKind::Weapon;
 		Entry.Place = Place;
 		Entry.Name = SetName(Set);
+		Entry.Tier = Set.WeaponEntry.Tier;
 		Entry.Sockets = {IconOf(Set.WeaponEntry.AttachedItem), IconOf(Set.WeaponEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Set.WeaponEntry.AttachedItem);
 		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Set.WeaponEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Set.WeaponEntry.StoneSocket)};
@@ -65,6 +66,7 @@ namespace LoadoutV2Build
 		Entry.Place = Place;
 		Entry.AdapterIndex = AdapterIndex;
 		Entry.Name = WoRGameNames::GetAdapterName(Ring.RingEntry.Ring, Ring.RingEntry.AttachedItem); // B-514b: "Fire Ring"
+		Entry.Tier = Ring.RingEntry.Tier; // TODO: stage 2b, the built average of the ring and its crystal (D-224 (1))
 		Entry.Sockets = {IconOf(Ring.RingEntry.AttachedItem), IconOf(Ring.RingEntry.StoneSocket)};
 		Entry.SocketName = AttachmentName(Ring.RingEntry.AttachedItem);
 		Entry.SocketBadges = {WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.AttachedItem), WoRLoadoutV2::MakeSocketIcon(Ring.RingEntry.StoneSocket)};
@@ -474,13 +476,15 @@ FLoadoutV2WeaponsPage WoRLoadoutV2::BuildWeaponsPage(const FCombatLoadout &Loado
 			}
 		}
 	}
-	// B-516: two same-named entries (two Lightning rings) read apart.
+	// B-516 / B-516b: two same-named entries read apart, by the tier badge first, then a number.
 	TArray<FText> Names;
+	TArray<EItemTier> Tiers;
 	for (const FLoadoutV2Entry &Entry : Page.Entries)
 	{
 		Names.Add(Entry.Name);
+		Tiers.Add(Entry.Tier);
 	}
-	WoRGameNames::NumberRepeatedNames(Names);
+	WoRGameNames::NumberRepeatedNames(Names, Tiers);
 	for (int32 Index = 0; Index < Names.Num(); ++Index)
 	{
 		Page.Entries[Index].Name = Names[Index];
