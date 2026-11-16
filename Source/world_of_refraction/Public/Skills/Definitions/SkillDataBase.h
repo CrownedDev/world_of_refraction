@@ -13,6 +13,7 @@
 #include "Combat/TargetType.h"
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
+#include "Skills/Definitions/SkillGearRequirement.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
 #include "Skills/Definitions/SkillCastEntry.h"
@@ -364,6 +365,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
               meta = (ShowOnlyInnerProperties))
     FWorldStatRequirements Requirements;
+
+    /** D-224 (§5.2): the piece this skill needs to sit in. Read GetGearRequirement(). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+    FSkillGearRequirement GearRequirement;
+
+    /** GearRequirement, or what the old fields say while Kind is None (until the editor pass sets every skill's). */
+    virtual FSkillGearRequirement GetGearRequirement() const { return GearRequirement; }
 
     // ==================== EFFECT HELPERS ====================
 
