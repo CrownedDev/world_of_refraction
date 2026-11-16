@@ -91,7 +91,7 @@ void FLoadoutV2ModelSpec::Define()
 		{
 			return;
 		}
-		TestEqual(TEXT("names only, a pair as A and B (B-513b)"), Page.Entries[0].Name.ToString(), FString(TEXT("Ashen Blade and Cinder Edge")));
+		TestEqual(TEXT("names only, a pair as A + B (B-513b)"), Page.Entries[0].Name.ToString(), FString(TEXT("Ashen Blade + Cinder Edge")));
 		TestTrue(TEXT("its sockets as icons"), Page.Entries[0].Sockets.Num() == 2 && Page.Entries[0].Sockets[0] == ELoadoutV2SocketIcon::Evolution &&
 												   Page.Entries[0].Sockets[1] == ELoadoutV2SocketIcon::Stone);
 		TestTrue(TEXT("the first is in hand"), Page.Entries[0].bActive && !Page.Entries[1].bActive);
@@ -307,7 +307,7 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("two swords pair"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Entry, Draft, Cells).IsEmpty());
 		TestTrue(TEXT("it goes in"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Entry, Draft, Refusal));
 		TestEqual(TEXT("one entry, now a pair"), WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[0].Name.ToString(),
-				  FString(TEXT("Blade and Twin")));
+				  FString(TEXT("Blade + Twin")));
 
 		FLoadoutV2Draft TwinAlone = WoRLoadoutV2::DraftFromEntry(Loadout, Entry);
 		TwinAlone.MainHand = Twin;
