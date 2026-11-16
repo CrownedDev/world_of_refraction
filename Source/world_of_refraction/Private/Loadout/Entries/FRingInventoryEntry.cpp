@@ -23,12 +23,9 @@ ESpellElement FRingInventoryEntry::GetElement() const
     return ESpellElement::None; // No (or broken) crystal — no element
 }
 
-FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing)
+FRingInventoryEntry FRingInventoryEntry::CreateFromAuthoredRing(URingData *InRing)
 {
-    FRingInventoryEntry Entry;
-    Entry.Ring = InRing;
-    Entry.InstanceID = GRingInstanceCounter.fetch_add(1);
-
+    FRingInventoryEntry Entry = CreateFromRing(InRing);
     if (InRing && InRing->HasCrystal())
     {
         Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InRing->AttachedItem);
@@ -36,6 +33,15 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing)
         // TODO: (B-518, D-224) stage 6 stops this copy: the list is OBSOLETE and no longer plays (the picks are the list).
         Entry.AssignedSpells = InRing->DefaultSpells;
     }
+    return Entry;
+}
+
+FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing)
+{
+    FRingInventoryEntry Entry;
+    Entry.Ring = InRing;
+    Entry.InstanceID = GRingInstanceCounter.fetch_add(1);
+    // B-521 (D-224, asset overhaul stage 3): a new piece starts empty; see CreateFromAuthoredRing.
 
     if (InRing)
     {

@@ -136,6 +136,10 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     /** Create entry from RingData — always copies the template's default crystal + DefaultSpells. */
     static FRingInventoryEntry CreateFromRing(URingData *InRing);
 
+    /** OBSOLETE (B-521, D-224; delete in asset overhaul stage 6 with the asset's AttachedItem): CreateFromRing plus the
+     *  asset's baked crystal, for the old authored layout only (an inventory asset's Rings, an authored loadout). */
+    static FRingInventoryEntry CreateFromAuthoredRing(URingData *InRing);
+
     // ==================== STATE QUERIES ====================
 
     /** Check if entry is valid (has ring) */
