@@ -237,9 +237,6 @@ private:
 	/** Binds to the local player's form (once the owner is known) and sends it on. */
 	void FollowLocalForm();
 
-	/** The pawn this PlayerState last dressed; the default look restores only that one. */
-	TWeakObjectPtr<const ACharacter> DressedPawn;
-
 	UPROPERTY(ReplicatedUsing = OnRep_Form)
 	TObjectPtr<UCharacterFormData> WornForm;
 
