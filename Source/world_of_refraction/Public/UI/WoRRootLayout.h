@@ -108,4 +108,7 @@ private:
 	 *  would draw over any menu screen; hidden while the menu or modal layer shows one, then put back as it was. */
 	void SetPartyStripHidden(bool bHidden);
 	TArray<TPair<TWeakObjectPtr<UWidget>, ESlateVisibility>> HiddenStrips;
+	/** B-543: the old on-screen interact hints ("E  Open · Mirror", WoRInteract::ShowHint) are paused while a screen
+	 *  is open. OBSOLETE with those hints (after B-443's PIE pass). */
+	bool bPausedScreenMessages = false;
 };

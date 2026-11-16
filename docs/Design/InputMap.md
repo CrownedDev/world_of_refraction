@@ -52,6 +52,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Open the game menu, the second key (it works in PIE, where Esc ends the session); Tab again closes it | tap Tab (released within 0.2 s); in the menu Tab closes like Back | Menu (Options), as above | `IA_UI_GameMenuTab` (code-built, Tap trigger, doesn't eat the key) | Built (B-536): `AWoRHubController::BuildGameMenuTabKey`, context `IMC_UI_GameMenuTab`. A **hold** of Tab stays the host's join request answer (B-459c, row below): the tap fires on release, so the two don't meet. Tab is the common second menu key on PC; nothing else on the map uses it (the boss cinematic skip is combat-only) |
 | Move up / down a list | Up / Down, W / S, mouse over a row | D-pad, left stick | none (the screen's keys) | Built (B-439, game menu) |
 | Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
+| Game menu: show / hide the page descriptions (the side panel; off at first) | H, click the Help hint | View (Touchpad) | none (the screen's keys) | Built (B-543): `WoRMenuStyle::IsHelpKey`, hint `{Help}`. Standard practice: a help toggle on the pad's View / Select (Elden Ring toggles its menu help there); H on the keyboard, not F1 (the engine's wireframe debug key in development builds). A refusal or the quit question still shows the panel |
 | Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks; with Hold to confirm off (B-453c), a second press instead |
 | Hold to confirm (New Game over a save, the title) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-467): 2 seconds, after New Game asks; letting go early does nothing, B cancels; with Hold to confirm off (B-453c), a press on the question instead |
 | Credits: scroll faster | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-470): five times faster while held; B / Esc leaves |
@@ -95,6 +96,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Open a tile's verb menu, choose a verb or a receiver | Enter, Space, left click | A (Cross) | none | Built (B-441, inventory screen) |
 | Whole stack on / off (a stack verb moves one, or all) | X | X (Square) | none (the screen's keys) | Built (B-441, inventory screen; B-456a, vendor screen: sell or dismantle one, or the whole stack): `WoRMenuStyle::IsToggleKey`, the screen's own switch |
 | Inventory: sort the tiles (Kind, Tier, Name) | R | Y (Triangle) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_Action2`) | Built (B-461, inventory screen; Q-461): `WoRMenuStyle::IsSecondActionKey` |
+| Inventory: the Loadout tab (Gear, Loadout, Pouch, Chest): open the Equipment screen for the same character | Q / E onto the tab, then Enter / Space; or click the tab | LB / RB onto the tab, then A (Cross) | none (the screen's keys) | Built (B-543): Back returns to the inventory |
 | Inventory: the filter row (Gear and Chest tabs) | Up from the top row of tiles, then Left / Right; Down, Enter or Esc back to the tiles; click a filter | D-pad or left stick up, then left / right; down, A or B back | none | Built (B-461, inventory screen; Q-461) |
 | Shop: put the focused line in the cart / take one back | Enter, Space, Right, D, left click / Left, A, right click | A (Cross), D-pad right, stick right / D-pad left, stick left | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab; Q-456b) |
 | Shop: buy the cart | X, click "Purchase" | X (Square) | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab): `WoRMenuStyle::IsToggleKey` |
@@ -121,7 +123,7 @@ Every player screen as of 2026-11-16. "Console only" means a player could not re
 | Loadout v2 (Equipment, with its Inventory tab, Skills, Apparel) | Game menu > Loadout; the Gate screen | `wor.UI.LoadoutV2` | Yes: hover + click on members, tabs and lines; **no wheel** (long lists move with the keys only) |
 | Inventory | Game menu > Inventory | `wor.UI.InventoryScreen` | Yes: hover + click; wheel on the tiles |
 | Character sheet | Game menu > Character | `wor.UI.Sheet` | **Partly**: a click on a member tab only; no hover |
-| **Forms ("Spirit of {character}")** | **Game menu > Forms (B-536; was console only)** | `wor.UI.Forms` | Yes: hover + click; wheel |
+| **Spirit ("Spirit of {character}"; was Forms)** | **Game menu > Spirit (B-536; renamed B-541); the hub mirror (E)** | `wor.UI.Forms` | Yes: hover + click; wheel |
 | Party (and its Invite) | Game menu > Party | `wor.UI.Party` | Party: hover + click, wheel. **Invite: click only, no hover** |
 | Journal | Game menu > Journal; the hub's journal station (memories) | `wor.UI.Journal` | Yes: hover + click; wheel |
 | Settings | Game menu > Settings; the title | `wor.UI.Settings` | Yes: hover + click; wheel |
@@ -213,4 +215,5 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-16 | B-536: tap Tab opens the game menu (`IA_UI_GameMenuTab`, code-built, works in PIE), Tab closes it; a screens table; the game menu gains Forms | feature/B-536-menu-reaches-screens |
 | 2026-11-16 | B-538 (D-233): the mouse on the title and the new-game screen (hover lights, a click picks through the confirm path, the cursor shows); the screens table gains a Mouse column; no key changes | feature/B-538-mouse-front-screens |
 | 2026-11-16 | Row 18: Enter selects the lit piece on the quick strip (`IA_Field_WheelConfirm` gains Enter); the PC hint says Enter Select instead of Click Pick, the pad hint A Select; a click still picks (B-539, D-234 point 3) | feature/B-539-strip-enter-select |
+| 2026-11-16 | B-543: the game menu's Help toggle (H / View, the hint is clickable); the inventory's Loadout tab | feature/B-543-menu-ui |
 | 2026-11-14 | Loadout v2: X Compare in the apparel picker and for every Add gear list (B-476e) | feature/B-476e-loadout-v2-compare-on-dev-cloud |

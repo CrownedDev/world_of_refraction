@@ -9,6 +9,7 @@
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveGame.h"
 #include "Trial/TrialData.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "WoRTitleScreen"
@@ -58,7 +59,7 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 	Summary.bHasSave = bHasSave;
 	Summary.PlaySeconds = PlaySeconds;
 	// B-408a (D-172, Q-408): a run in the save is settled as a quit, never resumed: Continue is always the hub.
-	Summary.Place = LOCTEXT("PlaceHub", "The hub");
+	Summary.Place = WoRGameNames::GetHubPlaceName();
 	Summary.bLastRunLost = bHasSave && (Data.Run.bHasRun || bRunSettled);
 	for (const FSavedPartyMember &Member : Data.Party.Members)
 	{

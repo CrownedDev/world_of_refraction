@@ -9,6 +9,7 @@
 #include "Memory/MemoryData.h"
 #include "Trial/TrialData.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "MemoryJournalSubsystem"
@@ -104,7 +105,7 @@ FText UMemoryJournalSubsystem::GetCurrentPlace(const UGameInstance *GameInstance
 	const UTrialData *Trial = Run && Run->IsRunActive() ? Run->GetActiveTrial() : nullptr;
 	if (!Trial)
 	{
-		return LOCTEXT("HubPlace", "Void Realm"); // the hub's name (the game menu's header, PauseMenuModel)
+		return WoRGameNames::GetHubPlaceName();
 	}
 	const FText TrialName = Trial->Name.IsEmpty() ? LOCTEXT("TrialPlace", "a trial") : Trial->Name;
 	return Trial->Variations.IsValidIndex(Run->GetVariationIndex())

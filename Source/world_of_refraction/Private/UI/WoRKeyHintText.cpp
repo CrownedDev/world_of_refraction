@@ -52,6 +52,7 @@ namespace WoRKeyHintsTable
 			{TEXT("Arrows"), LOCTEXT("ArrowsPad", "D-pad"), LOCTEXT("ArrowsKey", "Arrows"), EWoRKeyCapStyle::Framed, EKeys::Invalid},
 			{TEXT("Interact"), LOCTEXT("InteractPad", "X"), LOCTEXT("InteractKey", "E"), EWoRKeyCapStyle::FaceX, EKeys::Invalid},
 			{TEXT("ViewButton"), LOCTEXT("ViewButtonPad", "View"), LOCTEXT("ViewButtonKey", "Tab"), EWoRKeyCapStyle::Framed, EKeys::Invalid},
+			{TEXT("Help"), LOCTEXT("HelpPad", "View"), LOCTEXT("HelpKey", "H"), EWoRKeyCapStyle::Framed, EKeys::H}, // B-543
 		};
 	}
 }

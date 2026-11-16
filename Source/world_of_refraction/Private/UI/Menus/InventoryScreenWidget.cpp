@@ -11,6 +11,7 @@
 #include "Infusion/ElementColors.h"
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
+#include "UI/Menus/LoadoutV2ScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRIconTable.h"
@@ -241,7 +242,8 @@ UInventoryScreenWidget::FTileWidgets UInventoryScreenWidget::BuildTile(int32 Ind
 	CountSlot->SetVerticalAlignment(VAlign_Bottom);
 	// B-487: the icon in the letter's place and a tier badge in the top right corner.
 	UImage *Icon = MakeIcon(WidgetTree, TileIconSize);
-	UOverlaySlot *IconSlot = Layers->AddChildToOverlay(Icon);
+	UImage *IconCentre = nullptr;
+	UOverlaySlot *IconSlot = Layers->AddChildToOverlay(MakeIconStack(WidgetTree, Icon, TileIconSize, IconCentre));
 	IconSlot->SetHorizontalAlignment(HAlign_Center);
 	IconSlot->SetVerticalAlignment(VAlign_Center);
 	UImage *TierBadge = MakeIcon(WidgetTree, TileBadgeSize);
@@ -258,6 +260,7 @@ UInventoryScreenWidget::FTileWidgets UInventoryScreenWidget::BuildTile(int32 Ind
 	Widgets.Worn = Worn;
 	Widgets.Count = Count;
 	Widgets.Icon = Icon;
+	Widgets.IconCentre = IconCentre;
 	Widgets.TierBadge = TierBadge;
 	return Widgets;
 }
@@ -374,7 +377,7 @@ void UInventoryScreenWidget::RefreshData()
 	if (PlaceText && SortText)
 	{
 		const FPauseMenuHeader Place = WoRPauseMenu::BuildHeader(World); // the game menu's words for where you are
-		PlaceText->SetText(FText::Format(LOCTEXT("Place", "{0} · {1}"), Place.Title, Place.Subtitle));
+		PlaceText->SetText(Place.Subtitle.IsEmpty() ? Place.Title : FText::Format(LOCTEXT("Place", "{0} · {1}"), Place.Title, Place.Subtitle));
 		SortText->SetText(FText::Format(LOCTEXT("SortLine", "Sort: {0}"), WoRInventoryScreen::GetSortName(Sort)));
 	}
 
@@ -423,6 +426,7 @@ void UInventoryScreenWidget::RefreshData()
 		const FInventoryScreenTile Tile = bTile ? Page.Tiles[Index] : FInventoryScreenTile();
 		// B-487: the icon stands in for the letter when the icon table has it; the tier is a badge on the tile.
 		const bool bIcon = SetIcon(Widgets.Icon.Get(), bTile ? WoRIcons::Find(Tile.Icon) : nullptr, Tile.Icon.Name);
+		SetIcon(Widgets.IconCentre.Get(), bIcon ? WoRIcons::FindCentre(Tile.Icon) : nullptr, Tile.Icon.Name);
 		SetIcon(Widgets.TierBadge.Get(), bTile && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr,
 				FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Tile.Tier));
 		Widgets.Mark->SetText(bIcon ? FText::GetEmpty() : Tile.Mark);
@@ -605,6 +609,18 @@ void UInventoryScreenWidget::MoveTab(int32 Delta)
 	RefreshSelection();
 }
 
+void UInventoryScreenWidget::OpenLoadoutScreen()
+{
+	ULoadoutV2ScreenWidget *Loadout = ULoadoutV2ScreenWidget::Open(GetOwningPlayer());
+	if (!Loadout)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[InventoryScreen] the Loadout screen did not open"));
+		return;
+	}
+	Loadout->ClickMemberChip(MemberIndex); // the same character (both screens list WoRLoadoutScreen::BuildMembers)
+	UE_LOG(LogWoRUI, Log, TEXT("[InventoryScreen] Loadout tab: opened the Equipment screen for member %d"), MemberIndex);
+}
+
 void UInventoryScreenWidget::MoveMember(int32 Delta)
 {
 	if (Members.Num() < 2)
@@ -634,6 +650,11 @@ void UInventoryScreenWidget::Confirm()
 	{
 		Focus = EInventoryScreenFocus::Grid; // the filter is already shown: A goes down to its tiles
 		RefreshSelection();
+		return;
+	}
+	if (Tab == EInventoryScreenTab::Loadout)
+	{
+		OpenLoadoutScreen();
 		return;
 	}
 	if (!FocusedTile())
@@ -895,6 +916,10 @@ FReply UInventoryScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 			if (Tabs[Index] != Tab)
 			{
 				MoveTab(Index - Tabs.IndexOfByKey(Tab));
+			}
+			if (Tab == EInventoryScreenTab::Loadout)
+			{
+				OpenLoadoutScreen(); // a click on the tab opens it at once (keys land on it, then A)
 			}
 			return FReply::Handled();
 		}

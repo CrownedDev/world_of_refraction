@@ -442,7 +442,6 @@ void AWoRPlayerState::ApplyFormLook()
 {
 	const ACharacter *Character = Cast<ACharacter>(GetPawn());
 	USkeletalMeshComponent *Mesh = Character ? Character->GetMesh() : nullptr;
-	// The default look leaves an authored pawn alone until this PlayerState has dressed it (unless an outfit is worn).
 	const UGameInstance *OutfitGI = GetGameInstance();
 	const UCharacterFormSubsystem *LocalForms = OutfitGI && IsLocalPlayerWallet() ? OutfitGI->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
 	// TODO: co-op (D-103): a remote player's outfit isn't known here, so its pawn is stripped; replicate the set.
@@ -452,7 +451,9 @@ void AWoRPlayerState::ApplyFormLook()
 	{
 		Worn->ApplyOutfit(FOutfitSet(), Mesh);
 	}
-	if (!Mesh || (!WornForm && BaseForm == EPlayerBaseForm::Manny && DressedPawn.Get() != Character && !bWearsOutfit))
+	// D-234 (B-542): the player's pawn always wears its spirit. Male Nobody used to leave the pawn's own Blueprint mesh
+	// on, so the Spirit screen said Male Nobody while another body showed.
+	if (!Mesh)
 	{
 		return;
 	}
@@ -472,7 +473,6 @@ void AWoRPlayerState::ApplyFormLook()
 		UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), WornForm ? *WornForm->GetName() : *UEnum::GetValueAsString(BaseForm));
 		return;
 	}
-	DressedPawn = Character;
 	UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 	// B-279c: the local player's current outfit over the body (Leader Pose). // TODO: co-op guests read it replicated.
 	if (bWearsOutfit)

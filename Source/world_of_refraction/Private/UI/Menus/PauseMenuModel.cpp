@@ -8,6 +8,7 @@
 #include "Combat/Tier/CombatTier.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyWallet.h"
+#include "Currency/EconomyService.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -119,19 +120,21 @@ FPauseMenuHeader WoRPauseMenu::BuildHeader(const UWorld *World)
 {
 	FPauseMenuHeader Header;
 	const UCurrencyComponent *Wallet = FindPauseMenuWallet(World);
-	const auto AddBalance = [&Header, Wallet](ECurrencyType Currency)
+	// B-543 (Crown): every balance, the place's money first (Gold in the hub, Prisms in a run, D-159).
+	const auto AddBalances = [&Header, Wallet, World]()
 	{
-		Header.Chips.Add({FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0), WoRGameNames::GetCurrencyName(Currency)});
+		for (const ECurrencyType Currency : {UEconomyService::GetPlaceCurrency(World), ECurrencyType::Diamond, ECurrencyType::GearEssence,
+											 ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence})
+		{
+			Header.Chips.Add({FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0), WoRGameNames::GetCurrencyName(Currency)});
+		}
 	};
 
 	const UTrialRunSubsystem *Run = FindPauseMenuRun(World);
 	if (!Run || !Run->IsRunActive())
 	{
-		Header.Title = LOCTEXT("HubTitle", "Void Realm");
-		Header.Subtitle = LOCTEXT("HubSubtitle", "The hub");
-		AddBalance(ECurrencyType::Prisms); // shown as Gold (D-159)
-		AddBalance(ECurrencyType::GearEssence);
-		AddBalance(ECurrencyType::SkillEssence);
+		Header.Title = WoRGameNames::GetHubPlaceName(); // no subtitle in the hub (D-236)
+		AddBalances();
 		return Header;
 	}
 
@@ -143,8 +146,7 @@ FPauseMenuHeader WoRPauseMenu::BuildHeader(const UWorld *World)
 	Header.Subtitle = bHasVariation ? FText::Format(LOCTEXT("VariationAndDifficulty", "{0} · {1}"),
 													 Trial->Variations[Run->GetVariationIndex()].Name, Difficulty)
 									: Difficulty;
-	AddBalance(ECurrencyType::Gold); // shown as Prisms (D-159)
-	AddBalance(ECurrencyType::GearEssence);
+	AddBalances();
 	Header.Chips.Add({FText::Format(LOCTEXT("WipesLeftValue", "{0} of {1}"),
 									FText::AsNumber(FMath::Max(DefeatRules::MAX_WIPES_PER_RUN - Run->GetRunWipes(), 0)),
 									FText::AsNumber(DefeatRules::MAX_WIPES_PER_RUN)),

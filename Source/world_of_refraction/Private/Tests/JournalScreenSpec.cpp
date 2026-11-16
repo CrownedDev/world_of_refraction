@@ -279,8 +279,8 @@ void FJournalScreenSpec::Define()
 			return;
 		}
 		TestEqual(TEXT("newest first"), Everyone.Rows[0].Title.ToString(), FString(TEXT("NewSeraMemory")));
-		TestEqual(TEXT("where it was found (the hub: no run)"), Everyone.Rows[0].Subtitle.ToString(), FString(TEXT("Void Realm")));
-		TestEqual(TEXT("whose it is, and where"), Everyone.Rows[0].Kicker.ToString(), FString(TEXT("SeraSpec · found in Void Realm")));
+		TestEqual(TEXT("where it was found (the hub: no run)"), Everyone.Rows[0].Subtitle.ToString(), FString(TEXT("The Hub")));
+		TestEqual(TEXT("whose it is, and where"), Everyone.Rows[0].Kicker.ToString(), FString(TEXT("SeraSpec · found in The Hub")));
 		TestEqual(TEXT("its text in the reader"), Everyone.Rows[0].Body.ToString(), FString(TEXT("NewSeraMemory text")));
 		TestEqual(TEXT("found, never 'of'"), Everyone.ListNote.ToString(), FString(TEXT("3 found")));
 		TestTrue(TEXT("Everyone, then each character by name"),
@@ -309,8 +309,8 @@ void FJournalScreenSpec::Define()
 		if (!TestTrue(TEXT("one of each"), Memories.Rows.Num() == 1 && Lore.Rows.Num() == 1)) return;
 		TestTrue(TEXT("both NEW"), Memories.Rows[0].bNew && Memories.Rows[0].Tag.ToString() == TEXT("NEW") && Lore.Rows[0].bNew);
 		TestEqual(TEXT("the lore's kind"), Lore.Rows[0].Subtitle.ToString(), FString(TEXT("Note")));
-		TestEqual(TEXT("and place"), Lore.Rows[0].Kicker.ToString(), FString(TEXT("Note · Void Realm")));
-		TestTrue(TEXT("a sub-tab per place"), Lore.Filters.Num() == 2 && Lore.Filters[1].ToString() == TEXT("Void Realm"));
+		TestEqual(TEXT("and place"), Lore.Rows[0].Kicker.ToString(), FString(TEXT("Note · The Hub")));
+		TestTrue(TEXT("a sub-tab per place"), Lore.Filters.Num() == 2 && Lore.Filters[1].ToString() == TEXT("The Hub"));
 		TestEqual(TEXT("the place's sub-tab keeps it"), View(EJournalPage::Lore, 1).Rows.Num(), 1);
 
 		const FSavedJournal Saved = Journal->Capture();
@@ -323,8 +323,8 @@ void FJournalScreenSpec::Define()
 		TestTrue(TEXT("the save keeps what was new"), View(EJournalPage::Memories).Rows.Num() == 1 && View(EJournalPage::Memories).Rows[0].bNew);
 		const FJournalView Restored = View(EJournalPage::Lore);
 		TestTrue(TEXT("and the lore's kind and place"),
-				 Restored.Rows.Num() == 1 && Restored.Rows[0].Kicker.ToString() == TEXT("Note · Void Realm"));
-		TestEqual(TEXT("and the memory's place"), View(EJournalPage::Memories).Rows[0].Subtitle.ToString(), FString(TEXT("Void Realm")));
+				 Restored.Rows.Num() == 1 && Restored.Rows[0].Kicker.ToString() == TEXT("Note · The Hub"));
+		TestEqual(TEXT("and the memory's place"), View(EJournalPage::Memories).Rows[0].Subtitle.ToString(), FString(TEXT("The Hub")));
 
 		Journal->Restore(FSavedJournal());
 		Journal->RecordLore(TEXT("OldSaveLoreSpec"), FText::FromString(TEXT("Old")), FText::FromString(TEXT("Body")));

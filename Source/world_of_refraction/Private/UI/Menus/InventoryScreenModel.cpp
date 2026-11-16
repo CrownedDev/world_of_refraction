@@ -166,6 +166,10 @@ namespace InventoryScreenBuild
 			Tile.Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->Weapon->WeaponType);
 		}
 		Tile.Element = Slot.Gear.AttachedItem.GetElement();
+		if (Adapter)
+		{
+			Tile.Icon = WoRIcons::MakeAdapterIcon(Tile.Element, Tile.Name); // B-543: the B-530 frame with its crystal, not "A"
+		}
 		Tile.bWorn = !Row.bInChest && Inventory && !Inventory->GetLoadoutsUsing(Row.GearID).IsEmpty();
 		Tile.Details = Gear.Details;
 		// B-487b: a filled socket's line carries its badge (drawn in its label's place) and its tier: "Garnet (F)".
@@ -227,6 +231,10 @@ namespace InventoryScreenBuild
 		{
 			return Row.bInChest;
 		}
+		if (Tab == EInventoryScreenTab::Loadout)
+		{
+			return false;
+		}
 		return !Row.bInChest && Row.IsGear() == (Tab == EInventoryScreenTab::Gear);
 	}
 
@@ -249,7 +257,8 @@ namespace InventoryScreenBuild
 
 const TArray<EInventoryScreenTab> &WoRInventoryScreen::GetTabs()
 {
-	static const TArray<EInventoryScreenTab> Tabs = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
+	static const TArray<EInventoryScreenTab> Tabs = {EInventoryScreenTab::Gear, EInventoryScreenTab::Loadout, EInventoryScreenTab::Pouch,
+													 EInventoryScreenTab::Chest}; // B-543: Loadout next to Gear
 	return Tabs;
 }
 
@@ -263,6 +272,8 @@ FText WoRInventoryScreen::GetTabName(EInventoryScreenTab Tab)
 		return LOCTEXT("TabPouch", "Pouch");
 	case EInventoryScreenTab::Chest:
 		return LOCTEXT("TabChest", "Chest");
+	case EInventoryScreenTab::Loadout:
+		return LOCTEXT("TabLoadout", "Loadout");
 	}
 	return FText::GetEmpty();
 }
@@ -385,6 +396,9 @@ FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, 
 	case EInventoryScreenTab::Chest:
 		Page.Heading = LOCTEXT("ChestHeading", "Chest");
 		Page.EmptyNote = LOCTEXT("EmptyChest", "The chest is empty.");
+		break;
+	case EInventoryScreenTab::Loadout:
+		Page.EmptyNote = LOCTEXT("LoadoutTabNote", "Select to open this character's Loadout (the Equipment screen).");
 		break;
 	}
 	if (!Page.Tiles.IsEmpty())
