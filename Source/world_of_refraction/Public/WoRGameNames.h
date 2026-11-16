@@ -126,8 +126,8 @@ namespace WoRGameNames
      *  screen) asks here. */
     WORLD_OF_REFRACTION_API FText GetHeldWeaponTypeName(const UWeaponData *Weapon, const UWeaponData *OffHand = nullptr);
 
-    /** B-513b: the pieces in hand by name: "Flame Sword", or with an off-hand piece of its own "Flame Sword and Void
-     *  Shield". A piece with no name gives its type. Empty for no main hand. The wheel's slice and the Equipment row. */
+    /** B-513b: the pieces in hand by name: "Flame Sword", or with an off-hand piece of its own "Flame Sword + Void
+     *  Shield" (a plus, Crown). A piece with no name gives its type. Empty for no main hand. The wheel's slice and the Equipment row. */
     WORLD_OF_REFRACTION_API FText GetHeldPiecesName(const UWeaponData *MainHand, const UWeaponData *OffHand = nullptr);
 
     /** B-514b (D-223 "A ring is named by what is in it"): an adapter by its socket, then its form: an evolution gives
