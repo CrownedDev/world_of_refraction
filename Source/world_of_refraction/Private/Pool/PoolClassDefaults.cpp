@@ -8,6 +8,7 @@
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/GearSockets.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryData.h"
@@ -152,7 +153,17 @@ namespace
 		FRuntimeAttachedItem Gem;
 		Gem.Kind = EAttachedItemKind::Crystal;
 		Gem.Crystal = FCrystalAttachment(Crystal, ItemIdentity::GetMaxDurability(Crystal));
-		if (const FWeaponInventoryEntry *Weapon = Pool.FindWeaponInPool(ID))
+		const FWeaponInventoryEntry *FoundWeapon = Pool.FindWeaponInPool(ID);
+		const FRingInventoryEntry *FoundRing = FoundWeapon ? nullptr : Pool.FindRingInPool(ID);
+		const UEquipmentDataBase *Asset = FoundWeapon ? static_cast<const UEquipmentDataBase *>(FoundWeapon->Weapon)
+													  : (FoundRing ? static_cast<const UEquipmentDataBase *>(FoundRing->Ring) : nullptr);
+		if (Asset && !GearSockets::AcceptsCrystal(Asset->AcceptedCrystalType, Crystal.Type)) // D-231 point 5 (B-540)
+		{
+			UE_LOG(LogWoRLoadout, Warning, TEXT("[StartingGear] %s takes only %s, not %s: the socket stays empty"), *Asset->GetName(),
+				   *UEnum::GetValueAsString(Asset->AcceptedCrystalType), *UEnum::GetValueAsString(Crystal.Type));
+			return;
+		}
+		if (const FWeaponInventoryEntry *Weapon = FoundWeapon)
 		{
 			FWeaponInventoryEntry Socketed = *Weapon;
 			Socketed.AttachedItem = Gem;
@@ -160,7 +171,7 @@ namespace
 			Socketed.bCrystalRemovable = Place.bCrystalRemovable;
 			Pool.UpdateWeapon(Socketed);
 		}
-		else if (const FRingInventoryEntry *Ring = Pool.FindRingInPool(ID))
+		else if (const FRingInventoryEntry *Ring = FoundRing)
 		{
 			FRingInventoryEntry Socketed = *Ring;
 			Socketed.AttachedItem = Gem;

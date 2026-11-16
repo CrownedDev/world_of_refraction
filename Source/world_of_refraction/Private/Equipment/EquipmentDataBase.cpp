@@ -8,6 +8,7 @@
 #include "Character/FPillarWeights.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/GearSockets.h"
 #include "Equipment/Crystals/FFusionId.h" // FusionRules::RETIRED (B-352)
 #include "Skills/Effects/EffectIdentity.h"
 #include "Character/CharacterData.h"
@@ -403,6 +404,18 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     {
         Context.AddError(FText::FromString(TEXT(
             "Augment stone attachment requires a stone CrystalType (DamageStone, StatStone, ...) — a gem is not valid here")));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    // D-231 point 5 (B-540): the accepted type names a gem, and an authored crystal is of that type.
+    if (AcceptedCrystalType != ECrystalType::None && !CrystalTypeHelpers::IsGemType(AcceptedCrystalType))
+    {
+        Context.AddError(FText::FromString(TEXT("AcceptedCrystalType must be a gem (Garnet..Quartz) or None")));
+        Result = EDataValidationResult::Invalid;
+    }
+    else if (AttachedItem.Kind == EAttachedItemKind::Crystal && !GearSockets::AcceptsCrystal(AcceptedCrystalType, AttachedItem.CrystalType))
+    {
+        Context.AddError(FText::FromString(TEXT("The attached crystal is not the AcceptedCrystalType")));
         Result = EDataValidationResult::Invalid;
     }
 

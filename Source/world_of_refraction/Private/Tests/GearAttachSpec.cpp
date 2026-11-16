@@ -116,6 +116,16 @@ void FGearAttachSpec::Define()
 			TestEqual(TEXT("two gems debited"), Crystals->GetCount(GEAR_TEST_GEM), GEAR_TEST_STACK - 2);
 		});
 
+		It("D-231 point 5 (B-540): a ring set to one crystal type refuses another gem, debiting nothing, and takes its own", [this]()
+		{
+			Inventory->Rings[0].Ring->AcceptedCrystalType = GEAR_TEST_GEM.Type;
+			TestFalse(TEXT("the other gem is refused"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_OTHER_GEM));
+			TestTrue(TEXT("nothing socketed"), Inventory->Rings[0].AttachedItem.IsEmpty());
+			TestEqual(TEXT("nothing debited"), Crystals->GetCount(GEAR_TEST_OTHER_GEM), GEAR_TEST_STACK);
+			TestTrue(TEXT("a stone is not limited"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_STAT_STONE));
+			TestTrue(TEXT("its own type goes in"), Inventory->AttachCrystalToRing(RingId, GEAR_TEST_GEM));
+		});
+
 		It("sockets a stone on a weapon as an augment stone, in the stone socket (B-351)", [this]()
 		{
 			TestTrue(TEXT("weapon attach"), Inventory->AttachCrystalToWeapon(WeaponId, GEAR_TEST_STAT_STONE));

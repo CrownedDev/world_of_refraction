@@ -124,6 +124,12 @@ public:
               meta = (ShowOnlyInnerProperties))
     FAttachedItem AttachedItem;
 
+    /** D-231 point 5 (B-540): the one crystal type this weapon or adapter accepts ("only an Emerald"); None (the
+     *  default) takes any. When its crystal is taken out or destroyed, only that type goes back in. Stones and
+     *  evolutions are not limited. Apparel ignores it. Read through GearSockets::AcceptsCrystal. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item")
+    ECrystalType AcceptedCrystalType = ECrystalType::None;
+
     /** OBSOLETE (B-518, D-224: no skills on gear): nothing reads this for play; deleted in stage 6.
      *  Was: default spells for this equipment — copied to inventory entry when obtained.
      *  Lost if crystal is removed; spell vendor reassigns them. Hidden in the

@@ -6,6 +6,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/Crystals/CrystalType.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/EAttachedItemKind.h"
 
 enum class EGearSocket : uint8
@@ -39,6 +41,14 @@ namespace GearSockets
 	bool IsCrystalFixed(const TGear &Gear)
 	{
 		return Gear.bPrebuilt && !Gear.bCrystalRemovable && !Gear.AttachedItem.IsEmpty();
+	}
+
+	/** D-231 point 5 (B-540): a weapon or adapter set to one crystal type (UEquipmentDataBase::AcceptedCrystalType)
+	 *  takes only a gem of that type; None takes any. Stones and evolutions are not limited (the setting names a gem).
+	 *  The one rule the socketing (UInventoryComponent) and the loadout screen's socket choices read. */
+	inline bool AcceptsCrystal(ECrystalType Accepted, ECrystalType Crystal)
+	{
+		return Accepted == ECrystalType::None || !CrystalTypeHelpers::IsGemType(Crystal) || Crystal == Accepted;
 	}
 
 	inline const TCHAR *GetSocketName(EGearSocket Socket)
