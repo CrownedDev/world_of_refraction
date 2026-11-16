@@ -5,6 +5,7 @@
 #include "Inventory/InventoryVerbs.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Character/EWorldPillar.h"
+#include "Character/Forms/CharacterFormData.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
@@ -327,6 +328,11 @@ FText GetCharacterClassName(ECharacterClass CharacterClass)
         return LOCTEXT("ECharacterClass_Resonator", "Resonator");
     }
     return FText::GetEmpty();
+}
+
+FText GetBaseFormName(EPlayerBaseForm Form)
+{
+    return Form == EPlayerBaseForm::Quinn ? LOCTEXT("EPlayerBaseForm_Quinn", "Female Nobody") : LOCTEXT("EPlayerBaseForm_Manny", "Male Nobody");
 }
 
 FText GetDefenseTypeName(EDefenseType DefenseType)

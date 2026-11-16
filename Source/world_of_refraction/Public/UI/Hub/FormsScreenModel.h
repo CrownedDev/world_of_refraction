@@ -12,6 +12,7 @@
 class UCharacterFormData;
 class UCharacterFormSubsystem;
 class UWorld;
+enum class EPlayerBaseForm : uint8;
 
 struct FFormsScreenPiece
 {
@@ -24,11 +25,15 @@ struct FFormsScreenPiece
 
 struct FFormsScreenRow
 {
-	/** Null for your own form. */
+	/** Null for your own spirit. */
 	UCharacterFormData *Form = nullptr;
-	/** The form's name, "your own form", or "???" for a character not met. */
+	/** D-234: one of your own spirits (Male Nobody / Female Nobody, the first two rows): A takes any form off and
+	 *  sets this base body. */
+	bool bBaseBody = false;
+	EPlayerBaseForm BaseBody = EPlayerBaseForm(0);
+	/** The form's name, Male Nobody / Female Nobody, or "???" for a character not met. */
 	FText Name;
-	/** Under the name: "always yours" for your own form, else empty (the meter shows). */
+	/** Under the name: "always yours" for your own spirits, else empty (the meter shows). */
 	FText Line;
 	/** 0..1. */
 	float Progress = 0.0f;
@@ -58,7 +63,8 @@ namespace WoRFormsScreen
 	/** The page for the local player's character (the party's first member). */
 	WORLD_OF_REFRACTION_API FFormsScreenPage BuildPage(UWorld *World);
 
-	/** A: wears Row's form (your own form takes a skin off). Empty on success; else the reason, for the player. */
+	/** A: wears Row's form (one of your own spirits takes a skin off and sets that body). Empty on success; else the
+	 *  reason, for the player. */
 	WORLD_OF_REFRACTION_API FText Wear(UWorld *World, const FFormsScreenRow &Row);
 
 	/** Y: the other base body (Manny / Quinn). Empty on success; else the reason. */
