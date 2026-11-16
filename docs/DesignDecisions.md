@@ -1331,7 +1331,7 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-15; Crown may change) · **Raised:** 2026-11-15 (B-516, D-224 stage 2) · **Blocks:** —
 **Question:** with one empty ring asset for every ring, how do two same-named rings read, when can the add window socket a ring, and which ring does a spell both rings pick read? None of this is lore.
 **Answer:** by the reference-backed default:
-- **Same names:** "Lightning Ring", then "Lightning Ring 2", in list order, only where two entries in one list read the same (the plan's default; Diablo and Path of Exile show identical names and let the slot tell them apart, and a number is the shortest form of that on a strip with no slot labels).
+- **Same names (replaced by D-223 "Two pieces with the same name", built by B-516b):** the tier tells them apart first (the Equipment list's tier badge; the quick strip's tier letter); a number only where the name and the tier both repeat. The first default was: "Lightning Ring", then "Lightning Ring 2", in list order, only where two entries in one list read the same (the plan's default; Diablo and Path of Exile show identical names and let the slot tell them apart, and a number is the shortest form of that on a strip with no slot labels).
 - **Socketing in the add window:** a ring is socketed as it waits in the window, and the gem is spent then, as in the Edit window; backing out keeps the ring socketed in the spares (Diablo's and Path of Exile's sockets are filled on the item, not on the slot).
 - **One spell on two rings:** the ring in use, so Switch Adapter picks which (B-310's rule for wear).
 
