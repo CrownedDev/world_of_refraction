@@ -11,6 +11,7 @@
 #include "Infusion/ElementColors.h"
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
+#include "UI/Menus/LoadoutV2ScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRIconTable.h"
@@ -608,6 +609,18 @@ void UInventoryScreenWidget::MoveTab(int32 Delta)
 	RefreshSelection();
 }
 
+void UInventoryScreenWidget::OpenLoadoutScreen()
+{
+	ULoadoutV2ScreenWidget *Loadout = ULoadoutV2ScreenWidget::Open(GetOwningPlayer());
+	if (!Loadout)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[InventoryScreen] the Loadout screen did not open"));
+		return;
+	}
+	Loadout->ClickMemberChip(MemberIndex); // the same character (both screens list WoRLoadoutScreen::BuildMembers)
+	UE_LOG(LogWoRUI, Log, TEXT("[InventoryScreen] Loadout tab: opened the Equipment screen for member %d"), MemberIndex);
+}
+
 void UInventoryScreenWidget::MoveMember(int32 Delta)
 {
 	if (Members.Num() < 2)
@@ -637,6 +650,11 @@ void UInventoryScreenWidget::Confirm()
 	{
 		Focus = EInventoryScreenFocus::Grid; // the filter is already shown: A goes down to its tiles
 		RefreshSelection();
+		return;
+	}
+	if (Tab == EInventoryScreenTab::Loadout)
+	{
+		OpenLoadoutScreen();
 		return;
 	}
 	if (!FocusedTile())
@@ -898,6 +916,10 @@ FReply UInventoryScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 			if (Tabs[Index] != Tab)
 			{
 				MoveTab(Index - Tabs.IndexOfByKey(Tab));
+			}
+			if (Tab == EInventoryScreenTab::Loadout)
+			{
+				OpenLoadoutScreen(); // a click on the tab opens it at once (keys land on it, then A)
 			}
 			return FReply::Handled();
 		}
