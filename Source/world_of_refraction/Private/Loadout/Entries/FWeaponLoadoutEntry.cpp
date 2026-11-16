@@ -3,6 +3,7 @@
 
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/WeaponSetRules.h"
+#include "Loadout/SkillRequirementRules.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -239,8 +240,6 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
         return true; // No weapon = nothing to validate
     }
 
-    EWeaponType WeaponType = WeaponEntry.Weapon->WeaponType;
-
     for (UAbilityData *Ability : AssignedAbilities)
     {
         if (!Ability)
@@ -260,8 +259,8 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
             return false;
         }
 
-        // Check weapon type match
-        if (Ability->RequiredWeaponType != WeaponType)
+        // D-224 (§5.2): the ability's gear requirement, met by this weapon
+        if (!SkillRequirementRules::IsMet(Ability, FSkillGearHost::FromWeapon(WeaponEntry)))
         {
             return false;
         }

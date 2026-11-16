@@ -65,6 +65,20 @@ public:
         return RequiredWieldMode == EWeaponWieldMode::Single || WeaponWieldMode == RequiredWieldMode;
     }
 
+    /** Not authored yet: a weapon of RequiredWeaponType. */
+    virtual FSkillGearRequirement GetGearRequirement() const override
+    {
+        if (GearRequirement.Kind != ESkillGearKind::None)
+        {
+            return GearRequirement;
+        }
+        FSkillGearRequirement FromOldFields = GearRequirement;
+        FromOldFields.Kind = ESkillGearKind::Weapon;
+        FromOldFields.bNeedsWeaponType = true;
+        FromOldFields.WeaponType = RequiredWeaponType;
+        return FromOldFields;
+    }
+
     /** Marks a basic weapon attack (vs a slottable ability). A bIsAttack asset cannot be slotted as an
      *  ability. The only attack-vs-ability distinction post-merge. Default false → existing abilities stay
      *  abilities; attacks reparented to UAbilityData (step 5) author true. */

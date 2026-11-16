@@ -13,6 +13,7 @@
 #include "CoreMinimal.h"
 #include "Skills/Definitions/SpellSchool.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "Loadout/SkillRequirementRules.h"
 
 class UAbilityData;
 class USpellData;
@@ -35,6 +36,8 @@ struct FLoadoutSkillTab
 	ESpellSchool School = ESpellSchool::Destruction;
 	/** The weapon's or adapter's gear-page row (its place); unused for a school. */
 	FLoadoutScreenRow Gear;
+	/** The weapon or adapter, as the gear-requirement rule reads it (D-224); Kind None for a school. */
+	FSkillGearHost Host;
 	TArray<FLoadoutScreenRow> Rows;
 };
 

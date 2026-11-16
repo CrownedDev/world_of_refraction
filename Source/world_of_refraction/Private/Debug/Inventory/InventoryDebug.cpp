@@ -14,6 +14,7 @@
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Inventory/ItemTier.h"
 #include "Loadout/SpellPoolConstants.h"
+#include "Loadout/SkillRequirementRules.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 
@@ -80,9 +81,8 @@ void UInventoryDebug::LogAbilities(UInventoryComponent *Inventory)
     {
         if (UAbilityData *Ability = Instance.Ability)
         {
-            UE_LOG(LogTemp, Display, TEXT("  - %s [Weapon: %d]"),
-                   *Ability->Name,
-                   static_cast<int32>(Ability->RequiredWeaponType));
+            UE_LOG(LogTemp, Display, TEXT("  - %s [Needs: %s]"), *Ability->Name,
+                   *SkillRequirementRules::GetRequirementString(Ability)); // B-520 (D-224)
         }
     }
 }

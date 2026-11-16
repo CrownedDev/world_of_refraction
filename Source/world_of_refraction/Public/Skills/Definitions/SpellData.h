@@ -85,6 +85,20 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
     UEvolutionItemData *RequiredEvolutionCrystal = nullptr;
 
+    /** Not authored yet: RequiredEvolutionCrystal's evolution if set (B-520: read for the first time, Q-520); otherwise
+     *  None, any spell source. */
+    virtual FSkillGearRequirement GetGearRequirement() const override
+    {
+        if (GearRequirement.Kind != ESkillGearKind::None || !RequiredEvolutionCrystal)
+        {
+            return GearRequirement;
+        }
+        FSkillGearRequirement FromOldFields = GearRequirement;
+        FromOldFields.Kind = ESkillGearKind::Evolution;
+        FromOldFields.Evolution = RequiredEvolutionCrystal;
+        return FromOldFields;
+    }
+
     // ==================== VISUALS ====================
 
     /** DEPRECATED (D2, meta'd Stage 12 SC7): load-only — readers use
