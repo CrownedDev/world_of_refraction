@@ -8,8 +8,11 @@
 #include "GameFramework/PlayerController.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRFrontEndGameMode.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
+#include "Save/SaveSubsystem.h"
+#include "WoRLog.h"
 
 AWoRGameModeBase::AWoRGameModeBase()
 {
@@ -48,6 +51,17 @@ APawn *AWoRGameModeBase::SpawnDefaultPawnAtTransform_Implementation(AController 
     const bool bLocalLeader = Player && Player->IsLocalController() && Party && Party->Members.Num() > 0 &&
                               Party->Members[0].CharacterData &&
                               (!Party->LeaderPlayer.IsValid() || Party->LeaderPlayer.Get() == Player->GetLocalPlayer());
+    // B-537 (D-232): Play pressed straight in the hub or a trial with no save goes to the menu level, not the class
+    // default (the Character Template). The pawn still spawns; the travel happens on the next tick.
+    const USaveSubsystem *Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+    const bool bHasLeader = Party && Party->Members.Num() > 0 && Party->Members[0].CharacterData;
+    if (Player && Player->IsLocalController() && GetNetMode() == NM_Standalone && // a host's travel would drop its guests
+        WoRFrontEnd::ShouldFallBackToFrontEnd(Save && Save->HasSave(), bHasLeader, WoRFrontEnd::HasFrontEnd(GetGameInstance()), GIsAutomationTesting))
+    {
+        UE_LOG(LogWoR, Warning, TEXT("[WoRGameMode] No save and no party leader: going to the menu level instead of %s"),
+               *GetNameSafe(PawnClass));
+        WoRFrontEnd::TravelToFrontEnd(GetWorld());
+    }
     if (!bLocalLeader || !PawnClass)
     {
         return Super::SpawnDefaultPawnAtTransform_Implementation(NewPlayer, SpawnTransform);

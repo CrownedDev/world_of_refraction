@@ -112,6 +112,9 @@ public:
     /** B-469: ExitTrial has somewhere to go (HubLevel is set in DefaultGame.ini). */
     bool HasHubLevel() const { return !HubLevel.IsNull(); }
 
+    /** B-537: HubLevel as a long package name (empty when unset). */
+    FString GetHubLevelPackage() const { return HubLevel.IsNull() ? FString() : HubLevel.GetLongPackageName(); }
+
     /** B-362: ExitTrial for a call made mid-teardown (from the combat result broadcast): runs it one tick later, as
      *  ExitEncounter defers its OpenLevel. With no HubLevel configured it logs an error and falls back to ExitEncounter
      *  (the trial), so the player is never stranded in the battle level. */

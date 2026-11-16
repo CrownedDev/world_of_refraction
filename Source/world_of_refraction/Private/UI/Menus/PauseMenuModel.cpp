@@ -16,6 +16,7 @@
 #include "Memory/HiddenQuestSubsystem.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRFrontEndGameMode.h"
 #include "Player/WoRPlayerState.h"
 #include "Save/SaveSubsystem.h"
 #include "Trial/DefeatRules.h"
@@ -69,7 +70,7 @@ FText WoRPauseMenu::GetTrackedLine(const UWorld *World)
 	return Quests ? Quests->GetTrackedLine() : FText::GetEmpty();
 }
 
-TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine)
+TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine, bool bHasFrontEnd)
 {
 	const FText GuestCantQuit = LOCTEXT("GuestCantQuit", "Only the host can end the run.");
 
@@ -90,15 +91,16 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, co
 											 : FText::Format(LOCTEXT("JournalTracked", "Tracking: {0}"), TrackedLine)));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Settings, LOCTEXT("Settings", "Settings"),
 					   LOCTEXT("SettingsPreview", "Controls, camera, display, audio and accessibility.")));
-	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Quit, LOCTEXT("Quit", "Quit to title"), GetQuitWarning(bInRun),
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Quit, LOCTEXT("Quit", "Quit to title"), GetQuitWarning(bInRun, bHasFrontEnd),
 					   bInRun && !bCanEndRun ? GuestCantQuit : FText::GetEmpty()));
 	return Pages;
 }
 
-FText WoRPauseMenu::GetQuitWarning(bool bInRun)
+FText WoRPauseMenu::GetQuitWarning(bool bInRun, bool bHasFrontEnd)
 {
 	return bInRun ? LOCTEXT("QuitWarningRun", "Quitting ends the run. You lose its Prisms and rewards. "
 													   "The only way out with your rewards is to extract at a rest spot left where a great foe fell.")
+		 : bHasFrontEnd ? LOCTEXT("QuitWarningToTitle", "This saves and goes back to the title.")
 				  : LOCTEXT("QuitWarningHub", "There is no title screen yet, so this saves and closes the game.");
 }
 
@@ -207,6 +209,12 @@ void WoRPauseMenu::Quit(UWorld *World, APlayerController *PC)
 	{
 		Save->SaveNow(World, /*bAsync=*/false);
 	}
+	if (WoRFrontEnd::GetQuitTarget(/*bInRun=*/false, WoRFrontEnd::HasFrontEnd(GI)) == WoRFrontEnd::EQuitTo::FrontEnd &&
+		WoRFrontEnd::TravelToFrontEnd(World))
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[PauseMenu] Quit outside a run: saved, back to the title"));
+		return;
+	}
 	UE_LOG(LogWoRUI, Log, TEXT("[PauseMenu] Quit outside a run: saved, closing the game"));
 	UKismetSystemLibrary::QuitGame(World, PC, EQuitPreference::Quit, /*bIgnorePlatformRestrictions=*/false);
 }
@@ -226,7 +234,7 @@ FString WoRPauseMenu::GetPauseMenuString(const UWorld *World)
 	{
 		Out += TEXT("\n  tracking: ") + Tracked.ToString();
 	}
-	for (const FPauseMenuPage &Page : BuildPages(Header.bInRun, bCanEndRun, Tracked))
+	for (const FPauseMenuPage &Page : BuildPages(Header.bInRun, bCanEndRun, Tracked, WoRFrontEnd::HasFrontEnd(World ? World->GetGameInstance() : nullptr)))
 	{
 		Out += FString::Printf(TEXT("\n  page %s%s"), *Page.Label.ToString(),
 							   Page.CanOpen() ? TEXT("") : *FString::Printf(TEXT(" (refused: %s)"), *Page.Refusal.ToString()));

@@ -43,7 +43,8 @@ public:
 
 	/** Pushes the screen onto PC's root layout. */
 	static UTitleScreenWidget *Open(APlayerController *PC);
-	/** B-535: Open on a play session's first map load, when it is the game's default map (WoRTitleScreen::ShouldOpenAtStart). */
+	/** B-535: Open on a play session's first map load, when it is the game's default map (WoRTitleScreen::ShouldOpenAtStart).
+	 *  OBSOLETE (B-537): the menu level opens the title itself; once it is GameDefaultMap this opens nothing. */
 	static void OpenAtLaunch(APlayerController *PC);
 	/** B-469: the new game began from the screen over the title. OBSOLETE (B-535): OpenAtLaunch opens once a session anyway. */
 	static void MarkLeftThisLaunch();
