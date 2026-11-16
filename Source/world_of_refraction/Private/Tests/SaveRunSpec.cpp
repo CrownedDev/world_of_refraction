@@ -33,6 +33,10 @@ namespace
 	constexpr int32 SAVE_RUN_HP = 21;
 	const FName SAVE_RUN_ENCOUNTER(TEXT("TrialMap.Encounter_A"));
 	const FName SAVE_RUN_CHEST(TEXT("TrialMap.Chest_1"));
+	const FName SAVE_RUN_LEVEL_KEY(TEXT("DA_Character_Generic"));
+	const FName SAVE_RUN_WAITING_KEY(TEXT("DA_Character_Gale"));
+	constexpr int32 SAVE_RUN_BODY_LEVELS = 2;
+	constexpr int32 SAVE_RUN_WAITING_LEVELS = 3;
 
 	UWoRSaveGame *SaveRunRoundTrip(UWoRSaveGame *Save)
 	{
@@ -150,6 +154,34 @@ void FSaveRunSpec::Define()
 		TestTrue(TEXT("The same primary evolution"), Back.CarriedGear.PrimaryEvolution.Item == Evolution);
 		TestEqual(TEXT("Its durability"), Back.CarriedGear.PrimaryEvolution.CurrentDurability, SAVE_RUN_EVO_DURABILITY);
 		TestEqual(TEXT("Absorption stacks"), Back.CarriedAbsorption.AbsorptionStacks, SAVE_RUN_STACKS);
+	});
+
+	// CS-5 (audit clash 5): the run's earned levels, the vendor's purchase count and the waiting levels.
+	It("brings back the levels earned in the run, the purchases and the levels waiting to be placed", [this]()
+	{
+		FWoRTestWorld Before;
+		FWoRTestWorld After;
+		if (!TestTrue(TEXT("Worlds"), Before.Create() && After.Create())) return;
+		UTrialRunSubsystem *Running = Before.GetSubsystem<UTrialRunSubsystem>();
+		UTrialRunSubsystem *Resumed = After.GetSubsystem<UTrialRunSubsystem>();
+		if (!TestNotNull(TEXT("Trial run"), Running) || !TestNotNull(TEXT("Trial run after"), Resumed)) return;
+		Running->RestoreRun(NewObject<UTrialData>(GetTransientPackage()), SAVE_RUN_SEED, SAVE_RUN_VARIATION, ETrialDifficulty::Hard, {}, {}, {});
+		Running->AddRunEarnedLevels(SAVE_RUN_LEVEL_KEY, EWorldPillar::Body, SAVE_RUN_BODY_LEVELS); // two Body levels, one bought
+		Running->AddRunLevelPurchase(SAVE_RUN_LEVEL_KEY);
+		Running->AddRunOverCap(SAVE_RUN_LEVEL_KEY, EWorldPillar::Mind);
+		Running->AddUnspentLevels(SAVE_RUN_WAITING_KEY, SAVE_RUN_WAITING_LEVELS); // a member with only waiting levels
+
+		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
+		Save->HandlePreSave();
+		Save->Data.Run = USaveSubsystem::CaptureRun(*Running, SAVE_RUN_GOLD);
+		UWoRSaveGame *Loaded = SaveRunRoundTrip(Save);
+		if (!TestNotNull(TEXT("Loaded"), Loaded) || !TestTrue(TEXT("Restored"), USaveSubsystem::RestoreRun(Loaded->Data.Run, *Resumed))) return;
+		TestEqual(TEXT("Body levels"), Resumed->GetRunEarnedLevels(SAVE_RUN_LEVEL_KEY, EWorldPillar::Body), SAVE_RUN_BODY_LEVELS);
+		TestEqual(TEXT("No Mind levels"), Resumed->GetRunEarnedLevels(SAVE_RUN_LEVEL_KEY, EWorldPillar::Mind), 0);
+		TestEqual(TEXT("The vendor's price step"), Resumed->GetRunLevelPurchases(SAVE_RUN_LEVEL_KEY), 1);
+		TestEqual(TEXT("The over-cap point"), Resumed->GetRunOverCap(SAVE_RUN_LEVEL_KEY, EWorldPillar::Mind), 1);
+		TestEqual(TEXT("The waiting levels"), Resumed->GetUnspentLevels(SAVE_RUN_WAITING_KEY), SAVE_RUN_WAITING_LEVELS);
+		TestEqual(TEXT("None waiting for the other"), Resumed->GetUnspentLevels(SAVE_RUN_LEVEL_KEY), 0);
 	});
 }
 
