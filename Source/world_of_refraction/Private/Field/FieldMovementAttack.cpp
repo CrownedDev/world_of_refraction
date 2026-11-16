@@ -88,6 +88,8 @@ namespace
 		UTexture2D *Icon = nullptr;
 		UTexture2D *OffHandIcon = nullptr;
 		FText Type;
+		/** B-516b (D-223): the piece's tier (a pair: its main hand's), for telling two same-named pieces apart. */
+		EItemTier Tier = EItemTier::F_Tier;
 		/** B-503s (D-218): a weapon user throws the pulse from this slice too: the innate, an evolution, an adapter
 		 *  that isn't a ring (a Pistol or a Trainer). A ring infuses the weapon in hand. */
 		bool bPulse = false;
@@ -164,6 +166,7 @@ namespace
 				Slice.Icon = Slot.WeaponEntry.Weapon ? Slot.WeaponEntry.Weapon->Icon : nullptr;
 				Slice.OffHandIcon = Slot.HasOffHand() && Slot.OffHandEntry.Weapon ? Slot.OffHandEntry.Weapon->Icon : nullptr;
 				Slice.Type = WoRGameNames::GetHeldWeaponTypeName(Slot.WeaponEntry.Weapon, Slot.HasOffHand() ? Slot.OffHandEntry.Weapon : nullptr);
+				Slice.Tier = Slot.WeaponEntry.Tier;
 			};
 			const auto AddRing = [&Slices](const FRingLoadoutEntry &Slot)
 			{
@@ -173,6 +176,7 @@ namespace
 				Slice.bPulse = Slot.RingEntry.Ring->Form != EAdapterForm::Ring;
 				Slice.Icon = Slot.RingEntry.Ring->Icon;
 				Slice.Type = WoRGameNames::GetAdapterFormName(Slot.RingEntry.Ring->Form);
+				Slice.Tier = Slot.RingEntry.Tier; // TODO: stage 2b, the built average of the ring and its crystal (D-224 (1))
 			};
 			// The fight's own walk (FCombatLoadout.cpp ForEachReadLegacySlot): a primary weapon with a Weapon or None type
 			// (AutoPopulateLoadout leaves None), else a primary adapter; a Generic's secondary weapon; the adapter loadout
@@ -224,13 +228,16 @@ namespace
 				Slice.bPulse = true;
 			}
 		}
-		// B-516: two same-named entries (two Lightning rings) read apart on the strip.
+		// B-516 / B-516b: two same-named entries read apart on the strip: the tier letter (it has no badge), then a number.
 		TArray<FText> Names;
+		TArray<EItemTier> Tiers;
 		for (const FFieldSlice &Slice : Slices)
 		{
 			Names.Add(Slice.Name);
+			Tiers.Add(Slice.Tier);
 		}
-		WoRGameNames::NumberRepeatedNames(Names);
+		constexpr bool bTierLetter = true;
+		WoRGameNames::NumberRepeatedNames(Names, Tiers, bTierLetter);
 		for (int32 Index = 0; Index < Names.Num(); ++Index)
 		{
 			Slices[Index].Name = Names[Index];

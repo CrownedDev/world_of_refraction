@@ -119,6 +119,31 @@ void FTwoSameRingsSpec::Define()
 			TestEqual(TEXT("second gets 2"), Names[3].ToString(), FString(TEXT("Lightning Ring 2")));
 			TestEqual(TEXT("third gets 3"), Names[5].ToString(), FString(TEXT("Lightning Ring 3")));
 		});
+
+		// B-516b (D-223): the tier tells them apart first; a number only when the name and the tier both repeat.
+		It("numbers only a name and tier that both repeat", [this]()
+		{
+			TArray<FText> Names = TwoRingsTestNames({TEXT("Lightning Ring"), TEXT("Lightning Ring"), TEXT("Lightning Ring")});
+			const TArray<EItemTier> Tiers = {EItemTier::C_Tier, EItemTier::F_Tier, EItemTier::C_Tier};
+			WoRGameNames::NumberRepeatedNames(Names, Tiers);
+			TestEqual(TEXT("a C keeps its name"), Names[0].ToString(), FString(TEXT("Lightning Ring")));
+			TestEqual(TEXT("an F of the same name: no number"), Names[1].ToString(), FString(TEXT("Lightning Ring")));
+			TestEqual(TEXT("a second C gets 2"), Names[2].ToString(), FString(TEXT("Lightning Ring 2")));
+		});
+
+		It("puts the tier letter on the strip's names only where one name has two tiers", [this]()
+		{
+			TArray<FText> Names = TwoRingsTestNames({TEXT("Lightning Ring"), TEXT("Lightning Ring"), TEXT("Fire Ring"), TEXT("Lightning Ring"), TEXT("Fire Ring")});
+			const TArray<EItemTier> Tiers = {EItemTier::C_Tier, EItemTier::F_Tier, EItemTier::C_Tier, EItemTier::C_Tier, EItemTier::C_Tier};
+			WoRGameNames::NumberRepeatedNames(Names, Tiers, true);
+			const FString C = WoRGameNames::GetTierLetter(EItemTier::C_Tier).ToString();
+			const FString F = WoRGameNames::GetTierLetter(EItemTier::F_Tier).ToString();
+			TestEqual(TEXT("the C one"), Names[0].ToString(), FString::Printf(TEXT("Lightning Ring  %s"), *C));
+			TestEqual(TEXT("the F one"), Names[1].ToString(), FString::Printf(TEXT("Lightning Ring  %s"), *F));
+			TestEqual(TEXT("one tier only: no letter"), Names[2].ToString(), FString(TEXT("Fire Ring")));
+			TestEqual(TEXT("a second C: letter and number"), Names[3].ToString(), FString::Printf(TEXT("Lightning Ring  %s 2"), *C));
+			TestEqual(TEXT("same name and tier: number only"), Names[4].ToString(), FString(TEXT("Fire Ring 2")));
+		});
 	});
 
 	It("lists two Lightning rings as separate Equipment entries, each its own place", [this]()
@@ -140,6 +165,25 @@ void FTwoSameRingsSpec::Define()
 		TestEqual(TEXT("the first reads Lightning Ring"), Rings[0]->Name.ToString(), FString(TEXT("Lightning Ring")));
 		TestEqual(TEXT("the second reads Lightning Ring 2"), Rings[1]->Name.ToString(), FString(TEXT("Lightning Ring 2")));
 		TestTrue(TEXT("each its own place"), Rings[0]->AdapterIndex == 0 && Rings[1]->AdapterIndex == 1);
+	});
+
+	It("tells two Lightning rings of different tiers apart by the tier, with no number", [this]()
+	{
+		FCombatLoadout Loadout = TwoLightningRings();
+		Loadout.RingLoadout[1].RingEntry.Tier = EItemTier::C_Tier;
+		const FLoadoutV2WeaponsPage Page = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Resonator);
+		TArray<const FLoadoutV2Entry *> Rings;
+		for (const FLoadoutV2Entry &Entry : Page.Entries)
+		{
+			if (Entry.Kind == ELoadoutV2EntryKind::Adapter)
+			{
+				Rings.Add(&Entry);
+			}
+		}
+		if (!TestEqual(TEXT("two adapter entries"), Rings.Num(), 2)) return;
+		TestEqual(TEXT("the F one: its name"), Rings[0]->Name.ToString(), FString(TEXT("Lightning Ring")));
+		TestEqual(TEXT("the C one: its name, no number"), Rings[1]->Name.ToString(), FString(TEXT("Lightning Ring")));
+		TestTrue(TEXT("each carries its own tier for the badge"), Rings[0]->Tier == EItemTier::F_Tier && Rings[1]->Tier == EItemTier::C_Tier);
 	});
 
 	Describe("a cast", [this]()

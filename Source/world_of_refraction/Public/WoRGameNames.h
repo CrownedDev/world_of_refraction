@@ -136,9 +136,12 @@ namespace WoRGameNames
      *  the Equipment screen ask here. */
     WORLD_OF_REFRACTION_API FText GetAdapterName(const URingData *Adapter, const FRuntimeAttachedItem &Socket);
 
-    /** B-516: a name that repeats in one list gets its count from the second on ("Lightning Ring", "Lightning Ring 2"),
-     *  in list order, at display time; nothing is stored. The quick strip and the Equipment list ask here. */
-    WORLD_OF_REFRACTION_API void NumberRepeatedNames(TArray<FText> &Names);
+    /** B-516 / B-516b (D-223 "Two pieces with the same name"): the tier tells same-named pieces apart first; only a
+     *  name AND tier that repeat in one list get a count from the second on ("Lightning Ring", "Lightning Ring 2"), in
+     *  list order, at display time; nothing is stored. Tiers runs beside Names (none given: by name alone).
+     *  bTierLetter (the quick strip, which has no tier badge): a name shared by different tiers gets its tier letter
+     *  ("Lightning Ring  C"). The quick strip and the Equipment list ask here. */
+    WORLD_OF_REFRACTION_API void NumberRepeatedNames(TArray<FText> &Names, TConstArrayView<EItemTier> Tiers = {}, bool bTierLetter = false);
 
     /** B-440a (D-180): how a weapon is held, for its kind line: "dual", "with shield". Empty for a single weapon. */
     WORLD_OF_REFRACTION_API FText GetWieldModeName(EWeaponWieldMode Mode);

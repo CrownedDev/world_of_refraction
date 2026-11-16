@@ -797,16 +797,34 @@ FText WoRGameNames::GetAdapterName(const URingData *Adapter, const FRuntimeAttac
     return FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), InSocket.IsEmpty() ? GetAdapterWord() : InSocket, GetAdapterFormName(Adapter->Form));
 }
 
-void WoRGameNames::NumberRepeatedNames(TArray<FText> &Names)
+void WoRGameNames::NumberRepeatedNames(TArray<FText> &Names, TConstArrayView<EItemTier> Tiers, bool bTierLetter)
 {
-    TMap<FString, int32> Seen;
-    for (FText &Name : Names)
+    const bool bByTier = Tiers.Num() == Names.Num();
+    constexpr int32 NO_TIER = -1;
+    const auto TierOf = [&](int32 Index) { return bByTier ? static_cast<int32>(Tiers[Index]) : NO_TIER; };
+    // The strip's letter: which names are held by more than one tier.
+    TMap<FString, TSet<int32>> TiersByName;
+    for (int32 Index = 0; bTierLetter && Index < Names.Num(); ++Index)
     {
+        if (!Names[Index].IsEmpty())
+        {
+            TiersByName.FindOrAdd(Names[Index].ToString()).Add(TierOf(Index));
+        }
+    }
+    TMap<FString, int32> Seen;
+    for (int32 Index = 0; Index < Names.Num(); ++Index)
+    {
+        FText &Name = Names[Index];
         if (Name.IsEmpty())
         {
             continue;
         }
-        const int32 Count = ++Seen.FindOrAdd(Name.ToString());
+        const FString Key = Name.ToString();
+        const int32 Count = ++Seen.FindOrAdd(FString::Printf(TEXT("%s|%d"), *Key, TierOf(Index)));
+        if (bByTier && TiersByName.Contains(Key) && TiersByName[Key].Num() > 1 && !GetTierLetter(Tiers[Index]).IsEmpty())
+        {
+            Name = FText::Format(LOCTEXT("RepeatedNameTier", "{0}  {1}"), Name, GetTierLetter(Tiers[Index]));
+        }
         if (Count > 1)
         {
             Name = FText::Format(LOCTEXT("RepeatedName", "{0} {1}"), Name, FText::AsNumber(Count));
