@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-238 — The hub's recruits are built the same way as the player
+**Status:** ANSWERED in outline (Crown, 2026-11-16); planned with D-228, not built · **Raised:** 2026-11-16 · **Blocks:** deleting the old Lords (removal list group 2)
+**Answer (Crown):** "we need the 12 recruits, but they would be similar to our character, no? So we would just set their element and that's pretty much it". The 12 walk-up recruits stay in the hub, but each is **the one shared character plus fixed picks** (D-228), not its own character and inventory asset: its class and, for a Refractor, its element; the class table gives the rest (stats, kit, innate spells).
+**Defaults (Crown may change):** a recruit's picks are one small row (name, class, element, spirit, and a colour for its box or body); it starts on its class's F-tier kit like a new player. This changes D-228's "named party members keep their own character assets" for these twelve; a character with its own story, look or fixed gear can still have its own asset.
+
 ### D-237 — Run levels are kept in the hub, the way gear is
 **Status:** ANSWERED in outline (Crown, 2026-11-16); the reading below is to be confirmed before it is built · **Raised:** 2026-11-16 · **Blocks:** the title slot's levels (D-229), one-player stage 3
 **Answer (Crown):** "run levels should work the same way as gear does: we keep it in the hub". This changes D-102 (a run's Mind / Body / Spirit levels ended with the run).
