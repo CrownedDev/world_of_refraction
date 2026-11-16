@@ -32,7 +32,7 @@ namespace
 		Entry.RingEntry.PersistentID = GearID;
 		Entry.RingEntry.AttachedItem.Kind = EAttachedItemKind::Crystal;
 		Entry.RingEntry.AttachedItem.Crystal = FCrystalAttachment(Gem, TWO_RINGS_TEST_DURABILITY);
-		Entry.RingEntry.AssignedSpells = {Pick};
+		Entry.RingEntry.SpellPicks = {Pick}; // B-518: the ring's spells are its picks
 		return Entry;
 	}
 
@@ -209,7 +209,7 @@ void FTwoSameRingsSpec::Define()
 		It("reads the ring in use when both rings pick the same spell", [this]()
 		{
 			FCombatLoadout Loadout = TwoLightningRings();
-			Loadout.RingLoadout[TWO_RINGS_TEST_ACTIVE].RingEntry.AssignedSpells = {Bolt};
+			Loadout.RingLoadout[TWO_RINGS_TEST_ACTIVE].RingEntry.SpellPicks = {Bolt};
 			ULoadoutComponent *Component = SpawnWearing(Loadout);
 			if (!TestNotNull(TEXT("Loadout"), Component)) return;
 			TestTrue(TEXT("the ring in use"),
