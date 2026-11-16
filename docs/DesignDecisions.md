@@ -1153,12 +1153,12 @@ The queue of questions only Crown can answer.
 **Notes for Claude:** one table in `CharacterSheetModel.cpp` (`MIND_STATS`, `BODY_STATS`, `SPIRIT_STATS`). "Where it comes from" (the layers) is the R3 view, not built yet.
 
 ### Q-451 — What counts as a run's "upgrades"?
-**Status:** OPEN · **Raised:** 2026-11-14 (D-189, B-451) · **Blocks:** — (B-451 builds with the reading below unless Crown says otherwise)
+**Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-14 (D-189, B-451) · **Blocks:** — (B-451 builds with the reading below unless Crown says otherwise)
 **Question:** D-189 keeps "the run's upgrades" on extracting or beating the boss and drops them when the party runs out of wipes. Which things are upgrades?
 **Context:** what a run can leave behind today, besides the currency payout: the **gear upgrade levels** it raised (the upgrade memory, D-097); **items found** in it (to home storage); **memories** found; **quest steps** done (hidden quest steps stay, B-377); the run's **pillar levels** always end with the run (D-102).
 **Options:** **A** upgrades = the gear upgrade levels and the items found; memories and quest steps are story records and are kept whatever the ending · **B** everything the run gave (A plus memories and quest steps) is lost when the party runs out of wipes ("their story ended") · **C** only the gear upgrade levels.
 **Recommendation (my reading):** **A**. D-188 lists "upgrades, memories, quests" as separate things in the payout line, so upgrades are not the memories or quests; and losing a found memory would break the journal's "found is found" (pillar 10). Crown's "their story ended" may mean B: this touches the story, so it is Crown's to say.
-**Answer (Crown):** _write here_
+**Answer (Crown, 2026-11-16):** A. Memories and quest steps found in a run are kept whatever the ending: "you can keep them, since they've been found". Out of wipes loses the found gear and items and costs tier (D-219), and pays a quarter of the currency.
 
 ### Q-238b — At run end, do pouch finds move to home storage?
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-04 (B-238b) · **Blocks:** —
