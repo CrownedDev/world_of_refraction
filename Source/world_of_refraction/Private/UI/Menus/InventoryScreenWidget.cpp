@@ -241,7 +241,8 @@ UInventoryScreenWidget::FTileWidgets UInventoryScreenWidget::BuildTile(int32 Ind
 	CountSlot->SetVerticalAlignment(VAlign_Bottom);
 	// B-487: the icon in the letter's place and a tier badge in the top right corner.
 	UImage *Icon = MakeIcon(WidgetTree, TileIconSize);
-	UOverlaySlot *IconSlot = Layers->AddChildToOverlay(Icon);
+	UImage *IconCentre = nullptr;
+	UOverlaySlot *IconSlot = Layers->AddChildToOverlay(MakeIconStack(WidgetTree, Icon, TileIconSize, IconCentre));
 	IconSlot->SetHorizontalAlignment(HAlign_Center);
 	IconSlot->SetVerticalAlignment(VAlign_Center);
 	UImage *TierBadge = MakeIcon(WidgetTree, TileBadgeSize);
@@ -258,6 +259,7 @@ UInventoryScreenWidget::FTileWidgets UInventoryScreenWidget::BuildTile(int32 Ind
 	Widgets.Worn = Worn;
 	Widgets.Count = Count;
 	Widgets.Icon = Icon;
+	Widgets.IconCentre = IconCentre;
 	Widgets.TierBadge = TierBadge;
 	return Widgets;
 }
@@ -423,6 +425,7 @@ void UInventoryScreenWidget::RefreshData()
 		const FInventoryScreenTile Tile = bTile ? Page.Tiles[Index] : FInventoryScreenTile();
 		// B-487: the icon stands in for the letter when the icon table has it; the tier is a badge on the tile.
 		const bool bIcon = SetIcon(Widgets.Icon.Get(), bTile ? WoRIcons::Find(Tile.Icon) : nullptr, Tile.Icon.Name);
+		SetIcon(Widgets.IconCentre.Get(), bIcon ? WoRIcons::FindCentre(Tile.Icon) : nullptr, Tile.Icon.Name);
 		SetIcon(Widgets.TierBadge.Get(), bTile && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr,
 				FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Tile.Tier));
 		Widgets.Mark->SetText(bIcon ? FText::GetEmpty() : Tile.Mark);

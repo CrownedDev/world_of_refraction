@@ -166,6 +166,10 @@ namespace InventoryScreenBuild
 			Tile.Icon.Name = WoRGameNames::GetWeaponTypeName(Weapon->Weapon->WeaponType);
 		}
 		Tile.Element = Slot.Gear.AttachedItem.GetElement();
+		if (Adapter)
+		{
+			Tile.Icon = WoRIcons::MakeAdapterIcon(Tile.Element, Tile.Name); // B-543: the B-530 frame with its crystal, not "A"
+		}
 		Tile.bWorn = !Row.bInChest && Inventory && !Inventory->GetLoadoutsUsing(Row.GearID).IsEmpty();
 		Tile.Details = Gear.Details;
 		// B-487b: a filled socket's line carries its badge (drawn in its label's place) and its tier: "Garnet (F)".

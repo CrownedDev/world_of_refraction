@@ -102,6 +102,8 @@ private:
 		TWeakObjectPtr<UTextBlock> Count;
 		/** B-487: the tile's icon in the letter's place, and its tier badge (hidden until the icon table has them). */
 		TWeakObjectPtr<UImage> Icon;
+		/** B-543: an adapter's crystal, inside its frame (B-530). */
+		TWeakObjectPtr<UImage> IconCentre;
 		TWeakObjectPtr<UImage> TierBadge;
 	};
 
