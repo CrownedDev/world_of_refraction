@@ -1,6 +1,6 @@
 # One player character (D-228): the plan
 
-**Status:** plan for Crown to read; nothing built. **Rules:** D-228, with D-227 (class locked; test starts stay full), D-221 (the trial kit), D-224 (class kits). **Branch:** `docs/D-228-one-player-character-plan`.
+**Status:** plan updated for Crown's answers (D-228 plan questions, D-229 title and save list, D-234 Starting spirit); nothing built. **Rules:** D-228, D-229, D-234, with D-227 (class locked; test starts stay full), D-221 (the trial kit), D-224 (class kits), D-232 / B-537 (the menu level). **Branch:** `docs/D-228-one-player-character-plan`, then `docs/D-228-plan-rulings`.
 
 **In one line:** the player becomes one shared character. The body, the class and the class pick are choices saved with the game, not separate data assets. The game builds the player's character data from those choices when a game starts or loads. Enemies and named party members keep their own assets.
 
@@ -36,10 +36,10 @@ A player character is a `UCharacterData` (`Character/CharacterData.h`) plus a `U
 | Piece | What it is | New or reused |
 |---|---|---|
 | **`DA_Character_Player`** | One `UCharacterData` holding what every player shares: cosmetics, base stats, origin Player. | New asset; no new class |
-| **The class table** | One row per class with what the class changes: world levels, action speed, resistances, portrait, the trial kit's base (apparel, `StartingSkills`), and **what the new-game pick offers**: a Generic's weapon list, a Resonator's prebuilt-ring list. The Refractor's row has **one entry per element choice**, Broken Darkness and Reality included. Each entry holds that element's `InnateElement`, BD flag, innate spells, resistances and world levels. | Added to `UClassDefaultLoadoutData` (`Loadout/ClassDefaultLoadoutData.h:97`) beside `Defaults`; the kit pieces stay as `FClassDefaultLoadout` |
-| **The player's picks** | One small saved struct: body, class, the Refractor's element choice (an element, BD or Reality), a Generic's two weapons, a Resonator's two prebuilt rings. Locked for the game (D-227). | New struct, saved with the leader |
+| **The class table** | One row per class with what the class changes: world levels, action speed, resistances, portrait, the trial kit's base (apparel, `StartingSkills`), and **what the new-game pick offers**: a Generic's weapon list, a Resonator's crystal-type list (it starts with two empty adapters). The Refractor's row has **one entry per element choice**, Broken Darkness and Reality included. Each entry holds that element's `InnateElement`, BD flag, innate spells, resistances and world levels. | Added to `UClassDefaultLoadoutData` (`Loadout/ClassDefaultLoadoutData.h:97`) beside `Defaults`; the kit pieces stay as `FClassDefaultLoadout` |
+| **The player's picks** | One small saved struct: the **typed name** (D-228 Q6), the **Starting spirit** (Male Nobody / Female Nobody, D-234), class, the Refractor's element choice (an element, BD or Reality), a Generic's **two weapons** (a sword and a shield are two separate picks, D-228 Q2), a Resonator's **two crystal types**. Locked for the game (D-227). | New struct, saved with the leader |
 | **Building the player** | A function that makes the player's `UCharacterData` from the shared asset, the class row and the picks: a copy of `DA_Character_Player` with the class, element and numbers filled in. It gets a fixed name, so the pool's key stays the same across loads. | New function |
-| **Starting gear** | The picked pieces are the starting gear: minted once and worn, through B-529's one seed (`UPoolSubsystem::SeedStartingGear`). | Reused; it reads the picks instead of an inventory asset |
+| **Starting gear** | The picked pieces are the starting gear, all at **F tier**: minted once and worn, through B-529's one seed (`UPoolSubsystem::SeedStartingGear`). A Resonator gets **two empty adapters** and **3 crystals of each picked type** (F tier; the count is one named tunable, D-228) and sockets them itself. | Reused; it reads the picks instead of an inventory asset |
 
 **Why build a character, not change every reader:** about 47 places read `InnateElement` / `bBrokenDarknessInnate`, and many more read `CharacterClass` (`CharacterData.h:129-144`, helpers `:274-302`). A built character feeds all of them with no change. Elden Ring and Dark Souls work this way: a new game takes one base character, applies the starting class and gift, and saves the result.
 
@@ -49,7 +49,7 @@ Today a trial start wears the class's fixed row: `FindClassDefaults(Class)` (`Tr
 
 **New:** the trial kit is **the class row's base plus the picked pieces**:
 - a Generic gets its two picked weapons;
-- a Resonator gets its two picked prebuilt rings;
+- a Resonator gets its two empty adapters and 3 F-tier crystals of each picked type;
 - a Refractor gets nothing beyond its innate.
 
 These are kit copies, minted once and reset at each trial start, as today (D-221). They are not the player's own starting pieces. `FindClassDefaults` takes the member's picks; `MintClassDefaultKit`, `ResetClassDefaultKit` and `WearClassDefaultKit` stay as they are.
@@ -66,6 +66,14 @@ These are kit copies, minted once and reset at each trial start, as today (D-221
 | The pool's key | `Pool/PoolSubsystem.cpp:341` (key = the asset's path) | The built character's fixed name keeps one key per player |
 | Co-op second player | `Party/PartySessionSubsystem.cpp:821-832` (a joiner bringing a character already in the party joins as a copy, keyed by member); `WoRPlayerState.h:251` (`ClaimedCharacters`) | Each player's character is built from their own picks. Two players with the same class get separate keys from their member ids (as the copy rule does today) |
 
+## 4b. The title and the save list (D-229)
+
+- **Title:** **Continue** (the last played character) and **Load**. No New Game entry, no 2-second hold, and **no Join a friend** (joining is reached from the in-game menu only).
+- **Load** lists the characters, **one save file each**. **New game sits under the last character.** With the list full, New game is not offered (default). Deleting a character is a row action with a yes / no confirm.
+- **The most save files** is **one configurable value**. Its default is the number of class choices: Generic, Resonator and each Refractor choice.
+- **The menu level exists** (B-537, D-232): the title and the new-game screen run there; Begin and Continue travel to the hub.
+- **Readers that change:** the title screen (Continue / Load), `USaveSubsystem` (one slot per character instead of one save), and `StartFreshGame` (writes a new slot).
+
 ## 5. What does not change
 
 - **Enemies** keep their own `DA_Enemy_*` assets and inventories, and the D-225 trial pool.
@@ -79,29 +87,19 @@ UI-first order: put the UI in, Crown looks, then the code and data are aligned t
 
 | # | Stage | Crown checks |
 |---|---|---|
-| 1 | **New-game screen shows the picks** (plain placeholder UI). Body, class, the Refractor's element list with BD and Reality, the Generic's two weapon choices, the Resonator's two ring choices. Lists come from a stub class table; Begin still starts the old way. | The look and the choices |
-| 2 | **The class table and `DA_Character_Player`**: the new fields and the editor step that fills them from today's assets. The test start keeps working. | The numbers per class and element |
-| 3 | **Build the player from the picks**: the saved picks struct, the build function, `StartFreshGame`, save and load (version up). The hub pawn is the built character (B-529's rule). | New game: the hub shows the picked class and element; a reload keeps it |
-| 4 | **The pick sets the starting gear and the trial kit** (§3). | The hub wears the picks; a trial starts on them; a quit and an extract behave as now |
-| 5 | **Co-op**: a second player picks and joins as their own built character. | 2-player PIE |
-| 6 | **Delete the old**: the 13 Lords, their inventories and equipment, `NewGameCharacters`, `FindStartCharacter`. This is part of `AssetOverhaulPlan.md` stage 6, after stage 5 here passes. The `_Start` inventories stay as test starts until Crown retires them. | A new game, and an old save wiped with the warning |
+| 1 | **Look only (UI first):** the title with Continue and Load; the Load list with New game under the last character; the new-game screen with the typed name, Starting spirit, class, the Refractor's element list (BD and Reality inside it), the Generic's two weapon picks (sword and shield separate) and the Resonator's two crystal types ("3 of each, F tier"). Lists come from a stub class table; Begin and Continue still start the old way. | The look and the choices |
+| 2 | **Align the data:** the class table and `DA_Character_Player` (new fields, the editor step that fills them from today's assets). The test start keeps working. | The numbers per class and element |
+| 3 | **Build the player from the picks and save it per character:** the picks struct (name included), the build function, `StartFreshGame`, one save file per character with the max-saves value, Continue and Load real, save version up (old saves wiped with the warning, D-060). The hub pawn is the built character. | New game: the hub shows the picked class, element, spirit and name; Continue and Load bring it back |
+| 4 | **The picks set the starting gear and the trial kit** (section 3), all F tier; the Resonator's empty adapters and crystals. | The hub wears the picks; a trial starts on them; a quit and an extract behave as now |
+| 5 | **Co-op:** a second player picks and joins (from the in-game menu) as their own built character. | 2-player PIE |
+| 6 | **Delete the old:** the 13 Lords, their inventories and equipment, `NewGameCharacters`, `FindStartCharacter`. This is part of `AssetOverhaulPlan.md` stage 6, after stage 5 here passes. The `_Start` inventories stay as test starts until Crown retires them. | A new game, and an old save wiped with the warning |
 
-## 7. Open questions for Crown (defaults are what gets built unless Crown changes them)
+## 7. Crown's answers (D-228, 2026-11-16)
 
-1. **Which weapons and prebuilt rings are offered?**
-   - **Default:** every weapon and one prebuilt ring of each element that the clean gear set has.
-   - **Reference:** Dark Souls' and Elden Ring's starting gifts offer a short fixed list; a short list keeps the choice readable.
-2. **Is a sword with its shield one weapon pick?**
-   - **Default:** yes. A pair counts as one held piece (D-224 Q8), so a Generic picks two held pieces: for example sword and shield plus the axes pair.
-   - **Reference:** Elden Ring treats a weapon and shield as two hands of one stance.
-3. **Do class numbers differ only by class, or also by element?**
-   - **Default:** class sets the world levels and action speed; the Refractor's element sets its resistances (own element strong, its opposite weak), as the Lords do now. This keeps one table row per element choice.
-   - **Reference:** Pokémon's type chart, and Elden Ring's classes differing only in starting stats.
-4. **Does the Refractor also start with an evolution** (the cast gives the Fire Refractor Phoenix Fire)?
-   - **Default:** no. D-224 says a Refractor "starts with nothing" beyond its innate; evolutions are found. Phoenix Fire stays in the test start.
-5. **Is the hub's starting gear the same as the trial kit's pieces?**
-   - **Default:** yes: one pick sets both (D-228 a). The hub gets its own pieces once; each trial gets fresh kit copies.
-   - **Reference:** Hades: the weapon you pick is the one you start every run with.
-6. **The player's name and portrait.**
-   - Name: open (lore-adjacent), no outside recommendation. Options: a name typed at the new-game screen; the class name ("Generic"); a fixed story name.
-   - Portrait: by class, with the element's colour (default).
+1. **Weapons and crystals offered:** the default stands: every weapon and every crystal type the clean gear set has (approved by the reference-backed default).
+2. **Sword and shield:** **two separate picks.** A Generic's two picks can be sword and shield. For skill slots the pair still counts as one weapon (D-224).
+3. **Class numbers:** the default stands: class sets world levels and action speed; the Refractor's element sets its resistances.
+4. **A Refractor's evolution:** the default stands: none; evolutions are found. Phoenix Fire stays in the test start.
+5. **Hub gear and trial kit:** the default stands: one pick sets both.
+6. **Name and portrait:** the player **types their name** at the new-game screen; the portrait is by class with the element's colour (default).
+7. **Resonator (changed):** two empty starting adapters and two picked crystal types, **3 of each**, at F tier, instead of two prebuilt rings. **Every pick is F tier.**
