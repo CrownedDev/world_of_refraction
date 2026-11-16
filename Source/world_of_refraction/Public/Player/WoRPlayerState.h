@@ -248,6 +248,7 @@ private:
 	TWeakObjectPtr<const ACharacter> DressedPawn;
 	TWeakObjectPtr<UCharacterFormData> DressedForm;
 	EPlayerBaseForm DressedBase = EPlayerBaseForm::Manny;
+	TWeakObjectPtr<USkeletalMesh> DressedMesh;
 
 	/** B-232: the characters this player commands. */
 	UPROPERTY(Replicated)

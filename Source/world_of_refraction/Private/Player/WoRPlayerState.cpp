@@ -463,7 +463,8 @@ void AWoRPlayerState::ApplyFormLook()
 		return;
 	}
 	// B-547: one dress per pawn and look; the pawn set and the form's replication both ask for it on arrival.
-	const bool bAlreadyDressed = DressedPawn.Get() == Character && DressedForm.Get() == Form && DressedBase == Base;
+	const bool bAlreadyDressed = DressedPawn.Get() == Character && DressedForm.Get() == Form && DressedBase == Base &&
+								 DressedMesh.Get() == Mesh->GetSkeletalMeshAsset(); // something else swapped the mesh: dress again
 	if (!bAlreadyDressed)
 	{
 		bool bDressed = false;
@@ -485,6 +486,7 @@ void AWoRPlayerState::ApplyFormLook()
 		DressedPawn = Character;
 		DressedForm = Form;
 		DressedBase = Base;
+		DressedMesh = Mesh->GetSkeletalMeshAsset();
 		UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 	}
 	// B-279c: the local player's current outfit over the body (Leader Pose). // TODO: co-op guests read it replicated.
