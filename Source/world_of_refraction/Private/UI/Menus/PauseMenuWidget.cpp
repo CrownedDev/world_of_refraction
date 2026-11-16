@@ -27,6 +27,7 @@
 #include "UI/Menus/CharacterSheetWidget.h"
 #include "UI/Menus/SettingsScreenWidget.h"
 #include "UI/Menus/LoadoutV2ScreenWidget.h"
+#include "UI/Hub/FormsScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
 #include "UI/Party/PartyScreenWidget.h"
 #include "UI/WoRRootLayout.h"
@@ -427,6 +428,9 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 	case EPauseMenuPage::Character:
 		UCharacterSheetWidget::Open(GetOwningPlayer());
 		break;
+	case EPauseMenuPage::Forms:
+		UFormsScreenWidget::Open(GetOwningPlayer()); // B-536, over this menu: Back returns here
+		break;
 	case EPauseMenuPage::Settings:
 		USettingsScreenWidget::Open(GetOwningPlayer());
 		break;
@@ -562,7 +566,7 @@ FReply UPauseMenuWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKey
 		}
 		return FReply::Handled();
 	}
-	if (IsBackKey(Key))
+	if (IsBackKey(Key) || Key == EKeys::Tab) // B-536: Tab opened it, Tab closes it (a quit question first, as Back)
 	{
 		// Reached only when CommonUI's own Back action didn't take the key (BP_CommonInputData unset, B-103).
 		if (!InKeyEvent.IsRepeat())
