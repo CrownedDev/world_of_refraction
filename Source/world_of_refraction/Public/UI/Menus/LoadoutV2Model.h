@@ -264,8 +264,16 @@ namespace WoRLoadoutV2
 	/** B-476c: the entry as a draft (A Edit): its pieces and the sockets they carry. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Draft DraftFromEntry(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry);
 
+	/** B-531 (D-230): the draft kind an entry of this kind is built as. */
+	WORLD_OF_REFRACTION_API ELoadoutV2DraftKind GetDraftKind(ELoadoutV2EntryKind Kind);
+
+	/** B-531 (D-230): Edit on a worn entry asks the same first question as Add (BuildAddKinds): the entry's own kind is
+	 *  always open (edit or replace the piece); another kind is judged as if the entry were out, and greyed with why. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutV2KindChoice> BuildEditKinds(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry);
+
 	/** B-476c: writes the draft in Entry's own place (a weapon entry's hands, an adapter, the character's evolution).
-	 *  False with the reason when the draft's kind doesn't fit the place or the place is gone. */
+	 *  B-531: a draft of another kind replaces the entry: it comes out and the draft goes in, all or nothing (the first
+	 *  entry is never left empty, D-116). False with the reason, Loadout unchanged. */
 	WORLD_OF_REFRACTION_API bool ReplaceEntry(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry, const FLoadoutV2Draft &Draft,
 											  FText &OutRefusal);
 

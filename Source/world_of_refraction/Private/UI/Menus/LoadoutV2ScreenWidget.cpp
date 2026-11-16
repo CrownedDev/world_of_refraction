@@ -5,6 +5,7 @@
 #include "Algo/IndexOf.h"
 #include "Components/Border.h"
 #include "Components/EditableTextBox.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -16,7 +17,9 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Inventory/GearGive.h"
 #include "Party/Party.h"
+#include "Pool/PoolSubsystem.h"
 #include "Misc/ScopeExit.h"
 #include "Player/WoRHubController.h"
 #include "UI/Menus/LoadoutApparelModel.h"
@@ -63,6 +66,27 @@ namespace LoadoutV2ScreenStyle
 	FText WeaponName(const FWeaponInventoryEntry &Weapon)
 	{
 		return Weapon.Weapon ? FText::FromString(Weapon.Weapon->GetDisplayName()) : FText::GetEmpty();
+	}
+
+	/** B-531 (D-230): the piece lines from First on, exactly-same pieces with the same verdict as one line with a count
+	 *  (the Inventory tab's helper, WoRLoadoutV2::GroupStacks). */
+	void StackPieceLines(TArray<FLoadoutV2WindowItem> &Items, int32 First)
+	{
+		TArray<FString> Keys;
+		for (int32 Index = First; Index < Items.Num(); ++Index)
+		{
+			const FLoadoutV2WindowItem &Item = Items[Index];
+			const FString Key = Item.Weapon.IsValid() ? WoRLoadoutV2::GetStackKey(Item.Weapon) : Item.Adapter.Ring ? WoRLoadoutV2::GetStackKey(Item.Adapter) : FString();
+			Keys.Add(Key.IsEmpty() ? Key : Key + TEXT("|") + Item.Refusal.ToString() + TEXT("|") + Item.Line.ToString());
+		}
+		TArray<FLoadoutV2WindowItem> Stacked(Items.GetData(), First);
+		for (const FLoadoutV2Stack &Stack : WoRLoadoutV2::GroupStacks(Keys))
+		{
+			FLoadoutV2WindowItem &Line = Stacked.Add_GetRef(Items[First + Stack.First]);
+			Line.Count = Stack.Count;
+			Line.Name = WoRLoadoutV2::GetStackedName(Line.Name, Stack.Count);
+		}
+		Items = MoveTemp(Stacked);
 	}
 
 	FText AttachmentText(const FRuntimeAttachedItem &Item)
@@ -112,7 +136,8 @@ namespace LoadoutV2ScreenStyle
 	TArray<FChipState> BuildTabChips()
 	{
 		// B-482b: no "later" note; a greyed chip already says it isn't in use.
-		return {FChipState{LOCTEXT("ChipWeapons", "Equipment")}, FChipState{LOCTEXT("ChipSkills", "Skills")}, // B-476d: built
+		return {FChipState{LOCTEXT("ChipInventory", "Inventory")}, // B-531 (D-230)
+				FChipState{LOCTEXT("ChipWeapons", "Equipment")}, FChipState{LOCTEXT("ChipSkills", "Skills")}, // B-476d: built
 				FChipState{LOCTEXT("ChipApparel", "Apparel")}, FChipState{LOCTEXT("ChipCosmetics", "Cosmetics"), true}};
 	}
 
@@ -282,6 +307,7 @@ void ULoadoutV2ScreenWidget::RefreshData()
 	Members = WoRLoadoutScreen::BuildMembers(GetWorld());
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	Page = FLoadoutV2WeaponsPage();
+	InventoryPage = FLoadoutV2InventoryPage();
 	LoadoutName = FText::GetEmpty();
 	ApparelRows.Reset();
 	ULoadoutComponent *Loadout = nullptr;
@@ -299,7 +325,8 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		}
 		else if (Mode == ELoadoutV2Mode::WindowKind)
 		{
-			Kinds = WoRLoadoutV2::BuildAddKinds(*Active, Members[MemberIndex].Class);
+			Kinds = bEditing ? WoRLoadoutV2::BuildEditKinds(*Active, Members[MemberIndex].Class, EditEntry) // B-531 (D-230)
+							 : WoRLoadoutV2::BuildAddKinds(*Active, Members[MemberIndex].Class);
 		}
 		else if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
 		{
@@ -312,6 +339,10 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		else if (Mode == ELoadoutV2Mode::ApparelItems)
 		{
 			BuildApparelItems();
+		}
+		else if (IsOnInventoryList())
+		{
+			RefreshInventory(*Inventory, *Active);
 		}
 	}
 	else
@@ -339,6 +370,10 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		}
 	}
 	Selected = GetLineCount() > 0 ? FMath::Clamp(Selected, 0, GetLineCount() - 1) : 0;
+	if (const FLoadoutV2InventoryRow *Row = GetInventoryRow(Selected); Row && !Row->IsPiece() && Selected + 1 < GetLineCount())
+	{
+		++Selected; // a group's header has nothing to show: its first piece
+	}
 	if (!Items.IsValidIndex(PickedSocket))
 	{
 		PickedSocket = INDEX_NONE;
@@ -461,6 +496,28 @@ void ULoadoutV2ScreenWidget::RefreshDetails()
 		}
 		return;
 	}
+	if (const FLoadoutV2InventoryRow *Row = GetInventoryRow(GetBoxLine()))
+	{
+		// B-531: the lit or hovered piece alone, as a slot's list shows it.
+		switch (Row->Kind)
+		{
+		case ELoadoutV2InventoryRowKind::Weapon:
+			Details = WoRLoadoutV2::BuildWeaponDetails(Row->Weapon, bSimpleView);
+			break;
+		case ELoadoutV2InventoryRowKind::Adapter:
+			Details = WoRLoadoutV2::BuildAdapterDetails(Row->Adapter, bSimpleView);
+			break;
+		case ELoadoutV2InventoryRowKind::Evolution:
+			Details = WoRLoadoutV2::BuildAttachmentDetails(WoRLoadoutV2::MakeEvolutionAttachment(Row->Evolution), bSimpleView);
+			break;
+		case ELoadoutV2InventoryRowKind::Crystal:
+			Details = WoRLoadoutV2::BuildAttachmentDetails(Row->Crystal, bSimpleView);
+			break;
+		default:
+			break;
+		}
+		return;
+	}
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
 	const FCombatLoadout *Active = nullptr;
@@ -497,6 +554,10 @@ int32 ULoadoutV2ScreenWidget::GetLineCount() const
 		return Items.Num();
 	case ELoadoutV2Mode::List:
 	default:
+		if (Tab == ELoadoutV2Tab::Inventory)
+		{
+			return InventoryPage.Rows.Num();
+		}
 		if (Tab == ELoadoutV2Tab::Apparel)
 		{
 			const int32 Worn = GetWornApparelCount();
@@ -560,6 +621,12 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 	}
 	case ELoadoutV2Mode::List:
 	default:
+		if (const FLoadoutV2InventoryRow *Row = GetInventoryRow(Line))
+		{
+			// As the Equipment list: the tier is a badge when the table has one, else its letter after the name.
+			return !Row->bHasTier || WoRIcons::GetTierBadge(Row->Tier) ? Row->Name
+																	  : FText::Format(LOCTEXT("InventoryNameTier", "{0}  {1}"), Row->Name, WoRGameNames::GetTierLetter(Row->Tier));
+		}
 		if (Tab == ELoadoutV2Tab::Apparel)
 		{
 			if (Line < GetWornApparelCount() && ApparelRows.IsValidIndex(Line))
@@ -640,6 +707,10 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		return Items[Line].Refusal.IsEmpty() ? Items[Line].Line : Items[Line].Refusal;
 	case ELoadoutV2Mode::List:
 	default:
+		if (Tab == ELoadoutV2Tab::Inventory)
+		{
+			return FText::GetEmpty(); // the name says it all ("Adapter Ring x5"); the box has the rest
+		}
 		if (Tab == ELoadoutV2Tab::Apparel)
 		{
 			const int32 Worn = GetWornApparelCount();
@@ -663,6 +734,15 @@ UTexture2D *ULoadoutV2ScreenWidget::FindIcon(const FLoadoutV2Icon &Icon)
 ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Line) const
 {
 	FLineIcons Icons;
+	if (const FLoadoutV2InventoryRow *Row = GetInventoryRow(Line))
+	{
+		// As the Add window's lines: a weapon's or adapter's icon at the start; a crystal's or evolution's badge after the name.
+		const bool bPieceIcon = Row->Kind == ELoadoutV2InventoryRowKind::Weapon || Row->Kind == ELoadoutV2InventoryRowKind::Adapter;
+		(bPieceIcon ? Icons.Type : Icons.Socket1) = Row->Icon;
+		Icons.bHasTier = Row->bHasTier;
+		Icons.Tier = Row->Tier;
+		return Icons;
+	}
 	if (Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries)
 	{
 		if (const FLoadoutV2Entry *Entry = GetRowEntry(Line))
@@ -799,7 +879,10 @@ bool ULoadoutV2ScreenWidget::IsLineRefused(int32 Line) const
 	case ELoadoutV2Mode::ApparelItems:
 		return Items.IsValidIndex(Line) && !Items[Line].Refusal.IsEmpty();
 	default:
-		return false;
+	{
+		const FLoadoutV2InventoryRow *Row = GetInventoryRow(Line);
+		return Row && !Row->IsPiece(); // B-531: a group's header, dim: nothing to pick
+	}
 	}
 }
 
@@ -877,6 +960,10 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		{
 			return LOCTEXT("HintsFrame", "{Confirm}  Equip        {Second}  Options        {SubTabs}  Character        {Back}  Back");
 		}
+		if (Tab == ELoadoutV2Tab::Inventory)
+		{
+			return LOCTEXT("HintsInventory", "{Confirm}  Wear        {Toggle}  {ViewName}        {Tabs}  Tab        {SubTabs}  Character        {Back}  Back");
+		}
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
 		const bool bCanSetActive = Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive && Page.Entries.ContainsByPredicate(
 																														[](const FLoadoutV2Entry &Each) { return Each.bActive; });
@@ -908,7 +995,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	}
 	SetChips(MemberChips, MemberStates, MemberIndex, HoveredMemberChip);
 	SetChips(TabChips, BuildTabChips(),
-			 Tab == ELoadoutV2Tab::Apparel ? LoadoutV2Chip_Apparel : Tab == ELoadoutV2Tab::Skills ? LoadoutV2Chip_Skills : LoadoutV2Chip_Weapons, HoveredTabChip);
+			 Tab == ELoadoutV2Tab::Apparel ? LoadoutV2Chip_Apparel : Tab == ELoadoutV2Tab::Skills ? LoadoutV2Chip_Skills : Tab == ELoadoutV2Tab::Inventory ? LoadoutV2Chip_Inventory : LoadoutV2Chip_Weapons,
+			 HoveredTabChip);
 	LoadoutNameText->SetText(LoadoutName);
 	CellsText->SetText(IsOnSkillsTab() ? LOCTEXT("SkillsByEntry", "Skills by entry") : Page.CellsLine); // mockup 6: cells are the Weapons tab's
 	TitleText->SetText(GetTitle());
@@ -1011,7 +1099,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	FText &BoxTitle = BoxHeader.Text;
 	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
 	// entry's slots; a line with nothing to show (a note) falls back to the slots.
-	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk || Mode == ELoadoutV2Mode::WindowSlots) && !Details.IsEmpty(); // B-503u: the slot rows too
+	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk || Mode == ELoadoutV2Mode::WindowSlots || IsOnInventoryList()) &&
+						   !Details.IsEmpty(); // B-503u: the slot rows too; B-531: the Inventory tab's pieces
 	if (IsAdding() && !bPieceBox)
 	{
 		BoxTitle = bEditing ? EditEntry.Name : LOCTEXT("BoxNewEntry", "New entry");
@@ -1216,6 +1305,10 @@ void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
 	if (Count > 0 && Mode != ELoadoutV2Mode::WindowAsk)
 	{
 		Selected = ((Selected + Delta) % Count + Count) % Count;
+		if (const FLoadoutV2InventoryRow *Row = GetInventoryRow(Selected); Row && !Row->IsPiece() && Count > 1)
+		{
+			Selected = ((Selected + (Delta < 0 ? -1 : 1)) % Count + Count) % Count; // B-531: past a group's header
+		}
 		Message = FText::GetEmpty();
 		const bool bWasArmed = bRemoveArmed;
 		bRemoveArmed = false;
@@ -1250,10 +1343,13 @@ void ULoadoutV2ScreenWidget::ClickTabChip(int32 Chip)
 	{
 		return;
 	}
-	if (Chip == LoadoutV2Chip_Weapons || Chip == LoadoutV2Chip_Skills || Chip == LoadoutV2Chip_Apparel)
+	if (Chip == LoadoutV2Chip_Inventory || Chip == LoadoutV2Chip_Weapons || Chip == LoadoutV2Chip_Skills || Chip == LoadoutV2Chip_Apparel)
 	{
-		// B-476d: the chips are the tabs in order (Weapons, Skills, Apparel).
-		const ELoadoutV2Tab Target = Chip == LoadoutV2Chip_Skills ? ELoadoutV2Tab::Skills : Chip == LoadoutV2Chip_Apparel ? ELoadoutV2Tab::Apparel : ELoadoutV2Tab::Weapons;
+		// B-476d: the chips are the tabs in order (B-531: Inventory, then Weapons, Skills, Apparel).
+		const ELoadoutV2Tab Target = Chip == LoadoutV2Chip_Skills	   ? ELoadoutV2Tab::Skills
+								   : Chip == LoadoutV2Chip_Apparel   ? ELoadoutV2Tab::Apparel
+								   : Chip == LoadoutV2Chip_Inventory ? ELoadoutV2Tab::Inventory
+																	 : ELoadoutV2Tab::Weapons;
 		if (Target != Tab)
 		{
 			ShowTab(Target);
@@ -1387,7 +1483,7 @@ void ULoadoutV2ScreenWidget::SwitchTab(int32 Delta)
 	{
 		return;
 	}
-	// B-476d: Weapons | Skills | Apparel, in a ring (Cosmetics later).
+	// B-476d: Weapons | Skills | Apparel, in a ring (Cosmetics later). B-531: Inventory first.
 	const int32 TabCount = static_cast<int32>(ELoadoutV2Tab::Last) + 1;
 	ShowTab(static_cast<ELoadoutV2Tab>(((static_cast<int32>(Tab) + (Delta < 0 ? -1 : 1)) % TabCount + TabCount) % TabCount));
 }
@@ -1402,6 +1498,10 @@ void ULoadoutV2ScreenWidget::ShowTab(ELoadoutV2Tab NewTab)
 	if (IsOnSkillsTab())
 	{
 		LogSkillsTab();
+	}
+	else if (IsOnInventoryList() && Members.IsValidIndex(MemberIndex))
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Inventory tab, %s:\n%s"), *Members[MemberIndex].Name.ToString(), *WoRLoadoutV2::GetInventoryPageString(InventoryPage));
 	}
 }
 
@@ -1476,7 +1576,11 @@ void ULoadoutV2ScreenWidget::PressA()
 		PutPickedSkill();
 		return;
 	case ELoadoutV2Mode::List:
-		if (Tab == ELoadoutV2Tab::Apparel)
+		if (Tab == ELoadoutV2Tab::Inventory)
+		{
+			WearFromInventory();
+		}
+		else if (Tab == ELoadoutV2Tab::Apparel)
 		{
 			OpenApparelItems();
 		}
@@ -2075,12 +2179,27 @@ void ULoadoutV2ScreenWidget::OpenWindowForEntry(const FLoadoutV2Entry &Entry)
 	bEditing = true;
 	EditEntry = Entry;
 	Draft = WoRLoadoutV2::DraftFromEntry(*Active, Entry);
-	StartDraft(Draft.Kind);
+	// B-531 (D-230): the same first question as "+ Add equipment"; the entry's own kind is lit (A: edit it as before).
+	Slots.Reset();
+	Items.Reset();
+	Mode = ELoadoutV2Mode::WindowKind;
+	Message = FText::GetEmpty();
+	RefreshData();
+	const int32 Own = Kinds.IndexOfByPredicate([this](const FLoadoutV2KindChoice &Kind) { return Kind.Kind == Draft.Kind; });
+	Selected = Own == INDEX_NONE ? 0 : Own;
+	RefreshView();
+}
+
+bool ULoadoutV2ScreenWidget::IsReplacingKind() const
+{
+	return bEditing && Draft.Kind != WoRLoadoutV2::GetDraftKind(EditEntry.Kind);
 }
 
 void ULoadoutV2ScreenWidget::StartDraft(ELoadoutV2DraftKind Kind)
 {
-	if (!bEditing)
+	// An edit keeps the entry's pieces (OpenWindowForEntry's draft); another kind starts empty and replaces the entry
+	// on Y Confirm only (WoRLoadoutV2::ReplaceEntry), so Back before then leaves it as it was.
+	if (!bEditing || Kind != WoRLoadoutV2::GetDraftKind(EditEntry.Kind))
 	{
 		Draft = FLoadoutV2Draft();
 		Draft.Kind = Kind;
@@ -2156,7 +2275,8 @@ namespace LoadoutV2DraftSocket
 {
 	/** B-516: a new entry's piece is not in the loadout yet, so its sockets are read off a copy with the draft in
 	 *  (Preview, the budget the socket lines count against). Empty on success; else why it can't be socketed yet. */
-	FText FindDraftRow(const FCombatLoadout &Active, ECharacterClass Class, const FLoadoutV2Draft &Draft, FCombatLoadout &OutPreview, FLoadoutScreenRow &OutRow)
+	FText FindDraftRow(const FCombatLoadout &Active, ECharacterClass Class, const FLoadoutV2Draft &Draft, const FLoadoutV2Entry *Replacing, FCombatLoadout &OutPreview,
+					   FLoadoutScreenRow &OutRow)
 	{
 		const bool bAdapter = Draft.Kind == ELoadoutV2DraftKind::Adapter;
 		const FGuid PieceID = bAdapter ? Draft.Adapter.PersistentID : Draft.Kind == ELoadoutV2DraftKind::Weapon ? Draft.MainHand.PersistentID : FGuid();
@@ -2166,7 +2286,8 @@ namespace LoadoutV2DraftSocket
 		}
 		OutPreview = Active;
 		FText Refusal;
-		if (!WoRLoadoutV2::ApplyDraft(OutPreview, Class, Draft, Refusal))
+		// B-531: a piece replacing an entry (Replacing) is previewed in its place, as Y Confirm will put it.
+		if (Replacing ? !WoRLoadoutV2::ReplaceEntry(OutPreview, Class, *Replacing, Draft, Refusal) : !WoRLoadoutV2::ApplyDraft(OutPreview, Class, Draft, Refusal))
 		{
 			return Refusal;
 		}
@@ -2207,9 +2328,9 @@ namespace LoadoutV2DraftSocket
 
 bool ULoadoutV2ScreenWidget::FindScreenRow(FLoadoutScreenRow &OutRow) const
 {
-	if (!bEditing || !Members.IsValidIndex(MemberIndex))
+	if (!bEditing || IsReplacingKind() || !Members.IsValidIndex(MemberIndex))
 	{
-		return false;
+		return false; // a new piece (B-531: or one replacing the entry): its row is read off a preview (FindDraftRow)
 	}
 	const FLoadoutScreenPage GearPage = WoRLoadoutScreen::BuildGearPage(GetWorld(), Members[MemberIndex]);
 	const ELoadoutScreenRowKind Kind = EditEntry.Kind == ELoadoutV2EntryKind::Adapter ? ELoadoutScreenRowKind::Adapter : ELoadoutScreenRowKind::Weapon;
@@ -2284,6 +2405,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.Line = WoRGameNames::GetHeldWeaponTypeName(InSlot.Weapon, bMain && Current.OffHand.IsValid() ? Current.OffHand.Weapon : nullptr); // B-513, B-515: with its off hand
 		}
 		const TArray<FLoadoutV2OffHandChoice> OffHands = bMain ? TArray<FLoadoutV2OffHandChoice>() : WoRLoadoutV2::BuildOffHandChoices(Draft.MainHand, Inventory->Weapons, Class);
+		const int32 FirstPiece = Items.Num();
+		ON_SCOPE_EXIT { StackPieceLines(Items, FirstPiece); }; // B-531 (D-230)
 		for (const FWeaponInventoryEntry &Owned : Inventory->Weapons)
 		{
 			if (!Owned.Weapon || (InSlot.IsValid() && Owned.PersistentID == InSlot.PersistentID) || Owned.PersistentID == (bMain ? Draft.OffHand : Draft.MainHand).PersistentID)
@@ -2318,6 +2441,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.Adapter = Current.Adapter;
 			Equipped.Name = WoRGameNames::GetAdapterName(Current.Adapter.Ring, Current.Socket1); // B-514b: "Fire Ring"
 		}
+		const int32 FirstPiece = Items.Num();
+		ON_SCOPE_EXIT { StackPieceLines(Items, FirstPiece); }; // B-531 (D-230)
 		if (!bEditing)
 		{
 			for (const FLoadoutV2PieceChoice &Choice : WoRLoadoutV2::BuildAdapterChoices(*Active, Class, Inventory->Rings))
@@ -2397,7 +2522,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		FLoadoutScreenRow Row;
 		FCombatLoadout Preview;
 		const bool bNewEntry = !FindScreenRow(Row);
-		const FText NotYet = bNewEntry ? LoadoutV2DraftSocket::FindDraftRow(*Active, Class, Draft, Preview, Row) : FText::GetEmpty();
+		const FText NotYet = bNewEntry ? LoadoutV2DraftSocket::FindDraftRow(*Active, Class, Draft, bEditing ? &EditEntry : nullptr, Preview, Row) : FText::GetEmpty();
 		if (!NotYet.IsEmpty())
 		{
 			FLoadoutV2WindowItem &Note = Items.AddDefaulted_GetRef();
@@ -2454,28 +2579,8 @@ void ULoadoutV2ScreenWidget::PickItem()
 		return;
 	}
 	Message = FText::GetEmpty();
-	switch (Slots[SlotIndex])
+	if (!PutPieceInDraft(Slots[SlotIndex], Item))
 	{
-	case ELoadoutV2Slot::MainHand:
-		Draft.MainHand = Item.Weapon;
-		Draft.Socket1 = Item.Weapon.AttachedItem; // Q-476c: sockets stay on their piece; a new main hand brings its own
-		Draft.Socket2 = Item.Weapon.StoneSocket;
-		break;
-	case ELoadoutV2Slot::OffHand:
-		Draft.OffHand = Item.Weapon;
-		break;
-	case ELoadoutV2Slot::Adapter:
-		Draft.Adapter = Item.Adapter;
-		Draft.Socket1 = Item.Adapter.AttachedItem;
-		Draft.Socket2 = Item.Adapter.StoneSocket;
-		break;
-	case ELoadoutV2Slot::Evolution:
-		Draft.Socket1 = WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution);
-		Draft.EvolutionInstance = Item.Evolution.InstanceID;
-		break;
-	case ELoadoutV2Slot::Socket1:
-	case ELoadoutV2Slot::Socket2:
-	default:
 		PickedSocket = PickedSocket == Selected ? INDEX_NONE : Selected; // a socket goes in on Y Confirm
 		RefreshView();
 		return;
@@ -2485,6 +2590,111 @@ void ULoadoutV2ScreenWidget::PickItem()
 	Selected = FMath::Min(SlotIndex + 1, Slots.Num() - 1);
 	Items.Reset();
 	bComparing = false;
+	RefreshView();
+}
+
+bool ULoadoutV2ScreenWidget::PutPieceInDraft(ELoadoutV2Slot GearSlot, const FLoadoutV2WindowItem &Item)
+{
+	switch (GearSlot)
+	{
+	case ELoadoutV2Slot::MainHand:
+		Draft.MainHand = Item.Weapon;
+		Draft.Socket1 = Item.Weapon.AttachedItem; // Q-476c: sockets stay on their piece; a new main hand brings its own
+		Draft.Socket2 = Item.Weapon.StoneSocket;
+		return true;
+	case ELoadoutV2Slot::OffHand:
+		Draft.OffHand = Item.Weapon;
+		return true;
+	case ELoadoutV2Slot::Adapter:
+		Draft.Adapter = Item.Adapter;
+		Draft.Socket1 = Item.Adapter.AttachedItem;
+		Draft.Socket2 = Item.Adapter.StoneSocket;
+		return true;
+	case ELoadoutV2Slot::Evolution:
+		Draft.Socket1 = WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution);
+		Draft.EvolutionInstance = Item.Evolution.InstanceID;
+		return true;
+	case ELoadoutV2Slot::Socket1:
+	case ELoadoutV2Slot::Socket2:
+	default:
+		return false;
+	}
+}
+
+// ==================== THE INVENTORY TAB (B-531, D-230) ====================
+
+void ULoadoutV2ScreenWidget::RefreshInventory(const UInventoryComponent &Inventory, const FCombatLoadout &Active)
+{
+	const UEvolutionInventoryComponent *EvolutionInventory = Inventory.GetOwner() ? Inventory.GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+	const TArray<FEvolutionInventoryEntry> NoEvolutions;
+	const TArray<FEvolutionInventoryEntry> &Evolutions = EvolutionInventory ? EvolutionInventory->Entries : NoEvolutions;
+	// Worn: the active loadout's own evolution, or one sitting in a piece's socket (another saved loadout's seat isn't worn).
+	TSet<FGuid> InUse{Active.PrimaryEvolutionInstance};
+	const auto AddSocketed = [&InUse](const FRuntimeAttachedItem &Socket)
+	{
+		if (Socket.IsEvolution())
+		{
+			InUse.Add(Socket.Evolution.InstanceID);
+		}
+	};
+	for (const FWeaponInventoryEntry &Owned : Inventory.Weapons)
+	{
+		AddSocketed(Owned.AttachedItem);
+	}
+	for (const FRingInventoryEntry &Owned : Inventory.Rings)
+	{
+		AddSocketed(Owned.AttachedItem);
+	}
+	// The pouch the member carries (a recruit carries the host's, B-361), as the socket lists read it.
+	const UGameInstance *GameInstance = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UPoolSubsystem *Pool = GameInstance ? GameInstance->GetSubsystem<UPoolSubsystem>() : nullptr;
+	const TMap<FCrystalId, int32> NoPouch;
+	const TMap<FCrystalId, int32> &Pouch = Pool ? Pool->GetCarriedItems(WoRGive::GetPouchKey(GetWorld(), Members[MemberIndex].Key)) : NoPouch;
+	InventoryPage = WoRLoadoutV2::BuildInventoryPage(Active, Inventory.Weapons, Inventory.Rings, Evolutions, InUse, Pouch);
+}
+
+void ULoadoutV2ScreenWidget::WearFromInventory()
+{
+	const FLoadoutV2InventoryRow *Row = GetInventoryRow(Selected);
+	if (!Row || !Row->IsPiece())
+	{
+		return;
+	}
+	if (Row->Kind == ELoadoutV2InventoryRowKind::Crystal)
+	{
+		Message = LOCTEXT("InventoryCrystal", "A crystal goes in a socket: open a piece's socket to put it in.");
+		RefreshView();
+		return;
+	}
+	const ELoadoutV2DraftKind Kind = Row->Kind == ELoadoutV2InventoryRowKind::Weapon	? ELoadoutV2DraftKind::Weapon
+								   : Row->Kind == ELoadoutV2InventoryRowKind::Adapter ? ELoadoutV2DraftKind::Adapter
+																					  : ELoadoutV2DraftKind::Evolution;
+	FLoadoutV2WindowItem Piece; // the line's first piece (a stack's), as the window's list would pick it
+	Piece.Weapon = Row->Weapon;
+	Piece.Adapter = Row->Adapter;
+	Piece.Evolution = Row->Evolution;
+	const FText PieceName = Row->Name;
+	OpenWindowForNew();
+	const FLoadoutV2KindChoice *Choice = Kinds.FindByPredicate([Kind](const FLoadoutV2KindChoice &Each) { return Each.Kind == Kind; });
+	if (Mode != ELoadoutV2Mode::WindowKind || !Choice || !Choice->Refusal.IsEmpty())
+	{
+		const FText Refusal = Choice ? Choice->Refusal : LOCTEXT("InventoryNoPlace", "There's no place for it.");
+		CloseWindow();
+		Message = Refusal;
+		RefreshView();
+		return;
+	}
+	StartDraft(Kind);
+	if (Slots.IsValidIndex(0) && PutPieceInDraft(Slots[0], Piece))
+	{
+		Selected = FMath::Min(1, Slots.Num() - 1); // as a pick: on to the next slot, the draft in the box
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: Inventory tab, %s opened in Add equipment"), *Members[MemberIndex].Name.ToString(), *PieceName.ToString());
+	}
+	else
+	{
+		Message = FText::Format(LOCTEXT("InventoryPickIt", "Pick {0} in the first slot."), PieceName);
+		UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] Inventory tab: %s couldn't be put in the window's first slot"), *PieceName.ToString());
+	}
 	RefreshView();
 }
 
@@ -2514,7 +2724,7 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 		FCombatLoadout Preview;
 		const bool bNewEntry = !FindScreenRow(Row);
 		if (!FindActive(Loadout, Inventory, Active) ||
-			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, Preview, Row).IsEmpty()))
+			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, bEditing ? &EditEntry : nullptr, Preview, Row).IsEmpty()))
 		{
 			return;
 		}
@@ -2599,7 +2809,7 @@ void ULoadoutV2ScreenWidget::ConfirmWindow()
 		FCombatLoadout Preview;
 		const bool bNewEntry = !FindScreenRow(Row);
 		if (!FindActive(Loadout, Inventory, Active) ||
-			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, Preview, Row).IsEmpty()))
+			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, bEditing ? &EditEntry : nullptr, Preview, Row).IsEmpty()))
 		{
 			return;
 		}

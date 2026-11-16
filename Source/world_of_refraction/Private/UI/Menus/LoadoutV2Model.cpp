@@ -762,6 +762,73 @@ TArray<FLoadoutV2KindChoice> WoRLoadoutV2::BuildAddKinds(const FCombatLoadout &L
 	return Kinds;
 }
 
+namespace LoadoutV2Replace
+{
+	/** Entry taken out to make room for a piece of another kind. The first entry, which RemoveEntry keeps (D-116), is
+	 *  emptied here: the piece replacing it must fill it (ReplaceEntry checks). */
+	bool TakeOut(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry, FText &OutRefusal)
+	{
+		if (WoRLoadoutV2::RemoveEntry(Loadout, Class, Entry, OutRefusal))
+		{
+			return true;
+		}
+		if (Entry.Place != ELoadoutV2Place::Primary && Entry.Place != ELoadoutV2Place::Seat)
+		{
+			return false;
+		}
+		OutRefusal = FText::GetEmpty();
+		Loadout.PrimaryWeapon.Clear(); // as WoRLoadoutScreen's ClearPrimary
+		Loadout.PrimaryRing.Clear();
+		Loadout.PrimaryEvolution = FEvolutionAttachment();
+		Loadout.PrimaryEvolutionInstance = FGuid();
+		Loadout.EvolutionSpells.Reset();
+		Loadout.PrimarySlotType = EPrimarySlotType::None;
+		return true;
+	}
+
+	/** Whether ApplyDraft puts a Kind piece in a free first entry (a weapon, the evolution, a Refractor's adapter). */
+	bool FillsFirstEntry(ELoadoutV2DraftKind Kind, ECharacterClass Class)
+	{
+		return Kind != ELoadoutV2DraftKind::Adapter || Class == ECharacterClass::Caster;
+	}
+
+	FText KeepFirstEntry()
+	{
+		return LOCTEXT("RefuseReplaceFirst", "The first entry keeps a weapon: it can't become this.");
+	}
+}
+
+ELoadoutV2DraftKind WoRLoadoutV2::GetDraftKind(ELoadoutV2EntryKind Kind)
+{
+	return Kind == ELoadoutV2EntryKind::Adapter ? ELoadoutV2DraftKind::Adapter : Kind == ELoadoutV2EntryKind::Evolution ? ELoadoutV2DraftKind::Evolution : ELoadoutV2DraftKind::Weapon;
+}
+
+TArray<FLoadoutV2KindChoice> WoRLoadoutV2::BuildEditKinds(const FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutV2Entry &Entry)
+{
+	using namespace LoadoutV2Build;
+	FCombatLoadout Without = Loadout;
+	FText OutRefusal;
+	const bool bOut = LoadoutV2Replace::TakeOut(Without, Class, Entry, OutRefusal);
+	TArray<FLoadoutV2KindChoice> Kinds = BuildAddKinds(bOut ? Without : Loadout, Class);
+	const ELoadoutV2DraftKind Own = GetDraftKind(Entry.Kind);
+	for (FLoadoutV2KindChoice &Kind : Kinds)
+	{
+		if (Kind.Kind == Own)
+		{
+			Kind.Refusal = FText::GetEmpty(); // its own place: edit it, or another piece of its kind
+		}
+		else if (!bOut)
+		{
+			Kind.Refusal = OutRefusal;
+		}
+		else if (Kind.Refusal.IsEmpty() && PrimaryIsFree(Without) && !LoadoutV2Replace::FillsFirstEntry(Kind.Kind, Class))
+		{
+			Kind.Refusal = LoadoutV2Replace::KeepFirstEntry();
+		}
+	}
+	return Kinds;
+}
+
 TArray<FLoadoutV2PieceChoice> WoRLoadoutV2::BuildAdapterChoices(const FCombatLoadout &Loadout, ECharacterClass Class, const TArray<FRingInventoryEntry> &OwnedAdapters)
 {
 	using namespace LoadoutV2Build;
@@ -875,6 +942,22 @@ bool WoRLoadoutV2::ReplaceEntry(FCombatLoadout &Loadout, ECharacterClass Class, 
 {
 	using namespace LoadoutV2Build;
 	OutRefusal = FText::GetEmpty();
+	if (Draft.Kind != GetDraftKind(Entry.Kind))
+	{
+		// B-531 (D-230): another kind replaces the entry; on a copy, so a refusal leaves the loadout as it was.
+		FCombatLoadout After = Loadout;
+		if (!LoadoutV2Replace::TakeOut(After, Class, Entry, OutRefusal) || !ApplyDraft(After, Class, Draft, OutRefusal))
+		{
+			return false;
+		}
+		if (PrimaryIsFree(After))
+		{
+			OutRefusal = LoadoutV2Replace::KeepFirstEntry();
+			return false;
+		}
+		Loadout = MoveTemp(After);
+		return true;
+	}
 	const FText WrongPlace = LOCTEXT("RefuseWrongPlace", "It can't go in this place.");
 	switch (Entry.Kind)
 	{
