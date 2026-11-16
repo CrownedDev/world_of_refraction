@@ -74,13 +74,14 @@ namespace WoRPauseMenu
 
 	/** The eight pages. bCanEndRun: false for a co-op guest in a run (only the host ends it). TrackedLine (B-463b): the
 	 *  tracked quest's step, the Journal row's preview when not empty. */
-	WORLD_OF_REFRACTION_API TArray<FPauseMenuPage> BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine = FText::GetEmpty());
+	WORLD_OF_REFRACTION_API TArray<FPauseMenuPage> BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine = FText::GetEmpty(), bool bHasFrontEnd = false);
 
 	/** B-463b: the tracked quest's "Title: current goal"; empty when nothing is tracked. */
 	WORLD_OF_REFRACTION_API FText GetTrackedLine(const UWorld *World);
 
-	/** What Quit's confirm says: in a run, that everything from it is lost (D-176). */
-	WORLD_OF_REFRACTION_API FText GetQuitWarning(bool bInRun);
+	/** What Quit's confirm says: in a run, that everything from it is lost (D-176); outside one, back to the title when
+	 *  the menu level exists (B-537), else that the game closes. */
+	WORLD_OF_REFRACTION_API FText GetQuitWarning(bool bInRun, bool bHasFrontEnd = false);
 
 	/** In a run: said under every page, the one way out with rewards (D-172). */
 	WORLD_OF_REFRACTION_API FText GetExtractNote();
@@ -94,7 +95,7 @@ namespace WoRPauseMenu
 	WORLD_OF_REFRACTION_API TArray<FPauseMenuMember> BuildParty(const UWorld *World);
 
 	/** Quit, after the hold: in a run the run is abandoned (nothing kept, back to the hub); outside one the
-	 *  game saves and closes. TODO: both go to the title screen once it exists (UIScreens #9). */
+	 *  game saves and goes back to the menu level's title (B-537), or closes while there is no menu level. */
 	WORLD_OF_REFRACTION_API void Quit(UWorld *World, APlayerController *PC);
 
 	WORLD_OF_REFRACTION_API FString GetPauseMenuString(const UWorld *World);
