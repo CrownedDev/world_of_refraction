@@ -108,6 +108,8 @@ void FPauseMenuSpec::Define()
 		}
 		const FPauseMenuHeader Hub = WoRPauseMenu::BuildHeader(TestWorld->GetWorld());
 		TestFalse(TEXT("hub: not in a run"), Hub.bInRun);
+		TestEqual(TEXT("hub: The Hub, once (D-236)"), Hub.Title.ToString(), FString(TEXT("The Hub")));
+		TestTrue(TEXT("hub: no subtitle"), Hub.Subtitle.IsEmpty());
 		TestEqual(TEXT("hub: every balance"), Hub.Chips.Num(), PAUSE_TEST_CHIP_COUNT);
 		TestTrue(TEXT("hub: Gold first"), Hub.Chips.Num() > 0 && Hub.Chips[0].Label.EqualTo(WoRGameNames::GetCurrencyName(ECurrencyType::Prisms)));
 
