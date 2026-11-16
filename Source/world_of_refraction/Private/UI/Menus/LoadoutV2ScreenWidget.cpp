@@ -1134,7 +1134,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			// TODO: B-476d: the piece's HP / Defence / Amp lines (tier-scaled in ULoadoutComponent) and its effects' text.
 			for (const FLoadoutScreenDetail &Detail : Row->Details)
 			{
-				BoxText.Add({FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Detail.Label, Detail.Value), false});
+				BoxText.Add({Detail.Label.IsEmpty() ? Detail.Value : FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Detail.Label, Detail.Value), false});
 			}
 			if (!bSimpleView)
 			{

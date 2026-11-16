@@ -156,7 +156,8 @@ protected:
     UPROPERTY(ReplicatedUsing = OnRep_GearEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 GearEssence = 0;
 
-    /** Single skill-leveling essence (per-character) — scalar, mirrors GearEssence. Levels abilities + spells. */
+    /** OBSOLETE (B-550, D-235): stays 0; ECurrencyType::SkillEssence reads and writes GearEssence (Dormant Essence).
+     *  Delete with its OnRep in the D-124 sweep. */
     UPROPERTY(ReplicatedUsing = OnRep_SkillEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 SkillEssence = 0;
 

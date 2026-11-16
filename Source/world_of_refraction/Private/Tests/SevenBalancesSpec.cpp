@@ -30,7 +30,7 @@ namespace
 	constexpr int32 SEVEN_BALANCES_EVOLUTION_ELEMENTAL_D = 25; // 17 + half (8)
 	constexpr int32 SEVEN_BALANCES_STONE_YIELD_D = 9; // TYPED_ESSENCE_YIELD_D
 	constexpr int32 SEVEN_BALANCES_STEP_GEAR_F = 10; // F to E
-	constexpr int32 SEVEN_BALANCES_BALANCE_COUNT = 7;
+	constexpr int32 SEVEN_BALANCES_BALANCE_COUNT = 6; // B-550 (D-235): Gear and Skill are one Dormant Essence
 	constexpr ECrystalType SEVEN_BALANCES_STAT_STONE = ECrystalType::DefenseStone;
 	constexpr ECrystalType SEVEN_BALANCES_GEM = ECrystalType::Garnet;
 }

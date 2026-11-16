@@ -27,8 +27,8 @@ component (a separate build).
 | `Gold` | `int32` | **Replicated only** (run-volatile, never banked) | per-character (run) |
 | `Prisms` | `int32` | `SaveGame` + `Replicated` (`OnRep_Prisms`) | per-character + account-shareable (routing TODO) |
 | `Diamond` | `int32` | `SaveGame` + `Replicated` (`OnRep_Diamond`) | account-wide premium (routing TODO) |
-| `GearEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_GearEssence`) | per-character (levels **weapons + rings**, and the evolution gear type) |
-| `SkillEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_SkillEssence`) | per-character (levels **abilities + spells**) |
+| `GearEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_GearEssence`) | per-character. **Dormant Essence** (B-550, D-235): levels gear and buys / levels skills |
+| `SkillEssence` — **OBSOLETE (B-550)** | `int32` | stays 0 | `ECurrencyType::SkillEssence` reads and writes `GearEssence` (`CurrencyBalances::KeptIn`) |
 | `ElementalEssence` (B-333) | `int32` | `SaveGame` + `Replicated` (`OnRep_ElementalEssence`) | per-character (anything with an element, D-125) |
 | `PillarEssence` (B-333) | `int32` | `SaveGame` + `Replicated` (`OnRep_PillarEssence`) | per-character (stat stones, D-125) |
 | `EssenceTyped` (14 keys) — **OBSOLETE (B-333)** | `FCurrencyArray` (FastArray) | `SaveGame` + `Replicated` | per-character; nothing earns or spends it; delete in the D-124 sweep |
@@ -36,7 +36,7 @@ component (a separate build).
 - **Typed Essence keys** (`EEssenceType`, 14) — **OBSOLETE (B-333, D-125)**: nothing earns or spends them; deleted in the D-124 sweep.
 - The scalar currencies (`Gold`/`Prisms`/`Diamond`/`GearEssence`/`SkillEssence`/`ElementalEssence`/`PillarEssence`) are plain `int32` with `ReplicatedUsing = OnRep_*`.
   The typed Essence uses a FastArray (`TMap<Enum,int32>` is not natively replicable — see `Resources_Design.md` §16.2).
-- **`GearEssence` vs `SkillEssence`** is the §3 category split: the gear faucet (weapon/ring/evolution dismantle) feeds Gear and the gear leveling sink spends it; the skill faucet (spell/ability dismantle) feeds Skill. The two never merge. (Note: `EEssenceType::Reality`, in the typed wallet, is the shared ½-cost co-currency for leveling — see `EconomySystem.md`.)
+- **Dormant Essence (B-550, D-235):** Gear and Skill essence are one balance, kept as `GearEssence`. `ECurrencyType::SkillEssence` stays as an alias: `FindScalar` points it at `GearEssence`, `NotifyChanged` reports it as `GearEssence`, the save banks only `GearEssence` and `ApplyWallet` adds an older save's two together. `FPurchaseCost::SkillEssence` is the Dormant line (charged as `GearEssence`); `FRunPayout` keeps its two parts, paid together (`GetDormantEssence`). (Note: `EEssenceType::Reality`, in the typed wallet, is the shared ½-cost co-currency for leveling — see `EconomySystem.md`.)
 
 **Unified API** (all `BlueprintCallable`/`BlueprintPure`):
 - `bool Add(ECurrencyType, int32 Amount, uint8 SubKey = 0)` — server-gated; no-op `false` on client or `Amount<=0`.
@@ -123,3 +123,4 @@ FastArray item callbacks → `NotifyEntryChanged` → `NotifyChanged`) broadcast
 | 2026-11-14 | B-427: the shop's Confirm and the party screen's repair are greyed out for a wallet without authority (a co-op guest), with "Only the host can buy for now"; the host path is unchanged. TODO: purchase / repair RPCs. Written by the cloud; built and tested on the desktop 2026-11-14, merged into dev. | fix/B-427-guest-buy-greyed |
 | 2026-11-14 | B-426: `USaveSubsystem::ClearRunGold` clears every player's run Gold (walks `GameState->PlayerArray` as `DefeatRules::ApplyWipe` does), not only player 0's. Spec in SaveSpec. Written by the cloud; built and tested on the desktop 2026-11-14, merged into dev. | fix/B-426-clear-run-gold-all |
 | 2026-11-14 | B-425: a co-op guest sends its banked wallet and carried Gold to the host once on join (`AWoRPlayerState::ServerReportWallet`, applied once per player, the flag carried by `CopyProperties`); only an authority wallet loads at BeginPlay and banks at EndPlay or `USaveSubsystem::CaptureInto`. Spec in `WoR.Economy.PlayerWallet`. Follow-up: a guest's co-op earnings aren't saved to its own save. Written by the cloud; built and tested on the desktop 2026-11-14, merged into dev. | fix/B-425-guest-wallet |
+| 2026-11-16 | B-550 (D-235): Gear and Skill essence merge into one balance, **Dormant Essence** (`GearEssence`; `SkillEssence` an OBSOLETE alias via `CurrencyBalances::KeptIn`). Costs and yields keep their numbers. An older save's two balances are added together on load (no save wipe). The game menu, rest spot, shop and run tally show one Dormant Essence. `CurrencyBalances::SEVEN` / `ALL` drop Skill | `feature/B-550-dormant-essence` |
