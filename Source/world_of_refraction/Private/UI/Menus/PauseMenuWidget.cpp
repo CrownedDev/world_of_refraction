@@ -302,6 +302,7 @@ void UPauseMenuWidget::RefreshData()
 	{
 		TitleText->SetText(Header.Title);
 		SubtitleText->SetText(Header.Subtitle);
+		SubtitleText->SetVisibility(Header.Subtitle.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
 	for (int32 Index = 0; Index < ChipValues.Num(); ++Index)
 	{

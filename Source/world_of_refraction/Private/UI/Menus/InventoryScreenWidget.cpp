@@ -377,7 +377,7 @@ void UInventoryScreenWidget::RefreshData()
 	if (PlaceText && SortText)
 	{
 		const FPauseMenuHeader Place = WoRPauseMenu::BuildHeader(World); // the game menu's words for where you are
-		PlaceText->SetText(FText::Format(LOCTEXT("Place", "{0} · {1}"), Place.Title, Place.Subtitle));
+		PlaceText->SetText(Place.Subtitle.IsEmpty() ? Place.Title : FText::Format(LOCTEXT("Place", "{0} · {1}"), Place.Title, Place.Subtitle));
 		SortText->SetText(FText::Format(LOCTEXT("SortLine", "Sort: {0}"), WoRInventoryScreen::GetSortName(Sort)));
 	}
 
