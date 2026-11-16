@@ -6,9 +6,12 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveGame.h"
+#include "Trial/LevelDropPlacement.h"
 #include "Trial/TrialData.h"
+#include "UI/Menus/NewGameScreenModel.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -18,6 +21,18 @@ namespace
 {
 	constexpr double SECONDS_PER_MINUTE = 60.0;
 	constexpr double SECONDS_PER_HOUR = 3600.0;
+	const TCHAR *TITLE_CONFIG_SECTION = TEXT("WoR.Title");
+	const TCHAR *MAX_SLOTS_KEY = TEXT("MaxCharacterSlots");
+}
+
+int32 WoRTitleScreen::GetMaxSlots()
+{
+	int32 Configured = 0;
+	if (GConfig)
+	{
+		GConfig->GetInt(TITLE_CONFIG_SECTION, MAX_SLOTS_KEY, Configured, GGameIni);
+	}
+	return Configured > 0 ? Configured : WoRNewGame::GetClassChoiceCount();
 }
 
 bool WoRTitleScreen::ShouldOpenAtStart(bool bEnabled, bool bAutomationTesting, const FString &MapPackage, const FString &DefaultMapPackage)
@@ -25,31 +40,30 @@ bool WoRTitleScreen::ShouldOpenAtStart(bool bEnabled, bool bAutomationTesting, c
 	return bEnabled && !bAutomationTesting && !MapPackage.IsEmpty() && MapPackage == DefaultMapPackage;
 }
 
-TArray<FTitleScreenRow> WoRTitleScreen::BuildRows(const FTitleSaveSummary &Save)
+TArray<FTitleScreenRow> WoRTitleScreen::BuildRows(const FTitleSaveSummary &Save, int32 MaxSlots)
 {
+	const int32 Slots = MaxSlots == INDEX_NONE ? GetMaxSlots() : MaxSlots;
 	TArray<FTitleScreenRow> Rows;
+	int32 Filled = 0;
 	if (Save.bHasSave)
 	{
-		TArray<FText> Parts;
-		Parts.Add(Save.Place);
-		if (Save.bLastRunLost)
-		{
-			Parts.Add(LOCTEXT("LastRunLost", "your last run was lost when the game closed")); // B-408a (Q-408)
-		}
-		if (!Save.PartyNames.IsEmpty())
-		{
-			Parts.Add(FText::Join(LOCTEXT("NameSeparator", ", "), Save.PartyNames));
-		}
-		Parts.Add(GetPlayTimeText(Save.PlaySeconds));
-		Rows.Add({ETitleScreenRow::Continue, LOCTEXT("Continue", "Continue"), FText::Join(LOCTEXT("LineSeparator", "  ·  "), Parts)});
+		// B-546 (Crown): a slot shows the name and the last run's levels, nothing else.
+		const FText Name = Save.LeaderName.IsEmpty() ? LOCTEXT("Continue", "Continue") : Save.LeaderName;
+		Rows.Add({ETitleScreenRow::Continue, Name, GetRunLevelsText(Save)});
+		++Filled;
 	}
-	Rows.Add({ETitleScreenRow::NewGame, LOCTEXT("NewGame", "New Game")});
-	// TODO: B-459 builds joining a friend's game; until then the row says so.
-	Rows.Add({ETitleScreenRow::JoinFriend, LOCTEXT("JoinFriend", "Join a friend"), FText::GetEmpty(),
-			  LOCTEXT("JoinNotBuilt", "Joining from here comes with the co-op screens.")});
-	Rows.Add({ETitleScreenRow::Settings, LOCTEXT("Settings", "Settings")});
-	Rows.Add({ETitleScreenRow::Credits, LOCTEXT("Credits", "Credits")});
-	Rows.Add({ETitleScreenRow::Quit, LOCTEXT("Quit", "Quit")});
+	if (Filled < Slots)
+	{
+		Rows.Add({ETitleScreenRow::NewGame, LOCTEXT("NewSlot", "+"), LOCTEXT("NewSlotLine", "New character")});
+	}
+	FTitleScreenRow Settings{ETitleScreenRow::Settings, LOCTEXT("Settings", "Settings")};
+	FTitleScreenRow Credits{ETitleScreenRow::Credits, LOCTEXT("Credits", "Credits")};
+	FTitleScreenRow Quit{ETitleScreenRow::Quit, LOCTEXT("Quit", "Quit")};
+	for (FTitleScreenRow *Button : {&Settings, &Credits, &Quit})
+	{
+		Button->bButton = true;
+		Rows.Add(*Button);
+	}
 	return Rows;
 }
 
@@ -66,6 +80,23 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 		if (const UCharacterData *Character = Member.CharacterData.ResolveAs<UCharacterData>())
 		{
 			Summary.PartyNames.Add(FText::FromString(Character->Name));
+			if (Summary.LeaderName.IsEmpty()) // the first resolved member leads (B-529)
+			{
+				Summary.LeaderName = FText::FromString(Character->Name);
+				// The run keys a character by its asset path, "#member id" after it for a copy (UPoolSubsystem::GetCharacterKey).
+				// shortcut: the first entry under the leader's path; stage 3's built character gets its own key.
+				const FString LeaderPath = Character->GetPathName();
+				const FSavedRunLevels *Levels = Data.Run.bHasRun
+					? Data.Run.RunLevels.FindByPredicate([&LeaderPath](const FSavedRunLevels &Entry) { return Entry.CharacterKey.ToString().StartsWith(LeaderPath); })
+					: nullptr;
+				if (Levels)
+				{
+					Summary.bHasRunLevels = true;
+					Summary.RunMind = Levels->Mind;
+					Summary.RunBody = Levels->Body;
+					Summary.RunSpirit = Levels->Spirit;
+				}
+			}
 		}
 	}
 	return Summary;
@@ -100,6 +131,22 @@ FText WoRTitleScreen::GetNewGameWarning(const FTitleSaveSummary &Save)
 						 GetPlayTimeText(Save.PlaySeconds), Save.PartyNames.Num());
 }
 
+FText WoRTitleScreen::GetDeleteWarning(const FTitleSaveSummary &Save)
+{
+	return FText::Format(LOCTEXT("DeleteWarning", "Delete {0}? {1}, everything in the home chest. This can't be undone."),
+						 Save.LeaderName.IsEmpty() ? LOCTEXT("ThisCharacter", "this character") : Save.LeaderName, GetPlayTimeText(Save.PlaySeconds));
+}
+
+FText WoRTitleScreen::GetRunLevelsText(const FTitleSaveSummary &Save)
+{
+	const FText NoLevel = LOCTEXT("NoRunLevel", "-");
+	auto Level = [&Save, &NoLevel](int32 Value) { return Save.bHasRunLevels ? FText::AsNumber(Value) : NoLevel; };
+	return FText::Format(LOCTEXT("RunLevels", "{0} {1}  ·  {2} {3}  ·  {4} {5}"),
+						 WoRLevelDrops::GetPillarName(EWorldPillar::Mind), Level(Save.RunMind),
+						 WoRLevelDrops::GetPillarName(EWorldPillar::Body), Level(Save.RunBody),
+						 WoRLevelDrops::GetPillarName(EWorldPillar::Spirit), Level(Save.RunSpirit));
+}
+
 FText WoRTitleScreen::GetOldVersionText(int32 WipedFromVersion)
 {
 	return FText::Format(LOCTEXT("OldVersion", "version {0}"), WipedFromVersion);
@@ -119,9 +166,10 @@ FString WoRTitleScreen::GetTitleScreenString(const UGameInstance *GameInstance)
 	{
 		Out += FString::Printf(TEXT(" (a version %d save was reset)"), Saves->GetWipedFromVersion());
 	}
+	Out += FString::Printf(TEXT(", most slots %d"), GetMaxSlots());
 	for (const FTitleScreenRow &Row : BuildRows(Save))
 	{
-		Out += FString::Printf(TEXT("\n  %s"), *Row.Label.ToString());
+		Out += FString::Printf(TEXT("\n  %s%s"), Row.bButton ? TEXT("[button] ") : TEXT(""), *Row.Label.ToString());
 		if (!Row.Line.IsEmpty())
 		{
 			Out += FString::Printf(TEXT("  |  %s"), *Row.Line.ToString());
