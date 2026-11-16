@@ -133,8 +133,7 @@ FPauseMenuHeader WoRPauseMenu::BuildHeader(const UWorld *World)
 	const UTrialRunSubsystem *Run = FindPauseMenuRun(World);
 	if (!Run || !Run->IsRunActive())
 	{
-		Header.Title = LOCTEXT("HubTitle", "Void Realm");
-		Header.Subtitle = LOCTEXT("HubSubtitle", "The hub");
+		Header.Title = WoRGameNames::GetHubPlaceName(); // no subtitle in the hub (D-236)
 		AddBalances();
 		return Header;
 	}

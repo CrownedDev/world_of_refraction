@@ -1242,6 +1242,10 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-236 — The hub is called The Hub
+**Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
+**Answer (Crown):** the hub's place name shown to the player is **The Hub**, once, with no subtitle (was Void Realm with The hub under it). Text only: lore docs, assets and code names stay. **Built (B-544, in dev, 2026-11-16):** `WoRGameNames::GetHubPlaceName`; the game menu header, the inventory place line, the journal's place and the title's Continue line read it. Memories found before keep the place they saved.
+
 ### D-235 — Pillar essence is shown as Stat essence; Gear and Skill essence may merge
 **Status:** ANSWERED in part (Crown, 2026-11-16); the merge is a maybe · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** (1) **Pillar essence is called Stat essence** in everything the player reads. (2) "Maybe we merge Gear essence and Skill essence together": one essence that upgrades gear and skills. **Not decided**: Crown to confirm and name it. Nothing built for (2).
