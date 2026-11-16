@@ -105,7 +105,7 @@ public:
 	 *  through the screen's middle, one per slice (piece of gear), the world dimmed behind. The picked slice's tile is
 	 *  framed, with up / down arrows when it has more than one source; the InHand entry's tile is tagged IN HAND. Under
 	 *  the row: the piece's name and, quieter, its type and source ("Ring · Lightning"); one frame around it all.
-	 *  Key hints bottom right. Trial only, as the strip; false when there is nothing to show (the hub, headless, no
+	 *  Key hints bottom right. The hub and a trial (B-528, D-218); false when there is nothing to show (not built, no
 	 *  entries). Call again to move the pick. */
 	bool ShowFieldAttackWheel(const TArray<struct FFieldAttackEntry> &Entries, int32 Picked, int32 InHand = INDEX_NONE);
 	void HideFieldAttackWheel();
@@ -171,7 +171,7 @@ private:
 	/** Reads the pawn's current stop (on the slow timer: the stops read the loadout and the sources). */
 	void RefreshFieldAttack();
 
-	/** B-514 (D-222): the quick strip, built once with the strips (Trial level), shown while it is open. Per tile: its
+	/** B-514 (D-222): the quick strip, built once on every map (B-528: the hub too), shown while it is open. Per tile: its
 	 *  outer frame (the hit-test), the inner ring and gap of the picked tile's double frame, the size box (the picked
 	 *  tile grows), the fill, the piece's icon and a pair's second icon, the name when there is no icon, the IN HAND
 	 *  tag, and the arrows above and below. */

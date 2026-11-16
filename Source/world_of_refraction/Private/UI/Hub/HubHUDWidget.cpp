@@ -166,10 +166,7 @@ void UHubHUDWidget::BuildTree()
 	}
 
 	BuildPartyStrip(Canvas);
-	if (!AttackStrips.IsEmpty())
-	{
-		BuildFieldAttackWheel(Canvas); // on top: built last
-	}
+	BuildFieldAttackWheel(Canvas); // on top: built last. B-528 (D-218): the hub too; only the card strip stays a trial's
 
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
@@ -381,7 +378,7 @@ void UHubHUDWidget::RefreshFieldAttack()
 {
 	if (AttackStrips.IsEmpty())
 	{
-		return; // headless, or the hub: no strips
+		return; // headless, or the hub: no card strips
 	}
 	const APawn *Pawn = GetOwningPlayerPawn();
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
@@ -393,7 +390,7 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 {
 	if (!AttackStrips.IsValidIndex(AttackStripCard))
 	{
-		return; // headless, the hub, or no card for the pawn
+		return; // headless, the hub (no card strips), or no card for the pawn
 	}
 	SetFieldAttack(Entry); // B-503m: no flash (Crown: the text change is enough)
 }
@@ -528,7 +525,7 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 
 	if (StripTiles.IsEmpty() || Entries.IsEmpty())
 	{
-		return false; // the hub, headless, or nothing to pick
+		return false; // not built yet, or nothing to pick
 	}
 	const TArray<int32> Slices = FieldSkillRules::GetFieldSliceStarts(Entries);
 	if (Slices.Num() > StripTiles.Num())

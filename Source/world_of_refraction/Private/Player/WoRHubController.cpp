@@ -509,7 +509,7 @@ void AWoRHubController::OpenFieldWheel()
 	if (!HubHUD->ShowFieldAttackWheel(FieldWheelEntries, Kept, Kept))
 	{
 		FieldWheelEntries.Reset();
-		return; // the hub or nothing to pick
+		return; // nothing to pick
 	}
 	FieldWheelPick = FieldWheelKept = Kept;
 	bFieldAttackPressed = false; // B-503m4: RB held for the wheel doesn't attack on release
