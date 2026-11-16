@@ -19,6 +19,11 @@ namespace
 	constexpr double SECONDS_PER_HOUR = 3600.0;
 }
 
+bool WoRTitleScreen::ShouldOpenAtStart(bool bEnabled, bool bAutomationTesting, const FString &MapPackage, const FString &DefaultMapPackage)
+{
+	return bEnabled && !bAutomationTesting && !MapPackage.IsEmpty() && MapPackage == DefaultMapPackage;
+}
+
 TArray<FTitleScreenRow> WoRTitleScreen::BuildRows(const FTitleSaveSummary &Save)
 {
 	TArray<FTitleScreenRow> Rows;

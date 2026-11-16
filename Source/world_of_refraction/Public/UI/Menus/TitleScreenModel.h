@@ -50,6 +50,11 @@ struct FTitleSaveSummary
 
 namespace WoRTitleScreen
 {
+	/** B-535: the title opens on a play session's first map load when it is the game's default map (MapPackage and
+	 *  DefaultMapPackage are long package names, PIE prefix removed), unless switched off (wor.UI.TitleAtStart 0) or
+	 *  under automation tests. */
+	WORLD_OF_REFRACTION_API bool ShouldOpenAtStart(bool bEnabled, bool bAutomationTesting, const FString &MapPackage, const FString &DefaultMapPackage);
+
 	/** Continue (only with a save), New Game, Join a friend, Settings, Credits, Quit. */
 	WORLD_OF_REFRACTION_API TArray<FTitleScreenRow> BuildRows(const FTitleSaveSummary &Save);
 
