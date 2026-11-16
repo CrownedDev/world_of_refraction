@@ -7,7 +7,9 @@
 // elements in the side panel; the panel's title and text, and the Begin button, follow the pick. What it says and
 // what Begin does are WoRNewGame (NewGameScreenModel.h). The heading is a placeholder: the opening is Crown's.
 // D-233 (B-538): the mouse too: hover lights a card, chip or Begin; a click picks it (ClickPart); the cursor shows.
-// Not built: the body previews (grey boxes).
+// B-546 (D-228, stage 1, look only): a typed name on top; the side panel's grid is the class's own pick: a
+// Refractor's element (Broken Darkness and Reality among them), a Generic's two weapons, a Resonator's two crystal
+// types. Not built: the body previews (grey boxes).
 
 #pragma once
 
@@ -18,14 +20,17 @@
 
 class APlayerController;
 class UBorder;
+class UEditableTextBox;
 class UTextBlock;
 class UWidget;
 
-/** Where the keys are: the body pair, the class cards, the element grid (a Refractor only), Begin. */
+/** Where the keys are: the name, the body pair, the class cards, the class's pick grid, Begin. */
 enum class ENewGameFocus : uint8
 {
+	Name, // B-546
 	Body,
 	Class,
+	/** The class's own pick grid (B-546: every class has one; the name stays from the Refractor-only grid). */
 	Element,
 	Begin
 };
@@ -52,8 +57,13 @@ public:
 	 *  out of range, or an element with no element grid, does nothing. */
 	void ClickPart(ENewGameFocus Part, int32 Index);
 
+	/** B-546: what the name box sets (specs call it; the box calls it as the player types). */
+	void SetName(const FString &Name);
+
 	const FNewGamePick &GetPick() const { return Pick; }
 	ENewGameFocus GetFocus() const { return Focus; }
+	/** B-546: the lit entry of the pick grid. */
+	int32 GetPickCursor() const { return PickCursor; }
 	const FText &GetStatus() const { return Status; }
 
 protected:
@@ -68,14 +78,23 @@ protected:
 private:
 	void BuildTree();
 	void Refresh();
-	bool HasElements() const { return Pick.Class == ECharacterClass::Caster; }
 	int32 GetClassIndex() const;
-	int32 GetElementIndex() const;
+	/** B-546: the grid's cursor moves; a Refractor's pick follows it (one pick), the others pick with A or a click. */
+	void MovePickCursor(int32 Index);
+	/** B-546: the cursor on the class's first picked entry, else the first. */
+	void ResetPickCursor();
+	/** B-546: the name box takes the keys (A on the name, or a click on it). */
+	void StartTypingName();
+	UFUNCTION()
+	void HandleNameChanged(const FText &Text);
+	UFUNCTION()
+	void HandleNameCommitted(const FText &Text, ETextCommit::Type CommitMethod);
 	/** The part and index under the cursor; false over none. */
 	bool FindPartUnder(const FVector2D &ScreenPosition, ENewGameFocus &OutPart, int32 &OutIndex) const;
 
 	FNewGamePick Pick;
 	ENewGameFocus Focus = ENewGameFocus::Class;
+	int32 PickCursor = 0;
 	FText Status;
 	/** D-233: what the mouse is over, lit with the hover colour (INDEX_NONE: nothing). */
 	ENewGameFocus HoveredPart = ENewGameFocus::Body;
@@ -93,6 +112,13 @@ private:
 	TArray<TObjectPtr<UBorder>> ElementChips;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> ElementNames;
+	/** B-546: each chip's element mark (hidden for a weapon). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> ElementMarks;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> NameLabel;
+	UPROPERTY(Transient)
+	TObjectPtr<UEditableTextBox> NameBox;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> BodyLabel;
 	UPROPERTY(Transient)
