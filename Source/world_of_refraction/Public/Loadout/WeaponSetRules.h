@@ -54,7 +54,7 @@ namespace WeaponSetRules
 	 *  hand's own slots (B-515c). */
 	WORLD_OF_REFRACTION_API int32 GetSetTierSlots(const FWeaponLoadoutEntry &Set);
 
-	/** D-210: the set's built-in abilities, the main hand's then the off hand's not already listed. */
+	/** OBSOLETE (B-518, D-224: no skills on gear): always empty; deleted in stage 6. */
 	WORLD_OF_REFRACTION_API TArray<UAbilityData *> GetSetBuiltIns(const FWeaponLoadoutEntry &Set);
 
 	/** D-210: a pair holds single-blade and dual-blade abilities of its type: it reads as Dual; a weapon and a shield as

@@ -1,8 +1,6 @@
 # Known data-validation errors (B-119): content debt, listed by Scripts/ue/test.sh but not failing it.
 # One line per error, '<path under Content/>: <message>'. Fix the asset, then delete its line (B-206).
-Data/Characters/Data/DA_Test_Inventory: Loadout[0] 'loadout0': 2 of the item's own spells are over the holder's spell cap (1)
 Data/Characters/Data/DA_Test_Inventory: Loadout[0] 'loadout0': Too many S-tier crystals equipped: 3 (max 1)
-Data/Characters/Data/Generic/Inventory/DA_Inventory_Generic: Loadout[0] 'loadout0': 2 of the item's own spells are over the holder's spell cap (1)
 Data/Characters/Data/Generic/Inventory/DA_Inventory_Generic: Loadout[0] 'loadout0': Too many S-tier crystals equipped: 3 (max 1)
 Data/Pool/Merchant/DA_Merchant_Blacksmith: Stock[28]: empty — set Asset or Crystal.
 Data/Pool/Merchant/DA_Merchant_CombatMaster: Stock[154]: empty — set Asset or Crystal.
