@@ -1245,6 +1245,7 @@ The queue of questions only Crown can answer.
 ### D-235 — Pillar essence is shown as Stat essence; Gear and Skill essence may merge
 **Status:** ANSWERED in part (Crown, 2026-11-16); the merge is a maybe · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** (1) **Pillar essence is called Stat essence** in everything the player reads. (2) "Maybe we merge Gear essence and Skill essence together": one essence that upgrades gear and skills. **Not decided**: Crown to confirm and name it. Nothing built for (2).
+**The merged name (Crown, 2026-11-16):** "Dormant Essence, I think" (hidden potential, waiting to be woken): Gear essence and Skill essence become one balance called **Dormant Essence**; the word Essence stays for Elemental and Stat essence. The brain reads the name as confirming the merge; it is built only after the writer's report of what it touches and Crown's go-ahead. Default: existing Gear and Skill balances are added together.
 **Also (Crown, same day):** the game menu's currency row sits on the right of the header and shows every balance, Elemental essence, Stat essence and Diamond included.
 
 ### D-234 — An appearance mirror in the hub; the two base bodies are Male Nobody and Female Nobody; Enter picks on the quick strip
