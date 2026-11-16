@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 #include "Party/Party.h"
+#include "Player/WoRFrontEndGameMode.h"
 #include "Player/WoRHubController.h"
 #include "Save/SaveSubsystem.h"
 #include "TimerManager.h"
@@ -294,7 +295,8 @@ void UPauseMenuWidget::RefreshData()
 	const UWorld *World = GetWorld();
 	const FPauseMenuHeader Header = WoRPauseMenu::BuildHeader(World);
 	bInRun = Header.bInRun;
-	Pages = WoRPauseMenu::BuildPages(bInRun, !World || World->GetNetMode() != NM_Client, WoRPauseMenu::GetTrackedLine(World));
+	Pages = WoRPauseMenu::BuildPages(bInRun, !World || World->GetNetMode() != NM_Client, WoRPauseMenu::GetTrackedLine(World),
+									   WoRFrontEnd::HasFrontEnd(World ? World->GetGameInstance() : nullptr));
 
 	if (TitleText && SubtitleText)
 	{

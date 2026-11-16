@@ -1260,6 +1260,12 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-232 — The title is its own level
+**Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
+**Answer (Crown):** "should we not make a new level which is the menu, and it takes us there, that way it's separate". The game starts in a small **menu level** that holds only the title (Continue, Load; D-229); choosing a character travels to the hub. The title no longer opens over the hub.
+**Defaults (reference-backed, Crown may change):** the menu level is the game's default map and the map the editor opens on, so pressing Play shows the title; pressing Play with the hub or a trial level open goes straight into that level on the last played character, for quick tests. Reference: a separate front-end map is the standard Unreal set-up (Lyra's front end, and most shipped games), so the hub never loads before a character is chosen.
+**Built (B-537, in dev, 2026-11-16):** `AWoRFrontEndGameMode` (no pawn) opens the title in the menu level; Continue and Begin travel to the hub; the game menu's Quit outside a run comes back; Play in the hub or a trial with no save goes to the menu level, not the Character Template. The menu level counts once `GameDefaultMap` is not the hub, so it switches on with the editor step (sheet B-537).
+
 ### D-231 — A prebuilt adapter or weapon shows its crystal in the first slot
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "if a prebuilt adapter is used, augment slots disappear": "the prebuilt comes with a crystal, so we shouldn't allow an additional crystal to be attached". A prebuilt adapter (bought or found already built, D-226) shows no augment slot and takes nothing more.

@@ -5,11 +5,14 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Misc/ConfigCacheIni.h"   // B-535: GameDefaultMap
 #include "UObject/SoftObjectPath.h"
+#include "Player/WoRFrontEndGameMode.h"
 #include "Player/WoRHubController.h"
 #include "Save/SaveSubsystem.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "UI/Menus/CreditsScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/NewGameScreenWidget.h"
@@ -385,6 +388,12 @@ void UTitleScreenWidget::Leave()
 {
 	GTitleLeftThisLaunch = true;
 	UE_LOG(LogWoRUI, Log, TEXT("[Title] Left: %s"), Save.bHasSave ? TEXT("continuing the save") : TEXT("a new game"));
+	// B-537 (D-232): from the menu level Continue goes to the hub, where the saved leader stands (B-529).
+	UTrialRunSubsystem *TrialRun = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	if (TrialRun && TrialRun->HasHubLevel() && WoRFrontEnd::IsFrontEndWorld(GetWorld()))
+	{
+		UGameplayStatics::OpenLevel(this, FName(*TrialRun->GetHubLevelPackage())); // a saved run settles there (USaveSubsystem)
+	}
 	DeactivateWidget();
 }
 
