@@ -111,7 +111,7 @@ FString UClassDefaultLoadoutData::GetClassTableString() const
 	auto Line = [](const FClassElementNumbers &Numbers)
 	{
 		return FString::Printf(TEXT("M/B/S %d/%d/%d, portrait %s, %d innate spell(s), %d BD pool(s)"), Numbers.WorldMindLevel,
-							   Numbers.WorldBodyLevel, Numbers.WorldSpiritLevel, *GetNameSafe(Numbers.Portrait),
+							   Numbers.WorldBodyLevel, Numbers.WorldSpiritLevel, *Numbers.Portrait.GetAssetName(),
 							   Numbers.InnateSpells.Num(), Numbers.BDSpellPools.Num());
 	};
 	for (const TPair<ECharacterClass, FClassNumbers> &Pair : Classes)

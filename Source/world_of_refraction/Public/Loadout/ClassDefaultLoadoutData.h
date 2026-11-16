@@ -123,7 +123,7 @@ struct WORLD_OF_REFRACTION_API FClassElementNumbers
 	int32 WorldSpiritLevel = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
-	TObjectPtr<UTexture2D> Portrait = nullptr;
+	TSoftObjectPtr<UTexture2D> Portrait; // D-057: a new visual field is soft
 
 	/** A Refractor's innate spells (for Broken Darkness: the Darkness pool). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
@@ -178,7 +178,7 @@ public:
 	 *  speed, portrait, its inventory's default loadout's innate spells and BD pools). Returns the rows written. */
 	int32 FillFrom(const TArray<UCharacterData *> &Sources);
 
-	/** The editor step: FillFrom(FillSources), then save the asset. */
+	/** The editor step: FillFrom(FillSources) and mark the asset dirty; saving it is the user's step. */
 	UFUNCTION(CallInEditor, Category = "Class table|Fill")
 	void FillFromSources();
 
