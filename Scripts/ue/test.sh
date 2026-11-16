@@ -16,7 +16,7 @@ rm -rf "$REPORT"
 BALANCE_ARGS=()
 [ -n "${WOR_BALANCE:-}" ] && BALANCE_ARGS=("-WoRBalance=$WOR_BALANCE")
 echo "Running automation tests '$FILTER' ${WOR_BALANCE:+(balance preset $WOR_BALANCE) }... (log: $LOG)"
-"$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" "${BALANCE_ARGS[@]}" \
+MSYS_NO_PATHCONV=1 "$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" "$WOR_HEADLESS_INI" "${BALANCE_ARGS[@]}" \
     -ExecCmds="Automation RunTests $FILTER" -TestExit="Automation Test Queue Empty" \
     -ReportExportPath="$REPORT" -unattended -nullrhi -nosplash -nosound -NoP4 -abslog="$LOG" > /dev/null 2>&1
 
@@ -87,7 +87,7 @@ fi
 rm -f "$VALIDATION_LOG"   # a stale log must never pass for this run
 echo "Validating data assets ... (log: $VALIDATION_LOG)"
 # MSYS_NO_PATHCONV keeps Git Bash from turning /Script/... into a Windows path.
-MSYS_NO_PATHCONV=1 "$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" \
+MSYS_NO_PATHCONV=1 "$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" "$WOR_HEADLESS_INI" \
     -run=DataValidation -AssetType=/Script/Engine.PrimaryDataAsset \
     -unattended -nullrhi -nosplash -nosound -NoP4 -abslog="$VALIDATION_LOG" > /dev/null 2>&1
 

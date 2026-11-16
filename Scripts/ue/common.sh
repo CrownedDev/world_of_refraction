@@ -10,6 +10,10 @@ WOR_PLATFORM="Win64"
 WOR_CONFIG="Development"
 WOR_TEST_FILTER="${WOR_TEST_FILTER:-WoR.}"  # Automation test prefix: every WoR test is named "WoR.<System>.<Case>" (the dot keeps engine tests like "Framework" out of a substring match)
 WOR_LOG_DIR="$WOR_ROOT/Saved/ClaudeLogs"
+# Headless runs must not start the editor's MCP server: it auto-starts in the open editor
+# (Config/DefaultEditorPerProjectUserSettings.ini), and a commandlet that also starts it takes
+# port 8000 away from the editor the workers talk to.
+WOR_HEADLESS_INI="-ini:EditorPerProjectUserSettings:[/Script/ModelContextProtocolEngine.ModelContextProtocolSettings]:bAutoStartServer=False"
 
 wor_require_ue() {
     if [ -z "${UE_ROOT:-}" ]; then
