@@ -596,8 +596,8 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 	SetShown(StripDim, true);
 	// The strip's keys for the device in use (B-481). TODO: key caps (WoRMenuStyle::MakeHintBar) with the real HUD.
 	WheelHints->SetText(WoRKeyHints::IsGamepad(this)
-							? LOCTEXT("StripHintsPad", "◄ ►  Piece        ▲ ▼  Source        A  Pick        B / RB  Close")
-							: LOCTEXT("StripHintsKeys", "A / D, wheel  Piece        W / S  Source        Click  Pick        Backspace / R  Close"));
+							? LOCTEXT("StripHintsPad", "◄ ►  Piece        ▲ ▼  Source        A  Select        B / RB  Close")
+							: LOCTEXT("StripHintsKeys", "A / D, wheel  Piece        W / S  Source        Enter  Select        Backspace / R  Close"));
 	SetShown(WheelHints, true);
 	return true;
 }
