@@ -337,17 +337,17 @@ void AWoRHubController::SetupInputComponent()
 	{
 		EnhancedInput->BindAction(ToggleMenuAction, ETriggerEvent::Started, this, &AWoRHubController::HandleToggleMenu);
 	}
-	BuildGameMenuTabKey();
-	if (GameMenuTabAction)
-	{
-		EnhancedInput->BindAction(GameMenuTabAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleToggleMenu); // on the tap's release
-	}
 	else
 	{
 		UE_LOG(LogWoR, Warning,
 			   TEXT("[WoRHubController] No menu action: set DefaultToggleMenuAction in Config/DefaultGame.ini (now '%s'); "
 					"wor.UI.Pause stands in (B-439)"),
 			   *DefaultToggleMenuAction.ToString());
+	}
+	BuildGameMenuTabKey();
+	if (GameMenuTabAction)
+	{
+		EnhancedInput->BindAction(GameMenuTabAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleToggleMenu); // on the tap's release
 	}
 }
 
