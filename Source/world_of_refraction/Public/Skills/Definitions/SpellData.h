@@ -85,7 +85,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
     UEvolutionItemData *RequiredEvolutionCrystal = nullptr;
 
-    /** Not authored yet: RequiredEvolutionCrystal's evolution if set; otherwise None, any spell source (as before D-224). */
+    /** Not authored yet: RequiredEvolutionCrystal's evolution if set (B-520: read for the first time, Q-520); otherwise
+     *  None, any spell source. */
     virtual FSkillGearRequirement GetGearRequirement() const override
     {
         if (GearRequirement.Kind != ESkillGearKind::None || !RequiredEvolutionCrystal)

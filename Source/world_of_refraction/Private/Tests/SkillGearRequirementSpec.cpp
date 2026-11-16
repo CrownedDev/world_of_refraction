@@ -121,6 +121,7 @@ void FSkillGearRequirementSpec::Define()
 		TestTrue(TEXT("Phoenix in a ring"), IsMet(Rebirth, RingHost(EAdapterForm::Ring, Evolved(Phoenix))));
 		TestFalse(TEXT("another evolution"), IsMet(Rebirth, FSkillGearHost::FromEvolutionSeat(Gale)));
 		TestFalse(TEXT("a plain Garnet ring"), IsMet(Rebirth, RingHost(EAdapterForm::Ring, Garnet())));
+		TestFalse(TEXT("an empty seat"), IsMet(Rebirth, FSkillGearHost::FromEvolutionSeat(nullptr)));
 		TestFalse(TEXT("need text says what"), GetNeedText(Rebirth).IsEmpty());
 	});
 
