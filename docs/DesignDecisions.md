@@ -1242,10 +1242,10 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
-### D-231 — A prebuilt adapter has no augment slot
+### D-231 — A prebuilt adapter or weapon shows its crystal in the first slot
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "if a prebuilt adapter is used, augment slots disappear": "the prebuilt comes with a crystal, so we shouldn't allow an additional crystal to be attached". A prebuilt adapter (bought or found already built, D-226) shows no augment slot and takes nothing more.
-**Changed the same day (Crown):** "maybe the best way to do it is a prebuilt adapter shows its crystal in augment slot 1": the slots do not disappear; the prebuilt's crystal sits in the first slot, filled. "Then we can decide if the crystal is removable or not": whether a prebuilt's crystal can be taken out is **a setting on each prebuilt**, chosen when it is made (brain's reading; default not removable). **Open (Crown): whether the second slot stays usable.** Until answered, nothing is built for D-231.
+**Changed the same day (Crown):** "maybe the best way to do it is a prebuilt adapter shows its crystal in augment slot 1": the slots do not disappear; the prebuilt's crystal sits in the first slot, filled. "Then we can decide if the crystal is removable or not": whether a prebuilt's crystal can be taken out is **a setting on each prebuilt**, chosen when it is made (brain's reading; default not removable). **Weapons too (Crown):** "same would apply for weapons": a prebuilt weapon shows its crystal in the first slot, with the same removable setting. **Open (Crown): whether the second slot stays usable.** Until answered, nothing is built for D-231.
 **Defaults (Crown may change):** the adapter remembers that it came prebuilt; its own crystal stays as built and cannot be swapped; an adapter the player built from an empty ring keeps its augment slot. A starting ring handed out with its crystal (the Earth Ring) counts as prebuilt.
 
 ### D-230 — The loadout screen gets an Inventory tab, first in the row
