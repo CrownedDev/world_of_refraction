@@ -1,7 +1,7 @@
 // AdapterTierSpec.cpp
 // B-519 (D-224, AssetOverhaulPlan §4 and §4.1): a piece's built tier is its own tier and its socket's averaged, a
-// half rounded down; an empty socket keeps the piece's own. A ring's spell slots and its spells' channel read it; its
-// stat lines don't. A weapon's elemental side reads it; its physical side stays on the weapon's own tier.
+// half rounded down; an empty socket keeps the piece's own. A ring's spells' channel reads it; its stat lines don't, and
+// its spell slots come from the socket's tier (D-226 (3)). A weapon's elemental side reads it; its physical side stays on the weapon's own tier.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -53,13 +53,13 @@ void FAdapterTierSpec::Define()
 		TestEqual(TEXT("empty: own tier"), GetBuiltTier(EItemTier::B_Tier, FRuntimeAttachedItem()), EItemTier::B_Tier);
 	});
 
-	It("gives an F ring with a B Citrine the slots of D, and the ring's own once unsocketed", [this]()
+	It("gives an F ring with a B Citrine the slots of B, and the ring's own once unsocketed (D-226)", [this]()
 	{
 		FRingLoadoutEntry Ring;
 		Ring.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
 		Ring.RingEntry.Tier = EItemTier::F_Tier;
 		Ring.RingEntry.AttachedItem = AdapterTierGem(ECrystalType::Citrine, EItemTier::B_Tier);
-		TestEqual(TEXT("socketed: D's slots"), Ring.GetSpellSlotCap(), SlotsForContainerTier(EItemTier::D_Tier));
+		TestEqual(TEXT("socketed: the crystal's (B's) slots"), Ring.GetSpellSlotCap(), SlotsForContainerTier(EItemTier::B_Tier));
 		Ring.RingEntry.AttachedItem = FRuntimeAttachedItem();
 		TestEqual(TEXT("empty: F's slots"), Ring.GetSpellSlotCap(), SlotsForContainerTier(EItemTier::F_Tier));
 	});

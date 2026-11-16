@@ -783,6 +783,15 @@ FText WoRGameNames::GetAdapterName(const URingData *Adapter, const FRuntimeAttac
     {
         return FText::GetEmpty();
     }
+    const FText EmptyAdapterName = FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), GetAdapterWord(), GetAdapterFormName(Adapter->Form));
+    // D-226 (2): an adapter with a name of its own (its Name, not empty, not the class default, not the empty adapter's
+    // own reading) shows it whatever is in the socket, as "King's Ring".
+    const bool bOwnName = !Adapter->Name.IsEmpty() && Adapter->Name != GetDefault<URingData>()->Name &&
+                          Adapter->Name != EmptyAdapterName.ToString();
+    if (bOwnName)
+    {
+        return FText::FromString(Adapter->Name);
+    }
     FText InSocket;
     if (Socket.IsEvolution() && Socket.Evolution.Item)
     {
@@ -794,7 +803,7 @@ FText WoRGameNames::GetAdapterName(const URingData *Adapter, const FRuntimeAttac
         InSocket = GetElementName(Socket.GetElement());
     }
     // The form word last, as "Phoenix Ring": an empty one is "Adapter Ring" (D-223).
-    return FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), InSocket.IsEmpty() ? GetAdapterWord() : InSocket, GetAdapterFormName(Adapter->Form));
+    return InSocket.IsEmpty() ? EmptyAdapterName : FText::Format(LOCTEXT("AdapterBySocket", "{0} {1}"), InSocket, GetAdapterFormName(Adapter->Form));
 }
 
 void WoRGameNames::NumberRepeatedNames(TArray<FText> &Names, TConstArrayView<EItemTier> Tiers, bool bTierLetter)

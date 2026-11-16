@@ -1,12 +1,15 @@
 // PrebuiltFindSpec.cpp
 // B-522b (asset overhaul §3 "Found pieces", Crown Q7): a prebuilt find arrives with its gem or evolution in the socket,
-// the evolution owned by the finder; a plain find arrives empty.
+// the evolution owned by the finder; a plain find arrives empty. B-527 (D-226 (1)): a merchant sells one the same way,
+// priced as its piece plus its socket.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Currency/CurrencyComponent.h"
+#include "Currency/EconomyService.h"
+#include "Merchant/MerchantData.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -103,6 +106,36 @@ void FPrebuiltFindSpec::Define()
 		Evolution->ItemName = TEXT("Phoenix Fire");
 		Find->Evolution = Evolution;
 		TestEqual(TEXT("With its evolution"), TrialLoot::GetItemName(Find).ToString(), FString(TEXT("Adapter Ring with Phoenix Fire")));
+	});
+
+	It("is sold by a merchant with its gem in, priced as the ring plus the gem (B-527, D-226)", [this]()
+	{
+		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
+		UCurrencyComponent *Wallet = Finder->FindComponentByClass<UCurrencyComponent>();
+		if (!TestNotNull(TEXT("EconomyService"), Economy) || !TestNotNull(TEXT("Wallet"), Wallet)) return;
+		URingData *Piece = NewObject<URingData>(GetTransientPackage());
+		Piece->Tier = EItemTier::F_Tier;
+		UPrebuiltFindData *Find = NewFind(Piece);
+		Find->Crystal = PREBUILT_TEST_GEM;
+		FMerchantStockEntry Prebuilt;
+		Prebuilt.Asset = Find;
+		FMerchantStockEntry Ring;
+		Ring.Asset = Piece;
+		FMerchantStockEntry Gem;
+		Gem.Crystal = PREBUILT_TEST_GEM;
+		const FPurchaseCost Cost = Economy->PreviewCartCost({Prebuilt});
+		const FPurchaseCost Parts = Economy->PreviewCartCost({Ring, Gem});
+		TestEqual(TEXT("Prisms: the ring's plus the gem's"), Cost.Prisms, Parts.Prisms);
+		TestEqual(TEXT("Elemental: the gem's"), Cost.ElementalEssence, Parts.ElementalEssence);
+		TestTrue(TEXT("Dearer than the bare ring"), Cost.Prisms > Economy->PreviewCartCost({Ring}).Prisms);
+
+		Wallet->Add(ECurrencyType::Prisms, Cost.Prisms);
+		Wallet->Add(ECurrencyType::ElementalEssence, Cost.ElementalEssence);
+		if (!TestTrue(TEXT("Bought"), Economy->Purchase(Finder, {Prebuilt})) || !TestEqual(TEXT("One ring"), Inventory->Rings.Num(), 1)) return;
+		TestTrue(TEXT("The gem in the socket"), Inventory->Rings.Last().AttachedItem.IsCrystal() &&
+													 Inventory->Rings.Last().AttachedItem.Crystal.Id == PREBUILT_TEST_GEM);
+		TestEqual(TEXT("None loose"), Crystals->GetCount(PREBUILT_TEST_GEM), 0);
+		TestEqual(TEXT("All Prisms spent"), Wallet->GetBalance(ECurrencyType::Prisms), 0);
 	});
 }
 

@@ -323,7 +323,7 @@ void FFieldAttackSpec::Define()
 			}
 			UInventoryComponent *Inventory = Field->GetOwner()->FindComponentByClass<UInventoryComponent>();
 			URingData *Ring = NewObject<URingData>(GetTransientPackage());
-			Ring->Name = TEXT("Storm Ring");
+			// D-226: no Name of its own (the class default), so it is named by its crystal.
 			Ring->Icon = NewObject<UTexture2D>(GetTransientPackage());
 			FRingLoadoutEntry &Adapter = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].RingLoadout.AddDefaulted_GetRef();
 			Adapter.RingEntry.Ring = Ring;

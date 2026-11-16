@@ -31,6 +31,8 @@
 #include "Merchant/MerchantInteractable.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Trial/PrebuiltFindData.h"
+#include "Trial/TrialLoot.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -176,14 +178,17 @@ namespace VendorScreenBuild
 		}
 		else
 		{
-			// A weapon or an adapter, as bought: bare (B-518, D-224: gear carries no skills).
+			// A weapon or an adapter, as bought: bare (B-518, D-224: gear carries no skills). B-527 (D-226 (1)): a
+			// prebuilt one is its piece, named with what is in its socket.
+			const UPrebuiltFindData *Prebuilt = Cast<UPrebuiltFindData>(Asset);
+			UPrimaryDataAsset *Piece = Prebuilt ? Prebuilt->Piece.Get() : Asset;
 			FLoadoutSlot Slot;
-			UWeaponData *Weapon = Cast<UWeaponData>(Asset);
+			UWeaponData *Weapon = Cast<UWeaponData>(Piece);
 			if (Weapon)
 			{
 				Slot.Gear = FGearInstance::FromWeaponEntry(FWeaponInventoryEntry::CreateFromWeapon(Weapon));
 			}
-			else if (URingData *Adapter = Cast<URingData>(Asset))
+			else if (URingData *Adapter = Cast<URingData>(Piece))
 			{
 				Slot.Gear = FGearInstance::FromRingEntry(FRingInventoryEntry::CreateFromRing(Adapter));
 			}
@@ -193,10 +198,16 @@ namespace VendorScreenBuild
 				return Line;
 			}
 			const FLoadoutScreenRow Gear = WoRLoadoutScreen::BuildGearRow(Slot);
-			Line.Name = Gear.Name;
+			Line.Name = Prebuilt ? TrialLoot::GetItemName(Prebuilt) : Gear.Name;
 			Line.Tier = Gear.Tier;
 			Line.KindLine = Gear.KindLine;
 			Line.Element = Slot.Gear.AttachedItem.GetElement();
+			if (Prebuilt) // B-527: the element of what is in its socket
+			{
+				Line.Element = Prebuilt->Crystal.Type != ECrystalType::None ? CrystalTypeHelpers::GetElement(Prebuilt->Crystal.Type)
+							   : Prebuilt->Evolution								? Prebuilt->Evolution->GetAssociatedElement()
+																					: Line.Element;
+			}
 			Line.Details = Gear.Details;
 			if (Weapon)
 			{
