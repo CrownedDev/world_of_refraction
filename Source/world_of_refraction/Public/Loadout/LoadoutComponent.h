@@ -351,6 +351,11 @@ public:
      *  into SavedLoadouts: use it at once, never across an inventory change. */
     FRuntimeAttachedItem *FindSpellCatalystAttachment(USpellData *Spell);
 
+    /** D-224 (AssetOverhaulPlan §4): the built tier of the active loadout's piece whose socket is Attachment (a
+     *  pointer from FindSpellCatalystAttachment / FindAttachedItemByHolder): the piece and its socket averaged
+     *  (CrystalEffectTable::GetBuiltTier). Unset when no piece of the active loadout holds it. */
+    TOptional<EItemTier> GetBuiltTierOfSocket(const FRuntimeAttachedItem *Attachment) const;
+
     // OBSOLETE (B-503q): GetPrimarySlotSpells / GetSecondarySlotSpells / GetActiveSlotSpells have no C++ game caller
     // (only the orchestrator debug print; Blueprints unchecked); the fight reads GetAvailableSpells. Delete after PIE.
     /** Get spells from primary slot only (Ring or evolved Weapon) */
