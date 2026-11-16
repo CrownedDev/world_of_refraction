@@ -1246,6 +1246,7 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED in part (Crown, 2026-11-16); two points open · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** (1) **Appearance mirror:** "like the shops, we should have an appearance mirror that will allow us to change our cosmetic": an object in the hub (a box for now, as the shops are) that opens the appearance screen. (2) **The first two entries** of the spirit list are **Male Nobody** and **Female Nobody**, "who would be Manny and Quinn" (Crown's names). (3) **Quick strip:** **Enter selects**; the "Click Pick" hint goes ("click is intuitive, people will just know"); the click still works.
 **Answered (Crown, 2026-11-16):** the new-game screen **keeps the choice**, and it is called **Starting spirit** (Male Nobody / Female Nobody); it can be changed later at the mirror. The appearance mirror is **the same mirror as the loadout presets' mirror** (D-221): one mirror. **Its three options (Crown): Spirit (meaning appearance), Presets and Cosmetics.** "Spirit" is the player-facing word for the appearance screen.
+**Built (B-539, in dev, 2026-11-16):** point 3: Enter selects the lit piece on the quick strip; the hint says Enter Select; the click still picks.
 
 ### D-233 — Every screen works with the mouse as well as keys and a pad
 **Status:** ANSWERED (Crown, 2026-11-16); a standing rule · **Raised:** 2026-11-16 · **Blocks:** nothing
