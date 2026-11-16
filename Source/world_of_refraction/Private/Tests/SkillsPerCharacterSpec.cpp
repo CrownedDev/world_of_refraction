@@ -214,7 +214,9 @@ void FSkillsPerCharacterSpec::Define()
 		TestTrue(TEXT("a chest gives the ability"), TrialLoot::GrantTo(Member, Ability));
 		FMerchantStockEntry Entry;
 		Entry.Asset = Spell;
+		const int32 PrismsBefore = Wallet->GetBalance(ECurrencyType::Prisms);
 		TestTrue(TEXT("the spell is bought back in the run"), Economy->PurchaseFor(Member, KeyOf(SKILLS_GIVER), {Entry}));
+		TestTrue(TEXT("and paid for"), Wallet->GetBalance(ECurrencyType::Prisms) < PrismsBefore);
 		TestTrue(TEXT("both are in the run list"), Pool->KnowsAbility(KeyOf(SKILLS_GIVER), Ability) && Pool->KnowsSpell(KeyOf(SKILLS_GIVER), Spell));
 		const FPoolSkills *Hub = Pool->GetRunStartSkills().Find(KeyOf(SKILLS_GIVER));
 		TestTrue(TEXT("the hub list kept aside is unchanged"), Hub && Hub->Spells.Num() == 1 && Hub->Abilities.IsEmpty());
