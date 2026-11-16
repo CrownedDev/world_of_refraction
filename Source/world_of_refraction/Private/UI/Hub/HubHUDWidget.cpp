@@ -166,10 +166,7 @@ void UHubHUDWidget::BuildTree()
 	}
 
 	BuildPartyStrip(Canvas);
-	if (!AttackStrips.IsEmpty())
-	{
-		BuildFieldAttackWheel(Canvas); // on top: built last
-	}
+	BuildFieldAttackWheel(Canvas); // on top: built last. B-528 (D-218): the hub too; only the card strip stays a trial's
 
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
@@ -528,7 +525,7 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 
 	if (StripTiles.IsEmpty() || Entries.IsEmpty())
 	{
-		return false; // the hub, headless, or nothing to pick
+		return false; // not built yet, or nothing to pick
 	}
 	const TArray<int32> Slices = FieldSkillRules::GetFieldSliceStarts(Entries);
 	if (Slices.Num() > StripTiles.Num())
