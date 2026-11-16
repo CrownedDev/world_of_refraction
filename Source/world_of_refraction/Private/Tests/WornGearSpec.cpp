@@ -24,11 +24,14 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/WornGear.h"
 #include "Pool/PoolSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {
 	const FName WORN_TEST_KEY(TEXT("/Game/Test/DA_WornGearMember"));
 	constexpr int32 WORN_TEST_PICKED_ENTRY = 2;
+	const FCrystalId WORN_TEST_GEM(ECrystalType::Sapphire, EItemTier::E_Tier);
 
 	FWeaponInventoryEntry WornTestWeapon(const TCHAR *Name)
 	{
@@ -145,6 +148,82 @@ void FWornGearSpec::Define()
 		TestFalse(TEXT("a put-away weapon is not ACTIVE"), Sheathed.ActiveGearID.IsValid());
 		TestFalse(TEXT("and stays put away"),
 				  FCombatLoadout::CreateFromWornGear(Sheathed, ECharacterClass::Caster, Inventory, Evolutions).bShowPrimary);
+	});
+
+	It("keeps each entry's skill and spell picks, slot by slot, and the piece holds none (D-224, B-517)", [this]()
+	{
+		UAbilityData *Skill = NewObject<UAbilityData>(GetTransientPackage());
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		FRingInventoryEntry Ring = WornTestRing();
+		Ring.AttachedItem.Kind = EAttachedItemKind::Crystal;
+		Ring.AttachedItem.Crystal.Id = WORN_TEST_GEM;
+		Inventory->Rings = {Ring};
+		FCombatLoadout Loadout = GenericLoadout();
+		Loadout.PrimaryWeapon.WeaponEntry.SkillPicks = {nullptr, Skill};
+		Loadout.PrimaryWeapon.WeaponEntry.bSkillSlotsActive = true;
+		FRingLoadoutEntry &Adapter = Loadout.RingLoadout.AddDefaulted_GetRef();
+		Adapter.RingEntry = Ring;
+		Adapter.RingEntry.SpellPicks = {Spell};
+		Adapter.RingEntry.bSpellSlotsActive = true;
+
+		const FWornGear Worn = Loadout.ToWornGear(ECharacterClass::Generic);
+		const FLoadoutSlot &SwordEntry = Worn.Equipment[WornGearLayout::PRIMARY_INDEX];
+		TestTrue(TEXT("the sword's picks on its entry, the empty slot kept"),
+				 SwordEntry.AssignedAbilities.Num() == 2 && !SwordEntry.AssignedAbilities[0] && SwordEntry.AssignedAbilities[1] == Skill);
+		TestTrue(TEXT("the ring's spell pick on its entry"), Worn.Equipment.Last().SpellOverrides == TArray<TObjectPtr<USpellData>>{Spell});
+		TestTrue(TEXT("wor.Loadout.PrintWorn lists them"), ULoadoutRulesDebug::GetWornGearString(WORN_TEST_KEY, Worn, nullptr).Contains(TEXT("skills {-, ")));
+
+		const FCombatLoadout Built = FCombatLoadout::CreateFromWornGear(Worn, ECharacterClass::Generic, Inventory, Evolutions);
+		TestTrue(TEXT("built back onto the sword"), Built.PrimaryWeapon.WeaponEntry.SkillPicks == Loadout.PrimaryWeapon.WeaponEntry.SkillPicks);
+		TestTrue(TEXT("and it plays"), Built.PrimaryWeapon.GetSkillSlotAbilities().Contains(Skill));
+		TestTrue(TEXT("and onto the ring"), Built.RingLoadout.Num() == 1 && Built.RingLoadout[0].RingEntry.SpellPicks == TArray<USpellData *>{Spell});
+		TestTrue(TEXT("the same record again"), Built.ToWornGear(ECharacterClass::Generic).SameAs(Worn));
+		TestTrue(TEXT("the owned sword holds no picks"), Inventory->Weapons[0].SkillPicks.IsEmpty());
+	});
+
+	It("gives two records of one sword their own picks, and ignores a piece's old ones (a preset, D-224)", [this]()
+	{
+		UAbilityData *First = NewObject<UAbilityData>(GetTransientPackage());
+		UAbilityData *Second = NewObject<UAbilityData>(GetTransientPackage());
+		FCombatLoadout Loadout = GenericLoadout();
+		Loadout.PrimaryWeapon.WeaponEntry.SkillPicks = {First};
+		const FWornGear WornFirst = Loadout.ToWornGear(ECharacterClass::Generic);
+		Loadout.PrimaryWeapon.WeaponEntry.SkillPicks = {Second};
+		const FWornGear WornSecond = Loadout.ToWornGear(ECharacterClass::Generic);
+		Loadout.PrimaryWeapon.WeaponEntry.SkillPicks.Reset();
+		const FWornGear WornNone = Loadout.ToWornGear(ECharacterClass::Generic);
+		Inventory->Weapons[0].SkillPicks = {Second}; // an old pick left on the piece
+		Inventory->Weapons[0].bSkillSlotsActive = true;
+
+		const auto PicksOf = [this](const FWornGear &Worn)
+		{ return FCombatLoadout::CreateFromWornGear(Worn, ECharacterClass::Generic, Inventory, Evolutions).PrimaryWeapon.WeaponEntry.SkillPicks; };
+		TestTrue(TEXT("the first record's pick"), PicksOf(WornFirst) == TArray<UAbilityData *>{First});
+		TestTrue(TEXT("the second record's pick"), PicksOf(WornSecond) == TArray<UAbilityData *>{Second});
+		TestTrue(TEXT("a record with none: none, whatever the piece holds"), PicksOf(WornNone).IsEmpty());
+	});
+
+	It("keeps a custom loadout's picks through its saved form (a preset in the pool, D-224)", [this]()
+	{
+		UAbilityData *Skill = NewObject<UAbilityData>(GetTransientPackage());
+		FCombatLoadout Loadout = GenericLoadout();
+		Loadout.SecondaryWeapon.WeaponEntry.SkillPicks = {Skill};
+		const FSavedLoadout Saved = Loadout.ToSavedLoadout(ECharacterClass::Generic);
+		const FCombatLoadout Back = FCombatLoadout::CreateFromSavedLoadout(Saved, Inventory, Evolutions);
+		TestTrue(TEXT("the axe keeps its pick"), Back.SecondaryWeapon.WeaponEntry.SkillPicks == TArray<UAbilityData *>{Skill});
+		TestTrue(TEXT("the sword has none"), Back.PrimaryWeapon.WeaponEntry.SkillPicks.IsEmpty());
+	});
+
+	It("leaves a ring's spell picks out when its socket holds no spell source", [this]()
+	{
+		const FRingInventoryEntry Empty = WornTestRing();
+		Inventory->Rings = {Empty};
+		FCombatLoadout Loadout;
+		FRingLoadoutEntry &Adapter = Loadout.RingLoadout.AddDefaulted_GetRef();
+		Adapter.RingEntry = Empty;
+		Adapter.RingEntry.SpellPicks = {NewObject<USpellData>(GetTransientPackage())};
+		const FCombatLoadout Built =
+			FCombatLoadout::CreateFromWornGear(Loadout.ToWornGear(ECharacterClass::Resonator), ECharacterClass::Resonator, Inventory, Evolutions);
+		TestTrue(TEXT("no spell picks on an empty ring"), Built.RingLoadout.Num() == 1 && Built.RingLoadout[0].RingEntry.SpellPicks.IsEmpty());
 	});
 
 	It("keeps one record per character, the wheel pick apart from the gear", [this]()

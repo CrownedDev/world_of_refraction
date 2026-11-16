@@ -15,6 +15,7 @@
 #include "Loadout/ClassDefaultLoadoutData.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Loadout/WornGear.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -148,7 +149,6 @@ void FTrialClassDefaultsSpec::Define()
 		FWeaponInventoryEntry Changed = *Kept; // what a kept run left on it
 		Changed.Tier = KIT_TEST_RAISED_TIER;
 		Changed.AttachedItem = KitTestGem();
-		Changed.SkillPicks.Reset();
 		Pool->UpdateWeapon(Changed);
 		const int32 HeldBefore = Pool->GetCarriedCount(Key(), KIT_TEST_GEM) + Pool->GetStoredCount(KIT_TEST_GEM);
 
@@ -157,7 +157,10 @@ void FTrialClassDefaultsSpec::Define()
 		if (!TestNotNull(TEXT("the same kit sword"), Reset)) return;
 		TestEqual(TEXT("its authored tier"), Reset->Tier, FWeaponInventoryEntry::CreateFromWeapon(KitAsset).Tier);
 		TestTrue(TEXT("its socket empty"), Reset->AttachedItem.IsEmpty());
-		TestTrue(TEXT("its authored skills"), Reset->bSkillSlotsActive && Reset->SkillPicks.Num() == 1 && Reset->SkillPicks[0] == KitSkill);
+		const FWornGear *Worn = Pool->GetWornGear(Key());
+		const FLoadoutSlot *KitEntry = Worn ? Worn->Equipment.FindByPredicate([&KitID](const FLoadoutSlot &E) { return E.GearID == KitID; }) : nullptr;
+		TestTrue(TEXT("its authored skills, on the worn entry (D-224)"), KitEntry && KitEntry->AssignedAbilities.Num() == 1 && KitEntry->AssignedAbilities[0] == KitSkill);
+		TestTrue(TEXT("and none on the piece"), Reset->SkillPicks.IsEmpty());
 		TestEqual(TEXT("the crystal is back in the inventory"),
 				  Pool->GetCarriedCount(Key(), KIT_TEST_GEM) + Pool->GetStoredCount(KIT_TEST_GEM), HeldBefore + 1);
 		const int32 *AtStart = Pool->GetRunStartItems().Find(StatStone::Normalize(KIT_TEST_GEM));

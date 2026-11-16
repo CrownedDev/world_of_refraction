@@ -168,6 +168,11 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
     TArray<FSavedBDElementSpellPool> BDSpellPools;
 
+    /** D-224 (B-517): each entry's skill and spell picks by piece (only GearID, AssignedAbilities and SpellOverrides are
+     *  read), so a custom loadout keeps them through the pool and the save. Not authored: a kit's skills are its own. */
+    UPROPERTY()
+    TArray<FLoadoutSlot> EntryPicks;
+
     // ==================== RESONATOR RINGS ====================
 
     /** Equipped adapters: a Resonator's (at most 5, D-206), or B-480 (D-210) a Generic's one adapter entry beside its

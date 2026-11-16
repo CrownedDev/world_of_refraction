@@ -10,6 +10,48 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 
+namespace
+{
+	template <typename TTo, typename TFrom>
+	void CopyPicks(TTo &To, const TFrom &From)
+	{
+		To.Reset(From.Num());
+		for (const auto &Pick : From)
+		{
+			To.Add(Pick);
+		}
+	}
+}
+
+void FCombatLoadout::ApplyEntryPicks(const TArray<FLoadoutSlot> &Entries)
+{
+	// The pieces' own picks (OBSOLETE, deleted in stage 6) are not read.
+	const auto FindEntry = [&Entries](const FGuid &ID) -> const FLoadoutSlot *
+	{ return ID.IsValid() ? Entries.FindByPredicate([&ID](const FLoadoutSlot &Entry) { return Entry.GearID == ID; }) : nullptr; };
+	const FLoadoutSlot NoEntry;
+	for (FWeaponLoadoutEntry *Weapon : {&PrimaryWeapon, &SecondaryWeapon})
+	{
+		FWeaponInventoryEntry &Piece = Weapon->WeaponEntry;
+		const FLoadoutSlot *Found = FindEntry(Piece.PersistentID);
+		const FLoadoutSlot &Entry = Found ? *Found : NoEntry;
+		CopyPicks(Piece.SkillPicks, Entry.AssignedAbilities);
+		Piece.bSkillSlotsActive = !Piece.SkillPicks.IsEmpty();
+		CopyPicks(Piece.SpellPicks, Piece.AttachedItem.IsSpellSource() ? Entry.SpellOverrides : NoEntry.SpellOverrides);
+		Piece.bSpellSlotsActive = !Piece.SpellPicks.IsEmpty();
+	}
+	const auto ApplyRing = [&FindEntry, &NoEntry](FRingInventoryEntry &Piece)
+	{
+		const FLoadoutSlot *Found = FindEntry(Piece.PersistentID);
+		CopyPicks(Piece.SpellPicks, Found && Piece.AttachedItem.IsSpellSource() ? Found->SpellOverrides : NoEntry.SpellOverrides);
+		Piece.bSpellSlotsActive = !Piece.SpellPicks.IsEmpty();
+	};
+	ApplyRing(PrimaryRing.RingEntry);
+	for (FRingLoadoutEntry &Ring : RingLoadout)
+	{
+		ApplyRing(Ring.RingEntry);
+	}
+}
+
 TArray<FGuid> FWornGear::GetPieceIDs() const
 {
 	TArray<FGuid> IDs;
@@ -27,7 +69,10 @@ TArray<FGuid> FWornGear::GetPieceIDs() const
 bool FWornGear::SameAs(const FWornGear &Other) const
 {
 	const auto SameEntry = [](const FLoadoutSlot &A, const FLoadoutSlot &B)
-	{ return A.GearID == B.GearID && A.OffHandID == B.OffHandID && A.AssignedAbilities == B.AssignedAbilities; };
+	{
+		return A.GearID == B.GearID && A.OffHandID == B.OffHandID && A.AssignedAbilities == B.AssignedAbilities &&
+			   A.SpellOverrides == B.SpellOverrides;
+	};
 	const auto SamePool = [](const FBDElementSpellPool &A, const FBDElementSpellPool &B)
 	{ return A.Element == B.Element && A.Spells == B.Spells; };
 	if (Equipment.Num() != Other.Equipment.Num() || BDSpellPools.Num() != Other.BDSpellPools.Num())
@@ -148,7 +193,6 @@ FCombatLoadout FCombatLoadout::CreateFromWornGear(const FWornGear &Worn, ECharac
 		Saved.PrimaryWeaponInstance = Primary->GearID;
 		Saved.PrimaryOffHandWeapon = Weapon(Primary->OffHandID);
 		Saved.PrimaryOffHandInstance = Saved.PrimaryOffHandWeapon ? Primary->OffHandID : FGuid();
-		Saved.PrimaryWeaponAbilities.Append(Primary->AssignedAbilities);
 	}
 	else if (URingData *Adapter = Primary ? Ring(Primary->GearID) : nullptr)
 	{
@@ -170,7 +214,6 @@ FCombatLoadout FCombatLoadout::CreateFromWornGear(const FWornGear &Worn, ECharac
 		Saved.SecondaryWeaponInstance = Secondary->GearID;
 		Saved.SecondaryOffHandWeapon = Weapon(Secondary->OffHandID);
 		Saved.SecondaryOffHandInstance = Saved.SecondaryOffHandWeapon ? Secondary->OffHandID : FGuid();
-		Saved.SecondaryWeaponAbilities.Append(Secondary->AssignedAbilities);
 	}
 	for (int32 Index = FIRST_ADAPTER_INDEX; Index < Worn.Equipment.Num(); ++Index)
 	{
@@ -178,7 +221,7 @@ FCombatLoadout FCombatLoadout::CreateFromWornGear(const FWornGear &Worn, ECharac
 		{
 			FResonatorRingSlot &Slot = Saved.EquippedRings.AddDefaulted_GetRef();
 			Slot.Ring = Adapter;
-			Slot.RingInstance = Worn.Equipment[Index].GearID; // its spells ride on the owned piece
+			Slot.RingInstance = Worn.Equipment[Index].GearID; // its spell picks are the worn entry's (ApplyEntryPicks)
 		}
 	}
 
@@ -207,5 +250,6 @@ FCombatLoadout FCombatLoadout::CreateFromWornGear(const FWornGear &Worn, ECharac
 	// Lossless against ToWornGear: a weapon primary is shown when it is the ACTIVE entry.
 	const bool bWeaponPrimary = Saved.PrimarySlotType == EPrimarySlotType::Weapon;
 	Saved.bShowPrimary = bWeaponPrimary ? Worn.ActiveGearID.IsValid() && Worn.ActiveGearID == Saved.PrimaryWeaponInstance : bFallbackShowPrimary;
+	Saved.EntryPicks = Worn.Equipment; // CreateFromSavedLoadout puts each entry's picks back (D-224, B-517)
 	return CreateFromSavedLoadout(Saved, OwnedInventory, OwnedEvolutions);
 }

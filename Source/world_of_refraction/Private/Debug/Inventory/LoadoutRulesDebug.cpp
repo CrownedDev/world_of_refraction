@@ -594,6 +594,18 @@ FString ULoadoutRulesDebug::GetWornGearString(FName CharacterKey, const FWornGea
 		FString Out = Name(Slot->GearID);
 		Out += Slot->GearID == Worn.ActiveGearID ? TEXT(" [ACTIVE]") : TEXT("");
 		Out += Slot->OffHandID.IsValid() ? FString::Printf(TEXT(" + %s"), *Name(Slot->OffHandID)) : FString();
+		const auto Picks = [](const auto &List)
+		{
+			TArray<FString> Names;
+			for (const auto &Pick : List)
+			{
+				Names.Add(Pick ? GetNameSafe(Pick) : TEXT("-"));
+			}
+			return FString::Join(Names, TEXT(", "));
+		};
+		// D-224 (B-517): the entry's own picks, slot by slot ("-" an empty slot).
+		Out += Slot->AssignedAbilities.IsEmpty() ? FString() : FString::Printf(TEXT(" skills {%s}"), *Picks(Slot->AssignedAbilities));
+		Out += Slot->SpellOverrides.IsEmpty() ? FString() : FString::Printf(TEXT(" spells {%s}"), *Picks(Slot->SpellOverrides));
 		return Out;
 	};
 	TArray<FString> Adapters;

@@ -381,7 +381,7 @@ FText WoRLoadoutSkills::ApplySkill(UWorld *World, const FLoadoutScreenMember &Me
 												 Refusal);
 	if (bChanged)
 	{
-		Inventory->WriteLoadoutToOwned(Index); // the picks live on the owned piece (D-145)
+		Inventory->WriteLoadoutToOwned(Index); // its sockets; the picks reach the worn entry (D-224, B-517)
 		UE_LOG(LogWoRLoadout, Log, TEXT("%s: %s %s slot %d"), *Member.Key.ToString(), Skill ? TEXT("put") : TEXT("took off"), *Tab.Title.ToString(), Row.SkillSlot);
 	}
 	return Refusal;

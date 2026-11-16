@@ -230,9 +230,13 @@ struct WORLD_OF_REFRACTION_API FSavedWornEntry
 	UPROPERTY()
 	FGuid OffHandID;
 
-	/** The weapon's assigned abilities, as custom loadouts keep them (OBSOLETE with them in stage 4). */
+	/** D-224 (B-517, save v42): the entry's skill picks, one ref per slot (an unset ref is an empty slot). */
 	UPROPERTY()
 	TArray<FSavedAssetRef> Abilities;
+
+	/** D-224 (B-517, save v42): the entry's spell picks, one ref per slot. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Spells;
 };
 
 /** D-221 (B-507, save v40): one character's worn-gear record (FWornGear), by owned GUID; the wheel pick moved here
@@ -474,7 +478,8 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	FRuntimeAttachedItem StoneSocket;
 
-	/** B-351 (D-145): a weapon's skill-slot picks, one ref per slot (an unset ref = the built-in), and whether its
+	/** OBSOLETE (D-224, B-517; deleted in stage 6): an owned piece holds no picks now (FSavedWornEntry has them).
+	 *  B-351 (D-145): a weapon's skill-slot picks, one ref per slot (an unset ref = the built-in), and whether its
 	 *  one list is active. Empty for an adapter. */
 	UPROPERTY()
 	TArray<FSavedAssetRef> SkillPicks;
@@ -490,7 +495,8 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	TArray<FSavedAssetRef> AssignedSpells;
 
-	/** B-351d (D-145): the crystal's one spell list, one ref per slot (unset = the built-in), and whether it is active.
+	/** OBSOLETE (D-224, B-517; deleted in stage 6), as SkillPicks.
+	 *  B-351d (D-145): the crystal's one spell list, one ref per slot (unset = the built-in), and whether it is active.
 	 *  New tagged fields: an older save reads them as empty / false (the old merge), so no version bump. */
 	UPROPERTY()
 	TArray<FSavedAssetRef> SpellPicks;
@@ -620,6 +626,10 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 
 	UPROPERTY()
 	FGuid SecondaryOffHandInstance;
+
+	/** D-224 (B-517, save v42): each entry's skill and spell picks by piece (FSavedLoadout::EntryPicks). */
+	UPROPERTY()
+	TArray<FSavedWornEntry> EntryPicks;
 
 	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
 	UPROPERTY()

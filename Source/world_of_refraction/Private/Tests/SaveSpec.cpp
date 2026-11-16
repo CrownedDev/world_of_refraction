@@ -15,6 +15,7 @@
 #include "Player/WoRPlayerState.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "UObject/UnrealType.h"
 #include "Kismet/GameplayStatics.h"
@@ -168,6 +169,9 @@ void FSaveSpec::Define()
 		Worn.Equipment[WornGearLayout::PRIMARY_INDEX].GearID = FGuid::NewGuid();
 		Worn.Equipment[WornGearLayout::PRIMARY_INDEX].OffHandID = FGuid::NewGuid();
 		Worn.Equipment[WornGearLayout::FIRST_ADAPTER_INDEX].GearID = FGuid::NewGuid();
+		// D-224 (B-517): each entry's picks, slot by slot, an empty slot kept.
+		Worn.Equipment[WornGearLayout::PRIMARY_INDEX].AssignedAbilities = {nullptr, NewObject<UAbilityData>(GetTransientPackage())};
+		Worn.Equipment[WornGearLayout::FIRST_ADAPTER_INDEX].SpellOverrides = {NewObject<USpellData>(GetTransientPackage())};
 		Worn.ActiveGearID = Worn.Equipment[WornGearLayout::PRIMARY_INDEX].GearID;
 		Worn.Apparel = {FGuid::NewGuid()};
 		UPoolSubsystem *BeforePool = Before.GetSubsystem<UPoolSubsystem>();
@@ -178,6 +182,10 @@ void FSaveSpec::Define()
 			return;
 		}
 		BeforePool->SetWornGear(Key, Worn);
+		FSavedLoadout Custom; // B-517: a custom loadout (a preset) keeps its entries' picks too
+		Custom.LoadoutName = TEXT("Preset");
+		Custom.EntryPicks = Worn.Equipment;
+		BeforePool->SetCustomLoadouts(Key, {Custom});
 		FWheelPick Pick;
 		Pick.FieldSkill.Source = EFieldSkillSource::Ring; // B-214a's field skill, moved onto the record
 		Pick.FieldSkill.Type = EFieldMovementType::EnhancedSprint;
@@ -206,7 +214,14 @@ void FSaveSpec::Define()
 			return;
 		}
 		Worn.WheelPick = Pick;
-		TestTrue(TEXT("same pieces, places, ACTIVE entry and pick"), Back->SameAs(Worn));
+		TestTrue(TEXT("same pieces, places, picks, ACTIVE entry and wheel pick"), Back->SameAs(Worn));
+		const TArray<FSavedLoadout> *Presets = AfterPool->GetCustomLoadouts(Key);
+		const TArray<FLoadoutSlot> *PresetPicks = Presets && Presets->Num() == 1 ? &(*Presets)[0].EntryPicks : nullptr;
+		using namespace WornGearLayout;
+		TestTrue(TEXT("the custom loadout's entry picks are back (D-224)"),
+				 PresetPicks && PresetPicks->Num() == Worn.Equipment.Num() &&
+					 (*PresetPicks)[PRIMARY_INDEX].AssignedAbilities == Worn.Equipment[PRIMARY_INDEX].AssignedAbilities &&
+					 (*PresetPicks)[FIRST_ADAPTER_INDEX].SpellOverrides == Worn.Equipment[FIRST_ADAPTER_INDEX].SpellOverrides);
 		const FPartyMember *Restored = PartySession->GetMemberCarriedState(0);
 		TestTrue(TEXT("the member took the record's field skill and pick"),
 				 Restored && Restored->FieldSkill == Pick.FieldSkill && Restored->FieldAttackIndex == SAVED_COLUMN && Restored->bFieldAttackPicked);
