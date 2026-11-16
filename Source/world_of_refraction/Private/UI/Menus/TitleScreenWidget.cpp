@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Misc/ConfigCacheIni.h"   // B-535: GameDefaultMap
+#include "UObject/SoftObjectPath.h"
 #include "Player/WoRHubController.h"
 #include "Save/SaveSubsystem.h"
 #include "UI/Menus/CreditsScreenWidget.h"
@@ -48,7 +50,11 @@ namespace TitleScreenStyle
 namespace
 {
 	/** Set when the player leaves the title (Continue, or New Game with no save): it doesn't open again this launch. */
-	bool GTitleLeftThisLaunch = false;
+	bool GTitleLeftThisLaunch = false; // OBSOLETE (B-535): no longer read; OpenAtLaunch keys on GTitleStartSeenFor. Retire after PIE
+	/** B-535: the play session whose first map load OpenAtLaunch has seen (weak: a PIE run's game instance goes). */
+	TWeakObjectPtr<const UGameInstance> GTitleStartSeenFor;
+	TAutoConsoleVariable<bool> CVarTitleAtStart(TEXT("wor.UI.TitleAtStart"), true,
+		TEXT("B-535: open the title on a play session's first map load (the default map only). 0 skips it, for testing."));
 	/** B-469: the hold deleted the save this launch (the title says so until the new game begins). */
 	bool GTitleSaveDeletedThisLaunch = false;
 	/** "Your save was reset" is said once a launch. */
@@ -75,10 +81,25 @@ UTitleScreenWidget *UTitleScreenWidget::Open(APlayerController *PC)
 
 void UTitleScreenWidget::OpenAtLaunch(APlayerController *PC)
 {
-	if (!GTitleLeftThisLaunch && PC && PC->IsLocalController())
+	// B-535: once per play session (the game instance: a new one each PIE run and each launch), on its first map load
+	// only, and only on the game's default map (the hub), so later loads and a trial test level never open it.
+	UWorld *World = PC && PC->IsLocalController() ? PC->GetWorld() : nullptr;
+	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	if (!GameInstance || GTitleStartSeenFor.Get() == GameInstance)
+	{
+		return;
+	}
+	GTitleStartSeenFor = GameInstance;
+	FString DefaultMap;
+	GConfig->GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameDefaultMap"), DefaultMap, GEngineIni);
+	const FString Map = UWorld::RemovePIEPrefix(World->GetOutermost()->GetName());
+	if (WoRTitleScreen::ShouldOpenAtStart(CVarTitleAtStart.GetValueOnGameThread(), GIsAutomationTesting, Map,
+										  FSoftObjectPath(DefaultMap).GetLongPackageName()))
 	{
 		Open(PC);
+		return;
 	}
+	UE_LOG(LogWoRUI, Log, TEXT("[Title] Not opened at start: %s is not the default map %s, wor.UI.TitleAtStart is 0, or tests run"), *Map, *DefaultMap);
 }
 
 void UTitleScreenWidget::MarkLeftThisLaunch()

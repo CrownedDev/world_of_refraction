@@ -216,11 +216,8 @@ void AWoRHubController::BeginPlay()
 		   *RootLayoutClass->GetName(), *UEnum::GetValueAsString(CurrentMode),
 		   WoRHubControllerConstants::ROOT_LAYOUT_ZORDER);
 
-	// B-467: the game opens on the title. Not in the editor's PIE (wor.UI.Title opens it there).
-	if (!GIsEditor)
-	{
-		UTitleScreenWidget::OpenAtLaunch(this);
-	}
+	// B-467, B-535: the game opens on the title, PIE included (the first map load of a session, the default map only).
+	UTitleScreenWidget::OpenAtLaunch(this);
 }
 
 void AWoRHubController::SetupInputComponent()

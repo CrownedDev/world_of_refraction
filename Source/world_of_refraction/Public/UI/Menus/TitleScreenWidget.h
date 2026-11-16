@@ -1,7 +1,8 @@
 // TitleScreenWidget.h
 // B-467 (D-202, D-060; UIScreens #9, #10, mockups screen_mockups/front/title/1_title.png to 3_new_game_confirm.png): the
-// title screen. A CommonUI screen on the root layout's menu layer. Outside the editor it opens once per launch, over
-// the first level (the save is loaded by then); in PIE wor.UI.Title opens it. Back never closes it.
+// title screen. A CommonUI screen on the root layout's menu layer. B-535: it opens on a play session's first map load
+// when that is the game's default map (the hub), PIE included; wor.UI.TitleAtStart 0 skips it, wor.UI.Title opens it.
+// Back never closes it.
 //
 // Left: "WORLD OF REFRACTION", "TALES OF THE VOID" and the rows (WoRTitleScreen). Continue goes on where the save is
 // (the level is already the save's); New Game over a save asks first and needs A held for 2 seconds; Settings opens
@@ -42,9 +43,9 @@ public:
 
 	/** Pushes the screen onto PC's root layout. */
 	static UTitleScreenWidget *Open(APlayerController *PC);
-	/** Open, the first time a level starts in this launch of the game, until the player leaves the title. */
+	/** B-535: Open on a play session's first map load, when it is the game's default map (WoRTitleScreen::ShouldOpenAtStart). */
 	static void OpenAtLaunch(APlayerController *PC);
-	/** B-469: the new game began from the screen over the title: the title doesn't open again this launch. */
+	/** B-469: the new game began from the screen over the title. OBSOLETE (B-535): OpenAtLaunch opens once a session anyway. */
 	static void MarkLeftThisLaunch();
 
 	// What the keys and the mouse do.
