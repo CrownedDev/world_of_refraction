@@ -283,17 +283,23 @@ namespace LoadoutV2Build
 		}
 	}
 
-	/** D-226 (4): the piece's tier and its socket's, on two lines ("Adapter tier F", "Crystal tier B"), in place of
-	 *  B-519's averaged "Skill tier D (F + B)". The crystal line only while the socket holds a gem or an evolution. */
-	void AddPieceAndCrystalTiers(TArray<FLoadoutV2DetailLine> &Lines, const FText &PieceTierLabel, EItemTier PieceTier,
+	/** D-226 (4): the piece's tier and its socket's, on two lines, in place of B-519's averaged "Skill tier D (F + B)".
+	 *  D-227 (5): the tier in brackets, "Adapter (S)", "Crystal (B)", so the whole line is the label (no value). The
+	 *  crystal line only while the socket holds a gem or an evolution. */
+	void AddPieceAndCrystalTiers(TArray<FLoadoutV2DetailLine> &Lines, const FText &PieceWord, EItemTier PieceTier,
 								 const FRuntimeAttachedItem &Socket)
 	{
-		SetTier(AddLine(Lines, ELoadoutV2DetailKind::Stat, PieceTierLabel, WoRGameNames::GetTierLetter(PieceTier)), PieceTier);
+		const auto AddTierLine = [&Lines](const FText &Word, EItemTier Tier)
+		{
+			FLoadoutV2DetailLine &Line = Lines.AddDefaulted_GetRef();
+			Line.Kind = ELoadoutV2DetailKind::Stat;
+			Line.Label = FText::Format(LOCTEXT("DetailTierInBrackets", "{0} ({1})"), Word, WoRGameNames::GetTierLetter(Tier));
+			SetTier(&Line, Tier);
+		};
+		AddTierLine(PieceWord, PieceTier);
 		if (const TOptional<EItemTier> SocketTier = CrystalEffectTable::GetSocketSkillTier(Socket))
 		{
-			SetTier(AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailCrystalTier", "Crystal tier"),
-							WoRGameNames::GetTierLetter(SocketTier.GetValue())),
-					SocketTier.GetValue());
+			AddTierLine(LOCTEXT("DetailCrystalWord", "Crystal"), SocketTier.GetValue());
 		}
 	}
 
@@ -306,7 +312,7 @@ namespace LoadoutV2Build
 			AddWeaponPiece(Lines, Set.OffHandEntry, bSimple);
 		}
 		AddSockets(Lines, Set.WeaponEntry.AttachedItem, Set.WeaponEntry.StoneSocket);
-		AddPieceAndCrystalTiers(Lines, LOCTEXT("DetailWeaponTier", "Weapon tier"), Set.WeaponEntry.Tier, Set.WeaponEntry.AttachedItem);
+		AddPieceAndCrystalTiers(Lines, LOCTEXT("DetailWeaponWord", "Weapon"), Set.WeaponEntry.Tier, Set.WeaponEntry.AttachedItem);
 		AddLine(Lines, ELoadoutV2DetailKind::SkillSlots, LOCTEXT("DetailSkillSlots", "Skill slots"), FText::AsNumber(Set.GetSkillSlotCount()));
 	}
 
@@ -323,7 +329,7 @@ namespace LoadoutV2Build
 			AddEffects(Lines, Adapter, bSimple);
 		}
 		AddSockets(Lines, Owned.AttachedItem, Owned.StoneSocket);
-		AddPieceAndCrystalTiers(Lines, LOCTEXT("DetailAdapterTier", "Adapter tier"), Owned.Tier, Owned.AttachedItem);
+		AddPieceAndCrystalTiers(Lines, WoRGameNames::GetAdapterWord(), Owned.Tier, Owned.AttachedItem);
 	}
 
 	const FWeaponLoadoutEntry *FindWeaponSet(const FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry)

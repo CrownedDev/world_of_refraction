@@ -79,6 +79,42 @@ void FStartingGearSpec::Define()
 		TestTrue(TEXT("Gale owned and in the seat, at its tier"), Seat && Seat->Item == Gale && Seat->Tier == EItemTier::D_Tier);
 		TestEqual(TEXT("Gale is the hero's"), Pool->GetGearOwner(Worn->EvolutionID), Key);
 	});
+
+	It("wears a place's off hand, in the starting gear and the trial kit (D-227: the sword with its shield)", [this]()
+	{
+		UPoolSubsystem *Pool = TestWorld->GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("pool"), Pool))
+		{
+			return;
+		}
+		FClassDefaultLoadout Gear;
+		FClassDefaultPiece &Sword = Gear.Pieces.AddDefaulted_GetRef();
+		Sword.Piece = NewObject<UWeaponData>(GetTransientPackage());
+		UWeaponData *Shield = NewObject<UWeaponData>(GetTransientPackage());
+		Shield->WeaponType = EWeaponType::Shield;
+		Sword.OffHand = Shield;
+
+		const FName StartKey(TEXT("StartingGearShieldHero"));
+		Pool->WearStartingGear(StartKey, Gear, nullptr, FWornGear());
+		const FWornGear *Started = Pool->GetWornGear(StartKey);
+		const FLoadoutSlot *StartSlot = Started ? Started->GetEntry(0) : nullptr;
+		if (TestTrue(TEXT("starting gear: the shield in the off hand"), StartSlot && StartSlot->OffHandID.IsValid()))
+		{
+			const FWeaponInventoryEntry *Owned = Pool->FindWeaponInPool(StartSlot->OffHandID);
+			TestTrue(TEXT("starting gear: the shield owned"), Owned && Owned->Weapon == Shield);
+			TestEqual(TEXT("starting gear: the shield is the hero's"), Pool->GetGearOwner(StartSlot->OffHandID), StartKey);
+		}
+
+		const FName KitKey(TEXT("KitShieldHero"));
+		Pool->MintClassDefaultKit(KitKey, Gear);
+		Pool->WearClassDefaultKit(KitKey, Gear);
+		const FWornGear *Kit = Pool->GetWornGear(KitKey);
+		const FLoadoutSlot *KitSlot = Kit ? Kit->GetEntry(0) : nullptr;
+		if (TestTrue(TEXT("trial kit: the shield in the off hand"), KitSlot && KitSlot->OffHandID.IsValid()))
+		{
+			TestTrue(TEXT("trial kit: the shield is a kit piece"), Pool->IsClassDefault(KitSlot->OffHandID));
+		}
+	});
 }
 
 #endif
