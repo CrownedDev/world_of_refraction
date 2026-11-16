@@ -535,6 +535,19 @@ public:
     /** Debug: each character's skills, one line per character. */
     FString GetCharacterSkillsString() const;
 
+    // B-523 (D-224 (2), stage S3): a run's skills. At a trial start a kit member's hub list is kept aside and its list
+    // becomes the run's: the copies it keeps (innate spells: Q6) plus the kit's StartingSkills (Q9). Purchases, chests
+    // and teaches in the run learn into it as before. At the run's end the hub list comes back (CloseRun).
+    /** Keeps CharacterKey's hub list aside (once per run) and makes its list the run's: its own copies of Keep, then a
+     *  fresh copy of each of Starting. False when the character was never banked. Fires OnPoolSkillsChanged. */
+    bool BeginRunSkills(FName CharacterKey, const TArray<const UObject *> &Keep, const TArray<const UObject *> &Starting);
+    /** The hub lists kept aside by BeginRunSkills, by character. Saved with the pool (FSavedPool::RunStartSkills). */
+    const TMap<FName, FPoolSkills> &GetRunStartSkills() const { return RunStartSkills; }
+    /** Save restore. */
+    void RestoreRunStartSkills(const TMap<FName, FPoolSkills> &Saved) { RunStartSkills = Saved; }
+    /** Puts every kept hub list back (fires OnPoolSkillsChanged for each) and clears them. Returns how many. */
+    int32 PutBackRunStartSkills();
+
     UPROPERTY(BlueprintAssignable, Category = "Pool|Skills")
     FOnPoolSkillsChanged OnPoolSkillsChanged;
 
@@ -831,6 +844,10 @@ private:
     /** B-508: character key -> its worn-gear record as the run began (SnapshotRunStartGear). */
     UPROPERTY()
     TMap<FName, FWornGear> RunStartWornGear;
+
+    /** B-523: character key -> its hub skill list while a run uses its run list (BeginRunSkills). */
+    UPROPERTY()
+    TMap<FName, FPoolSkills> RunStartSkills;
 
     /** Every item held now, by kind: storage and every pouch. */
     TMap<FCrystalId, int32> CountHeldItems() const;

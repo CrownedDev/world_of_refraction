@@ -217,6 +217,46 @@ bool UPoolSubsystem::LearnSkillCopy(FName ToKey, const UObject *Skill)
     return bLearned;
 }
 
+bool UPoolSubsystem::BeginRunSkills(FName CharacterKey, const TArray<const UObject *> &Keep, const TArray<const UObject *> &Starting)
+{
+    FPoolSkills *Skills = CharacterSkills.Find(CharacterKey);
+    if (!Skills)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] Run skills: %s was never banked - it keeps what it learns"), *CharacterKey.ToString());
+        return false;
+    }
+    // A run left open (never closed) already holds the hub list: the run list now is not the hub's.
+    const FPoolSkills &Hub = RunStartSkills.Contains(CharacterKey) ? RunStartSkills[CharacterKey] : RunStartSkills.Add(CharacterKey, *Skills);
+    FPoolSkills Run;
+    Run.Spells = Hub.Spells.FilterByPredicate([&Keep](const FSpellInstance &I) { return Keep.Contains(I.Spell); });
+    Run.Abilities = Hub.Abilities.FilterByPredicate([&Keep](const FAbilityInstance &I) { return Keep.Contains(I.Ability); });
+    *Skills = Run;
+    for (const UObject *Skill : Starting)
+    {
+        LearnSkillCopy(CharacterKey, Skill); // false for one already kept (an innate bolt) or no room
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Run skills: %s starts the run with %d spell(s), %d ability(ies); %d starting skill(s) (D-224)"),
+           *CharacterKey.ToString(), Skills->Spells.Num(), Skills->Abilities.Num(), Starting.Num());
+    OnPoolSkillsChanged.Broadcast(CharacterKey);
+    return true;
+}
+
+int32 UPoolSubsystem::PutBackRunStartSkills()
+{
+    const TMap<FName, FPoolSkills> Hub = MoveTemp(RunStartSkills);
+    RunStartSkills.Reset();
+    for (const TPair<FName, FPoolSkills> &Pair : Hub)
+    {
+        CharacterSkills.Add(Pair.Key, Pair.Value);
+        OnPoolSkillsChanged.Broadcast(Pair.Key);
+    }
+    if (Hub.Num() > 0)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Pool] Run skills: %d hub skill list(s) back (D-224)"), Hub.Num());
+    }
+    return Hub.Num();
+}
+
 FString UPoolSubsystem::GetCharacterSkillsString() const
 {
     FString Out = FString::Printf(TEXT("=== Skills per character (%d) ==="), CharacterSkills.Num());
@@ -233,6 +273,11 @@ FString UPoolSubsystem::GetCharacterSkillsString() const
         }
         Out += FString::Printf(TEXT("\n  %s: %d spell(s), %d ability(ies): %s"), *Pair.Key.ToString(), Pair.Value.Spells.Num(),
                                Pair.Value.Abilities.Num(), *FString::Join(Names, TEXT(", ")));
+    }
+    for (const TPair<FName, FPoolSkills> &Pair : RunStartSkills) // B-523
+    {
+        Out += FString::Printf(TEXT("\n  %s's hub list, kept aside for the run: %d spell(s), %d ability(ies)"), *Pair.Key.ToString(),
+                               Pair.Value.Spells.Num(), Pair.Value.Abilities.Num());
     }
     return Out;
 }
