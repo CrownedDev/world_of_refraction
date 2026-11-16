@@ -172,7 +172,7 @@ void FPrebuiltFindSpec::Define()
 		TestEqual(TEXT("All Prisms spent"), Wallet->GetBalance(ECurrencyType::Prisms), 0);
 	});
 
-	It("D-231: a prebuilt refuses a second gem, takes a stone, and keeps its own crystal by default", [this]()
+	It("D-231: a prebuilt set fixed refuses a second gem, takes a stone, and keeps its own crystal", [this]()
 	{
 		const FRingInventoryEntry *Ring = GrantGemRing(false);
 		if (!TestNotNull(TEXT("Granted"), Ring)) return;
@@ -204,15 +204,29 @@ void FPrebuiltFindSpec::Define()
 		TestTrue(TEXT("Another gem goes in"), Inventory->AttachCrystalToRing(Inventory->Rings[0].PersistentID, PREBUILT_TEST_OTHER_GEM));
 	});
 
-	It("D-231: a prebuilt's evolution stays unless set removable", [this]()
+	It("D-231: a prebuilt's evolution stays when set fixed", [this]()
 	{
 		UPrebuiltFindData *Find = NewFind(NewObject<URingData>(GetTransientPackage()));
 		Find->Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		Find->bCrystalRemovable = false; // the opt-out
 		if (!TestTrue(TEXT("Given"), TrialLoot::GrantTo(Finder, Find))) return;
 		TestFalse(TEXT("Fixed: refused"), Inventory->RemoveEvolutionFromRing(Inventory->Rings[0].PersistentID));
 		TestTrue(TEXT("The evolution stays"), Inventory->Rings[0].AttachedItem.IsEvolution());
 		TestFalse(TEXT("Nor can it be dismantled out"), Inventory->RemoveEvolutionInstance(Inventory->Rings[0].AttachedItem.Evolution.InstanceID));
 		TestTrue(TEXT("Still there"), Inventory->Rings[0].AttachedItem.IsEvolution());
+	});
+
+	It("D-231: a removable prebuilt's evolution goes back to the owned evolutions, not destroyed", [this]()
+	{
+		UPrebuiltFindData *Find = NewFind(NewObject<URingData>(GetTransientPackage()));
+		Find->Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		TestTrue(TEXT("Removable by default (Crown)"), Find->bCrystalRemovable);
+		if (!TestTrue(TEXT("Given"), TrialLoot::GrantTo(Finder, Find)) || !TestEqual(TEXT("One evolution owned"), Evolutions->Entries.Num(), 1)) return;
+		const FGuid EvolutionID = Evolutions->Entries[0].InstanceID;
+		TestTrue(TEXT("Prebuilt, removable"), Inventory->Rings[0].bPrebuilt && Inventory->Rings[0].bCrystalRemovable);
+		TestTrue(TEXT("Taken out"), Inventory->RemoveEvolutionFromRing(Inventory->Rings[0].PersistentID));
+		TestTrue(TEXT("The socket empty"), Inventory->Rings[0].AttachedItem.IsEmpty());
+		TestTrue(TEXT("Still owned, the same one"), Evolutions->Entries.Num() == 1 && Evolutions->Entries[0].InstanceID == EvolutionID);
 	});
 
 	It("D-231: a ring the player built is unchanged", [this]()
