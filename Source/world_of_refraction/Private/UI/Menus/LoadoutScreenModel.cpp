@@ -13,6 +13,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/StatStone.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/GearSockets.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "HAL/IConsoleManager.h"
@@ -154,6 +155,7 @@ namespace LoadoutScreenBuild
 		Row.Tier = WoRGameNames::GetTierLetter(Gear.Tier);
 		Row.Sockets.Add(MakeSocket(Gear.AttachedItem, LOCTEXT("SocketCrystal", "Crystal")));
 		Row.Sockets.Add(MakeSocket(Gear.StoneSocket, LOCTEXT("SocketStone", "Stone")));
+		Row.bSocketsFixed = GearSockets::IsSocketFixed(Gear);
 		Row.Cost = FLoadoutRules::SlotCost(Slot);
 		Row.CostLine = FormatCostLine(Slot, Row.Cost);
 
@@ -881,6 +883,13 @@ FText WoRLoadoutScreen::GetTakeOffSocketWarning(const FLoadoutScreenRow &Row, in
 	if (!LoadoutScreenBuild::HasSocket(Row, Socket) || Row.Sockets[Socket].bEmpty)
 	{
 		OutRefusal = LOCTEXT("RefuseSocketEmpty", "Nothing in this socket.");
+		return FText::GetEmpty();
+	}
+	if (Row.bSocketsFixed) // D-231 (B-532)
+	{
+		OutRefusal = Socket == LoadoutScreenSockets::CRYSTAL
+						 ? LOCTEXT("RefuseFixedCrystal", "This prebuilt's crystal is built in: it can't be taken out.")
+						 : LOCTEXT("RefuseFixedStone", "The stone can't come off: it would take the built-in crystal with it.");
 		return FText::GetEmpty();
 	}
 	const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];

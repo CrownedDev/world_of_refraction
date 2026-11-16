@@ -135,9 +135,11 @@ namespace
 		return FGuid();
 	}
 
-	/** B-522: a gem into a just-minted piece's socket, at full durability. Type None leaves it empty. */
-	void SocketStartingCrystal(UPoolSubsystem &Pool, const FGuid &ID, const FCrystalId &Crystal)
+	/** B-522: a gem into a just-minted piece's socket, at full durability. Type None leaves it empty. D-231 (B-532): a
+	 *  piece handed out with its crystal is prebuilt, its crystal removable by the place's setting. */
+	void SocketStartingCrystal(UPoolSubsystem &Pool, const FGuid &ID, const FClassDefaultPiece &Place)
 	{
+		const FCrystalId &Crystal = Place.Crystal;
 		if (Crystal.Type == ECrystalType::None)
 		{
 			return;
@@ -154,12 +156,16 @@ namespace
 		{
 			FWeaponInventoryEntry Socketed = *Weapon;
 			Socketed.AttachedItem = Gem;
+			Socketed.bPrebuilt = true;
+			Socketed.bCrystalRemovable = Place.bCrystalRemovable;
 			Pool.UpdateWeapon(Socketed);
 		}
 		else if (const FRingInventoryEntry *Ring = Pool.FindRingInPool(ID))
 		{
 			FRingInventoryEntry Socketed = *Ring;
 			Socketed.AttachedItem = Gem;
+			Socketed.bPrebuilt = true;
+			Socketed.bCrystalRemovable = Place.bCrystalRemovable;
 			Pool.UpdateRing(Socketed);
 		}
 	}
@@ -300,7 +306,7 @@ TArray<FGuid> UPoolSubsystem::WearStartingGear(FName CharacterKey, const FClassD
 	for (const FClassDefaultPiece &Piece : Gear.Pieces)
 	{
 		const FGuid ID = MintKitPiece(*this, Piece.Piece, CharacterKey);
-		SocketStartingCrystal(*this, ID, Piece.Crystal);
+		SocketStartingCrystal(*this, ID, Piece);
 		IDs.Pieces.Add(ID);
 		IDs.OffHands.Add(MintKitPiece(*this, Piece.OffHand, CharacterKey));
 	}
