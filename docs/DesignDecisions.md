@@ -1245,6 +1245,7 @@ The queue of questions only Crown can answer.
 ### D-234 — An appearance mirror in the hub; the two base bodies are Male Nobody and Female Nobody; Enter picks on the quick strip
 **Status:** ANSWERED in part (Crown, 2026-11-16); two points open · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** (1) **Appearance mirror:** "like the shops, we should have an appearance mirror that will allow us to change our cosmetic": an object in the hub (a box for now, as the shops are) that opens the appearance screen. (2) **The first two entries** of the spirit list are **Male Nobody** and **Female Nobody**, "who would be Manny and Quinn" (Crown's names). (3) **Quick strip:** **Enter selects**; the "Click Pick" hint goes ("click is intuitive, people will just know"); the click still works.
+**Built (B-539, in dev, 2026-11-16):** point 3: Enter selects the lit piece on the quick strip; the hint says Enter Select; the click still picks.
 **Open (Crown):** whether the new-game screen keeps its body choice or the body is only changed at the mirror; whether this is the same mirror as the loadout presets' mirror (D-221) or a second one.
 
 ### D-233 — Every screen works with the mouse as well as keys and a pad
