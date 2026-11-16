@@ -13,7 +13,10 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "HAL/IConsoleManager.h"
+#include "Inventory/InventoryConstants.h"
 #include "Inventory/ItemTier.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Misc/Paths.h"
 
 namespace
@@ -70,6 +73,34 @@ namespace
         }
         Entry.Tier = Lowered;
         return true;
+    }
+
+    /** B-525 (D-224, D-219): settles one run skill list into the hub's. A run skill slotted at the end that the hub
+     *  doesn't know (a found one) joins it when bKeepsFound and there is room; the hub's copy of every slotted skill
+     *  (owned, or just kept) drops tier when bDropsTier. TInstance is FSpellInstance or FAbilityInstance. */
+    template <class TInstance, class TGetSkill>
+    void SettleRunSkillList(TArray<TInstance> &Hub, const TArray<TInstance> &Run, const TSet<const UObject *> &Slotted, bool bKeepsFound,
+                            bool bDropsTier, int32 Capacity, TGetSkill GetSkill, int32 &OutKept, int32 &OutLowered)
+    {
+        for (const TInstance &Instance : Run)
+        {
+            const UObject *Skill = GetSkill(Instance);
+            if (!Skill || !Slotted.Contains(Skill))
+            {
+                continue; // not slotted: goes back to the pool, as found gear left in the inventory
+            }
+            int32 Index = Hub.IndexOfByPredicate([&](const TInstance &I) { return GetSkill(I) == Skill; });
+            if (Index == INDEX_NONE)
+            {
+                if (!bKeepsFound || Hub.Num() >= Capacity)
+                {
+                    continue;
+                }
+                Index = Hub.Add(Instance);
+                ++OutKept;
+            }
+            OutLowered += bDropsTier && DropLostRunTier(Hub[Index]) ? 1 : 0;
+        }
     }
 
     /** The evolution instance in a socket, or an unset ID. */
@@ -402,6 +433,7 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
             ApplyLostRunTierDrop(Start.Key);
         }
     }
+    SettleRunSkills(Ending); // B-525: while the records are still what the party wears at the end
     // B-509 (D-219, D-221): every ending but a quit keeps the run's sockets; only a kept ending keeps worn found gear.
     TSet<FGuid> WornNow;
     if (bKept)
@@ -431,6 +463,48 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
         ++PutBack;
     }
     UE_LOG(LogTemp, Log, TEXT("[Pool] Run quit: %d worn-gear record(s) put back as the run found them (D-219)"), PutBack);
+}
+
+int32 UPoolSubsystem::SettleRunSkills(EPoolRunEnding Ending)
+{
+    const bool bKeepsFound = Ending != EPoolRunEnding::Quit;
+    const bool bDropsTier = Ending != EPoolRunEnding::Kept;
+    int32 Kept = 0;
+    int32 Lowered = 0;
+    for (TPair<FName, FPoolSkills> &Pair : RunStartSkills)
+    {
+        const FPoolSkills *Run = CharacterSkills.Find(Pair.Key);
+        const FWornGear *Worn = WornGear.Find(Pair.Key);
+        if (!Run || !Worn)
+        {
+            continue;
+        }
+        // Slotted: a pick in a slot of a worn entry (B-517), of a skill in the run list. Innate, Broken Darkness and
+        // evolution spells in their own places are not gear picks; one also picked into a gear slot is (Q-525).
+        TSet<const UObject *> Slotted;
+        for (const FLoadoutSlot &Slot : Worn->Equipment)
+        {
+            for (const UAbilityData *Ability : Slot.AssignedAbilities)
+            {
+                Slotted.Add(Ability);
+            }
+            for (const USpellData *Spell : Slot.SpellOverrides)
+            {
+                Slotted.Add(Spell);
+            }
+        }
+        Slotted.Remove(nullptr);
+        SettleRunSkillList(Pair.Value.Spells, Run->Spells, Slotted, bKeepsFound, bDropsTier, InventoryConstants::MAX_LEARNED_SPELLS,
+                           [](const FSpellInstance &I) -> const UObject * { return I.Spell; }, Kept, Lowered);
+        SettleRunSkillList(Pair.Value.Abilities, Run->Abilities, Slotted, bKeepsFound, bDropsTier, InventoryConstants::MAX_LEARNED_ABILITIES,
+                           [](const FAbilityInstance &I) -> const UObject * { return I.Ability; }, Kept, Lowered);
+    }
+    if (!RunStartSkills.IsEmpty())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Pool] Run skills settled (D-224): %d slotted found skill(s) kept, %d slotted skill(s) drop %d tier(s)"),
+               Kept, Lowered, GearTierLoss::RANKS_LOST_ON_LOST_RUN);
+    }
+    return Kept;
 }
 
 int32 UPoolSubsystem::ApplyLostRunTierDrop(FName CharacterKey)

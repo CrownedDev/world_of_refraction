@@ -653,6 +653,13 @@ public:
      *  even below its asset's tier. Returns how many pieces dropped. */
     int32 ApplyLostRunTierDrop(FName CharacterKey);
 
+    /** B-525 (D-224, D-219): settles each run skill list into its kept-aside hub list, before the hub lists come back
+     *  (CloseRun, then EndRunLayer). Slotted means a pick in a slot of a worn entry at the end. A slotted found skill
+     *  (one the hub doesn't know) joins the hub list on every ending but a quit; on a lost run or a quit the hub's
+     *  copy of every slotted skill drops GearTierLoss::RANKS_LOST_ON_LOST_RUN, never below F. Unslotted run skills go
+     *  back. Returns how many found skills were kept. */
+    int32 SettleRunSkills(EPoolRunEnding Ending);
+
     /** B-439b (Q-439 point 2, D-176): how many of each item the party held (every pouch and storage) when the run
      *  began. Starting items banked during the run count as held from the start (D-097). Saved with the run. */
     const TMap<FCrystalId, int32> &GetRunStartItems() const { return RunStartItems; }

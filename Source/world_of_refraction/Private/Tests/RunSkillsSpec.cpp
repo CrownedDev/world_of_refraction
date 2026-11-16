@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Kismet/GameplayStatics.h"
+#include "Loadout/WornGear.h"
 #include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveGame.h"
@@ -17,6 +18,8 @@
 namespace
 {
 	const FName RUN_SKILLS_KEY(TEXT("RunSkillsTester"));
+	constexpr EItemTier RUN_SKILLS_START_TIER = EItemTier::S_Tier;
+	constexpr EItemTier RUN_SKILLS_DROPPED_TIER = EItemTier::C_Tier; // S less 3
 }
 
 BEGIN_DEFINE_SPEC(FRunSkillsSpec, "WoR.Run.Skills", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -38,9 +41,42 @@ BEGIN_DEFINE_SPEC(FRunSkillsSpec, "WoR.Run.Skills", EAutomationTestFlags_Applica
 	/** The hub knows its innate spell, a learned spell and a learned ability; then the trial starts. */
 	void StartRun()
 	{
-		Pool->BankSkills(RUN_SKILLS_KEY, {FSpellInstance(Innate), FSpellInstance(HubSpell)}, {FAbilityInstance(HubAbility)});
+		const auto Owned = [](auto Instance, EItemTier Tier) { Instance.Tier = Tier; return Instance; }; // as learned: the asset's tier
+		Pool->BankSkills(RUN_SKILLS_KEY, {Owned(FSpellInstance(Innate), Innate->Tier), Owned(FSpellInstance(HubSpell), HubSpell->Tier)},
+		                 {Owned(FAbilityInstance(HubAbility), HubAbility->Tier)});
 		Pool->BeginRunLayer();
 		Pool->BeginRunSkills(RUN_SKILLS_KEY, {Innate}, {Bolt});
+	}
+
+	/** B-525: the run buys Bought and HubSpell (back) and slots both in a worn adapter entry; the bolt stays unslotted. */
+	void StartRunAndSlot()
+	{
+		for (USpellData *Spell : {Innate, HubSpell, Bought})
+		{
+			Spell->Tier = RUN_SKILLS_START_TIER;
+		}
+		HubAbility->Tier = RUN_SKILLS_START_TIER;
+		StartRun();
+		Pool->LearnSkillCopy(RUN_SKILLS_KEY, Bought);
+		Pool->LearnSkillCopy(RUN_SKILLS_KEY, HubSpell);
+		FWornGear Worn;
+		FLoadoutSlot &Entry = Worn.Equipment.AddDefaulted_GetRef();
+		Entry.SpellOverrides = {HubSpell, Bought};
+		Pool->SetWornGear(RUN_SKILLS_KEY, Worn);
+	}
+
+	EItemTier SpellTier(const USpellData *Spell) const
+	{
+		const FPoolSkills *Skills = Pool->FindSkills(RUN_SKILLS_KEY);
+		const FSpellInstance *Found = Skills ? Skills->Spells.FindByPredicate([Spell](const FSpellInstance &I) { return I.Spell == Spell; }) : nullptr;
+		return Found ? Found->Tier : EItemTier::F_Tier; // never a case's expected tier
+	}
+
+	EItemTier AbilityTier(const UAbilityData *Ability) const
+	{
+		const FPoolSkills *Skills = Pool->FindSkills(RUN_SKILLS_KEY);
+		const FAbilityInstance *Found = Skills ? Skills->Abilities.FindByPredicate([Ability](const FAbilityInstance &I) { return I.Ability == Ability; }) : nullptr;
+		return Found ? Found->Tier : EItemTier::F_Tier; // never a case's expected tier
 	}
 END_DEFINE_SPEC(FRunSkillsSpec)
 
@@ -100,6 +136,40 @@ void FRunSkillsSpec::Define()
 		Pool->BeginRunSkills(RUN_SKILLS_KEY, {Innate}, {Bolt}); // the run list now is not the hub's
 		Pool->EndRunLayer();
 		TestTrue(TEXT("the hub spell is back"), Pool->KnowsSpell(RUN_SKILLS_KEY, HubSpell));
+	});
+
+	// B-525: the settle at the end. The run buys Bought (a found skill, S) and HubSpell back (owned, S in the hub),
+	// slots both, and leaves the bolt unslotted.
+	It("keeps a slotted found skill on an extract, at its tier, and sends an unslotted one back", [this]()
+	{
+		if (!TestNotNull(TEXT("Pool"), Pool)) return;
+		StartRunAndSlot();
+		Pool->CloseRun(EPoolRunEnding::Kept);
+		TestTrue(TEXT("the slotted found skill joins the hub"), Pool->KnowsSpell(RUN_SKILLS_KEY, Bought));
+		TestFalse(TEXT("the unslotted bolt goes back"), Pool->KnowsSpell(RUN_SKILLS_KEY, Bolt));
+		TestEqual(TEXT("it keeps its tier"), SpellTier(Bought), RUN_SKILLS_START_TIER);
+		TestEqual(TEXT("the owned one too"), SpellTier(HubSpell), RUN_SKILLS_START_TIER);
+	});
+
+	It("keeps a slotted found skill out of wipes, and every slotted skill drops 3 tiers", [this]()
+	{
+		if (!TestNotNull(TEXT("Pool"), Pool)) return;
+		StartRunAndSlot();
+		Pool->CloseRun(EPoolRunEnding::Lost);
+		TestTrue(TEXT("the slotted found skill joins the hub"), Pool->KnowsSpell(RUN_SKILLS_KEY, Bought));
+		TestEqual(TEXT("the found one: S to C"), SpellTier(Bought), RUN_SKILLS_DROPPED_TIER);
+		TestEqual(TEXT("the owned one: S to C"), SpellTier(HubSpell), RUN_SKILLS_DROPPED_TIER);
+		TestEqual(TEXT("an unslotted owned one keeps S"), AbilityTier(HubAbility), RUN_SKILLS_START_TIER);
+		TestEqual(TEXT("the innate spell is not a gear pick: kept as it was"), SpellTier(Innate), RUN_SKILLS_START_TIER);
+	});
+
+	It("drops found skills on a quit, and the owned slotted ones drop 3 tiers", [this]()
+	{
+		if (!TestNotNull(TEXT("Pool"), Pool)) return;
+		StartRunAndSlot();
+		Pool->CloseRun(EPoolRunEnding::Quit);
+		TestFalse(TEXT("the found skill is lost"), Pool->KnowsSpell(RUN_SKILLS_KEY, Bought));
+		TestEqual(TEXT("the owned slotted one: S to C"), SpellTier(HubSpell), RUN_SKILLS_DROPPED_TIER);
 	});
 
 	It("keeps the hub list aside through a save round trip", [this]()
