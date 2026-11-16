@@ -57,7 +57,7 @@ void FEvolutionSecondarySpec::Define()
 		Sword->WeaponStance = NewObject<UStanceData>(GetTransientPackage());
 		Active.SecondaryWeapon.WeaponEntry.Weapon = Sword;
 		SwordAbility = NewObject<UAbilityData>(GetTransientPackage());
-		Active.SecondaryWeapon.AssignedAbilities = {SwordAbility};
+		Active.SecondaryWeapon.ReplaceSkill(0, SwordAbility); // B-518: a pick, not the old override
 	});
 
 	AfterEach([this]()

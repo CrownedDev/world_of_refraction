@@ -110,7 +110,7 @@ BEGIN_DEFINE_SPEC(FInfusionSameElementStackSpec, "WoR.Infusion.SameElementStack"
 		Active().PrimarySlotType = EPrimarySlotType::Ring;
 		Active().PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
 		Active().PrimaryRing.RingEntry.AttachedItem = StackTestGem(Gem, STACK_TEST_INTACT);
-		Active().PrimaryRing.RingEntry.AssignedSpells = {Spell};
+		Active().PrimaryRing.RingEntry.SpellPicks = {Spell}; // B-518: the ring's spells are its picks
 	}
 
 	/** The primary slot holds an evolution of CrystalType (its element). */

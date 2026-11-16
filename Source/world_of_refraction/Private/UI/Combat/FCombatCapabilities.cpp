@@ -57,8 +57,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                ActiveWeapon->WeaponEntry.HasCrystal());
         Out.bCanAttack = true;
         Out.ActiveWeaponName = ActiveWeapon->WeaponEntry.Weapon->Name;
-        // B-351 (D-145): the weapon's one skill-slot list (built-ins and picks), or the pre-D-145
-        // lists until the player first edits it.
+        // B-518 (D-224): the weapon's one skill-slot list, the worn entry's picks.
         Out.WeaponAbilities = ActiveWeapon->GetSkillSlotAbilities();
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
 
@@ -68,8 +67,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         if (WeaponSpellRules::WeaponsGiveSpells() && ActiveWeapon->WeaponEntry.AttachedItem.IsSpellSource())
         {
             // B-351d desktop review: once the crystal's one list is edited, it is what combat offers.
-            Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.bSpellSlotsActive ? ActiveWeapon->GetAllSpells()
-                                                                                 : ActiveWeapon->WeaponEntry.AssignedSpells;
+            Out.WeaponCrystalSpells = ActiveWeapon->GetAllSpells(); // B-518: the one list
             Out.bHasWeaponCrystal = true;
             Out.WeaponCrystalColor = GetElementColorFn(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
@@ -145,8 +143,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
             if (PrimaryRing->RingEntry.AttachedItem.IsSpellSource())
             {
-                Out.RingSpells = PrimaryRing->RingEntry.bSpellSlotsActive ? PrimaryRing->GetAllSpells(/*bAsIfIntact=*/true) // B-351d
-                                                                          : PrimaryRing->RingEntry.AssignedSpells;
+                Out.RingSpells = PrimaryRing->GetAllSpells(/*bAsIfIntact=*/true); // B-518: the one list
             }
             Out.bRingHasBreakChance = !PrimaryRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
@@ -179,8 +176,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             // D-083: a broken crystal's spells stay listed; only F-tier ones stay usable.
             if (ActiveRing->RingEntry.AttachedItem.IsSpellSource())
             {
-                Out.RingSpells = ActiveRing->RingEntry.bSpellSlotsActive ? ActiveRing->GetAllSpells(/*bAsIfIntact=*/true) // B-351d
-                                                                         : ActiveRing->RingEntry.AssignedSpells;
+                Out.RingSpells = ActiveRing->GetAllSpells(/*bAsIfIntact=*/true); // B-518: the one list
             }
             Out.bRingHasBreakChance = !ActiveRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(

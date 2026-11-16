@@ -282,25 +282,13 @@ namespace LoadoutV2Build
 		}
 	}
 
-	/** A weapon entry's lines (one weapon, or a pair): the pieces, the built-ins, the sockets, the skill slots. */
+	/** A weapon entry's lines (one weapon, or a pair): the pieces, the sockets, the skill slots. */
 	void AddWeaponSet(TArray<FLoadoutV2DetailLine> &Lines, const FWeaponLoadoutEntry &Set, bool bSimple)
 	{
 		AddWeaponPiece(Lines, Set.WeaponEntry, bSimple);
 		if (Set.HasOffHand())
 		{
 			AddWeaponPiece(Lines, Set.OffHandEntry, bSimple);
-		}
-		if (!bSimple)
-		{
-			TArray<FText> BuiltIns;
-			for (const UAbilityData *Ability : WeaponSetRules::GetSetBuiltIns(Set))
-			{
-				if (Ability)
-				{
-					BuiltIns.Add(FText::FromString(Ability->Name));
-				}
-			}
-			AddLine(Lines, ELoadoutV2DetailKind::Stat, LOCTEXT("DetailBuiltIns", "Built-in"), FText::Join(LOCTEXT("NameSeparator", ", "), BuiltIns));
 		}
 		AddSockets(Lines, Set.WeaponEntry.AttachedItem, Set.WeaponEntry.StoneSocket);
 		AddLine(Lines, ELoadoutV2DetailKind::SkillSlots, LOCTEXT("DetailSkillSlots", "Skill slots"), FText::AsNumber(Set.GetSkillSlotCount()));
@@ -683,22 +671,7 @@ FLoadoutV2Compare WoRLoadoutV2::BuildCompare(const FWeaponInventoryEntry &Equipp
 	Compare.EquippedPower = Equipped.Weapon ? Equipped.Weapon->Power : 0;
 	Compare.SelectedPower = Selected.Weapon ? Selected.Weapon->Power : 0;
 	Compare.CellsChange = 0; // D-206: a weapon itself is free; the sockets stay with the entry
-	const TArray<UAbilityData *> Before = Equipped.Weapon ? Equipped.Weapon->PresetAbilities : TArray<UAbilityData *>();
-	const TArray<UAbilityData *> After = Selected.Weapon ? Selected.Weapon->PresetAbilities : TArray<UAbilityData *>();
-	for (const UAbilityData *Ability : After)
-	{
-		if (Ability && !Before.Contains(Ability))
-		{
-			Compare.BuiltInsGained.Add(FText::FromString(Ability->Name));
-		}
-	}
-	for (const UAbilityData *Ability : Before)
-	{
-		if (Ability && !After.Contains(Ability))
-		{
-			Compare.BuiltInsLost.Add(FText::FromString(Ability->Name));
-		}
-	}
+	// B-518 (D-224): no built-ins to gain or lose (BuiltInsGained / BuiltInsLost are OBSOLETE, deleted in stage 6).
 	return Compare;
 }
 

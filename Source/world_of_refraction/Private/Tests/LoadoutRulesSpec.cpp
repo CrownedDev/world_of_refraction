@@ -189,8 +189,8 @@ void FLoadoutRulesSpec::Define()
 			Ring.RingEntry.AttachedItem = Attached;
 			for (int32 i = 0; i < LoadoutConstants::MAX_SPELL_SLOTS; ++i)
 			{
-				Weapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
-				Ring.RingEntry.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+				Weapon.WeaponEntry.SpellPicks.Add(NewSpell(ESpellElement::Fire)); // B-518: the lists are the picks
+				Ring.RingEntry.SpellPicks.Add(NewSpell(ESpellElement::Fire));
 			}
 
 			WeaponSpellRules::FScopedWeaponSpells OldWeaponSpells(true); // B-098: the old weapon-spell path, until the sweep
@@ -340,57 +340,28 @@ void FLoadoutRulesSpec::Define()
 		};
 		const int32 FCount = CrystalEffectTable::SlotsForContainerTier(EItemTier::F_Tier);
 
-		It("reports each weapon spell over the cap, none at the cap", [this, FEvolution, CountOverCap, FCount]()
+		It("never reports a spell over the cap: the one list holds only its slots (B-518)", [this, FEvolution, CountOverCap, FCount]()
 		{
+			WeaponSpellRules::FScopedWeaponSpells OldWeaponSpells(true); // B-098: the old weapon-spell path, until the sweep
 			FCombatLoadout Loadout;
 			Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
 			Loadout.PrimaryWeapon.WeaponEntry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			Loadout.PrimaryWeapon.WeaponEntry.Tier = EItemTier::S_Tier;
 			Loadout.PrimaryWeapon.WeaponEntry.AttachedItem = FEvolution();
-			for (int32 i = 0; i < FCount; ++i)
+			FCombatLoadout RingLoadout;
+			RingLoadout.PrimarySlotType = EPrimarySlotType::Ring;
+			RingLoadout.PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
+			RingLoadout.PrimaryRing.RingEntry.Tier = EItemTier::S_Tier;
+			RingLoadout.PrimaryRing.RingEntry.AttachedItem = FEvolution();
+			for (int32 i = 0; i < LoadoutConstants::MAX_SPELL_SLOTS; ++i)
 			{
-				Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
+				Loadout.PrimaryWeapon.WeaponEntry.SpellPicks.Add(NewSpell(ESpellElement::Fire));
+				RingLoadout.PrimaryRing.RingEntry.SpellPicks.Add(NewSpell(ESpellElement::Fire));
 			}
-			TestEqual(TEXT("at the cap: no finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
-			for (int32 i = FCount; i < LoadoutConstants::MAX_SPELL_SLOTS; ++i)
-			{
-				Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
-			}
-			TestEqual(TEXT("one finding per spell the fight drops"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell),
-					  LoadoutConstants::MAX_SPELL_SLOTS - FCount);
-		});
-
-		It("doesn't flag a loadout spell that only replaces one of the item's own (the fight keeps it)", [this, FEvolution, CountOverCap, FCount]()
-		{
-			FCombatLoadout Loadout;
-			Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
-			FWeaponInventoryEntry &Entry = Loadout.PrimaryWeapon.WeaponEntry;
-			Entry.Weapon = NewObject<UWeaponData>(GetTransientPackage());
-			Entry.Tier = EItemTier::S_Tier;
-			Entry.AttachedItem = FEvolution();
-			for (int32 i = 0; i <= FCount; ++i)
-			{
-				Entry.AssignedSpells.Add(NewSpell(ESpellElement::Fire)); // the item's own: one over the cap
-			}
-			Loadout.PrimaryWeapon.AssignedSpells.Add(NewSpell(ESpellElement::Fire)); // replaces the first
-			TestEqual(TEXT("no clearable finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
-			const TArray<FString> Reasons = FLoadoutRules::ToReasons(FLoadoutRules::CollectFindings(Loadout, FLoadoutRuleContext()));
-			TestTrue(TEXT("the item's own spells are reported"), AnyReasonContains(Reasons, TEXT("of the item's own spells")));
-		});
-
-		It("reports each primary ring spell over the cap", [this, FEvolution, CountOverCap, FCount]()
-		{
-			FCombatLoadout Loadout;
-			Loadout.PrimarySlotType = EPrimarySlotType::Ring;
-			Loadout.PrimaryRing.RingEntry.Ring = NewObject<URingData>(GetTransientPackage());
-			Loadout.PrimaryRing.RingEntry.Tier = EItemTier::S_Tier;
-			Loadout.PrimaryRing.RingEntry.AttachedItem = FEvolution();
-			for (int32 i = 0; i < LoadoutConstants::MAX_RING_SPELLS; ++i)
-			{
-				Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(NewSpell(ESpellElement::Fire));
-			}
-			TestEqual(TEXT("one finding per spell the fight drops"), CountOverCap(Loadout, ELoadoutSlotType::RingSpell),
-					  LoadoutConstants::MAX_RING_SPELLS - FCount);
+			TestEqual(TEXT("the weapon lists the evolution's count"), Loadout.PrimaryWeapon.GetAllSpells().Num(), FCount);
+			TestEqual(TEXT("the ring lists the evolution's count"), RingLoadout.PrimaryRing.GetAllSpells().Num(), FCount);
+			TestEqual(TEXT("no weapon finding"), CountOverCap(Loadout, ELoadoutSlotType::WeaponSpell), 0);
+			TestEqual(TEXT("no ring finding"), CountOverCap(RingLoadout, ELoadoutSlotType::RingSpell), 0);
 		});
 	});
 

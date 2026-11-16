@@ -3,6 +3,11 @@
 
 #include "Loadout/WornGear.h"
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/WeaponSetRules.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
+#include "Skills/Definitions/ElementHelpers.h"
 #include "Inventory/InventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Apparel/ApparelData.h"
@@ -49,6 +54,62 @@ void FCombatLoadout::ApplyEntryPicks(const TArray<FLoadoutSlot> &Entries)
 	for (FRingLoadoutEntry &Ring : RingLoadout)
 	{
 		ApplyRing(Ring.RingEntry);
+	}
+}
+
+void FCombatLoadout::FillEmptyPicksFromKnown(const TArray<UAbilityData *> &KnownAbilities, const TArray<USpellData *> &KnownSpells)
+{
+	// TODO: (Q-518) remove in stage 5, when enemies carry their own skills.
+	const auto HasPick = [](const auto &Picks) { return Picks.ContainsByPredicate([](const auto *Pick) { return Pick != nullptr; }); };
+	for (FWeaponLoadoutEntry *Weapon : {&PrimaryWeapon, &SecondaryWeapon})
+	{
+		FWeaponInventoryEntry &Piece = Weapon->WeaponEntry;
+		if (!Piece.Weapon || HasPick(Piece.SkillPicks))
+		{
+			continue;
+		}
+		Piece.SkillPicks.Reset();
+		const EWeaponWieldMode WieldMode = WeaponSetRules::GetSetWieldMode(*Weapon);
+		for (UAbilityData *Ability : KnownAbilities)
+		{
+			const int32 Slot = Piece.SkillPicks.Num();
+			if (Slot >= Weapon->GetSkillSlotCount())
+			{
+				break;
+			}
+			if (Ability && !Ability->IsAttack() && Ability->RequiredWeaponType == Piece.Weapon->WeaponType && Ability->AllowsWieldMode(WieldMode) &&
+				Weapon->CanHoldSkill(Slot, Ability))
+			{
+				Piece.SkillPicks.Add(Ability);
+			}
+		}
+		Piece.bSkillSlotsActive = !Piece.SkillPicks.IsEmpty();
+	}
+	const auto FillRing = [this, &HasPick, &KnownSpells](FRingLoadoutEntry &Ring)
+	{
+		FRingInventoryEntry &Piece = Ring.RingEntry;
+		if (!Ring.IsValid() || !Piece.AttachedItem.IsSpellSource() || HasPick(Piece.SpellPicks))
+		{
+			return;
+		}
+		Piece.SpellPicks.Reset();
+		for (USpellData *Spell : KnownSpells)
+		{
+			if (Piece.SpellPicks.Num() >= Ring.GetSpellSlotCap())
+			{
+				break;
+			}
+			if (Spell && ElementHelpers::SpellElementMatchesHost(Spell->Element, Piece.GetElement()) && !InnateSpells.Contains(Spell))
+			{
+				Piece.SpellPicks.Add(Spell);
+			}
+		}
+		Piece.bSpellSlotsActive = !Piece.SpellPicks.IsEmpty();
+	};
+	FillRing(PrimaryRing);
+	for (FRingLoadoutEntry &Ring : RingLoadout)
+	{
+		FillRing(Ring);
 	}
 }
 

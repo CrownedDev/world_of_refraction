@@ -168,7 +168,7 @@ void FLoadoutV2ModelSpec::Define()
 		}
 	});
 
-	It("compares built-ins gained and lost", [this]()
+	It("compares no built-ins: gear has none (B-518, D-224)", [this]()
 	{
 		FWeaponInventoryEntry Equipped = LoadoutV2TestWeapon(TEXT("Cinder Edge"), EWeaponType::Sword);
 		FWeaponInventoryEntry Selected = LoadoutV2TestWeapon(TEXT("Frost Fang"), EWeaponType::Sword);
@@ -178,8 +178,8 @@ void FLoadoutV2ModelSpec::Define()
 		Equipped.Weapon->PresetAbilities = {Shared, Burn};
 		Selected.Weapon->PresetAbilities = {Shared, Chill};
 		const FLoadoutV2Compare Compare = WoRLoadoutV2::BuildCompare(Equipped, Selected);
-		TestEqual(TEXT("one gained"), Compare.BuiltInsGained.Num(), 1);
-		TestEqual(TEXT("one lost"), Compare.BuiltInsLost.Num(), 1);
+		TestEqual(TEXT("none gained"), Compare.BuiltInsGained.Num(), 0);
+		TestEqual(TEXT("none lost"), Compare.BuiltInsLost.Num(), 0);
 		TestEqual(TEXT("weapons cost no cells"), Compare.CellsChange, 0);
 	});
 
@@ -346,7 +346,7 @@ void FLoadoutV2ModelSpec::Define()
 		TestEqual(TEXT("one entry left"), WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries.Num(), 1);
 	});
 
-	It("builds the details box: the piece, its stats, sockets and skill slots; the simple view drops the built-ins (B-476c)", [this]()
+	It("builds the details box: the piece, its stats, sockets and skill slots, and no built-ins (B-476c, B-518)", [this]()
 	{
 		FCombatLoadout Loadout;
 		FText Refusal;
@@ -366,8 +366,9 @@ void FLoadoutV2ModelSpec::Define()
 		TestEqual(TEXT("two sockets"), Count(Full, ELoadoutV2DetailKind::Socket), 2);
 		TestEqual(TEXT("the skill slots"), Count(Full, ELoadoutV2DetailKind::SkillSlots), 1);
 		TestTrue(TEXT("power shown"), Full.ContainsByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Value.ToString() == TEXT("50"); }));
+		TestFalse(TEXT("no Built-in line"), Full.ContainsByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Label.ToString() == TEXT("Built-in"); }));
 		const TArray<FLoadoutV2DetailLine> Simple = WoRLoadoutV2::BuildEntryDetails(Loadout, Entry, true);
-		TestTrue(TEXT("the simple view is shorter"), Simple.Num() < Full.Num());
+		TestTrue(TEXT("the simple view is no longer"), Simple.Num() <= Full.Num());
 	});
 
 	It("gives one piece's own details for the Add gear window's box: a weapon, a crystal, nothing for nothing (B-484)", [this]()
@@ -375,7 +376,7 @@ void FLoadoutV2ModelSpec::Define()
 		constexpr int32 PIECE_TEST_DURABILITY = 5;
 		FWeaponInventoryEntry Maul = LoadoutV2TestWeapon(TEXT("Quarry Maul"), EWeaponType::Hammer);
 		Maul.Weapon->Power = 50;
-		Maul.Weapon->PresetAbilities = {NewObject<UAbilityData>(GetTransientPackage())}; // a built-in: the full view lists it
+		Maul.Weapon->PresetAbilities = {NewObject<UAbilityData>(GetTransientPackage())}; // B-518: a built-in no view lists
 		Maul.AttachedItem.Kind = EAttachedItemKind::Crystal;
 		Maul.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), PIECE_TEST_DURABILITY);
 		const auto Count = [](const TArray<FLoadoutV2DetailLine> &Lines, ELoadoutV2DetailKind Kind)
@@ -388,7 +389,7 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("its power"), Weapon.ContainsByPredicate([](const FLoadoutV2DetailLine &Line) { return Line.Value.ToString() == TEXT("50"); }));
 		TestEqual(TEXT("its own two sockets"), Count(Weapon, ELoadoutV2DetailKind::Socket), 2);
 		TestEqual(TEXT("its skill slots"), Count(Weapon, ELoadoutV2DetailKind::SkillSlots), 1);
-		TestTrue(TEXT("the weapon's simple view is shorter"), WoRLoadoutV2::BuildWeaponDetails(Maul, true).Num() < Weapon.Num());
+		TestTrue(TEXT("the weapon's simple view is no longer"), WoRLoadoutV2::BuildWeaponDetails(Maul, true).Num() <= Weapon.Num());
 
 		// The same weapon as a one-weapon entry reads the same in the Weapons tab's box.
 		FCombatLoadout Loadout;

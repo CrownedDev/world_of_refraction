@@ -278,18 +278,8 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(UWorld *World, 
 	{
 		Spells.Add(Instance.Spell);
 	}
-	TArray<UAbilityData *> BuiltIns;
-	FWeaponLoadoutEntry *Weapon = nullptr;
-	FRingLoadoutEntry *Adapter = nullptr;
-	WoRLoadoutScreen::FindRowGear(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], Page.Tabs[Tab].Gear, Weapon, Adapter);
-	if (Weapon && Weapon->WeaponEntry.Weapon)
-	{
-		for (UAbilityData *Ability : Weapon->WeaponEntry.Weapon->PresetAbilities)
-		{
-			BuiltIns.Add(Ability);
-		}
-	}
-	return BuildSkillChoices(Page, Tab, Row, Abilities, Spells, BuiltIns);
+	// B-518 (D-224): only the known skills are offered; gear has no built-ins.
+	return BuildSkillChoices(Page, Tab, Row, Abilities, Spells, TArray<UAbilityData *>());
 }
 
 bool WoRLoadoutSkills::PutSkill(FCombatLoadout &Loadout, const FLoadoutSkillTab &Tab, const FLoadoutScreenRow &Row, USkillDataBase *Skill, FText &OutRefusal)
