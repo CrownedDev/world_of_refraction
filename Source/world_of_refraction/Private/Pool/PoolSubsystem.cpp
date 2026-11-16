@@ -1081,7 +1081,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
     }
 
     // ---------- Weapons ----------
-    // Reuse the SAME factory the run uses: CreateFromWeapon copies the default crystal into
+    // The old authored layout's factory (B-521): CreateFromAuthoredWeapon copies the baked crystal into
     // AttachedItem + seeds Tier/Quality; the acquisition mint adds a fresh PersistentID (the factory
     // deliberately leaves it invalid). NO pickup roll — authored banking is deterministic (the
     // toggle-off path keeps the factory's C_Quality placeholder).
@@ -1091,7 +1091,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
+        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromAuthoredWeapon(Weapon); // B-521: the old authored layout
         Entry.PersistentID = FGuid::NewGuid();
         AddWeaponToPool(Entry);
     }
@@ -1103,7 +1103,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
         {
             continue;
         }
-        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
+        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromAuthoredRing(Ring);
         Entry.PersistentID = FGuid::NewGuid();
         AddRingToPool(Entry);
     }

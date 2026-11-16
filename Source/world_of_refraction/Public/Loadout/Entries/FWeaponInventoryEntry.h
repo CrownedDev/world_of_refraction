@@ -142,8 +142,12 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     // ==================== FACTORY ====================
 
-    /** Create entry from WeaponData — always copies the template's default crystal + DefaultSpells. */
+    /** A new piece from WeaponData, its socket empty (B-521, D-224). */
     static FWeaponInventoryEntry CreateFromWeapon(UWeaponData *InWeapon);
+
+    /** OBSOLETE (B-521, D-224; delete in asset overhaul stage 6 with the asset's AttachedItem): CreateFromWeapon plus the
+     *  asset's baked crystal, for the old authored layout only (an inventory asset's Weapons, an authored loadout). */
+    static FWeaponInventoryEntry CreateFromAuthoredWeapon(UWeaponData *InWeapon);
 
     // ==================== STATE QUERIES ====================
 

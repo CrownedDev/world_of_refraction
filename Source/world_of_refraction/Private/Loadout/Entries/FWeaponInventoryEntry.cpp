@@ -14,12 +14,9 @@ namespace
     static std::atomic<int32> GWeaponInstanceCounter{1};
 }
 
-FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWeapon)
+FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromAuthoredWeapon(UWeaponData *InWeapon)
 {
-    FWeaponInventoryEntry Entry;
-    Entry.Weapon = InWeapon;
-    Entry.InstanceID = GWeaponInstanceCounter.fetch_add(1);
-
+    FWeaponInventoryEntry Entry = CreateFromWeapon(InWeapon);
     if (InWeapon && InWeapon->HasCrystal())
     {
         Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InWeapon->AttachedItem);
@@ -27,6 +24,16 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
         // TODO: (B-518, D-224) stage 6 stops this copy: the list is OBSOLETE and no longer plays (the picks are the list).
         Entry.AssignedSpells = InWeapon->DefaultSpells;
     }
+    return Entry;
+}
+
+FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWeapon)
+{
+    FWeaponInventoryEntry Entry;
+    Entry.Weapon = InWeapon;
+    Entry.InstanceID = GWeaponInstanceCounter.fetch_add(1);
+    // B-521 (D-224, asset overhaul stage 3): a new piece starts empty; the asset's baked crystal is read only by
+    // CreateFromAuthoredWeapon, for the old authored layout.
 
     if (InWeapon)
     {

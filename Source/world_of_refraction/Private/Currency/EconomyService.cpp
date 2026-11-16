@@ -901,44 +901,6 @@ bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
 
 // ==================== PURCHASE (spend-side) ====================
 
-namespace
-{
-    /** Prisms surcharge for whatever is authored in the equipment's attachment slot
-     *  (3j): crystal / augment stone → its tier base; evolution → 2× the evolution's
-     *  tier base (premium attachment); fusion → 1.5× the summed half bases. */
-    int32 AttachmentPrisms(const UEquipmentDataBase *Eq)
-    {
-        if (!Eq->HasCrystal())
-        {
-            return 0;
-        }
-        const FAttachedItem &Attached = Eq->AttachedItem;
-        switch (Attached.Kind)
-        {
-        case EAttachedItemKind::Crystal:
-        case EAttachedItemKind::AugmentStone:
-            return EconomyYield::GetPrismsBaseForTier(Attached.CrystalTier);
-        case EAttachedItemKind::Evolution:
-            // Null-guarded: a mis-authored Evolution slot with no asset prices at 0
-            // (IsDataValid flags it upstream).
-            return Attached.Evolution ? 2 * EconomyYield::GetPrismsBaseForTier(Attached.Evolution->Tier) : 0;
-        case EAttachedItemKind::Fusion:
-            if constexpr (FusionRules::RETIRED)
-            {
-                return 0; // B-352 (D-141): an authored fusion no longer attaches, so it adds nothing to the price
-            }
-            else
-            {
-                // OBSOLETE (B-352, D-141; delete in the D-124 sweep): fusion pricing.
-                return FMath::RoundToInt(1.5f * (EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfATier) +
-                                                 EconomyYield::GetPrismsBaseForTier(Attached.FusionHalfBTier)));
-            }
-        default:
-            return 0;
-        }
-    }
-}
-
 FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
 {
     FPurchaseCost Cost;
@@ -962,15 +924,15 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         UPrimaryDataAsset *Asset = E.Asset;
         if (UWeaponData *W = Cast<UWeaponData>(Asset))
         {
-            // Equipment pricing: Prisms base by tier + attachment surcharge, per unit (quality = C placeholder
-            // until shop-roll). B-518 (D-224): gear carries no skills, so none are priced. WeaponAttack is the
-            // weapon's identity, never priced.
-            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W);
+            // Equipment pricing: Prisms base by tier, per unit (quality = C placeholder until shop-roll). B-518 (D-224):
+            // gear carries no skills, so none are priced; B-521: a bought piece arrives empty, so its asset's baked
+            // crystal isn't priced. WeaponAttack is the weapon's identity, never priced.
+            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier);
             Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (URingData *R = Cast<URingData>(Asset))
         {
-            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R); // B-518: no skills priced
+            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier); // B-518, B-521: no skills or crystal priced
             Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (USpellData *S = Cast<USpellData>(Asset))

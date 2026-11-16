@@ -133,8 +133,12 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     // ==================== FACTORY ====================
 
-    /** Create entry from RingData — always copies the template's default crystal + DefaultSpells. */
+    /** A new piece from RingData, its socket empty (B-521, D-224). */
     static FRingInventoryEntry CreateFromRing(URingData *InRing);
+
+    /** OBSOLETE (B-521, D-224; delete in asset overhaul stage 6 with the asset's AttachedItem): CreateFromRing plus the
+     *  asset's baked crystal, for the old authored layout only (an inventory asset's Rings, an authored loadout). */
+    static FRingInventoryEntry CreateFromAuthoredRing(URingData *InRing);
 
     // ==================== STATE QUERIES ====================
 

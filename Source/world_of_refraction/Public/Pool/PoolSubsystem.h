@@ -315,8 +315,8 @@ public:
     /** Seed the pool from an authored UInventoryData asset, mirroring the POPULATE half of
      *  UInventoryComponent::InitializeFromInventoryAsset but targeting the POOL (account-wide, flat
      *  — no per-character keying). Weapons/Rings reuse the SAME factory primitive the run uses
-     *  (FWeaponInventoryEntry::CreateFromWeapon + a freshly-minted PersistentID, default crystal +
-     *  DefaultSpells always copied in); Spells/Abilities mint FSpellInstance/FAbilityInstance at learn-time semantics;
+     *  (FWeaponInventoryEntry::CreateFromAuthoredWeapon + a freshly-minted PersistentID, the baked crystal +
+     *  DefaultSpells copied in until stage 6, B-521); Spells/Abilities mint FSpellInstance/FAbilityInstance at learn-time semantics;
      *  Crystals route through AddCrystalToPool (gem/stone dispatch); Evolutions mint
      *  an FEvolutionInventoryEntry per authored item.
      *
