@@ -603,6 +603,7 @@ void UPoolSubsystem::ResetStore()
     HubGear.Reset(); // B-509
     ClassDefaultKits.Reset(); // B-511
     CharacterSkills.Reset();
+    RunStartSkills.Reset(); // B-523
     Clashes.Reset();
     Pouches.Reset();
     BankedItemCharacters.Reset();

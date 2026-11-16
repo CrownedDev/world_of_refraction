@@ -1442,19 +1442,24 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		Saved.WornGear.Add(SaveWornGearRecord(Record.Key, Record.Value));
 	}
 	Saved.UpgradeMemory = Pool.GetUpgradeMemory(); // B-314b (D-097)
-	for (const TPair<FName, FPoolSkills> &Skills : Pool.GetCharacterSkills()) // B-316b
+	const auto SaveSkills = [](const TMap<FName, FPoolSkills> &From, TArray<FSavedCharacterSkills> &To)
 	{
-		FSavedCharacterSkills &Out = Saved.CharacterSkills.AddDefaulted_GetRef();
-		Out.Character = Skills.Key;
-		for (const FSpellInstance &E : Skills.Value.Spells)
+		for (const TPair<FName, FPoolSkills> &Skills : From)
 		{
-			Out.Spells.Add(SaveItem(E.Spell, E, E.InstanceID));
+			FSavedCharacterSkills &Out = To.AddDefaulted_GetRef();
+			Out.Character = Skills.Key;
+			for (const FSpellInstance &E : Skills.Value.Spells)
+			{
+				Out.Spells.Add(SaveItem(E.Spell, E, E.InstanceID));
+			}
+			for (const FAbilityInstance &E : Skills.Value.Abilities)
+			{
+				Out.Abilities.Add(SaveItem(E.Ability, E, E.InstanceID));
+			}
 		}
-		for (const FAbilityInstance &E : Skills.Value.Abilities)
-		{
-			Out.Abilities.Add(SaveItem(E.Ability, E, E.InstanceID));
-		}
-	}
+	};
+	SaveSkills(Pool.GetCharacterSkills(), Saved.CharacterSkills); // B-316b
+	SaveSkills(Pool.GetRunStartSkills(), Saved.RunStartSkills); // B-523
 	return Saved;
 }
 
@@ -1864,36 +1869,41 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		PartySession->PullWheelPicksFromPool();
 	}
 	Pool.RestoreUpgradeMemory(Saved.UpgradeMemory); // B-314b (D-097)
-	TMap<FName, FPoolSkills> CharacterSkills; // B-316b: a skill whose asset is gone is dropped
-	for (const FSavedCharacterSkills &In : Saved.CharacterSkills)
+	const auto RestoreSkills = [](const TArray<FSavedCharacterSkills> &From)
 	{
-		if (In.Character.IsNone())
+		TMap<FName, FPoolSkills> CharacterSkills; // B-316b: a skill whose asset is gone is dropped
+		for (const FSavedCharacterSkills &In : From)
 		{
-			continue;
-		}
-		FPoolSkills &Skills = CharacterSkills.FindOrAdd(In.Character);
-		for (const FSavedOwnedItem &Item : In.Spells)
-		{
-			if (USpellData *Spell = Item.Def.ResolveAs<USpellData>())
+			if (In.Character.IsNone())
 			{
-				FSpellInstance &Instance = Skills.Spells.Add_GetRef(FSpellInstance(Spell));
-				Instance.InstanceID = Item.InstanceID;
-				Instance.Tier = Item.Tier;
-				Instance.Quality = Item.Quality;
+				continue;
+			}
+			FPoolSkills &Skills = CharacterSkills.FindOrAdd(In.Character);
+			for (const FSavedOwnedItem &Item : In.Spells)
+			{
+				if (USpellData *Spell = Item.Def.ResolveAs<USpellData>())
+				{
+					FSpellInstance &Instance = Skills.Spells.Add_GetRef(FSpellInstance(Spell));
+					Instance.InstanceID = Item.InstanceID;
+					Instance.Tier = Item.Tier;
+					Instance.Quality = Item.Quality;
+				}
+			}
+			for (const FSavedOwnedItem &Item : In.Abilities)
+			{
+				if (UAbilityData *Ability = Item.Def.ResolveAs<UAbilityData>())
+				{
+					FAbilityInstance &Instance = Skills.Abilities.Add_GetRef(FAbilityInstance(Ability));
+					Instance.InstanceID = Item.InstanceID;
+					Instance.Tier = Item.Tier;
+					Instance.Quality = Item.Quality;
+				}
 			}
 		}
-		for (const FSavedOwnedItem &Item : In.Abilities)
-		{
-			if (UAbilityData *Ability = Item.Def.ResolveAs<UAbilityData>())
-			{
-				FAbilityInstance &Instance = Skills.Abilities.Add_GetRef(FAbilityInstance(Ability));
-				Instance.InstanceID = Item.InstanceID;
-				Instance.Tier = Item.Tier;
-				Instance.Quality = Item.Quality;
-			}
-		}
-	}
-	Pool.RestoreCharacterSkills(CharacterSkills);
+		return CharacterSkills;
+	};
+	Pool.RestoreRunStartSkills(RestoreSkills(Saved.RunStartSkills)); // B-523: before the skills, whose listeners may read it
+	Pool.RestoreCharacterSkills(RestoreSkills(Saved.CharacterSkills));
 	if (Restored > 0)
 	{
 		Pool.MarkPopulated();
