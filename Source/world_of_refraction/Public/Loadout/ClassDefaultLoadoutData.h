@@ -8,11 +8,13 @@
 #include "CoreMinimal.h"
 #include "Character/ECharacterClass.h"
 #include "Engine/DataAsset.h"
+#include "Equipment/Crystals/FCrystalId.h"
 #include "ClassDefaultLoadoutData.generated.h"
 
 class UAbilityData;
 class UApparelData;
 class UEquipmentDataBase;
+class USkillDataBase;
 class UWeaponData;
 
 /** One kit piece: a weapon or an adapter, at its authored tier (the asset's). */
@@ -32,6 +34,12 @@ struct WORLD_OF_REFRACTION_API FClassDefaultPiece
 	/** A weapon's pick per skill slot (empty: the weapon's built-ins). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
 	TArray<TObjectPtr<UAbilityData>> SkillPicks;
+
+	/** B-522 (D-223, asset overhaul §1): the gem minted into the piece's socket, at full durability. Read for a
+	 *  character's StartingGear (minted once), not for the trial kit (a kit reset would mint a crystal from nowhere each
+	 *  run). Type None: an empty socket. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
+	FCrystalId Crystal;
 };
 
 /** One class's kit. */
@@ -51,6 +59,11 @@ struct WORLD_OF_REFRACTION_API FClassDefaultLoadout
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
 	TArray<TObjectPtr<UApparelData>> Apparel;
+
+	/** B-522 (D-224 (2), §5.3): the skills a run starts with, in the run's list, not in a slot (Q9). Field only: stage
+	 *  S3 reads it. TODO: tune the starting skills (D-224). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
+	TArray<TObjectPtr<USkillDataBase>> StartingSkills;
 };
 
 /** A character's minted kit: the owned GUIDs, place for place with FClassDefaultLoadout (invalid for an empty place). */

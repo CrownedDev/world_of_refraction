@@ -22,6 +22,7 @@
 #include "Engine/DataAsset.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/ClassDefaultLoadoutData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -48,6 +49,18 @@ class WORLD_OF_REFRACTION_API UInventoryData : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+    // ==================== STARTING GEAR (D-223, B-522) ====================
+
+    /** The gear the character first wears: minted into the store once (a new game, a new recruit), each piece with its
+     *  Crystal socketed, and worn. Empty: the old SavedLoadouts seed it (OBSOLETE, asset overhaul stage 6). A piece here
+     *  is not listed again in Weapons / Rings (those are spares). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "0. Starting Gear")
+    FClassDefaultLoadout StartingGear;
+
+    /** The character's own evolution, minted with the StartingGear and put in its seat. Null: none. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "0. Starting Gear")
+    TObjectPtr<UEvolutionItemData> StartingEvolution = nullptr;
+
     // ==================== OWNED EQUIPMENT ====================
 
     /** Weapons the character owns. Every loadout's PrimaryWeapon /
