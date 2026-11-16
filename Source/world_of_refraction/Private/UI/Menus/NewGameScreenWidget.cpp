@@ -43,6 +43,7 @@ namespace NewGameScreenStyle
 	constexpr int32 GridColumns = 3;
 	/** B-546: the most entries a class's pick grid has (a Generic's twelve weapon types). */
 	constexpr int32 MaxPickChips = 12;
+	static_assert(static_cast<int32>(EWeaponType::Shield) + 1 <= MaxPickChips, "a Generic's grid needs a chip per weapon type");
 	constexpr float NameBoxWidth = 480.0f;
 	inline const FLinearColor PreviewColor = FLinearColor::FromSRGBColor(FColor(12, 14, 20));
 
@@ -329,11 +330,8 @@ void UNewGameScreenWidget::HandleNameChanged(const FText &Text)
 void UNewGameScreenWidget::HandleNameCommitted(const FText &Text, ETextCommit::Type CommitMethod)
 {
 	HandleNameChanged(Text);
-	if (CommitMethod == ETextCommit::OnEnter || CommitMethod == ETextCommit::OnCleared)
-	{
-		SetFocus(); // the keys come back to the screen
-		Focus = ENewGameFocus::Body;
-	}
+	SetFocus(); // every way out of the box (Enter, Esc, Tab, a click away) gives the keys back to the screen
+	Focus = ENewGameFocus::Body;
 	Refresh();
 }
 

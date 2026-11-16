@@ -3,7 +3,7 @@
 // widget in it, so the specs read it headless. UTitleScreenWidget draws it.
 //
 // The title is the main menu (no "press any button"). B-546 (D-229, stage 1): the character slots, as Destiny 2's
-// character select: each filled slot shows its character (name, class with a Refractor's element, place, time); the
+// character select: each filled slot shows its character's name and its last run's Mind / Body / Spirit levels; the
 // next empty slot is a +; nothing after it, and no + once the slots are full (GetMaxSlots, one configurable value).
 // Settings, Credits and Quit are buttons along the bottom. No New Game row and no Join a friend (joining is from the
 // game menu). One save file for now (stage 3 makes one per character), so slot 1 is today's save.

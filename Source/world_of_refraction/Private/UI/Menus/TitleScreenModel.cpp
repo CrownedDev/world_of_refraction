@@ -84,10 +84,14 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 			{
 				Summary.LeaderName = FText::FromString(Character->Name);
 				// The run keys a character by its asset path, "#member id" after it for a copy (UPoolSubsystem::GetCharacterKey).
-				// shortcut: the first entry under the leader's path; stage 3's built character gets its own key.
+				// shortcut: the first entry for the leader's asset; stage 3's built character gets its own key.
 				const FString LeaderPath = Character->GetPathName();
 				const FSavedRunLevels *Levels = Data.Run.bHasRun
-					? Data.Run.RunLevels.FindByPredicate([&LeaderPath](const FSavedRunLevels &Entry) { return Entry.CharacterKey.ToString().StartsWith(LeaderPath); })
+					? Data.Run.RunLevels.FindByPredicate([&LeaderPath](const FSavedRunLevels &Entry)
+					{
+						const FString Key = Entry.CharacterKey.ToString();
+						return Key == LeaderPath || Key.StartsWith(LeaderPath + TEXT("#"));
+					})
 					: nullptr;
 				if (Levels)
 				{
